@@ -101,8 +101,14 @@ export const BLUEPRINT_AUTHORING_CAPTURE_REQUIRED_FAILURE_CODES: ReadonlySet<str
   new Set(['repair_route_input_not_admissible', 'draft_validation_repair_exhausted']);
 
 /**
- * True iff a terminal failure code is a diagnostic-bearing failure that must bind a
- * complete sanitized capture (see the closed set above).
+ * True iff a terminal failure CODE alone mandates a complete sanitized capture (its
+ * code is in the closed mandatory set above). This is the code-only component; the
+ * total requirement is derived from receipt EVIDENCE by
+ * `blueprintAuthoringReceiptRequiresSanitizedCapture`, because a diagnostic-bearing
+ * failure can surface under a non-mandatory terminal code (e.g. an initial invalid
+ * draft that produced grouped validation diagnostics, followed by a repair-time
+ * `provider_call_failed`, or a `local_processing_failed` fallback that still carries
+ * structured diagnostics). Do not use this predicate alone to gate capture binding.
  */
 export function blueprintAuthoringFailureRequiresSanitizedCapture(
   failureCode: string | null | undefined,
@@ -114,9 +120,74 @@ export function blueprintAuthoringFailureRequiresSanitizedCapture(
 }
 
 /**
+ * Minimal structural view of a failed authoring receipt needed to decide the capture
+ * requirement. Deliberately structural (not the concrete runner type) so this module
+ * stays free of a runner import cycle, and so the SAME predicate answers for an
+ * in-memory result, a replay-loaded terminal receipt, and a recovery-scanned receipt.
+ */
+export interface BlueprintAuthoringFailedReceiptAttemptEvidence {
+  validationDiagnostics?: {
+    count?: number | null;
+    codes?: readonly unknown[] | null;
+  } | null;
+}
+
+export interface BlueprintAuthoringFailedReceiptEvidence {
+  failure?: { code?: string | null } | null;
+  attempts?: readonly (BlueprintAuthoringFailedReceiptAttemptEvidence | null)[] | null;
+}
+
+/**
+ * True iff an attempt persisted a non-empty grouped validation-diagnostic set. Read
+ * from the receipt's sanitized `{count, codes}` projection, so it is stable across
+ * durable/reloaded receipts (raw structured diagnostics are never persisted). Positive
+ * count OR non-empty codes counts as diagnostic-bearing, so the requirement fails
+ * closed if either signal is present.
+ */
+function attemptCarriesGroupedValidationDiagnostics(
+  attempt: BlueprintAuthoringFailedReceiptAttemptEvidence | null,
+): boolean {
+  if (!attempt || typeof attempt !== 'object') return false;
+  const diagnostics = attempt.validationDiagnostics;
+  if (!diagnostics || typeof diagnostics !== 'object') return false;
+  const countIsPositive =
+    typeof diagnostics.count === 'number' &&
+    Number.isSafeInteger(diagnostics.count) &&
+    diagnostics.count > 0;
+  const codesArePresent =
+    Array.isArray(diagnostics.codes) && diagnostics.codes.length > 0;
+  return countIsPositive || codesArePresent;
+}
+
+/**
+ * The single canonical capture-requirement predicate, derived from the ACTUAL failed
+ * receipt evidence rather than the terminal code alone. A capture is required iff the
+ * terminal failure code is in the closed mandatory set OR any attempt carried a
+ * non-empty grouped validation-diagnostic set. Shared by the runner's capture
+ * derivation, first terminal materialization, replay (`loadExecutionRecord`), and
+ * recovery (`recoverTerminalLookup`) so those four sites can never disagree about
+ * whether a terminal must carry a bound capture. A genuinely first-call diagnostic-less
+ * provider/boundary failure (no mandatory code, no attempt diagnostics) is NOT required
+ * and may bind no capture.
+ */
+export function blueprintAuthoringReceiptRequiresSanitizedCapture(
+  receipt: BlueprintAuthoringFailedReceiptEvidence | null | undefined,
+): boolean {
+  if (!receipt || typeof receipt !== 'object') return false;
+  if (blueprintAuthoringFailureRequiresSanitizedCapture(receipt.failure?.code)) {
+    return true;
+  }
+  const attempts = Array.isArray(receipt.attempts) ? receipt.attempts : [];
+  return attempts.some(attemptCarriesGroupedValidationDiagnostics);
+}
+
+/**
  * Hard, fail-closed upper bound on distinct census identities. This is NOT a
- * truncation limit: a run that would exceed it mints NO capture (build throws;
- * the runner's fail-safe derivation then returns null). It is set far above any
+ * truncation limit: a run that would exceed it mints NO capture (build throws; the
+ * runner's typed capture derivation then yields a `derivation_failed` disposition,
+ * which the lifecycle drives into the incident / execution_state_uncertain path — never
+ * a null that a caller could silently treat as an allowed absence). It is set far above
+ * any
  * realistic incident (the real R1D incident had 86) so a genuine failed run is
  * never rejected, while still bounding the artifact size. A valid capture always
  * carries a COMPLETE census (see the census invariants below).
@@ -523,9 +594,11 @@ export function buildBlueprintAuthoringSanitizedFailureCapture(args: {
   const distinctIdentities = allIdentities.length;
   if (distinctIdentities > MAX_SANITIZED_CENSUS_IDENTITIES) {
     // Fail closed: a complete census cannot omit distinct identities. Rather than
-    // truncate-and-mislabel, refuse to mint any capture. The runner's fail-safe
-    // derivation turns this into "no capture", so a terminal never claims a
-    // complete census it does not actually have.
+    // truncate-and-mislabel, refuse to mint any capture. The runner's typed capture
+    // derivation turns this throw into a `derivation_failed` disposition (never a null
+    // "no capture" a caller could mistake for an allowed absence), which the lifecycle
+    // drives into the incident path — so a terminal never claims a complete census it
+    // does not actually have.
     throw new Error(
       `sanitized census would omit distinct identities (${distinctIdentities} > ${MAX_SANITIZED_CENSUS_IDENTITIES}); refusing to mint an incomplete census`,
     );

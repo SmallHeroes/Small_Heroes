@@ -23,6 +23,11 @@ import {
   productionBlueprintAuthoringPreflightIssues,
   productionBlueprintInitialInputAccounting,
   runProductionBlueprintAuthoring,
+  productionAuthoringRunResultIsCompleted,
+  productionAuthoringRunResultIsFailed,
+  deriveBlueprintAuthoringSanitizedFailureCaptureDisposition,
+  blueprintAuthoringReceiptRequiresSanitizedCapture,
+  blueprintAuthoringSanitizedFailureCaptureIsValid,
   ProductionAuthoringProviderBoundaryError,
   type ProductionAuthoringProvider,
   type ProductionAuthoringContext,
@@ -1837,5 +1842,160 @@ describe('provider-isolated Blueprint authoring runner', () => {
         context,
       }),
     ).rejects.toThrow(/requires an explicitly injected provider adapter/);
+  });
+});
+
+describe('production authoring run result totality + capture disposition', () => {
+  it('returns a preflight arm with no authoring result and no failure disposition', async () => {
+    const { context } = buildContext('single_location');
+    const result = await runProductionBlueprintAuthoring({
+      request: requestFor(context, 'preflight'),
+      context,
+      provider: { call: vi.fn() },
+    });
+    expect(result.receipt.status).toBe('preflight_passed');
+    expect(productionAuthoringRunResultIsCompleted(result)).toBe(false);
+    expect(productionAuthoringRunResultIsFailed(result)).toBe(false);
+    expect(result.authoringResult).toBeNull();
+    // The failed-only field is absent on a preflight arm (total union — no default).
+    expect('sanitizedFailureCaptureDisposition' in result).toBe(false);
+  });
+
+  it('returns a completed arm with an authoring result and no failure disposition', async () => {
+    const { context, materialized } = buildContext('single_location');
+    const provider = {
+      call: vi.fn(async (args: ProductionProviderCallArgs) => ({
+        output: JSON.stringify(providerDraft(materialized.fixture)),
+        receipt: canonicalProviderReceipt(args),
+      })),
+    };
+    const result = await runProductionBlueprintAuthoring({
+      request: requestFor(context, 'live'),
+      context,
+      provider,
+    });
+    expect(productionAuthoringRunResultIsCompleted(result)).toBe(true);
+    if (!productionAuthoringRunResultIsCompleted(result)) return;
+    expect(result.authoringResult).not.toBeNull();
+    expect('sanitizedFailureCaptureDisposition' in result).toBe(false);
+  });
+
+  it('a first-call provider failure with no prior diagnostics is an explicit allowed absence', async () => {
+    const { context } = buildContext('single_location');
+    const provider = {
+      call: vi.fn(async () => {
+        throw new Error('Bearer first-call-secret provider failure');
+      }),
+    };
+    const result = await runProductionBlueprintAuthoring({
+      request: requestFor(context, 'live'),
+      context,
+      provider,
+    });
+    expect(productionAuthoringRunResultIsFailed(result)).toBe(true);
+    if (!productionAuthoringRunResultIsFailed(result)) return;
+    expect(result.receipt.failure?.code).toBe('provider_call_failed');
+    expect(result.receipt.attempts[0]?.validationDiagnostics.count).toBe(0);
+    // Not required (no mandatory code, no attempt diagnostics) => explicit absence.
+    expect(blueprintAuthoringReceiptRequiresSanitizedCapture(result.receipt)).toBe(
+      false,
+    );
+    expect(result.sanitizedFailureCaptureDisposition).toEqual({
+      kind: 'diagnostic_less_absence',
+    });
+  });
+
+  it('a repair-time provider failure with prior grouped diagnostics binds a complete valid capture', async () => {
+    const { context } = buildContext('single_location');
+    const provider = {
+      call: vi.fn(async (args: ProductionProviderCallArgs) => {
+        if (args.attempt === 1) {
+          // A canonical, self-consistent provider response carrying an INVALID draft:
+          // validation fails, producing grouped validation diagnostics on attempt 1.
+          return {
+            output: JSON.stringify({ invalid: true }),
+            receipt: canonicalProviderReceipt(args),
+          };
+        }
+        // The repair call then fails at the provider boundary.
+        throw new Error('Bearer repair-secret provider failure');
+      }),
+    };
+    const result = await runProductionBlueprintAuthoring({
+      request: requestFor(context, 'live'),
+      context,
+      provider,
+    });
+    expect(productionAuthoringRunResultIsFailed(result)).toBe(true);
+    if (!productionAuthoringRunResultIsFailed(result)) return;
+    // Terminal code is the non-mandatory provider_call_failed, yet the receipt is
+    // diagnostic-BEARING (attempt 1 carried grouped validation diagnostics), so a
+    // capture is REQUIRED and derived from receipt evidence — not the code alone.
+    expect(result.receipt.failure?.code).toBe('provider_call_failed');
+    expect(
+      result.receipt.attempts[0]?.validationDiagnostics.count,
+    ).toBeGreaterThan(0);
+    expect(blueprintAuthoringReceiptRequiresSanitizedCapture(result.receipt)).toBe(
+      true,
+    );
+    const disposition = result.sanitizedFailureCaptureDisposition;
+    expect(disposition.kind).toBe('captured');
+    if (disposition.kind !== 'captured') return;
+    expect(blueprintAuthoringSanitizedFailureCaptureIsValid(disposition.capture)).toBe(
+      true,
+    );
+    expect(disposition.capture.census.distinctIdentities).toBeGreaterThan(0);
+    expect(disposition.capture.census.truncated).toBe(false);
+    expect(disposition.capture.linkage.terminalReceiptDigest).toBe(
+      result.receipt.digest,
+    );
+    expect(disposition.capture.terminalFailureCode).toBe('provider_call_failed');
+    // No raw provider prose survives into the capture.
+    expect(JSON.stringify(disposition.capture)).not.toMatch(
+      /repair-secret|Bearer/i,
+    );
+  });
+
+  it('fails closed to derivation_failed when a diagnostic-bearing receipt has no correlatable in-memory census source', async () => {
+    // Reuse a genuinely diagnostic-bearing failed receipt, but hand the derivation an
+    // error that carries NO matching structured diagnostics. The census cannot be
+    // proven complete, so the derivation refuses to mint a partial one.
+    const { context } = buildContext('single_location');
+    const provider = {
+      call: vi.fn(async (args: ProductionProviderCallArgs) => {
+        if (args.attempt === 1) {
+          return {
+            output: JSON.stringify({ invalid: true }),
+            receipt: canonicalProviderReceipt(args),
+          };
+        }
+        throw new Error('Bearer repair-secret provider failure');
+      }),
+    };
+    const request = requestFor(context, 'live');
+    const result = await runProductionBlueprintAuthoring({
+      request,
+      context,
+      provider,
+    });
+    if (!productionAuthoringRunResultIsFailed(result)) {
+      throw new Error('expected a failed run');
+    }
+    expect(blueprintAuthoringReceiptRequiresSanitizedCapture(result.receipt)).toBe(
+      true,
+    );
+    const disposition = deriveBlueprintAuthoringSanitizedFailureCaptureDisposition({
+      request,
+      context,
+      attempts: result.receipt.attempts,
+      // A plain error is NOT a structured repair/exhaustion error: no diagnostics.
+      error: new Error('unstructured failure'),
+      failureReceipt: result.receipt,
+      failureCode: 'provider_call_failed',
+    });
+    expect(disposition).toEqual({
+      kind: 'derivation_failed',
+      reasonCode: 'sanitized_census_correlation_unproven',
+    });
   });
 });

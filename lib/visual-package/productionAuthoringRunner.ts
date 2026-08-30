@@ -73,7 +73,7 @@ import {
 import {
   buildBlueprintAuthoringSanitizedFailureCapture,
   blueprintAuthoringSanitizedFailureCaptureBytes,
-  blueprintAuthoringFailureRequiresSanitizedCapture,
+  blueprintAuthoringReceiptRequiresSanitizedCapture,
   type BlueprintAuthoringSanitizedFailureCapture,
   type BlueprintAuthoringSanitizedRoute,
 } from './blueprintAuthoringSanitizedFailureCapture';
@@ -364,15 +364,122 @@ export type BlueprintAuthoringSanitizedFailureCaptureDisposition =
   | { kind: 'diagnostic_less_absence' }
   | { kind: 'derivation_failed'; reasonCode: string };
 
-export interface ProductionAuthoringRunResult {
-  receipt: ProductionAuthoringRunReceipt;
-  authoringResult: PreRenderBlueprintAuthoringResult | null;
+/**
+ * Total, constructor-validated discriminated result of one authoring run, keyed on the
+ * receipt status so the three arms cannot contradict receipt.status / authoringResult /
+ * disposition:
+ *  - `preflight_passed` — no authoring result, no failure disposition.
+ *  - `completed` — an authoring result is present, no failure disposition.
+ *  - `failed` — no authoring result, and an EXPLICIT sanitized-failure-capture
+ *    disposition is mandatory (there is no permissive default). A caller therefore
+ *    cannot reach terminal publication for a failed run without a proven disposition.
+ * Build only via `preflightRunResult` / `completedRunResult` / `failedRunResult`, which
+ * assert the arm invariants at runtime, so even an untyped caller cannot mint a
+ * contradictory result.
+ */
+export interface ProductionAuthoringPreflightRunResult {
+  receipt: ProductionAuthoringRunReceipt & { status: 'preflight_passed' };
+  authoringResult: null;
+}
+
+export interface ProductionAuthoringCompletedRunResult {
+  receipt: ProductionAuthoringRunReceipt & { status: 'completed' };
+  authoringResult: PreRenderBlueprintAuthoringResult;
+}
+
+export interface ProductionAuthoringFailedRunResult {
+  receipt: ProductionAuthoringRunReceipt & { status: 'failed' };
+  authoringResult: null;
   /**
-   * Sanitized structural failure observability capture disposition, present only on a
-   * failed run. Pure observability — see the capture's `doesNotAuthorize` semantics.
-   * Never carries prose or PII.
+   * Sanitized structural failure observability capture disposition. MANDATORY on every
+   * failed run — explicit `captured`, `diagnostic_less_absence`, or `derivation_failed`.
+   * Pure observability — see the capture's `doesNotAuthorize` semantics. Never carries
+   * prose or PII.
    */
-  sanitizedFailureCaptureDisposition?: BlueprintAuthoringSanitizedFailureCaptureDisposition;
+  sanitizedFailureCaptureDisposition: BlueprintAuthoringSanitizedFailureCaptureDisposition;
+}
+
+export type ProductionAuthoringRunResult =
+  | ProductionAuthoringPreflightRunResult
+  | ProductionAuthoringCompletedRunResult
+  | ProductionAuthoringFailedRunResult;
+
+export function productionAuthoringRunResultIsCompleted(
+  result: ProductionAuthoringRunResult,
+): result is ProductionAuthoringCompletedRunResult {
+  return result.receipt.status === 'completed';
+}
+
+export function productionAuthoringRunResultIsFailed(
+  result: ProductionAuthoringRunResult,
+): result is ProductionAuthoringFailedRunResult {
+  return result.receipt.status === 'failed';
+}
+
+/** Total runtime check that a disposition is one of the three well-formed shapes. */
+function sanitizedFailureCaptureDispositionIsWellFormed(
+  disposition: unknown,
+): disposition is BlueprintAuthoringSanitizedFailureCaptureDisposition {
+  if (!disposition || typeof disposition !== 'object') return false;
+  const kind = (disposition as { kind?: unknown }).kind;
+  if (kind === 'captured') {
+    return (
+      typeof (disposition as { capture?: unknown }).capture === 'object' &&
+      (disposition as { capture?: unknown }).capture !== null
+    );
+  }
+  if (kind === 'diagnostic_less_absence') return true;
+  if (kind === 'derivation_failed') {
+    return typeof (disposition as { reasonCode?: unknown }).reasonCode === 'string';
+  }
+  return false;
+}
+
+function preflightRunResult(
+  receipt: ProductionAuthoringRunReceipt,
+): ProductionAuthoringPreflightRunResult {
+  if (receipt.status !== 'preflight_passed') {
+    throw new Error('preflight run result requires a preflight_passed receipt');
+  }
+  return {
+    receipt: receipt as ProductionAuthoringRunReceipt & {
+      status: 'preflight_passed';
+    },
+    authoringResult: null,
+  };
+}
+
+function completedRunResult(
+  receipt: ProductionAuthoringRunReceipt,
+  authoringResult: PreRenderBlueprintAuthoringResult,
+): ProductionAuthoringCompletedRunResult {
+  if (receipt.status !== 'completed') {
+    throw new Error('completed run result requires a completed receipt');
+  }
+  if (!authoringResult) {
+    throw new Error('completed run result requires an authoring result');
+  }
+  return {
+    receipt: receipt as ProductionAuthoringRunReceipt & { status: 'completed' },
+    authoringResult,
+  };
+}
+
+function failedRunResult(
+  receipt: ProductionAuthoringRunReceipt,
+  disposition: BlueprintAuthoringSanitizedFailureCaptureDisposition,
+): ProductionAuthoringFailedRunResult {
+  if (receipt.status !== 'failed') {
+    throw new Error('failed run result requires a failed receipt');
+  }
+  if (!sanitizedFailureCaptureDispositionIsWellFormed(disposition)) {
+    throw new Error('failed run result requires an explicit capture disposition');
+  }
+  return {
+    receipt: receipt as ProductionAuthoringRunReceipt & { status: 'failed' },
+    authoringResult: null,
+    sanitizedFailureCaptureDisposition: disposition,
+  };
 }
 
 export function productionAuthoringReceiptBytes(
@@ -762,6 +869,32 @@ function productionRepairExhaustionIsProven(args: {
   );
 }
 
+/**
+ * Build a failed run result for a deterministic pre-provider failure (no attempts).
+ * The disposition is still derived through the single canonical derivation authority so
+ * every failed arm — deterministic or provider-reached — carries an explicit, proven
+ * disposition. With no attempts and a non-mandatory code this is an explicit
+ * diagnostic-less absence; the derivation stays the single source of truth.
+ */
+function deterministicFailedRunResult(args: {
+  request: ProductionAuthoringRunRequest;
+  context: ProductionAuthoringContext;
+  receipt: ProductionAuthoringRunReceipt;
+  failureCode: ProductionBlueprintRunnerTerminalFailureCode;
+}): ProductionAuthoringFailedRunResult {
+  return failedRunResult(
+    args.receipt,
+    deriveBlueprintAuthoringSanitizedFailureCaptureDisposition({
+      request: args.request,
+      context: args.context,
+      attempts: [],
+      error: undefined,
+      failureReceipt: args.receipt,
+      failureCode: args.failureCode,
+    }),
+  );
+}
+
 export async function runProductionBlueprintAuthoring(args: {
   request: ProductionAuthoringRunRequest;
   context: ProductionAuthoringContext;
@@ -771,7 +904,10 @@ export async function runProductionBlueprintAuthoring(args: {
   try {
     invalidRequest = requestIssues(args.request, args.context);
   } catch {
-    return {
+    return deterministicFailedRunResult({
+      request: args.request,
+      context: args.context,
+      failureCode: 'local_processing_failed',
       receipt: failureReceipt({
         request: args.request,
         attempts: [],
@@ -782,8 +918,7 @@ export async function runProductionBlueprintAuthoring(args: {
           state: 'request_digest_unavailable',
         }),
       }),
-      authoringResult: null,
-    };
+    });
   }
   if (invalidRequest.length > 0) {
     throw new InvalidProductionAuthoringRunRequestError(invalidRequest);
@@ -802,7 +937,10 @@ export async function runProductionBlueprintAuthoring(args: {
       config,
     );
   } catch {
-    return {
+    return deterministicFailedRunResult({
+      request: args.request,
+      context: args.context,
+      failureCode: 'local_processing_failed',
       receipt: failureReceipt({
         request: args.request,
         attempts: [],
@@ -810,11 +948,13 @@ export async function runProductionBlueprintAuthoring(args: {
         diagnosticCountOverride: 1,
         issueCodes: ['local_processing_failed'],
       }),
-      authoringResult: null,
-    };
+    });
   }
   if (contextIssues.length > 0) {
-    return {
+    return deterministicFailedRunResult({
+      request: args.request,
+      context: args.context,
+      failureCode: 'context_invalid',
       receipt: failureReceipt({
         request: args.request,
         attempts: [],
@@ -822,14 +962,16 @@ export async function runProductionBlueprintAuthoring(args: {
         diagnosticInputs: contextIssues,
         issueCodes: ['context_invalid'],
       }),
-      authoringResult: null,
-    };
+    });
   }
   let promptIssues: string[];
   try {
     promptIssues = productionBlueprintInitialPromptIssues(args.context);
   } catch {
-    return {
+    return deterministicFailedRunResult({
+      request: args.request,
+      context: args.context,
+      failureCode: 'context_invalid',
       receipt: failureReceipt({
         request: args.request,
         attempts: [],
@@ -837,11 +979,13 @@ export async function runProductionBlueprintAuthoring(args: {
         diagnosticCountOverride: 1,
         issueCodes: ['context_validation_failed'],
       }),
-      authoringResult: null,
-    };
+    });
   }
   if (promptIssues.length > 0) {
-    return {
+    return deterministicFailedRunResult({
+      request: args.request,
+      context: args.context,
+      failureCode: 'input_token_ceiling_exceeded',
       receipt: failureReceipt({
         request: args.request,
         attempts: [],
@@ -849,12 +993,11 @@ export async function runProductionBlueprintAuthoring(args: {
         diagnosticInputs: promptIssues,
         issueCodes: ['input_token_ceiling_exceeded'],
       }),
-      authoringResult: null,
-    };
+    });
   }
   if (args.request.mode === 'preflight') {
-    return {
-      receipt: finalizeReceipt({
+    return preflightRunResult(
+      finalizeReceipt({
         version: PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION,
         requestDigest: canonicalJsonDigest(args.request),
         requestId: args.request.requestId,
@@ -876,8 +1019,7 @@ export async function runProductionBlueprintAuthoring(args: {
         authoringProvenanceDigest: null,
         failure: null,
       }),
-      authoringResult: null,
-    };
+    );
   }
   if (!args.provider) {
     throw new InvalidProductionAuthoringRunRequestError([
@@ -1371,7 +1513,7 @@ export async function runProductionBlueprintAuthoring(args: {
       ),
       failure: null,
     });
-    return { receipt, authoringResult };
+    return completedRunResult(receipt, authoringResult);
   } catch (error) {
     if (
       error instanceof PreRenderBlueprintAuthoringRepairExhaustedError ||
@@ -1450,36 +1592,46 @@ export async function runProductionBlueprintAuthoring(args: {
           : 1,
       issueCodes: [failureCode],
     });
-    return {
-      receipt: failed,
-      authoringResult: null,
-      sanitizedFailureCaptureDisposition:
-        deriveBlueprintAuthoringSanitizedFailureCaptureDisposition({
-          request: args.request,
-          context: args.context,
-          attempts,
-          error,
-          failureReceipt: failed,
-          failureCode,
-        }),
-    };
+    return failedRunResult(
+      failed,
+      deriveBlueprintAuthoringSanitizedFailureCaptureDisposition({
+        request: args.request,
+        context: args.context,
+        attempts,
+        error,
+        failureReceipt: failed,
+        failureCode,
+      }),
+    );
   }
 }
 
 /**
  * Derive the typed sanitized-failure-capture disposition for an in-memory failed run.
  *
- * A diagnostic-BEARING failure (its terminal failure code is in the closed
- * capture-required set) MUST yield a complete sanitized capture: this is what the
- * milestone promises, and downstream the lifecycle refuses to publish an ordinary
- * replayable terminal for such a failure without one. If the capture cannot be
- * derived (including a census that overflows the fail-closed hard bound), the result
- * is `derivation_failed` with a sanitized reason code — NOT a silent null — so the
- * caller can drive it into the incident/execution_state_uncertain path.
+ * The capture requirement is derived from the ACTUAL failed receipt EVIDENCE — via the
+ * single canonical `blueprintAuthoringReceiptRequiresSanitizedCapture` predicate — not
+ * the terminal code alone: a failure is diagnostic-BEARING when its code is in the
+ * closed mandatory set OR any attempt carried a non-empty grouped validation-diagnostic
+ * set (e.g. an initial invalid draft that produced validation diagnostics followed by a
+ * repair-time `provider_call_failed`, or a `local_processing_failed` fallback that still
+ * carries structured diagnostics). A diagnostic-bearing failure MUST yield a complete
+ * sanitized capture, and downstream the lifecycle refuses to publish an ordinary
+ * replayable terminal for it without one.
  *
- * A diagnostic-LESS boundary failure (any other code) is an explicit allowed absence:
- * it binds no capture. Never reads raw draft/provider output — only structured
- * diagnostics and byte accountings.
+ * The census is derived only from the in-memory structured diagnostic sources that
+ * correspond to the failed receipt attempts. If that correlation cannot be proven — the
+ * receipt declares a diagnostic-bearing attempt but no matching in-memory structured
+ * source is present, or the derived census would be empty — the result is
+ * `derivation_failed` (NOT an empty/partial census minted merely to satisfy the
+ * binding). A census that overflows the fail-closed hard bound is likewise
+ * `derivation_failed`. Every `derivation_failed` carries a sanitized reason code — never
+ * a silent null — so the caller can drive it into the incident/execution_state_uncertain
+ * path.
+ *
+ * A diagnostic-LESS boundary failure (no mandatory code, no attempt diagnostics) is an
+ * explicit allowed absence: it binds no capture. Never reads raw draft/provider output —
+ * only structured diagnostics and byte accountings.
  */
 export function deriveBlueprintAuthoringSanitizedFailureCaptureDisposition(args: {
   request: ProductionAuthoringRunRequest;
@@ -1489,7 +1641,7 @@ export function deriveBlueprintAuthoringSanitizedFailureCaptureDisposition(args:
   failureReceipt: ProductionAuthoringRunReceipt;
   failureCode: ProductionBlueprintRunnerTerminalFailureCode;
 }): BlueprintAuthoringSanitizedFailureCaptureDisposition {
-  if (!blueprintAuthoringFailureRequiresSanitizedCapture(args.failureCode)) {
+  if (!blueprintAuthoringReceiptRequiresSanitizedCapture(args.failureReceipt)) {
     // Diagnostic-less boundary failure: allowed to bind no capture.
     return { kind: 'diagnostic_less_absence' };
   }
@@ -1527,14 +1679,54 @@ export function deriveBlueprintAuthoringSanitizedFailureCaptureDisposition(args:
         rejectionReasonCode: 'repair_route_input_not_admissible',
       });
     }
-    const diagnostics: PreRenderBlueprintRepairDiagnostic[] =
-      args.error instanceof
-        PreRenderBlueprintAuthoringRepairExhaustedError ||
+    // The only in-memory structured diagnostic source is the failing error's per-attempt
+    // diagnostics (raw structured diagnostics are never persisted into the receipt).
+    // Index them by attempt number so we can PROVE they correspond to the receipt's
+    // diagnostic-bearing attempts before minting a census from them.
+    const diagnosticsByAttempt = new Map<
+      number,
+      PreRenderBlueprintRepairDiagnostic[]
+    >();
+    if (
+      args.error instanceof PreRenderBlueprintAuthoringRepairExhaustedError ||
       args.error instanceof PreRenderBlueprintRepairInputNotAdmissibleError
-        ? args.error.attempts.flatMap(
-            (attempt) => attempt.diagnostics ?? [],
-          )
-        : [];
+    ) {
+      for (const attempt of args.error.attempts) {
+        const attemptDiagnostics = attempt.diagnostics ?? [];
+        if (
+          Number.isSafeInteger(attempt.attempt) &&
+          attemptDiagnostics.length > 0
+        ) {
+          const existing = diagnosticsByAttempt.get(attempt.attempt) ?? [];
+          existing.push(...attemptDiagnostics);
+          diagnosticsByAttempt.set(attempt.attempt, existing);
+        }
+      }
+    }
+    // Correlation / completeness: every receipt attempt that persisted a non-empty
+    // grouped validation-diagnostic set MUST have a matching complete in-memory
+    // structured source. If any does not, we cannot prove the census is complete, so we
+    // refuse to mint a partial one and drive the failure into the incident path.
+    for (const receiptAttempt of args.attempts) {
+      if (
+        receiptAttempt.validationDiagnostics.count > 0 &&
+        !diagnosticsByAttempt.has(receiptAttempt.attempt)
+      ) {
+        return {
+          kind: 'derivation_failed',
+          reasonCode: 'sanitized_census_correlation_unproven',
+        };
+      }
+    }
+    const diagnostics = [...diagnosticsByAttempt.values()].flat();
+    // A required capture with an empty census would be a binding satisfied by nothing.
+    // Never mint it; fail closed so the caller drives it into the incident path.
+    if (diagnostics.length === 0) {
+      return {
+        kind: 'derivation_failed',
+        reasonCode: 'sanitized_census_correlation_unproven',
+      };
+    }
     return {
       kind: 'captured',
       capture: buildBlueprintAuthoringSanitizedFailureCapture({

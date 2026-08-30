@@ -1,5 +1,57 @@
 # SmallHeroes — Current Technical State
 
+## R1D — Blueprint capture safety Round 4: total run-result + receipt-evidence capture requirement (F3 MAJOR A + B closed); F1 paid exact-token count remains HOLD (Claude implementation; locally green, committed, not pushed; awaiting Codex re-gate — NOT a milestone PASS)
+
+Codex's re-gate of the Round-3 F3 work returned HOLD on two related MAJOR findings.
+Both are closed here in the smallest general form; all F2 privacy/census protections
+are preserved. Finding 1 (paid exact-provider-input-token count) is untouched and
+remains HOLD pending Guy's cost-treatment decision. This is not a milestone PASS.
+
+- **MAJOR A — total result contract; no permissive first publication.**
+  `ProductionAuthoringRunResult` is now a total discriminated union keyed on
+  `receipt.status` (`preflight_passed` / `completed` / `failed`); the `failed` arm
+  requires an EXPLICIT disposition (compile-time), and runtime constructors assert
+  status/authoring-result/disposition consistency so no caller can mint a
+  contradiction. First materialization no longer defaults a missing disposition: it
+  re-derives the requirement from the replay-valid ACTUAL receipt and cross-checks the
+  disposition before publishing any terminal authority — required ⇒ only `captured`;
+  non-required ⇒ only `diagnostic_less_absence`; anything else (missing, malformed,
+  `derivation_failed`, or a capture on a non-required failure) is torn state →
+  `execution_state_uncertain`/incident, receipt aside, no terminal/binding/lookup.
+- **MAJOR B — capture requirement derived from receipt evidence, not the code alone.**
+  One canonical predicate `blueprintAuthoringReceiptRequiresSanitizedCapture` requires
+  a capture iff the failure code is mandatory OR any attempt carried a non-empty
+  grouped validation-diagnostic set. The single predicate is shared by runner
+  derivation, first materialization, replay (`loadExecutionRecord`), and recovery
+  (`recoverTerminalLookup`), so a `provider_call_failed`/`local_processing_failed`
+  terminal that carries prior grouped diagnostics but no capture is now torn at every
+  site. The census is derived only from in-memory structured sources that correlate to
+  the failed receipt's diagnostic-bearing attempts; if that correlation cannot be
+  proven (or the census would be empty), the derivation returns `derivation_failed`
+  (`sanitized_census_correlation_unproven`) rather than mint a partial census — census
+  overflow stays `derivation_failed` too. A genuinely first-call diagnostic-less
+  provider/boundary failure remains an explicit allowed absence.
+- **F1 — paid exact-provider-input-token count: still HOLD (decision-blocked),
+  numerically unchanged.** No paid/provider/live behavior was touched.
+
+Files: `lib/visual-package/blueprintAuthoringSanitizedFailureCapture.ts`,
+`lib/visual-package/productionAuthoringRunner.ts`,
+`lib/visual-package/qaWizardBlueprintAuthoringLifecycle.ts`. Tests:
+`blueprint-admission-honesty-and-capture.spec.ts` (**41**, +5 receipt-evidence
+predicate cases), `qa-wizard-blueprint-authoring-lifecycle.spec.ts` (**43**: extends
+the repair-time provider-failure test to assert the now-required bound capture +
+zero-call replay, adds the capture-stripped `provider_call_failed` tear), and
+`production-lifecycle-foundation.spec.ts` (**57**, +5: total-result arms, first-call
+allowed absence, repair-time captured with valid non-empty census, and derivation
+fail-closed on uncorrelated census). `openai-responses-blueprint-authoring-adapter`
+(20) green. `npx --no-install tsc --noEmit` clean; `git diff --check` clean.
+Pre-existing, unrelated: `vitest-workload-classifier` (345 vs 346) fails identically
+at HEAD. No provider/network/API/credential/live/render/DB/deploy/push; real
+`outputs/` untouched. Evidence: `docs/ai-workflow/R1D_BLUEPRINT_ADMISSION_HONESTY_EVIDENCE.md`
+(Round 4).
+
+---
+
 ## R1D — Blueprint capture safety: census PII (F2) + failure-terminal integrity (F3) closed; paid exact-token count (F1) remains HOLD (Claude implementation; locally green, committed, not pushed; awaiting Codex re-gate — NOT a milestone PASS)
 
 Codex QA of the round-2 capture work returned HOLD on three findings. The two

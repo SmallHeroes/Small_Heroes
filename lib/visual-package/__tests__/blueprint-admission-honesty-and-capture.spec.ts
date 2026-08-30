@@ -31,6 +31,8 @@ import {
   BLUEPRINT_AUTHORING_SANITIZED_FAILURE_CAPTURE_DOES_NOT_AUTHORIZE,
   BLUEPRINT_AUTHORING_SANITIZED_FAILURE_CAPTURE_SCOPE,
   BLUEPRINT_AUTHORING_SANITIZED_FAILURE_CAPTURE_VERSION,
+  blueprintAuthoringFailureRequiresSanitizedCapture,
+  blueprintAuthoringReceiptRequiresSanitizedCapture,
   blueprintAuthoringSanitizedFailureCaptureIsValid,
   buildBlueprintAuthoringSanitizedFailureCapture,
   sanitizeBlueprintDiagnosticFieldPath,
@@ -1021,5 +1023,85 @@ describe('sanitized failure capture — fail-closed no-authority and hostile reg
         diagnostics: [],
       }),
     ).toThrow();
+  });
+});
+
+describe('canonical receipt-evidence capture requirement', () => {
+  const attempt = (count: number, codes: readonly string[]) => ({
+    validationDiagnostics: { count, codes },
+  });
+
+  it('requires a capture for a mandatory failure code alone (no attempts)', () => {
+    expect(
+      blueprintAuthoringFailureRequiresSanitizedCapture(
+        'repair_route_input_not_admissible',
+      ),
+    ).toBe(true);
+    expect(
+      blueprintAuthoringReceiptRequiresSanitizedCapture({
+        failure: { code: 'draft_validation_repair_exhausted' },
+        attempts: [],
+      }),
+    ).toBe(true);
+  });
+
+  it('requires a capture for a NON-mandatory code that carries prior grouped diagnostics', () => {
+    // The MAJOR B path: an initial invalid draft produced grouped validation
+    // diagnostics, then a repair-time provider_call_failed. The code alone is not
+    // mandatory, but the receipt evidence makes a capture required.
+    expect(
+      blueprintAuthoringFailureRequiresSanitizedCapture('provider_call_failed'),
+    ).toBe(false);
+    expect(
+      blueprintAuthoringReceiptRequiresSanitizedCapture({
+        failure: { code: 'provider_call_failed' },
+        attempts: [
+          attempt(3, ['draft_contract_validation_failed']),
+          attempt(0, []),
+        ],
+      }),
+    ).toBe(true);
+  });
+
+  it('requires a capture for a local_processing_failed receipt with a diagnostic-bearing attempt', () => {
+    expect(
+      blueprintAuthoringReceiptRequiresSanitizedCapture({
+        failure: { code: 'local_processing_failed' },
+        attempts: [attempt(2, ['draft_schema_validation_failed'])],
+      }),
+    ).toBe(true);
+  });
+
+  it('does NOT require a capture for a first-call diagnostic-less provider/boundary failure', () => {
+    expect(
+      blueprintAuthoringReceiptRequiresSanitizedCapture({
+        failure: { code: 'provider_call_failed' },
+        attempts: [attempt(0, [])],
+      }),
+    ).toBe(false);
+    expect(
+      blueprintAuthoringReceiptRequiresSanitizedCapture({
+        failure: { code: 'provider_policy_mismatch' },
+        attempts: [],
+      }),
+    ).toBe(false);
+  });
+
+  it('fails closed to not-required only for empty / malformed evidence', () => {
+    expect(blueprintAuthoringReceiptRequiresSanitizedCapture(null)).toBe(false);
+    expect(blueprintAuthoringReceiptRequiresSanitizedCapture(undefined)).toBe(false);
+    expect(
+      blueprintAuthoringReceiptRequiresSanitizedCapture({
+        failure: null,
+        attempts: null,
+      }),
+    ).toBe(false);
+    // A codes-present-but-count-zero attempt still counts as diagnostic-bearing.
+    expect(
+      blueprintAuthoringReceiptRequiresSanitizedCapture({
+        failure: { code: 'provider_call_failed' },
+        attempts: [attempt(0, ['draft_contract_validation_failed'])],
+      }),
+    ).toBe(true);
   });
 });

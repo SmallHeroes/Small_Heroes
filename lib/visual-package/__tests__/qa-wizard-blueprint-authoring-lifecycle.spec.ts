@@ -18,10 +18,12 @@ vi.mock('../qaWizardCandidateBridge', async () => {
 
 // Scoped seam for the F3 torn-state tests only. Both fields default to null (real
 // behavior), so every other test is unaffected; a test opts in, then resets in a
-// finally. `requiresCapture` forces the capture-required classification (used to
-// fabricate a fully-consistent capture-less diagnostic-bearing terminal). `buildThrows`
-// makes the runner's capture derivation fail (used to exercise the overflow/derivation
-// incident path). Applies to both the lifecycle and the runner (same module).
+// finally. `requiresCapture` forces the canonical receipt-evidence capture-required
+// classification (used to fabricate a fully-consistent capture-less diagnostic-bearing
+// terminal). `buildThrows` makes the runner's capture derivation fail (used to exercise
+// the overflow/derivation incident path). It overrides the single canonical predicate
+// (`blueprintAuthoringReceiptRequiresSanitizedCapture`), which the runner derivation,
+// first materialization, replay, and recovery all consult — so all four move together.
 const captureMockState = vi.hoisted(
   () => ({ requiresCapture: null as null | boolean, buildThrows: null as null | string }),
 );
@@ -32,11 +34,13 @@ vi.mock('../blueprintAuthoringSanitizedFailureCapture', async () => {
   >('../blueprintAuthoringSanitizedFailureCapture');
   return {
     ...actual,
-    blueprintAuthoringFailureRequiresSanitizedCapture: (
-      code: string | null | undefined,
+    blueprintAuthoringReceiptRequiresSanitizedCapture: (
+      receipt: Parameters<
+        typeof actual.blueprintAuthoringReceiptRequiresSanitizedCapture
+      >[0],
     ) =>
       captureMockState.requiresCapture ??
-      actual.blueprintAuthoringFailureRequiresSanitizedCapture(code),
+      actual.blueprintAuthoringReceiptRequiresSanitizedCapture(receipt),
     buildBlueprintAuthoringSanitizedFailureCapture: (
       args: Parameters<
         typeof actual.buildBlueprintAuthoringSanitizedFailureCapture
@@ -2359,6 +2363,23 @@ describe('QA Wizard Blueprint authoring operator lifecycle', () => {
     expect(JSON.stringify(result.receipt)).not.toMatch(
       /raw repair credential failure|test-key-must-never-persist/i,
     );
+    // The terminal code is the non-mandatory provider_call_failed, but attempt 1 carried
+    // grouped validation diagnostics, so the receipt is diagnostic-BEARING and a capture
+    // is REQUIRED (derived from receipt evidence, not the terminal code). It is bound and
+    // re-validates to the exact digest.
+    expect(result.manifest.stage).toBe('authoring_failed');
+    const binding = result.manifest.observabilityCapture;
+    expect(binding).toBeDefined();
+    expect(binding!.digest).toMatch(/^[a-f0-9]{64}$/);
+    const boundAbsolute = path.join(subject.repoRoot, binding!.path);
+    const boundCapture = JSON.parse(
+      fs.readFileSync(boundAbsolute, 'utf8'),
+    ) as BlueprintAuthoringSanitizedFailureCapture;
+    expect(blueprintAuthoringSanitizedFailureCaptureIsValid(boundCapture)).toBe(true);
+    expect(boundCapture.terminalFailureCode).toBe('provider_call_failed');
+    expect(boundCapture.linkage.terminalReceiptDigest).toBe(result.receipt.digest);
+    expect(boundCapture.census.distinctIdentities).toBeGreaterThan(0);
+    expect(boundCapture.census.truncated).toBe(false);
     const replayFactory = vi.fn(() => passingProvider(subject.fixture));
     const replay = await executeQaWizardBlueprintLiveRequest(
       {
@@ -2370,7 +2391,92 @@ describe('QA Wizard Blueprint authoring operator lifecycle', () => {
       { providerFactory: replayFactory },
     );
     expect(replay.replayed).toBe(true);
+    expect(replay.manifest.observabilityCapture?.digest).toBe(binding!.digest);
     expect(replayFactory).not.toHaveBeenCalled();
+  });
+
+  it('tears a capture-stripped provider_call_failed terminal that carries prior diagnostics', async () => {
+    const subject = setup();
+    const preflight = prepare(subject);
+    // A provider that returns a canonical INVALID initial draft (grouped validation
+    // diagnostics on attempt 1), then fails the repair call at the provider boundary.
+    const readCredential = vi.fn(() => {
+      if (readCredential.mock.calls.length > 1) {
+        throw new Error('raw repair credential failure must never persist');
+      }
+      return 'test-key-must-never-persist';
+    });
+    const transport: OpenAIResponsesAuthoringTransport = {
+      create: vi.fn(async (request) => {
+        request.observations.transportDispatchStarted = true;
+        request.observations.transportDispatchCount += 1;
+        request.observations.canonicalRouteConfirmed = true;
+        request.observations.canonicalModelConfirmed = true;
+        request.observations.httpResponseReceived = true;
+        request.observations.httpStatus = 200;
+        return {
+          id: 'resp-invalid-first-draft',
+          model: 'gpt-5.6-sol',
+          status: 'completed',
+          output_text: '{"invalid":true}',
+          usage: {
+            input_tokens: 1_000,
+            input_tokens_details: { cached_tokens: 100, cache_write_tokens: 200 },
+            output_tokens: 2_000,
+            output_tokens_details: { reasoning_tokens: 500 },
+            total_tokens: 3_000,
+          },
+        };
+      }),
+    };
+    // Fabricate the hostile/legacy on-disk shape: a diagnostic-bearing provider_call_failed
+    // terminal published WITHOUT a capture binding, by classifying it as not-required
+    // during creation ONLY.
+    captureMockState.requiresCapture = false;
+    let created;
+    try {
+      created = await executeQaWizardBlueprintLiveRequest(
+        {
+          repoRoot: subject.repoRoot,
+          preflightManifestPath: preflight.manifestPath,
+          outputDir: OUTPUT_DIR,
+          write: true,
+        },
+        {
+          providerFactory: () =>
+            createOpenAIResponsesBlueprintAuthoringAdapter({
+              readCredential,
+              transport,
+            }),
+        },
+      );
+    } finally {
+      captureMockState.requiresCapture = null;
+    }
+    expect(created.manifest.stage).toBe('authoring_failed');
+    expect(created.receipt.failure?.code).toBe('provider_call_failed');
+    expect(created.receipt.attempts[0]!.validationDiagnostics.count).toBeGreaterThan(
+      0,
+    );
+    expect(created.manifest.observabilityCapture).toBeUndefined();
+    // With the real receipt-evidence classification restored, the terminal is torn:
+    // replay/recovery must refuse before any lookup, and must not load a provider.
+    const replayPreflight = prepare(subject);
+    const forbidden = vi.fn(() => {
+      throw new Error('provider_must_not_load_on_replay');
+    });
+    await expect(
+      executeQaWizardBlueprintLiveRequest(
+        {
+          repoRoot: subject.repoRoot,
+          preflightManifestPath: replayPreflight.manifestPath,
+          outputDir: OUTPUT_DIR,
+          write: true,
+        },
+        { providerFactory: forbidden },
+      ),
+    ).rejects.toThrow(/execution_state_uncertain/);
+    expect(forbidden).not.toHaveBeenCalled();
   });
 
   it('replays an exact pre-response adapter policy failure', async () => {

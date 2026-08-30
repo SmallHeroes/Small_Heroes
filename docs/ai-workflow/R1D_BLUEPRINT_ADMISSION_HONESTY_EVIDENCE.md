@@ -315,3 +315,100 @@ change (no spec file was added here) and is left untouched as out of scope.
 
 No provider/network/API/credential/live/render/DB/deploy/push; real `outputs/`
 artifacts were not touched. The Decision Gate is unchanged.
+
+## Round 4 — Codex HOLD F3 correction (2026-08-30; supersedes Round-3 F3 claims where they conflict)
+
+Codex's QA of the Round-3 F3 work returned **HOLD** on two related MAJOR findings
+about the failure-capture disposition. This round closes both in the smallest general
+form. Finding 1 (the paid exact-token-count lane) is **untouched and remains HOLD**;
+this is **not** a milestone PASS. All F2 privacy/census protections are preserved.
+
+### MAJOR A — the result contract is now total; first publication is no longer permissive
+
+Round 3 left `ProductionAuthoringRunResult.sanitizedFailureCaptureDisposition`
+**optional**, and `qaWizardBlueprintAuthoringLifecycle.ts` replaced a missing
+disposition with `{kind:'diagnostic_less_absence'}` at first materialization. A
+required capture-less failed terminal could therefore reach ownership
+binding/terminal/lookup publication, with replay rejecting it only afterward.
+
+Correction:
+
+- `ProductionAuthoringRunResult` is now a **total discriminated union**
+  (`productionAuthoringRunner.ts`): `preflight_passed` (no authoring result, no
+  disposition), `completed` (authoring result present, no disposition), `failed`
+  (no authoring result, **disposition mandatory**). The arms are keyed on
+  `receipt.status`; a failed arm cannot omit the disposition (compile-time), and the
+  three constructors (`preflightRunResult` / `completedRunResult` / `failedRunResult`)
+  assert status/authoring-result/disposition consistency at **runtime**, so even an
+  untyped caller cannot mint a contradictory result. Every runner return arm — the
+  deterministic pre-provider failures included — flows through them.
+- First materialization no longer defaults a missing disposition. It **re-derives**
+  the requirement from the replay-valid ACTUAL receipt and **cross-checks** the
+  disposition **before** publishing any terminal authority: required ⇒ only `captured`
+  is admissible; non-required ⇒ only `diagnostic_less_absence`; any other combination
+  (missing, malformed, `derivation_failed`, or a capture on a non-required failure) is
+  torn state → `execution_state_uncertain`/incident, published receipt aside, with no
+  terminal manifest/binding/lookup.
+
+### MAJOR B — the capture requirement is derived from receipt evidence, not the terminal code alone
+
+Round 3 keyed the requirement on a closed **code** set
+(`repair_route_input_not_admissible`, `draft_validation_repair_exhausted`). A real
+path — an initial invalid draft that produced grouped validation diagnostics followed
+by a repair-time **`provider_call_failed`** (and the `local_processing_failed`
+fallback that still carries structured diagnostics) — bound **no** capture and
+replayed as a clean completion, losing the prior diagnostics.
+
+Correction:
+
+- One canonical receipt-evidence predicate
+  (`blueprintAuthoringReceiptRequiresSanitizedCapture`,
+  `blueprintAuthoringSanitizedFailureCapture.ts`): a capture is required iff the
+  terminal failure **code** is in the closed mandatory set **OR** any attempt carried
+  a non-empty grouped validation-diagnostic set (`validationDiagnostics` count/codes).
+  The **single** predicate is used by the runner derivation, first materialization,
+  replay (`loadExecutionRecord`), and recovery (`recoverTerminalLookup`), so the four
+  sites can never disagree. A genuinely first-call diagnostic-less provider/boundary
+  failure (no mandatory code, no attempt diagnostics) remains an explicit allowed
+  absence.
+- The census is derived only from the in-memory structured diagnostic sources that
+  **correspond** to the failed receipt's diagnostic-bearing attempts. If that
+  correlation cannot be proven (a receipt attempt declares grouped diagnostics but no
+  matching in-memory source exists, or the derived census would be empty), the
+  derivation returns `derivation_failed` (`sanitized_census_correlation_unproven`) —
+  never an empty/partial census minted to satisfy the binding. Census overflow stays
+  `derivation_failed`. Both drive the incident path at first materialization.
+- Replay/recovery tear a `provider_call_failed` / `local_processing_failed` terminal
+  that carries prior grouped diagnostics but no capture binding, exactly as for a
+  mandatory-code terminal.
+- Stale comments that said overflow "returns null" now describe the typed
+  `derivation_failed` disposition and the incident path.
+
+### Round-4 validation
+
+- `blueprint-admission-honesty-and-capture.spec.ts` **41** (+5): the canonical
+  receipt-evidence predicate — mandatory-code-alone; non-mandatory `provider_call_failed`
+  + prior grouped diagnostics ⇒ required; `local_processing_failed` + diagnostic-bearing
+  attempt ⇒ required; first-call diagnostic-less ⇒ not required; empty/malformed ⇒ not
+  required (with codes-present/count-zero still diagnostic-bearing).
+- `qa-wizard-blueprint-authoring-lifecycle.spec.ts` **43** (+1, +1 extended): the
+  repair-time provider/credential failure with prior diagnostics now asserts the
+  now-required bound capture is published, valid, linkage-bound, and preserved on
+  zero-call replay; a new test fabricates the capture-stripped `provider_call_failed`
+  terminal with prior diagnostics and proves replay/recovery refuse before any lookup
+  with no provider load. The mock seam now overrides the canonical receipt-evidence
+  predicate.
+- `production-lifecycle-foundation.spec.ts` **57** (+5): total-result arms
+  (preflight/completed/failed) carry consistent status/authoring-result/disposition; a
+  first-call provider failure is an explicit allowed absence; a repair-time provider
+  failure with prior grouped diagnostics binds a complete valid capture (no raw prose);
+  and the derivation fails closed to `derivation_failed`
+  (`sanitized_census_correlation_unproven`) when the census cannot be correlated.
+- `openai-responses-blueprint-authoring-adapter.spec.ts` (20) green.
+  `npx --no-install tsc --noEmit` clean; `git diff --check` clean.
+
+**Pre-existing, unrelated:** the `vitest-workload-classifier` census (345 vs 346 on
+disk) fails identically at HEAD and is untouched.
+
+No provider/network/API/credential/live/render/DB/deploy/push; real `outputs/`
+artifacts were not touched. F1 (paid exact-token count) remains a separate HOLD.

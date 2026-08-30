@@ -26,6 +26,8 @@ import {
   productionAuthoringReceiptBytes,
   productionBlueprintAuthoringPreflightIssues,
   runProductionBlueprintAuthoring,
+  productionAuthoringRunResultIsCompleted,
+  productionAuthoringRunResultIsFailed,
   type ProductionAuthoringProvider,
   type ProductionAuthoringAttemptFailureCode,
   type ProductionAuthoringRunReceipt,
@@ -35,7 +37,7 @@ import {
   BLUEPRINT_AUTHORING_SANITIZED_FAILURE_CAPTURE_VERSION,
   blueprintAuthoringSanitizedFailureCaptureBytes,
   blueprintAuthoringSanitizedFailureCaptureIsValid,
-  blueprintAuthoringFailureRequiresSanitizedCapture,
+  blueprintAuthoringReceiptRequiresSanitizedCapture,
   type BlueprintAuthoringSanitizedFailureCapture,
 } from './blueprintAuthoringSanitizedFailureCapture';
 import type { ProductionAuthoringContext } from './productionAuthoringContext';
@@ -3047,16 +3049,16 @@ function loadExecutionRecord(args: {
   ) {
     throw new Error('Blueprint authoring terminal authority is stale');
   }
-  // A diagnostic-bearing authoring_failed terminal (its failure code is in the closed
-  // capture-required set) is only replayable if it carries the required bound
+  // A diagnostic-bearing authoring_failed terminal (derived from receipt EVIDENCE via
+  // the single canonical predicate: a mandatory failure code OR any attempt that carried
+  // grouped validation diagnostics) is only replayable if it carries the required bound
   // sanitized capture. A terminal that omits the binding — including a hostile or
-  // legacy-shaped/manual artifact that keeps the diagnostic-bearing failure code but
-  // strips the capture — is torn state, never a replayable completion.
+  // legacy-shaped/manual artifact that keeps the diagnostic-bearing receipt (e.g. a
+  // provider_call_failed / local_processing_failed receipt with prior attempt
+  // diagnostics) but strips the capture — is torn state, never a replayable completion.
   if (
     terminal.manifest.stage === 'authoring_failed' &&
-    blueprintAuthoringFailureRequiresSanitizedCapture(
-      terminal.receipt?.failure?.code,
-    ) &&
+    blueprintAuthoringReceiptRequiresSanitizedCapture(terminal.receipt) &&
     !terminal.manifest.observabilityCapture
   ) {
     throw new Error('execution_state_uncertain');
@@ -3222,11 +3224,14 @@ function recoverTerminalLookup(args: {
   const receipt = terminal.receipt;
   if (receipt === null) throw new Error('execution_state_uncertain');
   // Never materialize a recovery lookup for a diagnostic-bearing authoring_failed
-  // terminal that lacks its required capture binding. Enforced here (before the
-  // lookup is written) and again in loadExecutionRecord (the shared replay reader).
+  // terminal that lacks its required capture binding. The requirement is derived from
+  // receipt EVIDENCE (the same canonical predicate as replay/derivation), so a
+  // provider_call_failed / local_processing_failed receipt that carries prior grouped
+  // diagnostics but no capture is torn here too. Enforced here (before the lookup is
+  // written) and again in loadExecutionRecord (the shared replay reader).
   if (
     terminal.manifest.stage === 'authoring_failed' &&
-    blueprintAuthoringFailureRequiresSanitizedCapture(receipt.failure?.code) &&
+    blueprintAuthoringReceiptRequiresSanitizedCapture(receipt) &&
     !terminal.manifest.observabilityCapture
   ) {
     throw new Error('execution_state_uncertain');
@@ -3568,7 +3573,7 @@ async function runBlueprintExecutionUnderClaim(
   let stage: 'blueprint_candidate' | 'authoring_failed';
   let blueprint: ManifestBlueprintAuthority | null = null;
   let observabilityCapture: ManifestObservabilityCaptureAuthority | undefined;
-  if (result.receipt.status === 'completed') {
+  if (productionAuthoringRunResultIsCompleted(result)) {
     if (
       !result.authoringResult ||
       result.receipt.blueprintDigest !== result.authoringResult.blueprint.digest ||
@@ -3618,23 +3623,34 @@ async function runBlueprintExecutionUnderClaim(
       blueprint: result.authoringResult.blueprint,
     });
     stage = 'blueprint_candidate';
-  } else {
-    if (result.authoringResult !== null) {
-      throw new Error('failed Blueprint receipt unexpectedly includes an authoring result');
-    }
+  } else if (productionAuthoringRunResultIsFailed(result)) {
     stage = 'authoring_failed';
-    // A diagnostic-bearing failure whose sanitized capture could not be derived
-    // (including a census that overflowed the fail-closed hard bound) must NEVER
-    // become an ordinary replayable authoring_failed terminal. Fail closed into the
-    // incident / execution_state_uncertain path BEFORE any terminal manifest,
-    // ownership binding, or lookup is published. The receipt is already durable (the
-    // existing transaction order requires it), but no replayable terminal/lookup is
+    // The result type guarantees an explicit disposition on every failed run (there is
+    // no permissive default). Independently RE-DERIVE the capture requirement from the
+    // replay-valid ACTUAL receipt — via the single canonical predicate, not the runner's
+    // word or the terminal code alone — and CROSS-CHECK it against the disposition
+    // BEFORE publishing any terminal authority. Any contradiction is torn state: fail
+    // closed into the incident / execution_state_uncertain path BEFORE any terminal
+    // manifest, ownership binding, or lookup is published. The receipt is already durable
+    // (the existing transaction order requires it), but no replayable terminal/lookup is
     // ever published, so nothing can claim a completion the capture does not back.
-    const disposition = result.sanitizedFailureCaptureDisposition ?? {
-      kind: 'diagnostic_less_absence' as const,
-    };
-    if (disposition.kind === 'derivation_failed') {
-      throw new Error('execution_state_uncertain');
+    const disposition = result.sanitizedFailureCaptureDisposition;
+    const captureRequired = blueprintAuthoringReceiptRequiresSanitizedCapture(
+      result.receipt,
+    );
+    if (captureRequired) {
+      // Required: only an explicit complete capture is admissible. A diagnostic_less,
+      // derivation_failed, missing, or malformed disposition is torn.
+      if (disposition.kind !== 'captured') {
+        throw new Error('execution_state_uncertain');
+      }
+    } else {
+      // Not required: only an explicit diagnostic-less absence is admissible. A capture
+      // or a derivation failure on a non-required failure is a contradiction — fail
+      // closed rather than publish an unexplained terminal.
+      if (disposition.kind !== 'diagnostic_less_absence') {
+        throw new Error('execution_state_uncertain');
+      }
     }
     // Durably publish the sanitized failure observability capture (when a
     // diagnostic-bearing failure derived one) BEFORE the terminal manifest that binds
@@ -3651,6 +3667,10 @@ async function runBlueprintExecutionUnderClaim(
             receipt: result.receipt,
           })
         : undefined;
+  } else {
+    // A live run is always terminal (completed | failed); a preflight_passed result
+    // here is torn state, never a materializable terminal.
+    throw new Error('execution_state_uncertain');
   }
   const receiptAuthority: ManifestReceiptAuthority = {
     version: result.receipt.version,
