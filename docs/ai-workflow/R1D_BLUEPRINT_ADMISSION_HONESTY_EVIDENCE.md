@@ -613,3 +613,68 @@ by its immutable hash `03b758b6`, and the new Round 7 section sits on top.
 
 No provider/network/API/credential/live/render/DB/deploy/push; real `outputs/` artifacts
 were not touched. F1 (paid exact-token count) remains a separate HOLD.
+
+## Round 8 — Codex intercept of `28fb229e` in-progress: STRUCTURAL SEAL (not a pairwise check)
+
+Codex intercepted the in-progress Round-8 `identityByErrorText` map BEFORE commit as still
+insufficient, with a decisive one-element reproduction: a receipt attempt whose single error
+string was produced from identity A, paired with the structurally-distinct diagnostic B (where
+`preRenderBlueprintRepairDiagnosticErrorText(A) === preRenderBlueprintRepairDiagnosticErrorText(B)`
+but their sanitized census identities differ). The one-entry map has no competing digest to
+compare, so it ACCEPTS and mints B — the map only caught `[A,A] -> [A,B]`, never `[A] -> [B]`.
+No pure check over an externally-supplied (errors, diagnostics) pair can resolve which identity
+produced a colliding text. The honest closure is Codex option 1 — STRUCTURALLY SEAL — not
+another pairwise check. Closed on top of `28fb229e`.
+
+### The seal
+
+- `deriveBlueprintAuthoringSanitizedFailureCaptureDisposition` is now runner-PRIVATE (not
+  exported; the `export *` barrel no longer surfaces it). Its only callers are
+  `runProductionBlueprintAuthoring` and its deterministic-failure path, which always feed it the
+  compiler's OWN single-stack error, whose per-position error strings ARE the canonical
+  projections of its own diagnostics. There is no exported API that accepts a caller-supplied
+  triple to mint a capture, so a colliding-text `[A] -> [B]` substitution is structurally
+  UNREACHABLE. The minted capture is durably content-addressed and, by the lifecycle, atomically
+  linked to the receipt; replay/recovery re-read that capture and never re-derive (MAJOR 1,
+  unchanged).
+- An ENFORCEMENT regression asserts the derivation is absent from both the runner module and the
+  barrel, and documents the irreducible projection ambiguity (A/B project byte-identically yet
+  are distinct sanitized census identities) that the seal — not a pairwise map — closes.
+
+### Pure, non-authority consistency checker
+
+- The receipt-consistency invariants (request linkage + digest self-consistency; attempt
+  topology/1..N sequence; `args.attempts == receipt.attempts`; per-attempt {count,codes}
+  re-derivation; position-wise projection match, which includes expected/actual presence;
+  bijection) are extracted into an exported PURE checker
+  `blueprintAuthoringFailedCensusCorrelationDiagnostics` that returns the ordered census
+  diagnostics or `null` and NEVER mints/links/publishes a capture — it cannot produce authority.
+  It is the runner-private derivation's consistency gate (defense in depth over the sealed
+  input), explicitly NOT the identity security boundary. The insufficient `identityByErrorText`
+  pairwise map was removed; the Round-7 census-identity-digest export it depended on was reverted
+  (so only the runner file changed in production).
+
+### Honest scope (retained from Round 7)
+
+- The durable receipt binds attempt TOPOLOGY + per-attempt category summary ({count,codes}) only,
+  NOT census structural identities. Identity honesty rests on the seal plus the linkage-bound
+  content-addressed capture. A durable receipt-level identity commitment would require receipt
+  v7 and is deferred to the F1 receipt-v7 cutover, not an incompatible interim schema. The narrow
+  `failedReceiptRequestLinkageIsConsistent` naming/docs correction is retained.
+
+### Round-8 validation (serial)
+
+- `production-lifecycle-foundation.spec.ts` **76**: rewritten around the pure checker (asserts
+  diagnostics|null) + the STRUCTURAL-SEAL enforcement regression (derive not exported from module
+  or barrel) + the real replay-valid provider-failure captured integration retained. The crafted
+  disposition-triple tests and the un-catchable A/B pairwise-rejection test were removed (the seal
+  closes them, not a pure check).
+- Full 8-spec battery **342** green: `blueprint-admission-honesty-and-capture` **42**,
+  `production-lifecycle-foundation` **76**, `qa-wizard-blueprint-authoring-lifecycle` **46**,
+  `openai-responses-blueprint-authoring-adapter` **20**, `pre-render-blueprint-authoring` **19**
+  (projection/compiler behavior unchanged), `pre-render-book-visual-blueprint` **112**,
+  `qa-wizard-blueprint-replacement-lifecycle` + `qa-wizard-package-lifecycle` **27**.
+- `npx --no-install tsc --noEmit` clean; `git diff --check` clean.
+
+No provider/network/API/credential/live/render/DB/deploy/push; real `outputs/` artifacts were not
+touched. F1 (paid exact-token count) remains a separate HOLD.

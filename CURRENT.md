@@ -1,6 +1,60 @@
 # SmallHeroes — Current Technical State
 
-## R1D — Blueprint capture safety Round 7: census-identity INJECTIVITY (expected/actual presence) + failed-receipt binding honesty (F3 last identity collision closed on top of Round 6); F1 paid exact-token count remains HOLD (Claude implementation; locally green, committed on top of `03b758b6`, not pushed; awaiting Codex re-gate — NOT a milestone PASS)
+## R1D — Blueprint capture safety Round 8: STRUCTURAL SEAL of the census-mint authority (F3 identity collision closed by boundary, not pairwise check); F1 paid exact-token count remains HOLD (Claude implementation; locally green, committed on top of `28fb229e`, not pushed; awaiting Codex re-gate — NOT a milestone PASS)
+
+Codex intercepted the Round-8-in-progress `identityByErrorText` map as still insufficient: no
+pure check over an externally-supplied (errors, diagnostics) pair can resolve a
+delimiter-colliding error string (a receipt error string produced from identity A paired with
+the structurally-distinct diagnostic B — the one-element `[A] -> [B]` substitution the
+one-entry map cannot catch). The honest closure is the STRUCTURAL SEAL (Codex option 1), not
+another pairwise check. Closed on top of `28fb229e`.
+
+- **Structural seal of the mint authority.** The disposition-minting
+  `deriveBlueprintAuthoringSanitizedFailureCaptureDisposition` is now runner-PRIVATE (not
+  exported; the barrel re-export is gone with it). Its only callers are
+  `runProductionBlueprintAuthoring` and its deterministic-failure path, which always feed it
+  the compiler's OWN single-stack error, whose per-position error strings ARE the canonical
+  projections of its own diagnostics. There is no exported API that accepts a caller-supplied
+  (errors, diagnostics, receipt) triple to mint a capture, so a colliding-text `[A] -> [B]`
+  substitution is structurally UNREACHABLE, not merely checked. The minted capture is durably
+  content-addressed and, by the lifecycle, atomically linked to the receipt; replay/recovery
+  re-read that capture and NEVER re-derive (unchanged from MAJOR 1). An enforcement regression
+  asserts the function is absent from both the runner module and the barrel, and documents the
+  irreducible projection ambiguity (A/B project byte-identically yet are distinct sanitized
+  census identities) that the seal — not a pairwise map — closes.
+- **Pure, non-authority consistency checker.** The receipt-consistency invariants (request
+  linkage + digest self-consistency, attempt topology/1..N sequence, args==receipt.attempts,
+  per-attempt {count,codes} re-derivation, position-wise projection match including
+  expected/actual presence, bijection) are extracted into an exported pure checker
+  `blueprintAuthoringFailedCensusCorrelationDiagnostics` that returns the ordered census
+  diagnostics or `null` and NEVER mints/links/publishes a capture — so it cannot produce
+  authority. It is the runner-private derivation's consistency gate (defense in depth over the
+  sealed input), explicitly NOT the identity security boundary. The insufficient
+  `identityByErrorText` pairwise map was removed.
+- **Honest scope.** The durable receipt binds attempt TOPOLOGY + per-attempt category summary
+  ({count,codes}) only, NOT census structural identities; identity honesty rests on the seal +
+  the linkage-bound content-addressed capture. A durable receipt-level identity commitment
+  would require a receipt schema change (receipt v7) and is deferred to the F1 receipt-v7
+  cutover rather than an incompatible interim schema. The narrow receipt-linkage naming/docs
+  correction (`failedReceiptRequestLinkageIsConsistent`) from Round 7 is retained.
+- **F1 — paid exact-provider-input-token count: still HOLD (decision-blocked), numerically
+  unchanged.**
+
+Files: `lib/visual-package/productionAuthoringRunner.ts` (seal + pure checker;
+capture-module identity-digest export reverted, so only 1 production file changed). Tests
+(`production-lifecycle-foundation.spec.ts`, **76**): rewritten around the pure checker (returns
+diagnostics|null) + a STRUCTURAL-SEAL enforcement regression (derive not exported from module
+or barrel) + the real replay-valid provider-failure integration retained; the crafted
+disposition-triple tests and the un-catchable A/B pairwise-rejection test were removed (the seal
+closes them). Full 8-spec battery **342** green; `pre-render-blueprint-authoring` (**19**) +
+`pre-render-book-visual-blueprint` (**112**) prove the projection/compiler behavior unchanged;
+replacement/package (**27**) green. `npx --no-install tsc --noEmit` clean; `git diff --check`
+clean. No provider/network/API/credential/live/render/DB/deploy/push; real `outputs/` untouched.
+Evidence: `docs/ai-workflow/R1D_BLUEPRINT_ADMISSION_HONESTY_EVIDENCE.md` (Round 8).
+
+---
+
+## R1D — Blueprint capture safety Round 7: census-identity INJECTIVITY (expected/actual presence) + failed-receipt binding honesty (F3 last identity collision closed on top of Round 6); F1 paid exact-token count remains HOLD (Claude implementation; locally green, committed `28fb229e` on top of `03b758b6`, not pushed; awaiting Codex re-gate — NOT a milestone PASS)
 
 Codex's final re-gate of `03b758b6` found one last high-confidence identity collision plus a
 related receipt-binding honesty gap and a docs-exactness issue. All three are closed here on

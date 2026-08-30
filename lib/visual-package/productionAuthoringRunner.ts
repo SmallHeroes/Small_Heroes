@@ -1608,15 +1608,19 @@ export async function runProductionBlueprintAuthoring(args: {
 }
 
 /**
- * True iff `receipt` is a real, canonical FAILED authoring receipt whose own digest and
- * request/context linkage actually check out and bind THIS request. Used by the census
- * derivation before trusting `failureReceipt.attempts` as the content-addressed source of
- * truth, so a forged receipt (a self-consistent digest over unrelated request/context
- * data, or a stale digest) can never smuggle an attempt list into the census. It re-uses
- * the same canonical digest logic (`canonicalJsonDigest` over the digest-free payload) the
- * receipt was minted with — not a divergent validator.
+ * A NARROW request-linkage + digest-self-consistency + topology-consistency check on a
+ * failed receipt. It is deliberately NOT the full runtime receipt-schema validator — that
+ * authority is `productionBlueprintAuthoringReceiptReplayIsValid`, which the lifecycle runs
+ * on this exact receipt at first publication (`receipt_replay_validation`) and again at
+ * replay/recovery. This check is the runner-internal precondition the census derivation
+ * needs: before trusting `failureReceipt.attempts`, prove the receipt's OWN digest is
+ * self-consistent and its request/context linkage + failure code + call topology bind THIS
+ * request, so a forged receipt (a self-consistent digest over unrelated request/context
+ * data, or a stale digest) cannot smuggle an attempt list into the census. It re-uses the
+ * same canonical digest logic (`canonicalJsonDigest` over the digest-free payload) the
+ * receipt was minted with — it does not re-implement the full replay validator.
  */
-function failedReceiptCanonicallyBindsRequest(args: {
+function failedReceiptRequestLinkageIsConsistent(args: {
   receipt: ProductionAuthoringRunReceipt;
   request: ProductionAuthoringRunRequest;
   failureCode: ProductionBlueprintRunnerTerminalFailureCode;
@@ -1653,48 +1657,184 @@ function failedReceiptCanonicallyBindsRequest(args: {
 }
 
 /**
- * Derive the typed sanitized-failure-capture disposition for an in-memory failed run.
+ * PURE, NON-AUTHORITY census correlation checker. Returns the ORDERED census diagnostics
+ * when the failed receipt's request linkage, attempt TOPOLOGY, and per-attempt category
+ * summary ({count,codes}) are internally consistent with the compiler-owned structured
+ * diagnostics, else `null`. It NEVER builds, mints, links, or publishes a capture or a
+ * disposition — it only returns already-supplied diagnostics or `null`, so it cannot
+ * produce authority. It is exported solely so these receipt-consistency invariants can be
+ * unit-tested directly.
  *
- * The capture requirement is derived from the ACTUAL failed receipt EVIDENCE — via the
- * single canonical `blueprintAuthoringReceiptRequiresSanitizedCapture` predicate — not
- * the terminal code alone: a failure is diagnostic-BEARING when its code is in the
- * closed mandatory set OR any attempt carried a non-empty grouped validation-diagnostic
- * set (e.g. an initial invalid draft that produced validation diagnostics followed by a
- * repair-time `provider_call_failed`, or a `local_processing_failed` fallback that still
- * carries structured diagnostics). A diagnostic-bearing failure MUST yield a complete
- * sanitized capture, and downstream the lifecycle refuses to publish an ordinary
- * replayable terminal for it without one.
+ * ## Scope — this is NOT the census-identity security boundary
  *
- * The census is derived only from the in-memory structured diagnostic sources that are
- * proven to correspond, as a COMPLETE and IDENTITY-EXACT bijection, to the failed
- * receipt's diagnostic-bearing attempts. Before any of that, the `failureReceipt` itself
- * must be a real canonical FAILED receipt whose own digest and request/context linkage
- * check out and bind THIS request (`failedReceiptCanonicallyBindsRequest`) — else a forged
- * receipt could smuggle an attempt list into the census. The receipt-side source of truth
- * is the content-addressed `failureReceipt.attempts` (the separately-passed `attempts` must
- * be canonically identical first); those attempts must form a clean 1..N sequence; and every
- * in-memory source attempt number must be a safe integer in 1..N and unique. For every
- * diagnostic-bearing receipt attempt there must be a matching source whose raw errors
- * re-derive to the EXACT persisted {count,codes} (rejecting a fabricated or drifted
- * summary) AND whose structured diagnostics PROJECT, via the single canonical authority
- * the compiler uses to build the error strings, to the source error array
- * position-for-position (proving the structured census and the errors are the SAME
- * identities, not merely the same count). Every source carrying structured diagnostics
- * must map to a matched attempt (rejecting extra/unmatched evidence). If that bijection
- * cannot be proven — a mismatched attempt list, non-sequential/duplicate receipt attempt,
- * invalid/out-of-range/duplicate source attempt, missing, partial, count/code-mismatched,
- * identity-mismatched, or extra source, or a derived census that would be empty — the
- * result is `sanitized_census_correlation_unproven` `derivation_failed` (NOT an
- * empty/partial census minted merely to satisfy the binding). A census that overflows the
- * fail-closed hard bound is likewise `derivation_failed`. Every `derivation_failed`
- * carries a sanitized reason code — never a silent null — so the caller can drive it into
- * the incident/execution_state_uncertain path.
- *
- * A diagnostic-LESS boundary failure (no mandatory code, no attempt diagnostics) is an
- * explicit allowed absence: it binds no capture. Never reads raw draft/provider output —
- * only structured diagnostics and byte accountings.
+ * A pure check over an externally supplied (errors, diagnostics) pair CANNOT prove which
+ * structural identity produced a delimiter-colliding error string: two diagnostics with
+ * different sanitized census identities can share one byte-identical error string, and a
+ * caller could supply a receipt attempt whose one error string was produced from identity A
+ * while passing the structurally-distinct diagnostic B. No pairwise text/digest map over the
+ * supplied pair can resolve that. So identity honesty is provided STRUCTURALLY, not here:
+ * the disposition-minting `deriveBlueprintAuthoringSanitizedFailureCaptureDisposition` is
+ * runner-PRIVATE (not exported), and the runner only ever feeds it the compiler's OWN
+ * single-stack error, whose per-position error strings ARE the canonical projections of its
+ * own diagnostics. The minted capture is then durably content-addressed and atomically
+ * linked to the receipt, and replay/recovery re-read that capture and NEVER re-derive. The
+ * checks here are the receipt-consistency gate over that sealed input — defense in depth,
+ * not the boundary.
  */
-export function deriveBlueprintAuthoringSanitizedFailureCaptureDisposition(args: {
+export function blueprintAuthoringFailedCensusCorrelationDiagnostics(args: {
+  request: ProductionAuthoringRunRequest;
+  attempts: readonly ProductionAuthoringAttemptReceipt[];
+  error: unknown;
+  failureReceipt: ProductionAuthoringRunReceipt;
+  failureCode: ProductionBlueprintRunnerTerminalFailureCode;
+}): PreRenderBlueprintRepairDiagnostic[] | null {
+  // Prove the receipt's OWN digest is self-consistent and its request/context linkage +
+  // failure code + call topology bind THIS request, so a forged receipt (a self-consistent
+  // digest over unrelated data, or a stale digest) cannot smuggle an attempt list into the
+  // census. NOTE: this is a NARROW linkage check, not the full runtime receipt-schema
+  // validator — the lifecycle runs `productionBlueprintAuthoringReceiptReplayIsValid` on this
+  // exact receipt at first publication and at replay/recovery.
+  if (
+    !failedReceiptRequestLinkageIsConsistent({
+      receipt: args.failureReceipt,
+      request: args.request,
+      failureCode: args.failureCode,
+    })
+  ) {
+    return null;
+  }
+  // The receipt commits (via its digest) to the attempt TOPOLOGY and each attempt's persisted
+  // `validationDiagnostics` CATEGORY SUMMARY ({count,codes}) — NOT to the census structural
+  // identities. Require the separately-passed `args.attempts` to be canonically identical to
+  // the receipt's attempts first, so the census can never be correlated against a different
+  // attempt list than the one the receipt digest binds.
+  if (
+    canonicalJsonDigest(args.attempts) !==
+    canonicalJsonDigest(args.failureReceipt.attempts)
+  ) {
+    return null;
+  }
+  const receiptAttempts = args.failureReceipt.attempts;
+  // Receipt attempts MUST be a clean 1..N sequence — no duplicate, missing, or non-sequential
+  // attempt number (a duplicate would otherwise let one source be counted twice).
+  for (let index = 0; index < receiptAttempts.length; index += 1) {
+    if (receiptAttempts[index]!.attempt !== index + 1) {
+      return null;
+    }
+  }
+  // Index the compiler-owned structured source by attempt number, retaining BOTH the raw
+  // error strings (the exact source the receipt's `validationDiagnostics` summary was derived
+  // from) and the structured diagnostics (the census source). A non-safe, out-of-range
+  // (outside 1..N), or duplicated source attempt number is REJECTED — never silently skipped.
+  const evidenceByAttempt = new Map<
+    number,
+    { errors: string[]; diagnostics: PreRenderBlueprintRepairDiagnostic[] }
+  >();
+  if (
+    args.error instanceof PreRenderBlueprintAuthoringRepairExhaustedError ||
+    args.error instanceof PreRenderBlueprintRepairInputNotAdmissibleError
+  ) {
+    for (const attempt of args.error.attempts) {
+      if (
+        !Number.isSafeInteger(attempt.attempt) ||
+        attempt.attempt < 1 ||
+        attempt.attempt > receiptAttempts.length ||
+        evidenceByAttempt.has(attempt.attempt)
+      ) {
+        return null;
+      }
+      evidenceByAttempt.set(attempt.attempt, {
+        errors: Array.isArray(attempt.errors) ? [...attempt.errors] : [],
+        diagnostics: attempt.diagnostics ? [...attempt.diagnostics] : [],
+      });
+    }
+  }
+  // For every diagnostic-bearing receipt attempt require a matching source whose raw errors
+  // RE-DERIVE (via the exact canonical logic used to persist them) to the EXACT persisted
+  // {count,codes}, and whose structured diagnostics PROJECT (via the single canonical
+  // projection the compiler uses) to the source error array position-for-position. Every
+  // source carrying structured diagnostics must map to a matched attempt.
+  const censusDiagnostics: PreRenderBlueprintRepairDiagnostic[] = [];
+  const matchedAttempts = new Set<number>();
+  for (const receiptAttempt of receiptAttempts) {
+    const persisted = receiptAttempt.validationDiagnostics;
+    const attemptIsDiagnosticBearing =
+      persisted.count > 0 || persisted.codes.length > 0;
+    if (!attemptIsDiagnosticBearing) continue;
+    const evidence = evidenceByAttempt.get(receiptAttempt.attempt);
+    if (!evidence) {
+      return null;
+    }
+    const rederived = sanitizedAuthoringDiagnostics({
+      inputs: evidence.errors,
+      fallbackCode: 'draft_contract_validation_failed',
+    });
+    if (
+      rederived.count !== persisted.count ||
+      JSON.stringify(rederived.codes) !== JSON.stringify(persisted.codes)
+    ) {
+      return null;
+    }
+    if (evidence.diagnostics.length === 0) {
+      return null;
+    }
+    const projected = evidence.diagnostics.map(
+      preRenderBlueprintRepairDiagnosticErrorText,
+    );
+    if (
+      projected.length !== evidence.errors.length ||
+      projected.some((text, position) => text !== evidence.errors[position])
+    ) {
+      return null;
+    }
+    matchedAttempts.add(receiptAttempt.attempt);
+    censusDiagnostics.push(...evidence.diagnostics);
+  }
+  for (const [attemptNumber, evidence] of evidenceByAttempt) {
+    if (
+      evidence.diagnostics.length > 0 &&
+      !matchedAttempts.has(attemptNumber)
+    ) {
+      return null;
+    }
+  }
+  // A required capture with an empty census would be a binding satisfied by nothing.
+  if (censusDiagnostics.length === 0) {
+    return null;
+  }
+  return censusDiagnostics;
+}
+
+/**
+ * Mint the typed sanitized-failure-capture disposition for a failed run. This is the
+ * census AUTHORITY, and it is deliberately runner-PRIVATE (not exported): only
+ * `runProductionBlueprintAuthoring` and its deterministic-failure path call it, always over
+ * the compiler's OWN single-stack error, whose per-position error strings ARE the canonical
+ * projections of its own diagnostics. There is no exported API that accepts a
+ * caller-supplied (errors, diagnostics) triple to mint a capture — so a colliding-text
+ * substitution (a receipt error string produced from identity A paired with the distinct
+ * diagnostic B) is structurally UNREACHABLE, not merely checked. The minted capture is
+ * durably content-addressed and, by the lifecycle, atomically linked to this receipt;
+ * replay/recovery re-read that capture and never re-derive.
+ *
+ * The receipt itself binds only the attempt TOPOLOGY and each attempt's category summary
+ * ({count,codes}); it does NOT commit to the census structural identities. A durable
+ * receipt-level identity commitment would require a receipt schema change (receipt v7) and
+ * is deferred to the F1 receipt-v7 cutover rather than introducing an incompatible interim
+ * schema — so identity honesty rests on the structural seal above plus the linkage-bound
+ * capture, not on the receipt.
+ *
+ * The requirement is derived from the ACTUAL failed receipt EVIDENCE via the single canonical
+ * `blueprintAuthoringReceiptRequiresSanitizedCapture` predicate (mandatory code OR any attempt
+ * with grouped validation diagnostics); a diagnostic-LESS boundary failure is an explicit
+ * allowed absence and binds no capture. When required, the census is minted from the
+ * diagnostics returned by the pure consistency checker
+ * (`blueprintAuthoringFailedCensusCorrelationDiagnostics`); an un-correlatable receipt/source
+ * or an overflowing census is `derivation_failed` with a bounded sanitized reason — never a
+ * silent null — so the lifecycle drives it into the incident/execution_state_uncertain path.
+ * Never reads raw draft/provider output — only structured diagnostics and byte accountings.
+ */
+function deriveBlueprintAuthoringSanitizedFailureCaptureDisposition(args: {
   request: ProductionAuthoringRunRequest;
   context: ProductionAuthoringContext;
   attempts: readonly ProductionAuthoringAttemptReceipt[];
@@ -1705,6 +1845,19 @@ export function deriveBlueprintAuthoringSanitizedFailureCaptureDisposition(args:
   if (!blueprintAuthoringReceiptRequiresSanitizedCapture(args.failureReceipt)) {
     // Diagnostic-less boundary failure: allowed to bind no capture.
     return { kind: 'diagnostic_less_absence' };
+  }
+  const censusDiagnostics = blueprintAuthoringFailedCensusCorrelationDiagnostics({
+    request: args.request,
+    attempts: args.attempts,
+    error: args.error,
+    failureReceipt: args.failureReceipt,
+    failureCode: args.failureCode,
+  });
+  if (censusDiagnostics === null) {
+    return {
+      kind: 'derivation_failed',
+      reasonCode: 'sanitized_census_correlation_unproven',
+    };
   }
   try {
     const initialAccounting = productionBlueprintInitialInputAccounting(
@@ -1739,135 +1892,6 @@ export function deriveBlueprintAuthoringSanitizedFailureCaptureDisposition(args:
         byteAccounting: args.error.inputAccounting,
         rejectionReasonCode: 'repair_route_input_not_admissible',
       });
-    }
-    const correlationUnproven = {
-      kind: 'derivation_failed' as const,
-      reasonCode: 'sanitized_census_correlation_unproven' as const,
-    };
-    // The `failureReceipt` is only trustworthy as the content-addressed source of truth if
-    // its own digest and request/context linkage actually check out. Otherwise a forged
-    // receipt (a self-consistent digest over unrelated request/context data, or a stale
-    // digest) could smuggle an attempt list into the census. Prove the receipt is a real,
-    // canonical failed receipt that binds THIS request BEFORE trusting its attempts.
-    if (
-      !failedReceiptCanonicallyBindsRequest({
-        receipt: args.failureReceipt,
-        request: args.request,
-        failureCode: args.failureCode,
-      })
-    ) {
-      return correlationUnproven;
-    }
-    // Receipt-side source of truth is the CONTENT-ADDRESSED failed receipt's own attempts
-    // (the capture links to `failureReceipt`, whose digest commits to `attempts`). Require
-    // the separately-passed `args.attempts` to be canonically identical first, so the
-    // census can never be correlated against a different attempt list than the one the
-    // receipt digest actually binds.
-    if (
-      canonicalJsonDigest(args.attempts) !==
-      canonicalJsonDigest(args.failureReceipt.attempts)
-    ) {
-      return correlationUnproven;
-    }
-    const receiptAttempts = args.failureReceipt.attempts;
-    // Receipt attempts MUST be a clean 1..N sequence — no duplicate, missing, or
-    // non-sequential attempt number. A duplicate number would otherwise let one evidence
-    // source be counted into the census twice.
-    for (let index = 0; index < receiptAttempts.length; index += 1) {
-      if (receiptAttempts[index]!.attempt !== index + 1) {
-        return correlationUnproven;
-      }
-    }
-    // Index the in-memory structured source by attempt number, retaining BOTH the raw
-    // error strings (the exact source the receipt's `validationDiagnostics` summary was
-    // derived from) and the structured diagnostics (the census source). A non-safe,
-    // out-of-range (outside 1..N), or duplicated source attempt number is REJECTED — never
-    // silently skipped — so extra or malformed evidence cannot ride alongside a valid
-    // source.
-    const evidenceByAttempt = new Map<
-      number,
-      { errors: string[]; diagnostics: PreRenderBlueprintRepairDiagnostic[] }
-    >();
-    if (
-      args.error instanceof PreRenderBlueprintAuthoringRepairExhaustedError ||
-      args.error instanceof PreRenderBlueprintRepairInputNotAdmissibleError
-    ) {
-      for (const attempt of args.error.attempts) {
-        if (
-          !Number.isSafeInteger(attempt.attempt) ||
-          attempt.attempt < 1 ||
-          attempt.attempt > receiptAttempts.length ||
-          evidenceByAttempt.has(attempt.attempt)
-        ) {
-          return correlationUnproven;
-        }
-        evidenceByAttempt.set(attempt.attempt, {
-          errors: Array.isArray(attempt.errors) ? [...attempt.errors] : [],
-          diagnostics: attempt.diagnostics ? [...attempt.diagnostics] : [],
-        });
-      }
-    }
-    // Prove a COMPLETE, IDENTITY-EXACT bijection between every diagnostic-bearing receipt
-    // attempt and its in-memory structured source BEFORE minting any census:
-    //  - forward: every receipt attempt that persisted a non-empty validation-diagnostic
-    //    summary MUST have a matching source whose raw errors RE-DERIVE, under the exact
-    //    canonical logic used to persist them, to the EXACT {count,codes} the receipt
-    //    carries (rejects a fabricated/drifted summary), AND whose structured diagnostics
-    //    PROJECT — via the single canonical authority the compiler uses to build the error
-    //    strings — to the source error array position-for-position (proves the structured
-    //    census and the errors are the SAME evidence identities, not merely equal in
-    //    count);
-    //  - reverse: every source that carries structured diagnostics MUST map to a matched
-    //    diagnostic-bearing receipt attempt (rejects extra/unmatched evidence).
-    // Any violation is `sanitized_census_correlation_unproven`.
-    const censusDiagnostics: PreRenderBlueprintRepairDiagnostic[] = [];
-    const matchedAttempts = new Set<number>();
-    for (const receiptAttempt of receiptAttempts) {
-      const persisted = receiptAttempt.validationDiagnostics;
-      const attemptIsDiagnosticBearing =
-        persisted.count > 0 || persisted.codes.length > 0;
-      if (!attemptIsDiagnosticBearing) continue;
-      const evidence = evidenceByAttempt.get(receiptAttempt.attempt);
-      if (!evidence) {
-        return correlationUnproven;
-      }
-      const rederived = sanitizedAuthoringDiagnostics({
-        inputs: evidence.errors,
-        fallbackCode: 'draft_contract_validation_failed',
-      });
-      if (
-        rederived.count !== persisted.count ||
-        JSON.stringify(rederived.codes) !== JSON.stringify(persisted.codes)
-      ) {
-        return correlationUnproven;
-      }
-      if (evidence.diagnostics.length === 0) {
-        return correlationUnproven;
-      }
-      const projected = evidence.diagnostics.map(
-        preRenderBlueprintRepairDiagnosticErrorText,
-      );
-      if (
-        projected.length !== evidence.errors.length ||
-        projected.some((text, position) => text !== evidence.errors[position])
-      ) {
-        return correlationUnproven;
-      }
-      matchedAttempts.add(receiptAttempt.attempt);
-      censusDiagnostics.push(...evidence.diagnostics);
-    }
-    for (const [attemptNumber, evidence] of evidenceByAttempt) {
-      if (
-        evidence.diagnostics.length > 0 &&
-        !matchedAttempts.has(attemptNumber)
-      ) {
-        return correlationUnproven;
-      }
-    }
-    // A required capture with an empty census would be a binding satisfied by nothing.
-    // Never mint it; fail closed so the caller drives it into the incident path.
-    if (censusDiagnostics.length === 0) {
-      return correlationUnproven;
     }
     return {
       kind: 'captured',
