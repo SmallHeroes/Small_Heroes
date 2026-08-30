@@ -24,6 +24,7 @@ import {
   nominalBlueprintAuthoringUsageCostUsd,
   type BlueprintAuthoringUsage,
 } from './blueprintAuthoringPolicy';
+import { blueprintAuthoringInputTokensExceedCeiling } from './blueprintAuthoringInputTokenAdmission';
 import {
   PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA,
   PRE_RENDER_BLUEPRINT_DRAFT_SCHEMA_NAME,
@@ -373,10 +374,7 @@ export function createOpenAIResponsesBlueprintAuthoringAdapter(
         executionAttestation:
           notRunAuthoringExecutionAttestation(),
       } satisfies ProductionAuthoringProviderBoundaryEvidence;
-      if (
-        inputAccounting.estimatedBytes >
-        BLUEPRINT_AUTHORING_MAX_INPUT_TOKENS
-      ) {
+      if (blueprintAuthoringInputTokensExceedCeiling(inputAccounting)) {
         closeAndThrow(
           'input_ceiling_exceeded',
           preDispatchEvidence,

@@ -1,5 +1,56 @@
 # SmallHeroes — Current Technical State
 
+## R1D — Blueprint Admission Honesty + Sanitized Failure Observability (Claude implementation; locally green, committed, not pushed; awaiting Codex QA)
+
+Guy-approved offline milestone. The real R1D lantern receipt
+(`4c33108016513c06dc6b5d12c0d8ef7c21e0b38f91edb5d71d52ea27c1ce8031.json`) stopped
+at `repair_route_input_not_admissible` on a **bytes-vs-tokens** admission
+comparison (`estimatedBytes 61502` vs the `64000` **token** ceiling; the real call
+used `12007` input tokens), and its failure evidence collapsed 86 symptoms into 3
+category codes with no structural identities.
+
+- **Admission honesty (numerically preserving):** new
+  `lib/visual-package/blueprintAuthoringInputTokenAdmission.ts`
+  (`blueprint-authoring-conservative-input-token-admission/v1`) makes the admission
+  quantity a **proven conservative input-token upper bound** (byte-level BPE
+  monotonicity: `tokens ≤ utf8 bytes`), routes both the initial and repair
+  admission decisions (and the receipt-replay comparisons) through one named
+  authority, and preserves byte accounting as observability. The ceiling is not
+  weakened; a tighter exact-tokenizer policy is deferred to a future version
+  cutover (not guessed). v6 receipts/digests are untouched.
+- **Sanitized failure capture:** new
+  `lib/visual-package/blueprintAuthoringSanitizedFailureCapture.ts`
+  (`blueprint-authoring-sanitized-failure-capture/v1`) — a versioned,
+  content-addressed, fail-closed structural projection carrying a complete bounded
+  diagnostic **census** (repeated-vs-unique explicit via per-identity digests +
+  counts), byte + token admission accounting for **both** routes (incl. the
+  rejected repair) with the real observed tokens as a conservativeness cross-check,
+  `doesNotAuthorize` semantics, bounded size/redaction policy, and a recursive
+  leak scan that makes prose/name/phrase/PII **structurally impossible** to
+  validate. The runner’s failure path derives/returns it
+  (`ProductionAuthoringRunResult.sanitizedFailureCapture`, fail-safe) and
+  `persistBlueprintAuthoringSanitizedFailureCapture` writes it; structured
+  diagnostics are threaded in-memory only (persisted receipt shape unchanged). The
+  historical attempt cannot be retroactively upgraded — the real 86 remain
+  unknowable; this prevents future blindness.
+
+Tests: new `blueprint-admission-honesty-and-capture.spec.ts` (25) proves the
+conservative bound + like-for-like admission, a production-scale ≥8-page overflow
+that fails before any provider (injected pure `callAuthor`; no provider/credential),
+end-to-end capture from the real failed 8-page compile, 86-symptom census
+completeness with no drop/dup, prose/PII-freedom (planted child+family name
+absent), bounded truncation, and ~12 hostile-tamper regressions. Adjacent suites
+green (production-lifecycle-foundation, pre-render-blueprint-authoring, qa-wizard
+lifecycle + replacement-lane isolation, adapter, source-authority-lifecycle,
+draft-authority-reference-diagnostics, book-surface-repair). `tsc` clean;
+`git diff --check` clean; `npm run check` per the handoff. No
+provider/network/credential/live/render/DB/deploy/push; the real `outputs/`
+artifacts were only read. Evidence:
+`docs/ai-workflow/R1D_BLUEPRINT_ADMISSION_HONESTY_EVIDENCE.md`; gate:
+`docs/ai-workflow/R1D_BLUEPRINT_ADMISSION_HONESTY_DECISION_GATE.md`.
+
+---
+
 **Updated:** 2026-08-30
 **Maintainer:** Codex (Technical Owner; Round 17 independent Claude Code QA PASS)
 **Working branch:** `codex/r1d-order-package-authority-binding` in `C:\GNart\Work\sh-order-package-authority`; immutable code range `983a09ee..608aeee0` (`f982f9f8`, `c38a18ac`, `59efadb5`, `0e49b8f6`, `3cfbae8f`, `fc8b08a0`, `5e79c45f`, `157fe750`, `53c62285`, `ce35ee42`, `f1dafa1b`, `296fe47c`, `2e3a511e`, `677c6644`, `d1b320e1`, `608aeee0`), the round-9 corrective `96a50252` (docs `8c7474bc`), and the round-10 corrective `17670078` (immutable code range `8c7474bc..17670078`) plus the docs-only successor commit that finalizes this file. The prior Codex branch `codex/r1d-qa-wizard-downstream-lifecycle` (worktree `C:\GNart\Work\sh-live-chameleon-v3`) is historical for this milestone.

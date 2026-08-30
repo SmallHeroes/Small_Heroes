@@ -16,6 +16,7 @@ import {
   type PreRenderBlueprintAuthoringCallOptions,
   type PreRenderBlueprintAuthoringConfig,
   type PreRenderBlueprintAuthoringResult,
+  type PreRenderBlueprintRepairDiagnostic,
 } from './preRenderBlueprintAuthoring';
 import { PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA } from './preRenderBlueprintDraftSchema';
 import {
@@ -66,6 +67,15 @@ import {
   type BlueprintAuthoringInputAccounting,
   type BlueprintAuthoringUsage,
 } from './blueprintAuthoringPolicy';
+import {
+  blueprintAuthoringInputTokensExceedCeiling,
+} from './blueprintAuthoringInputTokenAdmission';
+import {
+  buildBlueprintAuthoringSanitizedFailureCapture,
+  blueprintAuthoringSanitizedFailureCaptureBytes,
+  type BlueprintAuthoringSanitizedFailureCapture,
+  type BlueprintAuthoringSanitizedRoute,
+} from './blueprintAuthoringSanitizedFailureCapture';
 
 export const PRODUCTION_AUTHORING_RUN_REQUEST_VERSION =
   'production-blueprint-authoring-request/v4' as const;
@@ -344,6 +354,12 @@ export interface ProductionAuthoringRunReceipt {
 export interface ProductionAuthoringRunResult {
   receipt: ProductionAuthoringRunReceipt;
   authoringResult: PreRenderBlueprintAuthoringResult | null;
+  /**
+   * Sanitized structural failure observability capture, present only on a failed
+   * run when one could be derived. Pure observability — see the capture's
+   * `doesNotAuthorize` semantics. Never carries prose or PII.
+   */
+  sanitizedFailureCapture?: BlueprintAuthoringSanitizedFailureCapture | null;
 }
 
 export function productionAuthoringReceiptBytes(
@@ -501,9 +517,9 @@ function productionBlueprintInitialPromptIssues(
   context: ProductionAuthoringContext,
 ): string[] {
   const accounting = productionBlueprintInitialInputAccounting(context);
-  return accounting.estimatedBytes > BLUEPRINT_AUTHORING_MAX_INPUT_TOKENS
+  return blueprintAuthoringInputTokensExceedCeiling(accounting)
     ? [
-        `initial Blueprint prompt exceeds canonical input ceiling: ${accounting.estimatedBytes} > ${BLUEPRINT_AUTHORING_MAX_INPUT_TOKENS}`,
+        `initial Blueprint prompt exceeds canonical input-token ceiling: conservative upper bound ${accounting.estimatedBytes} > ${BLUEPRINT_AUTHORING_MAX_INPUT_TOKENS}`,
       ]
     : [];
 }
@@ -909,15 +925,17 @@ export async function runProductionBlueprintAuthoring(args: {
           } satisfies ProductionAuthoringAttemptReceipt;
           try {
             if (
-              expectedInputAccounting.estimatedBytes >
-                BLUEPRINT_AUTHORING_MAX_INPUT_TOKENS ||
+              blueprintAuthoringInputTokensExceedCeiling(
+                expectedInputAccounting,
+              ) ||
               !blueprintAuthoringSpendIsWithinCeiling(
                 expectedReservedExposureBeforeCallUsd,
               )
             ) {
               const failureCode: ProductionAuthoringAttemptFailureCode =
-                expectedInputAccounting.estimatedBytes >
-                BLUEPRINT_AUTHORING_MAX_INPUT_TOKENS
+                blueprintAuthoringInputTokensExceedCeiling(
+                  expectedInputAccounting,
+                )
                   ? 'input_token_ceiling_exceeded'
                   : 'cost_ceiling_exceeded';
               attempts.push({
@@ -1389,34 +1407,139 @@ export async function runProductionBlueprintAuthoring(args: {
             })
           ? 'draft_validation_repair_exhausted'
           : 'local_processing_failed');
+    const failed = failureReceipt({
+      request: args.request,
+      attempts,
+      code: failureCode,
+      diagnosticInputs:
+        error instanceof
+          PreRenderBlueprintAuthoringRepairExhaustedError ||
+        error instanceof PreRenderBlueprintRepairInputNotAdmissibleError
+          ? error.attempts.flatMap(
+              (attempt) => attempt.errors,
+            )
+          : [],
+      diagnosticCountOverride:
+        error instanceof
+          PreRenderBlueprintAuthoringRepairExhaustedError ||
+        error instanceof PreRenderBlueprintRepairInputNotAdmissibleError
+          ? error.attempts.reduce(
+              (sum, attempt) =>
+                sum + attempt.errors.length,
+              0,
+            )
+          : 1,
+      issueCodes: [failureCode],
+    });
     return {
-      receipt: failureReceipt({
-        request: args.request,
-        attempts,
-        code: failureCode,
-        diagnosticInputs:
-          error instanceof
-            PreRenderBlueprintAuthoringRepairExhaustedError ||
-          error instanceof PreRenderBlueprintRepairInputNotAdmissibleError
-            ? error.attempts.flatMap(
-                (attempt) => attempt.errors,
-              )
-            : [],
-        diagnosticCountOverride:
-          error instanceof
-            PreRenderBlueprintAuthoringRepairExhaustedError ||
-          error instanceof PreRenderBlueprintRepairInputNotAdmissibleError
-            ? error.attempts.reduce(
-                (sum, attempt) =>
-                  sum + attempt.errors.length,
-                0,
-              )
-            : 1,
-        issueCodes: [failureCode],
-      }),
+      receipt: failed,
       authoringResult: null,
+      sanitizedFailureCapture: deriveBlueprintAuthoringSanitizedFailureCapture({
+        request: args.request,
+        context: args.context,
+        attempts,
+        error,
+        failureReceipt: failed,
+        failureCode,
+      }),
     };
   }
+}
+
+/**
+ * Derive a sanitized structural failure observability capture from an in-memory
+ * failed run. Fail-safe: any derivation problem yields null so the authoritative
+ * receipt is never blocked. Never reads raw draft/provider output — only structured
+ * diagnostics and byte accountings.
+ */
+function deriveBlueprintAuthoringSanitizedFailureCapture(args: {
+  request: ProductionAuthoringRunRequest;
+  context: ProductionAuthoringContext;
+  attempts: readonly ProductionAuthoringAttemptReceipt[];
+  error: unknown;
+  failureReceipt: ProductionAuthoringRunReceipt;
+  failureCode: ProductionBlueprintRunnerTerminalFailureCode;
+}): BlueprintAuthoringSanitizedFailureCapture | null {
+  try {
+    const initialAccounting = productionBlueprintInitialInputAccounting(
+      args.context,
+    );
+    const initialAttempt = args.attempts[0];
+    const observedInputTokens =
+      initialAttempt &&
+      initialAttempt.kind === 'initial' &&
+      initialAttempt.completionStatus === 'completed' &&
+      typeof initialAttempt.usage?.inputTokens === 'number'
+        ? initialAttempt.usage.inputTokens
+        : null;
+    const routes: Array<{
+      routeKind: BlueprintAuthoringSanitizedRoute['routeKind'];
+      ordinal: number;
+      byteAccounting: BlueprintAuthoringInputAccounting;
+      observedInputTokens?: number | null;
+      rejectionReasonCode?: string | null;
+    }> = [
+      {
+        routeKind: 'initial',
+        ordinal: 0,
+        byteAccounting: initialAccounting,
+        observedInputTokens,
+      },
+    ];
+    if (args.error instanceof PreRenderBlueprintRepairInputNotAdmissibleError) {
+      routes.push({
+        routeKind: 'repair',
+        ordinal: 1,
+        byteAccounting: args.error.inputAccounting,
+        rejectionReasonCode: 'repair_route_input_not_admissible',
+      });
+    }
+    const diagnostics: PreRenderBlueprintRepairDiagnostic[] =
+      args.error instanceof
+        PreRenderBlueprintAuthoringRepairExhaustedError ||
+      args.error instanceof PreRenderBlueprintRepairInputNotAdmissibleError
+        ? args.error.attempts.flatMap(
+            (attempt) => attempt.diagnostics ?? [],
+          )
+        : [];
+    return buildBlueprintAuthoringSanitizedFailureCapture({
+      terminalFailureCode: args.failureCode,
+      terminalReceiptDigest: args.failureReceipt.digest,
+      requestDigest: args.failureReceipt.requestDigest,
+      contextDigest: args.request.contextDigest,
+      routes,
+      diagnostics,
+    });
+  } catch {
+    return null;
+  }
+}
+
+export function persistBlueprintAuthoringSanitizedFailureCapture(args: {
+  repoRoot: string;
+  outputDir: string;
+  capture: BlueprintAuthoringSanitizedFailureCapture;
+  write?: boolean;
+  hooks?: ImmutableWriteHooks;
+}): { capturePath: string; wrote: boolean } {
+  const root = path.resolve(args.repoRoot, args.outputDir);
+  repoRelativePath(args.repoRoot, root);
+  const absolute = path.join(
+    root,
+    'sanitized-failure-captures',
+    `${args.capture.digest}.json`,
+  );
+  if (args.write === true) {
+    writeImmutableLocalArtifact({
+      destinationPath: absolute,
+      bytes: blueprintAuthoringSanitizedFailureCaptureBytes(args.capture),
+      hooks: args.hooks,
+    });
+  }
+  return {
+    capturePath: repoRelativePath(args.repoRoot, absolute),
+    wrote: args.write === true,
+  };
 }
 
 export function persistProductionAuthoringReceipt(args: {

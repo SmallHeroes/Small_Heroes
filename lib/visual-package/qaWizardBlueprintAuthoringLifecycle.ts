@@ -53,6 +53,10 @@ import {
   nominalBlueprintAuthoringUsageCostUsd,
 } from './blueprintAuthoringPolicy';
 import {
+  blueprintAuthoringInputTokensAreAdmissible,
+  blueprintAuthoringInputTokensExceedCeiling,
+} from './blueprintAuthoringInputTokenAdmission';
+import {
   PRE_RENDER_BLUEPRINT_APPROVAL_VERSION,
   PRE_RENDER_BLUEPRINT_APPROVER,
   computePreRenderBlueprintApprovalDigest,
@@ -1069,7 +1073,7 @@ function attemptReceiptIsValid(args: {
       inputAccounting,
       PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA,
     ) &&
-    inputAccounting.estimatedBytes <= BLUEPRINT_AUTHORING_MAX_INPUT_TOKENS &&
+    blueprintAuthoringInputTokensAreAdmissible(inputAccounting) &&
     attempt.reservedExposureBeforeCallUsd === expectedReservation;
   const fullUsageCostEvidence =
     completeUsage !== null &&
@@ -1185,7 +1189,7 @@ function attemptReceiptIsValid(args: {
       inputAccounting,
       PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA,
     ) &&
-    inputAccounting.estimatedBytes <= BLUEPRINT_AUTHORING_MAX_INPUT_TOKENS &&
+    blueprintAuthoringInputTokensAreAdmissible(inputAccounting) &&
     attempt.reservedExposureBeforeCallUsd === expectedReservation &&
     (attempt.failureEvidenceKind !== 'provider_adapter_boundary' ||
       attempt.failureEvidenceReason === 'boundary_reason_invalid' ||
@@ -1231,14 +1235,15 @@ function attemptReceiptIsValid(args: {
           ? attempt.failureEvidenceKind === 'compiler_pre_dispatch' &&
             attempt.failureEvidenceReason === 'input_ceiling_exceeded' &&
             preDispatchFailure &&
-            inputAccounting.estimatedBytes > BLUEPRINT_AUTHORING_MAX_INPUT_TOKENS
+            blueprintAuthoringInputTokensExceedCeiling(inputAccounting)
           : failureCode === 'cost_ceiling_exceeded'
             ? (attempt.failureEvidenceKind === 'compiler_pre_dispatch' &&
                 attempt.failureEvidenceReason ===
                   'spend_reservation_exceeded' &&
                 preDispatchFailure &&
-                inputAccounting.estimatedBytes <=
-                  BLUEPRINT_AUTHORING_MAX_INPUT_TOKENS &&
+                blueprintAuthoringInputTokensAreAdmissible(
+                  inputAccounting,
+                ) &&
                 !blueprintAuthoringSpendIsWithinCeiling(
                   expectedReservation,
                 )) ||

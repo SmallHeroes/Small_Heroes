@@ -53,6 +53,9 @@ import {
   blueprintAuthoringInputAccounting,
   type BlueprintAuthoringInputAccounting,
 } from './blueprintAuthoringPolicy';
+import {
+  blueprintAuthoringInputTokensExceedCeiling,
+} from './blueprintAuthoringInputTokenAdmission';
 
 export {
   PRE_RENDER_BLUEPRINT_AUTHORING_PROMPT_VERSION,
@@ -129,7 +132,7 @@ export class PreRenderBlueprintRepairInputNotAdmissibleError extends Error {
     readonly inputAccounting: BlueprintAuthoringInputAccounting,
   ) {
     super(
-      `Blueprint repair input is not admissible: ${inputAccounting.estimatedBytes} > ${BLUEPRINT_AUTHORING_MAX_INPUT_TOKENS}`,
+      `Blueprint repair input is not admissible: conservative input-token upper bound ${inputAccounting.estimatedBytes} > ${BLUEPRINT_AUTHORING_MAX_INPUT_TOKENS} token ceiling`,
     );
     this.name = 'PreRenderBlueprintRepairInputNotAdmissibleError';
   }
@@ -649,7 +652,12 @@ export async function compilePreRenderBookVisualBlueprint(
       };
     }
 
-    repairAttempts.push({ attempt, errors, draft: parsedDraft });
+    repairAttempts.push({
+      attempt,
+      errors,
+      draft: parsedDraft,
+      diagnostics: repairDiagnostics,
+    });
     if (attempt > PRE_RENDER_BLUEPRINT_MAX_REPAIR_ATTEMPTS) {
       throw new PreRenderBlueprintAuthoringRepairExhaustedError(
         repairAttempts,
@@ -667,9 +675,10 @@ export async function compilePreRenderBookVisualBlueprint(
       schema: PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA,
     });
     if (
-      repairInputAccounting.estimatedBytes >
-      BLUEPRINT_AUTHORING_MAX_INPUT_TOKENS
+      blueprintAuthoringInputTokensExceedCeiling(repairInputAccounting)
     ) {
+      // Fail closed before a second provider call: the conservative input-token
+      // upper bound for the exact repair wire exceeds the approved token ceiling.
       throw new PreRenderBlueprintRepairInputNotAdmissibleError(
         repairAttempts,
         repairInputAccounting,

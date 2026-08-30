@@ -24,6 +24,8 @@ export * from './reconciliationLifecycle';
 export * from './reconciliationAuthoringLifecycle';
 export * from './productionAuthoringRunner';
 export * from './blueprintAuthoringPolicy';
+export * from './blueprintAuthoringInputTokenAdmission';
+export * from './blueprintAuthoringSanitizedFailureCapture';
 export * from './visualPackageV4Lifecycle';
 export * from './storySourceAuthority';
 export * from './visualContractAuthoringLifecycle';

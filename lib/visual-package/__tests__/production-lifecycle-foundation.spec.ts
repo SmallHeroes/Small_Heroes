@@ -842,7 +842,7 @@ describe('provider-isolated Blueprint authoring runner', () => {
         context: oversized,
       }),
     ).toEqual([
-      `initial Blueprint prompt exceeds canonical input ceiling: ${accounting.estimatedBytes} > ${BLUEPRINT_AUTHORING_MAX_INPUT_TOKENS}`,
+      `initial Blueprint prompt exceeds canonical input-token ceiling: conservative upper bound ${accounting.estimatedBytes} > ${BLUEPRINT_AUTHORING_MAX_INPUT_TOKENS}`,
     ]);
 
     const result = await runProductionBlueprintAuthoring({

@@ -1,4 +1,5 @@
 import { PRE_RENDER_BLUEPRINT_DRAFT_SCHEMA_VERSION } from './preRenderBlueprintDraftSchema';
+import type { PreRenderBlueprintRepairDiagnostic } from './preRenderBlueprintAuthoring';
 
 export const PRE_RENDER_BLUEPRINT_AUTHORING_PROMPT_VERSION =
   'pre-render-blueprint-authoring-prompt/v6' as const;
@@ -41,6 +42,14 @@ export interface PreRenderBlueprintAuthoringAttempt {
   attempt: number;
   errors: string[];
   draft: unknown;
+  /**
+   * Structured validation diagnostics for this attempt, carried in-memory only so
+   * a failure-path observability capture can build a sanitized structural census.
+   * Never persisted into a receipt; the persisted receipt keeps sanitized
+   * category codes + count. Absent when no structured diagnostics were produced
+   * (e.g. a raw provider/transport call failure).
+   */
+  diagnostics?: PreRenderBlueprintRepairDiagnostic[];
 }
 
 export interface PreRenderBlueprintAuthoringProvenance {
