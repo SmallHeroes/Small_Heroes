@@ -73,6 +73,7 @@ import {
 import {
   buildBlueprintAuthoringSanitizedFailureCapture,
   blueprintAuthoringSanitizedFailureCaptureBytes,
+  blueprintAuthoringFailureRequiresSanitizedCapture,
   type BlueprintAuthoringSanitizedFailureCapture,
   type BlueprintAuthoringSanitizedRoute,
 } from './blueprintAuthoringSanitizedFailureCapture';
@@ -351,15 +352,27 @@ export interface ProductionAuthoringRunReceipt {
   digest: string;
 }
 
+/**
+ * Typed disposition of the sanitized failure capture on a failed run. It replaces a
+ * catch-all `capture | null` so a caller can distinguish an allowed diagnostic-less
+ * absence (publish an ordinary terminal, bind no capture) from a capture derivation
+ * failure / census overflow (which must be treated as torn state and driven into the
+ * incident path, never published as an ordinary replayable terminal).
+ */
+export type BlueprintAuthoringSanitizedFailureCaptureDisposition =
+  | { kind: 'captured'; capture: BlueprintAuthoringSanitizedFailureCapture }
+  | { kind: 'diagnostic_less_absence' }
+  | { kind: 'derivation_failed'; reasonCode: string };
+
 export interface ProductionAuthoringRunResult {
   receipt: ProductionAuthoringRunReceipt;
   authoringResult: PreRenderBlueprintAuthoringResult | null;
   /**
-   * Sanitized structural failure observability capture, present only on a failed
-   * run when one could be derived. Pure observability — see the capture's
-   * `doesNotAuthorize` semantics. Never carries prose or PII.
+   * Sanitized structural failure observability capture disposition, present only on a
+   * failed run. Pure observability — see the capture's `doesNotAuthorize` semantics.
+   * Never carries prose or PII.
    */
-  sanitizedFailureCapture?: BlueprintAuthoringSanitizedFailureCapture | null;
+  sanitizedFailureCaptureDisposition?: BlueprintAuthoringSanitizedFailureCaptureDisposition;
 }
 
 export function productionAuthoringReceiptBytes(
@@ -1440,32 +1453,46 @@ export async function runProductionBlueprintAuthoring(args: {
     return {
       receipt: failed,
       authoringResult: null,
-      sanitizedFailureCapture: deriveBlueprintAuthoringSanitizedFailureCapture({
-        request: args.request,
-        context: args.context,
-        attempts,
-        error,
-        failureReceipt: failed,
-        failureCode,
-      }),
+      sanitizedFailureCaptureDisposition:
+        deriveBlueprintAuthoringSanitizedFailureCaptureDisposition({
+          request: args.request,
+          context: args.context,
+          attempts,
+          error,
+          failureReceipt: failed,
+          failureCode,
+        }),
     };
   }
 }
 
 /**
- * Derive a sanitized structural failure observability capture from an in-memory
- * failed run. Fail-safe: any derivation problem yields null so the authoritative
- * receipt is never blocked. Never reads raw draft/provider output — only structured
+ * Derive the typed sanitized-failure-capture disposition for an in-memory failed run.
+ *
+ * A diagnostic-BEARING failure (its terminal failure code is in the closed
+ * capture-required set) MUST yield a complete sanitized capture: this is what the
+ * milestone promises, and downstream the lifecycle refuses to publish an ordinary
+ * replayable terminal for such a failure without one. If the capture cannot be
+ * derived (including a census that overflows the fail-closed hard bound), the result
+ * is `derivation_failed` with a sanitized reason code — NOT a silent null — so the
+ * caller can drive it into the incident/execution_state_uncertain path.
+ *
+ * A diagnostic-LESS boundary failure (any other code) is an explicit allowed absence:
+ * it binds no capture. Never reads raw draft/provider output — only structured
  * diagnostics and byte accountings.
  */
-function deriveBlueprintAuthoringSanitizedFailureCapture(args: {
+export function deriveBlueprintAuthoringSanitizedFailureCaptureDisposition(args: {
   request: ProductionAuthoringRunRequest;
   context: ProductionAuthoringContext;
   attempts: readonly ProductionAuthoringAttemptReceipt[];
   error: unknown;
   failureReceipt: ProductionAuthoringRunReceipt;
   failureCode: ProductionBlueprintRunnerTerminalFailureCode;
-}): BlueprintAuthoringSanitizedFailureCapture | null {
+}): BlueprintAuthoringSanitizedFailureCaptureDisposition {
+  if (!blueprintAuthoringFailureRequiresSanitizedCapture(args.failureCode)) {
+    // Diagnostic-less boundary failure: allowed to bind no capture.
+    return { kind: 'diagnostic_less_absence' };
+  }
   try {
     const initialAccounting = productionBlueprintInitialInputAccounting(
       args.context,
@@ -1508,16 +1535,28 @@ function deriveBlueprintAuthoringSanitizedFailureCapture(args: {
             (attempt) => attempt.diagnostics ?? [],
           )
         : [];
-    return buildBlueprintAuthoringSanitizedFailureCapture({
-      terminalFailureCode: args.failureCode,
-      terminalReceiptDigest: args.failureReceipt.digest,
-      requestDigest: args.failureReceipt.requestDigest,
-      contextDigest: args.request.contextDigest,
-      routes,
-      diagnostics,
-    });
-  } catch {
-    return null;
+    return {
+      kind: 'captured',
+      capture: buildBlueprintAuthoringSanitizedFailureCapture({
+        terminalFailureCode: args.failureCode,
+        terminalReceiptDigest: args.failureReceipt.digest,
+        requestDigest: args.failureReceipt.requestDigest,
+        contextDigest: args.request.contextDigest,
+        routes,
+        diagnostics,
+      }),
+    };
+  } catch (error) {
+    // A diagnostic-bearing failure whose capture cannot be derived (including a
+    // census that overflows the fail-closed hard bound) is torn state, not an
+    // ordinary terminal. Surface a bounded, sanitized reason so the caller can drive
+    // it into the incident path with no silent null.
+    const reasonCode =
+      error instanceof Error &&
+      /refusing to mint an incomplete census/.test(error.message)
+        ? 'sanitized_census_overflow'
+        : 'sanitized_capture_derivation_failed';
+    return { kind: 'derivation_failed', reasonCode };
   }
 }
 

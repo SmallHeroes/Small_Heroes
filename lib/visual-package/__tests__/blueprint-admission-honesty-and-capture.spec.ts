@@ -530,9 +530,9 @@ describe('sanitized failure capture — census completeness and prose/PII freedo
         0,
       ),
     ).toBe(86);
-    // detailDigests are unique per distinct identity.
+    // identityDigests are unique per distinct sanitized identity.
     expect(
-      new Set(capture.census.identities.map((i) => i.detailDigest)).size,
+      new Set(capture.census.identities.map((i) => i.identityDigest)).size,
     ).toBe(capture.census.identities.length);
     // A repeated identity is explicitly counted, not silently collapsed.
     const repeated = capture.census.identities.find(
@@ -763,6 +763,112 @@ describe('sanitized failure capture — census completeness and prose/PII freedo
     (capture as { digest: string }).digest = canonicalJsonDigest(rest);
     expect(blueprintAuthoringSanitizedFailureCaptureIsValid(capture)).toBe(false);
   });
+
+  it('groups and counts by the SANITIZED identity (distinct raw prose collapses)', () => {
+    // Two raw diagnostics with the SAME code + field projection + presence, differing
+    // ONLY in the (never-retained) message, are ONE sanitized identity with count 2.
+    const diagnostics: PreRenderBlueprintRepairDiagnostic[] = [
+      {
+        code: 'schema_invalid',
+        field: 'frames[0].placements[0]',
+        message: 'first prose',
+      },
+      {
+        code: 'schema_invalid',
+        field: 'frames[0].placements[0]',
+        message: 'second, different prose',
+      },
+    ];
+    // Raw grouping keeps them separate (byte-distinct messages).
+    expect(groupPreRenderBlueprintRepairDiagnostics(diagnostics)).toHaveLength(2);
+    const capture = buildBlueprintAuthoringSanitizedFailureCapture({
+      terminalFailureCode: 'draft_validation_repair_exhausted',
+      terminalReceiptDigest: hex64('r'),
+      requestDigest: hex64('q'),
+      contextDigest: hex64('c'),
+      routes: [
+        {
+          routeKind: 'initial',
+          ordinal: 0,
+          byteAccounting: REAL_INCIDENT_INITIAL_ACCOUNTING,
+          observedInputTokens: 12007,
+        },
+      ],
+      diagnostics,
+    });
+    expect(blueprintAuthoringSanitizedFailureCaptureIsValid(capture)).toBe(true);
+    // One sanitized identity, truthfully counting BOTH emissions.
+    expect(capture.census.distinctIdentities).toBe(1);
+    expect(capture.census.retainedIdentities).toBe(1);
+    expect(capture.census.totalEmitted).toBe(2);
+    expect(capture.census.identities[0]!.repetitionCount).toBe(2);
+  });
+
+  it('no persisted value equals a dictionary-attack digest of the raw diagnostic tuple', () => {
+    // Exact regression for the removed raw-tuple digest: schema_invalid at
+    // frames[0].<name> with an EMPTY message and NO expected/actual — the shape an
+    // attacker enumerates over a short candidate name list.
+    const NAME = 'Bar';
+    const CANDIDATES = ['Avi', 'Bar', 'Dan', 'Sarah'];
+    const diagnostics: PreRenderBlueprintRepairDiagnostic[] = [
+      { code: 'schema_invalid', field: `frames[0].${NAME}`, message: '' },
+    ];
+    const capture = buildBlueprintAuthoringSanitizedFailureCapture({
+      terminalFailureCode: 'draft_validation_repair_exhausted',
+      terminalReceiptDigest: hex64('r'),
+      requestDigest: hex64('q'),
+      contextDigest: hex64('c'),
+      routes: [
+        {
+          routeKind: 'initial',
+          ordinal: 0,
+          byteAccounting: REAL_INCIDENT_INITIAL_ACCOUNTING,
+          observedInputTokens: 12007,
+        },
+      ],
+      diagnostics,
+    });
+    expect(blueprintAuthoringSanitizedFailureCaptureIsValid(capture)).toBe(true);
+
+    const serialized = JSON.stringify(capture);
+    // The name never survives; the field segment is redacted to the sentinel.
+    for (const name of CANDIDATES) {
+      expect(serialized).not.toContain(name);
+    }
+    const identity = capture.census.identities[0]!;
+    expect(identity.fieldPath).toEqual(['frames', '[0]', '#redacted']);
+    expect(identity.fieldRedacted).toBe(true);
+
+    // The digest an attacker computes from the RAW tuple for each candidate — exactly
+    // how the removed detailDigest was derived — must not appear anywhere persisted.
+    const rawTupleDigest = (name: string): string =>
+      canonicalJsonDigest([
+        'schema_invalid',
+        `frames[0].${name}`,
+        '',
+        [0, null],
+        [0, null],
+      ]);
+    for (const name of CANDIDATES) {
+      const guess = rawTupleDigest(name);
+      expect(serialized).not.toContain(guess);
+      expect(
+        capture.census.identities.some((i) => i.identityDigest === guess),
+      ).toBe(false);
+    }
+    // The persisted identity digest is a function of the SANITIZED projection ONLY.
+    expect(identity.identityDigest).toBe(
+      canonicalJsonDigest({
+        code: 'schema_invalid',
+        fieldPresent: true,
+        fieldPath: ['frames', '[0]', '#redacted'],
+        fieldPathDepth: 3,
+        fieldRedacted: true,
+        expectedPresent: false,
+        actualPresent: false,
+      }),
+    );
+  });
 });
 
 describe('sanitized failure capture — fail-closed no-authority and hostile regressions', () => {
@@ -788,9 +894,11 @@ describe('sanitized failure capture — fail-closed no-authority and hostile reg
     expect(blueprintAuthoringSanitizedFailureCaptureIsValid(capture)).toBe(false);
   });
 
-  it('rejects a tampered version', () => {
+  it('rejects a superseded or tampered version (legacy v1 never validates)', () => {
+    // v1 carried the removed raw-tuple detailDigest; it must be rejected cleanly so a
+    // legacy artifact can never reintroduce the PII fingerprint under v2 semantics.
     const capture = clone(baseCapture()) as unknown as Record<string, unknown>;
-    capture.version = 'blueprint-authoring-sanitized-failure-capture/v2';
+    capture.version = 'blueprint-authoring-sanitized-failure-capture/v1';
     expect(blueprintAuthoringSanitizedFailureCaptureIsValid(capture)).toBe(false);
   });
 

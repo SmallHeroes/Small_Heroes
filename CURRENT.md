@@ -1,5 +1,71 @@
 # SmallHeroes — Current Technical State
 
+## R1D — Blueprint capture safety: census PII (F2) + failure-terminal integrity (F3) closed; paid exact-token count (F1) remains HOLD (Claude implementation; locally green, committed, not pushed; awaiting Codex re-gate — NOT a milestone PASS)
+
+Codex QA of the round-2 capture work returned HOLD on three findings. The two
+decision-free safety findings are corrected here. The third — Finding 1, the paid
+exact-provider-input-token-count lane — is numerically unchanged and remains an
+explicit HOLD awaiting Guy's cost-treatment decision. This round is not a milestone
+PASS.
+
+- **Finding 2 — census identity is sanitized-only (raw-tuple PII fingerprint
+  removed):** the persisted per-identity digest is no longer a SHA-256 over the raw
+  diagnostic tuple (code+field+message+expected+actual). The census identity is now
+  defined by the SANITIZED structural projection ONLY — closed diagnostic code,
+  closed-vocabulary/redacted field path, field presence/redaction, and
+  expected/actual presence — and the persisted `identityDigest` is a one-way SHA-256
+  over that projection alone, never over raw values. Distinct-vs-repeated is grouped
+  and counted over that sanitized definition, so repetition is truthful over what is
+  actually persisted. The false high-entropy threat claim is removed. The capture
+  version is cut `v1 → v2`; a legacy v1 artifact (which carried the raw-tuple digest)
+  is rejected cleanly and can never revalidate under v2. An exact dictionary-attack
+  regression (`schema_invalid` + `frames[0].Bar` + empty message / no
+  expected/actual; candidates Avi/Bar/Dan/Sarah) proves no persisted value equals or
+  reveals the raw-tuple candidate digest; all planted-prose/name regressions are
+  retained, and a new merge test proves two raw diagnostics that differ only in
+  never-retained prose collapse to one sanitized identity with a truthful count.
+- **Finding 3 — a diagnostic-bearing failure never becomes an ordinary replayable
+  terminal without a bound capture:** the catch-all null capture derivation is
+  replaced by a typed disposition (`captured` / `diagnostic_less_absence` /
+  `derivation_failed`) governed by a single closed capture-required failure-code set
+  shared by the runner and the lifecycle. A diagnostic-bearing failure whose capture
+  cannot be derived — including a census that overflows the fail-closed 4096 bound —
+  is `derivation_failed` with a sanitized reason and is driven into the existing
+  `execution_state_uncertain`/incident path BEFORE any terminal manifest, ownership
+  binding, or lookup is published (the already-published receipt may remain; no
+  replayable terminal/lookup claims completion). Replay and recovery reject any
+  `authoring_failed` terminal whose failure code is capture-required but whose
+  capture binding is absent — including a hostile or legacy-shaped/manual artifact —
+  and continue to reject a missing/tampered bound capture. Diagnostic-less boundary
+  failures remain an explicit allowed absence (no capture) and replay cleanly.
+  Complete-census semantics are unchanged; capture linkage and manifest
+  exact-key/version checks remain immutable and backward compatible.
+- **Finding 1 — paid exact-provider-input-token count: still HOLD (decision-blocked),
+  numerically unchanged.** The paid runner/replay path stays on the proven
+  conservative token upper bound; wiring an exact provider input-token count into the
+  paid lane (recording the admission basis in the receipt + a live provider count)
+  remains deferred pending Guy's cost-treatment decision. No paid/provider/live
+  behavior was touched.
+
+Files: `lib/visual-package/blueprintAuthoringSanitizedFailureCapture.ts`,
+`lib/visual-package/productionAuthoringRunner.ts`,
+`lib/visual-package/qaWizardBlueprintAuthoringLifecycle.ts`. Tests:
+`blueprint-admission-honesty-and-capture.spec.ts` (36, incl. the exact
+dictionary-attack + sanitized-merge regressions) and
+`qa-wizard-blueprint-authoring-lifecycle.spec.ts` (+3: diagnostic-less allowed
+absence + replay; hostile capture-less diagnostic-bearing terminal rejected on
+replay; census-overflow derivation failure driven to the incident path). Adjacent
+green: production-lifecycle-foundation, qa-wizard-blueprint-replacement-lifecycle
+(runner + replacement isolation), qa-wizard-package-lifecycle,
+provider-failure-diagnostics. `npx tsc --noEmit` clean; `git diff --check` clean.
+Pre-existing and unrelated: the `vitest-workload-classifier` census expects 345
+canonical specs but disk carries 346 at HEAD `f2fb23be` — it fails identically
+before and after this change (no spec file was added here), so it is left untouched
+as out of scope. No provider/network/API/credential/live/render/DB/deploy/push; the
+real `outputs/` artifacts were not touched. Decision Gate unchanged.
+
+---
+
 ## R1D — Blueprint Admission Honesty + Sanitized Failure Observability — Round 2 (Codex HOLD corrected in place; Claude implementation; locally green, committed, not pushed; awaiting Codex re-gate)
 
 Guy-approved offline milestone. The real R1D lantern receipt
@@ -27,10 +93,10 @@ general root causes:
   token (including an ASCII child/family name used as a key) is replaced by a
   non-reversible `#redacted` sentinel — never a digest of the raw token. The same
   closed rule is re-enforced on reload, so an out-of-vocabulary segment cannot
-  validate. The identity `detailDigest` (the only place raw diagnostic content is
-  consumed) carries a documented threat assessment: it is a one-way SHA-256 over
-  the entire high-entropy structured identity, not a bare-name fingerprint, and is
-  unsalted only to stay content-addressable/reproducible.
+  validate. **(SUPERSEDED — see the correction at the top of this file: the identity
+  `detailDigest` over raw diagnostic content, and its high-entropy threat claim, are
+  removed; the census identity and its `identityDigest` are now sanitized-only, and
+  the capture version is cut v1→v2.)**
 - **F3 — census is complete or nothing:** silent truncation is removed. A valid
   capture always retains every distinct identity (`retained == distinct`,
   `omitted == 0`, `truncated == false`); a run beyond the fail-closed hard bound

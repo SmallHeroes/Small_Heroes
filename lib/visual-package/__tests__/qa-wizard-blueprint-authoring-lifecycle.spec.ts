@@ -16,6 +16,40 @@ vi.mock('../qaWizardCandidateBridge', async () => {
   };
 });
 
+// Scoped seam for the F3 torn-state tests only. Both fields default to null (real
+// behavior), so every other test is unaffected; a test opts in, then resets in a
+// finally. `requiresCapture` forces the capture-required classification (used to
+// fabricate a fully-consistent capture-less diagnostic-bearing terminal). `buildThrows`
+// makes the runner's capture derivation fail (used to exercise the overflow/derivation
+// incident path). Applies to both the lifecycle and the runner (same module).
+const captureMockState = vi.hoisted(
+  () => ({ requiresCapture: null as null | boolean, buildThrows: null as null | string }),
+);
+
+vi.mock('../blueprintAuthoringSanitizedFailureCapture', async () => {
+  const actual = await vi.importActual<
+    typeof import('../blueprintAuthoringSanitizedFailureCapture')
+  >('../blueprintAuthoringSanitizedFailureCapture');
+  return {
+    ...actual,
+    blueprintAuthoringFailureRequiresSanitizedCapture: (
+      code: string | null | undefined,
+    ) =>
+      captureMockState.requiresCapture ??
+      actual.blueprintAuthoringFailureRequiresSanitizedCapture(code),
+    buildBlueprintAuthoringSanitizedFailureCapture: (
+      args: Parameters<
+        typeof actual.buildBlueprintAuthoringSanitizedFailureCapture
+      >[0],
+    ) => {
+      if (captureMockState.buildThrows !== null) {
+        throw new Error(captureMockState.buildThrows);
+      }
+      return actual.buildBlueprintAuthoringSanitizedFailureCapture(args);
+    },
+  };
+});
+
 import {
   QA_WIZARD_CANDIDATE_BRIDGE_MANIFEST_VERSION,
   type QaWizardCandidateBridgeManifest,
@@ -79,6 +113,8 @@ const STYLE_ID = 'soft_hand_drawn_storybook';
 
 afterEach(() => {
   bridgeLoaderMock.mockReset();
+  captureMockState.requiresCapture = null;
+  captureMockState.buildThrows = null;
   for (const root of tempRoots.splice(0)) {
     fs.rmSync(root, { recursive: true, force: true });
   }
@@ -2796,5 +2832,164 @@ describe('QA Wizard Blueprint failed-terminal sanitized capture integration', ()
       'sanitized-failure-captures',
     );
     expect(fs.existsSync(captureDir)).toBe(false);
+  });
+
+  it('binds no capture on a diagnostic-less boundary failure and replays without one', async () => {
+    const subject = setup();
+    const preflight = prepare(subject);
+    const boundaryProvider: ProductionAuthoringProvider = {
+      call: async (callArgs) => {
+        const inputAccounting = blueprintAuthoringInputAccounting({
+          systemPrompt: callArgs.systemPrompt,
+          userPrompt: callArgs.userPrompt,
+          schema: PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA,
+        });
+        throw new ProductionAuthoringProviderBoundaryError(
+          'provider_policy_mismatch',
+          {
+            provider: 'openai',
+            model: 'gpt-5.6-sol',
+            providerEvidenceVersion:
+              OPENAI_RESPONSES_BLUEPRINT_AUTHORING_EVIDENCE_VERSION,
+            inputAccounting,
+            reservedExposureBeforeCallUsd: blueprintAuthoringReservedExposureUsd({
+              conservativeAccountedCostUsd: 0,
+              callsCompleted: 0,
+            }),
+            executionAttestation: notRunAuthoringExecutionAttestation(),
+          },
+          'adapter_policy_mismatch',
+        );
+      },
+    };
+    const result = await executeQaWizardBlueprintLiveRequest(
+      {
+        repoRoot: subject.repoRoot,
+        preflightManifestPath: preflight.manifestPath,
+        outputDir: OUTPUT_DIR,
+        write: true,
+      },
+      { providerFactory: () => boundaryProvider },
+    );
+    expect(result.manifest.stage).toBe('authoring_failed');
+    expect(result.receipt.failure?.code).toBe('provider_policy_mismatch');
+    // Diagnostic-less boundary failure: explicitly allowed to bind no capture.
+    expect(result.manifest.observabilityCapture).toBeUndefined();
+    expect(
+      fs.existsSync(
+        path.join(subject.repoRoot, OUTPUT_DIR, 'sanitized-failure-captures'),
+      ),
+    ).toBe(false);
+    // It replays cleanly with no provider load and no capture requirement.
+    const replayPreflight = prepare(subject);
+    const forbidden = vi.fn(() => {
+      throw new Error('provider_must_not_load_on_replay');
+    });
+    const replay = await executeQaWizardBlueprintLiveRequest(
+      {
+        repoRoot: subject.repoRoot,
+        preflightManifestPath: replayPreflight.manifestPath,
+        outputDir: OUTPUT_DIR,
+        write: true,
+      },
+      { providerFactory: forbidden },
+    );
+    expect(replay.replayed).toBe(true);
+    expect(replay.manifest.digest).toBe(result.manifest.digest);
+    expect(replay.manifest.observabilityCapture).toBeUndefined();
+    expect(forbidden).not.toHaveBeenCalled();
+  });
+
+  it('rejects on replay a diagnostic-bearing terminal that lacks its required capture binding', async () => {
+    const subject = setup();
+    const preflight = prepare(subject);
+    // Fabricate a fully-consistent capture-less authoring_failed terminal for a
+    // diagnostic-bearing failure by treating it as diagnostic-less during creation
+    // ONLY — the on-disk shape of a hostile/legacy artifact that keeps the
+    // diagnostic-bearing failure code but omits the capture binding.
+    captureMockState.requiresCapture = false;
+    let created;
+    try {
+      created = await executeQaWizardBlueprintLiveRequest(
+        {
+          repoRoot: subject.repoRoot,
+          preflightManifestPath: preflight.manifestPath,
+          outputDir: OUTPUT_DIR,
+          write: true,
+        },
+        { providerFactory: () => repairInputIneligibleProvider(subject.fixture) },
+      );
+    } finally {
+      captureMockState.requiresCapture = null;
+    }
+    expect(created.manifest.stage).toBe('authoring_failed');
+    expect(created.receipt.failure?.code).toBe(
+      'repair_route_input_not_admissible',
+    );
+    expect(created.manifest.observabilityCapture).toBeUndefined();
+    // With the real classification restored, the terminal is torn: replay/recovery
+    // must refuse to adopt it as a completed terminal, and must not load a provider.
+    const replayPreflight = prepare(subject);
+    const forbidden = vi.fn(() => {
+      throw new Error('provider_must_not_load_on_replay');
+    });
+    await expect(
+      executeQaWizardBlueprintLiveRequest(
+        {
+          repoRoot: subject.repoRoot,
+          preflightManifestPath: replayPreflight.manifestPath,
+          outputDir: OUTPUT_DIR,
+          write: true,
+        },
+        { providerFactory: forbidden },
+      ),
+    ).rejects.toThrow(/execution_state_uncertain/);
+    expect(forbidden).not.toHaveBeenCalled();
+  });
+
+  it('drives a diagnostic-bearing capture derivation overflow into the incident path, not an ordinary terminal', async () => {
+    const subject = setup();
+    const preflight = prepare(subject);
+    // The sanitized census overflows the fail-closed hard bound: the runner yields a
+    // derivation_failed disposition, which must become an incident — never an ordinary
+    // replayable authoring_failed terminal that claims a census it does not have.
+    captureMockState.buildThrows =
+      'sanitized census would omit distinct identities (9999 > 4096); refusing to mint an incomplete census';
+    try {
+      await expect(
+        executeQaWizardBlueprintLiveRequest(
+          {
+            repoRoot: subject.repoRoot,
+            preflightManifestPath: preflight.manifestPath,
+            outputDir: OUTPUT_DIR,
+            write: true,
+          },
+          {
+            providerFactory: () => repairInputIneligibleProvider(subject.fixture),
+          },
+        ),
+      ).rejects.toThrow(/execution_state_uncertain/);
+    } finally {
+      captureMockState.buildThrows = null;
+    }
+    // No capture and no ordinary terminal were published; re-entry stays torn (the
+    // incident is durable) instead of replaying a completed terminal.
+    expect(
+      fs.existsSync(
+        path.join(subject.repoRoot, OUTPUT_DIR, 'sanitized-failure-captures'),
+      ),
+    ).toBe(false);
+    const replayPreflight = prepare(subject);
+    await expect(
+      executeQaWizardBlueprintLiveRequest(
+        {
+          repoRoot: subject.repoRoot,
+          preflightManifestPath: replayPreflight.manifestPath,
+          outputDir: OUTPUT_DIR,
+          write: true,
+        },
+        { providerFactory: () => passingProvider(subject.fixture) },
+      ),
+    ).rejects.toThrow(/execution_state_uncertain/);
   });
 });

@@ -40,9 +40,12 @@ import type { AuthoringTerminalFailureCode } from './authoringTerminalDiagnostic
  *    redacted, not retained, and the same closed rule is re-enforced on reload,
  *  - or one of a handful of fixed literal enum/version strings.
  * The diagnostic `message`, `expected`, and `actual` values (which can carry prose
- * or names) are NEVER retained — only their presence flags and a one-way content
- * digest of the full grouped identity survive (see the digest threat assessment in
- * `sanitizedCensusIdentity`). The validator additionally runs a recursive
+ * or names) are NEVER retained — and are never digested either. Only their presence
+ * flags survive, alongside an `identityDigest` computed over the SANITIZED
+ * structural projection ONLY (code + closed-vocabulary/redacted field path +
+ * presence/redaction flags; see `sanitizedCensusIdentityDigest`), so no persisted
+ * value is a function of raw diagnostic content. The validator additionally runs a
+ * recursive
  * structural scan that rejects any string containing spaces, quotes, or non-ASCII,
  * so a leaked name/phrase cannot validate. Leak-freedom is therefore structural and
  * testable, not merely a convention.
@@ -62,7 +65,7 @@ import type { AuthoringTerminalFailureCode } from './authoringTerminalDiagnostic
  * future blindness; it does not reconstruct the past.
  */
 export const BLUEPRINT_AUTHORING_SANITIZED_FAILURE_CAPTURE_VERSION =
-  'blueprint-authoring-sanitized-failure-capture/v1' as const;
+  'blueprint-authoring-sanitized-failure-capture/v2' as const;
 
 export const BLUEPRINT_AUTHORING_SANITIZED_FAILURE_CAPTURE_SCOPE =
   'blueprint_authoring_failure_observability_only' as const;
@@ -82,6 +85,33 @@ export const BLUEPRINT_AUTHORING_SANITIZED_FAILURE_CAPTURE_DOES_NOT_AUTHORIZE = 
 
 export const BLUEPRINT_AUTHORING_SANITIZED_FAILURE_CAPTURE_DIGEST_ALGORITHM =
   'canonical-json-sha256' as const;
+
+/**
+ * Closed set of terminal failure codes this milestone promises a structural census
+ * for — the diagnostic-BEARING failures. A failed run whose terminal failure code is
+ * in this set MUST bind a complete sanitized capture; every other failure code is a
+ * diagnostic-less boundary failure that is explicitly allowed to bind no capture.
+ * This single closed classification governs BOTH capture derivation (the runner) and
+ * the replay/recovery capture-binding requirement (the lifecycle), so the two can
+ * never disagree about whether a terminal is required to carry a capture. Tied to the
+ * content-addressed failure code, it cannot be sidestepped by stripping the binding
+ * from a hostile/legacy authoring_failed terminal without also changing its code.
+ */
+export const BLUEPRINT_AUTHORING_CAPTURE_REQUIRED_FAILURE_CODES: ReadonlySet<string> =
+  new Set(['repair_route_input_not_admissible', 'draft_validation_repair_exhausted']);
+
+/**
+ * True iff a terminal failure code is a diagnostic-bearing failure that must bind a
+ * complete sanitized capture (see the closed set above).
+ */
+export function blueprintAuthoringFailureRequiresSanitizedCapture(
+  failureCode: string | null | undefined,
+): boolean {
+  return (
+    typeof failureCode === 'string' &&
+    BLUEPRINT_AUTHORING_CAPTURE_REQUIRED_FAILURE_CODES.has(failureCode)
+  );
+}
 
 /**
  * Hard, fail-closed upper bound on distinct census identities. This is NOT a
@@ -190,8 +220,13 @@ export interface BlueprintAuthoringSanitizedCensusIdentity {
   fieldRedacted: boolean;
   expectedPresent: boolean;
   actualPresent: boolean;
-  /** Content digest of the full grouped identity (code+field+message+expected+actual). */
-  detailDigest: string;
+  /**
+   * One-way digest over the SANITIZED structural projection ONLY (code + sanitized
+   * field path + presence/redaction flags). Never a function of the raw
+   * message/field-value/expected/actual, so it cannot fingerprint PII. Distinguishes
+   * and canonically orders distinct sanitized identities.
+   */
+  identityDigest: string;
   repetitionCount: number;
 }
 
@@ -302,49 +337,55 @@ export function sanitizeBlueprintDiagnosticFieldPath(
   return { present: true, path: tokens, redacted };
 }
 
-function sanitizedCensusIdentity(
-  grouped: readonly [
-    code: PreRenderBlueprintRepairDiagnostic['code'],
-    field: string | null,
-    message: string,
-    expected: readonly [present: 0 | 1, value: unknown],
-    actual: readonly [present: 0 | 1, value: unknown],
-    count: number,
-  ],
-): BlueprintAuthoringSanitizedCensusIdentity {
-  const [code, field, message, expected, actual, count] = grouped;
+/**
+ * The sanitized structural projection of one diagnostic identity: the ONLY fields
+ * persisted per census identity. Derived purely from the closed diagnostic code, the
+ * closed-vocabulary/redacted field path, and boolean presence/redaction flags. It
+ * consumes NO raw message, field value, expected value, or actual value, so it can
+ * neither carry nor fingerprint PII.
+ */
+type SanitizedCensusIdentityProjection = {
+  code: string;
+  fieldPresent: boolean;
+  fieldPath: string[] | null;
+  fieldPathDepth: number;
+  fieldRedacted: boolean;
+  expectedPresent: boolean;
+  actualPresent: boolean;
+};
+
+function sanitizedCensusIdentityProjection(
+  code: PreRenderBlueprintRepairDiagnostic['code'],
+  field: string | null,
+  expectedPresent: boolean,
+  actualPresent: boolean,
+): SanitizedCensusIdentityProjection {
   const path = sanitizeBlueprintDiagnosticFieldPath(field);
-  // Detail digest over the full identity WITHOUT the repetition count, so identical
-  // identities share a digest and distinct defects get distinct digests. It is the
-  // ONLY place raw diagnostic content is consumed, and only as a one-way SHA-256;
-  // the raw message/field/expected/actual themselves are never retained.
-  //
-  // Threat assessment (deterministic, unsalted digest of possibly-PII content):
-  // the pre-image is the ENTIRE structured identity — code + full field path +
-  // full validation message + structured expected/actual payloads — whose combined
-  // entropy is far above any bare low-entropy PII token (a name). Recovering a name
-  // would require guessing the whole tuple, not a short dictionary of names, so the
-  // digest is not a usable PII fingerprint. It is unsalted deliberately so the
-  // capture stays content-addressable and deterministically reproducible on
-  // recovery/replay; it is used only to distinguish and count distinct identities.
-  const detailDigest = canonicalJsonDigest([
-    code,
-    field ?? null,
-    message,
-    expected,
-    actual,
-  ]);
   return {
     code,
     fieldPresent: path.present,
     fieldPath: path.path,
     fieldPathDepth: path.path?.length ?? 0,
     fieldRedacted: path.redacted,
-    expectedPresent: expected[0] === 1,
-    actualPresent: actual[0] === 1,
-    detailDigest,
-    repetitionCount: count,
+    expectedPresent,
+    actualPresent,
   };
+}
+
+/**
+ * The persisted identity digest is a one-way SHA-256 over the SANITIZED structural
+ * projection ONLY. It never consumes the raw message, field value, expected, or
+ * actual, so it cannot be a name/phrase fingerprint and cannot seed a
+ * dictionary/rainbow recovery of a redacted token (the token is already gone — it was
+ * replaced by `#redacted` before it reached this digest). It is unsalted only so the
+ * capture stays content-addressable and deterministically reproducible on
+ * recovery/replay; it is used solely to distinguish and canonically order distinct
+ * sanitized identities.
+ */
+function sanitizedCensusIdentityDigest(
+  projection: SanitizedCensusIdentityProjection,
+): string {
+  return canonicalJsonDigest(projection);
 }
 
 function sanitizedRoute(input: {
@@ -445,16 +486,40 @@ export function buildBlueprintAuthoringSanitizedFailureCapture(args: {
     seenOrdinals.add(route.ordinal);
   }
 
+  // Group and COUNT by the SANITIZED identity: two raw diagnostics that project to
+  // the same sanitized structural identity (e.g. they differ only in a redacted name
+  // or in prose that is never retained) are the same census identity, so distinct-vs-
+  // repeated is truthful over the definition that is actually persisted. The raw
+  // grouping is lossless per byte-identical tuple; this merge then collapses raw
+  // groups that share a sanitized identity, summing their repetition counts.
   const grouped = groupPreRenderBlueprintRepairDiagnostics(args.diagnostics);
-  const allIdentities = grouped
-    .map(sanitizedCensusIdentity)
-    .sort((left, right) =>
-      left.detailDigest < right.detailDigest
-        ? -1
-        : left.detailDigest > right.detailDigest
-          ? 1
-          : 0,
+  const mergedById = new Map<string, BlueprintAuthoringSanitizedCensusIdentity>();
+  for (const [code, field, , expected, actual, count] of grouped) {
+    const projection = sanitizedCensusIdentityProjection(
+      code,
+      field,
+      expected[0] === 1,
+      actual[0] === 1,
     );
+    const identityDigest = sanitizedCensusIdentityDigest(projection);
+    const existing = mergedById.get(identityDigest);
+    if (existing) {
+      existing.repetitionCount += count;
+    } else {
+      mergedById.set(identityDigest, {
+        ...projection,
+        identityDigest,
+        repetitionCount: count,
+      });
+    }
+  }
+  const allIdentities = [...mergedById.values()].sort((left, right) =>
+    left.identityDigest < right.identityDigest
+      ? -1
+      : left.identityDigest > right.identityDigest
+        ? 1
+        : 0,
+  );
   const distinctIdentities = allIdentities.length;
   if (distinctIdentities > MAX_SANITIZED_CENSUS_IDENTITIES) {
     // Fail closed: a complete census cannot omit distinct identities. Rather than
@@ -552,12 +617,12 @@ const CENSUS_KEYS = [
 const IDENTITY_KEYS = [
   'actualPresent',
   'code',
-  'detailDigest',
   'expectedPresent',
   'fieldPath',
   'fieldPathDepth',
   'fieldPresent',
   'fieldRedacted',
+  'identityDigest',
   'repetitionCount',
 ].sort();
 
@@ -626,9 +691,6 @@ function identityIsValid(
   if (typeof value.fieldRedacted !== 'boolean') return false;
   if (typeof value.expectedPresent !== 'boolean') return false;
   if (typeof value.actualPresent !== 'boolean') return false;
-  if (typeof value.detailDigest !== 'string' || !HEX_SHA256.test(value.detailDigest)) {
-    return false;
-  }
   if (!nonNegativeSafeInteger(value.repetitionCount) || value.repetitionCount < 1) {
     return false;
   }
@@ -649,16 +711,32 @@ function identityIsValid(
   const expectedDepth = path === null ? 0 : path.length;
   if (value.fieldPathDepth !== expectedDepth) return false;
   // Presence / redaction consistency.
-  if (!value.fieldPresent) {
-    return path === null && value.fieldRedacted === false;
-  }
-  if (path === null) {
-    // Present but untokenizable -> must be flagged redacted, nothing retained.
-    return value.fieldRedacted === true;
-  }
-  // Present & tokenized -> redacted iff a segment was replaced by the sentinel.
+  const presenceConsistent = !value.fieldPresent
+    ? // Absent field: nothing retained, not redacted.
+      path === null && value.fieldRedacted === false
+    : path === null
+      ? // Present but untokenizable -> must be flagged redacted, nothing retained.
+        value.fieldRedacted === true
+      : // Present & tokenized -> redacted iff a segment was replaced by the sentinel.
+        value.fieldRedacted === (path as string[]).includes(REDACTED_PATH_SEGMENT);
+  if (!presenceConsistent) return false;
+  // Re-derive the identity digest over the SANITIZED structural projection ONLY and
+  // require an exact match. This both pins the digest to non-forgeable content and
+  // proves — structurally, on reload — that it is a function of non-PII fields only,
+  // never of any raw diagnostic message/field-value/expected/actual.
+  const projection: SanitizedCensusIdentityProjection = {
+    code: value.code as string,
+    fieldPresent: value.fieldPresent as boolean,
+    fieldPath: value.fieldPath as string[] | null,
+    fieldPathDepth: value.fieldPathDepth as number,
+    fieldRedacted: value.fieldRedacted as boolean,
+    expectedPresent: value.expectedPresent as boolean,
+    actualPresent: value.actualPresent as boolean,
+  };
   return (
-    value.fieldRedacted === (path as string[]).includes(REDACTED_PATH_SEGMENT)
+    typeof value.identityDigest === 'string' &&
+    HEX_SHA256.test(value.identityDigest) &&
+    sanitizedCensusIdentityDigest(projection) === value.identityDigest
   );
 }
 
@@ -705,9 +783,9 @@ function censusIsValid(value: unknown): value is BlueprintAuthoringSanitizedCens
   );
   if (retainedEmissions > value.totalEmitted) return false;
   if (!value.truncated && retainedEmissions !== value.totalEmitted) return false;
-  // No duplicated identities, and canonical (detailDigest-ascending) order.
+  // No duplicated identities, and canonical (identityDigest-ascending) order.
   const digests = (identities as BlueprintAuthoringSanitizedCensusIdentity[]).map(
-    (identity) => identity.detailDigest,
+    (identity) => identity.identityDigest,
   );
   if (new Set(digests).size !== digests.length) return false;
   const sorted = [...digests].sort();

@@ -35,6 +35,7 @@ import {
   BLUEPRINT_AUTHORING_SANITIZED_FAILURE_CAPTURE_VERSION,
   blueprintAuthoringSanitizedFailureCaptureBytes,
   blueprintAuthoringSanitizedFailureCaptureIsValid,
+  blueprintAuthoringFailureRequiresSanitizedCapture,
   type BlueprintAuthoringSanitizedFailureCapture,
 } from './blueprintAuthoringSanitizedFailureCapture';
 import type { ProductionAuthoringContext } from './productionAuthoringContext';
@@ -3046,6 +3047,20 @@ function loadExecutionRecord(args: {
   ) {
     throw new Error('Blueprint authoring terminal authority is stale');
   }
+  // A diagnostic-bearing authoring_failed terminal (its failure code is in the closed
+  // capture-required set) is only replayable if it carries the required bound
+  // sanitized capture. A terminal that omits the binding — including a hostile or
+  // legacy-shaped/manual artifact that keeps the diagnostic-bearing failure code but
+  // strips the capture — is torn state, never a replayable completion.
+  if (
+    terminal.manifest.stage === 'authoring_failed' &&
+    blueprintAuthoringFailureRequiresSanitizedCapture(
+      terminal.receipt?.failure?.code,
+    ) &&
+    !terminal.manifest.observabilityCapture
+  ) {
+    throw new Error('execution_state_uncertain');
+  }
   // Replay must re-validate the exact bound sanitized capture (digest/path/bytes/
   // validity). A terminal that declares a capture whose file is missing or
   // tampered is a torn state, not a replayable terminal.
@@ -3206,6 +3221,16 @@ function recoverTerminalLookup(args: {
   const terminal = terminals[0]!;
   const receipt = terminal.receipt;
   if (receipt === null) throw new Error('execution_state_uncertain');
+  // Never materialize a recovery lookup for a diagnostic-bearing authoring_failed
+  // terminal that lacks its required capture binding. Enforced here (before the
+  // lookup is written) and again in loadExecutionRecord (the shared replay reader).
+  if (
+    terminal.manifest.stage === 'authoring_failed' &&
+    blueprintAuthoringFailureRequiresSanitizedCapture(receipt.failure?.code) &&
+    !terminal.manifest.observabilityCapture
+  ) {
+    throw new Error('execution_state_uncertain');
+  }
   const receiptPath = terminal.manifest.receipt!.path;
   const recordValue = buildExecutionRecord({
     authoringAuthorityDigest: args.authoringAuthorityDigest,
@@ -3598,17 +3623,34 @@ async function runBlueprintExecutionUnderClaim(
       throw new Error('failed Blueprint receipt unexpectedly includes an authoring result');
     }
     stage = 'authoring_failed';
-    // Durably publish the sanitized failure observability capture (when one was
-    // derived) BEFORE the terminal manifest that binds it. Ordering matters: the
-    // receipt (already published) never references the capture, and the terminal
-    // manifest is only built/published after the capture bytes are durable and
-    // re-validated — so no terminal ever claims a capture that is missing.
-    observabilityCapture = publishAndBindSanitizedFailureCapture({
-      repoRoot: args.repoRoot,
-      outputDir,
-      capture: result.sanitizedFailureCapture ?? null,
-      receipt: result.receipt,
-    });
+    // A diagnostic-bearing failure whose sanitized capture could not be derived
+    // (including a census that overflowed the fail-closed hard bound) must NEVER
+    // become an ordinary replayable authoring_failed terminal. Fail closed into the
+    // incident / execution_state_uncertain path BEFORE any terminal manifest,
+    // ownership binding, or lookup is published. The receipt is already durable (the
+    // existing transaction order requires it), but no replayable terminal/lookup is
+    // ever published, so nothing can claim a completion the capture does not back.
+    const disposition = result.sanitizedFailureCaptureDisposition ?? {
+      kind: 'diagnostic_less_absence' as const,
+    };
+    if (disposition.kind === 'derivation_failed') {
+      throw new Error('execution_state_uncertain');
+    }
+    // Durably publish the sanitized failure observability capture (when a
+    // diagnostic-bearing failure derived one) BEFORE the terminal manifest that binds
+    // it. Ordering matters: the receipt (already published) never references the
+    // capture, and the terminal manifest is only built/published after the capture
+    // bytes are durable and re-validated — so no terminal ever claims a capture that
+    // is missing. A diagnostic-less boundary failure binds no capture (allowed).
+    observabilityCapture =
+      disposition.kind === 'captured'
+        ? publishAndBindSanitizedFailureCapture({
+            repoRoot: args.repoRoot,
+            outputDir,
+            capture: disposition.capture,
+            receipt: result.receipt,
+          })
+        : undefined;
   }
   const receiptAuthority: ManifestReceiptAuthority = {
     version: result.receipt.version,

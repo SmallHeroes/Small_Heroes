@@ -8,6 +8,14 @@
 > this file is authoritative; where the Round-1 text below conflicts (notably the
 > "deterministic truncation at 256" claim and the initial-prompt message wording),
 > the Round-2 section supersedes it.
+>
+> **Round 3 note (2026-08-30):** Codex's QA of the Round-2 capture returned HOLD on
+> three findings. The **"Round 3 — Codex HOLD F2/F3 correction"** section at the
+> bottom is authoritative for the capture: it removes the raw-tuple `detailDigest`
+> and its high-entropy threat claim (census identity is now sanitized-only,
+> `identityDigest`, capture `v1 → v2`) and replaces the null capture derivation with
+> a typed disposition that fails closed into the incident path. Finding 1 (paid
+> exact-token count) is numerically unchanged and remains HOLD. Not a milestone PASS.
 
 ## What changed and why
 
@@ -223,3 +231,87 @@ falsification families). `qa-wizard-blueprint-authoring-lifecycle.spec.ts` 39
 `qa-wizard-blueprint-replacement-lifecycle` + `-cli`, `production-package-lifecycle`.
 `npx tsc --noEmit` clean; `git diff --check` clean. No
 provider/network/credential/live/render/DB/deploy/push; real `outputs/` only read.
+
+## Round 3 — Codex HOLD F2/F3 correction (2026-08-30; supersedes the Round-2 capture claims where they conflict)
+
+Codex's QA of the Round-2 capture work returned HOLD on three findings. This round
+corrects the two decision-free **safety** findings only; Finding 1 (the paid
+exact-token-count lane above) is **numerically unchanged and remains HOLD**, awaiting
+Guy's cost-treatment decision. This is **not** a milestone PASS.
+
+### F2 — census identity is sanitized-only (raw-tuple PII fingerprint removed)
+
+The Round-2 capture persisted a per-identity `detailDigest =
+canonicalJsonDigest([code, field, message, expected, actual])` — a deterministic,
+unsalted SHA-256 over **raw** diagnostic content. With an empty message and no
+expected/actual, that digest is a dictionary-attackable fingerprint of a redacted
+name (guess `frames[0].<name>` over a short candidate list → match). The
+"high-entropy, not a bare-name fingerprint" threat claim was false for that shape.
+
+Correction (`blueprintAuthoringSanitizedFailureCapture.ts`):
+
+- The census identity is defined by the **sanitized structural projection ONLY**:
+  closed diagnostic `code`, closed-vocabulary/redacted `fieldPath`, `fieldPresent` /
+  `fieldRedacted`, and `expectedPresent` / `actualPresent`. No raw
+  message/field-value/expected/actual is consumed.
+- `detailDigest` is removed; the persisted `identityDigest` is a one-way SHA-256 over
+  that sanitized projection alone. On reload the validator **re-derives** it from the
+  structural fields and requires an exact match, so it is provably a function of
+  non-PII fields only.
+- Grouping and counting are now over the sanitized identity: two raw diagnostics that
+  differ only in never-retained prose collapse to one identity with a truthful summed
+  count. Distinct-vs-repeated is truthful over what is actually persisted.
+- Capture version cut **`v1 → v2`**; a legacy v1 artifact (which carried the raw-tuple
+  digest) is rejected cleanly and can never revalidate under v2 (no persisted v1
+  captures exist — the feature is unreleased).
+- Regression: an exact dictionary-attack test (`schema_invalid` + `frames[0].Bar` +
+  empty message / no expected/actual; candidates Avi/Bar/Dan/Sarah) asserts no
+  persisted value equals or reveals the raw-tuple candidate digest; a merge test
+  proves the sanitized grouping/count; all planted-prose/name regressions retained.
+
+### F3 — a diagnostic-bearing failure never becomes an ordinary replayable terminal without a bound capture
+
+The Round-2 runner derived the capture with a catch-all `try { … } catch { return
+null }`, and a census overflow (> 4096) threw into that same null. The lifecycle then
+coalesced `null → undefined` and published an ordinary `authoring_failed` terminal
+with no capture — a diagnostic-bearing failure that replays as a clean completion
+whose promised census is absent.
+
+Correction (`productionAuthoringRunner.ts` + `qaWizardBlueprintAuthoringLifecycle.ts`):
+
+- The derivation returns a **typed disposition** — `captured` /
+  `diagnostic_less_absence` / `derivation_failed` (with a sanitized reason code) —
+  governed by a single closed **capture-required failure-code set**
+  (`repair_route_input_not_admissible`, `draft_validation_repair_exhausted`) shared by
+  the runner and the lifecycle so they can never disagree.
+- On first materialization, a `derivation_failed` disposition (including a census
+  overflow) is thrown into the existing `execution_state_uncertain`/incident path
+  **before** any terminal manifest, ownership binding, or lookup is published. The
+  already-published receipt may remain; no replayable terminal/lookup claims
+  completion.
+- Replay and recovery reject any `authoring_failed` terminal whose failure code is
+  capture-required but whose capture binding is absent — including a hostile or
+  legacy-shaped/manual artifact — and continue to reject a missing/tampered bound
+  capture.
+- Diagnostic-less boundary failures are an explicit allowed absence (no capture) and
+  replay cleanly. Complete-census semantics unchanged; capture linkage and manifest
+  exact-key/version checks remain immutable and backward compatible.
+
+### Round-3 validation
+
+`blueprint-admission-honesty-and-capture.spec.ts` **36** (adds the exact
+dictionary-attack + sanitized-merge regressions; v1-rejection retained as the
+tampered-version case). `qa-wizard-blueprint-authoring-lifecycle.spec.ts` **+3**
+(diagnostic-less allowed absence + replay; hostile capture-less diagnostic-bearing
+terminal rejected on replay; census-overflow derivation failure driven to the
+incident path). Adjacent green: `production-lifecycle-foundation`,
+`qa-wizard-blueprint-replacement-lifecycle` (runner + replacement isolation),
+`qa-wizard-package-lifecycle`, `provider-failure-diagnostics`. `npx tsc --noEmit`
+clean; `git diff --check` clean.
+
+**Pre-existing, unrelated:** `vitest-workload-classifier` expects 345 canonical specs
+but disk carries 346 at HEAD `f2fb23be`; it fails identically before and after this
+change (no spec file was added here) and is left untouched as out of scope.
+
+No provider/network/API/credential/live/render/DB/deploy/push; real `outputs/`
+artifacts were not touched. The Decision Gate is unchanged.
