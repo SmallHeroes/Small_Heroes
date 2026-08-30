@@ -163,6 +163,67 @@ regression proving the real interval; (2) the legacy-terminal census and ordinar
 recovery compatibility; (3) the reload time-ordering + builder `proposalPath`
 surface; (4) the canonical operator command and server-only integrity.
 
+### R1D Round 4 — classifier drift closed (Claude implementation; locally corrected, committed, not pushed)
+
+Codex's Round-3 re-gate reproduced the touched surface green (tsc exit 0; focused
+replacement/ordinary/CLI suites 67/67; canonical npm CLI reaches the parser;
+historical claim/output preserved) but a full `npm run check` surfaced one real
+regression the focused suites cannot see: the workload-classifier census in
+`lib/__tests__/vitest-workload-classifier.spec.ts` still hard-asserted the
+pre-Round-3 partition (inventory 343 / resource 20 / ordinary 323). Round 3 added
+two canonical specs
+(`lib/visual-package/__tests__/qa-wizard-blueprint-replacement-lifecycle.spec.ts`
+and `…-replacement-cli.spec.ts`), so the real disjoint partition is now
+inventory 345 / resource 20 / ordinary 325. The full check failed that single
+assertion in addition to the established fixture baseline.
+
+Round 4 makes the smallest focused correction: the census expectations become
+345 / 20 / 325 (resource-intensive unchanged at 20), and two explicit
+`ordinary` membership assertions are added for the two new specs so the partition
+proves — not merely counts — that both land in the ordinary phase. No production
+code, no manifest, and no other spec changed.
+
+Local validation (this worktree, offline):
+- `npx tsc --noEmit`: exit 0.
+- `vitest run lib/__tests__/vitest-workload-classifier.spec.ts`: 7/7 green,
+  including the two new `partition.ordinary` `toContain` assertions.
+- Focused replacement/ordinary/CLI battery still 67/67 green
+  (replacement lifecycle 17, legacy authoring lifecycle 34, replacement CLI 16).
+- Full `npm run check` re-run to record the exact final census. It exits nonzero,
+  and after this correction the classifier no longer fails. The check summary
+  emits `canonicalFileCount 345 / ordinaryFileCount 325 / resourceIntensiveFileCount 20`,
+  confirming the spec now matches the real runtime partition. The remaining
+  failures are the pre-existing documented baselines only:
+  - Ordinary phase: `9 failed | 4,081 passed | 73 skipped` across `325` files —
+    exactly the established nine fixture assertions in five unchanged
+    fixture-reading files (`child-lexicon-ages-5-8` 1, `momentum-gate-koko` 1,
+    `page-entity-qa` 1, `story-read-back-validation` 2,
+    `story-source-visual-direction-acceptance-lifecycle` 4). No classifier
+    failure remains.
+  - Resource-intensive phase: `6 failed | 626 passed` across `20` files — all
+    `Test timed out in 5000ms` on Git/subprocess-heavy specs
+    (`live-execution-request-materialization` 5, `canonical-materialization-input`
+    1), the same timing-dependent Git/subprocess timeout baseline Round 17 already
+    documented. These are unaffected by this change (it touches only the ordinary
+    classifier spec); run serially in isolation the two files reduce to a single
+    5000ms timeout with `canonical-materialization-input` fully green (15/15),
+    confirming load-induced timeouts, not deterministic breakage.
+
+This is not literal full-check green and is not claimed as such: `npm run check`
+still exits nonzero on the two documented baselines above. Round 4 closes only the
+classifier drift Codex's full check found.
+
+`git status` shows a single changed file
+(`lib/__tests__/vitest-workload-classifier.spec.ts`); the predecessor claim
+`466252b4…` remains `766` bytes, sha256
+`900bd0c95d748637d90922c1a28fb05c87d116563c604529f027bc8160453515`, and no output
+artifact was modified. No provider, network, credential, database, render,
+deployment, push, or approval mint occurred.
+
+Codex re-gate target: confirm the census now matches the real partition (345 /
+20 / 325), both new specs are provably ordinary, and no other full-check failure
+was introduced beyond the two documented baselines.
+
 ### Round 17 — terminal receipt authority unified; post-claim incidents now durable
 
 The first paid Blueprint attempt for the approved Chameleon chain published

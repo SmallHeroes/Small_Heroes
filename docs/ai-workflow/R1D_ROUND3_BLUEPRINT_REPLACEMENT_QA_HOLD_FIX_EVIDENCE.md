@@ -103,6 +103,49 @@ strict parser under the canonical command (unknown command ⇒ exit 2; known com
 missing a flag ⇒ exit 2), proving the shimmed import resolves and control reaches
 argument validation. `server-only` is not weakened.
 
+## Round 4 correction — full-check classifier drift closed (Claude implementation)
+
+Codex's Round-3 re-gate reproduced the touched surface green (tsc exit 0; focused
+67/67; canonical npm CLI reaches the parser; predecessor claim/output preserved)
+but the full `npm run check` found one real regression the focused suites cannot
+see. The two canonical specs added in Round 3
+(`qa-wizard-blueprint-replacement-lifecycle.spec.ts` and
+`qa-wizard-blueprint-replacement-cli.spec.ts`) grow the canonical Vitest
+inventory, but `lib/__tests__/vitest-workload-classifier.spec.ts` still asserted
+the pre-Round-3 census (inventory 343 / resource 20 / ordinary 323). The real
+disjoint partition is now inventory 345 / resource 20 / ordinary 325.
+
+Round 4 makes the smallest focused correction: census expectations updated to
+345 / 20 / 325 (resource-intensive unchanged), plus two explicit
+`partition.ordinary` `toContain` assertions proving both new specs land in the
+ordinary phase. Only the classifier spec changed; no production code, manifest,
+or other spec was touched.
+
+Validation (offline):
+- `npx tsc --noEmit`: exit 0.
+- `vitest run lib/__tests__/vitest-workload-classifier.spec.ts`: 7/7 (both new
+  ordinary-membership assertions included).
+- Focused replacement/ordinary/CLI battery: still 67/67 (17 + 34 + 16).
+- Full `npm run check`: exits nonzero; the classifier no longer fails. Check
+  summary emits `canonicalFileCount 345 / ordinaryFileCount 325 /
+  resourceIntensiveFileCount 20`. Remaining failures are the documented baselines
+  only — ordinary phase `9 failed | 4,081 passed | 73 skipped` (the five
+  unchanged fixture-reading files: `child-lexicon-ages-5-8` 1,
+  `momentum-gate-koko` 1, `page-entity-qa` 1, `story-read-back-validation` 2,
+  `story-source-visual-direction-acceptance-lifecycle` 4), and resource-intensive
+  phase `6 failed | 626 passed`, all `Test timed out in 5000ms` on Git/subprocess
+  specs (`live-execution-request-materialization` 5,
+  `canonical-materialization-input` 1) — the Round-17 timeout baseline, unaffected
+  by this ordinary-partition change (serially the two files reduce to one 5000ms
+  timeout with `canonical-materialization-input` 15/15). Not literal full-check
+  green, and not claimed as such.
+- `git status`: one changed file
+  (`lib/__tests__/vitest-workload-classifier.spec.ts`). Predecessor claim
+  `466252b4…` remains 766 bytes / sha256 `900bd0c9…`; no output artifact modified.
+  No provider/network/credential/database/render/deploy/push/approval occurred.
+
+Codex re-gates.
+
 ## Validation
 
 - `npx --no-install tsc --noEmit`: exit 0.
