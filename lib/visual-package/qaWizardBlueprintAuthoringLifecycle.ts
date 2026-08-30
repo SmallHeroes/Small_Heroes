@@ -17,6 +17,7 @@ import {
 import {
   PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION,
   PRODUCTION_AUTHORING_RUN_REQUEST_VERSION,
+  PRODUCTION_BLUEPRINT_RUNNER_TERMINAL_FAILURE_CODES,
   buildProductionAuthoringRunRequest,
   aggregateProductionAuthoringExecutionAttestations,
   persistProductionAuthoringReceipt,
@@ -90,6 +91,8 @@ export const QA_WIZARD_BLUEPRINT_EXECUTION_CLAIM_VERSION =
   'qa-wizard-blueprint-execution-claim/v1' as const;
 export const QA_WIZARD_BLUEPRINT_EXECUTION_RECORD_VERSION =
   'qa-wizard-blueprint-execution-record/v1' as const;
+export const QA_WIZARD_BLUEPRINT_EXECUTION_INCIDENT_VERSION =
+  'qa-wizard-blueprint-execution-incident/v1' as const;
 export const QA_WIZARD_BLUEPRINT_APPROVAL_DECISION_VERSION =
   'qa-wizard-blueprint-approval-decision/v1' as const;
 
@@ -225,6 +228,33 @@ export interface QaWizardBlueprintExecutionRecord {
   receiptDigest: string;
   receiptPath: string;
   status: 'completed' | 'failed';
+  digestAlgorithm: typeof DIGEST_ALGORITHM;
+  digest: string;
+}
+
+export type QaWizardBlueprintExecutionIncidentPhase =
+  | 'claim_validation'
+  | 'runner_execution'
+  | 'receipt_replay_validation'
+  | 'receipt_publication'
+  | 'terminal_materialization'
+  | 'terminal_manifest_publication'
+  | 'terminal_lookup_publication';
+
+export interface QaWizardBlueprintExecutionIncident {
+  version: typeof QA_WIZARD_BLUEPRINT_EXECUTION_INCIDENT_VERSION;
+  authoringAuthorityDigest: string;
+  requestDigest: string;
+  preflightManifestDigest: string;
+  claimDigest: string;
+  claimPath: string;
+  phase: QaWizardBlueprintExecutionIncidentPhase;
+  receiptAvailable: boolean;
+  receiptDigest: string | null;
+  receiptStatus: 'completed' | 'failed' | null;
+  providerOutcome: 'unknown';
+  resolution: 'operator_resolution_required_no_redispatch';
+  scope: 'single_use_paid_blueprint_authoring_incident';
   digestAlgorithm: typeof DIGEST_ALGORITHM;
   digest: string;
 }
@@ -378,6 +408,23 @@ const EXECUTION_RECORD_KEYS = [
   'terminalManifestPath',
   'version',
 ] as const;
+const EXECUTION_INCIDENT_KEYS = [
+  'authoringAuthorityDigest',
+  'claimDigest',
+  'claimPath',
+  'digest',
+  'digestAlgorithm',
+  'phase',
+  'preflightManifestDigest',
+  'providerOutcome',
+  'receiptAvailable',
+  'receiptDigest',
+  'receiptStatus',
+  'requestDigest',
+  'resolution',
+  'scope',
+  'version',
+] as const;
 const APPROVAL_DECISION_KEYS = [
   'approvalDigest',
   'approvalPath',
@@ -461,20 +508,6 @@ const ATTEMPT_FAILURE_CODES = [
   'input_token_ceiling_exceeded',
   'cost_ceiling_exceeded',
 ] as const satisfies readonly ProductionAuthoringAttemptFailureCode[];
-const BLUEPRINT_RUNNER_TERMINAL_FAILURE_CODES = [
-  'call_budget_exhausted',
-  'completion_status_invalid',
-  'context_invalid',
-  'cost_ceiling_exceeded',
-  'draft_validation_repair_exhausted',
-  'input_token_ceiling_exceeded',
-  'local_processing_failed',
-  'provider_call_failed',
-  'provider_evidence_invalid',
-  'provider_policy_mismatch',
-  'usage_invalid',
-] as const;
-
 function record(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 }
@@ -498,10 +531,30 @@ function canonicalUtcTimestampIsValid(value: unknown): value is string {
   return !Number.isNaN(parsed.valueOf()) && parsed.toISOString() === value;
 }
 
-function executionStateUncertain(cause?: unknown): Error {
+function executionStateUncertain(
+  cause?: unknown,
+  incident?: {
+    path: string;
+    phase: QaWizardBlueprintExecutionIncidentPhase;
+  },
+): Error {
   const error = new Error('execution_state_uncertain');
   if (cause !== undefined) {
     (error as Error & { cause?: unknown }).cause = cause;
+  }
+  if (incident) {
+    (
+      error as Error & {
+        incidentPath?: string;
+        incidentPhase?: QaWizardBlueprintExecutionIncidentPhase;
+      }
+    ).incidentPath = incident.path;
+    (
+      error as Error & {
+        incidentPath?: string;
+        incidentPhase?: QaWizardBlueprintExecutionIncidentPhase;
+      }
+    ).incidentPhase = incident.phase;
   }
   return error;
 }
@@ -1413,8 +1466,8 @@ export function productionBlueprintAuthoringReceiptReplayIsValid(args: {
         typeof receipt.authoringProvenanceDigest === 'string' &&
         HEX_SHA256.test(receipt.authoringProvenanceDigest)
       : authoringTerminalFailureIsValid(receipt.failure) &&
-        BLUEPRINT_RUNNER_TERMINAL_FAILURE_CODES.includes(
-          receipt.failure.code as (typeof BLUEPRINT_RUNNER_TERMINAL_FAILURE_CODES)[number],
+        PRODUCTION_BLUEPRINT_RUNNER_TERMINAL_FAILURE_CODES.includes(
+          receipt.failure.code as (typeof PRODUCTION_BLUEPRINT_RUNNER_TERMINAL_FAILURE_CODES)[number],
         ) &&
         (terminalCodeForFinalAttempt === null
           ? !attemptBoundTerminalCodes.includes(
@@ -1779,6 +1832,7 @@ const OPERATOR_OUTPUT_CATEGORIES = [
 const COMPILER_LEDGER_CATEGORIES = [
   'approval-decisions',
   'execution-claims',
+  'execution-incidents',
   'terminal-lookups',
 ] as const;
 
@@ -2284,6 +2338,17 @@ function terminalLookupPath(args: {
   });
 }
 
+function executionIncidentPath(args: {
+  repoRoot: string;
+  authoringAuthorityDigest: string;
+}): string {
+  return compilerLedgerArtifactPath({
+    repoRoot: args.repoRoot,
+    category: 'execution-incidents',
+    authorityDigest: args.authoringAuthorityDigest,
+  });
+}
+
 function approvalDecisionPath(args: {
   repoRoot: string;
   blueprintDigest: string;
@@ -2330,6 +2395,143 @@ function executionClaimIsValid(
     value.scope === 'single_use_paid_blueprint_authoring' &&
     value.digest === canonicalJsonDigest(payloadWithoutDigest(value))
   );
+}
+
+function executionIncidentIsValid(
+  value: unknown,
+): value is QaWizardBlueprintExecutionIncident {
+  if (!exactKeys(value, EXECUTION_INCIDENT_KEYS)) return false;
+  const receiptAvailable = value.receiptAvailable === true;
+  const receiptUnavailable = value.receiptAvailable === false;
+  return (
+    value.version === QA_WIZARD_BLUEPRINT_EXECUTION_INCIDENT_VERSION &&
+    value.digestAlgorithm === DIGEST_ALGORITHM &&
+    [
+      value.authoringAuthorityDigest,
+      value.requestDigest,
+      value.preflightManifestDigest,
+      value.claimDigest,
+      value.digest,
+    ].every((entry) => typeof entry === 'string' && HEX_SHA256.test(entry)) &&
+    typeof value.claimPath === 'string' &&
+    [
+      'claim_validation',
+      'runner_execution',
+      'receipt_replay_validation',
+      'receipt_publication',
+      'terminal_materialization',
+      'terminal_manifest_publication',
+      'terminal_lookup_publication',
+    ].includes(value.phase as QaWizardBlueprintExecutionIncidentPhase) &&
+    ((receiptAvailable &&
+      typeof value.receiptDigest === 'string' &&
+      HEX_SHA256.test(value.receiptDigest) &&
+      (value.receiptStatus === 'completed' || value.receiptStatus === 'failed')) ||
+      (receiptUnavailable &&
+        value.receiptDigest === null &&
+        value.receiptStatus === null)) &&
+    value.providerOutcome === 'unknown' &&
+    value.resolution === 'operator_resolution_required_no_redispatch' &&
+    value.scope === 'single_use_paid_blueprint_authoring_incident' &&
+    value.digest === canonicalJsonDigest(payloadWithoutDigest(value))
+  );
+}
+
+function buildExecutionIncident(args: {
+  authoringAuthorityDigest: string;
+  requestDigest: string;
+  preflightManifestDigest: string;
+  claim: QaWizardBlueprintExecutionClaim;
+  claimPath: string;
+  phase: QaWizardBlueprintExecutionIncidentPhase;
+  receipt: ProductionAuthoringRunReceipt | null;
+}): QaWizardBlueprintExecutionIncident {
+  const receiptStatus: 'completed' | 'failed' | null =
+    args.receipt?.status === 'completed' || args.receipt?.status === 'failed'
+      ? args.receipt.status
+      : null;
+  const receiptIsTerminal =
+    args.receipt !== null &&
+    receiptStatus !== null &&
+    typeof args.receipt.digest === 'string' &&
+    HEX_SHA256.test(args.receipt.digest);
+  return digestPayload({
+    version: QA_WIZARD_BLUEPRINT_EXECUTION_INCIDENT_VERSION,
+    authoringAuthorityDigest: args.authoringAuthorityDigest,
+    requestDigest: args.requestDigest,
+    preflightManifestDigest: args.preflightManifestDigest,
+    claimDigest: args.claim.digest,
+    claimPath: args.claimPath,
+    phase: args.phase,
+    receiptAvailable: receiptIsTerminal,
+    receiptDigest: receiptIsTerminal ? args.receipt!.digest : null,
+    receiptStatus: receiptIsTerminal ? receiptStatus : null,
+    providerOutcome: 'unknown' as const,
+    resolution: 'operator_resolution_required_no_redispatch' as const,
+    scope: 'single_use_paid_blueprint_authoring_incident' as const,
+  });
+}
+
+function loadExecutionIncident(args: {
+  repoRoot: string;
+  authoringAuthorityDigest: string;
+  requestDigest: string;
+  preflightManifestDigest: string;
+  claimDigest: string;
+  claimPath: string;
+}): { incident: QaWizardBlueprintExecutionIncident; path: string } | null {
+  const artifactPath = executionIncidentPath(args);
+  const absolute = resolveRepoPath(args.repoRoot, artifactPath);
+  if (!fs.existsSync(absolute)) return null;
+  const loaded = readJsonObject({
+    repoRoot: args.repoRoot,
+    artifactPath,
+    label: 'Blueprint authoring execution incident',
+  });
+  if (
+    !executionIncidentIsValid(loaded.value) ||
+    loaded.value.authoringAuthorityDigest !== args.authoringAuthorityDigest ||
+    loaded.value.requestDigest !== args.requestDigest ||
+    loaded.value.preflightManifestDigest !== args.preflightManifestDigest ||
+    loaded.value.claimDigest !== args.claimDigest ||
+    loaded.value.claimPath !== args.claimPath ||
+    repoRelativePath(args.repoRoot, loaded.absolutePath) !== artifactPath ||
+    loaded.rawBytes !== canonicalContentAddressedJsonBytes(loaded.value)
+  ) {
+    throw new Error('Blueprint authoring execution incident is invalid or tampered');
+  }
+  return { incident: loaded.value, path: artifactPath };
+}
+
+function persistExecutionIncident(args: {
+  repoRoot: string;
+  authoringAuthorityDigest: string;
+  requestDigest: string;
+  preflightManifestDigest: string;
+  claim: QaWizardBlueprintExecutionClaim;
+  claimPath: string;
+  phase: QaWizardBlueprintExecutionIncidentPhase;
+  receipt: ProductionAuthoringRunReceipt | null;
+}): { incident: QaWizardBlueprintExecutionIncident; path: string } {
+  const incident = buildExecutionIncident(args);
+  const artifactPath = executionIncidentPath(args);
+  writeImmutableLocalArtifact({
+    destinationPath: resolveRepoPath(args.repoRoot, artifactPath),
+    bytes: canonicalContentAddressedJsonBytes(incident),
+    hooks: containedPublishHooks({ repoRoot: args.repoRoot }),
+  });
+  const loaded = loadExecutionIncident({
+    repoRoot: args.repoRoot,
+    authoringAuthorityDigest: args.authoringAuthorityDigest,
+    requestDigest: args.requestDigest,
+    preflightManifestDigest: args.preflightManifestDigest,
+    claimDigest: args.claim.digest,
+    claimPath: args.claimPath,
+  });
+  if (!loaded) {
+    throw new Error('Blueprint authoring execution incident was not persisted');
+  }
+  return loaded;
 }
 
 function buildExecutionRecord(args: {
@@ -2628,6 +2830,22 @@ export async function executeQaWizardBlueprintLiveRequest(
   // paid-call fence through a raw containment error.
   if (fs.existsSync(resolveRepoPath(args.repoRoot, executionClaimPath))) {
     try {
+      const publishedClaim = readJsonObject({
+        repoRoot: args.repoRoot,
+        artifactPath: executionClaimPath,
+        label: 'Blueprint authoring execution claim',
+      });
+      if (
+        !executionClaimIsValid(publishedClaim.value) ||
+        publishedClaim.value.authoringAuthorityDigest !== authoringAuthorityDigest ||
+        publishedClaim.value.requestDigest !== requestDigest ||
+        publishedClaim.value.preflightManifestDigest !== preflight.manifest.digest ||
+        publishedClaim.value.preflightManifestPath !== preflight.manifestPath ||
+        publishedClaim.rawBytes !==
+          canonicalContentAddressedJsonBytes(publishedClaim.value)
+      ) {
+        throw new Error('Blueprint authoring execution claim is invalid or tampered');
+      }
       const recovered = recoverTerminalLookup({
         repoRoot: args.repoRoot,
         outputDir,
@@ -2636,7 +2854,24 @@ export async function executeQaWizardBlueprintLiveRequest(
         preflightManifestDigest: preflight.manifest.digest,
       });
       if (recovered) return recovered;
+      const incident = loadExecutionIncident({
+        repoRoot: args.repoRoot,
+        authoringAuthorityDigest,
+        requestDigest,
+        preflightManifestDigest: preflight.manifest.digest,
+        claimDigest: publishedClaim.value.digest,
+        claimPath: executionClaimPath,
+      });
+      if (incident) {
+        throw executionStateUncertain(undefined, {
+          path: incident.path,
+          phase: incident.incident.phase,
+        });
+      }
     } catch (cause) {
+      if (cause instanceof Error && cause.message === 'execution_state_uncertain') {
+        throw cause;
+      }
       throw executionStateUncertain(cause);
     }
     throw executionStateUncertain();
@@ -2655,6 +2890,9 @@ export async function executeQaWizardBlueprintLiveRequest(
     authoringAuthorityDigest,
   });
   let claimWrite: { created: boolean };
+  let executionPhase: QaWizardBlueprintExecutionIncidentPhase =
+    'claim_validation';
+  let terminalReceipt: ProductionAuthoringRunReceipt | null = null;
   try {
     claimWrite = writeImmutableLocalArtifact({
       destinationPath: resolveRepoPath(args.repoRoot, executionClaimPath),
@@ -2707,6 +2945,7 @@ export async function executeQaWizardBlueprintLiveRequest(
     }
     deps.hooks?.afterClaim?.();
 
+  executionPhase = 'runner_execution';
   const providerFactory =
     deps.providerFactory ??
     (async (): Promise<ProductionAuthoringProvider> => {
@@ -2726,6 +2965,8 @@ export async function executeQaWizardBlueprintLiveRequest(
     context: preflight.context,
     provider,
   });
+  terminalReceipt = result.receipt;
+  executionPhase = 'receipt_replay_validation';
   if (
     result.receipt.status !== 'completed' &&
     result.receipt.status !== 'failed'
@@ -2742,6 +2983,7 @@ export async function executeQaWizardBlueprintLiveRequest(
   ) {
     throw new Error('live Blueprint authoring returned an unreplayable receipt');
   }
+  executionPhase = 'receipt_publication';
   const persistedReceipt = persistProductionAuthoringReceipt({
     repoRoot: args.repoRoot,
     outputDir,
@@ -2753,6 +2995,7 @@ export async function executeQaWizardBlueprintLiveRequest(
     }),
   });
   deps.hooks?.afterReceipt?.();
+  executionPhase = 'terminal_materialization';
   let stage: 'blueprint_candidate' | 'authoring_failed';
   let blueprint: ManifestBlueprintAuthority | null = null;
   if (result.receipt.status === 'completed') {
@@ -2832,6 +3075,7 @@ export async function executeQaWizardBlueprintLiveRequest(
     approval: null,
     doesNotAuthorize: [...BEFORE_APPROVAL_EXCLUSIONS],
   });
+  executionPhase = 'terminal_manifest_publication';
   const terminalManifestArtifact = persistManifest({
     repoRoot: args.repoRoot,
     outputDir,
@@ -2849,6 +3093,7 @@ export async function executeQaWizardBlueprintLiveRequest(
     receiptPath: persistedReceipt.receiptPath,
   });
   deps.hooks?.afterTerminalManifest?.();
+  executionPhase = 'terminal_lookup_publication';
   const executionRecordPath = terminalLookupPath({
     repoRoot: args.repoRoot,
     authoringAuthorityDigest,
@@ -2871,7 +3116,30 @@ export async function executeQaWizardBlueprintLiveRequest(
       executionRecordPath,
     };
   } catch (cause) {
-    throw executionStateUncertain(cause);
+    try {
+      const incident = persistExecutionIncident({
+        repoRoot: args.repoRoot,
+        authoringAuthorityDigest,
+        requestDigest,
+        preflightManifestDigest: preflight.manifest.digest,
+        claim,
+        claimPath: executionClaimPath,
+        phase: executionPhase,
+        receipt: terminalReceipt,
+      });
+      throw executionStateUncertain(cause, {
+        path: incident.path,
+        phase: incident.incident.phase,
+      });
+    } catch (incidentCause) {
+      if (
+        incidentCause instanceof Error &&
+        incidentCause.message === 'execution_state_uncertain'
+      ) {
+        throw incidentCause;
+      }
+      throw executionStateUncertain(cause);
+    }
   }
 }
 

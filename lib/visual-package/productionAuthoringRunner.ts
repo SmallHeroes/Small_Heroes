@@ -80,6 +80,30 @@ export const LEGACY_PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION_V4 =
 export const LEGACY_PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION_V3 =
   'production-blueprint-authoring-receipt/v3' as const;
 
+/**
+ * Complete closed set of terminal failure codes this runner can emit.
+ *
+ * Lifecycle replay imports this value directly so a newly emitted terminal
+ * cannot be rejected by a stale duplicate allowlist after a paid call.
+ */
+export const PRODUCTION_BLUEPRINT_RUNNER_TERMINAL_FAILURE_CODES = [
+  'call_budget_exhausted',
+  'completion_status_invalid',
+  'context_invalid',
+  'cost_ceiling_exceeded',
+  'draft_validation_repair_exhausted',
+  'input_token_ceiling_exceeded',
+  'local_processing_failed',
+  'provider_call_failed',
+  'provider_evidence_invalid',
+  'provider_policy_mismatch',
+  'repair_route_input_not_admissible',
+  'usage_invalid',
+] as const satisfies readonly AuthoringTerminalFailureCode[];
+
+export type ProductionBlueprintRunnerTerminalFailureCode =
+  (typeof PRODUCTION_BLUEPRINT_RUNNER_TERMINAL_FAILURE_CODES)[number];
+
 export function productionAuthoringRequestVersionStatus(
   version: unknown,
 ): 'current' | 'legacy_immutable' | 'unsupported' {
@@ -599,7 +623,7 @@ function finalizeReceipt(
 function failureReceipt(args: {
   request: ProductionAuthoringRunRequest;
   attempts: ProductionAuthoringAttemptReceipt[];
-  code: AuthoringTerminalFailureCode;
+  code: ProductionBlueprintRunnerTerminalFailureCode;
   diagnosticInputs?: readonly unknown[];
   diagnosticCountOverride?: number;
   issueCodes?: readonly unknown[];
@@ -1349,7 +1373,7 @@ export async function runProductionBlueprintAuthoring(args: {
                 : terminalAttemptFailure === 'cost_ceiling_exceeded'
                   ? 'cost_ceiling_exceeded'
                 : null;
-    const failureCode: AuthoringTerminalFailureCode = budgetFailure
+    const failureCode: ProductionBlueprintRunnerTerminalFailureCode = budgetFailure
       ? 'call_budget_exhausted'
       : providerFailure
         ? 'provider_call_failed'

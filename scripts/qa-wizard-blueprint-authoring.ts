@@ -137,6 +137,33 @@ function rejectionCode(error: unknown): string {
   return 'blueprint_authority_validation_failed';
 }
 
+function executionIncidentOutput(error: unknown):
+  | { executionIncident: { path: string; phase: string } }
+  | Record<string, never> {
+  if (!(error instanceof Error) || error.message !== 'execution_state_uncertain') {
+    return {};
+  }
+  const incident = error as Error & {
+    incidentPath?: unknown;
+    incidentPhase?: unknown;
+  };
+  if (
+    typeof incident.incidentPath !== 'string' ||
+    !incident.incidentPath.startsWith(
+      'outputs/qa-wizard-blueprint-authoring-ledger-v1/execution-incidents/',
+    ) ||
+    !/^[a-z_]+$/.test(String(incident.incidentPhase ?? ''))
+  ) {
+    return {};
+  }
+  return {
+    executionIncident: {
+      path: incident.incidentPath,
+      phase: String(incident.incidentPhase),
+    },
+  };
+}
+
 async function execute(command: string, tokens: string[]): Promise<void> {
   const flags = parseFlags(tokens);
   const requestPath = required(flags, '--request');
@@ -302,6 +329,7 @@ async function main(): Promise<void> {
       status: 'rejected',
       localImmutableWriteState: 'not_attested_after_rejection',
       reasonCodes: [rejectionCode(error)],
+      ...executionIncidentOutput(error),
     });
     process.exitCode = 1;
   }

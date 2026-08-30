@@ -48,6 +48,7 @@ import {
   nominalBlueprintAuthoringUsageCostUsd,
 } from '@/lib/visual-package/blueprintAuthoringPolicy';
 import { PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA } from '@/lib/visual-package/preRenderBlueprintDraftSchema';
+import { productionBlueprintAuthoringReceiptReplayIsValid } from '@/lib/visual-package/qaWizardBlueprintAuthoringLifecycle';
 import { computeProductionAuthoringContextDigest } from '@/lib/visual-package/productionAuthoringContext';
 import { projectZoneStableGeometry } from '@/lib/visual-contract-compiler';
 
@@ -1688,8 +1689,9 @@ describe('provider-isolated Blueprint authoring runner', () => {
       })),
     };
 
+    const request = requestFor(context, 'live');
     const result = await runProductionBlueprintAuthoring({
-      request: requestFor(context, 'live'),
+      request,
       context,
       provider,
     });
@@ -1713,6 +1715,14 @@ describe('provider-isolated Blueprint authoring runner', () => {
     );
     expect(serialized).not.toContain('"draft"');
     expect(serialized).not.toContain('"output"');
+    expect(
+      productionBlueprintAuthoringReceiptReplayIsValid({
+        receipt: result.receipt as unknown as Record<string, unknown>,
+        request,
+        expectedStatus: 'failed',
+        expectedDigest: result.receipt.digest,
+      }),
+    ).toBe(true);
   });
 
   it('keeps legacy request and receipt versions immutable after the canonical cutover', async () => {

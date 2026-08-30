@@ -291,6 +291,29 @@ function passingProvider(
   };
 }
 
+function repairInputIneligibleProvider(
+  fixture: ReturnType<typeof buildBlueprintFixture>,
+  call = vi.fn(),
+): ProductionAuthoringProvider {
+  const invalid = structuredClone(providerDraft(fixture)) as {
+    frames: Array<{
+      narrative: { summary: string };
+      camera: unknown;
+    }>;
+  };
+  invalid.frames[0]!.narrative.summary = 'x'.repeat(70_000);
+  invalid.frames[1]!.camera = null;
+  return {
+    call: async (args) => {
+      call(args);
+      return {
+        output: JSON.stringify(invalid),
+        receipt: providerReceipt(args),
+      };
+    },
+  };
+}
+
 function prepare(args: ReturnType<typeof setup>) {
   return prepareQaWizardBlueprintLiveRequest({
     repoRoot: args.repoRoot,
@@ -319,6 +342,16 @@ function fileInventory(root: string): Array<{ path: string; bytes: string }> {
   };
   visit(root);
   return result.sort((left, right) => left.path.localeCompare(right.path));
+}
+
+function executionIncidentInventory(repoRoot: string) {
+  return fileInventory(
+    path.join(
+      repoRoot,
+      QA_WIZARD_BLUEPRINT_AUTHORING_LEDGER_ROOT,
+      'execution-incidents',
+    ),
+  );
 }
 
 describe('QA Wizard Blueprint authoring operator lifecycle', () => {
@@ -423,6 +456,47 @@ describe('QA Wizard Blueprint authoring operator lifecycle', () => {
     expect(JSON.stringify(beforeReplay)).not.toContain('must-not-persist');
   });
 
+  it('persists repair-route input ineligibility as a failed terminal and replays with zero calls', async () => {
+    const subject = setup();
+    const preflight = prepare(subject);
+    const providerCalls = vi.fn();
+    const result = await executeQaWizardBlueprintLiveRequest(
+      {
+        repoRoot: subject.repoRoot,
+        preflightManifestPath: preflight.manifestPath,
+        outputDir: OUTPUT_DIR,
+        write: true,
+      },
+      {
+        providerFactory: () =>
+          repairInputIneligibleProvider(subject.fixture, providerCalls),
+      },
+    );
+
+    expect(result.manifest.stage).toBe('authoring_failed');
+    expect(result.receipt.status).toBe('failed');
+    expect(result.receipt.failure?.code).toBe(
+      'repair_route_input_not_admissible',
+    );
+    expect(result.receipt.callCount).toBe(1);
+    expect(providerCalls).toHaveBeenCalledTimes(1);
+    expect(executionIncidentInventory(subject.repoRoot)).toEqual([]);
+
+    const retryFactory = vi.fn(() => passingProvider(subject.fixture));
+    const replay = await executeQaWizardBlueprintLiveRequest(
+      {
+        repoRoot: subject.repoRoot,
+        preflightManifestPath: preflight.manifestPath,
+        outputDir: OUTPUT_DIR,
+        write: true,
+      },
+      { providerFactory: retryFactory },
+    );
+    expect(replay.replayed).toBe(true);
+    expect(replay.receipt.digest).toBe(result.receipt.digest);
+    expect(retryFactory).not.toHaveBeenCalled();
+  });
+
   it('fails closed after an orphan claim and never automatically retries', async () => {
     const subject = setup();
     const preflight = prepare(subject);
@@ -443,6 +517,68 @@ describe('QA Wizard Blueprint authoring operator lifecycle', () => {
         },
       ),
     ).rejects.toThrow('execution_state_uncertain');
+    const incidents = executionIncidentInventory(subject.repoRoot);
+    expect(incidents).toHaveLength(1);
+    const incident = JSON.parse(incidents[0]!.bytes) as Record<string, unknown>;
+    expect(incident).toMatchObject({
+      phase: 'claim_validation',
+      receiptAvailable: false,
+      receiptDigest: null,
+      receiptStatus: null,
+      providerOutcome: 'unknown',
+      resolution: 'operator_resolution_required_no_redispatch',
+      scope: 'single_use_paid_blueprint_authoring_incident',
+    });
+    expect(JSON.stringify(incident)).not.toContain('simulated_crash_after_claim');
+    const providerFactory = vi.fn(() => passingProvider(subject.fixture));
+    await expect(
+      executeQaWizardBlueprintLiveRequest(
+        {
+          repoRoot: subject.repoRoot,
+          preflightManifestPath: preflight.manifestPath,
+          outputDir: OUTPUT_DIR,
+          write: true,
+        },
+        { providerFactory },
+      ),
+    ).rejects.toMatchObject({
+      message: 'execution_state_uncertain',
+      incidentPhase: 'claim_validation',
+    });
+    expect(providerFactory).not.toHaveBeenCalled();
+    expect(executionIncidentInventory(subject.repoRoot)).toEqual(incidents);
+  });
+
+  it('rejects conflicting incident bytes without overwriting or redispatching', async () => {
+    const subject = setup();
+    const preflight = prepare(subject);
+    await expect(
+      executeQaWizardBlueprintLiveRequest(
+        {
+          repoRoot: subject.repoRoot,
+          preflightManifestPath: preflight.manifestPath,
+          outputDir: OUTPUT_DIR,
+          write: true,
+        },
+        {
+          hooks: {
+            afterClaim() {
+              throw new Error('seed_incident');
+            },
+          },
+        },
+      ),
+    ).rejects.toThrow('execution_state_uncertain');
+    const inventory = executionIncidentInventory(subject.repoRoot);
+    expect(inventory).toHaveLength(1);
+    const incidentPath = path.join(
+      subject.repoRoot,
+      QA_WIZARD_BLUEPRINT_AUTHORING_LEDGER_ROOT,
+      'execution-incidents',
+      inventory[0]!.path,
+    );
+    const hostileBytes = '{"hostile":true}\n';
+    fs.writeFileSync(incidentPath, hostileBytes, 'utf8');
     const providerFactory = vi.fn(() => passingProvider(subject.fixture));
     await expect(
       executeQaWizardBlueprintLiveRequest(
@@ -456,6 +592,7 @@ describe('QA Wizard Blueprint authoring operator lifecycle', () => {
       ),
     ).rejects.toThrow('execution_state_uncertain');
     expect(providerFactory).not.toHaveBeenCalled();
+    expect(fs.readFileSync(incidentPath, 'utf8')).toBe(hostileBytes);
   });
 
   it('recovers a completed terminal manifest after a crash without another provider call', async () => {
@@ -517,6 +654,18 @@ describe('QA Wizard Blueprint authoring operator lifecycle', () => {
       ),
     ).rejects.toThrow('execution_state_uncertain');
     expect(providerCalls).toHaveBeenCalledTimes(1);
+    const incidents = executionIncidentInventory(subject.repoRoot);
+    expect(incidents).toHaveLength(1);
+    const incident = JSON.parse(incidents[0]!.bytes) as Record<string, unknown>;
+    expect(incident).toMatchObject({
+      phase: 'receipt_publication',
+      receiptAvailable: true,
+      receiptStatus: 'completed',
+      providerOutcome: 'unknown',
+      resolution: 'operator_resolution_required_no_redispatch',
+    });
+    expect(incident.receiptDigest).toMatch(/^[a-f0-9]{64}$/);
+    expect(JSON.stringify(incident)).not.toContain('simulated_crash_after_receipt');
     const retryFactory = vi.fn(() => passingProvider(subject.fixture));
     await expect(
       executeQaWizardBlueprintLiveRequest(
@@ -528,8 +677,12 @@ describe('QA Wizard Blueprint authoring operator lifecycle', () => {
         },
         { providerFactory: retryFactory },
       ),
-    ).rejects.toThrow('execution_state_uncertain');
+    ).rejects.toMatchObject({
+      message: 'execution_state_uncertain',
+      incidentPhase: 'receipt_publication',
+    });
     expect(retryFactory).not.toHaveBeenCalled();
+    expect(executionIncidentInventory(subject.repoRoot)).toEqual(incidents);
   });
 
   it('admits only one concurrent owner for the same paid request', async () => {

@@ -1,10 +1,54 @@
 # SmallHeroes — Current Technical State
 
-**Updated:** 2026-08-29
-**Maintainer:** Codex (Technical Owner; Claude Code independent QA PASS for Round 16)
+**Updated:** 2026-08-30
+**Maintainer:** Codex (Technical Owner; Round 17 independent Claude Code QA pending)
 **Working branch:** `codex/r1d-order-package-authority-binding` in `C:\GNart\Work\sh-order-package-authority`; immutable code range `983a09ee..608aeee0` (`f982f9f8`, `c38a18ac`, `59efadb5`, `0e49b8f6`, `3cfbae8f`, `fc8b08a0`, `5e79c45f`, `157fe750`, `53c62285`, `ce35ee42`, `f1dafa1b`, `296fe47c`, `2e3a511e`, `677c6644`, `d1b320e1`, `608aeee0`), the round-9 corrective `96a50252` (docs `8c7474bc`), and the round-10 corrective `17670078` (immutable code range `8c7474bc..17670078`) plus the docs-only successor commit that finalizes this file. The prior Codex branch `codex/r1d-qa-wizard-downstream-lifecycle` (worktree `C:\GNart\Work\sh-live-chameleon-v3`) is historical for this milestone.
 
-## ORDER-FROZEN VISUAL PACKAGE AUTHORITY — LANDED; LANTERN CORRECTED BRIDGE PENDING EXACT RECONCILIATION CONTENT
+## ORDER-FROZEN VISUAL PACKAGE AUTHORITY — LANDED; BLUEPRINT POST-CLAIM UNCERTAINTY CORRECTION LOCALLY GREEN
+
+### Round 17 — terminal receipt authority unified; post-claim incidents now durable
+
+The first paid Blueprint attempt for the approved Chameleon chain published
+single-use execution claim `466252b4a082ea6b98503bb2bc3e433a36408cfb61d1fd305afcbfa2b9804b64`
+and then returned `execution_state_uncertain` without a receipt, terminal
+manifest or terminal lookup. The existing claim is immutable and still blocks
+automatic redispatch. It was not deleted, modified, retried or retrospectively
+resolved.
+
+The artifact record proves only a post-claim/pre-terminal failure window. It
+cannot prove the lost in-memory receipt code. Investigation nevertheless found
+one exact defect that explains that window: the runner could honestly emit
+`repair_route_input_not_admissible`, while lifecycle replay omitted it from a
+duplicate terminal allowlist and could reject the valid failed receipt before
+its first durable write.
+
+The offline correction makes the runner's typed terminal set the single source
+for both emission and replay. The lifecycle now writes one immutable sanitized
+incident on every post-claim exception, bound to the exact authority, request,
+preflight and claim plus the bounded phase. A locally available terminal receipt
+contributes only digest and status; provider outcome remains explicitly
+`unknown`. Re-entry validates the claim, prefers normal terminal recovery, then
+returns the exact incident without constructing a provider or redispatching.
+Conflicting incident bytes fail closed.
+
+The historical claim remains `766` bytes with SHA-256
+`900bd0c95d748637d90922c1a28fb05c87d116563c604529f027bc8160453515`.
+Its original output tree still has 58 files, zero receipts and zero terminal
+manifests. No retrospective incident was fabricated.
+
+Validation: the complete focused Blueprint/Wizard battery passed `262/262`.
+Literal `npm run check` remains honestly red: its ordinary partition passed
+4,048 and skipped 73 while the documented nine assertions in five unchanged
+files still lack ignored historical fixtures; its resource partition passed
+617 while 15 Git/subprocess-heavy assertions timed out and Vitest emitted four
+known `onTaskUpdate` RPC timeouts. The changed lifecycle/foundation files passed
+inside that run and again serially afterward. Final TypeScript and diff hygiene
+are required immediately before the local commit.
+
+No provider, network, credential, image, audio, database, Candidate, Blueprint,
+package, locator, render, deployment or paid retry occurred. Next: local green
+commit, independent Claude Code re-gate, then a separate governed replacement-
+execution authority; the old single-use claim must remain preserved.
 
 ### Round 16 — Blueprint provider-wire compaction independently PASSed; fresh live readiness next
 
