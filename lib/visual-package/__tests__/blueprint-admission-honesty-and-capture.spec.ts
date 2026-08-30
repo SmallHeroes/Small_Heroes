@@ -389,11 +389,18 @@ describe('exact provider-count admission (one honest token quantity, both routes
     const validSecondDraft = wholeBookDraft(fixture.blueprint);
     let calls = 0;
     const counterRoutes: string[] = [];
-    const counter: BlueprintAuthoringInputTokenCounter = (request) => {
+    const counter: BlueprintAuthoringInputTokenCounter = async (request) => {
       counterRoutes.push(request.routeKind);
       // Exact provider count is well under the 64000 token ceiling even though the
       // repair wire's byte bound is far above it.
-      return 50_000;
+      return {
+        routeKind: request.routeKind,
+        countRequestDigest: canonicalJsonDigest(request),
+        outcome: 'counted',
+        inputTokens: 50_000,
+        unavailableReason: null,
+        attestation: null,
+      };
     };
     const result = await compilePreRenderBookVisualBlueprint(
       fixture.context,
@@ -422,7 +429,14 @@ describe('exact provider-count admission (one honest token quantity, both routes
     oversized.frames[0]!.narrative.summary = 'x'.repeat(80_000);
     oversized.frames[1]!.camera = null;
     let calls = 0;
-    const counter: BlueprintAuthoringInputTokenCounter = () => 70_000;
+    const counter: BlueprintAuthoringInputTokenCounter = async (request) => ({
+      routeKind: request.routeKind,
+      countRequestDigest: canonicalJsonDigest(request),
+      outcome: 'counted',
+      inputTokens: 70_000,
+      unavailableReason: null,
+      attestation: null,
+    });
     let caught: unknown;
     try {
       await compilePreRenderBookVisualBlueprint(fixture.context, CONFIG, {
@@ -449,7 +463,14 @@ describe('exact provider-count admission (one honest token quantity, both routes
     oversized.frames[0]!.narrative.summary = 'x'.repeat(80_000);
     oversized.frames[1]!.camera = null;
     let calls = 0;
-    const counter: BlueprintAuthoringInputTokenCounter = () => null;
+    const counter: BlueprintAuthoringInputTokenCounter = async (request) => ({
+      routeKind: request.routeKind,
+      countRequestDigest: canonicalJsonDigest(request),
+      outcome: 'unavailable',
+      inputTokens: null,
+      unavailableReason: 'not_wired',
+      attestation: null,
+    });
     let caught: unknown;
     try {
       await compilePreRenderBookVisualBlueprint(fixture.context, CONFIG, {

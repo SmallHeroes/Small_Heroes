@@ -30,14 +30,25 @@ being delivered as a sequence of green boundaries; this is **Boundary 1 (foundat
   - Tests: new `blueprint-authoring-exact-count-foundation.spec.ts` (**6**). No existing behavior
     changed (blueprint-admission **42** + production-lifecycle **79** unchanged). `tsc --noEmit`
     clean; `git diff --check` clean. No provider/network/live/render/DB/deploy/credential/push.
-- **REMAINING boundaries (not yet implemented — the substantive + high-risk work):** async counter
-  rewired through compiler/runner; the real guarded count transport + separate count
-  attestation/evidence; runner per-route + request-digest count cache and count-probe reservation
-  wired into projected-max/dynamic accounting; adapter byte-over-ceiling acceptance with matching
-  attested count; **receipt v7 cutover + durable F3 census-identity commitment across
-  first-publication/replay/recovery** (touches the content-bound seals — highest risk); the
-  8-page/86-diagnostic harness and the ~15 hostile regressions. **This boundary is NOT the complete
-  F1 milestone and must not be re-gated as F1 PASS.**
+- **Boundary 2 — async count authority + guarded count transport (offline):** the counter is now
+  ASYNC and returns a rich, evidence-carrying result (`BlueprintAuthoringExactInputTokenCountResult`
+  — countRequestDigest, outcome, exact tokens, bounded unavailable reason, separate
+  `BlueprintAuthoringCountTransportAttestation`); `admitBlueprintAuthoringInputTokens` is async and
+  carries the count evidence on the decision; the compiler awaits it. New
+  `openaiResponsesBlueprintAuthoringCountAdapter.ts`: a ROUTE-SPECIFIC guarded fetch for
+  `POST /v1/responses/input_tokens` (does NOT broaden the generation `/v1/responses` guard;
+  exact destination/method/redirect/identity guard), a count transport calling
+  `client.responses.inputTokens.count` with the token-relevant projection body, and an adapter that
+  gates the response to exactly `{object:'response.input_tokens', input_tokens}`, fails closed
+  (bounded reason) with no retry, and produces its OWN attestation (never touches generation
+  callCount/attestation). Not yet wired into the runner. Tests: new count-adapter spec (**15**);
+  admission-spec counters converted to async. Full battery **366** green; tsc + diff-check clean.
+- **REMAINING boundaries (not yet implemented):** runner per-route + request-digest count cache and
+  count-probe reservation wired into projected-max/dynamic accounting; adapter byte-over-ceiling
+  acceptance with matching attested count; **receipt v7 cutover + durable F3 census-identity
+  commitment across first-publication/replay/recovery** (touches the content-bound seals — highest
+  risk); the 8-page/86-diagnostic harness and the ~15 hostile regressions. **NOT the complete F1
+  milestone; must not be re-gated as F1 PASS.**
 
 ---
 

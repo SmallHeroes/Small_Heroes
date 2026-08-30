@@ -727,7 +727,7 @@ export async function compilePreRenderBookVisualBlueprint(
       userPrompt: repairUserPrompt,
       schema: PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA,
     });
-    const repairAdmission = admitBlueprintAuthoringInputTokens({
+    const repairAdmission = await admitBlueprintAuthoringInputTokens({
       accounting: repairInputAccounting,
       counter: deps.inputTokenCounter,
       request: {
