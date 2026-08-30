@@ -1619,15 +1619,21 @@ export async function runProductionBlueprintAuthoring(args: {
  * sanitized capture, and downstream the lifecycle refuses to publish an ordinary
  * replayable terminal for it without one.
  *
- * The census is derived only from the in-memory structured diagnostic sources that
- * correspond to the failed receipt attempts. If that correlation cannot be proven — the
- * receipt declares a diagnostic-bearing attempt but no matching in-memory structured
- * source is present, or the derived census would be empty — the result is
- * `derivation_failed` (NOT an empty/partial census minted merely to satisfy the
- * binding). A census that overflows the fail-closed hard bound is likewise
- * `derivation_failed`. Every `derivation_failed` carries a sanitized reason code — never
- * a silent null — so the caller can drive it into the incident/execution_state_uncertain
- * path.
+ * The census is derived only from the in-memory structured diagnostic sources that are
+ * proven to correspond, as a COMPLETE bijection, to the failed receipt's diagnostic-
+ * bearing attempts: every such receipt attempt must have a matching in-memory source
+ * whose raw errors re-derive to the EXACT persisted {count,codes} (rejecting a fabricated
+ * or drifted summary) and whose structured diagnostics are complete for that attempt (one
+ * structured diagnostic per raw error — cardinality linkage, not mere attempt-number
+ * presence), and every in-memory source that carries structured diagnostics must map to a
+ * matched receipt attempt (rejecting extra/duplicate/unmatched evidence). If that
+ * bijection cannot be proven — a missing, partial, count/code-mismatched, duplicate, or
+ * extra source, or a derived census that would be empty — the result is
+ * `sanitized_census_correlation_unproven` `derivation_failed` (NOT an empty/partial census
+ * minted merely to satisfy the binding). A census that overflows the fail-closed hard
+ * bound is likewise `derivation_failed`. Every `derivation_failed` carries a sanitized
+ * reason code — never a silent null — so the caller can drive it into the
+ * incident/execution_state_uncertain path.
  *
  * A diagnostic-LESS boundary failure (no mandatory code, no attempt diagnostics) is an
  * explicit allowed absence: it binds no capture. Never reads raw draft/provider output —
@@ -1680,37 +1686,93 @@ export function deriveBlueprintAuthoringSanitizedFailureCaptureDisposition(args:
       });
     }
     // The only in-memory structured diagnostic source is the failing error's per-attempt
-    // diagnostics (raw structured diagnostics are never persisted into the receipt).
-    // Index them by attempt number so we can PROVE they correspond to the receipt's
-    // diagnostic-bearing attempts before minting a census from them.
-    const diagnosticsByAttempt = new Map<
+    // evidence (raw structured diagnostics are never persisted into the receipt). Index it
+    // by attempt number, retaining BOTH the raw error strings (the exact source the
+    // receipt's `validationDiagnostics` summary was derived from — via
+    // `sanitizedAuthoringDiagnostics`) and the structured diagnostics (the census source),
+    // so the correlation below can PROVE — not merely assume from a matching attempt
+    // number — that the persisted summary and the structured census come from the same
+    // complete per-attempt evidence.
+    const evidenceByAttempt = new Map<
       number,
-      PreRenderBlueprintRepairDiagnostic[]
+      { errors: string[]; diagnostics: PreRenderBlueprintRepairDiagnostic[] }
     >();
     if (
       args.error instanceof PreRenderBlueprintAuthoringRepairExhaustedError ||
       args.error instanceof PreRenderBlueprintRepairInputNotAdmissibleError
     ) {
       for (const attempt of args.error.attempts) {
-        const attemptDiagnostics = attempt.diagnostics ?? [];
-        if (
-          Number.isSafeInteger(attempt.attempt) &&
-          attemptDiagnostics.length > 0
-        ) {
-          const existing = diagnosticsByAttempt.get(attempt.attempt) ?? [];
-          existing.push(...attemptDiagnostics);
-          diagnosticsByAttempt.set(attempt.attempt, existing);
+        if (!Number.isSafeInteger(attempt.attempt)) continue;
+        // A duplicated attempt number makes the receipt<->source bijection ambiguous:
+        // refuse rather than silently merge two sources under one identity.
+        if (evidenceByAttempt.has(attempt.attempt)) {
+          return {
+            kind: 'derivation_failed',
+            reasonCode: 'sanitized_census_correlation_unproven',
+          };
         }
+        evidenceByAttempt.set(attempt.attempt, {
+          errors: Array.isArray(attempt.errors) ? [...attempt.errors] : [],
+          diagnostics: attempt.diagnostics ? [...attempt.diagnostics] : [],
+        });
       }
     }
-    // Correlation / completeness: every receipt attempt that persisted a non-empty
-    // grouped validation-diagnostic set MUST have a matching complete in-memory
-    // structured source. If any does not, we cannot prove the census is complete, so we
-    // refuse to mint a partial one and drive the failure into the incident path.
+    // Prove a COMPLETE bijection between every diagnostic-bearing receipt attempt and its
+    // in-memory structured source BEFORE minting any census:
+    //  - forward: every receipt attempt that persisted a non-empty validation-diagnostic
+    //    summary MUST have a matching in-memory source whose raw errors RE-DERIVE, under
+    //    the exact canonical logic used to persist them, to the EXACT {count,codes} the
+    //    receipt carries (rejects a fabricated or drifted summary — count- or code-
+    //    mismatch), and whose structured diagnostics are complete for that attempt: one
+    //    structured diagnostic per raw error (cardinality/identity linkage, not mere
+    //    presence — rejects a partial structured source);
+    //  - reverse: every in-memory source that carries structured diagnostics MUST map to a
+    //    matched diagnostic-bearing receipt attempt (rejects extra/unmatched evidence).
+    // Any violation is `sanitized_census_correlation_unproven`, driven into the incident
+    // path rather than minting a census the receipt does not fully and exactly account for.
+    const censusDiagnostics: PreRenderBlueprintRepairDiagnostic[] = [];
+    const matchedAttempts = new Set<number>();
     for (const receiptAttempt of args.attempts) {
+      const persisted = receiptAttempt.validationDiagnostics;
+      const attemptIsDiagnosticBearing =
+        persisted.count > 0 || persisted.codes.length > 0;
+      if (!attemptIsDiagnosticBearing) continue;
+      const evidence = evidenceByAttempt.get(receiptAttempt.attempt);
+      if (!evidence) {
+        return {
+          kind: 'derivation_failed',
+          reasonCode: 'sanitized_census_correlation_unproven',
+        };
+      }
+      const rederived = sanitizedAuthoringDiagnostics({
+        inputs: evidence.errors,
+        fallbackCode: 'draft_contract_validation_failed',
+      });
       if (
-        receiptAttempt.validationDiagnostics.count > 0 &&
-        !diagnosticsByAttempt.has(receiptAttempt.attempt)
+        rederived.count !== persisted.count ||
+        JSON.stringify(rederived.codes) !== JSON.stringify(persisted.codes)
+      ) {
+        return {
+          kind: 'derivation_failed',
+          reasonCode: 'sanitized_census_correlation_unproven',
+        };
+      }
+      if (
+        evidence.diagnostics.length === 0 ||
+        evidence.diagnostics.length !== evidence.errors.length
+      ) {
+        return {
+          kind: 'derivation_failed',
+          reasonCode: 'sanitized_census_correlation_unproven',
+        };
+      }
+      matchedAttempts.add(receiptAttempt.attempt);
+      censusDiagnostics.push(...evidence.diagnostics);
+    }
+    for (const [attemptNumber, evidence] of evidenceByAttempt) {
+      if (
+        evidence.diagnostics.length > 0 &&
+        !matchedAttempts.has(attemptNumber)
       ) {
         return {
           kind: 'derivation_failed',
@@ -1718,10 +1780,9 @@ export function deriveBlueprintAuthoringSanitizedFailureCaptureDisposition(args:
         };
       }
     }
-    const diagnostics = [...diagnosticsByAttempt.values()].flat();
     // A required capture with an empty census would be a binding satisfied by nothing.
     // Never mint it; fail closed so the caller drives it into the incident path.
-    if (diagnostics.length === 0) {
+    if (censusDiagnostics.length === 0) {
       return {
         kind: 'derivation_failed',
         reasonCode: 'sanitized_census_correlation_unproven',
@@ -1735,7 +1796,7 @@ export function deriveBlueprintAuthoringSanitizedFailureCaptureDisposition(args:
         requestDigest: args.failureReceipt.requestDigest,
         contextDigest: args.request.contextDigest,
         routes,
-        diagnostics,
+        diagnostics: censusDiagnostics,
       }),
     };
   } catch (error) {

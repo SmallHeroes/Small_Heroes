@@ -2203,9 +2203,20 @@ interface LoadedQaWizardBlueprintManifest {
  */
 function loadSanitizedFailureCaptureAuthority(args: {
   repoRoot: string;
+  outputDir: string;
   capturePath: string;
   expectedDigest: string;
-}): { digest: string } {
+}): { capture: BlueprintAuthoringSanitizedFailureCapture } {
+  // Exact canonical containment: the capture MUST live at THIS outputDir's canonical
+  // `sanitized-failure-captures/<digest>.json` location, not merely under any directory
+  // that happens to be named `sanitized-failure-captures` anywhere in the repo. This
+  // closes cross-output-root substitution at the loader boundary.
+  const canonicalPath = relativeArtifactPath({
+    repoRoot: args.repoRoot,
+    outputDir: args.outputDir,
+    category: 'sanitized-failure-captures',
+    fileName: `${args.expectedDigest}.json`,
+  });
   const loaded = readJsonObject({
     repoRoot: args.repoRoot,
     artifactPath: args.capturePath,
@@ -2214,6 +2225,7 @@ function loadSanitizedFailureCaptureAuthority(args: {
   const capture =
     loaded.value as unknown as BlueprintAuthoringSanitizedFailureCapture;
   if (
+    args.capturePath !== canonicalPath ||
     repoRelativePath(args.repoRoot, loaded.absolutePath) !== args.capturePath ||
     path.basename(loaded.absolutePath) !== `${args.expectedDigest}.json` ||
     path.basename(path.dirname(loaded.absolutePath)) !==
@@ -2226,7 +2238,74 @@ function loadSanitizedFailureCaptureAuthority(args: {
       'Blueprint sanitized failure capture is invalid, tampered, or missing',
     );
   }
-  return { digest: capture.digest };
+  return { capture };
+}
+
+/**
+ * The SINGLE shared acceptance assertion for a failed terminal's sanitized-capture
+ * disposition. Enforced identically at first materialization, replay
+ * (`loadExecutionRecord`), and recovery (`recoverTerminalLookup`) so the three sites can
+ * never disagree about whether — and which — capture a failed terminal may carry. Fails
+ * closed with `execution_state_uncertain` on any contradiction; it never weakens the
+ * existing missing/tamper checks (they run inside the reload).
+ *
+ * Scoped to `authoring_failed` terminals only. A completed (`blueprint_candidate`)
+ * terminal is exempt: it binds no capture yet can be legitimately diagnostic-bearing
+ * (an invalid draft repaired to a passing one), so the required<->present equivalence
+ * does not apply to it. Completed manifests never carry a capture binding on the write
+ * path (the binding is only ever set in the failed branch of materialization).
+ *
+ * Invariants for a failed terminal:
+ *  - EXACT equivalence `captureRequired === Boolean(observabilityCapture)`: a
+ *    diagnostic-bearing failure MUST bind a capture; a diagnostic-less failure MUST NOT.
+ *    This closes the previously-unchecked "not required but a capture is present"
+ *    direction, so an unexpected/extra capture on a diagnostic-less terminal tears.
+ *  - When bound, the capture is reloaded from canonical bytes and must (a) live at the
+ *    exact canonical `sanitized-failure-captures` location under THIS outputDir, (b) match
+ *    the manifest binding's version/digest/path, and (c) be linkage-bound to the CURRENT
+ *    receipt: terminal receipt digest, request digest, context digest, and terminal
+ *    failure code. A valid capture minted for another receipt, or written under another
+ *    output root, therefore cannot be rebound and replayed/recovered.
+ */
+function assertTerminalObservabilityCaptureDisposition(args: {
+  repoRoot: string;
+  outputDir: string;
+  manifest: QaWizardBlueprintAuthoringManifest;
+  receipt: ProductionAuthoringRunReceipt;
+}): void {
+  const captureRequired = blueprintAuthoringReceiptRequiresSanitizedCapture(
+    args.receipt,
+  );
+  const binding = args.manifest.observabilityCapture;
+  if (captureRequired !== Boolean(binding)) {
+    throw new Error('execution_state_uncertain');
+  }
+  if (!binding) return;
+  const expectedPath = relativeArtifactPath({
+    repoRoot: args.repoRoot,
+    outputDir: args.outputDir,
+    category: 'sanitized-failure-captures',
+    fileName: `${binding.digest}.json`,
+  });
+  if (binding.path !== expectedPath) {
+    throw new Error('execution_state_uncertain');
+  }
+  const { capture } = loadSanitizedFailureCaptureAuthority({
+    repoRoot: args.repoRoot,
+    outputDir: args.outputDir,
+    capturePath: binding.path,
+    expectedDigest: binding.digest,
+  });
+  if (
+    binding.version !== capture.version ||
+    binding.digest !== capture.digest ||
+    capture.linkage.terminalReceiptDigest !== args.receipt.digest ||
+    capture.linkage.requestDigest !== args.receipt.requestDigest ||
+    capture.linkage.contextDigest !== args.receipt.contextDigest ||
+    capture.terminalFailureCode !== args.receipt.failure?.code
+  ) {
+    throw new Error('execution_state_uncertain');
+  }
 }
 
 /**
@@ -2265,12 +2344,13 @@ function publishAndBindSanitizedFailureCapture(args: {
   });
   const reloaded = loadSanitizedFailureCaptureAuthority({
     repoRoot: args.repoRoot,
+    outputDir: args.outputDir,
     capturePath: persisted.capturePath,
     expectedDigest: capture.digest,
   });
   return {
     version: capture.version,
-    digest: reloaded.digest,
+    digest: reloaded.capture.digest,
     path: persisted.capturePath,
   };
 }
@@ -3049,28 +3129,20 @@ function loadExecutionRecord(args: {
   ) {
     throw new Error('Blueprint authoring terminal authority is stale');
   }
-  // A diagnostic-bearing authoring_failed terminal (derived from receipt EVIDENCE via
-  // the single canonical predicate: a mandatory failure code OR any attempt that carried
-  // grouped validation diagnostics) is only replayable if it carries the required bound
-  // sanitized capture. A terminal that omits the binding — including a hostile or
-  // legacy-shaped/manual artifact that keeps the diagnostic-bearing receipt (e.g. a
-  // provider_call_failed / local_processing_failed receipt with prior attempt
-  // diagnostics) but strips the capture — is torn state, never a replayable completion.
-  if (
-    terminal.manifest.stage === 'authoring_failed' &&
-    blueprintAuthoringReceiptRequiresSanitizedCapture(terminal.receipt) &&
-    !terminal.manifest.observabilityCapture
-  ) {
-    throw new Error('execution_state_uncertain');
-  }
-  // Replay must re-validate the exact bound sanitized capture (digest/path/bytes/
-  // validity). A terminal that declares a capture whose file is missing or
-  // tampered is a torn state, not a replayable terminal.
-  if (terminal.manifest.observabilityCapture) {
-    loadSanitizedFailureCaptureAuthority({
+  // Replay applies the SINGLE shared acceptance assertion for a failed terminal's
+  // sanitized-capture disposition — the exact same assertion enforced at first
+  // materialization and recovery. It rejects both the previously-checked required+missing
+  // case AND the previously-UNCHECKED contradictions: a capture present on a diagnostic-
+  // less terminal, a capture whose linkage names another receipt, a capture written under
+  // another output root / noncanonical location, or a binding whose version/digest/path
+  // disagree with the reloaded canonical bytes. A completed (`blueprint_candidate`)
+  // terminal is exempt (it can be legitimately diagnostic-bearing yet bind no capture).
+  if (terminal.manifest.stage === 'authoring_failed') {
+    assertTerminalObservabilityCaptureDisposition({
       repoRoot: args.repoRoot,
-      capturePath: terminal.manifest.observabilityCapture.path,
-      expectedDigest: terminal.manifest.observabilityCapture.digest,
+      outputDir: args.outputDir,
+      manifest: terminal.manifest,
+      receipt: terminal.receipt,
     });
   }
   return {
@@ -3223,18 +3295,20 @@ function recoverTerminalLookup(args: {
   const terminal = terminals[0]!;
   const receipt = terminal.receipt;
   if (receipt === null) throw new Error('execution_state_uncertain');
-  // Never materialize a recovery lookup for a diagnostic-bearing authoring_failed
-  // terminal that lacks its required capture binding. The requirement is derived from
-  // receipt EVIDENCE (the same canonical predicate as replay/derivation), so a
-  // provider_call_failed / local_processing_failed receipt that carries prior grouped
-  // diagnostics but no capture is torn here too. Enforced here (before the lookup is
-  // written) and again in loadExecutionRecord (the shared replay reader).
-  if (
-    terminal.manifest.stage === 'authoring_failed' &&
-    blueprintAuthoringReceiptRequiresSanitizedCapture(receipt) &&
-    !terminal.manifest.observabilityCapture
-  ) {
-    throw new Error('execution_state_uncertain');
+  // Run the FULL shared acceptance assertion BEFORE materializing (writing) the recovery
+  // lookup, so every torn disposition tears here with ZERO lookup written and no provider
+  // redispatch: a diagnostic-bearing terminal missing its capture, a non-required terminal
+  // carrying an unexpected capture, or a valid capture cross-bound from another receipt or
+  // written under another output root. It is the same assertion the shared replay reader
+  // (`loadExecutionRecord`, invoked again below) applies, so recovery can never publish a
+  // lookup for a state replay would then reject.
+  if (terminal.manifest.stage === 'authoring_failed') {
+    assertTerminalObservabilityCaptureDisposition({
+      repoRoot: args.repoRoot,
+      outputDir: args.outputDir,
+      manifest: terminal.manifest,
+      receipt,
+    });
   }
   const receiptPath = terminal.manifest.receipt!.path;
   const recordValue = buildExecutionRecord({
@@ -3694,6 +3768,20 @@ async function runBlueprintExecutionUnderClaim(
     ...(observabilityCapture ? { observabilityCapture } : {}),
     doesNotAuthorize: [...BEFORE_APPROVAL_EXCLUSIONS],
   });
+  // Run the SAME shared acceptance assertion replay and recovery enforce against the
+  // just-built terminal manifest and the durable receipt, BEFORE any ownership binding,
+  // terminal manifest, or lookup is published. A capture that fails the exact
+  // required<->present equivalence, canonical containment under THIS outputDir, or linkage
+  // to the CURRENT receipt tears here — with nothing replayable published — so the three
+  // boundaries share one enforcement and cannot drift apart.
+  if (stage === 'authoring_failed') {
+    assertTerminalObservabilityCaptureDisposition({
+      repoRoot: args.repoRoot,
+      outputDir,
+      manifest: terminalManifest,
+      receipt: result.receipt,
+    });
+  }
   executionPhase = 'terminal_manifest_publication';
   // Terminal identity ownership must become durable BEFORE the terminal manifest
   // becomes globally visible. The manifest path and digest are deterministic

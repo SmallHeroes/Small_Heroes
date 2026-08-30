@@ -412,3 +412,77 @@ disk) fails identically at HEAD and is untouched.
 
 No provider/network/API/credential/live/render/DB/deploy/push; real `outputs/`
 artifacts were not touched. F1 (paid exact-token count) remains a separate HOLD.
+
+## Round 5 — Codex HOLD corrections on `70d9713a..4a52c3d3` (F3 MAJOR 1 + MAJOR 2 + doc MINOR)
+
+Codex re-gated `70d9713a..4a52c3d3` **HOLD** (0 BLOCKER / 2 MAJOR / 1 doc MINOR): the
+focused tests were green but did not falsify the replay/recovery capture-binding paths or
+the census-correlation proof. Closed on top of `4a52c3d3` as one focused commit.
+
+### MAJOR 1 — replay/recovery accepted contradictory and cross-bound captures
+
+- Added ONE shared acceptance assertion,
+  `assertTerminalObservabilityCaptureDisposition`, enforced identically at **first
+  materialization**, **replay** (`loadExecutionRecord`), and **recovery**
+  (`recoverTerminalLookup`). Recovery now runs the FULL assertion BEFORE writing the
+  lookup, so a torn disposition tears with zero lookup written and no provider redispatch.
+- The assertion enforces EXACT equivalence
+  `captureRequired === Boolean(manifest.observabilityCapture)` — closing the
+  previously-unchecked "not required but a capture is present" direction — and, when
+  bound, reloads the canonical bytes and requires: manifest binding version/digest/path
+  match; exact linkage to the CURRENT receipt (terminal receipt digest, request digest,
+  context digest, terminal failure code); and exact containment at THIS `outputDir`'s
+  canonical `sanitized-failure-captures/<digest>.json` location.
+- `loadSanitizedFailureCaptureAuthority` now takes `outputDir` and rejects any capture not
+  at the exact canonical path (previously any directory named `sanitized-failure-captures`
+  anywhere under the repo was accepted); it returns the full validated capture so linkage
+  can be compared. Existing missing/tamper checks are preserved (not weakened).
+- Completed (`blueprint_candidate`) terminals stay exempt: they can be legitimately
+  diagnostic-bearing (invalid draft repaired to a passing one) yet bind no capture, so the
+  equivalence is scoped to `authoring_failed` terminals — identical to the prior guard.
+
+### MAJOR 2 — census correlation now proves a complete bijection, not attempt-key presence
+
+- Before minting a capture, the runner derivation establishes a COMPLETE bijection between
+  every diagnostic-bearing receipt attempt and its in-memory structured source: forward,
+  each such attempt's raw errors must RE-DERIVE (same canonical
+  `sanitizedAuthoringDiagnostics` logic/source used to persist them) to the EXACT
+  `{count,codes}` the receipt carries, AND its structured diagnostics must be complete
+  (one structured diagnostic per raw error — cardinality linkage, not mere presence);
+  reverse, every in-memory source carrying structured diagnostics must map to a matched
+  attempt. Missing, partial, count-mismatched, code-mismatched, duplicate-attempt, and
+  extra/unmatched evidence all return
+  `derivation_failed` (`sanitized_census_correlation_unproven`).
+- The real repair-time `provider_call_failed` path (attempt 1 has grouped validation
+  diagnostics; the later provider failure has none) is preserved and still mints a capture.
+
+### Documentation MINOR
+
+- The stale comment on `BLUEPRINT_AUTHORING_CAPTURE_REQUIRED_FAILURE_CODES` no longer
+  claims every code outside the closed set is diagnostic-less or that the code set alone
+  governs runner/replay. It now states it is only the code-only MANDATORY subset and that
+  `blueprintAuthoringReceiptRequiresSanitizedCapture` (mandatory code OR attempt
+  diagnostics) is the single total requirement.
+
+### Round-5 validation (serial)
+
+- `blueprint-admission-honesty-and-capture.spec.ts` **41** green.
+- `production-lifecycle-foundation.spec.ts` **64** (+7): a new `describe` proves the census
+  bijection — valid fully-correlated shape mints a complete capture; count mismatch, code
+  mismatch, partial structured source, duplicate attempt, and extra/unmatched evidence each
+  return `sanitized_census_correlation_unproven`; and the real repair-time
+  `provider_call_failed` path still mints a capture.
+- `qa-wizard-blueprint-authoring-lifecycle.spec.ts` **46** (+3): real hostile filesystem
+  regressions at the actual replay/recovery boundaries — (a) a diagnostic-less-classified
+  terminal carrying a bound capture tears on replay (zero provider); (b) a required terminal
+  re-signed on disk to rebind a VALID capture from another receipt tears on recovery before
+  any lookup (zero provider); (c) a required terminal whose capture is bound under another
+  output root tears on recovery before any lookup (zero provider). Existing required+missing
+  rejection and normal exact replay stay green.
+- `openai-responses-blueprint-authoring-adapter.spec.ts` **20** green.
+- `npx --no-install tsc --noEmit` clean; `git diff --check` clean. Directly-affected
+  `qa-wizard-blueprint-replacement-lifecycle.spec.ts` and `qa-wizard-package-lifecycle.spec.ts`
+  (**27**) green.
+
+No provider/network/API/credential/live/render/DB/deploy/push; real `outputs/` artifacts
+were not touched. F1 (paid exact-token count) remains a separate HOLD.

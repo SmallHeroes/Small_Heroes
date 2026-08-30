@@ -87,15 +87,20 @@ export const BLUEPRINT_AUTHORING_SANITIZED_FAILURE_CAPTURE_DIGEST_ALGORITHM =
   'canonical-json-sha256' as const;
 
 /**
- * Closed set of terminal failure codes this milestone promises a structural census
- * for — the diagnostic-BEARING failures. A failed run whose terminal failure code is
- * in this set MUST bind a complete sanitized capture; every other failure code is a
- * diagnostic-less boundary failure that is explicitly allowed to bind no capture.
- * This single closed classification governs BOTH capture derivation (the runner) and
- * the replay/recovery capture-binding requirement (the lifecycle), so the two can
- * never disagree about whether a terminal is required to carry a capture. Tied to the
- * content-addressed failure code, it cannot be sidestepped by stripping the binding
- * from a hostile/legacy authoring_failed terminal without also changing its code.
+ * Closed set of terminal failure codes that ALONE mandate a complete sanitized capture.
+ * This is the code-only MANDATORY subset, NOT the whole classification: it is NOT true
+ * that every code outside this set is diagnostic-less, and the code set alone does NOT
+ * govern the runner/replay/recovery binding requirement. A failure outside this set can
+ * still be diagnostic-BEARING through receipt EVIDENCE — e.g. an initial invalid draft
+ * that produced grouped validation diagnostics followed by a repair-time
+ * `provider_call_failed`, or a `local_processing_failed` fallback that still carries
+ * structured diagnostics. The single TOTAL capture requirement shared by capture
+ * derivation (the runner), first materialization, replay, and recovery is therefore
+ * `blueprintAuthoringReceiptRequiresSanitizedCapture` (this mandatory code OR any attempt
+ * with grouped validation diagnostics) — never this code set alone. Because that predicate
+ * reads the content-addressed receipt (code + persisted attempt diagnostics), the binding
+ * cannot be sidestepped by stripping the capture from a hostile/legacy authoring_failed
+ * terminal without also changing the receipt it is derived from.
  */
 export const BLUEPRINT_AUTHORING_CAPTURE_REQUIRED_FAILURE_CODES: ReadonlySet<string> =
   new Set(['repair_route_input_not_admissible', 'draft_validation_repair_exhausted']);

@@ -65,6 +65,7 @@ import {
   prepareQaWizardBlueprintLiveRequest,
   productionBlueprintAuthoringReceiptReplayIsValid,
   recordQaWizardBlueprintApproval,
+  type QaWizardBlueprintAuthoringManifest,
 } from '../qaWizardBlueprintAuthoringLifecycle';
 import {
   buildProductionAuthoringContext,
@@ -103,6 +104,7 @@ import {
   type AuthoringExecutionAttestation,
 } from '../authoringTerminalDiagnostics';
 import { canonicalJsonDigest } from '../integrity';
+import { canonicalContentAddressedJsonBytes } from '../canonicalContentAddressedJson';
 import { createLazyLocalOpenAICredentialReader } from '../../../scripts/lib/qa-wizard-blueprint-local-credential';
 import {
   buildBlueprintFixture,
@@ -2477,6 +2479,252 @@ describe('QA Wizard Blueprint authoring operator lifecycle', () => {
       ),
     ).rejects.toThrow(/execution_state_uncertain/);
     expect(forbidden).not.toHaveBeenCalled();
+  });
+
+  // Builds a real diagnostic-BEARING failed terminal: attempt 1 returns a canonical but
+  // INVALID draft (grouped validation diagnostics), the repair call then fails at the
+  // provider boundary -> terminal code provider_call_failed, capture REQUIRED and bound.
+  function diagnosticBearingProviderFactory() {
+    const readCredential = vi.fn(() => {
+      if (readCredential.mock.calls.length > 1) {
+        throw new Error('raw repair credential failure must never persist');
+      }
+      return 'test-key-must-never-persist';
+    });
+    const transport: OpenAIResponsesAuthoringTransport = {
+      create: vi.fn(async (request) => {
+        request.observations.transportDispatchStarted = true;
+        request.observations.transportDispatchCount += 1;
+        request.observations.canonicalRouteConfirmed = true;
+        request.observations.canonicalModelConfirmed = true;
+        request.observations.httpResponseReceived = true;
+        request.observations.httpStatus = 200;
+        return {
+          id: 'resp-invalid-first-draft',
+          model: 'gpt-5.6-sol',
+          status: 'completed',
+          output_text: '{"invalid":true}',
+          usage: {
+            input_tokens: 1_000,
+            input_tokens_details: { cached_tokens: 100, cache_write_tokens: 200 },
+            output_tokens: 2_000,
+            output_tokens_details: { reasoning_tokens: 500 },
+            total_tokens: 3_000,
+          },
+        };
+      }),
+    };
+    return () =>
+      createOpenAIResponsesBlueprintAuthoringAdapter({ readCredential, transport });
+  }
+
+  // Re-sign a terminal manifest on disk with a substituted observability-capture binding.
+  // The manifest is content-addressed, so this recomputes its digest, writes it under the
+  // new digest, and removes the old file — a faithful hostile on-disk shape, not a mock.
+  function resignTerminalManifestWithCapture(
+    repoRoot: string,
+    result: { manifest: QaWizardBlueprintAuthoringManifest; manifestPath: string },
+    capture: { version: string; digest: string; path: string },
+  ): string {
+    const {
+      digest: _oldDigest,
+      digestAlgorithm,
+      ...rest
+    } = result.manifest as unknown as Record<string, unknown>;
+    const newPayload = { ...rest, observabilityCapture: capture };
+    const newDigest = canonicalJsonDigest(newPayload);
+    const newManifest = { ...newPayload, digestAlgorithm, digest: newDigest };
+    const manifestsDir = path.join(
+      repoRoot,
+      OUTPUT_DIR,
+      'blueprint-authoring-manifests',
+    );
+    fs.rmSync(path.join(repoRoot, result.manifestPath), { force: true });
+    fs.writeFileSync(
+      path.join(manifestsDir, `${newDigest}.json`),
+      canonicalContentAddressedJsonBytes(newManifest),
+      'utf8',
+    );
+    return newDigest;
+  }
+
+  // Drop the terminal lookup + binding so a re-entry takes the recovery lane (which must
+  // run the full shared assertion BEFORE writing any lookup).
+  function stripTerminalLedger(repoRoot: string): void {
+    for (const category of ['terminal-lookups', 'terminal-bindings']) {
+      fs.rmSync(
+        path.join(
+          repoRoot,
+          QA_WIZARD_BLUEPRINT_AUTHORING_LEDGER_ROOT,
+          category,
+        ),
+        { recursive: true, force: true },
+      );
+    }
+  }
+
+  // A torn recovery must publish NO terminal-lookup file (the directory may be lazily
+  // re-created empty by a path resolver — only a written lookup file is a materialized
+  // recovery).
+  function terminalLookupFileCount(repoRoot: string): number {
+    const dir = path.join(
+      repoRoot,
+      QA_WIZARD_BLUEPRINT_AUTHORING_LEDGER_ROOT,
+      'terminal-lookups',
+    );
+    if (!fs.existsSync(dir)) return 0;
+    return fs
+      .readdirSync(dir)
+      .filter((entry) => entry.endsWith('.json')).length;
+  }
+
+  it('tears a diagnostic-less terminal that carries an unexpected capture on replay', async () => {
+    const subject = setup();
+    const preflight = prepare(subject);
+    const result = await executeQaWizardBlueprintLiveRequest(
+      {
+        repoRoot: subject.repoRoot,
+        preflightManifestPath: preflight.manifestPath,
+        outputDir: OUTPUT_DIR,
+        write: true,
+      },
+      { providerFactory: diagnosticBearingProviderFactory() },
+    );
+    expect(result.manifest.stage).toBe('authoring_failed');
+    expect(result.manifest.observabilityCapture).toBeDefined();
+    // Force the shared classifier to treat this exact receipt as NOT requiring a capture.
+    // The bound capture is now an unexpected extra on a (classified) diagnostic-less
+    // terminal: the required<->present equivalence must tear on replay, with zero
+    // provider and no new lookup.
+    const forbidden = vi.fn(() => {
+      throw new Error('provider_must_not_load_on_replay');
+    });
+    captureMockState.requiresCapture = false;
+    try {
+      await expect(
+        executeQaWizardBlueprintLiveRequest(
+          {
+            repoRoot: subject.repoRoot,
+            preflightManifestPath: preflight.manifestPath,
+            outputDir: OUTPUT_DIR,
+            write: true,
+          },
+          { providerFactory: forbidden },
+        ),
+      ).rejects.toThrow(/execution_state_uncertain/);
+    } finally {
+      captureMockState.requiresCapture = null;
+    }
+    expect(forbidden).not.toHaveBeenCalled();
+  });
+
+  it('tears a required terminal rebinding a valid capture from another receipt (recovery)', async () => {
+    const subject = setup();
+    const preflight = prepare(subject);
+    const result = await executeQaWizardBlueprintLiveRequest(
+      {
+        repoRoot: subject.repoRoot,
+        preflightManifestPath: preflight.manifestPath,
+        outputDir: OUTPUT_DIR,
+        write: true,
+      },
+      { providerFactory: diagnosticBearingProviderFactory() },
+    );
+    const binding = result.manifest.observabilityCapture;
+    expect(binding).toBeDefined();
+    // A structurally VALID capture bound to a DIFFERENT terminal receipt.
+    const foreign = JSON.parse(
+      fs.readFileSync(path.join(subject.repoRoot, binding!.path), 'utf8'),
+    ) as BlueprintAuthoringSanitizedFailureCapture;
+    foreign.linkage.terminalReceiptDigest = 'a'.repeat(64);
+    const { digest: _drop, ...foreignWithoutDigest } =
+      foreign as unknown as Record<string, unknown>;
+    (foreign as unknown as { digest: string }).digest =
+      canonicalJsonDigest(foreignWithoutDigest);
+    expect(blueprintAuthoringSanitizedFailureCaptureIsValid(foreign)).toBe(true);
+    expect(foreign.digest).not.toBe(binding!.digest);
+    // Publish it at THIS outputDir's canonical location so containment passes and the
+    // LINKAGE mismatch is what tears.
+    const foreignCapturePath = `${OUTPUT_DIR}/sanitized-failure-captures/${foreign.digest}.json`;
+    fs.writeFileSync(
+      path.join(subject.repoRoot, foreignCapturePath),
+      blueprintAuthoringSanitizedFailureCaptureBytes(foreign),
+      'utf8',
+    );
+    resignTerminalManifestWithCapture(subject.repoRoot, result, {
+      version: BLUEPRINT_AUTHORING_SANITIZED_FAILURE_CAPTURE_VERSION,
+      digest: foreign.digest,
+      path: foreignCapturePath,
+    });
+    stripTerminalLedger(subject.repoRoot);
+    const forbidden = vi.fn(() => {
+      throw new Error('provider_must_not_load_on_recovery');
+    });
+    await expect(
+      executeQaWizardBlueprintLiveRequest(
+        {
+          repoRoot: subject.repoRoot,
+          preflightManifestPath: preflight.manifestPath,
+          outputDir: OUTPUT_DIR,
+          write: true,
+        },
+        { providerFactory: forbidden },
+      ),
+    ).rejects.toThrow(/execution_state_uncertain/);
+    expect(forbidden).not.toHaveBeenCalled();
+    expect(terminalLookupFileCount(subject.repoRoot)).toBe(0);
+  });
+
+  it('tears a required terminal whose capture is bound under another output root (recovery)', async () => {
+    const subject = setup();
+    const preflight = prepare(subject);
+    const result = await executeQaWizardBlueprintLiveRequest(
+      {
+        repoRoot: subject.repoRoot,
+        preflightManifestPath: preflight.manifestPath,
+        outputDir: OUTPUT_DIR,
+        write: true,
+      },
+      { providerFactory: diagnosticBearingProviderFactory() },
+    );
+    const binding = result.manifest.observabilityCapture;
+    expect(binding).toBeDefined();
+    // The SAME valid capture (valid linkage), but written under a DIFFERENT output root
+    // and bound there. Containment under THIS outputDir must tear before any read.
+    const capture = JSON.parse(
+      fs.readFileSync(path.join(subject.repoRoot, binding!.path), 'utf8'),
+    ) as BlueprintAuthoringSanitizedFailureCapture;
+    const foreignRootPath = `outputs/blueprint-operator-elsewhere/sanitized-failure-captures/${binding!.digest}.json`;
+    fs.mkdirSync(path.dirname(path.join(subject.repoRoot, foreignRootPath)), {
+      recursive: true,
+    });
+    fs.writeFileSync(
+      path.join(subject.repoRoot, foreignRootPath),
+      blueprintAuthoringSanitizedFailureCaptureBytes(capture),
+      'utf8',
+    );
+    resignTerminalManifestWithCapture(subject.repoRoot, result, {
+      version: binding!.version,
+      digest: binding!.digest,
+      path: foreignRootPath,
+    });
+    stripTerminalLedger(subject.repoRoot);
+    const forbidden = vi.fn(() => {
+      throw new Error('provider_must_not_load_on_recovery');
+    });
+    await expect(
+      executeQaWizardBlueprintLiveRequest(
+        {
+          repoRoot: subject.repoRoot,
+          preflightManifestPath: preflight.manifestPath,
+          outputDir: OUTPUT_DIR,
+          write: true,
+        },
+        { providerFactory: forbidden },
+      ),
+    ).rejects.toThrow(/execution_state_uncertain/);
+    expect(forbidden).not.toHaveBeenCalled();
+    expect(terminalLookupFileCount(subject.repoRoot)).toBe(0);
   });
 
   it('replays an exact pre-response adapter policy failure', async () => {
