@@ -24,6 +24,8 @@ import {
   blueprintAuthoringInputTokensAreAdmissible,
   blueprintAuthoringInputTokensExceedCeiling,
   blueprintAuthoringObservedInputTokensWithinBound,
+  decideBlueprintAuthoringInputTokenAdmission,
+  type BlueprintAuthoringInputTokenCounter,
 } from '@/lib/visual-package/blueprintAuthoringInputTokenAdmission';
 import {
   BLUEPRINT_AUTHORING_SANITIZED_FAILURE_CAPTURE_DOES_NOT_AUTHORIZE,
@@ -324,6 +326,145 @@ describe('production-scale offline overflow admission (>=8-page whole book)', ()
   });
 });
 
+describe('exact provider-count admission (one honest token quantity, both routes)', () => {
+  const OVER_CEILING: BlueprintAuthoringInputAccounting = {
+    systemBytes: 2200,
+    userBytes: 70000,
+    schemaBytes: 20753,
+    separatorBytes: 2,
+    protocolAllowance: 4096,
+    estimatedBytes: 97051,
+  };
+
+  it('decides on ONE token quantity: proven bound, exact count, or fail-closed', () => {
+    // 1. Conservative bound within ceiling -> admit without consulting any count.
+    expect(
+      decideBlueprintAuthoringInputTokenAdmission({
+        accounting: REAL_INCIDENT_INITIAL_ACCOUNTING,
+      }),
+    ).toMatchObject({
+      admitted: true,
+      basis: 'conservative_upper_bound',
+      exactInputTokens: null,
+    });
+    // 2. Bound over ceiling, exact count under ceiling -> admit on the exact tokens.
+    expect(
+      decideBlueprintAuthoringInputTokenAdmission({
+        accounting: OVER_CEILING,
+        exactInputTokens: 50_000,
+      }),
+    ).toMatchObject({
+      admitted: true,
+      basis: 'exact_provider_count',
+      exactInputTokens: 50_000,
+    });
+    // 3. Bound over ceiling, exact count over ceiling -> reject on the exact tokens.
+    expect(
+      decideBlueprintAuthoringInputTokenAdmission({
+        accounting: OVER_CEILING,
+        exactInputTokens: 70_000,
+      }),
+    ).toMatchObject({ admitted: false, basis: 'exact_provider_count' });
+    // 4. Bound over ceiling, no exact count -> fail closed.
+    expect(
+      decideBlueprintAuthoringInputTokenAdmission({ accounting: OVER_CEILING }),
+    ).toMatchObject({ admitted: false, basis: 'exact_count_unavailable' });
+    // Invalid accounting -> fail closed.
+    expect(
+      decideBlueprintAuthoringInputTokenAdmission({ accounting: null }).admitted,
+    ).toBe(false);
+  });
+
+  it('opens the repair lane on an exact count below the ceiling (bytes exceed it) and reaches the second author call', async () => {
+    const fixture = buildBlueprintFixture('journey_fantastical', {
+      pageCount: 8,
+    });
+    const oversized = wholeBookDraft(fixture.blueprint) as {
+      frames: Array<{ narrative: { summary: string }; camera: unknown }>;
+    };
+    oversized.frames[0]!.narrative.summary = 'x'.repeat(80_000);
+    oversized.frames[1]!.camera = null;
+    const validSecondDraft = wholeBookDraft(fixture.blueprint);
+    let calls = 0;
+    const counterRoutes: string[] = [];
+    const counter: BlueprintAuthoringInputTokenCounter = (request) => {
+      counterRoutes.push(request.routeKind);
+      // Exact provider count is well under the 64000 token ceiling even though the
+      // repair wire's byte bound is far above it.
+      return 50_000;
+    };
+    const result = await compilePreRenderBookVisualBlueprint(
+      fixture.context,
+      CONFIG,
+      {
+        inputTokenCounter: counter,
+        callAuthor: async () => {
+          calls += 1;
+          return calls === 1 ? oversized : validSecondDraft;
+        },
+      },
+    );
+    // The repair route was admitted on the exact count, so the SECOND author call ran.
+    expect(calls).toBe(2);
+    expect(counterRoutes).toContain('repair');
+    expect(result.blueprint.digest).toMatch(/^[a-f0-9]{64}$/);
+  });
+
+  it('rejects the repair route before the second author call when the exact count exceeds the ceiling', async () => {
+    const fixture = buildBlueprintFixture('journey_fantastical', {
+      pageCount: 8,
+    });
+    const oversized = wholeBookDraft(fixture.blueprint) as {
+      frames: Array<{ narrative: { summary: string }; camera: unknown }>;
+    };
+    oversized.frames[0]!.narrative.summary = 'x'.repeat(80_000);
+    oversized.frames[1]!.camera = null;
+    let calls = 0;
+    const counter: BlueprintAuthoringInputTokenCounter = () => 70_000;
+    let caught: unknown;
+    try {
+      await compilePreRenderBookVisualBlueprint(fixture.context, CONFIG, {
+        inputTokenCounter: counter,
+        callAuthor: async () => {
+          calls += 1;
+          return oversized;
+        },
+      });
+    } catch (error) {
+      caught = error;
+    }
+    expect(caught).toBeInstanceOf(PreRenderBlueprintRepairInputNotAdmissibleError);
+    expect(calls).toBe(1);
+  });
+
+  it('fails closed when the exact counter is unavailable and bytes exceed the ceiling', async () => {
+    const fixture = buildBlueprintFixture('journey_fantastical', {
+      pageCount: 8,
+    });
+    const oversized = wholeBookDraft(fixture.blueprint) as {
+      frames: Array<{ narrative: { summary: string }; camera: unknown }>;
+    };
+    oversized.frames[0]!.narrative.summary = 'x'.repeat(80_000);
+    oversized.frames[1]!.camera = null;
+    let calls = 0;
+    const counter: BlueprintAuthoringInputTokenCounter = () => null;
+    let caught: unknown;
+    try {
+      await compilePreRenderBookVisualBlueprint(fixture.context, CONFIG, {
+        inputTokenCounter: counter,
+        callAuthor: async () => {
+          calls += 1;
+          return oversized;
+        },
+      });
+    } catch (error) {
+      caught = error;
+    }
+    expect(caught).toBeInstanceOf(PreRenderBlueprintRepairInputNotAdmissibleError);
+    expect(calls).toBe(1);
+  });
+});
+
 describe('sanitized failure capture — census completeness and prose/PII freedom', () => {
   it('carries a complete bounded census that distinguishes repeated from unique defects', () => {
     // 86 emitted symptoms across an 8-page book, echoing the real incident count,
@@ -451,7 +592,7 @@ describe('sanitized failure capture — census completeness and prose/PII freedo
     expect(identity.actualPresent).toBe(true);
   });
 
-  it('bounds and audits an oversized census via deterministic truncation', () => {
+  it('retains a large census COMPLETELY (no silent truncation)', () => {
     const diagnostics: PreRenderBlueprintRepairDiagnostic[] = [];
     for (let index = 0; index < 300; index += 1) {
       diagnostics.push({
@@ -476,13 +617,68 @@ describe('sanitized failure capture — census completeness and prose/PII freedo
       diagnostics,
     });
     expect(blueprintAuthoringSanitizedFailureCaptureIsValid(capture)).toBe(true);
+    // Complete: every distinct identity is retained, nothing omitted.
     expect(capture.census.distinctIdentities).toBe(300);
-    expect(capture.census.retainedIdentities).toBe(256);
-    expect(capture.census.identities).toHaveLength(256);
-    expect(capture.census.truncated).toBe(true);
-    expect(capture.census.omittedDistinctIdentities).toBe(44);
-    // The full (untruncated) census remains auditable via its digest.
+    expect(capture.census.retainedIdentities).toBe(300);
+    expect(capture.census.identities).toHaveLength(300);
+    expect(capture.census.truncated).toBe(false);
+    expect(capture.census.omittedDistinctIdentities).toBe(0);
     expect(capture.census.fullCensusDigest).toMatch(/^[a-f0-9]{64}$/);
+  });
+
+  it('fails closed above the hard census bound rather than minting an incomplete census', () => {
+    // > 4096 distinct identities: no capture may be minted at all.
+    const diagnostics: PreRenderBlueprintRepairDiagnostic[] = [];
+    for (let index = 0; index < 4_097; index += 1) {
+      diagnostics.push({
+        code: 'schema_invalid',
+        field: `frames[${index}].placements[0].id`,
+        message: `distinct defect ${index}`,
+      });
+    }
+    expect(() =>
+      buildBlueprintAuthoringSanitizedFailureCapture({
+        terminalFailureCode: 'draft_validation_repair_exhausted',
+        terminalReceiptDigest: hex64('r'),
+        requestDigest: hex64('q'),
+        contextDigest: hex64('c'),
+        routes: [
+          {
+            routeKind: 'initial',
+            ordinal: 0,
+            byteAccounting: REAL_INCIDENT_INITIAL_ACCOUNTING,
+            observedInputTokens: 12007,
+          },
+        ],
+        diagnostics,
+      }),
+    ).toThrow(/refusing to mint an incomplete census/);
+  });
+
+  it('rejects a hand-crafted capture that claims truncation/omission', () => {
+    const capture = clone(baseCapture()) as unknown as {
+      census: {
+        truncated: boolean;
+        omittedDistinctIdentities: number;
+        distinctIdentities: number;
+        retainedIdentities: number;
+        totalEmitted: number;
+      };
+      digest: string;
+    };
+    // Claim one identity was omitted while leaving the retained list intact.
+    capture.census.truncated = true;
+    capture.census.omittedDistinctIdentities = 1;
+    capture.census.distinctIdentities =
+      capture.census.retainedIdentities + 1;
+    capture.census.totalEmitted += 1;
+    const { digest: _drop, ...rest } = capture as unknown as Record<string, unknown>;
+    capture.digest = canonicalJsonDigest(rest);
+    expect(
+      blueprintAuthoringSanitizedFailureCaptureIsValid(
+        capture as unknown as Record<string, unknown>,
+      ),
+    ).toBe(false);
   });
 
   it('sanitizes an unsafe field into a redaction marker rather than leaking it', () => {
@@ -505,6 +701,67 @@ describe('sanitized failure capture — census completeness and prose/PII freedo
     expect(unsafe.present).toBe(true);
     expect(unsafe.path).toBeNull();
     expect(unsafe.redacted).toBe(true);
+  });
+
+  it('redacts an arbitrary identifier-shaped key segment instead of retaining it', () => {
+    // Hostile: a child/pet name used AS an object key in an otherwise valid path.
+    // Every non-vocabulary key must be replaced by the redaction sentinel.
+    const sanitized = sanitizeBlueprintDiagnosticFieldPath(
+      'frames[0].Bar.privateThing',
+    );
+    expect(sanitized.present).toBe(true);
+    expect(sanitized.path).toEqual(['frames', '[0]', '#redacted', '#redacted']);
+    expect(sanitized.redacted).toBe(true);
+    expect(sanitized.path).not.toContain('Bar');
+    expect(sanitized.path).not.toContain('privateThing');
+  });
+
+  it('never retains an ASCII child/family name that appears in a syntactically valid path position', () => {
+    const diagnostics: PreRenderBlueprintRepairDiagnostic[] = [
+      {
+        code: 'schema_invalid',
+        // ASCII-only names as identifier keys, structurally valid, must be redacted.
+        field: 'frames[2].Sarah.Chameleon',
+        message: 'a value was invalid',
+      },
+    ];
+    const capture = buildBlueprintAuthoringSanitizedFailureCapture({
+      terminalFailureCode: 'draft_validation_repair_exhausted',
+      terminalReceiptDigest: hex64('r'),
+      requestDigest: hex64('q'),
+      contextDigest: hex64('c'),
+      routes: [
+        {
+          routeKind: 'initial',
+          ordinal: 0,
+          byteAccounting: REAL_INCIDENT_INITIAL_ACCOUNTING,
+          observedInputTokens: 12007,
+        },
+      ],
+      diagnostics,
+    });
+    expect(blueprintAuthoringSanitizedFailureCaptureIsValid(capture)).toBe(true);
+    const serialized = JSON.stringify(capture);
+    expect(serialized).not.toContain('Sarah');
+    expect(serialized).not.toContain('Chameleon');
+    const identity = capture.census.identities[0]!;
+    expect(identity.fieldPath).toEqual(['frames', '[2]', '#redacted', '#redacted']);
+    expect(identity.fieldRedacted).toBe(true);
+  });
+
+  it('re-enforces the closed vocabulary on reload (an out-of-vocabulary key never validates)', () => {
+    const capture = clone(baseCapture());
+    // Smuggle an arbitrary identifier segment into a retained path.
+    (capture.census.identities[0]!.fieldPath as string[]) = [
+      'frames',
+      '[0]',
+      'Sarah',
+    ];
+    capture.census.identities[0]!.fieldPathDepth = 3;
+    capture.census.identities[0]!.fieldRedacted = false;
+    const { digest: _drop, ...rest } = capture;
+    (capture as { digest: string }).digest = canonicalJsonDigest(rest);
+    expect(blueprintAuthoringSanitizedFailureCaptureIsValid(capture)).toBe(false);
   });
 });
 

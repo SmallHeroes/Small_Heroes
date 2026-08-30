@@ -34,14 +34,26 @@ import type { AuthoringTerminalFailureCode } from './authoringTerminalDiagnostic
  * Every retained string in a capture is constrained to a closed alphabet:
  *  - a lowercase snake_case code/reason (`SAFE_SNAKE`),
  *  - a 64-char lowercase hex content digest (`HEX_SHA256`),
- *  - a safe structural field-path token (schema key or `[index]`),
+ *  - a structural field-path token drawn from a CLOSED vocabulary of known
+ *    Blueprint keys, an `[index]`, or the non-reversible redaction sentinel
+ *    (`#redacted`); any other identifier — including a name used as a key — is
+ *    redacted, not retained, and the same closed rule is re-enforced on reload,
  *  - or one of a handful of fixed literal enum/version strings.
  * The diagnostic `message`, `expected`, and `actual` values (which can carry prose
- * or names) are NEVER retained — only their presence flags and a content digest of
- * the full grouped identity survive. The validator additionally runs a recursive
+ * or names) are NEVER retained — only their presence flags and a one-way content
+ * digest of the full grouped identity survive (see the digest threat assessment in
+ * `sanitizedCensusIdentity`). The validator additionally runs a recursive
  * structural scan that rejects any string containing spaces, quotes, or non-ASCII,
  * so a leaked name/phrase cannot validate. Leak-freedom is therefore structural and
  * testable, not merely a convention.
+ *
+ * ## Complete census (never silently truncated)
+ *
+ * A valid capture always carries a COMPLETE census: every distinct structural
+ * identity is retained (`retained == distinct`, `omitted == 0`, `truncated ==
+ * false`). A run whose distinct-identity count would exceed the fail-closed hard
+ * bound mints NO capture at all rather than a truncated one; the validator rejects
+ * any artifact that claims omission. There is no valid incomplete census.
  *
  * ## What it does not do
  *
@@ -71,17 +83,85 @@ export const BLUEPRINT_AUTHORING_SANITIZED_FAILURE_CAPTURE_DOES_NOT_AUTHORIZE = 
 export const BLUEPRINT_AUTHORING_SANITIZED_FAILURE_CAPTURE_DIGEST_ALGORITHM =
   'canonical-json-sha256' as const;
 
-const MAX_SANITIZED_CENSUS_IDENTITIES = 256;
+/**
+ * Hard, fail-closed upper bound on distinct census identities. This is NOT a
+ * truncation limit: a run that would exceed it mints NO capture (build throws;
+ * the runner's fail-safe derivation then returns null). It is set far above any
+ * realistic incident (the real R1D incident had 86) so a genuine failed run is
+ * never rejected, while still bounding the artifact size. A valid capture always
+ * carries a COMPLETE census (see the census invariants below).
+ */
+const MAX_SANITIZED_CENSUS_IDENTITIES = 4_096;
 const MAX_SANITIZED_ROUTES = 8;
 const MAX_FIELD_PATH_DEPTH = 32;
 const MAX_SANITIZED_STRING_LENGTH = 128;
 
 const HEX_SHA256 = /^[a-f0-9]{64}$/;
 const SAFE_SNAKE = /^[a-z][a-z0-9_]{0,63}$/;
-const SAFE_PATH_KEY = /^[A-Za-z_][A-Za-z0-9_]{0,63}$/;
 const SAFE_PATH_INDEX = /^\[\d+\]$/;
+/**
+ * Non-reversible redaction sentinel for an unknown (non-vocabulary) key segment.
+ * A constant marker — never a digest of the raw token — so it cannot leak the
+ * original identifier and cannot seed a dictionary/rainbow recovery.
+ */
+const REDACTED_PATH_SEGMENT = '#redacted';
 /** Structural superset used by the recursive leak scan. Excludes spaces, quotes, non-ASCII. */
 const SAFE_STRUCTURAL_STRING = /^[\w:/.#\[\]-]{1,128}$/;
+
+/**
+ * Closed structural field-path vocabulary. A retained key segment MUST be one of
+ * these known Blueprint structural keys (or an `[index]`, or the redaction
+ * sentinel). Any other identifier-shaped token — including a child/family/pet
+ * name that happens to be a valid identifier — is redacted, so an arbitrary token
+ * can never survive merely because it "looks identifier-shaped". The same closed
+ * rule is re-enforced on reload by the validator, so a hand-crafted capture with
+ * an out-of-vocabulary key segment fails validation.
+ *
+ * Sources: the whole-book draft JSON schema property names and the field tokens
+ * emitted by `validatePreRenderBookVisualBlueprint` / the visual-contract
+ * compiler validators (all structural key names; never values, labels, or names).
+ */
+const SAFE_PATH_KEY_VOCABULARY: ReadonlySet<string> = new Set([
+  // Top-level & identity.
+  'version', 'digest', 'digestAlgorithm', 'compositionPolicyVersion',
+  'schemaVersion', 'storyKey', 'identity', 'authoringAuthority', 'source',
+  'style', 'reconciliation', 'visualContract', 'template', 'templateIdentity',
+  // World plan.
+  'worldPlan', 'connections', 'affordances', 'revealSafeSupportingGeometry',
+  'from', 'to', 'node', 'zone', 'bidirectional', 'traversalIds', 'openingIds',
+  'safeBoundaryIds', 'cue', 'fromZone', 'toZone', 'footprint', 'consumers',
+  'support', 'target', 'supportedEntities', 'supportedRefs', 'supportRef',
+  'maximumOccupants', 'maximumActors', 'minimumClearance', 'maximumClearance',
+  'clearanceRegion', 'permittedRegion', 'visibleRegion', 'openingNode',
+  'spatialNodeId', 'openingSpatialNodeId', 'supportsPropIds',
+  'traversalAffordanceIds', 'openingClearanceAffordanceIds',
+  'openingClearanceAffordanceId', 'safeBoundaryAffordanceIds',
+  'predicates', 'subjectKinds', 'entities', 'directions', 'relations',
+  'constraintRelations', 'targetRegions', 'boundRef', 'nodesOrLegacyGeometry',
+  'nodes', 'anchors', 'topology', 'geometry',
+  // Frames.
+  'frames', 'narrative', 'purpose', 'summary', 'placements', 'subject',
+  'region', 'depth', 'importance', 'camera', 'shot', 'angle', 'affordanceId',
+  'affordanceIds', 'continuity', 'previousFrameId', 'transitionKind',
+  'connectionId', 'carryoverRefs', 'kind', 'pageNumber', 'id', 'name',
+  'description', 'locationId', 'zoneId', 'castIds', 'propLifecycle',
+  'requiredPropIds', 'forbiddenPropIds', 'textSafeRegion', 'aspectRatio',
+  'coordinateSpace',
+  // Geometry primitives.
+  'x', 'y', 'w', 'h', 'width', 'height',
+  // Cover / page contracts.
+  'coverContract', 'mustShow', 'mustNotShow', 'pageContracts', 'recurringProps',
+  'firstRevealPage', 'transition', 'actions', 'safety', 'castState',
+  'castStates', 'childWardrobe', 'companionState', 'state', 'stateId',
+  'anchorId', 'visibility', 'polarity', 'side', 'evidenceId', 'phrase',
+  'checkId', 'scale', 'role', 'label', 'wardrobe', 'forbidden',
+  'stateAuthority', 'relation', 'targetRef', 'subjectId', 'bodyState',
+  'injectionArm', 'bandageArm', 'freeHand', 'laterality',
+  // Continuity / presence bibles.
+  'pagesPresent', 'pagePlans', 'visibleAnchors', 'locationBible', 'humanCast',
+  'reconciliationArtifactPath', 'actionSemanticCoverage',
+  'authoredCoverAuthority',
+]);
 
 export type BlueprintAuthoringSanitizedRouteKind = 'initial' | 'repair';
 
@@ -162,11 +242,30 @@ function safeStringWithin(value: unknown): value is string {
   );
 }
 
+/** A persisted path token is structurally valid iff it is an array index, the
+ * non-reversible redaction sentinel, or a key in the closed vocabulary. */
+function safePathTokenIsValid(token: unknown): token is string {
+  return (
+    typeof token === 'string' &&
+    (SAFE_PATH_INDEX.test(token) ||
+      token === REDACTED_PATH_SEGMENT ||
+      SAFE_PATH_KEY_VOCABULARY.has(token))
+  );
+}
+
 /**
- * Deterministically sanitize a diagnostic `field` into safe structural path tokens.
- * Returns { path: null, redacted: false } when no field was present, { path: null,
- * redacted: true } when a field was present but could not be tokenized to keys /
- * indices (so no prose can leak), or the safe token array otherwise.
+ * Deterministically sanitize a diagnostic `field` into safe structural path tokens
+ * constrained by the CLOSED vocabulary.
+ *
+ * Returns { path: null, redacted: false } when no field was present;
+ * { path: null, redacted: true } when a field was present but could not be
+ * tokenized into key/index segments at all (e.g. it carries prose, quotes, or a
+ * `:`/`-` id), so nothing can leak; otherwise the token array, where every
+ * IDENTIFIER segment is kept only if it is a known structural key and is
+ * otherwise replaced with the redaction sentinel. Index segments are always
+ * structural and kept verbatim. `redacted` is true whenever any segment was
+ * replaced. An arbitrary identifier-shaped token (e.g. a name used as a key) can
+ * therefore never survive: it is redacted, not retained.
  */
 export function sanitizeBlueprintDiagnosticFieldPath(
   field: string | null | undefined,
@@ -175,6 +274,7 @@ export function sanitizeBlueprintDiagnosticFieldPath(
     return { present: false, path: null, redacted: false };
   }
   const tokens: string[] = [];
+  let redacted = false;
   let rest = field;
   const tokenRe = /^(?:\.?([A-Za-z_][A-Za-z0-9_]*)|\[(\d+)\])/;
   while (rest.length > 0) {
@@ -183,7 +283,12 @@ export function sanitizeBlueprintDiagnosticFieldPath(
       return { present: true, path: null, redacted: true };
     }
     if (match[1] !== undefined) {
-      tokens.push(match[1]);
+      if (SAFE_PATH_KEY_VOCABULARY.has(match[1])) {
+        tokens.push(match[1]);
+      } else {
+        tokens.push(REDACTED_PATH_SEGMENT);
+        redacted = true;
+      }
     } else if (match[2] !== undefined) {
       tokens.push(`[${match[2]}]`);
     } else {
@@ -191,16 +296,10 @@ export function sanitizeBlueprintDiagnosticFieldPath(
     }
     rest = rest.slice(match[0].length);
   }
-  if (
-    tokens.length === 0 ||
-    tokens.length > MAX_FIELD_PATH_DEPTH ||
-    !tokens.every(
-      (token) => SAFE_PATH_KEY.test(token) || SAFE_PATH_INDEX.test(token),
-    )
-  ) {
+  if (tokens.length === 0 || tokens.length > MAX_FIELD_PATH_DEPTH) {
     return { present: true, path: null, redacted: true };
   }
-  return { present: true, path: tokens, redacted: false };
+  return { present: true, path: tokens, redacted };
 }
 
 function sanitizedCensusIdentity(
@@ -216,7 +315,18 @@ function sanitizedCensusIdentity(
   const [code, field, message, expected, actual, count] = grouped;
   const path = sanitizeBlueprintDiagnosticFieldPath(field);
   // Detail digest over the full identity WITHOUT the repetition count, so identical
-  // identities share a digest and distinct defects get distinct digests.
+  // identities share a digest and distinct defects get distinct digests. It is the
+  // ONLY place raw diagnostic content is consumed, and only as a one-way SHA-256;
+  // the raw message/field/expected/actual themselves are never retained.
+  //
+  // Threat assessment (deterministic, unsalted digest of possibly-PII content):
+  // the pre-image is the ENTIRE structured identity — code + full field path +
+  // full validation message + structured expected/actual payloads — whose combined
+  // entropy is far above any bare low-entropy PII token (a name). Recovering a name
+  // would require guessing the whole tuple, not a short dictionary of names, so the
+  // digest is not a usable PII fingerprint. It is unsalted deliberately so the
+  // capture stays content-addressable and deterministically reproducible on
+  // recovery/replay; it is used only to distinguish and count distinct identities.
   const detailDigest = canonicalJsonDigest([
     code,
     field ?? null,
@@ -345,13 +455,23 @@ export function buildBlueprintAuthoringSanitizedFailureCapture(args: {
           ? 1
           : 0,
     );
+  const distinctIdentities = allIdentities.length;
+  if (distinctIdentities > MAX_SANITIZED_CENSUS_IDENTITIES) {
+    // Fail closed: a complete census cannot omit distinct identities. Rather than
+    // truncate-and-mislabel, refuse to mint any capture. The runner's fail-safe
+    // derivation turns this into "no capture", so a terminal never claims a
+    // complete census it does not actually have.
+    throw new Error(
+      `sanitized census would omit distinct identities (${distinctIdentities} > ${MAX_SANITIZED_CENSUS_IDENTITIES}); refusing to mint an incomplete census`,
+    );
+  }
   const totalEmitted = allIdentities.reduce(
     (sum, identity) => sum + identity.repetitionCount,
     0,
   );
-  const distinctIdentities = allIdentities.length;
+  // The census is always COMPLETE: every distinct identity is retained.
   const fullCensusDigest = canonicalJsonDigest(allIdentities);
-  const identities = allIdentities.slice(0, MAX_SANITIZED_CENSUS_IDENTITIES);
+  const identities = allIdentities;
   const retainedIdentities = identities.length;
 
   const withoutDigest: Omit<
@@ -518,11 +638,10 @@ function identityIsValid(
       !Array.isArray(path) ||
       path.length === 0 ||
       path.length > MAX_FIELD_PATH_DEPTH ||
-      !path.every(
-        (token) =>
-          typeof token === 'string' &&
-          (SAFE_PATH_KEY.test(token) || SAFE_PATH_INDEX.test(token)),
-      )
+      // Re-enforce the closed vocabulary on reload: every token must be an index,
+      // the redaction sentinel, or a known structural key. An out-of-vocabulary
+      // identifier can never validate.
+      !path.every(safePathTokenIsValid)
     ) {
       return false;
     }
@@ -530,9 +649,17 @@ function identityIsValid(
   const expectedDepth = path === null ? 0 : path.length;
   if (value.fieldPathDepth !== expectedDepth) return false;
   // Presence / redaction consistency.
-  if (!value.fieldPresent && (path !== null || value.fieldRedacted)) return false;
-  if (value.fieldRedacted && (path !== null || !value.fieldPresent)) return false;
-  return true;
+  if (!value.fieldPresent) {
+    return path === null && value.fieldRedacted === false;
+  }
+  if (path === null) {
+    // Present but untokenizable -> must be flagged redacted, nothing retained.
+    return value.fieldRedacted === true;
+  }
+  // Present & tokenized -> redacted iff a segment was replaced by the sentinel.
+  return (
+    value.fieldRedacted === (path as string[]).includes(REDACTED_PATH_SEGMENT)
+  );
 }
 
 function censusIsValid(value: unknown): value is BlueprintAuthoringSanitizedCensus {
@@ -564,6 +691,12 @@ function censusIsValid(value: unknown): value is BlueprintAuthoringSanitizedCens
     return false;
   }
   if (value.truncated !== value.retainedIdentities < value.distinctIdentities) return false;
+  // Completeness: a valid capture NEVER omits distinct identities. An artifact
+  // claiming truncation / omission is invalid; there is no valid incomplete
+  // census. (Overflow fails closed at build time, minting no capture at all.)
+  if (value.truncated !== false) return false;
+  if (value.omittedDistinctIdentities !== 0) return false;
+  if (value.retainedIdentities !== value.distinctIdentities) return false;
   if (value.distinctIdentities > value.totalEmitted) return false;
   if ((value.totalEmitted === 0) !== (value.distinctIdentities === 0)) return false;
   const retainedEmissions = (identities as BlueprintAuthoringSanitizedCensusIdentity[]).reduce(

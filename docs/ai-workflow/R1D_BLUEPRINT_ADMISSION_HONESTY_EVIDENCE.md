@@ -1,7 +1,13 @@
 # R1D — Blueprint Admission Honesty + Sanitized Failure Observability (implementation evidence)
 
-**Implementer:** Claude Code (delegated). **QA:** Codex (pending). **Product:** Guy (approved framing).
+**Implementer:** Claude Code (delegated). **QA:** Codex (Round 1 = HOLD; re-gate pending). **Product:** Guy (approved framing).
 **Branch:** `codex/r1d-order-package-authority-binding`. Offline only. Not pushed.
+
+> **Round 2 note (2026-08-30):** Codex's Round-1 QA of `e757b14b` issued HOLD on
+> four findings. The **"Round 2 — Codex HOLD corrections"** section at the bottom of
+> this file is authoritative; where the Round-1 text below conflicts (notably the
+> "deterministic truncation at 256" claim and the initial-prompt message wording),
+> the Round-2 section supersedes it.
 
 ## What changed and why
 
@@ -103,3 +109,117 @@ was intentionally left untouched (separate spend authority + version cutover). N
 model/reasoning/output/budget/no-fallback/retry/cost-ceiling/schema/prompt-creative/
 provider-adapter behavior changed. No provider/network/credential/live/render/DB/
 deploy/push. The consumed real artifacts under `outputs/` were only read.
+
+---
+
+## Round 2 — Codex HOLD corrections (authoritative; supersedes Round-1 claims where they conflict)
+
+Codex QA of `e757b14b` returned **HOLD** on four findings. Corrections below fix the
+smallest general root causes and were independently re-verified offline.
+
+### F1 (BLOCKER) — capture is now integrated into the real QA Wizard lifecycle
+
+Round 1 derived/returned the capture from the runner but nothing in
+`executeQaWizardBlueprintLiveRequest` consumed or persisted it, so a real failed run
+still wrote only the lossy receipt.
+
+- The terminal manifest gains an **optional** `observabilityCapture` authority
+  (`ManifestObservabilityCaptureAuthority = {version, digest, path}`) present **only**
+  on `authoring_failed` terminals that carry a capture. It is omitted otherwise, so
+  every completed/approved/preflight/failed-without-capture manifest keeps its exact
+  prior digest — **no manifest version cutover**, backward compatible.
+- Ordering (in `terminal_materialization`, `qaWizardBlueprintAuthoringLifecycle.ts`):
+  the receipt (already published, shape unchanged, never referencing the capture) →
+  the capture is published `write:true` and **re-read + re-validated**
+  (`publishAndBindSanitizedFailureCapture` → `loadSanitizedFailureCaptureAuthority`:
+  exact digest/canonical path/on-disk bytes + full `blueprintAuthoringSanitizedFailureCaptureIsValid`
+  + linkage bound to *this* receipt) → only then is the terminal manifest built with
+  the binding and published. A terminal therefore never claims a capture that is not
+  already durable; post-claim publication uncertainty surfaces as
+  `execution_state_uncertain` (no redispatch), consistent with the existing model.
+- **Replay/recovery** (`loadExecutionRecord`, and `recoverTerminalLookup` via the
+  manifest-derived record) re-reads and re-validates the exact bound capture; a
+  missing/tampered capture is a torn state → `execution_state_uncertain`.
+- Completed terminals and failure types without diagnostics bind **no** capture (the
+  absence is well-defined; nothing claims a complete capture that does not exist).
+- Proven by `qa-wizard-blueprint-authoring-lifecycle.spec.ts` (+5): published +
+  manifest-bound + re-validated; zero-call replay; fail-closed on tampered and on
+  missing capture; no capture on a completed candidate. The replacement lane inherits
+  the same path (its isolation suite stays green).
+
+### F2 (MAJOR) — PII "impossible" guarantee made real via a closed vocabulary
+
+Round 1 accepted any identifier-shaped key (`SAFE_PATH_KEY`), so
+`frames[0].Bar.privateThing` (or an ASCII name used as a key) survived.
+
+- Retained field-path **key** segments are now constrained to a **closed structural
+  vocabulary** (`SAFE_PATH_KEY_VOCABULARY`, drawn from the draft schema + validator
+  field tokens). Any other identifier is replaced by a **non-reversible** `#redacted`
+  sentinel (never a digest of the raw token → no dictionary/rainbow recovery). Index
+  segments stay verbatim. The **same** closed rule is re-enforced on reload, so an
+  out-of-vocabulary key segment cannot validate.
+- The `detailDigest` (the only consumer of raw diagnostic content) is documented with
+  a threat assessment: a one-way SHA-256 over the **entire** high-entropy structured
+  identity (code + full field + full message + structured expected/actual), not a
+  bare-name fingerprint; unsalted only to keep the capture content-addressable and
+  deterministically reproducible on recovery/replay.
+- Proven by hostile tests: `frames[0].Bar.privateThing` →
+  `['frames','[0]','#redacted','#redacted']`; an ASCII `frames[2].Sarah.Chameleon`
+  field yields a valid capture whose serialization contains neither name; a
+  hand-crafted path with an out-of-vocabulary segment fails validation.
+
+### F3 (MAJOR) — a "complete census" can no longer omit identities
+
+Round 1 truncated to 256 and still validated `true`.
+
+- Silent truncation removed. A valid capture always retains **every** distinct
+  identity (`retained == distinct`, `omitted == 0`, `truncated == false`); the
+  validator rejects any artifact claiming omission. `MAX_SANITIZED_CENSUS_IDENTITIES`
+  is now a **fail-closed hard bound** (4096, far above the real 86): a run beyond it
+  throws at build time → the runner's fail-safe derivation yields `null` → **no**
+  capture is minted (truncation is never relabeled "complete").
+- Proven: 300 distinct identities retained completely; `> 4096` throws
+  `refusing to mint an incomplete census`; a hand-crafted capture claiming
+  truncation/omission fails validation.
+
+### F4 (MAJOR) — one honest admission quantity in tokens, shared by both routes
+
+Round 1 compared `estimatedBytes` to the ceiling on both routes and the harness only
+proved the old rejection.
+
+- Single authority `decideBlueprintAuthoringInputTokenAdmission({accounting,
+  exactInputTokens})`: admit on the proven conservative token upper bound when it is
+  within ceiling; when the bound is inconclusive (bytes > ceiling), admit/reject on an
+  **exact provider input-token count**; a missing/failed count **fails closed**. Both
+  the initial (`productionAuthoringRunner`) and repair
+  (`compilePreRenderBookVisualBlueprint`) gates route through it.
+- The exact count is modeled on the installed SDK's `client.responses.inputTokens.count`
+  (`BLUEPRINT_AUTHORING_EXACT_INPUT_TOKEN_AUTHORITY`), exposed as an injectable
+  `BlueprintAuthoringInputTokenCounter` that is **never invoked** in this milestone
+  (no network); it is distinct from the paid `callAuthor` generation call.
+- Proven at the generation-dispatch boundary (`compilePreRenderBookVisualBlueprint`
+  with injected pure `callAuthor`): with the repair wire's bytes **> 64K**, an
+  injected exact count of 50 000 **admits** the repair and reaches the **second**
+  author call; an injected count of 70 000 **rejects** before that call; an
+  unavailable count (`null`) fails closed. Plus a direct decision-matrix test.
+- **Deferred (documented):** wiring the exact count into the **paid runner/replay**
+  path additionally requires recording the admission basis + exact count in the
+  attempt receipt so replay can re-validate a bytes-over-ceiling admission **without**
+  weakening hostile-tamper checks (a Round-1 relaxation attempt was reverted for
+  exactly this reason), plus a live provider count. Until then the paid runner path
+  stays on the proven conservative bound — numerically unchanged, v6 receipts/digests
+  untouched, and the existing over-ceiling hostile-tamper replay test still rejects.
+  This is an engineering-sequencing deferral, not a new product/policy decision.
+
+### Round-2 validation
+
+`blueprint-admission-honesty-and-capture.spec.ts` now 34 tests (F4 matrix +
+exact-count lane open/close/fail-closed; complete-census + fail-closed overflow;
+closed-vocabulary redaction incl. ASCII names + reload re-enforcement; the four
+falsification families). `qa-wizard-blueprint-authoring-lifecycle.spec.ts` 39
+(incl. the +5 capture-integration/replay/hostile tests). Adjacent suites green:
+`production-lifecycle-foundation` (52), `pre-render-blueprint-authoring`,
+`pre-render-blueprint-composition-policy`, `openai-responses-blueprint-authoring-adapter`,
+`qa-wizard-blueprint-replacement-lifecycle` + `-cli`, `production-package-lifecycle`.
+`npx tsc --noEmit` clean; `git diff --check` clean. No
+provider/network/credential/live/render/DB/deploy/push; real `outputs/` only read.

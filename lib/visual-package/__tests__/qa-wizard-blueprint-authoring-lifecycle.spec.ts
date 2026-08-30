@@ -45,6 +45,12 @@ import {
   nominalBlueprintAuthoringUsageCostUsd,
 } from '../blueprintAuthoringPolicy';
 import { PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA } from '../preRenderBlueprintDraftSchema';
+import {
+  BLUEPRINT_AUTHORING_SANITIZED_FAILURE_CAPTURE_VERSION,
+  blueprintAuthoringSanitizedFailureCaptureBytes,
+  blueprintAuthoringSanitizedFailureCaptureIsValid,
+  type BlueprintAuthoringSanitizedFailureCapture,
+} from '../blueprintAuthoringSanitizedFailureCapture';
 import type { ProductionAuthoringProvider } from '../productionAuthoringRunner';
 import {
   ProductionAuthoringProviderBoundaryError,
@@ -2639,5 +2645,156 @@ describe('QA Wizard Blueprint authoring operator lifecycle', () => {
       ),
     ).rejects.toThrow(/request.*canonical|request.*invalid/i);
     expect(providerFactory).not.toHaveBeenCalled();
+  });
+});
+
+describe('QA Wizard Blueprint failed-terminal sanitized capture integration', () => {
+  function captureAbsolutePath(
+    repoRoot: string,
+    manifest: { observabilityCapture?: { path: string } },
+  ): string {
+    return path.join(repoRoot, manifest.observabilityCapture!.path);
+  }
+
+  async function runFailedTerminal(subject: ReturnType<typeof setup>) {
+    const preflight = prepare(subject);
+    return executeQaWizardBlueprintLiveRequest(
+      {
+        repoRoot: subject.repoRoot,
+        preflightManifestPath: preflight.manifestPath,
+        outputDir: OUTPUT_DIR,
+        write: true,
+      },
+      { providerFactory: () => repairInputIneligibleProvider(subject.fixture) },
+    );
+  }
+
+  it('durably publishes, binds, and re-validates the sanitized capture alongside the terminal receipt', async () => {
+    const subject = setup();
+    const result = await runFailedTerminal(subject);
+
+    expect(result.manifest.stage).toBe('authoring_failed');
+    expect(result.receipt.status).toBe('failed');
+    // The terminal manifest binds the capture as an authority (not an orphan sibling).
+    const binding = result.manifest.observabilityCapture;
+    expect(binding).toBeDefined();
+    expect(binding!.version).toBe(
+      BLUEPRINT_AUTHORING_SANITIZED_FAILURE_CAPTURE_VERSION,
+    );
+    expect(binding!.digest).toMatch(/^[a-f0-9]{64}$/);
+    expect(binding!.path).toContain('sanitized-failure-captures/');
+
+    // The bound file exists, is canonical, and re-validates to the exact digest.
+    const absolute = captureAbsolutePath(subject.repoRoot, result.manifest);
+    expect(fs.existsSync(absolute)).toBe(true);
+    expect(path.basename(absolute)).toBe(`${binding!.digest}.json`);
+    const rawBytes = fs.readFileSync(absolute, 'utf8');
+    const capture = JSON.parse(rawBytes) as BlueprintAuthoringSanitizedFailureCapture;
+    expect(blueprintAuthoringSanitizedFailureCaptureIsValid(capture)).toBe(true);
+    expect(capture.digest).toBe(binding!.digest);
+    expect(rawBytes).toBe(blueprintAuthoringSanitizedFailureCaptureBytes(capture));
+
+    // It is linkage-bound to THIS terminal and is pure observability.
+    expect(capture.linkage.terminalReceiptDigest).toBe(result.receipt.digest);
+    expect(capture.linkage.requestDigest).toBe(result.receipt.requestDigest);
+    expect(capture.terminalFailureCode).toBe(result.receipt.failure?.code);
+    expect(capture.doesNotAuthorize).toContain('provider_dispatch');
+    expect(capture.doesNotAuthorize).toContain('replacement_authorization');
+
+    // Complete census; both admission routes accounted; no prose survives.
+    expect(capture.census.truncated).toBe(false);
+    expect(capture.census.omittedDistinctIdentities).toBe(0);
+    expect(capture.census.retainedIdentities).toBe(
+      capture.census.distinctIdentities,
+    );
+    expect(
+      capture.admission.routes.some((route) => route.routeKind === 'repair'),
+    ).toBe(true);
+    expect(rawBytes).not.toContain('Chameleon');
+  });
+
+  it('re-validates the bound capture on replay with zero provider calls', async () => {
+    const subject = setup();
+    const first = await runFailedTerminal(subject);
+    const preflight = prepare(subject);
+    const forbiddenFactory = vi.fn(() => {
+      throw new Error('provider_must_not_load_on_replay');
+    });
+    const replay = await executeQaWizardBlueprintLiveRequest(
+      {
+        repoRoot: subject.repoRoot,
+        preflightManifestPath: preflight.manifestPath,
+        outputDir: OUTPUT_DIR,
+        write: true,
+      },
+      { providerFactory: forbiddenFactory },
+    );
+    expect(replay.replayed).toBe(true);
+    expect(replay.manifest.digest).toBe(first.manifest.digest);
+    expect(replay.manifest.observabilityCapture?.digest).toBe(
+      first.manifest.observabilityCapture?.digest,
+    );
+    expect(forbiddenFactory).not.toHaveBeenCalled();
+  });
+
+  it('fails closed on replay when the bound capture is tampered', async () => {
+    const subject = setup();
+    const result = await runFailedTerminal(subject);
+    const absolute = captureAbsolutePath(subject.repoRoot, result.manifest);
+    // Tamper the on-disk capture bytes (still valid JSON, wrong content/digest).
+    fs.writeFileSync(absolute, '{}\n', 'utf8');
+    const preflight = prepare(subject);
+    await expect(
+      executeQaWizardBlueprintLiveRequest(
+        {
+          repoRoot: subject.repoRoot,
+          preflightManifestPath: preflight.manifestPath,
+          outputDir: OUTPUT_DIR,
+          write: true,
+        },
+        { providerFactory: () => passingProvider(subject.fixture) },
+      ),
+    ).rejects.toThrow(/execution_state_uncertain/);
+  });
+
+  it('fails closed on replay when the bound capture is missing', async () => {
+    const subject = setup();
+    const result = await runFailedTerminal(subject);
+    const absolute = captureAbsolutePath(subject.repoRoot, result.manifest);
+    fs.rmSync(absolute);
+    const preflight = prepare(subject);
+    await expect(
+      executeQaWizardBlueprintLiveRequest(
+        {
+          repoRoot: subject.repoRoot,
+          preflightManifestPath: preflight.manifestPath,
+          outputDir: OUTPUT_DIR,
+          write: true,
+        },
+        { providerFactory: () => passingProvider(subject.fixture) },
+      ),
+    ).rejects.toThrow(/execution_state_uncertain/);
+  });
+
+  it('binds no capture on a completed candidate terminal', async () => {
+    const subject = setup();
+    const preflight = prepare(subject);
+    const result = await executeQaWizardBlueprintLiveRequest(
+      {
+        repoRoot: subject.repoRoot,
+        preflightManifestPath: preflight.manifestPath,
+        outputDir: OUTPUT_DIR,
+        write: true,
+      },
+      { providerFactory: () => passingProvider(subject.fixture) },
+    );
+    expect(result.manifest.stage).toBe('blueprint_candidate');
+    expect(result.manifest.observabilityCapture).toBeUndefined();
+    const captureDir = path.join(
+      subject.repoRoot,
+      OUTPUT_DIR,
+      'sanitized-failure-captures',
+    );
+    expect(fs.existsSync(captureDir)).toBe(false);
   });
 });

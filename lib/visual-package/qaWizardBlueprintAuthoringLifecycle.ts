@@ -21,6 +21,7 @@ import {
   PRODUCTION_BLUEPRINT_RUNNER_TERMINAL_FAILURE_CODES,
   buildProductionAuthoringRunRequest,
   aggregateProductionAuthoringExecutionAttestations,
+  persistBlueprintAuthoringSanitizedFailureCapture,
   persistProductionAuthoringReceipt,
   productionAuthoringReceiptBytes,
   productionBlueprintAuthoringPreflightIssues,
@@ -30,6 +31,12 @@ import {
   type ProductionAuthoringRunReceipt,
   type ProductionAuthoringRunRequest,
 } from './productionAuthoringRunner';
+import {
+  BLUEPRINT_AUTHORING_SANITIZED_FAILURE_CAPTURE_VERSION,
+  blueprintAuthoringSanitizedFailureCaptureBytes,
+  blueprintAuthoringSanitizedFailureCaptureIsValid,
+  type BlueprintAuthoringSanitizedFailureCapture,
+} from './blueprintAuthoringSanitizedFailureCapture';
 import type { ProductionAuthoringContext } from './productionAuthoringContext';
 import {
   authoringBudgetExhaustionBindingIsValid,
@@ -206,6 +213,20 @@ interface ManifestBlueprintAuthority {
   contactSheetPath: string;
 }
 
+/**
+ * Durable binding of a failed run's sanitized failure observability capture. It
+ * lives ONLY on `authoring_failed` terminal manifests that actually have a capture
+ * (an optional key: its absence leaves every other manifest's digest untouched).
+ * The manifest is the terminal authority, so binding the capture here makes the
+ * terminal materialization AND replay/recovery paths re-validate the exact capture
+ * digest/path/bytes — never an unreferenced sibling.
+ */
+interface ManifestObservabilityCaptureAuthority {
+  version: typeof BLUEPRINT_AUTHORING_SANITIZED_FAILURE_CAPTURE_VERSION;
+  digest: string;
+  path: string;
+}
+
 interface ManifestApprovalAuthority {
   version: typeof PRE_RENDER_BLUEPRINT_APPROVAL_VERSION;
   digest: string;
@@ -224,6 +245,13 @@ export interface QaWizardBlueprintAuthoringManifest {
   receipt: ManifestReceiptAuthority | null;
   blueprint: ManifestBlueprintAuthority | null;
   approval: ManifestApprovalAuthority | null;
+  /**
+   * Optional. Present only on `authoring_failed` terminals that carry a sanitized
+   * failure observability capture. Omitted otherwise, so completed/approved/
+   * preflight manifests and failed runs without a capture keep their exact prior
+   * digest (backward compatible — no manifest version cutover).
+   */
+  observabilityCapture?: ManifestObservabilityCaptureAuthority;
   doesNotAuthorize: readonly string[];
   digestAlgorithm: typeof DIGEST_ALGORITHM;
   digest: string;
@@ -381,6 +409,13 @@ const MANIFEST_KEYS = [
   'stage',
   'version',
 ] as const;
+// Exact key set for an `authoring_failed` manifest that additionally binds a
+// sanitized failure observability capture. Every other manifest uses MANIFEST_KEYS.
+const MANIFEST_KEYS_WITH_CAPTURE = [
+  ...MANIFEST_KEYS,
+  'observabilityCapture',
+] as const;
+const OBSERVABILITY_CAPTURE_KEYS = ['digest', 'path', 'version'] as const;
 const PREDECESSOR_KEYS = ['digest', 'path', 'version'] as const;
 const BRIDGE_KEYS = ['digest', 'path', 'version'] as const;
 const CONTEXT_KEYS = ['digest', 'version'] as const;
@@ -776,7 +811,20 @@ function manifestShapeIsValid(
   value: unknown,
 ): value is QaWizardBlueprintAuthoringManifest {
   try {
-    if (!exactKeys(value, MANIFEST_KEYS)) return false;
+    if (!record(value)) return false;
+    // The observability-capture binding is an optional key allowed ONLY on a
+    // failed terminal; every other manifest must match MANIFEST_KEYS exactly.
+    const hasCaptureKey = Object.prototype.hasOwnProperty.call(
+      value,
+      'observabilityCapture',
+    );
+    if (
+      hasCaptureKey
+        ? !exactKeys(value, MANIFEST_KEYS_WITH_CAPTURE)
+        : !exactKeys(value, MANIFEST_KEYS)
+    ) {
+      return false;
+    }
     const manifest = value as unknown as QaWizardBlueprintAuthoringManifest;
     if (
     manifest.version !== QA_WIZARD_BLUEPRINT_AUTHORING_MANIFEST_VERSION ||
@@ -818,6 +866,22 @@ function manifestShapeIsValid(
   const isCandidate = manifest.stage === 'blueprint_candidate';
   const isFailure = manifest.stage === 'authoring_failed';
   const isApproved = manifest.stage === 'blueprint_approved';
+  // The optional observability-capture binding is valid ONLY on a failed terminal,
+  // and when present must be a well-formed capture authority. Any other stage
+  // carrying it, or a malformed binding, is rejected.
+  if (manifest.observabilityCapture !== undefined) {
+    if (
+      !isFailure ||
+      !exactKeys(manifest.observabilityCapture, OBSERVABILITY_CAPTURE_KEYS) ||
+      manifest.observabilityCapture.version !==
+        BLUEPRINT_AUTHORING_SANITIZED_FAILURE_CAPTURE_VERSION ||
+      typeof manifest.observabilityCapture.digest !== 'string' ||
+      !HEX_SHA256.test(manifest.observabilityCapture.digest) ||
+      typeof manifest.observabilityCapture.path !== 'string'
+    ) {
+      return false;
+    }
+  }
   if (
     (isPreflight && manifest.predecessor !== null) ||
     (!isPreflight && !exactKeys(manifest.predecessor, PREDECESSOR_KEYS)) ||
@@ -2127,6 +2191,87 @@ interface LoadedQaWizardBlueprintManifest {
   reviewPacket: PreRenderBlueprintReviewPacket | null;
 }
 
+/**
+ * Re-read a persisted sanitized failure capture and re-validate it against the
+ * exact bound digest / canonical path / on-disk bytes plus full structural
+ * validity (including the no-prose/no-PII and complete-census invariants). Throws
+ * on any mismatch so a missing/tampered capture can never be silently accepted.
+ * Shared by first materialization and by replay/recovery.
+ */
+function loadSanitizedFailureCaptureAuthority(args: {
+  repoRoot: string;
+  capturePath: string;
+  expectedDigest: string;
+}): { digest: string } {
+  const loaded = readJsonObject({
+    repoRoot: args.repoRoot,
+    artifactPath: args.capturePath,
+    label: 'Blueprint sanitized failure capture',
+  });
+  const capture =
+    loaded.value as unknown as BlueprintAuthoringSanitizedFailureCapture;
+  if (
+    repoRelativePath(args.repoRoot, loaded.absolutePath) !== args.capturePath ||
+    path.basename(loaded.absolutePath) !== `${args.expectedDigest}.json` ||
+    path.basename(path.dirname(loaded.absolutePath)) !==
+      'sanitized-failure-captures' ||
+    !blueprintAuthoringSanitizedFailureCaptureIsValid(loaded.value) ||
+    capture.digest !== args.expectedDigest ||
+    loaded.rawBytes !== blueprintAuthoringSanitizedFailureCaptureBytes(capture)
+  ) {
+    throw new Error(
+      'Blueprint sanitized failure capture is invalid, tampered, or missing',
+    );
+  }
+  return { digest: capture.digest };
+}
+
+/**
+ * Durably publish a failed run's sanitized failure capture (when one was derived)
+ * and return the manifest binding. Fail-closed: a capture that is structurally
+ * invalid or not linkage-bound to THIS terminal receipt throws (surfaced as an
+ * execution incident by the caller) rather than being published unverifiably. The
+ * capture bytes are re-read and re-validated before the binding is returned, so the
+ * terminal manifest can only ever reference a capture that is already durable.
+ */
+function publishAndBindSanitizedFailureCapture(args: {
+  repoRoot: string;
+  outputDir: string;
+  capture: BlueprintAuthoringSanitizedFailureCapture | null;
+  receipt: ProductionAuthoringRunReceipt;
+}): ManifestObservabilityCaptureAuthority | undefined {
+  const capture = args.capture;
+  if (capture === null) return undefined;
+  if (
+    !blueprintAuthoringSanitizedFailureCaptureIsValid(capture) ||
+    capture.linkage.terminalReceiptDigest !== args.receipt.digest ||
+    capture.linkage.requestDigest !== args.receipt.requestDigest ||
+    capture.linkage.contextDigest !== args.receipt.contextDigest ||
+    capture.terminalFailureCode !== args.receipt.failure?.code
+  ) {
+    throw new Error(
+      'sanitized failure capture is invalid or not bound to its terminal receipt',
+    );
+  }
+  const persisted = persistBlueprintAuthoringSanitizedFailureCapture({
+    repoRoot: args.repoRoot,
+    outputDir: args.outputDir,
+    capture,
+    write: true,
+    hooks: containedPublishHooks({ repoRoot: args.repoRoot }),
+  });
+  const reloaded = loadSanitizedFailureCaptureAuthority({
+    repoRoot: args.repoRoot,
+    capturePath: persisted.capturePath,
+    expectedDigest: capture.digest,
+  });
+  return {
+    version: capture.version,
+    digest: reloaded.digest,
+    path: persisted.capturePath,
+  };
+}
+
 function loadQaWizardBlueprintManifestAuthority(args: {
   repoRoot: string;
   manifestPath: string;
@@ -2901,6 +3046,16 @@ function loadExecutionRecord(args: {
   ) {
     throw new Error('Blueprint authoring terminal authority is stale');
   }
+  // Replay must re-validate the exact bound sanitized capture (digest/path/bytes/
+  // validity). A terminal that declares a capture whose file is missing or
+  // tampered is a torn state, not a replayable terminal.
+  if (terminal.manifest.observabilityCapture) {
+    loadSanitizedFailureCaptureAuthority({
+      repoRoot: args.repoRoot,
+      capturePath: terminal.manifest.observabilityCapture.path,
+      expectedDigest: terminal.manifest.observabilityCapture.digest,
+    });
+  }
   return {
     replayed: true,
     manifest: terminal.manifest,
@@ -3387,6 +3542,7 @@ async function runBlueprintExecutionUnderClaim(
   executionPhase = 'terminal_materialization';
   let stage: 'blueprint_candidate' | 'authoring_failed';
   let blueprint: ManifestBlueprintAuthority | null = null;
+  let observabilityCapture: ManifestObservabilityCaptureAuthority | undefined;
   if (result.receipt.status === 'completed') {
     if (
       !result.authoringResult ||
@@ -3442,6 +3598,17 @@ async function runBlueprintExecutionUnderClaim(
       throw new Error('failed Blueprint receipt unexpectedly includes an authoring result');
     }
     stage = 'authoring_failed';
+    // Durably publish the sanitized failure observability capture (when one was
+    // derived) BEFORE the terminal manifest that binds it. Ordering matters: the
+    // receipt (already published) never references the capture, and the terminal
+    // manifest is only built/published after the capture bytes are durable and
+    // re-validated — so no terminal ever claims a capture that is missing.
+    observabilityCapture = publishAndBindSanitizedFailureCapture({
+      repoRoot: args.repoRoot,
+      outputDir,
+      capture: result.sanitizedFailureCapture ?? null,
+      receipt: result.receipt,
+    });
   }
   const receiptAuthority: ManifestReceiptAuthority = {
     version: result.receipt.version,
@@ -3462,6 +3629,7 @@ async function runBlueprintExecutionUnderClaim(
     receipt: receiptAuthority,
     blueprint,
     approval: null,
+    ...(observabilityCapture ? { observabilityCapture } : {}),
     doesNotAuthorize: [...BEFORE_APPROVAL_EXCLUSIONS],
   });
   executionPhase = 'terminal_manifest_publication';

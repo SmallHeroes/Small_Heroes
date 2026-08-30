@@ -62,6 +62,27 @@ export const BLUEPRINT_AUTHORING_INPUT_TOKEN_BOUND_BASIS =
   'utf8-byte-level-bpe-monotone-upper-bound' as const;
 
 /**
+ * The exact provider-authoritative input-token count surface this authority is
+ * designed to consume when a live count is wired.
+ *
+ * The installed OpenAI SDK exposes the canonical count endpoint as
+ * `client.responses.inputTokens.count(...)` (POST /responses/input_tokens),
+ * returning `{ object: 'response.input_tokens', input_tokens: number }`. That is
+ * the exact quantity the model would bill as input for the precise request shape
+ * (instructions + input + model + structured-output schema + framing).
+ *
+ * This milestone MODELS that authority as an injectable counter and proves the
+ * admission behaviour offline with injected fakes; it deliberately does NOT
+ * invoke the endpoint (no network / no credential). Live wiring — counting as a
+ * separate call from the paid generation call, with its own retry/cost evidence —
+ * is a later, explicit step. Until then the counter is simply absent and the
+ * admission falls back to the proven conservative upper bound, so the numeric
+ * production behaviour at the ceiling is unchanged.
+ */
+export const BLUEPRINT_AUTHORING_EXACT_INPUT_TOKEN_AUTHORITY =
+  'openai-responses-input-tokens-count' as const;
+
+/**
  * The token ceiling this authority admits against. Re-exported so admission call
  * sites bind to the token constant *through* the named authority rather than
  * comparing a byte field to it directly.
@@ -135,4 +156,154 @@ export function blueprintAuthoringObservedInputTokensWithinBound(args: {
     return false;
   }
   return args.observedInputTokens <= args.accounting.estimatedBytes;
+}
+
+// ---------------------------------------------------------------------------
+// Exact-count admission authority (one honest token quantity for both routes).
+// ---------------------------------------------------------------------------
+
+/**
+ * Injectable exact provider input-token count authority. Models
+ * `client.responses.inputTokens.count(...)` (see
+ * BLUEPRINT_AUTHORING_EXACT_INPUT_TOKEN_AUTHORITY) but is deliberately abstract
+ * so it can be faked offline.
+ *
+ * Contract:
+ *  - returns a non-negative safe integer = the exact input-token count for the
+ *    supplied request shape, OR
+ *  - returns `null` when an exact count is unavailable (not wired / count failed).
+ * Anything else (throw, NaN, negative, non-integer) is treated as unavailable by
+ * the admission decision, which then fails closed for any route the conservative
+ * bound cannot already admit.
+ *
+ * It is intentionally distinct from the paid `callAuthor`/generation call: a count
+ * is not a generation, carries no draft/output, and must never be conflated with
+ * paid call/retry/cost evidence.
+ */
+export interface BlueprintAuthoringInputTokenCountRequest {
+  routeKind: 'initial' | 'repair';
+  systemPrompt: string;
+  userPrompt: string;
+  schema: Record<string, unknown>;
+  model: string;
+}
+
+export type BlueprintAuthoringInputTokenCounter = (
+  request: BlueprintAuthoringInputTokenCountRequest,
+) => number | null;
+
+export type BlueprintAuthoringInputTokenAdmissionBasis =
+  | 'invalid_accounting'
+  | 'conservative_upper_bound'
+  | 'exact_provider_count'
+  | 'exact_count_unavailable';
+
+export interface BlueprintAuthoringInputTokenAdmissionDecision {
+  admitted: boolean;
+  basis: BlueprintAuthoringInputTokenAdmissionBasis;
+  ceilingTokens: number;
+  /** Proven conservative upper bound (tokens) or null when accounting is invalid. */
+  conservativeUpperBoundTokens: number | null;
+  /** Exact provider count when it was consulted and valid, else null. */
+  exactInputTokens: number | null;
+}
+
+/**
+ * The single Blueprint input-token admission authority, shared by the initial and
+ * repair routes. It compares ONE honest quantity in tokens against the ceiling:
+ *
+ *  1. Invalid accounting            -> fail closed (never admit).
+ *  2. Conservative bound <= ceiling -> admit (tokens are provably <= bound <= ceiling;
+ *                                      no exact count needed).
+ *  3. Conservative bound > ceiling  -> the proven bound is inconclusive, so consult
+ *                                      the exact provider count:
+ *        - exact count valid & <= ceiling -> admit (honest exact tokens),
+ *        - exact count valid & > ceiling  -> reject (honest exact tokens),
+ *        - exact count unavailable        -> fail closed (reject).
+ *
+ * The admitted quantity is therefore always a token quantity — a proven token
+ * upper bound, or an exact provider token count — never a byte sum reinterpreted
+ * as tokens. `exactInputTokens` is only consulted in the > ceiling region, so a
+ * fully-conservative run never depends on a live counter.
+ */
+export function decideBlueprintAuthoringInputTokenAdmission(args: {
+  accounting: BlueprintAuthoringInputAccounting | null | undefined;
+  exactInputTokens?: number | null;
+}): BlueprintAuthoringInputTokenAdmissionDecision {
+  if (!blueprintAuthoringInputAccountingIsValid(args.accounting)) {
+    return {
+      admitted: false,
+      basis: 'invalid_accounting',
+      ceilingTokens: BLUEPRINT_AUTHORING_INPUT_TOKEN_CEILING,
+      conservativeUpperBoundTokens: null,
+      exactInputTokens: null,
+    };
+  }
+  const conservativeUpperBoundTokens = args.accounting.estimatedBytes;
+  if (conservativeUpperBoundTokens <= BLUEPRINT_AUTHORING_INPUT_TOKEN_CEILING) {
+    return {
+      admitted: true,
+      basis: 'conservative_upper_bound',
+      ceilingTokens: BLUEPRINT_AUTHORING_INPUT_TOKEN_CEILING,
+      conservativeUpperBoundTokens,
+      exactInputTokens: null,
+    };
+  }
+  const exactInputTokens = nonNegativeSafeInteger(args.exactInputTokens)
+    ? args.exactInputTokens
+    : null;
+  if (exactInputTokens === null) {
+    return {
+      admitted: false,
+      basis: 'exact_count_unavailable',
+      ceilingTokens: BLUEPRINT_AUTHORING_INPUT_TOKEN_CEILING,
+      conservativeUpperBoundTokens,
+      exactInputTokens: null,
+    };
+  }
+  return {
+    admitted: exactInputTokens <= BLUEPRINT_AUTHORING_INPUT_TOKEN_CEILING,
+    basis: 'exact_provider_count',
+    ceilingTokens: BLUEPRINT_AUTHORING_INPUT_TOKEN_CEILING,
+    conservativeUpperBoundTokens,
+    exactInputTokens,
+  };
+}
+
+/**
+ * Convenience wrapper: obtain the exact count from an optional counter (never
+ * throwing) and return the admission decision. A counter that throws or returns a
+ * non-count is treated as "exact count unavailable" (fail closed above ceiling).
+ *
+ * It is consumed today by the pure authoring compiler's repair-admission gate,
+ * where an injected counter can open the repair lane offline. Opening the lane on
+ * the PAID runner path additionally requires recording the admission basis + exact
+ * count in the attempt receipt so replay can re-validate a bytes-over-ceiling
+ * admission without weakening hostile-tamper checks; that (plus a live provider
+ * count) is a deliberately separate, later step. Until then the runner supplies no
+ * counter and admission stays on the proven conservative bound.
+ */
+export function admitBlueprintAuthoringInputTokens(args: {
+  accounting: BlueprintAuthoringInputAccounting | null | undefined;
+  counter?: BlueprintAuthoringInputTokenCounter | null;
+  request?: BlueprintAuthoringInputTokenCountRequest;
+}): BlueprintAuthoringInputTokenAdmissionDecision {
+  let exactInputTokens: number | null = null;
+  if (
+    args.counter &&
+    args.request &&
+    blueprintAuthoringInputAccountingIsValid(args.accounting) &&
+    args.accounting.estimatedBytes > BLUEPRINT_AUTHORING_INPUT_TOKEN_CEILING
+  ) {
+    try {
+      const counted = args.counter(args.request);
+      exactInputTokens = nonNegativeSafeInteger(counted) ? counted : null;
+    } catch {
+      exactInputTokens = null;
+    }
+  }
+  return decideBlueprintAuthoringInputTokenAdmission({
+    accounting: args.accounting,
+    exactInputTokens,
+  });
 }

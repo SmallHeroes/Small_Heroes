@@ -54,7 +54,8 @@ import {
   type BlueprintAuthoringInputAccounting,
 } from './blueprintAuthoringPolicy';
 import {
-  blueprintAuthoringInputTokensExceedCeiling,
+  admitBlueprintAuthoringInputTokens,
+  type BlueprintAuthoringInputTokenCounter,
 } from './blueprintAuthoringInputTokenAdmission';
 
 export {
@@ -132,7 +133,7 @@ export class PreRenderBlueprintRepairInputNotAdmissibleError extends Error {
     readonly inputAccounting: BlueprintAuthoringInputAccounting,
   ) {
     super(
-      `Blueprint repair input is not admissible: conservative input-token upper bound ${inputAccounting.estimatedBytes} > ${BLUEPRINT_AUTHORING_MAX_INPUT_TOKENS} token ceiling`,
+      `Blueprint repair input is not admissible against the ${BLUEPRINT_AUTHORING_MAX_INPUT_TOKENS} token ceiling (conservative input-token upper bound ${inputAccounting.estimatedBytes}; exact provider count not available or over ceiling)`,
     );
     this.name = 'PreRenderBlueprintRepairInputNotAdmissibleError';
   }
@@ -559,7 +560,17 @@ function issueText(issues: readonly PreRenderBlueprintIssue[]): string[] {
 export async function compilePreRenderBookVisualBlueprint(
   context: PreRenderBlueprintValidationContext,
   config: PreRenderBlueprintAuthoringConfig,
-  deps: { callAuthor: PreRenderBlueprintAuthoringCaller },
+  deps: {
+    callAuthor: PreRenderBlueprintAuthoringCaller;
+    /**
+     * Optional exact provider input-token count authority. When present it is
+     * consulted ONLY for the repair route and ONLY when the conservative byte
+     * bound already exceeds the ceiling, so it can open the lane for a repair
+     * whose exact token count fits even though its byte bound does not. Absent by
+     * default: admission then falls back to the proven conservative bound.
+     */
+    inputTokenCounter?: BlueprintAuthoringInputTokenCounter | null;
+  },
 ): Promise<PreRenderBlueprintAuthoringResult> {
   const inputErrors = preRenderBlueprintAuthoringInputErrors(context, config);
   if (inputErrors.length > 0) {
@@ -674,11 +685,22 @@ export async function compilePreRenderBookVisualBlueprint(
       userPrompt: repairUserPrompt,
       schema: PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA,
     });
-    if (
-      blueprintAuthoringInputTokensExceedCeiling(repairInputAccounting)
-    ) {
-      // Fail closed before a second provider call: the conservative input-token
-      // upper bound for the exact repair wire exceeds the approved token ceiling.
+    const repairAdmission = admitBlueprintAuthoringInputTokens({
+      accounting: repairInputAccounting,
+      counter: deps.inputTokenCounter,
+      request: {
+        routeKind: 'repair',
+        systemPrompt: repairSystemPrompt,
+        userPrompt: repairUserPrompt,
+        schema: PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA,
+        model: config.model,
+      },
+    });
+    if (!repairAdmission.admitted) {
+      // Fail closed before a second provider call: the honest input-token quantity
+      // for the exact repair wire (the proven conservative bound, or — when that
+      // bound is inconclusive — the exact provider count, else unavailable)
+      // exceeds the approved token ceiling.
       throw new PreRenderBlueprintRepairInputNotAdmissibleError(
         repairAttempts,
         repairInputAccounting,

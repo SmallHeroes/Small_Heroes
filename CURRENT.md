@@ -1,51 +1,72 @@
 # SmallHeroes — Current Technical State
 
-## R1D — Blueprint Admission Honesty + Sanitized Failure Observability (Claude implementation; locally green, committed, not pushed; awaiting Codex QA)
+## R1D — Blueprint Admission Honesty + Sanitized Failure Observability — Round 2 (Codex HOLD corrected in place; Claude implementation; locally green, committed, not pushed; awaiting Codex re-gate)
 
 Guy-approved offline milestone. The real R1D lantern receipt
 (`4c33108016513c06dc6b5d12c0d8ef7c21e0b38f91edb5d71d52ea27c1ce8031.json`) stopped
 at `repair_route_input_not_admissible` on a **bytes-vs-tokens** admission
 comparison (`estimatedBytes 61502` vs the `64000` **token** ceiling; the real call
 used `12007` input tokens), and its failure evidence collapsed 86 symptoms into 3
-category codes with no structural identities.
+category codes with no structural identities. Codex's QA of the first attempt
+(`e757b14b`) issued **HOLD** on four findings; this round corrects the smallest
+general root causes:
 
-- **Admission honesty (numerically preserving):** new
-  `lib/visual-package/blueprintAuthoringInputTokenAdmission.ts`
-  (`blueprint-authoring-conservative-input-token-admission/v1`) makes the admission
-  quantity a **proven conservative input-token upper bound** (byte-level BPE
-  monotonicity: `tokens ≤ utf8 bytes`), routes both the initial and repair
-  admission decisions (and the receipt-replay comparisons) through one named
-  authority, and preserves byte accounting as observability. The ceiling is not
-  weakened; a tighter exact-tokenizer policy is deferred to a future version
-  cutover (not guessed). v6 receipts/digests are untouched.
-- **Sanitized failure capture:** new
-  `lib/visual-package/blueprintAuthoringSanitizedFailureCapture.ts`
-  (`blueprint-authoring-sanitized-failure-capture/v1`) — a versioned,
-  content-addressed, fail-closed structural projection carrying a complete bounded
-  diagnostic **census** (repeated-vs-unique explicit via per-identity digests +
-  counts), byte + token admission accounting for **both** routes (incl. the
-  rejected repair) with the real observed tokens as a conservativeness cross-check,
-  `doesNotAuthorize` semantics, bounded size/redaction policy, and a recursive
-  leak scan that makes prose/name/phrase/PII **structurally impossible** to
-  validate. The runner’s failure path derives/returns it
-  (`ProductionAuthoringRunResult.sanitizedFailureCapture`, fail-safe) and
-  `persistBlueprintAuthoringSanitizedFailureCapture` writes it; structured
-  diagnostics are threaded in-memory only (persisted receipt shape unchanged). The
-  historical attempt cannot be retroactively upgraded — the real 86 remain
-  unknowable; this prevents future blindness.
+- **F1 — capture now integrated into the real QA Wizard lifecycle:** a qualifying
+  failed live run durably publishes the exact validated, content-addressed capture
+  *before* the terminal manifest that binds it (new
+  `ManifestObservabilityCaptureAuthority`, an optional key present **only** on
+  `authoring_failed` terminals — every other manifest digest is unchanged, no
+  version cutover). The capture is re-read and re-validated (digest/path/bytes +
+  full validity) at first materialization and again on every replay/recovery
+  (`loadExecutionRecord`); a missing/tampered capture is a torn state →
+  `execution_state_uncertain`, no redispatch. Completed terminals and failures
+  without diagnostics bind no capture. The receipt shape is unchanged and never
+  claims observability the capture does not back.
+- **F2 — PII path leak closed:** retained field-path key segments are now
+  constrained to a **closed structural vocabulary**; any other identifier-shaped
+  token (including an ASCII child/family name used as a key) is replaced by a
+  non-reversible `#redacted` sentinel — never a digest of the raw token. The same
+  closed rule is re-enforced on reload, so an out-of-vocabulary segment cannot
+  validate. The identity `detailDigest` (the only place raw diagnostic content is
+  consumed) carries a documented threat assessment: it is a one-way SHA-256 over
+  the entire high-entropy structured identity, not a bare-name fingerprint, and is
+  unsalted only to stay content-addressable/reproducible.
+- **F3 — census is complete or nothing:** silent truncation is removed. A valid
+  capture always retains every distinct identity (`retained == distinct`,
+  `omitted == 0`, `truncated == false`); a run beyond the fail-closed hard bound
+  (4096, far above the real 86) mints **no** capture rather than a truncated one,
+  and the validator rejects any artifact that claims omission.
+- **F4 — one honest admission quantity in tokens (both routes):** the single
+  authority `decideBlueprintAuthoringInputTokenAdmission` admits on the proven
+  conservative token upper bound when it is within ceiling, and — when that bound
+  is inconclusive (bytes > ceiling) — on an **exact provider input-token count**
+  (modeled on `client.responses.inputTokens.count`, injected & faked offline,
+  never invoked); counting/admission failure fails closed. An injected exact count
+  below the ceiling opens the repair lane and reaches the second author call even
+  when bytes exceed it; an above-ceiling count rejects before dispatch. The paid
+  runner/replay path stays on the proven conservative bound (numerically
+  unchanged, hostile-tamper checks intact); wiring the exact count into the paid
+  lane additionally requires recording the admission basis in the receipt (a
+  separate, explicit step) and a live provider count — both deliberately
+  **deferred**. v6 receipts/digests are untouched.
 
-Tests: new `blueprint-admission-honesty-and-capture.spec.ts` (25) proves the
-conservative bound + like-for-like admission, a production-scale ≥8-page overflow
-that fails before any provider (injected pure `callAuthor`; no provider/credential),
-end-to-end capture from the real failed 8-page compile, 86-symptom census
-completeness with no drop/dup, prose/PII-freedom (planted child+family name
-absent), bounded truncation, and ~12 hostile-tamper regressions. Adjacent suites
-green (production-lifecycle-foundation, pre-render-blueprint-authoring, qa-wizard
-lifecycle + replacement-lane isolation, adapter, source-authority-lifecycle,
-draft-authority-reference-diagnostics, book-surface-repair). `tsc` clean;
-`git diff --check` clean; `npm run check` per the handoff. No
-provider/network/credential/live/render/DB/deploy/push; the real `outputs/`
-artifacts were only read. Evidence:
+Tests: `blueprint-admission-honesty-and-capture.spec.ts` (34) proves the
+conservative bound + like-for-like admission, the F4 decision matrix, a
+production-scale ≥8-page repair lane that (a) admits on an injected exact count
+below ceiling and reaches the second injected author call, (b) rejects an
+above-ceiling exact count before dispatch, and (c) fails closed when the counter
+is unavailable — all with injected pure `callAuthor` (no provider/credential); the
+end-to-end capture from the real failed 8-page compile; complete-census retention
++ fail-closed overflow; closed-vocabulary redaction of arbitrary/ASCII-name key
+segments with reload re-enforcement; and hostile-tamper regressions.
+`qa-wizard-blueprint-authoring-lifecycle.spec.ts` (+5) proves the failed-terminal
+capture is published, manifest-bound, and re-validated; replays with zero provider
+calls; fails closed on a tampered/missing capture; and binds no capture on a
+completed candidate. Adjacent suites green (production-lifecycle-foundation,
+pre-render-blueprint-authoring/composition, adapter, qa-wizard replacement-lane
+isolation + CLI, production-package-lifecycle). `tsc` clean; `git diff --check`
+clean. No provider/network/credential/live/render/DB/deploy/push; the real
+`outputs/` artifacts were only read. Evidence:
 `docs/ai-workflow/R1D_BLUEPRINT_ADMISSION_HONESTY_EVIDENCE.md`; gate:
 `docs/ai-workflow/R1D_BLUEPRINT_ADMISSION_HONESTY_DECISION_GATE.md`.
 

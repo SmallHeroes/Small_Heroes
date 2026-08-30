@@ -68,7 +68,7 @@ import {
   type BlueprintAuthoringUsage,
 } from './blueprintAuthoringPolicy';
 import {
-  blueprintAuthoringInputTokensExceedCeiling,
+  decideBlueprintAuthoringInputTokenAdmission,
 } from './blueprintAuthoringInputTokenAdmission';
 import {
   buildBlueprintAuthoringSanitizedFailureCapture,
@@ -517,11 +517,15 @@ function productionBlueprintInitialPromptIssues(
   context: ProductionAuthoringContext,
 ): string[] {
   const accounting = productionBlueprintInitialInputAccounting(context);
-  return blueprintAuthoringInputTokensExceedCeiling(accounting)
-    ? [
+  // The single shared admission authority. No exact provider count is supplied in
+  // the paid runner path (live counting is deferred), so this is the proven
+  // conservative bound — numerically identical to the prior gate.
+  const admission = decideBlueprintAuthoringInputTokenAdmission({ accounting });
+  return admission.admitted
+    ? []
+    : [
         `initial Blueprint prompt exceeds canonical input-token ceiling: conservative upper bound ${accounting.estimatedBytes} > ${BLUEPRINT_AUTHORING_MAX_INPUT_TOKENS}`,
-      ]
-    : [];
+      ];
 }
 
 export function productionBlueprintAuthoringPreflightIssues(args: {
@@ -895,6 +899,12 @@ export async function runProductionBlueprintAuthoring(args: {
                 cumulativeConservativeCostUsd,
               callsCompleted: attempt - 1,
             });
+          // The single shared admission authority. The paid runner path supplies
+          // no exact provider count (live counting deferred), so this is the proven
+          // conservative bound — numerically identical to the prior gate.
+          const inputAdmission = decideBlueprintAuthoringInputTokenAdmission({
+            accounting: expectedInputAccounting,
+          });
           const base = {
             attempt,
             kind,
@@ -925,17 +935,13 @@ export async function runProductionBlueprintAuthoring(args: {
           } satisfies ProductionAuthoringAttemptReceipt;
           try {
             if (
-              blueprintAuthoringInputTokensExceedCeiling(
-                expectedInputAccounting,
-              ) ||
+              !inputAdmission.admitted ||
               !blueprintAuthoringSpendIsWithinCeiling(
                 expectedReservedExposureBeforeCallUsd,
               )
             ) {
               const failureCode: ProductionAuthoringAttemptFailureCode =
-                blueprintAuthoringInputTokensExceedCeiling(
-                  expectedInputAccounting,
-                )
+                !inputAdmission.admitted
                   ? 'input_token_ceiling_exceeded'
                   : 'cost_ceiling_exceeded';
               attempts.push({
