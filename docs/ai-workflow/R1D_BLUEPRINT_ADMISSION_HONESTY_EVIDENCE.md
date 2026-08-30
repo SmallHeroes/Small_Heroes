@@ -548,3 +548,68 @@ so a forged inner digest with a recomputed outer capture digest no longer valida
 
 No provider/network/API/credential/live/render/DB/deploy/push; real `outputs/` artifacts
 were not touched. F1 (paid exact-token count) remains a separate HOLD.
+
+## Round 7 — Codex final re-gate of `03b758b6`: last identity collision + receipt-binding honesty + docs exactness
+
+Codex's final re-gate of `03b758b6` found one last high-confidence identity collision, a
+related receipt-binding honesty gap, and a docs-exactness issue. All three are closed on top
+of `03b758b6` in one tiny focused commit. MAJOR 1 code/tests untouched. **Not an F3 PASS —
+awaiting Codex re-gate.**
+
+### Identity collision — projection made injective wrt every census-identity field
+
+The Round-6 `preRenderBlueprintRepairDiagnosticErrorText` was still many-to-one relative to
+the persisted census identity, which is keyed on code + sanitized field
+(presence/path/redaction) + expectedPresent + actualPresent: it omitted expected/actual
+presence for every diagnostic and, for `draft_assembly_failed`, ignored the field. So errors
+`[A,A]` could pair with diagnostics `[A,B]`, pass the position-wise text check, and mint two
+census identities from a one-identity error source.
+
+- The projection now binds the field component for ALL diagnostics (including
+  `draft_assembly_failed`) and appends safe `[expectedPresent:X actualPresent:Y]` booleans —
+  never the expected/actual VALUES, so no PII is retained. Same text ⇒ same census identity,
+  so distinct census identities can never collapse onto one error string.
+- The suffix introduces no diagnostic-category keyword, so the persisted receipt
+  `{count,codes}` category summary and the leak-free privacy behavior are unchanged (proved by
+  the green runner/lifecycle/admission specs). The repair prompt still consumes structured
+  diagnostics via `groupPreRenderBlueprintRepairDiagnostics`, so no provider wire, schema, or
+  validation body changed (proved by `pre-render-blueprint-authoring` incl. repair-prompt
+  version assertions).
+
+### Receipt-binding honesty
+
+`deriveBlueprintAuthoringSanitizedFailureCaptureDisposition` trusted
+`failureReceipt.attempts` as the content-addressed source of truth but never validated the
+receipt, so a forged digest over unrelated data still minted a capture. New
+`failedReceiptCanonicallyBindsRequest` (reusing the same `canonicalJsonDigest`/`receiptPayload`
+logic the receipt was minted with — no divergent validator) requires, before minting: status
+`failed`; canonical `digestAlgorithm` and a digest that recomputes over the digest-free
+payload; `failure.code` equals the terminal code; `requestDigest === canonicalJsonDigest(request)`;
+`contextDigest === request.contextDigest`; requestId/requestedAt/mode/model/reasoningEffort/
+maxOutputTokens/noFallback/callBudget all match the request; callCount/repairCount consistent
+with the attempt count; and `args.attempts` equal to `receipt.attempts`. Any contradiction ⇒
+`sanitized_census_correlation_unproven`.
+
+### Docs exactness
+
+CURRENT.md line 3 no longer contains a `57e43f8c -> new commit` placeholder: Round 6 is named
+by its immutable hash `03b758b6`, and the new Round 7 section sits on top.
+
+### Round-7 validation (serial)
+
+- `production-lifecycle-foundation.spec.ts` **73** (+5): expected-presence collision,
+  actual-presence collision, and `draft_assembly_failed`-with-field collision each return
+  `sanitized_census_correlation_unproven`; a forged-request-digest receipt and a stale-digest
+  receipt are both rejected; the census fixtures now build REAL content-addressed failed
+  receipts, and the true valid identity-correlated shape + real `provider_call_failed` path
+  still mint a capture.
+- Required 4 specs (`blueprint-admission-honesty-and-capture` **42**,
+  `production-lifecycle-foundation` **73**, `qa-wizard-blueprint-authoring-lifecycle` **46**,
+  `openai-responses-blueprint-authoring-adapter` **20**) pass serially.
+- Behavior-preserving refactor: `pre-render-blueprint-authoring` **19** +
+  `pre-render-book-visual-blueprint` **112** green; directly-affected
+  `qa-wizard-blueprint-replacement-lifecycle` + `qa-wizard-package-lifecycle` (**27**) green.
+- `npx --no-install tsc --noEmit` clean; `git diff --check` clean.
+
+No provider/network/API/credential/live/render/DB/deploy/push; real `outputs/` artifacts
+were not touched. F1 (paid exact-token count) remains a separate HOLD.

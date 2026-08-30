@@ -59,6 +59,8 @@ import {
   type PreRenderBlueprintRepairDiagnostic,
 } from '@/lib/visual-package/preRenderBlueprintAuthoring';
 import {
+  buildAuthoringTerminalFailure,
+  notRunAuthoringExecutionAttestation,
   sanitizedAuthoringDiagnostics,
   type AuthoringDiagnosticCode,
 } from '@/lib/visual-package/authoringTerminalDiagnostics';
@@ -2068,6 +2070,49 @@ describe('sanitized census bijection is proven by IDENTITY, not attempt presence
     };
   }
 
+  // Build a REAL content-addressed failed receipt that binds `request` and `attempts`,
+  // mirroring the runner's finalizeReceipt/failureReceipt exactly, so the derivation's
+  // receipt-binding honesty check accepts it. `payloadOverride` lets a hostile test forge
+  // a self-consistent-but-mis-bound receipt.
+  type FailedReceipt = Parameters<
+    typeof deriveBlueprintAuthoringSanitizedFailureCaptureDisposition
+  >[0]['failureReceipt'];
+  function buildFailedReceipt(
+    request: ProductionAuthoringRunRequest,
+    attempts: ProductionAuthoringAttemptReceipt[],
+    payloadOverride: Record<string, unknown> = {},
+  ): FailedReceipt {
+    const payload = {
+      version: PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION,
+      requestDigest: canonicalJsonDigest(request),
+      requestId: request.requestId,
+      requestedAt: request.requestedAt,
+      mode: request.mode,
+      contextDigest: request.contextDigest,
+      model: request.model,
+      reasoningEffort: request.reasoningEffort,
+      maxOutputTokens: request.maxOutputTokens,
+      noFallback: true as const,
+      callBudget: request.callBudget,
+      status: 'failed' as const,
+      callCount: attempts.length,
+      repairCount: Math.max(0, attempts.length - 1),
+      executionAttestation: notRunAuthoringExecutionAttestation(),
+      attempts,
+      blueprintDigest: null,
+      authoringProvenanceDigest: null,
+      failure: buildAuthoringTerminalFailure({
+        code: 'draft_validation_repair_exhausted',
+      }),
+      ...payloadOverride,
+    };
+    return {
+      ...payload,
+      digestAlgorithm: 'canonical-json-sha256',
+      digest: canonicalJsonDigest(payload),
+    } as unknown as FailedReceipt;
+  }
+
   function deriveWith(args: {
     context: ProductionAuthoringContext;
     request: ProductionAuthoringRunRequest;
@@ -2076,15 +2121,12 @@ describe('sanitized census bijection is proven by IDENTITY, not attempt presence
     // Optional distinct receipt-side attempt list to prove args.attempts must be
     // canonically identical to failureReceipt.attempts.
     failureReceiptAttempts?: ProductionAuthoringAttemptReceipt[];
+    // Optional forged receipt (bypasses the canonical build) for the binding-honesty test.
+    failureReceipt?: FailedReceipt;
   }) {
-    const failureReceipt = {
-      digest: canonicalJsonDigest({ receipt: 'terminal' }),
-      requestDigest: canonicalJsonDigest({ request: 'terminal' }),
-      failure: { code: 'draft_validation_repair_exhausted' as const },
-      attempts: args.failureReceiptAttempts ?? args.attempts,
-    } as unknown as Parameters<
-      typeof deriveBlueprintAuthoringSanitizedFailureCaptureDisposition
-    >[0]['failureReceipt'];
+    const failureReceipt =
+      args.failureReceipt ??
+      buildFailedReceipt(args.request, args.failureReceiptAttempts ?? args.attempts);
     return deriveBlueprintAuthoringSanitizedFailureCaptureDisposition({
       request: args.request,
       context: args.context,
@@ -2137,6 +2179,143 @@ describe('sanitized census bijection is proven by IDENTITY, not attempt presence
       attempts: [receiptAttempt(1, persistedSummary(CORRELATED_ERRORS))],
       error: new PreRenderBlueprintAuthoringRepairExhaustedError([
         { attempt: 1, errors: CORRELATED_ERRORS, draft: null, diagnostics: unrelated },
+      ]),
+    });
+    expect(disposition).toEqual(UNPROVEN);
+  });
+
+  it('rejects diagnostics differing only in EXPECTED presence collided onto one error text', () => {
+    const { context } = buildContext('single_location');
+    const request = requestFor(context, 'live');
+    // Same code/field/message; one carries `expected`, the other does not -> DISTINCT
+    // census identities. The attack presents them as two IDENTICAL error strings.
+    const withExpected: PreRenderBlueprintRepairDiagnostic = {
+      code: 'schema_invalid',
+      field: 'frames',
+      message: 'same symptom',
+      expected: null,
+    };
+    const withoutExpected: PreRenderBlueprintRepairDiagnostic = {
+      code: 'schema_invalid',
+      field: 'frames',
+      message: 'same symptom',
+    };
+    const collided = preRenderBlueprintRepairDiagnosticErrorText(withExpected);
+    const disposition = deriveWith({
+      context,
+      request,
+      attempts: [receiptAttempt(1, persistedSummary([collided, collided]))],
+      error: new PreRenderBlueprintAuthoringRepairExhaustedError([
+        {
+          attempt: 1,
+          errors: [collided, collided],
+          draft: null,
+          diagnostics: [withExpected, withoutExpected],
+        },
+      ]),
+    });
+    expect(disposition).toEqual(UNPROVEN);
+  });
+
+  it('rejects diagnostics differing only in ACTUAL presence collided onto one error text', () => {
+    const { context } = buildContext('single_location');
+    const request = requestFor(context, 'live');
+    const withActual: PreRenderBlueprintRepairDiagnostic = {
+      code: 'schema_invalid',
+      field: 'frames',
+      message: 'same symptom',
+      actual: null,
+    };
+    const withoutActual: PreRenderBlueprintRepairDiagnostic = {
+      code: 'schema_invalid',
+      field: 'frames',
+      message: 'same symptom',
+    };
+    const collided = preRenderBlueprintRepairDiagnosticErrorText(withActual);
+    const disposition = deriveWith({
+      context,
+      request,
+      attempts: [receiptAttempt(1, persistedSummary([collided, collided]))],
+      error: new PreRenderBlueprintAuthoringRepairExhaustedError([
+        {
+          attempt: 1,
+          errors: [collided, collided],
+          draft: null,
+          diagnostics: [withActual, withoutActual],
+        },
+      ]),
+    });
+    expect(disposition).toEqual(UNPROVEN);
+  });
+
+  it('rejects draft_assembly_failed with extra field collided onto its canonical error text', () => {
+    const { context } = buildContext('single_location');
+    const request = requestFor(context, 'live');
+    // Canonical draft_assembly_failed has no field/expected/actual; a variant WITH a field
+    // is a DISTINCT census identity (fieldPresent), which the injective projection exposes.
+    const canonical: PreRenderBlueprintRepairDiagnostic = {
+      code: 'draft_assembly_failed',
+      message: 'assembly boom',
+    };
+    const withField: PreRenderBlueprintRepairDiagnostic = {
+      code: 'draft_assembly_failed',
+      message: 'assembly boom',
+      field: 'frames',
+    };
+    const canonicalText = preRenderBlueprintRepairDiagnosticErrorText(canonical);
+    const disposition = deriveWith({
+      context,
+      request,
+      attempts: [receiptAttempt(1, persistedSummary([canonicalText, canonicalText]))],
+      error: new PreRenderBlueprintAuthoringRepairExhaustedError([
+        {
+          attempt: 1,
+          errors: [canonicalText, canonicalText],
+          draft: null,
+          diagnostics: [canonical, withField],
+        },
+      ]),
+    });
+    expect(disposition).toEqual(UNPROVEN);
+  });
+
+  it('rejects a forged receipt whose digest binds unrelated request data', () => {
+    const { context } = buildContext('single_location');
+    const request = requestFor(context, 'live');
+    const attempts = [receiptAttempt(1, persistedSummary(CORRELATED_ERRORS))];
+    // Self-consistent digest, but requestDigest is over UNRELATED data -> mis-bound.
+    const forged = buildFailedReceipt(request, attempts, {
+      requestDigest: canonicalJsonDigest({ unrelated: 'request' }),
+    });
+    const disposition = deriveWith({
+      context,
+      request,
+      attempts,
+      failureReceipt: forged,
+      error: new PreRenderBlueprintAuthoringRepairExhaustedError([
+        correlatedSourceAttempt(1, CORRELATED),
+      ]),
+    });
+    expect(disposition).toEqual(UNPROVEN);
+  });
+
+  it('rejects a receipt whose digest does not match its payload', () => {
+    const { context } = buildContext('single_location');
+    const request = requestFor(context, 'live');
+    const attempts = [receiptAttempt(1, persistedSummary(CORRELATED_ERRORS))];
+    const good = buildFailedReceipt(request, attempts);
+    // Mutate a field WITHOUT recomputing the digest -> stale, self-contradicting digest.
+    const stale = {
+      ...(good as unknown as Record<string, unknown>),
+      contextDigest: canonicalJsonDigest({ unrelated: 'context' }),
+    } as unknown as typeof good;
+    const disposition = deriveWith({
+      context,
+      request,
+      attempts,
+      failureReceipt: stale,
+      error: new PreRenderBlueprintAuthoringRepairExhaustedError([
+        correlatedSourceAttempt(1, CORRELATED),
       ]),
     });
     expect(disposition).toEqual(UNPROVEN);

@@ -558,16 +558,36 @@ export function buildPreRenderBlueprintRepairUserPrompt(args: {
  * derivation) MUST use this one function, so a structured diagnostic and its persisted
  * error string are provably the SAME evidence identity — never merely the same count.
  *
- *  - A `draft_assembly_failed` diagnostic reproduces `draft assembly failed: <message>`.
- *  - Every other (validation) diagnostic reproduces `<code>[ (<field>)]: <message>`.
+ * It is INJECTIVE with respect to EVERY field the sanitized census identity is keyed on:
+ *  - `code` (the label: `draft assembly failed` for `draft_assembly_failed`, else the code),
+ *  - the diagnostic `field` component (which fully determines the sanitized field
+ *    presence/path/redaction the census records),
+ *  - and the expected/actual PRESENCE, carried as safe booleans (never the values, so no
+ *    PII is retained or leaked).
+ * Two diagnostics that differ only in expected/actual presence — or, for
+ * `draft_assembly_failed`, in `field` — therefore project to DISTINCT strings, so distinct
+ * census identities can never share one error string (which would let a one-identity error
+ * source mint a multi-identity census). The presence suffix adds no diagnostic-category
+ * keyword, so the persisted receipt `{count,codes}` category summary is unchanged.
  */
 export function preRenderBlueprintRepairDiagnosticErrorText(
   diagnostic: PreRenderBlueprintRepairDiagnostic,
 ): string {
-  if (diagnostic.code === 'draft_assembly_failed') {
-    return `draft assembly failed: ${diagnostic.message}`;
-  }
-  return `${diagnostic.code}${diagnostic.field ? ` (${diagnostic.field})` : ''}: ${diagnostic.message}`;
+  const label =
+    diagnostic.code === 'draft_assembly_failed'
+      ? 'draft assembly failed'
+      : diagnostic.code;
+  const fieldComponent = diagnostic.field ? ` (${diagnostic.field})` : '';
+  const expectedPresent = Object.prototype.hasOwnProperty.call(
+    diagnostic,
+    'expected',
+  )
+    ? 1
+    : 0;
+  const actualPresent = Object.prototype.hasOwnProperty.call(diagnostic, 'actual')
+    ? 1
+    : 0;
+  return `${label}${fieldComponent}: ${diagnostic.message} [expectedPresent:${expectedPresent} actualPresent:${actualPresent}]`;
 }
 
 function issueText(issues: readonly PreRenderBlueprintIssue[]): string[] {

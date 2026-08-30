@@ -1,6 +1,56 @@
 # SmallHeroes — Current Technical State
 
-## R1D — Blueprint capture safety Round 6: census IDENTITY/totality proof + census-digest integrity (F3 MAJOR 2 + MINOR closed on top of Round 5 shared-assertion PASS); F1 paid exact-token count remains HOLD (Claude implementation; locally green, committed `57e43f8c` → new commit, not pushed; awaiting Codex re-gate — NOT a milestone PASS)
+## R1D — Blueprint capture safety Round 7: census-identity INJECTIVITY (expected/actual presence) + failed-receipt binding honesty (F3 last identity collision closed on top of Round 6); F1 paid exact-token count remains HOLD (Claude implementation; locally green, committed on top of `03b758b6`, not pushed; awaiting Codex re-gate — NOT a milestone PASS)
+
+Codex's final re-gate of `03b758b6` found one last high-confidence identity collision plus a
+related receipt-binding honesty gap and a docs-exactness issue. All three are closed here on
+top of `03b758b6` in one tiny focused commit. Already-passing MAJOR 1 (shared
+replay/recovery/first-publication capture assertion) is untouched. This is not an F3 PASS.
+
+- **IDENTITY COLLISION — the correlation projection is now INJECTIVE wrt every
+  census-identity field.** The sanitized census identity is keyed on code + sanitized field
+  (presence/path/redaction) + expectedPresent + actualPresent, but the Round-6
+  `preRenderBlueprintRepairDiagnosticErrorText` omitted expected/actual presence (and, for
+  `draft_assembly_failed`, the field), so `[A,A]` errors could pair with `[A,B]` diagnostics,
+  pass the position-wise text check, and mint two census identities from a one-identity error
+  source. The projection now binds the field component for ALL diagnostics (including
+  `draft_assembly_failed`) and appends safe `expectedPresent`/`actualPresent` booleans (never
+  the VALUES — no PII). Same text ⇒ same census identity, so distinct identities can never
+  share one error string. The suffix adds no diagnostic-category keyword, so the persisted
+  receipt `{count,codes}` category summary and privacy behavior are unchanged; the repair
+  prompt still consumes structured diagnostics (`groupPreRenderBlueprintRepairDiagnostics`),
+  so no provider wire/schema/validation body changed.
+- **RECEIPT-BINDING HONESTY — the derivation now validates the failed receipt before
+  trusting its attempts.** `deriveBlueprintAuthoringSanitizedFailureCaptureDisposition`
+  treats `failureReceipt.attempts` as the content-addressed source of truth but never checked
+  the receipt itself, so a forged digest over unrelated data still minted a capture. Before
+  minting it now requires (via the same canonical `canonicalJsonDigest`/`receiptPayload`
+  logic the receipt was minted with): status `failed`; `digestAlgorithm` canonical and the
+  digest recomputes over the digest-free payload; `failure.code` equals the terminal code;
+  `requestDigest === canonicalJsonDigest(request)`; `contextDigest === request.contextDigest`;
+  requestId/requestedAt/mode/model/reasoningEffort/maxOutputTokens/noFallback/callBudget all
+  match the request; and callCount/repairCount/attempt-sequence consistent with
+  `args.attempts` (which must equal `receipt.attempts`). Any contradiction ⇒
+  `sanitized_census_correlation_unproven`.
+- **F1 — paid exact-provider-input-token count: still HOLD (decision-blocked), numerically
+  unchanged.** No paid/provider/live behavior was touched.
+
+Files: `lib/visual-package/preRenderBlueprintAuthoring.ts` (injective projection),
+`lib/visual-package/productionAuthoringRunner.ts` (receipt-binding honesty check). Tests:
+`production-lifecycle-foundation.spec.ts` (**73**: expected-presence collision,
+actual-presence collision, draft_assembly_failed-with-field collision, forged-request-digest
+receipt, stale-digest receipt; the census fixtures now construct REAL content-addressed
+failed receipts). Required 4 specs pass serially (**312** with the pre-render specs).
+Behavior-preserving refactor confirmed: `pre-render-blueprint-authoring` (**19**) +
+`pre-render-book-visual-blueprint` (**112**) green; directly-affected
+`qa-wizard-blueprint-replacement-lifecycle` + `qa-wizard-package-lifecycle` (**27**) green.
+`npx --no-install tsc --noEmit` clean; `git diff --check` clean. No
+provider/network/API/credential/live/render/DB/deploy/push; real `outputs/` untouched.
+Evidence: `docs/ai-workflow/R1D_BLUEPRINT_ADMISSION_HONESTY_EVIDENCE.md` (Round 7).
+
+---
+
+## R1D — Blueprint capture safety Round 6: census IDENTITY/totality proof + census-digest integrity (F3 MAJOR 2 + MINOR closed on top of Round 5 shared-assertion PASS); F1 paid exact-token count remains HOLD (Claude implementation; locally green, committed `03b758b6` on top of `57e43f8c`, not pushed; awaiting Codex re-gate — NOT a milestone PASS)
 
 Codex re-gated Round-5 commit `57e43f8c`: **MAJOR 1** (one shared replay/recovery/
 first-publication capture-disposition assertion — exact required↔present equivalence,

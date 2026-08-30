@@ -1608,6 +1608,51 @@ export async function runProductionBlueprintAuthoring(args: {
 }
 
 /**
+ * True iff `receipt` is a real, canonical FAILED authoring receipt whose own digest and
+ * request/context linkage actually check out and bind THIS request. Used by the census
+ * derivation before trusting `failureReceipt.attempts` as the content-addressed source of
+ * truth, so a forged receipt (a self-consistent digest over unrelated request/context
+ * data, or a stale digest) can never smuggle an attempt list into the census. It re-uses
+ * the same canonical digest logic (`canonicalJsonDigest` over the digest-free payload) the
+ * receipt was minted with — not a divergent validator.
+ */
+function failedReceiptCanonicallyBindsRequest(args: {
+  receipt: ProductionAuthoringRunReceipt;
+  request: ProductionAuthoringRunRequest;
+  failureCode: ProductionBlueprintRunnerTerminalFailureCode;
+}): boolean {
+  const { receipt, request } = args;
+  if (receipt.status !== 'failed') return false;
+  if (receipt.digestAlgorithm !== 'canonical-json-sha256') return false;
+  const { digest, digestAlgorithm: _algorithm, ...payload } = receipt;
+  void _algorithm;
+  if (canonicalJsonDigest(receiptPayload(payload)) !== digest) return false;
+  if (receipt.failure?.code !== args.failureCode) return false;
+  if (receipt.requestDigest !== canonicalJsonDigest(request)) return false;
+  if (receipt.contextDigest !== request.contextDigest) return false;
+  if (
+    receipt.requestId !== request.requestId ||
+    receipt.requestedAt !== request.requestedAt ||
+    receipt.mode !== request.mode ||
+    receipt.model !== request.model ||
+    receipt.reasoningEffort !== request.reasoningEffort ||
+    receipt.maxOutputTokens !== request.maxOutputTokens ||
+    receipt.noFallback !== request.noFallback ||
+    canonicalJsonDigest(receipt.callBudget) !==
+      canonicalJsonDigest(request.callBudget)
+  ) {
+    return false;
+  }
+  if (
+    receipt.callCount !== receipt.attempts.length ||
+    receipt.repairCount !== Math.max(0, receipt.attempts.length - 1)
+  ) {
+    return false;
+  }
+  return true;
+}
+
+/**
  * Derive the typed sanitized-failure-capture disposition for an in-memory failed run.
  *
  * The capture requirement is derived from the ACTUAL failed receipt EVIDENCE — via the
@@ -1622,9 +1667,12 @@ export async function runProductionBlueprintAuthoring(args: {
  *
  * The census is derived only from the in-memory structured diagnostic sources that are
  * proven to correspond, as a COMPLETE and IDENTITY-EXACT bijection, to the failed
- * receipt's diagnostic-bearing attempts. The receipt-side source of truth is the
- * content-addressed `failureReceipt.attempts` (the separately-passed `attempts` must be
- * canonically identical first); those attempts must form a clean 1..N sequence; and every
+ * receipt's diagnostic-bearing attempts. Before any of that, the `failureReceipt` itself
+ * must be a real canonical FAILED receipt whose own digest and request/context linkage
+ * check out and bind THIS request (`failedReceiptCanonicallyBindsRequest`) — else a forged
+ * receipt could smuggle an attempt list into the census. The receipt-side source of truth
+ * is the content-addressed `failureReceipt.attempts` (the separately-passed `attempts` must
+ * be canonically identical first); those attempts must form a clean 1..N sequence; and every
  * in-memory source attempt number must be a safe integer in 1..N and unique. For every
  * diagnostic-bearing receipt attempt there must be a matching source whose raw errors
  * re-derive to the EXACT persisted {count,codes} (rejecting a fabricated or drifted
@@ -1696,6 +1744,20 @@ export function deriveBlueprintAuthoringSanitizedFailureCaptureDisposition(args:
       kind: 'derivation_failed' as const,
       reasonCode: 'sanitized_census_correlation_unproven' as const,
     };
+    // The `failureReceipt` is only trustworthy as the content-addressed source of truth if
+    // its own digest and request/context linkage actually check out. Otherwise a forged
+    // receipt (a self-consistent digest over unrelated request/context data, or a stale
+    // digest) could smuggle an attempt list into the census. Prove the receipt is a real,
+    // canonical failed receipt that binds THIS request BEFORE trusting its attempts.
+    if (
+      !failedReceiptCanonicallyBindsRequest({
+        receipt: args.failureReceipt,
+        request: args.request,
+        failureCode: args.failureCode,
+      })
+    ) {
+      return correlationUnproven;
+    }
     // Receipt-side source of truth is the CONTENT-ADDRESSED failed receipt's own attempts
     // (the capture links to `failureReceipt`, whose digest commits to `attempts`). Require
     // the separately-passed `args.attempts` to be canonically identical first, so the
