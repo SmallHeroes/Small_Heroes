@@ -1,6 +1,6 @@
 # SmallHeroes — Current Technical State
 
-## R1D — Blueprint camera-consumer authority corrected offline; independent QA pending; no new live/render yet
+## R1D — Blueprint camera-consumer authority QA-passed; no new live/render yet
 
 The one ordinary authoring live authorized for Request `078b961c...`, Preflight `c35bdda0...`,
 and Fresh Readiness `091e0166...` was consumed exactly once. It used three generation calls and
@@ -48,8 +48,11 @@ two repairs with retry zero, no fallback, no Candidate, no render, and conservat
   readers. Resource-intensive passed 626/632 and timed out six assertions in two unchanged
   subprocess/Git-heavy files, followed by four known worker RPC timeout errors. Both affected files
   then passed alone with one worker (**15/15** and **21/21**), so no changed Blueprint assertion
-  failed. Independent Claude Code re-gate is still required before a new Fresh/live attempt. No
-  provider, count endpoint, image, audio,
+  failed. Claude Code then reviewed immutable range `a30da1e1...9fa43b55` with Opus/max and returned
+  **PASS — 0 BLOCKER / 0 MAJOR**. Its two observations were cosmetic only: a harmless second clone
+  and a missing early `break` rendered unnecessary by existing exact-ID uniqueness. The three-file
+  digest/schema/cover+8 confirmation Claude requested then passed **66/66**. No provider, count
+  endpoint, image, audio,
   render, deployment, database, or remote mutation occurred in this offline milestone.
 
 Evidence:
