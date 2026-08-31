@@ -891,3 +891,27 @@ No provider, network, API key, live authoring, Candidate mint from a live call, 
 deployment, or push occurred. The remaining gate is one independent Claude Code review of the
 frozen focused commit; only after PASS may Fresh Readiness and the single bounded live authoring
 attempt proceed.
+
+### Independent Claude Code closure and residual disposition
+
+Claude Code independently reviewed exact immutable range `4c1076e7..cd757bd6` and returned
+**PASS — 0 BLOCKER / 0 MAJOR**. It reproduced the complete focused battery (**9 suites / 244 tests
+PASS** in 19.98s), TypeScript, the production-scale harness, the unchanged policy/cost constants,
+the guarded one-shot count boundary, ledger/forgery resistance, receipt-v7/capture-v3 parity,
+legacy-v6 replay, and provider/count-factory unreachability. Its resource-timeout investigation
+found no evidence of an F1 regression and did not misclassify any timed-out test as PASS.
+
+Claude reported one non-blocking observability MINOR: a second SDK fetch attempt is rejected by
+`dispatchConsumed` before `transportDispatchCount` increments, so the durable attestation cannot
+distinguish one failed dispatch from one failed dispatch followed by a blocked second attempt.
+The finding is accepted, but its suggested field addition is not purely additive: the attestation
+uses an exact-key validator and is transitively bound into the admission ledger, receipt v7 and
+capture v3. An honest correction therefore needs a future evidence-version cutover with legacy
+compatibility. The current behavior has no spend/admission gap—the second request never reaches
+the delegated fetch, the result is unavailable, and the existing conservative post-dispatch debit
+applies. The MINOR is deferred as explicit follow-up and does not reopen the independent PASS.
+
+No additional Claude round is required absent a factual discrepancy. The next operational gate is
+a brand-new Fresh Readiness rooted in the exact clean pushed closeout head, followed by the one
+already-authorized bounded live attempt. Historical readiness and Execution Request artifacts are
+not reusable.

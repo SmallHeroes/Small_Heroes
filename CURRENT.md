@@ -1,6 +1,6 @@
 # SmallHeroes — Current Technical State
 
-## F1 — exact repair input-token admission: Boundaries 1–4 locally green; focused offline implementation COMPLETE; repository fixture/timeout HOLD reproduced; awaiting independent Claude re-gate; NOT live-ready; F3 PASS preserved (Codex implementation; not pushed)
+## F1 — exact repair input-token admission independently PASSed; focused offline implementation COMPLETE; repository fixture/timeout HOLD preserved; awaiting pushed-head Fresh Readiness; NOT live-run yet; F3 PASS preserved (Codex implementation; not pushed)
 
 F3 was awarded PASS (345/345, content-bound failure-capture authority, truthful evidence). F1 is
 the approved exact provider-authoritative REPAIR input-token admission milestone. It is a LARGE
@@ -109,10 +109,28 @@ being delivered as a sequence of green boundaries.
   Therefore the failure is not described as concurrency-only, the full repository gate is not
   claimed green, and the timeout surface is handed to independent QA without weakening assertions
   or increasing timeout policy inside this milestone.
-- **Remaining gate:** freeze the focused local commit and obtain independent Claude Code PASS.
-  Only then run Fresh Readiness and the one bounded live authoring attempt; render remains a later
-  downstream action after a real Candidate exists. No additional F1 implementation boundary is
-  currently known.
+- **Operational gate:** the focused implementation is frozen and independently PASSed. Fresh
+  Readiness and the one bounded live authoring attempt must now bind the exact clean pushed
+  closeout head; render remains a later downstream action after a real Candidate exists. No
+  additional F1 implementation boundary is currently known.
+- **Independent QA closure:** Claude Code independently reviewed exact immutable range
+  `4c1076e7..cd757bd6` and returned **PASS — 0 BLOCKER / 0 MAJOR**, reproducing the focused
+  **244/244** battery in 19.98s, TypeScript, the 8-page/86-diagnostic harness, cost arithmetic,
+  transport separation, v7/v3 evidence and v6/v2 replay. Its timeout investigation found no F1
+  regression: zero resource-partition specs or test infrastructure changed, F1's own suites are
+  fast, and the same QA-bridge/RPC behavior predates F1. Timed-out cells remain explicitly
+  unproven and the full repository gate remains non-green.
+- **Accepted non-blocking MINOR:** the guarded count fetch rejects a second dispatch before it can
+  reach the delegated transport, but the current attestation records only one completed dispatch
+  and zero retries; it cannot distinguish that state from one failed dispatch with no blocked
+  second attempt. This has no admission, spend or retry risk: the second dispatch is unreachable,
+  the count result is unavailable, and post-dispatch failure receives the conservative debit.
+  Adding `blockedDispatchAttempts` is not actually additive under the current exact-key
+  attestation and durable receipt-v7/capture-v3 binding; doing it honestly requires a future
+  evidence-version/legacy cutover. It is recorded as follow-up and does not reopen Claude's PASS.
+- **Next action:** commit this faithful docs-only QA closeout, then push the exact head. Create new
+  Fresh Readiness only from that clean pushed head and run the already authorized single bounded
+  live authoring attempt. Do not reuse historical readiness/Execution Request artifacts.
 
 ---
 
