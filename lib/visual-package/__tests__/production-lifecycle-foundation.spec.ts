@@ -70,6 +70,7 @@ import {
 import { PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA } from '@/lib/visual-package/preRenderBlueprintDraftSchema';
 import {
   LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_PROMPT_V6,
+  LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_PROMPT_V7,
   buildBlueprintAuthoringExecutionProgram,
 } from '@/lib/visual-package/blueprintAuthoringExecutionProgram';
 import {
@@ -2222,35 +2223,41 @@ describe('provider-isolated Blueprint authoring runner', () => {
     ).toEqual([]);
   });
 
-  it('replay-validates the exact frozen prompt-v6 request-v5 program but never admits it for fresh dispatch', async () => {
-    const { context } = buildContext('single_location');
-    const request = {
-      ...requestFor(context, 'live'),
-      program: LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_PROMPT_V6,
-    } as ReplayableProductionAuthoringRunRequest;
-    expect(
-      productionAuthoringRunRequestReplayIssues({ request, context }),
-    ).toEqual([]);
-    expect(
-      productionBlueprintAuthoringPreflightIssues({
-        request: request as ProductionAuthoringRunRequest,
-        context,
-      }),
-    ).toContain('authoring execution program is stale or invalid');
-    const provider = {
-      call: vi.fn(async () => {
-        throw new Error('provider must remain unreachable');
-      }),
-    };
-    await expect(
-      runProductionBlueprintAuthoring({
-        request: request as ProductionAuthoringRunRequest,
-        context,
-        provider,
-      }),
-    ).rejects.toThrow('authoring execution program is stale or invalid');
-    expect(provider.call).not.toHaveBeenCalled();
-  });
+  it.each([
+    ['prompt-v7', LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_PROMPT_V7],
+    ['prompt-v6', LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_PROMPT_V6],
+  ] as const)(
+    'replay-validates the exact frozen %s request-v5 program but never admits it for fresh dispatch',
+    async (_label, program) => {
+      const { context } = buildContext('single_location');
+      const request = {
+        ...requestFor(context, 'live'),
+        program,
+      } as ReplayableProductionAuthoringRunRequest;
+      expect(
+        productionAuthoringRunRequestReplayIssues({ request, context }),
+      ).toEqual([]);
+      expect(
+        productionBlueprintAuthoringPreflightIssues({
+          request: request as ProductionAuthoringRunRequest,
+          context,
+        }),
+      ).toContain('authoring execution program is stale or invalid');
+      const provider = {
+        call: vi.fn(async () => {
+          throw new Error('provider must remain unreachable');
+        }),
+      };
+      await expect(
+        runProductionBlueprintAuthoring({
+          request: request as ProductionAuthoringRunRequest,
+          context,
+          provider,
+        }),
+      ).rejects.toThrow('authoring execution program is stale or invalid');
+      expect(provider.call).not.toHaveBeenCalled();
+    },
+  );
 
   it('enforces the closed lifecycle request/receipt version pairs', () => {
     expect(

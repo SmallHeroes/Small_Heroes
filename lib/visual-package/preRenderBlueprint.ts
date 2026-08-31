@@ -58,7 +58,7 @@ import {
   type PreRenderBookVisualBlueprintDraft,
   type RevealSafeSupportingGeometry,
 } from './preRenderBlueprintTypes';
-import { preRenderBlueprintCompositionPolicyIssues } from './preRenderBlueprintCompositionPolicy';
+import { preRenderBlueprintCompositionPolicyDiagnostics } from './preRenderBlueprintCompositionPolicy';
 import { companionAppearanceProseConflicts } from '@/lib/companion-appearance-state';
 import type {
   StorySourceIdentity,
@@ -2254,20 +2254,56 @@ function validateFrame(args: {
           actual: visibleTraversalCandidates.map((candidate) => candidate.direction),
         }));
       }
-      const castTouchesTraversal = matchingTraversals.some((traversal) =>
-        frameCastIds.some((castId) => {
-          const placement = framePlacementForCast(validPlacements, castId);
-          return Boolean(
-            placement &&
+      const castPlacements = frameCastIds
+        .map((castId) => framePlacementForCast(validPlacements, castId))
+        .filter((placement): placement is BlueprintFramePlacement => Boolean(placement));
+      const overlappingCastPlacementIds = castPlacements
+        .filter((placement) =>
+          matchingTraversals.some(
+            (traversal) =>
               regionIsValid(placement.region) &&
               regionIsValid(traversal.footprint) &&
               regionsOverlap(placement.region, traversal.footprint),
-          );
-        }),
-      );
-      if (matchingTraversals.length === 0 || !castTouchesTraversal) {
-        issues.push(issue('traversal_infeasible', 'transition frame lacks visible compatible traversal support', {
+          ),
+        )
+        .map((placement) => placement.id)
+        .sort(lexicalCompare);
+      if (matchingTraversals.length === 0) {
+        issues.push(issue('traversal_infeasible', 'transition frame lacks a visible direction-compatible traversal affordance', {
           field: `${field}.affordanceIds`,
+          expected: {
+            connectionId: connection.id,
+            frameZoneId: frame.zoneId,
+            transitionDirection,
+            transitionConsumer,
+            connectionListsTraversal: true,
+            frameListsTraversal: true,
+            traversalListsTransitionConsumer: true,
+          },
+          actual: {
+            connectionTraversalAffordanceIds: [...traversalIds],
+            frameAffordanceIds: [...frameAffordanceIds],
+            visibleTraversalCandidateIds: visibleTraversalCandidates
+              .map((candidate) => candidate.id)
+              .sort(lexicalCompare),
+            directionCompatibleTraversalIds: [],
+          },
+        }));
+      } else if (overlappingCastPlacementIds.length === 0) {
+        issues.push(issue('traversal_infeasible', 'transition frame cast does not overlap a visible direction-compatible traversal footprint', {
+          field: `${field}.placements`,
+          expected: {
+            directionCompatibleTraversalIds: matchingTraversals
+              .map((candidate) => candidate.id)
+              .sort(lexicalCompare),
+            minimumOverlappingCastPlacements: 1,
+          },
+          actual: {
+            castPlacementIds: castPlacements
+              .map((placement) => placement.id)
+              .sort(lexicalCompare),
+            overlappingCastPlacementIds,
+          },
         }));
       }
       const openingIds = Array.isArray(connection.openingClearanceAffordanceIds)
@@ -2679,11 +2715,15 @@ function validatePreRenderBookVisualBlueprintInternal(
     blueprint.compositionPolicyVersion ===
     PRE_RENDER_BLUEPRINT_COMPOSITION_POLICY_VERSION
   ) {
-    for (const message of preRenderBlueprintCompositionPolicyIssues(
+    for (const diagnostic of preRenderBlueprintCompositionPolicyDiagnostics(
       blueprint.frames,
     )) {
       issues.push(
-        issue('composition_policy_invalid', message, { field: 'frames' }),
+        issue('composition_policy_invalid', diagnostic.message, {
+          field: 'frames',
+          expected: diagnostic.expected,
+          actual: diagnostic.actual,
+        }),
       );
     }
   }

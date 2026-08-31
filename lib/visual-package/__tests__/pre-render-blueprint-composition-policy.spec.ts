@@ -11,7 +11,10 @@ import {
   finalizePreRenderBookVisualBlueprint,
   validatePreRenderBookVisualBlueprint,
 } from '../preRenderBlueprint';
-import { preRenderBlueprintCompositionPolicyIssues } from '../preRenderBlueprintCompositionPolicy';
+import {
+  preRenderBlueprintCompositionPolicyDiagnostics,
+  preRenderBlueprintCompositionPolicyIssues,
+} from '../preRenderBlueprintCompositionPolicy';
 import { buildBlueprintFixture } from './pre-render-book-visual-blueprint.fixtures';
 
 function pageFrame(args: {
@@ -90,9 +93,86 @@ describe('pre-render Blueprint composition policy', () => {
       }),
     );
 
-    expect(preRenderBlueprintCompositionPolicyIssues(frames)).toContain(
+    const diagnostics = preRenderBlueprintCompositionPolicyDiagnostics(frames);
+    expect(diagnostics).toContainEqual({
+      message:
       'page 3 labels a close_up but no key subject occupies at least 10% of the normalized frame',
+      expected: {
+        pageNumber: 3,
+        shot: 'close_up',
+        minimumLargestKeySubjectAreaRatio: 0.1,
+      },
+      actual: { largestKeySubjectAreaRatio: 0.024 },
+    });
+    expect(preRenderBlueprintCompositionPolicyIssues(frames)).toEqual(
+      diagnostics.map((diagnostic) => diagnostic.message),
     );
+  });
+
+  it('carries measured expected/actual evidence for every aggregate and per-shot policy family', () => {
+    const frames = Array.from({ length: 8 }, (_, index) =>
+      pageFrame({
+        page: index + 1,
+        shot: index === 0 ? 'over_shoulder' : 'medium',
+        angle: 'eye_level',
+        castWidth: 100,
+        castHeight: 100,
+      }),
+    );
+
+    const diagnostics = preRenderBlueprintCompositionPolicyDiagnostics(frames);
+    expect(diagnostics).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          expected: expect.objectContaining({
+            shot: 'over_shoulder',
+            minimumLargestCastAreaRatio: 0.04,
+          }),
+          actual: { largestCastAreaRatio: 0.01 },
+        }),
+        expect.objectContaining({
+          expected: expect.objectContaining({
+            shot: 'medium',
+            minimumLargestCastAreaRatio: 0.035,
+          }),
+          actual: { largestCastAreaRatio: 0.01 },
+        }),
+        {
+          message:
+            'an eight-page Blueprint must contain at least one authored close_up frame',
+          expected: { requiredShot: 'close_up', minimumCount: 1 },
+          actual: { count: 0 },
+        },
+        {
+          message: 'an eight-page Blueprint must contain at least one authored wide frame',
+          expected: { requiredShot: 'wide', minimumCount: 1 },
+          actual: { count: 0 },
+        },
+        expect.objectContaining({
+          expected: { minimumDistinctShotTypes: 3 },
+          actual: { distinctShotTypes: ['medium', 'over_shoulder'] },
+        }),
+        expect.objectContaining({
+          expected: { minimumDistinctCameraAngles: 3 },
+          actual: { distinctCameraAngles: ['eye_level'] },
+        }),
+        expect.objectContaining({
+          expected: { maximumConsecutiveSameShot: 2 },
+          actual: expect.objectContaining({
+            shot: 'medium',
+            consecutiveCount: 3,
+          }),
+        }),
+        expect.objectContaining({
+          expected: { minimumCastScaleRatio: 3.5 },
+          actual: expect.objectContaining({ castScaleRatio: 1 }),
+        }),
+      ]),
+    );
+    for (const diagnostic of diagnostics) {
+      expect(Object.keys(diagnostic.expected).length).toBeGreaterThan(0);
+      expect(Object.keys(diagnostic.actual).length).toBeGreaterThan(0);
+    }
   });
 
   it('accepts an eight-page plan with a real close-up, three angles, dynamic framing, and 3.5x scale contrast', () => {

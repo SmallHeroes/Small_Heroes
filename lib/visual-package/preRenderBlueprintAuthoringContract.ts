@@ -25,10 +25,15 @@ export const LEGACY_PRE_RENDER_BLUEPRINT_AUTHORING_SYSTEM_PROMPT_DIGEST_V6 =
   '1b6accf0f522b02279db8aa87c388d4ef75d951e71dd21c24a93fb2babfb7051' as const;
 export const LEGACY_PRE_RENDER_BLUEPRINT_AUTHORING_SYSTEM_PROMPT_UTF8_BYTES_V6 =
   2_144 as const;
-export const PRE_RENDER_BLUEPRINT_REPAIR_PROMPT_VERSION_V7 =
-  'pre-render-blueprint-repair-prompt/v7' as const;
+export const PRE_RENDER_BLUEPRINT_REPAIR_PROMPT_VERSION_V8 =
+  'pre-render-blueprint-repair-prompt/v8' as const;
 export const PRE_RENDER_BLUEPRINT_REPAIR_PROMPT_VERSION =
-  PRE_RENDER_BLUEPRINT_REPAIR_PROMPT_VERSION_V7;
+  PRE_RENDER_BLUEPRINT_REPAIR_PROMPT_VERSION_V8;
+export const LEGACY_PRE_RENDER_BLUEPRINT_REPAIR_PROMPT_VERSION_V7 =
+  'pre-render-blueprint-repair-prompt/v7' as const;
+/** Source-compatibility alias only; frozen programs use the absolute legacy name. */
+export const PRE_RENDER_BLUEPRINT_REPAIR_PROMPT_VERSION_V7 =
+  LEGACY_PRE_RENDER_BLUEPRINT_REPAIR_PROMPT_VERSION_V7;
 export const LEGACY_PRE_RENDER_BLUEPRINT_REPAIR_PROMPT_VERSION_V6 =
   'pre-render-blueprint-repair-prompt/v6' as const;
 /** Source-compatibility alias only; historical registries use the absolute name. */
@@ -54,7 +59,8 @@ export type PreRenderBlueprintAuthoringPromptVersion =
   | typeof LEGACY_PRE_RENDER_BLUEPRINT_AUTHORING_PROMPT_VERSION_V6
   | typeof LEGACY_PRE_RENDER_BLUEPRINT_AUTHORING_PROMPT_VERSION_V5;
 export type PreRenderBlueprintRepairPromptVersion =
-  | typeof PRE_RENDER_BLUEPRINT_REPAIR_PROMPT_VERSION_V7
+  | typeof PRE_RENDER_BLUEPRINT_REPAIR_PROMPT_VERSION_V8
+  | typeof LEGACY_PRE_RENDER_BLUEPRINT_REPAIR_PROMPT_VERSION_V7
   | typeof LEGACY_PRE_RENDER_BLUEPRINT_REPAIR_PROMPT_VERSION_V6
   | typeof LEGACY_PRE_RENDER_BLUEPRINT_REPAIR_PROMPT_VERSION_V5;
 
@@ -170,7 +176,8 @@ export function preRenderBlueprintRepairPromptVersionIsSupported(
   value: unknown,
 ): value is PreRenderBlueprintRepairPromptVersion {
   return (
-    value === PRE_RENDER_BLUEPRINT_REPAIR_PROMPT_VERSION_V7 ||
+    value === PRE_RENDER_BLUEPRINT_REPAIR_PROMPT_VERSION_V8 ||
+    value === LEGACY_PRE_RENDER_BLUEPRINT_REPAIR_PROMPT_VERSION_V7 ||
     value === LEGACY_PRE_RENDER_BLUEPRINT_REPAIR_PROMPT_VERSION_V6 ||
     value === LEGACY_PRE_RENDER_BLUEPRINT_REPAIR_PROMPT_VERSION_V5
   );

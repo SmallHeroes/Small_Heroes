@@ -144,6 +144,7 @@ import { canonicalJsonDigest } from '../integrity';
 import { canonicalContentAddressedJsonBytes } from '../canonicalContentAddressedJson';
 import {
   LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_PROMPT_V6,
+  LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_PROMPT_V7,
 } from '../blueprintAuthoringExecutionProgram';
 import { createLazyLocalOpenAICredentialReader } from '../../../scripts/lib/qa-wizard-blueprint-local-credential';
 import {
@@ -990,12 +991,17 @@ describe('QA Wizard Blueprint authoring operator lifecycle', () => {
     }
   });
 
-  it('reloads the frozen prompt-v6 request-v5 preflight but never lets it fresh-dispatch', async () => {
+  it.each([
+    ['prompt-v7', LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_PROMPT_V7],
+    ['prompt-v6', LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_PROMPT_V6],
+  ] as const)(
+    'reloads the frozen %s request-v5 preflight but never lets it fresh-dispatch',
+    async (_label, program) => {
     const subject = setup();
     const current = prepare(subject);
     const replayOnlyRequest = {
       ...current.request,
-      program: LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_PROMPT_V6,
+      program,
     };
     const requestDigest = canonicalJsonDigest(replayOnlyRequest);
     const requestPath = `${OUTPUT_DIR}/blueprint-authoring-requests/${requestDigest}.json`;
@@ -1072,7 +1078,8 @@ describe('QA Wizard Blueprint authoring operator lifecycle', () => {
         ),
       ).toEqual([]);
     }
-  });
+    },
+  );
 
   it('rejects a self-redigested noncurrent embedded program before any paid factory or ledger write', async () => {
     const subject = setup();

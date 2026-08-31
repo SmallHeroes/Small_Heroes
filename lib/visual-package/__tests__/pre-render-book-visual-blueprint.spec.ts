@@ -1757,6 +1757,87 @@ describe('R1D-PVB-A — spatial feasibility and safety', () => {
     ).toBe(true);
   });
 
+  it('targets every missing visible traversal binding with the exact connection/frame authority', () => {
+    const fixture = buildBlueprintFixture('multi_zone_transition');
+    const bad = clone(fixture.blueprint);
+    const connection = bad.worldPlan.connections[0];
+    const frame = bad.frames.find(
+      (entry) => entry.kind === 'page' && entry.pageNumber === 2,
+    );
+    if (!frame || frame.kind !== 'page') throw new Error('page-2 frame missing');
+    const traversalId = connection.traversalAffordanceIds[0]!;
+    frame.affordanceIds = frame.affordanceIds.filter((id) => id !== traversalId);
+
+    const result = validatePreRenderBookVisualBlueprint(
+      restamp(bad),
+      fixture.context,
+    );
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error('missing frame traversal unexpectedly valid');
+    expect(result.issues).toContainEqual({
+      code: 'traversal_infeasible',
+      message:
+        'transition frame lacks a visible direction-compatible traversal affordance',
+      field: 'frames[2].affordanceIds',
+      expected: {
+        connectionId: connection.id,
+        frameZoneId: frame.zoneId,
+        transitionDirection: 'forward',
+        transitionConsumer: { kind: 'transition', pageNumber: 2 },
+        connectionListsTraversal: true,
+        frameListsTraversal: true,
+        traversalListsTransitionConsumer: true,
+      },
+      actual: {
+        connectionTraversalAffordanceIds: [traversalId],
+        frameAffordanceIds: [...frame.affordanceIds].sort(),
+        visibleTraversalCandidateIds: [],
+        directionCompatibleTraversalIds: [],
+      },
+    });
+  });
+
+  it('targets cast/traversal overlap separately when the visible traversal binding is already valid', () => {
+    const fixture = buildBlueprintFixture('multi_zone_transition');
+    const bad = clone(fixture.blueprint);
+    const connection = bad.worldPlan.connections[0];
+    const traversal = bad.worldPlan.affordances.find(
+      (entry) => entry.id === connection.traversalAffordanceIds[0],
+    );
+    if (!traversal || traversal.kind !== 'traversal') {
+      throw new Error('page-2 traversal missing');
+    }
+    traversal.footprint = { x: 760, y: 300, width: 180, height: 400 };
+    const frame = bad.frames.find(
+      (entry) => entry.kind === 'page' && entry.pageNumber === 2,
+    );
+    if (!frame || frame.kind !== 'page') throw new Error('page-2 frame missing');
+
+    const result = validatePreRenderBookVisualBlueprint(
+      restamp(bad),
+      fixture.context,
+    );
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error('non-overlapping traversal unexpectedly valid');
+    expect(result.issues).toContainEqual({
+      code: 'traversal_infeasible',
+      message:
+        'transition frame cast does not overlap a visible direction-compatible traversal footprint',
+      field: 'frames[2].placements',
+      expected: {
+        directionCompatibleTraversalIds: [traversal.id],
+        minimumOverlappingCastPlacements: 1,
+      },
+      actual: {
+        castPlacementIds: frame.placements
+          .filter((placement) => placement.subject.kind === 'cast')
+          .map((placement) => placement.id)
+          .sort(),
+        overlappingCastPlacementIds: [],
+      },
+    });
+  });
+
   it('enforces minimumClearance on traversal and opening min-dimensions at the exact boundary', () => {
     const fixture = buildBlueprintFixture('multi_zone_transition');
     const traversal = fixture.blueprint.worldPlan.affordances.find(

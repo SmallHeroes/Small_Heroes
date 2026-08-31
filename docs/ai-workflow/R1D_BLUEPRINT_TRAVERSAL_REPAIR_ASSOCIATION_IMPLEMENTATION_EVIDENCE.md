@@ -48,6 +48,9 @@ It is classified only as `legacy_immutable`:
   program;
 - current prompt-v7/repair-v7/wire-v2 program digest is
   `19c5bbb1ac157cfc4d9cffe3f4133f04870a5e6b828aafc67bc8be336fa36978`;
+- this is the exact historical identity for this milestone. The later structured-diagnostic
+  repair-authority milestone advances repair-prompt identity to v8/current program `3e362021...`
+  and freezes `19c5bbb1...` as replay-only; repair wire v2 remains unchanged;
 - execution identity continues to include the program digest, so old/new programs cannot share a
   paid slot;
 - request-v5 completed provenance derives prompt/schema versions from the exact embedded
@@ -119,6 +122,9 @@ not silently void, release, or re-key that authority.
   count, three admitted generations, two repairs, and every count/generation reservation within
   5,000,000 micro-USD. External-boundary sentinels forbid network, credential and external
   provider-module access while the injected offline provider exercises all three logical calls.
+  That byte census is the exact value at this historical milestone. The later transition/
+  composition structured-diagnostic milestone adds 2,883 deterministic user bytes and records
+  the current 77,995-byte census without changing the count or admission policy.
 - Exact frozen request-v5 preflight loads but cannot mint an ordinary fresh claim; provider and
   count factories stay at zero. Fresh replacement and diagnostic-successor production prechecks
   use the same exact-current predicate, while predecessor inspection/replay accepts only the

@@ -81,6 +81,13 @@ export const BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_DIGEST_ALGORITHM =
  */
 export const LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_DIGEST_PROMPT_V6 =
   '634498356d69cf7bc63f2cec8d037ea4d27a9371fc9a08cd7f9607fcce0b4549' as const;
+/**
+ * Exact immutable program used by the persisted prompt-v7 repair-projection-v1
+ * request-v5 terminals. It is replay-only after the structured diagnostic
+ * projection cutover and can never authorize a fresh dispatch.
+ */
+export const LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_DIGEST_PROMPT_V7 =
+  '19c5bbb1ac157cfc4d9cffe3f4133f04870a5e6b828aafc67bc8be336fa36978' as const;
 
 const HEX_SHA256 = /^[a-f0-9]{64}$/;
 
@@ -174,8 +181,8 @@ export type BlueprintAuthoringExecutionProgramStatus =
 
 /**
  * Frozen complete snapshot, not reconstructed from mutable current constants.
- * This is the sole replay-only request-v5 program admitted after the v7/v2
- * prompt/wire cutover.
+ * This is the exact prompt-v6/wire-v1 replay-only request-v5 program admitted
+ * after the v7/v2 prompt/wire cutover.
  */
 export const LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_PROMPT_V6 = Object.freeze({
   admissionLedgerVersion: 'blueprint-authoring-admission-ledger/v1',
@@ -210,6 +217,56 @@ export const LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_PROMPT_V6 = Object.fre
   repairSystemPromptDigest:
     '63ada2e930c77d5cd365ad649a83aa902536e51b12daf2981cf86a2176317d33',
   repairWireVersion: LEGACY_PRE_RENDER_BLUEPRINT_REPAIR_WIRE_VERSION_V1,
+  structuredOutputCompatibilityProfileDigest:
+    'c5f7cacccff01c435b15cb9d20d0b6cff9ec4c399c5978b50ee81da9fb54523a',
+  structuredOutputCompatibilityProfileVersion:
+    'openai-responses-structured-output-compatibility-profile/v2',
+  tokenRelevantRequestStaticAuthorityDigest:
+    '6b4fe1100ac3aac88fe08fe5a7d394cd6ceb51759c4704f1a968320669014491',
+  transportAuthorityDigest:
+    'f0a1718c6ab892bdb05375592ef6951fcb1a756ad15310a6dbda5f4212873b67',
+  version: 'blueprint-authoring-execution-program/v1',
+} as const satisfies ReplayableBlueprintAuthoringExecutionProgram);
+
+/**
+ * Frozen complete snapshot for prompt-v7 / repair-wire-v2 terminals written
+ * before transition/composition repair diagnostics gained closed expected/actual
+ * evidence. The wire format itself remains v2; repair-prompt v8 identifies the
+ * new diagnostic projection that precedes REPAIR_WIRE.
+ */
+export const LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_PROMPT_V7 = Object.freeze({
+  admissionLedgerVersion: 'blueprint-authoring-admission-ledger/v1',
+  authoringAuthorityVersion: 'pre-render-blueprint-authoring-authority/v4',
+  authoringPolicyDigest:
+    'a5a2052d1364685e09542fc54d25f3102621ca2fdcdb7a2b3d0a056b69da724f',
+  authoringProvenanceVersion: 'pre-render-blueprint-authoring-provenance/v4',
+  authoringSystemPromptDigest:
+    '1cbf39920dba3241dee18e6e0a464a811f009c32d7031d2dde53bace8aa0a21b',
+  blueprintVersion: 'pre-render-book-visual-blueprint/v5',
+  compositionPolicyVersion: 'blueprint-composition-policy/v1',
+  countAwareCostPolicyDigest:
+    '0e67b4743b76ac856e14a42b1e71b2522701857ea748ed1265e71e5fc11bec19',
+  countEvidenceVersion: 'openai-responses-input-tokens-count-evidence/v1',
+  digest: LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_DIGEST_PROMPT_V7,
+  digestAlgorithm: 'canonical-json-sha256',
+  draftSchemaDigest:
+    '36cb86c90f11bdddae0d3ba970c73aa296e5265d178cb7fa66bdcf175e328e77',
+  draftSchemaName: 'PreRenderBookVisualBlueprintWholeBookDraft',
+  draftSchemaVersion: 'pre-render-blueprint-draft-schema/v6',
+  exactInputTokenResponseObject: 'response.input_tokens',
+  generationEvidenceVersion: 'openai-responses-blueprint-authoring-evidence/v1',
+  initialPromptVersion: 'pre-render-blueprint-authoring-prompt/v7',
+  inputAdmissionPolicyVersion:
+    'blueprint-authoring-conservative-input-token-admission/v1',
+  inputTokenBoundBasis: 'utf8-byte-level-bpe-monotone-upper-bound',
+  layoutPolicyDigest:
+    'a8466698208b55f2f7c8df8e914a6a5468c6c626d1c763c100b6e01a61607c59',
+  layoutPolicyVersion: 'portrait-layout-compatibility/v1',
+  providerWireVersion: 'pre-render-blueprint-provider-wire/v1',
+  repairPromptVersion: 'pre-render-blueprint-repair-prompt/v7',
+  repairSystemPromptDigest:
+    'fdb174b64a7836bfe1dfc76323b62a9bd157bab5f188b4b2b74932435b8fcb8a',
+  repairWireVersion: 'pre-render-blueprint-repair-wire/v2',
   structuredOutputCompatibilityProfileDigest:
     'c5f7cacccff01c435b15cb9d20d0b6cff9ec4c399c5978b50ee81da9fb54523a',
   structuredOutputCompatibilityProfileVersion:
@@ -342,10 +399,11 @@ export function blueprintAuthoringExecutionProgramStatus(
   ) {
     return 'current';
   }
-  return canonicalJsonDigest(value) ===
-    canonicalJsonDigest(
-      LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_PROMPT_V6,
-    )
+  const valueDigest = canonicalJsonDigest(value);
+  return [
+    LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_PROMPT_V7,
+    LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_PROMPT_V6,
+  ].some((program) => canonicalJsonDigest(program) === valueDigest)
     ? 'legacy_immutable'
     : 'unsupported';
 }

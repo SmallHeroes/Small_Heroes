@@ -49,12 +49,13 @@ import {
  *    redacted, not retained, and the same closed rule is re-enforced on reload,
  *  - or one of a handful of fixed literal enum/version strings.
  * The diagnostic `message`, `expected`, and `actual` values (which can carry prose
- * or names) are NEVER retained — and are never digested either. Only their presence
- * flags survive, alongside an `identityDigest` computed over the SANITIZED
+ * or names) are NEVER retained. Only their presence flags survive in the census,
+ * whose `identityDigest` and `fullCensusDigest` are computed over the SANITIZED
  * structural projection ONLY (code + closed-vocabulary/redacted field path +
- * presence/redaction flags; see `sanitizedCensusIdentityDigest`), so no persisted
- * value is a function of raw diagnostic content. The validator additionally runs a
- * recursive
+ * presence/redaction flags; see `sanitizedCensusIdentityDigest`). The capture also
+ * carries the separately required opaque admission commitment to the exact provider
+ * request projection; that commitment may change when a repair prompt changes, but it does not
+ * retain the diagnostic values themselves. The validator additionally runs a recursive
  * structural scan that rejects any string containing spaces, quotes, or non-ASCII,
  * so a leaked name/phrase cannot validate. Leak-freedom is therefore structural and
  * testable, not merely a convention.

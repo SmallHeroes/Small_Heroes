@@ -775,6 +775,100 @@ describe('sanitized failure capture — census completeness and prose/PII freedo
     expect(identity.actualPresent).toBe(true);
   });
 
+  it('keeps rich traversal/composition values out of durable bytes and census digests', () => {
+    const firstDiagnostics: PreRenderBlueprintRepairDiagnostic[] = [
+      {
+        code: 'traversal_infeasible',
+        field: 'frames[2].affordanceIds',
+        message: 'Bar cannot cross connection:private-home-door with Kim',
+        expected: {
+          connectionId: 'connection:private-home-door',
+          directionCompatibleTraversalIds: ['affordance:Bar-secret-path'],
+        },
+        actual: {
+          frameAffordanceIds: ['affordance:Kim-private-bag'],
+          childName: 'Bar',
+        },
+      },
+      {
+        code: 'composition_policy_invalid',
+        field: 'frames',
+        message: 'Sarah requested a more intimate close-up of Bar',
+        expected: { minimumCastScaleRatio: 3.5, familyName: 'Sarah' },
+        actual: { castScaleRatio: 1.25, childName: 'Bar' },
+      },
+    ];
+    const secondDiagnostics: PreRenderBlueprintRepairDiagnostic[] = [
+      {
+        code: 'traversal_infeasible',
+        field: 'frames[2].affordanceIds',
+        message: 'A wholly different raw traversal explanation',
+        expected: { secret: 'connection:other-family-door' },
+        actual: { secret: 'affordance:other-child-path' },
+      },
+      {
+        code: 'composition_policy_invalid',
+        field: 'frames',
+        message: 'A wholly different raw composition explanation',
+        expected: { secret: 'other expected value' },
+        actual: { secret: 'other actual value' },
+      },
+    ];
+    const buildCapture = (
+      diagnostics: readonly PreRenderBlueprintRepairDiagnostic[],
+    ) =>
+      buildBlueprintAuthoringSanitizedFailureCapture({
+        terminalFailureCode: 'draft_validation_repair_exhausted',
+        terminalReceiptDigest: hex64('rich-diagnostic-receipt'),
+        requestDigest: hex64('rich-diagnostic-request'),
+        contextDigest: hex64('rich-diagnostic-context'),
+        routes: [
+          {
+            routeKind: 'initial',
+            ordinal: 0,
+            byteAccounting: REAL_INCIDENT_INITIAL_ACCOUNTING,
+            observedInputTokens: 12007,
+          },
+        ],
+        diagnostics,
+      });
+
+    const first = buildCapture(firstDiagnostics);
+    const second = buildCapture(secondDiagnostics);
+    expect(first.census).toEqual(second.census);
+    expect(first.census.fullCensusDigest).toBe(second.census.fullCensusDigest);
+    expect(first.census.identities.map((identity) => identity.identityDigest)).toEqual(
+      second.census.identities.map((identity) => identity.identityDigest),
+    );
+    expect(blueprintAuthoringSanitizedFailureCaptureIsValid(first)).toBe(true);
+    expect(first.census.identities).toHaveLength(2);
+    expect(
+      first.census.identities.every(
+        (identity) => identity.expectedPresent && identity.actualPresent,
+      ),
+    ).toBe(true);
+    expect(first.census.identities.map((identity) => identity.fieldPath)).toEqual(
+      expect.arrayContaining([
+        ['frames'],
+        ['frames', '[2]', 'affordanceIds'],
+      ]),
+    );
+
+    const serialized = JSON.stringify(first);
+    for (const forbidden of [
+      'Bar',
+      'Kim',
+      'Sarah',
+      'private-home-door',
+      'private-bag',
+      'message',
+      '"expected":',
+      '"actual":',
+    ]) {
+      expect(serialized).not.toContain(forbidden);
+    }
+  });
+
   it('retains a large census COMPLETELY (no silent truncation)', () => {
     const diagnostics: PreRenderBlueprintRepairDiagnostic[] = [];
     for (let index = 0; index < 300; index += 1) {

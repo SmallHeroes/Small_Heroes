@@ -1,6 +1,59 @@
 # SmallHeroes — Current Technical State
 
-## R1D — traversal repair association independently QA-passed; current-program preflight is fresh and unconsumed; awaiting push/Fresh Readiness/exact live authorization; no new live/render
+## R1D — transition/composition repair authority focused-green; full-check baseline/infrastructure HOLD; awaiting independent QA; no new live/render
+
+The one ordinary authoring live authorized for Request `3232af55...`, Preflight `512e61cc...`,
+and Fresh Readiness `55559f9a...` was consumed exactly once. It used all three generation calls
+and two repairs with retry zero, no fallback, no Candidate, no render, and conservative cost
+`$1.367213`. Immutable terminal manifest `0e1084d0...`, receipt `944a55a2...`, and sanitized
+capture `806eee38...` bind the failed execution identity `59717a79...`.
+
+- The complete census improved from **80 -> 54 -> 6 emitted** and **70 -> 52 -> 6 distinct**.
+  The last repair resolved 46 distinct identities and introduced none. The final frontier is five
+  `traversal_infeasible` diagnostics at `frames[2|3|4|6|7].affordanceIds` plus one
+  `composition_policy_invalid` diagnostic at `frames`.
+- Root cause is now narrow: validation had the governing geometry and composition measurements,
+  but the repair-prompt diagnostic projection did not distinguish missing direction-compatible
+  traversal membership from missing cast/footprint overlap and did not expose exact composition
+  thresholds/observations.
+- Traversal validation now emits separate closed structured evidence for those two writable cases.
+  Composition validation exposes structured observations for all existing policy families. Issue
+  codes and acceptance predicates remain unchanged; composition thresholds and its legacy
+  human-readable messages also remain unchanged. Traversal messages are intentionally split to
+  name the two distinct writable cases.
+- Durable sanitized capture still drops messages and raw expected/actual values. A hostile
+  same-structure/different-value regression proves equal census identities/digests and absence of
+  the raw names and IDs from serialized capture bytes.
+- A provider-free eight-page harness proves an exact five-traversal-plus-one-composition frontier,
+  a valid page-8 transition counterexample, and zero issues after one injected corrected response.
+  The pinned production-scale F1 harness remains budget-honest at 77,995 estimated repair bytes,
+  one exact 50,000-token count, three generation calls, two repairs, and the unchanged `$5` ceiling.
+- Because that structured evidence changes repair-user bytes for the same failed draft, repair
+  prompt identity advances to v8 and current execution program becomes `3e362021...`. Exact prior
+  prompt-v7/program `19c5bbb1...` is frozen replay-only; it remains loadable but every fresh
+  ordinary/replacement/diagnostic lane rejects it before provider/count access. Initial prompt v7,
+  repair-system bytes, provider wire v1, repair wire v2, draft schema v6, and validation rules stay
+  unchanged. Read-only loading of all five existing request-v5 manifests, including terminal
+  `0e1084d0...`, passed after the cutover.
+- Focused validation: validator/repair **5 files / 200 tests PASS** plus program/replay/fresh
+  dispatch **3 files / 162 tests PASS**, `npx tsc --noEmit` exit 0, and
+  `git diff --check` clean. Literal `npm run check` returned exactly the established 332-file
+  ordinary baseline (**5 fixture files / 9 assertions**, 4,287 pass, 73 skip). Its heavy partition passed
+  all **20 files / 632 tests**; Vitest then emitted the three known worker `onTaskUpdate` RPC
+  timeouts, so the literal command still exited 1. This remains reported as infrastructure HOLD
+  rather than hidden as green.
+- No provider/count endpoint/network/credential/image/audio/render/deploy/database operation
+  occurred after the consumed live. No second live or render is authorized. Next: focused local
+  commit, then Claude Code's independent read-only falsification before any further paid action.
+
+Evidence:
+`docs/ai-workflow/R1D_BLUEPRINT_TRANSITION_COMPOSITION_REPAIR_AUTHORITY_IMPLEMENTATION_EVIDENCE.md`.
+
+---
+
+## R1D — historical traversal repair association closure (superseded by the 2026-08-31 live attempt)
+
+This section records the pre-live state that produced the request consumed above.
 
 The one authorized diagnostic successor was consumed exactly once with no retry or fallback. It
 converged from **106 emitted / 93 distinct -> 50 / 37 -> 4 / 4** and stopped. The terminal four
@@ -16,9 +69,12 @@ the zone association valid; the model therefore never saw the newly unmasked num
   selects the same normalized repair tuple.
 - Initial and repair prompts prospectively state the existing coupled clearance invariant. The
   provider still owns all geometry; there is no auto-widening or story/page-specific patch.
-- Current identity cuts over to authoring prompt v7, repair prompt v7, repair wire v2, program
+- At that historical milestone, identity cut over to authoring prompt v7, repair prompt v7, repair wire v2, program
   `19c5bbb1...`. Request v5, receipt v8, provider wire v1, draft schema v6, model, 3 calls/2
   repairs, retry zero, no fallback and the `$5` ceiling remain unchanged.
+- The later structured-diagnostic milestone above advances only repair-prompt semantic identity to
+  v8/current program `3e362021...` and freezes this historical `19c5bbb1...` object replay-only;
+  repair wire v2 and the validation contract remain unchanged.
 - The complete prior prompt-v6/wire-v1 program `63449835...` is frozen as replay-only. Fresh
   ordinary/replacement/diagnostic dispatch requires exact current program. Receipt replay binds
   each attempt's system-prompt digest and prompt accounting to the exact prompt-evidence profile
@@ -50,10 +106,12 @@ the zone association valid; the model therefore never saw the newly unmasked num
   consumes the immutable lifetime slot. No such pending/stranded authorization exists now. Changing
   that lifetime policy requires its own Decision Gate; this offline closure does not silently void,
   release, or re-key authority and the fresh current-program ordinary lane does not cross that race.
-- Hostile offline coverage proves exact 180/179 boundaries, 2x2 Cartesian diagnostics,
+- Hostile offline coverage proved exact 180/179 boundaries, 2x2 Cartesian diagnostics,
   duplicate-ID fallback, reversed-input index parity, association -> numeric unmask -> valid in
-  exactly 3 calls/2 repairs, and the pinned approved eight-page production harness at 75,112 repair
-  bytes / one exact 50,000-token count / all reservations under the unchanged `$5` ceiling.
+  exactly 3 calls/2 repairs, and the then-current pinned eight-page production harness at 75,112
+  repair bytes / one exact 50,000-token count / all reservations under the unchanged `$5` ceiling.
+  The later structured-diagnostic milestone above adds 2,883 deterministic user bytes and updates
+  the current harness census to 77,995 without changing admission policy.
 - Cross-boundary validation: **15 files / 659 tests PASS**, `npx --no-install tsc --noEmit` exit 0,
   `git diff --check` clean. Claude Code independently reviewed immutable range
   `cfee4dcba4d1528d62fd292afb2e2c81c9555c49..903b5f9c201f50ad318ce8b56b1d99b3f48765cb`
@@ -64,17 +122,16 @@ the zone association valid; the model therefore never saw the newly unmasked num
   fixture assertions in five unchanged files. Its resource-intensive partition passed **632/632**
   and emitted the three known Vitest worker `onTaskUpdate` RPC timeouts; no changed production or
   focused test failed.
-- Post-PASS zero-cost preparation minted current-program request
+- Before the attempt, post-PASS zero-cost preparation minted current-program request
   `3232af557a75239f0395343636e4efaf2670ce4e2cc85e59bacb4b0bf36f3a19` and preflight manifest
   `512e61ccd5a2e8f158e7fc79d623b652154039f2bf83df8c6f76616c1edcf8ad`. Both preview and immutable
   write reported zero credential/provider/image/audio/database/production access. Derived ordinary
   identity `59717a794965945124d2fa4bf9558cc031ca26680f3d8bac1bafb0ab1085bffd` is absent from every
   compiler-ledger category: no claim, terminal, binding, incident, authorization or slot exists.
-- No credential, network, provider, count endpoint, paid generation, Candidate, image, audio,
+- During that offline milestone, no credential, network, provider, count endpoint, paid generation, Candidate, image, audio,
   render, deployment, DB, or remote mutation occurred in this offline milestone. The prior
-  diagnostic authorization is consumed. The local branch remains unpushed; no new live run occurs
-  before exact origin parity, canonical Fresh Readiness from that pushed HEAD, and a new exact Guy
-  authorization bound to the fresh request/preflight above.
+  diagnostic authorization was consumed. The subsequent exact push, Fresh Readiness, and Guy
+  authorization produced the single live result recorded in the current section above.
 
 Evidence:
 `docs/ai-workflow/R1D_BLUEPRINT_TRAVERSAL_REPAIR_ASSOCIATION_IMPLEMENTATION_EVIDENCE.md`.

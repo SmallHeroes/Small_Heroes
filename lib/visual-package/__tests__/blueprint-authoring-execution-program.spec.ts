@@ -4,7 +4,9 @@ import {
   BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_KEYS,
   BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_VERSION,
   LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_DIGEST_PROMPT_V6,
+  LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_DIGEST_PROMPT_V7,
   LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_PROMPT_V6,
+  LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_PROMPT_V7,
   blueprintAuthoringEffectivePolicyProjection,
   blueprintAuthoringExecutionProgramIsCurrent,
   blueprintAuthoringExecutionProgramIsReplaySupported,
@@ -267,18 +269,56 @@ describe('Blueprint authoring execution program identity', () => {
       'pre-render-blueprint-authoring-prompt/v7',
     );
     expect(program.repairPromptVersion).toBe(
-      'pre-render-blueprint-repair-prompt/v7',
+      'pre-render-blueprint-repair-prompt/v8',
     );
     expect(program.repairWireVersion).toBe(
       'pre-render-blueprint-repair-wire/v2',
     );
     expect(program.digest).toBe(
-      '19c5bbb1ac157cfc4d9cffe3f4133f04870a5e6b828aafc67bc8be336fa36978',
+      '3e3620216a38422e1e0513487073eb166ad64085483f12d35ed18e00322ff3ca',
     );
     expect(blueprintAuthoringExecutionProgramIsCurrent(program)).toBe(true);
   });
 
-  it('admits only the complete immutable prompt-v6 program for replay', () => {
+  it('admits only the complete immutable prompt-v7 and prompt-v6 programs for replay', () => {
+    const legacyV7 = LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_PROMPT_V7;
+    const { digest: _legacyV7Digest, ...legacyV7Payload } = legacyV7;
+    expect(canonicalJsonDigest(legacyV7Payload)).toBe(
+      LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_DIGEST_PROMPT_V7,
+    );
+    expect(legacyV7.digest).toBe(
+      LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_DIGEST_PROMPT_V7,
+    );
+    expect(Object.isFrozen(legacyV7)).toBe(true);
+    expect(legacyV7.initialPromptVersion).toBe(
+      'pre-render-blueprint-authoring-prompt/v7',
+    );
+    expect(legacyV7.repairPromptVersion).toBe(
+      'pre-render-blueprint-repair-prompt/v7',
+    );
+    expect(legacyV7.repairWireVersion).toBe(
+      'pre-render-blueprint-repair-wire/v2',
+    );
+    expect(blueprintAuthoringExecutionProgramStatus(legacyV7)).toBe(
+      'legacy_immutable',
+    );
+    expect(blueprintAuthoringExecutionProgramIsReplaySupported(legacyV7)).toBe(
+      true,
+    );
+    expect(blueprintAuthoringExecutionProgramIsCurrent(legacyV7)).toBe(false);
+    expect(
+      qaWizardBlueprintAuthoringProvenanceVersionsForRequest({
+        version: 'production-blueprint-authoring-request/v5',
+        program: legacyV7,
+      } as Parameters<
+        typeof qaWizardBlueprintAuthoringProvenanceVersionsForRequest
+      >[0]),
+    ).toEqual({
+      draftSchemaVersion: 'pre-render-blueprint-draft-schema/v6',
+      promptVersion: 'pre-render-blueprint-authoring-prompt/v7',
+      repairPromptVersion: 'pre-render-blueprint-repair-prompt/v7',
+    });
+
     const legacy = LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_PROMPT_V6;
     const { digest: _digest, ...payload } = legacy;
     expect(canonicalJsonDigest(payload)).toBe(
@@ -327,7 +367,7 @@ describe('Blueprint authoring execution program identity', () => {
     ).toEqual({
       draftSchemaVersion: 'pre-render-blueprint-draft-schema/v6',
       promptVersion: 'pre-render-blueprint-authoring-prompt/v7',
-      repairPromptVersion: 'pre-render-blueprint-repair-prompt/v7',
+      repairPromptVersion: 'pre-render-blueprint-repair-prompt/v8',
     });
     expect(
       qaWizardBlueprintAuthoringProvenanceVersionsForRequest(
@@ -380,17 +420,31 @@ describe('Blueprint authoring execution program identity', () => {
         program: current,
       }),
     );
+    expect(
+      qaWizardBlueprintOrdinaryExecutionIdentityDigest({
+        authoringAuthorityDigest: 'a'.repeat(64),
+        program: legacyV7,
+      }),
+    ).not.toBe(
+      qaWizardBlueprintOrdinaryExecutionIdentityDigest({
+        authoringAuthorityDigest: 'a'.repeat(64),
+        program: current,
+      }),
+    );
 
-    const hostile = structuredClone(legacy) as Record<string, unknown>;
-    hostile.repairSystemPromptDigest = 'f'.repeat(64);
-    const { digest: _oldDigest, ...hostilePayload } = hostile;
-    hostile.digest = canonicalJsonDigest(hostilePayload);
-    expect(blueprintAuthoringExecutionProgramStatus(hostile)).toBe(
-      'unsupported',
-    );
-    expect(blueprintAuthoringExecutionProgramIsReplaySupported(hostile)).toBe(
-      false,
-    );
+    for (const frozen of [legacyV7, legacy]) {
+      const hostile = structuredClone(frozen) as Record<string, unknown>;
+      hostile.repairSystemPromptDigest = 'f'.repeat(64);
+      const { digest: _oldDigest, ...hostilePayload } = hostile;
+      void _oldDigest;
+      hostile.digest = canonicalJsonDigest(hostilePayload);
+      expect(blueprintAuthoringExecutionProgramStatus(hostile)).toBe(
+        'unsupported',
+      );
+      expect(blueprintAuthoringExecutionProgramIsReplaySupported(hostile)).toBe(
+        false,
+      );
+    }
   });
 
   it('pins every replayable prompt identity to its exact digest and UTF-8 byte length', () => {

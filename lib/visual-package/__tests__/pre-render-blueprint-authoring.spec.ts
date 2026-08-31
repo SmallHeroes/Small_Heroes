@@ -4,6 +4,7 @@ import { canonicalHash } from '@/lib/canonical-json';
 
 import {
   PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA,
+  PRE_RENDER_BLUEPRINT_COMPOSITION_POLICY_VERSION,
   OpenAIResponsesStructuredOutputSchemaCompatibilityError,
   PreRenderBlueprintAuthoringRepairExhaustedError,
   InvalidPreRenderBlueprintAuthoringInputError,
@@ -74,6 +75,97 @@ function wholeBookDraft(blueprint: PreRenderBookVisualBlueprint): unknown {
       },
     })),
   };
+}
+
+function sixTransitionEightPageFixture() {
+  const zoneSequence = [
+    'zone:home',
+    'zone:stage_2',
+    'zone:stage_3',
+    'zone:stage_4',
+    'zone:stage_4',
+    'zone:stage_5',
+    'zone:stage_6',
+    'zone:stage_7',
+  ];
+  return buildBlueprintFixture('single_location', {
+    pageCount: 8,
+    mutateTemplate: (template) => {
+      const baseZone = template.zones[0]!;
+      const locationId = template.locations[0]!.id;
+      template.zones = [...new Set(zoneSequence)].map((zoneId) => ({
+        ...clone(baseZone),
+        id: zoneId,
+        name: `Fixture stage ${zoneId}`,
+        description: `Stable authored fixture stage ${zoneId}`,
+      }));
+      template.coverContract.zoneId = zoneSequence[0]!;
+      template.pageContracts.forEach((page, index) => {
+        const zoneId = zoneSequence[index]!;
+        const previousZoneId = index > 0 ? zoneSequence[index - 1]! : null;
+        page.zoneId = zoneId;
+        page.locationId = locationId;
+        page.transition =
+          previousZoneId === null || previousZoneId === zoneId
+            ? { kind: 'steady' }
+            : {
+                kind: 'after_transition',
+                fromZoneId: previousZoneId,
+                toZoneId: zoneId,
+                cue: `fixture transition ${index}`,
+              };
+      });
+    },
+  });
+}
+
+type MutableWholeBookDraft = {
+  worldPlan: {
+    connections: Array<{ id: string; traversalAffordanceIds: string[] }>;
+    affordances: Array<{ id: string; kind: string }>;
+  };
+  frames: Array<{
+    kind: 'cover' | 'page';
+    pageNumber: number | null;
+    placements: Array<{
+      subject: { kind: string };
+      region: { x: number; y: number; width: number; height: number };
+    }>;
+    camera: { shot: string; angle: string; affordanceId: string };
+    affordanceIds: string[];
+    continuity: { connectionId: string | null };
+  }>;
+};
+
+function applyEightPageComposition(
+  draft: MutableWholeBookDraft,
+  smallestCastSize: { width: number; height: number },
+): void {
+  const cameras = [
+    ['wide', 'eye_level'],
+    ['close_up', 'low_angle'],
+    ['medium', 'high_angle'],
+    ['over_shoulder', 'three_quarter'],
+    ['wide', 'eye_level'],
+    ['tracking', 'low_angle'],
+    ['medium', 'high_angle'],
+    ['close_up', 'three_quarter'],
+  ] as const;
+  for (const frame of draft.frames.filter((entry) => entry.kind === 'page')) {
+    const index = frame.pageNumber! - 1;
+    frame.camera.shot = cameras[index]![0];
+    frame.camera.angle = cameras[index]![1];
+    for (const placement of frame.placements.filter(
+      (entry) => entry.subject.kind === 'cast',
+    )) {
+      placement.region =
+        frame.pageNumber === 2 || frame.pageNumber === 8
+          ? { x: 80, y: 350, width: 400, height: 300 }
+          : frame.pageNumber === 5
+            ? { x: 80, y: 360, ...smallestCastSize }
+            : { x: 80, y: 360, width: 200, height: 200 };
+    }
+  }
 }
 
 function assertStrictObjects(value: unknown, path = '$'): void {
@@ -561,7 +653,7 @@ describe('R1D-PVB-B — whole-book Blueprint authoring compiler', () => {
     expect(result.provenance).toMatchObject({
       passingAttempt: 2,
       callCount: 2,
-      repairPromptVersion: 'pre-render-blueprint-repair-prompt/v7',
+      repairPromptVersion: 'pre-render-blueprint-repair-prompt/v8',
     });
     expect((calls[1] as { system: string }).system).toContain(
       'never return textSafeRegion',
@@ -720,6 +812,96 @@ describe('R1D-PVB-B — whole-book Blueprint authoring compiler', () => {
       }),
     );
     expect(result.provenance.passingAttempt).toBe(3);
+  });
+
+  it('closes an eight-page five-traversal plus one-composition frontier in one provider-free repair', async () => {
+    const fixture = sixTransitionEightPageFixture();
+    const corrected = wholeBookDraft(
+      fixture.blueprint,
+    ) as MutableWholeBookDraft;
+    applyEightPageComposition(corrected, { width: 160, height: 200 });
+
+    const invalid = clone(corrected);
+    applyEightPageComposition(invalid, { width: 200, height: 200 });
+    const missingTraversalPages = new Set([2, 3, 4, 6, 7]);
+    for (const frame of invalid.frames) {
+      if (frame.kind !== 'page' || !missingTraversalPages.has(frame.pageNumber!)) {
+        continue;
+      }
+      const connectionId = frame.continuity.connectionId;
+      const connection = invalid.worldPlan.connections.find(
+        (entry) => entry.id === connectionId,
+      );
+      if (!connection) throw new Error('transition connection missing');
+      const traversalIds = new Set(connection.traversalAffordanceIds);
+      frame.affordanceIds = frame.affordanceIds.filter(
+        (id) => !traversalIds.has(id),
+      );
+    }
+
+    const calls: Array<{ system: string; user: string }> = [];
+    const outputs = [invalid, corrected];
+    const result = await compilePreRenderBookVisualBlueprint(
+      fixture.context,
+      {
+        ...CONFIG,
+        compositionPolicyVersion:
+          PRE_RENDER_BLUEPRINT_COMPOSITION_POLICY_VERSION,
+      },
+      {
+        callAuthor: async (system, user) => {
+          calls.push({ system, user });
+          return outputs[calls.length - 1]!;
+        },
+      },
+    );
+
+    expect(calls).toHaveLength(2);
+    expect(result.provenance.passingAttempt).toBe(2);
+    expect(result.repairAttempts).toHaveLength(1);
+    const diagnostics = result.repairAttempts[0]!.diagnostics ?? [];
+    expect(diagnostics).toHaveLength(6);
+    expect(
+      diagnostics.filter((entry) => entry.code === 'traversal_infeasible'),
+    ).toHaveLength(5);
+    expect(
+      diagnostics
+        .filter((entry) => entry.code === 'traversal_infeasible')
+        .map((entry) => entry.field)
+        .sort(),
+    ).toEqual([
+      'frames[2].affordanceIds',
+      'frames[3].affordanceIds',
+      'frames[4].affordanceIds',
+      'frames[6].affordanceIds',
+      'frames[7].affordanceIds',
+    ]);
+    expect(
+      diagnostics.filter((entry) => entry.code === 'composition_policy_invalid'),
+    ).toHaveLength(1);
+    expect(
+      diagnostics.find((entry) => entry.code === 'composition_policy_invalid'),
+    ).toMatchObject({
+      field: 'frames',
+      message:
+        'cast scale contrast is too small: 3.00x; require at least 3.5x between the tightest and widest body-page framing',
+      expected: { minimumCastScaleRatio: 3.5 },
+      actual: { castScaleRatio: 3 },
+    });
+    for (const diagnostic of diagnostics) {
+      expect(Object.prototype.hasOwnProperty.call(diagnostic, 'expected')).toBe(true);
+      expect(Object.prototype.hasOwnProperty.call(diagnostic, 'actual')).toBe(true);
+    }
+    const grouped = JSON.parse(
+      calls[1]!.user.split('\nREPAIR_WIRE:\n')[0]!.split('\n').slice(1).join('\n'),
+    ) as Array<[string, string | null, string, [number, unknown], [number, unknown], number]>;
+    expect(grouped).toHaveLength(6);
+    expect(grouped.every((entry) => entry[3][0] === 1 && entry[4][0] === 1)).toBe(true);
+    const finalValidation = validatePreRenderBookVisualBlueprint(
+      result.blueprint,
+      fixture.context,
+    );
+    expect(finalValidation.ok, finalValidation.ok ? '' : JSON.stringify(finalValidation.issues)).toBe(true);
   });
 
   it('fails closed after the initial whole-book call plus two repairs', async () => {

@@ -48,11 +48,11 @@ const EXPECTED_CONTEXT_DIGEST =
 const EXPECTED_DIAGNOSTIC_COUNT = 86;
 const EXPECTED_REPAIR_ACCOUNTING = {
   systemBytes: 2_614,
-  userBytes: 47_647,
+  userBytes: 50_530,
   schemaBytes: 20_753,
   separatorBytes: 2,
   protocolAllowance: 4_096,
-  estimatedBytes: 75_112,
+  estimatedBytes: 77_995,
 } as const;
 
 type ProviderCallArgs = Parameters<ProductionAuthoringProvider['call']>[0];
