@@ -1,6 +1,6 @@
 # SmallHeroes — Current Technical State
 
-## R1D — failed-terminal diagnostic successor implemented offline; one exact v7/v3 terminal can now yield one attributable v8/v4 result; awaiting independent QA; no live/render
+## R1D — failed-terminal diagnostic successor independently QA-passed; one exact v7/v3 terminal can now yield one attributable v8/v4 result; awaiting push and real Candidate preparation; no live/render
 
 The recurring failure sequence was reclassified before another paid attempt. The historical
 `223 -> 89 -> 5` run is complete and replayable, but its immutable receipt v7/capture v3 cannot
@@ -43,10 +43,16 @@ Candidate.
   resource-intensive reported **618 PASS / 14 fixed-timeout failures** across four unchanged
   subprocess/Git-heavy files plus four known Vitest worker RPC timeout errors. The repository
   gate therefore remains honestly HOLD on its established unrelated fixture/timeout baseline.
+- Claude Code independently reviewed immutable code range `c0b833b3..31bbf18b` read-only and
+  returned **PASS — 0 BLOCKER / 0 MAJOR / 0 MINOR**. It traced eligibility, slot/claim ordering,
+  paid-dependency laziness, concurrency, crash recovery, strict successor-only binding recovery,
+  CLI reachability, cross-lane rejection and the documented current-v5/v8 replay boundary. Its
+  harness sandbox declined `npx` spawns, so Claude's verdict used static tracing plus the evidence;
+  Codex independently executed the green 107-test battery and TypeScript check above.
 - No credential, network, provider, live, Candidate, image, audio, render, deployment, DB or
   remote mutation occurred. The exact successor Candidate for the real terminal is not minted
-  until the focused commit receives independent Claude Code PASS and is pushed cleanly. Guy must
-  then approve that exact Candidate digest before the single paid execution.
+  until the QA-passed commits are pushed cleanly. Guy must then approve that exact Candidate
+  digest before the single paid execution.
 
 Evidence:
 `docs/ai-workflow/R1D_BLUEPRINT_FAILED_TERMINAL_DIAGNOSTIC_SUCCESSOR_IMPLEMENTATION_EVIDENCE.md`.

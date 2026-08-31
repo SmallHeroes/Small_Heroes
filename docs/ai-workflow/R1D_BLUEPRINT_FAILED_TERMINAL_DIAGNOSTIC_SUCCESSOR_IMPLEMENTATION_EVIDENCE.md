@@ -1,7 +1,7 @@
 # R1D Blueprint failed-terminal diagnostic successor — implementation evidence
 
-Status: **offline implementation locally green; awaiting independent Claude Code QA; no provider,
-live authoring, Candidate mint on real artifacts, or render**
+Status: **offline implementation locally green and independently Claude Code QA-passed; awaiting
+push and real Candidate preparation; no provider, live authoring, real Candidate mint, or render**
 
 Branch/worktree: `codex/r1d-order-package-authority-binding` in
 `C:\GNart\Work\sh-order-package-authority`
@@ -94,14 +94,23 @@ gate remains honestly HOLD; no timeout/assertion was weakened and no fixture was
 
 ## Remaining gates
 
-1. Focused local commit, no automatic push.
-2. Claude Code adversarial review of `c0b833b3..<focused-head>`.
-3. Only after PASS and a clean pushed head: run CLI preparation against the exact real v7/v3
+1. Push the focused code commit and this truthful QA-closeout documentation commit.
+2. Only after a clean pushed head: run CLI preparation against the exact real v7/v3
    terminal lookup and publish the resulting Candidate digest for Guy.
-4. Exact Guy approval of that Candidate digest and explicit approval timestamp.
-5. One paid successor execution, no retry. If it fails, diagnose the complete v8/v4 census as one
+3. Exact Guy approval of that Candidate digest and explicit approval timestamp.
+4. One paid successor execution, no retry. If it fails, diagnose the complete v8/v4 census as one
    population; do not patch the next surfaced symptom. If it succeeds, proceed through the
    existing Blueprint review/approval, Wizard and separately approved render gates.
+
+## Independent QA result
+
+Claude Code reviewed immutable range `c0b833b3..31bbf18b` read-only and returned **PASS — 0
+BLOCKER / 0 MAJOR / 0 MINOR**. It verified the exact nine-file topology, pure frozen v1 authority,
+closed predecessor eligibility, predecessor-keyed slot, first-dispatch ordering, lazy paid
+dependencies, one-owner concurrency, post-claim incident behavior, successor-only binding
+recovery, zero-call replay, strict CLI and absence of product/prompt/budget drift. Its review
+harness declined `npx` process spawns, so it did not independently rerun tests or TypeScript; the
+green 107-test and TypeScript executions above are Codex's separately reproduced evidence.
 
 No provider, credential, network, live, render, push or remote-system operation was performed by
 this implementation milestone.
