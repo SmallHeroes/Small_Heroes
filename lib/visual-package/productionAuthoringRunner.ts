@@ -90,6 +90,7 @@ import {
 import {
   BLUEPRINT_AUTHORING_ADMISSION_LEDGER_VERSION,
   blueprintAuthoringAdmissionDecisionConsumptionReason,
+  blueprintAuthoringAdmissionLedgerStructuralReason,
   blueprintAuthoringCountCacheKey,
   blueprintAuthoringCountResultTransportWasDispatched,
   blueprintAuthoringTokenRelevantRequestDigest,
@@ -98,12 +99,17 @@ import {
   type BlueprintAuthoringProbeCostEvidence,
 } from './blueprintAuthoringAdmissionLedger';
 import {
+  blueprintAuthoringDiagnosticCensusCommitment,
+  blueprintAuthoringDiagnosticCensusCommitmentIsValid,
+  blueprintAuthoringFailureRequiresSanitizedCapture,
+  buildBlueprintAuthoringSanitizedCensus,
   buildBlueprintAuthoringSanitizedFailureCapture,
   blueprintAuthoringSanitizedFailureCaptureBytes,
   blueprintAuthoringSanitizedFailureCaptureIsValid,
   blueprintAuthoringReceiptRequiresSanitizedCapture,
   type BlueprintAuthoringSanitizedFailureCapture,
-  type BlueprintAuthoringSanitizedRoute,
+  type BlueprintAuthoringDiagnosticCensusCommitment,
+  type BlueprintAuthoringSanitizedCensus,
 } from './blueprintAuthoringSanitizedFailureCapture';
 
 export const PRODUCTION_AUTHORING_RUN_REQUEST_VERSION =
@@ -111,6 +117,8 @@ export const PRODUCTION_AUTHORING_RUN_REQUEST_VERSION =
 export const LEGACY_PRODUCTION_AUTHORING_RUN_REQUEST_VERSION =
   'production-blueprint-authoring-request/v3' as const;
 export const PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION =
+  'production-blueprint-authoring-receipt/v7' as const;
+export const LEGACY_PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION_V6 =
   'production-blueprint-authoring-receipt/v6' as const;
 export const LEGACY_PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION =
   'production-blueprint-authoring-receipt/v5' as const;
@@ -161,6 +169,7 @@ export function productionAuthoringReceiptVersionStatus(
     return 'current';
   }
   return version === LEGACY_PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION ||
+    version === LEGACY_PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION_V6 ||
     version === LEGACY_PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION_V4 ||
     version === LEGACY_PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION_V3
     ? 'legacy_immutable'
@@ -313,7 +322,7 @@ export const PRODUCTION_AUTHORING_ATTEMPT_FAILURE_EVIDENCE_REASONS = [
   'usage_invalid',
 ] as const satisfies readonly ProductionAuthoringAttemptFailureEvidenceReason[];
 
-export interface ProductionAuthoringAttemptReceipt {
+export interface LegacyProductionAuthoringAttemptReceiptV6 {
   attempt: number;
   kind: 'initial' | 'repair';
   provider: string;
@@ -341,6 +350,13 @@ export interface ProductionAuthoringAttemptReceipt {
   failureEvidenceReason: ProductionAuthoringAttemptFailureEvidenceReason | null;
 }
 
+export interface ProductionAuthoringAttemptReceipt
+  extends LegacyProductionAuthoringAttemptReceiptV6 {
+  /** Exact full decision binding and its canonical token-relevant generation wire. */
+  inputAdmissionDigest: string;
+  tokenRelevantRequestDigest: string;
+}
+
 export interface ProductionAuthoringProviderBoundaryEvidence {
   provider?: unknown;
   model?: unknown;
@@ -358,8 +374,8 @@ export interface ProductionAuthoringProviderBoundaryEvidence {
   executionAttestation?: unknown;
 }
 
-export interface ProductionAuthoringRunReceipt {
-  version: typeof PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION;
+interface ProductionAuthoringRunReceiptBase {
+  version: string;
   requestDigest: string;
   requestId: string;
   requestedAt: string;
@@ -374,13 +390,31 @@ export interface ProductionAuthoringRunReceipt {
   callCount: number;
   repairCount: number;
   executionAttestation: AuthoringExecutionAttestation;
-  attempts: ProductionAuthoringAttemptReceipt[];
+  attempts: LegacyProductionAuthoringAttemptReceiptV6[];
   blueprintDigest: string | null;
   authoringProvenanceDigest: string | null;
   failure: AuthoringTerminalFailure | null;
   digestAlgorithm: 'canonical-json-sha256';
   digest: string;
 }
+
+export interface ProductionAuthoringRunReceipt
+  extends ProductionAuthoringRunReceiptBase {
+  version: typeof PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION;
+  attempts: ProductionAuthoringAttemptReceipt[];
+  admissionDecisions: BlueprintAuthoringAdmissionDecisionRecord[];
+  diagnosticCensusCommitment: BlueprintAuthoringDiagnosticCensusCommitment | null;
+}
+
+export interface LegacyProductionAuthoringRunReceiptV6
+  extends ProductionAuthoringRunReceiptBase {
+  version: typeof LEGACY_PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION_V6;
+  attempts: LegacyProductionAuthoringAttemptReceiptV6[];
+}
+
+export type ReplayableProductionAuthoringRunReceipt =
+  | ProductionAuthoringRunReceipt
+  | LegacyProductionAuthoringRunReceiptV6;
 
 /**
  * Typed disposition of the sanitized failure capture on a failed run. It replaces a
@@ -513,9 +547,119 @@ function failedRunResult(
 }
 
 export function productionAuthoringReceiptBytes(
-  receipt: ProductionAuthoringRunReceipt,
+  receipt: ReplayableProductionAuthoringRunReceipt,
 ): string {
   return `${JSON.stringify(canonicalize(receipt), null, 2)}\n`;
+}
+
+/** Prompt-free durable evidence validator for current receipt v7. */
+export function productionAuthoringReceiptV7EvidenceReason(
+  value: unknown,
+): string | null {
+  try {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) {
+      return 'receipt_v7_shape_invalid';
+    }
+    const receipt = value as ProductionAuthoringRunReceipt;
+    if (receipt.version !== PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION) {
+      return 'receipt_v7_version_invalid';
+    }
+    const ledgerReason = blueprintAuthoringAdmissionLedgerStructuralReason(
+      receipt.admissionDecisions,
+    );
+    if (ledgerReason !== null) return ledgerReason;
+    if (!Array.isArray(receipt.attempts)) return 'receipt_attempts_invalid';
+    const decisions = receipt.admissionDecisions;
+    if (
+      decisions.length < receipt.attempts.length ||
+      decisions.length > receipt.attempts.length + 1
+    ) return 'receipt_admission_topology_invalid';
+    let generationAccountedMicroUsd = 0;
+    for (let index = 0; index < receipt.attempts.length; index += 1) {
+      const attempt = receipt.attempts[index]!;
+      const decision = decisions[index];
+      if (
+        !decision ||
+        !decision.admitted ||
+        decision.generationAttempt !== attempt.attempt ||
+        decision.routeKind !== attempt.kind ||
+        decision.generationAccountedMicroUsdBeforeRoute !==
+          generationAccountedMicroUsd ||
+        attempt.inputAdmissionDigest !== canonicalJsonDigest(decision) ||
+        attempt.tokenRelevantRequestDigest !==
+          decision.tokenRelevantRequestDigest ||
+        (attempt.inputAccounting !== null &&
+          canonicalJsonDigest(attempt.inputAccounting) !==
+            decision.inputAccountingDigest) ||
+        (decision.exactInputTokens !== null &&
+          attempt.usage !== null &&
+          attempt.usage.inputTokens !== decision.exactInputTokens)
+      ) return 'receipt_attempt_admission_binding_invalid';
+      if (attempt.failureCode === null) {
+        const inputTokens = attempt.usage?.inputTokens;
+        const outputTokens = attempt.usage?.outputTokens;
+        if (
+          typeof inputTokens !== 'number' ||
+          !Number.isSafeInteger(inputTokens) ||
+          inputTokens < 0 ||
+          typeof outputTokens !== 'number' ||
+          !Number.isSafeInteger(outputTokens) ||
+          outputTokens < 0
+        ) return 'receipt_generation_cost_evidence_invalid';
+        const debit = blueprintAuthoringGenerationMicroUsd({
+          inputTokens,
+          outputTokens,
+        });
+        if (generationAccountedMicroUsd > Number.MAX_SAFE_INTEGER - debit) {
+          return 'receipt_generation_cost_overflow';
+        }
+        generationAccountedMicroUsd += debit;
+      }
+    }
+    const extra = decisions[receipt.attempts.length];
+    if (extra) {
+      if (
+        extra.admitted ||
+        receipt.status !== 'failed' ||
+        receipt.failure?.code !== 'repair_route_input_not_admissible' ||
+        extra.generationAttempt !== receipt.attempts.length + 1 ||
+        extra.generationAccountedMicroUsdBeforeRoute !==
+          generationAccountedMicroUsd
+      ) return 'receipt_rejected_admission_topology_invalid';
+    }
+    if (
+      receipt.status === 'completed' &&
+      decisions.length !== receipt.attempts.length
+    ) return 'receipt_completed_admission_topology_invalid';
+    if (
+      receipt.attempts.length === 0 &&
+      decisions.length !== 0
+    ) return 'receipt_zero_attempt_admission_invalid';
+
+    const diagnosticsPresent = receipt.attempts.some(
+      (attempt) =>
+        attempt.validationDiagnostics.count > 0 ||
+        attempt.validationDiagnostics.codes.length > 0,
+    );
+    const commitmentRequired =
+      diagnosticsPresent ||
+      (receipt.status === 'failed' &&
+        blueprintAuthoringFailureRequiresSanitizedCapture(
+          receipt.failure?.code,
+        ));
+    if (commitmentRequired) {
+      if (
+        !blueprintAuthoringDiagnosticCensusCommitmentIsValid(
+          receipt.diagnosticCensusCommitment,
+        )
+      ) return 'receipt_diagnostic_census_commitment_missing';
+    } else if (receipt.diagnosticCensusCommitment !== null) {
+      return 'receipt_diagnostic_census_commitment_unexpected';
+    }
+    return null;
+  } catch {
+    return 'receipt_v7_evidence_validation_failed';
+  }
 }
 
 export class InvalidProductionAuthoringRunRequestError extends Error {
@@ -793,6 +937,8 @@ function finalizeReceipt(
 function failureReceipt(args: {
   request: ProductionAuthoringRunRequest;
   attempts: ProductionAuthoringAttemptReceipt[];
+  admissionDecisions?: BlueprintAuthoringAdmissionDecisionRecord[];
+  diagnosticCensusCommitment?: BlueprintAuthoringDiagnosticCensusCommitment | null;
   code: ProductionBlueprintRunnerTerminalFailureCode;
   diagnosticInputs?: readonly unknown[];
   diagnosticCountOverride?: number;
@@ -823,6 +969,11 @@ function failureReceipt(args: {
         ),
       ),
     attempts: args.attempts,
+    admissionDecisions: structuredClone(args.admissionDecisions ?? []),
+    diagnosticCensusCommitment:
+      args.diagnosticCensusCommitment
+        ? structuredClone(args.diagnosticCensusCommitment)
+        : null,
     blueprintDigest: null,
     authoringProvenanceDigest: null,
     failure: buildAuthoringTerminalFailure({
@@ -1377,6 +1528,8 @@ export async function runProductionBlueprintAuthoring(args: {
         executionAttestation:
           notRunAuthoringExecutionAttestation(),
         attempts: [],
+        admissionDecisions: [],
+        diagnosticCensusCommitment: null,
         blueprintDigest: null,
         authoringProvenanceDigest: null,
         failure: null,
@@ -1426,9 +1579,10 @@ export async function runProductionBlueprintAuthoring(args: {
                 cumulativeConservativeCostUsd,
               callsCompleted: attempt - 1,
             });
-          // The single shared admission authority. The paid runner path supplies
-          // no exact provider count (live counting deferred), so this is the proven
-          // conservative bound — numerically identical to the prior gate.
+          // The initial route uses the shared conservative admission authority here.
+          // Repair routes receive their compiler/count-authority decision through
+          // `pendingAdmissionByAttempt` below, including exact provider-count evidence
+          // when the conservative byte bound alone cannot admit the route.
           const inputAdmission = decideBlueprintAuthoringInputTokenAdmission({
             accounting: expectedInputAccounting,
           });
@@ -1526,6 +1680,9 @@ export async function runProductionBlueprintAuthoring(args: {
             failureCode: null,
             failureEvidenceKind: null,
             failureEvidenceReason: null,
+            inputAdmissionDigest: canonicalJsonDigest(admissionRecord),
+            tokenRelevantRequestDigest:
+              admissionRecord.tokenRelevantRequestDigest,
           } satisfies ProductionAuthoringAttemptReceipt;
           try {
             if (
@@ -2032,6 +2189,19 @@ export async function runProductionBlueprintAuthoring(args: {
           ),
         ),
       attempts,
+      admissionDecisions: structuredClone(admissionDecisions),
+      diagnosticCensusCommitment:
+        authoringResult.repairAttempts.some(
+          (attempt) => (attempt.diagnostics?.length ?? 0) > 0,
+        )
+          ? blueprintAuthoringDiagnosticCensusCommitment(
+              buildBlueprintAuthoringSanitizedCensus(
+                authoringResult.repairAttempts.flatMap(
+                  (attempt) => attempt.diagnostics ?? [],
+                ),
+              ),
+            )
+          : null,
       blueprintDigest: authoringResult.blueprint.digest,
       authoringProvenanceDigest: canonicalJsonDigest(
         authoringResult.provenance,
@@ -2093,9 +2263,29 @@ export async function runProductionBlueprintAuthoring(args: {
             })
           ? 'draft_validation_repair_exhausted'
           : 'local_processing_failed');
+    let failureCensus: BlueprintAuthoringSanitizedCensus | null = null;
+    if (
+      error instanceof PreRenderBlueprintAuthoringRepairExhaustedError ||
+      error instanceof PreRenderBlueprintRepairInputNotAdmissibleError
+    ) {
+      const diagnostics = error.attempts.flatMap(
+        (attempt) => attempt.diagnostics ?? [],
+      );
+      if (diagnostics.length > 0) {
+        try {
+          failureCensus = buildBlueprintAuthoringSanitizedCensus(diagnostics);
+        } catch {
+          failureCensus = null;
+        }
+      }
+    }
     const failed = failureReceipt({
       request: args.request,
       attempts,
+      admissionDecisions,
+      diagnosticCensusCommitment: failureCensus
+        ? blueprintAuthoringDiagnosticCensusCommitment(failureCensus)
+        : null,
       code: failureCode,
       diagnosticInputs:
         error instanceof
@@ -2126,6 +2316,8 @@ export async function runProductionBlueprintAuthoring(args: {
         error,
         failureReceipt: failed,
         failureCode,
+        census: failureCensus,
+        admissionDecisions,
       }),
     );
   }
@@ -2379,12 +2571,10 @@ export function blueprintAuthoringFailedCensusCorrelationDiagnostics(args: {
  * therefore inert. The minted capture is content-addressed and, by the lifecycle, atomically
  * linked to this receipt; replay/recovery re-read that capture and never re-derive.
  *
- * The receipt itself binds only the attempt TOPOLOGY and each attempt's category summary
- * ({count,codes}); it does NOT commit to the census structural identities. A durable
- * receipt-level identity commitment would require a receipt schema change (receipt v7) and
- * is deferred to the F1 receipt-v7 cutover rather than introducing an incompatible interim
- * schema — so identity honesty rests on the structural seal above plus the linkage-bound
- * capture, not on the receipt.
+ * Current receipt v7 binds the complete admission ledger and the diagnostic census
+ * commitment. The linkage-bound capture repeats those authorities and replay verifies their
+ * parity. Legacy receipt v6 remains immutable and therefore carries only attempt topology plus
+ * each attempt's category summary ({count,codes}); it is never retrofitted with v7 evidence.
  *
  * The requirement is derived from the ACTUAL failed receipt EVIDENCE via the single canonical
  * `blueprintAuthoringReceiptRequiresSanitizedCapture` predicate (mandatory code OR any attempt
@@ -2403,6 +2593,8 @@ function deriveBlueprintAuthoringSanitizedFailureCaptureDisposition(args: {
   error: unknown;
   failureReceipt: ProductionAuthoringRunReceipt;
   failureCode: ProductionBlueprintRunnerTerminalFailureCode;
+  census?: BlueprintAuthoringSanitizedCensus | null;
+  admissionDecisions?: readonly BlueprintAuthoringAdmissionDecisionRecord[];
 }): BlueprintAuthoringSanitizedFailureCaptureDisposition {
   if (!blueprintAuthoringReceiptRequiresSanitizedCapture(args.failureReceipt)) {
     // Diagnostic-less boundary failure: allowed to bind no capture.
@@ -2422,46 +2614,29 @@ function deriveBlueprintAuthoringSanitizedFailureCaptureDisposition(args: {
     };
   }
   try {
-    const initialAccounting = productionBlueprintInitialInputAccounting(
-      args.context,
-    );
-    const initialAttempt = args.attempts[0];
-    const observedInputTokens =
-      initialAttempt &&
-      initialAttempt.kind === 'initial' &&
-      initialAttempt.completionStatus === 'completed' &&
-      typeof initialAttempt.usage?.inputTokens === 'number'
-        ? initialAttempt.usage.inputTokens
-        : null;
-    const routes: Array<{
-      routeKind: BlueprintAuthoringSanitizedRoute['routeKind'];
-      ordinal: number;
-      byteAccounting: BlueprintAuthoringInputAccounting;
-      observedInputTokens?: number | null;
-      rejectionReasonCode?: string | null;
-    }> = [
-      {
-        routeKind: 'initial',
-        ordinal: 0,
-        byteAccounting: initialAccounting,
-        observedInputTokens,
-      },
-    ];
-    if (args.error instanceof PreRenderBlueprintRepairInputNotAdmissibleError) {
-      routes.push({
-        routeKind: 'repair',
-        ordinal: 1,
-        byteAccounting: args.error.inputAccounting,
-        rejectionReasonCode: 'repair_route_input_not_admissible',
-      });
+    const census = args.census ?? null;
+    const admissionDecisions = args.admissionDecisions ?? [];
+    if (
+      census === null ||
+      args.failureReceipt.diagnosticCensusCommitment === null ||
+      canonicalJsonDigest(
+        blueprintAuthoringDiagnosticCensusCommitment(census),
+      ) !== canonicalJsonDigest(args.failureReceipt.diagnosticCensusCommitment) ||
+      canonicalJsonDigest(admissionDecisions) !==
+        canonicalJsonDigest(args.failureReceipt.admissionDecisions)
+    ) {
+      return {
+        kind: 'derivation_failed',
+        reasonCode: 'sanitized_census_commitment_unproven',
+      };
     }
     const capture = buildBlueprintAuthoringSanitizedFailureCapture({
       terminalFailureCode: args.failureCode,
       terminalReceiptDigest: args.failureReceipt.digest,
       requestDigest: args.failureReceipt.requestDigest,
       contextDigest: args.request.contextDigest,
-      routes,
-      diagnostics: censusDiagnostics,
+      admissionDecisions,
+      census,
     });
     // Register this same-stack minted capture by its EXACT mint-time canonical bytes, so the
     // dedicated capture-specific persister will accept it AND reject any post-mint mutation.

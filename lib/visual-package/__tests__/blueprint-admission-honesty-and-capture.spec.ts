@@ -37,13 +37,23 @@ import {
   BLUEPRINT_AUTHORING_SANITIZED_FAILURE_CAPTURE_DOES_NOT_AUTHORIZE,
   BLUEPRINT_AUTHORING_SANITIZED_FAILURE_CAPTURE_SCOPE,
   BLUEPRINT_AUTHORING_SANITIZED_FAILURE_CAPTURE_VERSION,
+  LEGACY_BLUEPRINT_AUTHORING_SANITIZED_FAILURE_CAPTURE_VERSION_V2,
   blueprintAuthoringFailureRequiresSanitizedCapture,
   blueprintAuthoringReceiptRequiresSanitizedCapture,
   blueprintAuthoringSanitizedFailureCaptureIsValid,
-  buildBlueprintAuthoringSanitizedFailureCapture,
+  blueprintAuthoringSanitizedFailureCaptureVersionStatus,
+  buildBlueprintAuthoringSanitizedCensus,
+  buildBlueprintAuthoringSanitizedFailureCapture as buildBlueprintAuthoringSanitizedFailureCaptureV3,
+  legacyBlueprintAuthoringSanitizedFailureCaptureV2IsValid,
   sanitizeBlueprintDiagnosticFieldPath,
   type BlueprintAuthoringSanitizedFailureCapture,
+  type LegacyBlueprintAuthoringSanitizedFailureCaptureV2,
 } from '@/lib/visual-package/blueprintAuthoringSanitizedFailureCapture';
+import {
+  BLUEPRINT_AUTHORING_ADMISSION_LEDGER_VERSION,
+  type BlueprintAuthoringAdmissionDecisionRecord,
+} from '@/lib/visual-package/blueprintAuthoringAdmissionLedger';
+import { blueprintAuthoringContinuationReservationMicroUsd } from '@/lib/visual-package/blueprintAuthoringCountAwareCost';
 import { canonicalJsonDigest } from '@/lib/visual-package/integrity';
 
 import { buildBlueprintFixture } from './pre-render-book-visual-blueprint.fixtures';
@@ -90,6 +100,83 @@ function wholeBookDraft(blueprint: PreRenderBookVisualBlueprint): unknown {
 }
 
 const hex64 = (seed: string): string => canonicalJsonDigest({ seed });
+
+function buildBlueprintAuthoringSanitizedFailureCapture(args: {
+  terminalFailureCode: string;
+  terminalReceiptDigest: string;
+  requestDigest: string;
+  contextDigest: string;
+  routes: ReadonlyArray<{
+    routeKind: 'initial' | 'repair';
+    ordinal: number;
+    byteAccounting: BlueprintAuthoringInputAccounting;
+    observedInputTokens?: number | null;
+    rejectionReasonCode?: string | null;
+  }>;
+  diagnostics: readonly PreRenderBlueprintRepairDiagnostic[];
+}): BlueprintAuthoringSanitizedFailureCapture {
+  const decisions = args.routes.map((route) => {
+    const ordinal = route.ordinal as 0 | 1 | 2;
+    const tokenRelevantRequestDigest = hex64(
+      `wire:${ordinal}:${canonicalJsonDigest(route.byteAccounting)}`,
+    );
+    const admittedByToken =
+      route.byteAccounting.estimatedBytes <= BLUEPRINT_AUTHORING_MAX_INPUT_TOKENS;
+    const continuation = admittedByToken
+      ? blueprintAuthoringContinuationReservationMicroUsd({
+          accountedMicroUsd: 0,
+          remainingGenerationCalls: 3 - ordinal,
+          laterProbeRoutes: 2 - ordinal,
+        })
+      : null;
+    return {
+      version: BLUEPRINT_AUTHORING_ADMISSION_LEDGER_VERSION,
+      routeKind: route.routeKind,
+      ordinal,
+      generationAttempt: (ordinal + 1) as 1 | 2 | 3,
+      tokenRelevantRequestDigest,
+      inputAccounting: clone(route.byteAccounting),
+      inputAccountingDigest: canonicalJsonDigest(route.byteAccounting),
+      basis: admittedByToken
+        ? 'conservative_upper_bound'
+        : 'exact_count_unavailable',
+      ceilingTokens: BLUEPRINT_AUTHORING_MAX_INPUT_TOKENS,
+      conservativeUpperBoundTokens: route.byteAccounting.estimatedBytes,
+      exactInputTokens: null,
+      countResult: admittedByToken
+        ? null
+        : {
+            routeKind: 'repair' as const,
+            repairOrdinal: ordinal as 1 | 2,
+            countRequestDigest: tokenRelevantRequestDigest,
+            outcome: 'unavailable' as const,
+            inputTokens: null,
+            unavailableReason: 'not_wired' as const,
+            attestation: null,
+          },
+      probe: {
+        status: admittedByToken ? ('not_required' as const) : ('not_wired' as const),
+        reservationBeforeDispatchMicroUsd: null,
+        debitMicroUsd: 0,
+        cumulativeDebitMicroUsd: 0,
+        transportDisposition: 'not_dispatched' as const,
+      },
+      generationAccountedMicroUsdBeforeRoute: 0,
+      totalAccountedMicroUsdBeforeGeneration: 0,
+      admitted: admittedByToken,
+      continuationReservationMicroUsd: continuation,
+      failureReason: admittedByToken ? null : ('exact_count_unavailable' as const),
+    } as BlueprintAuthoringAdmissionDecisionRecord;
+  });
+  return buildBlueprintAuthoringSanitizedFailureCaptureV3({
+    terminalFailureCode: args.terminalFailureCode,
+    terminalReceiptDigest: args.terminalReceiptDigest,
+    requestDigest: args.requestDigest,
+    contextDigest: args.contextDigest,
+    admissionDecisions: decisions,
+    census: buildBlueprintAuthoringSanitizedCensus(args.diagnostics),
+  });
+}
 
 function countedResult(
   request: BlueprintAuthoringInputTokenCountRequest,
@@ -338,22 +425,18 @@ describe('production-scale offline overflow admission (>=8-page whole book)', ()
       ),
     });
     expect(blueprintAuthoringSanitizedFailureCaptureIsValid(capture)).toBe(true);
-    expect(capture.admission.routes).toHaveLength(2);
-    const initialRoute = capture.admission.routes.find(
+    expect(capture.admission.decisions).toHaveLength(2);
+    const initialRoute = capture.admission.decisions.find(
       (route) => route.routeKind === 'initial',
     )!;
-    const repairRoute = capture.admission.routes.find(
+    const repairRoute = capture.admission.decisions.find(
       (route) => route.routeKind === 'repair',
     )!;
     expect(initialRoute.admitted).toBe(initialAdmitted);
-    expect(initialRoute.observedInputTokens).toBe(
-      initialAdmitted ? 12007 : null,
-    );
+    expect(initialRoute.basis).toBe('conservative_upper_bound');
     expect(repairRoute.admitted).toBe(false);
-    expect(repairRoute.rejectionReasonCode).toBe(
-      'repair_route_input_not_admissible',
-    );
-    expect(repairRoute.conservativeInputTokenUpperBound).toBeGreaterThan(
+    expect(repairRoute.failureReason).toBe('exact_count_unavailable');
+    expect(repairRoute.conservativeUpperBoundTokens).toBeGreaterThan(
       BLUEPRINT_AUTHORING_MAX_INPUT_TOKENS,
     );
     expect(capture.census.totalEmitted).toBeGreaterThan(0);
@@ -1000,10 +1083,55 @@ describe('sanitized failure capture — fail-closed no-authority and hostile reg
 
   it('rejects a superseded or tampered version (legacy v1 never validates)', () => {
     // v1 carried the removed raw-tuple detailDigest; it must be rejected cleanly so a
-    // legacy artifact can never reintroduce the PII fingerprint under v2 semantics.
+    // legacy artifact can never reintroduce the PII fingerprint under current v3 semantics.
     const capture = clone(baseCapture()) as unknown as Record<string, unknown>;
     capture.version = 'blueprint-authoring-sanitized-failure-capture/v1';
     expect(blueprintAuthoringSanitizedFailureCaptureIsValid(capture)).toBe(false);
+  });
+
+  it('validates the exact legacy v2 shape only through its immutable validator', () => {
+    const current = baseCapture();
+    const withoutDigest: Omit<
+      LegacyBlueprintAuthoringSanitizedFailureCaptureV2,
+      'digest'
+    > = {
+      version: LEGACY_BLUEPRINT_AUTHORING_SANITIZED_FAILURE_CAPTURE_VERSION_V2,
+      scope: current.scope,
+      doesNotAuthorize: [...current.doesNotAuthorize],
+      terminalFailureCode: current.terminalFailureCode,
+      linkage: clone(current.linkage),
+      admission: {
+        policyVersion: BLUEPRINT_AUTHORING_INPUT_TOKEN_ADMISSION_POLICY_VERSION,
+        boundBasis: BLUEPRINT_AUTHORING_INPUT_TOKEN_BOUND_BASIS,
+        ceilingTokens: BLUEPRINT_AUTHORING_MAX_INPUT_TOKENS,
+        routes: [
+          {
+            routeKind: 'initial',
+            ordinal: 0,
+            byteAccounting: clone(REAL_INCIDENT_INITIAL_ACCOUNTING),
+            conservativeInputTokenUpperBound:
+              REAL_INCIDENT_INITIAL_ACCOUNTING.estimatedBytes,
+            admitted: true,
+            observedInputTokens: REAL_INCIDENT_OBSERVED_INPUT_TOKENS,
+            rejectionReasonCode: null,
+          },
+        ],
+      },
+      census: clone(current.census),
+      digestAlgorithm: current.digestAlgorithm,
+    };
+    const legacy: LegacyBlueprintAuthoringSanitizedFailureCaptureV2 = {
+      ...withoutDigest,
+      digest: canonicalJsonDigest(withoutDigest),
+    };
+
+    expect(
+      blueprintAuthoringSanitizedFailureCaptureVersionStatus(legacy.version),
+    ).toBe('legacy_immutable');
+    expect(legacyBlueprintAuthoringSanitizedFailureCaptureV2IsValid(legacy)).toBe(
+      true,
+    );
+    expect(blueprintAuthoringSanitizedFailureCaptureIsValid(legacy)).toBe(false);
   });
 
   it('rejects an extra top-level key', () => {
@@ -1023,9 +1151,9 @@ describe('sanitized failure capture — fail-closed no-authority and hostile reg
     expect(blueprintAuthoringSanitizedFailureCaptureIsValid(capture)).toBe(false);
   });
 
-  it('rejects a route whose admitted flag disagrees with its accounting', () => {
+  it('rejects a decision whose admitted flag disagrees with its evidence', () => {
     const capture = clone(baseCapture());
-    capture.admission.routes[1]!.admitted = true; // rejected route claiming admission
+    capture.admission.decisions[1]!.admitted = true;
     const { digest: _drop, ...rest } = capture;
     (capture as { digest: string }).digest = canonicalJsonDigest(rest);
     expect(blueprintAuthoringSanitizedFailureCaptureIsValid(capture)).toBe(false);
@@ -1033,7 +1161,7 @@ describe('sanitized failure capture — fail-closed no-authority and hostile reg
 
   it('rejects a schema/accounting mismatch on the token bound', () => {
     const capture = clone(baseCapture());
-    capture.admission.routes[0]!.conservativeInputTokenUpperBound += 1;
+    capture.admission.decisions[0]!.conservativeUpperBoundTokens += 1;
     const { digest: _drop, ...rest } = capture;
     (capture as { digest: string }).digest = canonicalJsonDigest(rest);
     expect(blueprintAuthoringSanitizedFailureCaptureIsValid(capture)).toBe(false);
@@ -1041,10 +1169,10 @@ describe('sanitized failure capture — fail-closed no-authority and hostile reg
 
   it('rejects malformed route accounting', () => {
     const capture = clone(baseCapture()) as unknown as {
-      admission: { routes: Array<{ byteAccounting: Record<string, number> }> };
+      admission: { decisions: Array<{ inputAccounting: Record<string, number> }> };
       digest: string;
     };
-    capture.admission.routes[0]!.byteAccounting.estimatedBytes = 999999;
+    capture.admission.decisions[0]!.inputAccounting.estimatedBytes = 999999;
     const { digest: _drop, ...rest } = capture as unknown as Record<string, unknown>;
     capture.digest = canonicalJsonDigest(rest);
     expect(
@@ -1054,15 +1182,9 @@ describe('sanitized failure capture — fail-closed no-authority and hostile reg
     ).toBe(false);
   });
 
-  it('rejects two initial routes', () => {
+  it('rejects two initial decisions', () => {
     const capture = clone(baseCapture());
-    capture.admission.routes[1]!.routeKind = 'initial';
-    capture.admission.routes[1]!.admitted = true;
-    capture.admission.routes[1]!.rejectionReasonCode = null;
-    capture.admission.routes[1]!.byteAccounting =
-      REAL_INCIDENT_INITIAL_ACCOUNTING;
-    capture.admission.routes[1]!.conservativeInputTokenUpperBound =
-      REAL_INCIDENT_INITIAL_ACCOUNTING.estimatedBytes;
+    capture.admission.decisions[1]!.routeKind = 'initial';
     const { digest: _drop, ...rest } = capture;
     (capture as { digest: string }).digest = canonicalJsonDigest(rest);
     expect(blueprintAuthoringSanitizedFailureCaptureIsValid(capture)).toBe(false);

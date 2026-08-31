@@ -16,6 +16,7 @@ import {
   type QaWizardCandidateBridgeManifest,
 } from './qaWizardCandidateBridge';
 import {
+  LEGACY_PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION_V6,
   PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION,
   PRODUCTION_AUTHORING_RUN_REQUEST_VERSION,
   PRODUCTION_BLUEPRINT_RUNNER_TERMINAL_FAILURE_CODES,
@@ -24,6 +25,8 @@ import {
   persistBlueprintAuthoringSanitizedFailureCapture,
   persistProductionAuthoringReceipt,
   productionAuthoringReceiptBytes,
+  productionAuthoringReceiptV7EvidenceReason,
+  productionAuthoringReceiptVersionStatus,
   productionBlueprintAuthoringPreflightIssues,
   runProductionBlueprintAuthoring,
   productionAuthoringRunResultIsCompleted,
@@ -31,14 +34,20 @@ import {
   type ProductionAuthoringProvider,
   type ProductionAuthoringAttemptFailureCode,
   type ProductionAuthoringRunReceipt,
+  type ReplayableProductionAuthoringRunReceipt,
+  type LegacyProductionAuthoringAttemptReceiptV6,
   type ProductionAuthoringRunRequest,
 } from './productionAuthoringRunner';
 import {
   BLUEPRINT_AUTHORING_SANITIZED_FAILURE_CAPTURE_VERSION,
+  LEGACY_BLUEPRINT_AUTHORING_SANITIZED_FAILURE_CAPTURE_VERSION_V2,
+  blueprintAuthoringDiagnosticCensusCommitmentIsValid,
   blueprintAuthoringSanitizedFailureCaptureBytes,
   blueprintAuthoringSanitizedFailureCaptureIsValid,
+  legacyBlueprintAuthoringSanitizedFailureCaptureV2IsValid,
   blueprintAuthoringReceiptRequiresSanitizedCapture,
   type BlueprintAuthoringSanitizedFailureCapture,
+  type LegacyBlueprintAuthoringSanitizedFailureCaptureV2,
 } from './blueprintAuthoringSanitizedFailureCapture';
 import type { ProductionAuthoringContext } from './productionAuthoringContext';
 import {
@@ -65,6 +74,7 @@ import {
 import {
   blueprintAuthoringInputTokensAreAdmissible,
   blueprintAuthoringInputTokensExceedCeiling,
+  type BlueprintAuthoringInputTokenCounter,
 } from './blueprintAuthoringInputTokenAdmission';
 import {
   PRE_RENDER_BLUEPRINT_APPROVAL_VERSION,
@@ -194,7 +204,9 @@ interface ManifestRequestAuthority {
 }
 
 interface ManifestReceiptAuthority {
-  version: typeof PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION;
+  version:
+    | typeof PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION
+    | typeof LEGACY_PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION_V6;
   digest: string;
   path: string;
   status: 'completed' | 'failed';
@@ -225,7 +237,9 @@ interface ManifestBlueprintAuthority {
  * digest/path/bytes — never an unreferenced sibling.
  */
 interface ManifestObservabilityCaptureAuthority {
-  version: typeof BLUEPRINT_AUTHORING_SANITIZED_FAILURE_CAPTURE_VERSION;
+  version:
+    | typeof BLUEPRINT_AUTHORING_SANITIZED_FAILURE_CAPTURE_VERSION
+    | typeof LEGACY_BLUEPRINT_AUTHORING_SANITIZED_FAILURE_CAPTURE_VERSION_V2;
   digest: string;
   path: string;
 }
@@ -345,7 +359,7 @@ export interface QaWizardBlueprintExecutionResult {
   replayed: boolean;
   manifest: QaWizardBlueprintAuthoringManifest;
   manifestPath: string;
-  receipt: ProductionAuthoringRunReceipt;
+  receipt: ReplayableProductionAuthoringRunReceipt;
   receiptPath: string;
   claimPath: string;
   executionRecordPath: string;
@@ -363,6 +377,9 @@ export interface QaWizardBlueprintExecutionDependencies {
   providerFactory?: () =>
     | ProductionAuthoringProvider
     | Promise<ProductionAuthoringProvider>;
+  inputTokenCounterFactory?: () =>
+    | BlueprintAuthoringInputTokenCounter
+    | Promise<BlueprintAuthoringInputTokenCounter>;
   hooks?: {
     /** Test-only crash seam after the atomic process-restart claim and before provider access. */
     afterClaim?: () => void;
@@ -537,7 +554,7 @@ const APPROVAL_DECISION_KEYS = [
   'scope',
   'version',
 ] as const;
-const RECEIPT_TOP_LEVEL_KEYS = [
+const LEGACY_RECEIPT_V6_TOP_LEVEL_KEYS = [
   'attempts',
   'authoringProvenanceDigest',
   'blueprintDigest',
@@ -560,7 +577,12 @@ const RECEIPT_TOP_LEVEL_KEYS = [
   'status',
   'version',
 ] as const;
-const ATTEMPT_KEYS = [
+const RECEIPT_V7_TOP_LEVEL_KEYS = [
+  ...LEGACY_RECEIPT_V6_TOP_LEVEL_KEYS,
+  'admissionDecisions',
+  'diagnosticCensusCommitment',
+] as const;
+const LEGACY_ATTEMPT_V6_KEYS = [
   'attempt',
   'completionStatus',
   'conservativeCallCostUsd',
@@ -583,6 +605,11 @@ const ATTEMPT_KEYS = [
   'usageEvidenceComplete',
   'userPromptDigest',
   'validationDiagnostics',
+] as const;
+const ATTEMPT_V7_KEYS = [
+  ...LEGACY_ATTEMPT_V6_KEYS,
+  'inputAdmissionDigest',
+  'tokenRelevantRequestDigest',
 ] as const;
 const SAFE_USAGE_KEYS = [
   'cacheWriteInputTokens',
@@ -876,8 +903,10 @@ function manifestShapeIsValid(
     if (
       !isFailure ||
       !exactKeys(manifest.observabilityCapture, OBSERVABILITY_CAPTURE_KEYS) ||
-      manifest.observabilityCapture.version !==
-        BLUEPRINT_AUTHORING_SANITIZED_FAILURE_CAPTURE_VERSION ||
+      (manifest.observabilityCapture.version !==
+        BLUEPRINT_AUTHORING_SANITIZED_FAILURE_CAPTURE_VERSION &&
+        manifest.observabilityCapture.version !==
+          LEGACY_BLUEPRINT_AUTHORING_SANITIZED_FAILURE_CAPTURE_VERSION_V2) ||
       typeof manifest.observabilityCapture.digest !== 'string' ||
       !HEX_SHA256.test(manifest.observabilityCapture.digest) ||
       typeof manifest.observabilityCapture.path !== 'string'
@@ -906,7 +935,10 @@ function manifestShapeIsValid(
   }
   if (
     !exactKeys(manifest.receipt, RECEIPT_KEYS) ||
-    manifest.receipt.version !== PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION ||
+    ![
+      PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION,
+      LEGACY_PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION_V6,
+    ].includes(manifest.receipt.version) ||
     typeof manifest.receipt.digest !== 'string' ||
     !HEX_SHA256.test(manifest.receipt.digest) ||
     typeof manifest.receipt.path !== 'string' ||
@@ -914,6 +946,16 @@ function manifestShapeIsValid(
   ) {
     return false;
   }
+  if (
+    manifest.observabilityCapture !== undefined &&
+    ((manifest.receipt.version === PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION &&
+      manifest.observabilityCapture.version !==
+        BLUEPRINT_AUTHORING_SANITIZED_FAILURE_CAPTURE_VERSION) ||
+      (manifest.receipt.version ===
+        LEGACY_PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION_V6 &&
+        manifest.observabilityCapture.version !==
+          LEGACY_BLUEPRINT_AUTHORING_SANITIZED_FAILURE_CAPTURE_VERSION_V2))
+  ) return false;
   if (isFailure) {
     return manifest.blueprint === null && manifest.approval === null;
   }
@@ -1093,8 +1135,15 @@ function attemptReceiptIsValid(args: {
   attempt: unknown;
   index: number;
   priorCumulativeCostUsd: number;
+  receiptVersion:
+    | typeof PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION
+    | typeof LEGACY_PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION_V6;
 }): { valid: boolean; cumulativeCostUsd: number } {
-  if (!exactKeys(args.attempt, ATTEMPT_KEYS)) {
+  const expectedKeys =
+    args.receiptVersion === PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION
+      ? ATTEMPT_V7_KEYS
+      : LEGACY_ATTEMPT_V6_KEYS;
+  if (!exactKeys(args.attempt, expectedKeys)) {
     return { valid: false, cumulativeCostUsd: args.priorCumulativeCostUsd };
   }
   const attempt = args.attempt as Record<string, unknown>;
@@ -1135,12 +1184,21 @@ function attemptReceiptIsValid(args: {
     responseIdIsValid &&
     responseDigestIsValid &&
     providerEvidenceVersionIsCurrent;
-  const fullAccounting =
+  // Legacy v6 had no durable admission ledger, so its only replayable input
+  // authority remains the conservative byte-derived ceiling. Current v7 binds
+  // every attempt to a structurally validated admission decision below via
+  // `productionAuthoringReceiptV7EvidenceReason`; that decision may legitimately
+  // admit an over-byte repair after an exact provider token count. Reapplying the
+  // legacy byte gate here would make the new success path impossible to publish.
+  const inputAccountingIsAdmittedForReceiptVersion =
     blueprintAuthoringInputAccountingIsCanonicalForSchema(
       inputAccounting,
       PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA,
     ) &&
-    blueprintAuthoringInputTokensAreAdmissible(inputAccounting) &&
+    (args.receiptVersion === PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION ||
+      blueprintAuthoringInputTokensAreAdmissible(inputAccounting));
+  const fullAccounting =
+    inputAccountingIsAdmittedForReceiptVersion &&
     attempt.reservedExposureBeforeCallUsd === expectedReservation;
   const fullUsageCostEvidence =
     completeUsage !== null &&
@@ -1252,11 +1310,7 @@ function attemptReceiptIsValid(args: {
     record(attempt.executionAttestation) &&
     attempt.executionAttestation.evidenceKind === 'not_run';
   const boundaryFailureEvidence =
-    blueprintAuthoringInputAccountingIsCanonicalForSchema(
-      inputAccounting,
-      PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA,
-    ) &&
-    blueprintAuthoringInputTokensAreAdmissible(inputAccounting) &&
+    inputAccountingIsAdmittedForReceiptVersion &&
     attempt.reservedExposureBeforeCallUsd === expectedReservation &&
     (attempt.failureEvidenceKind !== 'provider_adapter_boundary' ||
       attempt.failureEvidenceReason === 'boundary_reason_invalid' ||
@@ -1401,6 +1455,13 @@ function attemptReceiptIsValid(args: {
       HEX_SHA256.test(attempt.systemPromptDigest) &&
       typeof attempt.userPromptDigest === 'string' &&
       HEX_SHA256.test(attempt.userPromptDigest) &&
+      (args.receiptVersion ===
+      LEGACY_PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION_V6
+        ? true
+        : typeof attempt.inputAdmissionDigest === 'string' &&
+          HEX_SHA256.test(attempt.inputAdmissionDigest) &&
+          typeof attempt.tokenRelevantRequestDigest === 'string' &&
+          HEX_SHA256.test(attempt.tokenRelevantRequestDigest)) &&
       (attempt.responseDigest === null ||
         (typeof attempt.responseDigest === 'string' &&
           HEX_SHA256.test(attempt.responseDigest))) &&
@@ -1429,13 +1490,18 @@ export function productionBlueprintAuthoringReceiptReplayIsValid(args: {
   expectedStatus: 'completed' | 'failed';
   expectedDigest: string;
 }): args is {
-  receipt: ProductionAuthoringRunReceipt & Record<string, unknown>;
+  receipt: ReplayableProductionAuthoringRunReceipt & Record<string, unknown>;
   request: ProductionAuthoringRunRequest;
   expectedStatus: 'completed' | 'failed';
   expectedDigest: string;
 } {
   try {
-    const receipt = args.receipt as unknown as ProductionAuthoringRunReceipt;
+    const receipt = args.receipt as unknown as ReplayableProductionAuthoringRunReceipt;
+  const receiptVersion = receipt.version;
+  if (
+    receiptVersion !== PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION &&
+    receiptVersion !== LEGACY_PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION_V6
+  ) return false;
   const attempts = receipt.attempts;
   let cumulativeCostUsd = 0;
   let attemptsValid = Array.isArray(attempts);
@@ -1445,13 +1511,14 @@ export function productionBlueprintAuthoringReceiptReplayIsValid(args: {
         attempt,
         index,
         priorCumulativeCostUsd: cumulativeCostUsd,
+        receiptVersion,
       });
       attemptsValid &&= result.valid;
       cumulativeCostUsd = result.cumulativeCostUsd;
     }
   }
   const replayAttempts = attemptsValid
-    ? (attempts as ProductionAuthoringRunReceipt['attempts'])
+    ? (attempts as LegacyProductionAuthoringAttemptReceiptV6[])
     : [];
   const aggregateAttestation = attemptsValid
     ? aggregateProductionAuthoringExecutionAttestations(
@@ -1541,8 +1608,15 @@ export function productionBlueprintAuthoringReceiptReplayIsValid(args: {
       receipt.repairCount === 0 &&
       receipt.executionAttestation.evidenceKind === 'not_run');
     return (
-    exactKeys(args.receipt, RECEIPT_TOP_LEVEL_KEYS) &&
-    receipt.version === PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION &&
+    exactKeys(
+      args.receipt,
+      receiptVersion === PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION
+        ? RECEIPT_V7_TOP_LEVEL_KEYS
+        : LEGACY_RECEIPT_V6_TOP_LEVEL_KEYS,
+    ) &&
+    productionAuthoringReceiptVersionStatus(receipt.version) !== 'unsupported' &&
+    (receiptVersion === LEGACY_PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION_V6 ||
+      productionAuthoringReceiptV7EvidenceReason(receipt) === null) &&
     receipt.digestAlgorithm === DIGEST_ALGORITHM &&
     receipt.digest === args.expectedDigest &&
     receipt.digest === canonicalJsonDigest(payloadWithoutDigest(args.receipt)) &&
@@ -1611,7 +1685,7 @@ function loadProductionReceipt(args: {
   outputDir: string;
   authority: ManifestReceiptAuthority;
   request: ProductionAuthoringRunRequest;
-}): ProductionAuthoringRunReceipt {
+}): ReplayableProductionAuthoringRunReceipt {
   const expectedPath = relativeArtifactPath({
     repoRoot: args.repoRoot,
     outputDir: args.outputDir,
@@ -1630,7 +1704,7 @@ function loadProductionReceipt(args: {
       label: 'Blueprint authoring receipt',
     });
     canonicalReceiptBytes = productionAuthoringReceiptBytes(
-      loaded.value as unknown as ProductionAuthoringRunReceipt,
+      loaded.value as unknown as ReplayableProductionAuthoringRunReceipt,
     );
   } catch {
     throw new Error('Blueprint authoring receipt is stale or invalid');
@@ -1648,11 +1722,11 @@ function loadProductionReceipt(args: {
   ) {
     throw new Error('Blueprint authoring receipt is stale or invalid');
   }
-  return loaded.value as unknown as ProductionAuthoringRunReceipt;
+  return loaded.value as unknown as ReplayableProductionAuthoringRunReceipt;
 }
 
 function safeRepairAttemptsFromReceipt(
-  receipt: ProductionAuthoringRunReceipt,
+  receipt: ReplayableProductionAuthoringRunReceipt,
 ): PreRenderBlueprintAuthoringAttempt[] {
   return receipt.attempts.slice(0, receipt.repairCount).map((attempt, index) => ({
     attempt: index + 1,
@@ -1666,7 +1740,7 @@ function safeRepairAttemptsFromReceipt(
 
 function expectedAuthoringProvenance(args: {
   blueprint: PreRenderBookVisualBlueprint;
-  receipt: ProductionAuthoringRunReceipt;
+  receipt: ReplayableProductionAuthoringRunReceipt;
 }): PreRenderBlueprintAuthoringProvenance {
   const firstAttempt = args.receipt.attempts[0];
   if (!firstAttempt || args.receipt.status !== 'completed') {
@@ -1698,7 +1772,7 @@ function readBlueprintArtifacts(args: {
   outputDir: string;
   context: ProductionAuthoringContext;
   authority: ManifestBlueprintAuthority;
-  receipt: ProductionAuthoringRunReceipt;
+  receipt: ReplayableProductionAuthoringRunReceipt;
 }): {
   blueprint: PreRenderBookVisualBlueprint;
   reviewPacket: PreRenderBlueprintReviewPacket;
@@ -2189,7 +2263,7 @@ interface LoadedQaWizardBlueprintManifest {
   bridge: QaWizardCandidateBridgeManifest;
   context: ProductionAuthoringContext;
   request: ProductionAuthoringRunRequest;
-  receipt: ProductionAuthoringRunReceipt | null;
+  receipt: ReplayableProductionAuthoringRunReceipt | null;
   blueprint: PreRenderBookVisualBlueprint | null;
   reviewPacket: PreRenderBlueprintReviewPacket | null;
 }
@@ -2206,7 +2280,14 @@ function loadSanitizedFailureCaptureAuthority(args: {
   outputDir: string;
   capturePath: string;
   expectedDigest: string;
-}): { capture: BlueprintAuthoringSanitizedFailureCapture } {
+  expectedVersion:
+    | typeof BLUEPRINT_AUTHORING_SANITIZED_FAILURE_CAPTURE_VERSION
+    | typeof LEGACY_BLUEPRINT_AUTHORING_SANITIZED_FAILURE_CAPTURE_VERSION_V2;
+}): {
+  capture:
+    | BlueprintAuthoringSanitizedFailureCapture
+    | LegacyBlueprintAuthoringSanitizedFailureCaptureV2;
+} {
   // Exact canonical containment: the capture MUST live at THIS outputDir's canonical
   // `sanitized-failure-captures/<digest>.json` location, not merely under any directory
   // that happens to be named `sanitized-failure-captures` anywhere in the repo. This
@@ -2223,14 +2304,21 @@ function loadSanitizedFailureCaptureAuthority(args: {
     label: 'Blueprint sanitized failure capture',
   });
   const capture =
-    loaded.value as unknown as BlueprintAuthoringSanitizedFailureCapture;
+    loaded.value as unknown as
+      | BlueprintAuthoringSanitizedFailureCapture
+      | LegacyBlueprintAuthoringSanitizedFailureCaptureV2;
+  const structurallyValid =
+    args.expectedVersion === BLUEPRINT_AUTHORING_SANITIZED_FAILURE_CAPTURE_VERSION
+      ? blueprintAuthoringSanitizedFailureCaptureIsValid(loaded.value)
+      : legacyBlueprintAuthoringSanitizedFailureCaptureV2IsValid(loaded.value);
   if (
     args.capturePath !== canonicalPath ||
     repoRelativePath(args.repoRoot, loaded.absolutePath) !== args.capturePath ||
     path.basename(loaded.absolutePath) !== `${args.expectedDigest}.json` ||
     path.basename(path.dirname(loaded.absolutePath)) !==
       'sanitized-failure-captures' ||
-    !blueprintAuthoringSanitizedFailureCaptureIsValid(loaded.value) ||
+    capture.version !== args.expectedVersion ||
+    !structurallyValid ||
     capture.digest !== args.expectedDigest ||
     loaded.rawBytes !== blueprintAuthoringSanitizedFailureCaptureBytes(capture)
   ) {
@@ -2239,6 +2327,62 @@ function loadSanitizedFailureCaptureAuthority(args: {
     );
   }
   return { capture };
+}
+
+function assertReceiptCaptureParity(args: {
+  receipt: ReplayableProductionAuthoringRunReceipt;
+  capture:
+    | BlueprintAuthoringSanitizedFailureCapture
+    | LegacyBlueprintAuthoringSanitizedFailureCaptureV2;
+}): void {
+  const { receipt, capture } = args;
+  if (
+    capture.linkage.terminalReceiptDigest !== receipt.digest ||
+    capture.linkage.requestDigest !== receipt.requestDigest ||
+    capture.linkage.contextDigest !== receipt.contextDigest ||
+    capture.terminalFailureCode !== receipt.failure?.code
+  ) throw new Error('execution_state_uncertain');
+  if (receipt.version === PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION) {
+    if (
+      capture.version !== BLUEPRINT_AUTHORING_SANITIZED_FAILURE_CAPTURE_VERSION ||
+      !blueprintAuthoringDiagnosticCensusCommitmentIsValid(
+        receipt.diagnosticCensusCommitment,
+      ) ||
+      receipt.diagnosticCensusCommitment.totalEmitted !==
+        capture.census.totalEmitted ||
+      receipt.diagnosticCensusCommitment.distinctIdentities !==
+        capture.census.distinctIdentities ||
+      receipt.diagnosticCensusCommitment.fullCensusDigest !==
+        capture.census.fullCensusDigest ||
+      canonicalJsonDigest(receipt.admissionDecisions) !==
+        canonicalJsonDigest(capture.admission.decisions)
+    ) throw new Error('execution_state_uncertain');
+    return;
+  }
+  if (
+    receipt.version !== LEGACY_PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION_V6 ||
+    capture.version !== LEGACY_BLUEPRINT_AUTHORING_SANITIZED_FAILURE_CAPTURE_VERSION_V2
+  ) throw new Error('execution_state_uncertain');
+}
+
+export type QaWizardBlueprintTerminalCaptureRequirement =
+  | 'required'
+  | 'forbidden'
+  | 'legacy_optional';
+
+/** Version-aware capture policy shared by first publication, replay, and recovery. */
+export function qaWizardBlueprintTerminalCaptureRequirement(
+  receipt: ReplayableProductionAuthoringRunReceipt,
+): QaWizardBlueprintTerminalCaptureRequirement {
+  const evidenceRequiresCapture =
+    blueprintAuthoringReceiptRequiresSanitizedCapture(receipt);
+  if (receipt.version === PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION) {
+    return evidenceRequiresCapture ? 'required' : 'forbidden';
+  }
+  if (receipt.version === LEGACY_PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION_V6) {
+    return evidenceRequiresCapture ? 'legacy_optional' : 'forbidden';
+  }
+  throw new Error('execution_state_uncertain');
 }
 
 /**
@@ -2256,10 +2400,13 @@ function loadSanitizedFailureCaptureAuthority(args: {
  * path (the binding is only ever set in the failed branch of materialization).
  *
  * Invariants for a failed terminal:
- *  - EXACT equivalence `captureRequired === Boolean(observabilityCapture)`: a
- *    diagnostic-bearing failure MUST bind a capture; a diagnostic-less failure MUST NOT.
- *    This closes the previously-unchecked "not required but a capture is present"
- *    direction, so an unexpected/extra capture on a diagnostic-less terminal tears.
+ *  - Current receipt v7 has EXACT equivalence
+ *    `captureRequired === Boolean(observabilityCapture)`: a diagnostic-bearing failure MUST
+ *    bind a capture; a diagnostic-less failure MUST NOT. This closes the previously-unchecked
+ *    "not required but a capture is present" direction.
+ *  - Immutable legacy receipt v6 predates capture publication. An absent binding is therefore
+ *    accepted; when a binding is present it is still reloaded and must be an exact linked v2
+ *    capture. This preserves old durable terminals without weakening current publication.
  *  - When bound, the capture is reloaded from canonical bytes and must (a) live at the
  *    exact canonical `sanitized-failure-captures` location under THIS outputDir, (b) match
  *    the manifest binding's version/digest/path, and (c) be linkage-bound to the CURRENT
@@ -2271,15 +2418,19 @@ function assertTerminalObservabilityCaptureDisposition(args: {
   repoRoot: string;
   outputDir: string;
   manifest: QaWizardBlueprintAuthoringManifest;
-  receipt: ProductionAuthoringRunReceipt;
+  receipt: ReplayableProductionAuthoringRunReceipt;
 }): void {
-  const captureRequired = blueprintAuthoringReceiptRequiresSanitizedCapture(
-    args.receipt,
-  );
+  const requirement = qaWizardBlueprintTerminalCaptureRequirement(args.receipt);
   const binding = args.manifest.observabilityCapture;
-  if (captureRequired !== Boolean(binding)) {
+  if (requirement === 'forbidden') {
+    if (binding) throw new Error('execution_state_uncertain');
+    return;
+  }
+  if (requirement === 'required' && !binding) {
     throw new Error('execution_state_uncertain');
   }
+  // `legacy_optional`: v6 is immutable pre-capture evidence. Missing is a valid historical
+  // absence; a present binding continues through exact path, bytes, version, and linkage checks.
   if (!binding) return;
   const expectedPath = relativeArtifactPath({
     repoRoot: args.repoRoot,
@@ -2295,17 +2446,15 @@ function assertTerminalObservabilityCaptureDisposition(args: {
     outputDir: args.outputDir,
     capturePath: binding.path,
     expectedDigest: binding.digest,
+    expectedVersion: binding.version,
   });
   if (
     binding.version !== capture.version ||
-    binding.digest !== capture.digest ||
-    capture.linkage.terminalReceiptDigest !== args.receipt.digest ||
-    capture.linkage.requestDigest !== args.receipt.requestDigest ||
-    capture.linkage.contextDigest !== args.receipt.contextDigest ||
-    capture.terminalFailureCode !== args.receipt.failure?.code
+    binding.digest !== capture.digest
   ) {
     throw new Error('execution_state_uncertain');
   }
+  assertReceiptCaptureParity({ receipt: args.receipt, capture });
 }
 
 /**
@@ -2335,6 +2484,7 @@ function publishAndBindSanitizedFailureCapture(args: {
       'sanitized failure capture is invalid or not bound to its terminal receipt',
     );
   }
+  assertReceiptCaptureParity({ receipt: args.receipt, capture });
   const persisted = persistBlueprintAuthoringSanitizedFailureCapture({
     repoRoot: args.repoRoot,
     outputDir: args.outputDir,
@@ -2347,7 +2497,9 @@ function publishAndBindSanitizedFailureCapture(args: {
     outputDir: args.outputDir,
     capturePath: persisted.capturePath,
     expectedDigest: capture.digest,
+    expectedVersion: capture.version,
   });
+  assertReceiptCaptureParity({ receipt: args.receipt, capture: reloaded.capture });
   return {
     version: capture.version,
     digest: reloaded.capture.digest,
@@ -2918,7 +3070,7 @@ function buildExecutionIncident(args: {
   claim: { digest: string };
   claimPath: string;
   phase: QaWizardBlueprintExecutionIncidentPhase;
-  receipt: ProductionAuthoringRunReceipt | null;
+  receipt: ReplayableProductionAuthoringRunReceipt | null;
 }): QaWizardBlueprintExecutionIncident {
   const receiptStatus: 'completed' | 'failed' | null =
     args.receipt?.status === 'completed' || args.receipt?.status === 'failed'
@@ -2986,7 +3138,7 @@ function persistExecutionIncident(args: {
   claim: { digest: string };
   claimPath: string;
   phase: QaWizardBlueprintExecutionIncidentPhase;
-  receipt: ProductionAuthoringRunReceipt | null;
+  receipt: ReplayableProductionAuthoringRunReceipt | null;
   executionIdentityDigest?: string;
 }): { incident: QaWizardBlueprintExecutionIncident; path: string } {
   const incident = buildExecutionIncident(args);
@@ -3020,7 +3172,7 @@ function buildExecutionRecord(args: {
   claimPath: string;
   manifest: QaWizardBlueprintAuthoringManifest;
   manifestPath: string;
-  receipt: ProductionAuthoringRunReceipt;
+  receipt: ReplayableProductionAuthoringRunReceipt;
   receiptPath: string;
 }): QaWizardBlueprintExecutionRecord {
   return digestPayload({
@@ -3297,8 +3449,8 @@ function recoverTerminalLookup(args: {
   if (receipt === null) throw new Error('execution_state_uncertain');
   // Run the FULL shared acceptance assertion BEFORE materializing (writing) the recovery
   // lookup, so every torn disposition tears here with ZERO lookup written and no provider
-  // redispatch: a diagnostic-bearing terminal missing its capture, a non-required terminal
-  // carrying an unexpected capture, or a valid capture cross-bound from another receipt or
+  // redispatch: a current v7 diagnostic-bearing terminal missing its required capture, a terminal
+  // carrying a forbidden or unexpected capture, or a valid capture cross-bound from another receipt or
   // written under another output root. It is the same assertion the shared replay reader
   // (`loadExecutionRecord`, invoked again below) applies, so recovery can never publish a
   // lookup for a state replay would then reject.
@@ -3607,11 +3759,27 @@ async function runBlueprintExecutionUnderClaim(
       return providerPromise.then((resolved) => resolved.call(callArgs));
     },
   };
+  const inputTokenCounterFactory =
+    deps.inputTokenCounterFactory ??
+    (async (): Promise<BlueprintAuthoringInputTokenCounter> => {
+      const adapter = await import(
+        './openaiResponsesBlueprintAuthoringCountAdapter'
+      );
+      return adapter.createOpenAIResponsesBlueprintAuthoringCountAdapter();
+    });
+  let inputTokenCounterPromise: Promise<BlueprintAuthoringInputTokenCounter> | null =
+    null;
+  const inputTokenCounter: BlueprintAuthoringInputTokenCounter = async (countRequest) => {
+    inputTokenCounterPromise ??= Promise.resolve(inputTokenCounterFactory());
+    const resolved = await inputTokenCounterPromise;
+    return resolved(countRequest);
+  };
 
   const result = await runProductionBlueprintAuthoring({
     request: preflight.request,
     context: preflight.context,
     provider,
+    inputTokenCounter,
   });
   terminalReceipt = result.receipt;
   executionPhase = 'receipt_replay_validation';

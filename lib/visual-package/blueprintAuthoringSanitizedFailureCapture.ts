@@ -15,6 +15,11 @@ import {
   type PreRenderBlueprintRepairDiagnostic,
 } from './preRenderBlueprintAuthoring';
 import type { AuthoringTerminalFailureCode } from './authoringTerminalDiagnostics';
+import {
+  BLUEPRINT_AUTHORING_ADMISSION_LEDGER_VERSION,
+  blueprintAuthoringAdmissionLedgerStructuralReason,
+  type BlueprintAuthoringAdmissionDecisionRecord,
+} from './blueprintAuthoringAdmissionLedger';
 
 /**
  * Sanitized Blueprint authoring failure observability capture.
@@ -65,7 +70,12 @@ import type { AuthoringTerminalFailureCode } from './authoringTerminalDiagnostic
  * future blindness; it does not reconstruct the past.
  */
 export const BLUEPRINT_AUTHORING_SANITIZED_FAILURE_CAPTURE_VERSION =
+  'blueprint-authoring-sanitized-failure-capture/v3' as const;
+export const LEGACY_BLUEPRINT_AUTHORING_SANITIZED_FAILURE_CAPTURE_VERSION_V2 =
   'blueprint-authoring-sanitized-failure-capture/v2' as const;
+
+export const BLUEPRINT_AUTHORING_DIAGNOSTIC_CENSUS_COMMITMENT_VERSION =
+  'blueprint-authoring-diagnostic-census-commitment/v1' as const;
 
 export const BLUEPRINT_AUTHORING_SANITIZED_FAILURE_CAPTURE_SCOPE =
   'blueprint_authoring_failure_observability_only' as const;
@@ -98,9 +108,10 @@ export const BLUEPRINT_AUTHORING_SANITIZED_FAILURE_CAPTURE_DIGEST_ALGORITHM =
  * derivation (the runner), first materialization, replay, and recovery is therefore
  * `blueprintAuthoringReceiptRequiresSanitizedCapture` (this mandatory code OR any attempt
  * with grouped validation diagnostics) — never this code set alone. Because that predicate
- * reads the content-addressed receipt (code + persisted attempt diagnostics), the binding
- * cannot be sidestepped by stripping the capture from a hostile/legacy authoring_failed
- * terminal without also changing the receipt it is derived from.
+ * reads the content-addressed receipt (code + persisted attempt diagnostics), a current v7
+ * binding cannot be sidestepped by stripping the capture without also changing the receipt it
+ * is derived from. Immutable v6 predates capture publication and is deliberately allowed to
+ * replay without a binding; its legacy receipt topology and bytes remain exact.
  */
 export const BLUEPRINT_AUTHORING_CAPTURE_REQUIRED_FAILURE_CODES: ReadonlySet<string> =
   new Set(['repair_route_input_not_admissible', 'draft_validation_repair_exhausted']);
@@ -331,6 +342,33 @@ export interface BlueprintAuthoringSanitizedFailureCapture {
     contextDigest: string;
   };
   admission: {
+    ledgerVersion: typeof BLUEPRINT_AUTHORING_ADMISSION_LEDGER_VERSION;
+    decisions: BlueprintAuthoringAdmissionDecisionRecord[];
+  };
+  census: BlueprintAuthoringSanitizedCensus;
+  digestAlgorithm: typeof BLUEPRINT_AUTHORING_SANITIZED_FAILURE_CAPTURE_DIGEST_ALGORITHM;
+  digest: string;
+}
+
+export interface BlueprintAuthoringDiagnosticCensusCommitment {
+  version: typeof BLUEPRINT_AUTHORING_DIAGNOSTIC_CENSUS_COMMITMENT_VERSION;
+  totalEmitted: number;
+  distinctIdentities: number;
+  fullCensusDigest: string;
+}
+
+/** Immutable legacy shape. It is validated only as v2 and is never reinterpreted as v3. */
+export interface LegacyBlueprintAuthoringSanitizedFailureCaptureV2 {
+  version: typeof LEGACY_BLUEPRINT_AUTHORING_SANITIZED_FAILURE_CAPTURE_VERSION_V2;
+  scope: typeof BLUEPRINT_AUTHORING_SANITIZED_FAILURE_CAPTURE_SCOPE;
+  doesNotAuthorize: string[];
+  terminalFailureCode: string;
+  linkage: {
+    terminalReceiptDigest: string;
+    requestDigest: string;
+    contextDigest: string;
+  };
+  admission: {
     policyVersion: typeof BLUEPRINT_AUTHORING_INPUT_TOKEN_ADMISSION_POLICY_VERSION;
     boundBasis: typeof BLUEPRINT_AUTHORING_INPUT_TOKEN_BOUND_BASIS;
     ceilingTokens: number;
@@ -339,6 +377,17 @@ export interface BlueprintAuthoringSanitizedFailureCapture {
   census: BlueprintAuthoringSanitizedCensus;
   digestAlgorithm: typeof BLUEPRINT_AUTHORING_SANITIZED_FAILURE_CAPTURE_DIGEST_ALGORITHM;
   digest: string;
+}
+
+export function blueprintAuthoringSanitizedFailureCaptureVersionStatus(
+  version: unknown,
+): 'current' | 'legacy_immutable' | 'unsupported' {
+  if (version === BLUEPRINT_AUTHORING_SANITIZED_FAILURE_CAPTURE_VERSION) {
+    return 'current';
+  }
+  return version === LEGACY_BLUEPRINT_AUTHORING_SANITIZED_FAILURE_CAPTURE_VERSION_V2
+    ? 'legacy_immutable'
+    : 'unsupported';
 }
 
 function nonNegativeSafeInteger(value: unknown): value is number {
@@ -512,63 +561,17 @@ function sanitizedRoute(input: {
   };
 }
 
-/**
- * Build a versioned, content-addressed, fail-closed sanitized failure capture from
- * the in-memory structured diagnostics and per-route admission accountings. The
- * builder never reads raw draft/provider output; it consumes only structured
- * diagnostic identities and byte accountings.
- */
-export function buildBlueprintAuthoringSanitizedFailureCapture(args: {
-  terminalFailureCode: AuthoringTerminalFailureCode | string;
-  terminalReceiptDigest: string;
-  requestDigest: string;
-  contextDigest: string;
-  routes: ReadonlyArray<{
-    routeKind: BlueprintAuthoringSanitizedRouteKind;
-    ordinal: number;
-    byteAccounting: BlueprintAuthoringInputAccounting;
-    observedInputTokens?: number | null;
-    rejectionReasonCode?: string | null;
-  }>;
-  diagnostics: readonly PreRenderBlueprintRepairDiagnostic[];
-}): BlueprintAuthoringSanitizedFailureCapture {
-  if (
-    typeof args.terminalFailureCode !== 'string' ||
-    !SAFE_SNAKE.test(args.terminalFailureCode)
-  ) {
-    throw new Error('terminal failure code is not a bounded snake_case identifier');
-  }
-  for (const digest of [
-    args.terminalReceiptDigest,
-    args.requestDigest,
-    args.contextDigest,
-  ]) {
-    if (typeof digest !== 'string' || !HEX_SHA256.test(digest)) {
-      throw new Error('capture linkage digest is not a canonical sha256 hex digest');
-    }
-  }
-  if (args.routes.length === 0 || args.routes.length > MAX_SANITIZED_ROUTES) {
-    throw new Error('sanitized capture must carry 1..N bounded admission routes');
-  }
-  const routes = args.routes.map(sanitizedRoute);
-  if (routes.filter((route) => route.routeKind === 'initial').length !== 1) {
-    throw new Error('sanitized capture must carry exactly one initial route');
-  }
-  const seenOrdinals = new Set<number>();
-  for (const route of routes) {
-    if (!nonNegativeSafeInteger(route.ordinal) || seenOrdinals.has(route.ordinal)) {
-      throw new Error('sanitized capture route ordinals must be unique non-negative integers');
-    }
-    seenOrdinals.add(route.ordinal);
-  }
-
+/** Build the one complete, sanitized identity census used by both receipt v7 and capture v3. */
+export function buildBlueprintAuthoringSanitizedCensus(
+  diagnostics: readonly PreRenderBlueprintRepairDiagnostic[],
+): BlueprintAuthoringSanitizedCensus {
   // Group and COUNT by the SANITIZED identity: two raw diagnostics that project to
   // the same sanitized structural identity (e.g. they differ only in a redacted name
   // or in prose that is never retained) are the same census identity, so distinct-vs-
   // repeated is truthful over the definition that is actually persisted. The raw
   // grouping is lossless per byte-identical tuple; this merge then collapses raw
   // groups that share a sanitized identity, summing their repetition counts.
-  const grouped = groupPreRenderBlueprintRepairDiagnostics(args.diagnostics);
+  const grouped = groupPreRenderBlueprintRepairDiagnostics(diagnostics);
   const mergedById = new Map<string, BlueprintAuthoringSanitizedCensusIdentity>();
   for (const [code, field, , expected, actual, count] of grouped) {
     const projection = sanitizedCensusIdentityProjection(
@@ -617,6 +620,93 @@ export function buildBlueprintAuthoringSanitizedFailureCapture(args: {
   const identities = allIdentities;
   const retainedIdentities = identities.length;
 
+  return {
+    totalEmitted,
+    distinctIdentities,
+    retainedIdentities,
+    truncated: retainedIdentities < distinctIdentities,
+    omittedDistinctIdentities: distinctIdentities - retainedIdentities,
+    fullCensusDigest,
+    identities,
+  };
+}
+
+export function blueprintAuthoringDiagnosticCensusCommitment(
+  census: BlueprintAuthoringSanitizedCensus,
+): BlueprintAuthoringDiagnosticCensusCommitment {
+  if (!censusIsValid(census) || census.totalEmitted < 1) {
+    throw new Error('diagnostic census commitment requires one complete census');
+  }
+  return {
+    version: BLUEPRINT_AUTHORING_DIAGNOSTIC_CENSUS_COMMITMENT_VERSION,
+    totalEmitted: census.totalEmitted,
+    distinctIdentities: census.distinctIdentities,
+    fullCensusDigest: census.fullCensusDigest,
+  };
+}
+
+export function blueprintAuthoringDiagnosticCensusCommitmentIsValid(
+  value: unknown,
+): value is BlueprintAuthoringDiagnosticCensusCommitment {
+  return (
+    record(value) &&
+    keysAre(value, [
+      'distinctIdentities',
+      'fullCensusDigest',
+      'totalEmitted',
+      'version',
+    ]) &&
+    value.version === BLUEPRINT_AUTHORING_DIAGNOSTIC_CENSUS_COMMITMENT_VERSION &&
+    nonNegativeSafeInteger(value.totalEmitted) &&
+    value.totalEmitted > 0 &&
+    nonNegativeSafeInteger(value.distinctIdentities) &&
+    value.distinctIdentities > 0 &&
+    value.distinctIdentities <= value.totalEmitted &&
+    typeof value.fullCensusDigest === 'string' &&
+    HEX_SHA256.test(value.fullCensusDigest)
+  );
+}
+
+/**
+ * Build current capture v3 from the exact runner admission ledger and the already-built
+ * complete census. It never reads or hashes prompt prose, draft output, or PII.
+ */
+export function buildBlueprintAuthoringSanitizedFailureCapture(args: {
+  terminalFailureCode: AuthoringTerminalFailureCode | string;
+  terminalReceiptDigest: string;
+  requestDigest: string;
+  contextDigest: string;
+  admissionDecisions: readonly BlueprintAuthoringAdmissionDecisionRecord[];
+  census: BlueprintAuthoringSanitizedCensus;
+}): BlueprintAuthoringSanitizedFailureCapture {
+  if (
+    typeof args.terminalFailureCode !== 'string' ||
+    !SAFE_SNAKE.test(args.terminalFailureCode)
+  ) {
+    throw new Error('terminal failure code is not a bounded snake_case identifier');
+  }
+  for (const digest of [
+    args.terminalReceiptDigest,
+    args.requestDigest,
+    args.contextDigest,
+  ]) {
+    if (typeof digest !== 'string' || !HEX_SHA256.test(digest)) {
+      throw new Error('capture linkage digest is not a canonical sha256 hex digest');
+    }
+  }
+  const decisions = args.admissionDecisions.map((decision) =>
+    structuredClone(decision),
+  );
+  if (
+    decisions.length === 0 ||
+    blueprintAuthoringAdmissionLedgerStructuralReason(decisions) !== null
+  ) {
+    throw new Error('sanitized capture admission ledger is invalid');
+  }
+  if (!censusIsValid(args.census) || args.census.totalEmitted < 1) {
+    throw new Error('sanitized capture census is incomplete or empty');
+  }
+  const census = structuredClone(args.census);
   const withoutDigest: Omit<
     BlueprintAuthoringSanitizedFailureCapture,
     'digest'
@@ -633,20 +723,10 @@ export function buildBlueprintAuthoringSanitizedFailureCapture(args: {
       contextDigest: args.contextDigest,
     },
     admission: {
-      policyVersion: BLUEPRINT_AUTHORING_INPUT_TOKEN_ADMISSION_POLICY_VERSION,
-      boundBasis: BLUEPRINT_AUTHORING_INPUT_TOKEN_BOUND_BASIS,
-      ceilingTokens: BLUEPRINT_AUTHORING_MAX_INPUT_TOKENS,
-      routes,
+      ledgerVersion: BLUEPRINT_AUTHORING_ADMISSION_LEDGER_VERSION,
+      decisions,
     },
-    census: {
-      totalEmitted,
-      distinctIdentities,
-      retainedIdentities,
-      truncated: retainedIdentities < distinctIdentities,
-      omittedDistinctIdentities: distinctIdentities - retainedIdentities,
-      fullCensusDigest,
-      identities,
-    },
+    census,
     digestAlgorithm: BLUEPRINT_AUTHORING_SANITIZED_FAILURE_CAPTURE_DIGEST_ALGORITHM,
   };
   return {
@@ -656,7 +736,9 @@ export function buildBlueprintAuthoringSanitizedFailureCapture(args: {
 }
 
 export function blueprintAuthoringSanitizedFailureCaptureBytes(
-  capture: BlueprintAuthoringSanitizedFailureCapture,
+  capture:
+    | BlueprintAuthoringSanitizedFailureCapture
+    | LegacyBlueprintAuthoringSanitizedFailureCaptureV2,
 ): string {
   return `${JSON.stringify(capture, null, 2)}\n`;
 }
@@ -673,7 +755,13 @@ const CAPTURE_KEYS = [
   'version',
 ].sort();
 const LINKAGE_KEYS = ['contextDigest', 'requestDigest', 'terminalReceiptDigest'].sort();
-const ADMISSION_KEYS = ['boundBasis', 'ceilingTokens', 'policyVersion', 'routes'].sort();
+const ADMISSION_KEYS = ['decisions', 'ledgerVersion'].sort();
+const LEGACY_ADMISSION_KEYS = [
+  'boundBasis',
+  'ceilingTokens',
+  'policyVersion',
+  'routes',
+].sort();
 const ROUTE_KEYS = [
   'admitted',
   'byteAccounting',
@@ -915,24 +1003,14 @@ export function blueprintAuthoringSanitizedFailureCaptureIsValid(
   }
   const admission = value.admission;
   if (!record(admission) || !keysAre(admission, ADMISSION_KEYS)) return false;
-  if (admission.policyVersion !== BLUEPRINT_AUTHORING_INPUT_TOKEN_ADMISSION_POLICY_VERSION) {
-    return false;
-  }
-  if (admission.boundBasis !== BLUEPRINT_AUTHORING_INPUT_TOKEN_BOUND_BASIS) return false;
-  if (admission.ceilingTokens !== BLUEPRINT_AUTHORING_MAX_INPUT_TOKENS) return false;
-  const routes = admission.routes;
   if (
-    !Array.isArray(routes) ||
-    routes.length === 0 ||
-    routes.length > MAX_SANITIZED_ROUTES ||
-    !routes.every(routeIsValid)
+    admission.ledgerVersion !== BLUEPRINT_AUTHORING_ADMISSION_LEDGER_VERSION ||
+    !Array.isArray(admission.decisions) ||
+    admission.decisions.length === 0 ||
+    blueprintAuthoringAdmissionLedgerStructuralReason(admission.decisions) !== null
   ) {
     return false;
   }
-  const typedRoutes = routes as BlueprintAuthoringSanitizedRoute[];
-  if (typedRoutes.filter((route) => route.routeKind === 'initial').length !== 1) return false;
-  const ordinals = typedRoutes.map((route) => route.ordinal);
-  if (new Set(ordinals).size !== ordinals.length) return false;
   if (!censusIsValid(value.census)) return false;
   // Recompute the content digest over everything but the digest field.
   const { digest, ...withoutDigest } = value;
@@ -941,4 +1019,51 @@ export function blueprintAuthoringSanitizedFailureCaptureIsValid(
   // Belt-and-suspenders structural leak scan.
   if (!noProseLeak(withoutDigest)) return false;
   return true;
+}
+
+/** Exact immutable v2 validator. Current v3 logic is never applied to legacy bytes. */
+export function legacyBlueprintAuthoringSanitizedFailureCaptureV2IsValid(
+  value: unknown,
+): value is LegacyBlueprintAuthoringSanitizedFailureCaptureV2 {
+  if (!record(value) || !keysAre(value, CAPTURE_KEYS)) return false;
+  if (
+    value.version !== LEGACY_BLUEPRINT_AUTHORING_SANITIZED_FAILURE_CAPTURE_VERSION_V2 ||
+    value.scope !== BLUEPRINT_AUTHORING_SANITIZED_FAILURE_CAPTURE_SCOPE ||
+    value.digestAlgorithm !==
+      BLUEPRINT_AUTHORING_SANITIZED_FAILURE_CAPTURE_DIGEST_ALGORITHM ||
+    !Array.isArray(value.doesNotAuthorize) ||
+    JSON.stringify(value.doesNotAuthorize) !==
+      JSON.stringify([
+        ...BLUEPRINT_AUTHORING_SANITIZED_FAILURE_CAPTURE_DOES_NOT_AUTHORIZE,
+      ]) ||
+    typeof value.terminalFailureCode !== 'string' ||
+    !SAFE_SNAKE.test(value.terminalFailureCode) ||
+    !record(value.linkage) ||
+    !keysAre(value.linkage, LINKAGE_KEYS)
+  ) return false;
+  for (const digest of Object.values(value.linkage)) {
+    if (typeof digest !== 'string' || !HEX_SHA256.test(digest)) return false;
+  }
+  const admission = value.admission;
+  if (!record(admission) || !keysAre(admission, LEGACY_ADMISSION_KEYS)) return false;
+  if (
+    admission.policyVersion !== BLUEPRINT_AUTHORING_INPUT_TOKEN_ADMISSION_POLICY_VERSION ||
+    admission.boundBasis !== BLUEPRINT_AUTHORING_INPUT_TOKEN_BOUND_BASIS ||
+    admission.ceilingTokens !== BLUEPRINT_AUTHORING_MAX_INPUT_TOKENS ||
+    !Array.isArray(admission.routes) ||
+    admission.routes.length === 0 ||
+    admission.routes.length > MAX_SANITIZED_ROUTES ||
+    !admission.routes.every(routeIsValid)
+  ) return false;
+  const routes = admission.routes as BlueprintAuthoringSanitizedRoute[];
+  if (routes.filter((route) => route.routeKind === 'initial').length !== 1) return false;
+  if (new Set(routes.map((route) => route.ordinal)).size !== routes.length) return false;
+  if (!censusIsValid(value.census)) return false;
+  const { digest, ...withoutDigest } = value;
+  return (
+    typeof digest === 'string' &&
+    HEX_SHA256.test(digest) &&
+    canonicalJsonDigest(withoutDigest) === digest &&
+    noProseLeak(withoutDigest)
+  );
 }

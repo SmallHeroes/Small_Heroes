@@ -1,6 +1,6 @@
 # SmallHeroes — Current Technical State
 
-## F1 — exact repair input-token admission: Boundaries 1–3 locally green; milestone IN PROGRESS, NOT live-ready; F3 PASS preserved (Codex implementation; not pushed)
+## F1 — exact repair input-token admission: Boundaries 1–4 locally green; focused offline implementation COMPLETE; repository fixture/timeout HOLD reproduced; awaiting independent Claude re-gate; NOT live-ready; F3 PASS preserved (Codex implementation; not pushed)
 
 F3 was awarded PASS (345/345, content-bound failure-capture authority, truthful evidence). F1 is
 the approved exact provider-authoritative REPAIR input-token admission milestone. It is a LARGE
@@ -73,17 +73,46 @@ being delivered as a sequence of green boundaries.
   immediately following route; missing/duplicate/stale/prompt-mismatched proof fails pre-provider.
   A cache hit remains deduplication evidence only and is explicitly forbidden from independently
   authorizing generation, so a forged zero-debit hit cannot detach a count from its original cost.
-  The real Wizard lifecycle counter remains deliberately unwired until receipt v7 is atomic.
-- **Current validation:** Boundary-3 focused cross-boundary battery **193/193** across seven suites;
-  this includes an end-to-end fake-provider run whose >64K repair is opened by exactly one bound
-  50K count, in-flight/serial cache deduplication, ordinal separation, conservative unknown-
-  dispatch debit, budget-edge rejection, hostile proof mutations, exact-count/usage mismatch,
-  and pre-credential rejection. `npx --no-install tsc --noEmit` and `git diff --check` are clean.
-  No provider, credential, live, render, DB, deploy, network or push occurred.
-- **REMAINING boundaries (not yet implemented):** **receipt v7 cutover + durable F3 census-identity
-  commitment across first-publication/replay/recovery** (touches the content-bound seals — highest
-  risk); the 8-page/86-diagnostic harness and the ~15 hostile regressions. **NOT the complete F1
-  milestone; must not be re-gated as F1 PASS.**
+  Boundary 4 now wires the real Wizard lifecycle through a lazy, separately injected count
+  adapter only when an over-byte repair actually requires it.
+- **Boundary 4 — durable evidence and lifecycle closure:** newly minted receipts are v7 and bind
+  the complete route admission ledger plus one complete diagnostic-census commitment; newly
+  minted captures are v3 and repeat those authorities. First publication, terminal lookup,
+  recovery and replay use the same version-aware proof. Immutable receipt v6/capture v2 remain
+  exact legacy shapes: a historical v6 terminal may lack a capture because capture publication
+  did not yet exist; if a v2 binding is present it must be evidence-required, canonical and
+  linkage-exact. Current v7 keeps strict required/forbidden capture equivalence. Successful
+  exact-count attempts require returned usage to equal the count; a generation that fails before
+  any response usage exists remains a valid failed terminal, rather than becoming unreplayable.
+- **Production-scale offline proof:** a child-process harness loads immutable package revision
+  `2b488f2d…`, reconstructs context `0cc212ea…`, produces an eight-page first draft with exactly
+  **86 diagnostics**, measures the repair wire at **74,788 UTF-8 bytes**, admits it from one exact
+  **50,000-token** count, completes in two generation calls, and emits receipt v7. Sentinels prove
+  zero network, credential and OpenAI-module access. The historical real v4 request/v6 receipt are
+  pinned byte-for-byte as fixtures (450/3,611 bytes with fixed SHA-256 values), and the real durable
+  successor terminal `4c331080…` now replays as `authoring_failed` with zero provider-factory loads
+  and byte-identical output inventories.
+- **Current validation:** focused cross-boundary battery **244/244** across nine suites, including
+  count transport/attestation, cache/debit arithmetic, adapter proof binding, receipt/capture
+  tamper cases, first publication/recovery/replay, current/legacy version discrimination, the
+  eight-page harness, exact-count/usage mismatch, and exact-count followed by a pre-response
+  generation failure. `npx --no-install tsc --noEmit` and `git diff --check` are clean. No provider,
+  credential, live, render, DB, deploy, network or push occurred.
+- **Repository-gate disclosure:** literal `npm run check` remains non-green. Both TypeScript phases
+  passed. Ordinary reported **4,219 passed / 9 failed / 73 skipped** across 331 files; the nine are
+  the established missing ignored-output fixture assertions in five unchanged fixture-reading
+  specs. Resource-intensive reported **612 passed / 20 timed out** across 20 files plus four
+  `[vitest-worker]: Timeout calling "onTaskUpdate"` errors. The five affected Git/subprocess-heavy
+  specs were then run exactly once each, serially with one fork and no file parallelism: one passed
+  15/15; the aggregate was **97 passed / 13 timed out** across 110 tests, and every failure remained
+  a fixed 5s/15s timeout rather than an assertion mismatch (four worker RPC errors also recurred).
+  Therefore the failure is not described as concurrency-only, the full repository gate is not
+  claimed green, and the timeout surface is handed to independent QA without weakening assertions
+  or increasing timeout policy inside this milestone.
+- **Remaining gate:** freeze the focused local commit and obtain independent Claude Code PASS.
+  Only then run Fresh Readiness and the one bounded live authoring attempt; render remains a later
+  downstream action after a real Candidate exists. No additional F1 implementation boundary is
+  currently known.
 
 ---
 

@@ -815,3 +815,79 @@ caller-visible object, so contradictory bytes could be written. Closed on top of
 
 No provider/network/API/credential/live/render/DB/deploy/push; real `outputs/` artifacts were not
 touched. F1 (paid exact-token count) remains a separate HOLD.
+
+## F1 completion addendum — receipt v7, capture v3, durable replay, and production-scale offline proof (2026-08-31)
+
+This addendum supersedes every earlier statement that F1 is unimplemented or decision-blocked.
+The complete exact-count admission path is now implemented **offline** and locally green. It has
+not received independent Claude Code PASS and therefore does not authorize provider, live, or
+render activity.
+
+### Durable current and legacy evidence
+
+- Newly minted authoring receipts advance from v6 to **v7**. Each generation attempt binds the
+  canonical route admission decision and token-relevant wire digest; the receipt binds the full
+  ordered admission ledger plus a commitment to the complete sanitized diagnostic census.
+- Newly minted sanitized captures advance from v2 to **v3** and repeat the exact v7 admission
+  ledger and complete census. Publication, terminal lookup, replay, and recovery all enforce one
+  shared version-aware capture policy and receipt/capture parity.
+- Receipt v6 and capture v2 remain immutable legacy shapes. Historical diagnostic-bearing v6
+  terminals may omit a capture because capture publication did not exist when they were written.
+  A present v2 binding remains evidence-required and must pass exact canonical path, bytes,
+  version, digest, and receipt-linkage checks. Current v7 remains strict: required capture missing
+  or forbidden capture present tears as `execution_state_uncertain`.
+- Successful exact-count generation still requires canonical returned usage to equal the exact
+  count. A provider/transport failure before response usage exists is valid failed evidence: the
+  exact count proves admission of the generation wire, not the existence of a provider response.
+
+### Real Wizard wiring and offline production-scale harness
+
+- `qaWizardBlueprintAuthoringLifecycle.ts` lazily creates the count adapter only when an
+  over-byte repair needs one. Replay loads neither generation provider nor count adapter.
+- The harness loads immutable visual-package revision `2b488f2d…`, reconstructs production
+  context `0cc212ea…`, and runs an eight-page invalid first draft with exactly **86** diagnostics.
+  The repair wire measures **74,788 UTF-8 bytes**; one attested exact count returns **50,000
+  tokens**, admits the route, and the run completes after two generation calls with receipt v7.
+  A child-process sentinel rejects network access, credential reads, and provider-module loads;
+  all remain zero.
+- The historical real v4 request and v6 failed receipt are pinned byte-for-byte as tracked
+  fixtures: request 450 bytes / SHA-256 `d0ab8116…2988`; receipt 3,611 bytes / SHA-256
+  `8c0c5a6b…50aa`. Their canonical request/receipt digests and direct replay are asserted.
+- An adversarial audit found that the real durable v6 successor lookup initially tore because the
+  new capture requirement was applied retroactively. After the version-aware correction, the
+  exact durable receipt `4c331080…` replays as `authoring_failed`, provider-factory calls remain
+  zero, and a SHA-256 inventory of both output roots is unchanged before/after.
+- A second adversarial audit found that an exact-counted repair whose generation failed before
+  usage was incorrectly rejected. A hostile end-to-end regression now proves exact count →
+  pre-response generation failure → durable v7 failed terminal + bound capture → replay with
+  zero provider/count factory loads. Present-but-mismatched usage remains rejected.
+
+### Files and validation
+
+Production: `blueprintAuthoringAdmissionLedger.ts`,
+`blueprintAuthoringSanitizedFailureCapture.ts`, `productionAuthoringRunner.ts`, and
+`qaWizardBlueprintAuthoringLifecycle.ts`. Tests/fixtures: the admission/capture, runner,
+lifecycle, workload-classifier, and production-scale harness files plus the two immutable v6
+fixtures.
+
+Focused cross-boundary validation: **9 files / 244 tests PASS**. It covers the guarded count
+transport and attestation, one-shot/no-retry behavior, cache/debit arithmetic, unchanged $5 hard
+ceiling, canonical generation binding, v7/v3 first publication/recovery/replay, v6/v2 legacy
+discrimination, tamper cases, the production-scale harness, exact-count usage mismatch, and the
+pre-response failure path. `npx --no-install tsc --noEmit` and `git diff --check` pass.
+
+The literal repository gate is disclosed separately and is **not green**. `npm run check` passed
+both TypeScript phases. Its ordinary partition reported **4,219 passed / 9 failed / 73 skipped**
+across 331 files; the nine failures are the established missing ignored-output fixture assertions
+in five unchanged fixture-reading specs. Its 20-file resource partition reported **612 passed /
+20 timed out**, plus four Vitest worker `onTaskUpdate` RPC timeouts. Each of the five affected
+Git/subprocess-heavy specs was then run once in a separate serial, single-fork invocation. One
+passed 15/15; the combined result was **97 passed / 13 timed out** across 110 tests. Every failure
+was a fixed 5s or 15s test timeout, not an assertion mismatch, and four worker RPC timeouts
+recurred. This proves the symptom is not solely inter-file concurrency; it does not prove the
+timed-out tests semantically green. No timeout, assertion, worker, or skip policy was changed.
+
+No provider, network, API key, live authoring, Candidate mint from a live call, render, database,
+deployment, or push occurred. The remaining gate is one independent Claude Code review of the
+frozen focused commit; only after PASS may Fresh Readiness and the single bounded live authoring
+attempt proceed.

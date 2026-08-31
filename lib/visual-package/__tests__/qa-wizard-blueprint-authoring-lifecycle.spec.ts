@@ -64,6 +64,7 @@ import {
   loadQaWizardBlueprintAuthoringManifest,
   prepareQaWizardBlueprintLiveRequest,
   productionBlueprintAuthoringReceiptReplayIsValid,
+  qaWizardBlueprintTerminalCaptureRequirement,
   recordQaWizardBlueprintApproval,
   type QaWizardBlueprintAuthoringManifest,
 } from '../qaWizardBlueprintAuthoringLifecycle';
@@ -83,6 +84,11 @@ import {
   conservativeBlueprintAuthoringCostUsd,
   nominalBlueprintAuthoringUsageCostUsd,
 } from '../blueprintAuthoringPolicy';
+import {
+  BLUEPRINT_AUTHORING_COUNT_EVIDENCE_VERSION,
+  blueprintAuthoringCountRequestProjection,
+  type BlueprintAuthoringInputTokenCountRequest,
+} from '../blueprintAuthoringInputTokenAdmission';
 import { PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA } from '../preRenderBlueprintDraftSchema';
 import {
   BLUEPRINT_AUTHORING_SANITIZED_FAILURE_CAPTURE_VERSION,
@@ -90,10 +96,12 @@ import {
   blueprintAuthoringSanitizedFailureCaptureIsValid,
   type BlueprintAuthoringSanitizedFailureCapture,
 } from '../blueprintAuthoringSanitizedFailureCapture';
-import type { ProductionAuthoringProvider } from '../productionAuthoringRunner';
 import {
+  PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION,
   ProductionAuthoringProviderBoundaryError,
   aggregateProductionAuthoringExecutionAttestations,
+  type ProductionAuthoringProvider,
+  type ReplayableProductionAuthoringRunReceipt,
 } from '../productionAuthoringRunner';
 import { createOpenAIResponsesBlueprintAuthoringAdapter } from '../openaiResponsesBlueprintAuthoringAdapter';
 import type { OpenAIResponsesAuthoringTransport } from '../openaiResponsesVisualContractAuthoringAdapter';
@@ -502,6 +510,317 @@ describe('QA Wizard Blueprint authoring operator lifecycle', () => {
       beforeReplay,
     );
     expect(JSON.stringify(beforeReplay)).not.toContain('must-not-persist');
+  });
+
+  it('exact-counts an over-byte repair, publishes a v7 Candidate, and replays without loading either factory', async () => {
+    const subject = setup();
+    const preflight = prepare(subject);
+    const invalidFirstDraft = {
+      ...(providerDraft(subject.fixture) as Record<string, unknown>),
+      worldPlan: 'x'.repeat(80_000),
+    };
+    const count = vi.fn(
+      async (countRequest: BlueprintAuthoringInputTokenCountRequest) => ({
+        routeKind: 'repair' as const,
+        repairOrdinal: countRequest.repairOrdinal,
+        countRequestDigest: canonicalJsonDigest(
+          blueprintAuthoringCountRequestProjection(countRequest),
+        ),
+        outcome: 'counted' as const,
+        inputTokens: 50_000,
+        unavailableReason: null,
+        attestation: {
+          provider: 'openai' as const,
+          model: 'gpt-5.6-sol',
+          route: 'responses_input_tokens' as const,
+          evidenceVersion: BLUEPRINT_AUTHORING_COUNT_EVIDENCE_VERSION,
+          transportDispatchCount: 1,
+          transportRetryCount: 0,
+          canonicalRouteConfirmed: true,
+          canonicalModelConfirmed: true,
+        },
+      }),
+    );
+    const providerCalls = vi.fn();
+    const providerFactory = vi.fn(
+      (): ProductionAuthoringProvider => ({
+        call: async (args) => {
+          providerCalls(args);
+          if (args.attempt === 1) {
+            return {
+              output: JSON.stringify(invalidFirstDraft),
+              receipt: providerReceipt(args),
+            };
+          }
+          expect(args.inputAdmission).toMatchObject({
+            admitted: true,
+            basis: 'exact_provider_count',
+            exactInputTokens: 50_000,
+            ordinal: 1,
+            generationAttempt: 2,
+            probe: {
+              status: 'cache_miss',
+              transportDisposition: 'dispatched',
+            },
+          });
+          const usage = {
+            inputTokens: 50_000,
+            cachedInputTokens: 0,
+            cacheWriteInputTokens: 0,
+            outputTokens: 80,
+            reasoningTokens: 20,
+            totalTokens: 50_080,
+          };
+          return {
+            output: JSON.stringify(providerDraft(subject.fixture)),
+            receipt: {
+              ...providerReceipt(args),
+              usage: {
+                input_tokens: usage.inputTokens,
+                cached_input_tokens: usage.cachedInputTokens,
+                cache_write_input_tokens: usage.cacheWriteInputTokens,
+                output_tokens: usage.outputTokens,
+                reasoning_tokens: usage.reasoningTokens,
+                total_tokens: usage.totalTokens,
+              },
+              inputAccounting: args.inputAdmission.inputAccounting,
+              nominalEstimatedCostUsd:
+                nominalBlueprintAuthoringUsageCostUsd(usage),
+              conservativeCallCostUsd:
+                conservativeBlueprintAuthoringCostUsd({
+                  inputTokens: usage.inputTokens,
+                  outputTokens: usage.outputTokens,
+                }),
+            },
+          };
+        },
+      }),
+    );
+    const inputTokenCounterFactory = vi.fn(() => count);
+
+    const result = await executeQaWizardBlueprintLiveRequest(
+      {
+        repoRoot: subject.repoRoot,
+        preflightManifestPath: preflight.manifestPath,
+        outputDir: OUTPUT_DIR,
+        write: true,
+      },
+      { providerFactory, inputTokenCounterFactory },
+    );
+
+    expect(result.replayed).toBe(false);
+    expect(result.manifest.stage).toBe('blueprint_candidate');
+    expect(result.receipt.version).toBe(
+      PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION,
+    );
+    if (result.receipt.version !== PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION) {
+      throw new Error('expected current v7 authoring receipt');
+    }
+    expect(result.receipt).toMatchObject({
+      status: 'completed',
+      callCount: 2,
+      repairCount: 1,
+    });
+    expect(result.manifest.receipt?.version).toBe(
+      PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION,
+    );
+    expect(result.manifest.blueprint).not.toBeNull();
+    expect(providerFactory).toHaveBeenCalledTimes(1);
+    expect(providerCalls).toHaveBeenCalledTimes(2);
+    expect(inputTokenCounterFactory).toHaveBeenCalledTimes(1);
+    expect(count).toHaveBeenCalledTimes(1);
+    expect(count.mock.calls[0]![0].userPrompt.length).toBeGreaterThan(
+      BLUEPRINT_AUTHORING_MAX_INPUT_TOKENS,
+    );
+    const repairDecision = result.receipt.admissionDecisions[1]!;
+    expect(repairDecision).toMatchObject({
+      basis: 'exact_provider_count',
+      exactInputTokens: 50_000,
+      admitted: true,
+    });
+    expect(result.receipt.attempts[1]!.inputAdmissionDigest).toBe(
+      canonicalJsonDigest(repairDecision),
+    );
+    expect(result.receipt.attempts[1]!.tokenRelevantRequestDigest).toBe(
+      repairDecision.tokenRelevantRequestDigest,
+    );
+    expect(result.receipt.diagnosticCensusCommitment).not.toBeNull();
+
+    const forbiddenProviderFactory = vi.fn(() => {
+      throw new Error('provider_must_not_load_on_replay');
+    });
+    const forbiddenCountFactory = vi.fn(() => {
+      throw new Error('counter_must_not_load_on_replay');
+    });
+    const replay = await executeQaWizardBlueprintLiveRequest(
+      {
+        repoRoot: subject.repoRoot,
+        preflightManifestPath: preflight.manifestPath,
+        outputDir: OUTPUT_DIR,
+        write: true,
+      },
+      {
+        providerFactory: forbiddenProviderFactory,
+        inputTokenCounterFactory: forbiddenCountFactory,
+      },
+    );
+    expect(replay.replayed).toBe(true);
+    expect(replay.receipt.digest).toBe(result.receipt.digest);
+    expect(replay.manifest.digest).toBe(result.manifest.digest);
+    expect(forbiddenProviderFactory).not.toHaveBeenCalled();
+    expect(forbiddenCountFactory).not.toHaveBeenCalled();
+  });
+
+  it('publishes and replays a v7 failed terminal when exact counting succeeds but repair generation fails before usage exists', async () => {
+    const subject = setup();
+    const preflight = prepare(subject);
+    const invalidFirstDraft = {
+      ...(providerDraft(subject.fixture) as Record<string, unknown>),
+      worldPlan: 'x'.repeat(80_000),
+    };
+    const count = vi.fn(
+      async (countRequest: BlueprintAuthoringInputTokenCountRequest) => ({
+        routeKind: 'repair' as const,
+        repairOrdinal: countRequest.repairOrdinal,
+        countRequestDigest: canonicalJsonDigest(
+          blueprintAuthoringCountRequestProjection(countRequest),
+        ),
+        outcome: 'counted' as const,
+        inputTokens: 50_000,
+        unavailableReason: null,
+        attestation: {
+          provider: 'openai' as const,
+          model: 'gpt-5.6-sol',
+          route: 'responses_input_tokens' as const,
+          evidenceVersion: BLUEPRINT_AUTHORING_COUNT_EVIDENCE_VERSION,
+          transportDispatchCount: 1,
+          transportRetryCount: 0,
+          canonicalRouteConfirmed: true,
+          canonicalModelConfirmed: true,
+        },
+      }),
+    );
+    const providerCalls = vi.fn();
+    const providerFactory = vi.fn(
+      (): ProductionAuthoringProvider => ({
+        call: async (args) => {
+          providerCalls(args);
+          if (args.attempt === 1) {
+            return {
+              output: JSON.stringify(invalidFirstDraft),
+              receipt: providerReceipt(args),
+            };
+          }
+          expect(args.inputAdmission).toMatchObject({
+            admitted: true,
+            basis: 'exact_provider_count',
+            exactInputTokens: 50_000,
+            generationAttempt: 2,
+          });
+          throw new Error('synthetic transport failure before response usage');
+        },
+      }),
+    );
+    const inputTokenCounterFactory = vi.fn(() => count);
+
+    const result = await executeQaWizardBlueprintLiveRequest(
+      {
+        repoRoot: subject.repoRoot,
+        preflightManifestPath: preflight.manifestPath,
+        outputDir: OUTPUT_DIR,
+        write: true,
+      },
+      { providerFactory, inputTokenCounterFactory },
+    );
+
+    expect(result.replayed).toBe(false);
+    expect(result.manifest.stage).toBe('authoring_failed');
+    expect(result.receipt).toMatchObject({
+      version: PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION,
+      status: 'failed',
+      callCount: 2,
+      repairCount: 1,
+      failure: { code: 'provider_call_failed' },
+    });
+    if (result.receipt.version !== PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION) {
+      throw new Error('expected current v7 authoring receipt');
+    }
+    expect(result.receipt.attempts[1]).toMatchObject({
+      usage: null,
+      failureCode: 'provider_call_failed',
+      failureEvidenceKind: 'raw_provider_exception',
+      failureEvidenceReason: 'raw_provider_exception',
+    });
+    expect(result.receipt.admissionDecisions[1]).toMatchObject({
+      basis: 'exact_provider_count',
+      exactInputTokens: 50_000,
+      admitted: true,
+    });
+    expect(result.manifest.observabilityCapture).toBeDefined();
+    expect(
+      productionBlueprintAuthoringReceiptReplayIsValid({
+        receipt: result.receipt as unknown as Record<string, unknown>,
+        request: preflight.request,
+        expectedStatus: 'failed',
+        expectedDigest: result.receipt.digest,
+      }),
+    ).toBe(true);
+    expect(providerFactory).toHaveBeenCalledTimes(1);
+    expect(providerCalls).toHaveBeenCalledTimes(2);
+    expect(inputTokenCounterFactory).toHaveBeenCalledTimes(1);
+    expect(count).toHaveBeenCalledTimes(1);
+
+    const forbiddenProviderFactory = vi.fn(() => {
+      throw new Error('provider_must_not_load_on_replay');
+    });
+    const forbiddenCountFactory = vi.fn(() => {
+      throw new Error('counter_must_not_load_on_replay');
+    });
+    const replay = await executeQaWizardBlueprintLiveRequest(
+      {
+        repoRoot: subject.repoRoot,
+        preflightManifestPath: preflight.manifestPath,
+        outputDir: OUTPUT_DIR,
+        write: true,
+      },
+      {
+        providerFactory: forbiddenProviderFactory,
+        inputTokenCounterFactory: forbiddenCountFactory,
+      },
+    );
+    expect(replay.replayed).toBe(true);
+    expect(replay.receipt.digest).toBe(result.receipt.digest);
+    expect(replay.manifest.digest).toBe(result.manifest.digest);
+    expect(forbiddenProviderFactory).not.toHaveBeenCalled();
+    expect(forbiddenCountFactory).not.toHaveBeenCalled();
+  });
+
+  it('grandfathers only missing capture evidence on immutable diagnostic-bearing v6 receipts', () => {
+    const legacyReceipt = JSON.parse(
+      fs.readFileSync(
+        path.join(
+          process.cwd(),
+          'lib/visual-package/__tests__/fixtures/legacy-v6-authoring-receipt.json',
+        ),
+        'utf8',
+      ),
+    ) as ReplayableProductionAuthoringRunReceipt;
+    expect(legacyReceipt.version).toBe('production-blueprint-authoring-receipt/v6');
+    expect(qaWizardBlueprintTerminalCaptureRequirement(legacyReceipt)).toBe(
+      'legacy_optional',
+    );
+
+    const diagnosticLessLegacy = structuredClone(legacyReceipt);
+    diagnosticLessLegacy.failure = {
+      ...diagnosticLessLegacy.failure!,
+      code: 'provider_call_failed',
+    };
+    for (const attempt of diagnosticLessLegacy.attempts) {
+      attempt.validationDiagnostics = { count: 0, codes: [] };
+    }
+    expect(
+      qaWizardBlueprintTerminalCaptureRequirement(diagnosticLessLegacy),
+    ).toBe('forbidden');
   });
 
   it('persists repair-route input ineligibility as a failed terminal and replays with zero calls', async () => {
@@ -3091,14 +3410,14 @@ describe('QA Wizard Blueprint failed-terminal sanitized capture integration', ()
     expect(capture.doesNotAuthorize).toContain('provider_dispatch');
     expect(capture.doesNotAuthorize).toContain('replacement_authorization');
 
-    // Complete census; both admission routes accounted; no prose survives.
+    // Complete census; both admission decisions accounted; no prose survives.
     expect(capture.census.truncated).toBe(false);
     expect(capture.census.omittedDistinctIdentities).toBe(0);
     expect(capture.census.retainedIdentities).toBe(
       capture.census.distinctIdentities,
     );
     expect(
-      capture.admission.routes.some((route) => route.routeKind === 'repair'),
+      capture.admission.decisions.some((decision) => decision.routeKind === 'repair'),
     ).toBe(true);
     expect(rawBytes).not.toContain('Chameleon');
   });

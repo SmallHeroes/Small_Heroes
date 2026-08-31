@@ -1,0 +1,105 @@
+{
+  "attempts": [
+    {
+      "attempt": 1,
+      "completionStatus": "completed",
+      "conservativeCallCostUsd": 0.405081,
+      "cumulativeConservativeCostUsd": 0.405081,
+      "executionAttestation": {
+        "canonicalModelConfirmed": true,
+        "canonicalRouteConfirmed": true,
+        "evidenceKind": "canonical_adapter_observed",
+        "fallbackUsed": false,
+        "logicalProviderCalls": 1,
+        "transportDispatchCount": 1,
+        "transportRetryCount": 0
+      },
+      "failureCode": null,
+      "failureEvidenceKind": null,
+      "failureEvidenceReason": null,
+      "inputAccounting": {
+        "estimatedBytes": 61502,
+        "protocolAllowance": 4096,
+        "schemaBytes": 20753,
+        "separatorBytes": 2,
+        "systemBytes": 2144,
+        "userBytes": 34507
+      },
+      "kind": "initial",
+      "model": "gpt-5.6-sol",
+      "nominalEstimatedCostUsd": 0.368252,
+      "provider": "openai",
+      "providerEvidenceVersion": "openai-responses-blueprint-authoring-evidence/v1",
+      "reservedExposureBeforeCallUsd": 4.224,
+      "responseDigest": "9b2dc30fa5a2fd21632ae6194bebf2589389df93562094240e4b5958087dea54",
+      "responseId": "resp_0e4c5027aee588d7016a93fd40480887d1a5937d4f220e412d",
+      "systemPromptDigest": "1b6accf0f522b02279db8aa87c388d4ef75d951e71dd21c24a93fb2babfb7051",
+      "usage": {
+        "cacheWriteInputTokens": 12004,
+        "cachedInputTokens": 0,
+        "inputTokens": 12007,
+        "outputTokens": 15411,
+        "reasoningTokens": 1484,
+        "totalTokens": 27418
+      },
+      "usageEvidenceComplete": true,
+      "userPromptDigest": "fef1ce3f7e86a5336fb54477aa025e489114b31a0d64a44d53218fccf4f8e6b7",
+      "validationDiagnostics": {
+        "codes": [
+          "authority_reference_validation_failed",
+          "draft_contract_validation_failed",
+          "draft_schema_validation_failed"
+        ],
+        "count": 86
+      }
+    }
+  ],
+  "authoringProvenanceDigest": null,
+  "blueprintDigest": null,
+  "callBudget": {
+    "maxCalls": 3,
+    "maxRepairCount": 2
+  },
+  "callCount": 1,
+  "contextDigest": "ea5fc680a24e5834b449913990d275a6afde28b304ae1ab6b83e61c2c6314367",
+  "digest": "4c33108016513c06dc6b5d12c0d8ef7c21e0b38f91edb5d71d52ea27c1ce8031",
+  "digestAlgorithm": "canonical-json-sha256",
+  "executionAttestation": {
+    "canonicalModelConfirmed": true,
+    "canonicalRouteConfirmed": true,
+    "evidenceKind": "canonical_adapter_observed",
+    "fallbackUsed": false,
+    "logicalProviderCalls": 1,
+    "transportDispatchCount": 1,
+    "transportRetryCount": 0
+  },
+  "failure": {
+    "code": "repair_route_input_not_admissible",
+    "diagnosticCodes": [
+      "authority_reference_validation_failed",
+      "draft_contract_validation_failed",
+      "draft_schema_validation_failed",
+      "repair_route_input_not_admissible"
+    ],
+    "diagnosticCount": 86,
+    "errorClass": "input_limit_violation",
+    "issues": [
+      "repair_route_input_not_admissible"
+    ],
+    "message": "selected repair route exceeded its canonical pre-dispatch input envelope",
+    "phase": "provider_admission",
+    "repairEligibility": "ineligible",
+    "repairReasonCode": "input_limit_not_repairable"
+  },
+  "maxOutputTokens": 48000,
+  "mode": "live",
+  "model": "gpt-5.6-sol",
+  "noFallback": true,
+  "reasoningEffort": "medium",
+  "repairCount": 0,
+  "requestDigest": "59729de7dd8f27af513a7ca9af70ca3b2300ebccafcf247922a4a737801a409d",
+  "requestId": "qa-wizard-lantern-blueprint-20260830T060423163Z",
+  "requestedAt": "2026-08-30T06:04:23.163Z",
+  "status": "failed",
+  "version": "production-blueprint-authoring-receipt/v6"
+}

@@ -1,0 +1,15 @@
+{
+  "callBudget": {
+    "maxCalls": 3,
+    "maxRepairCount": 2
+  },
+  "contextDigest": "ea5fc680a24e5834b449913990d275a6afde28b304ae1ab6b83e61c2c6314367",
+  "maxOutputTokens": 48000,
+  "mode": "live",
+  "model": "gpt-5.6-sol",
+  "noFallback": true,
+  "reasoningEffort": "medium",
+  "requestId": "qa-wizard-lantern-blueprint-20260830T060423163Z",
+  "requestedAt": "2026-08-30T06:04:23.163Z",
+  "version": "production-blueprint-authoring-request/v4"
+}

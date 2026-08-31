@@ -1,6 +1,7 @@
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
+import { createHash } from 'node:crypto';
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -19,6 +20,8 @@ import {
   persistProductionAuthoringReceipt,
   persistReconciliationDraftBundle,
   productionAuthoringReceiptVersionStatus,
+  productionAuthoringReceiptV7EvidenceReason,
+  productionAuthoringReceiptBytes,
   productionAuthoringRequestVersionStatus,
   productionBlueprintAuthoringPreflightIssues,
   productionBlueprintInitialInputAccounting,
@@ -28,12 +31,14 @@ import {
   blueprintAuthoringFailedCensusCorrelationDiagnostics,
   blueprintAuthoringReceiptRequiresSanitizedCapture,
   blueprintAuthoringSanitizedFailureCaptureIsValid,
+  buildBlueprintAuthoringSanitizedCensus,
   buildBlueprintAuthoringSanitizedFailureCapture,
   persistBlueprintAuthoringSanitizedFailureCapture,
   ProductionAuthoringProviderBoundaryError,
   type ProductionAuthoringProvider,
   type ProductionAuthoringContext,
   type ProductionAuthoringRunRequest,
+  type ReplayableProductionAuthoringRunReceipt,
 } from '@/lib/visual-package';
 import {
   createOpenAIResponsesBlueprintAuthoringAdapter,
@@ -67,6 +72,11 @@ import {
   type AuthoringDiagnosticCode,
 } from '@/lib/visual-package/authoringTerminalDiagnostics';
 import type { ProductionAuthoringAttemptReceipt } from '@/lib/visual-package/productionAuthoringRunner';
+import {
+  BLUEPRINT_AUTHORING_ADMISSION_LEDGER_VERSION,
+  type BlueprintAuthoringAdmissionDecisionRecord,
+} from '@/lib/visual-package/blueprintAuthoringAdmissionLedger';
+import { blueprintAuthoringContinuationReservationMicroUsd } from '@/lib/visual-package/blueprintAuthoringCountAwareCost';
 import { productionBlueprintAuthoringReceiptReplayIsValid } from '@/lib/visual-package/qaWizardBlueprintAuthoringLifecycle';
 import { computeProductionAuthoringContextDigest } from '@/lib/visual-package/productionAuthoringContext';
 import { projectZoneStableGeometry } from '@/lib/visual-contract-compiler';
@@ -1049,6 +1059,104 @@ describe('provider-isolated Blueprint authoring runner', () => {
     expect(
       count.mock.calls[0]![0].userPrompt.length,
     ).toBeGreaterThan(BLUEPRINT_AUTHORING_MAX_INPUT_TOKENS);
+    expect(
+      productionBlueprintAuthoringReceiptReplayIsValid({
+        receipt: result.receipt as unknown as Record<string, unknown>,
+        request: requestFor(context, 'live'),
+        expectedStatus: 'completed',
+        expectedDigest: result.receipt.digest,
+      }),
+    ).toBe(true);
+
+    const mismatchedAdmission = structuredClone(
+      result.receipt,
+    ) as unknown as Record<string, unknown> & {
+      attempts: Array<{ inputAdmissionDigest: string }>;
+      digest: string;
+    };
+    mismatchedAdmission.attempts[1]!.inputAdmissionDigest = 'f'.repeat(64);
+    const { digest: _mismatchedDigest, ...mismatchedPayload } =
+      mismatchedAdmission;
+    mismatchedAdmission.digest = canonicalJsonDigest(mismatchedPayload);
+    expect(
+      productionBlueprintAuthoringReceiptReplayIsValid({
+        receipt: mismatchedAdmission,
+        request: requestFor(context, 'live'),
+        expectedStatus: 'completed',
+        expectedDigest: mismatchedAdmission.digest,
+      }),
+    ).toBe(false);
+
+    const exactUsageMismatch = structuredClone(
+      result.receipt,
+    ) as unknown as Record<string, unknown> & {
+      attempts: Array<{
+        usage: {
+          inputTokens: number;
+          outputTokens: number;
+          totalTokens: number;
+          cachedInputTokens: number;
+          cacheWriteInputTokens: number;
+          reasoningTokens: number;
+        };
+        nominalEstimatedCostUsd: number;
+        conservativeCallCostUsd: number;
+        cumulativeConservativeCostUsd: number;
+      }>;
+      digest: string;
+    };
+    const mismatchedUsage = exactUsageMismatch.attempts[1]!.usage;
+    mismatchedUsage.inputTokens = 50_001;
+    mismatchedUsage.totalTokens = 50_081;
+    exactUsageMismatch.attempts[1]!.nominalEstimatedCostUsd =
+      nominalBlueprintAuthoringUsageCostUsd(mismatchedUsage);
+    exactUsageMismatch.attempts[1]!.conservativeCallCostUsd =
+      conservativeBlueprintAuthoringCostUsd({
+        inputTokens: mismatchedUsage.inputTokens,
+        outputTokens: mismatchedUsage.outputTokens,
+      });
+    exactUsageMismatch.attempts[1]!.cumulativeConservativeCostUsd =
+      exactUsageMismatch.attempts[0]!.conservativeCallCostUsd +
+      exactUsageMismatch.attempts[1]!.conservativeCallCostUsd;
+    const { digest: _usageDigest, ...usagePayload } = exactUsageMismatch;
+    exactUsageMismatch.digest = canonicalJsonDigest(usagePayload);
+    expect(
+      productionAuthoringReceiptV7EvidenceReason(exactUsageMismatch),
+    ).toBe('receipt_attempt_admission_binding_invalid');
+    expect(
+      productionBlueprintAuthoringReceiptReplayIsValid({
+        receipt: exactUsageMismatch,
+        request: requestFor(context, 'live'),
+        expectedStatus: 'completed',
+        expectedDigest: exactUsageMismatch.digest,
+      }),
+    ).toBe(false);
+
+    const legacyV6 = structuredClone(result.receipt) as unknown as Record<
+      string,
+      unknown
+    > & {
+      version: string;
+      attempts: Array<Record<string, unknown>>;
+      digest: string;
+    };
+    legacyV6.version = 'production-blueprint-authoring-receipt/v6';
+    delete legacyV6.admissionDecisions;
+    delete legacyV6.diagnosticCensusCommitment;
+    for (const attempt of legacyV6.attempts) {
+      delete attempt.inputAdmissionDigest;
+      delete attempt.tokenRelevantRequestDigest;
+    }
+    const { digest: _legacyDigest, ...legacyPayload } = legacyV6;
+    legacyV6.digest = canonicalJsonDigest(legacyPayload);
+    expect(
+      productionBlueprintAuthoringReceiptReplayIsValid({
+        receipt: legacyV6,
+        request: requestFor(context, 'live'),
+        expectedStatus: 'completed',
+        expectedDigest: legacyV6.digest,
+      }),
+    ).toBe(false);
   });
 
   it('rejects a noncanonical call budget before provider reachability', async () => {
@@ -1871,10 +1979,71 @@ describe('provider-isolated Blueprint authoring runner', () => {
     ).toBe('legacy_immutable');
     expect(
       productionAuthoringReceiptVersionStatus(
+        'production-blueprint-authoring-receipt/v6',
+      ),
+    ).toBe('legacy_immutable');
+    expect(
+      productionAuthoringReceiptVersionStatus(
         'production-blueprint-authoring-receipt/v4',
       ),
     ).toBe('legacy_immutable');
     expect(provider.call).not.toHaveBeenCalled();
+  });
+
+  it('replays the byte-exact historical v4 request and v6 failed receipt as immutable legacy evidence', () => {
+    const requestPath = path.join(
+      process.cwd(),
+      'lib',
+      'visual-package',
+      '__tests__',
+      'fixtures',
+      'legacy-v6-authoring-request.json',
+    );
+    const receiptPath = path.join(
+      process.cwd(),
+      'lib',
+      'visual-package',
+      '__tests__',
+      'fixtures',
+      'legacy-v6-authoring-receipt.json',
+    );
+    const requestBytes = fs.readFileSync(requestPath, 'utf8');
+    const receiptBytes = fs.readFileSync(receiptPath, 'utf8');
+    expect(Buffer.byteLength(requestBytes, 'utf8')).toBe(450);
+    expect(Buffer.byteLength(receiptBytes, 'utf8')).toBe(3_611);
+    expect(
+      createHash('sha256').update(requestBytes, 'utf8').digest('hex'),
+    ).toBe('d0ab8116ca5b70f400fd6cae190b31efc581294ac75159b6dcb0c7b0d71c2988');
+    expect(
+      createHash('sha256').update(receiptBytes, 'utf8').digest('hex'),
+    ).toBe('8c0c5a6b3fe6e06e8468388f4b712c4c24fb6644efe0890da813afc0642b50aa');
+
+    const request = JSON.parse(requestBytes) as ProductionAuthoringRunRequest;
+    const receipt = JSON.parse(
+      receiptBytes,
+    ) as ReplayableProductionAuthoringRunReceipt & Record<string, unknown>;
+    expect(productionAuthoringRequestVersionStatus(request.version)).toBe(
+      'current',
+    );
+    expect(productionAuthoringReceiptVersionStatus(receipt.version)).toBe(
+      'legacy_immutable',
+    );
+    expect(canonicalJsonDigest(request)).toBe(
+      '59729de7dd8f27af513a7ca9af70ca3b2300ebccafcf247922a4a737801a409d',
+    );
+    expect(receipt.requestDigest).toBe(canonicalJsonDigest(request));
+    expect(receipt.digest).toBe(
+      '4c33108016513c06dc6b5d12c0d8ef7c21e0b38f91edb5d71d52ea27c1ce8031',
+    );
+    expect(productionAuthoringReceiptBytes(receipt)).toBe(receiptBytes);
+    expect(
+      productionBlueprintAuthoringReceiptReplayIsValid({
+        receipt,
+        request,
+        expectedStatus: 'failed',
+        expectedDigest: receipt.digest,
+      }),
+    ).toBe(true);
   });
 
   it('fails unexpected local request processing closed and retains prior receipts as immutable legacy evidence', async () => {
@@ -2442,19 +2611,45 @@ describe('sanitized census correlation is a pure consistency gate, sealed for id
 
     // 2) The exported builder creates a VALIDATOR-VALID, receipt-linked capture containing B.
     const receipt = buildFailedReceipt(request, attempts);
+    const initialAccounting = productionBlueprintInitialInputAccounting(context);
+    const initialDecision: BlueprintAuthoringAdmissionDecisionRecord = {
+      version: BLUEPRINT_AUTHORING_ADMISSION_LEDGER_VERSION,
+      routeKind: 'initial',
+      ordinal: 0,
+      generationAttempt: 1,
+      tokenRelevantRequestDigest: canonicalJsonDigest({ wire: 'initial' }),
+      inputAccounting: initialAccounting,
+      inputAccountingDigest: canonicalJsonDigest(initialAccounting),
+      basis: 'conservative_upper_bound',
+      ceilingTokens: BLUEPRINT_AUTHORING_MAX_INPUT_TOKENS,
+      conservativeUpperBoundTokens: initialAccounting.estimatedBytes,
+      exactInputTokens: null,
+      countResult: null,
+      probe: {
+        status: 'not_required',
+        reservationBeforeDispatchMicroUsd: null,
+        debitMicroUsd: 0,
+        cumulativeDebitMicroUsd: 0,
+        transportDisposition: 'not_dispatched',
+      },
+      generationAccountedMicroUsdBeforeRoute: 0,
+      totalAccountedMicroUsdBeforeGeneration: 0,
+      admitted: true,
+      continuationReservationMicroUsd:
+        blueprintAuthoringContinuationReservationMicroUsd({
+          accountedMicroUsd: 0,
+          remainingGenerationCalls: 3,
+          laterProbeRoutes: 2,
+        }),
+      failureReason: null,
+    };
     const contradictory = buildBlueprintAuthoringSanitizedFailureCapture({
       terminalFailureCode: 'draft_validation_repair_exhausted',
       terminalReceiptDigest: receipt.digest,
       requestDigest: receipt.requestDigest,
       contextDigest: request.contextDigest,
-      routes: [
-        {
-          routeKind: 'initial',
-          ordinal: 0,
-          byteAccounting: productionBlueprintInitialInputAccounting(context),
-        },
-      ],
-      diagnostics: diagnostics!,
+      admissionDecisions: [initialDecision],
+      census: buildBlueprintAuthoringSanitizedCensus(diagnostics!),
     });
     expect(blueprintAuthoringSanitizedFailureCaptureIsValid(contradictory)).toBe(true);
 
