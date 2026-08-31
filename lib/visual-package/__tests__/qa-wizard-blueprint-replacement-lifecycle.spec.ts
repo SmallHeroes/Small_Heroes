@@ -22,9 +22,12 @@ import {
 } from '../qaWizardCandidateBridge';
 import {
   QA_WIZARD_BLUEPRINT_AUTHORING_LEDGER_ROOT,
+  authorizeBlueprintDiagnosticSuccessorCandidate,
   approveBlueprintReplacementProposal,
+  executeBlueprintDiagnosticSuccessorLiveRequest,
   executeBlueprintReplacementLiveRequest,
   executeQaWizardBlueprintLiveRequest,
+  prepareBlueprintDiagnosticSuccessorCandidate,
   prepareBlueprintReplacementProposal,
   prepareQaWizardBlueprintLiveRequest,
   reviewBlueprintReplacementProposal,
@@ -36,6 +39,7 @@ import {
 import { buildStorySourceAuthoritySnapshot } from '../storySourceAuthority';
 import { STYLE01_PRODUCTION_STYLE_AUTHORITY_PATH } from '../styleAuthority';
 import {
+  BLUEPRINT_AUTHORING_MODEL,
   OPENAI_RESPONSES_BLUEPRINT_AUTHORING_EVIDENCE_VERSION,
   blueprintAuthoringInputAccounting,
   blueprintAuthoringReservedExposureUsd,
@@ -43,7 +47,24 @@ import {
   nominalBlueprintAuthoringUsageCostUsd,
 } from '../blueprintAuthoringPolicy';
 import { PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA } from '../preRenderBlueprintDraftSchema';
-import type { ProductionAuthoringProvider } from '../productionAuthoringRunner';
+import {
+  LEGACY_PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION_V7,
+  PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION,
+  aggregateProductionAuthoringExecutionAttestations,
+  type ProductionAuthoringProvider,
+} from '../productionAuthoringRunner';
+import {
+  BLUEPRINT_AUTHORING_COUNT_EVIDENCE_VERSION,
+  blueprintAuthoringCountRequestProjection,
+  type BlueprintAuthoringInputTokenCounter,
+  type BlueprintAuthoringInputTokenCountRequest,
+} from '../blueprintAuthoringInputTokenAdmission';
+import {
+  BLUEPRINT_AUTHORING_SANITIZED_FAILURE_CAPTURE_VERSION,
+  LEGACY_BLUEPRINT_AUTHORING_SANITIZED_FAILURE_CAPTURE_VERSION_V3,
+  type BlueprintAuthoringSanitizedFailureCapture,
+} from '../blueprintAuthoringSanitizedFailureCapture';
+import type { AuthoringExecutionAttestation } from '../authoringTerminalDiagnostics';
 import { canonicalJsonDigest } from '../integrity';
 import { canonicalContentAddressedJsonBytes } from '../canonicalContentAddressedJson';
 import {
@@ -55,6 +76,21 @@ import {
   buildBlueprintFixture,
   buildVisualContractCandidateFixture,
 } from './pre-render-book-visual-blueprint.fixtures';
+import {
+  QA_WIZARD_BLUEPRINT_DIAGNOSTIC_EVIDENCE_TARGET_DIGEST,
+  QA_WIZARD_BLUEPRINT_DIAGNOSTIC_PREDECESSOR_CAPTURE_VERSION,
+  QA_WIZARD_BLUEPRINT_DIAGNOSTIC_PREDECESSOR_RECEIPT_VERSION,
+  QA_WIZARD_BLUEPRINT_DIAGNOSTIC_PREDECESSOR_REQUEST_VERSION,
+  QA_WIZARD_BLUEPRINT_DIAGNOSTIC_TARGET_CAPTURE_VERSION,
+  QA_WIZARD_BLUEPRINT_DIAGNOSTIC_TARGET_CENSUS_VERSION,
+  QA_WIZARD_BLUEPRINT_DIAGNOSTIC_TARGET_RECEIPT_VERSION,
+  blueprintDiagnosticSuccessorAuthorizationIsValid,
+  blueprintDiagnosticSuccessorCandidateIsValid,
+} from '../qaWizardBlueprintDiagnosticSuccessorAuthority';
+import {
+  parseBlueprintDiagnosticSuccessorCliArgs,
+  runBlueprintDiagnosticSuccessorCliAsync,
+} from '../qaWizardBlueprintDiagnosticSuccessorCli';
 
 const tempRoots: string[] = [];
 const OUTPUT_DIR = 'outputs/blueprint-operator';
@@ -1223,5 +1259,859 @@ describe('QA Wizard Blueprint replacement — adversarial authority', () => {
         approvedAt: APPROVED_AT,
       }),
     ).toThrow(/not bound to this proposal path/);
+  });
+});
+
+const DIAGNOSTIC_PREPARED_AT = '2026-08-31T12:00:00.000Z';
+const DIAGNOSTIC_APPROVED_AT = '2026-08-31T12:05:00.000Z';
+
+function diagnosticDraft(
+  fixture: ReturnType<typeof buildBlueprintFixture>,
+  invalidAffordanceCount: number,
+): unknown {
+  const draft = structuredClone(providerDraft(fixture)) as {
+    worldPlan: {
+      affordances: Array<{
+        id: string;
+        zoneId: string;
+        kind: string;
+        consumers: unknown[];
+      }>;
+    };
+  };
+  const existing = draft.worldPlan.affordances[0];
+  if (!existing) throw new Error('fixture must expose one valid affordance zone');
+  for (let index = 0; index < invalidAffordanceCount; index += 1) {
+    draft.worldPlan.affordances.push({
+      id: `affordance:diagnostic_invalid_${index}`,
+      zoneId: existing.zoneId,
+      kind: 'synthetic_invalid',
+      consumers: [],
+    });
+  }
+  return draft;
+}
+
+function diagnosticFailureProvider(
+  fixture: ReturnType<typeof buildBlueprintFixture>,
+  calls = vi.fn(),
+): ProductionAuthoringProvider {
+  const drafts = new Map([
+    [1, diagnosticDraft(fixture, 3)],
+    [2, diagnosticDraft(fixture, 2)],
+    [3, diagnosticDraft(fixture, 1)],
+  ]);
+  return {
+    call: async (args) => {
+      calls(args);
+      const draft = drafts.get(args.attempt);
+      if (!draft) throw new Error('unexpected diagnostic generation attempt');
+      return {
+        output: JSON.stringify(draft),
+        receipt: providerReceipt(args),
+      };
+    },
+  };
+}
+
+function offlineInputTokenCounter(
+  calls = vi.fn(),
+): BlueprintAuthoringInputTokenCounter {
+  return async (request) => {
+    calls(request);
+    return {
+      routeKind: 'repair',
+      repairOrdinal: request.repairOrdinal,
+      countRequestDigest: canonicalJsonDigest(
+        blueprintAuthoringCountRequestProjection(request),
+      ),
+      outcome: 'counted',
+      inputTokens: 1_000,
+      unavailableReason: null,
+      attestation: {
+        provider: 'openai',
+        model: BLUEPRINT_AUTHORING_MODEL,
+        route: 'responses_input_tokens',
+        evidenceVersion: BLUEPRINT_AUTHORING_COUNT_EVIDENCE_VERSION,
+        transportDispatchCount: 1,
+        transportRetryCount: 0,
+        canonicalRouteConfirmed: true,
+        canonicalModelConfirmed: true,
+      },
+    };
+  };
+}
+
+function redigestWithoutAlgorithm(
+  value: Record<string, unknown>,
+): Record<string, unknown> & { digestAlgorithm: 'canonical-json-sha256'; digest: string } {
+  const {
+    digest: _digest,
+    digestAlgorithm: _digestAlgorithm,
+    ...payload
+  } = value;
+  void _digest;
+  void _digestAlgorithm;
+  return {
+    ...payload,
+    digestAlgorithm: 'canonical-json-sha256',
+    digest: canonicalJsonDigest(payload),
+  };
+}
+
+/**
+ * Converts a hermetic current v8/v4 failed execution into the exact durable
+ * v7/v3 topology that motivated the one-shot successor. The request/preflight,
+ * ordinary v2 claim, terminal binding and lookup remain current and exact.
+ */
+async function legacyDiagnosticPredecessor(
+  subject: ReturnType<typeof setup>,
+  mutateLegacyReceipt?: (receipt: Record<string, unknown>) => void,
+) {
+  const preflight = prepare(subject);
+  const providerCalls = vi.fn();
+  const countCalls = vi.fn();
+  const current = await executeQaWizardBlueprintLiveRequest(
+    {
+      repoRoot: subject.repoRoot,
+      preflightManifestPath: preflight.manifestPath,
+      outputDir: OUTPUT_DIR,
+      write: true,
+    },
+    {
+      providerFactory: () =>
+        diagnosticFailureProvider(subject.fixture, providerCalls),
+      inputTokenCounterFactory: () => offlineInputTokenCounter(countCalls),
+    },
+  );
+  if (
+    current.manifest.stage !== 'authoring_failed' ||
+    current.receipt.version !== PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION ||
+    !current.manifest.observabilityCapture
+  ) {
+    throw new Error('fixture did not produce a current diagnostic terminal');
+  }
+
+  const legacyReceipt = structuredClone(current.receipt) as unknown as Record<
+    string,
+    unknown
+  > & {
+    version: string;
+    attempts: Array<Record<string, unknown>>;
+    executionAttestation: AuthoringExecutionAttestation;
+    digest: string;
+  };
+  legacyReceipt.version = LEGACY_PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION_V7;
+  for (const attempt of legacyReceipt.attempts) {
+    delete attempt.diagnosticCensusCommitment;
+    const diagnostics = attempt.validationDiagnostics as Record<string, unknown>;
+    attempt.validationDiagnostics = {
+      count: diagnostics.count,
+      codes: diagnostics.codes,
+    };
+  }
+  legacyReceipt.executionAttestation =
+    aggregateProductionAuthoringExecutionAttestations(
+      legacyReceipt.attempts.map(
+        (attempt) =>
+          attempt.executionAttestation as AuthoringExecutionAttestation,
+      ),
+    );
+  mutateLegacyReceipt?.(legacyReceipt);
+  const redigestedReceipt = redigestWithoutAlgorithm(legacyReceipt);
+  const legacyReceiptPath = `${OUTPUT_DIR}/authoring-receipts/${redigestedReceipt.digest}.json`;
+  writeText(
+    subject.repoRoot,
+    legacyReceiptPath,
+    canonicalContentAddressedJsonBytes(redigestedReceipt),
+  );
+
+  const currentCapture = JSON.parse(
+    fs.readFileSync(
+      path.join(subject.repoRoot, current.manifest.observabilityCapture.path),
+      'utf8',
+    ),
+  ) as BlueprintAuthoringSanitizedFailureCapture;
+  const {
+    attemptCensuses: _attemptCensuses,
+    digest: _captureDigest,
+    ...captureShared
+  } = currentCapture;
+  void _attemptCensuses;
+  void _captureDigest;
+  const legacyCapturePayload = {
+    ...captureShared,
+    version: LEGACY_BLUEPRINT_AUTHORING_SANITIZED_FAILURE_CAPTURE_VERSION_V3,
+    linkage: {
+      ...captureShared.linkage,
+      terminalReceiptDigest: redigestedReceipt.digest,
+    },
+  };
+  const legacyCapture = {
+    ...legacyCapturePayload,
+    digest: canonicalJsonDigest(legacyCapturePayload),
+  };
+  const legacyCapturePath = `${OUTPUT_DIR}/sanitized-failure-captures/${legacyCapture.digest}.json`;
+  writeText(
+    subject.repoRoot,
+    legacyCapturePath,
+    canonicalContentAddressedJsonBytes(legacyCapture),
+  );
+
+  const {
+    digest: _terminalDigest,
+    digestAlgorithm: _terminalAlgorithm,
+    ...terminalPayload
+  } = current.manifest;
+  void _terminalDigest;
+  void _terminalAlgorithm;
+  const legacyTerminalPayload = {
+    ...terminalPayload,
+    receipt: {
+      version: LEGACY_PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION_V7,
+      digest: redigestedReceipt.digest,
+      path: legacyReceiptPath,
+      status: 'failed' as const,
+    },
+    observabilityCapture: {
+      version: LEGACY_BLUEPRINT_AUTHORING_SANITIZED_FAILURE_CAPTURE_VERSION_V3,
+      digest: legacyCapture.digest,
+      path: legacyCapturePath,
+    },
+  };
+  const legacyTerminal = {
+    ...legacyTerminalPayload,
+    digestAlgorithm: 'canonical-json-sha256' as const,
+    digest: canonicalJsonDigest(legacyTerminalPayload),
+  };
+  const legacyTerminalPath = `${OUTPUT_DIR}/blueprint-authoring-manifests/${legacyTerminal.digest}.json`;
+  writeText(
+    subject.repoRoot,
+    legacyTerminalPath,
+    canonicalContentAddressedJsonBytes(legacyTerminal),
+  );
+
+  const executionIdentityDigest = path.basename(current.claimPath, '.json');
+  const terminalBindingPath = `${QA_WIZARD_BLUEPRINT_AUTHORING_LEDGER_ROOT}/terminal-bindings/${executionIdentityDigest}.json`;
+  const binding = JSON.parse(
+    fs.readFileSync(path.join(subject.repoRoot, terminalBindingPath), 'utf8'),
+  ) as Record<string, unknown>;
+  const reboundBinding = redigestWithoutAlgorithm({
+    ...binding,
+    terminalManifestDigest: legacyTerminal.digest,
+    terminalManifestPath: legacyTerminalPath,
+  });
+  writeText(
+    subject.repoRoot,
+    terminalBindingPath,
+    canonicalContentAddressedJsonBytes(reboundBinding),
+  );
+
+  const lookup = JSON.parse(
+    fs.readFileSync(path.join(subject.repoRoot, current.executionRecordPath), 'utf8'),
+  ) as Record<string, unknown>;
+  const legacyLookup = redigestWithoutAlgorithm({
+    ...lookup,
+    terminalManifestDigest: legacyTerminal.digest,
+    terminalManifestPath: legacyTerminalPath,
+    receiptDigest: redigestedReceipt.digest,
+    receiptPath: legacyReceiptPath,
+  });
+  writeText(
+    subject.repoRoot,
+    current.executionRecordPath,
+    canonicalContentAddressedJsonBytes(legacyLookup),
+  );
+
+  return {
+    preflight,
+    current,
+    lookupPath: current.executionRecordPath,
+    lookupDigest: legacyLookup.digest,
+    legacyTerminalPath,
+    legacyReceiptPath,
+    legacyCapturePath,
+    providerCalls,
+    countCalls,
+  };
+}
+
+function prepareDiagnosticSuccessor(
+  subject: ReturnType<typeof setup>,
+  predecessor: Awaited<ReturnType<typeof legacyDiagnosticPredecessor>>,
+  preparedAt = DIAGNOSTIC_PREPARED_AT,
+) {
+  return prepareBlueprintDiagnosticSuccessorCandidate({
+    repoRoot: subject.repoRoot,
+    predecessorTerminalLookupPath: predecessor.lookupPath,
+    predecessorTerminalLookupDigest: predecessor.lookupDigest,
+    preparedBy: 'Codex',
+    preparedAt,
+    write: true,
+  });
+}
+
+function authorizeDiagnosticSuccessor(
+  subject: ReturnType<typeof setup>,
+  candidate: ReturnType<typeof prepareDiagnosticSuccessor>,
+  approvedAt = DIAGNOSTIC_APPROVED_AT,
+) {
+  return authorizeBlueprintDiagnosticSuccessorCandidate({
+    repoRoot: subject.repoRoot,
+    candidatePath: candidate.candidatePath,
+    candidateDigest: candidate.candidate.digest,
+    approvedBy: 'Guy',
+    approvedAt,
+    write: true,
+  });
+}
+
+describe('QA Wizard Blueprint failed-terminal diagnostic successor', () => {
+  it('binds one exact v7/v3 predecessor, emits one current v8/v4 terminal, and replays with zero paid dependencies', async () => {
+    const subject = setup();
+    const predecessor = await legacyDiagnosticPredecessor(subject);
+    expect(predecessor.providerCalls).toHaveBeenCalledTimes(3);
+    const predecessorBytes = [
+      predecessor.lookupPath,
+      predecessor.legacyTerminalPath,
+      predecessor.legacyReceiptPath,
+      predecessor.legacyCapturePath,
+      predecessor.current.claimPath,
+    ].map((artifactPath) => ({
+      artifactPath,
+      bytes: fs.readFileSync(path.join(subject.repoRoot, artifactPath), 'utf8'),
+    }));
+
+    const candidate = prepareDiagnosticSuccessor(subject, predecessor);
+    expect(candidate.candidate.receiptVersion).toBe(
+      LEGACY_PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION_V7,
+    );
+    expect(candidate.candidate.captureVersion).toBe(
+      LEGACY_BLUEPRINT_AUTHORING_SANITIZED_FAILURE_CAPTURE_VERSION_V3,
+    );
+    const authorization = authorizeDiagnosticSuccessor(subject, candidate);
+    const providerCalls = vi.fn();
+    const countCalls = vi.fn();
+    const successor = await executeBlueprintDiagnosticSuccessorLiveRequest(
+      {
+        repoRoot: subject.repoRoot,
+        authorizationPath: authorization.authorizationPath,
+        authorizationDigest: authorization.authorization.digest,
+        write: true,
+      },
+      {
+        providerFactory: () =>
+          diagnosticFailureProvider(subject.fixture, providerCalls),
+        inputTokenCounterFactory: () => offlineInputTokenCounter(countCalls),
+      },
+    );
+    expect(successor.replayed).toBe(false);
+    expect(successor.manifest.stage).toBe('authoring_failed');
+    expect(successor.receipt.version).toBe(PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION);
+    expect(successor.manifest.observabilityCapture?.version).toBe(
+      BLUEPRINT_AUTHORING_SANITIZED_FAILURE_CAPTURE_VERSION,
+    );
+    expect(providerCalls).toHaveBeenCalledTimes(3);
+    expect(successor.claimPath).toContain(
+      `execution-claims/${authorization.successorExecutionDigest}.json`,
+    );
+    for (const snapshot of predecessorBytes) {
+      expect(
+        fs.readFileSync(path.join(subject.repoRoot, snapshot.artifactPath), 'utf8'),
+      ).toBe(snapshot.bytes);
+    }
+
+    const successorLookup = JSON.parse(
+      fs.readFileSync(
+        path.join(subject.repoRoot, successor.executionRecordPath),
+        'utf8',
+      ),
+    ) as { digest: string };
+    expect(() =>
+      prepareBlueprintDiagnosticSuccessorCandidate({
+        repoRoot: subject.repoRoot,
+        predecessorTerminalLookupPath: successor.executionRecordPath,
+        predecessorTerminalLookupDigest: successorLookup.digest,
+        preparedBy: 'Codex',
+        preparedAt: '2026-08-31T12:10:00.000Z',
+        write: true,
+      }),
+    ).toThrow(/exact ordinary-v2 predecessor/);
+
+    // Replay authority is the successor's own claim+terminal. Once that durable
+    // result exists, loss of legacy predecessor evidence must not strand it.
+    fs.rmSync(path.join(subject.repoRoot, predecessor.legacyCapturePath));
+
+    const forbiddenProvider = vi.fn(() => {
+      throw new Error('provider_must_not_load_on_diagnostic_replay');
+    });
+    const forbiddenCounter = vi.fn(() => {
+      throw new Error('counter_must_not_load_on_diagnostic_replay');
+    });
+    const replay = await executeBlueprintDiagnosticSuccessorLiveRequest(
+      {
+        repoRoot: subject.repoRoot,
+        authorizationPath: authorization.authorizationPath,
+        authorizationDigest: authorization.authorization.digest,
+        write: true,
+      },
+      {
+        providerFactory: forbiddenProvider,
+        inputTokenCounterFactory: forbiddenCounter,
+      },
+    );
+    expect(replay.replayed).toBe(true);
+    expect(replay.manifest.digest).toBe(successor.manifest.digest);
+    expect(forbiddenProvider).not.toHaveBeenCalled();
+    expect(forbiddenCounter).not.toHaveBeenCalled();
+  });
+
+  it('rejects current evidence, completed terminals, and missing legacy capture before creating successor authority', async () => {
+    const currentSubject = setup();
+    const currentPreflight = prepare(currentSubject);
+    const currentFailed = await executeQaWizardBlueprintLiveRequest(
+      {
+        repoRoot: currentSubject.repoRoot,
+        preflightManifestPath: currentPreflight.manifestPath,
+        outputDir: OUTPUT_DIR,
+        write: true,
+      },
+      {
+        providerFactory: () => diagnosticFailureProvider(currentSubject.fixture),
+        inputTokenCounterFactory: () => offlineInputTokenCounter(),
+      },
+    );
+    const currentLookup = JSON.parse(
+      fs.readFileSync(
+        path.join(currentSubject.repoRoot, currentFailed.executionRecordPath),
+        'utf8',
+      ),
+    ) as { digest: string };
+    expect(() =>
+      prepareBlueprintDiagnosticSuccessorCandidate({
+        repoRoot: currentSubject.repoRoot,
+        predecessorTerminalLookupPath: currentFailed.executionRecordPath,
+        predecessorTerminalLookupDigest: currentLookup.digest,
+        preparedBy: 'Codex',
+        preparedAt: DIAGNOSTIC_PREPARED_AT,
+        write: true,
+      }),
+    ).toThrow(/not diagnostic-successor eligible|exact legacy v7\/v3/);
+
+    const completedSubject = setup();
+    const completedPreflight = prepare(completedSubject);
+    const completed = await executeQaWizardBlueprintLiveRequest(
+      {
+        repoRoot: completedSubject.repoRoot,
+        preflightManifestPath: completedPreflight.manifestPath,
+        outputDir: OUTPUT_DIR,
+        write: true,
+      },
+      { providerFactory: () => passingProvider(completedSubject.fixture) },
+    );
+    const completedLookup = JSON.parse(
+      fs.readFileSync(
+        path.join(completedSubject.repoRoot, completed.executionRecordPath),
+        'utf8',
+      ),
+    ) as { digest: string };
+    expect(() =>
+      prepareBlueprintDiagnosticSuccessorCandidate({
+        repoRoot: completedSubject.repoRoot,
+        predecessorTerminalLookupPath: completed.executionRecordPath,
+        predecessorTerminalLookupDigest: completedLookup.digest,
+        preparedBy: 'Codex',
+        preparedAt: DIAGNOSTIC_PREPARED_AT,
+        write: true,
+      }),
+    ).toThrow(/not diagnostic-successor eligible/);
+
+    const tornSubject = setup();
+    const torn = await legacyDiagnosticPredecessor(tornSubject);
+    fs.rmSync(path.join(tornSubject.repoRoot, torn.legacyCapturePath));
+    expect(() => prepareDiagnosticSuccessor(tornSubject, torn)).toThrow();
+    const candidateDir = ledgerFile(
+      tornSubject.repoRoot,
+      'diagnostic-successor-candidates',
+    );
+    expect(fs.existsSync(candidateDir) ? fs.readdirSync(candidateDir) : []).toEqual([]);
+  });
+
+  it('requires exact Guy authorization and allows only one approval identity for a predecessor', async () => {
+    const subject = setup();
+    const predecessor = await legacyDiagnosticPredecessor(subject);
+    expect(() =>
+      prepareDiagnosticSuccessor(
+        subject,
+        predecessor,
+        '2020-01-01T00:00:00.000Z',
+      ),
+    ).toThrow(/preparation identity is invalid/);
+    const candidate = prepareDiagnosticSuccessor(subject, predecessor);
+    expect(() =>
+      authorizeBlueprintDiagnosticSuccessorCandidate({
+        repoRoot: subject.repoRoot,
+        candidatePath: candidate.candidatePath,
+        candidateDigest: candidate.candidate.digest,
+        approvedBy: 'Codex' as never,
+        approvedAt: DIAGNOSTIC_APPROVED_AT,
+        write: true,
+      }),
+    ).toThrow(/exact approver/);
+    const first = authorizeDiagnosticSuccessor(subject, candidate);
+    // Crash window: the predecessor slot is durable but authorization
+    // publication was lost. Repeating the exact explicit approvedAt recovers.
+    fs.rmSync(path.join(subject.repoRoot, first.authorizationPath));
+    const replay = authorizeDiagnosticSuccessor(subject, candidate);
+    expect(replay.authorization.digest).toBe(first.authorization.digest);
+    expect(fs.existsSync(path.join(subject.repoRoot, replay.authorizationPath))).toBe(
+      true,
+    );
+    expect(() =>
+      authorizeDiagnosticSuccessor(
+        subject,
+        candidate,
+        '2026-08-31T12:06:00.000Z',
+      ),
+    ).toThrow(/already bound to a different successor/);
+  });
+
+  it('freezes v1 evidence identities, rejects extra keys, and is independent of mutable producer aliases', async () => {
+    expect(QA_WIZARD_BLUEPRINT_DIAGNOSTIC_PREDECESSOR_REQUEST_VERSION).toBe(
+      'production-blueprint-authoring-request/v5',
+    );
+    expect(QA_WIZARD_BLUEPRINT_DIAGNOSTIC_PREDECESSOR_RECEIPT_VERSION).toBe(
+      'production-blueprint-authoring-receipt/v7',
+    );
+    expect(QA_WIZARD_BLUEPRINT_DIAGNOSTIC_PREDECESSOR_CAPTURE_VERSION).toBe(
+      'blueprint-authoring-sanitized-failure-capture/v3',
+    );
+    expect(QA_WIZARD_BLUEPRINT_DIAGNOSTIC_EVIDENCE_TARGET_DIGEST).toBe(
+      canonicalJsonDigest({
+        version: 'qa-wizard-blueprint-diagnostic-evidence-target/v1',
+        receiptVersion: QA_WIZARD_BLUEPRINT_DIAGNOSTIC_TARGET_RECEIPT_VERSION,
+        captureVersion: QA_WIZARD_BLUEPRINT_DIAGNOSTIC_TARGET_CAPTURE_VERSION,
+        censusCommitmentVersion:
+          QA_WIZARD_BLUEPRINT_DIAGNOSTIC_TARGET_CENSUS_VERSION,
+        attribution: 'ordered_complete_per_attempt',
+      }),
+    );
+    const source = fs.readFileSync(
+      path.join(
+        process.cwd(),
+        'lib/visual-package/qaWizardBlueprintDiagnosticSuccessorAuthority.ts',
+      ),
+      'utf8',
+    );
+    expect(source).not.toMatch(
+      /from '\.\/productionAuthoringRunner'|from '\.\/blueprintAuthoringSanitizedFailureCapture'/,
+    );
+
+    const subject = setup();
+    const predecessor = await legacyDiagnosticPredecessor(subject);
+    const candidate = prepareDiagnosticSuccessor(subject, predecessor);
+    expect(
+      blueprintDiagnosticSuccessorCandidateIsValid({
+        ...candidate.candidate,
+        hostileExtraKey: true,
+      }),
+    ).toBe(false);
+    const authorization = authorizeDiagnosticSuccessor(subject, candidate);
+    expect(
+      blueprintDiagnosticSuccessorAuthorizationIsValid({
+        ...authorization.authorization,
+        hostileExtraKey: true,
+      }),
+    ).toBe(false);
+  });
+
+  it('can produce a Candidate successor and replay it without provider or counter access', async () => {
+    const subject = setup();
+    const predecessor = await legacyDiagnosticPredecessor(subject);
+    const candidate = prepareDiagnosticSuccessor(subject, predecessor);
+    const authorization = authorizeDiagnosticSuccessor(subject, candidate);
+    const providerCalls = vi.fn();
+    const forbiddenCounter = vi.fn(() => {
+      throw new Error('counter_must_not_load_for_one_call_candidate');
+    });
+    const first = await executeBlueprintDiagnosticSuccessorLiveRequest(
+      {
+        repoRoot: subject.repoRoot,
+        authorizationPath: authorization.authorizationPath,
+        authorizationDigest: authorization.authorization.digest,
+        write: true,
+      },
+      {
+        providerFactory: () => passingProvider(subject.fixture, providerCalls),
+        inputTokenCounterFactory: forbiddenCounter,
+      },
+    );
+    expect(first.manifest.stage).toBe('blueprint_candidate');
+    expect(providerCalls).toHaveBeenCalledTimes(1);
+    expect(forbiddenCounter).not.toHaveBeenCalled();
+    const forbiddenProvider = vi.fn(() => {
+      throw new Error('provider_must_not_load_on_candidate_replay');
+    });
+    const replay = await executeBlueprintDiagnosticSuccessorLiveRequest(
+      {
+        repoRoot: subject.repoRoot,
+        authorizationPath: authorization.authorizationPath,
+        authorizationDigest: authorization.authorization.digest,
+        write: true,
+      },
+      {
+        providerFactory: forbiddenProvider,
+        inputTokenCounterFactory: forbiddenCounter,
+      },
+    );
+    expect(replay.replayed).toBe(true);
+    expect(replay.manifest.digest).toBe(first.manifest.digest);
+    expect(forbiddenProvider).not.toHaveBeenCalled();
+    expect(forbiddenCounter).not.toHaveBeenCalled();
+  });
+
+  it('rejects post-authorization predecessor tamper before provider, counter, claim, or terminal publication', async () => {
+    const subject = setup();
+    const predecessor = await legacyDiagnosticPredecessor(subject);
+    const candidate = prepareDiagnosticSuccessor(subject, predecessor);
+    const authorization = authorizeDiagnosticSuccessor(subject, candidate);
+    fs.writeFileSync(
+      path.join(subject.repoRoot, predecessor.legacyCapturePath),
+      '{}\n',
+      'utf8',
+    );
+    const providerFactory = vi.fn(() => passingProvider(subject.fixture));
+    const counterFactory = vi.fn(() => offlineInputTokenCounter());
+    await expect(
+      executeBlueprintDiagnosticSuccessorLiveRequest(
+        {
+          repoRoot: subject.repoRoot,
+          authorizationPath: authorization.authorizationPath,
+          authorizationDigest: authorization.authorization.digest,
+          write: true,
+        },
+        { providerFactory, inputTokenCounterFactory: counterFactory },
+      ),
+    ).rejects.toThrow();
+    expect(providerFactory).not.toHaveBeenCalled();
+    expect(counterFactory).not.toHaveBeenCalled();
+    expect(
+      fs.existsSync(
+        ledgerFile(
+          subject.repoRoot,
+          'execution-claims',
+          `${authorization.successorExecutionDigest}.json`,
+        ),
+      ),
+    ).toBe(false);
+  });
+
+  it('permits exactly one provider owner under concurrent execution', async () => {
+    const subject = setup();
+    const predecessor = await legacyDiagnosticPredecessor(subject);
+    const candidate = prepareDiagnosticSuccessor(subject, predecessor);
+    const authorization = authorizeDiagnosticSuccessor(subject, candidate);
+    const providerCalls = vi.fn();
+    const args = {
+      repoRoot: subject.repoRoot,
+      authorizationPath: authorization.authorizationPath,
+      authorizationDigest: authorization.authorization.digest,
+      write: true as const,
+    };
+    const settled = await Promise.allSettled([
+      executeBlueprintDiagnosticSuccessorLiveRequest(args, {
+        providerFactory: () => passingProvider(subject.fixture, providerCalls),
+      }),
+      executeBlueprintDiagnosticSuccessorLiveRequest(args, {
+        providerFactory: () => passingProvider(subject.fixture, providerCalls),
+      }),
+    ]);
+    expect(providerCalls).toHaveBeenCalledTimes(1);
+    expect(settled.some((entry) => entry.status === 'fulfilled')).toBe(true);
+  });
+
+  it('records a post-claim incident and never redispatches the diagnostic successor', async () => {
+    const subject = setup();
+    const predecessor = await legacyDiagnosticPredecessor(subject);
+    const candidate = prepareDiagnosticSuccessor(subject, predecessor);
+    const authorization = authorizeDiagnosticSuccessor(subject, candidate);
+    await expect(
+      executeBlueprintDiagnosticSuccessorLiveRequest(
+        {
+          repoRoot: subject.repoRoot,
+          authorizationPath: authorization.authorizationPath,
+          authorizationDigest: authorization.authorization.digest,
+          write: true,
+        },
+        {
+          hooks: {
+            afterClaim() {
+              throw new Error('simulated_diagnostic_crash_after_claim');
+            },
+          },
+        },
+      ),
+    ).rejects.toThrow('execution_state_uncertain');
+    const providerFactory = vi.fn(() => passingProvider(subject.fixture));
+    const counterFactory = vi.fn(() => offlineInputTokenCounter());
+    await expect(
+      executeBlueprintDiagnosticSuccessorLiveRequest(
+        {
+          repoRoot: subject.repoRoot,
+          authorizationPath: authorization.authorizationPath,
+          authorizationDigest: authorization.authorization.digest,
+          write: true,
+        },
+        { providerFactory, inputTokenCounterFactory: counterFactory },
+      ),
+    ).rejects.toThrow('execution_state_uncertain');
+    expect(providerFactory).not.toHaveBeenCalled();
+    expect(counterFactory).not.toHaveBeenCalled();
+  });
+
+  it('rejects malformed legacy execution topology before minting a candidate', async () => {
+    const cases: Array<{
+      name: string;
+      mutate: (receipt: Record<string, unknown>) => void;
+    }> = [
+      {
+        name: 'wrong failure code',
+        mutate: (receipt) => {
+          receipt.failure = { code: 'provider_policy_mismatch' };
+        },
+      },
+      {
+        name: 'wrong call count',
+        mutate: (receipt) => {
+          receipt.callCount = 2;
+        },
+      },
+      {
+        name: 'transport retry',
+        mutate: (receipt) => {
+          (receipt.executionAttestation as Record<string, unknown>)
+            .transportRetryCount = 1;
+        },
+      },
+      {
+        name: 'fallback',
+        mutate: (receipt) => {
+          (receipt.executionAttestation as Record<string, unknown>).fallbackUsed =
+            true;
+        },
+      },
+    ];
+    for (const entry of cases) {
+      const subject = setup();
+      const predecessor = await legacyDiagnosticPredecessor(
+        subject,
+        entry.mutate,
+      );
+      expect(
+        () => prepareDiagnosticSuccessor(subject, predecessor),
+        entry.name,
+      ).toThrow();
+      const candidateDir = ledgerFile(
+        subject.repoRoot,
+        'diagnostic-successor-candidates',
+      );
+      expect(
+        fs.existsSync(candidateDir) ? fs.readdirSync(candidateDir) : [],
+        entry.name,
+      ).toEqual([]);
+    }
+  });
+});
+
+describe('Blueprint diagnostic successor operator CLI', () => {
+  it('strictly rejects ambiguous arguments and requires explicit write for execute', async () => {
+    expect(() =>
+      parseBlueprintDiagnosticSuccessorCliArgs([
+        'prepare-diagnostic-successor',
+        '--repo-root=.',
+      ]),
+    ).toThrow(/--name value/);
+    expect(() =>
+      parseBlueprintDiagnosticSuccessorCliArgs([
+        'execute-diagnostic-successor',
+        '--repo-root',
+        '.',
+        '--authorization-path',
+        'a.json',
+        '--authorization-digest',
+        'a'.repeat(64),
+        '--unknown',
+      ]),
+    ).toThrow(/unknown flag/);
+    const errors: string[] = [];
+    const code = await runBlueprintDiagnosticSuccessorCliAsync({
+      argv: [
+        'execute-diagnostic-successor',
+        '--repo-root',
+        '.',
+        '--authorization-path',
+        'missing.json',
+        '--authorization-digest',
+        'a'.repeat(64),
+      ],
+      stderr: (line) => errors.push(line),
+    });
+    expect(code).toBe(2);
+    expect(errors).toEqual([
+      'error: execute-diagnostic-successor requires --write',
+    ]);
+  });
+
+  it('mints candidate and explicit Guy authorization through the operational CLI without provider access', async () => {
+    const subject = setup();
+    const predecessor = await legacyDiagnosticPredecessor(subject);
+    const preparedOutput: string[] = [];
+    expect(
+      await runBlueprintDiagnosticSuccessorCliAsync({
+        argv: [
+          'prepare-diagnostic-successor',
+          '--repo-root',
+          subject.repoRoot,
+          '--predecessor-terminal-lookup-path',
+          predecessor.lookupPath,
+          '--predecessor-terminal-lookup-digest',
+          predecessor.lookupDigest,
+          '--prepared-by',
+          'Codex',
+          '--prepared-at',
+          DIAGNOSTIC_PREPARED_AT,
+          '--write',
+        ],
+        stdout: (line) => preparedOutput.push(line),
+      }),
+    ).toBe(0);
+    const prepared = JSON.parse(preparedOutput[0]!) as {
+      candidatePath: string;
+      candidateDigest: string;
+    };
+    const authorizationOutput: string[] = [];
+    expect(
+      await runBlueprintDiagnosticSuccessorCliAsync({
+        argv: [
+          'authorize-diagnostic-successor',
+          '--repo-root',
+          subject.repoRoot,
+          '--candidate-path',
+          prepared.candidatePath,
+          '--candidate-digest',
+          prepared.candidateDigest,
+          '--approved-by',
+          'Guy',
+          '--approved-at',
+          DIAGNOSTIC_APPROVED_AT,
+          '--write',
+        ],
+        stdout: (line) => authorizationOutput.push(line),
+      }),
+    ).toBe(0);
+    expect(JSON.parse(authorizationOutput[0]!)).toMatchObject({
+      command: 'authorize-diagnostic-successor',
+      wrote: true,
+    });
   });
 });

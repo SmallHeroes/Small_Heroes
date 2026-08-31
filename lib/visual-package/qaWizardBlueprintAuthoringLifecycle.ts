@@ -51,6 +51,7 @@ import {
   type BlueprintAuthoringExecutionProgram,
 } from './blueprintAuthoringExecutionProgram';
 import {
+  BLUEPRINT_AUTHORING_DIAGNOSTIC_CENSUS_COMMITMENT_VERSION,
   BLUEPRINT_AUTHORING_SANITIZED_FAILURE_CAPTURE_VERSION,
   LEGACY_BLUEPRINT_AUTHORING_SANITIZED_FAILURE_CAPTURE_VERSION_V3,
   LEGACY_BLUEPRINT_AUTHORING_SANITIZED_FAILURE_CAPTURE_VERSION_V2,
@@ -140,6 +141,25 @@ import {
   type QaWizardBlueprintReplacementProposal,
   type QaWizardBlueprintReplacementReview,
 } from './qaWizardBlueprintReplacementAuthority';
+import {
+  QA_WIZARD_BLUEPRINT_DIAGNOSTIC_EVIDENCE_TARGET_DIGEST,
+  QA_WIZARD_BLUEPRINT_DIAGNOSTIC_PREDECESSOR_CAPTURE_VERSION,
+  QA_WIZARD_BLUEPRINT_DIAGNOSTIC_PREDECESSOR_RECEIPT_VERSION,
+  QA_WIZARD_BLUEPRINT_DIAGNOSTIC_PREDECESSOR_REQUEST_VERSION,
+  QA_WIZARD_BLUEPRINT_DIAGNOSTIC_SUCCESSOR_APPROVER,
+  QA_WIZARD_BLUEPRINT_DIAGNOSTIC_TARGET_CAPTURE_VERSION,
+  QA_WIZARD_BLUEPRINT_DIAGNOSTIC_TARGET_CENSUS_VERSION,
+  QA_WIZARD_BLUEPRINT_DIAGNOSTIC_TARGET_RECEIPT_VERSION,
+  buildBlueprintDiagnosticSuccessorAuthorization,
+  buildBlueprintDiagnosticSuccessorCandidate,
+  buildBlueprintDiagnosticSuccessorExecutionClaim,
+  blueprintDiagnosticSuccessorAuthorizationIsValid,
+  blueprintDiagnosticSuccessorCandidateIsValid,
+  blueprintDiagnosticSuccessorExecutionClaimIsValid,
+  type QaWizardBlueprintDiagnosticSuccessorAuthorization,
+  type QaWizardBlueprintDiagnosticSuccessorCandidate,
+  type QaWizardBlueprintDiagnosticSuccessorLineage,
+} from './qaWizardBlueprintDiagnosticSuccessorAuthority';
 
 export const QA_WIZARD_BLUEPRINT_AUTHORING_MANIFEST_VERSION =
   'qa-wizard-blueprint-authoring-manifest/v1' as const;
@@ -159,6 +179,8 @@ export const QA_WIZARD_BLUEPRINT_TERMINAL_BINDING_VERSION =
   'qa-wizard-blueprint-terminal-binding/v1' as const;
 export const QA_WIZARD_BLUEPRINT_REPLACEMENT_SLOT_VERSION =
   'qa-wizard-blueprint-replacement-authorization-slot/v1' as const;
+export const QA_WIZARD_BLUEPRINT_DIAGNOSTIC_SUCCESSOR_SLOT_VERSION =
+  'qa-wizard-blueprint-diagnostic-successor-slot/v1' as const;
 
 export const QA_WIZARD_BLUEPRINT_AUTHORING_LEDGER_ROOT =
   'outputs/qa-wizard-blueprint-authoring-ledger-v1' as const;
@@ -583,6 +605,18 @@ const REPLACEMENT_SLOT_KEYS = [
   'predecessorClaimPath',
   'preflightManifestDigest',
   'requestDigest',
+  'scope',
+  'successorExecutionDigest',
+  'version',
+] as const;
+const DIAGNOSTIC_SUCCESSOR_SLOT_KEYS = [
+  'authorizationDigest',
+  'authorizationPath',
+  'candidateDigest',
+  'digest',
+  'digestAlgorithm',
+  'predecessorExecutionIdentityDigest',
+  'predecessorTerminalManifestDigest',
   'scope',
   'successorExecutionDigest',
   'version',
@@ -2115,6 +2149,7 @@ const OPERATOR_OUTPUT_CATEGORIES = [
 
 const COMPILER_LEDGER_CATEGORIES = [
   'approval-decisions',
+  'diagnostic-successor-slots',
   'execution-claims',
   'execution-incidents',
   'replacement-authorization-slots',
@@ -3635,6 +3670,7 @@ function recoverTerminalLookup(args: {
   preflightManifestDigest: string;
   executionIdentityDigest?: string;
   claimIsValid?: (value: unknown) => boolean;
+  recoverOnlyFromOwnTerminalBinding?: boolean;
 }): QaWizardBlueprintExecutionResult | null {
   const claimIsValid = args.claimIsValid ?? executionClaimIsValid;
   const expectedClaimPath = claimPath(args);
@@ -3664,6 +3700,13 @@ function recoverTerminalLookup(args: {
   // ordinary one. The scan below is the same read-only source of truth used by
   // the replacement orphan-eligibility census.
   const { ownBinding, terminals } = scanRecoverableTerminalManifests(args);
+  // Successor lanes did not exist before terminal bindings and therefore have
+  // no legitimate binding-less legacy terminal to adopt. Without this fence a
+  // post-claim crash could mis-adopt an unrelated, superseded ordinary terminal
+  // that happens to share request/preflight lineage.
+  if (args.recoverOnlyFromOwnTerminalBinding === true && !ownBinding) {
+    return null;
+  }
   if (terminals.length === 0) {
     // A binding that names a now-missing (or foreign) terminal is a torn state,
     // not a clean "nothing to recover".
@@ -3772,6 +3815,8 @@ interface BlueprintExecutionClaimBinding {
     requestDigest: string;
     executionIdentityDigest: string;
   }) => { digest: string };
+  /** Successor lanes may recover only a terminal durably bound to their exact identity. */
+  recoverOnlyFromOwnTerminalBinding?: boolean;
   /**
    * Lane-specific gate run after replay/recovery and published-claim ownership
    * checks, but before any new claim or paid boundary. The replacement lane uses
@@ -3893,6 +3938,8 @@ async function runBlueprintExecutionUnderClaim(
         preflightManifestDigest: preflight.manifest.digest,
         executionIdentityDigest,
         claimIsValid,
+        recoverOnlyFromOwnTerminalBinding:
+          binding.recoverOnlyFromOwnTerminalBinding,
       });
       if (recovered) return recovered;
       const incident = loadExecutionIncident({
@@ -3980,6 +4027,8 @@ async function runBlueprintExecutionUnderClaim(
         preflightManifestDigest: preflight.manifest.digest,
         executionIdentityDigest,
         claimIsValid,
+        recoverOnlyFromOwnTerminalBinding:
+          binding.recoverOnlyFromOwnTerminalBinding,
       });
       if (recovered) return recovered;
       throw executionStateUncertain();
@@ -5026,6 +5075,7 @@ export async function executeBlueprintReplacementLiveRequest(
     );
   };
   const binding: BlueprintExecutionClaimBinding = {
+    recoverOnlyFromOwnTerminalBinding: true,
     executionIdentity: () => authorization.successorExecutionDigest,
     claimIsValid: (value) => replacementClaimMatchesAuthorization(value),
     buildClaim: (ctx) =>
@@ -5074,6 +5124,709 @@ export async function executeBlueprintReplacementLiveRequest(
     },
   };
   return runBlueprintExecutionUnderClaim(args, binding, deps);
+}
+
+// ---------------------------------------------------------------------------
+// Failed-terminal diagnostic successor (v7/v3 -> one current v8/v4 sample).
+//
+// This lane is intentionally smaller than orphan replacement: one immutable
+// candidate, exact Guy authorization, one predecessor-keyed slot, and one claim.
+// It reuses the existing paid execution core and never mutates or impersonates
+// the predecessor. Generation is nondeterministic; the successor captures a new
+// attributable sample and does not claim to reproduce the old final draft.
+// ---------------------------------------------------------------------------
+
+const DIAGNOSTIC_SUCCESSOR_LEDGER_CATEGORIES = [
+  'diagnostic-successor-candidates',
+  'diagnostic-successor-authorizations',
+] as const;
+
+export interface QaWizardBlueprintDiagnosticSuccessorCandidateResult {
+  candidate: QaWizardBlueprintDiagnosticSuccessorCandidate;
+  candidatePath: string;
+  wrote: boolean;
+}
+
+export interface QaWizardBlueprintDiagnosticSuccessorAuthorizationResult {
+  authorization: QaWizardBlueprintDiagnosticSuccessorAuthorization;
+  authorizationPath: string;
+  candidatePath: string;
+  successorExecutionDigest: string;
+  wrote: boolean;
+}
+
+function diagnosticSuccessorLedgerArtifactPath(args: {
+  repoRoot: string;
+  category: (typeof DIAGNOSTIC_SUCCESSOR_LEDGER_CATEGORIES)[number];
+  digest: string;
+}): string {
+  return relativeArtifactPath({
+    repoRoot: args.repoRoot,
+    outputDir: QA_WIZARD_BLUEPRINT_AUTHORING_LEDGER_ROOT,
+    category: args.category,
+    fileName: `${args.digest}.json`,
+  });
+}
+
+function prepareDiagnosticSuccessorLedgerDirectories(args: {
+  repoRoot: string;
+}): void {
+  const root = ensureContainedDirectory({
+    repoRoot: args.repoRoot,
+    directoryPath: resolveRepoPath(
+      args.repoRoot,
+      QA_WIZARD_BLUEPRINT_AUTHORING_LEDGER_ROOT,
+    ),
+  });
+  for (const category of DIAGNOSTIC_SUCCESSOR_LEDGER_CATEGORIES) {
+    ensureContainedDirectory({
+      repoRoot: args.repoRoot,
+      directoryPath: path.join(root, category),
+      writable: true,
+    });
+  }
+}
+
+function persistDiagnosticSuccessorArtifact(args: {
+  repoRoot: string;
+  category: (typeof DIAGNOSTIC_SUCCESSOR_LEDGER_CATEGORIES)[number];
+  digest: string;
+  value: object;
+  write: boolean;
+}): { path: string; created: boolean } {
+  const artifactPath = diagnosticSuccessorLedgerArtifactPath(args);
+  const created = args.write
+    ? writeImmutableLocalArtifact({
+        destinationPath: resolveRepoPath(args.repoRoot, artifactPath),
+        bytes: canonicalContentAddressedJsonBytes(args.value),
+        hooks: containedPublishHooks({ repoRoot: args.repoRoot }),
+      }).created
+    : false;
+  return { path: artifactPath, created };
+}
+
+function loadDiagnosticSuccessorArtifact<T extends object>(args: {
+  repoRoot: string;
+  category: (typeof DIAGNOSTIC_SUCCESSOR_LEDGER_CATEGORIES)[number];
+  digest: string;
+  path: string;
+  label: string;
+  isValid: (value: unknown) => value is T;
+}): T {
+  const expectedPath = diagnosticSuccessorLedgerArtifactPath(args);
+  if (args.path !== expectedPath) {
+    throw new Error(`${args.label} path is noncanonical`);
+  }
+  const loaded = readJsonObject({
+    repoRoot: args.repoRoot,
+    artifactPath: args.path,
+    label: args.label,
+  });
+  if (
+    !args.isValid(loaded.value) ||
+    loaded.value.digest !== args.digest ||
+    path.basename(loaded.absolutePath) !== `${args.digest}.json` ||
+    path.basename(path.dirname(loaded.absolutePath)) !== args.category ||
+    repoRelativePath(args.repoRoot, loaded.absolutePath) !== expectedPath ||
+    loaded.rawBytes !== canonicalContentAddressedJsonBytes(loaded.value)
+  ) {
+    throw new Error(`${args.label} is stale or invalid`);
+  }
+  return loaded.value;
+}
+
+interface LoadedEligibleDiagnosticPredecessor {
+  lineage: QaWizardBlueprintDiagnosticSuccessorLineage;
+  preflight: LoadedQaWizardBlueprintManifest;
+}
+
+/**
+ * One total, read-only eligibility loader shared by prepare, authorize and
+ * execute. It accepts only an exact current ordinary claim with a complete,
+ * replay-valid v7/v3 repair-exhausted terminal. Missing/torn/current-v8,
+ * diagnostic-less, legacy-request, orphan/replacement/successor or tampered
+ * states fail before a provider/count factory can exist.
+ */
+function loadEligibleDiagnosticPredecessor(args: {
+  repoRoot: string;
+  terminalLookupPath: string;
+  terminalLookupDigest: string;
+}): LoadedEligibleDiagnosticPredecessor {
+  if (!HEX_SHA256.test(args.terminalLookupDigest)) {
+    throw new Error('diagnostic successor terminal lookup digest is invalid');
+  }
+  const lookup = readJsonObject({
+    repoRoot: args.repoRoot,
+    artifactPath: args.terminalLookupPath,
+    label: 'Blueprint diagnostic predecessor terminal lookup',
+  });
+  if (
+    !executionRecordIsValid(lookup.value) ||
+    lookup.value.digest !== args.terminalLookupDigest ||
+    lookup.rawBytes !== canonicalContentAddressedJsonBytes(lookup.value) ||
+    repoRelativePath(args.repoRoot, lookup.absolutePath) !==
+      args.terminalLookupPath ||
+    path.basename(path.dirname(lookup.absolutePath)) !== 'terminal-lookups'
+  ) {
+    throw new Error('diagnostic successor terminal lookup is invalid or tampered');
+  }
+
+  const claim = readJsonObject({
+    repoRoot: args.repoRoot,
+    artifactPath: lookup.value.claimPath,
+    label: 'Blueprint diagnostic predecessor execution claim',
+  });
+  // This milestone is deliberately ordinary-v2 only. Orphan replacement and a
+  // diagnostic successor have disjoint claim shapes and cannot be chained here.
+  if (
+    !executionClaimIsValid(claim.value) ||
+    claim.value.digest !== lookup.value.claimDigest ||
+    claim.rawBytes !== canonicalContentAddressedJsonBytes(claim.value) ||
+    repoRelativePath(args.repoRoot, claim.absolutePath) !==
+      lookup.value.claimPath
+  ) {
+    throw new Error('diagnostic successor requires an exact ordinary-v2 predecessor');
+  }
+
+  const preflight = loadQaWizardBlueprintManifestAuthority({
+    repoRoot: args.repoRoot,
+    manifestPath: claim.value.preflightManifestPath,
+  });
+  if (
+    preflight.manifest.stage !== 'live_request_preflight_passed' ||
+    preflight.request.version !== PRODUCTION_AUTHORING_RUN_REQUEST_VERSION ||
+    !blueprintAuthoringExecutionProgramIsCurrent(preflight.request.program)
+  ) {
+    throw new Error('diagnostic successor predecessor preflight is not current');
+  }
+  const authoringAuthorityDigest = expectedAuthoringAuthorityDigest(
+    preflight.context,
+  );
+  const requestDigest = canonicalJsonDigest(preflight.request);
+  const ordinary = ordinaryExecutionAuthorityForRequest({
+    request: preflight.request,
+    authoringAuthorityDigest,
+  });
+  const expectedClaimPath = claimPath({
+    repoRoot: args.repoRoot,
+    authoringAuthorityDigest,
+    executionIdentityDigest: ordinary.executionIdentityDigest,
+  });
+  const expectedLookupPath = terminalLookupPath({
+    repoRoot: args.repoRoot,
+    authoringAuthorityDigest,
+    executionIdentityDigest: ordinary.executionIdentityDigest,
+  });
+  if (
+    !ordinary.claimIsValid(claim.value) ||
+    claim.value.executionIdentityDigest !== ordinary.executionIdentityDigest ||
+    claim.value.executionProgramDigest !== preflight.request.program.digest ||
+    claim.value.authoringAuthorityDigest !== authoringAuthorityDigest ||
+    claim.value.requestDigest !== requestDigest ||
+    claim.value.preflightManifestDigest !== preflight.manifest.digest ||
+    claim.value.preflightManifestPath !== preflight.manifestPath ||
+    lookup.value.claimPath !== expectedClaimPath ||
+    args.terminalLookupPath !== expectedLookupPath ||
+    path.basename(lookup.absolutePath) !==
+      `${ordinary.executionIdentityDigest}.json`
+  ) {
+    throw new Error('diagnostic successor predecessor lineage is inconsistent');
+  }
+
+  const terminal = loadExecutionRecord({
+    repoRoot: args.repoRoot,
+    outputDir: preflight.outputDir,
+    authoringAuthorityDigest,
+    requestDigest,
+    preflightManifestDigest: preflight.manifest.digest,
+    executionIdentityDigest: ordinary.executionIdentityDigest,
+    claimIsValid: ordinary.claimIsValid,
+  });
+  if (
+    terminal === null ||
+    terminal.executionRecordPath !== args.terminalLookupPath ||
+    terminal.manifest.stage !== 'authoring_failed' ||
+    terminal.manifest.blueprint !== null ||
+    terminal.receipt.status !== 'failed' ||
+    terminal.receipt.version !==
+      LEGACY_PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION_V7 ||
+    terminal.receipt.failure?.code !== 'draft_validation_repair_exhausted' ||
+    terminal.receipt.callCount !== 3 ||
+    terminal.receipt.repairCount !== 2 ||
+    terminal.receipt.callBudget.maxCalls !== 3 ||
+    terminal.receipt.callBudget.maxRepairCount !== 2 ||
+    terminal.receipt.noFallback !== true ||
+    terminal.receipt.attempts.length !== 3 ||
+    terminal.receipt.attempts[0]?.kind !== 'initial' ||
+    terminal.receipt.attempts[1]?.kind !== 'repair' ||
+    terminal.receipt.attempts[2]?.kind !== 'repair' ||
+    terminal.receipt.executionAttestation.transportRetryCount !== 0 ||
+    terminal.receipt.executionAttestation.fallbackUsed !== false
+  ) {
+    throw new Error('failed terminal is not diagnostic-successor eligible');
+  }
+  const capture = terminal.manifest.observabilityCapture;
+  if (
+    !capture ||
+    capture.version !==
+      LEGACY_BLUEPRINT_AUTHORING_SANITIZED_FAILURE_CAPTURE_VERSION_V3
+  ) {
+    throw new Error('diagnostic successor requires the exact legacy v7/v3 evidence pair');
+  }
+  // `loadExecutionRecord` already reloaded and parity-validated the exact
+  // receipt/capture. Re-read the capture only to prove v3 has no per-attempt
+  // attribution — the closed reason for this lane.
+  const captureArtifact = readJsonObject({
+    repoRoot: args.repoRoot,
+    artifactPath: capture.path,
+    label: 'Blueprint diagnostic predecessor capture',
+  });
+  if (
+    captureArtifact.value.version !==
+      LEGACY_BLUEPRINT_AUTHORING_SANITIZED_FAILURE_CAPTURE_VERSION_V3 ||
+    Object.prototype.hasOwnProperty.call(
+      captureArtifact.value,
+      'attemptCensuses',
+    )
+  ) {
+    throw new Error('diagnostic predecessor already has per-attempt attribution');
+  }
+
+  const terminalBinding = loadTerminalBindingForIdentity({
+    repoRoot: args.repoRoot,
+    authoringAuthorityDigest,
+    requestDigest,
+    preflightManifestDigest: preflight.manifest.digest,
+    executionIdentityDigest: ordinary.executionIdentityDigest,
+  });
+  if (
+    !terminalBinding ||
+    terminalBinding.terminalManifestDigest !== terminal.manifest.digest ||
+    terminalBinding.terminalManifestPath !== terminal.manifestPath
+  ) {
+    throw new Error('diagnostic predecessor terminal binding is missing or stale');
+  }
+  const bindingPath = terminalBindingPath({
+    repoRoot: args.repoRoot,
+    authoringAuthorityDigest,
+    executionIdentityDigest: ordinary.executionIdentityDigest,
+  });
+  const incident = loadExecutionIncident({
+    repoRoot: args.repoRoot,
+    authoringAuthorityDigest,
+    requestDigest,
+    preflightManifestDigest: preflight.manifest.digest,
+    claimDigest: claim.value.digest,
+    claimPath: expectedClaimPath,
+    executionIdentityDigest: ordinary.executionIdentityDigest,
+  });
+  if (incident) {
+    throw new Error('diagnostic predecessor has an unresolved execution incident');
+  }
+
+  const lineage: QaWizardBlueprintDiagnosticSuccessorLineage = {
+    executionIdentityDigest: ordinary.executionIdentityDigest,
+    authoringAuthorityDigest,
+    executionProgramDigest: preflight.request.program.digest,
+    requestVersion: preflight.request.version,
+    requestDigest,
+    requestPath: preflight.manifest.request.path,
+    requestId: preflight.request.requestId,
+    requestedAt: preflight.request.requestedAt,
+    preflightManifestVersion: preflight.manifest.version,
+    preflightManifestDigest: preflight.manifest.digest,
+    preflightManifestPath: preflight.manifestPath,
+    outputDir: preflight.outputDir,
+    claimVersion: claim.value.version,
+    claimDigest: claim.value.digest,
+    claimPath: expectedClaimPath,
+    terminalLookupVersion: lookup.value.version,
+    terminalLookupDigest: lookup.value.digest,
+    terminalLookupPath: args.terminalLookupPath,
+    terminalBindingVersion: terminalBinding.version,
+    terminalBindingDigest: terminalBinding.digest,
+    terminalBindingPath: bindingPath,
+    terminalManifestVersion: terminal.manifest.version,
+    terminalManifestDigest: terminal.manifest.digest,
+    terminalManifestPath: terminal.manifestPath,
+    receiptVersion: terminal.receipt.version,
+    receiptDigest: terminal.receipt.digest,
+    receiptPath: terminal.receiptPath,
+    captureVersion: capture.version,
+    captureDigest: capture.digest,
+    capturePath: capture.path,
+    terminalFailureCode: 'draft_validation_repair_exhausted',
+    callCount: 3,
+    repairCount: 2,
+  };
+  // The pure builder is the final exact-key/type guard for the lineage returned
+  // by filesystem authority. It does not write.
+  buildBlueprintDiagnosticSuccessorCandidate({
+    lineage,
+    preparedBy: 'lineage_validator',
+    preparedAt: preflight.request.requestedAt,
+  });
+  return { lineage, preflight };
+}
+
+function rebuildDiagnosticSuccessorCandidate(args: {
+  candidate: QaWizardBlueprintDiagnosticSuccessorCandidate;
+  lineage: QaWizardBlueprintDiagnosticSuccessorLineage;
+}): QaWizardBlueprintDiagnosticSuccessorCandidate {
+  const expected = buildBlueprintDiagnosticSuccessorCandidate({
+    lineage: args.lineage,
+    preparedBy: args.candidate.preparedBy,
+    preparedAt: args.candidate.preparedAt,
+  });
+  if (expected.digest !== args.candidate.digest) {
+    throw new Error('diagnostic successor candidate lineage is stale or substituted');
+  }
+  return expected;
+}
+
+export function prepareBlueprintDiagnosticSuccessorCandidate(args: {
+  repoRoot: string;
+  predecessorTerminalLookupPath: string;
+  predecessorTerminalLookupDigest: string;
+  preparedBy: string;
+  preparedAt: string;
+  write?: boolean;
+}): QaWizardBlueprintDiagnosticSuccessorCandidateResult {
+  const predecessor = loadEligibleDiagnosticPredecessor({
+    repoRoot: args.repoRoot,
+    terminalLookupPath: args.predecessorTerminalLookupPath,
+    terminalLookupDigest: args.predecessorTerminalLookupDigest,
+  });
+  const candidate = buildBlueprintDiagnosticSuccessorCandidate({
+    lineage: predecessor.lineage,
+    preparedBy: args.preparedBy,
+    preparedAt: args.preparedAt,
+  });
+  if (args.write === true) {
+    prepareDiagnosticSuccessorLedgerDirectories({ repoRoot: args.repoRoot });
+  }
+  const persisted = persistDiagnosticSuccessorArtifact({
+    repoRoot: args.repoRoot,
+    category: 'diagnostic-successor-candidates',
+    digest: candidate.digest,
+    value: candidate,
+    write: args.write === true,
+  });
+  return { candidate, candidatePath: persisted.path, wrote: args.write === true };
+}
+
+interface QaWizardBlueprintDiagnosticSuccessorSlot {
+  version: typeof QA_WIZARD_BLUEPRINT_DIAGNOSTIC_SUCCESSOR_SLOT_VERSION;
+  predecessorExecutionIdentityDigest: string;
+  predecessorTerminalManifestDigest: string;
+  candidateDigest: string;
+  authorizationDigest: string;
+  authorizationPath: string;
+  successorExecutionDigest: string;
+  scope: 'single_use_paid_blueprint_diagnostic_successor_slot';
+  digestAlgorithm: typeof DIGEST_ALGORITHM;
+  digest: string;
+}
+
+function diagnosticSuccessorSlotIsValid(
+  value: unknown,
+): value is QaWizardBlueprintDiagnosticSuccessorSlot {
+  return (
+    exactKeys(value, DIAGNOSTIC_SUCCESSOR_SLOT_KEYS) &&
+    value.version === QA_WIZARD_BLUEPRINT_DIAGNOSTIC_SUCCESSOR_SLOT_VERSION &&
+    value.digestAlgorithm === DIGEST_ALGORITHM &&
+    [
+      value.predecessorExecutionIdentityDigest,
+      value.predecessorTerminalManifestDigest,
+      value.candidateDigest,
+      value.authorizationDigest,
+      value.successorExecutionDigest,
+      value.digest,
+    ].every((entry) => typeof entry === 'string' && HEX_SHA256.test(entry)) &&
+    typeof value.authorizationPath === 'string' &&
+    value.authorizationPath.length > 0 &&
+    value.scope === 'single_use_paid_blueprint_diagnostic_successor_slot' &&
+    value.digest === canonicalJsonDigest(payloadWithoutDigest(value))
+  );
+}
+
+function bindDiagnosticSuccessorSlot(args: {
+  repoRoot: string;
+  authorization: QaWizardBlueprintDiagnosticSuccessorAuthorization;
+  authorizationPath: string;
+}): void {
+  prepareCompilerOwnedLedger({ repoRoot: args.repoRoot });
+  const slot = digestPayload({
+    version: QA_WIZARD_BLUEPRINT_DIAGNOSTIC_SUCCESSOR_SLOT_VERSION,
+    predecessorExecutionIdentityDigest:
+      args.authorization.predecessorExecutionIdentityDigest,
+    predecessorTerminalManifestDigest:
+      args.authorization.predecessorTerminalManifestDigest,
+    candidateDigest: args.authorization.candidateDigest,
+    authorizationDigest: args.authorization.digest,
+    authorizationPath: args.authorizationPath,
+    successorExecutionDigest: args.authorization.successorExecutionDigest,
+    scope: 'single_use_paid_blueprint_diagnostic_successor_slot' as const,
+  });
+  if (!diagnosticSuccessorSlotIsValid(slot)) {
+    throw new Error('diagnostic successor slot construction is invalid');
+  }
+  const slotPath = compilerLedgerArtifactPath({
+    repoRoot: args.repoRoot,
+    category: 'diagnostic-successor-slots',
+    authorityDigest: args.authorization.predecessorExecutionIdentityDigest,
+  });
+  try {
+    writeImmutableLocalArtifact({
+      destinationPath: resolveRepoPath(args.repoRoot, slotPath),
+      bytes: canonicalContentAddressedJsonBytes(slot),
+      hooks: containedPublishHooks({ repoRoot: args.repoRoot }),
+    });
+  } catch (cause) {
+    if (
+      cause instanceof Error &&
+      /immutable artifact collision/.test(cause.message)
+    ) {
+      throw new Error(
+        'diagnostic predecessor is already bound to a different successor',
+      );
+    }
+    throw cause;
+  }
+}
+
+export function authorizeBlueprintDiagnosticSuccessorCandidate(args: {
+  repoRoot: string;
+  candidatePath: string;
+  candidateDigest: string;
+  approvedBy: typeof QA_WIZARD_BLUEPRINT_DIAGNOSTIC_SUCCESSOR_APPROVER;
+  approvedAt: string;
+  write?: boolean;
+}): QaWizardBlueprintDiagnosticSuccessorAuthorizationResult {
+  if (args.approvedBy !== QA_WIZARD_BLUEPRINT_DIAGNOSTIC_SUCCESSOR_APPROVER) {
+    throw new Error('diagnostic successor authorization requires exact approver "Guy"');
+  }
+  const candidate = loadDiagnosticSuccessorArtifact({
+    repoRoot: args.repoRoot,
+    category: 'diagnostic-successor-candidates',
+    digest: args.candidateDigest,
+    path: args.candidatePath,
+    label: 'Blueprint diagnostic successor candidate',
+    isValid: blueprintDiagnosticSuccessorCandidateIsValid,
+  });
+  const predecessor = loadEligibleDiagnosticPredecessor({
+    repoRoot: args.repoRoot,
+    terminalLookupPath: candidate.terminalLookupPath,
+    terminalLookupDigest: candidate.terminalLookupDigest,
+  });
+  rebuildDiagnosticSuccessorCandidate({
+    candidate,
+    lineage: predecessor.lineage,
+  });
+  const authorization = buildBlueprintDiagnosticSuccessorAuthorization({
+    candidate,
+    candidatePath: args.candidatePath,
+    approvedBy: args.approvedBy,
+    approvedAt: args.approvedAt,
+  });
+  const authorizationPath = diagnosticSuccessorLedgerArtifactPath({
+    repoRoot: args.repoRoot,
+    category: 'diagnostic-successor-authorizations',
+    digest: authorization.digest,
+  });
+  if (args.write === true) {
+    prepareDiagnosticSuccessorLedgerDirectories({ repoRoot: args.repoRoot });
+    // Preflight immutable compatibility before consuming the global slot. A
+    // crash after slot publication remains recoverable by replaying these exact
+    // candidate/approval inputs; a different approval must collide.
+    assertImmutableBytesCompatible({
+      repoRoot: args.repoRoot,
+      destinationPath: resolveRepoPath(args.repoRoot, authorizationPath),
+      bytes: canonicalContentAddressedJsonBytes(authorization),
+      label: 'Blueprint diagnostic successor authorization',
+    });
+    bindDiagnosticSuccessorSlot({
+      repoRoot: args.repoRoot,
+      authorization,
+      authorizationPath,
+    });
+  }
+  const persisted = persistDiagnosticSuccessorArtifact({
+    repoRoot: args.repoRoot,
+    category: 'diagnostic-successor-authorizations',
+    digest: authorization.digest,
+    value: authorization,
+    write: args.write === true,
+  });
+  return {
+    authorization,
+    authorizationPath: persisted.path,
+    candidatePath: args.candidatePath,
+    successorExecutionDigest: authorization.successorExecutionDigest,
+    wrote: args.write === true,
+  };
+}
+
+function loadValidatedDiagnosticSuccessorAuthorization(args: {
+  repoRoot: string;
+  authorizationPath: string;
+  authorizationDigest: string;
+}): {
+  authorization: QaWizardBlueprintDiagnosticSuccessorAuthorization;
+  candidate: QaWizardBlueprintDiagnosticSuccessorCandidate;
+} {
+  const authorization = loadDiagnosticSuccessorArtifact({
+    repoRoot: args.repoRoot,
+    category: 'diagnostic-successor-authorizations',
+    digest: args.authorizationDigest,
+    path: args.authorizationPath,
+    label: 'Blueprint diagnostic successor authorization',
+    isValid: blueprintDiagnosticSuccessorAuthorizationIsValid,
+  });
+  const candidate = loadDiagnosticSuccessorArtifact({
+    repoRoot: args.repoRoot,
+    category: 'diagnostic-successor-candidates',
+    digest: authorization.candidateDigest,
+    path: authorization.candidatePath,
+    label: 'Blueprint diagnostic successor candidate',
+    isValid: blueprintDiagnosticSuccessorCandidateIsValid,
+  });
+  const expected = buildBlueprintDiagnosticSuccessorAuthorization({
+    candidate,
+    candidatePath: authorization.candidatePath,
+    approvedBy: authorization.approvedBy,
+    approvedAt: authorization.approvedAt,
+  });
+  if (
+    expected.digest !== authorization.digest ||
+    authorization.evidenceTargetDigest !==
+      QA_WIZARD_BLUEPRINT_DIAGNOSTIC_EVIDENCE_TARGET_DIGEST
+  ) {
+    throw new Error('diagnostic successor authorization lineage is inconsistent');
+  }
+  return { authorization, candidate };
+}
+
+function revalidateDiagnosticSuccessorPredecessor(args: {
+  repoRoot: string;
+  candidate: QaWizardBlueprintDiagnosticSuccessorCandidate;
+}): void {
+  const predecessor = loadEligibleDiagnosticPredecessor({
+    repoRoot: args.repoRoot,
+    terminalLookupPath: args.candidate.terminalLookupPath,
+    terminalLookupDigest: args.candidate.terminalLookupDigest,
+  });
+  rebuildDiagnosticSuccessorCandidate({
+    candidate: args.candidate,
+    lineage: predecessor.lineage,
+  });
+}
+
+export async function executeBlueprintDiagnosticSuccessorLiveRequest(
+  args: {
+    repoRoot: string;
+    authorizationPath: string;
+    authorizationDigest: string;
+    write: true;
+  },
+  deps: QaWizardBlueprintExecutionDependencies = {},
+): Promise<QaWizardBlueprintExecutionResult> {
+  if (args.write !== true) {
+    throw new Error('execute-diagnostic-successor requires write=true');
+  }
+  // Load only the immutable successor authority before the shared execution
+  // core. A durable successor terminal remains replayable after the predecessor
+  // evidence becomes unavailable. Operational replay still uses the shared
+  // request/manifest replay registry; any future program or request-version
+  // cutover must preserve frozen v5/v8 replay there before it ships. Full
+  // predecessor eligibility is re-proved in `precheck`, which the core
+  // intentionally skips on replay and recovery.
+  const loaded = loadValidatedDiagnosticSuccessorAuthorization(args);
+  const { authorization } = loaded;
+  const claimMatchesAuthorization = (value: unknown): boolean =>
+    blueprintDiagnosticSuccessorExecutionClaimIsValid(value) &&
+    value.executionIdentityDigest === authorization.successorExecutionDigest &&
+    value.authoringAuthorityDigest === authorization.authoringAuthorityDigest &&
+    value.executionProgramDigest === authorization.executionProgramDigest &&
+    value.requestDigest === authorization.requestDigest &&
+    value.preflightManifestDigest === authorization.preflightManifestDigest &&
+    value.preflightManifestPath === authorization.preflightManifestPath &&
+    value.diagnosticSuccessor.authorizationDigest === authorization.digest &&
+    value.diagnosticSuccessor.authorizationPath === args.authorizationPath &&
+    value.diagnosticSuccessor.candidateDigest === authorization.candidateDigest &&
+    value.diagnosticSuccessor.predecessorExecutionIdentityDigest ===
+      authorization.predecessorExecutionIdentityDigest &&
+    value.diagnosticSuccessor.predecessorTerminalManifestDigest ===
+      authorization.predecessorTerminalManifestDigest &&
+    value.diagnosticSuccessor.evidenceTargetDigest ===
+      authorization.evidenceTargetDigest;
+  const binding: BlueprintExecutionClaimBinding = {
+    recoverOnlyFromOwnTerminalBinding: true,
+    executionIdentity: () => authorization.successorExecutionDigest,
+    claimIsValid: (value) => claimMatchesAuthorization(value),
+    buildClaim: () =>
+      buildBlueprintDiagnosticSuccessorExecutionClaim({
+        authorization,
+        authorizationPath: args.authorizationPath,
+      }),
+    precheck: (ctx) => {
+      if (
+        ctx.preflight.request.version !==
+          PRODUCTION_AUTHORING_RUN_REQUEST_VERSION ||
+        ctx.preflight.request.program.digest !==
+          authorization.executionProgramDigest ||
+        ctx.authoringAuthorityDigest !== authorization.authoringAuthorityDigest ||
+        ctx.requestDigest !== authorization.requestDigest ||
+        ctx.preflight.manifest.digest !== authorization.preflightManifestDigest ||
+        ctx.preflight.manifestPath !== authorization.preflightManifestPath ||
+        ctx.outputDir !== authorization.outputDir ||
+        ctx.preflight.request.requestId !== authorization.requestId ||
+        ctx.preflight.request.requestedAt !== authorization.requestedAt
+      ) {
+        throw new Error('diagnostic successor authorization does not match preflight');
+      }
+      if (
+        String(PRODUCTION_AUTHORING_RUN_REQUEST_VERSION) !==
+          QA_WIZARD_BLUEPRINT_DIAGNOSTIC_PREDECESSOR_REQUEST_VERSION ||
+        String(LEGACY_PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION_V7) !==
+          QA_WIZARD_BLUEPRINT_DIAGNOSTIC_PREDECESSOR_RECEIPT_VERSION ||
+        String(LEGACY_BLUEPRINT_AUTHORING_SANITIZED_FAILURE_CAPTURE_VERSION_V3) !==
+          QA_WIZARD_BLUEPRINT_DIAGNOSTIC_PREDECESSOR_CAPTURE_VERSION ||
+        String(PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION) !==
+          QA_WIZARD_BLUEPRINT_DIAGNOSTIC_TARGET_RECEIPT_VERSION ||
+        String(BLUEPRINT_AUTHORING_SANITIZED_FAILURE_CAPTURE_VERSION) !==
+          QA_WIZARD_BLUEPRINT_DIAGNOSTIC_TARGET_CAPTURE_VERSION ||
+        String(BLUEPRINT_AUTHORING_DIAGNOSTIC_CENSUS_COMMITMENT_VERSION) !==
+          QA_WIZARD_BLUEPRINT_DIAGNOSTIC_TARGET_CENSUS_VERSION
+      ) {
+        throw new Error(
+          'diagnostic successor producer versions changed; a new lane version is required',
+        );
+      }
+      // Repeat the complete immutable lineage load immediately before the first
+      // claim/provider boundary. Replay returns before this gate with zero calls.
+      const reloaded = loadValidatedDiagnosticSuccessorAuthorization(args);
+      revalidateDiagnosticSuccessorPredecessor({
+        repoRoot: ctx.repoRoot,
+        candidate: reloaded.candidate,
+      });
+      bindDiagnosticSuccessorSlot({
+        repoRoot: ctx.repoRoot,
+        authorization,
+        authorizationPath: args.authorizationPath,
+      });
+    },
+  };
+  return runBlueprintExecutionUnderClaim(
+    {
+      repoRoot: args.repoRoot,
+      preflightManifestPath: authorization.preflightManifestPath,
+      outputDir: authorization.outputDir,
+      write: true,
+    },
+    binding,
+    deps,
+  );
 }
 
 function assertImmutableBytesCompatible(args: {

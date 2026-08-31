@@ -1,5 +1,58 @@
 # SmallHeroes — Current Technical State
 
+## R1D — failed-terminal diagnostic successor implemented offline; one exact v7/v3 terminal can now yield one attributable v8/v4 result; awaiting independent QA; no live/render
+
+The recurring failure sequence was reclassified before another paid attempt. The historical
+`223 -> 89 -> 5` run is complete and replayable, but its immutable receipt v7/capture v3 cannot
+reveal the exact per-attempt identities retrospectively. Provider output was `store:false`, no raw
+draft exists on disk, and generation is not seeded. Therefore another run cannot truthfully be
+called a replay of the old final five; it can only produce one new attributable v8/v4 sample or a
+Candidate.
+
+- A separate one-shot diagnostic-successor lane accepts only an exact ordinary claim-v2,
+  current request-v5/program, failed `draft_validation_repair_exhausted` terminal, receipt v7,
+  capture v3, three calls/two repairs, zero transport retry/fallback, no Candidate, complete
+  terminal binding/lookup, and no incident or per-attempt v4 census.
+- Authority is exactly `candidate -> Guy authorization -> predecessor-keyed global slot ->
+  distinct successor claim`. There is no generic retry, no resampling, no provider fallback and
+  no second review artifact. Ordinary re-entry remains replay-only; orphan replacement remains
+  orphan-only; a diagnostic successor cannot become another predecessor.
+- Persisted v1 candidate/authorization identities use frozen request-v5, receipt-v7/v8 and
+  capture-v3/v4/census-v1 literals. First dispatch separately proves current producers still emit
+  those identities, so a future cutover requires a new lane version for fresh dispatch. An
+  already-durable successor replays without predecessor terminal evidence under today's shared
+  v5/v8 replay registry; any future program/request cutover must first preserve those frozen
+  legacy semantics in that registry. This milestone does not claim cutover-independent replay.
+- Successor recovery now requires an exact terminal binding for successor identities. This closes
+  an offline-falsified crash path where an unbound, superseded ordinary terminal sharing the same
+  request/preflight could otherwise be adopted. Ordinary legacy binding-less recovery remains
+  unchanged.
+- The strict operator CLI exposes only `prepare-diagnostic-successor`,
+  `authorize-diagnostic-successor`, and `execute-diagnostic-successor`. Approval timestamps are
+  explicit; only exact `Guy` is accepted; execution requires `--write`; errors are bounded and
+  sanitized.
+- Offline adversarial coverage proves failed v8/v4 and successful Candidate successors,
+  zero-call replay after predecessor-evidence loss, exact-key and time ordering, current/completed/
+  torn/tampered/malformed predecessor rejection, wrong topology/retry/fallback rejection,
+  conflicting approvals, authorization crash recovery, concurrency with one provider owner,
+  post-claim incident with zero redispatch, cross-lane no-chaining, and provider/counter
+  unreachability on negative paths.
+- Focused validation: **6 files / 107 tests PASS**, `npx --no-install tsc --noEmit` and
+  `git diff --check` clean. Literal `npm run check` passed both TypeScript phases; ordinary
+  reported **4,264 PASS / 9 missing-output-fixture failures / 73 skipped** across 332 files, and
+  resource-intensive reported **618 PASS / 14 fixed-timeout failures** across four unchanged
+  subprocess/Git-heavy files plus four known Vitest worker RPC timeout errors. The repository
+  gate therefore remains honestly HOLD on its established unrelated fixture/timeout baseline.
+- No credential, network, provider, live, Candidate, image, audio, render, deployment, DB or
+  remote mutation occurred. The exact successor Candidate for the real terminal is not minted
+  until the focused commit receives independent Claude Code PASS and is pushed cleanly. Guy must
+  then approve that exact Candidate digest before the single paid execution.
+
+Evidence:
+`docs/ai-workflow/R1D_BLUEPRINT_FAILED_TERMINAL_DIAGNOSTIC_SUCCESSOR_IMPLEMENTATION_EVIDENCE.md`.
+
+---
+
 ## R1D — per-attempt diagnostic evidence implemented offline; `223 -> 89 -> 5` is now durable and attributable; awaiting independent QA; no new live/render
 
 The latest bounded live authoring attempt completed three canonical calls with no retry or
