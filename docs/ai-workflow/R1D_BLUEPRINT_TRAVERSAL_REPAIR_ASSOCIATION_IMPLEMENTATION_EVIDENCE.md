@@ -135,13 +135,38 @@ not silently void, release, or re-key that authority.
   lifecycle, replacement lifecycle, and diagnostic-successor lifecycle.
 - `npx --no-install tsc --noEmit`: exit 0.
 - `git diff --check`: clean.
+- Claude Code independently re-gated immutable range
+  `cfee4dcba4d1528d62fd292afb2e2c81c9555c49..903b5f9c201f50ad318ce8b56b1d99b3f48765cb`
+  and returned **PASS — 0 BLOCKER / 0 MAJOR**, explicitly closing D1, D4, completed-attempt and
+  raw-provider-exception cross-program relabels, frozen replay reachability, and current-only
+  dispatch isolation. Its two MINOR notes were evidence limitations rather than code defects.
+- After that PASS, Codex reran the exact focused matrix on final committed bytes: **659/659 PASS**;
+  TypeScript and `git diff --check` remained clean.
+- Literal `npm run check` passed both TypeScript phases. Ordinary completed at **4,280 PASS / 73
+  skipped / 9 failed**, where all nine are the established absent ignored-output fixtures in five
+  unchanged files. Resource-intensive completed at **632/632 PASS** and emitted three known Vitest
+  worker `onTaskUpdate` RPC timeouts. No changed production or focused test failed.
+
+## Post-PASS fresh ordinary preflight
+
+- Exact current-program request:
+  `3232af557a75239f0395343636e4efaf2670ce4e2cc85e59bacb4b0bf36f3a19`.
+- Exact preflight manifest:
+  `512e61ccd5a2e8f158e7fc79d623b652154039f2bf83df8c6f76616c1edcf8ad`.
+- Exact derived ordinary execution identity:
+  `59717a794965945124d2fa4bf9558cc031ca26680f3d8bac1bafb0ab1085bffd`.
+- Preview and immutable write both reported credential access `none`, provider/image/audio calls 0,
+  and database/production writes 0. The derived identity is absent from every compiler-ledger
+  category, including claims, terminal lookups/bindings, incidents, replacement/diagnostic slots,
+  authorizations, proposals, reviews and approval decisions.
 
 ## Boundaries and next gate
 
 No credential, network, count endpoint, provider, paid generation, Candidate, image, audio, render,
-deployment, database, or remote mutation was performed during this implementation. The earlier
-diagnostic successor authorization is consumed and cannot authorize another run.
+deployment, database, or remote mutation was performed during this implementation or preflight.
+The earlier diagnostic successor authorization is consumed and cannot authorize another run.
 
-Next: focused local commit, immutable read-only Claude Code adversarial review, correction/re-gate
-if needed, then one new exact current-program authorization. No live authoring or render precedes
-that PASS.
+Next: push the three focused local commits only after Guy's explicit push instruction; prove exact
+same-name origin parity and produce canonical Fresh Readiness from that pushed HEAD; then require a
+new exact Guy authorization bound to the request/preflight above before one paid ordinary attempt.
+No retry or render is implied by that authoring authorization.

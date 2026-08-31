@@ -1,6 +1,6 @@
 # SmallHeroes — Current Technical State
 
-## R1D — traversal repair association closed offline; prompt-v7/wire-v2 cutover preserves frozen v6 replay; awaiting independent QA; no new live/render
+## R1D — traversal repair association independently QA-passed; current-program preflight is fresh and unconsumed; awaiting push/Fresh Readiness/exact live authorization; no new live/render
 
 The one authorized diagnostic successor was consumed exactly once with no retry or fallback. It
 converged from **106 emitted / 93 distinct -> 50 / 37 -> 4 / 4** and stopped. The terminal four
@@ -55,12 +55,26 @@ the zone association valid; the model therefore never saw the newly unmasked num
   exactly 3 calls/2 repairs, and the pinned approved eight-page production harness at 75,112 repair
   bytes / one exact 50,000-token count / all reservations under the unchanged `$5` ceiling.
 - Cross-boundary validation: **15 files / 659 tests PASS**, `npx --no-install tsc --noEmit` exit 0,
-  `git diff --check` clean. Independent adversarial QA is still required; this section does not
-  self-award PASS.
+  `git diff --check` clean. Claude Code independently reviewed immutable range
+  `cfee4dcba4d1528d62fd292afb2e2c81c9555c49..903b5f9c201f50ad318ce8b56b1d99b3f48765cb`
+  and returned **PASS — 0 BLOCKER / 0 MAJOR**, with two non-blocking evidence caveats. Codex then
+  reran the exact final-byte focused matrix at **659/659 PASS** and TypeScript at exit 0.
+- Literal final-byte `npm run check` passed both TypeScript phases. Its ordinary partition passed
+  **4,280** tests, skipped 73, and reproduced exactly the established nine missing ignored-output
+  fixture assertions in five unchanged files. Its resource-intensive partition passed **632/632**
+  and emitted the three known Vitest worker `onTaskUpdate` RPC timeouts; no changed production or
+  focused test failed.
+- Post-PASS zero-cost preparation minted current-program request
+  `3232af557a75239f0395343636e4efaf2670ce4e2cc85e59bacb4b0bf36f3a19` and preflight manifest
+  `512e61ccd5a2e8f158e7fc79d623b652154039f2bf83df8c6f76616c1edcf8ad`. Both preview and immutable
+  write reported zero credential/provider/image/audio/database/production access. Derived ordinary
+  identity `59717a794965945124d2fa4bf9558cc031ca26680f3d8bac1bafb0ab1085bffd` is absent from every
+  compiler-ledger category: no claim, terminal, binding, incident, authorization or slot exists.
 - No credential, network, provider, count endpoint, paid generation, Candidate, image, audio,
   render, deployment, DB, or remote mutation occurred in this offline milestone. The prior
-  diagnostic authorization is consumed. No new live run occurs before independent PASS and a new
-  exact Guy authorization.
+  diagnostic authorization is consumed. The local branch remains unpushed; no new live run occurs
+  before exact origin parity, canonical Fresh Readiness from that pushed HEAD, and a new exact Guy
+  authorization bound to the fresh request/preflight above.
 
 Evidence:
 `docs/ai-workflow/R1D_BLUEPRINT_TRAVERSAL_REPAIR_ASSOCIATION_IMPLEMENTATION_EVIDENCE.md`.
