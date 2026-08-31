@@ -99,6 +99,11 @@ import {
   type BlueprintAuthoringProbeCostEvidence,
 } from './blueprintAuthoringAdmissionLedger';
 import {
+  blueprintAuthoringExecutionProgramIsCurrent,
+  buildBlueprintAuthoringExecutionProgram,
+  type BlueprintAuthoringExecutionProgram,
+} from './blueprintAuthoringExecutionProgram';
+import {
   blueprintAuthoringDiagnosticCensusCommitment,
   blueprintAuthoringDiagnosticCensusCommitmentIsValid,
   blueprintAuthoringFailureRequiresSanitizedCapture,
@@ -113,6 +118,8 @@ import {
 } from './blueprintAuthoringSanitizedFailureCapture';
 
 export const PRODUCTION_AUTHORING_RUN_REQUEST_VERSION =
+  'production-blueprint-authoring-request/v5' as const;
+export const LEGACY_PRODUCTION_AUTHORING_RUN_REQUEST_VERSION_V4 =
   'production-blueprint-authoring-request/v4' as const;
 export const LEGACY_PRODUCTION_AUTHORING_RUN_REQUEST_VERSION =
   'production-blueprint-authoring-request/v3' as const;
@@ -126,6 +133,18 @@ export const LEGACY_PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION_V4 =
   'production-blueprint-authoring-receipt/v4' as const;
 export const LEGACY_PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION_V3 =
   'production-blueprint-authoring-receipt/v3' as const;
+
+// Frozen request-v4 execution policy. These literals deliberately do not point
+// at the mutable current-policy constants: immutable v4 artifacts must remain
+// replay-readable after a future model, budget, or output-ceiling cutover.
+const LEGACY_PRODUCTION_AUTHORING_V4_POLICY = {
+  model: 'gpt-5.6-sol',
+  reasoningEffort: 'medium',
+  maxOutputTokens: 48_000,
+  maxCalls: 3,
+  maxRepairCount: 2,
+} as const;
+const LEGACY_PRODUCTION_AUTHORING_V3_MAX_CALLS = 3 as const;
 
 /**
  * Complete closed set of terminal failure codes this runner can emit.
@@ -157,7 +176,8 @@ export function productionAuthoringRequestVersionStatus(
   if (version === PRODUCTION_AUTHORING_RUN_REQUEST_VERSION) {
     return 'current';
   }
-  return version === LEGACY_PRODUCTION_AUTHORING_RUN_REQUEST_VERSION
+  return version === LEGACY_PRODUCTION_AUTHORING_RUN_REQUEST_VERSION ||
+    version === LEGACY_PRODUCTION_AUTHORING_RUN_REQUEST_VERSION_V4
     ? 'legacy_immutable'
     : 'unsupported';
 }
@@ -176,6 +196,26 @@ export function productionAuthoringReceiptVersionStatus(
     : 'unsupported';
 }
 
+/**
+ * Closed request/receipt contract pairings accepted by the QA-Wizard lifecycle.
+ * Request v5 requires receipt v7's admission/count evidence. The only durable
+ * Lifecycle terminals under request v4 may carry receipt v6 or the v7 receipt
+ * introduced while request v4 was still current. Request v3 never entered this
+ * lifecycle and has no accepted pairing here.
+ */
+export function productionAuthoringRequestReceiptVersionPairIsSupported(args: {
+  requestVersion: unknown;
+  receiptVersion: unknown;
+}): boolean {
+  return (
+    (args.requestVersion === PRODUCTION_AUTHORING_RUN_REQUEST_VERSION &&
+      args.receiptVersion === PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION) ||
+    (args.requestVersion === LEGACY_PRODUCTION_AUTHORING_RUN_REQUEST_VERSION_V4 &&
+      (args.receiptVersion === LEGACY_PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION_V6 ||
+        args.receiptVersion === PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION))
+  );
+}
+
 export interface ProductionAuthoringCallBudget {
   maxCalls: number;
   maxRepairCount: number;
@@ -192,9 +232,43 @@ export interface ProductionAuthoringRunRequest {
   maxOutputTokens: typeof BLUEPRINT_AUTHORING_MAX_OUTPUT_TOKENS;
   noFallback: true;
   callBudget: ProductionAuthoringCallBudget;
+  program: BlueprintAuthoringExecutionProgram;
 }
 
+export interface LegacyProductionAuthoringRunRequest {
+  version:
+    | typeof LEGACY_PRODUCTION_AUTHORING_RUN_REQUEST_VERSION_V4
+    | typeof LEGACY_PRODUCTION_AUTHORING_RUN_REQUEST_VERSION;
+  mode: 'preflight' | 'live';
+  requestId: string;
+  requestedAt: string;
+  contextDigest: string;
+  model: string;
+  reasoningEffort: string;
+  maxOutputTokens: number;
+  noFallback: true;
+  callBudget: ProductionAuthoringCallBudget;
+}
+
+export type ReplayableProductionAuthoringRunRequest =
+  | ProductionAuthoringRunRequest
+  | LegacyProductionAuthoringRunRequest;
+
 const PRODUCTION_AUTHORING_RUN_REQUEST_KEYS = [
+  'callBudget',
+  'contextDigest',
+  'maxOutputTokens',
+  'mode',
+  'model',
+  'noFallback',
+  'program',
+  'reasoningEffort',
+  'requestId',
+  'requestedAt',
+  'version',
+] as const;
+
+const LEGACY_PRODUCTION_AUTHORING_RUN_REQUEST_KEYS = [
   'callBudget',
   'contextDigest',
   'maxOutputTokens',
@@ -227,6 +301,7 @@ export function buildProductionAuthoringRunRequest(args: {
       maxCalls: BLUEPRINT_AUTHORING_MAX_CALLS,
       maxRepairCount: BLUEPRINT_AUTHORING_MAX_REPAIRS,
     },
+    program: buildBlueprintAuthoringExecutionProgram(),
   };
 }
 
@@ -761,6 +836,9 @@ function requestIssues(
   if (request.noFallback !== BLUEPRINT_AUTHORING_NO_FALLBACK) {
     issues.push('noFallback must be true');
   }
+  if (!blueprintAuthoringExecutionProgramIsCurrent(request.program)) {
+    issues.push('authoring execution program is stale or invalid');
+  }
   if (
     !Number.isSafeInteger(request.callBudget?.maxCalls) ||
     request.callBudget.maxCalls !== BLUEPRINT_AUTHORING_MAX_CALLS
@@ -792,6 +870,162 @@ export function productionAuthoringRunRequestIssues(args: {
     return requestIssues(args.request, args.context);
   } catch {
     return ['request or production context cannot be validated'];
+  }
+}
+
+function legacyProductionAuthoringRunRequestIssues(args: {
+  request: LegacyProductionAuthoringRunRequest;
+  context: ProductionAuthoringContext;
+}): string[] {
+  const { request, context } = args;
+  const issues: string[] = [];
+  if (!request || typeof request !== 'object' || Array.isArray(request)) {
+    return ['legacy request is invalid'];
+  }
+  if (
+    request.version === LEGACY_PRODUCTION_AUTHORING_RUN_REQUEST_VERSION_V4 &&
+    JSON.stringify(Object.keys(request).sort()) !==
+      JSON.stringify([...LEGACY_PRODUCTION_AUTHORING_RUN_REQUEST_KEYS].sort())
+  ) {
+    return ['legacy v4 request keys are invalid'];
+  }
+  if (
+    !request.callBudget ||
+    typeof request.callBudget !== 'object' ||
+    Array.isArray(request.callBudget)
+  ) {
+    issues.push('legacy callBudget is invalid');
+  } else if (
+    request.version === LEGACY_PRODUCTION_AUTHORING_RUN_REQUEST_VERSION_V4 &&
+    JSON.stringify(Object.keys(request.callBudget).sort()) !==
+      JSON.stringify(['maxCalls', 'maxRepairCount'])
+  ) {
+    issues.push('legacy v4 callBudget keys are invalid');
+  }
+  if (!['preflight', 'live'].includes(request.mode)) {
+    issues.push('request mode must be preflight|live');
+  }
+  if (!nonEmpty(request.requestId) || request.requestId.length > 160) {
+    issues.push('requestId must be a non-empty bounded identifier');
+  }
+  if (!isoTimestampIsValid(request.requestedAt)) {
+    issues.push('requestedAt must be an ISO timestamp');
+  }
+  if (request.contextDigest !== context.digest) {
+    issues.push('request contextDigest does not bind the supplied context');
+  }
+  const {
+    validationContext,
+    digestAlgorithm: _algorithm,
+    digest: _digest,
+    ...contextPayload
+  } = context;
+  void validationContext;
+  if (
+    context.digestAlgorithm !== 'canonical-json-sha256' ||
+    context.digest !== computeProductionAuthoringContextDigest(contextPayload)
+  ) {
+    issues.push('production authoring context digest is stale');
+  }
+  if (
+    context.reconciliation.digest !==
+      canonicalJsonDigest(context.reconciliation.content) ||
+    canonicalJsonDigest(context.validationContext.reconciliation) !==
+      canonicalJsonDigest(context.reconciliation.content)
+  ) {
+    issues.push('production authoring reconciliation content is stale');
+  }
+  if (request.noFallback !== true) {
+    issues.push('noFallback must be true');
+  }
+
+  if (request.version === LEGACY_PRODUCTION_AUTHORING_RUN_REQUEST_VERSION_V4) {
+    if (request.model !== LEGACY_PRODUCTION_AUTHORING_V4_POLICY.model) {
+      issues.push('legacy v4 model is invalid');
+    }
+    if (
+      request.reasoningEffort !==
+      LEGACY_PRODUCTION_AUTHORING_V4_POLICY.reasoningEffort
+    ) {
+      issues.push('legacy v4 reasoningEffort is invalid');
+    }
+    if (
+      request.maxOutputTokens !==
+      LEGACY_PRODUCTION_AUTHORING_V4_POLICY.maxOutputTokens
+    ) {
+      issues.push('legacy v4 maxOutputTokens is invalid');
+    }
+    if (
+      request.callBudget?.maxCalls !==
+      LEGACY_PRODUCTION_AUTHORING_V4_POLICY.maxCalls
+    ) {
+      issues.push('legacy v4 maxCalls is invalid');
+    }
+    if (
+      request.callBudget?.maxRepairCount !==
+      LEGACY_PRODUCTION_AUTHORING_V4_POLICY.maxRepairCount
+    ) {
+      issues.push('legacy v4 maxRepairCount is invalid');
+    }
+    return issues;
+  }
+
+  // Frozen request-v3 semantics from its original validator. Request v3 did
+  // not require exact object keys; replay therefore preserves that historical
+  // acceptance while granting no fresh lifecycle dispatch authority.
+  if (!nonEmpty(request.model) || !nonEmpty(request.reasoningEffort)) {
+    issues.push('exact model and reasoningEffort are required');
+  }
+  if (
+    !Number.isSafeInteger(request.maxOutputTokens) ||
+    request.maxOutputTokens < 1
+  ) {
+    issues.push('maxOutputTokens must be a positive safe integer');
+  }
+  if (
+    !Number.isSafeInteger(request.callBudget?.maxCalls) ||
+    request.callBudget.maxCalls < 1 ||
+    request.callBudget.maxCalls > LEGACY_PRODUCTION_AUTHORING_V3_MAX_CALLS
+  ) {
+    issues.push(
+      `maxCalls must be between 1 and ${LEGACY_PRODUCTION_AUTHORING_V3_MAX_CALLS}`,
+    );
+  }
+  if (
+    !Number.isSafeInteger(request.callBudget?.maxRepairCount) ||
+    request.callBudget.maxRepairCount !== request.callBudget.maxCalls - 1
+  ) {
+    issues.push('maxRepairCount must equal maxCalls - 1');
+  }
+  return issues;
+}
+
+/**
+ * Structural replay validation for immutable request artifacts. Current requests
+ * must carry the exact compiler-owned execution program. Legacy v3/v4 requests
+ * are checked against frozen per-version semantics and can be reloaded for
+ * terminal replay, recovery, or orphan classification, but this function does
+ * not grant them fresh dispatch authority.
+ */
+export function productionAuthoringRunRequestReplayIssues(args: {
+  request: ReplayableProductionAuthoringRunRequest;
+  context: ProductionAuthoringContext;
+}): string[] {
+  try {
+    const status = productionAuthoringRequestVersionStatus(args.request.version);
+    if (status === 'unsupported') return ['request version is unsupported'];
+    if (status === 'current') {
+      return productionAuthoringRunRequestIssues({
+        request: args.request as ProductionAuthoringRunRequest,
+        context: args.context,
+      });
+    }
+    return legacyProductionAuthoringRunRequestIssues({
+      request: args.request as LegacyProductionAuthoringRunRequest,
+      context: args.context,
+    });
+  } catch {
+    return ['request or production context cannot be replay-validated'];
   }
 }
 

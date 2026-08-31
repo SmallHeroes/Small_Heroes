@@ -1,5 +1,66 @@
 # SmallHeroes — Current Technical State
 
+## R1D — Blueprint paid execution identity now binds content + exact authoring program; offline implementation locally green, awaiting independent QA; NOT live-run
+
+The first post-F1 live command stopped in ~3 seconds with `execution_state_uncertain` before
+credential, exact-count, provider, claim, receipt, incident, or cost. The current prompt-v6 request
+resolved to the same content-only ledger key `c0c2c8e3…` already consumed by an immutable
+request-v4/claim-v1/receipt-v6 prompt-v5 terminal. Root cause: the stable Blueprint content
+authority was incorrectly reused as the paid executable-program identity.
+
+- New exact-key `blueprint-authoring-execution-program/v1` binds prompt text/versions, provider and
+  repair wire versions, draft schema version/**name**/digest, layout-policy version/digest,
+  structured-output compatibility-profile version/digest, and the runtime-consumed static
+  token-request authority (roles, strict schema mode, tools/tool choice, and truncation). It also
+  binds Blueprint/composition/provenance versions, exact-count admission/evidence, the frozen
+  count-aware cost authority (including the 272K breakpoint), admission ledger, generation
+  evidence, actual generation/count transport semantics, and the effective
+  provider/model/reasoning/retry/fallback/ceiling/budget/pricing policy digest.
+- Production request is v5 and embeds that program. Current ordinary claim is v2. The paid key is
+  `hash(ordinary-identity/v2 + authoringAuthorityDigest + executionProgramDigest)`; request ID,
+  requested time, and output root cannot mint another slot. The stable content authority remains
+  unchanged downstream.
+- Immutable request-v4/claim-v1 stays on the raw content key and is replay-only. Request-v3/v4
+  validation uses frozen historical request semantics. Receipt-v6/v7 replay remains validated by
+  today's receipt-policy constants; the next material policy/program cutover must first freeze
+  those receipt validators. Fresh legacy ordinary or replacement dispatch is forbidden.
+- Receipt pairing is closed at both manifest and replay validation: request v5 accepts only receipt
+  v7; lifecycle request v4 accepts its historically valid receipt v6 **or v7**. Canonically
+  redigested v5+v6 evidence fails.
+- Same program under a second operator envelope yields truthful
+  `execution_identity_already_claimed|consumed` with zero second dispatch. Tampered program
+  evidence fails before both paid factories and before ledger creation.
+- Current program digest `63449835…`; static token-request authority `6b4fe110…`; transport
+  authority `f0a1718c…`; count-aware cost authority `0e67b474…`; effective policy
+  `a5a2052d…`; derived current identity for the real content authority `069c924d…`, distinct from
+  the preserved raw legacy key.
+- Paid-slot identity excludes descriptive pricing labels (`version`, `currency`, `source`, unit
+  prose, and the unused micro-USD conversion label) and descriptive policy-version labels; only
+  executable price/cost values remain identity-significant on that surface.
+- Offline validation: the current cross-boundary focused battery passes **13 files / 495 tests**,
+  including lifecycle/program, canonical launcher/boundary, count/generation adapters, cost,
+  runner, replacement, capture, and workload-classifier coverage. The production-scale
+  eight-page harness completed from 86
+  diagnostics through one exact 50,000-token count and two injected generation calls, TypeScript
+  clean, real request-v4/receipt-v6 terminal reload/replay with both paid factories unreachable,
+  `git diff --check` clean. The full repository contract discovered the canonical 352-file split
+  correctly: ordinary finished with 4,231 PASS and the same nine missing-output-fixture baseline
+  assertions in five unchanged files; resource-intensive finished with 614 PASS and 18 timeouts
+  in four unchanged subprocess-heavy files plus four known Vitest `onTaskUpdate` RPC errors. The
+  repository-wide command is therefore reported HOLD, not misrepresented as green.
+- That repository-wide run preceded only the final removal of descriptive, non-executable pricing
+  and policy labels from the paid identity. The resulting final bytes re-passed TypeScript and the
+  complete **13-file / 495-test** cross-boundary matrix; no runtime arithmetic or dispatch path
+  changed after the broad run.
+- No network, credential, provider, live, render, DB, deploy, Candidate, or remote mutation occurred.
+  Next: focused local commit → immutable Claude Code QA range → Fresh Readiness from the exact clean
+  pushed head → one bounded live attempt. Any live failure stops; no blind retry.
+
+Evidence:
+`docs/ai-workflow/R1D_BLUEPRINT_PROGRAM_SCOPED_EXECUTION_IDENTITY_EVIDENCE.md`.
+
+---
+
 ## F1 — exact repair input-token admission independently PASSed; focused offline implementation COMPLETE; repository fixture/timeout HOLD preserved; awaiting pushed-head Fresh Readiness; NOT live-run yet; F3 PASS preserved (Codex implementation; not pushed)
 
 F3 was awarded PASS (345/345, content-bound failure-capture authority, truthful evidence). F1 is

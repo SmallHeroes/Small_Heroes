@@ -192,4 +192,25 @@ describe('runner-owned exact-count cache and debit authority', () => {
       );
     }
   });
+
+  it('debits the full 2x large-prompt rate after an invoked 272001-token count failure', async () => {
+    const req = request(1, 272_001);
+    const source = vi.fn(async () => {
+      throw new Error('unknown post-dispatch failure');
+    });
+    const authority = createBlueprintAuthoringRunnerCountAuthority({
+      source,
+      generationAccountedMicroUsd: () => 1_408_000,
+    });
+
+    const result = await authority.counter(req);
+    expect(result).toMatchObject({ outcome: 'unavailable' });
+    expect(authority.consumeProbeEvent(req)?.probe).toMatchObject({
+      status: 'cache_miss',
+      debitMicroUsd: 2_992_011,
+      transportDisposition: 'assumed_dispatched',
+    });
+    expect(authority.cumulativeProbeDebitMicroUsd()).toBe(2_992_011);
+    expect(source).toHaveBeenCalledTimes(1);
+  });
 });

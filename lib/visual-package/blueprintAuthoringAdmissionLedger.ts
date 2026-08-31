@@ -9,6 +9,8 @@ import {
   type BlueprintAuthoringInputTokenCountRequest,
 } from './blueprintAuthoringInputTokenAdmission';
 import {
+  BLUEPRINT_AUTHORING_COUNT_AWARE_MAX_GENERATION_CALLS,
+  BLUEPRINT_AUTHORING_COUNT_AWARE_MAX_PROBE_ROUTES,
   BLUEPRINT_AUTHORING_HARD_CEILING_MICRO_USD,
   blueprintAuthoringContinuationReservationMicroUsd,
   blueprintAuthoringInputMicroUsd,
@@ -257,7 +259,10 @@ export function blueprintAuthoringAdmissionLedgerStructuralReason(
   value: unknown,
 ): string | null {
   try {
-    if (!Array.isArray(value) || value.length > 3) {
+    if (
+      !Array.isArray(value) ||
+      value.length > BLUEPRINT_AUTHORING_COUNT_AWARE_MAX_GENERATION_CALLS
+    ) {
       return 'admission_ledger_shape_invalid';
     }
     let priorProbeCumulative = 0;
@@ -303,8 +308,10 @@ export function blueprintAuthoringAdmissionLedgerStructuralReason(
         priorProbeCumulative,
       );
       if (accountedBeforeProbe === null) return 'admission_cost_state_invalid';
-      const remainingGenerationCalls = 3 - ordinal;
-      const laterProbeRoutes = 2 - ordinal;
+      const remainingGenerationCalls =
+        BLUEPRINT_AUTHORING_COUNT_AWARE_MAX_GENERATION_CALLS - ordinal;
+      const laterProbeRoutes =
+        BLUEPRINT_AUTHORING_COUNT_AWARE_MAX_PROBE_ROUTES - ordinal;
       const expectedProbeReservation =
         upperBound > BLUEPRINT_AUTHORING_INPUT_TOKEN_CEILING
           ? blueprintAuthoringProbeReservationMicroUsd({

@@ -91,6 +91,9 @@ import {
   type OpenAIResponsesAuthoringTransport,
 } from '@/lib/visual-package/openaiResponsesVisualContractAuthoringAdapter';
 import {
+  OPENAI_RESPONSES_TRANSPORT_AUTHORITY,
+} from '@/lib/visual-package/openAIResponsesTransportAuthority';
+import {
   createProviderFailureBoundaryObservations,
   ProviderCallFailureDiagnosticError,
 } from '@/lib/visual-package/providerFailureDiagnostics';
@@ -1299,16 +1302,16 @@ describe('canonical OpenAI Responses authoring adapter', () => {
         delegated,
       );
     await guarded(
-      'https://api.openai.com/v1/responses',
+      OPENAI_RESPONSES_TRANSPORT_AUTHORITY.generation.endpointUrl,
       {
-        method: 'POST',
+        method: OPENAI_RESPONSES_TRANSPORT_AUTHORITY.generation.method,
       },
     );
     expect(delegated).toHaveBeenCalledWith(
-      'https://api.openai.com/v1/responses',
+      OPENAI_RESPONSES_TRANSPORT_AUTHORITY.generation.endpointUrl,
       expect.objectContaining({
-        method: 'POST',
-        redirect: 'error',
+        method: OPENAI_RESPONSES_TRANSPORT_AUTHORITY.generation.method,
+        redirect: OPENAI_RESPONSES_TRANSPORT_AUTHORITY.generation.redirect,
       }),
     );
     await expect(
@@ -1322,14 +1325,20 @@ describe('canonical OpenAI Responses authoring adapter', () => {
       }),
     ).rejects.toThrow(/unauthorized destination/);
     await expect(
-      guarded('https://api.openai.com/v1/responses', {
-        method: 'POST',
+      guarded(OPENAI_RESPONSES_TRANSPORT_AUTHORITY.generation.endpointUrl, {
+        method: OPENAI_RESPONSES_TRANSPORT_AUTHORITY.generation.method,
         redirect: 'follow',
         headers: {
-          'OpenAI-Organization': 'org-marker',
+          [OPENAI_RESPONSES_TRANSPORT_AUTHORITY.generation
+            .forbiddenIdentityHeaders[0]]: 'org-marker',
         },
       }),
     ).rejects.toThrow(/unauthorized identity headers/);
+    await expect(
+      guarded(OPENAI_RESPONSES_TRANSPORT_AUTHORITY.generation.endpointUrl, {
+        method: OPENAI_RESPONSES_TRANSPORT_AUTHORITY.generation.method,
+      }),
+    ).rejects.toThrow(/duplicate dispatch/);
     expect(delegated).toHaveBeenCalledTimes(1);
   });
 

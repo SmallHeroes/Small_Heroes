@@ -73,6 +73,11 @@ import {
 
 import { canonicalJsonDigest } from './integrity';
 import {
+  OPENAI_RESPONSES_AUTHORING_BASE_URL,
+  OPENAI_RESPONSES_AUTHORING_ENDPOINT_URL,
+  OPENAI_RESPONSES_TRANSPORT_AUTHORITY,
+} from './openAIResponsesTransportAuthority';
+import {
   canonicalAuthoringExecutionAttestation,
   type AuthoringExecutionAttestation,
 } from './authoringTerminalDiagnostics';
@@ -97,21 +102,13 @@ import {
 } from './visualContractAuthoringLifecycle';
 
 export {
+  OPENAI_RESPONSES_AUTHORING_BASE_URL,
+  OPENAI_RESPONSES_AUTHORING_ENDPOINT_URL,
   OPENAI_RESPONSES_AUTHORING_EVIDENCE_VERSION,
 };
 
 export const OPENAI_RESPONSES_AUTHORING_CREDENTIAL_ENV =
   'OPENAI_API_KEY' as const;
-export const OPENAI_RESPONSES_AUTHORING_BASE_URL =
-  'https://api.openai.com/v1' as const;
-export const OPENAI_RESPONSES_AUTHORING_ENDPOINT_URL =
-  'https://api.openai.com/v1/responses' as const;
-
-const FORBIDDEN_OPENAI_IDENTITY_HEADERS = [
-  'openai-organization',
-  'openai-project',
-  'openai-webhook-secret',
-] as const;
 
 const OPENAI_SDK_ERROR_CLASSES = {
   apiUserAbortError: APIUserAbortError,
@@ -429,6 +426,7 @@ export function createGuardedOpenAIResponsesAuthoringFetch(
   delegatedFetch: OpenAIResponsesAuthoringFetch,
   observations?: ProviderFailureBoundaryObservations,
 ): OpenAIResponsesAuthoringFetch {
+  let dispatchCount = 0;
   return async (input, init) => {
     const url = requestUrl(input);
     if (
@@ -447,14 +445,14 @@ export function createGuardedOpenAIResponsesAuthoringFetch(
       init?.method ??
       (input instanceof Request ? input.method : 'GET')
     ).toUpperCase();
-    if (method !== 'POST') {
+    if (method !== OPENAI_RESPONSES_TRANSPORT_AUTHORITY.generation.method) {
       throw new ProviderTransportGuardRejectionError(
         'non_post_request',
       );
     }
     const headers = combinedHeaders(input, init);
     if (
-      FORBIDDEN_OPENAI_IDENTITY_HEADERS.some((name) =>
+      OPENAI_RESPONSES_TRANSPORT_AUTHORITY.generation.forbiddenIdentityHeaders.some((name) =>
         headers.has(name),
       )
     ) {
@@ -462,6 +460,13 @@ export function createGuardedOpenAIResponsesAuthoringFetch(
         'unauthorized_identity_headers',
       );
     }
+    if (
+      dispatchCount >=
+      OPENAI_RESPONSES_TRANSPORT_AUTHORITY.generation.maxDispatches
+    ) {
+      throw new ProviderTransportGuardRejectionError('duplicate_dispatch');
+    }
+    dispatchCount += 1;
     if (observations) {
       observations.transportDispatchStarted = true;
       observations.transportDispatchCount += 1;
@@ -469,7 +474,7 @@ export function createGuardedOpenAIResponsesAuthoringFetch(
     }
     const response = await delegatedFetch(input, {
       ...init,
-      redirect: 'error',
+      redirect: OPENAI_RESPONSES_TRANSPORT_AUTHORITY.generation.redirect,
     });
     if (observations && response instanceof Response) {
       observations.httpResponseReceived = true;
@@ -506,9 +511,7 @@ export const openAIResponsesAuthoringTransport: OpenAIResponsesAuthoringTranspor
         client = new OpenAI({
           apiKey,
           baseURL: OPENAI_RESPONSES_AUTHORING_BASE_URL,
-          organization: null,
-          project: null,
-          webhookSecret: null,
+          ...OPENAI_RESPONSES_TRANSPORT_AUTHORITY.generation.sdkIdentity,
           maxRetries: requestOptions.maxRetries,
           timeout: requestOptions.timeout,
           fetch: createGuardedOpenAIResponsesAuthoringFetch(
@@ -516,7 +519,7 @@ export const openAIResponsesAuthoringTransport: OpenAIResponsesAuthoringTranspor
             observations,
           ),
           fetchOptions: {
-            redirect: 'error',
+            redirect: OPENAI_RESPONSES_TRANSPORT_AUTHORITY.generation.redirect,
           },
           logLevel: 'error',
         });

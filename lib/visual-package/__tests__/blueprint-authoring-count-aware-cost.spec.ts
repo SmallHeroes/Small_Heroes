@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  BLUEPRINT_AUTHORING_COUNT_AWARE_COST_AUTHORITY,
+  BLUEPRINT_AUTHORING_COUNT_AWARE_COST_AUTHORITY_DIGEST,
   BLUEPRINT_AUTHORING_HARD_CEILING_MICRO_USD,
   BLUEPRINT_AUTHORING_MAX_GENERATION_MICRO_USD,
   BLUEPRINT_AUTHORING_MAX_SUCCESSFUL_PROBE_MICRO_USD,
@@ -11,13 +13,73 @@ import {
   blueprintAuthoringProbeReservationIsWithinCeiling,
   blueprintAuthoringProbeReservationMicroUsd,
 } from '@/lib/visual-package/blueprintAuthoringCountAwareCost';
+import { canonicalJsonDigest } from '@/lib/visual-package/integrity';
 import {
   BLUEPRINT_AUTHORING_HARD_COST_CEILING_USD,
+  BLUEPRINT_AUTHORING_PRICE_ASSUMPTIONS,
   blueprintAuthoringCountProbeReserveUsd,
   conservativeBlueprintAuthoringCostUsd,
 } from '@/lib/visual-package/blueprintAuthoringPolicy';
 
 describe('Q(U): count-aware conservative input micro-USD (integer arithmetic)', () => {
+  it('publishes one digest-bound authority for the runtime-consumed threshold, multiplier, rates, and budgets', () => {
+    expect(BLUEPRINT_AUTHORING_COUNT_AWARE_COST_AUTHORITY_DIGEST).toBe(
+      canonicalJsonDigest(BLUEPRINT_AUTHORING_COUNT_AWARE_COST_AUTHORITY),
+    );
+    expect(Object.isFrozen(BLUEPRINT_AUTHORING_PRICE_ASSUMPTIONS)).toBe(true);
+    expect(Object.keys(BLUEPRINT_AUTHORING_PRICE_ASSUMPTIONS).sort()).toEqual(
+      [
+        'cacheWriteInputUsdPerUnit',
+        'cachedInputUsdPerUnit',
+        'outputUsdPerUnit',
+        'regionalUpliftMultiplier',
+        'uncachedInputUsdPerUnit',
+        'unitTokens',
+      ].sort(),
+    );
+    expect(
+      Object.keys(BLUEPRINT_AUTHORING_COUNT_AWARE_COST_AUTHORITY).sort(),
+    ).toEqual(
+      [
+        'conservativePricing',
+        'generation',
+        'hardCeilingMicroUsd',
+        'inputTokenProbe',
+        'pricingAssumptionsDigest',
+      ].sort(),
+    );
+    expect(BLUEPRINT_AUTHORING_COUNT_AWARE_COST_AUTHORITY).toMatchObject({
+      hardCeilingMicroUsd: 5_000_000,
+      conservativePricing: {
+        inputRateNumeratorTenthsMicroUsd: 55,
+        outputRateNumeratorTenthsMicroUsd: 220,
+        rateDivisor: 10,
+      },
+      generation: {
+        maxInputTokens: 64_000,
+        maxOutputTokens: 48_000,
+        maxCalls: 3,
+        maxCallMicroUsd: 1_408_000,
+      },
+      inputTokenProbe: {
+        maxRoutes: 2,
+        maxSuccessfulInputTokens: 64_000,
+        maxSuccessfulProbeMicroUsd: 352_000,
+        largePromptInputTokenThreshold: 272_000,
+        largePromptThresholdComparison: 'strictly_above',
+        largePromptInputMultiplier: 2,
+      },
+    });
+    expect(
+      Object.isFrozen(
+        BLUEPRINT_AUTHORING_COUNT_AWARE_COST_AUTHORITY.conservativePricing,
+      ),
+    ).toBe(true);
+    expect(
+      Object.isFrozen(BLUEPRINT_AUTHORING_COUNT_AWARE_COST_AUTHORITY.generation),
+    ).toBe(true);
+  });
+
   it('matches the exact boundary anchors', () => {
     expect(blueprintAuthoringInputMicroUsd(64_000)).toBe(352_000); // $0.352
     expect(blueprintAuthoringInputMicroUsd(272_000)).toBe(1_496_000); // $1.496
@@ -124,6 +186,27 @@ describe('probe reservation boundary cells (mutually-exclusive fail/continue bra
       BLUEPRINT_AUTHORING_HARD_CEILING_MICRO_USD -
         blueprintAuthoringFullyAdmittedWorstCaseMicroUsd(),
     ).toBe(72_000);
+  });
+
+  it('treats the exact $5 ceiling as inclusive and rejects one micro-USD above it', () => {
+    const exactFence = {
+      accountedMicroUsd: 1_408_005,
+      provenUpperBoundTokens: 326_545,
+      remainingGenerationCalls: 0,
+      laterProbeRoutes: 0,
+    };
+    expect(blueprintAuthoringProbeReservationMicroUsd(exactFence)).toBe(
+      5_000_000,
+    );
+    expect(blueprintAuthoringProbeReservationIsWithinCeiling(exactFence)).toBe(
+      true,
+    );
+    expect(
+      blueprintAuthoringProbeReservationIsWithinCeiling({
+        ...exactFence,
+        accountedMicroUsd: exactFence.accountedMicroUsd + 1,
+      }),
+    ).toBe(false);
   });
 
   it('fails closed on out-of-range g/pAfter', () => {

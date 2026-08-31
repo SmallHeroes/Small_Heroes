@@ -15,7 +15,11 @@ export const BLUEPRINT_AUTHORING_TIMEOUT_MS = 20 * 60 * 1_000;
 export const BLUEPRINT_AUTHORING_MAX_INPUT_TOKENS = 64_000;
 export const BLUEPRINT_AUTHORING_MAX_OUTPUT_TOKENS = 48_000;
 export const BLUEPRINT_AUTHORING_MAX_CALLS = 3;
-export const BLUEPRINT_AUTHORING_MAX_REPAIRS = 2;
+export const BLUEPRINT_AUTHORING_REPAIR_ORDINALS = Object.freeze([1, 2] as const);
+export type BlueprintAuthoringRepairOrdinal =
+  (typeof BLUEPRINT_AUTHORING_REPAIR_ORDINALS)[number];
+export const BLUEPRINT_AUTHORING_MAX_REPAIRS =
+  BLUEPRINT_AUTHORING_REPAIR_ORDINALS.length;
 export const BLUEPRINT_AUTHORING_HARD_COST_CEILING_USD = 5;
 export const BLUEPRINT_AUTHORING_PROMPT_PROTOCOL_ALLOWANCE = 4_096;
 
@@ -27,17 +31,14 @@ export const OPENAI_RESPONSES_BLUEPRINT_AUTHORING_EVIDENCE_VERSION =
  * public price facts instead of importing the Visual Contract policy: a later
  * change to either lifecycle must receive its own explicit version cutover.
  */
-export const BLUEPRINT_AUTHORING_PRICE_ASSUMPTIONS = {
-  version: 'openai-standard-pricing/2026-08-25-v3',
-  currency: 'USD',
+export const BLUEPRINT_AUTHORING_PRICE_ASSUMPTIONS = Object.freeze({
   unitTokens: 1_000_000,
   uncachedInputUsdPerUnit: 4,
   cacheWriteInputUsdPerUnit: 5,
   cachedInputUsdPerUnit: 0.4,
   outputUsdPerUnit: 20,
   regionalUpliftMultiplier: 1.1,
-  source: 'https://developers.openai.com/api/docs/pricing',
-} as const;
+} as const);
 
 export interface BlueprintAuthoringInputAccounting {
   systemBytes: number;

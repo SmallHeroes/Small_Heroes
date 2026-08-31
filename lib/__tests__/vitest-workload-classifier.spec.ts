@@ -55,9 +55,9 @@ describe('Vitest workload classifier', () => {
     );
     const partition = classifyVitestWorkloads(inventory, policy);
 
-    expect(partition.inventory).toHaveLength(351);
+    expect(partition.inventory).toHaveLength(352);
     expect(partition.resourceIntensive).toHaveLength(20);
-    expect(partition.ordinary).toHaveLength(331);
+    expect(partition.ordinary).toHaveLength(332);
     expect(new Set(partition.inventory).size).toBe(
       partition.inventory.length,
     );
@@ -98,6 +98,9 @@ describe('Vitest workload classifier', () => {
     );
     expect(partition.ordinary).toContain(
       'lib/visual-package/__tests__/qa-wizard-blueprint-authoring-lifecycle.spec.ts',
+    );
+    expect(partition.ordinary).toContain(
+      'lib/visual-package/__tests__/blueprint-authoring-execution-program.spec.ts',
     );
     expect(partition.ordinary).toContain(
       'lib/visual-package/__tests__/qa-wizard-package-lifecycle.spec.ts',

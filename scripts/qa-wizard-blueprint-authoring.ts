@@ -134,6 +134,12 @@ function rejectionCode(error: unknown): string {
   if (error.message === 'execution_state_uncertain') {
     return 'execution_state_uncertain';
   }
+  if (error.message === 'execution_identity_already_claimed') {
+    return 'execution_identity_already_claimed';
+  }
+  if (error.message === 'execution_identity_already_consumed') {
+    return 'execution_identity_already_consumed';
+  }
   return 'blueprint_authority_validation_failed';
 }
 
@@ -241,6 +247,14 @@ async function execute(command: string, tokens: string[]): Promise<void> {
             '@/lib/visual-package/openaiResponsesBlueprintAuthoringAdapter'
           );
           return adapter.createOpenAIResponsesBlueprintAuthoringAdapter({
+            readCredential,
+          });
+        },
+        inputTokenCounterFactory: async () => {
+          const adapter = await import(
+            '@/lib/visual-package/openaiResponsesBlueprintAuthoringCountAdapter'
+          );
+          return adapter.createOpenAIResponsesBlueprintAuthoringCountAdapter({
             readCredential,
           });
         },

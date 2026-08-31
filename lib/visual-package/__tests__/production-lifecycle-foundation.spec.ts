@@ -6,6 +6,8 @@ import { createHash } from 'node:crypto';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
+  LEGACY_PRODUCTION_AUTHORING_RUN_REQUEST_VERSION,
+  LEGACY_PRODUCTION_AUTHORING_RUN_REQUEST_VERSION_V4,
   PRODUCTION_AUTHORING_RUN_REQUEST_VERSION,
   PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION,
   STYLE01_PRODUCTION_STYLE_AUTHORITY_PATH,
@@ -22,6 +24,8 @@ import {
   productionAuthoringReceiptVersionStatus,
   productionAuthoringReceiptV7EvidenceReason,
   productionAuthoringReceiptBytes,
+  productionAuthoringRequestReceiptVersionPairIsSupported,
+  productionAuthoringRunRequestReplayIssues,
   productionAuthoringRequestVersionStatus,
   productionBlueprintAuthoringPreflightIssues,
   productionBlueprintInitialInputAccounting,
@@ -38,6 +42,7 @@ import {
   type ProductionAuthoringProvider,
   type ProductionAuthoringContext,
   type ProductionAuthoringRunRequest,
+  type ReplayableProductionAuthoringRunRequest,
   type ReplayableProductionAuthoringRunReceipt,
 } from '@/lib/visual-package';
 import {
@@ -60,6 +65,7 @@ import {
   nominalBlueprintAuthoringUsageCostUsd,
 } from '@/lib/visual-package/blueprintAuthoringPolicy';
 import { PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA } from '@/lib/visual-package/preRenderBlueprintDraftSchema';
+import { buildBlueprintAuthoringExecutionProgram } from '@/lib/visual-package/blueprintAuthoringExecutionProgram';
 import {
   PreRenderBlueprintAuthoringRepairExhaustedError,
   preRenderBlueprintRepairDiagnosticErrorText,
@@ -230,6 +236,7 @@ function requestFor(
       maxCalls,
       maxRepairCount: maxCalls - 1,
     },
+    program: buildBlueprintAuthoringExecutionProgram(),
   };
 }
 
@@ -1974,6 +1981,16 @@ describe('provider-isolated Blueprint authoring runner', () => {
     };
     expect(
       productionAuthoringRequestVersionStatus(
+        'production-blueprint-authoring-request/v5',
+      ),
+    ).toBe('current');
+    expect(
+      productionAuthoringRequestVersionStatus(
+        'production-blueprint-authoring-request/v4',
+      ),
+    ).toBe('legacy_immutable');
+    expect(
+      productionAuthoringRequestVersionStatus(
         'production-blueprint-authoring-request/v3',
       ),
     ).toBe('legacy_immutable');
@@ -1988,6 +2005,65 @@ describe('provider-isolated Blueprint authoring runner', () => {
       ),
     ).toBe('legacy_immutable');
     expect(provider.call).not.toHaveBeenCalled();
+  });
+
+  it('replay-validates request v3 against its frozen historical policy rather than current policy', () => {
+    const { context } = buildContext('single_location');
+    const historicalRequest: ReplayableProductionAuthoringRunRequest = {
+      version: LEGACY_PRODUCTION_AUTHORING_RUN_REQUEST_VERSION,
+      mode: 'live',
+      requestId: 'historical-v3-request',
+      requestedAt: '2026-07-27T12:00:00.000Z',
+      contextDigest: context.digest,
+      model: 'historical-model',
+      reasoningEffort: 'low',
+      maxOutputTokens: 1,
+      noFallback: true,
+      callBudget: {
+        maxCalls: 1,
+        maxRepairCount: 0,
+      },
+    };
+
+    expect(
+      productionAuthoringRunRequestReplayIssues({
+        request: historicalRequest,
+        context,
+      }),
+    ).toEqual([]);
+  });
+
+  it('enforces the closed lifecycle request/receipt version pairs', () => {
+    expect(
+      productionAuthoringRequestReceiptVersionPairIsSupported({
+        requestVersion: PRODUCTION_AUTHORING_RUN_REQUEST_VERSION,
+        receiptVersion: PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION,
+      }),
+    ).toBe(true);
+    expect(
+      productionAuthoringRequestReceiptVersionPairIsSupported({
+        requestVersion: LEGACY_PRODUCTION_AUTHORING_RUN_REQUEST_VERSION_V4,
+        receiptVersion: 'production-blueprint-authoring-receipt/v6',
+      }),
+    ).toBe(true);
+    expect(
+      productionAuthoringRequestReceiptVersionPairIsSupported({
+        requestVersion: PRODUCTION_AUTHORING_RUN_REQUEST_VERSION,
+        receiptVersion: 'production-blueprint-authoring-receipt/v6',
+      }),
+    ).toBe(false);
+    expect(
+      productionAuthoringRequestReceiptVersionPairIsSupported({
+        requestVersion: LEGACY_PRODUCTION_AUTHORING_RUN_REQUEST_VERSION_V4,
+        receiptVersion: PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION,
+      }),
+    ).toBe(true);
+    expect(
+      productionAuthoringRequestReceiptVersionPairIsSupported({
+        requestVersion: LEGACY_PRODUCTION_AUTHORING_RUN_REQUEST_VERSION,
+        receiptVersion: 'production-blueprint-authoring-receipt/v6',
+      }),
+    ).toBe(false);
   });
 
   it('replays the byte-exact historical v4 request and v6 failed receipt as immutable legacy evidence', () => {
@@ -2018,12 +2094,14 @@ describe('provider-isolated Blueprint authoring runner', () => {
       createHash('sha256').update(receiptBytes, 'utf8').digest('hex'),
     ).toBe('8c0c5a6b3fe6e06e8468388f4b712c4c24fb6644efe0890da813afc0642b50aa');
 
-    const request = JSON.parse(requestBytes) as ProductionAuthoringRunRequest;
+    const request = JSON.parse(
+      requestBytes,
+    ) as ReplayableProductionAuthoringRunRequest;
     const receipt = JSON.parse(
       receiptBytes,
     ) as ReplayableProductionAuthoringRunReceipt & Record<string, unknown>;
     expect(productionAuthoringRequestVersionStatus(request.version)).toBe(
-      'current',
+      'legacy_immutable',
     );
     expect(productionAuthoringReceiptVersionStatus(receipt.version)).toBe(
       'legacy_immutable',
@@ -2037,6 +2115,12 @@ describe('provider-isolated Blueprint authoring runner', () => {
     );
     expect(productionAuthoringReceiptBytes(receipt)).toBe(receiptBytes);
     expect(
+      productionAuthoringRequestReceiptVersionPairIsSupported({
+        requestVersion: request.version,
+        receiptVersion: receipt.version,
+      }),
+    ).toBe(true);
+    expect(
       productionBlueprintAuthoringReceiptReplayIsValid({
         receipt,
         request,
@@ -2044,6 +2128,32 @@ describe('provider-isolated Blueprint authoring runner', () => {
         expectedDigest: receipt.digest,
       }),
     ).toBe(true);
+
+    const currentRequest = {
+      ...request,
+      version: PRODUCTION_AUTHORING_RUN_REQUEST_VERSION,
+      program: buildBlueprintAuthoringExecutionProgram(),
+    } as ProductionAuthoringRunRequest;
+    const forgedCurrentRequestLegacyReceipt = structuredClone(receipt) as
+      ReplayableProductionAuthoringRunReceipt & Record<string, unknown>;
+    forgedCurrentRequestLegacyReceipt.requestDigest =
+      canonicalJsonDigest(currentRequest);
+    const {
+      digest: _forgedDigest,
+      digestAlgorithm: _forgedAlgorithm,
+      ...forgedPayload
+    } = forgedCurrentRequestLegacyReceipt;
+    void _forgedDigest;
+    void _forgedAlgorithm;
+    forgedCurrentRequestLegacyReceipt.digest = canonicalJsonDigest(forgedPayload);
+    expect(
+      productionBlueprintAuthoringReceiptReplayIsValid({
+        receipt: forgedCurrentRequestLegacyReceipt,
+        request: currentRequest,
+        expectedStatus: 'failed',
+        expectedDigest: forgedCurrentRequestLegacyReceipt.digest,
+      }),
+    ).toBe(false);
   });
 
   it('fails unexpected local request processing closed and retains prior receipts as immutable legacy evidence', async () => {

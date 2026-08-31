@@ -16,6 +16,7 @@ import {
   type QaWizardCandidateBridgeManifest,
 } from './qaWizardCandidateBridge';
 import {
+  LEGACY_PRODUCTION_AUTHORING_RUN_REQUEST_VERSION_V4,
   LEGACY_PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION_V6,
   PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION,
   PRODUCTION_AUTHORING_RUN_REQUEST_VERSION,
@@ -27,6 +28,8 @@ import {
   productionAuthoringReceiptBytes,
   productionAuthoringReceiptV7EvidenceReason,
   productionAuthoringReceiptVersionStatus,
+  productionAuthoringRequestReceiptVersionPairIsSupported,
+  productionAuthoringRunRequestReplayIssues,
   productionBlueprintAuthoringPreflightIssues,
   runProductionBlueprintAuthoring,
   productionAuthoringRunResultIsCompleted,
@@ -36,8 +39,14 @@ import {
   type ProductionAuthoringRunReceipt,
   type ReplayableProductionAuthoringRunReceipt,
   type LegacyProductionAuthoringAttemptReceiptV6,
+  type ReplayableProductionAuthoringRunRequest,
   type ProductionAuthoringRunRequest,
 } from './productionAuthoringRunner';
+import {
+  blueprintAuthoringExecutionProgramIsCurrent,
+  buildBlueprintAuthoringExecutionProgram,
+  type BlueprintAuthoringExecutionProgram,
+} from './blueprintAuthoringExecutionProgram';
 import {
   BLUEPRINT_AUTHORING_SANITIZED_FAILURE_CAPTURE_VERSION,
   LEGACY_BLUEPRINT_AUTHORING_SANITIZED_FAILURE_CAPTURE_VERSION_V2,
@@ -128,7 +137,11 @@ import {
 export const QA_WIZARD_BLUEPRINT_AUTHORING_MANIFEST_VERSION =
   'qa-wizard-blueprint-authoring-manifest/v1' as const;
 export const QA_WIZARD_BLUEPRINT_EXECUTION_CLAIM_VERSION =
+  'qa-wizard-blueprint-execution-claim/v2' as const;
+export const LEGACY_QA_WIZARD_BLUEPRINT_EXECUTION_CLAIM_VERSION =
   'qa-wizard-blueprint-execution-claim/v1' as const;
+export const QA_WIZARD_BLUEPRINT_ORDINARY_EXECUTION_IDENTITY_VERSION =
+  'qa-wizard-blueprint-ordinary-execution-identity/v2' as const;
 export const QA_WIZARD_BLUEPRINT_EXECUTION_RECORD_VERSION =
   'qa-wizard-blueprint-execution-record/v1' as const;
 export const QA_WIZARD_BLUEPRINT_EXECUTION_INCIDENT_VERSION =
@@ -195,7 +208,9 @@ interface ManifestContextAuthority {
 }
 
 interface ManifestRequestAuthority {
-  version: typeof PRODUCTION_AUTHORING_RUN_REQUEST_VERSION;
+  version:
+    | typeof PRODUCTION_AUTHORING_RUN_REQUEST_VERSION
+    | typeof LEGACY_PRODUCTION_AUTHORING_RUN_REQUEST_VERSION_V4;
   digest: string;
   path: string;
   requestId: string;
@@ -276,6 +291,20 @@ export interface QaWizardBlueprintAuthoringManifest {
 
 export interface QaWizardBlueprintExecutionClaim {
   version: typeof QA_WIZARD_BLUEPRINT_EXECUTION_CLAIM_VERSION;
+  authoringAuthorityDigest: string;
+  executionIdentityDigest: string;
+  executionProgramDigest: string;
+  requestDigest: string;
+  preflightManifestDigest: string;
+  preflightManifestPath: string;
+  requestedAt: string;
+  scope: 'single_use_paid_blueprint_authoring';
+  digestAlgorithm: typeof DIGEST_ALGORITHM;
+  digest: string;
+}
+
+interface LegacyQaWizardBlueprintExecutionClaim {
+  version: typeof LEGACY_QA_WIZARD_BLUEPRINT_EXECUTION_CLAIM_VERSION;
   authoringAuthorityDigest: string;
   requestDigest: string;
   preflightManifestDigest: string;
@@ -471,6 +500,19 @@ const APPROVAL_KEYS = [
   'version',
 ] as const;
 const CLAIM_KEYS = [
+  'authoringAuthorityDigest',
+  'digest',
+  'digestAlgorithm',
+  'executionIdentityDigest',
+  'executionProgramDigest',
+  'preflightManifestDigest',
+  'preflightManifestPath',
+  'requestDigest',
+  'requestedAt',
+  'scope',
+  'version',
+] as const;
+const LEGACY_CLAIM_KEYS = [
   'authoringAuthorityDigest',
   'digest',
   'digestAlgorithm',
@@ -882,7 +924,9 @@ function manifestShapeIsValid(
     typeof manifest.context.digest !== 'string' ||
     !HEX_SHA256.test(manifest.context.digest) ||
     !exactKeys(manifest.request, REQUEST_KEYS) ||
-    manifest.request.version !== PRODUCTION_AUTHORING_RUN_REQUEST_VERSION ||
+    (manifest.request.version !== PRODUCTION_AUTHORING_RUN_REQUEST_VERSION &&
+      manifest.request.version !==
+        LEGACY_PRODUCTION_AUTHORING_RUN_REQUEST_VERSION_V4) ||
     manifest.request.mode !== 'live' ||
     typeof manifest.request.digest !== 'string' ||
     !HEX_SHA256.test(manifest.request.digest) ||
@@ -942,7 +986,11 @@ function manifestShapeIsValid(
     typeof manifest.receipt.digest !== 'string' ||
     !HEX_SHA256.test(manifest.receipt.digest) ||
     typeof manifest.receipt.path !== 'string' ||
-    manifest.receipt.status !== (isFailure ? 'failed' : 'completed')
+    manifest.receipt.status !== (isFailure ? 'failed' : 'completed') ||
+    !productionAuthoringRequestReceiptVersionPairIsSupported({
+      requestVersion: manifest.request.version,
+      receiptVersion: manifest.receipt.version,
+    })
   ) {
     return false;
   }
@@ -1068,7 +1116,7 @@ function loadProductionRequest(args: {
   outputDir: string;
   authority: ManifestRequestAuthority;
   context: ProductionAuthoringContext;
-}): ProductionAuthoringRunRequest {
+}): ReplayableProductionAuthoringRunRequest {
   const expectedPath = relativeArtifactPath({
     repoRoot: args.repoRoot,
     outputDir: args.outputDir,
@@ -1090,8 +1138,8 @@ function loadProductionRequest(args: {
     category: 'blueprint-authoring-requests',
     label: 'Blueprint authoring request',
   });
-  const request = loaded.value as unknown as ProductionAuthoringRunRequest;
-  const issues = productionBlueprintAuthoringPreflightIssues({
+  const request = loaded.value as unknown as ReplayableProductionAuthoringRunRequest;
+  const issues = productionAuthoringRunRequestReplayIssues({
     request,
     context: args.context,
   });
@@ -1486,12 +1534,12 @@ function attemptReceiptIsValid(args: {
 
 export function productionBlueprintAuthoringReceiptReplayIsValid(args: {
   receipt: Record<string, unknown>;
-  request: ProductionAuthoringRunRequest;
+  request: ReplayableProductionAuthoringRunRequest;
   expectedStatus: 'completed' | 'failed';
   expectedDigest: string;
 }): args is {
   receipt: ReplayableProductionAuthoringRunReceipt & Record<string, unknown>;
-  request: ProductionAuthoringRunRequest;
+  request: ReplayableProductionAuthoringRunRequest;
   expectedStatus: 'completed' | 'failed';
   expectedDigest: string;
 } {
@@ -1501,6 +1549,12 @@ export function productionBlueprintAuthoringReceiptReplayIsValid(args: {
   if (
     receiptVersion !== PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION &&
     receiptVersion !== LEGACY_PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION_V6
+  ) return false;
+  if (
+    !productionAuthoringRequestReceiptVersionPairIsSupported({
+      requestVersion: args.request.version,
+      receiptVersion,
+    })
   ) return false;
   const attempts = receipt.attempts;
   let cumulativeCostUsd = 0;
@@ -1684,7 +1738,7 @@ function loadProductionReceipt(args: {
   repoRoot: string;
   outputDir: string;
   authority: ManifestReceiptAuthority;
-  request: ProductionAuthoringRunRequest;
+  request: ReplayableProductionAuthoringRunRequest;
 }): ReplayableProductionAuthoringRunReceipt {
   const expectedPath = relativeArtifactPath({
     repoRoot: args.repoRoot,
@@ -2262,7 +2316,7 @@ interface LoadedQaWizardBlueprintManifest {
   outputDir: string;
   bridge: QaWizardCandidateBridgeManifest;
   context: ProductionAuthoringContext;
-  request: ProductionAuthoringRunRequest;
+  request: ReplayableProductionAuthoringRunRequest;
   receipt: ReplayableProductionAuthoringRunReceipt | null;
   blueprint: PreRenderBookVisualBlueprint | null;
   reviewPacket: PreRenderBlueprintReviewPacket | null;
@@ -2756,11 +2810,11 @@ function compilerLedgerArtifactPath(args: {
 }
 
 // The compiler ledger keys claim/terminal/incident artifacts by an execution
-// identity digest. For an ordinary first execution the execution identity is
-// the content authoring-authority digest, so callers omit executionIdentityDigest
-// and behavior is unchanged. A replacement successor passes a distinct
-// executionIdentityDigest so its ledger addresses can never collide with or
-// impersonate the preserved predecessor claim.
+// identity digest. Legacy v4 ordinary executions retain the content-authority
+// digest as their immutable key. Current ordinary executions pass the derived
+// content+program identity, while replacement successors pass their separately
+// authorized successor identity. The optional fallback exists only for legacy
+// artifact readers; every current write path supplies an explicit identity.
 function ledgerKey(args: {
   authoringAuthorityDigest: string;
   executionIdentityDigest?: string;
@@ -2986,15 +3040,78 @@ function approvalDecisionPath(args: {
   });
 }
 
+export function qaWizardBlueprintOrdinaryExecutionIdentityDigest(args: {
+  authoringAuthorityDigest: string;
+  program: BlueprintAuthoringExecutionProgram;
+}): string {
+  if (
+    !HEX_SHA256.test(args.authoringAuthorityDigest) ||
+    !blueprintAuthoringExecutionProgramIsCurrent(args.program)
+  ) {
+    throw new Error('ordinary Blueprint execution identity evidence is invalid');
+  }
+  return canonicalJsonDigest({
+    version: QA_WIZARD_BLUEPRINT_ORDINARY_EXECUTION_IDENTITY_VERSION,
+    authoringAuthorityDigest: args.authoringAuthorityDigest,
+    executionProgramDigest: args.program.digest,
+  });
+}
+
+function ordinaryExecutionAuthorityForRequest(args: {
+  request: ReplayableProductionAuthoringRunRequest;
+  authoringAuthorityDigest: string;
+}): {
+  executionIdentityDigest: string;
+  claimIsValid: (value: unknown) => boolean;
+} {
+  if (args.request.version === PRODUCTION_AUTHORING_RUN_REQUEST_VERSION) {
+    const program = args.request.program;
+    const executionIdentityDigest =
+      qaWizardBlueprintOrdinaryExecutionIdentityDigest({
+        authoringAuthorityDigest: args.authoringAuthorityDigest,
+        program,
+      });
+    return {
+      executionIdentityDigest,
+      claimIsValid: (
+        value: unknown,
+      ): value is QaWizardBlueprintExecutionClaim =>
+        executionClaimIsValid(value) &&
+        value.authoringAuthorityDigest === args.authoringAuthorityDigest &&
+        value.executionIdentityDigest === executionIdentityDigest &&
+        value.executionProgramDigest === program.digest,
+    };
+  }
+  if (
+    args.request.version !== LEGACY_PRODUCTION_AUTHORING_RUN_REQUEST_VERSION_V4
+  ) {
+    throw new Error('Blueprint authoring request version has no lifecycle identity');
+  }
+  return {
+    executionIdentityDigest: args.authoringAuthorityDigest,
+    claimIsValid: (
+      value: unknown,
+    ): value is LegacyQaWizardBlueprintExecutionClaim =>
+      legacyExecutionClaimIsValid(value) &&
+      value.authoringAuthorityDigest === args.authoringAuthorityDigest,
+  };
+}
+
 function buildExecutionClaim(args: {
   request: ProductionAuthoringRunRequest;
   preflightManifest: QaWizardBlueprintAuthoringManifest;
   preflightManifestPath: string;
   authoringAuthorityDigest: string;
+  executionIdentityDigest: string;
 }): QaWizardBlueprintExecutionClaim {
+  if (!blueprintAuthoringExecutionProgramIsCurrent(args.request.program)) {
+    throw new Error('ordinary Blueprint execution program is invalid');
+  }
   return digestPayload({
     version: QA_WIZARD_BLUEPRINT_EXECUTION_CLAIM_VERSION,
     authoringAuthorityDigest: args.authoringAuthorityDigest,
+    executionIdentityDigest: args.executionIdentityDigest,
+    executionProgramDigest: args.request.program.digest,
     requestDigest: canonicalJsonDigest(args.request),
     preflightManifestDigest: args.preflightManifest.digest,
     preflightManifestPath: args.preflightManifestPath,
@@ -3009,6 +3126,30 @@ function executionClaimIsValid(
   return (
     exactKeys(value, CLAIM_KEYS) &&
     value.version === QA_WIZARD_BLUEPRINT_EXECUTION_CLAIM_VERSION &&
+    value.digestAlgorithm === DIGEST_ALGORITHM &&
+    typeof value.authoringAuthorityDigest === 'string' &&
+    HEX_SHA256.test(value.authoringAuthorityDigest) &&
+    typeof value.executionIdentityDigest === 'string' &&
+    HEX_SHA256.test(value.executionIdentityDigest) &&
+    typeof value.executionProgramDigest === 'string' &&
+    HEX_SHA256.test(value.executionProgramDigest) &&
+    typeof value.requestDigest === 'string' &&
+    HEX_SHA256.test(value.requestDigest) &&
+    typeof value.preflightManifestDigest === 'string' &&
+    HEX_SHA256.test(value.preflightManifestDigest) &&
+    typeof value.preflightManifestPath === 'string' &&
+    canonicalUtcTimestampIsValid(value.requestedAt) &&
+    value.scope === 'single_use_paid_blueprint_authoring' &&
+    value.digest === canonicalJsonDigest(payloadWithoutDigest(value))
+  );
+}
+
+function legacyExecutionClaimIsValid(
+  value: unknown,
+): value is LegacyQaWizardBlueprintExecutionClaim {
+  return (
+    exactKeys(value, LEGACY_CLAIM_KEYS) &&
+    value.version === LEGACY_QA_WIZARD_BLUEPRINT_EXECUTION_CLAIM_VERSION &&
     value.digestAlgorithm === DIGEST_ALGORITHM &&
     typeof value.authoringAuthorityDigest === 'string' &&
     HEX_SHA256.test(value.authoringAuthorityDigest) &&
@@ -3234,7 +3375,6 @@ function loadExecutionRecord(args: {
   if (
     !executionRecordIsValid(loaded.value) ||
     loaded.value.authoringAuthorityDigest !== args.authoringAuthorityDigest ||
-    loaded.value.requestDigest !== args.requestDigest ||
     loaded.value.claimPath !== claimPath(args) ||
     path.basename(loaded.absolutePath) !== `${key}.json` ||
     path.basename(path.dirname(loaded.absolutePath)) !==
@@ -3252,8 +3392,7 @@ function loadExecutionRecord(args: {
   if (
     !claimIsValid(claim.value) ||
     claim.value.authoringAuthorityDigest !== args.authoringAuthorityDigest ||
-    claim.value.requestDigest !== args.requestDigest ||
-    claim.value.preflightManifestDigest !== args.preflightManifestDigest ||
+    claim.value.requestDigest !== loaded.value.requestDigest ||
     claim.value.digest !== loaded.value.claimDigest ||
     path.basename(claim.absolutePath) !== `${key}.json` ||
     path.basename(path.dirname(claim.absolutePath)) !==
@@ -3269,8 +3408,10 @@ function loadExecutionRecord(args: {
   });
   if (
     terminal.manifest.digest !== loaded.value.terminalManifestDigest ||
-    terminal.outputDir !== args.outputDir ||
-    terminal.manifest.predecessor?.digest !== args.preflightManifestDigest ||
+    terminal.manifest.request.digest !== loaded.value.requestDigest ||
+    terminal.manifest.predecessor?.digest !==
+      claim.value.preflightManifestDigest ||
+    terminal.manifest.predecessor?.path !== claim.value.preflightManifestPath ||
     terminal.receipt === null ||
     terminal.receipt.digest !== loaded.value.receiptDigest ||
     terminal.manifest.receipt?.path !== loaded.value.receiptPath ||
@@ -3280,6 +3421,13 @@ function loadExecutionRecord(args: {
     )
   ) {
     throw new Error('Blueprint authoring terminal authority is stale');
+  }
+  if (
+    loaded.value.requestDigest !== args.requestDigest ||
+    claim.value.preflightManifestDigest !== args.preflightManifestDigest ||
+    terminal.outputDir !== args.outputDir
+  ) {
+    throw new Error('execution_identity_already_consumed');
   }
   // Replay applies the SINGLE shared acceptance assertion for a failed terminal's
   // sanitized-capture disposition — the exact same assertion enforced at first
@@ -3292,7 +3440,7 @@ function loadExecutionRecord(args: {
   if (terminal.manifest.stage === 'authoring_failed') {
     assertTerminalObservabilityCaptureDisposition({
       repoRoot: args.repoRoot,
-      outputDir: args.outputDir,
+      outputDir: terminal.outputDir,
       manifest: terminal.manifest,
       receipt: terminal.receipt,
     });
@@ -3383,6 +3531,7 @@ function classifyPredecessorRecoverableTerminal(args: {
   authoringAuthorityDigest: string;
   requestDigest: string;
   preflightManifestDigest: string;
+  executionIdentityDigest?: string;
 }): 'none' | 'recoverable' | 'ambiguous' {
   const { ownBinding, terminals } = scanRecoverableTerminalManifests(args);
   if (terminals.length === 0) {
@@ -3518,26 +3667,36 @@ function blueprintAuthorityFromPersistence(args: {
 }
 
 /**
- * Binds one blueprint execution to a compiler-owned ledger identity and claim
- * shape. The ordinary first execution binds to the content authoring-authority
- * digest with the ordinary claim; a human-approved replacement successor binds
- * to a distinct successor execution digest with the replacement claim, so the
- * two lanes share this identical execute core without their ledger addresses
- * ever colliding.
+ * Binds one Blueprint execution to a compiler-owned ledger identity and claim
+ * shape. Current ordinary execution binds content authority plus the exact
+ * authoring program; legacy ordinary replay retains the historical content-only
+ * key; and a human-approved replacement successor binds a distinct successor
+ * digest. The lanes share this execute core without sharing paid slots.
  */
 interface BlueprintExecutionClaimBinding {
-  executionIdentity: (ctx: { authoringAuthorityDigest: string }) => string;
-  claimIsValid: (value: unknown) => boolean;
+  executionIdentity: (ctx: {
+    preflight: LoadedQaWizardBlueprintManifest;
+    authoringAuthorityDigest: string;
+  }) => string;
+  claimIsValid: (
+    value: unknown,
+    ctx: {
+      preflight: LoadedQaWizardBlueprintManifest;
+      authoringAuthorityDigest: string;
+      executionIdentityDigest: string;
+    },
+  ) => boolean;
   buildClaim: (ctx: {
     preflight: LoadedQaWizardBlueprintManifest;
     authoringAuthorityDigest: string;
     requestDigest: string;
+    executionIdentityDigest: string;
   }) => { digest: string };
   /**
-   * Lane-specific gate run after the current preflight/authority are resolved
-   * but before any ledger read or paid boundary. The replacement lane uses it
-   * to require an unresolved exact predecessor orphan and an exact approved
-   * authorization; the ordinary lane omits it.
+   * Lane-specific gate run after replay/recovery and published-claim ownership
+   * checks, but before any new claim or paid boundary. The replacement lane uses
+   * it to require an unresolved exact predecessor orphan and exact authorization;
+   * the ordinary lane uses it to forbid fresh dispatch from legacy requests.
    */
   precheck?: (ctx: {
     repoRoot: string;
@@ -3583,9 +3742,15 @@ async function runBlueprintExecutionUnderClaim(
   );
   const requestDigest = canonicalJsonDigest(preflight.request);
   const executionIdentityDigest = binding.executionIdentity({
+    preflight,
     authoringAuthorityDigest,
   });
-  const claimIsValid = binding.claimIsValid;
+  const claimIsValid = (value: unknown) =>
+    binding.claimIsValid(value, {
+      preflight,
+      authoringAuthorityDigest,
+      executionIdentityDigest,
+    });
   const executionClaimPath = claimPath({
     repoRoot: args.repoRoot,
     authoringAuthorityDigest,
@@ -3603,6 +3768,12 @@ async function runBlueprintExecutionUnderClaim(
       claimIsValid,
     });
   } catch (cause) {
+    if (
+      cause instanceof Error &&
+      cause.message === 'execution_identity_already_consumed'
+    ) {
+      throw cause;
+    }
     throw executionStateUncertain(cause);
   }
   if (existingTerminal) return existingTerminal;
@@ -3621,13 +3792,18 @@ async function runBlueprintExecutionUnderClaim(
       if (
         !claimIsValid(publishedClaim.value) ||
         publishedClaim.value.authoringAuthorityDigest !== authoringAuthorityDigest ||
-        publishedClaim.value.requestDigest !== requestDigest ||
-        publishedClaim.value.preflightManifestDigest !== preflight.manifest.digest ||
-        publishedClaim.value.preflightManifestPath !== preflight.manifestPath ||
         publishedClaim.rawBytes !==
           canonicalContentAddressedJsonBytes(publishedClaim.value)
       ) {
         throw new Error('Blueprint authoring execution claim is invalid or tampered');
+      }
+      if (
+        publishedClaim.value.requestDigest !== requestDigest ||
+        publishedClaim.value.preflightManifestDigest !==
+          preflight.manifest.digest ||
+        publishedClaim.value.preflightManifestPath !== preflight.manifestPath
+      ) {
+        throw new Error('execution_identity_already_claimed');
       }
       const recovered = recoverTerminalLookup({
         repoRoot: args.repoRoot,
@@ -3655,7 +3831,12 @@ async function runBlueprintExecutionUnderClaim(
         });
       }
     } catch (cause) {
-      if (cause instanceof Error && cause.message === 'execution_state_uncertain') {
+      if (
+        cause instanceof Error &&
+        (cause.message === 'execution_state_uncertain' ||
+          cause.message === 'execution_identity_already_claimed' ||
+          cause.message === 'execution_identity_already_consumed')
+      ) {
         throw cause;
       }
       throw executionStateUncertain(cause);
@@ -3684,6 +3865,7 @@ async function runBlueprintExecutionUnderClaim(
     preflight,
     authoringAuthorityDigest,
     requestDigest,
+    executionIdentityDigest,
   });
   let claimWrite: { created: boolean };
   let executionPhase: QaWizardBlueprintExecutionIncidentPhase =
@@ -3776,7 +3958,7 @@ async function runBlueprintExecutionUnderClaim(
   };
 
   const result = await runProductionBlueprintAuthoring({
-    request: preflight.request,
+    request: preflight.request as ProductionAuthoringRunRequest,
     context: preflight.context,
     provider,
     inputTokenCounter,
@@ -4051,15 +4233,36 @@ async function runBlueprintExecutionUnderClaim(
 }
 
 const ordinaryExecutionClaimBinding: BlueprintExecutionClaimBinding = {
-  executionIdentity: (ctx) => ctx.authoringAuthorityDigest,
-  claimIsValid: executionClaimIsValid,
+  executionIdentity: (ctx) =>
+    ordinaryExecutionAuthorityForRequest({
+      request: ctx.preflight.request,
+      authoringAuthorityDigest: ctx.authoringAuthorityDigest,
+    }).executionIdentityDigest,
+  claimIsValid: (value, ctx) =>
+    ordinaryExecutionAuthorityForRequest({
+      request: ctx.preflight.request,
+      authoringAuthorityDigest: ctx.authoringAuthorityDigest,
+    }).claimIsValid(value) &&
+    (ctx.preflight.request.version !== PRODUCTION_AUTHORING_RUN_REQUEST_VERSION ||
+      (executionClaimIsValid(value) &&
+        value.executionIdentityDigest === ctx.executionIdentityDigest)),
   buildClaim: (ctx) =>
     buildExecutionClaim({
-      request: ctx.preflight.request,
+      request: ctx.preflight.request as ProductionAuthoringRunRequest,
       preflightManifest: ctx.preflight.manifest,
       preflightManifestPath: ctx.preflight.manifestPath,
       authoringAuthorityDigest: ctx.authoringAuthorityDigest,
+      executionIdentityDigest: ctx.executionIdentityDigest,
     }),
+  precheck: (ctx) => {
+    if (
+      ctx.preflight.request.version !== PRODUCTION_AUTHORING_RUN_REQUEST_VERSION
+    ) {
+      throw new Error(
+        'legacy Blueprint authoring request cannot authorize fresh dispatch',
+      );
+    }
+  },
 };
 
 export async function executeQaWizardBlueprintLiveRequest(
@@ -4326,16 +4529,24 @@ function loadPredecessorOrphanClaim(args: {
   repoRoot: string;
   outputDir: string;
   authoringAuthorityDigest: string;
+  request: ReplayableProductionAuthoringRunRequest;
   requestDigest: string;
   preflightManifestDigest: string;
 }): {
-  claim: QaWizardBlueprintExecutionClaim;
+  claim:
+    | QaWizardBlueprintExecutionClaim
+    | LegacyQaWizardBlueprintExecutionClaim;
   claimPath: string;
   rawBytes: string;
 } {
+  const ordinary = ordinaryExecutionAuthorityForRequest({
+    request: args.request,
+    authoringAuthorityDigest: args.authoringAuthorityDigest,
+  });
   const predecessorClaimPath = claimPath({
     repoRoot: args.repoRoot,
     authoringAuthorityDigest: args.authoringAuthorityDigest,
+    executionIdentityDigest: ordinary.executionIdentityDigest,
   });
   const absolute = resolveRepoPath(args.repoRoot, predecessorClaimPath);
   if (!fs.existsSync(absolute)) {
@@ -4350,12 +4561,12 @@ function loadPredecessorOrphanClaim(args: {
     throw new Error('replacement of a replacement is not permitted in this milestone');
   }
   if (
-    !executionClaimIsValid(loaded.value) ||
+    !ordinary.claimIsValid(loaded.value) ||
     loaded.value.authoringAuthorityDigest !== args.authoringAuthorityDigest ||
     loaded.value.requestDigest !== args.requestDigest ||
     loaded.value.preflightManifestDigest !== args.preflightManifestDigest ||
     path.basename(loaded.absolutePath) !==
-      `${args.authoringAuthorityDigest}.json` ||
+      `${ordinary.executionIdentityDigest}.json` ||
     path.basename(path.dirname(loaded.absolutePath)) !== 'execution-claims' ||
     repoRelativePath(args.repoRoot, loaded.absolutePath) !==
       predecessorClaimPath ||
@@ -4369,6 +4580,7 @@ function loadPredecessorOrphanClaim(args: {
     authoringAuthorityDigest: args.authoringAuthorityDigest,
     requestDigest: args.requestDigest,
     preflightManifestDigest: args.preflightManifestDigest,
+    executionIdentityDigest: ordinary.executionIdentityDigest,
   } as const;
   if (loadExecutionRecord(gate)) {
     throw new Error('replacement predecessor already has a terminal result');
@@ -4384,6 +4596,7 @@ function loadPredecessorOrphanClaim(args: {
       authoringAuthorityDigest: args.authoringAuthorityDigest,
       requestDigest: args.requestDigest,
       preflightManifestDigest: args.preflightManifestDigest,
+      executionIdentityDigest: ordinary.executionIdentityDigest,
     })
   ) {
     throw new Error('replacement predecessor has a recoverable terminal result');
@@ -4401,6 +4614,7 @@ function loadPredecessorOrphanClaim(args: {
     authoringAuthorityDigest: args.authoringAuthorityDigest,
     requestDigest: args.requestDigest,
     preflightManifestDigest: args.preflightManifestDigest,
+    executionIdentityDigest: ordinary.executionIdentityDigest,
   });
   if (recoverableTerminal === 'recoverable') {
     throw new Error('replacement predecessor has a recoverable terminal result');
@@ -4421,7 +4635,9 @@ function loadPredecessorOrphanClaim(args: {
     );
   }
   return {
-    claim: loaded.value as unknown as QaWizardBlueprintExecutionClaim,
+    claim: loaded.value as unknown as
+      | QaWizardBlueprintExecutionClaim
+      | LegacyQaWizardBlueprintExecutionClaim,
     claimPath: predecessorClaimPath,
     rawBytes: loaded.rawBytes,
   };
@@ -4456,6 +4672,7 @@ export function prepareBlueprintReplacementProposal(args: {
     repoRoot: args.repoRoot,
     outputDir,
     authoringAuthorityDigest,
+    request: preflight.request,
     requestDigest,
     preflightManifestDigest: preflight.manifest.digest,
   });
@@ -4730,7 +4947,7 @@ export async function executeBlueprintReplacementLiveRequest(
   };
   const binding: BlueprintExecutionClaimBinding = {
     executionIdentity: () => authorization.successorExecutionDigest,
-    claimIsValid: replacementClaimMatchesAuthorization,
+    claimIsValid: (value) => replacementClaimMatchesAuthorization(value),
     buildClaim: (ctx) =>
       buildBlueprintReplacementExecutionClaim({
         authorization,
@@ -4739,6 +4956,14 @@ export async function executeBlueprintReplacementLiveRequest(
         preflightManifestPath: ctx.preflight.manifestPath,
       }),
     precheck: (ctx) => {
+      if (
+        ctx.preflight.request.version !==
+        PRODUCTION_AUTHORING_RUN_REQUEST_VERSION
+      ) {
+        throw new Error(
+          'legacy Blueprint authoring request cannot authorize fresh replacement dispatch',
+        );
+      }
       // The preflight manifest is content-addressed, so an exact digest match
       // binds this successor to the exact current preflight/request/story and
       // rejects any cross-preflight, cross-request or cross-story attempt.
@@ -4756,6 +4981,7 @@ export async function executeBlueprintReplacementLiveRequest(
         repoRoot: ctx.repoRoot,
         outputDir: ctx.outputDir,
         authoringAuthorityDigest: ctx.authoringAuthorityDigest,
+        request: ctx.preflight.request,
         requestDigest: ctx.requestDigest,
         preflightManifestDigest: ctx.preflight.manifest.digest,
       });

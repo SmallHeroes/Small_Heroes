@@ -23,6 +23,7 @@ export * from './productionReadiness';
 export * from './reconciliationLifecycle';
 export * from './reconciliationAuthoringLifecycle';
 export * from './productionAuthoringRunner';
+export * from './blueprintAuthoringExecutionProgram';
 export * from './blueprintAuthoringPolicy';
 export * from './blueprintAuthoringInputTokenAdmission';
 export * from './blueprintAuthoringSanitizedFailureCapture';

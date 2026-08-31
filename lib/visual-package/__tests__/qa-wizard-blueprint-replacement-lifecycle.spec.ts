@@ -292,18 +292,22 @@ async function orphanedPredecessor(subject: ReturnType<typeof setup>) {
   );
   const authoringAuthorityDigest =
     completed.manifest.blueprint!.authoringAuthorityDigest;
+  const predecessorExecutionDigest = path.basename(
+    completed.claimPath,
+    '.json',
+  );
   const claimBefore = fs.readFileSync(
-    ledgerFile(subject.repoRoot, 'execution-claims', `${authoringAuthorityDigest}.json`),
+    path.join(subject.repoRoot, completed.claimPath),
     'utf8',
   );
   // Delete every downstream terminal artifact, preserving only the claim. A
   // real orphan is a claim written before any terminal manifest/binding, so the
   // terminal binding (written after the manifest) is absent too.
   fs.rmSync(
-    ledgerFile(subject.repoRoot, 'terminal-lookups', `${authoringAuthorityDigest}.json`),
+    path.join(subject.repoRoot, completed.executionRecordPath),
   );
   fs.rmSync(
-    ledgerFile(subject.repoRoot, 'terminal-bindings', `${authoringAuthorityDigest}.json`),
+    ledgerFile(subject.repoRoot, 'terminal-bindings', `${predecessorExecutionDigest}.json`),
   );
   fs.rmSync(path.join(subject.repoRoot, completed.manifestPath));
   fs.rmSync(path.join(subject.repoRoot, completed.receiptPath));
@@ -317,7 +321,13 @@ async function orphanedPredecessor(subject: ReturnType<typeof setup>) {
     ),
     { recursive: true, force: true },
   );
-  return { preflight, authoringAuthorityDigest, claimBefore };
+  return {
+    preflight,
+    authoringAuthorityDigest,
+    predecessorExecutionDigest,
+    predecessorClaimPath: completed.claimPath,
+    claimBefore,
+  };
 }
 
 /**
@@ -340,24 +350,40 @@ async function legacyUnboundTerminalPredecessor(subject: ReturnType<typeof setup
   );
   const authoringAuthorityDigest =
     completed.manifest.blueprint!.authoringAuthorityDigest;
+  const predecessorExecutionDigest = path.basename(
+    completed.claimPath,
+    '.json',
+  );
   const claimBefore = fs.readFileSync(
-    ledgerFile(subject.repoRoot, 'execution-claims', `${authoringAuthorityDigest}.json`),
+    path.join(subject.repoRoot, completed.claimPath),
     'utf8',
   );
   // Round-2 wrote a terminal binding and lookup; a legacy crash predates both.
   fs.rmSync(
-    ledgerFile(subject.repoRoot, 'terminal-lookups', `${authoringAuthorityDigest}.json`),
+    path.join(subject.repoRoot, completed.executionRecordPath),
   );
   fs.rmSync(
-    ledgerFile(subject.repoRoot, 'terminal-bindings', `${authoringAuthorityDigest}.json`),
+    ledgerFile(subject.repoRoot, 'terminal-bindings', `${predecessorExecutionDigest}.json`),
   );
-  return { preflight, authoringAuthorityDigest, claimBefore, completed };
+  return {
+    preflight,
+    authoringAuthorityDigest,
+    predecessorExecutionDigest,
+    predecessorClaimPath: completed.claimPath,
+    claimBefore,
+    completed,
+  };
 }
 
 describe('QA Wizard Blueprint replacement (orphan-claim successor) lifecycle', () => {
   it('advances an unresolved orphan through proposal → review → Guy approval → one successor execution and replays with zero calls', async () => {
     const subject = setup();
-    const { preflight, authoringAuthorityDigest, claimBefore } =
+    const {
+      preflight,
+      authoringAuthorityDigest,
+      predecessorClaimPath,
+      claimBefore,
+    } =
       await orphanedPredecessor(subject);
 
     const proposal = prepareBlueprintReplacementProposal({
@@ -445,7 +471,7 @@ describe('QA Wizard Blueprint replacement (orphan-claim successor) lifecycle', (
     // The predecessor claim bytes are preserved untouched.
     expect(
       fs.readFileSync(
-        ledgerFile(subject.repoRoot, 'execution-claims', `${authoringAuthorityDigest}.json`),
+        path.join(subject.repoRoot, predecessorClaimPath),
         'utf8',
       ),
     ).toBe(claimBefore);
@@ -854,7 +880,13 @@ describe('QA Wizard Blueprint replacement — adversarial authority', () => {
 
   it('keeps the ordinary lane fenced after a completed successor and never mints a predecessor lookup', async () => {
     const subject = setup();
-    const { authorization, preflight, authoringAuthorityDigest, claimBefore } =
+    const {
+      authorization,
+      preflight,
+      predecessorExecutionDigest,
+      predecessorClaimPath,
+      claimBefore,
+    } =
       await approvedSuccessor(subject);
     await executeBlueprintReplacementLiveRequest(
       {
@@ -870,7 +902,7 @@ describe('QA Wizard Blueprint replacement — adversarial authority', () => {
     const predecessorLookup = ledgerFile(
       subject.repoRoot,
       'terminal-lookups',
-      `${authoringAuthorityDigest}.json`,
+      `${predecessorExecutionDigest}.json`,
     );
     expect(fs.existsSync(predecessorLookup)).toBe(false);
     const forbidden = vi.fn(() => passingProvider(subject.fixture));
@@ -890,11 +922,7 @@ describe('QA Wizard Blueprint replacement — adversarial authority', () => {
     expect(fs.existsSync(predecessorLookup)).toBe(false);
     expect(
       fs.readFileSync(
-        ledgerFile(
-          subject.repoRoot,
-          'execution-claims',
-          `${authoringAuthorityDigest}.json`,
-        ),
+        path.join(subject.repoRoot, predecessorClaimPath),
         'utf8',
       ),
     ).toBe(claimBefore);
@@ -1090,11 +1118,7 @@ describe('QA Wizard Blueprint replacement — adversarial authority', () => {
     // Predecessor claim bytes untouched.
     expect(
       fs.readFileSync(
-        ledgerFile(
-          subject.repoRoot,
-          'execution-claims',
-          `${legacy.authoringAuthorityDigest}.json`,
-        ),
+        path.join(subject.repoRoot, legacy.predecessorClaimPath),
         'utf8',
       ),
     ).toBe(legacy.claimBefore);

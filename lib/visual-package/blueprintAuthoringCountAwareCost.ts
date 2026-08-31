@@ -1,11 +1,12 @@
+import { canonicalHash } from '@/lib/canonical-json';
+
 import {
   BLUEPRINT_AUTHORING_HARD_COST_CEILING_USD,
   BLUEPRINT_AUTHORING_MAX_CALLS,
-  BLUEPRINT_AUTHORING_MAX_REPAIRS,
   BLUEPRINT_AUTHORING_MAX_INPUT_TOKENS,
   BLUEPRINT_AUTHORING_MAX_OUTPUT_TOKENS,
-  blueprintAuthoringCountProbeReserveUsd,
-  conservativeBlueprintAuthoringCostUsd,
+  BLUEPRINT_AUTHORING_MAX_REPAIRS,
+  BLUEPRINT_AUTHORING_PRICE_ASSUMPTIONS,
 } from './blueprintAuthoringPolicy';
 
 /**
@@ -29,33 +30,95 @@ import {
 export const BLUEPRINT_AUTHORING_F1_COST_POLICY_VERSION =
   'blueprint-authoring-f1-count-aware-cost/v1' as const;
 
-export const BLUEPRINT_AUTHORING_HARD_CEILING_MICRO_USD = Math.round(
-  BLUEPRINT_AUTHORING_HARD_COST_CEILING_USD * 1_000_000,
-);
-export const BLUEPRINT_AUTHORING_MAX_GENERATION_MICRO_USD = Math.round(
-  conservativeBlueprintAuthoringCostUsd({
-    inputTokens: BLUEPRINT_AUTHORING_MAX_INPUT_TOKENS,
-    outputTokens: BLUEPRINT_AUTHORING_MAX_OUTPUT_TOKENS,
-  }) * 1_000_000,
-);
-export const BLUEPRINT_AUTHORING_MAX_SUCCESSFUL_PROBE_MICRO_USD = Math.round(
-  blueprintAuthoringCountProbeReserveUsd() * 1_000_000,
-);
-/** OpenAI large-prompt threshold: inputs strictly ABOVE this bill 2x input for the whole request. */
-export const BLUEPRINT_AUTHORING_LARGE_PROMPT_INPUT_TOKEN_THRESHOLD = 272_000;
-
-// 3 generation calls, 2 probe routes under the current budget (kept local so this cost cutover
-// is isolated from the generation-policy constants and does not weaken legacy v6 evidence).
-export const BLUEPRINT_AUTHORING_COUNT_AWARE_MAX_GENERATION_CALLS =
-  BLUEPRINT_AUTHORING_MAX_CALLS;
-export const BLUEPRINT_AUTHORING_COUNT_AWARE_MAX_PROBE_ROUTES =
-  BLUEPRINT_AUTHORING_MAX_REPAIRS;
-
-const CACHE_WRITE_INPUT_MICRO_USD_PER_TOKEN_X2_UPLIFT = 11; // 5 (cache-write) * 1.1 uplift * 2
-const CONSERVATIVE_GENERATION_PRICE_TENTHS_MICRO_USD = {
-  input: 55, // $5 / 1M cache-write input * 1.1 regional uplift * 10
-  output: 220, // $20 / 1M output * 1.1 regional uplift * 10
+/**
+ * One exact, canonical authority for every concrete value that changes count-probe debit or
+ * admission. Runtime cost functions below consume this object directly; the paid execution
+ * program binds its digest. That prevents a threshold/rate/budget change from silently reusing
+ * an already consumed program identity.
+ */
+const BLUEPRINT_AUTHORING_COUNT_AWARE_COST_INPUTS = {
+  pricingAssumptionsDigest: canonicalHash(BLUEPRINT_AUTHORING_PRICE_ASSUMPTIONS),
+  hardCeilingMicroUsd: Math.round(
+    BLUEPRINT_AUTHORING_HARD_COST_CEILING_USD * 1_000_000,
+  ),
+  conservativePricing: {
+    inputRateNumeratorTenthsMicroUsd: 55,
+    outputRateNumeratorTenthsMicroUsd: 220,
+    rateDivisor: 10,
+  },
+  generation: {
+    maxInputTokens: BLUEPRINT_AUTHORING_MAX_INPUT_TOKENS,
+    maxOutputTokens: BLUEPRINT_AUTHORING_MAX_OUTPUT_TOKENS,
+    maxCalls: BLUEPRINT_AUTHORING_MAX_CALLS,
+  },
+  inputTokenProbe: {
+    maxRoutes: BLUEPRINT_AUTHORING_MAX_REPAIRS,
+    maxSuccessfulInputTokens: BLUEPRINT_AUTHORING_MAX_INPUT_TOKENS,
+    largePromptInputTokenThreshold: 272_000,
+    largePromptThresholdComparison: 'strictly_above',
+    largePromptInputMultiplier: 2,
+  },
 } as const;
+
+const MAX_GENERATION_MICRO_USD = Math.ceil(
+  safeIntegerSum([
+    safeIntegerProduct(
+      BLUEPRINT_AUTHORING_COUNT_AWARE_COST_INPUTS.conservativePricing
+        .inputRateNumeratorTenthsMicroUsd,
+      BLUEPRINT_AUTHORING_COUNT_AWARE_COST_INPUTS.generation.maxInputTokens,
+    ),
+    safeIntegerProduct(
+      BLUEPRINT_AUTHORING_COUNT_AWARE_COST_INPUTS.conservativePricing
+        .outputRateNumeratorTenthsMicroUsd,
+      BLUEPRINT_AUTHORING_COUNT_AWARE_COST_INPUTS.generation.maxOutputTokens,
+    ),
+  ]) /
+    BLUEPRINT_AUTHORING_COUNT_AWARE_COST_INPUTS.conservativePricing.rateDivisor,
+);
+
+const MAX_SUCCESSFUL_PROBE_MICRO_USD = Math.ceil(
+  safeIntegerProduct(
+    BLUEPRINT_AUTHORING_COUNT_AWARE_COST_INPUTS.conservativePricing
+      .inputRateNumeratorTenthsMicroUsd,
+    BLUEPRINT_AUTHORING_COUNT_AWARE_COST_INPUTS.inputTokenProbe
+      .maxSuccessfulInputTokens,
+  ) /
+    BLUEPRINT_AUTHORING_COUNT_AWARE_COST_INPUTS.conservativePricing.rateDivisor,
+);
+
+export const BLUEPRINT_AUTHORING_COUNT_AWARE_COST_AUTHORITY = Object.freeze({
+  ...BLUEPRINT_AUTHORING_COUNT_AWARE_COST_INPUTS,
+  conservativePricing: Object.freeze({
+    ...BLUEPRINT_AUTHORING_COUNT_AWARE_COST_INPUTS.conservativePricing,
+  }),
+  generation: Object.freeze({
+    ...BLUEPRINT_AUTHORING_COUNT_AWARE_COST_INPUTS.generation,
+    maxCallMicroUsd: MAX_GENERATION_MICRO_USD,
+  }),
+  inputTokenProbe: Object.freeze({
+    ...BLUEPRINT_AUTHORING_COUNT_AWARE_COST_INPUTS.inputTokenProbe,
+    maxSuccessfulProbeMicroUsd: MAX_SUCCESSFUL_PROBE_MICRO_USD,
+  }),
+} as const);
+
+export const BLUEPRINT_AUTHORING_COUNT_AWARE_COST_AUTHORITY_DIGEST =
+  canonicalHash(BLUEPRINT_AUTHORING_COUNT_AWARE_COST_AUTHORITY);
+
+export const BLUEPRINT_AUTHORING_HARD_CEILING_MICRO_USD =
+  BLUEPRINT_AUTHORING_COUNT_AWARE_COST_AUTHORITY.hardCeilingMicroUsd;
+export const BLUEPRINT_AUTHORING_MAX_GENERATION_MICRO_USD =
+  BLUEPRINT_AUTHORING_COUNT_AWARE_COST_AUTHORITY.generation.maxCallMicroUsd;
+export const BLUEPRINT_AUTHORING_MAX_SUCCESSFUL_PROBE_MICRO_USD =
+  BLUEPRINT_AUTHORING_COUNT_AWARE_COST_AUTHORITY.inputTokenProbe
+    .maxSuccessfulProbeMicroUsd;
+/** OpenAI large-prompt threshold: inputs strictly ABOVE this bill 2x input for the whole request. */
+export const BLUEPRINT_AUTHORING_LARGE_PROMPT_INPUT_TOKEN_THRESHOLD =
+  BLUEPRINT_AUTHORING_COUNT_AWARE_COST_AUTHORITY.inputTokenProbe
+    .largePromptInputTokenThreshold;
+export const BLUEPRINT_AUTHORING_COUNT_AWARE_MAX_GENERATION_CALLS =
+  BLUEPRINT_AUTHORING_COUNT_AWARE_COST_AUTHORITY.generation.maxCalls;
+export const BLUEPRINT_AUTHORING_COUNT_AWARE_MAX_PROBE_ROUTES =
+  BLUEPRINT_AUTHORING_COUNT_AWARE_COST_AUTHORITY.inputTokenProbe.maxRoutes;
 
 function nonNegativeSafeInteger(value: unknown): value is number {
   return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0;
@@ -83,6 +146,19 @@ function safeIntegerProduct(left: number, right: number): number {
   return left * right;
 }
 
+function blueprintAuthoringLargePromptInputMultiplier(
+  inputTokens: number,
+): number {
+  const authority =
+    BLUEPRINT_AUTHORING_COUNT_AWARE_COST_AUTHORITY.inputTokenProbe;
+  if (authority.largePromptThresholdComparison !== 'strictly_above') {
+    throw new Error('blueprint authoring large-prompt comparison is invalid');
+  }
+  return inputTokens > authority.largePromptInputTokenThreshold
+    ? authority.largePromptInputMultiplier
+    : 1;
+}
+
 /**
  * Q(U): conservative input-only micro-USD cost of a request whose input is `inputTokens` tokens.
  * Fail-closed: throws on an invalid token count so a malformed value can never under-reserve.
@@ -91,18 +167,17 @@ export function blueprintAuthoringInputMicroUsd(inputTokens: number): number {
   if (!nonNegativeSafeInteger(inputTokens)) {
     throw new Error('blueprint authoring input token count is invalid');
   }
-  if (inputTokens <= BLUEPRINT_AUTHORING_LARGE_PROMPT_INPUT_TOKEN_THRESHOLD) {
-    // ceil(11*U/2) — integer arithmetic (no float 5.5).
-    return Math.ceil(
+  const pricing =
+    BLUEPRINT_AUTHORING_COUNT_AWARE_COST_AUTHORITY.conservativePricing;
+  const multiplier = blueprintAuthoringLargePromptInputMultiplier(inputTokens);
+  return Math.ceil(
+    safeIntegerProduct(
       safeIntegerProduct(
-        CACHE_WRITE_INPUT_MICRO_USD_PER_TOKEN_X2_UPLIFT,
-        inputTokens,
-      ) / 2,
-    );
-  }
-  return safeIntegerProduct(
-    CACHE_WRITE_INPUT_MICRO_USD_PER_TOKEN_X2_UPLIFT,
-    inputTokens,
+        pricing.inputRateNumeratorTenthsMicroUsd,
+        multiplier,
+      ),
+      inputTokens,
+    ) / pricing.rateDivisor,
   );
 }
 
@@ -124,17 +199,19 @@ export function blueprintAuthoringGenerationMicroUsd(args: {
   ) {
     throw new Error('blueprint authoring generation token counts are invalid');
   }
+  const pricing =
+    BLUEPRINT_AUTHORING_COUNT_AWARE_COST_AUTHORITY.conservativePricing;
   const numerator = safeIntegerSum([
     safeIntegerProduct(
-      CONSERVATIVE_GENERATION_PRICE_TENTHS_MICRO_USD.input,
+      pricing.inputRateNumeratorTenthsMicroUsd,
       args.inputTokens,
     ),
     safeIntegerProduct(
-      CONSERVATIVE_GENERATION_PRICE_TENTHS_MICRO_USD.output,
+      pricing.outputRateNumeratorTenthsMicroUsd,
       args.outputTokens,
     ),
   ]);
-  return Math.ceil(numerator / 10);
+  return Math.ceil(numerator / pricing.rateDivisor);
 }
 
 export interface BlueprintAuthoringProbeReservation {

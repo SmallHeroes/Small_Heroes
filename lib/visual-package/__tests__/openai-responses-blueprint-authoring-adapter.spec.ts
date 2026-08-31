@@ -305,15 +305,12 @@ describe('canonical OpenAI Responses Blueprint authoring policy', () => {
       hardCostCeilingUsd: 5,
     });
     expect(BLUEPRINT_AUTHORING_PRICE_ASSUMPTIONS).toEqual({
-      version: 'openai-standard-pricing/2026-08-25-v3',
-      currency: 'USD',
       unitTokens: 1_000_000,
       uncachedInputUsdPerUnit: 4,
       cacheWriteInputUsdPerUnit: 5,
       cachedInputUsdPerUnit: 0.4,
       outputUsdPerUnit: 20,
       regionalUpliftMultiplier: 1.1,
-      source: 'https://developers.openai.com/api/docs/pricing',
     });
     expect(projectedMaximumBlueprintAuthoringCostUsd()).toBe(4.224);
     expect(projectedMaximumBlueprintAuthoringCostUsd()).toBeLessThanOrEqual(
@@ -917,6 +914,25 @@ describe('canonical OpenAI Responses Blueprint authoring policy', () => {
       },
       { path: 'scripts/qa-wizard-blueprint-authoring.ts', count: 1 },
     ]);
+    expect(
+      occurrences('createOpenAIResponsesBlueprintAuthoringCountAdapter('),
+    ).toEqual([
+      {
+        path:
+          'lib/visual-package/openaiResponsesBlueprintAuthoringCountAdapter.ts',
+        count: 1,
+      },
+      {
+        path: 'lib/visual-package/qaWizardBlueprintAuthoringLifecycle.ts',
+        count: 1,
+      },
+      { path: 'scripts/qa-wizard-blueprint-authoring.ts', count: 1 },
+    ]);
+    const qaWizardCli = fs.readFileSync(
+      path.join(process.cwd(), 'scripts', 'qa-wizard-blueprint-authoring.ts'),
+      'utf8',
+    );
+    expect(qaWizardCli.match(/readCredential,/g)).toHaveLength(2);
     const legacyCli = fs.readFileSync(
       path.join(process.cwd(), 'scripts', 'production-visual-lifecycle.ts'),
       'utf8',

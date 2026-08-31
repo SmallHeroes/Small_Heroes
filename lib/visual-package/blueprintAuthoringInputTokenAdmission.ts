@@ -1,7 +1,9 @@
 import {
   BLUEPRINT_AUTHORING_MAX_INPUT_TOKENS,
+  BLUEPRINT_AUTHORING_REPAIR_ORDINALS,
   blueprintAuthoringInputAccountingIsValid,
   type BlueprintAuthoringInputAccounting,
+  type BlueprintAuthoringRepairOrdinal,
 } from './blueprintAuthoringPolicy';
 import { canonicalJsonDigest } from './integrity';
 
@@ -184,7 +186,7 @@ export function blueprintAuthoringObservedInputTokensWithinBound(args: {
 export interface BlueprintAuthoringInputTokenCountRequest {
   routeKind: 'repair';
   /** The REAL repair ordinal (1 or 2 under the current budget) — not routeKind alone. */
-  repairOrdinal: 1 | 2;
+  repairOrdinal: BlueprintAuthoringRepairOrdinal;
   systemPrompt: string;
   userPrompt: string;
   schema: Record<string, unknown>;
@@ -283,6 +285,21 @@ export interface BlueprintAuthoringTokenRelevantRequestProjection {
   truncation: 'disabled';
 }
 
+/**
+ * Static values that the shared count/generation projection actually consumes. Dynamic model,
+ * prompts, reasoning effort, schema name, and schema are bound elsewhere in the execution
+ * program; this authority captures only the remaining wire values without digesting arbitrary
+ * sentinel content that never crosses the provider boundary.
+ */
+export const BLUEPRINT_AUTHORING_TOKEN_RELEVANT_REQUEST_STATIC_AUTHORITY = Object.freeze({
+  inputRoles: Object.freeze(['system', 'user'] as const),
+  structuredOutputType: 'json_schema',
+  structuredOutputStrict: true,
+  tools: Object.freeze([] as const),
+  toolChoice: 'none',
+  truncation: 'disabled',
+} as const);
+
 export function blueprintAuthoringTokenRelevantRequestProjection(args: {
   model: string;
   systemPrompt: string;
@@ -291,24 +308,26 @@ export function blueprintAuthoringTokenRelevantRequestProjection(args: {
   schemaName: string;
   schema: Record<string, unknown>;
 }): BlueprintAuthoringTokenRelevantRequestProjection {
+  const authority =
+    BLUEPRINT_AUTHORING_TOKEN_RELEVANT_REQUEST_STATIC_AUTHORITY;
   return {
     model: args.model,
     input: [
-      { role: 'system', content: args.systemPrompt },
-      { role: 'user', content: args.userPrompt },
+      { role: authority.inputRoles[0], content: args.systemPrompt },
+      { role: authority.inputRoles[1], content: args.userPrompt },
     ],
     reasoning: { effort: args.reasoningEffort },
     text: {
       format: {
-        type: 'json_schema',
+        type: authority.structuredOutputType,
         name: args.schemaName,
         schema: args.schema,
-        strict: true,
+        strict: authority.structuredOutputStrict,
       },
     },
-    tools: [],
-    tool_choice: 'none',
-    truncation: 'disabled',
+    tools: [...authority.tools],
+    tool_choice: authority.toolChoice,
+    truncation: authority.truncation,
   };
 }
 
@@ -363,7 +382,7 @@ export interface BlueprintAuthoringCountTransportAttestation {
  */
 export interface BlueprintAuthoringExactInputTokenCountResult {
   routeKind: 'repair';
-  repairOrdinal: 1 | 2;
+  repairOrdinal: BlueprintAuthoringRepairOrdinal;
   countRequestDigest: string;
   outcome: 'counted' | 'unavailable';
   inputTokens: number | null;
@@ -404,8 +423,14 @@ function exactObjectKeys(
   );
 }
 
-function boundedRepairOrdinal(value: unknown): value is 1 | 2 {
-  return value === 1 || value === 2;
+export function blueprintAuthoringRepairOrdinalIsWithinBudget(
+  value: unknown,
+): value is BlueprintAuthoringRepairOrdinal {
+  return (
+    typeof value === 'number' &&
+    Number.isSafeInteger(value) &&
+    (BLUEPRINT_AUTHORING_REPAIR_ORDINALS as readonly number[]).includes(value)
+  );
 }
 
 function boundedCountUnavailableReason(
@@ -460,7 +485,7 @@ export function blueprintAuthoringCountResultConsumptionReason(
 ): BlueprintAuthoringCountUnavailableReason | 'count_binding_mismatch' | null {
   if (
     request.routeKind !== 'repair' ||
-    !boundedRepairOrdinal(request.repairOrdinal) ||
+    !blueprintAuthoringRepairOrdinalIsWithinBudget(request.repairOrdinal) ||
     !nonNegativeSafeInteger(conservativeUpperBoundTokens) ||
     !exactObjectKeys(result, BLUEPRINT_AUTHORING_COUNT_RESULT_KEYS)
   ) {

@@ -1,5 +1,6 @@
 import { PRE_RENDER_BLUEPRINT_DRAFT_SCHEMA_VERSION } from './preRenderBlueprintDraftSchema';
 import type { PreRenderBlueprintRepairDiagnostic } from './preRenderBlueprintAuthoring';
+import { BLUEPRINT_AUTHORING_MAX_REPAIRS } from './blueprintAuthoringPolicy';
 
 export const PRE_RENDER_BLUEPRINT_AUTHORING_PROMPT_VERSION =
   'pre-render-blueprint-authoring-prompt/v6' as const;
@@ -11,7 +12,8 @@ export const LEGACY_PRE_RENDER_BLUEPRINT_REPAIR_PROMPT_VERSION =
   'pre-render-blueprint-repair-prompt/v5' as const;
 export const PRE_RENDER_BLUEPRINT_AUTHORING_PROVENANCE_VERSION =
   'pre-render-blueprint-authoring-provenance/v4' as const;
-export const PRE_RENDER_BLUEPRINT_MAX_REPAIR_ATTEMPTS = 2 as const;
+export const PRE_RENDER_BLUEPRINT_MAX_REPAIR_ATTEMPTS =
+  BLUEPRINT_AUTHORING_MAX_REPAIRS;
 
 export type PreRenderBlueprintAuthoringPromptVersion =
   | typeof PRE_RENDER_BLUEPRINT_AUTHORING_PROMPT_VERSION

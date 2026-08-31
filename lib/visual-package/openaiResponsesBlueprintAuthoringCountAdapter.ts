@@ -11,12 +11,18 @@ import {
   BLUEPRINT_AUTHORING_COUNT_EVIDENCE_VERSION,
   blueprintAuthoringExactInputTokenCountFromResponse,
   blueprintAuthoringCountRequestProjection,
+  blueprintAuthoringRepairOrdinalIsWithinBudget,
   type BlueprintAuthoringCountTransportAttestation,
   type BlueprintAuthoringExactInputTokenCountResult,
   type BlueprintAuthoringInputTokenCountRequest,
   type BlueprintAuthoringInputTokenCounter,
 } from './blueprintAuthoringInputTokenAdmission';
 import { canonicalJsonDigest } from './integrity';
+import {
+  OPENAI_RESPONSES_INPUT_TOKENS_BASE_URL,
+  OPENAI_RESPONSES_INPUT_TOKENS_ENDPOINT_URL,
+  OPENAI_RESPONSES_TRANSPORT_AUTHORITY,
+} from './openAIResponsesTransportAuthority';
 import {
   PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA,
   PRE_RENDER_BLUEPRINT_DRAFT_SCHEMA_NAME,
@@ -31,6 +37,11 @@ import {
   type OpenAIResponsesAuthoringCredentialReader,
   type OpenAIResponsesAuthoringFetch,
 } from './openaiResponsesVisualContractAuthoringAdapter';
+
+export {
+  OPENAI_RESPONSES_INPUT_TOKENS_BASE_URL,
+  OPENAI_RESPONSES_INPUT_TOKENS_ENDPOINT_URL,
+};
 
 /**
  * Exact input-token COUNT boundary — a route-specific, guarded, offline-testable transport for
@@ -47,20 +58,6 @@ import {
  *  - a fail-closed response gate; any transport/response failure yields an `unavailable` result
  *    (admission then fails closed above the ceiling) with no count retry.
  */
-export const OPENAI_RESPONSES_INPUT_TOKENS_ENDPOINT_URL =
-  'https://api.openai.com/v1/responses/input_tokens' as const;
-
-export const OPENAI_RESPONSES_INPUT_TOKENS_BASE_URL =
-  'https://api.openai.com/v1' as const;
-
-// Route-local copy (NOT shared with the generation guard) so the count guard cannot be widened
-// by an unrelated change to the generation adapter.
-const FORBIDDEN_OPENAI_IDENTITY_HEADERS = [
-  'openai-organization',
-  'openai-project',
-  'openai-webhook-secret',
-] as const;
-
 export interface OpenAIResponsesInputTokensCountTransportRequest {
   apiKey: string;
   body: InputTokenCountParams;
@@ -107,7 +104,7 @@ export function createGuardedOpenAIResponsesInputTokensFetch(
   delegatedFetch: OpenAIResponsesAuthoringFetch,
   observations?: ProviderFailureBoundaryObservations,
 ): OpenAIResponsesAuthoringFetch {
-  let dispatchConsumed = false;
+  let dispatchCount = 0;
   return async (input, init) => {
     const url = requestUrl(input);
     if (
@@ -123,23 +120,33 @@ export function createGuardedOpenAIResponsesInputTokensFetch(
     const method = (
       init?.method ?? (input instanceof Request ? input.method : 'GET')
     ).toUpperCase();
-    if (method !== 'POST') {
+    if (method !== OPENAI_RESPONSES_TRANSPORT_AUTHORITY.inputTokenCount.method) {
       throw new ProviderTransportGuardRejectionError('non_post_request');
     }
     const headers = combinedHeaders(input, init);
-    if (FORBIDDEN_OPENAI_IDENTITY_HEADERS.some((name) => headers.has(name))) {
+    if (
+      OPENAI_RESPONSES_TRANSPORT_AUTHORITY.inputTokenCount.forbiddenIdentityHeaders.some(
+        (name) => headers.has(name),
+      )
+    ) {
       throw new ProviderTransportGuardRejectionError('unauthorized_identity_headers');
     }
-    if (dispatchConsumed) {
+    if (
+      dispatchCount >=
+      OPENAI_RESPONSES_TRANSPORT_AUTHORITY.inputTokenCount.maxDispatches
+    ) {
       throw new ProviderTransportGuardRejectionError('duplicate_dispatch');
     }
-    dispatchConsumed = true;
+    dispatchCount += 1;
     if (observations) {
       observations.transportDispatchStarted = true;
       observations.transportDispatchCount += 1;
       observations.canonicalRouteConfirmed = true;
     }
-    const response = await delegatedFetch(input, { ...init, redirect: 'error' });
+    const response = await delegatedFetch(input, {
+      ...init,
+      redirect: OPENAI_RESPONSES_TRANSPORT_AUTHORITY.inputTokenCount.redirect,
+    });
     if (observations && response instanceof Response) {
       observations.httpResponseReceived = true;
       observations.httpStatus = response.status;
@@ -168,16 +175,16 @@ export const openAIResponsesInputTokensCountTransport: OpenAIResponsesInputToken
       const client = new OpenAI({
         apiKey,
         baseURL: OPENAI_RESPONSES_INPUT_TOKENS_BASE_URL,
-        organization: null,
-        project: null,
-        webhookSecret: null,
+        ...OPENAI_RESPONSES_TRANSPORT_AUTHORITY.inputTokenCount.sdkIdentity,
         maxRetries: requestOptions.maxRetries,
         timeout: requestOptions.timeout,
         fetch: createGuardedOpenAIResponsesInputTokensFetch(
           globalThis.fetch,
           observations,
         ),
-        fetchOptions: { redirect: 'error' },
+        fetchOptions: {
+          redirect: OPENAI_RESPONSES_TRANSPORT_AUTHORITY.inputTokenCount.redirect,
+        },
         logLevel: 'error',
       });
       observations.sdkClientConstructionSucceeded = true;
@@ -240,7 +247,7 @@ export function createOpenAIResponsesBlueprintAuthoringCountAdapter(
     }
     if (
       request.routeKind !== 'repair' ||
-      (request.repairOrdinal !== 1 && request.repairOrdinal !== 2) ||
+      !blueprintAuthoringRepairOrdinalIsWithinBudget(request.repairOrdinal) ||
       request.reasoningEffort !== BLUEPRINT_AUTHORING_REASONING_EFFORT ||
       request.schemaName !== PRE_RENDER_BLUEPRINT_DRAFT_SCHEMA_NAME ||
       canonicalJsonDigest(request.schema) !==

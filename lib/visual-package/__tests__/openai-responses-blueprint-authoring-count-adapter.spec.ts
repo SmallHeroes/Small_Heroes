@@ -27,8 +27,12 @@ import {
   openAIResponsesInputTokensCountTransport,
   type OpenAIResponsesInputTokensCountTransport,
 } from '@/lib/visual-package/openaiResponsesBlueprintAuthoringCountAdapter';
+import {
+  OPENAI_RESPONSES_TRANSPORT_AUTHORITY,
+} from '@/lib/visual-package/openAIResponsesTransportAuthority';
 
-const GENERATION_ENDPOINT = 'https://api.openai.com/v1/responses';
+const GENERATION_ENDPOINT =
+  OPENAI_RESPONSES_TRANSPORT_AUTHORITY.generation.endpointUrl;
 
 function repairRequest(
   overrides: Partial<BlueprintAuthoringInputTokenCountRequest> = {},
@@ -232,23 +236,32 @@ describe('input-tokens route guard is route-specific (does not broaden the gener
         ),
     );
     const guarded = createGuardedOpenAIResponsesInputTokensFetch(delegated);
-    const response = await guarded(url, { method: 'POST', ...init });
+    const response = await guarded(url, {
+      method: OPENAI_RESPONSES_TRANSPORT_AUTHORITY.inputTokenCount.method,
+      ...init,
+    });
     return { delegated, response };
   }
 
   it('accepts exactly the input_tokens endpoint POST and forwards with redirect:error', async () => {
     const { delegated, response } = await guard(OPENAI_RESPONSES_INPUT_TOKENS_ENDPOINT_URL);
     expect(delegated).toHaveBeenCalledTimes(1);
-    expect(delegated.mock.calls[0]![1]).toMatchObject({ redirect: 'error' });
+    expect(delegated.mock.calls[0]![1]).toMatchObject({
+      redirect: OPENAI_RESPONSES_TRANSPORT_AUTHORITY.inputTokenCount.redirect,
+    });
     expect(response.status).toBe(200);
   });
 
   it('rejects a second otherwise-canonical dispatch before delegated fetch', async () => {
     const delegated = vi.fn(async () => new Response('{}', { status: 200 }));
     const guarded = createGuardedOpenAIResponsesInputTokensFetch(delegated);
-    await guarded(OPENAI_RESPONSES_INPUT_TOKENS_ENDPOINT_URL, { method: 'POST' });
+    await guarded(OPENAI_RESPONSES_INPUT_TOKENS_ENDPOINT_URL, {
+      method: OPENAI_RESPONSES_TRANSPORT_AUTHORITY.inputTokenCount.method,
+    });
     await expect(
-      guarded(OPENAI_RESPONSES_INPUT_TOKENS_ENDPOINT_URL, { method: 'POST' }),
+      guarded(OPENAI_RESPONSES_INPUT_TOKENS_ENDPOINT_URL, {
+        method: OPENAI_RESPONSES_TRANSPORT_AUTHORITY.inputTokenCount.method,
+      }),
     ).rejects.toMatchObject({ reason: 'duplicate_dispatch' });
     expect(delegated).toHaveBeenCalledTimes(1);
   });
@@ -279,7 +292,9 @@ describe('input-tokens route guard is route-specific (does not broaden the gener
   });
 
   it('rejects SDK-injected organization/project/webhook identity headers', async () => {
-    for (const header of ['openai-organization', 'openai-project', 'openai-webhook-secret']) {
+    for (const header of
+      OPENAI_RESPONSES_TRANSPORT_AUTHORITY.inputTokenCount
+        .forbiddenIdentityHeaders) {
       await expect(
         guard(OPENAI_RESPONSES_INPUT_TOKENS_ENDPOINT_URL, {
           headers: { [header]: 'x' },
@@ -327,8 +342,12 @@ describe('real OpenAI SDK inputTokens.count seam remains one-shot and offline', 
       expect(new URL(input instanceof Request ? input.url : String(input)).href).toBe(
         OPENAI_RESPONSES_INPUT_TOKENS_ENDPOINT_URL,
       );
-      expect((init?.method ?? (input instanceof Request ? input.method : '')).toUpperCase()).toBe('POST');
-      expect(init?.redirect).toBe('error');
+      expect(
+        (init?.method ?? (input instanceof Request ? input.method : '')).toUpperCase(),
+      ).toBe(OPENAI_RESPONSES_TRANSPORT_AUTHORITY.inputTokenCount.method);
+      expect(init?.redirect).toBe(
+        OPENAI_RESPONSES_TRANSPORT_AUTHORITY.inputTokenCount.redirect,
+      );
       expect(JSON.parse(String(init?.body))).toEqual(
         blueprintAuthoringCountRequestProjection(request),
       );
