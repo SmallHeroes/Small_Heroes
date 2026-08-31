@@ -1,5 +1,70 @@
 # SmallHeroes — Current Technical State
 
+## R1D — traversal repair association closed offline; prompt-v7/wire-v2 cutover preserves frozen v6 replay; awaiting independent QA; no new live/render
+
+The one authorized diagnostic successor was consumed exactly once with no retry or fallback. It
+converged from **106 emitted / 93 distinct -> 50 / 37 -> 4 / 4** and stopped. The terminal four
+were one already-enforced same-zone traversal/opening clearance invariant across two connections
+and two openings. They appeared only after the final output because the second repair first made
+the zone association valid; the model therefore never saw the newly unmasked numeric failures.
+
+- Numeric traversal/opening diagnostics now resolve to the real writable
+  `worldPlan.affordances[index].footprint|clearanceRegion` property. Duplicate/ambiguous IDs fall
+  back to the actual connection ID slot and cannot mint a fake property below a string pointer.
+- Validation, retained attempts, and `REPAIR_WIRE` now share the assembled Candidate's canonical
+  ordering. A reversed raw draft remains byte/structure unchanged while every diagnostic index
+  selects the same normalized repair tuple.
+- Initial and repair prompts prospectively state the existing coupled clearance invariant. The
+  provider still owns all geometry; there is no auto-widening or story/page-specific patch.
+- Current identity cuts over to authoring prompt v7, repair prompt v7, repair wire v2, program
+  `19c5bbb1...`. Request v5, receipt v8, provider wire v1, draft schema v6, model, 3 calls/2
+  repairs, retry zero, no fallback and the `$5` ceiling remain unchanged.
+- The complete prior prompt-v6/wire-v1 program `63449835...` is frozen as replay-only. Fresh
+  ordinary/replacement/diagnostic dispatch requires exact current program. Receipt replay binds
+  each attempt's system-prompt digest and `inputAccounting.systemBytes` to the exact prompt-evidence
+  profile selected by its embedded program. A coordinated current-v7 receipt relabel under frozen
+  v6 is rejected even after canonical redigest. Request-v5 completed provenance derives versions
+  from that same program; request-v4 provenance instead uses an absolute prompt digest/byte registry
+  that distinguishes immutable prompt-v5 and prompt-v6 populations. Multi-attempt prompt-v5 history
+  fails closed because no durable repair-prompt identity exists; prompt-v6 repairs are pinned
+  independently rather than inferred from attempt 1.
+- Final-WIP read-only loading passed for all five real durable populations: v4/v6 terminal
+  `2094d486...`, v4/v6 replacement terminal `14d8bbae...`, v4 orphan preflight `e47371cb...`, frozen
+  v5/v7 ordinary terminal `befe40dc...`, and frozen v5/v8 diagnostic-successor terminal
+  `b02f67c9...`. The earlier exact replay probe for `befe40dc...` also returned receipt `9b3b3f1f...`
+  with provider/count factories at zero and no rewrite.
+- Hermetic lifecycle regressions now cover request-v4 completed terminals under prompt-v5 and
+  prompt-v6, writer-shaped frozen request-v5/program-v6 ordinary, replacement, and diagnostic
+  terminals, and recovery/replay with provider/count factories at zero. Their prompt-dependent
+  accounting, admission decisions, request digests, count evidence, reservations and attempt
+  digests are rebuilt from exact frozen v6/v1 prompt/wire bytes and each preceding raw provider
+  draft, matching the historical writer rather than relabelling the current normalized-Candidate
+  v7/v2 call. A counterexample proves those two repair bodies differ on reordered affordances.
+  The repository also retains a byte-exact real v4/v6 request/receipt fixture. Frozen predecessor
+  prepare/authorize is rejected in both successor lanes with byte-identical ledgers and no slot,
+  authorization, claim, or terminal residue.
+- One non-active design debt remains explicit: a successor authorized while its program is current
+  can be stranded if the current program changes before first execution, because authorization
+  consumes the immutable lifetime slot. No such pending/stranded authorization exists now. Changing
+  that lifetime policy requires its own Decision Gate; this offline closure does not silently void,
+  release, or re-key authority and the fresh current-program ordinary lane does not cross that race.
+- Hostile offline coverage proves exact 180/179 boundaries, 2x2 Cartesian diagnostics,
+  duplicate-ID fallback, reversed-input index parity, association -> numeric unmask -> valid in
+  exactly 3 calls/2 repairs, and the pinned approved eight-page production harness at 75,112 repair
+  bytes / one exact 50,000-token count / all reservations under the unchanged `$5` ceiling.
+- Cross-boundary validation: **15 files / 659 tests PASS**, `npx --no-install tsc --noEmit` exit 0,
+  `git diff --check` clean. Independent adversarial QA is still required; this section does not
+  self-award PASS.
+- No credential, network, provider, count endpoint, paid generation, Candidate, image, audio,
+  render, deployment, DB, or remote mutation occurred in this offline milestone. The prior
+  diagnostic authorization is consumed. No new live run occurs before independent PASS and a new
+  exact Guy authorization.
+
+Evidence:
+`docs/ai-workflow/R1D_BLUEPRINT_TRAVERSAL_REPAIR_ASSOCIATION_IMPLEMENTATION_EVIDENCE.md`.
+
+---
+
 ## R1D — failed-terminal diagnostic successor independently QA-passed; one exact v7/v3 terminal can now yield one attributable v8/v4 result; awaiting push and real Candidate preparation; no live/render
 
 The recurring failure sequence was reclassified before another paid attempt. The historical

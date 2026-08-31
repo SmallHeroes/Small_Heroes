@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -22,6 +23,8 @@ import {
 } from '../qaWizardCandidateBridge';
 import {
   QA_WIZARD_BLUEPRINT_AUTHORING_LEDGER_ROOT,
+  QA_WIZARD_BLUEPRINT_EXECUTION_CLAIM_VERSION,
+  QA_WIZARD_BLUEPRINT_TERMINAL_BINDING_VERSION,
   authorizeBlueprintDiagnosticSuccessorCandidate,
   approveBlueprintReplacementProposal,
   executeBlueprintDiagnosticSuccessorLiveRequest,
@@ -30,8 +33,12 @@ import {
   prepareBlueprintDiagnosticSuccessorCandidate,
   prepareBlueprintReplacementProposal,
   prepareQaWizardBlueprintLiveRequest,
+  qaWizardBlueprintOrdinaryExecutionIdentityDigest,
   reviewBlueprintReplacementProposal,
 } from '../qaWizardBlueprintAuthoringLifecycle';
+import {
+  LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_PROMPT_V6,
+} from '../blueprintAuthoringExecutionProgram';
 import {
   buildProductionAuthoringContext,
   type ProductionAuthoringContext,
@@ -64,6 +71,14 @@ import {
   LEGACY_BLUEPRINT_AUTHORING_SANITIZED_FAILURE_CAPTURE_VERSION_V3,
   type BlueprintAuthoringSanitizedFailureCapture,
 } from '../blueprintAuthoringSanitizedFailureCapture';
+import {
+  frozenBlueprintRepairUserPromptV6,
+  rebindReceiptPromptEvidenceToFrozenV6,
+} from './fixtures/frozen-blueprint-authoring-v6-evidence';
+import {
+  LEGACY_PRE_RENDER_BLUEPRINT_REPAIR_WIRE_VERSION_V1,
+  PRE_RENDER_BLUEPRINT_REPAIR_WIRE_VERSION_V2,
+} from '../preRenderBlueprintProviderWire';
 import type { AuthoringExecutionAttestation } from '../authoringTerminalDiagnostics';
 import { canonicalJsonDigest } from '../integrity';
 import { canonicalContentAddressedJsonBytes } from '../canonicalContentAddressedJson';
@@ -71,6 +86,8 @@ import {
   QA_WIZARD_BLUEPRINT_REPLACEMENT_APPROVER,
   blueprintReplacementSuccessorExecutionDigest,
   buildBlueprintReplacementAuthorization,
+  buildBlueprintReplacementProposal,
+  buildBlueprintReplacementReview,
 } from '../qaWizardBlueprintReplacementAuthority';
 import {
   buildBlueprintFixture,
@@ -84,8 +101,12 @@ import {
   QA_WIZARD_BLUEPRINT_DIAGNOSTIC_TARGET_CAPTURE_VERSION,
   QA_WIZARD_BLUEPRINT_DIAGNOSTIC_TARGET_CENSUS_VERSION,
   QA_WIZARD_BLUEPRINT_DIAGNOSTIC_TARGET_RECEIPT_VERSION,
+  buildBlueprintDiagnosticSuccessorAuthorization,
+  buildBlueprintDiagnosticSuccessorCandidate,
+  buildBlueprintDiagnosticSuccessorExecutionClaim,
   blueprintDiagnosticSuccessorAuthorizationIsValid,
   blueprintDiagnosticSuccessorCandidateIsValid,
+  type QaWizardBlueprintDiagnosticSuccessorLineage,
 } from '../qaWizardBlueprintDiagnosticSuccessorAuthority';
 import {
   parseBlueprintDiagnosticSuccessorCliArgs,
@@ -286,9 +307,10 @@ function passingProvider(
 ): ProductionAuthoringProvider {
   return {
     call: async (args) => {
-      call(args);
+      const draft = providerDraft(fixture);
+      call(args, draft);
       return {
-        output: JSON.stringify(providerDraft(fixture)),
+        output: JSON.stringify(draft),
         receipt: providerReceipt(args),
       };
     },
@@ -797,6 +819,101 @@ function forgeInvertedTimeAuthorization(
 }
 
 describe('QA Wizard Blueprint replacement — adversarial authority', () => {
+  it('rejects frozen-program replacement prepare and authorize before any slot, authorization, or claim residue', async () => {
+    const subject = setup();
+    const orphan = await orphanedPredecessor(subject);
+    const frozen = freezeOrdinaryOrphan({ subject, orphan });
+    const ledgerRoot = path.join(
+      subject.repoRoot,
+      QA_WIZARD_BLUEPRINT_AUTHORING_LEDGER_ROOT,
+    );
+    const beforePrepare = fileInventory(ledgerRoot);
+    expect(() =>
+      prepareBlueprintReplacementProposal({
+        repoRoot: subject.repoRoot,
+        preflightManifestPath: frozen.preflightPath,
+        outputDir: OUTPUT_DIR,
+        reason: 'orphan_claim_unknown_provider_outcome',
+        preparedBy: 'Codex',
+        preparedAt: PREPARED_AT,
+        write: true,
+      }),
+    ).toThrow(/preflight is not current|legacy Blueprint/);
+    expect(fileInventory(ledgerRoot)).toEqual(beforePrepare);
+
+    const proposal = buildBlueprintReplacementProposal({
+      reason: 'orphan_claim_unknown_provider_outcome',
+      predecessor: {
+        claimVersion: frozen.claim.version as string,
+        claimDigest: frozen.claim.digest,
+        claimPath: frozen.claimPath,
+        claimByteLength: Buffer.byteLength(frozen.claimBytes, 'utf8'),
+        claimSha256: createHash('sha256')
+          .update(frozen.claimBytes, 'utf8')
+          .digest('hex'),
+        authoringAuthorityDigest: frozen.authoringAuthorityDigest,
+        requestDigest: frozen.requestDigest,
+        preflightManifestDigest: frozen.preflight.digest,
+        preflightManifestPath: frozen.preflightPath,
+        requestedAt: frozen.request.requestedAt,
+      },
+      current: {
+        authoringAuthorityDigest: frozen.authoringAuthorityDigest,
+        requestDigest: frozen.requestDigest,
+        preflightManifestDigest: frozen.preflight.digest,
+        preflightManifestPath: frozen.preflightPath,
+        outputDir: OUTPUT_DIR,
+        requestId: frozen.request.requestId,
+        requestedAt: frozen.request.requestedAt,
+      },
+      preparedBy: 'Codex',
+      preparedAt: PREPARED_AT,
+    });
+    const proposalPath =
+      `${QA_WIZARD_BLUEPRINT_AUTHORING_LEDGER_ROOT}/replacement-proposals/${proposal.digest}.json`;
+    writeText(
+      subject.repoRoot,
+      proposalPath,
+      canonicalContentAddressedJsonBytes(proposal),
+    );
+    const review = buildBlueprintReplacementReview({
+      proposal,
+      proposalPath,
+      reviewedBy: 'claude_code',
+      reviewedAt: REVIEWED_AT,
+    });
+    const reviewPath =
+      `${QA_WIZARD_BLUEPRINT_AUTHORING_LEDGER_ROOT}/replacement-reviews/${review.digest}.json`;
+    writeText(
+      subject.repoRoot,
+      reviewPath,
+      canonicalContentAddressedJsonBytes(review),
+    );
+    const beforeAuthorize = fileInventory(ledgerRoot);
+    expect(() =>
+      approveBlueprintReplacementProposal({
+        repoRoot: subject.repoRoot,
+        proposalPath,
+        proposalDigest: proposal.digest,
+        reviewPath,
+        reviewDigest: review.digest,
+        approvedBy: 'Guy',
+        approvedAt: APPROVED_AT,
+        write: true,
+      }),
+    ).toThrow('replacement predecessor preflight is not current');
+    expect(fileInventory(ledgerRoot)).toEqual(beforeAuthorize);
+    expect(
+      fs.existsSync(
+        ledgerFile(
+          subject.repoRoot,
+          'replacement-authorization-slots',
+          `${frozen.authoringAuthorityDigest}.json`,
+        ),
+      ),
+    ).toBe(false);
+  });
+
   it('rejects a second approval that differs only by timestamp (one global slot)', async () => {
     const subject = setup();
     const orphan = await orphanedPredecessor(subject);
@@ -1303,9 +1420,9 @@ function diagnosticFailureProvider(
   ]);
   return {
     call: async (args) => {
-      calls(args);
       const draft = drafts.get(args.attempt);
       if (!draft) throw new Error('unexpected diagnostic generation attempt');
+      calls(args, draft);
       return {
         output: JSON.stringify(draft),
         receipt: providerReceipt(args),
@@ -1357,6 +1474,33 @@ function redigestWithoutAlgorithm(
     digestAlgorithm: 'canonical-json-sha256',
     digest: canonicalJsonDigest(payload),
   };
+}
+
+function redigestIncludingAlgorithm(
+  value: Record<string, unknown>,
+): Record<string, unknown> & { digest: string } {
+  const { digest: _digest, ...payload } = value;
+  void _digest;
+  return { ...payload, digest: canonicalJsonDigest(payload) };
+}
+
+function fileInventory(root: string): Array<{ path: string; bytes: string }> {
+  if (!fs.existsSync(root)) return [];
+  const result: Array<{ path: string; bytes: string }> = [];
+  const visit = (directory: string): void => {
+    for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+      const absolute = path.join(directory, entry.name);
+      if (entry.isDirectory()) visit(absolute);
+      else if (entry.isFile()) {
+        result.push({
+          path: path.relative(root, absolute).split('\\').join('/'),
+          bytes: fs.readFileSync(absolute, 'utf8'),
+        });
+      }
+    }
+  };
+  visit(root);
+  return result.sort((left, right) => left.path.localeCompare(right.path));
 }
 
 /**
@@ -1536,6 +1680,394 @@ async function legacyDiagnosticPredecessor(
   };
 }
 
+function frozenProgramV6RequestAndPreflight(args: {
+  subject: ReturnType<typeof setup>;
+  preflight: ReturnType<typeof prepare>;
+}) {
+  const request = {
+    ...structuredClone(args.preflight.request),
+    program: structuredClone(
+      LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_PROMPT_V6,
+    ),
+  };
+  const requestDigest = canonicalJsonDigest(request);
+  const requestPath = `${OUTPUT_DIR}/blueprint-authoring-requests/${requestDigest}.json`;
+  writeText(
+    args.subject.repoRoot,
+    requestPath,
+    canonicalContentAddressedJsonBytes(request),
+  );
+  const {
+    digest: _preflightDigest,
+    digestAlgorithm: _preflightAlgorithm,
+    ...preflightPayload
+  } = args.preflight.manifest;
+  void _preflightDigest;
+  void _preflightAlgorithm;
+  const frozenPayload = {
+    ...preflightPayload,
+    request: {
+      ...args.preflight.manifest.request,
+      digest: requestDigest,
+      path: requestPath,
+    },
+  };
+  const preflight = {
+    ...frozenPayload,
+    digestAlgorithm: 'canonical-json-sha256' as const,
+    digest: canonicalJsonDigest(frozenPayload),
+  };
+  const preflightPath = `${OUTPUT_DIR}/blueprint-authoring-manifests/${preflight.digest}.json`;
+  writeText(
+    args.subject.repoRoot,
+    preflightPath,
+    canonicalContentAddressedJsonBytes(preflight),
+  );
+  return { request, requestDigest, requestPath, preflight, preflightPath };
+}
+
+function freezeOrdinaryOrphan(args: {
+  subject: ReturnType<typeof setup>;
+  orphan: Awaited<ReturnType<typeof orphanedPredecessor>>;
+}) {
+  const frozen = frozenProgramV6RequestAndPreflight({
+    subject: args.subject,
+    preflight: args.orphan.preflight,
+  });
+  const currentClaim = JSON.parse(args.orphan.claimBefore) as Record<
+    string,
+    unknown
+  > & { authoringAuthorityDigest: string };
+  const executionIdentityDigest =
+    qaWizardBlueprintOrdinaryExecutionIdentityDigest({
+      authoringAuthorityDigest: currentClaim.authoringAuthorityDigest,
+      program: LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_PROMPT_V6,
+    });
+  const claim = redigestWithoutAlgorithm({
+    ...currentClaim,
+    version: QA_WIZARD_BLUEPRINT_EXECUTION_CLAIM_VERSION,
+    executionIdentityDigest,
+    executionProgramDigest:
+      LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_PROMPT_V6.digest,
+    requestDigest: frozen.requestDigest,
+    preflightManifestDigest: frozen.preflight.digest,
+    preflightManifestPath: frozen.preflightPath,
+  });
+  const claimPath =
+    `${QA_WIZARD_BLUEPRINT_AUTHORING_LEDGER_ROOT}/execution-claims/${executionIdentityDigest}.json`;
+  const claimBytes = canonicalContentAddressedJsonBytes(claim);
+  writeText(args.subject.repoRoot, claimPath, claimBytes);
+  return {
+    ...frozen,
+    executionIdentityDigest,
+    authoringAuthorityDigest: currentClaim.authoringAuthorityDigest,
+    claim,
+    claimPath,
+    claimBytes,
+  };
+}
+
+function rebindAttemptsToFrozenProgram(args: {
+  context: ReturnType<typeof setup>['context']['validationContext'];
+  receipt: Record<string, unknown> & {
+    admissionDecisions: Array<Record<string, unknown>>;
+    attempts: Array<Record<string, unknown>>;
+  };
+  providerCalls: ReturnType<typeof vi.fn>;
+}): void {
+  rebindReceiptPromptEvidenceToFrozenV6({
+    receipt: args.receipt as never,
+    calls: args.providerCalls.mock.calls.map(
+      ([call]) => call as Parameters<ProductionAuthoringProvider['call']>[0],
+    ),
+    context: args.context,
+    rawDrafts: args.providerCalls.mock.calls.map(([, draft]) => draft),
+  });
+}
+
+function freezeDiagnosticPredecessor(args: {
+  subject: ReturnType<typeof setup>;
+  predecessor: Awaited<ReturnType<typeof legacyDiagnosticPredecessor>>;
+}) {
+  const frozen = frozenProgramV6RequestAndPreflight({
+    subject: args.subject,
+    preflight: args.predecessor.preflight,
+  });
+  const legacyReceipt = JSON.parse(
+    fs.readFileSync(
+      path.join(args.subject.repoRoot, args.predecessor.legacyReceiptPath),
+      'utf8',
+    ),
+  ) as Record<string, unknown> & {
+    attempts: Array<Record<string, unknown>>;
+  };
+  legacyReceipt.requestDigest = frozen.requestDigest;
+  rebindAttemptsToFrozenProgram({
+    context: args.subject.context.validationContext,
+    receipt: legacyReceipt as never,
+    providerCalls: args.predecessor.providerCalls,
+  });
+  const receipt = redigestWithoutAlgorithm(legacyReceipt);
+  const receiptPath = `${OUTPUT_DIR}/authoring-receipts/${receipt.digest}.json`;
+  writeText(
+    args.subject.repoRoot,
+    receiptPath,
+    canonicalContentAddressedJsonBytes(receipt),
+  );
+
+  const legacyCapture = JSON.parse(
+    fs.readFileSync(
+      path.join(args.subject.repoRoot, args.predecessor.legacyCapturePath),
+      'utf8',
+    ),
+  ) as Record<string, unknown> & { linkage: Record<string, unknown> };
+  legacyCapture.linkage = {
+    ...legacyCapture.linkage,
+    terminalReceiptDigest: receipt.digest,
+    requestDigest: frozen.requestDigest,
+  };
+  legacyCapture.admission = {
+    ...(legacyCapture.admission as Record<string, unknown>),
+    decisions: receipt.admissionDecisions,
+  };
+  const capture = redigestIncludingAlgorithm(legacyCapture);
+  const capturePath = `${OUTPUT_DIR}/sanitized-failure-captures/${capture.digest}.json`;
+  writeText(
+    args.subject.repoRoot,
+    capturePath,
+    canonicalContentAddressedJsonBytes(capture),
+  );
+
+  const legacyTerminal = JSON.parse(
+    fs.readFileSync(
+      path.join(args.subject.repoRoot, args.predecessor.legacyTerminalPath),
+      'utf8',
+    ),
+  ) as Record<string, unknown>;
+  const terminal = redigestWithoutAlgorithm({
+    ...legacyTerminal,
+    predecessor: {
+      version: frozen.preflight.version,
+      digest: frozen.preflight.digest,
+      path: frozen.preflightPath,
+    },
+    request: frozen.preflight.request,
+    receipt: {
+      version: LEGACY_PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION_V7,
+      digest: receipt.digest,
+      path: receiptPath,
+      status: 'failed',
+    },
+    observabilityCapture: {
+      version: LEGACY_BLUEPRINT_AUTHORING_SANITIZED_FAILURE_CAPTURE_VERSION_V3,
+      digest: capture.digest,
+      path: capturePath,
+    },
+  });
+  const terminalPath = `${OUTPUT_DIR}/blueprint-authoring-manifests/${terminal.digest}.json`;
+  writeText(
+    args.subject.repoRoot,
+    terminalPath,
+    canonicalContentAddressedJsonBytes(terminal),
+  );
+
+  const currentClaim = JSON.parse(
+    fs.readFileSync(
+      path.join(args.subject.repoRoot, args.predecessor.current.claimPath),
+      'utf8',
+    ),
+  ) as Record<string, unknown> & { authoringAuthorityDigest: string };
+  const executionIdentityDigest =
+    qaWizardBlueprintOrdinaryExecutionIdentityDigest({
+      authoringAuthorityDigest: currentClaim.authoringAuthorityDigest,
+      program: LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_PROMPT_V6,
+    });
+  const claim = redigestWithoutAlgorithm({
+    ...currentClaim,
+    version: QA_WIZARD_BLUEPRINT_EXECUTION_CLAIM_VERSION,
+    executionIdentityDigest,
+    executionProgramDigest:
+      LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_PROMPT_V6.digest,
+    requestDigest: frozen.requestDigest,
+    preflightManifestDigest: frozen.preflight.digest,
+    preflightManifestPath: frozen.preflightPath,
+  });
+  const claimPath =
+    `${QA_WIZARD_BLUEPRINT_AUTHORING_LEDGER_ROOT}/execution-claims/${executionIdentityDigest}.json`;
+  writeText(
+    args.subject.repoRoot,
+    claimPath,
+    canonicalContentAddressedJsonBytes(claim),
+  );
+
+  const currentExecutionIdentity = path.basename(
+    args.predecessor.current.claimPath,
+    '.json',
+  );
+  const sourceBindingPath =
+    `${QA_WIZARD_BLUEPRINT_AUTHORING_LEDGER_ROOT}/terminal-bindings/${currentExecutionIdentity}.json`;
+  const sourceBinding = JSON.parse(
+    fs.readFileSync(path.join(args.subject.repoRoot, sourceBindingPath), 'utf8'),
+  ) as Record<string, unknown>;
+  const binding = redigestWithoutAlgorithm({
+    ...sourceBinding,
+    version: QA_WIZARD_BLUEPRINT_TERMINAL_BINDING_VERSION,
+    executionIdentityDigest,
+    requestDigest: frozen.requestDigest,
+    preflightManifestDigest: frozen.preflight.digest,
+    terminalManifestDigest: terminal.digest,
+    terminalManifestPath: terminalPath,
+  });
+  const bindingPath =
+    `${QA_WIZARD_BLUEPRINT_AUTHORING_LEDGER_ROOT}/terminal-bindings/${executionIdentityDigest}.json`;
+  writeText(
+    args.subject.repoRoot,
+    bindingPath,
+    canonicalContentAddressedJsonBytes(binding),
+  );
+
+  const sourceLookup = JSON.parse(
+    fs.readFileSync(
+      path.join(args.subject.repoRoot, args.predecessor.lookupPath),
+      'utf8',
+    ),
+  ) as Record<string, unknown>;
+  const lookup = redigestWithoutAlgorithm({
+    ...sourceLookup,
+    requestDigest: frozen.requestDigest,
+    claimDigest: claim.digest,
+    claimPath,
+    terminalManifestDigest: terminal.digest,
+    terminalManifestPath: terminalPath,
+    receiptDigest: receipt.digest,
+    receiptPath,
+  });
+  const lookupPath =
+    `${QA_WIZARD_BLUEPRINT_AUTHORING_LEDGER_ROOT}/terminal-lookups/${executionIdentityDigest}.json`;
+  writeText(
+    args.subject.repoRoot,
+    lookupPath,
+    canonicalContentAddressedJsonBytes(lookup),
+  );
+
+  const lineage: QaWizardBlueprintDiagnosticSuccessorLineage = {
+    executionIdentityDigest,
+    authoringAuthorityDigest: currentClaim.authoringAuthorityDigest,
+    executionProgramDigest:
+      LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_PROMPT_V6.digest,
+    requestVersion: QA_WIZARD_BLUEPRINT_DIAGNOSTIC_PREDECESSOR_REQUEST_VERSION,
+    requestDigest: frozen.requestDigest,
+    requestPath: frozen.requestPath,
+    requestId: frozen.request.requestId,
+    requestedAt: frozen.request.requestedAt,
+    preflightManifestVersion: frozen.preflight.version,
+    preflightManifestDigest: frozen.preflight.digest,
+    preflightManifestPath: frozen.preflightPath,
+    outputDir: OUTPUT_DIR,
+    claimVersion: QA_WIZARD_BLUEPRINT_EXECUTION_CLAIM_VERSION,
+    claimDigest: claim.digest,
+    claimPath,
+    terminalLookupVersion: lookup.version as QaWizardBlueprintDiagnosticSuccessorLineage['terminalLookupVersion'],
+    terminalLookupDigest: lookup.digest,
+    terminalLookupPath: lookupPath,
+    terminalBindingVersion: binding.version as QaWizardBlueprintDiagnosticSuccessorLineage['terminalBindingVersion'],
+    terminalBindingDigest: binding.digest,
+    terminalBindingPath: bindingPath,
+    terminalManifestVersion: terminal.version as QaWizardBlueprintDiagnosticSuccessorLineage['terminalManifestVersion'],
+    terminalManifestDigest: terminal.digest,
+    terminalManifestPath: terminalPath,
+    receiptVersion: QA_WIZARD_BLUEPRINT_DIAGNOSTIC_PREDECESSOR_RECEIPT_VERSION,
+    receiptDigest: receipt.digest,
+    receiptPath,
+    captureVersion: QA_WIZARD_BLUEPRINT_DIAGNOSTIC_PREDECESSOR_CAPTURE_VERSION,
+    captureDigest: capture.digest,
+    capturePath,
+    terminalFailureCode: 'draft_validation_repair_exhausted',
+    callCount: 3,
+    repairCount: 2,
+  };
+  return { ...frozen, receipt, receiptPath, capture, capturePath, terminal, terminalPath, claim, claimPath, binding, bindingPath, lookup, lookupPath, lineage };
+}
+
+function materializeFrozenDiagnosticSuccessorTarget(args: {
+  subject: ReturnType<typeof setup>;
+  predecessor: Awaited<ReturnType<typeof legacyDiagnosticPredecessor>>;
+  frozen: ReturnType<typeof freezeDiagnosticPredecessor>;
+}) {
+  const currentReceipt = structuredClone(
+    args.predecessor.current.receipt,
+  ) as unknown as Record<string, unknown> & {
+    attempts: Array<Record<string, unknown>>;
+  };
+  currentReceipt.requestDigest = args.frozen.requestDigest;
+  rebindAttemptsToFrozenProgram({
+    context: args.subject.context.validationContext,
+    receipt: currentReceipt as never,
+    providerCalls: args.predecessor.providerCalls,
+  });
+  const receipt = redigestWithoutAlgorithm(currentReceipt);
+  const receiptPath = `${OUTPUT_DIR}/authoring-receipts/${receipt.digest}.json`;
+  writeText(
+    args.subject.repoRoot,
+    receiptPath,
+    canonicalContentAddressedJsonBytes(receipt),
+  );
+  const currentCaptureAuthority =
+    args.predecessor.current.manifest.observabilityCapture;
+  if (!currentCaptureAuthority) {
+    throw new Error('diagnostic successor target requires a current capture');
+  }
+  const currentCapture = JSON.parse(
+    fs.readFileSync(
+      path.join(args.subject.repoRoot, currentCaptureAuthority.path),
+      'utf8',
+    ),
+  ) as Record<string, unknown> & { linkage: Record<string, unknown> };
+  currentCapture.linkage = {
+    ...currentCapture.linkage,
+    terminalReceiptDigest: receipt.digest,
+    requestDigest: args.frozen.requestDigest,
+  };
+  currentCapture.admission = {
+    ...(currentCapture.admission as Record<string, unknown>),
+    decisions: receipt.admissionDecisions,
+  };
+  const capture = redigestIncludingAlgorithm(currentCapture);
+  const capturePath = `${OUTPUT_DIR}/sanitized-failure-captures/${capture.digest}.json`;
+  writeText(
+    args.subject.repoRoot,
+    capturePath,
+    canonicalContentAddressedJsonBytes(capture),
+  );
+  const terminal = redigestWithoutAlgorithm({
+    ...args.predecessor.current.manifest,
+    predecessor: {
+      version: args.frozen.preflight.version,
+      digest: args.frozen.preflight.digest,
+      path: args.frozen.preflightPath,
+    },
+    request: args.frozen.preflight.request,
+    receipt: {
+      version: PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION,
+      digest: receipt.digest,
+      path: receiptPath,
+      status: 'failed',
+    },
+    observabilityCapture: {
+      version: BLUEPRINT_AUTHORING_SANITIZED_FAILURE_CAPTURE_VERSION,
+      digest: capture.digest,
+      path: capturePath,
+    },
+  });
+  const terminalPath = `${OUTPUT_DIR}/blueprint-authoring-manifests/${terminal.digest}.json`;
+  writeText(
+    args.subject.repoRoot,
+    terminalPath,
+    canonicalContentAddressedJsonBytes(terminal),
+  );
+  return { receipt, receiptPath, capture, capturePath, terminal, terminalPath };
+}
+
 function prepareDiagnosticSuccessor(
   subject: ReturnType<typeof setup>,
   predecessor: Awaited<ReturnType<typeof legacyDiagnosticPredecessor>>,
@@ -1664,6 +2196,190 @@ describe('QA Wizard Blueprint failed-terminal diagnostic successor', () => {
     expect(replay.manifest.digest).toBe(successor.manifest.digest);
     expect(forbiddenProvider).not.toHaveBeenCalled();
     expect(forbiddenCounter).not.toHaveBeenCalled();
+  });
+
+  it('recovers and replays a frozen diagnostic-successor terminal before current eligibility and with zero paid dependencies', async () => {
+    const subject = setup();
+    const predecessor = await legacyDiagnosticPredecessor(subject);
+    const firstRepairCall = predecessor.providerCalls.mock.calls[1]![0] as
+      Parameters<ProductionAuthoringProvider['call']>[0];
+    const firstRawDraft = predecessor.providerCalls.mock.calls[0]![1];
+    const frozenWriterRepairPrompt = frozenBlueprintRepairUserPromptV6({
+      currentCall: firstRepairCall,
+      context: subject.context.validationContext,
+      previousRawDraft: firstRawDraft,
+    });
+    const naiveCurrentCallRelabel = firstRepairCall.userPrompt
+      .split(PRE_RENDER_BLUEPRINT_REPAIR_WIRE_VERSION_V2)
+      .join(LEGACY_PRE_RENDER_BLUEPRINT_REPAIR_WIRE_VERSION_V1);
+    expect(frozenWriterRepairPrompt).not.toBe(naiveCurrentCallRelabel);
+    expect(frozenWriterRepairPrompt).toContain(
+      LEGACY_PRE_RENDER_BLUEPRINT_REPAIR_WIRE_VERSION_V1,
+    );
+    expect(frozenWriterRepairPrompt).not.toContain(
+      PRE_RENDER_BLUEPRINT_REPAIR_WIRE_VERSION_V2,
+    );
+    const frozen = freezeDiagnosticPredecessor({ subject, predecessor });
+    const target = materializeFrozenDiagnosticSuccessorTarget({
+      subject,
+      predecessor,
+      frozen,
+    });
+    const candidate = buildBlueprintDiagnosticSuccessorCandidate({
+      lineage: frozen.lineage,
+      preparedBy: 'Codex',
+      preparedAt: DIAGNOSTIC_PREPARED_AT,
+    });
+    const candidatePath =
+      `${QA_WIZARD_BLUEPRINT_AUTHORING_LEDGER_ROOT}/diagnostic-successor-candidates/${candidate.digest}.json`;
+    writeText(
+      subject.repoRoot,
+      candidatePath,
+      canonicalContentAddressedJsonBytes(candidate),
+    );
+    const authorization = buildBlueprintDiagnosticSuccessorAuthorization({
+      candidate,
+      candidatePath,
+      approvedBy: 'Guy',
+      approvedAt: DIAGNOSTIC_APPROVED_AT,
+    });
+    const authorizationPath =
+      `${QA_WIZARD_BLUEPRINT_AUTHORING_LEDGER_ROOT}/diagnostic-successor-authorizations/${authorization.digest}.json`;
+    writeText(
+      subject.repoRoot,
+      authorizationPath,
+      canonicalContentAddressedJsonBytes(authorization),
+    );
+    const successorClaim = buildBlueprintDiagnosticSuccessorExecutionClaim({
+      authorization,
+      authorizationPath,
+    });
+    const successorClaimPath =
+      `${QA_WIZARD_BLUEPRINT_AUTHORING_LEDGER_ROOT}/execution-claims/${authorization.successorExecutionDigest}.json`;
+    writeText(
+      subject.repoRoot,
+      successorClaimPath,
+      canonicalContentAddressedJsonBytes(successorClaim),
+    );
+    const successorBinding = redigestWithoutAlgorithm({
+      ...frozen.binding,
+      executionIdentityDigest: authorization.successorExecutionDigest,
+      terminalManifestDigest: target.terminal.digest,
+      terminalManifestPath: target.terminalPath,
+    });
+    const successorBindingPath =
+      `${QA_WIZARD_BLUEPRINT_AUTHORING_LEDGER_ROOT}/terminal-bindings/${authorization.successorExecutionDigest}.json`;
+    writeText(
+      subject.repoRoot,
+      successorBindingPath,
+      canonicalContentAddressedJsonBytes(successorBinding),
+    );
+    const successorLookupPath =
+      `${QA_WIZARD_BLUEPRINT_AUTHORING_LEDGER_ROOT}/terminal-lookups/${authorization.successorExecutionDigest}.json`;
+    expect(fs.existsSync(path.join(subject.repoRoot, successorLookupPath))).toBe(
+      false,
+    );
+
+    // Once a successor terminal and its own claim/binding are durable, replay
+    // must not depend on the now-frozen predecessor capture remaining readable.
+    fs.rmSync(path.join(subject.repoRoot, frozen.capturePath));
+    const forbiddenProvider = vi.fn(() => {
+      throw new Error('provider_must_not_load_for_frozen_diagnostic_replay');
+    });
+    const forbiddenCounter = vi.fn(() => {
+      throw new Error('counter_must_not_load_for_frozen_diagnostic_replay');
+    });
+    const executionArgs = {
+      repoRoot: subject.repoRoot,
+      authorizationPath,
+      authorizationDigest: authorization.digest,
+      write: true,
+    } as const;
+    const recovered = await executeBlueprintDiagnosticSuccessorLiveRequest(
+      executionArgs,
+      {
+        providerFactory: forbiddenProvider,
+        inputTokenCounterFactory: forbiddenCounter,
+      },
+    );
+    expect(recovered.replayed).toBe(true);
+    expect(recovered.manifest.digest).toBe(target.terminal.digest);
+    expect(recovered.receipt.digest).toBe(target.receipt.digest);
+    expect(recovered.claimPath).toBe(successorClaimPath);
+    expect(recovered.executionRecordPath).toBe(successorLookupPath);
+    const afterRecovery = fileInventory(path.join(subject.repoRoot, OUTPUT_DIR));
+
+    const replay = await executeBlueprintDiagnosticSuccessorLiveRequest(
+      executionArgs,
+      {
+        providerFactory: forbiddenProvider,
+        inputTokenCounterFactory: forbiddenCounter,
+      },
+    );
+    expect(replay.replayed).toBe(true);
+    expect(replay.manifest.digest).toBe(target.terminal.digest);
+    expect(replay.executionRecordPath).toBe(recovered.executionRecordPath);
+    expect(fileInventory(path.join(subject.repoRoot, OUTPUT_DIR))).toEqual(
+      afterRecovery,
+    );
+    expect(forbiddenProvider).not.toHaveBeenCalled();
+    expect(forbiddenCounter).not.toHaveBeenCalled();
+  });
+
+  it('rejects frozen-program diagnostic prepare and authorize before any slot, authorization, or claim residue', async () => {
+    const subject = setup();
+    const predecessor = await legacyDiagnosticPredecessor(subject);
+    const frozen = freezeDiagnosticPredecessor({ subject, predecessor });
+    const ledgerRoot = path.join(
+      subject.repoRoot,
+      QA_WIZARD_BLUEPRINT_AUTHORING_LEDGER_ROOT,
+    );
+    const beforePrepare = fileInventory(ledgerRoot);
+    expect(() =>
+      prepareBlueprintDiagnosticSuccessorCandidate({
+        repoRoot: subject.repoRoot,
+        predecessorTerminalLookupPath: frozen.lookupPath,
+        predecessorTerminalLookupDigest: frozen.lookup.digest,
+        preparedBy: 'Codex',
+        preparedAt: DIAGNOSTIC_PREPARED_AT,
+        write: true,
+      }),
+    ).toThrow('diagnostic successor predecessor preflight is not current');
+    expect(fileInventory(ledgerRoot)).toEqual(beforePrepare);
+
+    const candidate = buildBlueprintDiagnosticSuccessorCandidate({
+      lineage: frozen.lineage,
+      preparedBy: 'Codex',
+      preparedAt: DIAGNOSTIC_PREPARED_AT,
+    });
+    const candidatePath =
+      `${QA_WIZARD_BLUEPRINT_AUTHORING_LEDGER_ROOT}/diagnostic-successor-candidates/${candidate.digest}.json`;
+    writeText(
+      subject.repoRoot,
+      candidatePath,
+      canonicalContentAddressedJsonBytes(candidate),
+    );
+    const beforeAuthorize = fileInventory(ledgerRoot);
+    expect(() =>
+      authorizeBlueprintDiagnosticSuccessorCandidate({
+        repoRoot: subject.repoRoot,
+        candidatePath,
+        candidateDigest: candidate.digest,
+        approvedBy: 'Guy',
+        approvedAt: DIAGNOSTIC_APPROVED_AT,
+        write: true,
+      }),
+    ).toThrow('diagnostic successor predecessor preflight is not current');
+    expect(fileInventory(ledgerRoot)).toEqual(beforeAuthorize);
+    expect(
+      fs.existsSync(
+        ledgerFile(
+          subject.repoRoot,
+          'diagnostic-successor-slots',
+          `${frozen.lineage.executionIdentityDigest}.json`,
+        ),
+      ),
+    ).toBe(false);
   });
 
   it('rejects current evidence, completed terminals, and missing legacy capture before creating successor authority', async () => {

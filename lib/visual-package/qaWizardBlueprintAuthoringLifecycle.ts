@@ -47,8 +47,9 @@ import {
 } from './productionAuthoringRunner';
 import {
   blueprintAuthoringExecutionProgramIsCurrent,
+  blueprintAuthoringExecutionProgramIsReplaySupported,
   buildBlueprintAuthoringExecutionProgram,
-  type BlueprintAuthoringExecutionProgram,
+  type ReplayableBlueprintAuthoringExecutionProgram,
 } from './blueprintAuthoringExecutionProgram';
 import {
   BLUEPRINT_AUTHORING_DIAGNOSTIC_CENSUS_COMMITMENT_VERSION,
@@ -116,9 +117,10 @@ import {
 } from './preRenderBlueprint';
 import type { PreRenderBookVisualBlueprint } from './preRenderBlueprintTypes';
 import {
-  PRE_RENDER_BLUEPRINT_AUTHORING_PROMPT_VERSION,
   PRE_RENDER_BLUEPRINT_AUTHORING_PROVENANCE_VERSION,
-  PRE_RENDER_BLUEPRINT_REPAIR_PROMPT_VERSION,
+  legacyPreRenderBlueprintPromptEvidenceForSystemPromptDigest,
+  legacyPreRenderBlueprintPromptVersionsForSystemPromptDigest,
+  preRenderBlueprintSystemPromptUtf8BytesForDigest,
   type PreRenderBlueprintAuthoringAttempt,
   type PreRenderBlueprintAuthoringProvenance,
 } from './preRenderBlueprintAuthoringContract';
@@ -1237,6 +1239,8 @@ function attemptReceiptIsValid(args: {
   attempt: unknown;
   index: number;
   priorCumulativeCostUsd: number;
+  expectedSystemPromptDigest: string | null;
+  expectedSystemPromptUtf8Bytes: number | null;
   receiptVersion:
     | typeof PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION
     | typeof LEGACY_PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION_V7
@@ -1255,6 +1259,14 @@ function attemptReceiptIsValid(args: {
   const usage = attempt.usage;
   const diagnostics = attempt.validationDiagnostics;
   const inputAccounting = attempt.inputAccounting;
+  const promptAccountingIsBound =
+    args.expectedSystemPromptDigest === null
+      ? true
+      : args.expectedSystemPromptUtf8Bytes !== null &&
+        (inputAccounting === null ||
+          (record(inputAccounting) &&
+            inputAccounting.systemBytes ===
+              args.expectedSystemPromptUtf8Bytes));
   const expectedAttempt = args.index + 1;
   const expectedReservation = blueprintAuthoringReservedExposureUsd({
     conservativeAccountedCostUsd: args.priorCumulativeCostUsd,
@@ -1303,7 +1315,8 @@ function attemptReceiptIsValid(args: {
     (args.receiptVersion !== LEGACY_PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION_V6 ||
       blueprintAuthoringInputTokensAreAdmissible(inputAccounting));
   const fullAccounting =
-    inputAccountingIsAdmittedForReceiptVersion &&
+      promptAccountingIsBound &&
+      inputAccountingIsAdmittedForReceiptVersion &&
     attempt.reservedExposureBeforeCallUsd === expectedReservation;
   const fullUsageCostEvidence =
     completeUsage !== null &&
@@ -1548,6 +1561,7 @@ function attemptReceiptIsValid(args: {
   return {
     valid:
       expectedAttempt === attempt.attempt &&
+      promptAccountingIsBound &&
       attempt.kind === (args.index === 0 ? 'initial' : 'repair') &&
       (attempt.provider === 'openai' ||
         attempt.provider === 'unknown-provider') &&
@@ -1558,6 +1572,8 @@ function attemptReceiptIsValid(args: {
           /^[A-Za-z0-9_-]{1,200}$/.test(attempt.responseId))) &&
       typeof attempt.systemPromptDigest === 'string' &&
       HEX_SHA256.test(attempt.systemPromptDigest) &&
+      (args.expectedSystemPromptDigest === null ||
+        attempt.systemPromptDigest === args.expectedSystemPromptDigest) &&
       typeof attempt.userPromptDigest === 'string' &&
       HEX_SHA256.test(attempt.userPromptDigest) &&
       (args.receiptVersion ===
@@ -1620,6 +1636,36 @@ export function productionBlueprintAuthoringReceiptReplayIsValid(args: {
       receiptVersion,
     })
   ) return false;
+  const requestProgram =
+    args.request.version === PRODUCTION_AUTHORING_RUN_REQUEST_VERSION &&
+    blueprintAuthoringExecutionProgramIsReplaySupported(args.request.program)
+      ? args.request.program
+      : null;
+  if (
+    args.request.version === PRODUCTION_AUTHORING_RUN_REQUEST_VERSION &&
+    requestProgram === null
+  ) return false;
+  const legacyPromptEvidence =
+    args.request.version === LEGACY_PRODUCTION_AUTHORING_RUN_REQUEST_VERSION_V4
+      ? legacyPreRenderBlueprintPromptEvidenceForSystemPromptDigest(
+          Array.isArray(receipt.attempts)
+            ? receipt.attempts[0]?.systemPromptDigest
+            : null,
+        )
+      : null;
+  if (
+    args.request.version === LEGACY_PRODUCTION_AUTHORING_RUN_REQUEST_VERSION_V4 &&
+    Array.isArray(receipt.attempts) &&
+    receipt.attempts.length > 0 &&
+    legacyPromptEvidence === null
+  ) return false;
+  if (
+    args.request.version === LEGACY_PRODUCTION_AUTHORING_RUN_REQUEST_VERSION_V4 &&
+    Array.isArray(receipt.attempts) &&
+    receipt.attempts.length > 1 &&
+    (legacyPromptEvidence?.repairSystemPromptDigest === null ||
+      legacyPromptEvidence?.repairSystemPromptUtf8Bytes === null)
+  ) return false;
   const attempts = receipt.attempts;
   let cumulativeCostUsd = 0;
   let attemptsValid = Array.isArray(attempts);
@@ -1630,6 +1676,24 @@ export function productionBlueprintAuthoringReceiptReplayIsValid(args: {
         index,
         priorCumulativeCostUsd: cumulativeCostUsd,
         receiptVersion,
+        expectedSystemPromptDigest:
+          requestProgram === null
+            ? index === 0
+              ? legacyPromptEvidence?.initialSystemPromptDigest ?? null
+              : legacyPromptEvidence?.repairSystemPromptDigest ?? null
+            : index === 0
+              ? requestProgram.authoringSystemPromptDigest
+              : requestProgram.repairSystemPromptDigest,
+        expectedSystemPromptUtf8Bytes:
+          requestProgram === null
+            ? index === 0
+              ? legacyPromptEvidence?.initialSystemPromptUtf8Bytes ?? null
+              : legacyPromptEvidence?.repairSystemPromptUtf8Bytes ?? null
+            : preRenderBlueprintSystemPromptUtf8BytesForDigest(
+                index === 0
+                  ? requestProgram.authoringSystemPromptDigest
+                  : requestProgram.repairSystemPromptDigest,
+              ),
       });
       attemptsValid &&= result.valid;
       cumulativeCostUsd = result.cumulativeCostUsd;
@@ -1858,14 +1922,58 @@ function safeRepairAttemptsFromReceipt(
   }));
 }
 
+export function qaWizardBlueprintAuthoringProvenanceVersionsForRequest(
+  request: ReplayableProductionAuthoringRunRequest,
+  firstAttemptSystemPromptDigest?: string,
+): Pick<
+  PreRenderBlueprintAuthoringProvenance,
+  'draftSchemaVersion' | 'promptVersion' | 'repairPromptVersion'
+> {
+  const program =
+    request.version === PRODUCTION_AUTHORING_RUN_REQUEST_VERSION &&
+    blueprintAuthoringExecutionProgramIsReplaySupported(request.program)
+      ? request.program
+      : null;
+  if (
+    request.version === PRODUCTION_AUTHORING_RUN_REQUEST_VERSION &&
+    !program
+  ) {
+    throw new Error('completed Blueprint evidence has an unsupported authoring program');
+  }
+  const legacyPromptVersions = program
+    ? null
+    : legacyPreRenderBlueprintPromptVersionsForSystemPromptDigest(
+        firstAttemptSystemPromptDigest,
+      );
+  if (!program && !legacyPromptVersions) {
+    throw new Error(
+      'completed Blueprint evidence has an unknown legacy system-prompt digest',
+    );
+  }
+  return {
+    draftSchemaVersion:
+      program?.draftSchemaVersion ?? PRE_RENDER_BLUEPRINT_DRAFT_SCHEMA_VERSION,
+    promptVersion:
+      program?.initialPromptVersion ?? legacyPromptVersions!.promptVersion,
+    repairPromptVersion:
+      program?.repairPromptVersion ?? legacyPromptVersions!.repairPromptVersion,
+  };
+}
+
 function expectedAuthoringProvenance(args: {
   blueprint: PreRenderBookVisualBlueprint;
   receipt: ReplayableProductionAuthoringRunReceipt;
+  request: ReplayableProductionAuthoringRunRequest;
 }): PreRenderBlueprintAuthoringProvenance {
   const firstAttempt = args.receipt.attempts[0];
   if (!firstAttempt || args.receipt.status !== 'completed') {
     throw new Error('completed Blueprint evidence lacks its passing attempt');
   }
+  const provenanceVersions =
+    qaWizardBlueprintAuthoringProvenanceVersionsForRequest(
+      args.request,
+      firstAttempt.systemPromptDigest,
+    );
   return {
     version: PRE_RENDER_BLUEPRINT_AUTHORING_PROVENANCE_VERSION,
     blueprintDigest: args.blueprint.digest,
@@ -1875,10 +1983,12 @@ function expectedAuthoringProvenance(args: {
     reasoningEffort: args.receipt.reasoningEffort,
     maxOutputTokens: args.receipt.maxOutputTokens,
     noFallback: true,
-    draftSchemaVersion: PRE_RENDER_BLUEPRINT_DRAFT_SCHEMA_VERSION,
-    promptVersion: PRE_RENDER_BLUEPRINT_AUTHORING_PROMPT_VERSION,
+    draftSchemaVersion: provenanceVersions.draftSchemaVersion,
+    promptVersion: provenanceVersions.promptVersion,
     ...(args.receipt.callCount > 1
-      ? { repairPromptVersion: PRE_RENDER_BLUEPRINT_REPAIR_PROMPT_VERSION }
+      ? {
+          repairPromptVersion: provenanceVersions.repairPromptVersion,
+        }
       : {}),
     passingAttempt: args.receipt.callCount,
     callCount: args.receipt.callCount,
@@ -1893,6 +2003,7 @@ function readBlueprintArtifacts(args: {
   context: ProductionAuthoringContext;
   authority: ManifestBlueprintAuthority;
   receipt: ReplayableProductionAuthoringRunReceipt;
+  request: ReplayableProductionAuthoringRunRequest;
 }): {
   blueprint: PreRenderBookVisualBlueprint;
   reviewPacket: PreRenderBlueprintReviewPacket;
@@ -1987,6 +2098,7 @@ function readBlueprintArtifacts(args: {
   const expectedProvenance = expectedAuthoringProvenance({
     blueprint,
     receipt: args.receipt,
+    request: args.request,
   });
   const expectedValidation = createPreRenderBlueprintValidationEvidence({
     blueprint,
@@ -2774,12 +2886,13 @@ function loadQaWizardBlueprintManifestAuthority(args: {
     : null;
   const blueprintArtifacts =
     manifest.blueprint && receipt
-        ? readBlueprintArtifacts({
-            repoRoot: args.repoRoot,
-            outputDir,
-            context,
+      ? readBlueprintArtifacts({
+          repoRoot: args.repoRoot,
+          outputDir,
+          context,
           authority: manifest.blueprint,
           receipt,
+          request,
         })
       : null;
 
@@ -3157,11 +3270,11 @@ function approvalDecisionPath(args: {
 
 export function qaWizardBlueprintOrdinaryExecutionIdentityDigest(args: {
   authoringAuthorityDigest: string;
-  program: BlueprintAuthoringExecutionProgram;
+  program: ReplayableBlueprintAuthoringExecutionProgram;
 }): string {
   if (
     !HEX_SHA256.test(args.authoringAuthorityDigest) ||
-    !blueprintAuthoringExecutionProgramIsCurrent(args.program)
+    !blueprintAuthoringExecutionProgramIsReplaySupported(args.program)
   ) {
     throw new Error('ordinary Blueprint execution identity evidence is invalid');
   }
@@ -4139,6 +4252,7 @@ async function runBlueprintExecutionUnderClaim(
     const expectedProvenance = expectedAuthoringProvenance({
       blueprint: result.authoringResult.blueprint,
       receipt: result.receipt,
+      request: preflight.request,
     });
     if (
       canonicalJsonDigest(expectedProvenance) !==
@@ -4385,7 +4499,8 @@ const ordinaryExecutionClaimBinding: BlueprintExecutionClaimBinding = {
     }),
   precheck: (ctx) => {
     if (
-      ctx.preflight.request.version !== PRODUCTION_AUTHORING_RUN_REQUEST_VERSION
+      ctx.preflight.request.version !== PRODUCTION_AUTHORING_RUN_REQUEST_VERSION ||
+      !blueprintAuthoringExecutionProgramIsCurrent(ctx.preflight.request.program)
     ) {
       throw new Error(
         'legacy Blueprint authoring request cannot authorize fresh dispatch',
@@ -4668,6 +4783,12 @@ function loadPredecessorOrphanClaim(args: {
   claimPath: string;
   rawBytes: string;
 } {
+  if (
+    args.request.version !== PRODUCTION_AUTHORING_RUN_REQUEST_VERSION ||
+    !blueprintAuthoringExecutionProgramIsCurrent(args.request.program)
+  ) {
+    throw new Error('replacement predecessor preflight is not current');
+  }
   const ordinary = ordinaryExecutionAuthorityForRequest({
     request: args.request,
     authoringAuthorityDigest: args.authoringAuthorityDigest,
@@ -4770,6 +4891,59 @@ function loadPredecessorOrphanClaim(args: {
     claimPath: predecessorClaimPath,
     rawBytes: loaded.rawBytes,
   };
+}
+
+function assertReplacementProposalCurrentEligibility(args: {
+  repoRoot: string;
+  proposal: QaWizardBlueprintReplacementProposal;
+}): void {
+  const preflight = loadQaWizardBlueprintManifestAuthority({
+    repoRoot: args.repoRoot,
+    manifestPath: args.proposal.current.preflightManifestPath,
+  });
+  if (
+    preflight.manifest.stage !== 'live_request_preflight_passed' ||
+    preflight.request.version !== PRODUCTION_AUTHORING_RUN_REQUEST_VERSION ||
+    !blueprintAuthoringExecutionProgramIsCurrent(preflight.request.program)
+  ) {
+    throw new Error('replacement predecessor preflight is not current');
+  }
+  const outputDir = sameOutputDir({
+    repoRoot: args.repoRoot,
+    outputDir: args.proposal.current.outputDir,
+    manifestPath: preflight.manifestPath,
+  });
+  const authoringAuthorityDigest = expectedAuthoringAuthorityDigest(
+    preflight.context,
+  );
+  const requestDigest = canonicalJsonDigest(preflight.request);
+  if (
+    args.proposal.current.authoringAuthorityDigest !==
+      authoringAuthorityDigest ||
+    args.proposal.current.requestDigest !== requestDigest ||
+    args.proposal.current.preflightManifestDigest !==
+      preflight.manifest.digest ||
+    args.proposal.current.preflightManifestPath !== preflight.manifestPath ||
+    args.proposal.current.outputDir !== outputDir ||
+    args.proposal.current.requestId !== preflight.request.requestId ||
+    args.proposal.current.requestedAt !== preflight.request.requestedAt
+  ) {
+    throw new Error('replacement proposal current binding is stale or substituted');
+  }
+  const predecessor = loadPredecessorOrphanClaim({
+    repoRoot: args.repoRoot,
+    outputDir,
+    authoringAuthorityDigest,
+    request: preflight.request,
+    requestDigest,
+    preflightManifestDigest: preflight.manifest.digest,
+  });
+  if (
+    predecessor.claim.digest !== args.proposal.predecessor.claimDigest ||
+    predecessor.claimPath !== args.proposal.predecessor.claimPath
+  ) {
+    throw new Error('replacement proposal predecessor is stale or substituted');
+  }
 }
 
 export function prepareBlueprintReplacementProposal(args: {
@@ -4928,6 +5102,10 @@ export function approveBlueprintReplacementProposal(args: {
   ) {
     throw new Error('replacement review is not bound to this proposal');
   }
+  assertReplacementProposalCurrentEligibility({
+    repoRoot: args.repoRoot,
+    proposal,
+  });
   const authorization = buildBlueprintReplacementAuthorization({
     proposal,
     proposalPath: args.proposalPath,
@@ -5088,7 +5266,8 @@ export async function executeBlueprintReplacementLiveRequest(
     precheck: (ctx) => {
       if (
         ctx.preflight.request.version !==
-        PRODUCTION_AUTHORING_RUN_REQUEST_VERSION
+          PRODUCTION_AUTHORING_RUN_REQUEST_VERSION ||
+        !blueprintAuthoringExecutionProgramIsCurrent(ctx.preflight.request.program)
       ) {
         throw new Error(
           'legacy Blueprint authoring request cannot authorize fresh replacement dispatch',
@@ -5773,6 +5952,9 @@ export async function executeBlueprintDiagnosticSuccessorLiveRequest(
       if (
         ctx.preflight.request.version !==
           PRODUCTION_AUTHORING_RUN_REQUEST_VERSION ||
+        !blueprintAuthoringExecutionProgramIsCurrent(
+          ctx.preflight.request.program,
+        ) ||
         ctx.preflight.request.program.digest !==
           authorization.executionProgramDigest ||
         ctx.authoringAuthorityDigest !== authorization.authoringAuthorityDigest ||

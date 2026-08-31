@@ -106,8 +106,10 @@ import {
 } from './blueprintAuthoringAdmissionLedger';
 import {
   blueprintAuthoringExecutionProgramIsCurrent,
+  blueprintAuthoringExecutionProgramIsReplaySupported,
   buildBlueprintAuthoringExecutionProgram,
   type BlueprintAuthoringExecutionProgram,
+  type ReplayableBlueprintAuthoringExecutionProgram,
 } from './blueprintAuthoringExecutionProgram';
 import {
   blueprintAuthoringDiagnosticCensusCommitment,
@@ -262,8 +264,16 @@ export interface LegacyProductionAuthoringRunRequest {
   callBudget: ProductionAuthoringCallBudget;
 }
 
+export interface ReplayableProductionAuthoringRunRequestV5 extends Omit<
+  ProductionAuthoringRunRequest,
+  'program'
+> {
+  program: ReplayableBlueprintAuthoringExecutionProgram;
+}
+
 export type ReplayableProductionAuthoringRunRequest =
   | ProductionAuthoringRunRequest
+  | ReplayableProductionAuthoringRunRequestV5
   | LegacyProductionAuthoringRunRequest;
 
 const PRODUCTION_AUTHORING_RUN_REQUEST_KEYS = [
@@ -1100,11 +1110,10 @@ function legacyProductionAuthoringRunRequestIssues(args: {
 }
 
 /**
- * Structural replay validation for immutable request artifacts. Current requests
- * must carry the exact compiler-owned execution program. Legacy v3/v4 requests
- * are checked against frozen per-version semantics and can be reloaded for
- * terminal replay, recovery, or orphan classification, but this function does
- * not grant them fresh dispatch authority.
+ * Structural replay validation for immutable request artifacts. Request v5 may
+ * carry either the exact current compiler-owned execution program or one frozen
+ * replay-only program digest. Legacy v3/v4 requests retain their per-version
+ * semantics. This function never grants fresh dispatch authority.
  */
 export function productionAuthoringRunRequestReplayIssues(args: {
   request: ReplayableProductionAuthoringRunRequest;
@@ -1114,10 +1123,20 @@ export function productionAuthoringRunRequestReplayIssues(args: {
     const status = productionAuthoringRequestVersionStatus(args.request.version);
     if (status === 'unsupported') return ['request version is unsupported'];
     if (status === 'current') {
-      return productionAuthoringRunRequestIssues({
+      const request = args.request as ReplayableProductionAuthoringRunRequestV5;
+      if (!blueprintAuthoringExecutionProgramIsReplaySupported(request.program)) {
+        return ['authoring execution program is stale or invalid'];
+      }
+      const currentIssues = productionAuthoringRunRequestIssues({
         request: args.request as ProductionAuthoringRunRequest,
         context: args.context,
       });
+      return blueprintAuthoringExecutionProgramIsCurrent(request.program)
+        ? currentIssues
+        : currentIssues.filter(
+            (issue) =>
+              issue !== 'authoring execution program is stale or invalid',
+          );
     }
     return legacyProductionAuthoringRunRequestIssues({
       request: args.request as LegacyProductionAuthoringRunRequest,

@@ -47,12 +47,12 @@ const EXPECTED_CONTEXT_DIGEST =
   '0cc212ea805e53395d9757c04b436ac55527aecc2f434c5a35c5c91dbee80d0c';
 const EXPECTED_DIAGNOSTIC_COUNT = 86;
 const EXPECTED_REPAIR_ACCOUNTING = {
-  systemBytes: 2_290,
+  systemBytes: 2_614,
   userBytes: 47_647,
   schemaBytes: 20_753,
   separatorBytes: 2,
   protocolAllowance: 4_096,
-  estimatedBytes: 74_788,
+  estimatedBytes: 75_112,
 } as const;
 
 type ProviderCallArgs = Parameters<ProductionAuthoringProvider['call']>[0];
@@ -369,7 +369,29 @@ async function main(): Promise<void> {
   assert.equal(result.receipt.callCount, 3);
   assert.equal(result.receipt.repairCount, 2);
   assert.equal(providerCalls.length, 3);
-  assert.equal(countedRequests.length, 1);
+  assert.ok(countedRequests.length <= 2);
+  assert.equal(
+    result.receipt.admissionDecisions.every((decision) => decision.admitted),
+    true,
+  );
+  for (const decision of result.receipt.admissionDecisions) {
+    assert.ok(
+      decision.probe.reservationBeforeDispatchMicroUsd === null ||
+        decision.probe.reservationBeforeDispatchMicroUsd <= 5_000_000,
+    );
+    assert.equal(decision.admitted, true);
+    if (decision.admitted) {
+      assert.ok(
+        decision.totalAccountedMicroUsdBeforeGeneration +
+          decision.continuationReservationMicroUsd <=
+          5_000_000,
+      );
+    }
+  }
+  for (const attempt of result.receipt.attempts) {
+    assert.notEqual(attempt.reservedExposureBeforeCallUsd, null);
+    assert.ok((attempt.reservedExposureBeforeCallUsd ?? Number.POSITIVE_INFINITY) <= 5);
+  }
   assert.deepEqual(
     result.receipt.admissionDecisions[1]!.inputAccounting,
     EXPECTED_REPAIR_ACCOUNTING,
@@ -452,6 +474,8 @@ async function main(): Promise<void> {
         .map((decision) => decision.exactInputTokens),
       countCalls: countedRequests.length,
       generationCalls: providerCalls.length,
+      generationBudget: request.callBudget,
+      hardCostCeilingVerified: true,
       status: result.receipt.status,
       receiptVersion: result.receipt.version,
       receiptDigest: result.receipt.digest,

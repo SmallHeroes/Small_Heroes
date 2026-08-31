@@ -3,12 +3,17 @@ import { describe, expect, it } from 'vitest';
 import {
   BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_KEYS,
   BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_VERSION,
+  LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_DIGEST_PROMPT_V6,
+  LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_PROMPT_V6,
   blueprintAuthoringEffectivePolicyProjection,
   blueprintAuthoringExecutionProgramIsCurrent,
+  blueprintAuthoringExecutionProgramIsReplaySupported,
+  blueprintAuthoringExecutionProgramStatus,
   buildBlueprintAuthoringExecutionProgram,
 } from '../blueprintAuthoringExecutionProgram';
 import {
   QA_WIZARD_BLUEPRINT_ORDINARY_EXECUTION_IDENTITY_VERSION,
+  qaWizardBlueprintAuthoringProvenanceVersionsForRequest,
   qaWizardBlueprintOrdinaryExecutionIdentityDigest,
 } from '../qaWizardBlueprintAuthoringLifecycle';
 import { canonicalJsonDigest } from '../integrity';
@@ -16,6 +21,24 @@ import {
   buildPreRenderBlueprintAuthoringSystemPrompt,
   buildPreRenderBlueprintRepairSystemPrompt,
 } from '../preRenderBlueprintAuthoring';
+import {
+  LEGACY_PRE_RENDER_BLUEPRINT_AUTHORING_SYSTEM_PROMPT_UTF8_BYTES_V5,
+  LEGACY_PRE_RENDER_BLUEPRINT_AUTHORING_SYSTEM_PROMPT_DIGEST_V5,
+  LEGACY_PRE_RENDER_BLUEPRINT_AUTHORING_SYSTEM_PROMPT_DIGEST_V6,
+  LEGACY_PRE_RENDER_BLUEPRINT_AUTHORING_SYSTEM_PROMPT_UTF8_BYTES_V6,
+  LEGACY_PRE_RENDER_BLUEPRINT_REPAIR_SYSTEM_PROMPT_DIGEST_V6,
+  LEGACY_PRE_RENDER_BLUEPRINT_REPAIR_SYSTEM_PROMPT_UTF8_BYTES_V6,
+  PRE_RENDER_BLUEPRINT_AUTHORING_SYSTEM_PROMPT_DIGEST_V7,
+  PRE_RENDER_BLUEPRINT_AUTHORING_SYSTEM_PROMPT_UTF8_BYTES_V7,
+  PRE_RENDER_BLUEPRINT_REPAIR_SYSTEM_PROMPT_DIGEST_V7,
+  PRE_RENDER_BLUEPRINT_REPAIR_SYSTEM_PROMPT_UTF8_BYTES_V7,
+  legacyPreRenderBlueprintPromptEvidenceForSystemPromptDigest,
+  preRenderBlueprintSystemPromptUtf8BytesForDigest,
+} from '../preRenderBlueprintAuthoringContract';
+import {
+  frozenBlueprintAuthoringSystemPromptV6,
+  frozenBlueprintRepairSystemPromptV6,
+} from './fixtures/frozen-blueprint-authoring-v6-evidence';
 import {
   PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA,
   PRE_RENDER_BLUEPRINT_DRAFT_SCHEMA_NAME,
@@ -240,10 +263,196 @@ describe('Blueprint authoring execution program identity', () => {
       'microUsdPerUsd',
     );
     expect(Object.isFrozen(BLUEPRINT_AUTHORING_REPAIR_ORDINALS)).toBe(true);
+    expect(program.initialPromptVersion).toBe(
+      'pre-render-blueprint-authoring-prompt/v7',
+    );
+    expect(program.repairPromptVersion).toBe(
+      'pre-render-blueprint-repair-prompt/v7',
+    );
+    expect(program.repairWireVersion).toBe(
+      'pre-render-blueprint-repair-wire/v2',
+    );
     expect(program.digest).toBe(
-      '634498356d69cf7bc63f2cec8d037ea4d27a9371fc9a08cd7f9607fcce0b4549',
+      '19c5bbb1ac157cfc4d9cffe3f4133f04870a5e6b828aafc67bc8be336fa36978',
     );
     expect(blueprintAuthoringExecutionProgramIsCurrent(program)).toBe(true);
+  });
+
+  it('admits only the complete immutable prompt-v6 program for replay', () => {
+    const legacy = LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_PROMPT_V6;
+    const { digest: _digest, ...payload } = legacy;
+    expect(canonicalJsonDigest(payload)).toBe(
+      LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_DIGEST_PROMPT_V6,
+    );
+    expect(legacy.digest).toBe(
+      LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_DIGEST_PROMPT_V6,
+    );
+    expect(Object.isFrozen(legacy)).toBe(true);
+    expect(legacy.initialPromptVersion).toBe(
+      'pre-render-blueprint-authoring-prompt/v6',
+    );
+    expect(legacy.repairPromptVersion).toBe(
+      'pre-render-blueprint-repair-prompt/v6',
+    );
+    expect(legacy.repairWireVersion).toBe(
+      'pre-render-blueprint-repair-wire/v1',
+    );
+    expect(blueprintAuthoringExecutionProgramStatus(legacy)).toBe(
+      'legacy_immutable',
+    );
+    expect(blueprintAuthoringExecutionProgramIsReplaySupported(legacy)).toBe(
+      true,
+    );
+    expect(blueprintAuthoringExecutionProgramIsCurrent(legacy)).toBe(false);
+    expect(
+      qaWizardBlueprintAuthoringProvenanceVersionsForRequest({
+        version: 'production-blueprint-authoring-request/v5',
+        program: legacy,
+      } as Parameters<
+        typeof qaWizardBlueprintAuthoringProvenanceVersionsForRequest
+      >[0]),
+    ).toEqual({
+      draftSchemaVersion: 'pre-render-blueprint-draft-schema/v6',
+      promptVersion: 'pre-render-blueprint-authoring-prompt/v6',
+      repairPromptVersion: 'pre-render-blueprint-repair-prompt/v6',
+    });
+    const current = buildBlueprintAuthoringExecutionProgram();
+    expect(
+      qaWizardBlueprintAuthoringProvenanceVersionsForRequest({
+        version: 'production-blueprint-authoring-request/v5',
+        program: current,
+      } as Parameters<
+        typeof qaWizardBlueprintAuthoringProvenanceVersionsForRequest
+      >[0]),
+    ).toEqual({
+      draftSchemaVersion: 'pre-render-blueprint-draft-schema/v6',
+      promptVersion: 'pre-render-blueprint-authoring-prompt/v7',
+      repairPromptVersion: 'pre-render-blueprint-repair-prompt/v7',
+    });
+    expect(
+      qaWizardBlueprintAuthoringProvenanceVersionsForRequest(
+        {
+          version: 'production-blueprint-authoring-request/v4',
+        } as Parameters<
+          typeof qaWizardBlueprintAuthoringProvenanceVersionsForRequest
+        >[0],
+        LEGACY_PRE_RENDER_BLUEPRINT_AUTHORING_SYSTEM_PROMPT_DIGEST_V5,
+      ),
+    ).toEqual({
+      draftSchemaVersion: 'pre-render-blueprint-draft-schema/v6',
+      promptVersion: 'pre-render-blueprint-authoring-prompt/v5',
+      repairPromptVersion: 'pre-render-blueprint-repair-prompt/v5',
+    });
+    expect(
+      qaWizardBlueprintAuthoringProvenanceVersionsForRequest(
+        {
+          version: 'production-blueprint-authoring-request/v4',
+        } as Parameters<
+          typeof qaWizardBlueprintAuthoringProvenanceVersionsForRequest
+        >[0],
+        LEGACY_PRE_RENDER_BLUEPRINT_AUTHORING_SYSTEM_PROMPT_DIGEST_V6,
+      ),
+    ).toEqual({
+      draftSchemaVersion: 'pre-render-blueprint-draft-schema/v6',
+      promptVersion: 'pre-render-blueprint-authoring-prompt/v6',
+      repairPromptVersion: 'pre-render-blueprint-repair-prompt/v6',
+    });
+    expect(() =>
+      qaWizardBlueprintAuthoringProvenanceVersionsForRequest(
+        {
+          version: 'production-blueprint-authoring-request/v4',
+        } as Parameters<
+          typeof qaWizardBlueprintAuthoringProvenanceVersionsForRequest
+        >[0],
+        'f'.repeat(64),
+      ),
+    ).toThrow(
+      'completed Blueprint evidence has an unknown legacy system-prompt digest',
+    );
+    expect(
+      qaWizardBlueprintOrdinaryExecutionIdentityDigest({
+        authoringAuthorityDigest: 'a'.repeat(64),
+        program: legacy,
+      }),
+    ).not.toBe(
+      qaWizardBlueprintOrdinaryExecutionIdentityDigest({
+        authoringAuthorityDigest: 'a'.repeat(64),
+        program: current,
+      }),
+    );
+
+    const hostile = structuredClone(legacy) as Record<string, unknown>;
+    hostile.repairSystemPromptDigest = 'f'.repeat(64);
+    const { digest: _oldDigest, ...hostilePayload } = hostile;
+    hostile.digest = canonicalJsonDigest(hostilePayload);
+    expect(blueprintAuthoringExecutionProgramStatus(hostile)).toBe(
+      'unsupported',
+    );
+    expect(blueprintAuthoringExecutionProgramIsReplaySupported(hostile)).toBe(
+      false,
+    );
+  });
+
+  it('pins every replayable prompt identity to its exact digest and UTF-8 byte length', () => {
+    const currentInitial = buildPreRenderBlueprintAuthoringSystemPrompt();
+    const currentRepair = buildPreRenderBlueprintRepairSystemPrompt();
+    const frozenInitial = frozenBlueprintAuthoringSystemPromptV6();
+    const frozenRepair = frozenBlueprintRepairSystemPromptV6();
+
+    expect(canonicalJsonDigest(currentInitial)).toBe(
+      PRE_RENDER_BLUEPRINT_AUTHORING_SYSTEM_PROMPT_DIGEST_V7,
+    );
+    expect(Buffer.byteLength(currentInitial, 'utf8')).toBe(
+      PRE_RENDER_BLUEPRINT_AUTHORING_SYSTEM_PROMPT_UTF8_BYTES_V7,
+    );
+    expect(canonicalJsonDigest(currentRepair)).toBe(
+      PRE_RENDER_BLUEPRINT_REPAIR_SYSTEM_PROMPT_DIGEST_V7,
+    );
+    expect(Buffer.byteLength(currentRepair, 'utf8')).toBe(
+      PRE_RENDER_BLUEPRINT_REPAIR_SYSTEM_PROMPT_UTF8_BYTES_V7,
+    );
+    expect(canonicalJsonDigest(frozenInitial)).toBe(
+      LEGACY_PRE_RENDER_BLUEPRINT_AUTHORING_SYSTEM_PROMPT_DIGEST_V6,
+    );
+    expect(Buffer.byteLength(frozenInitial, 'utf8')).toBe(
+      LEGACY_PRE_RENDER_BLUEPRINT_AUTHORING_SYSTEM_PROMPT_UTF8_BYTES_V6,
+    );
+    expect(canonicalJsonDigest(frozenRepair)).toBe(
+      LEGACY_PRE_RENDER_BLUEPRINT_REPAIR_SYSTEM_PROMPT_DIGEST_V6,
+    );
+    expect(Buffer.byteLength(frozenRepair, 'utf8')).toBe(
+      LEGACY_PRE_RENDER_BLUEPRINT_REPAIR_SYSTEM_PROMPT_UTF8_BYTES_V6,
+    );
+
+    expect(
+      legacyPreRenderBlueprintPromptEvidenceForSystemPromptDigest(
+        LEGACY_PRE_RENDER_BLUEPRINT_AUTHORING_SYSTEM_PROMPT_DIGEST_V6,
+      ),
+    ).toEqual({
+      promptVersion: 'pre-render-blueprint-authoring-prompt/v6',
+      repairPromptVersion: 'pre-render-blueprint-repair-prompt/v6',
+      initialSystemPromptDigest:
+        LEGACY_PRE_RENDER_BLUEPRINT_AUTHORING_SYSTEM_PROMPT_DIGEST_V6,
+      initialSystemPromptUtf8Bytes:
+        LEGACY_PRE_RENDER_BLUEPRINT_AUTHORING_SYSTEM_PROMPT_UTF8_BYTES_V6,
+      repairSystemPromptDigest:
+        LEGACY_PRE_RENDER_BLUEPRINT_REPAIR_SYSTEM_PROMPT_DIGEST_V6,
+      repairSystemPromptUtf8Bytes:
+        LEGACY_PRE_RENDER_BLUEPRINT_REPAIR_SYSTEM_PROMPT_UTF8_BYTES_V6,
+    });
+    expect(
+      legacyPreRenderBlueprintPromptEvidenceForSystemPromptDigest(
+        LEGACY_PRE_RENDER_BLUEPRINT_AUTHORING_SYSTEM_PROMPT_DIGEST_V5,
+      ),
+    ).toMatchObject({
+      initialSystemPromptUtf8Bytes:
+        LEGACY_PRE_RENDER_BLUEPRINT_AUTHORING_SYSTEM_PROMPT_UTF8_BYTES_V5,
+      repairSystemPromptDigest: null,
+      repairSystemPromptUtf8Bytes: null,
+    });
+    expect(
+      preRenderBlueprintSystemPromptUtf8BytesForDigest('f'.repeat(64)),
+    ).toBeNull();
   });
 
   it('rejects missing, added, stale, and self-redigested noncanonical program evidence', () => {

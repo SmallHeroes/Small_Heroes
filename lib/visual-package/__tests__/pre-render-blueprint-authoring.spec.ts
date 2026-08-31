@@ -259,7 +259,7 @@ describe('R1D-PVB-B — whole-book Blueprint authoring compiler', () => {
         reasoningEffort: CONFIG.reasoningEffort,
         maxOutputTokens: CONFIG.maxOutputTokens,
         noFallback: true,
-        promptVersion: 'pre-render-blueprint-authoring-prompt/v6',
+        promptVersion: 'pre-render-blueprint-authoring-prompt/v7',
         passingAttempt: 1,
         callCount: 1,
       });
@@ -352,6 +352,18 @@ describe('R1D-PVB-B — whole-book Blueprint authoring compiler', () => {
         },
       ],
     });
+    expect(buildPreRenderBlueprintAuthoringSystemPrompt()).toContain(
+      'both footprint dimensions must be at least minimumClearance',
+    );
+    expect(buildPreRenderBlueprintAuthoringSystemPrompt()).toContain(
+      'greatest minimumClearance among them',
+    );
+    expect(buildPreRenderBlueprintRepairSystemPrompt()).toContain(
+      'both footprint dimensions must be at least minClearance',
+    );
+    expect(buildPreRenderBlueprintRepairSystemPrompt()).toContain(
+      'Repair zone authority and these dimensions together',
+    );
     const repair = blueprintAuthoringInputAccounting({
       systemPrompt: buildPreRenderBlueprintRepairSystemPrompt(),
       userPrompt: repairUser,
@@ -549,11 +561,165 @@ describe('R1D-PVB-B — whole-book Blueprint authoring compiler', () => {
     expect(result.provenance).toMatchObject({
       passingAttempt: 2,
       callCount: 2,
-      repairPromptVersion: 'pre-render-blueprint-repair-prompt/v6',
+      repairPromptVersion: 'pre-render-blueprint-repair-prompt/v7',
     });
     expect((calls[1] as { system: string }).system).toContain(
       'never return textSafeRegion',
     );
+  });
+
+  it('uses one canonical index space for normalized diagnostics, retained draft, and repair wire', async () => {
+    const fixture = buildBlueprintFixture('journey_fantastical');
+    const raw = wholeBookDraft(fixture.blueprint) as {
+      worldPlan: {
+        connections: Array<{
+          traversalAffordanceIds: string[];
+          openingClearanceAffordanceIds: string[];
+          safeBoundaryAffordanceIds: string[];
+        }>;
+        affordances: Array<{
+          id: string;
+          kind: string;
+          clearanceRegion?: { width: number };
+        }>;
+        revealSafeSupportingGeometry: unknown[];
+      };
+      frames: unknown[];
+    };
+    raw.worldPlan.connections.reverse();
+    raw.worldPlan.affordances.reverse();
+    raw.worldPlan.revealSafeSupportingGeometry.reverse();
+    raw.frames.reverse();
+    for (const connection of raw.worldPlan.connections) {
+      connection.traversalAffordanceIds.reverse();
+      connection.openingClearanceAffordanceIds.reverse();
+      connection.safeBoundaryAffordanceIds.reverse();
+    }
+    const opening = raw.worldPlan.affordances.find(
+      (entry) => entry.kind === 'opening_clearance',
+    );
+    if (!opening?.clearanceRegion) throw new Error('opening fixture missing');
+    opening.clearanceRegion.width = 1;
+    const rawBefore = clone(raw);
+    const calls: Array<{ system: string; user: string }> = [];
+
+    const result = await compilePreRenderBookVisualBlueprint(
+      fixture.context,
+      CONFIG,
+      {
+        callAuthor: async (system, user) => {
+          calls.push({ system, user });
+          return calls.length === 1
+            ? raw
+            : wholeBookDraft(fixture.blueprint);
+        },
+      },
+    );
+
+    expect(raw).toEqual(rawBefore);
+    expect(calls).toHaveLength(2);
+    const retained = result.repairAttempts[0]!.draft as {
+      worldPlan: { affordances: Array<{ id: string }> };
+    };
+    const retainedIds = retained.worldPlan.affordances.map((entry) => entry.id);
+    expect(retainedIds).toEqual([...retainedIds].sort());
+    const repairWire = JSON.parse(
+      calls[1]!.user.split('\nREPAIR_WIRE:\n')[1]!,
+    ) as {
+      draft: { world: [unknown[], Array<[string, ...unknown[]]>, unknown[]] };
+    };
+    const wireIds = repairWire.draft.world[1].map((entry) => entry[0]);
+    expect(wireIds).toEqual(retainedIds);
+    const firstDiagnostics = result.repairAttempts[0]!.diagnostics ?? [];
+    const affordanceDiagnostics = firstDiagnostics.filter(
+      (entry) => entry.field?.startsWith('worldPlan.affordances['),
+    );
+    expect(affordanceDiagnostics.length).toBeGreaterThan(0);
+    for (const diagnostic of affordanceDiagnostics) {
+      const match = /^worldPlan\.affordances\[(\d+)\]/u.exec(
+        diagnostic.field ?? '',
+      );
+      expect(match).not.toBeNull();
+      const index = Number(match![1]);
+      expect(wireIds[index]).toBe(retainedIds[index]);
+    }
+    expect(
+      firstDiagnostics.some((entry) =>
+        /AffordanceIds\[\d+\]\.(?:footprint|clearanceRegion)$/u.test(
+          entry.field ?? '',
+        ),
+      ),
+    ).toBe(false);
+  });
+
+  it('repairs association before an unmasked numeric clearance failure within the fixed two-repair budget', async () => {
+    const fixture = buildBlueprintFixture('multi_zone_transition');
+    const associationInvalid = wholeBookDraft(fixture.blueprint) as {
+      worldPlan: {
+        affordances: Array<{
+          kind: string;
+          zoneId: string;
+          clearanceRegion?: { width: number };
+        }>;
+      };
+    };
+    const traversal = associationInvalid.worldPlan.affordances.find(
+      (entry) => entry.kind === 'traversal',
+    );
+    const opening = associationInvalid.worldPlan.affordances.find(
+      (entry) => entry.kind === 'opening_clearance',
+    );
+    if (!traversal || !opening?.clearanceRegion) {
+      throw new Error('transition fixture missing');
+    }
+    const correctZone = traversal.zoneId;
+    traversal.zoneId = fixture.context.template.zones.find(
+      (zone) => zone.id !== correctZone,
+    )!.id;
+    opening.clearanceRegion.width = 100;
+    const numericInvalid = clone(associationInvalid);
+    numericInvalid.worldPlan.affordances.find(
+      (entry) => entry.kind === 'traversal',
+    )!.zoneId = correctZone;
+    const outputs = [
+      associationInvalid,
+      numericInvalid,
+      wholeBookDraft(fixture.blueprint),
+    ];
+    let calls = 0;
+
+    const result = await compilePreRenderBookVisualBlueprint(
+      fixture.context,
+      CONFIG,
+      {
+        callAuthor: async () => outputs[calls++]!,
+      },
+    );
+
+    expect(calls).toBe(3);
+    expect(result.repairAttempts).toHaveLength(2);
+    const firstDiagnostics = result.repairAttempts[0]!.diagnostics ?? [];
+    const secondDiagnostics = result.repairAttempts[1]!.diagnostics ?? [];
+    expect(
+      firstDiagnostics.some((entry) =>
+        entry.message.includes('opening clearance is narrower'),
+      ),
+    ).toBe(false);
+    expect(
+      firstDiagnostics.some((entry) =>
+        entry.message.includes('no same-zone traversal authority'),
+      ),
+    ).toBe(true);
+    expect(secondDiagnostics).toContainEqual(
+      expect.objectContaining({
+        code: 'traversal_infeasible',
+        message: 'opening clearance is narrower than traversal minimumClearance',
+        field: expect.stringMatching(
+          /^worldPlan\.affordances\[\d+\]\.clearanceRegion$/u,
+        ),
+      }),
+    );
+    expect(result.provenance.passingAttempt).toBe(3);
   });
 
   it('fails closed after the initial whole-book call plus two repairs', async () => {

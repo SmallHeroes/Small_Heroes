@@ -68,7 +68,13 @@ import {
   nominalBlueprintAuthoringUsageCostUsd,
 } from '@/lib/visual-package/blueprintAuthoringPolicy';
 import { PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA } from '@/lib/visual-package/preRenderBlueprintDraftSchema';
-import { buildBlueprintAuthoringExecutionProgram } from '@/lib/visual-package/blueprintAuthoringExecutionProgram';
+import {
+  LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_PROMPT_V6,
+  buildBlueprintAuthoringExecutionProgram,
+} from '@/lib/visual-package/blueprintAuthoringExecutionProgram';
+import {
+  LEGACY_PRE_RENDER_BLUEPRINT_AUTHORING_SYSTEM_PROMPT_DIGEST_V5,
+} from '@/lib/visual-package/preRenderBlueprintAuthoringContract';
 import {
   PreRenderBlueprintAuthoringRepairExhaustedError,
   preRenderBlueprintRepairDiagnosticErrorText,
@@ -909,6 +915,7 @@ describe('provider-isolated Blueprint authoring runner', () => {
 
   it('records only strict receipt metadata and sanitized usage through a canonical live adapter', async () => {
     const { context, materialized } = buildContext('single_location');
+    const request = requestFor(context, 'live');
     const provider = {
       call: vi.fn(async (args: ProductionProviderCallArgs) => ({
         output: JSON.stringify(providerDraft(materialized.fixture)),
@@ -916,7 +923,7 @@ describe('provider-isolated Blueprint authoring runner', () => {
       })),
     };
     const result = await runProductionBlueprintAuthoring({
-      request: requestFor(context, 'live'),
+      request,
       context,
       provider,
     });
@@ -964,6 +971,33 @@ describe('provider-isolated Blueprint authoring runner', () => {
     expect(JSON.stringify(result.receipt)).not.toContain(
       'secret_debug_payload',
     );
+
+    const frozenRequest = {
+      ...request,
+      program: LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_PROMPT_V6,
+    } as ReplayableProductionAuthoringRunRequest;
+    const reboundReceipt = structuredClone(result.receipt) as
+      ReplayableProductionAuthoringRunReceipt & Record<string, unknown>;
+    reboundReceipt.requestDigest = canonicalJsonDigest(frozenRequest);
+    const {
+      digest: _reboundDigest,
+      digestAlgorithm: _reboundAlgorithm,
+      ...reboundPayload
+    } = reboundReceipt;
+    void _reboundDigest;
+    void _reboundAlgorithm;
+    reboundReceipt.digest = canonicalJsonDigest(reboundPayload);
+    expect(result.receipt.attempts[0]!.systemPromptDigest).not.toBe(
+      LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_PROMPT_V6.authoringSystemPromptDigest,
+    );
+    expect(
+      productionBlueprintAuthoringReceiptReplayIsValid({
+        receipt: reboundReceipt,
+        request: frozenRequest,
+        expectedStatus: 'completed',
+        expectedDigest: reboundReceipt.digest,
+      }),
+    ).toBe(false);
   });
 
   it('uses one exact count to admit an over-byte repair and binds that proof to the next generation', async () => {
@@ -1057,8 +1091,9 @@ describe('provider-isolated Blueprint authoring runner', () => {
       }),
     };
 
+    const request = requestFor(context, 'live');
     const result = await runProductionBlueprintAuthoring({
-      request: requestFor(context, 'live'),
+      request,
       context,
       provider,
       inputTokenCounter: count,
@@ -1075,11 +1110,70 @@ describe('provider-isolated Blueprint authoring runner', () => {
     expect(
       productionBlueprintAuthoringReceiptReplayIsValid({
         receipt: result.receipt as unknown as Record<string, unknown>,
-        request: requestFor(context, 'live'),
+        request,
         expectedStatus: 'completed',
         expectedDigest: result.receipt.digest,
       }),
     ).toBe(true);
+
+    const repairPromptMismatch = structuredClone(
+      result.receipt,
+    ) as unknown as Record<string, unknown> & {
+      attempts: Array<{ systemPromptDigest: string }>;
+      digest: string;
+    };
+    repairPromptMismatch.attempts[1]!.systemPromptDigest =
+      request.program.authoringSystemPromptDigest;
+    const { digest: _repairPromptDigest, ...repairPromptPayload } =
+      repairPromptMismatch;
+    repairPromptMismatch.digest = canonicalJsonDigest(repairPromptPayload);
+    expect(
+      productionBlueprintAuthoringReceiptReplayIsValid({
+        receipt: repairPromptMismatch,
+        request,
+        expectedStatus: 'completed',
+        expectedDigest: repairPromptMismatch.digest,
+      }),
+    ).toBe(false);
+
+    const { program: _currentProgram, ...legacyRequestPayload } = request;
+    void _currentProgram;
+    const legacyV4Request = {
+      ...legacyRequestPayload,
+      version: LEGACY_PRODUCTION_AUTHORING_RUN_REQUEST_VERSION_V4,
+    } as ReplayableProductionAuthoringRunRequest;
+    const unregisteredPromptV5RepairHistory = structuredClone(
+      result.receipt,
+    ) as unknown as Record<string, unknown> & {
+      attempts: Array<Record<string, unknown>>;
+      digest: string;
+      requestDigest: string;
+      version: string;
+    };
+    unregisteredPromptV5RepairHistory.version =
+      LEGACY_PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION_V7;
+    unregisteredPromptV5RepairHistory.requestDigest =
+      canonicalJsonDigest(legacyV4Request);
+    unregisteredPromptV5RepairHistory.attempts[0]!.systemPromptDigest =
+      LEGACY_PRE_RENDER_BLUEPRINT_AUTHORING_SYSTEM_PROMPT_DIGEST_V5;
+    for (const attempt of unregisteredPromptV5RepairHistory.attempts) {
+      delete attempt.diagnosticCensusCommitment;
+    }
+    const {
+      digest: _unregisteredPromptV5Digest,
+      ...unregisteredPromptV5Payload
+    } = unregisteredPromptV5RepairHistory;
+    unregisteredPromptV5RepairHistory.digest = canonicalJsonDigest(
+      unregisteredPromptV5Payload,
+    );
+    expect(
+      productionBlueprintAuthoringReceiptReplayIsValid({
+        receipt: unregisteredPromptV5RepairHistory,
+        request: legacyV4Request,
+        expectedStatus: 'completed',
+        expectedDigest: unregisteredPromptV5RepairHistory.digest,
+      }),
+    ).toBe(false);
 
     const mismatchedAdmission = structuredClone(
       result.receipt,
@@ -2087,6 +2181,36 @@ describe('provider-isolated Blueprint authoring runner', () => {
         context,
       }),
     ).toEqual([]);
+  });
+
+  it('replay-validates the exact frozen prompt-v6 request-v5 program but never admits it for fresh dispatch', async () => {
+    const { context } = buildContext('single_location');
+    const request = {
+      ...requestFor(context, 'live'),
+      program: LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_PROMPT_V6,
+    } as ReplayableProductionAuthoringRunRequest;
+    expect(
+      productionAuthoringRunRequestReplayIssues({ request, context }),
+    ).toEqual([]);
+    expect(
+      productionBlueprintAuthoringPreflightIssues({
+        request: request as ProductionAuthoringRunRequest,
+        context,
+      }),
+    ).toContain('authoring execution program is stale or invalid');
+    const provider = {
+      call: vi.fn(async () => {
+        throw new Error('provider must remain unreachable');
+      }),
+    };
+    await expect(
+      runProductionBlueprintAuthoring({
+        request: request as ProductionAuthoringRunRequest,
+        context,
+        provider,
+      }),
+    ).rejects.toThrow('authoring execution program is stale or invalid');
+    expect(provider.call).not.toHaveBeenCalled();
   });
 
   it('enforces the closed lifecycle request/receipt version pairs', () => {

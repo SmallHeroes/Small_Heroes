@@ -1135,6 +1135,7 @@ function validateConnection(
   field: string,
   index: ContractIndex,
   affordances: Map<string, BlueprintSpatialAffordance>,
+  affordanceFields: ReadonlyMap<string, string | null>,
   issues: PreRenderBlueprintIssue[],
 ): void {
   if (!isStr(connection.id) || !CONNECTION_KINDS.has(connection.kind)) {
@@ -1224,7 +1225,9 @@ function validateConnection(
       regionMinimumDimension(traversal.footprint) < traversal.minimumClearance
     ) {
       issues.push(issue('traversal_infeasible', 'traversal footprint is narrower than minimumClearance', {
-        field: `${traversalField}.footprint`,
+        field: affordanceFields.get(id)
+          ? `${affordanceFields.get(id)}.footprint`
+          : traversalField,
         expected: traversal.minimumClearance,
         actual: regionMinimumDimension(traversal.footprint),
       }));
@@ -1280,7 +1283,9 @@ function validateConnection(
               traversal.minimumClearance
           ) {
             issues.push(issue('traversal_infeasible', 'opening clearance is narrower than traversal minimumClearance', {
-              field: `${openingField}.clearanceRegion`,
+              field: affordanceFields.get(id)
+                ? `${affordanceFields.get(id)}.clearanceRegion`
+                : openingField,
               expected: traversal.minimumClearance,
               actual: regionMinimumDimension(opening.clearanceRegion),
             }));
@@ -2558,6 +2563,11 @@ function validatePreRenderBookVisualBlueprintInternal(
   }
 
   const affordances = new Map<string, BlueprintSpatialAffordance>();
+  // A resolved target-property diagnostic may name an affordance field only when
+  // the ID is unique. Duplicate IDs already fail validation; retaining null here
+  // prevents a later cross-field check from fabricating a path to one arbitrary
+  // duplicate while preserving the connection's real pointer slot as fallback.
+  const affordanceFields = new Map<string, string | null>();
   rawAffordances.forEach((affordance, offset) => {
     const field = `worldPlan.affordances[${offset}]`;
     if (!isObj(affordance)) {
@@ -2570,6 +2580,9 @@ function validatePreRenderBookVisualBlueprintInternal(
         issues.push(issue('reference_duplicate', `duplicate affordance id "${affordance.id}"`, {
           field: `${field}.id`,
         }));
+        affordanceFields.set(affordance.id, null);
+      } else {
+        affordanceFields.set(affordance.id, field);
       }
       affordances.set(affordance.id, affordance);
     }
@@ -2591,7 +2604,14 @@ function validatePreRenderBookVisualBlueprintInternal(
   });
   rawConnections.forEach((connection, offset) => {
     if (isObj(connection)) {
-      validateConnection(connection, `worldPlan.connections[${offset}]`, index, affordances, issues);
+      validateConnection(
+        connection,
+        `worldPlan.connections[${offset}]`,
+        index,
+        affordances,
+        affordanceFields,
+        issues,
+      );
     }
   });
 

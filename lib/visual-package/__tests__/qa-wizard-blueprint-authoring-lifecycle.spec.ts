@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -60,11 +61,16 @@ import {
 } from '../qaWizardCandidateBridge';
 import {
   LEGACY_QA_WIZARD_BLUEPRINT_EXECUTION_CLAIM_VERSION,
+  QA_WIZARD_BLUEPRINT_EXECUTION_CLAIM_VERSION,
   QA_WIZARD_BLUEPRINT_AUTHORING_LEDGER_ROOT,
+  QA_WIZARD_BLUEPRINT_TERMINAL_BINDING_VERSION,
+  executeBlueprintReplacementLiveRequest,
   executeQaWizardBlueprintLiveRequest,
   loadQaWizardBlueprintAuthoringManifest,
   prepareQaWizardBlueprintLiveRequest,
   productionBlueprintAuthoringReceiptReplayIsValid,
+  qaWizardBlueprintAuthoringProvenanceVersionsForRequest,
+  qaWizardBlueprintOrdinaryExecutionIdentityDigest,
   qaWizardBlueprintTerminalCaptureRequirement,
   recordQaWizardBlueprintApproval,
   type QaWizardBlueprintAuthoringManifest,
@@ -93,6 +99,19 @@ import {
 } from '../blueprintAuthoringInputTokenAdmission';
 import { PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA } from '../preRenderBlueprintDraftSchema';
 import {
+  persistPreRenderBlueprintLifecycle,
+} from '../preRenderBlueprintLifecycle';
+import type { PreRenderBookVisualBlueprint } from '../preRenderBlueprintTypes';
+import {
+  LEGACY_PRE_RENDER_BLUEPRINT_AUTHORING_PROMPT_VERSION_V6,
+  LEGACY_PRE_RENDER_BLUEPRINT_AUTHORING_PROMPT_VERSION_V5,
+  LEGACY_PRE_RENDER_BLUEPRINT_AUTHORING_SYSTEM_PROMPT_DIGEST_V5,
+  LEGACY_PRE_RENDER_BLUEPRINT_AUTHORING_SYSTEM_PROMPT_DIGEST_V6,
+  LEGACY_PRE_RENDER_BLUEPRINT_AUTHORING_SYSTEM_PROMPT_UTF8_BYTES_V6,
+  PRE_RENDER_BLUEPRINT_AUTHORING_PROVENANCE_VERSION,
+  type PreRenderBlueprintAuthoringProvenance,
+} from '../preRenderBlueprintAuthoringContract';
+import {
   BLUEPRINT_AUTHORING_SANITIZED_FAILURE_CAPTURE_VERSION,
   LEGACY_BLUEPRINT_AUTHORING_SANITIZED_FAILURE_CAPTURE_VERSION_V3,
   blueprintAuthoringSanitizedFailureCaptureBytes,
@@ -100,7 +119,11 @@ import {
   type BlueprintAuthoringSanitizedFailureCapture,
 } from '../blueprintAuthoringSanitizedFailureCapture';
 import {
+  rebindReceiptPromptEvidenceToFrozenV6,
+} from './fixtures/frozen-blueprint-authoring-v6-evidence';
+import {
   LEGACY_PRODUCTION_AUTHORING_RUN_REQUEST_VERSION_V4,
+  LEGACY_PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION_V6,
   LEGACY_PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION_V7,
   PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION,
   ProductionAuthoringProviderBoundaryError,
@@ -119,7 +142,16 @@ import {
 } from '../authoringTerminalDiagnostics';
 import { canonicalJsonDigest } from '../integrity';
 import { canonicalContentAddressedJsonBytes } from '../canonicalContentAddressedJson';
+import {
+  LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_PROMPT_V6,
+} from '../blueprintAuthoringExecutionProgram';
 import { createLazyLocalOpenAICredentialReader } from '../../../scripts/lib/qa-wizard-blueprint-local-credential';
+import {
+  buildBlueprintReplacementAuthorization,
+  buildBlueprintReplacementExecutionClaim,
+  buildBlueprintReplacementProposal,
+  buildBlueprintReplacementReview,
+} from '../qaWizardBlueprintReplacementAuthority';
 import {
   buildBlueprintFixture,
   buildVisualContractCandidateFixture,
@@ -420,9 +452,10 @@ function passingProvider(
 ): ProductionAuthoringProvider {
   return {
     call: async (args) => {
-      call(args);
+      const draft = providerDraft(fixture);
+      call(args, draft);
       return {
-        output: JSON.stringify(providerDraft(fixture)),
+        output: JSON.stringify(draft),
         receipt: providerReceipt(args),
       };
     },
@@ -549,6 +582,289 @@ function terminalLookupFileCount(repoRoot: string): number {
     .filter((entry) => entry.endsWith('.json')).length;
 }
 
+type HistoricalCompletedTarget =
+  | {
+      kind: 'request_v4';
+      systemPromptDigest:
+        | typeof LEGACY_PRE_RENDER_BLUEPRINT_AUTHORING_SYSTEM_PROMPT_DIGEST_V5
+        | typeof LEGACY_PRE_RENDER_BLUEPRINT_AUTHORING_SYSTEM_PROMPT_DIGEST_V6;
+    }
+  | {
+      kind: 'request_v5_frozen_v6';
+      systemPromptDigest: typeof LEGACY_PRE_RENDER_BLUEPRINT_AUTHORING_SYSTEM_PROMPT_DIGEST_V6;
+    };
+
+function repoRelative(root: string, absolute: string): string {
+  return path.relative(root, absolute).split('\\').join('/');
+}
+
+function materializeHistoricalCompletedTerminal(args: {
+  subject: ReturnType<typeof setup>;
+  currentPreflight: ReturnType<typeof prepare>;
+  currentResult: Awaited<ReturnType<typeof executeQaWizardBlueprintLiveRequest>>;
+  target: HistoricalCompletedTarget;
+  providerCalls?: ReturnType<typeof vi.fn>;
+}) {
+  const currentBlueprintAuthority = args.currentResult.manifest.blueprint;
+  const firstAttempt = args.currentResult.receipt.attempts[0];
+  if (
+    args.currentResult.manifest.stage !== 'blueprint_candidate' ||
+    currentBlueprintAuthority === null ||
+    args.currentResult.receipt.status !== 'completed' ||
+    !firstAttempt ||
+    args.currentResult.receipt.callCount !== 1
+  ) {
+    throw new Error('historical completed fixture requires a one-call Candidate');
+  }
+
+  const request = structuredClone(args.currentPreflight.request) as unknown as Record<
+    string,
+    unknown
+  >;
+  if (args.target.kind === 'request_v4') {
+    request.version = LEGACY_PRODUCTION_AUTHORING_RUN_REQUEST_VERSION_V4;
+    delete request.program;
+  } else {
+    request.program = structuredClone(
+      LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_PROMPT_V6,
+    );
+  }
+  const requestDigest = canonicalJsonDigest(request);
+  const requestPath = `${OUTPUT_DIR}/blueprint-authoring-requests/${requestDigest}.json`;
+  writeText(
+    args.subject.repoRoot,
+    requestPath,
+    canonicalContentAddressedJsonBytes(request),
+  );
+
+  const {
+    digest: _currentPreflightDigest,
+    digestAlgorithm: _currentPreflightDigestAlgorithm,
+    ...currentPreflightPayload
+  } = args.currentPreflight.manifest;
+  void _currentPreflightDigest;
+  void _currentPreflightDigestAlgorithm;
+  const preflightPayload = {
+    ...currentPreflightPayload,
+    request: {
+      ...args.currentPreflight.manifest.request,
+      version: request.version,
+      digest: requestDigest,
+      path: requestPath,
+    },
+  };
+  const preflight = {
+    ...preflightPayload,
+    digestAlgorithm: 'canonical-json-sha256' as const,
+    digest: canonicalJsonDigest(preflightPayload),
+  };
+  const preflightPath = `${OUTPUT_DIR}/blueprint-authoring-manifests/${preflight.digest}.json`;
+  writeText(
+    args.subject.repoRoot,
+    preflightPath,
+    canonicalContentAddressedJsonBytes(preflight),
+  );
+
+  const blueprint = JSON.parse(
+    fs.readFileSync(
+      path.join(args.subject.repoRoot, currentBlueprintAuthority.candidatePath),
+      'utf8',
+    ),
+  ) as PreRenderBookVisualBlueprint;
+  const currentProvenance = JSON.parse(
+    fs.readFileSync(
+      path.join(args.subject.repoRoot, currentBlueprintAuthority.provenancePath),
+      'utf8',
+    ),
+  ) as PreRenderBlueprintAuthoringProvenance;
+  const provenanceVersions = qaWizardBlueprintAuthoringProvenanceVersionsForRequest(
+    request as unknown as Parameters<
+      typeof qaWizardBlueprintAuthoringProvenanceVersionsForRequest
+    >[0],
+    args.target.systemPromptDigest,
+  );
+  const provenance: PreRenderBlueprintAuthoringProvenance = {
+    ...currentProvenance,
+    version: PRE_RENDER_BLUEPRINT_AUTHORING_PROVENANCE_VERSION,
+    draftSchemaVersion: provenanceVersions.draftSchemaVersion,
+    promptVersion: provenanceVersions.promptVersion,
+    systemPromptDigest: args.target.systemPromptDigest,
+  };
+  delete provenance.repairPromptVersion;
+  const persisted = persistPreRenderBlueprintLifecycle({
+    root: path.join(args.subject.repoRoot, OUTPUT_DIR, 'blueprint-lifecycle'),
+    blueprint,
+    context: args.subject.context.validationContext,
+    provenance,
+    repairAttempts: [],
+  });
+
+  const receipt = structuredClone(args.currentResult.receipt) as unknown as Record<
+    string,
+    unknown
+  > & {
+    attempts: Array<Record<string, unknown>>;
+    digest: string;
+  };
+  receipt.requestDigest = requestDigest;
+  receipt.authoringProvenanceDigest = persisted.provenance.digest;
+  receipt.attempts[0]!.systemPromptDigest = args.target.systemPromptDigest;
+  if (args.target.kind === 'request_v4') {
+    const inputAccounting = receipt.attempts[0]!.inputAccounting as Record<
+      string,
+      number
+    >;
+    inputAccounting.systemBytes =
+      args.target.systemPromptDigest ===
+      LEGACY_PRE_RENDER_BLUEPRINT_AUTHORING_SYSTEM_PROMPT_DIGEST_V5
+        ? 8_419
+        : 2_144;
+    inputAccounting.estimatedBytes =
+      inputAccounting.protocolAllowance +
+      inputAccounting.schemaBytes +
+      inputAccounting.separatorBytes +
+      inputAccounting.systemBytes +
+      inputAccounting.userBytes;
+    receipt.version = LEGACY_PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION_V6;
+    delete receipt.admissionDecisions;
+    delete receipt.diagnosticCensusCommitment;
+    for (const attempt of receipt.attempts) {
+      delete attempt.inputAdmissionDigest;
+      delete attempt.tokenRelevantRequestDigest;
+      delete attempt.diagnosticCensusCommitment;
+      const diagnostics = attempt.validationDiagnostics as Record<string, unknown>;
+      attempt.validationDiagnostics = {
+        count: diagnostics.count,
+        codes: diagnostics.codes,
+      };
+    }
+  } else {
+    if (!args.providerCalls) {
+      throw new Error('frozen request-v5 fixture requires captured provider calls');
+    }
+    rebindReceiptPromptEvidenceToFrozenV6({
+      receipt: receipt as never,
+      calls: args.providerCalls.mock.calls.map(
+        ([call]) => call as Parameters<ProductionAuthoringProvider['call']>[0],
+      ),
+      context: args.subject.context.validationContext,
+      rawDrafts: args.providerCalls.mock.calls.map(([, draft]) => draft),
+    });
+  }
+  rebindAggregateAndRedigestReceipt(receipt);
+  const receiptPath = `${OUTPUT_DIR}/authoring-receipts/${receipt.digest}.json`;
+  writeText(
+    args.subject.repoRoot,
+    receiptPath,
+    canonicalContentAddressedJsonBytes(receipt),
+  );
+
+  const blueprintAuthority = {
+    ...currentBlueprintAuthority,
+    candidatePath: repoRelative(args.subject.repoRoot, persisted.candidate.path),
+    provenanceDigest: persisted.provenance.digest,
+    provenancePath: repoRelative(args.subject.repoRoot, persisted.provenance.path),
+    validationEvidenceDigest: persisted.validationEvidence.digest,
+    validationEvidencePath: repoRelative(
+      args.subject.repoRoot,
+      persisted.validationEvidence.path,
+    ),
+    reviewPacketDigest: persisted.reviewPacket.digest,
+    reviewPacketPath: repoRelative(
+      args.subject.repoRoot,
+      persisted.reviewPacket.path,
+    ),
+    reviewMarkdownDigest: persisted.reviewMarkdown.digest,
+    reviewMarkdownPath: repoRelative(
+      args.subject.repoRoot,
+      persisted.reviewMarkdown.path,
+    ),
+    contactSheetDigest: persisted.contactSheet.digest,
+    contactSheetPath: repoRelative(
+      args.subject.repoRoot,
+      persisted.contactSheet.path,
+    ),
+  };
+  const {
+    digest: _currentTerminalDigest,
+    digestAlgorithm: _currentTerminalDigestAlgorithm,
+    ...currentTerminalPayload
+  } = args.currentResult.manifest;
+  void _currentTerminalDigest;
+  void _currentTerminalDigestAlgorithm;
+  const terminalPayload = {
+    ...currentTerminalPayload,
+    predecessor: {
+      version: preflight.version,
+      digest: preflight.digest,
+      path: preflightPath,
+    },
+    request: preflight.request,
+    receipt: {
+      version: receipt.version,
+      digest: receipt.digest,
+      path: receiptPath,
+      status: 'completed' as const,
+    },
+    blueprint: blueprintAuthority,
+  };
+  const terminal = {
+    ...terminalPayload,
+    digestAlgorithm: 'canonical-json-sha256' as const,
+    digest: canonicalJsonDigest(terminalPayload),
+  };
+  const terminalPath = `${OUTPUT_DIR}/blueprint-authoring-manifests/${terminal.digest}.json`;
+  writeText(
+    args.subject.repoRoot,
+    terminalPath,
+    canonicalContentAddressedJsonBytes(terminal),
+  );
+  return {
+    request,
+    requestDigest,
+    requestPath,
+    preflight,
+    preflightPath,
+    receipt,
+    receiptPath,
+    terminal,
+    terminalPath,
+    provenance,
+    blueprintAuthority,
+  };
+}
+
+function writeTerminalBindingForHistoricalExecution(args: {
+  repoRoot: string;
+  executionIdentityDigest: string;
+  authoringAuthorityDigest: string;
+  requestDigest: string;
+  preflightManifestDigest: string;
+  terminalManifestDigest: string;
+  terminalManifestPath: string;
+}): void {
+  const payload = {
+    version: QA_WIZARD_BLUEPRINT_TERMINAL_BINDING_VERSION,
+    executionIdentityDigest: args.executionIdentityDigest,
+    authoringAuthorityDigest: args.authoringAuthorityDigest,
+    requestDigest: args.requestDigest,
+    preflightManifestDigest: args.preflightManifestDigest,
+    terminalManifestDigest: args.terminalManifestDigest,
+    terminalManifestPath: args.terminalManifestPath,
+    scope: 'single_blueprint_execution_terminal_binding' as const,
+  };
+  const binding = {
+    ...payload,
+    digestAlgorithm: 'canonical-json-sha256' as const,
+    digest: canonicalJsonDigest(payload),
+  };
+  writeText(
+    args.repoRoot,
+    `${QA_WIZARD_BLUEPRINT_AUTHORING_LEDGER_ROOT}/terminal-bindings/${args.executionIdentityDigest}.json`,
+    canonicalContentAddressedJsonBytes(binding),
+  );
+}
+
 describe('QA Wizard Blueprint authoring operator lifecycle', () => {
   it('prepares the exact live request without provider access and rejects loose timestamps', () => {
     const subject = setup();
@@ -646,6 +962,90 @@ describe('QA Wizard Blueprint authoring operator lifecycle', () => {
         {
           repoRoot: subject.repoRoot,
           preflightManifestPath: legacyManifestPath,
+          outputDir: OUTPUT_DIR,
+          write: true,
+        },
+        { providerFactory, inputTokenCounterFactory },
+      ),
+    ).rejects.toThrow(
+      'legacy Blueprint authoring request cannot authorize fresh dispatch',
+    );
+    expect(providerFactory).not.toHaveBeenCalled();
+    expect(inputTokenCounterFactory).not.toHaveBeenCalled();
+    for (const category of [
+      'execution-claims',
+      'terminal-bindings',
+      'terminal-lookups',
+      'execution-incidents',
+    ]) {
+      expect(
+        fs.readdirSync(
+          path.join(
+            subject.repoRoot,
+            QA_WIZARD_BLUEPRINT_AUTHORING_LEDGER_ROOT,
+            category,
+          ),
+        ),
+      ).toEqual([]);
+    }
+  });
+
+  it('reloads the frozen prompt-v6 request-v5 preflight but never lets it fresh-dispatch', async () => {
+    const subject = setup();
+    const current = prepare(subject);
+    const replayOnlyRequest = {
+      ...current.request,
+      program: LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_PROMPT_V6,
+    };
+    const requestDigest = canonicalJsonDigest(replayOnlyRequest);
+    const requestPath = `${OUTPUT_DIR}/blueprint-authoring-requests/${requestDigest}.json`;
+    writeText(
+      subject.repoRoot,
+      requestPath,
+      canonicalContentAddressedJsonBytes(replayOnlyRequest),
+    );
+    const {
+      digest: _manifestDigest,
+      digestAlgorithm: _manifestDigestAlgorithm,
+      ...manifestPayload
+    } = current.manifest;
+    void _manifestDigest;
+    void _manifestDigestAlgorithm;
+    const reboundPayload = {
+      ...manifestPayload,
+      request: {
+        ...current.manifest.request,
+        digest: requestDigest,
+        path: requestPath,
+      },
+    };
+    const reboundManifest = {
+      ...reboundPayload,
+      digestAlgorithm: 'canonical-json-sha256' as const,
+      digest: canonicalJsonDigest(reboundPayload),
+    };
+    const reboundManifestPath = `${OUTPUT_DIR}/blueprint-authoring-manifests/${reboundManifest.digest}.json`;
+    writeText(
+      subject.repoRoot,
+      reboundManifestPath,
+      canonicalContentAddressedJsonBytes(reboundManifest),
+    );
+
+    expect(
+      loadQaWizardBlueprintAuthoringManifest({
+        repoRoot: subject.repoRoot,
+        manifestPath: reboundManifestPath,
+      }),
+    ).toEqual(reboundManifest);
+    const providerFactory = vi.fn(() => passingProvider(subject.fixture));
+    const inputTokenCounterFactory = vi.fn(() => {
+      throw new Error('count transport must remain unreachable');
+    });
+    await expect(
+      executeQaWizardBlueprintLiveRequest(
+        {
+          repoRoot: subject.repoRoot,
+          preflightManifestPath: reboundManifestPath,
           outputDir: OUTPUT_DIR,
           write: true,
         },
@@ -4152,7 +4552,454 @@ describe('QA Wizard Blueprint failed-terminal sanitized capture integration', ()
     expect(forbidden).not.toHaveBeenCalled();
   });
 
-  it('recovers and replays a historically valid request-v4/receipt-v7/capture-v3 failed terminal without provider dispatch', async () => {
+  it.each([
+    {
+      label: 'prompt-v5',
+      systemPromptDigest:
+        LEGACY_PRE_RENDER_BLUEPRINT_AUTHORING_SYSTEM_PROMPT_DIGEST_V5,
+      expectedPromptVersion:
+        LEGACY_PRE_RENDER_BLUEPRINT_AUTHORING_PROMPT_VERSION_V5,
+    },
+    {
+      label: 'prompt-v6',
+      systemPromptDigest:
+        LEGACY_PRE_RENDER_BLUEPRINT_AUTHORING_SYSTEM_PROMPT_DIGEST_V6,
+      expectedPromptVersion:
+        LEGACY_PRE_RENDER_BLUEPRINT_AUTHORING_PROMPT_VERSION_V6,
+    },
+  ] as const)(
+    'recovers and replays a completed request-v4 $label terminal from its absolute prompt digest with zero paid dependencies',
+    async ({ systemPromptDigest, expectedPromptVersion }) => {
+      const subject = setup();
+      const currentPreflight = prepare(subject);
+      const currentResult = await executeQaWizardBlueprintLiveRequest(
+        {
+          repoRoot: subject.repoRoot,
+          preflightManifestPath: currentPreflight.manifestPath,
+          outputDir: OUTPUT_DIR,
+          write: true,
+        },
+        { providerFactory: () => passingProvider(subject.fixture) },
+      );
+      const historical = materializeHistoricalCompletedTerminal({
+        subject,
+        currentPreflight,
+        currentResult,
+        target: { kind: 'request_v4', systemPromptDigest },
+      });
+      expect(historical.provenance.promptVersion).toBe(expectedPromptVersion);
+
+      const authoringAuthorityDigest =
+        historical.blueprintAuthority.authoringAuthorityDigest;
+      const claimPayload = {
+        version: LEGACY_QA_WIZARD_BLUEPRINT_EXECUTION_CLAIM_VERSION,
+        authoringAuthorityDigest,
+        requestDigest: historical.requestDigest,
+        preflightManifestDigest: historical.preflight.digest,
+        preflightManifestPath: historical.preflightPath,
+        requestedAt: historical.request.requestedAt,
+        scope: 'single_use_paid_blueprint_authoring' as const,
+      };
+      const claim = {
+        ...claimPayload,
+        digestAlgorithm: 'canonical-json-sha256' as const,
+        digest: canonicalJsonDigest(claimPayload),
+      };
+      stripTerminalLedger(subject.repoRoot);
+      writeText(
+        subject.repoRoot,
+        `${QA_WIZARD_BLUEPRINT_AUTHORING_LEDGER_ROOT}/execution-claims/${authoringAuthorityDigest}.json`,
+        canonicalContentAddressedJsonBytes(claim),
+      );
+      const terminalBytes = fs.readFileSync(
+        path.join(subject.repoRoot, historical.terminalPath),
+        'utf8',
+      );
+      const receiptBytes = fs.readFileSync(
+        path.join(subject.repoRoot, historical.receiptPath),
+        'utf8',
+      );
+      const forbiddenProviderFactory = vi.fn(() => {
+        throw new Error('provider_must_not_load_for_v4_completed_replay');
+      });
+      const forbiddenCountFactory = vi.fn(() => {
+        throw new Error('counter_must_not_load_for_v4_completed_replay');
+      });
+      const executionArgs = {
+        repoRoot: subject.repoRoot,
+        preflightManifestPath: historical.preflightPath,
+        outputDir: OUTPUT_DIR,
+        write: true,
+      } as const;
+      const recovered = await executeQaWizardBlueprintLiveRequest(
+        executionArgs,
+        {
+          providerFactory: forbiddenProviderFactory,
+          inputTokenCounterFactory: forbiddenCountFactory,
+        },
+      );
+      expect(recovered.replayed).toBe(true);
+      expect(recovered.manifest.digest).toBe(historical.terminal.digest);
+      expect(recovered.receipt.digest).toBe(historical.receipt.digest);
+      expect(terminalLookupFileCount(subject.repoRoot)).toBe(1);
+      const afterRecovery = fileInventory(
+        path.join(subject.repoRoot, OUTPUT_DIR),
+      );
+
+      const replay = await executeQaWizardBlueprintLiveRequest(executionArgs, {
+        providerFactory: forbiddenProviderFactory,
+        inputTokenCounterFactory: forbiddenCountFactory,
+      });
+      expect(replay.replayed).toBe(true);
+      expect(replay.manifest.digest).toBe(historical.terminal.digest);
+      expect(replay.receipt.digest).toBe(historical.receipt.digest);
+      expect(fileInventory(path.join(subject.repoRoot, OUTPUT_DIR))).toEqual(
+        afterRecovery,
+      );
+      expect(
+        fs.readFileSync(
+          path.join(subject.repoRoot, historical.terminalPath),
+          'utf8',
+        ),
+      ).toBe(terminalBytes);
+      expect(
+        fs.readFileSync(
+          path.join(subject.repoRoot, historical.receiptPath),
+          'utf8',
+        ),
+      ).toBe(receiptBytes);
+      expect(forbiddenProviderFactory).not.toHaveBeenCalled();
+      expect(forbiddenCountFactory).not.toHaveBeenCalled();
+    },
+  );
+
+  it('rejects a coordinated current-v7 receipt relabel under the frozen-v6 program', async () => {
+    const subject = setup();
+    const currentPreflight = prepare(subject);
+    const currentResult = await executeQaWizardBlueprintLiveRequest(
+      {
+        repoRoot: subject.repoRoot,
+        preflightManifestPath: currentPreflight.manifestPath,
+        outputDir: OUTPUT_DIR,
+        write: true,
+      },
+      { providerFactory: () => passingProvider(subject.fixture) },
+    );
+    const request = {
+      ...structuredClone(currentPreflight.request),
+      program: structuredClone(
+        LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_PROMPT_V6,
+      ),
+    };
+    const receipt = structuredClone(currentResult.receipt) as unknown as Record<
+      string,
+      unknown
+    > & {
+      attempts: Array<Record<string, unknown>>;
+      digest: string;
+      requestDigest: string;
+    };
+    receipt.requestDigest = canonicalJsonDigest(request);
+    receipt.attempts[0]!.systemPromptDigest =
+      LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_PROMPT_V6
+        .authoringSystemPromptDigest;
+    rebindAggregateAndRedigestReceipt(receipt);
+
+    expect(
+      productionBlueprintAuthoringReceiptReplayIsValid({
+        receipt,
+        request,
+        expectedStatus: 'completed',
+        expectedDigest: receipt.digest,
+      }),
+    ).toBe(false);
+  });
+
+  it('recovers and replays a completed frozen request-v5/program-v6 terminal with zero paid dependencies', async () => {
+    const subject = setup();
+    const currentPreflight = prepare(subject);
+    const providerCalls = vi.fn();
+    const currentResult = await executeQaWizardBlueprintLiveRequest(
+      {
+        repoRoot: subject.repoRoot,
+        preflightManifestPath: currentPreflight.manifestPath,
+        outputDir: OUTPUT_DIR,
+        write: true,
+      },
+      { providerFactory: () => passingProvider(subject.fixture, providerCalls) },
+    );
+    const historical = materializeHistoricalCompletedTerminal({
+      subject,
+      currentPreflight,
+      currentResult,
+      target: {
+        kind: 'request_v5_frozen_v6',
+        systemPromptDigest:
+          LEGACY_PRE_RENDER_BLUEPRINT_AUTHORING_SYSTEM_PROMPT_DIGEST_V6,
+      },
+      providerCalls,
+    });
+    const authoringAuthorityDigest =
+      historical.blueprintAuthority.authoringAuthorityDigest;
+    const executionIdentityDigest =
+      qaWizardBlueprintOrdinaryExecutionIdentityDigest({
+        authoringAuthorityDigest,
+        program: LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_PROMPT_V6,
+      });
+    const claimPayload = {
+      version: QA_WIZARD_BLUEPRINT_EXECUTION_CLAIM_VERSION,
+      authoringAuthorityDigest,
+      executionIdentityDigest,
+      executionProgramDigest:
+        LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_PROMPT_V6.digest,
+      requestDigest: historical.requestDigest,
+      preflightManifestDigest: historical.preflight.digest,
+      preflightManifestPath: historical.preflightPath,
+      requestedAt: historical.request.requestedAt,
+      scope: 'single_use_paid_blueprint_authoring' as const,
+    };
+    const claim = {
+      ...claimPayload,
+      digestAlgorithm: 'canonical-json-sha256' as const,
+      digest: canonicalJsonDigest(claimPayload),
+    };
+    stripTerminalLedger(subject.repoRoot);
+    writeText(
+      subject.repoRoot,
+      `${QA_WIZARD_BLUEPRINT_AUTHORING_LEDGER_ROOT}/execution-claims/${executionIdentityDigest}.json`,
+      canonicalContentAddressedJsonBytes(claim),
+    );
+    writeTerminalBindingForHistoricalExecution({
+      repoRoot: subject.repoRoot,
+      executionIdentityDigest,
+      authoringAuthorityDigest,
+      requestDigest: historical.requestDigest,
+      preflightManifestDigest: historical.preflight.digest,
+      terminalManifestDigest: historical.terminal.digest,
+      terminalManifestPath: historical.terminalPath,
+    });
+    const forbiddenProviderFactory = vi.fn(() => {
+      throw new Error('provider_must_not_load_for_frozen_completed_replay');
+    });
+    const forbiddenCountFactory = vi.fn(() => {
+      throw new Error('counter_must_not_load_for_frozen_completed_replay');
+    });
+    const executionArgs = {
+      repoRoot: subject.repoRoot,
+      preflightManifestPath: historical.preflightPath,
+      outputDir: OUTPUT_DIR,
+      write: true,
+    } as const;
+    const recovered = await executeQaWizardBlueprintLiveRequest(executionArgs, {
+      providerFactory: forbiddenProviderFactory,
+      inputTokenCounterFactory: forbiddenCountFactory,
+    });
+    expect(recovered.replayed).toBe(true);
+    expect(recovered.manifest.digest).toBe(historical.terminal.digest);
+    expect(recovered.receipt.digest).toBe(historical.receipt.digest);
+    expect(historical.provenance.promptVersion).toBe(
+      LEGACY_PRE_RENDER_BLUEPRINT_AUTHORING_PROMPT_VERSION_V6,
+    );
+    expect(terminalLookupFileCount(subject.repoRoot)).toBe(1);
+    const afterRecovery = fileInventory(path.join(subject.repoRoot, OUTPUT_DIR));
+
+    const replay = await executeQaWizardBlueprintLiveRequest(executionArgs, {
+      providerFactory: forbiddenProviderFactory,
+      inputTokenCounterFactory: forbiddenCountFactory,
+    });
+    expect(replay.replayed).toBe(true);
+    expect(replay.manifest.digest).toBe(historical.terminal.digest);
+    expect(replay.receipt.digest).toBe(historical.receipt.digest);
+    expect(fileInventory(path.join(subject.repoRoot, OUTPUT_DIR))).toEqual(
+      afterRecovery,
+    );
+    expect(forbiddenProviderFactory).not.toHaveBeenCalled();
+    expect(forbiddenCountFactory).not.toHaveBeenCalled();
+  });
+
+  it('recovers and replays a frozen replacement terminal before the current-program precheck and with zero paid dependencies', async () => {
+    const subject = setup();
+    const currentPreflight = prepare(subject);
+    const providerCalls = vi.fn();
+    const currentResult = await executeQaWizardBlueprintLiveRequest(
+      {
+        repoRoot: subject.repoRoot,
+        preflightManifestPath: currentPreflight.manifestPath,
+        outputDir: OUTPUT_DIR,
+        write: true,
+      },
+      { providerFactory: () => passingProvider(subject.fixture, providerCalls) },
+    );
+    const historical = materializeHistoricalCompletedTerminal({
+      subject,
+      currentPreflight,
+      currentResult,
+      target: {
+        kind: 'request_v5_frozen_v6',
+        systemPromptDigest:
+          LEGACY_PRE_RENDER_BLUEPRINT_AUTHORING_SYSTEM_PROMPT_DIGEST_V6,
+      },
+      providerCalls,
+    });
+    const authoringAuthorityDigest =
+      historical.blueprintAuthority.authoringAuthorityDigest;
+    const predecessorExecutionIdentity =
+      qaWizardBlueprintOrdinaryExecutionIdentityDigest({
+        authoringAuthorityDigest,
+        program: LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_PROMPT_V6,
+      });
+    const predecessorClaimPayload = {
+      version: QA_WIZARD_BLUEPRINT_EXECUTION_CLAIM_VERSION,
+      authoringAuthorityDigest,
+      executionIdentityDigest: predecessorExecutionIdentity,
+      executionProgramDigest:
+        LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_PROMPT_V6.digest,
+      requestDigest: historical.requestDigest,
+      preflightManifestDigest: historical.preflight.digest,
+      preflightManifestPath: historical.preflightPath,
+      requestedAt: historical.request.requestedAt,
+      scope: 'single_use_paid_blueprint_authoring' as const,
+    };
+    const predecessorClaim = {
+      ...predecessorClaimPayload,
+      digestAlgorithm: 'canonical-json-sha256' as const,
+      digest: canonicalJsonDigest(predecessorClaimPayload),
+    };
+    const predecessorClaimPath =
+      `${QA_WIZARD_BLUEPRINT_AUTHORING_LEDGER_ROOT}/execution-claims/${predecessorExecutionIdentity}.json`;
+    const predecessorClaimBytes =
+      canonicalContentAddressedJsonBytes(predecessorClaim);
+    writeText(subject.repoRoot, predecessorClaimPath, predecessorClaimBytes);
+
+    const proposal = buildBlueprintReplacementProposal({
+      reason: 'orphan_claim_unknown_provider_outcome',
+      predecessor: {
+        claimVersion: predecessorClaim.version,
+        claimDigest: predecessorClaim.digest,
+        claimPath: predecessorClaimPath,
+        claimByteLength: Buffer.byteLength(predecessorClaimBytes, 'utf8'),
+        claimSha256: createHash('sha256')
+          .update(predecessorClaimBytes, 'utf8')
+          .digest('hex'),
+        authoringAuthorityDigest,
+        requestDigest: historical.requestDigest,
+        preflightManifestDigest: historical.preflight.digest,
+        preflightManifestPath: historical.preflightPath,
+        requestedAt: historical.request.requestedAt as string,
+      },
+      current: {
+        authoringAuthorityDigest,
+        requestDigest: historical.requestDigest,
+        preflightManifestDigest: historical.preflight.digest,
+        preflightManifestPath: historical.preflightPath,
+        outputDir: OUTPUT_DIR,
+        requestId: historical.request.requestId as string,
+        requestedAt: historical.request.requestedAt as string,
+      },
+      preparedBy: 'Codex',
+      preparedAt: '2026-08-25T12:10:00.000Z',
+    });
+    const proposalPath =
+      `${QA_WIZARD_BLUEPRINT_AUTHORING_LEDGER_ROOT}/replacement-proposals/${proposal.digest}.json`;
+    writeText(
+      subject.repoRoot,
+      proposalPath,
+      canonicalContentAddressedJsonBytes(proposal),
+    );
+    const review = buildBlueprintReplacementReview({
+      proposal,
+      proposalPath,
+      reviewedBy: 'claude_code',
+      reviewedAt: '2026-08-25T12:20:00.000Z',
+    });
+    const reviewPath =
+      `${QA_WIZARD_BLUEPRINT_AUTHORING_LEDGER_ROOT}/replacement-reviews/${review.digest}.json`;
+    writeText(
+      subject.repoRoot,
+      reviewPath,
+      canonicalContentAddressedJsonBytes(review),
+    );
+    const authorization = buildBlueprintReplacementAuthorization({
+      proposal,
+      proposalPath,
+      review,
+      reviewPath,
+      approvedBy: 'Guy',
+      approvedAt: APPROVED_AT,
+    });
+    const authorizationPath =
+      `${QA_WIZARD_BLUEPRINT_AUTHORING_LEDGER_ROOT}/replacement-authorizations/${authorization.digest}.json`;
+    writeText(
+      subject.repoRoot,
+      authorizationPath,
+      canonicalContentAddressedJsonBytes(authorization),
+    );
+    const successorClaim = buildBlueprintReplacementExecutionClaim({
+      authorization,
+      authorizationPath,
+      requestedAt: historical.request.requestedAt as string,
+      preflightManifestPath: historical.preflightPath,
+    });
+    stripTerminalLedger(subject.repoRoot);
+    writeText(
+      subject.repoRoot,
+      `${QA_WIZARD_BLUEPRINT_AUTHORING_LEDGER_ROOT}/execution-claims/${authorization.successorExecutionDigest}.json`,
+      canonicalContentAddressedJsonBytes(successorClaim),
+    );
+    writeTerminalBindingForHistoricalExecution({
+      repoRoot: subject.repoRoot,
+      executionIdentityDigest: authorization.successorExecutionDigest,
+      authoringAuthorityDigest,
+      requestDigest: historical.requestDigest,
+      preflightManifestDigest: historical.preflight.digest,
+      terminalManifestDigest: historical.terminal.digest,
+      terminalManifestPath: historical.terminalPath,
+    });
+
+    const forbiddenProviderFactory = vi.fn(() => {
+      throw new Error('provider_must_not_load_for_frozen_replacement_replay');
+    });
+    const forbiddenCountFactory = vi.fn(() => {
+      throw new Error('counter_must_not_load_for_frozen_replacement_replay');
+    });
+    const executionArgs = {
+      repoRoot: subject.repoRoot,
+      authorizationPath,
+      authorizationDigest: authorization.digest,
+      preflightManifestPath: historical.preflightPath,
+      outputDir: OUTPUT_DIR,
+      write: true,
+    } as const;
+    const recovered = await executeBlueprintReplacementLiveRequest(
+      executionArgs,
+      {
+        providerFactory: forbiddenProviderFactory,
+        inputTokenCounterFactory: forbiddenCountFactory,
+      },
+    );
+    expect(recovered.replayed).toBe(true);
+    expect(recovered.manifest.digest).toBe(historical.terminal.digest);
+    expect(recovered.receipt.digest).toBe(historical.receipt.digest);
+    expect(recovered.claimPath).toContain(
+      authorization.successorExecutionDigest,
+    );
+    const afterRecovery = fileInventory(path.join(subject.repoRoot, OUTPUT_DIR));
+
+    const replay = await executeBlueprintReplacementLiveRequest(executionArgs, {
+      providerFactory: forbiddenProviderFactory,
+      inputTokenCounterFactory: forbiddenCountFactory,
+    });
+    expect(replay.replayed).toBe(true);
+    expect(replay.manifest.digest).toBe(historical.terminal.digest);
+    expect(replay.executionRecordPath).toBe(recovered.executionRecordPath);
+    expect(fileInventory(path.join(subject.repoRoot, OUTPUT_DIR))).toEqual(
+      afterRecovery,
+    );
+    expect(forbiddenProviderFactory).not.toHaveBeenCalled();
+    expect(forbiddenCountFactory).not.toHaveBeenCalled();
+  });
+
+  it('recovers and replays a writer-shaped request-v4/receipt-v6 failed terminal without provider dispatch', async () => {
     const subject = setup();
     const preflight = prepare(subject);
     const result = await runFailedTerminal(subject);
@@ -4162,9 +5009,9 @@ describe('QA Wizard Blueprint failed-terminal sanitized capture integration', ()
     );
     expect(result.manifest.observabilityCapture).toBeDefined();
 
-    // Receipt v7 became current while request v4 was still current. Rebuild the
-    // exact historical pairing from the same immutable evidence and prove the
-    // loader keeps it readable even though fresh v4 dispatch remains closed.
+    // Rebuild the immutable request-v4/receipt-v6 shape used by the durable
+    // replacement terminal. Receipt v6 predates admission-ledger/capture
+    // publication, so those later authorities must not be backfilled.
     const { program: _program, ...requestWithoutProgram } = preflight.request;
     void _program;
     const legacyRequest = {
@@ -4217,8 +5064,23 @@ describe('QA Wizard Blueprint failed-terminal sanitized capture integration', ()
       requestDigest: string;
     };
     legacyReceipt.requestDigest = legacyRequestDigest;
-    legacyReceipt.version = LEGACY_PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION_V7;
+    legacyReceipt.version = LEGACY_PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION_V6;
+    delete legacyReceipt.admissionDecisions;
+    delete legacyReceipt.diagnosticCensusCommitment;
     for (const attempt of legacyReceipt.attempts) {
+      attempt.systemPromptDigest =
+        LEGACY_PRE_RENDER_BLUEPRINT_AUTHORING_SYSTEM_PROMPT_DIGEST_V6;
+      const accounting = attempt.inputAccounting as Record<string, number>;
+      accounting.systemBytes =
+        LEGACY_PRE_RENDER_BLUEPRINT_AUTHORING_SYSTEM_PROMPT_UTF8_BYTES_V6;
+      accounting.estimatedBytes =
+        accounting.protocolAllowance +
+        accounting.schemaBytes +
+        accounting.separatorBytes +
+        accounting.systemBytes +
+        accounting.userBytes;
+      delete attempt.inputAdmissionDigest;
+      delete attempt.tokenRelevantRequestDigest;
       delete attempt.diagnosticCensusCommitment;
       const diagnostics = attempt.validationDiagnostics as Record<string, unknown>;
       attempt.validationDiagnostics = {
@@ -4234,46 +5096,15 @@ describe('QA Wizard Blueprint failed-terminal sanitized capture integration', ()
       canonicalContentAddressedJsonBytes(legacyReceipt),
     );
 
-    const currentCapture = JSON.parse(
-      fs.readFileSync(
-        captureAbsolutePath(subject.repoRoot, result.manifest),
-        'utf8',
-      ),
-    ) as BlueprintAuthoringSanitizedFailureCapture;
-    const {
-      attemptCensuses: _legacyHasNoAttemptCensuses,
-      digest: _currentCaptureDigest,
-      ...legacyCaptureShared
-    } = currentCapture;
-    void _legacyHasNoAttemptCensuses;
-    void _currentCaptureDigest;
-    const legacyCapturePayload = {
-      ...legacyCaptureShared,
-      version: LEGACY_BLUEPRINT_AUTHORING_SANITIZED_FAILURE_CAPTURE_VERSION_V3,
-      linkage: {
-        ...legacyCaptureShared.linkage,
-        terminalReceiptDigest: legacyReceipt.digest,
-        requestDigest: legacyRequestDigest,
-      },
-    };
-    const legacyCapture = {
-      ...legacyCapturePayload,
-      digest: canonicalJsonDigest(legacyCapturePayload),
-    };
-    const legacyCapturePath = `${OUTPUT_DIR}/sanitized-failure-captures/${legacyCapture.digest}.json`;
-    writeText(
-      subject.repoRoot,
-      legacyCapturePath,
-      canonicalContentAddressedJsonBytes(legacyCapture),
-    );
-
     const {
       digest: _terminalDigest,
       digestAlgorithm: _terminalDigestAlgorithm,
+      observabilityCapture: _currentObservabilityCapture,
       ...terminalPayload
     } = result.manifest;
     void _terminalDigest;
     void _terminalDigestAlgorithm;
+    void _currentObservabilityCapture;
     const legacyTerminalPayload = {
       ...terminalPayload,
       predecessor: {
@@ -4283,15 +5114,10 @@ describe('QA Wizard Blueprint failed-terminal sanitized capture integration', ()
       },
       request: legacyPreflight.request,
       receipt: {
-        version: LEGACY_PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION_V7,
+        version: LEGACY_PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION_V6,
         digest: legacyReceipt.digest,
         path: legacyReceiptPath,
         status: 'failed' as const,
-      },
-      observabilityCapture: {
-        version: LEGACY_BLUEPRINT_AUTHORING_SANITIZED_FAILURE_CAPTURE_VERSION_V3,
-        digest: legacyCapture.digest,
-        path: legacyCapturePath,
       },
     };
     const legacyTerminal = {
@@ -4315,15 +5141,13 @@ describe('QA Wizard Blueprint failed-terminal sanitized capture integration', ()
       LEGACY_PRODUCTION_AUTHORING_RUN_REQUEST_VERSION_V4,
     );
     expect(loaded.receipt?.version).toBe(
-      LEGACY_PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION_V7,
+      LEGACY_PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION_V6,
     );
-    expect(loaded.observabilityCapture?.version).toBe(
-      LEGACY_BLUEPRINT_AUTHORING_SANITIZED_FAILURE_CAPTURE_VERSION_V3,
-    );
+    expect(loaded.observabilityCapture).toBeUndefined();
 
     // Reconstruct the frozen pre-current execution claim under the legacy
     // content-authority key. This is the exact durable state that could exist
-    // after a v4/v7/v3 terminal became visible but before its lookup was
+    // after a v4/v6 terminal became visible but before its lookup was
     // published. Recovery and the subsequent direct replay must both validate
     // the legacy receipt/capture pair without reaching a paid boundary.
     const currentClaim = JSON.parse(
@@ -4364,11 +5188,9 @@ describe('QA Wizard Blueprint failed-terminal sanitized capture integration', ()
     expect(recovered.replayed).toBe(true);
     expect(recovered.manifest.digest).toBe(legacyTerminal.digest);
     expect(recovered.receipt.version).toBe(
-      LEGACY_PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION_V7,
+      LEGACY_PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION_V6,
     );
-    expect(recovered.manifest.observabilityCapture?.version).toBe(
-      LEGACY_BLUEPRINT_AUTHORING_SANITIZED_FAILURE_CAPTURE_VERSION_V3,
-    );
+    expect(recovered.manifest.observabilityCapture).toBeUndefined();
     expect(terminalLookupFileCount(subject.repoRoot)).toBe(1);
     expect(forbiddenFactory).not.toHaveBeenCalled();
 
@@ -4378,7 +5200,7 @@ describe('QA Wizard Blueprint failed-terminal sanitized capture integration', ()
     expect(replay.replayed).toBe(true);
     expect(replay.manifest.digest).toBe(legacyTerminal.digest);
     expect(replay.receipt.digest).toBe(legacyReceipt.digest);
-    expect(replay.manifest.observabilityCapture?.digest).toBe(legacyCapture.digest);
+    expect(replay.manifest.observabilityCapture).toBeUndefined();
     expect(replay.executionRecordPath).toBe(recovered.executionRecordPath);
     expect(terminalLookupFileCount(subject.repoRoot)).toBe(1);
     expect(forbiddenFactory).not.toHaveBeenCalled();

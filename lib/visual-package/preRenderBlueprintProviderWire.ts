@@ -20,8 +20,15 @@ import type { PreRenderBlueprintValidationContext } from './preRenderBlueprintTy
 
 export const PRE_RENDER_BLUEPRINT_PROVIDER_WIRE_VERSION =
   'pre-render-blueprint-provider-wire/v1' as const;
+export const PRE_RENDER_BLUEPRINT_REPAIR_WIRE_VERSION_V2 =
+  'pre-render-blueprint-repair-wire/v2' as const;
 export const PRE_RENDER_BLUEPRINT_REPAIR_WIRE_VERSION =
+  PRE_RENDER_BLUEPRINT_REPAIR_WIRE_VERSION_V2;
+export const LEGACY_PRE_RENDER_BLUEPRINT_REPAIR_WIRE_VERSION_V1 =
   'pre-render-blueprint-repair-wire/v1' as const;
+/** Source-compatibility alias only; frozen programs use the absolute name. */
+export const LEGACY_PRE_RENDER_BLUEPRINT_REPAIR_WIRE_VERSION =
+  LEGACY_PRE_RENDER_BLUEPRINT_REPAIR_WIRE_VERSION_V1;
 
 type Obj = Record<string, unknown>;
 type CompactRef = [kind: EntityRef['kind'], id: string];

@@ -495,6 +495,9 @@ export function buildPreRenderBlueprintAuthoringSystemPrompt(): string {
     "Action sub is ['entity',ref], ['cast_group',ids], or ['source',evidenceId,phrase]. effect is",
     "['direction',value] or ['relation',value,targetRef]; state=[relation,targetRef].",
     'Build the complete connection graph, affordances, reveal-safe geometry, cover frame, and every page frame.',
+    'For every traversal, both footprint dimensions must be at least minimumClearance. For every opening_clearance,',
+    'find every traversal named by its connection in the same zone; both clearanceRegion dimensions must be at',
+    'least the greatest minimumClearance among them. Satisfy this while authoring the connection topology.',
     'Use only declared IDs. Each action_space must support exact subject/predicate/entities/direction/relation;',
     'cast_group includes every member and placement. Movement requires action plus action_destination placements;',
     'relation movement requires spatialTargetRegion. Static constraints use current placements only.',
@@ -531,6 +534,9 @@ export function buildPreRenderBlueprintRepairSystemPrompt(): string {
     "['f',frameId], ['a',page,checkId], ['p',page,propId], ['t',page], or",
     "['s',page,subjectId,relation,targetRef]. Kind fields follow the supplied output schema in schema order.",
     'Affordance tails: traversal=[connectionId,direction,minClearance]; opening=[connectionId,openingNode,clearance];',
+    'For every traversal, both footprint dimensions must be at least minClearance. For every opening, find every',
+    'traversal named by its connection in the same zone; both clearance dimensions must be at least the greatest',
+    'minClearance among them. Repair zone authority and these dimensions together; do not wait for another pass.',
     'placement_support=[supportRef,supportedRefs,maxOccupants]; action_space=[predicates,subjectKinds,entities,',
     'directions,relations,constraintRelations,targetRegions,maxActors]; camera=[visibleRegion];',
     'safe_boundary=[targetRef,permittedRegion]. Reveal-safe geometry=[id,zone,node,supportedPropIds].',
@@ -718,10 +724,15 @@ export async function compilePreRenderBookVisualBlueprint(
       };
     }
 
+    // Validation runs against the assembled Candidate, whose provider-owned arrays
+    // have already been normalized into canonical lexical order. Diagnostics carry
+    // indices in that exact space, so both the retained attempt and REPAIR_WIRE must
+    // use the same Candidate projection rather than the provider's raw array order.
+    const repairDraft = candidate ?? parsedDraft;
     repairAttempts.push({
       attempt,
       errors,
-      draft: parsedDraft,
+      draft: repairDraft,
       diagnostics: repairDiagnostics,
     });
     if (attempt > PRE_RENDER_BLUEPRINT_MAX_REPAIR_ATTEMPTS) {
@@ -732,7 +743,7 @@ export async function compilePreRenderBookVisualBlueprint(
     const repairSystemPrompt = buildPreRenderBlueprintRepairSystemPrompt();
     const repairUserPrompt = buildPreRenderBlueprintRepairUserPrompt({
       context,
-      previousDraft: parsedDraft,
+      previousDraft: repairDraft,
       diagnostics: repairDiagnostics,
     });
     const repairInputAccounting = blueprintAuthoringInputAccounting({

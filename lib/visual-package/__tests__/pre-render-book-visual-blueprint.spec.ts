@@ -1721,9 +1721,40 @@ describe('R1D-PVB-A — spatial feasibility and safety', () => {
     const bad = clone(fixture.blueprint);
     const connection = bad.worldPlan.connections[0];
     connection.traversalAffordanceIds = ['affordance:missing'];
-    connection.openingClearanceAffordanceIds = [];
-    const codes = issueCodes(restamp(bad), fixture.context);
-    expect(codes).toContain('traversal_infeasible');
+    connection.openingClearanceAffordanceIds = ['affordance:also_missing'];
+    const finalized = restamp(bad);
+    const result = validatePreRenderBookVisualBlueprint(
+      finalized,
+      fixture.context,
+    );
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error('missing transition support unexpectedly valid');
+    const connectionIndex = finalized.worldPlan.connections.findIndex(
+      (entry) => entry.id === connection.id,
+    );
+    const missingTargetIssues = result.issues.filter((entry) =>
+      [
+        'connection traversal affordance is missing or mismatched',
+        'opening-clearance affordance is missing or mismatched',
+      ].includes(entry.message),
+    );
+    expect(missingTargetIssues).toEqual([
+      expect.objectContaining({
+        code: 'traversal_infeasible',
+        field: `worldPlan.connections[${connectionIndex}].openingClearanceAffordanceIds[0]`,
+      }),
+      expect.objectContaining({
+        code: 'traversal_infeasible',
+        field: `worldPlan.connections[${connectionIndex}].traversalAffordanceIds[0]`,
+      }),
+    ]);
+    expect(
+      missingTargetIssues.every(
+        (entry) =>
+          !entry.field?.endsWith('.footprint') &&
+          !entry.field?.endsWith('.clearanceRegion'),
+      ),
+    ).toBe(true);
   });
 
   it('enforces minimumClearance on traversal and opening min-dimensions at the exact boundary', () => {
@@ -1752,8 +1783,24 @@ describe('R1D-PVB-A — spatial feasibility and safety', () => {
       throw new Error('opening fixture missing');
     }
     narrowOpeningAffordance.clearanceRegion.width = 179;
-    expect(issueCodes(restamp(narrowOpening), fixture.context)).toContain(
-      'traversal_infeasible',
+    const finalizedNarrowOpening = restamp(narrowOpening);
+    const narrowOpeningResult = validatePreRenderBookVisualBlueprint(
+      finalizedNarrowOpening,
+      fixture.context,
+    );
+    expect(narrowOpeningResult.ok).toBe(false);
+    if (narrowOpeningResult.ok) throw new Error('narrow opening unexpectedly valid');
+    const openingIndex = finalizedNarrowOpening.worldPlan.affordances.findIndex(
+      (entry) => entry.id === narrowOpeningAffordance.id,
+    );
+    expect(narrowOpeningResult.issues).toContainEqual(
+      expect.objectContaining({
+        code: 'traversal_infeasible',
+        message: 'opening clearance is narrower than traversal minimumClearance',
+        field: `worldPlan.affordances[${openingIndex}].clearanceRegion`,
+        expected: 180,
+        actual: 179,
+      }),
     );
 
     const narrowTraversal = clone(fixture.blueprint);
@@ -1764,9 +1811,142 @@ describe('R1D-PVB-A — spatial feasibility and safety', () => {
       throw new Error('traversal fixture missing');
     }
     narrowTraversalAffordance.footprint.width = 179;
-    expect(issueCodes(restamp(narrowTraversal), fixture.context)).toContain(
-      'traversal_infeasible',
+    const finalizedNarrowTraversal = restamp(narrowTraversal);
+    const narrowTraversalResult = validatePreRenderBookVisualBlueprint(
+      finalizedNarrowTraversal,
+      fixture.context,
     );
+    expect(narrowTraversalResult.ok).toBe(false);
+    if (narrowTraversalResult.ok) {
+      throw new Error('narrow traversal unexpectedly valid');
+    }
+    const traversalIndex =
+      finalizedNarrowTraversal.worldPlan.affordances.findIndex(
+        (entry) => entry.id === narrowTraversalAffordance.id,
+      );
+    expect(narrowTraversalResult.issues).toContainEqual(
+      expect.objectContaining({
+        code: 'traversal_infeasible',
+        message: 'traversal footprint is narrower than minimumClearance',
+        field: `worldPlan.affordances[${traversalIndex}].footprint`,
+        expected: 180,
+        actual: 179,
+      }),
+    );
+  });
+
+  it('reports every traversal-opening clearance pair against the writable opening affordance', () => {
+    const fixture = buildBlueprintFixture('multi_zone_transition');
+    const bad = clone(fixture.blueprint);
+    const connection = bad.worldPlan.connections[0]!;
+    const traversal = bad.worldPlan.affordances.find(
+      (entry) => entry.kind === 'traversal',
+    );
+    const opening = bad.worldPlan.affordances.find(
+      (entry) => entry.kind === 'opening_clearance',
+    );
+    if (!traversal || traversal.kind !== 'traversal') {
+      throw new Error('traversal fixture missing');
+    }
+    if (!opening || opening.kind !== 'opening_clearance') {
+      throw new Error('opening fixture missing');
+    }
+    traversal.footprint = { x: 60, y: 340, width: 520, height: 430 };
+    traversal.minimumClearance = 180;
+    opening.clearanceRegion = { x: 760, y: 300, width: 100, height: 100 };
+    const traversalHigh = {
+      ...clone(traversal),
+      id: `${traversal.id}:high`,
+      minimumClearance: 220,
+    };
+    const openingWide = {
+      ...clone(opening),
+      id: `${opening.id}:wide`,
+      clearanceRegion: { x: 760, y: 300, width: 120, height: 120 },
+    };
+    bad.worldPlan.affordances.push(traversalHigh, openingWide);
+    connection.traversalAffordanceIds = [traversal.id, traversalHigh.id];
+    connection.openingClearanceAffordanceIds = [opening.id, openingWide.id];
+
+    const finalized = restamp(bad);
+    const result = validatePreRenderBookVisualBlueprint(finalized, fixture.context);
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error('narrow Cartesian fixture unexpectedly valid');
+    const numeric = result.issues.filter(
+      (entry) =>
+        entry.message ===
+        'opening clearance is narrower than traversal minimumClearance',
+    );
+    expect(numeric).toHaveLength(4);
+    for (const openingId of [opening.id, openingWide.id]) {
+      const index = finalized.worldPlan.affordances.findIndex(
+        (entry) => entry.id === openingId,
+      );
+      const actual = openingId === opening.id ? 100 : 120;
+      expect(
+        numeric
+          .filter(
+            (entry) =>
+              entry.field ===
+              `worldPlan.affordances[${index}].clearanceRegion`,
+          )
+          .map((entry) => [entry.expected, entry.actual])
+          .sort((left, right) => Number(left[0]) - Number(right[0])),
+      ).toEqual([
+        [180, actual],
+        [220, actual],
+      ]);
+    }
+  });
+
+  it('falls back to real connection pointer slots when duplicate affordance IDs make a property target ambiguous', () => {
+    const fixture = buildBlueprintFixture('multi_zone_transition');
+    const bad = clone(fixture.blueprint);
+    const connection = bad.worldPlan.connections[0]!;
+    const traversal = bad.worldPlan.affordances.find(
+      (entry) => entry.kind === 'traversal',
+    );
+    const opening = bad.worldPlan.affordances.find(
+      (entry) => entry.kind === 'opening_clearance',
+    );
+    if (!traversal || traversal.kind !== 'traversal') {
+      throw new Error('traversal fixture missing');
+    }
+    if (!opening || opening.kind !== 'opening_clearance') {
+      throw new Error('opening fixture missing');
+    }
+    const duplicateTraversal = clone(traversal);
+    duplicateTraversal.footprint.width = 100;
+    const duplicateOpening = clone(opening);
+    duplicateOpening.clearanceRegion.width = 100;
+    bad.worldPlan.affordances.push(duplicateTraversal, duplicateOpening);
+
+    const finalized = restamp(bad);
+    const result = validatePreRenderBookVisualBlueprint(finalized, fixture.context);
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error('duplicate-ID fixture unexpectedly valid');
+    expect(result.issues.map((entry) => entry.code)).toContain(
+      'reference_duplicate',
+    );
+    const connectionIndex = finalized.worldPlan.connections.findIndex(
+      (entry) => entry.id === connection.id,
+    );
+    const numeric = result.issues.filter((entry) =>
+      [
+        'traversal footprint is narrower than minimumClearance',
+        'opening clearance is narrower than traversal minimumClearance',
+      ].includes(entry.message),
+    );
+    expect(numeric.map((entry) => entry.field).sort()).toEqual([
+      `worldPlan.connections[${connectionIndex}].openingClearanceAffordanceIds[0]`,
+      `worldPlan.connections[${connectionIndex}].traversalAffordanceIds[0]`,
+    ]);
+    expect(numeric.every((entry) => !entry.field?.includes('].footprint'))).toBe(
+      true,
+    );
+    expect(
+      numeric.every((entry) => !entry.field?.includes('].clearanceRegion')),
+    ).toBe(true);
   });
 
   it('rejects transition support in an unrelated endpoint zone', () => {

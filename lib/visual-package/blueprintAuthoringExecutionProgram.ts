@@ -40,6 +40,8 @@ import {
   PRE_RENDER_BLUEPRINT_AUTHORING_PROMPT_VERSION,
   PRE_RENDER_BLUEPRINT_AUTHORING_PROVENANCE_VERSION,
   PRE_RENDER_BLUEPRINT_REPAIR_PROMPT_VERSION,
+  type PreRenderBlueprintAuthoringPromptVersion,
+  type PreRenderBlueprintRepairPromptVersion,
 } from './preRenderBlueprintAuthoringContract';
 import {
   PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA,
@@ -56,6 +58,7 @@ import {
   PRE_RENDER_BLUEPRINT_LAYOUT_POLICY_VERSION,
 } from './preRenderBlueprintLayoutPolicy';
 import {
+  LEGACY_PRE_RENDER_BLUEPRINT_REPAIR_WIRE_VERSION_V1,
   PRE_RENDER_BLUEPRINT_PROVIDER_WIRE_VERSION,
   PRE_RENDER_BLUEPRINT_REPAIR_WIRE_VERSION,
 } from './preRenderBlueprintProviderWire';
@@ -71,6 +74,13 @@ export const BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_VERSION =
   'blueprint-authoring-execution-program/v1' as const;
 export const BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_DIGEST_ALGORITHM =
   'canonical-json-sha256' as const;
+/**
+ * Exact immutable program used by the persisted prompt-v6/repair-wire-v1
+ * request-v5 terminals. It is replay-only after the v7/v2 cutover and can
+ * never authorize a fresh dispatch.
+ */
+export const LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_DIGEST_PROMPT_V6 =
+  '634498356d69cf7bc63f2cec8d037ea4d27a9371fc9a08cd7f9607fcce0b4549' as const;
 
 const HEX_SHA256 = /^[a-f0-9]{64}$/;
 
@@ -145,6 +155,71 @@ export interface BlueprintAuthoringExecutionProgram {
   digestAlgorithm: typeof BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_DIGEST_ALGORITHM;
   digest: string;
 }
+
+export type ReplayableBlueprintAuthoringExecutionProgram = Omit<
+  BlueprintAuthoringExecutionProgram,
+  'initialPromptVersion' | 'repairPromptVersion' | 'repairWireVersion'
+> & {
+  initialPromptVersion: PreRenderBlueprintAuthoringPromptVersion;
+  repairPromptVersion: PreRenderBlueprintRepairPromptVersion;
+  repairWireVersion:
+    | typeof PRE_RENDER_BLUEPRINT_REPAIR_WIRE_VERSION
+    | typeof LEGACY_PRE_RENDER_BLUEPRINT_REPAIR_WIRE_VERSION_V1;
+};
+
+export type BlueprintAuthoringExecutionProgramStatus =
+  | 'current'
+  | 'legacy_immutable'
+  | 'unsupported';
+
+/**
+ * Frozen complete snapshot, not reconstructed from mutable current constants.
+ * This is the sole replay-only request-v5 program admitted after the v7/v2
+ * prompt/wire cutover.
+ */
+export const LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_PROMPT_V6 = Object.freeze({
+  admissionLedgerVersion: 'blueprint-authoring-admission-ledger/v1',
+  authoringAuthorityVersion: 'pre-render-blueprint-authoring-authority/v4',
+  authoringPolicyDigest:
+    'a5a2052d1364685e09542fc54d25f3102621ca2fdcdb7a2b3d0a056b69da724f',
+  authoringProvenanceVersion: 'pre-render-blueprint-authoring-provenance/v4',
+  authoringSystemPromptDigest:
+    '1b6accf0f522b02279db8aa87c388d4ef75d951e71dd21c24a93fb2babfb7051',
+  blueprintVersion: 'pre-render-book-visual-blueprint/v5',
+  compositionPolicyVersion: 'blueprint-composition-policy/v1',
+  countAwareCostPolicyDigest:
+    '0e67b4743b76ac856e14a42b1e71b2522701857ea748ed1265e71e5fc11bec19',
+  countEvidenceVersion: 'openai-responses-input-tokens-count-evidence/v1',
+  digest: LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_DIGEST_PROMPT_V6,
+  digestAlgorithm: 'canonical-json-sha256',
+  draftSchemaDigest:
+    '36cb86c90f11bdddae0d3ba970c73aa296e5265d178cb7fa66bdcf175e328e77',
+  draftSchemaName: 'PreRenderBookVisualBlueprintWholeBookDraft',
+  draftSchemaVersion: 'pre-render-blueprint-draft-schema/v6',
+  exactInputTokenResponseObject: 'response.input_tokens',
+  generationEvidenceVersion: 'openai-responses-blueprint-authoring-evidence/v1',
+  initialPromptVersion: 'pre-render-blueprint-authoring-prompt/v6',
+  inputAdmissionPolicyVersion:
+    'blueprint-authoring-conservative-input-token-admission/v1',
+  inputTokenBoundBasis: 'utf8-byte-level-bpe-monotone-upper-bound',
+  layoutPolicyDigest:
+    'a8466698208b55f2f7c8df8e914a6a5468c6c626d1c763c100b6e01a61607c59',
+  layoutPolicyVersion: 'portrait-layout-compatibility/v1',
+  providerWireVersion: 'pre-render-blueprint-provider-wire/v1',
+  repairPromptVersion: 'pre-render-blueprint-repair-prompt/v6',
+  repairSystemPromptDigest:
+    '63ada2e930c77d5cd365ad649a83aa902536e51b12daf2981cf86a2176317d33',
+  repairWireVersion: LEGACY_PRE_RENDER_BLUEPRINT_REPAIR_WIRE_VERSION_V1,
+  structuredOutputCompatibilityProfileDigest:
+    'c5f7cacccff01c435b15cb9d20d0b6cff9ec4c399c5978b50ee81da9fb54523a',
+  structuredOutputCompatibilityProfileVersion:
+    'openai-responses-structured-output-compatibility-profile/v2',
+  tokenRelevantRequestStaticAuthorityDigest:
+    '6b4fe1100ac3aac88fe08fe5a7d394cd6ceb51759c4704f1a968320669014491',
+  transportAuthorityDigest:
+    'f0a1718c6ab892bdb05375592ef6951fcb1a756ad15310a6dbda5f4212873b67',
+  version: 'blueprint-authoring-execution-program/v1',
+} as const satisfies ReplayableBlueprintAuthoringExecutionProgram);
 
 function exactKeys(
   value: unknown,
@@ -236,13 +311,13 @@ export function buildBlueprintAuthoringExecutionProgram(): BlueprintAuthoringExe
   };
 }
 
-export function blueprintAuthoringExecutionProgramIsCurrent(
+function blueprintAuthoringExecutionProgramHasValidDigest(
   value: unknown,
-): value is BlueprintAuthoringExecutionProgram {
+): value is ReplayableBlueprintAuthoringExecutionProgram {
   if (!exactKeys(value, BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_KEYS)) {
     return false;
   }
-  const candidate = value as unknown as BlueprintAuthoringExecutionProgram;
+  const candidate = value as unknown as ReplayableBlueprintAuthoringExecutionProgram;
   if (
     candidate.digestAlgorithm !==
       BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_DIGEST_ALGORITHM ||
@@ -252,9 +327,37 @@ export function blueprintAuthoringExecutionProgramIsCurrent(
     return false;
   }
   const { digest, ...payload } = candidate;
-  if (digest !== canonicalJsonDigest(payload)) return false;
-  return (
-    canonicalJsonDigest(candidate) ===
+  return digest === canonicalJsonDigest(payload);
+}
+
+export function blueprintAuthoringExecutionProgramStatus(
+  value: unknown,
+): BlueprintAuthoringExecutionProgramStatus {
+  if (!blueprintAuthoringExecutionProgramHasValidDigest(value)) {
+    return 'unsupported';
+  }
+  if (
+    canonicalJsonDigest(value) ===
     canonicalJsonDigest(buildBlueprintAuthoringExecutionProgram())
-  );
+  ) {
+    return 'current';
+  }
+  return canonicalJsonDigest(value) ===
+    canonicalJsonDigest(
+      LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_PROMPT_V6,
+    )
+    ? 'legacy_immutable'
+    : 'unsupported';
+}
+
+export function blueprintAuthoringExecutionProgramIsCurrent(
+  value: unknown,
+): value is BlueprintAuthoringExecutionProgram {
+  return blueprintAuthoringExecutionProgramStatus(value) === 'current';
+}
+
+export function blueprintAuthoringExecutionProgramIsReplaySupported(
+  value: unknown,
+): value is ReplayableBlueprintAuthoringExecutionProgram {
+  return blueprintAuthoringExecutionProgramStatus(value) !== 'unsupported';
 }
