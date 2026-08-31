@@ -27,6 +27,51 @@ import { canonicalJsonDigest } from './integrity';
 export const BLUEPRINT_AUTHORING_ADMISSION_LEDGER_VERSION =
   'blueprint-authoring-admission-ledger/v1' as const;
 
+/**
+ * Frozen validation inputs for admission-ledger/v1 as emitted by receipt v7 and
+ * capture v3. Current runtime policy may only move by cutting a new evidence
+ * version; immutable v7/v3 bytes must never be reinterpreted through future
+ * model, ceiling, pricing, or count-attestation constants.
+ */
+export const LEGACY_BLUEPRINT_AUTHORING_ADMISSION_LEDGER_V1_POLICY = Object.freeze({
+  model: 'gpt-5.6-sol',
+  countEvidenceVersion: 'openai-responses-input-tokens-count-evidence/v1',
+  inputTokenCeiling: 64_000,
+  inputAccountingProtocolAllowance: 4_096,
+  maxGenerationCalls: 3,
+  maxProbeRoutes: 2,
+  hardCeilingMicroUsd: 5_000_000,
+  inputRateNumeratorTenthsMicroUsd: 55,
+  outputRateNumeratorTenthsMicroUsd: 220,
+  rateDivisor: 10,
+  largePromptInputTokenThreshold: 272_000,
+  largePromptInputMultiplier: 2,
+  maxGenerationMicroUsd: 1_408_000,
+  maxSuccessfulProbeMicroUsd: 352_000,
+} as const);
+
+interface AdmissionLedgerValidationPolicy {
+  model: string;
+  countEvidenceVersion: string;
+  inputTokenCeiling: number;
+  maxGenerationCalls: number;
+  maxProbeRoutes: number;
+  hardCeilingMicroUsd: number;
+  inputAccountingIsValid(value: unknown): value is BlueprintAuthoringInputAccounting;
+  inputMicroUsd(inputTokens: number): number;
+  probeReservationMicroUsd(args: {
+    accountedMicroUsd: number;
+    provenUpperBoundTokens: number;
+    remainingGenerationCalls: number;
+    laterProbeRoutes: number;
+  }): number;
+  continuationReservationMicroUsd(args: {
+    accountedMicroUsd: number;
+    remainingGenerationCalls: number;
+    laterProbeRoutes: number;
+  }): number;
+}
+
 export type BlueprintAuthoringAdmissionFailureReason =
   | 'input_token_ceiling_exceeded'
   | 'exact_count_unavailable'
@@ -149,6 +194,205 @@ function nonNegativeSafeInteger(value: unknown): value is number {
   return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0;
 }
 
+function legacyAdmissionInputAccountingIsValid(
+  value: unknown,
+): value is BlueprintAuthoringInputAccounting {
+  if (!exactObjectKeys(value, [
+    'estimatedBytes',
+    'protocolAllowance',
+    'schemaBytes',
+    'separatorBytes',
+    'systemBytes',
+    'userBytes',
+  ])) return false;
+  const fields = [
+    value.systemBytes,
+    value.userBytes,
+    value.schemaBytes,
+    value.separatorBytes,
+    value.estimatedBytes,
+  ];
+  if (!fields.every(nonNegativeSafeInteger)) return false;
+  if (
+    value.protocolAllowance !==
+    LEGACY_BLUEPRINT_AUTHORING_ADMISSION_LEDGER_V1_POLICY
+      .inputAccountingProtocolAllowance
+  ) return false;
+  const systemAndUser = safeSum(
+    value.systemBytes as number,
+    value.userBytes as number,
+  );
+  if (systemAndUser === null) return false;
+  const withSchema = safeSum(systemAndUser, value.schemaBytes as number);
+  if (withSchema === null) return false;
+  const expected = safeSum(withSchema, value.separatorBytes as number);
+  const withAllowance =
+    expected === null
+      ? null
+      : safeSum(
+          expected,
+          LEGACY_BLUEPRINT_AUTHORING_ADMISSION_LEDGER_V1_POLICY
+            .inputAccountingProtocolAllowance,
+        );
+  return withAllowance !== null && value.estimatedBytes === withAllowance;
+}
+
+function legacyAdmissionInputMicroUsd(inputTokens: number): number {
+  if (!nonNegativeSafeInteger(inputTokens)) {
+    throw new Error('legacy admission input token count is invalid');
+  }
+  const policy = LEGACY_BLUEPRINT_AUTHORING_ADMISSION_LEDGER_V1_POLICY;
+  const multiplier =
+    inputTokens > policy.largePromptInputTokenThreshold
+      ? policy.largePromptInputMultiplier
+      : 1;
+  const numerator = safeProduct(
+    safeProduct(policy.inputRateNumeratorTenthsMicroUsd, multiplier),
+    inputTokens,
+  );
+  return Math.ceil(numerator / policy.rateDivisor);
+}
+
+export function legacyBlueprintAuthoringAdmissionLedgerGenerationMicroUsd(args: {
+  inputTokens: number;
+  outputTokens: number;
+}): number {
+  if (
+    !nonNegativeSafeInteger(args.inputTokens) ||
+    !nonNegativeSafeInteger(args.outputTokens)
+  ) {
+    throw new Error('legacy admission generation token counts are invalid');
+  }
+  const policy = LEGACY_BLUEPRINT_AUTHORING_ADMISSION_LEDGER_V1_POLICY;
+  const input = safeProduct(
+    policy.inputRateNumeratorTenthsMicroUsd,
+    args.inputTokens,
+  );
+  const output = safeProduct(
+    policy.outputRateNumeratorTenthsMicroUsd,
+    args.outputTokens,
+  );
+  const numerator = safeSum(input, output);
+  if (numerator === null) {
+    throw new Error('legacy admission generation cost overflow');
+  }
+  return Math.ceil(numerator / policy.rateDivisor);
+}
+
+function legacyAdmissionProbeReservationMicroUsd(args: {
+  accountedMicroUsd: number;
+  provenUpperBoundTokens: number;
+  remainingGenerationCalls: number;
+  laterProbeRoutes: number;
+}): number {
+  const policy = LEGACY_BLUEPRINT_AUTHORING_ADMISSION_LEDGER_V1_POLICY;
+  if (
+    !nonNegativeSafeInteger(args.accountedMicroUsd) ||
+    !nonNegativeSafeInteger(args.provenUpperBoundTokens) ||
+    !Number.isSafeInteger(args.remainingGenerationCalls) ||
+    args.remainingGenerationCalls < 0 ||
+    args.remainingGenerationCalls > policy.maxGenerationCalls ||
+    !Number.isSafeInteger(args.laterProbeRoutes) ||
+    args.laterProbeRoutes < 0 ||
+    args.laterProbeRoutes > policy.maxProbeRoutes
+  ) {
+    throw new Error('legacy admission probe reservation inputs are invalid');
+  }
+  const failureBranch = legacyAdmissionInputMicroUsd(
+    args.provenUpperBoundTokens,
+  );
+  const futureGenerations = safeProduct(
+    args.remainingGenerationCalls,
+    policy.maxGenerationMicroUsd,
+  );
+  const futureProbes = safeProduct(
+    args.laterProbeRoutes,
+    policy.maxSuccessfulProbeMicroUsd,
+  );
+  const continuationTail = safeSum(
+    safeSum(policy.maxSuccessfulProbeMicroUsd, futureGenerations) ?? -1,
+    futureProbes,
+  );
+  if (continuationTail === null) {
+    throw new Error('legacy admission probe reservation overflow');
+  }
+  const total = safeSum(
+    args.accountedMicroUsd,
+    Math.max(failureBranch, continuationTail),
+  );
+  if (total === null) {
+    throw new Error('legacy admission probe reservation overflow');
+  }
+  return total;
+}
+
+function legacyAdmissionContinuationReservationMicroUsd(args: {
+  accountedMicroUsd: number;
+  remainingGenerationCalls: number;
+  laterProbeRoutes: number;
+}): number {
+  const policy = LEGACY_BLUEPRINT_AUTHORING_ADMISSION_LEDGER_V1_POLICY;
+  if (
+    !nonNegativeSafeInteger(args.accountedMicroUsd) ||
+    !Number.isSafeInteger(args.remainingGenerationCalls) ||
+    args.remainingGenerationCalls < 0 ||
+    args.remainingGenerationCalls > policy.maxGenerationCalls ||
+    !Number.isSafeInteger(args.laterProbeRoutes) ||
+    args.laterProbeRoutes < 0 ||
+    args.laterProbeRoutes > policy.maxProbeRoutes
+  ) {
+    throw new Error('legacy admission continuation inputs are invalid');
+  }
+  const futureGenerations = safeProduct(
+    args.remainingGenerationCalls,
+    policy.maxGenerationMicroUsd,
+  );
+  const futureProbes = safeProduct(
+    args.laterProbeRoutes,
+    policy.maxSuccessfulProbeMicroUsd,
+  );
+  const withGenerations = safeSum(args.accountedMicroUsd, futureGenerations);
+  const total =
+    withGenerations === null ? null : safeSum(withGenerations, futureProbes);
+  if (total === null) {
+    throw new Error('legacy admission continuation overflow');
+  }
+  return total;
+}
+
+const CURRENT_ADMISSION_LEDGER_VALIDATION_POLICY: AdmissionLedgerValidationPolicy = {
+  model: BLUEPRINT_AUTHORING_MODEL,
+  countEvidenceVersion: BLUEPRINT_AUTHORING_COUNT_EVIDENCE_VERSION,
+  inputTokenCeiling: BLUEPRINT_AUTHORING_INPUT_TOKEN_CEILING,
+  maxGenerationCalls: BLUEPRINT_AUTHORING_COUNT_AWARE_MAX_GENERATION_CALLS,
+  maxProbeRoutes: BLUEPRINT_AUTHORING_COUNT_AWARE_MAX_PROBE_ROUTES,
+  hardCeilingMicroUsd: BLUEPRINT_AUTHORING_HARD_CEILING_MICRO_USD,
+  inputAccountingIsValid: blueprintAuthoringInputAccountingIsValid,
+  inputMicroUsd: blueprintAuthoringInputMicroUsd,
+  probeReservationMicroUsd: blueprintAuthoringProbeReservationMicroUsd,
+  continuationReservationMicroUsd:
+    blueprintAuthoringContinuationReservationMicroUsd,
+};
+
+const LEGACY_ADMISSION_LEDGER_V1_VALIDATION_POLICY: AdmissionLedgerValidationPolicy = {
+  model: LEGACY_BLUEPRINT_AUTHORING_ADMISSION_LEDGER_V1_POLICY.model,
+  countEvidenceVersion:
+    LEGACY_BLUEPRINT_AUTHORING_ADMISSION_LEDGER_V1_POLICY.countEvidenceVersion,
+  inputTokenCeiling:
+    LEGACY_BLUEPRINT_AUTHORING_ADMISSION_LEDGER_V1_POLICY.inputTokenCeiling,
+  maxGenerationCalls:
+    LEGACY_BLUEPRINT_AUTHORING_ADMISSION_LEDGER_V1_POLICY.maxGenerationCalls,
+  maxProbeRoutes:
+    LEGACY_BLUEPRINT_AUTHORING_ADMISSION_LEDGER_V1_POLICY.maxProbeRoutes,
+  hardCeilingMicroUsd:
+    LEGACY_BLUEPRINT_AUTHORING_ADMISSION_LEDGER_V1_POLICY.hardCeilingMicroUsd,
+  inputAccountingIsValid: legacyAdmissionInputAccountingIsValid,
+  inputMicroUsd: legacyAdmissionInputMicroUsd,
+  probeReservationMicroUsd: legacyAdmissionProbeReservationMicroUsd,
+  continuationReservationMicroUsd:
+    legacyAdmissionContinuationReservationMicroUsd,
+};
+
 const HEX_SHA256 = /^[a-f0-9]{64}$/;
 
 const COUNT_RESULT_KEYS = [
@@ -187,6 +431,7 @@ function countResultStructuralReason(args: {
   ordinal: 1 | 2;
   upperBound: number;
   tokenRelevantRequestDigest: string;
+  policy: AdmissionLedgerValidationPolicy;
 }): string | null {
   if (!exactObjectKeys(args.value, COUNT_RESULT_KEYS)) {
     return 'admission_count_shape_invalid';
@@ -204,9 +449,9 @@ function countResultStructuralReason(args: {
     if (
       !exactObjectKeys(attestation, COUNT_ATTESTATION_KEYS) ||
       attestation.provider !== 'openai' ||
-      attestation.model !== BLUEPRINT_AUTHORING_MODEL ||
+      attestation.model !== args.policy.model ||
       attestation.route !== 'responses_input_tokens' ||
-      attestation.evidenceVersion !== BLUEPRINT_AUTHORING_COUNT_EVIDENCE_VERSION ||
+      attestation.evidenceVersion !== args.policy.countEvidenceVersion ||
       (attestation.transportDispatchCount !== 0 &&
         attestation.transportDispatchCount !== 1) ||
       attestation.transportRetryCount !== 0 ||
@@ -249,19 +494,14 @@ function countResultStructuralReason(args: {
   return null;
 }
 
-/**
- * Durable, prompt-free validation for the exact admission ledger stored in receipt v7 and
- * sanitized capture v3. Runtime consumption still uses the stronger prompt-aware validator
- * below; this validator proves the persisted exact-key shapes, route topology, count evidence,
- * rolling probe debit, and every integer-cost/disposition equation without persisting prompts.
- */
-export function blueprintAuthoringAdmissionLedgerStructuralReason(
+function blueprintAuthoringAdmissionLedgerStructuralReasonWithPolicy(
   value: unknown,
+  policy: AdmissionLedgerValidationPolicy,
 ): string | null {
   try {
     if (
       !Array.isArray(value) ||
-      value.length > BLUEPRINT_AUTHORING_COUNT_AWARE_MAX_GENERATION_CALLS
+      value.length > policy.maxGenerationCalls
     ) {
       return 'admission_ledger_shape_invalid';
     }
@@ -282,10 +522,10 @@ export function blueprintAuthoringAdmissionLedgerStructuralReason(
         decision.ordinal !== ordinal ||
         decision.generationAttempt !== ordinal + 1 ||
         decision.routeKind !== (ordinal === 0 ? 'initial' : 'repair') ||
-        decision.ceilingTokens !== BLUEPRINT_AUTHORING_INPUT_TOKEN_CEILING ||
+        decision.ceilingTokens !== policy.inputTokenCeiling ||
         typeof decision.tokenRelevantRequestDigest !== 'string' ||
         !HEX_SHA256.test(decision.tokenRelevantRequestDigest) ||
-        !blueprintAuthoringInputAccountingIsValid(decision.inputAccounting) ||
+        !policy.inputAccountingIsValid(decision.inputAccounting) ||
         decision.inputAccountingDigest !==
           canonicalJsonDigest(decision.inputAccounting) ||
         decision.conservativeUpperBoundTokens !==
@@ -308,13 +548,11 @@ export function blueprintAuthoringAdmissionLedgerStructuralReason(
         priorProbeCumulative,
       );
       if (accountedBeforeProbe === null) return 'admission_cost_state_invalid';
-      const remainingGenerationCalls =
-        BLUEPRINT_AUTHORING_COUNT_AWARE_MAX_GENERATION_CALLS - ordinal;
-      const laterProbeRoutes =
-        BLUEPRINT_AUTHORING_COUNT_AWARE_MAX_PROBE_ROUTES - ordinal;
+      const remainingGenerationCalls = policy.maxGenerationCalls - ordinal;
+      const laterProbeRoutes = policy.maxProbeRoutes - ordinal;
       const expectedProbeReservation =
-        upperBound > BLUEPRINT_AUTHORING_INPUT_TOKEN_CEILING
-          ? blueprintAuthoringProbeReservationMicroUsd({
+        upperBound > policy.inputTokenCeiling
+          ? policy.probeReservationMicroUsd({
               accountedMicroUsd: accountedBeforeProbe,
               provenUpperBoundTokens: upperBound,
               remainingGenerationCalls,
@@ -322,7 +560,7 @@ export function blueprintAuthoringAdmissionLedgerStructuralReason(
             })
           : null;
 
-      if (upperBound <= BLUEPRINT_AUTHORING_INPUT_TOKEN_CEILING) {
+      if (upperBound <= policy.inputTokenCeiling) {
         if (
           decision.basis !== 'conservative_upper_bound' ||
           decision.exactInputTokens !== null ||
@@ -341,6 +579,7 @@ export function blueprintAuthoringAdmissionLedgerStructuralReason(
             ordinal: ordinal as 1 | 2,
             upperBound,
             tokenRelevantRequestDigest: decision.tokenRelevantRequestDigest,
+            policy,
           });
           if (countReason !== null) return countReason;
         }
@@ -351,7 +590,7 @@ export function blueprintAuthoringAdmissionLedgerStructuralReason(
           nonNegativeSafeInteger(decision.exactInputTokens)
         ) {
           tokenAdmitted =
-            decision.exactInputTokens <= BLUEPRINT_AUTHORING_INPUT_TOKEN_CEILING;
+            decision.exactInputTokens <= policy.inputTokenCeiling;
           if (!tokenAdmitted) tokenFailure = 'input_token_ceiling_exceeded';
         } else if (
           decision.basis === 'exact_count_unavailable' &&
@@ -375,7 +614,7 @@ export function blueprintAuthoringAdmissionLedgerStructuralReason(
         } else if (decision.probe.status === 'reservation_rejected') {
           if (
             expectedProbeReservation === null ||
-            expectedProbeReservation <= BLUEPRINT_AUTHORING_HARD_CEILING_MICRO_USD ||
+            expectedProbeReservation <= policy.hardCeilingMicroUsd ||
             decision.probe.reservationBeforeDispatchMicroUsd !==
               expectedProbeReservation ||
             decision.countResult?.unavailableReason !==
@@ -384,17 +623,17 @@ export function blueprintAuthoringAdmissionLedgerStructuralReason(
         } else if (decision.probe.status === 'cache_miss') {
           if (
             expectedProbeReservation === null ||
-            expectedProbeReservation > BLUEPRINT_AUTHORING_HARD_CEILING_MICRO_USD ||
+            expectedProbeReservation > policy.hardCeilingMicroUsd ||
             decision.probe.reservationBeforeDispatchMicroUsd !==
               expectedProbeReservation ||
             decision.countResult === null
           ) return 'admission_probe_invalid';
           expectedDebit =
             decision.countResult.outcome === 'counted'
-              ? blueprintAuthoringInputMicroUsd(
+              ? policy.inputMicroUsd(
                   decision.countResult.inputTokens as number,
                 )
-              : blueprintAuthoringInputMicroUsd(upperBound);
+              : policy.inputMicroUsd(upperBound);
           expectedTransport = blueprintAuthoringCountResultTransportWasDispatched(
             decision.countResult,
           )
@@ -425,12 +664,12 @@ export function blueprintAuthoringAdmissionLedgerStructuralReason(
       let expectedContinuation: number | null = null;
       let expectedFailure = tokenFailure;
       if (tokenAdmitted) {
-        expectedContinuation = blueprintAuthoringContinuationReservationMicroUsd({
+        expectedContinuation = policy.continuationReservationMicroUsd({
           accountedMicroUsd: expectedTotal,
           remainingGenerationCalls,
           laterProbeRoutes,
         });
-        if (expectedContinuation > BLUEPRINT_AUTHORING_HARD_CEILING_MICRO_USD) {
+        if (expectedContinuation > policy.hardCeilingMicroUsd) {
           expectedFailure = 'cost_ceiling_exceeded';
         }
       }
@@ -449,12 +688,48 @@ export function blueprintAuthoringAdmissionLedgerStructuralReason(
   }
 }
 
+/**
+ * Durable, prompt-free validation for the exact admission ledger stored in current receipt
+ * v8/capture v4. Runtime consumption still uses the stronger prompt-aware validator below;
+ * this validator proves the persisted exact-key shapes, route topology, count evidence,
+ * rolling probe debit, and every integer-cost/disposition equation without persisting prompts.
+ */
+export function blueprintAuthoringAdmissionLedgerStructuralReason(
+  value: unknown,
+): string | null {
+  return blueprintAuthoringAdmissionLedgerStructuralReasonWithPolicy(
+    value,
+    CURRENT_ADMISSION_LEDGER_VALIDATION_POLICY,
+  );
+}
+
+/** Frozen receipt-v7/capture-v3 admission-ledger/v1 interpretation. */
+export function legacyBlueprintAuthoringAdmissionLedgerV1StructuralReason(
+  value: unknown,
+): string | null {
+  return blueprintAuthoringAdmissionLedgerStructuralReasonWithPolicy(
+    value,
+    LEGACY_ADMISSION_LEDGER_V1_VALIDATION_POLICY,
+  );
+}
+
 function safeSum(left: number, right: number): number | null {
   return nonNegativeSafeInteger(left) &&
     nonNegativeSafeInteger(right) &&
     left <= Number.MAX_SAFE_INTEGER - right
     ? left + right
     : null;
+}
+
+function safeProduct(left: number, right: number): number {
+  if (
+    !nonNegativeSafeInteger(left) ||
+    !nonNegativeSafeInteger(right) ||
+    (right !== 0 && left > Math.floor(Number.MAX_SAFE_INTEGER / right))
+  ) {
+    throw new Error('admission cost multiplication overflow');
+  }
+  return left * right;
 }
 
 export function blueprintAuthoringCountCacheKey(

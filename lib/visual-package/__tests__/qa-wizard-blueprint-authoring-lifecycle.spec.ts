@@ -59,6 +59,7 @@ import {
   type QaWizardCandidateBridgeManifest,
 } from '../qaWizardCandidateBridge';
 import {
+  LEGACY_QA_WIZARD_BLUEPRINT_EXECUTION_CLAIM_VERSION,
   QA_WIZARD_BLUEPRINT_AUTHORING_LEDGER_ROOT,
   executeQaWizardBlueprintLiveRequest,
   loadQaWizardBlueprintAuthoringManifest,
@@ -78,6 +79,7 @@ import {
 } from '../styleAuthority';
 import {
   BLUEPRINT_AUTHORING_MAX_INPUT_TOKENS,
+  BLUEPRINT_AUTHORING_MODEL,
   OPENAI_RESPONSES_BLUEPRINT_AUTHORING_EVIDENCE_VERSION,
   blueprintAuthoringInputAccounting,
   blueprintAuthoringReservedExposureUsd,
@@ -92,16 +94,19 @@ import {
 import { PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA } from '../preRenderBlueprintDraftSchema';
 import {
   BLUEPRINT_AUTHORING_SANITIZED_FAILURE_CAPTURE_VERSION,
+  LEGACY_BLUEPRINT_AUTHORING_SANITIZED_FAILURE_CAPTURE_VERSION_V3,
   blueprintAuthoringSanitizedFailureCaptureBytes,
   blueprintAuthoringSanitizedFailureCaptureIsValid,
   type BlueprintAuthoringSanitizedFailureCapture,
 } from '../blueprintAuthoringSanitizedFailureCapture';
 import {
   LEGACY_PRODUCTION_AUTHORING_RUN_REQUEST_VERSION_V4,
+  LEGACY_PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION_V7,
   PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION,
   ProductionAuthoringProviderBoundaryError,
   aggregateProductionAuthoringExecutionAttestations,
   type ProductionAuthoringProvider,
+  type ProductionAuthoringRunReceipt,
   type ReplayableProductionAuthoringRunReceipt,
 } from '../productionAuthoringRunner';
 import { createOpenAIResponsesBlueprintAuthoringAdapter } from '../openaiResponsesBlueprintAuthoringAdapter';
@@ -333,6 +338,82 @@ function providerReceipt(args: {
   };
 }
 
+function providerReceiptWithInputTokens(
+  args: Parameters<ProductionAuthoringProvider['call']>[0],
+  inputTokens: number,
+) {
+  const usage = {
+    inputTokens,
+    cachedInputTokens: 0,
+    cacheWriteInputTokens: 0,
+    outputTokens: 80,
+    reasoningTokens: 20,
+    totalTokens: inputTokens + 80,
+  };
+  const firstCallCost = conservativeBlueprintAuthoringCostUsd({
+    inputTokens: 120,
+    outputTokens: 80,
+  });
+  const countedRepairCost = conservativeBlueprintAuthoringCostUsd({
+    inputTokens: 50_000,
+    outputTokens: 80,
+  });
+  const priorGenerationCostUsd =
+    args.attempt === 1
+      ? 0
+      : args.attempt === 2
+        ? firstCallCost
+        : firstCallCost + countedRepairCost;
+  return {
+    ...providerReceipt(args),
+    usage: {
+      input_tokens: usage.inputTokens,
+      cached_input_tokens: usage.cachedInputTokens,
+      cache_write_input_tokens: usage.cacheWriteInputTokens,
+      output_tokens: usage.outputTokens,
+      reasoning_tokens: usage.reasoningTokens,
+      total_tokens: usage.totalTokens,
+    },
+    inputAccounting: args.inputAdmission.inputAccounting,
+    reservedExposureBeforeCallUsd: blueprintAuthoringReservedExposureUsd({
+      conservativeAccountedCostUsd: priorGenerationCostUsd,
+      callsCompleted: args.attempt - 1,
+    }),
+    nominalEstimatedCostUsd: nominalBlueprintAuthoringUsageCostUsd(usage),
+    conservativeCallCostUsd: conservativeBlueprintAuthoringCostUsd({
+      inputTokens: usage.inputTokens,
+      outputTokens: usage.outputTokens,
+    }),
+  };
+}
+
+function draftWithExactInvalidAffordanceCount(
+  fixture: ReturnType<typeof buildBlueprintFixture>,
+  diagnosticCount: number,
+): unknown {
+  const draft = structuredClone(providerDraft(fixture)) as {
+    worldPlan: {
+      affordances: Array<{
+        id: string;
+        zoneId: string;
+        kind: string;
+        consumers: unknown[];
+      }>;
+    };
+  };
+  const existing = draft.worldPlan.affordances[0];
+  if (!existing) throw new Error('fixture must expose one valid affordance zone');
+  for (let index = 0; index < diagnosticCount; index += 1) {
+    draft.worldPlan.affordances.push({
+      id: `affordance:offline_invalid_${index}`,
+      zoneId: existing.zoneId,
+      kind: 'synthetic_invalid',
+      consumers: [],
+    });
+  }
+  return draft;
+}
+
 function passingProvider(
   fixture: ReturnType<typeof buildBlueprintFixture>,
   call = vi.fn(),
@@ -437,6 +518,35 @@ function executionIncidentInventory(repoRoot: string) {
       'execution-incidents',
     ),
   );
+}
+
+// Drop the terminal lookup + binding so a re-entry takes the recovery lane
+// (which must run the full shared assertion before writing any lookup).
+function stripTerminalLedger(repoRoot: string): void {
+  for (const category of ['terminal-lookups', 'terminal-bindings']) {
+    fs.rmSync(
+      path.join(
+        repoRoot,
+        QA_WIZARD_BLUEPRINT_AUTHORING_LEDGER_ROOT,
+        category,
+      ),
+      { recursive: true, force: true },
+    );
+  }
+}
+
+// A torn recovery must publish no terminal-lookup file. The directory may be
+// lazily re-created empty by a path resolver, so count durable JSON files.
+function terminalLookupFileCount(repoRoot: string): number {
+  const dir = path.join(
+    repoRoot,
+    QA_WIZARD_BLUEPRINT_AUTHORING_LEDGER_ROOT,
+    'terminal-lookups',
+  );
+  if (!fs.existsSync(dir)) return 0;
+  return fs
+    .readdirSync(dir)
+    .filter((entry) => entry.endsWith('.json')).length;
 }
 
 describe('QA Wizard Blueprint authoring operator lifecycle', () => {
@@ -710,7 +820,7 @@ describe('QA Wizard Blueprint authoring operator lifecycle', () => {
     expect(JSON.stringify(beforeReplay)).not.toContain('must-not-persist');
   });
 
-  it('exact-counts an over-byte repair, publishes a v7 Candidate, and replays without loading either factory', async () => {
+  it('exact-counts an over-byte repair, publishes a v8 Candidate, and replays without loading either factory', async () => {
     const subject = setup();
     const preflight = prepare(subject);
     const invalidFirstDraft = {
@@ -812,7 +922,7 @@ describe('QA Wizard Blueprint authoring operator lifecycle', () => {
       PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION,
     );
     if (result.receipt.version !== PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION) {
-      throw new Error('expected current v7 authoring receipt');
+      throw new Error('expected current v8 authoring receipt');
     }
     expect(result.receipt).toMatchObject({
       status: 'completed',
@@ -869,7 +979,7 @@ describe('QA Wizard Blueprint authoring operator lifecycle', () => {
     expect(forbiddenCountFactory).not.toHaveBeenCalled();
   });
 
-  it('publishes and replays a v7 failed terminal when exact counting succeeds but repair generation fails before usage exists', async () => {
+  it('publishes and replays a v8 failed terminal when exact counting succeeds but repair generation fails before usage exists', async () => {
     const subject = setup();
     const preflight = prepare(subject);
     const invalidFirstDraft = {
@@ -941,7 +1051,7 @@ describe('QA Wizard Blueprint authoring operator lifecycle', () => {
       failure: { code: 'provider_call_failed' },
     });
     if (result.receipt.version !== PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION) {
-      throw new Error('expected current v7 authoring receipt');
+      throw new Error('expected current v8 authoring receipt');
     }
     expect(result.receipt.attempts[1]).toMatchObject({
       usage: null,
@@ -1941,6 +2051,8 @@ describe('QA Wizard Blueprint authoring operator lifecycle', () => {
         'draft_contract_validation_failed',
         'draft_schema_validation_failed',
       ],
+      totalCount: 1,
+      countSaturated: false,
     });
     expect(
       productionBlueprintAuthoringReceiptReplayIsValid({
@@ -3076,36 +3188,6 @@ describe('QA Wizard Blueprint authoring operator lifecycle', () => {
     return newDigest;
   }
 
-  // Drop the terminal lookup + binding so a re-entry takes the recovery lane (which must
-  // run the full shared assertion BEFORE writing any lookup).
-  function stripTerminalLedger(repoRoot: string): void {
-    for (const category of ['terminal-lookups', 'terminal-bindings']) {
-      fs.rmSync(
-        path.join(
-          repoRoot,
-          QA_WIZARD_BLUEPRINT_AUTHORING_LEDGER_ROOT,
-          category,
-        ),
-        { recursive: true, force: true },
-      );
-    }
-  }
-
-  // A torn recovery must publish NO terminal-lookup file (the directory may be lazily
-  // re-created empty by a path resolver — only a written lookup file is a materialized
-  // recovery).
-  function terminalLookupFileCount(repoRoot: string): number {
-    const dir = path.join(
-      repoRoot,
-      QA_WIZARD_BLUEPRINT_AUTHORING_LEDGER_ROOT,
-      'terminal-lookups',
-    );
-    if (!fs.existsSync(dir)) return 0;
-    return fs
-      .readdirSync(dir)
-      .filter((entry) => entry.endsWith('.json')).length;
-  }
-
   it('tears a diagnostic-less terminal that carries an unexpected capture on replay', async () => {
     const subject = setup();
     const preflight = prepare(subject);
@@ -3625,6 +3707,22 @@ describe('QA Wizard Blueprint failed-terminal sanitized capture integration', ()
     expect(capture.census.retainedIdentities).toBe(
       capture.census.distinctIdentities,
     );
+    expect(result.receipt.version).toBe(PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION);
+    const currentReceipt = result.receipt as ProductionAuthoringRunReceipt;
+    const diagnosticAttempts = currentReceipt.attempts.filter(
+      (attempt) => attempt.diagnosticCensusCommitment !== null,
+    );
+    expect(capture.attemptCensuses).toHaveLength(diagnosticAttempts.length);
+    for (const entry of capture.attemptCensuses) {
+      const commitment =
+        currentReceipt.attempts[entry.attempt - 1]!.diagnosticCensusCommitment;
+      expect(commitment).toEqual({
+        version: commitment!.version,
+        totalEmitted: entry.census.totalEmitted,
+        distinctIdentities: entry.census.distinctIdentities,
+        fullCensusDigest: entry.census.fullCensusDigest,
+      });
+    }
     expect(
       capture.admission.decisions.some((decision) => decision.routeKind === 'repair'),
     ).toBe(true);
@@ -3653,6 +3751,303 @@ describe('QA Wizard Blueprint failed-terminal sanitized capture integration', ()
       first.manifest.observabilityCapture?.digest,
     );
     expect(forbiddenFactory).not.toHaveBeenCalled();
+  });
+
+  it('mints, persists, recovers, and replays an exact 223 -> 89 -> 5 per-attempt census', async () => {
+    const subject = setup();
+    const preflight = prepare(subject);
+    const drafts = new Map([
+      [1, draftWithExactInvalidAffordanceCount(subject.fixture, 223)],
+      [2, draftWithExactInvalidAffordanceCount(subject.fixture, 89)],
+      [3, draftWithExactInvalidAffordanceCount(subject.fixture, 5)],
+    ]);
+    const providerCalls = vi.fn();
+    const providerFactory = vi.fn(
+      (): ProductionAuthoringProvider => ({
+        call: async (args) => {
+          providerCalls(args);
+          const draft = drafts.get(args.attempt);
+          if (!draft) throw new Error('unexpected offline generation attempt');
+          return {
+            output: JSON.stringify(draft),
+            receipt: providerReceiptWithInputTokens(
+              args,
+              args.attempt === 2 ? 50_000 : 120,
+            ),
+          };
+        },
+      }),
+    );
+    const count = vi.fn(
+      async (countRequest: BlueprintAuthoringInputTokenCountRequest) => ({
+        routeKind: 'repair' as const,
+        repairOrdinal: countRequest.repairOrdinal,
+        countRequestDigest: canonicalJsonDigest(
+          blueprintAuthoringCountRequestProjection(countRequest),
+        ),
+        outcome: 'counted' as const,
+        inputTokens: 50_000,
+        unavailableReason: null,
+        attestation: {
+          provider: 'openai' as const,
+          model: BLUEPRINT_AUTHORING_MODEL,
+          route: 'responses_input_tokens' as const,
+          evidenceVersion: BLUEPRINT_AUTHORING_COUNT_EVIDENCE_VERSION,
+          transportDispatchCount: 1,
+          transportRetryCount: 0,
+          canonicalRouteConfirmed: true,
+          canonicalModelConfirmed: true,
+        },
+      }),
+    );
+    const inputTokenCounterFactory = vi.fn(() => count);
+    const executionArgs = {
+      repoRoot: subject.repoRoot,
+      preflightManifestPath: preflight.manifestPath,
+      outputDir: OUTPUT_DIR,
+      write: true,
+    } as const;
+
+    const first = await executeQaWizardBlueprintLiveRequest(executionArgs, {
+      providerFactory,
+      inputTokenCounterFactory,
+    });
+    expect(first.replayed).toBe(false);
+    expect(first.manifest.stage).toBe('authoring_failed');
+    expect(first.manifest.blueprint).toBeNull();
+    expect(first.receipt.version).toBe(PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION);
+    if (first.receipt.version !== PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION) {
+      throw new Error('expected current v8 authoring receipt');
+    }
+    expect(first.receipt).toMatchObject({
+      status: 'failed',
+      callCount: 3,
+      repairCount: 2,
+      failure: { code: 'draft_validation_repair_exhausted' },
+    });
+    expect(
+      first.receipt.attempts.map((attempt) => attempt.validationDiagnostics),
+    ).toEqual([
+      expect.objectContaining({
+        count: 128,
+        totalCount: 223,
+        countSaturated: true,
+      }),
+      expect.objectContaining({
+        count: 89,
+        totalCount: 89,
+        countSaturated: false,
+      }),
+      expect.objectContaining({
+        count: 5,
+        totalCount: 5,
+        countSaturated: false,
+      }),
+    ]);
+    expect(
+      first.receipt.attempts.map(
+        (attempt) => attempt.diagnosticCensusCommitment?.totalEmitted,
+      ),
+    ).toEqual([223, 89, 5]);
+    expect(first.receipt.diagnosticCensusCommitment?.totalEmitted).toBe(317);
+    expect(providerFactory).toHaveBeenCalledTimes(1);
+    expect(providerCalls).toHaveBeenCalledTimes(3);
+    expect(inputTokenCounterFactory).toHaveBeenCalledTimes(1);
+    expect(count).toHaveBeenCalledTimes(1);
+
+    const capturePath = captureAbsolutePath(subject.repoRoot, first.manifest);
+    const captureBytes = fs.readFileSync(capturePath, 'utf8');
+    const capture = JSON.parse(
+      captureBytes,
+    ) as BlueprintAuthoringSanitizedFailureCapture;
+    expect(blueprintAuthoringSanitizedFailureCaptureIsValid(capture)).toBe(true);
+    expect(capture.linkage.terminalReceiptDigest).toBe(first.receipt.digest);
+    expect(capture.attemptCensuses.map((entry) => entry.census.totalEmitted)).toEqual(
+      [223, 89, 5],
+    );
+    expect(capture.census.totalEmitted).toBe(317);
+    expect(capture.attemptCensuses[2]!.census.distinctIdentities).toBe(5);
+    expect(capture.attemptCensuses[2]!.census.identities).toHaveLength(5);
+    expect(capture.attemptCensuses[2]!.census.fullCensusDigest).toBe(
+      first.receipt.attempts[2]!.diagnosticCensusCommitment?.fullCensusDigest,
+    );
+    expect(captureBytes).toBe(
+      blueprintAuthoringSanitizedFailureCaptureBytes(capture),
+    );
+    expect(captureBytes).not.toMatch(
+      /offline_invalid|synthetic_invalid|child:hero|test-key|provider output/i,
+    );
+    expect(JSON.stringify(first.receipt)).not.toMatch(
+      /offline_invalid|synthetic_invalid|child:hero/i,
+    );
+
+    fs.rmSync(
+      path.join(
+        subject.repoRoot,
+        QA_WIZARD_BLUEPRINT_AUTHORING_LEDGER_ROOT,
+        'terminal-lookups',
+      ),
+      { recursive: true, force: true },
+    );
+    expect(terminalLookupFileCount(subject.repoRoot)).toBe(0);
+    const forbiddenProviderFactory = vi.fn(() => {
+      throw new Error('provider_must_not_load_for_census_recovery_or_replay');
+    });
+    const forbiddenCounterFactory = vi.fn(() => {
+      throw new Error('counter_must_not_load_for_census_recovery_or_replay');
+    });
+    const recovered = await executeQaWizardBlueprintLiveRequest(executionArgs, {
+      providerFactory: forbiddenProviderFactory,
+      inputTokenCounterFactory: forbiddenCounterFactory,
+    });
+    expect(recovered.replayed).toBe(true);
+    expect(recovered.manifest.digest).toBe(first.manifest.digest);
+    expect(recovered.receipt.digest).toBe(first.receipt.digest);
+    expect(recovered.manifest.observabilityCapture?.digest).toBe(capture.digest);
+    expect(terminalLookupFileCount(subject.repoRoot)).toBe(1);
+    expect(forbiddenProviderFactory).not.toHaveBeenCalled();
+    expect(forbiddenCounterFactory).not.toHaveBeenCalled();
+
+    const afterRecovery = fileInventory(path.join(subject.repoRoot, OUTPUT_DIR));
+    const replay = await executeQaWizardBlueprintLiveRequest(executionArgs, {
+      providerFactory: forbiddenProviderFactory,
+      inputTokenCounterFactory: forbiddenCounterFactory,
+    });
+    expect(replay.replayed).toBe(true);
+    expect(replay.manifest.digest).toBe(first.manifest.digest);
+    expect(replay.receipt.digest).toBe(first.receipt.digest);
+    expect(replay.manifest.observabilityCapture?.digest).toBe(capture.digest);
+    expect(fileInventory(path.join(subject.repoRoot, OUTPUT_DIR))).toEqual(
+      afterRecovery,
+    );
+    expect(fs.readFileSync(capturePath, 'utf8')).toBe(captureBytes);
+    expect(forbiddenProviderFactory).not.toHaveBeenCalled();
+    expect(forbiddenCounterFactory).not.toHaveBeenCalled();
+  });
+
+  it('rejects a valid same-aggregate capture whose attempt censuses are swapped', async () => {
+    const subject = setup();
+    const preflight = prepare(subject);
+    const result = await executeQaWizardBlueprintLiveRequest(
+      {
+        repoRoot: subject.repoRoot,
+        preflightManifestPath: preflight.manifestPath,
+        outputDir: OUTPUT_DIR,
+        write: true,
+      },
+      {
+        providerFactory: () => ({
+          call: async (args) => {
+            const draft = structuredClone(providerDraft(subject.fixture)) as any;
+            if (args.attempt === 1) draft.frames[0].camera = null;
+            if (args.attempt === 2) draft.frames[0].placements = [];
+            if (args.attempt === 3) draft.frames[0].continuity = null;
+            return {
+              output: JSON.stringify(draft),
+              receipt: providerReceipt(args),
+            };
+          },
+        }),
+      },
+    );
+    expect(result.manifest.stage).toBe('authoring_failed');
+    const originalCapture = JSON.parse(
+      fs.readFileSync(captureAbsolutePath(subject.repoRoot, result.manifest), 'utf8'),
+    ) as BlueprintAuthoringSanitizedFailureCapture;
+    expect(originalCapture.attemptCensuses).toHaveLength(3);
+    expect(
+      new Set(
+        originalCapture.attemptCensuses.map(
+          (entry) => entry.census.fullCensusDigest,
+        ),
+      ).size,
+    ).toBeGreaterThan(1);
+
+    const hostileCapture = structuredClone(originalCapture);
+    const leftIndex = hostileCapture.attemptCensuses.findIndex(
+      (entry, index, entries) =>
+        entries.some(
+          (candidate, candidateIndex) =>
+            candidateIndex > index &&
+            candidate.census.fullCensusDigest !== entry.census.fullCensusDigest,
+        ),
+    );
+    const rightIndex = hostileCapture.attemptCensuses.findIndex(
+      (entry, index) =>
+        index > leftIndex &&
+        entry.census.fullCensusDigest !==
+          hostileCapture.attemptCensuses[leftIndex]!.census.fullCensusDigest,
+    );
+    expect(leftIndex).toBeGreaterThanOrEqual(0);
+    expect(rightIndex).toBeGreaterThan(leftIndex);
+    const first = hostileCapture.attemptCensuses[leftIndex]!.census;
+    hostileCapture.attemptCensuses[leftIndex]!.census =
+      hostileCapture.attemptCensuses[rightIndex]!.census;
+    hostileCapture.attemptCensuses[rightIndex]!.census = first;
+    const { digest: _captureDigest, ...hostileCapturePayload } = hostileCapture;
+    hostileCapture.digest = canonicalJsonDigest(hostileCapturePayload);
+    expect(blueprintAuthoringSanitizedFailureCaptureIsValid(hostileCapture)).toBe(
+      true,
+    );
+    const hostileCapturePath = `${OUTPUT_DIR}/sanitized-failure-captures/${hostileCapture.digest}.json`;
+    writeText(
+      subject.repoRoot,
+      hostileCapturePath,
+      canonicalContentAddressedJsonBytes(hostileCapture),
+    );
+
+    const {
+      digest: _manifestDigest,
+      digestAlgorithm,
+      ...manifestShared
+    } = result.manifest;
+    const hostileManifestPayload = {
+      ...manifestShared,
+      observabilityCapture: {
+        version: hostileCapture.version,
+        digest: hostileCapture.digest,
+        path: hostileCapturePath,
+      },
+    };
+    const hostileManifest = {
+      ...hostileManifestPayload,
+      digestAlgorithm,
+      digest: canonicalJsonDigest(hostileManifestPayload),
+    };
+    const hostileManifestPath = `${OUTPUT_DIR}/blueprint-authoring-manifests/${hostileManifest.digest}.json`;
+    writeText(
+      subject.repoRoot,
+      hostileManifestPath,
+      canonicalContentAddressedJsonBytes(hostileManifest),
+    );
+    fs.rmSync(path.join(subject.repoRoot, result.manifestPath), { force: true });
+    for (const category of ['terminal-lookups', 'terminal-bindings']) {
+      fs.rmSync(
+        path.join(
+          subject.repoRoot,
+          QA_WIZARD_BLUEPRINT_AUTHORING_LEDGER_ROOT,
+          category,
+        ),
+        { recursive: true, force: true },
+      );
+    }
+    const forbiddenFactory = vi.fn(() => {
+      throw new Error('provider_must_not_load_for_attempt_swap');
+    });
+    const replayPreflight = prepare(subject);
+    await expect(
+      executeQaWizardBlueprintLiveRequest(
+        {
+          repoRoot: subject.repoRoot,
+          preflightManifestPath: replayPreflight.manifestPath,
+          outputDir: OUTPUT_DIR,
+          write: true,
+        },
+        { providerFactory: forbiddenFactory },
+      ),
+    ).rejects.toThrow(/execution_state_uncertain/);
+    expect(forbiddenFactory).not.toHaveBeenCalled();
+    expect(terminalLookupFileCount(subject.repoRoot)).toBe(0);
   });
 
   it('fails closed on replay when the bound capture is tampered', async () => {
@@ -3757,23 +4152,15 @@ describe('QA Wizard Blueprint failed-terminal sanitized capture integration', ()
     expect(forbidden).not.toHaveBeenCalled();
   });
 
-  it('reloads a historically valid request-v4/receipt-v7 failed terminal without granting fresh dispatch', async () => {
+  it('recovers and replays a historically valid request-v4/receipt-v7/capture-v3 failed terminal without provider dispatch', async () => {
     const subject = setup();
     const preflight = prepare(subject);
-    const result = await executeQaWizardBlueprintLiveRequest(
-      {
-        repoRoot: subject.repoRoot,
-        preflightManifestPath: preflight.manifestPath,
-        outputDir: OUTPUT_DIR,
-        write: true,
-      },
-      { providerFactory: () => policyMismatchProvider() },
-    );
+    const result = await runFailedTerminal(subject);
     expect(result.manifest.stage).toBe('authoring_failed');
     expect(result.receipt.version).toBe(
       PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION,
     );
-    expect(result.manifest.observabilityCapture).toBeUndefined();
+    expect(result.manifest.observabilityCapture).toBeDefined();
 
     // Receipt v7 became current while request v4 was still current. Rebuild the
     // exact historical pairing from the same immutable evidence and prove the
@@ -3824,17 +4211,60 @@ describe('QA Wizard Blueprint failed-terminal sanitized capture integration', ()
       string,
       unknown
     > & {
+      version: string;
       attempts: Array<Record<string, unknown>>;
       digest: string;
       requestDigest: string;
     };
     legacyReceipt.requestDigest = legacyRequestDigest;
+    legacyReceipt.version = LEGACY_PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION_V7;
+    for (const attempt of legacyReceipt.attempts) {
+      delete attempt.diagnosticCensusCommitment;
+      const diagnostics = attempt.validationDiagnostics as Record<string, unknown>;
+      attempt.validationDiagnostics = {
+        count: diagnostics.count,
+        codes: diagnostics.codes,
+      };
+    }
     rebindAggregateAndRedigestReceipt(legacyReceipt);
     const legacyReceiptPath = `${OUTPUT_DIR}/authoring-receipts/${legacyReceipt.digest}.json`;
     writeText(
       subject.repoRoot,
       legacyReceiptPath,
       canonicalContentAddressedJsonBytes(legacyReceipt),
+    );
+
+    const currentCapture = JSON.parse(
+      fs.readFileSync(
+        captureAbsolutePath(subject.repoRoot, result.manifest),
+        'utf8',
+      ),
+    ) as BlueprintAuthoringSanitizedFailureCapture;
+    const {
+      attemptCensuses: _legacyHasNoAttemptCensuses,
+      digest: _currentCaptureDigest,
+      ...legacyCaptureShared
+    } = currentCapture;
+    void _legacyHasNoAttemptCensuses;
+    void _currentCaptureDigest;
+    const legacyCapturePayload = {
+      ...legacyCaptureShared,
+      version: LEGACY_BLUEPRINT_AUTHORING_SANITIZED_FAILURE_CAPTURE_VERSION_V3,
+      linkage: {
+        ...legacyCaptureShared.linkage,
+        terminalReceiptDigest: legacyReceipt.digest,
+        requestDigest: legacyRequestDigest,
+      },
+    };
+    const legacyCapture = {
+      ...legacyCapturePayload,
+      digest: canonicalJsonDigest(legacyCapturePayload),
+    };
+    const legacyCapturePath = `${OUTPUT_DIR}/sanitized-failure-captures/${legacyCapture.digest}.json`;
+    writeText(
+      subject.repoRoot,
+      legacyCapturePath,
+      canonicalContentAddressedJsonBytes(legacyCapture),
     );
 
     const {
@@ -3853,10 +4283,15 @@ describe('QA Wizard Blueprint failed-terminal sanitized capture integration', ()
       },
       request: legacyPreflight.request,
       receipt: {
-        version: PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION,
+        version: LEGACY_PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION_V7,
         digest: legacyReceipt.digest,
         path: legacyReceiptPath,
         status: 'failed' as const,
+      },
+      observabilityCapture: {
+        version: LEGACY_BLUEPRINT_AUTHORING_SANITIZED_FAILURE_CAPTURE_VERSION_V3,
+        digest: legacyCapture.digest,
+        path: legacyCapturePath,
       },
     };
     const legacyTerminal = {
@@ -3880,8 +4315,73 @@ describe('QA Wizard Blueprint failed-terminal sanitized capture integration', ()
       LEGACY_PRODUCTION_AUTHORING_RUN_REQUEST_VERSION_V4,
     );
     expect(loaded.receipt?.version).toBe(
-      PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION,
+      LEGACY_PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION_V7,
     );
+    expect(loaded.observabilityCapture?.version).toBe(
+      LEGACY_BLUEPRINT_AUTHORING_SANITIZED_FAILURE_CAPTURE_VERSION_V3,
+    );
+
+    // Reconstruct the frozen pre-current execution claim under the legacy
+    // content-authority key. This is the exact durable state that could exist
+    // after a v4/v7/v3 terminal became visible but before its lookup was
+    // published. Recovery and the subsequent direct replay must both validate
+    // the legacy receipt/capture pair without reaching a paid boundary.
+    const currentClaim = JSON.parse(
+      fs.readFileSync(path.join(subject.repoRoot, result.claimPath), 'utf8'),
+    ) as { authoringAuthorityDigest: string };
+    const legacyClaimPayload = {
+      version: LEGACY_QA_WIZARD_BLUEPRINT_EXECUTION_CLAIM_VERSION,
+      authoringAuthorityDigest: currentClaim.authoringAuthorityDigest,
+      requestDigest: legacyRequestDigest,
+      preflightManifestDigest: legacyPreflight.digest,
+      preflightManifestPath: legacyPreflightPath,
+      requestedAt: legacyRequest.requestedAt,
+      scope: 'single_use_paid_blueprint_authoring' as const,
+    };
+    const legacyClaim = {
+      ...legacyClaimPayload,
+      digestAlgorithm: 'canonical-json-sha256' as const,
+      digest: canonicalJsonDigest(legacyClaimPayload),
+    };
+    stripTerminalLedger(subject.repoRoot);
+    writeText(
+      subject.repoRoot,
+      `${QA_WIZARD_BLUEPRINT_AUTHORING_LEDGER_ROOT}/execution-claims/${currentClaim.authoringAuthorityDigest}.json`,
+      canonicalContentAddressedJsonBytes(legacyClaim),
+    );
+    const forbiddenFactory = vi.fn(() => {
+      throw new Error('provider_must_not_load_for_legacy_recovery_or_replay');
+    });
+    const executionArgs = {
+      repoRoot: subject.repoRoot,
+      preflightManifestPath: legacyPreflightPath,
+      outputDir: OUTPUT_DIR,
+      write: true,
+    } as const;
+    const recovered = await executeQaWizardBlueprintLiveRequest(executionArgs, {
+      providerFactory: forbiddenFactory,
+    });
+    expect(recovered.replayed).toBe(true);
+    expect(recovered.manifest.digest).toBe(legacyTerminal.digest);
+    expect(recovered.receipt.version).toBe(
+      LEGACY_PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION_V7,
+    );
+    expect(recovered.manifest.observabilityCapture?.version).toBe(
+      LEGACY_BLUEPRINT_AUTHORING_SANITIZED_FAILURE_CAPTURE_VERSION_V3,
+    );
+    expect(terminalLookupFileCount(subject.repoRoot)).toBe(1);
+    expect(forbiddenFactory).not.toHaveBeenCalled();
+
+    const replay = await executeQaWizardBlueprintLiveRequest(executionArgs, {
+      providerFactory: forbiddenFactory,
+    });
+    expect(replay.replayed).toBe(true);
+    expect(replay.manifest.digest).toBe(legacyTerminal.digest);
+    expect(replay.receipt.digest).toBe(legacyReceipt.digest);
+    expect(replay.manifest.observabilityCapture?.digest).toBe(legacyCapture.digest);
+    expect(replay.executionRecordPath).toBe(recovered.executionRecordPath);
+    expect(terminalLookupFileCount(subject.repoRoot)).toBe(1);
+    expect(forbiddenFactory).not.toHaveBeenCalled();
   });
 
   it('rejects on replay a diagnostic-bearing terminal that lacks its required capture binding', async () => {

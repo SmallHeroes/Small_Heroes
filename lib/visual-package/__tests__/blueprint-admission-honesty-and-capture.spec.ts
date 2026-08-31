@@ -37,20 +37,25 @@ import {
   BLUEPRINT_AUTHORING_SANITIZED_FAILURE_CAPTURE_DOES_NOT_AUTHORIZE,
   BLUEPRINT_AUTHORING_SANITIZED_FAILURE_CAPTURE_SCOPE,
   BLUEPRINT_AUTHORING_SANITIZED_FAILURE_CAPTURE_VERSION,
+  LEGACY_BLUEPRINT_AUTHORING_SANITIZED_FAILURE_CAPTURE_VERSION_V3,
   LEGACY_BLUEPRINT_AUTHORING_SANITIZED_FAILURE_CAPTURE_VERSION_V2,
   blueprintAuthoringFailureRequiresSanitizedCapture,
   blueprintAuthoringReceiptRequiresSanitizedCapture,
   blueprintAuthoringSanitizedFailureCaptureIsValid,
   blueprintAuthoringSanitizedFailureCaptureVersionStatus,
   buildBlueprintAuthoringSanitizedCensus,
-  buildBlueprintAuthoringSanitizedFailureCapture as buildBlueprintAuthoringSanitizedFailureCaptureV3,
+  mergeBlueprintAuthoringSanitizedCensuses,
+  buildBlueprintAuthoringSanitizedFailureCapture as buildBlueprintAuthoringSanitizedFailureCaptureV4,
+  legacyBlueprintAuthoringSanitizedFailureCaptureV3IsValid,
   legacyBlueprintAuthoringSanitizedFailureCaptureV2IsValid,
   sanitizeBlueprintDiagnosticFieldPath,
   type BlueprintAuthoringSanitizedFailureCapture,
   type LegacyBlueprintAuthoringSanitizedFailureCaptureV2,
+  type LegacyBlueprintAuthoringSanitizedFailureCaptureV3,
 } from '@/lib/visual-package/blueprintAuthoringSanitizedFailureCapture';
 import {
   BLUEPRINT_AUTHORING_ADMISSION_LEDGER_VERSION,
+  LEGACY_BLUEPRINT_AUTHORING_ADMISSION_LEDGER_V1_POLICY,
   type BlueprintAuthoringAdmissionDecisionRecord,
 } from '@/lib/visual-package/blueprintAuthoringAdmissionLedger';
 import { blueprintAuthoringContinuationReservationMicroUsd } from '@/lib/visual-package/blueprintAuthoringCountAwareCost';
@@ -114,6 +119,7 @@ function buildBlueprintAuthoringSanitizedFailureCapture(args: {
     rejectionReasonCode?: string | null;
   }>;
   diagnostics: readonly PreRenderBlueprintRepairDiagnostic[];
+  attemptDiagnostics?: readonly (readonly PreRenderBlueprintRepairDiagnostic[])[];
 }): BlueprintAuthoringSanitizedFailureCapture {
   const decisions = args.routes.map((route) => {
     const ordinal = route.ordinal as 0 | 1 | 2;
@@ -168,13 +174,23 @@ function buildBlueprintAuthoringSanitizedFailureCapture(args: {
       failureReason: admittedByToken ? null : ('exact_count_unavailable' as const),
     } as BlueprintAuthoringAdmissionDecisionRecord;
   });
-  return buildBlueprintAuthoringSanitizedFailureCaptureV3({
+  const attemptCensuses = (args.attemptDiagnostics ?? [args.diagnostics]).map(
+    (diagnostics, index) => ({
+      attempt: index + 1,
+      census: buildBlueprintAuthoringSanitizedCensus(diagnostics),
+    }),
+  );
+  const census = mergeBlueprintAuthoringSanitizedCensuses(
+    attemptCensuses.map((entry) => entry.census),
+  );
+  return buildBlueprintAuthoringSanitizedFailureCaptureV4({
     terminalFailureCode: args.terminalFailureCode,
     terminalReceiptDigest: args.terminalReceiptDigest,
     requestDigest: args.requestDigest,
     contextDigest: args.contextDigest,
     admissionDecisions: decisions,
-    census: buildBlueprintAuthoringSanitizedCensus(args.diagnostics),
+    census,
+    attemptCensuses,
   });
 }
 
@@ -1058,6 +1074,131 @@ describe('sanitized failure capture — census completeness and prose/PII freedo
   });
 });
 
+describe('sanitized failure capture v4 — ordered attempt attribution', () => {
+  function trajectoryCapture(): BlueprintAuthoringSanitizedFailureCapture {
+    const attemptDiagnostics = [
+      Array.from({ length: 223 }, () => ({
+        code: 'schema_invalid',
+        field: 'frames',
+        message: 'initial symptom',
+      } satisfies PreRenderBlueprintRepairDiagnostic)),
+      Array.from({ length: 89 }, () => ({
+        code: 'reference_unresolved',
+        field: 'worldPlan',
+        message: 'repair symptom',
+      } satisfies PreRenderBlueprintRepairDiagnostic)),
+      Array.from({ length: 5 }, () => ({
+        code: 'draft_assembly_failed',
+        field: 'pages',
+        message: 'final symptom',
+      } satisfies PreRenderBlueprintRepairDiagnostic)),
+    ];
+    return buildBlueprintAuthoringSanitizedFailureCapture({
+      terminalFailureCode: 'draft_validation_repair_exhausted',
+      terminalReceiptDigest: hex64('trajectory-receipt'),
+      requestDigest: hex64('trajectory-request'),
+      contextDigest: hex64('trajectory-context'),
+      routes: [0, 1, 2].map((ordinal) => ({
+        routeKind: ordinal === 0 ? ('initial' as const) : ('repair' as const),
+        ordinal,
+        byteAccounting: REAL_INCIDENT_INITIAL_ACCOUNTING,
+      })),
+      diagnostics: attemptDiagnostics.flat(),
+      attemptDiagnostics,
+    });
+  }
+
+  it('retains 223 -> 89 -> 5 as three complete censuses and one truthful aggregate', () => {
+    const capture = trajectoryCapture();
+    expect(blueprintAuthoringSanitizedFailureCaptureIsValid(capture)).toBe(true);
+    expect(capture.attemptCensuses.map((entry) => entry.attempt)).toEqual([1, 2, 3]);
+    expect(
+      capture.attemptCensuses.map((entry) => entry.census.totalEmitted),
+    ).toEqual([223, 89, 5]);
+    expect(capture.census.totalEmitted).toBe(317);
+    expect(capture.attemptCensuses[2]!.census.identities).toHaveLength(1);
+    for (const entry of capture.attemptCensuses) {
+      expect(entry.census).toMatchObject({
+        truncated: false,
+        omittedDistinctIdentities: 0,
+      });
+    }
+    expect(JSON.stringify(capture)).not.toMatch(/initial symptom|repair symptom|final symptom/);
+  });
+
+  it.each([
+    ['missing attempt', (entries: unknown[]) => entries.splice(1, 1)],
+    ['duplicate attempt', (entries: any[]) => { entries[1].attempt = 1; }],
+    ['reordered attempts', (entries: any[]) => { [entries[1], entries[2]] = [entries[2], entries[1]]; }],
+    ['zero ordinal', (entries: any[]) => { entries[0].attempt = 0; }],
+    ['empty census', (entries: any[]) => {
+      entries[1].census = buildBlueprintAuthoringSanitizedCensus([]);
+    }],
+  ] as const)('rejects noncanonical attempt topology: %s', (_label, mutate) => {
+    const capture = clone(trajectoryCapture());
+    mutate(capture.attemptCensuses as unknown[]);
+    const { digest: _drop, ...withoutDigest } = capture;
+    capture.digest = canonicalJsonDigest(withoutDigest);
+    expect(blueprintAuthoringSanitizedFailureCaptureIsValid(capture)).toBe(false);
+  });
+
+  it('rejects a fourth attempt and an attempt with no admitted generation authority', () => {
+    const fourthAttempt = clone(trajectoryCapture());
+    fourthAttempt.attemptCensuses.push({
+      attempt: 4,
+      census: clone(fourthAttempt.attemptCensuses[2]!.census),
+    });
+    fourthAttempt.census = mergeBlueprintAuthoringSanitizedCensuses(
+      fourthAttempt.attemptCensuses.map((entry) => entry.census),
+    );
+    const { digest: _fourthDigest, ...fourthPayload } = fourthAttempt;
+    fourthAttempt.digest = canonicalJsonDigest(fourthPayload);
+    expect(blueprintAuthoringSanitizedFailureCaptureIsValid(fourthAttempt)).toBe(
+      false,
+    );
+
+    const missingAdmission = clone(trajectoryCapture());
+    missingAdmission.admission.decisions.pop();
+    const { digest: _missingDigest, ...missingPayload } = missingAdmission;
+    missingAdmission.digest = canonicalJsonDigest(missingPayload);
+    expect(blueprintAuthoringSanitizedFailureCaptureIsValid(missingAdmission)).toBe(
+      false,
+    );
+  });
+
+  it('rejects name-like runtime diagnostic and terminal codes outside the closed catalogs', () => {
+    expect(() =>
+      buildBlueprintAuthoringSanitizedCensus([
+        {
+          code: 'bar',
+          message: 'must never persist',
+        } as unknown as PreRenderBlueprintRepairDiagnostic,
+      ]),
+    ).toThrow(/closed catalog/);
+    expect(() =>
+      buildBlueprintAuthoringSanitizedFailureCapture({
+        terminalFailureCode: 'bar',
+        terminalReceiptDigest: hex64('closed-terminal-receipt'),
+        requestDigest: hex64('closed-terminal-request'),
+        contextDigest: hex64('closed-terminal-context'),
+        routes: [
+          {
+            routeKind: 'initial',
+            ordinal: 0,
+            byteAccounting: REAL_INCIDENT_INITIAL_ACCOUNTING,
+          },
+        ],
+        diagnostics: [
+          {
+            code: 'schema_invalid',
+            message: 'safe structural diagnostic',
+          },
+        ],
+      }),
+    ).toThrow(/closed authoring catalog/);
+  });
+});
+
 describe('sanitized failure capture — fail-closed no-authority and hostile regressions', () => {
   it('validates a well-formed capture and its no-authority semantics', () => {
     const capture = baseCapture();
@@ -1083,10 +1224,58 @@ describe('sanitized failure capture — fail-closed no-authority and hostile reg
 
   it('rejects a superseded or tampered version (legacy v1 never validates)', () => {
     // v1 carried the removed raw-tuple detailDigest; it must be rejected cleanly so a
-    // legacy artifact can never reintroduce the PII fingerprint under current v3 semantics.
+    // legacy artifact can never reintroduce the PII fingerprint under current v4 semantics.
     const capture = clone(baseCapture()) as unknown as Record<string, unknown>;
     capture.version = 'blueprint-authoring-sanitized-failure-capture/v1';
     expect(blueprintAuthoringSanitizedFailureCaptureIsValid(capture)).toBe(false);
+  });
+
+  it('validates the exact aggregate-only legacy v3 shape without inventing attempts', () => {
+    const current = clone(baseCapture());
+    const { attemptCensuses: _attemptCensuses, digest: _digest, ...shared } = current;
+    void _attemptCensuses;
+    void _digest;
+    const withoutDigest: Omit<
+      LegacyBlueprintAuthoringSanitizedFailureCaptureV3,
+      'digest'
+    > = {
+      ...shared,
+      version: LEGACY_BLUEPRINT_AUTHORING_SANITIZED_FAILURE_CAPTURE_VERSION_V3,
+    };
+    const legacy: LegacyBlueprintAuthoringSanitizedFailureCaptureV3 = {
+      ...withoutDigest,
+      digest: canonicalJsonDigest(withoutDigest),
+    };
+    expect(
+      blueprintAuthoringSanitizedFailureCaptureVersionStatus(legacy.version),
+    ).toBe('legacy_immutable');
+    expect(legacyBlueprintAuthoringSanitizedFailureCaptureV3IsValid(legacy)).toBe(
+      true,
+    );
+    expect(blueprintAuthoringSanitizedFailureCaptureIsValid(legacy)).toBe(false);
+    expect('attemptCensuses' in legacy).toBe(false);
+  });
+
+  it('freezes the immutable v7/v3 admission-ledger-v1 policy inputs', () => {
+    expect(Object.isFrozen(LEGACY_BLUEPRINT_AUTHORING_ADMISSION_LEDGER_V1_POLICY)).toBe(
+      true,
+    );
+    expect(LEGACY_BLUEPRINT_AUTHORING_ADMISSION_LEDGER_V1_POLICY).toStrictEqual({
+      model: 'gpt-5.6-sol',
+      countEvidenceVersion: 'openai-responses-input-tokens-count-evidence/v1',
+      inputTokenCeiling: 64_000,
+      inputAccountingProtocolAllowance: 4_096,
+      maxGenerationCalls: 3,
+      maxProbeRoutes: 2,
+      hardCeilingMicroUsd: 5_000_000,
+      inputRateNumeratorTenthsMicroUsd: 55,
+      outputRateNumeratorTenthsMicroUsd: 220,
+      rateDivisor: 10,
+      largePromptInputTokenThreshold: 272_000,
+      largePromptInputMultiplier: 2,
+      maxGenerationMicroUsd: 1_408_000,
+      maxSuccessfulProbeMicroUsd: 352_000,
+    });
   });
 
   it('validates the exact legacy v2 shape only through its immutable validator', () => {

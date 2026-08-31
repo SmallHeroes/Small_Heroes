@@ -1,5 +1,44 @@
 # SmallHeroes — Current Technical State
 
+## R1D — per-attempt diagnostic evidence implemented offline; `223 -> 89 -> 5` is now durable and attributable; awaiting independent QA; no new live/render
+
+The latest bounded live authoring attempt completed three canonical calls with no retry or
+fallback and improved the true compiler population from **223 -> 89 -> 5**, but immutable receipt
+v7 saturated the first summary at 128 and capture v3 retained only the run-wide aggregate. It cost
+`$1.285786`, produced no Candidate, and exposed an observability defect: the final five identities
+could not be separated from earlier attempts without inference.
+
+- Current receipt is now v8 and records exact per-attempt `totalCount`, explicit
+  `countSaturated`, and one census commitment for every validation-bearing attempt.
+- Current capture is now v4 and stores exact ordered per-attempt sanitized censuses plus a
+  deterministically re-derived aggregate. Attempt omission, reorder, swap, extra keys, count or
+  commitment mismatch, identity collision, and aggregate mismatch fail closed.
+- Current diagnostic and terminal identifiers are closed catalogs. No draft, message, prose,
+  expected/actual value, child data, credential, or provider output is persisted.
+- First publication, terminal lookup, recovery, and replay enforce exact v8/v4, v7/v3, and v6/v2
+  pairings. A same-aggregate/different-attribution capture fails before durable lookup residue.
+- Immutable receipt v7/capture v3 now validate through a frozen admission-ledger/v1 policy and
+  cost snapshot; current v8/v4 uses current policy. Real paid v7/v3 artifacts still validate and
+  remain byte-untouched. v6/v2 keeps its older pre-ledger shape.
+- Real-stack offline proof uses the production compiler/assembly/validator and three injected
+  drafts to reproduce exactly **223 -> 89 -> 5**, then mints, persists, reloads, recovers, and
+  replays v8/v4 with both paid factories forbidden after first execution.
+- Focused validation: **4 files / 202 tests PASS**, TypeScript clean, `git diff --check` clean.
+  Literal `npm run check` remains honestly HOLD on the established unrelated baseline: nine
+  missing ignored-output-fixture assertions in five unchanged files, plus 19 resource timeouts
+  and four known Vitest worker RPC timeout errors.
+- This milestone changes evidence only. Prompt/model/compiler/validator, 3-call/2-repair budget,
+  retry/fallback, $5 ceiling, Candidate, Wizard, payment, and render behavior are unchanged. It
+  does **not** claim the final five diagnostics are fixed and grants no paid rerun.
+- No network, credential, provider, live, Candidate, render, deploy, DB, or remote mutation was
+  performed. Next: focused local commit -> independent Claude Code re-gate -> evidence-based next
+  Decision Gate only after PASS.
+
+Evidence:
+`docs/ai-workflow/R1D_BLUEPRINT_PER_ATTEMPT_DIAGNOSTIC_EVIDENCE_IMPLEMENTATION_EVIDENCE.md`.
+
+---
+
 ## R1D — Blueprint paid execution identity now binds content + exact authoring program; offline implementation locally green, awaiting independent QA; NOT live-run
 
 The first post-F1 live command stopped in ~3 seconds with `execution_state_uncertain` before
@@ -21,9 +60,9 @@ authority was incorrectly reused as the paid executable-program identity.
   requested time, and output root cannot mint another slot. The stable content authority remains
   unchanged downstream.
 - Immutable request-v4/claim-v1 stays on the raw content key and is replay-only. Request-v3/v4
-  validation uses frozen historical request semantics. Receipt-v6/v7 replay remains validated by
-  today's receipt-policy constants; the next material policy/program cutover must first freeze
-  those receipt validators. Fresh legacy ordinary or replacement dispatch is forbidden.
+  validation uses frozen historical request semantics. Receipt-v7/capture-v3 admission-ledger-v1
+  replay now uses the frozen historical model/count/cost policy snapshot; receipt-v6/capture-v2
+  keeps its pre-ledger shape. Fresh legacy ordinary or replacement dispatch is forbidden.
 - Receipt pairing is closed at both manifest and replay validation: request v5 accepts only receipt
   v7; lifecycle request v4 accepts its historically valid receipt v6 **or v7**. Canonically
   redigested v5+v6 evidence fails.

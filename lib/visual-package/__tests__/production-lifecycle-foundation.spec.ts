@@ -8,6 +8,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   LEGACY_PRODUCTION_AUTHORING_RUN_REQUEST_VERSION,
   LEGACY_PRODUCTION_AUTHORING_RUN_REQUEST_VERSION_V4,
+  LEGACY_PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION_V7,
   PRODUCTION_AUTHORING_RUN_REQUEST_VERSION,
   PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION,
   STYLE01_PRODUCTION_STYLE_AUTHORITY_PATH,
@@ -22,7 +23,7 @@ import {
   persistProductionAuthoringReceipt,
   persistReconciliationDraftBundle,
   productionAuthoringReceiptVersionStatus,
-  productionAuthoringReceiptV7EvidenceReason,
+  productionAuthoringReceiptV8EvidenceReason,
   productionAuthoringReceiptBytes,
   productionAuthoringRequestReceiptVersionPairIsSupported,
   productionAuthoringRunRequestReplayIssues,
@@ -35,7 +36,9 @@ import {
   blueprintAuthoringFailedCensusCorrelationDiagnostics,
   blueprintAuthoringReceiptRequiresSanitizedCapture,
   blueprintAuthoringSanitizedFailureCaptureIsValid,
+  blueprintAuthoringDiagnosticCensusCommitment,
   buildBlueprintAuthoringSanitizedCensus,
+  mergeBlueprintAuthoringSanitizedCensuses,
   buildBlueprintAuthoringSanitizedFailureCapture,
   persistBlueprintAuthoringSanitizedFailureCapture,
   ProductionAuthoringProviderBoundaryError,
@@ -75,6 +78,9 @@ import {
   buildAuthoringTerminalFailure,
   notRunAuthoringExecutionAttestation,
   sanitizedAuthoringDiagnostics,
+  sanitizedAuthoringAttemptDiagnostics,
+  authoringValidationDiagnosticsAreValid,
+  legacyAuthoringValidationDiagnosticsAreValid,
   type AuthoringDiagnosticCode,
 } from '@/lib/visual-package/authoringTerminalDiagnostics';
 import type { ProductionAuthoringAttemptReceipt } from '@/lib/visual-package/productionAuthoringRunner';
@@ -1128,7 +1134,7 @@ describe('provider-isolated Blueprint authoring runner', () => {
     const { digest: _usageDigest, ...usagePayload } = exactUsageMismatch;
     exactUsageMismatch.digest = canonicalJsonDigest(usagePayload);
     expect(
-      productionAuthoringReceiptV7EvidenceReason(exactUsageMismatch),
+      productionAuthoringReceiptV8EvidenceReason(exactUsageMismatch),
     ).toBe('receipt_attempt_admission_binding_invalid');
     expect(
       productionBlueprintAuthoringReceiptReplayIsValid({
@@ -1917,6 +1923,56 @@ describe('provider-isolated Blueprint authoring runner', () => {
     expect(serialized).not.toContain('"output"');
   });
 
+  it('rejects contradictory v8 per-attempt and aggregate diagnostic evidence', async () => {
+    const { context } = buildContext('single_location');
+    const provider = {
+      call: vi.fn(async (args: ProductionProviderCallArgs) => ({
+        output: JSON.stringify({ invalid: true, attempt: args.attempt }),
+        receipt: canonicalProviderReceipt(args),
+      })),
+    };
+    const result = await runProductionBlueprintAuthoring({
+      request: requestFor(context, 'live'),
+      context,
+      provider,
+    });
+    if (!productionAuthoringRunResultIsFailed(result)) {
+      throw new Error('expected bounded failed v8 receipt');
+    }
+    expect(productionAuthoringReceiptV8EvidenceReason(result.receipt)).toBeNull();
+
+    const perAttemptMismatch = structuredClone(result.receipt);
+    perAttemptMismatch.attempts[0]!.diagnosticCensusCommitment!.totalEmitted += 1;
+    expect(productionAuthoringReceiptV8EvidenceReason(perAttemptMismatch)).toBe(
+      'receipt_attempt_diagnostic_census_commitment_invalid',
+    );
+
+    const unexpectedCommitment = structuredClone(result.receipt);
+    unexpectedCommitment.attempts[2]!.validationDiagnostics = {
+      count: 0,
+      codes: [],
+      totalCount: 0,
+      countSaturated: false,
+    };
+    expect(productionAuthoringReceiptV8EvidenceReason(unexpectedCommitment)).toBe(
+      'receipt_attempt_diagnostic_census_commitment_unexpected',
+    );
+
+    const aggregateMismatch = structuredClone(result.receipt);
+    aggregateMismatch.diagnosticCensusCommitment!.totalEmitted += 1;
+    expect(productionAuthoringReceiptV8EvidenceReason(aggregateMismatch)).toBe(
+      'receipt_aggregate_diagnostic_count_mismatch',
+    );
+
+    const malformedSummary = structuredClone(result.receipt) as unknown as {
+      attempts: Array<{ validationDiagnostics: Record<string, unknown> }>;
+    };
+    malformedSummary.attempts[0]!.validationDiagnostics.hostileExtraKey = true;
+    expect(productionAuthoringReceiptV8EvidenceReason(malformedSummary)).toBe(
+      'receipt_attempt_diagnostic_summary_invalid',
+    );
+  });
+
   it('records repair input ineligibility after one provider call without dispatching a repair', async () => {
     const { context, materialized } = buildContext('single_location');
     const oversizedInvalid = structuredClone(
@@ -2056,6 +2112,12 @@ describe('provider-isolated Blueprint authoring runner', () => {
       productionAuthoringRequestReceiptVersionPairIsSupported({
         requestVersion: LEGACY_PRODUCTION_AUTHORING_RUN_REQUEST_VERSION_V4,
         receiptVersion: PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION,
+      }),
+    ).toBe(false);
+    expect(
+      productionAuthoringRequestReceiptVersionPairIsSupported({
+        requestVersion: LEGACY_PRODUCTION_AUTHORING_RUN_REQUEST_VERSION_V4,
+        receiptVersion: LEGACY_PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION_V7,
       }),
     ).toBe(true);
     expect(
@@ -2439,7 +2501,10 @@ describe('production authoring run result totality + capture disposition', () =>
     const mutable = registered as unknown as Record<string, unknown> & {
       digest: string;
     };
-    mutable.terminalFailureCode = 'mutated_failure_code';
+    // Keep the hostile mutation inside the current closed terminal-code
+    // vocabulary so this still proves the content seal independently of the
+    // capture validator's new catalog boundary.
+    mutable.terminalFailureCode = 'local_processing_failed';
     const { digest: _drop, ...withoutDigest } = mutable;
     mutable.digest = canonicalJsonDigest(withoutDigest);
     // The mutated object is STILL validator-valid, but is no longer the mint-time content.
@@ -2513,6 +2578,49 @@ describe('production authoring run result totality + capture disposition', () =>
   });
 });
 
+describe('current per-attempt diagnostic summary honesty', () => {
+  it.each([
+    [127, 127, false],
+    [128, 128, false],
+    [129, 128, true],
+    [223, 128, true],
+  ] as const)(
+    'retains total %i with bounded count %i and saturation %s',
+    (total, bounded, saturated) => {
+      const summary = sanitizedAuthoringAttemptDiagnostics({
+        inputs: Array.from({ length: total }, () => 'draft invalid'),
+        fallbackCode: 'draft_contract_validation_failed',
+      });
+      expect(summary).toMatchObject({
+        count: bounded,
+        totalCount: total,
+        countSaturated: saturated,
+      });
+      expect(authoringValidationDiagnosticsAreValid(summary)).toBe(true);
+      expect(
+        legacyAuthoringValidationDiagnosticsAreValid({
+          count: summary.count,
+          codes: summary.codes,
+        }),
+      ).toBe(true);
+    },
+  );
+
+  it.each([
+    { count: 128, totalCount: 223, countSaturated: false },
+    { count: 128, totalCount: 128, countSaturated: true },
+    { count: 127, totalCount: 129, countSaturated: true },
+    { count: 1, totalCount: 0, countSaturated: false },
+  ])('rejects contradictory current summary %#', (hostile) => {
+    expect(
+      authoringValidationDiagnosticsAreValid({
+        ...hostile,
+        codes: ['draft_contract_validation_failed'],
+      }),
+    ).toBe(false);
+  });
+});
+
 // PURE consistency-checker UNIT tests. `blueprintAuthoringFailedCensusCorrelationDiagnostics`
 // is a non-authority checker: it returns the ordered census diagnostics when the failed
 // receipt's request linkage, attempt TOPOLOGY, and per-attempt category summary ({count,codes})
@@ -2548,8 +2656,10 @@ describe('sanitized census correlation is a pure consistency gate, sealed for id
   function persistedSummary(errors: string[]): {
     count: number;
     codes: AuthoringDiagnosticCode[];
+    totalCount: number;
+    countSaturated: boolean;
   } {
-    return sanitizedAuthoringDiagnostics({
+    return sanitizedAuthoringAttemptDiagnostics({
       inputs: errors,
       fallbackCode: 'draft_contract_validation_failed',
     });
@@ -2557,14 +2667,34 @@ describe('sanitized census correlation is a pure consistency gate, sealed for id
 
   function receiptAttempt(
     attempt: number,
-    validationDiagnostics: { count: number; codes: AuthoringDiagnosticCode[] },
+    validationDiagnostics: {
+      count: number;
+      codes: AuthoringDiagnosticCode[];
+      totalCount?: number;
+      countSaturated?: boolean;
+    },
+    commitmentDiagnostics: PreRenderBlueprintRepairDiagnostic[] = CORRELATED,
   ): ProductionAuthoringAttemptReceipt {
+    const totalCount = validationDiagnostics.totalCount ?? validationDiagnostics.count;
+    const currentDiagnostics = {
+      count: validationDiagnostics.count,
+      codes: validationDiagnostics.codes,
+      totalCount,
+      countSaturated:
+        validationDiagnostics.countSaturated ?? totalCount > 128,
+    };
     return {
       attempt,
       kind: attempt === 1 ? 'initial' : 'repair',
       completionStatus: null,
       usage: null,
-      validationDiagnostics,
+      validationDiagnostics: currentDiagnostics,
+      diagnosticCensusCommitment:
+        totalCount > 0
+          ? blueprintAuthoringDiagnosticCensusCommitment(
+              buildBlueprintAuthoringSanitizedCensus(commitmentDiagnostics),
+            )
+          : null,
     } as unknown as ProductionAuthoringAttemptReceipt;
   }
 
@@ -2709,7 +2839,7 @@ describe('sanitized census correlation is a pure consistency gate, sealed for id
 
     // 1) The exported PURE checker cannot tell B from A: it accepts A-text paired with the
     //    structurally-distinct diagnostic B and returns [B].
-    const attempts = [receiptAttempt(1, persistedSummary([aText]))];
+    const attempts = [receiptAttempt(1, persistedSummary([aText]), [B])];
     const diagnostics = correlate({
       request,
       attempts,
@@ -2753,13 +2883,15 @@ describe('sanitized census correlation is a pure consistency gate, sealed for id
         }),
       failureReason: null,
     };
+    const contradictoryCensus = buildBlueprintAuthoringSanitizedCensus(diagnostics!);
     const contradictory = buildBlueprintAuthoringSanitizedFailureCapture({
       terminalFailureCode: 'draft_validation_repair_exhausted',
       terminalReceiptDigest: receipt.digest,
       requestDigest: receipt.requestDigest,
       contextDigest: request.contextDigest,
       admissionDecisions: [initialDecision],
-      census: buildBlueprintAuthoringSanitizedCensus(diagnostics!),
+      census: contradictoryCensus,
+      attemptCensuses: [{ attempt: 1, census: contradictoryCensus }],
     });
     expect(blueprintAuthoringSanitizedFailureCaptureIsValid(contradictory)).toBe(true);
 
@@ -2788,6 +2920,55 @@ describe('sanitized census correlation is a pure consistency gate, sealed for id
     });
     // The checker returns the ordered census diagnostics (data, not a capture).
     expect(diagnostics).toEqual(CORRELATED);
+  });
+
+  it('preserves the truthful 223 -> 89 -> 5 attempt trajectory before aggregate merge', () => {
+    const { context } = buildContext('single_location');
+    const request = requestFor(context, 'live');
+    const perAttemptDiagnostics = [
+      Array.from({ length: 223 }, () => ({ ...DIAG_ONE })),
+      Array.from({ length: 89 }, () => ({ ...DIAG_TWO })),
+      Array.from({ length: 5 }, () => ({
+        code: 'schema_invalid',
+        field: 'pages',
+        message: 'final structural symptom',
+      } satisfies PreRenderBlueprintRepairDiagnostic)),
+    ];
+    const attempts = perAttemptDiagnostics.map((diagnostics, index) => {
+      const errors = diagnostics.map(preRenderBlueprintRepairDiagnosticErrorText);
+      return receiptAttempt(
+        index + 1,
+        persistedSummary(errors),
+        diagnostics,
+      );
+    });
+    const error = new PreRenderBlueprintAuthoringRepairExhaustedError(
+      perAttemptDiagnostics.map((diagnostics, index) =>
+        correlatedSourceAttempt(index + 1, diagnostics),
+      ),
+    );
+    const correlated = correlate({ request, attempts, error });
+    expect(correlated).toHaveLength(317);
+    expect(attempts.map((attempt) => attempt.validationDiagnostics)).toMatchObject([
+      { count: 128, totalCount: 223, countSaturated: true },
+      { count: 89, totalCount: 89, countSaturated: false },
+      { count: 5, totalCount: 5, countSaturated: false },
+    ]);
+    const attemptCensuses = perAttemptDiagnostics.map((diagnostics, index) => ({
+      attempt: index + 1,
+      census: buildBlueprintAuthoringSanitizedCensus(diagnostics),
+    }));
+    expect(attemptCensuses.map((entry) => entry.census.totalEmitted)).toEqual([
+      223,
+      89,
+      5,
+    ]);
+    expect(attemptCensuses[2]!.census.identities).toHaveLength(1);
+    expect(
+      mergeBlueprintAuthoringSanitizedCensuses(
+        attemptCensuses.map((entry) => entry.census),
+      ).totalEmitted,
+    ).toBe(317);
   });
 
   it('rejects same count/codes/cardinality but structured diagnostics that do not project to the errors', () => {
@@ -2924,7 +3105,13 @@ describe('sanitized census correlation is a pure consistency gate, sealed for id
     expect(
       correlate({
         request,
-        attempts: [receiptAttempt(1, persistedSummary([text, text]))],
+        attempts: [
+          receiptAttempt(
+            1,
+            persistedSummary([text, text]),
+            [emptyField, absentField],
+          ),
+        ],
         error: new PreRenderBlueprintAuthoringRepairExhaustedError([
           {
             attempt: 1,

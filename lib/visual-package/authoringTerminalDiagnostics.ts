@@ -320,6 +320,16 @@ const TERMINAL_DEFINITIONS: Record<
   },
 };
 
+/** Runtime twin of the closed terminal-code type used by current durable evidence. */
+export function authoringTerminalFailureCodeIsValid(
+  value: unknown,
+): value is AuthoringTerminalFailureCode {
+  return (
+    typeof value === 'string' &&
+    Object.prototype.hasOwnProperty.call(TERMINAL_DEFINITIONS, value)
+  );
+}
+
 export const MAX_PERSISTED_AUTHORING_DIAGNOSTIC_COUNT = 128;
 export const MAX_PERSISTED_AUTHORING_DIAGNOSTIC_CODES = 16;
 const MAX_PERSISTED_AUTHORING_ISSUE_CODES = 128;
@@ -371,6 +381,49 @@ export function sanitizedAuthoringDiagnostics(args: {
     .sort()
     .slice(0, MAX_PERSISTED_AUTHORING_DIAGNOSTIC_CODES);
   return { count, codes };
+}
+
+/**
+ * Current per-attempt receipt summary. `count` remains the bounded operator-facing
+ * value used by immutable receipts, while `totalCount` makes saturation explicit
+ * and preserves the exact number of emitted diagnostics. No diagnostic prose is
+ * retained by either field.
+ */
+export interface AuthoringValidationDiagnostics {
+  count: number;
+  codes: AuthoringDiagnosticCode[];
+  totalCount: number;
+  countSaturated: boolean;
+}
+
+export function sanitizedAuthoringAttemptDiagnostics(args: {
+  inputs?: readonly unknown[];
+  fallbackCode: AuthoringDiagnosticCode;
+  countOverride?: number;
+}): AuthoringValidationDiagnostics {
+  const inputs = args.inputs ?? [];
+  const requestedCount = args.countOverride ?? inputs.length;
+  const totalCount = Math.max(
+    1,
+    Number.isSafeInteger(requestedCount) && requestedCount >= 0
+      ? requestedCount
+      : inputs.length,
+  );
+  const bounded = sanitizedAuthoringDiagnostics(args);
+  return {
+    ...bounded,
+    totalCount,
+    countSaturated: totalCount > MAX_PERSISTED_AUTHORING_DIAGNOSTIC_COUNT,
+  };
+}
+
+export function emptyAuthoringValidationDiagnostics(): AuthoringValidationDiagnostics {
+  return {
+    count: 0,
+    codes: [],
+    totalCount: 0,
+    countSaturated: false,
+  };
 }
 
 function boundedIssueCodes(
@@ -482,9 +535,14 @@ const AUTHORING_VALIDATION_DIAGNOSTIC_CODES = new Set<AuthoringDiagnosticCode>([
   'source_evidence_validation_failed',
 ]);
 
-const AUTHORING_VALIDATION_DIAGNOSTIC_KEYS = ['codes', 'count'].sort();
+const LEGACY_AUTHORING_VALIDATION_DIAGNOSTIC_KEYS = ['codes', 'count'].sort();
+const AUTHORING_VALIDATION_DIAGNOSTIC_KEYS = [
+  ...LEGACY_AUTHORING_VALIDATION_DIAGNOSTIC_KEYS,
+  'countSaturated',
+  'totalCount',
+].sort();
 
-export function authoringValidationDiagnosticsAreValid(
+export function legacyAuthoringValidationDiagnosticsAreValid(
   value: unknown,
 ): value is { count: number; codes: AuthoringDiagnosticCode[] } {
   if (value === null || typeof value !== 'object' || Array.isArray(value)) {
@@ -493,7 +551,7 @@ export function authoringValidationDiagnosticsAreValid(
   const diagnostics = value as Record<string, unknown>;
   if (
     JSON.stringify(Object.keys(diagnostics).sort()) !==
-      JSON.stringify(AUTHORING_VALIDATION_DIAGNOSTIC_KEYS) ||
+      JSON.stringify(LEGACY_AUTHORING_VALIDATION_DIAGNOSTIC_KEYS) ||
     !Number.isSafeInteger(diagnostics.count) ||
     Number(diagnostics.count) < 0 ||
     Number(diagnostics.count) > MAX_PERSISTED_AUTHORING_DIAGNOSTIC_COUNT ||
@@ -515,6 +573,38 @@ export function authoringValidationDiagnosticsAreValid(
     JSON.stringify(codes) === JSON.stringify(canonicalCodes) &&
     codes.length <= Number(diagnostics.count) + 1 &&
     (Number(diagnostics.count) === 0) === (codes.length === 0)
+  );
+}
+
+export function authoringValidationDiagnosticsAreValid(
+  value: unknown,
+): value is AuthoringValidationDiagnostics {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+    return false;
+  }
+  const diagnostics = value as Record<string, unknown>;
+  if (
+    JSON.stringify(Object.keys(diagnostics).sort()) !==
+      JSON.stringify(AUTHORING_VALIDATION_DIAGNOSTIC_KEYS) ||
+    !Number.isSafeInteger(diagnostics.totalCount) ||
+    Number(diagnostics.totalCount) < 0 ||
+    typeof diagnostics.countSaturated !== 'boolean'
+  ) {
+    return false;
+  }
+  const legacyProjection = {
+    count: diagnostics.count,
+    codes: diagnostics.codes,
+  };
+  const totalCount = Number(diagnostics.totalCount);
+  return (
+    legacyAuthoringValidationDiagnosticsAreValid(legacyProjection) &&
+    Number(diagnostics.count) ===
+      Math.min(totalCount, MAX_PERSISTED_AUTHORING_DIAGNOSTIC_COUNT) &&
+    diagnostics.countSaturated ===
+      (totalCount > MAX_PERSISTED_AUTHORING_DIAGNOSTIC_COUNT) &&
+    (totalCount === 0) ===
+      ((diagnostics.codes as unknown[]).length === 0)
   );
 }
 

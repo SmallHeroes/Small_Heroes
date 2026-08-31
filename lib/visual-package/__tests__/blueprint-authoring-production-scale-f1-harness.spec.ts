@@ -35,7 +35,7 @@ const HARNESS = path.join(
 );
 
 describe('production-scale Blueprint F1 offline harness', () => {
-  it('admits the exact 8-page / 86-diagnostic repair through one counted route without network, credentials, provider modules, or writes', () => {
+  it('proves decreasing nonzero exhaustion across both repairs without claiming model convergence', () => {
     const child = spawnSync(
       process.execPath,
       [
@@ -66,12 +66,14 @@ describe('production-scale Blueprint F1 offline harness', () => {
         '0cc212ea805e53395d9757c04b436ac55527aecc2f434c5a35c5c91dbee80d0c',
       pageCount: 8,
       firstDraftDiagnostics: 86,
+      diagnosticTrajectory: [86, 7, 6],
       repairEstimatedBytes: 74_788,
-      exactRepairInputTokens: 50_000,
+      exactRepairInputTokens: [50_000, null],
       countCalls: 1,
-      generationCalls: 2,
-      status: 'completed',
-      receiptVersion: 'production-blueprint-authoring-receipt/v7',
+      generationCalls: 3,
+      status: 'failed',
+      receiptVersion: 'production-blueprint-authoring-receipt/v8',
+      captureVersion: 'blueprint-authoring-sanitized-failure-capture/v4',
     });
   });
 });

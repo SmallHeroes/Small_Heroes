@@ -39,16 +39,20 @@ import {
 } from './productionAuthoringContext';
 import {
   aggregateAuthoringExecutionAttestations,
+  authoringValidationDiagnosticsAreValid,
   authoringExecutionAttestationIsValid,
   buildAuthoringTerminalFailure,
   canonicalCompletedExecutionAttestationIsValid,
   injectedAuthoringExecutionAttestation,
   notRunAuthoringExecutionAttestation,
+  emptyAuthoringValidationDiagnostics,
+  sanitizedAuthoringAttemptDiagnostics,
   sanitizedAuthoringDiagnostics,
   type AuthoringDiagnosticCode,
   type AuthoringExecutionAttestation,
   type AuthoringTerminalFailure,
   type AuthoringTerminalFailureCode,
+  type AuthoringValidationDiagnostics,
 } from './authoringTerminalDiagnostics';
 import {
   BLUEPRINT_AUTHORING_HARD_COST_CEILING_USD,
@@ -94,6 +98,8 @@ import {
   blueprintAuthoringCountCacheKey,
   blueprintAuthoringCountResultTransportWasDispatched,
   blueprintAuthoringTokenRelevantRequestDigest,
+  legacyBlueprintAuthoringAdmissionLedgerGenerationMicroUsd,
+  legacyBlueprintAuthoringAdmissionLedgerV1StructuralReason,
   type BlueprintAuthoringAdmissionDecisionRecord,
   type BlueprintAuthoringAdmissionFailureReason,
   type BlueprintAuthoringProbeCostEvidence,
@@ -109,12 +115,14 @@ import {
   blueprintAuthoringFailureRequiresSanitizedCapture,
   buildBlueprintAuthoringSanitizedCensus,
   buildBlueprintAuthoringSanitizedFailureCapture,
+  mergeBlueprintAuthoringSanitizedCensuses,
   blueprintAuthoringSanitizedFailureCaptureBytes,
   blueprintAuthoringSanitizedFailureCaptureIsValid,
   blueprintAuthoringReceiptRequiresSanitizedCapture,
   type BlueprintAuthoringSanitizedFailureCapture,
   type BlueprintAuthoringDiagnosticCensusCommitment,
   type BlueprintAuthoringSanitizedCensus,
+  type BlueprintAuthoringSanitizedAttemptCensus,
 } from './blueprintAuthoringSanitizedFailureCapture';
 
 export const PRODUCTION_AUTHORING_RUN_REQUEST_VERSION =
@@ -124,6 +132,8 @@ export const LEGACY_PRODUCTION_AUTHORING_RUN_REQUEST_VERSION_V4 =
 export const LEGACY_PRODUCTION_AUTHORING_RUN_REQUEST_VERSION =
   'production-blueprint-authoring-request/v3' as const;
 export const PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION =
+  'production-blueprint-authoring-receipt/v8' as const;
+export const LEGACY_PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION_V7 =
   'production-blueprint-authoring-receipt/v7' as const;
 export const LEGACY_PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION_V6 =
   'production-blueprint-authoring-receipt/v6' as const;
@@ -189,6 +199,7 @@ export function productionAuthoringReceiptVersionStatus(
     return 'current';
   }
   return version === LEGACY_PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION ||
+    version === LEGACY_PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION_V7 ||
     version === LEGACY_PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION_V6 ||
     version === LEGACY_PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION_V4 ||
     version === LEGACY_PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION_V3
@@ -198,8 +209,8 @@ export function productionAuthoringReceiptVersionStatus(
 
 /**
  * Closed request/receipt contract pairings accepted by the QA-Wizard lifecycle.
- * Request v5 requires receipt v7's admission/count evidence. The only durable
- * Lifecycle terminals under request v4 may carry receipt v6 or the v7 receipt
+ * Request v5 accepts current receipt v8 or immutable historical v7 evidence. The
+ * only durable Lifecycle terminals under request v4 may carry receipt v6 or v7
  * introduced while request v4 was still current. Request v3 never entered this
  * lifecycle and has no accepted pairing here.
  */
@@ -209,10 +220,11 @@ export function productionAuthoringRequestReceiptVersionPairIsSupported(args: {
 }): boolean {
   return (
     (args.requestVersion === PRODUCTION_AUTHORING_RUN_REQUEST_VERSION &&
-      args.receiptVersion === PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION) ||
+      (args.receiptVersion === PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION ||
+        args.receiptVersion === LEGACY_PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION_V7)) ||
     (args.requestVersion === LEGACY_PRODUCTION_AUTHORING_RUN_REQUEST_VERSION_V4 &&
       (args.receiptVersion === LEGACY_PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION_V6 ||
-        args.receiptVersion === PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION))
+        args.receiptVersion === LEGACY_PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION_V7))
   );
 }
 
@@ -425,11 +437,18 @@ export interface LegacyProductionAuthoringAttemptReceiptV6 {
   failureEvidenceReason: ProductionAuthoringAttemptFailureEvidenceReason | null;
 }
 
-export interface ProductionAuthoringAttemptReceipt
+export interface LegacyProductionAuthoringAttemptReceiptV7
   extends LegacyProductionAuthoringAttemptReceiptV6 {
   /** Exact full decision binding and its canonical token-relevant generation wire. */
   inputAdmissionDigest: string;
   tokenRelevantRequestDigest: string;
+}
+
+export interface ProductionAuthoringAttemptReceipt
+  extends LegacyProductionAuthoringAttemptReceiptV7 {
+  validationDiagnostics: AuthoringValidationDiagnostics;
+  /** Exact sanitized structural census for this attempt, or null when it emitted none. */
+  diagnosticCensusCommitment: BlueprintAuthoringDiagnosticCensusCommitment | null;
 }
 
 export interface ProductionAuthoringProviderBoundaryEvidence {
@@ -481,6 +500,14 @@ export interface ProductionAuthoringRunReceipt
   diagnosticCensusCommitment: BlueprintAuthoringDiagnosticCensusCommitment | null;
 }
 
+export interface LegacyProductionAuthoringRunReceiptV7
+  extends ProductionAuthoringRunReceiptBase {
+  version: typeof LEGACY_PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION_V7;
+  attempts: LegacyProductionAuthoringAttemptReceiptV7[];
+  admissionDecisions: BlueprintAuthoringAdmissionDecisionRecord[];
+  diagnosticCensusCommitment: BlueprintAuthoringDiagnosticCensusCommitment | null;
+}
+
 export interface LegacyProductionAuthoringRunReceiptV6
   extends ProductionAuthoringRunReceiptBase {
   version: typeof LEGACY_PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION_V6;
@@ -489,6 +516,7 @@ export interface LegacyProductionAuthoringRunReceiptV6
 
 export type ReplayableProductionAuthoringRunReceipt =
   | ProductionAuthoringRunReceipt
+  | LegacyProductionAuthoringRunReceiptV7
   | LegacyProductionAuthoringRunReceiptV6;
 
 /**
@@ -627,21 +655,31 @@ export function productionAuthoringReceiptBytes(
   return `${JSON.stringify(canonicalize(receipt), null, 2)}\n`;
 }
 
-/** Prompt-free durable evidence validator for current receipt v7. */
-export function productionAuthoringReceiptV7EvidenceReason(
+function productionAuthoringReceiptAdmissionEvidenceReason(
   value: unknown,
+  expectedVersion:
+    | typeof PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION
+    | typeof LEGACY_PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION_V7,
 ): string | null {
   try {
     if (!value || typeof value !== 'object' || Array.isArray(value)) {
-      return 'receipt_v7_shape_invalid';
+      return 'receipt_admission_shape_invalid';
     }
-    const receipt = value as ProductionAuthoringRunReceipt;
-    if (receipt.version !== PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION) {
-      return 'receipt_v7_version_invalid';
+    const receipt = value as
+      | ProductionAuthoringRunReceipt
+      | LegacyProductionAuthoringRunReceiptV7;
+    if (receipt.version !== expectedVersion) {
+      return 'receipt_admission_version_invalid';
     }
-    const ledgerReason = blueprintAuthoringAdmissionLedgerStructuralReason(
-      receipt.admissionDecisions,
-    );
+    const legacyV7 =
+      expectedVersion === LEGACY_PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION_V7;
+    const ledgerReason = legacyV7
+      ? legacyBlueprintAuthoringAdmissionLedgerV1StructuralReason(
+          receipt.admissionDecisions,
+        )
+      : blueprintAuthoringAdmissionLedgerStructuralReason(
+          receipt.admissionDecisions,
+        );
     if (ledgerReason !== null) return ledgerReason;
     if (!Array.isArray(receipt.attempts)) return 'receipt_attempts_invalid';
     const decisions = receipt.admissionDecisions;
@@ -681,10 +719,15 @@ export function productionAuthoringReceiptV7EvidenceReason(
           !Number.isSafeInteger(outputTokens) ||
           outputTokens < 0
         ) return 'receipt_generation_cost_evidence_invalid';
-        const debit = blueprintAuthoringGenerationMicroUsd({
-          inputTokens,
-          outputTokens,
-        });
+        const debit = legacyV7
+          ? legacyBlueprintAuthoringAdmissionLedgerGenerationMicroUsd({
+              inputTokens,
+              outputTokens,
+            })
+          : blueprintAuthoringGenerationMicroUsd({
+              inputTokens,
+              outputTokens,
+            });
         if (generationAccountedMicroUsd > Number.MAX_SAFE_INTEGER - debit) {
           return 'receipt_generation_cost_overflow';
         }
@@ -733,8 +776,64 @@ export function productionAuthoringReceiptV7EvidenceReason(
     }
     return null;
   } catch {
-    return 'receipt_v7_evidence_validation_failed';
+    return 'receipt_admission_evidence_validation_failed';
   }
+}
+
+/** Prompt-free immutable admission/count-evidence validator for legacy receipt v7. */
+export function productionAuthoringReceiptV7EvidenceReason(
+  value: unknown,
+): string | null {
+  return productionAuthoringReceiptAdmissionEvidenceReason(
+    value,
+    LEGACY_PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION_V7,
+  );
+}
+
+/** Prompt-free durable evidence validator for current receipt v8. */
+export function productionAuthoringReceiptV8EvidenceReason(
+  value: unknown,
+): string | null {
+  const commonReason = productionAuthoringReceiptAdmissionEvidenceReason(
+    value,
+    PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION,
+  );
+  if (commonReason !== null) return commonReason;
+  const receipt = value as ProductionAuthoringRunReceipt;
+  let totalEmitted = 0;
+  for (const attempt of receipt.attempts) {
+    if (!authoringValidationDiagnosticsAreValid(attempt.validationDiagnostics)) {
+      return 'receipt_attempt_diagnostic_summary_invalid';
+    }
+    const diagnosticsPresent = attempt.validationDiagnostics.totalCount > 0;
+    if (diagnosticsPresent) {
+      if (
+        !blueprintAuthoringDiagnosticCensusCommitmentIsValid(
+          attempt.diagnosticCensusCommitment,
+        ) ||
+        attempt.diagnosticCensusCommitment.totalEmitted !==
+          attempt.validationDiagnostics.totalCount
+      ) {
+        return 'receipt_attempt_diagnostic_census_commitment_invalid';
+      }
+      if (
+        totalEmitted >
+        Number.MAX_SAFE_INTEGER - attempt.validationDiagnostics.totalCount
+      ) {
+        return 'receipt_attempt_diagnostic_count_overflow';
+      }
+      totalEmitted += attempt.validationDiagnostics.totalCount;
+    } else if (attempt.diagnosticCensusCommitment !== null) {
+      return 'receipt_attempt_diagnostic_census_commitment_unexpected';
+    }
+  }
+  if (
+    totalEmitted > 0 &&
+    receipt.diagnosticCensusCommitment?.totalEmitted !== totalEmitted
+  ) {
+    return 'receipt_aggregate_diagnostic_count_mismatch';
+  }
+  return null;
 }
 
 export class InvalidProductionAuthoringRunRequestError extends Error {
@@ -1235,6 +1334,7 @@ function copyValidationAttemptEvidence(args: {
   sourceAttempts: ReadonlyArray<{
     attempt: number;
     errors: string[];
+    diagnostics?: PreRenderBlueprintRepairDiagnostic[];
   }>;
   receipts: ProductionAuthoringAttemptReceipt[];
 }): void {
@@ -1248,11 +1348,19 @@ function copyValidationAttemptEvidence(args: {
     }
     const receipt = args.receipts[repairAttempt.attempt - 1];
     if (!receipt || receipt.failureCode !== null) continue;
-    receipt.validationDiagnostics =
-      sanitizedAuthoringDiagnostics({
-        inputs: repairAttempt.errors,
-        fallbackCode: 'draft_contract_validation_failed',
-      });
+    receipt.validationDiagnostics = sanitizedAuthoringAttemptDiagnostics({
+      inputs: repairAttempt.errors,
+      fallbackCode: 'draft_contract_validation_failed',
+    });
+    try {
+      receipt.diagnosticCensusCommitment = repairAttempt.diagnostics?.length
+        ? blueprintAuthoringDiagnosticCensusCommitment(
+            buildBlueprintAuthoringSanitizedCensus(repairAttempt.diagnostics),
+          )
+        : null;
+    } catch {
+      receipt.diagnosticCensusCommitment = null;
+    }
   }
 }
 
@@ -1907,10 +2015,8 @@ export async function runProductionBlueprintAuthoring(args: {
             cumulativeConservativeCostUsd: null,
             executionAttestation:
               notRunAuthoringExecutionAttestation(),
-            validationDiagnostics: {
-              count: 0,
-              codes: [],
-            },
+            validationDiagnostics: emptyAuthoringValidationDiagnostics(),
+            diagnosticCensusCommitment: null,
             failureCode: null,
             failureEvidenceKind: null,
             failureEvidenceReason: null,
@@ -2393,12 +2499,15 @@ export async function runProductionBlueprintAuthoring(args: {
     for (const repair of authoringResult.repairAttempts) {
       const receipt = attempts[repair.attempt - 1];
       if (receipt) {
-        receipt.validationDiagnostics =
-          sanitizedAuthoringDiagnostics({
-            inputs: repair.errors,
-            fallbackCode:
-              'draft_contract_validation_failed',
-          });
+        receipt.validationDiagnostics = sanitizedAuthoringAttemptDiagnostics({
+          inputs: repair.errors,
+          fallbackCode: 'draft_contract_validation_failed',
+        });
+        receipt.diagnosticCensusCommitment = repair.diagnostics?.length
+          ? blueprintAuthoringDiagnosticCensusCommitment(
+              buildBlueprintAuthoringSanitizedCensus(repair.diagnostics),
+            )
+          : null;
       }
     }
     const receipt = finalizeReceipt({
@@ -2498,16 +2607,39 @@ export async function runProductionBlueprintAuthoring(args: {
           ? 'draft_validation_repair_exhausted'
           : 'local_processing_failed');
     let failureCensus: BlueprintAuthoringSanitizedCensus | null = null;
+    let failureAttemptCensuses: BlueprintAuthoringSanitizedAttemptCensus[] = [];
     if (
       error instanceof PreRenderBlueprintAuthoringRepairExhaustedError ||
       error instanceof PreRenderBlueprintRepairInputNotAdmissibleError
     ) {
-      const diagnostics = error.attempts.flatMap(
-        (attempt) => attempt.diagnostics ?? [],
-      );
-      if (diagnostics.length > 0) {
+      try {
+        failureAttemptCensuses = error.attempts.flatMap((attempt, index) => {
+          if (attempt.attempt !== index + 1) {
+            throw new Error('per-attempt diagnostic census source is noncanonical');
+          }
+          if (!attempt.diagnostics || attempt.diagnostics.length === 0) {
+            return [];
+          }
+          return [{
+            attempt: attempt.attempt,
+            census: buildBlueprintAuthoringSanitizedCensus(attempt.diagnostics),
+          }];
+        });
+        failureCensus = mergeBlueprintAuthoringSanitizedCensuses(
+          failureAttemptCensuses.map((entry) => entry.census),
+        );
+      } catch {
+        failureAttemptCensuses = [];
+        failureCensus = null;
+      }
+      if (failureAttemptCensuses.length === 0) {
         try {
-          failureCensus = buildBlueprintAuthoringSanitizedCensus(diagnostics);
+          const diagnostics = error.attempts.flatMap(
+            (attempt) => attempt.diagnostics ?? [],
+          );
+          if (diagnostics.length > 0) {
+            failureCensus = buildBlueprintAuthoringSanitizedCensus(diagnostics);
+          }
         } catch {
           failureCensus = null;
         }
@@ -2551,6 +2683,7 @@ export async function runProductionBlueprintAuthoring(args: {
         failureReceipt: failed,
         failureCode,
         census: failureCensus,
+        attemptCensuses: failureAttemptCensuses,
         admissionDecisions,
       }),
     );
@@ -2737,23 +2870,39 @@ export function blueprintAuthoringFailedCensusCorrelationDiagnostics(args: {
   for (const receiptAttempt of receiptAttempts) {
     const persisted = receiptAttempt.validationDiagnostics;
     const attemptIsDiagnosticBearing =
-      persisted.count > 0 || persisted.codes.length > 0;
-    if (!attemptIsDiagnosticBearing) continue;
+      persisted.totalCount > 0 || persisted.codes.length > 0;
+    if (!attemptIsDiagnosticBearing) {
+      if (receiptAttempt.diagnosticCensusCommitment !== null) return null;
+      continue;
+    }
     const evidence = evidenceByAttempt.get(receiptAttempt.attempt);
     if (!evidence) {
       return null;
     }
-    const rederived = sanitizedAuthoringDiagnostics({
+    const rederived = sanitizedAuthoringAttemptDiagnostics({
       inputs: evidence.errors,
       fallbackCode: 'draft_contract_validation_failed',
     });
     if (
-      rederived.count !== persisted.count ||
-      JSON.stringify(rederived.codes) !== JSON.stringify(persisted.codes)
+      canonicalJsonDigest(rederived) !== canonicalJsonDigest(persisted)
     ) {
       return null;
     }
     if (evidence.diagnostics.length === 0) {
+      return null;
+    }
+    let attemptCensus: BlueprintAuthoringSanitizedCensus;
+    try {
+      attemptCensus = buildBlueprintAuthoringSanitizedCensus(evidence.diagnostics);
+    } catch {
+      return null;
+    }
+    if (
+      receiptAttempt.diagnosticCensusCommitment === null ||
+      canonicalJsonDigest(
+        blueprintAuthoringDiagnosticCensusCommitment(attemptCensus),
+      ) !== canonicalJsonDigest(receiptAttempt.diagnosticCensusCommitment)
+    ) {
       return null;
     }
     const projected = evidence.diagnostics.map(
@@ -2805,7 +2954,7 @@ export function blueprintAuthoringFailedCensusCorrelationDiagnostics(args: {
  * therefore inert. The minted capture is content-addressed and, by the lifecycle, atomically
  * linked to this receipt; replay/recovery re-read that capture and never re-derive.
  *
- * Current receipt v7 binds the complete admission ledger and the diagnostic census
+ * Current receipt v8 binds the complete admission ledger and per-attempt diagnostic censuses
  * commitment. The linkage-bound capture repeats those authorities and replay verifies their
  * parity. Legacy receipt v6 remains immutable and therefore carries only attempt topology plus
  * each attempt's category summary ({count,codes}); it is never retrofitted with v7 evidence.
@@ -2828,6 +2977,7 @@ function deriveBlueprintAuthoringSanitizedFailureCaptureDisposition(args: {
   failureReceipt: ProductionAuthoringRunReceipt;
   failureCode: ProductionBlueprintRunnerTerminalFailureCode;
   census?: BlueprintAuthoringSanitizedCensus | null;
+  attemptCensuses?: readonly BlueprintAuthoringSanitizedAttemptCensus[];
   admissionDecisions?: readonly BlueprintAuthoringAdmissionDecisionRecord[];
 }): BlueprintAuthoringSanitizedFailureCaptureDisposition {
   if (!blueprintAuthoringReceiptRequiresSanitizedCapture(args.failureReceipt)) {
@@ -2849,15 +2999,28 @@ function deriveBlueprintAuthoringSanitizedFailureCaptureDisposition(args: {
   }
   try {
     const census = args.census ?? null;
+    const attemptCensuses = args.attemptCensuses ?? [];
     const admissionDecisions = args.admissionDecisions ?? [];
     if (
       census === null ||
+      attemptCensuses.length === 0 ||
       args.failureReceipt.diagnosticCensusCommitment === null ||
       canonicalJsonDigest(
         blueprintAuthoringDiagnosticCensusCommitment(census),
       ) !== canonicalJsonDigest(args.failureReceipt.diagnosticCensusCommitment) ||
       canonicalJsonDigest(admissionDecisions) !==
-        canonicalJsonDigest(args.failureReceipt.admissionDecisions)
+        canonicalJsonDigest(args.failureReceipt.admissionDecisions) ||
+      attemptCensuses.some((entry) => {
+        const receiptAttempt = args.failureReceipt.attempts[entry.attempt - 1];
+        return (
+          !receiptAttempt ||
+          receiptAttempt.attempt !== entry.attempt ||
+          receiptAttempt.diagnosticCensusCommitment === null ||
+          canonicalJsonDigest(
+            blueprintAuthoringDiagnosticCensusCommitment(entry.census),
+          ) !== canonicalJsonDigest(receiptAttempt.diagnosticCensusCommitment)
+        );
+      })
     ) {
       return {
         kind: 'derivation_failed',
@@ -2871,6 +3034,7 @@ function deriveBlueprintAuthoringSanitizedFailureCaptureDisposition(args: {
       contextDigest: args.request.contextDigest,
       admissionDecisions,
       census,
+      attemptCensuses,
     });
     // Register this same-stack minted capture by its EXACT mint-time canonical bytes, so the
     // dedicated capture-specific persister will accept it AND reject any post-mint mutation.

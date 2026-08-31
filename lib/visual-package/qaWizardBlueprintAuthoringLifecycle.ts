@@ -17,6 +17,7 @@ import {
 } from './qaWizardCandidateBridge';
 import {
   LEGACY_PRODUCTION_AUTHORING_RUN_REQUEST_VERSION_V4,
+  LEGACY_PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION_V7,
   LEGACY_PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION_V6,
   PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION,
   PRODUCTION_AUTHORING_RUN_REQUEST_VERSION,
@@ -27,6 +28,7 @@ import {
   persistProductionAuthoringReceipt,
   productionAuthoringReceiptBytes,
   productionAuthoringReceiptV7EvidenceReason,
+  productionAuthoringReceiptV8EvidenceReason,
   productionAuthoringReceiptVersionStatus,
   productionAuthoringRequestReceiptVersionPairIsSupported,
   productionAuthoringRunRequestReplayIssues,
@@ -39,6 +41,7 @@ import {
   type ProductionAuthoringRunReceipt,
   type ReplayableProductionAuthoringRunReceipt,
   type LegacyProductionAuthoringAttemptReceiptV6,
+  type LegacyProductionAuthoringAttemptReceiptV7,
   type ReplayableProductionAuthoringRunRequest,
   type ProductionAuthoringRunRequest,
 } from './productionAuthoringRunner';
@@ -49,14 +52,17 @@ import {
 } from './blueprintAuthoringExecutionProgram';
 import {
   BLUEPRINT_AUTHORING_SANITIZED_FAILURE_CAPTURE_VERSION,
+  LEGACY_BLUEPRINT_AUTHORING_SANITIZED_FAILURE_CAPTURE_VERSION_V3,
   LEGACY_BLUEPRINT_AUTHORING_SANITIZED_FAILURE_CAPTURE_VERSION_V2,
   blueprintAuthoringDiagnosticCensusCommitmentIsValid,
   blueprintAuthoringSanitizedFailureCaptureBytes,
   blueprintAuthoringSanitizedFailureCaptureIsValid,
   legacyBlueprintAuthoringSanitizedFailureCaptureV2IsValid,
+  legacyBlueprintAuthoringSanitizedFailureCaptureV3IsValid,
   blueprintAuthoringReceiptRequiresSanitizedCapture,
   type BlueprintAuthoringSanitizedFailureCapture,
   type LegacyBlueprintAuthoringSanitizedFailureCaptureV2,
+  type LegacyBlueprintAuthoringSanitizedFailureCaptureV3,
 } from './blueprintAuthoringSanitizedFailureCapture';
 import type { ProductionAuthoringContext } from './productionAuthoringContext';
 import {
@@ -65,6 +71,7 @@ import {
   authoringExecutionAttestationIsValid,
   authoringTerminalFailureIsValid,
   authoringValidationDiagnosticsAreValid,
+  legacyAuthoringValidationDiagnosticsAreValid,
 } from './authoringTerminalDiagnostics';
 import {
   BLUEPRINT_AUTHORING_MAX_CALLS,
@@ -221,6 +228,7 @@ interface ManifestRequestAuthority {
 interface ManifestReceiptAuthority {
   version:
     | typeof PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION
+    | typeof LEGACY_PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION_V7
     | typeof LEGACY_PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION_V6;
   digest: string;
   path: string;
@@ -254,6 +262,7 @@ interface ManifestBlueprintAuthority {
 interface ManifestObservabilityCaptureAuthority {
   version:
     | typeof BLUEPRINT_AUTHORING_SANITIZED_FAILURE_CAPTURE_VERSION
+    | typeof LEGACY_BLUEPRINT_AUTHORING_SANITIZED_FAILURE_CAPTURE_VERSION_V3
     | typeof LEGACY_BLUEPRINT_AUTHORING_SANITIZED_FAILURE_CAPTURE_VERSION_V2;
   digest: string;
   path: string;
@@ -653,6 +662,10 @@ const ATTEMPT_V7_KEYS = [
   'inputAdmissionDigest',
   'tokenRelevantRequestDigest',
 ] as const;
+const ATTEMPT_V8_KEYS = [
+  ...ATTEMPT_V7_KEYS,
+  'diagnosticCensusCommitment',
+] as const;
 const SAFE_USAGE_KEYS = [
   'cacheWriteInputTokens',
   'cachedInputTokens',
@@ -950,6 +963,8 @@ function manifestShapeIsValid(
       (manifest.observabilityCapture.version !==
         BLUEPRINT_AUTHORING_SANITIZED_FAILURE_CAPTURE_VERSION &&
         manifest.observabilityCapture.version !==
+          LEGACY_BLUEPRINT_AUTHORING_SANITIZED_FAILURE_CAPTURE_VERSION_V3 &&
+        manifest.observabilityCapture.version !==
           LEGACY_BLUEPRINT_AUTHORING_SANITIZED_FAILURE_CAPTURE_VERSION_V2) ||
       typeof manifest.observabilityCapture.digest !== 'string' ||
       !HEX_SHA256.test(manifest.observabilityCapture.digest) ||
@@ -981,6 +996,7 @@ function manifestShapeIsValid(
     !exactKeys(manifest.receipt, RECEIPT_KEYS) ||
     ![
       PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION,
+      LEGACY_PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION_V7,
       LEGACY_PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION_V6,
     ].includes(manifest.receipt.version) ||
     typeof manifest.receipt.digest !== 'string' ||
@@ -999,6 +1015,10 @@ function manifestShapeIsValid(
     ((manifest.receipt.version === PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION &&
       manifest.observabilityCapture.version !==
         BLUEPRINT_AUTHORING_SANITIZED_FAILURE_CAPTURE_VERSION) ||
+      (manifest.receipt.version ===
+        LEGACY_PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION_V7 &&
+        manifest.observabilityCapture.version !==
+          LEGACY_BLUEPRINT_AUTHORING_SANITIZED_FAILURE_CAPTURE_VERSION_V3) ||
       (manifest.receipt.version ===
         LEGACY_PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION_V6 &&
         manifest.observabilityCapture.version !==
@@ -1185,12 +1205,15 @@ function attemptReceiptIsValid(args: {
   priorCumulativeCostUsd: number;
   receiptVersion:
     | typeof PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION
+    | typeof LEGACY_PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION_V7
     | typeof LEGACY_PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION_V6;
 }): { valid: boolean; cumulativeCostUsd: number } {
   const expectedKeys =
     args.receiptVersion === PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION
-      ? ATTEMPT_V7_KEYS
-      : LEGACY_ATTEMPT_V6_KEYS;
+      ? ATTEMPT_V8_KEYS
+      : args.receiptVersion === LEGACY_PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION_V7
+        ? ATTEMPT_V7_KEYS
+        : LEGACY_ATTEMPT_V6_KEYS;
   if (!exactKeys(args.attempt, expectedKeys)) {
     return { valid: false, cumulativeCostUsd: args.priorCumulativeCostUsd };
   }
@@ -1233,9 +1256,9 @@ function attemptReceiptIsValid(args: {
     responseDigestIsValid &&
     providerEvidenceVersionIsCurrent;
   // Legacy v6 had no durable admission ledger, so its only replayable input
-  // authority remains the conservative byte-derived ceiling. Current v7 binds
-  // every attempt to a structurally validated admission decision below via
-  // `productionAuthoringReceiptV7EvidenceReason`; that decision may legitimately
+  // authority remains the conservative byte-derived ceiling. Receipts v7/v8 bind
+  // every attempt to a structurally validated admission decision below via their
+  // frozen/current receipt-evidence validators; that decision may legitimately
   // admit an over-byte repair after an exact provider token count. Reapplying the
   // legacy byte gate here would make the new success path impossible to publish.
   const inputAccountingIsAdmittedForReceiptVersion =
@@ -1243,7 +1266,7 @@ function attemptReceiptIsValid(args: {
       inputAccounting,
       PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA,
     ) &&
-    (args.receiptVersion === PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION ||
+    (args.receiptVersion !== LEGACY_PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION_V6 ||
       blueprintAuthoringInputTokensAreAdmissible(inputAccounting));
   const fullAccounting =
     inputAccountingIsAdmittedForReceiptVersion &&
@@ -1519,7 +1542,13 @@ function attemptReceiptIsValid(args: {
       (attempt.completionStatus === null ||
         attempt.completionStatus === 'completed') &&
       authoringExecutionAttestationIsValid(attempt.executionAttestation) &&
-      authoringValidationDiagnosticsAreValid(diagnostics) &&
+      (args.receiptVersion === PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION
+        ? authoringValidationDiagnosticsAreValid(diagnostics) &&
+          (attempt.diagnosticCensusCommitment === null ||
+            blueprintAuthoringDiagnosticCensusCommitmentIsValid(
+              attempt.diagnosticCensusCommitment,
+            ))
+        : legacyAuthoringValidationDiagnosticsAreValid(diagnostics)) &&
       (attempt.failureCode === null
         ? attempt.failureEvidenceKind === null &&
           attempt.failureEvidenceReason === null &&
@@ -1548,6 +1577,7 @@ export function productionBlueprintAuthoringReceiptReplayIsValid(args: {
   const receiptVersion = receipt.version;
   if (
     receiptVersion !== PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION &&
+    receiptVersion !== LEGACY_PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION_V7 &&
     receiptVersion !== LEGACY_PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION_V6
   ) return false;
   if (
@@ -1664,13 +1694,15 @@ export function productionBlueprintAuthoringReceiptReplayIsValid(args: {
     return (
     exactKeys(
       args.receipt,
-      receiptVersion === PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION
+      receiptVersion !== LEGACY_PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION_V6
         ? RECEIPT_V7_TOP_LEVEL_KEYS
         : LEGACY_RECEIPT_V6_TOP_LEVEL_KEYS,
     ) &&
     productionAuthoringReceiptVersionStatus(receipt.version) !== 'unsupported' &&
     (receiptVersion === LEGACY_PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION_V6 ||
-      productionAuthoringReceiptV7EvidenceReason(receipt) === null) &&
+      (receiptVersion === LEGACY_PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION_V7
+        ? productionAuthoringReceiptV7EvidenceReason(receipt) === null
+        : productionAuthoringReceiptV8EvidenceReason(receipt) === null)) &&
     receipt.digestAlgorithm === DIGEST_ALGORITHM &&
     receipt.digest === args.expectedDigest &&
     receipt.digest === canonicalJsonDigest(payloadWithoutDigest(args.receipt)) &&
@@ -2336,10 +2368,12 @@ function loadSanitizedFailureCaptureAuthority(args: {
   expectedDigest: string;
   expectedVersion:
     | typeof BLUEPRINT_AUTHORING_SANITIZED_FAILURE_CAPTURE_VERSION
+    | typeof LEGACY_BLUEPRINT_AUTHORING_SANITIZED_FAILURE_CAPTURE_VERSION_V3
     | typeof LEGACY_BLUEPRINT_AUTHORING_SANITIZED_FAILURE_CAPTURE_VERSION_V2;
 }): {
   capture:
     | BlueprintAuthoringSanitizedFailureCapture
+    | LegacyBlueprintAuthoringSanitizedFailureCaptureV3
     | LegacyBlueprintAuthoringSanitizedFailureCaptureV2;
 } {
   // Exact canonical containment: the capture MUST live at THIS outputDir's canonical
@@ -2360,11 +2394,15 @@ function loadSanitizedFailureCaptureAuthority(args: {
   const capture =
     loaded.value as unknown as
       | BlueprintAuthoringSanitizedFailureCapture
+      | LegacyBlueprintAuthoringSanitizedFailureCaptureV3
       | LegacyBlueprintAuthoringSanitizedFailureCaptureV2;
   const structurallyValid =
     args.expectedVersion === BLUEPRINT_AUTHORING_SANITIZED_FAILURE_CAPTURE_VERSION
       ? blueprintAuthoringSanitizedFailureCaptureIsValid(loaded.value)
-      : legacyBlueprintAuthoringSanitizedFailureCaptureV2IsValid(loaded.value);
+      : args.expectedVersion ===
+          LEGACY_BLUEPRINT_AUTHORING_SANITIZED_FAILURE_CAPTURE_VERSION_V3
+        ? legacyBlueprintAuthoringSanitizedFailureCaptureV3IsValid(loaded.value)
+        : legacyBlueprintAuthoringSanitizedFailureCaptureV2IsValid(loaded.value);
   if (
     args.capturePath !== canonicalPath ||
     repoRelativePath(args.repoRoot, loaded.absolutePath) !== args.capturePath ||
@@ -2387,6 +2425,7 @@ function assertReceiptCaptureParity(args: {
   receipt: ReplayableProductionAuthoringRunReceipt;
   capture:
     | BlueprintAuthoringSanitizedFailureCapture
+    | LegacyBlueprintAuthoringSanitizedFailureCaptureV3
     | LegacyBlueprintAuthoringSanitizedFailureCaptureV2;
 }): void {
   const { receipt, capture } = args;
@@ -2399,6 +2438,44 @@ function assertReceiptCaptureParity(args: {
   if (receipt.version === PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION) {
     if (
       capture.version !== BLUEPRINT_AUTHORING_SANITIZED_FAILURE_CAPTURE_VERSION ||
+      !blueprintAuthoringDiagnosticCensusCommitmentIsValid(
+        receipt.diagnosticCensusCommitment,
+      ) ||
+      receipt.diagnosticCensusCommitment.totalEmitted !==
+        capture.census.totalEmitted ||
+      receipt.diagnosticCensusCommitment.distinctIdentities !==
+        capture.census.distinctIdentities ||
+      receipt.diagnosticCensusCommitment.fullCensusDigest !==
+        capture.census.fullCensusDigest ||
+      canonicalJsonDigest(receipt.admissionDecisions) !==
+        canonicalJsonDigest(capture.admission.decisions) ||
+      receipt.attempts.filter(
+        (attempt) => attempt.diagnosticCensusCommitment !== null,
+      ).length !== capture.attemptCensuses.length ||
+      capture.attemptCensuses.some((entry) => {
+        const attempt = receipt.attempts[entry.attempt - 1];
+        return (
+          !attempt ||
+          attempt.attempt !== entry.attempt ||
+          !blueprintAuthoringDiagnosticCensusCommitmentIsValid(
+            attempt.diagnosticCensusCommitment,
+          ) ||
+          canonicalJsonDigest(attempt.diagnosticCensusCommitment) !==
+            canonicalJsonDigest({
+              version: attempt.diagnosticCensusCommitment.version,
+              totalEmitted: entry.census.totalEmitted,
+              distinctIdentities: entry.census.distinctIdentities,
+              fullCensusDigest: entry.census.fullCensusDigest,
+            })
+        );
+      })
+    ) throw new Error('execution_state_uncertain');
+    return;
+  }
+  if (receipt.version === LEGACY_PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION_V7) {
+    if (
+      capture.version !==
+        LEGACY_BLUEPRINT_AUTHORING_SANITIZED_FAILURE_CAPTURE_VERSION_V3 ||
       !blueprintAuthoringDiagnosticCensusCommitmentIsValid(
         receipt.diagnosticCensusCommitment,
       ) ||
@@ -2430,7 +2507,10 @@ export function qaWizardBlueprintTerminalCaptureRequirement(
 ): QaWizardBlueprintTerminalCaptureRequirement {
   const evidenceRequiresCapture =
     blueprintAuthoringReceiptRequiresSanitizedCapture(receipt);
-  if (receipt.version === PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION) {
+  if (
+    receipt.version === PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION ||
+    receipt.version === LEGACY_PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION_V7
+  ) {
     return evidenceRequiresCapture ? 'required' : 'forbidden';
   }
   if (receipt.version === LEGACY_PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION_V6) {
@@ -2454,7 +2534,7 @@ export function qaWizardBlueprintTerminalCaptureRequirement(
  * path (the binding is only ever set in the failed branch of materialization).
  *
  * Invariants for a failed terminal:
- *  - Current receipt v7 has EXACT equivalence
+ *  - Current receipt v8 and immutable v7 have EXACT equivalence
  *    `captureRequired === Boolean(observabilityCapture)`: a diagnostic-bearing failure MUST
  *    bind a capture; a diagnostic-less failure MUST NOT. This closes the previously-unchecked
  *    "not required but a capture is present" direction.
@@ -3598,7 +3678,7 @@ function recoverTerminalLookup(args: {
   if (receipt === null) throw new Error('execution_state_uncertain');
   // Run the FULL shared acceptance assertion BEFORE materializing (writing) the recovery
   // lookup, so every torn disposition tears here with ZERO lookup written and no provider
-  // redispatch: a current v7 diagnostic-bearing terminal missing its required capture, a terminal
+  // redispatch: a strict v8/v7 diagnostic-bearing terminal missing its required capture, a terminal
   // carrying a forbidden or unexpected capture, or a valid capture cross-bound from another receipt or
   // written under another output root. It is the same assertion the shared replay reader
   // (`loadExecutionRecord`, invoked again below) applies, so recovery can never publish a

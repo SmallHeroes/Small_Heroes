@@ -25,17 +25,14 @@ import {
 import {
   PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION,
   buildProductionAuthoringRunRequest,
-  productionAuthoringReceiptV7EvidenceReason,
-  productionAuthoringRunResultIsCompleted,
+  productionAuthoringReceiptV8EvidenceReason,
+  productionAuthoringRunResultIsFailed,
   productionBlueprintAuthoringPreflightIssues,
   runProductionBlueprintAuthoring,
   type ProductionAuthoringAttemptReceipt,
   type ProductionAuthoringProvider,
 } from '../../productionAuthoringRunner';
 import { canonicalJsonDigest } from '../../integrity';
-import { assemblePreRenderBookVisualBlueprintFromDraft } from '../../preRenderBlueprintAuthoring';
-import { validatePreRenderBookVisualBlueprint } from '../../preRenderBlueprint';
-import { PRE_RENDER_BLUEPRINT_COMPOSITION_POLICY_VERSION } from '../../preRenderBlueprintTypes';
 import {
   computeVisualPackageV4RevisionDigest,
   loadVisualPackageV4Revision,
@@ -198,6 +195,23 @@ function hostileFirstDraft(pkg: VisualPackageV4): ReturnType<typeof providerDraf
   return hostile;
 }
 
+function residualSecondDraft(pkg: VisualPackageV4): ReturnType<typeof providerDraft> {
+  const residual = providerDraft(pkg);
+  const firstPage = residual.frames.find((frame) => frame.kind === 'page');
+  assert.ok(firstPage);
+  firstPage.affordanceIds = ['affordance:missing'];
+  firstPage.continuity.carryoverRefs = [{ kind: 'cast', id: 'cast:missing' }];
+  return residual;
+}
+
+function terminalThirdDraft(pkg: VisualPackageV4): ReturnType<typeof providerDraft> {
+  const terminal = providerDraft(pkg);
+  const firstPage = terminal.frames.find((frame) => frame.kind === 'page');
+  assert.ok(firstPage);
+  firstPage.affordanceIds = ['affordance:missing'];
+  return terminal;
+}
+
 function canonicalProviderReceipt(args: ProviderCallArgs, inputTokens: number) {
   const usage = {
     inputTokens,
@@ -211,13 +225,20 @@ function canonicalProviderReceipt(args: ProviderCallArgs, inputTokens: number) {
     inputTokens: usage.inputTokens,
     outputTokens: usage.outputTokens,
   });
+  const firstCallCost = conservativeBlueprintAuthoringCostUsd({
+    inputTokens: 120,
+    outputTokens: 80,
+  });
+  const repairCallCost = conservativeBlueprintAuthoringCostUsd({
+    inputTokens: 50_000,
+    outputTokens: 80,
+  });
   const priorGenerationCostUsd =
     args.attempt === 1
       ? 0
-      : conservativeBlueprintAuthoringCostUsd({
-          inputTokens: 120,
-          outputTokens: 80,
-        });
+      : args.attempt === 2
+        ? firstCallCost
+        : firstCallCost + repairCallCost;
   return {
     provider: 'openai',
     model: BLUEPRINT_AUTHORING_MODEL,
@@ -269,21 +290,8 @@ async function main(): Promise<void> {
   );
 
   const hostile = hostileFirstDraft(pkg);
-  const clean = providerDraft(pkg);
-  const cleanCandidate = assemblePreRenderBookVisualBlueprintFromDraft({
-    draft: JSON.parse(JSON.stringify(clean)) as unknown,
-    context: context.validationContext,
-    compositionPolicyVersion: PRE_RENDER_BLUEPRINT_COMPOSITION_POLICY_VERSION,
-  });
-  const cleanValidation = validatePreRenderBookVisualBlueprint(
-    cleanCandidate,
-    context.validationContext,
-  );
-  assert.equal(
-    cleanValidation.ok,
-    true,
-    JSON.stringify(cleanValidation.ok ? [] : cleanValidation.issues),
-  );
+  const residual = residualSecondDraft(pkg);
+  const terminal = terminalThirdDraft(pkg);
   const countedRequests: BlueprintAuthoringInputTokenCountRequest[] = [];
   const providerCalls: ProviderCallArgs[] = [];
   const result = await runProductionBlueprintAuthoring({
@@ -293,7 +301,9 @@ async function main(): Promise<void> {
       async call(args) {
         providerCalls.push(args);
         return {
-          output: JSON.stringify(args.attempt === 1 ? hostile : clean),
+          output: JSON.stringify(
+            args.attempt === 1 ? hostile : args.attempt === 2 ? residual : terminal,
+          ),
           receipt: canonicalProviderReceipt(
             args,
             args.attempt === 1 ? 120 : 50_000,
@@ -327,7 +337,7 @@ async function main(): Promise<void> {
   });
 
   assert.equal(
-    productionAuthoringRunResultIsCompleted(result),
+    productionAuthoringRunResultIsFailed(result),
     true,
     JSON.stringify({
       status: result.receipt.status,
@@ -350,13 +360,15 @@ async function main(): Promise<void> {
       })),
     }),
   );
-  if (!productionAuthoringRunResultIsCompleted(result)) {
-    throw new Error('production-scale F1 run did not complete');
+  if (!productionAuthoringRunResultIsFailed(result)) {
+    throw new Error('production-scale evidence run did not reach bounded exhaustion');
   }
+  assert.equal(result.receipt.failure?.code, 'draft_validation_repair_exhausted');
+  assert.equal(result.sanitizedFailureCaptureDisposition.kind, 'captured');
   assert.equal(result.receipt.version, PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION);
-  assert.equal(result.receipt.callCount, 2);
-  assert.equal(result.receipt.repairCount, 1);
-  assert.equal(providerCalls.length, 2);
+  assert.equal(result.receipt.callCount, 3);
+  assert.equal(result.receipt.repairCount, 2);
+  assert.equal(providerCalls.length, 3);
   assert.equal(countedRequests.length, 1);
   assert.deepEqual(
     result.receipt.admissionDecisions[1]!.inputAccounting,
@@ -370,13 +382,35 @@ async function main(): Promise<void> {
   assert.equal(
     result.receipt.attempts[0]!.validationDiagnostics.count,
     86,
-    JSON.stringify(result.authoringResult.repairAttempts[0]?.diagnostics ?? []),
+    JSON.stringify(result.receipt.attempts[0]!.validationDiagnostics),
   );
+  const trajectory = result.receipt.attempts.map(
+    (attempt) => attempt.validationDiagnostics.totalCount,
+  );
+  assert.equal(trajectory[0], EXPECTED_DIAGNOSTIC_COUNT);
+  assert.ok(trajectory[1]! > 0 && trajectory[1]! < trajectory[0]!);
+  assert.ok(trajectory[2]! > 0 && trajectory[2]! < trajectory[1]!);
+  for (const attempt of result.receipt.attempts) {
+    assert.ok(attempt.diagnosticCensusCommitment);
+  }
   assert.equal(
     result.receipt.diagnosticCensusCommitment?.totalEmitted,
-    EXPECTED_DIAGNOSTIC_COUNT,
+    trajectory.reduce((sum, count) => sum + count, 0),
   );
-  assert.equal(result.receipt.admissionDecisions.length, 2);
+  if (result.sanitizedFailureCaptureDisposition.kind !== 'captured') {
+    throw new Error('bounded exhaustion did not mint sanitized evidence');
+  }
+  assert.deepEqual(
+    result.sanitizedFailureCaptureDisposition.capture.attemptCensuses.map(
+      (entry) => entry.census.totalEmitted,
+    ),
+    trajectory,
+  );
+  assert.ok(
+    result.sanitizedFailureCaptureDisposition.capture.attemptCensuses[2]!.census
+      .identities.length > 0,
+  );
+  assert.equal(result.receipt.admissionDecisions.length, 3);
   assert.equal(
     result.receipt.admissionDecisions[0]!.version,
     BLUEPRINT_AUTHORING_ADMISSION_LEDGER_VERSION,
@@ -401,7 +435,7 @@ async function main(): Promise<void> {
       decision.tokenRelevantRequestDigest,
     );
   }
-  assert.equal(productionAuthoringReceiptV7EvidenceReason(result.receipt), null);
+  assert.equal(productionAuthoringReceiptV8EvidenceReason(result.receipt), null);
 
   process.stdout.write(
     `${JSON.stringify({
@@ -410,15 +444,19 @@ async function main(): Promise<void> {
       pageCount: context.sourceSnapshot.identity.pageCount,
       firstDraftDiagnostics: result.receipt.attempts[0]!.validationDiagnostics
         .count,
+      diagnosticTrajectory: trajectory,
       repairEstimatedBytes:
         result.receipt.admissionDecisions[1]!.inputAccounting.estimatedBytes,
-      exactRepairInputTokens:
-        result.receipt.admissionDecisions[1]!.exactInputTokens,
+      exactRepairInputTokens: result.receipt.admissionDecisions
+        .slice(1)
+        .map((decision) => decision.exactInputTokens),
       countCalls: countedRequests.length,
       generationCalls: providerCalls.length,
       status: result.receipt.status,
       receiptVersion: result.receipt.version,
       receiptDigest: result.receipt.digest,
+      captureVersion:
+        result.sanitizedFailureCaptureDisposition.capture.version,
     })}\n`,
   );
 }
