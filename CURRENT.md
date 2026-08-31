@@ -1,6 +1,6 @@
 # SmallHeroes — Current Technical State
 
-## R1D — transition/composition repair authority focused-green; full-check baseline/infrastructure HOLD; awaiting independent QA; no new live/render
+## R1D — transition/composition repair authority independently QA-passed; full-check baseline/infrastructure HOLD; no new live/render
 
 The one ordinary authoring live authorized for Request `3232af55...`, Preflight `512e61cc...`,
 and Fresh Readiness `55559f9a...` was consumed exactly once. It used all three generation calls
@@ -42,9 +42,14 @@ capture `806eee38...` bind the failed execution identity `59717a79...`.
   all **20 files / 632 tests**; Vitest then emitted the three known worker `onTaskUpdate` RPC
   timeouts, so the literal command still exited 1. This remains reported as infrastructure HOLD
   rather than hidden as green.
+- Claude Code independently reviewed immutable range `752e46a9...dd15b9cf` read-only and returned
+  **PASS — 0 BLOCKER / 0 MAJOR**. It independently reproduced **8 files / 362 tests PASS**,
+  TypeScript exit 0, and clean diff hygiene. Its sole informational MINOR concerned a digest
+  transcription in the handoff prose, not repository behavior; the test-pinned current program
+  remains the canonical `3e3620216a38422e1e0513487073eb166ad64085483f12d35ed18e00322ff3ca`.
 - No provider/count endpoint/network/credential/image/audio/render/deploy/database operation
-  occurred after the consumed live. No second live or render is authorized. Next: focused local
-  commit, then Claude Code's independent read-only falsification before any further paid action.
+  occurred after the consumed live. No second live or render is authorized. Next: push the two
+  local commits, establish new exact Fresh Readiness, and request one new bounded paid action.
 
 Evidence:
 `docs/ai-workflow/R1D_BLUEPRINT_TRANSITION_COMPOSITION_REPAIR_AUTHORITY_IMPLEMENTATION_EVIDENCE.md`.
