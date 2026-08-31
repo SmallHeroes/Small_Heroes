@@ -1285,13 +1285,14 @@ describe('provider-isolated Blueprint authoring runner', () => {
 
   it('redacts a canonical-adapter provider failure without another compiler call', async () => {
     const { context } = buildContext('single_location');
+    const request = requestFor(context, 'live');
     const provider = {
       call: vi.fn(async () => {
         throw new Error('Bearer raw-provider-secret');
       }),
     };
     const result = await runProductionBlueprintAuthoring({
-      request: requestFor(context, 'live'),
+      request,
       context,
       provider,
     });
@@ -1304,6 +1305,44 @@ describe('provider-isolated Blueprint authoring runner', () => {
     expect(result.receipt.executionAttestation.evidenceKind).toBe(
       'injected_adapter_unattested',
     );
+
+    const frozenRequest = {
+      ...request,
+      program: LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_PROMPT_V6,
+    } as ReplayableProductionAuthoringRunRequest;
+    const coordinatedRelabel = structuredClone(result.receipt) as unknown as
+      Record<string, unknown> & {
+        attempts: Array<{ systemPromptDigest: string }>;
+        digest: string;
+        requestDigest: string;
+      };
+    coordinatedRelabel.requestDigest = canonicalJsonDigest(frozenRequest);
+    coordinatedRelabel.attempts[0]!.systemPromptDigest =
+      LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_PROMPT_V6
+        .authoringSystemPromptDigest;
+    const {
+      digest: _coordinatedDigest,
+      digestAlgorithm: _coordinatedDigestAlgorithm,
+      ...coordinatedPayload
+    } = coordinatedRelabel;
+    void _coordinatedDigest;
+    void _coordinatedDigestAlgorithm;
+    coordinatedRelabel.digest = canonicalJsonDigest(coordinatedPayload);
+    expect(coordinatedRelabel.attempts[0]!).toMatchObject({
+      inputAccounting: null,
+      failureEvidenceKind: 'raw_provider_exception',
+    });
+    expect(
+      productionAuthoringReceiptV8EvidenceReason(coordinatedRelabel),
+    ).toBeNull();
+    expect(
+      productionBlueprintAuthoringReceiptReplayIsValid({
+        receipt: coordinatedRelabel,
+        request: frozenRequest,
+        expectedStatus: 'failed',
+        expectedDigest: coordinatedRelabel.digest,
+      }),
+    ).toBe(false);
   });
 
   it('keeps a credential failure explicitly not-run with zero transport dispatches', async () => {

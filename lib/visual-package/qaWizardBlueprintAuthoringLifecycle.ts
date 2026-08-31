@@ -1236,6 +1236,7 @@ function canonicalSafeUsage(
 }
 
 function attemptReceiptIsValid(args: {
+  admissionDecision: unknown;
   attempt: unknown;
   index: number;
   priorCumulativeCostUsd: number;
@@ -1259,14 +1260,30 @@ function attemptReceiptIsValid(args: {
   const usage = attempt.usage;
   const diagnostics = attempt.validationDiagnostics;
   const inputAccounting = attempt.inputAccounting;
+  const admissionDecision = record(args.admissionDecision)
+    ? args.admissionDecision
+    : null;
+  const admissionInputAccounting =
+    admissionDecision && record(admissionDecision.inputAccounting)
+      ? admissionDecision.inputAccounting
+      : null;
   const promptAccountingIsBound =
     args.expectedSystemPromptDigest === null
       ? true
       : args.expectedSystemPromptUtf8Bytes !== null &&
-        (inputAccounting === null ||
-          (record(inputAccounting) &&
-            inputAccounting.systemBytes ===
-              args.expectedSystemPromptUtf8Bytes));
+        (args.receiptVersion ===
+        LEGACY_PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION_V6
+          ? inputAccounting === null ||
+            (record(inputAccounting) &&
+              inputAccounting.systemBytes ===
+                args.expectedSystemPromptUtf8Bytes)
+          : admissionInputAccounting !== null &&
+            admissionInputAccounting.systemBytes ===
+              args.expectedSystemPromptUtf8Bytes &&
+            (inputAccounting === null ||
+              (record(inputAccounting) &&
+                inputAccounting.systemBytes ===
+                  args.expectedSystemPromptUtf8Bytes)));
   const expectedAttempt = args.index + 1;
   const expectedReservation = blueprintAuthoringReservedExposureUsd({
     conservativeAccountedCostUsd: args.priorCumulativeCostUsd,
@@ -1667,11 +1684,17 @@ export function productionBlueprintAuthoringReceiptReplayIsValid(args: {
       legacyPromptEvidence?.repairSystemPromptUtf8Bytes === null)
   ) return false;
   const attempts = receipt.attempts;
+  const admissionDecisions =
+    'admissionDecisions' in receipt &&
+    Array.isArray(receipt.admissionDecisions)
+      ? receipt.admissionDecisions
+      : [];
   let cumulativeCostUsd = 0;
   let attemptsValid = Array.isArray(attempts);
   if (attemptsValid) {
     for (const [index, attempt] of attempts.entries()) {
       const result = attemptReceiptIsValid({
+        admissionDecision: admissionDecisions[index] ?? null,
         attempt,
         index,
         priorCumulativeCostUsd: cumulativeCostUsd,

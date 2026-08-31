@@ -21,9 +21,11 @@ the zone association valid; the model therefore never saw the newly unmasked num
   repairs, retry zero, no fallback and the `$5` ceiling remain unchanged.
 - The complete prior prompt-v6/wire-v1 program `63449835...` is frozen as replay-only. Fresh
   ordinary/replacement/diagnostic dispatch requires exact current program. Receipt replay binds
-  each attempt's system-prompt digest and `inputAccounting.systemBytes` to the exact prompt-evidence
-  profile selected by its embedded program. A coordinated current-v7 receipt relabel under frozen
-  v6 is rejected even after canonical redigest. Request-v5 completed provenance derives versions
+  each attempt's system-prompt digest and prompt accounting to the exact prompt-evidence profile
+  selected by its embedded program. For raw-provider exceptions, where attempt accounting is
+  intentionally null, the same byte binding is enforced against the admitted ledger decision.
+  A coordinated current-v7 receipt relabel under frozen v6 is rejected after canonical redigest on
+  both completed and raw-exception paths. Request-v5 completed provenance derives versions
   from that same program; request-v4 provenance instead uses an absolute prompt digest/byte registry
   that distinguishes immutable prompt-v5 and prompt-v6 populations. Multi-attempt prompt-v5 history
   fails closed because no durable repair-prompt identity exists; prompt-v6 repairs are pinned

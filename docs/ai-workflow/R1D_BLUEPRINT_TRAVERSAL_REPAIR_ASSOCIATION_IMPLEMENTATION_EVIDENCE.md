@@ -61,7 +61,10 @@ embedded program: attempt 1 to `authoringSystemPromptDigest`, repairs to
 `repairSystemPromptDigest`. It also binds non-null `inputAccounting.systemBytes` to an immutable
 digest/UTF-8-byte prompt-evidence profile. Current v7 is pinned at 2,463/2,614 bytes and frozen v6
 at 2,144/2,290 bytes. This rejects a canonically redigested v7 receipt rebound under the frozen v6
-program rather than trusting an internally consistent but cross-program admission ledger.
+program rather than trusting an internally consistent but cross-program admission ledger. When a
+raw-provider exception correctly leaves attempt accounting null, replay binds the admission
+decision's retained input accounting to the same byte profile; a dedicated hostile regression
+proves that failure receipts cannot use the null attempt field to bypass program binding.
 
 Programless request-v4 evidence uses the same absolute profile. Prompt-v6 initial and repair
 attempts are independently pinned. Prompt-v5 has an immutable initial identity but no durable
