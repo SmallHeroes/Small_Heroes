@@ -20,10 +20,15 @@ import type { PreRenderBlueprintValidationContext } from './preRenderBlueprintTy
 
 export const PRE_RENDER_BLUEPRINT_PROVIDER_WIRE_VERSION =
   'pre-render-blueprint-provider-wire/v1' as const;
-export const PRE_RENDER_BLUEPRINT_REPAIR_WIRE_VERSION_V2 =
-  'pre-render-blueprint-repair-wire/v2' as const;
+export const PRE_RENDER_BLUEPRINT_REPAIR_WIRE_VERSION_V3 =
+  'pre-render-blueprint-repair-wire/v3' as const;
 export const PRE_RENDER_BLUEPRINT_REPAIR_WIRE_VERSION =
-  PRE_RENDER_BLUEPRINT_REPAIR_WIRE_VERSION_V2;
+  PRE_RENDER_BLUEPRINT_REPAIR_WIRE_VERSION_V3;
+export const LEGACY_PRE_RENDER_BLUEPRINT_REPAIR_WIRE_VERSION_V2 =
+  'pre-render-blueprint-repair-wire/v2' as const;
+/** Source-compatibility alias only; frozen programs use the absolute legacy name. */
+export const PRE_RENDER_BLUEPRINT_REPAIR_WIRE_VERSION_V2 =
+  LEGACY_PRE_RENDER_BLUEPRINT_REPAIR_WIRE_VERSION_V2;
 export const LEGACY_PRE_RENDER_BLUEPRINT_REPAIR_WIRE_VERSION_V1 =
   'pre-render-blueprint-repair-wire/v1' as const;
 /** Source-compatibility alias only; frozen programs use the absolute name. */
@@ -372,7 +377,10 @@ function compactConsumer(value: unknown): unknown {
   }
 }
 
-function compactAffordance(value: unknown): unknown {
+function compactAffordance(
+  value: unknown,
+  includeLegacyFrameConsumers: boolean,
+): unknown {
   if (!isObj(value)) return value;
   const base = [
     value.id,
@@ -380,7 +388,14 @@ function compactAffordance(value: unknown): unknown {
     value.zoneId,
     compactRegion(value.footprint),
     Array.isArray(value.consumers)
-      ? value.consumers.map(compactConsumer)
+      ? value.consumers
+          .filter(
+            (consumer) =>
+              includeLegacyFrameConsumers ||
+              !isObj(consumer) ||
+              consumer.kind !== 'frame',
+          )
+          .map(compactConsumer)
       : value.consumers,
   ];
   switch (value.kind) {
@@ -505,19 +520,29 @@ function compactFrame(value: unknown): unknown {
   ];
 }
 
-function compactPreviousDraft(previousDraft: unknown): unknown {
+function compactPreviousDraft(
+  previousDraft: unknown,
+  args: {
+    version:
+      | typeof PRE_RENDER_BLUEPRINT_REPAIR_WIRE_VERSION_V3
+      | typeof LEGACY_PRE_RENDER_BLUEPRINT_REPAIR_WIRE_VERSION_V2;
+    includeLegacyFrameConsumers: boolean;
+  },
+): unknown {
   if (!isObj(previousDraft) || !isObj(previousDraft.worldPlan)) {
     return previousDraft;
   }
   const world = previousDraft.worldPlan;
   return {
-    v: PRE_RENDER_BLUEPRINT_REPAIR_WIRE_VERSION,
+    v: args.version,
     world: [
       Array.isArray(world.connections)
         ? world.connections.map(compactConnection)
         : world.connections,
       Array.isArray(world.affordances)
-        ? world.affordances.map(compactAffordance)
+        ? world.affordances.map((entry) =>
+            compactAffordance(entry, args.includeLegacyFrameConsumers),
+          )
         : world.affordances,
       Array.isArray(world.revealSafeSupportingGeometry)
         ? world.revealSafeSupportingGeometry.map((entry) =>
@@ -599,11 +624,37 @@ export function serializePreRenderBlueprintRepairWire(args: {
 }): string {
   const serialized = stableJson({
     authority: buildRepairAuthorityIndex(args.context),
-    draft: compactPreviousDraft(args.previousDraft),
+    draft: compactPreviousDraft(args.previousDraft, {
+      version: PRE_RENDER_BLUEPRINT_REPAIR_WIRE_VERSION_V3,
+      includeLegacyFrameConsumers: false,
+    }),
   });
   if (INTERNAL_SPATIAL_MARKER.test(serialized)) {
     throw new Error(
       'Blueprint repair wire contains an unresolved internal spatial marker',
+    );
+  }
+  return serialized;
+}
+
+/**
+ * Immutable v2 projection used only to reconstruct frozen replay evidence. New
+ * generation must use v3, which removes compiler-owned frame consumers.
+ */
+export function serializeLegacyPreRenderBlueprintRepairWireV2(args: {
+  context: PreRenderBlueprintValidationContext;
+  previousDraft: unknown;
+}): string {
+  const serialized = stableJson({
+    authority: buildRepairAuthorityIndex(args.context),
+    draft: compactPreviousDraft(args.previousDraft, {
+      version: LEGACY_PRE_RENDER_BLUEPRINT_REPAIR_WIRE_VERSION_V2,
+      includeLegacyFrameConsumers: true,
+    }),
+  });
+  if (INTERNAL_SPATIAL_MARKER.test(serialized)) {
+    throw new Error(
+      'Legacy Blueprint repair wire contains an unresolved internal spatial marker',
     );
   }
   return serialized;

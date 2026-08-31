@@ -5,8 +5,10 @@ import {
   BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_VERSION,
   LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_DIGEST_PROMPT_V6,
   LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_DIGEST_PROMPT_V7,
+  LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_DIGEST_REPAIR_PROMPT_V8,
   LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_PROMPT_V6,
   LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_PROMPT_V7,
+  LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_REPAIR_PROMPT_V8,
   blueprintAuthoringEffectivePolicyProjection,
   blueprintAuthoringExecutionProgramIsCurrent,
   blueprintAuthoringExecutionProgramIsReplaySupported,
@@ -30,10 +32,10 @@ import {
   LEGACY_PRE_RENDER_BLUEPRINT_AUTHORING_SYSTEM_PROMPT_UTF8_BYTES_V6,
   LEGACY_PRE_RENDER_BLUEPRINT_REPAIR_SYSTEM_PROMPT_DIGEST_V6,
   LEGACY_PRE_RENDER_BLUEPRINT_REPAIR_SYSTEM_PROMPT_UTF8_BYTES_V6,
-  PRE_RENDER_BLUEPRINT_AUTHORING_SYSTEM_PROMPT_DIGEST_V7,
-  PRE_RENDER_BLUEPRINT_AUTHORING_SYSTEM_PROMPT_UTF8_BYTES_V7,
-  PRE_RENDER_BLUEPRINT_REPAIR_SYSTEM_PROMPT_DIGEST_V7,
-  PRE_RENDER_BLUEPRINT_REPAIR_SYSTEM_PROMPT_UTF8_BYTES_V7,
+  PRE_RENDER_BLUEPRINT_AUTHORING_SYSTEM_PROMPT_DIGEST_V8,
+  PRE_RENDER_BLUEPRINT_AUTHORING_SYSTEM_PROMPT_UTF8_BYTES_V8,
+  PRE_RENDER_BLUEPRINT_REPAIR_SYSTEM_PROMPT_DIGEST_V9,
+  PRE_RENDER_BLUEPRINT_REPAIR_SYSTEM_PROMPT_UTF8_BYTES_V9,
   legacyPreRenderBlueprintPromptEvidenceForSystemPromptDigest,
   preRenderBlueprintSystemPromptUtf8BytesForDigest,
 } from '../preRenderBlueprintAuthoringContract';
@@ -266,21 +268,53 @@ describe('Blueprint authoring execution program identity', () => {
     );
     expect(Object.isFrozen(BLUEPRINT_AUTHORING_REPAIR_ORDINALS)).toBe(true);
     expect(program.initialPromptVersion).toBe(
-      'pre-render-blueprint-authoring-prompt/v7',
+      'pre-render-blueprint-authoring-prompt/v8',
     );
     expect(program.repairPromptVersion).toBe(
-      'pre-render-blueprint-repair-prompt/v8',
+      'pre-render-blueprint-repair-prompt/v9',
     );
     expect(program.repairWireVersion).toBe(
-      'pre-render-blueprint-repair-wire/v2',
+      'pre-render-blueprint-repair-wire/v3',
     );
     expect(program.digest).toBe(
-      '3e3620216a38422e1e0513487073eb166ad64085483f12d35ed18e00322ff3ca',
+      '1bd60e8c172304aa8c05715e76149b69b7f36992111d37cd86a98db9da6bbe10',
     );
     expect(blueprintAuthoringExecutionProgramIsCurrent(program)).toBe(true);
   });
 
-  it('admits only the complete immutable prompt-v7 and prompt-v6 programs for replay', () => {
+  it('admits only the complete immutable former-current, prompt-v7, and prompt-v6 programs for replay', () => {
+    const formerCurrent =
+      LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_REPAIR_PROMPT_V8;
+    const { digest: _formerCurrentDigest, ...formerCurrentPayload } =
+      formerCurrent;
+    expect(canonicalJsonDigest(formerCurrentPayload)).toBe(
+      LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_DIGEST_REPAIR_PROMPT_V8,
+    );
+    expect(formerCurrent.digest).toBe(
+      LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_DIGEST_REPAIR_PROMPT_V8,
+    );
+    expect(Object.isFrozen(formerCurrent)).toBe(true);
+    expect(blueprintAuthoringExecutionProgramStatus(formerCurrent)).toBe(
+      'legacy_immutable',
+    );
+    expect(
+      blueprintAuthoringExecutionProgramIsReplaySupported(formerCurrent),
+    ).toBe(true);
+    expect(blueprintAuthoringExecutionProgramIsCurrent(formerCurrent)).toBe(
+      false,
+    );
+    expect(
+      qaWizardBlueprintAuthoringProvenanceVersionsForRequest({
+        version: 'production-blueprint-authoring-request/v5',
+        program: formerCurrent,
+      } as Parameters<
+        typeof qaWizardBlueprintAuthoringProvenanceVersionsForRequest
+      >[0]),
+    ).toEqual({
+      draftSchemaVersion: 'pre-render-blueprint-draft-schema/v6',
+      promptVersion: 'pre-render-blueprint-authoring-prompt/v7',
+      repairPromptVersion: 'pre-render-blueprint-repair-prompt/v8',
+    });
     const legacyV7 = LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_PROMPT_V7;
     const { digest: _legacyV7Digest, ...legacyV7Payload } = legacyV7;
     expect(canonicalJsonDigest(legacyV7Payload)).toBe(
@@ -365,9 +399,9 @@ describe('Blueprint authoring execution program identity', () => {
         typeof qaWizardBlueprintAuthoringProvenanceVersionsForRequest
       >[0]),
     ).toEqual({
-      draftSchemaVersion: 'pre-render-blueprint-draft-schema/v6',
-      promptVersion: 'pre-render-blueprint-authoring-prompt/v7',
-      repairPromptVersion: 'pre-render-blueprint-repair-prompt/v8',
+      draftSchemaVersion: 'pre-render-blueprint-draft-schema/v7',
+      promptVersion: 'pre-render-blueprint-authoring-prompt/v8',
+      repairPromptVersion: 'pre-render-blueprint-repair-prompt/v9',
     });
     expect(
       qaWizardBlueprintAuthoringProvenanceVersionsForRequest(
@@ -432,7 +466,7 @@ describe('Blueprint authoring execution program identity', () => {
       }),
     );
 
-    for (const frozen of [legacyV7, legacy]) {
+    for (const frozen of [formerCurrent, legacyV7, legacy]) {
       const hostile = structuredClone(frozen) as Record<string, unknown>;
       hostile.repairSystemPromptDigest = 'f'.repeat(64);
       const { digest: _oldDigest, ...hostilePayload } = hostile;
@@ -454,16 +488,16 @@ describe('Blueprint authoring execution program identity', () => {
     const frozenRepair = frozenBlueprintRepairSystemPromptV6();
 
     expect(canonicalJsonDigest(currentInitial)).toBe(
-      PRE_RENDER_BLUEPRINT_AUTHORING_SYSTEM_PROMPT_DIGEST_V7,
+      PRE_RENDER_BLUEPRINT_AUTHORING_SYSTEM_PROMPT_DIGEST_V8,
     );
     expect(Buffer.byteLength(currentInitial, 'utf8')).toBe(
-      PRE_RENDER_BLUEPRINT_AUTHORING_SYSTEM_PROMPT_UTF8_BYTES_V7,
+      PRE_RENDER_BLUEPRINT_AUTHORING_SYSTEM_PROMPT_UTF8_BYTES_V8,
     );
     expect(canonicalJsonDigest(currentRepair)).toBe(
-      PRE_RENDER_BLUEPRINT_REPAIR_SYSTEM_PROMPT_DIGEST_V7,
+      PRE_RENDER_BLUEPRINT_REPAIR_SYSTEM_PROMPT_DIGEST_V9,
     );
     expect(Buffer.byteLength(currentRepair, 'utf8')).toBe(
-      PRE_RENDER_BLUEPRINT_REPAIR_SYSTEM_PROMPT_UTF8_BYTES_V7,
+      PRE_RENDER_BLUEPRINT_REPAIR_SYSTEM_PROMPT_UTF8_BYTES_V9,
     );
     expect(canonicalJsonDigest(frozenInitial)).toBe(
       LEGACY_PRE_RENDER_BLUEPRINT_AUTHORING_SYSTEM_PROMPT_DIGEST_V6,

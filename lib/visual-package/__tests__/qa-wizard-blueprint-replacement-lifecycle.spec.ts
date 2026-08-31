@@ -77,7 +77,8 @@ import {
 } from './fixtures/frozen-blueprint-authoring-v6-evidence';
 import {
   LEGACY_PRE_RENDER_BLUEPRINT_REPAIR_WIRE_VERSION_V1,
-  PRE_RENDER_BLUEPRINT_REPAIR_WIRE_VERSION_V2,
+  LEGACY_PRE_RENDER_BLUEPRINT_REPAIR_WIRE_VERSION_V2,
+  PRE_RENDER_BLUEPRINT_REPAIR_WIRE_VERSION_V3,
 } from '../preRenderBlueprintProviderWire';
 import type { AuthoringExecutionAttestation } from '../authoringTerminalDiagnostics';
 import { canonicalJsonDigest } from '../integrity';
@@ -2210,14 +2211,17 @@ describe('QA Wizard Blueprint failed-terminal diagnostic successor', () => {
       previousRawDraft: firstRawDraft,
     });
     const naiveCurrentCallRelabel = firstRepairCall.userPrompt
-      .split(PRE_RENDER_BLUEPRINT_REPAIR_WIRE_VERSION_V2)
+      .split(PRE_RENDER_BLUEPRINT_REPAIR_WIRE_VERSION_V3)
       .join(LEGACY_PRE_RENDER_BLUEPRINT_REPAIR_WIRE_VERSION_V1);
     expect(frozenWriterRepairPrompt).not.toBe(naiveCurrentCallRelabel);
     expect(frozenWriterRepairPrompt).toContain(
       LEGACY_PRE_RENDER_BLUEPRINT_REPAIR_WIRE_VERSION_V1,
     );
     expect(frozenWriterRepairPrompt).not.toContain(
-      PRE_RENDER_BLUEPRINT_REPAIR_WIRE_VERSION_V2,
+      PRE_RENDER_BLUEPRINT_REPAIR_WIRE_VERSION_V3,
+    );
+    expect(frozenWriterRepairPrompt).not.toContain(
+      LEGACY_PRE_RENDER_BLUEPRINT_REPAIR_WIRE_VERSION_V2,
     );
     const frozen = freezeDiagnosticPredecessor({ subject, predecessor });
     const target = materializeFrozenDiagnosticSuccessorTarget({

@@ -1,5 +1,62 @@
 # SmallHeroes — Current Technical State
 
+## R1D — Blueprint camera-consumer authority corrected offline; independent QA pending; no new live/render yet
+
+The one ordinary authoring live authorized for Request `078b961c...`, Preflight `c35bdda0...`,
+and Fresh Readiness `091e0166...` was consumed exactly once. It used three generation calls and
+two repairs with retry zero, no fallback, no Candidate, no render, and conservative cost
+`$1.301108`. Immutable terminal `cbb6522e...`, receipt `561d6239...`, and sanitized capture
+`c692f33b...` bind execution identity `5e0abd5b...`.
+
+- The complete census converged from **83 emitted / 67 distinct -> 25 / 25 -> 22 / 22**.
+  Repair one resolved 49 identities and introduced 7; repair two resolved 3 and introduced none.
+  All transition and composition diagnostics closed. The terminal frontier was exactly nine
+  `camera_infeasible`, eleven affordance-consumer `reference_unresolved`, and two genuine
+  non-frame `affordance_incompatible` diagnostics.
+- Root cause was an authority contradiction in the active whole-book Blueprint contract, not a
+  stale fallback: provider draft frames intentionally omit compiler-owned frame IDs, while schema
+  v6 and repair wire v2 required the provider to author reciprocal `{kind:'frame', frameId}`
+  consumers. Assembly overlaid `frame:cover` / `frame:page:N` but did not rebind those consumers.
+  A valid eight-page offline fixture reproduced the nine-camera/nine-reference cascade by changing
+  only frame consumer IDs.
+- Draft schema v7 removes provider frame-consumer authority. The provider still owns the forward
+  camera choice through `frame.camera.affordanceId`; after canonical frame overlay, the compiler
+  strips any raw frame consumers and materializes only the reciprocal consumer on the selected
+  `camera_access`. It never derives action, placement, transition, traversal, or safety consumers.
+  Wrong/missing camera IDs and missing frame membership remain validation failures.
+- Initial prompt v8, repair prompt v9, and repair wire v3 describe that ownership explicitly.
+  Repair wire v3 removes compiler frame consumers while preserving every non-frame consumer.
+  Provider wire v1, Blueprint v5, provenance/authority v4, model, budget, retry, fallback, and
+  validation predicates are unchanged.
+- Exact schema v6, repair wire v2, and prompt bytes remain available only for immutable evidence.
+  Former current program `3e362021...` is frozen `legacy_immutable`: replay is supported, fresh
+  ordinary/replacement/diagnostic dispatch rejects it before provider/count access. Programless
+  request-v4 provenance and receipt accounting now select schema v6 explicitly rather than
+  inheriting the mutable current schema.
+- A production-scale provider-shaped cover+8-page harness completes in one call with zero repairs,
+  exactly nine compiler-owned frame consumers, zero issues, and Blueprint bytes identical to the
+  canonical fixture. Hostile tests cover forged/swapped consumers, shared cameras, missing camera
+  authority, schema closure, v3/v2 wire separation, cross-generation provenance rejection, and
+  legacy replay/fresh-dispatch separation.
+- Real-artifact replay used an intentionally nonexistent credential path and returned
+  `replayed:true`, terminal `cbb6522e...`, receipt `561d6239...`, callCount 3 / repairCount 2.
+  The 40-file artifact+ledger inventory was byte-identical before and after, proving zero provider,
+  counter, credential, or rewrite access.
+- Focused validation is **8 files / 287 tests PASS**, `npx tsc --noEmit` exit 0, and
+  `git diff --check` clean. Literal `npm run check` passed both TypeScript phases; ordinary
+  reproduced only the established nine absent ignored-output assertions in five unchanged fixture
+  readers. Resource-intensive passed 626/632 and timed out six assertions in two unchanged
+  subprocess/Git-heavy files, followed by four known worker RPC timeout errors. Both affected files
+  then passed alone with one worker (**15/15** and **21/21**), so no changed Blueprint assertion
+  failed. Independent Claude Code re-gate is still required before a new Fresh/live attempt. No
+  provider, count endpoint, image, audio,
+  render, deployment, database, or remote mutation occurred in this offline milestone.
+
+Evidence:
+`docs/ai-workflow/R1D_BLUEPRINT_CAMERA_CONSUMER_AUTHORITY_IMPLEMENTATION_EVIDENCE.md`.
+
+---
+
 ## R1D — transition/composition repair authority independently QA-passed; full-check baseline/infrastructure HOLD; no new live/render
 
 The one ordinary authoring live authorized for Request `3232af55...`, Preflight `512e61cc...`,

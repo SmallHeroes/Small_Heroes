@@ -34,11 +34,12 @@ import {
   PRE_RENDER_BLUEPRINT_AUTHORING_PROVENANCE_VERSION,
   PRE_RENDER_BLUEPRINT_MAX_REPAIR_ATTEMPTS,
   preRenderBlueprintAuthoringPromptVersionIsSupported,
+  preRenderBlueprintPromptAndSchemaVersionsAreCompatible,
+  preRenderBlueprintRepairPromptGenerationIsCompatible,
   preRenderBlueprintRepairPromptVersionIsSupported,
   type PreRenderBlueprintAuthoringAttempt,
   type PreRenderBlueprintAuthoringProvenance,
 } from './preRenderBlueprintAuthoringContract';
-import { PRE_RENDER_BLUEPRINT_DRAFT_SCHEMA_VERSION } from './preRenderBlueprintDraftSchema';
 import type {
   ReconciliationDisposition,
   ReconciliationSourceKind,
@@ -267,11 +268,13 @@ function authoringProvenanceIssues(args: {
     issues.push('authoring provenance must record noFallback=true');
   }
   if (
-    provenance.draftSchemaVersion !==
-      PRE_RENDER_BLUEPRINT_DRAFT_SCHEMA_VERSION ||
     !preRenderBlueprintAuthoringPromptVersionIsSupported(
       provenance.promptVersion,
-    )
+    ) ||
+    !preRenderBlueprintPromptAndSchemaVersionsAreCompatible({
+      draftSchemaVersion: provenance.draftSchemaVersion,
+      promptVersion: provenance.promptVersion,
+    })
   ) {
     issues.push('authoring provenance schema or prompt version is unsupported');
   }
@@ -296,7 +299,12 @@ function authoringProvenanceIssues(args: {
     provenance.passingAttempt > 1
       ? !preRenderBlueprintRepairPromptVersionIsSupported(
           provenance.repairPromptVersion,
-        )
+        ) ||
+        !preRenderBlueprintRepairPromptGenerationIsCompatible({
+          draftSchemaVersion: provenance.draftSchemaVersion,
+          promptVersion: provenance.promptVersion,
+          repairPromptVersion: provenance.repairPromptVersion,
+        })
       : provenance.repairPromptVersion !== undefined
   ) {
     issues.push('authoring provenance repair prompt version is inconsistent');

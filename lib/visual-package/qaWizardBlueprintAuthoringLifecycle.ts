@@ -125,8 +125,10 @@ import {
   type PreRenderBlueprintAuthoringProvenance,
 } from './preRenderBlueprintAuthoringContract';
 import {
+  LEGACY_PRE_RENDER_BLUEPRINT_DRAFT_SCHEMA_VERSION_V6,
   PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA,
   PRE_RENDER_BLUEPRINT_DRAFT_SCHEMA_VERSION,
+  preRenderBlueprintDraftJsonSchemaForVersion,
 } from './preRenderBlueprintDraftSchema';
 import {
   QA_WIZARD_BLUEPRINT_REPLACEMENT_APPROVER,
@@ -1238,6 +1240,7 @@ function canonicalSafeUsage(
 function attemptReceiptIsValid(args: {
   admissionDecision: unknown;
   attempt: unknown;
+  draftSchema: Record<string, unknown>;
   index: number;
   priorCumulativeCostUsd: number;
   expectedSystemPromptDigest: string | null;
@@ -1327,7 +1330,7 @@ function attemptReceiptIsValid(args: {
   const inputAccountingIsAdmittedForReceiptVersion =
     blueprintAuthoringInputAccountingIsCanonicalForSchema(
       inputAccounting,
-      PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA,
+      args.draftSchema,
     ) &&
     (args.receiptVersion !== LEGACY_PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION_V6 ||
       blueprintAuthoringInputTokensAreAdmissible(inputAccounting));
@@ -1371,7 +1374,7 @@ function attemptReceiptIsValid(args: {
     noResponseEvidence &&
     blueprintAuthoringInputAccountingIsCanonicalForSchema(
       inputAccounting,
-      PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA,
+      args.draftSchema,
     ) &&
     attempt.reservedExposureBeforeCallUsd === expectedReservation &&
     attempt.cumulativeConservativeCostUsd === args.priorCumulativeCostUsd &&
@@ -1662,6 +1665,11 @@ export function productionBlueprintAuthoringReceiptReplayIsValid(args: {
     args.request.version === PRODUCTION_AUTHORING_RUN_REQUEST_VERSION &&
     requestProgram === null
   ) return false;
+  const receiptDraftSchema = preRenderBlueprintDraftJsonSchemaForVersion(
+    requestProgram?.draftSchemaVersion ??
+      LEGACY_PRE_RENDER_BLUEPRINT_DRAFT_SCHEMA_VERSION_V6,
+  );
+  if (receiptDraftSchema === null) return false;
   const legacyPromptEvidence =
     args.request.version === LEGACY_PRODUCTION_AUTHORING_RUN_REQUEST_VERSION_V4
       ? legacyPreRenderBlueprintPromptEvidenceForSystemPromptDigest(
@@ -1696,6 +1704,7 @@ export function productionBlueprintAuthoringReceiptReplayIsValid(args: {
       const result = attemptReceiptIsValid({
         admissionDecision: admissionDecisions[index] ?? null,
         attempt,
+        draftSchema: receiptDraftSchema,
         index,
         priorCumulativeCostUsd: cumulativeCostUsd,
         receiptVersion,
@@ -1975,7 +1984,8 @@ export function qaWizardBlueprintAuthoringProvenanceVersionsForRequest(
   }
   return {
     draftSchemaVersion:
-      program?.draftSchemaVersion ?? PRE_RENDER_BLUEPRINT_DRAFT_SCHEMA_VERSION,
+      program?.draftSchemaVersion ??
+      LEGACY_PRE_RENDER_BLUEPRINT_DRAFT_SCHEMA_VERSION_V6,
     promptVersion:
       program?.initialPromptVersion ?? legacyPromptVersions!.promptVersion,
     repairPromptVersion:

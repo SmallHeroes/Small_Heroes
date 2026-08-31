@@ -39,9 +39,13 @@ const entityRef = obj({
   id: { type: 'string' },
 });
 
-const consumer = {
+/**
+ * Provider-owned affordance associations. Frame consumers are deliberately absent:
+ * canonical frame ids are compiler authority, and the compiler materializes the
+ * camera reverse-link from each draft frame's `camera.affordanceId` after overlay.
+ */
+const nonFrameConsumer = {
   anyOf: [
-    obj({ kind: { type: 'string', const: 'frame' }, frameId: { type: 'string' } }),
     obj({
       kind: { type: 'string', const: 'action' },
       pageNumber: { type: 'integer', minimum: 1 },
@@ -77,18 +81,39 @@ const consumer = {
   ],
 };
 
+const legacyFrameConsumer = obj({
+  kind: { type: 'string', const: 'frame' },
+  frameId: { type: 'string' },
+});
+
+const legacyConsumerV6 = {
+  anyOf: [legacyFrameConsumer, ...nonFrameConsumer.anyOf],
+};
+
 const affordanceBase = {
   id: { type: 'string' },
   zoneId: { type: 'string' },
   footprint: region,
-  consumers: { type: 'array', items: consumer, minItems: 1 },
 };
+
+const nonFrameConsumers = {
+  type: 'array',
+  items: nonFrameConsumer,
+  minItems: 1,
+} as const;
+
+const compilerOwnedCameraConsumers = {
+  type: 'array',
+  items: nonFrameConsumer,
+  maxItems: 0,
+} as const;
 
 const affordance = {
   anyOf: [
     obj({
       ...affordanceBase,
       kind: { type: 'string', const: 'traversal' },
+      consumers: nonFrameConsumers,
       connectionId: { type: 'string' },
       direction: { type: 'string', enum: ['forward', 'reverse', 'both'] },
       minimumClearance: { type: 'integer', minimum: 1, maximum: 1000 },
@@ -96,6 +121,7 @@ const affordance = {
     obj({
       ...affordanceBase,
       kind: { type: 'string', const: 'opening_clearance' },
+      consumers: nonFrameConsumers,
       connectionId: { type: 'string' },
       openingSpatialNodeId: nullableString,
       clearanceRegion: region,
@@ -103,6 +129,7 @@ const affordance = {
     obj({
       ...affordanceBase,
       kind: { type: 'string', const: 'placement_support' },
+      consumers: nonFrameConsumers,
       support: entityRef,
       supportedEntities: { type: 'array', items: entityRef, minItems: 1 },
       maximumOccupants: { type: 'integer', minimum: 1 },
@@ -110,6 +137,7 @@ const affordance = {
     obj({
       ...affordanceBase,
       kind: { type: 'string', const: 'action_space' },
+      consumers: nonFrameConsumers,
       supportedPredicates: {
         type: 'array',
         minItems: 1,
@@ -151,15 +179,50 @@ const affordance = {
     obj({
       ...affordanceBase,
       kind: { type: 'string', const: 'camera_access' },
+      consumers: compilerOwnedCameraConsumers,
       visibleRegion: region,
     }),
     obj({
       ...affordanceBase,
       kind: { type: 'string', const: 'safe_boundary' },
+      consumers: nonFrameConsumers,
       target: entityRef,
       permittedRegion: region,
     }),
   ],
+};
+
+/**
+ * Exact v6 affordance schema retained for immutable request/receipt replay.
+ * Its `required` ordering is intentionally reconstructed in the original
+ * order because that ordering is part of the historical schema digest.
+ */
+const legacyAffordanceV6 = {
+  anyOf: affordance.anyOf.map((branch) => {
+    const properties = branch.properties as Record<string, unknown>;
+    const tail = Object.fromEntries(
+      Object.entries(properties).filter(
+        ([key]) =>
+          key !== 'id' &&
+          key !== 'zoneId' &&
+          key !== 'footprint' &&
+          key !== 'kind' &&
+          key !== 'consumers',
+      ),
+    );
+    return obj({
+      id: properties.id,
+      zoneId: properties.zoneId,
+      footprint: properties.footprint,
+      consumers: {
+        type: 'array',
+        items: legacyConsumerV6,
+        minItems: 1,
+      },
+      kind: properties.kind,
+      ...tail,
+    });
+  }),
 };
 
 const connectionEndpoint = obj({
@@ -260,7 +323,38 @@ export const PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA: Record<string, unknown> = o
   frames: { type: 'array', items: frame, minItems: 1 },
 });
 
+export const LEGACY_PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA_V6: Record<
+  string,
+  unknown
+> = obj({
+  worldPlan: obj({
+    connections: { type: 'array', items: connection },
+    affordances: { type: 'array', items: legacyAffordanceV6 },
+    revealSafeSupportingGeometry: { type: 'array', items: supportingGeometry },
+  }),
+  frames: { type: 'array', items: frame, minItems: 1 },
+});
+
+export const PRE_RENDER_BLUEPRINT_DRAFT_SCHEMA_VERSION_V7 =
+  'pre-render-blueprint-draft-schema/v7' as const;
 export const PRE_RENDER_BLUEPRINT_DRAFT_SCHEMA_VERSION =
+  PRE_RENDER_BLUEPRINT_DRAFT_SCHEMA_VERSION_V7;
+export const LEGACY_PRE_RENDER_BLUEPRINT_DRAFT_SCHEMA_VERSION_V6 =
   'pre-render-blueprint-draft-schema/v6' as const;
+export type PreRenderBlueprintDraftSchemaVersion =
+  | typeof PRE_RENDER_BLUEPRINT_DRAFT_SCHEMA_VERSION_V7
+  | typeof LEGACY_PRE_RENDER_BLUEPRINT_DRAFT_SCHEMA_VERSION_V6;
 export const PRE_RENDER_BLUEPRINT_DRAFT_SCHEMA_NAME =
   'PreRenderBookVisualBlueprintWholeBookDraft' as const;
+
+export function preRenderBlueprintDraftJsonSchemaForVersion(
+  version: unknown,
+): Record<string, unknown> | null {
+  if (version === PRE_RENDER_BLUEPRINT_DRAFT_SCHEMA_VERSION_V7) {
+    return PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA;
+  }
+  if (version === LEGACY_PRE_RENDER_BLUEPRINT_DRAFT_SCHEMA_VERSION_V6) {
+    return LEGACY_PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA_V6;
+  }
+  return null;
+}

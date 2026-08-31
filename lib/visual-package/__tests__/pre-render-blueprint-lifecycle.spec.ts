@@ -339,6 +339,67 @@ describe('R1D-PVB-B - immutable Blueprint review and approval lifecycle', () => 
     expect(readdirSync(root)).toEqual([]);
   });
 
+  it('rejects cross-generation schema, initial-prompt, and repair-prompt provenance while preserving exact legacy pairs', () => {
+    const fixture = buildBlueprintFixture('single_location');
+    const repairAttempts = [{ attempt: 1, errors: ['fixture error'], draft: {} }];
+    const current = {
+      ...provenanceFor(fixture.blueprint),
+      draftSchemaVersion: 'pre-render-blueprint-draft-schema/v7' as const,
+      promptVersion: 'pre-render-blueprint-authoring-prompt/v8' as const,
+      repairPromptVersion: 'pre-render-blueprint-repair-prompt/v9' as const,
+      passingAttempt: 2,
+      callCount: 2,
+    };
+    const currentReview = buildPreRenderBlueprintReviewBundle({
+      blueprint: fixture.blueprint,
+      context: fixture.context,
+      provenance: current,
+      repairAttempts,
+    });
+    expect(currentReview.packet.blockers).not.toContain(
+      'authoring provenance schema or prompt version is unsupported',
+    );
+    expect(currentReview.packet.blockers).not.toContain(
+      'authoring provenance repair prompt version is inconsistent',
+    );
+
+    const legacy = {
+      ...current,
+      draftSchemaVersion: 'pre-render-blueprint-draft-schema/v6' as const,
+      promptVersion: 'pre-render-blueprint-authoring-prompt/v7' as const,
+      repairPromptVersion: 'pre-render-blueprint-repair-prompt/v8' as const,
+    };
+    const legacyReview = buildPreRenderBlueprintReviewBundle({
+      blueprint: fixture.blueprint,
+      context: fixture.context,
+      provenance: legacy,
+      repairAttempts,
+    });
+    expect(legacyReview.packet.blockers).not.toContain(
+      'authoring provenance schema or prompt version is unsupported',
+    );
+    expect(legacyReview.packet.blockers).not.toContain(
+      'authoring provenance repair prompt version is inconsistent',
+    );
+
+    for (const provenance of [
+      { ...current, draftSchemaVersion: legacy.draftSchemaVersion },
+      { ...current, repairPromptVersion: legacy.repairPromptVersion },
+      { ...legacy, repairPromptVersion: current.repairPromptVersion },
+    ]) {
+      const review = buildPreRenderBlueprintReviewBundle({
+        blueprint: fixture.blueprint,
+        context: fixture.context,
+        provenance,
+        repairAttempts,
+      });
+      expect(review.packet.readyForApproval).toBe(false);
+      expect(review.packet.blockers.join('\n')).toMatch(
+        /schema or prompt version is unsupported|repair prompt version is inconsistent/u,
+      );
+    }
+  });
+
   it('blocks unresolved historical-direction/source coverage before persistence or approval', () => {
     const fixture = buildBlueprintFixture('no_companion');
     const context = clone(fixture.context);

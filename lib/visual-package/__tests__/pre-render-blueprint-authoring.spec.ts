@@ -16,6 +16,7 @@ import {
 } from '@/lib/visual-package';
 import {
   PreRenderBlueprintRepairInputNotAdmissibleError,
+  assemblePreRenderBookVisualBlueprintFromDraft,
   buildPreRenderBlueprintAuthoringSystemPrompt,
   buildPreRenderBlueprintAuthoringUserPrompt,
   buildPreRenderBlueprintRepairSystemPrompt,
@@ -23,6 +24,12 @@ import {
   groupPreRenderBlueprintRepairDiagnostics,
 } from '@/lib/visual-package/preRenderBlueprintAuthoring';
 import { blueprintAuthoringInputAccounting } from '@/lib/visual-package/blueprintAuthoringPolicy';
+import {
+  PRE_RENDER_BLUEPRINT_REPAIR_WIRE_VERSION_V3,
+  LEGACY_PRE_RENDER_BLUEPRINT_REPAIR_WIRE_VERSION_V2,
+  serializeLegacyPreRenderBlueprintRepairWireV2,
+  serializePreRenderBlueprintRepairWire,
+} from '@/lib/visual-package/preRenderBlueprintProviderWire';
 
 import {
   buildBlueprintFixture,
@@ -59,7 +66,12 @@ function findConstNode(
   return null;
 }
 
-function wholeBookDraft(blueprint: PreRenderBookVisualBlueprint): unknown {
+function legacyWholeBookDraftWithFrameConsumers(
+  blueprint: PreRenderBookVisualBlueprint,
+): {
+  worldPlan: PreRenderBookVisualBlueprint['worldPlan'];
+  frames: Array<Record<string, unknown>>;
+} {
   return {
     worldPlan: clone(blueprint.worldPlan),
     frames: blueprint.frames.map((frame) => ({
@@ -75,6 +87,16 @@ function wholeBookDraft(blueprint: PreRenderBookVisualBlueprint): unknown {
       },
     })),
   };
+}
+
+function wholeBookDraft(blueprint: PreRenderBookVisualBlueprint): unknown {
+  const draft = legacyWholeBookDraftWithFrameConsumers(blueprint);
+  for (const affordance of draft.worldPlan.affordances) {
+    affordance.consumers = affordance.consumers.filter(
+      (consumer) => consumer.kind !== 'frame',
+    );
+  }
+  return draft;
 }
 
 function sixTransitionEightPageFixture() {
@@ -203,6 +225,203 @@ describe('R1D-PVB-B — whole-book Blueprint authoring compiler', () => {
     'no_companion',
     'reveal_timeline',
   ];
+
+  it('materializes the nine compiler-owned camera consumers on an eight-page provider-shaped draft without repair', async () => {
+    const fixture = buildBlueprintFixture('single_location', { pageCount: 8 });
+    const draft = wholeBookDraft(fixture.blueprint) as {
+      worldPlan: { affordances: Array<{ consumers: Array<{ kind: string }> }> };
+    };
+    expect(
+      draft.worldPlan.affordances.flatMap((entry) => entry.consumers)
+        .filter((consumer) => consumer.kind === 'frame'),
+    ).toHaveLength(0);
+
+    let calls = 0;
+    const result = await compilePreRenderBookVisualBlueprint(
+      fixture.context,
+      CONFIG,
+      {
+        callAuthor: async () => {
+          calls += 1;
+          return draft;
+        },
+      },
+    );
+
+    expect(calls).toBe(1);
+    expect(result.provenance).toMatchObject({
+      draftSchemaVersion: 'pre-render-blueprint-draft-schema/v7',
+      promptVersion: 'pre-render-blueprint-authoring-prompt/v8',
+      passingAttempt: 1,
+      callCount: 1,
+    });
+    expect(result.repairAttempts).toEqual([]);
+    expect(
+      serializePreRenderBookVisualBlueprint(result.blueprint),
+    ).toBe(serializePreRenderBookVisualBlueprint(fixture.blueprint));
+    const frameConsumers = result.blueprint.worldPlan.affordances.flatMap(
+      (affordance) =>
+        affordance.consumers
+          .filter((consumer) => consumer.kind === 'frame')
+          .map((consumer) => ({ affordance, consumer })),
+    );
+    expect(frameConsumers).toHaveLength(9);
+    for (const frame of result.blueprint.frames) {
+      expect(frameConsumers).toContainEqual({
+        affordance: expect.objectContaining({
+          id: frame.camera.affordanceId,
+          kind: 'camera_access',
+        }),
+        consumer: { kind: 'frame', frameId: frame.id },
+      });
+    }
+  });
+
+  it('strips forged frame consumers defensively while preserving the canonical Blueprint and the input bytes', () => {
+    const fixture = buildBlueprintFixture('single_location', { pageCount: 8 });
+    const draft = legacyWholeBookDraftWithFrameConsumers(fixture.blueprint);
+    for (const [index, affordance] of draft.worldPlan.affordances.entries()) {
+      affordance.consumers.push(
+        { kind: 'frame', frameId: `frame:forged:${index}` },
+        { kind: 'frame', frameId: 'frame:page:999' },
+      );
+    }
+    const before = clone(draft);
+    const assembled = assemblePreRenderBookVisualBlueprintFromDraft({
+      draft,
+      context: fixture.context,
+    });
+
+    expect(draft).toEqual(before);
+    expect(serializePreRenderBookVisualBlueprint(assembled)).toBe(
+      serializePreRenderBookVisualBlueprint(fixture.blueprint),
+    );
+    expect(
+      validatePreRenderBookVisualBlueprint(assembled, fixture.context).ok,
+    ).toBe(true);
+  });
+
+  it('allows two canonical frames to share one camera affordance and derives both reverse consumers exactly once', () => {
+    const fixture = buildBlueprintFixture('single_location', { pageCount: 8 });
+    const draft = wholeBookDraft(fixture.blueprint) as {
+      worldPlan: {
+        affordances: Array<{ id: string; kind: string; consumers: unknown[] }>;
+      };
+      frames: Array<{
+        kind: string;
+        camera: { affordanceId: string };
+        affordanceIds: string[];
+      }>;
+    };
+    const cover = draft.frames.find((frame) => frame.kind === 'cover')!;
+    const page = draft.frames.find((frame) => frame.kind === 'page')!;
+    const oldPageCameraId = page.camera.affordanceId;
+    page.camera.affordanceId = cover.camera.affordanceId;
+    page.affordanceIds = [
+      ...page.affordanceIds.filter((id) => id !== oldPageCameraId),
+      cover.camera.affordanceId,
+    ];
+    draft.worldPlan.affordances = draft.worldPlan.affordances.filter(
+      (affordance) => affordance.id !== oldPageCameraId,
+    );
+
+    const assembled = assemblePreRenderBookVisualBlueprintFromDraft({
+      draft,
+      context: fixture.context,
+    });
+    const shared = assembled.worldPlan.affordances.find(
+      (affordance) => affordance.id === cover.camera.affordanceId,
+    )!;
+    expect(
+      shared.consumers.filter((consumer) => consumer.kind === 'frame'),
+    ).toEqual([
+      { kind: 'frame', frameId: 'frame:cover' },
+      { kind: 'frame', frameId: 'frame:page:1' },
+    ]);
+    expect(
+      validatePreRenderBookVisualBlueprint(assembled, fixture.context).ok,
+    ).toBe(true);
+  });
+
+  it.each([
+    {
+      label: 'unknown camera id',
+      mutate: (draft: { frames: Array<{ camera: { affordanceId: string } }> }) => {
+        draft.frames[0]!.camera.affordanceId = 'affordance:missing';
+      },
+    },
+    {
+      label: 'camera omitted from frame membership',
+      mutate: (draft: {
+        frames: Array<{
+          camera: { affordanceId: string };
+          affordanceIds: string[];
+        }>;
+      }) => {
+        const frame = draft.frames[0]!;
+        frame.affordanceIds = frame.affordanceIds.filter(
+          (id) => id !== frame.camera.affordanceId,
+        );
+      },
+    },
+  ])('does not heal $label while deriving reverse camera consumers', ({ mutate }) => {
+    const fixture = buildBlueprintFixture('single_location', { pageCount: 8 });
+    const draft = wholeBookDraft(fixture.blueprint) as Parameters<
+      typeof mutate
+    >[0];
+    mutate(draft);
+    const assembled = assemblePreRenderBookVisualBlueprintFromDraft({
+      draft,
+      context: fixture.context,
+    });
+    const validation = validatePreRenderBookVisualBlueprint(
+      assembled,
+      fixture.context,
+    );
+    expect(validation.ok).toBe(false);
+    if (!validation.ok) {
+      expect(validation.issues).toContainEqual(
+        expect.objectContaining({ code: 'camera_infeasible' }),
+      );
+    }
+  });
+
+  it('cuts the current repair wire to v3 by stripping only frame consumers while preserving exact v2 replay bytes', () => {
+    const fixture = buildBlueprintFixture('single_location', { pageCount: 8 });
+    const previousDraft = legacyWholeBookDraftWithFrameConsumers(
+      fixture.blueprint,
+    );
+    const current = JSON.parse(
+      serializePreRenderBlueprintRepairWire({
+        context: fixture.context,
+        previousDraft,
+      }),
+    ) as { draft: { v: string; world: [unknown[], unknown[][], unknown[]] } };
+    const legacy = JSON.parse(
+      serializeLegacyPreRenderBlueprintRepairWireV2({
+        context: fixture.context,
+        previousDraft,
+      }),
+    ) as { draft: { v: string; world: [unknown[], unknown[][], unknown[]] } };
+
+    expect(current.draft.v).toBe(PRE_RENDER_BLUEPRINT_REPAIR_WIRE_VERSION_V3);
+    expect(legacy.draft.v).toBe(
+      LEGACY_PRE_RENDER_BLUEPRINT_REPAIR_WIRE_VERSION_V2,
+    );
+    let legacyFrameConsumerCount = 0;
+    for (const [index, legacyAffordance] of legacy.draft.world[1].entries()) {
+      const currentAffordance = current.draft.world[1][index]!;
+      const legacyConsumers = legacyAffordance[4] as unknown[][];
+      const currentConsumers = currentAffordance[4] as unknown[][];
+      legacyFrameConsumerCount += legacyConsumers.filter(
+        (consumer) => consumer[0] === 'f',
+      ).length;
+      expect(currentConsumers).toEqual(
+        legacyConsumers.filter((consumer) => consumer[0] !== 'f'),
+      );
+    }
+    expect(legacyFrameConsumerCount).toBe(9);
+  });
 
   it('carries approved typed presentation evidence into the Blueprint authoring gate', () => {
     const fixture = buildBlueprintFixture('single_location');
@@ -351,7 +570,7 @@ describe('R1D-PVB-B — whole-book Blueprint authoring compiler', () => {
         reasoningEffort: CONFIG.reasoningEffort,
         maxOutputTokens: CONFIG.maxOutputTokens,
         noFallback: true,
-        promptVersion: 'pre-render-blueprint-authoring-prompt/v7',
+        promptVersion: 'pre-render-blueprint-authoring-prompt/v8',
         passingAttempt: 1,
         callCount: 1,
       });
@@ -653,7 +872,7 @@ describe('R1D-PVB-B — whole-book Blueprint authoring compiler', () => {
     expect(result.provenance).toMatchObject({
       passingAttempt: 2,
       callCount: 2,
-      repairPromptVersion: 'pre-render-blueprint-repair-prompt/v8',
+      repairPromptVersion: 'pre-render-blueprint-repair-prompt/v9',
     });
     expect((calls[1] as { system: string }).system).toContain(
       'never return textSafeRegion',
@@ -1014,9 +1233,39 @@ describe('R1D-PVB-B — whole-book Blueprint authoring compiler', () => {
     assertStrictObjects(PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA);
     const root = PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA as {
       properties: {
+        worldPlan: {
+          properties: {
+            affordances: {
+              items: {
+                anyOf: Array<{
+                  properties: Record<string, Record<string, unknown>>;
+                }>;
+              };
+            };
+          };
+        };
         frames: { items: { properties: Record<string, unknown> } };
       };
     };
+    expect(findConstNode(PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA, 'frame')).toBeNull();
+    const affordanceBranches =
+      root.properties.worldPlan.properties.affordances.items.anyOf;
+    const camera = affordanceBranches.find(
+      (branch) => branch.properties.kind.const === 'camera_access',
+    )!;
+    expect(camera.properties.consumers).toMatchObject({
+      type: 'array',
+      maxItems: 0,
+    });
+    expect(camera.properties.consumers).not.toHaveProperty('minItems');
+    for (const branch of affordanceBranches.filter(
+      (entry) => entry !== camera,
+    )) {
+      expect(branch.properties.consumers).toMatchObject({
+        type: 'array',
+        minItems: 1,
+      });
+    }
     expect(root.properties.frames.items.properties).not.toHaveProperty(
       'textSafeRegion',
     );

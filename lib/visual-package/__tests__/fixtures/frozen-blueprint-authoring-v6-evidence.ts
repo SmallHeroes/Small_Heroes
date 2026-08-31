@@ -22,9 +22,12 @@ import {
 } from '../../preRenderBlueprintAuthoringContract';
 import {
   LEGACY_PRE_RENDER_BLUEPRINT_REPAIR_WIRE_VERSION_V1,
-  PRE_RENDER_BLUEPRINT_REPAIR_WIRE_VERSION_V2,
-  serializePreRenderBlueprintRepairWire,
+  LEGACY_PRE_RENDER_BLUEPRINT_REPAIR_WIRE_VERSION_V2,
+  serializeLegacyPreRenderBlueprintRepairWireV2,
 } from '../../preRenderBlueprintProviderWire';
+import {
+  LEGACY_PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA_V6,
+} from '../../preRenderBlueprintDraftSchema';
 import type { PreRenderBlueprintValidationContext } from '../../preRenderBlueprintTypes';
 import type { ProductionAuthoringProvider } from '../../productionAuthoringRunner';
 import { canonicalJsonDigest } from '../../integrity';
@@ -68,6 +71,21 @@ const REPAIR_V7_ONLY_BLOCK = [
   'minClearance among them. Repair zone authority and these dimensions together; do not wait for another pass.',
 ].join('\n');
 
+const AUTHORING_V8_ONLY_BLOCK = [
+  'Camera frame consumers are compiler-owned: every camera_access has consumers=[]; choose it only through',
+  'the matching frame camera.affordanceId. Never output a frameId consumer.',
+].join('\n');
+
+const REPAIR_V9_ONLY_BLOCK = [
+  'Camera frame consumers are compiler-owned: camera_access consumers must remain empty; choose the camera',
+  'only through each frame camera affordanceId. Never output or restore a frameId consumer.',
+].join('\n');
+
+const CURRENT_REPAIR_CONSUMER_TUPLE_LINE =
+  "['a',page,checkId], ['p',page,propId], ['t',page], or";
+const LEGACY_REPAIR_CONSUMER_TUPLE_LINE =
+  "['f',frameId], ['a',page,checkId], ['p',page,propId], ['t',page], or";
+
 function removeExactCurrentOnlyBlock(prompt: string, block: string): string {
   const marker = `${block}\n`;
   if (prompt.split(marker).length !== 2) {
@@ -76,9 +94,38 @@ function removeExactCurrentOnlyBlock(prompt: string, block: string): string {
   return prompt.replace(marker, '');
 }
 
+function replaceExactCurrentOnlyLine(
+  prompt: string,
+  currentLine: string,
+  historicalLine: string,
+): string {
+  if (prompt.split(currentLine).length !== 2) {
+    throw new Error('frozen prompt fixture cannot identify one exact current-only line');
+  }
+  return prompt.replace(currentLine, historicalLine);
+}
+
+function frozenBlueprintAuthoringSystemPromptV7(): string {
+  return removeExactCurrentOnlyBlock(
+    buildPreRenderBlueprintAuthoringSystemPrompt(),
+    AUTHORING_V8_ONLY_BLOCK,
+  );
+}
+
+function frozenBlueprintRepairSystemPromptV8(): string {
+  return replaceExactCurrentOnlyLine(
+    removeExactCurrentOnlyBlock(
+      buildPreRenderBlueprintRepairSystemPrompt(),
+      REPAIR_V9_ONLY_BLOCK,
+    ),
+    CURRENT_REPAIR_CONSUMER_TUPLE_LINE,
+    LEGACY_REPAIR_CONSUMER_TUPLE_LINE,
+  );
+}
+
 export function frozenBlueprintAuthoringSystemPromptV6(): string {
   const prompt = removeExactCurrentOnlyBlock(
-    buildPreRenderBlueprintAuthoringSystemPrompt(),
+    frozenBlueprintAuthoringSystemPromptV7(),
     INITIAL_V7_ONLY_BLOCK,
   );
   if (
@@ -94,7 +141,7 @@ export function frozenBlueprintAuthoringSystemPromptV6(): string {
 
 export function frozenBlueprintRepairSystemPromptV6(): string {
   const prompt = removeExactCurrentOnlyBlock(
-    buildPreRenderBlueprintRepairSystemPrompt(),
+    frozenBlueprintRepairSystemPromptV8(),
     REPAIR_V7_ONLY_BLOCK,
   );
   if (
@@ -132,16 +179,16 @@ export function frozenBlueprintRepairUserPromptV6(args: {
     0,
     markerIndex + REPAIR_WIRE_MARKER.length,
   );
-  const historicalWire = serializePreRenderBlueprintRepairWire({
+  const historicalWire = serializeLegacyPreRenderBlueprintRepairWireV2({
     context: args.context,
     // Prompt-v6/repair-wire-v1 was authored before the retained-draft cutover:
     // its wire carried the raw parsed provider draft, not the normalized Candidate.
     previousDraft: args.previousRawDraft,
   })
-    .split(PRE_RENDER_BLUEPRINT_REPAIR_WIRE_VERSION_V2)
+    .split(LEGACY_PRE_RENDER_BLUEPRINT_REPAIR_WIRE_VERSION_V2)
     .join(LEGACY_PRE_RENDER_BLUEPRINT_REPAIR_WIRE_VERSION_V1);
   if (
-    historicalWire.includes(PRE_RENDER_BLUEPRINT_REPAIR_WIRE_VERSION_V2) ||
+    historicalWire.includes(LEGACY_PRE_RENDER_BLUEPRINT_REPAIR_WIRE_VERSION_V2) ||
     !historicalWire.includes(LEGACY_PRE_RENDER_BLUEPRINT_REPAIR_WIRE_VERSION_V1)
   ) {
     throw new Error('frozen repair-wire/v1 projection is invalid');
@@ -209,7 +256,7 @@ export function rebindReceiptPromptEvidenceToFrozenV6(args: {
     const accounting = blueprintAuthoringInputAccounting({
       systemPrompt: frozen.systemPrompt,
       userPrompt: frozen.userPrompt,
-      schema: call.options.jsonSchema.schema,
+      schema: LEGACY_PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA_V6,
     });
     const tokenRelevantRequestDigest = canonicalJsonDigest(
       blueprintAuthoringTokenRelevantRequestProjection({
@@ -218,7 +265,7 @@ export function rebindReceiptPromptEvidenceToFrozenV6(args: {
         userPrompt: frozen.userPrompt,
         reasoningEffort: call.options.reasoningEffort,
         schemaName: call.options.jsonSchema.name,
-        schema: call.options.jsonSchema.schema,
+        schema: LEGACY_PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA_V6,
       }),
     );
     decision.tokenRelevantRequestDigest = tokenRelevantRequestDigest;

@@ -71,6 +71,7 @@ import { PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA } from '@/lib/visual-package/pre
 import {
   LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_PROMPT_V6,
   LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_PROMPT_V7,
+  LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_REPAIR_PROMPT_V8,
   buildBlueprintAuthoringExecutionProgram,
 } from '@/lib/visual-package/blueprintAuthoringExecutionProgram';
 import {
@@ -2224,6 +2225,7 @@ describe('provider-isolated Blueprint authoring runner', () => {
   });
 
   it.each([
+    ['former-current', LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_REPAIR_PROMPT_V8],
     ['prompt-v7', LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_PROMPT_V7],
     ['prompt-v6', LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_PROMPT_V6],
   ] as const)(

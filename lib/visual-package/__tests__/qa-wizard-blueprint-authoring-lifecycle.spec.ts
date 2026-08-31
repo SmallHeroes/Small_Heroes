@@ -97,7 +97,10 @@ import {
   blueprintAuthoringCountRequestProjection,
   type BlueprintAuthoringInputTokenCountRequest,
 } from '../blueprintAuthoringInputTokenAdmission';
-import { PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA } from '../preRenderBlueprintDraftSchema';
+import {
+  LEGACY_PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA_V6,
+  PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA,
+} from '../preRenderBlueprintDraftSchema';
 import {
   persistPreRenderBlueprintLifecycle,
 } from '../preRenderBlueprintLifecycle';
@@ -145,6 +148,7 @@ import { canonicalContentAddressedJsonBytes } from '../canonicalContentAddressed
 import {
   LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_PROMPT_V6,
   LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_PROMPT_V7,
+  LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_REPAIR_PROMPT_V8,
 } from '../blueprintAuthoringExecutionProgram';
 import { createLazyLocalOpenAICredentialReader } from '../../../scripts/lib/qa-wizard-blueprint-local-credential';
 import {
@@ -720,6 +724,10 @@ function materializeHistoricalCompletedTerminal(args: {
       LEGACY_PRE_RENDER_BLUEPRINT_AUTHORING_SYSTEM_PROMPT_DIGEST_V5
         ? 8_419
         : 2_144;
+    inputAccounting.schemaBytes = Buffer.byteLength(
+      JSON.stringify(LEGACY_PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA_V6),
+      'utf8',
+    );
     inputAccounting.estimatedBytes =
       inputAccounting.protocolAllowance +
       inputAccounting.schemaBytes +
@@ -992,6 +1000,7 @@ describe('QA Wizard Blueprint authoring operator lifecycle', () => {
   });
 
   it.each([
+    ['former-current', LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_REPAIR_PROMPT_V8],
     ['prompt-v7', LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_PROMPT_V7],
     ['prompt-v6', LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_PROMPT_V6],
   ] as const)(
@@ -5080,6 +5089,10 @@ describe('QA Wizard Blueprint failed-terminal sanitized capture integration', ()
       const accounting = attempt.inputAccounting as Record<string, number>;
       accounting.systemBytes =
         LEGACY_PRE_RENDER_BLUEPRINT_AUTHORING_SYSTEM_PROMPT_UTF8_BYTES_V6;
+      accounting.schemaBytes = Buffer.byteLength(
+        JSON.stringify(LEGACY_PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA_V6),
+        'utf8',
+      );
       accounting.estimatedBytes =
         accounting.protocolAllowance +
         accounting.schemaBytes +

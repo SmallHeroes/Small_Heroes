@@ -358,6 +358,44 @@ function deterministicFrameOverlay(args: {
     : { ...common, kind: 'page', pageNumber: Number(pageNumber) };
 }
 
+/**
+ * Frame identity is compiler authority. The provider owns the forward camera
+ * choice (`frame.camera.affordanceId`) but must never mint or copy the reciprocal
+ * `frameId` consumer. Materialize that reverse index only after canonical frame
+ * overlay, preserving every non-frame consumer byte-for-byte.
+ */
+function materializeCompilerOwnedCameraConsumers(args: {
+  rawAffordances: unknown;
+  frames: readonly PortraitBlueprintFrame[];
+}): BlueprintSpatialAffordance[] {
+  const affordances = clone(args.rawAffordances) as BlueprintSpatialAffordance[];
+
+  for (const affordance of affordances) {
+    if (!isObj(affordance) || !Array.isArray(affordance.consumers)) continue;
+    affordance.consumers = affordance.consumers.filter(
+      (consumer) => !isObj(consumer) || consumer.kind !== 'frame',
+    );
+  }
+
+  for (const frame of args.frames) {
+    const camera = isObj(frame.camera) ? frame.camera : null;
+    if (!camera || !nonEmpty(camera.affordanceId)) continue;
+    for (const affordance of affordances) {
+      if (
+        !isObj(affordance) ||
+        affordance.kind !== 'camera_access' ||
+        affordance.id !== camera.affordanceId ||
+        !Array.isArray(affordance.consumers)
+      ) {
+        continue;
+      }
+      affordance.consumers.push({ kind: 'frame', frameId: frame.id });
+    }
+  }
+
+  return affordances;
+}
+
 export function assemblePreRenderBookVisualBlueprintFromDraft(args: {
   draft: unknown;
   context: PreRenderBlueprintValidationContext;
@@ -377,6 +415,10 @@ export function assemblePreRenderBookVisualBlueprintFromDraft(args: {
     reconciliationArtifactPath: args.context.reconciliationArtifactPath,
     style: args.context.style,
   });
+  const frames = normalized.frames.map((frame) => {
+    if (!isObj(frame)) throw new Error('every draft frame must be an object');
+    return deterministicFrameOverlay({ raw: frame, context: args.context });
+  });
   return finalizePreRenderBookVisualBlueprint({
     version: PRE_RENDER_BOOK_VISUAL_BLUEPRINT_VERSION,
     ...(args.compositionPolicyVersion
@@ -389,16 +431,16 @@ export function assemblePreRenderBookVisualBlueprintFromDraft(args: {
         normalized.worldPlan.connections,
       ) as BlueprintWorldConnection[],
       affordances: clone(
-        normalized.worldPlan.affordances,
-      ) as BlueprintSpatialAffordance[],
+        materializeCompilerOwnedCameraConsumers({
+          rawAffordances: normalized.worldPlan.affordances,
+          frames,
+        }),
+      ),
       revealSafeSupportingGeometry: clone(
         normalized.worldPlan.revealSafeSupportingGeometry,
       ) as RevealSafeSupportingGeometry[],
     },
-    frames: normalized.frames.map((frame) => {
-      if (!isObj(frame)) throw new Error('every draft frame must be an object');
-      return deterministicFrameOverlay({ raw: frame, context: args.context });
-    }),
+    frames,
   });
 }
 
@@ -505,6 +547,8 @@ export function buildPreRenderBlueprintAuthoringSystemPrompt(): string {
     'Reserve cover x0,y0,w1000,h250 and body x0,y750,w1000,h250; keep key cast/actions/destinations/props clear.',
     'For 8+ pages use a true close_up, a wide, 3+ shot types, 3+ angles, and no shot repeated 3 pages.',
     'Geometry must justify camera labels; largest cast scale must be at least 3.5x the smallest.',
+    'Camera frame consumers are compiler-owned: every camera_access has consumers=[]; choose it only through',
+    'the matching frame camera.affordanceId. Never output a frameId consumer.',
     'Compiler overwrites identity, coverage, aspect ratio, location/zone/cast, lifecycle, text-safe, previous-frame,',
     'and transition-kind fields. Never output Boards, assets, render prompts, approvals, timestamps, or extra prose.',
   ].join('\n');
@@ -531,8 +575,10 @@ export function buildPreRenderBlueprintRepairSystemPrompt(): string {
     'Draft world is [connections,affordances,revealSafeGeometry]. Connection tuples are',
     '[id,kind,from[zone,node],to[zone,node],bidirectional,traversalIds,openingIds,safeBoundaryIds].',
     'Every affordance starts [id,kind,zone,footprint[x,y,w,h],consumers,...kindFields]. Consumer tuples use',
-    "['f',frameId], ['a',page,checkId], ['p',page,propId], ['t',page], or",
+    "['a',page,checkId], ['p',page,propId], ['t',page], or",
     "['s',page,subjectId,relation,targetRef]. Kind fields follow the supplied output schema in schema order.",
+    'Camera frame consumers are compiler-owned: camera_access consumers must remain empty; choose the camera',
+    'only through each frame camera affordanceId. Never output or restore a frameId consumer.',
     'Affordance tails: traversal=[connectionId,direction,minClearance]; opening=[connectionId,openingNode,clearance];',
     'For every traversal, both footprint dimensions must be at least minClearance. For every opening, find every',
     'traversal named by its connection in the same zone; both clearance dimensions must be at least the greatest',
