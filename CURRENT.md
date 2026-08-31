@@ -27,6 +27,10 @@ could not be separated from earlier attempts without inference.
   Literal `npm run check` remains honestly HOLD on the established unrelated baseline: nine
   missing ignored-output-fixture assertions in five unchanged files, plus 19 resource timeouts
   and four known Vitest worker RPC timeout errors.
+- Claude Code independently reviewed immutable implementation range `edd4a770..b641b9d7` and
+  returned **TECHNICAL PASS — 0 BLOCKER / 0 MAJOR**. Its only MINOR was the superseded v5/v7
+  pairing sentence corrected in the later historical section of this file. After that docs-only
+  correction, Codex re-ran the focused **202/202**, TypeScript, and `git diff --check` green.
 - This milestone changes evidence only. Prompt/model/compiler/validator, 3-call/2-repair budget,
   retry/fallback, $5 ceiling, Candidate, Wizard, payment, and render behavior are unchanged. It
   does **not** claim the final five diagnostics are fixed and grants no paid rerun.
@@ -63,9 +67,9 @@ authority was incorrectly reused as the paid executable-program identity.
   validation uses frozen historical request semantics. Receipt-v7/capture-v3 admission-ledger-v1
   replay now uses the frozen historical model/count/cost policy snapshot; receipt-v6/capture-v2
   keeps its pre-ledger shape. Fresh legacy ordinary or replacement dispatch is forbidden.
-- Receipt pairing is closed at both manifest and replay validation: request v5 accepts only receipt
-  v7; lifecycle request v4 accepts its historically valid receipt v6 **or v7**. Canonically
-  redigested v5+v6 evidence fails.
+- Receipt pairing is closed at both manifest and replay validation: request v5 accepts current
+  receipt v8 or immutable receipt v7; lifecycle request v4 accepts its historically valid receipt
+  v6 **or v7**. Canonically redigested v5+v6 evidence fails.
 - Same program under a second operator envelope yields truthful
   `execution_identity_already_claimed|consumed` with zero second dispatch. Tampered program
   evidence fails before both paid factories and before ledger creation.
