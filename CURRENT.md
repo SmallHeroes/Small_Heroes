@@ -1,6 +1,6 @@
 # SmallHeroes — Current Technical State
 
-## R1D — contextual Set Board v4 closes exact d963 admission offline; locally green, awaiting Claude Code re-gate
+## R1D — contextual Set Board v4 closes exact d963 admission offline; Claude Code PASS
 
 The downstream Wizard map found a deterministic pre-package blocker in the already-approved
 `3ef64541...` production context. Exact effective template `d9633671...` requires
@@ -27,9 +27,11 @@ Blueprint call could not change this fixed Template authority.
 - Exact d963 replay is now required 2 / admitted 2 / rejected 0 / issueCount 0. New future Board
   hashes are `48bf9d53...` (home) and `6a9b573a...` (kindergarten route), both v4. The existing
   approved bridge `8c5bcb03...` loads unchanged and remains bound to Story Source `3ef64541...`.
-- Exact historical replay preserves real hashes `e71fbd7a...` (v3), `a04ca201...` (v2) and
-  `a9c0e87d...` (v3). Synthetic v2 remains `f4e27193...`; synthetic v3 is newly locked at
-  `11541e35...`; the approved legacy Chameleon package retains both historical v2 Board identities.
+- Synthetic v2 remains `f4e27193...`; synthetic v3 is newly locked at `11541e35...`; the approved
+  legacy Chameleon package recomputes both stored historical v2 Board identities. Three additional
+  hashes carried by the prior precision milestone are retained only as historical handoff evidence:
+  their normalized replay inputs are not present in committed artifacts, so this milestone does
+  not claim them as independently reproducible locks.
 - Focused v4/census is **30/30 PASS**. Full Set Board is **359/359 PASS**. Full bridge is
   **15/15 PASS**, followed by one known Vitest `onTaskUpdate` RPC timeout; the exact new
   advance/load test passes alone. Both TypeScript phases exit 0 and `git diff --check` is clean.
@@ -40,6 +42,11 @@ Blueprint call could not change this fixed Template authority.
   changed-path assertion failed.
 - Zero provider, credential, network, image, Vision, audio, upload, Registry, package, locator,
   Order/payment, database, deployment or render operation occurred. No branch was pushed.
+- Claude Code Opus/max returned **PASS** on immutable range `c079dc5b...8f79cc86`. Its independent
+  execution passed the three changed specs 45/45, full Set Board 359/359, both TypeScript phases
+  and diff/worktree checks, and reproduced d963 required 2 / admitted 2 / rejected 0 / issueCount
+  0 with exact hashes `48bf9d53...` and `6a9b573a...`. Its sole open observation was the
+  documentation-only historical-hash qualification corrected above.
 
 Evidence:
 `docs/ai-workflow/R1D_SET_BOARD_CONTEXTUAL_POSITIVE_AUTHORITY_V4_IMPLEMENTATION_EVIDENCE.md`.

@@ -97,12 +97,13 @@ policies reject, so already-admitted v2/v3 definitions never change identity.
 ## 7. Validation plan
 
 1. Unit safe/counterexample matrix for both v4 refinements.
-2. Exact historical identity locks:
+2. Exact reproducible compatibility locks:
    - synthetic v2 `f4e271938edf91beb3b12c7b8634e43564edfbfecfd5a6d66eee42b747101f50`;
-   - real v3 `e71fbd7acf90869409ae5e85928951f7a941e2a87e0efd327323b98bfa155d78`;
-   - real v3 `a9c0e87d38fdeb75f7f1bb760bcc976c213fd8e57936b7eadf3ee4d9ce55f389`;
-   - real v2 `a04ca2012f6c8837a720564f6ec32e330c49a76bf8bd3f9dd2aafe74fe7b0b8c`;
-   - approved historical v2 `803dea01...` and `fd15ad19...`.
+   - synthetic v3 `11541e35b618217fca3dc3db6ceabf0a8096f776839ba25fa8c091cfd2c22bdd`;
+   - the approved legacy Chameleon package's two stored v2 hashes, recomputed from that package.
+   Three additional v2/v3 values carried by the prior precision milestone are historical
+   handoff evidence only: their normalized replay inputs are not present as committed artifacts,
+   so this milestone must not claim them as independently reproducible locks.
 3. Exact d963 pure census: `2 admitted / 0 rejected / 0 issues`, both policy v4.
 4. Hostile bridge advance/load fails before publication or Registry access; clean d963 bridge
    remains loadable.

@@ -114,13 +114,13 @@ The census is deterministic: required 2, admitted 2, rejected 0, issueCount 0. T
 approved bridge `8c5bcb03...` loads as `reconciliation_approved` and remains bound to Story Source
 `3ef64541...`, exact template d963, 8 pages and style `soft_hand_drawn_storybook`.
 
-Historical replay through the current code reproduced exactly:
-
-| Set | Policy | Preserved hash |
-|---|---|---|
-| `set_home` | v3 | `e71fbd7acf90869409ae5e85928951f7a941e2a87e0efd327323b98bfa155d78` |
-| `set_kindergarten` | v2 | `a04ca2012f6c8837a720564f6ec32e330c49a76bf8bd3f9dd2aafe74fe7b0b8c` |
-| `set_neighborhood_route` | v3 | `a9c0e87d38fdeb75f7f1bb760bcc976c213fd8e57936b7eadf3ee4d9ce55f389` |
+The prior precision-milestone handoff carried three additional v2/v3 hash values for
+`set_home`, `set_kindergarten` and `set_neighborhood_route`. Independent Claude QA established
+that their normalized replay inputs are not present as committed artifacts: the exact
+`set_kindergarten` identity appears only in documentation, while the other two identities occur
+in a raw pre-repair capture that fails current stable-authority projection. Those three values
+are therefore historical handoff evidence, not independently reproduced locks for this change,
+and are not used to support its compatibility claim.
 
 The synthetic v2 hash remains
 `f4e271938edf91beb3b12c7b8634e43564edfbfecfd5a6d66eee42b747101f50`; the synthetic v3
@@ -163,6 +163,16 @@ An internal read-only adversarial review found no high-confidence production def
 replayed the exact current/historical censuses and confirmed both bridge placements. This is not
 the independent Claude Code PASS; the focused commit will be handed to Claude Code Opus/max on an
 immutable range before any Board render.
+
+## Independent Claude Code gate
+
+Claude Code Opus/max reviewed immutable range
+`c079dc5bba90d81508e8cd7d3dd73aa049f7b2c4..8f79cc8661854ff479d4d749bd8bcd5c23e62f1f`
+and returned **PASS** with zero BLOCKER or MAJOR findings. Its confirmatory execution independently
+reproduced the exact d963 census and both v4 hashes, passed the three changed specs 45/45, passed
+the full Set Board folder 359/359, passed both TypeScript phases, and found a clean diff and
+worktree. Its one documentation-only observation is incorporated above: the prior handoff's three
+additional historical hashes are not current committed replay locks.
 
 ## Unchanged / not authorized by this code milestone
 
