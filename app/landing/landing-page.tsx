@@ -43,6 +43,22 @@ const TRUST_ICONS = [
   ),
 ];
 
+/* A curved seam where the page changes world: the PREVIOUS section's colour
+   dips into this one, so the handover reads as a page turn, not a band. */
+function SectionWave({ fill }: { fill: string }) {
+  return (
+    <svg
+      className="section-wave"
+      viewBox="0 0 1440 56"
+      preserveAspectRatio="none"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <path d="M0,26 C180,52 360,4 640,18 C920,32 1120,6 1440,30 L1440,0 L0,0 Z" fill={fill} />
+    </svg>
+  );
+}
+
 type GalleryStyle = 'style01' | 'style02';
 
 const GALLERY_STYLE01 = [
@@ -245,13 +261,23 @@ export default function LandingPage({ content: L, startHref, matrixCategories }:
           {/* TRIAL per Guy: the charcoal "reading room" break in the page's
               brightness — drop the --dark modifier to go back to white */}
           <section className="section sample-section sample-section--dark" id="sample">
+            <SectionWave fill="#fff" />
+            {/* Ometz peeks over the seam into the dark reading room — the one
+                small delight at the page's biggest scene change */}
+            <img
+              className="sample-peek"
+              src="/Images/spotlight/bunny_ometz.png"
+              alt=""
+              aria-hidden="true"
+              loading="lazy"
+            />
             <div className="wrap sample-wrap">
               <div className="sample-text">
                 <div className="sample-kicker" data-reveal="up">{L.sample.kicker}</div>
                 <h2 className="sample-h2" data-reveal="up" data-reveal-delay="60">
                   {L.sample.h2Line1}
                   <br />
-                  {L.sample.h2Line2}
+                  <span className="mk-sweep">{L.sample.h2Line2}</span>
                 </h2>
                 <p className="sample-p" data-reveal="up" data-reveal-delay="120">{L.sample.p1}</p>
                 <p className="sample-p sample-p--soft" data-reveal="up" data-reveal-delay="160">{L.sample.p2}</p>
@@ -275,6 +301,7 @@ export default function LandingPage({ content: L, startHref, matrixCategories }:
           </section>
 
           <section className="gallery-section" id="gallery">
+            <SectionWave fill="#2b2b31" />
             <div className="wrap">
               <h2 className="gallery-h2" data-reveal="up">{L.gallery.h2}</h2>
               <p className="gallery-sub" data-reveal="up" data-reveal-delay="60">{L.gallery.sub}</p>
@@ -362,6 +389,23 @@ export default function LandingPage({ content: L, startHref, matrixCategories }:
               <p className="section-lede" data-reveal="up" data-reveal-delay="60">{L.how.lede}</p>
 
               <div className="steps-row">
+                {/* the dashed trail that turns three cards into one journey */}
+                <svg
+                  className="how-trail"
+                  viewBox="0 0 1000 60"
+                  preserveAspectRatio="none"
+                  aria-hidden="true"
+                  focusable="false"
+                >
+                  <path
+                    d="M6,50 C280,2 720,2 994,50"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="3.5"
+                    strokeLinecap="round"
+                    strokeDasharray="0.5 13"
+                  />
+                </svg>
                 {L.how.steps.map((step, index) => {
                   /* presentation only: the "N. " prefix in the copy becomes a
                      number chip; the content file stays untouched */
@@ -533,11 +577,12 @@ export default function LandingPage({ content: L, startHref, matrixCategories }:
           </section>
 
           <footer className="footer footer--warm">
+            <SectionWave fill="#f7f2fe" />
             <div className="wrap footer-inner">
               <h2 className="footer-h2" data-reveal="up">
                 {L.footer.h2Line1}
                 <br />
-                {L.footer.h2Line2}
+                <span className="mk-sweep">{L.footer.h2Line2}</span>
               </h2>
               <p className="footer-sub" data-reveal="up" data-reveal-delay="80">{L.footer.sub}</p>
 
