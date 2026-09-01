@@ -93,8 +93,29 @@ Literal `npm run check` reproduced the established ordinary ignored-output basel
 unchanged fixture files / nine assertions failed because their gitignored `outputs/` inputs are
 absent; 4,317 tests passed and 73 skipped. Its resource partition completed all 20 files / 632
 tests successfully, followed by the three known Vitest worker `onTaskUpdate` RPC timeout errors.
-The literal command therefore remains exit 1 and is not represented as green. Independent Claude
-Code Opus/max review of the focused immutable commit remains pending and is not pre-claimed here.
+The literal command therefore remains exit 1 and is not represented as green.
+
+## Independent Claude Code gate
+
+Claude Code Opus/max independently reviewed exact immutable range
+`11aa6a77c4edf009013fd62d4e5035fd030f7a45..6f0367e89d5d58c89ebb4b5dba1fecc080dbdb96`
+read-only and returned **PASS**: zero BLOCKER, zero MAJOR, and no active runtime bypass. It
+ground-truthed the on-disk revision lineage and current legacy-bound locator/package, traced the
+fail-closed Wizard selection and resolver 422 boundary, and inspected the hostile re-digest,
+fallback, alternate-root, audit-provenance, positive `3ef64541...` package, and frozen historical
+Order coverage.
+
+Claude recorded two non-blocking design-awareness notes. Positive authority deliberately admits
+any valid final accepted-v3 revision selected by the locator rather than hardcoding `3ef64541...`;
+a future second accepted-v3 revision would therefore also qualify. An explicitly supplied empty
+string `repoRoot` would follow the repository's pre-existing cwd convention, but no active caller
+supplies that value. Neither note identifies a current bypass or requires a correction.
+
+Claude did not rerun the suites or TypeScript in read-only plan mode and could not obtain a
+base-to-head line-level test patch through that environment. The focused local test and typecheck
+results above are therefore the reproduced execution evidence; Claude's PASS adds independent
+static tracing, on-disk ground truth, and test-content falsification rather than claiming an
+independent rerun.
 
 ## Explicit exclusions
 

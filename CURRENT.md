@@ -1,6 +1,6 @@
 # SmallHeroes — Current Technical State
 
-## R1D — product-accepted fresh selection fails closed; local gate complete; Claude Code QA pending
+## R1D — product-accepted fresh selection fails closed; independent Claude Code QA PASS
 
 A read-only end-to-end Wizard contamination audit found that the current Chameleon locator still
 selects package `2b488f2d...`, bound to legacy bus-stop Story Source `20a12801...`, rather than the
@@ -41,8 +41,17 @@ fresh-order admission risk.
   partition: **5 unchanged fixture files / 9 assertions**, with 4,317 passing and 73 skipped.
   The resource partition completed **20 files / 632 tests PASS**; Vitest then emitted the three
   known worker `onTaskUpdate` RPC timeouts, so the literal command remains exit 1 and is reported
-  honestly as baseline/infrastructure rather than green. Claude Code Opus/max review of the
-  focused immutable commit remains the final offline gate.
+  honestly as baseline/infrastructure rather than green.
+- Claude Code Opus/max independently reviewed exact immutable range
+  `11aa6a77c4edf009013fd62d4e5035fd030f7a45..6f0367e89d5d58c89ebb4b5dba1fecc080dbdb96`
+  read-only and returned **PASS**, with no BLOCKER, no MAJOR and no active runtime bypass. It
+  ground-truthed the real accepted-revision lineage and current locator/package binding, traced
+  the fail-closed selection and 422 boundaries, and inspected the hostile re-digest, fallback,
+  alternate-root, audit-provenance and frozen-replay coverage. Its two MINOR notes are awareness
+  only: a future second valid final accepted-v3 revision could also qualify when selected by the
+  locator, and an explicit empty-string `repoRoot` follows the repository's pre-existing cwd
+  convention although no active caller supplies it. Claude did not rerun the suites or TypeScript
+  in plan mode; the executed local results above remain the reproduced validation evidence.
 - No provider, count endpoint, credential, network, image, audio, render, Order/payment, database,
   deployment, package publication, locator mutation, or remote mutation occurred.
 
