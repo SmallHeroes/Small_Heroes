@@ -347,6 +347,10 @@
 
 /* the promise line carries the brand color — the eye lands on the answer */
 .hero-h1-line--accent {
+  /* the promise wraps on most screens anyway (per Guy) - so it stops
+     apologising and becomes the biggest thing on the page */
+  font-size: clamp(56px, 6.4vw, 92px);
+  line-height: 1.04;
   color: var(--purple);
   /* the hand mark: a marker sweep under the answer. fit-content so the
      stroke hugs the words, not the column */
@@ -1677,13 +1681,6 @@
   }
 
   /* centred under the stacked CTAs, and short enough to stay on one line */
-  .hero-cta-notes {
-    justify-content: center;
-    margin-left: auto;
-    margin-right: auto;
-    text-align: center;
-  }
-
   .hero-btns {
     justify-content: center;
   }
@@ -2212,26 +2209,6 @@
 
 /* ── HERO: the three reassurances under the CTAs ───────────────────
    One line on desktop with dot separators; wraps to two on a phone. */
-.hero-cta-notes {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px 10px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  font-size: 13px;
-  line-height: 1.55;
-  color: #7a7589;
-  max-width: 520px;
-}
-.hero-cta-notes li { display: flex; align-items: center; gap: 10px; white-space: nowrap; }
-.hero-cta-notes li + li::before {
-  content: '';
-  width: 3px;
-  height: 3px;
-  border-radius: 50%;
-  background: #c9c3dd;
-}
 
 /* ── מה מקבלים: five short promises, evenly weighted ───────────────
    3-up on desktop (the last row centres), 1-up on phones. Each card is

@@ -305,10 +305,12 @@ function getTraitIcon(trait) {
 
 function getStylePreviewDataUrl(styleId) {
   const stylePreviewMap = {
-    soft_hand_drawn_storybook: '/art-styles/simple.jpg',
-    expressive_painterly_storybook: '/art-styles/classic.jpg',
-    detailed_whimsical_world: '/art-styles/style-02-preview.png',
+    /* the CURRENT style, shown as it really renders: a girl and her
+       companion from the gallery (the old simple.jpg showed a style we
+       no longer produce - per Guy) */
+    soft_hand_drawn_storybook: '/art-styles/style-01-preview.webp',
     expressive_painterly_storybook: '/art-styles/style-02-preview.png',
+    detailed_whimsical_world: '/art-styles/style-02-preview.png',
   };
   return stylePreviewMap[styleId] || stylePreviewMap.soft_hand_drawn_storybook;
 }

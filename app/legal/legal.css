@@ -1,0 +1,174 @@
+/* ── Legal pages (privacy / terms / accessibility) ────────────────────
+   One quiet, readable shell for all three. Print-friendly on purpose:
+   parents do print these. */
+
+.legal-main {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 40px clamp(16px, 4vw, 32px) 72px;
+}
+
+.legal-main h1 {
+  font-family: var(--fd);
+  font-size: clamp(30px, 4vw, 40px);
+  font-weight: 700;
+  color: var(--dark);
+  line-height: 1.15;
+  margin-bottom: 6px;
+}
+
+.legal-updated {
+  font-size: 14px;
+  color: var(--soft);
+  margin-bottom: 28px;
+}
+
+.legal-main h2 {
+  font-family: var(--fb);
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--dark);
+  margin: 30px 0 8px;
+}
+
+.legal-main p,
+.legal-main li {
+  font-size: 16px;
+  line-height: 1.75;
+  color: var(--n-700);
+  margin: 0 0 10px;
+}
+
+.legal-main ul {
+  padding-inline-start: 20px;
+  margin: 0 0 12px;
+}
+
+.legal-main li {
+  margin-bottom: 6px;
+}
+
+.legal-main a {
+  color: var(--purple-600);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.legal-note {
+  background: var(--purple-50);
+  border: 1px solid var(--purple-100);
+  border-radius: 14px;
+  padding: 14px 18px;
+  margin: 22px 0;
+}
+
+.legal-note p {
+  margin: 0;
+  font-size: 15px;
+}
+
+/* the small site-wide legal strip (landing footer + legal pages) */
+.legal-strip {
+  border-top: 1px solid rgba(255, 255, 255, 0.16);
+  margin-top: 48px;
+  padding-top: 22px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 6px 18px;
+  font-size: 13.5px;
+}
+
+.legal-strip,
+.legal-strip a {
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.legal-strip a {
+  text-decoration: none;
+}
+
+.legal-strip a:hover {
+  color: #fff;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.legal-strip a:focus-visible {
+  outline: 2px solid var(--yellow-400);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+/* the same strip on a light page (legal pages' own footer) */
+.legal-strip--light {
+  border-top-color: var(--n-200);
+}
+
+.legal-strip--light,
+.legal-strip--light a {
+  color: var(--n-500);
+}
+
+.legal-strip--light a:hover {
+  color: var(--purple-600);
+}
+
+/* skip link - visually hidden until keyboard focus */
+.skip-link {
+  position: absolute;
+  top: -48px;
+  inset-inline-start: 16px;
+  z-index: 100;
+  padding: 10px 18px;
+  border-radius: 10px;
+  background: var(--purple-600);
+  color: #fff;
+  font-weight: 700;
+  font-size: 15px;
+  text-decoration: none;
+  transition: top 0.15s ease;
+}
+
+.skip-link:focus-visible {
+  top: 12px;
+}
+
+/* branded 404 */
+.notfound-main {
+  min-height: 60vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 60px 20px;
+}
+
+.notfound-mark {
+  width: 72px;
+  height: 72px;
+  margin-bottom: 20px;
+}
+
+.notfound-main h1 {
+  font-family: var(--fd);
+  font-size: clamp(28px, 4vw, 40px);
+  color: var(--dark);
+  margin-bottom: 10px;
+}
+
+.notfound-main p {
+  font-size: 17px;
+  color: var(--mid);
+  margin-bottom: 26px;
+}
+
+@media print {
+  .legal-strip,
+  .skip-link,
+  header {
+    display: none !important;
+  }
+}

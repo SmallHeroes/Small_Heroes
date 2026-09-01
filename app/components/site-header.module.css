@@ -180,5 +180,23 @@
 @media (min-width: 721px) {
   .navCta {
     display: inline-flex;
+    /* hidden at the top - the hero owns the action there. It pops in
+       with the scrolled bar (per Guy). */
+    opacity: 0;
+    transform: translateY(-6px);
+    pointer-events: none;
+    transition: opacity 180ms ease, transform 180ms ease;
+  }
+
+  .headerScrolled .navCta {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .navCta {
+    transition: none;
   }
 }
