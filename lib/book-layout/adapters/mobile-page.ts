@@ -1,4 +1,3 @@
-import { splitIntoSentences } from '../legacy-adapter';
 import type { MobilePage, MobileTextPresentation, StoryScene, TextTreatment } from '../types';
 
 export const MOBILE_OVERLAY_LIMITS = Object.freeze({
@@ -13,16 +12,8 @@ export function mobileTextPresentationFor(
   showText = true
 ): MobileTextPresentation {
   if (!showText || treatment === 'captionless') return 'captionless';
-
-  const normalized = text.trim().replace(/\s+/g, ' ');
-  const wordCount = normalized ? normalized.split(' ').length : 0;
-  const sentenceCount = splitIntoSentences(normalized).length;
-  const shortEnoughForOverlay =
-    normalized.length <= MOBILE_OVERLAY_LIMITS.characters &&
-    wordCount <= MOBILE_OVERLAY_LIMITS.words &&
-    sentenceCount <= MOBILE_OVERLAY_LIMITS.sentences;
-
-  return shortEnoughForOverlay ? 'overlay' : 'paper_panel';
+  void text;
+  return 'overlay';
 }
 
 export function storySceneToMobilePage(scene: StoryScene, bookTitle: string): MobilePage {

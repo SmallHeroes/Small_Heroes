@@ -104,19 +104,44 @@ describe('shared Reader page-turn contract', () => {
     expect(engine).not.toContain('styles.physicalTurnSegmentOuter');
     expect(engine).toContain('styles.physicalTurnFaceBack');
     expect(engine).toContain('fullFrameProjectionIntoPage(pageBox)');
-    expect(engine).toContain('src={MASK_ON_BOOK_ASSET.src}');
-    expect(engine).toContain('className={styles.physicalPaperFrame}');
-    expect(engine).toContain('className={styles.physicalPaperEdge}');
-    expect(spread).toContain('data-physical-turn-spine-clamp');
+    expect(engine).toContain('? LEFT_PAGE_MASK_WINDOW');
+    expect(engine).not.toContain('OPEN_BOOK_PAGE_BOXES.leftPage');
+    expect(engine).toContain('src={OPEN_BOOK_ASSET.src}');
+    expect(engine).toContain('data-physical-book-substrate');
+    expect(engine).toContain('styles.physicalBookSubstrateProjection');
+    expect(engine.match(/style=\{pageProjectionStyle\}/g)).toHaveLength(2);
+    expect(engine).toContain('<DesktopBookPageSurface spread={spread} isCurrent textureOnly />');
+    expect(engine).not.toContain('MASK_ON_BOOK_ASSET');
+    expect(engine).not.toContain('physicalPaperFrame');
+    expect(engine).not.toContain('physicalPaperEdge');
+    expect(spread).toContain('<DesktopBookPageSurface spread={spread} isCurrent={isCurrent} />');
+    expect(spread).not.toContain('physical-turn-spine-clamp');
     expect(spread).toContain('{pageTurnOverlay}');
     expect(css).toContain('backface-visibility: hidden');
     expect(css).toContain('rotateY(var(--physical-turn-rotate-y');
     expect(css).toContain('var(--physical-turn-scale-x, 1)');
     expect(css).toContain('opacity: calc(var(--physical-turn-progress, 0) * 0.38)');
     expect(css).toContain('var(--physical-turn-slice-count)');
-    expect(css).toContain('.physicalPaperFrame');
-    expect(css).toContain('.physicalPaperEdge');
-    expect(css).toContain('.physicalTurnSpineClamp');
+    expect(css).toContain('.physicalBookContentProjection');
+    expect(css).toContain('.physicalBookSubstrateProjection');
+    expect(css).toMatch(
+      /\.physicalTurnGuardLeft\s*\{[^}]*left: var\(--book-image-mask-window-x\);[^}]*top: var\(--book-image-mask-window-y\);[^}]*width: var\(--book-image-mask-window-w\);[^}]*height: var\(--book-image-mask-window-h\);/s,
+    );
+    expect(css).toMatch(
+      /\.physicalTurnSheetForward\s*\{[^}]*left: var\(--book-image-mask-window-x\);[^}]*top: var\(--book-image-mask-window-y\);[^}]*width: var\(--book-image-mask-window-w\);[^}]*height: var\(--book-image-mask-window-h\);/s,
+    );
+    expect(css).toMatch(
+      /\.physicalTurnGuardRight\s*\{[^}]*left: var\(--open-right-page-x\);[^}]*top: var\(--open-right-page-y\);[^}]*width: var\(--open-right-page-w\);[^}]*height: var\(--open-right-page-h\);/s,
+    );
+    expect(css).toMatch(
+      /\.physicalTurnSheetBackward\s*\{[^}]*left: var\(--open-right-page-x\);[^}]*top: var\(--open-right-page-y\);[^}]*width: var\(--open-right-page-w\);[^}]*height: var\(--open-right-page-h\);/s,
+    );
+    expect(css).toMatch(/\.physicalBookSubstrateProjection\s*\{[^}]*z-index: 1;/s);
+    expect(css).toMatch(/\.physicalBookContentProjection\s*\{[^}]*z-index: 2;/s);
+    expect(css).toMatch(/\.physicalTurnSheetShade\s*\{[^}]*z-index: 3;/s);
+    expect(css).not.toContain('.physicalPaperFrame');
+    expect(css).not.toContain('.physicalPaperEdge');
+    expect(css).not.toContain('.physicalTurnSpineClamp');
     expect(css).toContain('var(--physical-turn-perspective, 6400px)');
     expect(css).toContain('max-width: none');
     expect(engine).toContain('targetRect.left - sourceRect.left');
@@ -286,14 +311,52 @@ describe('shared Reader page-turn contract', () => {
     expect(css).not.toContain('rgba(30, 20, 10, 0.24)');
   });
 
-  it('keeps short mobile prose over the illustration and moves dense prose to paper', () => {
+  it('keeps all visible mobile prose over the illustration', () => {
     expect(mobileTextPresentationFor('A short line for the page.', 'overlay')).toBe('overlay');
 
     const denseCopy = Array.from(
       { length: MOBILE_OVERLAY_LIMITS.words + 1 },
       (_, index) => `word${index}`,
     ).join(' ');
-    expect(mobileTextPresentationFor(denseCopy, 'overlay')).toBe('paper_panel');
+    expect(mobileTextPresentationFor(denseCopy, 'overlay')).toBe('overlay');
+  });
+
+  it('uses one desktop surface, 22px prose, matched cover/open height, and a viewport-safe root', () => {
+    const surface = fs.readFileSync(
+      path.join(
+        process.cwd(),
+        'app',
+        'book',
+        '[id]',
+        'read-v2',
+        'components',
+        'DesktopBookPageSurface.tsx',
+      ),
+      'utf8',
+    );
+    const css = fs.readFileSync(
+      path.join(process.cwd(), 'app', 'book', '[id]', 'read-v2', 'reader-v2.module.css'),
+      'utf8',
+    );
+
+    expect(surface).toContain('data-desktop-book-page-surface');
+    expect(surface).toContain('styles.leftPageMaskLayer');
+    expect(surface).toContain('styles.openTextSafe');
+    expect(css).toContain('--book-body-desktop: 22px');
+    expect(css).toContain('font-size: var(--book-body-desktop, 22px)');
+    expect(css).toContain('min-height: calc(100dvh - var(--nav-h, 72px))');
+    expect(css.match(/height: var\(--reader-book-display-height\)/g)?.length).toBeGreaterThanOrEqual(2);
+    expect(css).toContain('.pageCanvas.tplCover::before');
+    expect(css).toContain('.pageCanvas.tplCover::after');
+    expect(css).toMatch(
+      /\.pageCanvas\.tplCover::before\s*\{[^}]*right: 1\.1%;[^}]*border-radius: 2px 10px 10px 2px;/s,
+    );
+    expect(css).toMatch(
+      /\.pageCanvas\.tplCover::after\s*\{[^}]*left: 3px;[^}]*border-radius: 3px 0 0 3px;/s,
+    );
+    expect(css).toContain('--closed-cover-inset-right: clamp(16px, 1.4vw, 24px)');
+    expect(css).toContain('--closed-cover-inset-left: clamp(11px, 1vw, 17px)');
+    expect(css).toMatch(/\.rootReaderReady \.spreadNavBtn\s*\{\s*display: none;/);
   });
 
   it('keeps captionless mobile scenes captionless even when source text exists', () => {
@@ -354,6 +417,10 @@ describe('shared Reader page-turn contract', () => {
       path.join(process.cwd(), 'app', 'book', '[id]', 'read-v2', 'reader-v2.module.css'),
       'utf8',
     );
+    const mobileAdapter = fs.readFileSync(
+      path.join(process.cwd(), 'lib', 'book-layout', 'adapters', 'mobile-page.ts'),
+      'utf8',
+    );
 
     expect(qaRoute).toContain('trackedQaReaderFixtureForDir');
     expect(qaRoute).toContain("kind: 'qa_fixture'");
@@ -367,6 +434,8 @@ describe('shared Reader page-turn contract', () => {
     expect(reader).toContain('devLayoutFlags = EMPTY_DEV_LAYOUT_FLAGS');
     expect(reader).not.toContain('devLayoutFlags = {}');
     expect(mobilePage).toContain("page.textPresentation === 'paper_panel'");
+    expect(mobileAdapter).toContain("return 'overlay';");
+    expect(mobileAdapter).not.toContain("return shortEnoughForOverlay ? 'overlay' : 'paper_panel';");
     expect(css).toContain('.mobilePaperPanel');
     expect(css).toContain('width: 44px');
     expect(css).toContain('height: 44px');

@@ -1,5 +1,44 @@
 # SmallHeroes — Current Technical State
 
+## R1D — coherent Reader presentation correction (local green; independent re-gate pending)
+
+The final release worktree `C:\GNart\Work\sh-release-reader-final` on
+`codex/r1d-release-reader-voice-final` now carries the bounded Reader correction required before
+the coherent `release/v1` QA deployment. The implementation does not alter authoring, package,
+Wizard, Order, payment, provider or render authority.
+
+- Static desktop spreads and physical-turn sheets now render the same
+  `DesktopBookPageSurface`. The moving page keeps a page-local crop of the photographed
+  `OpenBook.png` beneath that shared content; the flat cream color remains only a loading/failure
+  substrate. The one outer `MaskOnBook.png` remains the sole decorative frame.
+- Illustration-side sheet and guard geometry use the canonical `LEFT_PAGE_MASK_WINDOW`; prose
+  continues to use `OPEN_BOOK_PAGE_BOXES.rightPage`. Substrate, shared content and curl shade have
+  explicit `1 < 2 < 3` stacking.
+- The desktop closed-cover shell has Hebrew physical direction: hinge/spine on the right and the
+  visible page block on the left, including mirrored insets, radii, gradients and shadows. Cover
+  and open spread share one viewport-bounded display-height token; desktop prose is 22px and the
+  bottom controls remain inside the viewport.
+- Mobile visible prose stays full-bleed over the illustration rather than switching to the cream
+  `paper_panel`. A late, more-specific mobile navigation rule prevents hidden desktop arrows from
+  widening and shifting the scene.
+- Focused geometry/Reader validation is **2 files / 23 tests PASS**. The broader Reader and layout
+  battery is **9 files / 54 tests PASS**; the canonical release/Wizard audit independently ran
+  **8 files / 118 tests PASS**. `npm run build`, post-build `npx tsc --noEmit` and
+  `git diff --check` pass. A TypeScript run intentionally launched in parallel with `next build`
+  observed transient missing `.next/types` files while the build replaced that directory; the
+  required post-build rerun passed cleanly.
+- Local browser QA covered desktop 2560x1305, 1440x900 and 1366x768 plus mobile 320x568, 390x844
+  and 430x932. Open spreads retain one MaskOnBook, 22px prose and viewport-contained controls;
+  moving sheets contain the OpenBook substrate and shared surface in both directions; mobile is
+  overlay-only with no horizontal overflow or framework/console error. Exact live cover/product
+  inspection remains a post-deployment check on the new Order, not a claim inferred from the
+  tracked interior-page fixture.
+
+No push, Vercel mutation, QA-domain move, payment, provider call, image/audio generation or render
+has occurred in this correction. The next action is an independent re-gate of the focused commit;
+only a PASS advances to one exact Git-integrated Preview deployment and the already-approved fresh
+eight-page Bar/Chameleon render.
+
 ## R1D — current Dad voice and narration disambiguation (local; release QA pending)
 
 Fresh Wizard Dad selections now use the versioned internal identity `dad_v2`, bound to the

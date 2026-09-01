@@ -4,15 +4,16 @@ import { useLayoutEffect, useRef, type CSSProperties } from 'react';
 import {
   DESKTOP_PAGE_CURL_SLICE_COUNT,
   DESKTOP_PAGE_TURN_PERSPECTIVE_PX,
-  MASK_ON_BOOK_ASSET,
+  LEFT_PAGE_MASK_WINDOW,
+  OPEN_BOOK_ASSET,
   OPEN_BOOK_PAGE_BOXES,
   desktopPageCurlSlicePoses,
   desktopPageTurnVerticalCompensation,
   fullFrameProjectionIntoPage,
-  splitIntoSentences,
   type DesktopSpread,
 } from '@/lib/book-layout';
 import styles from '../reader-v2.module.css';
+import { DesktopBookPageSurface } from './DesktopBookPageSurface';
 import {
   DESKTOP_PHYSICAL_PAGE_TURN_MS,
   type DesktopPhysicalPageTurn as DesktopPhysicalPageTurnState,
@@ -26,57 +27,35 @@ function easeInOutSine(value: number): number {
 
 function PaperPage({ spread, side }: { spread: DesktopSpread; side: PaperSide }) {
   const pageBox = side === 'illustration'
-    ? OPEN_BOOK_PAGE_BOXES.leftPage
+    ? LEFT_PAGE_MASK_WINDOW
     : OPEN_BOOK_PAGE_BOXES.rightPage;
-  const frameProjection = fullFrameProjectionIntoPage(pageBox);
-  const frameStyle = {
-    left: `${frameProjection.x * 100}%`,
-    top: `${frameProjection.y * 100}%`,
-    width: `${frameProjection.w * 100}%`,
-    height: `${frameProjection.h * 100}%`,
+  const contentProjection = fullFrameProjectionIntoPage(pageBox);
+  const pageProjectionStyle = {
+    left: `${contentProjection.x * 100}%`,
+    top: `${contentProjection.y * 100}%`,
+    width: `${contentProjection.w * 100}%`,
+    height: `${contentProjection.h * 100}%`,
   } as CSSProperties;
 
   return (
     <div
-      className={`${styles.physicalPaperPage} ${
-        side === 'illustration'
-          ? styles.physicalPaperPageIllustration
-          : styles.physicalPaperPageProse
-      }`}
+      className={styles.physicalPaperPage}
+      data-physical-paper-side={side}
     >
-      {side === 'illustration' ? (
-        spread.illustrationUrl ? (
-          <img
-            className={styles.physicalPaperIllustration}
-            src={spread.illustrationUrl}
-            alt=""
-            draggable={false}
-          />
-        ) : (
-          <div className={styles.physicalPaperBlank} />
-        )
-      ) : spread.showText ? (
-        <div className={styles.physicalPaperProse} dir="rtl">
-          {splitIntoSentences(spread.text).map((sentence, index) => (
-            <p key={index} className={styles.physicalPaperLine}>
-              {sentence}
-            </p>
-          ))}
-        </div>
-      ) : (
-        <div className={styles.physicalPaperBlank} />
-      )}
       <img
-        className={styles.physicalPaperFrame}
-        src={MASK_ON_BOOK_ASSET.src}
-        width={MASK_ON_BOOK_ASSET.width}
-        height={MASK_ON_BOOK_ASSET.height}
-        style={frameStyle}
+        src={OPEN_BOOK_ASSET.src}
+        width={OPEN_BOOK_ASSET.width}
+        height={OPEN_BOOK_ASSET.height}
         alt=""
         aria-hidden
         draggable={false}
+        data-physical-book-substrate
+        className={styles.physicalBookSubstrateProjection}
+        style={pageProjectionStyle}
       />
-      <span className={styles.physicalPaperEdge} aria-hidden />
+      <div className={styles.physicalBookContentProjection} style={pageProjectionStyle}>
+        <DesktopBookPageSurface spread={spread} isCurrent textureOnly />
+      </div>
     </div>
   );
 }

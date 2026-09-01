@@ -8,13 +8,13 @@ import {
   MASK_ON_BOOK_ASSET,
   OPEN_BOOK_ASSET,
   openBookLayoutCssVars,
-  splitIntoSentences,
   splitTextByRhythm,
   templateCssVars,
   tokensToCssVars,
 } from '@/lib/book-layout';
 import styles from '../reader-v2.module.css';
 import { SceneIllustration } from './SceneIllustration';
+import { DesktopBookPageSurface } from './DesktopBookPageSurface';
 import { StickerSlots } from './StickerSlots';
 
 type Props = {
@@ -33,22 +33,6 @@ export function DesktopBookSpread({ spread, isCurrent, pageTurnOverlay }: Props)
   const cssVars = { ...tokensToCssVars(), ...templateCssVars(template), ...openBookLayoutCssVars() };
   const lines = splitTextByRhythm(spread.text);
   const isWide = spread.isWide;
-  const physicalTurnSpineClamp = pageTurnOverlay ? (
-    <span
-      className={styles.physicalTurnSpineClamp}
-      data-physical-turn-spine-clamp
-      aria-hidden
-    >
-      <img
-        className={styles.physicalTurnSpineClampImage}
-        src={MASK_ON_BOOK_ASSET.src}
-        width={MASK_ON_BOOK_ASSET.width}
-        height={MASK_ON_BOOK_ASSET.height}
-        alt=""
-        draggable={false}
-      />
-    </span>
-  ) : null;
 
   if (isWide) {
     return (
@@ -85,7 +69,8 @@ export function DesktopBookSpread({ spread, isCurrent, pageTurnOverlay }: Props)
           ) : null}
           <StickerSlots variant="desktop" />
         </div>
-        {/* Torn-paper decorative overlay - sits above all page content */}
+        {pageTurnOverlay}
+        {/* One decorative frame stays above static and moving page content. */}
         <img
           className={styles.maskOnBookImage}
           src={MASK_ON_BOOK_ASSET.src}
@@ -95,8 +80,6 @@ export function DesktopBookSpread({ spread, isCurrent, pageTurnOverlay }: Props)
           aria-hidden
           draggable={false}
         />
-        {pageTurnOverlay}
-        {physicalTurnSpineClamp}
       </article>
     );
   }
@@ -117,37 +100,9 @@ export function DesktopBookSpread({ spread, isCurrent, pageTurnOverlay }: Props)
         aria-hidden
         draggable={false}
       />
-      {/* Left-page illustration — a FULL-FRAME layer clipped to the true page shape by BookImageBottomMask.png
-          as a CSS mask (layers 2+3 of Guy's stack: מסכה + תמונה). It spans the whole page width and overflows
-          top/bottom; the mask cuts the overflow at the real page edge. Loading/error states live inside it. */}
-      <div className={styles.leftPageMaskLayer}>
-        <SceneIllustration
-          url={spread.illustrationUrl}
-          alt="איור סצנה"
-          isCurrent={isCurrent}
-          className={styles.leftPageMaskedIllustration}
-        />
-        <span className={styles.leftPageGrain} aria-hidden />
-        <span className={styles.leftPageWarmEdge} aria-hidden />
-      </div>
-      {/* Left page — stickers only; the illustration moved to the masked layer above. */}
-      <div className={styles.openPageLeft}>
-        <StickerSlots variant="desktop" />
-      </div>
-      {/* Right page - prose (RTL); paper comes from OpenBook.png */}
-      <div className={styles.openPageRight}>
-        <div className={styles.openTextSafe}>
-          <div className={`${styles.proseBody} ${styles.storyText}`}>
-            {splitIntoSentences(spread.text).map((sentence, i) => (
-              <p key={i} className={styles.sentence}>
-                {sentence}
-              </p>
-            ))}
-          </div>
-        </div>
-        <StickerSlots variant="desktop" />
-      </div>
-      {/* Torn-paper decorative overlay - sits above all page content, masks ragged edges */}
+      <DesktopBookPageSurface spread={spread} isCurrent={isCurrent} />
+      {pageTurnOverlay}
+      {/* One torn-paper frame masks both the static base and the moving sheet. */}
       <img
         className={styles.maskOnBookImage}
         src={MASK_ON_BOOK_ASSET.src}
@@ -157,8 +112,6 @@ export function DesktopBookSpread({ spread, isCurrent, pageTurnOverlay }: Props)
         aria-hidden
         draggable={false}
       />
-      {pageTurnOverlay}
-      {physicalTurnSpineClamp}
     </article>
   );
 }

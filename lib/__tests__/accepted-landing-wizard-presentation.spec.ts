@@ -61,7 +61,7 @@ describe('accepted Landing and Wizard presentation boundary', () => {
     const nextConfig = source('next.config.js');
 
     expect(nextConfig).toContain("excludes['/api/debug/replicate-image']");
-    expect(nextConfig).toContain("'public/Videos/**'");
-    expect(nextConfig).toContain("'public/Images/**'");
+    expect(nextConfig).toContain("'./public/Videos/**/*'");
+    expect(nextConfig).toContain("'./public/Images/**/*'");
   });
 });

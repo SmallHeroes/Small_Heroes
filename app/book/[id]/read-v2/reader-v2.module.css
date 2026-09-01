@@ -208,35 +208,90 @@
    The book only "opens" into a 2-page spread once the user advances past the cover. */
 @media (min-width: 1024px) {
   .pageCanvas.tplCover {
-    --page-width: min(38vw, 52vh, 480px);
-    --page-height: calc(var(--page-width) * 1.5); /* 2:3 portrait */
+    --page-height: var(--reader-book-display-height);
+    --page-width: calc(var(--page-height) * 2 / 3);
+    --closed-cover-inset-top: clamp(8px, 1.1vh, 14px);
+    --closed-cover-inset-right: clamp(16px, 1.4vw, 24px);
+    --closed-cover-inset-bottom: clamp(12px, 1.2vh, 18px);
+    --closed-cover-inset-left: clamp(11px, 1vw, 17px);
     width: var(--page-width) !important;
     max-width: none !important;
     min-height: auto !important;
     max-height: none !important;
     height: var(--page-height) !important;
     margin: 0 auto;
-    border-radius: 3px;
-    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.32);
+    border: 1px solid rgba(83, 61, 38, 0.86);
+    border-radius: 5px 12px 12px 5px;
+    background:
+      linear-gradient(to right, rgba(244, 234, 211, 0.96) 0 3%, transparent 3%),
+      linear-gradient(to top, rgba(231, 217, 188, 0.96) 0 2.2%, transparent 2.2%),
+      linear-gradient(105deg, #7b6548 0%, #9a805a 7%, #6b553c 100%);
+    box-shadow:
+      0 18px 42px rgba(0, 0, 0, 0.38),
+      -10px 9px 0 -4px rgba(226, 213, 186, 0.95),
+      -13px 12px 16px -8px rgba(0, 0, 0, 0.48);
     padding: 0;
     box-sizing: border-box;
-    overflow: hidden;
+    overflow: visible;
     display: block;
+  }
+
+  .pageCanvas.tplCover::before,
+  .pageCanvas.tplCover::after {
+    content: '';
+    position: absolute;
+    pointer-events: none;
+  }
+
+  .pageCanvas.tplCover::before {
+    z-index: 0;
+    top: 1.2%;
+    bottom: 1.2%;
+    right: 1.1%;
+    width: clamp(10px, 2.8%, 18px);
+    border-radius: 2px 10px 10px 2px;
+    background: linear-gradient(to left, #4f3b2a, #806548 48%, #3f2e21);
+    box-shadow: inset 2px 0 3px rgba(255, 245, 222, 0.2), -2px 0 5px rgba(0, 0, 0, 0.25);
+  }
+
+  .pageCanvas.tplCover::after {
+    z-index: 2;
+    top: var(--closed-cover-inset-top);
+    left: 3px;
+    bottom: var(--closed-cover-inset-bottom);
+    width: clamp(6px, 1.3%, 10px);
+    border-radius: 3px 0 0 3px;
+    background: repeating-linear-gradient(
+      to left,
+      #f6edda 0,
+      #f6edda 2px,
+      #dfd0ae 2px,
+      #dfd0ae 3px
+    );
+    box-shadow: -2px 0 4px rgba(0, 0, 0, 0.24);
   }
 
   /* Cover image fills the entire single page */
   .pageCanvas.tplCover .coverBleed {
     position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    border-radius: 2px;
+    top: var(--closed-cover-inset-top);
+    right: var(--closed-cover-inset-right);
+    bottom: var(--closed-cover-inset-bottom);
+    left: var(--closed-cover-inset-left);
+    width: auto;
+    height: auto;
+    border: 1px solid rgba(255, 249, 235, 0.34);
+    border-radius: 2px 5px 5px 2px;
+    box-shadow: -4px 5px 0 rgba(236, 225, 201, 0.9), 0 7px 14px rgba(0, 0, 0, 0.3);
     overflow: hidden;
   }
 
   /* Title overlay anchors directly to the single cover page */
   .pageCanvas.tplCover .coverTitleOverlay {
     z-index: 3;
+    top: var(--closed-cover-inset-top);
+    right: var(--closed-cover-inset-right);
+    left: var(--closed-cover-inset-left);
   }
 }
 
@@ -975,7 +1030,7 @@
 
   .spreadTextLine {
     font-family: var(--reader-font-stack);
-    font-size: 20px;
+    font-size: 22px;
     line-height: 1.55;
     font-weight: 400;
     /* Warm dark brown — feels like ink on warm paper, not harsh black */
@@ -1242,10 +1297,10 @@
 }
 
 .physicalTurnGuardLeft {
-  left: var(--open-left-page-x);
-  top: var(--open-left-page-y);
-  width: var(--open-left-page-w);
-  height: var(--open-left-page-h);
+  left: var(--book-image-mask-window-x);
+  top: var(--book-image-mask-window-y);
+  width: var(--book-image-mask-window-w);
+  height: var(--book-image-mask-window-h);
 }
 
 .physicalTurnGuardRight {
@@ -1264,10 +1319,10 @@
 }
 
 .physicalTurnSheetForward {
-  left: var(--open-left-page-x);
-  top: var(--open-left-page-y);
-  width: var(--open-left-page-w);
-  height: var(--open-left-page-h);
+  left: var(--book-image-mask-window-x);
+  top: var(--book-image-mask-window-y);
+  width: var(--book-image-mask-window-w);
+  height: var(--book-image-mask-window-h);
 }
 
 .physicalTurnSheetBackward {
@@ -1321,106 +1376,31 @@
   left: calc(var(--physical-turn-texture-index) * -100%);
 }
 
-.physicalPaperPage,
-.physicalPaperBlank {
+.physicalPaperPage {
   position: absolute;
   inset: 0;
   overflow: hidden;
   background: #f6f1e7;
 }
 
-.physicalPaperIllustration {
+.physicalBookSubstrateProjection,
+.physicalBookContentProjection {
   position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  object-position: var(--open-left-illustration-object-position, center center);
-  display: block;
-}
-
-/* The static spread's torn white paper rim lives in MaskOnBook.png. Project the
-   same full-spread artwork into each moving page, then let the strip windows
-   slice it together with the content. The page edge therefore bends with the
-   physical sheet instead of the sheet visually escaping a stationary frame. */
-.physicalPaperFrame {
-  position: absolute;
-  z-index: 3;
-  display: block;
   max-width: none;
+  overflow: visible;
+}
+
+.physicalBookSubstrateProjection {
+  z-index: 1;
+  display: block;
   object-fit: fill;
   pointer-events: none;
   user-select: none;
 }
 
-/* The frame artwork is projected from full-spread coordinates and is therefore
-   clipped at the measured cream-page box. Reassert the physical paper boundary
-   on the moving surface so the top/bottom and outer rim bend with every strip. */
-.physicalPaperEdge {
-  position: absolute;
-  inset: 0;
-  z-index: 4;
-  box-sizing: border-box;
+.physicalBookContentProjection {
+  z-index: 2;
   pointer-events: none;
-  box-shadow:
-    inset 0 3px 0 rgba(255, 253, 248, 0.96),
-    inset 0 -3px 0 rgba(255, 253, 248, 0.96);
-}
-
-.physicalPaperPageIllustration .physicalPaperEdge {
-  border-left: 4px solid rgba(255, 253, 248, 0.96);
-}
-
-.physicalPaperPageProse .physicalPaperEdge {
-  border-right: 4px solid rgba(255, 253, 248, 0.96);
-}
-
-/* A narrow crop of the photographed binding stays above the moving mesh. It
-   hides only the pivot seam, leaving the page rim itself attached to the sheet. */
-.physicalTurnSpineClamp {
-  position: absolute;
-  inset: 0;
-  z-index: 16;
-  overflow: hidden;
-  pointer-events: none;
-  clip-path: inset(
-    var(--open-spine-clamp-y)
-    calc(100% - var(--open-spine-clamp-x) - var(--open-spine-clamp-w))
-    calc(100% - var(--open-spine-clamp-y) - var(--open-spine-clamp-h))
-    var(--open-spine-clamp-x)
-  );
-}
-
-.physicalTurnSpineClampImage {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: fill;
-  user-select: none;
-}
-
-.physicalPaperProse {
-  position: absolute;
-  inset: 7% 10%;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  color: var(--book-text, #2e2618);
-  font-family: var(--font-book-prose);
-  font-size: clamp(11px, 1.35cqi, 20px);
-  font-weight: var(--book-prose-weight, 400);
-  line-height: 1.55;
-  letter-spacing: 0.02em;
-  text-align: right;
-}
-
-.physicalPaperLine {
-  margin: 0 0 0.55em;
-}
-
-.physicalPaperLine:last-child {
-  margin-bottom: 0;
 }
 
 .physicalTurnSheetShade {
@@ -1428,6 +1408,7 @@
   inset: 0;
   pointer-events: none;
   opacity: var(--physical-turn-shade, 0);
+  z-index: 3;
   background: linear-gradient(
     to left,
     rgba(30, 20, 10, 0.2),
@@ -1513,6 +1494,13 @@
     height: 100%;
   }
 
+  /* This block follows the shared desktop navigation rule in source order.
+     Reassert the mobile contract here so the off-canvas -40px arrows cannot
+     widen and shift the full-bleed scene. Mobile uses swipe + bottom controls. */
+  .rootReaderReady .spreadNavBtn {
+    display: none;
+  }
+
   .rootReaderReady .sceneTransition {
     flex: 1;
     min-height: 0;
@@ -1575,14 +1563,14 @@
 @media (min-width: 1024px) {
   .overlayPageText,
   .paperPageText {
-    font-size: 20px;
+    font-size: 22px;
   }
 
   .rootReaderReady .openBookFrame .proseBody,
   .rootReaderReady .openBookFrame .proseLine,
   .rootReaderReady .openBookFrame .openTextSafe .storyText,
   .rootReaderReady .openBookFrame .wideTextOverlay .proseLine {
-    font-size: 20px;
+    font-size: 22px;
   }
 }
 
@@ -1595,6 +1583,17 @@
 
 @media (min-width: 1024px) {
   .rootReaderReady {
+    --book-body-desktop: 22px;
+    --reader-book-display-height: min(
+      76vh,
+      calc(100vh - var(--nav-h, 72px) - 132px),
+      calc(92vw / var(--open-book-aspect, 1.633))
+    );
+    --reader-book-display-height: min(
+      76dvh,
+      calc(100dvh - var(--nav-h, 72px) - 132px),
+      calc(92vw / var(--open-book-aspect, 1.633))
+    );
     background: #1f1a17;
     color: rgba(255, 248, 235, 0.92);
     /* Desktop keeps the app SiteHeader (72px, sticky). The reader must fit BELOW it, else the bottom nav controls
@@ -1602,6 +1601,8 @@
        mobile hides the header entirely, so its 100dvh full-bleed rules are untouched. */
     height: calc(100vh - var(--nav-h, 72px));
     height: calc(100dvh - var(--nav-h, 72px));
+    min-height: calc(100vh - var(--nav-h, 72px));
+    min-height: calc(100dvh - var(--nav-h, 72px));
     max-height: calc(100dvh - var(--nav-h, 72px));
     overflow: hidden;
     touch-action: manipulation;
@@ -1638,7 +1639,7 @@
     flex-shrink: 0;
     position: relative;
     z-index: 25;
-    padding: 10px 20px max(18px, env(safe-area-inset-bottom, 0px));
+    padding: 6px 20px max(22px, env(safe-area-inset-bottom, 0px));
     background: transparent;
     gap: 12px;
   }
@@ -1694,11 +1695,11 @@
 /* Composite desktop book — OpenBook.png + measured page overlays (see open-book-layout.ts) */
 .openBookFrame {
   position: relative;
-  height: clamp(72vh, 78vh, 82vh);
-  max-height: min(82vh, calc(100vh - 12vh));
+  height: var(--reader-book-display-height);
+  max-height: var(--reader-book-display-height);
   aspect-ratio: var(--open-book-aspect, 1.633);
   width: auto;
-  max-width: min(92vw, calc(min(82vh, calc(100vh - 12vh)) * var(--open-book-aspect, 1.633)));
+  max-width: min(92vw, calc(var(--reader-book-display-height) * var(--open-book-aspect, 1.633)));
   flex-shrink: 0;
 }
 
@@ -1722,9 +1723,17 @@
   width: 100%;
   height: 100%;
   object-fit: fill;
-  z-index: 10;
+  z-index: 20;
   pointer-events: none;
   user-select: none;
+}
+
+.desktopBookPageSurface {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 2;
 }
 
 .openPageLeft,
@@ -1885,7 +1894,7 @@
   min-width: 0;
   margin-inline: auto;
   font-family: var(--font-book-prose);
-  font-size: 20px;
+  font-size: var(--book-body-desktop, 22px);
   font-weight: var(--book-prose-weight, 400);
   line-height: 1.5;
   letter-spacing: 0.02em;
@@ -1930,7 +1939,7 @@
 
 .proseBody {
   font-family: var(--font-book-prose);
-  font-size: var(--book-body-desktop, 20px);
+  font-size: var(--book-body-desktop, 22px);
   font-weight: var(--book-prose-weight, 400);
   line-height: var(--book-line-height, 1.6);
   letter-spacing: 0.02em;
@@ -1966,7 +1975,7 @@
 .wideTextOverlay .proseLine {
   font-family: var(--font-book-prose);
   font-weight: var(--book-prose-weight, 400);
-  font-size: var(--book-body-desktop, 20px);
+  font-size: var(--book-body-desktop, 22px);
 }
 
 /* Illustration loading / failure */
