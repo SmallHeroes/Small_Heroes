@@ -53,10 +53,12 @@ Post-gate, the one permitted route successor was minted exactly once with `gpt-i
 published create-only Registry entry `38870567284b295c73cfea594ec3ab837b4a7ea221cf3df0c1de36404270071a`
 (Registry bytes SHA-256 `93e6196e...`, prompt `ee55e313...`) and content-addressed asset
 `4f0d592d...`; automated Vision QA returned `passed` with zero flags. The old failed route Registry
-SHA `d11d4930...` and Home Registry SHA `01ccfe0e...` remain byte-identical. The successor is
-deliberately unapproved (`approvedBy` / `approvedAt` null), so package/Blueprint/Order/render work
-has not started and no retry or rerender occurred. Next authority boundary is exact Guy visual
-approval of the Home and new route assets; only then may the canonical Blueprint/package chain run.
+SHA `d11d4930...` remains byte-identical. Guy then visually approved the exact Home definition /
+asset `48bf9d53...` / `741ef784...` and route definition / asset `38870567...` / `4f0d592d...`.
+The controlled approval writer recorded Home at `2026-09-01T06:22:42.080Z` and route at
+`2026-09-01T06:22:48.799Z`; both are now bindable and their model, quality, QA and asset identities
+remain unchanged. No retry or rerender occurred. The next paid boundary is one canonical Blueprint
+authoring run after the approved Registry artifacts are committed, pushed and Fresh Readiness passes.
 
 The post-first-render simplification direction is recorded, without code changes, in
 `docs/ai-workflow/SIMPLIFICATION_FINDINGS.md`: explicit AUTHORING PASS versus RELEASE PASS,

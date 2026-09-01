@@ -1,0 +1,19 @@
+{
+  "registryVersion": "set-registry/v6",
+  "boardVersion": "set-board/v6",
+  "storyKey": "chameleon_koko_bedtime",
+  "setIdentityId": "set_kindergarten_route",
+  "styleId": "soft_hand_drawn_storybook",
+  "setDefinitionHash": "6a9b573a9df25f02137714287db99e84cd60de5bb016a8abb961fa5c6311745f",
+  "contentPolicyDigest": "b5491f812eac815dba10e7a0138f36d47c483c342ae5f664c40de8d3f4c7cf5a",
+  "declaredPropIds": [],
+  "storageKey": "set-identity-boards/chameleon_koko_bedtime/soft_hand_drawn_storybook/set_kindergarten_route/6a9b573a9df25f02137714287db99e84cd60de5bb016a8abb961fa5c6311745f.38cef357e90900428b4a8571b0eb24e4bb9d4a7f8d6477bae6f3a01ec84b7009.png",
+  "assetSha256": "38cef357e90900428b4a8571b0eb24e4bb9d4a7f8d6477bae6f3a01ec84b7009",
+  "promptHash": "604d08af0a9515366f024ca76b60145c3fbaca577d3c304fd658af324c44f0b8",
+  "model": "gpt-image-2",
+  "quality": "low",
+  "qaStatus": "failed",
+  "qaCheckedAt": "2026-09-01T04:20:23.803Z",
+  "approvedBy": null,
+  "approvedAt": null
+}

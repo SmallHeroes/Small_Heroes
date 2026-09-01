@@ -153,12 +153,18 @@ canonical route LOW then ran once, with no custom output root and no retry:
 - Registry bytes: `93e6196ea70867d5283406b9796045f6afe6e24cf12b998fa07de2d4f1d55fb5`
 - model / quality: `gpt-image-2` / `low`
 - automated QA: `passed`, zero flags
-- approval: null / null
+- initial approval at mint: null / null
 
 The old route Registry remains SHA-256 `d11d4930084d51bad74e161397c3f241043e0fdc0f6b5521e4eb8fc6cc1292e8`
 and Home remains `01ccfe0e411803c2f00f32b153aba9abf5798f8592068288531a472b58404a32`.
-Both the new route and existing Home remain unusable until exact Guy visual approval; no Blueprint,
-package, locator, Wizard Order or render action followed this mint.
+Guy subsequently approved the exact Home definition / asset `48bf9d53...` / `741ef784...` and route
+definition / asset `38870567...` / `4f0d592d...`. The controlled writer recorded Home approval at
+`2026-09-01T06:22:42.080Z` and route approval at `2026-09-01T06:22:48.799Z`, both by exact value
+`Guy`. The resulting approved Registry byte digests are respectively
+`241db2f303c0649929d4aed07766437ed321e9a6b11d36ac6fcee24859d2c979` and
+`d637792b390558b14265af79099faa5b21f36f44c9dc1ed4fde076b90ef68262`.
+No Blueprint, package, locator, Wizard Order or render action followed the approvals in this
+artifact milestone.
 
 ## Unchanged / excluded
 

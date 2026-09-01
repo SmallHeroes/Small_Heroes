@@ -1,0 +1,19 @@
+{
+  "registryVersion": "set-registry/v6",
+  "boardVersion": "set-board/v6",
+  "storyKey": "chameleon_koko_bedtime",
+  "setIdentityId": "set_home_interior",
+  "styleId": "soft_hand_drawn_storybook",
+  "setDefinitionHash": "48bf9d53437746e27026a9b975b5fb6d35954f4a46782bb2f064380147fa0926",
+  "contentPolicyDigest": "6eb753626a9c47e000893ba322682554968c1fd5ac40b3d9611c52bf213e8682",
+  "declaredPropIds": [],
+  "storageKey": "set-identity-boards/chameleon_koko_bedtime/soft_hand_drawn_storybook/set_home_interior/48bf9d53437746e27026a9b975b5fb6d35954f4a46782bb2f064380147fa0926.741ef784c99934becc2294533102418b8fd4669ef3dea1a50cead76e033f0ac8.png",
+  "assetSha256": "741ef784c99934becc2294533102418b8fd4669ef3dea1a50cead76e033f0ac8",
+  "promptHash": "5013469b5941b74f94691d99300bbf74556b0b0c389fe90e6fdc64cec6811748",
+  "model": "gpt-image-2",
+  "quality": "low",
+  "qaStatus": "passed",
+  "qaCheckedAt": "2026-09-01T04:19:10.076Z",
+  "approvedBy": "Guy",
+  "approvedAt": "2026-09-01T06:22:42.080Z"
+}
