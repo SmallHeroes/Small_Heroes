@@ -17,13 +17,28 @@ import type {
 } from '@/lib/visual-contract-compiler/types';
 
 import type { PreRenderBlueprintValidationContext } from './preRenderBlueprintTypes';
+import {
+  buildPreRenderBlueprintAffordanceConsumerCatalog,
+  compactPreRenderBlueprintAffordanceConsumerCatalog,
+  projectPreRenderBlueprintAffordanceConsumerChoicesForRepair,
+  type PreRenderBlueprintAffordanceConsumerCatalog,
+} from './preRenderBlueprintAffordanceConsumerChoices';
 
+export const PRE_RENDER_BLUEPRINT_PROVIDER_WIRE_VERSION_V2 =
+  'pre-render-blueprint-provider-wire/v2' as const;
 export const PRE_RENDER_BLUEPRINT_PROVIDER_WIRE_VERSION =
+  PRE_RENDER_BLUEPRINT_PROVIDER_WIRE_VERSION_V2;
+export const LEGACY_PRE_RENDER_BLUEPRINT_PROVIDER_WIRE_VERSION_V1 =
   'pre-render-blueprint-provider-wire/v1' as const;
-export const PRE_RENDER_BLUEPRINT_REPAIR_WIRE_VERSION_V3 =
-  'pre-render-blueprint-repair-wire/v3' as const;
+export const PRE_RENDER_BLUEPRINT_REPAIR_WIRE_VERSION_V4 =
+  'pre-render-blueprint-repair-wire/v4' as const;
 export const PRE_RENDER_BLUEPRINT_REPAIR_WIRE_VERSION =
-  PRE_RENDER_BLUEPRINT_REPAIR_WIRE_VERSION_V3;
+  PRE_RENDER_BLUEPRINT_REPAIR_WIRE_VERSION_V4;
+export const LEGACY_PRE_RENDER_BLUEPRINT_REPAIR_WIRE_VERSION_V3 =
+  'pre-render-blueprint-repair-wire/v3' as const;
+/** Source-compatibility alias only; frozen programs use the absolute legacy name. */
+export const PRE_RENDER_BLUEPRINT_REPAIR_WIRE_VERSION_V3 =
+  LEGACY_PRE_RENDER_BLUEPRINT_REPAIR_WIRE_VERSION_V3;
 export const LEGACY_PRE_RENDER_BLUEPRINT_REPAIR_WIRE_VERSION_V2 =
   'pre-render-blueprint-repair-wire/v2' as const;
 /** Source-compatibility alias only; frozen programs use the absolute legacy name. */
@@ -179,13 +194,19 @@ function compactCompanionStateAuthority(
  */
 export function buildPreRenderBlueprintProviderWire(
   context: PreRenderBlueprintValidationContext,
+  consumerCatalog = buildPreRenderBlueprintAffordanceConsumerCatalog(
+    context.template,
+  ),
 ): Obj {
   const template = context.template;
   const story = parseStorySourceContent(context.rawStorySource);
   const companionState = compactCompanionStateAuthority(context);
+  const consumerChoices =
+    compactPreRenderBlueprintAffordanceConsumerCatalog(consumerCatalog);
 
   return {
     v: PRE_RENDER_BLUEPRINT_PROVIDER_WIRE_VERSION,
+    choices: consumerChoices,
     story: story.pages.map((page) => [page.pageNumber, page.text]),
     style: context.styleContent,
     cast: [
@@ -333,13 +354,40 @@ export function buildPreRenderBlueprintProviderWire(
   };
 }
 
+/** Exact provider-wire v1 projection retained for immutable program replay. */
+export function buildLegacyPreRenderBlueprintProviderWireV1(
+  context: PreRenderBlueprintValidationContext,
+): Obj {
+  const current = buildPreRenderBlueprintProviderWire(context);
+  const { choices: _choices, ...legacy } = current;
+  return {
+    ...legacy,
+    v: LEGACY_PRE_RENDER_BLUEPRINT_PROVIDER_WIRE_VERSION_V1,
+  };
+}
+
 export function serializePreRenderBlueprintProviderWire(
   context: PreRenderBlueprintValidationContext,
+  consumerCatalog?: PreRenderBlueprintAffordanceConsumerCatalog,
 ): string {
-  const serialized = stableJson(buildPreRenderBlueprintProviderWire(context));
+  const serialized = stableJson(
+    buildPreRenderBlueprintProviderWire(context, consumerCatalog),
+  );
   if (INTERNAL_SPATIAL_MARKER.test(serialized)) {
     throw new Error(
       'Blueprint provider wire contains an unresolved internal spatial marker',
+    );
+  }
+  return serialized;
+}
+
+export function serializeLegacyPreRenderBlueprintProviderWireV1(
+  context: PreRenderBlueprintValidationContext,
+): string {
+  const serialized = stableJson(buildLegacyPreRenderBlueprintProviderWireV1(context));
+  if (INTERNAL_SPATIAL_MARKER.test(serialized)) {
+    throw new Error(
+      'Legacy Blueprint provider wire contains an unresolved internal spatial marker',
     );
   }
   return serialized;
@@ -355,6 +403,15 @@ function compactRegion(value: unknown): CompactRegion | null {
 
 function compactConsumer(value: unknown): unknown {
   if (!isObj(value)) return value;
+  if (
+    Object.prototype.hasOwnProperty.call(value, 'choiceIndex') &&
+    (value.kind === 'action' ||
+      value.kind === 'placement' ||
+      value.kind === 'transition' ||
+      value.kind === 'safety')
+  ) {
+    return [value.kind[0], value.choiceIndex];
+  }
   switch (value.kind) {
     case 'frame':
       return ['f', value.frameId];
@@ -524,23 +581,31 @@ function compactPreviousDraft(
   previousDraft: unknown,
   args: {
     version:
+      | typeof PRE_RENDER_BLUEPRINT_REPAIR_WIRE_VERSION_V4
       | typeof PRE_RENDER_BLUEPRINT_REPAIR_WIRE_VERSION_V3
       | typeof LEGACY_PRE_RENDER_BLUEPRINT_REPAIR_WIRE_VERSION_V2;
     includeLegacyFrameConsumers: boolean;
+    consumerCatalog?: PreRenderBlueprintAffordanceConsumerCatalog;
   },
 ): unknown {
   if (!isObj(previousDraft) || !isObj(previousDraft.worldPlan)) {
     return previousDraft;
   }
   const world = previousDraft.worldPlan;
+  const affordances = args.consumerCatalog
+    ? projectPreRenderBlueprintAffordanceConsumerChoicesForRepair({
+        affordances: world.affordances,
+        catalog: args.consumerCatalog,
+      })
+    : world.affordances;
   return {
     v: args.version,
     world: [
       Array.isArray(world.connections)
         ? world.connections.map(compactConnection)
         : world.connections,
-      Array.isArray(world.affordances)
-        ? world.affordances.map((entry) =>
+      Array.isArray(affordances)
+        ? affordances.map((entry) =>
             compactAffordance(entry, args.includeLegacyFrameConsumers),
           )
         : world.affordances,
@@ -565,9 +630,18 @@ function compactPreviousDraft(
 
 function buildRepairAuthorityIndex(
   context: PreRenderBlueprintValidationContext,
+  consumerCatalog?: PreRenderBlueprintAffordanceConsumerCatalog,
 ): Obj {
   const template = context.template;
   return {
+    ...(consumerCatalog
+      ? {
+          choices:
+            compactPreRenderBlueprintAffordanceConsumerCatalog(
+              consumerCatalog,
+            ),
+        }
+      : {}),
     refs: {
       cast: [
         template.cast.child.id,
@@ -621,17 +695,45 @@ function buildRepairAuthorityIndex(
 export function serializePreRenderBlueprintRepairWire(args: {
   context: PreRenderBlueprintValidationContext;
   previousDraft: unknown;
+  consumerCatalog?: PreRenderBlueprintAffordanceConsumerCatalog;
 }): string {
+  const consumerCatalog =
+    args.consumerCatalog ??
+    buildPreRenderBlueprintAffordanceConsumerCatalog(args.context.template);
   const serialized = stableJson({
-    authority: buildRepairAuthorityIndex(args.context),
+    authority: buildRepairAuthorityIndex(args.context, consumerCatalog),
     draft: compactPreviousDraft(args.previousDraft, {
-      version: PRE_RENDER_BLUEPRINT_REPAIR_WIRE_VERSION_V3,
+      version: PRE_RENDER_BLUEPRINT_REPAIR_WIRE_VERSION_V4,
       includeLegacyFrameConsumers: false,
+      consumerCatalog,
     }),
   });
   if (INTERNAL_SPATIAL_MARKER.test(serialized)) {
     throw new Error(
       'Blueprint repair wire contains an unresolved internal spatial marker',
+    );
+  }
+  return serialized;
+}
+
+/**
+ * Immutable v3 projection used only to reconstruct frozen camera-cutover
+ * evidence. New generation must use v4 bounded consumer choices.
+ */
+export function serializeLegacyPreRenderBlueprintRepairWireV3(args: {
+  context: PreRenderBlueprintValidationContext;
+  previousDraft: unknown;
+}): string {
+  const serialized = stableJson({
+    authority: buildRepairAuthorityIndex(args.context),
+    draft: compactPreviousDraft(args.previousDraft, {
+      version: LEGACY_PRE_RENDER_BLUEPRINT_REPAIR_WIRE_VERSION_V3,
+      includeLegacyFrameConsumers: false,
+    }),
+  });
+  if (INTERNAL_SPATIAL_MARKER.test(serialized)) {
+    throw new Error(
+      'Legacy Blueprint v3 repair wire contains an unresolved internal spatial marker',
     );
   }
   return serialized;

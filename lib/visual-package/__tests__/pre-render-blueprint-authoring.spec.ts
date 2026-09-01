@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { createHash } from 'node:crypto';
 
 import { canonicalHash } from '@/lib/canonical-json';
 
@@ -25,9 +26,18 @@ import {
 } from '@/lib/visual-package/preRenderBlueprintAuthoring';
 import { blueprintAuthoringInputAccounting } from '@/lib/visual-package/blueprintAuthoringPolicy';
 import {
-  PRE_RENDER_BLUEPRINT_REPAIR_WIRE_VERSION_V3,
+  buildPreRenderBlueprintAffordanceConsumerCatalog,
+  projectPreRenderBlueprintAffordanceConsumerChoices,
+} from '@/lib/visual-package/preRenderBlueprintAffordanceConsumerChoices';
+import { LEGACY_PRE_RENDER_BLUEPRINT_DRAFT_SCHEMA_VERSION_V7 } from '@/lib/visual-package/preRenderBlueprintDraftSchema';
+import {
+  PRE_RENDER_BLUEPRINT_REPAIR_WIRE_VERSION_V4,
+  LEGACY_PRE_RENDER_BLUEPRINT_REPAIR_WIRE_VERSION_V3,
   LEGACY_PRE_RENDER_BLUEPRINT_REPAIR_WIRE_VERSION_V2,
+  serializeLegacyPreRenderBlueprintRepairWireV3,
   serializeLegacyPreRenderBlueprintRepairWireV2,
+  serializeLegacyPreRenderBlueprintProviderWireV1,
+  serializePreRenderBlueprintProviderWire,
   serializePreRenderBlueprintRepairWire,
 } from '@/lib/visual-package/preRenderBlueprintProviderWire';
 
@@ -37,6 +47,8 @@ import {
 } from './pre-render-book-visual-blueprint.fixtures';
 
 const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
+const rawSha256 = (value: string): string =>
+  createHash('sha256').update(value, 'utf8').digest('hex');
 
 const CONFIG = {
   model: 'fixture-reasoning-model',
@@ -91,11 +103,12 @@ function legacyWholeBookDraftWithFrameConsumers(
 
 function wholeBookDraft(blueprint: PreRenderBookVisualBlueprint): unknown {
   const draft = legacyWholeBookDraftWithFrameConsumers(blueprint);
-  for (const affordance of draft.worldPlan.affordances) {
-    affordance.consumers = affordance.consumers.filter(
-      (consumer) => consumer.kind !== 'frame',
-    );
-  }
+  draft.worldPlan.affordances = projectPreRenderBlueprintAffordanceConsumerChoices({
+    affordances: draft.worldPlan.affordances,
+    catalog: buildPreRenderBlueprintAffordanceConsumerCatalog(
+      blueprint.visualContract,
+    ),
+  }) as PreRenderBookVisualBlueprint['worldPlan']['affordances'];
   return draft;
 }
 
@@ -250,8 +263,8 @@ describe('R1D-PVB-B — whole-book Blueprint authoring compiler', () => {
 
     expect(calls).toBe(1);
     expect(result.provenance).toMatchObject({
-      draftSchemaVersion: 'pre-render-blueprint-draft-schema/v7',
-      promptVersion: 'pre-render-blueprint-authoring-prompt/v8',
+      draftSchemaVersion: 'pre-render-blueprint-draft-schema/v8',
+      promptVersion: 'pre-render-blueprint-authoring-prompt/v9',
       passingAttempt: 1,
       callCount: 1,
     });
@@ -290,6 +303,8 @@ describe('R1D-PVB-B — whole-book Blueprint authoring compiler', () => {
     const assembled = assemblePreRenderBookVisualBlueprintFromDraft({
       draft,
       context: fixture.context,
+      draftSchemaVersion:
+        LEGACY_PRE_RENDER_BLUEPRINT_DRAFT_SCHEMA_VERSION_V7,
     });
 
     expect(draft).toEqual(before);
@@ -386,7 +401,7 @@ describe('R1D-PVB-B — whole-book Blueprint authoring compiler', () => {
     }
   });
 
-  it('cuts the current repair wire to v3 by stripping only frame consumers while preserving exact v2 replay bytes', () => {
+  it('cuts the current repair wire to bounded v4 choices while preserving exact v3 and v2 replay projections', () => {
     const fixture = buildBlueprintFixture('single_location', { pageCount: 8 });
     const previousDraft = legacyWholeBookDraftWithFrameConsumers(
       fixture.blueprint,
@@ -396,31 +411,103 @@ describe('R1D-PVB-B — whole-book Blueprint authoring compiler', () => {
         context: fixture.context,
         previousDraft,
       }),
-    ) as { draft: { v: string; world: [unknown[], unknown[][], unknown[]] } };
+    ) as {
+      authority: { choices: Record<string, unknown[]> };
+      draft: { v: string; world: [unknown[], unknown[][], unknown[]] };
+    };
     const legacy = JSON.parse(
       serializeLegacyPreRenderBlueprintRepairWireV2({
         context: fixture.context,
         previousDraft,
       }),
     ) as { draft: { v: string; world: [unknown[], unknown[][], unknown[]] } };
+    const legacyV3 = JSON.parse(
+      serializeLegacyPreRenderBlueprintRepairWireV3({
+        context: fixture.context,
+        previousDraft,
+      }),
+    ) as { draft: { v: string; world: [unknown[], unknown[][], unknown[]] } };
 
-    expect(current.draft.v).toBe(PRE_RENDER_BLUEPRINT_REPAIR_WIRE_VERSION_V3);
+    expect(current.draft.v).toBe(PRE_RENDER_BLUEPRINT_REPAIR_WIRE_VERSION_V4);
+    expect(legacyV3.draft.v).toBe(
+      LEGACY_PRE_RENDER_BLUEPRINT_REPAIR_WIRE_VERSION_V3,
+    );
     expect(legacy.draft.v).toBe(
       LEGACY_PRE_RENDER_BLUEPRINT_REPAIR_WIRE_VERSION_V2,
     );
     let legacyFrameConsumerCount = 0;
     for (const [index, legacyAffordance] of legacy.draft.world[1].entries()) {
       const currentAffordance = current.draft.world[1][index]!;
+      const legacyV3Affordance = legacyV3.draft.world[1][index]!;
       const legacyConsumers = legacyAffordance[4] as unknown[][];
       const currentConsumers = currentAffordance[4] as unknown[][];
+      const legacyV3Consumers = legacyV3Affordance[4] as unknown[][];
       legacyFrameConsumerCount += legacyConsumers.filter(
         (consumer) => consumer[0] === 'f',
       ).length;
-      expect(currentConsumers).toEqual(
+      expect(legacyV3Consumers).toEqual(
         legacyConsumers.filter((consumer) => consumer[0] !== 'f'),
+      );
+      expect(currentConsumers.every((consumer) => consumer.length === 2)).toBe(
+        true,
       );
     }
     expect(legacyFrameConsumerCount).toBe(9);
+    expect(Object.keys(current.authority.choices).sort()).toEqual([
+      'a',
+      'p',
+      's',
+      't',
+    ]);
+    const currentBytes = serializePreRenderBlueprintRepairWire({
+      context: fixture.context,
+      previousDraft,
+    });
+    const legacyV3Bytes = serializeLegacyPreRenderBlueprintRepairWireV3({
+      context: fixture.context,
+      previousDraft,
+    });
+    const legacyV2Bytes = serializeLegacyPreRenderBlueprintRepairWireV2({
+      context: fixture.context,
+      previousDraft,
+    });
+    expect(Buffer.byteLength(currentBytes, 'utf8')).toBe(11_628);
+    expect(rawSha256(currentBytes)).toBe(
+      '408045086e481f2dd5879a3473aa4e193d34aa834ef622a62c16c7f3ea813262',
+    );
+    expect(Buffer.byteLength(legacyV3Bytes, 'utf8')).toBe(11_526);
+    expect(rawSha256(legacyV3Bytes)).toBe(
+      '8d7d08201c9d6e4b43a2c2c5897505dddb72db6a30d032cee218012e5c5eb428',
+    );
+    expect(Buffer.byteLength(legacyV2Bytes, 'utf8')).toBe(11_705);
+    expect(rawSha256(legacyV2Bytes)).toBe(
+      'e5bf1bcc8edef271e1a2944b24ad60796bbfb1e7239be0f5c3595417e6bea85b',
+    );
+  });
+
+  it('pins exact current provider-v2 bytes while preserving immutable provider-v1 replay bytes', () => {
+    const fixture = buildBlueprintFixture('single_location', { pageCount: 8 });
+    const current = serializePreRenderBlueprintProviderWire(fixture.context);
+    const legacy = serializeLegacyPreRenderBlueprintProviderWireV1(
+      fixture.context,
+    );
+
+    expect(Buffer.byteLength(current, 'utf8')).toBe(6_776);
+    expect(rawSha256(current)).toBe(
+      'de716fe31c5d32659beebc0894da22bacfa573c9c40f616f36d532199533244c',
+    );
+    expect(Buffer.byteLength(legacy, 'utf8')).toBe(5_986);
+    expect(rawSha256(legacy)).toBe(
+      'b76bd105577c32f6658f4b9edaaab2ebd14d9ffe28b105e5370fc34e20336689',
+    );
+    expect(JSON.parse(current)).toMatchObject({
+      v: 'pre-render-blueprint-provider-wire/v2',
+      choices: expect.any(Object),
+    });
+    expect(JSON.parse(legacy)).not.toHaveProperty('choices');
+    expect(JSON.parse(legacy)).toMatchObject({
+      v: 'pre-render-blueprint-provider-wire/v1',
+    });
   });
 
   it('carries approved typed presentation evidence into the Blueprint authoring gate', () => {
@@ -570,7 +657,7 @@ describe('R1D-PVB-B — whole-book Blueprint authoring compiler', () => {
         reasoningEffort: CONFIG.reasoningEffort,
         maxOutputTokens: CONFIG.maxOutputTokens,
         noFallback: true,
-        promptVersion: 'pre-render-blueprint-authoring-prompt/v8',
+        promptVersion: 'pre-render-blueprint-authoring-prompt/v9',
         passingAttempt: 1,
         callCount: 1,
       });
@@ -625,7 +712,7 @@ describe('R1D-PVB-B — whole-book Blueprint authoring compiler', () => {
       world: { zones: unknown[][] };
     };
 
-    expect(wire.v).toBe('pre-render-blueprint-provider-wire/v1');
+    expect(wire.v).toBe('pre-render-blueprint-provider-wire/v2');
     expect(wire.story).toHaveLength(fixture.context.source.pageCount);
     expect(wire.world.zones[0]![5]).toEqual([
       ['centered_in', 'node_center', null],
@@ -872,11 +959,138 @@ describe('R1D-PVB-B — whole-book Blueprint authoring compiler', () => {
     expect(result.provenance).toMatchObject({
       passingAttempt: 2,
       callCount: 2,
-      repairPromptVersion: 'pre-render-blueprint-repair-prompt/v9',
+      repairPromptVersion: 'pre-render-blueprint-repair-prompt/v10',
     });
     expect((calls[1] as { system: string }).system).toContain(
       'never return textSafeRegion',
     );
+  });
+
+  it('repairs a structured bounded-choice binding failure instead of collapsing it into assembly failure', async () => {
+    const fixture = buildBlueprintFixture('single_location', { pageCount: 8 });
+    const invalid = wholeBookDraft(fixture.blueprint) as {
+      worldPlan: {
+        affordances: Array<{
+          kind: string;
+          consumers: Array<{ kind: string; choiceIndex: number }>;
+        }>;
+      };
+    };
+    const actionSpace = invalid.worldPlan.affordances.find(
+      (affordance) => affordance.kind === 'action_space',
+    );
+    if (!actionSpace || actionSpace.consumers.length === 0) {
+      throw new Error('fixture action-space consumer is missing');
+    }
+    actionSpace.consumers[0] = { kind: 'placement', choiceIndex: 0 };
+    const valid = wholeBookDraft(fixture.blueprint);
+    const outputs = [invalid, valid];
+    const calls: Array<{ user: string }> = [];
+
+    const result = await compilePreRenderBookVisualBlueprint(
+      fixture.context,
+      CONFIG,
+      {
+        callAuthor: async (_system, user) => {
+          calls.push({ user });
+          return outputs[calls.length - 1];
+        },
+      },
+    );
+
+    expect(calls).toHaveLength(2);
+    expect(result.repairAttempts).toHaveLength(1);
+    expect(result.repairAttempts[0]!.diagnostics).toContainEqual(
+      expect.objectContaining({
+        code: 'affordance_incompatible',
+        field: expect.stringMatching(
+          /^worldPlan\.affordances\[\d+\]\.consumers\[0\]\.kind$/u,
+        ),
+        expected: ['action'],
+        actual: 'placement',
+      }),
+    );
+    expect(result.repairAttempts[0]!.diagnostics).not.toContainEqual(
+      expect.objectContaining({ code: 'draft_assembly_failed' }),
+    );
+    const repairWire = JSON.parse(
+      calls[1]!.user.split('\nREPAIR_WIRE:\n')[1]!,
+    ) as { draft: { v: string } };
+    expect(repairWire.draft.v).toBe(PRE_RENDER_BLUEPRINT_REPAIR_WIRE_VERSION_V4);
+    expect(result.provenance.passingAttempt).toBe(2);
+  });
+
+  it('keeps malformed choice shapes inside the two-repair lane instead of throwing during repair serialization', async () => {
+    const fixture = buildBlueprintFixture('single_location', { pageCount: 8 });
+    const valid = wholeBookDraft(fixture.blueprint) as any;
+    const firstInvalid = clone(valid);
+    const secondInvalid = clone(valid);
+    const firstAction = firstInvalid.worldPlan.affordances.find(
+      (affordance: { kind: string }) => affordance.kind === 'action_space',
+    );
+    const secondAction = secondInvalid.worldPlan.affordances.find(
+      (affordance: { kind: string }) => affordance.kind === 'action_space',
+    );
+    firstAction.consumers[0] = {
+      kind: 'action',
+      choiceIndex: 0,
+      extra: 'forged',
+    };
+    secondAction.consumers[0] = { kind: 'action', choiceIndex: '0' };
+    const outputs = [firstInvalid, secondInvalid, valid];
+    const calls: Array<{ user: string }> = [];
+
+    const result = await compilePreRenderBookVisualBlueprint(
+      fixture.context,
+      CONFIG,
+      {
+        callAuthor: async (_system, user) => {
+          calls.push({ user });
+          return outputs[calls.length - 1];
+        },
+      },
+    );
+
+    expect(calls).toHaveLength(3);
+    expect(result.repairAttempts).toHaveLength(2);
+    expect(result.repairAttempts[0]!.diagnostics).toContainEqual(
+      expect.objectContaining({ code: 'schema_invalid' }),
+    );
+    expect(result.repairAttempts[1]!.diagnostics).toContainEqual(
+      expect.objectContaining({
+        code: 'schema_invalid',
+        actual: '0',
+      }),
+    );
+    expect(calls[1]!.user).toContain('["a",0]');
+    expect(calls[1]!.user).not.toContain('forged');
+    expect(calls[2]!.user).toContain('["a","0"]');
+    expect(result.provenance.passingAttempt).toBe(3);
+  });
+
+  it('snapshots provider-visible authority before the first await so choice indices cannot be rebound by caller mutation', async () => {
+    const fixture = buildBlueprintFixture('single_location', { pageCount: 8 });
+    const valid = wholeBookDraft(fixture.blueprint);
+    const expectedBlueprintBytes = serializePreRenderBookVisualBlueprint(
+      fixture.blueprint,
+    );
+
+    const result = await compilePreRenderBookVisualBlueprint(
+      fixture.context,
+      CONFIG,
+      {
+        callAuthor: async () => {
+          fixture.context.template.pageContracts[0]!.actionRequirements![0]!.checkId =
+            'action:mutated_after_dispatch';
+          return valid;
+        },
+      },
+    );
+
+    expect(serializePreRenderBookVisualBlueprint(result.blueprint)).toBe(
+      expectedBlueprintBytes,
+    );
+    expect(result.provenance.passingAttempt).toBe(1);
   });
 
   it('uses one canonical index space for normalized diagnostics, retained draft, and repair wire', async () => {

@@ -19,6 +19,10 @@ import {
   LEGACY_PRE_RENDER_BLUEPRINT_AUTHORING_SYSTEM_PROMPT_UTF8_BYTES_V6,
   LEGACY_PRE_RENDER_BLUEPRINT_REPAIR_SYSTEM_PROMPT_DIGEST_V6,
   LEGACY_PRE_RENDER_BLUEPRINT_REPAIR_SYSTEM_PROMPT_UTF8_BYTES_V6,
+  PRE_RENDER_BLUEPRINT_AUTHORING_SYSTEM_PROMPT_DIGEST_V8,
+  PRE_RENDER_BLUEPRINT_AUTHORING_SYSTEM_PROMPT_UTF8_BYTES_V8,
+  PRE_RENDER_BLUEPRINT_REPAIR_SYSTEM_PROMPT_DIGEST_V9,
+  PRE_RENDER_BLUEPRINT_REPAIR_SYSTEM_PROMPT_UTF8_BYTES_V9,
 } from '../../preRenderBlueprintAuthoringContract';
 import {
   LEGACY_PRE_RENDER_BLUEPRINT_REPAIR_WIRE_VERSION_V1,
@@ -81,6 +85,29 @@ const REPAIR_V9_ONLY_BLOCK = [
   'only through each frame camera affordanceId. Never output or restore a frameId consumer.',
 ].join('\n');
 
+const AUTHORING_V9_ONLY_BLOCK = [
+  'choices={a:[[page,checkId]],p:[[page,propId]],t:[page],s:[[page,subjectId,relation,targetRef]]};',
+  'every non-camera affordance consumer is {kind,choiceIndex} into that matching zero-based choices list.',
+  'Use action only on action_space, placement only on placement_support, transition only on traversal/',
+  'opening_clearance/safe_boundary, and safety only on safe_boundary. Never copy canonical consumer IDs.',
+].join('\n');
+
+const REPAIR_V10_CHOICE_BLOCK = [
+  'Authority choices are a/p/t/s ordered canonical consumer lists. Every affordance starts',
+  '[id,kind,zone,footprint[x,y,w,h],consumers,...kindFields]. Consumer tuples use',
+  "['a',choiceIndex], ['p',choiceIndex], ['t',choiceIndex], or ['s',choiceIndex].",
+  'Choose only a valid zero-based index of the matching authority list and only a consumer kind allowed by the',
+  'strict schema for that affordance kind. Never copy page/check/prop/safety identity fields into a consumer.',
+  'If an affordance has no compatible canonical choice, remove that unused affordance rather than inventing one.',
+  'Kind fields follow the supplied output schema in schema order.',
+].join('\n');
+
+const REPAIR_V9_RAW_CONSUMER_BLOCK = [
+  'Every affordance starts [id,kind,zone,footprint[x,y,w,h],consumers,...kindFields]. Consumer tuples use',
+  "['a',page,checkId], ['p',page,propId], ['t',page], or",
+  "['s',page,subjectId,relation,targetRef]. Kind fields follow the supplied output schema in schema order.",
+].join('\n');
+
 const CURRENT_REPAIR_CONSUMER_TUPLE_LINE =
   "['a',page,checkId], ['p',page,propId], ['t',page], or";
 const LEGACY_REPAIR_CONSUMER_TUPLE_LINE =
@@ -105,17 +132,61 @@ function replaceExactCurrentOnlyLine(
   return prompt.replace(currentLine, historicalLine);
 }
 
+function replaceExactCurrentOnlyBlock(
+  prompt: string,
+  currentBlock: string,
+  historicalBlock: string,
+): string {
+  if (prompt.split(currentBlock).length !== 2) {
+    throw new Error('frozen prompt fixture cannot identify one exact current-only block');
+  }
+  return prompt.replace(currentBlock, historicalBlock);
+}
+
+export function frozenBlueprintAuthoringSystemPromptV8(): string {
+  const prompt = removeExactCurrentOnlyBlock(
+    buildPreRenderBlueprintAuthoringSystemPrompt(),
+    AUTHORING_V9_ONLY_BLOCK,
+  );
+  if (
+    canonicalJsonDigest(prompt) !==
+      PRE_RENDER_BLUEPRINT_AUTHORING_SYSTEM_PROMPT_DIGEST_V8 ||
+    Buffer.byteLength(prompt, 'utf8') !==
+      PRE_RENDER_BLUEPRINT_AUTHORING_SYSTEM_PROMPT_UTF8_BYTES_V8
+  ) {
+    throw new Error('frozen authoring prompt-v8 evidence drifted');
+  }
+  return prompt;
+}
+
 function frozenBlueprintAuthoringSystemPromptV7(): string {
   return removeExactCurrentOnlyBlock(
-    buildPreRenderBlueprintAuthoringSystemPrompt(),
+    frozenBlueprintAuthoringSystemPromptV8(),
     AUTHORING_V8_ONLY_BLOCK,
   );
+}
+
+export function frozenBlueprintRepairSystemPromptV9(): string {
+  const prompt = replaceExactCurrentOnlyBlock(
+    buildPreRenderBlueprintRepairSystemPrompt(),
+    REPAIR_V10_CHOICE_BLOCK,
+    REPAIR_V9_RAW_CONSUMER_BLOCK,
+  );
+  if (
+    canonicalJsonDigest(prompt) !==
+      PRE_RENDER_BLUEPRINT_REPAIR_SYSTEM_PROMPT_DIGEST_V9 ||
+    Buffer.byteLength(prompt, 'utf8') !==
+      PRE_RENDER_BLUEPRINT_REPAIR_SYSTEM_PROMPT_UTF8_BYTES_V9
+  ) {
+    throw new Error('frozen repair prompt-v9 evidence drifted');
+  }
+  return prompt;
 }
 
 function frozenBlueprintRepairSystemPromptV8(): string {
   return replaceExactCurrentOnlyLine(
     removeExactCurrentOnlyBlock(
-      buildPreRenderBlueprintRepairSystemPrompt(),
+      frozenBlueprintRepairSystemPromptV9(),
       REPAIR_V9_ONLY_BLOCK,
     ),
     CURRENT_REPAIR_CONSUMER_TUPLE_LINE,

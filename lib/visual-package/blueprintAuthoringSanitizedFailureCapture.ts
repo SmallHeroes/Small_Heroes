@@ -308,6 +308,7 @@ const SAFE_PATH_KEY_VOCABULARY: ReadonlySet<string> = new Set([
   'worldPlan', 'connections', 'affordances', 'revealSafeSupportingGeometry',
   'from', 'to', 'node', 'zone', 'bidirectional', 'traversalIds', 'openingIds',
   'safeBoundaryIds', 'cue', 'fromZone', 'toZone', 'footprint', 'consumers',
+  'choiceIndex',
   'support', 'target', 'supportedEntities', 'supportedRefs', 'supportRef',
   'maximumOccupants', 'maximumActors', 'minimumClearance', 'maximumClearance',
   'clearanceRegion', 'permittedRegion', 'visibleRegion', 'openingNode',

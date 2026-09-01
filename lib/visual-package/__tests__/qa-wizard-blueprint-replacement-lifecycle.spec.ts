@@ -78,7 +78,7 @@ import {
 import {
   LEGACY_PRE_RENDER_BLUEPRINT_REPAIR_WIRE_VERSION_V1,
   LEGACY_PRE_RENDER_BLUEPRINT_REPAIR_WIRE_VERSION_V2,
-  PRE_RENDER_BLUEPRINT_REPAIR_WIRE_VERSION_V3,
+  PRE_RENDER_BLUEPRINT_REPAIR_WIRE_VERSION_V4,
 } from '../preRenderBlueprintProviderWire';
 import type { AuthoringExecutionAttestation } from '../authoringTerminalDiagnostics';
 import { canonicalJsonDigest } from '../integrity';
@@ -93,6 +93,7 @@ import {
 import {
   buildBlueprintFixture,
   buildVisualContractCandidateFixture,
+  projectCurrentBlueprintProviderWorldPlan,
 } from './pre-render-book-visual-blueprint.fixtures';
 import {
   QA_WIZARD_BLUEPRINT_DIAGNOSTIC_EVIDENCE_TARGET_DIGEST,
@@ -239,7 +240,7 @@ function providerDraft(
   fixture: ReturnType<typeof buildBlueprintFixture>,
 ): unknown {
   return {
-    worldPlan: fixture.blueprint.worldPlan,
+    worldPlan: projectCurrentBlueprintProviderWorldPlan(fixture.blueprint),
     frames: fixture.blueprint.frames.map((frame) => ({
       ...frame,
       pageNumber: frame.kind === 'cover' ? null : frame.pageNumber,
@@ -2211,14 +2212,14 @@ describe('QA Wizard Blueprint failed-terminal diagnostic successor', () => {
       previousRawDraft: firstRawDraft,
     });
     const naiveCurrentCallRelabel = firstRepairCall.userPrompt
-      .split(PRE_RENDER_BLUEPRINT_REPAIR_WIRE_VERSION_V3)
+      .split(PRE_RENDER_BLUEPRINT_REPAIR_WIRE_VERSION_V4)
       .join(LEGACY_PRE_RENDER_BLUEPRINT_REPAIR_WIRE_VERSION_V1);
     expect(frozenWriterRepairPrompt).not.toBe(naiveCurrentCallRelabel);
     expect(frozenWriterRepairPrompt).toContain(
       LEGACY_PRE_RENDER_BLUEPRINT_REPAIR_WIRE_VERSION_V1,
     );
     expect(frozenWriterRepairPrompt).not.toContain(
-      PRE_RENDER_BLUEPRINT_REPAIR_WIRE_VERSION_V3,
+      PRE_RENDER_BLUEPRINT_REPAIR_WIRE_VERSION_V4,
     );
     expect(frozenWriterRepairPrompt).not.toContain(
       LEGACY_PRE_RENDER_BLUEPRINT_REPAIR_WIRE_VERSION_V2,

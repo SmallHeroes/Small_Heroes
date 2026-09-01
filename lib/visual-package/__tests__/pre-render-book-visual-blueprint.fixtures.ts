@@ -45,6 +45,10 @@ import {
   normalizedTextDigest,
 } from '@/lib/visual-package/integrity';
 import {
+  buildPreRenderBlueprintAffordanceConsumerCatalog,
+  projectPreRenderBlueprintAffordanceConsumerChoices,
+} from '@/lib/visual-package/preRenderBlueprintAffordanceConsumerChoices';
+import {
   STORY_SOURCE_IDENTITY_VERSION,
   type StorySourceIdentity,
   type VisualPackageTemplateIdentity,
@@ -867,4 +871,20 @@ export function buildBlueprintFixture(
       styleContent,
     },
   };
+}
+
+/** Current provider-owned world shape: semantic consumers are bounded choices. */
+export function projectCurrentBlueprintProviderWorldPlan(
+  blueprint: PreRenderBookVisualBlueprint,
+): PreRenderBookVisualBlueprint['worldPlan'] {
+  const worldPlan = JSON.parse(
+    JSON.stringify(blueprint.worldPlan),
+  ) as PreRenderBookVisualBlueprint['worldPlan'];
+  worldPlan.affordances = projectPreRenderBlueprintAffordanceConsumerChoices({
+    affordances: worldPlan.affordances,
+    catalog: buildPreRenderBlueprintAffordanceConsumerCatalog(
+      blueprint.visualContract,
+    ),
+  }) as PreRenderBookVisualBlueprint['worldPlan']['affordances'];
+  return worldPlan;
 }

@@ -344,58 +344,170 @@ describe('R1D-PVB-B - immutable Blueprint review and approval lifecycle', () => 
     const repairAttempts = [{ attempt: 1, errors: ['fixture error'], draft: {} }];
     const current = {
       ...provenanceFor(fixture.blueprint),
-      draftSchemaVersion: 'pre-render-blueprint-draft-schema/v7' as const,
-      promptVersion: 'pre-render-blueprint-authoring-prompt/v8' as const,
-      repairPromptVersion: 'pre-render-blueprint-repair-prompt/v9' as const,
+      draftSchemaVersion: 'pre-render-blueprint-draft-schema/v8' as const,
+      promptVersion: 'pre-render-blueprint-authoring-prompt/v9' as const,
+      repairPromptVersion: 'pre-render-blueprint-repair-prompt/v10' as const,
       passingAttempt: 2,
       callCount: 2,
     };
-    const currentReview = buildPreRenderBlueprintReviewBundle({
-      blueprint: fixture.blueprint,
-      context: fixture.context,
-      provenance: current,
-      repairAttempts,
-    });
-    expect(currentReview.packet.blockers).not.toContain(
-      'authoring provenance schema or prompt version is unsupported',
-    );
-    expect(currentReview.packet.blockers).not.toContain(
-      'authoring provenance repair prompt version is inconsistent',
-    );
-
-    const legacy = {
+    const cameraAuthorityLegacy = {
+      ...current,
+      draftSchemaVersion: 'pre-render-blueprint-draft-schema/v7' as const,
+      promptVersion: 'pre-render-blueprint-authoring-prompt/v8' as const,
+      repairPromptVersion: 'pre-render-blueprint-repair-prompt/v9' as const,
+    };
+    const legacyPromptV7RepairV8 = {
       ...current,
       draftSchemaVersion: 'pre-render-blueprint-draft-schema/v6' as const,
       promptVersion: 'pre-render-blueprint-authoring-prompt/v7' as const,
       repairPromptVersion: 'pre-render-blueprint-repair-prompt/v8' as const,
     };
-    const legacyReview = buildPreRenderBlueprintReviewBundle({
-      blueprint: fixture.blueprint,
-      context: fixture.context,
-      provenance: legacy,
-      repairAttempts,
-    });
-    expect(legacyReview.packet.blockers).not.toContain(
-      'authoring provenance schema or prompt version is unsupported',
-    );
-    expect(legacyReview.packet.blockers).not.toContain(
-      'authoring provenance repair prompt version is inconsistent',
-    );
+    const legacyPromptV7RepairV7 = {
+      ...legacyPromptV7RepairV8,
+      repairPromptVersion: 'pre-render-blueprint-repair-prompt/v7' as const,
+    };
+    const legacyPromptV6 = {
+      ...legacyPromptV7RepairV8,
+      promptVersion: 'pre-render-blueprint-authoring-prompt/v6' as const,
+      repairPromptVersion: 'pre-render-blueprint-repair-prompt/v6' as const,
+    };
+    const legacyPromptV5 = {
+      ...legacyPromptV7RepairV8,
+      promptVersion: 'pre-render-blueprint-authoring-prompt/v5' as const,
+      repairPromptVersion: 'pre-render-blueprint-repair-prompt/v5' as const,
+    };
 
-    for (const provenance of [
-      { ...current, draftSchemaVersion: legacy.draftSchemaVersion },
-      { ...current, repairPromptVersion: legacy.repairPromptVersion },
-      { ...legacy, repairPromptVersion: current.repairPromptVersion },
-    ]) {
+    for (const [label, provenance] of [
+      ['current', current],
+      ['camera_authority', cameraAuthorityLegacy],
+      ['prompt_v7_repair_v8', legacyPromptV7RepairV8],
+      ['prompt_v7_repair_v7', legacyPromptV7RepairV7],
+      ['prompt_v6', legacyPromptV6],
+      ['prompt_v5', legacyPromptV5],
+    ] as const) {
       const review = buildPreRenderBlueprintReviewBundle({
         blueprint: fixture.blueprint,
         context: fixture.context,
         provenance,
         repairAttempts,
       });
-      expect(review.packet.readyForApproval).toBe(false);
-      expect(review.packet.blockers.join('\n')).toMatch(
-        /schema or prompt version is unsupported|repair prompt version is inconsistent/u,
+      expect(review.packet.blockers, label).not.toContain(
+        'authoring provenance schema or prompt version is unsupported',
+      );
+      expect(review.packet.blockers, label).not.toContain(
+        'authoring provenance repair prompt version is inconsistent',
+      );
+    }
+
+    const incompatibleSchemaPromptRows = [
+      [
+        'current_schema_with_camera_prompt',
+        { ...current, promptVersion: cameraAuthorityLegacy.promptVersion },
+      ],
+      [
+        'camera_schema_with_current_prompt',
+        { ...cameraAuthorityLegacy, promptVersion: current.promptVersion },
+      ],
+      [
+        'camera_schema_with_prompt_v7',
+        {
+          ...cameraAuthorityLegacy,
+          promptVersion: legacyPromptV7RepairV8.promptVersion,
+        },
+      ],
+      [
+        'legacy_schema_with_camera_prompt',
+        {
+          ...legacyPromptV7RepairV8,
+          promptVersion: cameraAuthorityLegacy.promptVersion,
+        },
+      ],
+    ] as const satisfies ReadonlyArray<
+      readonly [string, PreRenderBlueprintAuthoringProvenance]
+    >;
+    for (const [label, provenance] of incompatibleSchemaPromptRows) {
+      const review = buildPreRenderBlueprintReviewBundle({
+        blueprint: fixture.blueprint,
+        context: fixture.context,
+        provenance,
+        repairAttempts,
+      });
+      expect(review.packet.readyForApproval, label).toBe(false);
+      expect(review.packet.blockers, label).toContain(
+        'authoring provenance schema or prompt version is unsupported',
+      );
+    }
+
+    const incompatibleRepairRows = [
+      [
+        'current_with_camera_repair',
+        {
+          ...current,
+          repairPromptVersion: cameraAuthorityLegacy.repairPromptVersion,
+        },
+      ],
+      [
+        'camera_with_current_repair',
+        {
+          ...cameraAuthorityLegacy,
+          repairPromptVersion: current.repairPromptVersion,
+        },
+      ],
+      [
+        'camera_with_prompt_v7_repair',
+        {
+          ...cameraAuthorityLegacy,
+          repairPromptVersion: legacyPromptV7RepairV8.repairPromptVersion,
+        },
+      ],
+      [
+        'prompt_v7_with_camera_repair',
+        {
+          ...legacyPromptV7RepairV8,
+          repairPromptVersion: cameraAuthorityLegacy.repairPromptVersion,
+        },
+      ],
+      [
+        'prompt_v7_with_prompt_v6_repair',
+        {
+          ...legacyPromptV7RepairV8,
+          repairPromptVersion: legacyPromptV6.repairPromptVersion,
+        },
+      ],
+      [
+        'prompt_v6_with_prompt_v7_repair',
+        {
+          ...legacyPromptV6,
+          repairPromptVersion: legacyPromptV7RepairV7.repairPromptVersion,
+        },
+      ],
+      [
+        'prompt_v6_with_prompt_v5_repair',
+        {
+          ...legacyPromptV6,
+          repairPromptVersion: legacyPromptV5.repairPromptVersion,
+        },
+      ],
+      [
+        'prompt_v5_with_prompt_v6_repair',
+        {
+          ...legacyPromptV5,
+          repairPromptVersion: legacyPromptV6.repairPromptVersion,
+        },
+      ],
+    ] as const satisfies ReadonlyArray<
+      readonly [string, PreRenderBlueprintAuthoringProvenance]
+    >;
+    for (const [label, provenance] of incompatibleRepairRows) {
+      const review = buildPreRenderBlueprintReviewBundle({
+        blueprint: fixture.blueprint,
+        context: fixture.context,
+        provenance,
+        repairAttempts,
+      });
+      expect(review.packet.readyForApproval, label).toBe(false);
+      expect(review.packet.blockers, label).toContain(
+        'authoring provenance repair prompt version is inconsistent',
       );
     }
   });

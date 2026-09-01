@@ -48,6 +48,7 @@ import {
 } from '@/lib/visual-contract-compiler/stablePropScopeRepair';
 import {
   LEGACY_PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA_V6,
+  LEGACY_PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA_V7,
   PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA,
   PRE_RENDER_BLUEPRINT_DRAFT_SCHEMA_NAME,
   PRE_RENDER_BLUEPRINT_DRAFT_SCHEMA_VERSION,
@@ -151,7 +152,15 @@ describe('OpenAI Responses structured-output compatibility profile', () => {
       'vc-draft-schema/v21',
     );
     expect(PRE_RENDER_BLUEPRINT_DRAFT_SCHEMA_VERSION).toBe(
-      'pre-render-blueprint-draft-schema/v7',
+      'pre-render-blueprint-draft-schema/v8',
+    );
+    expect(canonicalJsonDigest(PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA)).toBe(
+      '07859ed3aa44e40834adcec70662a79ed92aec7d4a61aaa13fb14585c34a48cc',
+    );
+    expect(
+      canonicalJsonDigest(LEGACY_PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA_V7),
+    ).toBe(
+      '89fe06057ee4a6bcb05d92dfb2c20e116e39eeae4e1d1026ba7dab1830d3fd18',
     );
     expect(
       canonicalJsonDigest(LEGACY_PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA_V6),
@@ -194,6 +203,7 @@ describe('OpenAI Responses structured-output compatibility profile', () => {
       PRESENTATION_REQUIREMENT_REPAIR_JSON_SCHEMA,
       STABLE_PROP_SCOPE_REPAIR_JSON_SCHEMA,
       PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA,
+      LEGACY_PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA_V7,
       LEGACY_PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA_V6,
     ]) {
       const serialized = JSON.parse(

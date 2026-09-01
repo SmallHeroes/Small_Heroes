@@ -34,6 +34,7 @@ import {
   type VisualPackageV4Candidate,
   type VisualPackageV4PackageReview,
 } from '@/lib/visual-package';
+import { LEGACY_PRE_RENDER_BLUEPRINT_DRAFT_SCHEMA_VERSION_V6 } from '@/lib/visual-package/preRenderBlueprintDraftSchema';
 
 import {
   buildBlueprintFixture,
@@ -235,6 +236,7 @@ function materialize(
   const blueprint = assemblePreRenderBookVisualBlueprintFromDraft({
     draft,
     context: context.validationContext,
+    draftSchemaVersion: LEGACY_PRE_RENDER_BLUEPRINT_DRAFT_SCHEMA_VERSION_V6,
   });
   const provenance = provenanceFor(
     blueprint.digest,

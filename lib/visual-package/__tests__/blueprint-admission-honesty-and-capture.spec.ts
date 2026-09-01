@@ -61,7 +61,10 @@ import {
 import { blueprintAuthoringContinuationReservationMicroUsd } from '@/lib/visual-package/blueprintAuthoringCountAwareCost';
 import { canonicalJsonDigest } from '@/lib/visual-package/integrity';
 
-import { buildBlueprintFixture } from './pre-render-book-visual-blueprint.fixtures';
+import {
+  buildBlueprintFixture,
+  projectCurrentBlueprintProviderWorldPlan,
+} from './pre-render-book-visual-blueprint.fixtures';
 
 const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
 
@@ -88,7 +91,7 @@ const REAL_INCIDENT_OBSERVED_INPUT_TOKENS = 12007;
 
 function wholeBookDraft(blueprint: PreRenderBookVisualBlueprint): unknown {
   return {
-    worldPlan: clone(blueprint.worldPlan),
+    worldPlan: projectCurrentBlueprintProviderWorldPlan(blueprint),
     frames: blueprint.frames.map((frame) => ({
       kind: frame.kind,
       pageNumber: frame.kind === 'cover' ? null : frame.pageNumber,

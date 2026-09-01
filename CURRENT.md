@@ -1,5 +1,58 @@
 # SmallHeroes — Current Technical State
 
+## R1D — bounded Blueprint affordance-consumer choice authority implemented offline; independent QA pending; no new live/render yet
+
+The latest ordinary paid Blueprint run used the exact then-current program `1bd60e8c...`, all
+three generation calls and both repairs, retry zero, no fallback, and produced no Candidate. Its
+complete frontier converged to two `affordance_incompatible` diagnostics at one affordance's two
+consumer positions. Request `01dfc1aa...` and receipt `069b551d...` proved this was the active
+schema/provider contract, not a stale, legacy, or fallback route.
+
+- Root cause: schema v7 let the provider copy any non-frame canonical consumer identity onto any
+  non-camera affordance, while the unchanged final validator required exact canonical identities
+  and a narrower kind-to-affordance mapping. A schema-valid paid response could therefore be
+  deterministically invalid after assembly.
+- Fresh schema v8 replaces copied semantic identities with `{kind, choiceIndex}` into one
+  deterministic compiler-owned catalog derived from the snapshotted Visual Contract. Only
+  positive action (`must`), required placement, non-steady transition, and safety authority is
+  selectable. Binding is collect-all and rejects wrong shape/kind, invalid/out-of-range indices,
+  and duplicates without mutating provider input.
+- The same frozen catalog drives initial wire, binding, repair projection, and validation, so
+  caller mutation after the first await cannot rebind an index. Malformed choices remain inside
+  the two-repair lane; unknown canonical consumers are not silently dropped.
+- Camera authority is unchanged: general frame membership never mints reverse consumers; only the
+  selected `frame.camera.affordanceId` causes the compiler to reconstruct one frame consumer.
+- Current identity is prompt v9 / repair prompt v10 / provider wire v2 / repair wire v4 / schema
+  v8 / program payload `0944bdb5...`. Exact schema v7, prompt v8, repair prompt v9, provider wire
+  v1, repair wire v3, and former program `1bd60e8c...` are frozen replay-only. Ten bidirectional
+  self-redigested current/legacy hybrid programs reject, and lifecycle provenance covers all six
+  supported generation rows plus adjacent negatives.
+- Read-only replay of the real `01dfc1aa...` / `069b551d...` pair remains valid after cutover with
+  no credential/provider access or artifact change. A raw/private production-context fixture was
+  deliberately not tracked because it would include unredacted story/source prose; synthetic
+  lifecycle tests retain zero-provider recovery/replay coverage across every supported generation.
+- The first full repository check caught a real integration regression before live: the offline
+  Story Source migration producer still emitted legacy semantic consumers into schema v8, entered
+  an unintended repair, and exceeded 64K by 1,360 conservative tokens. It now strictly
+  inverse-projects through the same snapshotted catalog and is again one call / zero repairs with
+  exact final affordance and camera identity. No ceiling or policy changed.
+- Current focused validation is **16 files / 432 tests PASS**, including the cover + eight-page
+  production-scale harness, migration, Wizard lifecycles, replay/program matrices, provider/count
+  adapters and sanitization. Migration/choice/workload re-gate is **24/24 PASS**; TypeScript exits
+  0 and `git diff --check` is clean. Literal `npm run check` returned exactly the established
+  ordinary ignored-output baseline (**5 unchanged fixture files / 9 assertions**, 4,311 pass,
+  73 skip). Resource-intensive passed 19/20 files and 629 tests; its only three five-second
+  timeouts were in one unchanged Git/subprocess-heavy file, which then passed alone with one
+  worker **21/21**. Claude Code Opus/max remains the next offline gate and is not pre-claimed here.
+- No provider, input-count endpoint, image, audio, render, deployment, database, or remote mutation
+  occurred in this milestone. No second paid attempt will run before the local commit and
+  independent PASS.
+
+Evidence:
+`docs/ai-workflow/R1D_BLUEPRINT_AFFORDANCE_CONSUMER_CHOICE_AUTHORITY_IMPLEMENTATION_EVIDENCE.md`.
+
+---
+
 ## R1D — Blueprint camera-consumer authority QA-passed; no new live/render yet
 
 The one ordinary authoring live authorized for Request `078b961c...`, Preflight `c35bdda0...`,

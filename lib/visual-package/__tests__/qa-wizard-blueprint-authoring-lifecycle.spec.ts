@@ -146,6 +146,7 @@ import {
 import { canonicalJsonDigest } from '../integrity';
 import { canonicalContentAddressedJsonBytes } from '../canonicalContentAddressedJson';
 import {
+  LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_CAMERA_AUTHORITY,
   LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_PROMPT_V6,
   LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_PROMPT_V7,
   LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_REPAIR_PROMPT_V8,
@@ -160,6 +161,7 @@ import {
 import {
   buildBlueprintFixture,
   buildVisualContractCandidateFixture,
+  projectCurrentBlueprintProviderWorldPlan,
 } from './pre-render-book-visual-blueprint.fixtures';
 
 const tempRoots: string[] = [];
@@ -309,7 +311,7 @@ function providerDraft(
   fixture: ReturnType<typeof buildBlueprintFixture>,
 ): unknown {
   return {
-    worldPlan: fixture.blueprint.worldPlan,
+    worldPlan: projectCurrentBlueprintProviderWorldPlan(fixture.blueprint),
     frames: fixture.blueprint.frames.map((frame) => ({
       ...frame,
       pageNumber: frame.kind === 'cover' ? null : frame.pageNumber,
@@ -1000,6 +1002,7 @@ describe('QA Wizard Blueprint authoring operator lifecycle', () => {
   });
 
   it.each([
+    ['camera-authority', LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_CAMERA_AUTHORITY],
     ['former-current', LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_REPAIR_PROMPT_V8],
     ['prompt-v7', LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_PROMPT_V7],
     ['prompt-v6', LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_PROMPT_V6],

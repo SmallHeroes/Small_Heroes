@@ -55,6 +55,7 @@ import { canonicalJsonDigest } from '../integrity';
 import {
   buildBlueprintFixture,
   buildVisualContractCandidateFixture,
+  projectCurrentBlueprintProviderWorldPlan,
 } from './pre-render-book-visual-blueprint.fixtures';
 
 const tempRoots: string[] = [];
@@ -173,7 +174,7 @@ function providerDraft(
   fixture: ReturnType<typeof buildBlueprintFixture>,
 ): unknown {
   return {
-    worldPlan: fixture.blueprint.worldPlan,
+    worldPlan: projectCurrentBlueprintProviderWorldPlan(fixture.blueprint),
     frames: fixture.blueprint.frames.map((frame) => ({
       ...frame,
       pageNumber: frame.kind === 'cover' ? null : frame.pageNumber,

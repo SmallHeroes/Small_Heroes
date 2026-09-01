@@ -23,6 +23,11 @@ import {
   type PreRenderBlueprintAuthoringResult,
 } from './preRenderBlueprintAuthoring';
 import {
+  buildPreRenderBlueprintAffordanceConsumerCatalog,
+  projectPreRenderBlueprintAffordanceConsumerChoices,
+  type PreRenderBlueprintAffordanceConsumerCatalog,
+} from './preRenderBlueprintAffordanceConsumerChoices';
+import {
   buildPreRenderBlueprintReviewBundle,
   createPreRenderBlueprintValidationEvidence,
   planPreRenderBlueprintApprovalAttestation,
@@ -974,9 +979,15 @@ function exactMigratedBlueprintProjection(
 
 function blueprintAuthoringDraft(
   source: PreRenderBookVisualBlueprint,
+  consumerCatalog: PreRenderBlueprintAffordanceConsumerCatalog,
 ): Record<string, unknown> {
+  const worldPlan = structuredClone(source.worldPlan);
+  worldPlan.affordances = projectPreRenderBlueprintAffordanceConsumerChoices({
+    affordances: worldPlan.affordances,
+    catalog: consumerCatalog,
+  }) as PreRenderBookVisualBlueprint['worldPlan']['affordances'];
   return {
-    worldPlan: structuredClone(source.worldPlan),
+    worldPlan,
     frames: source.frames.map((frame) => ({
       kind: frame.kind,
       pageNumber: frame.kind === 'cover' ? null : frame.pageNumber,
@@ -1084,12 +1095,20 @@ export async function prepareStorySourceRevisionBlueprintMigration(args: {
     blueprint: migration.sourcePackage.blueprint.content,
     attestation: migration.sourcePackage.planningApproval.content,
   };
+  const compilationContext = structuredClone(
+    migration.context.validationContext,
+  );
+  const consumerCatalog =
+    buildPreRenderBlueprintAffordanceConsumerCatalog(
+      compilationContext.template,
+    );
   const draft = blueprintAuthoringDraft(
     exactMigratedBlueprintProjection(previousApproved.blueprint),
+    consumerCatalog,
   );
   let callCount = 0;
   const authored = await compilePreRenderBookVisualBlueprint(
-    migration.context.validationContext,
+    compilationContext,
     {
       model: 'offline-deterministic-blueprint-author/v3',
       reasoningEffort: 'none',

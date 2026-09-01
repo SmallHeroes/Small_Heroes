@@ -30,7 +30,14 @@ import {
   PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA,
   PRE_RENDER_BLUEPRINT_DRAFT_SCHEMA_NAME,
   PRE_RENDER_BLUEPRINT_DRAFT_SCHEMA_VERSION,
+  type PreRenderBlueprintDraftSchemaVersion,
 } from './preRenderBlueprintDraftSchema';
+import {
+  bindPreRenderBlueprintAffordanceConsumerChoices,
+  buildPreRenderBlueprintAffordanceConsumerCatalog,
+  PreRenderBlueprintAffordanceConsumerChoiceBindingError,
+  type PreRenderBlueprintAffordanceConsumerCatalog,
+} from './preRenderBlueprintAffordanceConsumerChoices';
 import { canonicalPreRenderBlueprintTextSafeRegion } from './preRenderBlueprintLayoutPolicy';
 import { sourcePromptReconciliationIssues } from './sourcePromptReconciliation';
 import {
@@ -399,6 +406,8 @@ function materializeCompilerOwnedCameraConsumers(args: {
 export function assemblePreRenderBookVisualBlueprintFromDraft(args: {
   draft: unknown;
   context: PreRenderBlueprintValidationContext;
+  draftSchemaVersion?: PreRenderBlueprintDraftSchemaVersion;
+  consumerCatalog?: PreRenderBlueprintAffordanceConsumerCatalog;
   compositionPolicyVersion?:
     | typeof PRE_RENDER_BLUEPRINT_COMPOSITION_POLICY_VERSION
     | null;
@@ -419,6 +428,18 @@ export function assemblePreRenderBookVisualBlueprintFromDraft(args: {
     if (!isObj(frame)) throw new Error('every draft frame must be an object');
     return deterministicFrameOverlay({ raw: frame, context: args.context });
   });
+  const providerAffordances =
+    (args.draftSchemaVersion ?? PRE_RENDER_BLUEPRINT_DRAFT_SCHEMA_VERSION) ===
+    PRE_RENDER_BLUEPRINT_DRAFT_SCHEMA_VERSION
+      ? bindPreRenderBlueprintAffordanceConsumerChoices({
+          rawAffordances: normalized.worldPlan.affordances,
+          catalog:
+            args.consumerCatalog ??
+            buildPreRenderBlueprintAffordanceConsumerCatalog(
+              args.context.template,
+            ),
+        })
+      : normalized.worldPlan.affordances;
   return finalizePreRenderBookVisualBlueprint({
     version: PRE_RENDER_BOOK_VISUAL_BLUEPRINT_VERSION,
     ...(args.compositionPolicyVersion
@@ -432,7 +453,7 @@ export function assemblePreRenderBookVisualBlueprintFromDraft(args: {
       ) as BlueprintWorldConnection[],
       affordances: clone(
         materializeCompilerOwnedCameraConsumers({
-          rawAffordances: normalized.worldPlan.affordances,
+          rawAffordances: providerAffordances,
           frames,
         }),
       ),
@@ -533,6 +554,10 @@ export function buildPreRenderBlueprintAuthoringSystemPrompt(): string {
     'Page keys p/loc/zone/cast/show/hide/cam/shot/transition/sameLoc/props/actions/safety/castState/',
     'childWardrobe/companionState are binding. prop=[id,state,visibility,stateId,anchorId];',
     'transition=[kind,fromZone,toZone,cue]; safety=[subjectId,relation,targetRef];',
+    'choices={a:[[page,checkId]],p:[[page,propId]],t:[page],s:[[page,subjectId,relation,targetRef]]};',
+    'every non-camera affordance consumer is {kind,choiceIndex} into that matching zero-based choices list.',
+    'Use action only on action_space, placement only on placement_support, transition only on traversal/',
+    'opening_clearance/safe_boundary, and safety only on safe_boundary. Never copy canonical consumer IDs.',
     'castState=[castId,bodyState,injectionArm,bandageArm,freeHand].',
     "Action sub is ['entity',ref], ['cast_group',ids], or ['source',evidenceId,phrase]. effect is",
     "['direction',value] or ['relation',value,targetRef]; state=[relation,targetRef].",
@@ -556,8 +581,12 @@ export function buildPreRenderBlueprintAuthoringSystemPrompt(): string {
 
 export function buildPreRenderBlueprintAuthoringUserPrompt(
   context: PreRenderBlueprintValidationContext,
+  consumerCatalog?: PreRenderBlueprintAffordanceConsumerCatalog,
 ): string {
-  return `BLUEPRINT_PROVIDER_WIRE:\n${serializePreRenderBlueprintProviderWire(context)}`;
+  return `BLUEPRINT_PROVIDER_WIRE:\n${serializePreRenderBlueprintProviderWire(
+    context,
+    consumerCatalog,
+  )}`;
 }
 
 export function buildPreRenderBlueprintRepairSystemPrompt(): string {
@@ -574,9 +603,13 @@ export function buildPreRenderBlueprintRepairSystemPrompt(): string {
     'are [id,subject,predicate,object,effect,state,polarity,side]; repair source subjects omit already-bound prose.',
     'Draft world is [connections,affordances,revealSafeGeometry]. Connection tuples are',
     '[id,kind,from[zone,node],to[zone,node],bidirectional,traversalIds,openingIds,safeBoundaryIds].',
-    'Every affordance starts [id,kind,zone,footprint[x,y,w,h],consumers,...kindFields]. Consumer tuples use',
-    "['a',page,checkId], ['p',page,propId], ['t',page], or",
-    "['s',page,subjectId,relation,targetRef]. Kind fields follow the supplied output schema in schema order.",
+    'Authority choices are a/p/t/s ordered canonical consumer lists. Every affordance starts',
+    '[id,kind,zone,footprint[x,y,w,h],consumers,...kindFields]. Consumer tuples use',
+    "['a',choiceIndex], ['p',choiceIndex], ['t',choiceIndex], or ['s',choiceIndex].",
+    'Choose only a valid zero-based index of the matching authority list and only a consumer kind allowed by the',
+    'strict schema for that affordance kind. Never copy page/check/prop/safety identity fields into a consumer.',
+    'If an affordance has no compatible canonical choice, remove that unused affordance rather than inventing one.',
+    'Kind fields follow the supplied output schema in schema order.',
     'Camera frame consumers are compiler-owned: camera_access consumers must remain empty; choose the camera',
     'only through each frame camera affordanceId. Never output or restore a frameId consumer.',
     'Affordance tails: traversal=[connectionId,direction,minClearance]; opening=[connectionId,openingNode,clearance];',
@@ -599,6 +632,7 @@ export function buildPreRenderBlueprintRepairUserPrompt(args: {
   context: PreRenderBlueprintValidationContext;
   previousDraft: unknown;
   diagnostics: readonly PreRenderBlueprintRepairDiagnostic[];
+  consumerCatalog?: PreRenderBlueprintAffordanceConsumerCatalog;
 }): string {
   return [
     'GROUPED VALIDATION DIAGNOSTICS [code,field,message,expectedSlot,actualSlot,count]:',
@@ -607,6 +641,7 @@ export function buildPreRenderBlueprintRepairUserPrompt(args: {
     serializePreRenderBlueprintRepairWire({
       context: args.context,
       previousDraft: args.previousDraft,
+      consumerCatalog: args.consumerCatalog,
     }),
   ].join('\n');
 }
@@ -675,7 +710,11 @@ export async function compilePreRenderBookVisualBlueprint(
     ) => void;
   },
 ): Promise<PreRenderBlueprintAuthoringResult> {
-  const inputErrors = preRenderBlueprintAuthoringInputErrors(context, config);
+  const compilationContext = clone(context);
+  const inputErrors = preRenderBlueprintAuthoringInputErrors(
+    compilationContext,
+    config,
+  );
   if (inputErrors.length > 0) {
     throw new InvalidPreRenderBlueprintAuthoringInputError(inputErrors);
   }
@@ -684,7 +723,13 @@ export async function compilePreRenderBookVisualBlueprint(
   );
 
   const systemPrompt = buildPreRenderBlueprintAuthoringSystemPrompt();
-  const userPrompt = buildPreRenderBlueprintAuthoringUserPrompt(context);
+  const consumerCatalog = buildPreRenderBlueprintAffordanceConsumerCatalog(
+    compilationContext.template,
+  );
+  const userPrompt = buildPreRenderBlueprintAuthoringUserPrompt(
+    compilationContext,
+    consumerCatalog,
+  );
   const callOptions: PreRenderBlueprintAuthoringCallOptions = {
     model: config.model,
     reasoningEffort: config.reasoningEffort,
@@ -723,25 +768,40 @@ export async function compilePreRenderBookVisualBlueprint(
       parsedDraft = parseDraft(rawDraft);
       candidate = assemblePreRenderBookVisualBlueprintFromDraft({
         draft: parsedDraft,
-        context,
+        context: compilationContext,
+        consumerCatalog,
         compositionPolicyVersion: config.compositionPolicyVersion,
       });
-      const validation = validatePreRenderBookVisualBlueprint(candidate, context);
+      const validation = validatePreRenderBookVisualBlueprint(
+        candidate,
+        compilationContext,
+      );
       if (!validation.ok) {
         errors = issueText(validation.issues);
         repairDiagnostics = validation.issues;
       }
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : String(error);
-      const diagnostic: PreRenderBlueprintRepairDiagnostic = {
-        code: 'draft_assembly_failed',
-        message,
-      };
-      repairDiagnostics = [diagnostic];
-      // Build the persisted error string from the SAME canonical projection, so the
-      // structured diagnostic and its error string can never drift apart.
-      errors = [preRenderBlueprintRepairDiagnosticErrorText(diagnostic)];
+      if (
+        error instanceof
+        PreRenderBlueprintAffordanceConsumerChoiceBindingError
+      ) {
+        repairDiagnostics = error.issues;
+        errors = issueText(error.issues);
+        candidate = null;
+        // The raw choice-shaped draft remains the repair authority below.
+        parsedDraft = parseDraft(rawDraft);
+      } else {
+        const message =
+          error instanceof Error ? error.message : String(error);
+        const diagnostic: PreRenderBlueprintRepairDiagnostic = {
+          code: 'draft_assembly_failed',
+          message,
+        };
+        repairDiagnostics = [diagnostic];
+        // Build the persisted error string from the SAME canonical projection, so the
+        // structured diagnostic and its error string can never drift apart.
+        errors = [preRenderBlueprintRepairDiagnosticErrorText(diagnostic)];
+      }
     }
 
     if (candidate && errors.length === 0) {
@@ -788,9 +848,10 @@ export async function compilePreRenderBookVisualBlueprint(
     }
     const repairSystemPrompt = buildPreRenderBlueprintRepairSystemPrompt();
     const repairUserPrompt = buildPreRenderBlueprintRepairUserPrompt({
-      context,
+      context: compilationContext,
       previousDraft: repairDraft,
       diagnostics: repairDiagnostics,
+      consumerCatalog,
     });
     const repairInputAccounting = blueprintAuthoringInputAccounting({
       systemPrompt: repairSystemPrompt,

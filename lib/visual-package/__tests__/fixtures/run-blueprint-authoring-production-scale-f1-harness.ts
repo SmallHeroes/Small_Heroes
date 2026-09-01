@@ -34,6 +34,10 @@ import {
 } from '../../productionAuthoringRunner';
 import { canonicalJsonDigest } from '../../integrity';
 import {
+  buildPreRenderBlueprintAffordanceConsumerCatalog,
+  projectPreRenderBlueprintAffordanceConsumerChoices,
+} from '../../preRenderBlueprintAffordanceConsumerChoices';
+import {
   computeVisualPackageV4RevisionDigest,
   loadVisualPackageV4Revision,
   type VisualPackageV4,
@@ -47,12 +51,12 @@ const EXPECTED_CONTEXT_DIGEST =
   '0cc212ea805e53395d9757c04b436ac55527aecc2f434c5a35c5c91dbee80d0c';
 const EXPECTED_DIAGNOSTIC_COUNT = 86;
 const EXPECTED_REPAIR_ACCOUNTING = {
-  systemBytes: 2_614,
-  userBytes: 50_530,
-  schemaBytes: 20_753,
+  systemBytes: 3_165,
+  userBytes: 50_575,
+  schemaBytes: 13_505,
   separatorBytes: 2,
   protocolAllowance: 4_096,
-  estimatedBytes: 77_995,
+  estimatedBytes: 71_343,
 } as const;
 
 type ProviderCallArgs = Parameters<ProductionAuthoringProvider['call']>[0];
@@ -130,8 +134,15 @@ function contextFromPackage(pkg: VisualPackageV4): ProductionAuthoringContext {
 }
 
 function providerDraft(pkg: VisualPackageV4) {
+  const worldPlan = structuredClone(pkg.blueprint.content.worldPlan);
+  worldPlan.affordances = projectPreRenderBlueprintAffordanceConsumerChoices({
+    affordances: worldPlan.affordances,
+    catalog: buildPreRenderBlueprintAffordanceConsumerCatalog(
+      pkg.visualContractTemplate.content,
+    ),
+  }) as typeof worldPlan.affordances;
   const draft = {
-    worldPlan: structuredClone(pkg.blueprint.content.worldPlan),
+    worldPlan,
     frames: pkg.blueprint.content.frames.map((frame) => ({
       kind: frame.kind,
       pageNumber: frame.kind === 'cover' ? null : frame.pageNumber,

@@ -45,6 +45,7 @@ import {
 } from './preRenderBlueprintAuthoringContract';
 import {
   LEGACY_PRE_RENDER_BLUEPRINT_DRAFT_SCHEMA_VERSION_V6,
+  LEGACY_PRE_RENDER_BLUEPRINT_DRAFT_SCHEMA_VERSION_V7,
   PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA,
   PRE_RENDER_BLUEPRINT_DRAFT_SCHEMA_NAME,
   PRE_RENDER_BLUEPRINT_DRAFT_SCHEMA_VERSION,
@@ -60,8 +61,10 @@ import {
   PRE_RENDER_BLUEPRINT_LAYOUT_POLICY_VERSION,
 } from './preRenderBlueprintLayoutPolicy';
 import {
+  LEGACY_PRE_RENDER_BLUEPRINT_PROVIDER_WIRE_VERSION_V1,
   LEGACY_PRE_RENDER_BLUEPRINT_REPAIR_WIRE_VERSION_V1,
   LEGACY_PRE_RENDER_BLUEPRINT_REPAIR_WIRE_VERSION_V2,
+  LEGACY_PRE_RENDER_BLUEPRINT_REPAIR_WIRE_VERSION_V3,
   PRE_RENDER_BLUEPRINT_PROVIDER_WIRE_VERSION,
   PRE_RENDER_BLUEPRINT_REPAIR_WIRE_VERSION,
 } from './preRenderBlueprintProviderWire';
@@ -97,6 +100,9 @@ export const LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_DIGEST_PROMPT_V7 =
  */
 export const LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_DIGEST_REPAIR_PROMPT_V8 =
   '3e3620216a38422e1e0513487073eb166ad64085483f12d35ed18e00322ff3ca' as const;
+/** Exact immutable program consumed by the camera-authority paid run. */
+export const LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_DIGEST_CAMERA_AUTHORITY =
+  '1bd60e8c172304aa8c05715e76149b69b7f36992111d37cd86a98db9da6bbe10' as const;
 
 const HEX_SHA256 = /^[a-f0-9]{64}$/;
 
@@ -176,13 +182,18 @@ export type ReplayableBlueprintAuthoringExecutionProgram = Omit<
   BlueprintAuthoringExecutionProgram,
   | 'initialPromptVersion'
   | 'repairPromptVersion'
+  | 'providerWireVersion'
   | 'repairWireVersion'
   | 'draftSchemaVersion'
 > & {
   initialPromptVersion: PreRenderBlueprintAuthoringPromptVersion;
   repairPromptVersion: PreRenderBlueprintRepairPromptVersion;
+  providerWireVersion:
+    | typeof PRE_RENDER_BLUEPRINT_PROVIDER_WIRE_VERSION
+    | typeof LEGACY_PRE_RENDER_BLUEPRINT_PROVIDER_WIRE_VERSION_V1;
   repairWireVersion:
     | typeof PRE_RENDER_BLUEPRINT_REPAIR_WIRE_VERSION
+    | typeof LEGACY_PRE_RENDER_BLUEPRINT_REPAIR_WIRE_VERSION_V3
     | typeof LEGACY_PRE_RENDER_BLUEPRINT_REPAIR_WIRE_VERSION_V2
     | typeof LEGACY_PRE_RENDER_BLUEPRINT_REPAIR_WIRE_VERSION_V1;
   draftSchemaVersion: PreRenderBlueprintDraftSchemaVersion;
@@ -341,6 +352,55 @@ export const LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_REPAIR_PROMPT_V8 = Obj
   version: 'blueprint-authoring-execution-program/v1',
 } as const satisfies ReplayableBlueprintAuthoringExecutionProgram);
 
+/**
+ * Frozen complete snapshot for the schema-v7 / prompt-v8 / repair-v9 /
+ * provider-wire-v1 / repair-wire-v3 program consumed before bounded semantic
+ * consumer choices became compiler authority.
+ */
+export const LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_CAMERA_AUTHORITY = Object.freeze({
+  admissionLedgerVersion: 'blueprint-authoring-admission-ledger/v1',
+  authoringAuthorityVersion: 'pre-render-blueprint-authoring-authority/v4',
+  authoringPolicyDigest:
+    'a5a2052d1364685e09542fc54d25f3102621ca2fdcdb7a2b3d0a056b69da724f',
+  authoringProvenanceVersion: 'pre-render-blueprint-authoring-provenance/v4',
+  authoringSystemPromptDigest:
+    '4b7f8d1effe47b43d28baa0ff3d5fff69426455acce02f54040274dfb6ee9e9e',
+  blueprintVersion: 'pre-render-book-visual-blueprint/v5',
+  compositionPolicyVersion: 'blueprint-composition-policy/v1',
+  countAwareCostPolicyDigest:
+    '0e67b4743b76ac856e14a42b1e71b2522701857ea748ed1265e71e5fc11bec19',
+  countEvidenceVersion: 'openai-responses-input-tokens-count-evidence/v1',
+  digest: LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_DIGEST_CAMERA_AUTHORITY,
+  digestAlgorithm: 'canonical-json-sha256',
+  draftSchemaDigest:
+    '89fe06057ee4a6bcb05d92dfb2c20e116e39eeae4e1d1026ba7dab1830d3fd18',
+  draftSchemaName: 'PreRenderBookVisualBlueprintWholeBookDraft',
+  draftSchemaVersion: LEGACY_PRE_RENDER_BLUEPRINT_DRAFT_SCHEMA_VERSION_V7,
+  exactInputTokenResponseObject: 'response.input_tokens',
+  generationEvidenceVersion: 'openai-responses-blueprint-authoring-evidence/v1',
+  initialPromptVersion: 'pre-render-blueprint-authoring-prompt/v8',
+  inputAdmissionPolicyVersion:
+    'blueprint-authoring-conservative-input-token-admission/v1',
+  inputTokenBoundBasis: 'utf8-byte-level-bpe-monotone-upper-bound',
+  layoutPolicyDigest:
+    'a8466698208b55f2f7c8df8e914a6a5468c6c626d1c763c100b6e01a61607c59',
+  layoutPolicyVersion: 'portrait-layout-compatibility/v1',
+  providerWireVersion: LEGACY_PRE_RENDER_BLUEPRINT_PROVIDER_WIRE_VERSION_V1,
+  repairPromptVersion: 'pre-render-blueprint-repair-prompt/v9',
+  repairSystemPromptDigest:
+    'f6504755c199383886348e4c5f75c821dce38ba2c789c0428b6f9c0fb108ff64',
+  repairWireVersion: LEGACY_PRE_RENDER_BLUEPRINT_REPAIR_WIRE_VERSION_V3,
+  structuredOutputCompatibilityProfileDigest:
+    'c5f7cacccff01c435b15cb9d20d0b6cff9ec4c399c5978b50ee81da9fb54523a',
+  structuredOutputCompatibilityProfileVersion:
+    'openai-responses-structured-output-compatibility-profile/v2',
+  tokenRelevantRequestStaticAuthorityDigest:
+    '6b4fe1100ac3aac88fe08fe5a7d394cd6ceb51759c4704f1a968320669014491',
+  transportAuthorityDigest:
+    'f0a1718c6ab892bdb05375592ef6951fcb1a756ad15310a6dbda5f4212873b67',
+  version: 'blueprint-authoring-execution-program/v1',
+} as const satisfies ReplayableBlueprintAuthoringExecutionProgram);
+
 function exactKeys(
   value: unknown,
   keys: readonly string[],
@@ -464,6 +524,7 @@ export function blueprintAuthoringExecutionProgramStatus(
   }
   const valueDigest = canonicalJsonDigest(value);
   return [
+    LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_CAMERA_AUTHORITY,
     LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_REPAIR_PROMPT_V8,
     LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_PROMPT_V7,
     LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_PROMPT_V6,

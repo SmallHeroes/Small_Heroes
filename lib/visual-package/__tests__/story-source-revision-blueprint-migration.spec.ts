@@ -234,6 +234,63 @@ describe('Story Source revision reconciliation and Blueprint migration', () => {
     }
   });
 
+  it('binds the legacy semantic-consumer migration producer through current choices in one call without identity drift', async () => {
+    const output = freshOutputRoot('consumer-choice-producer');
+    try {
+      const phaseOne = preparePhaseOne(output.relative);
+      const approval = approvePhaseOne(phaseOne);
+      const sourcePackage = loadVisualPackageV4Revision({
+        repoRoot: REPO_ROOT,
+        packagePath: phaseOne.manifest.sourcePackage.packagePath,
+        expectedRevisionDigest: phaseOne.manifest.sourcePackage.revisionDigest,
+      });
+      const sourceAffordances =
+        sourcePackage.blueprint.content.worldPlan.affordances;
+      expect(
+        sourceAffordances.some((affordance) =>
+          affordance.consumers.some(
+            (consumer) =>
+              consumer.kind !== 'frame' &&
+              !Object.prototype.hasOwnProperty.call(consumer, 'choiceIndex'),
+          ),
+        ),
+      ).toBe(true);
+
+      const migrated = await prepareStorySourceRevisionBlueprintMigration({
+        repoRoot: REPO_ROOT,
+        approvalPath: approval.approvalPath,
+        write: false,
+      });
+
+      expect(migrated.authored.provenance).toMatchObject({
+        callCount: 1,
+        passingAttempt: 1,
+        draftSchemaVersion: 'pre-render-blueprint-draft-schema/v8',
+        promptVersion: 'pre-render-blueprint-authoring-prompt/v9',
+      });
+      expect(migrated.authored.repairAttempts).toEqual([]);
+      expect(migrated.authored.blueprint.worldPlan.affordances).toEqual(
+        sourceAffordances,
+      );
+      expect(
+        JSON.stringify(migrated.authored.blueprint.worldPlan.affordances),
+      ).not.toContain('choiceIndex');
+      for (const frame of migrated.authored.blueprint.frames) {
+        const cameraAffordance =
+          migrated.authored.blueprint.worldPlan.affordances.find(
+            (affordance) => affordance.id === frame.camera.affordanceId,
+          );
+        expect(cameraAffordance?.kind).toBe('camera_access');
+        expect(cameraAffordance?.consumers).toContainEqual({
+          kind: 'frame',
+          frameId: frame.id,
+        });
+      }
+    } finally {
+      cleanup(output.absolute);
+    }
+  });
+
   it('previews without writing and replays exact immutable bytes', async () => {
     const output = freshOutputRoot('replay');
     try {
