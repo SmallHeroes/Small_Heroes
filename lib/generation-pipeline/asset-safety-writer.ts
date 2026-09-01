@@ -13,15 +13,20 @@
  * safetyContentSha256 null → Gate 2's predicate fails closed → the book holds at needs_human_qa and the hazard is
  * SURFACED as `sha_missing` (isSafetyShaMissing) — never a silent ship.
  *
- * It writes ONLY the content SHA — never the detector's finding (safetyVerified/safetyHazards) and never the override
- * columns — so it cannot leave a stale override (phase-1 already reset it). That is why it is a sanctioned exception
- * to the delivery-input barrier (it is not a delivery-INPUT write) and is NOT flagged by the phase-1 writer guard.
+ * The phase-2 bind functions write ONLY the content SHA — never the detector's finding or override columns. The
+ * module also owns one separately documented retained-byte reconciliation writer: unlike phase 2, that writer runs
+ * only inside the delivery-input barrier and atomically CASes the canonical field-builder result plus Gate-1 evidence
+ * after exact-byte QA. Keeping both write shapes here makes the safety-writer census closed and reviewable.
  *
  * Always-on: Gate 2 is readiness-INDEPENDENT, and single-page-image-regen binds a SHA without ever calling the
  * flag-gated persistDeliveredQualityEvidence — so this must never depend on that producer.
  */
 import type { PrismaClient, Prisma } from '@prisma/client';
-import { SAFETY_SHA256_RE } from './asset-safety-signal';
+import {
+  SAFETY_SHA256_RE,
+  coverSafetyFields,
+  imageAssetSafetyFields,
+} from './asset-safety-signal';
 
 export interface SafetyShaBindResult {
   /** true when the CAS bound the SHA to exactly one row (the inspected bytes are still the delivered bytes). */
@@ -105,4 +110,131 @@ export async function writeSafetyReleaseOverride(
     where: { orderId_artifactKey: { orderId: args.orderId, artifactKey: args.artifactKey } },
     data: { safetyOverride: true, safetyOverrideSha256: args.overrideSha256 },
   });
+}
+
+/**
+ * Atomically reconcile both safety gates after a determinate safe-or-hazard QA
+ * result on exact, already-delivered bytes. This is intentionally narrower than a render
+ * write: bytes/URLs/prompts never change, confirmed hazards and overrides are
+ * ineligible, and every prior row field participates in the CAS.
+ *
+ * The caller must evaluate outside the transaction, then hold the Order/book/
+ * asset/QualityEvidence locks and run this inside the delivery-input mutation
+ * barrier. A CAS miss throws so Gate 1 and Gate 2 can never diverge.
+ */
+export async function writeRetainedSafetyEvaluation(
+  tx: Prisma.TransactionClient,
+  args: {
+    orderId: string;
+    artifactKey: string;
+    target:
+      | {
+          kind: 'page';
+          pageId: string;
+          assetId: string;
+          sourceUrl: string;
+          presentationUrl: string | null;
+        }
+      | {
+          kind: 'cover';
+          bookId: string;
+          coverImageUrl: string;
+        };
+    sha256: string;
+    /** Empty only for a verified-safe result; non-empty is a newly confirmed hazard union. */
+    hazards: string[];
+    evidence: Prisma.InputJsonValue;
+    evaluatedAt: Date;
+    expectedEvidence: {
+      assetSha256: string;
+      verdict: string;
+      evaluatorContractVersion: string;
+      contractHash: string | null;
+      safetyOverride: boolean;
+      safetyOverrideSha256: string | null;
+      updatedAt: Date;
+    };
+  },
+): Promise<void> {
+  if (!SAFETY_SHA256_RE.test(args.sha256)) {
+    throw new Error('[asset-safety-writer] retained re-verification SHA malformed');
+  }
+
+  if (args.target.kind === 'page') {
+    const asset = await tx.imageAsset.updateMany({
+      where: {
+        id: args.target.assetId,
+        pageId: args.target.pageId,
+        url: args.target.sourceUrl,
+        presentationUrl: args.target.presentationUrl,
+        safetyVerified: false,
+        safetyHazards: { equals: [] },
+        safetyContentSha256: args.sha256,
+        safetyOverriddenHazards: { equals: [] },
+        safetyOverrideSha256: null,
+      },
+      data: imageAssetSafetyFields({
+        verified: true,
+        hazards: args.hazards,
+        contentSha256: args.sha256,
+      }),
+    });
+    if (asset.count !== 1) {
+      throw new Error('[asset-safety-writer] retained page safety CAS lost');
+    }
+  } else {
+    const book = await tx.generatedBook.updateMany({
+      where: {
+        id: args.target.bookId,
+        orderId: args.orderId,
+        coverImageUrl: args.target.coverImageUrl,
+        coverSafetyVerified: false,
+        coverSafetyHazards: { equals: [] },
+        coverSafetyContentSha256: args.sha256,
+        coverSafetyOverriddenHazards: { equals: [] },
+        coverSafetyOverrideSha256: null,
+      },
+      data: coverSafetyFields({
+        verified: true,
+        hazards: args.hazards,
+        contentSha256: args.sha256,
+      }),
+    });
+    if (book.count !== 1) {
+      throw new Error('[asset-safety-writer] retained cover safety CAS lost');
+    }
+  }
+
+  const qualityEvidence = await tx.qualityEvidence.updateMany({
+    where: {
+      orderId: args.orderId,
+      artifactKey: args.artifactKey,
+      assetSha256: args.expectedEvidence.assetSha256,
+      verdict: args.expectedEvidence.verdict,
+      evaluatorContractVersion:
+        args.expectedEvidence.evaluatorContractVersion,
+      contractHash: args.expectedEvidence.contractHash,
+      safetyOverride: args.expectedEvidence.safetyOverride,
+      safetyOverrideSha256: args.expectedEvidence.safetyOverrideSha256,
+      updatedAt: args.expectedEvidence.updatedAt,
+    },
+    data: {
+      assetSha256: args.sha256,
+      verdict: args.hazards.length > 0 ? 'failed' : 'passed',
+      evaluatorContractVersion:
+        args.expectedEvidence.evaluatorContractVersion,
+      reason:
+        args.hazards.length > 0
+          ? `safety:${args.hazards.join('|')}`
+          : null,
+      evidence: args.evidence,
+      contractHash: args.expectedEvidence.contractHash,
+      safetyOverride: false,
+      safetyOverrideSha256: null,
+      evaluatedAt: args.evaluatedAt,
+    },
+  });
+  if (qualityEvidence.count !== 1) {
+    throw new Error('[asset-safety-writer] retained quality-evidence CAS lost');
+  }
 }

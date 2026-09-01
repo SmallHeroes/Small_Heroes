@@ -33,6 +33,16 @@ export type PipelineCache = {
         cover: string;
         pages: Array<{ pageNumber: number; sha256: string }>;
       };
+      /** Exact-byte, zero-render safety reconciliation performed by this attempt. */
+      safetyReverification?: Array<{
+        artifactKey: string;
+        sha256: string;
+        qaContextDigest: string;
+        evaluatorContractVersion: string;
+        visualVerdict: 'passed' | 'failed' | 'evidence_unknown';
+        safetyStatus: 'safe' | 'hazard' | 'unverified';
+        worldStatus: 'pass' | 'fail' | 'error' | null;
+      }>;
       recoveredAt: string;
     }>;
   };

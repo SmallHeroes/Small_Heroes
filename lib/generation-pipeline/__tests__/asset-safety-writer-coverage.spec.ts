@@ -16,7 +16,7 @@ import {
  *
  * A field-builder is a convention until a build FAILS when it is bypassed. This walks app/lib/backend and fails if any
  * ImageAsset/GeneratedBook Prisma write sets a c-ii safety-signal column as an INLINE `data` property instead of via
- * the `...imageAssetSafetyFields(...)` / `...coverSafetyFields(...)` spread. The single sanctioned exception is the
+ * the canonical `imageAssetSafetyFields(...)` / `coverSafetyFields(...)` result. The inline sanctioned exception is the
  * phase-2 content-SHA advance (asset-safety-writer.ts), which writes ONLY safetyContentSha256/coverSafetyContentSha256
  * (never the detector finding or the override) — it cannot leave a stale override.
  */
@@ -141,7 +141,7 @@ function isSanctionedShaBind(v: Violation): boolean {
 }
 
 describe('asset safety-signal writer coverage — the detector finding flows ONLY through the field-builders', () => {
-  it('no ImageAsset/GeneratedBook write sets a safety-signal column inline (must spread imageAssetSafetyFields/coverSafetyFields)', () => {
+  it('no ImageAsset/GeneratedBook write sets a safety-signal column inline (must use imageAssetSafetyFields/coverSafetyFields)', () => {
     const sources = repositorySources();
     expect(
       sources.some(({ relative }) => relative === 'lib/generation-pipeline/asset-safety-writer.ts'),
@@ -203,5 +203,24 @@ describe('asset safety-signal writer coverage — the detector finding flows ONL
     expect(isSanctionedShaBind({ relative: 'lib/foo.ts', line: 1, model: 'imageAsset', fields: ['safetyOverrideSha256'] })).toBe(false);
     // and the real writer actually contains the sanctioned override write (guard is not vacuous)
     expect(readFileSync(path.join(ROOT, WRITER), 'utf8')).toContain('writeSafetyReleaseOverride');
+  });
+
+  it('pins the retained-byte dual-gate writer to canonical field builders and the reviewed recovery caller', () => {
+    const writer = readFileSync(
+      path.join(ROOT, 'lib/generation-pipeline/asset-safety-writer.ts'),
+      'utf8',
+    );
+    expect(writer).toContain('writeRetainedSafetyEvaluation');
+    expect(writer).toContain('data: imageAssetSafetyFields(');
+    expect(writer).toContain('data: coverSafetyFields(');
+    expect(writer).toContain('tx.qualityEvidence.updateMany(');
+
+    const recovery = readFileSync(
+      path.join(ROOT, 'lib/generation-pipeline/release-v1-recovery.ts'),
+      'utf8',
+    );
+    expect(
+      recovery.match(/writeRetainedSafetyEvaluation\(/gu)?.length ?? 0,
+    ).toBe(2);
   });
 });

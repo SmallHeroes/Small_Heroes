@@ -26,6 +26,18 @@ export type PageWorldQaResult = {
   raw?: Record<string, unknown>;
 };
 
+/** One bounded deadline per world-QA provider call. */
+export const PAGE_WORLD_QA_TIMEOUT_MS_DEFAULT = 30_000;
+
+export function resolvePageWorldQaTimeoutMs(): number {
+  const raw = process.env.PAGE_WORLD_QA_TIMEOUT_MS?.trim();
+  if (raw) {
+    const parsed = Number.parseInt(raw, 10);
+    if (Number.isFinite(parsed) && parsed > 0) return parsed;
+  }
+  return PAGE_WORLD_QA_TIMEOUT_MS_DEFAULT;
+}
+
 function errorResult(notes: string, raw?: Record<string, unknown>): PageWorldQaResult {
   return { status: 'error', passed: false, hardFailures: [], driftObjects: [], notes, raw };
 }
@@ -142,6 +154,7 @@ export async function evaluatePageWorldQa(input: {
     const res = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+      signal: AbortSignal.timeout(resolvePageWorldQaTimeoutMs()),
       body: JSON.stringify({
         model: process.env.CHILD_PHOTO_VISION_MODEL?.trim() || 'gpt-4o',
         max_tokens: 400,

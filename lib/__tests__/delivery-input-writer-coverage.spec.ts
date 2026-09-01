@@ -427,12 +427,14 @@ function isExplicitReconciliationFulfillmentRoll(site: WriterSite): boolean {
 /**
  * (release shape C + 2a-2) asset-safety-writer.ts is the ONE sanctioned ImageAsset/GeneratedBook writer that runs
  * OUTSIDE the delivery-input barrier — by design: the phase-2 SHA bind must not `inspectAsset` inside the Order-lock
- * tx, and the release override writes inside the READINESS tx, not this barrier. TWO tightly-scoped shapes, both in
- * that exact file, both writing ONLY non-delivery-input, non-detector safety columns:
+ * tx, and the release override writes inside the READINESS tx, not this barrier. Three tightly-scoped shapes live in
+ * that exact file:
  *   • phase-2 SHA bind — `updateMany`, the single content SHA (safetyContentSha256 / coverSafetyContentSha256);
  *   • release override — `update`, ONLY the override columns (safety{,cover}OverriddenHazards + OverrideSha256).
- * A detector-field (safetyVerified / safetyHazards) write is NOT covered here either — the complementary guard
- * asset-safety-writer-coverage.spec.ts forces every detector write through the field-builders.
+ *   • retained-byte reconciliation — `updateMany` through the canonical safety field-builder, called from the
+ *     release recovery's delivery-input barrier after exact-byte QA.
+ * An INLINE detector-field write is NOT covered — asset-safety-writer-coverage.spec.ts still forces detector writes
+ * through the field-builders.
  */
 const SAFETY_WRITER_OVERRIDE_FIELDS: Record<string, Set<string>> = {
   imageAsset: new Set(['safetyOverriddenHazards', 'safetyOverrideSha256']),
@@ -442,9 +444,18 @@ const SAFETY_WRITER_CONTENT_SHA: Record<string, string> = {
   imageAsset: 'safetyContentSha256',
   generatedBook: 'coverSafetyContentSha256',
 };
-function isSanctionedSafetyWriterWrite(site: WriterSite): boolean {
-  if (site.relative !== 'lib/generation-pipeline/asset-safety-writer.ts' || !site.dataFields) return false;
+function isSanctionedSafetyWriterWrite(site: WriterSite, sourceText?: string): boolean {
+  if (site.relative !== 'lib/generation-pipeline/asset-safety-writer.ts') return false;
   if (site.model !== 'imageAsset' && site.model !== 'generatedBook') return false;
+  if (!site.dataFields) {
+    const window = sourceWindow(site, sourceText, 35);
+    return (
+      site.method === 'updateMany' &&
+      (site.model === 'imageAsset'
+        ? window.includes('data: imageAssetSafetyFields(')
+        : window.includes('data: coverSafetyFields('))
+    );
+  }
   if (site.method === 'updateMany' && site.dataFields.length === 1 && site.dataFields[0] === SAFETY_WRITER_CONTENT_SHA[site.model]) return true;
   const override = SAFETY_WRITER_OVERRIDE_FIELDS[site.model];
   if (site.method === 'update' && site.dataFields.length > 0 && site.dataFields.every((f) => override.has(f))) return true;
@@ -493,7 +504,7 @@ describe('P1-f #5 delivery-input writer coverage', () => {
         !isJobCreationSeedException(site, sourceByRelative.get(site.relative)) &&
         !isReadinessCommitOrderStateWrite(site) &&
         !isExplicitReconciliationFulfillmentRoll(site) &&
-        !isSanctionedSafetyWriterWrite(site) &&
+        !isSanctionedSafetyWriterWrite(site, sourceByRelative.get(site.relative)) &&
         !isSanctionedChildPhotoScrub(site, sourceByRelative.get(site.relative)) &&
         !isGenerationStageInputPersistence(site) &&
         !isSanctionedScriptWrite(site, sourceByRelative.get(site.relative)) &&

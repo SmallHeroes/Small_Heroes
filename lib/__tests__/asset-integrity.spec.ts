@@ -1,6 +1,11 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import sharp from 'sharp';
-import { isAllowedAssetUrl, inspectAsset } from '@/lib/generation-pipeline/asset-integrity';
+import {
+  isAllowedAssetUrl,
+  inspectAsset,
+  inspectAssetWithBytes,
+} from '@/lib/generation-pipeline/asset-integrity';
+import { createHash } from 'crypto';
 
 const PUB = (p: string) => `https://proj123.supabase.co/storage/v1/object/public/book-images/${p}`;
 
@@ -77,6 +82,21 @@ describe('inspectAsset — streaming cap + full decode + pixel cap (B7)', () => 
     expect(r.sha256).toMatch(/^[0-9a-f]{64}$/);
   });
 
+  it('returns the exact fully-decoded bytes behind the reported SHA only to the explicit bytes caller', async () => {
+    const buf = await png(8, 8);
+    mockFetch(buf);
+    const withBytes = await inspectAssetWithBytes(URL);
+    expect(withBytes.ok).toBe(true);
+    expect(withBytes.data?.equals(buf)).toBe(true);
+    expect(withBytes.sha256).toBe(
+      createHash('sha256').update(withBytes.data!).digest('hex'),
+    );
+
+    mockFetch(buf);
+    const ordinary = await inspectAsset(URL);
+    expect(ordinary).not.toHaveProperty('data');
+  });
+
   it('rejects a header-valid-but-corrupt-pixels file (full decode fails)', async () => {
     const buf = Buffer.from(await png(8, 8));
     buf.fill(0, 40); // keep the PNG signature/IHDR, trash the pixel (IDAT) data
@@ -92,6 +112,18 @@ describe('inspectAsset — streaming cap + full decode + pixel cap (B7)', () => 
     const r = await inspectAsset(URL, { maxBytes: 100 });
     expect(r.ok).toBe(false);
     expect(r.error).toBe('too_large');
+  });
+
+  it('enforces the byte cap in a runtime without a readable response stream', async () => {
+    const buf = Buffer.alloc(2048, 7);
+    vi.spyOn(global, 'fetch').mockResolvedValue({
+      ok: true,
+      headers: new Headers(),
+      body: null,
+      arrayBuffer: async () => buf,
+    } as unknown as Response);
+    const r = await inspectAssetWithBytes(URL, { maxBytes: 100 });
+    expect(r).toMatchObject({ ok: false, error: 'too_large', data: null });
   });
 
   it('rejects a decompression bomb beyond the pixel cap', async () => {

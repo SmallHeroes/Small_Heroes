@@ -419,7 +419,9 @@ export async function evaluatePageVisualQaWithReQa(
 ): Promise<PageVisualQaResult> {
   let qa = await evaluate(input);
   for (let attempt = 0; isRetryableQaEvidenceFailure(qa) && attempt < maxReQa; attempt += 1) {
-    console.log(`[page_visual_qa] reqa_same_image imageUrl=${input.imageUrl} attempt=${attempt + 1}/${maxReQa}`);
+    // Never log a customer asset URL or an inline data URL. The caller already
+    // owns artifact/SHA observability; this line records only the bounded retry.
+    console.log(`[page_visual_qa] reqa_same_image attempt=${attempt + 1}/${maxReQa}`);
     qa = await evaluate(input);
   }
   return qa;

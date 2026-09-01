@@ -10,9 +10,25 @@ import { canonicalJsonDigest } from '@/lib/visual-package/integrity';
 
 import {
   inspectAsset,
+  inspectAssetWithBytes,
   isAllowedAssetUrl,
   type AssetInspection,
+  type AssetInspectionWithBytes,
 } from './asset-integrity';
+import {
+  classifyPageVisualQaOutcome,
+  evaluatePageVisualQa,
+  evaluatePageVisualQaWithReQa,
+  REQA_MALFORMED_MAX_ATTEMPTS,
+  type PageVisualQaResult,
+} from './page-visual-qa';
+import {
+  evaluatePageWorldQa,
+  type PageWorldQaResult,
+} from './page-world-qa';
+import { QUALITY_EVALUATOR_CONTRACT_VERSION } from './quality-evidence';
+import type { QaContext } from './quality-evidence-producer';
+import { writeRetainedSafetyEvaluation } from './asset-safety-writer';
 import {
   buildGenerationReleaseContinuityV1,
   parseGenerationReleaseContinuityV1,
@@ -24,7 +40,13 @@ import {
   type WizardProductBindingV1,
 } from './release-v1-continuity';
 import { persistOrdinaryPipelineCache } from './pipeline-cache-store';
+import { withDeliveryInputMutation } from './readiness-manifest';
+import {
+  hashOperationPayload,
+  runAtomicOperation,
+} from './atomic-operation';
 import type { PipelineCache } from './types';
+import { isStoryTimeOfDay } from '@/lib/story-time-of-day';
 
 export const RELEASE_V1_RECOVERY_REASON = 'reviewed_code_fix_resume' as const;
 const RELEASE_V1_RECOVERY_LOG_VERSION = 'release-v1-recovery-log/v1' as const;
@@ -44,6 +66,8 @@ const RELEASE_V1_RECOVERY_ORDER_SELECT = {
   ...RELEASE_V1_ORDER_AUTHORITY_SELECT,
   status: true,
   inputVersion: true,
+  deliveryFenceVersion: true,
+  visualContractHash: true,
   updatedAt: true,
   expectedPageCount: true,
   totalPrice: true,
@@ -99,6 +123,8 @@ const RELEASE_V1_RECOVERY_ORDER_SELECT = {
       coverSafetyVerified: true,
       coverSafetyHazards: true,
       coverSafetyContentSha256: true,
+      coverSafetyOverriddenHazards: true,
+      coverSafetyOverrideSha256: true,
       pages: {
         orderBy: { pageNumber: 'asc' },
         select: {
@@ -115,6 +141,8 @@ const RELEASE_V1_RECOVERY_ORDER_SELECT = {
               safetyVerified: true,
               safetyHazards: true,
               safetyContentSha256: true,
+              safetyOverriddenHazards: true,
+              safetyOverrideSha256: true,
             },
           },
         },
@@ -148,6 +176,23 @@ const RELEASE_V1_RECOVERY_ORDER_SELECT = {
       rawUrl: true,
       provider: true,
       createdAt: true,
+      updatedAt: true,
+    },
+  },
+  qualityEvidence: {
+    orderBy: { artifactKey: 'asc' },
+    select: {
+      artifactKey: true,
+      assetSha256: true,
+      verdict: true,
+      evaluatorContractVersion: true,
+      reason: true,
+      regenCount: true,
+      providerModel: true,
+      evidence: true,
+      contractHash: true,
+      safetyOverride: true,
+      safetyOverrideSha256: true,
       updatedAt: true,
     },
   },
@@ -197,6 +242,14 @@ export interface ReleaseV1RecoveryInspection {
       sha256: string;
     }>;
   };
+  safetyReverification: Array<{
+    artifactKey: string;
+    pageNumber: number | null;
+    sha256: string;
+    qaContextDigest: string;
+    evaluatorContractVersion: string;
+    contractHash: string | null;
+  }>;
 }
 
 export type ReleaseV1RecoveryResult =
@@ -242,20 +295,135 @@ export class ReleaseV1RecoveryError extends Error {
 type RecoveryDeps = {
   db?: PrismaClient;
   inspect?: typeof inspectAsset;
+  inspectWithBytes?: typeof inspectAssetWithBytes;
+  evaluate?: (
+    input: Parameters<typeof evaluatePageVisualQa>[0],
+  ) => Promise<PageVisualQaResult>;
+  evaluateWorld?: (
+    input: Parameters<typeof evaluatePageWorldQa>[0],
+  ) => Promise<PageWorldQaResult>;
   dispatch?: typeof chainGenerationWorker;
   now?: () => Date;
   env?: NodeJS.ProcessEnv;
 };
+
+type RecoveryQualityEvidence = RecoveryOrder['qualityEvidence'][number];
+
+type SafetyReverificationTarget = {
+  artifactKey: string;
+  kind: 'cover' | 'page';
+  pageNumber: number | null;
+  pageId: string | null;
+  assetId: string | null;
+  sourceUrl: string;
+  presentationUrl: string | null;
+  deliveredUrl: string;
+  sha256: string;
+  qaContext: QaContext;
+  qaContextDigest: string;
+  evidence: RecoveryQualityEvidence;
+  inspection: AssetInspectionWithBytes;
+};
+
+type PendingSafetyReverificationTarget = Omit<
+  SafetyReverificationTarget,
+  'sha256' | 'inspection'
+> & {
+  safetyContentSha256: string;
+};
+
+type SafetyReverificationProof = {
+  target: SafetyReverificationTarget;
+  visual: PageVisualQaResult;
+  world: PageWorldQaResult | null;
+};
+
+type SafetyReverificationEvaluation =
+  | { status: 'passed'; proofs: SafetyReverificationProof[] }
+  | { status: 'confirmed_hazard'; proof: SafetyReverificationProof };
 
 type RecoveryPlan = {
   order: RecoveryOrder;
   cache: PipelineCache;
   databaseSnapshotDigest: string;
   inspection: ReleaseV1RecoveryInspection;
+  safetyReverificationTargets: SafetyReverificationTarget[];
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === 'object' && !Array.isArray(value);
+}
+
+const QA_CONTEXT_BOOLEAN_KEYS = [
+  'expectsChild',
+  'expectsCompanion',
+  'isEmotionalClosing',
+  'hasStructuredObjects',
+  'hasRailedBedOrCrib',
+  'hasHumanFamily',
+] as const;
+
+function parseStoredQaContext(
+  evidence: Prisma.JsonValue | null,
+): QaContext | null {
+  if (!isRecord(evidence) || !isRecord(evidence.qaContext)) return null;
+  const raw = evidence.qaContext;
+  if (QA_CONTEXT_BOOLEAN_KEYS.some((key) => typeof raw[key] !== 'boolean')) {
+    return null;
+  }
+  if (
+    raw.expectedPageTimeOfDay !== null &&
+    !isStoryTimeOfDay(raw.expectedPageTimeOfDay)
+  ) {
+    return null;
+  }
+
+  let worldExpectation: QaContext['worldExpectation'];
+  if (raw.worldExpectation === undefined || raw.worldExpectation === null) {
+    worldExpectation = raw.worldExpectation as null | undefined;
+  } else {
+    if (!isRecord(raw.worldExpectation)) return null;
+    const world = raw.worldExpectation;
+    if (
+      typeof world.zoneDescription !== 'string' ||
+      !Array.isArray(world.objects) ||
+      !world.objects.every(
+        (item) =>
+          isRecord(item) &&
+          typeof item.label === 'string' &&
+          typeof item.identity === 'string',
+      ) ||
+      !Array.isArray(world.forbiddenScenes) ||
+      !world.forbiddenScenes.every((item) => typeof item === 'string')
+    ) {
+      return null;
+    }
+    worldExpectation = {
+      zoneDescription: world.zoneDescription,
+      objects: world.objects.map((item) => ({
+        label: (item as Record<string, unknown>).label as string,
+        identity: (item as Record<string, unknown>).identity as string,
+      })),
+      forbiddenScenes: [...world.forbiddenScenes] as string[],
+    };
+  }
+
+  return {
+    expectsChild: raw.expectsChild as boolean,
+    expectsCompanion: raw.expectsCompanion as boolean,
+    expectedPageTimeOfDay: raw.expectedPageTimeOfDay,
+    isEmotionalClosing: raw.isEmotionalClosing as boolean,
+    hasStructuredObjects: raw.hasStructuredObjects as boolean,
+    hasRailedBedOrCrib: raw.hasRailedBedOrCrib as boolean,
+    hasHumanFamily: raw.hasHumanFamily as boolean,
+    ...(worldExpectation === undefined ? {} : { worldExpectation }),
+  };
+}
+
+function qualityEvidenceByArtifact(
+  order: RecoveryOrder,
+): Map<string, RecoveryQualityEvidence> {
+  return new Map(order.qualityEvidence.map((row) => [row.artifactKey, row]));
 }
 
 function exactKeys(
@@ -392,6 +560,8 @@ function databaseSnapshotDigest(order: RecoveryOrder): string {
       id: order.id,
       status: order.status,
       inputVersion: order.inputVersion,
+      deliveryFenceVersion: order.deliveryFenceVersion,
+      visualContractHash: order.visualContractHash,
       updatedAt: order.updatedAt.toISOString(),
       expectedPageCount: order.expectedPageCount,
       totalPrice: order.totalPrice,
@@ -433,6 +603,10 @@ function databaseSnapshotDigest(order: RecoveryOrder): string {
       updatedAt: exceptionCase.updatedAt.toISOString(),
     })),
     humanQaReviewCases: order.humanQaReviewCases,
+    qualityEvidence: order.qualityEvidence.map((row) => ({
+      ...row,
+      updatedAt: row.updatedAt.toISOString(),
+    })),
     pageUploadCandidates: order.pageUploadCandidates.map((candidate) => ({
       ...candidate,
       createdAt: candidate.createdAt.toISOString(),
@@ -537,7 +711,9 @@ async function loadOrder(db: PrismaClient, orderId: string): Promise<RecoveryOrd
 
 async function prepareRecoveryPlan(
   input: ReleaseV1RecoveryInput,
-  deps: Required<Pick<RecoveryDeps, 'db' | 'inspect' | 'now' | 'env'>>,
+  deps: Required<
+    Pick<RecoveryDeps, 'db' | 'inspect' | 'inspectWithBytes' | 'now' | 'env'>
+  >,
 ): Promise<RecoveryPlan | ReleaseV1RecoveryResult> {
   const order = await loadOrder(deps.db, input.orderId);
   const job = order.generationJob;
@@ -682,6 +858,86 @@ async function prepareRecoveryPlan(
     throw new ReleaseV1RecoveryError(reasons);
   }
 
+  const evidenceByArtifact = qualityEvidenceByArtifact(order);
+  const pendingSafetyReverification: PendingSafetyReverificationTarget[] = [];
+  const registerUnverifiedSafety = (args: {
+    artifactKey: string;
+    kind: 'cover' | 'page';
+    pageNumber: number | null;
+    pageId: string | null;
+    assetId: string | null;
+    sourceUrl: string;
+    presentationUrl: string | null;
+    deliveredUrl: string;
+    safetyContentSha256: string | null;
+    safetyOverriddenHazards: string[];
+    safetyOverrideSha256: string | null;
+  }): void => {
+    const evidence = evidenceByArtifact.get(args.artifactKey);
+    const qaContext = evidence
+      ? parseStoredQaContext(evidence.evidence)
+      : null;
+    if (!SHA256_RE.test(args.safetyContentSha256 ?? '')) {
+      reasons.push(`${args.artifactKey} unverified safety signal has no valid byte binding`);
+    }
+    if (
+      args.safetyOverriddenHazards.length > 0 ||
+      args.safetyOverrideSha256 != null
+    ) {
+      reasons.push(`${args.artifactKey} unverified safety signal has an override`);
+    }
+    if (!evidence) {
+      reasons.push(`${args.artifactKey} quality evidence is missing`);
+    } else {
+      if (evidence.evaluatorContractVersion !== QUALITY_EVALUATOR_CONTRACT_VERSION) {
+        reasons.push(`${args.artifactKey} quality evaluator contract is stale`);
+      }
+      if (evidence.contractHash !== order.visualContractHash) {
+        reasons.push(`${args.artifactKey} quality evidence contract binding is stale`);
+      }
+      if (evidence.assetSha256 !== args.safetyContentSha256) {
+        reasons.push(`${args.artifactKey} quality evidence byte binding differs from safety`);
+      }
+      if (!['passed', 'evidence_unknown'].includes(evidence.verdict)) {
+        reasons.push(`${args.artifactKey} has a confirmed quality failure`);
+      }
+      if (evidence.safetyOverride || evidence.safetyOverrideSha256 != null) {
+        reasons.push(`${args.artifactKey} quality evidence has an override`);
+      }
+      if (!qaContext) {
+        reasons.push(`${args.artifactKey} stored QA context is missing or invalid`);
+      }
+    }
+    if (
+      SHA256_RE.test(args.safetyContentSha256 ?? '') &&
+      args.safetyOverriddenHazards.length === 0 &&
+      args.safetyOverrideSha256 == null &&
+      evidence &&
+      evidence.evaluatorContractVersion === QUALITY_EVALUATOR_CONTRACT_VERSION &&
+      evidence.contractHash === order.visualContractHash &&
+      evidence.assetSha256 === args.safetyContentSha256 &&
+      ['passed', 'evidence_unknown'].includes(evidence.verdict) &&
+      !evidence.safetyOverride &&
+      evidence.safetyOverrideSha256 == null &&
+      qaContext
+    ) {
+      pendingSafetyReverification.push({
+        artifactKey: args.artifactKey,
+        kind: args.kind,
+        pageNumber: args.pageNumber,
+        pageId: args.pageId,
+        assetId: args.assetId,
+        sourceUrl: args.sourceUrl,
+        presentationUrl: args.presentationUrl,
+        deliveredUrl: args.deliveredUrl,
+        safetyContentSha256: args.safetyContentSha256!,
+        qaContext,
+        qaContextDigest: canonicalJsonDigest(qaContext),
+        evidence,
+      });
+    }
+  };
+
   const allPages = pageRange(expectedPageCount);
   const actualBookPages = order.book.pages.map((page) => page.pageNumber);
   if (!sameNumbers(actualBookPages, allPages)) {
@@ -715,11 +971,22 @@ async function prepareRecoveryPlan(
   if (!isAllowedAssetUrl(order.book.coverImageUrl)) {
     reasons.push('retained cover URL is missing or not allowlisted');
   }
-  if (
-    !order.book.coverSafetyVerified ||
-    order.book.coverSafetyHazards.length > 0
-  ) {
-    reasons.push('retained cover is not durably safety-cleared');
+  if (order.book.coverSafetyHazards.length > 0) {
+    reasons.push('retained cover has confirmed safety hazards');
+  } else if (!order.book.coverSafetyVerified && order.book.coverImageUrl) {
+    registerUnverifiedSafety({
+      artifactKey: 'cover',
+      kind: 'cover',
+      pageNumber: null,
+      pageId: null,
+      assetId: null,
+      sourceUrl: order.book.coverImageUrl,
+      presentationUrl: null,
+      deliveredUrl: order.book.coverImageUrl,
+      safetyContentSha256: order.book.coverSafetyContentSha256,
+      safetyOverriddenHazards: order.book.coverSafetyOverriddenHazards,
+      safetyOverrideSha256: order.book.coverSafetyOverrideSha256,
+    });
   }
   for (const candidate of order.pageUploadCandidates) {
     if (missingPageNumbers.includes(candidate.pageNumber)) {
@@ -752,8 +1019,22 @@ async function prepareRecoveryPlan(
     if (asset.presentationUrl && !isAllowedAssetUrl(asset.presentationUrl)) {
       reasons.push(`page ${page.pageNumber} presentation asset URL is not allowlisted`);
     }
-    if (!asset.safetyVerified || asset.safetyHazards.length > 0) {
-      reasons.push(`page ${page.pageNumber} is not durably safety-cleared`);
+    if (asset.safetyHazards.length > 0) {
+      reasons.push(`page ${page.pageNumber} has confirmed safety hazards`);
+    } else if (!asset.safetyVerified) {
+      registerUnverifiedSafety({
+        artifactKey: `page:${page.pageNumber}`,
+        kind: 'page',
+        pageNumber: page.pageNumber,
+        pageId: page.id,
+        assetId: asset.id,
+        sourceUrl: asset.url,
+        presentationUrl: asset.presentationUrl,
+        deliveredUrl: asset.presentationUrl ?? asset.url,
+        safetyContentSha256: asset.safetyContentSha256,
+        safetyOverriddenHazards: asset.safetyOverriddenHazards,
+        safetyOverrideSha256: asset.safetyOverrideSha256,
+      });
     }
     const expectedKey = buildArtifactIdempotencyKey({
       orderId: order.id,
@@ -773,12 +1054,22 @@ async function prepareRecoveryPlan(
     (page): page is typeof page & { imageAsset: NonNullable<typeof page.imageAsset> } =>
       page.imageAsset != null,
   );
-  const [coverInspection, ...pageInspections] = await Promise.all([
-    deps.inspect(order.book.coverImageUrl),
-    ...retainedPages.map((page) =>
-      deps.inspect(page.imageAsset.presentationUrl ?? page.imageAsset.url),
-    ),
-  ]);
+  const pendingByArtifact = new Map(
+    pendingSafetyReverification.map((target) => [target.artifactKey, target]),
+  );
+  const coverInspection = pendingByArtifact.has('cover')
+    ? await deps.inspectWithBytes(order.book.coverImageUrl)
+    : await deps.inspect(order.book.coverImageUrl);
+  const pageInspections: AssetInspection[] = [];
+  for (const page of retainedPages) {
+    const artifactKey = `page:${page.pageNumber}`;
+    const deliveredUrl = page.imageAsset.presentationUrl ?? page.imageAsset.url;
+    pageInspections.push(
+      pendingByArtifact.has(artifactKey)
+        ? await deps.inspectWithBytes(deliveredUrl)
+        : await deps.inspect(deliveredUrl),
+    );
+  }
   requireSuccessfulInspection('cover', coverInspection);
   if (order.book.coverSafetyContentSha256 !== coverInspection.sha256) {
     reject('cover retained-byte hash differs from its durable safety binding');
@@ -796,6 +1087,34 @@ async function prepareRecoveryPlan(
         `page ${retainedPages[index]!.pageNumber} retained-byte hash differs from its durable safety binding`,
       );
     }
+  }
+
+  const safetyReverificationTargets: SafetyReverificationTarget[] = [];
+  for (const pending of pendingSafetyReverification) {
+    const inspection =
+      pending.kind === 'cover'
+        ? coverInspection
+        : pageInspections[
+            retainedPages.findIndex(
+              (page) => page.pageNumber === pending.pageNumber,
+            )
+          ];
+    const inspectionWithBytes = inspection as
+      | AssetInspectionWithBytes
+      | undefined;
+    if (
+      !inspectionWithBytes ||
+      !inspectionWithBytes.data ||
+      !inspectionWithBytes.mime ||
+      inspectionWithBytes.sha256 !== pending.safetyContentSha256
+    ) {
+      reject(`${pending.artifactKey} exact bytes are unavailable for safety re-verification`);
+    }
+    safetyReverificationTargets.push({
+      ...pending,
+      sha256: inspectionWithBytes.sha256!,
+      inspection: inspectionWithBytes,
+    });
   }
 
   const retainedPageEvidence = retainedPages.map((page, index) => ({
@@ -836,6 +1155,10 @@ async function prepareRecoveryPlan(
       url: order.book.coverImageUrl,
       sha256: coverInspection.sha256,
       safetyContentSha256: order.book.coverSafetyContentSha256,
+      safetyVerified: order.book.coverSafetyVerified,
+      safetyHazards: order.book.coverSafetyHazards,
+      safetyOverriddenHazards: order.book.coverSafetyOverriddenHazards,
+      safetyOverrideSha256: order.book.coverSafetyOverrideSha256,
     },
     pages: retainedPages.map((page, index) => ({
       pageNumber: page.pageNumber,
@@ -844,8 +1167,31 @@ async function prepareRecoveryPlan(
       url: page.imageAsset.url,
       presentationUrl: page.imageAsset.presentationUrl,
       sha256: pageInspections[index]!.sha256,
+      safetyVerified: page.imageAsset.safetyVerified,
+      safetyHazards: page.imageAsset.safetyHazards,
       safetyContentSha256: page.imageAsset.safetyContentSha256,
+      safetyOverriddenHazards: page.imageAsset.safetyOverriddenHazards,
+      safetyOverrideSha256: page.imageAsset.safetyOverrideSha256,
       idempotencyKey: page.imageAsset.idempotencyKey,
+    })),
+    safetyReverification: safetyReverificationTargets.map((target) => ({
+      artifactKey: target.artifactKey,
+      kind: target.kind,
+      pageNumber: target.pageNumber,
+      assetId: target.assetId,
+      deliveredUrl: target.deliveredUrl,
+      sha256: target.sha256,
+      qaContextDigest: target.qaContextDigest,
+      evidence: {
+        assetSha256: target.evidence.assetSha256,
+        verdict: target.evidence.verdict,
+        evaluatorContractVersion:
+          target.evidence.evaluatorContractVersion,
+        contractHash: target.evidence.contractHash,
+        safetyOverride: target.evidence.safetyOverride,
+        safetyOverrideSha256: target.evidence.safetyOverrideSha256,
+        updatedAt: target.evidence.updatedAt.toISOString(),
+      },
     })),
   });
 
@@ -873,8 +1219,105 @@ async function prepareRecoveryPlan(
         },
         pages: retainedPageEvidence,
       },
+      safetyReverification: safetyReverificationTargets.map((target) => ({
+        artifactKey: target.artifactKey,
+        pageNumber: target.pageNumber,
+        sha256: target.sha256,
+        qaContextDigest: target.qaContextDigest,
+        evaluatorContractVersion: target.evidence.evaluatorContractVersion,
+        contractHash: target.evidence.contractHash,
+      })),
     },
+    safetyReverificationTargets,
   };
+}
+
+async function evaluateSafetyReverificationTargets(
+  plan: RecoveryPlan,
+  deps: Required<Pick<RecoveryDeps, 'evaluate' | 'evaluateWorld'>>,
+): Promise<SafetyReverificationEvaluation> {
+  const proofs: SafetyReverificationProof[] = [];
+  for (const target of plan.safetyReverificationTargets) {
+    const { data, mime } = target.inspection;
+    if (!data || !mime) {
+      reject(`${target.artifactKey} exact bytes are unavailable for safety re-verification`);
+    }
+    const imageUrl = `data:${mime};base64,${data.toString('base64')}`;
+    const { worldExpectation, ...visualContext } = target.qaContext;
+    // The incident allowance is three provider-side Vision calls total per
+    // retained asset. A crib page may consume one strict follow-up and a
+    // world-bound page may consume one world call, so reserve those calls
+    // before granting malformed/transport re-QA attempts.
+    const reservedFollowups =
+      (visualContext.hasRailedBedOrCrib ? 1 : 0) +
+      (worldExpectation?.zoneDescription.trim() ? 1 : 0);
+    const maxReQa = Math.max(
+      0,
+      REQA_MALFORMED_MAX_ATTEMPTS - reservedFollowups,
+    );
+    const visual = await evaluatePageVisualQaWithReQa(
+      { imageUrl, ...visualContext },
+      deps.evaluate,
+      maxReQa,
+    );
+    // A concrete hazard always dominates an inconsistent status/verdict tuple.
+    // A later or malformed `safe` label must never erase positive evidence.
+    if (visual.safetyHazards.length > 0) {
+      return {
+        status: 'confirmed_hazard',
+        proof: { target, visual, world: null },
+      };
+    }
+    if (
+      classifyPageVisualQaOutcome(visual) !== 'verified_pass' ||
+      visual.safetyStatus !== 'safe' ||
+      visual.safetyHazards.length !== 0
+    ) {
+      reject(`${target.artifactKey} same-byte safety re-verification did not pass`);
+    }
+
+    let world: PageWorldQaResult | null = null;
+    if (worldExpectation?.zoneDescription.trim()) {
+      world = await deps.evaluateWorld({
+        imageUrl,
+        zoneDescription: worldExpectation.zoneDescription,
+        objects: worldExpectation.objects,
+        forbiddenScenes: worldExpectation.forbiddenScenes,
+      });
+      if (world.status !== 'pass' || !world.passed) {
+        reject(`${target.artifactKey} same-byte world re-verification did not pass`);
+      }
+    }
+    proofs.push({ target, visual, world });
+  }
+  return { status: 'passed', proofs };
+}
+
+function safetyReverificationEvidence(
+  proof: SafetyReverificationProof,
+  input: ReleaseV1RecoveryInput,
+  evaluatedAt: Date,
+): Prisma.InputJsonValue {
+  const prior = isRecord(proof.target.evidence.evidence)
+    ? proof.target.evidence.evidence
+    : {};
+  return {
+    ...prior,
+    deliveredUrl: proof.target.deliveredUrl,
+    qaContext: proof.target.qaContext,
+    retainedSafetyReverification: {
+      version: 'retained-safety-reverification/v1',
+      recoveryAttemptId: input.recoveryAttemptId,
+      assetSha256: proof.target.sha256,
+      qaContextDigest: proof.target.qaContextDigest,
+      evaluatorContractVersion: QUALITY_EVALUATOR_CONTRACT_VERSION,
+      visualVerdict: proof.visual.verdict,
+      visualReason: proof.visual.reason,
+      safetyStatus: proof.visual.safetyStatus,
+      worldStatus: proof.world?.status ?? null,
+      evaluatedAt: evaluatedAt.toISOString(),
+    },
+  } as unknown as Prisma.InputJsonValue;
 }
 
 async function lockRecoverySnapshot(
@@ -883,6 +1326,9 @@ async function lockRecoverySnapshot(
 ): Promise<void> {
   // Lock in ownership order. Page-row locks also block a concurrent ImageAsset
   // insert for a currently missing page via the foreign-key key-share lock.
+  await tx.$queryRaw(
+    Prisma.sql`SELECT "id" FROM "BookReadiness" WHERE "orderId" = ${orderId} AND "scope" = 'base_book' FOR UPDATE`,
+  );
   await tx.$queryRaw(
     Prisma.sql`SELECT "id" FROM "Order" WHERE "id" = ${orderId} FOR UPDATE`,
   );
@@ -917,6 +1363,9 @@ async function lockRecoverySnapshot(
     `,
   );
   await tx.$queryRaw(
+    Prisma.sql`SELECT "id" FROM "QualityEvidence" WHERE "orderId" = ${orderId} ORDER BY "artifactKey" FOR UPDATE`,
+  );
+  await tx.$queryRaw(
     Prisma.sql`SELECT "id" FROM "PageUploadCandidate" WHERE "orderId" = ${orderId} FOR UPDATE`,
   );
   await tx.$queryRaw(
@@ -927,6 +1376,67 @@ async function lockRecoverySnapshot(
   );
 }
 
+/**
+ * Consume the exact database snapshot before any nondeterministic Vision call.
+ *
+ * The claim is keyed by the database snapshot rather than the public inspect
+ * digest because the latter intentionally includes the caller's attempt UUID.
+ * That makes different UUIDs/deployments contend for one safety evaluation of
+ * the same durable state. Receipt replay never evaluates again; an ambiguous
+ * commit retry in this same invocation keeps `claimedHere=true` and may proceed.
+ */
+async function claimSafetyReverificationSnapshot(
+  db: PrismaClient,
+  plan: RecoveryPlan,
+): Promise<void> {
+  let claimedHere = false;
+  const operationKey =
+    `release_v1_safety_eval:${plan.order.id}:${plan.databaseSnapshotDigest}`;
+  const claimPayload = {
+    version: 'release-v1-safety-evaluation-claim/v1',
+    orderId: plan.order.id,
+    databaseSnapshotDigest: plan.databaseSnapshotDigest,
+    evaluatorContractVersion: QUALITY_EVALUATOR_CONTRACT_VERSION,
+    maxProviderCallsPerArtifact: 3,
+    targets: plan.safetyReverificationTargets
+      .map((target) => ({
+        artifactKey: target.artifactKey,
+        sha256: target.sha256,
+        qaContextDigest: target.qaContextDigest,
+      }))
+      .sort((left, right) => left.artifactKey.localeCompare(right.artifactKey)),
+  };
+
+  await runAtomicOperation(db, {
+    operationKey,
+    orderId: plan.order.id,
+    kind: 'release_v1_safety_evaluation_claim',
+    payloadHash: hashOperationPayload(claimPayload),
+    run: async (tx) => {
+      await lockRecoverySnapshot(tx, plan.order.id);
+      const lockedOrder = await tx.order.findUnique({
+        where: { id: plan.order.id },
+        select: RELEASE_V1_RECOVERY_ORDER_SELECT,
+      });
+      if (
+        !lockedOrder?.generationJob ||
+        databaseSnapshotDigest(lockedOrder) !== plan.databaseSnapshotDigest
+      ) {
+        reject('database snapshot changed before safety re-verification claim');
+      }
+      claimedHere = true;
+      return {
+        status: 'claimed',
+        databaseSnapshotDigest: plan.databaseSnapshotDigest,
+      };
+    },
+  });
+
+  if (!claimedHere) {
+    reject('safety re-verification for this database snapshot was already consumed');
+  }
+}
+
 export async function executeReleaseV1Recovery(
   rawInput: unknown,
   deps: RecoveryDeps = {},
@@ -934,10 +1444,19 @@ export async function executeReleaseV1Recovery(
   const input = parseReleaseV1RecoveryInput(rawInput);
   const db = deps.db ?? prisma;
   const inspect = deps.inspect ?? inspectAsset;
+  const inspectWithBytes = deps.inspectWithBytes ?? inspectAssetWithBytes;
+  const evaluate = deps.evaluate ?? evaluatePageVisualQa;
+  const evaluateWorld = deps.evaluateWorld ?? evaluatePageWorldQa;
   const dispatch = deps.dispatch ?? chainGenerationWorker;
   const now = deps.now ?? (() => new Date());
   const env = deps.env ?? process.env;
-  const prepared = await prepareRecoveryPlan(input, { db, inspect, now, env });
+  const prepared = await prepareRecoveryPlan(input, {
+    db,
+    inspect,
+    inspectWithBytes,
+    now,
+    env,
+  });
   if ('status' in prepared && prepared.status === 'already_resumed') {
     return prepared;
   }
@@ -946,6 +1465,88 @@ export async function executeReleaseV1Recovery(
   if (input.expectedSnapshotDigest !== plan.inspection.snapshotDigest) {
     reject('snapshot changed after inspection');
   }
+
+  if (plan.safetyReverificationTargets.length > 0) {
+    await claimSafetyReverificationSnapshot(db, plan);
+  }
+
+  const safetyEvaluation = await evaluateSafetyReverificationTargets(plan, {
+    evaluate,
+    evaluateWorld,
+  });
+
+  if (safetyEvaluation.status === 'confirmed_hazard') {
+    const proof = safetyEvaluation.proof;
+    const evaluatedAt = now();
+    await withDeliveryInputMutation(
+      db,
+      {
+        orderId: plan.order.id,
+        reason: 'retained_safety_evaluated',
+        operationKey: `delivery_input:${plan.order.id}:release_v1_safety_hazard:${input.recoveryAttemptId}`,
+        mutationPayload: {
+          snapshotDigest: plan.inspection.snapshotDigest,
+          artifactKey: proof.target.artifactKey,
+          sha256: proof.target.sha256,
+          qaContextDigest: proof.target.qaContextDigest,
+          hazards: [...proof.visual.safetyHazards].sort(),
+        },
+        kind: 'release_v1_safety_hazard',
+      },
+      async (tx) => {
+        await lockRecoverySnapshot(tx, plan.order.id);
+        const lockedOrder = await tx.order.findUnique({
+          where: { id: plan.order.id },
+          select: RELEASE_V1_RECOVERY_ORDER_SELECT,
+        });
+        if (
+          !lockedOrder?.generationJob ||
+          databaseSnapshotDigest(lockedOrder) !== plan.databaseSnapshotDigest
+        ) {
+          reject('database snapshot changed during safety re-verification');
+        }
+        await writeRetainedSafetyEvaluation(tx, {
+          orderId: plan.order.id,
+          artifactKey: proof.target.artifactKey,
+          target:
+            proof.target.kind === 'page'
+              ? {
+                  kind: 'page',
+                  pageId: proof.target.pageId!,
+                  assetId: proof.target.assetId!,
+                  sourceUrl: proof.target.sourceUrl,
+                  presentationUrl: proof.target.presentationUrl,
+                }
+              : {
+                  kind: 'cover',
+                  bookId: plan.order.book!.id,
+                  coverImageUrl: proof.target.deliveredUrl,
+                },
+          sha256: proof.target.sha256,
+          hazards: [...new Set(proof.visual.safetyHazards)].sort(),
+          evidence: safetyReverificationEvidence(proof, input, evaluatedAt),
+          evaluatedAt,
+          expectedEvidence: {
+            assetSha256: proof.target.evidence.assetSha256,
+            verdict: proof.target.evidence.verdict,
+            evaluatorContractVersion:
+              proof.target.evidence.evaluatorContractVersion,
+            contractHash: proof.target.evidence.contractHash,
+            safetyOverride: proof.target.evidence.safetyOverride,
+            safetyOverrideSha256:
+              proof.target.evidence.safetyOverrideSha256,
+            updatedAt: proof.target.evidence.updatedAt,
+          },
+        });
+        return null;
+      },
+    );
+    reject(
+      `${proof.target.artifactKey} same-byte safety re-verification confirmed a hazard`,
+    );
+  }
+
+  const safetyProofs = safetyEvaluation.proofs;
 
   const recoveredAt = now();
   const job = plan.order.generationJob!;
@@ -972,6 +1573,15 @@ export async function executeReleaseV1Recovery(
         sha256: page.sha256,
       })),
     },
+    safetyReverification: safetyProofs.map((proof) => ({
+      artifactKey: proof.target.artifactKey,
+      sha256: proof.target.sha256,
+      qaContextDigest: proof.target.qaContextDigest,
+      evaluatorContractVersion: QUALITY_EVALUATOR_CONTRACT_VERSION,
+      visualVerdict: proof.visual.verdict,
+      safetyStatus: proof.visual.safetyStatus,
+      worldStatus: proof.world?.status ?? null,
+    })),
     recoveredAt: recoveredAt.toISOString(),
   };
   const nextCache: PipelineCache = {
@@ -986,7 +1596,15 @@ export async function executeReleaseV1Recovery(
     },
   };
 
-  const transactionResult = await db.$transaction(async (tx) => {
+  // Receipt replay returns the recorded value, so only a closure set inside
+  // the fresh business callback proves that this invocation owns dispatch.
+  // The flag intentionally survives an internal ambiguous-commit retry.
+  let recoveredHere = false;
+
+  const recoverLockedSnapshot = async (
+    tx: Prisma.TransactionClient,
+    permitIdempotentReplay: boolean,
+  ): Promise<ReleaseV1RecoveryResult | null> => {
     await lockRecoverySnapshot(tx, plan.order.id);
     const lockedOrder = await tx.order.findUnique({
       where: { id: plan.order.id },
@@ -1004,10 +1622,50 @@ export async function executeReleaseV1Recovery(
       cache: lockedCache,
       targetContinuity: plan.inspection.targetReleaseContinuity,
     });
-    if (idempotent) return idempotent;
+    if (idempotent) {
+      if (permitIdempotentReplay) return idempotent;
+      reject('database snapshot changed during safety re-verification');
+    }
     if (databaseSnapshotDigest(lockedOrder) !== plan.databaseSnapshotDigest) {
       reject('database snapshot changed after retained-byte inspection');
     }
+
+    for (const proof of safetyProofs) {
+      await writeRetainedSafetyEvaluation(tx, {
+        orderId: plan.order.id,
+        artifactKey: proof.target.artifactKey,
+        target:
+          proof.target.kind === 'page'
+            ? {
+                kind: 'page',
+                pageId: proof.target.pageId!,
+                assetId: proof.target.assetId!,
+                sourceUrl: proof.target.sourceUrl,
+                presentationUrl: proof.target.presentationUrl,
+              }
+            : {
+                kind: 'cover',
+                bookId: plan.order.book!.id,
+                coverImageUrl: proof.target.deliveredUrl,
+              },
+        sha256: proof.target.sha256,
+        hazards: [],
+        evidence: safetyReverificationEvidence(proof, input, recoveredAt),
+        evaluatedAt: recoveredAt,
+        expectedEvidence: {
+          assetSha256: proof.target.evidence.assetSha256,
+          verdict: proof.target.evidence.verdict,
+          evaluatorContractVersion:
+            proof.target.evidence.evaluatorContractVersion,
+          contractHash: proof.target.evidence.contractHash,
+          safetyOverride: proof.target.evidence.safetyOverride,
+          safetyOverrideSha256:
+            proof.target.evidence.safetyOverrideSha256,
+          updatedAt: proof.target.evidence.updatedAt,
+        },
+      });
+    }
+
     const orderClaim = await tx.order.updateMany({
       where: {
         id: plan.order.id,
@@ -1070,10 +1728,56 @@ export async function executeReleaseV1Recovery(
     if (jobClaim.count !== 1) {
       reject('generation job recovery compare-and-swap lost');
     }
+    recoveredHere = true;
     return null;
-  });
+  };
+
+  let transactionResult: ReleaseV1RecoveryResult | null;
+  if (safetyProofs.length > 0) {
+    const mutation = await withDeliveryInputMutation(
+      db,
+      {
+        orderId: plan.order.id,
+        reason: 'retained_safety_evaluated',
+        operationKey: `delivery_input:${plan.order.id}:release_v1_safety_reverification:${input.recoveryAttemptId}`,
+        mutationPayload: {
+          snapshotDigest: plan.inspection.snapshotDigest,
+          artifacts: safetyProofs.map((proof) => ({
+            artifactKey: proof.target.artifactKey,
+            sha256: proof.target.sha256,
+            qaContextDigest: proof.target.qaContextDigest,
+            visualVerdict: proof.visual.verdict,
+            safetyStatus: proof.visual.safetyStatus,
+            worldStatus: proof.world?.status ?? null,
+          })),
+        },
+        kind: 'release_v1_safety_reverification',
+      },
+      async (tx) => {
+        const result = await recoverLockedSnapshot(tx, false);
+        if (result) reject('database snapshot changed during safety re-verification');
+        return null;
+      },
+    );
+    transactionResult = mutation.value;
+  } else {
+    transactionResult = await db.$transaction((tx) =>
+      recoverLockedSnapshot(tx, true),
+    );
+  }
 
   if (transactionResult) return transactionResult;
+
+  if (!recoveredHere) {
+    return {
+      status: 'already_resumed',
+      orderId: plan.order.id,
+      recoveryAttemptId: input.recoveryAttemptId,
+      snapshotDigest: plan.inspection.snapshotDigest,
+      targetReleaseContinuity: plan.inspection.targetReleaseContinuity,
+      dispatched: false,
+    };
+  }
 
   dispatch(plan.order.id, plan.inspection.targetReleaseContinuity);
   return {

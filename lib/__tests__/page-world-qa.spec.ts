@@ -1,9 +1,17 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
   buildWorldQaPrompt,
+  evaluatePageWorldQa,
   evaluateWorldQaFromRaw,
+  resolvePageWorldQaTimeoutMs,
 } from '../generation-pipeline/page-world-qa';
+
+afterEach(() => {
+  vi.restoreAllMocks();
+  delete process.env.OPENAI_API_KEY;
+  delete process.env.PAGE_WORLD_QA_TIMEOUT_MS;
+});
 
 describe('page world QA (deterministic evaluator)', () => {
   const objects = [
@@ -105,5 +113,30 @@ describe('page world QA (deterministic evaluator)', () => {
         forbiddenScenes: [],
       }),
     ).not.toThrow();
+  });
+
+  it('bounds world Vision with a per-call timeout and fails closed when it expires', async () => {
+    process.env.OPENAI_API_KEY = 'test-key';
+    process.env.PAGE_WORLD_QA_TIMEOUT_MS = '5';
+    expect(resolvePageWorldQaTimeoutMs()).toBe(5);
+    vi.spyOn(globalThis, 'fetch').mockImplementation((_, init) =>
+      new Promise<Response>((_resolve, reject) => {
+        const signal = init?.signal;
+        expect(signal).toBeInstanceOf(AbortSignal);
+        signal?.addEventListener('abort', () => reject(signal.reason), {
+          once: true,
+        });
+      }),
+    );
+
+    const result = await evaluatePageWorldQa({
+      imageUrl: 'data:image/png;base64,AA==',
+      zoneDescription: 'a quiet bedroom',
+      objects: [],
+      forbiddenScenes: [],
+    });
+
+    expect(result.status).toBe('error');
+    expect(result.passed).toBe(false);
   });
 });

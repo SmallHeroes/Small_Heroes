@@ -37,6 +37,26 @@ describe('evaluatePageVisualQaWithReQa (3b) — evidence re-QA uses the SAME ima
     expect(qa).toBe(PASSED);
   });
 
+  it('never logs an inline image or customer asset URL while retrying', async () => {
+    const inlineInput = {
+      imageUrl: `data:image/png;base64,${Buffer.from('private-child-image').toString('base64')}`,
+      expectsChild: true,
+    };
+    const evaluate = vi
+      .fn()
+      .mockResolvedValueOnce(MALFORMED)
+      .mockResolvedValueOnce(PASSED);
+    const log = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+
+    await evaluatePageVisualQaWithReQa(inlineInput, evaluate, 2);
+
+    const output = log.mock.calls.flat().join('\n');
+    expect(output).toContain('reqa_same_image');
+    expect(output).not.toContain(inlineInput.imageUrl);
+    expect(output).not.toContain('private-child-image');
+    log.mockRestore();
+  });
+
   it('persistently malformed → stays fail-closed unverified, bounded to 1 + maxReQa calls', async () => {
     const evaluate = vi.fn().mockResolvedValue(MALFORMED);
     const qa = await evaluatePageVisualQaWithReQa(INPUT, evaluate, 2);

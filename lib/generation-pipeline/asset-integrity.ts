@@ -18,6 +18,16 @@ export interface AssetInspection {
   error?: string;
 }
 
+/**
+ * The fully decoded payload behind an inspection. Kept separate from
+ * AssetInspection so ordinary integrity callers cannot accidentally retain or
+ * log customer image bytes. Recovery uses this only long enough to build one
+ * exact-byte Vision input, then drops it before the DB transaction.
+ */
+export interface AssetInspectionWithBytes extends AssetInspection {
+  data: Buffer | null;
+}
+
 const MAX_BYTES = 25 * 1024 * 1024; // 25 MB hard cap (enforced WHILE streaming, not after)
 const MAX_PIXELS = 30 * 1024 * 1024; // ~30 MP decompression-bomb guard (book pages are ~1.5 MP)
 const TIMEOUT_MS = 15_000;
@@ -60,7 +70,10 @@ function mimeForFormat(format: string | null | undefined): string | null {
 
 /** Read a fetch body stream, aborting as soon as it exceeds the byte cap (never buffer-all-then-check). */
 async function readCapped(res: Response, controller: AbortController, maxBytes: number): Promise<Buffer | 'too_large'> {
-  if (!res.body) return Buffer.from(await res.arrayBuffer()); // fallback for runtimes without a stream body
+  if (!res.body) {
+    const fallback = Buffer.from(await res.arrayBuffer());
+    return fallback.byteLength > maxBytes ? 'too_large' : fallback;
+  }
   const reader = res.body.getReader();
   const chunks: Uint8Array[] = [];
   let total = 0;
@@ -85,13 +98,22 @@ async function readCapped(res: Response, controller: AbortController, maxBytes: 
  * (sharp().stats() touches every pixel — a header-valid-but-corrupt file fails), and a pixel cap guards
  * against decompression bombs. The SHA is over the EXACT bytes, so any re-render changes the hash.
  */
-export async function inspectAsset(
+export async function inspectAssetWithBytes(
   url: string | null | undefined,
   opts: { maxBytes?: number; maxPixels?: number } = {},
-): Promise<AssetInspection> {
+): Promise<AssetInspectionWithBytes> {
   const maxBytes = opts.maxBytes ?? MAX_BYTES;
   const maxPixels = opts.maxPixels ?? MAX_PIXELS;
-  const empty: AssetInspection = { ok: false, bytes: 0, format: null, mime: null, width: null, height: null, sha256: null };
+  const empty: AssetInspectionWithBytes = {
+    ok: false,
+    bytes: 0,
+    format: null,
+    mime: null,
+    width: null,
+    height: null,
+    sha256: null,
+    data: null,
+  };
   if (!isAllowedAssetUrl(url)) return { ...empty, error: 'url_not_allowlisted' };
 
   const controller = new AbortController();
@@ -116,7 +138,7 @@ export async function inspectAsset(
     } catch (err) {
       const msg = err instanceof Error ? err.message : '';
       const error = /limitInputPixels|pixel|exceeds/i.test(msg) ? 'pixel_limit' : 'not_decodable';
-      return { ok: false, bytes: buf.byteLength, format: null, mime: null, width: null, height: null, sha256, error };
+      return { ok: false, bytes: buf.byteLength, format: null, mime: null, width: null, height: null, sha256, data: null, error };
     }
     const mime = mimeForFormat(meta.format);
     const ok = !!mime && (meta.width ?? 0) > 0 && (meta.height ?? 0) > 0;
@@ -128,6 +150,7 @@ export async function inspectAsset(
       width: meta.width ?? null,
       height: meta.height ?? null,
       sha256,
+      data: ok ? buf : null,
       error: ok ? undefined : 'not_an_image',
     };
   } catch (e) {
@@ -136,4 +159,13 @@ export async function inspectAsset(
   } finally {
     clearTimeout(timer);
   }
+}
+
+/** Compatibility wrapper for callers that need evidence, not the image bytes. */
+export async function inspectAsset(
+  url: string | null | undefined,
+  opts: { maxBytes?: number; maxPixels?: number } = {},
+): Promise<AssetInspection> {
+  const { data: _data, ...inspection } = await inspectAssetWithBytes(url, opts);
+  return inspection;
 }

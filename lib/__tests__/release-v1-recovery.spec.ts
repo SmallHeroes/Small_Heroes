@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { canonicalJsonDigest } from '@/lib/visual-package/integrity';
+import type { PageVisualQaResult } from '@/lib/generation-pipeline/page-visual-qa';
 
 const H = vi.hoisted(() => ({
   requireExpectedBinding: vi.fn(),
@@ -32,6 +33,7 @@ import {
 
 const NOW = new Date('2026-09-01T20:00:00.000Z');
 const ATTEMPT_ID = '11111111-1111-4111-8111-111111111111';
+const SECOND_ATTEMPT_ID = '22222222-2222-4222-8222-222222222222';
 const OLD_CONTINUITY = {
   version: 'generation-release-continuity/v1' as const,
   protocol: 'release/v1' as const,
@@ -55,12 +57,72 @@ const BINDING = {
 const SUPABASE_ORIGIN = 'https://stage.supabase.co';
 const BUCKET_PREFIX = `${SUPABASE_ORIGIN}/storage/v1/object/public/book-images`;
 const COVER_SHA = 'e'.repeat(64);
+const QA_FLAGS: PageVisualQaResult['flags'] = {
+  anatomyOk: true,
+  identityOk: true,
+  styleOk: true,
+  singleChildOk: true,
+  objectGeometryOk: true,
+  emotionalStagingOk: true,
+  timeOfDayOk: true,
+  companionSilhouetteOk: true,
+  childPresenceOk: true,
+  safetyOk: true,
+};
 
-function input(mode: 'inspect' | 'apply', digest?: string) {
+function qaResult(
+  overrides: Partial<PageVisualQaResult>,
+): PageVisualQaResult {
+  return {
+    passed: true,
+    verdict: 'evidence_unknown',
+    reason: 'vision_malformed',
+    details: '',
+    flags: QA_FLAGS,
+    safetyHazards: [],
+    safetyStatus: 'unverified',
+    ...overrides,
+  };
+}
+
+const QA_MALFORMED = qaResult({});
+const QA_SKIPPED = qaResult({ reason: 'vision_skipped' });
+const QA_PASSED = qaResult({
+  passed: true,
+  verdict: 'passed',
+  reason: 'ok',
+  safetyStatus: 'safe',
+});
+const QA_VISUAL_FAILED = qaResult({
+  passed: false,
+  verdict: 'failed',
+  reason: 'anatomy_failed',
+  safetyStatus: 'safe',
+});
+const QA_HAZARD = qaResult({
+  passed: false,
+  verdict: 'failed',
+  reason: 'safety_failed',
+  safetyStatus: 'hazard',
+  safetyHazards: ['unsafe_pose'],
+});
+const QA_INCONSISTENT_SAFE_HAZARD = qaResult({
+  passed: true,
+  verdict: 'passed',
+  reason: 'ok',
+  safetyStatus: 'safe',
+  safetyHazards: ['unsafe_pose'],
+});
+
+function input(
+  mode: 'inspect' | 'apply',
+  digest?: string,
+  recoveryAttemptId = ATTEMPT_ID,
+) {
   return {
     mode,
     orderId: 'release-order',
-    recoveryAttemptId: ATTEMPT_ID,
+    recoveryAttemptId,
     reason: 'reviewed_code_fix_resume',
     expectedOldReleaseContinuity: OLD_CONTINUITY,
     expectedWizardProductBinding: BINDING,
@@ -91,8 +153,10 @@ function makeOrder() {
               presentationUrl,
               idempotencyKey: `release-order:page_image:p${pageNumber}:gpt-image-2:low:v2`,
               safetyVerified: true,
-              safetyHazards: [],
+              safetyHazards: [] as string[],
               safetyContentSha256: sha256,
+              safetyOverriddenHazards: [],
+              safetyOverrideSha256: null,
             }
           : null,
     };
@@ -105,6 +169,8 @@ function makeOrder() {
     visualPackageAuthority: { frozen: true },
     status: 'failed',
     inputVersion: 17,
+    deliveryFenceVersion: 3,
+    visualContractHash: null as string | null,
     updatedAt: new Date('2026-09-01T19:59:00.000Z'),
     expectedPageCount: 8,
     totalPrice: 5900,
@@ -163,8 +229,10 @@ function makeOrder() {
       id: 'book-1',
       coverImageUrl: `${BUCKET_PREFIX}/orders/release-order/cover.png`,
       coverSafetyVerified: true,
-      coverSafetyHazards: [],
+      coverSafetyHazards: [] as string[],
       coverSafetyContentSha256: COVER_SHA,
+      coverSafetyOverriddenHazards: [],
+      coverSafetyOverrideSha256: null,
       pages,
     },
     exceptionCases: [
@@ -193,7 +261,96 @@ function makeOrder() {
       createdAt: Date;
       updatedAt: Date;
     }>,
+    qualityEvidence: [] as Array<{
+      artifactKey: string;
+      assetSha256: string;
+      verdict: string;
+      evaluatorContractVersion: string;
+      reason: string | null;
+      regenCount: number;
+      providerModel: string | null;
+      evidence: Record<string, unknown> | null;
+      contractHash: string | null;
+      safetyOverride: boolean;
+      safetyOverrideSha256: string | null;
+      updatedAt: Date;
+    }>,
   };
+}
+
+function markPageUnverified(
+  order: ReturnType<typeof makeOrder>,
+  pageNumber = 6,
+  options: {
+    hasRailedBedOrCrib?: boolean;
+    worldExpectation?: {
+      zoneDescription: string;
+      objects: Array<{ label: string; identity: string }>;
+      forbiddenScenes: string[];
+    };
+  } = {},
+) {
+  const page = order.book.pages[pageNumber - 1]!;
+  const asset = page.imageAsset!;
+  asset.safetyVerified = false;
+  const qaContext = {
+    expectsChild: true,
+    expectsCompanion: true,
+    expectedPageTimeOfDay: 'night',
+    isEmotionalClosing: false,
+    hasStructuredObjects: true,
+    hasRailedBedOrCrib: options.hasRailedBedOrCrib ?? false,
+    hasHumanFamily: false,
+    ...(options.worldExpectation
+      ? { worldExpectation: options.worldExpectation }
+      : {}),
+  };
+  order.qualityEvidence.push({
+    artifactKey: `page:${pageNumber}`,
+    assetSha256: asset.safetyContentSha256,
+    verdict: 'evidence_unknown',
+    evaluatorContractVersion: 'qa-v3',
+    reason: 'safety:unverified',
+    regenCount: 0,
+    providerModel: 'gpt-4o',
+    evidence: {
+      deliveredUrl: asset.presentationUrl,
+      qaContext,
+    },
+    contractHash: order.visualContractHash,
+    safetyOverride: false,
+    safetyOverrideSha256: null,
+    updatedAt: new Date('2026-09-01T19:57:00.000Z'),
+  });
+  return { page, asset, qaContext };
+}
+
+function markCoverUnverified(order: ReturnType<typeof makeOrder>) {
+  order.book.coverSafetyVerified = false;
+  const qaContext = {
+    expectsChild: true,
+    expectsCompanion: true,
+    expectedPageTimeOfDay: 'night',
+    isEmotionalClosing: false,
+    hasStructuredObjects: false,
+    hasRailedBedOrCrib: false,
+    hasHumanFamily: false,
+  };
+  order.qualityEvidence.push({
+    artifactKey: 'cover',
+    assetSha256: order.book.coverSafetyContentSha256,
+    verdict: 'evidence_unknown',
+    evaluatorContractVersion: 'qa-v3',
+    reason: 'safety:unverified',
+    regenCount: 0,
+    providerModel: 'gpt-4o',
+    evidence: { deliveredUrl: order.book.coverImageUrl, qaContext },
+    contractHash: order.visualContractHash,
+    safetyOverride: false,
+    safetyOverrideSha256: null,
+    updatedAt: new Date('2026-09-01T19:56:00.000Z'),
+  });
+  return { qaContext };
 }
 
 function shaForUrl(url: string): string {
@@ -203,7 +360,15 @@ function shaForUrl(url: string): string {
   return match[1]!.repeat(64);
 }
 
-function makeHarness(order = makeOrder()) {
+function makeHarness(
+  order = makeOrder(),
+  options: { ambiguousAfterCommitFor?: string } = {},
+) {
+  const receipts = new Map<
+    string,
+    { payloadHash: string; result: unknown }
+  >();
+  let ambiguousCommitRaised = false;
   const inspect = vi.fn(async (url: string | null | undefined) => ({
     ok: true,
     bytes: 1024,
@@ -213,9 +378,45 @@ function makeHarness(order = makeOrder()) {
     height: 1536,
     sha256: shaForUrl(url ?? ''),
   }));
+  const inspectWithBytes = vi.fn(async (url: string | null | undefined) => ({
+    ...(await inspect(url)),
+    data: Buffer.from('exact-retained-image-bytes'),
+  }));
   const tx = {
-    $queryRaw: vi.fn(async () => []),
+    $queryRaw: vi.fn(async (...queryArgs: unknown[]) => {
+      const query = queryArgs[0] as
+        | { strings?: readonly string[] }
+        | readonly string[]
+        | string;
+      const sql =
+        typeof query === 'string'
+          ? query
+          : (query as { strings?: readonly string[] }).strings
+            ? (query as { strings: readonly string[] }).strings.join('')
+            : (query as readonly string[]).join('');
+      if (sql.includes('INSERT INTO "AtomicOperationReceipt"')) {
+        const operationKey = String(queryArgs[2]);
+        if (receipts.has(operationKey)) return [];
+        receipts.set(operationKey, {
+          payloadHash: String(queryArgs[5]),
+          result: {},
+        });
+        return [{ id: `receipt-${receipts.size}` }];
+      }
+      return sql.includes('UPDATE "Order" AS target')
+        ? [
+            {
+              inputVersion: order.inputVersion + 1,
+              status: 'generating',
+              previousStatus: 'generating',
+            },
+          ]
+        : [];
+    }),
     $executeRaw: vi.fn(async () => 1),
+    bookReadiness: {
+      updateMany: vi.fn(async () => ({ count: 0 })),
+    },
     order: {
       findUnique: vi.fn(async () => order),
       updateMany: vi.fn(async () => ({ count: 1 })),
@@ -223,21 +424,75 @@ function makeHarness(order = makeOrder()) {
     generationJob: {
       updateMany: vi.fn(async () => ({ count: 1 })),
     },
+    imageAsset: {
+      updateMany: vi.fn(async () => ({ count: 1 })),
+    },
+    generatedBook: {
+      updateMany: vi.fn(async () => ({ count: 1 })),
+    },
+    qualityEvidence: {
+      updateMany: vi.fn(async () => ({ count: 1 })),
+    },
+    atomicOperationReceipt: {
+      findUnique: vi.fn(
+        async ({ where }: { where: { operationKey: string } }) =>
+          receipts.get(where.operationKey) ?? null,
+      ),
+      update: vi.fn(
+        async ({
+          where,
+          data,
+        }: {
+          where: { operationKey: string };
+          data: { result: unknown };
+        }) => {
+          const receipt = receipts.get(where.operationKey);
+          if (!receipt) throw new Error('missing fake atomic receipt');
+          receipt.result = data.result;
+          return { id: `receipt-${where.operationKey}` };
+        },
+      ),
+    },
   };
-  const transaction = vi.fn(async (work: (value: typeof tx) => unknown) =>
-    work(tx),
-  );
+  const transaction = vi.fn(async (work: (value: typeof tx) => unknown) => {
+    const receiptKeysBefore = new Set(receipts.keys());
+    const value = await work(tx);
+    const ambiguousKey = [...receipts.keys()].find(
+      (key) =>
+        !receiptKeysBefore.has(key) &&
+        options.ambiguousAfterCommitFor &&
+        key.includes(options.ambiguousAfterCommitFor),
+    );
+    if (ambiguousKey && !ambiguousCommitRaised) {
+      ambiguousCommitRaised = true;
+      const error = new Error('Transaction not found after commit') as Error & {
+        code: string;
+      };
+      error.code = 'P2028';
+      throw error;
+    }
+    return value;
+  });
   const db = {
     order: { findUnique: vi.fn(async () => order) },
     $transaction: transaction,
   };
-  return { order, inspect, tx, transaction, db };
+  return {
+    order,
+    inspect,
+    inspectWithBytes,
+    tx,
+    transaction,
+    db,
+    receipts,
+  };
 }
 
 function deps(harness: ReturnType<typeof makeHarness>) {
   return {
     db: harness.db as never,
     inspect: harness.inspect as never,
+    inspectWithBytes: harness.inspectWithBytes as never,
     dispatch: H.dispatch,
     now: () => NOW,
     env: {
@@ -252,6 +507,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   vi.stubEnv('SUPABASE_URL', SUPABASE_ORIGIN);
   vi.stubEnv('SUPABASE_STORAGE_BUCKET', 'book-images');
+  vi.stubEnv('READINESS_MANIFEST_ENABLED', 'false');
   H.buildContinuity.mockReturnValue(TARGET_CONTINUITY);
   H.requireExpectedBinding.mockReturnValue(BINDING);
 });
@@ -296,9 +552,575 @@ describe('release/v1 reviewed same-order recovery', () => {
       missingPageNumbers: [7, 8],
     });
     expect(first.retainedAssets.pages).toHaveLength(6);
+    expect(first.safetyReverification).toEqual([]);
     expect(first.snapshotDigest).toMatch(/^[a-f0-9]{64}$/u);
     expect(harness.inspect).toHaveBeenCalledTimes(14);
     expect(harness.transaction).not.toHaveBeenCalled();
+    expect(H.dispatch).not.toHaveBeenCalled();
+  });
+
+  it('inspects an unverified hazardless retained page as an exact-byte re-verification target without QA or writes', async () => {
+    const order = makeOrder();
+    const { asset, qaContext } = markPageUnverified(order);
+    const harness = makeHarness(order);
+    const evaluate = vi.fn();
+
+    const result = await executeReleaseV1Recovery(input('inspect'), {
+      ...deps(harness),
+      evaluate: evaluate as never,
+    });
+
+    expect(result.status).toBe('inspect_ready');
+    if (result.status !== 'inspect_ready') throw new Error('unexpected status');
+    expect(result.safetyReverification).toEqual([
+      expect.objectContaining({
+        artifactKey: 'page:6',
+        pageNumber: 6,
+        sha256: asset.safetyContentSha256,
+        qaContextDigest: canonicalJsonDigest(qaContext),
+        evaluatorContractVersion: 'qa-v3',
+      }),
+    ]);
+    expect(harness.inspectWithBytes).toHaveBeenCalledTimes(1);
+    expect(evaluate).not.toHaveBeenCalled();
+    expect(harness.transaction).not.toHaveBeenCalled();
+    expect(H.dispatch).not.toHaveBeenCalled();
+  });
+
+  it('uses the same exact-byte dual-gate path for an eligible retained cover', async () => {
+    const order = makeOrder();
+    markCoverUnverified(order);
+    const harness = makeHarness(order);
+    const evaluate = vi.fn().mockResolvedValue(QA_PASSED);
+    const recoveryDeps = { ...deps(harness), evaluate: evaluate as never };
+    const inspected = await executeReleaseV1Recovery(
+      input('inspect'),
+      recoveryDeps,
+    );
+    if (inspected.status !== 'inspect_ready') throw new Error('unexpected status');
+    expect(inspected.safetyReverification).toEqual([
+      expect.objectContaining({ artifactKey: 'cover', pageNumber: null }),
+    ]);
+
+    const result = await executeReleaseV1Recovery(
+      input('apply', inspected.snapshotDigest),
+      recoveryDeps,
+    );
+
+    expect(result).toMatchObject({ status: 'resumed', dispatched: true });
+    expect(harness.tx.generatedBook.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          id: 'book-1',
+          coverSafetyVerified: false,
+          coverSafetyContentSha256: COVER_SHA,
+        }),
+        data: expect.objectContaining({
+          coverSafetyVerified: true,
+          coverSafetyHazards: [],
+          coverSafetyContentSha256: COVER_SHA,
+        }),
+      }),
+    );
+    expect(harness.tx.imageAsset.updateMany).not.toHaveBeenCalled();
+    expect(harness.tx.qualityEvidence.updateMany).toHaveBeenCalledTimes(1);
+    expect(H.dispatch).toHaveBeenCalledTimes(1);
+  });
+
+  it('re-verifies identical retained bytes after two malformed replies, atomically reconciles both gates, bumps input authority, and resumes once', async () => {
+    const order = makeOrder();
+    const { asset } = markPageUnverified(order);
+    const harness = makeHarness(order);
+    const evaluate = vi
+      .fn()
+      .mockResolvedValueOnce(QA_MALFORMED)
+      .mockResolvedValueOnce(QA_MALFORMED)
+      .mockResolvedValueOnce(QA_PASSED);
+    const recoveryDeps = {
+      ...deps(harness),
+      evaluate: evaluate as never,
+    };
+    const inspected = await executeReleaseV1Recovery(
+      input('inspect'),
+      recoveryDeps,
+    );
+    if (inspected.status !== 'inspect_ready') throw new Error('unexpected status');
+    vi.stubEnv('READINESS_MANIFEST_ENABLED', 'true');
+
+    const result = await executeReleaseV1Recovery(
+      input('apply', inspected.snapshotDigest),
+      recoveryDeps,
+    );
+
+    expect(result).toMatchObject({ status: 'resumed', dispatched: true });
+    expect(evaluate).toHaveBeenCalledTimes(3);
+    const visionInputs = evaluate.mock.calls.map(([callInput]) => callInput.imageUrl);
+    expect(new Set(visionInputs).size).toBe(1);
+    expect(visionInputs[0]).toMatch(/^data:image\/png;base64,/u);
+    expect(visionInputs[0]).not.toContain(asset.presentationUrl);
+    expect(harness.tx.imageAsset.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          id: asset.id,
+          safetyVerified: false,
+          safetyContentSha256: asset.safetyContentSha256,
+          safetyOverrideSha256: null,
+        }),
+        data: expect.objectContaining({
+          safetyVerified: true,
+          safetyHazards: [],
+          safetyContentSha256: asset.safetyContentSha256,
+          safetyOverriddenHazards: [],
+          safetyOverrideSha256: null,
+        }),
+      }),
+    );
+    expect(harness.tx.qualityEvidence.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          verdict: 'passed',
+          reason: null,
+          assetSha256: asset.safetyContentSha256,
+          safetyOverride: false,
+          safetyOverrideSha256: null,
+        }),
+      }),
+    );
+    expect(harness.tx.bookReadiness.updateMany).toHaveBeenCalledTimes(1);
+    expect(harness.tx.atomicOperationReceipt.update).toHaveBeenCalledTimes(2);
+    expect(harness.tx.$queryRaw).toHaveBeenCalledTimes(25);
+    expect(H.dispatch).toHaveBeenCalledTimes(1);
+
+    const cachePayload = JSON.parse(
+      (
+        harness.tx.$executeRaw.mock.calls as unknown as Array<unknown[]>
+      )[0]![1] as string,
+    ) as {
+      releaseRecovery: { attempts: Array<Record<string, unknown>> };
+    };
+    expect(cachePayload.releaseRecovery.attempts[0]).toMatchObject({
+      safetyReverification: [
+        expect.objectContaining({
+          artifactKey: 'page:6',
+          visualVerdict: 'passed',
+          safetyStatus: 'safe',
+        }),
+      ],
+    });
+  });
+
+  it.each([
+    ['persistent malformed evidence', QA_MALFORMED, 3],
+    ['skipped vision', QA_SKIPPED, 1],
+    ['a verified visual failure', QA_VISUAL_FAILED, 1],
+  ])('%s is claimed once but blocks before safety/order mutation and dispatch', async (_label, qa, expectedCalls) => {
+    const order = makeOrder();
+    markPageUnverified(order);
+    const harness = makeHarness(order);
+    const evaluate = vi.fn().mockResolvedValue(qa);
+    const recoveryDeps = { ...deps(harness), evaluate: evaluate as never };
+    const inspected = await executeReleaseV1Recovery(input('inspect'), recoveryDeps);
+    if (inspected.status !== 'inspect_ready') throw new Error('unexpected status');
+
+    await expect(
+      executeReleaseV1Recovery(
+        input('apply', inspected.snapshotDigest),
+        recoveryDeps,
+      ),
+    ).rejects.toThrow('same-byte safety re-verification did not pass');
+    expect(evaluate).toHaveBeenCalledTimes(expectedCalls);
+    expect(harness.transaction).toHaveBeenCalledTimes(1);
+    expect(harness.tx.imageAsset.updateMany).not.toHaveBeenCalled();
+    expect(harness.tx.qualityEvidence.updateMany).not.toHaveBeenCalled();
+    expect(H.dispatch).not.toHaveBeenCalled();
+  });
+
+  it('claims the database snapshot before Vision so a repeated malformed apply spends only one bounded provider sequence', async () => {
+    const order = makeOrder();
+    markPageUnverified(order);
+    const harness = makeHarness(order);
+    const evaluate = vi.fn().mockResolvedValue(QA_MALFORMED);
+    const recoveryDeps = { ...deps(harness), evaluate: evaluate as never };
+    const inspected = await executeReleaseV1Recovery(
+      input('inspect'),
+      recoveryDeps,
+    );
+    if (inspected.status !== 'inspect_ready') throw new Error('unexpected status');
+    const apply = input('apply', inspected.snapshotDigest);
+
+    await expect(
+      executeReleaseV1Recovery(apply, recoveryDeps),
+    ).rejects.toThrow('same-byte safety re-verification did not pass');
+    await expect(
+      executeReleaseV1Recovery(apply, recoveryDeps),
+    ).rejects.toBeInstanceOf(ReleaseV1RecoveryError);
+
+    expect(evaluate).toHaveBeenCalledTimes(3);
+    const claimKeys = [...harness.receipts.keys()].filter((key) =>
+      key.startsWith('release_v1_safety_eval:release-order:'),
+    );
+    expect(claimKeys).toHaveLength(1);
+    expect(claimKeys[0]).not.toContain(ATTEMPT_ID);
+    expect(harness.tx.imageAsset.updateMany).not.toHaveBeenCalled();
+    expect(H.dispatch).not.toHaveBeenCalled();
+  });
+
+  it('keys the pre-Vision claim by database snapshot so different concurrent UUIDs cannot both evaluate', async () => {
+    const order = makeOrder();
+    markPageUnverified(order);
+    const harness = makeHarness(order);
+    const evaluate = vi.fn().mockResolvedValue(QA_PASSED);
+    const recoveryDeps = { ...deps(harness), evaluate: evaluate as never };
+    const firstInspection = await executeReleaseV1Recovery(
+      input('inspect'),
+      recoveryDeps,
+    );
+    const secondInspection = await executeReleaseV1Recovery(
+      input('inspect', undefined, SECOND_ATTEMPT_ID),
+      recoveryDeps,
+    );
+    if (
+      firstInspection.status !== 'inspect_ready' ||
+      secondInspection.status !== 'inspect_ready'
+    ) {
+      throw new Error('unexpected status');
+    }
+    vi.stubEnv('READINESS_MANIFEST_ENABLED', 'true');
+
+    const results = await Promise.allSettled([
+      executeReleaseV1Recovery(
+        input('apply', firstInspection.snapshotDigest),
+        recoveryDeps,
+      ),
+      executeReleaseV1Recovery(
+        input('apply', secondInspection.snapshotDigest, SECOND_ATTEMPT_ID),
+        recoveryDeps,
+      ),
+    ]);
+
+    expect(results.filter((result) => result.status === 'fulfilled')).toHaveLength(1);
+    expect(results.filter((result) => result.status === 'rejected')).toHaveLength(1);
+    expect(evaluate).toHaveBeenCalledTimes(1);
+    expect(harness.tx.imageAsset.updateMany).toHaveBeenCalledTimes(1);
+    expect(harness.tx.order.updateMany).toHaveBeenCalledTimes(1);
+    expect(harness.tx.generationJob.updateMany).toHaveBeenCalledTimes(1);
+    expect(H.dispatch).toHaveBeenCalledTimes(1);
+    const claimKeys = [...harness.receipts.keys()].filter((key) =>
+      key.startsWith('release_v1_safety_eval:release-order:'),
+    );
+    expect(claimKeys).toHaveLength(1);
+    expect(claimKeys[0]).not.toContain(ATTEMPT_ID);
+    expect(claimKeys[0]).not.toContain(SECOND_ATTEMPT_ID);
+  });
+
+  it('durably records a newly confirmed hazard in both gates, never resumes, and cannot later forget the finding', async () => {
+    const order = makeOrder();
+    markPageUnverified(order);
+    const harness = makeHarness(order);
+    const evaluate = vi.fn().mockResolvedValue(QA_HAZARD);
+    const recoveryDeps = { ...deps(harness), evaluate: evaluate as never };
+    const inspected = await executeReleaseV1Recovery(input('inspect'), recoveryDeps);
+    if (inspected.status !== 'inspect_ready') throw new Error('unexpected status');
+
+    await expect(
+      executeReleaseV1Recovery(
+        input('apply', inspected.snapshotDigest),
+        recoveryDeps,
+      ),
+    ).rejects.toThrow('confirmed a hazard');
+
+    expect(evaluate).toHaveBeenCalledTimes(1);
+    expect(harness.tx.imageAsset.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          safetyVerified: true,
+          safetyHazards: ['unsafe_pose'],
+          safetyOverriddenHazards: [],
+          safetyOverrideSha256: null,
+        }),
+      }),
+    );
+    expect(harness.tx.qualityEvidence.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          verdict: 'failed',
+          reason: 'safety:unsafe_pose',
+        }),
+      }),
+    );
+    expect(harness.tx.order.updateMany).not.toHaveBeenCalled();
+    expect(harness.tx.generationJob.updateMany).not.toHaveBeenCalled();
+    expect(H.dispatch).not.toHaveBeenCalled();
+  });
+
+  it('treats any nonempty hazard list as hazardous even when the provider inconsistently labels the status safe', async () => {
+    const order = makeOrder();
+    markPageUnverified(order);
+    const harness = makeHarness(order);
+    const evaluate = vi.fn().mockResolvedValue(QA_INCONSISTENT_SAFE_HAZARD);
+    const recoveryDeps = { ...deps(harness), evaluate: evaluate as never };
+    const inspected = await executeReleaseV1Recovery(
+      input('inspect'),
+      recoveryDeps,
+    );
+    if (inspected.status !== 'inspect_ready') throw new Error('unexpected status');
+
+    await expect(
+      executeReleaseV1Recovery(
+        input('apply', inspected.snapshotDigest),
+        recoveryDeps,
+      ),
+    ).rejects.toThrow('confirmed a hazard');
+
+    expect(evaluate).toHaveBeenCalledTimes(1);
+    expect(harness.tx.imageAsset.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          safetyVerified: true,
+          safetyHazards: ['unsafe_pose'],
+        }),
+      }),
+    );
+    expect(harness.tx.qualityEvidence.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          verdict: 'failed',
+          reason: 'safety:unsafe_pose',
+        }),
+      }),
+    );
+    expect(harness.tx.order.updateMany).not.toHaveBeenCalled();
+    expect(H.dispatch).not.toHaveBeenCalled();
+  });
+
+  it('dispatches exactly once when a safe fenced recovery replays after an ambiguous committed transaction', async () => {
+    const order = makeOrder();
+    markPageUnverified(order);
+    const harness = makeHarness(order, {
+      ambiguousAfterCommitFor: 'release_v1_safety_reverification',
+    });
+    const evaluate = vi.fn().mockResolvedValue(QA_PASSED);
+    const recoveryDeps = { ...deps(harness), evaluate: evaluate as never };
+    const inspected = await executeReleaseV1Recovery(
+      input('inspect'),
+      recoveryDeps,
+    );
+    if (inspected.status !== 'inspect_ready') throw new Error('unexpected status');
+    vi.stubEnv('READINESS_MANIFEST_ENABLED', 'true');
+
+    const result = await executeReleaseV1Recovery(
+      input('apply', inspected.snapshotDigest),
+      recoveryDeps,
+    );
+
+    expect(result).toMatchObject({ status: 'resumed', dispatched: true });
+    expect(evaluate).toHaveBeenCalledTimes(1);
+    expect(harness.tx.imageAsset.updateMany).toHaveBeenCalledTimes(1);
+    expect(harness.tx.order.updateMany).toHaveBeenCalledTimes(1);
+    expect(harness.tx.generationJob.updateMany).toHaveBeenCalledTimes(1);
+    expect(harness.tx.atomicOperationReceipt.findUnique).toHaveBeenCalled();
+    expect(
+      [...harness.receipts.keys()].filter((key) =>
+        key.includes('release_v1_safety_reverification'),
+      ),
+    ).toHaveLength(1);
+    expect(H.dispatch).toHaveBeenCalledTimes(1);
+  });
+
+  it('runs required world QA on the identical bytes and blocks a world failure before mutation', async () => {
+    const order = makeOrder();
+    markPageUnverified(order, 6, {
+      worldExpectation: {
+        zoneDescription: 'the same moonlit garden gate',
+        objects: [{ label: 'gate', identity: 'small pale wooden gate' }],
+        forbiddenScenes: ['daylight garden'],
+      },
+    });
+    const harness = makeHarness(order);
+    const evaluate = vi.fn().mockResolvedValue(QA_PASSED);
+    const evaluateWorld = vi.fn().mockResolvedValue({
+      status: 'fail',
+      passed: false,
+      hardFailures: ['wrong_zone'],
+      driftObjects: [],
+      notes: '',
+    });
+    const recoveryDeps = {
+      ...deps(harness),
+      evaluate: evaluate as never,
+      evaluateWorld: evaluateWorld as never,
+    };
+    const inspected = await executeReleaseV1Recovery(input('inspect'), recoveryDeps);
+    if (inspected.status !== 'inspect_ready') throw new Error('unexpected status');
+
+    await expect(
+      executeReleaseV1Recovery(
+        input('apply', inspected.snapshotDigest),
+        recoveryDeps,
+      ),
+    ).rejects.toThrow('same-byte world re-verification did not pass');
+    expect(evaluateWorld).toHaveBeenCalledTimes(1);
+    expect(evaluateWorld.mock.calls[0]![0].imageUrl).toBe(
+      evaluate.mock.calls[0]![0].imageUrl,
+    );
+    expect(harness.transaction).toHaveBeenCalledTimes(1);
+    expect(H.dispatch).not.toHaveBeenCalled();
+  });
+
+  it('reserves the world check inside the three-call provider allowance', async () => {
+    const order = makeOrder();
+    markPageUnverified(order, 6, {
+      worldExpectation: {
+        zoneDescription: 'the same moonlit garden gate',
+        objects: [],
+        forbiddenScenes: [],
+      },
+    });
+    const harness = makeHarness(order);
+    const evaluate = vi
+      .fn()
+      .mockResolvedValueOnce(QA_MALFORMED)
+      .mockResolvedValueOnce(QA_PASSED);
+    const evaluateWorld = vi.fn().mockResolvedValue({
+      status: 'pass',
+      passed: true,
+      hardFailures: [],
+      driftObjects: [],
+      notes: 'same world',
+    });
+    const recoveryDeps = {
+      ...deps(harness),
+      evaluate: evaluate as never,
+      evaluateWorld: evaluateWorld as never,
+    };
+    const inspected = await executeReleaseV1Recovery(
+      input('inspect'),
+      recoveryDeps,
+    );
+    if (inspected.status !== 'inspect_ready') throw new Error('unexpected status');
+
+    const result = await executeReleaseV1Recovery(
+      input('apply', inspected.snapshotDigest),
+      recoveryDeps,
+    );
+
+    expect(result).toMatchObject({ status: 'resumed', dispatched: true });
+    expect(evaluate).toHaveBeenCalledTimes(2);
+    expect(evaluateWorld).toHaveBeenCalledTimes(1);
+    expect(H.dispatch).toHaveBeenCalledTimes(1);
+  });
+
+  it('reserves both strict-crib and world follow-ups before granting re-QA', async () => {
+    const order = makeOrder();
+    markPageUnverified(order, 6, {
+      hasRailedBedOrCrib: true,
+      worldExpectation: {
+        zoneDescription: 'the same moonlit bedroom',
+        objects: [],
+        forbiddenScenes: [],
+      },
+    });
+    const harness = makeHarness(order);
+    const evaluate = vi.fn().mockResolvedValue(QA_MALFORMED);
+    const evaluateWorld = vi.fn();
+    const recoveryDeps = {
+      ...deps(harness),
+      evaluate: evaluate as never,
+      evaluateWorld: evaluateWorld as never,
+    };
+    const inspected = await executeReleaseV1Recovery(
+      input('inspect'),
+      recoveryDeps,
+    );
+    if (inspected.status !== 'inspect_ready') throw new Error('unexpected status');
+
+    await expect(
+      executeReleaseV1Recovery(
+        input('apply', inspected.snapshotDigest),
+        recoveryDeps,
+      ),
+    ).rejects.toThrow('same-byte safety re-verification did not pass');
+
+    expect(evaluate).toHaveBeenCalledTimes(1);
+    expect(evaluateWorld).not.toHaveBeenCalled();
+    expect(H.dispatch).not.toHaveBeenCalled();
+  });
+
+  it('loses closed on locked evidence drift or the exact asset CAS and never partially resumes', async () => {
+    const driftOrder = makeOrder();
+    markPageUnverified(driftOrder);
+    const driftHarness = makeHarness(driftOrder);
+    const driftEvaluate = vi.fn().mockResolvedValue(QA_PASSED);
+    const driftDeps = {
+      ...deps(driftHarness),
+      evaluate: driftEvaluate as never,
+    };
+    const driftInspection = await executeReleaseV1Recovery(
+      input('inspect'),
+      driftDeps,
+    );
+    if (driftInspection.status !== 'inspect_ready') throw new Error('unexpected status');
+    driftHarness.tx.order.findUnique.mockResolvedValue({
+      ...driftOrder,
+      qualityEvidence: driftOrder.qualityEvidence.map((row) => ({
+        ...row,
+        updatedAt: new Date(row.updatedAt.getTime() + 1),
+      })),
+    });
+    await expect(
+      executeReleaseV1Recovery(
+        input('apply', driftInspection.snapshotDigest),
+        driftDeps,
+      ),
+    ).rejects.toThrow('database snapshot changed');
+    expect(driftHarness.tx.imageAsset.updateMany).not.toHaveBeenCalled();
+    expect(driftHarness.tx.order.updateMany).not.toHaveBeenCalled();
+    expect(H.dispatch).not.toHaveBeenCalled();
+
+    vi.clearAllMocks();
+    H.buildContinuity.mockReturnValue(TARGET_CONTINUITY);
+    H.requireExpectedBinding.mockReturnValue(BINDING);
+    const casOrder = makeOrder();
+    markPageUnverified(casOrder);
+    const casHarness = makeHarness(casOrder);
+    const casEvaluate = vi.fn().mockResolvedValue(QA_PASSED);
+    const casDeps = { ...deps(casHarness), evaluate: casEvaluate as never };
+    const casInspection = await executeReleaseV1Recovery(
+      input('inspect'),
+      casDeps,
+    );
+    if (casInspection.status !== 'inspect_ready') throw new Error('unexpected status');
+    casHarness.tx.imageAsset.updateMany.mockResolvedValue({ count: 0 });
+    await expect(
+      executeReleaseV1Recovery(
+        input('apply', casInspection.snapshotDigest),
+        casDeps,
+      ),
+    ).rejects.toThrow('retained page safety CAS lost');
+    expect(casHarness.tx.qualityEvidence.updateMany).not.toHaveBeenCalled();
+    expect(casHarness.tx.order.updateMany).not.toHaveBeenCalled();
+    expect(H.dispatch).not.toHaveBeenCalled();
+  });
+
+  it('never re-verifies a retained asset with an existing confirmed hazard or invalid stored context', async () => {
+    const hazardOrder = makeOrder();
+    const { asset } = markPageUnverified(hazardOrder);
+    asset.safetyVerified = true;
+    asset.safetyHazards = ['unsafe_pose'];
+    const hazardHarness = makeHarness(hazardOrder);
+    await expect(
+      executeReleaseV1Recovery(input('inspect'), deps(hazardHarness)),
+    ).rejects.toThrow('confirmed safety hazards');
+    expect(hazardHarness.inspectWithBytes).not.toHaveBeenCalled();
+
+    const contextOrder = makeOrder();
+    markPageUnverified(contextOrder);
+    contextOrder.qualityEvidence[0]!.evidence = null;
+    const contextHarness = makeHarness(contextOrder);
+    await expect(
+      executeReleaseV1Recovery(input('inspect'), deps(contextHarness)),
+    ).rejects.toThrow('stored QA context is missing or invalid');
+    expect(contextHarness.inspectWithBytes).not.toHaveBeenCalled();
     expect(H.dispatch).not.toHaveBeenCalled();
   });
 
@@ -316,7 +1138,7 @@ describe('release/v1 reviewed same-order recovery', () => {
     );
 
     expect(result).toMatchObject({ status: 'resumed', dispatched: true });
-    expect(harness.tx.$queryRaw).toHaveBeenCalledTimes(9);
+    expect(harness.tx.$queryRaw).toHaveBeenCalledTimes(11);
     expect(harness.tx.order.updateMany).toHaveBeenCalledWith(
       expect.objectContaining({
         data: {
