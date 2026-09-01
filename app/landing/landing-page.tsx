@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { COMMON } from '@/content';
 import type { LandingContent } from '@/content/landing';
 import { CategoryChallengeCard } from '@/app/category-challenge-card';
@@ -61,8 +61,6 @@ function SectionWave({ fill }: { fill: string }) {
   );
 }
 
-type GalleryStyle = 'style01' | 'style02';
-
 const GALLERY_STYLE01 = [
   '/Images/gallery/gallery-1.jpg',
   '/Images/gallery/gallery-2.jpg',
@@ -72,15 +70,6 @@ const GALLERY_STYLE01 = [
   '/Images/gallery/gallery-6.jpg',
 ];
 
-const GALLERY_STYLE02 = [
-  '/Images/gallery/gallery-r-1.jpg',
-  '/Images/gallery/gallery-r-2.jpg',
-  '/Images/gallery/gallery-r-3.jpg',
-  '/Images/gallery/gallery-r-4.jpg',
-  '/Images/gallery/gallery-r-5.jpg',
-  '/Images/gallery/gallery-r-6.jpg',
-];
-
 type LandingPageProps = {
   content: LandingContent;
   startHref: string;
@@ -88,7 +77,6 @@ type LandingPageProps = {
 };
 
 export default function LandingPage({ content: L, startHref, matrixCategories }: LandingPageProps) {
-  const [galleryStyle, setGalleryStyle] = useState<GalleryStyle>('style01');
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(null);
   /* Companion Spotlight - home cards open the companion dialog instead of navigating. */
   const [spotlight, setSpotlight] = useState<SpotlightState | null>(null);
@@ -99,28 +87,6 @@ export default function LandingPage({ content: L, startHref, matrixCategories }:
       return null;
     });
   }, []);
-
-  const btnStyle01Ref = useRef<HTMLButtonElement>(null);
-  const btnStyle02Ref = useRef<HTMLButtonElement>(null);
-  const pillRef = useRef<HTMLSpanElement>(null);
-
-  const positionPill = useCallback((active: GalleryStyle) => {
-    const pill = pillRef.current;
-    const btn = active === 'style01' ? btnStyle01Ref.current : btnStyle02Ref.current;
-    if (!pill || !btn) return;
-    pill.style.left = `${btn.offsetLeft}px`;
-    pill.style.width = `${btn.offsetWidth}px`;
-  }, []);
-
-  useEffect(() => {
-    positionPill(galleryStyle);
-  }, [galleryStyle, positionPill]);
-
-  useEffect(() => {
-    const onResize = () => positionPill(galleryStyle);
-    window.addEventListener('resize', onResize);
-    return () => window.removeEventListener('resize', onResize);
-  }, [galleryStyle, positionPill]);
 
   useEffect(() => initLandingMotion(), []);
 
@@ -295,74 +261,19 @@ export default function LandingPage({ content: L, startHref, matrixCategories }:
               <h2 className="gallery-h2" data-reveal="up">{L.gallery.h2}</h2>
               <p className="gallery-sub" data-reveal="up" data-reveal-delay="60">{L.gallery.sub}</p>
 
-              <div
-                className="gallery-toggle"
-                role="tablist"
-                aria-label="סגנון איור בגלריה"
-                data-reveal="fade"
-                data-reveal-delay="120"
-              >
-                <button
-                  ref={btnStyle01Ref}
-                  type="button"
-                  className={
-                    'gallery-toggle-btn' + (galleryStyle === 'style01' ? ' is-active' : '')
-                  }
-                  role="tab"
-                  aria-selected={galleryStyle === 'style01'}
-                  onClick={() => setGalleryStyle('style01')}
-                >
-                  {L.gallery.toggleStyle01}
-                </button>
-                <button
-                  ref={btnStyle02Ref}
-                  type="button"
-                  className={
-                    'gallery-toggle-btn' + (galleryStyle === 'style02' ? ' is-active' : '')
-                  }
-                  role="tab"
-                  aria-selected={galleryStyle === 'style02'}
-                  onClick={() => setGalleryStyle('style02')}
-                >
-                  {L.gallery.toggleStyle02}
-                </button>
-                <span className="gallery-toggle-pill" ref={pillRef} />
-              </div>
+              {/* the style toggle is WITHDRAWN while style02 is unproven (per
+                  Guy) - one style, one track. Bring it back with the style. */}
             </div>
 
             <div className="gallery-layers" data-reveal="fade" data-reveal-delay="180">
-              <div
-                className={
-                  'gallery-track gallery-layer' +
-                  (galleryStyle === 'style01' ? ' is-visible' : '')
-                }
-                aria-hidden={galleryStyle !== 'style01'}
-              >
+              <div className="gallery-track gallery-layer is-visible">
                 {GALLERY_STYLE01.map((src) => (
                   <div key={src} className="gallery-card">
                     <img src={src} alt="עמוד מתוך ספר - מאוייר" loading="lazy" />
                   </div>
                 ))}
               </div>
-
-              <div
-                className={
-                  'gallery-track gallery-layer' +
-                  (galleryStyle === 'style02' ? ' is-visible' : '')
-                }
-                aria-hidden={galleryStyle !== 'style02'}
-              >
-                {GALLERY_STYLE02.map((src) => (
-                  <div key={src} className="gallery-card">
-                    <img src={src} alt="עמוד מתוך ספר - ריאליסטי" loading="lazy" />
-                  </div>
-                ))}
-              </div>
             </div>
-
-            {galleryStyle === 'style02' ? (
-              <p className="gallery-style02-preview-note">{L.gallery.style02PreviewNote}</p>
-            ) : null}
 
             <div className="wrap gallery-cta-wrap" data-reveal="up" data-reveal-delay="200">
               <a href={startHref} className="btn-primary" data-event="landing_start_click">
