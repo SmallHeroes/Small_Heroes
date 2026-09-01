@@ -28,7 +28,7 @@
   font-weight: 800;
   color: var(--dark);
   line-height: 1.35;
-  margin: 0 0 18px;
+  margin: 0 0 16px;
 }
 
 .gen-hero {
@@ -150,7 +150,7 @@
   width: 100%;
   max-width: 580px;
   margin-top: 12px;
-  padding: 28px 26px 24px;
+  padding: 28px 24px 24px;
   border-radius: 24px;
   background: linear-gradient(180deg, #fff8f8 0%, #fff3f3 100%);
   border: 1px solid #f0dada;
@@ -160,7 +160,7 @@
 
 .gen-error-icon {
   font-size: 34px;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
 }
 
 .gen-error-title {
@@ -168,7 +168,7 @@
   font-size: 20px;
   font-weight: 800;
   color: #b05050;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
 }
 
 .gen-error-msg {
@@ -181,7 +181,7 @@
 
 .gen-error-back {
   display: inline-block;
-  padding: 10px 24px;
+  padding: 8px 24px;
   background: #f3efff;
   color: var(--purple);
   font-weight: 800;
@@ -203,7 +203,7 @@
 
   .gen-headline {
     font-size: 28px;
-    margin-bottom: 14px;
+    margin-bottom: 16px;
   }
 
   .gen-body {

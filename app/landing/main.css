@@ -164,7 +164,7 @@ textarea {
 .logo {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
 }
 
 .logo-icon {
@@ -236,7 +236,7 @@ textarea {
 }
 
 .nav-cta {
-  padding: 0 22px;
+  padding: 0 24px;
   height: 46px;
   font-family: var(--fb);
   font-size: 16px;
