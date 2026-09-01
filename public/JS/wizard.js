@@ -438,7 +438,7 @@ const state = {
   style: null,
   styleSelected: false,
   audioEnabled: true,
-  voice: "mom", /* mom | dad | fairy */
+  voice: "mom", /* mom | dad_v2 | fairy */
   sleepMode: false,
   pdfEnabled: true,
   videoEnabled: false,
@@ -798,6 +798,9 @@ function restoreWizardState() {
     }
     sessionExpectChildPhotoReplay = snapshot.meta?.expectChildPhotoReplay === true;
     Object.assign(state, snapshot.state);
+    // `dad` is the runtime-only historical narrator. Fresh/restored Wizard sessions
+    // must select the current sellable Dad identity without changing old Orders.
+    if (state.voice === 'dad') state.voice = 'dad_v2';
     // A persisted product selection is display state only. Never let a restored
     // package/source binding authorize an Order on a different deployment.
     state.productTruth = null;

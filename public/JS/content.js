@@ -496,7 +496,7 @@ const CONTENT = {
          `sampleUrl` is the stable, pre-rendered clip played by the wizard. */
       voices: [
         { id: 'mom',   label: 'אמא',        emoji: '👩', sampleUrl: '/voice-samples/4RZ84U1b4WCqpu57LvIq.mp3' },
-        { id: 'dad',   label: 'אבא',        emoji: '👨', sampleUrl: '/voice-samples/V4aTMuwwYUtBD7ZqVvZs.mp3' },
+        { id: 'dad_v2', label: 'אבא',        emoji: '👨', sampleUrl: null },
         { id: 'fairy', label: 'פייה קסומה', emoji: '🧚', sampleUrl: '/voice-samples/piI8Kku0DcvcL6TTSeQt.mp3' },
       ],
 

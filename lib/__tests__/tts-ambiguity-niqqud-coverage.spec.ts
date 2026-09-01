@@ -33,6 +33,8 @@ describe('narration niqqud — the brief acceptance cases', () => {
   it('שם adjacent to a location verb → שָׁם ("there")', () => {
     expect(apply('שם עמד בשקט')).toContain('שָׁם');
     expect(apply('הוא עמד שם בשקט')).toContain('שָׁם');
+    expect(apply('אני רוצה שמשהו שהכנתי יחכה לי שם בבוקר.')).toContain('יחכה לי שָׁם');
+    expect(apply('חיכיתי לו שם ליד השער.')).toContain('חיכיתי לו שָׁם');
   });
   it('בקצב / הקצב in a rhythm context → בְּקֶצֶב / הַקֶּצֶב', () => {
     expect(apply('לצעוד בקצב של כולם')).toContain('בְּקֶצֶב');
@@ -51,6 +53,8 @@ describe('narration niqqud — the other senses are distinguished by context', (
   });
   it('שם after a "לו/לה …" possessive → שֵׁם ("name")', () => {
     expect(apply('צבע שלא היה לו שם')).toContain('שֵׁם');
+    expect(apply('היה לי שם מיוחד')).toContain('שֵׁם');
+    expect(apply('קרא לי שם חדש')).toContain('שֵׁם');
   });
 });
 

@@ -56,6 +56,7 @@ const CONTEXTUAL_RULES: ReplacementRule[] = [
   // location/existence verb, either order). Put + name run first so the there-default can't steal them. A bare שם
   // with none of these (e.g. the isolated answer "שם.") stays bare → soft-flagged (NOT in the critical subset).
   { id: 'sam_put', pattern: /(?<![֐-׿])שם(?=\s+(את|יד|ידו|ידה|לב|כף|כפה|אותו|אותה|אותם|אותן))/g, vocalized: 'שָׂם' },
+  { id: 'sham_there_after_wait_pronoun', pattern: /(?<=(?:חיכה|חיכתה|חיכו|חיכיתי|חיכית|חיכינו|חיכיתם|חיכיתן|מחכה|מחכים|מחכות|יחכה|תחכה|יחכו|תחכו|נחכה|אחכה|לחכות|שיחכה|שתחכה|שיחכו|שתחכו)\s(?:לי|לו|לה|לך|לנו|לכם|לכן|להם|להן)\s)שם(?![֐-׿])/g, vocalized: 'שָׁם' },
   { id: 'shem_name', pattern: /(?<=(?:לו|לה|לי|לך)\s)שם(?![֐-׿])/g, vocalized: 'שֵׁם' },
   { id: 'sham_there_after', pattern: /(?<=(?:עמד|עמדה|ישב|ישבה|יושב|יושבת|עומד|עומדת|היה|הייתה|היו|יש|אין|נמצא|נמצאת|נשאר|נשארה|עבר|עברו|הופיע|הופיעה|חיכה|חיכתה|להיות)\s)שם(?![֐-׿])/g, vocalized: 'שָׁם' },
   { id: 'sham_there_before', pattern: /(?<![֐-׿])שם(?=\s+(עמד|עמדה|ישב|ישבה|היה|הייתה|היו|נמצא|נמצאת|חיכה|חיכתה|הניח|הניחה|יש|לבד))/g, vocalized: 'שָׁם' },

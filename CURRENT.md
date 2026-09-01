@@ -1,5 +1,22 @@
 # SmallHeroes — Current Technical State
 
+## R1D — current Dad voice and narration disambiguation (local; release QA pending)
+
+Fresh Wizard Dad selections now use the versioned internal identity `dad_v2`, bound to the
+product-approved ElevenLabs voice `NaMUH1vcebhHvD4z3Lku` with the existing Dad tuning. The old
+internal identity `dad` remains runtime-only and still resolves to `V4aTMuwwYUtBD7ZqVvZs`, so an
+unfinished historical Order cannot acquire a different narrator mid-book. Restored, unpaid Wizard
+sessions carrying `dad` migrate to `dad_v2`; the new Dad card intentionally has no preview button
+until a real sample exists.
+
+The general TTS ambiguity pass now resolves `שם` as `שָׁם` after common forms of “wait” plus an
+indirect-object pronoun, including the accepted Chameleon sentence `יחכה לי שם`. Genuine name
+contexts such as `צבע שלא היה לו שם`, `היה לי שם מיוחד` and `קרא לי שם חדש` remain `שֵׁם`.
+
+Focused validation is **3 files / 29 tests PASS**; Wizard JavaScript syntax, `npx tsc --noEmit` and
+`git diff --check` pass. No provider, audio generation, deployment, payment or render occurred.
+The voice change is not a RELEASE PASS by itself and remains part of the final coherent deployment.
+
 ## R1D — AUTHORING PASS preserved; first Wizard release proof invalidated by split deployment
 
 On 2026-09-01, QA entered a split-brain session. Deployment

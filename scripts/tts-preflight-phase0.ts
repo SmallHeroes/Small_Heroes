@@ -36,7 +36,7 @@ import path from 'path';
 const VOICES = {
   fairy: { voiceId: 'fairy', elevenlabsVoiceId: 'piI8Kku0DcvcL6TTSeQt', label: 'פייה קסומה', stability: 0.6, similarity_boost: 0.75, style: 0.3 },
   mom: { voiceId: 'mom', elevenlabsVoiceId: '4RZ84U1b4WCqpu57LvIq', label: 'אמא', stability: 0.55, similarity_boost: 0.78, style: 0.2 },
-  dad: { voiceId: 'dad', elevenlabsVoiceId: 'V4aTMuwwYUtBD7ZqVvZs', label: 'אבא', stability: 0.7, similarity_boost: 0.8, style: 0 },
+  dad_v2: { voiceId: 'dad_v2', elevenlabsVoiceId: 'NaMUH1vcebhHvD4z3Lku', label: 'אבא', stability: 0.7, similarity_boost: 0.8, style: 0 },
 } as const;
 type VoiceKey = keyof typeof VOICES;
 
@@ -303,7 +303,7 @@ async function main() {
   const itemFilter = arg('items')?.split(',').map((s) => s.trim()).filter(Boolean);
   const runId = arg('run-id') ?? new Date().toISOString().replace(/[:.]/g, '-').replace('T', '_').slice(0, 19);
 
-  const voices: VoiceKey[] = stage === '0a' ? ['fairy'] : ['mom', 'dad'];
+  const voices: VoiceKey[] = stage === '0a' ? ['fairy'] : ['mom', 'dad_v2'];
   const runDir = path.join(process.cwd(), 'outputs', 'tts-preflight', runId);
   const clipsDir = path.join(runDir, 'clips');
   fs.mkdirSync(clipsDir, { recursive: true });

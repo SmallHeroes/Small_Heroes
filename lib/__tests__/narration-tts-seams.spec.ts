@@ -51,6 +51,7 @@ describe('narration TTS seams', () => {
 
   it('(Fix 2) resolveVoiceSettings = registry tuning; sleep-mode overrides layer on', () => {
     expect(resolveVoiceSettings(getVoiceById('mom'), false)).toMatchObject({ stability: 0.55, similarity_boost: 0.78, style: 0.2 });
+    expect(resolveVoiceSettings(getVoiceById('dad_v2'), false)).toMatchObject({ stability: 0.7, similarity_boost: 0.8, style: 0 });
     expect(resolveVoiceSettings(getVoiceById('dad'), false)).toMatchObject({ stability: 0.7, similarity_boost: 0.8, style: 0 });
     expect(resolveVoiceSettings(getVoiceById('fairy'), false)).toMatchObject({ stability: 0.6, similarity_boost: 0.75, style: 0.3 });
     expect(resolveVoiceSettings(getVoiceById('mom'), true)).toMatchObject({ stability: 0.9, similarity_boost: 0.7, style: 0 });
@@ -59,13 +60,16 @@ describe('narration TTS seams', () => {
   describe('generatePageAudio wiring (both fixes reach ElevenLabs)', () => {
     const saved = { ELEVENLABS_API_KEY: process.env.ELEVENLABS_API_KEY, SUPABASE_URL: process.env.SUPABASE_URL };
     const realFetch = global.fetch;
+    let requestedUrl = '';
     let sentBody: { text?: string; voice_settings?: { stability?: number; style?: number }; language_code?: string } | null = null;
 
     beforeEach(() => {
       process.env.ELEVENLABS_API_KEY = 'test-key';
       process.env.SUPABASE_URL = 'https://supabase.test';
+      requestedUrl = '';
       sentBody = null;
-      global.fetch = vi.fn(async (_url: string, init: RequestInit) => {
+      global.fetch = vi.fn(async (url: string | URL | Request, init: RequestInit) => {
+        requestedUrl = String(url);
         sentBody = JSON.parse(String(init.body));
         return new Response(new Uint8Array([1, 2, 3, 4]), { status: 200 });
       }) as unknown as typeof fetch;
@@ -94,6 +98,26 @@ describe('narration TTS seams', () => {
       expect(sentBody!.voice_settings!.stability).toBe(0.55);
       expect(sentBody!.voice_settings!.style).toBe(0.2);
       expect(sentBody!.language_code).toBe('he');
+    });
+
+    it('uses the approved provider ID for fresh Dad and the historical ID for legacy Dad', async () => {
+      await generatePageAudio({
+        narrationText: 'הילד רץ מהר.',
+        voiceId: 'dad_v2',
+        sleepMode: false,
+        orderId: 'o2',
+        pageNumber: 1,
+      });
+      expect(requestedUrl).toContain('/NaMUH1vcebhHvD4z3Lku');
+
+      await generatePageAudio({
+        narrationText: 'הילד רץ מהר.',
+        voiceId: 'dad',
+        sleepMode: false,
+        orderId: 'legacy-o1',
+        pageNumber: 1,
+      });
+      expect(requestedUrl).toContain('/V4aTMuwwYUtBD7ZqVvZs');
     });
   });
 

@@ -44,13 +44,13 @@ export const VOICES: VoiceConfig[] = [
     style: 0.20,
   },
   {
-    id: 'dad',
+    id: 'dad_v2',
     label: 'אבא',
     description: 'קול עמוק, חם ומחבק',
     emoji: '👨',
     provider: 'elevenlabs',
-    elevenlabsVoiceId: 'V4aTMuwwYUtBD7ZqVvZs',
-    previewUrl: '/voice-samples/V4aTMuwwYUtBD7ZqVvZs.mp3',
+    elevenlabsVoiceId: 'NaMUH1vcebhHvD4z3Lku',
+    previewUrl: null,
     stability: 0.70,
     similarityBoost: 0.80,
   },
@@ -65,6 +65,21 @@ export const VOICES: VoiceConfig[] = [
     stability: 0.60,
     similarityBoost: 0.75,
     style: 0.3,
+  },
+];
+
+/** Runtime-only voices retained so unfinished historical Orders keep their original narrator. */
+const LEGACY_RUNTIME_VOICES: VoiceConfig[] = [
+  {
+    id: 'dad',
+    label: 'אבא',
+    description: 'קול אבא היסטורי',
+    emoji: '👨',
+    provider: 'elevenlabs',
+    elevenlabsVoiceId: 'V4aTMuwwYUtBD7ZqVvZs',
+    previewUrl: '/voice-samples/V4aTMuwwYUtBD7ZqVvZs.mp3',
+    stability: 0.70,
+    similarityBoost: 0.80,
   },
 ];
 
@@ -85,7 +100,7 @@ export function findVoiceById(id: string): VoiceConfig | undefined {
  * from the sellable roster; narration must not fail an otherwise deliverable book.
  */
 export function getVoiceById(id: string): VoiceConfig {
-  const voice = findVoiceById(id);
+  const voice = findVoiceById(id) ?? LEGACY_RUNTIME_VOICES.find(v => v.id === id);
   if (voice) return voice;
 
   const fallback = VOICES.find(v => v.id === 'mom');
