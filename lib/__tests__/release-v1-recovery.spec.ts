@@ -456,6 +456,42 @@ describe('release/v1 reviewed same-order recovery', () => {
     expect(H.dispatch).not.toHaveBeenCalled();
   });
 
+  it('fails closed unless the Preview explicitly pins the shipped Style 01 model', async () => {
+    for (const STYLE_01_GPT_MODEL of [undefined, 'gpt-image-1']) {
+      const harness = makeHarness();
+      await expect(
+        executeReleaseV1Recovery(input('inspect'), {
+          ...deps(harness),
+          env: {
+            VERCEL_URL: 'fixed-preview.vercel.app',
+            GPT_IMAGE_QUALITY: 'low',
+            ...(STYLE_01_GPT_MODEL ? { STYLE_01_GPT_MODEL } : {}),
+          } as unknown as NodeJS.ProcessEnv,
+        }),
+      ).rejects.toThrow(
+        'STYLE_01_GPT_MODEL must be explicitly pinned to gpt-image-2',
+      );
+      expect(harness.inspect).not.toHaveBeenCalled();
+      expect(harness.transaction).not.toHaveBeenCalled();
+    }
+    expect(H.dispatch).not.toHaveBeenCalled();
+  });
+
+  it('rejects a non-Style-01 package before retained-byte inspection', async () => {
+    const harness = makeHarness();
+    H.requireExpectedBinding.mockReturnValueOnce({
+      ...BINDING,
+      styleId: 'detailed_whimsical_world',
+    });
+
+    await expect(
+      executeReleaseV1Recovery(input('inspect'), deps(harness)),
+    ).rejects.toThrow('release recovery currently supports only Style 01');
+    expect(harness.inspect).not.toHaveBeenCalled();
+    expect(harness.transaction).not.toHaveBeenCalled();
+    expect(H.dispatch).not.toHaveBeenCalled();
+  });
+
   it('rechecks the locked database snapshot and never dispatches on drift or CAS loss', async () => {
     const driftHarness = makeHarness();
     const inspected = await executeReleaseV1Recovery(

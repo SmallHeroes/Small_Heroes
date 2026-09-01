@@ -5,7 +5,7 @@ import { prisma } from '@/lib/prisma';
 import { buildArtifactIdempotencyKey } from '@/lib/generation-chunked/artifact-keys';
 import { chainGenerationWorker } from '@/lib/generation-chunked/chain-worker';
 import { GENERATION_VERSION } from '@/lib/generation-chunked/constants';
-import { resolveStyle01GptModel } from '@/lib/style01-gptimage';
+import { STYLE_IDS } from '@/lib/styles';
 import { canonicalJsonDigest } from '@/lib/visual-package/integrity';
 
 import {
@@ -630,6 +630,9 @@ async function prepareRecoveryPlan(
   if (!isRecord(cache.setIdentityBoards)) {
     reasons.push('bound set identity boards are missing from the generation cache');
   }
+  if (binding.styleId !== STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK) {
+    reasons.push('release recovery currently supports only Style 01');
+  }
 
   let oldContinuity: GenerationReleaseContinuityV1 | null = null;
   try {
@@ -726,7 +729,13 @@ async function prepareRecoveryPlan(
     }
   }
 
-  const model = resolveStyle01GptModel(deps.env);
+  const configuredModel = deps.env.STYLE_01_GPT_MODEL?.trim();
+  if (configuredModel !== 'gpt-image-2') {
+    reasons.push(
+      'STYLE_01_GPT_MODEL must be explicitly pinned to gpt-image-2 for release recovery',
+    );
+  }
+  const model = configuredModel || '(unconfigured)';
   const quality = deps.env.GPT_IMAGE_QUALITY?.trim() || 'low';
   if (job.model?.trim() && job.model.trim() !== model) {
     reasons.push('generation job model differs from the current recovery runtime');

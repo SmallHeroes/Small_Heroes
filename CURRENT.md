@@ -25,14 +25,15 @@ inventory and successful SHA-256 inspection of the delivered cover/pages. Under 
 locks it re-reads the snapshot, CASes only the same Order/job, records a durable recovery audit,
 re-pins continuity to the server-derived immutable Preview and dispatches once after commit. It
 preserves the existing Order, payment, Book, cover, pages/assets, failure counters and all
-barrier-owned cache keys. The page-image writer and recovery preflight now use the same Style 01
-model resolver, so retained idempotency keys are compared to the model the provider path actually
-uses; the existing default and the explicit Preview model are unchanged.
+barrier-owned cache keys. Independent QA caught that the first implementation made the page-image
+writer inherit the legacy Style 01 resolver's `gpt-image-1` fallback. The correction restores the
+writer byte-for-byte to its existing `gpt-image-2` default and makes recovery fail closed unless the
+Preview explicitly pins `STYLE_01_GPT_MODEL=gpt-image-2`; no render-model default is changed.
 
 Evidence on the current working bytes:
 
 - Focused prompt, dense package, recovery, route, continuity, cache, writer-coverage and
-  idempotency validation is **10 files / 113 tests PASS**. The dense package regression exercises
+  idempotency validation is **10 files / 115 tests PASS**. The dense package regression exercises
   the shipped prompt/provider seam for cover plus all eight pages and proves page 7 is the largest
   request without dropping Blueprint camera, placements, text-safe, action, world or continuity
   authority.
@@ -48,15 +49,18 @@ Evidence on the current working bytes:
   resource phase completed **20/20 files and 633/633 assertions PASS**, then Vitest emitted three
   known `onTaskUpdate` RPC timeouts, so the literal repository gate remains accurately red rather
   than being relabeled green.
-- Two read-only adversarial implementation reviews found and closed the multilingual byte-limit,
-  model/idempotency-default and nondeterministic exception-order issues. The remaining limitation is
+- Read-only implementation review found and closed the multilingual byte-limit, initial
+  model/idempotency comparison and nondeterministic exception-order issues. Formal independent QA
+  then found that the first fix inadvertently changed the writer's fallback; the correction restores
+  the original writer and adds explicit Preview model/style gates. The remaining limitation is
   that the nine-row PostgreSQL lock sequence is covered by mocked transaction tests, not a live
   concurrency harness; the deployed `inspect` phase must therefore validate the real Preview
   snapshot before any mutation.
 
 No deployment, database mutation, payment call, provider call, new image/audio generation or push
-has occurred in this recovery milestone. The next gate is an independent Claude Code review of the
-focused immutable commit. Only PASS permits one corrective Preview deployment, one read-only
+has occurred in this recovery milestone. Claude Code returned HOLD on the model-default regression
+in the first commit; that finding is corrected in a separate local milestone and requires re-gate.
+Only PASS permits one corrective Preview deployment, one read-only
 `inspect`, and one guarded `apply` for this same Order; Production remains untouched. After terminal
 completion, Guy must eyeball pages 7–8 and the complete Reader.
 
