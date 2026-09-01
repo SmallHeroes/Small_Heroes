@@ -91,10 +91,18 @@ export const SET_BOARD_POSITIVE_AUTHORITY_POLICY_VERSION =
  */
 export const SET_BOARD_POSITIVE_AUTHORITY_PRECISE_POLICY_VERSION =
   'set-board-positive-authority/v3' as const;
+/**
+ * Context-bound precision for definitions that remain rejected by v3 only
+ * because a physical fixture modifier or a human-role context qualifier
+ * collides with cast vocabulary. V2/v3 semantics remain immutable.
+ */
+export const SET_BOARD_POSITIVE_AUTHORITY_CONTEXTUAL_POLICY_VERSION =
+  'set-board-positive-authority/v4' as const;
 
 export type SetBoardPositiveAuthorityPolicyVersion =
   | typeof SET_BOARD_POSITIVE_AUTHORITY_POLICY_VERSION
-  | typeof SET_BOARD_POSITIVE_AUTHORITY_PRECISE_POLICY_VERSION;
+  | typeof SET_BOARD_POSITIVE_AUTHORITY_PRECISE_POLICY_VERSION
+  | typeof SET_BOARD_POSITIVE_AUTHORITY_CONTEXTUAL_POLICY_VERSION;
 
 /** A location as it appears in the SET-only projection (set facts only — no cast/appearance/page data). */
 export interface SetDefinitionLocation {

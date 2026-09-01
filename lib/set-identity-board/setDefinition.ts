@@ -23,6 +23,7 @@ import { requireSetBoardStableAuthority } from '@/lib/visual-contract-compiler/s
 
 import {
   SET_BOARD_CONTENT_POLICY_VERSION,
+  SET_BOARD_POSITIVE_AUTHORITY_CONTEXTUAL_POLICY_VERSION,
   SET_BOARD_POSITIVE_AUTHORITY_PRECISE_POLICY_VERSION,
   SET_BOARD_POSITIVE_AUTHORITY_POLICY_VERSION,
   SET_IDENTITY_BOARD_VERSION,
@@ -341,7 +342,25 @@ function evaluateSetDefinition(
   const preciseIssues = collectSetBoardPositiveAuthorityIssues(
     preciseDefinition,
   );
-  return { definition: preciseDefinition, issues: preciseIssues };
+  if (preciseIssues.length === 0) {
+    return { definition: preciseDefinition, issues: [] };
+  }
+
+  // V4 is another additive compatibility tier. Existing definitions that
+  // pass v2 or v3 never reach it and therefore retain their exact policy,
+  // hash, prompt bytes and Registry identity.
+  const contextualDefinition: SetDefinition = {
+    ...definition,
+    positiveAuthorityPolicy: positiveAuthorityPolicy(
+      contract,
+      new Set(contentPolicy.includedPropIds),
+      SET_BOARD_POSITIVE_AUTHORITY_CONTEXTUAL_POLICY_VERSION,
+    ),
+  };
+  const contextualIssues = collectSetBoardPositiveAuthorityIssues(
+    contextualDefinition,
+  );
+  return { definition: contextualDefinition, issues: contextualIssues };
 }
 
 export function collectSetDefinitionAdmissionIssues(

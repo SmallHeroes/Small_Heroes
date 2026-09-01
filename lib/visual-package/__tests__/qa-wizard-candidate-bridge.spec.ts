@@ -80,6 +80,7 @@ import {
 import type { ActionSemanticCoverageRecord } from '@/lib/visual-contract-compiler/actionSemanticCoverage';
 import { TEMPLATE_DRAFT_JSON_SCHEMA } from '@/lib/visual-contract-compiler/templateDraftSchema';
 import { projectClosedSchemaFixture } from '@/lib/visual-package/__tests__/helpers/projectClosedSchemaFixture';
+import * as setBoardAdmission from '@/lib/set-identity-board/setBoardAdmission';
 
 const roots: string[] = [];
 const BANK = path.join(process.cwd(), 'story-bank', 'v3-approved');
@@ -227,6 +228,7 @@ function fullyActionedDraft(
   includePresentationRequirements = false,
   includeNonVisualCoverage = false,
   includeCoverConflict = false,
+  includeSetBoardAuthorityLeak = false,
 ): BookVisualContractTemplate & Record<string, unknown> {
   const draft = JSON.parse(
     fs.readFileSync(
@@ -319,6 +321,56 @@ function fullyActionedDraft(
     }
     draft.coverContract.mustNotShow.push(noSpoiler);
   }
+  if (includeSetBoardAuthorityLeak) {
+    const location = draft.locations[0]!;
+    const zones = draft.zones.filter(
+      (candidate) => candidate.locationId === location.id,
+    );
+    if (zones.length === 0) {
+      throw new Error('fixture Set Board authority has no location zone');
+    }
+    location.setIdentityId = 'set_hostile_fixture';
+    location.setReference = { status: 'pending' };
+    location.timeOfDay = location.timeOfDay ?? 'day';
+    location.environmentClass = location.environmentClass ?? 'neutral';
+    location.lighting = 'stable light while the child waits';
+    for (const [index, zone] of zones.entries()) {
+      const node = {
+        id: `hostile_wall_${index + 1}`,
+        kind: 'wall' as const,
+        description: 'a plain fixed wall',
+      };
+      zone.spatialNodes = [node];
+      zone.spatialRelations = undefined;
+      zone.stableGeometry = [
+        `wall ${JSON.stringify(node.id)}: ${node.description}`,
+      ];
+    }
+    draft.setBoardAuthorities = [{
+      setIdentityId: 'set_hostile_fixture',
+      locations: [{
+        locationId: location.id,
+        name: location.name,
+        timeOfDay: location.timeOfDay,
+        lighting: location.lighting,
+        environmentClass: location.environmentClass,
+      }],
+      areas: zones.map((zone, index) => ({
+        id: `hostile_area_${index + 1}`,
+        locationId: location.id,
+        zoneProjection: {
+          cardinality: 'one_to_one' as const,
+          zoneIds: [zone.id],
+        },
+        spatialNodes: [{
+          id: `hostile_wall_${index + 1}`,
+          kind: 'wall' as const,
+          description: 'a plain fixed wall',
+        }],
+      })),
+      fixedObjects: [],
+    }];
+  }
   return draft;
 }
 
@@ -327,12 +379,14 @@ function fullyActionedProviderWireDraft(
   includePresentationRequirements = false,
   includeNonVisualCoverage = false,
   includeCoverConflict = false,
+  includeSetBoardAuthorityLeak = false,
 ): Record<string, unknown> {
   const finalDraft = fullyActionedDraft(
     snapshot,
     includePresentationRequirements,
     includeNonVisualCoverage,
     includeCoverConflict,
+    includeSetBoardAuthorityLeak,
   );
   finalDraft.coverContract.zoneId = finalDraft.pageContracts[0]!.zoneId;
   finalDraft.coverContract.castIds = [
@@ -596,6 +650,7 @@ async function materializeCanonicalCandidate(
     includePresentationRequirements?: boolean;
     includeNonVisualCoverage?: boolean;
     includeCoverConflict?: boolean;
+    includeSetBoardAuthorityLeak?: boolean;
   } = {},
 ): Promise<CanonicalCandidateFixture> {
   const parent = tempRoot();
@@ -633,6 +688,7 @@ async function materializeCanonicalCandidate(
         false,
         false,
         options.includeCoverConflict === true,
+        options.includeSetBoardAuthorityLeak === true,
       ),
     ),
     requiredMode: 'live',
@@ -703,6 +759,7 @@ async function materializeCanonicalCandidate(
           options.includePresentationRequirements === true,
           options.includeNonVisualCoverage === true,
           options.includeCoverConflict === true,
+          options.includeSetBoardAuthorityLeak === true,
         ),
       ),
       requiredMode: 'live',
@@ -2864,6 +2921,103 @@ describe('QA Wizard real-candidate reconciliation bridge', () => {
         bridgeManifestPath: prepared.manifestArtifact.path,
       }),
     ).toThrow(/current reconciliation_approved/);
+  }, 60_000);
+
+  it('rejects an inadmissible required Set before publishing an approved bridge context', async () => {
+    const fixture = await materializeCanonicalCandidate({
+      includeSetBoardAuthorityLeak: true,
+    });
+    const prepared = prepareQaWizardCandidateReconciliation({
+      ...prepareArgs(fixture),
+      write: true,
+    });
+    const approved = buildApprovedArtifacts({ fixture, prepared });
+    const approval = recordQaWizardReconciliationApproval({
+      repoRoot: fixture.repoRoot,
+      outputDir: 'outputs/bridge',
+      pendingManifestPath: prepared.manifestArtifact.path,
+      approvedReconciliationPath: approved.artifacts.reconciliationPath,
+      approvedReviewBundlePath: approved.artifacts.reviewBundlePath,
+      approvedReviewMarkdownPath: approved.artifacts.markdownPath,
+      approvedBy: 'Guy',
+      approvedAt: APPROVED_AT,
+      write: true,
+    });
+    const bridgeRoot = path.join(fixture.repoRoot, 'outputs', 'bridge');
+    const before = fs.readdirSync(bridgeRoot, { recursive: true })
+      .map(String)
+      .sort();
+
+    expect(() =>
+      advanceQaWizardApprovedReconciliation({
+        repoRoot: fixture.repoRoot,
+        outputDir: 'outputs/bridge',
+        bridgeManifestPath: prepared.manifestArtifact.path,
+        approvedReconciliationPath:
+          approval.approvedReconciliationArtifacts.reconciliationPath,
+        approvedReviewBundlePath:
+          approval.approvedReconciliationArtifacts.reviewBundlePath,
+        approvedReviewMarkdownPath:
+          approval.approvedReconciliationArtifacts.markdownPath,
+        approvalAttestationPath: approval.artifact.path,
+        styleId: STYLE_ID,
+        styleAuthorityPath: STYLE01_PRODUCTION_STYLE_AUTHORITY_PATH,
+        write: true,
+      }),
+    ).toThrow(/required_set_board_admission_failed/);
+    expect(
+      fs.readdirSync(bridgeRoot, { recursive: true }).map(String).sort(),
+    ).toEqual(before);
+
+    // Simulate an approved bridge written by a predecessor that predated this
+    // admission gate, then prove the independent load/recovery gate rejects it.
+    const preGateAdmission = vi.spyOn(
+      setBoardAdmission,
+      'collectRequiredSetBoardAdmissionCensus',
+    ).mockReturnValue({
+      version: 'set-board-admission-census/v1',
+      styleId: STYLE_ID,
+      requiredSetIdentityIds: ['set_hostile_fixture'],
+      contractIssues: [],
+      admittedSetIdentityIds: ['set_hostile_fixture'],
+      rejectedSetIdentityIds: [],
+      results: [{
+        setIdentityId: 'set_hostile_fixture',
+        status: 'admitted',
+        policyVersion: 'set-board-positive-authority/v2',
+        issues: [],
+      }],
+      issueCount: 0,
+      admitted: true,
+    });
+    let historicalApproved: ReturnType<
+      typeof advanceQaWizardApprovedReconciliation
+    >;
+    try {
+      historicalApproved = advanceQaWizardApprovedReconciliation({
+        repoRoot: fixture.repoRoot,
+        outputDir: 'outputs/bridge',
+        bridgeManifestPath: prepared.manifestArtifact.path,
+        approvedReconciliationPath:
+          approval.approvedReconciliationArtifacts.reconciliationPath,
+        approvedReviewBundlePath:
+          approval.approvedReconciliationArtifacts.reviewBundlePath,
+        approvedReviewMarkdownPath:
+          approval.approvedReconciliationArtifacts.markdownPath,
+        approvalAttestationPath: approval.artifact.path,
+        styleId: STYLE_ID,
+        styleAuthorityPath: STYLE01_PRODUCTION_STYLE_AUTHORITY_PATH,
+        write: true,
+      });
+    } finally {
+      preGateAdmission.mockRestore();
+    }
+    expect(() =>
+      loadQaWizardApprovedProductionContext({
+        repoRoot: fixture.repoRoot,
+        bridgeManifestPath: historicalApproved.manifestArtifact.path,
+      }),
+    ).toThrow(/required_set_board_admission_failed/);
   }, 60_000);
 
   it('authors a fully visible pending review packet and records only a later exact Guy approval', async () => {

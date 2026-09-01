@@ -3,7 +3,10 @@ import path from 'path';
 
 import { describe, expect, it } from 'vitest';
 
-import type { BookVisualContract } from '@/lib/visual-contract-compiler';
+import type {
+  BookVisualContract,
+  SpatialNodeKind,
+} from '@/lib/visual-contract-compiler';
 
 import { buildSetIdentityBoardPrompt } from '../boardPrompt';
 import {
@@ -19,6 +22,7 @@ import {
   projectSetDefinition,
 } from '../setDefinition';
 import {
+  SET_BOARD_POSITIVE_AUTHORITY_CONTEXTUAL_POLICY_VERSION,
   SET_BOARD_POSITIVE_AUTHORITY_PRECISE_POLICY_VERSION,
   SET_BOARD_POSITIVE_AUTHORITY_POLICY_VERSION,
 } from '../types';
@@ -77,7 +81,7 @@ function addStableGeometryNode(
   contract: BookVisualContract,
   description: string,
   id: string,
-  kind: 'furniture' | 'wall' = 'furniture',
+  kind: SpatialNodeKind = 'furniture',
 ): void {
   const authorityArea = contract.setBoardAuthorities![0].areas[0];
   const zoneId = authorityArea.zoneProjection.zoneIds[0];
@@ -86,6 +90,23 @@ function addStableGeometryNode(
   zone.spatialNodes = [
     ...(zone.spatialNodes ?? []),
     { id, kind, description },
+  ];
+}
+
+function addKindergartenGuard(contract: BookVisualContract): void {
+  contract.humanCast = [
+    ...(contract.humanCast ?? []),
+    {
+      id: 'human:kindergarten_guard',
+      role: 'kindergarten_guard',
+      aliases: ['שומרת הגן'],
+      gender: 'female',
+      coarseAppearance: 'adult with short dark hair',
+      wardrobe: { description: 'a plain navy staff shirt and khaki trousers' },
+      forbiddenAppearance: [],
+      pagesPresent: [1],
+      textEvidence: 'שומרת הגן',
+    },
   ];
 }
 
@@ -120,6 +141,15 @@ describe('Set Board positive free-text spoiler guard', () => {
       'lantern',
       'lamp',
     ]);
+    expect(deriveExcludedPropCanonicalTerms({
+      propId: 'prop_route_labels',
+      name: 'Route-label set',
+    }, SET_BOARD_POSITIVE_AUTHORITY_CONTEXTUAL_POLICY_VERSION)).toEqual([
+      'route label set',
+      'route labels',
+      'labels',
+      'label',
+    ]);
   });
 
   it('uses v3 only for a v2 false collision and keeps clean v2 identity bytes stable', () => {
@@ -142,8 +172,8 @@ describe('Set Board positive free-text spoiler guard', () => {
       SET_BOARD_POSITIVE_AUTHORITY_PRECISE_POLICY_VERSION,
     );
     expect(() => buildSetIdentityBoardPrompt(precise)).not.toThrow();
-    expect(computeSetDefinitionHash(physicalScale, SET_ID, STYLE)).not.toBe(
-      'f4e271938edf91beb3b12c7b8634e43564edfbfecfd5a6d66eee42b747101f50',
+    expect(computeSetDefinitionHash(physicalScale, SET_ID, STYLE)).toBe(
+      '11541e35b618217fca3dc3db6ceabf0a8096f776839ba25fa8c091cfd2c22bdd',
     );
   });
 
@@ -272,6 +302,208 @@ describe('Set Board positive free-text spoiler guard', () => {
         /set_board_positive_authority_leak/,
       );
     }
+  });
+
+  it('uses v4 only for context-bound physical fixture collisions that v3 rejects', () => {
+    const accessibleFixture = makeContract();
+    addStableGeometryNode(
+      accessibleFixture,
+      'Sturdy child-accessible craft table.',
+      'node_craft_table',
+    );
+    const accessibleDefinition = projectSetDefinition(
+      accessibleFixture,
+      SET_ID,
+      STYLE,
+    );
+    expect(accessibleDefinition.positiveAuthorityPolicy.version).toBe(
+      SET_BOARD_POSITIVE_AUTHORITY_CONTEXTUAL_POLICY_VERSION,
+    );
+    expect(() => buildSetIdentityBoardPrompt(accessibleDefinition)).not.toThrow();
+
+    const contextualAperture = makeContract();
+    addKindergartenGuard(contextualAperture);
+    addStableGeometryNode(
+      contextualAperture,
+      'Openable kindergarten gate.',
+      'node_kindergarten_gate',
+      'doorway',
+    );
+    const apertureDefinition = projectSetDefinition(
+      contextualAperture,
+      SET_ID,
+      STYLE,
+    );
+    expect(apertureDefinition.positiveAuthorityPolicy.version).toBe(
+      SET_BOARD_POSITIVE_AUTHORITY_CONTEXTUAL_POLICY_VERSION,
+    );
+    expect(() => buildSetIdentityBoardPrompt(apertureDefinition)).not.toThrow();
+  });
+
+  it('keeps the v4 child-accessible exception exact, structural, and occurrence-bound', () => {
+    for (const [description, id, kind] of [
+      ['Sturdy child accessible craft table.', 'node_craft_table', 'furniture'],
+      ['Sturdy child-accessible craft table.', 'node_craft_table', 'wall'],
+      ['Sturdy child-accessible craft table.', 'node_table', 'furniture'],
+      [
+        'Sturdy child-accessible craft table with a child beside it.',
+        'node_craft_table',
+        'furniture',
+      ],
+    ] as const) {
+      const hostile = makeContract();
+      addStableGeometryNode(hostile, description, id, kind);
+      expect(() => projectSetDefinition(hostile, SET_ID, STYLE)).toThrow(
+        /set_board_positive_authority_leak/,
+      );
+    }
+
+    const nonGeometry = makeContract();
+    nonGeometry.setBoardAuthorities![0].locations[0].lighting =
+      'child-accessible warm lighting';
+    expect(() => projectSetDefinition(nonGeometry, SET_ID, STYLE)).toThrow(
+      /set_board_positive_authority_leak/,
+    );
+  });
+
+  it('keeps the v4 human-role qualifier exception bound to one physical aperture', () => {
+    for (const [description, id, kind] of [
+      ['Kindergarten guard beside the gate.', 'node_kindergarten_gate', 'doorway'],
+      [
+        'Openable kindergarten gate beside the guard.',
+        'node_kindergarten_gate',
+        'doorway',
+      ],
+      [
+        'Openable kindergarten gate beside שומרת הגן.',
+        'node_kindergarten_gate',
+        'doorway',
+      ],
+      ['Openable kindergarten gate.', 'node_gate', 'doorway'],
+      ['Openable kindergarten gate.', 'node_kindergarten_gate', 'furniture'],
+      [
+        'Openable kindergarten gate beside Pal.',
+        'node_kindergarten_gate',
+        'doorway',
+      ],
+      [
+        'Openable kindergarten gate beside another kindergarten gate.',
+        'node_kindergarten_gate',
+        'doorway',
+      ],
+    ] as const) {
+      const hostile = makeContract();
+      addKindergartenGuard(hostile);
+      addStableGeometryNode(hostile, description, id, kind);
+      expect(() => projectSetDefinition(hostile, SET_ID, STYLE)).toThrow(
+        /set_board_positive_authority_leak/,
+      );
+    }
+
+    const nonGeometry = makeContract();
+    addKindergartenGuard(nonGeometry);
+    nonGeometry.setBoardAuthorities![0].locations[0].lighting =
+      'kindergarten gate glow';
+    expect(() => projectSetDefinition(nonGeometry, SET_ID, STYLE)).toThrow(
+      /set_board_positive_authority_leak/,
+    );
+
+    const aliasCollision = makeContract();
+    addKindergartenGuard(aliasCollision);
+    aliasCollision.humanCast![0].aliases.push('Kindergarten');
+    addStableGeometryNode(
+      aliasCollision,
+      'Openable kindergarten gate.',
+      'node_kindergarten_gate',
+      'doorway',
+    );
+    expect(() => projectSetDefinition(aliasCollision, SET_ID, STYLE)).toThrow(
+      /set_board_positive_authority_leak/,
+    );
+  });
+
+  it('supports a multiword human context without releasing its head, alias, or companion', () => {
+    const safe = makeContract();
+    addKindergartenGuard(safe);
+    safe.humanCast![0].id = 'human:night_kindergarten_guard';
+    safe.humanCast![0].role = 'night_kindergarten_guard';
+    addStableGeometryNode(
+      safe,
+      'Openable night kindergarten gate.',
+      'node_night_kindergarten_gate',
+      'doorway',
+    );
+    expect(projectSetDefinition(safe, SET_ID, STYLE)
+      .positiveAuthorityPolicy.version).toBe(
+      SET_BOARD_POSITIVE_AUTHORITY_CONTEXTUAL_POLICY_VERSION,
+    );
+
+    for (const description of [
+      'Openable night kindergarten gate beside the guard.',
+      'Openable night kindergarten gate beside שומרת הגן.',
+    ]) {
+      const hostile = clone(safe);
+      const authorityNodes = hostile.setBoardAuthorities![0].areas[0]
+        .spatialNodes;
+      const authorityNode = authorityNodes[authorityNodes.length - 1]!;
+      const zoneNodes = hostile.zones.find((zone) => zone.id === 'z_north')!
+        .spatialNodes!;
+      const zoneNode = zoneNodes[zoneNodes.length - 1]!;
+      authorityNode.description = description;
+      zoneNode.description = description;
+      expect(() => projectSetDefinition(hostile, SET_ID, STYLE)).toThrow(
+        /set_board_positive_authority_leak/,
+      );
+    }
+
+    for (const companionLeak of ['Koko', 'chameleon']) {
+      const hostile = clone(safe);
+      hostile.cast.companion!.name = 'Koko';
+      hostile.cast.companion!.id = 'companion:chameleon';
+      const description =
+        `Openable night kindergarten gate beside ${companionLeak}.`;
+      const authorityNodes = hostile.setBoardAuthorities![0].areas[0]
+        .spatialNodes;
+      authorityNodes[authorityNodes.length - 1]!.description = description;
+      const zoneNodes = hostile.zones.find((zone) => zone.id === 'z_north')!
+        .spatialNodes!;
+      zoneNodes[zoneNodes.length - 1]!.description = description;
+      expect(() => projectSetDefinition(hostile, SET_ID, STYLE)).toThrow(
+        /set_board_positive_authority_leak/,
+      );
+    }
+  });
+
+  it('does not let v4 weaken excluded-prop or action authority', () => {
+    const propLeak = revealGatedContract({
+      propId: 'prop_route_labels',
+      propName: 'Route-label set',
+    });
+    addStableGeometryNode(
+      propLeak,
+      'Sturdy child-accessible craft table beside route labels.',
+      'node_craft_table',
+    );
+    expect(() => projectSetDefinition(propLeak, SET_ID, STYLE)).toThrow(
+      /set_board_positive_authority_spoiler_leak/,
+    );
+
+    const actionLeak = makeContract();
+    addStableGeometryNode(
+      actionLeak,
+      'Sturdy child-accessible craft table while a mechanism walks.',
+      'node_craft_table',
+    );
+    expect(() => projectSetDefinition(actionLeak, SET_ID, STYLE)).toThrow(
+      /set_board_positive_authority_leak/,
+    );
+    expect(collectSetDefinitionAdmissionIssues(
+      actionLeak,
+      SET_ID,
+      STYLE,
+    )).toEqual(expect.arrayContaining([
+      expect.objectContaining({ category: 'action', matchedTerm: 'walks' }),
+    ]));
   });
 
   it('allows environmental route geometry while keeping route-label prop authority closed', () => {

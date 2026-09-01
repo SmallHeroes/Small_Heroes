@@ -14,6 +14,7 @@ import {
 } from '../setBoardAdmission';
 import { computeSetDefinitionHash } from '../setDefinition';
 import {
+  SET_BOARD_POSITIVE_AUTHORITY_CONTEXTUAL_POLICY_VERSION,
   SET_BOARD_POSITIVE_AUTHORITY_PRECISE_POLICY_VERSION,
   SET_BOARD_POSITIVE_AUTHORITY_POLICY_VERSION,
 } from '../types';
@@ -120,7 +121,98 @@ function makeThreeSetContract() {
   return contract;
 }
 
+function makeContextualTwoSetContract() {
+  const contract = clone(makeContract());
+  for (const location of contract.locations.filter((candidate) =>
+    candidate.setIdentityId === 'set_alpha')) {
+    location.setIdentityId = 'set_home_interior';
+  }
+  const homeAuthority = contract.setBoardAuthorities![0];
+  homeAuthority.setIdentityId = 'set_home_interior';
+  homeAuthority.areas[0].spatialNodes.push({
+    id: 'node_craft_table',
+    kind: 'furniture',
+    description: 'Sturdy child-accessible craft table.',
+  });
+  contract.zones.find((zone) => zone.id === 'z_north')!.spatialNodes!.push({
+    id: 'node_craft_table',
+    kind: 'furniture',
+    description: 'Sturdy child-accessible craft table.',
+  });
+
+  const route = contract.locations.find((location) => location.id === 'meadow')!;
+  route.setIdentityId = 'set_kindergarten_route';
+  route.setReference = { status: 'pending' };
+  route.timeOfDay = 'day';
+  route.lighting = 'stable soft daylight';
+  const routeZone = contract.zones.find((zone) => zone.id === 'z_meadow')!;
+  routeZone.spatialNodes = [{
+    id: 'node_kindergarten_gate',
+    kind: 'doorway',
+    description: 'Openable kindergarten gate.',
+  }];
+  contract.setBoardAuthorities!.push({
+    setIdentityId: 'set_kindergarten_route',
+    locations: [{
+      locationId: route.id,
+      name: 'Garden route',
+      timeOfDay: 'day',
+      lighting: 'stable soft daylight',
+      environmentClass: 'outdoor',
+    }],
+    areas: [{
+      id: 'board_kindergarten_route',
+      locationId: route.id,
+      zoneProjection: { cardinality: 'one_to_one', zoneIds: [routeZone.id] },
+      spatialNodes: [{
+        id: 'node_kindergarten_gate',
+        kind: 'doorway',
+        description: 'Openable kindergarten gate.',
+      }],
+    }],
+    fixedObjects: [],
+  });
+  contract.humanCast = [{
+    id: 'human:kindergarten_guard',
+    role: 'kindergarten_guard',
+    aliases: ['שומרת הגן'],
+    gender: 'female',
+    coarseAppearance: 'adult with short dark hair',
+    wardrobe: { description: 'a plain navy staff shirt and khaki trousers' },
+    forbiddenAppearance: [],
+    pagesPresent: [2],
+    textEvidence: 'שומרת הגן',
+  }];
+  return contract;
+}
+
 describe('required Set Board admission census', () => {
+  it('admits the exact contextual home and kindergarten authority shapes under v4', () => {
+    const contract = makeContextualTwoSetContract();
+    const first = collectRequiredSetBoardAdmissionCensus(contract, STYLE);
+    const replay = collectRequiredSetBoardAdmissionCensus(contract, STYLE);
+
+    expect(first).toEqual(replay);
+    expect(first).toMatchObject({
+      requiredSetIdentityIds: [
+        'set_home_interior',
+        'set_kindergarten_route',
+      ],
+      admittedSetIdentityIds: [
+        'set_home_interior',
+        'set_kindergarten_route',
+      ],
+      rejectedSetIdentityIds: [],
+      contractIssues: [],
+      issueCount: 0,
+      admitted: true,
+    });
+    expect(first.results.map((result) => result.policyVersion)).toEqual([
+      SET_BOARD_POSITIVE_AUTHORITY_CONTEXTUAL_POLICY_VERSION,
+      SET_BOARD_POSITIVE_AUTHORITY_CONTEXTUAL_POLICY_VERSION,
+    ]);
+  });
+
   it('admits every Candidate-shaped Set with deterministic v2/v3 policy selection', () => {
     const contract = makeThreeSetContract();
     const first = collectRequiredSetBoardAdmissionCensus(contract, STYLE);

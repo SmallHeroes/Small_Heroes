@@ -94,7 +94,14 @@ import {
   type VisualContractAuthoringReplayEvidence,
 } from './visualContractAuthoringReplayEvidence';
 import { loadTemplateForPackage } from './artifacts';
-import { validateBookVisualContractTemplate } from '../visual-contract-compiler';
+import {
+  validateBookVisualContractTemplate,
+  type BookVisualContract,
+} from '../visual-contract-compiler';
+import {
+  assertRequiredSetBoardAdmission,
+  collectRequiredSetBoardAdmissionCensus,
+} from '../set-identity-board/setBoardAdmission';
 import {
   loadApprovedCandidateCoverCorrection,
   VISUAL_CONTRACT_CANDIDATE_COVER_CORRECTION_APPROVAL_VERSION,
@@ -128,6 +135,22 @@ export const QA_WIZARD_CANDIDATE_VALIDATION_DOES_NOT_AUTHORIZE = [
   'production_publication',
   'deployment',
 ] as const;
+
+function assertProductionTemplateSetBoardAdmission(args: {
+  template: VisualContractCandidateArtifact['template'];
+  styleId: string;
+}): void {
+  // The validated Template omits provider-owned human appearance fields that
+  // Set Board projection deliberately never reads. Reuse the same explicit
+  // pure projection seam as visual-package/artifacts.ts.
+  const setProjectionContract = args.template as unknown as BookVisualContract;
+  assertRequiredSetBoardAdmission(
+    collectRequiredSetBoardAdmissionCensus(
+      setProjectionContract,
+      args.styleId,
+    ),
+  );
+}
 
 export const QA_WIZARD_RECONCILIATION_APPROVAL_ATTESTATION_VERSION =
   'qa-wizard-reconciliation-approval-attestation/v1' as const;
@@ -3366,6 +3389,10 @@ export function loadQaWizardApprovedProductionContext(args: {
       'approved QA Wizard bridge production context is stale or substituted',
     );
   }
+  assertProductionTemplateSetBoardAdmission({
+    template: context.template.content,
+    styleId: context.styleId,
+  });
   return { manifest, context };
 }
 
@@ -4099,6 +4126,10 @@ export function advanceQaWizardApprovedReconciliation(
   ) {
     throw new Error('approved reconciliation context is stale');
   }
+  assertProductionTemplateSetBoardAdmission({
+    template: context.template.content,
+    styleId: context.styleId,
+  });
 
   const expectedReviewBundle = buildReconciliationReviewBundle({
     reconciliation: context.reconciliation.content,

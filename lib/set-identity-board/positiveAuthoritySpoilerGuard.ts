@@ -1,6 +1,7 @@
 import { getSetBoardStylePromptBlock } from '@/lib/styles';
 
 import {
+  SET_BOARD_POSITIVE_AUTHORITY_CONTEXTUAL_POLICY_VERSION,
   SET_BOARD_POSITIVE_AUTHORITY_PRECISE_POLICY_VERSION,
   SET_BOARD_POSITIVE_AUTHORITY_POLICY_VERSION,
   type SetBoardExcludedProp,
@@ -23,6 +24,7 @@ interface PositiveAuthoritySource {
   provenance: string;
   value: string;
   architecturalScaleFixtureSuffix?: string[];
+  spatialNode?: SetDefinition['zones'][number]['spatialNodes'][number];
 }
 
 interface CanonicalTerm {
@@ -125,6 +127,12 @@ const ARCHITECTURAL_SCALE_MODIFIERS_V3 = new Set([
   'sized',
 ]);
 
+// V4 is additive. Never add this member to the frozen v3 vocabulary.
+const ARCHITECTURAL_FIXTURE_MODIFIERS_V4 = new Set([
+  ...ARCHITECTURAL_SCALE_MODIFIERS_V3,
+  'accessible',
+]);
+
 const ARCHITECTURAL_SCALE_FIXTURE_SUFFIXES_V3 = new Set([
   'bed',
   'table',
@@ -135,6 +143,13 @@ const ARCHITECTURAL_SCALE_FIXTURE_SUFFIXES_V3 = new Set([
 const LEADING_SPATIAL_NODE_ID_NAMESPACES_V3 = new Set([
   'node',
   'spatial',
+]);
+
+const HUMAN_CONTEXT_APERTURE_SUFFIXES_V4 = new Map<
+  SetDefinition['zones'][number]['spatialNodes'][number]['kind'],
+  readonly (readonly string[])[]
+>([
+  ['doorway', [['gate']]],
 ]);
 
 export class SetBoardPositiveAuthoritySpoilerError extends Error {
@@ -222,8 +237,8 @@ export function deriveExcludedPropCanonicalTerms(
 
   let headWords: string[] = [];
   if (
-    policyVersion ===
-    SET_BOARD_POSITIVE_AUTHORITY_PRECISE_POLICY_VERSION
+    policyVersion === SET_BOARD_POSITIVE_AUTHORITY_PRECISE_POLICY_VERSION ||
+    policyVersion === SET_BOARD_POSITIVE_AUTHORITY_CONTEXTUAL_POLICY_VERSION
   ) {
     const terminalIdWord = idWords[idWords.length - 1];
     const nameWordSet = new Set(nameWords);
@@ -291,18 +306,26 @@ function containsCastTerm(
   termWords: readonly string[],
   policyVersion: SetBoardPositiveAuthorityPolicyVersion,
   architecturalScaleChildOrdinals: ReadonlySet<number>,
+  contextualHumanQualifierOrdinals: ReadonlySet<number> = new Set<number>(),
 ): boolean {
-  if (
-    policyVersion !==
-      SET_BOARD_POSITIVE_AUTHORITY_PRECISE_POLICY_VERSION ||
-    termWords.length !== 1 ||
-    termWords[0] !== 'child'
-  ) {
+  if (termWords.length !== 1) {
     return containsTerm(sourceWords, termWords);
   }
   for (let index = 0; index < sourceWords.length; index += 1) {
     if (sourceWords[index] !== termWords[0]) continue;
-    if (!architecturalScaleChildOrdinals.has(index)) return true;
+    const architecturalChildOccurrence =
+      termWords[0] === 'child' &&
+      (policyVersion === SET_BOARD_POSITIVE_AUTHORITY_PRECISE_POLICY_VERSION ||
+        policyVersion ===
+          SET_BOARD_POSITIVE_AUTHORITY_CONTEXTUAL_POLICY_VERSION) &&
+      architecturalScaleChildOrdinals.has(index);
+    const contextualHumanOccurrence =
+      policyVersion ===
+        SET_BOARD_POSITIVE_AUTHORITY_CONTEXTUAL_POLICY_VERSION &&
+      contextualHumanQualifierOrdinals.has(index);
+    if (!architecturalChildOccurrence && !contextualHumanOccurrence) {
+      return true;
+    }
   }
   return false;
 }
@@ -312,7 +335,9 @@ function architecturalScaleChildOrdinals(
   policyVersion: SetBoardPositiveAuthorityPolicyVersion,
 ): ReadonlySet<number> {
   if (
-    policyVersion !== SET_BOARD_POSITIVE_AUTHORITY_PRECISE_POLICY_VERSION ||
+    (policyVersion !== SET_BOARD_POSITIVE_AUTHORITY_PRECISE_POLICY_VERSION &&
+      policyVersion !==
+        SET_BOARD_POSITIVE_AUTHORITY_CONTEXTUAL_POLICY_VERSION) ||
     !/^zones\[\d+\]\.geometry\[\d+\]$/u.test(source.fieldPath) ||
     !source.architecturalScaleFixtureSuffix
   ) {
@@ -322,13 +347,17 @@ function architecturalScaleChildOrdinals(
   const tokenMatches = [
     ...normalized.matchAll(/\p{L}[\p{L}\p{M}\p{N}]*|\p{N}+/gu),
   ];
+  const modifiers = policyVersion ===
+      SET_BOARD_POSITIVE_AUTHORITY_CONTEXTUAL_POLICY_VERSION
+    ? ARCHITECTURAL_FIXTURE_MODIFIERS_V4
+    : ARCHITECTURAL_SCALE_MODIFIERS_V3;
   const ordinals = new Set<number>();
   for (let index = 0; index < tokenMatches.length - 1; index += 1) {
     const current = tokenMatches[index];
     const next = tokenMatches[index + 1];
     if (
       current[0] !== 'child' ||
-      !ARCHITECTURAL_SCALE_MODIFIERS_V3.has(next[0]) ||
+      !modifiers.has(next[0]) ||
       current.index === undefined ||
       next.index === undefined
     ) {
@@ -347,6 +376,96 @@ function architecturalScaleChildOrdinals(
       tokenMatches[index + 2 + offset]?.[0] === word)) {
       ordinals.add(index);
     }
+  }
+  return ordinals;
+}
+
+function wordsEqual(
+  left: readonly string[],
+  right: readonly string[],
+): boolean {
+  return left.length === right.length &&
+    left.every((word, index) => word === right[index]);
+}
+
+/**
+ * V4 may release only the contextual prefix of a namespaced human role when
+ * structured geometry independently proves that the same words name an
+ * aperture. The person-denoting terminal head is never released.
+ */
+function contextualHumanQualifierOrdinals(
+  source: PositiveAuthoritySource,
+  policyVersion: SetBoardPositiveAuthorityPolicyVersion,
+  castId: string,
+  castLabels: readonly string[],
+): ReadonlySet<number> {
+  if (
+    policyVersion !== SET_BOARD_POSITIVE_AUTHORITY_CONTEXTUAL_POLICY_VERSION ||
+    !/^zones\[\d+\]\.geometry\[\d+\]$/u.test(source.fieldPath) ||
+    !source.spatialNode ||
+    !castId.startsWith('human:')
+  ) {
+    return new Set<number>();
+  }
+  const roleWords = canonicalSetBoardWords(castId);
+  if (roleWords[0] !== 'human' || roleWords.length < 3) {
+    return new Set<number>();
+  }
+  roleWords.shift();
+  const qualifierWords = roleWords.slice(0, -1);
+  if (qualifierWords.length === 0) return new Set<number>();
+  const structuralRoleWords = roleWords;
+  const structuralCastIdWords = ['human', ...roleWords];
+  const nonStructuralLabelClaimsQualifier = castLabels.some((label) => {
+    const labelWords = canonicalSetBoardWords(label);
+    if (
+      wordsEqual(labelWords, structuralRoleWords) ||
+      wordsEqual(labelWords, structuralCastIdWords)
+    ) {
+      return false;
+    }
+    return labelWords.some((word) => qualifierWords.includes(word));
+  });
+  // A name/alias claim always outranks the contextual aperture exception.
+  // The exception is derivable only from the stable human role identity.
+  if (nonStructuralLabelClaimsQualifier) return new Set<number>();
+
+  const suffixes = HUMAN_CONTEXT_APERTURE_SUFFIXES_V4.get(
+    source.spatialNode.kind,
+  ) ?? [];
+  const nodeWords = canonicalSetBoardWords(source.spatialNode.id);
+  while (
+    nodeWords.length > 0 &&
+    LEADING_SPATIAL_NODE_ID_NAMESPACES_V3.has(nodeWords[0])
+  ) {
+    nodeWords.shift();
+  }
+  const physicalPhrase = suffixes
+    .map((suffix) => [...qualifierWords, ...suffix])
+    .find((candidate) => wordsEqual(candidate, nodeWords));
+  if (!physicalPhrase) return new Set<number>();
+
+  const sourceWords = canonicalSetBoardWords(source.value);
+  const matchingStarts: number[] = [];
+  for (
+    let start = 0;
+    start <= sourceWords.length - physicalPhrase.length;
+    start += 1
+  ) {
+    if (!physicalPhrase.every(
+      (word, offset) => sourceWords[start + offset] === word,
+    )) {
+      continue;
+    }
+    matchingStarts.push(start);
+  }
+  // A node describes one physical aperture. Repeated contextual phrases are
+  // ambiguous positive authority, so v4 never releases more than one lexical
+  // occurrence from one structured node.
+  if (matchingStarts.length !== 1) return new Set<number>();
+  const ordinals = new Set<number>();
+  for (let offset = 0; offset < qualifierWords.length; offset += 1) {
+    ordinals.add(matchingStarts[0]! + offset);
   }
   return ordinals;
 }
@@ -371,7 +490,8 @@ function supportedPolicyVersion(
   value: unknown,
 ): value is SetBoardPositiveAuthorityPolicyVersion {
   return value === SET_BOARD_POSITIVE_AUTHORITY_POLICY_VERSION ||
-    value === SET_BOARD_POSITIVE_AUTHORITY_PRECISE_POLICY_VERSION;
+    value === SET_BOARD_POSITIVE_AUTHORITY_PRECISE_POLICY_VERSION ||
+    value === SET_BOARD_POSITIVE_AUTHORITY_CONTEXTUAL_POLICY_VERSION;
 }
 
 function canonicalTerms(values: readonly string[], includeIndividualWords: boolean): CanonicalTerm[] {
@@ -480,6 +600,7 @@ function positiveAuthoritySources(definition: SetDefinition): PositiveAuthorityS
           `SetDefinitionZone ${JSON.stringify(zone.id)} projected spatial-node description/closed relation ` +
           '-> positive geometry line',
         value: geometry,
+        ...(node ? { spatialNode: node } : {}),
         ...(fixtureSuffix
           ? { architecturalScaleFixtureSuffix: fixtureSuffix }
           : {}),
@@ -590,6 +711,7 @@ export function collectSetBoardPositiveAuthorityIssues(
   const genericCastTerms = canonicalTerms(GENERIC_CAST_TERMS_V2, false);
   const blockedCast = definition.positiveAuthorityPolicy.blockedCast.map((identity) => ({
     identity: identity.castId,
+    labels: identity.labels,
     terms: canonicalTerms([identity.castId, ...identity.labels], true),
   }));
   const excludedPropIds = new Set(excludedProps.map((prop) => prop.propId));
@@ -611,12 +733,19 @@ export function collectSetBoardPositiveAuthorityIssues(
     );
     const specificallyBlockedCastLabels = new Set<string>();
     for (const blocked of blockedCast) {
+      const contextualOrdinals = contextualHumanQualifierOrdinals(
+        source,
+        policyVersion,
+        blocked.identity,
+        blocked.labels,
+      );
       for (const term of blocked.terms) {
         if (containsCastTerm(
           sourceWords,
           term.words,
           policyVersion,
           scaleChildOrdinals,
+          contextualOrdinals,
         )) {
           add(new SetBoardPositiveAuthorityLeakError(
             definition.setIdentityId,

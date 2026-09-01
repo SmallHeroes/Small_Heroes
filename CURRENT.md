@@ -1,5 +1,53 @@
 # SmallHeroes — Current Technical State
 
+## R1D — contextual Set Board v4 closes exact d963 admission offline; locally green, awaiting Claude Code re-gate
+
+The downstream Wizard map found a deterministic pre-package blocker in the already-approved
+`3ef64541...` production context. Exact effective template `d9633671...` requires
+`set_home_interior` and `set_kindergarten_route`, but the collect-all Board census rejected both
+before Registry I/O: `child-accessible craft table` falsely matched `child:hero`, and
+`kindergarten gate` falsely matched the contextual token in `human:kindergarten_guard`. No third
+issue was masked, no existing/new-ID Board was present across 52 worktrees, and another paid
+Blueprint call could not change this fixed Template authority.
+
+- New `set-board-positive-authority/v4` is an additive third compatibility tier. Definitions that
+  pass v2 or v3 never reach it and keep exact policy/hash/prompt/Registry identity.
+- The new `child-accessible` release is bound to one projected geometry node, an explicit dash,
+  `furniture`, the existing closed fixture vocabulary and exact node-ID/prose suffix equality.
+- The human-context release is narrower still: one non-head qualifier, one `doorway`, one exact
+  qualifier-plus-`gate` node ID and one matching physical phrase. Head/full-role/name/alias,
+  repeated phrase, non-geometry, wrong node/kind, child/companion and generic cast authority remain
+  blocked. Unproved door/window/entrance variants were deliberately not enabled.
+- v4 explicitly inherits v3 excluded-prop precision. Hostile tests prove excluded route labels,
+  action prose, a second child, `guard`, the Hebrew alias, an alias equal to the qualifier,
+  multiword contexts, `Koko` and `chameleon` still fail closed.
+- Approved bridge advance and approved production-context load/replay now independently re-derive
+  complete required-Board admission from the exact Template/style. A canonical hostile Candidate
+  stops before publication, and a simulated pre-gate approved artifact is rejected during load.
+- Exact d963 replay is now required 2 / admitted 2 / rejected 0 / issueCount 0. New future Board
+  hashes are `48bf9d53...` (home) and `6a9b573a...` (kindergarten route), both v4. The existing
+  approved bridge `8c5bcb03...` loads unchanged and remains bound to Story Source `3ef64541...`.
+- Exact historical replay preserves real hashes `e71fbd7a...` (v3), `a04ca201...` (v2) and
+  `a9c0e87d...` (v3). Synthetic v2 remains `f4e27193...`; synthetic v3 is newly locked at
+  `11541e35...`; the approved legacy Chameleon package retains both historical v2 Board identities.
+- Focused v4/census is **30/30 PASS**. Full Set Board is **359/359 PASS**. Full bridge is
+  **15/15 PASS**, followed by one known Vitest `onTaskUpdate` RPC timeout; the exact new
+  advance/load test passes alone. Both TypeScript phases exit 0 and `git diff --check` is clean.
+  Literal `npm run check` passed both TypeScript phases. Ordinary completed 311 files / 4,323
+  tests PASS with the established five ignored-output fixture files / nine absent-artifact
+  assertions and 73 skips. Resource completed 20 files / 633 tests PASS, followed by the three
+  known Vitest `onTaskUpdate` RPC timeouts. The command exits 1 and is not relabeled green; no
+  changed-path assertion failed.
+- Zero provider, credential, network, image, Vision, audio, upload, Registry, package, locator,
+  Order/payment, database, deployment or render operation occurred. No branch was pushed.
+
+Evidence:
+`docs/ai-workflow/R1D_SET_BOARD_CONTEXTUAL_POSITIVE_AUTHORITY_V4_IMPLEMENTATION_EVIDENCE.md`.
+Decision Gate:
+`docs/ai-workflow/R1D_SET_BOARD_CONTEXTUAL_POSITIVE_AUTHORITY_V4_DECISION_GATE.md`.
+
+---
+
 ## R1D — product-accepted fresh selection fails closed; independent Claude Code QA PASS
 
 A read-only end-to-end Wizard contamination audit found that the current Chameleon locator still
