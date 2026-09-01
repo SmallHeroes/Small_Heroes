@@ -140,6 +140,26 @@ its gate is static plus artifact-consistency review; the executed suites and typ
 the runtime evidence. This PASS authorizes only the separately approved single LOW route successor;
 it does not approve that unseen Board, a package, a Wizard Order or a render.
 
+## Post-gate bounded successor
+
+After the independent PASS, the pre-spend fence verified the exact branch/HEAD, d963 Template and
+bridge, complete live environment, absent v7 target, and unchanged Home / failed-route Registry
+SHAs. A network-denied live-import preflight completed with zero fetch attempts. The one authorized
+canonical route LOW then ran once, with no custom output root and no retry:
+
+- Set Definition: `38870567284b295c73cfea594ec3ab837b4a7ea221cf3df0c1de36404270071a`
+- prompt: `ee55e313d67f3c4f4601d3b7b3c4983cc7f31d9ecf20d3bf28dad1bef05fa1e2`
+- asset: `4f0d592dbf3f1aa333655dae1b0e21f6b180b1bacaba01fad648919b92125272`
+- Registry bytes: `93e6196ea70867d5283406b9796045f6afe6e24cf12b998fa07de2d4f1d55fb5`
+- model / quality: `gpt-image-2` / `low`
+- automated QA: `passed`, zero flags
+- approval: null / null
+
+The old route Registry remains SHA-256 `d11d4930084d51bad74e161397c3f241043e0fdc0f6b5521e4eb8fc6cc1292e8`
+and Home remains `01ccfe0e411803c2f00f32b153aba9abf5798f8592068288531a472b58404a32`.
+Both the new route and existing Home remain unusable until exact Guy visual approval; no Blueprint,
+package, locator, Wizard Order or render action followed this mint.
+
 ## Unchanged / excluded
 
 No Story Source, d963 Template, bridge, reconciliation, existing Board/Registry/asset, Visual

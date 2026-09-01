@@ -49,6 +49,15 @@ contract did not represent future page-conditioned physical availability.
   deployment or render operation occurred in the implementation or QA range. The gate now permits
   exactly one canonical LOW route successor under the existing no-retry stop rules.
 
+Post-gate, the one permitted route successor was minted exactly once with `gpt-image-2` LOW. It
+published create-only Registry entry `38870567284b295c73cfea594ec3ab837b4a7ea221cf3df0c1de36404270071a`
+(Registry bytes SHA-256 `93e6196e...`, prompt `ee55e313...`) and content-addressed asset
+`4f0d592d...`; automated Vision QA returned `passed` with zero flags. The old failed route Registry
+SHA `d11d4930...` and Home Registry SHA `01ccfe0e...` remain byte-identical. The successor is
+deliberately unapproved (`approvedBy` / `approvedAt` null), so package/Blueprint/Order/render work
+has not started and no retry or rerender occurred. Next authority boundary is exact Guy visual
+approval of the Home and new route assets; only then may the canonical Blueprint/package chain run.
+
 The post-first-render simplification direction is recorded, without code changes, in
 `docs/ai-workflow/SIMPLIFICATION_FINDINGS.md`: explicit AUTHORING PASS versus RELEASE PASS,
 compiler ownership of technical identity, duplicated-authority inventory, tiered QA and legacy
