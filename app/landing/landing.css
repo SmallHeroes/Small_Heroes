@@ -617,7 +617,8 @@
   scroll-snap-align: center;
   position: relative;
   /* overflow moved to the img: the tape has to stick out of the page */
-  border-radius: 16px;
+  /* 5px, not 16: printed pages, not app cards (per Guy) */
+  border-radius: 5px;
   box-shadow: 0 4px 24px rgba(0, 0, 0, 0.10);
   transition: transform 0.25s ease, rotate 0.25s ease;
 }
@@ -654,7 +655,7 @@
   height: 440px;
   object-fit: cover;
   display: block;
-  border-radius: 16px;
+  border-radius: 5px;
 }
 
 .gallery-cta-wrap {
@@ -1298,10 +1299,13 @@
 }
 
 .faq-item {
-  background: #f7f7f8;
+  /* white on the purple-50 wash - the old #f7f7f8 + n-100 border matched
+     the wash's luminance and the cards disappeared (per Guy) */
+  background: var(--white);
   border-radius: 18px;
   overflow: hidden;
-  border: 1px solid var(--n-100);
+  border: 1px solid var(--n-200);
+  box-shadow: 0 4px 14px rgba(40, 33, 74, 0.05);
   transition: box-shadow 0.2s ease, border-color 0.2s ease;
 }
 
