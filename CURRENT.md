@@ -1,6 +1,6 @@
 # SmallHeroes — Current Technical State
 
-## R1D — bounded Blueprint affordance-consumer choice authority implemented offline; independent QA pending; no new live/render yet
+## R1D — bounded Blueprint affordance-consumer choice authority independently QA-passed; no new live/render yet
 
 The latest ordinary paid Blueprint run used the exact then-current program `1bd60e8c...`, all
 three generation calls and both repairs, retry zero, no fallback, and produced no Candidate. Its
@@ -43,7 +43,13 @@ schema/provider contract, not a stale, legacy, or fallback route.
   ordinary ignored-output baseline (**5 unchanged fixture files / 9 assertions**, 4,311 pass,
   73 skip). Resource-intensive passed 19/20 files and 629 tests; its only three five-second
   timeouts were in one unchanged Git/subprocess-heavy file, which then passed alone with one
-  worker **21/21**. Claude Code Opus/max remains the next offline gate and is not pre-claimed here.
+  worker **21/21**. Claude Code Opus/max independently reviewed immutable range
+  `81e45481...6af6bf80` read-only and returned **technical PASS** with no HOLD-worthy defect. It
+  substantiated all eleven implementation claims, including exact catalog closure, atomic
+  collect-all binding, pre-await context snapshotting, repairability, camera separation,
+  cross-generation rejection, migration compatibility, sanitization, and absence of scope drift.
+  Claude did not rerun the suites in its read-only pass; the executed local results above remain
+  the runtime evidence, while its verdict is the independent adversarial source review.
 - No provider, input-count endpoint, image, audio, render, deployment, database, or remote mutation
   occurred in this milestone. No second paid attempt will run before the local commit and
   independent PASS.

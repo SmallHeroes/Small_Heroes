@@ -134,7 +134,7 @@ source. No budget, ceiling, or repair policy was changed.
 The new spec also entered the ordinary Vitest partition explicitly; the canonical inventory moved
 from 352 to 353 files, with resource-intensive fixed at 20 and ordinary moving from 332 to 333.
 
-## Offline validation before independent QA
+## Offline validation and independent QA
 
 - cross-boundary focused gate: **16 files / 432 tests PASS**;
 - migration + bounded-choice + workload-classifier re-gate: **3 files / 24 tests PASS**;
@@ -152,8 +152,18 @@ from 352 to 353 files, with resource-intensive fixed at 20 and ordinary moving f
   `live-execution-request-materialization.spec.ts`. That file then passed alone with one worker,
   **21/21**, so no behavioral assertion remained failing.
 
-The Claude Code independent verdict is recorded in `CURRENT.md` after completion and is not
-pre-claimed here.
+Claude Code Opus/max independently reviewed immutable range
+`81e454815d6dcef3dfbf090db07db11a9f86f5ad..6af6bf8059a0de51cc845cae7b59099e5391ab21`
+read-only and returned **technical PASS** with no HOLD-worthy defect. Its adversarial review
+substantiated all eleven implementation claims, including the catalog boundary, collect-all
+binding, snapshot/reuse invariant, malformed-draft repair path, camera ownership, exact cutover,
+cross-generation rejection, migration compatibility, sanitization, and no scope drift. It
+recorded the absence of a tracked real operator-recovery fixture as a justified coverage
+limitation rather than a defect because such a fixture would require unredacted source prose.
+
+Claude did not execute tests in that read-only pass. The executed test, TypeScript, diff, replay,
+and production-scale-harness results immediately above remain the runtime evidence; Claude's PASS
+is the independent adversarial source verdict.
 
 ## Explicitly rejected alternatives
 
@@ -170,8 +180,9 @@ pre-claimed here.
 
 ## Next gate
 
-This milestone does not itself authorize or claim a successful live run. After a focused local
-commit, Claude Code must review the immutable base-to-head range read-only with Opus/max. Only a
-technical PASS permits creation of new exact Fresh Readiness and one ordinary live attempt under
-the unchanged three-generation/two-repair/$5/retry-zero/no-fallback policy. A full render follows
-only if that live produces a valid Candidate and the existing Wizard/package lifecycle closes.
+This milestone does not itself claim a successful live run. The required independent technical
+PASS is now complete. The next operational gate is exact pushed-HEAD Fresh Readiness followed by
+one ordinary live attempt under the unchanged three-generation/two-repair/$5/retry-zero/
+no-fallback policy. Any failure stops without retry. A full render follows only if that live
+produces a valid Candidate and the existing Blueprint, package, locator, and fresh-Wizard-order
+lifecycle closes.
