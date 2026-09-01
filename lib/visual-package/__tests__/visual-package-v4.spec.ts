@@ -12,6 +12,8 @@ import path from 'path';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
+import { canonicalize } from '@/lib/canonical-json';
+
 import {
   PRE_RENDER_BLUEPRINT_APPROVAL_VERSION,
   VISUAL_PACKAGE_V4_APPROVAL_VERSION,
@@ -88,6 +90,62 @@ function copyProductLineage(root: string): void {
   const target = path.join(root, relative);
   mkdirSync(path.dirname(target), { recursive: true });
   cpSync(path.join(process.cwd(), relative), target, { recursive: true });
+}
+
+function canonicalArtifactBytes(value: unknown): Buffer {
+  return Buffer.from(
+    `${JSON.stringify(canonicalize(value), null, 2)}\n`,
+    'utf8',
+  );
+}
+
+function sha256(value: Buffer): string {
+  return createHash('sha256').update(value).digest('hex');
+}
+
+function rewriteProductAcceptanceAsRuntimeEligible(root: string): void {
+  const revisionRoot = path.join(
+    root,
+    path.dirname(PRODUCT_STORY_PATH),
+  );
+  const acceptancePath = path.join(
+    revisionRoot,
+    'product-acceptance.json',
+  );
+  const currentAcceptance = JSON.parse(
+    readFileSync(acceptancePath, 'utf8'),
+  ) as Record<string, unknown>;
+  const { digest: _acceptanceDigest, ...acceptancePayload } =
+    currentAcceptance;
+  const hostileAcceptancePayload = {
+    ...acceptancePayload,
+    runtimeEligibility: {
+      eligible: true,
+      reason: 'legacy_runtime_is_allowed',
+    },
+  };
+  const hostileAcceptance = {
+    ...hostileAcceptancePayload,
+    digest: sha256(canonicalArtifactBytes(hostileAcceptancePayload)),
+  };
+  const acceptanceBytes = canonicalArtifactBytes(hostileAcceptance);
+  writeFileSync(acceptancePath, acceptanceBytes);
+
+  const manifestPath = path.join(revisionRoot, 'manifest.json');
+  const currentManifest = JSON.parse(
+    readFileSync(manifestPath, 'utf8'),
+  ) as Record<string, any>;
+  currentManifest.files.productAcceptance.bytes = acceptanceBytes.length;
+  currentManifest.files.productAcceptance.digest =
+    hostileAcceptance.digest;
+  currentManifest.files.productAcceptance.sha256 = sha256(acceptanceBytes);
+  currentManifest.productAcceptance.digest = hostileAcceptance.digest;
+  const { digest: _manifestDigest, ...manifestPayload } = currentManifest;
+  const hostileManifest = {
+    ...manifestPayload,
+    digest: sha256(canonicalArtifactBytes(manifestPayload)),
+  };
+  writeFileSync(manifestPath, canonicalArtifactBytes(hostileManifest));
 }
 
 function clone<T>(value: T): T {
@@ -597,6 +655,26 @@ describe('R1D-PVB-C1 immutable visual-package/v5', () => {
         (failure) => failure.storyKey,
       ),
     ).not.toContain(PRODUCT_STORY_KEY);
+
+    rewriteProductAcceptanceAsRuntimeEligible(productRoot);
+    expect(
+      evaluateWizardVisualPackageSelection({
+        repoRoot: productRoot,
+        storyKey: PRODUCT_STORY_KEY,
+        styleId: productPackage.styleId,
+      }),
+    ).toMatchObject({
+      renderQualified: false,
+      visualPackageRequired: true,
+      packageValue: null,
+      frozenAuthority: null,
+      sourcePath: null,
+      sourceRawDigest: null,
+      pageCount: null,
+      reasons: expect.arrayContaining([
+        'product-accepted Story Source lineage is invalid: product_acceptance_content_invalid',
+      ]),
+    });
   });
 
   it('rejects unknown current-locator keys before Wizard sellability', () => {

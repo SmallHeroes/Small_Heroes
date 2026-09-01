@@ -17,9 +17,60 @@ const ACCEPTED_REVISION_MANIFEST_VERSION =
   'small-heroes-product-accepted-story-source-revision-manifest/v3';
 const LEGACY_ACCEPTED_REVISION_MANIFEST_VERSION =
   'small-heroes-product-accepted-story-source-revision-manifest/v2';
+const PRODUCT_ACCEPTANCE_VERSION =
+  'small-heroes-story-source-visual-direction-product-acceptance/v1';
+const TECHNICAL_REVIEW_VERSION =
+  'small-heroes-story-source-visual-direction-technical-review/v1';
 const ACCEPTED_ROOT =
   'story-pipeline/04_approved_story_sources/accepted';
 const DIGEST = /^[a-f0-9]{64}$/;
+const GIT_COMMIT = /^[a-f0-9]{40}$/;
+const PRODUCT_ACCEPTANCE_RUNTIME_REASON =
+  'accepted_story_source_requires_fresh_visual_contract';
+const PRODUCT_ACCEPTANCE_EXCLUSIONS = [
+  'blueprint',
+  'deployment',
+  'image_render',
+  'production',
+  'provider_call',
+  'runtime_locator',
+  'story_bank_current_pointer',
+  'visual_contract',
+  'visual_package',
+  'wizard',
+] as const;
+const PRODUCT_ACCEPTANCE_KEYS = [
+  'acceptedAt',
+  'acceptedBy',
+  'authorityScope',
+  'candidateDigest',
+  'decision',
+  'digest',
+  'digestAlgorithm',
+  'exclusions',
+  'reviewBundleDigest',
+  'revisionDigest',
+  'runtimeEligibility',
+  'status',
+  'storyKey',
+  'technicalReviewDigest',
+  'version',
+] as const;
+const TECHNICAL_REVIEW_KEYS = [
+  'acceptedMinor',
+  'baseCommit',
+  'blocker',
+  'candidateDigest',
+  'digest',
+  'digestAlgorithm',
+  'headCommit',
+  'major',
+  'minor',
+  'reviewBundleDigest',
+  'reviewer',
+  'status',
+  'version',
+] as const;
 const ACCEPTED_SOURCE_PATTERN = new RegExp(
   `^${ACCEPTED_ROOT}/([^/]+)/revisions/([a-f0-9]{64})/integrated\\.md$`,
 );
@@ -161,6 +212,93 @@ function canonicalDigest(value: Record<string, unknown>): string {
   return sha256(canonicalBytes(payload));
 }
 
+function canonicalUtcTimestampIsValid(value: unknown): value is string {
+  if (
+    typeof value !== 'string' ||
+    !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(value)
+  ) {
+    return false;
+  }
+  const parsed = new Date(value);
+  return !Number.isNaN(parsed.valueOf()) && parsed.toISOString() === value;
+}
+
+function productAcceptanceV1IsValid(
+  value: Record<string, unknown>,
+  args: { storyKey: string; revisionDigest: string },
+): boolean {
+  const runtimeEligibility = recordValue(value.runtimeEligibility);
+  return (
+    exactKeys(value, PRODUCT_ACCEPTANCE_KEYS) &&
+    value.version === PRODUCT_ACCEPTANCE_VERSION &&
+    value.status === 'accepted' &&
+    value.acceptedBy === 'Guy' &&
+    value.authorityScope ===
+      'story_source_and_visual_directions_only' &&
+    value.storyKey === args.storyKey &&
+    value.candidateDigest === args.revisionDigest &&
+    value.revisionDigest === args.revisionDigest &&
+    typeof value.reviewBundleDigest === 'string' &&
+    DIGEST.test(value.reviewBundleDigest) &&
+    typeof value.technicalReviewDigest === 'string' &&
+    DIGEST.test(value.technicalReviewDigest) &&
+    canonicalUtcTimestampIsValid(value.acceptedAt) &&
+    typeof value.decision === 'string' &&
+    value.decision.trim().length > 0 &&
+    value.digestAlgorithm === 'canonical-json-sha256' &&
+    JSON.stringify(value.exclusions) ===
+      JSON.stringify(PRODUCT_ACCEPTANCE_EXCLUSIONS) &&
+    runtimeEligibility !== null &&
+    exactKeys(runtimeEligibility, ['eligible', 'reason']) &&
+    runtimeEligibility.eligible === false &&
+    runtimeEligibility.reason === PRODUCT_ACCEPTANCE_RUNTIME_REASON &&
+    typeof value.digest === 'string' &&
+    DIGEST.test(value.digest) &&
+    canonicalDigest(value) === value.digest
+  );
+}
+
+function technicalReviewV1IsValid(
+  value: Record<string, unknown>,
+  args: { revisionDigest: string; reviewBundleDigest: unknown },
+): boolean {
+  const acceptedMinor = value.acceptedMinor;
+  return (
+    exactKeys(value, TECHNICAL_REVIEW_KEYS) &&
+    value.version === TECHNICAL_REVIEW_VERSION &&
+    value.status === 'pass' &&
+    value.reviewer === 'Claude Code' &&
+    value.blocker === 0 &&
+    value.major === 0 &&
+    Number.isSafeInteger(value.minor) &&
+    Number(value.minor) >= 0 &&
+    Array.isArray(acceptedMinor) &&
+    acceptedMinor.length === value.minor &&
+    acceptedMinor.every((entry) => {
+      const record = recordValue(entry);
+      return (
+        record !== null &&
+        exactKeys(record, ['code', 'disposition', 'note']) &&
+        typeof record.code === 'string' &&
+        record.code.trim().length > 0 &&
+        record.disposition === 'accepted_non_blocking' &&
+        typeof record.note === 'string' &&
+        record.note.trim().length > 0
+      );
+    }) &&
+    typeof value.baseCommit === 'string' &&
+    GIT_COMMIT.test(value.baseCommit) &&
+    typeof value.headCommit === 'string' &&
+    GIT_COMMIT.test(value.headCommit) &&
+    value.candidateDigest === args.revisionDigest &&
+    value.reviewBundleDigest === args.reviewBundleDigest &&
+    value.digestAlgorithm === 'canonical-json-sha256' &&
+    typeof value.digest === 'string' &&
+    DIGEST.test(value.digest) &&
+    canonicalDigest(value) === value.digest
+  );
+}
+
 function pathsEqual(left: string, right: string): boolean {
   return process.platform === 'win32'
     ? left.toLowerCase() === right.toLowerCase()
@@ -270,18 +408,25 @@ export function acceptedProductLineageDisposition(args: {
       const acceptance = recordValue(
         JSON.parse(acceptanceBytes.toString('utf8')) as unknown,
       );
+      const acceptanceContentIsValid = acceptance !== null &&
+        (acceptance.version === PRODUCT_ACCEPTANCE_VERSION
+          ? productAcceptanceV1IsValid(acceptance, {
+              storyKey: args.storyKey,
+              revisionDigest: entry.name,
+            })
+          : typeof acceptance.version === 'string' &&
+            acceptance.version.trim().length > 0 &&
+            acceptance.status === 'accepted' &&
+            acceptance.acceptedBy === 'Guy' &&
+            acceptance.storyKey === args.storyKey &&
+            acceptance.revisionDigest === entry.name &&
+            typeof acceptance.digest === 'string' &&
+            DIGEST.test(acceptance.digest) &&
+            canonicalDigest(acceptance) === acceptance.digest);
       if (
         !acceptance ||
         !acceptanceBytes.equals(canonicalBytes(acceptance)) ||
-        typeof acceptance.version !== 'string' ||
-        !acceptance.version.trim() ||
-        acceptance.status !== 'accepted' ||
-        acceptance.acceptedBy !== 'Guy' ||
-        acceptance.storyKey !== args.storyKey ||
-        acceptance.revisionDigest !== entry.name ||
-        typeof acceptance.digest !== 'string' ||
-        !DIGEST.test(acceptance.digest) ||
-        canonicalDigest(acceptance) !== acceptance.digest
+        !acceptanceContentIsValid
       ) {
         reasons.push('product_acceptance_content_invalid');
       }
@@ -469,6 +614,8 @@ function loadAcceptedManifest(args: {
     manifest.storyKey !== args.storyKey ||
     manifest.revisionDigest !== args.revisionDigest ||
     manifest.digestAlgorithm !== 'canonical-json-sha256' ||
+    JSON.stringify(manifest.exclusions) !==
+      JSON.stringify(PRODUCT_ACCEPTANCE_EXCLUSIONS) ||
     typeof manifest.digest !== 'string' ||
     !DIGEST.test(manifest.digest) ||
     canonicalDigest(manifest) !== manifest.digest
@@ -601,27 +748,17 @@ function loadAcceptedManifest(args: {
     enrichmentReviewBundle.visualDirections,
   );
   if (
-    productAcceptance.version !==
-      'small-heroes-story-source-visual-direction-product-acceptance/v1' ||
-    productAcceptance.status !== 'accepted' ||
-    productAcceptance.acceptedBy !== 'Guy' ||
-    productAcceptance.authorityScope !==
-      'story_source_and_visual_directions_only' ||
-    productAcceptance.storyKey !== args.storyKey ||
-    productAcceptance.candidateDigest !== args.revisionDigest ||
-    productAcceptance.revisionDigest !== args.revisionDigest ||
+    !productAcceptanceV1IsValid(productAcceptance, {
+      storyKey: args.storyKey,
+      revisionDigest: args.revisionDigest,
+    }) ||
     productAcceptance.reviewBundleDigest !==
       enrichmentReviewBundle.digest ||
     productAcceptance.technicalReviewDigest !== technicalReview.digest ||
-    technicalReview.version !==
-      'small-heroes-story-source-visual-direction-technical-review/v1' ||
-    technicalReview.status !== 'pass' ||
-    technicalReview.reviewer !== 'Claude Code' ||
-    technicalReview.blocker !== 0 ||
-    technicalReview.major !== 0 ||
-    technicalReview.candidateDigest !== args.revisionDigest ||
-    technicalReview.reviewBundleDigest !==
-      enrichmentReviewBundle.digest ||
+    !technicalReviewV1IsValid(technicalReview, {
+      revisionDigest: args.revisionDigest,
+      reviewBundleDigest: enrichmentReviewBundle.digest,
+    }) ||
     canonicalDigest(revisionIdentity) !== args.revisionDigest ||
     revisionIdentity.version !==
       'small-heroes-story-source-visual-direction-enrichment-identity/v1' ||
@@ -659,9 +796,14 @@ function loadAcceptedManifest(args: {
     enrichmentReviewDirections.sha256 !==
       fileSha256['visual-directions.json'] ||
     !manifestAcceptance ||
+    !exactKeys(manifestAcceptance, ['acceptedAt', 'acceptedBy', 'digest']) ||
     manifestAcceptance.acceptedBy !== 'Guy' ||
     manifestAcceptance.digest !== productAcceptance.digest ||
-    manifestAcceptance.acceptedAt !== productAcceptance.acceptedAt
+    manifestAcceptance.acceptedAt !== productAcceptance.acceptedAt ||
+    JSON.stringify(productAcceptance.runtimeEligibility) !==
+      JSON.stringify(runtimeEligibility) ||
+    JSON.stringify(productAcceptance.exclusions) !==
+      JSON.stringify(manifest.exclusions)
   ) {
     throw new Error('accepted_story_source_approval_binding_invalid');
   }

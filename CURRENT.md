@@ -16,6 +16,13 @@ fresh-order admission risk.
 - A required lineage is admitted only when the package-selected Story Source passes the existing
   strict final accepted-v3 authority loader. The locator remains the revision selector; no code
   chooses “latest” and no Chameleon/revision special case exists.
+- A pre-handoff adversarial review found that the strict loader previously hash-bound the final
+  product acceptance without closing all of its semantic fields. The correction exact-key
+  validates product acceptance and technical review v1, canonical approval time, digest
+  algorithms, the closed exclusions, accepted MINOR dispositions, and runtime ineligibility equal
+  to the manifest. A fully canonical/re-digested `runtimeEligibility: eligible` artifact, with its
+  manifest consistently re-bound, now makes the lineage invalid and the Wizard result remains
+  required but carries no package/frozen/source authority.
 - Matrix sellability, product resolution, Wizard response, runtime preflight, audit and release
   evidence now agree: the current legacy package is unavailable for new Orders, and v3/QA/golden
   flags cannot reopen it. The QA catalog cannot mark the same blocked slot selectable. Explicit

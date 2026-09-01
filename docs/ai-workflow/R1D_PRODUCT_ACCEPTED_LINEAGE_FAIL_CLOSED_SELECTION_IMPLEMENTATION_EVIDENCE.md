@@ -38,6 +38,16 @@ accepts only the exact final v3 accepted-revision inventory and validates canoni
 acceptance, Claude technical review, continuity authority, story key, revision identity, and all
 file digests.
 
+An adversarial pre-handoff review then demonstrated that recomputable digests alone were not a
+complete authorization boundary: a fully canonical product acceptance could be re-digested with
+`runtimeEligibility.eligible: true` and consistently re-bound into a re-digested manifest. The
+strict loader now enforces the complete v1 product-acceptance and technical-review top-level key
+sets, canonical UTC approval time, digest algorithms, closed exclusions, exact runtime
+ineligibility equal to the manifest, closed accepted-MINOR records, and manifest approval binding.
+A hostile regression re-digests both files after the contradictory runtime mutation and proves
+fresh Wizard selection returns `renderQualified: false`, `visualPackageRequired: true`, with
+package, frozen authority, source digest/path and page count all null.
+
 This produces the intended deterministic split without a story-specific registry:
 
 - legacy `20a12801...`: v2 authority, rejected for fresh selection;
