@@ -1,6 +1,6 @@
 # SmallHeroes — Current Technical State
 
-## R1D — Reserved Page Placement Authority closes route Board defect offline; independent QA pending
+## R1D — Reserved Page Placement Authority closes route Board defect offline; Claude Code PASS
 
 The first `set_kindergarten_route` LOW Board failed automated QA and visual inspection for a real
 reason: a fixed decorative cage light occupied the courtyard hook that page 7 must later use for
@@ -39,9 +39,15 @@ contract did not represent future page-conditioned physical availability.
   readiness file's 14 assertions pass alone before the same RPC infrastructure error. The literal
   command therefore remains exit 1 and is not relabeled green; no changed-path assertion remains
   failed.
+- Claude Code Opus/max independently reviewed immutable range `512d1229...c813727e` read-only and
+  returned **PASS — 0 BLOCKER / 0 MAJOR / 0 MINOR**. It falsified the derivation, selective v7/v6
+  compatibility, provider egress, package-only frozen replay, Wizard/Order propagation,
+  successor lifecycles and create-only mint boundary. Its harness denied command execution, so
+  the independently executed evidence is static; the local test/typecheck results above remain
+  the runtime proof.
 - Zero provider, image, Vision, upload, Registry, package, locator, Wizard, Order/payment, database,
-  deployment or render operation occurred. The implementation is not yet independently passed and
-  no successor Board may be minted before the focused commit receives Claude Code PASS.
+  deployment or render operation occurred in the implementation or QA range. The gate now permits
+  exactly one canonical LOW route successor under the existing no-retry stop rules.
 
 The post-first-render simplification direction is recorded, without code changes, in
 `docs/ai-workflow/SIMPLIFICATION_FINDINGS.md`: explicit AUTHORING PASS versus RELEASE PASS,

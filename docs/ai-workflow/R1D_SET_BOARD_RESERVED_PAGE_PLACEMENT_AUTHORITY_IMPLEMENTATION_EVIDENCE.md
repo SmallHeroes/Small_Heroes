@@ -130,8 +130,15 @@ Focused regressions cover:
 
 ## Independent Claude Code gate
 
-Pending focused local commit and read-only immutable-range review. No LOW successor may be minted
-until Claude Code returns PASS.
+Claude Code Opus/max independently reviewed immutable range
+`512d1229ac8efbdcb3352b6b8f76c82c702ff072..c813727e259439d1413c6cd0a173748d5c82c067`
+read-only and returned **PASS — 0 BLOCKER / 0 MAJOR / 0 MINOR**. It verified the one-commit,
+zero-merge, 34-file topology and found no material defect across the exact derivation,
+selective-v7 compatibility, provider/QA egress, package-only frozen replay, Wizard/Order binding,
+successor lifecycles or create-only mint boundary. Its harness denied local command execution, so
+its gate is static plus artifact-consistency review; the executed suites and typechecks above are
+the runtime evidence. This PASS authorizes only the separately approved single LOW route successor;
+it does not approve that unseen Board, a package, a Wizard Order or a render.
 
 ## Unchanged / excluded
 
