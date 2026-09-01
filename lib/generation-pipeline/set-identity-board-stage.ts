@@ -45,6 +45,7 @@ import {
   SetIdentityBoardUnavailableError,
   type BoardResolverDeps,
 } from '@/lib/set-identity-board/resolveBoards';
+import type { FrozenSetBoardAuthorityIdentity } from '@/lib/set-identity-board/expectedIdentity';
 import { isSetIdentityBoardEnabled } from '@/lib/set-identity-board/flags';
 import {
   selectBoardRefForLocation,
@@ -64,6 +65,44 @@ export interface SetIdentityBoardStageDeps {
   withMutation?: WithDeliveryInputMutation;
   /** Prisma client (tests). Default: the shared client. */
   db?: PrismaClient;
+  /** Repository root used to reload the Order's exact immutable Visual Package. */
+  repoRoot?: string;
+  /** Test seam for immutable-package loading. The returned inventory is still fully re-derived and validated. */
+  loadFrozenRequiredBoards?: (
+    order: Order,
+  ) => Promise<readonly FrozenSetBoardAuthorityIdentity[]>;
+}
+
+/**
+ * The only runtime source allowed to select a historical Board projection tier: the exact immutable Visual Package
+ * already frozen onto this Order. Registry rows, cached bindings and mutable current locators are never consulted.
+ */
+async function frozenRequiredBoardsForOrder(
+  order: Order,
+  deps: SetIdentityBoardStageDeps,
+): Promise<readonly FrozenSetBoardAuthorityIdentity[] | undefined> {
+  const authority = requireOrderVisualPackageAuthority(order);
+  if (!authority) return undefined;
+  if (deps.loadFrozenRequiredBoards) {
+    return deps.loadFrozenRequiredBoards(order);
+  }
+  const { evaluateVisualPackageV4Qualification } = await import(
+    '@/lib/visual-package/visualPackageV4'
+  );
+  const qualification = evaluateVisualPackageV4Qualification({
+    repoRoot: deps.repoRoot ?? process.cwd(),
+    storyKey: authority.storyKey,
+    styleId: authority.styleId,
+    frozenAuthority: authority,
+    expectedOrderSourceRawDigest: order.storySourceHash,
+  });
+  if (!qualification.renderQualified || !qualification.packageValue) {
+    throw new SetIdentityBoardUnavailableError('*', [
+      'the Order immutable Visual Package cannot supply trusted frozen Board authority',
+      ...qualification.reasons,
+    ]);
+  }
+  return qualification.packageValue.requiredBoards;
 }
 
 /**
@@ -236,6 +275,7 @@ export async function runSetIdentityBoardBindStage(
       styleId: boardStyleIdOf(order),
       frozenContractHash: active.hash,
       existing: snapshot,
+      frozenRequiredBoards: await frozenRequiredBoardsForOrder(order, deps),
     },
     deps.resolver ?? (await import('@/lib/set-identity-board/liveResolverDeps')).createLiveBoardResolverDeps()
   );
@@ -286,6 +326,7 @@ export async function requireSetIdentityBoardsBoundForRender(
       // (P0-2) The SAME normalized id `runSetIdentityBoardBindStage` binds with — bind and assert cannot disagree.
       styleId: boardStyleIdOf(order),
       activeFrozenContractHash: active.hash,
+      frozenRequiredBoards: await frozenRequiredBoardsForOrder(order, deps),
     },
     deps.resolver ?? (await import('@/lib/set-identity-board/liveResolverDeps')).createLiveBoardResolverDeps()
   );

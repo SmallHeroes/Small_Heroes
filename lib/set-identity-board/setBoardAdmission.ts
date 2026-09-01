@@ -192,6 +192,7 @@ function normalizeIssue(
 export function collectRequiredSetBoardAdmissionCensus(
   contract: BookVisualContract,
   styleId: string,
+  opts?: { boardVersionsBySet?: ReadonlyMap<string, string> },
 ): RequiredSetBoardAdmissionCensus {
   const requiredSetIdentityIds = listRequiredSetIdentityIds(contract);
   const contractIssues = setBoardStableAuthorityErrors(
@@ -213,6 +214,9 @@ export function collectRequiredSetBoardAdmissionCensus(
         scopedContract,
         setIdentityId,
         styleId,
+        opts?.boardVersionsBySet?.has(setIdentityId)
+          ? { boardVersion: opts.boardVersionsBySet.get(setIdentityId)! }
+          : undefined,
       ).map((candidate) => normalizeIssue(setIdentityId, candidate));
       if (issues.length > 0) {
         results.push({
@@ -227,6 +231,9 @@ export function collectRequiredSetBoardAdmissionCensus(
         scopedContract,
         setIdentityId,
         styleId,
+        opts?.boardVersionsBySet?.has(setIdentityId)
+          ? { boardVersion: opts.boardVersionsBySet.get(setIdentityId)! }
+          : undefined,
       );
       results.push({
         setIdentityId,

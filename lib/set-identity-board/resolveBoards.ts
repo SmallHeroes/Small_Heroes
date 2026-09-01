@@ -25,26 +25,27 @@
  * a swapped object and a paid page is the byte re-verification in the pre-render assert.
  */
 import type { BookVisualContract } from '@/lib/visual-contract-compiler';
+import { canonicalHash } from '@/lib/canonical-json';
 
 import {
-  SET_IDENTITY_BOARD_VERSION,
-  SET_IDENTITY_REGISTRY_VERSION,
   type SetIdentityBoardBinding,
   type SetIdentityBoardBindingContext,
   type SetIdentityBoardRegistryEntry,
 } from './types';
-import {
-  computeSetBoardContentPolicyDigest,
-  computeSetDefinitionHash,
-  listRequiredSetIdentityIds,
-  projectSetDefinition,
-} from './setDefinition';
+import { listRequiredSetIdentityIds } from './setDefinition';
 import {
   validateSetIdentityBoardRegistryEntry,
   verifyBoardAssetBytes,
   type ExpectedRegistryIdentity,
 } from './registry';
 import { collectRequiredSetBoardAdmissionCensus } from './setBoardAdmission';
+import {
+  deriveExpectedSetBoardIdentity,
+  FrozenSetBoardAuthorityInvalidError,
+  validateTrustedFrozenSetBoardAuthorities,
+  type DerivedExpectedSetBoardIdentity,
+  type FrozenSetBoardAuthorityIdentity,
+} from './expectedIdentity';
 
 /**
  * The single fail-closed error for "this order cannot be rendered with a trustworthy set board". Carries the set
@@ -83,23 +84,33 @@ export interface BoardResolverDeps {
   fetchAssetSha256(storageKey: string): Promise<string | null>;
 }
 
-/** The registry identity a given (contract, set, style) triple expects. Recomputed — never read off the binding. */
-function expectedIdentityFor(
-  contract: BookVisualContract,
-  setIdentityId: string,
-  styleId: string
-): ExpectedRegistryIdentity {
-  const definition = projectSetDefinition(contract, setIdentityId, styleId);
-  return {
-    registryVersion: SET_IDENTITY_REGISTRY_VERSION,
-    boardVersion: SET_IDENTITY_BOARD_VERSION,
-    storyKey: contract.storyKey ?? '',
-    setIdentityId,
-    styleId,
-    setDefinitionHash: computeSetDefinitionHash(contract, setIdentityId, styleId),
-    contentPolicyDigest: computeSetBoardContentPolicyDigest(definition),
-    declaredPropIds: definition.contentPolicy.includedPropIds,
-  };
+/**
+ * Derive every expected identity from one canonical owner. A fresh flow always uses forward authority. Historical
+ * v6 selection is accepted only from a complete immutable-package inventory that is independently re-derived; a
+ * Registry row, cached binding, or caller-supplied version string can never downgrade itself.
+ */
+function expectedIdentitiesFor(args: {
+  contract: BookVisualContract;
+  styleId: string;
+  frozenRequiredBoards?: readonly FrozenSetBoardAuthorityIdentity[];
+}): Map<string, DerivedExpectedSetBoardIdentity> {
+  if (args.frozenRequiredBoards !== undefined) {
+    return validateTrustedFrozenSetBoardAuthorities({
+      contract: args.contract,
+      styleId: args.styleId,
+      boards: args.frozenRequiredBoards,
+    });
+  }
+  return new Map(
+    listRequiredSetIdentityIds(args.contract).map((setIdentityId) => [
+      setIdentityId,
+      deriveExpectedSetBoardIdentity({
+        contract: args.contract,
+        setIdentityId,
+        styleId: args.styleId,
+      }),
+    ]),
+  );
 }
 
 function isNonEmptyString(v: unknown): v is string {
@@ -109,8 +120,16 @@ function isNonEmptyString(v: unknown): v is string {
 function assertCompleteBoardAdmission(
   contract: BookVisualContract,
   styleId: string,
+  expectedBySet: ReadonlyMap<string, DerivedExpectedSetBoardIdentity>,
 ): void {
-  const census = collectRequiredSetBoardAdmissionCensus(contract, styleId);
+  const census = collectRequiredSetBoardAdmissionCensus(contract, styleId, {
+    boardVersionsBySet: new Map(
+      [...expectedBySet].map(([setIdentityId, derived]) => [
+        setIdentityId,
+        derived.expected.boardVersion,
+      ]),
+    ),
+  });
   if (census.admitted) return;
   throw new SetIdentityBoardUnavailableError(
     '*',
@@ -131,7 +150,8 @@ function assertCompleteBoardAdmission(
  */
 function isBindingStillValid(
   binding: SetIdentityBoardBinding | undefined,
-  expected: ExpectedRegistryIdentity
+  expected: ExpectedRegistryIdentity,
+  frozen?: FrozenSetBoardAuthorityIdentity,
 ): boolean {
   if (!binding) return false;
   if (binding.setIdentityId !== expected.setIdentityId) return false;
@@ -145,6 +165,11 @@ function isBindingStillValid(
   if (!isNonEmptyString(binding.assetSha256)) return false;
   // A binding without an approval stamp is not a binding — it is a candidate that leaked.
   if (!isNonEmptyString(binding.approvedAt)) return false;
+  if (frozen) {
+    if (binding.storageKey !== frozen.storageKey) return false;
+    if (binding.assetSha256 !== frozen.assetSha256) return false;
+    if (binding.approvedAt !== frozen.approvedAt) return false;
+  }
   return true;
 }
 
@@ -161,7 +186,8 @@ export function snapshotBoardMode(args: { frozenContractHash: string }): SetIden
 async function bindOneBoard(
   setIdentityId: string,
   expected: ExpectedRegistryIdentity,
-  deps: BoardResolverDeps
+  deps: BoardResolverDeps,
+  frozen?: FrozenSetBoardAuthorityIdentity,
 ): Promise<SetIdentityBoardBinding> {
   const entry = deps.loadRegistryEntry(expected);
   if (!entry) {
@@ -177,6 +203,11 @@ async function bindOneBoard(
   const validation = validateSetIdentityBoardRegistryEntry(entry, expected);
   if (!validation.ok) {
     throw new SetIdentityBoardUnavailableError(setIdentityId, validation.errors);
+  }
+  if (frozen && canonicalHash(entry) !== frozen.artifactDigest) {
+    throw new SetIdentityBoardUnavailableError(setIdentityId, [
+      `Registry artifact differs from immutable Visual Package digest "${frozen.artifactDigest}"`,
+    ]);
   }
 
   // Byte fence BEFORE the url: an approval covers specific BYTES, not a storage location. A re-render at the same
@@ -229,21 +260,48 @@ export async function resolveBoardBindings(
     styleId: string;
     frozenContractHash: string;
     existing?: SetIdentityBoardBindingContext;
+    /** Trusted immutable Visual Package inventory. Never populate from Registry, cache, or an existing binding. */
+    frozenRequiredBoards?: readonly FrozenSetBoardAuthorityIdentity[];
   },
   deps: BoardResolverDeps
 ): Promise<SetIdentityBoardBindingContext> {
   const { contract, styleId, frozenContractHash, existing } = args;
+  const frozenBySet = new Map(
+    (args.frozenRequiredBoards ?? []).map((board) => [
+      board.setIdentityId,
+      board,
+    ]),
+  );
 
-  assertCompleteBoardAdmission(contract, styleId);
+  let expectedBySet: Map<string, DerivedExpectedSetBoardIdentity>;
+  try {
+    expectedBySet = expectedIdentitiesFor({
+      contract,
+      styleId,
+      frozenRequiredBoards: args.frozenRequiredBoards,
+    });
+  } catch (error) {
+    if (error instanceof FrozenSetBoardAuthorityInvalidError) {
+      throw new SetIdentityBoardUnavailableError('*', [...error.reasons]);
+    }
+    throw error;
+  }
+  assertCompleteBoardAdmission(contract, styleId, expectedBySet);
   const bindings: Record<string, SetIdentityBoardBinding> = {};
   for (const setIdentityId of listRequiredSetIdentityIds(contract)) {
-    const expected = expectedIdentityFor(contract, setIdentityId, styleId);
+    const expected = expectedBySet.get(setIdentityId)!.expected;
     const prior = existing?.bindings?.[setIdentityId];
-    if (isBindingStillValid(prior, expected)) {
+    const frozen = frozenBySet.get(setIdentityId);
+    if (isBindingStillValid(prior, expected, frozen)) {
       bindings[setIdentityId] = prior as SetIdentityBoardBinding; // REUSE VERBATIM — never re-choose.
       continue;
     }
-    bindings[setIdentityId] = await bindOneBoard(setIdentityId, expected, deps);
+    bindings[setIdentityId] = await bindOneBoard(
+      setIdentityId,
+      expected,
+      deps,
+      frozen,
+    );
   }
 
   return { mode: 'required-v2', frozenContractHash, bindings };
@@ -299,6 +357,8 @@ export async function assertBoardsBoundForRender(
     cache: { setIdentityBoards?: SetIdentityBoardBindingContext };
     styleId: string;
     activeFrozenContractHash: string | null;
+    /** Trusted immutable Visual Package inventory. Never populate from Registry, cache, or a binding. */
+    frozenRequiredBoards?: readonly FrozenSetBoardAuthorityIdentity[];
   },
   deps: BoardByteVerifierDeps
 ): Promise<void> {
@@ -312,7 +372,26 @@ export async function assertBoardsBoundForRender(
     ]);
   }
 
-  assertCompleteBoardAdmission(args.contract, args.styleId);
+  let expectedBySet: Map<string, DerivedExpectedSetBoardIdentity>;
+  const frozenBySet = new Map(
+    (args.frozenRequiredBoards ?? []).map((board) => [
+      board.setIdentityId,
+      board,
+    ]),
+  );
+  try {
+    expectedBySet = expectedIdentitiesFor({
+      contract: args.contract,
+      styleId: args.styleId,
+      frozenRequiredBoards: args.frozenRequiredBoards,
+    });
+  } catch (error) {
+    if (error instanceof FrozenSetBoardAuthorityInvalidError) {
+      throw new SetIdentityBoardUnavailableError('*', [...error.reasons]);
+    }
+    throw error;
+  }
+  assertCompleteBoardAdmission(args.contract, args.styleId, expectedBySet);
   for (const setIdentityId of listRequiredSetIdentityIds(args.contract)) {
     const binding = snapshot.bindings?.[setIdentityId];
     if (!binding) {
@@ -320,8 +399,12 @@ export async function assertBoardsBoundForRender(
         'required set identity has no board binding — refusing to render a paid image without its approved set board',
       ]);
     }
-    const expected = expectedIdentityFor(args.contract, setIdentityId, args.styleId);
-    if (!isBindingStillValid(binding, expected)) {
+    const expected = expectedBySet.get(setIdentityId)!.expected;
+    if (!isBindingStillValid(
+      binding,
+      expected,
+      frozenBySet.get(setIdentityId),
+    )) {
       throw new SetIdentityBoardUnavailableError(setIdentityId, [
         `board binding is stale — expected setDefinitionHash "${expected.setDefinitionHash}" / style ` +
           `"${expected.styleId}" / ${expected.boardVersion}, got "${binding.setDefinitionHash}" / ` +

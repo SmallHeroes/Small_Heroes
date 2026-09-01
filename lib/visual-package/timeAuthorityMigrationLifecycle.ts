@@ -788,6 +788,10 @@ function loadSourceAuthority(args: {
     candidate,
     packageReview,
     approval: packageApproval,
+    // The source package is immutable evidence. If qualification reaches Board comparison after reconstructing a
+    // current context, it must replay that package's exact historical Board tier rather than applying forward
+    // policy and manufacturing a second migration defect.
+    frozenRequiredBoards: candidate.content.requiredBoards,
   });
   if (
     qualification.readyForPublication ||

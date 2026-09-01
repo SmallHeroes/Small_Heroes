@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Order, PrismaClient } from '@prisma/client';
 
 import { computeVisualContractHash } from '@/lib/visual-contract-compiler';
+import { canonicalHash } from '@/lib/canonical-json';
 import type { PipelineCache } from '@/lib/generation-pipeline/types';
 import {
   ensureSetIdentityBoardSnapshot,
@@ -13,6 +14,7 @@ import {
 import { SetIdentityBoardUnavailableError, type BoardResolverDeps } from '../resolveBoards';
 import { clone, makeApprovedEntry, makeContract, STYLE } from './board-fixtures';
 import { computeSetDefinitionHash } from '../setDefinition';
+import type { FrozenSetBoardAuthorityIdentity } from '../expectedIdentity';
 import {
   VISUAL_PACKAGE_V4_FREEZE_VERSION,
   VISUAL_PACKAGE_V4_LAYOUT_POLICY_VERSION,
@@ -108,6 +110,27 @@ function makeResolverDeps(overrides: Partial<BoardResolverDeps> = {}): BoardReso
     resolveDurableUrl: vi.fn(async (key: string) => `https://cdn.example/${key}`),
     ...overrides,
   };
+}
+
+function frozenBoardInventory(
+  entry = makeApprovedEntry(setHash()),
+): FrozenSetBoardAuthorityIdentity[] {
+  return [{
+    artifactPath: 'set-identity-boards/synthetic/set_alpha/entry.json',
+    artifactDigest: canonicalHash(entry),
+    registryVersion: entry.registryVersion,
+    boardVersion: entry.boardVersion,
+    storyKey: entry.storyKey,
+    setIdentityId: entry.setIdentityId,
+    styleId: entry.styleId,
+    setDefinitionHash: entry.setDefinitionHash,
+    contentPolicyDigest: entry.contentPolicyDigest,
+    declaredPropIds: entry.declaredPropIds,
+    storageKey: entry.storageKey,
+    assetSha256: entry.assetSha256,
+    approvedBy: entry.approvedBy!,
+    approvedAt: entry.approvedAt!,
+  }];
 }
 
 /**
@@ -309,6 +332,71 @@ describe('package-backed Orders require Board activation independent of rollout 
     await expect(assertBound(makePackageOrder(), makeCache())).rejects.toThrow(
       /package-backed Order has no required-v2 Board snapshot/,
     );
+  });
+
+  it('threads the exact immutable-package Board inventory through bind and pre-render assert', async () => {
+    const order = makePackageOrder();
+    const entry = makeApprovedEntry(setHash());
+    const loadFrozenRequiredBoards = vi.fn(async () =>
+      frozenBoardInventory(entry),
+    );
+    const activated = await ensureSetIdentityBoardSnapshot(order, makeCache(), {
+      db: asPrisma(makeDb()),
+      withMutation: makeBarrier().withMutation,
+    });
+    const bound = await runSetIdentityBoardBindStage(order, activated, {
+      db: asPrisma(makeDb()),
+      withMutation: makeBarrier().withMutation,
+      resolver: makeResolverDeps({ loadRegistryEntry: vi.fn(() => entry) }),
+      loadFrozenRequiredBoards,
+    });
+    await expect(requireSetIdentityBoardsBoundForRender(order, bound, {
+      resolver: makeResolverDeps({ loadRegistryEntry: vi.fn(() => entry) }),
+      loadFrozenRequiredBoards,
+    })).resolves.toBeUndefined();
+    expect(loadFrozenRequiredBoards).toHaveBeenCalledTimes(2);
+    expect(loadFrozenRequiredBoards).toHaveBeenNthCalledWith(1, order);
+    expect(loadFrozenRequiredBoards).toHaveBeenNthCalledWith(2, order);
+  });
+
+  it('fails closed when the exact frozen package cannot be loaded, before Registry or storage', async () => {
+    const order = makePackageOrder();
+    const resolver = makeResolverDeps();
+    const activated = await ensureSetIdentityBoardSnapshot(order, makeCache(), {
+      db: asPrisma(makeDb()),
+      withMutation: makeBarrier().withMutation,
+    });
+    await expect(runSetIdentityBoardBindStage(order, activated, {
+      db: asPrisma(makeDb()),
+      withMutation: makeBarrier().withMutation,
+      resolver,
+      repoRoot: 'Z:/definitely-not-the-repository',
+    })).rejects.toThrow(/immutable Visual Package cannot supply trusted frozen Board authority/);
+    expect(resolver.loadRegistryEntry).not.toHaveBeenCalled();
+    expect(resolver.fetchAssetSha256).not.toHaveBeenCalled();
+  });
+
+  it('a genuine legacy Order never invokes the frozen-package loader', async () => {
+    enableFlag();
+    const loadFrozenRequiredBoards = vi.fn(async () =>
+      frozenBoardInventory(),
+    );
+    const activated = await ensureSetIdentityBoardSnapshot(
+      makeOrder(),
+      makeCache(),
+      { db: asPrisma(makeDb()), withMutation: makeBarrier().withMutation },
+    );
+    const bound = await runSetIdentityBoardBindStage(makeOrder(), activated, {
+      db: asPrisma(makeDb()),
+      withMutation: makeBarrier().withMutation,
+      resolver: makeResolverDeps(),
+      loadFrozenRequiredBoards,
+    });
+    await expect(requireSetIdentityBoardsBoundForRender(makeOrder(), bound, {
+      resolver: makeResolverDeps(),
+      loadFrozenRequiredBoards,
+    })).resolves.toBeUndefined();
+    expect(loadFrozenRequiredBoards).not.toHaveBeenCalled();
   });
 });
 

@@ -7,8 +7,11 @@
  */
 export {
   SET_IDENTITY_BOARD_VERSION,
+  SET_IDENTITY_BOARD_RESERVED_PAGE_PLACEMENT_VERSION,
   SET_IDENTITY_REGISTRY_VERSION,
   SET_BOARD_CONTENT_POLICY_VERSION,
+  SET_BOARD_RESERVED_PAGE_CONTENT_POLICY_VERSION,
+  SET_BOARD_RESERVED_EMPTY_PLACEMENTS_VERSION,
   SET_BOARD_AMBIENT_DRESSING_POLICY_VERSION,
   SET_BOARD_AMBIENT_DRESSING_CATEGORIES,
   SET_BOARD_AMBIENT_PALETTE_COLOR_FAMILIES,
@@ -22,6 +25,10 @@ export {
   type SetDefinitionZone,
   type SetDefinitionFixedFact,
   type SetBoardContentPolicy,
+  type SetBoardLegacyContentPolicy,
+  type SetBoardReservedPageContentPolicy,
+  type SetBoardReservedEmptyPlacement,
+  type SetBoardReservedEmptyPlacements,
   type SetBoardAmbientDressingPolicy,
   type SetBoardAmbientDressingCategory,
   type SetBoardAmbientPaletteColorFamily,
@@ -49,8 +56,18 @@ export {
   collectSetDefinitionAdmissionIssues,
   projectSetDefinition,
   computeSetBoardContentPolicyDigest,
+  computeProjectedSetDefinitionHash,
   computeSetDefinitionHash,
+  SetBoardReservedPlacementAuthorityError,
 } from './setDefinition';
+
+export {
+  deriveExpectedSetBoardIdentity,
+  validateTrustedFrozenSetBoardAuthorities,
+  FrozenSetBoardAuthorityInvalidError,
+  type FrozenSetBoardAuthorityIdentity,
+  type DerivedExpectedSetBoardIdentity,
+} from './expectedIdentity';
 
 export {
   SET_BOARD_ADMISSION_CENSUS_VERSION,
@@ -86,6 +103,7 @@ export {
   verifyBoardAssetBytes,
   loadRegistryEntry,
   saveRegistryEntry,
+  saveRegistryEntryCreateOnly,
   computeExpectedRegistryKey,
   type ExpectedRegistryIdentity,
   type RegistryValidation,

@@ -384,6 +384,9 @@ export function promoteVisualPackage(args: PromoteVisualPackageArgs): VisualPack
       boardRegistryRoot: args.boardRegistryRoot ?? path.join(args.repoRoot, 'set-identity-boards'),
       template: loaded.template,
       styleId: manifest.styleId,
+      frozenRequiredBoards: Array.isArray(manifest.requiredBoards)
+        ? manifest.requiredBoards
+        : [],
     });
     issues.push(...boards.issues);
     if (!boards.issues.some((issue) =>

@@ -201,6 +201,21 @@ export function saveRegistryEntry(filePath: string, entry: SetIdentityBoardRegis
 }
 
 /**
+ * Initial mint publication is successor-only. `wx` makes the absence check race-safe: approval/recheck may update
+ * their exact existing entry through `saveRegistryEntry`, but a mint can never overwrite prior candidate evidence.
+ */
+export function saveRegistryEntryCreateOnly(
+  filePath: string,
+  entry: SetIdentityBoardRegistryEntry,
+): void {
+  mkdirSync(path.dirname(filePath), { recursive: true });
+  writeFileSync(filePath, JSON.stringify(entry, null, 2), {
+    encoding: 'utf8',
+    flag: 'wx',
+  });
+}
+
+/**
  * The GLOBAL logical key for an entry: `(storyKey, setIdentityId, styleId, setDefinitionHash, boardVersion)` joined.
  * Same story + same set + same style + same set-hash + same board version → same board, shared across all orders.
  */

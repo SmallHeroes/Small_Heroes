@@ -4,6 +4,7 @@ import {
   SET_BOARD_POSITIVE_AUTHORITY_CONTEXTUAL_POLICY_VERSION,
   SET_BOARD_POSITIVE_AUTHORITY_PRECISE_POLICY_VERSION,
   SET_BOARD_POSITIVE_AUTHORITY_POLICY_VERSION,
+  SET_BOARD_RESERVED_PAGE_CONTENT_POLICY_VERSION,
   type SetBoardExcludedProp,
   type SetBoardPositiveAuthorityPolicyVersion,
   type SetDefinition,
@@ -25,6 +26,8 @@ interface PositiveAuthoritySource {
   value: string;
   architecturalScaleFixtureSuffix?: string[];
   spatialNode?: SetDefinition['zones'][number]['spatialNodes'][number];
+  /** Structured physical context that independently proves a place qualifier in a reserved anchor description. */
+  reservedAnchorPhysicalContext?: string[];
 }
 
 interface CanonicalTerm {
@@ -401,8 +404,6 @@ function contextualHumanQualifierOrdinals(
 ): ReadonlySet<number> {
   if (
     policyVersion !== SET_BOARD_POSITIVE_AUTHORITY_CONTEXTUAL_POLICY_VERSION ||
-    !/^zones\[\d+\]\.geometry\[\d+\]$/u.test(source.fieldPath) ||
-    !source.spatialNode ||
     !castId.startsWith('human:')
   ) {
     return new Set<number>();
@@ -429,6 +430,42 @@ function contextualHumanQualifierOrdinals(
   // A name/alias claim always outranks the contextual aperture exception.
   // The exception is derivable only from the stable human role identity.
   if (nonStructuralLabelClaimsQualifier) return new Set<number>();
+
+  if (
+    /^contentPolicy\.reservedEmptyPlacements\.placements\[\d+\]\.anchorDescription$/u.test(
+      source.fieldPath,
+    ) &&
+    source.reservedAnchorPhysicalContext
+  ) {
+    const contextProvesQualifier = source.reservedAnchorPhysicalContext.some(
+      (value) => containsTerm(canonicalSetBoardWords(value), qualifierWords),
+    );
+    if (!contextProvesQualifier) return new Set<number>();
+    const sourceWords = canonicalSetBoardWords(source.value);
+    const matchingStarts: number[] = [];
+    for (
+      let start = 0;
+      start <= sourceWords.length - qualifierWords.length;
+      start += 1
+    ) {
+      if (qualifierWords.every(
+        (word, offset) => sourceWords[start + offset] === word,
+      )) {
+        matchingStarts.push(start);
+      }
+    }
+    if (matchingStarts.length !== 1) return new Set<number>();
+    return new Set(
+      qualifierWords.map((_, offset) => matchingStarts[0]! + offset),
+    );
+  }
+
+  if (
+    !/^zones\[\d+\]\.geometry\[\d+\]$/u.test(source.fieldPath) ||
+    !source.spatialNode
+  ) {
+    return new Set<number>();
+  }
 
   const suffixes = HUMAN_CONTEXT_APERTURE_SUFFIXES_V4.get(
     source.spatialNode.kind,
@@ -627,6 +664,33 @@ function positiveAuthoritySources(definition: SetDefinition): PositiveAuthorityS
         value: fact.scale ?? '',
       },
     );
+  }
+
+  if (
+    definition.contentPolicy.version ===
+    SET_BOARD_RESERVED_PAGE_CONTENT_POLICY_VERSION
+  ) {
+    for (const [placementIndex, placement] of
+      definition.contentPolicy.reservedEmptyPlacements.placements.entries()) {
+      sources.push({
+        fieldPath: `contentPolicy.reservedEmptyPlacements.placements[${placementIndex}].anchorDescription`,
+        provenance:
+          `reserved physical anchor ${JSON.stringify(placement.anchorId)} -> positive vacant-placement line`,
+        value: placement.anchorDescription,
+        reservedAnchorPhysicalContext: [
+          definition.locations.find(
+            (location) => location.id === placement.locationId,
+          )?.name ?? '',
+          ...(
+            definition.zones.find(
+              (zone) =>
+                zone.id === placement.zoneId &&
+                zone.locationId === placement.locationId,
+            )?.spatialNodes ?? []
+          ).flatMap((node) => [node.id, node.description]),
+        ],
+      });
+    }
   }
 
   sources.push({

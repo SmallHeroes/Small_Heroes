@@ -22,7 +22,12 @@ import { canonicalHash } from '@/lib/canonical-json';
 import { getNegativeStylePromptBlock, getSetBoardStylePromptBlock } from '@/lib/styles';
 import { assertProviderPromptHasNoInternalSpatialMarkers } from '@/lib/visual-contract-compiler/projectContractProse';
 
-import type { SetDefinition, SetDefinitionLocation, SetDefinitionZone } from './types';
+import {
+  SET_BOARD_RESERVED_PAGE_CONTENT_POLICY_VERSION,
+  type SetDefinition,
+  type SetDefinitionLocation,
+  type SetDefinitionZone,
+} from './types';
 import {
   assertCurrentSetBoardAmbientDressingPolicy,
   SET_BOARD_AMBIENT_PALETTE_COLOR_LABELS,
@@ -97,6 +102,36 @@ function placementAreaLabels(def: SetDefinition, zoneIds: readonly string[]): st
     .map((index) => `Area ${index + 1}`);
 }
 
+function reservedPlacementLines(def: SetDefinition): string[] {
+  if (
+    def.contentPolicy.version !==
+    SET_BOARD_RESERVED_PAGE_CONTENT_POLICY_VERSION
+  ) {
+    return [];
+  }
+  const ordinalByZone = new Map<string, number>();
+  return def.contentPolicy.reservedEmptyPlacements.placements.map((placement) => {
+    const zoneIndex = def.zones.findIndex(
+      (zone) =>
+        zone.id === placement.zoneId &&
+        zone.locationId === placement.locationId,
+    );
+    if (zoneIndex < 0) {
+      throw new Error(
+        `reserved placement zone is absent from Set Definition: ${placement.zoneId}`,
+      );
+    }
+    const ordinal = (ordinalByZone.get(placement.zoneId) ?? 0) + 1;
+    ordinalByZone.set(placement.zoneId, ordinal);
+    return (
+      `- Area ${zoneIndex + 1}, reserved placement point ${ordinal}: ${placement.anchorDescription} ` +
+      'Preserve this physical point and its supporting geometry, but keep the point visibly empty, unobstructed, ' +
+      'and usable. Do not attach, hang, mount, place, park, stack, store, or drape any ambient dressing or fixed ' +
+      'practical light on it.'
+    );
+  });
+}
+
 /**
  * Build the board prompt, its negative prompt, and their joint hash.
  *
@@ -146,6 +181,7 @@ export function buildSetIdentityBoardPrompt(def: SetDefinition): {
         `NO ${prop.name}; it is not declared as a stable fixed set object and must be absent from this base board`,
     );
   const ambientPolicy = def.contentPolicy.ambientDressing;
+  const reservedLines = reservedPlacementLines(def);
   const ambientSelections = selectSetBoardAmbientDressing(
     ambientPolicy,
     (label) => positiveAuthorityLabelIsSafe(def, label),
@@ -187,6 +223,14 @@ export function buildSetIdentityBoardPrompt(def: SetDefinition): {
     'STABLE OBJECT AUTHORITY:',
     '- Exact recurring/story-prop identity comes only from the fixed set objects declared above.',
     '- Ambient dressing below is non-narrative background detail, never a recurring story prop or new spatial opening.',
+    ...(reservedLines.length
+      ? [
+          '',
+          'RESERVED PAGE-CONTENT PLACEMENT AVAILABILITY:',
+          ...reservedLines,
+          '- Fixed post-mounted or wall-mounted practical lights elsewhere in the set remain allowed when they do not occupy or obstruct a reserved placement point.',
+        ]
+      : []),
     '',
     'AMBIENT SET DRESSING (bounded visual personality, not story content):',
     `- Density: ${ambientPolicy.density}; use at least ${ambientPolicy.minimumDistinctDetails} visually distinct, space-appropriate details rather than a sparse or generic room/set.`,
@@ -222,6 +266,12 @@ export function buildSetIdentityBoardPrompt(def: SetDefinition): {
     ...BOARD_FORBIDS,
     ...excludedLines,
     ...undeclaredPropLines,
+    ...(reservedLines.length
+      ? [
+          'ambient object occupying or obstructing a reserved page-content placement point',
+          'fixed practical light attached to a reserved page-content placement point',
+        ]
+      : []),
     'people',
     'child',
     'character',

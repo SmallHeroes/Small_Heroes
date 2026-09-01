@@ -1418,6 +1418,10 @@ export function prepareStorySourceRevisionPackageAssembly(args: {
     context: migration.context,
     approvedBlueprintPaths: paths,
     review: reviewReality,
+    // This migration is a semantic-source successor, not a Board-authority migration. Its source package was
+    // loaded and digest-verified above, so replay its exact immutable Board inventory rather than reinterpreting
+    // historical content under today's forward Set Board policy.
+    frozenRequiredBoards: migration.sourcePackage.requiredBoards,
   });
   if (
     canonicalJsonDigest(assembled.candidate.content.requiredBoards) !==
@@ -1432,6 +1436,7 @@ export function prepareStorySourceRevisionPackageAssembly(args: {
     candidate: assembled.candidate,
     packageReview: assembled.packageReview,
     approval: null,
+    frozenRequiredBoards: migration.sourcePackage.requiredBoards,
   });
   if (
     !qualification.candidateValid ||
@@ -1696,6 +1701,7 @@ export function recordStorySourceRevisionPackageApproval(args: {
     candidate: loaded.prepared.candidate,
     packageReview: loaded.prepared.packageReview,
     approval,
+    frozenRequiredBoards: loaded.migration.sourcePackage.requiredBoards,
   });
   if (
     approvalIssues.length > 0 ||
@@ -1847,6 +1853,7 @@ export function publishStorySourceRevisionPackage(args: {
     packageReview: loaded.prepared.packageReview,
     packageReviewArtifactPath: loaded.manifest.package.reviewPath,
     approval,
+    frozenRequiredBoards: loaded.migration.sourcePackage.requiredBoards,
   });
   const approvedPackagesDir = path.resolve(
     args.approvedPackagesDir ??

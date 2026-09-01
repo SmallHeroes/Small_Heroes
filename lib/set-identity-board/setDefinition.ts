@@ -26,12 +26,16 @@ import {
   SET_BOARD_POSITIVE_AUTHORITY_CONTEXTUAL_POLICY_VERSION,
   SET_BOARD_POSITIVE_AUTHORITY_PRECISE_POLICY_VERSION,
   SET_BOARD_POSITIVE_AUTHORITY_POLICY_VERSION,
+  SET_BOARD_RESERVED_EMPTY_PLACEMENTS_VERSION,
+  SET_BOARD_RESERVED_PAGE_CONTENT_POLICY_VERSION,
+  SET_IDENTITY_BOARD_RESERVED_PAGE_PLACEMENT_VERSION,
   SET_IDENTITY_BOARD_VERSION,
   type SetBoardContentPolicy,
   type SetBoardExcludedProp,
   type SetBoardExclusionReason,
   type SetBoardPositiveAuthorityPolicy,
   type SetBoardPositiveAuthorityPolicyVersion,
+  type SetBoardReservedEmptyPlacement,
   type SetDefinition,
   type SetDefinitionFixedFact,
   type SetDefinitionLocation,
@@ -235,6 +239,159 @@ function projectFixedSetFacts(
     .sort((a, b) => (a.propId < b.propId ? -1 : a.propId > b.propId ? 1 : 0));
 }
 
+export class SetBoardReservedPlacementAuthorityError extends Error {
+  readonly code = 'set_board_reserved_placement_authority_invalid' as const;
+
+  constructor(
+    readonly setIdentityId: string,
+    readonly pageNumber: number,
+    readonly reason: string,
+  ) {
+    super(
+      `[set_board_reserved_placement_authority_invalid] set ${JSON.stringify(setIdentityId)} ` +
+        `page ${pageNumber}: ${reason}`,
+    );
+    this.name = 'SetBoardReservedPlacementAuthorityError';
+  }
+}
+
+/**
+ * Project only exact same-page placement authority. A required prop constraint by itself says where content is
+ * visible, not that the child/companion places it there; an action by itself says nothing about the physical point.
+ * The conjunction below is the smallest structural fact that authorizes reserving a point on the reusable Board.
+ */
+function projectReservedEmptyPlacements(
+  contract: BookVisualContract,
+  setIdentityId: string,
+  locationIds: ReadonlySet<string>,
+  zones: readonly SetDefinitionZone[],
+  includedPropIds: ReadonlySet<string>,
+): SetBoardReservedEmptyPlacement[] {
+  const grouped = new Map<
+    string,
+    Omit<SetBoardReservedEmptyPlacement, 'propIds'> & { propIds: Set<string> }
+  >();
+
+  for (const page of [...(contract.pageContracts ?? [])].sort(
+    (left, right) => left.pageNumber - right.pageNumber,
+  )) {
+    if (!locationIds.has(page.locationId)) continue;
+    const actions = page.actionRequirements ?? [];
+    for (const action of actions) {
+      if (
+        action.polarity !== 'must' ||
+        action.predicate !== 'places' ||
+        action.object?.kind !== 'prop'
+      ) {
+        continue;
+      }
+      const propId = action.object.id;
+      if (includedPropIds.has(propId)) continue;
+
+      const constraints = (page.propConstraints ?? []).filter(
+        (constraint) =>
+          constraint.propId === propId &&
+          constraint.visibility === 'required' &&
+          typeof constraint.anchorId === 'string' &&
+          constraint.anchorId.trim().length > 0,
+      );
+      // No anchored constraint means this action carries semantic intent but no compiler-owned physical-placement
+      // authority. It is therefore outside this projection and preserves historical v6 behavior. More than one
+      // exact candidate is different: authority exists but is ambiguous, so selecting one would be unsafe.
+      if (constraints.length === 0) continue;
+      if (constraints.length > 1) {
+        throw new SetBoardReservedPlacementAuthorityError(
+          setIdentityId,
+          page.pageNumber,
+          `must/places prop ${JSON.stringify(propId)} requires exactly one same-page required anchored constraint ` +
+            `(got ${constraints.length})`,
+        );
+      }
+      const anchorId = constraints[0]!.anchorId!.trim();
+      const pageZoneId = page.zoneId?.trim();
+      if (!pageZoneId) {
+        throw new SetBoardReservedPlacementAuthorityError(
+          setIdentityId,
+          page.pageNumber,
+          `must/places prop ${JSON.stringify(propId)} has no exact page zone`,
+        );
+      }
+      const matchingZones = zones.filter(
+        (zone) => zone.id === pageZoneId && zone.locationId === page.locationId,
+      );
+      if (matchingZones.length !== 1) {
+        throw new SetBoardReservedPlacementAuthorityError(
+          setIdentityId,
+          page.pageNumber,
+          `page zone ${JSON.stringify(pageZoneId)} does not map to exactly one stable Board area ` +
+            `(got ${matchingZones.length})`,
+        );
+      }
+      const matchingLocations = (contract.locations ?? []).filter(
+        (location) => location.id === page.locationId,
+      );
+      if (matchingLocations.length !== 1) {
+        throw new SetBoardReservedPlacementAuthorityError(
+          setIdentityId,
+          page.pageNumber,
+          `page location ${JSON.stringify(page.locationId)} is not unique`,
+        );
+      }
+      const matchingAnchors = (matchingLocations[0]!.anchors ?? []).filter(
+        (anchor) => anchor.id === anchorId,
+      );
+      if (matchingAnchors.length !== 1) {
+        throw new SetBoardReservedPlacementAuthorityError(
+          setIdentityId,
+          page.pageNumber,
+          `anchor ${JSON.stringify(anchorId)} is not unique in location ${JSON.stringify(page.locationId)} ` +
+            `(got ${matchingAnchors.length})`,
+        );
+      }
+      const anchorDescription = matchingAnchors[0]!.description?.trim();
+      if (!anchorDescription) {
+        throw new SetBoardReservedPlacementAuthorityError(
+          setIdentityId,
+          page.pageNumber,
+          `anchor ${JSON.stringify(anchorId)} has no stable physical description`,
+        );
+      }
+
+      const key = [page.locationId, pageZoneId, anchorId].join('\u0000');
+      const current = grouped.get(key) ?? {
+        locationId: page.locationId,
+        zoneId: pageZoneId,
+        anchorId,
+        anchorDescription,
+        propIds: new Set<string>(),
+      };
+      if (current.anchorDescription !== anchorDescription) {
+        throw new SetBoardReservedPlacementAuthorityError(
+          setIdentityId,
+          page.pageNumber,
+          `anchor ${JSON.stringify(anchorId)} has conflicting stable descriptions`,
+        );
+      }
+      current.propIds.add(propId);
+      grouped.set(key, current);
+    }
+  }
+
+  return [...grouped.values()]
+    .map((placement) => ({
+      locationId: placement.locationId,
+      zoneId: placement.zoneId,
+      anchorId: placement.anchorId,
+      anchorDescription: placement.anchorDescription,
+      propIds: [...placement.propIds].sort(),
+    }))
+    .sort((left, right) =>
+      left.locationId.localeCompare(right.locationId) ||
+      left.zoneId.localeCompare(right.zoneId) ||
+      left.anchorId.localeCompare(right.anchorId),
+    );
+}
+
 function positiveAuthorityPolicy(
   contract: BookVisualContract,
   includedPropIds: ReadonlySet<string>,
@@ -302,19 +459,60 @@ function evaluateSetDefinition(
     .sort((a, b) => (a.propId < b.propId ? -1 : a.propId > b.propId ? 1 : 0));
   const zones = projectZones(authority.areas);
   const fixedSetFacts = projectFixedSetFacts(authority, zones);
-  const contentPolicy: SetBoardContentPolicy = {
-    version: SET_BOARD_CONTENT_POLICY_VERSION,
-    includedPropIds: fixedSetFacts.map((fact) => fact.propId).sort(),
-    excludedProps,
-    ambientDressing: currentSetBoardAmbientDressingPolicy(),
-  };
+  const includedPropIds = fixedSetFacts.map((fact) => fact.propId).sort();
+  const requestedBoardVersion = opts?.boardVersion;
+  const projectReservations =
+    requestedBoardVersion === undefined ||
+    requestedBoardVersion === SET_IDENTITY_BOARD_RESERVED_PAGE_PLACEMENT_VERSION;
+  const reservedEmptyPlacements = projectReservations
+    ? projectReservedEmptyPlacements(
+        contract,
+        setIdentityId,
+        locationIds,
+        zones,
+        new Set(includedPropIds),
+      )
+    : [];
+  if (
+    requestedBoardVersion === SET_IDENTITY_BOARD_RESERVED_PAGE_PLACEMENT_VERSION &&
+    reservedEmptyPlacements.length === 0
+  ) {
+    throw new SetBoardReservedPlacementAuthorityError(
+      setIdentityId,
+      0,
+      'set-board/v7 requires at least one exact reserved empty placement',
+    );
+  }
+  const boardVersion =
+    requestedBoardVersion ??
+    (reservedEmptyPlacements.length > 0
+      ? SET_IDENTITY_BOARD_RESERVED_PAGE_PLACEMENT_VERSION
+      : SET_IDENTITY_BOARD_VERSION);
+  const contentPolicy: SetBoardContentPolicy =
+    boardVersion === SET_IDENTITY_BOARD_RESERVED_PAGE_PLACEMENT_VERSION
+      ? {
+          version: SET_BOARD_RESERVED_PAGE_CONTENT_POLICY_VERSION,
+          includedPropIds,
+          excludedProps,
+          ambientDressing: currentSetBoardAmbientDressingPolicy(),
+          reservedEmptyPlacements: {
+            version: SET_BOARD_RESERVED_EMPTY_PLACEMENTS_VERSION,
+            placements: reservedEmptyPlacements,
+          },
+        }
+      : {
+          version: SET_BOARD_CONTENT_POLICY_VERSION,
+          includedPropIds,
+          excludedProps,
+          ambientDressing: currentSetBoardAmbientDressingPolicy(),
+        };
   const authorityPolicy = positiveAuthorityPolicy(
     contract,
     new Set(contentPolicy.includedPropIds),
   );
 
   const definition: SetDefinition = {
-    boardVersion: opts?.boardVersion ?? SET_IDENTITY_BOARD_VERSION,
+    boardVersion,
     storyKey: contract.storyKey ?? '',
     styleId,
     setIdentityId,
@@ -393,14 +591,8 @@ export function computeSetBoardContentPolicyDigest(definition: SetDefinition): s
   return canonicalHash(definition.contentPolicy);
 }
 
-export function computeSetDefinitionHash(
-  contract: BookVisualContract,
-  setIdentityId: string,
-  styleId: string,
-  opts?: { boardVersion?: string },
-): string {
-  const { positiveAuthorityPolicy, ...physicalAuthority } =
-    projectSetDefinition(contract, setIdentityId, styleId, opts);
+export function computeProjectedSetDefinitionHash(definition: SetDefinition): string {
+  const { positiveAuthorityPolicy, ...physicalAuthority } = definition;
   return canonicalHash({
     ...physicalAuthority,
     positiveAuthorityPolicy: {
@@ -408,4 +600,15 @@ export function computeSetDefinitionHash(
       blockedProps: positiveAuthorityPolicy.blockedProps,
     },
   });
+}
+
+export function computeSetDefinitionHash(
+  contract: BookVisualContract,
+  setIdentityId: string,
+  styleId: string,
+  opts?: { boardVersion?: string },
+): string {
+  return computeProjectedSetDefinitionHash(
+    projectSetDefinition(contract, setIdentityId, styleId, opts),
+  );
 }

@@ -18,6 +18,8 @@ import {
   type MintDeps,
 } from '@/scripts/mint-set-identity-board';
 import { setIdentityBoardStorageKey } from '../liveResolverDeps';
+import { buildSetIdentityBoardPrompt } from '../boardPrompt';
+import { deriveExpectedSetBoardIdentity } from '../expectedIdentity';
 import { validateSetIdentityBoardRegistryEntry } from '../registry';
 import { computeSetDefinitionHash } from '../setDefinition';
 import type { SetBoardPositiveAuthorityLeakError } from '../positiveAuthoritySpoilerGuard';
@@ -25,6 +27,7 @@ import { currentSetBoardAmbientDressingPolicy } from '../ambientDressing';
 import {
   SET_BOARD_CONTENT_POLICY_VERSION,
   SET_BOARD_POSITIVE_AUTHORITY_POLICY_VERSION,
+  SET_IDENTITY_BOARD_RESERVED_PAGE_PLACEMENT_VERSION,
   SET_IDENTITY_BOARD_VERSION,
   SET_IDENTITY_REGISTRY_VERSION,
 } from '../types';
@@ -108,6 +111,53 @@ function readEntry(p: string): SetIdentityBoardRegistryEntry {
   return JSON.parse(readFileSync(p, 'utf-8')) as SetIdentityBoardRegistryEntry;
 }
 
+function writeReservedContract() {
+  const contract = makeContract();
+  contract.recurringProps.push({
+    id: 'prop_page_lantern',
+    name: 'Page Lantern',
+    description: 'page-conditioned content',
+    firstRevealPage: 1,
+  });
+  contract.pageContracts[0]!.actionRequirements = [{
+    checkId: 'action:places-page-lantern',
+    subject: {
+      kind: 'entity',
+      entity: { kind: 'cast', id: contract.cast.child.id },
+    },
+    predicate: 'places',
+    object: { kind: 'prop', id: 'prop_page_lantern' },
+    polarity: 'must',
+  }];
+  contract.pageContracts[0]!.propConstraints = [{
+    propId: 'prop_page_lantern',
+    visibility: 'required',
+    anchorId: 'anchor_hearth',
+  }];
+  writeFileSync(contractPath, JSON.stringify(contract));
+  return contract;
+}
+
+function rewriteAsHistoricalV6(
+  out: string,
+  contract: ReturnType<typeof writeReservedContract>,
+): SetIdentityBoardRegistryEntry {
+  const current = readEntry(out);
+  const { definition, expected } = deriveExpectedSetBoardIdentity({
+    contract,
+    setIdentityId: IDENTITY_ID,
+    styleId: NORMALIZED_STYLE,
+    frozenBoardVersion: SET_IDENTITY_BOARD_VERSION,
+  });
+  const historical: SetIdentityBoardRegistryEntry = {
+    ...current,
+    ...expected,
+    promptHash: buildSetIdentityBoardPrompt(definition).promptHash,
+  };
+  writeFileSync(out, JSON.stringify(historical));
+  return historical;
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Spend is opt-in
 // ─────────────────────────────────────────────────────────────────────────────
@@ -146,6 +196,20 @@ describe('mint — the render/upload path is OPT-IN and never runs by default', 
     expect(deps.renderBoard).not.toHaveBeenCalled();
     expect(deps.uploadBoard).not.toHaveBeenCalled();
   });
+
+  it('a dry preview cannot overwrite any existing output or Registry evidence', async () => {
+    const out = path.join(tmp, 'preserved.json');
+    const sentinel = '{"historical":"evidence"}';
+    writeFileSync(out, sentinel);
+    const deps = makeDeps();
+    await expect(runMint(mintArgs({ out, render: false }), deps)).rejects.toThrow(
+      /target output already exists/,
+    );
+    expect(readFileSync(out, 'utf8')).toBe(sentinel);
+    expect(deps.renderBoard).not.toHaveBeenCalled();
+    expect(deps.uploadBoard).not.toHaveBeenCalled();
+    expect(deps.runBoardQa).not.toHaveBeenCalled();
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -153,6 +217,54 @@ describe('mint — the render/upload path is OPT-IN and never runs by default', 
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('mint --render — render → sha → content-addressed upload → QA → entry', () => {
+  it('rejects an existing target before render, upload, or QA and preserves its bytes', async () => {
+    const out = path.join(tmp, 'preserved.json');
+    const sentinel = '{"historical":"candidate"}';
+    writeFileSync(out, sentinel);
+    const deps = makeDeps();
+    await expect(runMint(mintArgs({ out }), deps)).rejects.toThrow(
+      /target output already exists/,
+    );
+    expect(readFileSync(out, 'utf8')).toBe(sentinel);
+    expect(deps.renderBoard).not.toHaveBeenCalled();
+    expect(deps.uploadBoard).not.toHaveBeenCalled();
+    expect(deps.runBoardQa).not.toHaveBeenCalled();
+  });
+
+  it('loses a publication race fail-closed without replacing the winner bytes', async () => {
+    const out = path.join(tmp, 'race.json');
+    const sentinel = '{"winner":"other-process"}';
+    const deps = makeDeps({
+      renderBoard: vi.fn(async () => {
+        writeFileSync(out, sentinel);
+        return {
+          buffer: BOARD_BYTES,
+          model: 'gpt-image-1',
+          contentType: 'image/png',
+        };
+      }),
+    });
+    await expect(runMint(mintArgs({ out }), deps)).rejects.toMatchObject({
+      code: 'EEXIST',
+    });
+    expect(readFileSync(out, 'utf8')).toBe(sentinel);
+  });
+
+  it('records v7 identity for a qualifying reserved-placement successor', async () => {
+    writeReservedContract();
+    const entry = await runMint(mintArgs(), makeDeps());
+    expect(entry.boardVersion).toBe(
+      SET_IDENTITY_BOARD_RESERVED_PAGE_PLACEMENT_VERSION,
+    );
+    expect(entry.contentPolicyDigest).toBe(
+      deriveExpectedSetBoardIdentity({
+        contract: writeReservedContract(),
+        setIdentityId: IDENTITY_ID,
+        styleId: NORMALIZED_STYLE,
+      }).expected.contentPolicyDigest,
+    );
+  });
+
   it('rejects a blocked transient prop in positive authority before render/upload/QA callbacks are reachable', async () => {
     const contract = makeContract();
     contract.recurringProps.push({
@@ -326,7 +438,7 @@ describe('--recheck — one-shot, same-byte, Vision-only QA adjudication', () =>
     const stored = JSON.parse(readFileSync(receiptPath, 'utf-8')) as Record<string, unknown>;
     const { digest, ...payload } = stored;
     expect(stored.version).toBe(SET_BOARD_QA_RECHECK_RECEIPT_VERSION);
-    expect(stored.instructionVersion).toBe('set-board-qa-instruction/v3');
+    expect(stored.instructionVersion).toBe('set-board-qa-instruction/v4');
     expect(stored.status).toBe('completed');
     expect(stored.result).toEqual({
       qaStatus: 'passed',
@@ -335,6 +447,40 @@ describe('--recheck — one-shot, same-byte, Vision-only QA adjudication', () =>
       qaCheckedAt: recheckTime.toISOString(),
     });
     expect(digest).toBe(canonicalHash(payload));
+  });
+
+  it('rechecks a current v7 candidate under QA instruction v4', async () => {
+    writeReservedContract();
+    const out = await failedEntry();
+    expect(readEntry(out).boardVersion).toBe(
+      SET_IDENTITY_BOARD_RESERVED_PAGE_PLACEMENT_VERSION,
+    );
+    const result = await runRecheck(
+      { mode: 'recheck', entry: out, contract: contractPath },
+      makeDeps(),
+    );
+    expect(result.qaStatus).toBe('passed');
+    const receipt = JSON.parse(
+      readFileSync(setBoardQaRecheckReceiptPath(out), 'utf8'),
+    ) as { instructionVersion: string };
+    expect(receipt.instructionVersion).toBe('set-board-qa-instruction/v4');
+  });
+
+  it('rejects a historical failed v6 row after v7 cutover before bytes, receipt, or Vision', async () => {
+    const contract = writeReservedContract();
+    const out = await failedEntry();
+    rewriteAsHistoricalV6(out, contract);
+    const before = readFileSync(out, 'utf8');
+    const deps = makeDeps();
+    await expect(runRecheck(
+      { mode: 'recheck', entry: out, contract: contractPath },
+      deps,
+    )).rejects.toThrow(/boardVersion mismatch/);
+    expect(readFileSync(out, 'utf8')).toBe(before);
+    expect(deps.loadBoardAsset).not.toHaveBeenCalled();
+    expect(deps.runBoardQa).not.toHaveBeenCalled();
+    expect(() => readFileSync(setBoardQaRecheckReceiptPath(out), 'utf8'))
+      .toThrow();
   });
 
   it('persists a failed adjudication without changing the registry and refuses every second recheck', async () => {
@@ -430,7 +576,7 @@ describe('--recheck — one-shot, same-byte, Vision-only QA adjudication', () =>
     expect(promptDeps.runBoardQa).not.toHaveBeenCalled();
     expect(() => readFileSync(setBoardQaRecheckReceiptPath(out), 'utf-8')).toThrow();
 
-    await failedEntry(out);
+    writeFileSync(out, JSON.stringify(original));
     const byteDeps = makeDeps({
       loadBoardAsset: vi.fn(async () => ({
         buffer: Buffer.from('different bytes'),
@@ -491,7 +637,7 @@ describe('--approve — the only path to an approved board, and only over a QA p
 
   it('REFUSES to approve when qaStatus is "failed"', async () => {
     const out = await mintWith('failed');
-    await expect(runApprove({ mode: 'approve', entry: out, approvedBy: 'guy' }, { now: () => NOW })).rejects.toThrow(
+    await expect(runApprove({ mode: 'approve', entry: out, contract: contractPath, approvedBy: 'guy' }, { now: () => NOW })).rejects.toThrow(
       /refusing to approve: qaStatus is "failed"/
     );
     expect(readEntry(out).approvedBy).toBeNull(); // and it did not write
@@ -500,7 +646,7 @@ describe('--approve — the only path to an approved board, and only over a QA p
   it('REFUSES to approve when qaStatus is "pending" (an unrendered/unQA\'d candidate)', async () => {
     const out = path.join(tmp, 'dry.json');
     await runMint(mintArgs({ out, render: false }), makeDeps());
-    await expect(runApprove({ mode: 'approve', entry: out, approvedBy: 'guy' }, { now: () => NOW })).rejects.toThrow(
+    await expect(runApprove({ mode: 'approve', entry: out, contract: contractPath, approvedBy: 'guy' }, { now: () => NOW })).rejects.toThrow(
       /refusing to approve: qaStatus is "pending"/
     );
     expect(readEntry(out).approvedBy).toBeNull();
@@ -511,14 +657,14 @@ describe('--approve — the only path to an approved board, and only over a QA p
     const out = path.join(tmp, 'hollow.json');
     const hollow = { ...(await runMint(mintArgs(), makeDeps())), storageKey: '', assetSha256: '' };
     writeFileSync(out, JSON.stringify(hollow));
-    await expect(runApprove({ mode: 'approve', entry: out, approvedBy: 'guy' }, { now: () => NOW })).rejects.toThrow(
+    await expect(runApprove({ mode: 'approve', entry: out, contract: contractPath, approvedBy: 'guy' }, { now: () => NOW })).rejects.toThrow(
       /no storageKey\/assetSha256/
     );
   });
 
   it('APPROVES a QA-passed entry — and this is what makes the live validator accept it', async () => {
     const out = await mintWith('passed');
-    const approved = await runApprove({ mode: 'approve', entry: out, approvedBy: 'guy' }, { now: () => NOW });
+    const approved = await runApprove({ mode: 'approve', entry: out, contract: contractPath, approvedBy: 'guy' }, { now: () => NOW });
 
     expect(approved.approvedBy).toBe('guy');
     expect(approved.approvedAt).toBe(NOW.toISOString());
@@ -537,18 +683,70 @@ describe('--approve — the only path to an approved board, and only over a QA p
     expect(validation.ok).toBe(true);
   });
 
+  it('approves a current v7 successor after re-deriving its exact forward contract authority', async () => {
+    writeReservedContract();
+    const out = await mintWith('passed');
+    const approved = await runApprove(
+      {
+        mode: 'approve',
+        entry: out,
+        contract: contractPath,
+        approvedBy: 'guy',
+      },
+      { now: () => NOW },
+    );
+    expect(approved.boardVersion).toBe(
+      SET_IDENTITY_BOARD_RESERVED_PAGE_PLACEMENT_VERSION,
+    );
+    expect(approved.approvedBy).toBe('guy');
+  });
+
+  it('rejects a QA-passed historical v6 row after v7 cutover without changing its bytes', async () => {
+    const contract = writeReservedContract();
+    const out = await mintWith('passed');
+    rewriteAsHistoricalV6(out, contract);
+    const before = readFileSync(out, 'utf8');
+    await expect(runApprove(
+      {
+        mode: 'approve',
+        entry: out,
+        contract: contractPath,
+        approvedBy: 'guy',
+      },
+      { now: () => NOW },
+    )).rejects.toThrow(/boardVersion mismatch/);
+    expect(readFileSync(out, 'utf8')).toBe(before);
+  });
+
+  it('rejects a partial approval stamp instead of repairing or overwriting it', async () => {
+    const out = await mintWith('passed');
+    const partial = { ...readEntry(out), approvedBy: 'guy', approvedAt: null };
+    writeFileSync(out, JSON.stringify(partial));
+    const before = readFileSync(out, 'utf8');
+    await expect(runApprove(
+      {
+        mode: 'approve',
+        entry: out,
+        contract: contractPath,
+        approvedBy: 'guy',
+      },
+      { now: () => NOW },
+    )).rejects.toThrow(/partial approval stamp/);
+    expect(readFileSync(out, 'utf8')).toBe(before);
+  });
+
   it('approving changes ONLY approvedBy/approvedAt — never QA, bytes, or identity', async () => {
     const out = await mintWith('passed');
     const before = readEntry(out);
-    const after = await runApprove({ mode: 'approve', entry: out, approvedBy: 'guy' }, { now: () => NOW });
+    const after = await runApprove({ mode: 'approve', entry: out, contract: contractPath, approvedBy: 'guy' }, { now: () => NOW });
     expect({ ...after, approvedBy: null, approvedAt: null }).toEqual(before);
   });
 
   it('is idempotent — re-approving an approved board keeps the ORIGINAL approver and timestamp', async () => {
     const out = await mintWith('passed');
-    await runApprove({ mode: 'approve', entry: out, approvedBy: 'guy' }, { now: () => NOW });
+    await runApprove({ mode: 'approve', entry: out, contract: contractPath, approvedBy: 'guy' }, { now: () => NOW });
     const again = await runApprove(
-      { mode: 'approve', entry: out, approvedBy: 'someone-else' },
+      { mode: 'approve', entry: out, contract: contractPath, approvedBy: 'someone-else' },
       { now: () => new Date('2027-01-01T00:00:00.000Z') }
     );
     expect(again.approvedBy).toBe('guy');
@@ -556,14 +754,15 @@ describe('--approve — the only path to an approved board, and only over a QA p
   });
 
   it('--approve requires a named human', () => {
-    expect(() => parseArgs(['--approve', '--entry', 'e.json'])).toThrow(/--approved-by is required/);
-    expect(() => parseArgs(['--approve', '--approved-by', 'guy'])).toThrow(/--entry is required/);
+    expect(() => parseArgs(['--approve', '--entry', 'e.json', '--contract', 'c.json'])).toThrow(/--approved-by is required/);
+    expect(() => parseArgs(['--approve', '--contract', 'c.json', '--approved-by', 'guy'])).toThrow(/--entry is required/);
+    expect(() => parseArgs(['--approve', '--entry', 'e.json', '--approved-by', 'guy'])).toThrow(/--contract is required/);
   });
 
   it('the approve path never renders or uploads anything', async () => {
     const out = await mintWith('passed');
     const deps = makeDeps();
-    await runCli(['--approve', '--entry', out, '--approved-by', 'guy'], deps);
+    await runCli(['--approve', '--entry', out, '--contract', contractPath, '--approved-by', 'guy'], deps);
     expect(deps.renderBoard).not.toHaveBeenCalled();
     expect(deps.uploadBoard).not.toHaveBeenCalled();
     expect(readEntry(out).approvedBy).toBe('guy');

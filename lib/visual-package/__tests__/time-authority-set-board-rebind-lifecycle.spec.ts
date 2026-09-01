@@ -443,18 +443,40 @@ describe.skipIf(!REAL_ARTIFACTS_AVAILABLE)(
         repoRoot: REPO_ROOT,
         approvedManifestPath: APPROVED_MANIFEST_PATH,
       });
+      const frozenRequiredBoards = migration.sourcePackage.candidate.content.requiredBoards
+        .map((board) => board.setIdentityId === TOWN_SET_ID
+          ? {
+              ...board,
+              artifactPath: approved.registryArtifact.path,
+              artifactDigest: approved.registryArtifact.digest,
+              registryVersion: approved.targetRegistryEntry.registryVersion,
+              boardVersion: approved.targetRegistryEntry.boardVersion,
+              storyKey: approved.targetRegistryEntry.storyKey,
+              setIdentityId: approved.targetRegistryEntry.setIdentityId,
+              styleId: approved.targetRegistryEntry.styleId,
+              setDefinitionHash: approved.targetRegistryEntry.setDefinitionHash,
+              contentPolicyDigest: approved.targetRegistryEntry.contentPolicyDigest,
+              declaredPropIds: [...approved.targetRegistryEntry.declaredPropIds],
+              storageKey: approved.targetRegistryEntry.storageKey!,
+              assetSha256: approved.targetRegistryEntry.assetSha256!,
+              approvedBy: approved.targetRegistryEntry.approvedBy!,
+              approvedAt: approved.targetRegistryEntry.approvedAt!,
+            }
+          : board);
       const assembled = assembleVisualPackageV4Candidate({
         repoRoot: REPO_ROOT,
         context: migration.context,
         approvedBlueprintPaths: APPROVED_BLUEPRINT_PATHS,
         review: migration.sourcePackage.candidate.content.review,
         boardRegistryDir: fixture.boardRegistryDir,
+        frozenRequiredBoards,
       });
       const qualification = qualifyVisualPackageV4Candidate({
         repoRoot: REPO_ROOT,
         candidate: assembled.candidate,
         packageReview: assembled.packageReview,
         boardRegistryDir: fixture.boardRegistryDir,
+        frozenRequiredBoards,
       });
 
       expect(qualification).toMatchObject({

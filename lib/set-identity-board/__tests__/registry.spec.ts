@@ -1,4 +1,4 @@
-import { existsSync, mkdtempSync, rmSync } from 'fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync } from 'fs';
 import { tmpdir } from 'os';
 import path from 'path';
 
@@ -10,6 +10,7 @@ import {
   computeExpectedRegistryKey,
   loadRegistryEntry,
   saveRegistryEntry,
+  saveRegistryEntryCreateOnly,
   validateSetIdentityBoardRegistryEntry,
   verifyBoardAssetBytes,
   type ExpectedRegistryIdentity,
@@ -64,6 +65,20 @@ describe('registry round-trip', () => {
 
   it('returns null for a missing file', () => {
     expect(loadRegistryEntry(path.join(tmpRoot, 'does-not-exist.json'))).toBeNull();
+  });
+
+  it('create-only publication never replaces existing Registry evidence', () => {
+    const file = path.join(tmpRoot, 'create-only', 'entry.json');
+    const original = approvedEntry();
+    saveRegistryEntryCreateOnly(file, original);
+    const originalBytes = readFileSync(file, 'utf8');
+    expect(() => saveRegistryEntryCreateOnly(file, {
+      ...original,
+      qaStatus: 'failed',
+      approvedBy: null,
+      approvedAt: null,
+    })).toThrow(expect.objectContaining({ code: 'EEXIST' }));
+    expect(readFileSync(file, 'utf8')).toBe(originalBytes);
   });
 });
 

@@ -34,7 +34,7 @@
  *   node scripts/mint-set-identity-board.cjs --recheck --entry <path.json> --contract <path.json>
  *
  *   # 4. human approval — the ONLY step that can approve, and only over a QA-passed entry
- *   node scripts/mint-set-identity-board.cjs --approve --entry <path.json> --approved-by "<name>"
+ *   node scripts/mint-set-identity-board.cjs --approve --entry <path.json> --contract <path.json> --approved-by "<name>"
  *
  * The canonical launcher preloads the repository's `server-only` shim before registering tsx or importing this
  * module. Do not invoke this TypeScript file directly: the live renderer's real transitive graph includes
@@ -59,16 +59,14 @@ import { styleIdFromDatabaseValue } from '@/lib/styles';
 import type { BookVisualContract } from '@/lib/visual-contract-compiler';
 
 import {
-  SET_IDENTITY_BOARD_VERSION,
   SET_IDENTITY_REGISTRY_VERSION,
   buildBoardQaInstruction,
   buildSetIdentityBoardPrompt,
-  computeSetBoardContentPolicyDigest,
-  computeSetDefinitionHash,
+  deriveExpectedSetBoardIdentity,
   loadRegistryEntry,
-  projectSetDefinition,
   qaSetIdentityBoardImage,
   saveRegistryEntry,
+  saveRegistryEntryCreateOnly,
   setIdentityBoardRegistryPath,
   validateSetIdentityBoardRegistryIdentity,
   verifyBoardAssetBytes,
@@ -399,6 +397,7 @@ export interface MintArgs {
 export interface ApproveArgs {
   mode: 'approve';
   entry: string;
+  contract: string;
   approvedBy: string;
 }
 
@@ -428,7 +427,7 @@ export const USAGE = `mint-set-identity-board — mint + approve Set Identity Bo
     ${CANONICAL_BOARD_MINT_COMMAND} --story <key> --identity <id> --style <db-or-style-id> --contract <path.json> --render [--quality low|medium] [--registry-root <dir>] [--out <path.json>]
 
   APPROVE (the only step that may approve; refuses unless qaStatus === 'passed'):
-    ${CANONICAL_BOARD_MINT_COMMAND} --approve --entry <path.json> --approved-by "<name>"
+    ${CANONICAL_BOARD_MINT_COMMAND} --approve --entry <path.json> --contract <path.json> --approved-by "<name>"
 
   RECHECK (one Vision-only pass over the exact existing bytes; never renders or uploads):
     ${CANONICAL_BOARD_MINT_COMMAND} --recheck --entry <path.json> --contract <path.json>
@@ -499,15 +498,20 @@ export function parseArgs(argv: string[]): CliArgs {
   }
 
   if (bare.has('approve')) {
-    const approveFlags = new Set(['approve', 'entry', 'approved-by']);
+    const approveFlags = new Set(['approve', 'entry', 'contract', 'approved-by']);
     const incompatible = [...seen].find((key) => !approveFlags.has(key));
     if (incompatible) {
       throw new Error(`--${incompatible} cannot be used with --approve`);
     }
-    for (const required of ['entry', 'approved-by'] as const) {
+    for (const required of ['entry', 'contract', 'approved-by'] as const) {
       if (!flags[required]?.trim()) throw new Error(`--${required} is required with --approve`);
     }
-    return { mode: 'approve', entry: flags.entry, approvedBy: flags['approved-by'].trim() };
+    return {
+      mode: 'approve',
+      entry: flags.entry,
+      contract: flags.contract,
+      approvedBy: flags['approved-by'].trim(),
+    };
   }
 
   if (bare.has('recheck')) {
@@ -571,10 +575,14 @@ export async function runMint(args: MintArgs, deps: MintDeps = liveMintDeps): Pr
   // normalize to the same id, so the operator cannot mint into the wrong namespace by choosing the wrong word.
   const styleId = styleIdFromDatabaseValue(args.style);
 
-  const def = projectSetDefinition(contract, args.identity, styleId);
-  const setDefinitionHash = computeSetDefinitionHash(contract, args.identity, styleId);
-  const contentPolicyDigest = computeSetBoardContentPolicyDigest(def);
-  const declaredPropIds = def.contentPolicy.includedPropIds;
+  const { definition: def, expected } = deriveExpectedSetBoardIdentity({
+    contract,
+    setIdentityId: args.identity,
+    styleId,
+  });
+  const setDefinitionHash = expected.setDefinitionHash;
+  const contentPolicyDigest = expected.contentPolicyDigest;
+  const declaredPropIds = expected.declaredPropIds;
   const { prompt, negativePrompt, promptHash } = buildSetIdentityBoardPrompt(def);
 
   console.log(`styleId (normalized): ${styleId}  (from --style "${args.style}")`);
@@ -585,11 +593,24 @@ export async function runMint(args: MintArgs, deps: MintDeps = liveMintDeps): Pr
   console.log('\n--- NEGATIVE PROMPT ---\n');
   console.log(negativePrompt);
 
+  const outPath =
+    args.out ??
+    (args.render
+      ? setIdentityBoardRegistryPath(expected, args.registryRoot)
+      : candidatePreviewPath(args, styleId, setDefinitionHash));
+  // Every mint-mode publication is create-only, including a dry preview with an operator-supplied `--out`. This
+  // check prevents both accidental evidence replacement and provider spend; `wx` below closes the publication race.
+  if (existsSync(outPath)) {
+    throw new Error(
+      `refusing to mint: target output already exists at "${outPath}"; preserve it and mint only a new identity`,
+    );
+  }
+
   if (!args.render) {
     // DRY: nothing rendered, nothing uploaded, nothing QA'd, nothing spent.
     const preview: SetIdentityBoardRegistryEntry = {
       registryVersion: SET_IDENTITY_REGISTRY_VERSION,
-      boardVersion: SET_IDENTITY_BOARD_VERSION,
+      boardVersion: def.boardVersion,
       storyKey: def.storyKey,
       setIdentityId: def.setIdentityId,
       styleId,
@@ -606,8 +627,7 @@ export async function runMint(args: MintArgs, deps: MintDeps = liveMintDeps): Pr
       approvedBy: null, // NEVER auto-approved
       approvedAt: null, // NEVER auto-approved
     };
-    const outPath = args.out ?? candidatePreviewPath(args, styleId, setDefinitionHash);
-    saveRegistryEntry(outPath, preview);
+    saveRegistryEntryCreateOnly(outPath, preview);
     console.log(`\nDRY RUN — nothing rendered, nothing uploaded, nothing spent.`);
     console.log(`Wrote UNRENDERED candidate preview: ${outPath}`);
     console.log(`Re-run with --render to mint for real.`);
@@ -640,7 +660,7 @@ export async function runMint(args: MintArgs, deps: MintDeps = liveMintDeps): Pr
 
   const entry: SetIdentityBoardRegistryEntry = {
     registryVersion: SET_IDENTITY_REGISTRY_VERSION,
-    boardVersion: SET_IDENTITY_BOARD_VERSION,
+    boardVersion: def.boardVersion,
     storyKey: def.storyKey,
     setIdentityId: def.setIdentityId,
     styleId,
@@ -658,28 +678,14 @@ export async function runMint(args: MintArgs, deps: MintDeps = liveMintDeps): Pr
     approvedAt: null, // NEVER auto-approved — only `--approve` may write this
   };
 
-  const outPath =
-    args.out ??
-    setIdentityBoardRegistryPath(
-      {
-        registryVersion: SET_IDENTITY_REGISTRY_VERSION,
-        boardVersion: SET_IDENTITY_BOARD_VERSION,
-        storyKey: def.storyKey,
-        setIdentityId: def.setIdentityId,
-        styleId,
-        setDefinitionHash,
-        contentPolicyDigest,
-        declaredPropIds,
-      },
-      args.registryRoot
-    );
-  saveRegistryEntry(outPath, entry);
+  saveRegistryEntryCreateOnly(outPath, entry);
 
   console.log(`\nWrote registry entry (qaStatus=${entry.qaStatus}, UNAPPROVED): ${outPath}`);
   if (qa.qaStatus === 'passed') {
     console.log(
       `\nNOT USABLE YET — a human must look at the board and approve it:\n` +
-        `  ${CANONICAL_BOARD_MINT_COMMAND} --approve --entry "${outPath}" --approved-by "<name>"`
+        `  ${CANONICAL_BOARD_MINT_COMMAND} --approve --entry "${outPath}" --contract "${args.contract}" ` +
+        `--approved-by "<name>"`
     );
   } else {
     console.log(
@@ -695,7 +701,7 @@ export async function runMint(args: MintArgs, deps: MintDeps = liveMintDeps): Pr
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const SET_BOARD_QA_RECHECK_RECEIPT_VERSION = 'set-board-qa-recheck-receipt/v1' as const;
-export const SET_BOARD_QA_INSTRUCTION_VERSION = 'set-board-qa-instruction/v3' as const;
+export const SET_BOARD_QA_INSTRUCTION_VERSION = 'set-board-qa-instruction/v4' as const;
 
 interface SetBoardQaRecheckReceiptPayload {
   version: typeof SET_BOARD_QA_RECHECK_RECEIPT_VERSION;
@@ -737,6 +743,38 @@ let qaRecheckTemporaryWriteCounter = 0;
 
 function recheckAlreadyExistsError(receiptPath: string): Error {
   return new Error(`refusing to recheck: the one-shot recheck record already exists at "${receiptPath}"`);
+}
+
+function deriveCurrentEntryAuthority(args: {
+  entry: SetIdentityBoardRegistryEntry;
+  contractPath: string;
+}): {
+  def: SetDefinition;
+  promptHash: string;
+} {
+  const contract = JSON.parse(
+    readFileSync(args.contractPath, 'utf-8'),
+  ) as BookVisualContract;
+  const styleId = styleIdFromDatabaseValue(args.entry.styleId);
+  const { definition: def, expected } = deriveExpectedSetBoardIdentity({
+    contract,
+    setIdentityId: args.entry.setIdentityId,
+    styleId,
+  });
+  const identityValidation = validateSetIdentityBoardRegistryIdentity(
+    args.entry,
+    expected,
+  );
+  if (!identityValidation.ok) {
+    throw new Error(identityValidation.errors.join('; '));
+  }
+  const { promptHash } = buildSetIdentityBoardPrompt(def);
+  if (args.entry.promptHash !== promptHash) {
+    throw new Error(
+      'promptHash no longer matches the current exact Board prompt',
+    );
+  }
+  return { def, promptHash };
 }
 
 function writeQaRecheckReceipt(
@@ -808,28 +846,17 @@ export async function runRecheck(
     throw new Error('refusing to recheck: entry has no complete rendered-byte/QA authority');
   }
 
-  const contract = JSON.parse(readFileSync(args.contract, 'utf-8')) as BookVisualContract;
-  const styleId = styleIdFromDatabaseValue(entry.styleId);
-  const def = projectSetDefinition(contract, entry.setIdentityId, styleId);
-  const setDefinitionHash = computeSetDefinitionHash(contract, entry.setIdentityId, styleId);
-  const contentPolicyDigest = computeSetBoardContentPolicyDigest(def);
-  const declaredPropIds = def.contentPolicy.includedPropIds;
-  const { promptHash } = buildSetIdentityBoardPrompt(def);
-  const identityValidation = validateSetIdentityBoardRegistryIdentity(entry, {
-    registryVersion: SET_IDENTITY_REGISTRY_VERSION,
-    boardVersion: SET_IDENTITY_BOARD_VERSION,
-    storyKey: def.storyKey,
-    setIdentityId: def.setIdentityId,
-    styleId,
-    setDefinitionHash,
-    contentPolicyDigest,
-    declaredPropIds,
-  });
-  if (!identityValidation.ok) {
-    throw new Error(`refusing to recheck: ${identityValidation.errors.join('; ')}`);
-  }
-  if (entry.promptHash !== promptHash) {
-    throw new Error('refusing to recheck: promptHash no longer matches the current exact Board prompt');
+  let def: SetDefinition;
+  let promptHash: string;
+  try {
+    ({ def, promptHash } = deriveCurrentEntryAuthority({
+      entry,
+      contractPath: args.contract,
+    }));
+  } catch (error) {
+    throw new Error(
+      `refusing to recheck: ${error instanceof Error ? error.message : String(error)}`,
+    );
   }
 
   const loaded = await deps.loadBoardAsset({ storageKey: entry.storageKey });
@@ -922,9 +949,25 @@ export async function runApprove(
   }
   if (!args.approvedBy.trim()) throw new Error('refusing to approve: --approved-by must name a human');
 
+  if ((entry.approvedBy === null) !== (entry.approvedAt === null)) {
+    throw new Error(
+      'refusing to approve: entry carries a partial approval stamp; approvedBy/approvedAt must be both null or both present',
+    );
+  }
   if (entry.approvedBy && entry.approvedAt) {
     console.log(`already approved by "${entry.approvedBy}" at ${entry.approvedAt} — nothing to do.`);
     return entry;
+  }
+
+  // New approval is allowed only for the exact forward authority projected by the supplied contract. This blocks
+  // a QA-passed historical v6 row from acquiring a fresh approval after a v7 cutover while preserving already-
+  // approved immutable replay above.
+  try {
+    deriveCurrentEntryAuthority({ entry, contractPath: args.contract });
+  } catch (error) {
+    throw new Error(
+      `refusing to approve: ${error instanceof Error ? error.message : String(error)}`,
+    );
   }
 
   const approved: SetIdentityBoardRegistryEntry = {

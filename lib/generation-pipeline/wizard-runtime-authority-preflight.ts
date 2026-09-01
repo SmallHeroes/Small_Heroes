@@ -180,6 +180,7 @@ export async function runWizardRuntimeAuthorityPreflight(
         contract,
         styleId: STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK,
         frozenContractHash: contractHash,
+        frozenRequiredBoards: packageValue.requiredBoards,
       },
       boardResolverDeps,
     );
@@ -189,6 +190,7 @@ export async function runWizardRuntimeAuthorityPreflight(
         cache: { setIdentityBoards },
         styleId: STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK,
         activeFrozenContractHash: contractHash,
+        frozenRequiredBoards: packageValue.requiredBoards,
       },
       boardResolverDeps,
     );

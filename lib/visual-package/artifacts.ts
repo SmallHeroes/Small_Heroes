@@ -7,17 +7,13 @@ import {
 } from '@/lib/visual-contract-compiler/contractTemplateTypes';
 import { validateBookVisualContractTemplate } from '@/lib/visual-contract-compiler/validateTemplateContract';
 import type { BookVisualContract } from '@/lib/visual-contract-compiler/types';
+import { type SetIdentityBoardRegistryEntry } from '@/lib/set-identity-board/types';
+import { listRequiredSetIdentityIds } from '@/lib/set-identity-board/setDefinition';
 import {
-  SET_IDENTITY_BOARD_VERSION,
-  SET_IDENTITY_REGISTRY_VERSION,
-  type SetIdentityBoardRegistryEntry,
-} from '@/lib/set-identity-board/types';
-import {
-  computeSetBoardContentPolicyDigest,
-  computeSetDefinitionHash,
-  listRequiredSetIdentityIds,
-  projectSetDefinition,
-} from '@/lib/set-identity-board/setDefinition';
+  deriveExpectedSetBoardIdentity,
+  validateTrustedFrozenSetBoardAuthorities,
+  type DerivedExpectedSetBoardIdentity,
+} from '@/lib/set-identity-board/expectedIdentity';
 import {
   validateSetIdentityBoardRegistryEntry,
   type ExpectedRegistryIdentity,
@@ -209,17 +205,11 @@ function boardExpectedIdentity(
   // Set-board projection deliberately reads no human appearance fields; a validated Template carries every set
   // field it needs. Keep the one contract schema and adapt only at this existing pure projection seam.
   const setProjectionContract = template as unknown as BookVisualContract;
-  const definition = projectSetDefinition(setProjectionContract, setIdentityId, styleId);
-  return {
-    registryVersion: SET_IDENTITY_REGISTRY_VERSION,
-    boardVersion: SET_IDENTITY_BOARD_VERSION,
-    storyKey: template.storyKey ?? '',
+  return deriveExpectedSetBoardIdentity({
+    contract: setProjectionContract,
     setIdentityId,
     styleId,
-    setDefinitionHash: computeSetDefinitionHash(setProjectionContract, setIdentityId, styleId),
-    contentPolicyDigest: computeSetBoardContentPolicyDigest(definition),
-    declaredPropIds: definition.contentPolicy.includedPropIds,
-  };
+  }).expected;
 }
 
 export function resolveRequiredBoardArtifacts(args: {
@@ -227,13 +217,46 @@ export function resolveRequiredBoardArtifacts(args: {
   boardRegistryRoot: string;
   template: BookVisualContractTemplate;
   styleId: string;
+  /** Trusted immutable package inventory. Omit when assembling/qualifying a new forward candidate. */
+  frozenRequiredBoards?: readonly VisualPackageBoardArtifactIdentity[];
 }): { boards: VisualPackageBoardArtifactIdentity[]; issues: VisualPackageIssue[] } {
   const boards: VisualPackageBoardArtifactIdentity[] = [];
   const issues: VisualPackageIssue[] = [];
   const setProjectionContract = args.template as unknown as BookVisualContract;
+  let frozenBySet: Map<string, DerivedExpectedSetBoardIdentity> | null = null;
+  if (args.frozenRequiredBoards) {
+    try {
+      frozenBySet = validateTrustedFrozenSetBoardAuthorities({
+        contract: setProjectionContract,
+        styleId: args.styleId,
+        boards: args.frozenRequiredBoards,
+      });
+    } catch (error) {
+      return {
+        boards,
+        issues: [
+          issue(
+            'board_authority_invalid',
+            error instanceof Error ? error.message : String(error),
+            { field: 'requiredBoards' },
+          ),
+        ],
+      };
+    }
+  }
   const admission = collectRequiredSetBoardAdmissionCensus(
     setProjectionContract,
     args.styleId,
+    frozenBySet
+      ? {
+          boardVersionsBySet: new Map(
+            [...frozenBySet].map(([setIdentityId, derived]) => [
+              setIdentityId,
+              derived.expected.boardVersion,
+            ]),
+          ),
+        }
+      : undefined,
   );
   if (!admission.admitted) {
     return {
@@ -257,7 +280,9 @@ export function resolveRequiredBoardArtifacts(args: {
     };
   }
   for (const setIdentityId of listRequiredSetIdentityIds(setProjectionContract)) {
-    const expected = boardExpectedIdentity(args.template, setIdentityId, args.styleId);
+    const expected =
+      frozenBySet?.get(setIdentityId)?.expected ??
+      boardExpectedIdentity(args.template, setIdentityId, args.styleId);
     const artifactPath = setIdentityBoardRegistryPath(expected, args.boardRegistryRoot);
     if (!fs.existsSync(artifactPath)) {
       issues.push(issue('board_unresolved', `required board registry artifact is missing for ${setIdentityId}`, {

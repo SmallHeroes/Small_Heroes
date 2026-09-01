@@ -44,6 +44,7 @@ import {
   type ProductionAuthoringContext,
 } from './productionAuthoringContext';
 import type {
+  VisualPackageBoardArtifactIdentity,
   VisualPackageReviewReality,
 } from './types';
 import {
@@ -361,6 +362,11 @@ export function assembleVisualPackageV4Candidate(args: {
   approvedBlueprintPaths: ApprovedBlueprintLifecyclePaths;
   review: VisualPackageReviewReality;
   boardRegistryDir?: string;
+  /**
+   * Exact Board authority from a trusted immutable source package. This is only for successor lifecycles that
+   * explicitly preserve that package's authority; ordinary fresh assembly must omit it and use forward policy.
+   */
+  frozenRequiredBoards?: readonly VisualPackageBoardArtifactIdentity[];
 }): {
   candidate: VisualPackageV4Candidate;
   packageReview: VisualPackageV4PackageReview;
@@ -383,6 +389,7 @@ export function assembleVisualPackageV4Candidate(args: {
     boardRegistryRoot,
     template: args.context.template.content,
     styleId: args.context.styleId,
+    frozenRequiredBoards: args.frozenRequiredBoards,
   });
   const propResult = resolveRequiredPropArtifacts({
     repoRoot: args.repoRoot,
@@ -803,6 +810,8 @@ type VisualPackageV4QualificationArgs = {
   packageReview: unknown;
   approval?: unknown;
   boardRegistryDir?: string;
+  /** Trusted immutable source-package Board inventory for an explicit authority-preserving successor. */
+  frozenRequiredBoards?: readonly VisualPackageBoardArtifactIdentity[];
 };
 
 function qualifyVisualPackageV4CandidateUnchecked(
@@ -1057,6 +1066,7 @@ function qualifyVisualPackageV4CandidateUnchecked(
       ),
       template: currentContext.template.content,
       styleId: currentContext.styleId,
+      frozenRequiredBoards: args.frozenRequiredBoards,
     });
     const boardAuthorityInvalid = currentBoards.issues.some((issue) =>
       issue.code === 'board_authority_invalid');
@@ -1243,6 +1253,8 @@ export function finalizeApprovedVisualPackageV4(args: {
   packageReviewArtifactPath: string;
   approval: VisualPackageV4Approval;
   boardRegistryDir?: string;
+  /** Trusted immutable source-package Board inventory for an explicit authority-preserving successor. */
+  frozenRequiredBoards?: readonly VisualPackageBoardArtifactIdentity[];
 }): VisualPackageV4 {
   const qualification = qualifyVisualPackageV4Candidate({
     repoRoot: args.repoRoot,
@@ -1250,6 +1262,7 @@ export function finalizeApprovedVisualPackageV4(args: {
     packageReview: args.packageReview,
     approval: args.approval,
     boardRegistryDir: args.boardRegistryDir,
+    frozenRequiredBoards: args.frozenRequiredBoards,
   });
   if (!qualification.readyForPublication) {
     throw new InvalidVisualPackageV4LifecycleError(

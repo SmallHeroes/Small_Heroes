@@ -13,7 +13,11 @@
  * that are contamination. A real vision adapter can use it to turn free observations into flags; the tests use it to
  * verify the forbidden vocabulary without a network.
  */
-import type { BoardQaResult, SetDefinition } from './types';
+import {
+  SET_BOARD_RESERVED_PAGE_CONTENT_POLICY_VERSION,
+  type BoardQaResult,
+  type SetDefinition,
+} from './types';
 import {
   assertCurrentSetBoardAmbientDressingPolicy,
   SET_BOARD_AMBIENT_PALETTE_COLOR_LABELS,
@@ -108,6 +112,36 @@ function allowedGeometryLines(def: SetDefinition): string[] {
   );
 }
 
+function reservedPlacementQaLines(def: SetDefinition): string[] {
+  if (
+    def.contentPolicy.version !==
+    SET_BOARD_RESERVED_PAGE_CONTENT_POLICY_VERSION
+  ) {
+    return [];
+  }
+  const ordinalByZone = new Map<string, number>();
+  return def.contentPolicy.reservedEmptyPlacements.placements.map((placement) => {
+    const zoneIndex = def.zones.findIndex(
+      (zone) =>
+        zone.id === placement.zoneId &&
+        zone.locationId === placement.locationId,
+    );
+    if (zoneIndex < 0) {
+      throw new Error(
+        `reserved placement zone is absent from Set Definition: ${placement.zoneId}`,
+      );
+    }
+    const ordinal = (ordinalByZone.get(placement.zoneId) ?? 0) + 1;
+    ordinalByZone.set(placement.zoneId, ordinal);
+    return (
+      `- Area ${zoneIndex + 1}, reserved placement point ${ordinal}: ${placement.anchorDescription} ` +
+      `This exact point and its supporting geometry must be present, visibly empty, unobstructed, and usable. If ` +
+      `an ambient object or practical light is attached, hung, mounted, placed, parked, stacked, stored, or draped ` +
+      `on it, return "reserved-placement-occupied:area-${zoneIndex + 1}:point-${ordinal}".`
+    );
+  });
+}
+
 /** Build the character-free QA instruction from the projection ONLY (no story literals). */
 export function buildBoardQaInstruction(def: SetDefinition): string {
   assertSetBoardPositiveAuthoritySpoilerNeutral(def);
@@ -137,6 +171,7 @@ export function buildBoardQaInstruction(def: SetDefinition): string {
       `"prop-count:${fact.propId}" and wrong placement as "prop-placement:${fact.propId}".`
     );
   });
+  const reservedPlacementLines = reservedPlacementQaLines(def);
   const ambientPolicy = def.contentPolicy.ambientDressing;
   const ambientSelections = selectSetBoardAmbientDressing(
     ambientPolicy,
@@ -183,6 +218,13 @@ export function buildBoardQaInstruction(def: SetDefinition): string {
     ...(excludedPropLines.length ? excludedPropLines : ['- none']),
     'FIXED PROP COUNT AND PLACEMENT:',
     ...(fixedPropLines.length ? fixedPropLines : ['- none']),
+    ...(reservedPlacementLines.length
+      ? [
+          'RESERVED PAGE-CONTENT PLACEMENT AVAILABILITY:',
+          ...reservedPlacementLines,
+          '- Fixed post-mounted or wall-mounted practical lights elsewhere are allowed and must not be flagged unless they occupy or obstruct a reserved placement point.',
+        ]
+      : []),
     'REQUIRED AMBIENT SET DRESSING:',
     `- The set must read as ${ambientPolicy.density.replace(/_/g, ' ')}, with at least ${ambientPolicy.minimumDistinctDetails} visually distinct, space-appropriate ambient details selected from the allowed categories below.`,
     ...ambientCategoryLines,
@@ -190,7 +232,7 @@ export function buildBoardQaInstruction(def: SetDefinition): string {
     '- If the set is materially sparse, generic, or lacks the minimum distinct ambient details, return "ambient-dressing-too-sparse".',
     `- Inspect these palette-sensitive surfaces: ${paletteTargets}. The ambient palette must read as ${SET_BOARD_AMBIENT_PALETTE_INTENT_LABEL}; preferred balancing colors include ${preferredPalette}.`,
     '- A single pink or coral accent is allowed and is not a defect. Do not require an all-blue room. Return "ambient-palette-strongly-gender-coded" only when large furnishings and toy clothing combine into a materially dominant gender-coded presentation.',
-    'If the image is a clean, empty, spoiler-neutral, sufficiently dressed set plate with only the allowed openings and exact fixed-prop count/placement, return an empty flag list.',
+    'If the image is a clean, empty, spoiler-neutral, sufficiently dressed set plate with only the allowed openings, exact fixed-prop count/placement, and every reserved placement point empty and usable, return an empty flag list.',
   ].join('\n');
 }
 

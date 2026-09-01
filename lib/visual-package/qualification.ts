@@ -232,6 +232,9 @@ export function evaluateRenderQualification(args: {
         boardRegistryRoot: args.boardRegistryRoot ?? path.join(args.repoRoot, 'set-identity-boards'),
         template: loaded.template,
         styleId: args.styleId,
+        frozenRequiredBoards: Array.isArray(manifest.requiredBoards)
+          ? manifest.requiredBoards
+          : [],
       });
       reasons.push(...boards.issues);
       if (!boards.issues.some((issue) =>

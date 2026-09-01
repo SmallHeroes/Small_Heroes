@@ -18,11 +18,26 @@ import type { SpatialNode, SpatialRelation } from '@/lib/visual-contract-compile
 /** Version of the spoiler-neutral SET projection + prompt derivation. */
 export const SET_IDENTITY_BOARD_VERSION = 'set-board/v6' as const;
 
+/**
+ * Additive Board tier for sets that must preserve exact, compiler-bound page-content placement points.
+ * Definitions with no such placements remain byte-for-byte v6.
+ */
+export const SET_IDENTITY_BOARD_RESERVED_PAGE_PLACEMENT_VERSION =
+  'set-board/v7' as const;
+
 /** Version of the on-disk registry entry schema. Bump to invalidate previously-saved registry entries. */
 export const SET_IDENTITY_REGISTRY_VERSION = 'set-registry/v6' as const;
 
 /** Version of the declared board-content policy carried through registry/package/runtime identities. */
 export const SET_BOARD_CONTENT_POLICY_VERSION = 'set-board-content/v5' as const;
+
+/** Content-policy tier used only when reserved page-content placements are non-empty. */
+export const SET_BOARD_RESERVED_PAGE_CONTENT_POLICY_VERSION =
+  'set-board-content/v6' as const;
+
+/** Version of the exact structured reservation projection. */
+export const SET_BOARD_RESERVED_EMPTY_PLACEMENTS_VERSION =
+  'set-board-reserved-empty-placements/v1' as const;
 
 /** Version of the bounded non-narrative dressing range carried by every current Set Definition. */
 export const SET_BOARD_AMBIENT_DRESSING_POLICY_VERSION =
@@ -147,13 +162,44 @@ export interface SetBoardExcludedProp {
   reasons: SetBoardExclusionReason[];
 }
 
-export interface SetBoardContentPolicy {
+export interface SetBoardLegacyContentPolicy {
   version: typeof SET_BOARD_CONTENT_POLICY_VERSION;
   includedPropIds: string[];
   excludedProps: SetBoardExcludedProp[];
   /** Non-story dressing is a bounded generative range; approved bytes lock its exact visual realization. */
   ambientDressing: SetBoardAmbientDressingPolicy;
 }
+
+/**
+ * One physical point that must remain empty on the reusable base Board because a later page places content there.
+ * Page/check identities are deliberately omitted: the Board owns physical availability, not narrative chronology.
+ */
+export interface SetBoardReservedEmptyPlacement {
+  locationId: string;
+  zoneId: string;
+  anchorId: string;
+  anchorDescription: string;
+  /** Every page-conditioned prop compiler-bound to this same physical point, sorted and unique. */
+  propIds: string[];
+}
+
+export interface SetBoardReservedEmptyPlacements {
+  version: typeof SET_BOARD_RESERVED_EMPTY_PLACEMENTS_VERSION;
+  placements: SetBoardReservedEmptyPlacement[];
+}
+
+export interface SetBoardReservedPageContentPolicy {
+  version: typeof SET_BOARD_RESERVED_PAGE_CONTENT_POLICY_VERSION;
+  includedPropIds: string[];
+  excludedProps: SetBoardExcludedProp[];
+  /** Non-story dressing is a bounded generative range; approved bytes lock its exact visual realization. */
+  ambientDressing: SetBoardAmbientDressingPolicy;
+  reservedEmptyPlacements: SetBoardReservedEmptyPlacements;
+}
+
+export type SetBoardContentPolicy =
+  | SetBoardLegacyContentPolicy
+  | SetBoardReservedPageContentPolicy;
 
 export interface SetBoardBlockedCastIdentity {
   castId: string;

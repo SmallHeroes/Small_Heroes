@@ -1,6 +1,12 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import { canonicalHash } from '@/lib/canonical-json';
+
 import { computeSetDefinitionHash } from '../setDefinition';
+import {
+  deriveExpectedSetBoardIdentity,
+  type FrozenSetBoardAuthorityIdentity,
+} from '../expectedIdentity';
 import {
   assertBoardsBoundForRender,
   hasUnboundRequiredSetIdentity,
@@ -10,12 +16,88 @@ import {
   type BoardResolverDeps,
 } from '../resolveBoards';
 import type { SetIdentityBoardBindingContext, SetIdentityBoardRegistryEntry } from '../types';
+import {
+  SET_IDENTITY_BOARD_RESERVED_PAGE_PLACEMENT_VERSION,
+  SET_IDENTITY_BOARD_VERSION,
+} from '../types';
 import { clone, makeApprovedEntry, makeContract, STYLE } from './board-fixtures';
 
 const FROZEN_HASH = 'frozen-contract-hash-1';
 
 /** The set identity the fixture requires a board for (`meadow` is setReference:'none' → not required). */
 const REQUIRED_ID = 'set_alpha';
+
+function contractWithReservedPlacement() {
+  const contract = makeContract();
+  contract.recurringProps.push({
+    id: 'prop_page_lantern',
+    name: 'Page Lantern',
+    description: 'page-conditioned content',
+    firstRevealPage: 1,
+  });
+  contract.pageContracts[0]!.actionRequirements = [{
+    checkId: 'action:places-page-lantern',
+    subject: {
+      kind: 'entity',
+      entity: { kind: 'cast', id: contract.cast.child.id },
+    },
+    predicate: 'places',
+    object: { kind: 'prop', id: 'prop_page_lantern' },
+    polarity: 'must',
+  }];
+  contract.pageContracts[0]!.propConstraints = [{
+    propId: 'prop_page_lantern',
+    visibility: 'required',
+    anchorId: 'anchor_hearth',
+  }];
+  return contract;
+}
+
+function approvedAuthorityFor(
+  contract: ReturnType<typeof makeContract>,
+  boardVersion?: string,
+): {
+  entry: SetIdentityBoardRegistryEntry;
+  frozen: FrozenSetBoardAuthorityIdentity;
+} {
+  const { expected } = deriveExpectedSetBoardIdentity({
+    contract,
+    setIdentityId: REQUIRED_ID,
+    styleId: STYLE,
+    ...(boardVersion ? { frozenBoardVersion: boardVersion } : {}),
+  });
+  const entry = makeApprovedEntry(expected.setDefinitionHash, {
+    registryVersion: expected.registryVersion,
+    boardVersion: expected.boardVersion,
+    storyKey: expected.storyKey,
+    setIdentityId: expected.setIdentityId,
+    styleId: expected.styleId,
+    setDefinitionHash: expected.setDefinitionHash,
+    contentPolicyDigest: expected.contentPolicyDigest,
+    declaredPropIds: expected.declaredPropIds,
+    storageKey: `set-identity-boards/synthetic/${expected.boardVersion}/board.png`,
+    assetSha256: `sha-${expected.boardVersion}`,
+  });
+  return {
+    entry,
+    frozen: {
+      artifactPath: `set-identity-boards/synthetic/${expected.boardVersion}.json`,
+      artifactDigest: canonicalHash(entry),
+      registryVersion: entry.registryVersion,
+      boardVersion: entry.boardVersion,
+      storyKey: entry.storyKey,
+      setIdentityId: entry.setIdentityId,
+      styleId: entry.styleId,
+      setDefinitionHash: entry.setDefinitionHash,
+      contentPolicyDigest: entry.contentPolicyDigest,
+      declaredPropIds: entry.declaredPropIds,
+      storageKey: entry.storageKey,
+      assetSha256: entry.assetSha256,
+      approvedBy: entry.approvedBy!,
+      approvedAt: entry.approvedAt!,
+    },
+  };
+}
 
 function hashFor(contract = makeContract(), id = REQUIRED_ID): string {
   return computeSetDefinitionHash(contract, id, STYLE);
@@ -117,6 +199,136 @@ describe('resolveBoardBindings — LOOK UP → VERIFY → BIND', () => {
       makeDeps()
     );
     expect(contract).toEqual(before);
+  });
+});
+
+describe('resolveBoardBindings — forward v7 and trusted frozen-v6 replay', () => {
+  it('selects v7 for a fresh qualifying contract and cannot be downgraded by a v6 Registry row', async () => {
+    const contract = contractWithReservedPlacement();
+    const current = approvedAuthorityFor(contract);
+    expect(current.entry.boardVersion).toBe(
+      SET_IDENTITY_BOARD_RESERVED_PAGE_PLACEMENT_VERSION,
+    );
+    const bound = await resolveBoardBindings(
+      {
+        contract,
+        styleId: STYLE,
+        frozenContractHash: FROZEN_HASH,
+      },
+      makeDeps({}, current.entry),
+    );
+    expect(bound.bindings[REQUIRED_ID]!.boardVersion).toBe(
+      SET_IDENTITY_BOARD_RESERVED_PAGE_PLACEMENT_VERSION,
+    );
+
+    const historical = approvedAuthorityFor(
+      contract,
+      SET_IDENTITY_BOARD_VERSION,
+    );
+    const deps = makeDeps({}, historical.entry);
+    await expect(resolveBoardBindings(
+      { contract, styleId: STYLE, frozenContractHash: FROZEN_HASH },
+      deps,
+    )).rejects.toThrow(/boardVersion mismatch/);
+    expect(deps.fetchAssetSha256).not.toHaveBeenCalled();
+  });
+
+  it('replays v6 only from an exact complete immutable-package inventory', async () => {
+    const contract = contractWithReservedPlacement();
+    const historical = approvedAuthorityFor(
+      contract,
+      SET_IDENTITY_BOARD_VERSION,
+    );
+    const deps = makeDeps({}, historical.entry);
+    const bound = await resolveBoardBindings(
+      {
+        contract,
+        styleId: STYLE,
+        frozenContractHash: FROZEN_HASH,
+        frozenRequiredBoards: [historical.frozen],
+      },
+      deps,
+    );
+    expect(bound.bindings[REQUIRED_ID]!.boardVersion).toBe(
+      SET_IDENTITY_BOARD_VERSION,
+    );
+    await expect(assertBoardsBoundForRender(
+      {
+        contract,
+        cache: { setIdentityBoards: bound },
+        styleId: STYLE,
+        activeFrozenContractHash: FROZEN_HASH,
+        frozenRequiredBoards: [historical.frozen],
+      },
+      { fetchAssetSha256: vi.fn(async () => historical.entry.assetSha256) },
+    )).resolves.toBeUndefined();
+    await expect(assertBoardsBoundForRender(
+      {
+        contract,
+        cache: { setIdentityBoards: bound },
+        styleId: STYLE,
+        activeFrozenContractHash: FROZEN_HASH,
+      },
+      { fetchAssetSha256: vi.fn(async () => historical.entry.assetSha256) },
+    )).rejects.toThrow(/stale/);
+  });
+
+  it.each([
+    ['missing', (frozen: FrozenSetBoardAuthorityIdentity) => []],
+    ['duplicate', (frozen: FrozenSetBoardAuthorityIdentity) => [frozen, frozen]],
+    ['extra', (frozen: FrozenSetBoardAuthorityIdentity) => [
+      frozen,
+      { ...frozen, setIdentityId: 'set_extra' },
+    ]],
+    ['unsupported version', (frozen: FrozenSetBoardAuthorityIdentity) => [
+      { ...frozen, boardVersion: 'set-board/v99' },
+    ]],
+    ['mismatched hash', (frozen: FrozenSetBoardAuthorityIdentity) => [
+      { ...frozen, setDefinitionHash: 'f'.repeat(64) },
+    ]],
+  ])('rejects a %s frozen inventory before Registry or storage I/O', async (_label, mutate) => {
+    const contract = contractWithReservedPlacement();
+    const historical = approvedAuthorityFor(
+      contract,
+      SET_IDENTITY_BOARD_VERSION,
+    );
+    const deps = makeDeps({}, historical.entry);
+    await expect(resolveBoardBindings(
+      {
+        contract,
+        styleId: STYLE,
+        frozenContractHash: FROZEN_HASH,
+        frozenRequiredBoards: mutate(historical.frozen),
+      },
+      deps,
+    )).rejects.toThrow(SetIdentityBoardUnavailableError);
+    expect(deps.loadRegistryEntry).not.toHaveBeenCalled();
+    expect(deps.fetchAssetSha256).not.toHaveBeenCalled();
+    expect(deps.resolveDurableUrl).not.toHaveBeenCalled();
+  });
+
+  it('rejects a same-core rival Registry artifact before storage access', async () => {
+    const contract = contractWithReservedPlacement();
+    const historical = approvedAuthorityFor(
+      contract,
+      SET_IDENTITY_BOARD_VERSION,
+    );
+    const rival = {
+      ...historical.entry,
+      qaCheckedAt: '2026-07-03T00:00:00.000Z',
+    };
+    const deps = makeDeps({}, rival);
+    await expect(resolveBoardBindings(
+      {
+        contract,
+        styleId: STYLE,
+        frozenContractHash: FROZEN_HASH,
+        frozenRequiredBoards: [historical.frozen],
+      },
+      deps,
+    )).rejects.toThrow(/differs from immutable Visual Package digest/);
+    expect(deps.fetchAssetSha256).not.toHaveBeenCalled();
+    expect(deps.resolveDurableUrl).not.toHaveBeenCalled();
   });
 });
 

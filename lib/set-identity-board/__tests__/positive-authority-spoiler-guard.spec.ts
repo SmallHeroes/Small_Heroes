@@ -110,6 +110,37 @@ function addKindergartenGuard(contract: BookVisualContract): void {
   ];
 }
 
+function addReservedKindergartenPlacement(
+  contract: BookVisualContract,
+  anchorDescription = 'a vacant hook beside the kindergarten gate',
+): void {
+  contract.locations[0]!.anchors = [{
+    id: 'anchor_kindergarten_hook',
+    description: anchorDescription,
+  }];
+  contract.recurringProps.push({
+    id: 'prop_page_banner',
+    name: 'Page Banner',
+    description: 'a page-conditioned paper banner',
+    firstRevealPage: 1,
+  });
+  contract.pageContracts[0]!.actionRequirements = [{
+    checkId: 'action:place-page-banner',
+    subject: {
+      kind: 'entity',
+      entity: { kind: 'cast', id: contract.cast.child.id },
+    },
+    predicate: 'places',
+    object: { kind: 'prop', id: 'prop_page_banner' },
+    polarity: 'must',
+  }];
+  contract.pageContracts[0]!.propConstraints = [{
+    propId: 'prop_page_banner',
+    visibility: 'required',
+    anchorId: 'anchor_kindergarten_hook',
+  }];
+}
+
 describe('Set Board positive free-text spoiler guard', () => {
   it('derives full phrases and one semantic head while dropping the prop_ namespace', () => {
     expect(deriveExcludedPropCanonicalTerms({
@@ -418,6 +449,42 @@ describe('Set Board positive free-text spoiler guard', () => {
       'doorway',
     );
     expect(() => projectSetDefinition(aliasCollision, SET_ID, STYLE)).toThrow(
+      /set_board_positive_authority_leak/,
+    );
+  });
+
+  it('releases a reserved-anchor context qualifier only from independently structured geometry', () => {
+    const safe = makeContract();
+    addKindergartenGuard(safe);
+    addStableGeometryNode(
+      safe,
+      'Openable kindergarten gate.',
+      'node_kindergarten_gate',
+      'doorway',
+    );
+    addReservedKindergartenPlacement(safe);
+    expect(projectSetDefinition(safe, SET_ID, STYLE)
+      .positiveAuthorityPolicy.version).toBe(
+      SET_BOARD_POSITIVE_AUTHORITY_CONTEXTUAL_POLICY_VERSION,
+    );
+
+    const aliasCollision = clone(safe);
+    aliasCollision.humanCast![0]!.aliases.push('Kindergarten');
+    expect(() => projectSetDefinition(aliasCollision, SET_ID, STYLE)).toThrow(
+      /set_board_positive_authority_leak/,
+    );
+
+    const roleHeadLeak = clone(safe);
+    roleHeadLeak.locations[0]!.anchors![0]!.description =
+      'a vacant kindergarten guard hook';
+    expect(() => projectSetDefinition(roleHeadLeak, SET_ID, STYLE)).toThrow(
+      /set_board_positive_authority_leak/,
+    );
+
+    const unprovedContext = makeContract();
+    addKindergartenGuard(unprovedContext);
+    addReservedKindergartenPlacement(unprovedContext);
+    expect(() => projectSetDefinition(unprovedContext, SET_ID, STYLE)).toThrow(
       /set_board_positive_authority_leak/,
     );
   });

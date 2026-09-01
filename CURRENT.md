@@ -1,5 +1,60 @@
 # SmallHeroes — Current Technical State
 
+## R1D — Reserved Page Placement Authority closes route Board defect offline; independent QA pending
+
+The first `set_kindergarten_route` LOW Board failed automated QA and visual inspection for a real
+reason: a fixed decorative cage light occupied the courtyard hook that page 7 must later use for
+the child-authored paper moon lantern. The provider had not ignored an existing rule; the Set Board
+contract did not represent future page-conditioned physical availability.
+
+- Exact same-page `must + places + typed prop + one required anchor` authority now projects one
+  deterministic reserved empty point. Zero anchored constraints mean no physical authority;
+  multiple candidates and ambiguous zone/LocationAnchor binding fail closed.
+- Qualifying Sets use additive `set-board/v7` / `set-board-content/v6` /
+  `set-board-reserved-empty-placements/v1`. Sets without reservations retain exact v6/v5 bytes.
+- Prompt and Vision QA use provider-safe `Area N` / `point K` aliases plus the stable natural
+  anchor description. Canonical location/zone/anchor/prop IDs and blocked prop names do not egress.
+- Exact d963 remains Home v6 hash `48bf9d53...`, prompt `5013469b...`; route becomes v7 hash
+  `38870567...`, prompt `ee55e313...`. Ten action events collapse to nine prop/anchor
+  associations and six physical reservations, including the courtyard hook.
+- Trusted immutable package `requiredBoards` is now the only downgrade/replay authority. Wizard
+  preflight and package-backed Orders carry it through bind and pre-render assertion; Registry rows,
+  caches and existing bindings cannot select a historical tier. Fresh assembly stays forward.
+- Historical semantic-source and time-authority successors explicitly inherit only a verified
+  source package's supported v6/v7 tier. Stale mutable v6 Registry rows cannot be newly approved or
+  same-byte rechecked after a v7 cutover; already-approved v6 runtime replay remains intact.
+- Mint dry/paid publication is create-only, including a pre-spend collision fence and atomic race
+  closure. Partial approval stamps fail closed. The failed route v6 evidence remains untouched.
+- Validation so far: full Set Board **15 files / 391 tests PASS**; focused reserved/contextual
+  **31/31 PASS**; package/Wizard **6 files / 88 tests PASS**; historical source migration plus
+  reservation harness **19/19 PASS**; `tsc --noEmit` and `git diff --check` clean. The historical
+  time-authority Set Board suite is artifact-conditioned and skipped in this worktree, but its
+  corrected path compiles.
+- Literal `npm run check` passed both TypeScript phases. Ordinary completed **4,354 tests PASS**
+  with 73 skips; it reproduced the established nine missing-`outputs/` fixture assertions and
+  initially caught the expected workload inventory increment from the new spec. That partition
+  count was corrected and its classifier now passes 7/7. Resource completed **631 tests PASS**;
+  two unrelated subprocess-heavy tests exceeded their 5-second per-test timeout and Vitest emitted
+  the three known `onTaskUpdate` RPC timeouts. The materializer timeout passes 21/21 alone; the
+  readiness file's 14 assertions pass alone before the same RPC infrastructure error. The literal
+  command therefore remains exit 1 and is not relabeled green; no changed-path assertion remains
+  failed.
+- Zero provider, image, Vision, upload, Registry, package, locator, Wizard, Order/payment, database,
+  deployment or render operation occurred. The implementation is not yet independently passed and
+  no successor Board may be minted before the focused commit receives Claude Code PASS.
+
+The post-first-render simplification direction is recorded, without code changes, in
+`docs/ai-workflow/SIMPLIFICATION_FINDINGS.md`: explicit AUTHORING PASS versus RELEASE PASS,
+compiler ownership of technical identity, duplicated-authority inventory, tiered QA and legacy
+isolation. No simplification refactor begins before the first successful full Wizard render.
+
+Evidence:
+`docs/ai-workflow/R1D_SET_BOARD_RESERVED_PAGE_PLACEMENT_AUTHORITY_IMPLEMENTATION_EVIDENCE.md`.
+Decision Gate:
+`docs/ai-workflow/R1D_SET_BOARD_RESERVED_PAGE_PLACEMENT_AUTHORITY_DECISION_GATE.md`.
+
+---
+
 ## R1D — contextual Set Board v4 closes exact d963 admission offline; Claude Code PASS
 
 The downstream Wizard map found a deterministic pre-package blocker in the already-approved

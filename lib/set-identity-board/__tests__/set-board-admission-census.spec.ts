@@ -455,13 +455,21 @@ describe('required Set Board admission census', () => {
       visualContractTemplate: { content: BookVisualContractTemplate };
       requiredBoards: Array<{
         setIdentityId: string;
+        boardVersion: string;
         setDefinitionHash: string;
       }>;
     };
     const contract = approved.visualContractTemplate.content as unknown as BookVisualContract;
+    const boardVersionsBySet = new Map(
+      approved.requiredBoards.map((board) => [
+        board.setIdentityId,
+        board.boardVersion,
+      ]),
+    );
     const census = collectRequiredSetBoardAdmissionCensus(
       contract,
       approved.styleId,
+      { boardVersionsBySet },
     );
     expect(census.results.map((result) => result.policyVersion)).toEqual([
       SET_BOARD_POSITIVE_AUTHORITY_POLICY_VERSION,
@@ -473,6 +481,7 @@ describe('required Set Board admission census', () => {
         contract,
         result.setIdentityId,
         approved.styleId,
+        { boardVersion: boardVersionsBySet.get(result.setIdentityId)! },
       ),
     }))).toEqual(approved.requiredBoards.map((board) => ({
       setIdentityId: board.setIdentityId,

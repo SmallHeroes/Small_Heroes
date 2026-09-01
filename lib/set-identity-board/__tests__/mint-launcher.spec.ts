@@ -415,7 +415,15 @@ describe('canonical board-mint launcher surface', () => {
     },
     {
       name: 'approve-shaped',
-      argv: ['--approve', '--entry', 'nonexistent-entry.json', '--approved-by', 'synthetic-reviewer'],
+      argv: [
+        '--approve',
+        '--entry',
+        'nonexistent-entry.json',
+        '--contract',
+        'nonexistent-contract.json',
+        '--approved-by',
+        'synthetic-reviewer',
+      ],
     },
   ])('refuses direct private entrypoint invocation before CLI work: $name', ({ argv }) => {
     const before = OBSERVED_WRITE_ROOTS.map(snapshotTree);

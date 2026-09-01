@@ -3,15 +3,11 @@ import path from 'node:path';
 
 import type { BookVisualContract } from '@/lib/visual-contract-compiler/types';
 import {
+  SET_IDENTITY_BOARD_RESERVED_PAGE_PLACEMENT_VERSION,
   SET_IDENTITY_BOARD_VERSION,
-  SET_IDENTITY_REGISTRY_VERSION,
   type SetIdentityBoardRegistryEntry,
 } from '@/lib/set-identity-board/types';
-import {
-  computeSetBoardContentPolicyDigest,
-  computeSetDefinitionHash,
-  projectSetDefinition,
-} from '@/lib/set-identity-board/setDefinition';
+import { deriveExpectedSetBoardIdentity } from '@/lib/set-identity-board/expectedIdentity';
 import {
   validateSetIdentityBoardRegistryEntry,
   validateSetIdentityBoardRegistryIdentity,
@@ -520,26 +516,28 @@ function targetIdentity(args: {
   styleId: string;
   setIdentityId: string;
   contract: BookVisualContract;
+  sourceBoardVersion: string;
 }): ExpectedRegistryIdentity {
-  const definition = projectSetDefinition(
-    args.contract,
-    args.setIdentityId,
-    args.styleId,
-  );
-  return {
-    registryVersion: SET_IDENTITY_REGISTRY_VERSION,
-    boardVersion: SET_IDENTITY_BOARD_VERSION,
-    storyKey: args.storyKey,
+  if (
+    args.sourceBoardVersion !== SET_IDENTITY_BOARD_VERSION &&
+    args.sourceBoardVersion !== SET_IDENTITY_BOARD_RESERVED_PAGE_PLACEMENT_VERSION
+  ) {
+    throw new Error(
+      `time-authority Set Board source uses unsupported boardVersion ${JSON.stringify(args.sourceBoardVersion)}`,
+    );
+  }
+  const expected = deriveExpectedSetBoardIdentity({
+    contract: args.contract,
     setIdentityId: args.setIdentityId,
     styleId: args.styleId,
-    setDefinitionHash: computeSetDefinitionHash(
-      args.contract,
-      args.setIdentityId,
-      args.styleId,
-    ),
-    contentPolicyDigest: computeSetBoardContentPolicyDigest(definition),
-    declaredPropIds: [...definition.contentPolicy.includedPropIds],
-  };
+    // A time-only successor inherits the source package's already-approved Board tier. It must not silently
+    // reinterpret that historical authority under the latest forward policy.
+    frozenBoardVersion: args.sourceBoardVersion,
+  }).expected;
+  if (expected.storyKey !== args.storyKey) {
+    throw new Error('time-authority Set Board target story identity is inconsistent');
+  }
+  return expected;
 }
 
 function buildCandidateAndReview(
@@ -596,6 +594,7 @@ function buildCandidateAndReview(
     styleId: migration.context.styleId,
     setIdentityId: args.setIdentityId,
     contract: migration.context.template.content as unknown as BookVisualContract,
+    sourceBoardVersion: sourceBoard.boardVersion,
   });
   if (
     sourceEntry.setDefinitionHash === expected.setDefinitionHash ||
