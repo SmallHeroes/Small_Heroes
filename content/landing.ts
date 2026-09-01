@@ -197,13 +197,13 @@ export const LANDING_COPY = {
         name: 'גל',
         role: 'מטפלת באמנות',
         bio: 'גל מביאה את המבט הרגשי - איך לפגוש פחד, כעס ושינוי בלי להפוך את הילד לבעיה שצריך לתקן.',
-        img: '/Images/about/gal-placeholder.svg',
+        img: '/Images/about/gal.webp',
       },
       {
         name: 'גיא',
         role: 'מעצב מוצר',
         bio: 'גיא מחבר בין הסיפור, האיור והטכנולוגיה למוצר שפשוט להורה - ועשיר מספיק כדי שילד ירצה להיכנס אליו.',
-        img: '/Images/about/guy-placeholder.svg',
+        img: '/Images/about/guy.webp',
       },
     ],
     techLine:
