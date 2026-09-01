@@ -43,7 +43,7 @@
 .logo {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   text-decoration: none;
   color: inherit;
   flex-shrink: 0;
@@ -62,28 +62,20 @@
   }
 }
 
-.logoIcon {
-  position: relative;
+/* the mark: a rounded purple diamond with the yellow spark (per Guy) */
+.logoMark {
   width: 44px;
   height: 44px;
   flex-shrink: 0;
+  display: block;
 }
 
-.logoIconSq {
-  position: absolute;
-  inset: 0;
-  background: var(--purple, #886cff);
-  border-radius: 12px;
+.logoMarkDiamond {
+  fill: var(--purple-500, #9349e5);
 }
 
-.logoIconDot {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  width: 24px;
-  height: 24px;
-  background: var(--yellow, var(--yellow-400));
-  border-radius: 8px;
+.logoMarkSpark {
+  fill: var(--yellow-400, #ffd745);
 }
 
 .logoText {
@@ -99,6 +91,7 @@
 }
 
 .logoTagline {
+  font-family: var(--fb, 'Rubik', sans-serif);
   font-size: 13px;
   color: #6f6a80;
   line-height: 1.2;
@@ -112,6 +105,9 @@
 }
 
 .navLinks a {
+  /* the brand font, explicitly - the links must never fall back to a
+     platform face (per Guy) */
+  font-family: var(--fb, 'Rubik', sans-serif);
   font-size: 16px;
   font-weight: 700;
   color: var(--dark, #18171d);
@@ -158,8 +154,8 @@
   align-items: center;
   justify-content: center;
   min-height: 40px;
-  padding: 0 18px;
-  margin-inline-end: 10px;
+  padding: 0 16px;
+  margin-inline-end: 8px;
   border-radius: 999px;
   background: linear-gradient(135deg, var(--purple-500), var(--purple-600));
   color: #fff;
@@ -184,5 +180,23 @@
 @media (min-width: 721px) {
   .navCta {
     display: inline-flex;
+    /* hidden at the top - the hero owns the action there. It pops in
+       with the scrolled bar (per Guy). */
+    opacity: 0;
+    transform: translateY(-6px);
+    pointer-events: none;
+    transition: opacity 180ms ease, transform 180ms ease;
+  }
+
+  .headerScrolled .navCta {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .navCta {
+    transition: none;
   }
 }

@@ -164,7 +164,7 @@ textarea {
 .logo {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
 }
 
 .logo-icon {
@@ -236,7 +236,7 @@ textarea {
 }
 
 .nav-cta {
-  padding: 0 22px;
+  padding: 0 24px;
   height: 46px;
   font-family: var(--fb);
   font-size: 16px;
@@ -269,15 +269,17 @@ textarea {
 .btn-light {
   padding: 0 24px;
   min-height: 48px;
-  background: #ededed;
-  color: #000;
-  border: none;
+  /* white with the brand stroke (per Guy) - the grey read as disabled */
+  background: #fff;
+  color: var(--purple-600);
+  border: 1.5px solid var(--purple-300);
   font-size: 16px;
   font-weight: 700;
 }
 
 .btn-light:hover {
-  background: #e2e2e2;
+  background: var(--purple-50);
+  border-color: var(--purple-400);
   transform: translateY(-2px);
 }
 

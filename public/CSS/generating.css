@@ -28,7 +28,7 @@
   font-weight: 800;
   color: var(--dark);
   line-height: 1.35;
-  margin: 0 0 18px;
+  margin: 0 0 16px;
 }
 
 .gen-hero {
@@ -93,7 +93,7 @@
   position: absolute;
   inset: 0;
   border-radius: 5px 10px 10px 5px;
-  background: linear-gradient(145deg, #7c5cfc 0%, #9b84ff 55%, #6f5cf1 100%);
+  background: linear-gradient(145deg, var(--purple-500) 0%, #9b84ff 55%, #6f5cf1 100%);
   box-shadow:
     inset -3px 0 8px rgba(0, 0, 0, 0.12),
     0 4px 14px rgba(124, 92, 252, 0.35);
@@ -119,12 +119,12 @@
   font-size: clamp(16px, 2.2vw, 18px);
   line-height: 1.7;
   font-weight: 500;
-  color: #5f5a70;
+  color: var(--n-500);
 }
 
 .gen-body strong {
   font-weight: 800;
-  color: var(--purple, #7c5cfc);
+  color: var(--purple, var(--purple-500));
 }
 
 @keyframes genBookPulse {
@@ -150,7 +150,7 @@
   width: 100%;
   max-width: 580px;
   margin-top: 12px;
-  padding: 28px 26px 24px;
+  padding: 28px 24px 24px;
   border-radius: 24px;
   background: linear-gradient(180deg, #fff8f8 0%, #fff3f3 100%);
   border: 1px solid #f0dada;
@@ -160,7 +160,7 @@
 
 .gen-error-icon {
   font-size: 34px;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
 }
 
 .gen-error-title {
@@ -168,7 +168,7 @@
   font-size: 20px;
   font-weight: 800;
   color: #b05050;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
 }
 
 .gen-error-msg {
@@ -181,7 +181,7 @@
 
 .gen-error-back {
   display: inline-block;
-  padding: 10px 24px;
+  padding: 8px 24px;
   background: #f3efff;
   color: var(--purple);
   font-weight: 800;
@@ -203,7 +203,7 @@
 
   .gen-headline {
     font-size: 28px;
-    margin-bottom: 14px;
+    margin-bottom: 16px;
   }
 
   .gen-body {

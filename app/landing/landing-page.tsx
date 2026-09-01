@@ -8,6 +8,8 @@ import { CategoryChallengeCard } from '@/app/category-challenge-card';
 import type { MvpMatrixCategoryPayload } from '@/lib/web/mvp-matrix-response';
 import { initLandingMotion } from './motion';
 import { SiteHeader } from '@/app/components/SiteHeader';
+import { LegalLinks } from '@/app/components/LegalShell';
+import '@/app/legal/legal.css';
 import { AboutSection } from './about-section';
 import { HeroDoodles, ValueDoodles, HelpsDoodles } from './hero-doodles';
 import { HeroCollage } from './hero-collage';
@@ -42,6 +44,22 @@ const TRUST_ICONS = [
     </svg>
   ),
 ];
+
+/* A curved seam where the page changes world: the PREVIOUS section's colour
+   dips into this one, so the handover reads as a page turn, not a band. */
+function SectionWave({ fill }: { fill: string }) {
+  return (
+    <svg
+      className="section-wave"
+      viewBox="0 0 1440 56"
+      preserveAspectRatio="none"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <path d="M0,26 C180,52 360,4 640,18 C920,32 1120,6 1440,30 L1440,0 L0,0 Z" fill={fill} />
+    </svg>
+  );
+}
 
 type GalleryStyle = 'style01' | 'style02';
 
@@ -115,11 +133,14 @@ export default function LandingPage({ content: L, startHref, matrixCategories }:
   return (
     <>
       <div className="landing-body" data-motion="on">
+        <a href="#main" className="skip-link">
+          דילוג לתוכן
+        </a>
         {/* 2026: thin scroll-progress bar — pure CSS scroll-timeline, no JS (falls back to hidden) */}
         <div className="scroll-progress" aria-hidden="true" />
         <SiteHeader variant="full" />
 
-        <main>
+        <main id="main">
           <section className="hero">
             <HeroDoodles />
             <div className="wrap hero-wrap">
@@ -147,13 +168,6 @@ export default function LandingPage({ content: L, startHref, matrixCategories }:
                   </a>
                 </div>
 
-                {/* three short reassurances, dot-separated on one line (they
-                    wrap to two on a phone rather than shrinking) */}
-                <ul className="hero-cta-notes" data-reveal="hero" data-reveal-delay="240">
-                  {L.hero.ctaNotes.map((note) => (
-                    <li key={note}>{note}</li>
-                  ))}
-                </ul>
               </div>
 
               <div className="hero-img-wrap" data-reveal="scale" data-reveal-delay="120" data-tilt="hero">
@@ -245,13 +259,14 @@ export default function LandingPage({ content: L, startHref, matrixCategories }:
           {/* TRIAL per Guy: the charcoal "reading room" break in the page's
               brightness — drop the --dark modifier to go back to white */}
           <section className="section sample-section sample-section--dark" id="sample">
+            <SectionWave fill="#fff" />
             <div className="wrap sample-wrap">
               <div className="sample-text">
                 <div className="sample-kicker" data-reveal="up">{L.sample.kicker}</div>
                 <h2 className="sample-h2" data-reveal="up" data-reveal-delay="60">
                   {L.sample.h2Line1}
                   <br />
-                  {L.sample.h2Line2}
+                  <span className="mk-sweep">{L.sample.h2Line2}</span>
                 </h2>
                 <p className="sample-p" data-reveal="up" data-reveal-delay="120">{L.sample.p1}</p>
                 <p className="sample-p sample-p--soft" data-reveal="up" data-reveal-delay="160">{L.sample.p2}</p>
@@ -275,6 +290,7 @@ export default function LandingPage({ content: L, startHref, matrixCategories }:
           </section>
 
           <section className="gallery-section" id="gallery">
+            <SectionWave fill="#2b2b31" />
             <div className="wrap">
               <h2 className="gallery-h2" data-reveal="up">{L.gallery.h2}</h2>
               <p className="gallery-sub" data-reveal="up" data-reveal-delay="60">{L.gallery.sub}</p>
@@ -362,6 +378,23 @@ export default function LandingPage({ content: L, startHref, matrixCategories }:
               <p className="section-lede" data-reveal="up" data-reveal-delay="60">{L.how.lede}</p>
 
               <div className="steps-row">
+                {/* the dashed trail that turns three cards into one journey */}
+                <svg
+                  className="how-trail"
+                  viewBox="0 0 1000 60"
+                  preserveAspectRatio="none"
+                  aria-hidden="true"
+                  focusable="false"
+                >
+                  <path
+                    d="M6,50 C280,2 720,2 994,50"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="3.5"
+                    strokeLinecap="round"
+                    strokeDasharray="0.5 13"
+                  />
+                </svg>
                 {L.how.steps.map((step, index) => {
                   /* presentation only: the "N. " prefix in the copy becomes a
                      number chip; the content file stays untouched */
@@ -392,6 +425,8 @@ export default function LandingPage({ content: L, startHref, matrixCategories }:
 
           {/* למה הסיפורים שלנו עובדים אחרת — the story-craft argument */}
           <section className="section why-section" id="why">
+            {/* the how section's near-white dips into the purple */}
+            <SectionWave fill="#fafafa" />
             <div className="wrap">
               <h2 className="section-h2" data-reveal="up">{L.why.h2}</h2>
               <p className="section-lede" data-reveal="up" data-reveal-delay="50">{L.why.lede}</p>
@@ -415,6 +450,8 @@ export default function LandingPage({ content: L, startHref, matrixCategories }:
           </section>
 
           <section className="trust-band" id="trust">
+            {/* and the purple hands back to the light on its way out */}
+            <SectionWave fill="#7b2fcc" />
             <div className="wrap trust-band__inner">
               <header className="trust-band__header">
                 <h2 className="trust-band__h2" data-reveal="up">{L.trust.h2}</h2>
@@ -533,17 +570,21 @@ export default function LandingPage({ content: L, startHref, matrixCategories }:
           </section>
 
           <footer className="footer footer--warm">
+            <SectionWave fill="#f7f2fe" />
             <div className="wrap footer-inner">
               <h2 className="footer-h2" data-reveal="up">
                 {L.footer.h2Line1}
                 <br />
-                {L.footer.h2Line2}
+                <span className="mk-sweep">{L.footer.h2Line2}</span>
               </h2>
               <p className="footer-sub" data-reveal="up" data-reveal-delay="80">{L.footer.sub}</p>
 
               <a href={startHref} className="btn-primary footer-cta" data-event="landing_start_click" data-reveal="up" data-reveal-delay="160">
                 {L.footer.cta}
               </a>
+
+              {/* a real site signs its name: the legal strip closes the page */}
+              <LegalLinks />
             </div>
           </footer>
         </main>

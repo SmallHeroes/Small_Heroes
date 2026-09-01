@@ -10,7 +10,7 @@
 .book-history-section {
   background: linear-gradient(135deg, var(--purple-50) 0%, var(--purple-100) 100%);
   border-bottom: 1px solid rgba(124, 58, 237, 0.12);
-  padding: 10px 20px;
+  padding: 8px 20px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -19,7 +19,7 @@
 .book-history-inner {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   flex-wrap: wrap;
   max-width: var(--site-max);
   width: 100%;
@@ -49,7 +49,7 @@
   gap: 4px;
   background: white;
   border-radius: 999px;
-  padding: 4px 6px 4px 12px;
+  padding: 4px 8px 4px 12px;
   box-shadow: 0 1px 6px rgba(124, 58, 237, 0.10);
   transition: box-shadow 0.18s ease;
 }
@@ -92,7 +92,7 @@
   cursor: pointer;
   font-size: 13px;
   color: #b0a0dc;
-  padding: 4px 6px;
+  padding: 4px 8px;
   border-radius: 50%;
   line-height: 1;
   transition: color 0.18s ease;
@@ -191,10 +191,13 @@
   /* The wash does NOT reach transparent at the hero's floor: it hands over
      to the next section at the same value, so the field reads as one room
      rather than stopping at a seam (per Guy). */
+  /* richer at the crown (per Guy: the top wanted more colour), and the
+     handover value at the floor is untouched so the run stays seamless */
   background: linear-gradient(
     180deg,
-    rgba(240, 236, 255, 0.62) 0%,
-    rgba(243, 240, 255, 0.36) 52%,
+    rgba(223, 201, 250, 0.55) 0%,
+    rgba(233, 222, 253, 0.42) 34%,
+    rgba(243, 240, 255, 0.32) 62%,
     rgba(244, 241, 255, 0.26) 100%
   );
 }
@@ -241,11 +244,19 @@
   bottom: var(--y-bottom, auto);
   width: var(--size, 24px);
   height: var(--size, 24px);
-  color: var(--purple-300);
-  opacity: 0.75;
+  color: var(--purple-400);
+  opacity: 0.8;
   rotate: var(--tilt, 0deg);
   /* rotate is a separate property, so the float owns translate outright */
-  animation: hero-doodle-float var(--dur, 12s) ease-in-out var(--delay, 0s) infinite alternate;
+  /* livelier loop (per Guy): ~40% faster than each mark's authored pace */
+  animation: hero-doodle-float calc(var(--dur, 12s) * 0.6) ease-in-out var(--delay, 0s) infinite alternate;
+}
+
+/* neighbouring marks sway in opposite directions, so the sky breathes
+   instead of nodding in unison */
+.hero-doodle:nth-of-type(even) {
+  --sway: -7px;
+  --swing: -4deg;
 }
 
 .hero-doodle[data-tone='gold'] {
@@ -260,8 +271,14 @@
 }
 
 @keyframes hero-doodle-float {
-  from { translate: 0 0; }
-  to { translate: 0 var(--drift, -13px); }
+  from {
+    translate: 0 0;
+    rotate: var(--tilt, 0deg);
+  }
+  to {
+    translate: var(--sway, 7px) var(--drift, -13px);
+    rotate: calc(var(--tilt, 0deg) + var(--swing, 4deg));
+  }
 }
 
 /* Each viewport shows only the set placed for its layout. */
@@ -308,7 +325,7 @@
   font-size: 13px;
   font-weight: 600;
   line-height: 1.45;
-  margin-bottom: 14px;
+  margin-bottom: 16px;
   box-shadow: var(--lift-1);
 }
 
@@ -319,7 +336,7 @@
   font-weight: 800;
   color: var(--dark);
   line-height: 1.08;
-  margin-bottom: 14px;
+  margin-bottom: 16px;
   text-wrap: balance;
 }
 
@@ -330,7 +347,19 @@
 
 /* the promise line carries the brand color — the eye lands on the answer */
 .hero-h1-line--accent {
+  /* the promise wraps on most screens anyway (per Guy) - so it stops
+     apologising and becomes the biggest thing on the page */
+  font-size: clamp(52px, 5.6vw, 80px);
+  line-height: 1.04;
   color: var(--purple);
+  /* the hand mark: a marker sweep under the answer. fit-content so the
+     stroke hugs the words, not the column */
+  width: fit-content;
+  background-image: var(--mk-sweep);
+  background-repeat: no-repeat;
+  background-position: bottom 0 right 0;
+  background-size: 100% 0.26em;
+  padding-bottom: 0.2em;
 }
 
    
@@ -343,7 +372,7 @@
   max-width: 560px;
   /* the bullets are gone (per Guy) - the sub leads straight into the CTAs,
      so it gets the breathing room they used to occupy */
-  margin-bottom: 30px;
+  margin-bottom: 32px;
 }
 
 .hero-btns {
@@ -351,7 +380,7 @@
   align-items: center;
   gap: 12px;
   flex-wrap: wrap;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
 }
 
 
@@ -468,7 +497,9 @@
 /* ── Book Gallery ──────────────────────────────────────────── */
 .gallery-section {
   padding: 64px 0 56px;
-  background: #faf8f5;
+  position: relative;
+  /* white per Guy - the warm paper read as faded yellow */
+  background: #fff;
   overflow: hidden;
 }
 
@@ -507,7 +538,7 @@
   z-index: 2;
   border: none;
   background: transparent;
-  padding: 10px 28px;
+  padding: 8px 28px;
   font-size: 15px;
   font-weight: 700;
   font-family: var(--fb);
@@ -548,7 +579,7 @@
 
   .gallery-toggle-btn {
     flex: 0 0 auto;
-    padding: 10px 14px;
+    padding: 8px 16px;
     font-size: 13px;
   }
 }
@@ -605,14 +636,39 @@
 .gallery-card {
   flex: 0 0 280px;
   scroll-snap-align: center;
-  border-radius: 16px;
-  overflow: hidden;
+  position: relative;
+  /* overflow moved to the img: the tape has to stick out of the page */
+  /* 5px, not 16: printed pages, not app cards (per Guy) */
+  border-radius: 5px;
   box-shadow: 0 4px 24px rgba(0, 0, 0, 0.10);
-  transition: transform 0.25s ease;
+  transition: transform 0.25s ease, rotate 0.25s ease;
 }
+
+/* pinned pages, alternately tilted - they straighten when you pick one up */
+.gallery-card:nth-child(odd) { rotate: -1.1deg; }
+.gallery-card:nth-child(even) { rotate: 1.2deg; }
 
 .gallery-card:hover {
   transform: scale(1.03);
+  rotate: 0deg;
+}
+
+.gallery-card::after {
+  content: '';
+  position: absolute;
+  top: -11px;
+  left: 50%;
+  width: 88px;
+  height: 25px;
+  transform: translateX(-50%) rotate(-3.5deg);
+  /* yellow as a MARK (tape), never a surface */
+  background: rgba(255, 215, 69, 0.78);
+  border-radius: 3px;
+  box-shadow: 0 1px 2px rgba(28, 27, 33, 0.14);
+}
+
+.gallery-card:nth-child(even)::after {
+  transform: translateX(-50%) rotate(2.6deg);
 }
 
 .gallery-card img {
@@ -620,6 +676,7 @@
   height: 440px;
   object-fit: cover;
   display: block;
+  border-radius: 5px;
 }
 
 .gallery-cta-wrap {
@@ -654,9 +711,11 @@
 .how-card {
   width: 33%;
   display: flex;
+  position: relative;
+  z-index: 1;
   background: var(--white);
   border-radius: 20px;
-  padding: 24px 22px 22px;
+  padding: 24px 24px 24px;
   box-shadow: var(--shadow-card);
   text-align: right;
   border: 1px solid var(--border);
@@ -668,6 +727,8 @@
   justify-content: center;
   gap: 16px;
   margin-top: 28px;
+  /* the trail's stage */
+  position: relative;
 }
 
 .how-step {
@@ -675,7 +736,7 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
   text-align: start;
 }
 
@@ -707,6 +768,7 @@
 }
 
 .sample-section {
+  position: relative;
   background: var(--white);
 }
 
@@ -731,9 +793,12 @@
   margin: 0 auto 12px;
   background-color: var(--yellow);
   width: fit-content;
-  padding: 4px 8px;
-  border-radius: 15px;
+  padding: 4px 16px;
+  border-radius: 10px;
   text-align: center;
+  /* a stamp, slightly askew - pressed on by hand, not typeset */
+  rotate: -2deg;
+  box-shadow: 0 2px 0 rgba(28, 27, 33, 0.12);
 }
 
 .sample-h2 {
@@ -742,7 +807,7 @@
   font-weight: 600;
   line-height: 1.12;
   color: var(--dark);
-  margin-bottom: 18px;
+  margin-bottom: 16px;
 }
 
 /* wider measure per Guy — 640px made the lines feel cramped and broke the
@@ -792,13 +857,13 @@
 
 .sample-quote {
   margin-top: 12px;
-  margin-bottom: 18px;
+  margin-bottom: 16px;
   font-size: 16px;
   font-style: italic;
   line-height: 1.75;
   color: var(--soft);
   border-right: 3px solid var(--purple-lt);
-  padding-right: 14px;
+  padding-right: 16px;
   max-width: 520px;
 }
 
@@ -825,7 +890,7 @@
 
 .sample-preview-wrap .sample-preview-note {
   font-size: 16px;
-  margin-bottom: 14px;
+  margin-bottom: 16px;
   max-width: 420px;
 }
 
@@ -864,7 +929,7 @@
 
 .fit-title {
   font-family: var(--fd);
-  margin: 0 0 14px;
+  margin: 0 0 16px;
   font-size: clamp(34px, 4vw, 48px);
   line-height: 1.08;
   font-weight: 900;
@@ -885,7 +950,7 @@
 .fit-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 22px;
+  gap: 24px;
   margin-bottom: 24px;
 }
 
@@ -893,7 +958,7 @@
   background: #fff;
   border: 1px solid #efedf7;
   border-radius: 28px;
-  padding: 30px 30px 28px;
+  padding: 32px 32px 28px;
   box-shadow: 0 14px 40px rgba(17, 22, 34, 0.04);
 }
 
@@ -905,7 +970,7 @@
   align-items: center;
   justify-content: center;
   font-size: 26px;
-  margin-bottom: 18px;
+  margin-bottom: 16px;
   background: linear-gradient(180deg, #f6f1ff 0%, #efe7ff 100%);
 }
 
@@ -927,7 +992,7 @@
 
 .fit-list li {
   position: relative;
-  padding-right: 30px;
+  padding-right: 32px;
   font-size: 18px;
   line-height: 1.5;
   font-weight: 400;
@@ -958,7 +1023,7 @@
 }
 
 .fit-note-col {
-  padding: 28px 30px 26px;
+  padding: 28px 32px 24px;
 }
 
 .fit-note-divider {
@@ -967,7 +1032,7 @@
 }
 
 .fit-note-label {
-  margin-bottom: 14px;
+  margin-bottom: 16px;
   font-size: 24px;
   font-weight: 700;
   color: #14151f;
@@ -1046,7 +1111,7 @@
      on near-white it needs the line to hold its shape */
   border: 1px solid var(--n-200);
   border-radius: 28px;
-  padding: 26px 24px 24px;
+  padding: 24px 24px 24px;
   display: flex;
   flex-direction: column;
   align-items: stretch;
@@ -1077,7 +1142,7 @@
   font-size: 13px;
   font-weight: 800;
 
-  padding: 6px 14px;
+  padding: 8px 16px;
   border-radius: 999px;
 
   box-shadow: 0 6px 14px rgba(0, 0, 0, 0.08);
@@ -1102,7 +1167,7 @@
   font-size: 14px;
   font-weight: 700;
   color: var(--purple);
-  margin-bottom: 10px;
+  margin-bottom: 8px;
 }
 
 .price-name {
@@ -1111,7 +1176,7 @@
   font-weight: 900;
   color: var(--dark);
   line-height: 1.2;
-  margin-bottom: 6px;
+  margin-bottom: 8px;
 }
 
 .price-pages {
@@ -1129,7 +1194,7 @@
 }
 
 .price-features {
-  margin: 0 0 22px;
+  margin: 0 0 24px;
   padding: 0;
   list-style: none;
   display: grid;
@@ -1138,7 +1203,7 @@
 
 .price-features li {
   position: relative;
-  padding-right: 26px;
+  padding-right: 24px;
   font-size: 16px;
   line-height: 1.65;
   color: #43495d;
@@ -1166,7 +1231,7 @@
   font-weight: 600;
   line-height: 1;
   color: var(--dark);
-  margin: auto 0 18px;
+  margin: auto 0 16px;
 }
 
 /* Launch discount: struck-through "original" price shown above the current price. */
@@ -1215,7 +1280,7 @@
   color: var(--purple, #7c5cfc);
   background: #f1ecff;
   border-radius: 999px;
-  padding: 3px 10px;
+  padding: 4px 8px;
   white-space: nowrap;
   line-height: 1.4;
 }
@@ -1227,7 +1292,7 @@
 
 .pricing-note {
   text-align: center;
-  margin-top: 22px;
+  margin-top: 24px;
   font-size: 16px;
   line-height: 1.7;
   color: var(--mid);
@@ -1251,14 +1316,17 @@
   display: flex;
   flex-direction: column;
   gap: 16px;
-  margin-top: 46px;
+  margin-top: 48px;
 }
 
 .faq-item {
-  background: #f7f7f8;
+  /* white on the purple-50 wash - the old #f7f7f8 + n-100 border matched
+     the wash's luminance and the cards disappeared (per Guy) */
+  background: var(--white);
   border-radius: 18px;
   overflow: hidden;
-  border: 1px solid var(--n-100);
+  border: 1px solid var(--n-200);
+  box-shadow: 0 4px 14px rgba(40, 33, 74, 0.05);
   transition: box-shadow 0.2s ease, border-color 0.2s ease;
 }
 
@@ -1273,8 +1341,8 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 14px;
-  padding: 18px 24px;
+  gap: 16px;
+  padding: 16px 24px;
   background: transparent;
   border: none;
   color: var(--dark);
@@ -1309,7 +1377,7 @@
 
 .faq-item[data-open] .faq-a {
   max-height: 220px;
-  padding: 0 24px 18px;
+  padding: 0 24px 16px;
 }
 
 .faq-a p {
@@ -1349,9 +1417,10 @@
 
 /* Trust — warm reassurance strip (not why-cards) */
 .trust-band {
+  position: relative;
   padding: 56px 0 64px;
   background: var(--bg-lighter);
-  border-block: 1px solid rgba(0, 0, 0, 0.06);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
 }
 
 .early-stage-band {
@@ -1366,10 +1435,12 @@
 
 .early-stage-band__line {
   margin: 0 auto;
-  max-width: 42rem;
+  /* no max-width: the 42rem cap forced the disclaimer onto two lines on
+     desktop (per Guy: it must hold one). Phones still wrap, balanced. */
   font-size: 16px;
   line-height: 1.65;
   color: var(--n-700);
+  text-wrap: balance;
 }
 
 .trust-band__inner {
@@ -1385,7 +1456,7 @@
   font-size: clamp(28px, 3.2vw, 36px);
   font-weight: 800;
   color: var(--dark);
-  margin-bottom: 10px;
+  margin-bottom: 8px;
   text-align: center;
 }
 
@@ -1417,7 +1488,7 @@
   justify-content: center;
   width: 48px;
   height: 48px;
-  margin: 0 auto 14px;
+  margin: 0 auto 16px;
   border-radius: 50%;
   background: rgba(136, 108, 255, 0.12);
   color: #6f53e0;
@@ -1448,6 +1519,7 @@
 }
 
 .footer {
+  position: relative;
   background: var(--dark);
   padding: 80px 0;
 }
@@ -1466,7 +1538,7 @@
   font-weight: 900;
   color: #fff;
   line-height: 1.2;
-  margin-bottom: 14px;
+  margin-bottom: 16px;
 }
 
 .footer-sub {
@@ -1484,14 +1556,14 @@
   box-shadow: 0 18px 36px rgba(0, 0, 0, 0.18);
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 14px;
+  gap: 16px;
   text-align: right;
 }
 
 .footer-field {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
 }
 
 .footer-field--full {
@@ -1549,7 +1621,7 @@
 
 .footer-submit {
   grid-column: 1 / -1;
-  margin-top: 6px;
+  margin-top: 8px;
 }
 
 @media (max-width: 960px) {
@@ -1611,13 +1683,6 @@
   }
 
   /* centred under the stacked CTAs, and short enough to stay on one line */
-  .hero-cta-notes {
-    justify-content: center;
-    margin-left: auto;
-    margin-right: auto;
-    text-align: center;
-  }
-
   .hero-btns {
     justify-content: center;
   }
@@ -1630,7 +1695,7 @@
     aspect-ratio: 362 / 512;
     order: 1;
     /* a touch of air above the collage (per Guy: some, not too much) */
-    margin: 26px auto 0;
+    margin: 24px auto 0;
     perspective: none;
   }
 
@@ -1671,7 +1736,7 @@
   }
 
   .trust-point {
-    padding: 20px 14px;
+    padding: 20px 16px;
   }
 
   .steps-row {
@@ -1824,7 +1889,7 @@
   }
 
   .gallery-track {
-    gap: 14px;
+    gap: 16px;
     padding: 0 16px;
   }
 
@@ -1843,7 +1908,7 @@
 
   .fit-card {
     border-radius: 22px;
-    padding: 24px 20px 22px;
+    padding: 24px 20px 24px;
   }
 
   .fit-card-title {
@@ -1857,7 +1922,7 @@
   }
 
   .fit-note-col {
-    padding: 22px 20px;
+    padding: 24px 20px;
   }
 
   .fit-note-label {
@@ -1876,7 +1941,7 @@
   }
 
   .price-card {
-    padding: 22px 18px 20px;
+    padding: 24px 16px 20px;
     border-radius: 22px;
   }
 
@@ -1946,13 +2011,13 @@
 
 /* ── ריתמוס: נשימה מדורגת — לא כל סקשן באותו משקל ── */
 .section { padding: 72px 0; }
-.section-sub { margin-bottom: 38px; }
+.section-sub { margin-bottom: 40px; }
 
 /* HERO — the entrance to the world: most of the first viewport, with a hint
    that the page continues (conversion brief §4). svh keeps phones honest. */
 .hero {
   /* per Guy: -10% top / -20% bottom off the conversion-pass values */
-  padding: 50px 0 58px;
+  padding: 48px 0 56px;
   min-height: clamp(620px, 76svh, 840px);
   display: flex;
   flex-direction: column;
@@ -1965,7 +2030,7 @@
 .sample-section { padding: 96px 0; }
 .how-it-works-section { padding: 84px 0; }
 .pricing-section { padding: 96px 0 104px; }
-.faq-section { padding: 72px 0 84px; }
+.faq-section { padding: 72px 0 84px; background: var(--purple-50); }
 
 @media (max-width: 960px) {
   /* stacked hero: content decides the height; comfortable frame */
@@ -2104,7 +2169,7 @@
 
 /* closing reassurance under the use-case grid */
 .helps-closing {
-  margin: 30px auto 0;
+  margin: 32px auto 0;
   text-align: center;
   font-size: 15.5px;
   font-weight: 600;
@@ -2122,7 +2187,7 @@
   color: var(--n-600);
   text-align: center;
   max-width: 56ch;
-  margin: 10px auto 14px;
+  margin: 8px auto 16px;
   text-wrap: balance;
 }
 
@@ -2146,26 +2211,6 @@
 
 /* ── HERO: the three reassurances under the CTAs ───────────────────
    One line on desktop with dot separators; wraps to two on a phone. */
-.hero-cta-notes {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px 10px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  font-size: 13px;
-  line-height: 1.55;
-  color: #7a7589;
-  max-width: 520px;
-}
-.hero-cta-notes li { display: flex; align-items: center; gap: 10px; white-space: nowrap; }
-.hero-cta-notes li + li::before {
-  content: '';
-  width: 3px;
-  height: 3px;
-  border-radius: 50%;
-  background: #c9c3dd;
-}
 
 /* ── מה מקבלים: five short promises, evenly weighted ───────────────
    3-up on desktop (the last row centres), 1-up on phones. Each card is
@@ -2191,9 +2236,9 @@
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  gap: 18px;
+  gap: 16px;
   max-width: 1000px;
-  margin: 34px auto 0;
+  margin: 32px auto 0;
 }
 
 .value-card {
@@ -2202,7 +2247,7 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
-  padding: 24px 22px;
+  padding: 24px 24px;
   border-radius: 20px;
   background: var(--white);
   border: 1px solid var(--border);
@@ -2255,7 +2300,7 @@
 
 /* ── איך זה עובד: the closing line above the CTA ───────────────────── */
 .how-closing {
-  margin: 0 auto 22px;
+  margin: 0 auto 24px;
   max-width: 40ch;
   font-family: var(--fd);
   font-size: clamp(20px, 2.2vw, 26px);
@@ -2265,32 +2310,45 @@
 
 /* ── למה הסיפורים שלנו עובדים אחרת: four numbered story-craft cards ── */
 .why-section {
-  background: var(--white);
+  /* the brand's loudest claim gets the brand's colour, full strength
+     (per Guy: the run of near-whites here needed one purple chapter).
+     Deepens toward the floor so the wave into trust picks up purple-600.
+     White on purple-500 is 4.86:1, on purple-600 6.73:1. */
+  position: relative;
+  background: linear-gradient(180deg, var(--purple-500) 0%, var(--purple-600) 100%);
+}
+
+.why-section .section-h2,
+.why-section .section-lede {
+  color: #fff;
 }
 
 .why-sub {
-  margin: 0 auto 6px;
+  margin: 0 auto 8px;
   max-width: 56ch;
   text-align: center;
   font-size: 16.5px;
   line-height: 1.7;
-  color: var(--mid);
+  color: #fff;
 }
 
 .why-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 18px;
+  gap: 16px;
   max-width: 900px;
   margin: 32px auto 0;
 }
 
 .why-card {
   position: relative;
-  padding: 26px 24px 24px;
+  padding: 24px 24px 24px;
   border-radius: 20px;
-  background: var(--bg-lighter);
-  border: 1px solid var(--border);
+  /* solid white on the purple field; the border became invisible there,
+     a soft shadow lifts the card instead */
+  background: #fff;
+  border: 1px solid transparent;
+  box-shadow: 0 10px 26px rgba(28, 16, 46, 0.18);
   text-align: start;
 }
 
@@ -2354,7 +2412,7 @@
 }
 
 .about-shared-lines {
-  margin: 0 auto 22px;
+  margin: 0 auto 24px;
   max-width: 58ch;
   font-size: 17px;
   line-height: 1.7;
@@ -2364,7 +2422,7 @@
 .about-shared-note {
   margin: 0 auto;
   max-width: 58ch;
-  padding: 18px 22px;
+  padding: 16px 24px;
   border-radius: 18px;
   background: var(--surface-sunken, #f1eff9);
   border: 1px solid var(--purple-200);
@@ -2375,30 +2433,35 @@
 
 /* ── the new blocks on phones ──────────────────────────────────────── */
 @media (max-width: 860px) {
-  .value-grid { gap: 14px; max-width: 520px; }
-  .value-card { flex: 1 1 100%; min-width: 0; padding: 20px 18px; }
-  .why-grid { grid-template-columns: 1fr; gap: 14px; max-width: 520px; }
-  .why-card { padding: 22px 20px 20px; }
+  .value-grid { gap: 16px; max-width: 520px; }
+  .value-card { flex: 1 1 100%; min-width: 0; padding: 20px 16px; }
+  .why-grid { grid-template-columns: 1fr; gap: 16px; max-width: 520px; }
+  .why-card { padding: 24px 20px 20px; }
   .about-shared { margin-top: 44px; }
 }
 
-/* pricing eyebrow above the decision question */
+/* pricing eyebrow - same sticker language as the sample kicker, so the
+   two kickers on the page are one voice. n-900 on the yellow is 12.8:1. */
 .pricing-eyebrow {
   text-align: center;
   font-size: 14px;
   font-weight: 700;
-  letter-spacing: 0.04em;
-  /* the deep brand purple, not --purple: at 14px this is body-size text, so
-     it needs 4.5:1 and the lighter one only reaches 3.7 on the new white */
-  color: var(--purple-600);
-  margin-bottom: 8px;
+  letter-spacing: 0.02em;
+  color: var(--n-900);
+  background: var(--yellow-400);
+  width: fit-content;
+  margin: 0 auto 8px;
+  padding: 4px 12px;
+  border-radius: 10px;
+  rotate: -1.6deg;
+  box-shadow: 0 2px 0 rgba(28, 27, 33, 0.10);
 }
 
 /* final CTA closes the page like a scene, not a banner */
 .footer--warm { padding: 104px 0 96px; }
 
 .footer-micro {
-  margin-top: 14px;
+  margin-top: 16px;
   font-size: 14.5px;
   opacity: 0.82;
 }
@@ -2431,4 +2494,96 @@
 @media (prefers-reduced-motion: reduce) {
   .hero-btns .btn-primary { transition-duration: 0.01ms !important; }
   .hero-btns .btn-primary:hover { transform: none; box-shadow: var(--lift-3); }
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════
+   ART DIRECTION 2027 — "עמוד מתוך ספר"
+   One gesture-set, used sparingly: curved page-turn seams where the page
+   changes world, a yellow marker sweep as the repeated hand mark, sticker
+   kickers, a dashed story trail through the how-steps, paper + tape in
+   the gallery, and Ometz peeking into the dark reading room.
+   Yellow is a MARK here (sweep / tape / sticker) - never a surface. */
+
+:root {
+  /* the marker sweep, drawn once and reused (hero / sample / footer) */
+  --mk-sweep: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 12' preserveAspectRatio='none'%3E%3Cpath d='M4 8.5 C50 3.5 90 10.5 130 7 C160 4.5 185 7.5 196 5.5' fill='none' stroke='%23ffd745' stroke-width='5.5' stroke-linecap='round'/%3E%3C/svg%3E");
+}
+
+/* the previous section's colour dips into this one - a page turn,
+   not a SaaS band seam */
+.section-wave {
+  position: absolute;
+  top: -1px;
+  left: 0;
+  width: 100%;
+  height: clamp(26px, 4.5vw, 58px);
+  display: block;
+  pointer-events: none;
+}
+
+/* the marker sweep on a heading's second line (inline span, so the
+   stroke hugs exactly those words) */
+.mk-sweep {
+  background-image: var(--mk-sweep);
+  background-repeat: no-repeat;
+  background-position: bottom center;
+  background-size: 100% 0.28em;
+  padding-bottom: 0.22em;
+}
+
+/* the dashed path that turns "3 cards" into "a journey" - it arcs over
+   the cards and dips behind them at the ends */
+.how-trail {
+  position: absolute;
+  top: -30px;
+  inset-inline: 6%;
+  width: 88%;
+  height: 48px;
+  color: var(--purple-300);
+  z-index: 0;
+}
+
+/* the trio stands ON something - a soft floor under the hero pages */
+.hero-img-wrap::after {
+  content: '';
+  position: absolute;
+  bottom: 3%;
+  inset-inline: 15%;
+  height: 30px;
+  background: radial-gradient(50% 50% at 50% 50%, rgba(55, 16, 94, 0.15), transparent 72%);
+  z-index: -1;
+  pointer-events: none;
+}
+
+/* room for the tape inside the gallery's scroll box (an overflow box
+   clips anything above the first card's top edge) */
+.gallery-track {
+  padding-top: 16px;
+}
+
+/* ledes sit on tinted paper now - --mid (5.6:1 on white) drops below AA
+   on the washes, so these two sections step one shade down */
+.gallery-sub,
+.faq-sub {
+  color: var(--n-600);
+}
+
+@media (max-width: 900px) {
+  .how-trail {
+    display: none;
+  }
+}
+
+@media (max-width: 640px) {
+  /* the hero centres on a phone - the sweep-hugging line centres with it */
+  .hero-h1-line--accent {
+    margin-inline: auto;
+  }
+
+  .gallery-card::after {
+    width: 70px;
+    height: 20px;
+    top: -9px;
+  }
 }
