@@ -731,7 +731,7 @@ describe('visual-package candidate -> review -> Guy approval -> promotion', () =
 describe('all-slot zero-cost audit and explicit strict release mode', () => {
   afterEach(() => vi.unstubAllEnvs());
 
-  it('reports one structured record per nominally sellable slot without calling them render-qualified', () => {
+  it('reports every slot and recognizes only the current Chameleon package as render-qualified', () => {
     vi.stubEnv('ENABLE_V3_APPROVED_BANK', 'true');
     const audit = auditMvpRenderQualification({
       repoRoot: REPO,
@@ -740,31 +740,32 @@ describe('all-slot zero-cost audit and explicit strict release mode', () => {
     });
     expect(audit.nominalSlotCount).toBe(18);
     expect(audit.records).toHaveLength(18);
-    expect(audit.productSellableCount).toBe(17);
-    expect(audit.renderQualifiedCount).toBe(0);
+    expect(audit.productSellableCount).toBe(18);
+    expect(audit.renderQualifiedCount).toBe(1);
     const unavailable = audit.records.filter((record) => !record.productSellable);
-    expect(unavailable).toMatchObject([
-      {
-        category: 'TRANSITION',
-        direction: 'bedtime',
-        storyKey: 'chameleon_koko_bedtime',
-        renderQualified: false,
-        storySourcePath: null,
-      },
-    ]);
-    expect(unavailable[0]?.approvedPackagePath).toMatch(
-      /^visual-packages\/approved\/revisions\/[a-f0-9]{64}\.visual-package\.json$/,
-    );
-    expect(unavailable[0]?.storySourcePath).not.toBe(
-      'story-bank/v3-approved/chameleon_koko_bedtime.md',
-    );
-    expect(unavailable[0]?.reasons.map((reason) => reason.code)).toEqual([
-      'product_lineage_package_not_qualified',
-    ]);
+    expect(unavailable).toEqual([]);
+    expect(
+      audit.records.find(
+        (record) => record.storyKey === 'chameleon_koko_bedtime',
+      ),
+    ).toMatchObject({
+      category: 'TRANSITION',
+      direction: 'bedtime',
+      productSellable: true,
+      renderQualified: true,
+      storySourcePath:
+        'story-pipeline/04_approved_story_sources/accepted/chameleon_koko_bedtime/revisions/3ef645415b3cdd5945baeaa275d97ae0aa0491bf30addbcc46208475278f534a/integrated.md',
+      approvedPackagePath:
+        'visual-packages/approved/revisions/836a3414174dbe3060010371e81ebdbef821f705650a199cc4bbfd70081d523f.visual-package.json',
+      reasons: [],
+    });
     for (const record of audit.records) {
       expect(record.nominallySellable).toBe(true);
-      if (record.storyKey !== 'chameleon_koko_bedtime') {
-        expect(record.productSellable).toBe(true);
+      expect(record.productSellable).toBe(true);
+      if (record.storyKey === 'chameleon_koko_bedtime') {
+        expect(record.renderQualified).toBe(true);
+        expect(record.reasons).toEqual([]);
+        continue;
       }
       expect(record.renderQualified).toBe(false);
       expect(record.reasons.length).toBeGreaterThan(0);

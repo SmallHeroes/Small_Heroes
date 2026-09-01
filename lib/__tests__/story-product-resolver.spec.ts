@@ -42,6 +42,13 @@ const CHAMELEON_PRODUCT_REVISION = path.join(
   '3ef645415b3cdd5945baeaa275d97ae0aa0491bf30addbcc46208475278f534a',
   'integrated.md',
 );
+const CHAMELEON_PACKAGE_REVISION_DIGEST =
+  '836a3414174dbe3060010371e81ebdbef821f705650a199cc4bbfd70081d523f';
+const CHAMELEON_PACKAGE_LOCATOR_RELATIVE_PATH = path.join(
+  'visual-packages',
+  'approved',
+  'chameleon_koko_bedtime.soft_hand_drawn_storybook.visual-package-current.json',
+);
 const BUNNY_BEDTIME = path.join(V3_APPROVED_DIR, 'bunny_ometz_bedtime.md');
 
 const originalFlag = process.env.ENABLE_V3_APPROVED_BANK;
@@ -63,6 +70,22 @@ function productLineageRoot(): string {
   fs.mkdirSync(path.dirname(target), { recursive: true });
   fs.cpSync(path.join(process.cwd(), relative), target, { recursive: true });
   return root;
+}
+
+function copyCurrentChameleonPackage(root: string): void {
+  for (const relativePath of [
+    CHAMELEON_PACKAGE_LOCATOR_RELATIVE_PATH,
+    path.join(
+      'visual-packages',
+      'approved',
+      'revisions',
+      `${CHAMELEON_PACKAGE_REVISION_DIGEST}.visual-package.json`,
+    ),
+  ]) {
+    const target = path.join(root, relativePath);
+    fs.mkdirSync(path.dirname(target), { recursive: true });
+    fs.copyFileSync(path.join(process.cwd(), relativePath), target);
+  }
 }
 
 function writeBunnyFixture(pages: number, direction = 'bedtime') {
@@ -154,17 +177,33 @@ describe('resolveStoryProductTruth', () => {
     }
   });
 
-  it('never serves a legacy package for a product-accepted lineage while its product package is not current', () => {
+  it('serves the exact current product package for an accepted lineage and never its legacy predecessor', () => {
     delete process.env.ENABLE_V3_APPROVED_BANK;
     delete process.env.ENABLE_WIZARD_QA_RENDER_CATALOG;
 
-    expect(() =>
-      resolveStoryProductTruth({
-        challengeCategory: 'TRANSITION',
-        companionId: 'chameleon_koko',
-        clientDirection: 'bedtime',
-      }),
-    ).toThrow('requires an exact render-qualified Visual Package');
+    const resolved = resolveStoryProductTruth({
+      challengeCategory: 'TRANSITION',
+      companionId: 'chameleon_koko',
+      clientDirection: 'bedtime',
+    });
+
+    expect(resolved).toMatchObject({
+      source: 'visual_package_v4',
+      storyDirection: 'bedtime',
+      pages: 8,
+      displayPages: 16,
+      priceILS: 59,
+      storyFile: CHAMELEON_PRODUCT_REVISION,
+      visualPackageAuthority: {
+        version: 'frozen-visual-package-authority/v3',
+        packageRevisionDigest: CHAMELEON_PACKAGE_REVISION_DIGEST,
+        blueprintDigest:
+          '97fad2ac1499c6b578087771f614d474972b3c1f2f7153b3321c59c3f87bbdce',
+        sourcePath:
+          'story-pipeline/04_approved_story_sources/accepted/chameleon_koko_bedtime/revisions/3ef645415b3cdd5945baeaa275d97ae0aa0491bf30addbcc46208475278f534a/integrated.md',
+      },
+    });
+    expect(resolved.storyFile).not.toBe(CHAMELEON_LEGACY_REVISION);
     expect(CHAMELEON_LEGACY_REVISION).not.toBe(CHAMELEON_PRODUCT_REVISION);
   });
 
@@ -224,6 +263,46 @@ describe('resolveStoryProductTruth', () => {
           clientDirection: 'bedtime',
         },
         { repoRoot: malformedRoot },
+      ),
+    ).toThrow('requires an exact render-qualified Visual Package');
+
+    const tamperedPackageRoot = productLineageRoot();
+    copyCurrentChameleonPackage(tamperedPackageRoot);
+    expect(
+      resolveStoryProductTruth(
+        {
+          challengeCategory: 'TRANSITION',
+          companionId: 'chameleon_koko',
+          clientDirection: 'bedtime',
+        },
+        { repoRoot: tamperedPackageRoot },
+      ).visualPackageAuthority?.packageRevisionDigest,
+    ).toBe(CHAMELEON_PACKAGE_REVISION_DIGEST);
+    const locator = JSON.parse(
+      fs.readFileSync(
+        path.join(tamperedPackageRoot, CHAMELEON_PACKAGE_LOCATOR_RELATIVE_PATH),
+        'utf8',
+      ),
+    ) as Record<string, unknown>;
+    locator.hostileExtraKey = true;
+    const tamperedLocatorPath = path.join(
+      tamperedPackageRoot,
+      CHAMELEON_PACKAGE_LOCATOR_RELATIVE_PATH,
+    );
+    fs.mkdirSync(path.dirname(tamperedLocatorPath), { recursive: true });
+    fs.writeFileSync(
+      tamperedLocatorPath,
+      `${JSON.stringify(locator, null, 2)}\n`,
+      'utf8',
+    );
+    expect(() =>
+      resolveStoryProductTruth(
+        {
+          challengeCategory: 'TRANSITION',
+          companionId: 'chameleon_koko',
+          clientDirection: 'bedtime',
+        },
+        { repoRoot: tamperedPackageRoot },
       ),
     ).toThrow('requires an exact render-qualified Visual Package');
   });

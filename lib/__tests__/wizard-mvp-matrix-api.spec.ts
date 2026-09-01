@@ -76,13 +76,13 @@ describe('GET /api/wizard/mvp-matrix', () => {
       (c: { category: string }) => c.category === 'TRANSITION',
     );
     expect(transition?.directions?.bedtime).toMatchObject({
-      storyReady: false,
+      storyReady: true,
       qaAuthoringReady: false,
-      productionRenderQualified: false,
-      selectable: false,
-      availabilityStage: 'unavailable',
+      productionRenderQualified: true,
+      selectable: true,
+      availabilityStage: 'production_render_qualified',
       candidateDigest: null,
-      sellable: false,
+      sellable: true,
     });
   });
 
@@ -107,10 +107,22 @@ describe('GET /api/wizard/mvp-matrix', () => {
         qaAuthoringReady: boolean;
         productionRenderQualified: boolean;
         selectable: boolean;
+        availabilityStage: string;
+        candidateDigest: string | null;
       }]>) {
+        const currentProductPackage =
+          category.category === 'TRANSITION' && directionName === 'bedtime';
         expect(direction.qaAuthoringReady).toBe(false);
-        expect(direction.productionRenderQualified).toBe(false);
-        expect(direction.selectable).toBe(false);
+        expect(direction.candidateDigest).toBeNull();
+        expect(direction.productionRenderQualified).toBe(
+          currentProductPackage,
+        );
+        expect(direction.selectable).toBe(currentProductPackage);
+        if (currentProductPackage) {
+          expect(direction.availabilityStage).toBe(
+            'production_render_qualified',
+          );
+        }
       }
     }
   });
@@ -130,12 +142,14 @@ describe('GET /api/wizard/mvp-matrix', () => {
         productionRenderQualified: boolean;
         selectable: boolean;
       }]>) {
-        const awaitingProductPackage =
+        const currentProductPackage =
           category.category === 'TRANSITION' && directionName === 'bedtime';
-        expect(direction.sellable).toBe(!awaitingProductPackage);
+        expect(direction.sellable).toBe(true);
         expect(direction.qaAuthoringReady).toBe(false);
-        expect(direction.productionRenderQualified).toBe(false);
-        expect(direction.selectable).toBe(false);
+        expect(direction.productionRenderQualified).toBe(
+          currentProductPackage,
+        );
+        expect(direction.selectable).toBe(currentProductPackage);
       }
     }
   });

@@ -99,7 +99,7 @@ describe('MVP_STORY_MATRIX helpers', () => {
     expect(isSlotSellable('HIDDEN_CATEGORY', 'bedtime')).toBe(false);
   });
 
-  it('binds every public slot to the approved-v3 bank rather than a mixed v5 source', () => {
+  it('keeps every public slot sellable while the accepted Chameleon lineage resolves through its package', () => {
     process.env.ENABLE_V3_APPROVED_BANK = 'true';
     for (const category of allMvpCategories()) {
       const companionId = companionForCategory(category)!;
@@ -107,11 +107,7 @@ describe('MVP_STORY_MATRIX helpers', () => {
         expect(configuredSlotStatus(category, direction)).toBe('approved_v3');
         expect(fs.existsSync(path.join(V3_APPROVED_DIR, `${companionId}_${direction}.md`))).toBe(true);
         expect(fs.existsSync(path.join(V3_APPROVED_DIR, `${companionId}_${direction}.import.json`))).toBe(true);
-        const awaitingProductPackage =
-          category === 'TRANSITION' && direction === 'bedtime';
-        expect(isSlotSellable(category, direction)).toBe(
-          !awaitingProductPackage,
-        );
+        expect(isSlotSellable(category, direction)).toBe(true);
       }
     }
   });

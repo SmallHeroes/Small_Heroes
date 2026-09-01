@@ -29,11 +29,11 @@ describe('release-check render qualification mode (actual CLI)', () => {
   it('ordinary mode stays compatible and explicitly disclaims render readiness', () => {
     const result = runReleaseCheck(false);
     expect(result.status, result.stderr).toBe(0);
-    expect(result.stdout).toContain('render-qualified slots: 0/18');
+    expect(result.stdout).toContain('render-qualified slots: 1/18');
     expect(result.stdout).toContain('not a render-readiness claim');
   });
 
-  it('explicit strict mode exits non-zero on the same zero-qualified catalog', () => {
+  it('explicit strict mode still exits non-zero while 17 catalog slots remain unqualified', () => {
     const result = runReleaseCheck(true);
     expect(result.status).toBe(1);
     expect(`${result.stdout}\n${result.stderr}`).toContain(

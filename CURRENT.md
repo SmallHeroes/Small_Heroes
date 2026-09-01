@@ -1,5 +1,56 @@
 # SmallHeroes — Current Technical State
 
+## R1D — new Chameleon product package is current; Wizard slot is render-qualified
+
+AUTHORING PASS is closed for the approved eight-page Chameleon product story. Guy approved
+Blueprint Candidate `97fad2ac1499c6b578087771f614d474972b3c1f2f7153b3321c59c3f87bbdce`,
+Review Packet `01934a29d04106c931da03c94756d309ebb0660fb38a1163f331aefb6ce6e79b` and
+`grounded_with_visual_metaphor`. The exact Blueprint approval is
+`29d79db62ca06d9d5a8fe41f5f36f7a58458d0a325d7b698cae45548ecfafeba` under approved
+manifest `7c89a3d93a1a980f9ff8a9d56ae632f5ff7e2e97e38b88261d0b76ce02790c35`.
+
+Guy then approved Visual Package Candidate
+`e7fe4e6831322f9134f62069a0c6ab046137d4851355b174e34624c40a478b6f` and Package Review
+`2d77aefff2d3f06cdbaa5d306ba5169275c2ee9809f045e0bf163235a545b496`. The controlled
+writer recorded exact approval `220d888a49ee6062a3e749caf6f467a6eb8036fdeacabdf8ee81313597238ee1`
+under approved manifest `4de603bbaf2b5255e42aa31218c27b8d28152a9bdec578dc04ef33a620d44b4b`.
+Canonical publication created immutable revision
+`836a3414174dbe3060010371e81ebdbef821f705650a199cc4bbfd70081d523f` and moved the
+Chameleon current locator from the legacy package to that exact revision. Publication replay is
+idempotent and does not perform another locator write. The published revision bytes are SHA-256
+`5fd28d07a2dd95f7122953ab1f3fa3ff392522bebbaa17deb47eab42bca55175`; current locator bytes
+are SHA-256 `54614b665212f5f016779d9faa85a43a6043d0813d4cf990b5e63ac72f61d79a`.
+
+Runtime selection now resolves `visual_package_v4`, product Story Source
+`3ef645415b3cdd5945baeaa275d97ae0aa0491bf30addbcc46208475278f534a`, eight pages,
+16 display pages, price 59, the exact Blueprint above and the exact current package revision. It
+never selects legacy Story Source `20a12801...`. Transition / bedtime is selectable, sellable and
+`production_render_qualified` with or without the explicit QA-authoring flag; the flag remains
+honest (`qaAuthoringReady: false`, `candidateDigest: null`) and does not manufacture authority.
+
+Nine stale pre-publication assertions across six test files were updated to the newly published
+truth. The negative
+boundaries remain explicit: absent, malformed and hostile-extra-key locators still fail closed
+before package selection, and the hostile locator test first proves its valid package baseline.
+Focused release validation is **13 files / 158 tests PASS**;
+`npx tsc --noEmit`, `npm run story:autonomous-typecheck` and `git diff --check` all exit 0.
+Literal `npm run check` passed both TypeScript phases. Its ordinary partition completed 4,351
+tests with 73 skips and initially reported the nine established missing-`outputs/` fixture
+assertions plus four now-corrected cutover expectations. Its resource partition completed 630
+tests and initially reported one now-corrected release-check expectation plus two unrelated
+five-second subprocess timeouts and the three known `onTaskUpdate` RPC timeouts. Every changed-path
+failure now passes in the focused 158-test run; the literal command remains exit 1 and is not
+relabeled green.
+No deployment, Wizard Order, payment, provider, image, audio or render occurred in this cutover.
+RELEASE PASS remains open only for independent publication re-gate, push/deploy, deployed
+attestation and one authorized Bar / age 5 / dad-narration Wizard Order through full render.
+
+The post-first-render simplification review remains mandatory before a second book. Observations
+are recorded without refactoring in `docs/ai-workflow/SIMPLIFICATION_FINDINGS.md`.
+
+Evidence:
+`docs/ai-workflow/R1D_SET_BOARD_RESERVED_PAGE_PLACEMENT_AUTHORITY_IMPLEMENTATION_EVIDENCE.md`.
+
 ## R1D — Reserved Page Placement Authority closes route Board defect offline; Claude Code PASS
 
 The first `set_kindergarten_route` LOW Board failed automated QA and visual inspection for a real
@@ -57,8 +108,8 @@ SHA `d11d4930...` remains byte-identical. Guy then visually approved the exact H
 asset `48bf9d53...` / `741ef784...` and route definition / asset `38870567...` / `4f0d592d...`.
 The controlled approval writer recorded Home at `2026-09-01T06:22:42.080Z` and route at
 `2026-09-01T06:22:48.799Z`; both are now bindable and their model, quality, QA and asset identities
-remain unchanged. No retry or rerender occurred. The next paid boundary is one canonical Blueprint
-authoring run after the approved Registry artifacts are committed, pushed and Fresh Readiness passes.
+remain unchanged. No retry or rerender occurred in that Board successor. The later Blueprint and
+Visual Package lifecycle recorded above supersedes its then-current next-action statement.
 
 The post-first-render simplification direction is recorded, without code changes, in
 `docs/ai-workflow/SIMPLIFICATION_FINDINGS.md`: explicit AUTHORING PASS versus RELEASE PASS,

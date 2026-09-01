@@ -62,7 +62,7 @@ describe('deployed Wizard runtime-authority preflight', () => {
     vi.unstubAllGlobals();
   });
 
-  it('rejects the legacy current Chameleon package before Boards, provider or database reachability', async () => {
+  it('accepts the exact current Chameleon package and proves the full local authority chain without provider or database reachability', async () => {
     vi.stubEnv('VERCEL_ENV', 'preview');
     vi.stubEnv('VISUAL_CONTRACT_ENFORCEMENT', 'true');
     const fetchSpy = vi.fn(() => {
@@ -72,22 +72,50 @@ describe('deployed Wizard runtime-authority preflight', () => {
 
     const boardResolverDeps = localApprovedBoardDeps();
     const boardByteRead = vi.spyOn(boardResolverDeps, 'fetchAssetSha256');
-    await expect(
-      runWizardRuntimeAuthorityPreflight(
+    const result = await runWizardRuntimeAuthorityPreflight(
+      {
+        repoRoot: REPO_ROOT,
+        storyKey: STORY_KEY,
+        styleId: STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK,
+      },
+      { boardResolverDeps },
+    );
+    expect(result).toMatchObject({
+      status: 'passed',
+      storyKey: STORY_KEY,
+      packageRevisionDigest:
+        '836a3414174dbe3060010371e81ebdbef821f705650a199cc4bbfd70081d523f',
+      blueprintDigest:
+        '97fad2ac1499c6b578087771f614d474972b3c1f2f7153b3321c59c3f87bbdce',
+      checkedPageNumbers: [0, 1, 2, 3, 4, 5, 6, 7, 8],
+      boardBindings: [
         {
-          repoRoot: REPO_ROOT,
-          storyKey: STORY_KEY,
-          styleId: STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK,
+          setIdentityId: 'set_home_interior',
+          setDefinitionHash:
+            '48bf9d53437746e27026a9b975b5fb6d35954f4a46782bb2f064380147fa0926',
+          assetSha256:
+            '741ef784c99934becc2294533102418b8fd4669ef3dea1a50cead76e033f0ac8',
         },
-        { boardResolverDeps },
-      ),
-    ).rejects.toMatchObject({
-      code: 'visual_package_not_qualified',
-      reasons: expect.arrayContaining([
-        'product-accepted Story Source lineage requires a package bound to a final accepted revision',
-      ]),
+        {
+          setIdentityId: 'set_kindergarten_route',
+          setDefinitionHash:
+            '38870567284b295c73cfea594ec3ab837b4a7ea221cf3df0c1de36404270071a',
+          assetSha256:
+            '4f0d592dbf3f1aa333655dae1b0e21f6b180b1bacaba01fad648919b92125272',
+        },
+      ],
+      effects: {
+        databaseReads: 0,
+        databaseWrites: 0,
+        providerCalls: 0,
+        imageWrites: 0,
+        audioWrites: 0,
+        retries: 0,
+        fallback: false,
+        storageReads: 4,
+      },
     });
-    expect(boardByteRead).not.toHaveBeenCalled();
+    expect(boardByteRead).toHaveBeenCalledTimes(4);
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 
@@ -108,7 +136,7 @@ describe('deployed Wizard runtime-authority preflight', () => {
     });
   });
 
-  it('fails closed on malformed keys and never reaches Board-byte drift behind an ineligible product package', async () => {
+  it('fails closed on malformed keys and surfaces Board-byte drift only after the qualified package is admitted', async () => {
     vi.stubEnv('VERCEL_ENV', 'preview');
     vi.stubEnv('VISUAL_CONTRACT_ENFORCEMENT', 'true');
     await expect(
@@ -146,9 +174,12 @@ describe('deployed Wizard runtime-authority preflight', () => {
         },
       ),
     ).rejects.toMatchObject({
-      code: 'visual_package_not_qualified',
+      code: 'board_binding_failed',
+      reasons: expect.arrayContaining([
+        expect.stringMatching(/bytes changed since binding|approval is void/),
+      ]),
     });
-    expect(boardByteReadCount).toBe(0);
+    expect(boardByteReadCount).toBeGreaterThan(2);
   });
 
   it('bundles every filesystem authority required by the deployed preflight', () => {

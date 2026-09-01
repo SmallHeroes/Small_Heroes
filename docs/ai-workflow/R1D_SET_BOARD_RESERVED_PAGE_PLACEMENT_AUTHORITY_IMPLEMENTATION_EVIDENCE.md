@@ -166,9 +166,63 @@ definition / asset `38870567...` / `4f0d592d...`. The controlled writer recorded
 No Blueprint, package, locator, Wizard Order or render action followed the approvals in this
 artifact milestone.
 
-## Unchanged / excluded
+## Approved Blueprint and Visual Package cutover
 
-No Story Source, d963 Template, bridge, reconciliation, existing Board/Registry/asset, Visual
-Package, locator, Wizard selection, Order/payment row, renderer, budget, model, retry/fallback or
-deployment artifact changed. This milestone does not approve any Board and does not authorize a
-blind retry.
+The later canonical lifecycle used those exact approved Boards and closed AUTHORING PASS without
+another Board mint or image call:
+
+- Blueprint Candidate:
+  `97fad2ac1499c6b578087771f614d474972b3c1f2f7153b3321c59c3f87bbdce`
+- Blueprint Review Packet:
+  `01934a29d04106c931da03c94756d309ebb0660fb38a1163f331aefb6ce6e79b`
+- Blueprint approval:
+  `29d79db62ca06d9d5a8fe41f5f36f7a58458d0a325d7b698cae45548ecfafeba`
+- Visual Package Candidate:
+  `e7fe4e6831322f9134f62069a0c6ab046137d4851355b174e34624c40a478b6f`
+- Package Review:
+  `2d77aefff2d3f06cdbaa5d306ba5169275c2ee9809f045e0bf163235a545b496`
+- Package approval:
+  `220d888a49ee6062a3e749caf6f467a6eb8036fdeacabdf8ee81313597238ee1`
+- Published immutable revision:
+  `836a3414174dbe3060010371e81ebdbef821f705650a199cc4bbfd70081d523f`
+- Publication manifest:
+  `effea4812072ae918b888d3de2ea2df1ff7cb08594891b70691495cc61c97cff`
+- Published at: `2026-09-01T07:35:04.565Z`
+- Revision path:
+  `visual-packages/approved/revisions/836a3414174dbe3060010371e81ebdbef821f705650a199cc4bbfd70081d523f.visual-package.json`
+- Revision raw SHA-256:
+  `5fd28d07a2dd95f7122953ab1f3fa3ff392522bebbaa17deb47eab42bca55175`
+- Current locator raw SHA-256:
+  `54614b665212f5f016779d9faa85a43a6043d0813d4cf990b5e63ac72f61d79a`
+- Predecessor locator revision / raw SHA-256:
+  `2b488f2d...` / `6d3d9431054a71b47456b659f343bc0674efa62403e6f488156b8a8fc02bb96b`
+
+The publication moved only the exact Chameleon current locator, and replay produced no second
+locator write. Runtime truth now binds the product Story Source `3ef64541...`, the exact approved
+Blueprint, cover plus eight body pages, 16 display pages and price 59. Transition / bedtime is
+selectable and `production_render_qualified`; the QA-authoring flag remains false and supplies no
+candidate authority. Absent, malformed and hostile-extra-key locators remain fail-closed.
+
+Post-publication validation is **13 files / 158 tests PASS**. Both TypeScript phases and
+`git diff --check` exit 0. Nine changed assertions across six test files were the intentional
+pre-publication baseline; they now assert the exact current product package while retaining
+independent hostile and missing-package regressions. The hostile-extra-key resolver test first
+proves the exact same temp root resolves successfully before tampering the locator. No deployment,
+Order, payment or render occurred. RELEASE PASS remains open for independent cutover QA, deployed
+attestation and the one authorized full Wizard render.
+
+Literal `npm run check` passed both TypeScript phases. Ordinary completed 4,351 passing tests with
+73 skips and reported thirteen assertions: the nine established ignored-`outputs/` fixture
+failures plus four stale cutover expectations, all four of which now pass in the focused run.
+Resource completed 630 passing tests and reported three assertions: one stale release-check count,
+now passing, plus two unrelated five-second subprocess timeouts; Vitest also emitted the three
+known `onTaskUpdate` RPC timeouts. The literal command remains exit 1 and is not relabeled green;
+no changed-path assertion remains failed.
+
+## Unchanged / excluded from the Reserved Placement implementation and QA range
+
+In the earlier Reserved Placement implementation and QA range, no Story Source, d963 Template,
+bridge, reconciliation, existing Board/Registry/asset, Visual Package, locator, Wizard selection,
+Order/payment row, renderer, budget, model, retry/fallback or deployment artifact changed. That
+range did not approve any Board and did not authorize a blind retry. The later approved Board,
+Blueprint and Visual Package lifecycle is recorded separately above.
