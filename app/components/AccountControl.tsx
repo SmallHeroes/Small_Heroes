@@ -18,25 +18,6 @@ type AccountControlProps = {
 const MOBILE_MAX = 640;
 const SITE_SHARE_URL = typeof window !== 'undefined' ? window.location.origin : 'https://smallheroes.co.il';
 
-function PersonOutlineIcon() {
-  return (
-    <svg
-      width="18"
-      height="18"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="#fff"
-      strokeWidth={1.8}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <circle cx="12" cy="8" r="4" />
-      <path d="M4 20c0-4 3.6-6 8-6s8 2 8 6" />
-    </svg>
-  );
-}
-
 export function AccountControl({ user, onAuthChange }: AccountControlProps) {
   const menuId = useId();
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -120,8 +101,6 @@ export function AccountControl({ user, onAuthChange }: AccountControlProps) {
     setToast('מנוי — בקרוב');
   };
 
-  const initial = user?.email?.trim().charAt(0).toUpperCase() || '?';
-
   const menuItems = (
     <>
       {/* "הספרים שלי" now lives in the account dropdown on BOTH desktop and mobile (removed from the header nav). */}
@@ -145,8 +124,9 @@ export function AccountControl({ user, onAuthChange }: AccountControlProps) {
   if (!user) {
     return (
       <div className={styles.wrap}>
-        <Link href={ROUTES.login} className={styles.circleBtn} aria-label="התחברות">
-          <PersonOutlineIcon />
+        {/* a labelled action, not an icon (per Guy) */}
+        <Link href={ROUTES.login} className={styles.authBtn}>
+          התחבר
         </Link>
         {toast ? (
           <span className={styles.toast} role="status">
@@ -161,13 +141,13 @@ export function AccountControl({ user, onAuthChange }: AccountControlProps) {
     <div className={styles.wrap} ref={wrapRef}>
       <button
         type="button"
-        className={styles.circleBtn}
+        className={styles.authBtn}
         aria-haspopup="menu"
         aria-expanded={open}
         aria-controls={menuId}
         onClick={() => setOpen((v) => !v)}
       >
-        {initial}
+        אזור אישי
       </button>
 
       {toast ? (

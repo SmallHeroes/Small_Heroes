@@ -39,8 +39,7 @@ export function AboutSection({ about }: { about: LandingContent['about'] }) {
         <div className="about-shared">
           <h3 className="about-shared-h3" data-reveal="up">{about.shared.h3}</h3>
           <p className="about-shared-lines" data-reveal="up" data-reveal-delay="60">{about.shared.text}</p>
-          <p className="about-shared-note" data-reveal="fade" data-reveal-delay="120">{about.shared.note}</p>
-        </div>
+            </div>
       </div>
     </section>
   );

@@ -191,10 +191,13 @@
   /* The wash does NOT reach transparent at the hero's floor: it hands over
      to the next section at the same value, so the field reads as one room
      rather than stopping at a seam (per Guy). */
+  /* richer at the crown (per Guy: the top wanted more colour), and the
+     handover value at the floor is untouched so the run stays seamless */
   background: linear-gradient(
     180deg,
-    rgba(240, 236, 255, 0.62) 0%,
-    rgba(243, 240, 255, 0.36) 52%,
+    rgba(223, 201, 250, 0.55) 0%,
+    rgba(233, 222, 253, 0.42) 34%,
+    rgba(243, 240, 255, 0.32) 62%,
     rgba(244, 241, 255, 0.26) 100%
   );
 }
@@ -241,11 +244,19 @@
   bottom: var(--y-bottom, auto);
   width: var(--size, 24px);
   height: var(--size, 24px);
-  color: var(--purple-300);
-  opacity: 0.75;
+  color: var(--purple-400);
+  opacity: 0.8;
   rotate: var(--tilt, 0deg);
   /* rotate is a separate property, so the float owns translate outright */
-  animation: hero-doodle-float var(--dur, 12s) ease-in-out var(--delay, 0s) infinite alternate;
+  /* livelier loop (per Guy): ~40% faster than each mark's authored pace */
+  animation: hero-doodle-float calc(var(--dur, 12s) * 0.6) ease-in-out var(--delay, 0s) infinite alternate;
+}
+
+/* neighbouring marks sway in opposite directions, so the sky breathes
+   instead of nodding in unison */
+.hero-doodle:nth-of-type(even) {
+  --sway: -7px;
+  --swing: -4deg;
 }
 
 .hero-doodle[data-tone='gold'] {
@@ -260,8 +271,14 @@
 }
 
 @keyframes hero-doodle-float {
-  from { translate: 0 0; }
-  to { translate: 0 var(--drift, -13px); }
+  from {
+    translate: 0 0;
+    rotate: var(--tilt, 0deg);
+  }
+  to {
+    translate: var(--sway, 7px) var(--drift, -13px);
+    rotate: calc(var(--tilt, 0deg) + var(--swing, 4deg));
+  }
 }
 
 /* Each viewport shows only the set placed for its layout. */
@@ -477,8 +494,8 @@
 .gallery-section {
   padding: 64px 0 56px;
   position: relative;
-  /* warm neutral paper - NOT a pale-yellow surface (wow-2027 rule) */
-  background: #faf5ec;
+  /* white per Guy - the warm paper read as faded yellow */
+  background: #fff;
   overflow: hidden;
 }
 
@@ -1396,9 +1413,10 @@
 
 /* Trust — warm reassurance strip (not why-cards) */
 .trust-band {
+  position: relative;
   padding: 56px 0 64px;
   background: var(--bg-lighter);
-  border-block: 1px solid rgba(0, 0, 0, 0.06);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
 }
 
 .early-stage-band {
@@ -2313,7 +2331,17 @@
 
 /* ── למה הסיפורים שלנו עובדים אחרת: four numbered story-craft cards ── */
 .why-section {
-  background: var(--purple-50);
+  /* the brand's loudest claim gets the brand's colour, full strength
+     (per Guy: the run of near-whites here needed one purple chapter).
+     Deepens toward the floor so the wave into trust picks up purple-600.
+     White on purple-500 is 4.86:1, on purple-600 6.73:1. */
+  position: relative;
+  background: linear-gradient(180deg, var(--purple-500) 0%, var(--purple-600) 100%);
+}
+
+.why-section .section-h2,
+.why-section .section-lede {
+  color: #fff;
 }
 
 .why-sub {
@@ -2322,7 +2350,7 @@
   text-align: center;
   font-size: 16.5px;
   line-height: 1.7;
-  color: var(--mid);
+  color: #fff;
 }
 
 .why-grid {
@@ -2337,8 +2365,11 @@
   position: relative;
   padding: 26px 24px 24px;
   border-radius: 20px;
-  background: var(--bg-lighter);
-  border: 1px solid var(--border);
+  /* solid white on the purple field; the border became invisible there,
+     a soft shadow lifts the card instead */
+  background: #fff;
+  border: 1px solid transparent;
+  box-shadow: 0 10px 26px rgba(28, 16, 46, 0.18);
   text-align: start;
 }
 
@@ -2522,18 +2553,6 @@
   padding-bottom: 0.22em;
 }
 
-/* Ometz peeks over the seam into the dark reading room */
-.sample-peek {
-  position: absolute;
-  top: 0;
-  inset-inline-end: 8%;
-  width: clamp(76px, 9vw, 132px);
-  transform: translateY(-56%);
-  z-index: 2;
-  pointer-events: none;
-  filter: drop-shadow(0 12px 20px rgba(0, 0, 0, 0.25));
-}
-
 /* the dashed path that turns "3 cards" into "a journey" - it arcs over
    the cards and dips behind them at the ends */
 .how-trail {
@@ -2567,7 +2586,6 @@
 /* ledes sit on tinted paper now - --mid (5.6:1 on white) drops below AA
    on the washes, so these two sections step one shade down */
 .gallery-sub,
-.why-section .section-lede,
 .faq-sub {
   color: var(--n-600);
 }
@@ -2582,12 +2600,6 @@
   /* the hero centres on a phone - the sweep-hugging line centres with it */
   .hero-h1-line--accent {
     margin-inline: auto;
-  }
-
-  .sample-peek {
-    width: 64px;
-    inset-inline-end: 5%;
-    transform: translateY(-52%);
   }
 
   .gallery-card::after {

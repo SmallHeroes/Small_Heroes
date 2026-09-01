@@ -156,19 +156,23 @@ textarea {
 
 .logo-icon-sq {
   position: absolute;
-  inset: 0;
-  background: var(--purple);
-  border-radius: 12px;
+  /* the rounded diamond mark - matches the app header (per Guy) */
+  inset: 4px;
+  rotate: 45deg;
+  background: var(--purple-500);
+  border-radius: 8px;
 }
 
 .logo-icon-dot {
   position: absolute;
-  top: 10px;
-  right: 10px;
-  width: 24px;
-  height: 24px;
-  background: var(--yellow);
-  border-radius: 8px;
+  /* the yellow spark, centred in the diamond */
+  top: 15px;
+  right: 15px;
+  width: 14px;
+  height: 14px;
+  rotate: 45deg;
+  background: var(--yellow-400);
+  border-radius: 3px;
 }
 
 .logo-text {
