@@ -15,6 +15,7 @@ import {
   getChildPhotoPrivacyMeta,
   isOriginalChildPhotoStorageKey,
   orderHasChildPhotoEvidence,
+  parseSupabasePublicObjectKey,
   resolveDeletableStorageKeysFromOrder,
 } from '@/lib/child-photo-deletion-policy';
 
@@ -90,6 +91,45 @@ async function deleteStorageKeys(
   }
 
   return { deletedKeys, failedKeys };
+}
+
+/**
+ * Compensating cleanup for a release/v1 Order attempt whose child-photo upload
+ * succeeded but whose atomic database commit did not. The caller supplies the
+ * exact draft scope it created, so this helper cannot delete another Order's
+ * reference photo even when handed a hostile URL.
+ */
+export async function deleteDraftChildPhotoUpload(params: {
+  publicUrl: string;
+  draftScopeId: string;
+}): Promise<void> {
+  const env = getSupabaseEnv();
+  if (!env) {
+    throw new Error('missing_supabase_env');
+  }
+
+  const key = parseSupabasePublicObjectKey(params.publicUrl, env.bucket);
+  const expectedPrefix = `orders/${params.draftScopeId}/references/`;
+  if (
+    !key ||
+    !key.startsWith(expectedPrefix) ||
+    !isOriginalChildPhotoStorageKey(key)
+  ) {
+    throw new Error('draft_child_photo_cleanup_scope_mismatch');
+  }
+
+  const result = await getSupabaseClient(env).storage.from(env.bucket).remove([key]);
+  if (result.error) {
+    log.error('draft child-photo cleanup failed — photo remains reachable', result.error, {
+      draftScopeId: params.draftScopeId,
+      key,
+    });
+    logServerEvent('child_photo_deletion_failed', {
+      orderId: params.draftScopeId,
+      stage: 'release_v1_order_commit_compensation',
+    });
+    throw new Error(`draft_child_photo_cleanup_failed:${result.error.message}`);
+  }
 }
 
 export async function deleteOriginalChildPhotoForOrder(

@@ -214,13 +214,19 @@ describe('deployed Wizard runtime-authority preflight', () => {
         '/api/dev/runtime-authority-preflight'
       ],
     ).toEqual([
-      'node_modules/@ffmpeg-installer/**',
-      'node_modules/@ffprobe-installer/**',
-      'node_modules/@sparticuz/chromium/**',
-      'node_modules/puppeteer-core/**',
-      'public/companions/**/*.jpg',
-      'style-references/02/**',
-      'style-references/style-02-locked-samples/**',
+      './node_modules/@ffmpeg-installer/**/*',
+      './node_modules/@ffprobe-installer/**/*',
+      './node_modules/@sparticuz/chromium/**/*',
+      './node_modules/puppeteer-core/**/*',
+      './public/companions/**/*.jpg',
+      './style-references/02/**/*',
+      './style-references/style-02-locked-samples/**/*',
+      './public/Images/**/*',
+      './public/Videos/**/*',
+      './public/art-styles/**/*',
+      './public/gallery/**/*',
+      './public/voice-samples/**/*',
+      './outputs/**/*',
     ]);
   });
 

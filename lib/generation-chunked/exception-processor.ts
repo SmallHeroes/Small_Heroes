@@ -41,6 +41,7 @@ import { QUALITY_REGEN_BUDGET, type HardHoldKind } from '@/lib/generation-pipeli
 import { reserveMarkAndClearRegen } from './clear-page-images-for-regen';
 import { syncHumanQaHoldCasePostCommit } from '@/lib/human-qa/sync-hold-case';
 import { createLogger } from '@/lib/logger';
+import { orderRequiresVisualPackageAuthority } from '@/lib/generation-pipeline/order-visual-package-authority';
 
 const log = createLogger({ subsystem: 'exception-processor' });
 const RECONCILIATION_MAX_AGE_MS = 48 * 60 * 60 * 1000;
@@ -837,12 +838,26 @@ export async function syncTerminalExceptionCases(
         lastError: true,
         failedAt: true,
         updatedAt: true,
+        order: {
+          select: {
+            selectionFilename: true,
+            visualPackageAuthority: true,
+          },
+        },
       },
       take: 20,
       orderBy: { updatedAt: 'asc' },
     }),
   ]);
-  const generationSources = failedJobs.map((job) =>
+  const legacyFailedJobs = failedJobs.filter((job) => {
+    try {
+      return !orderRequiresVisualPackageAuthority(job.order);
+    } catch {
+      // A malformed accepted-namespace claim is not legacy authority.
+      return false;
+    }
+  });
+  const generationSources = legacyFailedJobs.map((job) =>
     `generation:${job.orderId}:${(job.failedAt ?? job.updatedAt).toISOString()}`,
   );
   const sourceRefs = [
@@ -878,7 +893,7 @@ export async function syncTerminalExceptionCases(
     });
     produced += 1;
   }
-  for (const [index, job] of failedJobs.entries()) {
+  for (const [index, job] of legacyFailedJobs.entries()) {
     const sourceRef = generationSources[index];
     if (alreadyProduced.has(sourceRef)) continue;
     await openExceptionCase(prisma, {

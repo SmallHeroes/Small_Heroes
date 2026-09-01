@@ -14,6 +14,7 @@ import { ReleaseV1ContinuityError } from '@/lib/generation-pipeline/release-v1-c
 const H = vi.hoisted(() => ({
   customerUpsert: vi.fn(),
   storeImage: vi.fn(),
+  deleteDraftUpload: vi.fn(),
   wizardSessionFindUnique: vi.fn(),
   wizardSessionCreate: vi.fn(),
   wizardSessionUpdate: vi.fn(),
@@ -60,6 +61,14 @@ vi.mock('@/lib/image-storage', () => ({
     throw new Error('route authority tests must not persist an image');
   }),
 }));
+
+vi.mock('@/lib/child-photo-deletion', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/child-photo-deletion')>();
+  return {
+    ...actual,
+    deleteDraftChildPhotoUpload: H.deleteDraftUpload,
+  };
+});
 
 vi.mock('@/backend/config/mvp-story-matrix', async (importOriginal) => {
   const actual = await importOriginal<
@@ -225,6 +234,25 @@ function releaseRequest(): NextRequest {
   });
 }
 
+function releaseRequestWithImage(): NextRequest {
+  const body = requestBody();
+  return new NextRequest('https://qa.smallheroes.co.il/api/release/v1/orders', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      ...body,
+      wizardData: {
+        ...body.wizardData,
+        child: {
+          ...body.wizardData.child,
+          imageUrl: 'data:image/png;base64,AAAA',
+        },
+      },
+      wizardProductBinding: binding(),
+    }),
+  });
+}
+
 function request(): NextRequest {
   return new NextRequest('https://qa.smallheroes.co.il/api/orders', {
     method: 'POST',
@@ -236,6 +264,11 @@ function request(): NextRequest {
 describe('POST /api/orders — durable Visual Package authority', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    H.storeImage.mockReset();
+    H.storeImage.mockImplementation(() => {
+      throw new Error('route authority tests must not persist an image');
+    });
+    H.deleteDraftUpload.mockResolvedValue(undefined);
     H.customerUpsert.mockResolvedValue({ id: 'customer-1' });
     H.wizardSessionFindUnique.mockResolvedValue(null);
     H.wizardSessionCreate.mockResolvedValue({
@@ -422,11 +455,25 @@ describe('POST /api/orders — durable Visual Package authority', () => {
   it('leaves a failed atomic Order transaction recoverable through stale-claim takeover', async () => {
     const firstFailure = new Error('simulated Order create failure');
     H.orderCreate.mockRejectedValueOnce(firstFailure);
+    const firstDraftUrl =
+      'https://proj.supabase.co/storage/v1/object/public/book-images/' +
+      'orders/draft-first/references/main-child-1.png';
+    const recoveredDraftUrl =
+      'https://proj.supabase.co/storage/v1/object/public/book-images/' +
+      'orders/draft-recovered/references/main-child-2.png';
+    H.storeImage
+      .mockResolvedValueOnce(firstDraftUrl)
+      .mockResolvedValueOnce(recoveredDraftUrl);
 
-    const first = await handleOrderPost(releaseRequest(), {
+    const first = await handleOrderPost(releaseRequestWithImage(), {
       routeProtocol: 'release/v1',
     });
     expect(first.status).toBe(500);
+    expect(H.deleteDraftUpload).toHaveBeenCalledTimes(1);
+    expect(H.deleteDraftUpload).toHaveBeenCalledWith({
+      publicUrl: firstDraftUrl,
+      draftScopeId: expect.stringMatching(/^draft-/u),
+    });
     const processingClaim = H.wizardSessionUpdateMany.mock.calls[0]![0].data.data;
 
     H.wizardSessionFindUnique
@@ -442,13 +489,14 @@ describe('POST /api/orders — durable Visual Package authority', () => {
     H.wizardSessionCreate.mockRejectedValueOnce(uniqueSessionConflict());
     H.orderCreate.mockResolvedValueOnce({ id: 'order-recovered-1' });
 
-    const retry = await handleOrderPost(releaseRequest(), {
+    const retry = await handleOrderPost(releaseRequestWithImage(), {
       routeProtocol: 'release/v1',
     });
 
     expect(retry.status).toBe(200);
     expect(await retry.json()).toMatchObject({ orderId: 'order-recovered-1' });
     expect(H.transaction).toHaveBeenCalledTimes(2);
+    expect(H.deleteDraftUpload).toHaveBeenCalledTimes(1);
   });
 
   it('turns a concurrent Order unique conflict into exact immutable replay', async () => {

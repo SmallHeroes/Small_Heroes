@@ -13,6 +13,7 @@ import {
   enqueueDelivery,
   type BookReadyPayload,
 } from './delivery-outbox';
+import { ACCEPTED_REVISION_NAMESPACE_PREFIX } from '@/lib/generation-pipeline/story-path';
 import { isCanonicalReadUrl } from '@/lib/generation-pipeline/integrity-gate';
 import {
   OrderVisualPackageAuthorityError,
@@ -629,6 +630,7 @@ export async function claimDueExceptionCases(
   limit = 1,
 ): Promise<ExceptionCase[]> {
   const leaseExpiresAt = new Date(now.getTime() + EXCEPTION_LEASE_MS);
+  const acceptedRevisionPrefix = `${ACCEPTED_REVISION_NAMESPACE_PREFIX}%`;
   return prisma.$queryRaw<ExceptionCase[]>`
     UPDATE "ExceptionCase"
        SET "claimVersion" = "claimVersion" + 1,
@@ -643,9 +645,12 @@ export async function claimDueExceptionCases(
            AND ("leaseExpiresAt" IS NULL OR "leaseExpiresAt" < ${now})
            AND NOT EXISTS (
              SELECT 1
-               FROM "Order"
-              WHERE "Order"."id" = "ExceptionCase"."orderId"
-                AND "Order"."visualPackageAuthority" IS NOT NULL
+              FROM "Order"
+             WHERE "Order"."id" = "ExceptionCase"."orderId"
+                AND (
+                  "Order"."visualPackageAuthority" IS NOT NULL
+                  OR "Order"."selectionFilename" LIKE ${acceptedRevisionPrefix}
+                )
            )
         ORDER BY "nextActionAt" ASC NULLS FIRST, "createdAt" ASC
         LIMIT ${limit}

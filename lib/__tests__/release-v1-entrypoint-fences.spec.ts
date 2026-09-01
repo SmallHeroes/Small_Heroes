@@ -96,6 +96,12 @@ const packageBacked = {
   id: 'package-order',
   visualPackageAuthority: { version: 'frozen-visual-package-authority/v1' },
 };
+const acceptedWithoutAuthority = {
+  id: 'accepted-without-authority',
+  selectionFilename:
+    `story-pipeline/04_approved_story_sources/accepted/chameleon_koko_bedtime/revisions/${'a'.repeat(64)}/integrated.md`,
+  visualPackageAuthority: null,
+};
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -112,6 +118,21 @@ describe('unversioned mutation routes cannot accept package-backed release Order
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ orderId: 'package-order' }),
+    }));
+    expect(response.status).toBe(409);
+    expect(await response.json()).toEqual({ error: 'release_v1_checkout_route_required' });
+    expect(H.orderUpdateMany).not.toHaveBeenCalled();
+    expect(H.reserveCoupon).not.toHaveBeenCalled();
+    expect(H.createPaymeCheckout).not.toHaveBeenCalled();
+  });
+
+  it('checkout cannot degrade an accepted Story Source with missing authority into legacy', async () => {
+    H.orderFindUnique.mockResolvedValue(acceptedWithoutAuthority);
+    const { POST } = await import('@/app/api/checkout/route');
+    const response = await POST(new NextRequest('https://qa.example/api/checkout', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ orderId: acceptedWithoutAuthority.id }),
     }));
     expect(response.status).toBe(409);
     expect(await response.json()).toEqual({ error: 'release_v1_checkout_route_required' });
@@ -144,6 +165,30 @@ describe('unversioned mutation routes cannot accept package-backed release Order
     expect(H.triggerGeneration).not.toHaveBeenCalled();
   });
 
+  it('fake-payment confirm cannot degrade an accepted Story Source with missing authority into legacy', async () => {
+    H.orderFindUnique.mockResolvedValue({
+      ...acceptedWithoutAuthority,
+      status: 'pending_payment',
+      paymentProvider: 'fake',
+      paymentId: 'fake-accepted-order',
+      totalPrice: 7900,
+    });
+    const { POST } = await import('@/app/api/dev/fake-payment/confirm/route');
+    const response = await POST(new NextRequest('https://qa.example/api/dev/fake-payment/confirm', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        orderId: acceptedWithoutAuthority.id,
+        paymentId: 'fake-accepted-order',
+        result: 'success',
+      }),
+    }));
+    expect(response.status).toBe(409);
+    expect(await response.json()).toEqual({ error: 'release_v1_fake_payment_route_required' });
+    expect(H.transaction).not.toHaveBeenCalled();
+    expect(H.triggerGeneration).not.toHaveBeenCalled();
+  });
+
   it('dev resume rejects before resetting the job lease or progress', async () => {
     H.generationJobFindUnique.mockResolvedValue({
       orderId: 'package-order',
@@ -161,6 +206,24 @@ describe('unversioned mutation routes cannot accept package-backed release Order
     expect(H.generationJobUpdate).not.toHaveBeenCalled();
     expect(H.startChunkedGeneration).not.toHaveBeenCalled();
     expect(H.runGenerationWorkerInvocation).not.toHaveBeenCalled();
+  });
+
+  it('dev resume cannot reset an accepted Story Source with missing authority as legacy', async () => {
+    H.generationJobFindUnique.mockResolvedValue({
+      orderId: acceptedWithoutAuthority.id,
+      currentStage: 'page_images',
+      order: acceptedWithoutAuthority,
+    });
+    const { POST } = await import('@/app/api/dev/generation/resume/route');
+    const response = await POST(new NextRequest('https://qa.example/api/dev/generation/resume', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ orderId: acceptedWithoutAuthority.id }),
+    }));
+    expect(response.status).toBe(409);
+    expect(await response.json()).toEqual({ error: 'release_v1_resume_route_required' });
+    expect(H.generationJobUpdate).not.toHaveBeenCalled();
+    expect(H.startChunkedGeneration).not.toHaveBeenCalled();
   });
 
   it('versioned paid CAS=0 with authority drift returns 409 and writes no payment', async () => {
@@ -204,6 +267,143 @@ describe('unversioned mutation routes cannot accept package-backed release Order
       error: 'release_v1_authority_mismatch',
       reasons: ['authority drift'],
     });
+    expect(H.paymentRecordUpsert).not.toHaveBeenCalled();
+    expect(H.triggerGeneration).not.toHaveBeenCalled();
+  });
+
+  it('revalidates a terminal duplicate success snapshot before returning its redirect', async () => {
+    const initial = {
+      ...packageBacked,
+      status: 'pending_payment',
+      paymentProvider: 'fake',
+      paymentId: 'fake-package-order',
+      totalPrice: 7900,
+    };
+    H.orderFindUnique.mockResolvedValue(initial);
+    H.transaction.mockImplementation(async (work) => work({
+      order: {
+        findUnique: vi.fn(async () => ({
+          ...initial,
+          status: 'ready',
+          generationJob: { id: 'job-ready' },
+        })),
+        updateMany: H.orderUpdateMany,
+      },
+      paymentRecord: { upsert: H.paymentRecordUpsert },
+    }));
+    H.requireExpected.mockImplementationOnce(() => {
+      throw new ReleaseV1ContinuityError(['terminal authority drift']);
+    });
+
+    const { POST } = await import('@/app/api/release/v1/fake-payment/confirm/route');
+    const response = await POST(new NextRequest(
+      'https://qa.example/api/release/v1/fake-payment/confirm',
+      {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          orderId: 'package-order',
+          paymentId: 'fake-package-order',
+          result: 'success',
+        }),
+      },
+    ));
+
+    expect(response.status).toBe(409);
+    expect(await response.json()).toEqual({
+      error: 'release_v1_authority_mismatch',
+      reasons: ['terminal authority drift'],
+    });
+    expect(H.orderUpdateMany).not.toHaveBeenCalled();
+    expect(H.paymentRecordUpsert).not.toHaveBeenCalled();
+    expect(H.triggerGeneration).not.toHaveBeenCalled();
+  });
+
+  it('rejects a success callback whose payment attempt was superseded inside the transaction', async () => {
+    const initial = {
+      ...packageBacked,
+      status: 'pending_payment',
+      paymentProvider: 'fake',
+      paymentId: 'fake-attempt-a',
+      totalPrice: 7900,
+    };
+    H.orderFindUnique.mockResolvedValue(initial);
+    H.transaction.mockImplementation(async (work) => work({
+      order: {
+        findUnique: vi.fn(async () => ({
+          ...initial,
+          paymentId: 'fake-attempt-b',
+          generationJob: null,
+        })),
+        updateMany: H.orderUpdateMany,
+      },
+      paymentRecord: { upsert: H.paymentRecordUpsert },
+    }));
+
+    const { POST } = await import('@/app/api/release/v1/fake-payment/confirm/route');
+    const response = await POST(new NextRequest(
+      'https://qa.example/api/release/v1/fake-payment/confirm',
+      {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          orderId: 'package-order',
+          paymentId: 'fake-attempt-a',
+          result: 'success',
+        }),
+      },
+    ));
+
+    expect(response.status).toBe(409);
+    expect(await response.json()).toEqual({
+      error: 'release_v1_authority_mismatch',
+      reasons: ['fake-payment attempt was superseded before paid transition'],
+    });
+    expect(H.orderUpdateMany).not.toHaveBeenCalled();
+    expect(H.paymentRecordUpsert).not.toHaveBeenCalled();
+    expect(H.triggerGeneration).not.toHaveBeenCalled();
+  });
+
+  it('rejects a failure callback whose payment attempt was superseded inside the transaction', async () => {
+    const initial = {
+      ...packageBacked,
+      status: 'pending_payment',
+      paymentProvider: 'fake',
+      paymentId: 'fake-attempt-a',
+      totalPrice: 7900,
+    };
+    H.orderFindUnique.mockResolvedValue(initial);
+    H.transaction.mockImplementation(async (work) => work({
+      order: {
+        findUnique: vi.fn(async () => ({
+          ...initial,
+          paymentId: 'fake-attempt-b',
+        })),
+        updateMany: H.orderUpdateMany,
+      },
+      paymentRecord: { upsert: H.paymentRecordUpsert },
+    }));
+
+    const { POST } = await import('@/app/api/release/v1/fake-payment/confirm/route');
+    const response = await POST(new NextRequest(
+      'https://qa.example/api/release/v1/fake-payment/confirm',
+      {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          orderId: 'package-order',
+          paymentId: 'fake-attempt-a',
+          result: 'failed',
+        }),
+      },
+    ));
+
+    expect(response.status).toBe(409);
+    expect(await response.json()).toEqual({
+      error: 'release_v1_authority_mismatch',
+      reasons: ['fake-payment attempt was superseded before failure transition'],
+    });
+    expect(H.orderUpdateMany).not.toHaveBeenCalled();
     expect(H.paymentRecordUpsert).not.toHaveBeenCalled();
     expect(H.triggerGeneration).not.toHaveBeenCalled();
   });
@@ -255,5 +455,52 @@ describe('unversioned mutation routes cannot accept package-backed release Order
       data: { checkoutAttemptToken: null, checkoutAttemptAt: null },
     });
     expect(H.createPaymeCheckout).not.toHaveBeenCalled();
+  });
+
+  it('versioned fake-checkout publication failure is caught and releases its exact claim', async () => {
+    H.orderFindUnique.mockResolvedValue({
+      ...packageBacked,
+      status: 'draft',
+      storyLength: 'medium',
+      storyDirection: 'bedtime',
+      audioEnabled: false,
+      pdfEnabled: false,
+      bundleEnabled: false,
+      videoEnabled: false,
+      couponCode: null,
+      childImageUrl: null,
+      childName: 'Bar',
+      customerEmail: 'parent@example.com',
+      customerName: 'Parent',
+    });
+    H.orderUpdateMany
+      .mockResolvedValueOnce({ count: 1 })
+      .mockRejectedValueOnce(new Error('fake checkout publication failed'))
+      .mockResolvedValueOnce({ count: 1 });
+
+    const { handleCheckoutPost } = await import('@/app/api/checkout/handler');
+    const response = await handleCheckoutPost(
+      new NextRequest('https://qa.example/api/release/v1/checkout', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          orderId: 'package-order',
+          wizardProductBinding: { version: 'wizard-product-binding/v1' },
+        }),
+      }),
+      { routeProtocol: 'release/v1' },
+    );
+
+    expect(response.status).toBe(500);
+    expect(await response.json()).toEqual({ error: 'Failed to create checkout session' });
+    expect(H.orderUpdateMany).toHaveBeenCalledTimes(3);
+    const lease = H.orderUpdateMany.mock.calls[0]![0];
+    expect(H.orderUpdateMany.mock.calls[2]![0]).toEqual({
+      where: {
+        id: 'package-order',
+        checkoutAttemptToken: lease.data.checkoutAttemptToken,
+      },
+      data: { checkoutAttemptToken: null, checkoutAttemptAt: null },
+    });
   });
 });

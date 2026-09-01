@@ -59,12 +59,12 @@ const nextConfig = {
     const includes = {
       '/api/generate': ['./backend/assets/fonts/**/*', './story-bank/**/*', ...PRODUCT_ACCEPTED_STORY_REVISIONS, ...VISUAL_PACKAGE_V4_AUTHORITIES, ...SET_IDENTITY_BOARD_REGISTRY, ...STYLE01_REFS, ...STYLE01_COMPANION_SHEETS],
       '/api/generate/worker': ['./story-bank/**/*', ...PRODUCT_ACCEPTED_STORY_REVISIONS, ...VISUAL_PACKAGE_V4_AUTHORITIES, ...SET_IDENTITY_BOARD_REGISTRY, ...STYLE01_REFS, ...STYLE01_COMPANION_SHEETS],
-      '/api/release/v1/generate/worker': ['./story-bank/**/*', ...PRODUCT_ACCEPTED_STORY_REVISIONS, ...VISUAL_PACKAGE_V4_AUTHORITIES, ...SET_IDENTITY_BOARD_REGISTRY, ...STYLE01_REFS, ...STYLE01_COMPANION_SHEETS],
+      '/api/release/v1/generate/worker': [...PRODUCT_ACCEPTED_STORY_REVISIONS, ...VISUAL_PACKAGE_V4_AUTHORITIES, ...SET_IDENTITY_BOARD_REGISTRY, ...STYLE01_REFS, ...STYLE01_COMPANION_SHEETS],
       '/api/generate/cron/sweep': ['./story-bank/**/*', ...PRODUCT_ACCEPTED_STORY_REVISIONS, ...VISUAL_PACKAGE_V4_AUTHORITIES, ...SET_IDENTITY_BOARD_REGISTRY, ...STYLE01_REFS, ...STYLE01_COMPANION_SHEETS],
       '/api/dev/generation/resume': ['./story-bank/**/*', ...PRODUCT_ACCEPTED_STORY_REVISIONS, ...VISUAL_PACKAGE_V4_AUTHORITIES, ...SET_IDENTITY_BOARD_REGISTRY, ...STYLE01_REFS, ...STYLE01_COMPANION_SHEETS],
       '/api/dev/runtime-authority-preflight': ['./story-bank/**/*', ...PRODUCT_ACCEPTED_STORY_REVISIONS, ...VISUAL_PACKAGE_V4_AUTHORITIES, ...SET_IDENTITY_BOARD_REGISTRY, ...STYLE01_REFS, ...STYLE01_COMPANION_SHEETS],
       '/api/dev/wizard-preorder-attestation': ['./story-bank/**/*', ...PRODUCT_ACCEPTED_STORY_REVISIONS, ...VISUAL_PACKAGE_V4_AUTHORITIES, ...SET_IDENTITY_BOARD_REGISTRY, ...STYLE01_REFS, ...STYLE01_COMPANION_SHEETS],
-      '/api/release/v1/preorder': [...WIZARD_QA_AUTHORITIES, ...WIZARD_QA_STORIES, ...PRODUCT_ACCEPTED_STORY_REVISIONS, ...VISUAL_PACKAGE_V4_AUTHORITIES, ...SET_IDENTITY_BOARD_REGISTRY, ...STYLE01_REFS, ...STYLE01_COMPANION_SHEETS],
+      '/api/release/v1/preorder': [...WIZARD_QA_AUTHORITIES, ...WIZARD_QA_STORIES, ...PRODUCT_ACCEPTED_STORY_REVISIONS, ...VISUAL_PACKAGE_V4_AUTHORITIES, ...SET_IDENTITY_BOARD_REGISTRY],
       '/api/debug/regen-page': ['./story-bank/**/*', ...PRODUCT_ACCEPTED_STORY_REVISIONS, ...VISUAL_PACKAGE_V4_AUTHORITIES, ...SET_IDENTITY_BOARD_REGISTRY, ...STYLE01_REFS, ...STYLE01_COMPANION_SHEETS],
       '/api/wizard/mvp-matrix': [
         ...WIZARD_QA_AUTHORITIES,
@@ -84,7 +84,6 @@ const nextConfig = {
         ...VISUAL_PACKAGE_V4_AUTHORITIES,
       ],
       '/api/release/v1/orders': [
-        ...WIZARD_QA_STORIES,
         ...PRODUCT_ACCEPTED_STORY_REVISIONS,
         ...VISUAL_PACKAGE_V4_AUTHORITIES,
       ],
@@ -108,16 +107,29 @@ const nextConfig = {
    * branch — excluding ffmpeg there only makes that optional video stage a no-op (caught + logged).
    */
   outputFileTracingExcludes: (() => {
-    const MEDIA = ['node_modules/@ffmpeg-installer/**', 'node_modules/@ffprobe-installer/**'];
-    const HEADLESS = ['node_modules/@sparticuz/chromium/**', 'node_modules/puppeteer-core/**'];
-    const COMPANIONS = ['public/companions/**']; // CDN-served; companion refs fetched by URL in prod
+    const MEDIA = ['./node_modules/@ffmpeg-installer/**/*', './node_modules/@ffprobe-installer/**/*'];
+    const HEADLESS = ['./node_modules/@sparticuz/chromium/**/*', './node_modules/puppeteer-core/**/*'];
+    const COMPANIONS = ['./public/companions/**/*']; // CDN-served; companion refs fetched by URL in prod
     // (#35) Render routes bundle the Style01 companion sheets on disk (see outputFileTracingIncludes) — those are
     // .png + manifest.json with NO URL fallback. Exclude ONLY the raw .jpg source refs (CDN-served by URL) so the
     // exclude can't strip the sheets (Next 15 applies excludes to the combined set AFTER includes). Every non-sheet
     // companion file is a .jpg; the sheets are .png/.json, so this narrowing is exact.
-    const COMPANIONS_SOURCE_JPGS = ['public/companions/**/*.jpg'];
-    const STYLE02 = ['style-references/02/**', 'style-references/style-02-locked-samples/**']; // not used by Style01
-    const ALL_STYLE = ['style-references/**'];
+    const COMPANIONS_SOURCE_JPGS = ['./public/companions/**/*.jpg'];
+    const STYLE02 = ['./style-references/02/**/*', './style-references/style-02-locked-samples/**/*']; // not used by Style01
+    const STYLE01_HISTORICAL = [
+      './style-references/01/_archive/**/*',
+      './style-references/01/_candidates/**/*',
+    ];
+    const ALL_STYLE = ['./style-references/**/*'];
+    const ALL_OUTPUTS = ['./outputs/**/*'];
+    const ALL_PUBLIC = ['./public/**/*'];
+    const SITE_MEDIA = [
+      './public/Images/**/*',
+      './public/Videos/**/*',
+      './public/art-styles/**/*',
+      './public/gallery/**/*',
+      './public/voice-samples/**/*',
+    ];
     // Generation routes: keep Style01 refs (bundled via includes) + story-bank; drop media/headless +
     // companions (CDN) + Style02.
     const GENERATION_ROUTES = [
@@ -148,18 +160,46 @@ const nextConfig = {
     const excludes = {};
     // Generation/render routes: keep the bundled Style01 companion sheets (.png/.json) but still drop the raw .jpg
     // companion source refs (CDN-served) + media/headless + Style02.
-    for (const r of GENERATION_ROUTES) excludes[r] = [...MEDIA, ...HEADLESS, ...COMPANIONS_SOURCE_JPGS, ...STYLE02];
+    for (const r of GENERATION_ROUTES) {
+      excludes[r] = [
+        ...MEDIA,
+        ...HEADLESS,
+        ...COMPANIONS_SOURCE_JPGS,
+        ...STYLE02,
+        ...SITE_MEDIA,
+        ...ALL_OUTPUTS,
+      ];
+    }
+    // The versioned preorder is authority-only; it never renders or reads local
+    // style/companion pixels. Keep its explicit catalog/source/package/Board
+    // includes while allowing ordinary code-dependency tracing to remain intact.
+    excludes['/api/release/v1/preorder'] = [
+      ...MEDIA,
+      ...HEADLESS,
+      ...ALL_PUBLIC,
+      ...ALL_STYLE,
+      ...ALL_OUTPUTS,
+    ];
+    // A release/v1 worker is package-v4-only. Its accepted Story Source is traced
+    // explicitly above; historical story-bank trees and superseded Style01
+    // auditions must not enter this function. The four canonical root refs and
+    // the child-template authority remain explicitly included.
+    excludes['/api/release/v1/generate/worker'].push(
+      './story-bank/**/*',
+      ...STYLE01_HISTORICAL,
+    );
     for (const r of LEAN_ROUTES) {
       excludes[r] = [
         ...MEDIA,
         ...HEADLESS,
-        ...COMPANIONS,
+        ...ALL_PUBLIC,
         ...ALL_STYLE,
-        ...(r === '/api/orders' || r === '/api/release/v1/orders' ? [] : ['story-bank/**']),
+        ...ALL_OUTPUTS,
+        ...(r === '/api/orders' ? [] : ['./story-bank/**/*']),
       ];
     }
     // dev story-bank browser lists the bank → keep story-bank, drop media/headless/companions/all-style.
-    excludes['/api/dev/story-bank'] = [...MEDIA, ...HEADLESS, ...COMPANIONS, ...ALL_STYLE];
+    excludes['/api/dev/story-bank'] = [...MEDIA, ...HEADLESS, ...COMPANIONS, ...ALL_STYLE, ...ALL_OUTPUTS];
     // This debug route hard-403s on every Vercel deployment. Keep the restored
     // Landing marketing media out of its serverless trace so those CDN assets
     // cannot push the otherwise unreachable function over Vercel's bundle cap.
@@ -168,9 +208,10 @@ const nextConfig = {
       ...HEADLESS,
       ...COMPANIONS,
       ...ALL_STYLE,
-      'story-bank/**',
-      'public/Videos/**',
-      'public/Images/**',
+      './story-bank/**/*',
+      './public/Videos/**/*',
+      './public/Images/**/*',
+      ...ALL_OUTPUTS,
     ];
     return excludes;
   })(),

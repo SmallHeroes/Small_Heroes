@@ -751,6 +751,32 @@ describe('ExceptionCase autonomous processor', () => {
     await expect(syncTerminalExceptionCases(prisma as never, NOW)).resolves.toBe(0);
     expect(upsert).not.toHaveBeenCalled();
   });
+
+  it('does not synthesize a legacy refund case for an accepted Story Source missing authority', async () => {
+    const upsert = vi.fn();
+    const prisma = {
+      deliveryOutbox: { findMany: vi.fn(async () => []) },
+      generationJob: {
+        findMany: vi.fn(async () => [{
+          orderId: 'accepted-order',
+          retryable: false,
+          lastError: 'failed',
+          failedAt: NOW,
+          updatedAt: NOW,
+          order: {
+            selectionFilename:
+              `story-pipeline/04_approved_story_sources/accepted/chameleon_koko_bedtime/revisions/${'a'.repeat(64)}/integrated.md`,
+            visualPackageAuthority: null,
+          },
+        }]),
+      },
+      exceptionCase: { findMany: vi.fn(async () => []), upsert },
+      exceptionCaseAudit: { createMany: vi.fn() },
+    };
+
+    await expect(syncTerminalExceptionCases(prisma as never, NOW)).resolves.toBe(0);
+    expect(upsert).not.toHaveBeenCalled();
+  });
 });
 
 describe('#6-fix-3 — quality regen-rescue: reserve → mark → clear → dispatch (Codex-ratified)', () => {

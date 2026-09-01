@@ -52,24 +52,38 @@ bytes are deployed coherently.
   expose a canonical `VERCEL_URL` and generation secret before the flow is advertised or payment is
   mutated.
 - Order creation uses one exact, expiring Wizard-session claim and one atomic claim/customer/Order
-  transaction. Same-session package conflicts, malformed/stale claims, superseded claimants,
-  transaction crashes and P2002 replay cannot store a child photo or return a differently bound
-  Order.
+  transaction. Same-session package conflicts, malformed/stale claims and superseded claimants stop
+  before child-photo storage. If a child-photo upload succeeds but the database transaction rejects,
+  the handler attempts an exact draft-scoped compensating delete before the failure response; a
+  storage failure is emitted as structured deletion-failure evidence and is not misreported as a
+  successful delete. P2002 replay cannot return a differently bound Order. Abrupt process death
+  between upload and persistence remains a storage-lifecycle hardening item, not an atomicity claim.
 - Checkout and paid transitions carry exact authority CAS predicates. A zero-count paid CAS is
-  re-read and classified rather than reported as success. Duplicate confirmation cannot reset an
-  existing job, clear an active lease or dispatch twice; the genuine paid-with-no-job state remains
-  recoverable.
-- Release continuity is persisted in the job cache and cannot be re-pinned by a later deployment.
+  re-read and classified rather than reported as success. The transactional fake-payment boundary
+  also revalidates the exact current payment attempt, so an expired attempt cannot confirm or fail a
+  newer one. Duplicate confirmation cannot reset an existing job, clear an active lease or dispatch
+  twice; the genuine paid-with-no-job state remains recoverable.
+- Release continuity is persisted in the job cache and cannot be re-pinned by a later deployment,
+  including when two first-start calls race on the unique job row.
   The versioned worker validates the exact Order/package/source/deployment both before and after its
   lease and releases a lease on intervening drift. Versioned status recovery is scoped to one
-  authenticated Order; held/terminal Orders are not swept. Generic sweep, dev resume and exception
-  recovery skip package-backed jobs before mutation.
+  authenticated Order and CASes the exact stale job snapshot before reclaim or terminal failure, so
+  it cannot race a newly acquired worker lease. Held/terminal Orders are not swept. Generic sweep,
+  dev resume and exception recovery classify the durable accepted-Story-Source namespace as
+  release/v1 authority even if a historical/corrupt row is missing its package envelope, so that
+  malformed row cannot degrade into legacy mutation or refund handling.
 - `VERCEL_URL` owns the release worker target and the self-chain remains inside the versioned worker
   path. Explicit output-file tracing includes immutable package/source bytes on every versioned
-  route and the full Board/style inputs on preorder and worker. A fresh production build completed
-  successfully and the emitted `.nft.json` files were inspected for those assets.
-- Focused validation is **18 files / 221 tests PASS**. `npx tsc --noEmit`, Wizard JavaScript syntax,
-  `npm run build` and `git diff --check` pass. Literal `npm run check` passed both TypeScript phases;
+  route, Board/catalog inputs on preorder and Board/canonical Style01/companion-sheet inputs on the
+  worker. A fresh production build completed successfully. Applying the configured tracing rules
+  to its NFT manifests with POSIX/Vercel path semantics measured all six release functions below
+  the 250 MiB ceiling; the largest is the worker at **136,378,015 bytes** including its entry file.
+  Historical Story01 auditions, outputs, Story02, raw companion JPGs and site media are absent from
+  that worker closure while the current package/source, two required Boards, six canonical Style01
+  files and seven Koko sheet files remain present.
+- The correction battery is **16 files / 216 tests PASS** in addition to the original milestone's
+  **18 files / 221 tests PASS**. `npx tsc --noEmit`, Wizard JavaScript syntax, `npm run build` and
+  `git diff --check` pass. Literal `npm run check` passed both TypeScript phases;
   its ordinary partition reproduced the established nine missing-`outputs/` assertions and caught
   two handler/inventory test contracts that were corrected and now pass. Its resource partition
   caught three more corrected handler/call-shape contracts plus one unrelated five-second timing

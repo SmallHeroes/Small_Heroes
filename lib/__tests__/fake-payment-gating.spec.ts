@@ -289,6 +289,15 @@ describe('checkout route fake gate', () => {
 });
 
 describe('middleware staging QA gate (open browsing, gated book-creation trigger)', () => {
+  it('keeps both release/v1 fake-payment surfaces inside Next middleware matching', async () => {
+    vi.resetModules();
+    const { config } = await import('@/middleware');
+    expect(config.matcher).toEqual(expect.arrayContaining([
+      '/release/v1/fake-payment',
+      '/api/release/v1/fake-payment/confirm',
+    ]));
+  });
+
   async function run(pathname: string, env: Record<string, string | undefined>, cookie?: string) {
     setEnv({ NODE_ENV: 'production', ...env });
     vi.resetModules();

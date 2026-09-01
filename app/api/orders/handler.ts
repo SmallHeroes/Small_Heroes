@@ -27,7 +27,10 @@ import {
   resolveStoryProductTruth,
   StoryProductResolutionError,
 } from '../../../backend/providers/story-product-resolver';
-import { mergeOriginalChildPhotoUrlIntoAnchors } from '../../../lib/child-photo-deletion';
+import {
+  deleteDraftChildPhotoUpload,
+  mergeOriginalChildPhotoUrlIntoAnchors,
+} from '../../../lib/child-photo-deletion';
 import { buildFrozenStoryProductTruth } from '../../../lib/generation-pipeline/frozen-product-truth';
 import {
   OrderVisualPackageAuthorityError,
@@ -224,6 +227,20 @@ export async function handleOrderPost(
   req: NextRequest,
   options: { routeProtocol: 'legacy-route' | typeof RELEASE_V1_PROTOCOL },
 ) {
+  let releaseDraftUpload: { publicUrl: string; draftScopeId: string } | null = null;
+  const cleanupReleaseDraftUpload = async () => {
+    if (!releaseDraftUpload) return;
+    const pending = releaseDraftUpload;
+    releaseDraftUpload = null;
+    try {
+      await deleteDraftChildPhotoUpload(pending);
+    } catch (cleanupError) {
+      console.error('[POST /api/orders] release/v1 draft child-photo cleanup failed', {
+        draftScopeId: pending.draftScopeId,
+        error: cleanupError instanceof Error ? cleanupError.message : String(cleanupError),
+      });
+    }
+  };
   try {
     const sameOriginError = enforceSameOrigin(req);
     if (sameOriginError) return sameOriginError;
@@ -570,6 +587,12 @@ export async function handleOrderPost(
       : isChildDataUrl
         ? null
         : rawChildImage;
+    if (releaseClaimedSession && isChildDataUrl && childImageUrl) {
+      releaseDraftUpload = {
+        publicUrl: childImageUrl,
+        draftScopeId: uploadScopeId,
+      };
+    }
 
     const legacyParent1Name = toStringOrNull(familyContext?.parent1?.name);
     const legacyParent2Name = toStringOrNull(familyContext?.parent2?.name);
@@ -710,6 +733,7 @@ export async function handleOrderPost(
           return { existingOrder: null, order };
         });
         if (persisted.existingOrder) {
+          await cleanupReleaseDraftUpload();
           return existingOrderResponse(persisted.existingOrder, expectedBinding);
         }
         if (!persisted.order) {
@@ -717,6 +741,7 @@ export async function handleOrderPost(
             'release/v1 Order transaction produced no durable result',
           ]);
         }
+        releaseDraftUpload = null;
         return successResponse(persisted.order.id);
       } catch (error) {
         if (
@@ -728,6 +753,7 @@ export async function handleOrderPost(
             select: { order: { select: EXISTING_ORDER_AUTHORITY_SELECT } },
           });
           if (existing?.order) {
+            await cleanupReleaseDraftUpload();
             return existingOrderResponse(existing.order, expectedBinding);
           }
         }
@@ -763,6 +789,7 @@ export async function handleOrderPost(
     return successResponse(order.id);
 
   } catch (error) {
+    await cleanupReleaseDraftUpload();
     if (error instanceof ReleaseV1ContinuityError) {
       console.warn('[POST /api/orders] release/v1 authority rejected:', error.message);
       return NextResponse.json(

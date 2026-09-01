@@ -183,6 +183,7 @@ describe('ExceptionCase producer + lifecycle', () => {
     expect(sql).toMatch(/"claimVersion" = "claimVersion" \+ 1/);
     expect(sql).toMatch(/"attempts" = "attempts" \+ 1/);
     expect(sql).toMatch(/NOT EXISTS[\s\S]*"Order"\."visualPackageAuthority" IS NOT NULL/);
+    expect(sql).toMatch(/"Order"\."selectionFilename" LIKE/);
   });
 
   it('atomically fences an Outbox terminal and opens its one active case', async () => {

@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { startChunkedGeneration } from '@/lib/generation-chunked/start';
 import { runGenerationWorkerInvocation } from '@/lib/generation-chunked/process-worker';
 import { isDevEnvironment } from '@/lib/dev-only-guard';
+import { orderRequiresVisualPackageAuthority } from '@/lib/generation-pipeline/order-visual-package-authority';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -26,12 +27,25 @@ export async function POST(req: NextRequest) {
 
   const job = await prisma.generationJob.findUnique({
     where: { orderId },
-    include: { order: { select: { visualPackageAuthority: true } } },
+    include: {
+      order: {
+        select: {
+          selectionFilename: true,
+          visualPackageAuthority: true,
+        },
+      },
+    },
   });
   if (!job) {
     return NextResponse.json({ error: 'No generation job' }, { status: 404 });
   }
-  if (job.order.visualPackageAuthority != null) {
+  let releaseV1Required = job.order.visualPackageAuthority != null;
+  try {
+    releaseV1Required ||= orderRequiresVisualPackageAuthority(job.order);
+  } catch {
+    releaseV1Required = true;
+  }
+  if (releaseV1Required) {
     return NextResponse.json(
       { error: 'release_v1_resume_route_required' },
       { status: 409 },

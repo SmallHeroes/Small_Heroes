@@ -23,6 +23,7 @@ import {
   requireExpectedWizardProductBinding,
   type ReleaseV1OrderAuthoritySnapshot,
 } from '@/lib/generation-pipeline/release-v1-continuity';
+import { orderRequiresVisualPackageAuthority } from '@/lib/generation-pipeline/order-visual-package-authority';
 
 const logger = createLogger({ subsystem: 'checkout', route: '/api/checkout' });
 
@@ -240,11 +241,25 @@ export async function handleCheckoutPost(
       logger.warn('Checkout request order not found', { orderId });
       return NextResponse.json({ error: 'Order not found' }, { status: 404 });
     }
-    if (!releaseV1 && order.visualPackageAuthority != null) {
-      return NextResponse.json(
-        { error: 'release_v1_checkout_route_required' },
-        { status: 409 },
-      );
+    if (!releaseV1) {
+      try {
+        if (
+          order.visualPackageAuthority != null ||
+          orderRequiresVisualPackageAuthority(order)
+        ) {
+          return NextResponse.json(
+            { error: 'release_v1_checkout_route_required' },
+            { status: 409 },
+          );
+        }
+      } catch {
+        // A malformed reference that claims the accepted Story Source
+        // namespace must not degrade into the legacy checkout route.
+        return NextResponse.json(
+          { error: 'release_v1_checkout_route_required' },
+          { status: 409 },
+        );
+      }
     }
     if (releaseV1) {
       requireExpectedWizardProductBinding({
@@ -383,7 +398,7 @@ export async function handleCheckoutPost(
         await releaseVersionedCheckoutClaim();
         return NextResponse.json({ error: 'Fake payment is not enabled' }, { status: 403 });
       }
-      return createFakeCheckoutResponse({
+      return await createFakeCheckoutResponse({
         orderId: order.id,
         basePriceAgorot,
         addonsPriceAgorot,
@@ -421,7 +436,7 @@ export async function handleCheckoutPost(
           enableFakePayment: env.ENABLE_FAKE_PAYMENT,
           error: error instanceof Error ? error.message : String(error),
         });
-        return createFakeCheckoutResponse({
+        return await createFakeCheckoutResponse({
           orderId: order.id,
           basePriceAgorot,
           addonsPriceAgorot,

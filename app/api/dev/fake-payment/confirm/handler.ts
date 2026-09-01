@@ -22,6 +22,7 @@ import {
   requireReleaseV1OrderPackage,
   type WizardProductBindingV1,
 } from '@/lib/generation-pipeline/release-v1-continuity';
+import { orderRequiresVisualPackageAuthority } from '@/lib/generation-pipeline/order-visual-package-authority';
 
 const logger = createLogger({ subsystem: 'fake-payment', route: '/api/dev/fake-payment/confirm' });
 
@@ -75,11 +76,23 @@ export async function handleFakePaymentConfirmPost(
     },
   });
   if (!order) return NextResponse.json({ error: 'Order not found' }, { status: 404 });
-  if (!releaseV1 && order.visualPackageAuthority != null) {
-    return NextResponse.json(
-      { error: 'release_v1_fake_payment_route_required' },
-      { status: 409 },
-    );
+  if (!releaseV1) {
+    try {
+      if (
+        order.visualPackageAuthority != null ||
+        orderRequiresVisualPackageAuthority(order)
+      ) {
+        return NextResponse.json(
+          { error: 'release_v1_fake_payment_route_required' },
+          { status: 409 },
+        );
+      }
+    } catch {
+      return NextResponse.json(
+        { error: 'release_v1_fake_payment_route_required' },
+        { status: 409 },
+      );
+    }
   }
   if (order.paymentProvider !== 'fake') return NextResponse.json({ error: 'Order is not in fake payment mode' }, { status: 409 });
   if (order.paymentId !== paymentId) return NextResponse.json({ error: 'Payment id mismatch' }, { status: 409 });
@@ -110,20 +123,34 @@ export async function handleFakePaymentConfirmPost(
         select: {
           ...RELEASE_V1_ORDER_AUTHORITY_SELECT,
           status: true,
+          paymentProvider: true,
+          paymentId: true,
+          totalPrice: true,
         },
       });
       if (!fresh) throw new ReleaseV1ContinuityError(['Order is missing']);
-       if (releaseV1) {
-         requireExpectedWizardProductBinding({
-           order: fresh,
-           expected: releaseBinding,
-         });
-       }
+      if (releaseV1) {
+        requireExpectedWizardProductBinding({
+          order: fresh,
+          expected: releaseBinding,
+        });
+        if (fresh.paymentProvider !== 'fake' || fresh.paymentId !== paymentId) {
+          throw new ReleaseV1ContinuityError([
+            'fake-payment attempt was superseded before failure transition',
+          ]);
+        }
+      }
       const failedTransition = await tx.order.updateMany({
         where: {
           id: fresh.id,
           status: { in: ['draft', 'pending_payment', 'failed'] },
-          ...(releaseV1 ? releaseV1AuthorityCasWhere(fresh) : {}),
+          ...(releaseV1
+            ? {
+                ...releaseV1AuthorityCasWhere(fresh),
+                paymentProvider: 'fake',
+                paymentId,
+              }
+            : {}),
         },
         data: { status: 'failed' },
       });
@@ -138,14 +165,14 @@ export async function handleFakePaymentConfirmPost(
           provider: 'fake',
           paid: false,
           paidAt: null,
-          amount: order.totalPrice,
+          amount: fresh.totalPrice,
           currency: 'ils',
           raw: { mode: 'fake', result: 'failed', paymentId },
         },
         create: {
           orderId: order.id,
           provider: 'fake',
-          amount: order.totalPrice,
+          amount: fresh.totalPrice,
           currency: 'ils',
           paid: false,
           raw: { mode: 'fake', result: 'failed', paymentId },
@@ -181,23 +208,26 @@ export async function handleFakePaymentConfirmPost(
         ...RELEASE_V1_ORDER_AUTHORITY_SELECT,
         status: true,
         totalPrice: true,
+        paymentProvider: true,
+        paymentId: true,
         generationJob: { select: { id: true } },
       },
     });
     if (!fresh) return false;
-    if (['generating', 'ready', 'partial', 'needs_human_qa'].includes(fresh.status)) return false;
-    if (releaseV1 && fresh.status === 'paid') {
-      requireExpectedWizardProductBinding({
-        order: fresh,
-        expected: releaseBinding,
-      });
-      return fresh.generationJob == null;
-    }
     if (releaseV1) {
       requireExpectedWizardProductBinding({
         order: fresh,
         expected: releaseBinding,
       });
+      if (fresh.paymentProvider !== 'fake' || fresh.paymentId !== paymentId) {
+        throw new ReleaseV1ContinuityError([
+          'fake-payment attempt was superseded before paid transition',
+        ]);
+      }
+    }
+    if (['generating', 'ready', 'partial', 'needs_human_qa'].includes(fresh.status)) return false;
+    if (releaseV1 && fresh.status === 'paid') {
+      return fresh.generationJob == null;
     }
 
     // Paid transition — CONDITIONAL so an overlapping success path that has already advanced or
@@ -206,7 +236,13 @@ export async function handleFakePaymentConfirmPost(
       where: {
         id: fresh.id,
         status: { in: ['draft', 'pending_payment', 'failed'] },
-        ...(releaseV1 ? releaseV1AuthorityCasWhere(fresh) : {}),
+        ...(releaseV1
+          ? {
+              ...releaseV1AuthorityCasWhere(fresh),
+              paymentProvider: 'fake',
+              paymentId,
+            }
+          : {}),
       },
       data: {
         status: 'paid',
@@ -222,6 +258,8 @@ export async function handleFakePaymentConfirmPost(
         select: {
           ...RELEASE_V1_ORDER_AUTHORITY_SELECT,
           status: true,
+          paymentProvider: true,
+          paymentId: true,
         },
       });
       if (!current) {
@@ -231,6 +269,11 @@ export async function handleFakePaymentConfirmPost(
         order: current,
         expected: releaseBinding,
       });
+      if (current.paymentProvider !== 'fake' || current.paymentId !== paymentId) {
+        throw new ReleaseV1ContinuityError([
+          'fake-payment attempt was superseded during paid transition',
+        ]);
+      }
       if (['draft', 'pending_payment', 'failed'].includes(current.status)) {
         throw new ReleaseV1ContinuityError([
           'release/v1 paid transition lost without a durable advancement',

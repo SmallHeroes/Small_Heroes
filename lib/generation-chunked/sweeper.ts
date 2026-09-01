@@ -58,7 +58,11 @@ export async function sweepStaleGenerationJobs(
     take: limit,
     select: {
       orderId: true,
+      status: true,
       currentStage: true,
+      lockedBy: true,
+      leaseExpiresAt: true,
+      updatedAt: true,
       staleReclaimCount: true,
       lastReclaimStage: true,
       completedPageNumbers: true,
@@ -143,15 +147,25 @@ export async function sweepStaleGenerationJobs(
     const fingerprint = progressFingerprint(job.currentStage, job.completedPageNumbers);
     const madeProgress = fingerprint !== job.lastReclaimStage;
     const nextCount = madeProgress ? 1 : (job.staleReclaimCount ?? 0) + 1;
+    const releaseObservedStaleJobWhere = {
+      status: job.status,
+      currentStage: job.currentStage,
+      lockedBy: job.lockedBy,
+      leaseExpiresAt: job.leaseExpiresAt,
+      updatedAt: job.updatedAt,
+      staleReclaimCount: job.staleReclaimCount,
+      lastReclaimStage: job.lastReclaimStage,
+    };
 
     if (nextCount > maxReclaims) {
       // Stuck at the same stage with no progress across many reclaims → stop re-spending.
       const reason = `Stalled at stage ${job.currentStage} after ${nextCount - 1} no-progress reclaims`;
-      await prisma.$transaction(async (tx) => {
+      const hardFailed = await prisma.$transaction(async (tx) => {
         const failedJob = options?.releaseProtocol === RELEASE_V1_PROTOCOL
           ? await tx.generationJob.updateMany({
               where: {
                 orderId: job.orderId,
+                ...releaseObservedStaleJobWhere,
                 order: {
                   is: {
                     status: { in: ['paid', 'generating'] },
@@ -184,7 +198,7 @@ export async function sweepStaleGenerationJobs(
               },
             });
         if ('count' in failedJob && failedJob.count !== 1) {
-          throw new Error('release/v1 stalled-job authority changed');
+          return false;
         }
         const failedOrder = options?.releaseProtocol === RELEASE_V1_PROTOCOL
           ? await tx.order.updateMany({
@@ -216,7 +230,9 @@ export async function sweepStaleGenerationJobs(
             fenceExisting: true,
           });
         }
+        return true;
       });
+      if (!hardFailed) continue;
       // (Track-4 Unit 1a, Finding 3) TERMINAL failure (retryable=false, retries exhausted) — the order will never
       // render, so its source photo is no longer needed. Clean it up on the failure path too (not only on success),
       // observably (the hook emits child_photo_deletion_failed on failure). Non-throwing; must not break the sweep.
@@ -231,6 +247,7 @@ export async function sweepStaleGenerationJobs(
       ? await prisma.generationJob.updateMany({
           where: {
             orderId: job.orderId,
+            ...releaseObservedStaleJobWhere,
             order: {
               is: {
                 status: { in: ['paid', 'generating'] },

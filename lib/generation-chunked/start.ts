@@ -179,6 +179,7 @@ export async function startChunkedGeneration(
     return { started: false, orderId, message: 'Awaiting story direction selection' };
   }
 
+  let createdJob = false;
   try {
     await prisma.generationJob.create({
       data: {
@@ -196,10 +197,48 @@ export async function startChunkedGeneration(
         }),
       },
     });
+    createdJob = true;
   } catch (e) {
     if (!(e instanceof Prisma.PrismaClientKnownRequestError) || e.code !== 'P2002') {
       throw e;
     }
+    if (releaseContinuity) {
+      const concurrentJob = await prisma.generationJob.findUnique({
+        where: { orderId },
+        select: { pipelineCache: true },
+      });
+      const concurrentCache =
+        concurrentJob?.pipelineCache &&
+        typeof concurrentJob.pipelineCache === 'object' &&
+        !Array.isArray(concurrentJob.pipelineCache)
+          ? (concurrentJob.pipelineCache as Record<string, unknown>)
+          : null;
+      const durable = parseGenerationReleaseContinuityV1(
+        concurrentCache?.releaseContinuity,
+      );
+      if (
+        canonicalJsonDigest(durable) !==
+        canonicalJsonDigest(releaseContinuity)
+      ) {
+        throw new ReleaseV1ContinuityError([
+          'concurrent generation job is pinned to another deployment',
+        ]);
+      }
+      // Another exact release/v1 starter won the unique create. It owns the
+      // status claim, cache and dispatch; this loser must not reset its lease,
+      // progress or durable deployment continuity.
+      return {
+        started: true,
+        orderId,
+        message: 'Release generation job was created concurrently',
+      };
+    }
+  }
+
+  if (releaseContinuity && !createdJob) {
+    throw new ReleaseV1ContinuityError([
+      'release generation job creation produced no durable owner',
+    ]);
   }
 
   const regenResumePatch = recoveryRedrive ? await computeRegenResumeJobPatch(orderId) : null;

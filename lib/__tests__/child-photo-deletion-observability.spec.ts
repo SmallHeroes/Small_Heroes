@@ -7,7 +7,9 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 const orderFindUnique = vi.fn();
 const orderUpdate = vi.fn(async () => ({}));
 vi.mock('@/lib/prisma', () => ({ prisma: { order: { findUnique: orderFindUnique, update: orderUpdate, findMany: vi.fn(async () => []) } } }));
-const remove = vi.fn(async () => ({ error: { message: 'storage boom' } })); // deletion FAILS
+const remove = vi.fn(async (): Promise<{ error: { message: string } | null }> => ({
+  error: { message: 'storage boom' },
+})); // deletion FAILS
 vi.mock('@supabase/supabase-js', () => ({
   createClient: () => ({ storage: { from: () => ({ remove, list: async () => ({ data: [], error: null }) }) } }),
 }));
@@ -47,5 +49,34 @@ describe('child-photo deletion observability', () => {
     expect(analytics).toMatch(/child_photo_deletion_failed/);
     // the order was NOT scrubbed (childImageUrl not nulled) because deletion failed — it awaits sweeper retry
     expect(orderUpdate).not.toHaveBeenCalled();
+  });
+
+  it('compensating cleanup deletes only the exact release draft reference key', async () => {
+    remove.mockResolvedValueOnce({ error: null });
+    const { deleteDraftChildPhotoUpload } = await import('@/lib/child-photo-deletion');
+
+    await deleteDraftChildPhotoUpload({
+      publicUrl:
+        'https://proj.supabase.co/storage/v1/object/public/book-images/' +
+        'orders/draft-release-1/references/main-child-123.png',
+      draftScopeId: 'draft-release-1',
+    });
+
+    expect(remove).toHaveBeenCalledWith([
+      'orders/draft-release-1/references/main-child-123.png',
+    ]);
+  });
+
+  it('refuses to compensate a photo outside the exact draft scope', async () => {
+    const { deleteDraftChildPhotoUpload } = await import('@/lib/child-photo-deletion');
+
+    await expect(deleteDraftChildPhotoUpload({
+      publicUrl:
+        'https://proj.supabase.co/storage/v1/object/public/book-images/' +
+        'orders/draft-other/references/main-child-123.png',
+      draftScopeId: 'draft-release-1',
+    })).rejects.toThrow('draft_child_photo_cleanup_scope_mismatch');
+
+    expect(remove).not.toHaveBeenCalled();
   });
 });

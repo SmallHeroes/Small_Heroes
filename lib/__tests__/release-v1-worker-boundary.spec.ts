@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const H = vi.hoisted(() => ({
   orderFindUnique: vi.fn(),
@@ -9,6 +9,11 @@ const H = vi.hoisted(() => ({
   requirePackage: vi.fn(),
   requireExpected: vi.fn(),
   requireOrderAuthority: vi.fn(),
+  jobFindMany: vi.fn(),
+  jobUpdateMany: vi.fn(),
+  orderUpdateMany: vi.fn(),
+  transaction: vi.fn(),
+  deletePhoto: vi.fn(),
 }));
 
 const continuity = {
@@ -29,7 +34,17 @@ const binding = {
 };
 
 vi.mock('@/lib/prisma', () => ({
-  prisma: { order: { findUnique: H.orderFindUnique } },
+  prisma: {
+    order: {
+      findUnique: H.orderFindUnique,
+      updateMany: H.orderUpdateMany,
+    },
+    generationJob: {
+      findMany: H.jobFindMany,
+      updateMany: H.jobUpdateMany,
+    },
+    $transaction: H.transaction,
+  },
 }));
 vi.mock('@/lib/generation-chunked/lease', () => ({
   acquireGenerationLease: H.acquire,
@@ -60,6 +75,15 @@ vi.mock('@/lib/generation-pipeline/release-v1-continuity', async (importOriginal
 vi.mock('@/lib/generation-pipeline/order-visual-package-authority', () => ({
   requireOrderVisualPackageAuthority: H.requireOrderAuthority,
 }));
+vi.mock('@/lib/child-photo-deletion', () => ({
+  tryDeleteOriginalChildPhotoAfterGeneration: H.deletePhoto,
+}));
+vi.mock('@/lib/generation-pipeline/readiness-manifest', () => ({
+  isReadinessManifestEnabled: vi.fn(() => false),
+}));
+vi.mock('@/lib/generation-chunked/exception-case', () => ({
+  openExceptionCase: vi.fn(),
+}));
 
 const order = {
   id: 'release-worker-order',
@@ -80,6 +104,17 @@ beforeEach(() => {
   H.process.mockResolvedValue({ done: true, stage: 'done' });
   H.requirePackage.mockReturnValue({ binding });
   H.requireExpected.mockReturnValue(binding);
+  H.jobUpdateMany.mockResolvedValue({ count: 1 });
+  H.orderUpdateMany.mockResolvedValue({ count: 1 });
+  H.deletePhoto.mockResolvedValue(undefined);
+  H.transaction.mockImplementation(async (work) => work({
+    generationJob: { updateMany: H.jobUpdateMany },
+    order: { updateMany: H.orderUpdateMany },
+  }));
+});
+
+afterEach(() => {
+  vi.unstubAllEnvs();
 });
 
 describe('release/v1 worker admission surrounds the lease boundary', () => {
@@ -126,5 +161,54 @@ describe('release/v1 worker admission surrounds the lease boundary', () => {
     })).rejects.toThrow(/became ineligible after lease/u);
     expect(H.release).toHaveBeenCalledWith(order.id, 'worker-lease');
     expect(H.process).not.toHaveBeenCalled();
+  });
+});
+
+describe('release/v1 stale recovery owns an exact observed job snapshot', () => {
+  it('does not hard-fail the Order when a worker acquires the lease after stale selection', async () => {
+    vi.stubEnv('GENERATION_MAX_STALE_RECLAIMS', '3');
+    const observedAt = new Date('2026-09-01T12:00:00.000Z');
+    const staleJob = {
+      orderId: order.id,
+      status: 'running',
+      currentStage: 'page_images',
+      lockedBy: null,
+      leaseExpiresAt: null,
+      updatedAt: observedAt,
+      staleReclaimCount: 3,
+      lastReclaimStage: 'page_images:0',
+      completedPageNumbers: [],
+      pipelineCache: { releaseContinuity: continuity },
+      order,
+    };
+    H.jobFindMany.mockResolvedValueOnce([staleJob]);
+    H.orderFindUnique.mockResolvedValueOnce(order);
+    // Simulate a worker acquiring the lease between findMany and the hard-fail CAS.
+    H.jobUpdateMany.mockResolvedValueOnce({ count: 0 });
+
+    const { sweepStaleGenerationJobs } = await import(
+      '@/lib/generation-chunked/sweeper'
+    );
+    const processed = await sweepStaleGenerationJobs(1, {
+      orderId: order.id,
+      releaseProtocol: 'release/v1',
+    });
+
+    expect(processed).toBe(0);
+    expect(H.jobUpdateMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({
+        orderId: order.id,
+        status: 'running',
+        currentStage: 'page_images',
+        lockedBy: null,
+        leaseExpiresAt: null,
+        updatedAt: observedAt,
+        staleReclaimCount: 3,
+        lastReclaimStage: 'page_images:0',
+      }),
+    }));
+    expect(H.orderUpdateMany).not.toHaveBeenCalled();
+    expect(H.deletePhoto).not.toHaveBeenCalled();
+    expect(H.chain).not.toHaveBeenCalled();
   });
 });
