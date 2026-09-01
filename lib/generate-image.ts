@@ -314,6 +314,28 @@ export interface GPTImageRequestPlan {
   };
 }
 
+/** Exact documented/observed provider character limit for `prompt`. */
+export const GPT_IMAGE_PROMPT_MAX_CHARS = 32_000;
+
+export class GPTImagePromptTooLongError extends Error {
+  readonly code = 'gpt_image_prompt_too_long' as const;
+
+  constructor(
+    readonly promptLength: number,
+    readonly providerPromptLength: number,
+    readonly promptUtf8Bytes: number,
+    readonly maxPromptLength = GPT_IMAGE_PROMPT_MAX_CHARS,
+  ) {
+    super(
+      `[GPTImage] prompt chars=${promptLength} providerChars=${providerPromptLength} ` +
+        `utf8Bytes=${promptUtf8Bytes} exceeds the provider character limit ` +
+        `chars<=${maxPromptLength}; ` +
+        'compact authoritative prompt assembly before retrying',
+    );
+    this.name = 'GPTImagePromptTooLongError';
+  }
+}
+
 function resolveEnvGPTQuality(): 'low' | 'medium' | 'high' {
   const q = process.env.GPT_IMAGE_QUALITY?.trim().toLowerCase();
   if (q === 'low' || q === 'medium' || q === 'high') return q;
@@ -506,6 +528,26 @@ export function planGPTImageRequest(
     if (!/\btext\b/i.test(input.negativePrompt)) {
       finalPrompt += '\nNo text or letters in the image.';
     }
+  }
+  // `images.edit` is multipart/FormData. Undici normalizes lone LF/CR line endings
+  // to CRLF in multipart string fields; this exactly explains the provider count
+  // being larger than JavaScript `.length` on the incident request.
+  const providerPromptLength =
+    apiMode === 'images.edit'
+      ? finalPrompt.replace(/\r\n|\r|\n/g, '\r\n').length
+      : finalPrompt.length;
+  const promptUtf8Bytes = Buffer.byteLength(finalPrompt, 'utf8');
+  if (
+    finalPrompt.length > GPT_IMAGE_PROMPT_MAX_CHARS ||
+    providerPromptLength > GPT_IMAGE_PROMPT_MAX_CHARS
+  ) {
+    // Fail before reference downloads or the OpenAI call. Silent truncation would discard
+    // authority and a provider-side 400 would otherwise be retried as paid render work.
+    throw new GPTImagePromptTooLongError(
+      finalPrompt.length,
+      providerPromptLength,
+      promptUtf8Bytes,
+    );
   }
   const model = (
     input.modelOverride ??

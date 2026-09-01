@@ -63,7 +63,10 @@ import {
   type ChunkStage,
 } from '@/lib/generation-chunked/constants';
 import { selectAuditionPageNumbers } from '@/lib/generation-chunked/audition-limit';
-import { buildArtifactIdempotencyKey, isValidImageAssetUrl } from '@/lib/generation-chunked/artifact-keys';
+import {
+  buildArtifactIdempotencyKey,
+  isValidImageAssetUrl,
+} from '@/lib/generation-chunked/artifact-keys';
 import {
   findExistingPageImageAsset,
   shouldSkipPaidPageImageRegen,
@@ -135,7 +138,11 @@ import {
   applyDevHairOverrideToPhotoDescription,
   resolveDevChildHairOverride,
 } from '@/lib/child-photo-hair';
-import { STYLE_01_AVOIDANCE_NEGATIVE, assertCompanionSheetRenderable } from '@/lib/style01-gptimage';
+import {
+  STYLE_01_AVOIDANCE_NEGATIVE,
+  assertCompanionSheetRenderable,
+  resolveStyle01GptModel,
+} from '@/lib/style01-gptimage';
 import {
   buildStage0MethodBPrompt,
   generateStage0DescriptionTemplateAnchor,
@@ -1998,7 +2005,7 @@ async function runPageImagesChunk(
     process.env.ENABLE_PRESENTATION_POSTPROCESS !== 'false' &&
     process.env.SKIP_ILLUSTRATION_PRESENTATION !== 'true';
 
-  const model = process.env.STYLE_01_GPT_MODEL?.trim() || 'gpt-image-2';
+  const model = resolveStyle01GptModel();
   const quality = process.env.GPT_IMAGE_QUALITY?.trim() || 'low';
 
   for (const dbPage of pagesToRender) {

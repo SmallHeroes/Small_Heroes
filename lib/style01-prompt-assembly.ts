@@ -391,11 +391,12 @@ export function assembleStyle01Phase2Prompt(
     ]
       .filter(Boolean)
       .join('\n\n');
+    // The serialized Runtime Blueprint block above is the sole frame authority. Repeating its
+    // digest, camera, placements and text-safe geometry here made dense approved pages exceed
+    // GPT Image's request limit without adding any information. Keep only the obedience rule.
     const framingRule = [
       'PVB FRAMING RULE — immutable approved frame:',
-      `Frame ${frame.frameId} (${frame.frameDigest}); camera ${frame.camera.shot}/${frame.camera.angle}.`,
-      `Exact normalized placements: ${JSON.stringify(frame.placements)}.`,
-      `Text-safe ${frame.layoutPlan.textZone}: ${JSON.stringify(frame.layoutPlan.textSafeRegion)}.`,
+      'Obey the exact camera, normalized placements, and text-safe region in the sole Runtime Blueprint frame above.',
       'Do not crop, remap, quantize, or replan this frame.',
     ].join('\n');
     const effectivePageTimeOfDay =
@@ -424,12 +425,17 @@ export function assembleStyle01Phase2Prompt(
       companionTextLock,
       supportingCharacterLock,
       environmentLock: [
-        `EXACT LOCATION/ZONE: ${frame.locationId} / ${frame.zoneId}.`,
-        `EXACT TIME: ${effectivePageTimeOfDay}.`,
-        `CONTINUITY: ${JSON.stringify(frame.continuity)}.`,
-        `SUPPORTING GEOMETRY: ${JSON.stringify(frame.worldGeometry)}.`,
-        `AFFORDANCES: ${JSON.stringify(frame.affordances)}.`,
-        `CONNECTIONS: ${JSON.stringify(frame.connections)}.`,
+        // locationId, zoneId and continuity are already serialized in the sole Runtime Blueprint
+        // frame. The detailed world records below are not: the frame carries only their IDs, so
+        // they remain once as the deterministic lookup payload used by the renderer.
+        '[PVB WORLD DETAILS — referenced by the Runtime Blueprint frame]',
+        JSON.stringify({
+          timeOfDay: effectivePageTimeOfDay,
+          worldGeometry: frame.worldGeometry,
+          affordances: frame.affordances,
+          connections: frame.connections,
+        }),
+        'Use these world details only where referenced by the approved frame; do not invent alternate geometry or routes.',
         buildStyle01AnatomyIntegrityLock(),
       ].join('\n\n'),
       compositionBlock,

@@ -1,5 +1,65 @@
 # SmallHeroes — Current Technical State
 
+## R1D — same-Order GPT Image ceiling recovery (local green; independent re-gate pending)
+
+The approved Lavi/Chameleon release Order `cmtj2vvrw0002ju04a9covxqv` remains the sole
+recovery target. Its accepted child anchor, cover and pages 1–6 are durably retained. Page 7
+failed before provider image bytes because the final multipart prompt reached 32,603 characters
+against GPT Image's 32,000-character ceiling; pages 7–8, audio and packaging remain incomplete.
+No replacement Order, checkout or payment is permitted.
+
+The local correction in `C:\GNart\Work\sh-release-reader-final` on
+`codex/r1d-release-reader-voice-final` removes only redundant PVB serialization. The exact Runtime
+Blueprint remains the sole frame authority, while Visual Contract facts, typed action geometry,
+identity/style/safety locks and the detailed world records remain present. The approved dense page-7
+request now has explicit headroom below 30,000 characters after the same reference prefix, negative
+prompt and multipart CRLF normalization used at the provider boundary. A shared pre-provider guard
+rejects any request above 32,000 characters before reference downloads or OpenAI I/O; UTF-8 byte
+length remains diagnostic only because the provider contract is character-based.
+
+An authenticated `POST /api/release/v1/generate/resume` operation is added only for explicitly
+enabled Vercel Preview deployments. Its `inspect` phase is read-only. `apply` requires the exact
+inspect snapshot digest, frozen Story Source/package binding, failed immutable deployment,
+paid-payment identity, retryable unlocked job, preserved cache authority, exact 6/8 artifact
+inventory and successful SHA-256 inspection of the delivered cover/pages. Under PostgreSQL row
+locks it re-reads the snapshot, CASes only the same Order/job, records a durable recovery audit,
+re-pins continuity to the server-derived immutable Preview and dispatches once after commit. It
+preserves the existing Order, payment, Book, cover, pages/assets, failure counters and all
+barrier-owned cache keys. The page-image writer and recovery preflight now use the same Style 01
+model resolver, so retained idempotency keys are compared to the model the provider path actually
+uses; the existing default and the explicit Preview model are unchanged.
+
+Evidence on the current working bytes:
+
+- Focused prompt, dense package, recovery, route, continuity, cache, writer-coverage and
+  idempotency validation is **10 files / 113 tests PASS**. The dense package regression exercises
+  the shipped prompt/provider seam for cover plus all eight pages and proves page 7 is the largest
+  request without dropping Blueprint camera, placements, text-safe, action, world or continuity
+  authority.
+- `npx tsc --noEmit`, `git diff --check` and `npm run build` pass; the production build compiled
+  successfully and generated **39/39** static pages. Existing Prisma deprecation and skipped-local-
+  env-validation warnings remain. `ENABLE_V3_APPROVED_BANK=true npm run release-check` also passes
+  its product/config gate (**18/18 sellable; 1/18 currently render-qualified**); the local DB-schema
+  sub-check is explicitly skipped because this worktree does not carry `DATABASE_URL`.
+- Literal `npm run check` passed both TypeScript phases. Before the two new expected contracts were
+  corrected, its ordinary Vitest phase reported **4,432 passing assertions / 12 failures**: the
+  prompt-fidelity and workload-inventory assertions introduced by this milestone now pass in the
+  focused suite; the remaining ten are the established missing ignored `outputs/` fixtures. The
+  resource phase completed **20/20 files and 633/633 assertions PASS**, then Vitest emitted three
+  known `onTaskUpdate` RPC timeouts, so the literal repository gate remains accurately red rather
+  than being relabeled green.
+- Two read-only adversarial implementation reviews found and closed the multilingual byte-limit,
+  model/idempotency-default and nondeterministic exception-order issues. The remaining limitation is
+  that the nine-row PostgreSQL lock sequence is covered by mocked transaction tests, not a live
+  concurrency harness; the deployed `inspect` phase must therefore validate the real Preview
+  snapshot before any mutation.
+
+No deployment, database mutation, payment call, provider call, new image/audio generation or push
+has occurred in this recovery milestone. The next gate is an independent Claude Code review of the
+focused immutable commit. Only PASS permits one corrective Preview deployment, one read-only
+`inspect`, and one guarded `apply` for this same Order; Production remains untouched. After terminal
+completion, Guy must eyeball pages 7–8 and the complete Reader.
+
 ## R1D — decoded Reader turns and mounted-settlement closure (focused green; re-gate pending)
 
 The first independent Claude Code review of `3a7fd900..80953aa1` returned PASS, but its image-

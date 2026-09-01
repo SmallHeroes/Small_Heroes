@@ -14,6 +14,29 @@ export type PipelineCache = {
    */
   releaseContinuity?: import('./release-v1-continuity').GenerationReleaseContinuityV1;
   /**
+   * Reviewed release/v1 recovery history. The recovery endpoint writes this together
+   * with the new immutable deployment continuity, preserving every other cache
+   * key. It is also the idempotency fence for a repeated apply request.
+   */
+  releaseRecovery?: {
+    version: 'release-v1-recovery-log/v1';
+    attempts: Array<{
+      version: 'release-v1-recovery-attempt/v1';
+      attemptId: string;
+      reason: 'reviewed_code_fix_resume';
+      snapshotDigest: string;
+      oldContinuityDigest: string;
+      newContinuityDigest: string;
+      previousFailedAt: string;
+      previousLastErrorDigest: string | null;
+      retainedArtifactDigests: {
+        cover: string;
+        pages: Array<{ pageNumber: number; sha256: string }>;
+      };
+      recoveredAt: string;
+    }>;
+  };
+  /**
    * Story `.md` reference. Stored REPO-RELATIVE (posix) — never an absolute/`process.cwd()` path —
    * so the cross-chunk cache-invariant guard does not flag it (0095 P0). Resolve to absolute via
    * `resolveCachedStoryFilePath()` (lib/generation-pipeline/story-path.ts). Legacy in-flight caches may

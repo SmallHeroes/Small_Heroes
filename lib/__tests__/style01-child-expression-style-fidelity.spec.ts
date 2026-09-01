@@ -278,7 +278,10 @@ describe('Style 01 child expression and small-frame fidelity', () => {
     expect(assembled.prompt).toContain('photographed gaze, mouth pose, smile');
     expect(assembled.prompt).not.toContain('broad open smile');
     expect(assembled.prompt).not.toContain('recognisable smile');
-    expect(assembled.prompt).toContain(JSON.stringify(authority.placements));
+    expect(assembled.prompt).toContain(
+      'Obey the exact camera, normalized placements, and text-safe region in the sole Runtime Blueprint frame above.',
+    );
+    expect(assembled.prompt).not.toContain(JSON.stringify(authority.placements));
     expect(authority.placements).toEqual(placementsBefore);
   });
 

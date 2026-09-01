@@ -48,8 +48,10 @@ export {
 export const STYLE_01_GPT_MODEL_DEFAULT = 'gpt-image-1';
 
 /** Escalation: set STYLE_01_GPT_MODEL=gpt-image-2 to re-run same lock architecture on gpt-image-2. */
-export function resolveStyle01GptModel(): string {
-  const raw = process.env.STYLE_01_GPT_MODEL?.trim();
+export function resolveStyle01GptModel(
+  env: NodeJS.ProcessEnv = process.env,
+): string {
+  const raw = env.STYLE_01_GPT_MODEL?.trim();
   return raw || STYLE_01_GPT_MODEL_DEFAULT;
 }
 

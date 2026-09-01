@@ -16,6 +16,7 @@ import {
 import {
   buildFrozenVisualPackageAuthority,
   canonicalJsonDigest,
+  loadVisualPackageV4Revision,
 } from '@/lib/visual-package';
 import {
   bindApprovedPvbRuntimeAuthority,
@@ -29,11 +30,22 @@ import {
   buildPvbTypedActionGeometryBlock,
 } from '@/lib/style01-prompt-assembly';
 import {
+  STYLE_01_AVOIDANCE_NEGATIVE,
   STYLE_01_ANTI_STYLE02,
   STYLE_01_RENDERING_CORRECTION,
 } from '@/lib/style01-gptimage';
 import { buildStyle01AnatomyIntegrityLock } from '@/lib/style01-visual-polish';
 import { CHAMELEON_KOKO_APPEARANCE_STATE_AUTHORITY } from '@/lib/companion-appearance-state';
+import {
+  GPT_IMAGE_PROMPT_MAX_CHARS,
+  planGPTImageRequest,
+} from '@/lib/generate-image';
+import { loadRegistryEntry } from '@/lib/set-identity-board/registry';
+import { setIdentityBoardRegistryPath } from '@/lib/set-identity-board/registryPath';
+import {
+  resolveBoardBindings,
+  type BoardResolverDeps,
+} from '@/lib/set-identity-board/resolveBoards';
 
 import {
   RuntimeBlueprintCanvasError,
@@ -88,6 +100,9 @@ const FAMILY: ResolvedFamilyAppearanceProfile = {
   hairTexture: 'wavy',
 };
 
+const DENSE_APPROVED_PACKAGE_PATH =
+  'visual-packages/approved/revisions/836a3414174dbe3060010371e81ebdbef821f705650a199cc4bbfd70081d523f.visual-package.json';
+
 function authority(
   shape: BlueprintFixtureShape = 'no_companion',
   options?: Parameters<typeof buildVisualPackageV4Fixture>[2],
@@ -136,6 +151,85 @@ function authority(
       frozen: frozenAuthority,
     }),
     bookProjection,
+    orderVisualPackageAuthorityRequired: false,
+  };
+}
+
+async function denseApprovedAuthority(): Promise<Style01RuntimeAuthority> {
+  const packageValue = loadVisualPackageV4Revision({
+    repoRoot: process.cwd(),
+    packagePath: DENSE_APPROVED_PACKAGE_PATH,
+  });
+  const frozenAuthority = buildFrozenVisualPackageAuthority({
+    packageValue,
+    packagePath: DENSE_APPROVED_PACKAGE_PATH,
+  });
+  const contract = bindApprovedPvbRuntimeAuthority(
+    materialize(
+      structuredClone(packageValue.visualContractTemplate.content),
+      FAMILY,
+    ),
+    packageValue,
+    frozenAuthority,
+  );
+  const contractHash = computeVisualContractHash(contract);
+  const assetShaByStorageKey = new Map<string, string>();
+  const boardResolverDeps: BoardResolverDeps = {
+    loadRegistryEntry(key) {
+      const entry = loadRegistryEntry(
+        setIdentityBoardRegistryPath(
+          key,
+          `${process.cwd()}/set-identity-boards`,
+        ),
+      );
+      if (entry) assetShaByStorageKey.set(entry.storageKey, entry.assetSha256);
+      return entry;
+    },
+    async resolveDurableUrl(storageKey) {
+      return `https://preflight.invalid/${encodeURIComponent(storageKey)}`;
+    },
+    async fetchAssetSha256(storageKey) {
+      return assetShaByStorageKey.get(storageKey) ?? null;
+    },
+  };
+  const boardBindings = await resolveBoardBindings(
+    {
+      contract,
+      styleId: packageValue.styleId,
+      frozenContractHash: contractHash,
+      frozenRequiredBoards: packageValue.requiredBoards,
+    },
+    boardResolverDeps,
+  );
+  const bookProjection = buildRuntimeBlueprintBookProjection({
+    packageValue,
+    frozenAuthority,
+    contract,
+  });
+  return {
+    version: 'style01-runtime-authority/v7',
+    repoRoot: process.cwd(),
+    qualification: {
+      storyKey: packageValue.storyKey,
+      styleId: packageValue.styleId,
+      approvedPackagePath: DENSE_APPROVED_PACKAGE_PATH,
+      renderQualified: true,
+      reasons: [],
+      packageValue,
+      template: packageValue.visualContractTemplate.content,
+      frozenAuthority,
+      orderVisualPackageAuthorityRequired: false,
+    },
+    packageValue,
+    frozenAuthority,
+    contract,
+    contractHash,
+    packageBinding: buildApprovedPvbRuntimeAuthorityBinding({
+      packageValue,
+      frozen: frozenAuthority,
+    }),
+    bookProjection,
+    boardBindings,
     orderVisualPackageAuthorityRequired: false,
   };
 }
@@ -564,6 +658,95 @@ describe('R1D-PVB-C shared runtime Blueprint authority', () => {
     expect(fetch).not.toHaveBeenCalled();
   });
 
+  it('keeps the approved dense page-7 request below the exact GPT Image wire ceiling without dropping authority', async () => {
+    const runtime = await denseApprovedAuthority();
+    const frame = requireRuntimeBlueprintFrame(runtime.bookProjection, 7);
+    const plans = new Map<number, ReturnType<typeof planGPTImageRequest>>();
+    for (let pageNumber = 0; pageNumber <= 8; pageNumber += 1) {
+      await generateImage({
+        ...imageInput(runtime),
+        pageNumber,
+        totalPages: 8,
+        assetType: pageNumber === 0 ? 'cover' : 'page',
+        childFirstName: 'Lavi',
+        childAge: 5,
+        childGender: 'boy',
+        childDescription:
+          'young boy; straight light-brown hair; warm fair skin; oval child face; grey-green eyes',
+        companion: {
+          id: 'chameleon_koko',
+          name: 'Koko',
+          tagline: '',
+          narrativeHook: '',
+          image: '',
+          visualDescription: 'small natural chameleon',
+        },
+      });
+      const providerInput = generateGptSpy.mock.calls[
+        generateGptSpy.mock.calls.length - 1
+      ]?.[0] as Parameters<
+        typeof planGPTImageRequest
+      >[0];
+      expect(providerInput.negativePrompt).toBe(STYLE_01_AVOIDANCE_NEGATIVE);
+      const pagePlan = planGPTImageRequest(providerInput, {
+        defaultModel: 'gpt-image-1',
+        defaultQuality: 'low',
+        maxReferences: 16,
+      });
+      expect(pagePlan.finalPrompt.length).toBeLessThanOrEqual(
+        GPT_IMAGE_PROMPT_MAX_CHARS,
+      );
+      expect(
+        pagePlan.finalPrompt.replace(/\r\n|\r|\n/g, '\r\n').length,
+      ).toBeLessThanOrEqual(GPT_IMAGE_PROMPT_MAX_CHARS);
+      plans.set(pageNumber, pagePlan);
+    }
+
+    const plan = plans.get(7);
+    if (!plan) throw new Error('dense page-7 request plan missing');
+    const largest = [...plans.entries()].sort(
+      (left, right) => right[1].finalPrompt.length - left[1].finalPrompt.length,
+    )[0];
+    expect(largest?.[0]).toBe(7);
+    expect(plan.finalPrompt.length).toBeLessThanOrEqual(30_000);
+    expect(
+      plan.finalPrompt.replace(/\r\n|\r|\n/g, '\r\n').length,
+    ).toBeLessThanOrEqual(30_000);
+
+    const providerInput = generateGptSpy.mock.calls[
+      generateGptSpy.mock.calls.length - 2
+    ]?.[0] as Parameters<
+      typeof planGPTImageRequest
+    >[0];
+    expect(providerInput.negativePrompt).toBe(STYLE_01_AVOIDANCE_NEGATIVE);
+    expect(plan.finalPrompt.match(/\[PVB RUNTIME FRAME/g)).toHaveLength(1);
+    expect(plan.finalPrompt.match(/=== VISUAL CONTRACT FACTS/g)).toHaveLength(1);
+    expect(plan.finalPrompt).toContain(frame.frameDigest);
+    expect(plan.finalPrompt).toContain(JSON.stringify(frame.camera));
+    expect(plan.finalPrompt).toContain(
+      JSON.stringify(
+        frame.placements.map(({ id, subject, region, depth, importance }) => ({
+          id,
+          subject,
+          region,
+          depth,
+          importance,
+        })),
+      ),
+    );
+    expect(plan.finalPrompt).toContain(JSON.stringify(frame.continuity));
+    expect(plan.finalPrompt).toContain(
+      JSON.stringify(frame.layoutPlan.textSafeRegion),
+    );
+    expect(plan.finalPrompt).toContain(JSON.stringify(frame.worldGeometry));
+    expect(plan.finalPrompt).toContain(JSON.stringify(frame.affordances));
+    expect(plan.finalPrompt).toContain(JSON.stringify(frame.connections));
+    for (const action of frame.contractPage.actionRequirements ?? []) {
+      expect(plan.finalPrompt).toContain(action.checkId);
+      expect(plan.finalPrompt).toContain(action.predicate);
+    }
+  });
+
   it('removes internal spatial markers from active narrative, location, forbidden, and final provider prompt paths only', async () => {
     const markedVisible =
       'the child looks across the stable clear floor plane [spatial:floor]';
@@ -645,9 +828,7 @@ describe('R1D-PVB-C shared runtime Blueprint authority', () => {
       finalPrompt: string;
     };
     expect(providerInput.finalPrompt).toContain(frame.frameId);
-    expect(providerInput.finalPrompt).toContain(
-      `camera ${frame.camera.shot}/${frame.camera.angle}`,
-    );
+    expect(providerInput.finalPrompt).toContain(JSON.stringify(frame.camera));
     expect(providerInput.finalPrompt).toContain('LOCATION:');
     expect(providerInput.finalPrompt).toContain('ZONE:');
     expect(providerInput.finalPrompt).toContain('CAST PRESENT:');

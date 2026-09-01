@@ -20,7 +20,12 @@ vi.mock('@/lib/child-photo-normalize', () => ({
   })),
 }));
 
-import { generateGPTImage, planGPTImageRequest } from '@/lib/generate-image';
+import {
+  generateGPTImage,
+  GPT_IMAGE_PROMPT_MAX_CHARS,
+  GPTImagePromptTooLongError,
+  planGPTImageRequest,
+} from '@/lib/generate-image';
 
 const OK_RESPONSE = { data: [{ b64_json: Buffer.from('fake-png-bytes').toString('base64') }] };
 const hasOwn = (value: object, property: PropertyKey): boolean =>
@@ -100,6 +105,66 @@ describe('generateGPTImage (3a) — real cancellation + no hidden SDK retries', 
 
     expect(plan.requestOptions).toEqual({ maxRetries: 0, timeout: 30_000 });
     expect(hasOwn(plan.requestOptions, 'signal')).toBe(false);
+  });
+
+  it('accepts the exact character ceiling and rejects one character beyond it', () => {
+    const exact = planGPTImageRequest(
+      { finalPrompt: 'x'.repeat(GPT_IMAGE_PROMPT_MAX_CHARS) },
+      { defaultModel: 'gpt-image-1', defaultQuality: 'low', maxReferences: 4 },
+    );
+    expect(exact.finalPrompt).toHaveLength(GPT_IMAGE_PROMPT_MAX_CHARS);
+
+    expect(() =>
+      planGPTImageRequest(
+        { finalPrompt: 'x'.repeat(GPT_IMAGE_PROMPT_MAX_CHARS + 1) },
+        { defaultModel: 'gpt-image-1', defaultQuality: 'low', maxReferences: 4 },
+      ),
+    ).toThrowError(GPTImagePromptTooLongError);
+  });
+
+  it('rejects an over-limit final edit request before reference loading or provider I/O', async () => {
+    await expect(
+      generateGPTImage({
+        finalPrompt: 'x'.repeat(GPT_IMAGE_PROMPT_MAX_CHARS),
+        negativePrompt: 'extra child',
+        referenceImages: ['missing-reference.png'],
+        size: '1024x1536',
+        quality: 'low',
+      }),
+    ).rejects.toMatchObject({
+      code: 'gpt_image_prompt_too_long',
+      maxPromptLength: GPT_IMAGE_PROMPT_MAX_CHARS,
+    });
+    expect(generateSpy).not.toHaveBeenCalled();
+    expect(editSpy).not.toHaveBeenCalled();
+  });
+
+  it('accepts multibyte prompt content that remains within the character limit', () => {
+    const multibytePrompt = 'לביא'.repeat(4_000);
+    expect(multibytePrompt.length).toBeLessThan(GPT_IMAGE_PROMPT_MAX_CHARS);
+    expect(Buffer.byteLength(multibytePrompt, 'utf8')).toBeGreaterThan(
+      multibytePrompt.length,
+    );
+    expect(
+      planGPTImageRequest(
+        { finalPrompt: multibytePrompt },
+        { defaultModel: 'gpt-image-1', defaultQuality: 'low', maxReferences: 4 },
+      ).finalPrompt,
+    ).toBe(multibytePrompt);
+  });
+
+  it('rejects edit prompts whose multipart CRLF normalization crosses the provider limit', () => {
+    const newlineDense = `${'x\n'.repeat(10_500)}x`;
+    expect(newlineDense.length).toBeLessThan(GPT_IMAGE_PROMPT_MAX_CHARS);
+    expect(() =>
+      planGPTImageRequest(
+        {
+          finalPrompt: newlineDense,
+          referenceImages: ['reference.png'],
+        },
+        { defaultModel: 'gpt-image-1', defaultQuality: 'low', maxReferences: 4 },
+      ),
+    ).toThrowError(GPTImagePromptTooLongError);
   });
 
   it.each([0, -1, 1.5, Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY])(
