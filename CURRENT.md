@@ -1,6 +1,6 @@
 # SmallHeroes — Current Technical State
 
-## R1D — new Chameleon product package is current; Wizard slot is render-qualified
+## R1D — new Chameleon product package is current; Claude Code AUTHORING PASS
 
 AUTHORING PASS is closed for the approved eight-page Chameleon product story. Guy approved
 Blueprint Candidate `97fad2ac1499c6b578087771f614d474972b3c1f2f7153b3321c59c3f87bbdce`,
@@ -42,8 +42,18 @@ five-second subprocess timeouts and the three known `onTaskUpdate` RPC timeouts.
 failure now passes in the focused 158-test run; the literal command remains exit 1 and is not
 relabeled green.
 No deployment, Wizard Order, payment, provider, image, audio or render occurred in this cutover.
-RELEASE PASS remains open only for independent publication re-gate, push/deploy, deployed
-attestation and one authorized Bar / age 5 / dad-narration Wizard Order through full render.
+RELEASE PASS remains open only for push/deploy, deployed attestation and one authorized Bar /
+age 5 / dad-narration Wizard Order through full render.
+
+Claude Code Opus/max independently reviewed immutable range
+`61aafa3036c3b97ba4bd82a99016fc5f47d30adc..4f50ebfab4ba82c2197b889707505df92653ae6d`
+read-only and returned **PASS — 0 BLOCKER / 0 MAJOR / 0 MINOR** for AUTHORING. It reconciled one
+commit / zero merges / ten files, independently hashed both committed publication files, verified
+the approval and source/Blueprint/Board bindings, falsified the locator and fallback boundaries,
+and ran the six changed specs **65/65 PASS** plus both TypeScript phases. Its limitations are
+explicit: it did not rerun the full baseline-red `npm run check`, and the ignored publication
+manifest/replay evidence is not part of the committed range. This PASS authorizes no push,
+deployment, Order, payment or render and does not close RELEASE PASS.
 
 The post-first-render simplification review remains mandatory before a second book. Observations
 are recorded without refactoring in `docs/ai-workflow/SIMPLIFICATION_FINDINGS.md`.

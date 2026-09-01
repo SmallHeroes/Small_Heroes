@@ -208,8 +208,8 @@ Post-publication validation is **13 files / 158 tests PASS**. Both TypeScript ph
 pre-publication baseline; they now assert the exact current product package while retaining
 independent hostile and missing-package regressions. The hostile-extra-key resolver test first
 proves the exact same temp root resolves successfully before tampering the locator. No deployment,
-Order, payment or render occurred. RELEASE PASS remains open for independent cutover QA, deployed
-attestation and the one authorized full Wizard render.
+Order, payment or render occurred. RELEASE PASS remains open for push/deploy, deployed attestation
+and the one authorized full Wizard render.
 
 Literal `npm run check` passed both TypeScript phases. Ordinary completed 4,351 passing tests with
 73 skips and reported thirteen assertions: the nine established ignored-`outputs/` fixture
@@ -218,6 +218,28 @@ Resource completed 630 passing tests and reported three assertions: one stale re
 now passing, plus two unrelated five-second subprocess timeouts; Vitest also emitted the three
 known `onTaskUpdate` RPC timeouts. The literal command remains exit 1 and is not relabeled green;
 no changed-path assertion remains failed.
+
+## Independent Visual Package cutover gate
+
+Claude Code Opus/max independently reviewed immutable range
+`61aafa3036c3b97ba4bd82a99016fc5f47d30adc..4f50ebfab4ba82c2197b889707505df92653ae6d`
+read-only and returned **PASS — 0 BLOCKER / 0 MAJOR / 0 MINOR** for AUTHORING scope. It verified:
+
+- one linear commit, zero merges, exactly ten declared files and no production TypeScript change;
+- raw revision SHA `5fd28d07...`, raw locator SHA `54614b66...`, exact canonical package loading and
+  absence of legacy source `20a12801...` from the successor revision;
+- approval-to-Candidate/Review/Blueprint binding and exact Home-v6 / Route-v7 Board authority;
+- one current render-qualified slot, honest QA-flag behavior and strict failure for the other 17;
+- missing, malformed, wrong-style and hostile-extra-key locator rejection, including a successful
+  same-root baseline immediately before locator tamper;
+- the deployed preflight's exact package, Boards, pages 0–8 and zero provider/database/image/audio,
+  retry or fallback effects.
+
+Its independent execution passed the six changed specs **65/65** and both TypeScript phases. It did
+not rerun literal `npm run check`; the changed-path closure and the remaining baseline failures are
+reported separately above. The gitignored publication manifest and no-second-write replay are
+documented local evidence rather than committed proof inside the reviewed range. The PASS closes
+AUTHORING only; it grants no push, deployment, Order, payment, render or product acceptance.
 
 ## Unchanged / excluded from the Reserved Placement implementation and QA range
 
