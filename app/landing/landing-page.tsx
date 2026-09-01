@@ -427,6 +427,8 @@ export default function LandingPage({ content: L, startHref, matrixCategories }:
 
           {/* למה הסיפורים שלנו עובדים אחרת — the story-craft argument */}
           <section className="section why-section" id="why">
+            {/* the how section's near-white dips into the purple */}
+            <SectionWave fill="#fafafa" />
             <div className="wrap">
               <h2 className="section-h2" data-reveal="up">{L.why.h2}</h2>
               <p className="section-lede" data-reveal="up" data-reveal-delay="50">{L.why.lede}</p>
@@ -450,6 +452,8 @@ export default function LandingPage({ content: L, startHref, matrixCategories }:
           </section>
 
           <section className="trust-band" id="trust">
+            {/* and the purple hands back to the light on its way out */}
+            <SectionWave fill="#7b2fcc" />
             <div className="wrap trust-band__inner">
               <header className="trust-band__header">
                 <h2 className="trust-band__h2" data-reveal="up">{L.trust.h2}</h2>

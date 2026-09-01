@@ -1413,9 +1413,10 @@
 
 /* Trust — warm reassurance strip (not why-cards) */
 .trust-band {
+  position: relative;
   padding: 56px 0 64px;
   background: var(--bg-lighter);
-  border-block: 1px solid rgba(0, 0, 0, 0.06);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
 }
 
 .early-stage-band {
@@ -2330,7 +2331,17 @@
 
 /* ── למה הסיפורים שלנו עובדים אחרת: four numbered story-craft cards ── */
 .why-section {
-  background: var(--purple-50);
+  /* the brand's loudest claim gets the brand's colour, full strength
+     (per Guy: the run of near-whites here needed one purple chapter).
+     Deepens toward the floor so the wave into trust picks up purple-600.
+     White on purple-500 is 4.86:1, on purple-600 6.73:1. */
+  position: relative;
+  background: linear-gradient(180deg, var(--purple-500) 0%, var(--purple-600) 100%);
+}
+
+.why-section .section-h2,
+.why-section .section-lede {
+  color: #fff;
 }
 
 .why-sub {
@@ -2339,7 +2350,7 @@
   text-align: center;
   font-size: 16.5px;
   line-height: 1.7;
-  color: var(--mid);
+  color: #fff;
 }
 
 .why-grid {
@@ -2354,8 +2365,11 @@
   position: relative;
   padding: 26px 24px 24px;
   border-radius: 20px;
-  background: var(--bg-lighter);
-  border: 1px solid var(--border);
+  /* solid white on the purple field; the border became invisible there,
+     a soft shadow lifts the card instead */
+  background: #fff;
+  border: 1px solid transparent;
+  box-shadow: 0 10px 26px rgba(28, 16, 46, 0.18);
   text-align: start;
 }
 
@@ -2572,7 +2586,6 @@
 /* ledes sit on tinted paper now - --mid (5.6:1 on white) drops below AA
    on the washes, so these two sections step one shade down */
 .gallery-sub,
-.why-section .section-lede,
 .faq-sub {
   color: var(--n-600);
 }
