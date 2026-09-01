@@ -1,5 +1,42 @@
 # SmallHeroes — Current Technical State
 
+## R1D — physical page-turn endpoint/performance closure (local green; re-gate pending)
+
+The first Reader correction commit `3a7fd900` closed the duplicated frame/substrate and mobile
+layout defects, but a stronger pixel/performance falsification correctly held it after a separate
+Claude Code review had passed it. The hold was narrow and reproducible: the `0.75px` overlap was
+part of each transformed slice's containing width, so it also expanded the texture stride; every
+turn mounted the invisible opposite page in every face; and an unready adjacent illustration could
+enter the physical animation.
+
+The correction keeps exact nominal slice geometry and binds the full texture width/offset from the
+measured page in pixels before first paint. Seam bleed now exists only outside that nominal box.
+Static and moving pages compose the same illustration/prose side renderer, but a moving face mounts
+only its visible side and omits the currently zero-footprint future sticker slots. A physical turn
+starts only when both involved illustrations are proven paint-ready by the shared loader/cache or a
+decoded browser-cache probe; otherwise navigation uses the safe static path. During the final 12%
+of the eased landing the overlay hands off to the already-mounted canonical destination and is
+fully hidden for one painted frame before unmount, eliminating a second transformed-text raster at
+the endpoint.
+
+Evidence on the corrected working bytes:
+
+- Focused geometry/Reader validation is **2 files / 24 tests PASS**. A broader release/Reader/layout/
+  Wizard matrix is **20 files / 127 tests PASS**; `npx --no-install tsc --noEmit` and
+  `git diff --check` pass.
+- True 180-degree held endpoints in both directions at 1366x768 and 1440x900 compare against the
+  settled static `openBookFrame` with **0 pixels above a 5/255 channel delta** (maximum delta 1).
+  The exact 0-degree held frame has no visible periodic seam lines.
+- The turn overlay dropped from **939 to 382 descendants**. Under Chrome CPU throttling 1x/2x/3x/4x
+  it completed in 616/652/665/723ms with 38/38/38/36 sampled frames; the former 4x probe had only
+  13 frames and was still mounted after 771ms. A deliberately failed adjacent image produced no
+  physical overlay and navigation continued through the static failure-safe path.
+
+This correction changes no authoring, source/package, Wizard, Order, payment, provider, render or
+deployment authority. No remote mutation, provider call, payment or render occurred. The next gate
+is one independent adversarial re-review of the final focused commit; only PASS advances to the
+already-approved coherent QA deployment and one fresh full Bar/Chameleon render.
+
 ## R1D — coherent Reader presentation correction (local green; independent re-gate pending)
 
 The final release worktree `C:\GNart\Work\sh-release-reader-final` on

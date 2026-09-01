@@ -13,13 +13,19 @@ import {
   type DesktopSpread,
 } from '@/lib/book-layout';
 import styles from '../reader-v2.module.css';
-import { DesktopBookPageSurface } from './DesktopBookPageSurface';
+import {
+  DesktopBookPageSideSurface,
+  type DesktopBookPageSide,
+} from './DesktopBookPageSurface';
 import {
   DESKTOP_PHYSICAL_PAGE_TURN_MS,
   type DesktopPhysicalPageTurn as DesktopPhysicalPageTurnState,
 } from './useDesktopPhysicalPageTurn';
 
-type PaperSide = 'illustration' | 'prose';
+type PaperSide = DesktopBookPageSide;
+
+const PHYSICAL_TURN_FACE_BLEED_PX = 0.5;
+const PHYSICAL_TURN_HANDOFF_START = 0.88;
 
 function easeInOutSine(value: number): number {
   return -(Math.cos(Math.PI * value) - 1) / 2;
@@ -54,7 +60,12 @@ function PaperPage({ spread, side }: { spread: DesktopSpread; side: PaperSide })
         style={pageProjectionStyle}
       />
       <div className={styles.physicalBookContentProjection} style={pageProjectionStyle}>
-        <DesktopBookPageSurface spread={spread} isCurrent textureOnly />
+        <DesktopBookPageSideSurface
+          spread={spread}
+          isCurrent
+          side={side}
+          textureOnly
+        />
       </div>
     </div>
   );
@@ -77,13 +88,6 @@ function SheetSlice({
   const sliceStyle = {
     '--physical-turn-source-index': sourceIndex,
   } as CSSProperties;
-  const frontWindowStyle = {
-    '--physical-turn-texture-index': sourceIndex,
-  } as CSSProperties;
-  const backWindowStyle = {
-    '--physical-turn-texture-index': backSourceIndex,
-  } as CSSProperties;
-
   return (
     <div
       className={styles.physicalTurnSlice}
@@ -91,13 +95,19 @@ function SheetSlice({
       style={sliceStyle}
     >
       <div className={`${styles.physicalTurnFace} ${styles.physicalTurnFaceFront}`}>
-        <div className={styles.physicalSliceWindow} style={frontWindowStyle}>
+        <div
+          className={styles.physicalSliceWindow}
+          data-physical-turn-texture-index={sourceIndex}
+        >
           <PaperPage spread={outgoing} side={frontSide} />
         </div>
         <span className={styles.physicalTurnSheetShade} aria-hidden />
       </div>
       <div className={`${styles.physicalTurnFace} ${styles.physicalTurnFaceBack}`}>
-        <div className={styles.physicalSliceWindow} style={backWindowStyle}>
+        <div
+          className={styles.physicalSliceWindow}
+          data-physical-turn-texture-index={backSourceIndex}
+        >
           <PaperPage spread={incoming} side={backSide} />
         </div>
         <span className={styles.physicalTurnSheetShade} aria-hidden />
@@ -117,11 +127,16 @@ function setSheetPose(
 ) {
   const clamped = Math.min(1, Math.max(0, progress));
   const arc = Math.sin(clamped * Math.PI);
+  const handoffOpacity = clamped <= PHYSICAL_TURN_HANDOFF_START
+    ? 1
+    : 1 - (clamped - PHYSICAL_TURN_HANDOFF_START) /
+      (1 - PHYSICAL_TURN_HANDOFF_START);
   const targetOffsetY = targetRect.top - sourceRect.top;
   const scaleY = sourceRect.height > 0
     ? 1 + (targetRect.height / sourceRect.height - 1) * clamped
     : 1;
   overlay.style.setProperty('--physical-turn-progress', arc.toFixed(6));
+  overlay.style.opacity = Math.max(0, handoffOpacity).toFixed(6);
   sheet.style.setProperty(
     '--physical-turn-y',
     `${(targetOffsetY * clamped - arc * 1.5).toFixed(3)}px`,
@@ -177,6 +192,20 @@ export function DesktopPhysicalPageTurn({
     );
     const sourceRect = sheet.getBoundingClientRect();
     const targetRect = landing.getBoundingClientRect();
+    const nominalSliceWidth = sourceRect.width / DESKTOP_PAGE_CURL_SLICE_COUNT;
+    for (const [sourceIndex, slice] of slices.entries()) {
+      slice.style.left = `${(sourceIndex * nominalSliceWidth).toFixed(4)}px`;
+      slice.style.width = `${nominalSliceWidth.toFixed(4)}px`;
+    }
+    for (const windowElement of sheet.querySelectorAll<HTMLDivElement>(
+      '[data-physical-turn-texture-index]',
+    )) {
+      const textureIndex = Number(windowElement.dataset.physicalTurnTextureIndex);
+      windowElement.style.width = `${sourceRect.width.toFixed(4)}px`;
+      windowElement.style.left = `${(
+        -textureIndex * nominalSliceWidth + PHYSICAL_TURN_FACE_BLEED_PX
+      ).toFixed(4)}px`;
+    }
     let frame = 0;
     let settleFrame = 0;
     const startedAt = performance.now();
@@ -196,9 +225,11 @@ export function DesktopPhysicalPageTurn({
       if (elapsed < 1) {
         frame = window.requestAnimationFrame(animate);
       } else {
-        // Let the exact landing geometry paint once before replacing the overlay
-        // with the identical static destination spread. Completing in this same
-        // frame can drop the final pose and expose the penultimate curled frame.
+        // The incoming static spread has been mounted below the sheet since the
+        // turn started. Reveal that exact canonical DOM for one frame before
+        // unmounting the overlay, so the final swap cannot introduce a second
+        // text/image rasterization or a page-geometry delta.
+        overlay.style.visibility = 'hidden';
         settleFrame = window.requestAnimationFrame(() => onComplete(turn.id));
       }
     };

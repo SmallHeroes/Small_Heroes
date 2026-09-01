@@ -11,14 +11,43 @@ export function getReaderImageCacheState(url: string | null): ReaderImageCacheSt
   return imageCache.get(url) ?? 'unknown';
 }
 
+export function recordReaderImageCacheState(
+  url: string | null,
+  state: ReaderImageCacheState,
+): void {
+  if (!url) return;
+  imageCache.set(url, state);
+}
+
+export function readerImageIsLoaded(url: string | null): boolean {
+  return Boolean(url) && getReaderImageCacheState(url) === 'loaded';
+}
+
+/**
+ * Synchronous paint-readiness proof used at the click boundary. The shared
+ * registry covers normal preloads and SceneIllustration loads; the browser
+ * probe also recognizes a decoded HTTP-cache entry in callers that did not run
+ * this hook (for example a standalone QA viewer).
+ */
+export function readerImageIsPaintReady(url: string | null): boolean {
+  if (!url) return false;
+  if (readerImageIsLoaded(url)) return true;
+  if (typeof Image === 'undefined') return false;
+  const probe = new Image();
+  probe.src = url;
+  if (!probe.complete || probe.naturalWidth <= 0) return false;
+  recordReaderImageCacheState(url, 'loaded');
+  return true;
+}
+
 function preloadUrl(url: string): void {
   const existing = imageCache.get(url);
   if (existing === 'loaded' || existing === 'loading') return;
-  imageCache.set(url, 'loading');
+  recordReaderImageCacheState(url, 'loading');
   const img = new Image();
   img.decoding = 'async';
-  img.onload = () => imageCache.set(url, 'loaded');
-  img.onerror = () => imageCache.set(url, 'error');
+  img.onload = () => recordReaderImageCacheState(url, 'loaded');
+  img.onerror = () => recordReaderImageCacheState(url, 'error');
   img.src = url;
 }
 

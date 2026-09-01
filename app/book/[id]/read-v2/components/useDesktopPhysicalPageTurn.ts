@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { DesktopSpread, PageTurnDirection } from '@/lib/book-layout';
+import { readerImageIsPaintReady } from '../useAdjacentImagePreload';
 
 export const DESKTOP_PHYSICAL_PAGE_TURN_MS = 560;
 
@@ -15,12 +16,21 @@ export type DesktopPhysicalPageTurn = Readonly<{
 export type DesktopPhysicalPageTurnRequest = Omit<DesktopPhysicalPageTurn, 'id'>;
 export type DesktopPhysicalPageTurnStart = 'started' | 'skipped' | 'blocked';
 
+export function desktopPhysicalPageTurnImagesAreReady(
+  outgoing: DesktopSpread,
+  incoming: DesktopSpread,
+): boolean {
+  return readerImageIsPaintReady(outgoing.illustrationUrl) &&
+    readerImageIsPaintReady(incoming.illustrationUrl);
+}
+
 function desktopPhysicalPageTurnIsAvailable(
   outgoing: DesktopSpread,
   incoming: DesktopSpread,
 ): boolean {
   if (typeof window === 'undefined') return false;
   if (outgoing.isWide || incoming.isWide) return false;
+  if (!desktopPhysicalPageTurnImagesAreReady(outgoing, incoming)) return false;
   if (!window.matchMedia('(min-width: 1024px)').matches) return false;
   return !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 }

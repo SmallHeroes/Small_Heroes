@@ -2,7 +2,10 @@
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { illustrationLoadingAttr } from '@/lib/book-layout';
-import { getReaderImageCacheState } from '../useAdjacentImagePreload';
+import {
+  getReaderImageCacheState,
+  recordReaderImageCacheState,
+} from '../useAdjacentImagePreload';
 import styles from '../reader-v2.module.css';
 
 type Props = {
@@ -41,12 +44,14 @@ export function SceneIllustration({ url, alt, isCurrent, className, wide }: Prop
     const img = imgRef.current;
     if (!img || !url) return;
     if (img.complete && img.naturalWidth > 0) {
+      recordReaderImageCacheState(url, 'loaded');
       setStatus('loaded');
     }
   }, [url, retryNonce]);
 
   const retry = useCallback(() => {
     if (!url) return;
+    recordReaderImageCacheState(url, 'loading');
     setRetryNonce((n) => n + 1);
     setStatus('loading');
   }, [url]);
@@ -77,8 +82,14 @@ export function SceneIllustration({ url, alt, isCurrent, className, wide }: Prop
         className={`${styles.illustrationImg} ${status === 'loaded' ? styles.illustrationImgLoaded : ''}`}
         loading={illustrationLoadingAttr(isCurrent)}
         decoding="async"
-        onLoad={() => setStatus('loaded')}
-        onError={() => setStatus('error')}
+        onLoad={() => {
+          recordReaderImageCacheState(url, 'loaded');
+          setStatus('loaded');
+        }}
+        onError={() => {
+          recordReaderImageCacheState(url, 'error');
+          setStatus('error');
+        }}
       />
     </div>
   );

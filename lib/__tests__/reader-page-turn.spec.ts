@@ -20,6 +20,29 @@ import {
   readerSourceExitHref,
   type ReaderBookSource,
 } from '../reader-book-source';
+import type { DesktopSpread } from '../book-layout/types';
+import { recordReaderImageCacheState } from '../../app/book/[id]/read-v2/useAdjacentImagePreload';
+import { desktopPhysicalPageTurnImagesAreReady } from '../../app/book/[id]/read-v2/components/useDesktopPhysicalPageTurn';
+
+function desktopSpreadWithImage(illustrationUrl: string | null): DesktopSpread {
+  return {
+    sceneIndex: 0,
+    sceneId: 'scene-0',
+    direction: 'bedtime',
+    templateVersion: 'bedtime-v1',
+    bookTitle: 'Book',
+    textHtml: '',
+    text: 'Page text.',
+    showText: true,
+    textTreatment: 'standard',
+    illustrationUrl,
+    illustrationAspect: 'portrait',
+    isWide: false,
+    audioUrl: null,
+    playAudio: false,
+    showRunningHeader: false,
+  };
+}
 
 describe('shared Reader page-turn contract', () => {
   it('derives deterministic forward/backward direction from scene order', () => {
@@ -110,7 +133,15 @@ describe('shared Reader page-turn contract', () => {
     expect(engine).toContain('data-physical-book-substrate');
     expect(engine).toContain('styles.physicalBookSubstrateProjection');
     expect(engine.match(/style=\{pageProjectionStyle\}/g)).toHaveLength(2);
-    expect(engine).toContain('<DesktopBookPageSurface spread={spread} isCurrent textureOnly />');
+    expect(engine).toContain('<DesktopBookPageSideSurface');
+    expect(engine).toContain('side={side}');
+    expect(engine).toContain('data-physical-turn-texture-index');
+    expect(engine).toContain('nominalSliceWidth');
+    expect(engine).toContain('PHYSICAL_TURN_FACE_BLEED_PX');
+    expect(engine).toContain('PHYSICAL_TURN_HANDOFF_START');
+    expect(engine).toContain('overlay.style.opacity');
+    expect(engine).toContain("overlay.style.visibility = 'hidden'");
+    expect(engine).not.toContain('data-physical-turn-final-landing');
     expect(engine).not.toContain('MASK_ON_BOOK_ASSET');
     expect(engine).not.toContain('physicalPaperFrame');
     expect(engine).not.toContain('physicalPaperEdge');
@@ -144,9 +175,36 @@ describe('shared Reader page-turn contract', () => {
     expect(css).not.toContain('.physicalTurnSpineClamp');
     expect(css).toContain('var(--physical-turn-perspective, 6400px)');
     expect(css).toContain('max-width: none');
+    expect(css).not.toContain('calc(100% / var(--physical-turn-slice-count) + 0.75px)');
+    expect(css).toMatch(
+      /\.physicalTurnSlice\s*\{[^}]*width: calc\(100% \/ var\(--physical-turn-slice-count\)\);/s,
+    );
     expect(engine).toContain('targetRect.left - sourceRect.left');
     expect(engine).toContain('targetPageWidth: targetRect.width');
     expect(engine).toContain('settleFrame = window.requestAnimationFrame');
+  });
+
+  it('starts a physical turn only when both illustration textures are durably loaded', () => {
+    const outgoingUrl = '/reader-turn-outgoing.png';
+    const incomingUrl = '/reader-turn-incoming.png';
+    const outgoing = desktopSpreadWithImage(outgoingUrl);
+    const incoming = desktopSpreadWithImage(incomingUrl);
+
+    recordReaderImageCacheState(outgoingUrl, 'loaded');
+    recordReaderImageCacheState(incomingUrl, 'loading');
+    expect(desktopPhysicalPageTurnImagesAreReady(outgoing, incoming)).toBe(false);
+
+    recordReaderImageCacheState(incomingUrl, 'error');
+    expect(desktopPhysicalPageTurnImagesAreReady(outgoing, incoming)).toBe(false);
+
+    recordReaderImageCacheState(incomingUrl, 'loaded');
+    expect(desktopPhysicalPageTurnImagesAreReady(outgoing, incoming)).toBe(true);
+    expect(
+      desktopPhysicalPageTurnImagesAreReady(
+        desktopSpreadWithImage(null),
+        incoming,
+      ),
+    ).toBe(false);
   });
 
   it('neutralizes perspective growth on the vertical paper edges without flattening depth', () => {
