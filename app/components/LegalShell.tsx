@@ -10,7 +10,7 @@ export function LegalLinks({ light = false }: { light?: boolean }) {
       <Link href="/terms">תנאי שימוש</Link>
       <Link href="/privacy">מדיניות פרטיות</Link>
       <Link href="/accessibility">הצהרת נגישות</Link>
-      <a href="mailto:hello@smallheroes.co.il">צרו קשר</a>
+      <a href="mailto:hellosmallheroes@gmail.com">צרו קשר</a>
     </nav>
   );
 }

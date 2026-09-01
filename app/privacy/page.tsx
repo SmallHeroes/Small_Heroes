@@ -32,7 +32,7 @@ export default function PrivacyPage() {
       <p>
         מפעילת האתר: גיבורים קטנים - Small Heroes [שם עסק רשמי וח.פ/ע.מ יושלמו לפני
         פרסום]. לכל שאלה בנושא פרטיות אפשר לפנות אלינו:{' '}
-        <a href="mailto:hello@smallheroes.co.il">hello@smallheroes.co.il</a>.
+        <a href="mailto:hellosmallheroes@gmail.com">hellosmallheroes@gmail.com</a>.
       </p>
 
       <h2>איזה מידע אנחנו אוספים</h2>

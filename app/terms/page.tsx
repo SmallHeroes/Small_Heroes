@@ -109,7 +109,7 @@ export default function TermsPage() {
       <h2>יצירת קשר</h2>
       <p>
         לשאלות על התנאים או על הזמנה:{' '}
-        <a href="mailto:hello@smallheroes.co.il">hello@smallheroes.co.il</a>.
+        <a href="mailto:hellosmallheroes@gmail.com">hellosmallheroes@gmail.com</a>.
       </p>
     </LegalShell>
   );
