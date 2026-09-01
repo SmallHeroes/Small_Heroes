@@ -2,6 +2,7 @@ import { createHash } from 'crypto';
 import {
   mkdirSync,
   mkdtempSync,
+  cpSync,
   readFileSync,
   rmSync,
   writeFileSync,
@@ -46,6 +47,8 @@ import {
   type VisualPackageV4Draft,
   type VisualPackageV4PackageReview,
 } from '@/lib/visual-package';
+import { auditMvpRenderQualification } from '@/lib/visual-package/audit';
+import { evaluateRenderQualificationReleaseGate } from '@/lib/visual-package/releaseGate';
 
 import {
   buildBlueprintFixture,
@@ -54,6 +57,17 @@ import {
 } from './pre-render-book-visual-blueprint.fixtures';
 
 const roots: string[] = [];
+const PRODUCT_STORY_KEY = 'chameleon_koko_bedtime';
+const PRODUCT_REVISION =
+  '3ef645415b3cdd5945baeaa275d97ae0aa0491bf30addbcc46208475278f534a';
+const LEGACY_REVISION =
+  '20a1280107a94ca0134c08351bc18565883ee358ce7ed1ca47ea797549bca1eb';
+const PRODUCT_STORY_PATH =
+  `story-pipeline/04_approved_story_sources/accepted/${PRODUCT_STORY_KEY}/` +
+  `revisions/${PRODUCT_REVISION}/integrated.md`;
+const LEGACY_STORY_PATH =
+  `story-pipeline/04_approved_story_sources/accepted/${PRODUCT_STORY_KEY}/` +
+  `revisions/${LEGACY_REVISION}/integrated.md`;
 const shapes: BlueprintFixtureShape[] = [
   'single_location',
   'multi_zone_transition',
@@ -66,6 +80,14 @@ function temporaryRoot(): string {
   const root = mkdtempSync(path.join(tmpdir(), 'small-heroes-v4-package-'));
   roots.push(root);
   return root;
+}
+
+function copyProductLineage(root: string): void {
+  const relative =
+    `story-pipeline/04_approved_story_sources/accepted/${PRODUCT_STORY_KEY}`;
+  const target = path.join(root, relative);
+  mkdirSync(path.dirname(target), { recursive: true });
+  cpSync(path.join(process.cwd(), relative), target, { recursive: true });
 }
 
 function clone<T>(value: T): T {
@@ -448,6 +470,7 @@ describe('R1D-PVB-C1 immutable visual-package/v5', () => {
       }),
     ).toMatchObject({
       renderQualified: true,
+      visualPackageRequired: false,
       packagePath: publication.packagePath,
       sourcePath: packageValue.sourceSnapshot.identity.path,
       sourceRawDigest: packageValue.sourceSnapshot.rawDigest,
@@ -473,6 +496,107 @@ describe('R1D-PVB-C1 immutable visual-package/v5', () => {
       frozenAuthority: null,
       sourcePath: null,
     });
+  });
+
+  it('requires a product-accepted lineage package to bind a final accepted revision, never its legacy predecessor', () => {
+    const legacyRoot = temporaryRoot();
+    copyProductLineage(legacyRoot);
+    const legacySource = readFileSync(
+      path.join(legacyRoot, LEGACY_STORY_PATH),
+      'utf8',
+    );
+    const legacyPackage = packageFor(
+      buildBlueprintFixture('wizard_runtime_qualification', {
+        storyKey: PRODUCT_STORY_KEY,
+        pageCount: 8,
+        rawStorySource: legacySource,
+        sourcePath: LEGACY_STORY_PATH,
+      }),
+    );
+    publishVisualPackageV4({
+      repoRoot: legacyRoot,
+      approvedPackagesDir: path.join(
+        legacyRoot,
+        'visual-packages',
+        'approved',
+      ),
+      packageValue: legacyPackage,
+      write: true,
+    });
+    expect(
+      evaluateWizardVisualPackageSelection({
+        repoRoot: legacyRoot,
+        storyKey: PRODUCT_STORY_KEY,
+        styleId: legacyPackage.styleId,
+      }),
+    ).toMatchObject({
+      renderQualified: false,
+      visualPackageRequired: true,
+      packageValue: null,
+      frozenAuthority: null,
+      reasons: expect.arrayContaining([
+        'product-accepted Story Source lineage requires a package bound to a final accepted revision',
+      ]),
+    });
+
+    const productRoot = temporaryRoot();
+    copyProductLineage(productRoot);
+    const productSource = readFileSync(
+      path.join(productRoot, PRODUCT_STORY_PATH),
+      'utf8',
+    );
+    const productPackage = packageFor(
+      buildBlueprintFixture('wizard_runtime_qualification', {
+        storyKey: PRODUCT_STORY_KEY,
+        pageCount: 8,
+        rawStorySource: productSource,
+        sourcePath: PRODUCT_STORY_PATH,
+      }),
+    );
+    publishVisualPackageV4({
+      repoRoot: productRoot,
+      approvedPackagesDir: path.join(
+        productRoot,
+        'visual-packages',
+        'approved',
+      ),
+      packageValue: productPackage,
+      write: true,
+    });
+    expect(
+      evaluateWizardVisualPackageSelection({
+        repoRoot: productRoot,
+        storyKey: PRODUCT_STORY_KEY,
+        styleId: productPackage.styleId,
+      }),
+    ).toMatchObject({
+      renderQualified: true,
+      visualPackageRequired: true,
+      sourcePath: PRODUCT_STORY_PATH,
+      reasons: [],
+    });
+
+    const audit = auditMvpRenderQualification({
+      repoRoot: productRoot,
+      styleId: productPackage.styleId,
+    });
+    const productRecord = audit.records.find(
+      (record) => record.storyKey === PRODUCT_STORY_KEY,
+    );
+    expect(productRecord).toMatchObject({
+      productSellable: true,
+      renderQualified: true,
+      storySourcePath: PRODUCT_STORY_PATH,
+      reasons: [],
+    });
+    expect(productRecord?.approvedPackagePath).toContain(
+      productPackage.revisionDigest,
+    );
+    expect(
+      evaluateRenderQualificationReleaseGate(audit, true).failures.map(
+        (failure) => failure.storyKey,
+      ),
+    ).not.toContain(PRODUCT_STORY_KEY);
   });
 
   it('rejects unknown current-locator keys before Wizard sellability', () => {

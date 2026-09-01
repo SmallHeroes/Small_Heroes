@@ -26,6 +26,7 @@ const ACCEPTED_SOURCE_PATTERN = new RegExp(
 const ACCEPTED_REVISION_ROOT_PATTERN = new RegExp(
   `^${ACCEPTED_ROOT}/[^/]+/revisions(?:/|$)`,
 );
+const SAFE_STORY_KEY = /^[a-z0-9][a-z0-9_-]*$/;
 const EXPECTED_FILENAMES = [
   'enrichment-manifest.json',
   'enrichment-review-bundle.json',
@@ -50,6 +51,11 @@ export interface AcceptedStorySourceAuthoringAuthority {
   continuityIntent: StoryVisualContinuityIntent;
   fileSha256: Record<AcceptedFilename, string>;
 }
+
+export type AcceptedProductLineageDisposition =
+  | { kind: 'absent' }
+  | { kind: 'present' }
+  | { kind: 'invalid'; reasons: string[] };
 
 export function acceptedStorySourceAuthoringAuthorityIssues(
   value: unknown,
@@ -159,6 +165,134 @@ function pathsEqual(left: string, right: string): boolean {
   return process.platform === 'win32'
     ? left.toLowerCase() === right.toLowerCase()
     : left === right;
+}
+
+/**
+ * Fresh-order fallback policy derived from immutable accepted-lineage bytes.
+ *
+ * This intentionally does not choose a revision. The separately approved v4
+ * current locator owns that decision. Any adjacent product-acceptance artifact
+ * closes legacy fallback for the whole story lineage; the selected package
+ * must then bind a revision accepted by the strict loader below.
+ */
+export function acceptedProductLineageDisposition(args: {
+  repoRoot: string;
+  storyKey: string;
+}): AcceptedProductLineageDisposition {
+  if (!SAFE_STORY_KEY.test(args.storyKey)) {
+    return { kind: 'invalid', reasons: ['story_key_invalid'] };
+  }
+  const expectedRelative =
+    `${ACCEPTED_ROOT}/${args.storyKey}/revisions`;
+  const revisionsRoot = path.resolve(args.repoRoot, expectedRelative);
+  try {
+    if (repoRelativePath(args.repoRoot, revisionsRoot) !== expectedRelative) {
+      return { kind: 'invalid', reasons: ['revisions_root_path_invalid'] };
+    }
+  } catch {
+    return { kind: 'invalid', reasons: ['revisions_root_path_invalid'] };
+  }
+
+  let rootStat: fs.Stats;
+  try {
+    rootStat = fs.lstatSync(revisionsRoot);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+      return { kind: 'absent' };
+    }
+    return { kind: 'invalid', reasons: ['revisions_root_unreadable'] };
+  }
+  if (rootStat.isSymbolicLink() || !rootStat.isDirectory()) {
+    return { kind: 'invalid', reasons: ['revisions_root_invalid'] };
+  }
+  try {
+    if (!pathsEqual(revisionsRoot, fs.realpathSync(revisionsRoot))) {
+      return { kind: 'invalid', reasons: ['revisions_root_alias_rejected'] };
+    }
+  } catch {
+    return { kind: 'invalid', reasons: ['revisions_root_unreadable'] };
+  }
+
+  let entries: fs.Dirent[];
+  try {
+    entries = fs.readdirSync(revisionsRoot, { withFileTypes: true });
+  } catch {
+    return { kind: 'invalid', reasons: ['revisions_inventory_unreadable'] };
+  }
+  const reasons: string[] = [];
+  let acceptancePresent = false;
+  for (const entry of [...entries].sort((left, right) =>
+    left.name.localeCompare(right.name))) {
+    if (!DIGEST.test(entry.name) || !entry.isDirectory()) {
+      reasons.push('revision_entry_invalid');
+      continue;
+    }
+    const revisionRoot = path.resolve(revisionsRoot, entry.name);
+    try {
+      const revisionStat = fs.lstatSync(revisionRoot);
+      if (
+        revisionStat.isSymbolicLink() ||
+        !revisionStat.isDirectory() ||
+        !pathsEqual(revisionRoot, fs.realpathSync(revisionRoot))
+      ) {
+        reasons.push('revision_root_invalid');
+        continue;
+      }
+    } catch {
+      reasons.push('revision_root_unreadable');
+      continue;
+    }
+
+    const acceptancePath = path.resolve(
+      revisionRoot,
+      'product-acceptance.json',
+    );
+    let acceptanceStat: fs.Stats;
+    try {
+      acceptanceStat = fs.lstatSync(acceptancePath);
+      acceptancePresent = true;
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') continue;
+      reasons.push('product_acceptance_unreadable');
+      continue;
+    }
+    try {
+      if (
+        acceptanceStat.isSymbolicLink() ||
+        !acceptanceStat.isFile() ||
+        acceptanceStat.nlink !== 1 ||
+        !pathsEqual(acceptancePath, fs.realpathSync(acceptancePath))
+      ) {
+        reasons.push('product_acceptance_file_invalid');
+        continue;
+      }
+      const acceptanceBytes = fs.readFileSync(acceptancePath);
+      const acceptance = recordValue(
+        JSON.parse(acceptanceBytes.toString('utf8')) as unknown,
+      );
+      if (
+        !acceptance ||
+        !acceptanceBytes.equals(canonicalBytes(acceptance)) ||
+        typeof acceptance.version !== 'string' ||
+        !acceptance.version.trim() ||
+        acceptance.status !== 'accepted' ||
+        acceptance.acceptedBy !== 'Guy' ||
+        acceptance.storyKey !== args.storyKey ||
+        acceptance.revisionDigest !== entry.name ||
+        typeof acceptance.digest !== 'string' ||
+        !DIGEST.test(acceptance.digest) ||
+        canonicalDigest(acceptance) !== acceptance.digest
+      ) {
+        reasons.push('product_acceptance_content_invalid');
+      }
+    } catch {
+      reasons.push('product_acceptance_content_invalid');
+    }
+  }
+  if (reasons.length > 0) {
+    return { kind: 'invalid', reasons: [...new Set(reasons)].sort() };
+  }
+  return acceptancePresent ? { kind: 'present' } : { kind: 'absent' };
 }
 
 function readCanonicalRegularFile(args: {

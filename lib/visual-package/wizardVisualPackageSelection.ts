@@ -11,9 +11,14 @@ import {
   type FrozenVisualPackageAuthority,
   type VisualPackageV4,
 } from './visualPackageV4';
+import {
+  acceptedProductLineageDisposition,
+  loadAcceptedStorySourceAuthoringAuthority,
+} from './acceptedStorySourceAuthoringAuthority';
 
 export interface WizardVisualPackageSelection {
   renderQualified: boolean;
+  visualPackageRequired: boolean;
   storyKey: string;
   styleId: string;
   packagePath: string | null;
@@ -30,9 +35,11 @@ function rejected(args: {
   styleId: string;
   packagePath: string | null;
   reasons: readonly string[];
+  visualPackageRequired: boolean;
 }): WizardVisualPackageSelection {
   return {
     renderQualified: false,
+    visualPackageRequired: args.visualPackageRequired,
     storyKey: args.storyKey,
     styleId: args.styleId,
     packagePath: args.packagePath,
@@ -62,6 +69,16 @@ export function evaluateWizardVisualPackageSelection(args: {
   styleId: string;
   approvedPackagesDir?: string;
 }): WizardVisualPackageSelection {
+  const productLineage = acceptedProductLineageDisposition({
+    repoRoot: args.repoRoot,
+    storyKey: args.storyKey,
+  });
+  const visualPackageRequired = productLineage.kind !== 'absent';
+  const productLineageReasons = productLineage.kind === 'invalid'
+    ? productLineage.reasons.map(
+        (reason) => `product-accepted Story Source lineage is invalid: ${reason}`,
+      )
+    : [];
   const qualification = evaluateVisualPackageV4Qualification({
     repoRoot: args.repoRoot,
     storyKey: args.storyKey,
@@ -79,13 +96,15 @@ export function evaluateWizardVisualPackageSelection(args: {
       storyKey: args.storyKey,
       styleId: args.styleId,
       packagePath: qualification.packagePath,
-      reasons: qualification.reasons,
+      reasons: [...qualification.reasons, ...productLineageReasons],
+      visualPackageRequired,
     });
   }
 
   const packageValue = qualification.packageValue;
   const expectedSource = packageValue.sourceSnapshot;
   const reasons: string[] = [];
+  reasons.push(...productLineageReasons);
   let sourceAbsolutePath: string | null = null;
   try {
     sourceAbsolutePath = resolveRepoPath(
@@ -131,17 +150,37 @@ export function evaluateWizardVisualPackageSelection(args: {
       );
     }
   }
+  if (visualPackageRequired) {
+    try {
+      const acceptedAuthority = loadAcceptedStorySourceAuthoringAuthority({
+        repoRoot: args.repoRoot,
+        storyKey: args.storyKey,
+        storyPath: expectedSource.identity.path,
+      });
+      if (!acceptedAuthority) {
+        reasons.push(
+          'product-accepted Story Source lineage requires a package bound to a final accepted revision',
+        );
+      }
+    } catch {
+      reasons.push(
+        'package-bound Story Source does not satisfy product-accepted revision authority',
+      );
+    }
+  }
   if (reasons.length > 0) {
     return rejected({
       storyKey: args.storyKey,
       styleId: args.styleId,
       packagePath: qualification.packagePath,
       reasons,
+      visualPackageRequired,
     });
   }
 
   return {
     renderQualified: true,
+    visualPackageRequired,
     storyKey: args.storyKey,
     styleId: args.styleId,
     packagePath: qualification.packagePath,

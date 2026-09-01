@@ -85,23 +85,29 @@ function buildCategoryPayload(
         storyKey,
         styleId: STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK,
       });
+      // A product-accepted lineage may be selected only through its exact
+      // current Visual Package. The legacy QA catalog is not revision-bound
+      // strongly enough to reopen that fresh-order authority boundary.
+      const eligibleQaAuthority = productionQualification.visualPackageRequired
+        ? null
+        : qaAuthority;
       return [
         direction,
         {
           configured: summary.configured,
           storyReady: summary.sellable,
-          qaAuthoringReady: qaAuthority !== null,
+          qaAuthoringReady: eligibleQaAuthority !== null,
           productionRenderQualified: productionQualification.renderQualified,
           selectable:
-            productionQualification.renderQualified || qaAuthority !== null,
+            productionQualification.renderQualified || eligibleQaAuthority !== null,
           availabilityStage: productionQualification.renderQualified
             ? 'production_render_qualified'
-            : qaAuthority
+            : eligibleQaAuthority
               ? 'qa_ready_for_low_story_generation'
               : summary.sellable
                 ? 'story_ready_only'
                 : 'unavailable',
-          candidateDigest: qaAuthority?.candidateDigest ?? null,
+          candidateDigest: eligibleQaAuthority?.candidateDigest ?? null,
           sellable: summary.sellable,
           priceILS: pageMap?.priceILS ?? 0,
           displayPages: displayPagesForBeats(pageMap?.pages ?? 0),

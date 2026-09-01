@@ -131,10 +131,11 @@ export function configuredSlotStatus(category: MvpCategory, direction: StoryDire
 
 function v3ImportSidecarValid(
   companionId: string,
-  direction: StoryDirection
+  direction: StoryDirection,
+  repoRoot: string,
 ): boolean {
   const sidecarPath = join(
-    process.cwd(),
+    repoRoot,
     'story-bank',
     V3_APPROVED_DIR_NAME,
     `${companionId}_${direction}.import.json`
@@ -162,9 +163,10 @@ function v3ImportSidecarValid(
 function wizardQaImportSidecarValid(
   companionId: string,
   direction: StoryDirection,
+  repoRoot: string,
 ): boolean {
   const storyKey = `${companionId}_${direction}`;
-  const bankRoot = join(process.cwd(), 'story-bank', WIZARD_QA_STORY_DIR_NAME);
+  const bankRoot = join(repoRoot, 'story-bank', WIZARD_QA_STORY_DIR_NAME);
   const sidecarPath = join(bankRoot, `${storyKey}.import.json`);
   if (!existsSync(sidecarPath)) return false;
   try {
@@ -208,7 +210,7 @@ function wizardQaImportSidecarValid(
     ) return false;
     const visualDirections = meta.visualDirections!;
     const integratedStory = meta.integratedStory!;
-    const root = process.cwd();
+    const root = repoRoot;
     const storyPath = join(bankRoot, `${storyKey}.md`);
     const directionPath = resolve(root, visualDirections.path!);
     if (!directionPath.startsWith(`${resolve(root)}${sep}`) || !existsSync(directionPath)) return false;
@@ -226,25 +228,34 @@ function wizardQaImportSidecarValid(
 }
 
 /** approved_v3 = flag ON + bank file + valid import sidecar. */
-export function isV3SlotRuntimeReady(companionId: string, direction: StoryDirection): boolean {
+export function isV3SlotRuntimeReady(
+  companionId: string,
+  direction: StoryDirection,
+  options: { repoRoot?: string } = {},
+): boolean {
+  const repoRoot = options.repoRoot ?? process.cwd();
   if (isWizardQaStoryBankEnabled()) {
-    return wizardQaImportSidecarValid(companionId, direction);
+    return wizardQaImportSidecarValid(companionId, direction, repoRoot);
   }
   if (!isV3ApprovedBankEnabled()) return false;
   const md = join(
-    process.cwd(),
+    repoRoot,
     'story-bank',
     V3_APPROVED_DIR_NAME,
     `${companionId}_${direction}.md`
   );
   if (!existsSync(md)) return false;
-  return v3ImportSidecarValid(companionId, direction);
+  return v3ImportSidecarValid(companionId, direction, repoRoot);
 }
 
 /** approved = golden v5 (configured bank dir) file exists for companion+direction. */
-export function isGoldenSlotRuntimeReady(companionId: string, direction: StoryDirection): boolean {
+export function isGoldenSlotRuntimeReady(
+  companionId: string,
+  direction: StoryDirection,
+  options: { repoRoot?: string } = {},
+): boolean {
   const storyFile = join(
-    process.cwd(),
+    options.repoRoot ?? process.cwd(),
     'story-bank',
     STORY_BANK_V3_DIR_NAME,
     `${companionId}_${direction}.md`
@@ -271,8 +282,13 @@ export function isSlotSellable(
     styleId: STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK,
   });
   if (v4Selection.renderQualified) return true;
-  if (configured === 'approved_v3') return isV3SlotRuntimeReady(companionId, dir);
-  if (configured === 'approved') return isGoldenSlotRuntimeReady(companionId, dir);
+  if (v4Selection.visualPackageRequired) return false;
+  if (configured === 'approved_v3') {
+    return isV3SlotRuntimeReady(companionId, dir, options);
+  }
+  if (configured === 'approved') {
+    return isGoldenSlotRuntimeReady(companionId, dir, options);
+  }
   return false;
 }
 

@@ -1,4 +1,5 @@
 import fs from 'fs';
+import os from 'os';
 import path from 'path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
@@ -15,11 +16,36 @@ import {
 
 const V3_APPROVED_DIR = path.join(process.cwd(), 'story-bank', 'v3-approved');
 const originalFlag = process.env.ENABLE_V3_APPROVED_BANK;
+const originalQaFlag = process.env.ENABLE_WIZARD_QA_RENDER_CATALOG;
+const temporaryRoots: string[] = [];
+
+function productLineageRoot(): string {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'product-lineage-matrix-'));
+  temporaryRoots.push(root);
+  const relative = path.join(
+    'story-pipeline',
+    '04_approved_story_sources',
+    'accepted',
+    'chameleon_koko_bedtime',
+  );
+  const target = path.join(root, relative);
+  fs.mkdirSync(path.dirname(target), { recursive: true });
+  fs.cpSync(path.join(process.cwd(), relative), target, { recursive: true });
+  return root;
+}
 
 describe('MVP_STORY_MATRIX helpers', () => {
   afterEach(() => {
     if (originalFlag === undefined) delete process.env.ENABLE_V3_APPROVED_BANK;
     else process.env.ENABLE_V3_APPROVED_BANK = originalFlag;
+    if (originalQaFlag === undefined) {
+      delete process.env.ENABLE_WIZARD_QA_RENDER_CATALOG;
+    } else {
+      process.env.ENABLE_WIZARD_QA_RENDER_CATALOG = originalQaFlag;
+    }
+    for (const root of temporaryRoots.splice(0)) {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
   });
 
   it('defines exactly 6 MVP categories with companions', () => {
@@ -81,8 +107,41 @@ describe('MVP_STORY_MATRIX helpers', () => {
         expect(configuredSlotStatus(category, direction)).toBe('approved_v3');
         expect(fs.existsSync(path.join(V3_APPROVED_DIR, `${companionId}_${direction}.md`))).toBe(true);
         expect(fs.existsSync(path.join(V3_APPROVED_DIR, `${companionId}_${direction}.import.json`))).toBe(true);
-        expect(isSlotSellable(category, direction)).toBe(true);
+        const awaitingProductPackage =
+          category === 'TRANSITION' && direction === 'bedtime';
+        expect(isSlotSellable(category, direction)).toBe(
+          !awaitingProductPackage,
+        );
       }
     }
+  });
+
+  it('does not let the approved-v3 flag reopen a package-required product lineage', () => {
+    process.env.ENABLE_V3_APPROVED_BANK = 'true';
+    expect(
+      isSlotSellable('TRANSITION', 'bedtime', {
+        repoRoot: productLineageRoot(),
+      }),
+    ).toBe(false);
+    expect(isSlotSellable('TRANSITION', 'adventure')).toBe(true);
+  });
+
+  it('uses the explicit repository root for legacy readiness instead of the process cwd', () => {
+    process.env.ENABLE_V3_APPROVED_BANK = 'true';
+    process.env.ENABLE_WIZARD_QA_RENDER_CATALOG = 'true';
+    const emptyRoot = fs.mkdtempSync(
+      path.join(os.tmpdir(), 'legacy-matrix-root-'),
+    );
+    temporaryRoots.push(emptyRoot);
+    expect(
+      isV3SlotRuntimeReady('bunny_ometz', 'bedtime', {
+        repoRoot: emptyRoot,
+      }),
+    ).toBe(false);
+    expect(
+      isSlotSellable('MEDICAL_PROCEDURE', 'bedtime', {
+        repoRoot: emptyRoot,
+      }),
+    ).toBe(false);
   });
 });

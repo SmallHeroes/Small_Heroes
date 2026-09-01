@@ -2,9 +2,12 @@ import path from 'path';
 
 import { describe, expect, it } from 'vitest';
 
-import { resolveStoryProductTruth } from '@/backend/providers/story-product-resolver';
 import { mapStyleToDatabaseValue } from '@/lib/styles';
 import { canonicalJsonDigest } from '@/lib/visual-package/integrity';
+import {
+  buildFrozenVisualPackageAuthority,
+  loadVisualPackageV4Revision,
+} from '@/lib/visual-package/visualPackageV4';
 
 import { buildFrozenStoryProductTruth } from '../frozen-product-truth';
 import {
@@ -14,27 +17,30 @@ import {
 } from '../order-visual-package-authority';
 
 function currentPackageOrder() {
-  const resolved = resolveStoryProductTruth({
-    challengeCategory: 'TRANSITION',
-    companionId: 'chameleon_koko',
-    clientDirection: 'bedtime',
+  const packagePath =
+    'visual-packages/approved/revisions/' +
+    '2b488f2db44702106f49ad80c257b88269972ffb8ebbc92cced95f81c13d98a6.visual-package.json';
+  const packageValue = loadVisualPackageV4Revision({
+    repoRoot: process.cwd(),
+    packagePath,
+    expectedRevisionDigest:
+      '2b488f2db44702106f49ad80c257b88269972ffb8ebbc92cced95f81c13d98a6',
   });
-  if (!resolved.storyFile || !resolved.visualPackageAuthority) {
-    throw new Error('published Chameleon package fixture is missing');
-  }
+  const authority = buildFrozenVisualPackageAuthority({
+    packageValue,
+    packagePath,
+  });
   const frozen = buildFrozenStoryProductTruth({
-    storyFilePath: resolved.storyFile,
-    expectedPageCount: resolved.pages,
-    storyDirection: resolved.storyDirection,
+    storyFilePath: path.join(process.cwd(), ...authority.sourcePath.split('/')),
+    expectedPageCount: packageValue.sourceSnapshot.identity.pageCount,
+    storyDirection: 'bedtime',
   });
   return {
     ...frozen,
     illustrationStyle: mapStyleToDatabaseValue(
-      resolved.visualPackageAuthority.styleId,
+      authority.styleId,
     ),
-    visualPackageAuthority: structuredClone(
-      resolved.visualPackageAuthority,
-    ),
+    visualPackageAuthority: structuredClone(authority),
   };
 }
 

@@ -220,6 +220,12 @@ export function resolveStoryProductTruth(input: {
         visualPackageAuthority: selection.frozenAuthority,
       };
     }
+    if (selection.visualPackageRequired) {
+      throw new StoryProductResolutionError(
+        `Product-accepted Story Source ${selection.storyKey} requires an exact render-qualified Visual Package`,
+        422,
+      );
+    }
   }
 
   // ── 1. v3-approved binding — only when direction explicitly matches ──
@@ -236,7 +242,9 @@ export function resolveStoryProductTruth(input: {
           : null;
 
     if (v3Direction) {
-      const selection = selectCompanionStory(companionId, v3Direction);
+      const selection = selectCompanionStory(companionId, v3Direction, {
+        repoRoot,
+      });
       if (selection?.dirName === V3_APPROVED_DIR_NAME) {
         const storyFile = join(v3ApprovedDir, selection.filename);
         const fm = readStoryFrontmatter(storyFile);
@@ -274,7 +282,9 @@ export function resolveStoryProductTruth(input: {
   }
 
   if (companionId) {
-    const selection = selectCompanionStory(companionId, direction);
+    const selection = selectCompanionStory(companionId, direction, {
+      repoRoot,
+    });
     if (selection) {
       const storyFile = join(
         repoRoot,

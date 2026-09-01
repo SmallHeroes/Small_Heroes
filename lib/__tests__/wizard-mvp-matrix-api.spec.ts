@@ -71,6 +71,19 @@ describe('GET /api/wizard/mvp-matrix', () => {
     expect(night?.directions?.fantasy?.availabilityStage).toBe(
       'qa_ready_for_low_story_generation',
     );
+
+    const transition = body.categories.find(
+      (c: { category: string }) => c.category === 'TRANSITION',
+    );
+    expect(transition?.directions?.bedtime).toMatchObject({
+      storyReady: false,
+      qaAuthoringReady: false,
+      productionRenderQualified: false,
+      selectable: false,
+      availabilityStage: 'unavailable',
+      candidateDigest: null,
+      sellable: false,
+    });
   });
 
   it('exposes sellable directions per category for wizard direction step', async () => {
@@ -96,10 +109,8 @@ describe('GET /api/wizard/mvp-matrix', () => {
         selectable: boolean;
       }]>) {
         expect(direction.qaAuthoringReady).toBe(false);
-        const isPublishedChameleon =
-          category.category === 'TRANSITION' && directionName === 'bedtime';
-        expect(direction.productionRenderQualified).toBe(isPublishedChameleon);
-        expect(direction.selectable).toBe(isPublishedChameleon);
+        expect(direction.productionRenderQualified).toBe(false);
+        expect(direction.selectable).toBe(false);
       }
     }
   });
@@ -119,12 +130,12 @@ describe('GET /api/wizard/mvp-matrix', () => {
         productionRenderQualified: boolean;
         selectable: boolean;
       }]>) {
-        expect(direction.sellable).toBe(true);
-        expect(direction.qaAuthoringReady).toBe(false);
-        const isPublishedChameleon =
+        const awaitingProductPackage =
           category.category === 'TRANSITION' && directionName === 'bedtime';
-        expect(direction.productionRenderQualified).toBe(isPublishedChameleon);
-        expect(direction.selectable).toBe(isPublishedChameleon);
+        expect(direction.sellable).toBe(!awaitingProductPackage);
+        expect(direction.qaAuthoringReady).toBe(false);
+        expect(direction.productionRenderQualified).toBe(false);
+        expect(direction.selectable).toBe(false);
       }
     }
   });

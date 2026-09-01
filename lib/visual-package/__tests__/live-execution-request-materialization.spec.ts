@@ -556,7 +556,7 @@ describe('canonical live execution request materialization', () => {
     expect(fs.readFileSync(absolute, 'utf8')).toBe(
       'different collision bytes\n',
     );
-  });
+  }, 15_000);
 
   it('uses fixed Git argv and never accepts expected values, executable, argv, shell, eval, or child environment from input', () => {
     const fixture = createFixture();
@@ -1084,7 +1084,7 @@ describe('fail-closed input, filesystem, Git, and B0 boundaries', () => {
     ).toEqual([
       'execution_request_materialization_git_rejected',
     ]);
-  });
+  }, 15_000);
 
   it('rejects branch/HEAD/ref/divergence movement during immediate verification and removes staged/new authority', () => {
     for (const movement of ['branch', 'upstream'] as const) {

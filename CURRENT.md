@@ -1,5 +1,49 @@
 # SmallHeroes — Current Technical State
 
+## R1D — product-accepted fresh selection fails closed; local gate complete; Claude Code QA pending
+
+A read-only end-to-end Wizard contamination audit found that the current Chameleon locator still
+selects package `2b488f2d...`, bound to legacy bus-stop Story Source `20a12801...`, rather than the
+Guy-approved lantern/kindergarten product revision `3ef64541...`. The active Blueprint-authoring
+bridge itself is cleanly bound to `3ef64541...`; the stale locator is a separate downstream
+fresh-order admission risk.
+
+- Fresh selection now derives a total lineage disposition from canonical accepted revision
+  artifacts. Any direct revision-level `product-acceptance.json` makes that story lineage
+  Visual-Package-required. Canonical bytes, exact story/revision identity, status, approver and
+  digest are validated; malformed, unreadable, aliased, symlinked or hard-linked state fails
+  closed and never restores fallback.
+- A required lineage is admitted only when the package-selected Story Source passes the existing
+  strict final accepted-v3 authority loader. The locator remains the revision selector; no code
+  chooses “latest” and no Chameleon/revision special case exists.
+- Matrix sellability, product resolution, Wizard response, runtime preflight, audit and release
+  evidence now agree: the current legacy package is unavailable for new Orders, and v3/QA/golden
+  flags cannot reopen it. The QA catalog cannot mark the same blocked slot selectable. Explicit
+  `repoRoot` is threaded through the legacy bank probes, so an alternate/empty root cannot borrow
+  assets from `process.cwd()`. Audit source/package provenance is emitted atomically from one lane.
+  A future current package bound to exact `3ef64541...` becomes eligible without another code
+  change.
+- The other 17 lineage-absent MVP slots retain their existing behavior. Historical frozen Orders
+  retain exact legacy/package replay: no Order/render/delivery production surface changed and no
+  mutable lineage lookup was added downstream.
+- Focused changed-path validation is **10 files / 141 tests PASS**. An additional adversarial
+  contamination sweep passed **8 files / 111 tests** and confirmed no active Wizard/UI/resolver,
+  style, flag, alternate-root, audit or frozen-Order bypass. Both TypeScript phases exit 0 and
+  `git diff --check` is clean.
+- Literal `npm run check` reproduced only the established ignored-output baseline in the ordinary
+  partition: **5 unchanged fixture files / 9 assertions**, with 4,317 passing and 73 skipped.
+  The resource partition completed **20 files / 632 tests PASS**; Vitest then emitted the three
+  known worker `onTaskUpdate` RPC timeouts, so the literal command remains exit 1 and is reported
+  honestly as baseline/infrastructure rather than green. Claude Code Opus/max review of the
+  focused immutable commit remains the final offline gate.
+- No provider, count endpoint, credential, network, image, audio, render, Order/payment, database,
+  deployment, package publication, locator mutation, or remote mutation occurred.
+
+Evidence:
+`docs/ai-workflow/R1D_PRODUCT_ACCEPTED_LINEAGE_FAIL_CLOSED_SELECTION_IMPLEMENTATION_EVIDENCE.md`.
+
+---
+
 ## R1D — bounded Blueprint affordance-consumer choice authority independently QA-passed; no new live/render yet
 
 The latest ordinary paid Blueprint run used the exact then-current program `1bd60e8c...`, all

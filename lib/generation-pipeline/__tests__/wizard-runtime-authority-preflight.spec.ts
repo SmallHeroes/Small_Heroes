@@ -62,7 +62,7 @@ describe('deployed Wizard runtime-authority preflight', () => {
     vi.unstubAllGlobals();
   });
 
-  it('proves the real Chameleon package, contract, Boards and every frame without provider or database reachability', async () => {
+  it('rejects the legacy current Chameleon package before Boards, provider or database reachability', async () => {
     vi.stubEnv('VERCEL_ENV', 'preview');
     vi.stubEnv('VISUAL_CONTRACT_ENFORCEMENT', 'true');
     const fetchSpy = vi.fn(() => {
@@ -72,53 +72,22 @@ describe('deployed Wizard runtime-authority preflight', () => {
 
     const boardResolverDeps = localApprovedBoardDeps();
     const boardByteRead = vi.spyOn(boardResolverDeps, 'fetchAssetSha256');
-    const result = await runWizardRuntimeAuthorityPreflight(
-      {
-        repoRoot: REPO_ROOT,
-        storyKey: STORY_KEY,
-        styleId: STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK,
-      },
-      { boardResolverDeps },
-    );
-
-    expect(result).toMatchObject({
-      version: 'wizard-runtime-authority-preflight/v1',
-      status: 'passed',
-      storyKey: STORY_KEY,
-      styleId: STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK,
-      packageRevisionDigest:
-        '2b488f2db44702106f49ad80c257b88269972ffb8ebbc92cced95f81c13d98a6',
-      sourceRawDigest:
-        '3aac47b55f606fd65a127c0679ffb42e6b16f93783d7a6386d81e5e8db01cef4',
-      checkedPageNumbers: [0, 1, 2, 3, 4, 5, 6, 7, 8],
-      effects: {
-        databaseReads: 0,
-        databaseWrites: 0,
-        providerCalls: 0,
-        imageWrites: 0,
-        audioWrites: 0,
-        retries: 0,
-        fallback: false,
-        storageReads: 4,
-      },
-    });
-    expect(result.contractHash).toMatch(/^[a-f0-9]{64}$/);
-    expect(result.packageAuthorityDigest).toMatch(/^[a-f0-9]{64}$/);
-    expect(result.blueprintDigest).toMatch(/^[a-f0-9]{64}$/);
-    expect(result.boardBindings.map((entry) => entry.setIdentityId)).toEqual([
-      'set_child_home_night',
-      'set_town_night',
-    ]);
-    expect(
-      result.boardBindings.every((entry) =>
-        [
-          entry.setDefinitionHash,
-          entry.contentPolicyDigest,
-          entry.assetSha256,
-        ].every((digest) => /^[a-f0-9]{64}$/.test(digest)),
+    await expect(
+      runWizardRuntimeAuthorityPreflight(
+        {
+          repoRoot: REPO_ROOT,
+          storyKey: STORY_KEY,
+          styleId: STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK,
+        },
+        { boardResolverDeps },
       ),
-    ).toBe(true);
-    expect(boardByteRead).toHaveBeenCalledTimes(4);
+    ).rejects.toMatchObject({
+      code: 'visual_package_not_qualified',
+      reasons: expect.arrayContaining([
+        'product-accepted Story Source lineage requires a package bound to a final accepted revision',
+      ]),
+    });
+    expect(boardByteRead).not.toHaveBeenCalled();
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 
@@ -139,7 +108,7 @@ describe('deployed Wizard runtime-authority preflight', () => {
     });
   });
 
-  it('fails closed on malformed keys and on approved Board-byte drift', async () => {
+  it('fails closed on malformed keys and never reaches Board-byte drift behind an ineligible product package', async () => {
     vi.stubEnv('VERCEL_ENV', 'preview');
     vi.stubEnv('VISUAL_CONTRACT_ENFORCEMENT', 'true');
     await expect(
@@ -177,9 +146,9 @@ describe('deployed Wizard runtime-authority preflight', () => {
         },
       ),
     ).rejects.toMatchObject({
-      code: 'board_binding_failed',
+      code: 'visual_package_not_qualified',
     });
-    expect(boardByteReadCount).toBe(3);
+    expect(boardByteReadCount).toBe(0);
   });
 
   it('bundles every filesystem authority required by the deployed preflight', () => {

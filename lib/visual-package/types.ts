@@ -192,6 +192,7 @@ export type VisualPackageIssueCode =
   | 'cover_source_spoiler_contradiction'
   | 'frozen_authority_missing'
   | 'frozen_authority_mismatch'
+  | 'product_lineage_package_not_qualified'
   | 'board_binding_missing'
   | 'board_binding_mismatch'
   | 'legacy_contract_not_qualified';

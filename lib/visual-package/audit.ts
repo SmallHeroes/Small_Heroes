@@ -15,6 +15,7 @@ import {
 } from '@/backend/providers/story-bank-index';
 
 import { evaluateRenderQualification, type RenderQualificationResult } from './qualification';
+import { evaluateWizardVisualPackageSelection } from './wizardVisualPackageSelection';
 
 const DIRECTIONS: StoryDirection[] = ['bedtime', 'adventure', 'fantasy'];
 
@@ -28,8 +29,8 @@ export interface RenderQualificationAuditRecord {
   productSellable: boolean;
   renderQualified: boolean;
   reasons: RenderQualificationResult['reasons'];
-  storySourcePath: string;
-  approvedPackagePath: string;
+  storySourcePath: string | null;
+  approvedPackagePath: string | null;
 }
 
 export interface RenderQualificationAudit {
@@ -66,7 +67,7 @@ export function auditMvpRenderQualification(args: {
         sourceDirForStatus(configuredStatus),
         `${storyKey}.md`,
       );
-      const qualification = evaluateRenderQualification({
+      const legacyQualification = evaluateRenderQualification({
         repoRoot: args.repoRoot,
         storyKey,
         storyPath,
@@ -74,6 +75,29 @@ export function auditMvpRenderQualification(args: {
         approvedPackagesDir: args.approvedPackagesDir,
         boardRegistryRoot: args.boardRegistryRoot,
       });
+      const wizardSelection = evaluateWizardVisualPackageSelection({
+        repoRoot: args.repoRoot,
+        storyKey,
+        styleId: args.styleId,
+        ...(args.approvedPackagesDir
+          ? { approvedPackagesDir: args.approvedPackagesDir }
+          : {}),
+      });
+      const productLineageRequiresVisualPackage =
+        wizardSelection.visualPackageRequired;
+      const productSellable = productLineageRequiresVisualPackage
+        ? wizardSelection.renderQualified
+        : isSlotSellable(category, direction, { repoRoot: args.repoRoot });
+      const renderQualified = productLineageRequiresVisualPackage
+        ? wizardSelection.renderQualified
+        : legacyQualification.renderQualified;
+      const reasons: RenderQualificationResult['reasons'] =
+        productLineageRequiresVisualPackage
+          ? wizardSelection.reasons.map((message) => ({
+              code: 'product_lineage_package_not_qualified',
+              message,
+            }))
+          : legacyQualification.reasons;
       records.push({
         category,
         direction,
@@ -81,11 +105,18 @@ export function auditMvpRenderQualification(args: {
         storyKey,
         configuredStatus,
         nominallySellable: true,
-        productSellable: isSlotSellable(category, direction),
-        renderQualified: qualification.renderQualified,
-        reasons: qualification.reasons,
-        storySourcePath: qualification.storySourcePath,
-        approvedPackagePath: qualification.approvedPackagePath,
+        productSellable,
+        renderQualified,
+        reasons,
+        // Provenance must remain one authority lane. A rejected product-lineage
+        // selection deliberately redacts its source, so do not pair that null
+        // with a legacy-bank source while retaining the attempted v4 package.
+        storySourcePath: productLineageRequiresVisualPackage
+          ? wizardSelection.sourcePath
+          : legacyQualification.storySourcePath,
+        approvedPackagePath: productLineageRequiresVisualPackage
+          ? wizardSelection.packagePath
+          : legacyQualification.approvedPackagePath,
       });
     }
   }

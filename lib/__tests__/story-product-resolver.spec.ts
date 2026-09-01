@@ -6,6 +6,7 @@
  * customer display = beats × 2 physical pages (displayPages).
  */
 import fs from 'fs';
+import os from 'os';
 import path from 'path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -21,7 +22,7 @@ const QA_AUTONOMOUS_DIR = path.join(
   'story-bank',
   'qa-autonomous-20260815-v1',
 );
-const CHAMELEON_ACCEPTED_REVISION = path.join(
+const CHAMELEON_LEGACY_REVISION = path.join(
   process.cwd(),
   'story-pipeline',
   '04_approved_story_sources',
@@ -31,12 +32,38 @@ const CHAMELEON_ACCEPTED_REVISION = path.join(
   '20a1280107a94ca0134c08351bc18565883ee358ce7ed1ca47ea797549bca1eb',
   'integrated.md',
 );
+const CHAMELEON_PRODUCT_REVISION = path.join(
+  process.cwd(),
+  'story-pipeline',
+  '04_approved_story_sources',
+  'accepted',
+  'chameleon_koko_bedtime',
+  'revisions',
+  '3ef645415b3cdd5945baeaa275d97ae0aa0491bf30addbcc46208475278f534a',
+  'integrated.md',
+);
 const BUNNY_BEDTIME = path.join(V3_APPROVED_DIR, 'bunny_ometz_bedtime.md');
 
 const originalFlag = process.env.ENABLE_V3_APPROVED_BANK;
 const originalQaFlag = process.env.ENABLE_WIZARD_QA_RENDER_CATALOG;
 // Only delete the fixture if WE created it (a real import may land here later).
 let createdFixture = false;
+const temporaryRoots: string[] = [];
+
+function productLineageRoot(): string {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'product-lineage-resolver-'));
+  temporaryRoots.push(root);
+  const relative = path.join(
+    'story-pipeline',
+    '04_approved_story_sources',
+    'accepted',
+    'chameleon_koko_bedtime',
+  );
+  const target = path.join(root, relative);
+  fs.mkdirSync(path.dirname(target), { recursive: true });
+  fs.cpSync(path.join(process.cwd(), relative), target, { recursive: true });
+  return root;
+}
 
 function writeBunnyFixture(pages: number, direction = 'bedtime') {
   fs.mkdirSync(V3_APPROVED_DIR, { recursive: true });
@@ -58,6 +85,9 @@ describe('resolveStoryProductTruth', () => {
     else process.env.ENABLE_V3_APPROVED_BANK = originalFlag;
     if (originalQaFlag === undefined) delete process.env.ENABLE_WIZARD_QA_RENDER_CATALOG;
     else process.env.ENABLE_WIZARD_QA_RENDER_CATALOG = originalQaFlag;
+    for (const root of temporaryRoots.splice(0)) {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
   });
 
   it('client adventure + bunny (v3 adventure binding) → v3 adventure, NOT bedtime override', () => {
@@ -117,52 +147,102 @@ describe('resolveStoryProductTruth', () => {
         );
         expect(resolved.storyFile).toBe(
           isPublishedChameleon
-            ? CHAMELEON_ACCEPTED_REVISION
+            ? CHAMELEON_PRODUCT_REVISION
             : path.join(V3_APPROVED_DIR, `${companionId}_${direction}.md`),
         );
       }
     }
   });
 
-  it('uses the currently published v4 package source for the Chameleon slot without legacy or QA flags', () => {
+  it('never serves a legacy package for a product-accepted lineage while its product package is not current', () => {
     delete process.env.ENABLE_V3_APPROVED_BANK;
     delete process.env.ENABLE_WIZARD_QA_RENDER_CATALOG;
 
-    const resolved = resolveStoryProductTruth({
-      challengeCategory: 'TRANSITION',
-      companionId: 'chameleon_koko',
-      clientDirection: 'bedtime',
-    });
-    expect(resolved).toMatchObject({
-      storyDirection: 'bedtime',
-      storyLength: 'short',
-      pages: 8,
-      displayPages: 16,
-      priceILS: 59,
-      source: 'visual_package_v4',
-      storyFile: CHAMELEON_ACCEPTED_REVISION,
-    });
-    expect(resolved.visualPackageAuthority).toBeDefined();
-    expect(resolved.visualPackageAuthority?.sourcePath).toBe(
-      path.relative(process.cwd(), CHAMELEON_ACCEPTED_REVISION).replace(/\\/g, '/'),
-    );
-    expect(resolved.visualPackageAuthority?.sourceRawDigest).toMatch(/^[0-9a-f]{64}$/);
+    expect(() =>
+      resolveStoryProductTruth({
+        challengeCategory: 'TRANSITION',
+        companionId: 'chameleon_koko',
+        clientDirection: 'bedtime',
+      }),
+    ).toThrow('requires an exact render-qualified Visual Package');
+    expect(CHAMELEON_LEGACY_REVISION).not.toBe(CHAMELEON_PRODUCT_REVISION);
   });
 
   it('never selects a Style 01 package for an Order requesting another illustration style', () => {
     process.env.ENABLE_V3_APPROVED_BANK = 'true';
-    const resolved = resolveStoryProductTruth({
-      challengeCategory: 'TRANSITION',
-      companionId: 'chameleon_koko',
-      clientDirection: 'bedtime',
-      illustrationStyle: 'detailed_whimsical_world',
-    });
+    expect(() =>
+      resolveStoryProductTruth({
+        challengeCategory: 'TRANSITION',
+        companionId: 'chameleon_koko',
+        clientDirection: 'bedtime',
+        illustrationStyle: 'detailed_whimsical_world',
+      }),
+    ).toThrow('requires an exact render-qualified Visual Package');
+  });
 
-    expect(resolved.source).toBe('v3_approved_binding');
-    expect(resolved.storyFile).toBe(
-      path.join(V3_APPROVED_DIR, 'chameleon_koko_bedtime.md'),
+  it('does not let v3 or QA flags reopen fallback when a product-accepted lineage has no package', () => {
+    process.env.ENABLE_V3_APPROVED_BANK = 'true';
+    process.env.ENABLE_WIZARD_QA_RENDER_CATALOG = 'true';
+    const repoRoot = productLineageRoot();
+
+    let caught: unknown = null;
+    try {
+      resolveStoryProductTruth(
+        {
+          challengeCategory: 'TRANSITION',
+          companionId: 'chameleon_koko',
+          clientDirection: 'bedtime',
+        },
+        { repoRoot },
+      );
+    } catch (error) {
+      caught = error;
+    }
+    expect(caught).toBeInstanceOf(StoryProductResolutionError);
+    expect((caught as StoryProductResolutionError).httpStatus).toBe(422);
+    expect(String((caught as Error).message)).not.toContain('v3-approved');
+
+    const malformedRoot = productLineageRoot();
+    const acceptancePath = path.join(
+      malformedRoot,
+      'story-pipeline',
+      '04_approved_story_sources',
+      'accepted',
+      'chameleon_koko_bedtime',
+      'revisions',
+      '3ef645415b3cdd5945baeaa275d97ae0aa0491bf30addbcc46208475278f534a',
+      'product-acceptance.json',
     );
-    expect(resolved.visualPackageAuthority).toBeUndefined();
+    const linkedSource = path.join(malformedRoot, 'linked-acceptance.json');
+    fs.renameSync(acceptancePath, linkedSource);
+    fs.linkSync(linkedSource, acceptancePath);
+    expect(() =>
+      resolveStoryProductTruth(
+        {
+          challengeCategory: 'TRANSITION',
+          companionId: 'chameleon_koko',
+          clientDirection: 'bedtime',
+        },
+        { repoRoot: malformedRoot },
+      ),
+    ).toThrow('requires an exact render-qualified Visual Package');
+  });
+
+  it('never selects a legacy story from process cwd when an explicit repository root is empty', () => {
+    process.env.ENABLE_V3_APPROVED_BANK = 'true';
+    const repoRoot = fs.mkdtempSync(
+      path.join(os.tmpdir(), 'legacy-resolver-root-'),
+    );
+    temporaryRoots.push(repoRoot);
+    expect(() =>
+      resolveStoryProductTruth(
+        {
+          companionId: 'bunny_ometz',
+          clientDirection: 'bedtime',
+        },
+        { repoRoot },
+      ),
+    ).toThrow('No bank story for companion=bunny_ometz direction=bedtime');
   });
 
   it('QA flag binds all sellable slots to the autonomous QA bank with canonical page counts', () => {
@@ -183,7 +263,7 @@ describe('resolveStoryProductTruth', () => {
           companionId === 'chameleon_koko' && direction === 'bedtime';
         expect(resolved.storyFile).toBe(
           isPublishedChameleon
-            ? CHAMELEON_ACCEPTED_REVISION
+            ? CHAMELEON_PRODUCT_REVISION
             : path.join(QA_AUTONOMOUS_DIR, `${companionId}_${direction}.md`),
         );
         expect(resolved.pages).toBe(expectedPages[direction]);

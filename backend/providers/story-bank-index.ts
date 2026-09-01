@@ -22,15 +22,12 @@ const STORY_BANK_DIR = join(process.cwd(), 'story-bank', 'raw');
 // Companion-direction stories. Defaults to v5-fixed-v2 (97% PASS QA, 108 stories).
 // Override with STORY_BANK_V3_DIR env var to roll back (e.g. 'v3').
 const V3_STORY_DIR_NAME = (process.env.STORY_BANK_V3_DIR || 'v5-fixed-v2').trim();
-const V3_STORY_DIR = join(process.cwd(), 'story-bank', V3_STORY_DIR_NAME);
 export const STORY_BANK_V3_DIR_NAME = V3_STORY_DIR_NAME;
 
 // Generator-v3 owner-approved stories (imported via scripts/import-v3-approved-story.ts).
 // Served ONLY when ENABLE_V3_APPROVED_BANK=true; flag off = path untouched.
 export const V3_APPROVED_DIR_NAME = 'v3-approved';
-const V3_APPROVED_DIR = join(process.cwd(), 'story-bank', V3_APPROVED_DIR_NAME);
 export const WIZARD_QA_STORY_DIR_NAME = 'qa-autonomous-20260815-v1';
-const WIZARD_QA_STORY_DIR = join(process.cwd(), 'story-bank', WIZARD_QA_STORY_DIR_NAME);
 
 /** v5 stories superseded by v3-approved — never served from v5 path (old canon). */
 export const V5_SUPERSEDED_STORY_FILENAMES = new Set([
@@ -329,6 +326,7 @@ export function hasBankStories(challengeCategory: string): boolean {
 export function selectCompanionStory(
   companionId: string | null | undefined,
   direction: string | null | undefined,
+  options: { repoRoot?: string } = {},
 ): StoryBankSelection | null {
   if (!companionId || !direction) return null;
   if (isFuturePoolCompanion(companionId)) return null;
@@ -338,8 +336,12 @@ export function selectCompanionStory(
   if (dir !== 'bedtime' && dir !== 'adventure' && dir !== 'fantasy') return null;
 
   const filename = `${companionId}_${dir}.md`;
+  const storyBankRoot = join(options.repoRoot ?? process.cwd(), 'story-bank');
+  const wizardQaStoryDir = join(storyBankRoot, WIZARD_QA_STORY_DIR_NAME);
+  const v3ApprovedDir = join(storyBankRoot, V3_APPROVED_DIR_NAME);
+  const v3StoryDir = join(storyBankRoot, V3_STORY_DIR_NAME);
 
-  if (isWizardQaStoryBankEnabled() && existsSync(join(WIZARD_QA_STORY_DIR, filename))) {
+  if (isWizardQaStoryBankEnabled() && existsSync(join(wizardQaStoryDir, filename))) {
     return {
       filename,
       base: `${companionId}_${dir}`,
@@ -350,7 +352,7 @@ export function selectCompanionStory(
   }
 
   // Owner-approved Generator-v3 entry takes precedence ONLY behind the flag.
-  if (isV3ApprovedBankEnabled() && existsSync(join(V3_APPROVED_DIR, filename))) {
+  if (isV3ApprovedBankEnabled() && existsSync(join(v3ApprovedDir, filename))) {
     return {
       filename,
       base: `${companionId}_${dir}`,
@@ -365,7 +367,7 @@ export function selectCompanionStory(
     return null;
   }
 
-  const fullPath = join(V3_STORY_DIR, filename);
+  const fullPath = join(v3StoryDir, filename);
 
   if (!existsSync(fullPath)) {
     console.warn(`[story-bank] v3 file missing: ${filename}`);

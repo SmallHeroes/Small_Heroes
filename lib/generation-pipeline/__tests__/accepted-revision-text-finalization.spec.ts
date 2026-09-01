@@ -34,8 +34,10 @@ vi.mock('@/backend/providers/story-bank-index', async () => {
 
 import { buildFrozenStoryProductTruth } from '../frozen-product-truth';
 import { finalizeAndPersistStoryText } from '../text-finalization';
-import { evaluateWizardVisualPackageSelection } from '@/lib/visual-package/wizardVisualPackageSelection';
-import { STYLE_IDS } from '@/lib/styles';
+import {
+  buildFrozenVisualPackageAuthority,
+  loadVisualPackageV4Revision,
+} from '@/lib/visual-package/visualPackageV4';
 
 const SOURCE_REF =
   'story-pipeline/04_approved_story_sources/accepted/chameleon_koko_bedtime/revisions/20a1280107a94ca0134c08351bc18565883ee358ce7ed1ca47ea797549bca1eb/integrated.md';
@@ -47,14 +49,19 @@ function order(overrides: Partial<Order> = {}): Order {
     expectedPageCount: 8,
     storyDirection: 'bedtime',
   });
-  const selection = evaluateWizardVisualPackageSelection({
+  const packagePath =
+    'visual-packages/approved/revisions/' +
+    '2b488f2db44702106f49ad80c257b88269972ffb8ebbc92cced95f81c13d98a6.visual-package.json';
+  const packageValue = loadVisualPackageV4Revision({
     repoRoot: process.cwd(),
-    storyKey: 'chameleon_koko_bedtime',
-    styleId: STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK,
+    packagePath,
+    expectedRevisionDigest:
+      '2b488f2db44702106f49ad80c257b88269972ffb8ebbc92cced95f81c13d98a6',
   });
-  if (!selection.frozenAuthority) {
-    throw new Error('published Chameleon authority fixture is missing');
-  }
+  const frozenAuthority = buildFrozenVisualPackageAuthority({
+    packageValue,
+    packagePath,
+  });
   return {
     id: 'accepted-revision-order',
     characterAnchors: {
@@ -73,7 +80,7 @@ function order(overrides: Partial<Order> = {}): Order {
     storySourceHash: frozen.storySourceHash,
     topic: 'TRANSITION',
     illustrationStyle: 'SOFT_HAND_DRAWN_STORYBOOK',
-    visualPackageAuthority: selection.frozenAuthority,
+    visualPackageAuthority: frozenAuthority,
     ...overrides,
   } as Order;
 }

@@ -740,11 +740,32 @@ describe('all-slot zero-cost audit and explicit strict release mode', () => {
     });
     expect(audit.nominalSlotCount).toBe(18);
     expect(audit.records).toHaveLength(18);
-    expect(audit.productSellableCount).toBe(18);
+    expect(audit.productSellableCount).toBe(17);
     expect(audit.renderQualifiedCount).toBe(0);
+    const unavailable = audit.records.filter((record) => !record.productSellable);
+    expect(unavailable).toMatchObject([
+      {
+        category: 'TRANSITION',
+        direction: 'bedtime',
+        storyKey: 'chameleon_koko_bedtime',
+        renderQualified: false,
+        storySourcePath: null,
+      },
+    ]);
+    expect(unavailable[0]?.approvedPackagePath).toMatch(
+      /^visual-packages\/approved\/revisions\/[a-f0-9]{64}\.visual-package\.json$/,
+    );
+    expect(unavailable[0]?.storySourcePath).not.toBe(
+      'story-bank/v3-approved/chameleon_koko_bedtime.md',
+    );
+    expect(unavailable[0]?.reasons.map((reason) => reason.code)).toEqual([
+      'product_lineage_package_not_qualified',
+    ]);
     for (const record of audit.records) {
       expect(record.nominallySellable).toBe(true);
-      expect(record.productSellable).toBe(true);
+      if (record.storyKey !== 'chameleon_koko_bedtime') {
+        expect(record.productSellable).toBe(true);
+      }
       expect(record.renderQualified).toBe(false);
       expect(record.reasons.length).toBeGreaterThan(0);
       expect(record.reasons.every((reason) => typeof reason.code === 'string')).toBe(true);
@@ -760,7 +781,10 @@ describe('all-slot zero-cost audit and explicit strict release mode', () => {
     expect(evaluateRenderQualificationReleaseGate(audit, false)).toMatchObject({ strict: false, pass: true });
     const strict = evaluateRenderQualificationReleaseGate(audit, true);
     expect(strict.pass).toBe(false);
-    expect(strict.failures).toHaveLength(18);
+    expect(strict.failures).toHaveLength(17);
+    expect(strict.failures.map((failure) => failure.storyKey)).not.toContain(
+      'chameleon_koko_bedtime',
+    );
   });
 });
 

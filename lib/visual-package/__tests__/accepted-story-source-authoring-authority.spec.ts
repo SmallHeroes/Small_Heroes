@@ -5,6 +5,7 @@ import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import {
+  acceptedProductLineageDisposition,
   acceptedStorySourceAuthoringAuthorityBindsSource,
   loadAcceptedStorySourceAuthoringAuthority,
 } from '../acceptedStorySourceAuthoringAuthority';
@@ -55,6 +56,65 @@ afterEach(() => {
 });
 
 describe('accepted Story Source authoring authority', () => {
+  it('closes legacy fallback on any canonical product acceptance and fails closed on malformed lineage bytes', () => {
+    expect(
+      acceptedProductLineageDisposition({
+        repoRoot: process.cwd(),
+        storyKey: STORY_KEY,
+      }),
+    ).toEqual({ kind: 'present' });
+
+    const absentRoot = fs.mkdtempSync(
+      path.join(os.tmpdir(), 'accepted-authoring-absent-'),
+    );
+    temporaryRoots.push(absentRoot);
+    expect(
+      acceptedProductLineageDisposition({
+        repoRoot: absentRoot,
+        storyKey: 'ordinary_story',
+      }),
+    ).toEqual({ kind: 'absent' });
+
+    const malformedRoot = tempAcceptedRevision();
+    const acceptancePath = path.join(
+      malformedRoot,
+      REVISION_ROOT,
+      'product-acceptance.json',
+    );
+    const linkedSource = path.join(malformedRoot, 'linked-acceptance.json');
+    fs.renameSync(acceptancePath, linkedSource);
+    fs.linkSync(linkedSource, acceptancePath);
+    expect(
+      acceptedProductLineageDisposition({
+        repoRoot: malformedRoot,
+        storyKey: STORY_KEY,
+      }),
+    ).toEqual({
+      kind: 'invalid',
+      reasons: ['product_acceptance_file_invalid'],
+    });
+
+    const malformedBytesRoot = tempAcceptedRevision();
+    fs.writeFileSync(
+      path.join(
+        malformedBytesRoot,
+        REVISION_ROOT,
+        'product-acceptance.json',
+      ),
+      '{"broken":\n',
+      'utf8',
+    );
+    expect(
+      acceptedProductLineageDisposition({
+        repoRoot: malformedBytesRoot,
+        storyKey: STORY_KEY,
+      }),
+    ).toEqual({
+      kind: 'invalid',
+      reasons: ['product_acceptance_content_invalid'],
+    });
+  });
+
   it('revalidates the exact nine-file accepted-v3 inventory and binds continuity into the prompt input', () => {
     const authority = loadAcceptedStorySourceAuthoringAuthority({
       repoRoot: process.cwd(),
