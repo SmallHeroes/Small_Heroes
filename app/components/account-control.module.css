@@ -9,14 +9,15 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 36px;
-  padding: 0 14px;
+  /* same stature as the header create-CTA (per Guy) */
+  min-height: 40px;
+  padding: 0 16px;
   border-radius: 999px;
   border: 1px solid var(--n-200, #d9d4e3);
   background: transparent;
   color: var(--purple-600, #7b2fcc);
   font-family: var(--fb, 'Rubik', sans-serif);
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 700;
   cursor: pointer;
   line-height: 1;
@@ -52,7 +53,7 @@
 .menuItem {
   display: block;
   width: 100%;
-  padding: 10px 12px;
+  padding: 8px 12px;
   border: none;
   border-radius: 10px;
   background: transparent;
@@ -79,7 +80,7 @@
   left: 50%;
   transform: translateX(-50%);
   white-space: nowrap;
-  padding: 6px 12px;
+  padding: 8px 12px;
   border-radius: 10px;
   background: #2b2350;
   color: #fff;

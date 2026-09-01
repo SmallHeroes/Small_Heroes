@@ -8,6 +8,8 @@ import { CategoryChallengeCard } from '@/app/category-challenge-card';
 import type { MvpMatrixCategoryPayload } from '@/lib/web/mvp-matrix-response';
 import { initLandingMotion } from './motion';
 import { SiteHeader } from '@/app/components/SiteHeader';
+import { LegalLinks } from '@/app/components/LegalShell';
+import '@/app/legal/legal.css';
 import { AboutSection } from './about-section';
 import { HeroDoodles, ValueDoodles, HelpsDoodles } from './hero-doodles';
 import { HeroCollage } from './hero-collage';
@@ -131,11 +133,14 @@ export default function LandingPage({ content: L, startHref, matrixCategories }:
   return (
     <>
       <div className="landing-body" data-motion="on">
+        <a href="#main" className="skip-link">
+          דילוג לתוכן
+        </a>
         {/* 2026: thin scroll-progress bar — pure CSS scroll-timeline, no JS (falls back to hidden) */}
         <div className="scroll-progress" aria-hidden="true" />
         <SiteHeader variant="full" />
 
-        <main>
+        <main id="main">
           <section className="hero">
             <HeroDoodles />
             <div className="wrap hero-wrap">
@@ -163,13 +168,6 @@ export default function LandingPage({ content: L, startHref, matrixCategories }:
                   </a>
                 </div>
 
-                {/* three short reassurances, dot-separated on one line (they
-                    wrap to two on a phone rather than shrinking) */}
-                <ul className="hero-cta-notes" data-reveal="hero" data-reveal-delay="240">
-                  {L.hero.ctaNotes.map((note) => (
-                    <li key={note}>{note}</li>
-                  ))}
-                </ul>
               </div>
 
               <div className="hero-img-wrap" data-reveal="scale" data-reveal-delay="120" data-tilt="hero">
@@ -584,6 +582,9 @@ export default function LandingPage({ content: L, startHref, matrixCategories }:
               <a href={startHref} className="btn-primary footer-cta" data-event="landing_start_click" data-reveal="up" data-reveal-delay="160">
                 {L.footer.cta}
               </a>
+
+              {/* a real site signs its name: the legal strip closes the page */}
+              <LegalLinks />
             </div>
           </footer>
         </main>

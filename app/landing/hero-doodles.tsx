@@ -114,6 +114,14 @@ const DESKTOP: Doodle[] = [
   { key: 'lantern', left: 30, bottom: 0.8, size: 22, rotate: 5, duration: 14, delay: -9, drift: 6, art: LANTERN },
   { key: 'spark-edge', left: 0.9, top: 45, size: 13, rotate: 12, duration: 9, delay: -8, tone: 'gold', art: SPARKLE },
 
+  /* the flanks (per Guy: the hero's sides sat empty) - small marks in the
+     outer gutters, clear of the collage and the copy column */
+  { key: 'heart-flank', left: 0.8, top: 28, size: 18, rotate: -10, duration: 11, delay: -3, drift: 9, art: HEART },
+  { key: 'star-flank', left: 1.1, top: 66, size: 20, rotate: 10, duration: 12, delay: -7, art: STAR },
+  { key: 'note-flank', right: 0.7, top: 32, size: 16, rotate: 9, duration: 10, delay: -4, drift: 8, art: NOTE },
+  { key: 'spark-flank', right: 1.0, top: 54, size: 12, rotate: -12, duration: 8, delay: -6, tone: 'gold', art: SPARKLE },
+  { key: 'cloud-flank', right: 0.6, top: 73, size: 20, rotate: 0, duration: 14, delay: -9, drift: 7, art: CLOUD },
+
   { key: 'spark-gold', right: 6, top: 1.2, size: 20, rotate: 8, duration: 9, delay: -2, tone: 'gold', art: SPARKLE },
   { key: 'note', right: 30, top: 1.2, size: 20, rotate: -10, duration: 10, delay: -7, art: NOTE },
   { key: 'star', right: 1.2, bottom: 1.5, size: 22, rotate: -8, duration: 12, delay: -6, art: STAR },
