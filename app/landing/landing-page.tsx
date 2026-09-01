@@ -262,15 +262,6 @@ export default function LandingPage({ content: L, startHref, matrixCategories }:
               brightness — drop the --dark modifier to go back to white */}
           <section className="section sample-section sample-section--dark" id="sample">
             <SectionWave fill="#fff" />
-            {/* Ometz peeks over the seam into the dark reading room — the one
-                small delight at the page's biggest scene change */}
-            <img
-              className="sample-peek"
-              src="/Images/spotlight/bunny_ometz.png"
-              alt=""
-              aria-hidden="true"
-              loading="lazy"
-            />
             <div className="wrap sample-wrap">
               <div className="sample-text">
                 <div className="sample-kicker" data-reveal="up">{L.sample.kicker}</div>
