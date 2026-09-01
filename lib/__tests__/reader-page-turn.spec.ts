@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
   DESKTOP_PAGE_CURL_SLICE_COUNT,
@@ -21,8 +21,37 @@ import {
   type ReaderBookSource,
 } from '../reader-book-source';
 import type { DesktopSpread } from '../book-layout/types';
-import { recordReaderImageCacheState } from '../../app/book/[id]/read-v2/useAdjacentImagePreload';
-import { desktopPhysicalPageTurnImagesAreReady } from '../../app/book/[id]/read-v2/components/useDesktopPhysicalPageTurn';
+import {
+  clearReaderImageCacheUrls,
+  decodeReaderImage,
+  getReaderImageCacheState,
+  readerImageIsPaintReady,
+  recordReaderImageError,
+  resetReaderImageCacheUrl,
+  retainReaderImageCacheUrls,
+} from '../../app/book/[id]/read-v2/useAdjacentImagePreload';
+import {
+  createDesktopPhysicalPageTurnSettler,
+  createDesktopPhysicalPageTurnUnmountGuard,
+  desktopPhysicalPageTurnIsAvailable,
+  desktopPhysicalPageTurnImagesAreReady,
+  scheduleDesktopPhysicalPageTurnHandoff,
+} from '../../app/book/[id]/read-v2/components/useDesktopPhysicalPageTurn';
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
+
+function fakeReaderImage(
+  decode: () => Promise<void>,
+  options: { complete?: boolean; naturalWidth?: number } = {},
+): HTMLImageElement {
+  return {
+    complete: options.complete ?? true,
+    naturalWidth: options.naturalWidth ?? 1024,
+    decode,
+  } as unknown as HTMLImageElement;
+}
 
 function desktopSpreadWithImage(illustrationUrl: string | null): DesktopSpread {
   return {
@@ -67,6 +96,18 @@ describe('shared Reader page-turn contract', () => {
       path.join(process.cwd(), 'app', 'book', '[id]', 'read-v2', 'reader-v2.tsx'),
       'utf8',
     );
+    const illustration = fs.readFileSync(
+      path.join(
+        process.cwd(),
+        'app',
+        'book',
+        '[id]',
+        'read-v2',
+        'components',
+        'SceneIllustration.tsx',
+      ),
+      'utf8',
+    );
     for (const source of [qa, reader]) {
       expect(source).toContain('data-page-turn-direction={pageTurnDirection}');
       expect(source).toContain("data-page-turn-mode={physicalPageTurn ? 'physical-sheet' : 'instant'}");
@@ -75,6 +116,13 @@ describe('shared Reader page-turn contract', () => {
       expect(source).not.toContain('styles.sceneTurnBackward');
     }
     expect(reader).toContain('setPageTurnDirection(restart.pageTurnDirection)');
+    expect(qa).toContain(
+      "useAdjacentImagePreload(imageUrls, sceneIndex, status === 'ready' && scenes.length > 0)",
+    );
+    expect(qa).not.toContain('useSceneImageQueue');
+    expect(illustration).toContain('illustrationState.url === url');
+    expect(illustration).toContain('illustrationState.retryNonce === retryNonce');
+    expect(illustration.match(/if \(imgRef\.current !== image\) return;/g)).toHaveLength(3);
   });
 
   it('keeps the old whole-book tilt/fade animation removed', () => {
@@ -112,6 +160,18 @@ describe('shared Reader page-turn contract', () => {
         'read-v2',
         'components',
         'DesktopBookSpread.tsx',
+      ),
+      'utf8',
+    );
+    const turnHook = fs.readFileSync(
+      path.join(
+        process.cwd(),
+        'app',
+        'book',
+        '[id]',
+        'read-v2',
+        'components',
+        'useDesktopPhysicalPageTurn.ts',
       ),
       'utf8',
     );
@@ -181,23 +241,32 @@ describe('shared Reader page-turn contract', () => {
     );
     expect(engine).toContain('targetRect.left - sourceRect.left');
     expect(engine).toContain('targetPageWidth: targetRect.width');
-    expect(engine).toContain('settleFrame = window.requestAnimationFrame');
+    expect(engine).toContain('scheduleDesktopPhysicalPageTurnHandoff');
+    expect(engine).toContain('watchdogTimer = window.setTimeout');
+    expect(engine).toContain('abortIfStillUnmounted');
+    expect(turnHook).toContain('useLayoutEffect(() => cancel, [cancel])');
+    expect(turnHook).not.toContain('window.setTimeout');
   });
 
-  it('starts a physical turn only when both illustration textures are durably loaded', () => {
+  it('starts a physical turn only after both illustration textures are decoded', async () => {
     const outgoingUrl = '/reader-turn-outgoing.png';
     const incomingUrl = '/reader-turn-incoming.png';
     const outgoing = desktopSpreadWithImage(outgoingUrl);
     const incoming = desktopSpreadWithImage(incomingUrl);
+    let finishIncomingDecode!: () => void;
+    const incomingDecode = new Promise<void>((resolve) => {
+      finishIncomingDecode = resolve;
+    });
 
-    recordReaderImageCacheState(outgoingUrl, 'loaded');
-    recordReaderImageCacheState(incomingUrl, 'loading');
+    await decodeReaderImage(outgoingUrl, fakeReaderImage(() => Promise.resolve()));
+    const pendingDecode = decodeReaderImage(
+      incomingUrl,
+      fakeReaderImage(() => incomingDecode),
+    );
     expect(desktopPhysicalPageTurnImagesAreReady(outgoing, incoming)).toBe(false);
 
-    recordReaderImageCacheState(incomingUrl, 'error');
-    expect(desktopPhysicalPageTurnImagesAreReady(outgoing, incoming)).toBe(false);
-
-    recordReaderImageCacheState(incomingUrl, 'loaded');
+    finishIncomingDecode();
+    await pendingDecode;
     expect(desktopPhysicalPageTurnImagesAreReady(outgoing, incoming)).toBe(true);
     expect(
       desktopPhysicalPageTurnImagesAreReady(
@@ -205,6 +274,320 @@ describe('shared Reader page-turn contract', () => {
         incoming,
       ),
     ).toBe(false);
+  });
+
+  it('fails closed on rejected decode and never upgrades complete dimensions alone', async () => {
+    const failedUrl = '/reader-turn-decode-failed.png';
+    const decoded = await decodeReaderImage(
+      failedUrl,
+      fakeReaderImage(() => Promise.reject(new DOMException('bad image', 'EncodingError'))),
+    );
+
+    expect(decoded).toBe(false);
+    expect(getReaderImageCacheState(failedUrl)).toBe('error');
+    expect(readerImageIsPaintReady(failedUrl)).toBe(false);
+  });
+
+  it('keeps a synchronous browser-cache probe static until its decode promise resolves', async () => {
+    const cachedUrl = '/reader-turn-browser-cache.png';
+    let finishDecode!: () => void;
+    const decodePromise = new Promise<void>((resolve) => {
+      finishDecode = resolve;
+    });
+
+    class CachedImageProbe {
+      complete = true;
+      naturalWidth = 1200;
+      decoding = 'auto';
+      src = '';
+      decode = () => decodePromise;
+    }
+    vi.stubGlobal('Image', CachedImageProbe);
+
+    expect(readerImageIsPaintReady(cachedUrl)).toBe(false);
+    expect(getReaderImageCacheState(cachedUrl)).toBe('loading');
+    finishDecode();
+    await decodePromise;
+    await new Promise<void>((resolve) => setTimeout(resolve, 0));
+
+    expect(getReaderImageCacheState(cachedUrl)).toBe('decoded');
+    expect(readerImageIsPaintReady(cachedUrl)).toBe(true);
+  });
+
+  it('keeps a superseded same-URL element loaded without overwriting the retained winner', async () => {
+    const url = '/reader-turn-stale-decode.png';
+    let finishStaleDecode!: () => void;
+    const staleDecode = new Promise<void>((resolve) => {
+      finishStaleDecode = resolve;
+    });
+    const staleResult = decodeReaderImage(url, fakeReaderImage(() => staleDecode));
+    const currentResult = decodeReaderImage(
+      url,
+      fakeReaderImage(() => Promise.resolve()),
+    );
+
+    expect(await currentResult).toBe(true);
+    finishStaleDecode();
+    expect(await staleResult).toBe(true);
+    expect(getReaderImageCacheState(url)).toBe('decoded');
+    expect(readerImageIsPaintReady(url)).toBe(true);
+  });
+
+  it('ignores stale errors after replacement, pruning, and retry reset', async () => {
+    const url = '/reader-turn-stale-error.png';
+    const staleImage = fakeReaderImage(() => Promise.reject(new Error('stale failure')));
+    const retainedImage = fakeReaderImage(() => Promise.resolve());
+
+    await decodeReaderImage(url, retainedImage);
+    recordReaderImageError(url, staleImage);
+    expect(getReaderImageCacheState(url)).toBe('decoded');
+    expect(readerImageIsPaintReady(url)).toBe(true);
+
+    recordReaderImageError(url, retainedImage);
+    expect(getReaderImageCacheState(url)).toBe('decoded');
+
+    clearReaderImageCacheUrls([url]);
+    recordReaderImageError(url, staleImage);
+    expect(getReaderImageCacheState(url)).toBe('unknown');
+
+    await decodeReaderImage(url, retainedImage);
+    resetReaderImageCacheUrl(url);
+    recordReaderImageError(url, retainedImage);
+    expect(getReaderImageCacheState(url)).toBe('unknown');
+  });
+
+  it('records an error only for the current failed image owner', async () => {
+    const url = '/reader-turn-current-error.png';
+    let rejectDecode!: (reason: Error) => void;
+    const pendingDecode = new Promise<void>((_resolve, reject) => {
+      rejectDecode = reject;
+    });
+    const owner = fakeReaderImage(
+      () => pendingDecode,
+      { complete: true, naturalWidth: 0 },
+    );
+
+    const result = decodeReaderImage(url, owner);
+    await Promise.resolve();
+    recordReaderImageError(url, owner);
+    expect(getReaderImageCacheState(url)).toBe('error');
+    rejectDecode(new Error('current failure'));
+    expect(await result).toBe(false);
+  });
+
+  it('lets a retry generation replace a failed decode without stale overwrite', async () => {
+    const url = '/reader-turn-retry.png';
+    const failedOwner = fakeReaderImage(
+      () => Promise.reject(new Error('first failure')),
+      { complete: true, naturalWidth: 0 },
+    );
+    expect(await decodeReaderImage(url, failedOwner)).toBe(false);
+    expect(getReaderImageCacheState(url)).toBe('error');
+
+    resetReaderImageCacheUrl(url);
+    let finishRetry!: () => void;
+    const retryDecode = new Promise<void>((resolve) => {
+      finishRetry = resolve;
+    });
+    const retryOwner = fakeReaderImage(() => retryDecode);
+    const retryResult = decodeReaderImage(url, retryOwner);
+    recordReaderImageError(url, failedOwner);
+    expect(getReaderImageCacheState(url)).toBe('loading');
+    expect(readerImageIsPaintReady(url)).toBe(false);
+
+    finishRetry();
+    expect(await retryResult).toBe(true);
+    expect(getReaderImageCacheState(url)).toBe('decoded');
+    expect(readerImageIsPaintReady(url)).toBe(true);
+  });
+
+  it('does not probe images when viewport or motion settings require a static turn', () => {
+    const outgoing = desktopSpreadWithImage('/reader-static-outgoing.png');
+    const incoming = desktopSpreadWithImage('/reader-static-incoming.png');
+    let imageConstructions = 0;
+
+    class CountingImageProbe {
+      complete = false;
+      naturalWidth = 0;
+      decoding = 'auto';
+      src = '';
+      constructor() {
+        imageConstructions += 1;
+      }
+      decode = () => Promise.resolve();
+    }
+    vi.stubGlobal('Image', CountingImageProbe);
+
+    const media = (desktop: boolean, reducedMotion: boolean) => ({
+      matchMedia: (query: string) => ({
+        matches: query === '(min-width: 1024px)' ? desktop : reducedMotion,
+      }),
+    });
+
+    vi.stubGlobal('window', media(false, false));
+    expect(desktopPhysicalPageTurnIsAvailable(outgoing, incoming)).toBe(false);
+    expect(imageConstructions).toBe(0);
+
+    vi.stubGlobal('window', media(true, true));
+    expect(desktopPhysicalPageTurnIsAvailable(outgoing, incoming)).toBe(false);
+    expect(imageConstructions).toBe(0);
+
+    vi.stubGlobal('window', media(true, false));
+    expect(desktopPhysicalPageTurnIsAvailable(outgoing, incoming)).toBe(false);
+    expect(imageConstructions).toBe(1);
+  });
+
+  it('retains only the current turn neighborhood and clears book-scoped entries', async () => {
+    const urls = [
+      '/reader-cache-page-1.png',
+      '/reader-cache-page-2.png',
+      '/reader-cache-page-3.png',
+      '/reader-cache-page-4.png',
+    ];
+    for (const url of urls) {
+      await decodeReaderImage(url, fakeReaderImage(() => Promise.resolve()));
+    }
+
+    retainReaderImageCacheUrls([urls[1], urls[2], urls[3]]);
+    expect(getReaderImageCacheState(urls[0])).toBe('unknown');
+    expect(getReaderImageCacheState(urls[1])).toBe('decoded');
+    expect(getReaderImageCacheState(urls[2])).toBe('decoded');
+    expect(getReaderImageCacheState(urls[3])).toBe('decoded');
+
+    clearReaderImageCacheUrls(urls);
+    expect(urls.map((url) => getReaderImageCacheState(url))).toEqual([
+      'unknown',
+      'unknown',
+      'unknown',
+      'unknown',
+    ]);
+  });
+
+  it('does not let a late decode resurrect a pruned image entry', async () => {
+    const url = '/reader-cache-pruned-pending.png';
+    let finishDecode!: () => void;
+    const pending = new Promise<void>((resolve) => {
+      finishDecode = resolve;
+    });
+    const result = decodeReaderImage(url, fakeReaderImage(() => pending));
+    await Promise.resolve();
+    clearReaderImageCacheUrls([url]);
+    finishDecode();
+
+    expect(await result).toBe(true);
+    expect(getReaderImageCacheState(url)).toBe('unknown');
+  });
+
+  it('provides a cancellable two-frame painted handoff, including RAF handle zero', () => {
+    const callbacks = new Map<number, FrameRequestCallback>();
+    const events: string[] = [];
+    let nextFrame = 0;
+    const requestFrame = (callback: FrameRequestCallback) => {
+      const handle = nextFrame;
+      nextFrame += 1;
+      callbacks.set(handle, callback);
+      return handle;
+    };
+    const cancelFrame = (handle: number) => {
+      callbacks.delete(handle);
+    };
+    const runFrame = (handle: number, timestamp: number) => {
+      const callback = callbacks.get(handle);
+      callbacks.delete(handle);
+      callback?.(timestamp);
+    };
+
+    const cancel = scheduleDesktopPhysicalPageTurnHandoff(
+      requestFrame,
+      cancelFrame,
+      () => events.push('final-hidden'),
+      () => events.push('complete'),
+    );
+
+    expect(events).toEqual([]);
+    runFrame(0, 16);
+    expect(events).toEqual(['final-hidden']);
+    runFrame(1, 32);
+    expect(events).toEqual(['final-hidden', 'complete']);
+
+    cancel();
+    expect(callbacks.size).toBe(0);
+
+    const cancelBeforePaint = scheduleDesktopPhysicalPageTurnHandoff(
+      requestFrame,
+      cancelFrame,
+      () => events.push('cancelled-hidden'),
+      () => events.push('cancelled-complete'),
+    );
+    cancelBeforePaint();
+    runFrame(2, 48);
+    expect(events).toEqual(['final-hidden', 'complete']);
+
+    const cancelBetweenFrames = scheduleDesktopPhysicalPageTurnHandoff(
+      requestFrame,
+      cancelFrame,
+      () => events.push('partial-hidden'),
+      () => events.push('partial-complete'),
+    );
+    runFrame(3, 64);
+    cancelBetweenFrames();
+    runFrame(4, 80);
+    expect(events).toEqual(['final-hidden', 'complete', 'partial-hidden']);
+  });
+
+  it.each([
+    ['normal completion first', 'watchdog second'],
+    ['watchdog first', 'normal completion second'],
+  ])('settles exactly once when %s races %s', () => {
+    const callbacks: FrameRequestCallback[] = [];
+    const events: string[] = [];
+    const cancelled: string[] = [];
+    const settler = createDesktopPhysicalPageTurnSettler(
+      () => cancelled.push('animation'),
+      () => cancelled.push('watchdog'),
+      () => scheduleDesktopPhysicalPageTurnHandoff(
+        (callback) => {
+          callbacks.push(callback);
+          return callbacks.length - 1;
+        },
+        (handle) => {
+          callbacks[handle] = () => undefined;
+        },
+        () => events.push('final-hidden'),
+        () => events.push('complete'),
+      ),
+    );
+
+    settler.settle();
+    settler.settle();
+    expect(cancelled).toEqual(['animation', 'watchdog']);
+    expect(callbacks).toHaveLength(1);
+    callbacks[0]?.(16);
+    expect(callbacks).toHaveLength(2);
+    callbacks[1]?.(32);
+    expect(events).toEqual(['final-hidden', 'complete']);
+
+    settler.cancel();
+    settler.settle();
+    expect(callbacks).toHaveLength(2);
+  });
+
+  it('clears a genuinely unmounted turn without aborting a Strict Mode effect replay', () => {
+    const microtasks: Array<() => void> = [];
+    const aborts: string[] = [];
+    const guard = createDesktopPhysicalPageTurnUnmountGuard((callback) => {
+      microtasks.push(callback);
+    });
+
+    const firstMount = guard.mount();
+    guard.abortIfStillUnmounted(firstMount, () => aborts.push('replay'));
+    const replayMount = guard.mount();
+    microtasks.shift()?.();
+    expect(aborts).toEqual([]);
+
+    guard.abortIfStillUnmounted(replayMount, () => aborts.push('real-unmount'));
+    microtasks.shift()?.();
+    expect(aborts).toEqual(['real-unmount']);
   });
 
   it('neutralizes perspective growth on the vertical paper edges without flattening depth', () => {

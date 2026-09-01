@@ -6,7 +6,6 @@ import {
   adaptLegacyBookToStoryScenes,
   storySceneToDesktopSpread,
   storySceneToMobilePage,
-  useSceneImageQueue,
   pageTurnDirectionForIndexChange,
   type PageTurnDirection,
   type StoryDirection,
@@ -15,6 +14,7 @@ import { DesktopBookSpread } from '@/app/book/[id]/read-v2/components/DesktopBoo
 import { DesktopPhysicalPageTurn } from '@/app/book/[id]/read-v2/components/DesktopPhysicalPageTurn';
 import { MobileBookPage } from '@/app/book/[id]/read-v2/components/MobileBookPage';
 import { useDesktopPhysicalPageTurn } from '@/app/book/[id]/read-v2/components/useDesktopPhysicalPageTurn';
+import { useAdjacentImagePreload } from '@/app/book/[id]/read-v2/useAdjacentImagePreload';
 import styles from '@/app/book/[id]/read-v2/reader-v2.module.css';
 
 type LibraryEntry = {
@@ -78,7 +78,7 @@ export function DevBookViewer({
   const currentScene = scenes[sceneIndex] ?? null;
   const currentPreviewPage = previewPages[sceneIndex];
   const imageUrls = useMemo(() => scenes.map((s) => s.illustration.imageUrl), [scenes]);
-  useSceneImageQueue(imageUrls, sceneIndex, status === 'ready' && scenes.length > 0);
+  useAdjacentImagePreload(imageUrls, sceneIndex, status === 'ready' && scenes.length > 0);
 
   const desktopSpread = useMemo(
     () => (currentScene?.kind === 'story' ? storySceneToDesktopSpread(currentScene, bookTitle) : null),

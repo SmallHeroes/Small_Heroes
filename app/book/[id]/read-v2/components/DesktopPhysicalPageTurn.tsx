@@ -18,7 +18,10 @@ import {
   type DesktopBookPageSide,
 } from './DesktopBookPageSurface';
 import {
+  createDesktopPhysicalPageTurnSettler,
+  createDesktopPhysicalPageTurnUnmountGuard,
   DESKTOP_PHYSICAL_PAGE_TURN_MS,
+  scheduleDesktopPhysicalPageTurnHandoff,
   type DesktopPhysicalPageTurn as DesktopPhysicalPageTurnState,
 } from './useDesktopPhysicalPageTurn';
 
@@ -181,6 +184,12 @@ export function DesktopPhysicalPageTurn({
   const overlayRef = useRef<HTMLDivElement>(null);
   const sheetRef = useRef<HTMLDivElement>(null);
   const landingRef = useRef<HTMLDivElement>(null);
+  const unmountGuardRef = useRef<ReturnType<
+    typeof createDesktopPhysicalPageTurnUnmountGuard
+  > | null>(null);
+  if (!unmountGuardRef.current) {
+    unmountGuardRef.current = createDesktopPhysicalPageTurnUnmountGuard(queueMicrotask);
+  }
 
   useLayoutEffect(() => {
     const overlay = overlayRef.current;
@@ -193,6 +202,7 @@ export function DesktopPhysicalPageTurn({
     const sourceRect = sheet.getBoundingClientRect();
     const targetRect = landing.getBoundingClientRect();
     const nominalSliceWidth = sourceRect.width / DESKTOP_PAGE_CURL_SLICE_COUNT;
+    const mountGeneration = unmountGuardRef.current?.mount();
     for (const [sourceIndex, slice] of slices.entries()) {
       slice.style.left = `${(sourceIndex * nominalSliceWidth).toFixed(4)}px`;
       slice.style.width = `${nominalSliceWidth.toFixed(4)}px`;
@@ -207,9 +217,30 @@ export function DesktopPhysicalPageTurn({
       ).toFixed(4)}px`;
     }
     let frame = 0;
-    let settleFrame = 0;
+    let watchdogTimer = 0;
     const startedAt = performance.now();
     setSheetPose(overlay, sheet, slices, turn.direction, sourceRect, targetRect, 0);
+
+    // The watchdog and normal animation completion race through one idempotent
+    // controller, so neither path can unmount a partially painted sheet.
+    const settler = createDesktopPhysicalPageTurnSettler(
+      () => window.cancelAnimationFrame(frame),
+      () => window.clearTimeout(watchdogTimer),
+      () => scheduleDesktopPhysicalPageTurnHandoff(
+        window.requestAnimationFrame.bind(window),
+        window.cancelAnimationFrame.bind(window),
+        () => {
+          setSheetPose(overlay, sheet, slices, turn.direction, sourceRect, targetRect, 1);
+          overlay.style.visibility = 'hidden';
+        },
+        () => onComplete(turn.id),
+      ),
+    );
+
+    watchdogTimer = window.setTimeout(
+      settler.settle,
+      DESKTOP_PHYSICAL_PAGE_TURN_MS + 180,
+    );
 
     const animate = (now: number) => {
       const elapsed = Math.min(1, (now - startedAt) / DESKTOP_PHYSICAL_PAGE_TURN_MS);
@@ -226,18 +257,23 @@ export function DesktopPhysicalPageTurn({
         frame = window.requestAnimationFrame(animate);
       } else {
         // The incoming static spread has been mounted below the sheet since the
-        // turn started. Reveal that exact canonical DOM for one frame before
-        // unmounting the overlay, so the final swap cannot introduce a second
-        // text/image rasterization or a page-geometry delta.
-        overlay.style.visibility = 'hidden';
-        settleFrame = window.requestAnimationFrame(() => onComplete(turn.id));
+        // turn started. The shared settle path hides that exact canonical DOM
+        // for a painted frame before unmounting the overlay.
+        settler.settle();
       }
     };
 
     frame = window.requestAnimationFrame(animate);
     return () => {
       window.cancelAnimationFrame(frame);
-      window.cancelAnimationFrame(settleFrame);
+      window.clearTimeout(watchdogTimer);
+      settler.cancel();
+      if (mountGeneration != null) {
+        unmountGuardRef.current?.abortIfStillUnmounted(
+          mountGeneration,
+          () => onComplete(turn.id),
+        );
+      }
     };
   }, [onComplete, turn.direction, turn.id]);
 

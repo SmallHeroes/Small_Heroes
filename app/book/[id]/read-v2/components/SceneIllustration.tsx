@@ -1,10 +1,12 @@
 'use client';
 
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useLayoutEffect, useRef, useState } from 'react';
 import { illustrationLoadingAttr } from '@/lib/book-layout';
 import {
+  decodeReaderImage,
   getReaderImageCacheState,
-  recordReaderImageCacheState,
+  recordReaderImageError,
+  resetReaderImageCacheUrl,
 } from '../useAdjacentImagePreload';
 import styles from '../reader-v2.module.css';
 
@@ -16,44 +18,53 @@ type Props = {
   wide?: boolean;
 };
 
-function initialIllustrationStatus(url: string | null): 'idle' | 'loading' | 'loaded' | 'error' {
+type IllustrationStatus = 'loading' | 'loaded' | 'error';
+
+type IllustrationState = {
+  url: string | null;
+  retryNonce: number;
+  status: IllustrationStatus;
+};
+
+function initialIllustrationStatus(url: string | null): IllustrationStatus {
   if (!url) return 'error';
-  return getReaderImageCacheState(url) === 'loaded' ? 'loaded' : 'loading';
+  return getReaderImageCacheState(url) === 'decoded' ? 'loaded' : 'loading';
 }
 
 export function SceneIllustration({ url, alt, isCurrent, className, wide }: Props) {
   const imgRef = useRef<HTMLImageElement>(null);
-  const [status, setStatus] = useState<'idle' | 'loading' | 'loaded' | 'error'>(() =>
-    initialIllustrationStatus(url)
-  );
   const [retryNonce, setRetryNonce] = useState(0);
-
-  useEffect(() => {
-    if (!url) {
-      setStatus('error');
-      return;
-    }
-    if (getReaderImageCacheState(url) === 'loaded') {
-      setStatus('loaded');
-      return;
-    }
-    setStatus('loading');
-  }, [url, retryNonce]);
+  const [illustrationState, setIllustrationState] = useState<IllustrationState>(() => ({
+    url,
+    retryNonce: 0,
+    status: initialIllustrationStatus(url),
+  }));
+  const status = illustrationState.url === url && illustrationState.retryNonce === retryNonce
+    ? illustrationState.status
+    : initialIllustrationStatus(url);
 
   useLayoutEffect(() => {
     const img = imgRef.current;
     if (!img || !url) return;
-    if (img.complete && img.naturalWidth > 0) {
-      recordReaderImageCacheState(url, 'loaded');
-      setStatus('loaded');
-    }
+    let cancelled = false;
+    if (!img.complete || img.naturalWidth <= 0) return;
+    void decodeReaderImage(url, img).then((decoded) => {
+      if (cancelled || imgRef.current !== img) return;
+      setIllustrationState({
+        url,
+        retryNonce,
+        status: decoded ? 'loaded' : 'error',
+      });
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [url, retryNonce]);
 
   const retry = useCallback(() => {
     if (!url) return;
-    recordReaderImageCacheState(url, 'loading');
+    resetReaderImageCacheUrl(url);
     setRetryNonce((n) => n + 1);
-    setStatus('loading');
   }, [url]);
 
   if (!url || status === 'error') {
@@ -82,13 +93,24 @@ export function SceneIllustration({ url, alt, isCurrent, className, wide }: Prop
         className={`${styles.illustrationImg} ${status === 'loaded' ? styles.illustrationImgLoaded : ''}`}
         loading={illustrationLoadingAttr(isCurrent)}
         decoding="async"
-        onLoad={() => {
-          recordReaderImageCacheState(url, 'loaded');
-          setStatus('loaded');
+        onLoad={(event) => {
+          const image = event.currentTarget;
+          if (imgRef.current !== image) return;
+          setIllustrationState({ url, retryNonce, status: 'loading' });
+          void decodeReaderImage(url, image).then((decoded) => {
+            if (imgRef.current !== image) return;
+            setIllustrationState({
+              url,
+              retryNonce,
+              status: decoded ? 'loaded' : 'error',
+            });
+          });
         }}
-        onError={() => {
-          recordReaderImageCacheState(url, 'error');
-          setStatus('error');
+        onError={(event) => {
+          const image = event.currentTarget;
+          if (imgRef.current !== image) return;
+          recordReaderImageError(url, image);
+          setIllustrationState({ url, retryNonce, status: 'error' });
         }}
       />
     </div>

@@ -1,41 +1,82 @@
 # SmallHeroes — Current Technical State
 
-## R1D — physical page-turn endpoint/performance closure (local green; re-gate pending)
+## R1D — decoded Reader turns and mounted-settlement closure (focused green; re-gate pending)
 
-The first Reader correction commit `3a7fd900` closed the duplicated frame/substrate and mobile
-layout defects, but a stronger pixel/performance falsification correctly held it after a separate
-Claude Code review had passed it. The hold was narrow and reproducible: the `0.75px` overlap was
-part of each transformed slice's containing width, so it also expanded the texture stride; every
-turn mounted the invisible opposite page in every face; and an unready adjacent illustration could
-enter the physical animation.
+The first independent Claude Code review of `3a7fd900..80953aa1` returned PASS, but its image-
+readiness conclusion treated `complete && naturalWidth > 0` as proof that the resource had decoded.
+A follow-up Codex audit checked the browser contract and correctly overrode that PASS: explicit
+`HTMLImageElement.decode()` completion is the available asynchronous decode proof, while dimensions
+alone are insufficient. No deployment was allowed to proceed from the superseded review result.
 
-The correction keeps exact nominal slice geometry and binds the full texture width/offset from the
-measured page in pixels before first paint. Seam bleed now exists only outside that nominal box.
-Static and moving pages compose the same illustration/prose side renderer, but a moving face mounts
-only its visible side and omits the currently zero-footprint future sticker slots. A physical turn
-starts only when both involved illustrations are proven paint-ready by the shared loader/cache or a
-decoded browser-cache probe; otherwise navigation uses the safe static path. During the final 12%
-of the eased landing the overlay hands off to the already-mounted canonical destination and is
-fully hidden for one painted frame before unmount, eliminating a second transformed-text raster at
-the endpoint.
+The final correction makes the shared Reader cache explicit and bounded. Current and adjacent
+illustrations enter `decoded` only after `decode()` resolves and dimensions remain valid; concurrent
+same-URL requests share a same-element promise, newer owners cannot be overwritten by stale decode
+or error callbacks, retries replace ownership, and pruned/reset entries cannot be resurrected by a
+late promise. `SceneIllustration` binds state to URL plus retry generation and guards every load,
+decode and error result against the current DOM element. The physical-turn availability gate now
+rejects mobile and reduced-motion requests before constructing any image probe. Production Reader
+and Dev Viewer both use the same current-plus-adjacent preload/retention path.
 
-Evidence on the corrected working bytes:
+The timeout fallback also moved from the controller into the mounted overlay. Normal animation and
+watchdog completion race through one idempotent settler. Both apply the exact final pose and hide
+the overlay on one animation frame, then unmount it on the following frame, with cancellation valid
+even for RAF handle zero. A generation-bound deferred cleanup distinguishes Strict Mode effect
+replay from a genuine parent-driven overlay unmount; only the latter clears the matching controller
+turn, so loading/error/end-screen transitions cannot strand all later navigation as `blocked`. The
+controller's own unmount cleanup is layout-synchronous, ensuring a whole-Reader unmount clears its
+active ref before that deferred microtask can attempt completion.
+This preserves the already-mounted canonical landing spread and prevents a watchdog from removing
+a partially painted sheet.
 
-- Focused geometry/Reader validation is **2 files / 24 tests PASS**. A broader release/Reader/layout/
-  Wizard matrix is **20 files / 127 tests PASS**; `npx --no-install tsc --noEmit` and
-  `git diff --check` pass.
-- True 180-degree held endpoints in both directions at 1366x768 and 1440x900 compare against the
-  settled static `openBookFrame` with **0 pixels above a 5/255 channel delta** (maximum delta 1).
-  The exact 0-degree held frame has no visible periodic seam lines.
-- The turn overlay dropped from **939 to 382 descendants**. Under Chrome CPU throttling 1x/2x/3x/4x
-  it completed in 616/652/665/723ms with 38/38/38/36 sampled frames; the former 4x probe had only
-  13 frames and was still mounted after 771ms. A deliberately failed adjacent image produced no
-  physical overlay and navigation continued through the static failure-safe path.
+Evidence on the final working bytes:
 
-This correction changes no authoring, source/package, Wizard, Order, payment, provider, render or
-deployment authority. No remote mutation, provider call, payment or render occurred. The next gate
-is one independent adversarial re-review of the final focused commit; only PASS advances to the
-already-approved coherent QA deployment and one fresh full Bar/Chameleon render.
+- Focused Reader/geometry validation is **2 files / 37 tests PASS**; the broader Reader/navigation/
+  layout battery is **7 files / 57 tests PASS**. The added cases cover pending/rejected decode,
+  same-URL races, stale owner errors, retry generations, bounded retention and non-resurrection,
+  zero-probe responsive gates, two-frame cancellation, watchdog/normal double settlement, and
+  genuine overlay unmount versus Strict Mode effect replay.
+- `npm run build` compiled successfully and generated **39/39** static pages; the required
+  post-build `npx --no-install tsc --noEmit --incremental false` and `git diff --check` pass. The
+  build retained its existing Prisma deprecation and skipped-local-env-validation warnings and
+  produced no new tracked or untracked artifact.
+- Literal `npm run check` on the decode/watchdog correction before the final unmount-guard delta
+  passed both TypeScript phases. Its ordinary Vitest partition reached
+  **315 passed files / 4,416 passed tests** and reproduced **10 assertions** whose ignored
+  `outputs/` fixtures are absent from this worktree (the prior nine plus the newer reserved-page
+  placement artifact). The resource-intensive partition completed **20 files / 633 tests PASS**,
+  but Vitest then emitted two worker `onTaskUpdate` RPC timeouts, so the repository-wide command is
+  accurately recorded as **failed**, not green. An exact single-worker rerun again completed
+  **20/20 files and 633/633 tests PASS** but retained one RPC timeout. The cause was isolated to the
+  long, `spawnSync`-heavy `qa-wizard-candidate-bridge.spec.ts`: alone it passed 15/15 assertions in
+  133.40s and then hit the same 60-second worker-report timeout, while four sub-60-second
+  `testNamePattern` chunks passed 4/4, 4/4, 4/4 and 3/3 with clean exits. The other 19 resource
+  specs passed **19/19 files and 618/618 tests** in one clean serial exit, yielding a composite clean
+  proof of **20/20 files and 633/633 assertions**. This establishes assertion health while leaving
+  the literal stability contract correctly red for a runner/reporting defect.
+- Local Chromium QA used the tracked five-page fixture with authority
+  `tracked-qa-reader-fixture/v1`. On a clean 1440x900 reload, the first forward turn in both the
+  production Reader route and Dev Viewer mounted the physical sheet with all 12 slices; the
+  production overlay's 37 fresh image elements were attached with `complete === true` and positive
+  `naturalWidth`, and both overlays completed the hidden-then-unmounted handoff. At 390x844 the same
+  navigation stayed instant with correct direction and zero physical overlay. Browser console
+  logs contained no errors; the Dev Viewer library's expected local Postgres-unavailable server log
+  degraded to the tracked fixture and did not affect the Reader.
+- A final browser regression on the deferred-unmount bytes interrupted the active page-4-to-5
+  physical turn with the Reader's real ArrowLeft end-screen path. The overlay unmounted, ArrowRight
+  restored page 5, and the next page-5-to-4 request immediately started a new 12-slice physical
+  turn instead of remaining `blocked`; the console had zero errors.
+- Earlier endpoint and performance evidence remains valid: held 180-degree endpoints at 1366x768
+  and 1440x900 had zero pixels above a 5/255 channel delta against the canonical landing spread;
+  the overlay contains 382 rather than 939 descendants and completed at 1x/2x/3x/4x CPU throttling.
+
+The retained decoded preload element is strong practical Chromium evidence, not a browser-
+independent guarantee that a newly mounted overlay `<img>` can never lose decoded pixels under
+memory pressure. The synchronous click boundary therefore continues to fail safely to static
+navigation whenever explicit readiness is absent. This correction changes no authoring,
+source/package, Wizard, Order, payment, provider, render or deployment authority. No remote
+mutation, provider call, payment or render occurred. The next gate is one independent adversarial
+re-review of the final focused commit; only PASS advances to the already-approved coherent QA
+deployment and one fresh full Bar/Chameleon render.
 
 ## R1D — coherent Reader presentation correction (local green; independent re-gate pending)
 
