@@ -1,0 +1,522 @@
+/**
+ * PayMe Checkout API
+ * POST /api/checkout — Create PayMe checkout request
+ */
+
+import { randomUUID } from 'crypto';
+import { NextRequest, NextResponse } from 'next/server';
+import { checkoutProductName, checkoutProductDescription, CHECKOUT_ADDONS } from '@/content';
+import { computePricing } from '../../../backend/config/wizard';
+import { enforceRateLimit, enforceSameOrigin } from '../../../lib/request-security';
+import { prisma } from '@/lib/prisma';
+import { createLogger } from '@/lib/logger';
+import { createPaymeCheckout } from '@/lib/payme';
+import { env, isFakePaymentEnabled, canUseFakePayments, isWaitlistMode } from '@/lib/env';
+import { ROUTES } from '@/lib/routes';
+import { evaluatePhotoGate } from '@/lib/resemblance-core';
+import { reserveCoupon, releaseCouponForOrder } from '@/lib/coupon/coupon-service';
+import {
+  assertReleaseV1OperationalAdmission,
+  RELEASE_V1_PROTOCOL,
+  ReleaseV1ContinuityError,
+  releaseV1AuthorityCasWhere,
+  requireExpectedWizardProductBinding,
+  type ReleaseV1OrderAuthoritySnapshot,
+} from '@/lib/generation-pipeline/release-v1-continuity';
+
+const logger = createLogger({ subsystem: 'checkout', route: '/api/checkout' });
+
+/**
+ * (LB#1b) How long one checkout attempt may own an order before its lease is re-claimable. Comfortably
+ * longer than a checkout request (the PayMe call is seconds), and short enough that a crashed/abandoned
+ * attempt never wedges the order — the customer can simply try again.
+ */
+const CHECKOUT_ATTEMPT_TTL_MS = 2 * 60_000;
+
+async function createFakeCheckoutResponse(params: {
+  orderId: string;
+  basePriceAgorot: number;
+  addonsPriceAgorot: number;
+  totalPriceAgorot: number;
+  coupon?: { code: string; discountPercent: number; discountAgorot: number } | null;
+  releaseV1?: boolean;
+  authoritySnapshot?: ReleaseV1OrderAuthoritySnapshot;
+  attemptToken?: string;
+}) {
+  const paymentId = `fake_${params.orderId}_${Date.now()}`;
+  if (params.releaseV1) {
+    if (!params.authoritySnapshot || !params.attemptToken) {
+      throw new ReleaseV1ContinuityError([
+        'release/v1 checkout CAS evidence is missing',
+      ]);
+    }
+    const updated = await prisma.order.updateMany({
+      where: {
+        id: params.orderId,
+        status: { in: ['draft', 'pending_payment'] },
+        checkoutAttemptToken: params.attemptToken,
+        ...releaseV1AuthorityCasWhere(params.authoritySnapshot),
+      },
+      data: {
+        status: 'pending_payment',
+        paymentProvider: 'fake',
+        paymentId,
+        basePrice: params.basePriceAgorot,
+        addonsPrice: params.addonsPriceAgorot,
+        totalPrice: params.totalPriceAgorot,
+        couponCode: params.coupon?.code ?? null,
+        couponDiscountPercent: params.coupon?.discountPercent ?? null,
+        couponDiscountAgorot: params.coupon?.discountAgorot ?? null,
+      },
+    });
+    if (updated.count !== 1) {
+      throw new ReleaseV1ContinuityError([
+        'Order authority changed before fake checkout publication',
+      ]);
+    }
+  } else {
+    await prisma.order.update({
+      where: { id: params.orderId },
+      data: {
+        status: 'pending_payment',
+        paymentProvider: 'fake',
+        paymentId,
+        basePrice: params.basePriceAgorot,
+        addonsPrice: params.addonsPriceAgorot,
+        totalPrice: params.totalPriceAgorot,
+        couponCode: params.coupon?.code ?? null,
+        couponDiscountPercent: params.coupon?.discountPercent ?? null,
+        couponDiscountAgorot: params.coupon?.discountAgorot ?? null,
+      },
+    });
+  }
+  logger.info('Fake checkout created', { orderId: params.orderId, paymentId });
+  return NextResponse.json({
+    url: `${params.releaseV1 ? '/release/v1/fake-payment' : ROUTES.fakePayment}?orderId=${encodeURIComponent(params.orderId)}&paymentId=${encodeURIComponent(paymentId)}`,
+    paymentProvider: 'fake',
+    paymentId,
+  });
+}
+
+function getMissingPaymeConfigKeys() {
+  const missing: string[] = [];
+  if (!env.PAYME_API_BASE_URL) missing.push('PAYME_API_BASE_URL');
+  if (!env.PAYME_API_KEY) missing.push('PAYME_API_KEY');
+  return missing;
+}
+
+function resolveAppUrl(req: NextRequest): string {
+  // Prefer explicit config; otherwise use the actual request host.
+  return (process.env.NEXT_PUBLIC_APP_URL || req.nextUrl.origin).replace(/\/$/, '');
+}
+
+export async function handleCheckoutPost(
+  req: NextRequest,
+  options: { routeProtocol: 'legacy-route' | typeof RELEASE_V1_PROTOCOL },
+) {
+  // Tracks a coupon slot reserved during this checkout so the outer catch can release it if the
+  // checkout aborts after reserving (the hold's TTL is the ultimate backstop).
+  let reservedCouponOrderId: string | null = null;
+  // (LB#1b) This attempt's identity, minted BEFORE the try so every release path — including the outer
+  // catch — can release ONLY the hold this attempt owns, never a concurrent sibling's.
+  const attemptToken = randomUUID();
+  let claimedReleaseOrderId: string | null = null;
+  const releaseVersionedCheckoutClaim = async () => {
+    if (!claimedReleaseOrderId) return;
+    const orderId = claimedReleaseOrderId;
+    claimedReleaseOrderId = null;
+    await prisma.order.updateMany({
+      where: { id: orderId, checkoutAttemptToken: attemptToken },
+      data: { checkoutAttemptToken: null, checkoutAttemptAt: null },
+    }).catch(() => {});
+  };
+  try {
+    const sameOriginError = enforceSameOrigin(req);
+    if (sameOriginError) return sameOriginError;
+    const rateLimitError = enforceRateLimit(req, {
+      namespace: 'api-checkout-post',
+      limit: 15,
+      windowMs: 60_000,
+    });
+    if (rateLimitError) return rateLimitError;
+
+    // WAITLIST HARD GUARD (Goal A): in waitlist mode NO real charge can ever be created. Capture the
+    // already-created order as a lead (it holds email + child name) and return a waitlist response
+    // BEFORE any payment-provider logic runs. This is the single money chokepoint.
+    if (isWaitlistMode()) {
+      let waitlistOrderId: string | undefined;
+      try {
+        ({ orderId: waitlistOrderId } = await req.json());
+      } catch {
+        /* body optional for the guard */
+      }
+      if (waitlistOrderId) {
+        const leadOrder = await prisma.order
+          .findUnique({ where: { id: waitlistOrderId } })
+          .catch(() => null);
+        logger.info('Waitlist signup captured (no charge — BUY_MODE=waitlist)', {
+          orderId: waitlistOrderId,
+          customerEmail: leadOrder?.customerEmail ?? null,
+          childName: leadOrder?.childName ?? null,
+        });
+      }
+      return NextResponse.json(
+        {
+          mode: 'waitlist',
+          message: 'נרשמת לרשימה! נודיע לך במייל ברגע שהספר מוכן 🎉',
+        },
+        { status: 200 }
+      );
+    }
+
+    // SITE-PASSWORD GATE (soft-launch): browsing is open everywhere, but the moment money is about to
+    // be taken requires the site password. Mirrors the middleware /dev gate — only enforced when
+    // SITE_PASSWORD is configured (local dev + tests without it are unaffected). Defense-in-depth: the
+    // wizard prompts on-demand (gate.js), but THIS is the real gate, so skipping the UI can't bypass.
+    const sitePassword = process.env.SITE_PASSWORD || '';
+    if (sitePassword.length > 0 && req.cookies.get('sh_access')?.value !== sitePassword) {
+      logger.warn('Checkout blocked: site-password gate (missing/invalid sh_access cookie)');
+      return NextResponse.json({ error: 'site_gate_required' }, { status: 401 });
+    }
+
+    // PAYMENTS DISABLED (gated/waitlist prod with no payment backend). Reached only past the waitlist
+    // short-circuit above; hard-stop here so we never create or fulfill an order with no provider.
+    if (env.PAYMENT_PROVIDER === 'none') {
+      logger.error('Checkout blocked: payments are disabled (PAYMENT_PROVIDER=none)', {
+        vercelEnv: process.env.VERCEL_ENV ?? null,
+        buyMode: env.NEXT_PUBLIC_BUY_MODE,
+      });
+      return NextResponse.json({ error: 'payment_disabled' }, { status: 503 });
+    }
+
+    if (env.PAYMENT_PROVIDER === 'fake' && !canUseFakePayments()) {
+      logger.error('Checkout blocked: fake payment not permitted in this runtime', {
+        vercelEnv: process.env.VERCEL_ENV ?? null,
+        allowFake: env.ALLOW_FAKE_PAYMENTS,
+        enableFake: env.ENABLE_FAKE_PAYMENT,
+      });
+      return NextResponse.json({ error: 'Payment provider misconfigured' }, { status: 503 });
+    }
+    if (env.PAYMENT_PROVIDER !== 'payme' && env.PAYMENT_PROVIDER !== 'fake') {
+      logger.error('Checkout blocked: PAYMENT_PROVIDER must be payme', {
+        paymentProvider: env.PAYMENT_PROVIDER,
+      });
+      return NextResponse.json(
+        {
+          error: 'Payment provider misconfigured',
+          reason: 'PAYMENT_PROVIDER must be payme or fake',
+          paymentProvider: env.PAYMENT_PROVIDER,
+        },
+        { status: 503 }
+      );
+    }
+    const missingPaymeKeys = getMissingPaymeConfigKeys();
+    if (env.PAYMENT_PROVIDER === 'payme' && missingPaymeKeys.length > 0) {
+      logger.error('Checkout blocked: missing PayMe config', { missingPaymeKeys });
+      return NextResponse.json(
+        {
+          error: 'PayMe configuration missing',
+          reason: `Missing required PayMe configuration: ${missingPaymeKeys.join(', ')}`,
+          missing: missingPaymeKeys,
+        },
+        { status: 503 }
+      );
+    }
+
+    const appUrl = resolveAppUrl(req);
+    const {
+      orderId,
+      sessionId,
+      couponCode: bodyCouponCode,
+      wizardProductBinding,
+    } = await req.json();
+    if (!orderId) return NextResponse.json({ error: 'orderId required' }, { status: 400 });
+    const releaseV1 = options.routeProtocol === RELEASE_V1_PROTOCOL;
+    if (releaseV1) assertReleaseV1OperationalAdmission();
+    logger.info('Checkout request received', { orderId });
+
+    const order = await prisma.order.findUnique({ where: { id: orderId } });
+    if (!order) {
+      logger.warn('Checkout request order not found', { orderId });
+      return NextResponse.json({ error: 'Order not found' }, { status: 404 });
+    }
+    if (!releaseV1 && order.visualPackageAuthority != null) {
+      return NextResponse.json(
+        { error: 'release_v1_checkout_route_required' },
+        { status: 409 },
+      );
+    }
+    if (releaseV1) {
+      requireExpectedWizardProductBinding({
+        order,
+        expected: wizardProductBinding,
+      });
+    }
+    if (!['draft', 'pending_payment'].includes(order.status)) {
+      logger.warn('Checkout request rejected due to order status', {
+        orderId,
+        status: order.status,
+      });
+      return NextResponse.json({ error: 'Order already has payment' }, { status: 409 });
+    }
+
+    // ── (LB#1b) CHECKOUT-ATTEMPT CAS — the atomic owner claim ────────────────────────────────────────
+    // The status read above is a point-in-time snapshot: two concurrent checkouts on ONE order both saw
+    // draft/pending_payment and both proceeded — the second REUSING the first's order-keyed coupon hold —
+    // so one order could reserve once but create TWO discounted PayMe sales, and either attempt's failure
+    // released the shared hold out from under the other (whose confirm then no-op'd → a paid discounted
+    // order left uncounted). This CAS is the fix: it re-checks the status AND claims the order in ONE
+    // atomic updateMany, BEFORE the coupon reservation and BEFORE the PayMe sale is created. Exactly one
+    // concurrent attempt can win; the loser is rejected cleanly, having reserved nothing and charged nothing.
+    //
+    // The claim is a TTL-bounded LEASE, not a permanent flag: a crashed/abandoned attempt must not wedge the
+    // order forever, so a stale lease is re-claimable and a legitimate retry proceeds.
+    const leaseStaleBefore = new Date(Date.now() - CHECKOUT_ATTEMPT_TTL_MS);
+    const claimed = await prisma.order.updateMany({
+      where: {
+        id: order.id,
+        status: { in: ['draft', 'pending_payment'] },
+        ...(releaseV1 ? releaseV1AuthorityCasWhere(order) : {}),
+        OR: [
+          { checkoutAttemptToken: null },
+          { checkoutAttemptAt: null },
+          { checkoutAttemptAt: { lt: leaseStaleBefore } },
+        ],
+      },
+      data: { checkoutAttemptToken: attemptToken, checkoutAttemptAt: new Date() },
+    });
+    if (claimed.count !== 1) {
+      logger.warn('Checkout rejected: another checkout attempt for this order is in flight', { orderId });
+      return NextResponse.json({ error: 'checkout_in_progress' }, { status: 409 });
+    }
+    if (releaseV1) claimedReleaseOrderId = order.id;
+
+    const pricing = computePricing({
+      length: order.storyLength,
+      direction: order.storyDirection ?? undefined,
+      audioEnabled: order.audioEnabled,
+      pdfEnabled: order.pdfEnabled,
+      bundleEnabled: order.bundleEnabled,
+      videoEnabled: order.videoEnabled,
+    });
+    const basePriceAgorot = Math.round(pricing.basePrice * 100);
+    const addonsPriceAgorot = Math.round(pricing.addonsPrice * 100);
+    let totalPriceAgorot = Math.round(pricing.totalPrice * 100);
+
+    // ── Coupon (server-side) ─────────────────────────────────────────────────────────────
+    // Reserve a redemption slot ATOMICALLY at checkout, then discount the charge. The client
+    // only supplies a CODE (or it was persisted on the order at "Apply"); the price is never
+    // client-supplied. Any coupon failure (missing / inactive / cap full) fails cleanly — the
+    // discount is dropped and the caller is told, so no one is charged then refunded.
+    let couponApplied: { code: string; discountPercent: number; discountAgorot: number } | null = null;
+    const couponCodeToApply =
+      typeof bodyCouponCode === 'string' && bodyCouponCode.trim()
+        ? bodyCouponCode.trim()
+        : order.couponCode ?? '';
+    if (couponCodeToApply) {
+      const reservation = await reserveCoupon({
+        rawCode: couponCodeToApply,
+        orderId: order.id,
+        originalAgorot: totalPriceAgorot,
+        attemptToken, // binds the hold to THIS attempt, so only this attempt can release it
+      });
+      if (reservation.ok) {
+        totalPriceAgorot = reservation.discountedAgorot;
+        reservedCouponOrderId = order.id;
+        couponApplied = {
+          code: reservation.code,
+          discountPercent: reservation.discountPercent,
+          discountAgorot: reservation.discountAgorot,
+        };
+        logger.info('Coupon reserved at checkout', {
+          orderId,
+          code: reservation.code,
+          discountPercent: reservation.discountPercent,
+          reused: reservation.reused,
+        });
+      } else {
+        logger.info('Coupon rejected at checkout', { orderId, reason: reservation.reason });
+        await releaseVersionedCheckoutClaim();
+        return NextResponse.json({ error: 'coupon_rejected', reason: reservation.reason }, { status: 409 });
+      }
+    }
+
+    const addonLabels: string[] = [];
+    if (order.bundleEnabled) addonLabels.push(CHECKOUT_ADDONS.bundle);
+    if (!order.bundleEnabled && order.audioEnabled) addonLabels.push(CHECKOUT_ADDONS.audio);
+    if (!order.bundleEnabled && order.pdfEnabled) addonLabels.push(CHECKOUT_ADDONS.pdf);
+    if (!order.bundleEnabled && order.videoEnabled) addonLabels.push(CHECKOUT_ADDONS.video);
+    const descriptionParts = [
+      checkoutProductName(order.childName),
+      checkoutProductDescription(order.storyLength, order.storyDirection),
+      addonLabels.length > 0 ? `תוספות: ${addonLabels.join(', ')}` : null,
+    ].filter(Boolean);
+
+    // No-photo orders are VALID (generic-child path, disclaimer shown in the
+    // wizard) — the PhotoGate below only applies when a photo exists.
+    if (!order.childImageUrl) {
+      logger.info('Checkout for no-photo order (generic-child path)', { orderId });
+    }
+
+    if (order.childImageUrl) {
+      const photoGuidance = await evaluatePhotoGate(order.childImageUrl);
+      if (photoGuidance.warnings.length > 0) {
+        logger.info('PhotoGuidance advisory at checkout (quality never blocks payment)', {
+          orderId,
+          warnings: photoGuidance.warnings,
+          faceCount: photoGuidance.faceCount,
+          faceAreaRatio: photoGuidance.faceAreaRatio,
+          brightness: Math.round(photoGuidance.brightness),
+          sharpness: Math.round(photoGuidance.sharpness),
+          inputStrength: photoGuidance.inputStrength,
+        });
+      }
+    }
+
+    if (env.PAYMENT_PROVIDER === 'fake') {
+      if (!isFakePaymentEnabled()) {
+        logger.error('Fake checkout blocked: fake payment mode not enabled', {
+          paymentProvider: env.PAYMENT_PROVIDER,
+          enableFakePayment: env.ENABLE_FAKE_PAYMENT,
+          nodeEnv: process.env.NODE_ENV || 'development',
+        });
+        await releaseVersionedCheckoutClaim();
+        return NextResponse.json({ error: 'Fake payment is not enabled' }, { status: 403 });
+      }
+      return createFakeCheckoutResponse({
+        orderId: order.id,
+        basePriceAgorot,
+        addonsPriceAgorot,
+        totalPriceAgorot,
+        coupon: couponApplied,
+        releaseV1,
+        authoritySnapshot: order,
+        attemptToken,
+      });
+    }
+
+    let paymeCheckout;
+    try {
+      paymeCheckout = await createPaymeCheckout({
+        orderId: order.id,
+        amountAgorot: totalPriceAgorot,
+        currency: 'ILS',
+        description: descriptionParts.join(' | '),
+        customerEmail: order.customerEmail,
+        customerName: order.customerName,
+        successUrl: `${appUrl}/api/payme/return?orderId=${encodeURIComponent(order.id)}`,
+        callbackUrl: `${appUrl}/api/webhooks/payme`,
+        cancelUrl: `${appUrl}${ROUTES.wizard}`,
+        metadata: {
+          orderId: order.id,
+          ...(typeof sessionId === 'string' && sessionId.trim() ? { sessionId: sessionId.trim() } : {}),
+          env: process.env.NODE_ENV || 'development',
+        },
+      });
+    } catch (error) {
+      if (canUseFakePayments()) {
+        logger.warn('PayMe checkout failed; falling back to fake checkout in local/dev', {
+          orderId: order.id,
+          paymentProvider: env.PAYMENT_PROVIDER,
+          enableFakePayment: env.ENABLE_FAKE_PAYMENT,
+          error: error instanceof Error ? error.message : String(error),
+        });
+        return createFakeCheckoutResponse({
+          orderId: order.id,
+          basePriceAgorot,
+          addonsPriceAgorot,
+          totalPriceAgorot,
+          releaseV1,
+          authoritySnapshot: order,
+          attemptToken,
+        });
+      }
+      throw error;
+    }
+
+    const checkoutUrl = paymeCheckout.checkoutUrl?.trim() || '';
+    try {
+      const pay = new URL(checkoutUrl);
+      if (pay.protocol !== 'http:' && pay.protocol !== 'https:') {
+        throw new Error('bad_protocol');
+      }
+      const appOrigin = new URL(appUrl);
+      if (pay.hostname === appOrigin.hostname) {
+        logger.error('Checkout blocked: provider returned same-host URL (would 404 or skip PayMe)', {
+          orderId,
+          checkoutUrl,
+        });
+        if (couponApplied) await releaseCouponForOrder(prisma, order.id, attemptToken).catch(() => {});
+        await releaseVersionedCheckoutClaim();
+        return NextResponse.json(
+          {
+            error: 'Payment provider returned an invalid redirect URL',
+            reason:
+              'checkout_url_same_origin — configure PAYME_CHECKOUT_PAGE_ORIGIN if PayMe returns a path-only URL, or verify PayMe credentials.',
+          },
+          { status: 502 }
+        );
+      }
+    } catch (e) {
+      if (e instanceof TypeError || (e instanceof Error && e.message === 'bad_protocol')) {
+        logger.error('Checkout blocked: invalid checkout URL from provider', { orderId, checkoutUrl, err: e });
+        if (couponApplied) await releaseCouponForOrder(prisma, order.id, attemptToken).catch(() => {});
+        await releaseVersionedCheckoutClaim();
+        return NextResponse.json(
+          { error: 'Payment provider returned an invalid redirect URL', reason: 'checkout_url_parse_failed' },
+          { status: 502 }
+        );
+      }
+      throw e;
+    }
+
+    await prisma.order.update({
+      where: { id: orderId },
+      data: {
+        status: 'pending_payment',
+        paymentProvider: 'payme',
+        paymentId: paymeCheckout.checkoutId ?? null,
+        paymeMetadata: paymeCheckout.raw as object,
+        basePrice: basePriceAgorot,
+        addonsPrice: addonsPriceAgorot,
+        totalPrice: totalPriceAgorot,
+        couponCode: couponApplied?.code ?? null,
+        couponDiscountPercent: couponApplied?.discountPercent ?? null,
+        couponDiscountAgorot: couponApplied?.discountAgorot ?? null,
+      },
+    });
+    logger.info('PayMe checkout created', {
+      orderId,
+      checkoutId: paymeCheckout.checkoutId ?? null,
+      checkoutUrl,
+      // Do not log paymeCheckout.raw — it echoes seller_payme_id (API key)
+    });
+
+    return NextResponse.json({
+      url: checkoutUrl,
+      paymentProvider: 'payme',
+      paymentId: paymeCheckout.checkoutId,
+      checkoutId: paymeCheckout.checkoutId, // legacy compatibility
+      provider: 'payme', // legacy compatibility
+    });
+
+  } catch (error) {
+    await releaseVersionedCheckoutClaim();
+    if (reservedCouponOrderId) {
+      // Token-bound: releases ONLY the hold this attempt created. A sibling attempt's live hold is never
+      // touched (that release-by-orderId was the bug that left paid discounted orders uncounted).
+      await releaseCouponForOrder(prisma, reservedCouponOrderId, attemptToken).catch(() => {});
+    }
+    if (error instanceof ReleaseV1ContinuityError) {
+      logger.warn('Release/v1 checkout authority rejected', {
+        reasons: error.reasons,
+      });
+      return NextResponse.json(
+        { error: error.code, reasons: error.reasons },
+        { status: 409 },
+      );
+    }
+    logger.error('PayMe checkout creation failed', error);
+    return NextResponse.json({ error: 'Failed to create checkout session' }, { status: 500 });
+  }
+}

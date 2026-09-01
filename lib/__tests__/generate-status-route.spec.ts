@@ -3,6 +3,17 @@ import { NextRequest } from 'next/server';
 
 const findUnique = vi.fn();
 const sweepStaleGenerationJobs = vi.fn(async () => undefined);
+const releaseBinding = {
+  version: 'wizard-product-binding/v1' as const,
+  storyKey: 'chameleon_koko_bedtime',
+  styleId: 'soft_hand_drawn_storybook',
+  sourcePath: 'story-pipeline/accepted.md',
+  sourceRawDigest: 'a'.repeat(64),
+  packagePath: 'visual-packages/approved/revision.json',
+  packageRevisionDigest: 'b'.repeat(64),
+  packageAuthorityDigest: 'c'.repeat(64),
+};
+const requireReleaseV1OrderPackage = vi.fn(() => ({ binding: releaseBinding }));
 
 vi.mock('@/lib/prisma', () => ({
   prisma: { order: { findUnique } },
@@ -10,6 +21,12 @@ vi.mock('@/lib/prisma', () => ({
 vi.mock('@/lib/generation-chunked/sweeper', () => ({
   sweepStaleGenerationJobs,
 }));
+vi.mock('@/lib/generation-pipeline/release-v1-continuity', async (importOriginal) => {
+  const actual = await importOriginal<
+    typeof import('@/lib/generation-pipeline/release-v1-continuity')
+  >();
+  return { ...actual, requireReleaseV1OrderPackage };
+});
 // Run the post-response work synchronously so the sweep call is observable within the request under
 // test (the real runAfterResponse defers via next/server after()). The route only imports this symbol.
 vi.mock('@/lib/generation-chunked/chain-worker', () => ({
@@ -148,6 +165,51 @@ describe('GET /api/generate/status', () => {
     expect(res.status).toBe(200);
     // Auth precedes the sweep: it only fires once the request is authenticated.
     expect(sweepStaleGenerationJobs).toHaveBeenCalled();
+  });
+
+  it('release/v1 status validates the frozen binding and sweeps only its exact Order', async () => {
+    findUnique.mockResolvedValueOnce(mockOrder);
+    const { GET } = await import('../../app/api/release/v1/generate/status/route');
+    const res = await GET(statusRequest(VALID_CUID, VALID_KEY));
+    expect(res.status).toBe(200);
+    expect(requireReleaseV1OrderPackage).toHaveBeenCalledTimes(1);
+    expect(sweepStaleGenerationJobs).toHaveBeenCalledWith(1, {
+      orderId: VALID_CUID,
+      releaseProtocol: 'release/v1',
+    });
+    expect(await res.json()).toMatchObject({ wizardProductBinding: releaseBinding });
+  });
+
+  it('release/v1 status never schedules recovery for a held Order', async () => {
+    findUnique.mockResolvedValueOnce({ ...mockOrder, status: 'needs_human_qa' });
+    const { GET } = await import('../../app/api/release/v1/generate/status/route');
+    const res = await GET(statusRequest(VALID_CUID, VALID_KEY));
+    expect(res.status).toBe(200);
+    expect(sweepStaleGenerationJobs).not.toHaveBeenCalled();
+    expect(await res.json()).toEqual({ status: 'under_review', childName: 'דנה' });
+  });
+
+  it.each([
+    { deliveryHoldReason: 'safety_hold:hazard_detected', manualReviewRequired: false },
+    { deliveryHoldReason: null, manualReviewRequired: true },
+  ])('release/v1 status does not redispatch a generating Order with a governing hold fence: %j', async (hold) => {
+    findUnique.mockResolvedValueOnce({ ...mockOrder, ...hold });
+    const { GET } = await import('../../app/api/release/v1/generate/status/route');
+    const res = await GET(statusRequest(VALID_CUID, VALID_KEY));
+    expect(res.status).toBe(200);
+    expect(requireReleaseV1OrderPackage).toHaveBeenCalledTimes(1);
+    expect(sweepStaleGenerationJobs).not.toHaveBeenCalled();
+  });
+
+  it('a spoofed release header cannot change the unversioned route semantics', async () => {
+    findUnique.mockResolvedValueOnce(mockOrder);
+    const req = statusRequest(VALID_CUID, VALID_KEY);
+    req.headers.set('x-smallheroes-release-protocol', 'release/v1');
+    const { GET } = await import('../../app/api/generate/status/route');
+    const res = await GET(req);
+    expect(res.status).toBe(200);
+    expect(requireReleaseV1OrderPackage).not.toHaveBeenCalled();
+    expect(sweepStaleGenerationJobs).toHaveBeenCalledWith(3);
   });
 
   it('returns 404 order_not_found when accessKey is missing', async () => {

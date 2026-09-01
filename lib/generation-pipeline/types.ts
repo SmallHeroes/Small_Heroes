@@ -8,6 +8,12 @@ export type RuntimeStorySourceAuthorityKind =
 
 export type PipelineCache = {
   /**
+   * Fresh release continuity is durable job input, not deployment-global
+   * configuration. It pins package-backed self-chain and recovery dispatch to
+   * the initiating deployment's versioned worker. Legacy jobs omit it.
+   */
+  releaseContinuity?: import('./release-v1-continuity').GenerationReleaseContinuityV1;
+  /**
    * Story `.md` reference. Stored REPO-RELATIVE (posix) — never an absolute/`process.cwd()` path —
    * so the cross-chunk cache-invariant guard does not flag it (0095 P0). Resolve to absolute via
    * `resolveCachedStoryFilePath()` (lib/generation-pipeline/story-path.ts). Legacy in-flight caches may

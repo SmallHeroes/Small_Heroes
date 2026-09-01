@@ -24,9 +24,18 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'orderId required' }, { status: 400 });
   }
 
-  const job = await prisma.generationJob.findUnique({ where: { orderId } });
+  const job = await prisma.generationJob.findUnique({
+    where: { orderId },
+    include: { order: { select: { visualPackageAuthority: true } } },
+  });
   if (!job) {
     return NextResponse.json({ error: 'No generation job' }, { status: 404 });
+  }
+  if (job.order.visualPackageAuthority != null) {
+    return NextResponse.json(
+      { error: 'release_v1_resume_route_required' },
+      { status: 409 },
+    );
   }
 
   await prisma.generationJob.update({

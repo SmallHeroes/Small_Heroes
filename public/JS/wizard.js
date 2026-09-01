@@ -225,6 +225,19 @@ function hebrewPhotoMessageFromCodes(reasonCodes) {
 }
 const ORDER_SUBMIT_TIMEOUT_MS = 45_000;
 const WIZARD_SESSION_ID_STORAGE_KEY = 'smallheroes.wizardSessionId';
+const RELEASE_V1_PREORDER_ENDPOINT = '/api/release/v1/preorder';
+const RELEASE_V1_ORDERS_ENDPOINT = '/api/release/v1/orders';
+const RELEASE_V1_CHECKOUT_ENDPOINT = '/api/release/v1/checkout';
+const WIZARD_PRODUCT_BINDING_V1_KEYS = [
+  'packageAuthorityDigest',
+  'packagePath',
+  'packageRevisionDigest',
+  'sourcePath',
+  'sourceRawDigest',
+  'storyKey',
+  'styleId',
+  'version',
+];
 const ROUTES = window.SH_ROUTES || {
   home: '/',
   wizard: '/wizard',
@@ -338,6 +351,46 @@ function normalizeClientStyleId(styleId) {
   return map[raw] || 'soft_hand_drawn_storybook';
 }
 
+function isWizardProductBindingV1(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  const keys = Object.keys(value).sort();
+  if (JSON.stringify(keys) !== JSON.stringify(WIZARD_PRODUCT_BINDING_V1_KEYS)) return false;
+  if (value.version !== 'wizard-product-binding/v1') return false;
+  if (
+    typeof value.storyKey !== 'string' || !value.storyKey ||
+    typeof value.styleId !== 'string' || !value.styleId ||
+    typeof value.sourcePath !== 'string' || !value.sourcePath ||
+    typeof value.packagePath !== 'string' || !value.packagePath
+  ) {
+    return false;
+  }
+  return [
+    value.sourceRawDigest,
+    value.packageRevisionDigest,
+    value.packageAuthorityDigest,
+  ].every((digest) => typeof digest === 'string' && /^[a-f0-9]{64}$/.test(digest));
+}
+
+function wizardProductBindingsEqual(left, right) {
+  return isWizardProductBindingV1(left) &&
+    isWizardProductBindingV1(right) &&
+    WIZARD_PRODUCT_BINDING_V1_KEYS.every((key) => left[key] === right[key]);
+}
+
+function isCurrentReleaseV1ProductTruth(truth) {
+  const companionId = String(state.companionCharacterId || '').trim();
+  const direction = String(state.storyDirection || '').trim();
+  const styleId = normalizeClientStyleId(state.style);
+  return Boolean(
+    truth &&
+    truth.source === 'visual_package_v4' &&
+    truth.direction === direction &&
+    isWizardProductBindingV1(truth.binding) &&
+    truth.binding.storyKey === `${companionId}_${direction}` &&
+    truth.binding.styleId === styleId
+  );
+}
+
 /* ── STATE ──────────────────────────────────────────────────── */
 const state = {
   currentStep: 1,
@@ -379,8 +432,8 @@ const state = {
   storyDirection: null, /* bedtime | adventure | fantasy */
   productId: null,
   priceILS: null,
-  /** Server-resolved {direction,pages(beats),displayPages,priceILS,source}
-   *  from /api/wizard/product-truth. UI renders displayPages ONLY. */
+  /** Fresh release/v1 server truth + immutable package/source binding.
+   * UI renders displayPages ONLY; submit always re-fetches before first write. */
   productTruth: null,
   style: null,
   styleSelected: false,
@@ -498,7 +551,7 @@ function getMvpSlotForTopic(topicId) {
 function getDirectionSellability(direction) {
   const cat = state.challengeCategory;
   if (!cat || !state.mvpMatrix?.categories) {
-    return { sellable: true, selectable: true, configured: 'approved' };
+    return { sellable: false, selectable: false, configured: 'matrix_unavailable' };
   }
   const slot = state.mvpMatrix.categories.find((c) => c.category === cat);
   return (
@@ -517,19 +570,27 @@ function applyMatrixCompanionForCategory(category) {
 }
 
 async function loadMvpMatrix() {
+  state.mvpMatrix = null;
+  state.productTruth = null;
   try {
     const res = await fetch('/api/wizard/mvp-matrix', { cache: 'no-store' });
     if (!res.ok) {
       console.error('[wizard] mvp-matrix HTTP', res.status);
-      return;
+      return false;
     }
-    state.mvpMatrix = await res.json();
+    const matrix = await res.json();
+    if (!matrix || !Array.isArray(matrix.categories)) return false;
+    state.mvpMatrix = matrix;
     normalizeStepAfterMvpLoad();
     if (state.challengeCategory) {
       applyMatrixCompanionForCategory(state.challengeCategory);
     }
+    return true;
   } catch (err) {
+    state.mvpMatrix = null;
+    state.productTruth = null;
     console.error('[wizard] mvp-matrix load failed', err);
+    return false;
   }
 }
 
@@ -645,6 +706,7 @@ function saveWizardState() {
     const serializable = {
       ...state,
       photo: null,
+      productTruth: null,
     };
     sessionStorage.setItem(
       WIZARD_STORAGE_KEY,
@@ -736,6 +798,9 @@ function restoreWizardState() {
     }
     sessionExpectChildPhotoReplay = snapshot.meta?.expectChildPhotoReplay === true;
     Object.assign(state, snapshot.state);
+    // A persisted product selection is display state only. Never let a restored
+    // package/source binding authorize an Order on a different deployment.
+    state.productTruth = null;
     state.currentStep = migrateLegacyWizardStep(snapshot.step);
     if (typeof state.storyDirection !== 'string' || !state.storyDirection) {
       const legacy = state.length;
@@ -921,32 +986,32 @@ function computeTotal() {
 }
 
 /* ── SERVER PRODUCT TRUTH ───────────────────────────────────── */
-// Server-resolved direction/pages/price for the wizard summary — must match POST /api/orders.
-// Client direction is preserved (v3 binding only when direction matches); matrix assert runs when challengeCategory is sent.
+// Server-resolved direction/pages/price and immutable package/source identity.
+// A fresh release/v1 binding is mandatory before Order creation.
 let productTruthFetchSeq = 0;
 async function syncProductTruthFromServer() {
-  const companionId = state.companionCharacterId || '';
-  const direction = state.storyDirection || '';
-  if (!companionId && !direction) return;
   const seq = ++productTruthFetchSeq;
+  state.productTruth = null;
+  const companionId = String(state.companionCharacterId || '').trim();
+  const direction = String(state.storyDirection || '').trim();
+  const styleId = normalizeClientStyleId(state.style);
+  if (!companionId || !direction || !styleId) return false;
   try {
     const params = new URLSearchParams();
-    if (companionId) params.set('companionId', companionId);
-    if (direction) params.set('direction', direction);
+    params.set('companionId', companionId);
+    params.set('direction', direction);
+    params.set('illustrationStyle', styleId);
     if (state.challengeCategory) params.set('challengeCategory', state.challengeCategory);
-    const res = await fetch(`/api/wizard/product-truth?${params.toString()}`);
-    if (seq !== productTruthFetchSeq) return;
-    if (!res.ok) return; /* e.g. direction not chosen yet — server validates again at order time */
+    const res = await fetch(`${RELEASE_V1_PREORDER_ENDPOINT}?${params.toString()}`, {
+      cache: 'no-store',
+    });
+    if (seq !== productTruthFetchSeq) return false;
+    if (!res.ok) return false;
     const truth = await res.json();
-    if (seq !== productTruthFetchSeq) return;
-    if (!truth || !VALID_STORY_DIRECTIONS.includes(truth.direction)) return;
+    if (seq !== productTruthFetchSeq) return false;
+    if (!VALID_STORY_DIRECTIONS.includes(truth?.direction)) return false;
+    if (!isCurrentReleaseV1ProductTruth(truth)) return false;
     state.productTruth = truth;
-    // Only let a server story-binding OVERRIDE an EXISTING user choice (summary == served book). Never AUTO-select a
-    // direction the user hasn't picked — the experience is chosen actively in step 8, so step-8 entry pre-selects
-    // nothing (the server resolves boundDirections[0] as a default, which we must not silently apply).
-    if (state.storyDirection && truth.direction !== state.storyDirection) {
-      applyProductSelection(truth.direction, { revealTotal: false });
-    }
     state.priceILS = truth.priceILS;
     if (state.currentStep === 8) {
       renderProductCards();
@@ -956,8 +1021,10 @@ async function syncProductTruthFromServer() {
       refreshTotal();
     }
     queueWizardSave();
+    return true;
   } catch (_) {
-    /* network failure — order API still enforces the truth server-side */
+    if (seq === productTruthFetchSeq) state.productTruth = null;
+    return false;
   }
 }
 
@@ -2957,11 +3024,16 @@ async function applyCoupon() {
   }
 }
 
-async function startCheckout(orderId, sessionId) {
+async function startCheckout(orderId, sessionId, wizardProductBinding) {
   const couponCode = state.coupon && state.coupon.code ? state.coupon.code : null;
-  const checkoutBody = { orderId, ...(sessionId ? { sessionId } : {}), ...(couponCode ? { couponCode } : {}) };
+  const checkoutBody = {
+    orderId,
+    wizardProductBinding,
+    ...(sessionId ? { sessionId } : {}),
+    ...(couponCode ? { couponCode } : {}),
+  };
   if (clientApi && typeof clientApi.requestJson === 'function') {
-    const r = await clientApi.requestJson('/api/checkout', {
+    const r = await clientApi.requestJson(RELEASE_V1_CHECKOUT_ENDPOINT, {
       fetch: {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -2974,7 +3046,7 @@ async function startCheckout(orderId, sessionId) {
     return r;
   }
 
-  const checkoutRes = await fetch('/api/checkout', {
+  const checkoutRes = await fetch(RELEASE_V1_CHECKOUT_ENDPOINT, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(checkoutBody),
@@ -3000,14 +3072,20 @@ async function handleSubmit() {
   track('checkout_started', { topic: state.topic, storyDirection: state.storyDirection });
 
   try {
+    const freshProductTruth = await syncProductTruthFromServer();
+    if (!freshProductTruth || !isCurrentReleaseV1ProductTruth(state.productTruth)) {
+      throw new Error('לא הצלחנו לאמת את גרסת הספר במערכת. רעננו את הדף ונסו שוב.');
+    }
+    const wizardProductBinding = state.productTruth.binding;
     const payload = {
       wizardData: buildWizardPayload(),
       sessionId: getOrCreateWizardSessionId(),
+      wizardProductBinding,
     };
     // ── Step 1: create the order ──────────────────────────────────
     let orderResponse = null;
     if (clientApi && typeof clientApi.requestJson === 'function') {
-      orderResponse = await clientApi.requestJson('/api/orders', {
+      orderResponse = await clientApi.requestJson(RELEASE_V1_ORDERS_ENDPOINT, {
         fetch: {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -3020,7 +3098,7 @@ async function handleSubmit() {
         invalidJsonMessage: 'התקבלה תגובה לא תקינה מהשרת.',
       });
     } else {
-      const orderRes = await fetch('/api/orders', {
+      const orderRes = await fetch(RELEASE_V1_ORDERS_ENDPOINT, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -3076,7 +3154,12 @@ async function handleSubmit() {
       throw new Error('יש עיכוב קטן בהכנת ההזמנה. נסו שוב בעוד רגע 🙏');
     }
 
-    let checkoutResponse = await startCheckout(orderId, payload.sessionId);
+    if (!wizardProductBindingsEqual(orderResponse.data?.wizardProductBinding, wizardProductBinding)) {
+      reportClientIssue('submit_failed', { reason: 'order_binding_mismatch' });
+      throw new Error('גרסת הספר השתנתה בזמן ההזמנה. רעננו את הדף ונסו שוב.');
+    }
+
+    let checkoutResponse = await startCheckout(orderId, payload.sessionId, wizardProductBinding);
 
     // Payment gate (soft-launch): /api/checkout requires the site-password cookie. If it's missing we
     // prompt ON DEMAND here — never on page load — then retry the SAME order once. Dismiss → abort.
@@ -3097,7 +3180,7 @@ async function handleSubmit() {
         setPayBtnState(false);
         return; // user dismissed the gate — the `finally` block resets the submitting flag
       }
-      checkoutResponse = await startCheckout(orderId, payload.sessionId);
+      checkoutResponse = await startCheckout(orderId, payload.sessionId, wizardProductBinding);
     }
 
     if (!checkoutResponse.ok) {

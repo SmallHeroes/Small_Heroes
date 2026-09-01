@@ -39,12 +39,12 @@ describe('resolveInternalWorkerBaseUrl — never chain via NEXT_PUBLIC_APP_URL w
     return (await import('@/lib/generation-chunked/chain-worker')).resolveInternalWorkerBaseUrl;
   }
 
-  it('prefers INTERNAL_WORKER_BASE_URL', async () => {
+  it('prefers the immutable VERCEL_URL over a stable internal override', async () => {
     process.env.INTERNAL_WORKER_BASE_URL = 'https://internal.example';
     process.env.VERCEL_URL = 'dep.vercel.app';
     process.env.NEXT_PUBLIC_APP_URL = 'https://public.example';
     const fn = await load();
-    expect(fn()).toEqual({ url: 'https://internal.example', source: 'INTERNAL_WORKER_BASE_URL', isFallback: false });
+    expect(fn()).toEqual({ url: 'https://dep.vercel.app', source: 'VERCEL_URL', isFallback: false });
   });
 
   it('prefers VERCEL_URL (own deployment) over NEXT_PUBLIC_APP_URL — and adds https://', async () => {

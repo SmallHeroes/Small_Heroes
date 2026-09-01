@@ -322,6 +322,11 @@ describe('middleware staging QA gate (open browsing, gated book-creation trigger
     expect(res.status).toBe(200);
   });
 
+  it('opens the versioned fake-payment page on staging without a cookie', async () => {
+    const res = await run('/release/v1/fake-payment', QA_ON);
+    expect(res.status).toBe(200);
+  });
+
   it('opens an /api/dev route on staging without a cookie', async () => {
     const res = await run('/api/dev/creator/meta', QA_ON);
     expect(res.status).toBe(200);
@@ -337,6 +342,17 @@ describe('middleware staging QA gate (open browsing, gated book-creation trigger
   it('book-creation trigger passes on staging WITH fake flags + the site-password cookie', async () => {
     const res = await run('/api/dev/fake-payment/confirm', QA_FAKE_ON, 'sh_access=site-secret');
     expect(res.status).toBe(200);
+  });
+
+  it('versioned confirm remains password-gated and passes only with fake flags + cookie', async () => {
+    const denied = await run('/api/release/v1/fake-payment/confirm', QA_FAKE_ON);
+    expect(denied.status).toBe(401);
+    const allowed = await run(
+      '/api/release/v1/fake-payment/confirm',
+      QA_FAKE_ON,
+      'sh_access=site-secret',
+    );
+    expect(allowed.status).toBe(200);
   });
 
   it('book-creation trigger 401s with the cookie but WITHOUT the fake-payment flags', async () => {
@@ -368,6 +384,12 @@ describe('middleware staging QA gate (open browsing, gated book-creation trigger
       'sh_access=site-secret'
     );
     expect(res.status).toBe(404);
+  });
+
+  it('SAFETY: versioned fake page and confirm both 404 on real prod', async () => {
+    const runtime = { ...QA_FAKE_ON, VERCEL_ENV: 'production' };
+    expect((await run('/release/v1/fake-payment', runtime, 'sh_access=site-secret')).status).toBe(404);
+    expect((await run('/api/release/v1/fake-payment/confirm', runtime, 'sh_access=site-secret')).status).toBe(404);
   });
 
   it('SAFETY: /dev 404s on preview WITHOUT ALLOW_STAGING_QA', async () => {

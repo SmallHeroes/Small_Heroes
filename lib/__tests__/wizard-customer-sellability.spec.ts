@@ -145,9 +145,9 @@ describe('Wizard customer product sellability contract', () => {
   });
 
   it('keeps the server order route as the final MVP slot authority', () => {
-    const orderRoute = readFileSync('app/api/orders/route.ts', 'utf8');
-    expect(orderRoute).toContain('const enforced = enforceMvpOrderSlot({');
-    expect(orderRoute).toContain('clientDirection: product?.direction');
-    expect(orderRoute).toContain('clientCompanionId: storedCompanionId');
+    const orderHandler = readFileSync('app/api/orders/handler.ts', 'utf8');
+    expect(orderHandler).toContain('const enforced = enforceMvpOrderSlot({');
+    expect(orderHandler).toContain('clientDirection: product?.direction');
+    expect(orderHandler).toContain('clientCompanionId: storedCompanionId');
   });
 });

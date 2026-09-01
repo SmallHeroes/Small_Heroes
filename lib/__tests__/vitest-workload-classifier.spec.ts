@@ -55,9 +55,9 @@ describe('Vitest workload classifier', () => {
     );
     const partition = classifyVitestWorkloads(inventory, policy);
 
-    expect(partition.inventory).toHaveLength(354);
+    expect(partition.inventory).toHaveLength(358);
     expect(partition.resourceIntensive).toHaveLength(20);
-    expect(partition.ordinary).toHaveLength(334);
+    expect(partition.ordinary).toHaveLength(338);
     expect(new Set(partition.inventory).size).toBe(
       partition.inventory.length,
     );
@@ -191,6 +191,18 @@ describe('Vitest workload classifier', () => {
     );
     expect(partition.ordinary).toContain(
       'lib/visual-package/__tests__/qa-wizard-blueprint-replacement-cli.spec.ts',
+    );
+    expect(partition.ordinary).toContain(
+      'lib/__tests__/release-v1-continuity.spec.ts',
+    );
+    expect(partition.ordinary).toContain(
+      'lib/__tests__/release-v1-entrypoint-fences.spec.ts',
+    );
+    expect(partition.ordinary).toContain(
+      'lib/__tests__/release-v1-start-idempotency.spec.ts',
+    );
+    expect(partition.ordinary).toContain(
+      'lib/__tests__/release-v1-worker-boundary.spec.ts',
     );
   });
 

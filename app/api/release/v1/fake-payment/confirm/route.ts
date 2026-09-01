@@ -1,10 +1,10 @@
 import { NextRequest } from 'next/server';
 
-import { handleCheckoutPost } from './handler';
+import { handleFakePaymentConfirmPost } from '@/app/api/dev/fake-payment/confirm/handler';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest) {
-  return handleCheckoutPost(req, { routeProtocol: 'legacy-route' });
+  return handleFakePaymentConfirmPost(req, { routeProtocol: 'release/v1' });
 }

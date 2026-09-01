@@ -25,17 +25,27 @@ export function middleware(req: NextRequest): NextResponse {
   const isDevPageRoute = pathname === '/dev' || pathname.startsWith('/dev/');
   const isDevApiRoute = pathname === '/api/dev' || pathname.startsWith('/api/dev/');
   const isDebugApiRoute = pathname === '/api/debug' || pathname.startsWith('/api/debug/');
+  const isReleaseV1FakePage = pathname === '/release/v1/fake-payment';
+  const isReleaseV1FakeConfirm =
+    pathname === '/api/release/v1/fake-payment/confirm';
 
   // The single mutating trigger that stays password-gated even on staging: it creates a
   // (fake-paid) order and starts generation. Everything else under /dev is open for QA.
-  const isBookCreationTrigger = pathname === '/api/dev/fake-payment/confirm';
+  const isBookCreationTrigger =
+    pathname === '/api/dev/fake-payment/confirm' || isReleaseV1FakeConfirm;
 
   const vercelEnv = (process.env.VERCEL_ENV || '').toLowerCase();
   const stagingQaAllowed =
     (vercelEnv === 'preview' || vercelEnv === 'development') &&
     process.env.ALLOW_STAGING_QA === 'true';
 
-  if (stagingQaAllowed && (isDevPageRoute || isDevApiRoute)) {
+  if (
+    stagingQaAllowed &&
+    (isDevPageRoute ||
+      isDevApiRoute ||
+      isReleaseV1FakePage ||
+      isReleaseV1FakeConfirm)
+  ) {
     if (isBookCreationTrigger) {
       // Defense-in-depth: fake-payment flags must be on AND the caller must hold the site
       // password. (The route itself also enforces canUseFakePayments.) Missing either → 401.
@@ -53,12 +63,24 @@ export function middleware(req: NextRequest): NextResponse {
     return NextResponse.next();
   }
 
-  if (isDevPageRoute || isDebugApiRoute || isDevApiRoute) {
+  if (
+    isDevPageRoute ||
+    isDebugApiRoute ||
+    isDevApiRoute ||
+    isReleaseV1FakePage ||
+    isReleaseV1FakeConfirm
+  ) {
     return new NextResponse('Not Found', { status: 404 });
   }
   return NextResponse.next();
 }
 
 export const config = {
-  matcher: ['/dev/:path*', '/api/debug/:path*', '/api/dev/:path*'],
+  matcher: [
+    '/dev/:path*',
+    '/api/debug/:path*',
+    '/api/dev/:path*',
+    '/release/v1/fake-payment',
+    '/api/release/v1/fake-payment/confirm',
+  ],
 };

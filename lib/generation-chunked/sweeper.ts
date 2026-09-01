@@ -4,6 +4,16 @@ import { getMaxStaleReclaims } from './constants';
 import { isReadinessManifestEnabled } from '@/lib/generation-pipeline/readiness-manifest';
 import { openExceptionCase } from './exception-case';
 import { tryDeleteOriginalChildPhotoAfterGeneration } from '@/lib/child-photo-deletion';
+import {
+  parseGenerationReleaseContinuityV1,
+  RELEASE_V1_ORDER_AUTHORITY_SELECT,
+  RELEASE_V1_PROTOCOL,
+  releaseV1AuthorityCasWhere,
+  requireExpectedWizardProductBinding,
+  requireReleaseV1OrderPackage,
+  type GenerationReleaseContinuityV1,
+} from '@/lib/generation-pipeline/release-v1-continuity';
+import { requireOrderVisualPackageAuthority } from '@/lib/generation-pipeline/order-visual-package-authority';
 
 /** Progress fingerprint — changes when the job advances (stage or completed-page count). */
 function progressFingerprint(currentStage: string, completedPageNumbers: unknown): string {
@@ -28,8 +38,14 @@ function progressFingerprint(currentStage: string, completedPageNumbers: unknown
  */
 export async function sweepStaleGenerationJobs(
   limit = 5,
-  options?: { orderId?: string }
+  options?: {
+    orderId?: string;
+    releaseProtocol?: typeof RELEASE_V1_PROTOCOL;
+  }
 ): Promise<number> {
+  if (options?.releaseProtocol === RELEASE_V1_PROTOCOL && !options.orderId) {
+    throw new Error('release/v1 sweeper requires one exact orderId');
+  }
   const now = new Date();
   const stale = await prisma.generationJob.findMany({
     where: {
@@ -46,12 +62,84 @@ export async function sweepStaleGenerationJobs(
       staleReclaimCount: true,
       lastReclaimStage: true,
       completedPageNumbers: true,
+      pipelineCache: true,
+      order: {
+        select: {
+          ...RELEASE_V1_ORDER_AUTHORITY_SELECT,
+          status: true,
+          deliveryHoldReason: true,
+          manualReviewRequired: true,
+        },
+      },
     },
   });
 
   const maxReclaims = getMaxStaleReclaims();
   let processed = 0;
   for (const job of stale) {
+    const orderSnapshot = (
+      job as typeof job & {
+        order?: Parameters<typeof requireReleaseV1OrderPackage>[0];
+      }
+    ).order;
+    const cache =
+      job.pipelineCache &&
+      typeof job.pipelineCache === 'object' &&
+      !Array.isArray(job.pipelineCache)
+        ? (job.pipelineCache as Record<string, unknown>)
+        : null;
+    let releaseContinuity: GenerationReleaseContinuityV1 | undefined;
+    if (options?.releaseProtocol === RELEASE_V1_PROTOCOL) {
+      if (!orderSnapshot) {
+        throw new Error('release/v1 sweeper Order snapshot is missing');
+      }
+      if (
+        !['paid', 'generating'].includes(orderSnapshot.status) ||
+        orderSnapshot.deliveryHoldReason != null ||
+        orderSnapshot.manualReviewRequired === true
+      ) {
+        continue;
+      }
+      const releaseBinding = requireReleaseV1OrderPackage(orderSnapshot).binding;
+      releaseContinuity = parseGenerationReleaseContinuityV1(
+        cache?.releaseContinuity,
+      );
+      const current = await prisma.order.findUnique({
+        where: { id: job.orderId },
+        select: {
+          ...RELEASE_V1_ORDER_AUTHORITY_SELECT,
+          status: true,
+          deliveryHoldReason: true,
+          manualReviewRequired: true,
+        },
+      });
+      if (
+        !current ||
+        !['paid', 'generating'].includes(current.status) ||
+        current.deliveryHoldReason != null ||
+        current.manualReviewRequired === true
+      ) {
+        continue;
+      }
+      requireExpectedWizardProductBinding({
+        order: current,
+        expected: releaseBinding,
+      });
+    } else {
+      // Legacy/global recovery never mutates or dispatches package-backed v1
+      // work. Its order-scoped versioned status/worker owns that lifecycle.
+      try {
+        if (
+          cache?.releaseContinuity != null ||
+          (orderSnapshot &&
+            requireOrderVisualPackageAuthority(orderSnapshot) !== null)
+        ) {
+          continue;
+        }
+      } catch {
+        continue;
+      }
+    }
     const fingerprint = progressFingerprint(job.currentStage, job.completedPageNumbers);
     const madeProgress = fingerprint !== job.lastReclaimStage;
     const nextCount = madeProgress ? 1 : (job.staleReclaimCount ?? 0) + 1;
@@ -60,9 +148,32 @@ export async function sweepStaleGenerationJobs(
       // Stuck at the same stage with no progress across many reclaims → stop re-spending.
       const reason = `Stalled at stage ${job.currentStage} after ${nextCount - 1} no-progress reclaims`;
       await prisma.$transaction(async (tx) => {
-        await tx.generationJob.update({
-          where: { orderId: job.orderId },
-          data: {
+        const failedJob = options?.releaseProtocol === RELEASE_V1_PROTOCOL
+          ? await tx.generationJob.updateMany({
+              where: {
+                orderId: job.orderId,
+                order: {
+                  is: {
+                    status: { in: ['paid', 'generating'] },
+                    deliveryHoldReason: null,
+                    manualReviewRequired: false,
+                    ...releaseV1AuthorityCasWhere(orderSnapshot),
+                  },
+                },
+              },
+              data: {
+                status: 'failed',
+                currentStage: 'failed',
+                retryable: false,
+                failedAt: now,
+                lastError: reason,
+                staleReclaimCount: nextCount,
+                lastReclaimStage: fingerprint,
+              },
+            })
+          : await tx.generationJob.update({
+              where: { orderId: job.orderId },
+              data: {
             status: 'failed',
             currentStage: 'failed',
             retryable: false,
@@ -70,12 +181,29 @@ export async function sweepStaleGenerationJobs(
             lastError: reason,
             staleReclaimCount: nextCount,
             lastReclaimStage: fingerprint,
-          },
-        });
-        await tx.order.update({
-          where: { id: job.orderId },
-          data: { status: 'failed', lastError: `Generation stalled at ${job.currentStage}` },
-        });
+              },
+            });
+        if ('count' in failedJob && failedJob.count !== 1) {
+          throw new Error('release/v1 stalled-job authority changed');
+        }
+        const failedOrder = options?.releaseProtocol === RELEASE_V1_PROTOCOL
+          ? await tx.order.updateMany({
+              where: {
+                id: job.orderId,
+                status: { in: ['paid', 'generating'] },
+                deliveryHoldReason: null,
+                manualReviewRequired: false,
+                ...releaseV1AuthorityCasWhere(orderSnapshot),
+              },
+              data: { status: 'failed', lastError: `Generation stalled at ${job.currentStage}` },
+            })
+          : await tx.order.update({
+              where: { id: job.orderId },
+              data: { status: 'failed', lastError: `Generation stalled at ${job.currentStage}` },
+            });
+        if ('count' in failedOrder && failedOrder.count !== 1) {
+          throw new Error('release/v1 stalled Order authority changed');
+        }
         if (isReadinessManifestEnabled()) {
           await openExceptionCase(tx, {
             orderId: job.orderId,
@@ -99,19 +227,42 @@ export async function sweepStaleGenerationJobs(
     // Record the reclaim attempt AND stamp the kick telemetry durably (awaited) so a reclaim that
     // dispatches a worker is indistinguishable from a normal chain hop — even if the fire-and-forget
     // diagnostic inside chainGenerationWorker does not flush before this cron route returns.
-    await prisma.generationJob.update({
-      where: { orderId: job.orderId },
-      data: {
+    const reclaimed = options?.releaseProtocol === RELEASE_V1_PROTOCOL
+      ? await prisma.generationJob.updateMany({
+          where: {
+            orderId: job.orderId,
+            order: {
+              is: {
+                status: { in: ['paid', 'generating'] },
+                deliveryHoldReason: null,
+                manualReviewRequired: false,
+                ...releaseV1AuthorityCasWhere(orderSnapshot),
+              },
+            },
+          },
+          data: {
+            staleReclaimCount: nextCount,
+            lastReclaimStage: fingerprint,
+            lastWorkerKickAt: now,
+            lastChainStatus: null,
+            lastChainError: null,
+          },
+        })
+      : await prisma.generationJob.update({
+          where: { orderId: job.orderId },
+          data: {
         staleReclaimCount: nextCount,
         lastReclaimStage: fingerprint,
         lastWorkerKickAt: now,
         lastChainStatus: null,
         lastChainError: null,
-      },
-    });
+          },
+        });
+    if ('count' in reclaimed && reclaimed.count !== 1) continue;
 
     // Dispatcher boundary: kick the 300s worker route; NEVER render in-process inside the 60s cron.
-    chainGenerationWorker(job.orderId);
+    if (releaseContinuity) chainGenerationWorker(job.orderId, releaseContinuity);
+    else chainGenerationWorker(job.orderId);
     processed += 1;
   }
 

@@ -638,9 +638,15 @@ export async function claimDueExceptionCases(
      WHERE "id" IN (
        SELECT "id"
          FROM "ExceptionCase"
-        WHERE "status" IN ('open', 'retry_scheduled', 'customer_action', 'refund_pending')
-          AND ("nextActionAt" IS NULL OR "nextActionAt" <= ${now})
-          AND ("leaseExpiresAt" IS NULL OR "leaseExpiresAt" < ${now})
+         WHERE "status" IN ('open', 'retry_scheduled', 'customer_action', 'refund_pending')
+           AND ("nextActionAt" IS NULL OR "nextActionAt" <= ${now})
+           AND ("leaseExpiresAt" IS NULL OR "leaseExpiresAt" < ${now})
+           AND NOT EXISTS (
+             SELECT 1
+               FROM "Order"
+              WHERE "Order"."id" = "ExceptionCase"."orderId"
+                AND "Order"."visualPackageAuthority" IS NOT NULL
+           )
         ORDER BY "nextActionAt" ASC NULLS FIRST, "createdAt" ASC
         LIMIT ${limit}
         FOR UPDATE SKIP LOCKED

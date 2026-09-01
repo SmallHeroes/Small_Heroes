@@ -8,6 +8,7 @@
 import { after } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { assertEnvSeparation } from './env-separation-guard';
+import type { GenerationReleaseContinuityV1 } from '@/lib/generation-pipeline/release-v1-continuity';
 
 /**
  * Run best-effort background work DURABLY from a serverless request. Inside a request scope (Vercel /
@@ -63,14 +64,14 @@ export type InternalWorkerTarget = { url: string; source: string; isFallback: bo
  * NEXT_PUBLIC_APP_URL remain ONLY as a last-resort, warned fallback. Returns null if none set.
  */
 export function resolveInternalWorkerBaseUrl(): InternalWorkerTarget | null {
-  const explicit = process.env.INTERNAL_WORKER_BASE_URL?.trim();
-  if (explicit) {
-    return { url: explicit.replace(/\/$/, ''), source: 'INTERNAL_WORKER_BASE_URL', isFallback: false };
-  }
   const vercelUrl = process.env.VERCEL_URL?.trim();
   if (vercelUrl) {
     const withProto = /^https?:\/\//i.test(vercelUrl) ? vercelUrl : `https://${vercelUrl}`;
     return { url: withProto.replace(/\/$/, ''), source: 'VERCEL_URL', isFallback: false };
+  }
+  const explicit = process.env.INTERNAL_WORKER_BASE_URL?.trim();
+  if (explicit) {
+    return { url: explicit.replace(/\/$/, ''), source: 'INTERNAL_WORKER_BASE_URL', isFallback: false };
   }
   const appUrl = (process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || '').trim();
   if (appUrl) {
@@ -79,12 +80,21 @@ export function resolveInternalWorkerBaseUrl(): InternalWorkerTarget | null {
   return null;
 }
 
-export function chainGenerationWorker(orderId: string): void {
+export function chainGenerationWorker(
+  orderId: string,
+  releaseContinuity?: GenerationReleaseContinuityV1,
+): void {
   // Env-separation guard (0089 P0): refuse to fan out if a non-production runtime is pointed at a
   // production resource (prod domain / prod Supabase). Throws loudly — staging must never drive prod.
   assertEnvSeparation();
 
-  const target = resolveInternalWorkerBaseUrl();
+  const target = releaseContinuity
+    ? {
+        url: releaseContinuity.workerBaseUrl,
+        source: releaseContinuity.version,
+        isFallback: false,
+      }
+    : resolveInternalWorkerBaseUrl();
   if (!target) {
     void failGenerationChain(
       orderId,
@@ -105,7 +115,9 @@ export function chainGenerationWorker(orderId: string): void {
     return;
   }
 
-  const url = `${target.url}/api/generate/worker`;
+  const workerPath =
+    releaseContinuity?.workerPath ?? '/api/generate/worker';
+  const url = `${target.url}${workerPath}`;
   let host = target.url;
   try {
     host = new URL(url).host;

@@ -1,6 +1,6 @@
 import 'server-only';
 
-import type { ExceptionCase, Prisma, PrismaClient } from '@prisma/client';
+import { Prisma, type ExceptionCase, type PrismaClient } from '@prisma/client';
 import {
   getBookReadyEmailDeliveryState,
   sendBookReadyEmail,
@@ -824,7 +824,13 @@ export async function syncTerminalExceptionCases(
       orderBy: { createdAt: 'asc' },
     }),
     prisma.generationJob.findMany({
-      where: { status: 'failed', order: { status: 'failed' } },
+      where: {
+        status: 'failed',
+        order: {
+          status: 'failed',
+          visualPackageAuthority: { equals: Prisma.DbNull },
+        },
+      },
       select: {
         orderId: true,
         retryable: true,

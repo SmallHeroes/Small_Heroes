@@ -59,10 +59,12 @@ const nextConfig = {
     const includes = {
       '/api/generate': ['./backend/assets/fonts/**/*', './story-bank/**/*', ...PRODUCT_ACCEPTED_STORY_REVISIONS, ...VISUAL_PACKAGE_V4_AUTHORITIES, ...SET_IDENTITY_BOARD_REGISTRY, ...STYLE01_REFS, ...STYLE01_COMPANION_SHEETS],
       '/api/generate/worker': ['./story-bank/**/*', ...PRODUCT_ACCEPTED_STORY_REVISIONS, ...VISUAL_PACKAGE_V4_AUTHORITIES, ...SET_IDENTITY_BOARD_REGISTRY, ...STYLE01_REFS, ...STYLE01_COMPANION_SHEETS],
+      '/api/release/v1/generate/worker': ['./story-bank/**/*', ...PRODUCT_ACCEPTED_STORY_REVISIONS, ...VISUAL_PACKAGE_V4_AUTHORITIES, ...SET_IDENTITY_BOARD_REGISTRY, ...STYLE01_REFS, ...STYLE01_COMPANION_SHEETS],
       '/api/generate/cron/sweep': ['./story-bank/**/*', ...PRODUCT_ACCEPTED_STORY_REVISIONS, ...VISUAL_PACKAGE_V4_AUTHORITIES, ...SET_IDENTITY_BOARD_REGISTRY, ...STYLE01_REFS, ...STYLE01_COMPANION_SHEETS],
       '/api/dev/generation/resume': ['./story-bank/**/*', ...PRODUCT_ACCEPTED_STORY_REVISIONS, ...VISUAL_PACKAGE_V4_AUTHORITIES, ...SET_IDENTITY_BOARD_REGISTRY, ...STYLE01_REFS, ...STYLE01_COMPANION_SHEETS],
       '/api/dev/runtime-authority-preflight': ['./story-bank/**/*', ...PRODUCT_ACCEPTED_STORY_REVISIONS, ...VISUAL_PACKAGE_V4_AUTHORITIES, ...SET_IDENTITY_BOARD_REGISTRY, ...STYLE01_REFS, ...STYLE01_COMPANION_SHEETS],
       '/api/dev/wizard-preorder-attestation': ['./story-bank/**/*', ...PRODUCT_ACCEPTED_STORY_REVISIONS, ...VISUAL_PACKAGE_V4_AUTHORITIES, ...SET_IDENTITY_BOARD_REGISTRY, ...STYLE01_REFS, ...STYLE01_COMPANION_SHEETS],
+      '/api/release/v1/preorder': [...WIZARD_QA_AUTHORITIES, ...WIZARD_QA_STORIES, ...PRODUCT_ACCEPTED_STORY_REVISIONS, ...VISUAL_PACKAGE_V4_AUTHORITIES, ...SET_IDENTITY_BOARD_REGISTRY, ...STYLE01_REFS, ...STYLE01_COMPANION_SHEETS],
       '/api/debug/regen-page': ['./story-bank/**/*', ...PRODUCT_ACCEPTED_STORY_REVISIONS, ...VISUAL_PACKAGE_V4_AUTHORITIES, ...SET_IDENTITY_BOARD_REGISTRY, ...STYLE01_REFS, ...STYLE01_COMPANION_SHEETS],
       '/api/wizard/mvp-matrix': [
         ...WIZARD_QA_AUTHORITIES,
@@ -81,6 +83,15 @@ const nextConfig = {
         ...PRODUCT_ACCEPTED_STORY_REVISIONS,
         ...VISUAL_PACKAGE_V4_AUTHORITIES,
       ],
+      '/api/release/v1/orders': [
+        ...WIZARD_QA_STORIES,
+        ...PRODUCT_ACCEPTED_STORY_REVISIONS,
+        ...VISUAL_PACKAGE_V4_AUTHORITIES,
+      ],
+      '/api/release/v1/checkout': [...PRODUCT_ACCEPTED_STORY_REVISIONS, ...VISUAL_PACKAGE_V4_AUTHORITIES],
+      '/api/release/v1/fake-payment/confirm': [...PRODUCT_ACCEPTED_STORY_REVISIONS, ...VISUAL_PACKAGE_V4_AUTHORITIES],
+      '/api/release/v1/generate/status': [...PRODUCT_ACCEPTED_STORY_REVISIONS, ...VISUAL_PACKAGE_V4_AUTHORITIES],
+      '/release/v1/fake-payment': [...PRODUCT_ACCEPTED_STORY_REVISIONS, ...VISUAL_PACKAGE_V4_AUTHORITIES],
       '/api/orders/[orderId]/power-card': ['./story-bank/**/*', './node_modules/@sparticuz/chromium/**/*'],
     };
     return includes;
@@ -112,16 +123,23 @@ const nextConfig = {
     const GENERATION_ROUTES = [
       '/api/generate',
       '/api/generate/worker',
+      '/api/release/v1/generate/worker',
       '/api/generate/cron/sweep',
       '/api/dev/generation/resume',
       '/api/dev/runtime-authority-preflight',
       '/api/dev/wizard-preorder-attestation',
+      '/api/release/v1/preorder',
       '/api/debug/regen-page',
     ];
     // Payment / status / webhook routes never render — drop every asset + heavy dep.
     const LEAN_ROUTES = [
       '/api/orders',
+      '/api/release/v1/orders',
       '/api/generate/status',
+      '/api/release/v1/checkout',
+      '/api/release/v1/fake-payment/confirm',
+      '/api/release/v1/generate/status',
+      '/release/v1/fake-payment',
       '/api/payme/return',
       '/api/webhooks/payme',
       '/api/webhooks/stripe',
@@ -137,7 +155,7 @@ const nextConfig = {
         ...HEADLESS,
         ...COMPANIONS,
         ...ALL_STYLE,
-        ...(r === '/api/orders' ? [] : ['story-bank/**']),
+        ...(r === '/api/orders' || r === '/api/release/v1/orders' ? [] : ['story-bank/**']),
       ];
     }
     // dev story-bank browser lists the bank → keep story-bank, drop media/headless/companions/all-style.

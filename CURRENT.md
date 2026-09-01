@@ -31,6 +31,54 @@ The observations in `docs/ai-workflow/SIMPLIFICATION_FINDINGS.md` remain useful,
 post-first-correct-render review is not closed. No broad simplification refactor starts during this
 bounded release-continuity correction.
 
+### Coherent QA release/v1 continuity — implemented locally; independent QA pending
+
+The bounded `release/v1` continuity milestone is implemented from the current Wizard product
+binding through Order creation, checkout, fake-payment confirmation, generating/status recovery
+and worker self-chaining. It does not authorize deployment, payment, provider or render activity;
+RELEASE remains **HOLD** until Claude Code independently reviews the focused commit and the reviewed
+bytes are deployed coherently.
+
+- Fresh browser and API traffic uses only the versioned `/release/v1` and `/api/release/v1`
+  namespace. Route identity is a server-owned handler argument, never a client header/body opt-in;
+  legacy routes cannot be upgraded by spoofing the release protocol and do not mint, lease, pay,
+  resume or process a new package-backed Order.
+- The fresh lane strictly parses one exact Wizard binding and re-derives the selected v4 package,
+  frozen package authority and accepted external Story Source bytes before the first photo/Order,
+  checkout lease, payment transaction, job mutation, worker lease or provider boundary. Mutable
+  current locators are not consulted after the Order freezes its authority.
+- The canonical Wizard preorder attestation is required and exact-compared with the product binding.
+  A locator flip between resolution and attestation fails closed. A compatible deployment must also
+  expose a canonical `VERCEL_URL` and generation secret before the flow is advertised or payment is
+  mutated.
+- Order creation uses one exact, expiring Wizard-session claim and one atomic claim/customer/Order
+  transaction. Same-session package conflicts, malformed/stale claims, superseded claimants,
+  transaction crashes and P2002 replay cannot store a child photo or return a differently bound
+  Order.
+- Checkout and paid transitions carry exact authority CAS predicates. A zero-count paid CAS is
+  re-read and classified rather than reported as success. Duplicate confirmation cannot reset an
+  existing job, clear an active lease or dispatch twice; the genuine paid-with-no-job state remains
+  recoverable.
+- Release continuity is persisted in the job cache and cannot be re-pinned by a later deployment.
+  The versioned worker validates the exact Order/package/source/deployment both before and after its
+  lease and releases a lease on intervening drift. Versioned status recovery is scoped to one
+  authenticated Order; held/terminal Orders are not swept. Generic sweep, dev resume and exception
+  recovery skip package-backed jobs before mutation.
+- `VERCEL_URL` owns the release worker target and the self-chain remains inside the versioned worker
+  path. Explicit output-file tracing includes immutable package/source bytes on every versioned
+  route and the full Board/style inputs on preorder and worker. A fresh production build completed
+  successfully and the emitted `.nft.json` files were inspected for those assets.
+- Focused validation is **18 files / 221 tests PASS**. `npx tsc --noEmit`, Wizard JavaScript syntax,
+  `npm run build` and `git diff --check` pass. Literal `npm run check` passed both TypeScript phases;
+  its ordinary partition reproduced the established nine missing-`outputs/` assertions and caught
+  two handler/inventory test contracts that were corrected and now pass. Its resource partition
+  caught three more corrected handler/call-shape contracts plus one unrelated five-second timing
+  overrun and the three known Vitest `onTaskUpdate` RPC timeouts; the timing cell passes alone in
+  4.681 seconds. The literal command remains exit 1 and is not relabeled green.
+- There was no database mutation, credential access, provider/network call, payment, deployment,
+  image/audio generation or render. Real PayMe callback continuity, reader presentation and voice
+  selection remain explicitly outside this fake-payment QA continuity milestone.
+
 ### AUTHORING PASS foundation
 
 AUTHORING PASS is closed for the approved eight-page Chameleon product story. Guy approved

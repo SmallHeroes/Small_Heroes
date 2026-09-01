@@ -182,6 +182,7 @@ describe('ExceptionCase producer + lifecycle', () => {
     expect(sql).toMatch(/FOR UPDATE SKIP LOCKED/);
     expect(sql).toMatch(/"claimVersion" = "claimVersion" \+ 1/);
     expect(sql).toMatch(/"attempts" = "attempts" \+ 1/);
+    expect(sql).toMatch(/NOT EXISTS[\s\S]*"Order"\."visualPackageAuthority" IS NOT NULL/);
   });
 
   it('atomically fences an Outbox terminal and opens its one active case', async () => {

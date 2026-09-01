@@ -5,9 +5,14 @@ import { useState } from 'react';
 type Props = {
   orderId: string;
   paymentId: string;
+  confirmEndpoint?: string;
 };
 
-export default function FakePaymentActions({ orderId, paymentId }: Props) {
+export default function FakePaymentActions({
+  orderId,
+  paymentId,
+  confirmEndpoint = '/api/dev/fake-payment/confirm',
+}: Props) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -16,7 +21,7 @@ export default function FakePaymentActions({ orderId, paymentId }: Props) {
     setBusy(true);
     setError(null);
     try {
-      const res = await fetch('/api/dev/fake-payment/confirm', {
+      const res = await fetch(confirmEndpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ orderId, paymentId, result }),
@@ -46,4 +51,3 @@ export default function FakePaymentActions({ orderId, paymentId }: Props) {
     </div>
   );
 }
-

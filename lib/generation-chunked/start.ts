@@ -9,6 +9,15 @@ import {
   persistOrdinaryPipelineCache,
   withoutBarrierOwnedPipelineCacheKeys,
 } from '@/lib/generation-pipeline/pipeline-cache-store';
+import {
+  buildGenerationReleaseContinuityV1,
+  parseGenerationReleaseContinuityV1,
+  RELEASE_V1_PROTOCOL,
+  ReleaseV1ContinuityError,
+  requireReleaseV1OrderPackage,
+} from '@/lib/generation-pipeline/release-v1-continuity';
+import { requireOrderVisualPackageAuthority } from '@/lib/generation-pipeline/order-visual-package-authority';
+import { canonicalJsonDigest } from '@/lib/visual-package/integrity';
 
 const log = createLogger({ subsystem: 'chunked-gen', route: 'start' });
 
@@ -40,12 +49,22 @@ async function computeRegenResumeJobPatch(orderId: string): Promise<{
 export async function startChunkedGeneration(
   orderId: string,
   reason = 'unspecified',
-  options?: { pipelineCache?: PipelineCache; skipWorkerChain?: boolean }
+  options?: {
+    pipelineCache?: PipelineCache;
+    skipWorkerChain?: boolean;
+    releaseProtocol?: typeof RELEASE_V1_PROTOCOL;
+  }
 ): Promise<{ started: boolean; orderId: string; message?: string }> {
   // Hard-disable on prod (P0 cutover guard) BEFORE any DB/job work or spend.
   assertProdGenerationAllowed();
   // Guard before any DB writes so staging/local cannot mark prod orders or create prod jobs.
   assertEnvSeparation();
+  // Resolve the initiating immutable deployment before the first DB read/write.
+  // release/v1 never falls back to a stable alias or public APP_URL.
+  const releaseContinuity =
+    options?.releaseProtocol === RELEASE_V1_PROTOCOL
+      ? buildGenerationReleaseContinuityV1()
+      : null;
 
   const order = await prisma.order.findUnique({
     where: { id: orderId },
@@ -57,6 +76,61 @@ export async function startChunkedGeneration(
 
   if (!order) {
     return { started: false, orderId, message: 'Order not found' };
+  }
+  if (releaseContinuity) {
+    requireReleaseV1OrderPackage(order);
+    if (
+      !['paid', 'generating'].includes(order.status) ||
+      order.deliveryHoldReason != null ||
+      order.manualReviewRequired === true
+    ) {
+      return {
+        started: false,
+        orderId,
+        message: 'Release Order is not eligible to start generation',
+      };
+    }
+    if (order.generationJob) {
+      const cache =
+        order.generationJob.pipelineCache &&
+        typeof order.generationJob.pipelineCache === 'object' &&
+        !Array.isArray(order.generationJob.pipelineCache)
+          ? (order.generationJob.pipelineCache as Record<string, unknown>)
+          : null;
+      const durable = parseGenerationReleaseContinuityV1(
+        cache?.releaseContinuity,
+      );
+      if (
+        canonicalJsonDigest(durable) !==
+        canonicalJsonDigest(releaseContinuity)
+      ) {
+        throw new ReleaseV1ContinuityError([
+          'existing generation job is pinned to another deployment',
+        ]);
+      }
+      // release/v1 start is idempotent. A payment replay must never reset an
+      // active lease/progress or dispatch a second worker. Pending/running jobs
+      // are recovered by the order-scoped status sweeper on the same pinned
+      // deployment; failed jobs require an explicit reviewed recovery path.
+      if (['pending', 'running', 'done'].includes(order.generationJob.status)) {
+        return {
+          started: true,
+          orderId,
+          message: 'Release generation job already exists',
+        };
+      }
+      return {
+        started: false,
+        orderId,
+        message: `Existing release generation job is ${order.generationJob.status}`,
+      };
+    }
+  } else if (requireOrderVisualPackageAuthority(order)) {
+    return {
+      started: false,
+      orderId,
+      message: 'Package-backed Order requires release/v1 generation',
+    };
   }
 
   const recoveryRedrive = reason === RECOVERY_REDRIVE_REASON;
@@ -116,9 +190,10 @@ export async function startChunkedGeneration(
         // Creation seeding cannot smuggle barrier-owned keys (producing
         // provenance or a Board binding): only a barrier mutation may ever
         // write them.
-        pipelineCache: withoutBarrierOwnedPipelineCacheKeys(
-          options?.pipelineCache ?? {},
-        ),
+        pipelineCache: withoutBarrierOwnedPipelineCacheKeys({
+          ...(options?.pipelineCache ?? {}),
+          ...(releaseContinuity ? { releaseContinuity } : {}),
+        }),
       },
     });
   } catch (e) {
@@ -143,13 +218,16 @@ export async function startChunkedGeneration(
       ...(regenResumePatch ?? {}),
     },
   });
-  if (options?.pipelineCache) {
+  if (options?.pipelineCache || releaseContinuity) {
     // Re-seeding an EXISTING job goes through the ordinary cache store, which
     // structurally preserves the row's own producing-provenance keys.
     await persistOrdinaryPipelineCache(
       prisma,
       orderId,
-      options.pipelineCache,
+      {
+        ...(options?.pipelineCache ?? {}),
+        ...(releaseContinuity ? { releaseContinuity } : {}),
+      },
     );
   }
 
@@ -166,7 +244,8 @@ export async function startChunkedGeneration(
   log.info('Chunked generation started', { orderId, reason });
 
   if (!options?.skipWorkerChain) {
-    void chainGenerationWorker(orderId);
+    if (releaseContinuity) void chainGenerationWorker(orderId, releaseContinuity);
+    else void chainGenerationWorker(orderId);
   }
 
   return { started: true, orderId };

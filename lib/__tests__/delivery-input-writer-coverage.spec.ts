@@ -309,7 +309,7 @@ function isOrderCreationException(site: WriterSite): boolean {
   return (
     site.model === 'order' &&
     site.method === 'create' &&
-    site.relative === 'app/api/orders/route.ts'
+    site.relative === 'app/api/orders/handler.ts'
   );
 }
 
@@ -840,7 +840,7 @@ describe('P1-f #5 delivery-input writer coverage', () => {
   });
 
   it('freezes product truth at order creation and removes direct email from chunk-runner', () => {
-    expect(source('app/api/orders/route.ts')).toContain('buildFrozenStoryProductTruth');
+    expect(source('app/api/orders/handler.ts')).toContain('buildFrozenStoryProductTruth');
     expect(source('lib/generation-pipeline/chunk-runner.ts')).not.toContain('sendBookReadyEmail');
     expect(source('lib/generation-pipeline/chunk-runner.ts')).toContain('finalizePackageDelivery');
   });

@@ -13,7 +13,11 @@ type StatusResponse = {
   failedStage?: string | null;
 };
 
-export function GeneratingClient() {
+export function GeneratingClient({
+  statusEndpoint = '/api/generate/status',
+}: {
+  statusEndpoint?: string;
+}) {
   const searchParams = useSearchParams();
   const orderId = searchParams.get('orderId') || '';
   const accessKey = searchParams.get('accessKey') || '';
@@ -57,7 +61,7 @@ export function GeneratingClient() {
       inFlight = true;
       try {
         const res = await fetch(
-          `/api/generate/status?orderId=${encodeURIComponent(orderId)}&accessKey=${encodeURIComponent(accessKey)}`,
+          `${statusEndpoint}?orderId=${encodeURIComponent(orderId)}&accessKey=${encodeURIComponent(accessKey)}`,
           { credentials: 'include' },
         );
         if (!res.ok) {
@@ -111,7 +115,7 @@ export function GeneratingClient() {
       cancelled = true;
       if (timer) clearTimeout(timer);
     };
-  }, [orderId, accessKey, fallbackReadyHref]);
+  }, [orderId, accessKey, fallbackReadyHref, statusEndpoint]);
 
   if (error) {
     return (
