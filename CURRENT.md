@@ -1,6 +1,37 @@
 # SmallHeroes — Current Technical State
 
-## R1D — new Chameleon product package is current; Claude Code AUTHORING PASS
+## R1D — AUTHORING PASS preserved; first Wizard release proof invalidated by split deployment
+
+On 2026-09-01, QA entered a split-brain session. Deployment
+`dpl_DWjemmMdbSeV3YKoUKZkp4Vn72E8` at commit
+`c187bf18f4c13d1b539540a91c9c699818474a65` served the current Wizard, product truth and photo
+analysis with Chameleon Visual Package revision
+`836a3414174dbe3060010371e81ebdbef821f705650a199cc4bbfd70081d523f`. At
+`2026-09-01T09:22:23Z`, deployment `dpl_8k45oEW7FfDBBjPKwSDX7ALkMrH8` at old reader commit
+`4f1c8e2c6c7c12545f928c179b2b5a3cd4098c7f` became READY and automatically reclaimed
+`qa.smallheroes.co.il`, because that domain was permanently branch-bound to
+`codex/r1d-reader-premium-site-qa-integration`.
+
+The already-open Wizard used same-origin relative requests. Its later `POST /api/orders` therefore
+reached `dpl_8k...`, whose source tree contains neither the current accepted Chameleon Story Source
+nor Visual Package v4 selection/order authority. Order `cmtigpkxr0002l204y3j7bx4q` consequently
+froze a legacy v3 Story Source with `visualPackageAuthority: null`; the user-authored new `bookName`
+masked that mismatch in the reader title. The password gate did not cause the switch: the legacy
+Order was created before checkout first returned `site_gate_required`.
+
+That legacy Order later completed technically (`ready`, 8/8 images and narration, package/readiness
+done) under one fake-payment success and no render retry. It is preserved as incident evidence, but
+it is **not a RELEASE PASS for the new path** and must not be reused. No second Order or render has
+started. AUTHORING PASS below remains valid; RELEASE is **HOLD** until one coherent deployment owns
+the QA domain, the fresh Wizard binds exact deployment/source/package identity through Order and
+pre-payment admission, and a new package-backed Order proves those frozen identities before the
+one authorized full render.
+
+The observations in `docs/ai-workflow/SIMPLIFICATION_FINDINGS.md` remain useful, but the required
+post-first-correct-render review is not closed. No broad simplification refactor starts during this
+bounded release-continuity correction.
+
+### AUTHORING PASS foundation
 
 AUTHORING PASS is closed for the approved eight-page Chameleon product story. Guy approved
 Blueprint Candidate `97fad2ac1499c6b578087771f614d474972b3c1f2f7153b3321c59c3f87bbdce`,
@@ -41,9 +72,9 @@ tests and initially reported one now-corrected release-check expectation plus tw
 five-second subprocess timeouts and the three known `onTaskUpdate` RPC timeouts. Every changed-path
 failure now passes in the focused 158-test run; the literal command remains exit 1 and is not
 relabeled green.
-No deployment, Wizard Order, payment, provider, image, audio or render occurred in this cutover.
-RELEASE PASS remains open only for push/deploy, deployed attestation and one authorized Bar /
-age 5 / dad-narration Wizard Order through full render.
+No deployment, Wizard Order, payment, provider, image, audio or render occurred in the package
+cutover itself. Its release checklist remains open because the later completed Order used a legacy
+deployment and Story Source, as recorded at the top of this file.
 
 Claude Code Opus/max independently reviewed immutable range
 `61aafa3036c3b97ba4bd82a99016fc5f47d30adc..4f50ebfab4ba82c2197b889707505df92653ae6d`
@@ -52,11 +83,12 @@ commit / zero merges / ten files, independently hashed both committed publicatio
 the approval and source/Blueprint/Board bindings, falsified the locator and fallback boundaries,
 and ran the six changed specs **65/65 PASS** plus both TypeScript phases. Its limitations are
 explicit: it did not rerun the full baseline-red `npm run check`, and the ignored publication
-manifest/replay evidence is not part of the committed range. This PASS authorizes no push,
-deployment, Order, payment or render and does not close RELEASE PASS.
+manifest/replay evidence is not part of the committed range. That AUTHORING review did not by
+itself authorize or close RELEASE, and the later split-deployment runtime incident did not close it.
 
-The post-first-render simplification review remains mandatory before a second book. Observations
-are recorded without refactoring in `docs/ai-workflow/SIMPLIFICATION_FINDINGS.md`.
+The pre-review observation inventory exists in
+`docs/ai-workflow/SIMPLIFICATION_FINDINGS.md`. The post-first-correct-render simplification review
+remains pending; no code was changed for those findings.
 
 Evidence:
 `docs/ai-workflow/R1D_SET_BOARD_RESERVED_PAGE_PLACEMENT_AUTHORITY_IMPLEMENTATION_EVIDENCE.md`.
@@ -121,10 +153,11 @@ The controlled approval writer recorded Home at `2026-09-01T06:22:42.080Z` and r
 remain unchanged. No retry or rerender occurred in that Board successor. The later Blueprint and
 Visual Package lifecycle recorded above supersedes its then-current next-action statement.
 
-The post-first-render simplification direction is recorded, without code changes, in
+The pre-review simplification findings are recorded, without code changes, in
 `docs/ai-workflow/SIMPLIFICATION_FINDINGS.md`: explicit AUTHORING PASS versus RELEASE PASS,
 compiler ownership of technical identity, duplicated-authority inventory, tiered QA and legacy
-isolation. No simplification refactor begins before the first successful full Wizard render.
+isolation. The first correct package-backed Wizard render is still pending; no simplification
+refactor begins during the release-continuity correction.
 
 Evidence:
 `docs/ai-workflow/R1D_SET_BOARD_RESERVED_PAGE_PLACEMENT_AUTHORITY_IMPLEMENTATION_EVIDENCE.md`.
