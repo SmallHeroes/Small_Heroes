@@ -1,6 +1,32 @@
 # SmallHeroes — Current Technical State
 
-## R3-B0b — exact 17-story QA Source / Visual Direction review batch implemented; independent QA and human acceptance pending
+## R3-B0b-P2 — initial review-batch commit independently QA-passed; provider-free import correction awaits re-gate
+
+Claude Code independently reviewed the immutable initial implementation range
+`68795de8c519f1260e01737582165cbe0ec75433..8b0818fee5f4338839caa7e3117f97861ee4a867` read-only and returned
+**PASS with no P0/P1**. It reproduced the exact batch, selection, digest, replay, source projections, authority bindings,
+zero-effect behavior and protected-root claims. Guy then pushed `8b0818fe` to
+`origin/codex/r3b0b-story-source-review-batch`. Claude left two P2 notes: the already-disclosed repository-wide
+fixture/RPC failures, which are not a new code defect, and one valid structural finding that the zero-cost CLI's
+otherwise inert static import closure still reached provider-capable modules through the companion-sheet generator.
+
+The valid P2 is corrected in a separate zero-cost milestone. The passive companion-view type, view list and filename
+map now live in dependency-free `companion-character-sheet-contract.ts`; the provider-capable generator re-exports the
+same public symbols for compatibility, while Wizard readiness imports the leaf directly. The review-batch CLI's eager
+closure and supported direct-literal static import graph now contain neither the heavy companion generator nor the denied
+provider/generation/storage modules and packages. Regression tests include an eager `Module._load` sentinel, a
+TypeScript-AST graph traversal, a heavy-module positive control, and explicit controls for mixed default/type imports,
+two-argument dynamic imports, parenthesized/module/immediate-`createRequire` forms and multi-argument CommonJS
+`require`. Nonliteral dynamic `import(expr)` on a reachable source now fails the static audit. Arbitrary CommonJS
+loader-alias data-flow is deliberately outside the static walk; the eager sentinel covers executed CommonJS and the
+concrete tsx-transpiled CLI path, not native ESM in general. Provider package IDs are normalized for case and Windows
+separators, and repo-module comparison paths are normalized on Windows; the eager and static gates share one canonical
+provider/local
+deny set. Direct local resolution into `node_modules` and canonical-realpath repository escape fail closed, while the
+eager sentinel classifies both raw requests and resolved realpaths so provider file aliases are denied. Native
+`file:`/`data:`/other URL-scheme imports and absolute/UNC literal paths also fail the static gate; `node:` built-ins
+remain allowed. Internal adversarial re-review found no remaining actionable P0/P1/P2, but independent Claude Code
+re-gating of the corrective commit is still required.
 
 Guy selected the QA corpus as the review starting point for all unresolved Wizard slots and preserved every fantasy
 story at 16 beats. R3-B0b implements the zero-cost preparation gate on
@@ -33,20 +59,23 @@ forward rather than repaired: 24 soft `שם` review items and seven critical unp
 `fox_uri_fantasy`, remain visible. Strict render readiness therefore remains **1/18**; no accepted revision,
 publication, Visual Contract, Blueprint, Board, package or locator was created for the other 17.
 
-Focused validation passes TypeScript, the story-autonomous typecheck, `git diff --check`, and **19/19** assertions
-across the new batch and workload-classifier specs. The adjacent five-file lifecycle/readiness slice passes **30/34**;
-its four failures all require the unchanged absent ignored fixture
-`outputs/r1d-chameleon-first-kindergarten-visual-directions-v1`. The literal final `npm run check` uses the corrected
-canonical **381 / 361 / 20** file partition. Ordinary tests report **338 passed files / 4,776 passed assertions** and
-ten ENOENT failures across six unchanged specs, all caused by six absent ignored historical `outputs/` fixtures.
+Corrective validation passes TypeScript, the story-autonomous typecheck, the provider-closure spec at **14/14**, the
+focused batch-plus-classifier slice at **21/21**, and
+the adjacent five-file readiness/runtime/classifier slice at **31/31**. The literal final `npm run check` uses the
+canonical **381 / 361 / 20** file partition. Ordinary tests report **337 passed files / 4,777 passed tests** and
+eleven failures: the ten known ENOENT failures across six unchanged specs, all caused by six absent ignored historical
+`outputs/` fixtures, plus one 5,000 ms timeout in the unchanged all-story readiness determinism cell under the
+four-worker load. That file immediately reruns alone at **11/11 PASS**; the timed cell completes in 4,881 ms, proving a
+narrow timing-headroom failure rather than an assertion mismatch.
 Resource-intensive tests report **20/20 files and 640/640 assertions PASS**, followed by three known Vitest
 `onTaskUpdate` RPC timeouts; the overall command therefore exits 1. No fixture was copied and no failure was hidden.
 
 All declared external-effect counters are zero: no provider/network/database/storage call, image/audio/PDF render,
 order/payment/deployment mutation or spend occurred. The resemblance threshold remains **0.70**. The accepted
-`chameleon_koko_bedtime` package and locator remain byte-identical. Internal adversarial code review has no remaining
-finding, but it is not the independent Claude Code gate. R3-B0b remains local and unpushed until its focused commit is
-created and independently reviewed; it is candidate preparation, not technical PASS or product acceptance.
+`chameleon_koko_bedtime` package and locator remain byte-identical. The initial batch commit is pushed and has its
+independent PASS; the provider-isolation correction remains local and unpushed until its separate commit is created
+and independently re-gated. The batch is candidate preparation, not product acceptance, publication or render
+authorization.
 
 ## R3-B0a — bounded 16-page Visual Contract authoring policy and documentation closeout independently QA-passed; branch published
 

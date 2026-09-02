@@ -14,7 +14,7 @@ import {
   COMPANION_SHEET_VIEW_FILENAME,
   COMPANION_SHEET_VIEW_KINDS,
   type CompanionSheetViewKind,
-} from '@/lib/generation-pipeline/companion-character-sheet';
+} from '@/lib/generation-pipeline/companion-character-sheet-contract';
 import { parseStoryMarkdown } from '@/lib/story-validators/parser';
 import { parseStorySourceContent } from '@/lib/visual-contract-compiler/storySourceContent';
 import { buildStorySourceIdentity, repoRelativePath } from '@/lib/visual-package/integrity';

@@ -4,7 +4,9 @@ import fs from 'node:fs';
 import { createRequire } from 'node:module';
 import os from 'node:os';
 import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 
+import * as ts from 'typescript';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { canonicalHash } from '@/lib/canonical-json';
@@ -82,6 +84,34 @@ const ZERO_EFFECT_KEYS = [
   'ordersCreatedOrModified',
   'maximumSpendUsd',
 ] as const;
+const STATIC_MODULE_EXTENSIONS = [
+  '.ts',
+  '.tsx',
+  '.mts',
+  '.cts',
+  '.js',
+  '.mjs',
+  '.cjs',
+  '.json',
+] as const;
+const FORBIDDEN_REVIEW_BATCH_PROVIDER_PACKAGE_ROOTS = [
+  'openai',
+  'replicate',
+  '@supabase/supabase-js',
+  'sharp',
+  'iceberg-js',
+  '@prisma/client',
+  'stripe',
+  '@elevenlabs',
+] as const;
+const FORBIDDEN_REVIEW_BATCH_LOCAL_MODULES = new Set([
+  'backend/providers/image.ts',
+  'lib/generate-image.ts',
+  'lib/image-storage.ts',
+  'lib/replicate.ts',
+  'lib/generation-pipeline/companion-character-sheet.ts',
+  'lib/generation-pipeline/runtime-artifact-store.ts',
+]);
 
 const ownedOutputRoots = new Set<string>();
 const firstDryOutputRoot = newOwnedOutputRoot();
@@ -99,6 +129,223 @@ function newOwnedOutputRoot(): string {
 
 function absoluteRepoPath(relativePath: string): string {
   return path.resolve(REPO, ...relativePath.split('/'));
+}
+
+function isForbiddenReviewBatchProviderPackage(specifier: string): boolean {
+  const normalized = specifier.replace(/\\/g, '/').toLowerCase();
+  return FORBIDDEN_REVIEW_BATCH_PROVIDER_PACKAGE_ROOTS.some(
+    (root) => normalized === root || normalized.startsWith(`${root}/`),
+  );
+}
+
+function normalizeRepoModulePathForComparison(value: string): string {
+  const posix = value.replace(/\\/g, '/');
+  return process.platform === 'win32' ? posix.toLowerCase() : posix;
+}
+
+function unwrapParenthesizedExpression(expression: ts.Expression): ts.Expression {
+  let current = expression;
+  while (ts.isParenthesizedExpression(current)) current = current.expression;
+  return current;
+}
+
+function runtimeModuleSpecifiers(filePath: string): string[] {
+  const source = fs.readFileSync(filePath, 'utf8');
+  const sourceFile = ts.createSourceFile(
+    filePath,
+    source,
+    ts.ScriptTarget.Latest,
+    true,
+  );
+  const specifiers: string[] = [];
+  const addLiteral = (node: ts.Expression | undefined) => {
+    if (node && ts.isStringLiteralLike(node)) specifiers.push(node.text);
+  };
+  const visit = (node: ts.Node) => {
+    if (ts.isImportDeclaration(node)) {
+      const clause = node.importClause;
+      const namedBindings = clause?.namedBindings;
+      const onlyNamedTypeImports =
+        !clause?.name &&
+        namedBindings &&
+        ts.isNamedImports(namedBindings) &&
+        namedBindings.elements.length > 0 &&
+        namedBindings.elements.every((element) => element.isTypeOnly);
+      if (!clause?.isTypeOnly && !onlyNamedTypeImports) {
+        addLiteral(node.moduleSpecifier);
+      }
+    } else if (ts.isExportDeclaration(node)) {
+      const exportClause = node.exportClause;
+      const onlyNamedTypeExports =
+        exportClause &&
+        ts.isNamedExports(exportClause) &&
+        exportClause.elements.length > 0 &&
+        exportClause.elements.every((element) => element.isTypeOnly);
+      if (!node.isTypeOnly && !onlyNamedTypeExports) {
+        addLiteral(node.moduleSpecifier);
+      }
+    } else if (
+      ts.isImportEqualsDeclaration(node) &&
+      !node.isTypeOnly &&
+      ts.isExternalModuleReference(node.moduleReference)
+    ) {
+      addLiteral(node.moduleReference.expression);
+    } else if (ts.isCallExpression(node)) {
+      const callTarget = unwrapParenthesizedExpression(node.expression);
+      const literalDynamicImport =
+        callTarget.kind === ts.SyntaxKind.ImportKeyword &&
+        node.arguments.length >= 1;
+      const directRequire =
+        ts.isIdentifier(callTarget) && callTarget.text === 'require';
+      const moduleRequire = (() => {
+        if (!ts.isPropertyAccessExpression(callTarget)) return false;
+        const owner = unwrapParenthesizedExpression(callTarget.expression);
+        return (
+          ts.isIdentifier(owner) &&
+          owner.text === 'module' &&
+          callTarget.name.text === 'require'
+        );
+      })();
+      const immediateCreateRequire =
+        ts.isCallExpression(callTarget) &&
+        (() => {
+          const factory = unwrapParenthesizedExpression(callTarget.expression);
+          return (
+            (ts.isIdentifier(factory) && factory.text === 'createRequire') ||
+            (ts.isPropertyAccessExpression(factory) &&
+              factory.name.text === 'createRequire')
+          );
+        })();
+      const literalRequire =
+        (directRequire || moduleRequire || immediateCreateRequire) &&
+        node.arguments.length >= 1;
+      if (literalDynamicImport || literalRequire) {
+        const moduleSpecifier = node.arguments[0];
+        if (!moduleSpecifier || !ts.isStringLiteralLike(moduleSpecifier)) {
+          throw new Error(
+            `unsupported nonliteral runtime module specifier in ${path.relative(REPO, filePath)}`,
+          );
+        }
+        specifiers.push(moduleSpecifier.text);
+      }
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(sourceFile);
+  return specifiers;
+}
+
+function resolveStaticLocalModule(
+  importerPath: string,
+  specifier: string,
+): string | null {
+  if (/^[A-Za-z][A-Za-z\d+.-]*:/.test(specifier)) {
+    throw new Error(`unsupported literal module URL scheme: ${specifier}`);
+  }
+  if (
+    path.isAbsolute(specifier) ||
+    /^[A-Za-z]:[\\/]/.test(specifier) ||
+    specifier.startsWith('\\\\')
+  ) {
+    throw new Error(`unsupported absolute literal module path: ${specifier}`);
+  }
+  let unresolved: string;
+  if (specifier.startsWith('@/')) {
+    unresolved = path.join(REPO, specifier.slice(2));
+  } else if (specifier.startsWith('.')) {
+    unresolved = path.resolve(path.dirname(importerPath), specifier);
+  } else {
+    return null;
+  }
+
+  const extension = path.extname(unresolved);
+  const candidates = extension
+    ? [
+        unresolved,
+        ...(extension === '.js'
+          ? [unresolved.slice(0, -extension.length) + '.ts']
+          : []),
+      ]
+    : [
+        ...STATIC_MODULE_EXTENSIONS.map((suffix) => unresolved + suffix),
+        ...STATIC_MODULE_EXTENSIONS.map((suffix) =>
+          path.join(unresolved, `index${suffix}`),
+        ),
+      ];
+  const resolved = candidates.find(
+    (candidate) =>
+      fs.existsSync(candidate) && fs.lstatSync(candidate).isFile(),
+  );
+  if (!resolved) {
+    throw new Error(
+      `unresolved static local module ${specifier} imported by ${path.relative(REPO, importerPath)}`,
+    );
+  }
+  const relativeToRepo = path.relative(REPO, resolved);
+  if (
+    relativeToRepo === '..' ||
+    relativeToRepo.startsWith(`..${path.sep}`) ||
+    path.isAbsolute(relativeToRepo)
+  ) {
+    throw new Error(
+      `static local module escaped repository: ${specifier}`,
+    );
+  }
+  const comparisonPath = normalizeRepoModulePathForComparison(relativeToRepo);
+  if (comparisonPath.split('/').includes('node_modules')) {
+    throw new Error(
+      `unsupported direct node_modules module path: ${specifier}`,
+    );
+  }
+  const canonicalRepo = fs.realpathSync(REPO);
+  const canonicalResolved = fs.realpathSync(resolved);
+  const canonicalRelativeToRepo = path.relative(
+    canonicalRepo,
+    canonicalResolved,
+  );
+  if (
+    canonicalRelativeToRepo === '..' ||
+    canonicalRelativeToRepo.startsWith(`..${path.sep}`) ||
+    path.isAbsolute(canonicalRelativeToRepo)
+  ) {
+    throw new Error(
+      `static local module realpath escaped repository: ${specifier}`,
+    );
+  }
+  const canonicalComparisonPath = normalizeRepoModulePathForComparison(
+    canonicalRelativeToRepo,
+  );
+  if (canonicalComparisonPath.split('/').includes('node_modules')) {
+    throw new Error(
+      `unsupported direct node_modules module realpath: ${specifier}`,
+    );
+  }
+  return path.resolve(canonicalResolved);
+}
+
+function staticRuntimeImportGraph(entryPath: string): {
+  localFiles: Set<string>;
+  externalSpecifiers: Set<string>;
+} {
+  const pending = [path.resolve(entryPath)];
+  const localFiles = new Set<string>();
+  const externalSpecifiers = new Set<string>();
+  while (pending.length > 0) {
+    const current = pending.pop()!;
+    const relative = normalizeRepoModulePathForComparison(
+      path.relative(REPO, current),
+    );
+    if (localFiles.has(relative)) continue;
+    localFiles.add(relative);
+    if (path.extname(current) === '.json') continue;
+    for (const specifier of runtimeModuleSpecifiers(current)) {
+      if (specifier.startsWith('node:')) continue;
+      const local = resolveStaticLocalModule(current, specifier);
+      if (local) pending.push(local);
+      else externalSpecifiers.add(specifier);
+    }
+  }
+  return { localFiles, externalSpecifiers };
 }
 
 function normalizedFilesystemPath(value: string): string {
@@ -812,4 +1059,363 @@ describe('R3-B0b Story Source / Visual Direction review batch', () => {
       expect(result.stderr).toContain('the only supported command is prepare');
     }
   }, 20_000);
+
+  it('keeps the CLI eager import closure free of provider and generation capabilities', () => {
+    const root = fs.mkdtempSync(
+      path.join(os.tmpdir(), 'r3b0b-provider-import-sentinel-'),
+    );
+    try {
+      const sentinelPath = path.join(root, 'deny-provider-imports.cjs');
+      const providerRoots = JSON.stringify([
+        ...FORBIDDEN_REVIEW_BATCH_PROVIDER_PACKAGE_ROOTS,
+      ]);
+      const forbiddenLocalStems = JSON.stringify(
+        [...FORBIDDEN_REVIEW_BATCH_LOCAL_MODULES].map((candidate) =>
+          candidate.replace(/\.[cm]?[jt]sx?$/, ''),
+        ),
+      );
+      fs.writeFileSync(
+        sentinelPath,
+        [
+          "const Module = require('node:module');",
+          "const fs = require('node:fs');",
+          'const originalLoad = Module._load;',
+          `const providerRoots = ${providerRoots};`,
+          `const forbiddenLocalStems = ${forbiddenLocalStems};`,
+          'Module._load = function(request, parent, isMain) {',
+          "  const id = String(request).replaceAll('\\\\', '/');",
+          '  const normalizedId = id.toLowerCase();',
+          "  const stem = normalizedId.replace(/\\.[cm]?[jt]sx?$/, '');",
+          "  let resolvedId = '';",
+          '  try {',
+          '    const resolved = Module._resolveFilename(request, parent, isMain);',
+          "    if (typeof resolved === 'string') {",
+          '      let canonical = resolved;',
+          '      try { canonical = fs.realpathSync(resolved); } catch {}',
+          "      resolvedId = String(canonical).replaceAll('\\\\', '/').toLowerCase();",
+          '    }',
+          '  } catch {}',
+          "  const resolvedStem = resolvedId.replace(/\\.[cm]?[jt]sx?$/, '');",
+          '  const providerPackage = providerRoots.some((root) =>',
+          "    normalizedId === root || normalizedId.startsWith(root + '/'));",
+          '  const providerFilePath = [normalizedId, resolvedId].some((candidateId) => providerRoots.some((root) => {',
+          "    const marker = 'node_modules/' + root;",
+          '    return candidateId === marker ||',
+          "      candidateId.startsWith(marker + '/') ||",
+          "      candidateId.includes('/' + marker + '/') ||",
+          "      candidateId.endsWith('/' + marker);",
+          '  }));',
+          '  const providerCapableLocalModule = [stem, resolvedStem].some((candidateStem) =>',
+          '    forbiddenLocalStems.some((candidate) =>',
+          "      candidateStem === candidate || candidateStem.endsWith('/' + candidate)));",
+          '  if (providerPackage || providerFilePath || providerCapableLocalModule) {',
+          "    throw new Error('forbidden_review_batch_provider_import:' + id);",
+          '  }',
+          '  return originalLoad.call(this, request, parent, isMain);',
+          '};',
+          '',
+        ].join('\n'),
+        'utf8',
+      );
+
+      const require = createRequire(import.meta.url);
+      const tsxCli = require.resolve('tsx/cli');
+      const cli = path.resolve(
+        REPO,
+        'scripts/prepare-story-source-visual-direction-review-batch.ts',
+      );
+      const shim = path.resolve(REPO, 'scripts/shims/register-server-only.cjs');
+      const help = spawnSync(
+        process.execPath,
+        ['--require', sentinelPath, tsxCli, '--require', shim, cli, '--help'],
+        { cwd: REPO, encoding: 'utf8', env: process.env },
+      );
+      expect(help.status, help.stderr).toBe(0);
+      expect(help.stdout).toContain('prepare');
+      expect(help.stderr).not.toContain(
+        'forbidden_review_batch_provider_import:',
+      );
+
+      const positiveControl = spawnSync(
+        process.execPath,
+        [
+          '--require',
+          sentinelPath,
+          '--require',
+          shim,
+          '--import',
+          'tsx',
+          '--eval',
+          [
+            "import('./lib/generation-pipeline/companion-character-sheet.ts')",
+            '  .then(() => { process.exitCode = 2; })',
+            '  .catch((error) => {',
+            '    console.error(error.message);',
+            '    process.exitCode = 1;',
+            '  });',
+          ].join('\n'),
+        ],
+        { cwd: REPO, encoding: 'utf8', env: process.env },
+      );
+      expect(positiveControl.status).toBe(1);
+      expect(positiveControl.stderr).toContain(
+        'forbidden_review_batch_provider_import:',
+      );
+
+      const backendProviderPositiveControl = spawnSync(
+        process.execPath,
+        [
+          '--require',
+          sentinelPath,
+          '--require',
+          shim,
+          '--import',
+          'tsx',
+          '--eval',
+          [
+            "import('./backend/providers/image.ts')",
+            '  .then(() => { process.exitCode = 2; })',
+            '  .catch((error) => {',
+            '    console.error(error.message);',
+            '    process.exitCode = 1;',
+            '  });',
+          ].join('\n'),
+        ],
+        { cwd: REPO, encoding: 'utf8', env: process.env },
+      );
+      expect(backendProviderPositiveControl.status).toBe(1);
+      expect(backendProviderPositiveControl.stderr).toContain(
+        'forbidden_review_batch_provider_import:',
+      );
+      expect(backendProviderPositiveControl.stderr.replace(/\\/g, '/')).toContain(
+        '/backend/providers/image.ts',
+      );
+
+      const providerCasePositiveControl = spawnSync(
+        process.execPath,
+        ['--require', sentinelPath, '--eval', "require('OPENAI')"],
+        { cwd: REPO, encoding: 'utf8', env: process.env },
+      );
+      expect(providerCasePositiveControl.status).toBe(1);
+      expect(providerCasePositiveControl.stderr).toContain(
+        'forbidden_review_batch_provider_import:OPENAI',
+      );
+
+      const relativeProviderFilePositiveControl = spawnSync(
+        process.execPath,
+        [
+          '--require',
+          sentinelPath,
+          '--eval',
+          "require('./node_modules/openai/index.js')",
+        ],
+        { cwd: REPO, encoding: 'utf8', env: process.env },
+      );
+      expect(relativeProviderFilePositiveControl.status).toBe(1);
+      expect(relativeProviderFilePositiveControl.stderr.replace(/\\/g, '/')).toContain(
+        'forbidden_review_batch_provider_import:./node_modules/openai/index.js',
+      );
+
+      const providerAliasPath = path.join(root, 'provider-alias');
+      fs.symlinkSync(
+        path.join(REPO, 'node_modules', 'openai'),
+        providerAliasPath,
+        'junction',
+      );
+      const providerAliasPositiveControl = spawnSync(
+        process.execPath,
+        [
+          '--require',
+          sentinelPath,
+          '--eval',
+          `require(${JSON.stringify(path.join(providerAliasPath, 'index.js'))})`,
+        ],
+        { cwd: REPO, encoding: 'utf8', env: process.env },
+      );
+      expect(providerAliasPositiveControl.status).toBe(1);
+      expect(providerAliasPositiveControl.stderr).toContain(
+        'forbidden_review_batch_provider_import:',
+      );
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  }, 20_000);
+
+  it('keeps the supported direct-literal static import graph free of provider capabilities', () => {
+    const cliGraph = staticRuntimeImportGraph(
+      path.join(
+        REPO,
+        'scripts/prepare-story-source-visual-direction-review-batch.ts',
+      ),
+    );
+    expect(
+      [...cliGraph.localFiles].filter((candidate) =>
+        FORBIDDEN_REVIEW_BATCH_LOCAL_MODULES.has(candidate),
+      ),
+    ).toEqual([]);
+    expect(
+      [...cliGraph.externalSpecifiers].filter(
+        isForbiddenReviewBatchProviderPackage,
+      ),
+    ).toEqual([]);
+    expect(cliGraph.localFiles).toContain(
+      'lib/generation-pipeline/companion-character-sheet-contract.ts',
+    );
+
+    const positiveControl = staticRuntimeImportGraph(
+      path.join(
+        REPO,
+        'lib/generation-pipeline/companion-character-sheet.ts',
+      ),
+    );
+    expect(positiveControl.localFiles).toContain('lib/generate-image.ts');
+    expect(
+      [...positiveControl.externalSpecifiers].filter(
+        isForbiddenReviewBatchProviderPackage,
+      ),
+    ).toEqual(expect.arrayContaining(['openai', 'replicate']));
+
+    const syntaxControlRoot = fs.mkdtempSync(
+      path.join(os.tmpdir(), 'r3b0b-static-import-syntax-control-'),
+    );
+    try {
+      const syntaxControl = path.join(syntaxControlRoot, 'mixed-imports.ts');
+      const commonJsSyntaxControl = path.join(
+        syntaxControlRoot,
+        'extra-argument-require.cjs',
+      );
+      const directLoaderSyntaxControl = path.join(
+        syntaxControlRoot,
+        'direct-loader-forms.ts',
+      );
+      const nonliteralDynamicImportControl = path.join(
+        syntaxControlRoot,
+        'nonliteral-dynamic-import.ts',
+      );
+      const fileUrlProviderControl = path.join(
+        syntaxControlRoot,
+        'file-url-provider-import.ts',
+      );
+      fs.writeFileSync(
+        syntaxControl,
+        [
+          "import OpenAI, { type ClientOptions } from 'openai';",
+          "void import('replicate', { with: { type: 'json' } });",
+          'void OpenAI;',
+          '',
+        ].join('\n'),
+        'utf8',
+      );
+      fs.writeFileSync(
+        commonJsSyntaxControl,
+        [
+          "require('@supabase/supabase-js', undefined);",
+          "require('OPENAI');",
+          "require('OPENAI\\\\index.js');",
+          '',
+        ].join('\n'),
+        'utf8',
+      );
+      fs.writeFileSync(
+        directLoaderSyntaxControl,
+        [
+          "(require)('stripe');",
+          "module.require('@elevenlabs/elevenlabs-js');",
+          "createRequire(import.meta.url)('@prisma/client');",
+          '',
+        ].join('\n'),
+        'utf8',
+      );
+      fs.writeFileSync(
+        nonliteralDynamicImportControl,
+        "const target = 'openai';\nvoid import(target);\n",
+        'utf8',
+      );
+      fs.writeFileSync(
+        fileUrlProviderControl,
+        `void import(${JSON.stringify(
+          pathToFileURL(
+            path.join(REPO, 'node_modules', 'openai', 'index.js'),
+          ).href,
+        )});\n`,
+        'utf8',
+      );
+      expect(runtimeModuleSpecifiers(syntaxControl)).toEqual(
+        expect.arrayContaining(['openai', 'replicate']),
+      );
+      expect(runtimeModuleSpecifiers(commonJsSyntaxControl)).toContain(
+        '@supabase/supabase-js',
+      );
+      expect(
+        runtimeModuleSpecifiers(commonJsSyntaxControl).filter(
+          isForbiddenReviewBatchProviderPackage,
+        ),
+      ).toContain('OPENAI');
+      expect(
+        runtimeModuleSpecifiers(commonJsSyntaxControl).filter(
+          isForbiddenReviewBatchProviderPackage,
+        ),
+      ).toContain('OPENAI\\index.js');
+      expect(runtimeModuleSpecifiers(directLoaderSyntaxControl)).toEqual(
+        expect.arrayContaining([
+          'stripe',
+          '@elevenlabs/elevenlabs-js',
+          '@prisma/client',
+        ]),
+      );
+      expect(() =>
+        runtimeModuleSpecifiers(nonliteralDynamicImportControl),
+      ).toThrow('unsupported nonliteral runtime module specifier');
+      expect(() =>
+        staticRuntimeImportGraph(fileUrlProviderControl),
+      ).toThrow('unsupported literal module URL scheme');
+      expect(() =>
+        resolveStaticLocalModule(
+          path.join(REPO, 'static-import-control.ts'),
+          'data:text/javascript,export default 1',
+        ),
+      ).toThrow('unsupported literal module URL scheme');
+      expect(() =>
+        resolveStaticLocalModule(
+          path.join(REPO, 'static-import-control.ts'),
+          path.join(REPO, 'node_modules', 'openai', 'index.js'),
+        ),
+      ).toThrow(/unsupported (literal module URL scheme|absolute literal module path)/);
+      expect(() =>
+        resolveStaticLocalModule(
+          path.join(REPO, 'static-import-control.ts'),
+          './node_modules/openai/index.js',
+        ),
+      ).toThrow('unsupported direct node_modules module path');
+      const staticAliasRelativeRoot = newOwnedOutputRoot();
+      const staticAliasRoot = absoluteRepoPath(staticAliasRelativeRoot);
+      fs.mkdirSync(staticAliasRoot, { recursive: true });
+      try {
+        const staticProviderAlias = path.join(
+          staticAliasRoot,
+          'provider-alias',
+        );
+        fs.symlinkSync(
+          path.join(REPO, 'node_modules', 'openai'),
+          staticProviderAlias,
+          'junction',
+        );
+        expect(() =>
+          resolveStaticLocalModule(
+            path.join(staticAliasRoot, 'entry.ts'),
+            './provider-alias/index.js',
+          ),
+        ).toThrow(/realpath escaped repository|node_modules module realpath/);
+      } finally {
+        cleanupOwnedOutputRoot(staticAliasRelativeRoot);
+      }
+      if (process.platform === 'win32') {
+        expect(
+          normalizeRepoModulePathForComparison('LIB/GENERATE-IMAGE.TS'),
+        ).toBe('lib/generate-image.ts');
+      }
+    } finally {
+      fs.rmSync(syntaxControlRoot, { recursive: true, force: true });
+    }
+  });
 });

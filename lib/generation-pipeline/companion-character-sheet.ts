@@ -10,6 +10,11 @@ import {
 import { evaluateAnchorStyleFromVision } from '@/lib/anchor-style-qa';
 import { normalizePhotoUrlForVision } from '@/lib/child-photo-normalize';
 import { generateGPTImage } from '@/lib/generate-image';
+import {
+  COMPANION_SHEET_VIEW_FILENAME,
+  COMPANION_SHEET_VIEW_KINDS,
+  type CompanionSheetViewKind,
+} from './companion-character-sheet-contract';
 import { assertCanonGenerationLocal } from './runtime-artifact-store';
 import { scoreResemblanceAgainstReference } from '@/lib/resemblance-core';
 import {
@@ -31,33 +36,11 @@ function resolveCompanionReferenceJpgPath(companionImage?: string | null): strin
   return undefined;
 }
 
-/** Standard multi-angle companion sheet views (creature side of #20). */
-export type CompanionSheetViewKind =
-  | 'front'
-  | 'three_quarter_front'
-  | 'side'
-  | 'three_quarter_back'
-  | 'happy'
-  | 'theme';
-
-export const COMPANION_SHEET_VIEW_KINDS: CompanionSheetViewKind[] = [
-  'front',
-  'three_quarter_front',
-  'side',
-  'three_quarter_back',
-  'happy',
-  'theme',
-];
-
-/** On-disk filenames under style01-sheets/ or outputs/companion-sheets/<id>/ */
-export const COMPANION_SHEET_VIEW_FILENAME: Record<CompanionSheetViewKind, string> = {
-  front: 'front.png',
-  three_quarter_front: '3-4.png',
-  side: 'side.png',
-  three_quarter_back: 'back.png',
-  happy: 'happy.png',
-  theme: 'theme.png',
+export {
+  COMPANION_SHEET_VIEW_FILENAME,
+  COMPANION_SHEET_VIEW_KINDS,
 };
+export type { CompanionSheetViewKind };
 
 const PALETTE_FAITHFULNESS =
   "Match the reference's exact color palette and saturation. Keep the muted, soft watercolor tones of the reference — do NOT brighten, do NOT increase saturation or vividness. Same hue, same softness as the source.";
