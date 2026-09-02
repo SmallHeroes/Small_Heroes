@@ -1,17 +1,17 @@
 # SmallHeroes — Current Technical State
 
-## R1D — exact-byte human verification plus mandatory child resemblance (independent QA PASS; push/deploy/live action not yet performed)
+## R1D — exact-byte human verification plus mandatory child resemblance (live Preview ceremony COMPLETE; same Order ready)
 
 Guy approved exact current page 6 and the controlled human-verification path without lowering or
-waiving the **0.70** resemblance threshold. The only live target remains paid Order
-`cmtj2vvrw0002ju04a9covxqv`, open safety case
-`6be97a90-65a0-4883-b7d1-819317a1dc19`, marker
+waiving the **0.70** resemblance threshold. The completed live target was the existing paid Order
+`cmtj2vvrw0002ju04a9covxqv`, safety case
+`6be97a90-65a0-4883-b7d1-819317a1dc19`, original marker
 `safety_hold:unverified:page:6`, and page-6 SHA-256
 `bd7ea115d78ab4af650047fb13e312efaa922569f17e2bb6cbb606665b568d42` (the lowercase form required
-by the ceremony contract). No new Order,
-checkout, payment, image, audio or PDF is authorized.
+by the ceremony contract). The ceremony created no new Order, checkout, payment, book, page, image,
+audio or PDF and did not mutate Production.
 
-The local implementation in `C:\GNart\Work\sh-release-reader-final` on
+The implementation in `C:\GNart\Work\sh-release-reader-final` on
 `codex/r1d-release-reader-voice-final` adds separate authenticated Preview-only Inspect and Apply
 routes for one exact-byte, hazardless `safety_hold:unverified:page:N`. Inspect is provider-free,
 mutation-free and redacted. Apply uses a server-derived ceremony principal, an idempotency key and
@@ -73,12 +73,45 @@ Current evidence on the working bytes:
   non-blocking residuals and the honestly non-green baseline `npm run check`; no correction or
   re-gate is required.
 
-No route, DB mutation, provider/Vision call, deployment, push or live Apply has occurred from these
-bytes. The independent technical gate is closed. The branch remains local and unpushed because Guy
-has not explicitly authorized a push. After explicit push authority, the next controlled sequence
-is one branch Preview, provider-free Inspect, then one Apply on the same Order using the returned
-inspection digest, a fresh Idempotency-Key and the lowercase page SHA above. Production remains
-untouched, and Guy retains final Reader/product acceptance.
+Guy then explicitly authorized push and continuation. The branch was pushed at
+`0961c7ef883a1dc3d71369645ebf2a6b0d107532`. Branch-scoped Preview flag
+`HUMAN_VERIFIED_UNVERIFIED_RELEASE_ENABLED=true` was added temporarily only after the independent
+PASS. The fresh no-cache ceremony redeploy `dpl_FzY2rtekFhYiZC31hHQT6panhNJ6` at immutable URL
+`https://small-heroes-kqt93gmci-smallheroes-projects.vercel.app` is `READY`, target `preview`, and
+Vercel metadata binds the exact branch and SHA above; its build compiled and generated **39/39**
+static pages. Production remained untouched.
+
+The provider-free Inspect returned HTTP 200 with digest
+`d7a5c5d9a1b1ecd0aeac5fddae2f9afadef8a67745d84c17941e69f189f4c5e3`, required pages 1–8 and all
+eight as needing proof. Exactly one Apply then ran under fresh Idempotency-Key
+`5d67a618-814e-4667-9d25-f8d96d9519eb` and returned HTTP 200 with `verified=true`, `shipped=true`,
+`manifestStatus=passed`, and `orderStatus=ready`. All eight exact delivered page byte sets passed
+the versioned `gpt-4o` identity assessment on the first attempt at threshold **0.70**; each recorded
+score is `0.9999999999999999`, with `subjectVisible=true` and `sameChild=true`. Total live Vision
+usage was therefore eight calls; image generation usage was zero.
+
+Read-only staging snapshots before and after prove the commercial/media invariants. Global counts
+stayed exactly **9 Orders / 8 PaymentRecords / 8 GeneratedBooks / 72 BookPages / 44 ImageAssets**.
+The same Order ID, fake paid PaymentRecord `cmtj2w6ee0001jp04kel5n2qe`, book
+`cmtj2wbpn0004ju04de4udkzj`, page-6 row `cmtj2wcgb000gju0442p59x13`, image asset
+`cmtjh5j0x0005jx041ymsixge`, URL hashes, amount and payment-ID hashes are unchanged. The target book
+remains 8 pages / 8 images; its existing page audio and PDF timestamps predate Apply. The only
+intended state change is the audited release: delivery fence 1→2, hold cleared, case resolved by
+`admin:exact_byte_human_verification`, dedicated page-6 review provenance written against the same
+SHA, one passed manifest/readiness pointer, one succeeded operator action/receipt, and exactly one
+scheduled DeliveryOutbox row with `sendAttempted=false` and `sendAttempts=0`. An authenticated case
+lookup now returns the expected 404 `No open review case for this order`, and the deployment emitted
+no warning/error logs during the ceremony. After success the branch flag was changed back to
+`false`; no-cache closure deploy `dpl_HugxwyQ5BFwePyyTA3vxVmVEnEvj` at
+`https://small-heroes-pf6wfoui4-smallheroes-projects.vercel.app` is `READY` on the same branch/SHA,
+and both the branch alias and `qa.smallheroes.co.il` now resolve to it. An authenticated Inspect
+against that closure deployment returns the expected 404 `Not found`, proving the temporary action
+window is closed. A separate read-only post-operation audit found no contradiction: it reproduced
+the Preview metadata/log cardinality, target IDs and hashes, unchanged counts with zero post-baseline
+creations, eight first-attempt proof passes, the single action/receipt, resolved case, passed
+readiness and one unsent outbox. Its scope is exact for the named target plus counts/timestamps; the
+baseline did not contain complete global ID arrays or an independent object-byte download. Guy
+retains final Reader/product acceptance.
 
 ## R1D — same-Order page-6 replacement and pages 7–8 completion recovery (local green; immutable independent gate next)
 
