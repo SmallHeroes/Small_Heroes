@@ -10,7 +10,7 @@ import {
   auditWizardAllStoryRenderReadiness,
   type WizardAllStoryRenderReadinessReport,
 } from '@/lib/visual-package/wizardAllStoryRenderReadiness';
-import { allNominalMvpStorySlots } from '@/backend/config/mvp-story-matrix';
+import { isCompleteMvpWizardStoryInventory } from '@/backend/config/mvp-story-matrix';
 
 type OutputFormat = 'json' | 'table';
 
@@ -18,6 +18,7 @@ function usage(): string {
   return [
     'Wizard all-story render-readiness audit (read-only):',
     '  npm run wizard-all-story-readiness -- [--format json|table] [--require-all-render-ready] [--require-all-narration-automated-preflight-ready]',
+    'Run from the repository root. From another cwd, use npm --prefix <repo-root> run wizard-all-story-readiness -- [options].',
   ].join('\n');
 }
 
@@ -116,18 +117,10 @@ function main(): void {
       : `${renderTable(report)}\n`,
   );
 
-  const expectedStoryKeys = new Set(
-    allNominalMvpStorySlots().map((slot) => slot.storyKey),
-  );
-  const observedStoryKeys = new Set(
-    report.records.map((record) => record.storyKey),
-  );
-  const completeNominalInventory =
-    report.records.length === expectedStoryKeys.size &&
-    observedStoryKeys.size === expectedStoryKeys.size &&
-    [...expectedStoryKeys].every((storyKey) =>
-      observedStoryKeys.has(storyKey),
-    );
+  const completeNominalInventory = isCompleteMvpWizardStoryInventory({
+    declaredSlotCount: report.summary.nominalSlotCount,
+    storyKeys: report.records.map((record) => record.storyKey),
+  });
   if (
     options.requireAllRenderReady &&
     (!completeNominalInventory ||

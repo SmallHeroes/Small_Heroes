@@ -1,5 +1,9 @@
 import type { RenderQualificationAudit } from './audit';
-import { allNominalMvpStorySlots } from '@/backend/config/mvp-story-matrix';
+import {
+  allMatrixMvpStorySlots,
+  evaluateMvpWizardCatalogContract,
+  MVP_WIZARD_CATALOG_CONTRACT,
+} from '@/backend/config/mvp-story-matrix';
 
 export type RenderQualificationReleaseGateScope =
   | 'product_sellable'
@@ -57,9 +61,15 @@ export function evaluateRenderQualificationReleaseGate(
   }
 
   if (scope === 'all_nominal') {
+    const catalogContract = evaluateMvpWizardCatalogContract();
     const expectedKeys = new Set(
-      allNominalMvpStorySlots().map((slot) => slot.storyKey),
+      allMatrixMvpStorySlots().map((slot) => slot.storyKey),
     );
+    if (!catalogContract.complete) {
+      addFailure('__matrix_contract__', [
+        'canonical_nominal_inventory_contract_mismatch',
+      ]);
+    }
     const counts = new Map<string, number>();
     for (const record of audit.records) {
       counts.set(record.storyKey, (counts.get(record.storyKey) ?? 0) + 1);
@@ -76,7 +86,10 @@ export function evaluateRenderQualificationReleaseGate(
     }
     if (
       audit.nominalSlotCount !== expectedKeys.size ||
-      audit.records.length !== expectedKeys.size
+      audit.records.length !== expectedKeys.size ||
+      audit.nominalSlotCount !==
+        MVP_WIZARD_CATALOG_CONTRACT.storySlotCount ||
+      audit.records.length !== MVP_WIZARD_CATALOG_CONTRACT.storySlotCount
     ) {
       addFailure('__audit_metadata__', ['nominal_slot_count_mismatch']);
     }

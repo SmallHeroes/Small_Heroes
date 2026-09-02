@@ -25,6 +25,13 @@ export const MVP_STORY_DIRECTIONS = [
   'fantasy',
 ] as const satisfies readonly StoryDirection[];
 
+/** Launch catalog shape. Changing it is an explicit product-contract change. */
+export const MVP_WIZARD_CATALOG_CONTRACT = Object.freeze({
+  categoryCount: 6,
+  directionCount: 3,
+  storySlotCount: 18,
+} as const);
+
 export const MVP_STORY_MATRIX = {
   NIGHT_FEAR: {
     companionId: 'fox_uri',
@@ -343,29 +350,99 @@ export interface NominalMvpStorySlot {
   configuredStatus: Extract<SlotStatus, 'approved' | 'approved_v3'>;
 }
 
-/** Every product-approved matrix slot, independent of runtime feature flags. */
-export function allNominalMvpStorySlots(): NominalMvpStorySlot[] {
-  const slots: NominalMvpStorySlot[] = [];
+export interface MatrixMvpStorySlot {
+  category: MvpCategory;
+  direction: StoryDirection;
+  companionId: string;
+  storyKey: string;
+  configuredStatus: SlotStatus;
+}
+
+/** Every structural category × direction slot, including gated or missing ones. */
+export function allMatrixMvpStorySlots(): MatrixMvpStorySlot[] {
+  const slots: MatrixMvpStorySlot[] = [];
   for (const category of allMvpCategories()) {
     for (const direction of MVP_STORY_DIRECTIONS) {
-      const configuredStatus = configuredSlotStatus(category, direction);
-      if (
-        configuredStatus !== 'approved' &&
-        configuredStatus !== 'approved_v3'
-      ) {
-        continue;
-      }
       const companionId = MVP_STORY_MATRIX[category].companionId;
       slots.push({
         category,
         direction,
         companionId,
         storyKey: `${companionId}_${direction}`,
-        configuredStatus,
+        configuredStatus: configuredSlotStatus(category, direction),
       });
     }
   }
   return slots;
+}
+
+/** Every product-approved matrix slot, independent of runtime feature flags. */
+export function allNominalMvpStorySlots(): NominalMvpStorySlot[] {
+  return allMatrixMvpStorySlots().filter(
+    (slot): slot is NominalMvpStorySlot =>
+      slot.configuredStatus === 'approved' ||
+      slot.configuredStatus === 'approved_v3',
+  );
+}
+
+export interface MvpWizardCatalogContractEvaluation {
+  categoryCount: number;
+  directionCount: number;
+  structuralSlotCount: number;
+  distinctStoryKeyCount: number;
+  nominalSlotCount: number;
+  complete: boolean;
+}
+
+/** Runtime assertion data for the fixed six-by-three launch catalog. */
+export function evaluateMvpWizardCatalogContract(): MvpWizardCatalogContractEvaluation {
+  const matrixSlots = allMatrixMvpStorySlots();
+  const categoryCount = allMvpCategories().length;
+  const directionCount = MVP_STORY_DIRECTIONS.length;
+  const structuralSlotCount = matrixSlots.length;
+  const distinctStoryKeyCount = new Set(
+    matrixSlots.map((slot) => slot.storyKey),
+  ).size;
+  const nominalSlotCount = matrixSlots.filter(
+    (slot) =>
+      slot.configuredStatus === 'approved' ||
+      slot.configuredStatus === 'approved_v3',
+  ).length;
+  return {
+    categoryCount,
+    directionCount,
+    structuralSlotCount,
+    distinctStoryKeyCount,
+    nominalSlotCount,
+    complete:
+      categoryCount === MVP_WIZARD_CATALOG_CONTRACT.categoryCount &&
+      directionCount === MVP_WIZARD_CATALOG_CONTRACT.directionCount &&
+      structuralSlotCount === MVP_WIZARD_CATALOG_CONTRACT.storySlotCount &&
+      distinctStoryKeyCount === MVP_WIZARD_CATALOG_CONTRACT.storySlotCount &&
+      nominalSlotCount === MVP_WIZARD_CATALOG_CONTRACT.storySlotCount,
+  };
+}
+
+/** Exact inventory predicate shared by strict all-story command surfaces. */
+export function isCompleteMvpWizardStoryInventory(args: {
+  declaredSlotCount: number;
+  storyKeys: readonly string[];
+}): boolean {
+  const catalogContract = evaluateMvpWizardCatalogContract();
+  const expectedStoryKeys = new Set(
+    allMatrixMvpStorySlots().map((slot) => slot.storyKey),
+  );
+  const observedStoryKeys = new Set(args.storyKeys);
+  return (
+    catalogContract.complete &&
+    args.declaredSlotCount === MVP_WIZARD_CATALOG_CONTRACT.storySlotCount &&
+    args.storyKeys.length === MVP_WIZARD_CATALOG_CONTRACT.storySlotCount &&
+    expectedStoryKeys.size === MVP_WIZARD_CATALOG_CONTRACT.storySlotCount &&
+    observedStoryKeys.size === expectedStoryKeys.size &&
+    [...expectedStoryKeys].every((storyKey) =>
+      observedStoryKeys.has(storyKey),
+    )
+  );
 }
 
 /** Topic id (wizard) → MVP category */

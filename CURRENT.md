@@ -1,5 +1,38 @@
 # SmallHeroes — Current Technical State
 
+## R3-A2 — exact-18 runtime contract hardened after independent QA; immutable re-gate next
+
+Claude Code independently reviewed `f62422a01db3da791861c670e266e91daecfefd8..abdb96b1e78dd0c106616513ac9752b03c088543`
+read-only and returned PASS with no P0/P1 plus three P2 findings. The material P2 was reproduced: changing one matrix
+slot from `approved_v3` to `in_gate` reduced both the audit's expected set and its observed set to 17, so the strict
+release gate and the all-story narration CLI could both false-green at 17/17. Tests pinned 18, but runtime did not.
+
+The accepted correction adds one explicit six-category × three-direction = 18-slot launch contract, plus a structural
+matrix enumerator that does not filter `in_gate` or `missing`. Both strict command surfaces now consume the same exact
+inventory predicate. A one-slot status demotion therefore keeps the expected structural key, fails with
+`canonical_nominal_inventory_contract_mismatch`, reports the missing story key, and rejects both render and narration
+strict claims. Report-only and product-sellable behavior remain unchanged.
+
+Claude's foreign-cwd P2 is real only for invoking the raw TypeScript file directly. The advertised npm interface works
+from another directory with `npm --prefix <repo-root> run wizard-all-story-readiness -- ...`; CLI help now records that
+contract. No additional launcher was added because no raw-script caller exists and the underlying audit function's
+explicit `repoRoot` behavior is independently root-stable.
+
+The repository-wide stability gate remains honestly red for pre-existing infrastructure reasons. The ordinary
+partition has ten failures in six unchanged legacy specs, all caused by ignored `outputs/` artifacts absent from this
+worktree. Exact artifacts exist only in other owned/dirty worktrees, are untracked, and have no Git history; none was
+copied and no test was skipped. A separate fixture-hardening milestone must migrate reviewed bytes into tracked,
+hash-bound hermetic fixtures. The resource-intensive partition was now run separately on the corrected code: all
+**20/20 files and 639/639 assertions passed**, but Vitest returned exit 1 for two internal `onTaskUpdate` RPC timeouts.
+This is assertion-green evidence, not a literal gate PASS.
+
+Post-correction validation: `npx tsc --noEmit` and `npm run story:autonomous-typecheck` pass; the 12-file
+matrix/source/personalization/TTS/package/release/CLI slice passes **123/123 tests**; `git diff --check` is clean. The
+supported foreign-cwd invocation exits 0 with all 18 rows and the unchanged baseline summary (18 sellable, 18 QA
+LOW-ready, one render-qualified, 18 narration-preflight ready, 12 soft TTS review items). No story source, package,
+order, payment, database/storage record, image, audio, PDF, deployment, threshold, or remote R3 branch was changed; no
+provider or network call occurred. The correction requires an immutable Claude Code re-gate before technical closure.
+
 ## R3-A — all 18 Wizard stories mapped to one fail-closed render-readiness control plane (focused green; repository fixture gate documented; independent QA next)
 
 Guy explicitly asked Codex to make every story currently offered by the Wizard available for render and authorized the

@@ -4,11 +4,15 @@ import path from 'path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import {
+  MVP_WIZARD_CATALOG_CONTRACT,
   MVP_STORY_MATRIX,
+  allMatrixMvpStorySlots,
   allMvpCategories,
   categoryForTopicId,
   companionForCategory,
   configuredSlotStatus,
+  evaluateMvpWizardCatalogContract,
+  isCompleteMvpWizardStoryInventory,
   isSlotSellable,
   isV3SlotRuntimeReady,
   sellableDirectionsFor,
@@ -53,6 +57,35 @@ describe('MVP_STORY_MATRIX helpers', () => {
     expect(companionForCategory('NIGHT_FEAR')).toBe('fox_uri');
     expect(companionForCategory('MEDICAL_PROCEDURE')).toBe('bunny_ometz');
     expect(companionForCategory('not_real')).toBeNull();
+  });
+
+  it('pins the runtime Wizard catalog to six categories by three directions', () => {
+    const matrixSlots = allMatrixMvpStorySlots();
+    expect(MVP_WIZARD_CATALOG_CONTRACT).toEqual({
+      categoryCount: 6,
+      directionCount: 3,
+      storySlotCount: 18,
+    });
+    expect(evaluateMvpWizardCatalogContract()).toEqual({
+      categoryCount: 6,
+      directionCount: 3,
+      structuralSlotCount: 18,
+      distinctStoryKeyCount: 18,
+      nominalSlotCount: 18,
+      complete: true,
+    });
+    expect(
+      isCompleteMvpWizardStoryInventory({
+        declaredSlotCount: 18,
+        storyKeys: matrixSlots.map((slot) => slot.storyKey),
+      }),
+    ).toBe(true);
+    expect(
+      isCompleteMvpWizardStoryInventory({
+        declaredSlotCount: 17,
+        storyKeys: matrixSlots.slice(0, -1).map((slot) => slot.storyKey),
+      }),
+    ).toBe(false);
   });
 
   it('maps wizard topic ids to MVP categories', () => {

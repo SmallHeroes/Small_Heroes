@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import { allNominalMvpStorySlots } from '@/backend/config/mvp-story-matrix';
+import {
+  allNominalMvpStorySlots,
+  MVP_STORY_MATRIX,
+  type SlotStatus,
+} from '@/backend/config/mvp-story-matrix';
 import type {
   RenderQualificationAudit,
   RenderQualificationAuditRecord,
@@ -145,6 +149,30 @@ describe('render qualification release-gate scopes', () => {
     expect(unknownCodes.get('non_nominal_fixture_story')).toContain(
       'non_nominal_slot_present_in_audit',
     );
+  });
+
+  it('fails closed at runtime when a status demotion shrinks the nominal inventory to 17', () => {
+    const directions = MVP_STORY_MATRIX.NIGHT_FEAR
+      .directions as unknown as Record<string, SlotStatus>;
+    const originalStatus = directions.bedtime;
+    try {
+      directions.bedtime = 'in_gate';
+      const audit = allReadyAudit();
+      expect(audit.records).toHaveLength(17);
+
+      const codes = failureCodes(audit);
+      expect(codes.get('__matrix_contract__')).toContain(
+        'canonical_nominal_inventory_contract_mismatch',
+      );
+      expect(codes.get('fox_uri_bedtime')).toContain(
+        'nominal_slot_missing_from_audit',
+      );
+      expect(codes.get('__audit_metadata__')).toContain(
+        'nominal_slot_count_mismatch',
+      );
+    } finally {
+      directions.bedtime = originalStatus!;
+    }
   });
 
   it('rejects duplicate canonical records even when record count still equals the matrix count', () => {

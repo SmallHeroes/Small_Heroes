@@ -36,6 +36,13 @@ function runReadinessCli(
 }
 
 describe('Wizard all-story readiness actual CLI', () => {
+  it('documents the supported foreign-cwd invocation without claiming raw-script portability', () => {
+    const result = runReadinessCli(['--help']);
+    expect(result.status, result.stderr).toBe(0);
+    expect(result.stdout).toContain('Run from the repository root.');
+    expect(result.stdout).toContain('npm --prefix <repo-root> run');
+  });
+
   it('emits the complete read-only report as JSON by default', () => {
     const result = runReadinessCli();
     expect(result.status, result.stderr).toBe(0);
