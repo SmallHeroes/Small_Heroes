@@ -1,6 +1,54 @@
 # SmallHeroes — Current Technical State
 
-## R3-B0a — bounded 16-page Visual Contract authoring policy and documentation closeout independently QA-passed; local branch unpushed
+## R3-B0b — exact 17-story QA Source / Visual Direction review batch implemented; independent QA and human acceptance pending
+
+Guy selected the QA corpus as the review starting point for all unresolved Wizard slots and preserved every fantasy
+story at 16 beats. R3-B0b implements the zero-cost preparation gate on
+`codex/r3b0b-story-source-review-batch` in `C:\GNart\Work\sh-r3b0b-story-source-review`, based on the pushed R3-B0a
+head `68795de8c519f1260e01737582165cbe0ec75433`. The controlling brief and evidence are
+`docs/ai-workflow/R3B0B_QA_STORY_SOURCE_VISUAL_DIRECTION_REVIEW_BATCH_DECISION_GATE.md` and
+`docs/ai-workflow/R3B0B_QA_STORY_SOURCE_VISUAL_DIRECTION_REVIEW_BATCH_IMPLEMENTATION_EVIDENCE.md`.
+
+The new strict, read-only authority loader first preflights the complete predictable input graph with bounded
+raw-byte reads and filesystem identity checks, then derives candidates from the canonical readiness predicate
+`sources.corpusDecisionRequired === true`. It requires the complete 18-slot QA matrix and produces exactly **17**
+canonically sorted pending-review records: **5 bedtime / 6 adventure / 6 fantasy**, **208 pages** total, with all six
+fantasy candidates fixed at 16 pages. It does not contain a handwritten 17-key selection. Every record cross-binds
+the V3 fallback source, QA candidate/story/import sidecar, accepted legacy source manifest/story/editorial and product
+evidence, typed Visual Direction and receipt, companion manifest and six fixed views, and storyboard-corpus record.
+The exact removal of each page-local `imageDirection` line must reproduce the accepted Story Source bytes.
+
+The content-addressed pending-review batch digest is
+`7a8434c76f90bc96776909430e93fecb97f2c8a08800085d0ba3e55d7f97a143`. The local ignored artifact is 207,472 bytes
+at `outputs/r3b0b-story-source-visual-direction-review-batch/7a8434c76f90bc96776909430e93fecb97f2c8a08800085d0ba3e55d7f97a143.json`
+(raw SHA-256 `143ff1a7a0f67382ae5efce1deecf492761bb51809f7183cf6c8304c682d5a08`). The first explicit write reported
+`created:true`; exact replay reported `created:false` after an exact Buffer/length comparison. The tracked request is
+raw SHA-256 `18f09474f8631d091c15a81f74b55efcf70fafafb7b1511af5bfec1d2fb31bde` and self-digest
+`a3d8daadbffb583f7af084e50070f5e027c61279aba461ad08179a304fb07041`.
+
+The batch is deliberately `runtimeEligible:false`, `productionEligible:false`, and
+`pending_exact_product_and_visual_review`. All 17 records still require Guy's exact product/visual acceptance;
+`lion_shaket_adventure` additionally remains pending Claude Cowork story-quality review. Narration evidence is carried
+forward rather than repaired: 24 soft `שם` review items and seven critical unpointed `ספר` occurrences, all in
+`fox_uri_fantasy`, remain visible. Strict render readiness therefore remains **1/18**; no accepted revision,
+publication, Visual Contract, Blueprint, Board, package or locator was created for the other 17.
+
+Focused validation passes TypeScript, the story-autonomous typecheck, `git diff --check`, and **19/19** assertions
+across the new batch and workload-classifier specs. The adjacent five-file lifecycle/readiness slice passes **30/34**;
+its four failures all require the unchanged absent ignored fixture
+`outputs/r1d-chameleon-first-kindergarten-visual-directions-v1`. The literal final `npm run check` uses the corrected
+canonical **381 / 361 / 20** file partition. Ordinary tests report **338 passed files / 4,776 passed assertions** and
+ten ENOENT failures across six unchanged specs, all caused by six absent ignored historical `outputs/` fixtures.
+Resource-intensive tests report **20/20 files and 640/640 assertions PASS**, followed by three known Vitest
+`onTaskUpdate` RPC timeouts; the overall command therefore exits 1. No fixture was copied and no failure was hidden.
+
+All declared external-effect counters are zero: no provider/network/database/storage call, image/audio/PDF render,
+order/payment/deployment mutation or spend occurred. The resemblance threshold remains **0.70**. The accepted
+`chameleon_koko_bedtime` package and locator remain byte-identical. Internal adversarial code review has no remaining
+finding, but it is not the independent Claude Code gate. R3-B0b remains local and unpushed until its focused commit is
+created and independently reviewed; it is candidate preparation, not technical PASS or product acceptance.
+
+## R3-B0a — bounded 16-page Visual Contract authoring policy and documentation closeout independently QA-passed; branch published
 
 Guy selected the QA corpus as the product-review starting point for the 17 unresolved Wizard slots and explicitly
 decided to preserve the six fantasy stories at 16 beats. The first zero-cost enabling milestone is implemented in
@@ -11,15 +59,17 @@ decided to preserve the six fantasy stories at 16 beats. The first zero-cost ena
 `146bb53a435f5ce9b5190cd03522160ec976ac01..2b41750f9f9d12a878af3607c0d41a40e14293b9` read-only and returned
 **PASS with no P0/P1**. It confirmed a clean one-commit/no-merge topology, reproduced the policy boundaries, cost,
 legacy immutability, exact all-story digest and zero-effect claim, and left three P2 documentation/process notes. The
-reviewed branch was one commit ahead of origin and unpushed; this documentation-only closeout also does not authorize
-or perform a push.
+reviewed branch was one commit ahead of origin and unpushed at that review point; that documentation-only closeout did
+not itself authorize or perform a push.
 
 Claude Code then independently re-gated the documentation-only range
 `2b41750f9f9d12a878af3607c0d41a40e14293b9..9b944f4d7a980d812b7a8a7b03392ba12543b416`
 read-only and returned **PASS with no P0/P1/P2**. It confirmed exactly four documentation files, zero non-document
 paths, one commit/no merges, a clean tree, exact cost arithmetic, both published test commands and counts, both RPC
-disclosures, unchanged implementation bytes, and two unpushed commits at the reviewed head. R3-B0a is technically
-closed locally; product acceptance, push and R3-B0b remain separate actions.
+disclosures, unchanged implementation bytes, and two unpushed commits at the reviewed head. Guy subsequently pushed
+the branch through closeout commit `68795de8c519f1260e01737582165cbe0ec75433`, now at exact parity with
+`origin/codex/r3-all-wizard-render-readiness`. R3-B0a is technically closed and published; product acceptance and
+R3-B0b remain separate actions.
 
 The verified root cause was a shared policy fence, not a fantasy-story or compiler limitation. Authoring policy v20
 admitted at most 12 pages and 64,000 standard input units even though the compiler, schemas and page validators already
@@ -77,8 +127,9 @@ Vitest `onTaskUpdate` RPC timeouts. No test was skipped or fixture copied to man
 
 No Story Source, visual direction, accepted revision, package, locator, order, payment, database/storage row, image,
 audio, PDF, deployment or production flag was created or changed. No credential was loaded, no provider/network call
-occurred, and no render or spend was authorized. The next milestone is a separate digest-bound review batch for the
-exact 17 QA Story Source/Visual Direction candidates; paid authoring remains separately gated.
+occurred, and no render or spend was authorized. The subsequent R3-B0b milestone above prepares the separate
+digest-bound review batch for the exact 17 QA Story Source/Visual Direction candidates; paid authoring remains
+separately gated.
 
 ## R3-A4 — final independent QA PASS; reviewed branch published
 

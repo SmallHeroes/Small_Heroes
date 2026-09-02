@@ -1,0 +1,73 @@
+{
+  "authorityScope": "review_batch_candidate_preparation_only",
+  "authorizedBy": "Guy",
+  "authorizedOn": "2026-09-02",
+  "decisionGatePath": "docs/ai-workflow/R3B0B_QA_STORY_SOURCE_VISUAL_DIRECTION_REVIEW_BATCH_DECISION_GATE.md",
+  "decisions": {
+    "fantasyFormat": {
+      "preserve": true,
+      "requiredPageCountPerStory": 16,
+      "requiredStoryCount": 6
+    },
+    "preserveExistingStrictAuthority": {
+      "required": true,
+      "storyKey": "chameleon_koko_bedtime"
+    },
+    "sourceCorpus": {
+      "role": "review_starting_point",
+      "value": "qa_corpus"
+    },
+    "unresolvedSelection": {
+      "enumeratedStoryKeys": false,
+      "predicate": "sources.corpusDecisionRequired === true",
+      "requiredCandidateCount": 17
+    }
+  },
+  "digest": "a3d8daadbffb583f7af084e50070f5e027c61279aba461ad08179a304fb07041",
+  "digestAlgorithm": "canonical-json-sha256",
+  "effects": {
+    "audioRenders": 0,
+    "databaseOrStorageWrites": 0,
+    "imageRenders": 0,
+    "maximumSpendUsd": 0,
+    "networkCalls": 0,
+    "pdfRenders": 0,
+    "providerCalls": 0,
+    "runtimeActivations": 0
+  },
+  "exclusions": [
+    "acceptance",
+    "deployment",
+    "publication",
+    "runtime_eligibility",
+    "story_source_rewrite",
+    "visual_direction_rewrite"
+  ],
+  "reviewRequirements": {
+    "allCandidates": {
+      "exactProductAndVisualAcceptance": {
+        "reviewer": "Guy",
+        "status": "pending"
+      },
+      "technicalReview": {
+        "reviewer": "Claude Code",
+        "status": "pending"
+      }
+    },
+    "storySpecific": {
+      "lion_shaket_adventure": {
+        "exactAcceptance": {
+          "reviewer": "Guy",
+          "status": "pending"
+        },
+        "storyQualityReview": {
+          "reviewer": "Claude Cowork",
+          "status": "pending"
+        }
+      }
+    }
+  },
+  "runtimeEligible": false,
+  "status": "candidate_preparation_authorized",
+  "version": "small-heroes-story-source-visual-direction-review-request/v1"
+}
