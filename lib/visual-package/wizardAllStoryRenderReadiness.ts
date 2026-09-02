@@ -115,6 +115,10 @@ export interface StorySourceTextReadiness {
   softTtsReviewItemCount: number;
 }
 
+type GenderProjectionReadinessPolicy =
+  | 'require_neutral_source_authority'
+  | 'legacy_syntactic_projection_only';
+
 export type WizardAllStoryBlockerCode =
   | 'product_source_text_not_ready'
   | 'product_source_corpus_unconfirmed'
@@ -761,6 +765,7 @@ function analyzeSourceTextReadiness(args: {
   repoRoot: string;
   source: StorySourceReadinessEvidence;
   companionName: string;
+  genderProjectionReadinessPolicy: GenderProjectionReadinessPolicy;
 }): StorySourceTextReadiness | null {
   if (
     !args.source.available ||
@@ -783,19 +788,24 @@ function analyzeSourceTextReadiness(args: {
     companionName: args.companionName,
     gender: 'girl',
   });
+  const syntacticGenderProjectionReady =
+    boy.personalizationReady && girl.personalizationReady;
+  const supportedGenderProjectionReady =
+    syntacticGenderProjectionReady &&
+    (args.genderProjectionReadinessPolicy ===
+      'legacy_syntactic_projection_only' ||
+      args.source.declaredGender === 'neutral');
   return {
     sourcePath: args.source.path,
     boy,
     girl,
-    supportedGenderProjectionReady:
-      boy.personalizationReady && girl.personalizationReady,
+    supportedGenderProjectionReady,
     supportedNarrationInputReady:
       boy.narrationInputReady && girl.narrationInputReady,
     supportedCriticalTtsGateReady:
       boy.criticalTtsGateReady && girl.criticalTtsGateReady,
     supportedNarrationAutomatedPreflightReady:
-      boy.personalizationReady &&
-      girl.personalizationReady &&
+      supportedGenderProjectionReady &&
       boy.narrationInputReady &&
       girl.narrationInputReady &&
       boy.criticalTtsGateReady &&
@@ -1038,9 +1048,10 @@ function nextCanonicalActionFor(
   }
 }
 
-export function auditWizardAllStoryRenderReadiness(args: {
+function auditWizardAllStoryRenderReadinessWithPolicy(args: {
   repoRoot: string;
   now?: () => Date;
+  genderProjectionReadinessPolicy: GenderProjectionReadinessPolicy;
 }): WizardAllStoryRenderReadinessReport {
   const styleId = STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK;
   const qualificationAudit = auditMvpRenderQualification({
@@ -1160,11 +1171,13 @@ export function auditWizardAllStoryRenderReadiness(args: {
         repoRoot: args.repoRoot,
         source: currentProductSource,
         companionName,
+        genderProjectionReadinessPolicy: args.genderProjectionReadinessPolicy,
       });
       const qaTextReadiness = analyzeSourceTextReadiness({
         repoRoot: args.repoRoot,
         source: qaSource,
         companionName,
+        genderProjectionReadinessPolicy: args.genderProjectionReadinessPolicy,
       });
 
       let qaCandidate: WizardQaStoryboardCandidate | null = null;
@@ -1501,4 +1514,29 @@ export function auditWizardAllStoryRenderReadiness(args: {
     digestAlgorithm: 'canonical-json-sha256',
     digest: canonicalHash(semantic),
   };
+}
+
+export function auditWizardAllStoryRenderReadiness(args: {
+  repoRoot: string;
+  now?: () => Date;
+}): WizardAllStoryRenderReadinessReport {
+  return auditWizardAllStoryRenderReadinessWithPolicy({
+    ...args,
+    genderProjectionReadinessPolicy: 'require_neutral_source_authority',
+  });
+}
+
+/**
+ * Closed compatibility surface for reproducing the immutable R3-B0b/v1
+ * review artifact. Production and ordinary readiness callers cannot select
+ * this historical placeholder-only policy.
+ */
+export function auditWizardAllStoryRenderReadinessForR3B0bReplay(args: {
+  repoRoot: string;
+  now?: () => Date;
+}): WizardAllStoryRenderReadinessReport {
+  return auditWizardAllStoryRenderReadinessWithPolicy({
+    ...args,
+    genderProjectionReadinessPolicy: 'legacy_syntactic_projection_only',
+  });
 }

@@ -10,6 +10,9 @@ import { resolveStoryBankPlaceholders } from '@/lib/story-bank-personalization';
 
 const require = createRequire(import.meta.url);
 const materializer = require('../../scripts/materialize-story-source-revision.cjs') as {
+  CORRECTION_DIRECTION_MIGRATION_VERSION: string;
+  CORRECTION_MANIFEST_VERSION: string;
+  CORRECTION_REQUEST_VERSION: string;
   MANIFEST_VERSION: string;
   REQUEST_VERSION: string;
   canonicalBytes: (value: unknown) => string;
@@ -76,6 +79,7 @@ type TextReplacement = {
 
 type DirectionReplacement = TextReplacement & {
   field: string;
+  itemIndex?: number;
   pageNumber: number;
 };
 
@@ -339,6 +343,89 @@ describe('story source revision materializer', () => {
     expect(sha256(integratedBytes)).toBe(EXPECTED_INTEGRATED_SHA);
     expect(() => materializer.resolveOutputDir(fixture.outputRelative)).toThrow(
       'story_source_revision_output_not_fresh',
+    );
+  });
+
+  it('binds an exact review record and permits closed composition edits only on the correction request version', () => {
+    const legacy = requestFixture();
+    const compositionEdit = {
+      expectedCount: 1,
+      field: 'shotType',
+      from: 'wide',
+      pageNumber: 1,
+      to: 'close',
+    };
+    const continuityAnchorEdit = {
+      expectedCount: 1,
+      field: 'continuityAnchors',
+      from: 'striped sock fallen from laundry line',
+      itemIndex: 1,
+      pageNumber: 3,
+      to: 'same striped sock fallen from laundry line',
+    };
+    expect(() =>
+      materializer.validateRequest({
+        ...legacy,
+        directionReplacements: [
+          ...legacy.directionReplacements,
+          compositionEdit,
+        ],
+      }),
+    ).toThrow('story_source_revision_request_invalid');
+    expect(() =>
+      materializer.validateRequest({
+        ...legacy,
+        directionReplacements: [
+          ...legacy.directionReplacements,
+          continuityAnchorEdit,
+        ],
+      }),
+    ).toThrow('story_source_revision_request_invalid');
+
+    const correction = {
+      ...legacy,
+      version: materializer.CORRECTION_REQUEST_VERSION,
+      reviewBatch: {
+        version:
+          'small-heroes-story-source-visual-direction-review-batch/v1',
+        digest: 'a'.repeat(64),
+        recordDigest: 'b'.repeat(64),
+      },
+      directionReplacements: [
+        ...legacy.directionReplacements,
+        compositionEdit,
+        continuityAnchorEdit,
+      ],
+    };
+    const fixture = writeRequest(correction);
+    const built = materializer.buildStorySourceRevision({
+      requestFile: materializer.readRequestFile(fixture.requestPath),
+      outputDir: materializer.resolveOutputDir(fixture.outputRelative),
+      write: true,
+    });
+    expect(built.manifest).toMatchObject({
+      version: materializer.CORRECTION_MANIFEST_VERSION,
+      reviewBatch: correction.reviewBatch,
+      request: { version: materializer.CORRECTION_REQUEST_VERSION },
+    });
+    const migration = JSON.parse(
+      fs.readFileSync(
+        path.join(fixture.outputAbsolute, built.files.migration),
+        'utf8',
+      ),
+    );
+    expect(migration.version).toBe(
+      materializer.CORRECTION_DIRECTION_MIGRATION_VERSION,
+    );
+    const direction = JSON.parse(
+      fs.readFileSync(
+        path.join(fixture.outputAbsolute, built.files.direction),
+        'utf8',
+      ),
+    );
+    expect(direction.pages[0].shotType).toBe('close');
+    expect(direction.pages[2].continuityAnchors[1]).toBe(
+      'same striped sock fallen from laundry line',
     );
   });
 

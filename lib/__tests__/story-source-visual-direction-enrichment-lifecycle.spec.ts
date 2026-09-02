@@ -58,6 +58,8 @@ function validDirectionRecord(): any {
   });
   value.pages[2].mainAction =
     'The child frees the roof from a laundry line while the companion watches beside the same moving stop.';
+  value.pages[3].mainAction =
+    'The child and bus stop listen while Kim keeps both eyes closed, with the busy bakery, splashing fountain, and still-moving swing marking noisy choices.';
   return value;
 }
 
@@ -273,6 +275,80 @@ describe('general Story Source visual-direction enrichment lifecycle', () => {
     expect(
       lifecycle.protectedAuthorityIssues(validDirectionRecord(), 'unknown_companion'),
     ).toEqual(['companion_appearance_state_authority_missing']);
+  });
+
+  it('allows a fixed companion without a state axis, but fails closed for state transitions or body-state prose', () => {
+    const fixedContinuity = {
+      version: lifecycle.CONTINUITY_INTENT_VERSION,
+      childWardrobeAuthority: 'frozen_visual_contract',
+      childWardrobeTransitionPages: [],
+      companionAccessoryAuthority: 'canonical_companion_profile',
+      companionAppearanceAuthority: 'frozen_companion_state',
+      companionStateTransitionPages: [],
+    };
+    expect(
+      lifecycle.protectedAuthorityIssues(
+        validDirectionRecord(),
+        'unknown_companion',
+        fixedContinuity,
+      ),
+    ).toEqual([]);
+
+    expect(
+      lifecycle.protectedAuthorityIssues(
+        validDirectionRecord(),
+        'unknown_companion',
+        { ...fixedContinuity, companionStateTransitionPages: [2] },
+      ),
+    ).toContain('companion_appearance_state_authority_missing');
+
+    const bodyState = validDirectionRecord();
+    bodyState.pages[0].mainAction = 'The companion body colour turns blue.';
+    expect(
+      lifecycle.protectedAuthorityIssues(
+        bodyState,
+        'unknown_companion',
+        fixedContinuity,
+      ),
+    ).toContain('companion_appearance_state_authority_missing');
+  });
+
+  it('rejects singular gender pronouns and ignores unrelated supporting-character clothing', () => {
+    const fixedContinuity = {
+      version: lifecycle.CONTINUITY_INTENT_VERSION,
+      childWardrobeAuthority: 'frozen_visual_contract',
+      childWardrobeTransitionPages: [],
+      companionAccessoryAuthority: 'canonical_companion_profile',
+      companionAppearanceAuthority: 'frozen_companion_state',
+      companionStateTransitionPages: [],
+    };
+    const gendered = validDirectionRecord();
+    gendered.pages[0].mainAction = 'The child holds her flashlight.';
+    expect(
+      lifecycle.protectedAuthorityIssues(
+        gendered,
+        'unknown_companion',
+        fixedContinuity,
+      ),
+    ).toContain('page_1_mainAction_gendered_pronoun');
+
+    for (const mainAction of [
+      'A sock seller waits beside the cart.',
+      'A short secured board rests across the gap.',
+      'The crew wearing silver flowers stands in the background.',
+      "The child passes the handle to Anat while Anat frees Anat's upside-down shirt.",
+    ]) {
+      const unrelated = validDirectionRecord();
+      unrelated.pages[0].mainAction = mainAction;
+      expect(
+        lifecycle.protectedAuthorityIssues(
+          unrelated,
+          'unknown_companion',
+          fixedContinuity,
+        ),
+        mainAction,
+      ).toEqual([]);
+    }
   });
 
   it('rejects stale source bindings, extra request keys, and hard-linked inputs', () => {

@@ -71,10 +71,10 @@ describe('Wizard all-story render-readiness control plane', () => {
       visualContractAuthoringAdmittedCount: 18,
       renderQualifiedCount: 1,
       sourceCorpusConflictCount: 18,
-      supportedGenderProjectionReadyCount: 18,
+      supportedGenderProjectionReadyCount: 1,
       supportedNarrationInputReadyCount: 18,
       supportedCriticalTtsGateReadyCount: 18,
-      supportedNarrationAutomatedPreflightReadyCount: 18,
+      supportedNarrationAutomatedPreflightReadyCount: 1,
       softTtsReviewItemCount: 12,
       storiesWithSoftTtsReviewItemsCount: 6,
     });
@@ -98,12 +98,16 @@ describe('Wizard all-story render-readiness control plane', () => {
       if (record.storyKey !== CHAMELEON_STORY_KEY) {
         expect(record.sources.corpusDecisionRequired).toBe(true);
         expect(record.earliestBlocker).toBe(
-          'product_source_corpus_unconfirmed',
+          'product_source_text_not_ready',
         );
         expect(record.nextCanonicalAction).toMatchObject({
-          code: 'guy_select_product_source_corpus',
-          requiresGuyDecision: true,
+          code: 'restore_or_repair_product_source_text',
+          requiresGuyDecision: false,
           providerSpendAuthorized: false,
+        });
+        expect(record.productTextReadiness).toMatchObject({
+          supportedGenderProjectionReady: false,
+          supportedNarrationAutomatedPreflightReady: false,
         });
       }
     }
@@ -198,7 +202,7 @@ describe('Wizard all-story render-readiness control plane', () => {
     ]);
   });
 
-  it('keeps all 432 selected product page projections executable by the real production TTS builder', () => {
+  it('keeps all 432 selected product page projections executable without mistaking execution for gender authority', () => {
     const report = baseline();
     vi.spyOn(console, 'warn').mockImplementation(() => undefined);
     let projectionCount = 0;
@@ -225,7 +229,14 @@ describe('Wizard all-story render-readiness control plane', () => {
     expect(projectionCount).toBe(432);
     expect(
       report.summary.supportedNarrationAutomatedPreflightReadyCount,
-    ).toBe(18);
+    ).toBe(1);
+    expect(
+      report.records.filter(
+        (record) =>
+          record.productTextReadiness?.supportedNarrationInputReady &&
+          !record.productTextReadiness.supportedGenderProjectionReady,
+      ),
+    ).toHaveLength(17);
   });
 
   it('keeps its semantic digest deterministic and environment claims aligned with runtime helpers', () => {

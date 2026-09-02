@@ -1,5 +1,69 @@
 # SmallHeroes — Current Technical State
 
+## R3-B1a in progress — exact-17 correction-candidate foundation is green
+
+Guy authorized Codex to continue the zero-cost work toward making every story
+renderable. The controlling brief is
+`docs/ai-workflow/R3B1A_STORY_SOURCE_VISUAL_DIRECTION_CORRECTION_CANDIDATES_DECISION_GATE.md`.
+Implementation runs in `C:\GNart\Work\sh-r3b0b-story-source-review` on
+`codex/r3b1a-story-correction-candidates`, based on R3-B0b closeout
+`462aaf4c19c7e8809284a96579fb993400e5a593`.
+
+The exact 17-pair human pre-review found **14 HOLD / 3 REVIEW / 0 PASS** before
+correction. All 17 candidate Story Sources still declare `gender: female`, and
+several boy projections retain unguarded feminine verbs, pronouns, or dialogue.
+The earlier `supportedGenderProjectionReady` calculation proved only that known
+placeholders resolved and its narrow adjacent-name marker did not fire; it did
+not prove Hebrew grammatical agreement. Claude Code's R3-B0b PASS remains valid
+for the batch mechanism and byte graph, not for product content acceptance.
+
+The first green R3-B1a foundation makes the default readiness audit require
+declared `gender: neutral` authority in addition to executable boy/girl
+projections. With V3 enabled and the QA runtime catalog disabled, the fresh
+read-only report remains 18 nominal/configured product slots and 1 strict
+render-qualified slot, but now truthfully reports only **1/18** supported
+gender projections and **1/18** automated narration-preflight-ready. The other
+17 stop first at `product_source_text_not_ready`. All **432** currently selected
+page/gender text projections still execute through the real TTS builder; that
+mechanical fact is no longer mislabeled as gender authority.
+
+The backwards-compatible Story Source materializer now has a closed correction
+request version that binds the exact R3-B0b batch and record digests and permits
+typed `shotType`/`cameraAngle` repairs plus exact indexed `continuityAnchors`
+repairs in addition to the legacy prose fields.
+It emits distinct pending-only manifest and migration versions; legacy requests
+cannot select the expanded edit surface. The enrichment preflight now requires
+companion appearance-state authority only when a transition or body-state claim
+actually needs it, rejects singular English gender pronouns in candidate Visual
+Directions, and attributes wardrobe findings to child-subject clothing claims
+instead of unrelated socks, shorts, uniforms, or supporting characters.
+
+R3-B0b has one closed, code-only legacy replay policy so its immutable v1
+artifact remains exactly reproducible. The combined readiness, historical-batch,
+materializer, enrichment and actual-CLI slice passes **5 files / 52 tests**, including the
+exact review-batch digest, provider-free closure, legacy edit-surface rejection,
+new digest binding and protected-authority controls. `npx tsc --noEmit --pretty
+false` and `git diff --check` also pass. No source candidate, historical
+artifact, acceptance, package, locator, runtime flag, provider call, render,
+storage/database/order/payment or deployment state changed. Spend remains USD 0
+and the resemblance threshold remains 0.70.
+
+The literal `npm run check` keeps the canonical **381 / 361 / 20** file
+partition. TypeScript and the autonomous-story typecheck pass. Ordinary tests
+report **338 passed files / 4,781 passed tests** and only the ten already-known
+ENOENT failures across six unchanged specs whose six ignored historical
+`outputs/` fixtures are absent. The resource phase encountered three 5-second
+load timeouts and one transient Windows `git` launch denial, plus the three
+known post-run `onTaskUpdate` RPC timeouts. Both affected resource files rerun
+alone at **2 files / 60 tests PASS**, including all four failed cells. The full
+command therefore exits 1 and is not called PASS; no fixture was copied and no
+failure was hidden.
+
+R3-B1a is not complete. Next is the deterministic exact-17 correction-candidate
+orchestrator and correction plan, followed by focused validation and independent
+Claude Code review. Product acceptance, narration ear acceptance and all paid
+Visual Contract/Blueprint/Board/render work remain later gates.
+
 ## R3-B0b — review batch and provider-free import correction independently QA-passed; technical preparation closed
 
 Claude Code independently reviewed the immutable initial implementation range

@@ -240,31 +240,44 @@ function readRequestFile(requestPath, roots = {}) {
   };
 }
 
-function protectedAuthorityIssues(record, companionId) {
+function protectedAuthorityIssues(record, companionId, continuityIntent) {
   const issues = [];
-  const childReference =
-    /\b(?:child|boy|girl|kid|toddler)\b|\{\{childName\}\}/i;
-  const wardrobeGarment =
-    /\b(?:wardrobe|outfits?|pajamas?|pyjamas?|shirts?|trousers|pants|dresses?|skirts?|sweaters?|jackets?|coats?|hoodies?|shoes?|clothes|clothing|scarves|scarf|socks?|boots?|shorts|blouses?|tops?|uniforms?|costumes?|robes?|gowns?|slippers?)\b/i;
-  const wardrobeChange =
-    /\b(?:wears?|wearing|wore|puts?\s+on|takes?\s+off|gets?\s+dressed|changes?\s+clothes|ties?\s+(?:his|her|their)\s+shoes?)\b/i;
+  const childSubjectSource =
+    '(?:(?:the\\s+)?(?:child|boy|girl|kid|toddler)\\b|\\{\\{childName\\}\\})';
+  const wardrobeGarmentSource =
+    '(?:wardrobe|outfits?|pajamas?|pyjamas?|shirts?|trousers|pants|dresses?|skirts?|sweaters?|jackets?|coats?|hoodies?|shoes?|clothes|clothing|scarves|scarf|socks?|boots?|shorts|blouses?|tops?|uniforms?|costumes?|robes?|gowns?|slippers?)';
+  const childWardrobeAction = new RegExp(
+    `${childSubjectSource}[^.!?;,:]{0,80}\\b(?:wears?|wearing|wore|puts?\\s+on|takes?\\s+off|gets?\\s+dressed|changes?\\s+clothes|ties?\\s+(?:his|her|their)\\s+shoes?)\\b`,
+    'i',
+  );
+  const childWardrobeState = new RegExp(
+    `${childSubjectSource}[^.!?;,:]{0,80}\\b(?:in|wearing)\\s+(?:an?\\s+|the\\s+|their\\s+)?${wardrobeGarmentSource}\\b`,
+    'i',
+  );
+  const genderedSingularPronoun =
+    /\b(?:he|him|his|himself|she|her|hers|herself)\b/i;
   const explicitBodyAppearance =
     /\b(?:(?:his|her|its|their)\s+)?(?:body|skin)\s+(?:hue|colou?r|tone|pattern|turns?|shifts?|changes?|becomes?|goes?|looks?)\b/i;
   const declaredAuthority =
     companionAppearanceState.declaredCompanionAppearanceStateAuthority(companionId);
-  if (
-    !declaredAuthority ||
-    companionAppearanceState.companionAppearanceStateAuthorityIssues(
-      declaredAuthority,
-      companionId,
-    ).length > 0
-  ) {
-    return ['companion_appearance_state_authority_missing'];
-  }
-  const authority = {
-    ...declaredAuthority,
-    subjectAliases: [...new Set(['companion', ...declaredAuthority.subjectAliases])],
-  };
+  const authorityIsValid = Boolean(
+    declaredAuthority &&
+      companionAppearanceState.companionAppearanceStateAuthorityIssues(
+        declaredAuthority,
+        companionId,
+      ).length === 0,
+  );
+  const authority = authorityIsValid
+    ? {
+        ...declaredAuthority,
+        subjectAliases: [
+          ...new Set(['companion', ...declaredAuthority.subjectAliases]),
+        ],
+      }
+    : null;
+  let appearanceAuthorityRequired =
+    continuityIntent === undefined ||
+    continuityIntent.companionStateTransitionPages.length > 0;
   for (const page of record.pages) {
     const fields = [
       ['setting', page.setting],
@@ -282,22 +295,27 @@ function protectedAuthorityIssues(record, companionId) {
     ];
     for (const [field, raw] of fields) {
       if (typeof raw !== 'string') continue;
-      if (
-        wardrobeChange.test(raw) ||
-        (childReference.test(raw) && wardrobeGarment.test(raw))
-      ) {
+      if (childWardrobeAction.test(raw) || childWardrobeState.test(raw)) {
         issues.push(`page_${page.pageNumber}_${field}_wardrobe_authority`);
       }
+      if (genderedSingularPronoun.test(raw)) {
+        issues.push(`page_${page.pageNumber}_${field}_gendered_pronoun`);
+      }
+      if (explicitBodyAppearance.test(raw)) appearanceAuthorityRequired = true;
       if (
-        explicitBodyAppearance.test(raw) ||
-        companionAppearanceState.companionAppearanceProseConflicts({
-          authority,
-          texts: [raw],
-        }).length > 0
+        authority &&
+        (explicitBodyAppearance.test(raw) ||
+          companionAppearanceState.companionAppearanceProseConflicts({
+            authority,
+            texts: [raw],
+          }).length > 0)
       ) {
         issues.push(`page_${page.pageNumber}_${field}_companion_appearance_authority`);
       }
     }
+  }
+  if (appearanceAuthorityRequired && !authority) {
+    issues.unshift('companion_appearance_state_authority_missing');
   }
   return [...new Set(issues)];
 }
@@ -436,7 +454,11 @@ function loadInputs(requestPath, roots = {}) {
   if (!directionFile.bytes.equals(expectedDirectionBytes)) {
     throw new Error('story_visual_direction_enrichment_directions_not_canonical');
   }
-  const authorityIssues = protectedAuthorityIssues(record, story.companionId);
+  const authorityIssues = protectedAuthorityIssues(
+    record,
+    story.companionId,
+    continuityIntent,
+  );
   if (authorityIssues.length > 0) {
     throw new Error(
       `story_visual_direction_enrichment_protected_authority_invalid:${authorityIssues.join(',')}`,

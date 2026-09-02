@@ -20,14 +20,25 @@ const ACCEPTED_SOURCE_ROOT =
   'story-pipeline/04_approved_story_sources/accepted/';
 const STORYBOARD_INPUT_ROOT = 'story-pipeline/05_storyboard_inputs/';
 const REQUEST_VERSION = 'small-heroes-story-source-revision-request/v3';
+const CORRECTION_REQUEST_VERSION =
+  'small-heroes-story-source-visual-direction-correction-request/v1';
 const MANIFEST_VERSION = 'small-heroes-story-source-revision-pending-manifest/v4';
+const CORRECTION_MANIFEST_VERSION =
+  'small-heroes-story-source-visual-direction-correction-pending-manifest/v1';
 const DIRECTION_MIGRATION_VERSION =
   'small-heroes-story-visual-direction-deterministic-migration/v1';
-const ALLOWED_DIRECTION_FIELDS = new Set([
+const CORRECTION_DIRECTION_MIGRATION_VERSION =
+  'small-heroes-story-visual-direction-deterministic-migration/v2';
+const LEGACY_ALLOWED_DIRECTION_FIELDS = new Set([
   'heroObject',
   'lighting',
   'mainAction',
   'setting',
+]);
+const CORRECTION_ALLOWED_DIRECTION_FIELDS = new Set([
+  ...LEGACY_ALLOWED_DIRECTION_FIELDS,
+  'cameraAngle',
+  'shotType',
 ]);
 const SOURCE_GENDER_METADATA_REPLACEMENT = Object.freeze({
   expectedCount: 1,
@@ -44,6 +55,7 @@ const REQUEST_KEYS = [
   'version',
   'visualDirections',
 ];
+const CORRECTION_REQUEST_KEYS = [...REQUEST_KEYS, 'reviewBatch'];
 const FILE_REFERENCE_KEYS = ['path', 'sha256'];
 const CORPUS_REFERENCE_KEYS = ['digest', 'path', 'sha256'];
 const TEXT_REPLACEMENT_KEYS = ['expectedCount', 'from', 'to'];
@@ -54,6 +66,15 @@ const DIRECTION_REPLACEMENT_KEYS = [
   'pageNumber',
   'to',
 ];
+const DIRECTION_ARRAY_ITEM_REPLACEMENT_KEYS = [
+  'expectedCount',
+  'field',
+  'from',
+  'itemIndex',
+  'pageNumber',
+  'to',
+];
+const CORRECTION_ARRAY_DIRECTION_FIELDS = new Set(['continuityAnchors']);
 const STORYBOARD_CORPUS_KEYS = [
   'authorityScope',
   'companionCount',
@@ -211,9 +232,14 @@ function validateReplacement(value, keys, code) {
 }
 
 function validateRequest(value) {
+  const isLegacyRequest = value?.version === REQUEST_VERSION;
+  const isCorrectionRequest = value?.version === CORRECTION_REQUEST_VERSION;
   if (
-    !exactKeys(value, REQUEST_KEYS) ||
-    value.version !== REQUEST_VERSION ||
+    (!isLegacyRequest && !isCorrectionRequest) ||
+    !exactKeys(
+      value,
+      isCorrectionRequest ? CORRECTION_REQUEST_KEYS : REQUEST_KEYS,
+    ) ||
     !/^[a-z][a-z0-9_]{2,95}$/.test(value.storyKey) ||
     !/^[a-z][a-z0-9_]{2,159}$/.test(value.briefId) ||
     !exactKeys(value.source, ['manifest', 'story']) ||
@@ -223,6 +249,21 @@ function validateRequest(value) {
     value.textReplacements.length > 64 ||
     !Array.isArray(value.directionReplacements) ||
     value.directionReplacements.length > 32
+  ) {
+    throw new Error('story_source_revision_request_invalid');
+  }
+
+  if (
+    isCorrectionRequest &&
+    (!exactKeys(value.reviewBatch, [
+      'digest',
+      'recordDigest',
+      'version',
+    ]) ||
+      value.reviewBatch.version !==
+        'small-heroes-story-source-visual-direction-review-batch/v1' ||
+      !/^[a-f0-9]{64}$/.test(value.reviewBatch.digest) ||
+      !/^[a-f0-9]{64}$/.test(value.reviewBatch.recordDigest))
   ) {
     throw new Error('story_source_revision_request_invalid');
   }
@@ -308,20 +349,35 @@ function validateRequest(value) {
 
   const directionIdentities = new Set();
   for (const replacement of value.directionReplacements) {
+    const isArrayItemReplacement =
+      isCorrectionRequest &&
+      exactKeys(replacement, DIRECTION_ARRAY_ITEM_REPLACEMENT_KEYS);
     validateReplacement(
       replacement,
-      DIRECTION_REPLACEMENT_KEYS,
+      isArrayItemReplacement
+        ? DIRECTION_ARRAY_ITEM_REPLACEMENT_KEYS
+        : DIRECTION_REPLACEMENT_KEYS,
       'story_source_revision_request_invalid',
     );
     if (
       !Number.isInteger(replacement.pageNumber) ||
       replacement.pageNumber < 1 ||
       replacement.pageNumber > 32 ||
-      !ALLOWED_DIRECTION_FIELDS.has(replacement.field)
+      (isArrayItemReplacement
+        ? !CORRECTION_ARRAY_DIRECTION_FIELDS.has(replacement.field) ||
+          !Number.isInteger(replacement.itemIndex) ||
+          replacement.itemIndex < 0 ||
+          replacement.itemIndex > 31
+        : !(isCorrectionRequest
+            ? CORRECTION_ALLOWED_DIRECTION_FIELDS
+            : LEGACY_ALLOWED_DIRECTION_FIELDS
+          ).has(replacement.field))
     ) {
       throw new Error('story_source_revision_request_invalid');
     }
-    const identity = `${replacement.pageNumber}:${replacement.field}`;
+    const identity = `${replacement.pageNumber}:${replacement.field}:${
+      isArrayItemReplacement ? replacement.itemIndex : 'scalar'
+    }`;
     if (directionIdentities.has(identity)) {
       throw new Error('story_source_revision_request_invalid');
     }
@@ -533,14 +589,24 @@ function applyDirectionReplacements(record, replacements) {
     if (!page || page.pageNumber !== replacement.pageNumber) {
       throw new Error('story_source_revision_direction_target_invalid');
     }
-    const current = page[replacement.field];
+    const fieldValue = page[replacement.field];
+    const current = Object.hasOwn(replacement, 'itemIndex')
+      ? Array.isArray(fieldValue)
+        ? fieldValue[replacement.itemIndex]
+        : undefined
+      : fieldValue;
     if (
       typeof current !== 'string' ||
       countOccurrences(current, replacement.from) !== replacement.expectedCount
     ) {
       throw new Error('story_source_revision_direction_target_invalid');
     }
-    page[replacement.field] = current.split(replacement.from).join(replacement.to);
+    const revised = current.split(replacement.from).join(replacement.to);
+    if (Object.hasOwn(replacement, 'itemIndex')) {
+      fieldValue[replacement.itemIndex] = revised;
+    } else {
+      page[replacement.field] = revised;
+    }
   }
   return output;
 }
@@ -748,8 +814,12 @@ function buildStorySourceRevision({ requestFile, outputDir, write }) {
   const sourceFilename = `${revisedSourceSha256}.story.md`;
   const directionFilename = `${revisedDirectionSha256}.visual-directions.json`;
   const integratedFilename = `${integratedSha256}.integrated.md`;
+  const correctionRequest =
+    request.version === CORRECTION_REQUEST_VERSION;
   const migrationPayload = {
-    version: DIRECTION_MIGRATION_VERSION,
+    version: correctionRequest
+      ? CORRECTION_DIRECTION_MIGRATION_VERSION
+      : DIRECTION_MIGRATION_VERSION,
     status: 'pending_exact_review',
     authorityScope: 'deterministic_direction_text_migration_only',
     storyKey: request.storyKey,
@@ -771,7 +841,9 @@ function buildStorySourceRevision({ requestFile, outputDir, write }) {
   const migrationFilename = `${migrationDigest}.direction-migration.json`;
 
   const manifestPayload = {
-    version: MANIFEST_VERSION,
+    version: correctionRequest
+      ? CORRECTION_MANIFEST_VERSION
+      : MANIFEST_VERSION,
     status: 'pending_exact_product_review',
     authorityScope: 'story_source_and_visual_directions_only',
     storyKey: request.storyKey,
@@ -790,6 +862,9 @@ function buildStorySourceRevision({ requestFile, outputDir, write }) {
       sha256: requestFile.sha256,
       version: request.version,
     },
+    ...(correctionRequest
+      ? { reviewBatch: structuredClone(request.reviewBatch) }
+      : {}),
     inputs: {
       acceptedManifest: {
         path: sourceManifestFile.relativePath,
@@ -965,6 +1040,9 @@ if (require.main === module) {
 }
 
 module.exports = {
+  CORRECTION_DIRECTION_MIGRATION_VERSION,
+  CORRECTION_MANIFEST_VERSION,
+  CORRECTION_REQUEST_VERSION,
   DIRECTION_MIGRATION_VERSION,
   MANIFEST_VERSION,
   REQUEST_VERSION,

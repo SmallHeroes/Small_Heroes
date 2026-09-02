@@ -20,7 +20,7 @@ import {
 } from '@/lib/wizard-render-readiness';
 
 import {
-  auditWizardAllStoryRenderReadiness,
+  auditWizardAllStoryRenderReadinessForR3B0bReplay,
   WIZARD_ALL_STORY_RENDER_READINESS_VERSION,
   type StorySourceTextReadiness,
   type WizardAllStoryReadinessRecord,
@@ -2334,7 +2334,7 @@ export function prepareStorySourceVisualDirectionReviewBatch(args: {
   const { catalog, file: catalogFile } = validateQaCatalog({ repoRoot });
   const corpus = validateStoryboardCorpus({ repoRoot });
   const report = withCanonicalAuditEnvironment(() =>
-    auditWizardAllStoryRenderReadiness({
+    auditWizardAllStoryRenderReadinessForR3B0bReplay({
       repoRoot,
       now: () => new Date(`${request.authorizedOn}T12:00:00.000Z`),
     }),

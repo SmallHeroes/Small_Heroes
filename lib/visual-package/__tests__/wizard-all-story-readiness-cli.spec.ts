@@ -93,11 +93,11 @@ describe('Wizard all-story readiness actual CLI', () => {
     },
   );
 
-  it('passes the all-story narration automated-preflight gate', () => {
+  it('fails the all-story narration automated-preflight gate while source authority is incomplete', () => {
     const result = runReadinessCli([
       '--require-all-narration-automated-preflight-ready',
     ]);
-    expect(result.status, result.stderr).toBe(0);
+    expect(result.status, result.stderr).toBe(1);
     const report = JSON.parse(result.stdout) as {
       summary: {
         nominalSlotCount: number;
@@ -106,7 +106,8 @@ describe('Wizard all-story readiness actual CLI', () => {
     };
     expect(
       report.summary.supportedNarrationAutomatedPreflightReadyCount,
-    ).toBe(report.summary.nominalSlotCount);
+    ).toBe(1);
+    expect(report.summary.nominalSlotCount).toBe(18);
   });
 
   it('table output exposes earliest blocker and next canonical action as distinct columns', () => {
@@ -124,8 +125,8 @@ describe('Wizard all-story readiness actual CLI', () => {
     expect(foxRow).toBeDefined();
     const cells = foxRow!.split(' | ').map((cell) => cell.trim());
     expect(cells.slice(-2)).toEqual([
-      'product_source_corpus_unconfirmed',
-      'guy_select_product_source_corpus',
+      'product_source_text_not_ready',
+      'restore_or_repair_product_source_text',
     ]);
   });
 
