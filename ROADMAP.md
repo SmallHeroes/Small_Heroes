@@ -1,6 +1,6 @@
 # SmallHeroes — Roadmap
 
-**Last verified:** 2026-07-22
+**Last verified:** 2026-09-02
 **Product priority owner:** Guy
 **Technical sequencing owner:** Codex
 
@@ -34,6 +34,15 @@ This roadmap records technical milestone state. Guy can change product priority 
 - Keep Set Board registry keys story-scoped for now. Shared world kits are deferred until real reviewed reuse exists.
 - Do not add a sequential runtime LLM memory layer; the complete frozen cover/page plan is the continuity state.
 
+### R3 — Expand the render-qualified catalog
+
+- **Current owner decision:** make all 18 stories currently offered by the Wizard render-ready; do not reduce this to a smaller launch subset.
+- **State:** R3-A zero-cost, all-slot control plane is focused-green and awaiting independent Claude Code review. Its literal repository-wide check remains red only on absent ignored historical `outputs/` fixtures and is documented in `CURRENT.md`. It reports 18/18 nominal and sellable with the V3 flag, 18/18 QA LOW-ready, but only 1/18 strict render-qualified.
+- Before R3-B, Guy must select the product corpus for the 17 unresolved keys because the V3 and QA sources differ byte-for-byte. Six 16-beat fantasy stories also require a separate decision on the current 12-page Visual Contract authoring ceiling.
+- After those decisions, prepare and review exact accepted Story Source/visual-direction revisions, then complete Visual Contract, Blueprint, Board/prop and Visual Package authority in bounded waves with explicit spend ceilings.
+- A slot remains unavailable for rendering until story/product approval and its complete visual package both pass.
+- `lion_shaket_adventure` additionally requires Claude Cowork product/story review and Guy acceptance before it can become a render candidate.
+
 ## Next
 
 ### R1D — Prove the corrected path with one LOW page
@@ -48,12 +57,6 @@ This roadmap records technical milestone state. Guy can change product priority 
 - After the one-page measurement, implement the minimum state machine required for crash-safe resume: queued → rendering → candidate persisted → QA pending → accepted, regeneration queued, or hold.
 - Prefer one paid render per invocation, stable idempotency, candidate SHA binding, and recovery from the uploaded candidate.
 - Validate on a real database/runtime boundary before claiming reliability.
-
-### R3 — Expand the render-qualified catalog
-
-- Compile candidates mechanically for all 18 story slots, but review and promote only the launch set Guy actually intends to sell.
-- A slot remains unavailable for rendering until story/product approval and its complete visual package both pass.
-- `lion_shaket_adventure` additionally requires Claude Cowork product/story review and Guy acceptance before it can become a render candidate.
 
 ### R4 — Close the human-QA operator loop end to end
 

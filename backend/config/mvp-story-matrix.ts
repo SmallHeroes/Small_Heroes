@@ -19,7 +19,11 @@ export type SlotStatus = 'approved' | 'approved_v3' | 'in_gate' | 'missing';
 export type MvpCategory = keyof typeof MVP_STORY_MATRIX;
 export type StoryDirection = 'bedtime' | 'adventure' | 'fantasy';
 
-const DIRECTIONS: StoryDirection[] = ['bedtime', 'adventure', 'fantasy'];
+export const MVP_STORY_DIRECTIONS = [
+  'bedtime',
+  'adventure',
+  'fantasy',
+] as const satisfies readonly StoryDirection[];
 
 export const MVP_STORY_MATRIX = {
   NIGHT_FEAR: {
@@ -116,7 +120,9 @@ export function normalizeMvpCategory(value: string | null | undefined): MvpCateg
 
 export function normalizeStoryDirection(value: string | null | undefined): StoryDirection | null {
   const raw = String(value ?? '').trim().toLowerCase();
-  return (DIRECTIONS as string[]).includes(raw) ? (raw as StoryDirection) : null;
+  return (MVP_STORY_DIRECTIONS as readonly string[]).includes(raw)
+    ? (raw as StoryDirection)
+    : null;
 }
 
 export function companionForCategory(category: string): string | null {
@@ -127,6 +133,14 @@ export function companionForCategory(category: string): string | null {
 
 export function configuredSlotStatus(category: MvpCategory, direction: StoryDirection): SlotStatus {
   return MVP_STORY_MATRIX[category].directions[direction];
+}
+
+export function storyBankSourceDirForSlotStatus(
+  status: Extract<SlotStatus, 'approved' | 'approved_v3'>,
+): string {
+  return status === 'approved_v3'
+    ? V3_APPROVED_DIR_NAME
+    : STORY_BANK_V3_DIR_NAME;
 }
 
 function v3ImportSidecarValid(
@@ -295,7 +309,9 @@ export function isSlotSellable(
 export function sellableDirectionsFor(category: string): StoryDirection[] {
   const cat = normalizeMvpCategory(category);
   if (!cat) return [];
-  return DIRECTIONS.filter((dir) => isSlotSellable(cat, dir));
+  return MVP_STORY_DIRECTIONS.filter((dir) =>
+    isSlotSellable(cat, dir),
+  );
 }
 
 export function matrixSlotSummary(
@@ -317,6 +333,39 @@ export function matrixSlotSummary(
 
 export function allMvpCategories(): MvpCategory[] {
   return Object.keys(MVP_STORY_MATRIX) as MvpCategory[];
+}
+
+export interface NominalMvpStorySlot {
+  category: MvpCategory;
+  direction: StoryDirection;
+  companionId: string;
+  storyKey: string;
+  configuredStatus: Extract<SlotStatus, 'approved' | 'approved_v3'>;
+}
+
+/** Every product-approved matrix slot, independent of runtime feature flags. */
+export function allNominalMvpStorySlots(): NominalMvpStorySlot[] {
+  const slots: NominalMvpStorySlot[] = [];
+  for (const category of allMvpCategories()) {
+    for (const direction of MVP_STORY_DIRECTIONS) {
+      const configuredStatus = configuredSlotStatus(category, direction);
+      if (
+        configuredStatus !== 'approved' &&
+        configuredStatus !== 'approved_v3'
+      ) {
+        continue;
+      }
+      const companionId = MVP_STORY_MATRIX[category].companionId;
+      slots.push({
+        category,
+        direction,
+        companionId,
+        storyKey: `${companionId}_${direction}`,
+        configuredStatus,
+      });
+    }
+  }
+  return slots;
 }
 
 /** Topic id (wizard) → MVP category */

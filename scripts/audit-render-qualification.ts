@@ -2,6 +2,11 @@
 /** Zero-cost, read-only all-slot audit. */
 import { STYLE_IDS } from '@/lib/styles';
 import { auditMvpRenderQualification } from '@/lib/visual-package/audit';
+import {
+  evaluateRenderQualificationReleaseGate,
+  renderQualificationReleaseGateScope,
+  renderQualificationStrictMode,
+} from '@/lib/visual-package/releaseGate';
 
 const audit = auditMvpRenderQualification({
   repoRoot: process.cwd(),
@@ -10,7 +15,10 @@ const audit = auditMvpRenderQualification({
 
 console.log(JSON.stringify(audit, null, 2));
 
-if (process.argv.includes('--require-render-qualified')) {
-  const failures = audit.records.filter((record) => record.productSellable && !record.renderQualified);
-  if (failures.length > 0) process.exitCode = 1;
-}
+const strict = renderQualificationStrictMode(process.argv);
+const gate = evaluateRenderQualificationReleaseGate(
+  audit,
+  strict,
+  renderQualificationReleaseGateScope(process.argv),
+);
+if (!gate.pass) process.exitCode = 1;

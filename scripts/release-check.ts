@@ -6,6 +6,7 @@
  *   npm run release-check
  *   ENABLE_V3_APPROVED_BANK=true npm run release-check
  *   ENABLE_V3_APPROVED_BANK=true npm run release-check -- --require-render-qualified
+ *   ENABLE_V3_APPROVED_BANK=true npm run release-check -- --require-all-render-ready
  */
 import fs from 'fs';
 import path from 'path';
@@ -95,11 +96,16 @@ async function main(): Promise<void> {
     return n;
   }
 
-  const flag = String(process.env.ENABLE_V3_APPROVED_BANK ?? '').trim().toLowerCase();
-  const v3Enabled = flag === 'true' || flag === '1';
+  const flag = process.env.ENABLE_V3_APPROVED_BANK ?? '';
+  // Runtime accepts only the exact string "true". Release preflight must use
+  // the same contract or values such as "1", "TRUE", or padded strings can
+  // false-green here while the product still treats the bank as disabled.
+  const v3Enabled = flag === 'true';
   const v3Slots = v3ApprovedSlots();
   const sellable = countSellable();
-  const strictRenderQualification = process.argv.includes('--require-render-qualified');
+  const strictRenderQualification =
+    process.argv.includes('--require-render-qualified') ||
+    process.argv.includes('--require-all-render-ready');
 
   console.log(`[release-check] ENABLE_V3_APPROVED_BANK=${flag || '(unset)'}`);
   console.log(`[release-check] sellable matrix slots: ${sellable}/18`);
@@ -121,7 +127,14 @@ async function main(): Promise<void> {
     );
   }
 
-  const [{ STYLE_IDS }, { auditMvpRenderQualification }, { evaluateRenderQualificationReleaseGate }] =
+  const [
+    { STYLE_IDS },
+    { auditMvpRenderQualification },
+    {
+      evaluateRenderQualificationReleaseGate,
+      renderQualificationReleaseGateScope,
+    },
+  ] =
     await Promise.all([
       import('../lib/styles'),
       import('../lib/visual-package/audit'),
@@ -140,10 +153,15 @@ async function main(): Promise<void> {
   const qualificationGate = evaluateRenderQualificationReleaseGate(
     qualificationAudit,
     strictRenderQualification,
+    renderQualificationReleaseGateScope(process.argv),
   );
   if (!qualificationGate.pass) {
     console.error('');
-    console.error('[release-check] FAIL — strict render qualification was explicitly required.');
+    console.error(
+      qualificationGate.scope === 'all_nominal'
+        ? '[release-check] FAIL — all nominal Wizard slots were explicitly required to be render-ready.'
+        : '[release-check] FAIL — strict render qualification was explicitly required.',
+    );
     for (const failure of qualificationGate.failures) {
       console.error(`[release-check] ${failure.storyKey}: ${failure.reasonCodes.join(', ')}`);
     }
@@ -151,7 +169,7 @@ async function main(): Promise<void> {
   }
   if (!strictRenderQualification) {
     console.log(
-      '[release-check] render qualification is report-only; pass --require-render-qualified for the fail-closed release gate.',
+      '[release-check] render qualification is report-only; pass --require-render-qualified for sellable slots or --require-all-render-ready for every nominal Wizard slot.',
     );
   }
 

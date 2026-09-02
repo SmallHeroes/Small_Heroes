@@ -55,9 +55,9 @@ describe('Vitest workload classifier', () => {
     );
     const partition = classifyVitestWorkloads(inventory, policy);
 
-    expect(partition.inventory).toHaveLength(376);
+    expect(partition.inventory).toHaveLength(380);
     expect(partition.resourceIntensive).toHaveLength(20);
-    expect(partition.ordinary).toHaveLength(356);
+    expect(partition.ordinary).toHaveLength(360);
     expect(new Set(partition.inventory).size).toBe(
       partition.inventory.length,
     );
@@ -77,6 +77,18 @@ describe('Vitest workload classifier', () => {
     );
     expect(partition.ordinary).toContain(
       'lib/__tests__/narration-pronunciation-audition-runner.spec.ts',
+    );
+    expect(partition.ordinary).toContain(
+      'lib/visual-package/__tests__/render-qualification-audit-cli.spec.ts',
+    );
+    expect(partition.ordinary).toContain(
+      'lib/visual-package/__tests__/render-qualification-release-gate.spec.ts',
+    );
+    expect(partition.ordinary).toContain(
+      'lib/visual-package/__tests__/wizard-all-story-readiness-cli.spec.ts',
+    );
+    expect(partition.ordinary).toContain(
+      'lib/visual-package/__tests__/wizard-all-story-render-readiness.spec.ts',
     );
     expect(partition.ordinary).toContain(
       'lib/__tests__/release-v1-worker-reachability.spec.ts',

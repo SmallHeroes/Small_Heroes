@@ -21,8 +21,9 @@ const PRODUCT_ACCEPTANCE_VERSION =
   'small-heroes-story-source-visual-direction-product-acceptance/v1';
 const TECHNICAL_REVIEW_VERSION =
   'small-heroes-story-source-visual-direction-technical-review/v1';
-const ACCEPTED_ROOT =
+export const ACCEPTED_STORY_SOURCE_ROOT =
   'story-pipeline/04_approved_story_sources/accepted';
+const ACCEPTED_ROOT = ACCEPTED_STORY_SOURCE_ROOT;
 const DIGEST = /^[a-f0-9]{64}$/;
 const GIT_COMMIT = /^[a-f0-9]{40}$/;
 const PRODUCT_ACCEPTANCE_RUNTIME_REASON =

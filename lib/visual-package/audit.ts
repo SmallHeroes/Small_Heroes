@@ -5,14 +5,11 @@ import {
   configuredSlotStatus,
   isSlotSellable,
   MVP_STORY_MATRIX,
+  storyBankSourceDirForSlotStatus,
   type MvpCategory,
   type SlotStatus,
   type StoryDirection,
 } from '@/backend/config/mvp-story-matrix';
-import {
-  STORY_BANK_V3_DIR_NAME,
-  V3_APPROVED_DIR_NAME,
-} from '@/backend/providers/story-bank-index';
 
 import { evaluateRenderQualification, type RenderQualificationResult } from './qualification';
 import { evaluateWizardVisualPackageSelection } from './wizardVisualPackageSelection';
@@ -42,10 +39,6 @@ export interface RenderQualificationAudit {
   records: RenderQualificationAuditRecord[];
 }
 
-function sourceDirForStatus(status: SlotStatus): string {
-  return status === 'approved_v3' ? V3_APPROVED_DIR_NAME : STORY_BANK_V3_DIR_NAME;
-}
-
 /** Every configured approved slot gets one record, even when an availability flag currently makes it unsellable. */
 export function auditMvpRenderQualification(args: {
   repoRoot: string;
@@ -64,7 +57,7 @@ export function auditMvpRenderQualification(args: {
       const storyPath = path.join(
         args.repoRoot,
         'story-bank',
-        sourceDirForStatus(configuredStatus),
+        storyBankSourceDirForSlotStatus(configuredStatus),
         `${storyKey}.md`,
       );
       const legacyQualification = evaluateRenderQualification({

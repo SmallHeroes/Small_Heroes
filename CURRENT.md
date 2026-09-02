@@ -1,5 +1,72 @@
 # SmallHeroes — Current Technical State
 
+## R3-A — all 18 Wizard stories mapped to one fail-closed render-readiness control plane (focused green; repository fixture gate documented; independent QA next)
+
+Guy explicitly asked Codex to make every story currently offered by the Wizard available for render and authorized the
+work to start. The zero-cost first milestone is implemented in
+`C:\GNart\Work\sh-all-wizard-render-readiness` on `codex/r3-all-wizard-render-readiness`, based on
+`f62422a01db3da791861c670e266e91daecfefd8`. The controlling brief is
+`docs/ai-workflow/R3_ALL_WIZARD_STORIES_RENDER_READINESS_DECISION_GATE.md`.
+
+R3-A adds one deterministic, read-only report for the canonical six categories × three directions. It derives the
+exact nominal key set from `MVP_STORY_MATRIX`, validates V3, QA-only and strict product-accepted Story Source evidence
+as separate lineages, inventories package-bound Visual Contract/Blueprint/Board authority, runs the real Wizard
+selection and render-qualification predicates, projects both supported child genders with canonical companion names,
+and exercises the production TTS builder. Every non-ready row has ordered closed blockers and one next canonical
+action. The audit cannot write, publish, approve, order, access a database/storage service, call a provider, or render.
+
+Verified baseline with `ENABLE_V3_APPROVED_BANK=true` and the QA runtime flag disabled:
+
+- **18/18** unique nominal Wizard slots are present, **18/18** are environment-sellable, and **18/18** QA-only
+  candidates are valid for LOW QA generation, but QA authority remains explicitly production-ineligible.
+- Only **1/18**, `chameleon_koko_bedtime`, has one strict accepted v3 source revision plus a structurally valid current
+  Visual Package and passes the fresh Wizard/render gate. The exact package revision remains
+  `836a3414174dbe3060010371e81ebdbef821f705650a199cc4bbfd70081d523f`.
+- V3 and QA source bytes differ for **18/18** keys. Chameleon is already resolved by its accepted source/package;
+  **17/18** still require Guy to choose which corpus becomes product authority before accepted revisions or paid
+  authoring can begin.
+- **12/18** stories fit the current Visual Contract authoring ceiling. All six 16-beat fantasy stories are rejected
+  before provider access because the current policy permits at most 12 pages.
+- **18/18** exact selected product sources pass boy/girl personalization, non-empty narration input, and the critical
+  TTS coverage gate across **432** projected pages using the real production page builder. This is an automated
+  preflight claim, not a human narration PASS: **12** soft `שם` review items remain across six stories, and Guy's
+  separate 24-clip pronunciation/prosody ear gate is still pending.
+- The report records the existing contract mismatch rather than certifying it: Wizard gender offers `other` while
+  only boy/girl are technically certified and `other` projects masculine chips; Wizard age offers 2–10 while the
+  product promise is 3–8 and Story Source selection does not consume age.
+- All six companion candidates retain their exact **0.70** resemblance threshold; no threshold or runtime fallback
+  was changed.
+
+The existing sellable-only strict flag remains backward-compatible. A new explicit `all_nominal` scope and
+`--require-all-render-ready` flag cannot false-green when rejected slots become unsellable, and also rejects missing,
+duplicate or non-canonical audit records. `ENABLE_V3_APPROVED_BANK=1` is now rejected by release preflight because the
+runtime accepts only the exact value `true`. The new `wizard-all-story-readiness` CLI additionally exposes the source,
+narration, policy and package blockers without altering production behavior.
+
+Current validation: `npx tsc --noEmit` passes. The focused matrix/source/personalization/TTS/package/release/CLI and
+Vitest-partition slice passes **12 files / 120 tests**, including the exact 18-key set, 432 production TTS projections,
+malformed/swapped/hard-linked source failures, root-independent semantic evidence, accepted-lineage precedence,
+strict-audit parity, `approved`/`approved_v3` routing, exact runtime flag semantics, denied filesystem/network
+boundaries, strict-scope false-green regressions, and actual JSON/table CLI exit contracts. `git diff --check` is
+clean. A separate adversarial implementation review found and then rechecked the env, source-routing, lineage,
+QA-source, strict-parity, table-action, digest, and no-sidecar edge cases; its final pass reports no residual P0/P1/P2.
+This does not replace the required immutable Claude Code gate.
+
+Literal `npm run check` was invoked. Both TypeScript phases passed. Its ordinary Vitest partition completed with
+**4,750 passed / 73 skipped / 11 failed** before the final residual fixes: one task-owned inventory assertion was
+updated from 376 to the actual 380 spec files and now passes; the other ten failures are clean-worktree fixture
+dependencies on ignored historical `outputs/` artifacts that are absent here (six test files, including historical
+story-run, visual-direction and Blueprint-wire evidence). The resource-intensive partition was stopped after the
+ordinary phase had already made the overall gate red. The focused milestone slice remains green, but the literal
+repository-wide gate is therefore recorded as red rather than misreported as PASS. Immutable Claude Code review also
+remains required before this milestone can claim technical PASS.
+
+No Story Source, accepted revision, Blueprint, Board, prop reference, Visual Package, locator, Wizard order, payment,
+database/storage row, image, audio, PDF, deployment or remote branch was created or changed. No provider/network call
+or render occurred. R3-B is intentionally waiting on Guy's exact V3-versus-QA corpus choice. Paid R3-C/R3-D work is
+not authorized by this milestone; its worst-case text-authoring ceiling for 17 stories is $255, and image inventory
+cannot be priced until approved Blueprints exist.
+
 ## R1D — bounded Hebrew narration pronunciation/prosody audition complete; Guy ear gate pending
 
 Guy approved the Narration Pronunciation Authority and Natural Prosody Decision Gate. Milestone A is complete locally
