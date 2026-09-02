@@ -1,13 +1,14 @@
 # SmallHeroes — Current Technical State
 
-## R1D — exact-byte human verification plus mandatory child resemblance (working tree green; immutable QA gate next)
+## R1D — exact-byte human verification plus mandatory child resemblance (independent QA PASS; push/deploy/live action not yet performed)
 
 Guy approved exact current page 6 and the controlled human-verification path without lowering or
 waiving the **0.70** resemblance threshold. The only live target remains paid Order
 `cmtj2vvrw0002ju04a9covxqv`, open safety case
 `6be97a90-65a0-4883-b7d1-819317a1dc19`, marker
 `safety_hold:unverified:page:6`, and page-6 SHA-256
-`BD7EA115D78AB4AF650047FB13E312EFAA922569F17E2BB6CBB606665B568D42`. No new Order,
+`bd7ea115d78ab4af650047fb13e312efaa922569f17e2bb6cbb606665b568d42` (the lowercase form required
+by the ceremony contract). No new Order,
 checkout, payment, image, audio or PDF is authorized.
 
 The local implementation in `C:\GNart\Work\sh-release-reader-final` on
@@ -58,17 +59,26 @@ Current evidence on the working bytes:
   partition completed **20/20 files and 635/635 tests PASS**, then Vitest emitted three known
   `onTaskUpdate` RPC timeouts. The literal repository gate therefore remains accurately red for
   baseline fixture/runner defects rather than being relabeled green.
-- Read-only adversarial sweeps closed findings in sibling-proof reconstruction, late
+- Read-only Codex adversarial sweeps closed findings in sibling-proof reconstruction, late
   QA/regeneration delivery races, Order/ExceptionCase/receipt lock order, canonical-anchor TOCTOU,
   payment authority, stale receipt replay, Preview-to-Production resource leakage, cross-page retry
   spend and post-score abort provenance. The whole-diff re-audit returned PASS on the corrected
-  spend fence; Codex does not self-award the required post-commit independent technical PASS.
+  spend fence.
+- Claude Code independently reviewed exact immutable range
+  `6b8ffe2c7001ff94efd8ee987775cfd398c377a8..2d51e2f39957d2b86459acb8bf8cff3f37b75c10`
+  read-only and returned **PASS — no P0/P1/P2**. It independently reproduced **29 files / 606 tests
+  PASS**, `npx tsc --noEmit`, the clean one-commit/no-merge topology and the complete 243-point
+  floating-score lattice: all 17 exact-0.70 combinations pass, no false admit/deny exists, and 0.65
+  is the highest failing lattice score. Its two MINOR observations confirm the already-disclosed
+  non-blocking residuals and the honestly non-green baseline `npm run check`; no correction or
+  re-gate is required.
 
 No route, DB mutation, provider/Vision call, deployment, push or live Apply has occurred from these
-bytes. Next: obtain independent Claude Code PASS on the immutable base-to-head range. Only then may
-this exact commit be deployed to one branch Preview for provider-free Inspect and one controlled
-Apply on the same Order. Production remains untouched, and Guy retains final Reader/product
-acceptance.
+bytes. The independent technical gate is closed. The branch remains local and unpushed because Guy
+has not explicitly authorized a push. After explicit push authority, the next controlled sequence
+is one branch Preview, provider-free Inspect, then one Apply on the same Order using the returned
+inspection digest, a fresh Idempotency-Key and the lowercase page SHA above. Production remains
+untouched, and Guy retains final Reader/product acceptance.
 
 ## R1D — same-Order page-6 replacement and pages 7–8 completion recovery (local green; immutable independent gate next)
 
