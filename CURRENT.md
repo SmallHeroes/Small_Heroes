@@ -1,68 +1,91 @@
 # SmallHeroes — Current Technical State
 
-## R3-B1a in progress — exact-17 correction-candidate foundation is green
+## R3-B1a — exact-17 correction candidates complete locally; independent QA pending
 
 Guy authorized Codex to continue the zero-cost work toward making every story
 renderable. The controlling brief is
 `docs/ai-workflow/R3B1A_STORY_SOURCE_VISUAL_DIRECTION_CORRECTION_CANDIDATES_DECISION_GATE.md`.
-Implementation runs in `C:\GNart\Work\sh-r3b0b-story-source-review` on
-`codex/r3b1a-story-correction-candidates`, based on R3-B0b closeout
-`462aaf4c19c7e8809284a96579fb993400e5a593`.
+This milestone runs in `C:\GNart\Work\sh-r3b0b-story-source-review` on
+`codex/r3b1a-story-correction-candidates`. The exact-candidate sub-milestone is
+built on the green local foundation commit
+`2708d6500298b86e6c49d9eb10a684497cc8d7c6`, but final independent QA must start
+at the R3-B0b closeout `462aaf4c19c7e8809284a96579fb993400e5a593` so it covers both
+R3-B1a commits. The branch has not been pushed and R3-B1a has not yet received
+independent Claude Code review.
 
-The exact 17-pair human pre-review found **14 HOLD / 3 REVIEW / 0 PASS** before
-correction. All 17 candidate Story Sources still declare `gender: female`, and
-several boy projections retain unguarded feminine verbs, pronouns, or dialogue.
-The earlier `supportedGenderProjectionReady` calculation proved only that known
-placeholders resolved and its narrow adjacent-name marker did not fire; it did
-not prove Hebrew grammatical agreement. Claude Code's R3-B0b PASS remains valid
-for the batch mechanism and byte graph, not for product content acceptance.
+Claude Code's two preceding R3-B0b returns are closed accurately. Its first
+review found one P2: the zero-cost review CLI's inert static import graph still
+included provider-capable modules. The corrective range
+`8b0818fee5f4338839caa7e3117f97861ee4a867..018e15336fd36058b9469d31e5ce9117222f2cbf`
+moved the companion-view contract to a dependency-free leaf. Claude Code then
+re-gated that exact range read-only and returned **PASS with no P0/P1/P2**,
+independently measuring no forbidden provider module in the graph and running
+the real preparation path under provider/network/write sentinels. That PASS
+establishes the R3-B0b mechanism and zero-cost foundation; it does not accept
+the 17 stories, narration, Visual Directions, or rendered output.
 
-The first green R3-B1a foundation makes the default readiness audit require
-declared `gender: neutral` authority in addition to executable boy/girl
-projections. With V3 enabled and the QA runtime catalog disabled, the fresh
-read-only report remains 18 nominal/configured product slots and 1 strict
-render-qualified slot, but now truthfully reports only **1/18** supported
-gender projections and **1/18** automated narration-preflight-ready. The other
-17 stop first at `product_source_text_not_ready`. All **432** currently selected
-page/gender text projections still execute through the real TTS builder; that
-mechanical fact is no longer mislabeled as gender authority.
+The R3-B1a foundation first corrected a readiness false positive: fixed-female
+sources no longer count as supporting both Wizard genders simply because their
+placeholders execute. The truthful all-story state remains **1/18** strict
+render-qualified, **1/18** supported gender-ready, and **1/18** automated
+narration-preflight-ready. The other 17 stop at
+`product_source_text_not_ready`. All **432** selected page/gender projections
+still execute through the real TTS builder; that mechanical result is not
+treated as source authority or human narration acceptance.
 
-The backwards-compatible Story Source materializer now has a closed correction
-request version that binds the exact R3-B0b batch and record digests and permits
-typed `shotType`/`cameraAngle` repairs plus exact indexed `continuityAnchors`
-repairs in addition to the legacy prose fields.
-It emits distinct pending-only manifest and migration versions; legacy requests
-cannot select the expanded edit surface. The enrichment preflight now requires
-companion appearance-state authority only when a transition or body-state claim
-actually needs it, rejects singular English gender pronouns in candidate Visual
-Directions, and attributes wardrobe findings to child-subject clothing claims
-instead of unrelated socks, shorts, uniforms, or supporting characters.
+The exact correction plan is now complete for all **17 records / 208 pages**:
+**5 bedtime / 6 adventure / 6 fantasy**, with all six fantasy stories retained
+at 16 pages. It contains **388 exact Story Source replacements** and **52 typed
+Visual Direction replacements**. The deterministic orchestrator recomputes the
+tracked R3-B0b authority graph, binds every record and raw source digest, invokes
+the closed correction materializer in memory, and validates the resulting
+manifest, migration, female-prose identity, neutral source authority, complete
+boy/girl projections, composition policy, and absence of singular English
+gender pronouns. It can optionally publish only one immutable content-addressed
+candidate artifact under ignored `outputs/`, protected by an exclusive lock,
+filesystem identity fences, exact replay, and collision rejection.
 
-R3-B0b has one closed, code-only legacy replay policy so its immutable v1
-artifact remains exactly reproducible. The combined readiness, historical-batch,
-materializer, enrichment and actual-CLI slice passes **5 files / 52 tests**, including the
-exact review-batch digest, provider-free closure, legacy edit-surface rejection,
-new digest binding and protected-authority controls. `npx tsc --noEmit --pretty
-false` and `git diff --check` also pass. No source candidate, historical
-artifact, acceptance, package, locator, runtime flag, provider call, render,
-storage/database/order/payment or deployment state changed. Spend remains USD 0
-and the resemblance threshold remains 0.70.
+The plan self-digest is
+`c276878d619d9814720a1fa4697fbaa7c8ca2bef69d74323eeafef71ef3180f2`;
+its tracked bytes are 155,299 with raw SHA-256
+`4a9ee040e19316eaea81bdfe22704dce727b72fde5f305cdbb4e6a8436c21527`.
+The ignored candidate batch digest is
+`96154a39091b71c9dffb64dcf60b8667c149b78d4b4c0d5a07787189d00a7e9b`;
+its canonical file is 353,307 bytes with raw SHA-256
+`d8a57650364d62cfc52496b1385ba5dd95fe702f06edf51ff327ae5a43caba4c`.
+Initial publication reported `created:true` and exact replay `created:false`.
 
-The literal `npm run check` keeps the canonical **381 / 361 / 20** file
-partition. TypeScript and the autonomous-story typecheck pass. Ordinary tests
-report **338 passed files / 4,781 passed tests** and only the ten already-known
-ENOENT failures across six unchanged specs whose six ignored historical
-`outputs/` fixtures are absent. The resource phase encountered three 5-second
-load timeouts and one transient Windows `git` launch denial, plus the three
-known post-run `onTaskUpdate` RPC timeouts. Both affected resource files rerun
-alone at **2 files / 60 tests PASS**, including all four failed cells. The full
-command therefore exits 1 and is not called PASS; no fixture was copied and no
-failure was hidden.
+The batch deliberately reports **8 pending exact product/visual review** and
+**9 HOLD**, with **13 unresolved creative-source/continuity issues** across
+nine stories. One of those also exposes a protected appearance-state authority
+gap. Narration remains automated evidence only: **7 critical** and **24 soft**
+review items, **0 human ear acceptances**. Thus the candidate batch itself has
+**0/17 strict render-ready** records. Existing lifecycle code may load the new
+pending manifest for inspection and disposition recording, but the old review
+and promotion paths reject it explicitly; no acceptance or publication path was
+silently inherited.
 
-R3-B1a is not complete. Next is the deterministic exact-17 correction-candidate
-orchestrator and correction plan, followed by focused validation and independent
-Claude Code review. Product acceptance, narration ear acceptance and all paid
-Visual Contract/Blueprint/Board/render work remain later gates.
+Focused validation passes **7 files / 67 tests**, including all-17 dry run,
+atomic creation and replay, lock ownership, record materialization, deep
+provenance rejection, the real CLI, historical-batch replay, materializer,
+enrichment, and readiness checks. The updated workload classifier passes
+**1 file / 7 tests**. `npx tsc --noEmit --pretty false` and `git diff --check`
+pass. The literal final `npm run check` uses the corrected canonical
+**382 / 362 / 20** file partition. Ordinary tests report **339 passed files /
+4,790 passed tests**, with only ten known ENOENT failures across six unchanged
+specs whose ignored historical `outputs/` fixtures are absent. Resource tests
+report **20/20 files and 640/640 assertions PASS**, followed by three known
+Vitest `onTaskUpdate` RPC timeouts. The overall command exits 1 and is not called
+PASS; no fixture was copied and no failure was hidden.
+
+All effect counters remain zero: no accepted Story Source or Visual Direction,
+runtime activation, provider/network/database/storage call, image/audio/PDF
+render, order/payment/deployment mutation, or spend occurred. The resemblance
+threshold remains **0.70**. Internal parallel audits were used to catch and fix
+content-attribution and filesystem-race defects, but do not replace the required
+independent Claude Code gate. Product decisions for the 13 HOLD issues,
+narration ear acceptance, publication, and paid LOW/HIGH rendering remain later
+staged gates.
 
 ## R3-B0b — review batch and provider-free import correction independently QA-passed; technical preparation closed
 

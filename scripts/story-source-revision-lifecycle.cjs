@@ -15,6 +15,7 @@ const ACCEPTED_REVISION_VERSION =
   'small-heroes-product-accepted-story-source-revision-manifest/v2';
 const REVISION_IDENTITY_VERSION = 'small-heroes-story-source-revision-identity/v2';
 const PENDING_VERSION = 'small-heroes-story-source-revision-pending-manifest/v4';
+const CORRECTION_PENDING_VERSION = materializer.CORRECTION_MANIFEST_VERSION;
 const OUTPUTS_ROOT_RELATIVE = 'outputs';
 const ACCEPTED_ROOT_RELATIVE =
   'story-pipeline/04_approved_story_sources/accepted';
@@ -258,6 +259,7 @@ function validateTechnicalReview(value) {
 }
 
 function validatePendingShape(pending) {
+  const correctionPending = pending?.version === CORRECTION_PENDING_VERSION;
   if (
     !exactKeys(pending, [
       'authorityScope',
@@ -269,12 +271,13 @@ function validatePendingShape(pending) {
       'outputs',
       'projections',
       'request',
+      ...(correctionPending ? ['reviewBatch'] : []),
       'sourceGenderMode',
       'status',
       'storyKey',
       'version',
     ]) ||
-    pending.version !== PENDING_VERSION ||
+    (pending.version !== PENDING_VERSION && !correctionPending) ||
     pending.status !== 'pending_exact_product_review' ||
     pending.authorityScope !== 'story_source_and_visual_directions_only' ||
     pending.sourceGenderMode !== 'neutral' ||
@@ -287,6 +290,16 @@ function validatePendingShape(pending) {
     pending.invariants?.storageWrites !== 0 ||
     pending.invariants?.databaseWrites !== 0 ||
     pending.invariants?.renders !== 0 ||
+    (correctionPending &&
+      (!exactKeys(pending.reviewBatch, [
+        'digest',
+        'recordDigest',
+        'version',
+      ]) ||
+        pending.reviewBatch.version !==
+          'small-heroes-story-source-visual-direction-review-batch/v1' ||
+        !/^[a-f0-9]{64}$/.test(pending.reviewBatch.digest) ||
+        !/^[a-f0-9]{64}$/.test(pending.reviewBatch.recordDigest))) ||
     !canonicalDigestIsValid(pending)
   ) {
     throw new Error('story_source_revision_pending_invalid');
@@ -546,6 +559,9 @@ function prepareReview({ pendingManifestPath, technicalReviewPath, outputDir, wr
   const repoRoot = roots.repoRoot || REPO_ROOT;
   const outputsRoot = roots.outputsRootRelative || OUTPUTS_ROOT_RELATIVE;
   const loaded = loadPendingRevision(pendingManifestPath, roots);
+  if (loaded.pending.version === CORRECTION_PENDING_VERSION) {
+    throw new Error('story_source_visual_direction_correction_review_not_implemented');
+  }
   const technical = readTechnicalReview(technicalReviewPath, roots);
   const review = buildReviewBundle(loaded, technical.review);
   const bytes = materializer.canonicalBytes(review);
@@ -758,6 +774,9 @@ function promoteRevision(
   const repoRoot = roots.repoRoot || REPO_ROOT;
   const acceptedRoot = roots.acceptedRootRelative || ACCEPTED_ROOT_RELATIVE;
   const loaded = loadPendingRevision(pendingManifestPath, roots);
+  if (loaded.pending.version === CORRECTION_PENDING_VERSION) {
+    throw new Error('story_source_visual_direction_correction_promotion_not_implemented');
+  }
   const prepared = readReviewBundle(reviewBundlePath, loaded, roots);
   prepared.reviewSha256 = prepared.file.sha256;
   const acceptanceResult = readAcceptance(acceptancePath, prepared, roots);

@@ -1242,23 +1242,26 @@ describe('R3-B0b Story Source / Visual Direction review batch', () => {
   }, 20_000);
 
   it('keeps the supported direct-literal static import graph free of provider capabilities', () => {
-    const cliGraph = staticRuntimeImportGraph(
-      path.join(
-        REPO,
-        'scripts/prepare-story-source-visual-direction-review-batch.ts',
-      ),
+    const entrypoints = [
+      'scripts/prepare-story-source-visual-direction-review-batch.ts',
+      'scripts/prepare-story-source-visual-direction-corrections.ts',
+    ];
+    const graphs = entrypoints.map((entrypoint) =>
+      staticRuntimeImportGraph(path.join(REPO, entrypoint)),
     );
-    expect(
-      [...cliGraph.localFiles].filter((candidate) =>
-        FORBIDDEN_REVIEW_BATCH_LOCAL_MODULES.has(candidate),
-      ),
-    ).toEqual([]);
-    expect(
-      [...cliGraph.externalSpecifiers].filter(
-        isForbiddenReviewBatchProviderPackage,
-      ),
-    ).toEqual([]);
-    expect(cliGraph.localFiles).toContain(
+    for (const cliGraph of graphs) {
+      expect(
+        [...cliGraph.localFiles].filter((candidate) =>
+          FORBIDDEN_REVIEW_BATCH_LOCAL_MODULES.has(candidate),
+        ),
+      ).toEqual([]);
+      expect(
+        [...cliGraph.externalSpecifiers].filter(
+          isForbiddenReviewBatchProviderPackage,
+        ),
+      ).toEqual([]);
+    }
+    expect(graphs[0]?.localFiles).toContain(
       'lib/generation-pipeline/companion-character-sheet-contract.ts',
     );
 

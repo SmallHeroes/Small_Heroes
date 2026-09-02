@@ -1,0 +1,3084 @@
+{
+  "authorityScope": "deterministic_correction_candidates_only",
+  "decisionGate": {
+    "authorizedBy": "Guy",
+    "authorizedOn": "2026-09-03",
+    "bytes": 10131,
+    "path": "docs/ai-workflow/R3B1A_STORY_SOURCE_VISUAL_DIRECTION_CORRECTION_CANDIDATES_DECISION_GATE.md",
+    "sha256": "b8c8dd15e70e46f6df2a143f002576adf300c6fa57af972bbe872ecefa790374"
+  },
+  "digest": "c276878d619d9814720a1fa4697fbaa7c8ca2bef69d74323eeafef71ef3180f2",
+  "digestAlgorithm": "canonical-json-sha256",
+  "records": [
+    {
+      "acceptedManifest": {
+        "path": "story-pipeline/04_approved_story_sources/accepted/bunny_ometz_adventure/manifest.json",
+        "sha256": "a95b9a0d7bccd86074dec9dfea92bff643fa22eccc332a88a548a16487ff6984"
+      },
+      "acceptedStory": {
+        "path": "story-pipeline/04_approved_story_sources/accepted/bunny_ometz_adventure/story.md",
+        "sha256": "e8f3315cefb19cc206d77654fd9349ef471837293fa68b198b356448c27f22ff"
+      },
+      "briefId": "bunny_ometz_adventure_shrinking_bridge_inspection_brief_v1",
+      "continuityIntent": {
+        "childWardrobeAuthority": "frozen_visual_contract",
+        "childWardrobeTransitionPages": [],
+        "companionAccessoryAuthority": "canonical_companion_profile",
+        "companionAppearanceAuthority": "frozen_companion_state",
+        "companionStateTransitionPages": [],
+        "version": "small-heroes-story-visual-continuity-intent/v1"
+      },
+      "directionReplacements": [
+        {
+          "expectedCount": 1,
+          "field": "mainAction",
+          "from": "The child guides the transformed red railcar into the corridor while Bunny conducts with a cotton swab and three cotton balls tumble onto him.",
+          "pageNumber": 2,
+          "to": "The child guides the transformed red railcar into the corridor while Bunny conducts with a cotton swab and three cotton balls tumble onto Bunny."
+        },
+        {
+          "expectedCount": 1,
+          "field": "mainAction",
+          "from": "Bunny lowers his cotton-swab baton",
+          "pageNumber": 3,
+          "to": "Bunny lowers the cotton-swab baton"
+        },
+        {
+          "expectedCount": 1,
+          "field": "mainAction",
+          "from": "her belly",
+          "pageNumber": 6,
+          "to": "the child's belly"
+        },
+        {
+          "expectedCount": 1,
+          "field": "mainAction",
+          "from": "leaving his fallen cotton-swab baton behind",
+          "pageNumber": 9,
+          "to": "leaving Bunny's fallen cotton-swab baton behind"
+        },
+        {
+          "expectedCount": 1,
+          "field": "mainAction",
+          "from": "Bunny sits with his paws resting on his knees",
+          "pageNumber": 10,
+          "to": "Bunny sits with paws resting on knees"
+        }
+      ],
+      "reviewRecordDigest": "c818d55a36ba85b79c9a2f755dfcd0a852650b77aa53499e05eb84f80c3acff1",
+      "storyKey": "bunny_ometz_adventure",
+      "textReplacements": [
+        {
+          "expectedCount": 1,
+          "from": "gender: female",
+          "to": "gender: neutral"
+        },
+        {
+          "expectedCount": 1,
+          "from": "בחדר ההמתנה ישבה {{childName}} ליד בּוּנִי וחיכתה לבדיקת הלב שלה. לרגליה עמדה עגלת צעצוע אדומה שהביאה מהבית.",
+          "to": "בחדר ההמתנה {ישב|ישבה} {{childName}} ליד בּוּנִי {וחיכה|וחיכתה} לבדיקת הלב {שלו|שלה}. {לרגליו|לרגליה} עמדה עגלת צעצוע אדומה {שהביא|שהביאה} מהבית."
+        },
+        {
+          "expectedCount": 1,
+          "from": "{{childName}} הניחה יד על עגלת הצעצוע, וזו התארכה בדמיונה והפכה לקרונית אדומה.",
+          "to": "{{childName}} {הניח|הניחה} יד על עגלת הצעצוע, וזו התארכה {בדמיונו|בדמיונה} והפכה לקרונית אדומה."
+        },
+        {
+          "expectedCount": 1,
+          "from": "בפתח חדר הבדיקה עצרה {{childName}}.",
+          "to": "בפתח חדר הבדיקה {עצר|עצרה} {{childName}}."
+        },
+        {
+          "expectedCount": 1,
+          "from": "הקרונית עצרה איתה.",
+          "to": "הקרונית עצרה {איתו|איתה}."
+        },
+        {
+          "expectedCount": 1,
+          "from": "\"מה יעשו בבדיקה?\" שאלה את האחות.",
+          "to": "\"מה יעשו בבדיקה?\" {שאל|שאלה} את האחות."
+        },
+        {
+          "expectedCount": 1,
+          "from": "האחות הראתה לה מדבקות עגולות וחוטים דקים. \"נדביק אותן בעדינות על החזה. המכשיר יקשיב לקצב הלב. זה לא אמור לכאוב. {אתה יכול לומר לי בכל רגע שתרצה שאעצור|את יכולה לומר לי בכל רגע שתרצי שאעצור}.\"",
+          "to": "האחות הראתה {לו|לה} מדבקות עגולות וחוטים דקים. \"נדביק אותן בעדינות על החזה. המכשיר יקשיב לקצב הלב. זה לא אמור לכאוב. {אתה יכול לומר לי בכל רגע שתרצה שאעצור|את יכולה לומר לי בכל רגע שתרצי שאעצור}.\""
+        },
+        {
+          "expectedCount": 1,
+          "from": "{{childName}} הנהנה. \"אז קודם מסבירים, אחר כך מתחילים.\"",
+          "to": "{{childName}} {הנהן|הנהנה}. \"אז קודם מסבירים, אחר כך מתחילים.\""
+        },
+        {
+          "expectedCount": 1,
+          "from": "השלישית דגדגה מעט, ו־{{childName}} הרימה יד.",
+          "to": "השלישית דגדגה מעט, ו־{{childName}} {הרים|הרימה} יד."
+        },
+        {
+          "expectedCount": 1,
+          "from": "{{childName}} נשמה, סידרה את החולצה ואמרה: \"עכשיו אפשר להמשיך.\"",
+          "to": "{{childName}} {נשם|נשמה}, {סידר|סידרה} את החולצה {ואמר|ואמרה}: \"עכשיו אפשר להמשיך.\""
+        },
+        {
+          "expectedCount": 1,
+          "from": "\"הרעש שלך לא עוזר,\" אמרה {{childName}}.",
+          "to": "\"הרעש שלך לא עוזר,\" {אמר|אמרה} {{childName}}."
+        },
+        {
+          "expectedCount": 1,
+          "from": "{{childName}} הביטה בגשר. בכל נשימה הוא השתנה:",
+          "to": "{{childName}} {הביט|הביטה} בגשר. בכל נשימה הוא השתנה:"
+        },
+        {
+          "expectedCount": 1,
+          "from": "כשהיא מיהרה—רטט מצד לצד.",
+          "to": "{כשהוא מיהר|כשהיא מיהרה}—רטט מצד לצד."
+        },
+        {
+          "expectedCount": 1,
+          "from": "\"אולי את תבחרי את הקצב,\" הציע בשקט.",
+          "to": "\"{אולי אתה תבחר|אולי את תבחרי} את הקצב,\" הציע בשקט."
+        },
+        {
+          "expectedCount": 1,
+          "from": "{{childName}} הניחה יד על בטנה. היא לא הייתה צריכה נשימה ענקית או מושלמת. רק נשימה שנוחה לה.",
+          "to": "{{childName}} {הניח|הניחה} יד על {בטנו|בטנה}. {הוא לא היה צריך|היא לא הייתה צריכה} נשימה ענקית או מושלמת. רק נשימה שנוחה {לו|לה}."
+        },
+        {
+          "expectedCount": 1,
+          "from": "\"אני רוצה להתחיל לאט,\" אמרה.",
+          "to": "\"אני רוצה להתחיל לאט,\" {אמר|אמרה}."
+        },
+        {
+          "expectedCount": 1,
+          "from": "{{childName}} שאפה בנחת.",
+          "to": "{{childName}} {שאף|שאפה} בנחת."
+        },
+        {
+          "expectedCount": 1,
+          "from": "היא נשפה בנחת.",
+          "to": "{הוא נשף|היא נשפה} בנחת."
+        },
+        {
+          "expectedCount": 1,
+          "from": "\"בואו עכשיו,\" אמרה.",
+          "to": "\"בואו עכשיו,\" {אמר|אמרה}."
+        },
+        {
+          "expectedCount": 1,
+          "from": "הקרונית התגלגלה קדימה בקצב שבחרה:",
+          "to": "הקרונית התגלגלה קדימה בקצב {שבחר|שבחרה}:"
+        },
+        {
+          "expectedCount": 1,
+          "from": "בּוּנִי עקב אחר הסימנים של {{childName}} ודחף רק כשהורתה לו להתקדם.",
+          "to": "בּוּנִי עקב אחר הסימנים של {{childName}} ודחף רק {כשהורה|כשהורתה} לו להתקדם."
+        },
+        {
+          "expectedCount": 1,
+          "from": "\"אני צריכה רגע,\" אמרה והרימה יד.",
+          "to": "\"{אני צריך|אני צריכה} רגע,\" {אמר|אמרה} {והרים|והרימה} יד."
+        },
+        {
+          "expectedCount": 1,
+          "from": "{{childName}} הקשיבה לקולות האמיתיים: נשימתה, זמזום המכשיר וקולה של האחות שאמרה, \"אין שום צורך למהר.\"",
+          "to": "{{childName}} {הקשיב|הקשיבה} לקולות האמיתיים: {נשימתו|נשימתה}, זמזום המכשיר וקולה של האחות שאמרה, \"אין שום צורך למהר.\""
+        },
+        {
+          "expectedCount": 1,
+          "from": "כשהרגישה מוכנה, היא הורידה את ידה.",
+          "to": "{כשהרגיש מוכן|כשהרגישה מוכנה}, {הוא הוריד|היא הורידה} את {ידו|ידה}."
+        },
+        {
+          "expectedCount": 1,
+          "from": "כדי לחצות אותה נדרש שיתוף פעולה: האחות עקבה אחרי הצג, בּוּנִי שמר על התו, ו־{{childName}} שמרה על הקצב שבחרה.",
+          "to": "כדי לחצות אותה נדרש שיתוף פעולה: האחות עקבה אחרי הצג, בּוּנִי שמר על התו, ו־{{childName}} {שמר|שמרה} על הקצב {שבחר|שבחרה}."
+        },
+        {
+          "expectedCount": 1,
+          "from": "\"עכשיו,\" אמרה {{childName}}.",
+          "to": "\"עכשיו,\" {אמר|אמרה} {{childName}}."
+        },
+        {
+          "expectedCount": 1,
+          "from": "ובקצב שלה הם עברו.",
+          "to": "ובקצב {שלו|שלה} הם עברו."
+        },
+        {
+          "expectedCount": 1,
+          "from": "{{childName}} בחרה לנשוף בזמן ההסרה.",
+          "to": "{{childName}} {בחר|בחרה} לנשוף בזמן ההסרה."
+        },
+        {
+          "expectedCount": 1,
+          "from": "בשלישית ביקשה: \"לאט יותר, בבקשה.\"",
+          "to": "בשלישית {ביקש|ביקשה}: \"לאט יותר, בבקשה.\""
+        },
+        {
+          "expectedCount": 1,
+          "from": "אבל צליל היריד נשאר עוד רגע בלבה של {{childName}}.",
+          "to": "אבל צליל היריד נשאר עוד רגע {בלבו|בלבה} של {{childName}}."
+        },
+        {
+          "expectedCount": 1,
+          "from": "{{childName}} התיישבה. הגשר כבר נעלם, אך מתחת לכף ידה עוד פעם לבה בקצב שקט משלו.",
+          "to": "{{childName}} {התיישב|התיישבה}. הגשר כבר נעלם, אך מתחת {לכף ידו|לכף ידה} עוד פעם {לבו|לבה} בקצב שקט משלו."
+        },
+        {
+          "expectedCount": 1,
+          "from": "\"מי מובילה בדרך החוצה?\" שאל.",
+          "to": "\"מי {מוביל|מובילה} בדרך החוצה?\" שאל."
+        },
+        {
+          "expectedCount": 1,
+          "from": "\"אני,\" אמרה {{childName}}.",
+          "to": "\"אני,\" {אמר|אמרה} {{childName}}."
+        },
+        {
+          "expectedCount": 1,
+          "from": "היא יצאה מן החדר ראשונה. בּוּנִי משך אחריה את העגלה האדומה, ובתוכה הבהב לרגע התו הזעיר.",
+          "to": "{הוא יצא|היא יצאה} מן החדר {ראשון|ראשונה}. בּוּנִי משך {אחריו|אחריה} את העגלה האדומה, ובתוכה הבהב לרגע התו הזעיר."
+        },
+        {
+          "expectedCount": 1,
+          "from": "בדיוק בקצב שלה.",
+          "to": "בדיוק בקצב {שלו|שלה}."
+        }
+      ],
+      "unresolvedCreativeSourceIssues": [],
+      "visualDirection": {
+        "path": "story-pipeline/05_storyboard_inputs/autonomous-20260815-v1/bunny_ometz_adventure.visual-directions.json",
+        "sha256": "ad7174a601e090efa53881593d80ba4f0a658ba44302d62c87d304e0bab9be15"
+      },
+      "worldModeRecommendation": {
+        "authorityStatus": "recommendation_only_pending_reviewer_decision",
+        "rationale": "The clinic remains physically grounded while the prose explicitly marks the railcar, raft, bridge, river, and fair as imagined transformations.",
+        "value": "grounded_with_visual_metaphor"
+      }
+    },
+    {
+      "acceptedManifest": {
+        "path": "story-pipeline/04_approved_story_sources/accepted/bunny_ometz_bedtime/manifest.json",
+        "sha256": "e3d2cdf9ab5ca255b97915fc6d1cd60633b1bee79b48ad9dd8527e4882e1a92c"
+      },
+      "acceptedStory": {
+        "path": "story-pipeline/04_approved_story_sources/accepted/bunny_ometz_bedtime/story.md",
+        "sha256": "c0a1933c2e475ec37c96efae28b7c5cd805844c934dda4498145850df4569941"
+      },
+      "briefId": "bunny_ometz_bedtime_toy_inspection_depot_brief_v1",
+      "continuityIntent": {
+        "childWardrobeAuthority": "frozen_visual_contract",
+        "childWardrobeTransitionPages": [],
+        "companionAccessoryAuthority": "canonical_companion_profile",
+        "companionAppearanceAuthority": "frozen_companion_state",
+        "companionStateTransitionPages": [],
+        "version": "small-heroes-story-visual-continuity-intent/v1"
+      },
+      "directionReplacements": [],
+      "reviewRecordDigest": "867855660c9cebe8e3ac0cdff748b1340138e23edcb55839faeeff5850bc4e7e",
+      "storyKey": "bunny_ometz_bedtime",
+      "textReplacements": [
+        {
+          "expectedCount": 1,
+          "from": "gender: female",
+          "to": "gender: neutral"
+        }
+      ],
+      "unresolvedCreativeSourceIssues": [
+        {
+          "code": "child_verb_gender_agreement_page_4",
+          "evidence": "Source: {{childName}} {לקח|לקחה} שלושה כרטיסי רכבת והניח אותם בשורה. — The accepted female projection contains masculine child verb והניח. Correcting it necessarily changes the accepted female prose.",
+          "pageNumbers": [
+            4
+          ],
+          "requiredAction": "{{childName}} {לקח|לקחה} שלושה כרטיסי רכבת {והניח|והניחה} אותם בשורה.",
+          "severity": "hold"
+        },
+        {
+          "code": "child_verb_gender_agreement_page_6",
+          "evidence": "Source: {{childName}} לא הזיז את הקטר. \"קיפודון, אתה רוצה להתקדם לתחנת הפינצטה?\" — The accepted female projection contains masculine child form לא הזיז. Correcting it necessarily changes the accepted female prose.",
+          "pageNumbers": [
+            6
+          ],
+          "requiredAction": "{{childName}} {לא הזיז|לא הזיזה} את הקטר. \"קיפודון, אתה רוצה להתקדם לתחנת הפינצטה?\"",
+          "severity": "hold"
+        }
+      ],
+      "visualDirection": {
+        "path": "story-pipeline/05_storyboard_inputs/autonomous-20260815-v1/bunny_ometz_bedtime.visual-directions.json",
+        "sha256": "abc669e315fc568ece57677c429b09eef7ef2c15cac8c151fee2bd2b017f180d"
+      },
+      "worldModeRecommendation": {
+        "authorityStatus": "recommendation_only_pending_reviewer_decision",
+        "rationale": "The sentient toy station, tools, and night train are the story's actual world, not an explicitly imagined overlay.",
+        "value": "fantastical"
+      }
+    },
+    {
+      "acceptedManifest": {
+        "path": "story-pipeline/04_approved_story_sources/accepted/bunny_ometz_fantasy/manifest.json",
+        "sha256": "039d4fe240ae0ec715d4fe2dfd1a0b419dce0f0e23d17895fa109c494d428fcc"
+      },
+      "acceptedStory": {
+        "path": "story-pipeline/04_approved_story_sources/accepted/bunny_ometz_fantasy/story.md",
+        "sha256": "ff68603d3a491486ac53b11a5ba237cbb8697f5199d62a23a2a3358bbd4bffa7"
+      },
+      "briefId": "bunny_ometz_fantasy_plan_sized_doors_brief_v1",
+      "continuityIntent": {
+        "childWardrobeAuthority": "frozen_visual_contract",
+        "childWardrobeTransitionPages": [],
+        "companionAccessoryAuthority": "canonical_companion_profile",
+        "companionAppearanceAuthority": "frozen_companion_state",
+        "companionStateTransitionPages": [],
+        "version": "small-heroes-story-visual-continuity-intent/v1"
+      },
+      "directionReplacements": [
+        {
+          "expectedCount": 1,
+          "field": "mainAction",
+          "from": "The child lifts the open glowing box as Bunny stands ready with his oversized crown slipped over his eyes.",
+          "pageNumber": 1,
+          "to": "The child lifts the closed glowing box as Bunny stands ready with the oversized crown slipped over Bunny's eyes."
+        },
+        {
+          "expectedCount": 1,
+          "field": "mainAction",
+          "from": "her ankles",
+          "pageNumber": 3,
+          "to": "the child's ankles"
+        },
+        {
+          "expectedCount": 1,
+          "field": "mainAction",
+          "from": "Bunny braces his boots and holds the blue ribbon tied around her waist",
+          "pageNumber": 4,
+          "to": "Bunny plants both boots and holds the blue ribbon tied around the child's waist"
+        },
+        {
+          "expectedCount": 1,
+          "field": "mainAction",
+          "from": "after his nose and whiskers",
+          "pageNumber": 5,
+          "to": "after Bunny's nose and whiskers"
+        },
+        {
+          "expectedCount": 1,
+          "field": "mainAction",
+          "from": "beside her",
+          "pageNumber": 9,
+          "to": "beside the child"
+        },
+        {
+          "expectedCount": 1,
+          "field": "mainAction",
+          "from": "Bunny lowers his head beside her",
+          "pageNumber": 10,
+          "to": "Bunny lowers Bunny's own head beside the child"
+        },
+        {
+          "expectedCount": 1,
+          "field": "mainAction",
+          "from": "for her stride",
+          "pageNumber": 12,
+          "to": "for the child's stride"
+        },
+        {
+          "expectedCount": 1,
+          "field": "mainAction",
+          "from": "the child shows Bunny her steady open hand",
+          "pageNumber": 15,
+          "to": "the child shows a steady open hand to Bunny"
+        }
+      ],
+      "reviewRecordDigest": "7d2682829543cca0418c91bc69bd156dbd5776edfc206d57ca4cefe3c0adcbc7",
+      "storyKey": "bunny_ometz_fantasy",
+      "textReplacements": [
+        {
+          "expectedCount": 1,
+          "from": "gender: female",
+          "to": "gender: neutral"
+        },
+        {
+          "expectedCount": 1,
+          "from": "{{childName}} הרימה את הקופסה. בתוכה ריצד אור קטן, כמו בוקר שזה עתה התעורר.",
+          "to": "{{childName}} {הרים|הרימה} את הקופסה. בתוכה ריצד אור קטן, כמו בוקר שזה עתה התעורר."
+        },
+        {
+          "expectedCount": 1,
+          "from": "{{childName}} הצביעה על שלט שהתנדנד ברוח:",
+          "to": "{{childName}} {הצביע|הצביעה} על שלט שהתנדנד ברוח:"
+        },
+        {
+          "expectedCount": 1,
+          "from": "\"אולי,\" אמרה, \"התוכנית שלנו קצת גדולה מדי.\"",
+          "to": "\"אולי,\" {אמר|אמרה}, \"התוכנית שלנו קצת גדולה מדי.\""
+        },
+        {
+          "expectedCount": 1,
+          "from": "קופסת השחר החליקה מידה של {{childName}}.",
+          "to": "קופסת השחר החליקה {מידו|מידה} של {{childName}}."
+        },
+        {
+          "expectedCount": 1,
+          "from": "היא זינקה, תפסה את הסרט הכחול, ובּוּנִי תפס אותה בקרסוליים.",
+          "to": "{הוא זינק|היא זינקה}, {תפס|תפסה} את הסרט הכחול, ובּוּנִי תפס {אותו|אותה} בקרסוליים."
+        },
+        {
+          "expectedCount": 1,
+          "from": "\"כמעט איבדנו את המתנה,\" אמרה {{childName}}.",
+          "to": "\"כמעט איבדנו את המתנה,\" {אמר|אמרה} {{childName}}."
+        },
+        {
+          "expectedCount": 1,
+          "from": "כדי לעבור, {{childName}} קשרה את הסרט הכחול סביב מותניה ומסרה את קצהו לבּוּנִי.",
+          "to": "כדי לעבור, {{childName}} {קשר|קשרה} את הסרט הכחול סביב {מותניו|מותניה} {ומסר|ומסרה} את קצהו לבּוּנִי."
+        },
+        {
+          "expectedCount": 1,
+          "from": "\"אני אעבור ראשונה. אתה תחזיק יציב.\"",
+          "to": "\"אני אעבור {ראשון|ראשונה}. אתה תחזיק יציב.\""
+        },
+        {
+          "expectedCount": 1,
+          "from": "היא פסעה על שורת כיסאות מתנדנדים: טוֹק, טֶק, טוּק.",
+          "to": "{הוא פסע|היא פסעה} על שורת כיסאות מתנדנדים: טוֹק, טֶק, טוּק."
+        },
+        {
+          "expectedCount": 1,
+          "from": "\"אני חושבת,\" אמרה {{childName}} ומשכה אותו בעדינות לאחור, \"שעכשיו התוכנית קטנה מדי.\"",
+          "to": "\"{אני חושב|אני חושבת},\" {אמר|אמרה} {{childName}} {ומשך|ומשכה} אותו בעדינות לאחור, \"שעכשיו התוכנית קטנה מדי.\""
+        },
+        {
+          "expectedCount": 1,
+          "from": "{{childName}} כרעה ליד המבוך. במקום להיכנס אליו, היא הרימה את קופסת השחר מעל הגדרות. האור שבתוכה הטיל צללים וחשף שביל ישר במרכז.",
+          "to": "{{childName}} {כרע|כרעה} ליד המבוך. במקום להיכנס אליו, {הוא הרים|היא הרימה} את קופסת השחר מעל הגדרות. האור שבתוכה הטיל צללים וחשף שביל ישר במרכז."
+        },
+        {
+          "expectedCount": 1,
+          "from": "\"אנחנו כן צריכים להגיע לרופאה,\" אמרה. \"אבל לא חייבים לעשות הכול בבת אחת.\"",
+          "to": "\"אנחנו כן צריכים להגיע לרופאה,\" {אמר|אמרה}. \"אבל לא חייבים לעשות הכול בבת אחת.\""
+        },
+        {
+          "expectedCount": 1,
+          "from": "{{childName}} צחקה, אבל בטנה עדיין הייתה מכווצת.",
+          "to": "{{childName}} {צחק|צחקה}, אבל {בטנו|בטנה} עדיין הייתה מכווצת."
+        },
+        {
+          "expectedCount": 1,
+          "from": "\"אני רוצה להגיע לחדר של הרופאה,\" אמרה. \"ואני רוצה לדעת מה מחכה לי שם.\"",
+          "to": "\"אני רוצה להגיע לחדר של הרופאה,\" {אמר|אמרה}. \"ואני רוצה לדעת מה מחכה לי שם.\""
+        },
+        {
+          "expectedCount": 1,
+          "from": "מדרגה רחבה הופיעה מתחת לרגלה.",
+          "to": "מדרגה רחבה הופיעה {מתחת לרגלו|מתחת לרגלה}."
+        },
+        {
+          "expectedCount": 1,
+          "from": "בכל מדרגה חדשה שאלה {{childName}} שאלה אחת.",
+          "to": "בכל מדרגה חדשה {שאל|שאלה} {{childName}} שאלה אחת."
+        },
+        {
+          "expectedCount": 1,
+          "from": "בּוּנִי טיפס לצדה. \"ואני אוכל להחזיק לה את היד?\"",
+          "to": "בּוּנִי טיפס {לצדו|לצדה}. \"ואני אוכל {להחזיק לו את היד|להחזיק לה את היד}?\""
+        },
+        {
+          "expectedCount": 1,
+          "from": "{{childName}} התיישבה, הזיזה את הכרית ובחרה איפה יניח בּוּנִי את כפתו.",
+          "to": "{{childName}} {התיישב|התיישבה}, {הזיז|הזיזה} את הכרית {ובחר|ובחרה} איפה יניח בּוּנִי את כפתו."
+        },
+        {
+          "expectedCount": 1,
+          "from": "\"ואם {תרצה לעצור לרגע|תרצי לעצור לרגע},\" אמרה האחות, \"פשוט תגידי. נקשיב לך.\"",
+          "to": "\"ואם {תרצה לעצור לרגע|תרצי לעצור לרגע},\" אמרה האחות, \"{פשוט תגיד|פשוט תגידי}. נקשיב לך.\""
+        },
+        {
+          "expectedCount": 1,
+          "from": "{{childName}} ניסתה: \"רגע.\"",
+          "to": "{{childName}} {ניסה|ניסתה}: \"רגע.\""
+        },
+        {
+          "expectedCount": 1,
+          "from": "בּוּנִי כחכח בגרונו. \"תוכנית: {{childName}} לא תפחד בכלל!\"",
+          "to": "בּוּנִי כחכח בגרונו. \"תוכנית: {{childName}} {לא יפחד|לא תפחד} בכלל!\""
+        },
+        {
+          "expectedCount": 1,
+          "from": "{{childName}} הניחה יד על הקופסה. אור השחר רעד בתוכה, וגם ידה רעדה קצת.",
+          "to": "{{childName}} {הניח|הניחה} יד על הקופסה. אור השחר רעד בתוכה, וגם {ידו|ידה} רעדה קצת."
+        },
+        {
+          "expectedCount": 1,
+          "from": "\"אני לא צריכה להבטיח שלא אפחד,\" אמרה. \"אני צריכה תוכנית שאפשר להתחיל.\"",
+          "to": "\"{אני לא צריך|אני לא צריכה} להבטיח שלא אפחד,\" {אמר|אמרה}. \"{אני צריך|אני צריכה} תוכנית שאפשר להתחיל.\""
+        },
+        {
+          "expectedCount": 1,
+          "from": "{{childName}} חשבה על מה שכבר ניסתה.",
+          "to": "{{childName}} {חשב|חשבה} על מה שכבר {ניסה|ניסתה}."
+        },
+        {
+          "expectedCount": 1,
+          "from": "\"אני אשב בכורסה הכחולה,\" אמרה. \"בּוּנִי יחזיק לי יד אחת. ביד השנייה אחזיק את סרט הקופסה. הרופאה תסביר לי, ואני אגיד {כשאהיה מוכן להתחיל|כשאהיה מוכנה להתחיל}.\"",
+          "to": "\"אני אשב בכורסה הכחולה,\" {אמר|אמרה}. \"בּוּנִי יחזיק לי יד אחת. ביד השנייה אחזיק את סרט הקופסה. הרופאה תסביר לי, ואני אגיד {כשאהיה מוכן להתחיל|כשאהיה מוכנה להתחיל}.\""
+        },
+        {
+          "expectedCount": 1,
+          "from": "אבל {{childName}} ניגשה לכורסה הכחולה והתיישבה בה.",
+          "to": "אבל {{childName}} {ניגש|ניגשה} לכורסה הכחולה {והתיישב|והתיישבה} בה."
+        },
+        {
+          "expectedCount": 1,
+          "from": "היא מסרה לבּוּנִי יד אחת, ובשנייה אחזה בסרט.",
+          "to": "{הוא מסר|היא מסרה} לבּוּנִי יד אחת, ובשנייה {אחז|אחזה} בסרט."
+        },
+        {
+          "expectedCount": 1,
+          "from": "\"אני מתחילה עכשיו,\" אמרה.",
+          "to": "\"{אני מתחיל|אני מתחילה} עכשיו,\" {אמר|אמרה}."
+        },
+        {
+          "expectedCount": 1,
+          "from": "מבעד לדלת ראתה {{childName}} את החדר הפנימי.",
+          "to": "מבעד לדלת {ראה|ראתה} {{childName}} את החדר הפנימי."
+        },
+        {
+          "expectedCount": 1,
+          "from": "כיוון שהדלת הייתה שקופה, {{childName}} יכלה לראות היכן תשב ומי יהיה לידה.",
+          "to": "כיוון שהדלת הייתה שקופה, {{childName}} {יכול|יכלה} לראות {היכן ישב|היכן תשב} ומי יהיה {לידו|לידה}."
+        },
+        {
+          "expectedCount": 1,
+          "from": "{{childName}} קמה מן הכורסה, עדיין אוחזת בכפתו של בּוּנִי, ופסעה פנימה.",
+          "to": "{{childName}} {קם|קמה} מן הכורסה, עדיין {אוחז|אוחזת} בכפתו של בּוּנִי, {ופסע|ופסעה} פנימה."
+        },
+        {
+          "expectedCount": 1,
+          "from": "הדלת נפתחה בדיוק ברוחב הצעד שלה.",
+          "to": "הדלת נפתחה בדיוק ברוחב הצעד {שלו|שלה}."
+        },
+        {
+          "expectedCount": 1,
+          "from": "בחדר הניחה {{childName}} את קופסת השחר על השולחן.",
+          "to": "בחדר {הניח|הניחה} {{childName}} את קופסת השחר על השולחן."
+        },
+        {
+          "expectedCount": 1,
+          "from": "הרופאה הראתה לה מה עומד לקרות, הסבירה במילים פשוטות וענתה על עוד שאלה. אחר כך סידרו יחד את הכרית.",
+          "to": "הרופאה הראתה {לו|לה} מה עומד לקרות, הסבירה במילים פשוטות וענתה על עוד שאלה. אחר כך סידרו יחד את הכרית."
+        },
+        {
+          "expectedCount": 1,
+          "from": "\"בבּוּנִי,\" בחרה {{childName}}. \"אבל שיעשה פרצוף רגיל.\"",
+          "to": "\"בבּוּנִי,\" {בחר|בחרה} {{childName}}. \"אבל שיעשה פרצוף רגיל.\""
+        },
+        {
+          "expectedCount": 1,
+          "from": "{{childName}} פרצה בצחוק.",
+          "to": "{{childName}} {פרץ|פרצה} בצחוק."
+        },
+        {
+          "expectedCount": 1,
+          "from": "{{childName}} התיישבה כפי שבחרה. היא לחצה את כפתו של בּוּנִי ואמרה:",
+          "to": "{{childName}} {התיישב|התיישבה} כפי {שבחר|שבחרה}. {הוא לחץ|היא לחצה} את כפתו של בּוּנִי {ואמר|ואמרה}:"
+        },
+        {
+          "expectedCount": 1,
+          "from": "{{childName}} נשמה, ספרה שתי בועות ואמרה כשהייתה צריכה רגע. הרופאה והאחות הקשיבו וטיפלו בה בזהירות.",
+          "to": "{{childName}} {נשם|נשמה}, {ספר|ספרה} שתי בועות {ואמר|ואמרה} {כשהיה צריך|כשהייתה צריכה} רגע. הרופאה והאחות הקשיבו וטיפלו {בו|בה} בזהירות."
+        },
+        {
+          "expectedCount": 1,
+          "from": "\"כולנו עשינו את החלק שלנו,\" אמרה {{childName}}.",
+          "to": "\"כולנו עשינו את החלק שלנו,\" {אמר|אמרה} {{childName}}."
+        },
+        {
+          "expectedCount": 1,
+          "from": "והיא פתחה את כף ידה, כדי שגם הוא יראה שהיא כבר לא רועדת.",
+          "to": "{והוא פתח|והיא פתחה} את {כף ידו|כף ידה}, כדי שגם הוא יראה {שהוא כבר לא רועד|שהיא כבר לא רועדת}."
+        },
+        {
+          "expectedCount": 1,
+          "from": "\"סוף־סוף תוכנית בגודל המתאים,\" אמרה {{childName}}.",
+          "to": "\"סוף־סוף תוכנית בגודל המתאים,\" {אמר|אמרה} {{childName}}."
+        }
+      ],
+      "unresolvedCreativeSourceIssues": [],
+      "visualDirection": {
+        "path": "story-pipeline/05_storyboard_inputs/autonomous-20260815-v1/bunny_ometz_fantasy.visual-directions.json",
+        "sha256": "cca7647dbc7913d21c8f0f050a79be1a89c1577f9ff766f7769e113d84082fcc"
+      },
+      "worldModeRecommendation": {
+        "authorityStatus": "recommendation_only_pending_reviewer_decision",
+        "rationale": "The responsive palace, doors, inverted ballroom, maze, cloud stairs, and dawn box operate as physical story-world causality.",
+        "value": "fantastical"
+      }
+    },
+    {
+      "acceptedManifest": {
+        "path": "story-pipeline/04_approved_story_sources/accepted/chameleon_koko_adventure/manifest.json",
+        "sha256": "92a348ceae94df32721424d3f259f2737515008cb816cf2efa720d1543888372"
+      },
+      "acceptedStory": {
+        "path": "story-pipeline/04_approved_story_sources/accepted/chameleon_koko_adventure/story.md",
+        "sha256": "b20b74e622f601501dfabc65cd7b3af401df04cbef7441457d74208b34ace782"
+      },
+      "briefId": "chameleon_koko_adventure_shifting_harbor_market_brief_v1",
+      "continuityIntent": {
+        "childWardrobeAuthority": "frozen_visual_contract",
+        "childWardrobeTransitionPages": [],
+        "companionAccessoryAuthority": "canonical_companion_profile",
+        "companionAppearanceAuthority": "frozen_companion_state",
+        "companionStateTransitionPages": [],
+        "version": "small-heroes-story-visual-continuity-intent/v1"
+      },
+      "directionReplacements": [
+        {
+          "expectedCount": 1,
+          "field": "shotType",
+          "from": "medium",
+          "pageNumber": 3,
+          "to": "medium_close"
+        }
+      ],
+      "reviewRecordDigest": "87b0eede700955895386065009ece56e01c264ef8d06e7950ef7899edafadc50",
+      "storyKey": "chameleon_koko_adventure",
+      "textReplacements": [
+        {
+          "expectedCount": 1,
+          "from": "gender: female",
+          "to": "gender: neutral"
+        },
+        {
+          "expectedCount": 1,
+          "from": "“עצור!” קראה קִים. “אנחנו צריכות סבל נמל!”",
+          "to": "“עצור!” קראה קִים. “אנחנו {צריכים|צריכות} סבל נמל!”"
+        },
+        {
+          "expectedCount": 1,
+          "from": "{{childName}} הביטה בגלגלי העגלה. “לא. היא נוסעת אל התעלה המרכזית. גם משם אפשר להגיע לרציף הרחוק.”",
+          "to": "{{childName}} {הביט|הביטה} בגלגלי העגלה. “לא. היא נוסעת אל התעלה המרכזית. גם משם אפשר להגיע לרציף הרחוק.”"
+        },
+        {
+          "expectedCount": 1,
+          "from": "ושתיהן זינקו בעקבות הריח הנהדר של מרק הדלעת.",
+          "to": "{ושניהם|ושתיהן} זינקו בעקבות הריח הנהדר של מרק הדלעת."
+        },
+        {
+          "expectedCount": 1,
+          "from": "{{childName}} קפצה על מדרגת העגלה, לקחה שתי כיכרות מהמריצה של בוריס ותחבה אותן מתחת לחבילה.",
+          "to": "{{childName}} {קפץ|קפצה} על מדרגת העגלה, {לקח|לקחה} שתי כיכרות מהמריצה של בוריס {ותחב|ותחבה} אותן מתחת לחבילה."
+        },
+        {
+          "expectedCount": 1,
+          "from": "{{childName}} חייכה. “מרה תבחר כיוון, הדייג ייתן לנו רוח, והסבלים יחזיקו בחבלים.”",
+          "to": "{{childName}} {חייך|חייכה}. “מרה תבחר כיוון, הדייג ייתן לנו רוח, והסבלים יחזיקו בחבלים.”"
+        },
+        {
+          "expectedCount": 1,
+          "from": "{{childName}} טיפסה על סיר המרק והביטה. משמאל, עלי הכותרת של מרה עפו עד לעיקול שמאחורי המאפייה. מעבר לגג נראתה התעלה המרכזית, ושם נשמע צלצול חלש.",
+          "to": "{{childName}} {טיפס|טיפסה} על סיר המרק {והביט|והביטה}. משמאל, עלי הכותרת של מרה עפו עד לעיקול שמאחורי המאפייה. מעבר לגג נראתה התעלה המרכזית, ושם נשמע צלצול חלש."
+        },
+        {
+          "expectedCount": 1,
+          "from": "“שמאלה עם הרוח,” אמרה. “נקיף את האי, נעבור מאחורי המאפייה וניכנס משם ישר לתעלת הפעמון.”",
+          "to": "“שמאלה עם הרוח,” {אמר|אמרה}. “נקיף את האי, נעבור מאחורי המאפייה וניכנס משם ישר לתעלת הפעמון.”"
+        },
+        {
+          "expectedCount": 1,
+          "from": "“הם לא מאבדים אותה,” אמרה. “תראי לאן היא מגיעה.”",
+          "to": "“הם לא מאבדים אותה,” {אמר|אמרה}. “תראי לאן היא מגיעה.”"
+        },
+        {
+          "expectedCount": 1,
+          "from": "{{childName}} מחאה כפיים בקצב כלי הנגינה.",
+          "to": "{{childName}} {מחא|מחאה} כפיים בקצב כלי הנגינה."
+        },
+        {
+          "expectedCount": 1,
+          "from": "{{childName}} הצביעה על התחנות: התוף, הסל, המצוף, העגלה, הסירה.",
+          "to": "{{childName}} {הצביע|הצביעה} על התחנות: התוף, הסל, המצוף, העגלה, הסירה."
+        },
+        {
+          "expectedCount": 1,
+          "from": "היא התכוננה, אבל {{childName}} עצרה אותה. המרחק היה גדול מדי, והחבילה הייתה כבדה.",
+          "to": "היא התכוננה, אבל {{childName}} {עצר|עצרה} אותה. המרחק היה גדול מדי, והחבילה הייתה כבדה."
+        },
+        {
+          "expectedCount": 1,
+          "from": "היא קראה לבוריס להביא קרש לחם ארוך, לסבלים לחזק אותו בחבלים, למרה לקשור אליו שרשרת פרחים ולנגן הטובה לתת אות בכל מסירה.",
+          "to": "{הוא קרא|היא קראה} לבוריס להביא קרש לחם ארוך, לסבלים לחזק אותו בחבלים, למרה לקשור אליו שרשרת פרחים ולנגן הטובה לתת אות בכל מסירה."
+        },
+        {
+          "expectedCount": 1,
+          "from": "{{childName}} נתנה את האות. מחלקי העיתונים השיטו את סירתם מתחת לקִים, והיא הניחה בתוכה את החבילה—ושחררה.",
+          "to": "{{childName}} {נתן|נתנה} את האות. מחלקי העיתונים השיטו את סירתם מתחת לקִים, והיא הניחה בתוכה את החבילה—ושחררה."
+        },
+        {
+          "expectedCount": 1,
+          "from": "כשהסירה התקרבה לרציף, {{childName}} הכינה את המסירה האחרונה: הסבלים הניחו קרש קצר מן החרטום אל הרציף וקשרו אותו בשרשרת החמניות. על הקרש הוצב סל ובתוכו החבילה. מאחורי הסל הצמידה נור את המצקת, והדייג קשר כובע רחב לידית שלה.",
+          "to": "כשהסירה התקרבה לרציף, {{childName}} {הכין|הכינה} את המסירה האחרונה: הסבלים הניחו קרש קצר מן החרטום אל הרציף וקשרו אותו בשרשרת החמניות. על הקרש הוצב סל ובתוכו החבילה. מאחורי הסל הצמידה נור את המצקת, והדייג קשר כובע רחב לידית שלה."
+        },
+        {
+          "expectedCount": 1,
+          "from": "“כששרשרת הפרחים תימתח,” אמרה {{childName}}, “נפתח את הכובע לרוח.”",
+          "to": "“כששרשרת הפרחים תימתח,” {אמר|אמרה} {{childName}}, “נפתח את הכובע לרוח.”"
+        },
+        {
+          "expectedCount": 1,
+          "from": "{{childName}} בדקה שהקרש יציב וקראה:",
+          "to": "{{childName}} {בדק|בדקה} שהקרש יציב {וקרא|וקראה}:"
+        },
+        {
+          "expectedCount": 1,
+          "from": "{{childName}} משכה בסרט הכסוף, והפעמון החדש צלצל בקול בהיר.",
+          "to": "{{childName}} {משך|משכה} בסרט הכסוף, והפעמון החדש צלצל בקול בהיר."
+        }
+      ],
+      "unresolvedCreativeSourceIssues": [],
+      "visualDirection": {
+        "path": "story-pipeline/05_storyboard_inputs/autonomous-20260815-v1/chameleon_koko_adventure.visual-directions.json",
+        "sha256": "2b449f8ed96b35e52c00d0ca7abeffe81a98d77dcae9da767e9bbe4d1890bb24"
+      },
+      "worldModeRecommendation": {
+        "authorityStatus": "recommendation_only_pending_reviewer_decision",
+        "rationale": "The harbor market physically reshapes with each bell signal and is not framed as imagination.",
+        "value": "fantastical"
+      }
+    },
+    {
+      "acceptedManifest": {
+        "path": "story-pipeline/04_approved_story_sources/accepted/chameleon_koko_fantasy/manifest.json",
+        "sha256": "b304e9a2e9e88a2a7b18599b03f50cb3357e665587dfa3376359d0ca5f3e62d8"
+      },
+      "acceptedStory": {
+        "path": "story-pipeline/04_approved_story_sources/accepted/chameleon_koko_fantasy/story.md",
+        "sha256": "5cbaed07bc640877e91c2d4c5a0dd86928e839a09ddf076ece8c582f826b9a61"
+      },
+      "briefId": "chameleon_koko_fantasy_streets_obey_signs_brief_v1",
+      "continuityIntent": {
+        "childWardrobeAuthority": "frozen_visual_contract",
+        "childWardrobeTransitionPages": [],
+        "companionAccessoryAuthority": "canonical_companion_profile",
+        "companionAppearanceAuthority": "frozen_companion_state",
+        "companionStateTransitionPages": [],
+        "version": "small-heroes-story-visual-continuity-intent/v1"
+      },
+      "directionReplacements": [],
+      "reviewRecordDigest": "5e86b4b93f5e5579d2475307082e5faa7c3fda189b517422808fd43ef0c4859a",
+      "storyKey": "chameleon_koko_fantasy",
+      "textReplacements": [
+        {
+          "expectedCount": 1,
+          "from": "gender: female",
+          "to": "gender: neutral"
+        },
+        {
+          "expectedCount": 1,
+          "from": "מתחתיהן—או אולי לצִדן—צלצלו אופניים בפעמון:",
+          "to": "{מתחתיהם|מתחתיהן}—או אולי {לצִדם|לצִדן}—צלצלו אופניים בפעמון:"
+        },
+        {
+          "expectedCount": 1,
+          "from": "{{childName}} הקיפה את השלט כדי לראות את צדו השני.",
+          "to": "{{childName}} {הקיף|הקיפה} את השלט כדי לראות את צדו השני."
+        },
+        {
+          "expectedCount": 1,
+          "from": "היא הכניסה אצבע לחריץ ומשכה.",
+          "to": "{הוא הכניס|היא הכניסה} אצבע לחריץ {ומשך|ומשכה}."
+        },
+        {
+          "expectedCount": 1,
+          "from": "כיכר שלמה ריחפה מעליהן, הפוכה: מזרקה זלגה כלפי מעלה, יונים ניקרו בתקרת אבן, ודוכן לימונדה התנדנד מתחת למרפסת.",
+          "to": "כיכר שלמה ריחפה {מעליהם|מעליהן}, הפוכה: מזרקה זלגה כלפי מעלה, יונים ניקרו בתקרת אבן, ודוכן לימונדה התנדנד מתחת למרפסת."
+        },
+        {
+          "expectedCount": 1,
+          "from": "קִים חיפשה סולם, אבל {{childName}} הבחינה בצללי היונים. הם נפלו על האוויר כמו אבני מדרך כהות.",
+          "to": "קִים חיפשה סולם, אבל {{childName}} {הבחין|הבחינה} בצללי היונים. הם נפלו על האוויר כמו אבני מדרך כהות."
+        },
+        {
+          "expectedCount": 1,
+          "from": "היא דרכה על צל אחד.",
+          "to": "{הוא דרך|היא דרכה} על צל אחד."
+        },
+        {
+          "expectedCount": 1,
+          "from": "הן דילגו מתחת למזרקה התלויה. בכל פעם שיונה פרשה כנף, המדרגה שלה גדלה; בכל פעם שקיפלה אותה, המדרגה הצטמקה.",
+          "to": "{הם דילגו|הן דילגו} מתחת למזרקה התלויה. בכל פעם שיונה פרשה כנף, המדרגה שלה גדלה; בכל פעם שקיפלה אותה, המדרגה הצטמקה."
+        },
+        {
+          "expectedCount": 1,
+          "from": "היונים הביטו בהן בעלבון. איש מעולם לא ביקש רשות מן הצללים שלהן.",
+          "to": "היונים הביטו {בהם|בהן} בעלבון. איש מעולם לא ביקש רשות מן הצללים שלהן."
+        },
+        {
+          "expectedCount": 1,
+          "from": "אבל {{childName}} כרעה ליד המרזבים. שלושתם נשפכו אל אותה שלולית כסופה.",
+          "to": "אבל {{childName}} {כרע|כרעה} ליד המרזבים. שלושתם נשפכו אל אותה שלולית כסופה."
+        },
+        {
+          "expectedCount": 1,
+          "from": "\"אם המים נפגשים,\" אמרה, \"אולי גם הדרכים.\"",
+          "to": "\"אם המים נפגשים,\" {אמר|אמרה}, \"אולי גם הדרכים.\""
+        },
+        {
+          "expectedCount": 1,
+          "from": "היא הניחה עלה בשלולית. הוא התפצל לשלוש השתקפויות—ושלושתן הפליגו.",
+          "to": "{הוא הניח|היא הניחה} עלה בשלולית. הוא התפצל לשלוש השתקפויות—ושלושתן הפליגו."
+        },
+        {
+          "expectedCount": 1,
+          "from": "בגג הבוקר הן החליקו על קרן שמש.",
+          "to": "בגג הבוקר {הם החליקו|הן החליקו} על קרן שמש."
+        },
+        {
+          "expectedCount": 1,
+          "from": "בגג הלילה הן פסעו בין ארובות שנחרו: פוּוּ... פוּוּ...",
+          "to": "בגג הלילה {הם פסעו|הן פסעו} בין ארובות שנחרו: פוּוּ... פוּוּ..."
+        },
+        {
+          "expectedCount": 1,
+          "from": "ובגג הגשם הן פתחו מטרייה מתחת לרגליים, כדי שלא ייפלו לשמים.",
+          "to": "ובגג הגשם {הם פתחו|הן פתחו} מטרייה מתחת לרגליים, כדי שלא ייפלו לשמים."
+        },
+        {
+          "expectedCount": 1,
+          "from": "כל דרך החזירה אותן לאותה שלולית—אבל לקצה אחר שלה.",
+          "to": "כל דרך החזירה {אותם|אותן} לאותה שלולית—אבל לקצה אחר שלה."
+        },
+        {
+          "expectedCount": 1,
+          "from": "\"שלושתן,\" אמרה {{childName}}. \"רק לא מאותו צד.\"",
+          "to": "\"שלושתן,\" {אמר|אמרה} {{childName}}. \"רק לא מאותו צד.\""
+        },
+        {
+          "expectedCount": 1,
+          "from": "{{childName}} הסתכלה על הרחובות. כל אחד היה ישר בפני עצמו. הבעיה התחילה רק כשניסו לגרום לכולם לפנות לאותו כיוון.",
+          "to": "{{childName}} {הסתכל|הסתכלה} על הרחובות. כל אחד היה ישר בפני עצמו. הבעיה התחילה רק כשניסו לגרום לכולם לפנות לאותו כיוון."
+        },
+        {
+          "expectedCount": 1,
+          "from": "\"אולי העיר לא מחפשת צד קדמי,\" אמרה. \"אולי היא מחפשת חיבורים.\"",
+          "to": "\"אולי העיר לא מחפשת צד קדמי,\" {אמר|אמרה}. \"אולי היא מחפשת חיבורים.\""
+        },
+        {
+          "expectedCount": 1,
+          "from": "כדי לבדוק זאת, {{childName}} לקחה סרט ארוך מדוכן הכובעים.",
+          "to": "כדי לבדוק זאת, {{childName}} {לקח|לקחה} סרט ארוך מדוכן הכובעים."
+        },
+        {
+          "expectedCount": 1,
+          "from": "היא קשרה קצה אחד למעקה בשדרת הקיר, העבירה אותו דרך שער העיגול, מתחת לכיכר, ומעל שלושת הגגות.",
+          "to": "{הוא קשר|היא קשרה} קצה אחד למעקה בשדרת הקיר, {העביר|העבירה} אותו דרך שער העיגול, מתחת לכיכר, ומעל שלושת הגגות."
+        },
+        {
+          "expectedCount": 1,
+          "from": "{{childName}} ביקשה מתושבי כל שכונה לעמוד בקצה שלהם.",
+          "to": "{{childName}} {ביקש|ביקשה} מתושבי כל שכונה לעמוד בקצה שלהם."
+        },
+        {
+          "expectedCount": 1,
+          "from": "\"מה אתם רואים מולכם?\" שאלה.",
+          "to": "\"מה אתם רואים מולכם?\" {שאל|שאלה}."
+        },
+        {
+          "expectedCount": 1,
+          "from": "{{childName}} ראתה שסביב הרווח פזורים שער העיגול, צל יונה, מרזב כסוף ודלת מן השדרה.",
+          "to": "{{childName}} {ראה|ראתה} שסביב הרווח פזורים שער העיגול, צל יונה, מרזב כסוף ודלת מן השדרה."
+        },
+        {
+          "expectedCount": 1,
+          "from": "\"לא צריך גשר אחד,\" אמרה. \"צריך לחבר כל קצה לקצה שמתאים לו.\"",
+          "to": "\"לא צריך גשר אחד,\" {אמר|אמרה}. \"צריך לחבר כל קצה לקצה שמתאים לו.\""
+        },
+        {
+          "expectedCount": 1,
+          "from": "{{childName}} חילקה משימות.",
+          "to": "{{childName}} {חילק|חילקה} משימות."
+        },
+        {
+          "expectedCount": 1,
+          "from": "{{childName}} הביטה בשלולית הכסופה. בתוכה הופיעו כל השכונות יחד, כל אחת מזווית אחרת.",
+          "to": "{{childName}} {הביט|הביטה} בשלולית הכסופה. בתוכה הופיעו כל השכונות יחד, כל אחת מזווית אחרת."
+        },
+        {
+          "expectedCount": 1,
+          "from": "היא הרימה את השלולית—שהתקפלה כמו יריעת מראה—ופרשה אותה על פני הרווח.",
+          "to": "{הוא הרים|היא הרימה} את השלולית—שהתקפלה כמו יריעת מראה—{ופרש|ופרשה} אותה על פני הרווח."
+        },
+        {
+          "expectedCount": 1,
+          "from": "\"כולם לעמוד בקצה שלכם,\" קראה. \"לא למשוך את העיר אליכם. רק להטות מעט, עד שתראו זה את זה.\"",
+          "to": "\"כולם לעמוד בקצה שלכם,\" {קרא|קראה}. \"לא למשוך את העיר אליכם. רק להטות מעט, עד שתראו זה את זה.\""
+        },
+        {
+          "expectedCount": 1,
+          "from": "\"נבדוק בדרך,\" אמרה {{childName}}.",
+          "to": "\"נבדוק בדרך,\" {אמר|אמרה} {{childName}}."
+        },
+        {
+          "expectedCount": 1,
+          "from": "הן צעדו אל רחוב שנראה מלפנים כמו מדרגות, מן הצד כמו סירה, ובהשתקפות כמו זנב של כוכב.",
+          "to": "{הם צעדו|הן צעדו} אל רחוב שנראה מלפנים כמו מדרגות, מן הצד כמו סירה, ובהשתקפות כמו זנב של כוכב."
+        }
+      ],
+      "unresolvedCreativeSourceIssues": [
+        {
+          "code": "hebrew_demonstrative_agreement",
+          "evidence": "Source: \"זה תשובה מאוד לא מסודרת.\" — Demonstrative/noun agreement is grammatically incorrect, and the correction changes the accepted female prose.",
+          "pageNumbers": [
+            7
+          ],
+          "requiredAction": "\"זאת תשובה מאוד לא מסודרת.\"",
+          "severity": "hold"
+        },
+        {
+          "code": "plural_gender_agreement_review",
+          "evidence": "Source: \"שלושה כיוונים לאותו רחוב?\" קִים מצמצה. \"מוכרחים לגלות איזה מהם נכון.\" — מוכרחים may be intentionally impersonal generic Hebrew. If it is intended to agree with Kim plus the female child, the accepted female prose would need to change to מוכרחות.",
+          "pageNumbers": [
+            1
+          ],
+          "requiredAction": "\"שלושה כיוונים לאותו רחוב?\" קִים מצמצה. \"{מוכרחים|מוכרחות} לגלות איזה מהם נכון.\"",
+          "severity": "review"
+        }
+      ],
+      "visualDirection": {
+        "path": "story-pipeline/05_storyboard_inputs/autonomous-20260815-v1/chameleon_koko_fantasy.visual-directions.json",
+        "sha256": "13b65ad979cce04d2bf290fc2e3bb4a3c4cb6ab667a6f14407ce88324836c9bf"
+      },
+      "worldModeRecommendation": {
+        "authorityStatus": "recommendation_only_pending_reviewer_decision",
+        "rationale": "The folded, inverted, multi-sided city and its physical viewpoint-dependent routes are the literal story world.",
+        "value": "fantastical"
+      }
+    },
+    {
+      "acceptedManifest": {
+        "path": "story-pipeline/04_approved_story_sources/accepted/dragon_dini_adventure/manifest.json",
+        "sha256": "332c37ff00be6a3bbccc7afd858b063bcb430750d1242e856b9d51930e9f6c0a"
+      },
+      "acceptedStory": {
+        "path": "story-pipeline/04_approved_story_sources/accepted/dragon_dini_adventure/story.md",
+        "sha256": "39ad403d98ff528c1313879ec4f4fe020a17271b452040c179938ecf2cc7dfce"
+      },
+      "briefId": "dragon_dini_adventure_wobble_cake_convoy_brief_v1",
+      "continuityIntent": {
+        "childWardrobeAuthority": "frozen_visual_contract",
+        "childWardrobeTransitionPages": [],
+        "companionAccessoryAuthority": "canonical_companion_profile",
+        "companionAppearanceAuthority": "frozen_companion_state",
+        "companionStateTransitionPages": [],
+        "version": "small-heroes-story-visual-continuity-intent/v1"
+      },
+      "directionReplacements": [
+        {
+          "expectedCount": 1,
+          "field": "mainAction",
+          "from": "The baker cuts the first slice while the child sits beside Dini; Dini reaches toward the lifting tablecloth, pauses, and lets it flutter as the cherry on her slice gently wobbles.",
+          "pageNumber": 12,
+          "to": "The baker cuts the first slice while the child sits beside Dini; Dini reaches toward the lifting tablecloth, pauses, and lets it flutter as the cherry on Dini's slice gently wobbles."
+        }
+      ],
+      "reviewRecordDigest": "8269842a0bf394052677d98b135488a30ce64ece7fb280ceae6005df3e6b5e36",
+      "storyKey": "dragon_dini_adventure",
+      "textReplacements": [
+        {
+          "expectedCount": 1,
+          "from": "gender: female",
+          "to": "gender: neutral"
+        }
+      ],
+      "unresolvedCreativeSourceIssues": [],
+      "visualDirection": {
+        "path": "story-pipeline/05_storyboard_inputs/autonomous-20260815-v1/dragon_dini_adventure.visual-directions.json",
+        "sha256": "0ee59e8d2c0be0f937ff286a25b8e4dd8c5e6d52d8c4cd263d092fd88514c5db"
+      },
+      "worldModeRecommendation": {
+        "authorityStatus": "recommendation_only_pending_reviewer_decision",
+        "rationale": "The bakery, market, bridge, delivery cart, and picnic remain physically grounded; the cake's wobble and rotating tiers are heightened but do not establish a separate magical world.",
+        "value": "grounded"
+      }
+    },
+    {
+      "acceptedManifest": {
+        "path": "story-pipeline/04_approved_story_sources/accepted/dragon_dini_bedtime/manifest.json",
+        "sha256": "d2566fe97b370e93389fd3f5ce6469fbb62dd636c231fd8847f9d4ac1fb0fd14"
+      },
+      "acceptedStory": {
+        "path": "story-pipeline/04_approved_story_sources/accepted/dragon_dini_bedtime/story.md",
+        "sha256": "3a82fde86f891138b0b8abbaea59ddb16c8a95320cee2d2d65ae34575f3c7044"
+      },
+      "briefId": "dragon_dini_bedtime_last_train_seed_lantern_brief_v1",
+      "continuityIntent": {
+        "childWardrobeAuthority": "frozen_visual_contract",
+        "childWardrobeTransitionPages": [],
+        "companionAccessoryAuthority": "canonical_companion_profile",
+        "companionAppearanceAuthority": "frozen_companion_state",
+        "companionStateTransitionPages": [],
+        "version": "small-heroes-story-visual-continuity-intent/v1"
+      },
+      "directionReplacements": [
+        {
+          "expectedCount": 1,
+          "field": "mainAction",
+          "from": "A school of glowing fish surrounds the reunited fish as the child waves from shore; muddy Dini sits nearby with the frog perched on her head.",
+          "pageNumber": 7,
+          "to": "A school of glowing fish surrounds the reunited fish as the child waves from shore; muddy Dini sits nearby with the frog perched on Dini's head."
+        },
+        {
+          "expectedCount": 1,
+          "field": "shotType",
+          "from": "medium",
+          "pageNumber": 1,
+          "to": "medium_close"
+        }
+      ],
+      "reviewRecordDigest": "e2fdf54aca26130be7f601eb682fdd288f7ca3628d2d56f3abc8bdfa44620a5d",
+      "storyKey": "dragon_dini_bedtime",
+      "textReplacements": [
+        {
+          "expectedCount": 1,
+          "from": "gender: female",
+          "to": "gender: neutral"
+        },
+        {
+          "expectedCount": 1,
+          "from": "{{childName}} נגעה בצנצנת והניעה אותה בעדינות.",
+          "to": "{{childName}} {נגע|נגעה} בצנצנת {והניע|והניעה} אותה בעדינות."
+        },
+        {
+          "expectedCount": 1,
+          "from": "{{childName}} שחררה מעט את המכסה ונשפה פנימה דרך קשית.",
+          "to": "{{childName}} {שחרר|שחררה} מעט את המכסה {ונשף|ונשפה} פנימה דרך קשית."
+        },
+        {
+          "expectedCount": 1,
+          "from": "״הוא לא רוצה רק מים,״ אמרה {{childName}}.",
+          "to": "״הוא לא רוצה רק מים,״ {אמר|אמרה} {{childName}}."
+        },
+        {
+          "expectedCount": 1,
+          "from": "{{childName}} הטתה את הצנצנת מעל התעלה הראשונה.",
+          "to": "{{childName}} {הטה|הטתה} את הצנצנת מעל התעלה הראשונה."
+        },
+        {
+          "expectedCount": 1,
+          "from": "״אנחנו בדרך למעיין המשתלה,״ אמרה {{childName}}.",
+          "to": "״אנחנו בדרך למעיין המשתלה,״ {אמר|אמרה} {{childName}}."
+        },
+        {
+          "expectedCount": 1,
+          "from": "{{childName}} כרעה והביטה היטב.",
+          "to": "{{childName}} {כרע והביט|כרעה והביטה} היטב."
+        },
+        {
+          "expectedCount": 1,
+          "from": "״לא צריך להזיז הכול,״ אמרה.",
+          "to": "״לא צריך להזיז הכול,״ {אמר|אמרה}."
+        },
+        {
+          "expectedCount": 1,
+          "from": "{{childName}} הסתכלה סביב.",
+          "to": "{{childName}} {הסתכל|הסתכלה} סביב."
+        },
+        {
+          "expectedCount": 1,
+          "from": "{{childName}} טיפסה על אבן וראתה את כל שבע התעלות.",
+          "to": "{{childName}} {טיפס|טיפסה} על אבן {וראה|וראתה} את כל שבע התעלות."
+        },
+        {
+          "expectedCount": 1,
+          "from": "״נחבר אותן!״ קראה.",
+          "to": "״נחבר אותן!״ {קרא|קראה}."
+        },
+        {
+          "expectedCount": 1,
+          "from": "{{childName}} נופפה לדגיג.",
+          "to": "{{childName}} {נופף|נופפה} לדגיג."
+        },
+        {
+          "expectedCount": 1,
+          "from": "{{childName}} הניחה לידו צדף קטן מן המעיין.",
+          "to": "{{childName}} {הניח|הניחה} לידו צדף קטן מן המעיין."
+        },
+        {
+          "expectedCount": 1,
+          "from": "{{childName}} שכבה במיטה והקשיבה לבית.",
+          "to": "{{childName}} {שכב|שכבה} במיטה {והקשיב|והקשיבה} לבית."
+        },
+        {
+          "expectedCount": 1,
+          "from": "{{childName}} עצמה עיניים.",
+          "to": "{{childName}} {עצם|עצמה} עיניים."
+        }
+      ],
+      "unresolvedCreativeSourceIssues": [
+        {
+          "code": "creative_source_frog_gender_agreement_inconsistent",
+          "evidence": "Page 3 uses the inconsistent masculine agreement 'מתוך השלולית הציץ צפרדע.' and 'הצפרדע קפץ אל התעלה.', while page 7 uses the grammatically consistent feminine agreement 'צפרדע נחתה'. Correcting accepted female prose requires explicit creative-source approval.",
+          "pageNumbers": [
+            3
+          ],
+          "requiredAction": "Approve exact accepted-source corrections to 'מתוך השלולית הציצה צפרדע.' and 'הצפרדע קפצה אל התעלה.' before exact review.",
+          "severity": "hold"
+        }
+      ],
+      "visualDirection": {
+        "path": "story-pipeline/05_storyboard_inputs/autonomous-20260815-v1/dragon_dini_bedtime.visual-directions.json",
+        "sha256": "1269665c53d2776f3a5553361f0df64d024d3ff2ec78514cbe382027a3e19d2a"
+      },
+      "worldModeRecommendation": {
+        "authorityStatus": "recommendation_only_pending_reviewer_decision",
+        "rationale": "The story begins and ends in the family home and moves through recognizable streets and waterways, but the glow-fish and magically reawakening water system are literal visual events.",
+        "value": "grounded_with_visual_metaphor"
+      }
+    },
+    {
+      "acceptedManifest": {
+        "path": "story-pipeline/04_approved_story_sources/accepted/dragon_dini_fantasy/manifest.json",
+        "sha256": "88cdd02a2dd9de32c51180304a6b38f5d93e44ea003da3e879c86f35e08b7d64"
+      },
+      "acceptedStory": {
+        "path": "story-pipeline/04_approved_story_sources/accepted/dragon_dini_fantasy/story.md",
+        "sha256": "ba59843988731539de236ec21ee2240c2c02b5962fcdf59f187775d0b0869fe7"
+      },
+      "briefId": "dragon_dini_fantasy_bouncing_sky_seed_brief_v1",
+      "continuityIntent": {
+        "childWardrobeAuthority": "frozen_visual_contract",
+        "childWardrobeTransitionPages": [],
+        "companionAccessoryAuthority": "canonical_companion_profile",
+        "companionAppearanceAuthority": "frozen_companion_state",
+        "companionStateTransitionPages": [
+          9
+        ],
+        "version": "small-heroes-story-visual-continuity-intent/v1"
+      },
+      "directionReplacements": [
+        {
+          "expectedCount": 1,
+          "field": "mainAction",
+          "from": "Beside the seed on a red tile, the child pulls Dini free from a straw hat that has dropped over her.",
+          "pageNumber": 3,
+          "to": "Beside the seed on a red tile, the child pulls Dini free from a straw hat that has dropped over Dini."
+        },
+        {
+          "expectedCount": 1,
+          "field": "mainAction",
+          "from": "The seed rebounds from Dini's nose, transferring the storm's purple, orange, and green colors onto her as she and the child laugh.",
+          "pageNumber": 9,
+          "to": "The seed rebounds from Dini's nose, transferring the storm's purple, orange, and green colors onto Dini as Dini and the child laugh."
+        },
+        {
+          "expectedCount": 1,
+          "field": "continuityAnchors",
+          "from": "Dini striped purple, orange, and green",
+          "itemIndex": 1,
+          "pageNumber": 10,
+          "to": "same Dini appearance state established on page 9"
+        },
+        {
+          "expectedCount": 1,
+          "field": "continuityAnchors",
+          "from": "Dini striped purple, orange, and green",
+          "itemIndex": 1,
+          "pageNumber": 11,
+          "to": "same Dini appearance state established on page 9"
+        },
+        {
+          "expectedCount": 1,
+          "field": "continuityAnchors",
+          "from": "Dini striped purple, orange, and green",
+          "itemIndex": 0,
+          "pageNumber": 12,
+          "to": "same Dini appearance state established on page 9"
+        },
+        {
+          "expectedCount": 1,
+          "field": "continuityAnchors",
+          "from": "Dini striped purple, orange, and green",
+          "itemIndex": 3,
+          "pageNumber": 13,
+          "to": "same Dini appearance state established on page 9"
+        },
+        {
+          "expectedCount": 1,
+          "field": "continuityAnchors",
+          "from": "Dini striped purple, orange, and green",
+          "itemIndex": 1,
+          "pageNumber": 14,
+          "to": "same Dini appearance state established on page 9"
+        },
+        {
+          "expectedCount": 1,
+          "field": "continuityAnchors",
+          "from": "Dini striped purple, orange, and green",
+          "itemIndex": 1,
+          "pageNumber": 15,
+          "to": "same Dini appearance state established on page 9"
+        },
+        {
+          "expectedCount": 1,
+          "field": "continuityAnchors",
+          "from": "Dini striped purple, orange, and green",
+          "itemIndex": 1,
+          "pageNumber": 16,
+          "to": "same Dini appearance state established on page 9"
+        }
+      ],
+      "reviewRecordDigest": "0f56e9b3fce448cdf323a85ec66f5288b144f239a70b7687de645a5ec0bb951f",
+      "storyKey": "dragon_dini_fantasy",
+      "textReplacements": [
+        {
+          "expectedCount": 1,
+          "from": "gender: female",
+          "to": "gender: neutral"
+        },
+        {
+          "expectedCount": 1,
+          "from": "אבל לפני ש־{{childName}} הספיקה לענות—",
+          "to": "אבל לפני ש־{{childName}} {הספיק|הספיקה} לענות—"
+        },
+        {
+          "expectedCount": 1,
+          "from": "{{childName}} {רצה|רצתה} להיות הראשונה שתתפוס את הזרע.",
+          "to": "{{childName}} {רצה להיות הראשון שיתפוס|רצתה להיות הראשונה שתתפוס} את הזרע."
+        },
+        {
+          "expectedCount": 1,
+          "from": "היא דילגה מעל מרזב, זחלה מתחת לחבל כביסה והושיטה יד בדיוק כש—",
+          "to": "{הוא דילג|היא דילגה} מעל מרזב, {זחל|זחלה} מתחת לחבל כביסה {והושיט|והושיטה} יד בדיוק כש—"
+        },
+        {
+          "expectedCount": 1,
+          "from": "{{childName}} משכה בכובע, ודיני השתחררה בפּוֹפּ!",
+          "to": "{{childName}} {משך|משכה} בכובע, ודיני השתחררה בפּוֹפּ!"
+        },
+        {
+          "expectedCount": 1,
+          "from": "{{childName}} קיפלה מפרש מסדין שהתעופף לידן.",
+          "to": "{{childName}} {קיפל|קיפלה} מפרש מסדין שהתעופף {לידם|לידן}."
+        },
+        {
+          "expectedCount": 1,
+          "from": "הן הפליגו בין גלים של ערפל, בעוד הזרע מקפץ לפניהן:",
+          "to": "{הם הפליגו|הן הפליגו} בין גלים של ערפל, בעוד הזרע מקפץ {לפניהם|לפניהן}:"
+        },
+        {
+          "expectedCount": 1,
+          "from": "\"כנראה שרשתות רק עוזרות לו לקפוץ,\" אמרה.",
+          "to": "\"כנראה שרשתות רק עוזרות לו לקפוץ,\" {אמר|אמרה}."
+        },
+        {
+          "expectedCount": 1,
+          "from": "הן הגיעו לאי שעליו צמח יער של פעמונים.",
+          "to": "{הם הגיעו|הן הגיעו} לאי שעליו צמח יער של פעמונים."
+        },
+        {
+          "expectedCount": 1,
+          "from": "\"את באה?\" שאלה דיני, שכבר טיפסה על הפעמון הגבוה ביותר.",
+          "to": "\"{אתה|את} {בא|באה}?\" שאלה דיני, שכבר טיפסה על הפעמון הגבוה ביותר."
+        },
+        {
+          "expectedCount": 1,
+          "from": "{{childName}} {הנהן ורץ|הנהנה ורצה} אחריה, אך הפעם ספרה בלב:",
+          "to": "{{childName}} {הנהן ורץ|הנהנה ורצה} אחריה, אך הפעם {ספר|ספרה} בלב:"
+        },
+        {
+          "expectedCount": 1,
+          "from": "הרוח הובילה אותן לתוך סערה מנומנמת.",
+          "to": "הרוח הובילה {אותם|אותן} לתוך סערה מנומנמת."
+        },
+        {
+          "expectedCount": 1,
+          "from": "{{childName}} פנתה שמאלה ומצאה את עצמה מאחור.",
+          "to": "{{childName}} {פנה|פנתה} שמאלה {ומצא את עצמו|ומצאה את עצמה} מאחור."
+        },
+        {
+          "expectedCount": 1,
+          "from": "{{childName}} פרצה בצחוק.",
+          "to": "{{childName}} {פרץ|פרצה} בצחוק."
+        },
+        {
+          "expectedCount": 1,
+          "from": "שתיהן התיישבו על ענן והביטו.",
+          "to": "{שניהם התיישבו|שתיהן התיישבו} על ענן והביטו."
+        },
+        {
+          "expectedCount": 1,
+          "from": "\"פעמון, ירח, טיפה,\" אמרה {{childName}}.",
+          "to": "\"פעמון, ירח, טיפה,\" {אמר|אמרה} {{childName}}."
+        },
+        {
+          "expectedCount": 1,
+          "from": "\"אחרייך.\"",
+          "to": "\"{אחריך|אחרייך}.\""
+        },
+        {
+          "expectedCount": 1,
+          "from": "הן עקבו אחרי הטיפה.",
+          "to": "{הם עקבו|הן עקבו} אחרי הטיפה."
+        },
+        {
+          "expectedCount": 1,
+          "from": "\"אין לו איפה לנחות,\" אמרה {{childName}}.",
+          "to": "\"אין לו איפה לנחות,\" {אמר|אמרה} {{childName}}."
+        },
+        {
+          "expectedCount": 1,
+          "from": "היא לא זרקה דבר. היא הזיזה אבן כוכב אל מקום שטוף שמש, סידרה לנוצות קן קטן ופינתה בין הפרחים עיגול רך של טל.",
+          "to": "{הוא לא זרק|היא לא זרקה} דבר. {הוא הזיז|היא הזיזה} אבן כוכב אל מקום שטוף שמש, {סידר|סידרה} לנוצות קן קטן {ופינה|ופינתה} בין הפרחים עיגול רך של טל."
+        },
+        {
+          "expectedCount": 1,
+          "from": "{{childName}} הצביעה על ענן שחסם את אור הירח.",
+          "to": "{{childName}} {הצביע|הצביעה} על ענן שחסם את אור הירח."
+        },
+        {
+          "expectedCount": 1,
+          "from": "הזרע הסתחרר מעליהן, מהיר מתמיד.",
+          "to": "הזרע הסתחרר {מעליהם|מעליהן}, מהיר מתמיד."
+        },
+        {
+          "expectedCount": 1,
+          "from": "{{childName}} הנידה בראשה.",
+          "to": "{{childName}} {הניד בראשו|הנידה בראשה}."
+        },
+        {
+          "expectedCount": 1,
+          "from": "הזרע חיקה אותה.",
+          "to": "הזרע חיקה {אותו|אותה}."
+        },
+        {
+          "expectedCount": 1,
+          "from": "{{childName}} לא הושיטה יד. {{childName}} {פסע|פסעה} הצידה ופינתה לו את העיגול המואר.",
+          "to": "{{childName}} לא {הושיט|הושיטה} יד. {{childName}} {פסע|פסעה} הצידה {ופינה|ופינתה} לו את העיגול המואר."
+        },
+        {
+          "expectedCount": 1,
+          "from": "{{childName}} {עמד|עמדה} במרכז האגן והקישה בכף הרגל:",
+          "to": "{{childName}} {עמד|עמדה} במרכז האגן {והקיש|והקישה} בכף הרגל:"
+        },
+        {
+          "expectedCount": 1,
+          "from": "{{childName}} {חזר|חזרה} על הקצב, והפעם הוסיפה קפיצה משלה:",
+          "to": "{{childName}} {חזר|חזרה} על הקצב, והפעם {הוסיף|הוסיפה} קפיצה {משלו|משלה}:"
+        },
+        {
+          "expectedCount": 1,
+          "from": "{{childName}} {עצר|עצרה} ליד שלולית על הגג והקישה ברגל.",
+          "to": "{{childName}} {עצר|עצרה} ליד שלולית על הגג {והקיש|והקישה} ברגל."
+        },
+        {
+          "expectedCount": 1,
+          "from": "\"העיגול מחכה לך,\" לחשה {{childName}}.",
+          "to": "\"העיגול מחכה לך,\" {לחש|לחשה} {{childName}}."
+        },
+        {
+          "expectedCount": 1,
+          "from": "הוא הביט ב־{{childName}} וקפץ בדיוק כמוה:",
+          "to": "הוא הביט ב־{{childName}} וקפץ בדיוק {כמוהו|כמוה}:"
+        },
+        {
+          "expectedCount": 1,
+          "from": "היצור ענה בקפיצה רחוקה, ואז חזר ונחת לצדה—",
+          "to": "היצור ענה בקפיצה רחוקה, ואז חזר ונחת {לצדו|לצדה}—"
+        }
+      ],
+      "unresolvedCreativeSourceIssues": [
+        {
+          "code": "companion_appearance_state_authority_missing",
+          "evidence": "Dini changes intrinsically into a persistent purple/orange/green striped appearance on page 9 and remains striped through page 16. — dragon_dini has no declared companion appearance-state axis. A truthful nonempty transition list [9] cannot pass the current enrichment authority gate until an exact baseline-to-striped authority is approved and implemented. Removing the transformation from prose would change the accepted female projection and require new product acceptance.",
+          "pageNumbers": [
+            9
+          ],
+          "requiredAction": "Approve and implement an exact baseline-to-striped companion appearance-state authority before enrichment or publication.",
+          "severity": "hold"
+        },
+        {
+          "code": "transient_smoke_net_carry_state_unresolved",
+          "evidence": "Dini's smoke net wraps around Dini's snout on page 5 and is explicitly folded into a pocket on page 10, while pages 6–9 do not state where the net is carried.",
+          "pageNumbers": [
+            5,
+            6,
+            7,
+            8,
+            9,
+            10
+          ],
+          "requiredAction": "Approve an exact carry-forward position for the smoke net on pages 6–9 before visual acceptance; preserve the source-authored page-10 pocket/fold-away disposition.",
+          "severity": "hold"
+        }
+      ],
+      "visualDirection": {
+        "path": "story-pipeline/05_storyboard_inputs/autonomous-20260815-v1/dragon_dini_fantasy.visual-directions.json",
+        "sha256": "3683f16b17e11edf05adbd14b8a224695235eb66a797b432ea78601dddf15fcd"
+      },
+      "worldModeRecommendation": {
+        "authorityStatus": "recommendation_only_pending_reviewer_decision",
+        "rationale": "The child and Dini physically travel through cloud seas, bell islands, confused-direction storms, a moonlit dew basin, and a sky creature's birth.",
+        "value": "fantastical"
+      }
+    },
+    {
+      "acceptedManifest": {
+        "path": "story-pipeline/04_approved_story_sources/accepted/fox_uri_adventure/manifest.json",
+        "sha256": "533910b8f3f4b166dc0c278d981564a0034a07a2fcf5e9c3cdaa2931b87189a2"
+      },
+      "acceptedStory": {
+        "path": "story-pipeline/04_approved_story_sources/accepted/fox_uri_adventure/story.md",
+        "sha256": "cdc1192bc365605bfd5c72a0bb56adabfcef0f3984b2312bae41d980d796f550"
+      },
+      "briefId": "fox_uri_adventure_backward_tracks_brief_v1",
+      "continuityIntent": {
+        "childWardrobeAuthority": "frozen_visual_contract",
+        "childWardrobeTransitionPages": [],
+        "companionAccessoryAuthority": "canonical_companion_profile",
+        "companionAppearanceAuthority": "frozen_companion_state",
+        "companionStateTransitionPages": [],
+        "version": "small-heroes-story-visual-continuity-intent/v1"
+      },
+      "directionReplacements": [
+        {
+          "expectedCount": 1,
+          "field": "mainAction",
+          "from": "Uri slides into the kettle balloon",
+          "pageNumber": 7,
+          "to": "Uri bumps gently into the kettle balloon"
+        },
+        {
+          "expectedCount": 1,
+          "field": "mainAction",
+          "from": "With Uri close beside her and everyone standing still",
+          "pageNumber": 8,
+          "to": "With Uri close beside the child and everyone standing still"
+        },
+        {
+          "expectedCount": 1,
+          "field": "mainAction",
+          "from": "guides Uri as he pulls",
+          "pageNumber": 10,
+          "to": "guides Uri as Uri pulls"
+        },
+        {
+          "expectedCount": 1,
+          "field": "mainAction",
+          "from": "as he steps after bouncing star footprints",
+          "pageNumber": 12,
+          "to": "as Uri steps after bouncing star footprints"
+        }
+      ],
+      "reviewRecordDigest": "1c5e500a3861e34f62ad83738d444eb26118e1920e45b0345ae3e4965e4b58f0",
+      "storyKey": "fox_uri_adventure",
+      "textReplacements": [
+        {
+          "expectedCount": 1,
+          "from": "gender: female",
+          "to": "gender: neutral"
+        },
+        {
+          "expectedCount": 1,
+          "from": "{{childName}} הביטה בעקבה שעל הכביש. היא הצביעה דווקא הרחק מן הקרון.",
+          "to": "{{childName}} {הביט|הביטה} בעקבה שעל הכביש. {הוא|היא} {הצביע|הצביעה} דווקא הרחק מן הקרון."
+        },
+        {
+          "expectedCount": 1,
+          "from": "“או שאולי,” אמרה,",
+          "to": "“או שאולי,” {אמר|אמרה},"
+        },
+        {
+          "expectedCount": 1,
+          "from": "“אני מבקשת להישאר ליד הפנס הגדול,” אמרה {{childName}}.",
+          "to": "“אני {מבקש|מבקשת} להישאר ליד הפנס הגדול,” {אמר|אמרה} {{childName}}."
+        },
+        {
+          "expectedCount": 1,
+          "from": "{{childName}} סובבה את ההגה שמאלה — אך העקבה החליקה ימינה.",
+          "to": "{{childName}} {סובב|סובבה} את ההגה שמאלה — אך העקבה החליקה ימינה."
+        },
+        {
+          "expectedCount": 1,
+          "from": "היא סובבה ימינה — והעקבה ברחה שמאלה.",
+          "to": "{הוא|היא} {סובב|סובבה} ימינה — והעקבה ברחה שמאלה."
+        },
+        {
+          "expectedCount": 1,
+          "from": "במקום לרדוף אחריה, {{childName}} יישרה את הסירה והביטה סביב.",
+          "to": "במקום לרדוף אחריה, {{childName}} {יישר|יישרה} את הסירה {והביט|והביטה} סביב."
+        },
+        {
+          "expectedCount": 1,
+          "from": "{{childName}} כיוונה את הסירה אל המדרגות שליד הגשר.",
+          "to": "{{childName}} {כיוון|כיוונה} את הסירה אל המדרגות שליד הגשר."
+        },
+        {
+          "expectedCount": 1,
+          "from": "{{childName}} קירבה יד אל הפנס. צל אצבעותיה כיסה חצי עקבה.",
+          "to": "{{childName}} {קירב|קירבה} יד אל הפנס. צל {אצבעותיו|אצבעותיה} כיסה חצי עקבה."
+        },
+        {
+          "expectedCount": 1,
+          "from": "“אוּרי,” אמרה,",
+          "to": "“אוּרי,” {אמר|אמרה},"
+        },
+        {
+          "expectedCount": 1,
+          "from": "בפנים היה חמים ומואר, וכך {{childName}} העדיפה. היא התיישבה מתחת למנורה הבהירה ביותר.",
+          "to": "בפנים היה חמים ומואר, וכך {{childName}} {העדיף|העדיפה}. {הוא|היא} {התיישב|התיישבה} מתחת למנורה הבהירה ביותר."
+        },
+        {
+          "expectedCount": 1,
+          "from": "{{childName}} לא רדפה. היא עקבה בעיניה אחר הסרט הכסוף, שנגרר לאורך הקרון ונעלם דרך חלון פתוח בגג.",
+          "to": "{{childName}} {לא רדף|לא רדפה}. {הוא|היא} {עקב|עקבה} {בעיניו|בעיניה} אחר הסרט הכסוף, שנגרר לאורך הקרון ונעלם דרך חלון פתוח בגג."
+        },
+        {
+          "expectedCount": 1,
+          "from": "אבל {{childName}} הבחינה בדבר אחר.",
+          "to": "אבל {{childName}} {הבחין|הבחינה} בדבר אחר."
+        },
+        {
+          "expectedCount": 1,
+          "from": "היא ביקשה מהנהגת להאט.",
+          "to": "{הוא|היא} {ביקש|ביקשה} מהנהגת להאט."
+        },
+        {
+          "expectedCount": 1,
+          "from": "“המראה הייתה כאן,” אמרה {{childName}}, “אבל עכשיו היא כבר המשיכה הלאה.”",
+          "to": "“המראה הייתה כאן,” {אמר|אמרה} {{childName}}, “אבל עכשיו היא כבר המשיכה הלאה.”"
+        },
+        {
+          "expectedCount": 1,
+          "from": "{{childName}} נצמדה אל המעקה המואר.",
+          "to": "{{childName}} {נצמד|נצמדה} אל המעקה המואר."
+        },
+        {
+          "expectedCount": 1,
+          "from": "{{childName}} נזכרה בעקבה שהסתובבה יחד עם פנס הסירה.",
+          "to": "{{childName}} {נזכר|נזכרה} בעקבה שהסתובבה יחד עם פנס הסירה."
+        },
+        {
+          "expectedCount": 1,
+          "from": "“האור לא עוזר לנו לראות,” אמרה.",
+          "to": "“האור לא עוזר לנו לראות,” {אמר|אמרה}."
+        },
+        {
+          "expectedCount": 1,
+          "from": "{{childName}} ידעה מה עליה לבקש, אבל הבטן שלה התכווצה.",
+          "to": "{{childName}} {ידע|ידעה} מה {עליו|עליה} לבקש, אבל הבטן {שלו|שלה} התכווצה."
+        },
+        {
+          "expectedCount": 1,
+          "from": "היא נשמה עמוק והחזיקה בכפתור הזרקור.",
+          "to": "{הוא|היא} {נשם|נשמה} עמוק {והחזיק|והחזיקה} בכפתור הזרקור."
+        },
+        {
+          "expectedCount": 1,
+          "from": "“נכבה רק לרגע,” אמרה.",
+          "to": "“נכבה רק לרגע,” {אמר|אמרה}."
+        },
+        {
+          "expectedCount": 1,
+          "from": "אוּרי התקרב אליה.",
+          "to": "אוּרי התקרב {אליו|אליה}."
+        },
+        {
+          "expectedCount": 1,
+          "from": "{{childName}} ביקשה מכולם לעמוד בלי לזוז. אחר כך כיבתה את הזרקור, את הפנסים ואת שרשרת הנורות.",
+          "to": "{{childName}} {ביקש|ביקשה} מכולם לעמוד בלי לזוז. אחר כך {כיבה|כיבתה} את הזרקור, את הפנסים ואת שרשרת הנורות."
+        },
+        {
+          "expectedCount": 1,
+          "from": "בהתחלה ראתה {{childName}} רק צללים.",
+          "to": "בהתחלה {ראה|ראתה} {{childName}} רק צללים."
+        },
+        {
+          "expectedCount": 1,
+          "from": "{{childName}} כרעה לידה ונגעה באבק הכסוף.",
+          "to": "{{childName}} {כרע|כרעה} לידה {ונגע|ונגעה} באבק הכסוף."
+        },
+        {
+          "expectedCount": 1,
+          "from": "“זה לא זז עם שום פנס,” אמרה.",
+          "to": "“זה לא זז עם שום פנס,” {אמר|אמרה}."
+        },
+        {
+          "expectedCount": 1,
+          "from": "{{childName}} פתחה את הקשר, אך המראה הייתה כבדה.",
+          "to": "{{childName}} {פתח|פתחה} את הקשר, אך המראה הייתה כבדה."
+        },
+        {
+          "expectedCount": 1,
+          "from": "היא חיברה את הסרט לגלגלת, ואוּרי משך בחבל לפי הקצב שלה.",
+          "to": "{הוא|היא} {חיבר|חיברה} את הסרט לגלגלת, ואוּרי משך בחבל לפי הקצב {שלו|שלה}."
+        },
+        {
+          "expectedCount": 1,
+          "from": "“את גילית את הדרך,”",
+          "to": "“{אתה|את} גילית את הדרך,”"
+        },
+        {
+          "expectedCount": 1,
+          "from": "{{childName}} הידקה את הברגים שמצאה,",
+          "to": "{{childName}} {הידק|הידקה} את הברגים {שמצא|שמצאה},"
+        },
+        {
+          "expectedCount": 1,
+          "from": "כאילו הזמינה אותה לצעוד.",
+          "to": "כאילו הזמינה {אותו|אותה} לצעוד."
+        },
+        {
+          "expectedCount": 1,
+          "from": "“עכשיו,” אמרה {{childName}},",
+          "to": "“עכשיו,” {אמר|אמרה} {{childName}},"
+        },
+        {
+          "expectedCount": 1,
+          "from": "{{childName}} לא מיהרה לברוח מהם. היא ידעה שאפשר להדליק אור, ואפשר גם להנמיך אותו כדי לראות טוב יותר.",
+          "to": "{{childName}} {לא מיהר|לא מיהרה} לברוח מהם. {הוא|היא} {ידע|ידעה} שאפשר להדליק אור, ואפשר גם להנמיך אותו כדי לראות טוב יותר."
+        },
+        {
+          "expectedCount": 1,
+          "from": "{{childName}} צחקה, אחזה בידו, ויחד המשיכו בתוך החשכה הרכה והמנצנצת.",
+          "to": "{{childName}} {צחק|צחקה}, {אחז|אחזה} בידו, ויחד המשיכו בתוך החשכה הרכה והמנצנצת."
+        }
+      ],
+      "unresolvedCreativeSourceIssues": [
+        {
+          "code": "recurring_fastener_quantity_conflict",
+          "evidence": "Bolt quantity is internally inconsistent: page 5 introduces one small shiny parade-emblem bolt, while page 11 says the child tightens plural screws that the child found. — No deterministic Visual Direction edit can choose one bolt or multiple screws without overriding the accepted prose. Resolving quantity requires a creative-source change and would violate the byte-identical female-prose invariant in this correction pass.",
+          "pageNumbers": [
+            5,
+            11
+          ],
+          "requiredAction": "Choose one bolt or multiple screws, revise the accepted source consistently, and obtain fresh product acceptance.",
+          "severity": "hold"
+        }
+      ],
+      "visualDirection": {
+        "path": "story-pipeline/05_storyboard_inputs/autonomous-20260815-v1/fox_uri_adventure.visual-directions.json",
+        "sha256": "3497754af01c7010ac8310450c7aa4372faef318a1ee37f58d3e7b5de6812eb3"
+      },
+      "worldModeRecommendation": {
+        "authorityStatus": "recommendation_only_pending_reviewer_decision",
+        "rationale": "The parade, boat, tram, rooftop balloons, lamps, mirror, and pulley are physical mechanisms; the giant moving light-footprints are stylized visual magic with an explicit optical cause.",
+        "value": "grounded_with_visual_metaphor"
+      }
+    },
+    {
+      "acceptedManifest": {
+        "path": "story-pipeline/04_approved_story_sources/accepted/fox_uri_bedtime/manifest.json",
+        "sha256": "dbb746c9182846a5984aa65f7e136ff740ccbc2d4798b439b49b42486db59397"
+      },
+      "acceptedStory": {
+        "path": "story-pipeline/04_approved_story_sources/accepted/fox_uri_bedtime/story.md",
+        "sha256": "02de53756aebb01af6233e3aa3f7be2f301991e4e1fd44ad7d51dd5c54c55fbe"
+      },
+      "briefId": "fox_uri_bedtime_moon_laundry_brief_v1",
+      "continuityIntent": {
+        "childWardrobeAuthority": "frozen_visual_contract",
+        "childWardrobeTransitionPages": [],
+        "companionAccessoryAuthority": "canonical_companion_profile",
+        "companionAppearanceAuthority": "frozen_companion_state",
+        "companionStateTransitionPages": [],
+        "version": "small-heroes-story-visual-continuity-intent/v1"
+      },
+      "directionReplacements": [
+        {
+          "expectedCount": 1,
+          "field": "continuityAnchors",
+          "from": "slide shadow restored beneath the distant slide",
+          "itemIndex": 3,
+          "pageNumber": 8,
+          "to": "most of the slide shadow is restored beneath the distant slide"
+        }
+      ],
+      "reviewRecordDigest": "8b665387ddaabe3f9e799e474c13606b5197a39adc11e3a13f3d8eacae577957",
+      "storyKey": "fox_uri_bedtime",
+      "textReplacements": [
+        {
+          "expectedCount": 1,
+          "from": "gender: female",
+          "to": "gender: neutral"
+        },
+        {
+          "expectedCount": 1,
+          "from": "ואז {{childName}} הצביעה על המגלשה.",
+          "to": "ואז {{childName}} {הצביע|הצביעה} על המגלשה."
+        },
+        {
+          "expectedCount": 1,
+          "from": "\"צריך להחזיר את הצל,\" אמרה.",
+          "to": "\"צריך להחזיר את הצל,\" {אמר|אמרה}."
+        },
+        {
+          "expectedCount": 1,
+          "from": "אבל {{childName}} הבחינה בדבר משונה.",
+          "to": "אבל {{childName}} {הבחין|הבחינה} בדבר משונה."
+        },
+        {
+          "expectedCount": 1,
+          "from": "כש{{childName}} הרימה את הסל.",
+          "to": "כש{{childName}} {הרים|הרימה} את הסל."
+        },
+        {
+          "expectedCount": 1,
+          "from": "\"אולי נזדקק לו,\" אמרה.",
+          "to": "\"אולי נזדקק לו,\" {אמר|אמרה}."
+        },
+        {
+          "expectedCount": 1,
+          "from": "{{childName}} הניחה את הסל וכרעה ליד הערמה. היא לא משכה דבר. במקום זאת, עקבה בעיניה אחרי הרצועה הרכה.",
+          "to": "{{childName}} {הניח|הניחה} את הסל {וכרע|וכרעה} ליד הערמה. {הוא|היא} לא {משך|משכה} דבר. במקום זאת, {עקב|עקבה} {בעיניו|בעיניה} אחרי הרצועה הרכה."
+        },
+        {
+          "expectedCount": 1,
+          "from": "\"זה לא סימן של שק כביסה,\" אמרה.",
+          "to": "\"זה לא סימן של שק כביסה,\" {אמר|אמרה}."
+        },
+        {
+          "expectedCount": 1,
+          "from": "{{childName}} הקשיבה.",
+          "to": "{{childName}} {הקשיב|הקשיבה}."
+        },
+        {
+          "expectedCount": 1,
+          "from": "היא הרימה בזהירות פינה אחת של הצל.",
+          "to": "{הוא|היא} {הרים|הרימה} בזהירות פינה אחת של הצל."
+        },
+        {
+          "expectedCount": 1,
+          "from": "\"הוא לא גנב את הצל,\" לחשה {{childName}}.",
+          "to": "\"הוא לא גנב את הצל,\" {לחש|לחשה} {{childName}}."
+        },
+        {
+          "expectedCount": 1,
+          "from": "{{childName}} הביטה בגור, בסל שהביאה ובכיכר הרחוקה.",
+          "to": "{{childName}} {הביט|הביטה} בגור, בסל {שהביא|שהביאה} ובכיכר הרחוקה."
+        },
+        {
+          "expectedCount": 1,
+          "from": "\"לא ניקח מאחד כדי לתת לאחר,\" אמרה.",
+          "to": "\"לא ניקח מאחד כדי לתת לאחר,\" {אמר|אמרה}."
+        },
+        {
+          "expectedCount": 1,
+          "from": "{{childName}} הושיטה יד אל האוויר החמים וחייכה.",
+          "to": "{{childName}} {הושיט|הושיטה} יד אל האוויר החמים {וחייך|וחייכה}."
+        },
+        {
+          "expectedCount": 1,
+          "from": "{{childName}} העמידה את הסל על צדו, ליד הקיר ומול האוויר החמים. את הקרטון הניחה כרצפה, ומעליו סידרה עלים יבשים.",
+          "to": "{{childName}} {העמיד|העמידה} את הסל על צדו, ליד הקיר ומול האוויר החמים. את הקרטון {הניח|הניחה} כרצפה, ומעליו {סידר|סידרה} עלים יבשים."
+        },
+        {
+          "expectedCount": 1,
+          "from": "{{childName}} קירבה את פתח הסל אליו, אך לא נגעה בשמיכה הכהה. היא המתינה בשקט.",
+          "to": "{{childName}} {קירב|קירבה} את פתח הסל אליו, אך {לא נגע|לא נגעה} בשמיכה הכהה. {הוא|היא} {המתין|המתינה} בשקט."
+        },
+        {
+          "expectedCount": 1,
+          "from": "{{childName}} חייכה. עכשיו החושך לא נראה לה כמו דבר שבולע את העולם.",
+          "to": "{{childName}} {חייך|חייכה}. עכשיו החושך לא נראה {לו|לה} כמו דבר שבולע את העולם."
+        },
+        {
+          "expectedCount": 1,
+          "from": "\"את חושבת שגם הירח הולך לישון?\"",
+          "to": "\"{אתה חושב|את חושבת} שגם הירח הולך לישון?\""
+        },
+        {
+          "expectedCount": 1,
+          "from": "\"אולי,\" אמרה {{childName}}.",
+          "to": "\"אולי,\" {אמר|אמרה} {{childName}}."
+        }
+      ],
+      "unresolvedCreativeSourceIssues": [],
+      "visualDirection": {
+        "path": "story-pipeline/05_storyboard_inputs/autonomous-20260815-v1/fox_uri_bedtime.visual-directions.json",
+        "sha256": "37e0f5b0e35b5875fe44f0418d2b75890c75481bcb3587d92739e5810a9f1937"
+      },
+      "worldModeRecommendation": {
+        "authorityStatus": "recommendation_only_pending_reviewer_decision",
+        "rationale": "A real courtyard, bakery, bus stop, kitten shelter, and warm vent ground the sequence, while the independently moving sheltering shadow is a visible emotional metaphor.",
+        "value": "grounded_with_visual_metaphor"
+      }
+    },
+    {
+      "acceptedManifest": {
+        "path": "story-pipeline/04_approved_story_sources/accepted/fox_uri_fantasy/manifest.json",
+        "sha256": "b23177494d278a846acd5ec7a1c461dbdaaa56b10a330cd0dadaa3671d7de23e"
+      },
+      "acceptedStory": {
+        "path": "story-pipeline/04_approved_story_sources/accepted/fox_uri_fantasy/story.md",
+        "sha256": "60c0dc057e484fca75cb41beae10cc396d5e32a78b3db84b2b8c559f84cf79ee"
+      },
+      "briefId": "fox_uri_fantasy_sound_footprints_brief_v1",
+      "continuityIntent": {
+        "childWardrobeAuthority": "frozen_visual_contract",
+        "childWardrobeTransitionPages": [],
+        "companionAccessoryAuthority": "canonical_companion_profile",
+        "companionAppearanceAuthority": "frozen_companion_state",
+        "companionStateTransitionPages": [],
+        "version": "small-heroes-story-visual-continuity-intent/v1"
+      },
+      "directionReplacements": [
+        {
+          "expectedCount": 1,
+          "field": "mainAction",
+          "from": "The child folds the paper birds into a large open book and discovers a glowing silver thread while Uri emerges with a sea map wrapped around his head.",
+          "pageNumber": 5,
+          "to": "The child opens a large book; the paper birds fold themselves between the pages, revealing a glowing silver thread, while Uri emerges with a sea map wrapped around Uri's head."
+        },
+        {
+          "expectedCount": 1,
+          "field": "mainAction",
+          "from": "as Uri lowers his ears and the door opens",
+          "pageNumber": 10,
+          "to": "as Uri's ears lower and the door opens"
+        }
+      ],
+      "reviewRecordDigest": "27c4693d3364756c7697653284d1c08467706bc736482a06edd7303dca59c38f",
+      "storyKey": "fox_uri_fantasy",
+      "textReplacements": [
+        {
+          "expectedCount": 1,
+          "from": "gender: female",
+          "to": "gender: neutral"
+        }
+      ],
+      "unresolvedCreativeSourceIssues": [
+        {
+          "code": "temporary_prop_exit_state_unresolved",
+          "evidence": "Uri's temporary scene props change without explicit removal beats: the sea map appears around Uri's head on page 5, a party hat appears on Uri's nose on page 6, and the sock hung as a quiet marker remains tracked through page 15 but has no stated page-16 disposition. — The accepted prose does not specify those removal or carry-forward transitions. Choosing them requires creative Visual Direction approval; they are transient props, not intrinsic companion-state transitions.",
+          "pageNumbers": [
+            5,
+            6,
+            15,
+            16
+          ],
+          "requiredAction": "Approve exact removal or carry-forward beats for the sea map, party hat, and sock before visual acceptance.",
+          "severity": "review"
+        }
+      ],
+      "visualDirection": {
+        "path": "story-pipeline/05_storyboard_inputs/autonomous-20260815-v1/fox_uri_fantasy.visual-directions.json",
+        "sha256": "33ba2e76a076557635c88a70ba06fcc1bbca4a7d792756d553661c60b250e5fd"
+      },
+      "worldModeRecommendation": {
+        "authorityStatus": "recommendation_only_pending_reviewer_decision",
+        "rationale": "Whispering pillows, streets arched by snores, paper-bird books, inverted star orchards, physical sound footprints, and a resting path song are literal world mechanisms.",
+        "value": "fantastical"
+      }
+    },
+    {
+      "acceptedManifest": {
+        "path": "story-pipeline/04_approved_story_sources/accepted/lion_shaket_adventure/manifest.json",
+        "sha256": "e90015847e1f5148248fd5a94d59e83fe49eca15d3df50a3fe19d280cc1400d1"
+      },
+      "acceptedStory": {
+        "path": "story-pipeline/04_approved_story_sources/accepted/lion_shaket_adventure/story.md",
+        "sha256": "b16dba08984b2ca96797e7f357066b63c914055bb361da332520dcd289b2975f"
+      },
+      "briefId": "lion_shaket_adventure_bridge_lock_rumble_brief_v1",
+      "continuityIntent": {
+        "childWardrobeAuthority": "frozen_visual_contract",
+        "childWardrobeTransitionPages": [],
+        "companionAccessoryAuthority": "canonical_companion_profile",
+        "companionAppearanceAuthority": "frozen_companion_state",
+        "companionStateTransitionPages": [],
+        "version": "small-heroes-story-visual-continuity-intent/v1"
+      },
+      "directionReplacements": [],
+      "reviewRecordDigest": "fa4a7589494ab641b8082249092bbc4316f1f20a855d4466857178649ccd442e",
+      "storyKey": "lion_shaket_adventure",
+      "textReplacements": [
+        {
+          "expectedCount": 1,
+          "from": "gender: female",
+          "to": "gender: neutral"
+        },
+        {
+          "expectedCount": 1,
+          "from": "בבוקר חגיגת הנהר הגיעה {{childName}} אל הכיכר עם ליאו האריה.",
+          "to": "בבוקר חגיגת הנהר {הגיע|הגיעה} {{childName}} אל הכיכר עם ליאו האריה."
+        },
+        {
+          "expectedCount": 1,
+          "from": "{{childName}} הרגישה שגם בתוכה הכול מתחיל לבעבע.",
+          "to": "{{childName}} {הרגיש|הרגישה} שגם {בתוכו|בתוכה} הכול מתחיל לבעבע."
+        },
+        {
+          "expectedCount": 1,
+          "from": "\"די!\" קראה {{childName}}.",
+          "to": "\"די!\" {קרא|קראה} {{childName}}."
+        },
+        {
+          "expectedCount": 1,
+          "from": "{{childName}} כרעה ליד הגדה.",
+          "to": "{{childName}} {כרע|כרעה} ליד הגדה."
+        },
+        {
+          "expectedCount": 1,
+          "from": "\"הוא מחזיר משהו,\" אמרה.",
+          "to": "\"הוא מחזיר משהו,\" {אמר|אמרה}."
+        },
+        {
+          "expectedCount": 1,
+          "from": "{{childName}} רצה בעקבותיהם, וליאו אחריה.",
+          "to": "{{childName}} {רץ|רצה} בעקבותיהם, וליאו {אחריו|אחריה}."
+        },
+        {
+          "expectedCount": 1,
+          "from": "{{childName}} כמעט צעקה שוב. במקום זאת, היא עצמה עיניים לרגע.",
+          "to": "{{childName}} כמעט {צעק|צעקה} שוב. במקום זאת, {הוא עצם|היא עצמה} עיניים לרגע."
+        },
+        {
+          "expectedCount": 1,
+          "from": "\"הצלילים לא בורחים סתם,\" אמרה.",
+          "to": "\"הצלילים לא בורחים סתם,\" {אמר|אמרה}."
+        },
+        {
+          "expectedCount": 1,
+          "from": "{{childName}} עקבה אחרי הפעימה עד לשפת המים.",
+          "to": "{{childName}} {עקב|עקבה} אחרי הפעימה עד לשפת המים."
+        },
+        {
+          "expectedCount": 1,
+          "from": "היא נכנסה למים.",
+          "to": "{הוא נכנס|היא נכנסה} למים."
+        },
+        {
+          "expectedCount": 1,
+          "from": "ליאו בלע רוק ונכנס אחריה על קצות אצבעותיו.",
+          "to": "ליאו בלע רוק ונכנס {אחריו|אחריה} על קצות אצבעותיו."
+        },
+        {
+          "expectedCount": 1,
+          "from": "\"אני שומעת שלושה קולות,\" לחשה {{childName}}.",
+          "to": "\"{אני שומע|אני שומעת} שלושה קולות,\" {לחש|לחשה} {{childName}}."
+        },
+        {
+          "expectedCount": 1,
+          "from": "{{childName}} הניחה כף יד על שורש עבה. היא הרגישה שתי פעימות מהירות, הפסקה, ואז פעימה עמוקה.",
+          "to": "{{childName}} {הניח|הניחה} כף יד על שורש עבה. {הוא הרגיש|היא הרגישה} שתי פעימות מהירות, הפסקה, ואז פעימה עמוקה."
+        },
+        {
+          "expectedCount": 1,
+          "from": "\"הגשר לא מנסה לסלק את המוזיקה,\" הבינה.",
+          "to": "\"הגשר לא מנסה לסלק את המוזיקה,\" {הבין|הבינה}."
+        },
+        {
+          "expectedCount": 1,
+          "from": "ליאו שאף אוויר. {{childName}} ראתה את כתפיו מתקשות.",
+          "to": "ליאו שאף אוויר. {{childName}} {ראה|ראתה} את כתפיו מתקשות."
+        },
+        {
+          "expectedCount": 1,
+          "from": "\"אל תכסה עליהם,\" אמרה.",
+          "to": "\"אל תכסה עליהם,\" {אמר|אמרה}."
+        },
+        {
+          "expectedCount": 1,
+          "from": "\"ואת?\" שאל.",
+          "to": "\"{ואתה|ואת}?\" שאל."
+        },
+        {
+          "expectedCount": 1,
+          "from": "{{childName}} הצמידה אוזן לגפן.",
+          "to": "{{childName}} {הצמיד|הצמידה} אוזן לגפן."
+        },
+        {
+          "expectedCount": 1,
+          "from": "\"הכחולים—שתי פעימות!\" קראה.",
+          "to": "\"הכחולים—שתי פעימות!\" {קרא|קראה}."
+        },
+        {
+          "expectedCount": 1,
+          "from": "{{childName}} הקשיבה שוב.",
+          "to": "{{childName}} {הקשיב|הקשיבה} שוב."
+        },
+        {
+          "expectedCount": 1,
+          "from": "\"הוא מחכה לעצמו!\" קראה.",
+          "to": "\"הוא מחכה לעצמו!\" {קרא|קראה}."
+        },
+        {
+          "expectedCount": 1,
+          "from": "{{childName}} מחאה שתי מחיאות קצרות ואחת בהירה:",
+          "to": "{{childName}} {מחא|מחאה} שתי מחיאות קצרות ואחת בהירה:"
+        },
+        {
+          "expectedCount": 1,
+          "from": "ואז רקעה ברגליה, לא בכעס מבולבל אלא בהזמנה ברורה:",
+          "to": "ואז {רקע ברגליו|רקעה ברגליה}, לא בכעס מבולבל אלא בהזמנה ברורה:"
+        },
+        {
+          "expectedCount": 1,
+          "from": "\"לא קלקלת,\" אמרה {{childName}}.",
+          "to": "\"לא קלקלת,\" {אמר|אמרה} {{childName}}."
+        },
+        {
+          "expectedCount": 1,
+          "from": "היא ירדה אל מרכז הגשר. מתחתיה געש הנהר, ומסביבה חרקו הגפנים.",
+          "to": "{הוא ירד|היא ירדה} אל מרכז הגשר. {מתחתיו|מתחתיה} געש הנהר, {ומסביבו|ומסביבה} חרקו הגפנים."
+        },
+        {
+          "expectedCount": 1,
+          "from": "{{childName}} הנהיגה ברגליה:",
+          "to": "{{childName}} {הנהיג ברגליו|הנהיגה ברגליה}:"
+        },
+        {
+          "expectedCount": 1,
+          "from": "ליאו צעד לצדה של {{childName}}",
+          "to": "ליאו צעד {לצדו|לצדה} של {{childName}}"
+        },
+        {
+          "expectedCount": 1,
+          "from": "\"עכשיו צריך,\" אמרה.",
+          "to": "\"עכשיו צריך,\" {אמר|אמרה}."
+        },
+        {
+          "expectedCount": 1,
+          "from": "{{childName}} חייכה, רקעה שתי פעימות והמתינה.",
+          "to": "{{childName}} {חייך|חייכה}, {רקע|רקעה} שתי פעימות {והמתין|והמתינה}."
+        },
+        {
+          "expectedCount": 1,
+          "from": "בדיוק בזמן, הגשר ענה לה.",
+          "to": "בדיוק בזמן, הגשר ענה {לו|לה}."
+        }
+      ],
+      "unresolvedCreativeSourceIssues": [],
+      "visualDirection": {
+        "path": "story-pipeline/05_storyboard_inputs/autonomous-20260815-v1/lion_shaket_adventure.visual-directions.json",
+        "sha256": "9d5277badb616b951561ca0dd734b6f793149fc0548abf4dc66a5061ca8b0442"
+      },
+      "worldModeRecommendation": {
+        "authorityStatus": "recommendation_only_pending_reviewer_decision",
+        "rationale": "The river festival is a grounded civic setting, while visible sound wisps and a sentient vine bridge externalize the emotional/rhythmic conflict.",
+        "value": "grounded_with_visual_metaphor"
+      }
+    },
+    {
+      "acceptedManifest": {
+        "path": "story-pipeline/04_approved_story_sources/accepted/lion_shaket_bedtime/manifest.json",
+        "sha256": "4e61fe5edfbe40131c42a2fa482ba120267b7a55b3b6bf0c41a0a5397e45f729"
+      },
+      "acceptedStory": {
+        "path": "story-pipeline/04_approved_story_sources/accepted/lion_shaket_bedtime/story.md",
+        "sha256": "b6a30f1174c684cfb0f1c8a0041bcbae1dd4df10c58274829e78ea7956180cf0"
+      },
+      "briefId": "lion_shaket_bedtime_last_carousel_rumble_brief_v1",
+      "continuityIntent": {
+        "childWardrobeAuthority": "frozen_visual_contract",
+        "childWardrobeTransitionPages": [],
+        "companionAccessoryAuthority": "canonical_companion_profile",
+        "companionAppearanceAuthority": "frozen_companion_state",
+        "companionStateTransitionPages": [],
+        "version": "small-heroes-story-visual-continuity-intent/v1"
+      },
+      "directionReplacements": [
+        {
+          "expectedCount": 1,
+          "field": "mainAction",
+          "from": "The rabbit jumps over Leo, the horse races beneath him, and the duck rolls between his legs as nearby rides erupt and popcorn engulfs him.",
+          "pageNumber": 3,
+          "to": "The rabbit jumps over Leo, the horse races beneath Leo, and the duck rolls between Leo's legs as nearby rides erupt and popcorn engulfs Leo."
+        },
+        {
+          "expectedCount": 1,
+          "field": "mainAction",
+          "from": "The child listens closely to each animal while Leo shakes popcorn from his ears and the group considers their different needs for wind, bouncing, and a gentle wave.",
+          "pageNumber": 4,
+          "to": "The child listens closely to each animal while Leo shakes popcorn from Leo's ears and the group considers their different needs for wind, bouncing, and a gentle wave."
+        },
+        {
+          "expectedCount": 1,
+          "field": "mainAction",
+          "from": "The child shifts the levers while Leo increases his gentle pressure on the brass wheel, easing the carousel from a gallop into soft bouncing and a nearly still wave as the fair shuts down.",
+          "pageNumber": 7,
+          "to": "The child shifts the levers while Leo increases Leo's gentle pressure on the brass wheel, easing the carousel from a gallop into soft bouncing and a nearly still wave as the fair shuts down."
+        },
+        {
+          "expectedCount": 1,
+          "field": "mainAction",
+          "from": "The resting animals settle on the stopped carousel as the child pats Leo’s relaxed paw, with the cardboard moon quiet on his lap and the final Ferris wheel light fading.",
+          "pageNumber": 8,
+          "to": "The resting animals settle on the stopped carousel as the child pats Leo’s relaxed paw, with the cardboard moon quiet on Leo's lap and the final Ferris wheel light fading."
+        },
+        {
+          "expectedCount": 1,
+          "field": "shotType",
+          "from": "medium_wide",
+          "pageNumber": 6,
+          "to": "medium"
+        },
+        {
+          "expectedCount": 1,
+          "field": "shotType",
+          "from": "medium",
+          "pageNumber": 8,
+          "to": "medium_close"
+        }
+      ],
+      "reviewRecordDigest": "82af9dfdbe6495740bbc9b4085c3b433cfb1af2d6dea4597117257e1791b28ed",
+      "storyKey": "lion_shaket_bedtime",
+      "textReplacements": [
+        {
+          "expectedCount": 1,
+          "from": "gender: female",
+          "to": "gender: neutral"
+        },
+        {
+          "expectedCount": 1,
+          "from": "״אז את תבחרי את הקצב, ואני אחזיק בדיוק בעוצמה שתבקשי.״",
+          "to": "״אז {אתה תבחר|את תבחרי} את הקצב, ואני אחזיק בדיוק בעוצמה {שתבקש|שתבקשי}.״"
+        }
+      ],
+      "unresolvedCreativeSourceIssues": [
+        {
+          "code": "cardboard_moon_position_transition_unresolved",
+          "evidence": "The cardboard moon lands on Leo's head on page 2 and rests on Leo's lap on page 8, while pages 3–7 do not establish whether it stays on Leo, is carried elsewhere, or when it moves from head to lap.",
+          "pageNumbers": [
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8
+          ],
+          "requiredAction": "Approve exact carry-forward anchors and a head-to-lap transition beat for the cardboard moon before visual acceptance.",
+          "severity": "hold"
+        }
+      ],
+      "visualDirection": {
+        "path": "story-pipeline/05_storyboard_inputs/autonomous-20260815-v1/lion_shaket_bedtime.visual-directions.json",
+        "sha256": "c5722f9b8b7fbadf8321132abba2f999b5aabdbc5f446e1f069a6d22a82d723f"
+      },
+      "worldModeRecommendation": {
+        "authorityStatus": "recommendation_only_pending_reviewer_decision",
+        "rationale": "The night fair is recognizable and spatially grounded, while rides awaken and respond literally to emotional and rhythmic action.",
+        "value": "grounded_with_visual_metaphor"
+      }
+    },
+    {
+      "acceptedManifest": {
+        "path": "story-pipeline/04_approved_story_sources/accepted/lion_shaket_fantasy/manifest.json",
+        "sha256": "cfd98200464aebc6538cdc7cd621062e7cbafaed5eda8f4c4ca4b6dc2c3962a4"
+      },
+      "acceptedStory": {
+        "path": "story-pipeline/04_approved_story_sources/accepted/lion_shaket_fantasy/story.md",
+        "sha256": "933e7c3ccbc8c905b4594959e117b0d2bbad9a3fdd0b73808ca989f074de55c6"
+      },
+      "briefId": "lion_shaket_fantasy_cloud_pear_orchard_brief_v1",
+      "continuityIntent": {
+        "childWardrobeAuthority": "frozen_visual_contract",
+        "childWardrobeTransitionPages": [],
+        "companionAccessoryAuthority": "canonical_companion_profile",
+        "companionAppearanceAuthority": "frozen_companion_state",
+        "companionStateTransitionPages": [],
+        "version": "small-heroes-story-visual-continuity-intent/v1"
+      },
+      "directionReplacements": [
+        {
+          "expectedCount": 1,
+          "field": "mainAction",
+          "from": "Leo sprawls to catch several escaping pears while one balances on his head before springing away, watched by the surprised child.",
+          "pageNumber": 2,
+          "to": "Leo sprawls to catch several escaping pears while one balances on Leo's head before springing away, watched by the surprised child."
+        },
+        {
+          "expectedCount": 1,
+          "field": "mainAction",
+          "from": "The child helps Leo out of a mist heap after the springing golden branch flings him backward; three silver leaves now crown the sprout.",
+          "pageNumber": 4,
+          "to": "The child helps Leo out of a mist heap after the springing golden branch flings Leo backward; three silver leaves now crown the sprout."
+        },
+        {
+          "expectedCount": 1,
+          "field": "mainAction",
+          "from": "The child tests pears by touch and sound while Leo sniffs one and accidentally catches a lightning-bright sensation with his nose.",
+          "pageNumber": 8,
+          "to": "The child tests pears by touch and sound while Leo sniffs one and accidentally catches a lightning-bright sensation with Leo's nose."
+        },
+        {
+          "expectedCount": 1,
+          "field": "mainAction",
+          "from": "An enormous storm cloud bears down as Leo hugs three bending trunks and the wind tangles his tail.",
+          "pageNumber": 11,
+          "to": "An enormous storm cloud bears down as Leo hugs three bending trunks and the wind tangles Leo's tail."
+        },
+        {
+          "expectedCount": 1,
+          "field": "continuityAnchors",
+          "from": "harvest basket",
+          "itemIndex": 2,
+          "pageNumber": 11,
+          "to": "harvest basket remains tied to Leo's back"
+        },
+        {
+          "expectedCount": 1,
+          "field": "continuityAnchors",
+          "from": "harvest basket",
+          "itemIndex": 1,
+          "pageNumber": 12,
+          "to": "harvest basket remains tied to Leo's back"
+        },
+        {
+          "expectedCount": 1,
+          "field": "continuityAnchors",
+          "from": "harvest basket",
+          "itemIndex": 1,
+          "pageNumber": 13,
+          "to": "harvest basket remains tied to Leo's back"
+        },
+        {
+          "expectedCount": 1,
+          "field": "continuityAnchors",
+          "from": "harvest basket",
+          "itemIndex": 1,
+          "pageNumber": 14,
+          "to": "harvest basket remains tied to Leo's back"
+        },
+        {
+          "expectedCount": 1,
+          "field": "continuityAnchors",
+          "from": "harvested half retained",
+          "itemIndex": 2,
+          "pageNumber": 15,
+          "to": "harvested half retained; harvest basket remains tied to Leo's back"
+        },
+        {
+          "expectedCount": 1,
+          "field": "continuityAnchors",
+          "from": "harvest pears in basket",
+          "itemIndex": 1,
+          "pageNumber": 16,
+          "to": "harvest pears in basket tied to Leo's back"
+        }
+      ],
+      "reviewRecordDigest": "09498f84c830c6db9728e1432f897f818d2a7ac27eefb3b6c298cb854b67d3d8",
+      "storyKey": "lion_shaket_fantasy",
+      "textReplacements": [
+        {
+          "expectedCount": 1,
+          "from": "gender: female",
+          "to": "gender: neutral"
+        },
+        {
+          "expectedCount": 1,
+          "from": "\"הוא לא ברח,\" אמרה {{childName}}.",
+          "to": "\"הוא לא ברח,\" {אמר|אמרה} {{childName}}."
+        },
+        {
+          "expectedCount": 1,
+          "from": "\"חכה!\" קראה {{childName}}.",
+          "to": "\"חכה!\" {קרא|קראה} {{childName}}."
+        },
+        {
+          "expectedCount": 1,
+          "from": "{{childName}} עזרה לו לצאת.",
+          "to": "{{childName}} {עזר|עזרה} לו לצאת."
+        },
+        {
+          "expectedCount": 1,
+          "from": "\"אם כולם ילכו,\" אמרה {{childName}},",
+          "to": "\"אם כולם ילכו,\" {אמר|אמרה} {{childName}},"
+        },
+        {
+          "expectedCount": 1,
+          "from": "הכעס דקר בה כמו קוץ. היא רדפה אחרי אגס שמנמן, קפצה מענן לענן ותפסה אותו בשתי ידיים.",
+          "to": "הכעס דקר {בו|בה} כמו קוץ. {הוא רדף|היא רדפה} אחרי אגס שמנמן, {קפץ|קפצה} מענן לענן {ותפס|ותפסה} אותו בשתי ידיים."
+        },
+        {
+          "expectedCount": 1,
+          "from": "{{childName}} הביטה באגסים שעוד נותרו בסל.",
+          "to": "{{childName}} {הביט|הביטה} באגסים שעוד נותרו בסל."
+        },
+        {
+          "expectedCount": 1,
+          "from": "\"לא כולם אותו הדבר,\" אמרה.",
+          "to": "\"לא כולם אותו הדבר,\" {אמר|אמרה}."
+        },
+        {
+          "expectedCount": 1,
+          "from": "\"זאת הבטן שלך,\" צחקה {{childName}}.",
+          "to": "\"זאת הבטן שלך,\" {צחק|צחקה} {{childName}}."
+        },
+        {
+          "expectedCount": 1,
+          "from": "{{childName}} קשרה את סל הקציר לגבו של ליאו.",
+          "to": "{{childName}} {קשר|קשרה} את סל הקציר לגבו של ליאו."
+        },
+        {
+          "expectedCount": 1,
+          "from": "\"את הבשלים נשים בסל,\" אמרה.",
+          "to": "\"את הבשלים נשים בסל,\" {אמר|אמרה}."
+        },
+        {
+          "expectedCount": 1,
+          "from": "{{childName}} לחצה בעדינות:",
+          "to": "{{childName}} {לחץ|לחצה} בעדינות:"
+        },
+        {
+          "expectedCount": 1,
+          "from": "היא הקשיבה:",
+          "to": "{הוא הקשיב|היא הקשיבה}:"
+        },
+        {
+          "expectedCount": 1,
+          "from": "\"מתוק?\" שאלה {{childName}}.",
+          "to": "\"מתוק?\" {שאל|שאלה} {{childName}}."
+        },
+        {
+          "expectedCount": 1,
+          "from": "{{childName}} עצרה אותו.",
+          "to": "{{childName}} {עצר|עצרה} אותו."
+        },
+        {
+          "expectedCount": 1,
+          "from": "היא עטפה כל אגס בכפות ידיה,",
+          "to": "{הוא עטף|היא עטפה} כל אגס בכפות {ידיו|ידיה},"
+        },
+        {
+          "expectedCount": 1,
+          "from": "את שני האגסים הרכים והריחניים הניחה {{childName}} בסל.",
+          "to": "את שני האגסים הרכים והריחניים {הניח|הניחה} {{childName}} בסל."
+        },
+        {
+          "expectedCount": 1,
+          "from": "מאחורי העצים החדשים ראתה עוד מטע,",
+          "to": "מאחורי העצים החדשים {ראה|ראתה} עוד מטע,"
+        },
+        {
+          "expectedCount": 1,
+          "from": "\"אז המטע שלנו לא הולך ונמחק,\" אמרה.",
+          "to": "\"אז המטע שלנו לא הולך ונמחק,\" {אמר|אמרה}."
+        },
+        {
+          "expectedCount": 1,
+          "from": "{{childName}} טיפסה אל הצמרת הגבוהה ביותר. הכעס חזר לבעור בה כשהרוח תלשה עוד אגס.",
+          "to": "{{childName}} {טיפס|טיפסה} אל הצמרת הגבוהה ביותר. הכעס חזר לבעור {בו|בה} כשהרוח תלשה עוד אגס."
+        },
+        {
+          "expectedCount": 1,
+          "from": "אבל היא לא תפסה אותו מיד.",
+          "to": "אבל {הוא לא תפס|היא לא תפסה} אותו מיד."
+        },
+        {
+          "expectedCount": 1,
+          "from": "היא בדקה: צהוב ורך, בלי רשרוש.",
+          "to": "{הוא בדק|היא בדקה}: צהוב ורך, בלי רשרוש."
+        },
+        {
+          "expectedCount": 1,
+          "from": "\"לסל!\" קראה.",
+          "to": "\"לסל!\" {קרא|קראה}."
+        },
+        {
+          "expectedCount": 1,
+          "from": "אז הבינה מה עליה לעשות.",
+          "to": "אז {הבין מה עליו|הבינה מה עליה} לעשות."
+        },
+        {
+          "expectedCount": 1,
+          "from": "\"טיק־טיק—למרחק! רך ומתוק—לקציר!\" קראה {{childName}}.",
+          "to": "\"טיק־טיק—למרחק! רך ומתוק—לקציר!\" {קרא|קראה} {{childName}}."
+        },
+        {
+          "expectedCount": 1,
+          "from": "היא עמדה בין הענפים המתנדנדים, {מרוכז ויציב|מרוכזת ויציבה}.",
+          "to": "{הוא עמד|היא עמדה} בין הענפים המתנדנדים, {מרוכז ויציב|מרוכזת ויציבה}."
+        },
+        {
+          "expectedCount": 1,
+          "from": "אגס בשל נפל ימינה; היא מסרה אותו לליאו, והוא דחף אותו בעדינות אל הסל.",
+          "to": "אגס בשל נפל ימינה; {הוא מסר|היא מסרה} אותו לליאו, והוא דחף אותו בעדינות אל הסל."
+        },
+        {
+          "expectedCount": 1,
+          "from": "אגס נובט נפל שמאלה; היא סימנה, וליאו העניק לו תנופה ארוכה אל השמיים.",
+          "to": "אגס נובט נפל שמאלה; {הוא סימן|היא סימנה}, וליאו העניק לו תנופה ארוכה אל השמיים."
+        },
+        {
+          "expectedCount": 1,
+          "from": "{{childName}} פתחה אותו בזהירות.",
+          "to": "{{childName}} {פתח|פתחה} אותו בזהירות."
+        },
+        {
+          "expectedCount": 1,
+          "from": "\"את החצי הבשל ניקח,\" החליטה {{childName}}.",
+          "to": "\"את החצי הבשל ניקח,\" {החליט|החליטה} {{childName}}."
+        },
+        {
+          "expectedCount": 1,
+          "from": "ליאו הניח את הזרע על קצה כפו. {{childName}} כיוונה אל מקום ריק בין שני מטעי שמיים.",
+          "to": "ליאו הניח את הזרע על קצה כפו. {{childName}} {כיוון|כיוונה} אל מקום ריק בין שני מטעי שמיים."
+        }
+      ],
+      "unresolvedCreativeSourceIssues": [],
+      "visualDirection": {
+        "path": "story-pipeline/05_storyboard_inputs/autonomous-20260815-v1/lion_shaket_fantasy.visual-directions.json",
+        "sha256": "9921e5c21ed8a7b0699e6d659a1e42b4f881245b4888c2254181d284bfc0d806"
+      },
+      "worldModeRecommendation": {
+        "authorityStatus": "recommendation_only_pending_reviewer_decision",
+        "rationale": "Cloud orchards, rain seas, star fields, self-planting pears, and connected sky gardens form the literal story world.",
+        "value": "fantastical"
+      }
+    },
+    {
+      "acceptedManifest": {
+        "path": "story-pipeline/04_approved_story_sources/accepted/panda_anat_adventure/manifest.json",
+        "sha256": "38a65fd8bb6aabba665a22fe2a9d316b19f7d3e540d1032603d5fb9b306df758"
+      },
+      "acceptedStory": {
+        "path": "story-pipeline/04_approved_story_sources/accepted/panda_anat_adventure/story.md",
+        "sha256": "97f1fffc2809ede2ad29ea3ed7cbfc0806d6a759f0b998e52bcfbe1f6f943249"
+      },
+      "briefId": "panda_anat_adventure_bridge_orchestra_brief_v1",
+      "continuityIntent": {
+        "childWardrobeAuthority": "frozen_visual_contract",
+        "childWardrobeTransitionPages": [],
+        "companionAccessoryAuthority": "canonical_companion_profile",
+        "companionAppearanceAuthority": "frozen_companion_state",
+        "companionStateTransitionPages": [],
+        "version": "small-heroes-story-visual-continuity-intent/v1"
+      },
+      "directionReplacements": [
+        {
+          "expectedCount": 1,
+          "field": "shotType",
+          "from": "wide",
+          "pageNumber": 4,
+          "to": "medium_wide"
+        }
+      ],
+      "reviewRecordDigest": "08b788ea7e2a324765be190f3ae99563314a7edf4c6ab3518f731a1d019f12af",
+      "storyKey": "panda_anat_adventure",
+      "textReplacements": [
+        {
+          "expectedCount": 1,
+          "from": "gender: female",
+          "to": "gender: neutral"
+        },
+        {
+          "expectedCount": 1,
+          "from": "גם היא —",
+          "to": "גם {הוא|היא} —"
+        },
+        {
+          "expectedCount": 1,
+          "from": "קצה אפה בעשב.",
+          "to": "קצה {אפו|אפה} בעשב."
+        },
+        {
+          "expectedCount": 1,
+          "from": "{{childName}} {נעמד|נעמדה} בראש השיירה וסימנה:",
+          "to": "{{childName}} {נעמד|נעמדה} בראש השיירה {וסימן|וסימנה}:"
+        },
+        {
+          "expectedCount": 1,
+          "from": "\"ואולי,\" אמרה {{childName}},",
+          "to": "\"ואולי,\" {אמר|אמרה} {{childName}},"
+        },
+        {
+          "expectedCount": 1,
+          "from": "{{childName}} ביקשה מן הנגנים להניח את הכלים לרגע. היא ועֲנָת ירדו מן העגלה ושחררו בזהירות ענף שנתקע בקפל השביל.",
+          "to": "{{childName}} {ביקש|ביקשה} מן הנגנים להניח את הכלים לרגע. {הוא|היא} ועֲנָת ירדו מן העגלה ושחררו בזהירות ענף שנתקע בקפל השביל."
+        },
+        {
+          "expectedCount": 1,
+          "from": "ועֲנָת הלכה לצדה.",
+          "to": "ועֲנָת הלכה {לצדו|לצדה}."
+        },
+        {
+          "expectedCount": 1,
+          "from": "\"אנחנו רואות אותך,\" אמרה {{childName}} אל הדרך.",
+          "to": "\"אנחנו {רואים|רואות} אותך,\" {אמר|אמרה} {{childName}} אל הדרך."
+        },
+        {
+          "expectedCount": 1,
+          "from": "\"אפשר להזמין אותו גם בלי להבין הכול,\" אמרה {{childName}}. היא פנתה אל התלולית:",
+          "to": "\"אפשר להזמין אותו גם בלי להבין הכול,\" {אמר|אמרה} {{childName}}. {הוא|היא} {פנה|פנתה} אל התלולית:"
+        },
+        {
+          "expectedCount": 1,
+          "from": "\"אנחנו עדיין נותנים לו פקודות,\" הבינה {{childName}}.",
+          "to": "\"אנחנו עדיין נותנים לו פקודות,\" {הבין|הבינה} {{childName}}."
+        },
+        {
+          "expectedCount": 1,
+          "from": "{{childName}} סידרה את התזמורת בחצי עיגול,",
+          "to": "{{childName}} {סידר|סידרה} את התזמורת בחצי עיגול,"
+        },
+        {
+          "expectedCount": 1,
+          "from": "\"ננגן הצעה,\" אמרה.",
+          "to": "\"ננגן הצעה,\" {אמר|אמרה}."
+        },
+        {
+          "expectedCount": 1,
+          "from": "{{childName}} סימנה לה לחכות.",
+          "to": "{{childName}} {סימן|סימנה} לה לחכות."
+        },
+        {
+          "expectedCount": 1,
+          "from": "היא ביקשה מן הנגנים לפתוח רווחים ביניהם.",
+          "to": "{הוא|היא} {ביקש|ביקשה} מן הנגנים לפתוח רווחים ביניהם."
+        },
+        {
+          "expectedCount": 1,
+          "from": "{{childName}} ענתה במחיאת כף.",
+          "to": "{{childName}} {ענה|ענתה} במחיאת כף."
+        }
+      ],
+      "unresolvedCreativeSourceIssues": [
+        {
+          "code": "scarf_ownership_authority_unresolved",
+          "evidence": "Page 7 wraps the drum in an unspecified scarf, while page 8 calls it the same scarf; the accepted prose never identifies it as Anat's canonical scarf. — Assigning ownership to Anat would create a companion-accessory transition not authorized by the source. Keep it as an independent scene prop unless a reviewer makes that creative decision.",
+          "pageNumbers": [
+            7,
+            8
+          ],
+          "requiredAction": "Confirm the scarf as an independent scene prop, or approve an explicit Anat-accessory transition.",
+          "severity": "review"
+        }
+      ],
+      "visualDirection": {
+        "path": "story-pipeline/05_storyboard_inputs/autonomous-20260815-v1/panda_anat_adventure.visual-directions.json",
+        "sha256": "0c1925e6996f2f02782035062c93524c35a571351b5be525efc5db0bdf603425"
+      },
+      "worldModeRecommendation": {
+        "authorityStatus": "recommendation_only_pending_reviewer_decision",
+        "rationale": "The orchestra, carts, instruments, garden, field, and procession are grounded, while the responsive path physically knots, grows a bridge, and joins the music as a concrete social metaphor.",
+        "value": "grounded_with_visual_metaphor"
+      }
+    },
+    {
+      "acceptedManifest": {
+        "path": "story-pipeline/04_approved_story_sources/accepted/panda_anat_bedtime/manifest.json",
+        "sha256": "35c91796d7e7184639325b96f04bf85813e347f2fe3b9ea0a4969b69dbe9e101"
+      },
+      "acceptedStory": {
+        "path": "story-pipeline/04_approved_story_sources/accepted/panda_anat_bedtime/story.md",
+        "sha256": "ca9a162a43ecf0d6b111de4a4e29940205b2f91b0d61d0eba0f219c2f22ff91c"
+      },
+      "briefId": "panda_anat_bedtime_last_puppet_bow_brief_v1",
+      "continuityIntent": {
+        "childWardrobeAuthority": "frozen_visual_contract",
+        "childWardrobeTransitionPages": [],
+        "companionAccessoryAuthority": "canonical_companion_profile",
+        "companionAppearanceAuthority": "frozen_companion_state",
+        "companionStateTransitionPages": [],
+        "version": "small-heroes-story-visual-continuity-intent/v1"
+      },
+      "directionReplacements": [
+        {
+          "expectedCount": 1,
+          "field": "shotType",
+          "from": "medium",
+          "pageNumber": 4,
+          "to": "medium_close"
+        }
+      ],
+      "reviewRecordDigest": "552a9bb626529ef31d88f4abd5a1c33ae4d688ef4a2d75083a8e867fdadf17d1",
+      "storyKey": "panda_anat_bedtime",
+      "textReplacements": [
+        {
+          "expectedCount": 1,
+          "from": "gender: female",
+          "to": "gender: neutral"
+        },
+        {
+          "expectedCount": 1,
+          "from": "\"קידת הסיום התפזרה!\" קראה {{childName}}.",
+          "to": "\"קידת הסיום התפזרה!\" {קרא|קראה} {{childName}}."
+        },
+        {
+          "expectedCount": 1,
+          "from": "\"תפסתי!\" קראה {{childName}}, ודרכה על קצה הזנב.",
+          "to": "\"תפסתי!\" {קרא|קראה} {{childName}}, {ודרך|ודרכה} על קצה הזנב."
+        },
+        {
+          "expectedCount": 1,
+          "from": "אך ברגע שזזה,",
+          "to": "אך ברגע {שזז|שזזה},"
+        },
+        {
+          "expectedCount": 2,
+          "from": "היא רדפה אחרי",
+          "to": "{הוא|היא} {רדף|רדפה} אחרי"
+        },
+        {
+          "expectedCount": 1,
+          "from": "\"הקידה בורחת לכל הכיוונים!\" אמרה {{childName}}.",
+          "to": "\"הקידה בורחת לכל הכיוונים!\" {אמר|אמרה} {{childName}}."
+        },
+        {
+          "expectedCount": 1,
+          "from": "{{childName}} כיבתה את הפנס הגדול.",
+          "to": "{{childName}} {כיבה|כיבתה} את הפנס הגדול."
+        },
+        {
+          "expectedCount": 1,
+          "from": "{{childName}} עמדה בין הפנסים לחצר והרימה יד.",
+          "to": "{{childName}} {עמד|עמדה} בין הפנסים לחצר {והרים|והרימה} יד."
+        },
+        {
+          "expectedCount": 1,
+          "from": "צל ידה נשלח קדימה",
+          "to": "צל {ידו|ידה} נשלח קדימה"
+        },
+        {
+          "expectedCount": 1,
+          "from": "\"ראית?\" היא לחשה.",
+          "to": "\"ראית?\" {הוא|היא} {לחש|לחשה}."
+        },
+        {
+          "expectedCount": 1,
+          "from": "\"תזמיני את כולם,\" אמרה לענת.",
+          "to": "\"תזמיני את כולם,\" {אמר|אמרה} לענת."
+        },
+        {
+          "expectedCount": 1,
+          "from": "{{childName}} קראה לקהל:",
+          "to": "{{childName}} {קרא|קראה} לקהל:"
+        },
+        {
+          "expectedCount": 1,
+          "from": "\"אנחנו במקום כמעט נכון,\" אמרה {{childName}}.",
+          "to": "\"אנחנו במקום כמעט נכון,\" {אמר|אמרה} {{childName}}."
+        },
+        {
+          "expectedCount": 1,
+          "from": "{{childName}} בדקה את השביל, את עץ הלימון ואת השער.",
+          "to": "{{childName}} {בדק|בדקה} את השביל, את עץ הלימון ואת השער."
+        },
+        {
+          "expectedCount": 1,
+          "from": "הצל שלה נראה כמו גרב.",
+          "to": "הצל {שלו|שלה} נראה כמו גרב."
+        },
+        {
+          "expectedCount": 1,
+          "from": "אור משלושת הפנסים נגע בקצות נעליה, וצל גופה נפרש קדימה בין שברי הצללים.",
+          "to": "אור משלושת הפנסים נגע בקצות {נעליו|נעליה}, וצל {גופו|גופה} נפרש קדימה בין שברי הצללים."
+        },
+        {
+          "expectedCount": 1,
+          "from": "היא פסעה לאורך שורת האבנים.",
+          "to": "{הוא|היא} {פסע|פסעה} לאורך שורת האבנים."
+        },
+        {
+          "expectedCount": 1,
+          "from": "\"ענת!\" קראה.",
+          "to": "\"ענת!\" {קרא|קראה}."
+        },
+        {
+          "expectedCount": 1,
+          "from": "\"בואי נסדר את כולם עכשיו,\" אמרה,",
+          "to": "\"{בוא נסדר|בואי נסדר} את כולם עכשיו,\" אמרה,"
+        },
+        {
+          "expectedCount": 1,
+          "from": "{{childName}} העמידה את הקהל לאורך שורת האבנים,",
+          "to": "{{childName}} {העמיד|העמידה} את הקהל לאורך שורת האבנים,"
+        },
+        {
+          "expectedCount": 1,
+          "from": "\"{עמוד על האבן הבהירה|עמדי על האבן הבהירה},\" אמרה. \"{זוז מעט ימינה|זוזי מעט ימינה}. עכשיו כולם יביטו קדימה.\"",
+          "to": "\"{עמוד על האבן הבהירה|עמדי על האבן הבהירה},\" {אמר|אמרה}. \"{זוז מעט ימינה|זוזי מעט ימינה}. עכשיו כולם יביטו קדימה.\""
+        },
+        {
+          "expectedCount": 1,
+          "from": "{{childName}} הרימה את זרועותיה, וכל הקהל חיקה אותה.",
+          "to": "{{childName}} {הרים|הרימה} את {זרועותיו|זרועותיה}, וכל הקהל חיקה {אותו|אותה}."
+        },
+        {
+          "expectedCount": 1,
+          "from": "{{childName}} הורידה לאט את זרועותיה,",
+          "to": "{{childName}} {הוריד|הורידה} לאט את {זרועותיו|זרועותיה},"
+        },
+        {
+          "expectedCount": 1,
+          "from": "\"טוב שסיפרת לפני שהיית בטוחה,\" אמרה {{childName}}.",
+          "to": "\"טוב שסיפרת לפני שהיית בטוחה,\" {אמר|אמרה} {{childName}}."
+        }
+      ],
+      "unresolvedCreativeSourceIssues": [],
+      "visualDirection": {
+        "path": "story-pipeline/05_storyboard_inputs/autonomous-20260815-v1/panda_anat_bedtime.visual-directions.json",
+        "sha256": "e77d897a7386817463695bd98a2cf1dd5cdd6e80a031003d48b22368b45234a7"
+      },
+      "worldModeRecommendation": {
+        "authorityStatus": "recommendation_only_pending_reviewer_decision",
+        "rationale": "The paper-puppet stage, lamps, crowd alignment, and completed tableau are physically grounded; the escaping and shape-shifting shadows are a visual metaphor made concrete.",
+        "value": "grounded_with_visual_metaphor"
+      }
+    },
+    {
+      "acceptedManifest": {
+        "path": "story-pipeline/04_approved_story_sources/accepted/panda_anat_fantasy/manifest.json",
+        "sha256": "10dbc9aa6cf61a6874f9a297df28eacc467d9dfebe583671bc973f65b8a20aba"
+      },
+      "acceptedStory": {
+        "path": "story-pipeline/04_approved_story_sources/accepted/panda_anat_fantasy/story.md",
+        "sha256": "67b40182094b46c3cddcb999a554d066e6ea60cfe3794fed1395e51d49c1231e"
+      },
+      "briefId": "panda_anat_fantasy_two_handle_kite_brief_v1",
+      "continuityIntent": {
+        "childWardrobeAuthority": "frozen_visual_contract",
+        "childWardrobeTransitionPages": [],
+        "companionAccessoryAuthority": "canonical_companion_profile",
+        "companionAppearanceAuthority": "frozen_companion_state",
+        "companionStateTransitionPages": [],
+        "version": "small-heroes-story-visual-continuity-intent/v1"
+      },
+      "directionReplacements": [
+        {
+          "expectedCount": 1,
+          "field": "continuityAnchors",
+          "from": "seed box closed",
+          "itemIndex": 2,
+          "pageNumber": 9,
+          "to": "seed box shutters remain open after the leaf retracts"
+        }
+      ],
+      "reviewRecordDigest": "a9b435a8a1f97fc24d5e8a69d1f0b311b47797f599c5afa7d00df87f91accf7c",
+      "storyKey": "panda_anat_fantasy",
+      "textReplacements": [
+        {
+          "expectedCount": 1,
+          "from": "gender: female",
+          "to": "gender: neutral"
+        },
+        {
+          "expectedCount": 1,
+          "from": "לצדה עֲנָת הפנדה",
+          "to": "{לצדו|לצדה} עֲנָת הפנדה"
+        },
+        {
+          "expectedCount": 1,
+          "from": "\"אסתדר!\" אמרה {{childName}}. היא הניחה את הקופסה בכיס מרופד, {תפס|תפסה} ידית בכל יד ומשכה.",
+          "to": "\"אסתדר!\" {אמר|אמרה} {{childName}}. {הוא|היא} {הניח|הניחה} את הקופסה בכיס מרופד, {תפס|תפסה} ידית בכל יד {ומשך|ומשכה}."
+        },
+        {
+          "expectedCount": 1,
+          "from": "\"אנחנו בעיקר מקיפים תרנגולת!\" השיבה {{childName}}.",
+          "to": "\"אנחנו בעיקר מקיפים תרנגולת!\" {השיב|השיבה} {{childName}}."
+        },
+        {
+          "expectedCount": 1,
+          "from": "התרנגולת נופפה להן",
+          "to": "התרנגולת נופפה {להם|להן}"
+        },
+        {
+          "expectedCount": 1,
+          "from": "{{childName}} משכה חזק יותר.",
+          "to": "{{childName}} {משך|משכה} חזק יותר."
+        },
+        {
+          "expectedCount": 1,
+          "from": "{{childName}} הביטה בגרעין הזהוב.",
+          "to": "{{childName}} {הביט|הביטה} בגרעין הזהוב."
+        },
+        {
+          "expectedCount": 1,
+          "from": "היא שחררה את הידית האדומה והושיטה אותה לענת.",
+          "to": "{הוא|היא} {שחרר|שחררה} את הידית האדומה {והושיט|והושיטה} אותה לענת."
+        },
+        {
+          "expectedCount": 1,
+          "from": "\"ימינה מעט,\" אמרה {{childName}}.",
+          "to": "\"ימינה מעט,\" {אמר|אמרה} {{childName}}."
+        },
+        {
+          "expectedCount": 1,
+          "from": "שתיהן צחקו,",
+          "to": "{שניהם|שתיהן} צחקו,"
+        },
+        {
+          "expectedCount": 1,
+          "from": "לפניהן צמח מטע עננים.",
+          "to": "{לפניהם|לפניהן} צמח מטע עננים."
+        },
+        {
+          "expectedCount": 1,
+          "from": "{{childName}} הטתה את הכנפיים בין שני עננים.",
+          "to": "{{childName}} {הטה|הטתה} את הכנפיים בין שני עננים."
+        },
+        {
+          "expectedCount": 1,
+          "from": "עֲנָת סובבה את הזנב בעקבותיה.",
+          "to": "עֲנָת סובבה את הזנב {בעקבותיו|בעקבותיה}."
+        },
+        {
+          "expectedCount": 1,
+          "from": "ושקע תחתיהן.",
+          "to": "ושקע {תחתיהם|תחתיהן}."
+        },
+        {
+          "expectedCount": 1,
+          "from": "{{childName}} משכה בידית הכחולה.",
+          "to": "{{childName}} {משך|משכה} בידית הכחולה."
+        },
+        {
+          "expectedCount": 1,
+          "from": "{{childName}} הפסיקה למשוך.",
+          "to": "{{childName}} {הפסיק|הפסיקה} למשוך."
+        },
+        {
+          "expectedCount": 1,
+          "from": "{{childName}} הרפתה מן הכנפיים",
+          "to": "{{childName}} {הרפה|הרפתה} מן הכנפיים"
+        },
+        {
+          "expectedCount": 1,
+          "from": "הרוח חלפה ביניהן במקום להטיח בהן.",
+          "to": "הרוח חלפה {ביניהם|ביניהן} במקום להטיח {בהם|בהן}."
+        },
+        {
+          "expectedCount": 1,
+          "from": "\"ראית לפני שהרוח באה,\" אמרה {{childName}}.\n\n\"ואת פעלת לפני שסיימתי להסביר,\" אמרה עֲנָת.",
+          "to": "\"ראית לפני שהרוח באה,\" {אמר|אמרה} {{childName}}.\n\n\"{ואתה|ואת} פעלת לפני שסיימתי להסביר,\" אמרה עֲנָת."
+        },
+        {
+          "expectedCount": 1,
+          "from": "\"הגרעין מתעורר!\" קראה {{childName}}.",
+          "to": "\"הגרעין מתעורר!\" {קרא|קראה} {{childName}}."
+        },
+        {
+          "expectedCount": 1,
+          "from": "היא סגרה את התריסים סביב הכיס,",
+          "to": "{הוא|היא} {סגר|סגרה} את התריסים סביב הכיס,"
+        },
+        {
+          "expectedCount": 1,
+          "from": "{{childName}} קיפלה כנף אחת.",
+          "to": "{{childName}} {קיפל|קיפלה} כנף אחת."
+        },
+        {
+          "expectedCount": 1,
+          "from": "ו{{childName}} התאימה את הכנפיים.",
+          "to": "ו{{childName}} {התאים|התאימה} את הכנפיים."
+        },
+        {
+          "expectedCount": 1,
+          "from": "הן לא נעו בדיוק יחד—אחת התחילה, השנייה ענתה.",
+          "to": "{הם|הן} לא נעו בדיוק יחד—{אחד|אחת} {התחיל|התחילה}, השנייה ענתה."
+        },
+        {
+          "expectedCount": 1,
+          "from": "{{childName}} פתחה את התריסים.",
+          "to": "{{childName}} {פתח|פתחה} את התריסים."
+        },
+        {
+          "expectedCount": 1,
+          "from": "\"נרדם,\" לחשה.",
+          "to": "\"נרדם,\" {לחש|לחשה}."
+        },
+        {
+          "expectedCount": 1,
+          "from": "{{childName}} לא ראתה את הכנפיים.",
+          "to": "{{childName}} {לא ראה|לא ראתה} את הכנפיים."
+        },
+        {
+          "expectedCount": 1,
+          "from": "אך שתיהן הרגישו את הידיות רועדות.",
+          "to": "אך {שניהם|שתיהן} הרגישו את הידיות רועדות."
+        },
+        {
+          "expectedCount": 1,
+          "from": "\"כשאי אפשר לראות,\" אמרה {{childName}},",
+          "to": "\"כשאי אפשר לראות,\" {אמר|אמרה} {{childName}},"
+        },
+        {
+          "expectedCount": 1,
+          "from": "היא טפחה על הידית הכחולה:",
+          "to": "{הוא|היא} {טפח|טפחה} על הידית הכחולה:"
+        },
+        {
+          "expectedCount": 1,
+          "from": "שומעות זו את זו דרך העץ והחבלים.",
+          "to": "{שומעים זה את זה|שומעות זו את זו} דרך העץ והחבלים."
+        },
+        {
+          "expectedCount": 1,
+          "from": "\"מחזיקות!\" קראה {{childName}}.",
+          "to": "\"{מחזיקים|מחזיקות}!\" {קרא|קראה} {{childName}}."
+        },
+        {
+          "expectedCount": 1,
+          "from": "המשב התנגש בבטן הסירה והעיף אותן מעל ים הערפל.\n\nלרגע הן רכבו על הרוח כמו על גבו של לווייתן בלתי נראה. היצורים נדלקו סביבן בזה אחר זה,",
+          "to": "המשב התנגש בבטן הסירה והעיף {אותם|אותן} מעל ים הערפל.\n\nלרגע {הם|הן} רכבו על הרוח כמו על גבו של לווייתן בלתי נראה. היצורים נדלקו {סביבם|סביבן} בזה אחר זה,"
+        },
+        {
+          "expectedCount": 1,
+          "from": "\"אנחנו כמעט שם!\" קראה {{childName}}.",
+          "to": "\"אנחנו כמעט שם!\" {קרא|קראה} {{childName}}."
+        },
+        {
+          "expectedCount": 1,
+          "from": "\"רק המשתנות יחד יעברו.\"",
+          "to": "\"רק {המשתנים|המשתנות} יחד יעברו.\""
+        },
+        {
+          "expectedCount": 1,
+          "from": "\"ואיך משכנעים שתי רוחות?\" שאלה {{childName}}.",
+          "to": "\"ואיך משכנעים שתי רוחות?\" {שאל|שאלה} {{childName}}."
+        },
+        {
+          "expectedCount": 1,
+          "from": "{{childName}} כמעט צעקה הוראה—ואז עצרה.",
+          "to": "{{childName}} כמעט {צעק|צעקה} הוראה—ואז {עצר|עצרה}."
+        },
+        {
+          "expectedCount": 1,
+          "from": "\"אז גם אנחנו נשתנה כל הזמן,\" אמרה {{childName}}.",
+          "to": "\"אז גם אנחנו נשתנה כל הזמן,\" {אמר|אמרה} {{childName}}."
+        },
+        {
+          "expectedCount": 1,
+          "from": "{{childName}} פתחה כנפיים.",
+          "to": "{{childName}} {פתח|פתחה} כנפיים."
+        },
+        {
+          "expectedCount": 1,
+          "from": "עֲנָת הטתה זנב אחריה.",
+          "to": "עֲנָת הטתה זנב {אחריו|אחריה}."
+        },
+        {
+          "expectedCount": 1,
+          "from": "{{childName}} קיפלה כנף בתגובה.",
+          "to": "{{childName}} {קיפל|קיפלה} כנף בתגובה."
+        },
+        {
+          "expectedCount": 1,
+          "from": "לפעמים {{childName}} הובילה, לפעמים עֲנָת, ולפעמים שתיהן תיקנו זו את זו באמצע תנועה.",
+          "to": "לפעמים {{childName}} {הוביל|הובילה}, לפעמים עֲנָת, ולפעמים {שניהם|שתיהן} תיקנו {זה את זה|זו את זו} באמצע תנועה."
+        },
+        {
+          "expectedCount": 1,
+          "from": "המעגל הלבן התהדק סביבן.",
+          "to": "המעגל הלבן התהדק {סביבם|סביבן}."
+        },
+        {
+          "expectedCount": 1,
+          "from": "{{childName}} הביטה בשלג—ובקופסה הזוהרת.",
+          "to": "{{childName}} {הביט|הביטה} בשלג—ובקופסה הזוהרת."
+        },
+        {
+          "expectedCount": 1,
+          "from": "היא קיבלה החלטה.",
+          "to": "{הוא|היא} {קיבל|קיבלה} החלטה."
+        },
+        {
+          "expectedCount": 1,
+          "from": "\"לא נחזיק נגד הרוחות,\" אמרה {{childName}}.",
+          "to": "\"לא נחזיק נגד הרוחות,\" {אמר|אמרה} {{childName}}."
+        },
+        {
+          "expectedCount": 1,
+          "from": "היא שחררה לרגע את הכנף השמאלית.",
+          "to": "{הוא|היא} {שחרר|שחררה} לרגע את הכנף השמאלית."
+        },
+        {
+          "expectedCount": 1,
+          "from": "{{childName}} פתחה את הכנף אל המשיכה,",
+          "to": "{{childName}} {פתח|פתחה} את הכנף אל המשיכה,"
+        },
+        {
+          "expectedCount": 1,
+          "from": "\"שתיהן יחד!\"",
+          "to": "\"{שניהם|שתיהן} יחד!\""
+        },
+        {
+          "expectedCount": 1,
+          "from": "{{childName}} לא משכה חזק. היא משכה בדיוק בזמן שעֲנָת סובבה.",
+          "to": "{{childName}} {לא משך|לא משכה} חזק. {הוא|היא} {משך|משכה} בדיוק בזמן שעֲנָת סובבה."
+        },
+        {
+          "expectedCount": 1,
+          "from": "{{childName}} רצה אל הכיכר הקפואה.",
+          "to": "{{childName}} {רץ|רצה} אל הכיכר הקפואה."
+        },
+        {
+          "expectedCount": 1,
+          "from": "היא פתחה את הקופסה והניחה את הגרעין בסדק.",
+          "to": "{הוא|היא} {פתח|פתחה} את הקופסה {והניח|והניחה} את הגרעין בסדק."
+        },
+        {
+          "expectedCount": 1,
+          "from": "והגישו לשתיים מרק תות חם",
+          "to": "והגישו {לשניים|לשתיים} מרק תות חם"
+        },
+        {
+          "expectedCount": 1,
+          "from": "\"מי מכן ניווטה?\"",
+          "to": "\"{מי מכם ניווט|מי מכן ניווטה}?\""
+        },
+        {
+          "expectedCount": 1,
+          "from": "{{childName}} ועֲנָת הביטו זו בזו.\n\n\"שתינו,\" אמרה {{childName}}.",
+          "to": "{{childName}} ועֲנָת הביטו {זה בזה|זו בזו}.\n\n\"{שנינו|שתינו},\" {אמר|אמרה} {{childName}}."
+        },
+        {
+          "expectedCount": 1,
+          "from": "\"אני איתך!\" ענתה {{childName}}.",
+          "to": "\"אני איתך!\" {ענה|ענתה} {{childName}}."
+        },
+        {
+          "expectedCount": 1,
+          "from": "ושתיהן עפו קדימה.",
+          "to": "{ושניהם|ושתיהן} עפו קדימה."
+        }
+      ],
+      "unresolvedCreativeSourceIssues": [
+        {
+          "code": "creature_gender_agreement_conflict",
+          "evidence": "On page 9 the child addresses the small creature with feminine singular \"את יודעת\" even though the narration immediately refers to the creature with masculine \"אותו\" and \"היצור\". — The referent is the creature, not the personalized child. Choosing the creature's intended gender or rewriting the address requires a creative-source decision and would change the accepted female prose.",
+          "pageNumbers": [
+            9
+          ],
+          "requiredAction": "Choose the creature's intended gender, revise the address and references consistently, and obtain fresh product acceptance.",
+          "severity": "hold"
+        },
+        {
+          "code": "companion_scarf_and_shirt_state_unresolved",
+          "evidence": "Anat's story-specific scarf is explicitly secured on page 2. On page 3 an upside-down shirt covers Anat's head before Anat pulls the head through the collar, but the Visual Direction does not preserve the scarf or state where the shirt goes afterward.",
+          "pageNumbers": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "requiredAction": "Approve exact scarf visibility and shirt removal/carry disposition from page 3 onward before visual acceptance; do not encode either transient prop as an intrinsic companion-state transition.",
+          "severity": "hold"
+        }
+      ],
+      "visualDirection": {
+        "path": "story-pipeline/05_storyboard_inputs/autonomous-20260815-v1/panda_anat_fantasy.visual-directions.json",
+        "sha256": "d1c39668fa9024f37d7b30492fe5abf10e54d5b2481afb631facea795007622e"
+      },
+      "worldModeRecommendation": {
+        "authorityStatus": "recommendation_only_pending_reviewer_decision",
+        "rationale": "A kite-boat flies through inverted rain, luminous migrating creatures, opposing sentient winds, and a frozen island revived by a magical spring seed.",
+        "value": "fantastical"
+      }
+    }
+  ],
+  "reviewBatch": {
+    "digest": "7a8434c76f90bc96776909430e93fecb97f2c8a08800085d0ba3e55d7f97a143",
+    "rawSha256": "143ff1a7a0f67382ae5efce1deecf492761bb51809f7183cf6c8304c682d5a08",
+    "version": "small-heroes-story-source-visual-direction-review-batch/v1"
+  },
+  "status": "proposal_only_pending_exact_review",
+  "storyboardCorpus": {
+    "digest": "a793038efca754ea028aa9fc528f896261ade25b671865657282fb6220cfb6fa",
+    "path": "story-pipeline/05_storyboard_inputs/autonomous-20260815-v1/manifest.json",
+    "sha256": "2c884372b36b4e45266490f920fdae2c59809a4e8a444e4780471de8e62c631d"
+  },
+  "version": "small-heroes-story-source-visual-direction-correction-plan/v1"
+}

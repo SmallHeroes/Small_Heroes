@@ -10,6 +10,7 @@
     "render-qualification-audit": "tsx --require ./scripts/shims/register-server-only.cjs scripts/audit-render-qualification.ts",
     "wizard-all-story-readiness": "tsx --require ./scripts/shims/register-server-only.cjs scripts/audit-wizard-all-story-readiness.ts",
     "prepare-story-source-visual-review-batch": "tsx --require ./scripts/shims/register-server-only.cjs scripts/prepare-story-source-visual-direction-review-batch.ts",
+    "prepare-story-source-visual-corrections": "tsx --require ./scripts/shims/register-server-only.cjs scripts/prepare-story-source-visual-direction-corrections.ts",
     "promote-visual-package": "tsx --require ./scripts/shims/register-server-only.cjs scripts/promote-visual-package.ts",
     "pre-render-blueprint": "tsx --require ./scripts/shims/register-server-only.cjs scripts/pre-render-blueprint-lifecycle.ts",
     "time-authority-set-board-rebind": "tsx --require ./scripts/shims/register-server-only.cjs scripts/time-authority-set-board-rebind.ts",
