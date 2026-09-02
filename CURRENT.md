@@ -1,6 +1,6 @@
 # SmallHeroes — Current Technical State
 
-## R3-B0b-P2 — initial review-batch commit independently QA-passed; provider-free import correction awaits re-gate
+## R3-B0b — review batch and provider-free import correction independently QA-passed; technical preparation closed
 
 Claude Code independently reviewed the immutable initial implementation range
 `68795de8c519f1260e01737582165cbe0ec75433..8b0818fee5f4338839caa7e3117f97861ee4a867` read-only and returned
@@ -25,8 +25,13 @@ provider/local
 deny set. Direct local resolution into `node_modules` and canonical-realpath repository escape fail closed, while the
 eager sentinel classifies both raw requests and resolved realpaths so provider file aliases are denied. Native
 `file:`/`data:`/other URL-scheme imports and absolute/UNC literal paths also fail the static gate; `node:` built-ins
-remain allowed. Internal adversarial re-review found no remaining actionable P0/P1/P2, but independent Claude Code
-re-gating of the corrective commit is still required.
+remain allowed. Claude Code independently re-gated the exact corrective range
+`8b0818fee5f4338839caa7e3117f97861ee4a867..018e15336fd36058b9469d31e5ce9117222f2cbf`
+read-only and returned **PASS with no P0/P1/P2**. Its independent measurement found an eager closure of 84 local modules
+plus only `next`, `react` and `server-only`, with 211 import-statement edges, 80 `require` edges, zero dynamic-import
+edges, and no denied provider package or local module. It also independently ran the real `prepare` command under a
+write-blocking provider sentinel and reproduced the unchanged batch digest and zero-effect behavior. The topology was
+exactly one commit, zero merges and the seven briefed files, with a clean tree and `git diff --check` exit 0.
 
 Guy selected the QA corpus as the review starting point for all unresolved Wizard slots and preserved every fantasy
 story at 16 beats. R3-B0b implements the zero-cost preparation gate on
@@ -72,10 +77,12 @@ Resource-intensive tests report **20/20 files and 640/640 assertions PASS**, fol
 
 All declared external-effect counters are zero: no provider/network/database/storage call, image/audio/PDF render,
 order/payment/deployment mutation or spend occurred. The resemblance threshold remains **0.70**. The accepted
-`chameleon_koko_bedtime` package and locator remain byte-identical. The initial batch commit is pushed and has its
-independent PASS; the provider-isolation correction remains local and unpushed until its separate commit is created
-and independently re-gated. The batch is candidate preparation, not product acceptance, publication or render
-authorization.
+`chameleon_koko_bedtime` package and locator remain byte-identical. Reviewed code through corrective commit `018e1533`
+is present on `origin/codex/r3b0b-story-source-review-batch`, and both implementation ranges have independent technical
+PASS. R3-B0b technical batch preparation is closed, but the batch is still candidate preparation,
+not product acceptance, publication or render authorization. The next work is staged human Story Source/Visual
+Direction acceptance, the separate narration correction gate, and only then bounded Visual Contract/Blueprint/Board
+and package completion for the 17 unresolved slots.
 
 ## R3-B0a — bounded 16-page Visual Contract authoring policy and documentation closeout independently QA-passed; branch published
 

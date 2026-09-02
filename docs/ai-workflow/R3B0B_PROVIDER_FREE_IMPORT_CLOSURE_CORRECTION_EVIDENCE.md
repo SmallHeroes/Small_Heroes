@@ -1,12 +1,13 @@
 # R3-B0b Provider-Free Import Closure Correction — Implementation Evidence
 
-Date: 2026-09-02
+Implementation date: 2026-09-02
+Independent re-gate date: 2026-09-03
 Product owner: Guy
 Technical owner: Codex
 Branch: `codex/r3b0b-story-source-review-batch`
 Worktree: `C:\GNart\Work\sh-r3b0b-story-source-review`
 Pushed correction base: `8b0818fee5f4338839caa7e3117f97861ee4a867`
-Review range: `8b0818fee5f4338839caa7e3117f97861ee4a867..R3-B0b provider-isolation corrective commit`
+Review range: `8b0818fee5f4338839caa7e3117f97861ee4a867..018e15336fd36058b9469d31e5ce9117222f2cbf`
 
 ## Incoming independent QA result
 
@@ -30,6 +31,36 @@ It left two P2 notes:
 
 Guy pushed the reviewed initial commit. This follow-on milestone corrects P2-1
 only; it does not relabel P2-2 or the repository-wide gate as green.
+
+## Independent correction re-gate — PASS
+
+Claude Code independently reviewed the exact one-commit/no-merge range
+`8b0818fee5f4338839caa7e3117f97861ee4a867..018e15336fd36058b9469d31e5ce9117222f2cbf`
+read-only and returned **PASS with no P0/P1/P2**. The topology gate found the
+expected parent and HEAD, an exact seven-file changed set, `git diff --check`
+exit 0 and a clean tree.
+
+The review did not rely on Codex's internal audit. Claude independently measured
+the real CLI graph as 84 local modules plus only `next`, `react` and
+`server-only`, with 211 import-statement edges, 80 `require` edges, zero dynamic
+import edges, and no forbidden package or local module. It independently ran
+the real `prepare` command beneath its own write-blocking/provider sentinel,
+proved the sentinel's positive control, and reproduced the unchanged batch
+digest, bytes and all-zero effects.
+
+Claude also reproduced TypeScript and the story-autonomous typecheck at exit 0,
+the batch-plus-classifier slice at 21/21, and the unchanged readiness spec at
+11/11 in isolation. It confirmed the leaf has zero imports, the heavy generator
+re-exports the same object identities and ordering, Wizard readiness imports the
+leaf directly, and the AST/eager gates fail closed across the documented syntax,
+path, casing and filesystem-alias cases without overclaiming arbitrary loader
+alias data-flow.
+
+The prior provider-closure P2 is therefore closed. The separate repository-wide
+fixture/RPC baseline remains disclosed exactly as a failed overall `npm run
+check`; it is neither counted as PASS nor attributed to this correction. At the
+start of this documentation closeout, the reviewed correction was pushed and
+the branch was at exact origin parity on `018e1533`.
 
 ## Root cause and correction
 
@@ -115,8 +146,8 @@ comparison.
 The final CLI graph includes the passive contract and includes none of the
 denied provider-capable local modules or packages. Internal adversarial review
 found no remaining actionable P0/P1/P2 after falsifying and correcting the
-successive coverage gaps above. That internal result does not replace
-the required independent Claude Code re-gate.
+successive coverage gaps above. That internal result did not supply the gate;
+the completed independent Claude Code review recorded above supplies the PASS.
 
 ## Preserved exact batch and effects
 
@@ -159,7 +190,8 @@ Final corrective-tree results:
    - resource-intensive: 20/20 files and 640/640 tests PASS, followed by three
      known `onTaskUpdate` RPC timeout errors;
    - overall exit 1 and remains reported as failed.
-6. `git diff --check` — required again immediately before commit.
+6. `git diff --check` — exit 0 immediately before commit and independently
+   confirmed during re-gate.
 
 No ignored fixture was copied and no test was disabled to manufacture a green
 result.
@@ -171,11 +203,11 @@ zero-cost R3-B0b boundary. It changes no major-action product surface and
 requires no new image, prompt, story, package, acceptance, runtime, payment or
 publication Decision Gate. Cost allowance is USD 0; actual cost is USD 0.
 
-Rollback is the single corrective commit. Reverting it restores the inherited
-inert import graph without changing the initial pushed batch artifact or its
-authority.
+Rollback is the single corrective commit `018e1533`. Reverting it restores the
+inherited inert import graph without changing the initial pushed batch artifact
+or its authority.
 
-## Independent re-gate targets
+## Independent re-gate targets — completed
 
 1. Confirm exact one-commit/no-merge topology from pushed base `8b0818fe` and a
    clean tree.
@@ -196,3 +228,10 @@ authority.
    the 0.70 resemblance threshold are unchanged.
 7. Keep the known fixture/RPC repository failure visible; do not count it as
    PASS or as a new correction defect.
+
+Claude Code completed all seven targets without a P0, P1 or P2 finding. It did
+not rerun the complete `npm run check`; it accepted the accurate failed-gate
+disclosure and independently reran the unchanged readiness file at 11/11. The
+remaining work begins at product/content acceptance and downstream package
+authoring; this technical PASS does not approve any Story Source, Visual
+Direction, render, publication or production action.
