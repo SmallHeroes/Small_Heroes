@@ -1,7 +1,7 @@
 # R3 16-Beat Visual Contract Authoring Policy — Implementation Evidence
 
 Date: 2026-09-02
-Status: implementation independently Claude Code PASSed; documentation-only P2 closeout pending narrow re-gate
+Status: implementation and documentation-only closeout independently Claude Code PASSed; R3-B0a technically closed locally and unpushed
 Branch: `codex/r3-all-wizard-render-readiness`
 Worktree: `C:\GNart\Work\sh-all-wizard-render-readiness`
 Immutable base: `146bb53a435f5ce9b5190cd03522160ec976ac01`
@@ -24,8 +24,7 @@ at 646/646 passing assertions, page and input boundaries, USD 9.152 reservation,
 all-story digest, and zero changed product/output paths. The two Vitest `onTaskUpdate` messages in its focused run were
 post-assertion infrastructure errors and were not counted as PASS.
 
-The three P2 notes are accepted and addressed by this separate documentation-only follow-up, pending its narrow
-re-gate:
+The three P2 notes were accepted and addressed by a separate documentation-only follow-up:
 
 - the USD 9.152 reservation leaves only USD 0.848 (8.48%) under the USD 10 ceiling, making cost the binding constraint
   on any later page/input/model-price increase;
@@ -34,6 +33,13 @@ re-gate:
   independent-review claim;
 - the reviewed implementation head was one commit ahead of origin and unpushed. Neither the PASS nor this closeout
   authorizes a push.
+
+Claude Code independently re-gated the exact documentation-only range
+`2b41750f9f9d12a878af3607c0d41a40e14293b9..9b944f4d7a980d812b7a8a7b03392ba12543b416`
+read-only and returned **PASS with no P0/P1/P2**. It confirmed a clean one-commit/no-merge range touching only these
+four documentation files, reproduced both published commands at 794/794 and 646/646 assertions with their exact
+post-summary RPC disclosures, verified USD 0.848/8.48%, and confirmed that the implementation range is byte-unchanged
+and the two reviewed commits remained unpushed.
 
 ## Verified cause and correction
 
@@ -207,7 +213,6 @@ literal repository gate is therefore red and is not reported as PASS.
 
 ## Next gate
 
-The implementation range has independent Claude Code PASS. Commit this documentation-only P2 closeout separately,
-confirm topology, and return only that narrow docs range for read-only re-gate. After the re-gate, R3-B0b may prepare
-the exact 17 digest-bound QA Story Source/Visual Direction candidate bundles. Product acceptance, publication, push
-and paid authoring remain separate decisions.
+Both the implementation and documentation-only correction ranges have independent Claude Code PASS. R3-B0b may next
+prepare the exact 17 digest-bound QA Story Source/Visual Direction candidate bundles. Product acceptance, publication,
+push and paid authoring remain separate decisions.

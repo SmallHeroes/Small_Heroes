@@ -1,6 +1,6 @@
 # SmallHeroes — Current Technical State
 
-## R3-B0a — bounded 16-page Visual Contract authoring policy independently QA-passed; documentation closeout pending re-gate
+## R3-B0a — bounded 16-page Visual Contract authoring policy and documentation closeout independently QA-passed; local branch unpushed
 
 Guy selected the QA corpus as the product-review starting point for the 17 unresolved Wizard slots and explicitly
 decided to preserve the six fantasy stories at 16 beats. The first zero-cost enabling milestone is implemented in
@@ -13,6 +13,13 @@ decided to preserve the six fantasy stories at 16 beats. The first zero-cost ena
 legacy immutability, exact all-story digest and zero-effect claim, and left three P2 documentation/process notes. The
 reviewed branch was one commit ahead of origin and unpushed; this documentation-only closeout also does not authorize
 or perform a push.
+
+Claude Code then independently re-gated the documentation-only range
+`2b41750f9f9d12a878af3607c0d41a40e14293b9..9b944f4d7a980d812b7a8a7b03392ba12543b416`
+read-only and returned **PASS with no P0/P1/P2**. It confirmed exactly four documentation files, zero non-document
+paths, one commit/no merges, a clean tree, exact cost arithmetic, both published test commands and counts, both RPC
+disclosures, unchanged implementation bytes, and two unpushed commits at the reviewed head. R3-B0a is technically
+closed locally; product acceptance, push and R3-B0b remain separate actions.
 
 The verified root cause was a shared policy fence, not a fantasy-story or compiler limitation. Authoring policy v20
 admitted at most 12 pages and 64,000 standard input units even though the compiler, schemas and page validators already
@@ -70,9 +77,8 @@ Vitest `onTaskUpdate` RPC timeouts. No test was skipped or fixture copied to man
 
 No Story Source, visual direction, accepted revision, package, locator, order, payment, database/storage row, image,
 audio, PDF, deployment or production flag was created or changed. No credential was loaded, no provider/network call
-occurred, and no render or spend was authorized. After the narrow documentation-only re-gate closes this follow-up,
-the next milestone is a separate digest-bound review batch for the exact 17 QA Story Source/Visual Direction
-candidates; paid authoring remains separately gated.
+occurred, and no render or spend was authorized. The next milestone is a separate digest-bound review batch for the
+exact 17 QA Story Source/Visual Direction candidates; paid authoring remains separately gated.
 
 ## R3-A4 — final independent QA PASS; reviewed branch published
 

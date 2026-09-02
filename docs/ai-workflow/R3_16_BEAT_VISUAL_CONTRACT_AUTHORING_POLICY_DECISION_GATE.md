@@ -144,6 +144,14 @@ record the thin cost headroom, make the focused test selection reproducible,
 and preserve the fact that the reviewed commit was one ahead of origin and
 unpushed. None changes the approved implementation or authorizes a push.
 
+Claude Code subsequently re-gated the exact documentation-only correction
+`2b41750f9f9d12a878af3607c0d41a40e14293b9..9b944f4d7a980d812b7a8a7b03392ba12543b416`
+read-only and returned PASS with no P0/P1/P2. It reproduced both documented
+test commands and counts, verified both post-summary RPC disclosures, confirmed
+the arithmetic and unpushed topology, and proved that zero implementation paths
+changed. This closes the technical gate locally but does not authorize a push
+or the separately governed R3-B0b work.
+
 ## 9. Rollback plan
 
 Before paid execution, revert the focused policy commit. Preserve any freshly
