@@ -1,5 +1,20 @@
 # SmallHeroes — Current Technical State
 
+## R3-A3 — exact-18 correction independently passed; ambient flag test isolation fixed
+
+Claude Code re-gated `abdb96b1e78dd0c106616513ac9752b03c088543..cad59ae4f6f7965e29a4ed689fdfdf074c4633ef`
+read-only and returned PASS with no P0/P1. It directly proved that 17/17 qualified records cannot satisfy either strict
+surface, all key/count substitution attacks fail closed, the product-sellable/report-only scopes are unchanged, and
+the supported foreign-cwd invocation preserves the exact report digest and zero-effect declaration.
+
+The re-gate surfaced one pre-existing test-only P2: `mvp-story-matrix.spec.ts` inherited ambient Wizard catalog flags,
+so a flag-off assertion failed when the documented release environment supplied `ENABLE_V3_APPROVED_BANK=true`. The
+test suite now clears both catalog flags in `beforeEach` and restores the caller's original environment in the existing
+`afterEach`. The unchanged nine-test file passes with both flags unset, with only the V3 flag true, and with both flags
+true. Both TypeScript phases pass, and the complete focused 12-file / 123-test slice passes under the documented
+`ENABLE_V3_APPROVED_BANK=true` release environment. Runtime code and the audit digest are unchanged. The separate
+ignored-fixture and Vitest RPC infrastructure P2 remains documented below and is not weakened or hidden.
+
 ## R3-A2 — exact-18 runtime contract hardened after independent QA; immutable re-gate next
 
 Claude Code independently reviewed `f62422a01db3da791861c670e266e91daecfefd8..abdb96b1e78dd0c106616513ac9752b03c088543`

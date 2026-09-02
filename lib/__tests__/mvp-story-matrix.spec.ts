@@ -39,6 +39,11 @@ function productLineageRoot(): string {
 }
 
 describe('MVP_STORY_MATRIX helpers', () => {
+  beforeEach(() => {
+    delete process.env.ENABLE_V3_APPROVED_BANK;
+    delete process.env.ENABLE_WIZARD_QA_RENDER_CATALOG;
+  });
+
   afterEach(() => {
     if (originalFlag === undefined) delete process.env.ENABLE_V3_APPROVED_BANK;
     else process.env.ENABLE_V3_APPROVED_BANK = originalFlag;
