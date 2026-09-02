@@ -4,7 +4,7 @@ import {
 } from './draftValidationDiagnostics';
 
 export const VISUAL_CONTRACT_AUTHORING_POLICY_VERSION =
-  'visual-contract-authoring-policy/v20' as const;
+  'visual-contract-authoring-policy/v21' as const;
 
 export const VISUAL_CONTRACT_AUTHORING_STANDARD_ATTEMPT_OUTPUT_BUDGET_VERSION =
   'visual-contract-authoring-standard-attempt-output-budget/v6' as const;
@@ -24,7 +24,7 @@ export const VISUAL_CONTRACT_AUTHORING_TRANSPORT_RETRIES =
 export const VISUAL_CONTRACT_AUTHORING_TIMEOUT_MS =
   20 * 60 * 1_000;
 export const VISUAL_CONTRACT_AUTHORING_MAX_INPUT_TOKENS =
-  64_000;
+  80_000;
 export const VISUAL_CONTRACT_AUTHORING_STANDARD_OUTPUT_BASE_MIN_TOKENS =
   32_000;
 export const VISUAL_CONTRACT_AUTHORING_PROVIDER_MAX_OUTPUT_TOKENS =
@@ -33,6 +33,9 @@ export const VISUAL_CONTRACT_AUTHORING_PROMPT_PROTOCOL_ALLOWANCE =
   4_096;
 export const VISUAL_CONTRACT_AUTHORING_ROUTE_SAFETY_MARGIN =
   4_096;
+export const VISUAL_CONTRACT_AUTHORING_STANDARD_MAX_ADMISSIBLE_INPUT_BYTES =
+  VISUAL_CONTRACT_AUTHORING_MAX_INPUT_TOKENS -
+  VISUAL_CONTRACT_AUTHORING_ROUTE_SAFETY_MARGIN;
 export const VISUAL_CONTRACT_AUTHORING_STANDARD_MAX_CALLS = 7;
 export const VISUAL_CONTRACT_AUTHORING_STANDARD_MAX_REPAIRS = 6;
 export const VISUAL_CONTRACT_AUTHORING_TERMINAL_REFERENCE_CLEANUP_MAX_CALLS = 1;
@@ -95,13 +98,13 @@ export const VISUAL_CONTRACT_AUTHORING_MAX_REPAIRS =
   VISUAL_CONTRACT_AUTHORING_STANDARD_MAX_REPAIRS +
   VISUAL_CONTRACT_AUTHORING_TERMINAL_REFERENCE_CLEANUP_MAX_REPAIRS;
 /**
- * Temporary D1A live-authoring ceiling under the current standard seven-call
- * budget plus one closed compact terminal-reference cleanup / $10 fence.
- * Larger books require a separately approved budget or partition Decision
- * Gate before any provider can be reached.
+ * Current D1A live-authoring ceiling under the standard seven-call budget plus
+ * one closed compact terminal-reference cleanup / $10 fence. Larger books
+ * require a separately approved budget or partition Decision Gate before any
+ * provider can be reached.
  */
 export const VISUAL_CONTRACT_AUTHORING_MAX_PAGES_CURRENT_POLICY =
-  12;
+  16;
 export const VISUAL_CONTRACT_AUTHORING_HARD_COST_CEILING_USD =
   10;
 
@@ -135,14 +138,14 @@ export type VisualContractAuthoringStandardAttemptOutputLimits = readonly [
 
 /**
  * Existing page-derived per-call base. The current admission gate remains the
- * authority that prevents 13+ page live authoring; this pure calculation is
- * intentionally backward-compatible for offline callers and diagnostics.
+ * authority that prevents 17+ page live authoring; this pure calculation is
+ * intentionally usable by offline callers and diagnostics.
  */
 export function authoringMaxOutputTokens(pageCount: number): number {
   const pages =
     Number.isFinite(pageCount) && pageCount > 0
       ? pageCount
-      : 12;
+      : VISUAL_CONTRACT_AUTHORING_MAX_PAGES_CURRENT_POLICY;
   return Math.min(
     VISUAL_CONTRACT_AUTHORING_PROVIDER_MAX_OUTPUT_TOKENS,
     Math.max(

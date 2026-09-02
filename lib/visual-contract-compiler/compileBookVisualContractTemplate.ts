@@ -309,7 +309,7 @@ export function resolveAuthoringModel(): string {
  * Output token budget for the authoring call. On the Responses API `max_output_tokens` INCLUDES reasoning tokens —
  * reasoning='medium' can burn ~10k — so the budget must cover reasoning headroom AND the full JSON (a valid
  * template ≈ 6.3k). The candidate output budget is ~3000 tokens/page, floored at 32000, capped at 64000
- * (12 pages → 36000); the separate source-authoring
+ * (12 pages → 36000; 16 pages → 48000); the separate source-authoring
  * request preflight combines it with exact call and dollar ceilings before
  * any future provider adapter can be reached.
  */

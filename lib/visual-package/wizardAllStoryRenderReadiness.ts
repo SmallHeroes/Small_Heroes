@@ -992,7 +992,7 @@ function nextCanonicalActionFor(
         ...common,
         code: 'guy_decide_fantasy_authoring_policy',
         summary:
-          'Guy decides whether the 16-beat story is partitioned or the current 12-page authoring policy is changed under a separate gate.',
+          'The source exceeds the current 16-page authoring policy; Guy decides whether it is partitioned or a wider policy is approved under a separate gate.',
         requiresGuyDecision: true,
       };
     case 'package_bound_visual_contract_template_unavailable':

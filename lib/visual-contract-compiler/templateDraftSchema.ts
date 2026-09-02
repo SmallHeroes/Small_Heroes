@@ -1,7 +1,7 @@
 /**
  * Strict JSON Schema for the DESCRIPTIVE draft the authoring LLM returns (Stage 1 of the live-authoring fix).
  *
- * Used as OpenAI structured-output (`json_schema`, strict) so a 12-page relational doc is produced completely and
+ * Used as OpenAI structured-output (`json_schema`, strict) so a bounded relational book is produced completely and
  * in-shape instead of truncating under `json_object`. This constrains ONLY the descriptive fields the compiler
  * consumes; the deterministic facts (gender/presence/evidence/laterality, castIds) are overlaid AFTER and are NOT
  * in this schema. Strict-mode invariant (enforced by `obj()`): every object sets additionalProperties:false and
@@ -317,7 +317,7 @@ function templateDraftBeatIdJsonSchema(): Record<string, unknown> {
 
 /**
  * The unchanged whole-draft action shape. The full Story Source already sits
- * close to the immutable 64K provider ceiling, so static catalog coupling is
+ * close to the bounded 80K authoring-policy ceiling, so static catalog coupling is
  * enforced by the validator on this initial/full-draft lane and by the
  * catalog-strict schemas on every bounded page-rewrite lane below.
  */

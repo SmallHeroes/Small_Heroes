@@ -68,7 +68,7 @@ describe('Wizard all-story render-readiness control plane', () => {
       environmentProductSellableCount: 18,
       qaLowReadyCount: 18,
       acceptedProductLineageCount: 1,
-      visualContractAuthoringAdmittedCount: 12,
+      visualContractAuthoringAdmittedCount: 18,
       renderQualifiedCount: 1,
       sourceCorpusConflictCount: 18,
       supportedGenderProjectionReadyCount: 18,
@@ -158,16 +158,9 @@ describe('Wizard all-story render-readiness control plane', () => {
     }
 
     expect(report.decisions.fantasyAuthoringPolicy).toEqual({
-      required: true,
-      blockedStoryKeys: [
-        'fox_uri_fantasy',
-        'panda_anat_fantasy',
-        'bunny_ometz_fantasy',
-        'dragon_dini_fantasy',
-        'chameleon_koko_fantasy',
-        'lion_shaket_fantasy',
-      ],
-      currentMaximumPages: 12,
+      required: false,
+      blockedStoryKeys: [],
+      currentMaximumPages: 16,
     });
     expect(report.decisions.genderContract).toEqual({
       wizardOptions: ['boy', 'girl', 'other'],

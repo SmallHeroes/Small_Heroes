@@ -1,5 +1,69 @@
 # SmallHeroes — Current Technical State
 
+## R3-B0a — bounded 16-page Visual Contract authoring policy locally complete; independent QA pending
+
+Guy selected the QA corpus as the product-review starting point for the 17 unresolved Wizard slots and explicitly
+decided to preserve the six fantasy stories at 16 beats. The first zero-cost enabling milestone is implemented in
+`C:\GNart\Work\sh-all-wizard-render-readiness` on `codex/r3-all-wizard-render-readiness`, starting from
+`146bb53a435f5ce9b5190cd03522160ec976ac01`. The controlling brief is
+`docs/ai-workflow/R3_16_BEAT_VISUAL_CONTRACT_AUTHORING_POLICY_DECISION_GATE.md`. The implementation is locally green
+on its focused assertions and is waiting for an immutable Claude Code review; it is not a technical PASS and has not
+been pushed by this milestone.
+
+The verified root cause was a shared policy fence, not a fantasy-story or compiler limitation. Authoring policy v20
+admitted at most 12 pages and 64,000 standard input units even though the compiler, schemas and page validators already
+support complete 16-page books. Simply raising the page count would still have rejected real Fox and Panda fantasy
+inputs. During implementation, a second systemic gap was found: the 4,096-unit route safety margin was enforced by
+only selected compiler repair routes, while other standard routes could reach the provider between 75,905 and 80,000.
+
+Policy v21 now admits 1–16 pages, retains an 80,000 provider option, and defines one effective standard-route ceiling
+of **75,904** after the 4,096 safety margin. Both initial request validation and the shared provider-adjacent `callLLM`
+seam enforce that exact boundary for every standard route. A synthetic 78,494-unit Page Contract repair proves the
+second provider call remains unreachable; an initial request in the same safety band is rejected with zero calls. The
+separate terminal-reference cleanup remains governed by its exact 12,000-input/1,000-output contract and does not
+inherit the standard margin a second time.
+
+The seven-call output schedule is unchanged. At 16 pages it is exactly
+`[53334, 42666, 48000, 32000, 32000, 32000, 32000]`, with a 272,000-unit output pool. Conservative reservation uses
+80,000 input units for every standard call plus the separately bounded cleanup and is exactly **USD 9.152**, below the
+unchanged USD 10 hard ceiling. Provider/model/service tier/reasoning, seven standard calls plus one gated cleanup,
+zero transport retries, no fallback, and the resemblance threshold **0.70** are unchanged.
+
+Fresh current-only authority versions are policy v21; authoring request v55, receipt v58 and readiness v55; live
+request materialization input v43, manifest/verifier v53; canonical pre-live readiness v50; execution materialization
+input v40/result v45; and Supervisor request/readiness v50/result v43. Route-admission diagnostics are v3 because their
+effective ceiling is part of their persisted meaning. Diagnostics v2 and v1 remain readable legacy evidence at the
+historical 59,904 boundary with their historical seven-call and 4,096-unit protocol contracts frozen, while authoring
+request v54, receipt v57 and readiness v54 are classified
+`legacy_immutable`. They cannot be relabeled or used as current execution authority. Existing QA bridge manifests that
+embed old upstream current-only versions require rematerialization; no cross-policy replay compatibility is claimed.
+
+Zero-cost corpus evidence now reports all **18/18** Wizard slots admitted by page/input policy, with no fantasy-policy
+blocker. Strict render readiness intentionally remains **1/18**: the other 17 still stop first at
+`product_source_corpus_unconfirmed`, and no accepted revision, Visual Contract, Blueprint, Board, package or locator was
+fabricated. The audit digest is
+`4e0a667926639526b106bc45cd3c4e7df7c11518d7cf941e35d528d856294977`, and every declared external-effect counter is
+zero.
+
+The audit's `visualContractAuthoringAdmitted` field is page-policy-derived. For this exact 18-story corpus it is
+corroborated by the separate exact input measurements above; a future <=16-page source with a materially larger prompt
+must still pass the shared 75,904 provider-adjacent seam, and a later reporting-schema change should expose that byte
+evidence directly.
+
+Current verification: `npx tsc --noEmit`, `npm run story:autonomous-typecheck`, and `git diff --check` pass. The exact
+16-file authoring/materialization/supervision slice passed **794/794 assertions**; the final three-file
+route-diagnostics regression slice passed **178/178** after the legacy-v1/v2 hardening. The full repository check
+remains honestly red for established
+infrastructure: ten assertions in six unchanged specs require ignored historical `outputs/` fixtures absent from this
+worktree, while the resource-intensive partition passed **20/20 files and 640/640 assertions** before three known
+Vitest `onTaskUpdate` RPC timeouts. No test was skipped or fixture copied to manufacture a green result.
+
+No Story Source, visual direction, accepted revision, package, locator, order, payment, database/storage row, image,
+audio, PDF, deployment or production flag was created or changed. No credential was loaded, no provider/network call
+occurred, and no render or spend was authorized. The next milestone, only after this focused commit and independent QA,
+is a separate digest-bound review batch for the exact 17 QA Story Source/Visual Direction candidates; paid authoring
+remains separately gated.
+
 ## R3-A4 — final independent QA PASS; reviewed branch published
 
 Claude Code independently re-gated the test-only range

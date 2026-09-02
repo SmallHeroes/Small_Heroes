@@ -450,7 +450,7 @@ describe('Visual Contract authoring replay evidence', () => {
     };
     const routeAdmissionDiagnostics = {
       version:
-        'visual-contract-repair-route-admission-diagnostics/v2',
+        'visual-contract-repair-route-admission-diagnostics/v3',
       repairAttempt: 2,
       repairMode: 'book_surface_patch',
       inputAccounting: {

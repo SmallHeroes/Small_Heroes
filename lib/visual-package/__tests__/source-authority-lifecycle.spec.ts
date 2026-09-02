@@ -54,6 +54,7 @@ import {
 } from '@/lib/visual-contract-compiler/presentationRequirementRepair';
 import { normalizeExactActionBindingComponents } from '@/lib/visual-contract-compiler/actionBindingComponentNormalization';
 import {
+  VISUAL_CONTRACT_AUTHORING_STANDARD_MAX_ADMISSIBLE_INPUT_BYTES,
   authoringRejectedEvidencePageCount,
   authoringStandardAttemptOutputLimitsForBase,
   visualContractAuthoringInputAccounting,
@@ -1109,12 +1110,12 @@ describe('exact zero-cost authoring preflight', () => {
       [1, 12, 13, 17, 23].map(
         authoringRejectedEvidencePageCount,
       ),
-    ).toEqual([1, 12, 12, 12, 12]);
+    ).toEqual([1, 12, 13, 16, 16]);
     expect(
       buildVisualContractAuthoringStandardAttemptOutputBudget(
-        authoringRejectedEvidencePageCount(12),
+        authoringRejectedEvidencePageCount(23),
       ).limits,
-    ).toEqual([40_000, 32_000, 36_000, 24_000, 24_000, 24_000, 24_000]);
+    ).toEqual([53_334, 42_666, 48_000, 32_000, 32_000, 32_000, 32_000]);
   });
 
   it.each([
@@ -1136,10 +1137,10 @@ describe('exact zero-cost authoring preflight', () => {
     ).toBe(expected);
   });
 
-  it('projects the current eight-page and twelve-page price authorities exactly', () => {
+  it('projects the current 8-, 12-, and 16-page price authorities exactly', () => {
     const projected = (pageCount: number) =>
       projectedMaximumAuthoringCostWithTerminalReferenceCleanupUsd({
-        standardMaxInputTokens: 64_000,
+        standardMaxInputTokens: 80_000,
         standardAttemptOutputLimits:
           buildVisualContractAuthoringStandardAttemptOutputBudget(pageCount)
             .limits,
@@ -1148,8 +1149,9 @@ describe('exact zero-cost authoring preflight', () => {
         cleanupMaxCalls: 1,
       });
 
-    expect(projected(8)).toBe(6.541304);
-    expect(projected(12)).toBe(7.04);
+    expect(projected(8)).toBe(7.157305);
+    expect(projected(12)).toBe(7.656);
+    expect(projected(16)).toBe(9.152);
   });
 
   it('rejects the prior schedule authority even when its payload is re-digested', () => {
@@ -1212,6 +1214,8 @@ describe('exact zero-cost authoring preflight', () => {
     });
 
     expect(request).toMatchObject({
+      version: 'visual-contract-authoring-request/v55',
+      policyVersion: 'visual-contract-authoring-policy/v21',
       provider: 'openai',
       endpoint: 'responses',
       model: 'gpt-5.6-sol',
@@ -1222,7 +1226,7 @@ describe('exact zero-cost authoring preflight', () => {
       transportRetries: 0,
       timeoutMs: 1_200_000,
       tokenBudget: {
-        maxInputTokens: 64_000,
+        maxInputTokens: 80_000,
         standardAttempts: {
           version:
             'visual-contract-authoring-standard-attempt-output-budget/v6',
@@ -1285,7 +1289,7 @@ describe('exact zero-cost authoring preflight', () => {
           'https://developers.openai.com/api/docs/pricing',
       },
       costBudget: {
-        projectedMaxUsd: 7.04,
+        projectedMaxUsd: 7.656,
         hardCeilingUsd: 10,
       },
     });
@@ -1294,11 +1298,117 @@ describe('exact zero-cost authoring preflight', () => {
     );
     expect(
       request.tokenBudget.promptAndSchemaTokenUpperBound,
-    ).toBeLessThanOrEqual(64_000);
+    ).toBeLessThanOrEqual(80_000);
     expect(result.receipt.status).toBe(
       'preflight_passed',
     );
     expect(result.receipt.callCount).toBe(0);
+    expect(provider.call).not.toHaveBeenCalled();
+  });
+
+  it.each([13, 14, 15, 16])(
+    'admits a %i-page source in preflight without reaching the provider',
+    async (pageCount) => {
+      const snapshot = snapshotFor(
+        writeStoryFixture({ pageCount, multiLocation: true }),
+      );
+      const request = requestFor(snapshot, 'preflight');
+      const provider = {
+        call: vi.fn(async () => {
+          throw new Error('must remain unreachable');
+        }),
+      };
+
+      const result = await runVisualContractAuthoring({
+        request,
+        snapshot,
+        provider,
+      });
+
+      expect(result.receipt).toMatchObject({
+        status: 'preflight_passed',
+        callCount: 0,
+        repairCount: 0,
+      });
+      expect(request.tokenBudget.maxInputTokens).toBe(80_000);
+      expect(provider.call).not.toHaveBeenCalled();
+    },
+  );
+
+  it('rejects an initial standard route inside the provider-ceiling safety band before provider reachability', async () => {
+    const fixture = writeStoryFixture({
+      pageCount: 8,
+      companion: true,
+      multiLocation: true,
+    });
+    let selected:
+      | {
+          snapshot: StorySourceAuthoritySnapshot;
+          request: ReturnType<typeof requestFor>;
+        }
+      | undefined;
+    let low = 0;
+    let high = 20_000;
+    while (low <= high) {
+      const length = Math.floor((low + high) / 2);
+      fs.writeFileSync(
+        path.join(fixture.repoRoot, fixture.storyPath),
+        storyMarkdown({
+          pageCount: 8,
+          companion: true,
+          multiLocation: true,
+          imageDirectionSuffix: ` ${'x'.repeat(length)}`,
+        }),
+        'utf8',
+      );
+      const snapshot = snapshotFor(fixture);
+      const request = requestFor(snapshot, 'live');
+      if (
+        request.tokenBudget.promptAndSchemaTokenUpperBound <=
+        VISUAL_CONTRACT_AUTHORING_STANDARD_MAX_ADMISSIBLE_INPUT_BYTES
+      ) {
+        low = length + 1;
+      } else {
+        selected = { snapshot, request };
+        high = length - 1;
+      }
+    }
+    if (!selected) {
+      throw new Error('failed to construct a safety-band fixture');
+    }
+    expect(
+      selected.request.tokenBudget.promptAndSchemaTokenUpperBound,
+    ).toBeGreaterThan(
+      VISUAL_CONTRACT_AUTHORING_STANDARD_MAX_ADMISSIBLE_INPUT_BYTES,
+    );
+    expect(
+      selected.request.tokenBudget.promptAndSchemaTokenUpperBound,
+    ).toBeLessThanOrEqual(
+      selected.request.tokenBudget.maxInputTokens,
+    );
+    const provider = {
+      call: vi.fn(async () => {
+        throw new Error('must remain unreachable');
+      }),
+    };
+
+    const result = await runVisualContractAuthoring({
+      request: selected.request,
+      snapshot: selected.snapshot,
+      provider,
+    });
+
+    expect(result.receipt).toMatchObject({
+      status: 'failed',
+      callCount: 0,
+      attempts: [],
+      failure: {
+        code: 'request_invalid',
+        issues: expect.arrayContaining([
+          'input_token_ceiling_exceeded',
+        ]),
+      },
+    });
     expect(provider.call).not.toHaveBeenCalled();
   });
 
@@ -1909,7 +2019,7 @@ describe('exact zero-cost authoring preflight', () => {
     expect(provider.call).not.toHaveBeenCalled();
   });
 
-  it.each([13, 17, 23])(
+  it.each([17, 23])(
     'persists sanitized request_invalid readiness for a %i-page over-fence snapshot without provider reachability',
     async (pageCount) => {
     const fixture = writeStoryFixture({
@@ -1936,7 +2046,7 @@ describe('exact zero-cost authoring preflight', () => {
       buildVisualContractAuthoringStandardAttemptOutputBudget(
         normalizedEvidencePageCount,
       );
-    expect(normalizedEvidencePageCount).toBe(12);
+    expect(normalizedEvidencePageCount).toBe(16);
     expect(
       request.tokenBudget.standardAttempts,
     ).toEqual(
@@ -1953,7 +2063,7 @@ describe('exact zero-cost authoring preflight', () => {
       repairCount: 0,
       attempts: [],
       standardAttemptOutputBudget: authoritativeFallback,
-      projectedMaxCostUsd: 7.04,
+      projectedMaxCostUsd: 9.152,
       failure: {
         code: 'request_invalid',
         issues: expect.arrayContaining([
@@ -2124,14 +2234,14 @@ describe('exact zero-cost authoring preflight', () => {
         conservativeAccountedCostUsd: 0,
         providerCallsCompleted: 0,
       }),
-    ).toBe(7.04);
+    ).toBe(7.656);
     expect(
       authoringReservedExposureUsd({
         request,
         conservativeAccountedCostUsd: 1.144,
         providerCallsCompleted: 1,
       }),
-    ).toBe(6.952);
+    ).toBe(7.48);
     expect(
       authoringSpendIsWithinCeiling(
         authoringReservedExposureUsd({
@@ -2222,8 +2332,8 @@ describe('exact zero-cost authoring preflight', () => {
     const request = structuredClone(
       requestFor(snapshot, 'live'),
     ) as unknown as Record<string, unknown>;
-    expect(request.version).toBe('visual-contract-authoring-request/v54');
-    request.policyVersion = 'visual-contract-authoring-policy/v18';
+    expect(request.version).toBe('visual-contract-authoring-request/v55');
+    request.policyVersion = 'visual-contract-authoring-policy/v20';
     const pricing = request.pricing as Record<string, unknown>;
     Object.assign(pricing, {
       version: 'openai-standard-pricing/2026-07-27-v2',
@@ -2714,7 +2824,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         receipt: result.receipt,
       });
     expect(readiness).toMatchObject({
-      version: 'visual-contract-authoring-readiness/v54',
+      version: 'visual-contract-authoring-readiness/v55',
       draftValidation: {
         status: 'interrupted',
         attempts: result.receipt.attempts.map(
@@ -2780,7 +2890,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         receipt: result.receipt,
       });
     expect(absent).toMatchObject({
-      version: 'visual-contract-authoring-readiness/v54',
+      version: 'visual-contract-authoring-readiness/v55',
       canonicalImportPreflight: {
         status: 'not_attested',
       },
@@ -3190,6 +3300,12 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         'request',
         'visual-contract-authoring-request/v54',
       ),
+    ).toBe('legacy_immutable');
+    expect(
+      visualContractAuthoringArtifactVersionStatus(
+        'request',
+        'visual-contract-authoring-request/v55',
+      ),
     ).toBe('current');
     expect(
       visualContractAuthoringArtifactVersionStatus(
@@ -3514,6 +3630,12 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         'receipt',
         'visual-contract-authoring-receipt/v57',
       ),
+    ).toBe('legacy_immutable');
+    expect(
+      visualContractAuthoringArtifactVersionStatus(
+        'receipt',
+        'visual-contract-authoring-receipt/v58',
+      ),
     ).toBe('current');
     expect(
       visualContractAuthoringArtifactVersionStatus(
@@ -3747,6 +3869,12 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
       visualContractAuthoringArtifactVersionStatus(
         'readiness',
         'visual-contract-authoring-readiness/v54',
+      ),
+    ).toBe('legacy_immutable');
+    expect(
+      visualContractAuthoringArtifactVersionStatus(
+        'readiness',
+        'visual-contract-authoring-readiness/v55',
       ),
     ).toBe('current');
     expect(
@@ -4028,7 +4156,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     });
     expect(result.receipt.status).toBe('completed');
     expect(result.receipt.version).toBe(
-      'visual-contract-authoring-receipt/v57',
+      'visual-contract-authoring-receipt/v58',
     );
     expect(result.receipt.callCount).toBe(1);
     expect(result.receipt.draftValidationStatus).toBe(
@@ -4069,7 +4197,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
       model: 'gpt-5.6-sol',
       responseId: 'response-1',
       usageEvidenceKind: 'legacy_injected_compatibility',
-      reservedExposureBeforeCallUsd: 7.04,
+      reservedExposureBeforeCallUsd: 7.656,
       nominalEstimatedCostUsd: 0.044,
       conservativeAccountedCostUsd: 0.0495,
       status: 'response_received',
@@ -5183,13 +5311,13 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
           attempt.reservedExposureBeforeCallUsd,
       ),
     ).toEqual([
-      7.04,
-      5.8575,
-      4.851,
-      3.7565,
-      2.926,
-      2.0955,
-      1.265,
+      7.656,
+      6.3855,
+      5.291,
+      4.108501,
+      3.19,
+      2.2715,
+      1.353,
     ]);
     expect(
       result.receipt.attempts.reduce(
@@ -5523,7 +5651,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         REPRESENTED_ELSEWHERE_REPAIR_JSON_SCHEMA,
       );
     expect(pureRepresentedInputAccounting.estimatedBytes).toBeGreaterThan(
-      59_904,
+      75_904,
     );
 
     const oversizedReferenceOnlyResidual = structuredClone(
@@ -5843,7 +5971,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     expect(secondCall.options.jsonSchema?.name).toBe(
       'SourceEvidenceIdRepairPatches',
     );
-    expect(secondCall.options.maxInputTokens).toBe(64_000);
+    expect(secondCall.options.maxInputTokens).toBe(80_000);
     expect(secondCall.userPrompt).not.toContain('"worldType"');
     expect(result.receipt.actionSemanticCoverage).toMatchObject({
       sourceEvidenceCatalogVersion: 'source-evidence-catalog/v1',
@@ -7477,7 +7605,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     });
 
     expect(result.receipt).toMatchObject({
-      version: 'visual-contract-authoring-receipt/v57',
+      version: 'visual-contract-authoring-receipt/v58',
       status: 'completed',
       callCount: 3,
       repairCount: 2,
@@ -7979,7 +8107,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     expect(result.compileResult).toBeNull();
   });
 
-  it('keeps source-regeneration repair below 64k and stops its exact fixed point without transporting the rejected draft', async () => {
+  it('keeps source-regeneration repair below the standard admissible ceiling and stops its exact fixed point without transporting the rejected draft', async () => {
     const snapshot = bunnySnapshot();
     const request = requestFor(snapshot, 'live');
     const invalid = fullyActionedBunnyDraft(snapshot);
@@ -8015,7 +8143,9 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
           ].join('\n'),
           'utf8',
         ) + 4_096;
-      expect(upperBound).toBeLessThanOrEqual(64_000);
+      expect(upperBound).toBeLessThanOrEqual(
+        VISUAL_CONTRACT_AUTHORING_STANDARD_MAX_ADMISSIBLE_INPUT_BYTES,
+      );
       expect(request.userPrompt).not.toContain('0000000');
     }
     expect(
@@ -8035,7 +8165,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     invalid.pageContracts[0].actionRequirements = [];
     invalid.pageContracts[0].mustShow = [
       Array.from(
-        { length: 20_000 },
+        { length: 9_200 },
         (_entry, index) =>
           ((index * 2_654_435_761) >>> 0)
             .toString(36)
@@ -8050,6 +8180,11 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
       provider,
     });
 
+    expect(
+      result.receipt.attempts[1]?.inputAccounting.estimatedBytes,
+    ).toBeGreaterThan(
+      VISUAL_CONTRACT_AUTHORING_STANDARD_MAX_ADMISSIBLE_INPUT_BYTES,
+    );
     expect(provider.call).toHaveBeenCalledTimes(1);
     expect(result.receipt.status).toBe('failed');
     expect(result.receipt.failure?.code).toBe(
@@ -8062,7 +8197,8 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
       providerReached: false,
       status: 'input_ceiling_exceeded',
       inputAccounting: {
-        ceiling: request.tokenBudget.maxInputTokens,
+        ceiling:
+          VISUAL_CONTRACT_AUTHORING_STANDARD_MAX_ADMISSIBLE_INPUT_BYTES,
         separatorBytes: 2,
         protocolAllowance: 4_096,
       },
@@ -8076,6 +8212,9 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     );
     expect(rejected.inputAccounting.estimatedBytes).toBeGreaterThan(
       rejected.inputAccounting.ceiling,
+    );
+    expect(rejected.inputAccounting.estimatedBytes).toBeLessThanOrEqual(
+      request.tokenBudget.maxInputTokens,
     );
     expect(JSON.stringify(rejected.inputAccounting)).not.toMatch(
       /OPENAI_API_KEY|Bearer\s+|0000000/,
@@ -8234,7 +8373,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     expect(provider.call).toHaveBeenCalledTimes(2);
     expect(result.compileResult).toBeNull();
     expect(result.receipt).toMatchObject({
-      version: 'visual-contract-authoring-receipt/v57',
+      version: 'visual-contract-authoring-receipt/v58',
       status: 'failed',
       callCount: 2,
       repairCount: 1,
@@ -8279,7 +8418,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
       receipt: result.receipt,
     });
     expect(readiness).toMatchObject({
-      version: 'visual-contract-authoring-readiness/v54',
+      version: 'visual-contract-authoring-readiness/v55',
       authoringOutcome: {
         status: 'failed',
         failureCode: 'draft_validation_repair_stagnated',
@@ -8745,10 +8884,10 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         code: 'repair_route_input_not_admissible',
         repairRouteAdmissionDiagnostics: {
           version:
-            'visual-contract-repair-route-admission-diagnostics/v2',
+            'visual-contract-repair-route-admission-diagnostics/v3',
           repairAttempt: 2,
           repairMode: 'represented_elsewhere_patch',
-          maxAdmissibleInputBytes: 59_904,
+          maxAdmissibleInputBytes: 75_904,
           carriedDraftDiagnosticCount: 1,
           routeAdmissionDiagnosticCount: 1,
         },
@@ -8758,7 +8897,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     expect(
       result.receipt.failure!.repairRouteAdmissionDiagnostics!
         .inputAccounting.estimatedBytes,
-    ).toBeGreaterThan(59_904);
+    ).toBeGreaterThan(75_904);
     const readiness = buildVisualContractAuthoringReadinessEvidence({
       snapshot,
       request,
@@ -8783,6 +8922,45 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         write: false,
       }),
     ).not.toThrow();
+
+    const legacyNestedDiagnostics = structuredClone(result.receipt);
+    const legacyRoute = legacyNestedDiagnostics.failure!
+      .repairRouteAdmissionDiagnostics as unknown as Record<
+        string,
+        unknown
+      >;
+    legacyRoute.version =
+      'visual-contract-repair-route-admission-diagnostics/v2';
+    legacyRoute.maxAdmissibleInputBytes = 59_904;
+    const {
+      digestAlgorithm: _legacyDigestAlgorithm,
+      digest: _legacyDigest,
+      ...legacyNestedPayload
+    } = legacyNestedDiagnostics;
+    legacyNestedDiagnostics.digest = canonicalJsonDigest(
+      legacyNestedPayload,
+    );
+    expect(
+      visualContractAuthoringTerminalFailureIsValid(
+        legacyNestedDiagnostics.failure!,
+      ),
+    ).toBe(true);
+    expect(() =>
+      persistVisualContractAuthoringReceipt({
+        repoRoot: tempRoot(),
+        outputDir: 'outputs/legacy-nested-route-admission',
+        request,
+        receipt: legacyNestedDiagnostics,
+        write: false,
+      }),
+    ).toThrow(/receipt v55 requires/);
+    expect(() =>
+      buildVisualContractAuthoringReadinessEvidence({
+        snapshot,
+        request,
+        receipt: legacyNestedDiagnostics,
+      }),
+    ).toThrow(/readiness v52 requires current/);
   });
 
   it('records a final-standard-slot BookSurface route-admission refusal without inventing a seventh provider attempt', async () => {
@@ -8865,10 +9043,10 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         repairEligibility: 'ineligible',
         repairRouteAdmissionDiagnostics: {
           version:
-            'visual-contract-repair-route-admission-diagnostics/v2',
+            'visual-contract-repair-route-admission-diagnostics/v3',
           repairAttempt: 7,
           repairMode: 'book_surface_patch',
-          maxAdmissibleInputBytes: 59_904,
+          maxAdmissibleInputBytes: 75_904,
           routeAdmissionDiagnosticCount: 1,
         },
       },
@@ -8944,6 +9122,45 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         write: false,
       }),
     ).not.toThrow();
+
+    const legacyV1NestedDiagnostics = structuredClone(result.receipt);
+    const legacyV1Route = legacyV1NestedDiagnostics.failure!
+      .repairRouteAdmissionDiagnostics as unknown as Record<
+        string,
+        unknown
+      >;
+    legacyV1Route.version =
+      'visual-contract-repair-route-admission-diagnostics/v1';
+    legacyV1Route.maxAdmissibleInputBytes = 59_904;
+    const {
+      digestAlgorithm: _legacyV1DigestAlgorithm,
+      digest: _legacyV1Digest,
+      ...legacyV1NestedPayload
+    } = legacyV1NestedDiagnostics;
+    legacyV1NestedDiagnostics.digest = canonicalJsonDigest(
+      legacyV1NestedPayload,
+    );
+    expect(
+      visualContractAuthoringTerminalFailureIsValid(
+        legacyV1NestedDiagnostics.failure!,
+      ),
+    ).toBe(true);
+    expect(() =>
+      persistVisualContractAuthoringReceipt({
+        repoRoot: tempRoot(),
+        outputDir: 'outputs/legacy-v1-nested-route-admission',
+        request,
+        receipt: legacyV1NestedDiagnostics,
+        write: false,
+      }),
+    ).toThrow(/receipt v55 requires/);
+    expect(() =>
+      buildVisualContractAuthoringReadinessEvidence({
+        snapshot,
+        request,
+        receipt: legacyV1NestedDiagnostics,
+      }),
+    ).toThrow(/readiness v52 requires current/);
 
     const representedElsewhereRouteReceipt = structuredClone(result.receipt);
     representedElsewhereRouteReceipt.failure!

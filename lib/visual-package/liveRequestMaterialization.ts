@@ -2,6 +2,10 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 import {
+  VISUAL_CONTRACT_AUTHORING_MAX_INPUT_TOKENS,
+} from '@/lib/visual-contract-compiler/authoringPolicy';
+
+import {
   canonicalJsonDigest,
   repoRelativePath,
 } from './integrity';
@@ -43,13 +47,13 @@ import {
 } from './openaiResponsesStructuredOutputSchemaCompatibility';
 
 export const LIVE_REQUEST_MATERIALIZATION_INPUT_VERSION =
-  'canonical-live-request-materialization-input/v42' as const;
+  'canonical-live-request-materialization-input/v43' as const;
 export const STORY_SOURCE_AUTHORITY_REQUEST_ARTIFACT_VERSION =
   'story-source-authority-request/v1' as const;
 export const LIVE_REQUEST_MATERIALIZATION_MANIFEST_VERSION =
-  'canonical-live-request-materialization/v52' as const;
+  'canonical-live-request-materialization/v53' as const;
 export const CANONICAL_LIVE_REQUEST_VERIFICATION_VERSION =
-  'canonical-live-request-verification/v52' as const;
+  'canonical-live-request-verification/v53' as const;
 
 const DIGEST_PATTERN = /^[a-f0-9]{64}$/;
 const IDENTIFIER_PATTERN =
@@ -418,7 +422,8 @@ export function liveRequestPolicyAuthorityIssues(
       policy.projectedMaxUsd > policy.hardCeilingUsd ||
       policy.projectedMaxUsd !==
         projectedMaximumAuthoringCostWithTerminalReferenceCleanupUsd({
-          standardMaxInputTokens: 64_000,
+          standardMaxInputTokens:
+            VISUAL_CONTRACT_AUTHORING_MAX_INPUT_TOKENS,
           standardAttemptOutputLimits: outputBudget.limits,
           cleanupMaxInputTokens: 12_000,
           cleanupMaxOutputTokens: 1_000,

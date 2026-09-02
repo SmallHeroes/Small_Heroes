@@ -1027,7 +1027,7 @@ describe('canonical OpenAI Responses authoring adapter', () => {
 
     expect(result.receipt.status).toBe('completed');
     expect(result.receipt.version).toBe(
-      'visual-contract-authoring-receipt/v57',
+      'visual-contract-authoring-receipt/v58',
     );
     expect(result.receipt.executionAttestation).toEqual({
       evidenceKind: 'canonical_adapter_observed',
@@ -1494,7 +1494,7 @@ describe('canonical OpenAI Responses authoring adapter', () => {
   );
 
   it.each([
-    ['standard input with cleanup output', 64_000, 1_000, false],
+    ['standard input with cleanup output', 80_000, 1_000, false],
     ['cleanup input with standard output', 12_000, 40_000, false],
     ['cleanup pair with draft schema', 12_000, 1_000, false],
     ['cleanup pair with page-spatial schema', 12_000, 1_000, true],
@@ -1730,7 +1730,7 @@ describe('canonical OpenAI Responses authoring adapter', () => {
       'overflow input usage',
       {
         usage: {
-          input_tokens: 64_001,
+          input_tokens: 80_001,
           input_tokens_details: {
             cached_tokens: 0,
             cache_write_tokens: 0,
@@ -1739,7 +1739,7 @@ describe('canonical OpenAI Responses authoring adapter', () => {
           output_tokens_details: {
             reasoning_tokens: 500,
           },
-          total_tokens: 66_001,
+          total_tokens: 82_001,
         },
       },
       'usage_invalid',
@@ -3407,13 +3407,13 @@ describe('canonical live authoring executable boundary', () => {
     const evidence = readRejectedEvidence(fixture, result);
     expect(result.status).toBe('failed');
     expect(result.receipt).toMatchObject({
-      version: 'visual-contract-authoring-receipt/v57',
+      version: 'visual-contract-authoring-receipt/v58',
       status: 'failed',
       callCount: 0,
       failure: { code: 'request_invalid' },
     });
     expect(result.readiness).toMatchObject({
-      version: 'visual-contract-authoring-readiness/v54',
+      version: 'visual-contract-authoring-readiness/v55',
       authoringOutcome: {
         status: 'failed',
         failureCode: 'request_invalid',
@@ -3464,13 +3464,13 @@ describe('canonical live authoring executable boundary', () => {
       const evidence = readRejectedEvidence(fixture, result);
       expect(result.status).toBe('failed');
       expect(result.receipt).toMatchObject({
-        version: 'visual-contract-authoring-receipt/v57',
+        version: 'visual-contract-authoring-receipt/v58',
         status: 'failed',
         callCount: 0,
         failure: { code: 'request_invalid' },
       });
       expect(result.readiness).toMatchObject({
-        version: 'visual-contract-authoring-readiness/v54',
+        version: 'visual-contract-authoring-readiness/v55',
         authoringOutcome: {
           status: 'failed',
           failureCode: 'request_invalid',
@@ -3613,26 +3613,47 @@ describe('canonical live authoring executable boundary', () => {
     ).toBe(false);
   });
 
-  it('accepts 12 pages under the current fence and rejects page 13 before provider reachability', async () => {
-    const twelve = createLiveFixture('page-12');
-    expect(twelve.snapshot.content.pages).toHaveLength(12);
+  it('accepts 16 pages under the current fence and rejects page 17 before provider reachability', async () => {
+    const sixteen = createLiveFixture('page-16');
+    fs.appendFileSync(
+      sixteen.storyAbsolutePath,
+      Array.from(
+        { length: 4 },
+        (_value, index) =>
+          `\n--- Page ${index + 13} ---\nThe child takes another brave step with clear source prose.\n`,
+      ).join(''),
+      'utf8',
+    );
+    const sixteenSourceRequest = {
+      repoRoot: sixteen.repoRoot,
+      storyKey: STORY_KEY,
+      storyPath: `stories/${STORY_KEY}.md`,
+    };
+    const sixteenSnapshot =
+      buildStorySourceAuthoritySnapshot(sixteenSourceRequest);
+    const sixteenRequest = buildVisualContractAuthoringRequest({
+      snapshot: sixteenSnapshot,
+      mode: 'live',
+      requestId: 'request-live-page-16',
+      requestedAt: REQUESTED_AT,
+    });
+    expect(sixteenSnapshot.content.pages).toHaveLength(16);
     expect(
       visualContractAuthoringRequestIssues({
-        request: twelve.request,
-        snapshot: twelve.snapshot,
+        request: sixteenRequest,
+        snapshot: sixteenSnapshot,
       }),
     ).not.toContain(
       'page_budget_partition_decision_required',
     );
 
-    const thirteen = createLiveFixture('page-13');
     fs.appendFileSync(
-      thirteen.storyAbsolutePath,
-      '\n--- Page 13 ---\nThe child takes one more brave step with clear source prose.\n',
+      sixteen.storyAbsolutePath,
+      '\n--- Page 17 ---\nThe child takes one unsupported extra step.\n',
       'utf8',
     );
     const sourceRequest = {
-      repoRoot: thirteen.repoRoot,
+      repoRoot: sixteen.repoRoot,
       storyKey: STORY_KEY,
       storyPath: `stories/${STORY_KEY}.md`,
     };
@@ -3641,20 +3662,20 @@ describe('canonical live authoring executable boundary', () => {
     const request = buildVisualContractAuthoringRequest({
       snapshot,
       mode: 'live',
-      requestId: 'request-live-page-13',
+      requestId: 'request-live-page-17',
       requestedAt: REQUESTED_AT,
     });
     writeJson(
-      thirteen.repoRoot,
-      thirteen.snapshotPath,
+      sixteen.repoRoot,
+      sixteen.snapshotPath,
       snapshot,
     );
     writeJson(
-      thirteen.repoRoot,
-      thirteen.requestPath,
+      sixteen.repoRoot,
+      sixteen.requestPath,
       request,
     );
-    expect(snapshot.content.pages).toHaveLength(13);
+    expect(snapshot.content.pages).toHaveLength(17);
     expect(
       visualContractAuthoringRequestIssues({
         request,
@@ -3666,7 +3687,7 @@ describe('canonical live authoring executable boundary', () => {
     const adapter = fakeAdapter({ responses: [] });
     const result =
       await runCanonicalLiveVisualContractAuthoring(
-        fixtureInput(thirteen),
+        fixtureInput(sixteen),
         { provider: adapter.provider },
       );
     expect(result.receipt.failure?.issues).toContain(
@@ -3751,7 +3772,7 @@ describe('canonical live authoring executable boundary', () => {
         repairCount + 1,
       );
       expect(result.receipt.attempts[0]
-        ?.reservedExposureBeforeCallUsd).toBe(7.04);
+        ?.reservedExposureBeforeCallUsd).toBe(7.656);
       expect(result.persistence.candidate).not.toBeNull();
       expect(result.readiness).toMatchObject({
         visualContractCandidate: {
@@ -3974,13 +3995,13 @@ describe('canonical live authoring executable boundary', () => {
           attempt.reservedExposureBeforeCallUsd,
       ),
     ).toEqual([
-      7.04,
-      5.8575,
-      4.851,
-      3.7565,
-      2.926,
-      2.0955,
-      1.265,
+      7.656,
+      6.3855,
+      5.291,
+      4.108501,
+      3.19,
+      2.2715,
+      1.353,
     ]);
   });
 

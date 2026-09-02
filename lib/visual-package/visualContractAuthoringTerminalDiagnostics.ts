@@ -21,9 +21,8 @@ import {
   type TemplateRepairOutputTargetContext,
 } from '@/lib/visual-contract-compiler/templateRepairOutputDiagnostics';
 import {
-  VISUAL_CONTRACT_AUTHORING_MAX_INPUT_TOKENS,
   VISUAL_CONTRACT_AUTHORING_PROMPT_PROTOCOL_ALLOWANCE,
-  VISUAL_CONTRACT_AUTHORING_ROUTE_SAFETY_MARGIN,
+  VISUAL_CONTRACT_AUTHORING_STANDARD_MAX_ADMISSIBLE_INPUT_BYTES,
   VISUAL_CONTRACT_AUTHORING_STANDARD_MAX_CALLS,
   type VisualContractAuthoringInputAccounting,
 } from '@/lib/visual-contract-compiler/authoringPolicy';
@@ -52,6 +51,7 @@ export interface VisualContractAuthoringTerminalFailure
   repairRouteAdmissionDiagnostics:
     | VisualContractRepairRouteAdmissionDiagnostics
     | LegacyVisualContractRepairRouteAdmissionDiagnostics
+    | LegacyVisualContractRepairRouteAdmissionDiagnosticsV1
     | null;
 }
 
@@ -70,9 +70,16 @@ export interface LegacyVisualContractAuthoringTerminalFailure
 }
 
 export const VISUAL_CONTRACT_REPAIR_ROUTE_ADMISSION_DIAGNOSTICS_VERSION =
-  'visual-contract-repair-route-admission-diagnostics/v2' as const;
+  'visual-contract-repair-route-admission-diagnostics/v3' as const;
 export const LEGACY_VISUAL_CONTRACT_REPAIR_ROUTE_ADMISSION_DIAGNOSTICS_VERSION =
+  'visual-contract-repair-route-admission-diagnostics/v2' as const;
+export const LEGACY_VISUAL_CONTRACT_REPAIR_ROUTE_ADMISSION_DIAGNOSTICS_VERSION_V1 =
   'visual-contract-repair-route-admission-diagnostics/v1' as const;
+
+const LEGACY_VISUAL_CONTRACT_AUTHORING_STANDARD_MAX_ADMISSIBLE_INPUT_BYTES =
+  59_904;
+const LEGACY_VISUAL_CONTRACT_AUTHORING_STANDARD_MAX_CALLS = 7;
+const LEGACY_VISUAL_CONTRACT_AUTHORING_PROMPT_PROTOCOL_ALLOWANCE = 4_096;
 
 export interface VisualContractRepairRouteAdmissionDiagnostics {
   version: typeof VISUAL_CONTRACT_REPAIR_ROUTE_ADMISSION_DIAGNOSTICS_VERSION;
@@ -95,6 +102,14 @@ export interface VisualContractRepairRouteAdmissionDiagnosticsInput {
 export interface LegacyVisualContractRepairRouteAdmissionDiagnostics
   extends Omit<VisualContractRepairRouteAdmissionDiagnostics, 'version'> {
   version: typeof LEGACY_VISUAL_CONTRACT_REPAIR_ROUTE_ADMISSION_DIAGNOSTICS_VERSION;
+}
+
+export interface LegacyVisualContractRepairRouteAdmissionDiagnosticsV1
+  extends Omit<
+    VisualContractRepairRouteAdmissionDiagnostics,
+    'version' | 'repairMode'
+  > {
+  version: typeof LEGACY_VISUAL_CONTRACT_REPAIR_ROUTE_ADMISSION_DIAGNOSTICS_VERSION_V1;
   repairMode: LegacyTemplateRepairMode;
 }
 
@@ -233,10 +248,18 @@ export function visualContractRepairRouteAdmissionDiagnosticsIsValid(
 
 export function legacyVisualContractRepairRouteAdmissionDiagnosticsIsValid(
   value: unknown,
-): value is LegacyVisualContractRepairRouteAdmissionDiagnostics {
-  return visualContractRepairRouteAdmissionDiagnosticsShapeIsValid(
-    value,
-    LEGACY_VISUAL_CONTRACT_REPAIR_ROUTE_ADMISSION_DIAGNOSTICS_VERSION,
+): value is
+  | LegacyVisualContractRepairRouteAdmissionDiagnostics
+  | LegacyVisualContractRepairRouteAdmissionDiagnosticsV1 {
+  return (
+    visualContractRepairRouteAdmissionDiagnosticsShapeIsValid(
+      value,
+      LEGACY_VISUAL_CONTRACT_REPAIR_ROUTE_ADMISSION_DIAGNOSTICS_VERSION,
+    ) ||
+    visualContractRepairRouteAdmissionDiagnosticsShapeIsValid(
+      value,
+      LEGACY_VISUAL_CONTRACT_REPAIR_ROUTE_ADMISSION_DIAGNOSTICS_VERSION_V1,
+    )
   );
 }
 
@@ -261,21 +284,25 @@ function visualContractRepairRouteAdmissionDiagnosticsShapeIsValid(
     return false;
   }
   const inputAccounting = accounting as Record<string, unknown>;
-  const legacyVersion =
+  const legacyV1 =
     version ===
-    LEGACY_VISUAL_CONTRACT_REPAIR_ROUTE_ADMISSION_DIAGNOSTICS_VERSION;
-  const routeIdentityIsValid = legacyVersion
+    LEGACY_VISUAL_CONTRACT_REPAIR_ROUTE_ADMISSION_DIAGNOSTICS_VERSION_V1;
+  const legacyVersion =
+    legacyV1 ||
+    version ===
+      LEGACY_VISUAL_CONTRACT_REPAIR_ROUTE_ADMISSION_DIAGNOSTICS_VERSION;
+  const maxCalls = legacyVersion
+    ? LEGACY_VISUAL_CONTRACT_AUTHORING_STANDARD_MAX_CALLS
+    : VISUAL_CONTRACT_AUTHORING_STANDARD_MAX_CALLS;
+  const routeIdentityIsValid = legacyV1
     ? diagnostics.repairMode === 'book_surface_patch' &&
-      diagnostics.repairAttempt ===
-        VISUAL_CONTRACT_AUTHORING_STANDARD_MAX_CALLS
+      diagnostics.repairAttempt === maxCalls
     : (diagnostics.repairMode === 'book_surface_patch' &&
-        diagnostics.repairAttempt ===
-          VISUAL_CONTRACT_AUTHORING_STANDARD_MAX_CALLS) ||
+        diagnostics.repairAttempt === maxCalls) ||
       (diagnostics.repairMode === 'represented_elsewhere_patch' &&
         Number.isSafeInteger(diagnostics.repairAttempt) &&
         (diagnostics.repairAttempt as number) >= 2 &&
-        (diagnostics.repairAttempt as number) <=
-          VISUAL_CONTRACT_AUTHORING_STANDARD_MAX_CALLS);
+        (diagnostics.repairAttempt as number) <= maxCalls);
   const numericAccounting = [
     inputAccounting.systemBytes,
     inputAccounting.userBytes,
@@ -292,8 +319,9 @@ function visualContractRepairRouteAdmissionDiagnosticsShapeIsValid(
     diagnostics.version === version &&
     routeIdentityIsValid &&
     diagnostics.maxAdmissibleInputBytes ===
-      VISUAL_CONTRACT_AUTHORING_MAX_INPUT_TOKENS -
-        VISUAL_CONTRACT_AUTHORING_ROUTE_SAFETY_MARGIN &&
+      (legacyVersion
+        ? LEGACY_VISUAL_CONTRACT_AUTHORING_STANDARD_MAX_ADMISSIBLE_INPUT_BYTES
+        : VISUAL_CONTRACT_AUTHORING_STANDARD_MAX_ADMISSIBLE_INPUT_BYTES) &&
     Number.isSafeInteger(diagnostics.carriedDraftDiagnosticCount) &&
     (diagnostics.carriedDraftDiagnosticCount as number) >= 1 &&
     diagnostics.routeAdmissionDiagnosticCount === 1 &&
@@ -302,7 +330,9 @@ function visualContractRepairRouteAdmissionDiagnosticsShapeIsValid(
     ) &&
     inputAccounting.separatorBytes === 2 &&
     inputAccounting.protocolAllowance ===
-      VISUAL_CONTRACT_AUTHORING_PROMPT_PROTOCOL_ALLOWANCE &&
+      (legacyVersion
+        ? LEGACY_VISUAL_CONTRACT_AUTHORING_PROMPT_PROTOCOL_ALLOWANCE
+        : VISUAL_CONTRACT_AUTHORING_PROMPT_PROTOCOL_ALLOWANCE) &&
     inputAccounting.estimatedBytes ===
       (inputAccounting.systemBytes as number) +
         (inputAccounting.userBytes as number) +
@@ -318,7 +348,8 @@ export function visualContractRepairRouteAdmissionDiagnosticsIsReadable(
   value: unknown,
 ): value is
   | VisualContractRepairRouteAdmissionDiagnostics
-  | LegacyVisualContractRepairRouteAdmissionDiagnostics {
+  | LegacyVisualContractRepairRouteAdmissionDiagnostics
+  | LegacyVisualContractRepairRouteAdmissionDiagnosticsV1 {
   return (
     visualContractRepairRouteAdmissionDiagnosticsIsValid(value) ||
     legacyVisualContractRepairRouteAdmissionDiagnosticsIsValid(value)

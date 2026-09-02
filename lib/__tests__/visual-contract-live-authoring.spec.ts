@@ -26,6 +26,12 @@ import type {
 import { withCurrentActionSemanticCoverage } from './visual-contract-authoring-draft-fixtures';
 import { OpenAIResponsesStructuredOutputSchemaCompatibilityError } from '../visual-package/openaiResponsesStructuredOutputSchemaCompatibility';
 import { CHAMELEON_KOKO_APPEARANCE_STATE_AUTHORITY } from '../companion-appearance-state';
+import {
+  VISUAL_CONTRACT_AUTHORING_MAX_INPUT_TOKENS,
+  VISUAL_CONTRACT_AUTHORING_ROUTE_SAFETY_MARGIN,
+  visualContractAuthoringInputAccounting,
+  visualContractAuthoringRouteIsAdmissible,
+} from '../visual-contract-compiler/authoringPolicy';
 
 const BUNNY_KEY = 'bunny_ometz_adventure';
 const BANK = path.join(process.cwd(), 'story-bank/v3-approved');
@@ -214,7 +220,7 @@ describe('Stage 1 — authoring token budget scales by page count (Responses bud
     expect(authoringMaxOutputTokens(16)).toBe(48000);
     expect(authoringMaxOutputTokens(25)).toBe(64000); // cap (75000)
     expect(authoringMaxOutputTokens(8)).toBe(32000); // floor (24000)
-    expect(authoringMaxOutputTokens(0)).toBe(36000); // invalid → default 12 pages
+    expect(authoringMaxOutputTokens(0)).toBe(48000); // invalid → current 16-page fence
   });
 
   it('derives the canonical seven-attempt allocation under the USD 10 fence', () => {
@@ -236,7 +242,16 @@ describe('Stage 1 — authoring token budget scales by page count (Responses bud
       21_333,
       21_333,
     ]);
-    for (const pageCount of [8, 12]) {
+    expect(authoringStandardAttemptOutputLimits(16)).toEqual([
+      53_334,
+      42_666,
+      48_000,
+      32_000,
+      32_000,
+      32_000,
+      32_000,
+    ]);
+    for (const pageCount of [8, 12, 16]) {
       const base = authoringMaxOutputTokens(pageCount);
       const limits = authoringStandardAttemptOutputLimits(pageCount);
       expect(limits).toHaveLength(7);
@@ -247,6 +262,34 @@ describe('Stage 1 — authoring token budget scales by page count (Responses bud
         Array.from({ length: 4 }, () => Math.floor((2 * base) / 3)),
       );
     }
+  });
+
+  it('keeps the shared initial/repair admission boundary at 80K minus the 4,096-unit route margin', () => {
+    const schema = {};
+    const fixed = visualContractAuthoringInputAccounting('', '', schema);
+    const exactUser = 'x'.repeat(
+      VISUAL_CONTRACT_AUTHORING_MAX_INPUT_TOKENS -
+        VISUAL_CONTRACT_AUTHORING_ROUTE_SAFETY_MARGIN -
+        fixed.estimatedBytes,
+    );
+    expect(
+      visualContractAuthoringInputAccounting('', exactUser, schema)
+        .estimatedBytes,
+    ).toBe(75_904);
+    expect(
+      visualContractAuthoringRouteIsAdmissible({
+        systemPrompt: '',
+        userPrompt: exactUser,
+        schema,
+      }),
+    ).toBe(true);
+    expect(
+      visualContractAuthoringRouteIsAdmissible({
+        systemPrompt: '',
+        userPrompt: `${exactUser}x`,
+        schema,
+      }),
+    ).toBe(false);
   });
 });
 
@@ -271,7 +314,7 @@ describe('Stage 1 — compiler requests the dedicated authoring call + records p
     expect(captured?.toolsDisabled).toBe(true);
     expect(captured?.transportRetries).toBe(0);
     expect(captured?.timeoutMs).toBe(1_200_000);
-    expect(captured?.maxInputTokens).toBe(64_000);
+    expect(captured?.maxInputTokens).toBe(80_000);
     expect(captured?.jsonSchema?.name).toBe(TEMPLATE_DRAFT_SCHEMA_NAME);
     expect(captured?.maxOutputTokens).toBe(40_000);
     const firstEvidence =

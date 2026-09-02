@@ -318,6 +318,40 @@ describe('P0 — Template validator', () => {
     expect(r.ok, r.ok ? '' : r.errors.join('; ')).toBe(true);
   });
 
+  it('accepts exact 16-page coverage and rejects a truncated page-16 result', () => {
+    const template = templateFixture();
+    const pageNumbers = Array.from({ length: 16 }, (_, index) => index + 1);
+    const firstPage = clone((template.pageContracts as Obj[])[0]!);
+    template.pageContracts = pageNumbers.map((pageNumber) => ({
+      ...clone(firstPage),
+      pageNumber,
+    }));
+    const mother = clone((template.humanCast as Obj[])[0]!);
+    mother.pagesPresent = pageNumbers;
+    template.humanCast = [mother];
+    template.provenance = {
+      source: 'llm',
+      compiledFromPages: 16,
+    };
+
+    const complete = validateBookVisualContractTemplate(template);
+    expect(
+      complete.ok,
+      complete.ok ? '' : complete.errors.join('; '),
+    ).toBe(true);
+
+    const truncated = clone(template);
+    (truncated.pageContracts as Obj[]).pop();
+    const incomplete = validateBookVisualContractTemplate(truncated);
+    expect(incomplete.ok).toBe(false);
+    if (incomplete.ok) {
+      throw new Error('expected the 16-page template truncation to fail');
+    }
+    expect(incomplete.errors.join('; ')).toMatch(
+      /missing pageContract for page 16 \(expected exactly pages 1\.\.16\)/,
+    );
+  });
+
   it.each([
     {
       name: 'omitted',

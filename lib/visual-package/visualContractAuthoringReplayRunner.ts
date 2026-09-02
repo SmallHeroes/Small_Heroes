@@ -94,7 +94,7 @@ function receiptTerminalFailureIdentity(
       if (
         !diagnostics ||
         diagnostics.version !==
-          'visual-contract-repair-route-admission-diagnostics/v2'
+          'visual-contract-repair-route-admission-diagnostics/v3'
       ) {
         return { digest: null, complete: false };
       }

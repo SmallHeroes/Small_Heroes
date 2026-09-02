@@ -810,10 +810,16 @@ describe('canonical live execution request and readiness', () => {
       canonicalLiveExecutionRequestIssues(fixture.request),
     ).toEqual([]);
     expect(CANONICAL_LIVE_REQUEST_VERIFICATION_VERSION).toBe(
-      'canonical-live-request-verification/v52',
+      'canonical-live-request-verification/v53',
+    );
+    expect(CANONICAL_LIVE_EXECUTION_REQUEST_VERSION).toBe(
+      'canonical-live-execution-request/v50',
+    );
+    expect(CANONICAL_LIVE_EXECUTION_READINESS_VERSION).toBe(
+      'canonical-live-execution-readiness/v50',
     );
     expect(CANONICAL_LIVE_EXECUTION_RESULT_VERSION).toBe(
-      'canonical-live-execution-result/v42',
+      'canonical-live-execution-result/v43',
     );
     expect(readiness.version).toBe(
       CANONICAL_LIVE_EXECUTION_READINESS_VERSION,
@@ -970,7 +976,7 @@ describe('canonical live execution request and readiness', () => {
     const legacyRequest = structuredClone(
       fixture.request,
     ) as unknown as Record<string, unknown>;
-    legacyRequest.version = 'canonical-live-execution-request/v46';
+    legacyRequest.version = 'canonical-live-execution-request/v49';
     const {
       digestAlgorithm: _requestAlgorithm,
       digest: _requestDigest,
@@ -990,7 +996,7 @@ describe('canonical live execution request and readiness', () => {
       readiness,
     ) as unknown as Record<string, unknown>;
     legacyReadiness.version =
-      'canonical-live-execution-readiness/v46';
+      'canonical-live-execution-readiness/v49';
     const {
       digestAlgorithm: _readinessAlgorithm,
       digest: _readinessDigest,
@@ -1281,7 +1287,7 @@ describe('B0 composition and explicit filesystem fences', () => {
       standardAttemptOutputBudget: alternate,
       projectedMaxUsd:
         projectedMaximumAuthoringCostWithTerminalReferenceCleanupUsd({
-          standardMaxInputTokens: 64_000,
+          standardMaxInputTokens: 80_000,
           standardAttemptOutputLimits: alternate.limits,
           cleanupMaxInputTokens: 12_000,
           cleanupMaxOutputTokens: 1_000,

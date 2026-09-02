@@ -47,6 +47,10 @@ import {
   buildPageSpatialReferenceRepairUserPrompt,
   pageSpatialReferenceRepairTargets,
 } from '../visual-contract-compiler/pageContractRepair';
+import {
+  VISUAL_CONTRACT_AUTHORING_MAX_INPUT_TOKENS,
+  VISUAL_CONTRACT_AUTHORING_ROUTE_SAFETY_MARGIN,
+} from '../visual-contract-compiler/authoringPolicy';
 import type { DraftAuthorityReferenceIssue } from '../visual-contract-compiler/draftAuthorityReferenceDiagnostics';
 import {
   buildStorySourceAuthoritySnapshot,
@@ -371,7 +375,7 @@ describe('Visual Contract prompt authority-table compaction', () => {
     expect(prompt.match(/בבוקר חגיגת הנהר/gu)).toHaveLength(1);
   });
 
-  it('keeps every new 8/12-page QA source within 64K without provider reachability', async () => {
+  it('keeps every new 8/12/16-page QA source within the 80K policy without provider reachability', async () => {
     const sourceFiles = qaAutonomousSourceFiles();
     const provider = {
       call: vi.fn(async () => {
@@ -392,7 +396,6 @@ describe('Visual Contract prompt authority-table compaction', () => {
         storyKey,
         storyPath: `story-bank/qa-autonomous-20260815-v1/${name}`,
       });
-      if (snapshot.content.pages.length > 12) continue;
       const request = buildVisualContractAuthoringRequest({
         snapshot,
         mode: 'preflight',
@@ -410,7 +413,8 @@ describe('Visual Contract prompt authority-table compaction', () => {
         storyKey,
         pages: snapshot.content.pages.length,
         upperBound,
-        headroom: 64_000 - upperBound,
+        headroom:
+          VISUAL_CONTRACT_AUTHORING_MAX_INPUT_TOKENS - upperBound,
       });
       expect(result.receipt.failure?.issues ?? []).not.toContain(
         'input_token_ceiling_exceeded',
@@ -421,11 +425,26 @@ describe('Visual Contract prompt authority-table compaction', () => {
     const lion = measurements.find(
       ({ storyKey }) => storyKey === 'lion_shaket_adventure',
     );
-    expect(measurements).toHaveLength(12);
+    expect(measurements).toHaveLength(18);
     expect(
       Math.min(...measurements.map(({ headroom }) => headroom)),
-    ).toBeGreaterThan(1_024);
+    ).toBeGreaterThan(
+      VISUAL_CONTRACT_AUTHORING_ROUTE_SAFETY_MARGIN,
+    );
     expect(lion?.headroom).toBeGreaterThan(3_000);
+    expect(
+      measurements
+        .filter(({ pages }) => pages === 16)
+        .map(({ storyKey, upperBound }) => ({ storyKey, upperBound }))
+        .sort((left, right) => left.storyKey.localeCompare(right.storyKey)),
+    ).toEqual([
+      { storyKey: 'bunny_ometz_fantasy', upperBound: 62_437 },
+      { storyKey: 'chameleon_koko_fantasy', upperBound: 60_354 },
+      { storyKey: 'dragon_dini_fantasy', upperBound: 56_212 },
+      { storyKey: 'fox_uri_fantasy', upperBound: 66_097 },
+      { storyKey: 'lion_shaket_fantasy', upperBound: 54_957 },
+      { storyKey: 'panda_anat_fantasy', upperBound: 68_318 },
+    ]);
     expect(provider.call).not.toHaveBeenCalled();
   });
 
@@ -610,7 +629,7 @@ describe('Visual Contract prompt authority-table compaction', () => {
     );
   });
 
-  it('keeps all 18 approved Story Sources within 64K with more than 1,024 units of headroom and never reaches the provider', async () => {
+  it('keeps all 18 approved Story Sources within the 80K policy with the route safety margin and never reaches the provider', async () => {
     const sourceFiles = approvedSourceFiles();
     const provider = {
       call: vi.fn(async () => {
@@ -663,7 +682,9 @@ describe('Visual Contract prompt authority-table compaction', () => {
     expect(measurements).toHaveLength(18);
     expect(
       measurements.every(
-        (measurement) => measurement.upperBound <= 64_000,
+        (measurement) =>
+          measurement.upperBound <=
+          VISUAL_CONTRACT_AUTHORING_MAX_INPUT_TOKENS,
       ),
     ).toBe(true);
     expect(
@@ -672,16 +693,18 @@ describe('Visual Contract prompt authority-table compaction', () => {
           (measurement) => measurement.headroom,
         ),
       ),
-    ).toBeGreaterThan(1_024);
+    ).toBeGreaterThan(
+      VISUAL_CONTRACT_AUTHORING_ROUTE_SAFETY_MARGIN,
+    );
     expect(fox).toEqual({
       storyKey: 'fox_uri_adventure',
       upperBound: 50_051,
-      headroom: 13_949,
+      headroom: 29_949,
     });
     expect(worst).toEqual({
       storyKey: 'lion_shaket_fantasy',
       upperBound: 53_475,
-      headroom: 10_525,
+      headroom: 26_525,
     });
     expect(provider.call).not.toHaveBeenCalled();
   });
@@ -759,7 +782,9 @@ describe('Visual Contract prompt authority-table compaction', () => {
 
     expect(
       request.tokenBudget.promptAndSchemaTokenUpperBound,
-    ).toBeGreaterThan(64_000);
+    ).toBeGreaterThan(
+      VISUAL_CONTRACT_AUTHORING_MAX_INPUT_TOKENS,
+    );
     expect(result.receipt.status).toBe('failed');
     expect(result.receipt.failure?.issues).toContain(
       'input_token_ceiling_exceeded',

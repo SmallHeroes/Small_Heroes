@@ -306,15 +306,15 @@ describe('canonical live request materialization validators', () => {
       liveRequestMaterializationInputIssues({
         ...inputFor(fixture),
         version:
-          'canonical-live-request-materialization-input/v33',
+          'canonical-live-request-materialization-input/v42',
       }),
     ).toContain('materialization_input_version_invalid');
     expect(LIVE_REQUEST_MATERIALIZATION_INPUT_VERSION).toBe(
-      'canonical-live-request-materialization-input/v42',
+      'canonical-live-request-materialization-input/v43',
     );
     expect(
       LIVE_REQUEST_MATERIALIZATION_MANIFEST_VERSION,
-    ).toBe('canonical-live-request-materialization/v52');
+    ).toBe('canonical-live-request-materialization/v53');
   });
 
   it.each([
@@ -460,11 +460,11 @@ describe('canonical live request materialization artifacts', () => {
     );
     const policy = structuredClone(result.manifest.requestPolicy);
     const overCeilingSchedule =
-      buildVisualContractAuthoringStandardAttemptOutputBudget(13);
+      buildVisualContractAuthoringStandardAttemptOutputBudget(16);
     policy.standardAttemptOutputBudget = overCeilingSchedule;
     policy.projectedMaxUsd =
       projectedMaximumAuthoringCostWithTerminalReferenceCleanupUsd({
-        standardMaxInputTokens: 64_000,
+        standardMaxInputTokens: 80_000,
         standardAttemptOutputLimits: overCeilingSchedule.limits,
         cleanupMaxInputTokens: 12_000,
         cleanupMaxOutputTokens: 1_000,
@@ -492,7 +492,7 @@ describe('canonical live request materialization artifacts', () => {
 
     expect(result.status).toBe('materialized_inputs_only');
     expect(request).toMatchObject({
-      version: 'visual-contract-authoring-request/v54',
+      version: 'visual-contract-authoring-request/v55',
       mode: 'live',
       provider: 'openai',
       endpoint: 'responses',
@@ -504,7 +504,7 @@ describe('canonical live request materialization artifacts', () => {
       transportRetries: 0,
       timeoutMs: 1_200_000,
       tokenBudget: {
-        maxInputTokens: 64_000,
+        maxInputTokens: 80_000,
         standardAttempts: {
           version:
             'visual-contract-authoring-standard-attempt-output-budget/v6',
@@ -548,7 +548,7 @@ describe('canonical live request materialization artifacts', () => {
         },
       },
       costBudget: {
-        projectedMaxUsd: 7.04,
+        projectedMaxUsd: 7.656,
         hardCeilingUsd: 10,
       },
       structuredOutput: {
@@ -875,8 +875,40 @@ describe('canonical live request materialization artifacts', () => {
     ).not.toBe(first.persistence.liveAuthoringRequest.digest);
   });
 
-  it('refuses a 13-page source before creating an output root', () => {
-    const fixture = writeFixture({ pageCount: 13 });
+  it('materializes the exact 16-page policy with zero external boundary access', () => {
+    const fixture = writeFixture({ pageCount: 16 });
+    const result = materialize(fixture);
+    const request = readJson<VisualContractAuthoringRequest>(
+      fixture.repoRoot,
+      result.persistence.liveAuthoringRequest.path,
+    );
+
+    expect(result.manifest.sourceRevision).toMatchObject({
+      pageCount: 16,
+      pageNumbers: Array.from({ length: 16 }, (_, index) => index + 1),
+    });
+    expect(request.tokenBudget).toMatchObject({
+      maxInputTokens: 80_000,
+      standardAttempts: {
+        limits: [53_334, 42_666, 48_000, 32_000, 32_000, 32_000, 32_000],
+        totalPool: 272_000,
+      },
+    });
+    expect(request.costBudget).toEqual({
+      projectedMaxUsd: 9.152,
+      hardCeilingUsd: 10,
+    });
+    expect(result.manifest.externalBoundaryEvidence).toEqual({
+      providerCalls: 0,
+      modelCalls: 0,
+      transportRetriesAuthorized: 0,
+      credentialLoadingAuthorized: false,
+      pricingLookupPerformed: false,
+    });
+  });
+
+  it('refuses a 17-page source before creating an output root', () => {
+    const fixture = writeFixture({ pageCount: 17 });
     const requestPath = writeInput(fixture);
     expect(() =>
       materializeCanonicalLiveRequestBundle({

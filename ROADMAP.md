@@ -37,11 +37,11 @@ This roadmap records technical milestone state. Guy can change product priority 
 ### R3 — Expand the render-qualified catalog
 
 - **Current owner decision:** make all 18 stories currently offered by the Wizard render-ready; do not reduce this to a smaller launch subset.
-- **State:** R3-A zero-cost, all-slot control plane, its exact-18 runtime correction, and its ambient-feature-flag test isolation all received independent Claude Code PASS with no open P0/P1/P2; the reviewed branch is pushed. The literal repository-wide check remains red on absent ignored historical `outputs/` fixtures plus Vitest `onTaskUpdate` RPC timeouts, all documented in `CURRENT.md`; the resource assertions themselves pass 639/639. The audit reports 18/18 nominal and sellable with the V3 flag, 18/18 QA LOW-ready, but only 1/18 strict render-qualified.
-- Before R3-B, Guy must select the product corpus for the 17 unresolved keys because the V3 and QA sources differ byte-for-byte. Six 16-beat fantasy stories also require a separate decision on the current 12-page Visual Contract authoring ceiling.
-- After those decisions, prepare and review exact accepted Story Source/visual-direction revisions, then complete Visual Contract, Blueprint, Board/prop and Visual Package authority in bounded waves with explicit spend ceilings.
+- **R3-B owner decisions:** Guy selected the QA corpus as the review starting point for the 17 unresolved keys and chose to preserve all six fantasy stories at 16 beats.
+- **State:** R3-A zero-cost, all-slot control plane, its exact-18 runtime correction, and its ambient-feature-flag test isolation all received independent Claude Code PASS with no open P0/P1/P2; the reviewed branch is pushed. R3-B0a, the bounded 16-page/80K Visual Contract policy with a universal 75,904 effective standard-route ceiling, is implemented locally and awaits independent Claude Code QA. The audit now reports 18/18 nominal and sellable, 18/18 QA LOW-ready and 18/18 authoring-policy admitted, but still only 1/18 strict render-qualified. The literal repository-wide check remains red on absent ignored historical `outputs/` fixtures plus Vitest `onTaskUpdate` RPC timeouts, documented in `CURRENT.md`.
+- **Next zero-cost step:** prepare one deterministic, digest-bound review batch for the exact 17 QA Story Source/visual-direction candidates while preserving the current Chameleon package and locator. This is candidate preparation, not product acceptance or publication. `lion_shaket_adventure` still requires Claude Cowork story review and Guy's exact acceptance.
+- After source and visual-direction review/acceptance, complete Visual Contract, Blueprint, Board/prop and Visual Package authority in bounded waves with explicit spend ceilings.
 - A slot remains unavailable for rendering until story/product approval and its complete visual package both pass.
-- `lion_shaket_adventure` additionally requires Claude Cowork product/story review and Guy acceptance before it can become a render candidate.
 
 ## Next
 

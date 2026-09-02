@@ -500,6 +500,9 @@ describe('canonical pre-live readiness orchestrator', () => {
     const fixture = createFixture(true);
     const result = prepare(fixture);
 
+    expect(CANONICAL_PRE_LIVE_READINESS_EVIDENCE_VERSION).toBe(
+      'canonical-pre-live-readiness-evidence/v50',
+    );
     expect(result, JSON.stringify(result, null, 2)).toMatchObject({
       version:
         CANONICAL_PRE_LIVE_READINESS_EVIDENCE_VERSION,
@@ -529,7 +532,7 @@ describe('canonical pre-live readiness orchestrator', () => {
       canonicalAuthorities: {
         b0: {
           verificationVersion:
-            'canonical-live-request-verification/v52',
+            'canonical-live-request-verification/v53',
           structuredOutputCompatibility: {
             schemaName: 'BookVisualContractTemplateDraft',
             schemaVersion: 'vc-draft-schema/v21',
@@ -566,13 +569,13 @@ describe('canonical pre-live readiness orchestrator', () => {
               limits: [40_000, 32_000, 36_000, 24_000, 24_000, 24_000, 24_000],
               totalPool: 204_000,
             },
-            projectedMaxUsd: 7.04,
+            projectedMaxUsd: 7.656,
             hardCeilingUsd: 10,
           },
         },
         supervisorVerification: {
           version:
-            'canonical-live-execution-readiness/v49',
+            'canonical-live-execution-readiness/v50',
         },
       },
     });
@@ -822,7 +825,7 @@ describe('canonical pre-live readiness orchestrator', () => {
     const current = prepare(fixture);
     expect(current.status).toBe('ready_for_spend_gate');
     const prior = structuredClone(current) as unknown as Record<string, unknown>;
-    prior.version = 'canonical-pre-live-readiness-evidence/v46';
+    prior.version = 'canonical-pre-live-readiness-evidence/v49';
     const {
       digestAlgorithm: _algorithm,
       digest: _digest,

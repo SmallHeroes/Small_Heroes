@@ -594,11 +594,11 @@ describe('Visual Contract-specific terminal extension', () => {
   it('persists one exact repair-route admission detail slot on the existing terminal shape', () => {
     const inputAccounting = {
       systemBytes: 1_000,
-      userBytes: 55_000,
+      userBytes: 70_000,
       schemaBytes: 1_000,
       separatorBytes: 2,
       protocolAllowance: 4_096,
-      estimatedBytes: 61_098,
+      estimatedBytes: 76_098,
     };
     const failure = buildVisualContractAuthoringTerminalFailure({
       code: 'repair_route_input_not_admissible',
@@ -607,7 +607,7 @@ describe('Visual Contract-specific terminal extension', () => {
         repairAttempt: 7,
         repairMode: 'book_surface_patch',
         inputAccounting,
-        maxAdmissibleInputBytes: 59_904,
+        maxAdmissibleInputBytes: 75_904,
         carriedDraftDiagnosticCount: 17,
       },
     });
@@ -625,11 +625,11 @@ describe('Visual Contract-specific terminal extension', () => {
       repairOutputDiagnostics: null,
     });
     expect(failure.repairRouteAdmissionDiagnostics).toEqual({
-      version: 'visual-contract-repair-route-admission-diagnostics/v2',
+      version: 'visual-contract-repair-route-admission-diagnostics/v3',
       repairAttempt: 7,
       repairMode: 'book_surface_patch',
       inputAccounting,
-      maxAdmissibleInputBytes: 59_904,
+      maxAdmissibleInputBytes: 75_904,
       carriedDraftDiagnosticCount: 17,
       routeAdmissionDiagnosticCount: 1,
     });
@@ -662,7 +662,8 @@ describe('Visual Contract-specific terminal extension', () => {
 
     const legacyRouteDetails = {
       ...failure.repairRouteAdmissionDiagnostics!,
-      version: 'visual-contract-repair-route-admission-diagnostics/v1',
+      version: 'visual-contract-repair-route-admission-diagnostics/v2',
+      maxAdmissibleInputBytes: 59_904,
     };
     const legacyRouteFailure = {
       ...failure,
@@ -698,6 +699,27 @@ describe('Visual Contract-specific terminal extension', () => {
         ...legacyRouteDetails,
         repairMode: 'represented_elsewhere_patch',
       }),
+    ).toBe(true);
+
+    const legacyV1RouteDetails = {
+      ...legacyRouteDetails,
+      version: 'visual-contract-repair-route-admission-diagnostics/v1',
+    };
+    expect(
+      legacyVisualContractRepairRouteAdmissionDiagnosticsIsValid(
+        legacyV1RouteDetails,
+      ),
+    ).toBe(true);
+    expect(
+      visualContractRepairRouteAdmissionDiagnosticsVersionStatus(
+        legacyV1RouteDetails,
+      ),
+    ).toBe('legacy_immutable');
+    expect(
+      legacyVisualContractRepairRouteAdmissionDiagnosticsIsValid({
+        ...legacyV1RouteDetails,
+        repairMode: 'represented_elsewhere_patch',
+      }),
     ).toBe(false);
 
     for (const repairAttempt of [2, 7]) {
@@ -709,7 +731,7 @@ describe('Visual Contract-specific terminal extension', () => {
             repairAttempt,
             repairMode: 'represented_elsewhere_patch',
             inputAccounting,
-            maxAdmissibleInputBytes: 59_904,
+            maxAdmissibleInputBytes: 75_904,
             carriedDraftDiagnosticCount: 6,
           },
         });
@@ -744,25 +766,25 @@ describe('Visual Contract-specific terminal extension', () => {
         repairMode: 'book_surface_patch',
         inputAccounting: {
           systemBytes: 1_000,
-          userBytes: 55_000,
+          userBytes: 70_000,
           schemaBytes: 1_000,
           separatorBytes: 2,
           protocolAllowance: 4_096,
-          estimatedBytes: 61_098,
+          estimatedBytes: 76_098,
         },
-        maxAdmissibleInputBytes: 59_904,
+        maxAdmissibleInputBytes: 75_904,
         carriedDraftDiagnosticCount: 17,
       },
     });
     const details = valid.repairRouteAdmissionDiagnostics!;
     const invalidDetails = [
-      { ...details, version: 'visual-contract-repair-route-admission-diagnostics/v3' },
+      { ...details, version: 'visual-contract-repair-route-admission-diagnostics/v4' },
       { ...details, repairAttempt: 1 },
       { ...details, repairAttempt: 2 },
       { ...details, repairAttempt: 3 },
       { ...details, repairMode: 'unknown_mode' },
       { ...details, repairMode: 'full_draft' },
-      { ...details, maxAdmissibleInputBytes: 59_903 },
+      { ...details, maxAdmissibleInputBytes: 75_903 },
       { ...details, carriedDraftDiagnosticCount: 0 },
       { ...details, routeAdmissionDiagnosticCount: 2 },
       { ...details, extra: true },
@@ -770,7 +792,7 @@ describe('Visual Contract-specific terminal extension', () => {
         ...details,
         inputAccounting: {
           ...details.inputAccounting,
-          estimatedBytes: 59_904,
+          estimatedBytes: 75_904,
         },
       },
       {
@@ -810,7 +832,7 @@ describe('Visual Contract-specific terminal extension', () => {
           repairAttempt: 3,
           repairMode: 'book_surface_patch',
           inputAccounting: details.inputAccounting,
-          maxAdmissibleInputBytes: 59_904,
+          maxAdmissibleInputBytes: 75_904,
           carriedDraftDiagnosticCount: 17,
         },
       }),

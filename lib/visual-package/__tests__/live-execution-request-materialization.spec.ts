@@ -360,12 +360,12 @@ describe('canonical live execution request materialization', () => {
     expect(
       CANONICAL_LIVE_EXECUTION_REQUEST_MATERIALIZATION_INPUT_VERSION,
     ).toBe(
-      'canonical-live-execution-request-materialization-input/v39',
+      'canonical-live-execution-request-materialization-input/v40',
     );
     expect(
       CANONICAL_LIVE_EXECUTION_REQUEST_MATERIALIZATION_RESULT_VERSION,
     ).toBe(
-      'canonical-live-execution-request-materialization-result/v44',
+      'canonical-live-execution-request-materialization-result/v45',
     );
     expect(result).toMatchObject({
       version:
@@ -449,7 +449,7 @@ describe('canonical live execution request materialization', () => {
       manifestPath: fixture.manifestPath,
       manifestDigest: fixture.manifestDigest,
       verificationVersion:
-        'canonical-live-request-verification/v52',
+        'canonical-live-request-verification/v53',
       structuredOutputCompatibility:
         manifest.structuredOutputCompatibility,
       compactRepairStructuredOutputCompatibility:
@@ -846,7 +846,7 @@ describe('fail-closed input, filesystem, Git, and B0 boundaries', () => {
       canonicalLiveExecutionRequestMaterializationInputIssues({
         ...fixture.input,
         version:
-          'canonical-live-execution-request-materialization-input/v36',
+          'canonical-live-execution-request-materialization-input/v39',
       }),
     ).toContain(
       'execution_request_materialization_input_version_invalid',
@@ -855,7 +855,7 @@ describe('fail-closed input, filesystem, Git, and B0 boundaries', () => {
       {
         ...fixture.input,
         version:
-          'canonical-live-execution-request-materialization-input/v36',
+          'canonical-live-execution-request-materialization-input/v39',
       },
       { ...fixture.input, unknown: true },
       { ...fixture.input, manifestPath: '../manifest.json' },
