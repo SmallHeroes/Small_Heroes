@@ -1,5 +1,46 @@
 # SmallHeroes — Current Technical State
 
+## R1D — bounded Hebrew narration pronunciation/prosody audition complete; Guy ear gate pending
+
+Guy approved the Narration Pronunciation Authority and Natural Prosody Decision Gate. Milestone A is complete locally
+in `C:\GNart\Work\sh-narration-pronunciation` on `codex/r1d-narration-pronunciation-authority`, based on
+`f223a54af36b075fe21660959e5a591743b351d4`. The reported words `הד`, `ברחה`, `צפצפה`, and `תפוח` are evidence;
+no child-, story-, page-, or Lavi-specific runtime rule was added.
+
+The listening experiment is a causal 4 × 3 × 2 matrix: four short context sentences, three niqqud scopes (`none`,
+`risk_words`, `full_sentence`), and two punctuation modes (`current_ellipsis`, `natural`). All six conditions for one
+item use the same best-effort seed and exact Fairy voice configuration: ElevenLabs voice
+`piI8Kku0DcvcL6TTSeQt`, `eleven_v3`, Hebrew, explicit `mp3_44100_128`, stability `0.60`, similarity `0.75`, style
+`0.30`, and speaker boost enabled. The unpointed/current-ellipsis baseline is regression-tested byte-for-byte against
+the real production TTS builder; stripping niqqud from every authored candidate returns its exact source text.
+
+The dedicated harness is local-only and imports no Prisma, Supabase, storage, or production audio module. Dry-run is
+the default and mandatory before live. The matching matrix digest is rechecked before network access; live permits one
+request per cell, has no retry, stops on the first malformed/non-audio/empty/provider failure, checkpoints locally,
+and forbids reuse/overwrite of a run id after live begins. Its player allows only one clip at a time and records
+pronunciation and prosody separately, plus an independent other-error flag and notes.
+
+Exact live evidence for ignored local run `outputs/narration-pronunciation-audition/approved-2026-09-02-a`:
+
+- Dry-run: **24 planned requests**, **644 Unicode code points**, **1,156 UTF-8 bytes**, matrix SHA-256
+  `5b3f9b4aa43bf08632f8189a22a81a0ae9969cff7f3c083b044272c4e883b42d`, and zero provider calls.
+- Live: **24/24 generated**, **0 failed**, **0 retries**, and ElevenLabs `character-cost` headers sum to **353**.
+  All 24 entries have request ID, trace ID, cost header, MP3 byte count, and audio SHA-256.
+- Artifact verification: **24/24 non-empty MP3s**, **0 hash mismatches**, **868,727 total bytes**; ffprobe decoded
+  **24/24** with zero failures, 1.31–3.24 seconds each and 53.6 seconds total.
+- Focused final checks: **3 files / 17 tests PASS**, including zero-fetch dry-run, missing-key refusal, exact 24-call
+  mocked live execution, no-overwrite, fail-stop, matrix causality, production baseline parity, and workload inventory.
+  `npx tsc --noEmit` passes.
+- Literal `npm run check` passed both TypeScript phases. Its ordinary partition initially had one task-owned stale
+  inventory assertion after the two new specs were added; that assertion was corrected and passed in the final focused
+  run. The remaining established baseline is ten missing-`outputs/` fixture assertions in six files. The resource
+  partition ran **20/20 files and 635/635 tests PASS**, then emitted the three known `onTaskUpdate` RPC timeouts. The
+  literal repository gate therefore remains honestly red for baseline fixture/runner defects, not this milestone.
+
+No Order, GeneratedBook, BookPage, ImageAsset, database row, Supabase object, production audio, image, PDF, checkout,
+payment, email, deployment, or Lavi asset was created or changed. Milestone B remains closed until Guy listens to and
+scores all 24 cells, selects the preferred niqqud scope and punctuation mode, and explicitly accepts the ear gate.
+
 ## R1D — exact-byte human verification plus mandatory child resemblance (live Preview ceremony COMPLETE; same Order ready)
 
 Guy approved exact current page 6 and the controlled human-verification path without lowering or

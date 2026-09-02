@@ -55,9 +55,9 @@ describe('Vitest workload classifier', () => {
     );
     const partition = classifyVitestWorkloads(inventory, policy);
 
-    expect(partition.inventory).toHaveLength(374);
+    expect(partition.inventory).toHaveLength(376);
     expect(partition.resourceIntensive).toHaveLength(20);
-    expect(partition.ordinary).toHaveLength(354);
+    expect(partition.ordinary).toHaveLength(356);
     expect(new Set(partition.inventory).size).toBe(
       partition.inventory.length,
     );
@@ -71,6 +71,12 @@ describe('Vitest workload classifier', () => {
     );
     expect(partition.ordinary).toContain(
       'lib/__tests__/vitest-workload-classifier.spec.ts',
+    );
+    expect(partition.ordinary).toContain(
+      'lib/__tests__/narration-pronunciation-audition.spec.ts',
+    );
+    expect(partition.ordinary).toContain(
+      'lib/__tests__/narration-pronunciation-audition-runner.spec.ts',
     );
     expect(partition.ordinary).toContain(
       'lib/__tests__/release-v1-worker-reachability.spec.ts',
