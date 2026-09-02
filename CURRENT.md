@@ -1,14 +1,18 @@
 # SmallHeroes — Current Technical State
 
-## R3-B0a — bounded 16-page Visual Contract authoring policy locally complete; independent QA pending
+## R3-B0a — bounded 16-page Visual Contract authoring policy independently QA-passed; documentation closeout pending re-gate
 
 Guy selected the QA corpus as the product-review starting point for the 17 unresolved Wizard slots and explicitly
 decided to preserve the six fantasy stories at 16 beats. The first zero-cost enabling milestone is implemented in
 `C:\GNart\Work\sh-all-wizard-render-readiness` on `codex/r3-all-wizard-render-readiness`, starting from
 `146bb53a435f5ce9b5190cd03522160ec976ac01`. The controlling brief is
-`docs/ai-workflow/R3_16_BEAT_VISUAL_CONTRACT_AUTHORING_POLICY_DECISION_GATE.md`. The implementation is locally green
-on its focused assertions and is waiting for an immutable Claude Code review; it is not a technical PASS and has not
-been pushed by this milestone.
+`docs/ai-workflow/R3_16_BEAT_VISUAL_CONTRACT_AUTHORING_POLICY_DECISION_GATE.md`. The focused implementation commit is
+`2b41750f9f9d12a878af3607c0d41a40e14293b9`. Claude Code independently reviewed the immutable range
+`146bb53a435f5ce9b5190cd03522160ec976ac01..2b41750f9f9d12a878af3607c0d41a40e14293b9` read-only and returned
+**PASS with no P0/P1**. It confirmed a clean one-commit/no-merge topology, reproduced the policy boundaries, cost,
+legacy immutability, exact all-story digest and zero-effect claim, and left three P2 documentation/process notes. The
+reviewed branch was one commit ahead of origin and unpushed; this documentation-only closeout also does not authorize
+or perform a push.
 
 The verified root cause was a shared policy fence, not a fantasy-story or compiler limitation. Authoring policy v20
 admitted at most 12 pages and 64,000 standard input units even though the compiler, schemas and page validators already
@@ -26,8 +30,10 @@ inherit the standard margin a second time.
 The seven-call output schedule is unchanged. At 16 pages it is exactly
 `[53334, 42666, 48000, 32000, 32000, 32000, 32000]`, with a 272,000-unit output pool. Conservative reservation uses
 80,000 input units for every standard call plus the separately bounded cleanup and is exactly **USD 9.152**, below the
-unchanged USD 10 hard ceiling. Provider/model/service tier/reasoning, seven standard calls plus one gated cleanup,
-zero transport retries, no fallback, and the resemblance threshold **0.70** are unchanged.
+unchanged USD 10 hard ceiling. This leaves **USD 0.848 (8.48%)** headroom, so the cost fence—not page-schema support—is
+now the binding constraint on any later page/input/model-price increase; such a change requires a fresh budget
+Decision Gate. Provider/model/service tier/reasoning, seven standard calls plus one gated cleanup, zero transport
+retries, no fallback, and the resemblance threshold **0.70** are unchanged.
 
 Fresh current-only authority versions are policy v21; authoring request v55, receipt v58 and readiness v55; live
 request materialization input v43, manifest/verifier v53; canonical pre-live readiness v50; execution materialization
@@ -50,19 +56,23 @@ corroborated by the separate exact input measurements above; a future <=16-page 
 must still pass the shared 75,904 provider-adjacent seam, and a later reporting-schema change should expose that byte
 evidence directly.
 
-Current verification: `npx tsc --noEmit`, `npm run story:autonomous-typecheck`, and `git diff --check` pass. The exact
-16-file authoring/materialization/supervision slice passed **794/794 assertions**; the final three-file
-route-diagnostics regression slice passed **178/178** after the legacy-v1/v2 hardening. The full repository check
-remains honestly red for established
+Current verification: `npx tsc --noEmit`, `npm run story:autonomous-typecheck`, and `git diff --check` pass. A broad
+pre-commit 16-file slice passed **794/794 assertions**; its exact selection was omitted from the original handoff and is
+now recorded and independently rerun, again at **794/794**, with one known post-summary `onTaskUpdate` RPC timeout.
+The immutable-range-derived set of all 14 changed spec files is the canonical review slice; Claude Code reproduced
+**646/646 assertions PASS** with two known post-assertion
+`onTaskUpdate` RPC errors. Codex then reran that same range-derived selection with one worker and no file parallelism:
+**646/646 assertions PASS**, followed by one known RPC timeout. The final three-file route-diagnostics regression slice
+passed **178/178** after the legacy-v1/v2 hardening. The full repository check remains honestly red for established
 infrastructure: ten assertions in six unchanged specs require ignored historical `outputs/` fixtures absent from this
 worktree, while the resource-intensive partition passed **20/20 files and 640/640 assertions** before three known
 Vitest `onTaskUpdate` RPC timeouts. No test was skipped or fixture copied to manufacture a green result.
 
 No Story Source, visual direction, accepted revision, package, locator, order, payment, database/storage row, image,
 audio, PDF, deployment or production flag was created or changed. No credential was loaded, no provider/network call
-occurred, and no render or spend was authorized. The next milestone, only after this focused commit and independent QA,
-is a separate digest-bound review batch for the exact 17 QA Story Source/Visual Direction candidates; paid authoring
-remains separately gated.
+occurred, and no render or spend was authorized. After the narrow documentation-only re-gate closes this follow-up,
+the next milestone is a separate digest-bound review batch for the exact 17 QA Story Source/Visual Direction
+candidates; paid authoring remains separately gated.
 
 ## R3-A4 — final independent QA PASS; reviewed branch published
 

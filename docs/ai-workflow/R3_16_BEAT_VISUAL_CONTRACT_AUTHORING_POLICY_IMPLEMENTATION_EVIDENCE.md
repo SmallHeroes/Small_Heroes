@@ -1,10 +1,11 @@
 # R3 16-Beat Visual Contract Authoring Policy — Implementation Evidence
 
 Date: 2026-09-02
-Status: local implementation complete; independent Claude Code QA pending
+Status: implementation independently Claude Code PASSed; documentation-only P2 closeout pending narrow re-gate
 Branch: `codex/r3-all-wizard-render-readiness`
 Worktree: `C:\GNart\Work\sh-all-wizard-render-readiness`
 Immutable base: `146bb53a435f5ce9b5190cd03522160ec976ac01`
+Reviewed implementation head: `2b41750f9f9d12a878af3607c0d41a40e14293b9`
 Decision Gate: `docs/ai-workflow/R3_16_BEAT_VISUAL_CONTRACT_AUTHORING_POLICY_DECISION_GATE.md`
 
 ## Authorized outcome
@@ -13,6 +14,26 @@ Guy selected the QA corpus as the product-review starting point for the 17 unres
 fantasy stories at 16 beats, and authorized the bounded policy implementation. This milestone authorizes code, tests,
 documentation and provider-unreachable local evidence only. It does not authorize a provider call, render, accepted
 Story Source revision, package publication, order change, deployment or spend.
+
+## Independent Claude Code gate
+
+Claude Code reviewed the immutable one-commit/no-merge range
+`146bb53a435f5ce9b5190cd03522160ec976ac01..2b41750f9f9d12a878af3607c0d41a40e14293b9`
+read-only and returned **PASS with no P0/P1**. It independently reproduced TypeScript PASS, all 14 changed spec files
+at 646/646 passing assertions, page and input boundaries, USD 9.152 reservation, legacy v1/v2 immutability, the exact
+all-story digest, and zero changed product/output paths. The two Vitest `onTaskUpdate` messages in its focused run were
+post-assertion infrastructure errors and were not counted as PASS.
+
+The three P2 notes are accepted and addressed by this separate documentation-only follow-up, pending its narrow
+re-gate:
+
+- the USD 9.152 reservation leaves only USD 0.848 (8.48%) under the USD 10 ceiling, making cost the binding constraint
+  on any later page/input/model-price increase;
+- the pre-commit 16-file/794-assertion slice was green but its exact argv was omitted from the original evidence; this
+  closeout records that exact selection, while the immutable-range-derived 14-file selection remains the canonical
+  independent-review claim;
+- the reviewed implementation head was one commit ahead of origin and unpushed. Neither the PASS nor this closeout
+  authorizes a push.
 
 ## Verified cause and correction
 
@@ -43,6 +64,7 @@ current 75,904 evidence or nested inside a current receipt/readiness artifact.
 - 16-page output pool: 272,000.
 - 16-page conservative maximum reservation: USD 9.152.
 - Hard ceiling: USD 10.
+- Remaining reservation headroom: USD 0.848 (8.48%); a later increase requires a fresh cost Decision Gate.
 - Provider/model/reasoning/retry/no-fallback policy: unchanged.
 - Resemblance threshold: unchanged at 0.70.
 
@@ -104,10 +126,60 @@ report-schema hardening should carry exact input-bound evidence instead of relyi
 - `npx tsc --noEmit`: PASS.
 - `npm run story:autonomous-typecheck`: PASS.
 - `git diff --check`: PASS.
-- Exact 16-file authoring/materialization/execution suite: 16/16 files, 794/794 assertions PASS. Vitest returned exit 1
-  only for the known shared-worker `onTaskUpdate` RPC timeout after all assertions passed.
+- Pre-commit broad suite: 16/16 files, 794/794 assertions PASS. The exact previously omitted selection is now
+  reproducible as:
+
+```powershell
+npx --no-install vitest run `
+  lib/__tests__/visual-contract-live-authoring.spec.ts `
+  lib/__tests__/visual-contract-prompt-table-compaction.spec.ts `
+  lib/__tests__/visual-contract-template.spec.ts `
+  lib/__tests__/visual-contract-repair-loop.spec.ts `
+  lib/__tests__/page-contract-repair.spec.ts `
+  lib/__tests__/book-surface-repair.spec.ts `
+  lib/__tests__/draft-authority-reference-diagnostics.spec.ts `
+  lib/visual-package/__tests__/source-authority-lifecycle.spec.ts `
+  lib/visual-package/__tests__/canonical-live-authoring-boundary.spec.ts `
+  lib/visual-package/__tests__/live-request-materialization.spec.ts `
+  lib/visual-package/__tests__/live-request-verification.spec.ts `
+  lib/visual-package/__tests__/canonical-pre-live-readiness.spec.ts `
+  lib/visual-package/__tests__/live-execution-request-materialization.spec.ts `
+  lib/visual-package/__tests__/live-execution-supervisor.spec.ts `
+  lib/visual-package/__tests__/wizard-all-story-render-readiness.spec.ts `
+  lib/visual-package/__tests__/canonical-live-authoring-launcher.spec.ts `
+  --maxWorkers=1 --no-file-parallelism
+```
+
+The documentation closeout independently reran that exact command: **16/16 files and 794/794 assertions PASS**.
+Vitest exited 1 after the summary for one known worker `onTaskUpdate` RPC timeout; the timeout is not counted as PASS.
+
+- Canonical immutable-range suite: every changed `*.spec.ts` file in the reviewed range, exactly 14 files and 646
+  assertions. Claude Code independently reproduced 646/646 passing assertions with two known post-assertion RPC
+  errors. The deterministic one-worker rerun uses this exact PowerShell command:
+
+```powershell
+$reviewBase = '146bb53a435f5ce9b5190cd03522160ec976ac01'
+$reviewHead = '2b41750f9f9d12a878af3607c0d41a40e14293b9'
+$changedSpecs = @(
+  git diff --name-only "$reviewBase..$reviewHead" |
+    Where-Object { $_ -match '\.spec\.ts$' }
+)
+npx vitest run @changedSpecs --maxWorkers=1 --no-file-parallelism
+```
+
+Codex reran that exact command after the QA handoff: **14/14 files and 646/646 assertions PASS**. Vitest still exited
+1 after the assertion summary for one known worker `onTaskUpdate` RPC timeout; the timeout is not counted as PASS.
+
 - The final three-file route-diagnostics regression slice passed 178/178 assertions after current-receipt v1/v2
-  laundering guards and frozen legacy policy constants were added.
+  laundering guards and frozen legacy policy constants were added, using:
+
+```powershell
+npx vitest run `
+  lib/__tests__/draft-authority-reference-diagnostics.spec.ts `
+  lib/visual-package/__tests__/source-authority-lifecycle.spec.ts `
+  lib/visual-package/__tests__/visual-contract-authoring-replay-evidence.spec.ts `
+  --maxWorkers=1 --no-file-parallelism
+```
 - Generic boundaries prove 75,904 accepted and 75,905 rejected.
 - A dynamically built initial request inside 75,905–80,000 rejects with zero provider calls.
 - A Page Contract repair measuring 78,494 rejects before its second provider dispatch and records sanitized accounting.
@@ -135,7 +207,7 @@ literal repository gate is therefore red and is not reported as PASS.
 
 ## Next gate
 
-Commit this focused milestone, confirm branch/worktree topology again, and hand the immutable base-to-head range to
-Claude Code for read-only adversarial review. Only after PASS or a correction/re-gate may R3-B0b prepare the exact 17
-digest-bound QA Story Source/Visual Direction candidate bundles. Product acceptance, publication and paid authoring
-remain separate decisions.
+The implementation range has independent Claude Code PASS. Commit this documentation-only P2 closeout separately,
+confirm topology, and return only that narrow docs range for read-only re-gate. After the re-gate, R3-B0b may prepare
+the exact 17 digest-bound QA Story Source/Visual Direction candidate bundles. Product acceptance, publication, push
+and paid authoring remain separate decisions.

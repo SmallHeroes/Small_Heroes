@@ -125,9 +125,24 @@ audio clips, or provider responses.
 
 The policy changes only the maximum reservation for a later explicitly
 approved text-authoring call. At 16 pages and 80,000 standard input units, the
-conservative reservation is USD 9.152. This gate does not authorize those paid
-calls; R3-C still requires an exact per-story preflight and explicit wave
-budget from Guy.
+conservative reservation is USD 9.152. The unchanged USD 10 ceiling therefore
+has only USD 0.848 (8.48%) headroom and is now the binding constraint on any
+later page/input/model-price increase. A future increase requires a fresh cost
+Decision Gate; it must not be inferred from this page-policy approval. This
+gate does not authorize those paid calls; R3-C still requires an exact
+per-story preflight and explicit wave budget from Guy.
+
+## 8A. Independent QA outcome
+
+Claude Code reviewed
+`146bb53a435f5ce9b5190cd03522160ec976ac01..2b41750f9f9d12a878af3607c0d41a40e14293b9`
+read-only and returned PASS with no P0/P1. It independently reproduced the
+75,904 inclusive fence, USD 9.152 reservation, frozen legacy diagnostics,
+18/18 policy admission, 1/18 strict render qualification, exact audit digest,
+and zero-effect claim. Its three P2 notes were documentation/process findings:
+record the thin cost headroom, make the focused test selection reproducible,
+and preserve the fact that the reviewed commit was one ahead of origin and
+unpushed. None changes the approved implementation or authorizes a push.
 
 ## 9. Rollback plan
 
