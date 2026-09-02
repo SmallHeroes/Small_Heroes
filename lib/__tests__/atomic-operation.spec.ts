@@ -17,7 +17,10 @@ class PrismaErr extends Error {
  * if the tx callback resolves, and roll back if it throws (so a non-committed attempt leaves no receipt). The
  * INSERT ... ON CONFLICT DO NOTHING is simulated via the unique operationKey.
  */
-function makeFakePrisma(seed: Record<string, { payloadHash: string; result: unknown }> = {}) {
+function makeFakePrisma(
+  seed: Record<string, { payloadHash: string; result: unknown }> = {},
+  events?: string[],
+) {
   const committed = new Map(Object.entries(seed));
   const fake = {
     _committed: committed,
@@ -25,6 +28,7 @@ function makeFakePrisma(seed: Record<string, { payloadHash: string; result: unkn
       const staged = new Map(committed);
       const tx = {
         async $queryRaw(_strings: TemplateStringsArray, ...values: unknown[]) {
+          events?.push('receipt_insert');
           // values = [id, operationKey, orderId, kind, payloadHash]
           const operationKey = values[1] as string;
           const payloadHash = values[4] as string;
@@ -55,6 +59,83 @@ function makeFakePrisma(seed: Record<string, { payloadHash: string; result: unkn
 const noSleep = { sleep: async () => {} };
 
 describe('atomic-operation — receipt-fenced exactly-once (Codex B′)', () => {
+  it('runs beforeReceipt inside the transaction before the receipt INSERT on fresh and replay attempts', async () => {
+    const events: string[] = [];
+    const prisma = makeFakePrisma({}, events);
+    const beforeReceipt = vi.fn(async () => {
+      events.push('before_receipt');
+    });
+    const run = vi.fn(async () => {
+      events.push('run');
+      return { ok: true };
+    });
+    const args = {
+      operationKey: 'order-first',
+      orderId: 'o1',
+      kind: 'readiness_commit',
+      payloadHash: 'p',
+      beforeReceipt,
+      run,
+    };
+
+    await runAtomicOperation(prisma as never, args, noSleep);
+    await runAtomicOperation(prisma as never, args, noSleep);
+
+    expect(events).toEqual([
+      'before_receipt',
+      'receipt_insert',
+      'run',
+      'before_receipt',
+      'receipt_insert',
+    ]);
+    expect(beforeReceipt).toHaveBeenCalledTimes(2);
+    expect(run).toHaveBeenCalledTimes(1);
+  });
+
+  it('validates mutable authority inside the replay transaction before returning a recorded value', async () => {
+    const prisma = makeFakePrisma();
+    const validateReplay = vi.fn(async (_tx, value: { inputVersion: number }) => {
+      expect(value).toEqual({ inputVersion: 7 });
+    });
+    const run = vi.fn(async () => ({ inputVersion: 7 }));
+    const args = {
+      operationKey: 'op:replay-authority',
+      orderId: 'order-1',
+      kind: 'operator_action',
+      payloadHash: hashOperationPayload({ page: 6 }),
+      validateReplay,
+      run,
+    };
+
+    await runAtomicOperation(prisma as never, args, noSleep);
+    await runAtomicOperation(prisma as never, args, noSleep);
+
+    expect(run).toHaveBeenCalledTimes(1);
+    expect(validateReplay).toHaveBeenCalledTimes(1);
+  });
+
+  it('fails closed when replay-only mutable authority validation rejects the recorded success', async () => {
+    const prisma = makeFakePrisma();
+    const authorityChanged = new Error('mutable_authority_changed');
+    const run = vi.fn(async () => ({ inputVersion: 7 }));
+    const args = {
+      operationKey: 'op:stale-replay',
+      orderId: 'order-1',
+      kind: 'operator_action',
+      payloadHash: hashOperationPayload({ page: 6 }),
+      validateReplay: vi.fn(async () => {
+        throw authorityChanged;
+      }),
+      run,
+    };
+
+    await runAtomicOperation(prisma as never, args, noSleep);
+    await expect(
+      runAtomicOperation(prisma as never, args, noSleep),
+    ).rejects.toBe(authorityChanged);
+    expect(run).toHaveBeenCalledTimes(1);
+  });
+
   it('fresh operation: runs the mutation once and returns its result', async () => {
     const prisma = makeFakePrisma();
     const run = vi.fn(async () => ({ inputVersion: 1, granted: true }));

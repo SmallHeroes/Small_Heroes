@@ -16,6 +16,15 @@ const QA_CTX: QaContext = {
   isEmotionalClosing: false, hasStructuredObjects: false, hasRailedBedOrCrib: false, hasHumanFamily: false,
 };
 
+const FRESH_REVIEW_PROJECTION = {
+  reviewStatus: null,
+  reviewedAssetSha256: null,
+  reviewedContractHash: null,
+  reviewedBy: null,
+  reviewedAt: null,
+  reviewReason: null,
+};
+
 type UpsertArg = { create: Record<string, unknown>; update: Record<string, unknown> };
 function makeDb(visualContractHash: string | null = null) {
   return {
@@ -78,6 +87,7 @@ describe('persistQualityContext (#6-fix-3 BLOCKER 1) — bind the exact context 
     expect(a.create.regenCount).toBe(0);
     expect((a.create.evidence as Record<string, unknown>).qaContext).toEqual(expect.objectContaining({ expectsCompanion: true }));
     expect((a.create.evidence as Record<string, unknown>).deliveredUrl).toBe('u1');
+    expect(a.create).toMatchObject(FRESH_REVIEW_PROJECTION);
   });
 
   it('crash-atomically binds the exact numeric child policy with the asset context as evidence_unknown', async () => {
@@ -104,6 +114,11 @@ describe('persistQualityContext (#6-fix-3 BLOCKER 1) — bind the exact context 
       minAcceptableScore: 0.62,
       faceDetectConfidence: null,
       faceAreaRatio: null,
+      evaluatorVersion: 'page-child-resemblance-vision/v1',
+      subjectVisible: null,
+      sameChild: null,
+      referenceBytesSha256: null,
+      deliveredBytesSha256: null,
       source: 'delivered_bytes',
     });
   });
@@ -118,6 +133,7 @@ describe('persistQualityContext (#6-fix-3 BLOCKER 1) — bind the exact context 
     expect(a.update.verdict).toBe('evidence_unknown'); // old proof invalidated
     expect(a.update.assetSha256).toBe(''); // hash cleared → cannot stay admissible on stale bytes
     expect(a.update.evidence).toEqual(expect.objectContaining({ regenPending: true, stray: 1, deliveredUrl: 'u2', qaContext: QA_CTX }));
+    expect(a.update).toMatchObject(FRESH_REVIEW_PROJECTION);
     expect(a.update).not.toHaveProperty('regenCount'); // never touches the durable budget (5b)
   });
 
@@ -167,6 +183,9 @@ describe('persistDeliveredQualityEvidence — semantic byte binding (carry-in #1
 });
 
 describe('persistDeliveredQualityEvidence — required numeric child resemblance on delivered bytes', () => {
+  const referenceSha = 'a'.repeat(64);
+  const deliveredSha = 'b'.repeat(64);
+  const rawSha = 'c'.repeat(64);
   const gate = {
     referenceImageUrl: 'https://h/approved-child-anchor.webp',
     effectiveThreshold: 0.7,
@@ -185,11 +204,23 @@ describe('persistDeliveredQualityEvidence — required numeric child resemblance
       safetyStatus: 'safe',
     } as never));
     const scoreResemblance = vi.fn(async () => ({
-      resemblanceScore: 0.69,
-      faceDetectConfidence: 0.91,
-      faceAreaRatio: 0.18,
-      sanityFlags: {},
-      candidateEmbedding: [],
+      result: {
+        evaluatorVersion: 'page-child-resemblance-vision/v1',
+        status: 'failed',
+        resemblanceScore: 0.69,
+        threshold: 0.7,
+        subjectVisible: true,
+        sameChild: true,
+        reasonCode: 'below_threshold',
+        attempts: 1,
+        model: 'vision-test',
+        featureAssessments: {
+          faceStructure: 'match', eyesBrows: 'match', noseMouth: 'unclear',
+          hairIdentity: 'match', distinctiveFeatures: 'mismatch',
+        },
+      },
+      referenceBytesSha256: referenceSha,
+      candidateBytesSha256: deliveredSha,
     }));
 
     await persistDeliveredQualityEvidence(db as never, {
@@ -201,15 +232,14 @@ describe('persistDeliveredQualityEvidence — required numeric child resemblance
       },
     }, {
       evaluate: evaluate as never,
-      inspect: async () => okInspect('sha-delivered'),
+      inspect: async () => okInspect(deliveredSha),
       scoreResemblance: scoreResemblance as never,
     });
 
     expect(scoreResemblance).toHaveBeenCalledWith({
       referenceImageUrl: gate.referenceImageUrl,
       candidateImageUrl: 'https://h/p7-delivered.webp',
-      effectiveThreshold: 0.7,
-      minAcceptableScore: 0.62,
+      threshold: 0.7,
     });
     const a = upsertArg(db);
     expect(a.create.verdict).toBe('failed');
@@ -219,6 +249,41 @@ describe('persistDeliveredQualityEvidence — required numeric child resemblance
         status: 'failed', resemblanceScore: 0.69, threshold: 0.7, source: 'delivered_bytes',
       }),
     );
+  });
+
+  it('presentation scorer claiming passed at 0.69 is treated as inconsistent evidence, never PASS', async () => {
+    const db = makeDb();
+    const evaluate = vi.fn(async () => ({
+      passed: true, verdict: 'passed', reason: 'ok', details: '', flags: {},
+      safetyHazards: [], safetyStatus: 'safe',
+    } as never));
+    const scoreResemblance = vi.fn(async () => ({
+      result: {
+        evaluatorVersion: 'page-child-resemblance-vision/v1',
+        status: 'passed', resemblanceScore: 0.69, threshold: 0.7,
+        subjectVisible: true, sameChild: true, reasonCode: null, attempts: 1,
+        model: 'vision-test', featureAssessments: {
+          faceStructure: 'match', eyesBrows: 'match', noseMouth: 'match',
+          hairIdentity: 'match', distinctiveFeatures: 'match',
+        },
+      },
+      referenceBytesSha256: referenceSha,
+      candidateBytesSha256: deliveredSha,
+    }));
+
+    await persistDeliveredQualityEvidence(db as never, {
+      orderId: 'o1', artifactKey: 'page:7', deliveredUrl: 'https://h/p7-delivered.webp',
+      presentationApplied: true, rawVerdict: 'passed', qaContext: QA_CTX, contractHash: 'contract-v1',
+      pageResemblanceGate: gate,
+    }, {
+      evaluate: evaluate as never,
+      inspect: async () => okInspect(deliveredSha),
+      scoreResemblance: scoreResemblance as never,
+    });
+
+    const a = upsertArg(db);
+    expect(a.create.verdict).toBe('evidence_unknown');
+    expect(a.create.reason).toBe('child_resemblance_unverified');
   });
 
   it('presentation transform + unavailable scorer → evidence_unknown, never silently passes', async () => {
@@ -263,10 +328,18 @@ describe('persistDeliveredQualityEvidence — required numeric child resemblance
       presentationApplied: false, rawVerdict: 'passed', qaContext: QA_CTX, contractHash: 'contract-v1',
       pageResemblanceGate: {
         ...gate,
-        rawEvidence: { status: 'passed', resemblanceScore: 0.73 },
+        rawEvidence: {
+          status: 'passed',
+          resemblanceScore: 0.73,
+          evaluatorVersion: 'page-child-resemblance-vision/v1',
+          subjectVisible: true,
+          sameChild: true,
+          referenceBytesSha256: referenceSha,
+          deliveredBytesSha256: rawSha,
+        },
       },
     }, {
-      inspect: async () => okInspect('sha-raw'),
+      inspect: async () => okInspect(rawSha),
       scoreResemblance: scoreResemblance as never,
     });
 
@@ -275,6 +348,50 @@ describe('persistDeliveredQualityEvidence — required numeric child resemblance
     expect(a.create.verdict).toBe('passed');
     expect((a.create.evidence as Record<string, unknown>).pageResemblanceGate).toEqual(
       expect.objectContaining({ status: 'passed', resemblanceScore: 0.73, source: 'raw_same_bytes' }),
+    );
+  });
+
+  it.each([
+    {
+      name: 'claims passed below 0.70',
+      rawEvidence: {
+        status: 'passed' as const,
+        resemblanceScore: 0.69,
+        evaluatorVersion: 'page-child-resemblance-vision/v1',
+        subjectVisible: true,
+        sameChild: true,
+        referenceBytesSha256: referenceSha,
+        deliveredBytesSha256: rawSha,
+      },
+    },
+    {
+      name: 'carries malformed byte hashes',
+      rawEvidence: {
+        status: 'passed' as const,
+        resemblanceScore: 0.91,
+        evaluatorVersion: 'page-child-resemblance-vision/v1',
+        subjectVisible: true,
+        sameChild: true,
+        referenceBytesSha256: 'not-a-sha',
+        deliveredBytesSha256: rawSha,
+      },
+    },
+  ])('no-transform raw evidence that $name fails closed to evidence_unknown', async ({ rawEvidence }) => {
+    const db = makeDb();
+    await persistDeliveredQualityEvidence(db as never, {
+      orderId: 'o1', artifactKey: 'page:6', deliveredUrl: 'https://h/p6-raw.png',
+      presentationApplied: false, rawVerdict: 'passed', qaContext: QA_CTX, contractHash: 'contract-v1',
+      pageResemblanceGate: { ...gate, rawEvidence },
+    }, {
+      inspect: async () => okInspect(rawSha),
+      scoreResemblance: vi.fn() as never,
+    });
+
+    const a = upsertArg(db);
+    expect(a.create.verdict).toBe('evidence_unknown');
+    expect(a.create.reason).toBe('child_resemblance_unverified');
+    expect((a.create.evidence as Record<string, unknown>).pageResemblanceGate).toEqual(
+      expect.objectContaining({ status: 'evidence_unknown', source: 'raw_same_bytes' }),
     );
   });
 });

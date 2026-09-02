@@ -69,6 +69,55 @@ export function isQaReleasedSafetyMarker(reason: string | null | undefined): boo
   return (reason ?? '').startsWith(QA_RELEASED_SAFETY_PREFIX);
 }
 
+/**
+ * The explicit non-terminal marker for a human verification of one exact-byte page whose automated safety signal
+ * remained `unverified`. This is intentionally distinct from `qa_released:safety:`: the latter means a confirmed
+ * hazard was judged a false positive, while this marker means a human verified an otherwise hazardless page without
+ * fabricating an automated safety verdict. Both remain rank 1 so a later real safety hold can always supersede them.
+ */
+export const QA_HUMAN_VERIFIED_UNVERIFIED_PREFIX = 'qa_human_verified:safety:unverified:';
+
+export interface HumanVerifiedUnverifiedPageMarker {
+  pageNumber: number;
+}
+
+const SINGLE_PAGE_SAFETY_UNVERIFIED_RE = /^safety_hold:unverified:page:([1-9][0-9]*)$/;
+const HUMAN_VERIFIED_UNVERIFIED_RE = /^qa_human_verified:safety:unverified:page:([1-9][0-9]*)$/;
+
+function parsePositiveSafePageNumber(match: RegExpExecArray | null): HumanVerifiedUnverifiedPageMarker | null {
+  if (!match) return null;
+  const pageNumber = Number(match[1]);
+  return Number.isSafeInteger(pageNumber) ? { pageNumber } : null;
+}
+
+/** Parse exactly one canonical page-only `safety_hold:unverified:` marker. Cover, multi-page and hazard markers fail. */
+export function parseSinglePageSafetyUnverifiedMarker(
+  reason: string | null | undefined,
+): HumanVerifiedUnverifiedPageMarker | null {
+  return parsePositiveSafePageNumber(SINGLE_PAGE_SAFETY_UNVERIFIED_RE.exec(reason ?? ''));
+}
+
+/** Parse a canonical human-verified-unverified marker. Prefix typos and non-page targets fail closed. */
+export function parseHumanVerifiedUnverifiedPageMarker(
+  reason: string | null | undefined,
+): HumanVerifiedUnverifiedPageMarker | null {
+  return parsePositiveSafePageNumber(HUMAN_VERIFIED_UNVERIFIED_RE.exec(reason ?? ''));
+}
+
+/**
+ * Build the non-terminal marker from exactly one page-only `safety_hold:unverified:page:<n>` marker. The source
+ * marker's page number is preserved, and every aggregate/malformed/non-unverified source is rejected.
+ */
+export function humanVerifiedUnverifiedMarker(originalSafetyMarker: string): string {
+  const parsed = parseSinglePageSafetyUnverifiedMarker(originalSafetyMarker);
+  if (!parsed) {
+    throw new Error(
+      `[order-authority] humanVerifiedUnverifiedMarker: not a single-page safety-unverified marker: ${originalSafetyMarker}`,
+    );
+  }
+  return `${QA_HUMAN_VERIFIED_UNVERIFIED_PREFIX}page:${parsed.pageNumber}`;
+}
+
 /** SQL for the CURRENT row's marker rank — the precedence guard compares against the incoming marker's rank. */
 const CURRENT_RANK_SQL = Prisma.sql`(CASE
   WHEN "deliveryHoldReason" LIKE 'safety_hold:%' THEN 3
@@ -258,4 +307,58 @@ export async function executeSafetyFalsePositiveReleaseTransition(
        AND "status" = 'needs_human_qa'
        AND "deliveryHoldReason" = ${p.expectedMarker}
        AND "deliveryFenceVersion" = ${p.observedFence}`;
+}
+
+/**
+ * The separate rank-3 -> rank-1 marker transition for an exact-byte HUMAN verification of one page whose automated
+ * safety result is `unverified`. This is deliberately not the confirmed-hazard false-positive path above and cannot
+ * mint or accept its marker. Source and destination must name the SAME single page.
+ *
+ * The CAS closes every Order-authority drift window left after the apply layer validates the exact active base-book
+ * case and evidence: exact marker, inputVersion, delivery fence, payment/manual fences and held status are all bound
+ * at write time. The active base-book case is intentionally not excluded here because the caller resolves that exact
+ * case in the same transaction after this transition. The marker move bumps the fence exactly once and never sets
+ * the Order ready; readiness/ship remains a separate authority decision.
+ */
+export async function executeHumanVerifiedUnverifiedReleaseTransition(
+  db: Db,
+  p: {
+    orderId: string;
+    expectedMarker: string;
+    observedFence: number;
+    expectedInputVersion: number;
+    releasedMarker: string;
+  },
+): Promise<number> {
+  const expected = parseSinglePageSafetyUnverifiedMarker(p.expectedMarker);
+  if (!expected) {
+    throw new Error(
+      `[order-authority] human-verified-unverified transition: not a single-page safety-unverified marker: ${p.expectedMarker}`,
+    );
+  }
+  const released = parseHumanVerifiedUnverifiedPageMarker(p.releasedMarker);
+  if (
+    !released ||
+    released.pageNumber !== expected.pageNumber ||
+    p.releasedMarker !== humanVerifiedUnverifiedMarker(p.expectedMarker)
+  ) {
+    throw new Error(
+      `[order-authority] human-verified-unverified transition: released marker must bind the same page: ${p.releasedMarker}`,
+    );
+  }
+
+  return db.$executeRaw`
+    UPDATE "Order"
+       SET "deliveryHoldReason" = ${p.releasedMarker}, "deliveryFenceVersion" = "deliveryFenceVersion" + 1
+     WHERE "id" = ${p.orderId}
+       AND "status" = 'needs_human_qa'
+       AND "deliveryHoldReason" = ${p.expectedMarker}
+       AND "inputVersion" = ${p.expectedInputVersion}
+       AND "deliveryFenceVersion" = ${p.observedFence}
+       AND "manualReviewRequired" = false
+       AND NOT EXISTS (
+         SELECT 1 FROM "HumanQaReviewCase" c
+          WHERE c."activeKey" = ${p.orderId + ':payment'}
+            AND c."status" = 'open'
+       )`;
 }

@@ -20,12 +20,17 @@ import {
   type ProducerDeps,
 } from './quality-evidence-producer';
 import {
+  HUMAN_VERIFIED_UNVERIFIED_REVIEW_STATUS,
+} from './human-verified-unverified-contract';
+import {
   QUALITY_EVALUATOR_CONTRACT_VERSION,
   coverArtifactKey,
   pageArtifactKey,
   pageNumberFromArtifactKey,
   readActiveVisualContractHash,
   resolveArtifactHoldOutcome,
+  inspectHumanReviewAuthorityBytes,
+  loadQualityEvidence,
   type HardHoldKind,
 } from './quality-evidence';
 import { isQualityEvidenceContractStale } from './quality-check-result';
@@ -170,10 +175,16 @@ export async function reQaUnknownQualityEvidence(
 ): Promise<QualityRecoveryResult> {
   const inspect = deps.inspect ?? inspectAsset;
   const required = await loadRequiredArtifacts(prisma, orderId);
-  const rows = await prisma.qualityEvidence.findMany({
-    where: { orderId },
-    select: { artifactKey: true, verdict: true, evaluatorContractVersion: true, assetSha256: true, regenCount: true, evidence: true, contractHash: true, reason: true, safetyOverride: true, safetyOverrideSha256: true },
-  });
+  const humanReviewByteAuthority = await inspectHumanReviewAuthorityBytes(
+    prisma,
+    orderId,
+    inspect,
+  );
+  const rows = await loadQualityEvidence(
+    prisma,
+    orderId,
+    humanReviewByteAuthority,
+  );
   const byKey = new Map(rows.map((r) => [r.artifactKey, r]));
   // (WS0b B1) Recovery re-QAs STORED bytes and re-binds evidence to the Order's CURRENT active contract, so a
   // contract_stale row becomes admissible again. This is the deliberate recovery re-bind (not a render-time
@@ -195,6 +206,25 @@ export async function reQaUnknownQualityEvidence(
     const row = byKey.get(art.artifactKey);
     // Admissible = a durable passed/failed verdict on the CURRENT bytes at the current evaluator version. Anything
     // else (missing row, stale version, hash mismatch vs current bytes, or evidence_unknown) is re-QA'd.
+    const preResolved = row
+      ? resolveArtifactHoldOutcome(row, currentHash, {
+          contractVersion: QUALITY_EVALUATOR_CONTRACT_VERSION,
+          activeContractHash,
+        })
+      : null;
+    if (preResolved?.passedEquivalent) {
+      result.nowPassed.push(art.artifactKey);
+      continue;
+    }
+    if (
+      row?.reviewStatus === HUMAN_VERIFIED_UNVERIFIED_REVIEW_STATUS &&
+      row.humanReviewVerified !== true
+    ) {
+      // A persisted human decision whose durable receipt/current-byte chain no longer validates must never fall
+      // through into automatic Vision or regeneration. Keep it held for manual reconciliation, fail-closed.
+      result.stillUnknown.push(art.artifactKey);
+      continue;
+    }
     const admissible =
       !!row &&
       row.evaluatorContractVersion === QUALITY_EVALUATOR_CONTRACT_VERSION &&
@@ -220,7 +250,7 @@ export async function reQaUnknownQualityEvidence(
         // the shared kind — a mixed safety:+contract_world: release parks as contract_world in BOTH; anything else is
         // the regen-rescue. This is already the admissible-failed path, matching the gate's admissibility.
         const h = resolveArtifactHoldOutcome(row!, currentHash, { contractVersion: QUALITY_EVALUATOR_CONTRACT_VERSION, activeContractHash });
-        if (h.released) result.nowPassed.push(art.artifactKey);
+        if (h.passedEquivalent) result.nowPassed.push(art.artifactKey);
         else if (h.hardHold && h.kind) notePark(art.artifactKey, h.kind);
         else result.nowFailed.push({ artifactKey: art.artifactKey, regenCount: row!.regenCount });
       }

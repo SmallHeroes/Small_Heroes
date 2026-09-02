@@ -3,6 +3,7 @@ import {
   claimDueExceptionCases,
   exceptionActiveKey,
   fencedOutboxTerminalWithException,
+  lockOrderForExceptionCase,
   openExceptionCase,
   reissueConfirmedFailedDelivery,
   ReissueBudgetExhaustedError,
@@ -45,7 +46,133 @@ function caseRow(over: Record<string, unknown> = {}) {
   };
 }
 
+function producerClient<T extends object>(txDelegates: T) {
+  const $queryRaw = vi.fn(async () => [{ id: 'o1' }]);
+  const tx = { ...txDelegates, $queryRaw };
+  const $transaction = vi.fn(async (fn: (inner: typeof tx) => unknown) => fn(tx));
+  return { client: { $transaction }, tx, $queryRaw, $transaction };
+}
+
 describe('ExceptionCase producer + lifecycle', () => {
+  it('a direct PrismaClient producer opens one transaction and locks Order before checking or upserting the case', async () => {
+    const events: string[] = [];
+    const tx = {
+      $queryRaw: vi.fn(async () => {
+        events.push('order_lock');
+        return [{ id: 'o1' }];
+      }),
+      exceptionCase: {
+        findUnique: vi.fn(async () => {
+          events.push('case_check');
+          return null;
+        }),
+        upsert: vi.fn(async () => {
+          events.push('case_upsert');
+          return caseRow({ kind: 'infra_transient', status: 'retry_scheduled' });
+        }),
+      },
+      exceptionCaseAudit: {
+        createMany: vi.fn(async () => {
+          events.push('audit');
+          return { count: 1 };
+        }),
+      },
+    };
+    const prisma = {
+      $transaction: vi.fn(async (fn: (inner: typeof tx) => unknown) => fn(tx)),
+    };
+
+    await openExceptionCase(prisma as never, {
+      orderId: 'o1',
+      kind: 'infra_transient',
+      reason: 'transient',
+      now: NOW,
+    });
+
+    expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+    expect(events).toEqual(['order_lock', 'case_check', 'case_upsert', 'audit']);
+    const lockSql = ((tx.$queryRaw.mock.calls[0] as unknown[])[0] as string[]).join(' ');
+    expect(lockSql).toMatch(/SELECT "id" FROM "Order" WHERE "id" = .* FOR UPDATE/);
+  });
+
+  it('a transaction client is rejected without an Order-lock proof and succeeds after acquiring the matching lock', async () => {
+    const events: string[] = [];
+    const tx = {
+      $queryRaw: vi.fn(async () => {
+        events.push('order_lock');
+        return [{ id: 'o1' }];
+      }),
+      exceptionCase: {
+        findUnique: vi.fn(async () => {
+          events.push('case_check');
+          return null;
+        }),
+        upsert: vi.fn(async () => {
+          events.push('case_upsert');
+          return caseRow({ kind: 'infra_transient', status: 'retry_scheduled' });
+        }),
+      },
+      exceptionCaseAudit: { createMany: vi.fn(async () => ({ count: 1 })) },
+    };
+    const args = {
+      orderId: 'o1',
+      kind: 'infra_transient' as const,
+      reason: 'transient',
+      now: NOW,
+    };
+
+    await expect(
+      (openExceptionCase as unknown as (db: unknown, input: typeof args) => Promise<unknown>)(tx, args),
+    ).rejects.toThrow('exception_case_transaction_requires_order_lock');
+    expect(tx.exceptionCase.findUnique).not.toHaveBeenCalled();
+
+    const orderLock = await lockOrderForExceptionCase(tx as never, 'o1');
+    expect(orderLock).not.toBeNull();
+    await openExceptionCase(tx as never, args, orderLock!);
+    expect(events).toEqual(['order_lock', 'case_check', 'case_upsert']);
+  });
+
+  it('rejects a lock proof acquired for another Order before any case access', async () => {
+    const findUnique = vi.fn();
+    const tx = {
+      exceptionCase: { findUnique },
+      exceptionCaseAudit: { createMany: vi.fn() },
+    };
+    await expect(openExceptionCase(tx as never, {
+      orderId: 'o1',
+      kind: 'infra_transient',
+      reason: 'transient',
+      now: NOW,
+    }, {
+      orderId: 'o2',
+      lock: 'exception_case_order_for_update',
+      transaction: tx as never,
+    })).rejects.toThrow('exception_case_order_lock_mismatch');
+    expect(findUnique).not.toHaveBeenCalled();
+  });
+
+  it('rejects a proof acquired in another transaction before any case access', async () => {
+    const ownerTx = {
+      $queryRaw: vi.fn(async () => [{ id: 'o1' }]),
+    };
+    const orderLock = await lockOrderForExceptionCase(ownerTx as never, 'o1');
+    const findUnique = vi.fn();
+    const otherTx = {
+      exceptionCase: { findUnique },
+      exceptionCaseAudit: { createMany: vi.fn() },
+    };
+
+    await expect(openExceptionCase(otherTx as never, {
+      orderId: 'o1',
+      kind: 'infra_transient',
+      reason: 'transient',
+      now: NOW,
+    }, orderLock!)).rejects.toThrow(
+      'exception_case_order_lock_transaction_mismatch',
+    );
+    expect(findUnique).not.toHaveBeenCalled();
+  });
+
   it('uses one stable active key and idempotent audit event for replayed producers', async () => {
     const upsert = vi.fn(async (args) => caseRow({
       kind: args.create.kind,
@@ -61,14 +188,14 @@ describe('ExceptionCase producer + lifecycle', () => {
       exceptionCaseAudit: { createMany },
     };
 
-    await openExceptionCase(db as never, {
+    await openExceptionCase(producerClient(db).client as never, {
       orderId: 'o1',
       kind: 'send_ambiguous',
       reason: 'idempotency_window_expired',
       sourceRef: 'ob1',
       now: NOW,
     });
-    await openExceptionCase(db as never, {
+    await openExceptionCase(producerClient(db).client as never, {
       orderId: 'o1',
       kind: 'send_ambiguous',
       reason: 'idempotency_window_expired',
@@ -105,7 +232,7 @@ describe('ExceptionCase producer + lifecycle', () => {
       exceptionCase: { upsert, findUnique: vi.fn(async () => null) },
       exceptionCaseAudit: { createMany: vi.fn(async () => ({ count: 1 })) },
     };
-    await openExceptionCase(db as never, {
+    await openExceptionCase(producerClient(db).client as never, {
       orderId: 'o1',
       kind: 'safety_failed',
       reason: 'budget_exhausted',
@@ -187,12 +314,21 @@ describe('ExceptionCase producer + lifecycle', () => {
   });
 
   it('atomically fences an Outbox terminal and opens its one active case', async () => {
-    const updateMany = vi.fn(async () => ({ count: 1 }));
+    const order: string[] = [];
+    const $queryRaw = vi.fn(async () => {
+      order.push('order_lock');
+      return [{ id: 'o1' }];
+    });
+    const updateMany = vi.fn(async () => {
+      order.push('outbox_update');
+      return { count: 1 };
+    });
     const upsert = vi.fn(async () => caseRow({
       kind: 'invalid_payload',
       reason: 'payload_integrity_mismatch',
     }));
     const tx = {
+      $queryRaw,
       deliveryOutbox: { updateMany },
       exceptionCase: { upsert, findUnique: vi.fn(async () => null) },
       exceptionCaseAudit: { createMany: vi.fn(async () => ({ count: 1 })) },
@@ -209,6 +345,10 @@ describe('ExceptionCase producer + lifecycle', () => {
       now: NOW,
     });
     expect(ok).toBe(true);
+    expect(order).toEqual(['order_lock', 'outbox_update']);
+    const lockSql = (($queryRaw.mock.calls[0] as unknown[])[0] as string[]).join(' ');
+    expect(lockSql).toMatch(/SELECT "id" FROM "Order" WHERE "id" = .* FOR UPDATE/);
+    expect(($queryRaw.mock.calls[0] as unknown[])[1]).toBe('o1');
     expect(updateMany).toHaveBeenCalledWith({
       where: { id: 'ob1', status: 'processing', attempts: 7 },
       data: { status: 'invalid_payload' },
@@ -221,6 +361,7 @@ describe('ExceptionCase producer + lifecycle', () => {
   it('a stale Outbox worker opens no case', async () => {
     const upsert = vi.fn();
     const tx = {
+      $queryRaw: vi.fn(async () => [{ id: 'o1' }]),
       deliveryOutbox: { updateMany: vi.fn(async () => ({ count: 0 })) },
       exceptionCase: { upsert, findUnique: vi.fn(async () => null) },
       exceptionCaseAudit: { createMany: vi.fn() },
@@ -240,9 +381,43 @@ describe('ExceptionCase producer + lifecycle', () => {
     expect(upsert).not.toHaveBeenCalled();
   });
 
+  it('a missing Order returns false before any Outbox mutation or ExceptionCase work', async () => {
+    const updateMany = vi.fn();
+    const findUnique = vi.fn();
+    const upsert = vi.fn();
+    const createMany = vi.fn();
+    const $queryRaw = vi.fn(async () => []);
+    const tx = {
+      $queryRaw,
+      deliveryOutbox: { updateMany },
+      exceptionCase: { upsert, findUnique },
+      exceptionCaseAudit: { createMany },
+    };
+    const db = {
+      $transaction: vi.fn(async (fn: (inner: typeof tx) => unknown) => fn(tx)),
+    };
+
+    const ok = await fencedOutboxTerminalWithException(db as never, {
+      row: { id: 'ob1', orderId: 'missing-order', scope: 'base_book' },
+      token: 7,
+      outboxData: { status: 'invalid_payload' },
+      kind: 'invalid_payload',
+      reason: 'payload_integrity_mismatch',
+      now: NOW,
+    });
+
+    expect(ok).toBe(false);
+    expect($queryRaw).toHaveBeenCalledTimes(1);
+    expect(updateMany).not.toHaveBeenCalled();
+    expect(findUnique).not.toHaveBeenCalled();
+    expect(upsert).not.toHaveBeenCalled();
+    expect(createMany).not.toHaveBeenCalled();
+  });
+
   it('rolls back the Outbox terminal if ExceptionCase creation fails', async () => {
     let outboxStatus = 'processing';
     const tx = {
+      $queryRaw: vi.fn(async () => [{ id: 'o1' }]),
       deliveryOutbox: {
         updateMany: vi.fn(async () => {
           outboxStatus = 'failed';
@@ -296,7 +471,7 @@ describe('ExceptionCase producer + lifecycle', () => {
       exceptionCaseAudit: { createMany: vi.fn(async () => ({ count: 1 })) },
     };
 
-    const result = await openExceptionCase(db as never, {
+    const result = await openExceptionCase(producerClient(db).client as never, {
       orderId: 'o1',
       kind: 'send_ambiguous',
       reason: 'send_attempts_exhausted',
@@ -330,7 +505,7 @@ describe('ExceptionCase producer + lifecycle', () => {
       exceptionCase: { upsert, updateMany, findUnique: vi.fn(async () => existing) },
       exceptionCaseAudit: { createMany },
     };
-    const result = await openExceptionCase(db as never, {
+    const result = await openExceptionCase(producerClient(db).client as never, {
       orderId: 'o1',
       kind: 'quality_failed', // a generation/readiness failure that would normally route straight to refund_pending
       reason: 'integrity_blocked_after_send',
@@ -352,7 +527,7 @@ describe('ExceptionCase producer + lifecycle', () => {
     const findUnique = vi.fn(async () => upgraded);
     const createMany = vi.fn(async () => ({ count: 1 }));
     const db = { exceptionCase: { upsert, updateMany, findUnique }, exceptionCaseAudit: { createMany } };
-    const result = await openExceptionCase(db as never, { orderId: 'o1', kind: 'safety_failed', reason: 'budget_exhausted', now: NOW });
+    const result = await openExceptionCase(producerClient(db).client as never, { orderId: 'o1', kind: 'safety_failed', reason: 'budget_exhausted', now: NOW });
     expect(updateMany).toHaveBeenCalledWith(expect.objectContaining({
       where: expect.objectContaining({ kind: 'infra_transient', claimVersion: 2, actionAttemptedAt: null }),
       data: expect.objectContaining({ kind: 'safety_failed', status: 'refund_pending' }),
@@ -367,7 +542,7 @@ describe('ExceptionCase producer + lifecycle', () => {
     const updateMany = vi.fn();
     const createMany = vi.fn(async () => ({ count: 1 }));
     const db = { exceptionCase: { upsert, updateMany, findUnique: vi.fn(async () => existing) }, exceptionCaseAudit: { createMany } };
-    const result = await openExceptionCase(db as never, { orderId: 'o1', kind: 'infra_transient', reason: 'transient', now: NOW });
+    const result = await openExceptionCase(producerClient(db).client as never, { orderId: 'o1', kind: 'infra_transient', reason: 'transient', now: NOW });
     expect(updateMany).not.toHaveBeenCalled();
     expect(result.kind).toBe('integrity_blocked');
     expect(auditReason(createMany)).toMatch(/^producer_recorded:/);

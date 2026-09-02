@@ -265,6 +265,36 @@ describe('pipeline-cache-store — REAL PostgreSQL semantics (PGlite)', () => {
     expect(await readCache('o-null-col')).toEqual({ seeded: true });
   });
 
+  it('freezes the canonical character anchor once ready while ordinary cache keys still replace', async () => {
+    const approvedAnchor = {
+      child: {
+        orderId: 'o-ready-anchor', styleId: 'style-1', characterId: 'child',
+        role: 'child', anchorType: 'canonical_portrait', source: 'uploaded_photo',
+        url: 'https://assets.example/approved.webp', qaStatus: 'passed',
+        createdAt: '2026-09-02T00:00:00.000Z', updatedAt: '2026-09-02T00:00:00.000Z',
+      },
+    };
+    await seedJob('o-ready-anchor', {
+      characterAnchorStore: approvedAnchor,
+      ordinaryOld: 'remove-me',
+    });
+    await pg.query(`UPDATE "Order" SET "status" = 'ready' WHERE "id" = $1`, [
+      'o-ready-anchor',
+    ]);
+
+    await persistOrdinaryPipelineCache(storeDb as never, 'o-ready-anchor', {
+      characterAnchorStore: {
+        child: { ...approvedAnchor.child, url: 'https://assets.example/hostile.webp' },
+      },
+      ordinaryNew: 'lands',
+    } as unknown as PipelineCache);
+
+    const after = await readCache('o-ready-anchor');
+    expect(after?.characterAnchorStore).toEqual(approvedAnchor);
+    expect(after?.ordinaryOld).toBeUndefined();
+    expect(after?.ordinaryNew).toBe('lands');
+  });
+
   it('freeze-vs-ordinary, BOTH commit orders: the freeze-written contract + authority win deterministically', async () => {
     const authority = { version: 'frozen-visual-package-authority/v3', packageRevisionDigest: 'b'.repeat(64), detail: { note: null } };
     const staleSnapshot = { storyKey: 'stale', visualContract: { schemaVersion: 'stale-in-memory' } } as unknown as PipelineCache;

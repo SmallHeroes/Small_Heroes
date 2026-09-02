@@ -231,6 +231,12 @@ export async function writeRetainedSafetyEvaluation(
       contractHash: args.expectedEvidence.contractHash,
       safetyOverride: false,
       safetyOverrideSha256: null,
+      reviewStatus: null,
+      reviewedAssetSha256: null,
+      reviewedContractHash: null,
+      reviewedBy: null,
+      reviewedAt: null,
+      reviewReason: null,
       evaluatedAt: args.evaluatedAt,
     },
   });

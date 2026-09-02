@@ -2,7 +2,7 @@ import { prisma } from '@/lib/prisma';
 import { chainGenerationWorker } from './chain-worker';
 import { getMaxStaleReclaims } from './constants';
 import { isReadinessManifestEnabled } from '@/lib/generation-pipeline/readiness-manifest';
-import { openExceptionCase } from './exception-case';
+import { lockOrderForExceptionCase, openExceptionCase } from './exception-case';
 import { tryDeleteOriginalChildPhotoAfterGeneration } from '@/lib/child-photo-deletion';
 import {
   parseGenerationReleaseContinuityV1,
@@ -161,6 +161,12 @@ export async function sweepStaleGenerationJobs(
       // Stuck at the same stage with no progress across many reclaims → stop re-spending.
       const reason = `Stalled at stage ${job.currentStage} after ${nextCount - 1} no-progress reclaims`;
       const hardFailed = await prisma.$transaction(async (tx) => {
+        const exceptionOrderLock = isReadinessManifestEnabled()
+          ? await lockOrderForExceptionCase(tx, job.orderId)
+          : null;
+        if (isReadinessManifestEnabled() && !exceptionOrderLock) {
+          throw new Error(`exception_case_order_not_found:${job.orderId}`);
+        }
         const failedJob = options?.releaseProtocol === RELEASE_V1_PROTOCOL
           ? await tx.generationJob.updateMany({
               where: {
@@ -228,7 +234,7 @@ export async function sweepStaleGenerationJobs(
             initialStatus: 'refund_pending',
             nextActionAt: now,
             fenceExisting: true,
-          });
+          }, exceptionOrderLock!);
         }
         return true;
       });

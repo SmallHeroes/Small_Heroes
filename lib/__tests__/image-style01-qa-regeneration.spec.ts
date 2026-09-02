@@ -29,11 +29,11 @@ vi.mock('@/lib/image-storage', () => ({
   isImagePersistenceError: () => false,
 }));
 
-vi.mock('@/lib/resemblance-core', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@/lib/resemblance-core')>();
+vi.mock('@/lib/generation-pipeline/page-child-resemblance-vision', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/generation-pipeline/page-child-resemblance-vision')>();
   return {
     ...actual,
-    scoreResemblanceAgainstReference: resemblanceSpy,
+    evaluateStoredPageChildResemblanceVision: resemblanceSpy,
   };
 });
 
@@ -77,6 +77,29 @@ const VERIFIED_FAILURE = qaResult({
   details: 'verified anatomy defect',
 });
 
+function pageVision(score: number) {
+  const passed = score >= 0.7;
+  return {
+    result: {
+      evaluatorVersion: 'page-child-resemblance-vision/v1',
+      status: passed ? 'passed' : 'failed',
+      resemblanceScore: score,
+      threshold: 0.7,
+      subjectVisible: true,
+      sameChild: true,
+      reasonCode: passed ? null : 'below_threshold',
+      attempts: 1,
+      model: 'vision-test',
+      featureAssessments: {
+        faceStructure: 'match', eyesBrows: 'match', noseMouth: 'match',
+        hairIdentity: 'match', distinctiveFeatures: 'match',
+      },
+    },
+    referenceBytesSha256: 'a'.repeat(64),
+    candidateBytesSha256: 'b'.repeat(64),
+  };
+}
+
 function baseInput(overrides: Partial<ImageInput> = {}): ImageInput {
   return {
     pagePrompt: 'A small child stands safely on the floor in a calm room.',
@@ -100,17 +123,7 @@ describe('shipped Style01 caller — QA evidence versus image-regeneration budge
     generateGptSpy.mockReset();
     storeBufferSpy.mockReset();
     resemblanceSpy.mockReset();
-    resemblanceSpy.mockResolvedValue({
-      resemblanceScore: 0.8,
-      faceDetectConfidence: 0.9,
-      faceAreaRatio: 0.2,
-      sanityFlags: {
-        embeddingMismatch: false,
-        colorMismatch: false,
-        geometryWeird: false,
-      },
-      candidateEmbedding: [0.8],
-    });
+    resemblanceSpy.mockResolvedValue(pageVision(0.8));
     generateGptSpy.mockResolvedValue({
       buffer: Buffer.from('mock-image-bytes'),
       model: 'gpt-image-1',
@@ -176,17 +189,7 @@ describe('shipped Style01 caller — QA evidence versus image-regeneration budge
   it('enforces the required numeric page gate on the same candidate and passes at 0.70', async () => {
     const reserve = vi.fn(async () => true);
     evaluateQaSpy.mockResolvedValue(VERIFIED_PASS);
-    resemblanceSpy.mockResolvedValueOnce({
-      resemblanceScore: 0.7,
-      faceDetectConfidence: 0.9,
-      faceAreaRatio: 0.2,
-      sanityFlags: {
-        embeddingMismatch: false,
-        colorMismatch: false,
-        geometryWeird: false,
-      },
-      candidateEmbedding: [0.7],
-    });
+    resemblanceSpy.mockResolvedValueOnce(pageVision(0.7));
 
     const result = await generateImage(baseInput({
       reserveQualityRegen: reserve,
@@ -202,8 +205,7 @@ describe('shipped Style01 caller — QA evidence versus image-regeneration budge
     expect(resemblanceSpy).toHaveBeenCalledWith({
       referenceImageUrl: 'https://cdn.example/order-r1a/approved-anchor.png',
       candidateImageUrl: 'https://cdn.example/order-r1a/page-4-1.png',
-      effectiveThreshold: 0.7,
-      minAcceptableScore: 0.55,
+      threshold: 0.7,
     });
     expect(reserve).not.toHaveBeenCalled();
     expect(result.style01Meta?.pageResemblanceGate).toMatchObject({
@@ -218,28 +220,8 @@ describe('shipped Style01 caller — QA evidence versus image-regeneration budge
     const reserve = vi.fn(async () => true);
     evaluateQaSpy.mockResolvedValue(VERIFIED_PASS);
     resemblanceSpy
-      .mockResolvedValueOnce({
-        resemblanceScore: 0.69,
-        faceDetectConfidence: 0.9,
-        faceAreaRatio: 0.2,
-        sanityFlags: {
-          embeddingMismatch: false,
-          colorMismatch: false,
-          geometryWeird: false,
-        },
-        candidateEmbedding: [0.69],
-      })
-      .mockResolvedValueOnce({
-        resemblanceScore: 0.71,
-        faceDetectConfidence: 0.9,
-        faceAreaRatio: 0.2,
-        sanityFlags: {
-          embeddingMismatch: false,
-          colorMismatch: false,
-          geometryWeird: false,
-        },
-        candidateEmbedding: [0.71],
-      });
+      .mockResolvedValueOnce(pageVision(0.69))
+      .mockResolvedValueOnce(pageVision(0.71));
 
     const result = await generateImage(baseInput({
       reserveQualityRegen: reserve,
@@ -264,17 +246,7 @@ describe('shipped Style01 caller — QA evidence versus image-regeneration budge
   it('holds after one candidate plus two numeric-gate replacements', async () => {
     const reserve = vi.fn(async () => true);
     evaluateQaSpy.mockResolvedValue(VERIFIED_PASS);
-    resemblanceSpy.mockResolvedValue({
-      resemblanceScore: 0.69,
-      faceDetectConfidence: 0.9,
-      faceAreaRatio: 0.2,
-      sanityFlags: {
-        embeddingMismatch: false,
-        colorMismatch: false,
-        geometryWeird: false,
-      },
-      candidateEmbedding: [0.69],
-    });
+    resemblanceSpy.mockResolvedValue(pageVision(0.69));
 
     const result = await generateImage(baseInput({
       reserveQualityRegen: reserve,

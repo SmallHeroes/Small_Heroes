@@ -1,5 +1,75 @@
 # SmallHeroes — Current Technical State
 
+## R1D — exact-byte human verification plus mandatory child resemblance (working tree green; immutable QA gate next)
+
+Guy approved exact current page 6 and the controlled human-verification path without lowering or
+waiving the **0.70** resemblance threshold. The only live target remains paid Order
+`cmtj2vvrw0002ju04a9covxqv`, open safety case
+`6be97a90-65a0-4883-b7d1-819317a1dc19`, marker
+`safety_hold:unverified:page:6`, and page-6 SHA-256
+`BD7EA115D78AB4AF650047FB13E312EFAA922569F17E2BB6CBB606665B568D42`. No new Order,
+checkout, payment, image, audio or PDF is authorized.
+
+The local implementation in `C:\GNart\Work\sh-release-reader-final` on
+`codex/r1d-release-reader-voice-final` adds separate authenticated Preview-only Inspect and Apply
+routes for one exact-byte, hazardless `safety_hold:unverified:page:N`. Inspect is provider-free,
+mutation-free and redacted. Apply uses a server-derived ceremony principal, an idempotency key and
+one durable provider-spend claim. It never writes the confirmed-hazard override fields: original
+machine uncertainty remains, while a distinct versioned human-review provenance binds the exact
+Order, case, asset ID/URL/SHA, evaluator/contract, canonical anchor bytes, payment/refund authority,
+resemblance proofs and readiness receipt.
+
+The root cause is fixed generally. Package-backed pages now derive child presence from structured
+`entityPresence.childPresence` (including `child:hero`) and always require a strict numeric
+page-to-anchor identity proof. Both ordinary QA producer seams reject malformed, inconsistent or
+claimed-pass-below-floor evidence; exactly 0.70 passes and 0.699999 fails. Existing bytes only are
+sent as inspected data URLs. Each required page is limited to one call plus two same-byte retries,
+the book ceiling is 24 calls, and a shared batch fence prevents any sibling retry from starting
+after a deterministic refusal. No image generation path is called.
+
+Inspect, Prepare, Abort and human readiness commit all reject Production and also reject a Preview
+whose app, Supabase, database or service-role authority points at known Production resources.
+Commercial admission requires a nonblank Order provider/payment ID, a timestamped paid record for
+that exact provider, matching amount/ILS currency, the Stripe paid flag where applicable, and no
+payment/refund/reconciliation fence.
+
+The final transition is one Order-first transaction: rebind current bytes/anchor/proofs, persist the
+human review, resolve the exact case, move through the distinct human-verified marker, write the
+readiness manifest, enqueue one normal DeliveryOutbox row and move the same Order to `ready`.
+Receipt replay revalidates the complete current authority inside that same Order-locked transaction;
+a stale receipt cannot report success after sibling-score, payment, case, asset, evidence, anchor or
+byte drift. Fresh QA/regeneration writes invalidate readiness through the Order-first barrier, and
+ordinary cache persistence freezes the canonical anchor after readiness so a queued stale cache
+write cannot change release authority.
+
+Current evidence on the working bytes:
+
+- All changed/new specs pass: **29 files / 606 tests PASS**, including stateful atomic
+  success/replay/rollback, stale-replay refusal, exact current payment and proof reconstruction,
+  environment separation, spend fencing, definite post-score abort followed by a different-key
+  no-respend attempt, and the 0.70 interleaving boundary.
+- `npx tsc --noEmit`, `git diff --check` and `npm run build` pass; the production build compiled and
+  generated **39/39** static pages. Existing Prisma deprecation and skipped-local-env-validation
+  warnings remain.
+- Literal `npm run check` passed both TypeScript phases. Its ordinary **354-file** partition reported
+  **330 passed files / 4,718 passed tests**. One newly exposed inventory assertion was corrected and
+  passed afterward; the only remaining ordinary failures are the ten established assertions in six
+  files whose ignored historical `outputs/` fixtures are absent from this worktree. Its resource
+  partition completed **20/20 files and 635/635 tests PASS**, then Vitest emitted three known
+  `onTaskUpdate` RPC timeouts. The literal repository gate therefore remains accurately red for
+  baseline fixture/runner defects rather than being relabeled green.
+- Read-only adversarial sweeps closed findings in sibling-proof reconstruction, late
+  QA/regeneration delivery races, Order/ExceptionCase/receipt lock order, canonical-anchor TOCTOU,
+  payment authority, stale receipt replay, Preview-to-Production resource leakage, cross-page retry
+  spend and post-score abort provenance. The whole-diff re-audit returned PASS on the corrected
+  spend fence; Codex does not self-award the required post-commit independent technical PASS.
+
+No route, DB mutation, provider/Vision call, deployment, push or live Apply has occurred from these
+bytes. Next: obtain independent Claude Code PASS on the immutable base-to-head range. Only then may
+this exact commit be deployed to one branch Preview for provider-free Inspect and one controlled
+Apply on the same Order. Production remains untouched, and Guy retains final Reader/product
+acceptance.
+
 ## R1D — same-Order page-6 replacement and pages 7–8 completion recovery (local green; immutable independent gate next)
 
 The existing paid Lavi/Chameleon Order `cmtj2vvrw0002ju04a9covxqv` is still the sole

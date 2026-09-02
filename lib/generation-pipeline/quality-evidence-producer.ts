@@ -15,6 +15,7 @@
  * Flag-gated by READINESS_MANIFEST_ENABLED (flag OFF → no-op; the legacy render path is unchanged).
  */
 import type { PrismaClient, Prisma } from '@prisma/client';
+import { canonicalHash } from '@/lib/canonical-json';
 import { inspectAsset, type AssetInspection } from './asset-integrity';
 import { evaluatePageVisualQa, type PageVisualQaResult } from './page-visual-qa';
 import { evaluatePageWorldQa, type PageWorldQaResult } from './page-world-qa';
@@ -23,10 +24,23 @@ import {
   QUALITY_EVALUATOR_CONTRACT_VERSION,
   type QualityVerdict,
 } from './quality-evidence';
-import { isReadinessManifestEnabled } from './readiness-manifest';
-import { scoreResemblanceAgainstReference } from '@/lib/resemblance-core';
+import { SAFETY_SHA256_RE } from './asset-safety-signal';
+import {
+  isReadinessManifestEnabled,
+  withDeliveryInputMutation,
+} from './readiness-manifest';
+import type { ReceiptSafeValue } from './atomic-operation';
+import {
+  evaluateStoredPageChildResemblanceVision,
+  PAGE_CHILD_RESEMBLANCE_MIN_THRESHOLD,
+  PAGE_CHILD_RESEMBLANCE_VISION_VERSION,
+} from './page-child-resemblance-vision';
 
 type Db = PrismaClient | Prisma.TransactionClient;
+
+function isRootPrismaClient(db: Db): db is PrismaClient {
+  return '$transaction' in db && typeof db.$transaction === 'function';
+}
 
 export interface QaContext {
   expectsChild: boolean;
@@ -76,6 +90,11 @@ export interface DeliveredEvidenceArgs {
     rawEvidence?: {
       status: 'passed' | 'failed' | 'evidence_unknown';
       resemblanceScore: number | null;
+      evaluatorVersion?: string;
+      subjectVisible?: boolean | null;
+      sameChild?: boolean | null;
+      referenceBytesSha256?: string | null;
+      deliveredBytesSha256?: string | null;
     };
   };
   /** QA context captured at render time, so a delivered-bytes re-QA runs the same checks. */
@@ -112,7 +131,7 @@ export interface ProducerDeps {
   /** (Slice A) The delivered-bytes WORLD QA — injected in tests; defaults to evaluatePageWorldQa. */
   evaluateWorld?: (input: Parameters<typeof evaluatePageWorldQa>[0]) => Promise<PageWorldQaResult>;
   inspect?: (url: string | null | undefined) => Promise<AssetInspection>;
-  scoreResemblance?: typeof scoreResemblanceAgainstReference;
+  scoreResemblance?: typeof evaluateStoredPageChildResemblanceVision;
 }
 
 type DeliveredPageResemblanceEvidence = {
@@ -125,12 +144,52 @@ type DeliveredPageResemblanceEvidence = {
   minAcceptableScore: number;
   faceDetectConfidence: number | null;
   faceAreaRatio: number | null;
+  evaluatorVersion: string;
+  subjectVisible: boolean | null;
+  sameChild: boolean | null;
+  referenceBytesSha256: string | null;
+  deliveredBytesSha256: string | null;
   source: 'raw_same_bytes' | 'delivered_bytes';
 };
 
+function strictResemblanceStatus(args: {
+  claimedStatus: 'passed' | 'failed' | 'evidence_unknown';
+  resemblanceScore: number | null;
+  threshold: number;
+  evaluatorVersion: string | undefined;
+  subjectVisible: boolean | null | undefined;
+  sameChild: boolean | null | undefined;
+  referenceBytesSha256: string | null | undefined;
+  deliveredBytesSha256: string | null | undefined;
+  claimedThreshold?: number;
+}): 'passed' | 'failed' | 'evidence_unknown' {
+  if (args.claimedStatus === 'evidence_unknown') return 'evidence_unknown';
+  if (
+    args.evaluatorVersion !== PAGE_CHILD_RESEMBLANCE_VISION_VERSION ||
+    typeof args.resemblanceScore !== 'number' ||
+    !Number.isFinite(args.resemblanceScore) ||
+    args.resemblanceScore < 0 || args.resemblanceScore > 1 ||
+    !Number.isFinite(args.threshold) ||
+    args.threshold < PAGE_CHILD_RESEMBLANCE_MIN_THRESHOLD || args.threshold > 1 ||
+    (args.claimedThreshold !== undefined && args.claimedThreshold !== args.threshold) ||
+    typeof args.referenceBytesSha256 !== 'string' ||
+    !SAFETY_SHA256_RE.test(args.referenceBytesSha256) ||
+    typeof args.deliveredBytesSha256 !== 'string' ||
+    !SAFETY_SHA256_RE.test(args.deliveredBytesSha256) ||
+    typeof args.subjectVisible !== 'boolean' ||
+    typeof args.sameChild !== 'boolean'
+  ) return 'evidence_unknown';
+  const passes =
+    args.subjectVisible === true &&
+    args.sameChild === true &&
+    args.resemblanceScore >= args.threshold;
+  if (args.claimedStatus === 'passed') return passes ? 'passed' : 'evidence_unknown';
+  return passes ? 'evidence_unknown' : 'failed';
+}
+
 async function resolveDeliveredPageResemblance(
   args: DeliveredEvidenceArgs,
-  score: typeof scoreResemblanceAgainstReference,
+  score: typeof evaluateStoredPageChildResemblanceVision,
 ): Promise<DeliveredPageResemblanceEvidence | undefined> {
   const gate = args.pageResemblanceGate;
   if (!gate) return undefined;
@@ -144,17 +203,26 @@ async function resolveDeliveredPageResemblance(
       minAcceptableScore: gate.minAcceptableScore,
       faceDetectConfidence: null,
       faceAreaRatio: null,
+      evaluatorVersion: PAGE_CHILD_RESEMBLANCE_VISION_VERSION,
+      subjectVisible: null,
+      sameChild: null,
+      referenceBytesSha256: null,
+      deliveredBytesSha256: null,
       source: args.presentationApplied ? 'delivered_bytes' : 'raw_same_bytes',
     };
   }
   if (!args.presentationApplied && gate.rawEvidence) {
     const rawScore = gate.rawEvidence.resemblanceScore;
-    const status =
-      rawScore == null || gate.rawEvidence.status === 'evidence_unknown'
-        ? 'evidence_unknown'
-        : rawScore >= gate.effectiveThreshold
-          ? 'passed'
-          : 'failed';
+    const status = strictResemblanceStatus({
+      claimedStatus: gate.rawEvidence.status,
+      resemblanceScore: rawScore,
+      threshold: gate.effectiveThreshold,
+      evaluatorVersion: gate.rawEvidence.evaluatorVersion,
+      subjectVisible: gate.rawEvidence.subjectVisible,
+      sameChild: gate.rawEvidence.sameChild,
+      referenceBytesSha256: gate.rawEvidence.referenceBytesSha256,
+      deliveredBytesSha256: gate.rawEvidence.deliveredBytesSha256,
+    });
     return {
       required: true,
       referenceImageUrl: gate.referenceImageUrl,
@@ -164,28 +232,49 @@ async function resolveDeliveredPageResemblance(
       minAcceptableScore: gate.minAcceptableScore,
       faceDetectConfidence: null,
       faceAreaRatio: null,
+      evaluatorVersion:
+        gate.rawEvidence.evaluatorVersion ?? PAGE_CHILD_RESEMBLANCE_VISION_VERSION,
+      subjectVisible: gate.rawEvidence.subjectVisible ?? null,
+      sameChild: gate.rawEvidence.sameChild ?? null,
+      referenceBytesSha256:
+        gate.rawEvidence.referenceBytesSha256 ?? null,
+      deliveredBytesSha256:
+        gate.rawEvidence.deliveredBytesSha256 ?? null,
       source: 'raw_same_bytes',
     };
   }
   try {
-    const scored = await score({
+    const exact = await score({
       referenceImageUrl: gate.referenceImageUrl,
       candidateImageUrl: args.deliveredUrl,
-      effectiveThreshold: gate.effectiveThreshold,
-      minAcceptableScore: gate.minAcceptableScore,
+      threshold: gate.effectiveThreshold,
+    });
+    const scored = exact.result;
+    const strictStatus = strictResemblanceStatus({
+      claimedStatus: scored.status,
+      resemblanceScore: scored.resemblanceScore,
+      threshold: gate.effectiveThreshold,
+      claimedThreshold: scored.threshold,
+      evaluatorVersion: scored.evaluatorVersion,
+      subjectVisible: scored.subjectVisible,
+      sameChild: scored.sameChild,
+      referenceBytesSha256: exact.referenceBytesSha256,
+      deliveredBytesSha256: exact.candidateBytesSha256,
     });
     return {
       required: true,
       referenceImageUrl: gate.referenceImageUrl,
-      status:
-        scored.resemblanceScore >= gate.effectiveThreshold
-          ? 'passed'
-          : 'failed',
+      status: strictStatus,
       resemblanceScore: scored.resemblanceScore,
       threshold: gate.effectiveThreshold,
       minAcceptableScore: gate.minAcceptableScore,
-      faceDetectConfidence: scored.faceDetectConfidence,
-      faceAreaRatio: scored.faceAreaRatio,
+      faceDetectConfidence: null,
+      faceAreaRatio: null,
+      evaluatorVersion: scored.evaluatorVersion,
+      subjectVisible: scored.subjectVisible,
+      sameChild: scored.sameChild,
+      referenceBytesSha256: exact.referenceBytesSha256,
+      deliveredBytesSha256: exact.candidateBytesSha256,
       source: 'delivered_bytes',
     };
   } catch {
@@ -198,6 +287,11 @@ async function resolveDeliveredPageResemblance(
       minAcceptableScore: gate.minAcceptableScore,
       faceDetectConfidence: null,
       faceAreaRatio: null,
+      evaluatorVersion: PAGE_CHILD_RESEMBLANCE_VISION_VERSION,
+      subjectVisible: null,
+      sameChild: null,
+      referenceBytesSha256: null,
+      deliveredBytesSha256: null,
       source: 'delivered_bytes',
     };
   }
@@ -402,6 +496,11 @@ export async function persistQualityContext(
             minAcceptableScore: args.pageResemblanceGate.minAcceptableScore,
             faceDetectConfidence: null,
             faceAreaRatio: null,
+            evaluatorVersion: PAGE_CHILD_RESEMBLANCE_VISION_VERSION,
+            subjectVisible: null,
+            sameChild: null,
+            referenceBytesSha256: null,
+            deliveredBytesSha256: null,
             source: 'delivered_bytes',
           },
         }
@@ -425,6 +524,12 @@ export async function persistQualityContext(
       regenCount: 0,
       evidence,
       contractHash,
+      reviewStatus: null,
+      reviewedAssetSha256: null,
+      reviewedContractHash: null,
+      reviewedBy: null,
+      reviewedAt: null,
+      reviewReason: null,
     },
     // (#6-fix-4 P1 #2) ATOMICALLY invalidate the old proof when binding a (possibly CHANGED) context: set
     // verdict='evidence_unknown' and CLEAR assetSha256. Otherwise identical bytes carrying a stale PASS verdict +
@@ -432,7 +537,18 @@ export async function persistQualityContext(
     // companion could ship on a pre-change PASS (fail-open). regenCount (column) is untouched and regenPending
     // (inside evidence) is preserved by the `...base` spread, so the durable budget/marker survive. The
     // delivered-evidence verdict (persistDeliveredQualityEvidence) re-establishes a fresh, hash-bound proof right after.
-    update: { evidence, verdict: 'evidence_unknown', assetSha256: '', contractHash },
+    update: {
+      evidence,
+      verdict: 'evidence_unknown',
+      assetSha256: '',
+      contractHash,
+      reviewStatus: null,
+      reviewedAssetSha256: null,
+      reviewedContractHash: null,
+      reviewedBy: null,
+      reviewedAt: null,
+      reviewReason: null,
+    },
   });
 }
 
@@ -446,7 +562,7 @@ export async function persistDeliveredQualityEvidence(
   const evaluate = deps.evaluate ?? evaluatePageVisualQa;
   const evaluateWorld = deps.evaluateWorld ?? evaluatePageWorldQa;
   const scoreResemblance =
-    deps.scoreResemblance ?? scoreResemblanceAgainstReference;
+    deps.scoreResemblance ?? evaluateStoredPageChildResemblanceVision;
 
   const deliveredPageResemblance = await resolveDeliveredPageResemblance(
     args,
@@ -462,14 +578,41 @@ export async function persistDeliveredQualityEvidence(
   // Carry-in #3: bind the verdict to the EXACT delivered bytes. If the bytes can't be hashed, the verdict can't
   // be trusted → evidence_unknown, and the empty hash guarantees a mismatch at readiness (fail-closed). (release
   // shape C) Reuse the caller's inspection when provided so Gate-1 and Gate-2 bind the SAME inspected bytes.
-  const inspection = args.deliveredInspection ?? (await inspect(args.deliveredUrl));
-  const assetSha256 = inspection.sha256 ?? '';
-  if (!inspection.sha256) {
+  const exactScoredSha =
+    deliveredPageResemblance?.source === 'delivered_bytes'
+      ? deliveredPageResemblance.deliveredBytesSha256
+      : null;
+  const inspection = args.deliveredInspection ??
+    (exactScoredSha ? null : await inspect(args.deliveredUrl));
+  const assetSha256 = inspection?.sha256 ?? exactScoredSha ?? '';
+  if (!assetSha256) {
     verdict = 'evidence_unknown';
-    reason = reason ?? `asset_inspect:${inspection.error ?? 'no_hash'}`;
+    reason = reason ?? `asset_inspect:${inspection?.error ?? 'no_hash'}`;
+  }
+  if (
+    deliveredPageResemblance?.deliveredBytesSha256 &&
+    deliveredPageResemblance.deliveredBytesSha256 !== assetSha256
+  ) {
+    verdict = 'evidence_unknown';
+    reason = 'child_resemblance_exact_bytes_changed';
   }
 
-  await persistQualityEvidence(db, {
+  const evaluatedAt = new Date();
+  const evidence = {
+    presentationApplied: args.presentationApplied,
+    regenAttempts: args.regenAttempts ?? null,
+    deliveredUrl: args.deliveredUrl,
+    qaContext: args.qaContext ?? null,
+    // (WS0b e3) SIBLING of qaContext — observability only; omitted when absent (flag off) → evidence byte-identical.
+    ...(args.contractObservability != null ? { contractObservability: args.contractObservability } : {}),
+    ...(args.runtimeAuthorityObservability != null
+      ? { runtimeAuthorityObservability: args.runtimeAuthorityObservability }
+      : {}),
+    ...(deliveredPageResemblance
+      ? { pageResemblanceGate: deliveredPageResemblance }
+      : {}),
+  } as unknown as Prisma.InputJsonValue;
+  const persistArgs = {
     orderId: args.orderId,
     artifactKey: args.artifactKey,
     assetSha256,
@@ -478,22 +621,48 @@ export async function persistDeliveredQualityEvidence(
     providerModel: args.providerModel ?? null,
     // (WS0b B1) Bind to the contract the caller captured before render (never a post-render re-read).
     contractHash: args.contractHash,
+    now: evaluatedAt,
     // regenCount intentionally omitted — the DB-reserved budget (5b) is authoritative and preserved (carry-in #4).
     // (#7-a 6) Persist the delivered URL + QA context so the exception-processor can RE-QA the SAME bytes
     // (zero renders) with the same checks during recovery.
-    evidence: {
-      presentationApplied: args.presentationApplied,
-      regenAttempts: args.regenAttempts ?? null,
-      deliveredUrl: args.deliveredUrl,
-      qaContext: args.qaContext ?? null,
-      // (WS0b e3) SIBLING of qaContext — observability only; omitted when absent (flag off) → evidence byte-identical.
-      ...(args.contractObservability != null ? { contractObservability: args.contractObservability } : {}),
-      ...(args.runtimeAuthorityObservability != null
-        ? { runtimeAuthorityObservability: args.runtimeAuthorityObservability }
-        : {}),
-      ...(deliveredPageResemblance
-        ? { pageResemblanceGate: deliveredPageResemblance }
-        : {}),
-    } as unknown as Prisma.InputJsonValue,
-  });
+    evidence,
+  } satisfies Parameters<typeof persistQualityEvidence>[1];
+
+  // Fresh QA is a delivery-input mutation. In production, acquire Order first and atomically stale readiness,
+  // advance inputVersion and remove a ready Order from the send CAS before replacing/clearing any human review.
+  // Network/Vision work above remains outside the transaction. A TransactionClient means the caller already owns
+  // the surrounding delivery-input barrier (persistQualityContext and focused tests use that shape).
+  if (isRootPrismaClient(db)) {
+    const attempt = {
+      artifactKey: args.artifactKey,
+      assetSha256,
+      verdict,
+      reason: reason ?? null,
+      providerModel: args.providerModel ?? null,
+      contractHash: args.contractHash,
+      evidence,
+      evaluatedAt: evaluatedAt.toISOString(),
+    };
+    const attemptDigest = canonicalHash(attempt);
+    await withDeliveryInputMutation(
+      db,
+      {
+        orderId: args.orderId,
+        reason: 'quality_evidence_changed',
+        operationKey:
+          `quality_evidence:${args.orderId}:${args.artifactKey}:${attemptDigest}`,
+        mutationPayload: attempt as unknown as ReceiptSafeValue,
+      },
+      async (tx) => {
+        await persistQualityEvidence(tx, persistArgs);
+        return {
+          artifactKey: args.artifactKey,
+          assetSha256,
+          evaluatedAt: evaluatedAt.toISOString(),
+        };
+      },
+    );
+    return;
+  }
+  await persistQualityEvidence(db, persistArgs);
 }

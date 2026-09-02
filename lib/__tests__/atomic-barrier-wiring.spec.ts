@@ -60,6 +60,9 @@ function makeFake(opts: {
             stagedReceipts.set(operationKey, { payloadHash, result: {} });
             return [{ id: values[0] }];
           }
+          if (sql.includes('SELECT "id" FROM "Order"') && sql.includes('FOR UPDATE')) {
+            return [{ id: 'o1' }];
+          }
           if (sql.includes('inputVersion')) return [versionRow]; // Order version++ UPDATE
           return [];
         },

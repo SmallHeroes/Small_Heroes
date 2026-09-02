@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   BARRIER_OWNED_PIPELINE_CACHE_KEYS,
   PRODUCING_PIPELINE_CACHE_KEYS,
+  READY_FROZEN_PIPELINE_CACHE_KEYS,
   persistOrdinaryPipelineCache,
   withoutBarrierOwnedPipelineCacheKeys,
 } from '../pipeline-cache-store';
@@ -45,6 +46,7 @@ describe('persistOrdinaryPipelineCache (barrier-owned-key immutability)', () => 
       expect(BARRIER_OWNED_PIPELINE_CACHE_KEYS).toContain(key);
     }
     expect(BARRIER_OWNED_PIPELINE_CACHE_KEYS).toContain('setIdentityBoards');
+    expect(READY_FROZEN_PIPELINE_CACHE_KEYS).toEqual(['characterAnchorStore']);
   });
 
   it('strips every barrier-owned key from the payload and overlays the DB row values key-existence-gated', async () => {
@@ -71,6 +73,13 @@ describe('persistOrdinaryPipelineCache (barrier-owned-key immutability)', () => 
     }
     expect(sql).not.toContain('jsonb_strip_nulls');
     expect(sql).not.toContain('INSERT');
+    expect(sql).toContain('FROM "Order"');
+    expect(sql).toContain('FOR UPDATE');
+    expect(sql).toContain("locked_order.status = 'ready'");
+    expect(sql).toContain("incoming.value - 'characterAnchorStore'");
+    expect(sql).toContain(
+      "jsonb_build_object('characterAnchorStore', \"pipelineCache\" -> 'characterAnchorStore')",
+    );
     expect(calls[0]!.values[1]).toBe('o1');
   });
 

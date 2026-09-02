@@ -13,6 +13,30 @@ import type { Prisma, PrismaClient } from '@prisma/client';
 import { isQualityEvidenceContractStale } from './quality-check-result';
 import { SAFETY_SHA256_RE } from './asset-safety-signal';
 import { QUALITY_REGEN_BUDGET } from './quality-regen-policy';
+import { canonicalHash } from '@/lib/canonical-json';
+import {
+  HUMAN_VERIFIED_UNVERIFIED_REVIEW_STATUS,
+  humanVerifiedUnverifiedResemblanceProofDigest,
+  humanVerifiedUnverifiedQualityAuthorityDigest,
+  parseHumanVerifiedUnverifiedAtomicReceiptResult,
+  parseHumanVerifiedUnverifiedOutcome,
+  parseHumanVerifiedUnverifiedResemblanceProofs,
+  parseHumanVerifiedUnverifiedReviewReason,
+  type HumanVerifiedUnverifiedResemblanceProof,
+} from './human-verified-unverified-contract';
+import {
+  deliveredUrlHash,
+  hasDisqualifyingRefundOrReconciliationActivity,
+  hasStrictHumanVerificationPaymentAuthority,
+  paymentSnapshotDigest,
+  refundAuthorityDigest,
+} from './human-verified-unverified-authority';
+import { getApprovedChildCanonicalAnchor } from './character-anchor-store';
+import {
+  PAGE_CHILD_RESEMBLANCE_MIN_THRESHOLD,
+  PAGE_CHILD_RESEMBLANCE_VISION_VERSION,
+} from './page-child-resemblance-vision';
+import type { PipelineCache } from './types';
 
 export { QUALITY_REGEN_BUDGET } from './quality-regen-policy';
 
@@ -66,12 +90,14 @@ export function requiredArtifactKeys(expectedPageCount: number): string[] {
 
 /** A persisted evidence row, projected to the fields the gate reads. */
 export interface QualityEvidenceRow {
+  id?: string;
   artifactKey: string;
   assetSha256: string;
   verdict: string; // stored free-text (CHECK-constrained); an unrecognized value is inadmissible → BLOCK
   evaluatorContractVersion: string;
   reason: string | null;
   regenCount: number;
+  providerModel?: string | null;
   /** (WS0b) The contract this row was produced against; a mismatch vs the Order's active contract → stale. */
   contractHash: string | null;
   /**
@@ -82,6 +108,19 @@ export interface QualityEvidenceRow {
    */
   safetyOverride: boolean;
   safetyOverrideSha256: string | null;
+  evidence?: Prisma.JsonValue | null;
+  evaluatedAt?: Date;
+  createdAt?: Date;
+  updatedAt?: Date;
+  reviewStatus?: string | null;
+  reviewedAssetSha256?: string | null;
+  reviewedContractHash?: string | null;
+  reviewedBy?: string | null;
+  reviewedAt?: Date | null;
+  reviewReason?: string | null;
+  /** Derived only by loadQualityEvidence after validating the succeeded immutable action. */
+  humanReviewVerified?: boolean;
+  humanReviewActionDigest?: string | null;
 }
 
 /** Current delivered-bytes hash per artifact, from the integrity gate's `inspect` (the source of truth). */
@@ -163,6 +202,8 @@ export interface ArtifactHoldOutcome {
   admissible: boolean;
   /** Fully CLEARED → passed-equivalent (gate) / nowPassed (recovery): admissible + byte-bound release + safety-only. */
   released: boolean;
+  humanVerified: boolean;
+  passedEquivalent: boolean;
   /** Contributes a TERMINAL hard-hold (never soft-deliverable). */
   hardHold: boolean;
   /** Dominant hard-hold kind — 'safety' UNLESS the safety component was validly released (→ 'contract_world'); null when not held. */
@@ -184,7 +225,7 @@ export interface ArtifactHoldOutcome {
  * re-QA'd on the current bytes, not parked).
  */
 export function resolveArtifactHoldOutcome(
-  row: Pick<QualityEvidenceRow, 'evaluatorContractVersion' | 'assetSha256' | 'reason' | 'contractHash' | 'safetyOverride' | 'safetyOverrideSha256'>,
+  row: Pick<QualityEvidenceRow, 'evaluatorContractVersion' | 'assetSha256' | 'verdict' | 'reason' | 'contractHash' | 'safetyOverride' | 'safetyOverrideSha256' | 'humanReviewVerified'>,
   currentHash: string | null,
   opts: { contractVersion: string; activeContractHash?: string | null },
 ): ArtifactHoldOutcome {
@@ -201,13 +242,43 @@ export function resolveArtifactHoldOutcome(
   const safetyReleased = admissible && isSafetyEvidenceReleased(row, currentHash);
   // Fully cleared (passed-equivalent) ADDITIONALLY requires the failure be safety-only.
   const released = safetyReleased && isSafetyOnlyReason(row.reason);
+  const humanVerified =
+    admissible &&
+    row.verdict === 'evidence_unknown' &&
+    row.humanReviewVerified === true &&
+    isHumanReviewableUnverifiedReason(row.reason);
 
-  const safetyHold = hasSafety && !safetyReleased;      // (Fix 3) regardless of admissibility, unless released
+  const safetyHold = hasSafety && !safetyReleased && !humanVerified;
   const contractWorldHold = hasContractWorld && admissible; // stale drift → re-QA current bytes, not park
   const hardHold = safetyHold || contractWorldHold;
   const kind: HardHoldKind | null = safetyHold ? 'safety' : contractWorldHold ? 'contract_world' : null;
 
-  return { staleVersion, hashMismatch, contractStale, admissible, released, hardHold, kind };
+  return {
+    staleVersion,
+    hashMismatch,
+    contractStale,
+    admissible,
+    released,
+    humanVerified,
+    passedEquivalent: released || humanVerified,
+    hardHold,
+    kind,
+  };
+}
+
+export function isHumanReviewableUnverifiedReason(
+  reason: string | null | undefined,
+): boolean {
+  if (!reason) return false;
+  const components = reason.split('+').map((part) => part.trim()).filter(Boolean);
+  const allowed = new Set([
+    'safety:unverified',
+    'vision_skipped',
+    'vision_error',
+    'vision_timeout',
+    'vision_malformed',
+  ]);
+  return components.includes('safety:unverified') && components.every((part) => allowed.has(part));
 }
 
 /**
@@ -289,6 +360,13 @@ export function evaluateQualityGate(
       perArtifact[key] = { state: 'passed' };
       continue;
     }
+    if (h.humanVerified) {
+      perArtifact[key] = {
+        state: 'human_verified_unverified',
+        actionDigest: row.humanReviewActionDigest ?? null,
+      };
+      continue;
+    }
     if (row.verdict === 'failed') {
       // Cleared (passed-equivalent) ONLY when the release is bound (⇒ admissible) AND the failure is safety-only. A
       // mixed `safety:…+contract_world:…` reason does NOT clear — its contract_world hard-hold was already noted above.
@@ -334,6 +412,7 @@ export function qualityEvidenceFingerprint(rows: QualityEvidenceRow[]): string {
     r.assetSha256,
     r.verdict,
     r.evaluatorContractVersion,
+    r.reason,
     r.regenCount,
     // (WS0b B1) contractHash IS part of the fingerprint: a late producer stamping a superseded contract onto an
     // otherwise-identical row must DRIFT the TOCTOU fingerprint → readiness aborts + re-evaluates, never commits a
@@ -344,6 +423,22 @@ export function qualityEvidenceFingerprint(rows: QualityEvidenceRow[]): string {
     // re-evaluates. false/null everywhere (no release) → a constant → byte-identical to today.
     r.safetyOverride,
     r.safetyOverrideSha256,
+    canonicalHash(r.evidence ?? null),
+    r.evaluatedAt?.toISOString() ?? null,
+    r.createdAt?.toISOString() ?? null,
+    r.updatedAt?.toISOString() ?? null,
+    ...(r.reviewStatus
+      ? [
+          r.reviewStatus,
+          r.reviewedAssetSha256 ?? null,
+          r.reviewedContractHash ?? null,
+          r.reviewedBy ?? null,
+          r.reviewedAt?.toISOString() ?? null,
+          r.reviewReason ?? null,
+          r.humanReviewVerified === true,
+          r.humanReviewActionDigest ?? null,
+        ]
+      : []),
   ]);
   return JSON.stringify(canonical);
 }
@@ -396,6 +491,12 @@ export async function persistQualityEvidence(db: Db, args: PersistQualityEvidenc
       // the cleared state explicitly so the invariant is legible, not merely inherited from the column default.
       safetyOverride: false,
       safetyOverrideSha256: null,
+      reviewStatus: null,
+      reviewedAssetSha256: null,
+      reviewedContractHash: null,
+      reviewedBy: null,
+      reviewedAt: null,
+      reviewReason: null,
       evaluatedAt: now,
     },
     update: {
@@ -411,28 +512,607 @@ export async function persistQualityEvidence(db: Db, args: PersistQualityEvidenc
       // old bytes, so Gate 1 can never honor an override against evidence it did not produce.
       safetyOverride: false,
       safetyOverrideSha256: null,
+      reviewStatus: null,
+      reviewedAssetSha256: null,
+      reviewedContractHash: null,
+      reviewedBy: null,
+      reviewedAt: null,
+      reviewReason: null,
       evaluatedAt: now,
     },
   });
 }
 
-/** Load the evidence rows for an order, projected to what the gate reads. */
-export async function loadQualityEvidence(db: Db, orderId: string): Promise<QualityEvidenceRow[]> {
+export interface HumanReviewByteAuthority {
+  anchorBytesSha256: string | null;
+  artifactBytesSha256: ReadonlyMap<string, string | null>;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function pageArtifactSort(values: readonly string[]): string[] {
+  return [...values].sort((left, right) => {
+    const leftPage = pageNumberFromArtifactKey(left);
+    const rightPage = pageNumberFromArtifactKey(right);
+    if (leftPage != null && rightPage != null) return leftPage - rightPage;
+    return left.localeCompare(right);
+  });
+}
+
+function currentRequiredResemblanceArtifacts(
+  rows: readonly Pick<QualityEvidenceRow, 'artifactKey' | 'evidence'>[],
+): string[] {
+  return pageArtifactSort(rows.flatMap((row) => {
+    if (pageNumberFromArtifactKey(row.artifactKey) == null || !isRecord(row.evidence)) {
+      return [];
+    }
+    const qaContext = row.evidence.qaContext;
+    const gate = row.evidence.pageResemblanceGate;
+    return (
+      (isRecord(qaContext) && qaContext.expectsChild === true) ||
+      (isRecord(gate) && gate.required === true)
+    )
+      ? [row.artifactKey]
+      : [];
+  }));
+}
+
+interface CurrentReviewedAssetBinding {
+  assetId: string;
+  deliveredUrlHash: string;
+  safetyVerified: boolean | null;
+  safetyHazards: string[];
+  safetyContentSha256: string | null;
+  safetyOverriddenHazards: string[];
+  safetyOverrideSha256: string | null;
+}
+
+/**
+ * Rebuild the resemblance authority from the CURRENT QualityEvidence rows, asset identities/URLs and inspected
+ * bytes. A historical action outcome is never accepted as the source of a sibling page's score.
+ */
+function reconstructCurrentResemblanceProofs(args: {
+  rows: readonly Pick<QualityEvidenceRow, 'artifactKey' | 'assetSha256' | 'evidence'>[];
+  requiredArtifacts: readonly string[];
+  assets: ReadonlyMap<string, CurrentReviewedAssetBinding | null>;
+  byteAuthority: HumanReviewByteAuthority;
+}): HumanVerifiedUnverifiedResemblanceProof[] | null {
+  if (args.requiredArtifacts.length === 0) return null;
+  const rowsByKey = new Map(args.rows.map((row) => [row.artifactKey, row]));
+  const proofs: HumanVerifiedUnverifiedResemblanceProof[] = [];
+  for (const artifactKey of pageArtifactSort(args.requiredArtifacts)) {
+    const row = rowsByKey.get(artifactKey);
+    const asset = args.assets.get(artifactKey) ?? null;
+    if (!row || !asset || !isRecord(row.evidence)) return null;
+    const gate = row.evidence.pageResemblanceGate;
+    if (!isRecord(gate)) return null;
+    const score = gate.resemblanceScore;
+    const threshold = gate.threshold;
+    const deliveredBytesSha256 = gate.deliveredBytesSha256;
+    const referenceBytesSha256 = gate.referenceBytesSha256;
+    const referenceImageUrl = gate.referenceImageUrl;
+    const source = gate.source;
+    if (
+      gate.required !== true ||
+      gate.status !== 'passed' ||
+      gate.evaluatorVersion !== PAGE_CHILD_RESEMBLANCE_VISION_VERSION ||
+      typeof score !== 'number' || !Number.isFinite(score) || score < 0 || score > 1 ||
+      typeof threshold !== 'number' || !Number.isFinite(threshold) ||
+      threshold < PAGE_CHILD_RESEMBLANCE_MIN_THRESHOLD || threshold > 1 || score < threshold ||
+      gate.subjectVisible !== true || gate.sameChild !== true ||
+      typeof deliveredBytesSha256 !== 'string' || !SAFETY_SHA256_RE.test(deliveredBytesSha256) ||
+      deliveredBytesSha256 !== row.assetSha256 ||
+      deliveredBytesSha256 !== asset.safetyContentSha256 ||
+      deliveredBytesSha256 !== args.byteAuthority.artifactBytesSha256.get(artifactKey) ||
+      typeof referenceBytesSha256 !== 'string' || !SAFETY_SHA256_RE.test(referenceBytesSha256) ||
+      typeof referenceImageUrl !== 'string' || !referenceImageUrl ||
+      (source !== 'raw_same_bytes' && source !== 'delivered_bytes')
+    ) return null;
+    proofs.push({
+      artifactKey,
+      assetId: asset.assetId,
+      deliveredUrlHash: asset.deliveredUrlHash,
+      deliveredBytesSha256,
+      referenceBytesSha256,
+      referenceImageUrlHash: canonicalHash(referenceImageUrl),
+      evaluatorVersion: PAGE_CHILD_RESEMBLANCE_VISION_VERSION,
+      resemblanceScore: score,
+      threshold,
+      subjectVisible: true,
+      sameChild: true,
+      source,
+    });
+  }
+  return parseHumanVerifiedUnverifiedResemblanceProofs(proofs);
+}
+
+type HumanReviewInspect = (
+  url: string | null | undefined,
+) => Promise<{ sha256: string | null }>;
+
+/**
+ * Inspect only DB-selected URLs needed to revalidate an existing human review. This is an asset-byte read, never a
+ * Vision/provider call. Callers pass the returned SHAs into loadQualityEvidence, which re-reads all IDs/URLs and
+ * fails closed if the DB snapshot moved between inspection and validation.
+ */
+export async function inspectHumanReviewAuthorityBytes(
+  db: Db,
+  orderId: string,
+  inspect: HumanReviewInspect,
+): Promise<HumanReviewByteAuthority> {
+  const maybeReviewed = await db.qualityEvidence.findMany({
+    where: { orderId, reviewStatus: HUMAN_VERIFIED_UNVERIFIED_REVIEW_STATUS },
+    select: { artifactKey: true, reviewStatus: true, reviewReason: true },
+  });
+  const reviewed = maybeReviewed.filter(
+    (row) => row.reviewStatus === HUMAN_VERIFIED_UNVERIFIED_REVIEW_STATUS,
+  );
+  if (reviewed.length === 0) {
+    return { anchorBytesSha256: null, artifactBytesSha256: new Map() };
+  }
+  const actionIds = [...new Set(reviewed.flatMap((row) => {
+    const binding = parseHumanVerifiedUnverifiedReviewReason(row.reviewReason);
+    return binding ? [binding.actionId] : [];
+  }))];
+  const actions = actionIds.length > 0
+    ? await db.humanQaOperatorAction.findMany({
+        where: { id: { in: actionIds } },
+        select: { id: true, outcome: true },
+      })
+    : [];
+  const proofKeys = new Set(reviewed.map((row) => row.artifactKey));
+  for (const action of actions) {
+    const outcome = parseHumanVerifiedUnverifiedOutcome(action.outcome);
+    for (const proof of outcome?.resemblanceProofs ?? []) {
+      proofKeys.add(proof.artifactKey);
+    }
+  }
+  const pageNumbers = [...proofKeys].flatMap((key) => {
+    const pageNumber = pageNumberFromArtifactKey(key);
+    return pageNumber == null ? [] : [pageNumber];
+  });
+  const [pages, job] = await Promise.all([
+    db.bookPage.findMany({
+      where: { book: { orderId }, pageNumber: { in: pageNumbers } },
+      select: {
+        pageNumber: true,
+        imageAsset: { select: { url: true, presentationUrl: true } },
+      },
+    }),
+    db.generationJob.findUnique({
+      where: { orderId },
+      select: { pipelineCache: true },
+    }),
+  ]);
+  const anchor = getApprovedChildCanonicalAnchor(
+    (job?.pipelineCache ?? {}) as PipelineCache,
+  );
+  const [anchorInspection, ...pageInspections] = await Promise.all([
+    inspect(anchor?.url ?? null),
+    ...pages.map((page) =>
+      inspect(page.imageAsset?.presentationUrl ?? page.imageAsset?.url ?? null),
+    ),
+  ]);
+  return {
+    anchorBytesSha256: anchorInspection.sha256,
+    artifactBytesSha256: new Map(
+      pages.map((page, index) => [
+        pageArtifactKey(page.pageNumber),
+        pageInspections[index]?.sha256 ?? null,
+      ]),
+    ),
+  };
+}
+
+/** Load evidence and derive a human pass only from the complete current durable authority chain. */
+export async function loadQualityEvidence(
+  db: Db,
+  orderId: string,
+  byteAuthority: HumanReviewByteAuthority = {
+    anchorBytesSha256: null,
+    artifactBytesSha256: new Map(),
+  },
+): Promise<QualityEvidenceRow[]> {
   const rows = await db.qualityEvidence.findMany({
     where: { orderId },
     select: {
+      id: true,
       artifactKey: true,
       assetSha256: true,
       verdict: true,
       evaluatorContractVersion: true,
       reason: true,
       regenCount: true,
+      providerModel: true,
       contractHash: true,
       safetyOverride: true,
       safetyOverrideSha256: true,
+      evidence: true,
+      evaluatedAt: true,
+      reviewStatus: true,
+      reviewedAssetSha256: true,
+      reviewedContractHash: true,
+      reviewedBy: true,
+      reviewedAt: true,
+      reviewReason: true,
+      createdAt: true,
+      updatedAt: true,
     },
   });
-  return rows;
+  const reviewBindings = rows
+    .map((row) => ({ row, binding: parseHumanVerifiedUnverifiedReviewReason(row.reviewReason) }))
+    .filter((entry): entry is typeof entry & { binding: NonNullable<typeof entry.binding> } => !!entry.binding);
+  const actionIds = [...new Set(reviewBindings.map((entry) => entry.binding.actionId))];
+  const actions = actionIds.length > 0
+    ? await db.humanQaOperatorAction.findMany({
+        where: { id: { in: actionIds } },
+        select: {
+          id: true,
+          idempotencyKey: true,
+          requestHash: true,
+          orderId: true,
+          caseId: true,
+          caseRevision: true,
+          kind: true,
+          status: true,
+          actor: true,
+          targetArtifacts: true,
+          observedMarker: true,
+          observedFence: true,
+          observedInputVersion: true,
+          overriddenHazards: true,
+          overrideReason: true,
+          assetSha256: true,
+          outcome: true,
+        },
+      })
+    : [];
+  const parsedOutcomes = new Map(actions.flatMap((action) => {
+    const outcome = parseHumanVerifiedUnverifiedOutcome(action.outcome);
+    return outcome ? [[action.id, outcome] as const] : [];
+  }));
+  // Ordinary QA/recovery rows do not need the expensive human-authority joins. Reconstruct the complete current
+  // proof set only when at least one row carries a syntactically valid human-review binding; an absent/malformed
+  // binding already fails human authority closed and must not broaden every normal quality load into Book/payment
+  // reads.
+  const requiredCurrentProofArtifacts = reviewBindings.length > 0
+    ? currentRequiredResemblanceArtifacts(rows)
+    : [];
+  const reviewedArtifactKeys = new Set(reviewBindings.map(({ row }) => row.artifactKey));
+  for (const artifactKey of requiredCurrentProofArtifacts) {
+    reviewedArtifactKeys.add(artifactKey);
+  }
+  for (const outcome of parsedOutcomes.values()) {
+    for (const proof of outcome.resemblanceProofs) reviewedArtifactKeys.add(proof.artifactKey);
+  }
+  const reviewedPageNumbers = [...new Set([...reviewedArtifactKeys].flatMap((artifactKey) => {
+    const pageNumber = pageNumberFromArtifactKey(artifactKey);
+    return pageNumber == null ? [] : [pageNumber];
+  }))];
+  const reviewedAssets = reviewedPageNumbers.length > 0
+    ? await db.bookPage.findMany({
+        where: { book: { orderId }, pageNumber: { in: reviewedPageNumbers } },
+        select: {
+          pageNumber: true,
+          imageAsset: {
+            select: {
+              id: true,
+              url: true,
+              presentationUrl: true,
+              safetyVerified: true,
+              safetyHazards: true,
+              safetyContentSha256: true,
+              safetyOverriddenHazards: true,
+              safetyOverrideSha256: true,
+            },
+          },
+        },
+      })
+    : [];
+  const reviewedAssetByKey = new Map(reviewedAssets.map((page) => [
+    pageArtifactKey(page.pageNumber),
+    page.imageAsset
+      ? {
+          assetId: page.imageAsset.id,
+          deliveredUrlHash: deliveredUrlHash(
+            page.imageAsset.presentationUrl ?? page.imageAsset.url,
+          ),
+          safetyVerified: page.imageAsset.safetyVerified,
+          safetyHazards: page.imageAsset.safetyHazards,
+          safetyContentSha256: page.imageAsset.safetyContentSha256,
+          safetyOverriddenHazards: page.imageAsset.safetyOverriddenHazards,
+          safetyOverrideSha256: page.imageAsset.safetyOverrideSha256,
+        }
+      : null,
+  ]));
+  const reconstructedCurrentProofs = reconstructCurrentResemblanceProofs({
+    rows,
+    requiredArtifacts: requiredCurrentProofArtifacts,
+    assets: reviewedAssetByKey,
+    byteAuthority,
+  });
+  const reconstructedCurrentProofDigest = reconstructedCurrentProofs
+    ? humanVerifiedUnverifiedResemblanceProofDigest(reconstructedCurrentProofs)
+    : null;
+  const operationKeys = [...new Set(actions.map((action) => action.idempotencyKey))];
+  const receipts = operationKeys.length > 0
+    ? await db.atomicOperationReceipt.findMany({
+        where: { operationKey: { in: operationKeys } },
+        select: {
+          operationKey: true,
+          orderId: true,
+          kind: true,
+          payloadHash: true,
+          result: true,
+        },
+      })
+    : [];
+  const caseIds = [...new Set(actions.map((action) => action.caseId))];
+  const reviewedCases = caseIds.length > 0
+    ? await db.humanQaReviewCase.findMany({
+        where: { id: { in: caseIds } },
+        select: {
+          id: true,
+          activeKey: true,
+          revision: true,
+          kind: true,
+          status: true,
+          holdFingerprint: true,
+          rawReason: true,
+          inputVersion: true,
+          contractHash: true,
+        },
+      })
+    : [];
+  const [reviewedGenerationJob, currentOrder, payment, paymentCase, activeBaseCase, exceptionCases] =
+    reviewBindings.length > 0
+      ? await Promise.all([
+          db.generationJob.findUnique({
+            where: { orderId },
+            select: { pipelineCache: true },
+          }),
+          db.order.findUnique({
+            where: { id: orderId },
+            select: {
+              status: true,
+              deliveryHoldReason: true,
+              deliveryFenceVersion: true,
+              inputVersion: true,
+              manualReviewRequired: true,
+              visualContractHash: true,
+              stripePaid: true,
+              paymentProvider: true,
+              paymentId: true,
+              stripePaymentId: true,
+              totalPrice: true,
+            },
+          }),
+          db.paymentRecord.findUnique({
+            where: { orderId },
+            select: {
+              id: true,
+              provider: true,
+              amount: true,
+              currency: true,
+              paid: true,
+              paidAt: true,
+            },
+          }),
+          db.humanQaReviewCase.findUnique({
+            where: { activeKey: `${orderId}:payment` },
+            select: { status: true },
+          }),
+          db.humanQaReviewCase.findUnique({
+            where: { activeKey: `${orderId}:base_book` },
+            select: { id: true, status: true },
+          }),
+          db.exceptionCase.findMany({
+            where: { orderId },
+            select: {
+              id: true,
+              activeKey: true,
+              kind: true,
+              status: true,
+              refundKey: true,
+              providerActionId: true,
+              actionAttemptedAt: true,
+              notificationAttemptedAt: true,
+              notificationMessageId: true,
+              resolution: true,
+              lastError: true,
+            },
+          }),
+        ])
+      : [null, null, null, null, null, []] as const;
+  const refundKeys = exceptionCases.flatMap((entry) => entry.refundKey ? [entry.refundKey] : []);
+  const refundAttempts = refundKeys.length > 0
+    ? await db.refundAttempt.findMany({
+        where: { refundKey: { in: refundKeys } },
+        select: {
+          refundKey: true,
+          status: true,
+          providerActionId: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      })
+    : [];
+  const currentRefundAuthorityDigest = refundAuthorityDigest({
+    exceptionCases,
+    refundAttempts,
+  });
+  const commercialAuthorityClean = !hasDisqualifyingRefundOrReconciliationActivity({
+    exceptionCases,
+    refundAttempts,
+  });
+  const currentPaymentSnapshotDigest = currentOrder
+    ? paymentSnapshotDigest({
+        order: currentOrder,
+        payment,
+        paymentCaseActive: paymentCase?.status === 'open',
+        refundAuthorityDigest: currentRefundAuthorityDigest,
+      })
+    : null;
+  const currentApprovedAnchor = getApprovedChildCanonicalAnchor(
+    (reviewedGenerationJob?.pipelineCache ?? {}) as PipelineCache,
+  );
+  const currentAnchorEntryDigest = currentApprovedAnchor
+    ? canonicalHash(currentApprovedAnchor)
+    : null;
+  const currentAnchorUrlHash = currentApprovedAnchor
+    ? canonicalHash(currentApprovedAnchor.url)
+    : null;
+  const actionById = new Map(actions.map((action) => [action.id, action]));
+  const receiptByKey = new Map(receipts.map((receipt) => [receipt.operationKey, receipt]));
+  const caseById = new Map(reviewedCases.map((reviewCase) => [reviewCase.id, reviewCase]));
+  return rows.map((row) => {
+    const binding = parseHumanVerifiedUnverifiedReviewReason(row.reviewReason);
+    const action = binding ? actionById.get(binding.actionId) : null;
+    const outcome = action ? parsedOutcomes.get(action.id) ?? null : null;
+    const receipt = action ? receiptByKey.get(action.idempotencyKey) ?? null : null;
+    const receiptValue = receipt
+      ? parseHumanVerifiedUnverifiedAtomicReceiptResult(receipt.result)
+      : null;
+    const currentAsset = reviewedAssetByKey.get(row.artifactKey) ?? null;
+    const currentCase = action ? caseById.get(action.caseId) ?? null : null;
+    const currentProofsMatch = !!(
+      outcome &&
+      reconstructedCurrentProofs &&
+      reconstructedCurrentProofDigest &&
+      reconstructedCurrentProofDigest === outcome.resemblanceProofDigest &&
+      canonicalHash(reconstructedCurrentProofs) === canonicalHash(outcome.resemblanceProofs) &&
+      canonicalHash(requiredCurrentProofArtifacts) ===
+        canonicalHash(outcome.resemblanceProofs.map((proof) => proof.artifactKey)) &&
+      reconstructedCurrentProofs.every((proof) =>
+        proof.referenceImageUrlHash === currentAnchorUrlHash &&
+        proof.referenceBytesSha256 === byteAuthority.anchorBytesSha256
+      )
+    );
+    const targetQualityDigest = row.id && row.providerModel !== undefined && row.evaluatedAt && row.createdAt && row.updatedAt
+      ? humanVerifiedUnverifiedQualityAuthorityDigest({
+          id: row.id,
+          artifactKey: row.artifactKey,
+          assetSha256: row.assetSha256,
+          verdict: row.verdict,
+          evaluatorContractVersion: row.evaluatorContractVersion,
+          reason: row.reason,
+          regenCount: row.regenCount,
+          providerModel: row.providerModel ?? null,
+          contractHash: row.contractHash,
+          safetyOverride: row.safetyOverride,
+          safetyOverrideSha256: row.safetyOverrideSha256,
+          evidence: row.evidence ?? null,
+          evaluatedAt: row.evaluatedAt,
+          reviewStatus: row.reviewStatus ?? null,
+          reviewedAssetSha256: row.reviewedAssetSha256 ?? null,
+          reviewedContractHash: row.reviewedContractHash ?? null,
+          reviewedBy: row.reviewedBy ?? null,
+          reviewedAt: row.reviewedAt ?? null,
+          reviewReason: row.reviewReason ?? null,
+          createdAt: row.createdAt,
+          updatedAt: row.updatedAt,
+        })
+      : null;
+    const paymentValid = !!(
+      currentOrder &&
+      hasStrictHumanVerificationPaymentAuthority({
+        order: currentOrder,
+        payment,
+      }) &&
+      currentOrder.manualReviewRequired === false &&
+      paymentCase?.status !== 'open' &&
+      commercialAuthorityClean
+    );
+    const humanReviewVerified = !!(
+      binding &&
+      action &&
+      outcome &&
+      receipt &&
+      receiptValue &&
+      currentOrder &&
+      currentCase &&
+      currentAsset &&
+      targetQualityDigest &&
+      row.reviewStatus === HUMAN_VERIFIED_UNVERIFIED_REVIEW_STATUS &&
+      row.reviewedAssetSha256 === row.assetSha256 &&
+      row.reviewedContractHash === row.contractHash &&
+      row.reviewedBy === action.actor &&
+      row.reviewedAt &&
+      isHumanReviewableUnverifiedReason(row.reason) &&
+      row.verdict === 'evidence_unknown' &&
+      row.safetyOverride === false &&
+      row.safetyOverrideSha256 === null &&
+      action.orderId === orderId &&
+      action.kind === 'release' &&
+      action.status === 'succeeded' &&
+      action.targetArtifacts.length === 1 &&
+      action.targetArtifacts[0] === row.artifactKey &&
+      action.overriddenHazards.length === 0 &&
+      action.overrideReason === binding.reason &&
+      action.assetSha256 === row.assetSha256 &&
+      action.idempotencyKey === outcome.receiptOperationKey &&
+      action.requestHash === outcome.requestHash &&
+      action.observedMarker === outcome.expectedMarker &&
+      action.observedFence === outcome.observedFence &&
+      action.observedInputVersion === outcome.observedInputVersion &&
+      outcome.orderId === orderId &&
+      outcome.actionId === action.id &&
+      outcome.caseId === action.caseId &&
+      outcome.caseRevision === action.caseRevision &&
+      outcome.artifactKey === row.artifactKey &&
+      outcome.assetSha256 === row.assetSha256 &&
+      outcome.evaluatorVersion === row.evaluatorContractVersion &&
+      outcome.qualityEvidenceDigest === targetQualityDigest &&
+      currentAsset.assetId === outcome.assetId &&
+      currentAsset.deliveredUrlHash === outcome.deliveredUrlHash &&
+      currentAsset.safetyContentSha256 === outcome.assetSha256 &&
+      currentAsset.safetyVerified !== true &&
+      currentAsset.safetyHazards.length === 0 &&
+      currentAsset.safetyOverriddenHazards.length === 0 &&
+      currentAsset.safetyOverrideSha256 === null &&
+      byteAuthority.artifactBytesSha256.get(row.artifactKey) === outcome.assetSha256 &&
+      outcome.contractHash === row.contractHash &&
+      outcome.reviewer === action.actor &&
+      outcome.anchorEntryDigest === currentAnchorEntryDigest &&
+      outcome.anchorUrlHash === currentAnchorUrlHash &&
+      outcome.anchorBytesSha256 === byteAuthority.anchorBytesSha256 &&
+      currentProofsMatch &&
+      currentOrder.status === 'ready' &&
+      currentOrder.deliveryHoldReason === null &&
+      currentOrder.deliveryFenceVersion === outcome.postFence &&
+      currentOrder.inputVersion === outcome.observedInputVersion &&
+      currentOrder.visualContractHash === outcome.contractHash &&
+      outcome.refundAuthorityDigest === currentRefundAuthorityDigest &&
+      outcome.paymentSnapshotDigest === currentPaymentSnapshotDigest &&
+      paymentValid &&
+      activeBaseCase === null &&
+      !exceptionCases.some((entry) => entry.activeKey === `${orderId}:base_book`) &&
+      currentCase.activeKey === null &&
+      currentCase.status === 'resolved' &&
+      currentCase.kind === 'safety' &&
+      currentCase.revision === outcome.caseRevision &&
+      currentCase.holdFingerprint === outcome.caseFingerprint &&
+      currentCase.rawReason === outcome.expectedMarker &&
+      currentCase.inputVersion === outcome.observedInputVersion &&
+      currentCase.contractHash === outcome.contractHash &&
+      receipt.orderId === orderId &&
+      receipt.kind === 'operator_action' &&
+      receipt.payloadHash === action.requestHash &&
+      receiptValue.actionId === action.id &&
+      receiptValue.requestHash === action.requestHash &&
+      receiptValue.inspectionDigest === outcome.inspectionDigest &&
+      receiptValue.resemblanceProofDigest === outcome.resemblanceProofDigest &&
+      receiptValue.qualityEvidenceDigest === outcome.qualityEvidenceDigest &&
+      canonicalHash(receiptValue.result) === canonicalHash(outcome.result)
+    );
+    return {
+      ...row,
+      humanReviewVerified,
+      humanReviewActionDigest: humanReviewVerified ? action!.requestHash : null,
+    };
+  });
 }
 
 /**
@@ -488,6 +1168,36 @@ export function makeQualityRegenReserver(
   args: { orderId: string; artifactKey: string; budget?: number },
 ): () => Promise<boolean> {
   return async () => {
+    if ('$transaction' in db && typeof db.$transaction === 'function') {
+      // Dynamic import avoids the quality-evidence ↔ readiness-manifest module cycle. Production root-client
+      // reservation is a delivery-input mutation: Order is locked before the regen counter, and a granted reserve
+      // atomically stales readiness/advances inputVersion so a late renderer cannot invalidate a human approval
+      // after Outbox commit while the send CAS remains live. TransactionClient callers already own their barrier.
+      const { isReadinessManifestEnabled, withDeliveryInputMutation } =
+        await import('./readiness-manifest');
+      if (isReadinessManifestEnabled()) {
+        const notGranted = new Error('quality_regen_not_granted');
+        try {
+          const mutation = await withDeliveryInputMutation(
+            db,
+            {
+              orderId: args.orderId,
+              reason: 'quality_regen_reserved',
+            },
+            async (tx) => {
+              await ensureQualityEvidenceRow(tx, args);
+              const granted = await reserveQualityRegen(tx, args);
+              if (!granted) throw notGranted;
+              return { granted: true };
+            },
+          );
+          return mutation.value.granted;
+        } catch (error) {
+          if (error === notGranted) return false;
+          throw error;
+        }
+      }
+    }
     await ensureQualityEvidenceRow(db, args);
     return reserveQualityRegen(db, args);
   };

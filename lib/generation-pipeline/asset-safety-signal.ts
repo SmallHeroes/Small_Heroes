@@ -85,6 +85,31 @@ export function isSafetyHazardOverridden(args: {
 }
 
 /**
+ * Gate 2's exact-byte human-verification predicate for an INDETERMINATE safety result. This is deliberately distinct
+ * from `isSafetyHazardOverridden`: an unverified artifact may be accepted by a human only when the machine found NO
+ * hazard, no legacy hazard override is present, and the human-review SHA is a well-formed exact match for the current
+ * delivered bytes. Every condition is fail-closed; identical malformed values (including two empty strings) do not
+ * establish a byte binding.
+ */
+export function isUnverifiedSafetyHumanVerified(args: {
+  safetyVerified: boolean | null;
+  hazards: string[];
+  overriddenHazards: string[];
+  contentSha256: string | null;
+  humanVerificationSha256: string | null;
+}): boolean {
+  if (args.safetyVerified === true) return false;
+  if (args.hazards.length !== 0 || args.overriddenHazards.length !== 0) return false;
+  if (
+    !SAFETY_SHA256_RE.test(args.contentSha256 ?? '') ||
+    !SAFETY_SHA256_RE.test(args.humanVerificationSha256 ?? '')
+  ) {
+    return false;
+  }
+  return args.contentSha256 === args.humanVerificationSha256;
+}
+
+/**
  * (shape C — the gap must be SURFACED, not merely safe) A confirmed-hazard asset whose delivered-bytes SHA is
  * ABSENT or malformed. The phase-2 second write (bind*SafetySha) never landed — an inspect failure, a crash, or a
  * concurrent re-render that moved the bytes out from under the CAS. Because no override can ever bind to bytes we

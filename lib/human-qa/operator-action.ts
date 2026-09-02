@@ -178,6 +178,17 @@ export function operatorActionRequestHash(input: OperatorActionInput): string {
   });
 }
 
+async function lockOperatorOrderBeforeReceipt(
+  tx: Prisma.TransactionClient,
+  orderId: string,
+): Promise<void> {
+  const rows = await tx.$queryRaw<Array<{ id: string }>>`
+    SELECT "id" FROM "Order" WHERE "id" = ${orderId} FOR UPDATE`;
+  if (rows.length !== 1) {
+    throw new OperatorActionPreconditionError('order_not_found');
+  }
+}
+
 /**
  * Run an operator action through the shared contract. See the file header for the four guarantees. The `body`
  * performs the kind-specific work with the Order + active case locked and the audit row already written.
@@ -199,6 +210,8 @@ export async function runOperatorAction(
     orderId: input.orderId,
     kind: 'operator_action',
     payloadHash: requestHash,
+    beforeReceipt: (tx) =>
+      lockOperatorOrderBeforeReceipt(tx, input.orderId),
     run: async (tx): Promise<OperatorActionReturn> => {
       // (1) Lock the Order FIRST — deterministic order (matches sync-hold-case's Order-first FOR UPDATE).
       const orderRows = await tx.$queryRaw<LockedOrder[]>`

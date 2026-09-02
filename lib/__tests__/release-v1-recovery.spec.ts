@@ -43,6 +43,14 @@ import {
 const NOW = new Date('2026-09-01T20:00:00.000Z');
 const ATTEMPT_ID = '11111111-1111-4111-8111-111111111111';
 const SECOND_ATTEMPT_ID = '22222222-2222-4222-8222-222222222222';
+const FRESH_REVIEW_PROJECTION = {
+  reviewStatus: null,
+  reviewedAssetSha256: null,
+  reviewedContractHash: null,
+  reviewedBy: null,
+  reviewedAt: null,
+  reviewReason: null,
+};
 const OLD_CONTINUITY = {
   version: 'generation-release-continuity/v1' as const,
   protocol: 'release/v1' as const,
@@ -468,6 +476,9 @@ function makeHarness(
           createdAt: NOW,
         });
         return [{ id: `receipt-${receipts.size}` }];
+      }
+      if (sql.includes('FROM "Order"') && sql.includes('FOR UPDATE')) {
+        return [{ id: order.id }];
       }
       return sql.includes('UPDATE "Order" AS target')
         ? [
@@ -919,12 +930,13 @@ describe('release/v1 reviewed same-order recovery', () => {
           assetSha256: asset.safetyContentSha256,
           safetyOverride: false,
           safetyOverrideSha256: null,
+          ...FRESH_REVIEW_PROJECTION,
         }),
       }),
     );
     expect(harness.tx.bookReadiness.updateMany).toHaveBeenCalledTimes(1);
     expect(harness.tx.atomicOperationReceipt.update).toHaveBeenCalledTimes(2);
-    expect(harness.tx.$queryRaw).toHaveBeenCalledTimes(27);
+    expect(harness.tx.$queryRaw).toHaveBeenCalledTimes(29);
     expect(H.dispatch).toHaveBeenCalledTimes(1);
 
     const cachePayload = JSON.parse(
@@ -1470,6 +1482,7 @@ describe('release/v1 reviewed same-order recovery', () => {
       reason: 'recovery:rerender_pending',
       safetyOverride: false,
       safetyOverrideSha256: null,
+      ...FRESH_REVIEW_PROJECTION,
       evidence: expect.objectContaining({
         releaseV1PageRerender: expect.objectContaining({
           recoveryAttemptId: SECOND_ATTEMPT_ID,

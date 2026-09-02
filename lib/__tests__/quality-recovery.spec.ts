@@ -172,7 +172,7 @@ describe('reQaUnknownQualityEvidence — enumerate REQUIRED artifacts (#6-fix BL
     expect(scoreResemblance).toHaveBeenCalledWith(expect.objectContaining({
       referenceImageUrl: 'https://h/approved-child-anchor.webp',
       candidateImageUrl: 'https://h/p7.webp',
-      effectiveThreshold: 0.7,
+      threshold: 0.7,
     }));
     expect(r.nowPassed).toEqual([]);
     expect(r.stillUnknown).toEqual(['page:7']);
@@ -209,11 +209,13 @@ describe('reQaUnknownQualityEvidence — enumerate REQUIRED artifacts (#6-fix BL
   });
 
   it('preserves the required numeric child gate: a fresh 0.70 score may clear the unknown evidence', async () => {
+    const exactSha = 'b'.repeat(64);
+    const referenceSha = 'a'.repeat(64);
     const rows: Row[] = [{
       artifactKey: 'page:8',
       verdict: 'evidence_unknown',
       evaluatorContractVersion: QUALITY_EVALUATOR_CONTRACT_VERSION,
-      assetSha256: 'H',
+      assetSha256: exactSha,
       regenCount: 0,
       reason: 'child_resemblance_unverified',
       evidence: {
@@ -234,16 +236,31 @@ describe('reQaUnknownQualityEvidence — enumerate REQUIRED artifacts (#6-fix BL
     const { db } = makeDb({ coverImageUrl: null, pages: [page(8, 'https://h/p8.webp')] }, rows);
     const evaluate = vi.fn(async () => ({ passed: true, verdict: 'passed', reason: 'ok', details: '', flags: {} } as never));
     const scoreResemblance = vi.fn(async () => ({
-      resemblanceScore: 0.7,
-      faceDetectConfidence: 0.9,
-      faceAreaRatio: 0.2,
-      sanityFlags: {},
-      candidateEmbedding: [],
+      result: {
+        evaluatorVersion: 'page-child-resemblance-vision/v1',
+        status: 'passed',
+        resemblanceScore: 0.7,
+        threshold: 0.7,
+        subjectVisible: true,
+        sameChild: true,
+        reasonCode: 'same_child',
+        attempts: 1,
+        model: 'vision-test',
+        featureAssessments: {
+          faceStructure: 'match',
+          eyesBrows: 'match',
+          noseMouth: 'match',
+          hairIdentity: 'match',
+          distinctiveFeatures: 'match',
+        },
+      },
+      referenceBytesSha256: referenceSha,
+      candidateBytesSha256: exactSha,
     }));
 
     const r = await reQaUnknownQualityEvidence(db as never, 'o1', {
       evaluate: evaluate as never,
-      inspect: async () => okInspect('H'),
+      inspect: async () => okInspect(exactSha),
       scoreResemblance: scoreResemblance as never,
     });
 

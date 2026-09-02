@@ -42,6 +42,14 @@ export const PRODUCING_PIPELINE_CACHE_KEYS = [
   'visualPackageAuthority',
 ] as const;
 
+/**
+ * Ordinary cache state that becomes delivery-frozen once an Order is ready. The canonical child anchor is evidence
+ * authority for per-page resemblance; a late stale cache save must never replace it after readiness/outbox commit.
+ */
+export const READY_FROZEN_PIPELINE_CACHE_KEYS = [
+  'characterAnchorStore',
+] as const;
+
 type Db = Pick<PrismaClient, '$executeRaw'>;
 
 /**
@@ -68,9 +76,23 @@ export async function persistOrdinaryPipelineCache(
     withoutBarrierOwnedPipelineCacheKeys(cache),
   );
   return db.$executeRaw`
+    WITH incoming AS MATERIALIZED (
+      SELECT ${payload}::jsonb AS value
+    ), locked_order AS MATERIALIZED (
+      SELECT "id", "status"::text AS status
+        FROM "Order"
+       WHERE "id" = ${orderId}
+       FOR UPDATE
+    )
     UPDATE "GenerationJob"
     SET "pipelineCache" =
-      ${payload}::jsonb ||
+      (CASE WHEN locked_order.status = 'ready'
+        THEN (incoming.value - 'characterAnchorStore') ||
+          (CASE WHEN "pipelineCache" ? 'characterAnchorStore'
+            THEN jsonb_build_object('characterAnchorStore', "pipelineCache" -> 'characterAnchorStore')
+            ELSE '{}'::jsonb END)
+        ELSE incoming.value
+      END) ||
       (CASE WHEN "pipelineCache" ? 'visualContract'
         THEN jsonb_build_object('visualContract', "pipelineCache" -> 'visualContract')
         ELSE '{}'::jsonb END) ||
@@ -80,7 +102,8 @@ export async function persistOrdinaryPipelineCache(
       (CASE WHEN "pipelineCache" ? 'setIdentityBoards'
         THEN jsonb_build_object('setIdentityBoards', "pipelineCache" -> 'setIdentityBoards')
         ELSE '{}'::jsonb END)
-    WHERE "orderId" = ${orderId}`;
+    FROM incoming, locked_order
+    WHERE "orderId" = locked_order."id"`;
 }
 
 /**

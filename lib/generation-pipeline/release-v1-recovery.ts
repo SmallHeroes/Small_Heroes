@@ -1910,17 +1910,24 @@ function safetyReverificationEvidence(
   } as unknown as Prisma.InputJsonValue;
 }
 
+async function lockRecoveryOrder(
+  tx: Prisma.TransactionClient,
+  orderId: string,
+): Promise<void> {
+  await tx.$queryRaw(
+    Prisma.sql`SELECT "id" FROM "Order" WHERE "id" = ${orderId} FOR UPDATE`,
+  );
+}
+
 async function lockRecoverySnapshot(
   tx: Prisma.TransactionClient,
   orderId: string,
 ): Promise<void> {
   // Lock in ownership order. Page-row locks also block a concurrent ImageAsset
   // insert for a currently missing page via the foreign-key key-share lock.
+  await lockRecoveryOrder(tx, orderId);
   await tx.$queryRaw(
     Prisma.sql`SELECT "id" FROM "BookReadiness" WHERE "orderId" = ${orderId} AND "scope" = 'base_book' FOR UPDATE`,
-  );
-  await tx.$queryRaw(
-    Prisma.sql`SELECT "id" FROM "Order" WHERE "id" = ${orderId} FOR UPDATE`,
   );
   await tx.$queryRaw(
     Prisma.sql`SELECT "id" FROM "GenerationJob" WHERE "orderId" = ${orderId} FOR UPDATE`,
@@ -2005,6 +2012,7 @@ async function claimSafetyReverificationSnapshot(
     orderId: plan.order.id,
     kind: 'release_v1_safety_evaluation_claim',
     payloadHash: hashOperationPayload(claimPayload),
+    beforeReceipt: (tx) => lockRecoveryOrder(tx, plan.order.id),
     run: async (tx) => {
       await lockRecoverySnapshot(tx, plan.order.id);
       const lockedOrder = await tx.order.findUnique({
@@ -2554,6 +2562,12 @@ export async function executeReleaseV1Recovery(
                 reason: 'recovery:rerender_pending',
                 safetyOverride: false,
                 safetyOverrideSha256: null,
+                reviewStatus: null,
+                reviewedAssetSha256: null,
+                reviewedContractHash: null,
+                reviewedBy: null,
+                reviewedAt: null,
+                reviewReason: null,
                 evidence: {
                   ...priorEvidence,
                   releaseV1PageRerender: {

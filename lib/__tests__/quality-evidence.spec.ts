@@ -418,4 +418,48 @@ describe('ensureQualityEvidenceRow + makeQualityRegenReserver (#7-a 5b)', () => 
     const reserve = makeQualityRegenReserver(db, { orderId: 'o1', artifactKey: 'page:1' });
     expect(await reserve()).toBe(false);
   });
+
+  it('root-client reserve locks Order first and invalidates send authority atomically when granted', async () => {
+    const previous = process.env.READINESS_MANIFEST_ENABLED;
+    process.env.READINESS_MANIFEST_ENABLED = 'true';
+    const events: string[] = [];
+    let rawCalls = 0;
+    const tx = {
+      $queryRaw: vi.fn(async () => {
+        rawCalls += 1;
+        if (rawCalls === 1) {
+          events.push('order-lock');
+          return [{ id: 'o1' }];
+        }
+        events.push('order-transition');
+        return [{ inputVersion: 2, status: 'generating', previousStatus: 'ready' }];
+      }),
+      qualityEvidence: {
+        upsert: vi.fn(async () => { events.push('ensure'); return {}; }),
+        updateMany: vi.fn(async () => { events.push('reserve'); return { count: 1 }; }),
+      },
+      bookReadiness: {
+        updateMany: vi.fn(async () => { events.push('readiness-stale'); return { count: 1 }; }),
+      },
+      generationJob: { update: vi.fn(async () => ({})) },
+    };
+    const db = {
+      $transaction: vi.fn(async (callback: (value: typeof tx) => Promise<unknown>) => callback(tx)),
+    };
+    try {
+      const reserve = makeQualityRegenReserver(db as never, {
+        orderId: 'o1', artifactKey: 'page:1',
+      });
+      expect(await reserve()).toBe(true);
+      expect(events.slice(0, 5)).toEqual([
+        'order-lock', 'ensure', 'reserve', 'readiness-stale', 'order-transition',
+      ]);
+      expect(tx.generationJob.update).toHaveBeenCalledWith(expect.objectContaining({
+        where: { orderId: 'o1' },
+      }));
+    } finally {
+      if (previous === undefined) delete process.env.READINESS_MANIFEST_ENABLED;
+      else process.env.READINESS_MANIFEST_ENABLED = previous;
+    }
+  });
 });

@@ -654,7 +654,7 @@ describe('P1-f #5 delivery-input writer coverage', () => {
     const RAW_ORDER_ALLOWED: Record<string, { statements: number; columns: Set<string> }> = {
       // The shared authority funnel: hold/ship/release/transition CASes — authority columns only.
       'lib/generation-pipeline/order-authority.ts': {
-        statements: 4,
+        statements: 5,
         columns: new Set(['status', 'packageStatus', 'deliveryHoldReason', 'manualReviewRequired', 'deliveryFenceVersion']),
       },
       // The delivery-input barrier's version-bump statements (flag-on + flag-off arms): the bump
@@ -856,18 +856,19 @@ describe('P1-f #5 delivery-input writer coverage', () => {
     expect(source('lib/generation-pipeline/chunk-runner.ts')).toContain('finalizePackageDelivery');
   });
 
-  it('threads the reviewed recovery resemblance marker through the production page-delivery seam', () => {
+  it('threads the package/runtime child-presence resemblance policy through the production page-delivery seam', () => {
     const chunkRunner = source('lib/generation-pipeline/chunk-runner.ts');
 
-    // The durable reviewed-recovery marker activates the paid provider-loop gate and pins it to
+    // Package authority activates the paid provider-loop gate for every authoritative child-present frame; the
+    // durable reviewed-recovery marker preserves the same behavior for a legacy recovery. Both pin it to
     // the approved canonical child anchor. This is intentionally a source-level seam test: it
     // fails if a future refactor leaves the individually-tested producer/provider pieces present
     // but disconnects any of their real production call sites.
     expect(chunkRunner).toMatch(
-      /releaseV1PageResemblanceGateRequired\s*=\s*requiresReleaseV1PageResemblanceGate\(cache\)/,
+      /pageResemblanceGateRequired\s*=\s*runtimeVisualAuthorityRequired\s*\|\|\s*requiresReleaseV1PageResemblanceGate\(cache\)/,
     );
     expect(chunkRunner).toMatch(
-      /requirePageResemblanceGate:\s*releaseV1PageResemblanceGateRequired/,
+      /requirePageResemblanceGate:\s*pageResemblanceGateRequired/,
     );
     expect(chunkRunner).toMatch(
       /pageResemblanceReferenceImage:\s*childCanonicalAnchor!\.url/,
@@ -878,7 +879,7 @@ describe('P1-f #5 delivery-input writer coverage', () => {
     // with the raw candidate evidence. These three assertions close the recovery -> candidate ->
     // full-QA proof path for the resumed page set.
     expect(chunkRunner).toMatch(
-      /const deliveredPageResemblancePolicy\s*=\s*releaseV1PageResemblanceGateRequired\s*&&\s*deliveredPageExpectsChild/,
+      /const deliveredPageResemblancePolicy\s*=\s*pageResemblanceGateRequired\s*&&\s*deliveredPageExpectsChild/,
     );
     expect(chunkRunner).toMatch(
       /mutationPayload:\s*\{[\s\S]*?pageResemblanceGate:\s*\(deliveredPageResemblancePolicy \?\? null\)/,

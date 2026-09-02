@@ -1,8 +1,13 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 
 import {
   isDeliveryTerminalHold, markerRank, TERMINAL_HOLD_NOT_LIKE_SQL,
   QA_RELEASED_SAFETY_PREFIX, qaReleasedSafetyMarker, isQaReleasedSafetyMarker,
+  QA_HUMAN_VERIFIED_UNVERIFIED_PREFIX,
+  parseSinglePageSafetyUnverifiedMarker,
+  parseHumanVerifiedUnverifiedPageMarker,
+  humanVerifiedUnverifiedMarker,
+  executeHumanVerifiedUnverifiedReleaseTransition,
 } from '@/lib/generation-pipeline/order-authority';
 
 const TERMINAL_PREFIXES = ['safety_hold:', 'contract_world_hold:', 'quarantine_cutover:', 'manual_resolution_hold:'];
@@ -64,5 +69,125 @@ describe('qa_released:safety: — the released marker is DELIVERABLE by explicit
     for (const typo of ['qa_relesed:safety:hazard:x', 'qa_release:safety:hazard:x', 'qarelease:safety:x', 'safety_hold:hazard:x', '', null, undefined]) {
       expect(isQaReleasedSafetyMarker(typo)).toBe(false);
     }
+  });
+});
+
+describe('qa_human_verified:safety:unverified: — exact single-page human verification', () => {
+  const source = 'safety_hold:unverified:page:6';
+  const released = humanVerifiedUnverifiedMarker(source);
+
+  it('builds and parses a distinct marker while preserving the exact page', () => {
+    expect(released).toBe('qa_human_verified:safety:unverified:page:6');
+    expect(released.startsWith(QA_HUMAN_VERIFIED_UNVERIFIED_PREFIX)).toBe(true);
+    expect(parseSinglePageSafetyUnverifiedMarker(source)).toEqual({ pageNumber: 6 });
+    expect(parseHumanVerifiedUnverifiedPageMarker(released)).toEqual({ pageNumber: 6 });
+  });
+
+  it('accepts only one canonical positive safe-integer PAGE source (never cover, aggregate, hazard or typo)', () => {
+    for (const marker of [
+      'safety_hold:unverified:cover',
+      'safety_hold:unverified:page:1,page:2',
+      'safety_hold:unverified:page:0',
+      'safety_hold:unverified:page:01',
+      'safety_hold:unverified:page:9007199254740992',
+      'safety_hold:hazard:page:6:unsafe_pose',
+      'safety_hold:unverified:page:6:extra',
+      'safety_hold:unverifed:page:6',
+      '',
+    ]) {
+      expect(parseSinglePageSafetyUnverifiedMarker(marker), marker).toBeNull();
+      expect(() => humanVerifiedUnverifiedMarker(marker), marker).toThrow();
+    }
+    expect(parseSinglePageSafetyUnverifiedMarker(null)).toBeNull();
+    expect(parseSinglePageSafetyUnverifiedMarker(undefined)).toBeNull();
+  });
+
+  it('the released parser fails closed on a prefix typo, wrong target, aggregate or trailing detail', () => {
+    for (const marker of [
+      'qa_human_verifed:safety:unverified:page:6',
+      'qa_human_verified:safety:unverified:cover',
+      'qa_human_verified:safety:unverified:page:6,page:7',
+      'qa_human_verified:safety:unverified:page:0',
+      'qa_human_verified:safety:unverified:page:06',
+      'qa_human_verified:safety:unverified:page:6:extra',
+      'qa_released:safety:hazard:page:6:unsafe_pose',
+      '',
+    ]) {
+      expect(parseHumanVerifiedUnverifiedPageMarker(marker), marker).toBeNull();
+    }
+    expect(parseHumanVerifiedUnverifiedPageMarker(null)).toBeNull();
+    expect(parseHumanVerifiedUnverifiedPageMarker(undefined)).toBeNull();
+  });
+
+  it('is explicitly non-terminal/rank-1, so a later genuine safety hold can supersede it', () => {
+    expect(isDeliveryTerminalHold(released)).toBe(false);
+    expect(markerRank(released)).toBe(1);
+    expect(TERMINAL_HOLD_NOT_LIKE_SQL.sql).not.toContain(QA_HUMAN_VERIFIED_UNVERIFIED_PREFIX);
+  });
+});
+
+describe('executeHumanVerifiedUnverifiedReleaseTransition — fenced Order-authority CAS', () => {
+  const args = {
+    orderId: 'order-1',
+    expectedMarker: 'safety_hold:unverified:page:6',
+    observedFence: 11,
+    expectedInputVersion: 7,
+    releasedMarker: 'qa_human_verified:safety:unverified:page:6',
+  };
+
+  function fakeDb(result: number) {
+    const execute = vi.fn(async (_strings: TemplateStringsArray, ..._values: unknown[]) => result);
+    return { db: { $executeRaw: execute } as never, execute };
+  }
+
+  it('binds exact marker + input + fence + manual/payment invariants and bumps the fence exactly once', async () => {
+    const { db, execute } = fakeDb(1);
+    await expect(executeHumanVerifiedUnverifiedReleaseTransition(db, args)).resolves.toBe(1);
+    expect(execute).toHaveBeenCalledTimes(1);
+
+    const [strings, ...values] = execute.mock.calls[0] as unknown as [TemplateStringsArray, ...unknown[]];
+    const sql = strings.join('?');
+    expect(values).toEqual([
+      args.releasedMarker,
+      args.orderId,
+      args.expectedMarker,
+      args.expectedInputVersion,
+      args.observedFence,
+      `${args.orderId}:payment`,
+    ]);
+    expect(sql).toContain(`"status" = 'needs_human_qa'`);
+    expect(sql).toContain('"deliveryHoldReason" = ?');
+    expect(sql).toContain('"inputVersion" = ?');
+    expect(sql).toContain('"deliveryFenceVersion" = ?');
+    expect(sql).toContain('"manualReviewRequired" = false');
+    expect(sql).toContain('FROM "HumanQaReviewCase"');
+    expect(sql).toContain('c."activeKey" = ?');
+    expect(sql).toContain(`c."status" = 'open'`);
+    expect(sql).not.toContain(':base_book'); // the exact active base-book case is validated/resolved by apply, in-tx
+    expect(sql.match(/"deliveryFenceVersion"\s*=\s*"deliveryFenceVersion"\s*\+\s*1/g)).toHaveLength(1);
+    expect(sql).not.toContain(`SET "status" = 'ready'`);
+  });
+
+  it('returns a 0-row CAS result without retrying or performing another fence bump', async () => {
+    const { db, execute } = fakeDb(0);
+    await expect(executeHumanVerifiedUnverifiedReleaseTransition(db, args)).resolves.toBe(0);
+    expect(execute).toHaveBeenCalledTimes(1);
+  });
+
+  it('rejects a non-single-page source or a target for another page before touching the DB', async () => {
+    const { db, execute } = fakeDb(1);
+    await expect(executeHumanVerifiedUnverifiedReleaseTransition(db, {
+      ...args,
+      expectedMarker: 'safety_hold:unverified:page:6,page:7',
+    })).rejects.toThrow('not a single-page safety-unverified marker');
+    await expect(executeHumanVerifiedUnverifiedReleaseTransition(db, {
+      ...args,
+      releasedMarker: 'qa_human_verified:safety:unverified:page:7',
+    })).rejects.toThrow('released marker must bind the same page');
+    await expect(executeHumanVerifiedUnverifiedReleaseTransition(db, {
+      ...args,
+      releasedMarker: 'qa_released:safety:hazard:page:6:unsafe_pose',
+    })).rejects.toThrow('released marker must bind the same page');
+    expect(execute).not.toHaveBeenCalled();
   });
 });

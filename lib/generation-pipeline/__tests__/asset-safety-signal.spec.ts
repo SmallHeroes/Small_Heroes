@@ -3,6 +3,7 @@ import { describe, it, expect } from 'vitest';
 import {
   isSafetyHazardOverridden,
   isSafetyShaMissing,
+  isUnverifiedSafetyHumanVerified,
   imageAssetSafetyFields,
   coverSafetyFields,
 } from '@/lib/generation-pipeline/asset-safety-signal';
@@ -79,6 +80,55 @@ describe('isSafetyHazardOverridden — P0: SHA SHAPE is validated, not just non-
     expect(isSafetyHazardOverridden({ ...HAZ, contentSha256: SHA_A, overrideSha256: undef })).toBe(false);
     expect(isSafetyHazardOverridden({ ...HAZ, contentSha256: undef, overrideSha256: SHA_A })).toBe(false);
   });
+});
+
+describe('isUnverifiedSafetyHumanVerified — exact-byte human verification without weakening hazards', () => {
+  const BASE = {
+    safetyVerified: false as boolean | null,
+    hazards: [] as string[],
+    overriddenHazards: [] as string[],
+    contentSha256: SHA_A as string | null,
+    humanVerificationSha256: SHA_A as string | null,
+  };
+
+  it('recognizes false or null machine verification only when both valid lowercase SHAs match exactly', () => {
+    expect(isUnverifiedSafetyHumanVerified(BASE)).toBe(true);
+    expect(isUnverifiedSafetyHumanVerified({ ...BASE, safetyVerified: null })).toBe(true);
+  });
+
+  it('does not relabel a machine-verified result as human verification', () => {
+    expect(isUnverifiedSafetyHumanVerified({ ...BASE, safetyVerified: true })).toBe(false);
+  });
+
+  it('fails closed when either machine hazards or legacy overridden hazards are present', () => {
+    expect(isUnverifiedSafetyHumanVerified({ ...BASE, hazards: ['railing'] })).toBe(false);
+    expect(isUnverifiedSafetyHumanVerified({ ...BASE, overriddenHazards: ['railing'] })).toBe(false);
+  });
+
+  it('fails closed when the dedicated human-verification SHA targets different bytes', () => {
+    expect(isUnverifiedSafetyHumanVerified({ ...BASE, humanVerificationSha256: SHA_B })).toBe(false);
+  });
+
+  const malformed: Array<[string, string | null]> = [
+    ['null', null],
+    ['empty', ''],
+    ['too short', 'a'.repeat(63)],
+    ['too long', 'a'.repeat(65)],
+    ['uppercase', 'A'.repeat(64)],
+    ['non-hex', 'g'.repeat(64)],
+  ];
+
+  for (const [label, sha] of malformed) {
+    it(`fails closed when either or both SHAs are ${label}`, () => {
+      expect(isUnverifiedSafetyHumanVerified({ ...BASE, contentSha256: sha })).toBe(false);
+      expect(isUnverifiedSafetyHumanVerified({ ...BASE, humanVerificationSha256: sha })).toBe(false);
+      expect(isUnverifiedSafetyHumanVerified({
+        ...BASE,
+        contentSha256: sha,
+        humanVerificationSha256: sha,
+      })).toBe(false);
+    });
+  }
 });
 
 describe('isSafetyShaMissing — surface a phase-2-missed hazard as "not releasable" (shape C)', () => {

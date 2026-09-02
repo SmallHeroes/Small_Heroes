@@ -1103,7 +1103,10 @@ describe('finalizePackageDelivery — readiness-independent package-authority ga
 });
 
 describe('resolveSafetyDeliveryGate (Fix 1) — the readiness-independent gate from the persisted per-asset signal', () => {
-  const mkPrisma = (book: unknown) => ({ generatedBook: { findUnique: vi.fn(async () => book) } });
+  const mkPrisma = (book: unknown) => ({
+    generatedBook: { findUnique: vi.fn(async () => book) },
+    qualityEvidence: { findMany: vi.fn(async () => []) },
+  });
 
   it('all verified + no hazards → NOT held', async () => {
     const p = mkPrisma({ coverImageUrl: 'c', coverSafetyVerified: true, coverSafetyHazards: [], pages: [{ pageNumber: 1, imageAsset: { safetyVerified: true, safetyHazards: [] } }] });
@@ -1136,19 +1139,19 @@ describe('resolveSafetyDeliveryGate (Fix 1) — the readiness-independent gate f
   });
 
   it('an UNVERIFIED page (fail-closed) → held with safety_hold:unverified', async () => {
-    const p = mkPrisma({ coverImageUrl: 'c', coverSafetyVerified: true, coverSafetyHazards: [], pages: [{ pageNumber: 3, imageAsset: { safetyVerified: false, safetyHazards: [] } }] });
+    const p = mkPrisma({ coverImageUrl: 'c', coverSafetyVerified: true, coverSafetyHazards: [], coverSafetyContentSha256: null, coverSafetyOverriddenHazards: [], coverSafetyOverrideSha256: null, pages: [{ pageNumber: 3, imageAsset: { safetyVerified: false, safetyHazards: [], safetyContentSha256: null, safetyOverriddenHazards: [], safetyOverrideSha256: null } }] });
     const g = await resolveSafetyDeliveryGate(p as never, 'o1');
     expect(g.held).toBe(true);
     expect(g.reason).toContain('safety_hold:unverified:page:3');
   });
 
   it('an unverified COVER → held (the cover is checked too)', async () => {
-    const p = mkPrisma({ coverImageUrl: 'c', coverSafetyVerified: false, coverSafetyHazards: [], pages: [] });
+    const p = mkPrisma({ coverImageUrl: 'c', coverSafetyVerified: false, coverSafetyHazards: [], coverSafetyContentSha256: null, coverSafetyOverriddenHazards: [], coverSafetyOverrideSha256: null, pages: [] });
     expect((await resolveSafetyDeliveryGate(p as never, 'o1')).held).toBe(true);
   });
 
   it('a hazard is reported OVER a merely-unverified artifact', async () => {
-    const p = mkPrisma({ coverImageUrl: 'c', coverSafetyVerified: false, coverSafetyHazards: [], pages: [{ pageNumber: 2, imageAsset: { safetyVerified: true, safetyHazards: ['unsafe_pose'] } }] });
+    const p = mkPrisma({ coverImageUrl: 'c', coverSafetyVerified: false, coverSafetyHazards: [], coverSafetyContentSha256: null, coverSafetyOverriddenHazards: [], coverSafetyOverrideSha256: null, pages: [{ pageNumber: 2, imageAsset: { safetyVerified: true, safetyHazards: ['unsafe_pose'], safetyContentSha256: null, safetyOverriddenHazards: [], safetyOverrideSha256: null } }] });
     const g = await resolveSafetyDeliveryGate(p as never, 'o1');
     expect(g.reason).toContain('hazard:');
     expect(g.reason).not.toContain('unverified:');

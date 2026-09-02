@@ -74,6 +74,29 @@ export async function consumeReissueBudget(
 type Db = PrismaClient | Prisma.TransactionClient;
 type Tx = Prisma.TransactionClient;
 
+/**
+ * Runtime proof that the caller acquired the per-Order producer lock in its current transaction.
+ * ExceptionCase has no row to lock before its first insert, so every producer serializes on the
+ * owning Order instead. Keeping the proof explicit prevents a tx caller from accidentally taking
+ * the lock only after it has already mutated another delivery/recovery row.
+ */
+export type ExceptionCaseOrderLock = Readonly<{
+  orderId: string;
+  lock: 'exception_case_order_for_update';
+  transaction: Tx;
+}>;
+
+export async function lockOrderForExceptionCase(
+  tx: Tx,
+  orderId: string,
+): Promise<ExceptionCaseOrderLock | null> {
+  const rows = await tx.$queryRaw<Array<{ id: string }>>`
+    SELECT "id" FROM "Order" WHERE "id" = ${orderId} FOR UPDATE`;
+  return rows.length === 1
+    ? { orderId, lock: 'exception_case_order_for_update', transaction: tx }
+    : null;
+}
+
 const TERMINAL = new Set<ExceptionCaseStatus>(['resolved', 'cancelled']);
 
 export function exceptionActiveKey(orderId: string, scope: string): string {
@@ -152,7 +175,42 @@ export interface OpenExceptionCaseArgs {
  * manufacture duplicate audit history.
  */
 export async function openExceptionCase(
+  prisma: PrismaClient,
+  args: OpenExceptionCaseArgs,
+): Promise<ExceptionCase>;
+export async function openExceptionCase(
+  tx: Tx,
+  args: OpenExceptionCaseArgs,
+  orderLock: ExceptionCaseOrderLock,
+): Promise<ExceptionCase>;
+export async function openExceptionCase(
   db: Db,
+  args: OpenExceptionCaseArgs,
+  orderLock?: ExceptionCaseOrderLock,
+): Promise<ExceptionCase> {
+  if (orderLock) {
+    if (orderLock.orderId !== args.orderId) {
+      throw new Error('exception_case_order_lock_mismatch');
+    }
+    if (orderLock.transaction !== db) {
+      throw new Error('exception_case_order_lock_transaction_mismatch');
+    }
+    return openExceptionCaseWithOrderLock(db as Tx, args);
+  }
+
+  const transaction = (db as PrismaClient).$transaction;
+  if (typeof transaction !== 'function') {
+    throw new Error('exception_case_transaction_requires_order_lock');
+  }
+  return (db as PrismaClient).$transaction(async (tx) => {
+    const lock = await lockOrderForExceptionCase(tx, args.orderId);
+    if (!lock) throw new Error(`exception_case_order_not_found:${args.orderId}`);
+    return openExceptionCaseWithOrderLock(tx, args);
+  });
+}
+
+async function openExceptionCaseWithOrderLock(
+  db: Tx,
   args: OpenExceptionCaseArgs,
 ): Promise<ExceptionCase> {
   const now = args.now ?? new Date();
@@ -743,6 +801,12 @@ export async function fencedOutboxTerminalWithException(
   },
 ): Promise<boolean> {
   return prisma.$transaction(async (tx) => {
+    // Serialize terminal delivery reconciliation with readiness/release for this Order. Both paths take the
+    // Order lock before touching DeliveryOutbox: if release wins, its rebind bumps the outbox token and this stale
+    // worker loses below; if terminal reconciliation wins, its ExceptionCase is visible when release acquires the
+    // lock and the release refuses. This closes the absent-row ExceptionCase insertion race.
+    const orderLock = await lockOrderForExceptionCase(tx, args.row.orderId);
+    if (!orderLock) return false;
     const updated = await tx.deliveryOutbox.updateMany({
       where: { id: args.row.id, status: 'processing', attempts: args.token },
       data: args.outboxData,
@@ -756,7 +820,7 @@ export async function fencedOutboxTerminalWithException(
       sourceRef: args.row.id,
       now: args.now,
       fenceExisting: true,
-    });
+    }, orderLock);
     return true;
   });
 }

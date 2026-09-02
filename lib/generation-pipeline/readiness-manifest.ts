@@ -19,7 +19,10 @@ import {
   type IntegrityResult,
 } from './integrity-gate';
 import { inspectAsset, type AssetInspection } from './asset-integrity';
+import { getApprovedChildCanonicalAnchor } from './character-anchor-store';
+import type { PipelineCache } from './types';
 import {
+  inspectHumanReviewAuthorityBytes,
   loadQualityEvidence,
   evaluateQualityGate,
   qualityEvidenceFingerprint,
@@ -29,6 +32,7 @@ import {
   type QualityGateResult,
   type ArtifactHashes,
   type HardHoldKind,
+  type HumanReviewByteAuthority,
 } from './quality-evidence';
 import { enqueueDelivery, type BookReadyPayload, type CasResult } from '@/lib/generation-chunked/delivery-outbox';
 import { listenUrlFromReadUrl } from '@/lib/routes';
@@ -46,12 +50,31 @@ import {
 import { runAtomicOperation, hashOperationPayload, type AtomicOperationDeps, type ReceiptSafeValue } from './atomic-operation';
 import { writeOrderHoldFenced, executeReadinessShipCas } from './order-authority';
 import { applyReleaseInTx, projectReleaseOntoQuality, ReleaseAdmissibilityError, type SafetyReleaseRequest, type ReleaseRuntime, type ReleaseApplied } from './safety-release';
+import {
+  applyHumanVerifiedUnverifiedInTx,
+  finalizeHumanVerifiedUnverifiedInTx,
+  humanVerifiedUnverifiedReceiptValueFromOutcome,
+  humanVerifiedUnverifiedOperationKey,
+  humanVerifiedUnverifiedRequestHash,
+  isHumanVerifiedUnverifiedReleaseEnvironmentEnabled,
+  projectHumanVerificationOntoQuality,
+  HumanVerifiedUnverifiedAdmissibilityError,
+  type HumanVerifiedUnverifiedApplied,
+  type HumanVerifiedUnverifiedReleaseRequest,
+  type HumanVerifiedUnverifiedRuntime,
+} from './human-verified-unverified-release';
+import {
+  parseHumanVerifiedUnverifiedOutcome,
+  parseHumanVerifiedUnverifiedReceiptValue,
+} from './human-verified-unverified-contract';
 import { createLogger } from '@/lib/logger';
 import type { FrozenStoryProductTruth } from './frozen-product-truth';
 import {
+  lockOrderForExceptionCase,
   openExceptionCase,
   resolveActiveRecoveryCaseInTx,
 } from '@/lib/generation-chunked/exception-case';
+import { assertEnvSeparation } from '@/lib/generation-chunked/env-separation-guard';
 import { canonicalJsonDigest } from '@/lib/visual-package/integrity';
 import {
   DeliverySnapshotIdentityError,
@@ -67,6 +90,14 @@ export function isReadinessManifestEnabled(): boolean {
 
 type Tx = Prisma.TransactionClient;
 
+async function lockOrderBeforeAtomicReceipt(
+  tx: Tx,
+  orderId: string,
+): Promise<void> {
+  const lock = await lockOrderForExceptionCase(tx, orderId);
+  if (!lock) throw new Error(`atomic_operation_order_not_found:${orderId}`);
+}
+
 export type DeliveryInputMutationReason =
   | 'story_text_finalized'
   | 'cover_asset_changed'
@@ -78,6 +109,8 @@ export type DeliveryInputMutationReason =
   | 'debug_page_asset_changed'
   | 'character_anchors_changed'
   | 'retained_safety_evaluated'
+  | 'quality_evidence_changed'
+  | 'quality_regen_reserved'
   // (WS0b) Freeze the BookVisualContract before the cover: stamps Order.visualContractHash + persists the
   // contract into pipelineCache. Runs on 'generating' orders (before any paid image), so it never triggers the
   // ready→generating recovery branch; recoveryStageFor's default ('package') is inert for it.
@@ -304,10 +337,17 @@ export async function withDeliveryInputMutation<T extends ReceiptSafeValue>(
         kind: args.kind ?? 'delivery_input',
         // Fold the actual persisted content into the fence hash → a same-key/different-content retry fails closed.
         payloadHash: hashOperationPayload({ reason: args.reason, key: args.operationKey, mutation: args.mutationPayload }),
+        beforeReceipt: (tx) => lockOrderBeforeAtomicReceipt(tx, args.orderId),
         run: runBody,
       },
       args.atomic,
     );
+  }
+  if (readinessEnabled) {
+    return prisma.$transaction(async (tx) => {
+      await lockOrderBeforeAtomicReceipt(tx, args.orderId);
+      return runBody(tx);
+    });
   }
   return prisma.$transaction(runBody);
 }
@@ -378,6 +418,12 @@ export interface CommitArgs {
    * case, and audits — all-or-nothing with the ship. Undefined → not one line of this runs (structural inertness).
    */
   release?: SafetyReleaseRequest;
+  /**
+   * Preview-only, exact-byte human verification for one `safety_hold:unverified:page:N` artifact. This is a
+   * separate release mode from confirmed-hazard override: machine verdicts and hazards remain unchanged; a strict
+   * immutable operator action plus byte-bound review projections are committed atomically with readiness + Outbox.
+   */
+  humanVerifiedUnverifiedRelease?: HumanVerifiedUnverifiedReleaseRequest;
 }
 
 /**
@@ -637,7 +683,13 @@ export function buildReadinessCommitReceiptBinding(
     plan,
   };
 }
-interface LoadedInputs { order: OrderTruth; book: BookData; quality: QualityEvidenceRow[]; fingerprint: string }
+interface LoadedInputs {
+  order: OrderTruth;
+  book: BookData;
+  quality: QualityEvidenceRow[];
+  fingerprint: string;
+  humanReviewByteAuthority: HumanReviewByteAuthority;
+}
 
 const TOCTOU = 'readiness_toctou_drift';
 function isRevisionCollision(e: unknown): boolean {
@@ -712,20 +764,24 @@ const COMMIT_SELECT = {
 } as const;
 
 /** Load the FRESH commit inputs from the DB (never recycle stale args). Works on the client or a tx client. */
-async function loadCommitInputs(db: PrismaClient | Tx, orderId: string): Promise<LoadedInputs | null> {
+async function loadCommitInputs(
+  db: PrismaClient | Tx,
+  orderId: string,
+  humanReviewByteAuthority: HumanReviewByteAuthority,
+): Promise<LoadedInputs | null> {
   const o = await db.order.findUnique({ where: { id: orderId }, select: COMMIT_SELECT });
   if (!o || !o.book) return null;
   const pages = o.book.pages.map((p) => ({ pageNumber: p.pageNumber, imageUrl: p.imageAsset?.presentationUrl ?? p.imageAsset?.url ?? null, text: p.text }));
   const firstAudioUrl = o.book.pages.find((p) => p.audioUrl?.trim())?.audioUrl ?? null;
   const order: OrderTruth = { id: o.id, fulfillmentVersion: o.fulfillmentVersion, inputVersion: o.inputVersion, deliveryFenceVersion: o.deliveryFenceVersion, expectedPageCount: o.expectedPageCount, storySourceHash: o.storySourceHash, selectionFilename: o.selectionFilename, frozenProductVersion: o.frozenProductVersion, visualPackageAuthority: o.visualPackageAuthority, illustrationStyle: o.illustrationStyle, customerEmail: o.customerEmail, customerName: o.customerName, childName: o.childName, visualContractHash: o.visualContractHash, producingPipelineCache: o.generationJob?.pipelineCache ?? null };
   const book: BookData = { coverImageUrl: o.book.coverImageUrl, readUrl: o.book.readUrl, pdfUrl: o.book.pdfUrl, firstAudioUrl, pages };
-  const quality = await loadQualityEvidence(db, orderId);
+  const quality = await loadQualityEvidence(db, orderId, humanReviewByteAuthority);
   const fingerprint = fingerprintOf({
     ...order, readUrl: book.readUrl, pdfUrl: book.pdfUrl, firstAudioUrl: book.firstAudioUrl,
     cover: book.coverImageUrl, pages: pages.map((p) => [p.pageNumber, p.text, p.imageUrl] as [number, string, string | null]),
     quality: qualityEvidenceFingerprint(quality),
   });
-  return { order, book, quality, fingerprint };
+  return { order, book, quality, fingerprint, humanReviewByteAuthority };
 }
 
 function buildIntegrityInput(order: OrderTruth, book: BookData, appBaseUrl: string | null): IntegrityInput {
@@ -942,11 +998,29 @@ async function nextRevision(tx: Tx, orderId: string, scope: string): Promise<num
 // (runReadinessTxn) and re-exported here for existing importers (package-delivery, the PG harness, tests).
 export { executeReadinessShipCas };
 
-async function runReadinessTxn(tx: Tx, args: CommitArgs, anchor: AnchorDeliveryDisposition, loaded: LoadedInputs, decision: ReadinessDecision, now: Date, release?: ReleaseRuntime): Promise<CommitResult> {
+async function runReadinessTxn(
+  tx: Tx,
+  args: CommitArgs,
+  anchor: AnchorDeliveryDisposition,
+  loaded: LoadedInputs,
+  decision: ReadinessDecision,
+  now: Date,
+  release?: ReleaseRuntime,
+  humanRelease?: HumanVerifiedUnverifiedRuntime,
+): Promise<CommitResult> {
+  // ExceptionCase may not exist yet, so the owning Order is the serialization point. Acquire it before reading
+  // or writing any readiness/case state; all other base_book producers use the same Order-first lock order.
+  const exceptionOrderLock = await lockOrderForExceptionCase(tx, args.orderId);
+  if (!exceptionOrderLock) throw new Error(TOCTOU);
+
   // (0) TOCTOU guard — the assets/text/frozen/QUALITY-EVIDENCE must not have changed between the (out-of-tx)
   // eval and now (the fingerprint folds in the quality evidence, so a re-QA between eval and commit drifts it). The
   // fingerprint is RAW (no projected override), so this still catches any genuine concurrent input change.
-  const inTx = await loadCommitInputs(tx, args.orderId);
+  const inTx = await loadCommitInputs(
+    tx,
+    args.orderId,
+    loaded.humanReviewByteAuthority,
+  );
   if (!inTx || inTx.fingerprint !== loaded.fingerprint) throw new Error(TOCTOU);
 
   // (release-as-readiness-mode, 2a-2) The AUTHORITY. Re-check admissibility on RAW in-tx data and, only if it passes,
@@ -964,13 +1038,62 @@ async function runReadinessTxn(tx: Tx, args: CommitArgs, anchor: AnchorDeliveryD
     releaseApplied = await applyReleaseInTx(tx, release);
   }
 
+  // Exact-byte human verification is all-or-nothing with a REAL delivery. Its preconditions are checked before its
+  // first write: no soft-delivery, no anchor hold, and no other integrity/quality block may remain. The authority
+  // function then re-locks/revalidates the exact Order/case/payment/asset/evidence/resemblance snapshot, projects Gate
+  // 2, writes the review/action/marker/case transition, and returns the post-transition delivery fence.
+  let humanReleaseApplied: HumanVerifiedUnverifiedApplied | null = null;
+  if (humanRelease) {
+    const humanPlan = resolveReadinessDeliveryPlan(
+      anchor,
+      decision,
+      canUseQaSoftDeliver(),
+    );
+    if (
+      decision.status !== 'passed' ||
+      !anchor.allows ||
+      !humanPlan.enqueued ||
+      humanPlan.orderStatus !== 'ready' ||
+      humanPlan.usesSoftDeliver
+    ) {
+      throw new HumanVerifiedUnverifiedAdmissibilityError(
+        'evidence_changed',
+        `readiness would not ship cleanly: ${decision.reason ?? anchor.reason ?? 'blocked'}`,
+      );
+    }
+    humanReleaseApplied = await applyHumanVerifiedUnverifiedInTx(
+      tx,
+      humanRelease,
+      now,
+    );
+    // Defense-in-depth after the release writes but before the manifest: a competing active exception means this
+    // release must roll back in full, never persist an approval on a book that did not ship.
+    const activeExceptionAfterRelease = await tx.exceptionCase.findUnique({
+      where: { activeKey: `${args.orderId}:${BASE_BOOK_SCOPE}` },
+      select: { id: true },
+    });
+    if (activeExceptionAfterRelease) {
+      throw new HumanVerifiedUnverifiedAdmissibilityError(
+        'exception_case_active',
+      );
+    }
+  }
+
   const { order, book } = loaded;
   const scope = BASE_BOOK_SCOPE;
   // (§5 fence threading) the release transition bumped the fence F → F+1, so the ship CAS + every Outbox enqueue MUST
   // bind the POST-transition fence, and the ship CAS must require the transitioned qa_released marker. No release →
   // the load-time fence + the (anchor) requireHold, byte-identical to today.
-  const deliveryFenceVersion = releaseApplied ? releaseApplied.postFence : order.deliveryFenceVersion;
-  const requireHoldReason = releaseApplied ? releaseApplied.releasedMarker : (args.requireHold?.deliveryHoldReason ?? null);
+  const deliveryFenceVersion = releaseApplied
+    ? releaseApplied.postFence
+    : humanReleaseApplied
+      ? humanReleaseApplied.postFence
+      : order.deliveryFenceVersion;
+  const requireHoldReason = releaseApplied
+    ? releaseApplied.releasedMarker
+    : humanReleaseApplied
+      ? humanReleaseApplied.releasedMarker
+      : (args.requireHold?.deliveryHoldReason ?? null);
   const revision = await nextRevision(tx, order.id, scope);
 
   // (1) IMMUTABLE manifest — terminal INSERT (throws P2002 on a concurrent same-revision insert). A BLOCKED
@@ -1009,7 +1132,7 @@ async function runReadinessTxn(tx: Tx, args: CommitArgs, anchor: AnchorDeliveryD
           revision,
           classification: decision.blockClassification,
         },
-      });
+      }, exceptionOrderLock);
     } else if (decision.contractHardHold) {
       // (Slice A) Parked for human QA — no NEW case is opened (skipExceptionCase), and any ACTIVE recoverable case
       // is RESOLVED so a stale infra_transient/integrity case can never redrive or refund a contract-world-held
@@ -1046,7 +1169,13 @@ async function runReadinessTxn(tx: Tx, args: CommitArgs, anchor: AnchorDeliveryD
   let qaWarnings: QaWarnings | undefined;
   const plan = resolveReadinessDeliveryPlan(anchor, decision, softDeliver);
 
-  if (decision.status === 'passed' && activeException) {
+  if (humanReleaseApplied && activeException) {
+    // Never commit a human verification that did not ship. Throwing rolls back the action, both projections, marker,
+    // case resolution, readiness manifest and Outbox together.
+    throw new HumanVerifiedUnverifiedAdmissibilityError(
+      'exception_case_active',
+    );
+  } else if (decision.status === 'passed' && activeException) {
     // A refund/reconciliation/customer action is already authoritative. Do not deliver-and-refund.
     orderStatus = 'failed';
     deliveryHoldReason = `exception_case:${activeException.kind}:${activeException.status}`;
@@ -1139,7 +1268,7 @@ async function runReadinessTxn(tx: Tx, args: CommitArgs, anchor: AnchorDeliveryD
         : null;
       // A competing hold blocked the ship. requireHold (anchor admin) OR a release (2a-2) → typed 409, and for a
       // release the whole tx (override + transition + case + audit) rolls back with it; normal path → held (below).
-      if (args.requireHold || releaseApplied) {
+      if (args.requireHold || releaseApplied || humanReleaseApplied) {
         throw new ReleasePreconditionError(requireHoldReason ?? '', actual);
       }
       throw new DeliveryFenceError(order.id, actual);
@@ -1165,6 +1294,21 @@ async function runReadinessTxn(tx: Tx, args: CommitArgs, anchor: AnchorDeliveryD
     }
     if (held === 'lost') throw new Error(TOCTOU); // order vanished / fence churned past the retry budget → re-eval
   }
+  if (humanReleaseApplied) {
+    await finalizeHumanVerifiedUnverifiedInTx(tx, {
+      orderId: args.orderId,
+      request: humanRelease!.request,
+      applied: humanReleaseApplied,
+      result: {
+        manifestStatus: 'passed',
+        orderStatus: 'ready',
+        enqueued: true,
+        reason: null,
+        revision,
+      },
+    });
+  }
+
   // (Human-QA Slice 1, re-gate P0-1) The review-case lifecycle is NOT written here. A `recordHumanQaHoldInTx`
   // read/update/throw inside THIS readiness-commit tx could roll back the hold itself (an unheld order = a safety
   // regression), and `resolveHumanQaCaseOnReleaseInTx` inside it could roll back a delivery. Both are reconciled
@@ -1181,9 +1325,36 @@ async function runReadinessTxn(tx: Tx, args: CommitArgs, anchor: AnchorDeliveryD
  * re-evaluating each time (B3) — or a revision collision.
  */
 export async function commitBaseBookReadiness(prisma: PrismaClient, args: CommitArgs, deps: CommitDeps = {}): Promise<CommitResult> {
+  const releaseModeCount = Number(!!args.release) + Number(!!args.humanVerifiedUnverifiedRelease);
+  if (releaseModeCount > 1 || (args.humanVerifiedUnverifiedRelease && args.requireHold)) {
+    throw new HumanVerifiedUnverifiedAdmissibilityError(
+      'invalid_request',
+      'release modes are mutually exclusive',
+    );
+  }
+  if (
+    args.humanVerifiedUnverifiedRelease &&
+    (!isHumanVerifiedUnverifiedReleaseEnvironmentEnabled() ||
+      !isReadinessManifestEnabled())
+  ) {
+    throw new HumanVerifiedUnverifiedAdmissibilityError(
+      'invalid_request',
+      'readiness manifest is required',
+    );
+  }
+  if (args.humanVerifiedUnverifiedRelease) assertEnvSeparation();
   const now = deps.now?.() ?? new Date();
   for (let attempt = 0; attempt < 6; attempt++) {
-    const loaded = await loadCommitInputs(prisma, args.orderId);
+    const humanReviewByteAuthority = await inspectHumanReviewAuthorityBytes(
+      prisma,
+      args.orderId,
+      deps.inspect ?? inspectAsset,
+    );
+    const loaded = await loadCommitInputs(
+      prisma,
+      args.orderId,
+      humanReviewByteAuthority,
+    );
     if (!loaded) throw new Error('readiness_inputs_missing');
     const appBaseUrl = deps.appBaseUrl ?? readAppBaseUrl();
     // (Codex round-5) The anchor/delivery disposition is DERIVED from the authoritative fresh
@@ -1195,6 +1366,7 @@ export async function commitBaseBookReadiness(prisma: PrismaClient, args: Commit
     );
     let decision = orderVisualPackageAuthorityDecision(loaded.order, args.callerPackageRevisionDigest);
     let releaseRuntime: ReleaseRuntime | undefined;
+    let humanReleaseRuntime: HumanVerifiedUnverifiedRuntime | undefined;
     if (!decision) {
       const result = await evaluateBaseBookIntegrity(buildIntegrityInput(loaded.order, loaded.book, appBaseUrl), deps.inspect ?? inspectAsset);
       // (#7-a) FAIL-CLOSED Quality gate. Required artifacts = cover + every rendered page. The current
@@ -1217,7 +1389,39 @@ export async function commitBaseBookReadiness(prisma: PrismaClient, args: Commit
             activeContractHash: loaded.order.visualContractHash,
           }
         : undefined;
-      const projectedQuality = args.release ? projectReleaseOntoQuality(loaded.quality, args.release) : loaded.quality;
+      if (args.humanVerifiedUnverifiedRelease) {
+        const inspectedArtifactHashes = currentArtifactHashes(result);
+        const currentAnchor = getApprovedChildCanonicalAnchor(
+          (loaded.order.producingPipelineCache ?? {}) as PipelineCache,
+        );
+        const currentAnchorInspection = currentAnchor
+          ? await (deps.inspect ?? inspectAsset)(currentAnchor.url)
+          : null;
+        humanReleaseRuntime = {
+          orderId: args.orderId,
+          request: args.humanVerifiedUnverifiedRelease,
+          currentHash:
+            inspectedArtifactHashes.get(
+              args.humanVerifiedUnverifiedRelease.artifactKey,
+            ) ?? null,
+          currentArtifactHashes: inspectedArtifactHashes,
+          currentAnchorBytesSha256: currentAnchorInspection?.sha256 ?? null,
+          observedFence: loaded.order.deliveryFenceVersion,
+          observedInputVersion: loaded.order.inputVersion,
+          activeContractHash: loaded.order.visualContractHash,
+        };
+      } else {
+        humanReleaseRuntime = undefined;
+      }
+      const projectedQuality = args.release
+        ? projectReleaseOntoQuality(loaded.quality, args.release)
+        : args.humanVerifiedUnverifiedRelease
+          ? projectHumanVerificationOntoQuality(
+              loaded.quality,
+              args.humanVerifiedUnverifiedRelease,
+              args.orderId,
+            )
+          : loaded.quality;
       const quality = evaluateQualityGate(requiredKeys, projectedQuality, currentArtifactHashes(result), {
         activeContractHash: loaded.order.visualContractHash,
       });
@@ -1234,6 +1438,117 @@ export async function commitBaseBookReadiness(prisma: PrismaClient, args: Commit
       // (which the transition bumps → a replay would mint a different key anyway). Bypassing means a concurrent
       // duplicate re-runs the CAS and is refused, never replayed-as-success (decision §2/§3). Every OTHER commit keeps
       // the receipt fence unchanged.
+      if (args.humanVerifiedUnverifiedRelease) {
+        if (!humanReleaseRuntime) {
+          throw new HumanVerifiedUnverifiedAdmissibilityError(
+            'evidence_changed',
+            'package authority blocked before exact-byte inspection',
+          );
+        }
+        const operationKey = humanVerifiedUnverifiedOperationKey(
+          args.orderId,
+          args.humanVerifiedUnverifiedRelease.idempotencyKey,
+        );
+        const requestHash = humanVerifiedUnverifiedRequestHash(
+          args.orderId,
+          args.humanVerifiedUnverifiedRelease,
+        );
+        const receiptValue = await runAtomicOperation(
+          prisma,
+          {
+            operationKey,
+            orderId: args.orderId,
+            kind: 'operator_action',
+            payloadHash: requestHash,
+            beforeReceipt: (tx) =>
+              lockOrderBeforeAtomicReceipt(tx, args.orderId),
+            validateReplay: async (tx, replayedValue) => {
+              const strictReplayValue =
+                parseHumanVerifiedUnverifiedReceiptValue(replayedValue);
+              if (
+                !strictReplayValue ||
+                strictReplayValue.requestHash !== requestHash ||
+                strictReplayValue.inspectionDigest !==
+                  args.humanVerifiedUnverifiedRelease!.inspectionDigest ||
+                strictReplayValue.resemblanceProofDigest !==
+                  args.humanVerifiedUnverifiedRelease!.resemblanceProofDigest
+              ) {
+                throw new HumanVerifiedUnverifiedAdmissibilityError(
+                  'evidence_changed',
+                  'operator-action replay receipt is malformed or bound to another request',
+                );
+              }
+              const currentQuality = await loadQualityEvidence(
+                tx,
+                args.orderId,
+                humanReviewByteAuthority,
+              );
+              const currentTarget = currentQuality.find(
+                (row) =>
+                  row.artifactKey ===
+                  args.humanVerifiedUnverifiedRelease!.artifactKey,
+              );
+              if (
+                currentTarget?.humanReviewVerified !== true ||
+                currentTarget.humanReviewActionDigest !== requestHash
+              ) {
+                throw new HumanVerifiedUnverifiedAdmissibilityError(
+                  'evidence_changed',
+                  'operator-action replay is no longer backed by current strict human-review authority',
+                );
+              }
+            },
+            run: async (tx) => {
+              await runReadinessTxn(
+                tx,
+                args,
+                anchor,
+                loaded,
+                decision,
+                now,
+                undefined,
+                humanReleaseRuntime,
+              );
+              const succeededAction = await tx.humanQaOperatorAction.findUnique({
+                where: { idempotencyKey: operationKey },
+                select: { outcome: true },
+              });
+              const outcome = parseHumanVerifiedUnverifiedOutcome(
+                succeededAction?.outcome,
+              );
+              if (
+                !outcome ||
+                outcome.requestHash !== requestHash ||
+                outcome.receiptOperationKey !== operationKey
+              ) {
+                throw new HumanVerifiedUnverifiedAdmissibilityError(
+                  'evidence_changed',
+                  'succeeded action did not produce the strict receipt authority',
+                );
+              }
+              return humanVerifiedUnverifiedReceiptValueFromOutcome(outcome);
+            },
+          },
+          deps.atomic,
+        );
+        const strictReceiptValue = parseHumanVerifiedUnverifiedReceiptValue(
+          receiptValue,
+        );
+        if (
+          !strictReceiptValue ||
+          strictReceiptValue.requestHash !== requestHash ||
+          strictReceiptValue.inspectionDigest !==
+            args.humanVerifiedUnverifiedRelease.inspectionDigest ||
+          strictReceiptValue.resemblanceProofDigest !==
+            args.humanVerifiedUnverifiedRelease.resemblanceProofDigest
+        ) {
+          throw new HumanVerifiedUnverifiedAdmissibilityError(
+            'evidence_changed',
+            'operator-action receipt is malformed or bound to another request',
+          );
+        }
+        return strictReceiptValue.result;
+      }
       if (isReadinessManifestEnabled() && !args.release) {
         const softDeliver = canUseQaSoftDeliver();
         const receipt = buildReadinessCommitReceiptBinding(
@@ -1251,6 +1566,8 @@ export async function commitBaseBookReadiness(prisma: PrismaClient, args: Commit
             orderId: args.orderId,
             kind: 'readiness_commit',
             payloadHash: receipt.payloadHash,
+            beforeReceipt: (tx) =>
+              lockOrderBeforeAtomicReceipt(tx, args.orderId),
             run: (tx) => runReadinessTxn(tx, args, anchor, loaded, decision, now, releaseRuntime),
           },
           deps.atomic,

@@ -129,6 +129,11 @@ import {
   evaluatePageVisualQaWithReQa,
   resolvePageVisualQaConfig,
 } from '../../lib/generation-pipeline/page-visual-qa';
+import { pageRequiresChildIdentity } from '../../lib/generation-pipeline/child-page-presence';
+import {
+  evaluateStoredPageChildResemblanceVision,
+  PAGE_CHILD_RESEMBLANCE_MIN_THRESHOLD,
+} from '../../lib/generation-pipeline/page-child-resemblance-vision';
 import { resolveCompanionViewIntentForPage, resolveCompanionSheetViewForPage } from '../../lib/generation-pipeline/companion-sheet-page-map';
 import { COMPANION_SHEET_VIEW_FILENAME } from '../../lib/generation-pipeline/companion-character-sheet';
 import {
@@ -710,6 +715,11 @@ export interface Style01PageMeta {
     minAcceptableScore: number;
     faceDetectConfidence: number | null;
     faceAreaRatio: number | null;
+    evaluatorVersion?: string;
+    subjectVisible?: boolean | null;
+    sameChild?: boolean | null;
+    referenceBytesSha256?: string | null;
+    deliveredBytesSha256?: string | null;
   };
   needsHumanReview?: boolean;
   /** Candidate upload succeeded but its pre-QA durable record failed; held without QA or regeneration. */
@@ -3383,24 +3393,25 @@ async function generateWithGPTImageStyle01Phase2(input: ImageInput): Promise<Gen
       | undefined;
     if (qaOutcome === 'verified_pass' && input.pageResemblanceGate) {
       try {
-        const scored = await scoreResemblanceAgainstReference({
+        const exact = await evaluateStoredPageChildResemblanceVision({
           referenceImageUrl: input.pageResemblanceGate.referenceImageUrl,
           candidateImageUrl: last.url,
-          effectiveThreshold: input.pageResemblanceGate.effectiveThreshold,
-          minAcceptableScore: input.pageResemblanceGate.minAcceptableScore,
+          threshold: input.pageResemblanceGate.effectiveThreshold,
         });
+        const scored = exact.result;
         resemblanceGateEvidence = {
           required: true,
-          status:
-            scored.resemblanceScore >=
-            input.pageResemblanceGate.effectiveThreshold
-              ? 'passed'
-              : 'failed',
+          status: scored.status,
           resemblanceScore: scored.resemblanceScore,
           threshold: input.pageResemblanceGate.effectiveThreshold,
           minAcceptableScore: input.pageResemblanceGate.minAcceptableScore,
-          faceDetectConfidence: scored.faceDetectConfidence,
-          faceAreaRatio: scored.faceAreaRatio,
+          faceDetectConfidence: null,
+          faceAreaRatio: null,
+          evaluatorVersion: scored.evaluatorVersion,
+          subjectVisible: scored.subjectVisible,
+          sameChild: scored.sameChild,
+          referenceBytesSha256: exact.referenceBytesSha256,
+          deliveredBytesSha256: exact.candidateBytesSha256,
         };
       } catch {
         resemblanceGateEvidence = {
@@ -5238,6 +5249,10 @@ export async function generateAllPageImages(
     const expectedCharacterIds = page.expectedCharacterIds && page.expectedCharacterIds.length > 0
       ? page.expectedCharacterIds
       : ['child'];
+    const childExpected = pageRequiresChildIdentity({
+      runtimeBlueprintFrame: page.runtimeBlueprintFrame,
+      expectedCharacterIds,
+    });
     const pageStoryboard =
       storyboardByPage.get(page.pageNumber) ??
       normalizeStoryboardRows(
@@ -5298,7 +5313,7 @@ export async function generateAllPageImages(
       action: pageStoryboard.action,
       emotion: pageStoryboard.emotionalTone,
     });
-    if (exprRef?.url && expectedCharacterIds.includes('child')) {
+    if (exprRef?.url && childExpected) {
       characterAnchors.child = exprRef.url;
     }
     const pageReferenceImages =
@@ -5326,7 +5341,6 @@ export async function generateAllPageImages(
     const anchorReferenceImages = passedAnchorUrls;
     const mergedReferenceImages = [...new Set([...baseReferenceImages, ...anchorReferenceImages])];
     const referenceImages = mergedReferenceImages.length > 0 ? mergedReferenceImages : undefined;
-    const childExpected = expectedCharacterIds.includes('child');
     const childReferenceRequested = Boolean(pageReferenceImages?.[0]);
     const childAnchorAvailable = Boolean(characterAnchors.child);
     const childReferenceReachesProvider = Boolean(
@@ -5513,9 +5527,12 @@ export async function generateAllPageImages(
         ? config.pageResemblanceReferenceImage
           ? {
               referenceImageUrl: config.pageResemblanceReferenceImage,
-              effectiveThreshold: resolveEffectiveThreshold(
-                normalizedStyle.toLowerCase(),
-                thresholdConfig,
+              effectiveThreshold: Math.max(
+                PAGE_CHILD_RESEMBLANCE_MIN_THRESHOLD,
+                resolveEffectiveThreshold(
+                  normalizedStyle.toLowerCase(),
+                  thresholdConfig,
+                ),
               ),
               minAcceptableScore: thresholdConfig.minAcceptableScore,
             }
@@ -5945,7 +5962,7 @@ export async function generateAllPageImages(
     if (
       !enforcedPageGate &&
       resemblesMonitorEnabled &&
-      expectedCharacterIds.includes('child') &&
+      childExpected &&
       characterAnchors.child &&
       !shouldRunAnchorElection
     ) {

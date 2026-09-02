@@ -114,6 +114,18 @@ export interface AtomicOperationArgs<T> {
   /** Hash of the operation inputs; a mismatch under the same key fails closed. */
   payloadHash: string;
   /**
+   * Optional lock-order hook. Runs inside every transaction attempt before the receipt INSERT/conflict check.
+   * Order-scoped callers use this to acquire `Order FOR UPDATE` before touching AtomicOperationReceipt, so fresh
+   * and replay attempts share the same deterministic Order-first lock order as the business mutation.
+   */
+  beforeReceipt?: (tx: Tx) => Promise<void>;
+  /**
+   * Optional replay-only authority check. Runs after the existing receipt and payload hash have been verified,
+   * while the same transaction (and any `beforeReceipt` locks) is still active, and before its recorded value is
+   * returned. Fresh operations never invoke this hook.
+   */
+  validateReplay?: (tx: Tx, value: T) => Promise<void>;
+  /**
    * The business mutation + invalidation + counters. Runs ONLY when the receipt is newly inserted (never on a
    * fence hit). MUST return a JSON-safe value (P2 #4) — it is recorded in JSONB and replayed verbatim on a fence
    * hit, so a Date or Prisma record would be corrupted on round-trip. The JSON-safety is enforced at the caller
@@ -173,6 +185,8 @@ export async function runAtomicOperation<T>(
 
 /** The in-tx protocol (steps a–e). Kept separate so tests can drive it against a stateful fake. */
 async function runFenced<T>(tx: Tx, args: AtomicOperationArgs<T>): Promise<T> {
+  await args.beforeReceipt?.(tx);
+
   // (a) INSERT the receipt ON CONFLICT DO NOTHING → RETURNING tells us whether THIS attempt owns the operation.
   const inserted = await tx.$queryRaw<Array<{ id: string }>>`
     INSERT INTO "AtomicOperationReceipt" ("id", "operationKey", "orderId", "kind", "payloadHash", "result", "createdAt")
@@ -190,7 +204,9 @@ async function runFenced<T>(tx: Tx, args: AtomicOperationArgs<T>): Promise<T> {
     if (existing.payloadHash !== args.payloadHash) {
       throw new ReceiptPayloadMismatchError(args.operationKey, existing.payloadHash, args.payloadHash);
     }
-    return (existing.result as { value: T }).value; // NEVER reapply the mutation
+    const value = (existing.result as { value: T }).value;
+    await args.validateReplay?.(tx, value);
+    return value; // NEVER reapply the mutation
   }
 
   // (c) newly inserted → perform the mutation + invalidation + counters exactly once.

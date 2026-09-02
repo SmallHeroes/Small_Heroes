@@ -113,7 +113,10 @@ import {
 } from './contract-hash-binding';
 import { persistDeliveredQualityEvidence, persistQualityContext, type QaContext } from './quality-evidence-producer';
 import { coverArtifactKey, pageArtifactKey, makeQualityRegenReserver } from './quality-evidence';
-import { openExceptionCase } from '@/lib/generation-chunked/exception-case';
+import {
+  lockOrderForExceptionCase,
+  openExceptionCase,
+} from '@/lib/generation-chunked/exception-case';
 import { finalizePackageDelivery, resolveSafetyDeliveryGate, isSafetyVerified } from './package-delivery';
 import { persistOrdinaryPipelineCache } from './pipeline-cache-store';
 import { imageAssetSafetyFields, coverSafetyFields } from './asset-safety-signal';
@@ -171,6 +174,8 @@ import {
   upsertCharacterAnchor,
 } from './character-anchor-store';
 import { resolveChildExpressionKindForPage } from './child-expression-page-map';
+import { pageRequiresChildIdentity } from './child-page-presence';
+import { PAGE_CHILD_RESEMBLANCE_MIN_THRESHOLD } from './page-child-resemblance-vision';
 import {
   collectExistingImagePageNumbers,
   compositionRulesForTemplate,
@@ -1827,7 +1832,18 @@ async function runPageImagesChunk(
   const appBaseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
   const childCanonicalAnchor = getApprovedChildCanonicalAnchor(cache);
   const pendingChildAnchor = getChildCanonicalAnchor(cache);
-  const childExpectedOnAnyPage = pagesForGen.some((p) => (p.expectedCharacterIds ?? []).includes('child'));
+  const childExpectedOnAnyPage = pagesForGen.some((page) => {
+    const frame = earlyRuntimeAuthority
+      ? requireRuntimeBlueprintFrame(
+          earlyRuntimeAuthority.bookProjection,
+          page.pageNumber,
+        )
+      : null;
+    return pageRequiresChildIdentity({
+      runtimeBlueprintFrame: frame,
+      expectedCharacterIds: page.expectedCharacterIds,
+    });
+  });
   if (childExpectedOnAnyPage && !childCanonicalAnchor?.url) {
     if (pendingChildAnchor?.qaStatus === 'pending_review') {
       throw new Error(
@@ -1849,11 +1865,14 @@ async function runPageImagesChunk(
     ? await evaluatePhotoGate(order.childImageUrl).then((g) => g.inputStrength).catch(() => 'adequate' as const)
     : 'adequate';
   const resemblanceThresholdConfig = resolveResemblanceThresholdConfig();
-  const releaseV1PageResemblanceGateRequired =
-    requiresReleaseV1PageResemblanceGate(cache);
-  const releaseV1PageResemblanceThreshold = resolveEffectiveThreshold(
-    order.illustrationStyle,
-    resemblanceThresholdConfig,
+  // Package-backed renders always enforce numeric identity on authoritative child-present frames. The historical
+  // reviewed-rerender marker keeps the same gate active for a legacy recovery. Neither path may configure below
+  // the non-negotiable 0.70 floor.
+  const pageResemblanceGateRequired =
+    runtimeVisualAuthorityRequired || requiresReleaseV1PageResemblanceGate(cache);
+  const pageResemblanceThreshold = Math.max(
+    PAGE_CHILD_RESEMBLANCE_MIN_THRESHOLD,
+    resolveEffectiveThreshold(order.illustrationStyle, resemblanceThresholdConfig),
   );
 
   const workerDeadline = deadlineMs(startedAt, budgetMs);
@@ -1949,7 +1968,7 @@ async function runPageImagesChunk(
     challengeCategory: cache.challengeCategory,
     inputPhotoStrength,
     resemblanceThresholdConfig,
-    requirePageResemblanceGate: releaseV1PageResemblanceGateRequired,
+    requirePageResemblanceGate: pageResemblanceGateRequired,
     pageResemblanceReferenceImage: childCanonicalAnchor!.url,
     onAnchorsResolved: async (resolvedAnchors) => {
       for (const [characterId, url] of Object.entries(resolvedAnchors)) {
@@ -2083,16 +2102,25 @@ async function runPageImagesChunk(
     // (Slice A) The page's frozen WORLD expectation, merged into the QA context both writes forward so the
     // delivered-verdict producer world-QAs the delivered bytes. null (steering off / no contract) → no-op parity.
     const pageWorldExpectation = buildPageWorldExpectation(cache, dbPage.pageNumber);
-    const deliveredPageExpectsChild =
-      pagesForGen
-        .find((page) => page.pageNumber === dbPage.pageNumber)
-        ?.expectedCharacterIds?.includes('child') ?? false;
+    const sourcePage = pagesForGen.find(
+      (page) => page.pageNumber === dbPage.pageNumber,
+    );
+    const deliveredRuntimeFrame = earlyRuntimeAuthority
+      ? requireRuntimeBlueprintFrame(
+          earlyRuntimeAuthority.bookProjection,
+          dbPage.pageNumber,
+        )
+      : null;
+    const deliveredPageExpectsChild = pageRequiresChildIdentity({
+      runtimeBlueprintFrame: deliveredRuntimeFrame,
+      expectedCharacterIds: sourcePage?.expectedCharacterIds,
+    });
     const rawPageResemblance = image.style01Meta?.pageResemblanceGate;
     const deliveredPageResemblancePolicy =
-      releaseV1PageResemblanceGateRequired && deliveredPageExpectsChild
+      pageResemblanceGateRequired && deliveredPageExpectsChild
         ? {
             referenceImageUrl: childCanonicalAnchor!.url,
-            effectiveThreshold: releaseV1PageResemblanceThreshold,
+            effectiveThreshold: pageResemblanceThreshold,
             minAcceptableScore: resemblanceThresholdConfig.minAcceptableScore,
           }
         : undefined;
@@ -2220,6 +2248,13 @@ async function runPageImagesChunk(
                     rawEvidence: {
                       status: rawPageResemblance.status,
                       resemblanceScore: rawPageResemblance.resemblanceScore,
+                      evaluatorVersion: rawPageResemblance.evaluatorVersion,
+                      subjectVisible: rawPageResemblance.subjectVisible,
+                      sameChild: rawPageResemblance.sameChild,
+                      referenceBytesSha256:
+                        rawPageResemblance.referenceBytesSha256,
+                      deliveredBytesSha256:
+                        rawPageResemblance.deliveredBytesSha256,
                     },
                   }
                 : {}),
@@ -2280,6 +2315,12 @@ async function runPageImagesChunk(
       const failedAt = new Date();
       const reason = `Page ${pn} failed after ${MAX_PAGE_GENERATION_ATTEMPTS} attempts`;
       await prisma.$transaction(async (tx) => {
+        const exceptionOrderLock = isReadinessManifestEnabled()
+          ? await lockOrderForExceptionCase(tx, order.id)
+          : null;
+        if (isReadinessManifestEnabled() && !exceptionOrderLock) {
+          throw new Error(`exception_case_order_not_found:${order.id}`);
+        }
         await tx.generationJob.update({
           where: { orderId: order.id },
           data: {
@@ -2303,7 +2344,7 @@ async function runPageImagesChunk(
             sourceRef: `generation:${order.id}:${failedAt.toISOString()}`,
             now: failedAt,
             fenceExisting: true,
-          });
+          }, exceptionOrderLock!);
         }
       });
       return { cache, stopChunk: true, failed: true };
@@ -2718,21 +2759,31 @@ export async function processGenerationChunk(
         orderId, operationKey: error.operationKey, kind: error.kind, lastError: msg,
       });
       if (isReadinessManifestEnabled()) {
-        await prisma.$transaction((tx) =>
-          openExceptionCase(tx, {
+        await prisma.$transaction(async (tx) => {
+          const exceptionOrderLock = await lockOrderForExceptionCase(tx, orderId);
+          if (!exceptionOrderLock) {
+            throw new Error(`exception_case_order_not_found:${orderId}`);
+          }
+          await openExceptionCase(tx, {
             orderId,
             kind: 'infra_transient',
             reason: `atomic_outcome_unknown:${error.kind}`,
             sourceRef: `generation:${orderId}:${failedAt.toISOString()}`,
             now: failedAt,
             fenceExisting: true,
-          }),
-        );
+          }, exceptionOrderLock);
+        });
       }
       return { stage: 'outcome_unknown', done: true, stopChunk: true, error: msg };
     }
     log.error('Chunk failed', error, { orderId });
     await prisma.$transaction(async (tx) => {
+      const exceptionOrderLock = isReadinessManifestEnabled()
+        ? await lockOrderForExceptionCase(tx, orderId)
+        : null;
+      if (isReadinessManifestEnabled() && !exceptionOrderLock) {
+        throw new Error(`exception_case_order_not_found:${orderId}`);
+      }
       await tx.generationJob.update({
         where: { orderId },
         data: {
@@ -2755,7 +2806,7 @@ export async function processGenerationChunk(
           sourceRef: `generation:${orderId}:${failedAt.toISOString()}`,
           now: failedAt,
           fenceExisting: true,
-        });
+        }, exceptionOrderLock!);
       }
     });
     return { stage: 'failed', done: true, stopChunk: true, error: msg };

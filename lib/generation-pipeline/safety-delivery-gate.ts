@@ -2,7 +2,17 @@ import 'server-only';
 
 import type { Prisma, PrismaClient } from '@prisma/client';
 
-import { isSafetyHazardOverridden, isSafetyShaMissing } from './asset-safety-signal';
+import {
+  isSafetyHazardOverridden,
+  isSafetyShaMissing,
+  isUnverifiedSafetyHumanVerified,
+} from './asset-safety-signal';
+import {
+  inspectHumanReviewAuthorityBytes,
+  loadQualityEvidence,
+  type QualityEvidenceRow,
+} from './quality-evidence';
+import { inspectAsset } from './asset-integrity';
 
 /**
  * (Fix 1) The READINESS-INDEPENDENT physical-safety gate for the whole book, computed from the durable per-artifact
@@ -27,6 +37,11 @@ export interface SafetyGatePageAsset {
   safetyContentSha256: string | null;
   safetyOverriddenHazards: string[];
   safetyOverrideSha256: string | null;
+  /**
+   * Runtime-only exact-byte human-verification signal. This is never persisted in the legacy confirmed-hazard
+   * override columns; a persisted value is derived only from fully validated QualityEvidence + succeeded action.
+   */
+  humanVerifiedUnverifiedSha256?: string | null;
 }
 export interface SafetyGatePage {
   pageNumber: number;
@@ -40,6 +55,8 @@ export interface SafetyGateInputs {
   coverSafetyContentSha256: string | null;
   coverSafetyOverriddenHazards: string[];
   coverSafetyOverrideSha256: string | null;
+  /** Runtime-only twin used by the pure projection helper; the approved route remains page-only. */
+  coverHumanVerifiedUnverifiedSha256?: string | null;
   pages: SafetyGatePage[];
 }
 
@@ -111,7 +128,17 @@ export function evaluateSafetyDeliveryGate(book: SafetyGateInputs | null): Safet
           ? 'cover:sha_missing'
           : `cover:${book.coverSafetyHazards.join('|')}`);
       }
-    } else if (!book.coverSafetyVerified) unverified.push('cover');
+    } else if (
+      !book.coverSafetyVerified &&
+      !isUnverifiedSafetyHumanVerified({
+        safetyVerified: book.coverSafetyVerified,
+        hazards: book.coverSafetyHazards,
+        overriddenHazards: book.coverSafetyOverriddenHazards,
+        contentSha256: book.coverSafetyContentSha256,
+        humanVerificationSha256:
+          book.coverHumanVerifiedUnverifiedSha256 ?? null,
+      })
+    ) unverified.push('cover');
   }
   for (const p of book.pages) {
     const a = p.imageAsset;
@@ -131,7 +158,17 @@ export function evaluateSafetyDeliveryGate(book: SafetyGateInputs | null): Safet
           ? `page:${p.pageNumber}:sha_missing`
           : `page:${p.pageNumber}:${a.safetyHazards.join('|')}`);
       }
-    } else if (!a.safetyVerified) unverified.push(`page:${p.pageNumber}`);
+    } else if (
+      !a.safetyVerified &&
+      !isUnverifiedSafetyHumanVerified({
+        safetyVerified: a.safetyVerified,
+        hazards: a.safetyHazards,
+        overriddenHazards: a.safetyOverriddenHazards,
+        contentSha256: a.safetyContentSha256,
+        humanVerificationSha256:
+          a.humanVerifiedUnverifiedSha256 ?? null,
+      })
+    ) unverified.push(`page:${p.pageNumber}`);
   }
   if (hazards.length === 0 && unverified.length === 0) return { held: false, reason: null };
   const detail = hazards.length > 0 ? `hazard:${hazards.join(',')}` : `unverified:${unverified.join(',')}`;
@@ -176,10 +213,92 @@ export function projectSafetyOverrideOntoGateInputs(
 }
 
 /**
+ * Project an exact-byte human verification onto a COPY of the gate inputs. Unlike the legacy confirmed-hazard
+ * projection above, this writes ONLY the target artifact's dedicated runtime-only human-verification SHA: machine
+ * evidence (`safetyVerified`, hazards, content SHA) and legacy overridden-hazard coverage remain untouched. The
+ * evaluator independently enforces the full fail-closed predicate before treating the target as human-verified.
+ */
+export function projectHumanVerificationOntoGateInputs(
+  book: SafetyGateInputs | null,
+  target: { kind: 'cover' } | { kind: 'page'; pageNumber: number },
+  verification: { humanVerificationSha256: string },
+): SafetyGateInputs | null {
+  if (!book) return null;
+  if (target.kind === 'cover') {
+    return {
+      ...book,
+      coverHumanVerifiedUnverifiedSha256:
+        verification.humanVerificationSha256,
+    };
+  }
+  return {
+    ...book,
+    pages: book.pages.map((p) =>
+      p.pageNumber === target.pageNumber && p.imageAsset
+        ? {
+            ...p,
+            imageAsset: {
+              ...p.imageAsset,
+              humanVerifiedUnverifiedSha256:
+                verification.humanVerificationSha256,
+            },
+          }
+        : p,
+    ),
+  };
+}
+
+/**
+ * Project only strict, already-validated human-review authority onto Gate 2's runtime shape. Raw review columns are
+ * never trusted here: loadQualityEvidence verifies the succeeded action, exact asset/url/contract/anchor bindings,
+ * and exposes humanReviewVerified only when the complete immutable chain is current.
+ */
+export function projectPersistedHumanVerificationsOntoGateInputs(
+  book: SafetyGateInputs | null,
+  qualityRows: readonly QualityEvidenceRow[],
+): SafetyGateInputs | null {
+  if (!book) return null;
+  const verifiedByArtifact = new Map(
+    qualityRows.flatMap((row) =>
+      row.humanReviewVerified === true
+        ? [[row.artifactKey, row.assetSha256] as const]
+        : [],
+    ),
+  );
+  return {
+    ...book,
+    pages: book.pages.map((page) => {
+      if (!page.imageAsset) return page;
+      const sha = verifiedByArtifact.get(`page:${page.pageNumber}`) ?? null;
+      return sha
+        ? {
+            ...page,
+            imageAsset: {
+              ...page.imageAsset,
+              humanVerifiedUnverifiedSha256: sha,
+            },
+          }
+        : page;
+    }),
+  };
+}
+
+/**
  * Resolve the book's readiness-independent safety gate from the DB (load + evaluate). Behaviour is byte-identical to
  * the prior inline implementation; production callers (chunk-runner, single-page-image-regen, package-delivery) are
  * unchanged. Never throws → a missing book is "not held".
  */
-export async function resolveSafetyDeliveryGate(prisma: PrismaClient, orderId: string): Promise<SafetyDeliveryGate> {
-  return evaluateSafetyDeliveryGate(await loadSafetyGateInputs(prisma, orderId));
+export async function resolveSafetyDeliveryGate(
+  prisma: PrismaClient,
+  orderId: string,
+  inspect: typeof inspectAsset = inspectAsset,
+): Promise<SafetyDeliveryGate> {
+  const [inputs, byteAuthority] = await Promise.all([
+    loadSafetyGateInputs(prisma, orderId),
+    inspectHumanReviewAuthorityBytes(prisma, orderId, inspect),
+  ]);
+  const qualityRows = await loadQualityEvidence(prisma, orderId, byteAuthority);
+  return evaluateSafetyDeliveryGate(
+    projectPersistedHumanVerificationsOntoGateInputs(inputs, qualityRows),
+  );
 }

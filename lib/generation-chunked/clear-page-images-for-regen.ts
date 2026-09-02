@@ -4,6 +4,7 @@ import type { AtomicOperationDeps } from '@/lib/generation-pipeline/atomic-opera
 import {
   QUALITY_REGEN_BUDGET,
   coverArtifactKey,
+  pageArtifactKey,
   pageNumberFromArtifactKey,
   ensureQualityEvidenceRow,
 } from '@/lib/generation-pipeline/quality-evidence';
@@ -35,6 +36,20 @@ export async function clearOrderPageImages(
       if (!book?.pages.length) return 0;
       const pageIds = book.pages.map((p) => p.id);
       const deleted = await tx.imageAsset.deleteMany({ where: { pageId: { in: pageIds } } });
+      await tx.qualityEvidence.updateMany({
+        where: {
+          orderId,
+          artifactKey: { in: pageNumbers.map((pageNumber) => pageArtifactKey(pageNumber)) },
+        },
+        data: {
+          reviewStatus: null,
+          reviewedAssetSha256: null,
+          reviewedContractHash: null,
+          reviewedBy: null,
+          reviewedAt: null,
+          reviewReason: null,
+        },
+      });
       return deleted.count;
     },
   );
@@ -55,6 +70,17 @@ export async function clearOrderCover(prisma: PrismaClient, orderId: string): Pr
       if (!book) return false;
       await tx.generatedBook.update({ where: { id: book.id }, data: { coverImageUrl: null } });
       await tx.order.update({ where: { id: orderId }, data: { coverImageUrl: null } });
+      await tx.qualityEvidence.updateMany({
+        where: { orderId, artifactKey: coverArtifactKey() },
+        data: {
+          reviewStatus: null,
+          reviewedAssetSha256: null,
+          reviewedContractHash: null,
+          reviewedBy: null,
+          reviewedAt: null,
+          reviewReason: null,
+        },
+      });
       return true;
     },
   );
@@ -130,7 +156,15 @@ export async function reserveMarkAndClearRegen(
           : {};
       await tx.qualityEvidence.update({
         where: { orderId_artifactKey: { orderId: args.orderId, artifactKey: args.artifactKey } },
-        data: { evidence: { ...base, regenPending: true } as unknown as Prisma.InputJsonValue },
+        data: {
+          evidence: { ...base, regenPending: true } as unknown as Prisma.InputJsonValue,
+          reviewStatus: null,
+          reviewedAssetSha256: null,
+          reviewedContractHash: null,
+          reviewedBy: null,
+          reviewedAt: null,
+          reviewReason: null,
+        },
       });
       // 3) Clear the delivered asset (inlined so the barrier guard sees it) so the redrive re-renders it.
       if (isCover) {

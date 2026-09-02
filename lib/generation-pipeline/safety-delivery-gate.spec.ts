@@ -1,9 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import {
   evaluateSafetyDeliveryGate,
+  projectHumanVerificationOntoGateInputs,
+  projectPersistedHumanVerificationsOntoGateInputs,
   projectSafetyOverrideOntoGateInputs,
   type SafetyGateInputs,
 } from './safety-delivery-gate';
+import type { QualityEvidenceRow } from './quality-evidence';
 
 const SHA_P1 = 'a'.repeat(64);
 const SHA_P2 = 'b'.repeat(64);
@@ -29,6 +32,19 @@ function hazardPage(pageNumber: number, sha: string, hazards: string[] = ['sharp
     imageAsset: {
       safetyVerified: true,
       safetyHazards: hazards,
+      safetyContentSha256: sha,
+      safetyOverriddenHazards: [] as string[],
+      safetyOverrideSha256: null as string | null,
+    },
+  };
+}
+
+function unverifiedPage(pageNumber: number, sha: string) {
+  return {
+    pageNumber,
+    imageAsset: {
+      safetyVerified: false,
+      safetyHazards: [] as string[],
       safetyContentSha256: sha,
       safetyOverriddenHazards: [] as string[],
       safetyOverrideSha256: null as string | null,
@@ -106,5 +122,124 @@ describe('projectSafetyOverrideOntoGateInputs + evaluate — THE RULING: release
     const before = JSON.parse(JSON.stringify(twoHazards));
     projectSafetyOverrideOntoGateInputs(twoHazards, { kind: 'page', pageNumber: 1 }, { overriddenHazards: ['sharp_object'], overrideSha256: SHA_P1 });
     expect(twoHazards).toEqual(before);
+  });
+});
+
+describe('projectHumanVerificationOntoGateInputs + evaluate — exact-byte unverified release', () => {
+  it('clears an unverified page only when the human-review SHA exactly matches its current content SHA', () => {
+    const input = book({ pages: [unverifiedPage(1, SHA_P1)] });
+    const projected = projectHumanVerificationOntoGateInputs(
+      input,
+      { kind: 'page', pageNumber: 1 },
+      { humanVerificationSha256: SHA_P1 },
+    );
+    expect(evaluateSafetyDeliveryGate(projected)).toEqual({ held: false, reason: null });
+  });
+
+  it('clears an unverified cover under the same exact-byte rule', () => {
+    const input = book({
+      coverSafetyVerified: null,
+      coverSafetyContentSha256: SHA_COVER,
+    });
+    const projected = projectHumanVerificationOntoGateInputs(
+      input,
+      { kind: 'cover' },
+      { humanVerificationSha256: SHA_COVER },
+    );
+    expect(evaluateSafetyDeliveryGate(projected)).toEqual({ held: false, reason: null });
+  });
+
+  it('keeps the hold when the human-review SHA targets different bytes', () => {
+    const input = book({ pages: [unverifiedPage(1, SHA_P1)] });
+    const projected = projectHumanVerificationOntoGateInputs(
+      input,
+      { kind: 'page', pageNumber: 1 },
+      { humanVerificationSha256: WRONG },
+    );
+    expect(evaluateSafetyDeliveryGate(projected)).toEqual({
+      held: true,
+      reason: 'safety_hold:unverified:page:1',
+    });
+  });
+
+  it('keeps the hold when legacy overridden-hazard state is present', () => {
+    const target = unverifiedPage(1, SHA_P1);
+    target.imageAsset.safetyOverriddenHazards = ['sharp_object'];
+    const projected = projectHumanVerificationOntoGateInputs(
+      book({ pages: [target] }),
+      { kind: 'page', pageNumber: 1 },
+      { humanVerificationSha256: SHA_P1 },
+    );
+    expect(evaluateSafetyDeliveryGate(projected)).toEqual({
+      held: true,
+      reason: 'safety_hold:unverified:page:1',
+    });
+  });
+
+  it('does not release a confirmed hazard — hazard coverage remains mandatory', () => {
+    const projected = projectHumanVerificationOntoGateInputs(
+      book({ pages: [hazardPage(1, SHA_P1)] }),
+      { kind: 'page', pageNumber: 1 },
+      { humanVerificationSha256: SHA_P1 },
+    );
+    expect(evaluateSafetyDeliveryGate(projected)).toEqual({
+      held: true,
+      reason: 'safety_hold:hazard:page:1:sharp_object',
+    });
+  });
+
+  it('verifying one of two unverified pages leaves the other page held', () => {
+    const projected = projectHumanVerificationOntoGateInputs(
+      book({ pages: [unverifiedPage(1, SHA_P1), unverifiedPage(2, SHA_P2)] }),
+      { kind: 'page', pageNumber: 1 },
+      { humanVerificationSha256: SHA_P1 },
+    );
+    expect(evaluateSafetyDeliveryGate(projected)).toEqual({
+      held: true,
+      reason: 'safety_hold:unverified:page:2',
+    });
+  });
+
+  it('projects only the target override SHA and never mutates machine evidence or raw inputs', () => {
+    const input = book({ pages: [unverifiedPage(1, SHA_P1), unverifiedPage(2, SHA_P2)] });
+    const before = JSON.parse(JSON.stringify(input)) as SafetyGateInputs;
+    const expected = JSON.parse(JSON.stringify(input)) as SafetyGateInputs;
+    expected.pages[0].imageAsset!.humanVerifiedUnverifiedSha256 = SHA_P1;
+
+    const projected = projectHumanVerificationOntoGateInputs(
+      input,
+      { kind: 'page', pageNumber: 1 },
+      { humanVerificationSha256: SHA_P1 },
+    );
+
+    expect(projected).toEqual(expected);
+    expect(input).toEqual(before);
+  });
+
+  it('derives the dedicated runtime signal only from a fully validated persisted human review', () => {
+    const input = book({ pages: [unverifiedPage(1, SHA_P1)] });
+    const reviewed = {
+      artifactKey: 'page:1',
+      assetSha256: SHA_P1,
+      humanReviewVerified: true,
+    } as QualityEvidenceRow;
+    const projected = projectPersistedHumanVerificationsOntoGateInputs(
+      input,
+      [reviewed],
+    );
+    expect(projected?.pages[0].imageAsset).toMatchObject({
+      safetyOverrideSha256: null,
+      humanVerifiedUnverifiedSha256: SHA_P1,
+    });
+    expect(evaluateSafetyDeliveryGate(projected)).toEqual({ held: false, reason: null });
+  });
+
+  it('does not reinterpret the legacy confirmed-hazard override SHA as human verification', () => {
+    const input = book({ pages: [unverifiedPage(1, SHA_P1)] });
+    input.pages[0].imageAsset!.safetyOverrideSha256 = SHA_P1;
+    expect(evaluateSafetyDeliveryGate(input)).toEqual({
+      held: true,
+      reason: 'safety_hold:unverified:page:1',
+    });
   });
 });

@@ -3,6 +3,7 @@ import { createHash } from 'crypto';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import { computeVisualContractHash } from '@/lib/visual-contract-compiler/contractHash';
+import { canonicalHash } from '@/lib/canonical-json';
 import {
   commitBaseBookReadiness,
   casClaimSendSlot,
@@ -13,6 +14,20 @@ import {
 import { BASE_BOOK_SCOPE } from '@/lib/generation-pipeline/integrity-gate';
 import type { AssetInspection } from '@/lib/generation-pipeline/asset-integrity';
 import { QUALITY_EVALUATOR_CONTRACT_VERSION, QUALITY_REGEN_BUDGET } from '@/lib/generation-pipeline/quality-evidence';
+import {
+  deliveredUrlHash,
+  humanVerifiedUnverifiedOperationKey,
+  humanVerifiedUnverifiedRequestHash,
+  type HumanVerifiedUnverifiedReleaseRequest,
+} from '@/lib/generation-pipeline/human-verified-unverified-release';
+import {
+  HUMAN_VERIFIED_UNVERIFIED_RECEIPT_VERSION,
+  humanVerifiedUnverifiedResemblanceProofDigest,
+} from '@/lib/generation-pipeline/human-verified-unverified-contract';
+import {
+  PAGE_CHILD_RESEMBLANCE_MIN_THRESHOLD,
+  PAGE_CHILD_RESEMBLANCE_VISION_VERSION,
+} from '@/lib/generation-pipeline/page-child-resemblance-vision';
 
 const NOW = new Date('2026-06-29T12:00:00Z');
 const stubInspect = async (url: string | null | undefined): Promise<AssetInspection> => {
@@ -80,6 +95,71 @@ function passingQualityRows(orderRow: typeof orderRowFull): QRow[] {
 // derives it from the fresh producing snapshot. Tests that need an anchor hold seed the ROW's
 // generationJob.pipelineCache.childAnchorLowConfidence instead.
 const args = (over: Partial<CommitArgs> = {}): CommitArgs => ({ orderId: 'o1', ...over });
+const HUMAN_ANCHOR = {
+  orderId: 'o1',
+  styleId: 'pencil_watercolor',
+  characterId: 'child',
+  role: 'child',
+  anchorType: 'canonical_portrait',
+  source: 'uploaded_photo',
+  url: 'https://h/approved-child-anchor.png',
+  qaStatus: 'passed',
+  createdAt: '2026-06-01T00:00:00.000Z',
+  updatedAt: '2026-06-01T00:00:00.000Z',
+} as const;
+const humanOrderRow = {
+  ...orderRowFull,
+  generationJob: {
+    pipelineCache: { characterAnchorStore: { child: HUMAN_ANCHOR } },
+  },
+};
+const humanReleaseRequest = (
+  over: Partial<HumanVerifiedUnverifiedReleaseRequest> = {},
+): HumanVerifiedUnverifiedReleaseRequest => {
+  const pageUrl = orderRowFull.book.pages[0].imageAsset.url;
+  const resemblanceProofs = over.resemblanceProofs ?? [{
+    artifactKey: 'page:1',
+    assetId: 'asset-page-1',
+    deliveredUrlHash: deliveredUrlHash(pageUrl),
+    deliveredBytesSha256: shaOf(pageUrl),
+    referenceBytesSha256: shaOf(HUMAN_ANCHOR.url),
+    referenceImageUrlHash: canonicalHash(HUMAN_ANCHOR.url),
+    evaluatorVersion: PAGE_CHILD_RESEMBLANCE_VISION_VERSION,
+    resemblanceScore: PAGE_CHILD_RESEMBLANCE_MIN_THRESHOLD,
+    threshold: PAGE_CHILD_RESEMBLANCE_MIN_THRESHOLD,
+    subjectVisible: true as const,
+    sameChild: true as const,
+    source: 'raw_same_bytes' as const,
+  }];
+  return {
+    inspectionDigest: 'f'.repeat(64),
+    refundAuthorityDigest: 'e'.repeat(64),
+    artifactKey: 'page:1',
+    expectedMarker: 'safety_hold:unverified:page:1',
+    expectedCaseId: 'case-page-1',
+    expectedCaseRevision: 2,
+    expectedCaseFingerprint: 'a'.repeat(64),
+    expectedAssetId: 'asset-page-1',
+    expectedAssetSha256: shaOf(pageUrl),
+    expectedDeliveredUrlHash: deliveredUrlHash(pageUrl),
+    expectedAnchorEntryDigest: canonicalHash(HUMAN_ANCHOR),
+    expectedAnchorUrlHash: canonicalHash(HUMAN_ANCHOR.url),
+    expectedAnchorBytesSha256: shaOf(HUMAN_ANCHOR.url),
+    expectedContractHash: null,
+    expectedEvaluatorVersion: QUALITY_EVALUATOR_CONTRACT_VERSION,
+    snapshotDigest: 'c'.repeat(64),
+    paymentSnapshotDigest: 'd'.repeat(64),
+    resemblanceProofDigest: humanVerifiedUnverifiedResemblanceProofDigest(
+      resemblanceProofs,
+    ),
+    requiredResemblanceArtifacts: ['page:1'],
+    reviewReason: 'Human verified these exact delivered bytes.',
+    actor: 'operator@example.com',
+    idempotencyKey: 'human-page-1-v1',
+    ...over,
+    resemblanceProofs,
+  };
+};
 const rowWithAnchorBand = (band: 'soft_band' | 'hard_band', score: number, base: typeof orderRowFull = orderRowFull) => ({
   ...base,
   generationJob: { pipelineCache: { childAnchorLowConfidence: { reason: band, score } } },
@@ -250,6 +330,226 @@ describe('isReadinessManifestEnabled', () => {
   });
 });
 
+describe('commitBaseBookReadiness — Preview-only human-unverified release mode', () => {
+  const envKeys = [
+    'VERCEL_ENV',
+    'ALLOW_STAGING_QA',
+    'HUMAN_VERIFIED_UNVERIFIED_RELEASE_ENABLED',
+    'QA_SOFT_DELIVER',
+    'READINESS_MANIFEST_ENABLED',
+    'NEXT_PUBLIC_APP_URL',
+    'SUPABASE_URL',
+    'DATABASE_URL',
+  ] as const;
+  let saved: Record<(typeof envKeys)[number], string | undefined>;
+
+  function enableHumanReleaseMode(): void {
+    process.env.VERCEL_ENV = 'preview';
+    process.env.ALLOW_STAGING_QA = 'true';
+    process.env.HUMAN_VERIFIED_UNVERIFIED_RELEASE_ENABLED = 'true';
+    delete process.env.QA_SOFT_DELIVER;
+    process.env.READINESS_MANIFEST_ENABLED = 'true';
+    process.env.NEXT_PUBLIC_APP_URL = 'https://human-review-preview.vercel.app';
+    process.env.SUPABASE_URL = 'https://staging-project.supabase.co';
+    process.env.DATABASE_URL = 'postgresql://test@staging-project.supabase.co/db';
+  }
+
+  function untouchedPrisma() {
+    return {
+      order: { findUnique: vi.fn() },
+      qualityEvidence: { findMany: vi.fn() },
+      $transaction: vi.fn(),
+    };
+  }
+
+  function atomicReplayHarness(value: unknown) {
+    const receiptInsert = vi.fn(async (..._args: unknown[]) => []);
+    const receiptFind = vi.fn(async () => ({
+      payloadHash: (receiptInsert.mock.calls[0] as unknown[])[5] as string,
+      result: { value },
+    }));
+    const orderLock = vi.fn(async () => [{ id: 'o1' }]);
+    const $queryRaw = vi.fn(async (...queryArgs: unknown[]) => {
+      const sql = ((queryArgs[0] as TemplateStringsArray) ?? []).join(' ');
+      return sql.includes('SELECT "id" FROM "Order"')
+        ? orderLock()
+        : receiptInsert(...queryArgs);
+    });
+    const tx = {
+      $queryRaw,
+      atomicOperationReceipt: { findUnique: receiptFind },
+      qualityEvidence: { findMany: vi.fn(async () => []) },
+    };
+    const prisma = {
+      order: { findUnique: vi.fn(async () => humanOrderRow) },
+      qualityEvidence: {
+        findMany: vi.fn(async () => passingQualityRows(humanOrderRow)),
+      },
+      $transaction: vi.fn(
+        async (callback: (transaction: typeof tx) => unknown) => callback(tx),
+      ),
+    };
+    return { prisma, tx, receiptInsert, receiptFind, orderLock };
+  }
+
+  beforeEach(() => {
+    saved = Object.fromEntries(
+      envKeys.map((key) => [key, process.env[key]]),
+    ) as Record<(typeof envKeys)[number], string | undefined>;
+    enableHumanReleaseMode();
+  });
+
+  afterEach(() => {
+    for (const key of envKeys) {
+      const value = saved[key];
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+  });
+
+  const disabledBoundaries: Array<[string, () => void]> = [
+    ['not Preview', () => { process.env.VERCEL_ENV = 'production'; }],
+    ['ALLOW_STAGING_QA disabled', () => { delete process.env.ALLOW_STAGING_QA; }],
+    ['human-release flag disabled', () => { delete process.env.HUMAN_VERIFIED_UNVERIFIED_RELEASE_ENABLED; }],
+    ['QA soft-deliver enabled', () => { process.env.QA_SOFT_DELIVER = 'true'; }],
+    ['readiness disabled', () => { delete process.env.READINESS_MANIFEST_ENABLED; }],
+  ];
+
+  it.each(disabledBoundaries)(
+    'refuses human mode before any DB read when %s',
+    async (_label, disable) => {
+      disable();
+      const prisma = untouchedPrisma();
+      await expect(
+        commitBaseBookReadiness(
+          prisma as never,
+          args({ humanVerifiedUnverifiedRelease: humanReleaseRequest() }),
+        ),
+      ).rejects.toMatchObject({
+        name: 'HumanVerifiedUnverifiedAdmissibilityError',
+        rule: 'invalid_request',
+      });
+      expect(prisma.order.findUnique).not.toHaveBeenCalled();
+      expect(prisma.$transaction).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each([
+    ['SUPABASE_URL', 'https://yevwpjxqusyyaxalbvyn.supabase.co'],
+    ['DATABASE_URL', 'postgresql://user:secret@db.yevwpjxqusyyaxalbvyn.supabase.co/postgres'],
+  ])('refuses leaked production %s before human-release commit reads the DB', async (key, value) => {
+    process.env[key] = value;
+    const prisma = untouchedPrisma();
+
+    await expect(
+      commitBaseBookReadiness(
+        prisma as never,
+        args({ humanVerifiedUnverifiedRelease: humanReleaseRequest() }),
+      ),
+    ).rejects.toThrow(/\[env-separation\] Refusing to run/);
+    expect(prisma.order.findUnique).not.toHaveBeenCalled();
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+
+  it('refuses combination with either legacy safety release or requireHold before any DB read', async () => {
+    const conflicting: CommitArgs[] = [
+      args({
+        humanVerifiedUnverifiedRelease: humanReleaseRequest(),
+        release: {} as NonNullable<CommitArgs['release']>,
+      }),
+      args({
+        humanVerifiedUnverifiedRelease: humanReleaseRequest(),
+        requireHold: { deliveryHoldReason: 'anchor_low_confidence:soft_band' },
+      }),
+    ];
+
+    for (const commitArgs of conflicting) {
+      const prisma = untouchedPrisma();
+      await expect(
+        commitBaseBookReadiness(prisma as never, commitArgs),
+      ).rejects.toMatchObject({
+        name: 'HumanVerifiedUnverifiedAdmissibilityError',
+        rule: 'invalid_request',
+        message: expect.stringContaining('mutually exclusive'),
+      });
+      expect(prisma.order.findUnique).not.toHaveBeenCalled();
+      expect(prisma.$transaction).not.toHaveBeenCalled();
+    }
+  });
+
+  it('uses the dedicated operator_action receipt hash and refuses replay without current strict authority', async () => {
+    const request = humanReleaseRequest();
+    const replayed = {
+      manifestStatus: 'passed' as const,
+      enqueued: true as const,
+      orderStatus: 'ready' as const,
+      reason: null,
+      revision: 7,
+    };
+    const requestHash = humanVerifiedUnverifiedRequestHash('o1', request);
+    const { prisma, receiptInsert, receiptFind } = atomicReplayHarness({
+      version: HUMAN_VERIFIED_UNVERIFIED_RECEIPT_VERSION,
+      actionId: 'action-page-1',
+      requestHash,
+      inspectionDigest: request.inspectionDigest,
+      resemblanceProofDigest: request.resemblanceProofDigest,
+      qualityEvidenceDigest: '9'.repeat(64),
+      result: replayed,
+    });
+
+    await expect(
+      commitBaseBookReadiness(
+        prisma as never,
+        args({ humanVerifiedUnverifiedRelease: request }),
+        { inspect: stubInspect, now: () => NOW, appBaseUrl: 'https://app.example.com' },
+      ),
+    ).rejects.toMatchObject({ rule: 'evidence_changed' });
+    expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+    expect(receiptInsert).toHaveBeenCalledTimes(1);
+    const receiptCall = receiptInsert.mock.calls[0] as unknown[];
+    expect(receiptCall[2]).toBe(
+      humanVerifiedUnverifiedOperationKey('o1', request.idempotencyKey),
+    );
+    expect(receiptCall[3]).toBe('o1');
+    expect(receiptCall[4]).toBe('operator_action');
+    expect(receiptCall[5]).toBe(
+      requestHash,
+    );
+    expect(receiptFind).toHaveBeenCalledWith({
+      where: {
+        operationKey: humanVerifiedUnverifiedOperationKey(
+          'o1',
+          request.idempotencyKey,
+        ),
+      },
+      select: { payloadHash: true, result: true },
+    });
+  });
+
+  it('keeps the existing normal readiness path on its readiness_commit receipt', async () => {
+    const replayed = {
+      manifestStatus: 'passed' as const,
+      enqueued: true as const,
+      orderStatus: 'ready' as const,
+      reason: null,
+      revision: 8,
+    };
+    const { prisma, receiptInsert } = atomicReplayHarness(replayed);
+
+    const result = await commitBaseBookReadiness(
+      prisma as never,
+      args(),
+      { inspect: stubInspect, now: () => NOW, appBaseUrl: 'https://app.example.com' },
+    );
+
+    expect(result).toEqual(replayed);
+    const receiptCall = receiptInsert.mock.calls[0] as unknown[];
+    expect(receiptCall[2]).toEqual(expect.stringMatching(/^readiness_commit:/));
+    expect(receiptCall[4]).toBe('readiness_commit');
+    expect(receiptCall[4]).not.toBe('operator_action');
+  });
+});
+
 describe('withDeliveryInputMutation — atomic writer barrier (P1-f #5)', () => {
   let previousFlag: string | undefined;
   beforeEach(() => { previousFlag = process.env.READINESS_MANIFEST_ENABLED; });
@@ -263,10 +563,19 @@ describe('withDeliveryInputMutation — atomic writer barrier (P1-f #5)', () => 
       { inputVersion: 8, status: 'generating', previousStatus: 'ready' },
     ],
   ) {
+    const queryRaw = vi.fn(async () => {
+      if (
+        process.env.READINESS_MANIFEST_ENABLED === 'true' &&
+        queryRaw.mock.calls.length === 1
+      ) {
+        return [{ id: 'o1' }];
+      }
+      return rows;
+    });
     const tx = {
       bookReadiness: { updateMany: vi.fn(async () => ({ count: 1 })) },
       generationJob: { update: vi.fn(async () => ({ orderId: 'o1' })) },
-      $queryRaw: vi.fn(async () => rows),
+      $queryRaw: queryRaw,
       imageAsset: { update: vi.fn(async () => ({ id: 'asset-1' })) },
     };
     const db = {
@@ -289,7 +598,7 @@ describe('withDeliveryInputMutation — atomic writer barrier (P1-f #5)', () => 
       where: { orderId: 'o1', scope: BASE_BOOK_SCOPE, status: { in: ['passed', 'blocked'] } },
       data: { status: 'stale', reason: 'inputs_changed:page_asset_changed' },
     });
-    const sql = ((tx.$queryRaw.mock.calls[0] as unknown[])[0] as string[]).join(' ');
+    const sql = ((tx.$queryRaw.mock.calls[1] as unknown[])[0] as string[]).join(' ');
     expect(sql).toMatch(/"inputVersion" = "inputVersion" \+ 1/);
     expect(sql).toMatch(/'ready'::"OrderStatus"/);
     expect(sql).toMatch(/'generating'::"OrderStatus"/);
@@ -372,7 +681,7 @@ describe('withDeliveryInputMutation — atomic writer barrier (P1-f #5)', () => 
       },
       async (transaction) => { await transaction.imageAsset.update({ where: { id: 'asset-1' }, data: { url: 'new' } }); },
     )).rejects.toThrow('frozen_product_truth_mismatch');
-    expect(tx.$queryRaw).toHaveBeenCalledTimes(1);
+    expect(tx.$queryRaw).toHaveBeenCalledTimes(2);
   });
 
   it('does not advance version/readiness when the content mutation throws', async () => {
@@ -384,7 +693,7 @@ describe('withDeliveryInputMutation — atomic writer barrier (P1-f #5)', () => 
       async () => { throw new Error('write_failed'); },
     )).rejects.toThrow('write_failed');
     expect(tx.bookReadiness.updateMany).not.toHaveBeenCalled();
-    expect(tx.$queryRaw).not.toHaveBeenCalled();
+    expect(tx.$queryRaw).toHaveBeenCalledTimes(1);
   });
 });
 
