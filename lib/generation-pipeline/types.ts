@@ -21,9 +21,13 @@ export type PipelineCache = {
   releaseRecovery?: {
     version: 'release-v1-recovery-log/v1';
     attempts: Array<{
-      version: 'release-v1-recovery-attempt/v1';
+      version:
+        | 'release-v1-recovery-attempt/v1'
+        | 'release-v1-page-rerender-attempt/v1';
       attemptId: string;
-      reason: 'reviewed_code_fix_resume';
+      reason:
+        | 'reviewed_code_fix_resume'
+        | 'reviewed_single_page_rerender_resume';
       snapshotDigest: string;
       oldContinuityDigest: string;
       newContinuityDigest: string;
@@ -43,6 +47,43 @@ export type PipelineCache = {
         safetyStatus: 'safe' | 'hazard' | 'unverified';
         worldStatus: 'pass' | 'fail' | 'error' | null;
       }>;
+      /**
+       * One reviewed release recovery may invalidate exactly one existing page
+       * and route its replacement through the ordinary render + QA worker.
+       * The old storage object is retained; this is the durable pointer/SHA
+       * audit for the delivery-input row that was removed.
+       */
+      rerenderedArtifacts?: Array<{
+        artifactKey: string;
+        pageNumber: number;
+        pageId: string;
+        assetId: string;
+        sha256: string;
+        sourceUrl: string;
+        presentationUrl: string | null;
+        rawUrl: string | null;
+        deliveredUrl: string;
+        provider: string;
+        idempotencyKey: string;
+        qaContextDigest: string;
+        evidenceDigest: string;
+        candidateId: string | null;
+        evaluatorContractVersion: string;
+        contractHash: string | null;
+        priorAssetReceipt: {
+          operationKey: string;
+          payloadHash: string;
+          kind: string;
+          resultDigest: string;
+          createdAt: string;
+        } | null;
+      }>;
+      effectiveResemblanceThreshold?: number;
+      previousJobProgress?: {
+        completedPageNumbers: Prisma.JsonValue | null;
+        failedPageNumbers: Prisma.JsonValue | null;
+        pageAttempts: Prisma.JsonValue | null;
+      };
       recoveredAt: string;
     }>;
   };

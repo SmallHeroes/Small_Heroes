@@ -33,8 +33,10 @@ function hostOf(value: string | undefined): string {
 }
 
 /** True only on Vercel Production. Preview, local dev, and tests are all treated as non-production. */
-export function isProductionRuntime(): boolean {
-  return (process.env.VERCEL_ENV || '').toLowerCase() === 'production';
+export function isProductionRuntime(
+  source: NodeJS.ProcessEnv = process.env,
+): boolean {
+  return (source.VERCEL_ENV || '').toLowerCase() === 'production';
 }
 
 /**
@@ -71,13 +73,15 @@ export function findProdResourceLeak(
  * Throw if a non-production runtime is pointed at a production resource. No-op on Vercel Production
  * (prod is allowed to use prod resources).
  */
-export function assertEnvSeparation(): void {
-  if (isProductionRuntime()) return;
-  const leak = findProdResourceLeak();
+export function assertEnvSeparation(
+  source: NodeJS.ProcessEnv = process.env,
+): void {
+  if (isProductionRuntime(source)) return;
+  const leak = findProdResourceLeak(source);
   if (leak) {
     throw new Error(
       `[env-separation] Refusing to run: ${leak}, but VERCEL_ENV is ` +
-        `"${process.env.VERCEL_ENV || '(unset)'}" (non-production). Staging/Preview must use ` +
+        `"${source.VERCEL_ENV || '(unset)'}" (non-production). Staging/Preview must use ` +
         `staging resources only — set the Preview-scoped env vars (NEXT_PUBLIC_APP_URL = the ` +
         `Preview domain; SUPABASE_URL = the staging project).`
     );

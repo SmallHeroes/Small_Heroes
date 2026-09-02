@@ -310,6 +310,17 @@ function renderedContractHashOf(cache: PipelineCache): string | null {
   return contract ? computeVisualContractHash(contract) : null;
 }
 
+/** Reviewed page replacement keeps the numeric 0.70 identity gate active for every remaining render. */
+export function requiresReleaseV1PageResemblanceGate(
+  cache: PipelineCache,
+): boolean {
+  return (cache.releaseRecovery?.attempts ?? []).some(
+    (attempt) =>
+      attempt.version === 'release-v1-page-rerender-attempt/v1' &&
+      (attempt.rerenderedArtifacts?.length ?? 0) === 1,
+  );
+}
+
 function persistChildAnchorOnOrder(
   order: Order,
   childPatch: Record<string, unknown>
@@ -1838,6 +1849,12 @@ async function runPageImagesChunk(
     ? await evaluatePhotoGate(order.childImageUrl).then((g) => g.inputStrength).catch(() => 'adequate' as const)
     : 'adequate';
   const resemblanceThresholdConfig = resolveResemblanceThresholdConfig();
+  const releaseV1PageResemblanceGateRequired =
+    requiresReleaseV1PageResemblanceGate(cache);
+  const releaseV1PageResemblanceThreshold = resolveEffectiveThreshold(
+    order.illustrationStyle,
+    resemblanceThresholdConfig,
+  );
 
   const workerDeadline = deadlineMs(startedAt, budgetMs);
   // Per-page soft timeout derived from the remaining worker budget (mirrors the dev path at
@@ -1932,6 +1949,8 @@ async function runPageImagesChunk(
     challengeCategory: cache.challengeCategory,
     inputPhotoStrength,
     resemblanceThresholdConfig,
+    requirePageResemblanceGate: releaseV1PageResemblanceGateRequired,
+    pageResemblanceReferenceImage: childCanonicalAnchor!.url,
     onAnchorsResolved: async (resolvedAnchors) => {
       for (const [characterId, url] of Object.entries(resolvedAnchors)) {
         if (!anchorRegistry[characterId]) continue;
@@ -2064,6 +2083,19 @@ async function runPageImagesChunk(
     // (Slice A) The page's frozen WORLD expectation, merged into the QA context both writes forward so the
     // delivered-verdict producer world-QAs the delivered bytes. null (steering off / no contract) → no-op parity.
     const pageWorldExpectation = buildPageWorldExpectation(cache, dbPage.pageNumber);
+    const deliveredPageExpectsChild =
+      pagesForGen
+        .find((page) => page.pageNumber === dbPage.pageNumber)
+        ?.expectedCharacterIds?.includes('child') ?? false;
+    const rawPageResemblance = image.style01Meta?.pageResemblanceGate;
+    const deliveredPageResemblancePolicy =
+      releaseV1PageResemblanceGateRequired && deliveredPageExpectsChild
+        ? {
+            referenceImageUrl: childCanonicalAnchor!.url,
+            effectiveThreshold: releaseV1PageResemblanceThreshold,
+            minAcceptableScore: resemblanceThresholdConfig.minAcceptableScore,
+          }
+        : undefined;
 
     await withDeliveryInputMutation(
       prisma,
@@ -2082,6 +2114,8 @@ async function runPageImagesChunk(
           // payload does too. QaContext is a named interface (no implicit index signature) → cast to the receipt-safe
           // JSON it structurally is.
           qaContext: (withWorldExpectation(image.style01Meta?.pageVisualQa?.qaInput, pageWorldExpectation) ?? null) as unknown as ReceiptSafeValue,
+          pageResemblanceGate:
+            (deliveredPageResemblancePolicy ?? null) as unknown as ReceiptSafeValue,
           runtimeAuthorityObservability:
             (image.style01Meta?.runtimeBlueprintEvidence ?? null) as unknown as ReceiptSafeValue,
           ...contractHashPayloadFragment(renderedContractHash),
@@ -2140,6 +2174,7 @@ async function runPageImagesChunk(
           artifactKey: pageArtifactKey(dbPage.pageNumber),
           deliveredUrl: presentationUrl ?? image.url,
           qaContext: withWorldExpectation(image.style01Meta?.pageVisualQa?.qaInput, pageWorldExpectation),
+          pageResemblanceGate: deliveredPageResemblancePolicy,
           contractHash: renderedContractHash,
           runtimeAuthorityObservability:
             (image.style01Meta?.runtimeBlueprintEvidence ?? null) as unknown as Prisma.InputJsonValue,
@@ -2176,6 +2211,21 @@ async function runPageImagesChunk(
       // (Stage 1) Used only when no presentation transform ran (delivered == raw bytes); ignored on the re-QA path.
       // status threads 'unverified' so the producer composes safety:unverified when the in-loop check couldn't confirm.
       rawSafety: { hazards: image.style01Meta?.pageVisualQa?.safetyHazards ?? [], status: image.style01Meta?.pageVisualQa?.safetyStatus },
+      ...(deliveredPageResemblancePolicy
+        ? {
+            pageResemblanceGate: {
+              ...deliveredPageResemblancePolicy,
+              ...(rawPageResemblance
+                ? {
+                    rawEvidence: {
+                      status: rawPageResemblance.status,
+                      resemblanceScore: rawPageResemblance.resemblanceScore,
+                    },
+                  }
+                : {}),
+            },
+          }
+        : {}),
       qaContext: withWorldExpectation(image.style01Meta?.pageVisualQa?.qaInput, pageWorldExpectation),
       providerModel: image.provider,
       regenAttempts: image.style01Meta?.pageVisualQa?.regenAttempts,

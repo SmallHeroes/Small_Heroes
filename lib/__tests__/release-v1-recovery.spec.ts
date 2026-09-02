@@ -2,14 +2,22 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { canonicalJsonDigest } from '@/lib/visual-package/integrity';
 import type { PageVisualQaResult } from '@/lib/generation-pipeline/page-visual-qa';
+import { shouldSkipPaidPageImageRegen } from '@/lib/generation-chunked/paid-artifact-guard';
+import { pageAssetOperationKey } from '@/lib/generation-pipeline/contract-hash-binding';
 
 const H = vi.hoisted(() => ({
   requireExpectedBinding: vi.fn(),
   buildContinuity: vi.fn(),
   dispatch: vi.fn(),
+  probeWorker: vi.fn(),
+  qualifyRender: vi.fn(),
+  assertBoards: vi.fn(),
+  bookFindUnique: vi.fn(),
 }));
 
-vi.mock('@/lib/prisma', () => ({ prisma: {} }));
+vi.mock('@/lib/prisma', () => ({
+  prisma: { generatedBook: { findUnique: H.bookFindUnique } },
+}));
 vi.mock('@/lib/generation-chunked/chain-worker', () => ({
   chainGenerationWorker: H.dispatch,
 }));
@@ -27,6 +35,7 @@ vi.mock('@/lib/generation-pipeline/release-v1-continuity', async (importOriginal
 import {
   ReleaseV1RecoveryError,
   ReleaseV1RecoveryInputError,
+  RELEASE_V1_PAGE_RERENDER_REASON,
   executeReleaseV1Recovery,
   parseReleaseV1RecoveryInput,
 } from '@/lib/generation-pipeline/release-v1-recovery';
@@ -134,6 +143,19 @@ function input(
   };
 }
 
+function rerenderInput(
+  mode: 'inspect' | 'apply',
+  digest?: string,
+  recoveryAttemptId = SECOND_ATTEMPT_ID,
+  pageNumber = 6,
+) {
+  return {
+    ...input(mode, digest, recoveryAttemptId),
+    reason: RELEASE_V1_PAGE_RERENDER_REASON,
+    rerenderPageNumbers: [pageNumber],
+  };
+}
+
 function makeOrder() {
   const pages = Array.from({ length: 8 }, (_, index) => {
     const pageNumber = index + 1;
@@ -151,6 +173,7 @@ function makeOrder() {
               provider: 'openai',
               url,
               presentationUrl,
+              rawUrl: null,
               idempotencyKey: `release-order:page_image:p${pageNumber}:gpt-image-2:low:v2`,
               safetyVerified: true,
               safetyHazards: [] as string[],
@@ -176,6 +199,10 @@ function makeOrder() {
     totalPrice: 5900,
     paymentProvider: 'fake',
     paymentId: 'fake_release-order',
+    audioEnabled: true,
+    videoEnabled: false,
+    bundleEnabled: false,
+    selectedVoice: 'dad_v2' as string | null,
     payment: {
       id: 'payment-1',
       provider: 'fake',
@@ -214,6 +241,20 @@ function makeOrder() {
         textFinalized: true,
         dna: { childDNA: 'child', companionDNA: 'companion' },
         childAnchorApproved: true,
+        characterAnchorStore: {
+          child: {
+            orderId: 'release-order',
+            styleId: 'soft_hand_drawn_storybook',
+            characterId: 'child',
+            role: 'child',
+            anchorType: 'canonical_portrait',
+            source: 'uploaded_photo',
+            url: `${BUCKET_PREFIX}/orders/release-order/child-anchor.png`,
+            qaStatus: 'passed',
+            createdAt: NOW.toISOString(),
+            updatedAt: NOW.toISOString(),
+          },
+        },
         visualContract: { version: 'book-visual-contract/v1' },
         visualPackageAuthority: { frozen: true },
         setIdentityBoards: { version: 'required-v2' },
@@ -238,9 +279,14 @@ function makeOrder() {
     exceptionCases: [
       {
         id: 'exception-1',
+        scope: 'base_book',
         kind: 'infra_transient',
         status: 'open',
+        reason: 'generation failed transiently',
+        attempts: 5,
+        nextActionAt: new Date('2026-09-01T19:58:30.000Z') as Date | null,
         actionAttemptedAt: null as Date | null,
+        notificationAttemptedAt: null as Date | null,
         claimVersion: 0,
         leaseExpiresAt: null as Date | null,
         sourceRef: 'generation:release-order:failed',
@@ -362,12 +408,28 @@ function shaForUrl(url: string): string {
 
 function makeHarness(
   order = makeOrder(),
-  options: { ambiguousAfterCommitFor?: string } = {},
+  options: {
+    ambiguousAfterCommitFor?: string;
+    rollbackThenConcurrentWinnerFor?: string;
+  } = {},
 ) {
   const receipts = new Map<
     string,
-    { payloadHash: string; result: unknown }
+    {
+      operationKey: string;
+      orderId: string;
+      kind: string;
+      payloadHash: string;
+      result: unknown;
+      createdAt: Date;
+    }
   >();
+  const recoveryOrderView = () => ({
+    ...order,
+    exceptionCases: order.exceptionCases.filter((row) =>
+      ['open', 'retry_scheduled', 'customer_action', 'refund_pending'].includes(row.status),
+    ),
+  });
   let ambiguousCommitRaised = false;
   const inspect = vi.fn(async (url: string | null | undefined) => ({
     ok: true,
@@ -398,8 +460,12 @@ function makeHarness(
         const operationKey = String(queryArgs[2]);
         if (receipts.has(operationKey)) return [];
         receipts.set(operationKey, {
+          operationKey,
+          orderId: String(queryArgs[3]),
+          kind: String(queryArgs[4]),
           payloadHash: String(queryArgs[5]),
           result: {},
+          createdAt: NOW,
         });
         return [{ id: `receipt-${receipts.size}` }];
       }
@@ -418,20 +484,62 @@ function makeHarness(
       updateMany: vi.fn(async () => ({ count: 0 })),
     },
     order: {
-      findUnique: vi.fn(async () => order),
+      findUnique: vi.fn(async () => recoveryOrderView()),
       updateMany: vi.fn(async () => ({ count: 1 })),
     },
     generationJob: {
       updateMany: vi.fn(async () => ({ count: 1 })),
     },
+    exceptionCase: {
+      findUnique: vi.fn(async ({ where }: { where: { activeKey: string } }) => {
+        const activeKey = `${order.id}:base_book`;
+        if (where.activeKey !== activeKey) return null;
+        const row = order.exceptionCases.find((candidate) =>
+          ['open', 'retry_scheduled', 'customer_action', 'refund_pending'].includes(candidate.status),
+        );
+        return row ? { ...row } : null;
+      }),
+      updateMany: vi.fn(async ({
+        where,
+        data,
+      }: {
+        where: { id: string; claimVersion: number; status: string };
+        data: Record<string, unknown>;
+      }) => {
+        const row = order.exceptionCases.find((candidate) =>
+          candidate.id === where.id &&
+          candidate.claimVersion === where.claimVersion &&
+          candidate.status === where.status,
+        );
+        if (!row) return { count: 0 };
+        row.status = String(data.status);
+        row.claimVersion += 1;
+        row.nextActionAt = null;
+        row.leaseExpiresAt = null;
+        return { count: 1 };
+      }),
+    },
+    exceptionCaseAudit: {
+      create: vi.fn(async () => ({})),
+    },
     imageAsset: {
       updateMany: vi.fn(async () => ({ count: 1 })),
+      deleteMany: vi.fn(async () => ({ count: 1 })),
     },
     generatedBook: {
       updateMany: vi.fn(async () => ({ count: 1 })),
     },
     qualityEvidence: {
       updateMany: vi.fn(async () => ({ count: 1 })),
+    },
+    pageUploadCandidate: {
+      deleteMany: vi.fn(async ({ where }: { where: { pageNumber: number } }) => ({
+        count: order.pageUploadCandidates.some(
+          (candidate) => candidate.pageNumber === where.pageNumber,
+        )
+          ? 1
+          : 0,
+      })),
     },
     atomicOperationReceipt: {
       findUnique: vi.fn(
@@ -452,6 +560,12 @@ function makeHarness(
           return { id: `receipt-${where.operationKey}` };
         },
       ),
+      deleteMany: vi.fn(
+        async ({ where }: { where: { operationKey: string } }) => {
+          const deleted = receipts.delete(where.operationKey);
+          return { count: deleted ? 1 : 0 };
+        },
+      ),
     },
   };
   const transaction = vi.fn(async (work: (value: typeof tx) => unknown) => {
@@ -463,6 +577,28 @@ function makeHarness(
         options.ambiguousAfterCommitFor &&
         key.includes(options.ambiguousAfterCommitFor),
     );
+    const concurrentWinnerKey = [...receipts.keys()].find(
+      (key) =>
+        !receiptKeysBefore.has(key) &&
+        options.rollbackThenConcurrentWinnerFor &&
+        key.includes(options.rollbackThenConcurrentWinnerFor),
+    );
+    if (concurrentWinnerKey && !ambiguousCommitRaised) {
+      ambiguousCommitRaised = true;
+      const inserted = receipts.get(concurrentWinnerKey)!;
+      // Simulate this transaction rolling back while another invocation commits
+      // the same operation and records its own dispatch-ownership token.
+      receipts.set(concurrentWinnerKey, {
+        ...inserted,
+        payloadHash: inserted.payloadHash,
+        result: { value: 'concurrent-winner-dispatch-token' },
+      });
+      const error = new Error('Transaction not found after rollback') as Error & {
+        code: string;
+      };
+      error.code = 'P2028';
+      throw error;
+    }
     if (ambiguousKey && !ambiguousCommitRaised) {
       ambiguousCommitRaised = true;
       const error = new Error('Transaction not found after commit') as Error & {
@@ -474,7 +610,8 @@ function makeHarness(
     return value;
   });
   const db = {
-    order: { findUnique: vi.fn(async () => order) },
+    order: { findUnique: vi.fn(async () => recoveryOrderView()) },
+    atomicOperationReceipt: tx.atomicOperationReceipt,
     $transaction: transaction,
   };
   return {
@@ -494,11 +631,29 @@ function deps(harness: ReturnType<typeof makeHarness>) {
     inspect: harness.inspect as never,
     inspectWithBytes: harness.inspectWithBytes as never,
     dispatch: H.dispatch,
+    probeWorker: H.probeWorker,
+    qualifyRender: H.qualifyRender,
+    assertBoards: H.assertBoards,
     now: () => NOW,
     env: {
       VERCEL_URL: 'fixed-preview.vercel.app',
+      NEXT_PUBLIC_APP_URL: 'https://fixed-preview.vercel.app',
       STYLE_01_GPT_MODEL: 'gpt-image-2',
       GPT_IMAGE_QUALITY: 'low',
+      PAGE_VISUAL_QA_ENABLED: 'true',
+      QA_SOFT_DELIVER: 'false',
+      RESEMBLANCE_BASE_THRESHOLD: '0.72',
+      GENERATION_SECRET: 'test-generation-secret',
+      PHASE2_STYLE01_BOOK_PIPELINE: 'true',
+      DISABLE_IMAGE_GENERATION: 'false',
+      OPENAI_API_KEY: 'test-openai-key',
+      SUPABASE_URL: SUPABASE_ORIGIN,
+      SUPABASE_SERVICE_ROLE_KEY: 'test-service-role',
+      SUPABASE_STORAGE_BUCKET: 'book-images',
+      ELEVENLABS_API_KEY: 'test-elevenlabs-key',
+      VERCEL_AUTOMATION_BYPASS_SECRET: 'test-preview-bypass-secret',
+      READINESS_MANIFEST_ENABLED:
+        process.env.READINESS_MANIFEST_ENABLED ?? 'false',
     } as unknown as NodeJS.ProcessEnv,
   };
 }
@@ -510,6 +665,10 @@ beforeEach(() => {
   vi.stubEnv('READINESS_MANIFEST_ENABLED', 'false');
   H.buildContinuity.mockReturnValue(TARGET_CONTINUITY);
   H.requireExpectedBinding.mockReturnValue(BINDING);
+  H.probeWorker.mockResolvedValue(undefined);
+  H.qualifyRender.mockReturnValue({ version: 'style01-runtime-authority/v7' });
+  H.assertBoards.mockResolvedValue(undefined);
+  H.bookFindUnique.mockResolvedValue({ coverImageUrl: `${BUCKET_PREFIX}/cover.png` });
 });
 
 afterEach(() => {
@@ -537,6 +696,31 @@ describe('release/v1 reviewed same-order recovery', () => {
         },
       }),
     ).toThrow('must be sorted and unique');
+  });
+
+  it('parses the distinct one-page re-render grammar without widening legacy recovery', () => {
+    expect(parseReleaseV1RecoveryInput(rerenderInput('inspect'))).toMatchObject({
+      reason: RELEASE_V1_PAGE_RERENDER_REASON,
+      rerenderPageNumbers: [6],
+    });
+    expect(() =>
+      parseReleaseV1RecoveryInput({
+        ...rerenderInput('inspect'),
+        rerenderPageNumbers: [],
+      }),
+    ).toThrow('exactly one page');
+    expect(() =>
+      parseReleaseV1RecoveryInput({
+        ...rerenderInput('inspect'),
+        rerenderPageNumbers: [5, 6],
+      }),
+    ).toThrow('exactly one page');
+    expect(() =>
+      parseReleaseV1RecoveryInput({
+        ...input('inspect'),
+        rerenderPageNumbers: [6],
+      }),
+    ).toThrow('request body keys are invalid');
   });
 
   it('inspects the exact retained cover/pages and returns a stable zero-write digest', async () => {
@@ -583,6 +767,58 @@ describe('release/v1 reviewed same-order recovery', () => {
     ]);
     expect(harness.inspectWithBytes).toHaveBeenCalledTimes(1);
     expect(evaluate).not.toHaveBeenCalled();
+    expect(harness.transaction).not.toHaveBeenCalled();
+    expect(H.dispatch).not.toHaveBeenCalled();
+  });
+
+  it('inspects one eligible page re-render using only byte metadata and plans pages 6-8', async () => {
+    vi.stubEnv('READINESS_MANIFEST_ENABLED', 'true');
+    const order = makeOrder();
+    const { asset, qaContext } = markPageUnverified(order);
+    order.pageUploadCandidates.push({
+      id: 'candidate-6',
+      pageNumber: 6,
+      url: asset.url,
+      rawUrl: asset.rawUrl,
+      provider: asset.provider,
+      createdAt: new Date('2026-09-01T19:55:00.000Z'),
+      updatedAt: new Date('2026-09-01T19:55:30.000Z'),
+    });
+    const harness = makeHarness(order);
+    const evaluate = vi.fn();
+    const evaluateWorld = vi.fn();
+
+    const result = await executeReleaseV1Recovery(rerenderInput('inspect'), {
+      ...deps(harness),
+      evaluate: evaluate as never,
+      evaluateWorld: evaluateWorld as never,
+    });
+
+    expect(result.status).toBe('inspect_ready');
+    if (result.status !== 'inspect_ready') throw new Error('unexpected status');
+    expect(result.safetyReverification).toEqual([]);
+    expect(result.pageRerender).toEqual({
+      targets: [
+        expect.objectContaining({
+          artifactKey: 'page:6',
+          pageNumber: 6,
+          assetId: asset.id,
+          sha256: asset.safetyContentSha256,
+          qaContextDigest: canonicalJsonDigest(qaContext),
+          candidateId: 'candidate-6',
+        }),
+      ],
+      resumeInventory: {
+        completedPageNumbers: [1, 2, 3, 4, 5],
+        missingPageNumbers: [6, 7, 8],
+      },
+      effectiveResemblanceThreshold: 0.7,
+      readerBaseUrl: 'https://fixed-preview.vercel.app',
+    });
+    expect(harness.inspect).toHaveBeenCalledTimes(7);
+    expect(harness.inspectWithBytes).not.toHaveBeenCalled();
+    expect(evaluate).not.toHaveBeenCalled();
+    expect(evaluateWorld).not.toHaveBeenCalled();
     expect(harness.transaction).not.toHaveBeenCalled();
     expect(H.dispatch).not.toHaveBeenCalled();
   });
@@ -688,7 +924,7 @@ describe('release/v1 reviewed same-order recovery', () => {
     );
     expect(harness.tx.bookReadiness.updateMany).toHaveBeenCalledTimes(1);
     expect(harness.tx.atomicOperationReceipt.update).toHaveBeenCalledTimes(2);
-    expect(harness.tx.$queryRaw).toHaveBeenCalledTimes(25);
+    expect(harness.tx.$queryRaw).toHaveBeenCalledTimes(27);
     expect(H.dispatch).toHaveBeenCalledTimes(1);
 
     const cachePayload = JSON.parse(
@@ -1124,6 +1360,866 @@ describe('release/v1 reviewed same-order recovery', () => {
     expect(H.dispatch).not.toHaveBeenCalled();
   });
 
+  it('atomically resolves the due near-budget generation exception, invalidates only page 6, and resumes without provider QA', async () => {
+    vi.stubEnv('READINESS_MANIFEST_ENABLED', 'true');
+    const order = makeOrder();
+    const { asset } = markPageUnverified(order);
+    order.pageUploadCandidates.push({
+      id: 'candidate-6',
+      pageNumber: 6,
+      url: asset.url,
+      rawUrl: asset.rawUrl,
+      provider: asset.provider,
+      createdAt: new Date('2026-09-01T19:55:00.000Z'),
+      updatedAt: new Date('2026-09-01T19:55:30.000Z'),
+    });
+    const harness = makeHarness(order);
+    const evaluate = vi.fn(async () => {
+      throw new Error('Vision must not run for page re-render recovery');
+    });
+    const evaluateWorld = vi.fn(async () => {
+      throw new Error('world QA must not run for page re-render recovery');
+    });
+    const recoveryDeps = {
+      ...deps(harness),
+      evaluate: evaluate as never,
+      evaluateWorld: evaluateWorld as never,
+    };
+    const inspected = await executeReleaseV1Recovery(
+      rerenderInput('inspect'),
+      recoveryDeps,
+    );
+    if (inspected.status !== 'inspect_ready') throw new Error('unexpected status');
+
+    const result = await executeReleaseV1Recovery(
+      rerenderInput('apply', inspected.snapshotDigest),
+      recoveryDeps,
+    );
+
+    expect(result).toMatchObject({
+      status: 'resumed',
+      dispatched: true,
+      orderId: 'release-order',
+      rerenderedPageNumbers: [6],
+    });
+    expect(evaluate).not.toHaveBeenCalled();
+    expect(evaluateWorld).not.toHaveBeenCalled();
+    expect(harness.inspectWithBytes).not.toHaveBeenCalled();
+    expect(harness.tx.imageAsset.updateMany).not.toHaveBeenCalled();
+    expect(harness.tx.imageAsset.deleteMany).toHaveBeenCalledTimes(1);
+    expect(harness.tx.exceptionCase.updateMany).toHaveBeenCalledWith({
+      where: {
+        id: 'exception-1',
+        claimVersion: 0,
+        status: 'open',
+      },
+      data: expect.objectContaining({
+        status: 'resolved',
+        activeKey: null,
+        nextActionAt: null,
+        leaseExpiresAt: null,
+        claimVersion: { increment: 1 },
+        resolution: {
+          outcome: 'recovered',
+          reason: `release_v1_reviewed_recovery:${SECOND_ATTEMPT_ID}`,
+        },
+      }),
+    });
+    expect(harness.tx.exceptionCaseAudit.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        caseId: 'exception-1',
+        fromStatus: 'open',
+        toStatus: 'resolved',
+        reason: `release_v1_reviewed_recovery:${SECOND_ATTEMPT_ID}`,
+      }),
+    });
+    expect(order.exceptionCases[0]).toMatchObject({
+      status: 'resolved',
+      claimVersion: 1,
+      nextActionAt: null,
+      leaseExpiresAt: null,
+    });
+    expect(harness.tx.imageAsset.deleteMany).toHaveBeenCalledWith({
+      where: expect.objectContaining({
+        id: asset.id,
+        pageId: 'page-6',
+        url: asset.url,
+        presentationUrl: asset.presentationUrl,
+        idempotencyKey: asset.idempotencyKey,
+        safetyVerified: false,
+        safetyContentSha256: asset.safetyContentSha256,
+        safetyOverrideSha256: null,
+      }),
+    });
+    expect(harness.tx.pageUploadCandidate.deleteMany).toHaveBeenCalledWith({
+      where: expect.objectContaining({
+        id: 'candidate-6',
+        orderId: 'release-order',
+        pageNumber: 6,
+      }),
+    });
+    expect(harness.tx.qualityEvidence.updateMany).toHaveBeenCalledTimes(1);
+    const evidenceMutation = (
+      harness.tx.qualityEvidence.updateMany.mock.calls as unknown as Array<
+        [{ data: Record<string, unknown> }]
+      >
+    )[0]![0];
+    expect(evidenceMutation.data).toMatchObject({
+      assetSha256: '',
+      verdict: 'evidence_unknown',
+      reason: 'recovery:rerender_pending',
+      safetyOverride: false,
+      safetyOverrideSha256: null,
+      evidence: expect.objectContaining({
+        releaseV1PageRerender: expect.objectContaining({
+          recoveryAttemptId: SECOND_ATTEMPT_ID,
+          previousAssetId: asset.id,
+          previousAssetSha256: asset.safetyContentSha256,
+        }),
+      }),
+    });
+    expect(evidenceMutation.data).not.toHaveProperty('regenCount');
+
+    const jobMutation = (
+      harness.tx.generationJob.updateMany.mock.calls as unknown as Array<
+        [{ data: Record<string, unknown> }]
+      >
+    )[0]![0];
+    expect(jobMutation.data).toMatchObject({
+      status: 'pending',
+      currentStage: 'pending',
+      imagesDone: false,
+      completedPageNumbers: [1, 2, 3, 4, 5],
+      failedPageNumbers: [],
+      pageAttempts: {},
+      triggerReason: `release_v1_page_rerender:${SECOND_ATTEMPT_ID}`,
+    });
+    const cachePayload = JSON.parse(
+      (
+        harness.tx.$executeRaw.mock.calls as unknown as Array<unknown[]>
+      )[0]![1] as string,
+    ) as {
+      releaseRecovery: { attempts: Array<Record<string, unknown>> };
+    };
+    expect(cachePayload.releaseRecovery.attempts[0]).toMatchObject({
+      version: 'release-v1-page-rerender-attempt/v1',
+      reason: RELEASE_V1_PAGE_RERENDER_REASON,
+      rerenderedArtifacts: [
+        expect.objectContaining({
+          artifactKey: 'page:6',
+          pageNumber: 6,
+          assetId: asset.id,
+          candidateId: 'candidate-6',
+          sourceUrl: asset.url,
+          presentationUrl: asset.presentationUrl,
+          rawUrl: asset.rawUrl,
+          deliveredUrl: asset.presentationUrl,
+          provider: asset.provider,
+          idempotencyKey: asset.idempotencyKey,
+        }),
+      ],
+      effectiveResemblanceThreshold: 0.7,
+      previousJobProgress: {
+        completedPageNumbers: [1, 2, 3, 4, 5, 6],
+        failedPageNumbers: [7],
+        pageAttempts: { '7': 3 },
+      },
+    });
+    const { requiresReleaseV1PageResemblanceGate } = await import(
+      '@/lib/generation-pipeline/chunk-runner'
+    );
+    expect(
+      requiresReleaseV1PageResemblanceGate(cachePayload as never),
+    ).toBe(true);
+    expect(H.dispatch).toHaveBeenCalledTimes(1);
+    expect(H.dispatch).toHaveBeenCalledWith(
+      'release-order',
+      TARGET_CONTINUITY,
+    );
+  });
+
+  it('loses closed when the exception processor claims the due case between Inspect and the locked Apply snapshot', async () => {
+    vi.stubEnv('READINESS_MANIFEST_ENABLED', 'true');
+    const order = makeOrder();
+    markPageUnverified(order);
+    const harness = makeHarness(order);
+    const recoveryDeps = deps(harness);
+    const inspected = await executeReleaseV1Recovery(
+      rerenderInput('inspect'),
+      recoveryDeps,
+    );
+    if (inspected.status !== 'inspect_ready') throw new Error('unexpected status');
+
+    harness.tx.order.findUnique.mockImplementationOnce(async () => {
+      order.exceptionCases[0]!.status = 'retry_scheduled';
+      order.exceptionCases[0]!.claimVersion = 1;
+      order.exceptionCases[0]!.leaseExpiresAt = new Date('2026-09-02T10:05:00.000Z');
+      order.exceptionCases[0]!.updatedAt = new Date('2026-09-02T10:00:01.000Z');
+      return order;
+    });
+
+    await expect(
+      executeReleaseV1Recovery(
+        rerenderInput('apply', inspected.snapshotDigest),
+        recoveryDeps,
+      ),
+    ).rejects.toThrow('database snapshot changed after retained-byte inspection');
+    expect(harness.tx.exceptionCase.updateMany).not.toHaveBeenCalled();
+    expect(harness.tx.imageAsset.deleteMany).not.toHaveBeenCalled();
+    expect(harness.tx.order.updateMany).not.toHaveBeenCalled();
+    expect(H.dispatch).not.toHaveBeenCalled();
+  });
+
+  it('rejects page re-render eligibility drift before any destructive write', async () => {
+    vi.stubEnv('READINESS_MANIFEST_ENABLED', 'true');
+    const cases: Array<{
+      label: string;
+      mutate: (order: ReturnType<typeof makeOrder>) => void;
+      message: string;
+    }> = [
+      {
+        label: 'already-safe target',
+        mutate: () => undefined,
+        message: 'not an eligible safety-unverified artifact',
+      },
+      {
+        label: 'passed evidence',
+        mutate: (order) => {
+          markPageUnverified(order);
+          order.qualityEvidence[0]!.verdict = 'passed';
+        },
+        message: 'must have safety-unverified quality evidence',
+      },
+      {
+        label: 'mismatched delivered URL',
+        mutate: (order) => {
+          markPageUnverified(order);
+          order.qualityEvidence[0]!.evidence = {
+            ...order.qualityEvidence[0]!.evidence,
+            deliveredUrl: `${BUCKET_PREFIX}/different.png`,
+          };
+        },
+        message: 'bound to a different delivered URL',
+      },
+      {
+        label: 'second unverified artifact',
+        mutate: (order) => {
+          markPageUnverified(order);
+          markPageUnverified(order, 5);
+        },
+        message: 'sole unverified artifact',
+      },
+      {
+        label: 'mismatched upload candidate',
+        mutate: (order) => {
+          const { asset } = markPageUnverified(order);
+          order.pageUploadCandidates.push({
+            id: 'candidate-6',
+            pageNumber: 6,
+            url: `${asset.url}-different`,
+            rawUrl: asset.rawUrl,
+            provider: asset.provider,
+            createdAt: NOW,
+            updatedAt: NOW,
+          });
+        },
+        message: 'upload candidate differs',
+      },
+      {
+        label: 'missing worker child DNA',
+        mutate: (order) => {
+          order.generationJob.pipelineCache.dna = { childDNA: '' };
+          markPageUnverified(order);
+        },
+        message: 'generation child DNA is missing',
+      },
+      {
+        label: 'missing approved canonical anchor',
+        mutate: (order) => {
+          delete order.generationJob.pipelineCache.characterAnchorStore;
+          markPageUnverified(order);
+        },
+        message: 'approved child canonical anchor is missing',
+      },
+    ];
+
+    for (const testCase of cases) {
+      const order = makeOrder();
+      testCase.mutate(order);
+      const harness = makeHarness(order);
+      await expect(
+        executeReleaseV1Recovery(rerenderInput('inspect'), deps(harness)),
+        testCase.label,
+      ).rejects.toThrow(testCase.message);
+      expect(harness.tx.imageAsset.deleteMany).not.toHaveBeenCalled();
+      expect(harness.tx.qualityEvidence.updateMany).not.toHaveBeenCalled();
+      expect(harness.tx.order.updateMany).not.toHaveBeenCalled();
+    }
+    expect(H.dispatch).not.toHaveBeenCalled();
+  });
+
+  it('requires the exact frozen render and Board preflights before page deletion', async () => {
+    vi.stubEnv('READINESS_MANIFEST_ENABLED', 'true');
+    for (const testCase of [
+      {
+        message: 'frozen render qualification failed',
+        arrange: () =>
+          H.qualifyRender.mockImplementationOnce(() => {
+            throw new Error('invalid frozen projection');
+          }),
+      },
+      {
+        message: 'set identity boards are not render-ready',
+        arrange: () =>
+          H.assertBoards.mockRejectedValueOnce(new Error('board bytes drifted')),
+      },
+    ]) {
+      const order = makeOrder();
+      markPageUnverified(order);
+      const harness = makeHarness(order);
+      testCase.arrange();
+
+      await expect(
+        executeReleaseV1Recovery(rerenderInput('inspect'), deps(harness)),
+      ).rejects.toThrow(testCase.message);
+      expect(harness.transaction).not.toHaveBeenCalled();
+      expect(harness.tx.imageAsset.deleteMany).not.toHaveBeenCalled();
+      expect(H.dispatch).not.toHaveBeenCalled();
+    }
+  });
+
+  it('requires the receipt fence, LOW quality, and non-audition worker mode', async () => {
+    const order = makeOrder();
+    markPageUnverified(order);
+    const cases = [
+      {
+        env: {
+          VERCEL_URL: 'fixed-preview.vercel.app',
+          STYLE_01_GPT_MODEL: 'gpt-image-2',
+          GPT_IMAGE_QUALITY: 'low',
+          RESEMBLANCE_BASE_THRESHOLD: '0.72',
+          GENERATION_SECRET: 'test-generation-secret',
+          PHASE2_STYLE01_BOOK_PIPELINE: 'true',
+          VERCEL_AUTOMATION_BYPASS_SECRET: 'test-preview-bypass-secret',
+          READINESS_MANIFEST_ENABLED: 'false',
+        },
+        message: 'READINESS_MANIFEST_ENABLED must be true',
+      },
+      {
+        env: {
+          VERCEL_URL: 'fixed-preview.vercel.app',
+          STYLE_01_GPT_MODEL: 'gpt-image-2',
+          GPT_IMAGE_QUALITY: 'high',
+          RESEMBLANCE_BASE_THRESHOLD: '0.72',
+          GENERATION_SECRET: 'test-generation-secret',
+          PHASE2_STYLE01_BOOK_PIPELINE: 'true',
+          VERCEL_AUTOMATION_BYPASS_SECRET: 'test-preview-bypass-secret',
+          READINESS_MANIFEST_ENABLED: 'true',
+        },
+        message: 'restricted to low image quality',
+      },
+      {
+        env: {
+          VERCEL_URL: 'fixed-preview.vercel.app',
+          STYLE_01_GPT_MODEL: 'gpt-image-2',
+          GPT_IMAGE_QUALITY: 'low',
+          RESEMBLANCE_BASE_THRESHOLD: '0.72',
+          GENERATION_SECRET: 'test-generation-secret',
+          PHASE2_STYLE01_BOOK_PIPELINE: 'true',
+          VERCEL_AUTOMATION_BYPASS_SECRET: 'test-preview-bypass-secret',
+          READINESS_MANIFEST_ENABLED: 'true',
+          STYLE_01_AUDITION_MODE: 'true',
+        },
+        message: 'STYLE_01_AUDITION_MODE must be disabled',
+      },
+      {
+        env: {
+          VERCEL_URL: 'fixed-preview.vercel.app',
+          STYLE_01_GPT_MODEL: 'gpt-image-2',
+          GPT_IMAGE_QUALITY: 'low',
+          RESEMBLANCE_BASE_THRESHOLD: '0.72',
+          GENERATION_SECRET: 'test-generation-secret',
+          PHASE2_STYLE01_BOOK_PIPELINE: 'true',
+          VERCEL_AUTOMATION_BYPASS_SECRET: '',
+          READINESS_MANIFEST_ENABLED: 'true',
+        },
+        message: 'VERCEL_AUTOMATION_BYPASS_SECRET is required',
+      },
+      {
+        env: {
+          VERCEL_URL: 'fixed-preview.vercel.app',
+          STYLE_01_GPT_MODEL: 'gpt-image-2',
+          GPT_IMAGE_QUALITY: 'low',
+          RESEMBLANCE_BASE_THRESHOLD: '0.70',
+          GENERATION_SECRET: 'test-generation-secret',
+          PHASE2_STYLE01_BOOK_PIPELINE: 'true',
+          VERCEL_AUTOMATION_BYPASS_SECRET: 'test-preview-bypass-secret',
+          READINESS_MANIFEST_ENABLED: 'true',
+        },
+        message: 'effective resemblance threshold of 0.70',
+      },
+      {
+        env: {
+          VERCEL_URL: 'fixed-preview.vercel.app',
+          STYLE_01_GPT_MODEL: 'gpt-image-2',
+          GPT_IMAGE_QUALITY: 'low',
+          RESEMBLANCE_BASE_THRESHOLD: '0.72',
+          PHASE2_STYLE01_BOOK_PIPELINE: 'true',
+          GENERATION_SECRET: '',
+          VERCEL_AUTOMATION_BYPASS_SECRET: 'test-preview-bypass-secret',
+          READINESS_MANIFEST_ENABLED: 'true',
+        },
+        message: 'GENERATION_SECRET is required',
+      },
+      {
+        env: {
+          VERCEL_URL: 'fixed-preview.vercel.app',
+          STYLE_01_GPT_MODEL: 'gpt-image-2',
+          GPT_IMAGE_QUALITY: 'low',
+          RESEMBLANCE_BASE_THRESHOLD: '0.72',
+          GENERATION_SECRET: 'test-generation-secret',
+          PHASE2_STYLE01_BOOK_PIPELINE: 'false',
+          VERCEL_AUTOMATION_BYPASS_SECRET: 'test-preview-bypass-secret',
+          READINESS_MANIFEST_ENABLED: 'true',
+        },
+        message: 'PHASE2_STYLE01_BOOK_PIPELINE must be true',
+      },
+      {
+        env: { OPENAI_API_KEY: '' },
+        message: 'OPENAI_API_KEY is required',
+      },
+      {
+        env: { DISABLE_IMAGE_GENERATION: 'true' },
+        message: 'DISABLE_IMAGE_GENERATION must be false',
+      },
+      {
+        env: {
+          GPT_IMAGE_QUALITY: 'LOW',
+          READINESS_MANIFEST_ENABLED: 'true',
+        },
+        message: 'GPT_IMAGE_QUALITY must be exactly low',
+      },
+      {
+        env: {
+          GPT_IMAGE_QUALITY: undefined,
+          READINESS_MANIFEST_ENABLED: 'true',
+        },
+        message: 'GPT_IMAGE_QUALITY must be exactly low',
+      },
+      {
+        env: {
+          GPT_IMAGE_QUALITY: '',
+          READINESS_MANIFEST_ENABLED: 'true',
+        },
+        message: 'GPT_IMAGE_QUALITY must be exactly low',
+      },
+      {
+        env: { PAGE_VISUAL_QA_ENABLED: 'false' },
+        message: 'PAGE_VISUAL_QA_ENABLED must be explicitly true',
+      },
+      {
+        env: { QA_SOFT_DELIVER: 'true' },
+        message: 'QA_SOFT_DELIVER must be explicitly false',
+      },
+      {
+        env: { NEXT_PUBLIC_APP_URL: '' },
+        message: 'NEXT_PUBLIC_APP_URL must be an exact HTTPS reader origin',
+      },
+      {
+        env: { NEXT_PUBLIC_APP_URL: 'http://fixed-preview.vercel.app' },
+        message: 'NEXT_PUBLIC_APP_URL must be an exact HTTPS reader origin',
+      },
+      {
+        env: { ELEVENLABS_API_KEY: '' },
+        message: 'ELEVENLABS_API_KEY is required for this audio-enabled recovery',
+      },
+      {
+        env: { PHASE2_STYLE01_REF_CONFIG: 'B' },
+        message: 'effective PHASE2_STYLE01_REF_CONFIG must be A',
+      },
+      {
+        env: {
+          PHASE2_STYLE01_REF_CONFIG: undefined,
+          PHASE2_STYLE02_REF_CONFIG: 'B',
+        },
+        message: 'effective PHASE2_STYLE01_REF_CONFIG must be A',
+      },
+    ];
+
+    for (const testCase of cases) {
+      const harness = makeHarness(order);
+      await expect(
+        executeReleaseV1Recovery(rerenderInput('inspect'), {
+          ...deps(harness),
+          env: {
+            ...deps(harness).env,
+            ...testCase.env,
+          } as unknown as NodeJS.ProcessEnv,
+        }),
+      ).rejects.toThrow(testCase.message);
+      expect(harness.inspect).not.toHaveBeenCalled();
+      expect(harness.transaction).not.toHaveBeenCalled();
+    }
+    expect(H.dispatch).not.toHaveBeenCalled();
+  });
+
+  it('does not require ElevenLabs for a product that has no selected audio output', async () => {
+    vi.stubEnv('READINESS_MANIFEST_ENABLED', 'true');
+    const order = makeOrder();
+    order.audioEnabled = false;
+    order.videoEnabled = false;
+    order.bundleEnabled = false;
+    order.selectedVoice = null;
+    markPageUnverified(order);
+    const harness = makeHarness(order);
+
+    await expect(
+      executeReleaseV1Recovery(rerenderInput('inspect'), {
+        ...deps(harness),
+        env: {
+          ...deps(harness).env,
+          ELEVENLABS_API_KEY: '',
+        } as NodeJS.ProcessEnv,
+      }),
+    ).resolves.toMatchObject({ status: 'inspect_ready' });
+    expect(harness.transaction).not.toHaveBeenCalled();
+  });
+
+  it('fails closed before mutation when the protected release/v1 worker probe fails', async () => {
+    vi.stubEnv('READINESS_MANIFEST_ENABLED', 'true');
+    const order = makeOrder();
+    markPageUnverified(order);
+    const harness = makeHarness(order);
+    H.probeWorker.mockRejectedValueOnce(new Error('protected edge rejected'));
+
+    await expect(
+      executeReleaseV1Recovery(rerenderInput('inspect'), deps(harness)),
+    ).rejects.toThrow(
+      'protected Preview release/v1 worker reachability probe failed',
+    );
+
+    expect(H.probeWorker).toHaveBeenCalledWith(
+      TARGET_CONTINUITY,
+      expect.objectContaining({
+        VERCEL_AUTOMATION_BYPASS_SECRET: 'test-preview-bypass-secret',
+      }),
+    );
+    expect(harness.transaction).not.toHaveBeenCalled();
+    expect(H.dispatch).not.toHaveBeenCalled();
+  });
+
+  it('repeats the protected worker probe on Apply and blocks if it changed after Inspect', async () => {
+    vi.stubEnv('READINESS_MANIFEST_ENABLED', 'true');
+    const order = makeOrder();
+    markPageUnverified(order);
+    const harness = makeHarness(order);
+
+    const inspected = await executeReleaseV1Recovery(
+      rerenderInput('inspect'),
+      deps(harness),
+    );
+    if (inspected.status !== 'inspect_ready') throw new Error('unexpected status');
+    H.probeWorker.mockRejectedValueOnce(new Error('bypass rotated'));
+
+    await expect(
+      executeReleaseV1Recovery(
+        rerenderInput('apply', inspected.snapshotDigest),
+        deps(harness),
+      ),
+    ).rejects.toThrow(
+      'protected Preview release/v1 worker reachability probe failed',
+    );
+
+    expect(H.probeWorker).toHaveBeenCalledTimes(2);
+    expect(harness.transaction).not.toHaveBeenCalled();
+    expect(harness.tx.imageAsset.deleteMany).not.toHaveBeenCalled();
+    expect(harness.tx.qualityEvidence.updateMany).not.toHaveBeenCalled();
+    expect(harness.tx.order.updateMany).not.toHaveBeenCalled();
+    expect(H.dispatch).not.toHaveBeenCalled();
+  });
+
+  it('repeats the dispatch environment-separation guard on Apply before clearing the page', async () => {
+    vi.stubEnv('READINESS_MANIFEST_ENABLED', 'true');
+    const order = makeOrder();
+    markPageUnverified(order);
+    const harness = makeHarness(order);
+
+    const inspected = await executeReleaseV1Recovery(
+      rerenderInput('inspect'),
+      deps(harness),
+    );
+    if (inspected.status !== 'inspect_ready') throw new Error('unexpected status');
+
+    await expect(
+      executeReleaseV1Recovery(
+        rerenderInput('apply', inspected.snapshotDigest),
+        {
+          ...deps(harness),
+          env: {
+            ...deps(harness).env,
+            VERCEL_ENV: 'preview',
+            NEXT_PUBLIC_APP_URL: 'https://smallheroes.co.il',
+          } as NodeJS.ProcessEnv,
+        },
+      ),
+    ).rejects.toThrow('[env-separation] Refusing to run');
+
+    expect(H.probeWorker).toHaveBeenCalledTimes(1);
+    expect(harness.transaction).not.toHaveBeenCalled();
+    expect(harness.tx.imageAsset.deleteMany).not.toHaveBeenCalled();
+    expect(harness.tx.qualityEvidence.updateMany).not.toHaveBeenCalled();
+    expect(harness.tx.order.updateMany).not.toHaveBeenCalled();
+    expect(H.dispatch).not.toHaveBeenCalled();
+  });
+
+  it('binds the exact HTTPS reader origin across Inspect and Apply', async () => {
+    vi.stubEnv('READINESS_MANIFEST_ENABLED', 'true');
+    const order = makeOrder();
+    markPageUnverified(order);
+    const harness = makeHarness(order);
+
+    const inspected = await executeReleaseV1Recovery(
+      rerenderInput('inspect'),
+      deps(harness),
+    );
+    if (inspected.status !== 'inspect_ready') throw new Error('unexpected status');
+    expect(inspected.pageRerender?.readerBaseUrl).toBe(
+      'https://fixed-preview.vercel.app',
+    );
+
+    await expect(
+      executeReleaseV1Recovery(
+        rerenderInput('apply', inspected.snapshotDigest),
+        {
+          ...deps(harness),
+          env: {
+            ...deps(harness).env,
+            NEXT_PUBLIC_APP_URL: 'https://other-reader-preview.example',
+          } as NodeJS.ProcessEnv,
+        },
+      ),
+    ).rejects.toThrow('snapshot changed after inspection');
+
+    expect(harness.transaction).not.toHaveBeenCalled();
+    expect(harness.tx.imageAsset.deleteMany).not.toHaveBeenCalled();
+    expect(harness.tx.qualityEvidence.updateMany).not.toHaveBeenCalled();
+    expect(H.dispatch).not.toHaveBeenCalled();
+  });
+
+  it('rolls back a page re-render CAS loss and never resumes or dispatches', async () => {
+    vi.stubEnv('READINESS_MANIFEST_ENABLED', 'true');
+    const order = makeOrder();
+    markPageUnverified(order);
+    const harness = makeHarness(order);
+    const inspected = await executeReleaseV1Recovery(
+      rerenderInput('inspect'),
+      deps(harness),
+    );
+    if (inspected.status !== 'inspect_ready') throw new Error('unexpected status');
+    harness.tx.imageAsset.deleteMany.mockResolvedValue({ count: 0 });
+
+    await expect(
+      executeReleaseV1Recovery(
+        rerenderInput('apply', inspected.snapshotDigest),
+        deps(harness),
+      ),
+    ).rejects.toThrow('page re-render asset compare-and-swap lost');
+    expect(harness.tx.pageUploadCandidate.deleteMany).not.toHaveBeenCalled();
+    expect(harness.tx.qualityEvidence.updateMany).not.toHaveBeenCalled();
+    expect(harness.tx.order.updateMany).not.toHaveBeenCalled();
+    expect(H.dispatch).not.toHaveBeenCalled();
+  });
+
+  it('fails closed on upload-candidate and quality-evidence CAS loss', async () => {
+    vi.stubEnv('READINESS_MANIFEST_ENABLED', 'true');
+    for (const testCase of [
+      {
+        message: 'page re-render upload candidate compare-and-swap lost',
+        arrangeOrder: (order: ReturnType<typeof makeOrder>) => {
+          const { asset } = markPageUnverified(order);
+          order.pageUploadCandidates.push({
+            id: 'candidate-6',
+            pageNumber: 6,
+            url: asset.url,
+            rawUrl: asset.rawUrl,
+            provider: asset.provider,
+            createdAt: NOW,
+            updatedAt: NOW,
+          });
+        },
+        loseCas: (harness: ReturnType<typeof makeHarness>) =>
+          harness.tx.pageUploadCandidate.deleteMany.mockResolvedValue({ count: 0 }),
+      },
+      {
+        message: 'page re-render quality evidence compare-and-swap lost',
+        arrangeOrder: (order: ReturnType<typeof makeOrder>) => {
+          markPageUnverified(order);
+        },
+        loseCas: (harness: ReturnType<typeof makeHarness>) =>
+          harness.tx.qualityEvidence.updateMany.mockResolvedValue({ count: 0 }),
+      },
+    ]) {
+      const order = makeOrder();
+      testCase.arrangeOrder(order);
+      const harness = makeHarness(order);
+      const inspected = await executeReleaseV1Recovery(
+        rerenderInput('inspect'),
+        deps(harness),
+      );
+      if (inspected.status !== 'inspect_ready') throw new Error('unexpected status');
+      testCase.loseCas(harness);
+
+      await expect(
+        executeReleaseV1Recovery(
+          rerenderInput('apply', inspected.snapshotDigest),
+          deps(harness),
+        ),
+      ).rejects.toThrow(testCase.message);
+      expect(harness.tx.order.updateMany).not.toHaveBeenCalled();
+      expect(H.dispatch).not.toHaveBeenCalled();
+    }
+  });
+
+  it('routes the cleared page and the two already-missing pages through the ordinary page-images stage', async () => {
+    const order = makeOrder();
+    order.book.pages[5]!.imageAsset = null;
+    const pendingPageNumbers = order.book.pages
+      .filter((page) => !shouldSkipPaidPageImageRegen(page.imageAsset))
+      .map((page) => page.pageNumber);
+
+    expect(pendingPageNumbers).toEqual([6, 7, 8]);
+    const { deriveStartingStage } = await import(
+      '@/lib/generation-pipeline/chunk-runner'
+    );
+    await expect(
+      deriveStartingStage(
+        order.id,
+        {
+          textDone: true,
+          imagesDone: false,
+          audioDone: false,
+          packaged: false,
+        },
+        order.generationJob.pipelineCache,
+      ),
+    ).resolves.toBe('page_images');
+  });
+
+  it('removes the exact prior page-write receipt so identical replacement bytes can recreate the asset', async () => {
+    vi.stubEnv('READINESS_MANIFEST_ENABLED', 'true');
+    const order = makeOrder();
+    const { asset } = markPageUnverified(order);
+    const harness = makeHarness(order);
+    const oldOperationKey = pageAssetOperationKey(
+      order.id,
+      6,
+      asset.presentationUrl!,
+      order.visualContractHash,
+    );
+    harness.receipts.set(oldOperationKey, {
+      operationKey: oldOperationKey,
+      orderId: order.id,
+      kind: 'delivery_input',
+      payloadHash: 'old-page-receipt-payload',
+      result: { value: { inputVersion: 11 } },
+      createdAt: new Date('2026-09-01T19:56:30.000Z'),
+    });
+
+    const inspected = await executeReleaseV1Recovery(
+      rerenderInput('inspect'),
+      deps(harness),
+    );
+    if (inspected.status !== 'inspect_ready') throw new Error('unexpected status');
+    expect(inspected.pageRerender?.targets[0]).toMatchObject({
+      priorAssetReceiptOperationKey: oldOperationKey,
+      priorAssetReceiptPayloadHash: 'old-page-receipt-payload',
+    });
+
+    const result = await executeReleaseV1Recovery(
+      rerenderInput('apply', inspected.snapshotDigest),
+      deps(harness),
+    );
+
+    expect(result).toMatchObject({ status: 'resumed', dispatched: true });
+    expect(harness.tx.atomicOperationReceipt.deleteMany).toHaveBeenCalledWith({
+      where: {
+        operationKey: oldOperationKey,
+        orderId: order.id,
+        kind: 'delivery_input',
+        payloadHash: 'old-page-receipt-payload',
+        createdAt: new Date('2026-09-01T19:56:30.000Z'),
+      },
+    });
+    expect(harness.receipts.has(oldOperationKey)).toBe(false);
+  });
+
+  it('fences an ambiguous page re-render commit and dispatches exactly once across replay', async () => {
+    vi.stubEnv('READINESS_MANIFEST_ENABLED', 'true');
+    const order = makeOrder();
+    markPageUnverified(order);
+    const harness = makeHarness(order, {
+      ambiguousAfterCommitFor: 'release_v1_page_rerender',
+    });
+    const recoveryDeps = deps(harness);
+    const inspected = await executeReleaseV1Recovery(
+      rerenderInput('inspect'),
+      recoveryDeps,
+    );
+    if (inspected.status !== 'inspect_ready') throw new Error('unexpected status');
+    const apply = rerenderInput('apply', inspected.snapshotDigest);
+
+    const first = await executeReleaseV1Recovery(apply, recoveryDeps);
+    // The lightweight ambiguity harness persists only the receipt, not the other committed row mutations. Restore
+    // its in-memory exception fixture to the same pre-commit snapshot so replay exercises receipt ownership exactly
+    // as the existing Order/job fixtures do (the callback itself must still run only once).
+    Object.assign(order.exceptionCases[0]!, {
+      status: 'open',
+      claimVersion: 0,
+      nextActionAt: new Date('2026-09-01T19:58:30.000Z'),
+      leaseExpiresAt: null,
+    });
+    const replay = await executeReleaseV1Recovery(apply, recoveryDeps);
+
+    expect(first).toMatchObject({ status: 'resumed', dispatched: true });
+    expect(replay).toMatchObject({
+      status: 'already_resumed',
+      dispatched: false,
+      rerenderedPageNumbers: [6],
+    });
+    expect(harness.tx.imageAsset.deleteMany).toHaveBeenCalledTimes(1);
+    expect(harness.tx.qualityEvidence.updateMany).toHaveBeenCalledTimes(1);
+    expect(harness.tx.order.updateMany).toHaveBeenCalledTimes(1);
+    expect(harness.tx.generationJob.updateMany).toHaveBeenCalledTimes(1);
+    expect(H.dispatch).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not dispatch when its rolled-back attempt replays a concurrent winner receipt', async () => {
+    vi.stubEnv('READINESS_MANIFEST_ENABLED', 'true');
+    const order = makeOrder();
+    markPageUnverified(order);
+    const harness = makeHarness(order, {
+      rollbackThenConcurrentWinnerFor: 'release_v1_page_rerender',
+    });
+    const recoveryDeps = deps(harness);
+    const inspected = await executeReleaseV1Recovery(
+      rerenderInput('inspect'),
+      recoveryDeps,
+    );
+    if (inspected.status !== 'inspect_ready') throw new Error('unexpected status');
+
+    const result = await executeReleaseV1Recovery(
+      rerenderInput('apply', inspected.snapshotDigest),
+      recoveryDeps,
+    );
+
+    expect(result).toMatchObject({
+      status: 'already_resumed',
+      dispatched: false,
+      rerenderedPageNumbers: [6],
+    });
+    expect(H.dispatch).not.toHaveBeenCalled();
+  });
+
   it('applies one fenced state transition, preserves cache/progress, then dispatches once', async () => {
     const harness = makeHarness();
     const inspected = await executeReleaseV1Recovery(
@@ -1138,7 +2234,7 @@ describe('release/v1 reviewed same-order recovery', () => {
     );
 
     expect(result).toMatchObject({ status: 'resumed', dispatched: true });
-    expect(harness.tx.$queryRaw).toHaveBeenCalledTimes(11);
+    expect(harness.tx.$queryRaw).toHaveBeenCalledTimes(12);
     expect(harness.tx.order.updateMany).toHaveBeenCalledWith(
       expect.objectContaining({
         data: {
@@ -1243,9 +2339,14 @@ describe('release/v1 reviewed same-order recovery', () => {
     order.exceptionCases = [
       {
         id: 'refund-1',
+        scope: 'base_book',
         kind: 'quality_failed',
         status: 'refund_pending',
+        reason: 'quality failed',
+        attempts: 1,
+        nextActionAt: NOW,
         actionAttemptedAt: NOW,
+        notificationAttemptedAt: null,
         claimVersion: 1,
         leaseExpiresAt: null,
         sourceRef: 'generation:release-order:failed',
@@ -1264,6 +2365,26 @@ describe('release/v1 reviewed same-order recovery', () => {
     ).rejects.toBeInstanceOf(ReleaseV1RecoveryError);
     expect(harness.inspect).not.toHaveBeenCalled();
     expect(harness.transaction).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['non-generation source', (row: ReturnType<typeof makeOrder>['exceptionCases'][number]) => { row.sourceRef = 'readiness:manifest-1'; }, 'protected exception case blocks recovery'],
+    ['non-base scope', (row: ReturnType<typeof makeOrder>['exceptionCases'][number]) => { row.scope = 'other_scope'; }, 'protected exception case blocks recovery'],
+    ['notification already attempted', (row: ReturnType<typeof makeOrder>['exceptionCases'][number]) => { row.notificationAttemptedAt = NOW; }, 'protected exception case blocks recovery'],
+    ['external action already attempted', (row: ReturnType<typeof makeOrder>['exceptionCases'][number]) => { row.actionAttemptedAt = NOW; }, 'protected exception case blocks recovery'],
+    ['live processor lease', (row: ReturnType<typeof makeOrder>['exceptionCases'][number]) => { row.leaseExpiresAt = new Date(NOW.getTime() + 60_000); }, 'live exception lease blocks recovery'],
+  ])('rejects %s before any recovery mutation', async (_label, mutate, message) => {
+    const order = makeOrder();
+    mutate(order.exceptionCases[0]!);
+    const harness = makeHarness(order);
+
+    await expect(
+      executeReleaseV1Recovery(rerenderInput('inspect'), deps(harness)),
+    ).rejects.toThrow(message);
+    expect(harness.transaction).not.toHaveBeenCalled();
+    expect(harness.tx.exceptionCase.updateMany).not.toHaveBeenCalled();
+    expect(harness.tx.imageAsset.deleteMany).not.toHaveBeenCalled();
+    expect(H.dispatch).not.toHaveBeenCalled();
   });
 
   it('requires a different immutable deployment for each reviewed code-fix recovery', async () => {

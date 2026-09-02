@@ -2,9 +2,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ImageInput } from '@/backend/providers/image';
 import type { PageVisualQaResult } from '@/lib/generation-pipeline/page-visual-qa';
 
-const { evaluateQaSpy, generateGptSpy, storeBufferSpy } = vi.hoisted(() => ({
+const { evaluateQaSpy, generateGptSpy, resemblanceSpy, storeBufferSpy } = vi.hoisted(() => ({
   evaluateQaSpy: vi.fn(),
   generateGptSpy: vi.fn(),
+  resemblanceSpy: vi.fn(),
   storeBufferSpy: vi.fn(),
 }));
 
@@ -28,7 +29,19 @@ vi.mock('@/lib/image-storage', () => ({
   isImagePersistenceError: () => false,
 }));
 
-import { generateBookCover, generateImage } from '@/backend/providers/image';
+vi.mock('@/lib/resemblance-core', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/resemblance-core')>();
+  return {
+    ...actual,
+    scoreResemblanceAgainstReference: resemblanceSpy,
+  };
+});
+
+import {
+  generateAllPageImages,
+  generateBookCover,
+  generateImage,
+} from '@/backend/providers/image';
 
 const FLAGS: PageVisualQaResult['flags'] = {
   anatomyOk: true,
@@ -86,6 +99,18 @@ describe('shipped Style01 caller — QA evidence versus image-regeneration budge
     evaluateQaSpy.mockReset();
     generateGptSpy.mockReset();
     storeBufferSpy.mockReset();
+    resemblanceSpy.mockReset();
+    resemblanceSpy.mockResolvedValue({
+      resemblanceScore: 0.8,
+      faceDetectConfidence: 0.9,
+      faceAreaRatio: 0.2,
+      sanityFlags: {
+        embeddingMismatch: false,
+        colorMismatch: false,
+        geometryWeird: false,
+      },
+      candidateEmbedding: [0.8],
+    });
     generateGptSpy.mockResolvedValue({
       buffer: Buffer.from('mock-image-bytes'),
       model: 'gpt-image-1',
@@ -146,6 +171,215 @@ describe('shipped Style01 caller — QA evidence versus image-regeneration budge
     expect(reserve).not.toHaveBeenCalled();
     expect(result.style01Meta?.pageVisualQa?.verdict).toBe('passed');
     expect(result.style01Meta?.needsHumanReview).toBe(false);
+  });
+
+  it('enforces the required numeric page gate on the same candidate and passes at 0.70', async () => {
+    const reserve = vi.fn(async () => true);
+    evaluateQaSpy.mockResolvedValue(VERIFIED_PASS);
+    resemblanceSpy.mockResolvedValueOnce({
+      resemblanceScore: 0.7,
+      faceDetectConfidence: 0.9,
+      faceAreaRatio: 0.2,
+      sanityFlags: {
+        embeddingMismatch: false,
+        colorMismatch: false,
+        geometryWeird: false,
+      },
+      candidateEmbedding: [0.7],
+    });
+
+    const result = await generateImage(baseInput({
+      reserveQualityRegen: reserve,
+      onCandidateUploaded: vi.fn(async () => {}),
+      pageResemblanceGate: {
+        referenceImageUrl: 'https://cdn.example/order-r1a/approved-anchor.png',
+        effectiveThreshold: 0.7,
+        minAcceptableScore: 0.55,
+      },
+    }));
+
+    expect(generateGptSpy).toHaveBeenCalledTimes(1);
+    expect(resemblanceSpy).toHaveBeenCalledWith({
+      referenceImageUrl: 'https://cdn.example/order-r1a/approved-anchor.png',
+      candidateImageUrl: 'https://cdn.example/order-r1a/page-4-1.png',
+      effectiveThreshold: 0.7,
+      minAcceptableScore: 0.55,
+    });
+    expect(reserve).not.toHaveBeenCalled();
+    expect(result.style01Meta?.pageResemblanceGate).toMatchObject({
+      status: 'passed',
+      resemblanceScore: 0.7,
+      threshold: 0.7,
+    });
+    expect(result.style01Meta?.pageVisualQa?.verdict).toBe('passed');
+  });
+
+  it('uses the shared durable budget for a verified below-threshold replacement', async () => {
+    const reserve = vi.fn(async () => true);
+    evaluateQaSpy.mockResolvedValue(VERIFIED_PASS);
+    resemblanceSpy
+      .mockResolvedValueOnce({
+        resemblanceScore: 0.69,
+        faceDetectConfidence: 0.9,
+        faceAreaRatio: 0.2,
+        sanityFlags: {
+          embeddingMismatch: false,
+          colorMismatch: false,
+          geometryWeird: false,
+        },
+        candidateEmbedding: [0.69],
+      })
+      .mockResolvedValueOnce({
+        resemblanceScore: 0.71,
+        faceDetectConfidence: 0.9,
+        faceAreaRatio: 0.2,
+        sanityFlags: {
+          embeddingMismatch: false,
+          colorMismatch: false,
+          geometryWeird: false,
+        },
+        candidateEmbedding: [0.71],
+      });
+
+    const result = await generateImage(baseInput({
+      reserveQualityRegen: reserve,
+      onCandidateUploaded: vi.fn(async () => {}),
+      pageResemblanceGate: {
+        referenceImageUrl: 'https://cdn.example/order-r1a/approved-anchor.png',
+        effectiveThreshold: 0.7,
+        minAcceptableScore: 0.55,
+      },
+    }));
+
+    expect(generateGptSpy).toHaveBeenCalledTimes(2);
+    expect(resemblanceSpy).toHaveBeenCalledTimes(2);
+    expect(reserve).toHaveBeenCalledTimes(1);
+    expect(result.style01Meta?.pageVisualQa).toMatchObject({
+      verdict: 'passed',
+      regenAttempts: 1,
+    });
+    expect(result.style01Meta?.pageResemblanceGate?.status).toBe('passed');
+  });
+
+  it('holds after one candidate plus two numeric-gate replacements', async () => {
+    const reserve = vi.fn(async () => true);
+    evaluateQaSpy.mockResolvedValue(VERIFIED_PASS);
+    resemblanceSpy.mockResolvedValue({
+      resemblanceScore: 0.69,
+      faceDetectConfidence: 0.9,
+      faceAreaRatio: 0.2,
+      sanityFlags: {
+        embeddingMismatch: false,
+        colorMismatch: false,
+        geometryWeird: false,
+      },
+      candidateEmbedding: [0.69],
+    });
+
+    const result = await generateImage(baseInput({
+      reserveQualityRegen: reserve,
+      onCandidateUploaded: vi.fn(async () => {}),
+      pageResemblanceGate: {
+        referenceImageUrl: 'https://cdn.example/order-r1a/approved-anchor.png',
+        effectiveThreshold: 0.7,
+        minAcceptableScore: 0.55,
+      },
+    }));
+
+    expect(generateGptSpy).toHaveBeenCalledTimes(3);
+    expect(resemblanceSpy).toHaveBeenCalledTimes(3);
+    expect(reserve).toHaveBeenCalledTimes(2);
+    expect(result.style01Meta?.pageVisualQa).toMatchObject({
+      passed: false,
+      verdict: 'failed',
+      reason: 'child_resemblance_below_threshold',
+      regenAttempts: 2,
+    });
+    expect(result.style01Meta?.needsHumanReview).toBe(true);
+  });
+
+  it('holds scorer-unavailable evidence without buying replacement bytes', async () => {
+    const reserve = vi.fn(async () => true);
+    evaluateQaSpy.mockResolvedValue(VERIFIED_PASS);
+    resemblanceSpy.mockRejectedValueOnce(new Error('scorer unavailable'));
+
+    const result = await generateImage(baseInput({
+      reserveQualityRegen: reserve,
+      onCandidateUploaded: vi.fn(async () => {}),
+      pageResemblanceGate: {
+        referenceImageUrl: 'https://cdn.example/order-r1a/approved-anchor.png',
+        effectiveThreshold: 0.7,
+        minAcceptableScore: 0.55,
+      },
+    }));
+
+    expect(generateGptSpy).toHaveBeenCalledTimes(1);
+    expect(reserve).not.toHaveBeenCalled();
+    expect(result.style01Meta?.pageVisualQa).toMatchObject({
+      passed: false,
+      verdict: 'evidence_unknown',
+      reason: 'resemblance_evidence_unavailable',
+    });
+    expect(result.style01Meta?.needsHumanReview).toBe(true);
+  });
+
+  it('rejects a required numeric gate before provider spend when visual QA is disabled', async () => {
+    vi.stubEnv('PAGE_VISUAL_QA_ENABLED', 'false');
+
+    await expect(
+      generateImage(baseInput({
+        pageResemblanceGate: {
+          referenceImageUrl: 'https://cdn.example/order-r1a/approved-anchor.png',
+          effectiveThreshold: 0.7,
+          minAcceptableScore: 0.55,
+        },
+      })),
+    ).rejects.toThrow('PAGE_VISUAL_QA_ENABLED must be true');
+
+    expect(generateGptSpy).not.toHaveBeenCalled();
+    expect(resemblanceSpy).not.toHaveBeenCalled();
+  });
+
+  it('scores a batch page against the exact canonical gate reference, not a stale mutable anchor', async () => {
+    evaluateQaSpy.mockResolvedValue(VERIFIED_PASS);
+    const canonicalAnchor =
+      'https://cdn.example/order-r1a/approved-canonical-anchor.png';
+    const staleMutableAnchor =
+      'https://cdn.example/order-r1a/stale-order-anchor.png';
+
+    const outcome = await generateAllPageImages(
+      [
+        {
+          pageNumber: 4,
+          imagePrompt: 'A small child stands safely in a calm room.',
+          expectedCharacterIds: ['child'],
+        },
+      ],
+      {
+        illustrationStyle: 'soft_hand_drawn_storybook',
+        childName: 'Noa',
+        childDescription: 'A small child with short dark hair.',
+        referenceImages: [canonicalAnchor],
+        initialCharacterAnchors: { child: staleMutableAnchor },
+        requirePageResemblanceGate: true,
+        pageResemblanceReferenceImage: canonicalAnchor,
+        resemblanceThresholdConfig: {
+          baseThreshold: 0.72,
+          styleAdjustments: { soft_hand_drawn_storybook: -0.02 },
+          minAcceptableScore: 0.55,
+          softFailBand: 0.06,
+          extremeMargin: 0.1,
+        },
+      },
+    );
+
+    expect(outcome.failedPages).toEqual([]);
+    expect(resemblanceSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ referenceImageUrl: canonicalAnchor }),
+    );
+    expect(resemblanceSpy).not.toHaveBeenCalledWith(
+      expect.objectContaining({ referenceImageUrl: staleMutableAnchor }),
+    );
   });
 
   it('candidate persistence failure holds before QA and cannot reserve or render replacement bytes', async () => {

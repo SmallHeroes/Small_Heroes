@@ -99,9 +99,11 @@ const DEFAULT_THRESHOLD_CONFIG: ResemblanceThresholdConfig = {
   softFailBand: 0.06,
   extremeMargin: 0.1,
   styleAdjustments: {
+    // Canonical Style-01 and its persisted DB alias must resolve identically.
+    soft_hand_drawn_storybook: -0.02,
     whimsical_comic_fantasy: -0.03,
     pencil_watercolor: -0.02,
-    realistic_illustrated: 0,
+    realistic_illustrated: -0.02,
   },
 };
 
@@ -132,20 +134,26 @@ function cosineSimilarity(a: number[], b: number[]): number {
   return clamp(dot / (Math.sqrt(an) * Math.sqrt(bn)), 0, 1);
 }
 
-function parseNumberEnv(name: string, fallback: number): number {
-  const raw = process.env[name];
+function parseNumberEnv(
+  env: NodeJS.ProcessEnv,
+  name: string,
+  fallback: number,
+): number {
+  const raw = env[name];
   if (!raw) return fallback;
   const parsed = Number.parseFloat(raw);
   if (!Number.isFinite(parsed)) return fallback;
   return parsed;
 }
 
-export function resolveResemblanceThresholdConfig(): ResemblanceThresholdConfig {
+export function resolveResemblanceThresholdConfig(
+  env: NodeJS.ProcessEnv = process.env,
+): ResemblanceThresholdConfig {
   const cfg: ResemblanceThresholdConfig = {
-    baseThreshold: parseNumberEnv('RESEMBLANCE_BASE_THRESHOLD', DEFAULT_THRESHOLD_CONFIG.baseThreshold),
-    minAcceptableScore: parseNumberEnv('RESEMBLANCE_MIN_ACCEPTABLE_SCORE', DEFAULT_THRESHOLD_CONFIG.minAcceptableScore),
-    softFailBand: parseNumberEnv('RESEMBLANCE_SOFT_FAIL_BAND', DEFAULT_THRESHOLD_CONFIG.softFailBand),
-    extremeMargin: parseNumberEnv('RESEMBLANCE_EXTREME_MARGIN', DEFAULT_THRESHOLD_CONFIG.extremeMargin),
+    baseThreshold: parseNumberEnv(env, 'RESEMBLANCE_BASE_THRESHOLD', DEFAULT_THRESHOLD_CONFIG.baseThreshold),
+    minAcceptableScore: parseNumberEnv(env, 'RESEMBLANCE_MIN_ACCEPTABLE_SCORE', DEFAULT_THRESHOLD_CONFIG.minAcceptableScore),
+    softFailBand: parseNumberEnv(env, 'RESEMBLANCE_SOFT_FAIL_BAND', DEFAULT_THRESHOLD_CONFIG.softFailBand),
+    extremeMargin: parseNumberEnv(env, 'RESEMBLANCE_EXTREME_MARGIN', DEFAULT_THRESHOLD_CONFIG.extremeMargin),
     styleAdjustments: DEFAULT_THRESHOLD_CONFIG.styleAdjustments,
   };
   validateThresholdConfig(cfg);

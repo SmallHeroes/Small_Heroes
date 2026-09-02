@@ -80,6 +80,34 @@ describe('persistQualityContext (#6-fix-3 BLOCKER 1) — bind the exact context 
     expect((a.create.evidence as Record<string, unknown>).deliveredUrl).toBe('u1');
   });
 
+  it('crash-atomically binds the exact numeric child policy with the asset context as evidence_unknown', async () => {
+    const db = ctxDb(null);
+    await persistQualityContext(db as never, {
+      orderId: 'o1',
+      artifactKey: 'page:6',
+      deliveredUrl: 'https://h/p6-delivered.webp',
+      qaContext: QA_CTX,
+      pageResemblanceGate: {
+        referenceImageUrl: 'https://h/approved-child-anchor.webp',
+        effectiveThreshold: 0.7,
+        minAcceptableScore: 0.62,
+      },
+      contractHash: 'contract-v1',
+    });
+    const evidence = arg(db).create.evidence as Record<string, unknown>;
+    expect(evidence.pageResemblanceGate).toEqual({
+      required: true,
+      referenceImageUrl: 'https://h/approved-child-anchor.webp',
+      status: 'evidence_unknown',
+      resemblanceScore: null,
+      threshold: 0.7,
+      minAcceptableScore: 0.62,
+      faceDetectConfidence: null,
+      faceAreaRatio: null,
+      source: 'delivered_bytes',
+    });
+  });
+
   it('(#6-fix-4 P1 #2) existing row → INVALIDATES the old proof: verdict→evidence_unknown + hash cleared, regenCount/regenPending PRESERVED', async () => {
     const db = ctxDb({ regenPending: true, stray: 1 });
     await persistQualityContext(db as never, { orderId: 'o1', artifactKey: 'page:1', deliveredUrl: 'u2', qaContext: QA_CTX, contractHash: null });
@@ -135,6 +163,119 @@ describe('persistDeliveredQualityEvidence — semantic byte binding (carry-in #1
     const a = upsertArg(db);
     expect(a.create.verdict).toBe('failed'); // the DELIVERED-bytes verdict, not the raw 'passed'
     expect(a.create.assetSha256).toBe('sha_presentation');
+  });
+});
+
+describe('persistDeliveredQualityEvidence — required numeric child resemblance on delivered bytes', () => {
+  const gate = {
+    referenceImageUrl: 'https://h/approved-child-anchor.webp',
+    effectiveThreshold: 0.7,
+    minAcceptableScore: 0.62,
+  } as const;
+
+  it('presentation transform → scores the DELIVERED bytes and fails a 0.69 candidate against the 0.70 gate', async () => {
+    const db = makeDb();
+    const evaluate = vi.fn(async () => ({
+      passed: true,
+      verdict: 'passed',
+      reason: 'ok',
+      details: '',
+      flags: {},
+      safetyHazards: [],
+      safetyStatus: 'safe',
+    } as never));
+    const scoreResemblance = vi.fn(async () => ({
+      resemblanceScore: 0.69,
+      faceDetectConfidence: 0.91,
+      faceAreaRatio: 0.18,
+      sanityFlags: {},
+      candidateEmbedding: [],
+    }));
+
+    await persistDeliveredQualityEvidence(db as never, {
+      orderId: 'o1', artifactKey: 'page:7', deliveredUrl: 'https://h/p7-delivered.webp',
+      presentationApplied: true, rawVerdict: 'passed', qaContext: QA_CTX, contractHash: 'contract-v1',
+      pageResemblanceGate: {
+        ...gate,
+        rawEvidence: { status: 'passed', resemblanceScore: 0.81 },
+      },
+    }, {
+      evaluate: evaluate as never,
+      inspect: async () => okInspect('sha-delivered'),
+      scoreResemblance: scoreResemblance as never,
+    });
+
+    expect(scoreResemblance).toHaveBeenCalledWith({
+      referenceImageUrl: gate.referenceImageUrl,
+      candidateImageUrl: 'https://h/p7-delivered.webp',
+      effectiveThreshold: 0.7,
+      minAcceptableScore: 0.62,
+    });
+    const a = upsertArg(db);
+    expect(a.create.verdict).toBe('failed');
+    expect(a.create.reason).toBe('child_resemblance_below_threshold');
+    expect((a.create.evidence as Record<string, unknown>).pageResemblanceGate).toEqual(
+      expect.objectContaining({
+        status: 'failed', resemblanceScore: 0.69, threshold: 0.7, source: 'delivered_bytes',
+      }),
+    );
+  });
+
+  it('presentation transform + unavailable scorer → evidence_unknown, never silently passes', async () => {
+    const db = makeDb();
+    const evaluate = vi.fn(async () => ({
+      passed: true,
+      verdict: 'passed',
+      reason: 'ok',
+      details: '',
+      flags: {},
+      safetyHazards: [],
+      safetyStatus: 'safe',
+    } as never));
+    const scoreResemblance = vi.fn(async () => {
+      throw new Error('scorer_unavailable');
+    });
+
+    await persistDeliveredQualityEvidence(db as never, {
+      orderId: 'o1', artifactKey: 'page:8', deliveredUrl: 'https://h/p8-delivered.webp',
+      presentationApplied: true, rawVerdict: 'passed', qaContext: QA_CTX, contractHash: 'contract-v1',
+      pageResemblanceGate: gate,
+    }, {
+      evaluate: evaluate as never,
+      inspect: async () => okInspect('sha-delivered'),
+      scoreResemblance: scoreResemblance as never,
+    });
+
+    const a = upsertArg(db);
+    expect(a.create.verdict).toBe('evidence_unknown');
+    expect(a.create.reason).toBe('child_resemblance_unverified');
+    expect((a.create.evidence as Record<string, unknown>).pageResemblanceGate).toEqual(
+      expect.objectContaining({ status: 'evidence_unknown', resemblanceScore: null, source: 'delivered_bytes' }),
+    );
+  });
+
+  it('no presentation transform → reuses the raw same-byte numeric evidence without rescoring', async () => {
+    const db = makeDb();
+    const scoreResemblance = vi.fn();
+
+    await persistDeliveredQualityEvidence(db as never, {
+      orderId: 'o1', artifactKey: 'page:6', deliveredUrl: 'https://h/p6-raw.png',
+      presentationApplied: false, rawVerdict: 'passed', qaContext: QA_CTX, contractHash: 'contract-v1',
+      pageResemblanceGate: {
+        ...gate,
+        rawEvidence: { status: 'passed', resemblanceScore: 0.73 },
+      },
+    }, {
+      inspect: async () => okInspect('sha-raw'),
+      scoreResemblance: scoreResemblance as never,
+    });
+
+    expect(scoreResemblance).not.toHaveBeenCalled();
+    const a = upsertArg(db);
+    expect(a.create.verdict).toBe('passed');
+    expect((a.create.evidence as Record<string, unknown>).pageResemblanceGate).toEqual(
+      expect.objectContaining({ status: 'passed', resemblanceScore: 0.73, source: 'raw_same_bytes' }),
+    );
   });
 });
 

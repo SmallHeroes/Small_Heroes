@@ -575,6 +575,11 @@ export async function resolveActiveRecoveryCaseInTx(
     kinds: ExceptionCaseKind[];
     reason: string;
     now: Date;
+    /** Optional exact inspected-case fence for reviewed recovery flows. */
+    expected?: Pick<
+      ExceptionCase,
+      'id' | 'status' | 'claimVersion' | 'sourceRef' | 'attempts' | 'nextActionAt'
+    >;
   },
 ): Promise<boolean> {
   const scope = args.scope ?? EXCEPTION_SCOPE_BASE_BOOK;
@@ -582,6 +587,17 @@ export async function resolveActiveRecoveryCaseInTx(
     where: { activeKey: exceptionActiveKey(args.orderId, scope) },
   });
   if (!current || !args.kinds.includes(current.kind)) return false;
+  if (
+    args.expected &&
+    (current.id !== args.expected.id ||
+      current.status !== args.expected.status ||
+      current.claimVersion !== args.expected.claimVersion ||
+      current.sourceRef !== args.expected.sourceRef ||
+      current.attempts !== args.expected.attempts ||
+      current.nextActionAt?.getTime() !== args.expected.nextActionAt?.getTime())
+  ) {
+    return false;
+  }
   // Once recovery crossed into an external customer/payment action, a later healthy evaluation
   // cannot silently cancel that obligation and deliver the book as if nothing happened.
   if (

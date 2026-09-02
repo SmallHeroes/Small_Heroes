@@ -1,11 +1,22 @@
-import { createHash } from 'crypto';
-import { Prisma, type PrismaClient } from '@prisma/client';
+import { createHash, randomUUID } from 'crypto';
+import { Prisma, type Order, type PrismaClient } from '@prisma/client';
 
 import { prisma } from '@/lib/prisma';
 import { buildArtifactIdempotencyKey } from '@/lib/generation-chunked/artifact-keys';
 import { chainGenerationWorker } from '@/lib/generation-chunked/chain-worker';
 import { GENERATION_VERSION } from '@/lib/generation-chunked/constants';
-import { STYLE_IDS } from '@/lib/styles';
+import { assertEnvSeparation } from '@/lib/generation-chunked/env-separation-guard';
+import {
+  EXCEPTION_SCOPE_BASE_BOOK,
+  resolveActiveRecoveryCaseInTx,
+} from '@/lib/generation-chunked/exception-case';
+import { pageAssetOperationKey } from '@/lib/generation-pipeline/contract-hash-binding';
+import { probeReleaseV1WorkerReachability } from '@/lib/generation-chunked/release-v1-worker-reachability';
+import {
+  resolveEffectiveThreshold,
+  resolveResemblanceThresholdConfig,
+} from '@/lib/resemblance-core';
+import { normalizeStyleId, STYLE_IDS } from '@/lib/styles';
 import { canonicalJsonDigest } from '@/lib/visual-package/integrity';
 
 import {
@@ -47,11 +58,18 @@ import {
 } from './atomic-operation';
 import type { PipelineCache } from './types';
 import { isStoryTimeOfDay } from '@/lib/story-time-of-day';
+import { getApprovedChildCanonicalAnchor } from './character-anchor-store';
+import { requireStyle01RenderQualification } from './render-qualification-preflight';
+import { requireSetIdentityBoardsBoundForRender } from './set-identity-board-stage';
 
 export const RELEASE_V1_RECOVERY_REASON = 'reviewed_code_fix_resume' as const;
+export const RELEASE_V1_PAGE_RERENDER_REASON =
+  'reviewed_single_page_rerender_resume' as const;
 const RELEASE_V1_RECOVERY_LOG_VERSION = 'release-v1-recovery-log/v1' as const;
 const RELEASE_V1_RECOVERY_ATTEMPT_VERSION =
   'release-v1-recovery-attempt/v1' as const;
+const RELEASE_V1_PAGE_RERENDER_ATTEMPT_VERSION =
+  'release-v1-page-rerender-attempt/v1' as const;
 const SHA256_RE = /^[a-f0-9]{64}$/u;
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
 
@@ -73,6 +91,10 @@ const RELEASE_V1_RECOVERY_ORDER_SELECT = {
   totalPrice: true,
   paymentProvider: true,
   paymentId: true,
+  audioEnabled: true,
+  videoEnabled: true,
+  bundleEnabled: true,
+  selectedVoice: true,
   payment: {
     select: {
       id: true,
@@ -137,6 +159,7 @@ const RELEASE_V1_RECOVERY_ORDER_SELECT = {
               provider: true,
               url: true,
               presentationUrl: true,
+              rawUrl: true,
               idempotencyKey: true,
               safetyVerified: true,
               safetyHazards: true,
@@ -154,9 +177,14 @@ const RELEASE_V1_RECOVERY_ORDER_SELECT = {
     orderBy: { id: 'asc' },
     select: {
       id: true,
+      scope: true,
       kind: true,
       status: true,
+      reason: true,
+      attempts: true,
+      nextActionAt: true,
       actionAttemptedAt: true,
+      notificationAttemptedAt: true,
       claimVersion: true,
       leaseExpiresAt: true,
       sourceRef: true,
@@ -206,13 +234,17 @@ export interface ReleaseV1RecoveryInput {
   mode: 'inspect' | 'apply';
   orderId: string;
   recoveryAttemptId: string;
-  reason: typeof RELEASE_V1_RECOVERY_REASON;
+  reason:
+    | typeof RELEASE_V1_RECOVERY_REASON
+    | typeof RELEASE_V1_PAGE_RERENDER_REASON;
   expectedOldReleaseContinuity: GenerationReleaseContinuityV1;
   expectedWizardProductBinding: WizardProductBindingV1;
   expectedArtifactInventory: {
     completedPageNumbers: number[];
     missingPageNumbers: number[];
   };
+  /** Present only for the distinct reviewed one-page re-render recovery. */
+  rerenderPageNumbers?: number[];
   expectedSnapshotDigest?: string;
 }
 
@@ -250,6 +282,34 @@ export interface ReleaseV1RecoveryInspection {
     evaluatorContractVersion: string;
     contractHash: string | null;
   }>;
+  pageRerender?: {
+    targets: Array<{
+      artifactKey: string;
+      pageNumber: number;
+      assetId: string;
+      sha256: string;
+      sourceUrl: string;
+      presentationUrl: string | null;
+      rawUrl: string | null;
+      deliveredUrl: string;
+      provider: string;
+      idempotencyKey: string;
+      qaContextDigest: string;
+      evidenceDigest: string;
+      candidateId: string | null;
+      evaluatorContractVersion: string;
+      contractHash: string | null;
+      priorAssetReceiptOperationKey: string | null;
+      priorAssetReceiptPayloadHash: string | null;
+      priorAssetReceiptResultDigest: string | null;
+    }>;
+    resumeInventory: {
+      completedPageNumbers: number[];
+      missingPageNumbers: number[];
+    };
+    effectiveResemblanceThreshold: number;
+    readerBaseUrl: string;
+  };
 }
 
 export type ReleaseV1RecoveryResult =
@@ -261,6 +321,7 @@ export type ReleaseV1RecoveryResult =
       snapshotDigest: string;
       targetReleaseContinuity: GenerationReleaseContinuityV1;
       dispatched: true;
+      rerenderedPageNumbers?: number[];
     }
   | {
       status: 'already_resumed';
@@ -269,6 +330,7 @@ export type ReleaseV1RecoveryResult =
       snapshotDigest: string;
       targetReleaseContinuity: GenerationReleaseContinuityV1;
       dispatched: false;
+      rerenderedPageNumbers?: number[];
     };
 
 export class ReleaseV1RecoveryInputError extends Error {
@@ -303,11 +365,16 @@ type RecoveryDeps = {
     input: Parameters<typeof evaluatePageWorldQa>[0],
   ) => Promise<PageWorldQaResult>;
   dispatch?: typeof chainGenerationWorker;
+  probeWorker?: typeof probeReleaseV1WorkerReachability;
+  qualifyRender?: typeof requireStyle01RenderQualification;
+  assertBoards?: typeof requireSetIdentityBoardsBoundForRender;
   now?: () => Date;
   env?: NodeJS.ProcessEnv;
 };
 
 type RecoveryQualityEvidence = RecoveryOrder['qualityEvidence'][number];
+type RecoveryPageUploadCandidate =
+  RecoveryOrder['pageUploadCandidates'][number];
 
 type SafetyReverificationTarget = {
   artifactKey: string;
@@ -332,6 +399,29 @@ type PendingSafetyReverificationTarget = Omit<
   safetyContentSha256: string;
 };
 
+type PageRerenderTarget = Omit<
+  PendingSafetyReverificationTarget,
+  'kind' | 'pageNumber' | 'pageId' | 'assetId' | 'safetyContentSha256'
+> & {
+  kind: 'page';
+  pageNumber: number;
+  pageId: string;
+  assetId: string;
+  sha256: string;
+  provider: string;
+  rawUrl: string | null;
+  idempotencyKey: string;
+  evidenceDigest: string;
+  candidate: RecoveryPageUploadCandidate | null;
+  priorAssetReceipt: {
+    operationKey: string;
+    payloadHash: string;
+    kind: string;
+    resultDigest: string;
+    createdAt: Date;
+  } | null;
+};
+
 type SafetyReverificationProof = {
   target: SafetyReverificationTarget;
   visual: PageVisualQaResult;
@@ -348,6 +438,7 @@ type RecoveryPlan = {
   databaseSnapshotDigest: string;
   inspection: ReleaseV1RecoveryInspection;
   safetyReverificationTargets: SafetyReverificationTarget[];
+  pageRerenderTargets: PageRerenderTarget[];
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -362,6 +453,29 @@ const QA_CONTEXT_BOOLEAN_KEYS = [
   'hasRailedBedOrCrib',
   'hasHumanFamily',
 ] as const;
+
+function exactHttpsOrigin(value: string | undefined): string | null {
+  if (!value || value !== value.trim()) return null;
+  const normalized = value.endsWith('/') ? value.slice(0, -1) : value;
+  let parsed: URL;
+  try {
+    parsed = new URL(normalized);
+  } catch {
+    return null;
+  }
+  if (
+    parsed.protocol !== 'https:' ||
+    parsed.origin !== normalized ||
+    parsed.pathname !== '/' ||
+    parsed.search ||
+    parsed.hash ||
+    parsed.username ||
+    parsed.password
+  ) {
+    return null;
+  }
+  return parsed.origin;
+}
 
 function parseStoredQaContext(
   evidence: Prisma.JsonValue | null,
@@ -426,6 +540,13 @@ function qualityEvidenceByArtifact(
   return new Map(order.qualityEvidence.map((row) => [row.artifactKey, row]));
 }
 
+function recoveryEvidenceDigest(evidence: RecoveryQualityEvidence): string {
+  return canonicalJsonDigest({
+    ...evidence,
+    updatedAt: evidence.updatedAt.toISOString(),
+  });
+}
+
 function exactKeys(
   value: Record<string, unknown>,
   required: readonly string[],
@@ -457,7 +578,7 @@ export function parseReleaseV1RecoveryInput(value: unknown): ReleaseV1RecoveryIn
   if (!isRecord(value)) {
     throw new ReleaseV1RecoveryInputError('request body must be an object');
   }
-  const required = [
+  const commonRequired = [
     'mode',
     'orderId',
     'recoveryAttemptId',
@@ -466,6 +587,10 @@ export function parseReleaseV1RecoveryInput(value: unknown): ReleaseV1RecoveryIn
     'expectedWizardProductBinding',
     'expectedArtifactInventory',
   ] as const;
+  const pageRerender = value.reason === RELEASE_V1_PAGE_RERENDER_REASON;
+  const required = pageRerender
+    ? [...commonRequired, 'rerenderPageNumbers']
+    : commonRequired;
   if (!exactKeys(value, required, ['expectedSnapshotDigest'])) {
     throw new ReleaseV1RecoveryInputError('request body keys are invalid');
   }
@@ -481,7 +606,10 @@ export function parseReleaseV1RecoveryInput(value: unknown): ReleaseV1RecoveryIn
   ) {
     throw new ReleaseV1RecoveryInputError('recoveryAttemptId must be a UUID v4');
   }
-  if (value.reason !== RELEASE_V1_RECOVERY_REASON) {
+  if (
+    value.reason !== RELEASE_V1_RECOVERY_REASON &&
+    value.reason !== RELEASE_V1_PAGE_RERENDER_REASON
+  ) {
     throw new ReleaseV1RecoveryInputError('reason is invalid');
   }
   if (!isRecord(value.expectedArtifactInventory) || !exactKeys(
@@ -497,6 +625,14 @@ export function parseReleaseV1RecoveryInput(value: unknown): ReleaseV1RecoveryIn
   ) {
     throw new ReleaseV1RecoveryInputError(
       'apply requires expectedSnapshotDigest from a successful inspect',
+    );
+  }
+  const rerenderPageNumbers = pageRerender
+    ? parsePageNumberList(value.rerenderPageNumbers, 'rerenderPageNumbers')
+    : undefined;
+  if (pageRerender && rerenderPageNumbers?.length !== 1) {
+    throw new ReleaseV1RecoveryInputError(
+      'rerenderPageNumbers must contain exactly one page',
     );
   }
   if (
@@ -526,7 +662,7 @@ export function parseReleaseV1RecoveryInput(value: unknown): ReleaseV1RecoveryIn
     mode: value.mode,
     orderId: value.orderId.trim(),
     recoveryAttemptId: value.recoveryAttemptId.toLowerCase(),
-    reason: RELEASE_V1_RECOVERY_REASON,
+    reason: value.reason,
     expectedOldReleaseContinuity: parseGenerationReleaseContinuityV1(
       value.expectedOldReleaseContinuity,
     ),
@@ -537,6 +673,7 @@ export function parseReleaseV1RecoveryInput(value: unknown): ReleaseV1RecoveryIn
       completedPageNumbers,
       missingPageNumbers,
     },
+    ...(rerenderPageNumbers ? { rerenderPageNumbers } : {}),
     ...(typeof expectedSnapshotDigest === 'string'
       ? { expectedSnapshotDigest }
       : {}),
@@ -567,6 +704,10 @@ function databaseSnapshotDigest(order: RecoveryOrder): string {
       totalPrice: order.totalPrice,
       paymentProvider: order.paymentProvider,
       paymentId: order.paymentId,
+      audioEnabled: order.audioEnabled,
+      videoEnabled: order.videoEnabled,
+      bundleEnabled: order.bundleEnabled,
+      selectedVoice: order.selectedVoice,
       payment: order.payment
         ? {
             ...order.payment,
@@ -597,8 +738,11 @@ function databaseSnapshotDigest(order: RecoveryOrder): string {
     book: order.book,
     exceptionCases: order.exceptionCases.map((exceptionCase) => ({
       ...exceptionCase,
+      nextActionAt: exceptionCase.nextActionAt?.toISOString() ?? null,
       actionAttemptedAt:
         exceptionCase.actionAttemptedAt?.toISOString() ?? null,
+      notificationAttemptedAt:
+        exceptionCase.notificationAttemptedAt?.toISOString() ?? null,
       leaseExpiresAt: exceptionCase.leaseExpiresAt?.toISOString() ?? null,
       updatedAt: exceptionCase.updatedAt.toISOString(),
     })),
@@ -621,6 +765,22 @@ function sameNumbers(left: readonly number[], right: readonly number[]): boolean
 
 function pageRange(count: number): number[] {
   return Array.from({ length: count }, (_, index) => index + 1);
+}
+
+function requestedRerenderPageNumbers(
+  input: ReleaseV1RecoveryInput,
+): number[] {
+  return input.reason === RELEASE_V1_PAGE_RERENDER_REASON
+    ? [...(input.rerenderPageNumbers ?? [])]
+    : [];
+}
+
+function auditedRerenderPageNumbers(
+  attempt: NonNullable<PipelineCache['releaseRecovery']>['attempts'][number],
+): number[] {
+  return (attempt.rerenderedArtifacts ?? [])
+    .map((artifact) => artifact.pageNumber)
+    .sort((left, right) => left - right);
 }
 
 function requireObjectCache(value: Prisma.JsonValue | null): PipelineCache {
@@ -675,6 +835,17 @@ function readExistingAttempt(args: {
   if (recovery.oldContinuityDigest !== expectedOldDigest) {
     reasons.push('recovery attempt old continuity differs from the durable audit');
   }
+  if (recovery.reason !== args.input.reason) {
+    reasons.push('recovery attempt reason differs from the durable audit');
+  }
+  if (
+    !sameNumbers(
+      auditedRerenderPageNumbers(recovery),
+      requestedRerenderPageNumbers(args.input),
+    )
+  ) {
+    reasons.push('recovery attempt page re-render target differs from the durable audit');
+  }
   if (
     recovery.newContinuityDigest !== targetDigest ||
     canonicalJsonDigest(durableContinuity) !== targetDigest
@@ -697,6 +868,9 @@ function readExistingAttempt(args: {
     snapshotDigest: recovery.snapshotDigest,
     targetReleaseContinuity: args.targetContinuity,
     dispatched: false,
+    ...(auditedRerenderPageNumbers(recovery).length > 0
+      ? { rerenderedPageNumbers: auditedRerenderPageNumbers(recovery) }
+      : {}),
   };
 }
 
@@ -712,7 +886,16 @@ async function loadOrder(db: PrismaClient, orderId: string): Promise<RecoveryOrd
 async function prepareRecoveryPlan(
   input: ReleaseV1RecoveryInput,
   deps: Required<
-    Pick<RecoveryDeps, 'db' | 'inspect' | 'inspectWithBytes' | 'now' | 'env'>
+    Pick<
+      RecoveryDeps,
+      | 'db'
+      | 'inspect'
+      | 'inspectWithBytes'
+      | 'qualifyRender'
+      | 'assertBoards'
+      | 'now'
+      | 'env'
+    >
   >,
 ): Promise<RecoveryPlan | ReleaseV1RecoveryResult> {
   const order = await loadOrder(deps.db, input.orderId);
@@ -724,6 +907,7 @@ async function prepareRecoveryPlan(
     order,
     expected: input.expectedWizardProductBinding,
   });
+  const rerenderPageNumbers = requestedRerenderPageNumbers(input);
 
   const duplicate = readExistingAttempt({
     input,
@@ -780,17 +964,121 @@ async function prepareRecoveryPlan(
   if (deps.env.GENERATION_ANCHOR_ONLY === 'true') {
     reasons.push('GENERATION_ANCHOR_ONLY must be disabled for release recovery');
   }
+  if (
+    deps.env.STYLE_01_AUDITION_MODE?.trim().toLowerCase() === 'true'
+  ) {
+    reasons.push('STYLE_01_AUDITION_MODE must be disabled for release recovery');
+  }
   if (deps.env.GENERATION_DISABLE_SELF_CHAIN === 'true') {
     reasons.push('GENERATION_DISABLE_SELF_CHAIN must be disabled for release recovery');
+  }
+  if (
+    rerenderPageNumbers.length > 0 &&
+    !deps.env.GENERATION_SECRET?.trim()
+  ) {
+    reasons.push('GENERATION_SECRET is required for release recovery self-chain');
+  }
+  if (
+    rerenderPageNumbers.length > 0 &&
+    deps.env.PHASE2_STYLE01_BOOK_PIPELINE !== 'true'
+  ) {
+    reasons.push('PHASE2_STYLE01_BOOK_PIPELINE must be true for page re-render recovery');
+  }
+  if (
+    rerenderPageNumbers.length > 0 &&
+    deps.env.DISABLE_IMAGE_GENERATION === 'true'
+  ) {
+    reasons.push('DISABLE_IMAGE_GENERATION must be false for page re-render recovery');
+  }
+  if (rerenderPageNumbers.length > 0) {
+    for (const variableName of [
+      'OPENAI_API_KEY',
+      'SUPABASE_URL',
+      'SUPABASE_SERVICE_ROLE_KEY',
+    ] as const) {
+      if (!deps.env[variableName]?.trim()) {
+        reasons.push(`${variableName} is required for page re-render recovery`);
+      }
+    }
+    const needsAudio =
+      (order.audioEnabled || order.videoEnabled || order.bundleEnabled) &&
+      Boolean(order.selectedVoice?.trim());
+    if (needsAudio && !deps.env.ELEVENLABS_API_KEY?.trim()) {
+      reasons.push('ELEVENLABS_API_KEY is required for this audio-enabled recovery');
+    }
+  }
+  if (
+    rerenderPageNumbers.length > 0 &&
+    deps.env.READINESS_MANIFEST_ENABLED !== 'true'
+  ) {
+    reasons.push(
+      'READINESS_MANIFEST_ENABLED must be true for fenced page re-render recovery',
+    );
+  }
+  if (
+    rerenderPageNumbers.length > 0 &&
+    !deps.env.VERCEL_AUTOMATION_BYPASS_SECRET?.trim()
+  ) {
+    reasons.push(
+      'VERCEL_AUTOMATION_BYPASS_SECRET is required for protected Preview self-chain',
+    );
+  }
+  const readerBaseUrl = exactHttpsOrigin(deps.env.NEXT_PUBLIC_APP_URL);
+  if (rerenderPageNumbers.length > 0 && !readerBaseUrl) {
+    reasons.push(
+      'NEXT_PUBLIC_APP_URL must be an exact HTTPS reader origin for page re-render recovery',
+    );
+  }
+  if (
+    rerenderPageNumbers.length > 0 &&
+    deps.env.PAGE_VISUAL_QA_ENABLED !== 'true'
+  ) {
+    reasons.push(
+      'PAGE_VISUAL_QA_ENABLED must be explicitly true for page re-render recovery',
+    );
+  }
+  if (
+    rerenderPageNumbers.length > 0 &&
+    deps.env.QA_SOFT_DELIVER !== 'false'
+  ) {
+    reasons.push(
+      'QA_SOFT_DELIVER must be explicitly false for page re-render recovery',
+    );
+  }
+  const effectiveStyle01RefConfig = (
+    deps.env.PHASE2_STYLE01_REF_CONFIG ??
+    deps.env.PHASE2_STYLE02_REF_CONFIG ??
+    'A'
+  )
+    .trim()
+    .toUpperCase();
+  if (
+    rerenderPageNumbers.length > 0 &&
+    effectiveStyle01RefConfig !== 'A'
+  ) {
+    reasons.push(
+      'effective PHASE2_STYLE01_REF_CONFIG must be A for page re-render recovery',
+    );
   }
   if (cache.textFinalized !== true) {
     reasons.push('frozen story text is missing from the generation cache');
   }
   if (!cache.dna || !isRecord(cache.dna)) {
     reasons.push('generation DNA is missing from the generation cache');
+  } else if (
+    typeof cache.dna.childDNA !== 'string' ||
+    !cache.dna.childDNA.trim()
+  ) {
+    reasons.push('generation child DNA is missing from the generation cache');
   }
   if (cache.childAnchorApproved !== true) {
     reasons.push('approved child anchor is missing from the generation cache');
+  }
+  const approvedChildAnchor = getApprovedChildCanonicalAnchor(cache);
+  if (!approvedChildAnchor?.url) {
+    reasons.push('approved child canonical anchor is missing from the generation cache');
+  } else if (!isAllowedAssetUrl(approvedChildAnchor.url)) {
+    reasons.push('approved child canonical anchor URL is not allowlisted');
   }
   if (!isRecord(cache.visualContract)) {
     reasons.push('frozen visual contract is missing from the generation cache');
@@ -833,8 +1121,11 @@ async function prepareRecoveryPlan(
   for (const exceptionCase of order.exceptionCases) {
     if (
       exceptionCase.kind !== 'infra_transient' ||
+      exceptionCase.scope !== EXCEPTION_SCOPE_BASE_BOOK ||
+      !exceptionCase.sourceRef?.startsWith(`generation:${order.id}:`) ||
       !['open', 'retry_scheduled'].includes(exceptionCase.status) ||
-      exceptionCase.actionAttemptedAt != null
+      exceptionCase.actionAttemptedAt != null ||
+      exceptionCase.notificationAttemptedAt != null
     ) {
       reasons.push(`protected exception case blocks recovery: ${exceptionCase.id}`);
     }
@@ -847,6 +1138,20 @@ async function prepareRecoveryPlan(
   }
   if (order.humanQaReviewCases.length > 0) {
     reasons.push('an open human QA review case blocks recovery');
+  }
+  if (rerenderPageNumbers.length > 0) {
+    for (const prior of cache.releaseRecovery?.attempts ?? []) {
+      const alreadyRerendered = auditedRerenderPageNumbers(prior);
+      if (
+        rerenderPageNumbers.some((pageNumber) =>
+          alreadyRerendered.includes(pageNumber),
+        )
+      ) {
+        reasons.push(
+          `page ${rerenderPageNumbers[0]} was already replaced by reviewed release recovery`,
+        );
+      }
+    }
   }
 
   const expectedPageCount = order.expectedPageCount;
@@ -950,6 +1255,13 @@ async function prepareRecoveryPlan(
     .filter((page) => page.imageAsset == null)
     .map((page) => page.pageNumber);
   if (
+    rerenderPageNumbers.some(
+      (pageNumber) => !completedPageNumbers.includes(pageNumber),
+    )
+  ) {
+    reasons.push('page re-render target is not a completed page');
+  }
+  if (
     !sameNumbers(
       completedPageNumbers,
       input.expectedArtifactInventory.completedPageNumbers,
@@ -967,6 +1279,32 @@ async function prepareRecoveryPlan(
   ].sort((left, right) => left - right);
   if (!sameNumbers(inventoryUnion, allPages)) {
     reasons.push('reviewed artifact inventory does not cover the exact page range');
+  }
+  if (rerenderPageNumbers.length > 0) {
+    const recoveryPageNumbers = [
+      ...new Set([...missingPageNumbers, ...rerenderPageNumbers]),
+    ].sort((left, right) => left - right);
+    let renderQualified = false;
+    try {
+      deps.qualifyRender({
+        illustrationStyle: order.illustrationStyle,
+        frozenContractHash: order.visualContractHash,
+        storySourceHash: order.storySourceHash,
+        order,
+        cache,
+        pageNumbers: recoveryPageNumbers,
+      });
+      renderQualified = true;
+    } catch {
+      reasons.push('frozen render qualification failed for recovery pages');
+    }
+    if (renderQualified) {
+      try {
+        await deps.assertBoards(order as unknown as Order, cache);
+      } catch {
+        reasons.push('set identity boards are not render-ready for recovery pages');
+      }
+    }
   }
   if (!isAllowedAssetUrl(order.book.coverImageUrl)) {
     reasons.push('retained cover URL is missing or not allowlisted');
@@ -1003,7 +1341,34 @@ async function prepareRecoveryPlan(
     );
   }
   const model = configuredModel || '(unconfigured)';
-  const quality = deps.env.GPT_IMAGE_QUALITY?.trim() || 'low';
+  const configuredQuality = deps.env.GPT_IMAGE_QUALITY;
+  const quality = (configuredQuality?.trim() || 'low').toLowerCase();
+  if (rerenderPageNumbers.length > 0 && quality !== 'low') {
+    reasons.push('page re-render recovery is restricted to low image quality');
+  } else if (
+    rerenderPageNumbers.length > 0 &&
+    configuredQuality !== 'low'
+  ) {
+    reasons.push(
+      'GPT_IMAGE_QUALITY must be exactly low for stable page idempotency keys',
+    );
+  }
+  let effectiveResemblanceThreshold = Number.NaN;
+  if (rerenderPageNumbers.length > 0) {
+    try {
+      effectiveResemblanceThreshold = resolveEffectiveThreshold(
+        normalizeStyleId(order.illustrationStyle).toLowerCase(),
+        resolveResemblanceThresholdConfig(deps.env),
+      );
+      if (effectiveResemblanceThreshold !== 0.7) {
+        reasons.push(
+          'page re-render recovery requires an effective resemblance threshold of 0.70',
+        );
+      }
+    } catch {
+      reasons.push('page re-render recovery resemblance threshold is invalid');
+    }
+  }
   if (job.model?.trim() && job.model.trim() !== model) {
     reasons.push('generation job model differs from the current recovery runtime');
   }
@@ -1048,14 +1413,75 @@ async function prepareRecoveryPlan(
       reasons.push(`page ${page.pageNumber} idempotency contract differs from this runtime`);
     }
   }
+  const rerenderArtifactKeys = new Set(
+    rerenderPageNumbers.map((pageNumber) => `page:${pageNumber}`),
+  );
+  if (rerenderPageNumbers.length > 0) {
+    const selectedPending = pendingSafetyReverification.filter((target) =>
+      rerenderArtifactKeys.has(target.artifactKey),
+    );
+    if (selectedPending.length !== 1) {
+      reasons.push(
+        'page re-render target is not an eligible safety-unverified artifact',
+      );
+    }
+    if (pendingSafetyReverification.length !== selectedPending.length) {
+      reasons.push(
+        'page re-render recovery requires the selected page to be the sole unverified artifact',
+      );
+    }
+    const selected = selectedPending[0];
+    if (selected) {
+      if (
+        selected.evidence.verdict !== 'evidence_unknown' ||
+        !selected.evidence.reason?.includes('safety:unverified')
+      ) {
+        reasons.push(
+          'page re-render target must have safety-unverified quality evidence',
+        );
+      }
+      const evidencePayload = isRecord(selected.evidence.evidence)
+        ? selected.evidence.evidence
+        : null;
+      if (evidencePayload?.deliveredUrl !== selected.deliveredUrl) {
+        reasons.push(
+          'page re-render target QA context is bound to a different delivered URL',
+        );
+      }
+      const candidates = order.pageUploadCandidates.filter(
+        (candidate) => candidate.pageNumber === selected.pageNumber,
+      );
+      if (candidates.length > 1) {
+        reasons.push('page re-render target has duplicate upload candidates');
+      }
+      const page = order.book.pages.find(
+        (item) => item.pageNumber === selected.pageNumber,
+      );
+      const candidate = candidates[0];
+      if (
+        candidate &&
+        (!page?.imageAsset ||
+          candidate.url !== page.imageAsset.url ||
+          candidate.provider !== page.imageAsset.provider ||
+          candidate.rawUrl !== page.imageAsset.rawUrl)
+      ) {
+        reasons.push(
+          'page re-render upload candidate differs from the current page asset',
+        );
+      }
+    }
+  }
   if (reasons.length > 0) throw new ReleaseV1RecoveryError(reasons);
 
   const retainedPages = order.book.pages.filter(
     (page): page is typeof page & { imageAsset: NonNullable<typeof page.imageAsset> } =>
       page.imageAsset != null,
   );
+  const safetyReverificationPending = pendingSafetyReverification.filter(
+    (target) => !rerenderArtifactKeys.has(target.artifactKey),
+  );
   const pendingByArtifact = new Map(
-    pendingSafetyReverification.map((target) => [target.artifactKey, target]),
+    safetyReverificationPending.map((target) => [target.artifactKey, target]),
   );
   const coverInspection = pendingByArtifact.has('cover')
     ? await deps.inspectWithBytes(order.book.coverImageUrl)
@@ -1090,7 +1516,7 @@ async function prepareRecoveryPlan(
   }
 
   const safetyReverificationTargets: SafetyReverificationTarget[] = [];
-  for (const pending of pendingSafetyReverification) {
+  for (const pending of safetyReverificationPending) {
     const inspection =
       pending.kind === 'cover'
         ? coverInspection
@@ -1117,6 +1543,87 @@ async function prepareRecoveryPlan(
     });
   }
 
+  const pageRerenderTargets: PageRerenderTarget[] = [];
+  for (const pending of pendingSafetyReverification) {
+    if (!rerenderArtifactKeys.has(pending.artifactKey)) continue;
+    if (
+      pending.kind !== 'page' ||
+      pending.pageNumber == null ||
+      !pending.pageId ||
+      !pending.assetId
+    ) {
+      reject('page re-render target is not a page asset');
+    }
+    const pageIndex = retainedPages.findIndex(
+      (page) => page.pageNumber === pending.pageNumber,
+    );
+    const retainedPage = retainedPages[pageIndex];
+    const inspection = pageInspections[pageIndex];
+    if (
+      !retainedPage ||
+      !inspection?.sha256 ||
+      inspection.sha256 !== pending.safetyContentSha256 ||
+      !retainedPage.imageAsset.idempotencyKey
+    ) {
+      reject(
+        `${pending.artifactKey} exact bytes are unavailable for page re-render audit`,
+      );
+    }
+    const candidate =
+      order.pageUploadCandidates.find(
+        (item) => item.pageNumber === pending.pageNumber,
+      ) ?? null;
+    const priorAssetOperationKey = pageAssetOperationKey(
+      order.id,
+      pending.pageNumber,
+      pending.deliveredUrl,
+      order.visualContractHash,
+    );
+    const priorAssetReceipt = await deps.db.atomicOperationReceipt.findUnique({
+      where: { operationKey: priorAssetOperationKey },
+      select: {
+        operationKey: true,
+        orderId: true,
+        payloadHash: true,
+        kind: true,
+        result: true,
+        createdAt: true,
+      },
+    });
+    if (priorAssetReceipt && priorAssetReceipt.orderId !== order.id) {
+      reject('page asset receipt belongs to a different order');
+    }
+    pageRerenderTargets.push({
+      ...pending,
+      kind: 'page',
+      pageNumber: pending.pageNumber,
+      pageId: pending.pageId,
+      assetId: pending.assetId,
+      sha256: inspection.sha256,
+      provider: retainedPage.imageAsset.provider,
+      rawUrl: retainedPage.imageAsset.rawUrl,
+      idempotencyKey: retainedPage.imageAsset.idempotencyKey,
+      evidenceDigest: recoveryEvidenceDigest(pending.evidence),
+      candidate,
+      priorAssetReceipt: priorAssetReceipt
+        ? {
+            operationKey: priorAssetReceipt.operationKey,
+            payloadHash: priorAssetReceipt.payloadHash,
+            kind: priorAssetReceipt.kind,
+            resultDigest: canonicalJsonDigest(priorAssetReceipt.result),
+            createdAt: priorAssetReceipt.createdAt,
+          }
+        : null,
+    });
+  }
+
+  const resumeCompletedPageNumbers = completedPageNumbers.filter(
+    (pageNumber) => !rerenderPageNumbers.includes(pageNumber),
+  );
+  const resumeMissingPageNumbers = [
+    ...new Set([...missingPageNumbers, ...rerenderPageNumbers]),
+  ].sort((left, right) => left - right);
+
   const retainedPageEvidence = retainedPages.map((page, index) => ({
     pageNumber: page.pageNumber,
     assetId: page.imageAsset.id,
@@ -1133,6 +1640,7 @@ async function prepareRecoveryPlan(
     expectedOldReleaseContinuity: input.expectedOldReleaseContinuity,
     expectedWizardProductBinding: input.expectedWizardProductBinding,
     expectedArtifactInventory: input.expectedArtifactInventory,
+    rerenderPageNumbers,
     databaseSnapshotDigest: dbSnapshotDigest,
     orderStatus: order.status,
     orderInputVersion: order.inputVersion,
@@ -1148,6 +1656,9 @@ async function prepareRecoveryPlan(
     jobPipelineCacheDigest: canonicalJsonDigest(cache),
     oldContinuityDigest: canonicalJsonDigest(oldContinuity),
     targetContinuityDigest: canonicalJsonDigest(targetContinuity),
+    ...(rerenderPageNumbers.length > 0
+      ? { effectiveResemblanceThreshold, readerBaseUrl }
+      : {}),
     completedPageNumbers,
     missingPageNumbers,
     bookId: order.book.id,
@@ -1166,6 +1677,8 @@ async function prepareRecoveryPlan(
       assetId: page.imageAsset.id,
       url: page.imageAsset.url,
       presentationUrl: page.imageAsset.presentationUrl,
+      rawUrl: page.imageAsset.rawUrl,
+      provider: page.imageAsset.provider,
       sha256: pageInspections[index]!.sha256,
       safetyVerified: page.imageAsset.safetyVerified,
       safetyHazards: page.imageAsset.safetyHazards,
@@ -1192,6 +1705,46 @@ async function prepareRecoveryPlan(
         safetyOverrideSha256: target.evidence.safetyOverrideSha256,
         updatedAt: target.evidence.updatedAt.toISOString(),
       },
+    })),
+    pageRerender: pageRerenderTargets.map((target) => ({
+      artifactKey: target.artifactKey,
+      pageNumber: target.pageNumber,
+      pageId: target.pageId,
+      assetId: target.assetId,
+      sha256: target.sha256,
+      sourceUrl: target.sourceUrl,
+      presentationUrl: target.presentationUrl,
+      rawUrl: target.rawUrl,
+      deliveredUrl: target.deliveredUrl,
+      provider: target.provider,
+      idempotencyKey: target.idempotencyKey,
+      qaContextDigest: target.qaContextDigest,
+      evidenceDigest: target.evidenceDigest,
+      evidence: {
+        assetSha256: target.evidence.assetSha256,
+        verdict: target.evidence.verdict,
+        reason: target.evidence.reason,
+        regenCount: target.evidence.regenCount,
+        providerModel: target.evidence.providerModel,
+        evaluatorContractVersion: target.evidence.evaluatorContractVersion,
+        contractHash: target.evidence.contractHash,
+        safetyOverride: target.evidence.safetyOverride,
+        safetyOverrideSha256: target.evidence.safetyOverrideSha256,
+        updatedAt: target.evidence.updatedAt.toISOString(),
+      },
+      candidate: target.candidate
+        ? {
+            ...target.candidate,
+            createdAt: target.candidate.createdAt.toISOString(),
+            updatedAt: target.candidate.updatedAt.toISOString(),
+          }
+        : null,
+      priorAssetReceipt: target.priorAssetReceipt
+        ? {
+            ...target.priorAssetReceipt,
+            createdAt: target.priorAssetReceipt.createdAt.toISOString(),
+          }
+        : null,
     })),
   });
 
@@ -1227,8 +1780,45 @@ async function prepareRecoveryPlan(
         evaluatorContractVersion: target.evidence.evaluatorContractVersion,
         contractHash: target.evidence.contractHash,
       })),
+      ...(pageRerenderTargets.length > 0
+        ? {
+            pageRerender: {
+              targets: pageRerenderTargets.map((target) => ({
+                artifactKey: target.artifactKey,
+                pageNumber: target.pageNumber,
+                assetId: target.assetId,
+                sha256: target.sha256,
+                sourceUrl: target.sourceUrl,
+                presentationUrl: target.presentationUrl,
+                rawUrl: target.rawUrl,
+                deliveredUrl: target.deliveredUrl,
+                provider: target.provider,
+                idempotencyKey: target.idempotencyKey,
+                qaContextDigest: target.qaContextDigest,
+                evidenceDigest: target.evidenceDigest,
+                candidateId: target.candidate?.id ?? null,
+                evaluatorContractVersion:
+                  target.evidence.evaluatorContractVersion,
+                contractHash: target.evidence.contractHash,
+                priorAssetReceiptOperationKey:
+                  target.priorAssetReceipt?.operationKey ?? null,
+                priorAssetReceiptPayloadHash:
+                  target.priorAssetReceipt?.payloadHash ?? null,
+                priorAssetReceiptResultDigest:
+                  target.priorAssetReceipt?.resultDigest ?? null,
+              })),
+              resumeInventory: {
+                completedPageNumbers: resumeCompletedPageNumbers,
+                missingPageNumbers: resumeMissingPageNumbers,
+              },
+              effectiveResemblanceThreshold,
+              readerBaseUrl: readerBaseUrl!,
+            },
+          }
+        : {}),
     },
     safetyReverificationTargets,
+    pageRerenderTargets,
   };
 }
 
@@ -1365,9 +1955,12 @@ async function lockRecoverySnapshot(
   await tx.$queryRaw(
     Prisma.sql`SELECT "id" FROM "QualityEvidence" WHERE "orderId" = ${orderId} ORDER BY "artifactKey" FOR UPDATE`,
   );
-  await tx.$queryRaw(
-    Prisma.sql`SELECT "id" FROM "PageUploadCandidate" WHERE "orderId" = ${orderId} FOR UPDATE`,
-  );
+    await tx.$queryRaw(
+      Prisma.sql`SELECT "id" FROM "PageUploadCandidate" WHERE "orderId" = ${orderId} FOR UPDATE`,
+    );
+    await tx.$queryRaw(
+      Prisma.sql`SELECT "id" FROM "AtomicOperationReceipt" WHERE "orderId" = ${orderId} ORDER BY "operationKey" FOR UPDATE`,
+    );
   await tx.$queryRaw(
     Prisma.sql`SELECT "id" FROM "ExceptionCase" WHERE "orderId" = ${orderId} FOR UPDATE`,
   );
@@ -1448,12 +2041,19 @@ export async function executeReleaseV1Recovery(
   const evaluate = deps.evaluate ?? evaluatePageVisualQa;
   const evaluateWorld = deps.evaluateWorld ?? evaluatePageWorldQa;
   const dispatch = deps.dispatch ?? chainGenerationWorker;
+  const probeWorker = deps.probeWorker ?? probeReleaseV1WorkerReachability;
+  const qualifyRender =
+    deps.qualifyRender ?? requireStyle01RenderQualification;
+  const assertBoards =
+    deps.assertBoards ?? requireSetIdentityBoardsBoundForRender;
   const now = deps.now ?? (() => new Date());
   const env = deps.env ?? process.env;
   const prepared = await prepareRecoveryPlan(input, {
     db,
     inspect,
     inspectWithBytes,
+    qualifyRender,
+    assertBoards,
     now,
     env,
   });
@@ -1461,6 +2061,17 @@ export async function executeReleaseV1Recovery(
     return prepared;
   }
   const plan = prepared as RecoveryPlan;
+  // Use the same environment-separation guard as the synchronous dispatch
+  // boundary before any recovery claim or delivery-input mutation. Otherwise
+  // dispatch could throw after the destructive page clear has committed.
+  assertEnvSeparation(env);
+  if (plan.pageRerenderTargets.length > 0) {
+    try {
+      await probeWorker(plan.inspection.targetReleaseContinuity, env);
+    } catch {
+      reject('protected Preview release/v1 worker reachability probe failed');
+    }
+  }
   if (input.mode === 'inspect') return plan.inspection;
   if (input.expectedSnapshotDigest !== plan.inspection.snapshotDigest) {
     reject('snapshot changed after inspection');
@@ -1554,9 +2165,12 @@ export async function executeReleaseV1Recovery(
     PipelineCache['releaseRecovery']
   >['attempts'][number];
   const recoveryAudit: RecoveryAttempt = {
-    version: RELEASE_V1_RECOVERY_ATTEMPT_VERSION,
+    version:
+      plan.pageRerenderTargets.length > 0
+        ? RELEASE_V1_PAGE_RERENDER_ATTEMPT_VERSION
+        : RELEASE_V1_RECOVERY_ATTEMPT_VERSION,
     attemptId: input.recoveryAttemptId,
-    reason: RELEASE_V1_RECOVERY_REASON,
+    reason: input.reason,
     snapshotDigest: plan.inspection.snapshotDigest,
     oldContinuityDigest: canonicalJsonDigest(
       plan.inspection.oldReleaseContinuity,
@@ -1568,10 +2182,17 @@ export async function executeReleaseV1Recovery(
     previousLastErrorDigest: sha256Text(job.lastError),
     retainedArtifactDigests: {
       cover: plan.inspection.retainedAssets.cover.sha256,
-      pages: plan.inspection.retainedAssets.pages.map((page) => ({
-        pageNumber: page.pageNumber,
-        sha256: page.sha256,
-      })),
+      pages: plan.inspection.retainedAssets.pages
+        .filter(
+          (page) =>
+            !plan.pageRerenderTargets.some(
+              (target) => target.pageNumber === page.pageNumber,
+            ),
+        )
+        .map((page) => ({
+          pageNumber: page.pageNumber,
+          sha256: page.sha256,
+        })),
     },
     safetyReverification: safetyProofs.map((proof) => ({
       artifactKey: proof.target.artifactKey,
@@ -1582,6 +2203,42 @@ export async function executeReleaseV1Recovery(
       safetyStatus: proof.visual.safetyStatus,
       worldStatus: proof.world?.status ?? null,
     })),
+    ...(plan.pageRerenderTargets.length > 0
+      ? {
+          rerenderedArtifacts: plan.pageRerenderTargets.map((target) => ({
+            artifactKey: target.artifactKey,
+            pageNumber: target.pageNumber,
+            pageId: target.pageId,
+            assetId: target.assetId,
+            sha256: target.sha256,
+            sourceUrl: target.sourceUrl,
+            presentationUrl: target.presentationUrl,
+            rawUrl: target.rawUrl,
+            deliveredUrl: target.deliveredUrl,
+            provider: target.provider,
+            idempotencyKey: target.idempotencyKey,
+            qaContextDigest: target.qaContextDigest,
+            evidenceDigest: target.evidenceDigest,
+            candidateId: target.candidate?.id ?? null,
+            evaluatorContractVersion:
+              target.evidence.evaluatorContractVersion,
+            contractHash: target.evidence.contractHash,
+            priorAssetReceipt: target.priorAssetReceipt
+              ? {
+                  ...target.priorAssetReceipt,
+                  createdAt: target.priorAssetReceipt.createdAt.toISOString(),
+                }
+              : null,
+          })),
+          effectiveResemblanceThreshold:
+            plan.inspection.pageRerender!.effectiveResemblanceThreshold,
+          previousJobProgress: {
+            completedPageNumbers: job.completedPageNumbers,
+            failedPageNumbers: job.failedPageNumbers,
+            pageAttempts: job.pageAttempts,
+          },
+        }
+      : {}),
     recoveredAt: recoveredAt.toISOString(),
   };
   const nextCache: PipelineCache = {
@@ -1596,14 +2253,18 @@ export async function executeReleaseV1Recovery(
     },
   };
 
-  // Receipt replay returns the recorded value, so only a closure set inside
-  // the fresh business callback proves that this invocation owns dispatch.
-  // The flag intentionally survives an internal ambiguous-commit retry.
+  // Direct (unfenced) recovery uses the callback flag. Fenced recovery replaces
+  // it after commit/replay with the per-invocation receipt token comparison.
   let recoveredHere = false;
+  // Fenced paths return this per-invocation token from the committed receipt.
+  // If a concurrent invocation wins after this callback rolled back, replay
+  // returns the winner's different token and this invocation must not dispatch.
+  const dispatchOwnershipToken = randomUUID();
 
   const recoverLockedSnapshot = async (
     tx: Prisma.TransactionClient,
     permitIdempotentReplay: boolean,
+    clearPageRerender?: () => Promise<void>,
   ): Promise<ReleaseV1RecoveryResult | null> => {
     await lockRecoverySnapshot(tx, plan.order.id);
     const lockedOrder = await tx.order.findUnique({
@@ -1628,6 +2289,31 @@ export async function executeReleaseV1Recovery(
     }
     if (databaseSnapshotDigest(lockedOrder) !== plan.databaseSnapshotDigest) {
       reject('database snapshot changed after retained-byte inspection');
+    }
+
+    // The failed generation's active infra case is part of the exact inspected snapshot. Resolve it inside the SAME
+    // locked transaction before the job becomes pending: this increments claimVersion + clears activeKey/nextActionAt,
+    // so a due exception processor cannot keep spending attempts or cross into refund while the reviewed worker runs.
+    // A subsequent worker failure is free to open a fresh case against the new generation state.
+    for (const exceptionCase of lockedOrder.exceptionCases) {
+      const resolved = await resolveActiveRecoveryCaseInTx(tx, {
+        orderId: plan.order.id,
+        scope: exceptionCase.scope,
+        kinds: ['infra_transient'],
+        reason: `release_v1_reviewed_recovery:${input.recoveryAttemptId}`,
+        now: recoveredAt,
+        expected: {
+          id: exceptionCase.id,
+          status: exceptionCase.status,
+          claimVersion: exceptionCase.claimVersion,
+          sourceRef: exceptionCase.sourceRef,
+          attempts: exceptionCase.attempts,
+          nextActionAt: exceptionCase.nextActionAt,
+        },
+      });
+      if (!resolved) {
+        reject(`active exception case recovery compare-and-swap lost: ${exceptionCase.id}`);
+      }
     }
 
     for (const proof of safetyProofs) {
@@ -1664,6 +2350,13 @@ export async function executeReleaseV1Recovery(
           updatedAt: proof.target.evidence.updatedAt,
         },
       });
+    }
+
+    if (plan.pageRerenderTargets.length > 0) {
+      if (!clearPageRerender) {
+        reject('page re-render must execute inside the delivery-input barrier');
+      }
+      await clearPageRerender();
     }
 
     const orderClaim = await tx.order.updateMany({
@@ -1717,9 +2410,21 @@ export async function executeReleaseV1Recovery(
         leaseExpiresAt: null,
         failedAt: null,
         lastError: null,
-        triggerReason: `release_v1_recovery:${input.recoveryAttemptId}`,
+        triggerReason:
+          plan.pageRerenderTargets.length > 0
+            ? `release_v1_page_rerender:${input.recoveryAttemptId}`
+            : `release_v1_recovery:${input.recoveryAttemptId}`,
         completedPageNumbers:
-          plan.inspection.inventory.completedPageNumbers as Prisma.InputJsonValue,
+          (plan.inspection.pageRerender?.resumeInventory
+            .completedPageNumbers ??
+            plan.inspection.inventory.completedPageNumbers) as Prisma.InputJsonValue,
+        ...(plan.pageRerenderTargets.length > 0
+          ? {
+              imagesDone: false,
+              failedPageNumbers: [] as Prisma.InputJsonValue,
+              pageAttempts: {} as Prisma.InputJsonValue,
+            }
+          : {}),
         lastChainStatus: null,
         lastChainError: null,
         lastWorkerKickAt: null,
@@ -1733,7 +2438,150 @@ export async function executeReleaseV1Recovery(
   };
 
   let transactionResult: ReleaseV1RecoveryResult | null;
-  if (safetyProofs.length > 0) {
+  if (plan.pageRerenderTargets.length > 0) {
+    const mutation = await withDeliveryInputMutation(
+      db,
+      {
+        orderId: plan.order.id,
+        reason: 'page_assets_cleared',
+        operationKey: `delivery_input:${plan.order.id}:release_v1_page_rerender:${input.recoveryAttemptId}`,
+        mutationPayload: {
+          snapshotDigest: plan.inspection.snapshotDigest,
+          artifacts: plan.pageRerenderTargets.map((target) => ({
+            artifactKey: target.artifactKey,
+            pageNumber: target.pageNumber,
+            pageId: target.pageId,
+            assetId: target.assetId,
+            sha256: target.sha256,
+            qaContextDigest: target.qaContextDigest,
+            evidenceDigest: target.evidenceDigest,
+            candidateId: target.candidate?.id ?? null,
+          })),
+        },
+        kind: 'release_v1_page_rerender',
+      },
+      async (tx) => {
+        const result = await recoverLockedSnapshot(tx, false, async () => {
+          for (const target of plan.pageRerenderTargets) {
+            const deletedAsset = await tx.imageAsset.deleteMany({
+              where: {
+                id: target.assetId,
+                pageId: target.pageId,
+                provider: target.provider,
+                url: target.sourceUrl,
+                presentationUrl: target.presentationUrl,
+                idempotencyKey: target.idempotencyKey,
+                safetyVerified: false,
+                safetyHazards: { equals: [] },
+                safetyContentSha256: target.sha256,
+                safetyOverriddenHazards: { equals: [] },
+                safetyOverrideSha256: null,
+              },
+            });
+            if (deletedAsset.count !== 1) {
+              reject('page re-render asset compare-and-swap lost');
+            }
+
+            const deletedCandidate = await tx.pageUploadCandidate.deleteMany({
+              where: target.candidate
+                ? {
+                    id: target.candidate.id,
+                    orderId: plan.order.id,
+                    pageNumber: target.pageNumber,
+                    url: target.candidate.url,
+                    rawUrl: target.candidate.rawUrl,
+                    provider: target.candidate.provider,
+                    createdAt: target.candidate.createdAt,
+                    updatedAt: target.candidate.updatedAt,
+                  }
+                : {
+                    orderId: plan.order.id,
+                    pageNumber: target.pageNumber,
+                  },
+            });
+            if (deletedCandidate.count !== (target.candidate ? 1 : 0)) {
+              reject('page re-render upload candidate compare-and-swap lost');
+            }
+
+            const deletedPriorReceipt =
+              await tx.atomicOperationReceipt.deleteMany({
+                where: target.priorAssetReceipt
+                  ? {
+                      operationKey: target.priorAssetReceipt.operationKey,
+                      orderId: plan.order.id,
+                      kind: target.priorAssetReceipt.kind,
+                      payloadHash: target.priorAssetReceipt.payloadHash,
+                      createdAt: target.priorAssetReceipt.createdAt,
+                    }
+                  : {
+                      operationKey: pageAssetOperationKey(
+                        plan.order.id,
+                        target.pageNumber,
+                        target.deliveredUrl,
+                        plan.order.visualContractHash,
+                      ),
+                    },
+              });
+            if (
+              deletedPriorReceipt.count !==
+              (target.priorAssetReceipt ? 1 : 0)
+            ) {
+              reject('page re-render prior asset receipt compare-and-swap lost');
+            }
+
+            const priorEvidence = isRecord(target.evidence.evidence)
+              ? target.evidence.evidence
+              : {};
+            const invalidatedEvidence = await tx.qualityEvidence.updateMany({
+              where: {
+                orderId: plan.order.id,
+                artifactKey: target.artifactKey,
+                assetSha256: target.evidence.assetSha256,
+                verdict: target.evidence.verdict,
+                evaluatorContractVersion:
+                  target.evidence.evaluatorContractVersion,
+                reason: target.evidence.reason,
+                regenCount: target.evidence.regenCount,
+                providerModel: target.evidence.providerModel,
+                contractHash: target.evidence.contractHash,
+                safetyOverride: false,
+                safetyOverrideSha256: null,
+                updatedAt: target.evidence.updatedAt,
+              },
+              data: {
+                assetSha256: '',
+                verdict: 'evidence_unknown',
+                reason: 'recovery:rerender_pending',
+                safetyOverride: false,
+                safetyOverrideSha256: null,
+                evidence: {
+                  ...priorEvidence,
+                  releaseV1PageRerender: {
+                    version: 'release-v1-page-rerender-pending/v1',
+                    recoveryAttemptId: input.recoveryAttemptId,
+                    previousAssetId: target.assetId,
+                    previousAssetSha256: target.sha256,
+                    previousQaContextDigest: target.qaContextDigest,
+                    previousEvidenceDigest: target.evidenceDigest,
+                    requestedAt: recoveredAt.toISOString(),
+                  },
+                } as unknown as Prisma.InputJsonValue,
+              },
+            });
+            if (invalidatedEvidence.count !== 1) {
+              reject('page re-render quality evidence compare-and-swap lost');
+            }
+          }
+        });
+        if (result) {
+          reject('database snapshot changed during page re-render recovery');
+        }
+        return dispatchOwnershipToken;
+      },
+    );
+    recoveredHere = mutation.value === dispatchOwnershipToken;
+    transactionResult = null;
+  } else if (safetyProofs.length > 0) {
     const mutation = await withDeliveryInputMutation(
       db,
       {
@@ -1756,10 +2604,11 @@ export async function executeReleaseV1Recovery(
       async (tx) => {
         const result = await recoverLockedSnapshot(tx, false);
         if (result) reject('database snapshot changed during safety re-verification');
-        return null;
+        return dispatchOwnershipToken;
       },
     );
-    transactionResult = mutation.value;
+    recoveredHere = mutation.value === dispatchOwnershipToken;
+    transactionResult = null;
   } else {
     transactionResult = await db.$transaction((tx) =>
       recoverLockedSnapshot(tx, true),
@@ -1776,6 +2625,13 @@ export async function executeReleaseV1Recovery(
       snapshotDigest: plan.inspection.snapshotDigest,
       targetReleaseContinuity: plan.inspection.targetReleaseContinuity,
       dispatched: false,
+      ...(plan.pageRerenderTargets.length > 0
+        ? {
+            rerenderedPageNumbers: plan.pageRerenderTargets.map(
+              (target) => target.pageNumber,
+            ),
+          }
+        : {}),
     };
   }
 
@@ -1787,5 +2643,12 @@ export async function executeReleaseV1Recovery(
     snapshotDigest: plan.inspection.snapshotDigest,
     targetReleaseContinuity: plan.inspection.targetReleaseContinuity,
     dispatched: true,
+    ...(plan.pageRerenderTargets.length > 0
+      ? {
+          rerenderedPageNumbers: plan.pageRerenderTargets.map(
+            (target) => target.pageNumber,
+          ),
+        }
+      : {}),
   };
 }

@@ -1,5 +1,77 @@
 # SmallHeroes — Current Technical State
 
+## R1D — same-Order page-6 replacement and pages 7–8 completion recovery (local green; immutable independent gate next)
+
+The existing paid Lavi/Chameleon Order `cmtj2vvrw0002ju04a9covxqv` is still the sole
+target. Its accepted Story Source digest is
+`9acf0433386ac515d08d5d30f0429dc6b9f03596b29ba0994316ff69507195b1`; its frozen Visual
+Package revision is
+`836a3414174dbe3060010371e81ebdbef821f705650a199cc4bbfd70081d523f`. The approved child
+anchor, cover and pages 1–6 remain retained. Page 6 has no positive safety result after the one
+reviewed retained-byte attempt, while page 7 previously stopped before image bytes at the GPT
+Image 32,000-character ceiling and page 8 was never rendered. Narration and packaging are still
+missing. No replacement Order, checkout or payment is permitted.
+
+The local milestone adds a distinct authenticated Preview-only release recovery for exactly one
+existing unverified, hazardless page. Inspect is provider-free and binds the exact Order/payment,
+package, deployment, artifact/evidence, old URL/ID/SHA/idempotency, page-write receipt, job/cache
+and ExceptionCase state. Apply rechecks the immutable snapshot under row locks, removes only the
+selected `ImageAsset` and stale candidate pointer, invalidates its evidence, retires the exact old
+page-write receipt, and writes a durable before/after audit while retaining the old storage object.
+It resets the same Order/job to completed pages 1–5 and missing pages 6–8, then dispatches once
+after commit using receipt-owned authority. Commercial and frozen product identity do not change.
+
+An eligible active pre-external `infra_transient` generation ExceptionCase is resolved inside that
+same transaction. Scope, `generation:${order.id}:` source, attempts, schedule, claim version,
+timestamps, lease and absence of refund/notification attempts are snapshot-bound. A live lease,
+unrelated source/scope, external side effect or concurrent processor claim fails before destructive
+mutation; successful resolution clears retry/lease authority and advances `claimVersion`, fencing
+any stale processor from refunding the recovered Order.
+
+Recovery admission now proves the exact immutable HTTPS reader/worker origin, branch-scoped
+Deployment Protection bypass, render-qualified package/Boards/DNA/approved canonical child anchor,
+`gpt-image-2`, raw `low` quality, Style01 reference configuration A, enabled visual QA and
+`QA_SOFT_DELIVER=false`. ElevenLabs credentials are required only when the selected Order still
+needs narration. The ordinary worker also compacts the dense page request before the provider
+boundary, preserving its structured visual authority while leaving headroom below 32,000
+characters.
+
+Every resumed page that expects the child is numerically scored against the approved canonical
+anchor at the existing Style01 threshold **0.70**, including canonical and database aliases. The
+raw uploaded candidate must pass; presentation-transformed bytes are scored again, while unchanged
+bytes reuse the exact raw evidence. The gate policy is stored atomically with the delivered asset
+and receipt and reconstructed by zero-render recovery re-QA. A verified below-threshold result may
+use the same durable maximum-two replacement budget; scorer-unavailable/unknown evidence spends no
+replacement and fails closed.
+
+Evidence on the current working bytes:
+
+- The final focused recovery/provider/quality/route/worker/continuity/environment/coverage battery
+  is **16 files / 238 tests PASS**. It includes page-6-only invalidation, pages 6–8 resume inventory,
+  exact ExceptionCase resolution and stale-claim refusal, raw and delivered 0.70 scoring, 0.69
+  rejection, scorer-unavailable preservation, canonical-reference selection, atomic gate-policy
+  persistence and the marker-to-production delivery seam.
+- `npx tsc --noEmit`, `git diff --check` and `npm run build` pass; the production build compiled and
+  generated **39/39** static pages. Existing Prisma deprecation and skipped-local-env-validation
+  warnings remain.
+- Literal `npm run check` passed both TypeScript phases. Its ordinary **342-file** partition retained
+  only the ten established assertions whose ignored historical `outputs/` fixtures are absent from
+  this worktree; the recovery/workload assertions introduced here passed. Its resource partition
+  completed **20/20 files and 635/635 tests PASS**, then Vitest emitted three known
+  `onTaskUpdate` RPC timeouts. The literal repository gate therefore remains accurately red for
+  baseline fixture/runner defects rather than being relabeled green.
+- A read-only adversarial pre-commit review returned PASS after re-auditing snapshot/receipt replay,
+  the ExceptionCase refund race, numeric-policy crash atomicity, raw LOW/QA pins and the complete
+  marker-to-production seam. The required post-commit independent Claude Code review of an
+  immutable range has not yet occurred and remains the deployment gate.
+
+No deployment, recovery Apply, provider/image/audio call, Order/payment mutation or push has
+occurred from these bytes. Next: create one focused local commit, obtain independent Claude Code
+PASS, then deploy that immutable commit to one Preview. Only
+after PASS may Codex run read-only Inspect and one new page-re-render Apply UUID against this same
+Order; the consumed retained-byte UUID must never be reused. Production remains untouched, and Guy
+retains final visual acceptance of pages 6–8 and the complete Reader/audio package.
+
 ## R1D — retained-byte safety re-verification for the same Order (local green; independent re-gate pending)
 
 The existing paid Lavi/Chameleon Order `cmtj2vvrw0002ju04a9covxqv` remains the sole recovery

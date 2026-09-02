@@ -131,6 +131,127 @@ describe('reQaUnknownQualityEvidence — enumerate REQUIRED artifacts (#6-fix BL
     expect(r.nowFailed).toEqual([{ artifactKey: 'page:1', regenCount: 1 }]);
   });
 
+  it('preserves the required numeric child gate: qualitative pass + scorer unavailable stays evidence_unknown', async () => {
+    const rows: Row[] = [{
+      artifactKey: 'page:7',
+      verdict: 'evidence_unknown',
+      evaluatorContractVersion: QUALITY_EVALUATOR_CONTRACT_VERSION,
+      assetSha256: 'H',
+      regenCount: 2,
+      reason: 'recovery:rerender_pending',
+      evidence: {
+        qaContext: QA_CTX,
+        releaseV1PageRerender: {
+          version: 'release-v1-page-rerender-pending/v1',
+          recoveryAttemptId: 'attempt-1',
+        },
+        pageResemblanceGate: {
+          required: true,
+          referenceImageUrl: 'https://h/approved-child-anchor.webp',
+          status: 'evidence_unknown',
+          resemblanceScore: null,
+          threshold: 0.7,
+          minAcceptableScore: 0.62,
+          faceDetectConfidence: null,
+          faceAreaRatio: null,
+          source: 'delivered_bytes',
+        },
+      },
+    }];
+    const { db } = makeDb({ coverImageUrl: null, pages: [page(7, 'https://h/p7.webp')] }, rows);
+    const evaluate = vi.fn(async () => ({ passed: true, verdict: 'passed', reason: 'ok', details: '', flags: {} } as never));
+    const scoreResemblance = vi.fn(async () => { throw new Error('scorer_unavailable'); });
+
+    const r = await reQaUnknownQualityEvidence(db as never, 'o1', {
+      evaluate: evaluate as never,
+      inspect: async () => okInspect('H'),
+      scoreResemblance: scoreResemblance as never,
+    });
+
+    expect(evaluate).toHaveBeenCalled();
+    expect(scoreResemblance).toHaveBeenCalledWith(expect.objectContaining({
+      referenceImageUrl: 'https://h/approved-child-anchor.webp',
+      candidateImageUrl: 'https://h/p7.webp',
+      effectiveThreshold: 0.7,
+    }));
+    expect(r.nowPassed).toEqual([]);
+    expect(r.stillUnknown).toEqual(['page:7']);
+  });
+
+  it('crash envelope: a rerender-pending marker with missing numeric policy cannot be weakened to qualitative PASS', async () => {
+    const rows: Row[] = [{
+      artifactKey: 'page:6',
+      verdict: 'evidence_unknown',
+      evaluatorContractVersion: QUALITY_EVALUATOR_CONTRACT_VERSION,
+      assetSha256: '',
+      regenCount: 0,
+      reason: 'recovery:rerender_pending',
+      evidence: {
+        qaContext: QA_CTX,
+        releaseV1PageRerender: {
+          version: 'release-v1-page-rerender-pending/v1',
+          recoveryAttemptId: 'attempt-1',
+        },
+      },
+    }];
+    const { db } = makeDb({ coverImageUrl: null, pages: [page(6, 'https://h/p6.webp')] }, rows);
+    const evaluate = vi.fn(async () => ({ passed: true, verdict: 'passed', reason: 'ok', details: '', flags: {} } as never));
+
+    const r = await reQaUnknownQualityEvidence(db as never, 'o1', {
+      evaluate: evaluate as never,
+      inspect: async () => okInspect('H'),
+    });
+
+    expect(evaluate).not.toHaveBeenCalled();
+    expect(r.reQaCount).toBe(0);
+    expect(r.nowPassed).toEqual([]);
+    expect(r.stillUnknown).toEqual(['page:6']);
+  });
+
+  it('preserves the required numeric child gate: a fresh 0.70 score may clear the unknown evidence', async () => {
+    const rows: Row[] = [{
+      artifactKey: 'page:8',
+      verdict: 'evidence_unknown',
+      evaluatorContractVersion: QUALITY_EVALUATOR_CONTRACT_VERSION,
+      assetSha256: 'H',
+      regenCount: 0,
+      reason: 'child_resemblance_unverified',
+      evidence: {
+        qaContext: QA_CTX,
+        pageResemblanceGate: {
+          required: true,
+          referenceImageUrl: 'https://h/approved-child-anchor.webp',
+          status: 'evidence_unknown',
+          resemblanceScore: null,
+          threshold: 0.7,
+          minAcceptableScore: 0.62,
+          faceDetectConfidence: null,
+          faceAreaRatio: null,
+          source: 'delivered_bytes',
+        },
+      },
+    }];
+    const { db } = makeDb({ coverImageUrl: null, pages: [page(8, 'https://h/p8.webp')] }, rows);
+    const evaluate = vi.fn(async () => ({ passed: true, verdict: 'passed', reason: 'ok', details: '', flags: {} } as never));
+    const scoreResemblance = vi.fn(async () => ({
+      resemblanceScore: 0.7,
+      faceDetectConfidence: 0.9,
+      faceAreaRatio: 0.2,
+      sanityFlags: {},
+      candidateEmbedding: [],
+    }));
+
+    const r = await reQaUnknownQualityEvidence(db as never, 'o1', {
+      evaluate: evaluate as never,
+      inspect: async () => okInspect('H'),
+      scoreResemblance: scoreResemblance as never,
+    });
+
+    expect(scoreResemblance).toHaveBeenCalled();
+    expect(r.nowPassed).toEqual(['page:8']);
+    expect(r.stillUnknown).toEqual([]);
+  });
+
   it('(Slice A) an admissible FAILED row tagged contract_world → nowParked (terminal human-QA hold), never nowFailed', async () => {
     const rows: Row[] = [{ artifactKey: 'page:1', verdict: 'failed', evaluatorContractVersion: QUALITY_EVALUATOR_CONTRACT_VERSION, assetSha256: 'H', regenCount: 0, reason: 'contract_world:wrong_zone', evidence: { qaContext: QA_CTX } }];
     const { db } = makeDb({ coverImageUrl: null, pages: [page(1, 'https://h/p1.png')] }, rows);

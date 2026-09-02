@@ -55,9 +55,9 @@ describe('Vitest workload classifier', () => {
     );
     const partition = classifyVitestWorkloads(inventory, policy);
 
-    expect(partition.inventory).toHaveLength(360);
+    expect(partition.inventory).toHaveLength(362);
     expect(partition.resourceIntensive).toHaveLength(20);
-    expect(partition.ordinary).toHaveLength(340);
+    expect(partition.ordinary).toHaveLength(342);
     expect(new Set(partition.inventory).size).toBe(
       partition.inventory.length,
     );
@@ -71,6 +71,12 @@ describe('Vitest workload classifier', () => {
     );
     expect(partition.ordinary).toContain(
       'lib/__tests__/vitest-workload-classifier.spec.ts',
+    );
+    expect(partition.ordinary).toContain(
+      'lib/__tests__/release-v1-worker-reachability.spec.ts',
+    );
+    expect(partition.ordinary).toContain(
+      'lib/__tests__/resemblance-threshold-alias.spec.ts',
     );
     expect(partition.ordinary).toContain(
       'lib/__tests__/initial-full-draft-disposition-binding.spec.ts',

@@ -15,6 +15,7 @@ import { inspectAsset } from './asset-integrity';
 import { evaluatePageVisualQa } from './page-visual-qa';
 import {
   persistDeliveredQualityEvidence,
+  type DeliveredEvidenceArgs,
   type QaContext,
   type ProducerDeps,
 } from './quality-evidence-producer';
@@ -55,6 +56,61 @@ export interface QualityRecoveryResult {
 interface RequiredArtifact {
   artifactKey: string;
   deliveredUrl: string;
+}
+
+type StoredPageResemblanceGate = NonNullable<
+  DeliveredEvidenceArgs['pageResemblanceGate']
+>;
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+/**
+ * Preserve the exact numeric child-identity policy across a zero-render recovery re-QA. The reference URL and
+ * thresholds were persisted with the delivered-byte evidence by the render seam; malformed/missing required policy
+ * is never replaced with a qualitative-only pass.
+ */
+function readStoredPageResemblanceGate(
+  evidence: unknown,
+): StoredPageResemblanceGate | null {
+  if (!isRecord(evidence) || !isRecord(evidence.pageResemblanceGate)) return null;
+  const gate = evidence.pageResemblanceGate;
+  if (gate.required !== true) return null;
+  if (typeof gate.referenceImageUrl !== 'string' || !gate.referenceImageUrl.trim()) return null;
+  if (
+    typeof gate.threshold !== 'number' ||
+    !Number.isFinite(gate.threshold) ||
+    gate.threshold < 0 ||
+    gate.threshold > 1 ||
+    typeof gate.minAcceptableScore !== 'number' ||
+    !Number.isFinite(gate.minAcceptableScore) ||
+    gate.minAcceptableScore < 0 ||
+    gate.minAcceptableScore > 1
+  ) {
+    return null;
+  }
+  return {
+    referenceImageUrl: gate.referenceImageUrl,
+    effectiveThreshold: gate.threshold,
+    minAcceptableScore: gate.minAcceptableScore,
+  };
+}
+
+function evidenceRequiresPageResemblance(
+  evidence: unknown,
+  reason: string | null | undefined,
+): boolean {
+  return (
+    (isRecord(evidence) &&
+      isRecord(evidence.pageResemblanceGate) &&
+      evidence.pageResemblanceGate.required === true) ||
+    (isRecord(evidence) &&
+      isRecord(evidence.releaseV1PageRerender) &&
+      evidence.releaseV1PageRerender.version ===
+        'release-v1-page-rerender-pending/v1') ||
+    Boolean(reason?.includes('child_resemblance_'))
+  );
 }
 
 /** The REQUIRED artifacts with CURRENT delivered bytes: cover (GeneratedBook.coverImageUrl) + each page
@@ -172,12 +228,22 @@ export async function reQaUnknownQualityEvidence(
     }
 
     const storedCtx = (row?.evidence as { qaContext?: QaContext | null } | null)?.qaContext ?? undefined;
+    const storedPageResemblanceGate = readStoredPageResemblanceGate(row?.evidence);
     // (#6-fix-3 BLOCKER 1) No stored context → we CANNOT re-QA against the real requirements, and we must NEVER
     // fabricate a lenient context (that could PASS a page missing its required companion/crib/family). Leave it
     // evidence_unknown (fail-closed) → the recommit blocks → recovery/refund. The producer now persists the exact
     // context ATOMICALLY with the delivered asset, so a real delivered artifact always has its context and this
     // branch is only hit for a genuinely context-less row (never auto-passed under weaker requirements).
     if (!storedCtx) {
+      result.stillUnknown.push(art.artifactKey);
+      continue;
+    }
+    if (
+      evidenceRequiresPageResemblance(row?.evidence, row?.reason) &&
+      !storedPageResemblanceGate
+    ) {
+      // A required numeric policy without its exact reference/threshold is not recoverable by qualitative Vision.
+      // Preserve evidence_unknown rather than overwriting it with a weaker PASS.
       result.stillUnknown.push(art.artifactKey);
       continue;
     }
@@ -196,6 +262,9 @@ export async function reQaUnknownQualityEvidence(
         deliveredUrl: art.deliveredUrl,
         presentationApplied: true, // force a fresh Vision pass on the CURRENT stored URL; never reuse a raw verdict
         rawVerdict: undefined,
+        ...(storedPageResemblanceGate
+          ? { pageResemblanceGate: storedPageResemblanceGate }
+          : {}),
         qaContext: reQaCtx,
         regenAttempts: null,
         // (WS0b B1) Re-bind the re-QA'd evidence to the Order's CURRENT active contract (deliberate recovery re-bind).

@@ -855,4 +855,39 @@ describe('P1-f #5 delivery-input writer coverage', () => {
     expect(source('lib/generation-pipeline/chunk-runner.ts')).not.toContain('sendBookReadyEmail');
     expect(source('lib/generation-pipeline/chunk-runner.ts')).toContain('finalizePackageDelivery');
   });
+
+  it('threads the reviewed recovery resemblance marker through the production page-delivery seam', () => {
+    const chunkRunner = source('lib/generation-pipeline/chunk-runner.ts');
+
+    // The durable reviewed-recovery marker activates the paid provider-loop gate and pins it to
+    // the approved canonical child anchor. This is intentionally a source-level seam test: it
+    // fails if a future refactor leaves the individually-tested producer/provider pieces present
+    // but disconnects any of their real production call sites.
+    expect(chunkRunner).toMatch(
+      /releaseV1PageResemblanceGateRequired\s*=\s*requiresReleaseV1PageResemblanceGate\(cache\)/,
+    );
+    expect(chunkRunner).toMatch(
+      /requirePageResemblanceGate:\s*releaseV1PageResemblanceGateRequired/,
+    );
+    expect(chunkRunner).toMatch(
+      /pageResemblanceReferenceImage:\s*childCanonicalAnchor!\.url/,
+    );
+
+    // The same marker-derived policy must be committed atomically beside the selected delivered
+    // bytes, included in the delivery-input receipt, and forwarded to delivered-byte QA together
+    // with the raw candidate evidence. These three assertions close the recovery -> candidate ->
+    // full-QA proof path for the resumed page set.
+    expect(chunkRunner).toMatch(
+      /const deliveredPageResemblancePolicy\s*=\s*releaseV1PageResemblanceGateRequired\s*&&\s*deliveredPageExpectsChild/,
+    );
+    expect(chunkRunner).toMatch(
+      /mutationPayload:\s*\{[\s\S]*?pageResemblanceGate:\s*\(deliveredPageResemblancePolicy \?\? null\)/,
+    );
+    expect(chunkRunner).toMatch(
+      /persistQualityContext\(tx,\s*\{[\s\S]*?pageResemblanceGate:\s*deliveredPageResemblancePolicy/,
+    );
+    expect(chunkRunner).toMatch(
+      /persistDeliveredQualityEvidence\(prisma,\s*\{[\s\S]*?pageResemblanceGate:\s*\{[\s\S]*?\.\.\.deliveredPageResemblancePolicy[\s\S]*?rawEvidence:/,
+    );
+  });
 });

@@ -432,6 +432,12 @@ export interface ImageInput {
    * the readiness flag is on; absent → the loop uses the legacy in-memory budget (flag-off byte-identical).
    */
   reserveQualityRegen?: () => Promise<boolean>;
+  /** Fail-closed numeric child resemblance gate, evaluated on the same uploaded bytes as visual QA. */
+  pageResemblanceGate?: {
+    referenceImageUrl: string;
+    effectiveThreshold: number;
+    minAcceptableScore: number;
+  };
   /**
    * (render-loop Phase 1, 3a) AbortSignal from the per-page soft-timeout. Threaded through generateImage → the
    * provider branch → generateGPTImage so a soft-timeout ACTUALLY cancels the in-flight OpenAI request instead of
@@ -695,6 +701,16 @@ export interface Style01PageMeta {
       hasHumanFamily: boolean;
     };
   };
+  /** Numeric child-identity gate for reviewed release recovery pages. */
+  pageResemblanceGate?: {
+    required: true;
+    status: 'passed' | 'failed' | 'evidence_unknown';
+    resemblanceScore: number | null;
+    threshold: number;
+    minAcceptableScore: number;
+    faceDetectConfidence: number | null;
+    faceAreaRatio: number | null;
+  };
   needsHumanReview?: boolean;
   /** Candidate upload succeeded but its pre-QA durable record failed; held without QA or regeneration. */
   candidatePersistenceError?: string;
@@ -877,7 +893,7 @@ export type ResemblanceAuditEntry = {
   reasonCodes?: string[];
   faceDetectConfidence?: number;
   faceAreaRatio?: number;
-  source: 'anchor_election' | 'page_monitor';
+  source: 'anchor_election' | 'page_monitor' | 'page_gate';
   metadata?: Record<string, unknown>;
 };
 
@@ -3293,6 +3309,11 @@ async function generateWithGPTImageStyle01Phase2(input: ImageInput): Promise<Gen
     context: `generateWithGPTImageStyle01Phase2 orderId=${input.orderId ?? 'unknown'} page=${input.pageNumber ?? '?'}`,
   });
   const qaConfig = resolvePageVisualQaConfig();
+  if (input.pageResemblanceGate && !qaConfig.enabled) {
+    throw new Error(
+      '[page_resemblance_gate] PAGE_VISUAL_QA_ENABLED must be true before a required resemblance render',
+    );
+  }
   let compositionStrictRetry = input.compositionStrictRetry ?? false;
   let timeOfDayStrictRetry = input.timeOfDayStrictRetry ?? false;
   let regenAttempts = 0;
@@ -3357,23 +3378,83 @@ async function generateWithGPTImageStyle01Phase2(input: ImageInput): Promise<Gen
     // Transport, timeout, skipped/unavailable vision, malformed output, and every other evidence_unknown result hold
     // fail-closed without touching either the durable or in-memory image-regeneration budget.
     const qaOutcome = classifyPageVisualQaOutcome(qa);
-    const verifiedVisualFailure = qaOutcome === 'verified_visual_failure';
+    let resemblanceGateEvidence:
+      | NonNullable<Style01PageMeta['pageResemblanceGate']>
+      | undefined;
+    if (qaOutcome === 'verified_pass' && input.pageResemblanceGate) {
+      try {
+        const scored = await scoreResemblanceAgainstReference({
+          referenceImageUrl: input.pageResemblanceGate.referenceImageUrl,
+          candidateImageUrl: last.url,
+          effectiveThreshold: input.pageResemblanceGate.effectiveThreshold,
+          minAcceptableScore: input.pageResemblanceGate.minAcceptableScore,
+        });
+        resemblanceGateEvidence = {
+          required: true,
+          status:
+            scored.resemblanceScore >=
+            input.pageResemblanceGate.effectiveThreshold
+              ? 'passed'
+              : 'failed',
+          resemblanceScore: scored.resemblanceScore,
+          threshold: input.pageResemblanceGate.effectiveThreshold,
+          minAcceptableScore: input.pageResemblanceGate.minAcceptableScore,
+          faceDetectConfidence: scored.faceDetectConfidence,
+          faceAreaRatio: scored.faceAreaRatio,
+        };
+      } catch {
+        resemblanceGateEvidence = {
+          required: true,
+          status: 'evidence_unknown',
+          resemblanceScore: null,
+          threshold: input.pageResemblanceGate.effectiveThreshold,
+          minAcceptableScore: input.pageResemblanceGate.minAcceptableScore,
+          faceDetectConfidence: null,
+          faceAreaRatio: null,
+        };
+      }
+    }
+    const resemblanceGateFailed =
+      resemblanceGateEvidence?.status === 'failed';
+    const resemblanceEvidenceUnknown =
+      resemblanceGateEvidence?.status === 'evidence_unknown';
+    const verifiedVisualFailure =
+      qaOutcome === 'verified_visual_failure' || resemblanceGateFailed;
     let mayRegen = false;
     if (verifiedVisualFailure && regenAttempts < qaConfig.maxRegens) {
       mayRegen = input.reserveQualityRegen
         ? await input.reserveQualityRegen()
         : true;
     }
-    const needsHumanReview = qaOutcome !== 'verified_pass' && !mayRegen;
+    const finalPassed =
+      qaOutcome === 'verified_pass' &&
+      (!input.pageResemblanceGate ||
+        resemblanceGateEvidence?.status === 'passed');
+    const finalVerdict = resemblanceGateFailed
+      ? ('failed' as const)
+      : resemblanceEvidenceUnknown
+        ? ('evidence_unknown' as const)
+        : qa.verdict;
+    const finalReason = resemblanceGateFailed
+      ? 'child_resemblance_below_threshold'
+      : resemblanceEvidenceUnknown
+        ? 'resemblance_evidence_unavailable'
+        : qa.reason;
+    const finalDetails = resemblanceGateFailed
+      ? `score=${resemblanceGateEvidence?.resemblanceScore?.toFixed(4)} threshold=${(resemblanceGateEvidence?.threshold ?? input.pageResemblanceGate!.effectiveThreshold).toFixed(4)}`
+      : resemblanceEvidenceUnknown
+        ? 'numeric resemblance scorer unavailable'
+        : qa.details;
+    const needsHumanReview = !finalPassed && !mayRegen;
     const enriched: GeneratedImage = {
       ...last,
       style01Meta: {
         ...last.style01Meta!,
         pageVisualQa: {
-          passed: qa.passed,
-          verdict: qa.verdict,
-          reason: qa.reason,
-          details: qa.details,
+          passed: finalPassed,
+          verdict: finalVerdict,
+          reason: finalReason,
+          details: finalDetails,
           regenAttempts,
           timeOfDayOk: qa.flags.timeOfDayOk,
           companionSilhouetteOk: qa.flags.companionSilhouetteOk,
@@ -3383,6 +3464,9 @@ async function generateWithGPTImageStyle01Phase2(input: ImageInput): Promise<Gen
           // (#7-a) The exact QA context, so a delivered-bytes re-QA at the persist seam applies the same checks.
           qaInput,
         },
+        ...(resemblanceGateEvidence
+          ? { pageResemblanceGate: resemblanceGateEvidence }
+          : {}),
         needsHumanReview,
       },
     };
@@ -3391,7 +3475,7 @@ async function generateWithGPTImageStyle01Phase2(input: ImageInput): Promise<Gen
       if (needsHumanReview) {
         console.warn(
           `[page_visual_qa] FLAG_HUMAN_REVIEW orderId=${input.orderId ?? 'unknown'} page=${input.pageNumber} ` +
-            `reason=${qa.reason} details=${qa.details} regenAttempts=${regenAttempts}`
+            `reason=${finalReason} details=${finalDetails} regenAttempts=${regenAttempts}`
         );
       }
       await patchPageRefManifestQa({
@@ -3404,7 +3488,7 @@ async function generateWithGPTImageStyle01Phase2(input: ImageInput): Promise<Gen
 
     console.log(
       `[page_visual_qa] regen orderId=${input.orderId ?? 'unknown'} page=${input.pageNumber} ` +
-        `reason=${qa.reason} attempt=${regenAttempts + 1}/${qaConfig.maxRegens} details=${qa.details}`
+        `reason=${finalReason} attempt=${regenAttempts + 1}/${qaConfig.maxRegens} details=${finalDetails}`
     );
     regenAttempts += 1;
     if (qa.reason === 'time_of_day_mismatch') {
@@ -4636,6 +4720,10 @@ export async function generateAllPageImages(
       candidate: { url: string; rawUrl: string | null; provider: string },
     ) => Promise<void>;
     resemblanceThresholdConfig?: ResemblanceThresholdConfig;
+    /** Reviewed release recovery: enforce the numeric page identity threshold, not monitor-only telemetry. */
+    requirePageResemblanceGate?: boolean;
+    /** Exact approved canonical child anchor to score against when the required page gate is active. */
+    pageResemblanceReferenceImage?: string;
     inputPhotoStrength?: InputPhotoStrength;
     photoQuality?: PhotoQualityForPrompt;
     /** When set, illustration prompts include the secondary companion block + anchoring. */
@@ -5420,6 +5508,26 @@ export async function generateAllPageImages(
     // Shared across this page's candidate renders (see makeReserveQualityRegen note).
     const reserveQualityRegen = config.makeReserveQualityRegen?.(page.pageNumber);
     const baseReferenceImage = pageReferenceImages?.[0];
+    const pageResemblanceGate =
+      config.requirePageResemblanceGate && childExpected
+        ? config.pageResemblanceReferenceImage
+          ? {
+              referenceImageUrl: config.pageResemblanceReferenceImage,
+              effectiveThreshold: resolveEffectiveThreshold(
+                normalizedStyle.toLowerCase(),
+                thresholdConfig,
+              ),
+              minAcceptableScore: thresholdConfig.minAcceptableScore,
+            }
+          : null
+        : undefined;
+    if (config.requirePageResemblanceGate && childExpected && !pageResemblanceGate) {
+      console.error(
+        `[ImageGate] Page ${page.pageNumber} blocked: required numeric resemblance gate has no approved canonical child anchor`,
+      );
+      failedPages.push(page.pageNumber);
+      continue;
+    }
     if (exprRef) {
       console.log(
         `[child_expression_ref] page=${page.pageNumber} kind=${exprRef.kind} url=${exprRef.url.slice(0, 80)}…`
@@ -5478,6 +5586,7 @@ export async function generateAllPageImages(
               requestTimeoutMs: config.pageGenerationTimeoutMs,
               onCandidateUploaded: (cand) => config.onPageCandidateUploaded?.(page.pageNumber, cand) ?? Promise.resolve(),
               reserveQualityRegen,
+              pageResemblanceGate: pageResemblanceGate ?? undefined,
               pagePrompt: storyboardPrompt,
               illustrationStyle: normalizedStyle,
               pageTemplate: effectivePageTemplate,
@@ -5634,6 +5743,7 @@ export async function generateAllPageImages(
                 requestTimeoutMs: config.pageGenerationTimeoutMs,
                 onCandidateUploaded: (cand) => config.onPageCandidateUploaded?.(page.pageNumber, cand) ?? Promise.resolve(),
                 reserveQualityRegen,
+                pageResemblanceGate: pageResemblanceGate ?? undefined,
                 pagePrompt: storyboardPrompt,
                 illustrationStyle: normalizedStyle,
               pageTemplate: effectivePageTemplate,
@@ -5737,6 +5847,7 @@ export async function generateAllPageImages(
               requestTimeoutMs: config.pageGenerationTimeoutMs,
               onCandidateUploaded: (cand) => config.onPageCandidateUploaded?.(page.pageNumber, cand) ?? Promise.resolve(),
               reserveQualityRegen,
+              pageResemblanceGate: pageResemblanceGate ?? undefined,
               pagePrompt: `${storyboardPrompt}${retrySuffix}`,
               illustrationStyle: normalizedStyle,
               pageTemplate: effectivePageTemplate,
@@ -5802,7 +5913,37 @@ export async function generateAllPageImages(
       continue;
     }
 
+    const enforcedPageGate = image.style01Meta?.pageResemblanceGate;
+    if (enforcedPageGate) {
+      await emitResemblanceAudit({
+        orderId: config.orderId,
+        pageNumber: page.pageNumber,
+        selected: true,
+        model: image.provider,
+        styleId: normalizedStyle,
+        ...(enforcedPageGate.resemblanceScore == null
+          ? {}
+          : { resemblanceScore: enforcedPageGate.resemblanceScore }),
+        threshold: enforcedPageGate.threshold,
+        minAcceptableScore: enforcedPageGate.minAcceptableScore,
+        softFailBand: thresholdConfig.softFailBand,
+        extremeMargin: thresholdConfig.extremeMargin,
+        ...(enforcedPageGate.faceDetectConfidence == null
+          ? {}
+          : { faceDetectConfidence: enforcedPageGate.faceDetectConfidence }),
+        ...(enforcedPageGate.faceAreaRatio == null
+          ? {}
+          : { faceAreaRatio: enforcedPageGate.faceAreaRatio }),
+        resemblanceStatus:
+          enforcedPageGate.status === 'passed' ? 'pass' : 'soft_fail',
+        reason: `required_page_gate:${enforcedPageGate.status}`,
+        source: 'page_gate',
+        metadata: { required: true, status: enforcedPageGate.status },
+      });
+    }
+
     if (
+      !enforcedPageGate &&
       resemblesMonitorEnabled &&
       expectedCharacterIds.includes('child') &&
       characterAnchors.child &&
