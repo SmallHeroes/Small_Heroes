@@ -1,5 +1,21 @@
 # SmallHeroes — Current Technical State
 
+## R3-A4 — final independent QA PASS; reviewed branch published
+
+Claude Code independently re-gated the test-only range
+`cad59ae4f6f7965e29a4ed689fdfdf074c4633ef..fdb977a777f8f5f0821e36baba279c05c93671ae` and returned PASS with no
+P0/P1/P2. It reproduced 9/9 matrix tests across eight ambient flag combinations, verified 49/49 tests when the matrix
+spec ran beside flag-dependent siblings in the exact release environment, proved exact environment restoration and no
+masked flag-on path, and confirmed the audit digest remains
+`a3e66bc5459e05133a940381d4e0168dce10632d98d8a35b4afb643796af8634` with all declared effects zero.
+
+The reviewed implementation/test head `fdb977a7` was pushed to
+`origin/codex/r3-all-wizard-render-readiness`; the branch and worktree were clean and at exact parity immediately after
+the push. This documentation-only closure records that result. R3-A is independently QA-passed, while the separate
+repository fixture/RPC stability limitation remains carried forward exactly as documented and is not a release-gate
+PASS. R3-B still requires Guy's product decisions on the 17 unresolved V3-versus-QA source corpora and the six
+16-beat fantasy stories.
+
 ## R3-A3 — exact-18 correction independently passed; ambient flag test isolation fixed
 
 Claude Code re-gated `abdb96b1e78dd0c106616513ac9752b03c088543..cad59ae4f6f7965e29a4ed689fdfdf074c4633ef`
