@@ -256,8 +256,23 @@ Its three P2 notes are disposed as follows:
 
 This closeout changes documentation only. It does not change the implementation,
 plan, candidate artifact, status, eligibility, effect counters, or any protected
-authority. Claude Code must re-gate the documentation-only correction before
-R3-B1a is called technically closed.
+authority.
+
+Claude Code independently re-gated the final documentation correction range
+`e7c7bf4a3dda1e06a692802000a0a93cb1646bd0..e1df111f9b956fa360a03d53ef0bfc438bb29c2c`
+read-only and returned **PASS with no P0/P1/P2**. It verified HEAD and parent,
+one commit, zero merges, a clean tree including untracked files, exactly the two
+declared documentation paths, zero non-doc diff lines, and `git diff --check`
+exit 0. It independently confirmed all nine requested points: the exact 67/68
+selection explanation; 67-test documented inventory; observed-only framing of
+prior 67/67 results; the named cell, line, 5,234ms/4,991ms observations, and
+effective 5,000ms timeout; absence of an assertion or digest mismatch; absence
+of a hidden timeout change; byte-identical implementation PASS range
+`462aaf4c19c7e8809284a96579fb993400e5a593..85ef104cd7765a3e0376bb5ec84a72e75103d9c8`;
+the retained female-prose and `dragon_dini_fantasy` HOLD statements; and the
+unchanged artifact SHA-256
+`d8a57650364d62cfc52496b1385ba5dd95fe702f06edf51ff327ae5a43caba4c`.
+R3-B1a technical preparation is therefore independently closed.
 
 ## Internal review corrections
 
@@ -288,11 +303,11 @@ This milestone does not resolve or authorize:
 6. any paid LOW/HIGH page sample or full-book render;
 7. product launch readiness.
 
-Claude Code must independently review the final immutable range before Guy is
-asked to accept or publish these candidates. After that PASS, Codex can produce
-a compact decision packet for the 13 HOLD issues, continue the separate
-narration lane, and advance only accepted records into bounded downstream
-authoring and paid visual samples.
+Independent technical review of the final immutable implementation and
+documentation ranges is complete. Codex can now produce a compact decision
+packet for the 13 HOLD issues, continue the separate narration lane, and advance
+only Guy-accepted records into bounded downstream authoring and paid visual
+samples. This technical PASS is not product acceptance or publication authority.
 
 ## Independent QA falsification targets
 

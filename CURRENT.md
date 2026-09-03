@@ -1,6 +1,6 @@
 # SmallHeroes — Current Technical State
 
-## R3-B1a — implementation independently QA-passed; documentation closeout pending re-gate
+## R3-B1a — implementation and documentation independently QA-passed; technical preparation closed
 
 Guy authorized Codex to continue the zero-cost work toward making every story
 renderable. The controlling brief is
@@ -12,9 +12,15 @@ built on the green local foundation commit
 the complete two-commit R3-B1a range from the R3-B0b closeout
 `462aaf4c19c7e8809284a96579fb993400e5a593` through implementation head
 `85ef104cd7765a3e0376bb5ec84a72e75103d9c8` and returned **PASS with no P0/P1**.
-The branch remains unpushed. Claude left two documentation/test-disclosure P2s
-and one correctly surfaced product-authority blocker; the documentation-only
-corrections require a narrow re-gate before technical closeout.
+Claude then independently re-gated the final documentation correction range
+`e7c7bf4a3dda1e06a692802000a0a93cb1646bd0..e1df111f9b956fa360a03d53ef0bfc438bb29c2c`
+read-only and returned **PASS with no P0/P1/P2**. It verified one commit, zero
+merges, a clean tree, exactly the two declared documentation files, zero non-doc
+diff lines, the exact 67/68 selection explanation, the intermittent 5,000ms
+timeout disclosure, and the unchanged candidate-artifact SHA-256. R3-B1a
+technical preparation is therefore closed. The branch remains unpushed. This
+PASS does not accept any candidate, resolve a product HOLD, or grant publication,
+render, provider, payment, deployment, or launch authority.
 
 Claude Code's two preceding R3-B0b returns are closed accurately. Its first
 review found one P2: the zero-cost review CLI's inert static import graph still
