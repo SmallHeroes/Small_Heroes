@@ -1,6 +1,6 @@
 # SmallHeroes — Current Technical State
 
-## R3-B1b P1 — publication QA passed; two P2 closeouts await re-gate
+## R3-B1b P1 — publication and P2 closeout independently passed; push pending
 
 On 2026-09-03 Guy explicitly confirmed final P1 `dragon_dini_adventure` revision
 `64dcd0e741f17fc08cde95ad8a5a00b303955aa28ccd065d44f01e49e9d155fc` and authorized
@@ -65,10 +65,15 @@ historical ignored fixtures and the disclosed timing/worker-RPC behavior;
 none is waived and no timeout was widened.
 The P2 closeout passes the lifecycle spec at 11/11 and the exact nine-spec
 catalog slice at 9/9 files and 101/101 tests; both TypeScript checks pass.
-Independent Claude Code re-gate of this test/documentation-only closeout is
-pending; Codex does not self-award its closure PASS. P2-P5/P7/P8 remain
-acceptance intent only; P6 remains referred without acceptance; HOLD
-corrections and all downstream authoring/spend require their separate gates.
+Claude Code independently re-gated exact range
+`e406078775cec30ebf7b7fd4f52a7c5119eec676..0ba453b9bb147e2bc23339231eace9230cff7526`
+read-only and returned **PASS with no P0/P1 and no new P2**. It independently
+reproduced 11/11 and 101/101, both TypeScript checks and clean diff hygiene; the
+known timing-sensitive cell passed in 2,876 ms with no timeout or RPC error in
+that run. It verified zero production paths and unchanged canonical authority.
+P2-P5/P7/P8 remain acceptance intent only; P6 remains referred without
+acceptance; HOLD corrections and all downstream authoring/spend require their
+separate gates.
 
 All ten publication external-effect counters are zero. No provider, image,
 audio, PDF, database, storage, order, payment or deployment action was invoked.

@@ -10,6 +10,11 @@ Initial review head: `4c4cb91ead784d852759d448e03bc3012f9f68c2`
 
 Corrective re-gate head: `2e0b8096d018a45d0c78d8fd4bc610d862b6de5a`
 
+Publication head: `e406078775cec30ebf7b7fd4f52a7c5119eec676`
+
+Publication P2 closeout re-gate head:
+`0ba453b9bb147e2bc23339231eace9230cff7526`
+
 ## P1 canonical publication — 2026-09-03
 
 Publication base: `e87b5c5b3e68cbd6158e1324c73167d56160658c` (already pushed at
@@ -47,8 +52,17 @@ package blocker and `renderQualified:false`.
 Closeout validation passes **1/1 file and 11/11 tests** for the lifecycle spec,
 then **9/9 files and 101/101 tests** for the exact affected slice, with one
 worker and no file parallelism. `npx tsc --noEmit` and
-`npm run story:autonomous-typecheck` both exit 0. Independent Claude Code
-re-gate of this test/documentation-only closeout remains required.
+`npm run story:autonomous-typecheck` both exit 0.
+
+Claude Code independently re-gated exact closeout range
+`e406078775cec30ebf7b7fd4f52a7c5119eec676..0ba453b9bb147e2bc23339231eace9230cff7526`
+read-only and returned **PASS with no P0/P1 and no new P2**. Topology matched:
+one commit, zero merges, exactly the five declared test/documentation paths,
+zero production paths, clean tree, and branch ahead 2 / behind 0 from upstream
+`e87b5c5b3e68cbd6158e1324c73167d56160658c`. Claude reproduced 11/11 and
+101/101 tests, both TypeScript checks and `git diff --check`; its run completed
+the known timing-sensitive cell in 2,876 ms without timeout or RPC error. It did
+not rerun `npm run check`, so no repository-wide green result is inferred.
 
 Real publication authority:
 
@@ -199,8 +213,9 @@ were also compared between Git index blobs and disk: every raw byte hash
 matched, so staging introduced no CRLF/digest drift.
 
 Independent publication QA returned PASS with the two P2 findings and
-dispositions recorded above. The closeout re-gate is pending. No push is
-authorized by this action.
+dispositions recorded above. The exact closeout re-gate also returned PASS with
+no P0/P1/P2 findings. Both local implementation commits remain unpushed; no push
+is authorized by this documentation action.
 
 ## Implementation authority and scope (historical pre-publication record)
 

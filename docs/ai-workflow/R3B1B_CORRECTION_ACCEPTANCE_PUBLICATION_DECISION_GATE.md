@@ -6,8 +6,8 @@ Product owner: Guy
 
 Technical owner: Codex
 
-Status: **P1 SOURCE PUBLICATION QA PASS; 17/18 TEMPORARY AVAILABILITY DECIDED;
-P2 PROOF CLOSEOUT AWAITS RE-GATE — downstream gates remain separate**
+Status: **P1 SOURCE PUBLICATION AND P2 CLOSEOUT INDEPENDENTLY PASS;
+17/18 TEMPORARY AVAILABILITY DECIDED — downstream gates remain separate**
 
 Proposed branch: `codex/r3b1b-correction-acceptance-publication`
 
@@ -290,5 +290,8 @@ projects only accepted-source lineage and text-readiness facts. Canonical
 sellability, blocker, package and render-qualification facts remain the
 responsibility of current-catalog matrix, API, readiness, package and
 render-audit tests. This closeout grants no new package, render, narration,
-deployment, provider, payment or spend authority and requires independent
-Claude Code re-gate.
+deployment, provider, payment or spend authority. Claude Code independently
+re-gated exact range
+`e406078775cec30ebf7b7fd4f52a7c5119eec676..0ba453b9bb147e2bc23339231eace9230cff7526`
+read-only and returned **PASS with no P0/P1 and no new P2**, confirming both
+prior P2s closed without expanding Guy's decision or changing production code.
