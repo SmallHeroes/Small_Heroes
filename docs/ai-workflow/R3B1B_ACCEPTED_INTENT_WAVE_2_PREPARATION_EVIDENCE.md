@@ -14,7 +14,7 @@ Decision authority:
 
 ## Outcome
 
-The six issue-free accepted-intent records were prepared as one zero-cost wave.
+The six eligible accepted-intent records were prepared as one zero-cost wave.
 The batch was reproduced exactly, each pending candidate materialized once and
 replayed byte-identically, and each correction-v4 `inspect` result stopped at
 the two required gates:
@@ -36,8 +36,22 @@ No record is accepted, published, runtime-eligible or production-eligible.
 | P8 | `panda_anat_bedtime` | `grounded_with_visual_metaphor` | `9ca77317f023507cdd88704cae1839316684d48a522092013228ea01db89e851` | `15d88b977c9bd2ed7fc5bd39e01f01e00c2a12f97044829d4fea4d10d0cde692` | `8399bf9fbcf3dea6318209e6af48f8616978e24e8e43afd15e7881d7cbd2d449` | `ff6c212b6aa2ba4065b760d5f3c396c5b9d4c0f3f50bae246b737242350f3243` | `e304e877507f6f05ec2277fa2250fddfc99bbeb4aa3af98bc3916e3cb6a9d8ea` |
 
 All six batch records report zero unresolved creative-source issues, zero
-protected-authority issues, zero critical narration items and zero soft
-narration items. Automated evidence is not human-ear narration acceptance.
+protected-authority issues and zero critical narration items. They do **not**
+report zero soft narration items. The exact soft-item evidence is:
+
+| Record | Soft items | Lemma and pages |
+| --- | ---: | --- |
+| `bunny_ometz_adventure` | 0 | — |
+| `bunny_ometz_fantasy` | 0 | — |
+| `chameleon_koko_adventure` | 2 | `שם`, page 8 (boy + girl) |
+| `fox_uri_bedtime` | 2 | `שם`, page 3 (boy + girl) |
+| `lion_shaket_fantasy` | 4 | `שם`, pages 2 and 9 (boy + girl) |
+| `panda_anat_bedtime` | 2 | `שם`, page 5 (boy + girl) |
+
+The wave therefore contains **10 of the immutable batch's 24 soft narration
+items**, across four stories. They are substantive ambiguity markers for the
+separate narration-pronunciation and human-ear workflow; automated evidence is
+not human-ear narration acceptance.
 
 ## Reproducible artifact paths
 
@@ -87,6 +101,19 @@ The accepted-tree-scoped Git status is empty. The literal repository-wide
 `npm run check` was not run for this no-code preparation milestone; no
 repository-wide green claim is made.
 
+## Independent QA result
+
+Claude Code reviewed exact range
+`417d0807d1d7226d57845cbfbf31e65653d64d54..0f1af28ce4ae8dc51a69d4f54d5b0138d1c2b398`
+read-only and returned **HOLD with no P0, one P1 and one P2**. It reproduced all
+six identities and future revision digests, the candidate inventories and
+replay behavior, 20/20 focused tests, both typechecks, zero effects and the
+17/18-to-11/18 projection. The P1 was the false zero-soft-narration statement;
+the exact 10-item evidence above corrects it. The P2 was actor attribution in
+the P1 push record; the corrected project record now states separately that
+Guy reported the push and Git verified exact parity. No production or lifecycle
+defect was found. This correction still requires an independent re-gate.
+
 ## Effects and exclusions
 
 No accepted authority, technical review, product acceptance, publication,
@@ -100,9 +127,9 @@ this preparation neither executes nor authorizes that transition.
 
 ## Next gate
 
-Claude Code independently reviews this exact preparation range, reproduces the
-six ignored candidates and checks the projected catalog consequence. After
-PASS, Codex may prepare six exact technical-review envelopes. Guy must then
+Claude Code independently re-gates the documentation correction to the
+preparation record. After PASS, Codex may prepare six exact technical-review
+envelopes. Guy must then
 choose publication/package sequencing and explicitly confirm or reject each
 future revision digest before any canonical publication. Publication remains a
 later, separately recorded action and still does not grant package/render

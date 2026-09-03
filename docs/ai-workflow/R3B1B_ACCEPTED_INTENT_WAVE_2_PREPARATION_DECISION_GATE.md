@@ -6,8 +6,9 @@ Product owner: Guy
 
 Technical owner: Codex
 
-Status: **GO FOR ZERO-COST PREPARATION UNDER THE APPROVED R3-B1b GATE;
-STOP BEFORE TECHNICAL ACCEPTANCE, FINAL DIGEST CONFIRMATION OR PUBLICATION**
+Status: **ZERO-COST PREPARATION COMPLETE; INDEPENDENT QA HOLD ON DOCUMENTATION
+TRUTHFULNESS; STOP BEFORE CORRECTION RE-GATE, TECHNICAL ACCEPTANCE, FINAL
+DIGEST CONFIRMATION OR PUBLICATION**
 
 Branch: `codex/r3b1b-accepted-intent-wave-2`
 
@@ -15,13 +16,13 @@ Base: `417d0807d1d7226d57845cbfbf31e65653d64d54`
 
 Authority comes from Guy's approved packet commit `19f110f4`, exact candidate
 batch `96154a39091b71c9dffb64dcf60b8667c149b78d4b4c0d5a07787189d00a7e9b`,
-acceptance intent for P2-P5/P7/P8, and the existing R3-B1b rule that later clean
-records advance in bounded waves. This gate narrows the present action to
+acceptance intent for P2-P5/P7/P8, and the existing R3-B1b rule that later
+eligible records advance in bounded waves. This gate narrows the present action to
 preparation and evidence. It does not convert intent into final acceptance.
 
 ## 1. Proposed change
 
-Prepare the six clean accepted-intent records as one bounded review wave using
+Prepare the six eligible accepted-intent records as one bounded review wave using
 the already independently passed correction-v4 lifecycle. Reproduce the exact
 R3-B1a batch, materialize one immutable pending candidate per record, derive
 each exact future revision digest with `inspect`, and publish one consolidated
@@ -32,10 +33,13 @@ No new production abstraction or story-specific runtime path is required.
 ## 2. Why now?
 
 P1 proved and closed the lifecycle. These six records already have exact Guy
-acceptance intent, exact world-mode decisions, zero unresolved creative issues,
-zero critical TTS items and zero soft TTS items. Their remaining gates are the
-independent technical review of the extracted identities and Guy's later exact
-digest confirmation. Preparing them together avoids six repetitive operational
+acceptance intent, exact world-mode decisions, zero unresolved creative-source
+issues, zero protected-authority issues and zero critical TTS items. Four
+records retain **10 soft narration-review items**, all for the ambiguous lemma
+`שם`: P4 has 2 on page 8, P5 has 2 on page 3, P7 has 4 on pages 2 and 9, and
+P8 has 2 on page 5; P2 and P3 have none. These items remain substantive input
+to the separate narration-pronunciation and human-ear gate. Preparing the
+source/Visual Direction identities together avoids six repetitive operational
 cycles without weakening per-record identity or approval.
 
 ## 3. Scope
@@ -132,10 +136,26 @@ Claude Code must falsify batch/decision/record/source/Visual Direction/manifest/
 revision identity, replay, record selection, effect counters, zero canonical
 change and the projected 17/18-to-11/18 publication consequence. Guy later
 chooses publication/package sequencing and confirms or rejects the six exact
-revision digests after technical PASS. Cowork is not required for these six
-issue-free P records; it remains required for P6.
+revision digests after technical PASS. Cowork is not required for the already
+decided Story Source / Visual Direction intent of P2-P5/P7/P8; it remains
+required for P6. The 10 soft narration-review items remain open for the
+separate narration-pronunciation and human-ear workflow.
 
-## 11. Do not do
+## 11. Independent QA result and correction gate
+
+Claude Code reviewed exact range
+`417d0807d1d7226d57845cbfbf31e65653d64d54..0f1af28ce4ae8dc51a69d4f54d5b0138d1c2b398`
+read-only and returned **HOLD with no P0, one P1 and one P2**. It independently
+verified the preparation topology, all six identities and future revision
+digests, materialized inventories, replay, 20/20 focused tests, both
+typechecks, zero effects and the projected 17/18-to-11/18 publication
+consequence. The P1 identified the false zero-soft-TTS statement corrected
+above. The P2 required the P1 push record to distinguish Guy's report from
+what Git itself proves. No implementation defect was found. The preparation
+must remain on HOLD until Claude Code independently re-gates this documentation
+correction.
+
+## 12. Do not do
 
 Do not create technical PASS envelopes before independent review. Do not create
 Guy final-acceptance receipts, publish canonical revisions, enable Wizard slots,

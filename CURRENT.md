@@ -1,9 +1,9 @@
 # SmallHeroes — Current Technical State
 
-## R3-B1b accepted-intent wave 2 — six candidates prepared; QA pending
+## R3-B1b accepted-intent wave 2 — preparation QA HOLD; correction awaiting re-gate
 
 After P1 publication and P2 closeout reached pushed 0/0 parity at `417d0807`,
-the next bounded zero-cost wave prepared the six remaining issue-free
+the next bounded zero-cost wave prepared the six remaining eligible
 accepted-intent records together: P2-P5, P7 and P8. The existing independently
 passed correction-v4 lifecycle was reused unchanged; no production code was
 added or modified.
@@ -26,11 +26,22 @@ render and external-write counters are zero; cost is USD 0. P6, HOLD records,
 narration, Visual Contracts, packages, rendering, deployment and publication
 remain excluded. Exact evidence is in
 `docs/ai-workflow/R3B1B_ACCEPTED_INTENT_WAVE_2_PREPARATION_EVIDENCE.md`.
+The six records have zero unresolved creative-source issues, zero protected-
+authority issues and zero critical TTS items, but four records retain **10
+soft narration-review items**, all for `שם`: P4 has 2 on page 8, P5 has 2 on
+page 3, P7 has 4 on pages 2 and 9, and P8 has 2 on page 5. P2 and P3 have none.
+These remain open for the separate pronunciation and human-ear gate.
 Wizard sellability remains 17/18 because nothing was published. Publishing all
 six before exact-source packages exist is expected to reduce the fail-closed
 catalog to 11/18; Guy has not authorized that state, so publication/package
 sequencing is an explicit later decision.
-Independent Claude Code review is pending; Codex does not self-award PASS.
+Claude Code independently reviewed `417d0807..0f1af28c` and returned **HOLD
+with no P0, one documentation-truthfulness P1 and one actor-attribution P2**.
+It verified the technical preparation, every identity and revision digest,
+20/20 focused tests, both typechecks, zero effects and the 11/18 projection.
+The factual corrections are recorded here and in the gate/evidence documents;
+the wave remains on HOLD until Claude Code independently re-gates them. Codex
+does not self-award PASS.
 
 ## R3-B1b P1 — publication and P2 closeout independently passed and pushed
 
@@ -111,9 +122,10 @@ All ten publication external-effect counters are zero. No provider, image,
 audio, PDF, database, storage, order, payment or deployment action was invoked.
 Cost is USD 0; the resemblance threshold remains 0.70. The pre-publication base
 was `e87b5c5b3e68cbd6158e1324c73167d56160658c`, already at upstream parity.
-Guy subsequently pushed the publication, P2 closeout and documentation closeout
-through exact head `417d0807d1d7226d57845cbfbf31e65653d64d54`;
-branch and origin were verified at 0/0 parity before wave 2 began.
+Guy reported that he pushed the publication, P2 closeout and documentation
+closeout. Git then verified exact head
+`417d0807d1d7226d57845cbfbf31e65653d64d54` at 0/0 branch/origin parity before
+wave 2 began.
 
 ## R3-B1b implementation closeout — historical pre-publication record
 
