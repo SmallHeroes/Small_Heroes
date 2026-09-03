@@ -1,5 +1,35 @@
 # SmallHeroes — Current Technical State
 
+## R3-B1b accepted-intent wave 2 — six technical-review envelopes prepared; artifact QA pending
+
+After wave-2 preparation independently passed and Guy pushed the branch to
+exact 0/0 parity at `f5fc5fb3`, Codex prepared the six required correction
+technical-review v2 envelopes as one zero-cost batch. No code or schema change
+was needed. Each envelope truthfully binds Claude Code's final exact PASS range
+`0f1af28c..d47fe4e9` with P0/P1/P2 `0/0/0`; the earlier HOLD remains separately
+recorded and the later `f5fc5fb3` closeout is not presented as reviewed.
+
+The review/revision digest pairs are:
+
+- P2 `4dd6ae5bb0020f08f0bba7d97904c466007bb5a1490f9fc7d1d579e8df734345` / `9b8c28ad8eeac4ee193c561573fd02fb5a3d62f053aa52cca24e94dc498948bd`;
+- P3 `23ff6887e07c22752949d34e5acf3456025c4c759a815881b6cb5547571c9509` / `432f555fded7efd5b17c224543ac7979afe16977e27dbab77c0c358941e1ff0e`;
+- P4 `b86b84a5b54b9f3fb1c185401b7b8c965f0a096e22e78d9684423ae7925458e4` / `5f57f2591e2301d8908f383a16bd62912aebeddb69bcf0f29157e21c60acbdf5`;
+- P5 `2fb4fd44aad26cf55e2cd0b2562b3c6d98163a1ee4857668ef58570911da7833` / `92cc7fe154485da7360907b750fcaf5bfd01d1027f8e59575435a27dccd6198a`;
+- P7 `f896d94cf00024d4d91fc29785bfa6427010a605f13e6d56fca34794699af064` / `394841c3d4559cc03b1900ad2a8e72309427a427821cfed10b4bdb627cee42d6`;
+- P8 `370392c9d13eccdf0a48cea23bdc7b6679d6a03de90b4f63465807779c3d3882` / `e304e877507f6f05ec2277fa2250fddfc99bbeb4aa3af98bc3916e3cb6a9d8ea`.
+
+All six canonical-byte and identity recomputations pass; all are regular,
+single-link files with unique review and revision digests. Focused validation
+passes 2/2 files and 20/20 tests; both TypeScript checks pass. No accepted
+authority, product acceptance, package, render, publication, external effect or
+spend occurred. Sellability remains 17/18. Exact evidence is in
+`docs/ai-workflow/R3B1B_ACCEPTED_INTENT_WAVE_2_TECHNICAL_REVIEW_ENVELOPES_EVIDENCE.md`.
+
+The envelope set now requires independent artifact QA. Only after PASS may the
+six exact revision digests return to Guy for final confirmation and a separate
+publication/package sequencing decision. The 10 soft narration items, P6 and
+all HOLD/D records remain on their separate gates.
+
 ## R3-B1b accepted-intent wave 2 — preparation independently passed
 
 After P1 publication and P2 closeout reached pushed 0/0 parity at `417d0807`,
