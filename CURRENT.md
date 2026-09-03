@@ -1,6 +1,6 @@
 # SmallHeroes — Current Technical State
 
-## R3-B1b — compact product-decision packet prepared; exact owner decisions pending
+## R3-B1b planning — packet and draft gate independently QA-passed; exact owner decisions pending
 
 After the independent R3-B1a PASS, Codex completed the authorized zero-cost
 product-decision packet at
@@ -16,6 +16,19 @@ Cowork-review referral for P6 before Guy's later exact decision, and one
 recommended resolution for each of the 13 D1-D13 creative/continuity issues. It
 also keeps the 7 critical and 24 soft narration findings, concrete wardrobe,
 and paid visual work as separate gates.
+
+Claude Code independently reviewed the packet/draft-gate planning milestone
+read-only over exact range
+`ad54e3c1929e9ca235131b3a559dd4f30403c4f7..19f110f414ec70cd64e96be3b0a99132bb4ef8b9`
+and returned **PASS with no P0/P1/P2**. It verified one commit, zero merges, a
+clean tree, exactly four documentation files and zero non-doc paths; reran
+TypeScript successfully; reproduced the packet byte length and both SHA-256
+bindings; cross-checked all eight P records and all thirteen D decisions against
+the immutable artifact; and confirmed the P6 Cowork-before-Guy sequence, current
+lifecycle fences, wrong-packet rejection intent, and zero-effect / USD 0
+boundary. The reviewed commit is pushed and tracks origin at 0/0 parity. This
+technical PASS validates the packet; it does not supply Guy's product decisions
+or approve R3-B1b implementation.
 
 The smallest recommended clean wave is `dragon_dini_adventure`,
 `bunny_ometz_adventure`, and `bunny_ometz_fantasy`; all three have zero current
@@ -35,7 +48,9 @@ single-record first proof. It may not be implemented until Guy accepts the exact
 P1-P5/P7/P8 intent and D1-D13 directions, authorizes the P6 Cowork referral, and
 approves the new gate. P6 acceptance can occur only after Cowork returns.
 Narration remains separately blocked on human ear decisions. All effects and
-spend for this packet-preparation step are zero, and the branch remains unpushed.
+spend for this packet-preparation step are zero. The reviewed packet commit is
+pushed; this faithful PASS transcription is documentation-only and grants no
+additional authority.
 
 ## R3-B1a — implementation and documentation independently QA-passed; technical preparation closed
 
@@ -55,7 +70,8 @@ read-only and returned **PASS with no P0/P1/P2**. It verified one commit, zero
 merges, a clean tree, exactly the two declared documentation files, zero non-doc
 diff lines, the exact 67/68 selection explanation, the intermittent 5,000ms
 timeout disclosure, and the unchanged candidate-artifact SHA-256. R3-B1a
-technical preparation is therefore closed. The branch remains unpushed. This
+technical preparation is therefore closed. At the later packet review, the
+branch tracked origin at 0/0 parity through pushed commit `19f110f4`. This
 PASS does not accept any candidate, resolve a product HOLD, or grant publication,
 render, provider, payment, deployment, or launch authority.
 
