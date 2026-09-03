@@ -68,12 +68,14 @@ pending manifest for inspection and disposition recording, but the old review
 and promotion paths reject it explicitly; no acceptance or publication path was
 silently inherited.
 
-Focused validation passes **7 files / 67 tests**, including all-17 dry run,
-atomic creation and replay, lock ownership, record materialization, deep
-provenance rejection, the real CLI, historical-batch replay, materializer,
-enrichment, and readiness checks. The updated workload classifier passes
-**1 file / 7 tests**. `npx tsc --noEmit --pretty false` and `git diff --check`
-pass. The literal final `npm run check` uses the corrected canonical
+The exact focused-validation selection contains **7 files / 67 tests** and
+covers all-17 dry run, atomic creation and replay, lock ownership, record
+materialization, deep provenance rejection, the real CLI, historical-batch
+replay, materializer, enrichment, and readiness checks. It returned 67/67 in
+the authoring run, but that result is timing-sensitive as disclosed below. The
+updated workload classifier passes **1 file / 7 tests**. `npx tsc --noEmit
+--pretty false` and `git diff --check` pass. The literal final `npm run check`
+uses the corrected canonical
 **382 / 362 / 20** file partition. Ordinary tests report **339 passed files /
 4,790 passed tests**, with only ten known ENOENT failures across six unchanged
 specs whose ignored historical `outputs/` fixtures are absent. Resource tests
@@ -82,14 +84,21 @@ Vitest `onTaskUpdate` RPC timeouts. The overall command exits 1 and is not calle
 PASS; no fixture was copied and no failure was hidden.
 
 Claude independently reproduced the substantive implementation claims and the
-real dry-run CLI. Its first focused execution reported one unidentified,
-non-reproducing failure and a seven-file total of 68 tests; its immediate rerun
-was 68/68 and the correction-batch spec passed 9/9 three additional times. The
-exact documented seven-file command was rerun after the review and again passed
-**67/67**; its per-file inventory is 9 + 14 + 12 + 6 + 8 + 11 + 7. Claude did
-not publish a per-file breakdown or exact argv for its 68-test selection, so the
-documented count remains the directly reproduced 67 while both observations are
-preserved. No recurring failure has been reproduced.
+real dry-run CLI. Its first focused execution reported one timeout with 67
+passing tests; its immediate rerun was 68/68 and the correction-batch spec
+passed 9/9 three additional times. The 68-test changed-file slice substituted
+the 7-test workload-classifier spec for the documented command's 6-test
+revision-lifecycle spec, so both totals are correct for their respective
+selections. The exact documented selection remains 9 + 14 + 12 + 6 + 8 + 11 +
+7 = **67**. It returned 67/67 in the authoring run and in one post-review run,
+but the documentation re-gate also reproduced **1 timeout / 66 passing** in the
+same exact command. The identified cell is `keeps its semantic digest
+deterministic and environment claims aligned with runtime helpers` at
+`wizard-all-story-render-readiness.spec.ts:242`; isolated runs measured 5,234ms
+(timeout) and 4,991ms (PASS) against the effective 5,000ms test timeout. No
+assertion or digest mismatch was observed. The 67/67 result therefore applies
+when this near-threshold cell completes below 5,000ms; it is not evidence that
+the command is timing-stable.
 
 All effect counters remain zero: no accepted Story Source or Visual Direction,
 runtime activation, provider/network/database/storage call, image/audio/PDF

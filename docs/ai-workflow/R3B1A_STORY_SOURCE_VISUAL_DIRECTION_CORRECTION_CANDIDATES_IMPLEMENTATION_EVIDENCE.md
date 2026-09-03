@@ -170,12 +170,21 @@ Focused exact slice:
 npx vitest run lib/visual-package/__tests__/story-source-visual-direction-correction-batch.spec.ts lib/visual-package/__tests__/story-source-visual-direction-review-batch.spec.ts lib/__tests__/story-source-revision-materializer.spec.ts lib/__tests__/story-source-revision-lifecycle.spec.ts lib/__tests__/story-source-visual-direction-enrichment-lifecycle.spec.ts lib/visual-package/__tests__/wizard-all-story-render-readiness.spec.ts lib/visual-package/__tests__/wizard-all-story-readiness-cli.spec.ts --maxWorkers=1 --no-file-parallelism
 ```
 
-Result: **7 files / 67 tests PASS; exit 0**.
+Observed authoring result: **7 files / 67 tests PASS; exit 0**. This records that
+run's outcome; it is not a claim that the command is timing-stable.
 
 Per-file test inventory for this exact argv is 9 correction-batch + 14 review-
 batch + 12 materializer + 6 lifecycle + 8 enrichment + 11 readiness + 7 CLI =
-**67**. The same command was rerun after independent review and again returned
-**7/7 files and 67/67 tests PASS; exit 0**.
+**67**. The same command also returned **7/7 files and 67/67 tests PASS; exit
+0** in one post-review run. During the documentation re-gate, however, the exact
+command returned **1 timed-out test / 66 passing tests**. The timeout was the
+cell `keeps its semantic digest deterministic and environment claims aligned
+with runtime helpers` at `wizard-all-story-render-readiness.spec.ts:242`.
+Independent isolated executions measured that cell at 5,234ms (timeout) and
+4,991ms (PASS) against the effective 5,000ms test timeout. No assertion or
+digest mismatch was observed. Accordingly, **67/67 applies when this
+near-threshold cell completes below 5,000ms**; the command is intermittently
+timing-sensitive even in isolation.
 
 Workload classifier after adding the new spec:
 
@@ -227,15 +236,19 @@ Its three P2 notes are disposed as follows:
    `female-prose-byte-identical` and explicitly discloses why the full female-
    projection bytes differ from the historical accepted source. No code or
    artifact changed.
-2. **Test-count/run discrepancy, disclosed rather than guessed:** Claude's first
-   seven-file execution reported one unidentified failure and 67 passing tests;
-   its immediate rerun reported 68/68, and the correction-batch file passed 9/9
-   on three further isolated runs. Claude did not publish per-file counts or
-   exact argv for the 68-test selection. The exact command printed in this
-   document was rerun after review and passed 67/67; its seven per-file counts
-   sum to 67 as recorded above. The evidence therefore preserves the exact
-   reproducible 67 count and discloses both reviewer observations. No recurring
-   failure or changed repository test inventory was found.
+2. **Test count resolved; timing variance disclosed:** Claude's 68-test
+   changed-file slice substituted the 7-test workload-classifier spec for the
+   exact documented command's 6-test revision-lifecycle spec. Thus 68 and 67
+   are both correct for their own selections, and the documented selection's
+   per-file inventory sums exactly to 67. Its authoring run and one post-review
+   run returned 67/67, while the documentation re-gate reproduced the earlier
+   failure in the exact command as a 5,000ms timeout at
+   `wizard-all-story-render-readiness.spec.ts:242`, with 66 other tests passing.
+   Isolated measurements of that cell were 5,234ms (timeout) and 4,991ms (PASS),
+   so the focused result is explicitly qualified above rather than presented as
+   timing-stable. There was no assertion or digest mismatch. No test timeout is
+   changed in this documentation-only closeout; any explicit per-cell timeout
+   adjustment would be a separate code milestone and gate.
 3. **Correctly surfaced product blocker, not a defect:** the single
    `dragon_dini_fantasy` companion appearance-state authority gap is already
    counted under `protectedAuthorityIssueCount: 1`, documented in the 13-item
