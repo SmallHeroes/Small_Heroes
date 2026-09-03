@@ -1,6 +1,6 @@
 # SmallHeroes — Current Technical State
 
-## R3-B1b accepted-intent wave 2 — preparation QA HOLD; correction awaiting re-gate
+## R3-B1b accepted-intent wave 2 — preparation independently passed
 
 After P1 publication and P2 closeout reached pushed 0/0 parity at `417d0807`,
 the next bounded zero-cost wave prepared the six remaining eligible
@@ -39,9 +39,17 @@ Claude Code independently reviewed `417d0807..0f1af28c` and returned **HOLD
 with no P0, one documentation-truthfulness P1 and one actor-attribution P2**.
 It verified the technical preparation, every identity and revision digest,
 20/20 focused tests, both typechecks, zero effects and the 11/18 projection.
-The factual corrections are recorded here and in the gate/evidence documents;
-the wave remains on HOLD until Claude Code independently re-gates them. Codex
-does not self-award PASS.
+The factual corrections are recorded here and in the gate/evidence documents.
+Claude Code independently re-gated exact correction range
+`0f1af28ce4ae8dc51a69d4f54d5b0138d1c2b398..d47fe4e9abaf1eb1ebc76d4e4d97918409840501`
+read-only and returned **PASS with no P0/P1/P2**. It reproduced the exact
+`0/0/2/2/4/2` soft counts, 10-of-24 total, symmetric boy/girl locations, zero
+creative/protected/critical items, corrected actor attribution, exact
+five-document scope, clean hygiene, TypeScript PASS and zero effects. Both
+prior findings are closed. The preparation is technically passed; the next
+bounded step may prepare six technical-review envelopes together, but this
+PASS itself grants no product acceptance, canonical publication, package,
+Visual Contract, render, narration, deployment or spend authority.
 
 ## R3-B1b P1 — publication and P2 closeout independently passed and pushed
 

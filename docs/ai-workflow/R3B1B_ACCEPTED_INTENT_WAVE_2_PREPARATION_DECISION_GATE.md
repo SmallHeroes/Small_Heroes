@@ -6,9 +6,8 @@ Product owner: Guy
 
 Technical owner: Codex
 
-Status: **ZERO-COST PREPARATION COMPLETE; INDEPENDENT QA HOLD ON DOCUMENTATION
-TRUTHFULNESS; STOP BEFORE CORRECTION RE-GATE, TECHNICAL ACCEPTANCE, FINAL
-DIGEST CONFIRMATION OR PUBLICATION**
+Status: **ZERO-COST PREPARATION INDEPENDENTLY PASSED; STOP BEFORE TECHNICAL
+ACCEPTANCE, FINAL DIGEST CONFIRMATION OR PUBLICATION**
 
 Branch: `codex/r3b1b-accepted-intent-wave-2`
 
@@ -141,7 +140,7 @@ decided Story Source / Visual Direction intent of P2-P5/P7/P8; it remains
 required for P6. The 10 soft narration-review items remain open for the
 separate narration-pronunciation and human-ear workflow.
 
-## 11. Independent QA result and correction gate
+## 11. Independent QA result and correction closeout
 
 Claude Code reviewed exact range
 `417d0807d1d7226d57845cbfbf31e65653d64d54..0f1af28ce4ae8dc51a69d4f54d5b0138d1c2b398`
@@ -151,9 +150,17 @@ digests, materialized inventories, replay, 20/20 focused tests, both
 typechecks, zero effects and the projected 17/18-to-11/18 publication
 consequence. The P1 identified the false zero-soft-TTS statement corrected
 above. The P2 required the P1 push record to distinguish Guy's report from
-what Git itself proves. No implementation defect was found. The preparation
-must remain on HOLD until Claude Code independently re-gates this documentation
-correction.
+what Git itself proves. No implementation defect was found.
+
+Claude Code then independently re-gated exact correction range
+`0f1af28ce4ae8dc51a69d4f54d5b0138d1c2b398..d47fe4e9abaf1eb1ebc76d4e4d97918409840501`
+read-only and returned **PASS with no P0/P1/P2**. It reproduced the per-record
+soft counts `0/0/2/2/4/2`, the 10-of-24 wave/batch total, symmetric boy/girl
+locations, zero creative/protected/critical items, the corrected push
+attribution, clean five-document scope and zero effects. Both prior findings
+are closed. This PASS covers the preparation and its documentation correction;
+it grants no technical-review envelope, product acceptance, publication,
+package, Visual Contract, render, narration, deployment or spend authority.
 
 ## 12. Do not do
 

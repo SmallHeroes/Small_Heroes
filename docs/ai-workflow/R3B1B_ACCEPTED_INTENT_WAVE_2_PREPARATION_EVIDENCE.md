@@ -112,7 +112,18 @@ replay behavior, 20/20 focused tests, both typechecks, zero effects and the
 the exact 10-item evidence above corrects it. The P2 was actor attribution in
 the P1 push record; the corrected project record now states separately that
 Guy reported the push and Git verified exact parity. No production or lifecycle
-defect was found. This correction still requires an independent re-gate.
+defect was found.
+
+Claude Code independently re-gated exact correction range
+`0f1af28ce4ae8dc51a69d4f54d5b0138d1c2b398..d47fe4e9abaf1eb1ebc76d4e4d97918409840501`
+read-only and returned **PASS with no P0/P1/P2**. It reproduced the exact
+`0/0/2/2/4/2` soft counts, the 10-of-24 total, symmetric boy/girl page/lemma
+locations, zero creative/protected/critical items, the corrected push
+attribution, five-document-only scope, clean diff hygiene, TypeScript PASS and
+zero effects. Both prior findings are closed. The focused 20/20 suite and batch
+dry run were not rerun in the docs-only re-gate because Claude had reproduced
+them in the prior review; `npm run check` remains unrun and no repository-wide
+green claim is made.
 
 ## Effects and exclusions
 
@@ -127,9 +138,9 @@ this preparation neither executes nor authorizes that transition.
 
 ## Next gate
 
-Claude Code independently re-gates the documentation correction to the
-preparation record. After PASS, Codex may prepare six exact technical-review
-envelopes. Guy must then
+With the preparation and correction independently passed, Codex may next
+prepare the six exact technical-review envelopes as one bounded zero-cost
+batch. Guy must then
 choose publication/package sequencing and explicitly confirm or reject each
 future revision digest before any canonical publication. Publication remains a
 later, separately recorded action and still does not grant package/render
