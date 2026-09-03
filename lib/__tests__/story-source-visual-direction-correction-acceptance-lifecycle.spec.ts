@@ -93,6 +93,39 @@ function textReadinessWithoutSourcePath<T extends { sourcePath?: unknown } | nul
   return readiness;
 }
 
+type ReadinessReport = ReturnType<typeof auditWizardAllStoryRenderReadiness>;
+
+function acceptedSourceSummaryFacts(summary: ReadinessReport['summary']) {
+  return {
+    acceptedProductLineageCount: summary.acceptedProductLineageCount,
+    supportedGenderProjectionReadyCount:
+      summary.supportedGenderProjectionReadyCount,
+    supportedNarrationInputReadyCount:
+      summary.supportedNarrationInputReadyCount,
+    supportedCriticalTtsGateReadyCount:
+      summary.supportedCriticalTtsGateReadyCount,
+    supportedNarrationAutomatedPreflightReadyCount:
+      summary.supportedNarrationAutomatedPreflightReadyCount,
+    softTtsReviewItemCount: summary.softTtsReviewItemCount,
+    storiesWithSoftTtsReviewItemsCount:
+      summary.storiesWithSoftTtsReviewItemsCount,
+  };
+}
+
+function acceptedSourceRecordFacts(
+  record: ReadinessReport['records'][number],
+) {
+  return {
+    acceptedProductLineage: record.acceptedProductLineage,
+    currentProductSourceRole: record.sources.currentProductSourceRole,
+    corpusDecisionRequired: record.sources.corpusDecisionRequired,
+    acceptedSourceRevision: record.productionStages.acceptedSourceRevision,
+    productTextReadiness: textReadinessWithoutSourcePath(
+      record.productTextReadiness,
+    ),
+  };
+}
+
 function buildFixture() {
   const root = fs.mkdtempSync(
     path.join(REPO_ROOT, 'outputs', 'r3b1b-acceptance-test-'),
@@ -639,7 +672,7 @@ describe('R3-B1b correction acceptance and publication lifecycle', () => {
     ).toThrow('accepted_story_source_inventory_alias_rejected');
   });
 
-  it('changes only the accepted-source readiness facts in the single-record proof', () => {
+  it('isolates injected accepted-source facts from canonical package qualification', () => {
     vi.stubEnv('ENABLE_V3_APPROVED_BANK', 'true');
     vi.stubEnv('ENABLE_WIZARD_QA_RENDER_CATALOG', 'false');
     const canonicalAcceptedRoot = path.join(
@@ -667,13 +700,15 @@ describe('R3-B1b correction acceptance and publication lifecycle', () => {
       now: FIXED_NOW,
       acceptedRootRelative: fixture.acceptedRootRelative,
     });
-    expect(after.summary).toEqual({
-      ...baseline.summary,
+    expect(acceptedSourceSummaryFacts(after.summary)).toEqual({
       acceptedProductLineageCount:
         baseline.summary.acceptedProductLineageCount + 1,
-      sourceCorpusConflictCount: baseline.summary.sourceCorpusConflictCount,
       supportedGenderProjectionReadyCount:
         baseline.summary.supportedGenderProjectionReadyCount + 1,
+      supportedNarrationInputReadyCount:
+        baseline.summary.supportedNarrationInputReadyCount,
+      supportedCriticalTtsGateReadyCount:
+        baseline.summary.supportedCriticalTtsGateReadyCount,
       supportedNarrationAutomatedPreflightReadyCount:
         baseline.summary.supportedNarrationAutomatedPreflightReadyCount + 1,
       softTtsReviewItemCount: baseline.summary.softTtsReviewItemCount - 2,
@@ -686,33 +721,14 @@ describe('R3-B1b correction acceptance and publication lifecycle', () => {
     for (const record of after.records) {
       if (record.storyKey === STORY_KEY) continue;
       const before = beforeByStory.get(record.storyKey)!;
-      expect({
-        acceptedProductLineage: record.acceptedProductLineage,
-        authoringPolicy: record.authoringPolicy,
-        earliestBlocker: record.earliestBlocker,
-        nextCanonicalAction: record.nextCanonicalAction,
-        productTextReadiness: textReadinessWithoutSourcePath(
-          record.productTextReadiness,
-        ),
-        productionStages: record.productionStages,
-        qaTextReadiness: record.qaTextReadiness,
-      }).toEqual({
-        acceptedProductLineage: before.acceptedProductLineage,
-        authoringPolicy: before.authoringPolicy,
-        earliestBlocker: before.earliestBlocker,
-        nextCanonicalAction: before.nextCanonicalAction,
-        productTextReadiness: textReadinessWithoutSourcePath(
-          before.productTextReadiness,
-        ),
-        productionStages: before.productionStages,
-        qaTextReadiness: before.qaTextReadiness,
-      });
+      expect(acceptedSourceRecordFacts(record)).toEqual(
+        acceptedSourceRecordFacts(before),
+      );
     }
     const p1 = after.records.find((record) => record.storyKey === STORY_KEY)!;
     expect(p1.sources.currentProductSourceRole).toBe('accepted_product_source');
     expect(p1.sources.corpusDecisionRequired).toBe(false);
     expect(p1.productionStages.acceptedSourceRevision).toBe(true);
-    expect(p1.productionStages.renderQualified).toBe(false);
     expect(p1.productTextReadiness).toMatchObject({
       supportedGenderProjectionReady: true,
       supportedNarrationInputReady: true,

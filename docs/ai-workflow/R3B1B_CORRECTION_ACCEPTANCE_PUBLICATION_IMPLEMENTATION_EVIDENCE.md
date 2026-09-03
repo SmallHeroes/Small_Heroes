@@ -18,6 +18,38 @@ revision `64dcd0e741f17fc08cde95ad8a5a00b303955aa28ccd065d44f01e49e9d155fc` and
 authorized canonical Story Source / Visual Direction only. No render,
 narration, package, deployment or paid action was authorized or executed.
 
+### Independent publication QA and P2 closeout
+
+Claude Code independently reviewed exact range
+`e87b5c5b3e68cbd6158e1324c73167d56160658c..e406078775cec30ebf7b7fd4f52a7c5119eec676`
+read-only and returned **PASS with no P0/P1 and two P2**. It reproduced the
+9-file / 101-test affected slice, the 14-file 138-pass/one-timeout result, the
+isolated timing-sensitive PASS, all accepted inventory identities and zero
+external effects.
+
+P2-1 was the product consequence of correct fail-closed behavior: publishing
+P1's source authority made the old fallback inadmissible while no package bound
+to the new source exists. Guy explicitly confirmed that
+`dragon_dini_adventure` stays temporarily unavailable and the Wizard catalog
+stays **17/18** until a new accurate package for this published source is
+approved. No fallback, package waiver or eligibility override is authorized.
+
+P2-2 was a proof-scope defect, not a production defect. The lifecycle test's
+`acceptedRootRelative` controlled accepted lineage and product-text evidence,
+but package selection and sellability still read canonical authority. The test
+therefore could not prove its former claim that only all functional readiness
+facts changed. The closeout changes no production code: it renames the proof,
+projects only accepted-source-controlled summary/record fields, and removes
+package/render claims from the injected-root assertion. Current-catalog tests
+remain the separate proof of 17/18 sellability, P1 unsellability, its missing
+package blocker and `renderQualified:false`.
+
+Closeout validation passes **1/1 file and 11/11 tests** for the lifecycle spec,
+then **9/9 files and 101/101 tests** for the exact affected slice, with one
+worker and no file parallelism. `npx tsc --noEmit` and
+`npm run story:autonomous-typecheck` both exit 0. Independent Claude Code
+re-gate of this test/documentation-only closeout remains required.
+
 Real publication authority:
 
 - Product-decision digest: `9b625e71318cf3a26117bc89744a1e39c04d13f6d74f632cddab4aaa639113e8`.
@@ -84,10 +116,13 @@ production `mvp-story-matrix.ts`, `audit.ts`, and
 `7a8434c7...` digest and the exact R3-B1a batch remain reproducible.
 
 The lifecycle fixture removes only the exact P1 revision from its disposable
-copy (retaining the legacy story directory), then computes its source-overlay
-baseline there. Current audit/CLI tests assert 2 accepted authorities and 1
-render-qualified story; a regression proves untyped historical-option
-injection cannot hide P1 in the ordinary audit. During diagnosis, the exact
+copy (retaining the legacy story directory), then computes accepted-lineage and
+product-text source facts there. It does not claim that injected-root package,
+sellability, blocker or render facts are hermetic. Current canonical audit/CLI,
+matrix, API and package tests assert 17/18 sellability, 2 accepted authorities,
+P1 unsellability and 1 render-qualified story; a regression proves untyped
+historical-option injection cannot hide P1 in the ordinary audit. During
+diagnosis, the exact
 new canonical revision was briefly held under ignored `outputs/` and restored
 with `finally`; no file was deleted or rewritten. Temporary diagnostic outputs
 are not authority and are not staged.
@@ -163,7 +198,9 @@ The 13 new authority files (12-file revision plus external acceptance receipt)
 were also compared between Git index blobs and disk: every raw byte hash
 matched, so staging introduced no CRLF/digest drift.
 
-Independent publication QA is pending. No push is authorized by this action.
+Independent publication QA returned PASS with the two P2 findings and
+dispositions recorded above. The closeout re-gate is pending. No push is
+authorized by this action.
 
 ## Implementation authority and scope (historical pre-publication record)
 
@@ -274,7 +311,7 @@ Synthetic technical-review and final-product-acceptance envelopes exist only
 inside temporary test roots to prove the future gated path. They are not
 production decisions and are removed after the test.
 
-The temporary readiness overlay changes only accepted-source-derived facts:
+The temporary readiness overlay proves these accepted-source-derived facts:
 
 - accepted source authority: 1 to 2;
 - supported gender authority: 1 to 2;
@@ -283,13 +320,13 @@ The temporary readiness overlay changes only accepted-source-derived facts:
 - P1 corpus decision required: true to false;
 - narration input ready: remains 18;
 - critical narration findings: remains 18;
-- corpus conflict evidence: remains 18 because the accepted candidate bytes
-  differ from the historical corpus bytes;
-- complete visual packages and strict render-ready stories: remain 1/18;
-- P1 strict render-ready: remains false.
+- corpus conflict evidence is observed separately; it is not part of the
+  corrected injected-root containment projection.
 
-The other 17 functional dispositions remain unchanged. The canonical accepted
-tree is not written.
+The accepted-source projections for the other 17 records remain unchanged. The
+fixture does not claim containment for canonical package selection,
+sellability, blockers, next actions or render qualification; current-catalog
+specs prove those facts separately. The canonical accepted tree is not written.
 
 ## Validation evidence
 

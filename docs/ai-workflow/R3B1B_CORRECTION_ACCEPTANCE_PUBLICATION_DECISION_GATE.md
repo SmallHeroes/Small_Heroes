@@ -6,8 +6,8 @@ Product owner: Guy
 
 Technical owner: Codex
 
-Status: **P1 FINAL DIGEST CONFIRMED; CANONICAL STORY SOURCE / VISUAL DIRECTION
-PUBLICATION AUTHORIZED AND EXECUTED — downstream gates remain separate**
+Status: **P1 SOURCE PUBLICATION QA PASS; 17/18 TEMPORARY AVAILABILITY DECIDED;
+P2 PROOF CLOSEOUT AWAITS RE-GATE — downstream gates remain separate**
 
 Proposed branch: `codex/r3b1b-correction-acceptance-publication`
 
@@ -20,8 +20,12 @@ The initial implementation approval below was followed on 2026-09-03 by Guy's
 explicit final confirmation of P1 revision
 `64dcd0e741f17fc08cde95ad8a5a00b303955aa28ccd065d44f01e49e9d155fc` and authority to
 publish only its canonical Story Source and Visual Direction. The action is
-complete as a 12-file immutable revision; publication QA is pending. There is
-no authorization for rendering, narration, package, deployment or paid action.
+complete as a 12-file immutable revision. Claude Code independently passed the
+publication range with no P0/P1 and two P2. Guy explicitly disposed the product
+P2 by confirming that `dragon_dini_adventure` stays temporarily unavailable and
+the Wizard catalog stays 17/18 until a new exact-source package is approved.
+There is no authorization for rendering, narration, package, deployment or
+paid action.
 This later approval supersedes only the P1 publication STOP statements in the
 historical implementation plan below, not any downstream exclusion.
 
@@ -267,3 +271,24 @@ P1 publication remained stopped at that point. Guy subsequently confirmed exact
 revision `64dcd0e741f17fc08cde95ad8a5a00b303955aa28ccd065d44f01e49e9d155fc`, as
 recorded above. The separate publication/compatibility diff requires its own
 independent review and confers no downstream authority.
+
+## Publication QA disposition and proof correction
+
+Claude Code reviewed exact range
+`e87b5c5b3e68cbd6158e1324c73167d56160658c..e406078775cec30ebf7b7fd4f52a7c5119eec676`
+read-only and returned **PASS with no P0/P1 and two P2**:
+
+1. the 17/18 fail-closed catalog state needed explicit product acceptance; and
+2. the injected accepted-root lifecycle test combined disposable-root source
+   facts with canonical-root package/sellability facts, so its containment
+   wording was broader than its proof.
+
+Guy accepted the first state exactly: P1 remains unavailable until a new and
+accurate package for the published source is separately approved. The second is
+corrected without changing production code: the disposable-root test now
+projects only accepted-source lineage and text-readiness facts. Canonical
+sellability, blocker, package and render-qualification facts remain the
+responsibility of current-catalog matrix, API, readiness, package and
+render-audit tests. This closeout grants no new package, render, narration,
+deployment, provider, payment or spend authority and requires independent
+Claude Code re-gate.

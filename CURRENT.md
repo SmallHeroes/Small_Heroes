@@ -1,11 +1,24 @@
 # SmallHeroes — Current Technical State
 
-## R3-B1b P1 — exact canonical source publication completed; publication QA pending
+## R3-B1b P1 — publication QA passed; two P2 closeouts await re-gate
 
 On 2026-09-03 Guy explicitly confirmed final P1 `dragon_dini_adventure` revision
 `64dcd0e741f17fc08cde95ad8a5a00b303955aa28ccd065d44f01e49e9d155fc` and authorized
 canonical **Story Source and Visual Direction only**. Rendering, narration,
 Visual Package, deployment and every paid action remain excluded.
+
+Claude Code independently reviewed exact publication range
+`e87b5c5b3e68cbd6158e1324c73167d56160658c..e406078775cec30ebf7b7fd4f52a7c5119eec676`
+read-only and returned **PASS with no P0/P1 and two P2**. The first P2 required
+an explicit product disposition for the fail-closed Wizard state. Guy has now
+confirmed that `dragon_dini_adventure` will remain temporarily unavailable and
+the catalog will remain **17/18** until a new package accurately bound to the
+published source is approved. This is a deliberate temporary state, not a
+waiver or fallback. The second P2 found that one temporary-root test mixed
+injected accepted-source facts with canonical package/sellability facts. The
+test now projects only accepted-source-controlled fields; canonical 17/18,
+P1 unsellability and `renderQualified:false` remain proven by the real catalog,
+matrix, API, package and render-audit specs. No production code changed.
 
 The previously reviewed lifecycle published the complete 12-file correction-v4
 bundle under `story-pipeline/04_approved_story_sources/accepted/dragon_dini_adventure/revisions/64dcd0e741f17fc08cde95ad8a5a00b303955aa28ccd065d44f01e49e9d155fc/`.
@@ -50,10 +63,12 @@ the exact cell then passed in isolation at 3,818 ms. This is not an overall
 focused-suite PASS. The full check remains non-green because of missing
 historical ignored fixtures and the disclosed timing/worker-RPC behavior;
 none is waived and no timeout was widened.
-Independent Claude Code review of this publication/compatibility milestone is
-pending; Codex does not self-award PASS. P2-P5/P7/P8 remain acceptance intent
-only; P6 remains referred without acceptance; HOLD corrections and all
-downstream authoring/spend require their separate gates.
+The P2 closeout passes the lifecycle spec at 11/11 and the exact nine-spec
+catalog slice at 9/9 files and 101/101 tests; both TypeScript checks pass.
+Independent Claude Code re-gate of this test/documentation-only closeout is
+pending; Codex does not self-award its closure PASS. P2-P5/P7/P8 remain
+acceptance intent only; P6 remains referred without acceptance; HOLD
+corrections and all downstream authoring/spend require their separate gates.
 
 All ten publication external-effect counters are zero. No provider, image,
 audio, PDF, database, storage, order, payment or deployment action was invoked.
@@ -124,9 +139,10 @@ supported-gender count and automated narration-preflight count each moved from
 narration findings moved from 12 items / 6 stories to 10 items / 5 stories; P1's
 corpus decision requirement cleared, while the evidence-level source conflict
 count remained 18 because the candidate bytes still differ from historical
-corpus bytes. All visual-package and strict render-qualified counts remained
-1/18, P1 remained not render-ready, and the other 17 functional dispositions
-remained unchanged. No human-ear acceptance is modeled or claimed.
+corpus bytes. That injected-root proof establishes accepted-source facts only;
+it does not establish package qualification, sellability, blockers or complete
+functional containment. Those current-catalog facts are proven separately
+against canonical authority. No human-ear acceptance is modeled or claimed.
 
 The corrected lifecycle validation passes **11/11**. The complete focused slice
 passes **10/10 files and 90/90 tests** with one worker and no file parallelism.
