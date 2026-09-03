@@ -24,6 +24,10 @@
       "evidence": ["measured_repository_scan_contention"]
     },
     {
+      "path": "lib/__tests__/story-source-visual-direction-correction-acceptance-lifecycle.spec.ts",
+      "evidence": ["measured_repository_scan_contention"]
+    },
+    {
       "path": "lib/generation-pipeline/__tests__/asset-safety-writer-coverage.spec.ts",
       "evidence": ["measured_repository_scan_contention"]
     },

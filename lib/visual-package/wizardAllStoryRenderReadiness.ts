@@ -626,13 +626,14 @@ function acceptedProductSourceRevisionInventory(args: {
   category: MvpCategory;
   companionId: string;
   direction: StoryDirection;
+  acceptedRootRelative?: string;
 }): {
   revisions: AcceptedProductSourceRevisionEvidence[];
   issues: string[];
 } {
   const revisionsRoot = path.resolve(
     args.repoRoot,
-    ACCEPTED_STORY_SOURCE_ROOT,
+    args.acceptedRootRelative || ACCEPTED_STORY_SOURCE_ROOT,
     args.storyKey,
     'revisions',
   );
@@ -652,8 +653,10 @@ function acceptedProductSourceRevisionInventory(args: {
   for (const entry of [...entries].sort((left, right) =>
     left.name.localeCompare(right.name))) {
     if (!entry.isDirectory() || !/^[a-f0-9]{64}$/.test(entry.name)) continue;
+    const acceptedRoot =
+      args.acceptedRootRelative || ACCEPTED_STORY_SOURCE_ROOT;
     const sourcePath =
-      `${ACCEPTED_STORY_SOURCE_ROOT}/${args.storyKey}/revisions/${entry.name}/integrated.md`;
+      `${acceptedRoot}/${args.storyKey}/revisions/${entry.name}/integrated.md`;
     if (!fs.existsSync(path.resolve(args.repoRoot, sourcePath))) continue;
     try {
       const authoringAuthority =
@@ -661,6 +664,7 @@ function acceptedProductSourceRevisionInventory(args: {
           repoRoot: args.repoRoot,
           storyKey: args.storyKey,
           storyPath: sourcePath,
+          acceptedRootRelative: args.acceptedRootRelative,
         });
       if (!authoringAuthority) continue;
       const authoringAuthorityDigest = canonicalHash(authoringAuthority);
@@ -1052,6 +1056,7 @@ function auditWizardAllStoryRenderReadinessWithPolicy(args: {
   repoRoot: string;
   now?: () => Date;
   genderProjectionReadinessPolicy: GenderProjectionReadinessPolicy;
+  acceptedRootRelative?: string;
 }): WizardAllStoryRenderReadinessReport {
   const styleId = STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK;
   const qualificationAudit = auditMvpRenderQualification({
@@ -1099,6 +1104,7 @@ function auditWizardAllStoryRenderReadinessWithPolicy(args: {
       const acceptedProductLineage = acceptedProductLineageDisposition({
         repoRoot: args.repoRoot,
         storyKey,
+        acceptedRootRelative: args.acceptedRootRelative,
       });
       const acceptedInventory = acceptedProductSourceRevisionInventory({
         repoRoot: args.repoRoot,
@@ -1106,6 +1112,7 @@ function auditWizardAllStoryRenderReadinessWithPolicy(args: {
         category,
         companionId,
         direction,
+        acceptedRootRelative: args.acceptedRootRelative,
       });
       const publishedPackageQualification =
         evaluateVisualPackageV4Qualification({
@@ -1519,6 +1526,7 @@ function auditWizardAllStoryRenderReadinessWithPolicy(args: {
 export function auditWizardAllStoryRenderReadiness(args: {
   repoRoot: string;
   now?: () => Date;
+  acceptedRootRelative?: string;
 }): WizardAllStoryRenderReadinessReport {
   return auditWizardAllStoryRenderReadinessWithPolicy({
     ...args,
@@ -1534,6 +1542,7 @@ export function auditWizardAllStoryRenderReadiness(args: {
 export function auditWizardAllStoryRenderReadinessForR3B0bReplay(args: {
   repoRoot: string;
   now?: () => Date;
+  acceptedRootRelative?: string;
 }): WizardAllStoryRenderReadinessReport {
   return auditWizardAllStoryRenderReadinessWithPolicy({
     ...args,

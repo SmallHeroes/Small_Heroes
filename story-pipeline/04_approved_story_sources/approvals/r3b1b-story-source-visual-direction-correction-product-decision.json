@@ -1,0 +1,261 @@
+{
+  "acceptedIntents": [
+    {
+      "continuityIntent": {
+        "childWardrobeAuthority": "frozen_visual_contract",
+        "childWardrobeTransitionPages": [],
+        "companionAccessoryAuthority": "canonical_companion_profile",
+        "companionAppearanceAuthority": "frozen_companion_state",
+        "companionStateTransitionPages": [],
+        "version": "small-heroes-story-visual-continuity-intent/v1"
+      },
+      "coworkReview": {
+        "status": "not_required"
+      },
+      "decisionId": "P1",
+      "disposition": "acceptance_intent",
+      "recordDigest": "16ab0316f197aff6afae4ad42419c1f3b7d7cc285c71f0a16d75000426cc4046",
+      "storyCandidateSha256": "d94a867035e7e3df37c047f991d900e067c3133e0a1f49c105479b92c171deeb",
+      "storyKey": "dragon_dini_adventure",
+      "visualDirectionCandidateSha256": "cb7f92664de6627ed7efd7a62b6838d413dc2df8136f1b9f45c6098b06ec4b6e",
+      "worldMode": "grounded"
+    },
+    {
+      "continuityIntent": {
+        "childWardrobeAuthority": "frozen_visual_contract",
+        "childWardrobeTransitionPages": [],
+        "companionAccessoryAuthority": "canonical_companion_profile",
+        "companionAppearanceAuthority": "frozen_companion_state",
+        "companionStateTransitionPages": [],
+        "version": "small-heroes-story-visual-continuity-intent/v1"
+      },
+      "coworkReview": {
+        "status": "not_required"
+      },
+      "decisionId": "P2",
+      "disposition": "acceptance_intent",
+      "recordDigest": "57d3663c0cd0e30b162dada2cc78c1dc472ec8f2fe46037aac83042f11c6a307",
+      "storyCandidateSha256": "1009d9a0fdfa744f7b04b74626b6e77cd1bc7b922990d3c114d71c9d0966a4e0",
+      "storyKey": "bunny_ometz_adventure",
+      "visualDirectionCandidateSha256": "6012ef9117f0412472121d8928f8fc67ab3621d11f3b1fdda22bfd0060ec8617",
+      "worldMode": "grounded_with_visual_metaphor"
+    },
+    {
+      "continuityIntent": {
+        "childWardrobeAuthority": "frozen_visual_contract",
+        "childWardrobeTransitionPages": [],
+        "companionAccessoryAuthority": "canonical_companion_profile",
+        "companionAppearanceAuthority": "frozen_companion_state",
+        "companionStateTransitionPages": [],
+        "version": "small-heroes-story-visual-continuity-intent/v1"
+      },
+      "coworkReview": {
+        "status": "not_required"
+      },
+      "decisionId": "P3",
+      "disposition": "acceptance_intent",
+      "recordDigest": "1526df4dabf8c7cc48d710a99cb7b97952ba161d84b088d779ceceb995c2a113",
+      "storyCandidateSha256": "ddb575737b609e93c795f3aec965001f261556fc45f4f865996bb57a746cf521",
+      "storyKey": "bunny_ometz_fantasy",
+      "visualDirectionCandidateSha256": "d602695839761082b93fdb072434608a2dddfd510af7ae802937ea213d5e9169",
+      "worldMode": "fantastical"
+    },
+    {
+      "continuityIntent": {
+        "childWardrobeAuthority": "frozen_visual_contract",
+        "childWardrobeTransitionPages": [],
+        "companionAccessoryAuthority": "canonical_companion_profile",
+        "companionAppearanceAuthority": "frozen_companion_state",
+        "companionStateTransitionPages": [],
+        "version": "small-heroes-story-visual-continuity-intent/v1"
+      },
+      "coworkReview": {
+        "status": "not_required"
+      },
+      "decisionId": "P4",
+      "disposition": "acceptance_intent",
+      "recordDigest": "8c4db420c6430dc69d96e9e7b7c14cf4b06728365115d7973bd503e3fb02524d",
+      "storyCandidateSha256": "4cf5792d6ddff6e6fc5d57b8684179929651ef8987fd81ff79c6299be4d63b7e",
+      "storyKey": "chameleon_koko_adventure",
+      "visualDirectionCandidateSha256": "5c6d73e43d698a91cca67ecb025556cda49fed5fc88010fbdffcd8ea7001b180",
+      "worldMode": "fantastical"
+    },
+    {
+      "continuityIntent": {
+        "childWardrobeAuthority": "frozen_visual_contract",
+        "childWardrobeTransitionPages": [],
+        "companionAccessoryAuthority": "canonical_companion_profile",
+        "companionAppearanceAuthority": "frozen_companion_state",
+        "companionStateTransitionPages": [],
+        "version": "small-heroes-story-visual-continuity-intent/v1"
+      },
+      "coworkReview": {
+        "status": "not_required"
+      },
+      "decisionId": "P5",
+      "disposition": "acceptance_intent",
+      "recordDigest": "060ea523143e6d34d14e5b5438fdb8ba7d50237e451280586f009e2b973f5365",
+      "storyCandidateSha256": "f6c2a45babe469f447f08fa1003c08500c1b5771906d0f2d6391a0629489dfd4",
+      "storyKey": "fox_uri_bedtime",
+      "visualDirectionCandidateSha256": "996033f1628c8a9e493508af55643c75309fdb736cb6c4f3b8c0f08a45c2da7b",
+      "worldMode": "grounded_with_visual_metaphor"
+    },
+    {
+      "continuityIntent": {
+        "childWardrobeAuthority": "frozen_visual_contract",
+        "childWardrobeTransitionPages": [],
+        "companionAccessoryAuthority": "canonical_companion_profile",
+        "companionAppearanceAuthority": "frozen_companion_state",
+        "companionStateTransitionPages": [],
+        "version": "small-heroes-story-visual-continuity-intent/v1"
+      },
+      "coworkReview": {
+        "status": "not_required"
+      },
+      "decisionId": "P7",
+      "disposition": "acceptance_intent",
+      "recordDigest": "ad7799f7e6acd4d1fc99da65c13fabe51a1624d43f3482f26a2aae2cc12e6494",
+      "storyCandidateSha256": "e0881f7641224a4e3bd066b7acfe2b6136ec546e559ca6ef965b6531833cc67c",
+      "storyKey": "lion_shaket_fantasy",
+      "visualDirectionCandidateSha256": "fc12873a05986114d4d16459cf5721f64d2be16e2f3c73ca94b3b025a52e1eae",
+      "worldMode": "fantastical"
+    },
+    {
+      "continuityIntent": {
+        "childWardrobeAuthority": "frozen_visual_contract",
+        "childWardrobeTransitionPages": [],
+        "companionAccessoryAuthority": "canonical_companion_profile",
+        "companionAppearanceAuthority": "frozen_companion_state",
+        "companionStateTransitionPages": [],
+        "version": "small-heroes-story-visual-continuity-intent/v1"
+      },
+      "coworkReview": {
+        "status": "not_required"
+      },
+      "decisionId": "P8",
+      "disposition": "acceptance_intent",
+      "recordDigest": "9ca77317f023507cdd88704cae1839316684d48a522092013228ea01db89e851",
+      "storyCandidateSha256": "15d88b977c9bd2ed7fc5bd39e01f01e00c2a12f97044829d4fea4d10d0cde692",
+      "storyKey": "panda_anat_bedtime",
+      "visualDirectionCandidateSha256": "8399bf9fbcf3dea6318209e6af48f8616978e24e8e43afd15e7881d7cbd2d449",
+      "worldMode": "grounded_with_visual_metaphor"
+    }
+  ],
+  "candidateBatch": {
+    "bytes": 353307,
+    "digest": "96154a39091b71c9dffb64dcf60b8667c149b78d4b4c0d5a07787189d00a7e9b",
+    "path": "outputs/r3b1a-story-source-visual-direction-correction-candidates/96154a39091b71c9dffb64dcf60b8667c149b78d4b4c0d5a07787189d00a7e9b.json",
+    "sha256": "d8a57650364d62cfc52496b1385ba5dd95fe702f06edf51ff327ae5a43caba4c"
+  },
+  "candidateTechnicalQa": {
+    "baseCommit": "462aaf4c19c7e8809284a96579fb993400e5a593",
+    "headCommit": "85ef104cd7765a3e0376bb5ec84a72e75103d9c8",
+    "p0": 0,
+    "p1": 0,
+    "p2": 0,
+    "reviewer": "Claude Code",
+    "status": "pass"
+  },
+  "correctionDirections": [
+    {
+      "decisionId": "D1",
+      "selection": "APPROVE"
+    },
+    {
+      "decisionId": "D2",
+      "selection": "APPROVE"
+    },
+    {
+      "decisionId": "D3",
+      "selection": "APPROVE"
+    },
+    {
+      "decisionId": "D4",
+      "selection": "APPROVE_PROJECTED_AGREEMENT"
+    },
+    {
+      "decisionId": "D5",
+      "selection": "FEMALE_FROG"
+    },
+    {
+      "decisionId": "D6",
+      "selection": "D6A_STORM_STRIPES_PURPLE_ORANGE_GOLD_OVERLAY"
+    },
+    {
+      "decisionId": "D7",
+      "selection": "SECURED_AT_SIDE"
+    },
+    {
+      "decisionId": "D8",
+      "selection": "ONE_BOLT"
+    },
+    {
+      "decisionId": "D9",
+      "selection": "EXPLICIT_EXITS"
+    },
+    {
+      "decisionId": "D10",
+      "selection": "HEAD_TO_LAP_ON_PAGE_7"
+    },
+    {
+      "decisionId": "D11",
+      "selection": "INDEPENDENT_STAGE_PROP"
+    },
+    {
+      "decisionId": "D12",
+      "selection": "MALE_CREATURE"
+    },
+    {
+      "decisionId": "D13",
+      "selection": "STORY_SCARF_VISIBLE_SHIRT_RETURNED"
+    }
+  ],
+  "coworkReferrals": [
+    {
+      "decisionId": "P6",
+      "recordDigest": "e10757db73cfb1c9a9ef49cc24ff7f0a32a6b83ff4197dc172cb4f72e760ee40",
+      "status": "referred_not_accepted",
+      "storyKey": "lion_shaket_adventure"
+    }
+  ],
+  "decidedBy": "Guy",
+  "decisionText": "מאשר את חבילת ההחלטות ב־commit 19f110f4 עבור batch 96154a39091b71c9dffb64dcf60b8667c149b78d4b4c0d5a07787189d00a7e9b: כוונת ACCEPT ל־P1–P5, P7 ו־P8; העברת P6 ל־Cowork ללא קבלה עדיין; והכנת תיקונים לפי D1–D5, D6A ו־D7–D13. מאשר גם את שער R3‑B1b. קריינות, QA, digest סופי ופרסום נשארים בשערים נפרדים.",
+  "digest": "341d73c53e9c11c753bc75f8e7235294e17a8e271ff9ee618b02321c9534ae5b",
+  "digestAlgorithm": "canonical-json-sha256",
+  "exclusions": [
+    "blueprint",
+    "deployment",
+    "image_render",
+    "narration_human_ear",
+    "production",
+    "provider_call",
+    "runtime_locator",
+    "story_bank_current_pointer",
+    "visual_contract",
+    "visual_package",
+    "wizard"
+  ],
+  "narration": {
+    "status": "separate_human_ear_gate_pending"
+  },
+  "packet": {
+    "bytes": 18413,
+    "gitCommit": "19f110f414ec70cd64e96be3b0a99132bb4ef8b9",
+    "path": "docs/ai-workflow/R3B1A_STORY_SOURCE_VISUAL_DIRECTION_PRODUCT_DECISION_PACKET.md",
+    "sha256": "cbe65b9687d04bba5fdf691a4a0f0275297bc79e5195d8eb0d68a36e9deb3d78"
+  },
+  "packetPlanningQa": {
+    "baseCommit": "ad54e3c1929e9ca235131b3a559dd4f30403c4f7",
+    "headCommit": "19f110f414ec70cd64e96be3b0a99132bb4ef8b9",
+    "p0": 0,
+    "p1": 0,
+    "p2": 0,
+    "reviewer": "Claude Code",
+    "status": "pass"
+  },
+  "publication": {
+    "status": "final_digest_confirmation_pending"
+  },
+  "status": "approved_for_correction_acceptance_preparation",
+  "version": "small-heroes-story-source-visual-direction-correction-product-decision/v1"
+}

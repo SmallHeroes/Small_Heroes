@@ -6,13 +6,25 @@ Product owner: Guy
 
 Technical owner: Codex
 
-Status: **DRAFT — waiting for P1-P5/P7/P8 intent, P6 Cowork referral,
-and D1-D13 directions**
+Status: **APPROVED BY GUY FOR R3-B1b IMPLEMENTATION ONLY — final digest
+confirmation and canonical publication remain separate gates**
 
 Proposed branch: `codex/r3b1b-correction-acceptance-publication`
 
 Proposed milestone: R3-B1b, zero-cost correction disposition and accepted-source
 publication only
+
+## Approval record
+
+Guy approved this gate and the decision package in packet commit
+`19f110f414ec70cd64e96be3b0a99132bb4ef8b9` for exact batch digest
+`96154a39091b71c9dffb64dcf60b8667c149b78d4b4c0d5a07787189d00a7e9b`.
+The approved dispositions are acceptance intent for P1-P5/P7/P8, referral of
+P6 to Claude Cowork without acceptance, and correction preparation according
+to D1-D5, D6A and D7-D13. Narration, implementation QA, exact final-digest
+confirmation and canonical publication remain separately gated. This approval
+starts the zero-cost lifecycle implementation; it does not itself create or
+publish an accepted revision.
 
 ## 1. Proposed change
 
@@ -207,14 +219,16 @@ rollback is code-only. Never rewrite a historical accepted revision.
 5. **Smallest proof?** One issue-free record in temporary roots, no canonical
    write before QA and final confirmation.
 6. **Unresolved owner decisions?** P1-P5/P7/P8 acceptance intent, D1-D13
-   directions, initial P6 Cowork referral, Guy's later exact P6 decision after
-   Cowork, narration ear acceptance, and final canonical-publication
-   confirmation.
+   directions and the initial P6 Cowork referral are resolved for this
+   implementation. Guy's later exact P6 decision after Cowork, narration ear
+   acceptance, and final digest/canonical-publication confirmation remain open.
 7. **Claude Code targets?** Totality, provenance, filesystem safety, replay,
    compatibility, readiness honesty and zero effects.
 8. **Claude Cowork?** Required for P6 and any material new prose.
 9. **Guy eyeball?** The compact packet now; the exact final digest before
    canonical publication; later LOW visual samples before wider rendering.
 
-**Gate disposition:** STOP. Packet preparation is complete, but implementation
-does not begin until Guy explicitly approves the packet decisions and this gate.
+**Gate disposition:** GO for the zero-cost R3-B1b implementation and temporary
+single-record proof only. STOP before canonical accepted-source publication,
+provider activity, narration acceptance, Visual Contract/package work, render,
+deployment or production activation until their separate gates pass.

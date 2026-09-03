@@ -15,12 +15,22 @@ export const ACCEPTED_STORY_SOURCE_AUTHORING_AUTHORITY_VERSION =
 
 const ACCEPTED_REVISION_MANIFEST_VERSION =
   'small-heroes-product-accepted-story-source-revision-manifest/v3';
+const CORRECTION_ACCEPTED_REVISION_MANIFEST_VERSION =
+  'small-heroes-product-accepted-story-source-revision-manifest/v4';
 const LEGACY_ACCEPTED_REVISION_MANIFEST_VERSION =
   'small-heroes-product-accepted-story-source-revision-manifest/v2';
 const PRODUCT_ACCEPTANCE_VERSION =
   'small-heroes-story-source-visual-direction-product-acceptance/v1';
 const TECHNICAL_REVIEW_VERSION =
   'small-heroes-story-source-visual-direction-technical-review/v1';
+const CORRECTION_PRODUCT_ACCEPTANCE_VERSION =
+  'small-heroes-story-source-visual-direction-correction-product-acceptance/v2';
+const CORRECTION_TECHNICAL_REVIEW_VERSION =
+  'small-heroes-story-source-visual-direction-correction-technical-review/v1';
+const CORRECTION_PRODUCT_DECISION_VERSION =
+  'small-heroes-story-source-visual-direction-correction-product-decision/v1';
+const CORRECTION_REVISION_IDENTITY_VERSION =
+  'small-heroes-story-source-visual-direction-correction-identity/v1';
 export const ACCEPTED_STORY_SOURCE_ROOT =
   'story-pipeline/04_approved_story_sources/accepted';
 const ACCEPTED_ROOT = ACCEPTED_STORY_SOURCE_ROOT;
@@ -32,6 +42,19 @@ const PRODUCT_ACCEPTANCE_EXCLUSIONS = [
   'blueprint',
   'deployment',
   'image_render',
+  'production',
+  'provider_call',
+  'runtime_locator',
+  'story_bank_current_pointer',
+  'visual_contract',
+  'visual_package',
+  'wizard',
+] as const;
+const CORRECTION_PRODUCT_ACCEPTANCE_EXCLUSIONS = [
+  'blueprint',
+  'deployment',
+  'image_render',
+  'narration_human_ear',
   'production',
   'provider_call',
   'runtime_locator',
@@ -72,14 +95,8 @@ const TECHNICAL_REVIEW_KEYS = [
   'status',
   'version',
 ] as const;
-const ACCEPTED_SOURCE_PATTERN = new RegExp(
-  `^${ACCEPTED_ROOT}/([^/]+)/revisions/([a-f0-9]{64})/integrated\\.md$`,
-);
-const ACCEPTED_REVISION_ROOT_PATTERN = new RegExp(
-  `^${ACCEPTED_ROOT}/[^/]+/revisions(?:/|$)`,
-);
 const SAFE_STORY_KEY = /^[a-z0-9][a-z0-9_-]*$/;
-const EXPECTED_FILENAMES = [
+const V3_EXPECTED_FILENAMES = [
   'enrichment-manifest.json',
   'enrichment-review-bundle.json',
   'integrated.md',
@@ -90,8 +107,28 @@ const EXPECTED_FILENAMES = [
   'technical-review.json',
   'visual-directions.json',
 ] as const;
+const V4_EXPECTED_FILENAMES = [
+  'correction-candidate.json',
+  'correction-manifest.json',
+  'correction-request.json',
+  'direction-migration.json',
+  'integrated.md',
+  'manifest.json',
+  'product-acceptance.json',
+  'product-decision.json',
+  'revision-identity.json',
+  'story.md',
+  'technical-review.json',
+  'visual-directions.json',
+] as const;
+const EXPECTED_FILENAMES = [
+  ...V3_EXPECTED_FILENAMES,
+  ...V4_EXPECTED_FILENAMES,
+] as const;
 
 type AcceptedFilename = (typeof EXPECTED_FILENAMES)[number];
+type V3AcceptedFilename = (typeof V3_EXPECTED_FILENAMES)[number];
+type V4AcceptedFilename = (typeof V4_EXPECTED_FILENAMES)[number];
 
 export interface AcceptedStorySourceAuthoringAuthority {
   version: typeof ACCEPTED_STORY_SOURCE_AUTHORING_AUTHORITY_VERSION;
@@ -101,7 +138,9 @@ export interface AcceptedStorySourceAuthoringAuthority {
   productAcceptanceDigest: string;
   technicalReviewDigest: string;
   continuityIntent: StoryVisualContinuityIntent;
-  fileSha256: Record<AcceptedFilename, string>;
+  fileSha256:
+    | Record<V3AcceptedFilename, string>
+    | Record<V4AcceptedFilename, string>;
 }
 
 export type AcceptedProductLineageDisposition =
@@ -147,8 +186,9 @@ export function acceptedStorySourceAuthoringAuthorityIssues(
   const fileSha256 = recordValue(record.fileSha256);
   if (
     !fileSha256 ||
-    !exactKeys(fileSha256, EXPECTED_FILENAMES) ||
-    EXPECTED_FILENAMES.some(
+    (!exactKeys(fileSha256, V3_EXPECTED_FILENAMES) &&
+      !exactKeys(fileSha256, V4_EXPECTED_FILENAMES)) ||
+    Object.keys(fileSha256).some(
       (filename) =>
         typeof fileSha256[filename] !== 'string' ||
         !DIGEST.test(fileSha256[filename]),
@@ -172,10 +212,12 @@ export function acceptedStorySourceAuthoringAuthorityBindsSource(args: {
   authority: AcceptedStorySourceAuthoringAuthority;
   storyKey: string;
   storyPath: string;
+  acceptedRootRelative?: string;
 }): boolean {
+  const acceptedRoot = args.acceptedRootRelative || ACCEPTED_ROOT;
   return (
     args.storyPath.split('\\').join('/') ===
-    `${ACCEPTED_ROOT}/${args.storyKey}/revisions/${args.authority.revisionDigest}/integrated.md`
+    `${acceptedRoot}/${args.storyKey}/revisions/${args.authority.revisionDigest}/integrated.md`
   );
 }
 
@@ -211,6 +253,11 @@ function sha256(bytes: Buffer | string): string {
 function canonicalDigest(value: Record<string, unknown>): string {
   const { digest: _digest, ...payload } = value;
   return sha256(canonicalBytes(payload));
+}
+
+function compactCanonicalDigest(value: Record<string, unknown>): string {
+  const { digest: _digest, ...payload } = value;
+  return sha256(JSON.stringify(canonicalize(payload)));
 }
 
 function canonicalUtcTimestampIsValid(value: unknown): value is string {
@@ -306,6 +353,46 @@ function pathsEqual(left: string, right: string): boolean {
     : left === right;
 }
 
+function validatedAcceptedRootRelative(
+  repoRoot: string,
+  requested?: string,
+): string {
+  const acceptedRoot = requested || ACCEPTED_ROOT;
+  if (
+    acceptedRoot.length === 0 ||
+    acceptedRoot.includes('\\') ||
+    acceptedRoot.startsWith('/') ||
+    acceptedRoot.endsWith('/') ||
+    acceptedRoot
+      .split('/')
+      .some((segment) => !segment || segment === '.' || segment === '..')
+  ) {
+    throw new Error('accepted_story_source_root_path_invalid');
+  }
+  const absolute = path.resolve(repoRoot, ...acceptedRoot.split('/'));
+  if (repoRelativePath(repoRoot, absolute) !== acceptedRoot) {
+    throw new Error('accepted_story_source_root_path_invalid');
+  }
+  return acceptedRoot;
+}
+
+function escapedPattern(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function acceptedPathPatterns(acceptedRoot: string): {
+  source: RegExp;
+  revisions: RegExp;
+} {
+  const escaped = escapedPattern(acceptedRoot);
+  return {
+    source: new RegExp(
+      `^${escaped}/([^/]+)/revisions/([a-f0-9]{64})/integrated\\.md$`,
+    ),
+    revisions: new RegExp(`^${escaped}/[^/]+/revisions(?:/|$)`),
+  };
+}
+
 /**
  * Fresh-order fallback policy derived from immutable accepted-lineage bytes.
  *
@@ -317,12 +404,21 @@ function pathsEqual(left: string, right: string): boolean {
 export function acceptedProductLineageDisposition(args: {
   repoRoot: string;
   storyKey: string;
+  acceptedRootRelative?: string;
 }): AcceptedProductLineageDisposition {
   if (!SAFE_STORY_KEY.test(args.storyKey)) {
     return { kind: 'invalid', reasons: ['story_key_invalid'] };
   }
-  const expectedRelative =
-    `${ACCEPTED_ROOT}/${args.storyKey}/revisions`;
+  let acceptedRoot: string;
+  try {
+    acceptedRoot = validatedAcceptedRootRelative(
+      args.repoRoot,
+      args.acceptedRootRelative,
+    );
+  } catch {
+    return { kind: 'invalid', reasons: ['accepted_root_path_invalid'] };
+  }
+  const expectedRelative = `${acceptedRoot}/${args.storyKey}/revisions`;
   const revisionsRoot = path.resolve(args.repoRoot, expectedRelative);
   try {
     if (repoRelativePath(args.repoRoot, revisionsRoot) !== expectedRelative) {
@@ -492,6 +588,16 @@ function parseCanonicalJson(
   return record;
 }
 
+function parseJsonRecord(bytes: Buffer, code: string): Record<string, unknown> {
+  try {
+    const record = recordValue(JSON.parse(bytes.toString('utf8')) as unknown);
+    if (!record) throw new Error(code);
+    return record;
+  } catch {
+    throw new Error(code);
+  }
+}
+
 function descriptor(
   value: unknown,
   expectedFilename: AcceptedFilename,
@@ -540,13 +646,14 @@ function loadAcceptedManifest(args: {
   storyKey: string;
   storyPath: string;
   revisionDigest: string;
+  acceptedRootRelative: string;
 }): AcceptedStorySourceAuthoringAuthority {
   const storyAbsolute = path.resolve(args.repoRoot, args.storyPath);
   const revisionRoot = path.dirname(storyAbsolute);
   const revisionRelative = repoRelativePath(args.repoRoot, revisionRoot);
   if (
     revisionRelative !==
-    `${ACCEPTED_ROOT}/${args.storyKey}/revisions/${args.revisionDigest}`
+    `${args.acceptedRootRelative}/${args.storyKey}/revisions/${args.revisionDigest}`
   ) {
     throw new Error('accepted_story_source_revision_path_invalid');
   }
@@ -569,13 +676,13 @@ function loadAcceptedManifest(args: {
   if (
     inventory.some((entry) => !entry.isFile()) ||
     JSON.stringify(inventoryNames) !==
-      JSON.stringify([...EXPECTED_FILENAMES].sort())
+      JSON.stringify([...V3_EXPECTED_FILENAMES].sort())
   ) {
     throw new Error('accepted_story_source_inventory_invalid');
   }
 
-  const fileBytes = new Map<AcceptedFilename, Buffer>();
-  for (const filename of EXPECTED_FILENAMES) {
+  const fileBytes = new Map<V3AcceptedFilename, Buffer>();
+  for (const filename of V3_EXPECTED_FILENAMES) {
     fileBytes.set(
       filename,
       readCanonicalRegularFile({
@@ -823,17 +930,529 @@ function loadAcceptedManifest(args: {
   };
 }
 
+function correctionProductAcceptanceIsValid(
+  value: Record<string, unknown>,
+  args: {
+    storyKey: string;
+    revisionDigest: string;
+    candidateRecordDigest: string;
+    productDecisionDigest: string;
+    recordDecisionDigest: string;
+    technicalReviewDigest: string;
+    acceptedWorldMode: unknown;
+  },
+): boolean {
+  const runtimeEligibility = recordValue(value.runtimeEligibility);
+  return (
+    exactKeys(value, [
+      'acceptedBy',
+      'acceptedWorldMode',
+      'authorityScope',
+      'candidateRecordDigest',
+      'decision',
+      'digest',
+      'digestAlgorithm',
+      'exclusions',
+      'productDecisionDigest',
+      'recordDecisionDigest',
+      'revisionDigest',
+      'runtimeEligibility',
+      'status',
+      'storyKey',
+      'technicalReviewDigest',
+      'version',
+    ]) &&
+    value.version === CORRECTION_PRODUCT_ACCEPTANCE_VERSION &&
+    value.status === 'accepted' &&
+    value.acceptedBy === 'Guy' &&
+    value.authorityScope === 'story_source_and_visual_directions_only' &&
+    value.storyKey === args.storyKey &&
+    value.revisionDigest === args.revisionDigest &&
+    value.candidateRecordDigest === args.candidateRecordDigest &&
+    value.productDecisionDigest === args.productDecisionDigest &&
+    value.recordDecisionDigest === args.recordDecisionDigest &&
+    value.technicalReviewDigest === args.technicalReviewDigest &&
+    value.acceptedWorldMode === args.acceptedWorldMode &&
+    typeof value.decision === 'string' &&
+    value.decision.trim() === value.decision &&
+    value.decision.length >= 32 &&
+    value.digestAlgorithm === 'canonical-json-sha256' &&
+    JSON.stringify(value.exclusions) ===
+      JSON.stringify(CORRECTION_PRODUCT_ACCEPTANCE_EXCLUSIONS) &&
+    runtimeEligibility !== null &&
+    exactKeys(runtimeEligibility, ['eligible', 'reason']) &&
+    runtimeEligibility.eligible === false &&
+    runtimeEligibility.reason === PRODUCT_ACCEPTANCE_RUNTIME_REASON &&
+    typeof value.digest === 'string' &&
+    DIGEST.test(value.digest) &&
+    canonicalDigest(value) === value.digest
+  );
+}
+
+function correctionTechnicalReviewIsValid(
+  value: Record<string, unknown>,
+  args: {
+    candidateBatchDigest: string;
+    productDecisionDigest: string;
+    recordDecisionDigest: string;
+    revisionDigest: string;
+  },
+): boolean {
+  return (
+    exactKeys(value, [
+      'baseCommit',
+      'candidateBatchDigest',
+      'digest',
+      'digestAlgorithm',
+      'headCommit',
+      'p0',
+      'p1',
+      'p2',
+      'productDecisionDigest',
+      'recordDecisionDigest',
+      'reviewer',
+      'revisionDigest',
+      'status',
+      'version',
+    ]) &&
+    value.version === CORRECTION_TECHNICAL_REVIEW_VERSION &&
+    value.status === 'pass' &&
+    value.reviewer === 'Claude Code' &&
+    value.p0 === 0 &&
+    value.p1 === 0 &&
+    value.p2 === 0 &&
+    typeof value.baseCommit === 'string' &&
+    GIT_COMMIT.test(value.baseCommit) &&
+    typeof value.headCommit === 'string' &&
+    GIT_COMMIT.test(value.headCommit) &&
+    value.baseCommit !== value.headCommit &&
+    value.candidateBatchDigest === args.candidateBatchDigest &&
+    value.productDecisionDigest === args.productDecisionDigest &&
+    value.recordDecisionDigest === args.recordDecisionDigest &&
+    value.revisionDigest === args.revisionDigest &&
+    value.digestAlgorithm === 'canonical-json-sha256' &&
+    typeof value.digest === 'string' &&
+    DIGEST.test(value.digest) &&
+    canonicalDigest(value) === value.digest
+  );
+}
+
+function correctionProductDecisionIntent(
+  value: Record<string, unknown>,
+  args: { storyKey: string; candidateRecordDigest: string },
+): Record<string, unknown> | null {
+  if (
+    !exactKeys(value, [
+      'acceptedIntents',
+      'candidateBatch',
+      'candidateTechnicalQa',
+      'correctionDirections',
+      'coworkReferrals',
+      'decidedBy',
+      'decisionText',
+      'digest',
+      'digestAlgorithm',
+      'exclusions',
+      'narration',
+      'packet',
+      'packetPlanningQa',
+      'publication',
+      'status',
+      'version',
+    ]) ||
+    value.version !== CORRECTION_PRODUCT_DECISION_VERSION ||
+    value.status !== 'approved_for_correction_acceptance_preparation' ||
+    value.decidedBy !== 'Guy' ||
+    value.digestAlgorithm !== 'canonical-json-sha256' ||
+    typeof value.digest !== 'string' ||
+    !DIGEST.test(value.digest) ||
+    canonicalDigest(value) !== value.digest ||
+    !Array.isArray(value.acceptedIntents)
+  ) {
+    return null;
+  }
+  const intents = value.acceptedIntents
+    .map(recordValue)
+    .filter((entry): entry is Record<string, unknown> => entry !== null)
+    .filter(
+      (entry) =>
+        entry.storyKey === args.storyKey &&
+        entry.recordDigest === args.candidateRecordDigest,
+    );
+  if (intents.length !== 1) return null;
+  const intent = intents[0]!;
+  return exactKeys(intent, [
+    'continuityIntent',
+    'coworkReview',
+    'decisionId',
+    'disposition',
+    'recordDigest',
+    'storyCandidateSha256',
+    'storyKey',
+    'visualDirectionCandidateSha256',
+    'worldMode',
+  ]) &&
+    intent.disposition === 'acceptance_intent' &&
+    typeof intent.storyCandidateSha256 === 'string' &&
+    DIGEST.test(intent.storyCandidateSha256) &&
+    typeof intent.visualDirectionCandidateSha256 === 'string' &&
+    DIGEST.test(intent.visualDirectionCandidateSha256)
+    ? intent
+    : null;
+}
+
+function loadAcceptedCorrectionManifest(args: {
+  repoRoot: string;
+  storyKey: string;
+  storyPath: string;
+  revisionDigest: string;
+  acceptedRootRelative: string;
+}): AcceptedStorySourceAuthoringAuthority {
+  const storyAbsolute = path.resolve(args.repoRoot, args.storyPath);
+  const revisionRoot = path.dirname(storyAbsolute);
+  const revisionRelative = repoRelativePath(args.repoRoot, revisionRoot);
+  if (
+    revisionRelative !==
+    `${args.acceptedRootRelative}/${args.storyKey}/revisions/${args.revisionDigest}`
+  ) {
+    throw new Error('accepted_story_source_revision_path_invalid');
+  }
+  try {
+    const stat = fs.lstatSync(revisionRoot);
+    if (
+      stat.isSymbolicLink() ||
+      !stat.isDirectory() ||
+      !pathsEqual(revisionRoot, fs.realpathSync(revisionRoot))
+    ) {
+      throw new Error('accepted_story_source_revision_root_invalid');
+    }
+  } catch {
+    throw new Error('accepted_story_source_revision_root_invalid');
+  }
+
+  const inventory = fs.readdirSync(revisionRoot, { withFileTypes: true });
+  if (
+    inventory.some((entry) => !entry.isFile()) ||
+    JSON.stringify(inventory.map((entry) => entry.name).sort()) !==
+      JSON.stringify([...V4_EXPECTED_FILENAMES].sort())
+  ) {
+    throw new Error('accepted_story_source_inventory_invalid');
+  }
+
+  const fileBytes = new Map<V4AcceptedFilename, Buffer>();
+  for (const filename of V4_EXPECTED_FILENAMES) {
+    fileBytes.set(
+      filename,
+      readCanonicalRegularFile({
+        repoRoot: args.repoRoot,
+        revisionRoot,
+        filename,
+      }),
+    );
+  }
+  const manifestBytes = fileBytes.get('manifest.json')!;
+  const manifest = parseCanonicalJson(
+    manifestBytes,
+    'accepted_story_source_manifest_invalid',
+  );
+  const runtimeEligibility = recordValue(manifest.runtimeEligibility);
+  if (
+    !exactKeys(manifest, [
+      'acceptedWorldMode',
+      'authorityScope',
+      'continuityIntent',
+      'correctionProvenance',
+      'digest',
+      'digestAlgorithm',
+      'exclusions',
+      'files',
+      'productAcceptance',
+      'revisionDigest',
+      'runtimeEligibility',
+      'sourceGenderMode',
+      'status',
+      'storyKey',
+      'version',
+    ]) ||
+    manifest.version !== CORRECTION_ACCEPTED_REVISION_MANIFEST_VERSION ||
+    manifest.status !== 'product_accepted_story_source_revision' ||
+    manifest.authorityScope !== 'story_source_and_visual_directions_only' ||
+    manifest.storyKey !== args.storyKey ||
+    manifest.revisionDigest !== args.revisionDigest ||
+    manifest.sourceGenderMode !== 'neutral' ||
+    !['fantastical', 'grounded', 'grounded_with_visual_metaphor'].includes(
+      String(manifest.acceptedWorldMode),
+    ) ||
+    manifest.digestAlgorithm !== 'canonical-json-sha256' ||
+    typeof manifest.digest !== 'string' ||
+    !DIGEST.test(manifest.digest) ||
+    canonicalDigest(manifest) !== manifest.digest ||
+    JSON.stringify(manifest.exclusions) !==
+      JSON.stringify(CORRECTION_PRODUCT_ACCEPTANCE_EXCLUSIONS) ||
+    !runtimeEligibility ||
+    !exactKeys(runtimeEligibility, ['eligible', 'reason']) ||
+    runtimeEligibility.eligible !== false ||
+    runtimeEligibility.reason !== PRODUCT_ACCEPTANCE_RUNTIME_REASON
+  ) {
+    throw new Error('accepted_story_source_manifest_invalid');
+  }
+
+  const files = recordValue(manifest.files);
+  if (
+    !files ||
+    !exactKeys(files, [
+      'correctionCandidate',
+      'correctionManifest',
+      'correctionRequest',
+      'directionMigration',
+      'integratedStory',
+      'productAcceptance',
+      'productDecision',
+      'revisionIdentity',
+      'story',
+      'technicalReview',
+      'visualDirections',
+    ])
+  ) {
+    throw new Error('accepted_story_source_manifest_files_invalid');
+  }
+  const descriptorRows = [
+    ['correctionCandidate', 'correction-candidate.json', true],
+    ['correctionManifest', 'correction-manifest.json', true],
+    ['correctionRequest', 'correction-request.json', false],
+    ['directionMigration', 'direction-migration.json', true],
+    ['integratedStory', 'integrated.md', false],
+    ['productAcceptance', 'product-acceptance.json', true],
+    ['productDecision', 'product-decision.json', true],
+    ['revisionIdentity', 'revision-identity.json', true],
+    ['story', 'story.md', false],
+    ['technicalReview', 'technical-review.json', true],
+    ['visualDirections', 'visual-directions.json', false],
+  ] as const;
+  const fileSha256 = {} as Record<V4AcceptedFilename, string>;
+  const parsedFiles = new Map<V4AcceptedFilename, Record<string, unknown>>();
+  for (const [key, filename, requiresDigest] of descriptorRows) {
+    const current = descriptor(files[key], filename, requiresDigest);
+    const bytes = fileBytes.get(filename)!;
+    if (current.bytes !== bytes.length || current.sha256 !== sha256(bytes)) {
+      throw new Error('accepted_story_source_manifest_file_stale');
+    }
+    fileSha256[filename] = current.sha256 as string;
+    if (filename.endsWith('.json')) {
+      const parsed = filename === 'visual-directions.json'
+        ? parseJsonRecord(
+            bytes,
+            `accepted_story_source_embedded_digest_invalid:${filename}`,
+          )
+        : parseCanonicalJson(
+            bytes,
+            `accepted_story_source_embedded_digest_invalid:${filename}`,
+          );
+      if (requiresDigest) {
+        const calculated = filename === 'correction-candidate.json'
+          ? compactCanonicalDigest(parsed)
+          : canonicalDigest(parsed);
+        if (parsed.digest !== current.digest || calculated !== current.digest) {
+          throw new Error(
+            `accepted_story_source_embedded_digest_invalid:${filename}`,
+          );
+        }
+      }
+      parsedFiles.set(filename, parsed);
+    }
+  }
+  fileSha256['manifest.json'] = sha256(manifestBytes);
+  if (!fileBytes.get('integrated.md')!.equals(fs.readFileSync(storyAbsolute))) {
+    throw new Error('accepted_story_source_integrated_story_invalid');
+  }
+
+  const candidate = parsedFiles.get('correction-candidate.json')!;
+  const correctionManifest = parsedFiles.get('correction-manifest.json')!;
+  const request = parsedFiles.get('correction-request.json')!;
+  const migration = parsedFiles.get('direction-migration.json')!;
+  const productAcceptance = parsedFiles.get('product-acceptance.json')!;
+  const productDecision = parsedFiles.get('product-decision.json')!;
+  const identity = parsedFiles.get('revision-identity.json')!;
+  const technicalReview = parsedFiles.get('technical-review.json')!;
+  const provenance = recordValue(manifest.correctionProvenance);
+  const manifestAcceptance = recordValue(manifest.productAcceptance);
+  const candidateOutputs = recordValue(candidate.candidateOutputs);
+  const candidateRequest = recordValue(candidate.request);
+  const manifestOutputs = recordValue(correctionManifest.outputs);
+  const manifestRequest = recordValue(correctionManifest.request);
+  const identityBatch = recordValue(identity.candidateBatch);
+  const identityCorrection = recordValue(identity.correction);
+  const identityOutputs = recordValue(identity.outputs);
+  const decisionBatch = recordValue(productDecision.candidateBatch);
+  const intent = correctionProductDecisionIntent(productDecision, {
+    storyKey: args.storyKey,
+    candidateRecordDigest: String(candidate.digest),
+  });
+  const pageCount = Number(candidate.pageCount);
+  if (!Number.isSafeInteger(pageCount) || pageCount < 1) {
+    throw new Error('accepted_story_source_identity_invalid');
+  }
+  const pageNumbers = Array.from({ length: pageCount }, (_, index) => index + 1);
+  assertValidStoryVisualContinuityIntent(manifest.continuityIntent, pageNumbers);
+
+  const candidateStory = recordValue(candidateOutputs?.acceptedStory);
+  const candidateDirections = recordValue(candidateOutputs?.visualDirection);
+  const candidateIntegrated = recordValue(candidateOutputs?.integratedStory);
+  const candidateMigration = recordValue(candidateOutputs?.directionMigration);
+  const candidateManifest = recordValue(candidateOutputs?.manifest);
+  const outputStory = recordValue(manifestOutputs?.acceptedStoryCandidate);
+  const outputDirections = recordValue(manifestOutputs?.visualDirectionCandidate);
+  const outputIntegrated = recordValue(manifestOutputs?.integratedStoryCandidate);
+  const outputMigration = recordValue(manifestOutputs?.directionMigration);
+  if (
+    candidate.status !== 'pending_exact_product_and_visual_review' ||
+    candidate.storyKey !== args.storyKey ||
+    candidate.runtimeEligible !== false ||
+    candidate.productionEligible !== false ||
+    !Array.isArray(candidate.unresolvedCreativeSourceIssues) ||
+    candidate.unresolvedCreativeSourceIssues.length !== 0 ||
+    !Array.isArray(candidate.protectedAuthorityIssues) ||
+    candidate.protectedAuthorityIssues.length !== 0 ||
+    JSON.stringify(candidate.continuityIntent) !==
+      JSON.stringify(manifest.continuityIntent) ||
+    !intent ||
+    intent.worldMode !== manifest.acceptedWorldMode ||
+    intent.storyCandidateSha256 !== fileSha256['story.md'] ||
+    intent.visualDirectionCandidateSha256 !==
+      fileSha256['visual-directions.json'] ||
+    !provenance ||
+    !exactKeys(provenance, [
+      'candidateBatchDigest',
+      'candidateBatchRawSha256',
+      'candidateRecordDigest',
+      'correctionManifestDigest',
+      'correctionRequestSha256',
+      'directionMigrationDigest',
+      'productDecisionDigest',
+      'recordDecisionDigest',
+      'technicalReviewDigest',
+    ]) ||
+    provenance.candidateRecordDigest !== candidate.digest ||
+    provenance.productDecisionDigest !== productDecision.digest ||
+    provenance.correctionManifestDigest !== correctionManifest.digest ||
+    provenance.correctionRequestSha256 !== fileSha256['correction-request.json'] ||
+    provenance.directionMigrationDigest !== migration.digest ||
+    provenance.technicalReviewDigest !== technicalReview.digest ||
+    !identityBatch ||
+    identity.version !== CORRECTION_REVISION_IDENTITY_VERSION ||
+    identity.storyKey !== args.storyKey ||
+    identity.digest !== args.revisionDigest ||
+    identity.candidateRecordDigest !== candidate.digest ||
+    identity.recordDecisionDigest !== provenance.recordDecisionDigest ||
+    identity.acceptedWorldMode !== manifest.acceptedWorldMode ||
+    JSON.stringify(identity.continuityIntent) !==
+      JSON.stringify(manifest.continuityIntent) ||
+    identityBatch.digest !== provenance.candidateBatchDigest ||
+    identityBatch.rawSha256 !== provenance.candidateBatchRawSha256 ||
+    !identityCorrection ||
+    identityCorrection.pendingManifestDigest !== correctionManifest.digest ||
+    identityCorrection.requestSha256 !== fileSha256['correction-request.json'] ||
+    identityCorrection.directionMigrationDigest !== migration.digest ||
+    !identityOutputs ||
+    identityOutputs.storySha256 !== fileSha256['story.md'] ||
+    identityOutputs.visualDirectionsSha256 !==
+      fileSha256['visual-directions.json'] ||
+    identityOutputs.integratedStorySha256 !== fileSha256['integrated.md'] ||
+    !decisionBatch ||
+    decisionBatch.digest !== provenance.candidateBatchDigest ||
+    decisionBatch.sha256 !== provenance.candidateBatchRawSha256 ||
+    !candidateRequest ||
+    candidateRequest.bytes !== fileBytes.get('correction-request.json')!.length ||
+    candidateRequest.sha256 !== fileSha256['correction-request.json'] ||
+    JSON.stringify(candidateRequest.payload) !== JSON.stringify(request) ||
+    correctionManifest.version !==
+      'small-heroes-story-source-visual-direction-correction-pending-manifest/v1' ||
+    correctionManifest.status !== 'pending_exact_product_review' ||
+    correctionManifest.storyKey !== args.storyKey ||
+    !manifestRequest ||
+    manifestRequest.bytes !== fileBytes.get('correction-request.json')!.length ||
+    manifestRequest.sha256 !== fileSha256['correction-request.json'] ||
+    !candidateStory ||
+    candidateStory.sha256 !== fileSha256['story.md'] ||
+    !candidateDirections ||
+    candidateDirections.sha256 !== fileSha256['visual-directions.json'] ||
+    !candidateIntegrated ||
+    candidateIntegrated.sha256 !== fileSha256['integrated.md'] ||
+    !candidateMigration ||
+    candidateMigration.sha256 !== fileSha256['direction-migration.json'] ||
+    candidateMigration.digest !== migration.digest ||
+    !candidateManifest ||
+    candidateManifest.sha256 !== fileSha256['correction-manifest.json'] ||
+    JSON.stringify(candidate.sourceRevisionManifest) !==
+      JSON.stringify(correctionManifest) ||
+    !outputStory ||
+    outputStory.sha256 !== fileSha256['story.md'] ||
+    !outputDirections ||
+    outputDirections.sha256 !== fileSha256['visual-directions.json'] ||
+    !outputIntegrated ||
+    outputIntegrated.sha256 !== fileSha256['integrated.md'] ||
+    !outputMigration ||
+    outputMigration.sha256 !== fileSha256['direction-migration.json'] ||
+    outputMigration.digest !== migration.digest ||
+    migration.storyKey !== args.storyKey ||
+    migration.sourceStorySha256 !== fileSha256['story.md'] ||
+    migration.revisedDirectionSha256 !== fileSha256['visual-directions.json'] ||
+    !correctionTechnicalReviewIsValid(technicalReview, {
+      candidateBatchDigest: String(provenance.candidateBatchDigest),
+      productDecisionDigest: String(productDecision.digest),
+      recordDecisionDigest: String(provenance.recordDecisionDigest),
+      revisionDigest: args.revisionDigest,
+    }) ||
+    !correctionProductAcceptanceIsValid(productAcceptance, {
+      storyKey: args.storyKey,
+      revisionDigest: args.revisionDigest,
+      candidateRecordDigest: String(candidate.digest),
+      productDecisionDigest: String(productDecision.digest),
+      recordDecisionDigest: String(provenance.recordDecisionDigest),
+      technicalReviewDigest: String(technicalReview.digest),
+      acceptedWorldMode: manifest.acceptedWorldMode,
+    }) ||
+    !manifestAcceptance ||
+    !exactKeys(manifestAcceptance, ['acceptedBy', 'digest']) ||
+    manifestAcceptance.acceptedBy !== 'Guy' ||
+    manifestAcceptance.digest !== productAcceptance.digest ||
+    JSON.stringify(productAcceptance.runtimeEligibility) !==
+      JSON.stringify(runtimeEligibility) ||
+    JSON.stringify(productAcceptance.exclusions) !==
+      JSON.stringify(manifest.exclusions)
+  ) {
+    throw new Error('accepted_story_source_approval_binding_invalid');
+  }
+
+  return {
+    version: ACCEPTED_STORY_SOURCE_AUTHORING_AUTHORITY_VERSION,
+    revisionDigest: args.revisionDigest,
+    manifestDigest: manifest.digest as string,
+    manifestSha256: fileSha256['manifest.json'],
+    productAcceptanceDigest: productAcceptance.digest as string,
+    technicalReviewDigest: technicalReview.digest as string,
+    continuityIntent: structuredClone(
+      manifest.continuityIntent as StoryVisualContinuityIntent,
+    ),
+    fileSha256,
+  };
+}
+
 export function loadAcceptedStorySourceAuthoringAuthority(args: {
   repoRoot: string;
   storyKey: string;
   storyPath: string;
+  acceptedRootRelative?: string;
 }): AcceptedStorySourceAuthoringAuthority | null {
+  const acceptedRoot = validatedAcceptedRootRelative(
+    args.repoRoot,
+    args.acceptedRootRelative,
+  );
+  const patterns = acceptedPathPatterns(acceptedRoot);
   const canonicalPath = args.storyPath.split('\\').join('/');
-  const match = ACCEPTED_SOURCE_PATTERN.exec(canonicalPath);
+  const match = patterns.source.exec(canonicalPath);
   if (!match) {
-    if (
-      ACCEPTED_REVISION_ROOT_PATTERN.test(canonicalPath)
-    ) {
+    if (patterns.revisions.test(canonicalPath)) {
       throw new Error('accepted_story_source_revision_path_invalid');
     }
     return null;
@@ -857,12 +1476,21 @@ export function loadAcceptedStorySourceAuthoringAuthority(args: {
   if (manifest.version === LEGACY_ACCEPTED_REVISION_MANIFEST_VERSION) {
     return null;
   }
-  if (manifest.version !== ACCEPTED_REVISION_MANIFEST_VERSION) {
-    throw new Error('accepted_story_source_manifest_version_unsupported');
+  if (manifest.version === ACCEPTED_REVISION_MANIFEST_VERSION) {
+    return loadAcceptedManifest({
+      ...args,
+      acceptedRootRelative: acceptedRoot,
+      storyPath: canonicalPath,
+      revisionDigest: revisionDigest!,
+    });
   }
-  return loadAcceptedManifest({
-    ...args,
-    storyPath: canonicalPath,
-    revisionDigest: revisionDigest!,
-  });
+  if (manifest.version === CORRECTION_ACCEPTED_REVISION_MANIFEST_VERSION) {
+    return loadAcceptedCorrectionManifest({
+      ...args,
+      acceptedRootRelative: acceptedRoot,
+      storyPath: canonicalPath,
+      revisionDigest: revisionDigest!,
+    });
+  }
+  throw new Error('accepted_story_source_manifest_version_unsupported');
 }

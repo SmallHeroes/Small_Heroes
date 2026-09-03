@@ -38,6 +38,8 @@ const RUNTIME_ELIGIBILITY = Object.freeze({
   eligible: false,
   reason: 'accepted_story_source_requires_fresh_visual_contract',
 });
+const PUBLICATION_SAFETY_KERNEL_VERSION =
+  'small-heroes-story-source-publication-safety-kernel/v1';
 
 function exactKeys(value, keys) {
   return (
@@ -744,11 +746,30 @@ function main(argv) {
   );
 }
 
+const publicationSafetyKernel = Object.freeze({
+  version: PUBLICATION_SAFETY_KERNEL_VERSION,
+  acceptedTarget,
+  assertExistingBundle,
+  assertNoLinkComponents,
+  attachDigest,
+  canonicalDigest,
+  canonicalOutputRoot,
+  canonicalRepoRelativePathIsValid,
+  canonicalUtcTimestampIsValid,
+  digestIsCanonical,
+  exactKeys,
+  parseJson,
+  pathIsInside,
+  readContainedRegularFile,
+  writeDirectoryAtomically,
+});
+
 module.exports = {
   ACCEPTED_REVISION_VERSION,
   AUTHORITY_SCOPE,
   EXCLUSIONS,
   PRODUCT_ACCEPTANCE_VERSION,
+  PUBLICATION_SAFETY_KERNEL_VERSION,
   REQUEST_VERSION,
   RUNTIME_ELIGIBILITY,
   TECHNICAL_REVIEW_VERSION,
@@ -757,6 +778,7 @@ module.exports = {
   loadInputs,
   parseArgs,
   prepare,
+  publicationSafetyKernel,
   publish,
   validateRequest,
   validateTechnicalReview,

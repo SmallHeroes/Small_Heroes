@@ -1,6 +1,65 @@
 # SmallHeroes — Current Technical State
 
-## R3-B1b planning — packet and draft gate independently QA-passed; exact owner decisions pending
+## R3-B1b implementation — correction acceptance v4 locally green; independent QA and final publication confirmation pending
+
+Guy approved the exact decision package in packet commit
+`19f110f414ec70cd64e96be3b0a99132bb4ef8b9` for immutable candidate batch
+`96154a39091b71c9dffb64dcf60b8667c149b78d4b4c0d5a07787189d00a7e9b`:
+acceptance intent for P1-P5/P7/P8, P6 referral to Claude Cowork without
+acceptance, and correction preparation according to D1-D5, D6A and D7-D13.
+He also approved the R3-B1b implementation gate. Human narration, independent
+implementation QA, exact final-digest confirmation and canonical publication
+remain separate gates.
+
+Codex implemented a correction-lineage accepted-authority schema and lifecycle
+without weakening the existing correction-pending fences or relabeling the
+lineage as enrichment v3. The tracked product-decision envelope has canonical
+digest `341d73c53e9c11c753bc75f8e7235294e17a8e271ff9ee618b02321c9534ae5b`.
+The lifecycle binds the exact packet bytes, packet commit, batch bytes, record,
+request, story and Visual Direction digests, both independently reviewed input
+ranges, Guy's complete decision set, a later independent implementation review,
+and a later exact final product-acceptance envelope. Missing, partial, stale,
+cross-record, substituted-review, wrong-reviewer, wrong-final-digest, path/link,
+collision and replay cases fail closed. The accepted-authority loader now
+supports the complete 12-file correction-v4 inventory while retaining exact v3
+and legacy-v2 behavior. Filesystem publication reuses the proven v3 containment,
+identity, staging, immutable collision and atomic-directory safety kernel.
+
+The P1 temporary-root proof derived final revision digest
+`64dcd0e741f17fc08cde95ad8a5a00b303955aa28ccd065d44f01e49e9d155fc`.
+That digest is a proposed future accepted revision, not a current product
+acceptance or publication. In the temporary overlay, accepted-source count,
+supported-gender count and automated narration-preflight count each moved from
+1 to 2; narration inputs and critical narration findings remained 18; soft
+narration findings moved from 12 items / 6 stories to 10 items / 5 stories; P1's
+corpus decision requirement cleared, while the evidence-level source conflict
+count remained 18 because the candidate bytes still differ from historical
+corpus bytes. All visual-package and strict render-qualified counts remained
+1/18, P1 remained not render-ready, and the other 17 functional dispositions
+remained unchanged. No human-ear acceptance is modeled or claimed.
+
+The correction-specific validation passes **9/9**. The complete focused slice
+passes **10/10 files and 88/88 tests** with one worker and no file parallelism.
+`npx tsc --noEmit`, `npm run story:autonomous-typecheck`, both lifecycle
+`node --check` calls and `git diff --check` pass. The literal `npm run check`
+does not pass: its ordinary phase reports 339 passing, 6 failing and 17 skipped
+files, with 4,790 passing, 10 failing and 73 skipped tests; all ten failures are
+unchanged tests whose ignored historical `outputs/` fixtures are absent. Its
+resource-intensive phase executes the new R3-B1b spec and reports **21/21 files
+and 649/649 assertions passing**, followed by two Vitest `onTaskUpdate` RPC
+timeouts, so that phase also exits 1. These inherited environment/fixture
+failures are disclosed and are not counted as PASS.
+
+All R3-B1b effects remain zero: no canonical accepted revision, runtime
+activation, provider/network/database/storage call, image/audio/PDF render,
+order/payment/deployment mutation or spend occurred. The production accepted
+tree and every historical accepted revision remain unchanged. The resemblance
+threshold remains **0.70**. Next, Codex creates the focused local commit and
+hands its immutable range to Claude Code for adversarial read-only QA. Even a
+technical PASS will not publish P1: Guy must then confirm the exact final digest
+in a separate publication gate.
+
+## R3-B1b planning foundation — packet and draft gate independently QA-passed
 
 After the independent R3-B1a PASS, Codex completed the authorized zero-cost
 product-decision packet at
@@ -26,15 +85,16 @@ TypeScript successfully; reproduced the packet byte length and both SHA-256
 bindings; cross-checked all eight P records and all thirteen D decisions against
 the immutable artifact; and confirmed the P6 Cowork-before-Guy sequence, current
 lifecycle fences, wrong-packet rejection intent, and zero-effect / USD 0
-boundary. The reviewed commit is pushed and tracks origin at 0/0 parity. This
-technical PASS validates the packet; it does not supply Guy's product decisions
-or approve R3-B1b implementation.
+boundary. The reviewed commit is pushed. That technical PASS validated the
+packet but did not itself supply Guy's product decisions or approve
+implementation; Guy's later explicit approval is recorded above.
 
 The smallest recommended clean wave is `dragon_dini_adventure`,
 `bunny_ometz_adventure`, and `bunny_ometz_fantasy`; all three have zero current
-narration flags and zero unresolved creative/continuity issues. This is a review
-recommendation only. No product decision, acceptance, publication, Story Source,
-Visual Direction, runtime authority, package, or render eligibility has changed.
+narration flags and zero unresolved creative/continuity issues. This was a
+review recommendation only. Guy subsequently supplied the exact intent
+decisions, but no canonical acceptance, publication, Story Source, Visual
+Direction, runtime authority, package, or render eligibility has changed.
 
 Read-only lifecycle investigation confirmed that the existing correction loader
 intentionally rejects review and promotion with
@@ -42,15 +102,14 @@ intentionally rejects review and promotion with
 `story_source_visual_direction_correction_promotion_not_implemented`. The strict
 accepted-authority loader requires the complete accepted v3 enrichment lineage;
 silently relabeling a correction candidate as v3 would create false provenance.
-The draft R3-B1b gate therefore proposes a new correction-aware, digest-bound,
+The draft R3-B1b gate therefore proposed a correction-aware, digest-bound,
 provider-free acceptance/publication lifecycle with versioned provenance and a
-single-record first proof. It may not be implemented until Guy accepts the exact
-P1-P5/P7/P8 intent and D1-D13 directions, authorizes the P6 Cowork referral, and
-approves the new gate. P6 acceptance can occur only after Cowork returns.
-Narration remains separately blocked on human ear decisions. All effects and
-spend for this packet-preparation step are zero. The reviewed packet commit is
-pushed; this faithful PASS transcription is documentation-only and grants no
-additional authority.
+single-record first proof. Guy later supplied the required intent decisions,
+authorized the P6 Cowork referral and approved implementation. P6 acceptance
+still cannot occur until Cowork returns and Guy decides its exact later digest.
+Narration remains separately blocked on human ear decisions. The reviewed packet
+commit is pushed; the planning milestone itself granted no publication or
+runtime authority.
 
 ## R3-B1a — implementation and documentation independently QA-passed; technical preparation closed
 
