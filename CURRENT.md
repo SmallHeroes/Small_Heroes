@@ -1,5 +1,42 @@
 # SmallHeroes — Current Technical State
 
+## R3-B1b — compact product-decision packet prepared; exact owner decisions pending
+
+After the independent R3-B1a PASS, Codex completed the authorized zero-cost
+product-decision packet at
+`docs/ai-workflow/R3B1A_STORY_SOURCE_VISUAL_DIRECTION_PRODUCT_DECISION_PACKET.md`.
+The packet is 18,413 bytes with raw SHA-256
+`cbe65b9687d04bba5fdf691a4a0f0275297bc79e5195d8eb0d68a36e9deb3d78`.
+It is bound to candidate batch
+`96154a39091b71c9dffb64dcf60b8667c149b78d4b4c0d5a07787189d00a7e9b`
+and raw SHA-256
+`d8a57650364d62cfc52496b1385ba5dd95fe702f06edf51ff327ae5a43caba4c`.
+The packet gives Guy exact acceptance intent decisions for P1-P5/P7/P8, a
+Cowork-review referral for P6 before Guy's later exact decision, and one
+recommended resolution for each of the 13 D1-D13 creative/continuity issues. It
+also keeps the 7 critical and 24 soft narration findings, concrete wardrobe,
+and paid visual work as separate gates.
+
+The smallest recommended clean wave is `dragon_dini_adventure`,
+`bunny_ometz_adventure`, and `bunny_ometz_fantasy`; all three have zero current
+narration flags and zero unresolved creative/continuity issues. This is a review
+recommendation only. No product decision, acceptance, publication, Story Source,
+Visual Direction, runtime authority, package, or render eligibility has changed.
+
+Read-only lifecycle investigation confirmed that the existing correction loader
+intentionally rejects review and promotion with
+`story_source_visual_direction_correction_review_not_implemented` and
+`story_source_visual_direction_correction_promotion_not_implemented`. The strict
+accepted-authority loader requires the complete accepted v3 enrichment lineage;
+silently relabeling a correction candidate as v3 would create false provenance.
+The draft R3-B1b gate therefore proposes a new correction-aware, digest-bound,
+provider-free acceptance/publication lifecycle with versioned provenance and a
+single-record first proof. It may not be implemented until Guy accepts the exact
+P1-P5/P7/P8 intent and D1-D13 directions, authorizes the P6 Cowork referral, and
+approves the new gate. P6 acceptance can occur only after Cowork returns.
+Narration remains separately blocked on human ear decisions. All effects and
+spend for this packet-preparation step are zero, and the branch remains unpushed.
+
 ## R3-B1a — implementation and documentation independently QA-passed; technical preparation closed
 
 Guy authorized Codex to continue the zero-cost work toward making every story
