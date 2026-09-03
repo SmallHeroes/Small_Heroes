@@ -1,0 +1,115 @@
+{
+  "acceptedWorldMode": "grounded",
+  "authorityScope": "story_source_and_visual_directions_only",
+  "continuityIntent": {
+    "childWardrobeAuthority": "frozen_visual_contract",
+    "childWardrobeTransitionPages": [],
+    "companionAccessoryAuthority": "canonical_companion_profile",
+    "companionAppearanceAuthority": "frozen_companion_state",
+    "companionStateTransitionPages": [],
+    "version": "small-heroes-story-visual-continuity-intent/v1"
+  },
+  "correctionProvenance": {
+    "candidateBatchDigest": "96154a39091b71c9dffb64dcf60b8667c149b78d4b4c0d5a07787189d00a7e9b",
+    "candidateBatchRawSha256": "d8a57650364d62cfc52496b1385ba5dd95fe702f06edf51ff327ae5a43caba4c",
+    "candidateRecordDigest": "16ab0316f197aff6afae4ad42419c1f3b7d7cc285c71f0a16d75000426cc4046",
+    "correctionManifestDigest": "71c8ba64f3fa6b5fabc46412646723dd85a8a7fce830cd287df07be8c18e09f8",
+    "correctionRequestSha256": "b295ff769d9468abe066630b2e0f91d0b44496906a954723c4053596ac1119a8",
+    "directionMigrationDigest": "d2c6fb8fce56a5208da3e14f9fbb272dd8499b04315f062d4083adb48c258d2c",
+    "productDecisionDigest": "9b625e71318cf3a26117bc89744a1e39c04d13f6d74f632cddab4aaa639113e8",
+    "recordDecisionDigest": "c34f228d4c7ae7e1cd244094a5ff64ca9f5e49a6aeb6414cecb9961f5f3453e1",
+    "technicalReviewDigest": "819c27fa8387b167d0b2b2c3f8f0ae26033fedf1a4c93beb62700a52dbe69661"
+  },
+  "digest": "8103e741ce9e7402264f5edac24204bce2b72e4df523fd88031d43ef5d44416d",
+  "digestAlgorithm": "canonical-json-sha256",
+  "exclusions": [
+    "blueprint",
+    "deployment",
+    "image_render",
+    "narration_human_ear",
+    "production",
+    "provider_call",
+    "runtime_locator",
+    "story_bank_current_pointer",
+    "visual_contract",
+    "visual_package",
+    "wizard"
+  ],
+  "files": {
+    "correctionCandidate": {
+      "bytes": 12100,
+      "digest": "16ab0316f197aff6afae4ad42419c1f3b7d7cc285c71f0a16d75000426cc4046",
+      "filename": "correction-candidate.json",
+      "sha256": "37bd0ccf7e5633cc641e7dea116862cec7f42565197524d5711f270364bf8304"
+    },
+    "correctionManifest": {
+      "bytes": 4132,
+      "digest": "71c8ba64f3fa6b5fabc46412646723dd85a8a7fce830cd287df07be8c18e09f8",
+      "filename": "correction-manifest.json",
+      "sha256": "9c745173e2ecb8fb26bc826d2c73cc814eab53b41878ba27d25eb79fdedfa5e3"
+    },
+    "correctionRequest": {
+      "bytes": 2082,
+      "filename": "correction-request.json",
+      "sha256": "b295ff769d9468abe066630b2e0f91d0b44496906a954723c4053596ac1119a8"
+    },
+    "directionMigration": {
+      "bytes": 775,
+      "digest": "d2c6fb8fce56a5208da3e14f9fbb272dd8499b04315f062d4083adb48c258d2c",
+      "filename": "direction-migration.json",
+      "sha256": "5400fe1565d7330e2b0ca513ce04bd54d5338c9134812a2aad09e931da70ac07"
+    },
+    "integratedStory": {
+      "bytes": 11976,
+      "filename": "integrated.md",
+      "sha256": "a5942c3646d08bc037395851311e9627bdfc1dd29f7874a45b000b87af416630"
+    },
+    "productAcceptance": {
+      "bytes": 1580,
+      "digest": "1ce47c29e525b0e99d151d7bf3380293d4479cd6382ed29032461cdb75e6b56f",
+      "filename": "product-acceptance.json",
+      "sha256": "0ba507ef5c13486db6af35e08f31feed140e721c33ee45af0e53412b88fd964c"
+    },
+    "productDecision": {
+      "bytes": 10458,
+      "digest": "9b625e71318cf3a26117bc89744a1e39c04d13f6d74f632cddab4aaa639113e8",
+      "filename": "product-decision.json",
+      "sha256": "809865a12dd75faf87442dacf0d19f2cb3fbadc1ce2475ecfb11cd230581f8a0"
+    },
+    "revisionIdentity": {
+      "bytes": 1920,
+      "digest": "64dcd0e741f17fc08cde95ad8a5a00b303955aa28ccd065d44f01e49e9d155fc",
+      "filename": "revision-identity.json",
+      "sha256": "703361658f7a5a4a4644daaeeef60a79543b4450f11bdac6843ce383bd8f4779"
+    },
+    "story": {
+      "bytes": 6678,
+      "filename": "story.md",
+      "sha256": "d94a867035e7e3df37c047f991d900e067c3133e0a1f49c105479b92c171deeb"
+    },
+    "technicalReview": {
+      "bytes": 792,
+      "digest": "819c27fa8387b167d0b2b2c3f8f0ae26033fedf1a4c93beb62700a52dbe69661",
+      "filename": "technical-review.json",
+      "sha256": "c0008cde124ba443794ac067d40b3a1926361566017ca461c3306590069f2e63"
+    },
+    "visualDirections": {
+      "bytes": 8663,
+      "filename": "visual-directions.json",
+      "sha256": "cb7f92664de6627ed7efd7a62b6838d413dc2df8136f1b9f45c6098b06ec4b6e"
+    }
+  },
+  "productAcceptance": {
+    "acceptedBy": "Guy",
+    "digest": "1ce47c29e525b0e99d151d7bf3380293d4479cd6382ed29032461cdb75e6b56f"
+  },
+  "revisionDigest": "64dcd0e741f17fc08cde95ad8a5a00b303955aa28ccd065d44f01e49e9d155fc",
+  "runtimeEligibility": {
+    "eligible": false,
+    "reason": "accepted_story_source_requires_fresh_visual_contract"
+  },
+  "sourceGenderMode": "neutral",
+  "status": "product_accepted_story_source_revision",
+  "storyKey": "dragon_dini_adventure",
+  "version": "small-heroes-product-accepted-story-source-revision-manifest/v4"
+}

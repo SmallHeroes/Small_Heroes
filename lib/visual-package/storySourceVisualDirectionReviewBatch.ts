@@ -2337,6 +2337,9 @@ export function prepareStorySourceVisualDirectionReviewBatch(args: {
     auditWizardAllStoryRenderReadinessForR3B0bReplay({
       repoRoot,
       now: () => new Date(`${request.authorizedOn}T12:00:00.000Z`),
+      acceptedStoryKeyAllowList: [
+        request.decisions.preserveExistingStrictAuthority.storyKey,
+      ],
     }),
   );
   if (

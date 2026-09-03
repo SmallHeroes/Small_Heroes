@@ -1,6 +1,67 @@
 # SmallHeroes — Current Technical State
 
-## R3-B1b implementation — independent technical QA PASS; final P1 digest confirmation and publication pending
+## R3-B1b P1 — exact canonical source publication completed; publication QA pending
+
+On 2026-09-03 Guy explicitly confirmed final P1 `dragon_dini_adventure` revision
+`64dcd0e741f17fc08cde95ad8a5a00b303955aa28ccd065d44f01e49e9d155fc` and authorized
+canonical **Story Source and Visual Direction only**. Rendering, narration,
+Visual Package, deployment and every paid action remain excluded.
+
+The previously reviewed lifecycle published the complete 12-file correction-v4
+bundle under `story-pipeline/04_approved_story_sources/accepted/dragon_dini_adventure/revisions/64dcd0e741f17fc08cde95ad8a5a00b303955aa28ccd065d44f01e49e9d155fc/`.
+Initial publication returned `created:true`; exact replay returned
+`created:false` with identical revision and manifest identities. The manifest
+digest is `8103e741ce9e7402264f5edac24204bce2b72e4df523fd88031d43ef5d44416d`.
+The real Guy acceptance digest is
+`1ce47c29e525b0e99d151d7bf3380293d4479cd6382ed29032461cdb75e6b56f`; the bound
+Claude Code implementation PASS envelope is
+`819c27fa8387b167d0b2b2c3f8f0ae26033fedf1a4c93beb62700a52dbe69661`, truthfully
+retaining its one documentation-only P2. That PASS covers the earlier
+implementation range, not this publication/compatibility milestone.
+
+The real canonical readiness audit now reports 2/18 accepted-source lineages,
+2/18 supported-gender authorities and 2/18 automated narration preflights.
+Soft-TTS review items are 10 across 5 stories. P1 has no automated critical or
+soft TTS gaps in either supported projection; this is not human-ear approval.
+P1's corpus decision is resolved, but its `renderQualified` remains false:
+the next missing authority is a fresh Visual Contract for the exact accepted
+source. Package/render-qualified count remains **1/18**. Environment product
+sellability moves from 18 to **17**, because P1's newly explicit product lineage
+correctly prevents falling back to an unqualified legacy source. No Wizard
+flag, locator, package or deployment was changed.
+
+Publication exposed a historical replay dependency: the immutable R3-B0b batch
+was being regenerated against later canonical acceptances. The read-only
+historical adapter now uses the original request's preserved-authority
+allow-list, including historical qualification/sellability evidence. The
+ordinary readiness entrypoint explicitly strips that historical option, and
+production selection, matrix and render-audit APIs remain byte-unchanged.
+R3-B0b digest `7a8434c76f90bc96776909430e93fecb97f2c8a08800085d0ba3e55d7f97a143`
+and R3-B1a batch digest remain reproducible after P1 publication. Tests use a
+temporary copy without this revision for their source-overlay before/after
+proof and never remove canonical authority. Current-catalog expectations now
+record the published P1 state rather than the previous baseline.
+
+Validation and the exact command/result ledger are in
+`docs/ai-workflow/R3B1B_CORRECTION_ACCEPTANCE_PUBLICATION_IMPLEMENTATION_EVIDENCE.md`.
+Type checks and syntax checks pass. The 14-file focused run returned 138
+passing tests plus the known 5,000 ms deterministic-audit timeout (5,156 ms);
+the exact cell then passed in isolation at 3,818 ms. This is not an overall
+focused-suite PASS. The full check remains non-green because of missing
+historical ignored fixtures and the disclosed timing/worker-RPC behavior;
+none is waived and no timeout was widened.
+Independent Claude Code review of this publication/compatibility milestone is
+pending; Codex does not self-award PASS. P2-P5/P7/P8 remain acceptance intent
+only; P6 remains referred without acceptance; HOLD corrections and all
+downstream authoring/spend require their separate gates.
+
+All ten publication external-effect counters are zero. No provider, image,
+audio, PDF, database, storage, order, payment or deployment action was invoked.
+Cost is USD 0; the resemblance threshold remains 0.70. The pre-publication base
+was `e87b5c5b3e68cbd6158e1324c73167d56160658c`, already at upstream parity.
+This new milestone is local and is not pushed by implication.
+
+## R3-B1b implementation closeout — historical pre-publication record
 
 Guy approved the exact decision package in packet commit
 `19f110f414ec70cd64e96be3b0a99132bb4ef8b9` for immutable candidate batch

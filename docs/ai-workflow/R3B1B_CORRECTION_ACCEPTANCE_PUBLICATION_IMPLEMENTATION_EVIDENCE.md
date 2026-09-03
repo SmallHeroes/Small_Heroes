@@ -10,7 +10,167 @@ Initial review head: `4c4cb91ead784d852759d448e03bc3012f9f68c2`
 
 Corrective re-gate head: `2e0b8096d018a45d0c78d8fd4bc610d862b6de5a`
 
-## Authority and scope
+## P1 canonical publication — 2026-09-03
+
+Publication base: `e87b5c5b3e68cbd6158e1324c73167d56160658c` (already pushed at
+0/0 upstream parity before this action). Guy explicitly confirmed exact P1
+revision `64dcd0e741f17fc08cde95ad8a5a00b303955aa28ccd065d44f01e49e9d155fc` and
+authorized canonical Story Source / Visual Direction only. No render,
+narration, package, deployment or paid action was authorized or executed.
+
+Real publication authority:
+
+- Product-decision digest: `9b625e71318cf3a26117bc89744a1e39c04d13f6d74f632cddab4aaa639113e8`.
+- Technical-review digest: `819c27fa8387b167d0b2b2c3f8f0ae26033fedf1a4c93beb62700a52dbe69661`.
+  This transcribes Claude Code's actual PASS for `1227495e..2e0b8096`, zero
+  P0/P1 and one documentation-only P2. It does not claim QA of this new diff.
+- Guy's final product-acceptance digest: `1ce47c29e525b0e99d151d7bf3380293d4479cd6382ed29032461cdb75e6b56f`.
+- Accepted manifest digest: `8103e741ce9e7402264f5edac24204bce2b72e4df523fd88031d43ef5d44416d`.
+- Accepted manifest raw SHA-256: `cd99b3ddbfc34bcca682888e142f6103ba09f2a5b758496bf9b4f9838bb1b505`.
+
+The target is
+`story-pipeline/04_approved_story_sources/accepted/dragon_dini_adventure/revisions/64dcd0e741f17fc08cde95ad8a5a00b303955aa28ccd065d44f01e49e9d155fc/`.
+It contains exactly 12 files: `correction-candidate.json`,
+`correction-manifest.json`, `correction-request.json`,
+`direction-migration.json`, `integrated.md`, `manifest.json`,
+`product-acceptance.json`, `product-decision.json`, `revision-identity.json`,
+`story.md`, `technical-review.json`, and `visual-directions.json`.
+
+### Exact executed publication commands
+
+From `C:\GNart\Work\sh-r3b1b-correction-acceptance-publication`, the following
+argument vector was used with `prepare --write false`, then `prepare --write
+true`, then `publish --write true` twice. Every command exited 0. The first
+publish returned `created:true`; the second returned `created:false` with
+identical revision/manifest digests. All ten external counters were zero.
+
+```powershell
+$publicationArgs = @(
+  '--decision', 'story-pipeline/04_approved_story_sources/approvals/r3b1b-story-source-visual-direction-correction-product-decision.json',
+  '--pending-manifest', 'outputs/r3b1a-story-source-visual-direction-correction-candidates/request-identities/4a19ed8592597de780adcc36655f3e53085e32fd594cfef2d985b7c5f4e7ac6b/records/dragon_dini_adventure/candidate/71c8ba64f3fa6b5fabc46412646723dd85a8a7fce830cd287df07be8c18e09f8.manifest.json',
+  '--technical-review', 'outputs/r3b1b-correction-acceptance-publication/technical-reviews/819c27fa8387b167d0b2b2c3f8f0ae26033fedf1a4c93beb62700a52dbe69661.json',
+  '--product-acceptance', 'story-pipeline/04_approved_story_sources/approvals/r3b1b-dragon-dini-adventure-product-acceptance-1ce47c29e525b0e99d151d7bf3380293d4479cd6382ed29032461cdb75e6b56f.json',
+  '--output-root', 'outputs/r3b1b-correction-acceptance-publication/prepared'
+)
+node scripts/story-source-visual-direction-correction-acceptance-lifecycle.cjs publish @publicationArgs --write true
+```
+
+This is an execution record, not a request for QA to republish. The first
+independent review is read-only; use loader/readiness and temporary-root tests.
+
+### Real readiness and bounded compatibility correction
+
+`npm run wizard-all-story-readiness -- --format json`, with
+`ENABLE_V3_APPROVED_BANK=true` and `ENABLE_WIZARD_QA_RENDER_CATALOG=false`, exited
+0 with semantic report digest
+`39819a34f01385e1aa6ea11307e788aaeaefa3e4cdf451e3753796c481faad4a`.
+Accepted lineage / supported gender / automated narration preflight are each
+2/18; soft-TTS items are 10 across 5 stories. P1's source role is
+`accepted_product_source`, both projections have no automated critical/soft
+gaps, and `renderQualified:false`. Its earliest blocker is
+`package_bound_visual_contract_template_unavailable`. Render-qualified count
+remains 1/18. Environment product sellability is 17, not the old 18: explicit
+P1 lineage fails closed without a qualified package. Automated TTS evidence is
+not narration approval and no audio was generated.
+
+The first post-publication lifecycle test exposed that historical R3-B0b
+preparation was reading later acceptances and no longer yielded its fixed 17/1
+selection. A closed historical-readiness allow-list, bound to the original
+request's preserved authority, now reconstructs that old evidence while the
+ordinary entrypoint ignores any injected historical option. Historical
+qualification/sellability evidence is computed inside this read-only adapter;
+production `mvp-story-matrix.ts`, `audit.ts`, and
+`wizardVisualPackageSelection.ts` remain byte-unchanged. R3-B0b's original
+`7a8434c7...` digest and the exact R3-B1a batch remain reproducible.
+
+The lifecycle fixture removes only the exact P1 revision from its disposable
+copy (retaining the legacy story directory), then computes its source-overlay
+baseline there. Current audit/CLI tests assert 2 accepted authorities and 1
+render-qualified story; a regression proves untyped historical-option
+injection cannot hide P1 in the ordinary audit. During diagnosis, the exact
+new canonical revision was briefly held under ignored `outputs/` and restored
+with `finally`; no file was deleted or rewritten. Temporary diagnostic outputs
+are not authority and are not staged.
+
+### Publication validation
+
+The final 14-file focused selection was run exactly as follows:
+
+```powershell
+npx vitest run lib/__tests__/story-source-visual-direction-correction-acceptance-lifecycle.spec.ts lib/visual-package/__tests__/story-source-visual-direction-correction-batch.spec.ts lib/visual-package/__tests__/story-source-visual-direction-review-batch.spec.ts lib/__tests__/story-source-revision-materializer.spec.ts lib/__tests__/story-source-revision-lifecycle.spec.ts lib/__tests__/story-source-visual-direction-enrichment-lifecycle.spec.ts lib/visual-package/__tests__/accepted-story-source-authoring-authority.spec.ts lib/visual-package/__tests__/wizard-all-story-render-readiness.spec.ts lib/visual-package/__tests__/wizard-all-story-readiness-cli.spec.ts lib/__tests__/vitest-workload-classifier.spec.ts lib/visual-package/__tests__/render-qualification-audit-cli.spec.ts lib/visual-package/__tests__/visual-package-lifecycle.spec.ts lib/__tests__/mvp-story-matrix.spec.ts lib/__tests__/wizard-mvp-matrix-api.spec.ts --maxWorkers=1 --no-file-parallelism
+```
+
+Observed result: **13 passing files, 1 failing file; 138 passing tests, 1
+timeout; exit 1**. The already disclosed deterministic-audit cell at
+`wizard-all-story-render-readiness.spec.ts:295` took **5,156 ms**, exceeding its
+unchanged effective **5,000 ms** limit. There was no assertion or digest
+mismatch. The lifecycle was 11/11, review batch 14/14, correction batch 9/9,
+and all four current-catalog matrix/API/audit/package specs passed. This is
+not represented as a green 139-test command.
+
+The exact same timing-sensitive cell was then run in isolation:
+
+```powershell
+npx vitest run lib/visual-package/__tests__/wizard-all-story-render-readiness.spec.ts -t "keeps its semantic digest deterministic and environment claims aligned with runtime helpers" --maxWorkers=1 --no-file-parallelism
+```
+
+It passed in **3,818 ms**: 1 test passed, 11 skipped, exit 0. This establishes
+that run's assertion result, not timing stability and not a retroactive PASS
+for the combined command. No timeout, runner, worker policy or test skip was
+changed in this milestone.
+
+Also executed successfully, exit 0 for each:
+
+```powershell
+npx tsc --noEmit
+npm run story:autonomous-typecheck
+node --check scripts/story-source-visual-direction-acceptance-lifecycle.cjs
+node --check scripts/story-source-visual-direction-correction-acceptance-lifecycle.cjs
+git diff --check
+git diff --cached --check
+```
+
+The final literal `npm run check` rerun after all catalog expectation changes
+reports **338 passing / 7 failing / 17 skipped ordinary files**, and **4,790
+passing / 11 failing / 73 skipped tests**. Ten failures are the unchanged
+missing ignored-fixture failures in child-lexicon (1), Koko momentum (1),
+page-entity image QA (1), story read-back (2), general v3 acceptance lifecycle
+(4), and reserved-page placement (1). The eleventh is the same deterministic
+cell, this time **5,102 ms** against 5,000 ms. Ordinary exit is 1, classified
+`test_timeout` and `signal_or_exit_failure`.
+
+The final resource-intensive phase reports **21/21 files and 651/651
+assertions passing**, followed by **three** `onTaskUpdate` RPC errors and exit
+1. Diagnostics classify it as `on_task_update_rpc_timeout` plus
+`signal_or_exit_failure`. Overall `npm run check` exits 1 and is **not PASS**.
+
+For comparison, the first full check before the last catalog expectation
+corrections had 334 passing / 11 failing / 17 skipped ordinary files, and
+4,785 passing / 16 failing / 73 skipped tests: the same ten fixture failures,
+five now-corrected stale catalog assertions, and a 5,727 ms deterministic-cell
+timeout. Its resource phase had 21/21 files and 651/651 assertions passing,
+followed by **two** `onTaskUpdate` RPC errors and exit 1. Those errors are not
+counted as PASS and are distinct from the final run.
+
+Real post-test read-only verification repeated `publish @publicationArgs
+--write false`: exit 0, `created:false`, `wouldCreate:false`, exact revision and
+manifest digests, ineligible runtime and all ten external counters zero. The
+strict accepted-authority loader loaded the canonical P1 source; all 11
+manifest-listed files matched their declared byte counts and SHA-256 hashes,
+with exactly 12 directory entries including the manifest. The full readiness
+digest remained `39819a34f01385e1aa6ea11307e788aaeaefa3e4cdf451e3753796c481faad4a`.
+The 13 new authority files (12-file revision plus external acceptance receipt)
+were also compared between Git index blobs and disk: every raw byte hash
+matched, so staging introduced no CRLF/digest drift.
+
+Independent publication QA is pending. No push is authorized by this action.
+
+## Implementation authority and scope (historical pre-publication record)
+
+Everything from this heading to the end records the earlier lifecycle
+implementation and its QA closeout, not the subsequent canonical publication.
+Its no-publication statements and test counts are historical; the publication
+record above supersedes them for the current milestone.
 
 Guy approved packet commit
 `19f110f414ec70cd64e96be3b0a99132bb4ef8b9` against exact candidate batch

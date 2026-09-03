@@ -1,0 +1,47 @@
+{
+  "briefId": "dragon_dini_adventure_wobble_cake_convoy_brief_v1",
+  "directionReplacements": [
+    {
+      "expectedCount": 1,
+      "field": "mainAction",
+      "from": "The baker cuts the first slice while the child sits beside Dini; Dini reaches toward the lifting tablecloth, pauses, and lets it flutter as the cherry on her slice gently wobbles.",
+      "pageNumber": 12,
+      "to": "The baker cuts the first slice while the child sits beside Dini; Dini reaches toward the lifting tablecloth, pauses, and lets it flutter as the cherry on Dini's slice gently wobbles."
+    }
+  ],
+  "reviewBatch": {
+    "digest": "7a8434c76f90bc96776909430e93fecb97f2c8a08800085d0ba3e55d7f97a143",
+    "recordDigest": "8269842a0bf394052677d98b135488a30ce64ece7fb280ceae6005df3e6b5e36",
+    "version": "small-heroes-story-source-visual-direction-review-batch/v1"
+  },
+  "source": {
+    "manifest": {
+      "path": "story-pipeline/04_approved_story_sources/accepted/dragon_dini_adventure/manifest.json",
+      "sha256": "332c37ff00be6a3bbccc7afd858b063bcb430750d1242e856b9d51930e9f6c0a"
+    },
+    "story": {
+      "path": "story-pipeline/04_approved_story_sources/accepted/dragon_dini_adventure/story.md",
+      "sha256": "39ad403d98ff528c1313879ec4f4fe020a17271b452040c179938ecf2cc7dfce"
+    }
+  },
+  "storyKey": "dragon_dini_adventure",
+  "textReplacements": [
+    {
+      "expectedCount": 1,
+      "from": "gender: female",
+      "to": "gender: neutral"
+    }
+  ],
+  "version": "small-heroes-story-source-visual-direction-correction-request/v1",
+  "visualDirections": {
+    "corpusManifest": {
+      "digest": "a793038efca754ea028aa9fc528f896261ade25b671865657282fb6220cfb6fa",
+      "path": "story-pipeline/05_storyboard_inputs/autonomous-20260815-v1/manifest.json",
+      "sha256": "2c884372b36b4e45266490f920fdae2c59809a4e8a444e4780471de8e62c631d"
+    },
+    "record": {
+      "path": "story-pipeline/05_storyboard_inputs/autonomous-20260815-v1/dragon_dini_adventure.visual-directions.json",
+      "sha256": "0ee59e8d2c0be0f937ff286a25b8e4dd8c5e6d52d8c4cd263d092fd88514c5db"
+    }
+  }
+}

@@ -4,6 +4,8 @@ import path from 'node:path';
 
 import {
   allNominalMvpStorySlots,
+  isGoldenSlotRuntimeReady,
+  isV3SlotRuntimeReady,
   storyBankSourceDirForSlotStatus,
   type MvpCategory,
   type StoryDirection,
@@ -48,6 +50,7 @@ import {
   type AcceptedProductLineageDisposition,
 } from './acceptedStorySourceAuthoringAuthority';
 import { auditMvpRenderQualification } from './audit';
+import { evaluateRenderQualification } from './qualification';
 import {
   buildStorySourceIdentity,
   repoRelativePath,
@@ -1059,6 +1062,7 @@ function auditWizardAllStoryRenderReadinessWithPolicy(args: {
   now?: () => Date;
   genderProjectionReadinessPolicy: GenderProjectionReadinessPolicy;
   acceptedRootRelative?: string;
+  acceptedStoryKeyAllowList?: readonly string[];
 }): WizardAllStoryRenderReadinessReport {
   const styleId = STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK;
   const qualificationAudit = auditMvpRenderQualification({
@@ -1103,19 +1107,29 @@ function auditWizardAllStoryRenderReadinessWithPolicy(args: {
         sourcePath: qaRecord?.storySourcePath ?? null,
         expected: { storyKey, category, companionId, direction },
       });
-      const acceptedProductLineage = acceptedProductLineageDisposition({
-        repoRoot: args.repoRoot,
-        storyKey,
-        acceptedRootRelative: args.acceptedRootRelative,
-      });
-      const acceptedInventory = acceptedProductSourceRevisionInventory({
-        repoRoot: args.repoRoot,
-        storyKey,
-        category,
-        companionId,
-        direction,
-        acceptedRootRelative: args.acceptedRootRelative,
-      });
+      // Only the closed historical replay supplies an allow-list. Later source
+      // acceptances must not retroactively alter its immutable review batch.
+      const acceptedStoryVisible =
+        args.acceptedStoryKeyAllowList === undefined ||
+        args.acceptedStoryKeyAllowList.includes(storyKey);
+      const acceptedProductLineage: AcceptedProductLineageDisposition =
+        acceptedStoryVisible
+          ? acceptedProductLineageDisposition({
+              repoRoot: args.repoRoot,
+              storyKey,
+              acceptedRootRelative: args.acceptedRootRelative,
+            })
+          : { kind: 'absent' };
+      const acceptedInventory = acceptedStoryVisible
+        ? acceptedProductSourceRevisionInventory({
+            repoRoot: args.repoRoot,
+            storyKey,
+            category,
+            companionId,
+            direction,
+            acceptedRootRelative: args.acceptedRootRelative,
+          })
+        : { revisions: [], issues: [] };
       const publishedPackageQualification =
         evaluateVisualPackageV4Qualification({
           repoRoot: args.repoRoot,
@@ -1130,11 +1144,14 @@ function auditWizardAllStoryRenderReadinessWithPolicy(args: {
         expectedSnapshot: publishedPackage?.sourceSnapshot,
         expected: { storyKey, category, companionId, direction },
       });
-      const selection = evaluateWizardVisualPackageSelection({
+      const currentSelection = evaluateWizardVisualPackageSelection({
         repoRoot: args.repoRoot,
         storyKey,
         styleId,
       });
+      const selection = acceptedStoryVisible
+        ? currentSelection
+        : { ...currentSelection, visualPackageRequired: false };
       const packageSelectedAcceptedRevision = selection.renderQualified
         ? acceptedInventory.revisions.find(
             (revision) => revision.source.path === selection.sourcePath,
@@ -1208,7 +1225,27 @@ function auditWizardAllStoryRenderReadinessWithPolicy(args: {
       const authoringAdmitted =
         pageCount <= VISUAL_CONTRACT_AUTHORING_MAX_PAGES_CURRENT_POLICY;
       const packageValue = publishedPackage;
-      const qualificationRecord = qualificationByStory.get(storyKey);
+      // Reconstruct historical audit evidence here; never add a lineage-bypass
+      // option to the production selection or sellability helpers.
+      const legacyQualification = !acceptedStoryVisible
+        ? evaluateRenderQualification({
+            repoRoot: args.repoRoot,
+            storyKey,
+            storyPath: path.join(args.repoRoot, configuredSourcePaths.sourcePath),
+            styleId,
+          })
+        : null;
+      const qualificationRecord = legacyQualification
+        ? {
+            renderQualified: legacyQualification.renderQualified,
+            reasons: legacyQualification.reasons,
+            productSellable:
+              configuredStatus === 'approved_v3'
+                ? isV3SlotRuntimeReady(companionId, direction, { repoRoot: args.repoRoot })
+                : configuredStatus === 'approved' &&
+                  isGoldenSlotRuntimeReady(companionId, direction, { repoRoot: args.repoRoot }),
+          }
+        : qualificationByStory.get(storyKey);
       const blockers: WizardAllStoryBlocker[] = [];
       const acceptedSourceAuthorityBlocker =
         classifyAcceptedSourceAuthorityBlocker({
@@ -1531,7 +1568,9 @@ export function auditWizardAllStoryRenderReadiness(args: {
   acceptedRootRelative?: string;
 }): WizardAllStoryRenderReadinessReport {
   return auditWizardAllStoryRenderReadinessWithPolicy({
-    ...args,
+    repoRoot: args.repoRoot,
+    now: args.now,
+    acceptedRootRelative: args.acceptedRootRelative,
     genderProjectionReadinessPolicy: 'require_neutral_source_authority',
   });
 }
@@ -1539,12 +1578,13 @@ export function auditWizardAllStoryRenderReadiness(args: {
 /**
  * Closed compatibility surface for reproducing the immutable R3-B0b/v1
  * review artifact. Production and ordinary readiness callers cannot select
- * this historical placeholder-only policy.
+ * this historical placeholder-only policy or its accepted-lineage inventory.
  */
 export function auditWizardAllStoryRenderReadinessForR3B0bReplay(args: {
   repoRoot: string;
   now?: () => Date;
   acceptedRootRelative?: string;
+  acceptedStoryKeyAllowList: readonly string[];
 }): WizardAllStoryRenderReadinessReport {
   return auditWizardAllStoryRenderReadinessWithPolicy({
     ...args,

@@ -18,6 +18,7 @@ import {
 } from '@/lib/visual-package/storySourceVisualDirectionReviewBatch';
 import {
   auditWizardAllStoryRenderReadiness,
+  auditWizardAllStoryRenderReadinessForR3B0bReplay,
   type WizardAllStoryRenderReadinessReport,
 } from '@/lib/visual-package/wizardAllStoryRenderReadiness';
 
@@ -708,15 +709,24 @@ describe('R3-B0b Story Source / Visual Direction review batch', () => {
   it('is deterministic and keeps selection invariant under report enumeration order', () => {
     expect(secondDryRun.batch).toEqual(firstDryRun.batch);
     expect(secondDryRun.batch.digest).toBe(firstDryRun.batch.digest);
+    expect(firstDryRun.batch.digest).toBe(
+      '7a8434c76f90bc96776909430e93fecb97f2c8a08800085d0ba3e55d7f97a143',
+    );
     expect(fs.existsSync(absoluteRepoPath(secondDryOutputRoot))).toBe(false);
 
     const { digest, ...batchPayload } = firstDryRun.batch;
     const { digestAlgorithm } = batchPayload;
     expect(digestAlgorithm).toBe('canonical-json-sha256');
     expect(digest).toBe(canonicalHash(batchPayload));
+    const historicalReadinessReport =
+      auditWizardAllStoryRenderReadinessForR3B0bReplay({
+        repoRoot: REPO,
+        now: FIXED_NOW,
+        acceptedStoryKeyAllowList: [CHAMELEON_STORY_KEY],
+      });
     expect(
       reviewBatchSelectionFromReport({
-        records: [...readinessReport.records].reverse(),
+        records: [...historicalReadinessReport.records].reverse(),
       }),
     ).toEqual(EXPECTED_STORY_KEYS);
   });

@@ -144,7 +144,9 @@ describe('GET /api/wizard/mvp-matrix', () => {
       }]>) {
         const currentProductPackage =
           category.category === 'TRANSITION' && directionName === 'bedtime';
-        expect(direction.sellable).toBe(true);
+        const acceptedSourceWithoutPackage =
+          category.category === 'NEW_SIBLING' && directionName === 'adventure';
+        expect(direction.sellable).toBe(!acceptedSourceWithoutPackage);
         expect(direction.qaAuthoringReady).toBe(false);
         expect(direction.productionRenderQualified).toBe(
           currentProductPackage,

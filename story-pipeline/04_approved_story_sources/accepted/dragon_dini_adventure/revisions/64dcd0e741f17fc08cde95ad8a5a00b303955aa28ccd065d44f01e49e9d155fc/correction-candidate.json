@@ -1,0 +1,290 @@
+{
+  "candidateOutputs": {
+    "acceptedStory": {
+      "bytes": 6678,
+      "filename": "d94a867035e7e3df37c047f991d900e067c3133e0a1f49c105479b92c171deeb.story.md",
+      "sha256": "d94a867035e7e3df37c047f991d900e067c3133e0a1f49c105479b92c171deeb"
+    },
+    "directionMigration": {
+      "bytes": 775,
+      "digest": "d2c6fb8fce56a5208da3e14f9fbb272dd8499b04315f062d4083adb48c258d2c",
+      "filename": "d2c6fb8fce56a5208da3e14f9fbb272dd8499b04315f062d4083adb48c258d2c.direction-migration.json",
+      "sha256": "5400fe1565d7330e2b0ca513ce04bd54d5338c9134812a2aad09e931da70ac07"
+    },
+    "integratedStory": {
+      "bytes": 11976,
+      "filename": "a5942c3646d08bc037395851311e9627bdfc1dd29f7874a45b000b87af416630.integrated.md",
+      "sha256": "a5942c3646d08bc037395851311e9627bdfc1dd29f7874a45b000b87af416630"
+    },
+    "manifest": {
+      "bytes": 4132,
+      "filename": "71c8ba64f3fa6b5fabc46412646723dd85a8a7fce830cd287df07be8c18e09f8.manifest.json",
+      "sha256": "9c745173e2ecb8fb26bc826d2c73cc814eab53b41878ba27d25eb79fdedfa5e3"
+    },
+    "visualDirection": {
+      "bytes": 8663,
+      "filename": "cb7f92664de6627ed7efd7a62b6838d413dc2df8136f1b9f45c6098b06ec4b6e.visual-directions.json",
+      "sha256": "cb7f92664de6627ed7efd7a62b6838d413dc2df8136f1b9f45c6098b06ec4b6e"
+    }
+  },
+  "category": "NEW_SIBLING",
+  "companionId": "dragon_dini",
+  "composition": {
+    "adjacentRepeatedPairs": [],
+    "closeFocusPageNumbers": [
+      3,
+      8
+    ],
+    "distinctCameraAngles": [
+      "eye_level",
+      "ground_level",
+      "high_angle",
+      "low_angle",
+      "three_quarter"
+    ],
+    "distinctShotTypes": [
+      "close",
+      "medium",
+      "medium_close",
+      "medium_wide",
+      "wide"
+    ],
+    "maximumShotTypeRun": 1,
+    "pageCount": 12,
+    "widePageNumbers": [
+      1,
+      5,
+      9,
+      11
+    ]
+  },
+  "continuityIntent": {
+    "childWardrobeAuthority": "frozen_visual_contract",
+    "childWardrobeTransitionPages": [],
+    "companionAccessoryAuthority": "canonical_companion_profile",
+    "companionAppearanceAuthority": "frozen_companion_state",
+    "companionStateTransitionPages": [],
+    "version": "small-heroes-story-visual-continuity-intent/v1"
+  },
+  "digest": "16ab0316f197aff6afae4ad42419c1f3b7d7cc285c71f0a16d75000426cc4046",
+  "digestAlgorithm": "canonical-json-sha256",
+  "direction": "adventure",
+  "invariants": {
+    "boyProjectionResolved": true,
+    "compositionValid": true,
+    "femaleProseByteIdentical": true,
+    "girlProjectionResolved": true,
+    "singularEnglishGenderPronouns": 0,
+    "sourceGenderNeutral": true,
+    "visualDirectionShapeValid": true
+  },
+  "narrationPreflight": {
+    "boy": {
+      "childNameOccurrences": 14,
+      "criticalTtsGaps": [],
+      "criticalTtsGateReady": true,
+      "gender": "boy",
+      "narrationInputReady": true,
+      "pageCount": 12,
+      "personalizationFailures": [],
+      "personalizationReady": true,
+      "softTtsGaps": []
+    },
+    "girl": {
+      "childNameOccurrences": 14,
+      "criticalTtsGaps": [],
+      "criticalTtsGateReady": true,
+      "gender": "girl",
+      "narrationInputReady": true,
+      "pageCount": 12,
+      "personalizationFailures": [],
+      "personalizationReady": true,
+      "softTtsGaps": []
+    },
+    "softTtsReviewItemCount": 0,
+    "sourcePath": "story-bank/qa-autonomous-20260815-v1/dragon_dini_adventure.md",
+    "status": "automated_evidence_only_human_review_pending",
+    "supportedCriticalTtsGateReady": true,
+    "supportedGenderProjectionReady": true,
+    "supportedNarrationAutomatedPreflightReady": true,
+    "supportedNarrationInputReady": true
+  },
+  "pageCount": 12,
+  "policies": {
+    "composition": "small-heroes-storyboard-composition-review-policy/v1",
+    "continuityIntent": "small-heroes-story-visual-continuity-intent/v1",
+    "directionMigration": "small-heroes-story-visual-direction-deterministic-migration/v2",
+    "materializerManifest": "small-heroes-story-source-visual-direction-correction-pending-manifest/v1",
+    "materializerRequest": "small-heroes-story-source-visual-direction-correction-request/v1",
+    "recipe": "small-heroes-story-source-visual-direction-correction-recipe/v1"
+  },
+  "productionEligible": false,
+  "protectedAuthorityIssues": [],
+  "request": {
+    "bytes": 2082,
+    "identityPath": "outputs/r3b1a-story-source-visual-direction-correction-candidates/request-identities/4a19ed8592597de780adcc36655f3e53085e32fd594cfef2d985b7c5f4e7ac6b/records/dragon_dini_adventure/request.json",
+    "payload": {
+      "briefId": "dragon_dini_adventure_wobble_cake_convoy_brief_v1",
+      "directionReplacements": [
+        {
+          "expectedCount": 1,
+          "field": "mainAction",
+          "from": "The baker cuts the first slice while the child sits beside Dini; Dini reaches toward the lifting tablecloth, pauses, and lets it flutter as the cherry on her slice gently wobbles.",
+          "pageNumber": 12,
+          "to": "The baker cuts the first slice while the child sits beside Dini; Dini reaches toward the lifting tablecloth, pauses, and lets it flutter as the cherry on Dini's slice gently wobbles."
+        }
+      ],
+      "reviewBatch": {
+        "digest": "7a8434c76f90bc96776909430e93fecb97f2c8a08800085d0ba3e55d7f97a143",
+        "recordDigest": "8269842a0bf394052677d98b135488a30ce64ece7fb280ceae6005df3e6b5e36",
+        "version": "small-heroes-story-source-visual-direction-review-batch/v1"
+      },
+      "source": {
+        "manifest": {
+          "path": "story-pipeline/04_approved_story_sources/accepted/dragon_dini_adventure/manifest.json",
+          "sha256": "332c37ff00be6a3bbccc7afd858b063bcb430750d1242e856b9d51930e9f6c0a"
+        },
+        "story": {
+          "path": "story-pipeline/04_approved_story_sources/accepted/dragon_dini_adventure/story.md",
+          "sha256": "39ad403d98ff528c1313879ec4f4fe020a17271b452040c179938ecf2cc7dfce"
+        }
+      },
+      "storyKey": "dragon_dini_adventure",
+      "textReplacements": [
+        {
+          "expectedCount": 1,
+          "from": "gender: female",
+          "to": "gender: neutral"
+        }
+      ],
+      "version": "small-heroes-story-source-visual-direction-correction-request/v1",
+      "visualDirections": {
+        "corpusManifest": {
+          "digest": "a793038efca754ea028aa9fc528f896261ade25b671865657282fb6220cfb6fa",
+          "path": "story-pipeline/05_storyboard_inputs/autonomous-20260815-v1/manifest.json",
+          "sha256": "2c884372b36b4e45266490f920fdae2c59809a4e8a444e4780471de8e62c631d"
+        },
+        "record": {
+          "path": "story-pipeline/05_storyboard_inputs/autonomous-20260815-v1/dragon_dini_adventure.visual-directions.json",
+          "sha256": "0ee59e8d2c0be0f937ff286a25b8e4dd8c5e6d52d8c4cd263d092fd88514c5db"
+        }
+      }
+    },
+    "sha256": "b295ff769d9468abe066630b2e0f91d0b44496906a954723c4053596ac1119a8",
+    "version": "small-heroes-story-source-visual-direction-correction-request/v1"
+  },
+  "reviewRecordDigest": "8269842a0bf394052677d98b135488a30ce64ece7fb280ceae6005df3e6b5e36",
+  "reviewRequirements": {
+    "exactProductAndVisual": "pending_guy",
+    "narrationEar": "pending_guy",
+    "storyQuality": "not_required_by_current_request",
+    "technical": "pending_claude_code"
+  },
+  "runtimeEligible": false,
+  "sourceRevisionManifest": {
+    "authorityScope": "story_source_and_visual_directions_only",
+    "briefId": "dragon_dini_adventure_wobble_cake_convoy_brief_v1",
+    "digest": "71c8ba64f3fa6b5fabc46412646723dd85a8a7fce830cd287df07be8c18e09f8",
+    "inputs": {
+      "acceptedManifest": {
+        "bytes": 1620,
+        "path": "story-pipeline/04_approved_story_sources/accepted/dragon_dini_adventure/manifest.json",
+        "sha256": "332c37ff00be6a3bbccc7afd858b063bcb430750d1242e856b9d51930e9f6c0a"
+      },
+      "acceptedStory": {
+        "bytes": 6677,
+        "path": "story-pipeline/04_approved_story_sources/accepted/dragon_dini_adventure/story.md",
+        "sha256": "39ad403d98ff528c1313879ec4f4fe020a17271b452040c179938ecf2cc7dfce"
+      },
+      "storyboardCorpusManifest": {
+        "bytes": 10988,
+        "digest": "a793038efca754ea028aa9fc528f896261ade25b671865657282fb6220cfb6fa",
+        "path": "story-pipeline/05_storyboard_inputs/autonomous-20260815-v1/manifest.json",
+        "sha256": "2c884372b36b4e45266490f920fdae2c59809a4e8a444e4780471de8e62c631d"
+      },
+      "visualDirections": {
+        "bytes": 8660,
+        "path": "story-pipeline/05_storyboard_inputs/autonomous-20260815-v1/dragon_dini_adventure.visual-directions.json",
+        "sha256": "0ee59e8d2c0be0f937ff286a25b8e4dd8c5e6d52d8c4cd263d092fd88514c5db"
+      }
+    },
+    "invariants": {
+      "approved": false,
+      "databaseWrites": 0,
+      "editoriallyCanonical": true,
+      "historicalInputsRewritten": false,
+      "integratedSourceProjectionExact": true,
+      "providerCalls": 0,
+      "renders": 0,
+      "storageWrites": 0,
+      "visualDirectionsValid": true
+    },
+    "metadataChanges": [
+      {
+        "field": "gender",
+        "from": "female",
+        "to": "neutral"
+      }
+    ],
+    "outputs": {
+      "acceptedStoryCandidate": {
+        "bytes": 6678,
+        "filename": "d94a867035e7e3df37c047f991d900e067c3133e0a1f49c105479b92c171deeb.story.md",
+        "sha256": "d94a867035e7e3df37c047f991d900e067c3133e0a1f49c105479b92c171deeb"
+      },
+      "directionMigration": {
+        "bytes": 775,
+        "digest": "d2c6fb8fce56a5208da3e14f9fbb272dd8499b04315f062d4083adb48c258d2c",
+        "filename": "d2c6fb8fce56a5208da3e14f9fbb272dd8499b04315f062d4083adb48c258d2c.direction-migration.json",
+        "sha256": "5400fe1565d7330e2b0ca513ce04bd54d5338c9134812a2aad09e931da70ac07"
+      },
+      "integratedStoryCandidate": {
+        "bytes": 11976,
+        "filename": "a5942c3646d08bc037395851311e9627bdfc1dd29f7874a45b000b87af416630.integrated.md",
+        "sha256": "a5942c3646d08bc037395851311e9627bdfc1dd29f7874a45b000b87af416630"
+      },
+      "visualDirectionCandidate": {
+        "bytes": 8663,
+        "filename": "cb7f92664de6627ed7efd7a62b6838d413dc2df8136f1b9f45c6098b06ec4b6e.visual-directions.json",
+        "sha256": "cb7f92664de6627ed7efd7a62b6838d413dc2df8136f1b9f45c6098b06ec4b6e"
+      }
+    },
+    "projections": {
+      "female": {
+        "byteIdenticalToPrevious": false,
+        "bytes": 6387,
+        "proseByteIdenticalToPrevious": true,
+        "proseBytes": 6371,
+        "proseSha256": "134f29c813cc2b23820bfa3e601404c5120773d5f83c5fd5d2cd8ab91e8b687a",
+        "sha256": "072a022363aaa7666049cc0cfc86d5acd26379c5cde6c24090dc07962e898ef9"
+      },
+      "male": {
+        "bytes": 6357,
+        "sha256": "4b5d8a48dd59abd5776b1f3963adcdad9720938ec3e50b5f521fa9eec5451fdb"
+      }
+    },
+    "request": {
+      "bytes": 2082,
+      "path": "outputs/r3b1a-story-source-visual-direction-correction-candidates/request-identities/4a19ed8592597de780adcc36655f3e53085e32fd594cfef2d985b7c5f4e7ac6b/records/dragon_dini_adventure/request.json",
+      "sha256": "b295ff769d9468abe066630b2e0f91d0b44496906a954723c4053596ac1119a8",
+      "version": "small-heroes-story-source-visual-direction-correction-request/v1"
+    },
+    "reviewBatch": {
+      "digest": "7a8434c76f90bc96776909430e93fecb97f2c8a08800085d0ba3e55d7f97a143",
+      "recordDigest": "8269842a0bf394052677d98b135488a30ce64ece7fb280ceae6005df3e6b5e36",
+      "version": "small-heroes-story-source-visual-direction-review-batch/v1"
+    },
+    "sourceGenderMode": "neutral",
+    "status": "pending_exact_product_review",
+    "storyKey": "dragon_dini_adventure",
+    "version": "small-heroes-story-source-visual-direction-correction-pending-manifest/v1"
+  },
+  "status": "pending_exact_product_and_visual_review",
+  "storyKey": "dragon_dini_adventure",
+  "unresolvedCreativeSourceIssues": [],
+  "worldModeRecommendation": {
+    "authorityStatus": "recommendation_only_pending_reviewer_decision",
+    "rationale": "The bakery, market, bridge, delivery cart, and picnic remain physically grounded; the cake's wobble and rotating tiers are heightened but do not establish a separate magical world.",
+    "value": "grounded"
+  }
+}

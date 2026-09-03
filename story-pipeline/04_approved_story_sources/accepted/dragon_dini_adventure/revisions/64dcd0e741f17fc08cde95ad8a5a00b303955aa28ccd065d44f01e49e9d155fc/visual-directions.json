@@ -1,0 +1,227 @@
+{
+  "version": "small-heroes-story-visual-direction-record/v1",
+  "storyKey": "dragon_dini_adventure",
+  "pages": [
+    {
+      "pageNumber": 1,
+      "settingKey": "bakery",
+      "setting": "Bakery interior beside the refrigerator and delivery area",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "baker"
+      ],
+      "mainAction": "The baker sets a colorful three-tier fruit cake on a delivery cart as it begins to wobble; Dini approaches while the child smiles.",
+      "heroObject": "three-tier fruit cake on delivery cart",
+      "shotType": "wide",
+      "cameraAngle": "eye_level",
+      "lighting": "Bright daytime bakery light",
+      "continuityAnchors": []
+    },
+    {
+      "pageNumber": 2,
+      "settingKey": "stone_street",
+      "setting": "Uneven stone street outside the bakery",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [],
+      "mainAction": "The child moves the bouncing cart along the stones while Dini darts from side to side to support the swaying cake.",
+      "heroObject": "wobbling cake cart",
+      "shotType": "medium_wide",
+      "cameraAngle": "three_quarter",
+      "lighting": "Clear daylight",
+      "continuityAnchors": [
+        "same three-tier fruit cake",
+        "same delivery cart"
+      ]
+    },
+    {
+      "pageNumber": 3,
+      "settingKey": "stone_street",
+      "setting": "Uneven stone street with one raised stone",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [],
+      "mainAction": "The cart jolts over the raised stone; Dini grips it firmly while the child watches a strawberry begin sliding across the cake top.",
+      "heroObject": "sliding strawberry",
+      "shotType": "close",
+      "cameraAngle": "three_quarter",
+      "lighting": "Clear daylight",
+      "continuityAnchors": [
+        "same three-tier fruit cake",
+        "same delivery cart"
+      ]
+    },
+    {
+      "pageNumber": 4,
+      "settingKey": "stone_street",
+      "setting": "Uneven stone street continuing toward the market",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [],
+      "mainAction": "Dini carefully releases the cart, and its natural sway rolls the displaced strawberry back to the center as the child notices.",
+      "heroObject": "returning strawberry",
+      "shotType": "medium",
+      "cameraAngle": "eye_level",
+      "lighting": "Clear daylight",
+      "continuityAnchors": [
+        "same delivery cart",
+        "strawberry near edge of cake top"
+      ]
+    },
+    {
+      "pageNumber": 5,
+      "settingKey": "market",
+      "setting": "Crowded market passage between orange crates and potted plants",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "broom man"
+      ],
+      "mainAction": "As Dini shifts crates and pots to clear a path, oranges spill everywhere and the broom man turns among the rolling fruit.",
+      "heroObject": "spilled oranges",
+      "shotType": "wide",
+      "cameraAngle": "high_angle",
+      "lighting": "Lively daytime market light",
+      "continuityAnchors": [
+        "same three-tier fruit cake",
+        "same delivery cart",
+        "strawberry restored on top"
+      ]
+    },
+    {
+      "pageNumber": 6,
+      "settingKey": "market",
+      "setting": "Cluttered market passage filled with shifted crates, pots, and loose oranges",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [],
+      "mainAction": "Dini discovers a moved crate blocking the cart while the laughing child guides the tilting cake slowly through the remaining gaps without losing any fruit.",
+      "heroObject": "cake cart threading through obstacles",
+      "shotType": "medium_wide",
+      "cameraAngle": "three_quarter",
+      "lighting": "Lively daytime market light",
+      "continuityAnchors": [
+        "same three-tier fruit cake",
+        "same delivery cart",
+        "shifted crates and pots",
+        "loose oranges"
+      ]
+    },
+    {
+      "pageNumber": 7,
+      "settingKey": "wooden_bridge",
+      "setting": "Long uneven wooden bridge above a small stream",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [],
+      "mainAction": "Dini holds two uneven planks still, stopping the cart, while a cherry starts sliding until the child gives the cart a gentle push and rocks it back.",
+      "heroObject": "sliding cherry",
+      "shotType": "medium",
+      "cameraAngle": "low_angle",
+      "lighting": "Soft daylight over the stream",
+      "continuityAnchors": [
+        "same three-tier fruit cake",
+        "same delivery cart",
+        "all cake fruit in place"
+      ]
+    },
+    {
+      "pageNumber": 8,
+      "settingKey": "wooden_bridge",
+      "setting": "Long wooden bridge with alternating raised and lowered planks",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [],
+      "mainAction": "The child tests the cart's rocking motion more slowly while Dini releases the planks and walks beside the cart without trying to steady the bridge.",
+      "heroObject": "rocking cake cart",
+      "shotType": "medium_close",
+      "cameraAngle": "eye_level",
+      "lighting": "Soft daylight over the stream",
+      "continuityAnchors": [
+        "same three-tier fruit cake",
+        "same delivery cart",
+        "cherry restored on top"
+      ]
+    },
+    {
+      "pageNumber": 9,
+      "settingKey": "bumpy_picnic_slope",
+      "setting": "Short bumpy slope overlooking the picnic below",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "band musicians",
+        "playing children"
+      ],
+      "mainAction": "The child places both hands on the cart at the top of the slope while Dini studies the bumps, the cake, and the child, then waits.",
+      "heroObject": "cake cart poised above the slope",
+      "shotType": "wide",
+      "cameraAngle": "high_angle",
+      "lighting": "Festive daylight",
+      "continuityAnchors": [
+        "same three-tier fruit cake",
+        "same delivery cart",
+        "all cake fruit in place"
+      ]
+    },
+    {
+      "pageNumber": 10,
+      "settingKey": "bumpy_picnic_slope",
+      "setting": "Bumpy slope descending toward the picnic",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [],
+      "mainAction": "The child guides the cart through the bumps at a steady rhythm as Dini runs alongside, and the three cake tiers begin rotating gently at different rates.",
+      "heroObject": "rotating three-tier cake",
+      "shotType": "medium_wide",
+      "cameraAngle": "ground_level",
+      "lighting": "Festive daylight",
+      "continuityAnchors": [
+        "same delivery cart",
+        "all cake fruit in place",
+        "picnic visible below"
+      ]
+    },
+    {
+      "pageNumber": 11,
+      "settingKey": "picnic_square",
+      "setting": "Open picnic square beside the grassy gathering",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "band musicians",
+        "birthday child"
+      ],
+      "mainAction": "The cart arrives as the three colorful cake tiers complete their separate turns and stop with the strawberry centered on top; the birthday child claps while Dini laughs.",
+      "heroObject": "stopped rotating cake",
+      "shotType": "wide",
+      "cameraAngle": "eye_level",
+      "lighting": "Bright celebratory daylight",
+      "continuityAnchors": [
+        "same delivery cart",
+        "three tiers rotating at different rates",
+        "strawberry on cake top"
+      ]
+    },
+    {
+      "pageNumber": 12,
+      "settingKey": "picnic_square",
+      "setting": "Grassy picnic area beside the celebration table",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "baker"
+      ],
+      "mainAction": "The baker cuts the first slice while the child sits beside Dini; Dini reaches toward the lifting tablecloth, pauses, and lets it flutter as the cherry on Dini's slice gently wobbles.",
+      "heroObject": "fluttering tablecloth and cherry-topped slice",
+      "shotType": "medium",
+      "cameraAngle": "eye_level",
+      "lighting": "Gentle afternoon daylight",
+      "continuityAnchors": [
+        "same three-tier cake now being served",
+        "same picnic gathering"
+      ]
+    }
+  ]
+}

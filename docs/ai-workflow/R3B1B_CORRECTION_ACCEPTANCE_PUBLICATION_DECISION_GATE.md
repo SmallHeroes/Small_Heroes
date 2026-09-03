@@ -6,8 +6,8 @@ Product owner: Guy
 
 Technical owner: Codex
 
-Status: **APPROVED BY GUY FOR R3-B1b IMPLEMENTATION ONLY — final digest
-confirmation and canonical publication remain separate gates**
+Status: **P1 FINAL DIGEST CONFIRMED; CANONICAL STORY SOURCE / VISUAL DIRECTION
+PUBLICATION AUTHORIZED AND EXECUTED — downstream gates remain separate**
 
 Proposed branch: `codex/r3b1b-correction-acceptance-publication`
 
@@ -15,6 +15,20 @@ Proposed milestone: R3-B1b, zero-cost correction disposition and accepted-source
 publication only
 
 ## Approval record
+
+The initial implementation approval below was followed on 2026-09-03 by Guy's
+explicit final confirmation of P1 revision
+`64dcd0e741f17fc08cde95ad8a5a00b303955aa28ccd065d44f01e49e9d155fc` and authority to
+publish only its canonical Story Source and Visual Direction. The action is
+complete as a 12-file immutable revision; publication QA is pending. There is
+no authorization for rendering, narration, package, deployment or paid action.
+This later approval supersedes only the P1 publication STOP statements in the
+historical implementation plan below, not any downstream exclusion.
+
+The zero-cost compatibility correction required by publication is limited to
+historical review-batch replay and tests. Later accepted sources cannot change
+the old request's inventory; ordinary readiness must still see them. No bypass
+option is added to production matrix, selection or render-qualification APIs.
 
 Guy approved this gate and the decision package in packet commit
 `19f110f414ec70cd64e96be3b0a99132bb4ef8b9` for exact batch digest
@@ -248,6 +262,8 @@ Claude Code re-gate before the final-digest confirmation gate can open.
 Claude Code then independently re-gated `1227495e..2e0b8096` read-only and
 returned **PASS with no P0/P1**. Its sole new P2 corrects the handoff's stale
 claim that the branch lacked an upstream: reviewed head `2e0b8096` was already
-pushed at 0/0 origin parity. The technical gate is therefore closed. Canonical
-publication remains stopped until Guy separately confirms exact P1 revision
-digest `64dcd0e741f17fc08cde95ad8a5a00b303955aa28ccd065d44f01e49e9d155fc`.
+pushed at 0/0 origin parity. The implementation technical gate closed there;
+P1 publication remained stopped at that point. Guy subsequently confirmed exact
+revision `64dcd0e741f17fc08cde95ad8a5a00b303955aa28ccd065d44f01e49e9d155fc`, as
+recorded above. The separate publication/compatibility diff requires its own
+independent review and confers no downstream authority.

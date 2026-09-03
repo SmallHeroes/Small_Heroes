@@ -1,0 +1,16 @@
+{
+  "baseCommit": "1227495e4020e7e70aff728852826660fd998514",
+  "candidateBatchDigest": "96154a39091b71c9dffb64dcf60b8667c149b78d4b4c0d5a07787189d00a7e9b",
+  "digest": "819c27fa8387b167d0b2b2c3f8f0ae26033fedf1a4c93beb62700a52dbe69661",
+  "digestAlgorithm": "canonical-json-sha256",
+  "headCommit": "2e0b8096d018a45d0c78d8fd4bc610d862b6de5a",
+  "p0": 0,
+  "p1": 0,
+  "p2": 1,
+  "productDecisionDigest": "9b625e71318cf3a26117bc89744a1e39c04d13f6d74f632cddab4aaa639113e8",
+  "recordDecisionDigest": "c34f228d4c7ae7e1cd244094a5ff64ca9f5e49a6aeb6414cecb9961f5f3453e1",
+  "reviewer": "Claude Code",
+  "revisionDigest": "64dcd0e741f17fc08cde95ad8a5a00b303955aa28ccd065d44f01e49e9d155fc",
+  "status": "pass",
+  "version": "small-heroes-story-source-visual-direction-correction-technical-review/v2"
+}

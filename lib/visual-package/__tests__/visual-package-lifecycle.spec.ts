@@ -740,10 +740,12 @@ describe('all-slot zero-cost audit and explicit strict release mode', () => {
     });
     expect(audit.nominalSlotCount).toBe(18);
     expect(audit.records).toHaveLength(18);
-    expect(audit.productSellableCount).toBe(18);
+    expect(audit.productSellableCount).toBe(17);
     expect(audit.renderQualifiedCount).toBe(1);
     const unavailable = audit.records.filter((record) => !record.productSellable);
-    expect(unavailable).toEqual([]);
+    expect(unavailable.map((record) => record.storyKey)).toEqual([
+      'dragon_dini_adventure',
+    ]);
     expect(
       audit.records.find(
         (record) => record.storyKey === 'chameleon_koko_bedtime',
@@ -761,7 +763,7 @@ describe('all-slot zero-cost audit and explicit strict release mode', () => {
     });
     for (const record of audit.records) {
       expect(record.nominallySellable).toBe(true);
-      expect(record.productSellable).toBe(true);
+      expect(record.productSellable).toBe(record.storyKey !== 'dragon_dini_adventure');
       if (record.storyKey === 'chameleon_koko_bedtime') {
         expect(record.renderQualified).toBe(true);
         expect(record.reasons).toEqual([]);
@@ -782,9 +784,12 @@ describe('all-slot zero-cost audit and explicit strict release mode', () => {
     expect(evaluateRenderQualificationReleaseGate(audit, false)).toMatchObject({ strict: false, pass: true });
     const strict = evaluateRenderQualificationReleaseGate(audit, true);
     expect(strict.pass).toBe(false);
-    expect(strict.failures).toHaveLength(17);
+    expect(strict.failures).toHaveLength(16);
     expect(strict.failures.map((failure) => failure.storyKey)).not.toContain(
       'chameleon_koko_bedtime',
+    );
+    expect(strict.failures.map((failure) => failure.storyKey)).not.toContain(
+      'dragon_dini_adventure',
     );
   });
 });

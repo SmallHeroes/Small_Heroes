@@ -16,6 +16,7 @@ import { resolveStoryBankPlaceholders } from '@/lib/story-bank-personalization';
 import { parseStorySourceContent } from '@/lib/visual-contract-compiler/storySourceContent';
 import {
   auditWizardAllStoryRenderReadiness,
+  auditWizardAllStoryRenderReadinessForR3B0bReplay,
   classifyAcceptedSourceAuthorityBlocker,
   configuredProductSourcePaths,
   inspectWizardStorySourceEvidence,
@@ -65,25 +66,48 @@ describe('Wizard all-story render-readiness control plane', () => {
     expect(new Set(report.records.map((record) => record.storyKey)).size).toBe(18);
     expect(report.summary).toEqual({
       nominalSlotCount: 18,
-      environmentProductSellableCount: 18,
+      environmentProductSellableCount: 17,
       qaLowReadyCount: 18,
-      acceptedProductLineageCount: 1,
+      acceptedProductLineageCount: 2,
       visualContractAuthoringAdmittedCount: 18,
       renderQualifiedCount: 1,
       sourceCorpusConflictCount: 18,
-      supportedGenderProjectionReadyCount: 1,
+      supportedGenderProjectionReadyCount: 2,
       supportedNarrationInputReadyCount: 18,
       supportedCriticalTtsGateReadyCount: 18,
-      supportedNarrationAutomatedPreflightReadyCount: 1,
-      softTtsReviewItemCount: 12,
-      storiesWithSoftTtsReviewItemsCount: 6,
+      supportedNarrationAutomatedPreflightReadyCount: 2,
+      softTtsReviewItemCount: 10,
+      storiesWithSoftTtsReviewItemsCount: 5,
+    });
+    const dini = report.records.find(
+      (record) => record.storyKey === 'dragon_dini_adventure',
+    );
+    expect(dini).toMatchObject({
+      acceptedProductLineage: { kind: 'present' },
+      earliestBlocker: 'package_bound_visual_contract_template_unavailable',
+      nextCanonicalAction: {
+        code: 'author_visual_contract_for_exact_accepted_source',
+        providerSpendAuthorized: false,
+      },
+      productTextReadiness: {
+        supportedGenderProjectionReady: true,
+        supportedNarrationAutomatedPreflightReady: true,
+      },
+      productionStages: {
+        acceptedSourceRevision: true,
+        renderQualified: false,
+      },
+      sources: {
+        currentProductSourceRole: 'accepted_product_source',
+        corpusDecisionRequired: false,
+      },
     });
     expect(report.decisions.productSourceCorpus).toEqual({
       required: true,
       currentFallback: 'v3_product_fallback',
       alternate: 'qa_low_only',
       conflictingSlotCount: 18,
-      decisionRequiredSlotCount: 17,
+      decisionRequiredSlotCount: 16,
     });
 
     for (const record of report.records) {
@@ -95,7 +119,10 @@ describe('Wizard all-story render-readiness control plane', () => {
       expect(record.qaAuthority.resemblanceThreshold).toBe(0.7);
       expect(record.sources.v3ProductFallback.available).toBe(true);
       expect(record.sources.qaLowOnly.available).toBe(true);
-      if (record.storyKey !== CHAMELEON_STORY_KEY) {
+      if (
+        record.storyKey !== CHAMELEON_STORY_KEY &&
+        record.storyKey !== 'dragon_dini_adventure'
+      ) {
         expect(record.sources.corpusDecisionRequired).toBe(true);
         expect(record.earliestBlocker).toBe(
           'product_source_text_not_ready',
@@ -195,8 +222,6 @@ describe('Wizard all-story render-readiness control plane', () => {
       'panda_anat_bedtime:girl:1:שם',
       'panda_anat_fantasy:boy:5:שם',
       'panda_anat_fantasy:girl:5:שם',
-      'dragon_dini_adventure:boy:10:שם',
-      'dragon_dini_adventure:girl:10:שם',
       'lion_shaket_fantasy:boy:10:שם',
       'lion_shaket_fantasy:girl:10:שם',
     ]);
@@ -229,14 +254,42 @@ describe('Wizard all-story render-readiness control plane', () => {
     expect(projectionCount).toBe(432);
     expect(
       report.summary.supportedNarrationAutomatedPreflightReadyCount,
-    ).toBe(1);
+    ).toBe(2);
     expect(
       report.records.filter(
         (record) =>
           record.productTextReadiness?.supportedNarrationInputReady &&
           !record.productTextReadiness.supportedGenderProjectionReady,
       ),
-    ).toHaveLength(17);
+    ).toHaveLength(16);
+  });
+
+  it('confines historical accepted-lineage visibility to the closed replay surface', () => {
+    const current = baseline();
+    const injectedCurrent = auditWizardAllStoryRenderReadiness({
+      repoRoot: REPO,
+      now: FIXED_NOW,
+      acceptedStoryKeyAllowList: [],
+    } as Parameters<typeof auditWizardAllStoryRenderReadiness>[0]);
+    expect(injectedCurrent.digest).toBe(current.digest);
+    const historical = auditWizardAllStoryRenderReadinessForR3B0bReplay({
+      repoRoot: REPO,
+      now: FIXED_NOW,
+      acceptedStoryKeyAllowList: [CHAMELEON_STORY_KEY],
+    });
+    const currentP1 = current.records.find(
+      (record) => record.storyKey === 'dragon_dini_adventure',
+    )!;
+    const historicalP1 = historical.records.find(
+      (record) => record.storyKey === 'dragon_dini_adventure',
+    )!;
+    expect(currentP1.acceptedProductLineage.kind).toBe('present');
+    expect(currentP1.environmentProductSellable).toBe(false);
+    expect(currentP1.productionStages.renderQualified).toBe(false);
+    expect(historicalP1.acceptedProductLineage.kind).toBe('absent');
+    expect(historicalP1.environmentProductSellable).toBe(true);
+    expect(historicalP1.sources.corpusDecisionRequired).toBe(true);
+    expect(historicalP1.productionStages.renderQualified).toBe(false);
   });
 
   it('keeps its semantic digest deterministic and environment claims aligned with runtime helpers', () => {

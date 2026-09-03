@@ -1,0 +1,37 @@
+{
+  "acceptedWorldMode": "grounded",
+  "authorityScope": "story_source_and_visual_directions_only",
+  "candidateBatch": {
+    "digest": "96154a39091b71c9dffb64dcf60b8667c149b78d4b4c0d5a07787189d00a7e9b",
+    "rawSha256": "d8a57650364d62cfc52496b1385ba5dd95fe702f06edf51ff327ae5a43caba4c"
+  },
+  "candidateRecordDigest": "16ab0316f197aff6afae4ad42419c1f3b7d7cc285c71f0a16d75000426cc4046",
+  "continuityIntent": {
+    "childWardrobeAuthority": "frozen_visual_contract",
+    "childWardrobeTransitionPages": [],
+    "companionAccessoryAuthority": "canonical_companion_profile",
+    "companionAppearanceAuthority": "frozen_companion_state",
+    "companionStateTransitionPages": [],
+    "version": "small-heroes-story-visual-continuity-intent/v1"
+  },
+  "correction": {
+    "directionMigrationDigest": "d2c6fb8fce56a5208da3e14f9fbb272dd8499b04315f062d4083adb48c258d2c",
+    "pendingManifestDigest": "71c8ba64f3fa6b5fabc46412646723dd85a8a7fce830cd287df07be8c18e09f8",
+    "requestSha256": "b295ff769d9468abe066630b2e0f91d0b44496906a954723c4053596ac1119a8"
+  },
+  "digest": "64dcd0e741f17fc08cde95ad8a5a00b303955aa28ccd065d44f01e49e9d155fc",
+  "digestAlgorithm": "canonical-json-sha256",
+  "outputs": {
+    "integratedStorySha256": "a5942c3646d08bc037395851311e9627bdfc1dd29f7874a45b000b87af416630",
+    "storySha256": "d94a867035e7e3df37c047f991d900e067c3133e0a1f49c105479b92c171deeb",
+    "visualDirectionsSha256": "cb7f92664de6627ed7efd7a62b6838d413dc2df8136f1b9f45c6098b06ec4b6e"
+  },
+  "recordDecisionDigest": "c34f228d4c7ae7e1cd244094a5ff64ca9f5e49a6aeb6414cecb9961f5f3453e1",
+  "sourceRevision": {
+    "bytes": 6677,
+    "path": "story-pipeline/04_approved_story_sources/accepted/dragon_dini_adventure/story.md",
+    "sha256": "39ad403d98ff528c1313879ec4f4fe020a17271b452040c179938ecf2cc7dfce"
+  },
+  "storyKey": "dragon_dini_adventure",
+  "version": "small-heroes-story-source-visual-direction-correction-identity/v1"
+}

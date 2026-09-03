@@ -1,0 +1,20 @@
+{
+  "authorityScope": "deterministic_direction_text_migration_only",
+  "digest": "d2c6fb8fce56a5208da3e14f9fbb272dd8499b04315f062d4083adb48c258d2c",
+  "fallbackUsed": false,
+  "previousDirectionSha256": "0ee59e8d2c0be0f937ff286a25b8e4dd8c5e6d52d8c4cd263d092fd88514c5db",
+  "providerCalls": 0,
+  "replacements": [
+    {
+      "expectedCount": 1,
+      "field": "mainAction",
+      "pageNumber": 12
+    }
+  ],
+  "revisedDirectionSha256": "cb7f92664de6627ed7efd7a62b6838d413dc2df8136f1b9f45c6098b06ec4b6e",
+  "sourceStorySha256": "d94a867035e7e3df37c047f991d900e067c3133e0a1f49c105479b92c171deeb",
+  "status": "pending_exact_review",
+  "storyKey": "dragon_dini_adventure",
+  "transportRetries": 0,
+  "version": "small-heroes-story-visual-direction-deterministic-migration/v2"
+}

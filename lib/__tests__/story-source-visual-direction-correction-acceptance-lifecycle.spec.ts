@@ -35,6 +35,8 @@ const REPO_ROOT = path.resolve(process.cwd());
 const STORY_KEY = 'dragon_dini_adventure';
 const BATCH_DIGEST =
   '96154a39091b71c9dffb64dcf60b8667c149b78d4b4c0d5a07787189d00a7e9b';
+const P1_REVISION_DIGEST =
+  '64dcd0e741f17fc08cde95ad8a5a00b303955aa28ccd065d44f01e49e9d155fc';
 const BATCH_PATH =
   `${DEFAULT_STORY_SOURCE_VISUAL_DIRECTION_CORRECTION_OUTPUT_ROOT}/${BATCH_DIGEST}.json`;
 const DECISION_SOURCE =
@@ -156,6 +158,15 @@ function buildFixture() {
     acceptedRoot,
     { recursive: true },
   );
+  const fixtureRevisionRoot = path.join(
+    acceptedRoot,
+    STORY_KEY,
+    'revisions',
+    P1_REVISION_DIGEST,
+  );
+  if (fs.existsSync(fixtureRevisionRoot)) {
+    fs.rmSync(fixtureRevisionRoot, { recursive: true, force: true });
+  }
   return {
     acceptedRoot,
     acceptedRootRelative: repoRelative(acceptedRoot),
@@ -631,10 +642,6 @@ describe('R3-B1b correction acceptance and publication lifecycle', () => {
   it('changes only the accepted-source readiness facts in the single-record proof', () => {
     vi.stubEnv('ENABLE_V3_APPROVED_BANK', 'true');
     vi.stubEnv('ENABLE_WIZARD_QA_RENDER_CATALOG', 'false');
-    const baseline = auditWizardAllStoryRenderReadiness({
-      repoRoot: REPO_ROOT,
-      now: FIXED_NOW,
-    });
     const canonicalAcceptedRoot = path.join(
       REPO_ROOT,
       'story-pipeline/04_approved_story_sources/accepted',
@@ -642,6 +649,11 @@ describe('R3-B1b correction acceptance and publication lifecycle', () => {
     const acceptedBytesBefore = directoryFileHashes(canonicalAcceptedRoot);
     const fixture = buildFixture();
     const args = publicationArgs(fixture);
+    const baseline = auditWizardAllStoryRenderReadiness({
+      repoRoot: REPO_ROOT,
+      now: FIXED_NOW,
+      acceptedRootRelative: fixture.acceptedRootRelative,
+    });
     lifecycle.prepare({ ...args, write: true }, fixture.roots);
     lifecycle.publish(
       { ...args, write: true },
