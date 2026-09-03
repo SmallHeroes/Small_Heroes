@@ -6,7 +6,9 @@ Branch: `codex/r3b1b-correction-acceptance-publication`
 
 Review base: `1227495e4020e7e70aff728852826660fd998514`
 
-Review head: the focused branch HEAD supplied in the independent-QA handoff
+Initial review head: `4c4cb91ead784d852759d448e03bc3012f9f68c2`
+
+Corrective re-gate head: the focused branch HEAD supplied in the re-gate handoff
 
 ## Authority and scope
 
@@ -32,12 +34,39 @@ accepted revision and does not change render eligibility.
   commit `19f110f414ec70cd64e96be3b0a99132bb4ef8b9`.
 - Candidate implementation QA: exact range
   `462aaf4c19c7e8809284a96579fb993400e5a593..85ef104cd7765a3e0376bb5ec84a72e75103d9c8`,
-  no P0/P1 findings.
+  no P0/P1 and three P2 findings.
+- Candidate QA closeout: exact range
+  `e7c7bf4a3dda1e06a692802000a0a93cb1646bd0..e1df111f9b956fa360a03d53ef0bfc438bb29c2c`,
+  no P0/P1/P2; it closes/disposes the three bound P2 findings without changing
+  candidate implementation or artifact bytes.
 - Packet QA: exact range
   `ad54e3c1929e9ca235131b3a559dd4f30403c4f7..19f110f414ec70cd64e96be3b0a99132bb4ef8b9`,
   no P0/P1/P2 findings.
 - Tracked canonical product-decision digest:
-  `341d73c53e9c11c753bc75f8e7235294e17a8e271ff9ee618b02321c9534ae5b`.
+  `9b625e71318cf3a26117bc89744a1e39c04d13f6d74f632cddab4aaa639113e8`.
+
+## Initial independent-QA HOLD and correction
+
+Claude Code reviewed
+`1227495e4020e7e70aff728852826660fd998514..4c4cb91ead784d852759d448e03bc3012f9f68c2`
+read-only and returned HOLD with no P0, one P1 and two P2:
+
+1. The product-decision JSON falsely recorded `p2: 0` for an R3-B1a range
+   whose PASS carried three P2 findings, and the final technical-review schema
+   also rejected any otherwise-passing review with nonblocking P2 findings.
+2. The record, Story Source and Visual Direction digest bindings were enforced
+   end to end but lacked direct substitution tests.
+3. The readiness inventory resolved the injected accepted root before the two
+   downstream consumers validated it.
+
+All three are corrected. Product-decision schema v2 records the truthful three
+P2 and a separately bound exact closeout range with zero findings. Technical-
+review schema v2 requires `status: pass`, Claude Code, zero P0/P1 and a
+nonnegative integer P2 count; a HOLD is still rejected for publication. The
+three identity substitutions now reach the immutable-batch binding and fail.
+The shared accepted-root validator is exported and called before inventory path
+resolution or enumeration. A traversal regression proves the audit throws the
+path error at this boundary.
 
 ## Implementation claims
 
@@ -92,9 +121,10 @@ Focused command:
 npx vitest run lib/__tests__/story-source-visual-direction-correction-acceptance-lifecycle.spec.ts lib/visual-package/__tests__/story-source-visual-direction-correction-batch.spec.ts lib/visual-package/__tests__/story-source-visual-direction-review-batch.spec.ts lib/__tests__/story-source-revision-materializer.spec.ts lib/__tests__/story-source-revision-lifecycle.spec.ts lib/__tests__/story-source-visual-direction-enrichment-lifecycle.spec.ts lib/visual-package/__tests__/accepted-story-source-authoring-authority.spec.ts lib/visual-package/__tests__/wizard-all-story-render-readiness.spec.ts lib/visual-package/__tests__/wizard-all-story-readiness-cli.spec.ts lib/__tests__/vitest-workload-classifier.spec.ts --maxWorkers=1 --no-file-parallelism
 ```
 
-Result: **10/10 files and 88/88 tests PASS**, exit 0. The new lifecycle spec is
-**9/9 PASS** both here and in the resource-intensive phase of the repository
-check.
+Corrected result: **10/10 files and 90/90 tests PASS**, exit 0. The lifecycle
+spec is **11/11 PASS**. Its temporary publication fixture deliberately carries
+two nonblocking P2 findings in a passing technical-review envelope, proving the
+new schema through prepare, publish and strict-loader verification.
 
 Also PASS:
 
@@ -110,8 +140,8 @@ Literal `npm run check` is not PASS. Its ordinary phase reports 339 passing,
 6 failing and 17 skipped files; 4,790 passing, 10 failing and 73 skipped tests.
 All ten failures are missing-file errors in unchanged tests whose ignored
 historical `outputs/` fixtures are absent from this worktree. The
-resource-intensive phase reports **21/21 files and 649/649 assertions passing**,
-then two Vitest worker `onTaskUpdate` RPC timeouts; it therefore exits 1. The
+resource-intensive phase reports **21/21 files and 651/651 assertions passing**,
+then three Vitest worker `onTaskUpdate` RPC timeouts; it therefore exits 1. The
 phase diagnostics classify the ordinary failure as `signal_or_exit_failure`
 and the resource failure as `on_task_update_rpc_timeout` plus
 `signal_or_exit_failure`. Neither failing phase is represented as PASS.

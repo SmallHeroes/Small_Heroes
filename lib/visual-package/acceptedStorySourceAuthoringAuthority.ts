@@ -26,9 +26,9 @@ const TECHNICAL_REVIEW_VERSION =
 const CORRECTION_PRODUCT_ACCEPTANCE_VERSION =
   'small-heroes-story-source-visual-direction-correction-product-acceptance/v2';
 const CORRECTION_TECHNICAL_REVIEW_VERSION =
-  'small-heroes-story-source-visual-direction-correction-technical-review/v1';
+  'small-heroes-story-source-visual-direction-correction-technical-review/v2';
 const CORRECTION_PRODUCT_DECISION_VERSION =
-  'small-heroes-story-source-visual-direction-correction-product-decision/v1';
+  'small-heroes-story-source-visual-direction-correction-product-decision/v2';
 const CORRECTION_REVISION_IDENTITY_VERSION =
   'small-heroes-story-source-visual-direction-correction-identity/v1';
 export const ACCEPTED_STORY_SOURCE_ROOT =
@@ -353,7 +353,7 @@ function pathsEqual(left: string, right: string): boolean {
     : left === right;
 }
 
-function validatedAcceptedRootRelative(
+export function validatedAcceptedStorySourceRootRelative(
   repoRoot: string,
   requested?: string,
 ): string {
@@ -411,7 +411,7 @@ export function acceptedProductLineageDisposition(args: {
   }
   let acceptedRoot: string;
   try {
-    acceptedRoot = validatedAcceptedRootRelative(
+    acceptedRoot = validatedAcceptedStorySourceRootRelative(
       args.repoRoot,
       args.acceptedRootRelative,
     );
@@ -1020,7 +1020,8 @@ function correctionTechnicalReviewIsValid(
     value.reviewer === 'Claude Code' &&
     value.p0 === 0 &&
     value.p1 === 0 &&
-    value.p2 === 0 &&
+    Number.isSafeInteger(value.p2) &&
+    Number(value.p2) >= 0 &&
     typeof value.baseCommit === 'string' &&
     GIT_COMMIT.test(value.baseCommit) &&
     typeof value.headCommit === 'string' &&
@@ -1046,6 +1047,7 @@ function correctionProductDecisionIntent(
       'acceptedIntents',
       'candidateBatch',
       'candidateTechnicalQa',
+      'candidateTechnicalQaCloseout',
       'correctionDirections',
       'coworkReferrals',
       'decidedBy',
@@ -1444,7 +1446,7 @@ export function loadAcceptedStorySourceAuthoringAuthority(args: {
   storyPath: string;
   acceptedRootRelative?: string;
 }): AcceptedStorySourceAuthoringAuthority | null {
-  const acceptedRoot = validatedAcceptedRootRelative(
+  const acceptedRoot = validatedAcceptedStorySourceRootRelative(
     args.repoRoot,
     args.acceptedRootRelative,
   );

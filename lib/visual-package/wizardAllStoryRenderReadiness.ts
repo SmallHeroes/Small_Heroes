@@ -41,9 +41,9 @@ import {
 } from '@/lib/wizard-render-readiness';
 
 import {
-  ACCEPTED_STORY_SOURCE_ROOT,
   acceptedProductLineageDisposition,
   loadAcceptedStorySourceAuthoringAuthority,
+  validatedAcceptedStorySourceRootRelative,
   type AcceptedStorySourceAuthoringAuthority,
   type AcceptedProductLineageDisposition,
 } from './acceptedStorySourceAuthoringAuthority';
@@ -631,9 +631,13 @@ function acceptedProductSourceRevisionInventory(args: {
   revisions: AcceptedProductSourceRevisionEvidence[];
   issues: string[];
 } {
+  const acceptedRoot = validatedAcceptedStorySourceRootRelative(
+    args.repoRoot,
+    args.acceptedRootRelative,
+  );
   const revisionsRoot = path.resolve(
     args.repoRoot,
-    args.acceptedRootRelative || ACCEPTED_STORY_SOURCE_ROOT,
+    acceptedRoot,
     args.storyKey,
     'revisions',
   );
@@ -653,8 +657,6 @@ function acceptedProductSourceRevisionInventory(args: {
   for (const entry of [...entries].sort((left, right) =>
     left.name.localeCompare(right.name))) {
     if (!entry.isDirectory() || !/^[a-f0-9]{64}$/.test(entry.name)) continue;
-    const acceptedRoot =
-      args.acceptedRootRelative || ACCEPTED_STORY_SOURCE_ROOT;
     const sourcePath =
       `${acceptedRoot}/${args.storyKey}/revisions/${entry.name}/integrated.md`;
     if (!fs.existsSync(path.resolve(args.repoRoot, sourcePath))) continue;

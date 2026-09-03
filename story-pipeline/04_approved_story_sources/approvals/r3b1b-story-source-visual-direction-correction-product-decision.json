@@ -152,6 +152,22 @@
     "headCommit": "85ef104cd7765a3e0376bb5ec84a72e75103d9c8",
     "p0": 0,
     "p1": 0,
+    "p2": 3,
+    "reviewer": "Claude Code",
+    "status": "pass"
+  },
+  "candidateTechnicalQaCloseout": {
+    "baseCommit": "e7c7bf4a3dda1e06a692802000a0a93cb1646bd0",
+    "closes": {
+      "baseCommit": "462aaf4c19c7e8809284a96579fb993400e5a593",
+      "headCommit": "85ef104cd7765a3e0376bb5ec84a72e75103d9c8",
+      "p0": 0,
+      "p1": 0,
+      "p2": 3
+    },
+    "headCommit": "e1df111f9b956fa360a03d53ef0bfc438bb29c2c",
+    "p0": 0,
+    "p1": 0,
     "p2": 0,
     "reviewer": "Claude Code",
     "status": "pass"
@@ -220,7 +236,7 @@
   ],
   "decidedBy": "Guy",
   "decisionText": "מאשר את חבילת ההחלטות ב־commit 19f110f4 עבור batch 96154a39091b71c9dffb64dcf60b8667c149b78d4b4c0d5a07787189d00a7e9b: כוונת ACCEPT ל־P1–P5, P7 ו־P8; העברת P6 ל־Cowork ללא קבלה עדיין; והכנת תיקונים לפי D1–D5, D6A ו־D7–D13. מאשר גם את שער R3‑B1b. קריינות, QA, digest סופי ופרסום נשארים בשערים נפרדים.",
-  "digest": "341d73c53e9c11c753bc75f8e7235294e17a8e271ff9ee618b02321c9534ae5b",
+  "digest": "9b625e71318cf3a26117bc89744a1e39c04d13f6d74f632cddab4aaa639113e8",
   "digestAlgorithm": "canonical-json-sha256",
   "exclusions": [
     "blueprint",
@@ -257,5 +273,5 @@
     "status": "final_digest_confirmation_pending"
   },
   "status": "approved_for_correction_acceptance_preparation",
-  "version": "small-heroes-story-source-visual-direction-correction-product-decision/v1"
+  "version": "small-heroes-story-source-visual-direction-correction-product-decision/v2"
 }

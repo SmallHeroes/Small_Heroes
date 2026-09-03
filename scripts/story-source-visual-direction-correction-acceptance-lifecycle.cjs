@@ -14,11 +14,11 @@ const APPROVAL_ROOT_RELATIVE =
 const ACCEPTED_ROOT_RELATIVE =
   'story-pipeline/04_approved_story_sources/accepted';
 const DECISION_VERSION =
-  'small-heroes-story-source-visual-direction-correction-product-decision/v1';
+  'small-heroes-story-source-visual-direction-correction-product-decision/v2';
 const COWORK_REVIEW_VERSION =
   'small-heroes-story-source-visual-direction-correction-cowork-review/v1';
 const TECHNICAL_REVIEW_VERSION =
-  'small-heroes-story-source-visual-direction-correction-technical-review/v1';
+  'small-heroes-story-source-visual-direction-correction-technical-review/v2';
 const PRODUCT_ACCEPTANCE_VERSION =
   'small-heroes-story-source-visual-direction-correction-product-acceptance/v2';
 const REVISION_IDENTITY_VERSION =
@@ -47,6 +47,22 @@ const EXPECTED_PACKET = Object.freeze({
 const EXPECTED_CANDIDATE_QA = Object.freeze({
   baseCommit: '462aaf4c19c7e8809284a96579fb993400e5a593',
   headCommit: '85ef104cd7765a3e0376bb5ec84a72e75103d9c8',
+  p0: 0,
+  p1: 0,
+  p2: 3,
+  reviewer: 'Claude Code',
+  status: 'pass',
+});
+const EXPECTED_CANDIDATE_QA_CLOSEOUT = Object.freeze({
+  baseCommit: 'e7c7bf4a3dda1e06a692802000a0a93cb1646bd0',
+  closes: {
+    baseCommit: EXPECTED_CANDIDATE_QA.baseCommit,
+    headCommit: EXPECTED_CANDIDATE_QA.headCommit,
+    p0: 0,
+    p1: 0,
+    p2: 3,
+  },
+  headCommit: 'e1df111f9b956fa360a03d53ef0bfc438bb29c2c',
   p0: 0,
   p1: 0,
   p2: 0,
@@ -267,7 +283,51 @@ function validateQaRange(value, code) {
     value.baseCommit === value.headCommit ||
     value.p0 !== 0 ||
     value.p1 !== 0 ||
-    value.p2 !== 0
+    !Number.isSafeInteger(value.p2) ||
+    value.p2 < 0
+  ) {
+    fail(code);
+  }
+  return value;
+}
+
+function validateQaCloseout(value, code) {
+  if (
+    !safety.exactKeys(value, [
+      'baseCommit',
+      'closes',
+      'headCommit',
+      'p0',
+      'p1',
+      'p2',
+      'reviewer',
+      'status',
+    ]) ||
+    !value.closes ||
+    typeof value.closes !== 'object' ||
+    Array.isArray(value.closes) ||
+    !safety.exactKeys(value.closes, [
+      'baseCommit',
+      'headCommit',
+      'p0',
+      'p1',
+      'p2',
+    ])
+  ) {
+    fail(code);
+  }
+  const { closes, ...review } = value;
+  validateQaRange(review, code);
+  if (
+    !COMMIT_HEX.test(closes.baseCommit) ||
+    !COMMIT_HEX.test(closes.headCommit) ||
+    closes.baseCommit === closes.headCommit ||
+    !Number.isSafeInteger(closes.p0) ||
+    !Number.isSafeInteger(closes.p1) ||
+    !Number.isSafeInteger(closes.p2) ||
+    closes.p0 < 0 ||
+    closes.p1 < 0 ||
+    closes.p2 < 0
   ) {
     fail(code);
   }
@@ -367,6 +427,7 @@ function validateProductDecision(value) {
       'acceptedIntents',
       'candidateBatch',
       'candidateTechnicalQa',
+      'candidateTechnicalQaCloseout',
       'correctionDirections',
       'coworkReferrals',
       'decidedBy',
@@ -461,6 +522,10 @@ function validateProductDecision(value) {
       value.candidateTechnicalQa,
       'story_correction_product_decision_invalid',
     ) ||
+    !validateQaCloseout(
+      value.candidateTechnicalQaCloseout,
+      'story_correction_product_decision_invalid',
+    ) ||
     !validateQaRange(
       value.packetPlanningQa,
       'story_correction_product_decision_invalid',
@@ -474,6 +539,8 @@ function validateProductDecision(value) {
     JSON.stringify(value.packet) !== JSON.stringify(EXPECTED_PACKET) ||
     JSON.stringify(value.candidateTechnicalQa) !==
       JSON.stringify(EXPECTED_CANDIDATE_QA) ||
+    JSON.stringify(value.candidateTechnicalQaCloseout) !==
+      JSON.stringify(EXPECTED_CANDIDATE_QA_CLOSEOUT) ||
     JSON.stringify(value.packetPlanningQa) !==
       JSON.stringify(EXPECTED_PACKET_QA) ||
     !safety.digestIsCanonical(value)
@@ -997,7 +1064,8 @@ function loadTechnicalReview(reviewPath, inspected) {
     review.baseCommit === review.headCommit ||
     review.p0 !== 0 ||
     review.p1 !== 0 ||
-    review.p2 !== 0 ||
+    !Number.isSafeInteger(review.p2) ||
+    review.p2 < 0 ||
     review.candidateBatchDigest !== inspected.candidateBatchDigest ||
     review.productDecisionDigest !== inspected.productDecisionDigest ||
     review.recordDecisionDigest !== inspected.recordDecisionDigest ||

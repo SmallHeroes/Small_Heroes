@@ -232,3 +232,15 @@ rollback is code-only. Never rewrite a historical accepted revision.
 single-record proof only. STOP before canonical accepted-source publication,
 provider activity, narration acceptance, Visual Contract/package work, render,
 deployment or production activation until their separate gates pass.
+
+## Independent-QA correction record
+
+Claude Code's first implementation review of `1227495e..4c4cb91e` returned HOLD
+with one P1 and two P2. The approved same-scope corrective loop records the
+truthful three-P2 R3-B1a review plus its exact later no-finding closeout, permits
+a future PASS envelope to retain nonblocking P2 counts while still requiring
+zero P0/P1, adds direct substitution coverage for the three record/source/VD
+identities, and validates any injected accepted root before inventory
+enumeration. This changes no product decision and grants no new publication,
+render, narration, provider or spend authority. The correction requires a
+Claude Code re-gate before the final-digest confirmation gate can open.

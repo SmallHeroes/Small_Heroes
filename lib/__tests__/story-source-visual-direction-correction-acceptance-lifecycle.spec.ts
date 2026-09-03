@@ -117,7 +117,7 @@ function buildFixture() {
     headCommit: '2222222222222222222222222222222222222222',
     p0: 0,
     p1: 0,
-    p2: 0,
+    p2: 2,
     candidateBatchDigest: inspected.candidateBatchDigest,
     productDecisionDigest: inspected.productDecisionDigest,
     recordDecisionDigest: inspected.recordDecisionDigest,
@@ -226,8 +226,31 @@ describe('R3-B1b correction acceptance and publication lifecycle', () => {
       fs.readFileSync(path.join(REPO_ROOT, DECISION_SOURCE), 'utf8'),
     );
     expect(decision.digest).toBe(
-      '341d73c53e9c11c753bc75f8e7235294e17a8e271ff9ee618b02321c9534ae5b',
+      '9b625e71318cf3a26117bc89744a1e39c04d13f6d74f632cddab4aaa639113e8',
     );
+    expect(decision).toMatchObject({
+      version:
+        'small-heroes-story-source-visual-direction-correction-product-decision/v2',
+      candidateTechnicalQa: {
+        p0: 0,
+        p1: 0,
+        p2: 3,
+      },
+      candidateTechnicalQaCloseout: {
+        baseCommit: 'e7c7bf4a3dda1e06a692802000a0a93cb1646bd0',
+        headCommit: 'e1df111f9b956fa360a03d53ef0bfc438bb29c2c',
+        p0: 0,
+        p1: 0,
+        p2: 0,
+        closes: {
+          baseCommit: '462aaf4c19c7e8809284a96579fb993400e5a593',
+          headCommit: '85ef104cd7765a3e0376bb5ec84a72e75103d9c8',
+          p0: 0,
+          p1: 0,
+          p2: 3,
+        },
+      },
+    });
     expect(decision.acceptedIntents.map((entry: any) => entry.decisionId)).toEqual([
       'P1',
       'P2',
@@ -336,6 +359,12 @@ describe('R3-B1b correction acceptance and publication lifecycle', () => {
         decision.candidateTechnicalQa.headCommit = 'c'.repeat(40);
       },
       (decision: any) => {
+        decision.candidateTechnicalQa.p2 = 0;
+      },
+      (decision: any) => {
+        decision.candidateTechnicalQaCloseout.closes.p2 = 2;
+      },
+      (decision: any) => {
         decision.correctionDirections.pop();
       },
     ];
@@ -363,6 +392,30 @@ describe('R3-B1b correction acceptance and publication lifecycle', () => {
         traversal.roots,
       ),
     ).toThrow('story_correction_product_decision_invalid');
+  });
+
+  it('rejects substituted record, Story Source, and Visual Direction identities against the immutable batch', () => {
+    for (const field of [
+      'recordDigest',
+      'storyCandidateSha256',
+      'visualDirectionCandidateSha256',
+    ]) {
+      const fixture = buildFixture();
+      const decision = JSON.parse(
+        fs.readFileSync(fixture.decisionPath, 'utf8'),
+      );
+      decision.acceptedIntents[0][field] = 'f'.repeat(64);
+      const {
+        digest: _digest,
+        digestAlgorithm: _algorithm,
+        ...payload
+      } = decision;
+      fs.rmSync(fixture.decisionPath);
+      writeCanonicalJson(fixture.decisionPath, signed(payload));
+      expect(() => lifecycle.inspect(fixture.inspectArgs, fixture.roots)).toThrow(
+        'story_correction_candidate_record_invalid',
+      );
+    }
   });
 
   it('rejects a non-Claude review and a final acceptance for another digest', () => {
@@ -658,6 +711,18 @@ describe('R3-B1b correction acceptance and publication lifecycle', () => {
     expect(directoryFileHashes(canonicalAcceptedRoot)).toEqual(
       acceptedBytesBefore,
     );
+  });
+
+  it('rejects an accepted-root traversal before revision inventory enumeration', () => {
+    vi.stubEnv('ENABLE_V3_APPROVED_BANK', 'true');
+    vi.stubEnv('ENABLE_WIZARD_QA_RENDER_CATALOG', 'false');
+    expect(() =>
+      auditWizardAllStoryRenderReadiness({
+        repoRoot: REPO_ROOT,
+        now: FIXED_NOW,
+        acceptedRootRelative: '../outside-accepted-root',
+      }),
+    ).toThrow('accepted_story_source_root_path_invalid');
   });
 
   it('keeps the operator surface provider-free and strict about commands', () => {

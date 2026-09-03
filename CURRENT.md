@@ -13,8 +13,9 @@ remain separate gates.
 
 Codex implemented a correction-lineage accepted-authority schema and lifecycle
 without weakening the existing correction-pending fences or relabeling the
-lineage as enrichment v3. The tracked product-decision envelope has canonical
-digest `341d73c53e9c11c753bc75f8e7235294e17a8e271ff9ee618b02321c9534ae5b`.
+lineage as enrichment v3. The corrected tracked product-decision envelope has
+canonical digest
+`9b625e71318cf3a26117bc89744a1e39c04d13f6d74f632cddab4aaa639113e8`.
 The lifecycle binds the exact packet bytes, packet commit, batch bytes, record,
 request, story and Visual Direction digests, both independently reviewed input
 ranges, Guy's complete decision set, a later independent implementation review,
@@ -24,6 +25,20 @@ collision and replay cases fail closed. The accepted-authority loader now
 supports the complete 12-file correction-v4 inventory while retaining exact v3
 and legacy-v2 behavior. Filesystem publication reuses the proven v3 containment,
 identity, staging, immutable collision and atomic-directory safety kernel.
+
+Claude Code independently reviewed initial implementation range
+`1227495e4020e7e70aff728852826660fd998514..4c4cb91ead784d852759d448e03bc3012f9f68c2`
+read-only and returned **HOLD with one P1 and two P2**. Codex reproduced and
+accepted all three findings. The P1 was a provenance contradiction: the
+machine-readable decision claimed zero P2 findings for the exact R3-B1a range
+that actually passed with three P2 findings, although the surrounding evidence
+described them correctly. The correction schema v2 now records those three P2,
+the exact later documentation range that closed/disposed them, and zero findings
+on that closeout. A passing implementation-review envelope still requires zero
+P0/P1 but can truthfully carry any nonnegative P2 count; a HOLD remains
+inadmissible for publication. The two P2 corrections add end-to-end substitution
+tests for the record, Story Source and Visual Direction hashes, and validate an
+injected accepted root before any revision-inventory enumeration.
 
 The P1 temporary-root proof derived final revision digest
 `64dcd0e741f17fc08cde95ad8a5a00b303955aa28ccd065d44f01e49e9d155fc`.
@@ -38,26 +53,27 @@ corpus bytes. All visual-package and strict render-qualified counts remained
 1/18, P1 remained not render-ready, and the other 17 functional dispositions
 remained unchanged. No human-ear acceptance is modeled or claimed.
 
-The correction-specific validation passes **9/9**. The complete focused slice
-passes **10/10 files and 88/88 tests** with one worker and no file parallelism.
+The corrected lifecycle validation passes **11/11**. The complete focused slice
+passes **10/10 files and 90/90 tests** with one worker and no file parallelism.
 `npx tsc --noEmit`, `npm run story:autonomous-typecheck`, both lifecycle
 `node --check` calls and `git diff --check` pass. The literal `npm run check`
 does not pass: its ordinary phase reports 339 passing, 6 failing and 17 skipped
 files, with 4,790 passing, 10 failing and 73 skipped tests; all ten failures are
 unchanged tests whose ignored historical `outputs/` fixtures are absent. Its
-resource-intensive phase executes the new R3-B1b spec and reports **21/21 files
-and 649/649 assertions passing**, followed by two Vitest `onTaskUpdate` RPC
-timeouts, so that phase also exits 1. These inherited environment/fixture
+resource-intensive phase executes the corrected R3-B1b spec and reports
+**21/21 files and 651/651 assertions passing**, followed by three Vitest
+`onTaskUpdate` RPC timeouts, so that phase also exits 1. These inherited
+environment/fixture
 failures are disclosed and are not counted as PASS.
 
 All R3-B1b effects remain zero: no canonical accepted revision, runtime
 activation, provider/network/database/storage call, image/audio/PDF render,
 order/payment/deployment mutation or spend occurred. The production accepted
 tree and every historical accepted revision remain unchanged. The resemblance
-threshold remains **0.70**. Next, Codex creates the focused local commit and
-hands its immutable range to Claude Code for adversarial read-only QA. Even a
-technical PASS will not publish P1: Guy must then confirm the exact final digest
-in a separate publication gate.
+threshold remains **0.70**. Next, Codex creates a separate corrective commit and
+returns the combined implementation range to Claude Code for adversarial
+read-only re-gate. Even a technical PASS will not publish P1: Guy must then
+confirm the exact final digest in a separate publication gate.
 
 ## R3-B1b planning foundation — packet and draft gate independently QA-passed
 
