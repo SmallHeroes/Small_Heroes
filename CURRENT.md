@@ -1,6 +1,6 @@
 # SmallHeroes — Current Technical State
 
-## R3-B1a — exact-17 correction candidates complete locally; independent QA pending
+## R3-B1a — implementation independently QA-passed; documentation closeout pending re-gate
 
 Guy authorized Codex to continue the zero-cost work toward making every story
 renderable. The controlling brief is
@@ -8,10 +8,13 @@ renderable. The controlling brief is
 This milestone runs in `C:\GNart\Work\sh-r3b0b-story-source-review` on
 `codex/r3b1a-story-correction-candidates`. The exact-candidate sub-milestone is
 built on the green local foundation commit
-`2708d6500298b86e6c49d9eb10a684497cc8d7c6`, but final independent QA must start
-at the R3-B0b closeout `462aaf4c19c7e8809284a96579fb993400e5a593` so it covers both
-R3-B1a commits. The branch has not been pushed and R3-B1a has not yet received
-independent Claude Code review.
+`2708d6500298b86e6c49d9eb10a684497cc8d7c6`. Claude Code independently reviewed
+the complete two-commit R3-B1a range from the R3-B0b closeout
+`462aaf4c19c7e8809284a96579fb993400e5a593` through implementation head
+`85ef104cd7765a3e0376bb5ec84a72e75103d9c8` and returned **PASS with no P0/P1**.
+The branch remains unpushed. Claude left two documentation/test-disclosure P2s
+and one correctly surfaced product-authority blocker; the documentation-only
+corrections require a narrow re-gate before technical closeout.
 
 Claude Code's two preceding R3-B0b returns are closed accurately. Its first
 review found one P2: the zero-cost review CLI's inert static import graph still
@@ -78,14 +81,29 @@ report **20/20 files and 640/640 assertions PASS**, followed by three known
 Vitest `onTaskUpdate` RPC timeouts. The overall command exits 1 and is not called
 PASS; no fixture was copied and no failure was hidden.
 
+Claude independently reproduced the substantive implementation claims and the
+real dry-run CLI. Its first focused execution reported one unidentified,
+non-reproducing failure and a seven-file total of 68 tests; its immediate rerun
+was 68/68 and the correction-batch spec passed 9/9 three additional times. The
+exact documented seven-file command was rerun after the review and again passed
+**67/67**; its per-file inventory is 9 + 14 + 12 + 6 + 8 + 11 + 7. Claude did
+not publish a per-file breakdown or exact argv for its 68-test selection, so the
+documented count remains the directly reproduced 67 while both observations are
+preserved. No recurring failure has been reproduced.
+
 All effect counters remain zero: no accepted Story Source or Visual Direction,
 runtime activation, provider/network/database/storage call, image/audio/PDF
 render, order/payment/deployment mutation, or spend occurred. The resemblance
 threshold remains **0.70**. Internal parallel audits were used to catch and fix
-content-attribution and filesystem-race defects, but do not replace the required
-independent Claude Code gate. Product decisions for the 13 HOLD issues,
-narration ear acceptance, publication, and paid LOW/HIGH rendering remain later
-staged gates.
+content-attribution and filesystem-race defects. Claude's independent review
+verified the implementation rather than relying on those internal audits. Its
+wording P2 is corrected precisely: full female-projection bytes differ from the
+historical accepted female source because they retain the candidate metadata
+`gender: neutral`, while the female **prose** region is byte-identical. Its third
+P2 is not a code defect: the one protected Dini
+appearance-state authority gap is already counted and keeps that story on HOLD.
+Product decisions for the 13 HOLD issues, narration ear acceptance, publication,
+and paid LOW/HIGH rendering remain later staged gates.
 
 ## R3-B0b — review batch and provider-free import correction independently QA-passed; technical preparation closed
 

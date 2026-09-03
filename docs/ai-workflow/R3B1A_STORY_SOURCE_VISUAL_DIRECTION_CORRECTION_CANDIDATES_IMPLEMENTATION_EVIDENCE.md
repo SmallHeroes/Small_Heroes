@@ -6,8 +6,11 @@ Worktree: `C:\GNart\Work\sh-r3b0b-story-source-review`
 Exact-candidate implementation base: `2708d6500298b86e6c49d9eb10a684497cc8d7c6`
 Final R3-B1a independent-QA base:
 `462aaf4c19c7e8809284a96579fb993400e5a593`
-Review head: the focused local implementation commit containing this document;
-the exact immutable SHA is supplied in the Claude Code handoff after commit.
+Implementation head: `85ef104cd7765a3e0376bb5ec84a72e75103d9c8`
+Independent implementation QA: **PASS with no P0/P1** on
+`462aaf4c19c7e8809284a96579fb993400e5a593..85ef104cd7765a3e0376bb5ec84a72e75103d9c8`
+Documentation-closeout head: the focused local commit containing the post-review
+corrections below; its exact immutable SHA is supplied after commit.
 Decision Gate:
 `docs/ai-workflow/R3B1A_STORY_SOURCE_VISUAL_DIRECTION_CORRECTION_CANDIDATES_DECISION_GATE.md`
 
@@ -105,8 +108,10 @@ The final ignored candidate artifact is:
 - first explicit write: `created:true`;
 - exact replay: `created:false`;
 - membership: 17 records / 208 pages / 5 bedtime / 6 adventure / 6 fantasy;
-- source/projection invariants: 17 neutral, 17 female-byte-identical, 17 boy
-  resolved, 17 girl resolved;
+- source/projection invariants: 17 neutral, 17 female-prose-byte-identical, 17
+  boy resolved, 17 girl resolved; the full female-projection bytes differ from
+  the historical accepted female source because they retain candidate metadata
+  `gender: neutral` rather than the historical `gender: female`;
 - Visual Direction invariants: 17 composition-valid, zero singular English
   gender pronouns;
 - dispositions: 8 pending exact review / 9 HOLD;
@@ -167,6 +172,11 @@ npx vitest run lib/visual-package/__tests__/story-source-visual-direction-correc
 
 Result: **7 files / 67 tests PASS; exit 0**.
 
+Per-file test inventory for this exact argv is 9 correction-batch + 14 review-
+batch + 12 materializer + 6 lifecycle + 8 enrichment + 11 readiness + 7 CLI =
+**67**. The same command was rerun after independent review and again returned
+**7/7 files and 67/67 tests PASS; exit 0**.
+
 Workload classifier after adding the new spec:
 
 ```powershell
@@ -198,6 +208,43 @@ six absent ignored historical `outputs/` fixture sets. The resource phase
 reports **20/20 files and 640/640 assertions PASS**, followed by three known
 Vitest-worker `onTaskUpdate` RPC timeouts. The full command exits 1 and is not
 called PASS. No missing fixture was copied, regenerated, or hidden.
+
+## Independent QA result and P2 disposition
+
+Claude Code independently reviewed the immutable implementation range
+`462aaf4c19c7e8809284a96579fb993400e5a593..85ef104cd7765a3e0376bb5ec84a72e75103d9c8`
+read-only and returned **PASS with no P0/P1**. It independently reproduced the
+truthful 18-to-1 gender/narration readiness correction, exact 17/208 and 5/6/6
+selection, 388/52 replacement counts, 51/51 raw-file bindings, zero overlaps,
+17 neutral candidates, female-prose identity, resolved boy/girl projections,
+8/9 dispositions, 13 issues, closed lifecycle boundary, immutable no-write
+behavior, zero effects, provider-free real CLI, and unchanged 0.70 threshold.
+
+Its three P2 notes are disposed as follows:
+
+1. **Valid documentation wording:** one compressed bullet and the external
+   handoff omitted the word `prose`. The bullet above now states
+   `female-prose-byte-identical` and explicitly discloses why the full female-
+   projection bytes differ from the historical accepted source. No code or
+   artifact changed.
+2. **Test-count/run discrepancy, disclosed rather than guessed:** Claude's first
+   seven-file execution reported one unidentified failure and 67 passing tests;
+   its immediate rerun reported 68/68, and the correction-batch file passed 9/9
+   on three further isolated runs. Claude did not publish per-file counts or
+   exact argv for the 68-test selection. The exact command printed in this
+   document was rerun after review and passed 67/67; its seven per-file counts
+   sum to 67 as recorded above. The evidence therefore preserves the exact
+   reproducible 67 count and discloses both reviewer observations. No recurring
+   failure or changed repository test inventory was found.
+3. **Correctly surfaced product blocker, not a defect:** the single
+   `dragon_dini_fantasy` companion appearance-state authority gap is already
+   counted under `protectedAuthorityIssueCount: 1`, documented in the 13-item
+   decision set, and keeps the record on HOLD. Nothing is waived or netted away.
+
+This closeout changes documentation only. It does not change the implementation,
+plan, candidate artifact, status, eligibility, effect counters, or any protected
+authority. Claude Code must re-gate the documentation-only correction before
+R3-B1a is called technically closed.
 
 ## Internal review corrections
 
