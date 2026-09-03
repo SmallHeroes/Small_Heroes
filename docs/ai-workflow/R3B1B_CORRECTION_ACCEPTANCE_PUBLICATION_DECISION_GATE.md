@@ -244,3 +244,10 @@ identities, and validates any injected accepted root before inventory
 enumeration. This changes no product decision and grants no new publication,
 render, narration, provider or spend authority. The correction requires a
 Claude Code re-gate before the final-digest confirmation gate can open.
+
+Claude Code then independently re-gated `1227495e..2e0b8096` read-only and
+returned **PASS with no P0/P1**. Its sole new P2 corrects the handoff's stale
+claim that the branch lacked an upstream: reviewed head `2e0b8096` was already
+pushed at 0/0 origin parity. The technical gate is therefore closed. Canonical
+publication remains stopped until Guy separately confirms exact P1 revision
+digest `64dcd0e741f17fc08cde95ad8a5a00b303955aa28ccd065d44f01e49e9d155fc`.

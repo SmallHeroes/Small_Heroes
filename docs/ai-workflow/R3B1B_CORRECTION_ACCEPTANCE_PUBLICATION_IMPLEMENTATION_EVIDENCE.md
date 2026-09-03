@@ -8,7 +8,7 @@ Review base: `1227495e4020e7e70aff728852826660fd998514`
 
 Initial review head: `4c4cb91ead784d852759d448e03bc3012f9f68c2`
 
-Corrective re-gate head: the focused branch HEAD supplied in the re-gate handoff
+Corrective re-gate head: `2e0b8096d018a45d0c78d8fd4bc610d862b6de5a`
 
 ## Authority and scope
 
@@ -67,6 +67,24 @@ three identity substitutions now reach the immutable-batch binding and fail.
 The shared accepted-root validator is exported and called before inventory path
 resolution or enumeration. A traversal regression proves the audit throws the
 path error at this boundary.
+
+## Independent corrective re-gate
+
+Claude Code independently reviewed combined immutable range
+`1227495e4020e7e70aff728852826660fd998514..2e0b8096d018a45d0c78d8fd4bc610d862b6de5a`
+read-only and returned **PASS with no P0/P1 and one documentation-only P2**. It
+confirmed all three prior findings closed, reproduced the decision and revision
+digests, independently passed 10/10 files / 90/90 tests plus 11/11 lifecycle
+tests, and verified the early root fence with zero outside-repository filesystem
+touches. It also confirmed zero publication/effects/provider reachability,
+unchanged historical loaders and unchanged 0.70 threshold.
+
+The new P2 corrects a factual handoff claim: Codex said the branch had no
+upstream and was unpushed, but the reviewed implementation head was already
+pushed. Both Claude and Codex subsequently measured upstream
+`origin/codex/r3b1b-correction-acceptance-publication` at exact
+`2e0b8096d018a45d0c78d8fd4bc610d862b6de5a`, 0 ahead and 0 behind. This is a
+handoff-accuracy issue only; it changes no implementation finding or authority.
 
 ## Implementation claims
 
@@ -171,6 +189,6 @@ milestone.
 - inspect the eager/static operator graph for provider or mutation reachability;
 - verify the literal repository-check disclosure independently.
 
-Independent QA is review-only on its first pass. A technical PASS does not
-authorize canonical publication; Guy must separately confirm the exact final
-revision digest afterward.
+Independent QA has passed the corrected combined range. That technical PASS
+does not authorize canonical publication; Guy must separately confirm the exact
+final revision digest afterward.

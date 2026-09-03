@@ -1,6 +1,6 @@
 # SmallHeroes — Current Technical State
 
-## R3-B1b implementation — correction acceptance v4 locally green; independent QA and final publication confirmation pending
+## R3-B1b implementation — independent technical QA PASS; final P1 digest confirmation and publication pending
 
 Guy approved the exact decision package in packet commit
 `19f110f414ec70cd64e96be3b0a99132bb4ef8b9` for immutable candidate batch
@@ -40,6 +40,20 @@ inadmissible for publication. The two P2 corrections add end-to-end substitution
 tests for the record, Story Source and Visual Direction hashes, and validate an
 injected accepted root before any revision-inventory enumeration.
 
+Claude Code then independently re-gated combined range
+`1227495e4020e7e70aff728852826660fd998514..2e0b8096d018a45d0c78d8fd4bc610d862b6de5a`
+read-only and returned **PASS with no P0/P1 and one documentation-only P2**. It
+independently proved all three prior findings closed, reproduced the corrected
+decision and stable P1 revision identities, passed the 10-file / 90-test focused
+slice and 11-test lifecycle spec, rechecked both TypeScript contracts and both
+Node syntax gates, verified the pre-enumeration traversal fence under live
+filesystem interception, and confirmed zero canonical publication, effects,
+provider surface or threshold change. The new P2 concerns only Codex's handoff:
+it incorrectly said the branch had no upstream and was unpushed. Live Git state
+and Claude's inspection show reviewed implementation head `2e0b8096` is pushed
+to `origin/codex/r3b1b-correction-acceptance-publication` at 0/0 ahead/behind
+parity. No code correction is required.
+
 The P1 temporary-root proof derived final revision digest
 `64dcd0e741f17fc08cde95ad8a5a00b303955aa28ccd065d44f01e49e9d155fc`.
 That digest is a proposed future accepted revision, not a current product
@@ -70,10 +84,10 @@ All R3-B1b effects remain zero: no canonical accepted revision, runtime
 activation, provider/network/database/storage call, image/audio/PDF render,
 order/payment/deployment mutation or spend occurred. The production accepted
 tree and every historical accepted revision remain unchanged. The resemblance
-threshold remains **0.70**. Next, Codex creates a separate corrective commit and
-returns the combined implementation range to Claude Code for adversarial
-read-only re-gate. Even a technical PASS will not publish P1: Guy must then
-confirm the exact final digest in a separate publication gate.
+threshold remains **0.70**. The R3-B1b technical gate is closed. This faithful
+PASS/topology transcription is documentation-only and remains local until
+explicitly pushed. It does not publish P1: the next gate is Guy's separate
+confirmation of the exact final revision digest.
 
 ## R3-B1b planning foundation — packet and draft gate independently QA-passed
 
