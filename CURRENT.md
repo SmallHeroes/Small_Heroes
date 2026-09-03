@@ -1,6 +1,38 @@
 # SmallHeroes — Current Technical State
 
-## R3-B1b P1 — publication and P2 closeout independently passed; push pending
+## R3-B1b accepted-intent wave 2 — six candidates prepared; QA pending
+
+After P1 publication and P2 closeout reached pushed 0/0 parity at `417d0807`,
+the next bounded zero-cost wave prepared the six remaining issue-free
+accepted-intent records together: P2-P5, P7 and P8. The existing independently
+passed correction-v4 lifecycle was reused unchanged; no production code was
+added or modified.
+
+Exact future revision digests are:
+
+- P2 `bunny_ometz_adventure`: `9b8c28ad8eeac4ee193c561573fd02fb5a3d62f053aa52cca24e94dc498948bd`;
+- P3 `bunny_ometz_fantasy`: `432f555fded7efd5b17c224543ac7979afe16977e27dbab77c0c358941e1ff0e`;
+- P4 `chameleon_koko_adventure`: `5f57f2591e2301d8908f383a16bd62912aebeddb69bcf0f29157e21c60acbdf5`;
+- P5 `fox_uri_bedtime`: `92cc7fe154485da7360907b750fcaf5bfd01d1027f8e59575435a27dccd6198a`;
+- P7 `lion_shaket_fantasy`: `394841c3d4559cc03b1900ad2a8e72309427a427821cfed10b4bdb627cee42d6`;
+- P8 `panda_anat_bedtime`: `e304e877507f6f05ec2277fa2250fddfc99bbeb4aa3af98bc3916e3cb6a9d8ea`.
+
+Each initial materialization returned `created:true`; every exact replay returned
+`created:false`. All six remain `runtimeEligible:false` and
+`productionEligible:false`, with pending independent technical review and Guy
+final digest confirmation. The accepted tree is unchanged. Focused validation
+passes 2/2 files and 20/20 tests plus both TypeScript checks. All provider,
+render and external-write counters are zero; cost is USD 0. P6, HOLD records,
+narration, Visual Contracts, packages, rendering, deployment and publication
+remain excluded. Exact evidence is in
+`docs/ai-workflow/R3B1B_ACCEPTED_INTENT_WAVE_2_PREPARATION_EVIDENCE.md`.
+Wizard sellability remains 17/18 because nothing was published. Publishing all
+six before exact-source packages exist is expected to reduce the fail-closed
+catalog to 11/18; Guy has not authorized that state, so publication/package
+sequencing is an explicit later decision.
+Independent Claude Code review is pending; Codex does not self-award PASS.
+
+## R3-B1b P1 — publication and P2 closeout independently passed and pushed
 
 On 2026-09-03 Guy explicitly confirmed final P1 `dragon_dini_adventure` revision
 `64dcd0e741f17fc08cde95ad8a5a00b303955aa28ccd065d44f01e49e9d155fc` and authorized
@@ -79,7 +111,9 @@ All ten publication external-effect counters are zero. No provider, image,
 audio, PDF, database, storage, order, payment or deployment action was invoked.
 Cost is USD 0; the resemblance threshold remains 0.70. The pre-publication base
 was `e87b5c5b3e68cbd6158e1324c73167d56160658c`, already at upstream parity.
-This new milestone is local and is not pushed by implication.
+Guy subsequently pushed the publication, P2 closeout and documentation closeout
+through exact head `417d0807d1d7226d57845cbfbf31e65653d64d54`;
+branch and origin were verified at 0/0 parity before wave 2 began.
 
 ## R3-B1b implementation closeout — historical pre-publication record
 

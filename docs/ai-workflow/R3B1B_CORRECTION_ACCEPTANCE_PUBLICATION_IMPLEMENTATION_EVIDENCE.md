@@ -214,8 +214,10 @@ matched, so staging introduced no CRLF/digest drift.
 
 Independent publication QA returned PASS with the two P2 findings and
 dispositions recorded above. The exact closeout re-gate also returned PASS with
-no P0/P1/P2 findings. Both local implementation commits remain unpushed; no push
-is authorized by this documentation action.
+no P0/P1/P2 findings. Guy subsequently pushed the branch through exact
+documentation head `417d0807d1d7226d57845cbfbf31e65653d64d54`; branch and
+origin were verified at 0/0 parity before accepted-intent wave 2 began. That
+push grants no package, render, narration, deployment or spend authority.
 
 ## Implementation authority and scope (historical pre-publication record)
 
