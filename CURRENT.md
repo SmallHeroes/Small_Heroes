@@ -1,6 +1,6 @@
 # SmallHeroes — Current Technical State
 
-## R3-B1b P1-A1 post-cardinality authoring — topology P2 correction recorded locally; propagation, re-gate and Fresh Readiness pending
+## R3-B1b P1-A1 post-cardinality authoring — topology P2 re-gate PASS; closeout-successor propagation and Fresh Readiness pending
 
 Guy set the current product order on 2026-09-04: bring the stories through the
 complete render-qualification structure first, move to the remaining technical
@@ -31,6 +31,23 @@ The focused P2 correction is a new local documentation commit and must itself
 reach the configured upstream at clean `0/0` before canonical preparation.
 Fresh Readiness has not run; the future output root remains absent. No code,
 runtime artifact or downstream authority changed.
+
+Claude Code independently re-gated exact correction range
+`a2b17fffaafdfb5e746d5a207319bd9a2cb0c689..884fb416161106419df8d63ba45d5ab0483dcf20`
+read-only and returned **PASS — P2 closed**. It verified one commit, zero
+merges, exactly `CURRENT.md` plus the Decision Gate, +59/-25 and clean diff
+hygiene. It confirmed all seven requested points: historical upstream wording,
+local-tracking-only `a2b17fff` evidence, no actor/retroactive authorization,
+truthful ahead 1 / behind 0 correction state, absent Fresh Readiness/downstream
+authority, exact two-file scope and `git diff --check` exit 0. The reviewed
+correction grants no push, preparation, credential, provider, spend or
+downstream authority.
+
+This closeout paragraph is a faithful documentation-only transcription outside
+the reviewed range. The current local HEAD containing both correction and
+closeout must be propagated and freshly proven at clean same-name upstream
+`0/0` before canonical preparation. No additional review of the transcription
+is required unless its fidelity is disputed.
 
 The Gate binds accepted revision `64dcd0e...`, canonical `integrated.md` digest
 `a5942c...`, current authoring policy/routing v22/v2 and current

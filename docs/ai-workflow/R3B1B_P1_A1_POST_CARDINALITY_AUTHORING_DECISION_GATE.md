@@ -10,9 +10,9 @@ Planning base: `be65b3ced874397a08dd2b2aa6283a5b85dfb857`
 
 Attempt branch: `codex/r3b1b-p1-a1-post-cardinality-authoring`
 
-Status: **INDEPENDENT REVIEW PASS WITH ONE TOPOLOGY P2; ORIGINAL GATE COMMIT
-OBSERVED AT 0/0; P2 CORRECTION RECORDED LOCALLY; CORRECTION PROPAGATION/0/0
-PROOF, RE-GATE, FRESH READINESS, PROVIDER/SPEND GO AND LIVE EXECUTION PENDING**
+Status: **INDEPENDENT RE-GATE PASS; TOPOLOGY P2 CLOSED; CURRENT CLOSEOUT
+SUCCESSOR PROPAGATION/0/0 PROOF, FRESH READINESS, PROVIDER/SPEND GO AND LIVE
+EXECUTION PENDING**
 
 ## Approval record and boundary
 
@@ -274,6 +274,32 @@ later approved package promotion proves the required readiness.
    the exact live boundary in section 8.
 3. If a candidate exists, accept or reject its exact digest and visual/product
    content before any Blueprint gate is prepared.
+
+### Independent Gate review and correction re-gate
+
+Claude Code independently reviewed exact original Gate range
+`be65b3ced874397a08dd2b2aa6283a5b85dfb857..a2b17fffaafdfb5e746d5a207319bd9a2cb0c689`
+and returned **PASS with no P0/P1 and one P2**. The P2 found that the present
+topology text had become stale after the original Gate commit appeared on its
+same-name local origin-tracking ref at observed clean `0/0` parity.
+
+The focused correction is commit
+`884fb416161106419df8d63ba45d5ab0483dcf20`. Claude Code independently
+re-gated exact range
+`a2b17fffaafdfb5e746d5a207319bd9a2cb0c689..884fb416161106419df8d63ba45d5ab0483dcf20`
+read-only and returned **PASS — P2 closed**. It verified one commit, zero
+merges, exactly `CURRENT.md` plus this Gate, +59/-25, and `git diff --check`
+exit 0. It confirmed that absent-upstream facts are historical, the original
+Gate's `0/0` is scoped to local tracking evidence at review time, no actor or
+retroactive authorization is inferred, and the correction successor was
+truthfully recorded as ahead 1 / behind 0 rather than already propagated.
+
+Claude also confirmed that Fresh Readiness and the future output root remain
+absent and that the re-gate grants no push, provider, credential, spend or
+downstream authority. This faithful closeout transcription is outside the
+reviewed correction range and does not change the passed correction bytes; the
+current local HEAD containing the correction and closeout must still reach
+clean same-name upstream `0/0` before Fresh Readiness.
 
 ### Claude Code falsification targets
 
