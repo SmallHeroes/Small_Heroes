@@ -1,87 +1,102 @@
 # SmallHeroes — Current Technical State
 
-## R3-B1b P1-A1 post-cardinality authoring — topology P2 re-gate PASS; closeout-successor propagation and Fresh Readiness pending
+## R3-B1b P1-A1 post-cardinality authoring — live artifact PASS; semantic HOLD; no Blueprint authority
 
-Guy set the current product order on 2026-09-04: bring the stories through the
-complete render-qualification structure first, move to the remaining technical
-work afterward, and leave payment work until the end. The immediate critical
-path remains P1 `dragon_dini_adventure`: restore its exact-source visual package
-and prove 18/18 before publishing P2 or another accepted-intent source.
+Guy's current product order remains: bring the story catalog through complete
+render qualification first, perform the remaining engineering work afterward,
+and leave payments until the end. P1 `dragon_dini_adventure` is still the
+immediate catalog blocker.
 
-Codex created dedicated local branch
-`codex/r3b1b-p1-a1-post-cardinality-authoring` from exact independently passed
-base `be65b3ced874397a08dd2b2aa6283a5b85dfb857` and prepared
-`docs/ai-workflow/R3B1B_P1_A1_POST_CARDINALITY_AUTHORING_DECISION_GATE.md`.
-The exact worktree is
-`C:\Users\guyna\.codex\worktrees\d53b\Small_Heroes`, and this Codex task is
-its sole writer.
+On dedicated branch
+`codex/r3b1b-p1-a1-post-cardinality-authoring`, Fresh Readiness was prepared
+and verified at clean pushed base
+`18f22e758810d5118d9b5bcad7f27b0d07b76b7b`. Guy explicitly granted the
+bounded P1-only provider/spend GO and then directed Codex to use the existing
+declared credential source. The canonical Supervisor ran exactly once. Its
+child completed at exit 0; the credential source was read only inside the
+isolated boundary and cleared, and no secret was printed or persisted.
 
-Claude Code independently reviewed exact range
-`be65b3ced874397a08dd2b2aa6283a5b85dfb857..a2b17fffaafdfb5e746d5a207319bd9a2cb0c689`
-and returned **PASS with no P0/P1 and one P2**. The P2 correctly found that the
-live topology had advanced after the Gate was written: local Git configured
-the same-name origin upstream, and both HEAD and the local remote-tracking ref
-resolved to `a2b17fff...` at clean `0/0` parity. The remote-tracking reflog says
-`update by push` at `2026-09-04T21:54:30+03:00`; local Git does not establish
-the actor or authorization, so neither is attributed. This supersedes the
-Gate's absent-upstream statement for present-state purposes while preserving
-it as a truthful historical pre-commit snapshot.
+The execution used one OpenAI Responses `gpt-5.6-sol` call, one transport
+dispatch, zero repairs, zero retries and no fallback. Provider-reported usage
+was 13,151 input tokens, including 13,148 cache-write tokens, and 15,528 output
+tokens, including 1,787 reasoning tokens, for 28,679 total. Nominal estimated
+cost was **USD 0.376312** and conservative accounted cost was **USD 0.413947**,
+below the USD 7.656 projection and USD 10 hard fence. The attempt authority is
+consumed; unused headroom is not retry authority.
 
-The focused P2 correction is a new local documentation commit and must itself
-reach the configured upstream at clean `0/0` before canonical preparation.
-Fresh Readiness has not run; the future output root remains absent. No code,
-runtime artifact or downstream authority changed.
+The immutable candidate artifact is
+`efbdd2e13c03af194af425c5e050e0bfedad29d4e0c8cec1aa8b54530192ad88`;
+its distinct inner template digest is
+`8632bd95869b93bf115500f3a24890daaa967a39805079e2f0ae86afc2543b18`.
+It contains all 12 pages, two locations, eight zones, three recurring props, a
+grounded/no-magic world, child and Dini on every page, and 77 unique Action
+Semantic Coverage records with zero gaps. Receipt
+`b6c0b37e9c7b7007a9aee47bf39f691e263ca32657ee9491c6dc9ae0204940bf`
+and readiness
+`9466af78e073d06b917bd77d2c3dada46444d73fa20b5ee850831d48886c61c1`
+bind the same source/request/candidate identities.
 
-Claude Code independently re-gated exact correction range
-`a2b17fffaafdfb5e746d5a207319bd9a2cb0c689..884fb416161106419df8d63ba45d5ab0483dcf20`
-read-only and returned **PASS — P2 closed**. It verified one commit, zero
-merges, exactly `CURRENT.md` plus the Decision Gate, +59/-25 and clean diff
-hygiene. It confirmed all seven requested points: historical upstream wording,
-local-tracking-only `a2b17fff` evidence, no actor/retroactive authorization,
-truthful ahead 1 / behind 0 correction state, absent Fresh Readiness/downstream
-authority, exact two-file scope and `git diff --check` exit 0. The reviewed
-correction grants no push, preparation, credential, provider, spend or
-downstream authority.
+The exact Supervisor stdout was recovered from this task's local session
+record and canonically captured as execution-result digest
+`c200b90d18b7648ce2c4b65aa264f9ab98ea4bfd02fab9cec05b073717512972`.
+The offline QA bridge then produced candidate-validation attestation
+`0bef17bd3a5b863ba2173a78dd5b50940bc9f202f2f13cfd2310a96fdaf1f858`:
+the current structural validator passes with zero issues. Both actions reported
+zero credential/provider/image/network/database/production effects; temporary
+capture/request files were removed. This attestation is for reconciliation
+only and is not semantic acceptance. Its consumer HEAD is the exact live base
+`18f22e75`; the later documentation commit intentionally advances HEAD, so any
+future bridge/reconciliation action must first mint a fresh validation
+attestation at the then-clean pushed consumer HEAD.
 
-This closeout paragraph is a faithful documentation-only transcription outside
-the reviewed range. The current local HEAD containing both correction and
-closeout must be propagated and freshly proven at clean same-name upstream
-`0/0` before canonical preparation. No additional review of the transcription
-is required unless its fidelity is disputed.
+The official captured-response replay exits 0 with zero provider calls, exact
+call-sequence and complete outcome/candidate/receipt congruence. The post-live
+integrity audit found the original eight artifacts byte-identical, exactly four
+expected live child artifacts, no unexpected or temporary paths and no
+downstream authority. After the canonical Supervisor result and validation
+attestation, the contained root has exactly 14 JSON files / 412,516 bytes.
 
-The Gate binds accepted revision `64dcd0e...`, canonical `integrated.md` digest
-`a5942c...`, current authoring policy/routing v22/v2 and current
-request/receipt/readiness v56/v59/v56. Official OpenAI Standard pricing was
-checked on 2026-09-04 and matches the repository's current price authority:
-USD 4/M input, USD 0.40/M cached input, USD 20/M output and cache writes at
-USD 5/M. The proposed live fence remains at most seven standard calls plus one
-policy-eligible cleanup, zero transport retries, no fallback, projected USD
-7.656 and hard USD 10. A cardinality-escalated `full_draft` cannot unlock
-cleanup.
+Adversarial source review nevertheless places the candidate on **semantic
+HOLD with P0=0, P1=3 and P2=3**:
 
-Guy's sequencing direction authorizes this zero-cost preparation, not a push,
-credential read, provider call or spend. After a separately authorized push,
-canonical Fresh Readiness must reach `ready_for_spend_gate` with
-`credentialAccess:none`, `providerCalls:0` and `liveAuthority:none`. Codex then
-stops for Guy's exact provider/spend GO. Either a validated 12-page candidate or
-the first terminal failure ends the single attempt; no Blueprint, image, Board,
-prop, package, locator, render, narration, publication, deployment or payment
-work follows automatically.
+1. the cover requires the cake and cart while also forbidding both as page-1
+   spoilers; the tablecloth is only forbidden and is not contradictory;
+2. the accepted baker, broom man, musicians, playing children and birthday girl
+   are absent from `humanCast` and every page `castIds`; the closed
+   deterministic extractor currently recognizes only kindergarten guard,
+   doctor and parent, the compiler drops other drafted humans, and
+   Blueprint/runtime cast authority cannot recover them from prose; and
+3. pages 6 and 10 say Dini runs, but the closed action catalog has no `runs`
+   predicate and maps both beats to `walks`.
 
-The current ordinary `node_modules` contains only the pre-existing `.vite`
-cache. Before canonical offline bootstrap it must be moved intact to the exact
-validated external preservation path recorded in the Gate. The freshly
-installed dependency tree then remains stable through verify/live/QA, and a
-separately audited closeout restores the original cache without modifying the
-read-only donor worktree.
+The P2 items are the page-12 cart's simultaneous required/optional wording,
+`recoils` overstating Dini's gentle deliberate hand withdrawal, and loss of
+the broom man's male, birthday child's female and baker's active identity.
+These are product/render semantics, not artifact-integrity failures. The
+candidate is preserved unchanged and must not be hand-edited.
 
-Claude verified the source/version identities, exact USD 7.568 + USD 0.088 =
-USD 7.656 arithmetic, live fence constants, cleanup prohibition, unchanged
-catalog state, restored ordinary `.vite`-only dependency state, rollout order
-and all downstream exclusions. It could not independently rerun the two
-TypeScript projects after the dependency junction was correctly removed; it
-did not raise that environment limitation as a finding, and the TypeScript
-results remain Codex measurements.
+Post-live TypeScript passes for both projects. Two identical runs of the
+combined five-file pre-live/Supervisor/replay battery each completed all five
+files and all 114 assertions, but each Vitest process exited 1 with two known
+worker `onTaskUpdate` RPC timeouts; the heaviest file repeated alone with 14/14
+assertions and the same post-assertion RPC timeout/exit 1. This is truthfully non-green runner evidence,
+not an assertion failure. `npm run check` was not rerun, and no full-repository
+green result is inferred. The real Wizard audit remains digest
+`7c14d841a76c09ddf44bcad79cb465e2bd0c6cff60505620f111c705d1682926`,
+18 nominal / 17 product-sellable / two accepted lineages / one
+render-qualified, with zero effects. P1 was not promoted.
+
+The next milestone must be a new, provider-free Decision Gate for general
+supporting-cast authority and running semantics, plus Guy's exact cover and
+page-12 cart dispositions. Only after that implementation independently passes
+may a fresh P1-only authoring/spend Gate be requested. No Blueprint, Board/prop
+image, package, locator, render, P2, publication, deployment or payment action
+is authorized.
+
+Full evidence:
+`docs/ai-workflow/R3B1B_P1_A1_POST_CARDINALITY_AUTHORING_EXECUTION_EVIDENCE.md`.
+Independent Claude Code review of this execution/evidence range is still
+required; Codex does not self-award that PASS.
 
 ## R3-B1b duplicate coverage-cardinality recovery — implementation and handoff correction independently QA-passed; no retry authority
 

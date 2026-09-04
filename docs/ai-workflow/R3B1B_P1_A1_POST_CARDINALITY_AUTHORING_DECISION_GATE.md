@@ -10,9 +10,8 @@ Planning base: `be65b3ced874397a08dd2b2aa6283a5b85dfb857`
 
 Attempt branch: `codex/r3b1b-p1-a1-post-cardinality-authoring`
 
-Status: **INDEPENDENT RE-GATE PASS; TOPOLOGY P2 CLOSED; CURRENT CLOSEOUT
-SUCCESSOR PROPAGATION/0/0 PROOF, FRESH READINESS, PROVIDER/SPEND GO AND LIVE
-EXECUTION PENDING**
+Status: **EXECUTED ON EXACT AUTHORITY; TECHNICAL ARTIFACT PASS; SEMANTIC HOLD;
+NO BLUEPRINT OR DOWNSTREAM AUTHORITY**
 
 ## Approval record and boundary
 
@@ -371,3 +370,36 @@ If P1-A1 succeeds and both Claude Code and Guy accept the Visual Contract:
 
 Payment integration remains last in the owner-selected order. Render
 qualification itself does not require a story-page or full-book render.
+
+## 14. Execution outcome — 2026-09-04
+
+The historical STOP conditions above were satisfied in order. The current
+closeout successor reached clean same-name upstream `0/0`; Fresh Readiness v51
+reached `ready_for_spend_gate`; Guy granted the exact bounded P1-only
+provider/spend GO and then directed Codex to use the existing declared
+credential source.
+
+The canonical Supervisor ran exactly once at base
+`18f22e758810d5118d9b5bcad7f27b0d07b76b7b`. Its child completed at exit 0
+and produced candidate artifact
+`efbdd2e13c03af194af425c5e050e0bfedad29d4e0c8cec1aa8b54530192ad88`,
+inner template
+`8632bd95869b93bf115500f3a24890daaa967a39805079e2f0ae86afc2543b18`.
+The execution used one provider call, zero repairs, zero retries and no fallback;
+conservative accounted cost was USD 0.413947. Exact result, receipt, replay and
+candidate-validation identities are recorded in
+`docs/ai-workflow/R3B1B_P1_A1_POST_CARDINALITY_AUTHORING_EXECUTION_EVIDENCE.md`.
+
+Artifact integrity, current structural validation and zero-provider replay
+pass. Product/render semantics do not. Adversarial source review found three
+P1 defects: the cover simultaneously shows and forbids the cake/cart; accepted
+supporting humans are absent from closed cast authority; and two source
+`runs` beats are downgraded to `walks`. Three P2 review items are also recorded.
+Candidate acceptance is therefore **HOLD**. No automatic retry, Blueprint,
+Board/prop, image, package, locator, render, P2, publication or deployment
+follows. The attempt authority is consumed.
+
+The next proposed milestone is a new provider-free Decision Gate for a general
+supporting-cast/action-semantic correction and Guy's exact cover/page-12 cart
+dispositions. Independent Claude Code review of the execution/evidence commit
+is still required; this closeout does not self-award that PASS.
