@@ -1,6 +1,6 @@
 # SmallHeroes — Current Technical State
 
-## R3-B1b accepted-intent wave 2 — six product-acceptance receipts locally complete; independent QA pending
+## R3-B1b accepted-intent wave 2 — six product-acceptance receipts independently passed and pushed
 
 Guy explicitly confirmed the six exact revision digests for P2-P5/P7/P8 and
 authorized their product-acceptance receipts. He also approved preparation of a
@@ -36,8 +36,13 @@ The prepared rollout gate is
 records that an exact package is not a pointer update: it must bind current
 source, Blueprint, provenance, planning approval, style, Visual Contract,
 reconciliation, Boards/props, review and Guy approval. The next technical gate
-is independent read-only QA of this receipt milestone. After PASS, P1 receives
-a zero-cost prerequisite inventory and exact future budget for a separate GO.
+was independently reviewed with the receipts. Claude Code reviewed exact range
+`8d05973054c9ddda54241a2b51b75800f2fdea24..1aa1b687fed843957250053ab7433b73b73e17c2`
+read-only and returned **PASS with no P0/P1/P2**. It reproduced all six receipts
+byte-exactly, all 12 no-write previews, the unchanged readiness digest and zero
+effects; Git verifies the pushed branch at 0/0 parity. The receipt milestone is
+technically closed. P1 now receives a zero-cost prerequisite inventory and
+exact future budget for a separate GO.
 
 ## R3-B1b accepted-intent wave 2 — technical-review envelopes independently passed
 
