@@ -6,6 +6,30 @@
 
 This roadmap records technical milestone state. Guy can change product priority at any time; Codex then updates the technical sequence, dependencies, and risks.
 
+## Current execution order — owner decision 2026-09-04
+
+Guy prioritized completing the story catalog's full render-qualification
+structure before the remaining engineering milestones and deferred payment work
+to the end. Technical execution is therefore:
+
+1. complete P1 `dragon_dini_adventure` through accepted Visual Contract,
+   Blueprint, authoritative Board/prop inventory, approved package v5 and
+   current-locator promotion; prove 18/18 before moving on;
+2. advance P2, P3, P4, P5, P7 and P8 one story at a time, never publishing the
+   next accepted source before the current one again has a matching qualified
+   package;
+3. in parallel where authority allows, finish P6 product/creative review and
+   prepare the nine HOLD/D correction candidates and narration decisions without
+   weakening the serial production-package chain;
+4. complete the remaining render/operations/release work after the catalog
+   authority is ready; and
+5. handle PayMe/payment closure last.
+
+Render qualification binds approved source and visual-package authority. It
+does not itself require a paid page or full-book render. Visual Contract,
+Blueprint and any required LOW Board/prop generation remain separately budgeted
+provider actions with exact owner gates.
+
 ## Active
 
 ### R0 — Establish one engineering operating model

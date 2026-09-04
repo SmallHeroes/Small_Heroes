@@ -1,5 +1,51 @@
 # SmallHeroes — Current Technical State
 
+## R3-B1b P1-A1 post-cardinality authoring — fresh zero-cost Gate prepared; push and live GO pending
+
+Guy set the current product order on 2026-09-04: bring the stories through the
+complete render-qualification structure first, move to the remaining technical
+work afterward, and leave payment work until the end. The immediate critical
+path remains P1 `dragon_dini_adventure`: restore its exact-source visual package
+and prove 18/18 before publishing P2 or another accepted-intent source.
+
+Codex created dedicated local branch
+`codex/r3b1b-p1-a1-post-cardinality-authoring` from exact independently passed
+base `be65b3ced874397a08dd2b2aa6283a5b85dfb857` and prepared
+`docs/ai-workflow/R3B1B_P1_A1_POST_CARDINALITY_AUTHORING_DECISION_GATE.md`.
+The branch currently has no upstream, so the canonical Git probe correctly
+rejects at `upstream_ref` / `ref_not_found`; Fresh Readiness has not run.
+The exact worktree is
+`C:\Users\guyna\.codex\worktrees\d53b\Small_Heroes`, current planning HEAD is
+`be65b3ce...`, ahead/behind is not applicable without an upstream, and this
+Codex task is its sole writer. Before commit, dirty scope is limited to this
+Gate plus `CURRENT.md` and `ROADMAP.md`; no code or runtime artifact changed.
+
+The Gate binds accepted revision `64dcd0e...`, canonical `integrated.md` digest
+`a5942c...`, current authoring policy/routing v22/v2 and current
+request/receipt/readiness v56/v59/v56. Official OpenAI Standard pricing was
+checked on 2026-09-04 and matches the repository's current price authority:
+USD 4/M input, USD 0.40/M cached input, USD 20/M output and cache writes at
+USD 5/M. The proposed live fence remains at most seven standard calls plus one
+policy-eligible cleanup, zero transport retries, no fallback, projected USD
+7.656 and hard USD 10. A cardinality-escalated `full_draft` cannot unlock
+cleanup.
+
+Guy's sequencing direction authorizes this zero-cost preparation, not a push,
+credential read, provider call or spend. After a separately authorized push,
+canonical Fresh Readiness must reach `ready_for_spend_gate` with
+`credentialAccess:none`, `providerCalls:0` and `liveAuthority:none`. Codex then
+stops for Guy's exact provider/spend GO. Either a validated 12-page candidate or
+the first terminal failure ends the single attempt; no Blueprint, image, Board,
+prop, package, locator, render, narration, publication, deployment or payment
+work follows automatically.
+
+The current ordinary `node_modules` contains only the pre-existing `.vite`
+cache. Before canonical offline bootstrap it must be moved intact to the exact
+validated external preservation path recorded in the Gate. The freshly
+installed dependency tree then remains stable through verify/live/QA, and a
+separately audited closeout restores the original cache without modifying the
+read-only donor worktree.
+
 ## R3-B1b duplicate coverage-cardinality recovery — implementation and handoff correction independently QA-passed; no retry authority
 
 Guy approved the independently passed Decision Gate at exact implementation
