@@ -6,8 +6,9 @@ Product owner: Guy
 
 Technical owner: Codex
 
-Status: **RECEIPT QA PASS; P1 PREREQUISITE AUDIT QA PASS; P1-A1 LIVE
-AUTHORING HOLD — NO CANDIDATE; STOP BEFORE RETRY OR DOWNSTREAM WORK**
+Status: **RECEIPT QA PASS; P1 PREREQUISITE AUDIT QA PASS; P1-A1 FAILED-CLOSED
+EXECUTION QA PASS — NO CANDIDATE; STOP BEFORE CORRECTION, RETRY OR DOWNSTREAM
+WORK**
 
 Branch: `codex/r3b1b-accepted-intent-wave-2`
 
@@ -251,7 +252,7 @@ returned PASS with no P0/P1/P2. It reproduced the source/loader facts, both
 budget calculations, absent authority inventory, setting/anchor counts,
 resemblance authority, real 17/18 readiness, test results and documentation-only
 scope. Guy later supplied P1-A1 approval; the bounded execution failed closed
-without a candidate and now requires independent QA.
+without a candidate and subsequently received independent QA PASS.
 
 The execution receipt is `e60f689f...`, readiness is `45d79882...` and the
 captured-response replay is `c8e6fee7...`. Claude Code must verify exact source
@@ -259,6 +260,13 @@ identity, two calls/two dispatches/zero retries, conservative USD 0.668218,
 the three page-10 cardinality diagnostics, no candidate/output authority and
 the claimed general recovery-path gap. It must not infer authority for a code
 fix or another provider attempt.
+
+Claude Code completed that read-only review on exact range
+`efa9495b..b34cbe83` and returned **PASS with no P0/P1/P2**. It reproduced all
+listed identities, costs, calls, diagnostics, replay and absence claims and
+confirmed the mapper omission. Its focused rerun recorded 5/5 files and
+114/114 passed assertions but Vitest exit 1 after the summary; it did not count
+that exit as PASS. No finding or authority follows from this disclosure.
 
 Before P1 package implementation Guy must separately approve:
 

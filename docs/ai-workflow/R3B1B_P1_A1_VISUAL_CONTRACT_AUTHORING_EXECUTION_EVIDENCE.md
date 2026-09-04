@@ -10,8 +10,8 @@ Branch: `codex/r3b1b-accepted-intent-wave-2`
 
 Execution base: `efa9495bcdf598a07b3f2d74ebd2452c543ace47`
 
-Status: **HOLD — BOUNDED LIVE AUTHORING FAILED CLOSED; NO CANDIDATE; NO RETRY
-OR DOWNSTREAM AUTHORITY**
+Status: **INDEPENDENT QA PASS OF THE FAILED-CLOSED EXECUTION; NO CANDIDATE; NO
+RETRY OR DOWNSTREAM AUTHORITY**
 
 ## 1. Authorized boundary
 
@@ -152,6 +152,21 @@ code, schema, test, package or runtime path changed; tracked scope is execution
 documentation only, while the content-addressed live evidence remains in the
 existing ignored output root for local independent review.
 
+The exact five-file Codex selection was:
+
+- `lib/visual-package/__tests__/canonical-pre-live-readiness.spec.ts`;
+- `lib/visual-package/__tests__/canonical-pre-live-readiness-launcher.spec.ts`;
+- `lib/visual-package/__tests__/live-execution-supervisor.spec.ts`;
+- `lib/visual-package/__tests__/visual-contract-authoring-replay-evidence.spec.ts`;
+  and
+- `lib/visual-package/__tests__/canonical-live-authoring-launcher.spec.ts`.
+
+Codex's run returned exit 0. Claude Code independently inferred and ran the
+same 114-test surface: all 5 files and all 114 assertions passed, but its
+Vitest process returned exit 1 after the summary with no test failure or error
+output. Claude explicitly did not count exit 1 as PASS. These are separate
+runs; the assertion result and process-exit disclosures are both preserved.
+
 ## 8. Independent QA targets
 
 Claude Code should falsify:
@@ -166,5 +181,27 @@ Claude Code should falsify:
 8. absence of every excluded downstream artifact or authority; and
 9. documentation-only tracked scope and preserved ignored evidence.
 
-This document is Codex execution evidence, not independent technical PASS and
-not Guy product acceptance.
+The execution and falsification-target sections above are Codex evidence and
+do not self-award technical PASS or Guy product acceptance. The independent
+result is recorded separately below.
+
+## 9. Independent QA result
+
+Claude Code reviewed exact immutable range
+`efa9495bcdf598a07b3f2d74ebd2452c543ace47..b34cbe83532a1bc88b8f92ef56e090833e590fd2`
+read-only and returned **PASS with no P0/P1/P2**. It verified exact one-commit,
+zero-merge, five-document topology; all content-addressed identity links; two
+calls/two dispatches/zero retries/no fallback; both cost calculations; the
+three page-10 diagnostics; the duplicated captured beat; absent candidate and
+downstream authority; credential hygiene; unchanged 17/18 containment; and
+the real recovery-path omission without proposing weaker validation.
+
+Claude also reran the offline replay under provider/network/write sentinels and
+obtained zero provider calls, exact captured sequence and full receipt
+congruence. It made no edit, read no credential and performed no live call.
+
+This independent PASS validates the truthfulness and fail-closed behavior of
+the unsuccessful execution. It does not convert the failed output into a
+candidate and grants no correction, retry, provider, Blueprint or downstream
+authority. The next proposed action remains a separately approved zero-cost
+Decision Gate for the general recovery path.

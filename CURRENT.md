@@ -1,6 +1,6 @@
 # SmallHeroes — Current Technical State
 
-## R3-B1b P1-A1 exact-source Visual Contract — bounded live authoring HOLD; no candidate
+## R3-B1b P1-A1 exact-source Visual Contract — failed-closed execution independently passed; no candidate
 
 Guy authorized P1-A1 only for `dragon_dini_adventure` revision
 `64dcd0e741f17fc08cde95ad8a5a00b303955aa28ccd065d44f01e49e9d155fc`:
@@ -38,6 +38,22 @@ Decision Gate for the general post-repair coverage-cardinality recovery gap;
 any implementation and any new paid P1-A1 attempt require separate approval.
 Exact evidence is in
 `docs/ai-workflow/R3B1B_P1_A1_VISUAL_CONTRACT_AUTHORING_EXECUTION_EVIDENCE.md`.
+
+Claude Code independently reviewed exact range
+`efa9495bcdf598a07b3f2d74ebd2452c543ace47..b34cbe83532a1bc88b8f92ef56e090833e590fd2`
+read-only and returned **PASS with no P0/P1/P2**. It reproduced the complete
+identity chain, cost arithmetic, two-call/no-retry/no-fallback receipt, exact
+three diagnostics, captured duplicate beat, zero-provider replay, credential
+hygiene, downstream absence and unchanged 17/18 containment. It also confirmed
+the general recovery gap: `coverage_beat_cardinality_invalid` rejects correctly
+but is absent from the compact action-binding repair-plan mapper.
+
+Claude's focused rerun reproduced 5/5 files and 114/114 passed assertions, but
+its Vitest process exited 1 after the summary with no failing test or error
+output; Claude did not count that exit as PASS. Codex's separate matching run
+returned exit 0. The execution PASS validates the recorded HOLD; it does not
+create a candidate or authorize correction/retry. The zero-cost recovery-path
+Decision Gate remains the next proposed owner decision.
 
 ## R3-B1b P1 exact-source package prerequisite audit — independently passed; P1-A1 later executed
 
