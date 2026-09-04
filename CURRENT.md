@@ -1,6 +1,6 @@
 # SmallHeroes — Current Technical State
 
-## R3-B1b duplicate coverage-cardinality recovery — implementation QA PASS; P2 handoff correction awaiting re-gate
+## R3-B1b duplicate coverage-cardinality recovery — implementation and handoff correction independently QA-passed; no retry authority
 
 Guy approved the independently passed Decision Gate at exact implementation
 base `63ccb4846ebe5be9ab392960d389610a1b2b9d42`. Codex implemented the
@@ -67,24 +67,40 @@ independently reproduce the reported 555/555, 503/503, both typechecks or the
 official replay from the handed-off root.
 
 Codex accepted the P2 and prepared a zero-cost handoff correction without
-production or test-code changes. The ignored `node_modules` path is temporarily
-a junction to the existing clean exact-base worktree dependency tree; its
-`package.json` and `package-lock.json` bytes match this checkout and no install
-occurred. The original `.vite`-only directory is preserved outside the
-repository for restoration after re-gate. From this exact worktree root,
-ordinary `npx`/`npm` commands now pass 555/555, the remaining package cascade
-168/168, both TypeScript projects and the zero-provider official replay with
-exact historical outcome/sequence congruence. The first 168-test invocation
-had 167 passes plus one 15-second timeout; that 14-test file then passed 14/14
-in isolation and the unchanged five-file command passed 168/168 on a clean
-rerun. Together, the 335 package assertions inside the 555-test command and
-the remaining 168 assertions reproduce the full 503/503 cascade.
+production or test-code changes. For the re-gate, the ignored `node_modules`
+path was temporarily a junction to the existing clean exact-base worktree
+dependency tree; its `package.json` and `package-lock.json` bytes matched this
+checkout and no install occurred. From this exact worktree root, ordinary
+`npx`/`npm` commands passed 555/555, the remaining package cascade 168/168,
+both TypeScript projects and the zero-provider official replay with exact
+historical outcome/sequence congruence. The first 168-test invocation had 167
+passes plus one 15-second timeout; that 14-test file then passed 14/14 in
+isolation and the unchanged five-file command passed 168/168 on a clean rerun.
+Together, the 335 package assertions inside the 555-test command and the
+remaining 168 assertions reproduced the full 503/503 cascade. These remain
+Codex measurements.
 
-These corrected-environment results are Codex measurements, not retroactive
-independent reproduction. The implementation PASS is recorded, but the P2
-correction is not independently closed. Claude Code must re-gate the runnable
-handoff and this documentation before technical closeout. No retry, provider,
-candidate or downstream authority follows.
+Claude Code then independently re-gated exact correction range
+`c42f3ce678166cda910b4263e26681e2c72c30e4..fb993a01bda0103772c1272f1a4acfc8376efc14`
+read-only and returned **PASS, closing the sole P2**. From the exact handed-off
+root with plain `npx`/`npm`, it independently reproduced both TypeScript
+checks, 9/9 files and 555/555 tests, 9/9 files and 503/503 tests with no timeout
+in its runs, and the provider-free historical replay with routing v1, zero
+provider calls, the exact captured sequence and all six receipt-congruence
+booleans true. Claude did not run `npm run check`; the previously disclosed
+non-green repository baseline remains Codex evidence and no repository-wide
+green result is inferred.
+
+After the PASS, Codex verified the exact junction target and preserved cache,
+removed only the junction without recursion, and moved the original directory
+containing only the `.vite` cache back to `node_modules`. It is again an
+ordinary non-reparse directory with the original four-entry cache tree; its
+968-byte `results.json` retains SHA-256
+`11B3A0FC8284DA7ACB273038D057C5703845C9C35E4DC7FED7EC18881B8E9E49`;
+the donor remains intact and the temporary replay copy is absent. The
+implementation and handoff correction are technically QA-passed, but no retry,
+provider, candidate, Blueprint, package, render, publication, deployment or
+spend authority follows.
 
 ## R3-B1b P1-A1 exact-source Visual Contract — failed-closed execution independently passed; no candidate
 

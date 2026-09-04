@@ -14,7 +14,11 @@ Implementation commit: `c42f3ce678166cda910b4263e26681e2c72c30e4`
 
 Reviewed range: `63ccb4846ebe5be9ab392960d389610a1b2b9d42..c42f3ce678166cda910b4263e26681e2c72c30e4`
 
-Status: **CLAUDE CODE IMPLEMENTATION PASS; ONE P2 HANDOFF CORRECTION READY, RE-GATE PENDING**
+Handoff correction commit: `fb993a01bda0103772c1272f1a4acfc8376efc14`
+
+Correction re-gate range: `c42f3ce678166cda910b4263e26681e2c72c30e4..fb993a01bda0103772c1272f1a4acfc8376efc14`
+
+Status: **CLAUDE CODE IMPLEMENTATION PASS; P2 HANDOFF CORRECTION INDEPENDENTLY RE-GATED PASS AND CLOSED**
 
 ## Authority and exclusions
 
@@ -137,17 +141,17 @@ defect: the handed-off worktree itself contained only a `.vite` cache under
 
 Codex accepted the P2 and prepared a zero-cost, ignored environment correction;
 no production code, test code or package manifest changed and no dependency was
-installed. This worktree's `node_modules` is temporarily a junction to the
-clean exact-base worktree dependency tree at
+installed. During re-gate, this worktree's `node_modules` was temporarily a
+junction to the clean exact-base worktree dependency tree at
 `C:\GNart\Work\sh-r3b1b-accepted-intent-wave-2\node_modules`. The current and
 donor `package.json` SHA-256 is
 `935217B035428B183EF8FC0A50215D30D0EBCF2C46868B7069D96E7E02794447`; their
 `package-lock.json` SHA-256 is
 `785E90A70B0D8F041B107483A204332BB85FFFEE42506DBE6CBAEE4A0FA75AFA`.
-The original `.vite`-only directory is preserved outside the repository at
+The original `.vite`-only directory was preserved outside the repository at
 `C:\Users\guyna\.codex\worktrees\d53b\Small_Heroes-node_modules-vite-cache-pre-qa-regate`
-and will be restored after re-gate. The junction remains intentionally
-available to the reviewer and is not part of the Git correction range.
+through the review. Neither the junction nor the backup path was part of the
+Git correction range.
 
 From the exact handed-off worktree root, ordinary commands then produced:
 
@@ -165,9 +169,42 @@ test timeout. The affected 14-test file immediately passed 14/14 in
 isolation, and the unchanged five-file command then passed 168/168 on a clean
 rerun. Both outcomes are retained here for truthful reproduction history.
 
-These are Codex measurements after correcting the handoff environment. They do
-not retroactively expand Claude's test scope or independently close P2; Claude
-Code re-gate remains required.
+These are Codex measurements after correcting the handoff environment; the
+first review's independent execution scope remains 347/347.
+
+## Independent P2 correction re-gate
+
+Claude Code independently re-gated exact correction range
+`c42f3ce678166cda910b4263e26681e2c72c30e4..fb993a01bda0103772c1272f1a4acfc8376efc14`
+read-only and returned **PASS, closing the sole P2**. It verified one commit,
+zero merges, exactly the three declared documentation files, clean diff
+hygiene, the ignored junction, exact donor and manifest hashes, preserved cache
+and absence of the temporary replay copy.
+
+From the exact handed-off root with plain `npx`/`npm`, Claude independently
+reproduced:
+
+- `npx tsc --noEmit`: exit 0;
+- `npx tsc -p tsconfig.story-autonomous.json`: exit 0;
+- the nine-file focused suite: **9/9 files and 555/555 tests**, exit 0;
+- the nine-file version/materialization cascade: **9/9 files and 503/503
+  tests**, exit 0 with no timeout in its run; and
+- the official immutable replay: exit 0, routing policy v1, zero provider
+  calls, exact captured sequence, `invalid_draft`, all six receipt-congruence
+  booleans true and null route provenance on both legacy attempts.
+
+Claude used no install, `npm ci`, stub, credential or provider call. It did not
+run `npm run check`; the previously disclosed non-green repository baseline
+remains Codex evidence and no repository-wide green result is inferred.
+
+After the PASS, Codex verified the exact junction target and preserved cache,
+removed only the junction without recursion, and moved the original directory
+containing only the `.vite` cache back to `node_modules`. The restored path is
+an ordinary non-reparse directory containing only the original four-entry
+cache tree; its 968-byte result file retains SHA-256
+`11B3A0FC8284DA7ACB273038D057C5703845C9C35E4DC7FED7EC18881B8E9E49`.
+The external backup path is now absent, the donor remains intact and clean, and
+the temporary replay copy remains absent.
 
 ## Immutable historical replay
 
@@ -208,8 +245,9 @@ Local adversarial review found and the implementation corrected:
    compatibility case missing from the focused set.
 
 Each has a direct positive and adversarial regression. The final local
-read-only spot review found no remaining P0/P1/P2, but it is not a substitute
-for the required independent Claude Code gate.
+read-only spot review found no remaining P0/P1/P2; it did not substitute for
+independent review. Claude Code has now passed both exact ranges and closed the
+sole P2.
 
 ## Rollback and next gate
 
@@ -217,11 +255,12 @@ Rollback is a focused revert of the implementation commit. There is no data
 migration, provider artifact or downstream state to undo. Historical evidence
 remains immutable.
 
-Claude Code has independently passed the implementation range. Next, it
-re-gates the runnable dependency handoff and this documentation-only correction
-read-only, reproduces the previously unavailable commands and issues PASS/HOLD
-on P2 closure. Codex validates and fixes any real finding in a separate
-milestone before another re-gate. After QA, the verified junction is removed
-without recursion and the preserved original `.vite` directory is restored.
-No retry or downstream action follows from either the implementation PASS or
-the environment correction.
+Claude Code independently passed implementation range
+`63ccb4846ebe5be9ab392960d389610a1b2b9d42..c42f3ce678166cda910b4263e26681e2c72c30e4`
+and correction range
+`c42f3ce678166cda910b4263e26681e2c72c30e4..fb993a01bda0103772c1272f1a4acfc8376efc14`.
+The sole P2 is closed and the temporary dependency handoff is restored. No
+additional QA gate is required for this faithful closeout transcription unless
+it introduces a factual discrepancy. No retry or downstream action follows
+from either PASS; any new P1-A1 attempt still requires fresh explicit authority
+from Guy.
