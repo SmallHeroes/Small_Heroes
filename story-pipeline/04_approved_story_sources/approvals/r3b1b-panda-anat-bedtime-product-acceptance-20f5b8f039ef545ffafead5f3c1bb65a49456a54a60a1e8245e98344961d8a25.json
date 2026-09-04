@@ -1,0 +1,33 @@
+{
+  "acceptedBy": "Guy",
+  "acceptedWorldMode": "grounded_with_visual_metaphor",
+  "authorityScope": "story_source_and_visual_directions_only",
+  "candidateRecordDigest": "9ca77317f023507cdd88704cae1839316684d48a522092013228ea01db89e851",
+  "decision": "מאשר את ששת ה־revision digests המפורטים עבור P2–P5, P7 ו־P8, ומאשר ליצור עבורם את אישורי הקבלה. מאשר להכין שער החלטה למסלול מדורג: קודם להשלים package מדויק ל־P1 ולהחזיר את הקטלוג ל־18/18, ולאחר מכן לקדם את ששת הסיפורים אחד־אחד, בלי לעבור לסיפור הבא לפני שיש למקור שפורסם package תואם ומאושר. אין עדיין אישור לפרסום קנוני, רנדר, קריינות, deployment או פעולה בתשלום.",
+  "digest": "20f5b8f039ef545ffafead5f3c1bb65a49456a54a60a1e8245e98344961d8a25",
+  "digestAlgorithm": "canonical-json-sha256",
+  "exclusions": [
+    "blueprint",
+    "deployment",
+    "image_render",
+    "narration_human_ear",
+    "production",
+    "provider_call",
+    "runtime_locator",
+    "story_bank_current_pointer",
+    "visual_contract",
+    "visual_package",
+    "wizard"
+  ],
+  "productDecisionDigest": "9b625e71318cf3a26117bc89744a1e39c04d13f6d74f632cddab4aaa639113e8",
+  "recordDecisionDigest": "1671d87848d067d792973601e5b82522734515d1315b3f903cb6e4baded545df",
+  "revisionDigest": "e304e877507f6f05ec2277fa2250fddfc99bbeb4aa3af98bc3916e3cb6a9d8ea",
+  "runtimeEligibility": {
+    "eligible": false,
+    "reason": "accepted_story_source_requires_fresh_visual_contract"
+  },
+  "status": "accepted",
+  "storyKey": "panda_anat_bedtime",
+  "technicalReviewDigest": "370392c9d13eccdf0a48cea23bdc7b6679d6a03de90b4f63465807779c3d3882",
+  "version": "small-heroes-story-source-visual-direction-correction-product-acceptance/v2"
+}

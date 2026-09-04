@@ -1,0 +1,33 @@
+{
+  "acceptedBy": "Guy",
+  "acceptedWorldMode": "grounded_with_visual_metaphor",
+  "authorityScope": "story_source_and_visual_directions_only",
+  "candidateRecordDigest": "57d3663c0cd0e30b162dada2cc78c1dc472ec8f2fe46037aac83042f11c6a307",
+  "decision": "מאשר את ששת ה־revision digests המפורטים עבור P2–P5, P7 ו־P8, ומאשר ליצור עבורם את אישורי הקבלה. מאשר להכין שער החלטה למסלול מדורג: קודם להשלים package מדויק ל־P1 ולהחזיר את הקטלוג ל־18/18, ולאחר מכן לקדם את ששת הסיפורים אחד־אחד, בלי לעבור לסיפור הבא לפני שיש למקור שפורסם package תואם ומאושר. אין עדיין אישור לפרסום קנוני, רנדר, קריינות, deployment או פעולה בתשלום.",
+  "digest": "48354b591726c453915748b08d0d1f1cd1d4c16175be1e8dcb5801a056bb5eb2",
+  "digestAlgorithm": "canonical-json-sha256",
+  "exclusions": [
+    "blueprint",
+    "deployment",
+    "image_render",
+    "narration_human_ear",
+    "production",
+    "provider_call",
+    "runtime_locator",
+    "story_bank_current_pointer",
+    "visual_contract",
+    "visual_package",
+    "wizard"
+  ],
+  "productDecisionDigest": "9b625e71318cf3a26117bc89744a1e39c04d13f6d74f632cddab4aaa639113e8",
+  "recordDecisionDigest": "76758ca32c7fcef53763f5a6d7af4bb79b03d9eadc8fa0744d5cbb5f35271759",
+  "revisionDigest": "9b8c28ad8eeac4ee193c561573fd02fb5a3d62f053aa52cca24e94dc498948bd",
+  "runtimeEligibility": {
+    "eligible": false,
+    "reason": "accepted_story_source_requires_fresh_visual_contract"
+  },
+  "status": "accepted",
+  "storyKey": "bunny_ometz_adventure",
+  "technicalReviewDigest": "4dd6ae5bb0020f08f0bba7d97904c466007bb5a1490f9fc7d1d579e8df734345",
+  "version": "small-heroes-story-source-visual-direction-correction-product-acceptance/v2"
+}

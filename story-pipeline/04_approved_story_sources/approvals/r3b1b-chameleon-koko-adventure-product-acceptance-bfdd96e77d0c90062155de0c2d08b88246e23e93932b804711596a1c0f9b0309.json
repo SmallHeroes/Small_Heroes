@@ -1,0 +1,33 @@
+{
+  "acceptedBy": "Guy",
+  "acceptedWorldMode": "fantastical",
+  "authorityScope": "story_source_and_visual_directions_only",
+  "candidateRecordDigest": "8c4db420c6430dc69d96e9e7b7c14cf4b06728365115d7973bd503e3fb02524d",
+  "decision": "מאשר את ששת ה־revision digests המפורטים עבור P2–P5, P7 ו־P8, ומאשר ליצור עבורם את אישורי הקבלה. מאשר להכין שער החלטה למסלול מדורג: קודם להשלים package מדויק ל־P1 ולהחזיר את הקטלוג ל־18/18, ולאחר מכן לקדם את ששת הסיפורים אחד־אחד, בלי לעבור לסיפור הבא לפני שיש למקור שפורסם package תואם ומאושר. אין עדיין אישור לפרסום קנוני, רנדר, קריינות, deployment או פעולה בתשלום.",
+  "digest": "bfdd96e77d0c90062155de0c2d08b88246e23e93932b804711596a1c0f9b0309",
+  "digestAlgorithm": "canonical-json-sha256",
+  "exclusions": [
+    "blueprint",
+    "deployment",
+    "image_render",
+    "narration_human_ear",
+    "production",
+    "provider_call",
+    "runtime_locator",
+    "story_bank_current_pointer",
+    "visual_contract",
+    "visual_package",
+    "wizard"
+  ],
+  "productDecisionDigest": "9b625e71318cf3a26117bc89744a1e39c04d13f6d74f632cddab4aaa639113e8",
+  "recordDecisionDigest": "3ab8692de07c9c81cc137febea72f48f1194bba58ea63de8853de293d0163bc8",
+  "revisionDigest": "5f57f2591e2301d8908f383a16bd62912aebeddb69bcf0f29157e21c60acbdf5",
+  "runtimeEligibility": {
+    "eligible": false,
+    "reason": "accepted_story_source_requires_fresh_visual_contract"
+  },
+  "status": "accepted",
+  "storyKey": "chameleon_koko_adventure",
+  "technicalReviewDigest": "b86b84a5b54b9f3fb1c185401b7b8c965f0a096e22e78d9684423ae7925458e4",
+  "version": "small-heroes-story-source-visual-direction-correction-product-acceptance/v2"
+}

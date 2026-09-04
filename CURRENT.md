@@ -1,6 +1,45 @@
 # SmallHeroes — Current Technical State
 
-## R3-B1b accepted-intent wave 2 — technical-review envelopes independently passed; awaiting Guy digest confirmation
+## R3-B1b accepted-intent wave 2 — six product-acceptance receipts locally complete; independent QA pending
+
+Guy explicitly confirmed the six exact revision digests for P2-P5/P7/P8 and
+authorized their product-acceptance receipts. He also approved preparation of a
+staged rollout Decision Gate: restore P1 with an exact-source package and prove
+18/18 first, then advance the six stories one at a time without beginning the
+next story before the current published source has a matching approved package.
+Canonical publication, package implementation, rendering, narration,
+deployment and paid work remain unauthorized.
+
+The six new tracked receipt/revision pairs are:
+
+- P2 `48354b591726c453915748b08d0d1f1cd1d4c16175be1e8dcb5801a056bb5eb2` / `9b8c28ad8eeac4ee193c561573fd02fb5a3d62f053aa52cca24e94dc498948bd`;
+- P3 `b14ea13f00b52368411a2559458300f777271487688388de76ca25e394be3a8b` / `432f555fded7efd5b17c224543ac7979afe16977e27dbab77c0c358941e1ff0e`;
+- P4 `bfdd96e77d0c90062155de0c2d08b88246e23e93932b804711596a1c0f9b0309` / `5f57f2591e2301d8908f383a16bd62912aebeddb69bcf0f29157e21c60acbdf5`;
+- P5 `01dc3fa3fc2e59274c6e290f770d757e16968542398d439fd1bf828bf18478c6` / `92cc7fe154485da7360907b750fcaf5bfd01d1027f8e59575435a27dccd6198a`;
+- P7 `28d3d849b7616f9c44209b2f655f5202cf73a37186de2accdd626d56847a98ba` / `394841c3d4559cc03b1900ad2a8e72309427a427821cfed10b4bdb627cee42d6`;
+- P8 `20f5b8f039ef545ffafead5f3c1bb65a49456a54a60a1e8245e98344961d8a25` / `e304e877507f6f05ec2277fa2250fddfc99bbeb4aa3af98bc3916e3cb6a9d8ea`.
+
+All 6/6 receipts match their canonical digest and filename, bind the exact
+technical-review/revision/world-mode identities and retain false runtime
+eligibility plus the complete downstream exclusion list. Two read-only
+publication-candidate previews per story return stable manifest digests,
+`created:false`, no output root and ten zero external counters. Focused
+validation passes 2/2 files and 20/20 tests in 45.65 seconds. No accepted-source
+revision or `visual-packages/` path changed; both TypeScript checks pass. A
+fresh real readiness audit remains at semantic digest
+`39819a34f01385e1aa6ea11307e788aaeaefa3e4cdf451e3753796c481faad4a`,
+17/18 sellable, two accepted lineages, one render-qualified story and zero
+effects.
+
+The prepared rollout gate is
+`docs/ai-workflow/R3B1B_STAGED_SOURCE_PACKAGE_ROLLOUT_DECISION_GATE.md`. It
+records that an exact package is not a pointer update: it must bind current
+source, Blueprint, provenance, planning approval, style, Visual Contract,
+reconciliation, Boards/props, review and Guy approval. The next technical gate
+is independent read-only QA of this receipt milestone. After PASS, P1 receives
+a zero-cost prerequisite inventory and exact future budget for a separate GO.
+
+## R3-B1b accepted-intent wave 2 — technical-review envelopes independently passed
 
 After wave-2 preparation independently passed, Guy reported that he pushed the
 branch; Git then verified exact 0/0 parity at `f5fc5fb3`. Codex prepared the six
@@ -38,10 +77,11 @@ Claude Code independently re-gated exact correction range
 `d2e7392d10620bb4d78f9ffb7fd8de87346fcabf..eee1356e3e5a40bfccce4027eb90c8e356a9f85b`
 read-only and returned **PASS with no P0/P1/P2**. The prior attribution P2 is
 closed, all six envelope bytes remain unchanged, and the envelope milestone is
-technically passed on everything tested. Guy must now explicitly confirm or
-reject each exact revision digest and choose publication/package sequencing.
-No product acceptance or downstream authority is inferred. P6 and all HOLD/D
-records remain on their separate gates.
+technically passed on everything tested. Guy later confirmed all six exact
+revision digests and selected the staged publication/package sequence recorded
+in the newer section above. The envelope PASS alone inferred no product
+acceptance or downstream authority. P6 and all HOLD/D records remain on their
+separate gates.
 
 ## R3-B1b accepted-intent wave 2 — preparation independently passed
 
