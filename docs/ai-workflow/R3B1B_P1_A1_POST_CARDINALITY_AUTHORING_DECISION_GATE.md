@@ -10,8 +10,9 @@ Planning base: `be65b3ced874397a08dd2b2aa6283a5b85dfb857`
 
 Attempt branch: `codex/r3b1b-p1-a1-post-cardinality-authoring`
 
-Status: **ZERO-COST GATE PREPARED; BRANCH PUSH, FRESH READINESS, PROVIDER/SPEND
-GO AND LIVE EXECUTION PENDING**
+Status: **INDEPENDENT REVIEW PASS WITH ONE TOPOLOGY P2; ORIGINAL GATE COMMIT
+OBSERVED AT 0/0; P2 CORRECTION RECORDED LOCALLY; CORRECTION PROPAGATION/0/0
+PROOF, RE-GATE, FRESH READINESS, PROVIDER/SPEND GO AND LIVE EXECUTION PENDING**
 
 ## Approval record and boundary
 
@@ -20,31 +21,42 @@ render-qualified state first, move to the remaining engineering work afterward,
 and leave payment work until the end. He authorized Codex to start the next
 technical preparation.
 
-That direction authorizes this local branch and Decision Gate. It is not an
-exact authorization to push, read a credential, call a provider or spend money.
-The previous P1-A1 authorization was consumed by its failed-closed execution;
-unused calls or dollars from that run are not retry authority.
+That direction authorized this local branch and Decision Gate. It did not by
+itself identify or authorize a push, credential read, provider call or spend.
+Local Git later recorded the Gate commit on a same-name origin-tracking ref, but
+it cannot establish the push actor or prior authorization; neither is inferred
+retroactively. The previous P1-A1 authorization was consumed by its
+failed-closed execution, and unused calls or dollars from that run are not
+retry authority.
 
 This Gate covers one new execution identity for the Visual Contract of P1 only.
 It stops before Blueprint, images, package work and every other story.
 
-## Current topology snapshot
+## Topology history and current handoff state
 
-- Worktree:
+- Worktree throughout:
   `C:\Users\guyna\.codex\worktrees\d53b\Small_Heroes`
 - Branch: `codex/r3b1b-p1-a1-post-cardinality-authoring`
-- Current planning HEAD:
+- Historical planning/pre-commit HEAD:
   `be65b3ced874397a08dd2b2aa6283a5b85dfb857`
-- Upstream: absent; ahead/behind is therefore not applicable.
-- Pre-commit dirty scope: modified `CURRENT.md` and `ROADMAP.md`, plus this new
-  ignored documentation file. No code, story, package, locator or output file
-  is dirty.
+- Historical planning state: upstream absent and ahead/behind not applicable;
+  dirty scope was modified `CURRENT.md` and `ROADMAP.md` plus this new ignored
+  documentation file. No code, story, package, locator or output file was dirty.
+- Independently reviewed Gate commit:
+  `a2b17fffaafdfb5e746d5a207319bd9a2cb0c689`.
+- Live local Git at review time configured
+  `origin/codex/r3b1b-p1-a1-post-cardinality-authoring` as upstream; both HEAD
+  and the local remote-tracking ref resolved to `a2b17fff...`, divergence was
+  `0/0`, and the worktree was clean.
+- The remote-tracking reflog records `update by push` at
+  `2026-09-04T21:54:30+03:00`. This is local Git metadata, not a fresh server
+  query, and does not identify the actor or establish authorization.
 - Write authority: this Codex task is the sole writer for this branch/worktree.
   The audit agents are read-only. The accepted-intent base worktree remains a
   read-only dependency source and is not part of this milestone's write scope.
-- Before Fresh Readiness, the documentation milestone must be committed, the
-  branch must be explicitly pushed to its same-name origin ref, and Git must
-  prove clean `0/0` parity again.
+- This P2 correction is a separate focused local commit. Before Fresh Readiness,
+  that corrected HEAD must also be present on the configured same-name upstream
+  and Git must again prove a clean `0/0` state.
 
 ## 1. Proposed change
 
@@ -254,8 +266,10 @@ later approved package promotion proves the required readiness.
 
 ### Guy decisions required
 
-1. Explicitly authorize pushing the dedicated branch so canonical preparation
-   can satisfy its same-name origin/`0/0` topology gate.
+1. Confirm retention of the same-name origin branch recorded by local tracking
+   metadata and authorize or perform propagation of this focused P2 correction
+   commit so the corrected HEAD satisfies the clean `0/0` topology gate. This
+   does not identify or retroactively authorize the earlier push.
 2. After Fresh Readiness evidence is returned, explicitly authorize or reject
    the exact live boundary in section 8.
 3. If a candidate exists, accept or reject its exact digest and visual/product

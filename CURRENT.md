@@ -1,6 +1,6 @@
 # SmallHeroes — Current Technical State
 
-## R3-B1b P1-A1 post-cardinality authoring — fresh zero-cost Gate prepared; push and live GO pending
+## R3-B1b P1-A1 post-cardinality authoring — topology P2 correction recorded locally; propagation, re-gate and Fresh Readiness pending
 
 Guy set the current product order on 2026-09-04: bring the stories through the
 complete render-qualification structure first, move to the remaining technical
@@ -12,13 +12,25 @@ Codex created dedicated local branch
 `codex/r3b1b-p1-a1-post-cardinality-authoring` from exact independently passed
 base `be65b3ced874397a08dd2b2aa6283a5b85dfb857` and prepared
 `docs/ai-workflow/R3B1B_P1_A1_POST_CARDINALITY_AUTHORING_DECISION_GATE.md`.
-The branch currently has no upstream, so the canonical Git probe correctly
-rejects at `upstream_ref` / `ref_not_found`; Fresh Readiness has not run.
 The exact worktree is
-`C:\Users\guyna\.codex\worktrees\d53b\Small_Heroes`, current planning HEAD is
-`be65b3ce...`, ahead/behind is not applicable without an upstream, and this
-Codex task is its sole writer. Before commit, dirty scope is limited to this
-Gate plus `CURRENT.md` and `ROADMAP.md`; no code or runtime artifact changed.
+`C:\Users\guyna\.codex\worktrees\d53b\Small_Heroes`, and this Codex task is
+its sole writer.
+
+Claude Code independently reviewed exact range
+`be65b3ced874397a08dd2b2aa6283a5b85dfb857..a2b17fffaafdfb5e746d5a207319bd9a2cb0c689`
+and returned **PASS with no P0/P1 and one P2**. The P2 correctly found that the
+live topology had advanced after the Gate was written: local Git configured
+the same-name origin upstream, and both HEAD and the local remote-tracking ref
+resolved to `a2b17fff...` at clean `0/0` parity. The remote-tracking reflog says
+`update by push` at `2026-09-04T21:54:30+03:00`; local Git does not establish
+the actor or authorization, so neither is attributed. This supersedes the
+Gate's absent-upstream statement for present-state purposes while preserving
+it as a truthful historical pre-commit snapshot.
+
+The focused P2 correction is a new local documentation commit and must itself
+reach the configured upstream at clean `0/0` before canonical preparation.
+Fresh Readiness has not run; the future output root remains absent. No code,
+runtime artifact or downstream authority changed.
 
 The Gate binds accepted revision `64dcd0e...`, canonical `integrated.md` digest
 `a5942c...`, current authoring policy/routing v22/v2 and current
@@ -45,6 +57,14 @@ validated external preservation path recorded in the Gate. The freshly
 installed dependency tree then remains stable through verify/live/QA, and a
 separately audited closeout restores the original cache without modifying the
 read-only donor worktree.
+
+Claude verified the source/version identities, exact USD 7.568 + USD 0.088 =
+USD 7.656 arithmetic, live fence constants, cleanup prohibition, unchanged
+catalog state, restored ordinary `.vite`-only dependency state, rollout order
+and all downstream exclusions. It could not independently rerun the two
+TypeScript projects after the dependency junction was correctly removed; it
+did not raise that environment limitation as a finding, and the TypeScript
+results remain Codex measurements.
 
 ## R3-B1b duplicate coverage-cardinality recovery — implementation and handoff correction independently QA-passed; no retry authority
 
