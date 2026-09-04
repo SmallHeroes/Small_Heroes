@@ -45,7 +45,9 @@ from `page_contract_patch` to `full_draft` changes the cleanup-predecessor
 surface even though cardinality diagnostics do not satisfy the separate
 reference-only residual gate. The corrected Gate makes this explicit and adds
 a new route-specific exclusion so cardinality-escalated full drafts cannot
-unlock cleanup. Independent correction re-gate is pending.
+unlock cleanup. Claude Code independently re-gated `3924ad62..5cb3e813` and
+returned PASS with no P0/P1/P2, closing the finding. This PASS does not grant
+implementation or live-call authority.
 
 ## 1. Proposed change
 
@@ -325,7 +327,7 @@ this gate.
 The staged route records Guy's sequencing intent and the zero-cost P1
 prerequisite audit is complete. Guy granted P1-A1, but the bounded execution
 failed closed after two calls and produced no candidate. The zero-cost general
-recovery-path Decision Gate correction is prepared; independent re-gate comes
-before Guy's separate implementation GO. STOP before implementation or any new
-provider attempt. Blueprint, images, package work and publication remain
-unauthorized.
+recovery-path Decision Gate correction independently passed; Guy's separate
+implementation GO is now the next owner decision. STOP before implementation or
+any new provider attempt. Blueprint, images, package work and publication
+remain unauthorized.

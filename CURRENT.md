@@ -28,15 +28,20 @@ no P0/P1 and one P2**. The P2 correctly identified that the first Gate's
 eligible cleanup predecessor while `page_contract_patch` is not. The corrected
 Gate records that predecessor change and adds a new route-specific restriction:
 cardinality-escalated full drafts cannot unlock terminal cleanup, while ordinary
-existing full-draft/book-surface cleanup behavior remains unchanged. Correction
-re-gate is pending.
+existing full-draft/book-surface cleanup behavior remains unchanged.
+
+Claude Code independently re-gated exact correction range
+`3924ad623adb721375efd1dc0b79f1736ac135eb..5cb3e8132d0e9a60470776a09c1f41bb69d1061e`
+read-only and returned **PASS with no P0/P1/P2**. It verified both cleanup gates,
+the explicit new narrowing, preserved ordinary-route behavior, truthful future
+tense, cost/call boundaries and documentation-only scope. The P2 is closed.
 
 This planning milestone changes no code and spends USD 0. Implementation, P1
 retry/provider use, Blueprint, images, Boards/props, package, locator, render,
 narration, publication and deployment remain unauthorized. The next owner
-decision after correction re-gate is Guy's explicit GO or rejection of the
-prepared implementation package; an approved implementation should stop after
-a local green commit and Claude Code handoff.
+decision is Guy's explicit GO or rejection of the independently passed
+implementation package; an approved implementation should stop after a local
+green commit and Claude Code handoff.
 
 ## R3-B1b P1-A1 exact-source Visual Contract — failed-closed execution independently passed; no candidate
 

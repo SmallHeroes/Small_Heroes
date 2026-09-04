@@ -10,9 +10,8 @@ Branch: `codex/r3b1b-accepted-intent-wave-2`
 
 Planning base: `11d4ff0a8b23979267bbbdbee437581e0cd196ac`
 
-Status: **INDEPENDENT QA PASS WITH ONE P2; CLEANUP-ELIGIBILITY CORRECTION
-PREPARED; RE-GATE PENDING — NO IMPLEMENTATION, RETRY, PROVIDER CALL OR
-DOWNSTREAM AUTHORITY**
+Status: **INDEPENDENT QA PASS; P2 CLOSED — IMPLEMENTATION GO PENDING; NO
+RETRY, PROVIDER CALL OR DOWNSTREAM AUTHORITY**
 
 ## Approval record and boundary
 
@@ -419,8 +418,15 @@ predecessor surface unchanged.
 This correction does not hide the change behind the residual gate. It records
 the predecessor flip and makes the intended behavior explicit as a new
 route-specific restriction: cardinality-escalated full drafts cannot unlock
-terminal cleanup; ordinary eligible predecessors remain unchanged. The focused
-correction requires independent re-gate before Guy approves implementation.
+terminal cleanup; ordinary eligible predecessors remain unchanged.
+
+Claude Code independently re-gated exact correction range
+`3924ad623adb721375efd1dc0b79f1736ac135eb..5cb3e8132d0e9a60470776a09c1f41bb69d1061e`
+read-only and returned **PASS with no P0/P1/P2**. It re-derived both cleanup
+conditions from code, confirmed the predecessor flip is now stated, verified
+the new narrowing and ordinary-route preservation are forward-looking rather
+than implemented claims, and confirmed the cost/test/approval boundaries. The
+P2 is closed; the re-gate grants no implementation or live-call authority.
 
 ## 13. Do not do
 
@@ -459,7 +465,7 @@ Under this prepared gate, do not:
 9. **Guy eyeball?** This Gate now; a future candidate only after separate spend
    authority.
 
-**Gate disposition:** the zero-cost investigation and Decision Gate correction
-are prepared; independent correction re-gate is pending. STOP. No code change,
-retry, provider call or downstream work is authorized until the correction
-passes and Guy explicitly approves the implementation package above.
+**Gate disposition:** the zero-cost Decision Gate and its cleanup-eligibility
+correction independently passed with no open P0/P1/P2. STOP. No code change,
+retry, provider call or downstream work is authorized until Guy explicitly
+approves the implementation package above.
