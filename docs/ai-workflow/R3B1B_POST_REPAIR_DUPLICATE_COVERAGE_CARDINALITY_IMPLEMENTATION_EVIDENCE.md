@@ -10,7 +10,11 @@ Branch: `codex/r3b1b-post-repair-duplicate-cardinality`
 
 Exact base: `63ccb4846ebe5be9ab392960d389610a1b2b9d42`
 
-Status: **PROVIDER-FREE IMPLEMENTATION COMPLETE LOCALLY; CLAUDE CODE QA PENDING**
+Implementation commit: `c42f3ce678166cda910b4263e26681e2c72c30e4`
+
+Reviewed range: `63ccb4846ebe5be9ab392960d389610a1b2b9d42..c42f3ce678166cda910b4263e26681e2c72c30e4`
+
+Status: **CLAUDE CODE IMPLEMENTATION PASS; ONE P2 HANDOFF CORRECTION READY, RE-GATE PENDING**
 
 ## Authority and exclusions
 
@@ -78,7 +82,7 @@ replay-evidence-v2 tuple.
 
 ## Validation evidence
 
-Final focused command:
+Implementation-time final focused command:
 
 ```powershell
 npx vitest run lib/__tests__/page-contract-repair.spec.ts lib/__tests__/draft-action-authority.spec.ts lib/__tests__/draft-reference-domain-hardening.spec.ts lib/__tests__/visual-contract-repair-loop.spec.ts lib/__tests__/offline-repair-harness.spec.ts lib/visual-package/__tests__/source-authority-lifecycle.spec.ts lib/visual-package/__tests__/canonical-live-authoring-boundary.spec.ts lib/visual-package/__tests__/canonical-live-authoring-launcher.spec.ts lib/visual-package/__tests__/visual-contract-authoring-replay-evidence.spec.ts --pool=threads --maxWorkers=1 --no-file-parallelism
@@ -86,10 +90,10 @@ npx vitest run lib/__tests__/page-contract-repair.spec.ts lib/__tests__/draft-ac
 
 Result: **9/9 files and 555/555 tests passed**, exit 0.
 
-The broader changed version/materialization cascade also passed **503/503**
-focused assertions across lifecycle, canonical live boundary/launcher, replay,
-live request materialization/verification, execution materialization,
-Supervisor and pre-live readiness.
+During implementation, the broader changed version/materialization cascade also
+passed **503/503** focused assertions across lifecycle, canonical live
+boundary/launcher, replay, live request materialization/verification, execution
+materialization, Supervisor and pre-live readiness.
 
 ```powershell
 npx tsc --noEmit
@@ -113,6 +117,57 @@ The full repository check remains red on unrelated current-worktree evidence:
 No modified task-focused suite fails. The former cross-page compact regression
 found by the first full check is corrected and covered in the final 555-test
 run.
+
+## Independent Claude Code QA
+
+Claude Code reviewed the exact implementation range read-only and returned
+**PASS with no P0/P1 and one P2**. It verified the clean branch, exact HEAD and
+base-to-head range, found no story-specific patch, and statically confirmed the
+complete graph admission, bound escalation provenance, double cleanup
+prohibition, version cascade and unchanged call ceilings, transport retries,
+fallback policy and 0.70 resemblance threshold.
+
+Claude ran 347/347 assertions available through an external dependency tree.
+Its sole P2 is a reviewability/environment finding rather than a production-code
+defect: the handed-off worktree itself contained only a `.vite` cache under
+`node_modules`, so Claude could not independently run the reported 555/555,
+503/503, both TypeScript checks or the official replay from the exact root.
+
+## P2 handoff correction and exact-worktree reproduction
+
+Codex accepted the P2 and prepared a zero-cost, ignored environment correction;
+no production code, test code or package manifest changed and no dependency was
+installed. This worktree's `node_modules` is temporarily a junction to the
+clean exact-base worktree dependency tree at
+`C:\GNart\Work\sh-r3b1b-accepted-intent-wave-2\node_modules`. The current and
+donor `package.json` SHA-256 is
+`935217B035428B183EF8FC0A50215D30D0EBCF2C46868B7069D96E7E02794447`; their
+`package-lock.json` SHA-256 is
+`785E90A70B0D8F041B107483A204332BB85FFFEE42506DBE6CBAEE4A0FA75AFA`.
+The original `.vite`-only directory is preserved outside the repository at
+`C:\Users\guyna\.codex\worktrees\d53b\Small_Heroes-node_modules-vite-cache-pre-qa-regate`
+and will be restored after re-gate. The junction remains intentionally
+available to the reviewer and is not part of the Git correction range.
+
+From the exact handed-off worktree root, ordinary commands then produced:
+
+- the nine-file focused command: **555/555**, exit 0;
+- the remaining five changed-cascade files: **168/168**, exit 0;
+- the four package files already present in the 555-test command account for
+  335 assertions, so their union with the remaining 168 reproduces **503/503**;
+- `npx tsc --noEmit`: exit 0;
+- `npx tsc -p tsconfig.story-autonomous.json`: exit 0; and
+- the official immutable replay: exit 0, zero provider calls, exact captured
+  call sequence and all receipt-congruence booleans true.
+
+The first five-file 168-test invocation produced 167 passes plus one 15-second
+test timeout. The affected 14-test file immediately passed 14/14 in
+isolation, and the unchanged five-file command then passed 168/168 on a clean
+rerun. Both outcomes are retained here for truthful reproduction history.
+
+These are Codex measurements after correcting the handoff environment. They do
+not retroactively expand Claude's test scope or independently close P2; Claude
+Code re-gate remains required.
 
 ## Immutable historical replay
 
@@ -162,8 +217,11 @@ Rollback is a focused revert of the implementation commit. There is no data
 migration, provider artifact or downstream state to undo. Historical evidence
 remains immutable.
 
-Next: Claude Code reviews the immutable base-to-head range read-only, attempts
-the Decision Gate falsification targets, verifies the disclosed full-check
-baseline and issues PASS/HOLD. Codex validates and fixes any real findings in a
-separate milestone before re-gate. No retry or downstream action follows from
-this implementation commit.
+Claude Code has independently passed the implementation range. Next, it
+re-gates the runnable dependency handoff and this documentation-only correction
+read-only, reproduces the previously unavailable commands and issues PASS/HOLD
+on P2 closure. Codex validates and fixes any real finding in a separate
+milestone before another re-gate. After QA, the verified junction is removed
+without recursion and the preserved original `.vite` directory is restored.
+No retry or downstream action follows from either the implementation PASS or
+the environment correction.

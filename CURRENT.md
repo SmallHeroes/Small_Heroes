@@ -1,6 +1,6 @@
 # SmallHeroes — Current Technical State
 
-## R3-B1b duplicate coverage-cardinality recovery — provider-free implementation complete locally; independent QA pending
+## R3-B1b duplicate coverage-cardinality recovery — implementation QA PASS; P2 handoff correction awaiting re-gate
 
 Guy approved the independently passed Decision Gate at exact implementation
 base `63ccb4846ebe5be9ab392960d389610a1b2b9d42`. Codex implemented the
@@ -35,13 +35,14 @@ request / v58 receipt / replay-evidence v2 tuple under routing policy v1; the
 historical readiness remains classified at v55. Replay result advances to v2
 and the offline harness to v4, while replay-evidence bytes stay at v2.
 
-Final focused validation is 9/9 files and 555/555 assertions, including graph,
-hardening, compiler routing, cleanup, lifecycle, canonical boundary and replay
-coverage. The broader version/materialization cascade is 503/503. Both
-TypeScript projects and `git diff --check` pass. The official immutable Dragon
-Dini replay exits 0 with zero provider calls, routing v1, the exact historical
-initial plus page-patch sequence, `invalid_draft`, and every receipt-congruence
-boolean true; the temporary byte-identical artifact copy was removed afterward.
+Codex's implementation validation is 9/9 files and 555/555 assertions,
+including graph, hardening, compiler routing, cleanup, lifecycle, canonical
+boundary and replay coverage. The broader version/materialization cascade is
+503/503. Both TypeScript projects and `git diff --check` pass. The official
+immutable Dragon Dini replay exits 0 with zero provider calls, routing v1, the
+exact historical initial plus page-patch sequence, `invalid_draft`, and every
+receipt-congruence boolean true; the temporary byte-identical artifact copy was
+removed afterward.
 
 `npm run check` was rerun against the final code. Both typecheck phases pass,
 but the repository gate remains red on the inherited current-worktree evidence
@@ -51,11 +52,39 @@ historical outputs plus the pre-existing Story Source / Visual Direction corpus
 binding/digest mismatch. The resource phase has 20 passing / 1 failing files,
 642 passing / 11 skipped tests and three `onTaskUpdate` RPC timeouts; its failed
 suite stops on that same unrelated corpus binding before its tests run. No
-task-related focused failure remains. This implementation has not self-awarded
-independent technical PASS. The required next action is Claude Code's read-only
-review of the focused local commit range, followed by validation and correction
-of any real findings before Guy's product acceptance or any separately
-authorized retry.
+task-related focused failure remains.
+
+Claude Code independently reviewed exact implementation range
+`63ccb4846ebe5be9ab392960d389610a1b2b9d42..c42f3ce678166cda910b4263e26681e2c72c30e4`
+read-only and returned **PASS with no P0/P1 and one P2**. It reconciled the
+clean branch, HEAD and range; ran 347/347 available assertions through an
+external dependency tree; and statically confirmed graph admission,
+provenance binding, the double cleanup prohibition, version cascade, unchanged
+ceilings/retries/fallback/0.70 threshold and absence of story-specific
+literals. Its P2 is a reviewability/environment finding, not a code defect:
+this worktree lacked runnable installed dependencies, so Claude could not
+independently reproduce the reported 555/555, 503/503, both typechecks or the
+official replay from the handed-off root.
+
+Codex accepted the P2 and prepared a zero-cost handoff correction without
+production or test-code changes. The ignored `node_modules` path is temporarily
+a junction to the existing clean exact-base worktree dependency tree; its
+`package.json` and `package-lock.json` bytes match this checkout and no install
+occurred. The original `.vite`-only directory is preserved outside the
+repository for restoration after re-gate. From this exact worktree root,
+ordinary `npx`/`npm` commands now pass 555/555, the remaining package cascade
+168/168, both TypeScript projects and the zero-provider official replay with
+exact historical outcome/sequence congruence. The first 168-test invocation
+had 167 passes plus one 15-second timeout; that 14-test file then passed 14/14
+in isolation and the unchanged five-file command passed 168/168 on a clean
+rerun. Together, the 335 package assertions inside the 555-test command and
+the remaining 168 assertions reproduce the full 503/503 cascade.
+
+These corrected-environment results are Codex measurements, not retroactive
+independent reproduction. The implementation PASS is recorded, but the P2
+correction is not independently closed. Claude Code must re-gate the runnable
+handoff and this documentation before technical closeout. No retry, provider,
+candidate or downstream authority follows.
 
 ## R3-B1b P1-A1 exact-source Visual Contract — failed-closed execution independently passed; no candidate
 
