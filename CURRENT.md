@@ -1,6 +1,6 @@
 # SmallHeroes — Current Technical State
 
-## R3-B1b P1 exact-source package prerequisite audit — complete; Visual Contract GO pending
+## R3-B1b P1 exact-source package prerequisite audit — independently passed; Visual Contract GO pending
 
 The zero-cost P1 inventory is complete. `dragon_dini_adventure` revision
 `64dcd0e...` is a valid 12-page grounded/neutral accepted source, and the
@@ -28,6 +28,19 @@ projected maximum USD 4.928 and hard ceiling USD 5. No provider or spend is
 authorized yet. Exact Board/prop LOW quantity and price authority follow only
 after an approved Blueprint. Full evidence and boundaries are in
 `docs/ai-workflow/R3B1B_P1_EXACT_SOURCE_PACKAGE_PREREQUISITE_AUDIT.md`.
+
+Claude Code independently reviewed exact documentation range
+`4d7348f28c0d28e27fb331bd5d534755de4dd901..1fa48fb2b6ce3a96d113cbb99cd38cb77ca503b1`
+read-only and returned **PASS with no P0/P1/P2**. It reproduced all nine audit
+claims: accepted-source identity and strict path, both conservative budget
+calculations, absent exact-source downstream authority, six setting families,
+cart/cake anchor counts, Style01/Dini resemblance authority, canonical 17/18
+readiness and documentation-only scope. It also reproduced 2/2 files and
+124/124 tests plus TypeScript PASS. Claude rebuilt the source snapshot and
+exercised the strict loader directly rather than rerunning the full preflight
+CLI; Codex's exit/receipt/blocker-list measurement remains disclosed as such.
+Git verifies the reviewed pushed head at 0/0 parity. This PASS closes only the
+audit documentation. Guy's explicit P1-A1 provider/spend GO is still pending.
 
 ## R3-B1b accepted-intent wave 2 — six product-acceptance receipts independently passed and pushed
 

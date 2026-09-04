@@ -10,9 +10,9 @@ Branch: `codex/r3b1b-accepted-intent-wave-2`
 
 Audit base: `4d7348f28c0d28e27fb331bd5d534755de4dd901`
 
-Status: **AUDIT COMPLETE; STOP BEFORE PROVIDER USE, VISUAL CONTRACT
-AUTHORING, BLUEPRINT AUTHORING, BOARD/PROP GENERATION, PACKAGE CREATION OR
-PUBLICATION**
+Status: **INDEPENDENT QA PASS; GUY P1-A1 GO PENDING — STOP BEFORE PROVIDER USE,
+VISUAL CONTRACT AUTHORING, BLUEPRINT AUTHORING, BOARD/PROP GENERATION, PACKAGE
+CREATION OR PUBLICATION**
 
 ## 1. Outcome
 
@@ -263,6 +263,30 @@ does not advance to Blueprint.
 `npm run check` was not run for this documentation-only audit. No code, schema,
 test, package or runtime file changed, so no repository-wide green result is
 claimed.
+
+### Independent QA
+
+Claude Code reviewed exact immutable range
+`4d7348f28c0d28e27fb331bd5d534755de4dd901..1fa48fb2b6ce3a96d113cbb99cd38cb77ca503b1`
+read-only and returned **PASS with no P0/P1/P2**. It independently reproduced:
+
+- the four-file documentation-only topology and clean pushed 0/0 parity;
+- the exact source, accepted-revision, page, world and gender identities;
+- strict rejection of revision-local `story.md` and acceptance of
+  `integrated.md`;
+- Visual Contract USD 7.656 and Blueprint USD 4.928 conservative arithmetic;
+- absence of exact-source downstream package authority;
+- the six settings and 10/7 cart/cake continuity-anchor counts;
+- all six passed Dini views and minimum resemblance `0.9802317213552091`;
+- readiness digest `39819a34...`, 17/18 and zero effects; and
+- 2/2 files, 124/124 tests plus `npx tsc --noEmit`.
+
+Claude rebuilt the source snapshot and exercised the strict accepted-authority
+loader directly instead of driving the complete preflight CLI. Therefore the
+CLI exit code, `preflight_passed` receipt and blocker-list values remain
+Codex's measured evidence, while the decisive source/digest/path facts are
+independently reproduced. `npm run check` remains not run. This PASS grants no
+P1-A1 or downstream authority.
 
 ## 11. Explicit exclusions
 
