@@ -147,7 +147,19 @@ of Guy acceptance/canonical publication, zero effects and unchanged 17/18
 sellability. Cowork is not required for this technical binding; P6 remains on
 its separate Cowork gate.
 
-## 11. Do not do
+## 11. Independent artifact QA and correction
+
+Claude Code reviewed exact range
+`f5fc5fb365fffd00936cfeb20c0596e25bed165b..d2e7392d10620bb4d78f9ffb7fd8de87346fcabf`
+read-only and returned **PASS with no P0/P1 and one P2**. All six envelope
+contracts, identities, canonical bytes, tests, readiness and zero-effect claims
+were independently verified. The P2 found that new `CURRENT.md` prose said
+`Guy pushed` without distinguishing the user's report from Git's parity proof.
+That wording is corrected without changing any envelope. The correction must
+receive a focused independent re-gate before the six revision digests return to
+Guy.
+
+## 12. Do not do
 
 Do not create Guy product-acceptance receipts, publish canonical revisions,
 reuse legacy packages, author Visual Contracts, change Wizard availability,

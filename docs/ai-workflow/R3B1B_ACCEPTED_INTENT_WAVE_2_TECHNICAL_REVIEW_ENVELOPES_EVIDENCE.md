@@ -95,6 +95,20 @@ The real read-only readiness audit also exited 0 with semantic digest
 1 render-qualified, 10 soft TTS items across 5 stories, and every audit effect
 counter zero.
 
+## Independent artifact QA
+
+Claude Code reviewed exact range
+`f5fc5fb365fffd00936cfeb20c0596e25bed165b..d2e7392d10620bb4d78f9ffb7fd8de87346fcabf`
+read-only and returned **PASS with no P0/P1 and one P2**. It independently
+reproduced all six stored 792-byte envelopes, their exact schema/range/counts,
+common and per-record identities, canonical digests, filenames, regular-file
+and single-link inventory, 20/20 focused tests, both typechecks, the readiness
+digest/state and zero effects. It found no envelope or lifecycle defect.
+
+The P2 was a repeated unqualified `Guy pushed` attribution in `CURRENT.md`.
+That sentence now states separately that Guy reported the push and Git verified
+the exact parity. This correction still requires a focused independent re-gate.
+
 ## Effects and exclusions
 
 No accepted-source revision, product-acceptance receipt, package, locator,
@@ -104,12 +118,15 @@ spend USD 0. Wizard sellability remains 17/18. Publishing all six without
 exact-source packages remains unapproved and is still expected to reduce the
 catalog to 11/18. The resemblance threshold remains 0.70.
 
-The 10 soft narration items for `שם` remain open under the separate
-pronunciation/human-ear gate. P6 and all HOLD/D records remain excluded.
+The wave's 10 soft narration items for `שם`, across four wave stories, remain
+open under the separate pronunciation/human-ear gate. This differs from the
+current canonical-readiness count of 10 soft items across five stories because
+the two statements describe different source sets. P6 and all HOLD/D records
+remain excluded.
 
 ## Next gate
 
-Claude Code independently reviews the exact tracked preparation range plus the
-six reproducible ignored envelopes. After PASS, Guy must explicitly confirm or
-reject each exact revision digest and choose publication/package sequencing.
-No product acceptance or publication may be inferred from these review files.
+Claude Code independently re-gates the focused documentation correction. After
+PASS, Guy must explicitly confirm or reject each exact revision digest and
+choose publication/package sequencing. No product acceptance or publication
+may be inferred from these review files.

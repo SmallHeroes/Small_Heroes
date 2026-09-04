@@ -1,11 +1,12 @@
 # SmallHeroes — Current Technical State
 
-## R3-B1b accepted-intent wave 2 — six technical-review envelopes prepared; artifact QA pending
+## R3-B1b accepted-intent wave 2 — envelope QA PASS with one P2; correction re-gate pending
 
-After wave-2 preparation independently passed and Guy pushed the branch to
-exact 0/0 parity at `f5fc5fb3`, Codex prepared the six required correction
-technical-review v2 envelopes as one zero-cost batch. No code or schema change
-was needed. Each envelope truthfully binds Claude Code's final exact PASS range
+After wave-2 preparation independently passed, Guy reported that he pushed the
+branch; Git then verified exact 0/0 parity at `f5fc5fb3`. Codex prepared the six
+required correction technical-review v2 envelopes as one zero-cost batch. No
+code or schema change was needed. Each envelope truthfully binds Claude Code's
+final exact PASS range
 `0f1af28c..d47fe4e9` with P0/P1/P2 `0/0/0`; the earlier HOLD remains separately
 recorded and the later `f5fc5fb3` closeout is not presented as reviewed.
 
@@ -25,9 +26,17 @@ authority, product acceptance, package, render, publication, external effect or
 spend occurred. Sellability remains 17/18. Exact evidence is in
 `docs/ai-workflow/R3B1B_ACCEPTED_INTENT_WAVE_2_TECHNICAL_REVIEW_ENVELOPES_EVIDENCE.md`.
 
-The envelope set now requires independent artifact QA. Only after PASS may the
-six exact revision digests return to Guy for final confirmation and a separate
-publication/package sequencing decision. The 10 soft narration items, P6 and
+Claude Code independently reviewed exact range `f5fc5fb3..d2e7392d` read-only
+and returned **PASS with no P0/P1 and one P2**. It reproduced all six envelopes
+byte-exactly, all identities, 20/20 tests, both typechecks, readiness 17/18 and
+zero effects. The P2 identified the unqualified push attribution in this
+section; it is corrected above by separating Guy's report from Git's parity
+proof. No envelope or lifecycle defect was found. The clarification that the
+wave's 10 `שם` items span four stories is also recorded in the evidence.
+
+The documentation correction now requires a focused independent re-gate. Only
+after it passes may the six exact revision digests return to Guy for final
+confirmation and a separate publication/package sequencing decision. P6 and
 all HOLD/D records remain on their separate gates.
 
 ## R3-B1b accepted-intent wave 2 — preparation independently passed
