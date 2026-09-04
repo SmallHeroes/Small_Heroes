@@ -6,8 +6,8 @@ Product owner: Guy
 
 Technical owner: Codex
 
-Status: **RECEIPT QA PASS; P1 PREREQUISITE AUDIT QA PASS — P1-A1 VISUAL
-CONTRACT GO PENDING; STOP BEFORE PROVIDER USE OR DOWNSTREAM WORK**
+Status: **RECEIPT QA PASS; P1 PREREQUISITE AUDIT QA PASS; P1-A1 LIVE
+AUTHORING HOLD — NO CANDIDATE; STOP BEFORE RETRY OR DOWNSTREAM WORK**
 
 Branch: `codex/r3b1b-accepted-intent-wave-2`
 
@@ -22,6 +22,14 @@ six stories one at a time without starting the next story before the published
 source has a matching approved package. Guy explicitly withheld canonical
 publication, rendering, narration, deployment, paid work and package
 implementation in the current milestone.
+
+Guy later granted the exact P1-A1-only Visual Contract authority: accepted
+revision `64dcd0e...`, `gpt-5.6-sol`, at most seven standard calls plus one
+cleanup, no fallback, zero transport retries and hard USD 10. The canonical
+live process failed closed after two calls at conservative USD 0.668218 with no
+candidate. That authority is consumed; it does not authorize a retry or any
+downstream stage. Exact execution evidence is in
+`docs/ai-workflow/R3B1B_P1_A1_VISUAL_CONTRACT_AUTHORING_EXECUTION_EVIDENCE.md`.
 
 ## 1. Proposed change
 
@@ -242,7 +250,15 @@ Claude Code independently reviewed exact range `4d7348f2..1fa48fb2` and
 returned PASS with no P0/P1/P2. It reproduced the source/loader facts, both
 budget calculations, absent authority inventory, setting/anchor counts,
 resemblance authority, real 17/18 readiness, test results and documentation-only
-scope. This independent PASS does not substitute for Guy's P1-A1 approval.
+scope. Guy later supplied P1-A1 approval; the bounded execution failed closed
+without a candidate and now requires independent QA.
+
+The execution receipt is `e60f689f...`, readiness is `45d79882...` and the
+captured-response replay is `c8e6fee7...`. Claude Code must verify exact source
+identity, two calls/two dispatches/zero retries, conservative USD 0.668218,
+the three page-10 cardinality diagnostics, no candidate/output authority and
+the claimed general recovery-path gap. It must not infer authority for a code
+fix or another provider attempt.
 
 Before P1 package implementation Guy must separately approve:
 
@@ -258,8 +274,9 @@ any separately approved LOW sample before wider visual work.
 ## 12. Do not do
 
 Do not publish any of P2-P5/P7/P8, create or promote a package, update a package
-locator, call a provider, render, narrate, deploy, change Wizard flags, enable a
-fallback, alter the 0.70 threshold, or spend money under this prepared gate.
+locator, make another provider call, render, narrate, deploy, change Wizard
+flags, enable a fallback, alter the 0.70 threshold, or spend more money under
+this gate.
 
 ## Stop-check
 
@@ -267,22 +284,24 @@ fallback, alter the 0.70 threshold, or spend money under this prepared gate.
    story keys are inputs, not runtime branches.
 2. Cross-story risk? High if publication is bulk; bounded to one story and one
    exact source/package identity per milestone.
-3. Production behavior? None in the current receipt milestone. Future source
-   and package promotion affect catalog authority and require a new GO.
-4. Spend? USD 0 now; future exact ceiling unresolved and mandatory.
-5. Smallest safe proof? Six receipt dry-runs now; one P1 prerequisite inventory
-   next; no image or full book.
-6. Guy decisions? Current receipt and sequence decisions are resolved. P1
-   package implementation, cost, approvals and all publication remain open.
-7. Claude targets? Digest identity, no publication, exact package binding,
-   readiness preservation, replay and fail-closed behavior.
+3. Production behavior? None; P1 remains contained at 17/18 and no package or
+   locator authority changed.
+4. Spend? P1-A1 consumed conservative USD 0.668218 of its bounded execution;
+   further spend requires a new explicit GO.
+5. Smallest safe proof? Preserve and replay the exact failed responses, then
+   gate a general zero-cost recovery correction; no image or full book.
+6. Guy decisions? The original P1-A1 GO is resolved and consumed. A general
+   recovery implementation and any new live attempt remain open.
+7. Claude targets? Exact live identities/cost/calls, replay congruence, the
+   recovery-path claim, no candidate and no downstream authority.
 8. Cowork? P6 only, unless material new creative prose is proposed.
-9. Guy eyeball? P1 Blueprint/Visual Contract/package packet before promotion;
-   later one packet per story.
+9. Guy eyeball? There is no P1 candidate to review. Guy reviews a future
+   Visual Contract only after a separately approved successful attempt.
 
 **Gate disposition:** receipt-only work is independently passed and pushed.
 The staged route records Guy's sequencing intent and the zero-cost P1
-prerequisite audit is complete. The only proposed next authority is P1-A1:
-bounded exact-source Visual Contract authoring under its independent USD 10
-hard ceiling. STOP until Guy explicitly grants that GO. Blueprint, images,
-package work and publication remain unauthorized.
+prerequisite audit is complete. Guy granted P1-A1, but the bounded execution
+failed closed after two calls and produced no candidate. The next proposed
+authority is a zero-cost general recovery-path correction Decision Gate. STOP
+before implementation or any new provider attempt. Blueprint, images, package
+work and publication remain unauthorized.

@@ -10,9 +10,9 @@ Branch: `codex/r3b1b-accepted-intent-wave-2`
 
 Audit base: `4d7348f28c0d28e27fb331bd5d534755de4dd901`
 
-Status: **INDEPENDENT QA PASS; GUY P1-A1 GO PENDING — STOP BEFORE PROVIDER USE,
-VISUAL CONTRACT AUTHORING, BLUEPRINT AUTHORING, BOARD/PROP GENERATION, PACKAGE
-CREATION OR PUBLICATION**
+Status: **INDEPENDENT AUDIT QA PASS; GUY LATER GRANTED P1-A1; LIVE AUTHORING
+FAILED CLOSED WITH NO CANDIDATE — STOP BEFORE RETRY, BLUEPRINT, BOARD/PROP,
+PACKAGE OR PUBLICATION**
 
 ## 1. Outcome
 
@@ -295,3 +295,22 @@ Board/prop images, package candidate/finalization/promotion, current-locator
 change, page or cover render, narration, PDF, database/storage, order/payment,
 deployment, release, HIGH quality, full book, fallback or any change to the
 0.70 resemblance threshold.
+
+## 12. P1-A1 execution addendum
+
+Guy later authorized the exact P1-A1 boundary described in section 6. The
+canonical pre-live gate passed, and one live process used exactly two calls:
+one initial draft and one page-contract repair. It used no fallback or
+transport retry and accounted conservatively for USD 0.668218.
+
+The repair duplicated one page-10 Action Semantic Coverage beat and the
+compiler rejected the draft with `draft_authority_reference_domain_invalid`.
+Receipt `e60f689f...` and readiness `45d79882...` contain no candidate or
+output authority. Official offline replay reproduced the exact call sequence
+and terminal outcome without a provider call. Full evidence is in
+`docs/ai-workflow/R3B1B_P1_A1_VISUAL_CONTRACT_AUTHORING_EXECUTION_EVIDENCE.md`.
+
+The section-9 failure boundary therefore applied: execution stopped and did
+not advance to Blueprint. Unused call and cost headroom does not authorize a
+retry. A general recovery-path correction and any new provider attempt require
+new approval.
