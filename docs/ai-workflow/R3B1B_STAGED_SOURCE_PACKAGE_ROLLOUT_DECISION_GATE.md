@@ -7,8 +7,8 @@ Product owner: Guy
 Technical owner: Codex
 
 Status: **RECEIPT QA PASS; P1 PREREQUISITE AUDIT QA PASS; P1-A1 FAILED-CLOSED
-EXECUTION QA PASS — NO CANDIDATE; STOP BEFORE CORRECTION, RETRY OR DOWNSTREAM
-WORK**
+EXECUTION QA PASS; GENERAL RECOVERY DECISION GATE PREPARED — NO CANDIDATE;
+STOP BEFORE IMPLEMENTATION, RETRY OR DOWNSTREAM WORK**
 
 Branch: `codex/r3b1b-accepted-intent-wave-2`
 
@@ -31,6 +31,14 @@ live process failed closed after two calls at conservative USD 0.668218 with no
 candidate. That authority is consumed; it does not authorize a retry or any
 downstream stage. Exact execution evidence is in
 `docs/ai-workflow/R3B1B_P1_A1_VISUAL_CONTRACT_AUTHORING_EXECUTION_EVIDENCE.md`.
+
+Guy then authorized zero-cost preparation only for the general post-repair
+duplicate coverage-cardinality Decision Gate. That Gate is now prepared at
+`docs/ai-workflow/R3B1B_POST_REPAIR_DUPLICATE_COVERAGE_CARDINALITY_DECISION_GATE.md`.
+It recommends graph-aware compact admission, bounded `full_draft` escalation
+when no legal compact solution exists and a versioned cutover preserving the
+reviewed historical replay. It changes no code and does not authorize a retry,
+provider call or downstream stage.
 
 ## 1. Proposed change
 
@@ -309,7 +317,7 @@ this gate.
 **Gate disposition:** receipt-only work is independently passed and pushed.
 The staged route records Guy's sequencing intent and the zero-cost P1
 prerequisite audit is complete. Guy granted P1-A1, but the bounded execution
-failed closed after two calls and produced no candidate. The next proposed
-authority is a zero-cost general recovery-path correction Decision Gate. STOP
-before implementation or any new provider attempt. Blueprint, images, package
-work and publication remain unauthorized.
+failed closed after two calls and produced no candidate. The zero-cost general
+recovery-path Decision Gate is prepared; the next proposed authority is Guy's
+separate implementation GO. STOP before implementation or any new provider
+attempt. Blueprint, images, package work and publication remain unauthorized.

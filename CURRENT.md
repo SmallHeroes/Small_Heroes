@@ -1,5 +1,34 @@
 # SmallHeroes — Current Technical State
 
+## R3-B1b duplicate coverage-cardinality recovery — Decision Gate prepared; implementation pending
+
+Guy authorized a zero-cost Decision Gate only for the general post-repair
+duplicate coverage-cardinality failure. Codex investigated the shared compiler
+and prepared
+`docs/ai-workflow/R3B1B_POST_REPAIR_DUPLICATE_COVERAGE_CARDINALITY_DECISION_GATE.md`.
+
+The root cause is an admission gap, not a missing retry: the current compact
+repair may authorize a one-field `beatId` change without first proving that any
+legal value exists. In the captured P1 page-10 graph, both action beats were
+already covered, so every compact choice necessarily created a duplicate. The
+recommended general design admits compact repair only for one closed, provably
+legal assignment; otherwise a complete pure action/coverage-binding failure is
+routed to the existing bounded `full_draft` lane and revalidated. It does not
+delete, merge or deterministically relabel coverage.
+
+Because routing changes the expected repair sequence, the Gate also requires a
+versioned cutover and exact offline preservation of the independently reviewed
+v55 request / v58 receipt / v55 readiness replay. Standard call ceilings,
+cleanup eligibility, no-fallback/no-transport-retry policy, source and identity
+authority and the 0.70 resemblance threshold remain unchanged.
+
+This planning milestone changes no code and spends USD 0. Implementation, P1
+retry/provider use, Blueprint, images, Boards/props, package, locator, render,
+narration, publication and deployment remain unauthorized. The next owner
+decision is Guy's explicit GO or rejection of the prepared implementation
+package; an approved implementation should stop after a local green commit and
+Claude Code handoff.
+
 ## R3-B1b P1-A1 exact-source Visual Contract — failed-closed execution independently passed; no candidate
 
 Guy authorized P1-A1 only for `dragon_dini_adventure` revision
@@ -33,9 +62,9 @@ congruence check true.
 
 P1 therefore remains 17/18-contained and package-ineligible. No Blueprint,
 image, Board/prop, package, locator, render, narration, publication or
-deployment occurred. No retry is authorized. The next safe step is a zero-cost
-Decision Gate for the general post-repair coverage-cardinality recovery gap;
-any implementation and any new paid P1-A1 attempt require separate approval.
+deployment occurred. No retry is authorized. The zero-cost Decision Gate for
+the general post-repair coverage-cardinality recovery gap is now prepared;
+implementation and any new paid P1-A1 attempt require separate approval.
 Exact evidence is in
 `docs/ai-workflow/R3B1B_P1_A1_VISUAL_CONTRACT_AUTHORING_EXECUTION_EVIDENCE.md`.
 
@@ -52,8 +81,8 @@ Claude's focused rerun reproduced 5/5 files and 114/114 passed assertions, but
 its Vitest process exited 1 after the summary with no failing test or error
 output; Claude did not count that exit as PASS. Codex's separate matching run
 returned exit 0. The execution PASS validates the recorded HOLD; it does not
-create a candidate or authorize correction/retry. The zero-cost recovery-path
-Decision Gate remains the next proposed owner decision.
+create a candidate or authorize correction/retry. The prepared recovery-path
+Decision Gate is the next proposed owner decision.
 
 ## R3-B1b P1 exact-source package prerequisite audit — independently passed; P1-A1 later executed
 
