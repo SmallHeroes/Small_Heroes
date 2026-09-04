@@ -137,9 +137,9 @@ required.
 
 ## 10. Review assignment
 
-Guy has no unresolved product choice inside this preparation. After independent
-technical PASS he must still confirm or reject each exact revision digest and
-choose publication/package sequencing.
+Guy has no unresolved product choice inside this preparation. Independent
+technical PASS is now complete; he must still confirm or reject each exact
+revision digest and choose publication/package sequencing.
 
 Claude Code must falsify reviewer/range/finding counts, batch/product/record/
 revision identity, canonical digest, uniqueness, completeness, replay, absence
@@ -155,9 +155,18 @@ read-only and returned **PASS with no P0/P1 and one P2**. All six envelope
 contracts, identities, canonical bytes, tests, readiness and zero-effect claims
 were independently verified. The P2 found that new `CURRENT.md` prose said
 `Guy pushed` without distinguishing the user's report from Git's parity proof.
-That wording is corrected without changing any envelope. The correction must
-receive a focused independent re-gate before the six revision digests return to
-Guy.
+That wording was corrected without changing any envelope. At that point the
+correction still required a focused independent re-gate before the six revision
+digests could return to Guy.
+
+Claude Code then independently re-gated exact correction range
+`d2e7392d10620bb4d78f9ffb7fd8de87346fcabf..eee1356e3e5a40bfccce4027eb90c8e356a9f85b`
+read-only and returned **PASS with no P0/P1/P2**. The prior P2 is closed and all
+six envelope bytes remain unchanged. The envelope milestone is technically
+passed on everything tested, but this grants no product acceptance,
+publication, package, render or other downstream authority. The next gate is
+Guy's explicit confirmation or rejection of the six exact revision digests and
+his separate publication/package sequencing decision.
 
 ## 12. Do not do
 

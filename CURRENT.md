@@ -1,6 +1,6 @@
 # SmallHeroes — Current Technical State
 
-## R3-B1b accepted-intent wave 2 — envelope QA PASS with one P2; correction re-gate pending
+## R3-B1b accepted-intent wave 2 — technical-review envelopes independently passed; awaiting Guy digest confirmation
 
 After wave-2 preparation independently passed, Guy reported that he pushed the
 branch; Git then verified exact 0/0 parity at `f5fc5fb3`. Codex prepared the six
@@ -34,10 +34,14 @@ section; it is corrected above by separating Guy's report from Git's parity
 proof. No envelope or lifecycle defect was found. The clarification that the
 wave's 10 `שם` items span four stories is also recorded in the evidence.
 
-The documentation correction now requires a focused independent re-gate. Only
-after it passes may the six exact revision digests return to Guy for final
-confirmation and a separate publication/package sequencing decision. P6 and
-all HOLD/D records remain on their separate gates.
+Claude Code independently re-gated exact correction range
+`d2e7392d10620bb4d78f9ffb7fd8de87346fcabf..eee1356e3e5a40bfccce4027eb90c8e356a9f85b`
+read-only and returned **PASS with no P0/P1/P2**. The prior attribution P2 is
+closed, all six envelope bytes remain unchanged, and the envelope milestone is
+technically passed on everything tested. Guy must now explicitly confirm or
+reject each exact revision digest and choose publication/package sequencing.
+No product acceptance or downstream authority is inferred. P6 and all HOLD/D
+records remain on their separate gates.
 
 ## R3-B1b accepted-intent wave 2 — preparation independently passed
 

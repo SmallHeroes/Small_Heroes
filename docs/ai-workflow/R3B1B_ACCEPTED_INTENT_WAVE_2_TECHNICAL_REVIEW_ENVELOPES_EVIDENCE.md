@@ -28,8 +28,9 @@ everything tested. The later `f5fc5fb3` documentation closeout is not claimed
 as part of Claude's reviewed range.
 
 No Guy product-acceptance receipt or canonical publication was created. The
-envelopes themselves still require independent artifact QA before the six exact
-revision digests return to Guy.
+envelopes and their focused documentation correction have now passed
+independent artifact QA, so the six exact revision digests return to Guy for
+explicit confirmation or rejection.
 
 ## Exact envelope matrix
 
@@ -107,7 +108,14 @@ digest/state and zero effects. It found no envelope or lifecycle defect.
 
 The P2 was a repeated unqualified `Guy pushed` attribution in `CURRENT.md`.
 That sentence now states separately that Guy reported the push and Git verified
-the exact parity. This correction still requires a focused independent re-gate.
+the exact parity.
+
+Claude Code independently re-gated exact correction range
+`d2e7392d10620bb4d78f9ffb7fd8de87346fcabf..eee1356e3e5a40bfccce4027eb90c8e356a9f85b`
+read-only and returned **PASS with no P0/P1/P2**. It confirmed the exact
+four-document scope, closed the prior attribution P2, and verified that all six
+envelopes remain byte-identical. The envelope milestone is technically passed
+on everything tested.
 
 ## Effects and exclusions
 
@@ -126,7 +134,6 @@ remain excluded.
 
 ## Next gate
 
-Claude Code independently re-gates the focused documentation correction. After
-PASS, Guy must explicitly confirm or reject each exact revision digest and
-choose publication/package sequencing. No product acceptance or publication
-may be inferred from these review files.
+Guy must explicitly confirm or reject each exact revision digest and choose
+publication/package sequencing. No product acceptance or publication may be
+inferred from these review files.
