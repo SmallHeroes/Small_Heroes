@@ -19,15 +19,24 @@ delete, merge or deterministically relabel coverage.
 Because routing changes the expected repair sequence, the Gate also requires a
 versioned cutover and exact offline preservation of the independently reviewed
 v55 request / v58 receipt / v55 readiness replay. Standard call ceilings,
-cleanup eligibility, no-fallback/no-transport-retry policy, source and identity
-authority and the 0.70 resemblance threshold remain unchanged.
+no-fallback/no-transport-retry policy, source and identity authority and the
+0.70 resemblance threshold remain unchanged.
+
+Claude Code independently reviewed `11d4ff0a..3924ad62` and returned **PASS with
+no P0/P1 and one P2**. The P2 correctly identified that the first Gate's
+“cleanup eligibility unchanged” claim was too broad: `full_draft` is already an
+eligible cleanup predecessor while `page_contract_patch` is not. The corrected
+Gate records that predecessor change and adds a new route-specific restriction:
+cardinality-escalated full drafts cannot unlock terminal cleanup, while ordinary
+existing full-draft/book-surface cleanup behavior remains unchanged. Correction
+re-gate is pending.
 
 This planning milestone changes no code and spends USD 0. Implementation, P1
 retry/provider use, Blueprint, images, Boards/props, package, locator, render,
 narration, publication and deployment remain unauthorized. The next owner
-decision is Guy's explicit GO or rejection of the prepared implementation
-package; an approved implementation should stop after a local green commit and
-Claude Code handoff.
+decision after correction re-gate is Guy's explicit GO or rejection of the
+prepared implementation package; an approved implementation should stop after
+a local green commit and Claude Code handoff.
 
 ## R3-B1b P1-A1 exact-source Visual Contract — failed-closed execution independently passed; no candidate
 

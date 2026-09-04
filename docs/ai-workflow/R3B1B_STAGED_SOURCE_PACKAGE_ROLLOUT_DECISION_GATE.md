@@ -40,6 +40,13 @@ when no legal compact solution exists and a versioned cutover preserving the
 reviewed historical replay. It changes no code and does not authorize a retry,
 provider call or downstream stage.
 
+Claude Code's first Gate review returned PASS with no P0/P1 and one P2: moving
+from `page_contract_patch` to `full_draft` changes the cleanup-predecessor
+surface even though cardinality diagnostics do not satisfy the separate
+reference-only residual gate. The corrected Gate makes this explicit and adds
+a new route-specific exclusion so cardinality-escalated full drafts cannot
+unlock cleanup. Independent correction re-gate is pending.
+
 ## 1. Proposed change
 
 Use one fail-closed staged rollout rather than bulk source publication:
@@ -318,6 +325,7 @@ this gate.
 The staged route records Guy's sequencing intent and the zero-cost P1
 prerequisite audit is complete. Guy granted P1-A1, but the bounded execution
 failed closed after two calls and produced no candidate. The zero-cost general
-recovery-path Decision Gate is prepared; the next proposed authority is Guy's
-separate implementation GO. STOP before implementation or any new provider
-attempt. Blueprint, images, package work and publication remain unauthorized.
+recovery-path Decision Gate correction is prepared; independent re-gate comes
+before Guy's separate implementation GO. STOP before implementation or any new
+provider attempt. Blueprint, images, package work and publication remain
+unauthorized.
