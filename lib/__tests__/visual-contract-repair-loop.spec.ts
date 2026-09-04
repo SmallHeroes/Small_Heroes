@@ -16,6 +16,7 @@ import {
   buildTemplateRepairSystemPrompt,
   buildTemplateRepairUserPrompt,
   decodeTemplateRepairUserPrompt,
+  DraftAuthorityReferenceDomainError,
   TEMPLATE_REPAIR_ISSUES_MARKER,
   SourceEvidenceIdValidationError,
   TemplateRepairExhaustedError,
@@ -34,8 +35,11 @@ import {
   TEMPLATE_DRAFT_SCHEMA_NAME,
 } from '../visual-contract-compiler/templateDraftSchema';
 import {
+  PAGE_CONTRACT_REPAIR_LEGACY_PROMPT_VERSION,
+  PAGE_CONTRACT_REPAIR_LEGACY_USER_PROMPT_VERSION,
   PAGE_CONTRACT_REPAIR_PROMPT_VERSION,
   PAGE_CONTRACT_REPAIR_SCHEMA_NAME,
+  PAGE_CONTRACT_REPAIR_USER_PROMPT_VERSION,
   PAGE_SPATIAL_REFERENCE_REPAIR_PROMPT_VERSION,
   decodePageContractRepairUserPrompt,
   parsePageContractRepairs,
@@ -57,7 +61,9 @@ import type {
   PresentationRequirementRepairTarget,
 } from '../visual-contract-compiler/presentationRequirementRepair';
 import {
+  LEGACY_VISUAL_CONTRACT_AUTHORING_ROUTING_POLICY_VERSION,
   VISUAL_CONTRACT_AUTHORING_MAX_INPUT_TOKENS,
+  VISUAL_CONTRACT_AUTHORING_CARDINALITY_ESCALATION_PROVENANCE,
   VISUAL_CONTRACT_AUTHORING_ROUTE_SAFETY_MARGIN,
   terminalReferenceCleanupPredecessorIsEligible,
   visualContractAuthoringInputAccounting,
@@ -228,6 +234,154 @@ const withEmptyMaterialVariant = (variant: number): any => {
   draft.recurringProps[0].description = `${draft.recurringProps[0].description} Variant ${variant}.`;
   return draft;
 };
+
+// Captures the post-repair duplicate shape: every authored action still has
+// coverage, but one beat has two coverage rows and therefore no compact target.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const zeroUncoveredDuplicateCoverageFixture = (): {
+  valid: any;
+  invalid: any;
+} => {
+  const valid = bunnyDraft();
+  const validPage = valid.pageContracts[0];
+  const beatId = validPage.actionSemanticCoverage[0].beatId;
+  validPage.actionRequirements = [
+    {
+      beatId,
+      subject: {
+        kind: 'entity',
+        entity: { kind: 'cast', id: 'child:hero' },
+      },
+      predicate: 'looks_at',
+      object: null,
+      spatialEffect: null,
+      spatialConstraint: null,
+      polarity: 'must',
+      laterality: null,
+    },
+  ];
+  validPage.actionSemanticCoverage[0].disposition = {
+    kind: 'action_requirement',
+  };
+  validPage.mustShow = [
+    ...new Set([
+      ...validPage.mustShow,
+      ...projectPageMustShow(validPage, valid),
+    ]),
+  ];
+  const invalid = structuredClone(valid);
+  const invalidPage = invalid.pageContracts[0];
+  invalidPage.actionSemanticCoverage.push(
+    structuredClone(invalidPage.actionSemanticCoverage[0]),
+  );
+  return { valid, invalid };
+};
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const uniqueNonActionCoverageFixture = (): {
+  invalid: any;
+  repairedPage: any;
+} => {
+  const { valid } = zeroUncoveredDuplicateCoverageFixture();
+  const invalid = structuredClone(valid);
+  invalid.pageContracts[0].actionSemanticCoverage[0].disposition = {
+    kind: 'non_visual',
+    rationale: 'narrative_context',
+  };
+  const repairedPage = structuredClone(valid.pageContracts[0]);
+  delete repairedPage.castIds;
+  delete repairedPage.castStates;
+  delete repairedPage.characterPresence;
+  repairedPage.propConstraints ??= [];
+  expect(() =>
+    parsePageContractRepairs(
+      JSON.stringify({ pageContracts: [repairedPage] }),
+    ),
+  ).not.toThrow();
+  return { invalid, repairedPage };
+};
+
+// Keeps a broad complete frontier larger than the later duplicate graph while
+// changing only non-diagnostic prose between attempts.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const broadFullDraftVariant = (variant: number): any => {
+  const draft = bunnyDraft();
+  for (const prop of draft.recurringProps) {
+    prop.name = '';
+    prop.description = '';
+    prop.material = '';
+  }
+  draft.coverContract.title = `${draft.coverContract.title} Variant ${variant}.`;
+  return draft;
+};
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const referenceOnlyBunnyDraft = (): any => {
+  const draft = bunnyDraft();
+  ensureBookSurfacePageShape(draft);
+  const page = draft.pageContracts[0];
+  const zone = draft.zones.find(
+    (candidate: { id: string }) => candidate.id === page.zoneId,
+  );
+  if (!zone) throw new Error('missing reference-only page zone');
+  zone.spatialNodes = [
+    {
+      id: 'waiting_chair',
+      kind: 'furniture',
+      description: 'the stable waiting-room chair',
+      bindsTo: null,
+    },
+  ];
+  zone.spatialRelations = [];
+  const beatId = page.actionSemanticCoverage[0].beatId;
+  page.actionRequirements = [
+    {
+      beatId,
+      subject: {
+        kind: 'entity',
+        entity: { kind: 'cast', id: 'child:hero' },
+      },
+      predicate: 'looks_at',
+      object: {
+        kind: 'spatial',
+        id: 'outside_current_page_zone',
+      },
+      spatialEffect: null,
+      spatialConstraint: null,
+      polarity: 'must',
+      laterality: null,
+    },
+  ];
+  page.actionSemanticCoverage[0].disposition = {
+    kind: 'action_requirement',
+  };
+  page.mustShow = [
+    ...new Set([
+      ...page.mustShow,
+      ...projectPageMustShow(page, draft),
+    ]),
+  ];
+  return draft;
+};
+
+function pageSpatialPatchResponse(user: string): Record<string, unknown> {
+  const payload = JSON.parse(user) as {
+    targets: Array<{
+      pageNumber: number;
+      actionIndex: number;
+      fieldRole: string;
+      permittedSpatialReferences: Array<{ id: string }>;
+    }>;
+  };
+  return {
+    patches: payload.targets.map((target) => ({
+      pageNumber: target.pageNumber,
+      actionIndex: target.actionIndex,
+      fieldRole: target.fieldRole,
+      spatialReferenceId: target.permittedSpatialReferences[0]!.id,
+    })),
+  };
+}
 
 /** A caller that returns a fixed SEQUENCE of drafts (clamped to the last) and records every prompt it received. */
 function recordingCaller(drafts: unknown[]): { caller: ContractLlmCaller; prompts: Array<{ system: string; user: string; options: Parameters<ContractLlmCaller>[2]; authority: Parameters<ContractLlmCaller>[3] }>; calls: () => number } {
@@ -434,51 +588,30 @@ describe('Stage 3 — bounded repair loop', () => {
     ).toBe(true);
   });
 
-  it('routes action coverage cardinality through one complete-page repair', async () => {
-    const valid = bunnyDraft();
-    const validPage = valid.pageContracts[0];
-    const actionIndex = 0;
-    const beatId = validPage.actionSemanticCoverage[0].beatId;
-    validPage.actionRequirements = [
-      {
-        beatId,
-        subject: {
-          kind: 'entity',
-          entity: { kind: 'cast', id: 'child:hero' },
-        },
-        predicate: 'looks_at',
-        object: null,
-        spatialEffect: null,
-        spatialConstraint: null,
-        polarity: 'must',
-        laterality: null,
-      },
-    ];
-    validPage.actionSemanticCoverage[0].disposition = {
-      kind: 'action_requirement',
-    };
-    validPage.mustShow = [
-      ...new Set([
-        ...validPage.mustShow,
-        ...projectPageMustShow(validPage, valid),
-      ]),
-    ];
-    const invalid = structuredClone(valid);
+  it('routes the zero-uncovered complete duplicate graph through one provenance-bound full_draft and accepts a valid response', async () => {
+    const { valid, invalid } =
+      zeroUncoveredDuplicateCoverageFixture();
     const invalidPage = invalid.pageContracts[0];
-    const invalidCoverage = invalidPage.actionSemanticCoverage[0];
-    invalidCoverage.disposition = {
-      kind: 'non_visual',
-      rationale: 'narrative_context',
-    };
-    const repairedPage = structuredClone(validPage);
-    delete repairedPage.castIds;
-    delete repairedPage.characterPresence;
-    repairedPage.propConstraints ??= [];
-    expect(() =>
-      parsePageContractRepairs(
-        JSON.stringify({ pageContracts: [repairedPage] }),
+    expect(
+      invalidPage.actionRequirements.filter(
+        (action: { beatId: string }) =>
+          !invalidPage.actionSemanticCoverage.some(
+            (coverage: {
+              beatId: string;
+              disposition: { kind: string };
+            }) =>
+              coverage.beatId === action.beatId &&
+              coverage.disposition.kind === 'action_requirement',
+          ),
       ),
-    ).not.toThrow();
+    ).toEqual([]);
+    expect(
+      invalidPage.actionSemanticCoverage.filter(
+        (coverage: { beatId: string }) =>
+          coverage.beatId ===
+          invalidPage.actionRequirements[0].beatId,
+      ),
+    ).toHaveLength(2);
     const calls: Array<{
       user: string;
       authority: Parameters<ContractLlmCaller>[3];
@@ -492,7 +625,7 @@ describe('Stage 3 — bounded repair loop', () => {
       calls.push({ user, authority });
       return calls.length === 1
         ? JSON.stringify(invalid)
-        : JSON.stringify({ pageContracts: [repairedPage] });
+        : JSON.stringify(valid);
     };
 
     const result = await compileBookVisualContractTemplate(
@@ -503,32 +636,231 @@ describe('Stage 3 — bounded repair loop', () => {
     expect(calls).toHaveLength(2);
     expect(calls[1]!.authority).toMatchObject({
       kind: 'repair',
-      repairMode: 'page_contract_patch',
-      systemPromptVersion: PAGE_CONTRACT_REPAIR_PROMPT_VERSION,
-      userPromptVersion: 'page-contract-repair-user-prompt/v13',
+      repairMode: 'full_draft',
+      routeProvenance:
+        VISUAL_CONTRACT_AUTHORING_CARDINALITY_ESCALATION_PROVENANCE,
     });
-    const payload = decodePageContractRepairUserPrompt(
-      calls[1]!.user,
+    const payload = decodeTemplateRepairUserPrompt(calls[1]!.user);
+    expect(payload.validationIssues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          family: 'action_semantic',
+          code: 'action_binding_cardinality_invalid',
+        }),
+        expect.objectContaining({
+          family: 'action_semantic',
+          code: 'beat_identity_duplicate',
+        }),
+      ]),
     );
-    expect(payload.affectedPages).toMatchObject([
-      {
-        pageNumber: invalidPage.pageNumber,
-        repairTargets: [
-          {
-            family: 'action_semantic',
-            code: 'action_coverage_cardinality_invalid',
-            pageNumber: invalidPage.pageNumber,
-            actionIndex,
-          },
-        ],
-        permittedPointerValues: [],
-      },
-    ]);
     expect(result.provenance.attempt).toBe(2);
-    expect(result.repairAttempts[0]?.nextRepairMode).toBe(
-      'page_contract_patch',
-    );
+    expect(result.repairAttempts[0]).toMatchObject({
+      nextRepairMode: 'full_draft',
+      routeProvenance:
+        VISUAL_CONTRACT_AUTHORING_CARDINALITY_ESCALATION_PROVENANCE,
+    });
   });
+
+  it('keeps an invalid cardinality-escalated full_draft response terminal with no candidate', async () => {
+    const { invalid } = zeroUncoveredDuplicateCoverageFixture();
+    const calls: Array<{
+      user: string;
+      authority: Parameters<ContractLlmCaller>[3];
+    }> = [];
+    const caller: ContractLlmCaller = async (
+      _system,
+      user,
+      _options,
+      authority,
+    ) => {
+      calls.push({ user, authority });
+      return JSON.stringify(invalid);
+    };
+
+    let thrown: unknown;
+    try {
+      await compileBookVisualContractTemplate(bunnySource(), {
+        callLLM: caller,
+      });
+    } catch (error) {
+      thrown = error;
+    }
+
+    expect(calls).toHaveLength(2);
+    expect(thrown).toBeInstanceOf(TemplateRepairStagnationError);
+    expect(calls[1]!.authority).toMatchObject({
+      kind: 'repair',
+      repairMode: 'full_draft',
+      routeProvenance:
+        VISUAL_CONTRACT_AUTHORING_CARDINALITY_ESCALATION_PROVENANCE,
+    });
+    expect(
+      (thrown as TemplateRepairStagnationError).attempts[0],
+    ).toMatchObject({
+      nextRepairMode: 'full_draft',
+      routeProvenance:
+        VISUAL_CONTRACT_AUTHORING_CARDINALITY_ESCALATION_PROVENANCE,
+    });
+  });
+
+  it('does not dispatch call 8 when call 7 leaves a reference-only residual after cardinality escalation', async () => {
+    const { invalid: cardinalityInvalid } =
+      zeroUncoveredDuplicateCoverageFixture();
+    const referenceOnly = referenceOnlyBunnyDraft();
+    const responses = [
+      broadFullDraftVariant(1),
+      broadFullDraftVariant(2),
+      broadFullDraftVariant(3),
+      broadFullDraftVariant(4),
+      broadFullDraftVariant(5),
+      cardinalityInvalid,
+      referenceOnly,
+    ];
+    const calls: Array<{
+      authority: Parameters<ContractLlmCaller>[3];
+    }> = [];
+    const caller: ContractLlmCaller = async (
+      _system,
+      _user,
+      _options,
+      authority,
+    ) => {
+      calls.push({ authority });
+      return JSON.stringify(responses[calls.length - 1]);
+    };
+
+    let thrown: unknown;
+    try {
+      await compileBookVisualContractTemplate(bunnySource(), {
+        callLLM: caller,
+      });
+    } catch (error) {
+      thrown = error;
+    }
+
+    expect(thrown).toBeInstanceOf(TemplateRepairExhaustedError);
+    expect(calls).toHaveLength(7);
+    expect(calls[6]!.authority).toMatchObject({
+      kind: 'repair',
+      budgetClass: 'standard',
+      repairMode: 'full_draft',
+      routeProvenance:
+        VISUAL_CONTRACT_AUTHORING_CARDINALITY_ESCALATION_PROVENANCE,
+    });
+    expect(
+      (thrown as TemplateRepairExhaustedError).attempts[5],
+    ).toMatchObject({
+      nextRepairMode: 'full_draft',
+      routeProvenance:
+        VISUAL_CONTRACT_AUTHORING_CARDINALITY_ESCALATION_PROVENANCE,
+    });
+    expect(
+      (thrown as TemplateRepairExhaustedError).attempts[6],
+    ).not.toHaveProperty('nextRepairMode');
+  });
+
+  it('keeps a cross-page beat-identity defect outside cardinality escalation', async () => {
+    const { invalid } = zeroUncoveredDuplicateCoverageFixture();
+    invalid.pageContracts[1].actionSemanticCoverage[0].beatId =
+      invalid.pageContracts[0].actionSemanticCoverage[0].beatId;
+    const calls: Parameters<ContractLlmCaller>[3][] = [];
+    const caller: ContractLlmCaller = async (
+      _system,
+      _user,
+      _options,
+      authority,
+    ) => {
+      calls.push(authority);
+      return JSON.stringify(invalid);
+    };
+
+    await expect(
+      compileBookVisualContractTemplate(bunnySource(), {
+        callLLM: caller,
+      }),
+    ).rejects.toBeInstanceOf(DraftAuthorityReferenceDomainError);
+    expect(calls).toHaveLength(1);
+  });
+
+  it.each([
+    [
+      'current v2',
+      undefined,
+      PAGE_CONTRACT_REPAIR_PROMPT_VERSION,
+      PAGE_CONTRACT_REPAIR_USER_PROMPT_VERSION,
+    ],
+    [
+      'legacy v1',
+      LEGACY_VISUAL_CONTRACT_AUTHORING_ROUTING_POLICY_VERSION,
+      PAGE_CONTRACT_REPAIR_LEGACY_PROMPT_VERSION,
+      PAGE_CONTRACT_REPAIR_LEGACY_USER_PROMPT_VERSION,
+    ],
+  ] as const)(
+    'keeps the closed unique non-action coverage target on the %s compact route',
+    async (
+      _label,
+      routingPolicyVersion,
+      systemPromptVersion,
+      userPromptVersion,
+    ) => {
+      const { invalid, repairedPage } =
+        uniqueNonActionCoverageFixture();
+      const calls: Array<{
+        user: string;
+        authority: Parameters<ContractLlmCaller>[3];
+      }> = [];
+      const caller: ContractLlmCaller = async (
+        _system,
+        user,
+        _options,
+        authority,
+      ) => {
+        calls.push({ user, authority });
+        return calls.length === 1
+          ? JSON.stringify(invalid)
+          : JSON.stringify({ pageContracts: [repairedPage] });
+      };
+
+      const result = await compileBookVisualContractTemplate(
+        bunnySource(),
+        {
+          callLLM: caller,
+          ...(routingPolicyVersion
+            ? { routingPolicyVersion }
+            : {}),
+        },
+      );
+
+      expect(calls).toHaveLength(2);
+      expect(calls[1]!.authority).toMatchObject({
+        kind: 'repair',
+        repairMode: 'page_contract_patch',
+        systemPromptVersion,
+        userPromptVersion,
+      });
+      expect(calls[1]!.authority).not.toHaveProperty(
+        'routeProvenance',
+      );
+      const payload = decodePageContractRepairUserPrompt(
+        calls[1]!.user,
+      );
+      expect(payload.affectedPages).toHaveLength(1);
+      expect(payload.affectedPages[0]!.repairTargets).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            code: 'action_coverage_cardinality_invalid',
+          }),
+        ]),
+      );
+      expect(result.provenance.attempt).toBe(2);
+      expect(result.repairAttempts[0]).toMatchObject({
+        nextRepairMode: 'page_contract_patch',
+      });
+      expect(result.repairAttempts[0]).not.toHaveProperty(
+        'routeProvenance',
+      );
+    },
+  );
 
   it('two invalid drafts are repaired and pass on attempt 3 within the 3-repair budget', async () => {
     const { caller, prompts, calls } = recordingCaller([
@@ -1248,6 +1580,111 @@ describe('page-contract compact repair routing', () => {
         terminalReferenceCleanupPredecessorIsEligible(mode),
       ).toBe(false);
     }
+  });
+
+  it('preserves the real BookSurface-to-terminal-reference-cleanup scheduler path', async () => {
+    const referenceOnly = referenceOnlyBunnyDraft();
+    const mixedBookSurface = structuredClone(referenceOnly);
+    mixedBookSurface.coverContract.mustShow = [''];
+    mixedBookSurface.pageContracts[1].camera = '';
+    const responses = [
+      broadFullDraftVariant(1),
+      broadFullDraftVariant(2),
+      broadFullDraftVariant(3),
+      broadFullDraftVariant(4),
+      broadFullDraftVariant(5),
+      mixedBookSurface,
+    ];
+    const calls: Array<{
+      user: string;
+      authority: Parameters<ContractLlmCaller>[3];
+      options: Parameters<ContractLlmCaller>[2];
+    }> = [];
+    const caller: ContractLlmCaller = async (
+      _system,
+      user,
+      options,
+      authority,
+    ) => {
+      calls.push({ user, authority, options });
+      if (calls.length <= responses.length) {
+        return JSON.stringify(responses[calls.length - 1]);
+      }
+      if (
+        authority?.kind === 'repair' &&
+        authority.repairMode === 'book_surface_patch'
+      ) {
+        const payload = decodeBookSurfaceRepairUserPrompt(user);
+        const affectedPages = payload.affectedPages as Array<{
+          pageNumber: number;
+          pageStructuralProjection: Record<string, unknown>;
+        }>;
+        const coverAuthority = payload.coverAuthority as
+          | { coverContract: Record<string, unknown> }
+          | null;
+        const repairedPages = affectedPages.map((affectedPage) => {
+          const repaired = structuredClone(
+            affectedPage.pageStructuralProjection,
+          );
+          if (affectedPage.pageNumber === 2) {
+            repaired.camera = referenceOnly.pageContracts[1].camera;
+          }
+          return repaired;
+        });
+        return JSON.stringify(
+          bookSurfaceV7Response({
+            payload,
+            coverContract: {
+              ...structuredClone(
+                coverAuthority?.coverContract ?? {},
+              ),
+              mustShow: structuredClone(
+                referenceOnly.coverContract.mustShow,
+              ),
+            },
+            recurringProps: null,
+            repairedPages,
+          }),
+        );
+      }
+      return JSON.stringify(pageSpatialPatchResponse(user));
+    };
+
+    const result = await compileBookVisualContractTemplate(
+      bunnySource(),
+      { callLLM: caller },
+    );
+
+    expect(calls).toHaveLength(8);
+    expect(calls[6]!.authority).toMatchObject({
+      kind: 'repair',
+      budgetClass: 'standard',
+      repairMode: 'book_surface_patch',
+    });
+    expect(calls[6]!.authority).not.toHaveProperty(
+      'routeProvenance',
+    );
+    expect(calls[7]!.authority).toMatchObject({
+      kind: 'repair',
+      budgetClass: 'terminal_reference_cleanup',
+      repairMode: 'page_spatial_reference_patch',
+    });
+    expect(result.provenance.attempt).toBe(8);
+    expect(result.repairAttempts.slice(-2)).toMatchObject([
+      {
+        nextRepairMode: 'book_surface_patch',
+        nextRepairBudgetClass: 'standard',
+      },
+      {
+        nextRepairMode: 'page_spatial_reference_patch',
+        nextRepairBudgetClass: 'terminal_reference_cleanup',
+      },
+    ]);
+    expect(
+      result.repairAttempts.slice(-2).every(
+        (attempt) => attempt.routeProvenance === undefined,
+      ),
+    ).toBe(true);
   });
 
   it('keeps a live-shaped mixed frontier terminal when its presentation gap lacks reviewed authority', async () => {

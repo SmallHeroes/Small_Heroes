@@ -47,13 +47,13 @@ import {
 } from './openaiResponsesStructuredOutputSchemaCompatibility';
 
 export const LIVE_REQUEST_MATERIALIZATION_INPUT_VERSION =
-  'canonical-live-request-materialization-input/v43' as const;
+  'canonical-live-request-materialization-input/v44' as const;
 export const STORY_SOURCE_AUTHORITY_REQUEST_ARTIFACT_VERSION =
   'story-source-authority-request/v1' as const;
 export const LIVE_REQUEST_MATERIALIZATION_MANIFEST_VERSION =
-  'canonical-live-request-materialization/v53' as const;
+  'canonical-live-request-materialization/v54' as const;
 export const CANONICAL_LIVE_REQUEST_VERIFICATION_VERSION =
-  'canonical-live-request-verification/v53' as const;
+  'canonical-live-request-verification/v54' as const;
 
 const DIGEST_PATTERN = /^[a-f0-9]{64}$/;
 const IDENTIFIER_PATTERN =

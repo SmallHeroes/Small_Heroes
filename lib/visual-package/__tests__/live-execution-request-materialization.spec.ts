@@ -360,12 +360,12 @@ describe('canonical live execution request materialization', () => {
     expect(
       CANONICAL_LIVE_EXECUTION_REQUEST_MATERIALIZATION_INPUT_VERSION,
     ).toBe(
-      'canonical-live-execution-request-materialization-input/v40',
+      'canonical-live-execution-request-materialization-input/v41',
     );
     expect(
       CANONICAL_LIVE_EXECUTION_REQUEST_MATERIALIZATION_RESULT_VERSION,
     ).toBe(
-      'canonical-live-execution-request-materialization-result/v45',
+      'canonical-live-execution-request-materialization-result/v46',
     );
     expect(result).toMatchObject({
       version:
@@ -449,7 +449,7 @@ describe('canonical live execution request materialization', () => {
       manifestPath: fixture.manifestPath,
       manifestDigest: fixture.manifestDigest,
       verificationVersion:
-        'canonical-live-request-verification/v53',
+        'canonical-live-request-verification/v54',
       structuredOutputCompatibility:
         manifest.structuredOutputCompatibility,
       compactRepairStructuredOutputCompatibility:

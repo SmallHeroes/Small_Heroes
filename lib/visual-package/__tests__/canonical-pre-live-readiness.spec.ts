@@ -501,7 +501,7 @@ describe('canonical pre-live readiness orchestrator', () => {
     const result = prepare(fixture);
 
     expect(CANONICAL_PRE_LIVE_READINESS_EVIDENCE_VERSION).toBe(
-      'canonical-pre-live-readiness-evidence/v50',
+      'canonical-pre-live-readiness-evidence/v51',
     );
     expect(result, JSON.stringify(result, null, 2)).toMatchObject({
       version:
@@ -532,7 +532,7 @@ describe('canonical pre-live readiness orchestrator', () => {
       canonicalAuthorities: {
         b0: {
           verificationVersion:
-            'canonical-live-request-verification/v53',
+            'canonical-live-request-verification/v54',
           structuredOutputCompatibility: {
             schemaName: 'BookVisualContractTemplateDraft',
             schemaVersion: 'vc-draft-schema/v21',
@@ -575,7 +575,7 @@ describe('canonical pre-live readiness orchestrator', () => {
         },
         supervisorVerification: {
           version:
-            'canonical-live-execution-readiness/v50',
+            'canonical-live-execution-readiness/v51',
         },
       },
     });

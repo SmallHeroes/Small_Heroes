@@ -313,6 +313,7 @@ function authoringRequestValue(
   return {
     version: object.version,
     policyVersion: object.policyVersion,
+    routingPolicyVersion: object.routingPolicyVersion,
     mode: object.mode,
     requestId: object.requestId,
     requestedAt: object.requestedAt,
@@ -689,6 +690,7 @@ function authoringRequestValue(
 const REQUEST_KEYS = new Set([
   'version',
   'policyVersion',
+  'routingPolicyVersion',
   'mode',
   'requestId',
   'requestedAt',
@@ -903,6 +905,7 @@ const REQUEST_NESTED_KEYS: Record<string, Set<string>> = {
 const REQUEST_TOP_LEVEL_FIELDS = {
   version: 'string',
   policyVersion: 'string',
+  routingPolicyVersion: 'string',
   mode: 'string',
   requestId: 'string',
   requestedAt: 'string',

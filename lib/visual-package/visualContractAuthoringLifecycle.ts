@@ -3,6 +3,7 @@ import path from 'path';
 import {
   VISUAL_CONTRACT_AUTHORING_ENDPOINT,
   VISUAL_CONTRACT_AUTHORING_HARD_COST_CEILING_USD,
+  LEGACY_VISUAL_CONTRACT_AUTHORING_POLICY_VERSION,
   VISUAL_CONTRACT_AUTHORING_MAX_CALLS,
   VISUAL_CONTRACT_AUTHORING_MAX_INPUT_TOKENS,
   VISUAL_CONTRACT_AUTHORING_MAX_PAGES_CURRENT_POLICY,
@@ -15,6 +16,8 @@ import {
   VISUAL_CONTRACT_AUTHORING_PROMPT_PROTOCOL_ALLOWANCE,
   VISUAL_CONTRACT_AUTHORING_PROVIDER,
   VISUAL_CONTRACT_AUTHORING_REASONING_EFFORT,
+  VISUAL_CONTRACT_AUTHORING_CARDINALITY_ESCALATION_PROVENANCE,
+  VISUAL_CONTRACT_AUTHORING_ROUTING_POLICY_VERSION,
   VISUAL_CONTRACT_AUTHORING_SERVICE_TIER,
   VISUAL_CONTRACT_AUTHORING_STANDARD_MAX_ADMISSIBLE_INPUT_BYTES,
   VISUAL_CONTRACT_AUTHORING_STANDARD_MAX_CALLS,
@@ -37,6 +40,7 @@ import {
   visualContractAuthoringInputAccounting,
   type VisualContractAuthoringStandardAttemptOutputLimits,
   type VisualContractAuthoringInputAccounting,
+  type VisualContractAuthoringRouteProvenance,
 } from '@/lib/visual-contract-compiler/authoringPolicy';
 import {
   buildTemplateRepairSystemPrompt,
@@ -90,6 +94,8 @@ import {
 } from '@/lib/visual-contract-compiler/sourceEvidenceIdRepair';
 import {
   PAGE_CONTRACT_REPAIR_JSON_SCHEMA,
+  PAGE_CONTRACT_REPAIR_LEGACY_PROMPT_VERSION,
+  PAGE_CONTRACT_REPAIR_LEGACY_USER_PROMPT_VERSION,
   PAGE_CONTRACT_REPAIR_PROMPT_VERSION,
   PAGE_CONTRACT_REPAIR_SCHEMA_NAME,
   PAGE_CONTRACT_REPAIR_SCHEMA_VERSION,
@@ -100,6 +106,7 @@ import {
   PAGE_SPATIAL_REFERENCE_REPAIR_SCHEMA_VERSION,
   PAGE_SPATIAL_REFERENCE_REPAIR_USER_PROMPT_VERSION,
   buildPageContractRepairSystemPrompt,
+  buildPageContractRepairSystemPromptLegacyV1,
   buildPageSpatialReferenceRepairSystemPrompt,
 } from '@/lib/visual-contract-compiler/pageContractRepair';
 import {
@@ -218,11 +225,11 @@ import {
 } from './openaiResponsesStructuredOutputSchemaCompatibility';
 
 export const VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION =
-  'visual-contract-authoring-request/v55' as const;
+  'visual-contract-authoring-request/v56' as const;
 export const VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION =
-  'visual-contract-authoring-receipt/v58' as const;
+  'visual-contract-authoring-receipt/v59' as const;
 export const VISUAL_CONTRACT_AUTHORING_READINESS_VERSION =
-  'visual-contract-authoring-readiness/v55' as const;
+  'visual-contract-authoring-readiness/v56' as const;
 export const VISUAL_CONTRACT_CANDIDATE_ARTIFACT_VERSION =
   'visual-contract-candidate-artifact/v9' as const;
 export const CANONICAL_IMPORT_PREFLIGHT_ATTESTATION_VERSION =
@@ -332,6 +339,8 @@ export const LEGACY_VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION_V53 =
   'visual-contract-authoring-request/v53' as const;
 export const LEGACY_VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION_V54 =
   'visual-contract-authoring-request/v54' as const;
+export const LEGACY_VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION_V55 =
+  'visual-contract-authoring-request/v55' as const;
 export const LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION =
   'visual-contract-authoring-receipt/v4' as const;
 export const LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION_V3 =
@@ -442,6 +451,8 @@ export const LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION_V56 =
   'visual-contract-authoring-receipt/v56' as const;
 export const LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION_V57 =
   'visual-contract-authoring-receipt/v57' as const;
+export const LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION_V58 =
+  'visual-contract-authoring-receipt/v58' as const;
 export const LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION =
   'visual-contract-authoring-readiness/v2' as const;
 export const LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION_V1 =
@@ -550,6 +561,8 @@ export const LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION_V53 =
   'visual-contract-authoring-readiness/v53' as const;
 export const LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION_V54 =
   'visual-contract-authoring-readiness/v54' as const;
+export const LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION_V55 =
+  'visual-contract-authoring-readiness/v55' as const;
 export const LEGACY_VISUAL_CONTRACT_CANDIDATE_ARTIFACT_VERSION =
   'visual-contract-candidate-artifact/v2' as const;
 export const LEGACY_VISUAL_CONTRACT_CANDIDATE_ARTIFACT_VERSION_V1 =
@@ -618,6 +631,8 @@ export interface VisualContractAuthoringRequest {
   version: typeof VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION;
   policyVersion:
     typeof VISUAL_CONTRACT_AUTHORING_POLICY_VERSION;
+  routingPolicyVersion:
+    typeof VISUAL_CONTRACT_AUTHORING_ROUTING_POLICY_VERSION;
   mode: 'preflight' | 'live';
   requestId: string;
   requestedAt: string;
@@ -932,6 +947,7 @@ export interface VisualContractAuthoringAttemptReceipt {
     | 'structural_bundle_patch'
     | 'book_surface_patch'
     | null;
+  routeProvenance: VisualContractAuthoringRouteProvenance | null;
   providerReached: boolean;
   status:
     | 'response_received'
@@ -1214,7 +1230,8 @@ export function visualContractAuthoringArtifactVersionStatus(
         version === LEGACY_VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION_V51 ||
         version === LEGACY_VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION_V52 ||
         version === LEGACY_VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION_V53 ||
-        version === LEGACY_VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION_V54
+        version === LEGACY_VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION_V54 ||
+        version === LEGACY_VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION_V55
       ? 'legacy_immutable'
       : 'unsupported';
   }
@@ -1275,6 +1292,7 @@ export function visualContractAuthoringArtifactVersionStatus(
       LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION_V55,
       LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION_V56,
       LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION_V57,
+      LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION_V58,
     ],
     readiness: [
       LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION,
@@ -1331,6 +1349,7 @@ export function visualContractAuthoringArtifactVersionStatus(
       LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION_V52,
       LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION_V53,
       LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION_V54,
+      LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION_V55,
     ],
     candidate: [
       LEGACY_VISUAL_CONTRACT_CANDIDATE_ARTIFACT_VERSION,
@@ -1720,6 +1739,8 @@ export function buildVisualContractAuthoringRequest(args: {
     version: VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION,
     policyVersion:
       VISUAL_CONTRACT_AUTHORING_POLICY_VERSION,
+    routingPolicyVersion:
+      VISUAL_CONTRACT_AUTHORING_ROUTING_POLICY_VERSION,
     mode: args.mode,
     requestId: args.requestId,
     requestedAt: args.requestedAt,
@@ -2082,12 +2103,62 @@ export function buildVisualContractAuthoringRequest(args: {
   };
 }
 
+function buildLegacyVisualContractAuthoringRequestV55(args: {
+  snapshot: StorySourceAuthoritySnapshot;
+  mode: 'preflight' | 'live';
+  requestId: string;
+  requestedAt: string;
+}): VisualContractAuthoringRequest {
+  const current = buildVisualContractAuthoringRequest(args);
+  const {
+    routingPolicyVersion: _routingPolicyVersion,
+    digestAlgorithm: _digestAlgorithm,
+    digest: _digest,
+    ...currentPayload
+  } = current;
+  const withoutDigest = {
+    ...currentPayload,
+    version:
+      LEGACY_VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION_V55,
+    policyVersion:
+      LEGACY_VISUAL_CONTRACT_AUTHORING_POLICY_VERSION,
+    promptAuthority: {
+      ...current.promptAuthority,
+      pageContractRepair: {
+        systemPromptVersion:
+          PAGE_CONTRACT_REPAIR_LEGACY_PROMPT_VERSION,
+        userPromptVersion:
+          PAGE_CONTRACT_REPAIR_LEGACY_USER_PROMPT_VERSION,
+        systemPromptDigest: canonicalJsonDigest(
+          buildPageContractRepairSystemPromptLegacyV1(),
+        ),
+      },
+    },
+  };
+  return {
+    ...withoutDigest,
+    digestAlgorithm: 'canonical-json-sha256',
+    digest: canonicalJsonDigest(withoutDigest),
+  } as unknown as VisualContractAuthoringRequest;
+}
+
 function exactJson(left: unknown, right: unknown): boolean {
   try {
     return canonicalJsonDigest(left) === canonicalJsonDigest(right);
   } catch {
     return false;
   }
+}
+
+function runtimeStringField(
+  value: unknown,
+  field: string,
+): string | null {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+    return null;
+  }
+  const candidate = (value as Record<string, unknown>)[field];
+  return typeof candidate === 'string' ? candidate : null;
 }
 
 export function visualContractAuthoringRequestIssues(args: {
@@ -2112,6 +2183,12 @@ export function visualContractAuthoringRequestIssues(args: {
     VISUAL_CONTRACT_AUTHORING_POLICY_VERSION
   ) {
     issues.push('authoring_policy_version_mismatch');
+  }
+  if (
+    request.routingPolicyVersion !==
+    VISUAL_CONTRACT_AUTHORING_ROUTING_POLICY_VERSION
+  ) {
+    issues.push('authoring_routing_policy_version_mismatch');
   }
   if (!['preflight', 'live'].includes(request.mode)) {
     issues.push('request_mode_invalid');
@@ -2877,11 +2954,112 @@ function terminalReferenceCleanupResidualIsProven(
   );
 }
 
-export function visualContractAuthoringAttemptBudgetSequenceIsValid(
+/**
+ * Receipt evidence cannot reconstruct the compiler's rejected draft graph, so
+ * it cannot independently re-prove that no compact solution existed. It does
+ * prove the necessary complete/pure diagnostic frontier that the compiler must
+ * have observed before it may emit cardinality escalation provenance.
+ */
+function cardinalityEscalationDiagnosticFrontierIsComplete(
+  diagnostics: DraftValidationAttemptDiagnostics | null | undefined,
+): boolean {
+  if (!diagnostics) return false;
+  const issues = completeCurrentIssuesFromAttemptDiagnostics(diagnostics);
+  if (issues === null || issues.length === 0) return false;
+  const cardinalityPages = new Set<number>();
+  const duplicateBeatPages: number[] = [];
+  for (const issue of issues) {
+    if (
+      issue.family === 'action_semantic' &&
+      issue.code === 'action_binding_cardinality_invalid' &&
+      issue.locator.kind === 'page_item' &&
+      (issue.locator.collectionRole === 'page_actions' ||
+        issue.locator.collectionRole ===
+          'page_action_semantic_coverage') &&
+      issue.locator.fieldRole === 'cardinality'
+    ) {
+      cardinalityPages.add(issue.locator.pageNumber);
+      continue;
+    }
+    if (
+      issue.family === 'action_semantic' &&
+      issue.code === 'beat_identity_duplicate' &&
+      issue.locator.fieldRole === 'identity' &&
+      (issue.locator.kind === 'page' ||
+        (issue.locator.kind === 'page_item' &&
+          issue.locator.collectionRole ===
+            'page_action_semantic_coverage'))
+    ) {
+      duplicateBeatPages.push(issue.locator.pageNumber);
+      continue;
+    }
+    return false;
+  }
+  return (
+    cardinalityPages.size > 0 &&
+    duplicateBeatPages.every((pageNumber) =>
+      cardinalityPages.has(pageNumber),
+    )
+  );
+}
+
+function visualContractAuthoringAttemptRouteProvenanceSequenceIsValid(args: {
+  attempts: readonly VisualContractAuthoringAttemptReceipt[];
+  legacyV1: boolean;
+}): boolean {
+  if (args.legacyV1) {
+    return args.attempts.every(
+      (attempt) =>
+        !Object.prototype.hasOwnProperty.call(
+          attempt,
+          'routeProvenance',
+        ),
+    );
+  }
+  return args.attempts.every((attempt, index) => {
+    if (!Object.prototype.hasOwnProperty.call(attempt, 'routeProvenance')) {
+      return false;
+    }
+    const previous = args.attempts[index - 1];
+    const hasCardinalityFrontier =
+      cardinalityEscalationDiagnosticFrontierIsComplete(
+        previous?.draftValidationDiagnostics,
+      );
+    if (attempt.routeProvenance === null) {
+      return (
+        index === 0 ||
+        attempt.kind !== 'repair' ||
+        attempt.repairMode !== 'full_draft' ||
+        !hasCardinalityFrontier
+      );
+    }
+    return (
+      index > 0 &&
+      attempt.routeProvenance ===
+        VISUAL_CONTRACT_AUTHORING_CARDINALITY_ESCALATION_PROVENANCE &&
+      attempt.kind === 'repair' &&
+      attempt.budgetClass === 'standard' &&
+      attempt.repairMode === 'full_draft' &&
+      hasCardinalityFrontier
+    );
+  });
+}
+
+function visualContractAuthoringAttemptBudgetSequenceIsValidForRouting(
   attempts: readonly VisualContractAuthoringAttemptReceipt[],
   standardAttemptOutputBudget:
     VisualContractAuthoringStandardAttemptOutputBudget,
+  legacyV1: boolean,
 ): boolean {
+  if (
+    !visualContractAuthoringAttemptRouteProvenanceSequenceIsValid({
+      attempts,
+      legacyV1,
+    })
+  ) {
+    return false;
+  }
+
   if (
     !visualContractAuthoringStandardAttemptOutputBudgetIsValid(
       standardAttemptOutputBudget,
@@ -2939,9 +3117,23 @@ export function visualContractAuthoringAttemptBudgetSequenceIsValid(
       preceding?.repairMode,
     ) &&
     terminalReferenceCleanupResidualIsProven(preceding) &&
+    preceding?.routeProvenance !==
+      VISUAL_CONTRACT_AUTHORING_CARDINALITY_ESCALATION_PROVENANCE &&
     cleanup?.kind === 'repair' &&
     cleanup.budgetClass === 'terminal_reference_cleanup' &&
     cleanup.repairMode === 'page_spatial_reference_patch'
+  );
+}
+
+export function visualContractAuthoringAttemptBudgetSequenceIsValid(
+  attempts: readonly VisualContractAuthoringAttemptReceipt[],
+  standardAttemptOutputBudget:
+    VisualContractAuthoringStandardAttemptOutputBudget,
+): boolean {
+  return visualContractAuthoringAttemptBudgetSequenceIsValidForRouting(
+    attempts,
+    standardAttemptOutputBudget,
+    false,
   );
 }
 
@@ -2950,6 +3142,7 @@ function visualContractAuthoringReceiptOutputBudgetBindingsAreValid(args: {
   request: VisualContractAuthoringRequest;
   invalidRequestFallbackBudget?:
     VisualContractAuthoringStandardAttemptOutputBudget;
+  legacyV1?: boolean;
 }): boolean {
   const budget = args.receipt.standardAttemptOutputBudget;
   const requestInvalidZeroAttempt =
@@ -2985,9 +3178,10 @@ function visualContractAuthoringReceiptOutputBudgetBindingsAreValid(args: {
         cleanupMaxCalls:
           VISUAL_CONTRACT_AUTHORING_TERMINAL_REFERENCE_CLEANUP_MAX_CALLS,
       }) ||
-    !visualContractAuthoringAttemptBudgetSequenceIsValid(
+    !visualContractAuthoringAttemptBudgetSequenceIsValidForRouting(
       args.receipt.attempts,
       budget,
+      args.legacyV1 === true,
     )
   ) {
     return false;
@@ -3459,6 +3653,7 @@ interface VisualContractAuthoringAttemptPromptBinding {
 function visualContractAuthoringAttemptPromptBinding(args: {
   request: VisualContractAuthoringRequest;
   attempt: VisualContractAuthoringAttemptReceipt;
+  legacyV1?: boolean;
 }): VisualContractAuthoringAttemptPromptBinding | null {
   const { request, attempt } = args;
   if (
@@ -3533,11 +3728,15 @@ function visualContractAuthoringAttemptPromptBinding(args: {
       };
     case 'page_contract_patch':
       return {
-        systemPrompt: buildPageContractRepairSystemPrompt(),
-        systemPromptVersion:
-          PAGE_CONTRACT_REPAIR_PROMPT_VERSION,
-        userPromptVersion:
-          PAGE_CONTRACT_REPAIR_USER_PROMPT_VERSION,
+        systemPrompt: args.legacyV1
+          ? buildPageContractRepairSystemPromptLegacyV1()
+          : buildPageContractRepairSystemPrompt(),
+        systemPromptVersion: args.legacyV1
+          ? PAGE_CONTRACT_REPAIR_LEGACY_PROMPT_VERSION
+          : PAGE_CONTRACT_REPAIR_PROMPT_VERSION,
+        userPromptVersion: args.legacyV1
+          ? PAGE_CONTRACT_REPAIR_LEGACY_USER_PROMPT_VERSION
+          : PAGE_CONTRACT_REPAIR_USER_PROMPT_VERSION,
         requestSystemPromptVersion:
           request.promptAuthority.pageContractRepair
             .systemPromptVersion,
@@ -3710,10 +3909,10 @@ function visualContractAuthoringAttemptPromptBinding(args: {
  * persisting raw drafts/prompts they cannot be independently reconstructed by
  * this post-hoc validator and are never used as standalone authorization.
  */
-export function visualContractAuthoringReceiptPromptAuthorityIssues(args: {
+function visualContractAuthoringReceiptPromptAuthorityIssuesForProfile(args: {
   request: VisualContractAuthoringRequest;
   receipt: VisualContractAuthoringReceipt;
-}): string[] {
+}, legacyV1: boolean): string[] {
   const issues: string[] = [];
   const {
     digestAlgorithm: _requestDigestAlgorithm,
@@ -3732,7 +3931,20 @@ export function visualContractAuthoringReceiptPromptAuthorityIssues(args: {
     !exactJson(args.receipt.pricing, args.request.pricing) ||
     args.receipt.pricingDigest !== args.request.pricingDigest ||
     args.request.version !==
-      VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION ||
+      (legacyV1
+        ? LEGACY_VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION_V55
+        : VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION) ||
+    args.request.policyVersion !==
+      (legacyV1
+        ? LEGACY_VISUAL_CONTRACT_AUTHORING_POLICY_VERSION
+        : VISUAL_CONTRACT_AUTHORING_POLICY_VERSION) ||
+    (legacyV1
+      ? Object.prototype.hasOwnProperty.call(
+          args.request,
+          'routingPolicyVersion',
+        )
+      : args.request.routingPolicyVersion !==
+        VISUAL_CONTRACT_AUTHORING_ROUTING_POLICY_VERSION) ||
     args.request.digestAlgorithm !== 'canonical-json-sha256' ||
     args.request.digest !== canonicalJsonDigest(requestPayload)
   ) {
@@ -3793,6 +4005,7 @@ export function visualContractAuthoringReceiptPromptAuthorityIssues(args: {
       binding = visualContractAuthoringAttemptPromptBinding({
         request: args.request,
         attempt,
+        legacyV1,
       });
     } catch {
       issues.push('receipt_attempt_prompt_route_invalid');
@@ -3886,6 +4099,16 @@ export function visualContractAuthoringReceiptPromptAuthorityIssues(args: {
     }
   }
   return [...new Set(issues)];
+}
+
+export function visualContractAuthoringReceiptPromptAuthorityIssues(args: {
+  request: VisualContractAuthoringRequest;
+  receipt: VisualContractAuthoringReceipt;
+}): string[] {
+  return visualContractAuthoringReceiptPromptAuthorityIssuesForProfile(
+    args,
+    false,
+  );
 }
 
 export function visualContractAuthoringReceiptPromptAuthorityIsValid(args: {
@@ -4008,7 +4231,11 @@ function authoringBudgetClassSequenceIssues(args: {
 }): string[] {
   if (args.promptAuthority?.kind === 'initial') {
     return args.attempts.length === 0 &&
-      args.promptAuthority.budgetClass === 'standard'
+      args.promptAuthority.budgetClass === 'standard' &&
+      !Object.prototype.hasOwnProperty.call(
+        args.promptAuthority,
+        'routeProvenance',
+      )
       ? []
       : ['initial_budget_class_sequence_invalid'];
   }
@@ -4016,7 +4243,21 @@ function authoringBudgetClassSequenceIssues(args: {
     return ['repair_budget_class_missing'];
   }
   if (args.promptAuthority.budgetClass === 'standard') {
-    return args.attempts.length <
+    // The compiler callback occurs before the complete validation trail is
+    // copied onto receipt attempts. Validate the closed provenance shape here;
+    // the persisted receipt validator below re-proves its necessary complete
+    // generic cardinality frontier once that trail exists.
+    const hasRouteProvenance = Object.prototype.hasOwnProperty.call(
+      args.promptAuthority,
+      'routeProvenance',
+    );
+    const provenanceIsValid = hasRouteProvenance
+      ? args.promptAuthority.repairMode === 'full_draft' &&
+        args.promptAuthority.routeProvenance ===
+          VISUAL_CONTRACT_AUTHORING_CARDINALITY_ESCALATION_PROVENANCE
+      : true;
+    return provenanceIsValid &&
+      args.attempts.length <
         VISUAL_CONTRACT_AUTHORING_STANDARD_MAX_CALLS &&
       args.attempts.every(
         (attempt) => attempt.budgetClass === 'standard',
@@ -4038,6 +4279,12 @@ function authoringBudgetClassSequenceIssues(args: {
     ) &&
     terminalReferenceCleanupPredecessorIsEligible(
       lastStandardAttempt?.repairMode,
+    ) &&
+    lastStandardAttempt?.routeProvenance !==
+      VISUAL_CONTRACT_AUTHORING_CARDINALITY_ESCALATION_PROVENANCE &&
+    !Object.prototype.hasOwnProperty.call(
+      args.promptAuthority,
+      'routeProvenance',
     ) &&
     args.promptAuthority.repairMode ===
       'page_spatial_reference_patch'
@@ -4192,6 +4439,7 @@ export async function runVisualContractAuthoring(args: {
       await compileBookVisualContractTemplate(
         storySourceSnapshotToTemplateInput(args.snapshot),
         {
+          routingPolicyVersion: args.request.routingPolicyVersion,
           callLLM: async (
             systemPrompt,
             userPrompt,
@@ -4204,6 +4452,10 @@ export async function runVisualContractAuthoring(args: {
             const repairMode =
               promptAuthority?.kind === 'repair'
                 ? promptAuthority.repairMode
+                : null;
+            const routeProvenance =
+              promptAuthority?.kind === 'repair'
+                ? promptAuthority.routeProvenance ?? null
                 : null;
             const budgetClass =
               promptAuthority?.budgetClass ?? 'standard';
@@ -4236,6 +4488,7 @@ export async function runVisualContractAuthoring(args: {
               kind,
               budgetClass,
               repairMode,
+              routeProvenance,
               policyMismatchScope: null,
               providerReached: false,
               provider: args.request.provider,
@@ -5576,7 +5829,7 @@ export function buildVisualContractAuthoringReadinessEvidence(args: {
       canonicalJsonDigest(receiptPayload)
   ) {
     throw new Error(
-      'readiness v52 requires current, digest-bound request and receipt evidence; legacy artifacts remain immutable',
+      'readiness v56 requires current, digest-bound request and receipt evidence; legacy artifacts remain immutable',
     );
   }
   const canonicalImportPreflight =
@@ -5697,6 +5950,103 @@ function persistJsonArtifact(args: {
   };
 }
 
+/**
+ * Validates the one immutable historical repair lane retained for provider-free
+ * replay. It is intentionally not used by production persistence or execution:
+ * current request/receipt validators above continue to reject these versions.
+ */
+export function assertValidLegacyVisualContractAuthoringReplayArtifacts(args: {
+  snapshot: StorySourceAuthoritySnapshot;
+  request: VisualContractAuthoringRequest;
+  receipt: VisualContractAuthoringReceipt;
+}): void {
+  const issues: string[] = [];
+  const requestVersion = runtimeStringField(args.request, 'version');
+  const policyVersion = runtimeStringField(args.request, 'policyVersion');
+  let expectedRequest: VisualContractAuthoringRequest | null = null;
+  try {
+    expectedRequest = buildLegacyVisualContractAuthoringRequestV55({
+      snapshot: args.snapshot,
+      mode: args.request.mode,
+      requestId: args.request.requestId,
+      requestedAt: args.request.requestedAt,
+    });
+  } catch {
+    issues.push('legacy_request_reconstruction_failed');
+  }
+  if (
+    requestVersion !==
+      LEGACY_VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION_V55 ||
+    policyVersion !==
+      LEGACY_VISUAL_CONTRACT_AUTHORING_POLICY_VERSION ||
+    Object.prototype.hasOwnProperty.call(
+      args.request,
+      'routingPolicyVersion',
+    ) ||
+    !['preflight', 'live'].includes(args.request.mode) ||
+    !nonEmpty(args.request.requestId) ||
+    args.request.requestId.length > 160 ||
+    !isoTimestampIsValid(args.request.requestedAt) ||
+    expectedRequest === null ||
+    !exactJson(args.request, expectedRequest)
+  ) {
+    issues.push('legacy_request_v55_invalid');
+  }
+
+  const receipt = args.receipt;
+  const receiptVersion = runtimeStringField(receipt, 'version');
+  const {
+    digestAlgorithm: _receiptDigestAlgorithm,
+    digest: _receiptDigest,
+    ...receiptPayload
+  } = receipt;
+  if (
+    receiptVersion !==
+      LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION_V58 ||
+    (receipt.status === 'failed'
+      ? !visualContractAuthoringTerminalFailureIsValid(receipt.failure)
+      : receipt.failure !== null) ||
+    visualContractAuthoringReceiptPromptAuthorityIssuesForProfile(
+      { request: args.request, receipt },
+      true,
+    ).length > 0 ||
+    !receipt.attempts.every((attempt) =>
+      visualContractAuthoringAttemptInputAccountingIsValid({
+        attempt,
+        request: args.request,
+      }),
+    ) ||
+    !visualContractAuthoringAttemptBudgetSequenceIsValidForRouting(
+      receipt.attempts,
+      receipt.standardAttemptOutputBudget,
+      true,
+    ) ||
+    !visualContractAuthoringReceiptOutputBudgetBindingsAreValid({
+      receipt,
+      request: args.request,
+      legacyV1: true,
+    }) ||
+    !visualContractAuthoringReceiptExhaustionBindingIsValid(receipt) ||
+    !visualContractAuthoringReceiptRouteAdmissionBindingIsValid(receipt) ||
+    !visualContractAuthoringReceiptRepairRegressionBindingIsValid(receipt) ||
+    !visualContractAuthoringReceiptRepairStagnationBindingIsValid(receipt) ||
+    !visualContractAuthoringReceiptDraftValidationIsValid(receipt) ||
+    !visualContractAuthoringReplayEvidenceBindingIsValid(receipt) ||
+    receipt.digestAlgorithm !== 'canonical-json-sha256' ||
+    receipt.digest !== canonicalJsonDigest(receiptPayload)
+  ) {
+    issues.push('legacy_receipt_v58_invalid');
+  }
+
+  if (issues.length > 0) {
+    throw new Error(
+      `Invalid immutable legacy Visual Contract authoring replay artifacts:\n- ${[
+        ...new Set(issues),
+      ].join('\n- ')}`,
+    );
+  }
+}
+
 export function persistVisualContractAuthoringRequest(args: {
   repoRoot: string;
   outputDir: string;
@@ -5777,7 +6127,7 @@ export function persistVisualContractAuthoringReceipt(args: {
       canonicalJsonDigest(receiptPayload)
   ) {
     throw new Error(
-      'receipt v55 requires exact typed draft-validation evidence, an exact Visual Contract terminal, and valid bindings',
+      'receipt v59 requires exact typed draft-validation evidence, an exact Visual Contract terminal, and valid bindings',
     );
   }
   return persistJsonArtifact({
@@ -5992,7 +6342,7 @@ export function persistVisualContractAuthoringReadiness(args: {
       canonicalJsonDigest(readinessPayload)
   ) {
     throw new Error(
-      'readiness v52 requires exact typed draft-validation evidence, a valid current receipt, and a valid current digest',
+      'readiness v56 requires exact typed draft-validation evidence, a valid current receipt, and a valid current digest',
     );
   }
   return persistJsonArtifact({

@@ -310,11 +310,11 @@ describe('canonical live request materialization validators', () => {
       }),
     ).toContain('materialization_input_version_invalid');
     expect(LIVE_REQUEST_MATERIALIZATION_INPUT_VERSION).toBe(
-      'canonical-live-request-materialization-input/v43',
+      'canonical-live-request-materialization-input/v44',
     );
     expect(
       LIVE_REQUEST_MATERIALIZATION_MANIFEST_VERSION,
-    ).toBe('canonical-live-request-materialization/v53');
+    ).toBe('canonical-live-request-materialization/v54');
   });
 
   it.each([
@@ -492,7 +492,9 @@ describe('canonical live request materialization artifacts', () => {
 
     expect(result.status).toBe('materialized_inputs_only');
     expect(request).toMatchObject({
-      version: 'visual-contract-authoring-request/v55',
+      version: 'visual-contract-authoring-request/v56',
+      routingPolicyVersion:
+        'visual-contract-authoring-routing-policy/v2',
       mode: 'live',
       provider: 'openai',
       endpoint: 'responses',

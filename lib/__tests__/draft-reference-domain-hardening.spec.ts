@@ -26,6 +26,7 @@ import type {
 import { RECURRING_PROP_SPATIAL_CONSUMER_SCOPES } from '../visual-contract-compiler/types';
 import { decodePageContractRepairUserPrompt } from '../visual-contract-compiler/pageContractRepair';
 import {
+  VISUAL_CONTRACT_AUTHORING_CARDINALITY_ESCALATION_PROVENANCE,
   VISUAL_CONTRACT_AUTHORING_TERMINAL_REFERENCE_CLEANUP_MAX_INPUT_TOKENS,
   VISUAL_CONTRACT_AUTHORING_TERMINAL_REFERENCE_CLEANUP_MAX_OUTPUT_TOKENS,
 } from '../visual-contract-compiler/authoringPolicy';
@@ -942,12 +943,6 @@ describe('captured reference-domain matrix', () => {
       },
     ],
     [
-      'coverage_beat_cardinality_invalid',
-      (draft: Record<string, unknown>) => {
-        coverage(draft).push(structuredClone(coverage(draft)[0]!));
-      },
-    ],
-    [
       'unary_relation_object_forbidden',
       (draft: Record<string, unknown>) => {
         const relation = (
@@ -1057,12 +1052,55 @@ describe('captured reference-domain matrix', () => {
     },
   );
 
+  it('routes coverage_beat_cardinality_invalid through provenance-bound full_draft', async () => {
+    const draft = matrixDraft();
+    coverage(draft).push(structuredClone(coverage(draft)[0]!));
+    const authorities: unknown[] = [];
+    const callLLM = vi.fn(async (
+      _system: string,
+      _user: string,
+      _options?: unknown,
+      authority?: unknown,
+    ) => {
+      authorities.push(authority);
+      return JSON.stringify(draft);
+    });
+
+    const failure = await compileBookVisualContractTemplate(input, {
+      callLLM,
+    }).catch((error: unknown) => error);
+
+    expect(failure).toBeInstanceOf(TemplateRepairStagnationError);
+    expect(callLLM).toHaveBeenCalledTimes(2);
+    expect(authorities[1]).toMatchObject({
+      kind: 'repair',
+      repairMode: 'full_draft',
+      routeProvenance:
+        VISUAL_CONTRACT_AUTHORING_CARDINALITY_ESCALATION_PROVENANCE,
+    });
+    expect(
+      (failure as TemplateRepairStagnationError).attempts[0],
+    ).toMatchObject({
+      nextRepairMode: 'full_draft',
+      routeProvenance:
+        VISUAL_CONTRACT_AUTHORING_CARDINALITY_ESCALATION_PROVENANCE,
+    });
+  });
+
   it('rejects repeated provider-authored coverage insertion after one closed correction hint', async () => {
     const invalid = matrixDraft();
-    coverage(invalid).shift();
+    coverage(invalid)[0]!.disposition = {
+      kind: 'non_visual',
+      rationale: 'narrative_context',
+    };
     const validPage = structuredClone(pageRecord(matrixDraft()));
     delete validPage.castIds;
     delete validPage.characterPresence;
+    const invalidRepairCoverage =
+      validPage.actionSemanticCoverage as Array<Record<string, unknown>>;
+    invalidRepairCoverage.push(
+      structuredClone(invalidRepairCoverage[0]!),
+    );
     const callLLM = vi.fn(async () =>
       callLLM.mock.calls.length === 1
         ? JSON.stringify(invalid)
@@ -1210,7 +1248,10 @@ describe('captured reference-domain matrix', () => {
 
   it('co-observes action-binding and page-spatial failures but rejects structural coverage drift', async () => {
     const invalid = matrixDraft();
-    coverage(invalid).shift();
+    coverage(invalid)[0]!.disposition = {
+      kind: 'non_visual',
+      rationale: 'narrative_context',
+    };
     actions(invalid)[0]!.object = {
       kind: 'spatial',
       id: 'outside_current_page_zone',
@@ -1218,6 +1259,11 @@ describe('captured reference-domain matrix', () => {
     const repairedPage = structuredClone(pageRecord(matrixDraft()));
     delete repairedPage.castIds;
     delete repairedPage.characterPresence;
+    const invalidRepairCoverage =
+      repairedPage.actionSemanticCoverage as Array<Record<string, unknown>>;
+    invalidRepairCoverage.push(
+      structuredClone(invalidRepairCoverage[0]!),
+    );
     const repairUserPrompts: string[] = [];
     const callLLM = vi.fn(async (
       _system: string,
@@ -1254,6 +1300,8 @@ describe('captured reference-domain matrix', () => {
             code: 'action_coverage_cardinality_invalid',
             pageNumber: 1,
             actionIndex: 0,
+            coverageIndex: 0,
+            permittedBeatId: 'beat:p1:action_01',
           },
           {
             family: 'draft_contract',
@@ -1281,7 +1329,10 @@ describe('captured reference-domain matrix', () => {
 
   it('plans the closed compound repair from compiler-canonical page topology', async () => {
     const invalid = matrixDraft();
-    coverage(invalid).shift();
+    coverage(invalid)[0]!.disposition = {
+      kind: 'non_visual',
+      rationale: 'narrative_context',
+    };
     actions(invalid)[0]!.object = {
       kind: 'spatial',
       id: 'outside_current_page_zone',
@@ -1290,6 +1341,11 @@ describe('captured reference-domain matrix', () => {
     const repairedPage = structuredClone(pageRecord(matrixDraft()));
     delete repairedPage.castIds;
     delete repairedPage.characterPresence;
+    const invalidRepairCoverage =
+      repairedPage.actionSemanticCoverage as Array<Record<string, unknown>>;
+    invalidRepairCoverage.push(
+      structuredClone(invalidRepairCoverage[0]!),
+    );
     const repairUserPrompts: string[] = [];
     const callLLM = vi.fn(async (
       _system: string,
@@ -1834,6 +1890,15 @@ describe('captured reference-domain matrix', () => {
         repairMode: 'page_spatial_reference_patch',
       }),
     ]);
+    expect(
+      authorities.slice(2, 7).every(
+        (authority) =>
+          !Object.prototype.hasOwnProperty.call(
+            authority,
+            'routeProvenance',
+          ),
+      ),
+    ).toBe(true);
     expect(options[7]).toMatchObject({
       maxInputTokens:
         VISUAL_CONTRACT_AUTHORING_TERMINAL_REFERENCE_CLEANUP_MAX_INPUT_TOKENS,
@@ -1861,6 +1926,11 @@ describe('captured reference-domain matrix', () => {
         budgetClass: 'terminal_reference_cleanup',
       },
     ]);
+    expect(
+      result.repairAttempts.every(
+        (attempt) => attempt.routeProvenance === undefined,
+      ),
+    ).toBe(true);
 
     let failingCallIndex = 0;
     const failingCleanup = vi.fn(async (

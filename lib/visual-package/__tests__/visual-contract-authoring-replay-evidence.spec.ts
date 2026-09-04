@@ -138,9 +138,11 @@ function terminalHarness(args: {
   identityDigest: string | null;
 }): OfflineRepairHarnessResult {
   return {
-    version: 'visual-contract-offline-repair-harness-result/v3',
+    version: 'visual-contract-offline-repair-harness-result/v4',
     executionMode: 'offline_stub',
     providerCalls: 0,
+    routingPolicyVersion:
+      'visual-contract-authoring-routing-policy/v2',
     outcome: args.outcome,
     candidateTemplateDigest: null,
     terminalFailureCode: args.code,

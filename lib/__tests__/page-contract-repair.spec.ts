@@ -3,8 +3,11 @@ import path from 'path';
 import { describe, expect, it } from 'vitest';
 
 import {
+  ACTION_COVERAGE_BINDING_REPAIR_POLICY_VERSION,
   PAGE_CONTRACT_REPAIR_JSON_SCHEMA,
   PAGE_CONTRACT_REPAIR_INPUT_ENCODING_VERSION,
+  PAGE_CONTRACT_REPAIR_LEGACY_PROMPT_VERSION,
+  PAGE_CONTRACT_REPAIR_LEGACY_USER_PROMPT_VERSION,
   PAGE_CONTRACT_REPAIR_PROMPT_VERSION,
   PAGE_CONTRACT_REPAIR_USER_PROMPT_VERSION,
   PAGE_SPATIAL_REFERENCE_REPAIR_JSON_SCHEMA,
@@ -13,14 +16,19 @@ import {
   applyPageContractRepairs,
   applyPageSpatialReferenceRepairPatches,
   buildPageContractRepairSystemPrompt,
+  buildPageContractRepairSystemPromptLegacyV1,
   buildPageContractRepairUserPrompt,
+  buildPageContractRepairUserPromptLegacyV1,
   decodePageContractRepairInput,
   decodePageContractRepairUserPrompt,
   encodePageContractRepairInput,
   buildPageSpatialReferenceRepairSystemPrompt,
   buildPageSpatialReferenceRepairUserPrompt,
   pageContractRepairAffectedPages,
+  pageContractAuthorityRepairAdmission,
+  pageContractAuthorityRepairAdmissionRequiresFullDraft,
   pageContractAuthorityRepairPlan,
+  pageContractAuthorityRepairPlanLegacyV1,
   pageContractCompoundAuthorityRepairPlan,
   pageSpatialReferenceRepairTargets,
   parsePageContractRepairs,
@@ -75,6 +83,94 @@ function draft() {
     coverContract: { marker: 'preserved' },
     pageContracts: [page(1), page(2)],
   };
+}
+
+function actionCoverageCardinalityIssue(
+  pageNumber: number,
+  actionIndex: number,
+): DraftAuthorityReferenceIssue {
+  return {
+    code: 'action_coverage_cardinality_invalid',
+    locator: {
+      kind: 'page_action',
+      referenceClass: 'action_coverage',
+      fieldRole: 'actionRequirements.actionSemanticCoverage',
+      pageNumber,
+      actionIndex,
+    },
+  };
+}
+
+function coverageActionCardinalityIssue(
+  pageNumber: number,
+  coverageIndex: number,
+): DraftAuthorityReferenceIssue {
+  return {
+    code: 'coverage_action_binding_cardinality_invalid',
+    locator: {
+      kind: 'page_coverage',
+      referenceClass: 'action_coverage',
+      fieldRole: 'actionSemanticCoverage.actionRequirementBinding',
+      pageNumber,
+      coverageIndex,
+    },
+  };
+}
+
+function minimalAction(beatId: string): Record<string, unknown> {
+  return {
+    beatId,
+    subject: {
+      kind: 'entity',
+      entity: { kind: 'cast', id: 'child:hero' },
+    },
+    predicate: 'looks_at',
+    object: null,
+    spatialEffect: null,
+    spatialConstraint: null,
+    polarity: 'must',
+    laterality: null,
+  };
+}
+
+function configureUniqueOrphanBindingGraph(args: {
+  page: Record<string, unknown>;
+  candidateActionIndex: number;
+  orphanBeatId: string;
+}): DraftAuthorityReferenceIssue[] {
+  const pageNumber = args.page.pageNumber as number;
+  const actions = args.page.actionRequirements as Array<
+    Record<string, unknown>
+  >;
+  args.page.actionSemanticCoverage = [
+    ...actions.flatMap((action, actionIndex) =>
+      actionIndex === args.candidateActionIndex
+        ? []
+        : [
+            {
+              beatId: action.beatId,
+              sourceEvidenceId: `se1_${String.fromCharCode(
+                97 + actionIndex,
+              ).repeat(64)}`,
+              disposition: { kind: 'action_requirement' },
+            },
+          ],
+    ),
+    {
+      beatId: args.orphanBeatId,
+      sourceEvidenceId: `se1_${'f'.repeat(64)}`,
+      disposition: { kind: 'action_requirement' },
+    },
+  ];
+  const orphanIndex =
+    (args.page.actionSemanticCoverage as unknown[]).length - 1;
+  return [
+    actionCoverageCardinalityIssue(
+      pageNumber,
+      args.candidateActionIndex,
+    ),
+    coverageActionCardinalityIssue(pageNumber, orphanIndex),
+  ];
 }
 
 function spatialDraft(): Record<string, unknown> {
@@ -707,7 +803,7 @@ describe('page-contract compact repair', () => {
     ).toBeNull();
   });
 
-  it('builds a closed complete-page plan for action coverage cardinality', () => {
+  it('admits one uncovered action through its exact same-beat non-action coverage while legacy v1 remains callable', () => {
     const input = draft();
     const pageTwo = (
       input.pageContracts as Array<Record<string, unknown>>
@@ -727,21 +823,40 @@ describe('page-contract compact repair', () => {
         laterality: null,
       },
     ];
+    const issues = [actionCoverageCardinalityIssue(2, 0)];
+    const admission = pageContractAuthorityRepairAdmission({
+      draft: input,
+      issues,
+    });
+    expect(admission).toMatchObject({
+      kind: 'compact',
+      policyVersion: ACTION_COVERAGE_BINDING_REPAIR_POLICY_VERSION,
+      plan: {
+        affectedPages: [
+          {
+            pageNumber: 2,
+            actionCoverageBindingPolicyVersion:
+              ACTION_COVERAGE_BINDING_REPAIR_POLICY_VERSION,
+            repairTargets: [
+              {
+                family: 'action_semantic',
+                code: 'action_coverage_cardinality_invalid',
+                pageNumber: 2,
+                actionIndex: 0,
+                coverageIndex: 0,
+                permittedBeatId: 'beat:p2:test',
+              },
+            ],
+          },
+        ],
+      },
+    });
+    expect(
+      pageContractAuthorityRepairAdmissionRequiresFullDraft(admission),
+    ).toBe(false);
     const plan = pageContractAuthorityRepairPlan({
       draft: input,
-      issues: [
-        {
-          code: 'action_coverage_cardinality_invalid',
-          locator: {
-            kind: 'page_action',
-            referenceClass: 'action_coverage',
-            fieldRole:
-              'actionRequirements.actionSemanticCoverage',
-            pageNumber: 2,
-            actionIndex: 0,
-          },
-        },
-      ],
+      issues,
     });
     expect(plan?.affectedPages).toMatchObject([
       {
@@ -752,6 +867,8 @@ describe('page-contract compact repair', () => {
             code: 'action_coverage_cardinality_invalid',
             pageNumber: 2,
             actionIndex: 0,
+            coverageIndex: 0,
+            permittedBeatId: 'beat:p2:test',
           },
         ],
         permittedPointerValues: [],
@@ -759,7 +876,7 @@ describe('page-contract compact repair', () => {
     ]);
     expect(plan?.validationMessages).toEqual([
       expect.stringContaining(
-        'actionRequirements[0] must bind exactly one',
+        'change only that coverage disposition',
       ),
     ]);
     expect(plan?.diagnosticIssues).toEqual([
@@ -775,6 +892,437 @@ describe('page-contract compact repair', () => {
         },
       },
     ]);
+    const legacyPlan = pageContractAuthorityRepairPlanLegacyV1({
+      draft: input,
+      issues,
+    });
+    expect(legacyPlan?.affectedPages[0]).not.toHaveProperty(
+      'actionCoverageBindingPolicyVersion',
+    );
+    expect(legacyPlan?.affectedPages[0]?.repairTargets).toEqual([
+      {
+        family: 'action_semantic',
+        code: 'action_coverage_cardinality_invalid',
+        pageNumber: 2,
+        actionIndex: 0,
+      },
+    ]);
+  });
+
+  it('escalates zero same-beat coverage and multiple disposition-only uncovered actions', () => {
+    const zeroSameBeat = draft();
+    const zeroPage = (
+      zeroSameBeat.pageContracts as Array<Record<string, unknown>>
+    )[1]!;
+    zeroPage.actionRequirements = [minimalAction('beat:p2:uncovered')];
+    zeroPage.actionSemanticCoverage = [
+      {
+        beatId: 'beat:p2:elsewhere',
+        sourceEvidenceId: `se1_${'a'.repeat(64)}`,
+        disposition: {
+          kind: 'non_visual',
+          rationale: 'narrative_context',
+        },
+      },
+    ];
+    expect(
+      pageContractAuthorityRepairAdmission({
+        draft: zeroSameBeat,
+        issues: [actionCoverageCardinalityIssue(2, 0)],
+      }),
+    ).toMatchObject({
+      kind: 'escalate_full_draft',
+      reason: 'complete_pure_no_closed_compact',
+    });
+
+    const multiple = draft();
+    const multiplePage = (
+      multiple.pageContracts as Array<Record<string, unknown>>
+    )[1]!;
+    multiplePage.actionRequirements = [
+      minimalAction('beat:p2:first'),
+      minimalAction('beat:p2:second'),
+    ];
+    multiplePage.actionSemanticCoverage = ['first', 'second'].map(
+      (suffix, index) => ({
+        beatId: `beat:p2:${suffix}`,
+        sourceEvidenceId: `se1_${(index === 0 ? 'b' : 'c').repeat(64)}`,
+        disposition: {
+          kind: 'non_visual',
+          rationale: 'narrative_context',
+        },
+      }),
+    );
+    expect(
+      pageContractAuthorityRepairAdmission({
+        draft: multiple,
+        issues: [
+          actionCoverageCardinalityIssue(2, 0),
+          actionCoverageCardinalityIssue(2, 1),
+        ],
+      }),
+    ).toMatchObject({
+      kind: 'escalate_full_draft',
+      reason: 'complete_pure_no_closed_compact',
+    });
+  });
+
+  it('atomically admits independent disposition-only conversions on distinct pages', () => {
+    const input = draft();
+    const pages = input.pageContracts as Array<Record<string, unknown>>;
+    pages.forEach((candidate, index) => {
+      candidate.actionRequirements = [
+        minimalAction(`beat:p${index + 1}:test`),
+      ];
+    });
+    const snapshot = structuredClone(input);
+    const issues = [
+      actionCoverageCardinalityIssue(1, 0),
+      actionCoverageCardinalityIssue(2, 0),
+    ];
+    const admission = pageContractAuthorityRepairAdmission({
+      draft: input,
+      issues,
+    });
+    expect(admission).toMatchObject({
+      kind: 'compact',
+      plan: {
+        affectedPages: [
+          {
+            pageNumber: 1,
+            repairTargets: [
+              {
+                actionIndex: 0,
+                coverageIndex: 0,
+                permittedBeatId: 'beat:p1:test',
+              },
+            ],
+          },
+          {
+            pageNumber: 2,
+            repairTargets: [
+              {
+                actionIndex: 0,
+                coverageIndex: 0,
+                permittedBeatId: 'beat:p2:test',
+              },
+            ],
+          },
+        ],
+      },
+    });
+    if (admission.kind !== 'compact') {
+      throw new Error('expected compact multi-page admission');
+    }
+    const replacements = admission.plan.affectedPages.map((affectedPage) => {
+      const replacement = structuredClone(affectedPage.pageContract);
+      (
+        replacement.actionSemanticCoverage as Array<
+          Record<string, unknown>
+        >
+      )[0]!.disposition = { kind: 'action_requirement' };
+      return replacement;
+    });
+    const result = applyPageContractRepairs({
+      draft: input,
+      affectedPages: admission.plan.affectedPages,
+      pageContracts: replacements,
+    });
+    expect(input).toEqual(snapshot);
+    expect(
+      (result.pageContracts as Array<Record<string, unknown>>).map(
+        (resultPage) =>
+          (
+            resultPage.actionSemanticCoverage as Array<
+              Record<string, unknown>
+            >
+          )[0]!.disposition,
+      ),
+    ).toEqual([
+      { kind: 'action_requirement' },
+      { kind: 'action_requirement' },
+    ]);
+
+    const incomplete = structuredClone(replacements);
+    (
+      incomplete[1]!.actionSemanticCoverage as Array<
+        Record<string, unknown>
+      >
+    )[0]!.disposition = {
+      kind: 'non_visual',
+      rationale: 'narrative_context',
+    };
+    expect(() =>
+      applyPageContractRepairs({
+        draft: input,
+        affectedPages: admission.plan.affectedPages,
+        pageContracts: incomplete,
+      }),
+    ).toThrow('page_contract_repair_action_coverage_target_invalid');
+    expect(input).toEqual(snapshot);
+  });
+
+  it('escalates distinct-page scalar sets when any member is unresolved or mixed with an orphan row', () => {
+    const unresolved = draft();
+    const unresolvedPages = unresolved.pageContracts as Array<
+      Record<string, unknown>
+    >;
+    unresolvedPages[0]!.actionRequirements = [
+      minimalAction('beat:p1:test'),
+    ];
+    unresolvedPages[1]!.actionRequirements = [
+      minimalAction('beat:p2:uncovered'),
+    ];
+    (
+      unresolvedPages[1]!.actionSemanticCoverage as Array<
+        Record<string, unknown>
+      >
+    )[0]!.beatId = 'beat:p2:elsewhere';
+    expect(
+      pageContractAuthorityRepairAdmission({
+        draft: unresolved,
+        issues: [
+          actionCoverageCardinalityIssue(1, 0),
+          actionCoverageCardinalityIssue(2, 0),
+        ],
+      }),
+    ).toMatchObject({
+      kind: 'escalate_full_draft',
+      reason: 'complete_pure_no_closed_compact',
+    });
+
+    const mixed = draft();
+    const mixedPages = mixed.pageContracts as Array<
+      Record<string, unknown>
+    >;
+    mixedPages[0]!.actionRequirements = [minimalAction('beat:p1:test')];
+    mixedPages[1]!.actionRequirements = [];
+    (
+      mixedPages[1]!.actionSemanticCoverage as Array<
+        Record<string, unknown>
+      >
+    )[0]!.disposition = { kind: 'action_requirement' };
+    expect(
+      pageContractAuthorityRepairAdmission({
+        draft: mixed,
+        issues: [
+          actionCoverageCardinalityIssue(1, 0),
+          coverageActionCardinalityIssue(2, 0),
+        ],
+      }),
+    ).toMatchObject({
+      kind: 'escalate_full_draft',
+      reason: 'complete_pure_no_closed_compact',
+    });
+  });
+
+  it('admits exactly one uncovered action for one orphan coverage with one closed permitted beat', () => {
+    const input = draft();
+    const pageTwo = (
+      input.pageContracts as Array<Record<string, unknown>>
+    )[1]!;
+    pageTwo.actionRequirements = [
+      minimalAction('beat:p2:already_covered'),
+      minimalAction('beat:p2:only_uncovered'),
+    ];
+    pageTwo.actionSemanticCoverage = [
+      {
+        beatId: 'beat:p2:already_covered',
+        sourceEvidenceId: `se1_${'a'.repeat(64)}`,
+        disposition: { kind: 'action_requirement' },
+      },
+      {
+        beatId: 'beat:p2:orphan',
+        sourceEvidenceId: `se1_${'b'.repeat(64)}`,
+        disposition: { kind: 'action_requirement' },
+      },
+    ];
+    const admission = pageContractAuthorityRepairAdmission({
+      draft: input,
+      issues: [
+        actionCoverageCardinalityIssue(2, 1),
+        coverageActionCardinalityIssue(2, 1),
+      ],
+    });
+
+    expect(admission).toMatchObject({
+      kind: 'compact',
+      policyVersion: ACTION_COVERAGE_BINDING_REPAIR_POLICY_VERSION,
+      plan: {
+        affectedPages: [
+          {
+            actionCoverageBindingPolicyVersion:
+              ACTION_COVERAGE_BINDING_REPAIR_POLICY_VERSION,
+            repairTargets: [
+              {
+                code: 'coverage_action_binding_cardinality_invalid',
+                pageNumber: 2,
+                coverageIndex: 1,
+                permittedBeatId: 'beat:p2:only_uncovered',
+              },
+            ],
+          },
+        ],
+      },
+    });
+  });
+
+  it('escalates complete pure orphan graphs with zero or multiple uncovered actions', () => {
+    const zero = draft();
+    const zeroPage = (
+      zero.pageContracts as Array<Record<string, unknown>>
+    )[1]!;
+    zeroPage.actionRequirements = [
+      minimalAction('beat:p2:first'),
+      minimalAction('beat:p2:second'),
+    ];
+    zeroPage.actionSemanticCoverage = [
+      {
+        beatId: 'beat:p2:first',
+        sourceEvidenceId: `se1_${'a'.repeat(64)}`,
+        disposition: { kind: 'action_requirement' },
+      },
+      {
+        beatId: 'beat:p2:second',
+        sourceEvidenceId: `se1_${'b'.repeat(64)}`,
+        disposition: { kind: 'action_requirement' },
+      },
+      {
+        beatId: 'beat:p2:orphan',
+        sourceEvidenceId: `se1_${'c'.repeat(64)}`,
+        disposition: { kind: 'action_requirement' },
+      },
+    ];
+    const zeroAdmission = pageContractAuthorityRepairAdmission({
+      draft: zero,
+      issues: [coverageActionCardinalityIssue(2, 2)],
+    });
+    expect(zeroAdmission).toMatchObject({
+      kind: 'escalate_full_draft',
+      reason: 'complete_pure_no_closed_compact',
+    });
+
+    const multiple = draft();
+    const multiplePage = (
+      multiple.pageContracts as Array<Record<string, unknown>>
+    )[1]!;
+    multiplePage.actionRequirements = [
+      minimalAction('beat:p2:first'),
+      minimalAction('beat:p2:second'),
+    ];
+    multiplePage.actionSemanticCoverage = [
+      {
+        beatId: 'beat:p2:orphan',
+        sourceEvidenceId: `se1_${'d'.repeat(64)}`,
+        disposition: { kind: 'action_requirement' },
+      },
+    ];
+    const multipleAdmission = pageContractAuthorityRepairAdmission({
+      draft: multiple,
+      issues: [
+        actionCoverageCardinalityIssue(2, 0),
+        actionCoverageCardinalityIssue(2, 1),
+        coverageActionCardinalityIssue(2, 0),
+      ],
+    });
+    expect(multipleAdmission).toMatchObject({
+      kind: 'escalate_full_draft',
+      reason: 'complete_pure_no_closed_compact',
+    });
+  });
+
+  it('escalates a complete pure coverage-duplicate graph and deduplicates generic escalation diagnostics', () => {
+    const input = draft();
+    const pageTwo = (
+      input.pageContracts as Array<Record<string, unknown>>
+    )[1]!;
+    pageTwo.actionRequirements = [];
+    pageTwo.actionSemanticCoverage = ['a', 'b'].map((suffix) => ({
+      beatId: 'beat:p2:duplicate',
+      sourceEvidenceId: `se1_${suffix.repeat(64)}`,
+      disposition: { kind: 'action_requirement' },
+    }));
+    const issues: DraftAuthorityReferenceIssue[] = [0, 1].flatMap(
+      (coverageIndex): DraftAuthorityReferenceIssue[] => [
+        coverageActionCardinalityIssue(2, coverageIndex),
+        {
+          code: 'coverage_beat_cardinality_invalid',
+          locator: {
+            kind: 'page_coverage',
+            referenceClass: 'action_coverage',
+            fieldRole: 'actionSemanticCoverage.beatId',
+            pageNumber: 2,
+            coverageIndex,
+          },
+        },
+      ],
+    );
+    const admission = pageContractAuthorityRepairAdmission({
+      draft: input,
+      issues,
+    });
+    expect(admission).toMatchObject({
+      kind: 'escalate_full_draft',
+      reason: 'complete_pure_no_closed_compact',
+    });
+    if (admission.kind === 'escalate_full_draft') {
+      expect(admission.diagnosticIssues).toHaveLength(3);
+      expect(admission.diagnosticIssues).toContainEqual({
+        family: 'action_semantic',
+        code: 'beat_identity_duplicate',
+        locator: {
+          kind: 'page',
+          fieldRole: 'identity',
+          pageNumber: 2,
+        },
+      });
+      expect(admission.validationMessages).toHaveLength(4);
+    }
+  });
+
+  it('keeps stale, incomplete, duplicate, and mixed issue populations ineligible rather than escalating', () => {
+    const input = draft();
+    const pageTwo = (
+      input.pageContracts as Array<Record<string, unknown>>
+    )[1]!;
+    pageTwo.actionRequirements = [minimalAction('beat:p2:uncovered')];
+    pageTwo.actionSemanticCoverage = [
+      {
+        beatId: 'beat:p2:orphan',
+        sourceEvidenceId: `se1_${'a'.repeat(64)}`,
+        disposition: { kind: 'action_requirement' },
+      },
+    ];
+    const actionIssue = actionCoverageCardinalityIssue(2, 0);
+    const coverageIssue = coverageActionCardinalityIssue(2, 0);
+    const variants: DraftAuthorityReferenceIssue[][] = [
+      [coverageIssue],
+      [actionIssue, coverageActionCardinalityIssue(2, 99)],
+      [actionIssue, coverageIssue, structuredClone(coverageIssue)],
+      [
+        actionIssue,
+        coverageIssue,
+        {
+          code: 'action_check_id_forbidden',
+          locator: {
+            kind: 'page_action',
+            referenceClass: 'action_identity',
+            fieldRole: 'actionRequirements.checkId',
+            pageNumber: 2,
+            actionIndex: 0,
+          },
+        },
+      ],
+    ];
+    for (const issues of variants) {
+      expect(
+        pageContractAuthorityRepairAdmission({ draft: input, issues }),
+      ).toEqual({
+        kind: 'ineligible',
+        policyVersion: ACTION_COVERAGE_BINDING_REPAIR_POLICY_VERSION,
+        reason: 'incomplete_or_impure',
+      });
+    }
   });
 
   it('collapses one complete duplicate action-binding graph into one atomic component target', () => {
@@ -884,6 +1432,60 @@ describe('page-contract compact repair', () => {
         }),
       }),
     ]);
+  });
+
+  it('escalates a same-page duplicate component combined with a scalar conversion', () => {
+    const input = draft();
+    const pageTwo = (
+      input.pageContracts as Array<Record<string, unknown>>
+    )[1]!;
+    pageTwo.actionRequirements = [
+      minimalAction('beat:p2:shared'),
+      minimalAction('beat:p2:shared'),
+      minimalAction('beat:p2:unique'),
+    ];
+    pageTwo.actionSemanticCoverage = [
+      {
+        beatId: 'beat:p2:shared',
+        sourceEvidenceId: `se1_${'a'.repeat(64)}`,
+        disposition: { kind: 'action_requirement' },
+      },
+      {
+        beatId: 'beat:p2:unique',
+        sourceEvidenceId: `se1_${'b'.repeat(64)}`,
+        disposition: {
+          kind: 'non_visual',
+          rationale: 'narrative_context',
+        },
+      },
+    ];
+    const issues: DraftAuthorityReferenceIssue[] = [
+      0,
+      1,
+    ].map((actionIndex): DraftAuthorityReferenceIssue => ({
+      code: 'action_beat_binding_cardinality_invalid',
+      locator: {
+        kind: 'page_action',
+        referenceClass: 'action_identity',
+        fieldRole: 'actionRequirements.beatId',
+        pageNumber: 2,
+        actionIndex,
+      },
+    }));
+    issues.push(
+      coverageActionCardinalityIssue(2, 0),
+      actionCoverageCardinalityIssue(2, 2),
+    );
+
+    expect(
+      pageContractAuthorityRepairAdmission({ draft: input, issues }),
+    ).toMatchObject({
+      kind: 'escalate_full_draft',
+      reason: 'complete_pure_no_closed_compact',
+    });
+    expect(
+      pageContractAuthorityRepairPlan({ draft: input, issues }),
+    ).toBeNull();
   });
 
   it('atomically closes three independent 2-to-1 action-binding components and rejects every wider response shape', () => {
@@ -1257,21 +1859,15 @@ describe('page-contract compact repair', () => {
       relation: 'beside',
       target: { kind: 'spatial', id: 'node:window' },
     };
-    const actionIssue: DraftAuthorityReferenceIssue = {
-      code: 'action_coverage_cardinality_invalid',
-      locator: {
-        kind: 'page_action',
-        referenceClass: 'action_coverage',
-        fieldRole:
-          'actionRequirements.actionSemanticCoverage',
-        pageNumber: 1,
-        actionIndex: 1,
-      },
-    };
+    const actionIssues = configureUniqueOrphanBindingGraph({
+      page: (input.pageContracts as Array<Record<string, unknown>>)[0]!,
+      candidateActionIndex: 1,
+      orphanBeatId: 'beat:p1:orphan',
+    });
     const plan = pageContractCompoundAuthorityRepairPlan({
       draft: input,
       issues: [
-        actionIssue,
+        ...actionIssues,
         pageSpatialIssue('object', 1),
         pageSpatialIssue('spatialEffect.target', 2),
       ],
@@ -1285,9 +1881,10 @@ describe('page-contract compact repair', () => {
       repairTargets: [
         {
           family: 'action_semantic',
-          code: 'action_coverage_cardinality_invalid',
+          code: 'coverage_action_binding_cardinality_invalid',
           pageNumber: 1,
-          actionIndex: 1,
+          coverageIndex: 3,
+          permittedBeatId: 'beat:p1:object',
         },
         {
           family: 'draft_contract',
@@ -1317,7 +1914,7 @@ describe('page-contract compact repair', () => {
     expect(plan?.validationMessages).toEqual(
       expect.arrayContaining([
         expect.stringContaining(
-          'action_coverage_cardinality_invalid',
+          'coverage_action_binding_cardinality_invalid',
         ),
         expect.stringContaining(
           'actionRequirements[1].object',
@@ -1342,6 +1939,86 @@ describe('page-contract compact repair', () => {
     expect(JSON.stringify(plan)).not.toContain('node:outside');
   });
 
+  it('composes a scalar disposition conversion with an orthogonal page-spatial repair', () => {
+    const input = spatialDraft();
+    const pageOne = (
+      input.pageContracts as Array<Record<string, unknown>>
+    )[0]!;
+    pageOne.actionRequirements = [minimalAction('beat:p1:test')];
+    (
+      pageOne.actionRequirements as Array<Record<string, unknown>>
+    )[0]!.object = {
+      kind: 'spatial',
+      id: 'node:outside',
+    };
+    const snapshot = structuredClone(input);
+    const plan = pageContractCompoundAuthorityRepairPlan({
+      draft: input,
+      issues: [
+        actionCoverageCardinalityIssue(1, 0),
+        pageSpatialIssue('object', 0),
+      ],
+      pageSpatialRepairAuthority: pageSpatialAuthority(),
+    });
+
+    expect(plan?.affectedPages[0]).toMatchObject({
+      pageNumber: 1,
+      actionCoverageBindingPolicyVersion:
+        ACTION_COVERAGE_BINDING_REPAIR_POLICY_VERSION,
+      repairTargets: expect.arrayContaining([
+        expect.objectContaining({
+          code: 'action_coverage_cardinality_invalid',
+          actionIndex: 0,
+          coverageIndex: 0,
+          permittedBeatId: 'beat:p1:test',
+        }),
+        expect.objectContaining({
+          code: 'page_spatial_reference_outside_zone',
+          itemIndex: 0,
+          fieldRole: 'object',
+        }),
+      ]),
+    });
+    if (!plan) throw new Error('expected scalar + spatial compound plan');
+
+    const replacement = structuredClone(
+      plan.affectedPages[0]!.pageContract,
+    );
+    (
+      replacement.actionSemanticCoverage as Array<
+        Record<string, unknown>
+      >
+    )[0]!.disposition = { kind: 'action_requirement' };
+    (
+      replacement.actionRequirements as Array<
+        Record<string, unknown>
+      >
+    )[0]!.object = { kind: 'spatial', id: 'node:door' };
+    const result = applyPageContractRepairs({
+      draft: input,
+      affectedPages: plan.affectedPages,
+      pageContracts: [replacement],
+    });
+    const repaired = (
+      result.pageContracts as Array<Record<string, unknown>>
+    )[0]!;
+    expect(input).toEqual(snapshot);
+    expect(
+      (
+        repaired.actionSemanticCoverage as Array<
+          Record<string, unknown>
+        >
+      )[0]!.disposition,
+    ).toEqual({ kind: 'action_requirement' });
+    expect(
+      (
+        repaired.actionRequirements as Array<
+          Record<string, unknown>
+        >
+      )[0]!.object,
+    ).toEqual({ kind: 'spatial', id: 'node:door' });
+  });
+
   it('does not require field-patch action context for a complete-page compound authority', () => {
     const input = spatialDraft();
     const inputActions = (
@@ -1349,21 +2026,15 @@ describe('page-contract compact repair', () => {
         .actionRequirements as Array<Record<string, unknown>>
     );
     inputActions[1]!.predicate = null;
-    const actionIssue: DraftAuthorityReferenceIssue = {
-      code: 'action_coverage_cardinality_invalid',
-      locator: {
-        kind: 'page_action',
-        referenceClass: 'action_coverage',
-        fieldRole:
-          'actionRequirements.actionSemanticCoverage',
-        pageNumber: 1,
-        actionIndex: 1,
-      },
-    };
+    const actionIssues = configureUniqueOrphanBindingGraph({
+      page: (input.pageContracts as Array<Record<string, unknown>>)[0]!,
+      candidateActionIndex: 1,
+      orphanBeatId: 'beat:p1:orphan',
+    });
 
     const plan = pageContractCompoundAuthorityRepairPlan({
       draft: input,
-      issues: [actionIssue, pageSpatialIssue('object', 1)],
+      issues: [...actionIssues, pageSpatialIssue('object', 1)],
       pageSpatialRepairAuthority: pageSpatialAuthority(),
     });
 
@@ -1371,8 +2042,9 @@ describe('page-contract compact repair', () => {
       pageNumber: 1,
       repairTargets: expect.arrayContaining([
         expect.objectContaining({
-          code: 'action_coverage_cardinality_invalid',
-          actionIndex: 1,
+          code: 'coverage_action_binding_cardinality_invalid',
+          coverageIndex: 3,
+          permittedBeatId: 'beat:p1:object',
         }),
         expect.objectContaining({
           code: 'page_spatial_reference_outside_zone',
@@ -2113,11 +2785,26 @@ describe('page-contract compact repair', () => {
       PAGE_CONTRACT_REPAIR_INPUT_ENCODING_VERSION,
     );
     expect(PAGE_CONTRACT_REPAIR_PROMPT_VERSION).toBe(
-      'page-contract-repair-prompt/v12',
+      'page-contract-repair-prompt/v13',
     );
     expect(PAGE_CONTRACT_REPAIR_USER_PROMPT_VERSION).toBe(
+      'page-contract-repair-user-prompt/v14',
+    );
+    expect(PAGE_CONTRACT_REPAIR_LEGACY_PROMPT_VERSION).toBe(
+      'page-contract-repair-prompt/v12',
+    );
+    expect(PAGE_CONTRACT_REPAIR_LEGACY_USER_PROMPT_VERSION).toBe(
       'page-contract-repair-user-prompt/v13',
     );
+    expect(buildPageContractRepairSystemPromptLegacyV1()).toContain(
+      'through one unique beatId',
+    );
+    expect(system).toContain('exact permittedBeatId');
+    expect(
+      buildPageContractRepairUserPromptLegacyV1({
+        affectedPages: affected,
+      }),
+    ).toBe(rawPrompt);
     expect(parsed.affectedPages).toHaveLength(1);
     expect(parsed.affectedPages[0].repairTargets).toEqual([
       {
@@ -2493,21 +3180,15 @@ describe('page-contract compact repair', () => {
 
   it('applies a compound page repair only when every spatial target selects current-zone authority', () => {
     const original = spatialDraft();
+    const actionIssues = configureUniqueOrphanBindingGraph({
+      page: (original.pageContracts as Array<Record<string, unknown>>)[0]!,
+      candidateActionIndex: 1,
+      orphanBeatId: 'beat:p1:orphan',
+    });
     const snapshot = structuredClone(original);
-    const actionIssue: DraftAuthorityReferenceIssue = {
-      code: 'action_coverage_cardinality_invalid',
-      locator: {
-        kind: 'page_action',
-        referenceClass: 'action_coverage',
-        fieldRole:
-          'actionRequirements.actionSemanticCoverage',
-        pageNumber: 1,
-        actionIndex: 1,
-      },
-    };
     const plan = pageContractCompoundAuthorityRepairPlan({
       draft: original,
-      issues: [actionIssue, pageSpatialIssue('object', 1)],
+      issues: [...actionIssues, pageSpatialIssue('object', 1)],
       pageSpatialRepairAuthority: pageSpatialAuthority(),
     })!;
     const replacement = structuredClone(
@@ -2521,7 +3202,11 @@ describe('page-contract compact repair', () => {
       kind: 'spatial',
       id: 'node:door',
     };
-    replacementActions[1]!.beatId = 'beat:p1:corrected_binding';
+    (
+      replacement.actionSemanticCoverage as Array<
+        Record<string, unknown>
+      >
+    )[3]!.beatId = 'beat:p1:object';
     replacementActions[0]!.predicate = 'sneezes';
     replacement.camera = 'hostile non-target camera rewrite';
     replacement.mustShow = ['hostile non-target mustShow rewrite'];
@@ -2555,7 +3240,7 @@ describe('page-contract compact repair', () => {
         .actionRequirements as Array<Record<string, unknown>>)[0],
     );
     expect(repairedActions[1]!.beatId).toBe(
-      'beat:p1:corrected_binding',
+      'beat:p1:object',
     );
     expect(repairedActions[1]!.object).toEqual({
       kind: 'spatial',
@@ -2620,23 +3305,27 @@ describe('page-contract compact repair', () => {
         laterality: null,
       },
     ];
+    const issues = configureUniqueOrphanBindingGraph({
+      page: originalPages[1]!,
+      candidateActionIndex: 0,
+      orphanBeatId: 'beat:p2:orphan',
+    });
     const snapshot = structuredClone(original);
     const plan = pageContractAuthorityRepairPlan({
       draft: original,
-      issues: [
+      issues,
+    })!;
+    expect(plan.affectedPages[0]).toMatchObject({
+      actionCoverageBindingPolicyVersion:
+        ACTION_COVERAGE_BINDING_REPAIR_POLICY_VERSION,
+      repairTargets: [
         {
           code: 'coverage_action_binding_cardinality_invalid',
-          locator: {
-            kind: 'page_coverage',
-            referenceClass: 'action_coverage',
-            fieldRole:
-              'actionSemanticCoverage.actionRequirementBinding',
-            pageNumber: 2,
-            coverageIndex: 0,
-          },
+          coverageIndex: 0,
+          permittedBeatId: 'beat:p2:bound_action',
         },
       ],
-    })!;
+    });
     const replacement = structuredClone(
       plan.affectedPages[0]!.pageContract,
     );
@@ -2667,6 +3356,159 @@ describe('page-contract compact repair', () => {
 
     expect(original).toEqual(snapshot);
     expect(repaired).toEqual(expected);
+
+    const wrongPermittedResponse = structuredClone(replacement);
+    (
+      wrongPermittedResponse.actionSemanticCoverage as Array<
+        Record<string, unknown>
+      >
+    )[0]!.beatId = 'beat:p2:wrong_but_page_scoped';
+    expect(() =>
+      applyPageContractRepairs({
+        draft: original,
+        affectedPages: plan.affectedPages,
+        pageContracts: [wrongPermittedResponse],
+      }),
+    ).toThrow('page_contract_repair_coverage_beat_id_not_permitted');
+
+    const residualAuthority = structuredClone(plan.affectedPages);
+    const residualTarget = residualAuthority[0]!.repairTargets[0]!;
+    if (
+      residualTarget.code ===
+      'coverage_action_binding_cardinality_invalid'
+    ) {
+      residualTarget.permittedBeatId = 'beat:p2:orphan';
+    }
+    expect(() =>
+      applyPageContractRepairs({
+        draft: original,
+        affectedPages: residualAuthority,
+        pageContracts: [structuredClone(originalPages[1]!)],
+      }),
+    ).toThrow(
+      'page_contract_repair_action_coverage_cardinality_postcondition_invalid',
+    );
+  });
+
+  it('retargets one exact cross-page action coverage identity and rejects operation tampering', () => {
+    const original = draft();
+    const originalPage = (
+      original.pageContracts as Array<Record<string, unknown>>
+    )[1]!;
+    originalPage.actionRequirements = [
+      minimalAction('beat:p2:target'),
+    ];
+    const originalCoverage =
+      originalPage.actionSemanticCoverage as Array<
+        Record<string, unknown>
+      >;
+    originalCoverage[0]!.beatId = 'beat:p1:foreign';
+    originalCoverage[0]!.disposition = {
+      kind: 'action_requirement',
+    };
+    const issues = [actionCoverageCardinalityIssue(2, 0)];
+    const snapshot = structuredClone(original);
+    const admission = pageContractAuthorityRepairAdmission({
+      draft: original,
+      issues,
+    });
+    expect(admission).toMatchObject({
+      kind: 'compact',
+      plan: {
+        affectedPages: [
+          {
+            pageNumber: 2,
+            repairTargets: [
+              {
+                code: 'action_coverage_cardinality_invalid',
+                actionIndex: 0,
+                coverageIndex: 0,
+                permittedBeatId: 'beat:p2:target',
+              },
+            ],
+          },
+        ],
+        validationMessages: [
+          expect.stringContaining(
+            'change only actionSemanticCoverage[0].beatId',
+          ),
+        ],
+      },
+    });
+    if (admission.kind !== 'compact') {
+      throw new Error('expected compact cross-page beat retarget');
+    }
+    const replacement = structuredClone(
+      admission.plan.affectedPages[0]!.pageContract,
+    );
+    (
+      replacement.actionSemanticCoverage as Array<
+        Record<string, unknown>
+      >
+    )[0]!.beatId = 'beat:p2:target';
+    replacement.camera = 'provider drift is discarded';
+
+    const result = applyPageContractRepairs({
+      draft: original,
+      affectedPages: admission.plan.affectedPages,
+      pageContracts: [replacement],
+    });
+    const expected = structuredClone(snapshot);
+    (
+      (
+        expected.pageContracts as Array<Record<string, unknown>>
+      )[1]!.actionSemanticCoverage as Array<Record<string, unknown>>
+    )[0]!.beatId = 'beat:p2:target';
+    expect(original).toEqual(snapshot);
+    expect(result).toEqual(expected);
+
+    const unchangedBeat = structuredClone(replacement);
+    (
+      unchangedBeat.actionSemanticCoverage as Array<
+        Record<string, unknown>
+      >
+    )[0]!.beatId = 'beat:p1:foreign';
+    expect(() =>
+      applyPageContractRepairs({
+        draft: original,
+        affectedPages: admission.plan.affectedPages,
+        pageContracts: [unchangedBeat],
+      }),
+    ).toThrow('page_contract_repair_action_coverage_target_invalid');
+
+    const dispositionTamper = structuredClone(replacement);
+    (
+      dispositionTamper.actionSemanticCoverage as Array<
+        Record<string, unknown>
+      >
+    )[0]!.disposition = {
+      kind: 'non_visual',
+      rationale: 'narrative_context',
+    };
+    expect(() =>
+      applyPageContractRepairs({
+        draft: original,
+        affectedPages: admission.plan.affectedPages,
+        pageContracts: [dispositionTamper],
+      }),
+    ).toThrow('page_contract_repair_action_coverage_target_invalid');
+
+    const ambiguous = structuredClone(original);
+    (
+      (
+        ambiguous.pageContracts as Array<Record<string, unknown>>
+      )[1]!.actionSemanticCoverage as Array<Record<string, unknown>>
+    ).push({
+      beatId: 'beat:p1:second_foreign',
+      sourceEvidenceId: `se1_${'b'.repeat(64)}`,
+      disposition: { kind: 'action_requirement' },
+    });
+    expect(
+      pageContractAuthorityRepairAdmission({ draft: ambiguous, issues }),
+    ).toMatchObject({
+      kind: 'escalate_full_draft',
+      reason: 'complete_pure_no_closed_compact',
+    });
   });
 
   it('limits an action-coverage repair to one existing binding record and rejects broader coverage drift', () => {
@@ -2723,6 +3565,18 @@ describe('page-contract compact repair', () => {
         },
       ],
     })!;
+    expect(plan.affectedPages[0]).toMatchObject({
+      actionCoverageBindingPolicyVersion:
+        ACTION_COVERAGE_BINDING_REPAIR_POLICY_VERSION,
+      repairTargets: [
+        {
+          code: 'action_coverage_cardinality_invalid',
+          actionIndex: 0,
+          coverageIndex: 0,
+          permittedBeatId: 'beat:p2:target',
+        },
+      ],
+    });
     const replacement = structuredClone(originalPage);
     const replacementCoverage =
       replacement.actionSemanticCoverage as Array<
@@ -2751,6 +3605,79 @@ describe('page-contract compact repair', () => {
     )[0]!.disposition = { kind: 'action_requirement' };
     expect(original).toEqual(snapshot);
     expect(repaired).toEqual(expected);
+
+    const actionBeatTamper = structuredClone(replacement);
+    (
+      actionBeatTamper.actionRequirements as Array<
+        Record<string, unknown>
+      >
+    )[0]!.beatId = 'beat:p2:tampered_action';
+    expect(() =>
+      applyPageContractRepairs({
+        draft: original,
+        affectedPages: plan.affectedPages,
+        pageContracts: [actionBeatTamper],
+      }),
+    ).toThrow('page_contract_repair_action_coverage_target_invalid');
+
+    const coverageBeatTamper = structuredClone(replacement);
+    (
+      coverageBeatTamper.actionSemanticCoverage as Array<
+        Record<string, unknown>
+      >
+    )[0]!.beatId = 'beat:p2:tampered_coverage';
+    expect(() =>
+      applyPageContractRepairs({
+        draft: original,
+        affectedPages: plan.affectedPages,
+        pageContracts: [coverageBeatTamper],
+      }),
+    ).toThrow('page_contract_repair_action_coverage_target_invalid');
+
+    expect(() =>
+      applyPageContractRepairs({
+        draft: original,
+        affectedPages: plan.affectedPages,
+        pageContracts: [structuredClone(originalPage)],
+      }),
+    ).toThrow('page_contract_repair_action_coverage_target_invalid');
+
+    const widenedDisposition = structuredClone(replacement);
+    (
+      widenedDisposition.actionSemanticCoverage as Array<
+        Record<string, unknown>
+      >
+    )[0]!.disposition = {
+      kind: 'action_requirement',
+      checkId: 'provider_widened',
+    };
+    expect(() =>
+      applyPageContractRepairs({
+        draft: original,
+        affectedPages: plan.affectedPages,
+        pageContracts: [widenedDisposition],
+      }),
+    ).toThrow('page_contract_repair_action_coverage_target_invalid');
+
+    const wrongCoverageAuthority = structuredClone(plan.affectedPages);
+    const wrongCoverageTarget =
+      wrongCoverageAuthority[0]!.repairTargets[0]!;
+    if (wrongCoverageTarget.code === 'action_coverage_cardinality_invalid') {
+      wrongCoverageTarget.coverageIndex = 1;
+    }
+    const wrongCoverageResponse = structuredClone(replacement);
+    (
+      wrongCoverageResponse.actionSemanticCoverage as Array<
+        Record<string, unknown>
+      >
+    )[1]!.disposition = { kind: 'action_requirement' };
+    expect(() =>
+      applyPageContractRepairs({
+        draft: original,
+        affectedPages: wrongCoverageAuthority,
+        pageContracts: [wrongCoverageResponse],
+      }),
+    ).toThrow('page_contract_repair_action_coverage_target_invalid');
 
     const hostile = structuredClone(replacement);
     (

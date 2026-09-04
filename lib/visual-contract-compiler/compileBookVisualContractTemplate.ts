@@ -76,11 +76,14 @@ import {
 } from './projectContractProse';
 import {
   VISUAL_CONTRACT_AUTHORING_ENDPOINT,
+  VISUAL_CONTRACT_AUTHORING_CARDINALITY_ESCALATION_PROVENANCE,
+  LEGACY_VISUAL_CONTRACT_AUTHORING_ROUTING_POLICY_VERSION,
   VISUAL_CONTRACT_AUTHORING_MAX_INPUT_TOKENS,
   VISUAL_CONTRACT_AUTHORING_MODEL,
   VISUAL_CONTRACT_AUTHORING_NO_FALLBACK,
   VISUAL_CONTRACT_AUTHORING_PROVIDER,
   VISUAL_CONTRACT_AUTHORING_REASONING_EFFORT,
+  VISUAL_CONTRACT_AUTHORING_ROUTING_POLICY_VERSION,
   VISUAL_CONTRACT_AUTHORING_ROUTE_SAFETY_MARGIN,
   VISUAL_CONTRACT_AUTHORING_SERVICE_TIER,
   VISUAL_CONTRACT_AUTHORING_STANDARD_MAX_CALLS,
@@ -97,6 +100,8 @@ import {
   visualContractAuthoringInputAccounting,
   visualContractAuthoringRouteIsAdmissible,
   type VisualContractAuthoringInputAccounting,
+  type VisualContractAuthoringRouteProvenance,
+  type VisualContractAuthoringRoutingPolicyVersion,
 } from './authoringPolicy';
 import {
   ACTION_SEMANTIC_CATALOG,
@@ -152,6 +157,8 @@ import {
 } from './sourceEvidenceIdRepair';
 import {
   PAGE_CONTRACT_REPAIR_JSON_SCHEMA,
+  PAGE_CONTRACT_REPAIR_LEGACY_PROMPT_VERSION,
+  PAGE_CONTRACT_REPAIR_LEGACY_USER_PROMPT_VERSION,
   PAGE_CONTRACT_REPAIR_PROMPT_VERSION,
   PAGE_CONTRACT_REPAIR_SCHEMA_NAME,
   PAGE_CONTRACT_REPAIR_USER_PROMPT_VERSION,
@@ -162,10 +169,14 @@ import {
   applyPageContractRepairs,
   applyPageSpatialReferenceRepairPatches,
   buildPageContractRepairSystemPrompt,
+  buildPageContractRepairSystemPromptLegacyV1,
   buildPageContractRepairUserPrompt,
+  buildPageContractRepairUserPromptLegacyV1,
   buildPageSpatialReferenceRepairSystemPrompt,
   buildPageSpatialReferenceRepairUserPrompt,
-  pageContractAuthorityRepairPlan,
+  pageContractAuthorityRepairAdmission,
+  pageContractAuthorityRepairAdmissionRequiresFullDraft,
+  pageContractAuthorityRepairPlanLegacyV1,
   pageContractCompoundAuthorityRepairPlan,
   pageContractPresentationStructuralRepairAffectedPages,
   pageContractRepairAffectedPages,
@@ -173,6 +184,7 @@ import {
   parsePageContractRepairs,
   parsePageSpatialReferenceRepairPatches,
   type PageContractRepairAffectedPage,
+  type PageContractAuthorityRepairPlan,
   type PageContractRepairPreviousFailure,
   type PageSpatialReferenceRepairTarget,
   type PageSpatialRepairAuthority,
@@ -363,6 +375,8 @@ interface TemplateRepairAttempt {
   nextRepairBudgetClass?:
     | 'standard'
     | 'terminal_reference_cleanup';
+  /** Present only on a compiler-proved cardinality escalation to full_draft. */
+  routeProvenance?: VisualContractAuthoringRouteProvenance;
 }
 
 export interface TemplateRepairSummary {
@@ -383,6 +397,8 @@ export interface TemplateRepairSummary {
   nextRepairBudgetClass?:
     | 'standard'
     | 'terminal_reference_cleanup';
+  /** Present only on a compiler-proved cardinality escalation to full_draft. */
+  routeProvenance?: VisualContractAuthoringRouteProvenance;
 }
 
 function templateRepairSummary(
@@ -397,6 +413,9 @@ function templateRepairSummary(
       : {}),
     ...(attempt.nextRepairBudgetClass
       ? { nextRepairBudgetClass: attempt.nextRepairBudgetClass }
+      : {}),
+    ...(attempt.routeProvenance
+      ? { routeProvenance: attempt.routeProvenance }
       : {}),
   };
 }
@@ -803,9 +822,90 @@ function stablePropScopeRepairDiagnostic(
   };
 }
 
+type PageContractAuthorityRoutingDecision =
+  | {
+      kind: 'compact';
+      plan: PageContractAuthorityRepairPlan;
+    }
+  | {
+      kind: 'full_draft';
+      diagnosticIssues: readonly DraftValidationIssue[];
+      validationMessages: readonly string[];
+      routeProvenance: VisualContractAuthoringRouteProvenance;
+    }
+  | { kind: 'ineligible' };
+
+function pageContractAuthorityRoutingDecision(args: {
+  routingPolicyVersion: VisualContractAuthoringRoutingPolicyVersion;
+  draft: Record<string, unknown>;
+  issues: readonly DraftAuthorityReferenceIssue[];
+}): PageContractAuthorityRoutingDecision {
+  if (
+    args.routingPolicyVersion ===
+    LEGACY_VISUAL_CONTRACT_AUTHORING_ROUTING_POLICY_VERSION
+  ) {
+    const plan = pageContractAuthorityRepairPlanLegacyV1(args);
+    return plan ? { kind: 'compact', plan } : { kind: 'ineligible' };
+  }
+  const admission = pageContractAuthorityRepairAdmission(args);
+  if (admission.kind === 'compact') {
+    return { kind: 'compact', plan: admission.plan };
+  }
+  if (pageContractAuthorityRepairAdmissionRequiresFullDraft(admission)) {
+    return {
+      kind: 'full_draft',
+      diagnosticIssues: admission.diagnosticIssues,
+      validationMessages: admission.validationMessages,
+      routeProvenance:
+        VISUAL_CONTRACT_AUTHORING_CARDINALITY_ESCALATION_PROVENANCE,
+    };
+  }
+  return { kind: 'ineligible' };
+}
+
+function completeDiagnosticPopulationMatchesCardinalityEscalation(args: {
+  diagnosticPopulation: TemplateRepairDiagnosticPopulation;
+  completeDiagnosticIssues: readonly DraftValidationIssue[];
+  escalationDiagnosticIssues: readonly DraftValidationIssue[];
+}): boolean {
+  // The semantic validator reports every later duplicate row at its item
+  // locator, while the graph proof reports one causal identity defect per
+  // page. Collapse only that paired code to the graph's page identity before
+  // exact equality; no other family, code, page, or locator is widened.
+  const normalizedCensus = (
+    issues: readonly DraftValidationIssue[],
+  ): readonly DraftValidationIssue[] =>
+    normalizeDraftValidationIssues(
+      issues.map((issue) =>
+        issue.family === 'action_semantic' &&
+        issue.code === 'beat_identity_duplicate' &&
+        issue.locator.kind === 'page_item' &&
+        issue.locator.collectionRole ===
+          'page_action_semantic_coverage' &&
+        issue.locator.fieldRole === 'identity'
+          ? {
+              family: issue.family,
+              code: issue.code,
+              locator: {
+                kind: 'page',
+                fieldRole: 'identity',
+                pageNumber: issue.locator.pageNumber,
+              },
+            }
+          : issue,
+      ),
+    );
+  return (
+    args.diagnosticPopulation === 'complete' &&
+    JSON.stringify(normalizedCensus(args.completeDiagnosticIssues)) ===
+      JSON.stringify(normalizedCensus(args.escalationDiagnosticIssues))
+  );
+}
+
 function draftAuthorityReferenceFailureEvidence(args: {
   draft: Record<string, unknown>;
   error: DraftAuthorityReferenceDomainError;
+  routingPolicyVersion: VisualContractAuthoringRoutingPolicyVersion;
 }): {
   errors: string[];
   diagnosticIssues: readonly DraftValidationIssue[];
@@ -829,13 +929,17 @@ function draftAuthorityReferenceFailureEvidence(args: {
     }
   }
   if (actionAuthorityIssues.length > 0) {
-    const actionPlan = pageContractAuthorityRepairPlan({
+    const routingDecision = pageContractAuthorityRoutingDecision({
+      routingPolicyVersion: args.routingPolicyVersion,
       draft: args.draft,
       issues: actionAuthorityIssues,
     });
-    if (actionPlan) {
-      errors.push(...actionPlan.validationMessages);
-      diagnosticIssues.push(...actionPlan.diagnosticIssues);
+    if (routingDecision.kind === 'compact') {
+      errors.push(...routingDecision.plan.validationMessages);
+      diagnosticIssues.push(...routingDecision.plan.diagnosticIssues);
+    } else if (routingDecision.kind === 'full_draft') {
+      errors.push(...routingDecision.validationMessages);
+      diagnosticIssues.push(...routingDecision.diagnosticIssues);
     } else {
       errors.push(
         ...actionAuthorityIssues.map(
@@ -4252,6 +4356,7 @@ function assembleTemplateFromDraft(
   facts: DeterministicFacts,
   input: TemplateCompileInput,
   authoringModel: string,
+  routingPolicyVersion: VisualContractAuthoringRoutingPolicyVersion,
 ): {
   template: BookVisualContractTemplate;
   notes: string[];
@@ -4426,6 +4531,7 @@ function assembleTemplateFromDraft(
     const evidence = draftAuthorityReferenceFailureEvidence({
       draft,
       error: referenceDomainError,
+      routingPolicyVersion,
     });
     collectedErrors.push(...evidence.errors);
     collectedDiagnosticIssues.push(...evidence.diagnosticIssues);
@@ -4900,8 +5006,28 @@ function assembleTemplateFromDraft(
  */
 export async function compileBookVisualContractTemplate(
   input: TemplateCompileInput,
-  deps: { callLLM: ContractLlmCaller },
+  deps: {
+    callLLM: ContractLlmCaller;
+    /**
+     * Current v2 is the live default. Legacy v1 is retained only for the
+     * provider-free historical replay lane.
+     */
+    routingPolicyVersion?: VisualContractAuthoringRoutingPolicyVersion;
+  },
 ): Promise<TemplateCompileResult> {
+  const routingPolicyVersion =
+    deps.routingPolicyVersion ??
+    VISUAL_CONTRACT_AUTHORING_ROUTING_POLICY_VERSION;
+  if (
+    routingPolicyVersion !==
+      VISUAL_CONTRACT_AUTHORING_ROUTING_POLICY_VERSION &&
+    routingPolicyVersion !==
+      LEGACY_VISUAL_CONTRACT_AUTHORING_ROUTING_POLICY_VERSION
+  ) {
+    throw new Error(
+      'visual_contract_authoring_routing_policy_unsupported',
+    );
+  }
   // FAIL-CLOSED belt-and-suspenders: NEVER author a contract from empty/thin source. Even if a bad source somehow
   // reaches the compiler (the extractor guard is the first line), refuse before the LLM call so it cannot hallucinate
   // a fully-valid contract out of nothing.
@@ -5208,6 +5334,9 @@ export async function compileBookVisualContractTemplate(
     let bookSurfaceRouteAdmissionAccounting:
       | VisualContractAuthoringInputAccounting
       | undefined;
+    let fullDraftRouteProvenance:
+      | VisualContractAuthoringRouteProvenance
+      | undefined;
     try {
       if (initialFullDraftDispositionBindingPending) {
         const binding =
@@ -5222,7 +5351,13 @@ export async function compileBookVisualContractTemplate(
         }
         initialFullDraftDispositionBindingPending = false;
       }
-      assembled = assembleTemplateFromDraft(draft, facts, input, authoringModel);
+      assembled = assembleTemplateFromDraft(
+        draft,
+        facts,
+        input,
+        authoringModel,
+        routingPolicyVersion,
+      );
     } catch (err) {
       if (
         err instanceof BookSurfaceStructuralValidationError ||
@@ -5364,12 +5499,29 @@ export async function compileBookVisualContractTemplate(
                 referenceError.pageSpatialRepairAuthority;
               pageSpatialRepairDraft = pageContractRepairDraft;
             } else {
-              const repairPlan = pageContractAuthorityRepairPlan({
-                draft,
-                issues: referenceError.issues,
-              });
-              if (!repairPlan) throw referenceError;
-              pageContractAffectedPages = repairPlan.affectedPages;
+              const routingDecision =
+                pageContractAuthorityRoutingDecision({
+                  routingPolicyVersion,
+                  draft,
+                  issues: referenceError.issues,
+                });
+              if (routingDecision.kind === 'compact') {
+                pageContractAffectedPages =
+                  routingDecision.plan.affectedPages;
+              } else if (
+                routingDecision.kind === 'full_draft' &&
+                completeDiagnosticPopulationMatchesCardinalityEscalation({
+                  diagnosticPopulation: attemptDiagnosticPopulation,
+                  completeDiagnosticIssues: attemptDiagnosticIssues,
+                  escalationDiagnosticIssues:
+                    routingDecision.diagnosticIssues,
+                })
+              ) {
+                fullDraftRouteProvenance =
+                  routingDecision.routeProvenance;
+              } else {
+                throw referenceError;
+              }
             }
           }
         }
@@ -5465,14 +5617,39 @@ export async function compileBookVisualContractTemplate(
             pageSpatialReferenceRepairDiagnostic,
           );
         } else {
-          const repairPlan = pageContractAuthorityRepairPlan({
+          const routingDecision = pageContractAuthorityRoutingDecision({
+            routingPolicyVersion,
             draft,
             issues: err.issues,
           });
-          if (!repairPlan) throw err;
-          pageContractAffectedPages = repairPlan.affectedPages;
-          attemptErrors = repairPlan.validationMessages;
-          attemptDiagnosticIssues = repairPlan.diagnosticIssues;
+          if (routingDecision.kind === 'compact') {
+            pageContractAffectedPages =
+              routingDecision.plan.affectedPages;
+            attemptErrors = routingDecision.plan.validationMessages;
+            attemptDiagnosticIssues =
+              routingDecision.plan.diagnosticIssues;
+          } else if (
+            routingDecision.kind === 'full_draft' &&
+            completeDiagnosticPopulationMatchesCardinalityEscalation({
+              diagnosticPopulation: attemptDiagnosticPopulation,
+              completeDiagnosticIssues:
+                err instanceof
+                CollectedDraftAuthorityReferenceDomainError
+                  ? err.completeError.diagnosticIssues
+                  : attemptDiagnosticIssues,
+              escalationDiagnosticIssues:
+                routingDecision.diagnosticIssues,
+            })
+          ) {
+            fullDraftRouteProvenance =
+              routingDecision.routeProvenance;
+            attemptErrors = [...routingDecision.validationMessages];
+            attemptDiagnosticIssues = [
+              ...routingDecision.diagnosticIssues,
+            ];
+          } else {
+            throw err;
+          }
         }
         if (err instanceof CollectedDraftAuthorityReferenceDomainError) {
           attemptErrors = [...err.completeError.errors];
@@ -5534,7 +5711,8 @@ export async function compileBookVisualContractTemplate(
       !stablePropScopeAffectedTargets &&
       !presentationRequirementAffectedTargets &&
       !bookSurfaceAuthority &&
-      !pageContractAffectedPages
+      !pageContractAffectedPages &&
+      !fullDraftRouteProvenance
     ) {
       if (pageSpatialRepairIssues && pageSpatialRepairAuthority) {
         pageSpatialReferenceAffectedTargets =
@@ -5612,10 +5790,13 @@ export async function compileBookVisualContractTemplate(
                   ? SOURCE_EVIDENCE_ID_REPAIR_PROMPT_VERSION
                   : lastRepairMode === 'represented_elsewhere_patch'
                     ? REPRESENTED_ELSEWHERE_REPAIR_PROMPT_VERSION
-                  : lastRepairMode === 'page_contract_patch'
-                    ? PAGE_CONTRACT_REPAIR_PROMPT_VERSION
-                    : lastRepairMode === 'stable_prop_scope_patch'
-                      ? STABLE_PROP_SCOPE_REPAIR_PROMPT_VERSION
+                    : lastRepairMode === 'page_contract_patch'
+                      ? routingPolicyVersion ===
+                          LEGACY_VISUAL_CONTRACT_AUTHORING_ROUTING_POLICY_VERSION
+                        ? PAGE_CONTRACT_REPAIR_LEGACY_PROMPT_VERSION
+                        : PAGE_CONTRACT_REPAIR_PROMPT_VERSION
+                      : lastRepairMode === 'stable_prop_scope_patch'
+                        ? STABLE_PROP_SCOPE_REPAIR_PROMPT_VERSION
                     : lastRepairMode ===
                         'page_spatial_reference_patch'
                       ? PAGE_SPATIAL_REFERENCE_REPAIR_PROMPT_VERSION
@@ -5832,11 +6013,18 @@ export async function compileBookVisualContractTemplate(
 
     const precedingRepairMode =
       repairAttempts[repairAttempts.length - 2]?.nextRepairMode;
+    const precedingRepairRouteProvenance =
+      repairAttempts[repairAttempts.length - 2]?.routeProvenance;
+    const precedingRepairWasCardinalityEscalation =
+      precedingRepairMode === 'full_draft' &&
+      precedingRepairRouteProvenance ===
+        VISUAL_CONTRACT_AUTHORING_CARDINALITY_ESCALATION_PROVENANCE;
     const terminalReferenceCleanupEligible =
       attempt === VISUAL_CONTRACT_AUTHORING_STANDARD_MAX_CALLS &&
       terminalReferenceCleanupPredecessorIsEligible(
         precedingRepairMode,
       ) &&
+      !precedingRepairWasCardinalityEscalation &&
       pageSpatialReferenceAffectedTargets !== null &&
       terminalReferenceCleanupDiagnosticPopulationIsEligible(
         currentAttempt.diagnosticIssues,
@@ -5873,8 +6061,20 @@ export async function compileBookVisualContractTemplate(
         : pageContractAffectedPages
           ? 'page_contract_patch'
           : 'full_draft';
+    if (
+      fullDraftRouteProvenance &&
+      repairMode !== 'full_draft'
+    ) {
+      throw new Error(
+        'cardinality_escalation_repair_mode_invalid',
+      );
+    }
     repairAttempts[repairAttempts.length - 1]!.nextRepairMode =
       repairMode;
+    if (fullDraftRouteProvenance) {
+      repairAttempts[repairAttempts.length - 1]!.routeProvenance =
+        fullDraftRouteProvenance;
+    }
     const repairBudgetClass = terminalReferenceCleanupEligible
       ? 'terminal_reference_cleanup'
       : 'standard';
@@ -6073,13 +6273,27 @@ export async function compileBookVisualContractTemplate(
           patches: parseRepresentedElsewhereRepairPatches(rawPatch),
         });
       } else if (pageContractAffectedPages) {
+        const pageContractRepairSystemPrompt =
+          routingPolicyVersion ===
+          LEGACY_VISUAL_CONTRACT_AUTHORING_ROUTING_POLICY_VERSION
+            ? buildPageContractRepairSystemPromptLegacyV1()
+            : buildPageContractRepairSystemPrompt();
+        const pageContractRepairUserPrompt =
+          routingPolicyVersion ===
+          LEGACY_VISUAL_CONTRACT_AUTHORING_ROUTING_POLICY_VERSION
+            ? buildPageContractRepairUserPromptLegacyV1({
+                affectedPages: pageContractAffectedPages,
+                previousRepairFailure:
+                  pageContractPreviousFailure,
+              })
+            : buildPageContractRepairUserPrompt({
+                affectedPages: pageContractAffectedPages,
+                previousRepairFailure:
+                  pageContractPreviousFailure,
+              });
         const rawPatch = await deps.callLLM(
-          buildPageContractRepairSystemPrompt(),
-          buildPageContractRepairUserPrompt({
-            affectedPages: pageContractAffectedPages,
-            previousRepairFailure:
-              pageContractPreviousFailure,
-          }),
+          pageContractRepairSystemPrompt,
+          pageContractRepairUserPrompt,
           standardOptionsForAttempt(
             pageContractRepairLlmOpts,
             attempt + 1,
@@ -6089,9 +6303,15 @@ export async function compileBookVisualContractTemplate(
             budgetClass: 'standard',
             repairMode: 'page_contract_patch',
             systemPromptVersion:
-              PAGE_CONTRACT_REPAIR_PROMPT_VERSION,
+              routingPolicyVersion ===
+              LEGACY_VISUAL_CONTRACT_AUTHORING_ROUTING_POLICY_VERSION
+                ? PAGE_CONTRACT_REPAIR_LEGACY_PROMPT_VERSION
+                : PAGE_CONTRACT_REPAIR_PROMPT_VERSION,
             userPromptVersion:
-              PAGE_CONTRACT_REPAIR_USER_PROMPT_VERSION,
+              routingPolicyVersion ===
+              LEGACY_VISUAL_CONTRACT_AUTHORING_ROUTING_POLICY_VERSION
+                ? PAGE_CONTRACT_REPAIR_LEGACY_USER_PROMPT_VERSION
+                : PAGE_CONTRACT_REPAIR_USER_PROMPT_VERSION,
           },
         );
         draft = applyPageContractRepairs({
@@ -6120,6 +6340,9 @@ export async function compileBookVisualContractTemplate(
                 kind: 'repair',
                 budgetClass: 'standard',
                 repairMode: 'full_draft',
+                ...(fullDraftRouteProvenance
+                  ? { routeProvenance: fullDraftRouteProvenance }
+                  : {}),
                 systemPromptVersion: REPAIR_PROMPT_VERSION,
                 userPromptVersion: REPAIR_USER_PROMPT_VERSION,
               },

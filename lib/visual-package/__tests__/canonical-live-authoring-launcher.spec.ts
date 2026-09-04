@@ -291,7 +291,7 @@ describe('canonical Visual Contract authoring launcher', () => {
       mode: 'canonical_visual_contract_live_authoring',
       status: 'failed',
       receipt: {
-        version: 'visual-contract-authoring-receipt/v58',
+        version: 'visual-contract-authoring-receipt/v59',
         status: 'failed',
         digest: 'a'.repeat(64),
         callCount: 3,
@@ -306,7 +306,7 @@ describe('canonical Visual Contract authoring launcher', () => {
         },
       },
       readiness: {
-        version: 'visual-contract-authoring-readiness/v55',
+        version: 'visual-contract-authoring-readiness/v56',
         digest: 'b'.repeat(64),
         authoringOutcome: { status: 'failed' },
         blueprintAuthoringReady: false,

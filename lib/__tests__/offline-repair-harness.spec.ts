@@ -30,6 +30,14 @@ import type {
   VisualZone,
 } from '../visual-contract-compiler/types';
 import { withCurrentActionSemanticCoverage } from './visual-contract-authoring-draft-fixtures';
+import {
+  LEGACY_VISUAL_CONTRACT_AUTHORING_ROUTING_POLICY_VERSION,
+  VISUAL_CONTRACT_AUTHORING_ROUTING_POLICY_VERSION,
+} from '../visual-contract-compiler/authoringPolicy';
+import {
+  PAGE_CONTRACT_REPAIR_LEGACY_PROMPT_VERSION,
+  PAGE_CONTRACT_REPAIR_LEGACY_USER_PROMPT_VERSION,
+} from '../visual-contract-compiler/pageContractRepair';
 
 const BANK = path.join(process.cwd(), 'story-bank/v3-approved');
 const CHAMELEON_SOURCE_PATH =
@@ -129,10 +137,13 @@ describe('offline Visual Contract repair harness', () => {
     });
 
     expect(result.version).toBe(
-      'visual-contract-offline-repair-harness-result/v3',
+      'visual-contract-offline-repair-harness-result/v4',
     );
     expect(result.executionMode).toBe('offline_stub');
     expect(result.providerCalls).toBe(0);
+    expect(result.routingPolicyVersion).toBe(
+      VISUAL_CONTRACT_AUTHORING_ROUTING_POLICY_VERSION,
+    );
     expect(result.outcome).toBe('candidate');
     expect(result.calls).toEqual([
       expect.objectContaining({
@@ -176,6 +187,80 @@ describe('offline Visual Contract repair harness', () => {
     );
   });
 
+  it('replays the exact legacy v1 compact route only when explicitly selected', async () => {
+    const valid = bunnyDraft();
+    const page = valid.pageContracts[0]!;
+    const coverage = page.actionSemanticCoverage as Array<
+      Record<string, unknown>
+    >;
+    const beatId = coverage[0]!.beatId as string;
+    page.actionRequirements = [
+      {
+        beatId,
+        subject: {
+          kind: 'entity',
+          entity: { kind: 'cast', id: 'child:hero' },
+        },
+        predicate: 'looks_at',
+        object: null,
+        spatialEffect: null,
+        spatialConstraint: null,
+        polarity: 'must',
+        laterality: null,
+      },
+    ];
+    coverage[0]!.disposition = { kind: 'action_requirement' };
+    page.mustShow = [
+      ...new Set([
+        ...(page.mustShow as string[]),
+        ...projectPageMustShow(
+          page as unknown as PageVisualContract,
+          valid as unknown as BookVisualContract,
+        ),
+      ]),
+    ];
+    const invalid = structuredClone(valid);
+    (
+      invalid.pageContracts[0]!.actionSemanticCoverage as Array<
+        Record<string, unknown>
+      >
+    )[0]!.disposition = {
+      kind: 'non_visual',
+      rationale: 'narrative_context',
+    };
+    const repairedPage = structuredClone(page);
+    delete repairedPage.castIds;
+    delete repairedPage.castStates;
+    delete repairedPage.characterPresence;
+    repairedPage.propConstraints ??= [];
+
+    const result = await runOfflineRepairHarness({
+      input: bunnySource(),
+      initialDraft: invalid,
+      repairResponses: [{ pageContracts: [repairedPage] }],
+      routingPolicyVersion:
+        LEGACY_VISUAL_CONTRACT_AUTHORING_ROUTING_POLICY_VERSION,
+    });
+
+    expect(result).toMatchObject({
+      version: 'visual-contract-offline-repair-harness-result/v4',
+      routingPolicyVersion:
+        LEGACY_VISUAL_CONTRACT_AUTHORING_ROUTING_POLICY_VERSION,
+      outcome: 'candidate',
+    });
+    expect(result.calls.map((call) => call.repairMode)).toEqual([
+      null,
+      'page_contract_patch',
+    ]);
+    expect(result.calls[1]).toMatchObject({
+      routeProvenance: null,
+      systemPromptVersion:
+        PAGE_CONTRACT_REPAIR_LEGACY_PROMPT_VERSION,
+      userPromptVersion:
+        PAGE_CONTRACT_REPAIR_LEGACY_USER_PROMPT_VERSION,
+    });
+  });
+
   it('rejects a caller-supplied complete census before compiling the scenario', async () => {
     const forgedScenario = {
       input: bunnySource(),
@@ -214,7 +299,7 @@ describe('offline Visual Contract repair harness', () => {
     });
 
     expect(result).toMatchObject({
-      version: 'visual-contract-offline-repair-harness-result/v3',
+      version: 'visual-contract-offline-repair-harness-result/v4',
       outcome: 'repair_output_invalid',
       completeCensusCoverage: 'complete',
       monotonicCompleteIssueDelta: true,
@@ -275,7 +360,7 @@ describe('offline Visual Contract repair harness', () => {
       expect(run.error).toBeUndefined();
       expect(run.status).toBe(1);
       expect(JSON.parse(run.stdout)).toMatchObject({
-        version: 'visual-contract-offline-repair-harness-result/v3',
+        version: 'visual-contract-offline-repair-harness-result/v4',
         completeCensusCoverage: 'partial',
         monotonicCompleteIssueDelta: null,
         maxPositiveCompleteIssueDelta: null,
@@ -311,7 +396,7 @@ describe('offline Visual Contract repair harness', () => {
       expect(run.error).toBeUndefined();
       expect(run.status).toBe(0);
       expect(JSON.parse(run.stdout)).toMatchObject({
-        version: 'visual-contract-offline-repair-harness-result/v3',
+        version: 'visual-contract-offline-repair-harness-result/v4',
         outcome: 'candidate',
         completeCensusCoverage: 'complete',
         monotonicCompleteIssueDelta: true,
@@ -2357,8 +2442,37 @@ describe('offline Visual Contract repair harness', () => {
       pageContractDraft.pageContracts[0]!
         .actionSemanticCoverage as Array<Record<string, unknown>>
     )[0]!;
-    pageContractCoverage.disposition = { kind: 'action_requirement' };
-    pageContractDraft.pageContracts[0]!.actionRequirements = [];
+    const pageContractBeatId = pageContractCoverage.beatId as string;
+    pageContractDraft.pageContracts[0]!.actionRequirements = [
+      {
+        beatId: pageContractBeatId,
+        subject: {
+          kind: 'entity',
+          entity: { kind: 'cast', id: 'child:hero' },
+        },
+        predicate: 'looks_at',
+        object: null,
+        spatialEffect: null,
+        spatialConstraint: null,
+        polarity: 'must',
+        laterality: null,
+      },
+    ];
+    pageContractCoverage.disposition = {
+      kind: 'non_visual',
+      rationale: 'narrative_context',
+    };
+    pageContractDraft.pageContracts[0]!.mustShow = [
+      ...new Set([
+        ...(
+          pageContractDraft.pageContracts[0]!.mustShow as string[]
+        ),
+        ...projectPageMustShow(
+          pageContractDraft.pageContracts[0]! as unknown as PageVisualContract,
+          pageContractDraft as unknown as BookVisualContract,
+        ),
+      ]),
+    ];
 
     const scenarios = [
       {

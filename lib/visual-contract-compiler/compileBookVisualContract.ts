@@ -13,6 +13,7 @@ import {
 import { InvalidVisualContractError } from './validateBookVisualContract';
 import { assertValidVNextVisualContract } from './validateVNextVisualContract';
 import { normalizeRawBookVisualContract } from './normalizeRawContract';
+import type { VisualContractAuthoringRouteProvenance } from './authoringPolicy';
 
 /** Per-call authoring overrides (all optional — omit for the prior support-default behavior). */
 export interface ContractLlmCallOptions {
@@ -65,6 +66,11 @@ export type ContractLlmPromptAuthority =
         | 'presentation_requirement_patch'
         | 'structural_bundle_patch'
         | 'book_surface_patch';
+      /**
+       * Present only when graph-aware routing escalates a complete pure
+       * cardinality frontier to the bounded full-draft lane.
+       */
+      routeProvenance?: VisualContractAuthoringRouteProvenance;
       systemPromptVersion: string;
       userPromptVersion: string;
     };

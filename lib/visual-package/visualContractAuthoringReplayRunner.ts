@@ -1,4 +1,9 @@
 import {
+  LEGACY_VISUAL_CONTRACT_AUTHORING_ROUTING_POLICY_VERSION,
+  VISUAL_CONTRACT_AUTHORING_ROUTING_POLICY_VERSION,
+  type VisualContractAuthoringRoutingPolicyVersion,
+} from '@/lib/visual-contract-compiler/authoringPolicy';
+import {
   runOfflineRepairHarness,
   type OfflineRepairHarnessResult,
 } from '@/lib/visual-contract-compiler/offlineRepairHarness';
@@ -10,18 +15,25 @@ import {
   type StorySourceAuthoritySnapshot,
 } from './storySourceAuthority';
 import {
+  LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION_V58,
+  LEGACY_VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION_V55,
+  VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION,
+  VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION,
+  assertValidLegacyVisualContractAuthoringReplayArtifacts,
   persistVisualContractAuthoringReceipt,
   visualContractAuthoringRequestIssues,
   type VisualContractAuthoringReceipt,
   type VisualContractAuthoringRequest,
 } from './visualContractAuthoringLifecycle';
 import {
+  VISUAL_CONTRACT_AUTHORING_REPLAY_EVIDENCE_VERSION,
   assertValidVisualContractAuthoringReplayEvidence,
+  visualContractAuthoringAttemptHasCapturedResponse,
   type VisualContractAuthoringReplayEvidence,
 } from './visualContractAuthoringReplayEvidence';
 
 export const VISUAL_CONTRACT_AUTHORING_REPLAY_RESULT_VERSION =
-  'visual-contract-authoring-replay-result/v1' as const;
+  'visual-contract-authoring-replay-result/v2' as const;
 
 export interface VisualContractAuthoringReplayResult {
   version: typeof VISUAL_CONTRACT_AUTHORING_REPLAY_RESULT_VERSION;
@@ -38,6 +50,17 @@ export interface VisualContractAuthoringReplayResult {
   receiptTerminalFailureIdentityCongruent: boolean;
   receiptOutcomeCongruent: boolean;
   harness: OfflineRepairHarnessResult;
+}
+
+function runtimeStringField(
+  value: unknown,
+  field: string,
+): string | null {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+    return null;
+  }
+  const candidate = (value as Record<string, unknown>)[field];
+  return typeof candidate === 'string' ? candidate : null;
 }
 
 export type VisualContractAuthoringReplayCongruence = Pick<
@@ -257,14 +280,53 @@ export async function replayVisualContractAuthoringEvidence(args: {
   evidencePath: string;
 }): Promise<VisualContractAuthoringReplayResult> {
   assertValidStorySourceAuthoritySnapshot(args.snapshot);
-  const requestIssues = visualContractAuthoringRequestIssues({
-    request: args.request,
-    snapshot: args.snapshot,
-  });
-  if (requestIssues.length > 0) {
+  const requestVersion = runtimeStringField(args.request, 'version');
+  const receiptVersion = runtimeStringField(args.receipt, 'version');
+  const isCurrentChain =
+    requestVersion === VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION &&
+    receiptVersion === VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION &&
+    args.evidence.version ===
+      VISUAL_CONTRACT_AUTHORING_REPLAY_EVIDENCE_VERSION;
+  const isLegacyV1Chain =
+    requestVersion ===
+      LEGACY_VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION_V55 &&
+    receiptVersion ===
+      LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION_V58 &&
+    args.evidence.version ===
+      VISUAL_CONTRACT_AUTHORING_REPLAY_EVIDENCE_VERSION;
+  if (!isCurrentChain && !isLegacyV1Chain) {
     throw new Error(
-      `Invalid replay authoring request:\n- ${requestIssues.join('\n- ')}`,
+      'Replay authoring artifacts do not form an exact supported current or immutable legacy version tuple',
     );
+  }
+  let routingPolicyVersion: VisualContractAuthoringRoutingPolicyVersion;
+  if (isLegacyV1Chain) {
+    assertValidLegacyVisualContractAuthoringReplayArtifacts({
+      snapshot: args.snapshot,
+      request: args.request,
+      receipt: args.receipt,
+    });
+    routingPolicyVersion =
+      LEGACY_VISUAL_CONTRACT_AUTHORING_ROUTING_POLICY_VERSION;
+  } else {
+    const requestIssues = visualContractAuthoringRequestIssues({
+      request: args.request,
+      snapshot: args.snapshot,
+    });
+    if (requestIssues.length > 0) {
+      throw new Error(
+        `Invalid replay authoring request:\n- ${requestIssues.join('\n- ')}`,
+      );
+    }
+    persistVisualContractAuthoringReceipt({
+      repoRoot: args.repoRoot,
+      outputDir: 'outputs/.offline-replay-validation',
+      request: args.request,
+      receipt: args.receipt,
+      write: false,
+    });
+    routingPolicyVersion =
+      VISUAL_CONTRACT_AUTHORING_ROUTING_POLICY_VERSION;
   }
   const replayLocator =
     args.receipt.structuredDraftReplayEvidence;
@@ -278,13 +340,6 @@ export async function replayVisualContractAuthoringEvidence(args: {
       'Replay evidence is not exactly bound to the supplied authoring receipt',
     );
   }
-  persistVisualContractAuthoringReceipt({
-    repoRoot: args.repoRoot,
-    outputDir: 'outputs/.offline-replay-validation',
-    request: args.request,
-    receipt: args.receipt,
-    write: false,
-  });
   assertValidVisualContractAuthoringReplayEvidence({
     evidence: args.evidence,
     sourceSnapshotDigest: args.snapshot.digest,
@@ -292,9 +347,14 @@ export async function replayVisualContractAuthoringEvidence(args: {
     receipt: args.receipt,
   });
 
-  const expectedCalls = args.evidence.attempts.map((attempt) => ({
+  const capturedReceiptAttempts = args.receipt.attempts.filter(
+    visualContractAuthoringAttemptHasCapturedResponse,
+  );
+  const expectedCalls = args.evidence.attempts.map((attempt, index) => ({
     kind: attempt.kind,
     repairMode: attempt.repairMode,
+    routeProvenance:
+      capturedReceiptAttempts[index]?.routeProvenance ?? null,
     budgetClass: attempt.budgetClass,
     maxOutputTokens: attempt.maxOutputTokens,
     schemaName: attempt.schemaName,
@@ -307,6 +367,7 @@ export async function replayVisualContractAuthoringEvidence(args: {
   }));
   const harness = await runOfflineRepairHarness({
     input: storySourceSnapshotToTemplateInput(args.snapshot),
+    routingPolicyVersion,
     initialDraft:
       args.evidence.attempts[0]!.responseJson,
     repairResponses: args.evidence.attempts
@@ -322,6 +383,7 @@ export async function replayVisualContractAuthoringEvidence(args: {
         expected !== undefined &&
         call.kind === expected.kind &&
         call.repairMode === expected.repairMode &&
+        call.routeProvenance === expected.routeProvenance &&
         call.budgetClass === expected.budgetClass &&
         call.maxOutputTokens === expected.maxOutputTokens &&
         call.schemaName === expected.schemaName &&

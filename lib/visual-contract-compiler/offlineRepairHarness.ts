@@ -28,14 +28,21 @@ import {
   type DraftValidationIssue,
 } from './draftValidationDiagnostics';
 import { InvalidTemplateContractError } from './validateTemplateContract';
+import {
+  VISUAL_CONTRACT_AUTHORING_ROUTING_POLICY_VERSION,
+  type VisualContractAuthoringRouteProvenance,
+  type VisualContractAuthoringRoutingPolicyVersion,
+} from './authoringPolicy';
 
 export const OFFLINE_REPAIR_HARNESS_RESULT_VERSION =
-  'visual-contract-offline-repair-harness-result/v3' as const;
+  'visual-contract-offline-repair-harness-result/v4' as const;
 
 export interface OfflineRepairHarnessScenario {
   input: TemplateCompileInput;
   initialDraft: unknown;
   repairResponses?: readonly unknown[];
+  /** Defaults to current v2; historical replay must select legacy v1 explicitly. */
+  routingPolicyVersion?: VisualContractAuthoringRoutingPolicyVersion;
   /**
    * Optional captured call sequence. A mismatch stops before the queued
    * response is returned, so an old patch can never be applied to a new route.
@@ -62,6 +69,7 @@ export interface OfflineRepairHarnessCall {
       ? Mode | null
       : never
     : never;
+  routeProvenance: VisualContractAuthoringRouteProvenance | null;
   budgetClass: 'standard' | 'terminal_reference_cleanup';
   maxOutputTokens: number | null;
   schemaName: string | null;
@@ -101,6 +109,7 @@ export type OfflineRepairDeltaClassification =
 export interface OfflineRepairHarnessStage {
   attempt: number;
   nextRepairMode: TemplateRepairSummary['nextRepairMode'] | null;
+  routeProvenance: VisualContractAuthoringRouteProvenance | null;
   /** Derived only from compiler-owned attempt metadata. */
   diagnosticPopulation: TemplateRepairSummary['diagnosticPopulation'];
   surfacedDiagnosticIssues: readonly DraftValidationIssue[];
@@ -115,6 +124,7 @@ export interface OfflineRepairHarnessResult {
   version: typeof OFFLINE_REPAIR_HARNESS_RESULT_VERSION;
   executionMode: 'offline_stub';
   providerCalls: 0;
+  routingPolicyVersion: VisualContractAuthoringRoutingPolicyVersion;
   outcome:
     | 'candidate'
      | 'repair_exhausted'
@@ -498,6 +508,9 @@ export async function runOfflineRepairHarness(
   ];
   const calls: OfflineRepairHarnessCall[] = [];
   const actionCoverageCensuses: OfflineRepairHarnessActionCoverageCensus[] = [];
+  const routingPolicyVersion =
+    scenario.routingPolicyVersion ??
+    VISUAL_CONTRACT_AUTHORING_ROUTING_POLICY_VERSION;
   let outcome: OfflineRepairHarnessResult['outcome'];
   let candidateTemplateDigest: string | null = null;
   let terminalFailureCode:
@@ -533,6 +546,10 @@ export async function runOfflineRepairHarness(
               authority.kind === 'repair'
                 ? authority.repairMode
                 : null,
+            routeProvenance:
+              authority.kind === 'repair'
+                ? authority.routeProvenance ?? null
+                : null,
             budgetClass: authority.budgetClass,
             maxOutputTokens:
               options?.maxOutputTokens ?? null,
@@ -562,6 +579,9 @@ export async function runOfflineRepairHarness(
               actualCall.repairMode !== expectedCall.repairMode ||
               actualCall.budgetClass !== expectedCall.budgetClass ||
               actualCall.schemaName !== expectedCall.schemaName ||
+              (expectedCall.routeProvenance !== undefined &&
+                actualCall.routeProvenance !==
+                  expectedCall.routeProvenance) ||
               (expectedCall.maxOutputTokens !== undefined &&
                 actualCall.maxOutputTokens !==
                   expectedCall.maxOutputTokens) ||
@@ -602,6 +622,7 @@ export async function runOfflineRepairHarness(
           if (census) actionCoverageCensuses.push(census);
           return responseJson(response);
         },
+        routingPolicyVersion,
       },
     );
     if (
@@ -674,6 +695,7 @@ export async function runOfflineRepairHarness(
     return {
       attempt: index + 1,
       nextRepairMode: summary?.nextRepairMode ?? null,
+      routeProvenance: summary?.routeProvenance ?? null,
       diagnosticPopulation,
       surfacedDiagnosticIssues,
       surfacedIssueCount,
@@ -714,6 +736,7 @@ export async function runOfflineRepairHarness(
     version: OFFLINE_REPAIR_HARNESS_RESULT_VERSION,
     executionMode: 'offline_stub',
     providerCalls: 0,
+    routingPolicyVersion,
     outcome,
     candidateTemplateDigest,
     terminalFailureCode,

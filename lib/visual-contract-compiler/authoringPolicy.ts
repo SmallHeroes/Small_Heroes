@@ -4,7 +4,36 @@ import {
 } from './draftValidationDiagnostics';
 
 export const VISUAL_CONTRACT_AUTHORING_POLICY_VERSION =
+  'visual-contract-authoring-policy/v22' as const;
+export const LEGACY_VISUAL_CONTRACT_AUTHORING_POLICY_VERSION =
   'visual-contract-authoring-policy/v21' as const;
+export type VisualContractAuthoringPolicyVersion =
+  | typeof VISUAL_CONTRACT_AUTHORING_POLICY_VERSION
+  | typeof LEGACY_VISUAL_CONTRACT_AUTHORING_POLICY_VERSION;
+
+/**
+ * Current repair-route authority. V2 is the only production-authorizable
+ * policy; V1 exists solely so the offline replay lane can reproduce immutable
+ * historical evidence without reinterpreting it under the current graph-aware
+ * cardinality policy.
+ */
+export const VISUAL_CONTRACT_AUTHORING_ROUTING_POLICY_VERSION =
+  'visual-contract-authoring-routing-policy/v2' as const;
+export const LEGACY_VISUAL_CONTRACT_AUTHORING_ROUTING_POLICY_VERSION =
+  'visual-contract-authoring-routing-policy/v1' as const;
+export type VisualContractAuthoringRoutingPolicyVersion =
+  | typeof VISUAL_CONTRACT_AUTHORING_ROUTING_POLICY_VERSION
+  | typeof LEGACY_VISUAL_CONTRACT_AUTHORING_ROUTING_POLICY_VERSION;
+
+/**
+ * Closed provenance attached only when a complete pure action/coverage
+ * cardinality frontier cannot admit a legal compact repair and is therefore
+ * escalated to the existing bounded full-draft lane.
+ */
+export const VISUAL_CONTRACT_AUTHORING_CARDINALITY_ESCALATION_PROVENANCE =
+  'cardinality_escalation' as const;
+export type VisualContractAuthoringRouteProvenance =
+  typeof VISUAL_CONTRACT_AUTHORING_CARDINALITY_ESCALATION_PROVENANCE;
 
 export const VISUAL_CONTRACT_AUTHORING_STANDARD_ATTEMPT_OUTPUT_BUDGET_VERSION =
   'visual-contract-authoring-standard-attempt-output-budget/v6' as const;

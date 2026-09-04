@@ -1,47 +1,61 @@
 # SmallHeroes — Current Technical State
 
-## R3-B1b duplicate coverage-cardinality recovery — Decision Gate prepared; implementation pending
+## R3-B1b duplicate coverage-cardinality recovery — provider-free implementation complete locally; independent QA pending
 
-Guy authorized a zero-cost Decision Gate only for the general post-repair
-duplicate coverage-cardinality failure. Codex investigated the shared compiler
-and prepared
-`docs/ai-workflow/R3B1B_POST_REPAIR_DUPLICATE_COVERAGE_CARDINALITY_DECISION_GATE.md`.
+Guy approved the independently passed Decision Gate at exact implementation
+base `63ccb4846ebe5be9ab392960d389610a1b2b9d42`. Codex implemented the
+provider-free milestone on
+`codex/r3b1b-post-repair-duplicate-cardinality`; no retry, provider call,
+credential read, candidate, Blueprint, image, Board/prop, package, locator,
+render, narration, publication or deployment was authorized or performed.
 
-The root cause is an admission gap, not a missing retry: the current compact
-repair may authorize a one-field `beatId` change without first proving that any
-legal value exists. In the captured P1 page-10 graph, both action beats were
-already covered, so every compact choice necessarily created a duplicate. The
-recommended general design admits compact repair only for one closed, provably
-legal assignment; otherwise a complete pure action/coverage-binding failure is
-routed to the existing bounded `full_draft` lane and revalidated. It does not
-delete, merge or deterministically relabel coverage.
+Current routing now derives the complete action/coverage graph before granting
+compact repair. It admits only closed, locked solutions: a unique same-page
+orphan retarget, an exact non-action-to-action disposition conversion, or an
+independent bounded set of those conversions on distinct pages. The target
+binds exact page/action/coverage identity and permitted beat, the applier
+rejects non-target drift, and a global post-apply graph proof is mandatory.
+Ambiguous, stale, incomplete, duplicate and incompatible same-page component
+populations remain closed.
 
-Because routing changes the expected repair sequence, the Gate also requires a
-versioned cutover and exact offline preservation of the independently reviewed
-v55 request / v58 receipt / v55 readiness replay. Standard call ceilings,
-no-fallback/no-transport-retry policy, source and identity authority and the
-0.70 resemblance threshold remain unchanged.
+A complete pure action/coverage-cardinality family with no legal compact
+solution can use the existing bounded `full_draft` lane. That attempt carries
+closed `cardinality_escalation` provenance through prompt, compiler and receipt
+authority. The provenance prevents the escalated full draft from unlocking the
+terminal cleanup call even if its later residual would otherwise be eligible;
+ordinary `full_draft` and `book_surface_patch` cleanup behavior is unchanged.
+The seven-standard-call plus one separately gated cleanup ceiling, zero
+transport retries, no fallback and the 0.70 resemblance threshold are
+unchanged.
 
-Claude Code independently reviewed `11d4ff0a..3924ad62` and returned **PASS with
-no P0/P1 and one P2**. The P2 correctly identified that the first Gate's
-“cleanup eligibility unchanged” claim was too broad: `full_draft` is already an
-eligible cleanup predecessor while `page_contract_patch` is not. The corrected
-Gate records that predecessor change and adds a new route-specific restriction:
-cardinality-escalated full drafts cannot unlock terminal cleanup, while ordinary
-existing full-draft/book-surface cleanup behavior remains unchanged.
+The versioned cutover is authoring policy v22 and routing policy v2, with
+request / receipt / readiness v56 / v59 / v56. Current production boundaries
+require that tuple. The offline-only legacy lane admits only the exact v55
+request / v58 receipt / replay-evidence v2 tuple under routing policy v1; the
+historical readiness remains classified at v55. Replay result advances to v2
+and the offline harness to v4, while replay-evidence bytes stay at v2.
 
-Claude Code independently re-gated exact correction range
-`3924ad623adb721375efd1dc0b79f1736ac135eb..5cb3e8132d0e9a60470776a09c1f41bb69d1061e`
-read-only and returned **PASS with no P0/P1/P2**. It verified both cleanup gates,
-the explicit new narrowing, preserved ordinary-route behavior, truthful future
-tense, cost/call boundaries and documentation-only scope. The P2 is closed.
+Final focused validation is 9/9 files and 555/555 assertions, including graph,
+hardening, compiler routing, cleanup, lifecycle, canonical boundary and replay
+coverage. The broader version/materialization cascade is 503/503. Both
+TypeScript projects and `git diff --check` pass. The official immutable Dragon
+Dini replay exits 0 with zero provider calls, routing v1, the exact historical
+initial plus page-patch sequence, `invalid_draft`, and every receipt-congruence
+boolean true; the temporary byte-identical artifact copy was removed afterward.
 
-This planning milestone changes no code and spends USD 0. Implementation, P1
-retry/provider use, Blueprint, images, Boards/props, package, locator, render,
-narration, publication and deployment remain unauthorized. The next owner
-decision is Guy's explicit GO or rejection of the independently passed
-implementation package; an approved implementation should stop after a local
-green commit and Claude Code handoff.
+`npm run check` was rerun against the final code. Both typecheck phases pass,
+but the repository gate remains red on the inherited current-worktree evidence
+baseline: the ordinary phase has 337 passing / 8 failing / 17 skipped files and
+4,800 passing / 19 failing / 73 skipped tests; the failures are missing ignored
+historical outputs plus the pre-existing Story Source / Visual Direction corpus
+binding/digest mismatch. The resource phase has 20 passing / 1 failing files,
+642 passing / 11 skipped tests and three `onTaskUpdate` RPC timeouts; its failed
+suite stops on that same unrelated corpus binding before its tests run. No
+task-related focused failure remains. This implementation has not self-awarded
+independent technical PASS. The required next action is Claude Code's read-only
+review of the focused local commit range, followed by validation and correction
+of any real findings before Guy's product acceptance or any separately
+authorized retry.
 
 ## R3-B1b P1-A1 exact-source Visual Contract — failed-closed execution independently passed; no candidate
 
