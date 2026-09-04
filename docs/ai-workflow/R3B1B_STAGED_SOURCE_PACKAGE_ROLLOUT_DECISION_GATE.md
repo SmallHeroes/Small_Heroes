@@ -6,8 +6,8 @@ Product owner: Guy
 
 Technical owner: Codex
 
-Status: **RECEIPT QA PASS; SEQUENCING INTENT APPROVED — P1 PREREQUISITE AUDIT
-NEXT; STOP BEFORE PACKAGE IMPLEMENTATION, PUBLICATION, PROVIDER USE OR SPEND**
+Status: **RECEIPT QA PASS; P1 PREREQUISITE AUDIT COMPLETE — P1-A1 VISUAL
+CONTRACT GO PENDING; STOP BEFORE PROVIDER USE OR DOWNSTREAM WORK**
 
 Branch: `codex/r3b1b-accepted-intent-wave-2`
 
@@ -190,11 +190,28 @@ No full-book render is part of these validation steps.
 Current receipt and planning milestone: provider/network/image/audio/PDF calls
 0; database/storage/order/payment/deployment writes 0; maximum spend USD 0.
 
-Future package authoring cost is not yet authorized or estimated. Before P1
-implementation, the prerequisite inventory must state exact model/provider
-calls, any Board/prop/LOW image count, and a maximum USD ceiling. gpt-image-2
-LOW remains the default for any later approved audition; HIGH and full-book
-work remain separately gated.
+The zero-cost prerequisite audit now establishes two independently enforced
+text-authoring budgets:
+
+- P1-A1 Visual Contract: OpenAI Responses / `gpt-5.6-sol`, at most seven
+  standard calls plus one bounded cleanup, projected maximum USD 7.656, hard
+  ceiling USD 10;
+- P1-A2 Blueprint, only after Guy accepts the Visual Contract: the same
+  provider/model, at most three generation calls plus two count probes,
+  projected maximum USD 4.928, hard ceiling USD 5.
+
+Their projected maxima sum to USD 12.584 and their independent hard ceilings
+sum to USD 15, but no combined uninterrupted authority is proposed. P1-A1 must
+stop for Claude Code and Guy review before P1-A2.
+
+The exact Board/prop image count is structurally unavailable until the accepted
+Visual Contract and Blueprint classify the six source setting families and
+recurring cake/cart objects. The current exact-source reusable inventory is
+zero Boards and zero prop references. The repository also has no configured
+contractual `gpt-image-2` price ceiling. A separate zero-cost post-Blueprint
+census must therefore return the exact image-call count and current price
+authority before any LOW image is authorized. HIGH and full-book work remain
+separately gated.
 
 ## 10. Rollback and interruption safety
 
@@ -215,6 +232,12 @@ work remain separately gated.
 Claude Code reviewed exact receipt range `8d059730..1aa1b687` read-only and
 returned PASS with no P0/P1/P2. It falsified no receipt identity, canonical
 digest, exclusion, dry-run result, zero-effect claim or publication boundary.
+
+The completed audit is recorded in
+`docs/ai-workflow/R3B1B_P1_EXACT_SOURCE_PACKAGE_PREREQUISITE_AUDIT.md`.
+It proved that the canonical authoring path is the accepted revision's
+`integrated.md`, produced source snapshot digest `8de91442...`, and passed the
+provider-unreachable preflight with zero attempts, writes or provider calls.
 
 Before P1 package implementation Guy must separately approve:
 
@@ -252,7 +275,9 @@ fallback, alter the 0.70 threshold, or spend money under this prepared gate.
 9. Guy eyeball? P1 Blueprint/Visual Contract/package packet before promotion;
    later one packet per story.
 
-**Gate disposition:** receipt-only work is independently passed and pushed. The
-staged route records Guy's sequencing intent. The zero-cost P1 prerequisite
-inventory may now be prepared. STOP before the P1 package milestone until that
-inventory and its exact budget receive a new explicit GO.
+**Gate disposition:** receipt-only work is independently passed and pushed.
+The staged route records Guy's sequencing intent and the zero-cost P1
+prerequisite audit is complete. The only proposed next authority is P1-A1:
+bounded exact-source Visual Contract authoring under its independent USD 10
+hard ceiling. STOP until Guy explicitly grants that GO. Blueprint, images,
+package work and publication remain unauthorized.

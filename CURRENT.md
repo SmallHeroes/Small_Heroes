@@ -1,5 +1,34 @@
 # SmallHeroes — Current Technical State
 
+## R3-B1b P1 exact-source package prerequisite audit — complete; Visual Contract GO pending
+
+The zero-cost P1 inventory is complete. `dragon_dini_adventure` revision
+`64dcd0e...` is a valid 12-page grounded/neutral accepted source, and the
+canonical package-authoring input is its `integrated.md` digest `a5942c...`,
+not the legacy root Story Source or the revision-local `story.md`. The
+provider-unreachable source-authoring preflight passed with snapshot digest
+`8de91442...`, request v55, zero attempts, zero persistence and zero external
+effects. Correctly configured readiness remains semantic digest `39819a34...`,
+17/18 sellable, two accepted lineages and one render-qualified story; P1's
+earliest blocker remains `package_bound_visual_contract_template_unavailable`.
+
+Reusable authority consists of the production Style01 authority and Dini's six
+passed reference views (minimum resemblance `0.9802317213552091`, threshold
+unchanged at `0.70`). There is no exact-source P1 Visual Contract, Blueprint,
+package/current locator, Set Board or prop reference. The accepted directions
+contain six setting families and recurring cart/cake objects, but Board/prop
+classification belongs to the future accepted Visual Contract/Blueprint and
+cannot truthfully be counted yet.
+
+The proposed next step is P1-A1 only: OpenAI Responses `gpt-5.6-sol`, at most
+7 standard calls plus 1 cleanup, projected maximum USD 7.656 and hard ceiling
+USD 10. It must stop for Claude Code and Guy review. A later accepted-contract
+Blueprint stage would have at most 3 generations plus 2 count probes,
+projected maximum USD 4.928 and hard ceiling USD 5. No provider or spend is
+authorized yet. Exact Board/prop LOW quantity and price authority follow only
+after an approved Blueprint. Full evidence and boundaries are in
+`docs/ai-workflow/R3B1B_P1_EXACT_SOURCE_PACKAGE_PREREQUISITE_AUDIT.md`.
+
 ## R3-B1b accepted-intent wave 2 — six product-acceptance receipts independently passed and pushed
 
 Guy explicitly confirmed the six exact revision digests for P2-P5/P7/P8 and
