@@ -1,6 +1,6 @@
 # SmallHeroes — Roadmap
 
-**Last verified:** 2026-09-06 (M1a independent PASS and P2 corrective milestone)
+**Last verified:** 2026-09-06 (M1a independent re-gate PASS; both P2s closed)
 **Product priority owner:** Guy
 **Technical sequencing owner:** Codex
 
@@ -32,12 +32,15 @@ provider actions with exact owner gates.
 
 ## Active
 
-M1a update: Claude Code passed `768ccb2f..081410dd` with P0=0/P1=0/P2=2.
-The bounded correction hardens the required preview/paid discriminator and
-re-runs the full stability check before M1b. It also fixes the stale inventory
-test exposed by that rerun: M1a added two specs, bringing the total to 385.
-See CURRENT and the M1a P2 correction evidence for final results/limitations.
-This is not M1b, M2, real P1 recovery or render readiness; payment remains last.
+M1a update: after initial PASS `768ccb2f..081410dd` with P0=0/P1=0/P2=2,
+Claude Code independently passed corrective range `081410dd..09d67f38` with
+P0=0/P1=0/P2=0, closing both findings. It reproduced 160 + 7 focused tests and
+both typechecks and verified the non-green final-check log. Required preview
+discrimination and the exact 385/364/21 test inventory are technically closed.
+The reviewed correction remains local/unpushed at closeout start (ahead 1).
+M1b group/motion/schema work is next under the existing provider-free approval,
+but has not started; M2, real P1 recovery and render readiness remain incomplete.
+The full repository check remains non-green; payment remains last.
 
 ### R0 — Establish one engineering operating model
 

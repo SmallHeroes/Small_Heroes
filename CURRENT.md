@@ -1,6 +1,6 @@
 # SmallHeroes — Current Technical State
 
-## M1a independent PASS; P2 corrective milestone
+## M1a independently closed; M1b is next
 
 Claude Code independently reviewed exact range
 `768ccb2fe20edb1351cb4783796613cbf7a2993c..081410dd6e25234a667381204e736764f0bb100c`
@@ -9,9 +9,21 @@ tests, added 198 passing legacy tests, passed both typechecks, and reproduced
 the two review/correction-batch failure signatures at the untouched base.
 That baseline proof does not classify every full-check failure as inherited.
 
-The current task continues as sole corrective writer on
-`codex/r3b1b-semantic-recovery-m1`, `C:/GNart/Work/sh-r3b1b-semantic-m1`, from
-clean local/upstream parity at `081410dd`; push actor is not inferred.
+Claude Code then independently re-gated exact corrective range
+`081410dd6e25234a667381204e736764f0bb100c..09d67f387ef6949b9615c1f4e5ce02e269fd20bb`
+and returned **PASS P0=0/P1=0/P2=0**, explicitly closing both M1a findings.
+It reproduced 160 focused + 7 classifier tests and both typechecks, independently
+counted the exact two-spec inventory delta, and verified the final full-check
+log by SHA-256 and contents. It did not rerun the full check, replay, Wizard
+audit or recovery preview. This closes M1a, not full M1 or P1 semantic recovery.
+
+The current task is the sole documentation-closeout writer on
+`codex/r3b1b-semantic-recovery-m1`, `C:/GNart/Work/sh-r3b1b-semantic-m1`.
+Correction started at clean local/upstream parity `081410dd`. Closeout starts
+at reviewed HEAD `09d67f38`, clean and ahead 1 / behind 0 of local upstream
+`081410dd`; the corrective commit is not pushed. This documentation-only
+closeout will add one local commit outside the reviewed range, not extend the
+independent PASS. No push is performed and no push actor is inferred.
 The d53b evidence tree (`768ccb2f`) and accepted-intent tree (`63ccb484`) remain
 clean, upstream-parity read-only dependencies. No new app task or cleanup.
 
@@ -39,7 +51,9 @@ timeout targets subsequently passed in isolation at that same timeout (2
 passed / 56 skipped). This is diagnostic evidence, not a green full gate.
 The original 14-file P1 inventory remains byte-identical at `cd621f77...`.
 
-Corrections await independent re-gate; M1b/M2 have not started. P1 remains
+M1a's independent-QA prerequisite for M1b is now satisfied. The next milestone
+under the existing provider-free Gate is group projection, fast-motion semantics
+and compatible schema/catalog cutover; M1b/M2 have not started. P1 remains
 semantically HELD at P0=0/P1=3/P2=3. No live provider or credential access,
 real recovery artifact, render, publication, promotion, deployment or spend.
 

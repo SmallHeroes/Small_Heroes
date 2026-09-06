@@ -1,8 +1,47 @@
 # M1a P2 correction — required preview discriminator and final-tree check
 
-Date: 2026-09-06. Status: CORRECTED; FOCUSED VALIDATION GREEN;
-FINAL FULL CHECK NON-GREEN; INDEPENDENT RE-GATE PENDING.
+Date: 2026-09-06. Status: INDEPENDENT RE-GATE PASS P0=0/P1=0/P2=0;
+BOTH M1a P2s CLOSED; FINAL FULL CHECK NON-GREEN.
 No M1b/M2 or downstream authority.
+
+## Independent closeout
+
+Claude Code independently re-gated exact range
+`081410dd6e25234a667381204e736764f0bb100c..09d67f387ef6949b9615c1f4e5ce02e269fd20bb`
+on `codex/r3b1b-semantic-recovery-m1` in
+`C:/GNart/Work/sh-r3b1b-semantic-m1`, and returned PASS P0=0/P1=0/P2=0.
+It explicitly closed both original M1a findings. Review was read-only/offline;
+HEAD, 1 commit / 11 files / +312/-10, clean worktree and unpushed ahead 1
+status match the corrective handoff. No topology reconciliation is required.
+
+Reviewer-rerun evidence: 160/160 focused tests, 7/7 classifier tests and both
+typechecks, all exit 0. It independently counted 383 -> 385 specs, confirmed
+the two exact additions and the required-field/runtime/persistence guards,
+and checked unchanged candidate shape and held P1 content addresses.
+
+The reviewer did NOT rerun `npm run check`: it verified the delivered log's
+raw SHA-256 `1dde5465a0bfe1c4a851acbad46becb8a0a01443bf14c71332735e225552db7f`
+and cross-read the failure table/diagnostic classes against that log. The
+classifier regression is closed; the remaining non-green full gate is not
+relabeled as passed or entirely inherited. No replay, standalone Wizard audit
+or recovery preview was run by the reviewer.
+
+Codex verified this same HEAD/range, clean ahead 1 / behind 0, unchanged log
+hash, and clean upstream-parity d53b (`768ccb2f`) / accepted-intent (`63ccb484`)
+dependencies before this documentation-only closeout. Current task is its sole
+writer. This later documentation commit is outside the independent PASS range;
+its final handoff supplies the new HEAD. No push, code/test/fixture edit or
+provider/credential/downstream operation is part of the closeout. M1a's QA
+dependency is satisfied for the next provider-free M1b milestone, not for any
+render, artifact recovery or spend. P1 stays HELD P0=0/P1=3/P2=3.
+
+Closeout validation: `npx tsc --noEmit` and `git diff --check` exited 0.
+Only CURRENT, ROADMAP and this evidence file changed; no test battery or full
+check was rerun for the documentation-only closeout. Its rollback is a focused
+documentation revert, not a reversal of Claude Code's completed code re-gate.
+
+The implementation and executable evidence below describe the now-reviewed
+corrective milestone; its preparation-time topology is retained as history.
 
 ## Authority and topology
 
@@ -170,10 +209,11 @@ timeout target passed only in the diagnostic above. No assertion failure was
 hidden behind the earlier preliminary green result.
 
 P2-2's missing-final-run evidence is addressed, not full-repository stability.
-The full gate remains non-green and the corrective range needs independent
-re-gate before M1b builds on it. No provider calls/spend or actual P1 recovery.
+The full gate remains non-green. At corrective handoff this range required
+independent re-gate before M1b; that re-gate is now closed as recorded above.
+No provider calls/spend or actual P1 recovery.
 
-## Independent re-gate brief
+## Original independent re-gate brief (completed)
 
 Review only this corrective milestone on the branch/worktree above; immutable
 range starts at `081410dd6e25234a667381204e736764f0bb100c` and ends at HEAD
