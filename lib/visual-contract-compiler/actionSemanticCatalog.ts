@@ -9,8 +9,12 @@
  * page, or prop identity participates in the runtime contract.
  */
 
-export const ACTION_SEMANTIC_CATALOG_VERSION =
+/** Frozen identity for historical candidate v9 / catalog v3 validation. */
+export const LEGACY_ACTION_SEMANTIC_CATALOG_VERSION_V3 =
   'action-semantic-catalog/v3' as const;
+export const LEGACY_ACTION_SEMANTIC_CATALOG_DIGEST_V3 =
+  'c8b366c2ca4f6d1b43eb0ee8e4196546e57d5ba279b5786fdb328de9f33acec5' as const;
+export const ACTION_SEMANTIC_CATALOG_VERSION = LEGACY_ACTION_SEMANTIC_CATALOG_VERSION_V3;
 
 export const ACTION_SEMANTIC_ENTITY_KIND_VALUES = [
   'cast',
@@ -117,7 +121,7 @@ const PHYSICAL_OBJECT_KINDS = [
   'anchor',
 ] as const;
 
-export const ACTION_SEMANTIC_CATALOG = [
+export const LEGACY_ACTION_SEMANTIC_CATALOG_V3 = Object.freeze([
   entry({
     predicate: 'holds',
     proseProjection: 'holds',
@@ -430,7 +434,20 @@ export const ACTION_SEMANTIC_CATALOG = [
     safetyConflictRelation: null,
     corpusBasis: 'reviewed_production_corpus',
   }),
-] as const satisfies readonly ActionSemanticCatalogEntryShape[];
+] as const satisfies readonly ActionSemanticCatalogEntryShape[]);
+
+// Runtime immutability includes nested arrays; a future current catalog must
+// compose new entries without mutating the historical definitions or digest.
+for (const definition of LEGACY_ACTION_SEMANTIC_CATALOG_V3) {
+  Object.freeze(definition.subjectKinds);
+  Object.freeze(definition.objectKinds);
+  Object.freeze(definition.spatialConstraintRelations);
+  Object.freeze(definition);
+}
+
+// No catalog cutover in this compatibility milestone. Future expansion must
+// change the current identity and keep the explicitly named v3 export intact.
+export const ACTION_SEMANTIC_CATALOG = LEGACY_ACTION_SEMANTIC_CATALOG_V3;
 
 export type ActionPredicate =
   (typeof ACTION_SEMANTIC_CATALOG)[number]['predicate'];

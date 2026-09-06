@@ -211,7 +211,7 @@ function materialize(
     visualContractCandidatePath,
     buildVisualContractCandidateFixture({
       fixture,
-      sourceSnapshotDigest: sourceSnapshot.digest,
+      sourceSnapshot,
     }),
   );
   writeJson(repoRoot, stylePath, styleAuthorityContent());

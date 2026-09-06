@@ -254,7 +254,7 @@ function buildContext(): {
     candidatePath,
     buildVisualContractCandidateFixture({
       fixture,
-      sourceSnapshotDigest: snapshot.digest,
+      sourceSnapshot: snapshot,
     }),
   );
   writeJson(

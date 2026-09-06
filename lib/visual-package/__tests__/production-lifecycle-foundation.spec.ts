@@ -194,7 +194,7 @@ function materializeFixture(
     candidatePath,
     buildVisualContractCandidateFixture({
       fixture,
-      sourceSnapshotDigest: snapshot.digest,
+      sourceSnapshot: snapshot,
     }),
   );
   writeJson(
@@ -482,7 +482,7 @@ describe('Story Source readiness and authoring context', () => {
     });
     const candidate = buildVisualContractCandidateFixture({
       fixture: materialized.fixture,
-      sourceSnapshotDigest: snapshot.digest,
+      sourceSnapshot: snapshot,
     });
     candidate.template.worldType = 'tampered_world';
     const {

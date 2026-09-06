@@ -54,6 +54,11 @@ import {
 } from '@/lib/visual-contract-compiler/presentationRequirementRepair';
 import { normalizeExactActionBindingComponents } from '@/lib/visual-contract-compiler/actionBindingComponentNormalization';
 import {
+  assertLegacyVisualContractCandidateV9ForReconciliation,
+  assertVisualContractCandidateForReconciliation,
+  loadVisualContractCandidateForReconciliation,
+} from '@/lib/visual-package/reconciliationLifecycle';
+import {
   VISUAL_CONTRACT_AUTHORING_CARDINALITY_ESCALATION_PROVENANCE,
   VISUAL_CONTRACT_AUTHORING_STANDARD_MAX_ADMISSIBLE_INPUT_BYTES,
   authoringRejectedEvidencePageCount,
@@ -9572,6 +9577,84 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     ).toThrow(/readiness v56 requires/);
   });
 
+  it.each([
+    ['catalog version', 'actionSemanticCatalogVersion', 'action-semantic-catalog/v4'],
+    ['missing catalog version', 'actionSemanticCatalogVersion', undefined],
+    ['catalog digest', 'actionSemanticCatalogDigest', 'a'.repeat(64)],
+    ['missing catalog digest', 'actionSemanticCatalogDigest', undefined],
+    ['source evidence version', 'sourceEvidenceCatalogVersion', 'source-evidence-catalog/v2'],
+    ['source evidence digest', 'sourceEvidenceCatalogDigest', 'b'.repeat(64)],
+    ['missing source evidence digest', 'sourceEvidenceCatalogDigest', undefined],
+    ['coverage version', 'actionSemanticCoverageVersion', 'action-semantic-coverage/v7'],
+    ['candidate version', 'version', 'visual-contract-candidate-artifact/v10'],
+  ])('rejects rehashed v9 %s cross-bindings in both in-memory and persisted readers', async (_label, field, value) => {
+    const snapshot = bunnySnapshot();
+    const request = requestFor(snapshot, 'live');
+    const result = await runVisualContractAuthoring({
+      request, snapshot, provider: successfulProvider(presentationAwareBunnyDraft(snapshot)),
+    });
+    const candidate = buildVisualContractCandidateArtifact({
+      request, receipt: result.receipt, compileResult: result.compileResult!,
+    });
+    Object.assign(candidate, { [field!]: value });
+    // Rehash through JSON so omitted fields really are absent on disk. A
+    // matching envelope checksum alone must never establish catalog authority.
+    const malformed = JSON.parse(JSON.stringify(candidate)) as typeof candidate;
+    const { digest: _digest, digestAlgorithm: _algorithm, ...payload } = malformed;
+    malformed.digest = canonicalJsonDigest(payload);
+    expect(() => assertLegacyVisualContractCandidateV9ForReconciliation({ snapshot, candidate: malformed })).toThrow(/candidate is stale, malformed/);
+    expect(() => assertVisualContractCandidateForReconciliation({ snapshot, candidate: malformed })).toThrow(/candidate is stale, malformed/);
+    const repoRoot = tempRoot();
+    const candidatePath = 'candidate.json';
+    fs.writeFileSync(path.join(repoRoot, candidatePath), JSON.stringify(malformed));
+    const before = fs.readFileSync(path.join(repoRoot, candidatePath));
+    expect(() => loadVisualContractCandidateForReconciliation({
+      repoRoot, candidatePath, snapshot, expectedTemplateDigest: malformed.templateDigest,
+    })).toThrow(/candidate is stale, malformed/);
+    expect(fs.readFileSync(path.join(repoRoot, candidatePath))).toEqual(before);
+  });
+
+  it.each([
+    ['catalogVersion', 'action-semantic-catalog/v2'],
+    ['catalogVersion', 'action-semantic-catalog/v4'],
+    ['catalogDigest', 'f'.repeat(64)],
+  ])('keeps the paid factory strict for a rehashed receipt with %s = %s', async (field, value) => {
+    const snapshot = bunnySnapshot();
+    const request = requestFor(snapshot, 'live');
+    const result = await runVisualContractAuthoring({
+      request, snapshot, provider: successfulProvider(fullyActionedBunnyDraft(snapshot)),
+    });
+    const receipt = structuredClone(result.receipt);
+    Object.assign(receipt.actionSemanticCoverage, { [field!]: value });
+    const { digest: _digest, digestAlgorithm: _algorithm, ...payload } = receipt;
+    receipt.digest = canonicalJsonDigest(payload);
+    expect(() => buildVisualContractCandidateArtifact({
+      request, receipt, compileResult: result.compileResult!,
+    })).toThrow(/current Action Semantic Coverage authority/);
+  });
+
+  it.each(['future schema', 'runs', 'unknown predicate'])('does not relabel %s as frozen v3 semantics', async (mutation) => {
+    const snapshot = bunnySnapshot();
+    const request = requestFor(snapshot, 'live');
+    const result = await runVisualContractAuthoring({
+      request, snapshot, provider: successfulProvider(fullyActionedBunnyDraft(snapshot)),
+    });
+    const candidate = buildVisualContractCandidateArtifact({
+      request, receipt: result.receipt, compileResult: result.compileResult!,
+    });
+    if (mutation === 'future schema') {
+      Object.assign(candidate.template, { schemaVersion: 'vc-schema/v5' });
+    } else {
+      Object.assign(candidate.template.pageContracts[0]!.actionRequirements![0]!, {
+        predicate: mutation === 'runs' ? 'runs' : 'teleports_without_authority',
+      });
+    }
+    candidate.templateDigest = canonicalJsonDigest(candidate.template);
+    const { digest: _digest, digestAlgorithm: _algorithm, ...payload } = candidate;
+    candidate.digest = canonicalJsonDigest(payload);
+    expect(() => assertVisualContractCandidateForReconciliation({ snapshot, candidate })).toThrow(/candidate is stale, malformed/);
+  });
+
   it('bridges a current candidate presentation requirement into pending Semantic Reconciliation without self-approval', async () => {
     const snapshot = bunnySnapshot();
     const request = requestFor(snapshot, 'live');
@@ -9589,6 +9672,14 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
       receipt: result.receipt,
       compileResult: result.compileResult!,
     });
+    const immutableBytes = JSON.stringify(candidate);
+    expect(() => assertLegacyVisualContractCandidateV9ForReconciliation({
+      snapshot, candidate, expectedTemplateDigest: candidate.templateDigest,
+    })).not.toThrow();
+    expect(JSON.stringify(candidate)).toBe(immutableBytes);
+    expect(() => assertLegacyVisualContractCandidateV9ForReconciliation({
+      snapshot, candidate, expectedTemplateDigest: '0'.repeat(64),
+    })).toThrow(/candidate is stale, malformed/);
     const reconciliation =
       buildProductionReconciliationDraftFromVisualContractCandidate({
         snapshot,

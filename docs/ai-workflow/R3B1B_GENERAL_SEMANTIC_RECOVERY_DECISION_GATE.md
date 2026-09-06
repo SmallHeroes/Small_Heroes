@@ -2,8 +2,19 @@
 
 Date: 2026-09-06
 
-Status: OWNER APPROVED 2026-09-06; PLANNING P2 RE-GATE PASS P0=0/P1=0/P2=0;
-M1a IMPLEMENTATION; NO PROVIDER / RENDER / DOWNSTREAM AUTHORITY
+Status: OWNER APPROVED 2026-09-06; M1a INDEPENDENTLY CLOSED;
+M1b COMPATIBILITY FOUNDATION IMPLEMENTED; FULL CHECK NON-GREEN;
+INDEPENDENT REVIEW PENDING; NO DOWNSTREAM QUALIFICATION
+
+2026-09-07 continuation: Guy authorized proceeding and renders. The first
+M1b code slice is deliberately offline/$0: freeze v3 catalog authority and
+close rehashed candidate-envelope cross-bindings before group/schema/catalog
+cutover. No render is executed under this compatibility slice. A bounded LOW
+sample and budget still need specification after candidate qualification;
+full-book rendering, source/product acceptance, publication and promotion are
+not inferred. See `R3B1B_SEMANTIC_RECOVERY_M1B_COMPATIBILITY_EVIDENCE.md`.
+The original approval and subdivision below are retained as history; no M1/M2
+acceptance criterion is dropped and the original P1 semantic HOLD is unchanged.
 
 Product owner: Guy. Technical owner: Codex. Independent QA: Claude Code.
 

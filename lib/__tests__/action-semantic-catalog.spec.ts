@@ -8,7 +8,11 @@ import {
   ACTION_SEMANTIC_CATALOG_VERSION,
   ACTION_PREDICATE_VALUES,
   actionSemanticDefinition,
+  LEGACY_ACTION_SEMANTIC_CATALOG_V3,
+  LEGACY_ACTION_SEMANTIC_CATALOG_VERSION_V3,
+  LEGACY_ACTION_SEMANTIC_CATALOG_DIGEST_V3,
 } from '../visual-contract-compiler/actionSemanticCatalog';
+import { canonicalHash } from '@/lib/canonical-json';
 import {
   ACTION_SEMANTIC_COVERAGE_VERSION,
   PRESENTATION_REQUIREMENT_CLASS_VALUES,
@@ -128,6 +132,25 @@ const template = {
 };
 
 describe('central Action Semantic Catalog', () => {
+  it('preserves the frozen v3 bytes and nested runtime immutability before cutover', () => {
+    expect(LEGACY_ACTION_SEMANTIC_CATALOG_VERSION_V3).toBe('action-semantic-catalog/v3');
+    expect(canonicalHash(LEGACY_ACTION_SEMANTIC_CATALOG_V3)).toBe(
+      'c8b366c2ca4f6d1b43eb0ee8e4196546e57d5ba279b5786fdb328de9f33acec5',
+    );
+    expect(LEGACY_ACTION_SEMANTIC_CATALOG_DIGEST_V3).toBe(canonicalHash(LEGACY_ACTION_SEMANTIC_CATALOG_V3));
+    expect(Object.isFrozen(LEGACY_ACTION_SEMANTIC_CATALOG_V3)).toBe(true);
+    for (const entry of LEGACY_ACTION_SEMANTIC_CATALOG_V3) {
+      expect(Object.isFrozen(entry)).toBe(true);
+      expect(Object.isFrozen(entry.subjectKinds)).toBe(true);
+      expect(Object.isFrozen(entry.objectKinds)).toBe(true);
+      expect(Object.isFrozen(entry.spatialConstraintRelations)).toBe(true);
+    }
+    expect(LEGACY_ACTION_SEMANTIC_CATALOG_V3.map((e) => e.predicate)).not.toContain('runs');
+    expect(LEGACY_ACTION_SEMANTIC_CATALOG_V3.find((e) => e.predicate === 'walks')).toBeDefined();
+    // This milestone deliberately does not activate the next catalog.
+    expect(ACTION_SEMANTIC_CATALOG).toBe(LEGACY_ACTION_SEMANTIC_CATALOG_V3);
+  });
+
   it('is the one predicate list used by both strict schemas and prose projection', () => {
     const encodedPredicates = visualContractPredicates();
     expect(encodedPredicates).toHaveLength(

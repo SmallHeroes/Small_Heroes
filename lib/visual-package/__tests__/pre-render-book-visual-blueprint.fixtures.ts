@@ -15,6 +15,7 @@ import {
   type PreRenderBlueprintValidationContext,
   type PreRenderBookVisualBlueprint,
   type VisualContractCandidateArtifact,
+  type StorySourceAuthoritySnapshot,
   type RevealSafeSupportingGeometry,
 } from '@/lib/visual-package';
 import {
@@ -29,6 +30,10 @@ import {
   ACTION_SEMANTIC_COVERAGE_VERSION,
   type ActionSemanticCoverageRecord,
 } from '@/lib/visual-contract-compiler/actionSemanticCoverage';
+import {
+  ACTION_SEMANTIC_CATALOG,
+  ACTION_SEMANTIC_CATALOG_VERSION,
+} from '@/lib/visual-contract-compiler/actionSemanticCatalog';
 import type {
   BookVisualContract,
   PageTransition,
@@ -95,28 +100,28 @@ export interface BlueprintFixture {
 
 export function buildVisualContractCandidateFixture(args: {
   fixture: BlueprintFixture;
-  sourceSnapshotDigest: string;
+  sourceSnapshot: StorySourceAuthoritySnapshot;
 }): VisualContractCandidateArtifact {
   const coverage = structuredClone(
-    args.fixture.context.actionSemanticCoverage,
+    [...args.fixture.context.actionSemanticCoverage],
   );
   const payload = {
     version: VISUAL_CONTRACT_CANDIDATE_ARTIFACT_VERSION,
-    sourceSnapshotDigest: args.sourceSnapshotDigest,
+    sourceSnapshotDigest: args.sourceSnapshot.digest,
     authoringRequestDigest: '1'.repeat(64),
     authoringReceiptDigest: '2'.repeat(64),
     templateDigest: canonicalJsonDigest(args.fixture.context.template),
-    actionSemanticCatalogVersion: 'fixture-catalog',
-    actionSemanticCatalogDigest: '3'.repeat(64),
+    actionSemanticCatalogVersion: ACTION_SEMANTIC_CATALOG_VERSION,
+    actionSemanticCatalogDigest: canonicalJsonDigest(ACTION_SEMANTIC_CATALOG),
     actionSemanticCoverageVersion: ACTION_SEMANTIC_COVERAGE_VERSION,
     actionSemanticCoverageDigest: canonicalJsonDigest(coverage),
-    sourceEvidenceCatalogVersion: 'fixture-source-evidence',
-    sourceEvidenceCatalogDigest: '4'.repeat(64),
+    sourceEvidenceCatalogVersion: args.sourceSnapshot.content.sourceEvidenceCatalog.version,
+    sourceEvidenceCatalogDigest: args.sourceSnapshot.content.sourceEvidenceCatalog.digest,
     template: structuredClone(args.fixture.context.template),
     actionSemanticCoverage: coverage,
     status: 'candidate',
     doesNotAuthorize: ['fixture-only'],
-  } as unknown as Omit<
+  } satisfies Omit<
     VisualContractCandidateArtifact,
     'digestAlgorithm' | 'digest'
   >;

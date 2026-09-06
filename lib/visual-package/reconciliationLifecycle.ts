@@ -4,11 +4,15 @@ import path from 'path';
 import type { AuthoredCoverAuthority } from '@/lib/visual-contract-compiler/coverSourceAuthority';
 import type { BookVisualContractTemplate } from '@/lib/visual-contract-compiler/contractTemplateTypes';
 import {
-  ACTION_SEMANTIC_COVERAGE_VERSION,
   actionSemanticCoverageIssues,
   type ActionSemanticCoverageRecord,
 } from '@/lib/visual-contract-compiler/actionSemanticCoverage';
 import { parseStorySourceContent } from '@/lib/visual-contract-compiler/storySourceContent';
+import {
+  LEGACY_ACTION_SEMANTIC_CATALOG_VERSION_V3,
+  LEGACY_ACTION_SEMANTIC_CATALOG_DIGEST_V3,
+  LEGACY_ACTION_SEMANTIC_CATALOG_V3,
+} from '@/lib/visual-contract-compiler/actionSemanticCatalog';
 
 import {
   canonicalJsonDigest,
@@ -38,10 +42,7 @@ import {
   buildStorySourceAuthoritySnapshot,
   type StorySourceAuthoritySnapshot,
 } from './storySourceAuthority';
-import {
-  VISUAL_CONTRACT_CANDIDATE_ARTIFACT_VERSION,
-  type VisualContractCandidateArtifact,
-} from './visualContractAuthoringLifecycle';
+import type { VisualContractCandidateArtifact } from './visualContractAuthoringLifecycle';
 
 export const RECONCILIATION_REVIEW_BUNDLE_VERSION =
   'source-prompt-reconciliation-review-bundle/v3' as const;
@@ -531,6 +532,21 @@ export function assertVisualContractCandidateForReconciliation(args: {
   candidate: VisualContractCandidateArtifact;
   expectedTemplateDigest?: string;
 }): void {
+  // Explicit version dispatch, not "whatever the current factory accepts".
+  // A future schema/catalog cutover must add its own reader, not widen v9.
+  assertLegacyVisualContractCandidateV9ForReconciliation(args);
+}
+
+/**
+ * Read-only v9 envelope reader, pinned to the original v3 catalog tuple.
+ * Does not rebuild a candidate through the paid/current factory, validate a
+ * request/receipt chain, or grant approval. Later schemas need a distinct lane.
+ */
+export function assertLegacyVisualContractCandidateV9ForReconciliation(args: {
+  snapshot: StorySourceAuthoritySnapshot;
+  candidate: VisualContractCandidateArtifact;
+  expectedTemplateDigest?: string;
+}): void {
   assertValidStorySourceAuthoritySnapshot(args.snapshot);
   const {
     digestAlgorithm: _digestAlgorithm,
@@ -544,14 +560,33 @@ export function assertVisualContractCandidateForReconciliation(args: {
     template: args.candidate.template,
     coverage: args.candidate.actionSemanticCoverage,
   });
+  // Even after the live catalog expands, a rehashed v9 envelope cannot claim
+  // that a new predicate was authored under the frozen v3 authority.
+  const legacyPredicates = new Set<string>(
+    LEGACY_ACTION_SEMANTIC_CATALOG_V3.map((entry) => entry.predicate),
+  );
+  const legacyPredicatesOnly = args.candidate.template.pageContracts.every(
+    (page) => (page.actionRequirements ?? []).every(
+      (action) => legacyPredicates.has(action.predicate),
+    ),
+  );
   if (
-    args.candidate.version !==
-      VISUAL_CONTRACT_CANDIDATE_ARTIFACT_VERSION ||
+    args.candidate.version !== 'visual-contract-candidate-artifact/v9' ||
+    args.candidate.template.schemaVersion !== 'vc-schema/v4' ||
+    args.candidate.actionSemanticCatalogVersion !==
+      LEGACY_ACTION_SEMANTIC_CATALOG_VERSION_V3 ||
+    args.candidate.actionSemanticCatalogDigest !==
+      LEGACY_ACTION_SEMANTIC_CATALOG_DIGEST_V3 ||
+    !legacyPredicatesOnly ||
+    args.candidate.sourceEvidenceCatalogVersion !== 'source-evidence-catalog/v1' ||
+    args.candidate.sourceEvidenceCatalogVersion !==
+      args.snapshot.content.sourceEvidenceCatalog.version ||
+    args.candidate.sourceEvidenceCatalogDigest !==
+      args.snapshot.content.sourceEvidenceCatalog.digest ||
     args.candidate.sourceSnapshotDigest !== args.snapshot.digest ||
     args.candidate.templateDigest !==
       canonicalJsonDigest(args.candidate.template) ||
-    args.candidate.actionSemanticCoverageVersion !==
-      ACTION_SEMANTIC_COVERAGE_VERSION ||
+    args.candidate.actionSemanticCoverageVersion !== 'action-semantic-coverage/v6' ||
     args.candidate.actionSemanticCoverageDigest !== coverageDigest ||
     args.candidate.status !== 'candidate' ||
     args.candidate.digestAlgorithm !== 'canonical-json-sha256' ||

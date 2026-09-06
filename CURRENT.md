@@ -1,6 +1,49 @@
 # SmallHeroes — Current Technical State
 
-## M1a independently closed; M1b is next
+## M1b compatibility foundation — local implementation; FULL CHECK NON-GREEN
+
+Guy authorized continuation and renders on 2026-09-07. Codex continues in this
+task as sole implementation writer on `codex/r3b1b-semantic-recovery-m1`,
+`C:/GNart/Work/sh-r3b1b-semantic-m1`, from clean local/origin parity at
+`a03441145a442410cdaf0e799fac028517c1dcf6`. No automatic push is authorized by
+this continuation. The d53b and accepted-intent worktrees remain read-only.
+
+The first M1b code slice freezes the original v3 catalog and adds an explicit
+read-only v9 candidate-envelope lane. It rejects rehashed catalog/version,
+source-evidence catalog, schema and predicate cross-bindings. The current paid
+factory is unchanged and remains strict. This is compatibility groundwork,
+not the group/schema/catalog cutover: `runs` is still absent, group compiler
+support is still held, and M2 has not started.
+
+The old P1 candidate passed the new reader and exact captured-response replay
+using the active code: providerCalls=0, exact call sequence and template digest,
+and an identical candidate rebuilt by the unchanged current factory. The 14
+original files remain protected. New evidence and the independent-QA brief:
+`docs/ai-workflow/R3B1B_SEMANTIC_RECOVERY_M1B_COMPATIBILITY_EVIDENCE.md`.
+
+Final-code verification: both typechecks passed; 361 tests across all seven
+changed-code consumer suites passed in the delivered full check. The initial
+shared-fixture regression was corrected without weakening the reader. Exact
+P1 replay remained identical, and the final 14-file inventory still matches
+`cd621f77...`. Final `npm run check` exited 1: ordinary files 338 passed /
+9 failed / 17 skipped, tests 4,859 passed / 21 failed / 73 skipped; resource
+files 14 passed / 7 failed, tests 626 passed / 16 failed / 11 skipped, with
+four onTaskUpdate RPC errors. The two Wizard-readiness timeouts also failed
+in isolation at the unchanged 5-second limit. This is not a full-green gate
+and the additional timeouts are not relabeled as inherited. Independent
+Claude Code review is next; no independent PASS is claimed.
+P1 remains semantically **HELD at P0=0/P1=3/P2=3**. No provider,
+credential access, original-artifact mutation, Blueprint, package promotion,
+render, publication or deployment is part of this milestone; actual spend $0.
+Guy's render approval is recorded, not spent: a bounded LOW sample and budget
+must be specified at the qualified-candidate stage; no full-book authority is
+inferred and product acceptance remains Guy's. Payment remains last.
+
+Claude Code's user-supplied documentation re-gate `ceefae25..a0344114` is PASS
+P0=0/P1=0/P2=0, closing the push-wording P2. It does not extend the independent
+M1a code PASS beyond `09d67f38` or cover this new implementation.
+
+## M1a independently closed; M1b is next (historical closeout)
 
 Claude Code independently reviewed exact range
 `768ccb2fe20edb1351cb4783796613cbf7a2993c..081410dd6e25234a667381204e736764f0bb100c`

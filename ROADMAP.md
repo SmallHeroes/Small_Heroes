@@ -1,6 +1,6 @@
 # SmallHeroes — Roadmap
 
-**Last verified:** 2026-09-06 (M1a independent re-gate PASS; both P2s closed)
+**Last verified:** 2026-09-07 (M1b compatibility foundation implemented; full check non-green; no M1b PASS)
 **Product priority owner:** Guy
 **Technical sequencing owner:** Codex
 
@@ -38,8 +38,20 @@ P0=0/P1=0/P2=0, closing both findings. It reproduced 160 + 7 focused tests and
 both typechecks and verified the non-green final-check log. Required preview
 discrimination and the exact 385/364/21 test inventory are technically closed.
 The reviewed correction remains local/unpushed at closeout start (ahead 1).
-M1b group/motion/schema work is next under the existing provider-free approval,
-but has not started; M2, real P1 recovery and render readiness remain incomplete.
+The subsequent wording re-gate `ceefae25..a0344114` is independently PASS
+P0=0/P1=0/P2=0. M1b has now started with a provider-free compatibility foundation:
+frozen v3 catalog identity and a read-only v9 candidate-envelope reader, before
+group/motion/schema cutover. The existing paid factory remains strict; no
+catalog or persisted schema is upgraded. Group projection, `runs`, full M1b,
+M2, real P1 recovery and render readiness remain incomplete. Guy authorized
+continuation and renders on 2026-09-07; this implementation remains $0/offline,
+and exact LOW sample/budget and qualification prerequisites precede any spend.
+See `docs/ai-workflow/R3B1B_SEMANTIC_RECOVERY_M1B_COMPATIBILITY_EVIDENCE.md`.
+All 361 tests in the seven directly affected suites pass in the delivered
+full run. The shared synthetic-fixture catalog regression is corrected; exact
+P1 replay and the 14-file inventory remain identical. The full gate is still
+non-green, including timeouts that are not classified as inherited. Independent
+Claude Code review is the next boundary before the remaining M1b cutover.
 The full repository check remains non-green; payment remains last.
 
 ### R0 — Establish one engineering operating model
