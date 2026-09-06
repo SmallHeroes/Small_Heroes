@@ -1,6 +1,6 @@
 # SmallHeroes — Current Technical State
 
-## R3-B1b P1-A1 post-cardinality authoring — independent execution QA PASS with two scope P2s; semantic HOLD; no Blueprint authority
+## R3-B1b P1-A1 post-cardinality authoring — execution QA PASS; scope re-gate PASS with one disclosure P2; semantic HOLD; no Blueprint authority
 
 Guy's current product order remains: bring the story catalog through complete
 render qualification first, perform the remaining engineering work afterward,
@@ -64,7 +64,18 @@ cost accounting, zero-provider replay, containment, TypeScript and disclosed
 non-green Vitest evidence, exact flagged Wizard audit, and the candidate's
 separate semantic HOLD at P0=0/P1=3/P2=3. Both review P2s were validated against
 the accepted source, Visual Directions and candidate and are corrected below;
-their documentation-only correction still requires an independent re-gate.
+their documentation-only correction is the exact range independently re-gated
+below.
+
+Claude Code then independently re-gated exact correction range
+`57433b7dc669f96eac142888a9d022b3fd900780..1aae0a0c27e3601075f63c2f852837584164ba25`
+read-only and returned **PASS with P0=0, P1=0 and P2=1**. It reproduced the
+one-commit/four-document scope, source/Visual Direction wording and unchanged
+14-artifact identities. Its remaining P2 correctly notes that page 12 retains
+the passive candidate line `Cake at the celebration table as the first slice
+is cut.` even though the baker and baker-as-agent cutting action are absent.
+That disclosure and its non-duplication requirement are corrected below; this
+new documentation-only correction still requires a micro re-gate.
 
 Adversarial source review nevertheless places the candidate on **semantic
 HOLD with P0=0, P1=3 and P2=3**:
@@ -76,9 +87,11 @@ HOLD with P0=0, P1=3 and P2=3**:
    deterministic extractor currently recognizes only kindergarten guard,
    doctor and parent, and the compiler drops other drafted humans. On pages 1,
    5, 9 and 11 some required humans survive only as uncontrolled candidate
-   prose, while the page-12 baker and active cutting action are absent even
-   from candidate prose; recovery must project accepted source/Visual Direction
-   authority into typed cast and page action state; and
+   prose. On page 12, the baker and baker-as-agent cutting action are absent,
+   while the passive line `Cake at the celebration table as the first slice is
+   cut.` survives. Recovery must project accepted source/Visual Direction
+   authority into typed cast and page action state and reconcile or replace
+   that passive line, not append a second overlapping cutting requirement; and
 3. pages 2, 6 and 10 downgrade fast locomotion to `walks`: page 2's
    hurried/skipped/scurried motion (`darts` in its Visual Direction), and the
    explicit running on pages 6 and 10. On pages 6 and 10 the candidate's own
@@ -111,9 +124,10 @@ is authorized.
 
 Full evidence:
 `docs/ai-workflow/R3B1B_P1_A1_POST_CARDINALITY_AUTHORING_EXECUTION_EVIDENCE.md`.
-The full execution/evidence range has independent Claude Code PASS. This
-documentation-only P2 correction is a separate unreviewed range and must be
-re-gated; Codex does not self-award its closure.
+The full execution/evidence range and first scope-correction range have
+independent Claude Code PASS. This final disclosure correction is a separate
+unreviewed range and must be micro re-gated; Codex does not self-award its
+closure.
 
 ## R3-B1b duplicate coverage-cardinality recovery — implementation and handoff correction independently QA-passed; no retry authority
 

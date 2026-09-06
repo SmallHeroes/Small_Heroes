@@ -10,9 +10,9 @@ Branch: `codex/r3b1b-p1-a1-post-cardinality-authoring`
 
 Execution base: `18f22e758810d5118d9b5bcad7f27b0d07b76b7b`
 
-Status: **LIVE EXECUTION COMPLETED; INDEPENDENT ARTIFACT/CLAIM QA PASS WITH TWO
-SCOPE P2 CORRECTIONS AWAITING RE-GATE; SEMANTIC HOLD; NO BLUEPRINT OR
-DOWNSTREAM AUTHORITY**
+Status: **LIVE EXECUTION COMPLETED; INDEPENDENT ARTIFACT/CLAIM QA PASS; SCOPE
+RE-GATE PASS WITH ONE DISCLOSURE P2 CORRECTED AND AWAITING MICRO RE-GATE;
+SEMANTIC HOLD; NO BLUEPRINT OR DOWNSTREAM AUTHORITY**
 
 ## Authority and scope
 
@@ -186,10 +186,12 @@ review found three P1 semantic defects. Candidate acceptance is therefore
    replaces drafted humans with that closed fact set. The validator therefore
    cannot see these omitted roles. Blueprint/runtime authority derives cast
    only from `humanCast` and frame/page `castIds`. On pages 1, 5, 9 and 11 some
-   required humans survive only as uncontrolled candidate prose, while page
-   12's baker and active cutting action are absent even from candidate prose.
+   required humans survive only as uncontrolled candidate prose. On page 12,
+   the baker and baker-as-agent cutting action are absent, while the passive
+   line `Cake at the celebration table as the first slice is cut.` survives.
    Recovery must project accepted source/Visual Direction authority into typed
-   cast and page action state; lifting existing candidate prose is insufficient.
+   cast and page action state and reconcile or replace that passive line, not
+   append a second overlapping cutting requirement.
 3. **Fast locomotion is downgraded to walking.** Page 2 describes Dini
    hurrying, skipping and scurrying (`darts from side to side` in its Visual
    Direction), while pages 6 and 10 explicitly say Dini runs. All three pages
@@ -282,13 +284,26 @@ semantic section above:
 
 1. page 2 joins pages 6 and 10 in the fast-locomotion-to-`walks` defect; page 2
    is not mislabeled as literal running; and
-2. page 12's baker and active cutting action are absent even from candidate
-   prose, so recovery must use accepted source/Visual Direction authority and
-   cannot merely lift surviving prose.
+2. page 12's baker and baker-as-agent cutting action are absent; recovery must
+   use accepted source/Visual Direction authority rather than merely lift
+   surviving candidate prose.
 
 Claude could not independently reproduce three non-persisted intermediate
 digests or compare the original eight artifacts to a prior snapshot it never
 held; it did not run `npm run check`; and its Bash surface was unavailable, so
 it used PowerShell 5.1. These are disclosed limitations, not hidden closure.
-This documentation-only P2 correction is a new unreviewed range. It requires a
-read-only independent re-gate; Codex does not self-award its closure.
+
+Claude Code then independently re-gated exact correction range
+`57433b7dc669f96eac142888a9d022b3fd900780..1aae0a0c27e3601075f63c2f852837584164ba25`
+read-only and returned **PASS with P0=0, P1=0 and P2=1**. It confirmed the
+one-commit/four-document scope, both semantic refinements, unchanged 14-file /
+412,516-byte artifact root and all 14 content addresses. The re-gate did not
+rerun replay, tests, TypeScript or Wizard audit; it did not run `npm run check`;
+and Bash remained unavailable, so PowerShell 5.1 was used.
+
+Its remaining P2 correctly identifies that the prior correction did not
+disclose the surviving passive page-12 first-slice-cut line. The semantic
+section now records it and requires future recovery to reconcile or replace it
+rather than append a duplicate baker-agented cutting requirement. This final
+documentation-only correction is a new unreviewed range and requires a
+read-only micro re-gate; Codex does not self-award its closure.
