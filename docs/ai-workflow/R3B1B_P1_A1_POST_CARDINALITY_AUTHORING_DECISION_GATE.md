@@ -10,9 +10,9 @@ Planning base: `be65b3ced874397a08dd2b2aa6283a5b85dfb857`
 
 Attempt branch: `codex/r3b1b-p1-a1-post-cardinality-authoring`
 
-Status: **EXECUTED ON EXACT AUTHORITY; INDEPENDENT EXECUTION QA PASS; SCOPE
-RE-GATE PASS WITH ONE DISCLOSURE P2 CORRECTED AND AWAITING MICRO RE-GATE;
-SEMANTIC HOLD; NO BLUEPRINT OR DOWNSTREAM AUTHORITY**
+Status: **EXECUTED; INDEPENDENT EXECUTION AND DOCUMENTATION QA PASS;
+DOCUMENTATION P0/P1/P2 CLOSED; CANDIDATE SEMANTIC HOLD;
+NO BLUEPRINT OR DOWNSTREAM AUTHORITY**
 
 ## Approval record and boundary
 
@@ -419,8 +419,12 @@ and returned PASS with P0=0/P1=0/P2=1. It confirmed both scope refinements and
 found one remaining disclosure gap: page 12 retains the passive candidate line
 `Cake at the celebration table as the first slice is cut.` The correction must
 reconcile or replace that line when restoring the baker-as-agent action, not
-append a second overlapping cutting requirement. This final documentation-only
-correction awaits a read-only micro re-gate and does not self-award closure.
+append a second overlapping cutting requirement. Claude Code subsequently
+re-gated exact range
+`1aae0a0c27e3601075f63c2f852837584164ba25..4453cd9e2edbf37d157698fbfd62f69eeecd4c6c`
+and returned PASS with P0=0/P1=0/P2=0, explicitly closing the disclosure P2.
+This is a transcription of Claude's verdict. The candidate remains semantically
+HELD at P0=0/P1=3/P2=3; the review grants no product or downstream authority.
 
 The next proposed milestone remains a new provider-free Decision Gate for a
 general supporting-cast/action-semantic correction and Guy's exact cover/page-12

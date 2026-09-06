@@ -10,9 +10,9 @@ Branch: `codex/r3b1b-p1-a1-post-cardinality-authoring`
 
 Execution base: `18f22e758810d5118d9b5bcad7f27b0d07b76b7b`
 
-Status: **LIVE EXECUTION COMPLETED; INDEPENDENT ARTIFACT/CLAIM QA PASS; SCOPE
-RE-GATE PASS WITH ONE DISCLOSURE P2 CORRECTED AND AWAITING MICRO RE-GATE;
-SEMANTIC HOLD; NO BLUEPRINT OR DOWNSTREAM AUTHORITY**
+Status: **LIVE EXECUTION COMPLETED; INDEPENDENT ARTIFACT/CLAIM AND
+DOCUMENTATION QA PASS; DOCUMENTATION P0/P1/P2 CLOSED;
+CANDIDATE SEMANTIC HOLD; NO BLUEPRINT OR DOWNSTREAM AUTHORITY**
 
 ## Authority and scope
 
@@ -304,6 +304,20 @@ and Bash remained unavailable, so PowerShell 5.1 was used.
 Its remaining P2 correctly identifies that the prior correction did not
 disclose the surviving passive page-12 first-slice-cut line. The semantic
 section now records it and requires future recovery to reconcile or replace it
-rather than append a duplicate baker-agented cutting requirement. This final
-documentation-only correction is a new unreviewed range and requires a
-read-only micro re-gate; Codex does not self-award its closure.
+rather than append a duplicate baker-agented cutting requirement.
+
+Claude Code independently re-gated exact final correction range
+`1aae0a0c27e3601075f63c2f852837584164ba25..4453cd9e2edbf37d157698fbfd62f69eeecd4c6c`
+and returned **PASS with P0=0/P1=0/P2=0**, explicitly closing its disclosure P2.
+It confirmed one commit, four Markdown paths, +70/-31, clean diff hygiene,
+the exact passive page-12 requirement and absence of its baker-agent, required
+reconciliation/replacement without duplication, and unchanged 14-file /
+412,516-byte artifact inventory with recomputed content addresses.
+The final review was documentation-only and read-only/offline; it did not
+rerun replay, test batteries, TypeScript, Wizard audit or `npm run check`.
+PowerShell 5.1 was used because its Bash surface remained unavailable.
+
+This closeout records Claude's completed review and does not extend its range.
+The prior evidence limitations still apply. The candidate remains immutable,
+unaccepted and semantically HELD at P0=0/P1=3/P2=3. No additional provider cost,
+Blueprint, render, promotion or other downstream authority follows from PASS.
