@@ -42,6 +42,12 @@ import {
   type HumanFact,
 } from './extractDeterministicFacts';
 import {
+  supportingCastFacts,
+  SUPPORTING_CAST_APPEARANCE_POLICY_VERSION,
+  type SupportingCastReview,
+} from './supportingCastReview';
+import { loadAcceptedSupportingCastReview } from '@/lib/visual-package/acceptedSupportingCastReview';
+import {
   TEMPLATE_DRAFT_JSON_SCHEMA,
   TEMPLATE_DRAFT_SCHEMA_NAME,
   TEMPLATE_DRAFT_SCHEMA_VERSION,
@@ -1513,6 +1519,8 @@ export interface TemplateCompileInput extends DeterministicFactsInput {
 }
 
 export interface TemplateCompileResult {
+  /** Offline preview provenance only; not a current paid-request/receipt authority. */
+  supportingCastReviewDigest?: string;
   template: BookVisualContractTemplate;
   facts: DeterministicFacts;
   /**
@@ -2269,8 +2277,17 @@ const HAIR_STYLE_POLICY: Record<string, { value: string; policyId: string }> = {
 };
 
 /** Inject the appearance binding skeleton for a human's role. Throws (fail-closed) for an unknown role. */
-export function injectAppearance(role: string, humanId: string): HumanAppearanceTraits<TemplateTraitBinding> {
-  const hair = HAIR_STYLE_POLICY[role];
+export function injectAppearance(role: string, humanId: string, reviewedClass?: HumanFact['reviewedAppearanceClass']): HumanAppearanceTraits<TemplateTraitBinding> {
+  if (reviewedClass !== undefined && reviewedClass !== 'family_profile' && reviewedClass !== 'reviewed_non_relative') {
+    throw new Error('supporting_cast_appearance_class_invalid');
+  }
+  if (reviewedClass && ((reviewedClass === 'family_profile') !== FAMILY_PROFILE_ROLES.has(role))) {
+    throw new Error('supporting_cast_appearance_class_conflict');
+  }
+  const hair = Object.prototype.hasOwnProperty.call(HAIR_STYLE_POLICY, role) ? HAIR_STYLE_POLICY[role] :
+    reviewedClass === 'reviewed_non_relative' ? {
+      value: 'neat, simple everyday style', policyId: 'reviewed-non-relative-hair-style',
+    } : undefined;
   if (!hair) {
     throw new InvalidTemplateContractError([
       `humanCast "${humanId}" role "${role}" has no appearance policy — a role that is neither a known relative nor a known non-relative must be authored by a human (never auto-classified).`,
@@ -2304,7 +2321,7 @@ function mergeHuman(fact: HumanFact, draftHuman: Record<string, unknown>): Templ
     aliases: fact.aliasesFound,
     textEvidence: formatEvidence(fact),
     pagesPresent: fact.pagesPresent,
-    appearance: injectAppearance(fact.role, fact.id),
+    appearance: injectAppearance(fact.role, fact.id, fact.reviewedAppearanceClass),
     garments: (draftHuman.garments as TemplateHumanCastMember['garments']) ?? [],
     forbiddenAppearance: asArr(draftHuman.forbiddenAppearance).filter((a): a is string => typeof a === 'string'),
   };
@@ -4443,7 +4460,10 @@ function assembleTemplateFromDraft(
   // humanCast is AUTHORITATIVE from the extractor: every detected human, merged with its drafted appearance.
   const draftHumans = asArr(draft.humanCast).map(asObj);
   const humanCast: TemplateHumanCastMember[] = facts.humans.map((h) => {
-    const match = draftHumans.find((d) => d.id === h.id || d.role === h.role) ?? {};
+    const match = draftHumans.find((d) => d.id === h.id) ??
+      (facts.humans.filter((other) => other.role === h.role).length === 1
+        ? draftHumans.find((d) => d.role === h.role)
+        : undefined) ?? {};
     return mergeHuman(h, match);
   });
   // Flag any drafted human the extractor did NOT detect (dropped — the LLM cannot add cast the text doesn't support).
@@ -5013,8 +5033,12 @@ export async function compileBookVisualContractTemplate(
      * provider-free historical replay lane.
      */
     routingPolicyVersion?: VisualContractAuthoringRoutingPolicyVersion;
+    /** M1a offline compiler preview only. Current paid lifecycle does not bind this input. */
+    supportingCastReview?: { repoRoot: string; storyPath: string; review: SupportingCastReview };
   },
 ): Promise<TemplateCompileResult> {
+  // Isolate the verified source across asynchronous injected caller boundaries.
+  if (deps.supportingCastReview !== undefined) input = structuredClone(input);
   const routingPolicyVersion =
     deps.routingPolicyVersion ??
     VISUAL_CONTRACT_AUTHORING_ROUTING_POLICY_VERSION;
@@ -5085,7 +5109,14 @@ export async function compileBookVisualContractTemplate(
     STABLE_PROP_SCOPE_REPAIR_JSON_SCHEMA,
   );
 
-  const facts = extractDeterministicFacts(input);
+  const supportingReview = deps.supportingCastReview === undefined ? undefined :
+    loadAcceptedSupportingCastReview({
+      repoRoot: deps.supportingCastReview.repoRoot,
+      storyKey: input.storyKey,
+      storyPath: deps.supportingCastReview.storyPath,
+      review: deps.supportingCastReview.review,
+    }).review;
+  const facts = supportingReview ? supportingCastFacts(input, supportingReview) : extractDeterministicFacts(input);
 
   // Dedicated authoring call: real reasoning model + strict structured output + a budget scaled to the page count,
   // with NO silent model fallback. Every standard call receives its canonical
@@ -5781,7 +5812,7 @@ export async function compileBookVisualContractTemplate(
         maxOutputTokens: appliedMaxOutputTokens,
         schemaVersion: TEMPLATE_DRAFT_SCHEMA_VERSION,
         promptVersion: TEMPLATE_PROMPT_VERSION,
-        policyVersion: APPEARANCE_POLICY_VERSION,
+        policyVersion: supportingReview ? SUPPORTING_CAST_APPEARANCE_POLICY_VERSION : APPEARANCE_POLICY_VERSION,
         attempt,
         ...(attempt > 1
           ? {
@@ -5814,6 +5845,7 @@ export async function compileBookVisualContractTemplate(
       };
       return {
         template: assembled.template,
+        ...(supportingReview ? { supportingCastReviewDigest: supportingReview.digest } : {}),
         facts,
         actionSemanticCoverage:
           assembled.actionSemanticCoverage,

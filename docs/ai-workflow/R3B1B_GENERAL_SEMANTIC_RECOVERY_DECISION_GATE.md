@@ -2,10 +2,27 @@
 
 Date: 2026-09-06
 
-Status: PLANNING PASS (P0=0/P1=0/P2=3); P2 CORRECTIONS PENDING RE-GATE;
-OWNER COVER/CART DECISIONS PENDING; NO IMPLEMENTATION AUTHORITY
+Status: OWNER APPROVED 2026-09-06; PLANNING P2 RE-GATE PASS P0=0/P1=0/P2=0;
+M1a IMPLEMENTATION; NO PROVIDER / RENDER / DOWNSTREAM AUTHORITY
 
 Product owner: Guy. Technical owner: Codex. Independent QA: Claude Code.
+
+Guy's explicit approval follows Claude Code's final planning-correction PASS
+on `581adc14..768ccb2f`. Both recommended visual dispositions in §6 are approved.
+Execution continues in the current task as sole writer on new branch
+`codex/r3b1b-semantic-recovery-m1`, worktree
+`C:/GNart/Work/sh-r3b1b-semantic-m1`, based on exact reviewed HEAD
+`768ccb2fe20edb1351cb4783796613cbf7a2993c`. The previous worktree/branch is
+read-only evidence, not a second implementation task. No new app task was
+created. Preparation-time and reviewer handoffs below are retained as history.
+
+Implementation subdivision: M1a is the source-bound cast-review input and
+individual compiler preview, without persisted-schema/catalog migration.
+M1b adds the bounded group projection, `runs` and legacy-version cutover after
+M1a independent QA; M2 remains atomic candidate recovery and bridge support.
+This makes the schema/consumer migration a separate verifiable boundary; it
+does not drop any M1 acceptance criterion or claim the whole M1 is complete.
+See `R3B1B_SEMANTIC_RECOVERY_M1A_EXECUTION_EVIDENCE.md` for current scope/evidence.
 
 ## 1. Proposed change
 
@@ -265,7 +282,7 @@ It must represent the following accepted supporting cast:
 | Playing children | 9 | Human group, distinct from the hero and birthday child |
 | Birthday child | 11 | Female, clapping as in the accepted source |
 
-Only two unresolved visual choices require Guy's decision:
+Guy approved both visual choices on 2026-09-06:
 
 1. Recommended cover: keep both the cake and cart visible; apply the existing
    exact no-spoiler correction to those two props. Tablecloth stays forbidden.
@@ -273,7 +290,7 @@ Only two unresolved visual choices require Guy's decision:
    area. Make presence required and consistent across prop state, persistence
    and presentation. Alternative: explicitly off-frame everywhere on p12.
 
-These recommendations are not yet approved. Source-faithful cast, p2 motion,
+The recommended choices are approved, not the off-frame alternative. Source-faithful cast, p2 motion,
 p6/p10 running, gentle withdrawal and non-duplicating cutting reconciliation
 follow the accepted source; they are not requests to rewrite the story.
 
@@ -321,7 +338,7 @@ do not delete evidence, worktrees or branches. No database rollback is required.
 
 ## 10. Review assignment and stop-check
 
-Guy decides the two visual dispositions above and approves the concrete Gate.
+Guy has decided the two visual dispositions above and approved the concrete Gate.
 Claude Code should challenge completeness, duplicate cutting/withdrawal beats,
 group-as-individual mistakes, appearance/family leakage, source conflicts,
 effective-template/coverage mismatch, legacy replay drift and stale authority.
@@ -331,7 +348,7 @@ that consultation is optional and has not been dispatched.
 Stop-check answers: this is general; it can affect other stories and production
 consumers, so defaults/legacy behavior require regression evidence; it spends
 USD 0; the smallest proof is a no-write P1 recovery plus representative hostile
-fixtures; Guy's open choices are cover/cart; visual acceptance will use the
+fixtures; Guy's cover/cart choices are now resolved as in §6; visual acceptance will use the
 exact textual before/after scene requirements at this stage. No generated
 image is required for the proposed correction proof.
 
@@ -341,7 +358,8 @@ No live authoring/retry, provider call, credential read, images, audio, full-boo
 render, Blueprint authoring/approval, package creation/promotion, locator or
 accepted-source change, next-story publication, deployment or payment work.
 Do not infer implementation or product acceptance from the preceding QA PASS.
-This planning packet requires an owner decision before dependent implementation.
+The owner decision above authorizes the scoped implementation only; independent
+implementation QA and later exact-artifact product acceptance are still required.
 
 ## Preparation evidence and independent review handoff
 

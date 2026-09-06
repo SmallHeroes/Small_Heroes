@@ -6143,9 +6143,14 @@ export function buildVisualContractCandidateArtifact(args: {
   receipt: VisualContractAuthoringReceipt;
   compileResult: Pick<
     TemplateCompileResult,
-    'template' | 'actionSemanticCoverage'
+    'template' | 'actionSemanticCoverage' | 'supportingCastReviewDigest'
   >;
 }): VisualContractCandidateArtifact {
+  // M1a's source-bound previews have no current paid-request/receipt binding.
+  // M2 must introduce a separate effective-artifact authority, never reuse this factory.
+  if (args.compileResult.supportingCastReviewDigest !== undefined) {
+    throw new Error('supporting_cast_preview_is_not_paid_candidate_authority');
+  }
   const templateDigest = canonicalJsonDigest(
     args.compileResult.template,
   );

@@ -1,6 +1,52 @@
 # SmallHeroes — Current Technical State
 
-## General semantic recovery — planning QA PASS; P2 correction re-gate and product dispositions pending
+## General semantic recovery — owner approved; M1a source-bound cast implementation
+
+Guy approved the Gate and both visual choices on 2026-09-06: cake and cart
+visible on the cover, tablecloth still forbidden, and the p12 cart visibly
+parked beside the serving area. Claude Code closed all three planning P2s with
+PASS P0=0/P1=0/P2=0 on exact range
+`581adc14d97eea0b78e25a7550273a9137238b96..768ccb2fe20edb1351cb4783796613cbf7a2993c`.
+That was planning/documentation review, not implementation acceptance.
+
+This task is the sole writer on `codex/r3b1b-semantic-recovery-m1`, worktree
+`C:/GNart/Work/sh-r3b1b-semantic-m1`, from reviewed/pushed base `768ccb2f`.
+The d53b evidence branch and accepted-intent dependency remain read-only.
+M1 is split at the schema boundary: M1a establishes source-bound cast review
+input and the individual compiler preview; M1b will add group rendering and
+motion semantics after independent QA of this foundation. M2 remains the
+separate atomic recovery/bridge milestone. The existing owner approval covers
+this sequence; the split is technical sequencing, not a new product question.
+
+M1a introduces a strict review-input v1 bound to the accepted revision,
+snapshot, source, Visual Directions and complete compiler input. The accepted
+loader revalidates canonical source authority. Explicit person/group/non-human
+classification, cited identity/gender/presence, alias collision checks and
+family-policy restrictions are checked before the injected compiler caller.
+Individuals use the real compiler/materializer/prose path with explicit
+non-relative appearance policy and ID-first descriptive-field matching.
+Groups/non-humans currently hold before that caller: their input schema is
+not a claim that they can yet render. Preview output is rejected by the
+current paid-candidate factory; no paid lifecycle input was enabled.
+
+The review input remains `source_bound_review_required`: byte/citation checks
+do not certify a complete cast inventory or semantic classification. No real
+P1 recovery artifact has been produced or accepted. Catalog v3, draft schema
+v21, contract schema v4, snapshot v4, candidate v9, old receipt/replay and
+cover-only bridge v5 remain unchanged. P1 remains semantically HELD. Zero live
+provider calls, credential access, renders or additional provider spend.
+
+Evidence, full-check limitations, consumer dispositions and QA handoff:
+`docs/ai-workflow/R3B1B_SEMANTIC_RECOVERY_M1A_EXECUTION_EVIDENCE.md`.
+Final focused verification is 7/7 files, 153/153 tests and both typechecks,
+all exit 0. `npm run check` exits 1: ordinary 337/10/17 passing/failing/skipped
+files, resource-intensive 20/1 passing/failing files, missing ignored fixtures,
+historical corpus bindings and timeouts. The corpus mismatch reproduces at
+base; the new-worktree Wizard 5-second timeout is not established as inherited
+(base passed narrowly; only a longer-timeout diagnostic passed here). No full
+green claim. M1a is ready for independent review, not self-awarded technical PASS.
+
+## General semantic recovery — historical planning state before owner approval
 
 The provider-free plan is
 `docs/ai-workflow/R3B1B_GENERAL_SEMANTIC_RECOVERY_DECISION_GATE.md`.
@@ -19,12 +65,12 @@ and returned planning PASS with P0=0/P1=0/P2=3. All three non-blocking findings
 were validated: the Gate now names the missing cast/prose/runtime/repair
 consumers, explains the v3 receipt/current-catalog candidate-factory boundary,
 and provides an executable raw-inventory algorithm reproducing `cd621f77...`
-(14 files / 412,516 bytes). These documentation corrections await independent
-re-gate; this is not Codex-awarded closure. Claude ran TypeScript (exit 0), but
+(14 files / 412,516 bytes). These documentation corrections subsequently passed
+independent re-gate as recorded above. Claude ran TypeScript (exit 0), but
 no test batteries, replay, Wizard audit or full check in its planning review.
 Its planning PASS grants no implementation or product authority.
 
-The two pending Guy choices are to retain cake/cart on the cover and keep the
+At planning time, the two pending Guy choices were to retain cake/cart on the cover and keep the
 p12 cart visibly parked by the serving area (recommended), or explicitly choose
 different visibility. Accepted supporting-human identities, fast motion and
 the gentle ending come from the accepted source. The page-12 passive cutting

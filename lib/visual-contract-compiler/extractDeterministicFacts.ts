@@ -26,6 +26,8 @@ export interface FactEvidence {
 }
 
 export interface HumanFact {
+  /** Set only by source-bound supporting-cast assembly, never by the lexicon/draft. */
+  reviewedAppearanceClass?: 'family_profile' | 'reviewed_non_relative';
   /** Namespaced stable id, e.g. "human:doctor". */
   id: string;
   role: string;
