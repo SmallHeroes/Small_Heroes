@@ -1,5 +1,26 @@
 # SmallHeroes — Current Technical State
 
+## General semantic recovery — concrete Decision Gate prepared; product dispositions pending
+
+The provider-free plan is
+`docs/ai-workflow/R3B1B_GENERAL_SEMANTIC_RECOVERY_DECISION_GATE.md`.
+Planning stays in this Lead task/worktree on
+`codex/r3b1b-p1-a1-post-cardinality-authoring`, from closeout base
+`e5e66feea9b8f9b1738f05ae70e4f967526578e5`; no implementation has started.
+The plan covers accepted supporting cast and class-based appearance, human
+groups, fast-locomotion fidelity, atomic template/coverage recovery, existing
+cover-correction reuse and current-consumer bridge validation. It preserves the
+paid candidate and proposes offline recovery before considering re-authoring.
+Salvage is not yet proven, and failure grants no automatic provider retry.
+
+The two pending Guy choices are to retain cake/cart on the cover and keep the
+p12 cart visibly parked by the serving area (recommended), or explicitly choose
+different visibility. Accepted supporting-human identities, fast motion and
+the gentle ending come from the accepted source. The page-12 passive cutting
+line must be reconciled/replaced without a duplicate event. Implementation is
+proposed in two bounded milestones with independent QA; budget is zero provider
+calls and zero images. Payments remain last and P1 remains semantically HELD.
+
 ## R3-B1b P1-A1 post-cardinality authoring — execution and documentation QA passed; candidate semantic HOLD
 
 Guy's current product order remains: bring the story catalog through complete
@@ -125,8 +146,9 @@ render-qualified, with zero effects. P1 was not promoted.
 
 The next milestone must be a new, provider-free Decision Gate for general
 supporting-cast authority and fast-locomotion semantics, plus Guy's exact cover
-and page-12 cart dispositions. Only after that implementation independently passes
-may a fresh P1-only authoring/spend Gate be requested. No Blueprint, Board/prop
+and page-12 cart dispositions. That Gate is now prepared above and prioritizes
+offline recovery of the existing candidate. Re-authoring is only a separately
+gated fallback if recovery fails. No Blueprint, Board/prop
 image, package, locator, render, P2, publication, deployment or payment action
 is authorized.
 
