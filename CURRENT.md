@@ -17,13 +17,17 @@ counted the exact two-spec inventory delta, and verified the final full-check
 log by SHA-256 and contents. It did not rerun the full check, replay, Wizard
 audit or recovery preview. This closes M1a, not full M1 or P1 semantic recovery.
 
-The current task is the sole documentation-closeout writer on
+The current task is the sole documentation-correction writer on
 `codex/r3b1b-semantic-recovery-m1`, `C:/GNart/Work/sh-r3b1b-semantic-m1`.
-Correction started at clean local/upstream parity `081410dd`. Closeout starts
+Correction started at clean local/upstream parity `081410dd`. Closeout started
 at reviewed HEAD `09d67f38`, clean and ahead 1 / behind 0 of local upstream
-`081410dd`; the corrective commit is not pushed. This documentation-only
-closeout will add one local commit outside the reviewed range, not extend the
-independent PASS. No push is performed and no push actor is inferred.
+`081410dd`; the corrective commit was unpushed at closeout start. That
+documentation-only closeout added one local commit outside the code-review
+range; it did not extend the independent code PASS. No push was performed in
+that closeout task. At this wording correction's start, HEAD/local upstream
+and `git ls-remote origin` all matched `ceefae25`, with a clean 0/0 worktree:
+both the corrective and closeout commits had propagated. No push actor is
+inferred from that later observation.
 The d53b evidence tree (`768ccb2f`) and accepted-intent tree (`63ccb484`) remain
 clean, upstream-parity read-only dependencies. No new app task or cleanup.
 
