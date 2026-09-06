@@ -3,7 +3,7 @@ import { canonicalHash } from '@/lib/canonical-json';
 import { prepareAcceptedSupportingCastReview, loadAcceptedSupportingCastReview } from '../acceptedSupportingCastReview';
 import { buildStorySourceAuthoritySnapshot } from '../storySourceAuthority';
 import { compileBookVisualContractTemplate, assertCastIsFactAuthoritative } from '@/lib/visual-contract-compiler/compileBookVisualContractTemplate';
-import { buildVisualContractCandidateArtifact } from '../visualContractAuthoringLifecycle';
+import { buildVisualContractCandidateArtifact, persistVisualContractCandidate } from '../visualContractAuthoringLifecycle';
 import type { SupportingCastEntry } from '@/lib/visual-contract-compiler/supportingCastReview';
 import { materialize } from '@/lib/visual-contract-compiler/materializeContract';
 import { validateBookVisualContractTemplate } from '@/lib/visual-contract-compiler/validateTemplateContract';
@@ -126,5 +126,25 @@ describe('accepted supporting cast preparation and real compiler boundary', () =
     broken.humanCast = []; broken.pageContracts.forEach((p) => { p.castIds = p.castIds?.filter((id) => id !== 'human:baker'); });
     expect(() => assertCastIsFactAuthoritative(broken, result.facts, value.input)).toThrow('humanCast ids');
     expect(() => buildVisualContractCandidateArtifact({ compileResult: result } as unknown as Parameters<typeof buildVisualContractCandidateArtifact>[0])).toThrow('preview_is_not_paid_candidate_authority');
+    const subset = { template: result.template, actionSemanticCoverage: result.actionSemanticCoverage };
+    // These assertions deliberately fail typechecking if either API becomes optional again.
+    // @ts-expect-error Every compiler-to-candidate input must explicitly carry the discriminator.
+    const factoryInput: Parameters<typeof buildVisualContractCandidateArtifact>[0]['compileResult'] = subset;
+    // @ts-expect-error Persistence must preserve the same required boundary as its factory.
+    const persistInput: Parameters<typeof persistVisualContractCandidate>[0]['compileResult'] = subset;
+    expect(factoryInput).toBe(persistInput);
+    expect(() => buildVisualContractCandidateArtifact({ compileResult: subset } as unknown as Parameters<typeof buildVisualContractCandidateArtifact>[0])).toThrow('preview_is_not_paid_candidate_authority');
+    expect(() => persistVisualContractCandidate({ compileResult: subset, write: true } as unknown as Parameters<typeof persistVisualContractCandidate>[0])).toThrow('preview_is_not_paid_candidate_authority');
+  });
+  it.each([undefined, '', 'a'.repeat(64), false, 0, {}])('rejects a non-null discriminator %j before receipt access or persistence', (marker) => {
+    const receipt = vi.fn(() => { throw new Error('receipt access before preview guard'); });
+    const args = { compileResult: { supportingCastReviewDigest: marker }, get receipt() { return receipt(); }, write: true };
+    expect(() => buildVisualContractCandidateArtifact(args as unknown as Parameters<typeof buildVisualContractCandidateArtifact>[0])).toThrow('preview_is_not_paid_candidate_authority');
+    expect(() => persistVisualContractCandidate(args as unknown as Parameters<typeof persistVisualContractCandidate>[0])).toThrow('preview_is_not_paid_candidate_authority');
+    expect(receipt).not.toHaveBeenCalled();
+  });
+  it('rejects inherited null instead of treating it as explicit legacy authority', () => {
+    const args = { compileResult: Object.create({ supportingCastReviewDigest: null }) };
+    expect(() => buildVisualContractCandidateArtifact(args as unknown as Parameters<typeof buildVisualContractCandidateArtifact>[0])).toThrow('preview_is_not_paid_candidate_authority');
   });
 });

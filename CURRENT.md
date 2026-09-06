@@ -1,6 +1,49 @@
 # SmallHeroes — Current Technical State
 
-## General semantic recovery — owner approved; M1a source-bound cast implementation
+## M1a independent PASS; P2 corrective milestone
+
+Claude Code independently reviewed exact range
+`768ccb2fe20edb1351cb4783796613cbf7a2993c..081410dd6e25234a667381204e736764f0bb100c`
+and returned **PASS P0=0/P1=0/P2=2**, for M1a only. It reproduced 153 focused
+tests, added 198 passing legacy tests, passed both typechecks, and reproduced
+the two review/correction-batch failure signatures at the untouched base.
+That baseline proof does not classify every full-check failure as inherited.
+
+The current task continues as sole corrective writer on
+`codex/r3b1b-semantic-recovery-m1`, `C:/GNart/Work/sh-r3b1b-semantic-m1`, from
+clean local/upstream parity at `081410dd`; push actor is not inferred.
+The d53b evidence tree (`768ccb2f`) and accepted-intent tree (`63ccb484`) remain
+clean, upstream-parity read-only dependencies. No new app task or cleanup.
+
+Validated P2-1: the optional preview digest allowed a subset literal to erase
+the factory guard. The compiler now always returns a required nullable field;
+both factory and persistence require it, and runtime accepts only an explicit
+own-property null for the legacy path. The three persisted-candidate rebuilds
+declare null explicitly. No artifact/schema/catalog/receipt change; this is
+not cryptographic provenance and grants no M2 preview-to-paid authority.
+
+P2-2 requires a full check on the delivered code. A preliminary rerun also
+exposed a real M1a regression: its two new specs changed the inventory from
+383 to 385 without updating the classifier test. The count and explicit
+ordinary-phase membership assertions are corrected; no execution-policy,
+timeout or test exclusion was relaxed. Final check evidence is recorded in
+`docs/ai-workflow/R3B1B_SEMANTIC_RECOVERY_M1A_P2_CORRECTION_EVIDENCE.md`.
+
+Final verification: 160 focused tests + 7 classifier tests passed; both
+typechecks and final standalone TypeScript passed. Final-tree `npm run check`
+exited 1: ordinary files 338 passed / 9 failed / 17 skipped (4,844/20/73 tests),
+resource-intensive files 19 passed / 2 failed (641/1/11 tests), with three
+onTaskUpdate RPC errors. Missing fixtures and historical corpus failures remain;
+Wizard and Supervisor tests exceeded the unchanged 5-second timeout. Both
+timeout targets subsequently passed in isolation at that same timeout (2
+passed / 56 skipped). This is diagnostic evidence, not a green full gate.
+The original 14-file P1 inventory remains byte-identical at `cd621f77...`.
+
+Corrections await independent re-gate; M1b/M2 have not started. P1 remains
+semantically HELD at P0=0/P1=3/P2=3. No live provider or credential access,
+real recovery artifact, render, publication, promotion, deployment or spend.
+
+## General semantic recovery — initial M1a implementation (historical)
 
 Guy approved the Gate and both visual choices on 2026-09-06: cake and cart
 visible on the cover, tablecloth still forbidden, and the p12 cart visibly

@@ -6148,7 +6148,12 @@ export function buildVisualContractCandidateArtifact(args: {
 }): VisualContractCandidateArtifact {
   // M1a's source-bound previews have no current paid-request/receipt binding.
   // M2 must introduce a separate effective-artifact authority, never reuse this factory.
-  if (args.compileResult.supportingCastReviewDigest !== undefined) {
+  // A subset literal must not silently turn a preview into legacy authority.
+  // Explicit own-property null is required at both typed and untyped boundaries.
+  if (
+    !Object.prototype.hasOwnProperty.call(args.compileResult, 'supportingCastReviewDigest') ||
+    args.compileResult.supportingCastReviewDigest !== null
+  ) {
     throw new Error('supporting_cast_preview_is_not_paid_candidate_authority');
   }
   const templateDigest = canonicalJsonDigest(
@@ -6265,7 +6270,7 @@ export function persistVisualContractCandidate(args: {
   receipt: VisualContractAuthoringReceipt;
   compileResult: Pick<
     TemplateCompileResult,
-    'template' | 'actionSemanticCoverage'
+    'template' | 'actionSemanticCoverage' | 'supportingCastReviewDigest'
   >;
   write?: boolean;
 }): VisualContractAuthoringArtifactWrite {

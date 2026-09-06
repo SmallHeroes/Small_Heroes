@@ -1,6 +1,6 @@
 # SmallHeroes — Roadmap
 
-**Last verified:** 2026-09-06 (semantic-recovery owner approval and M1a implementation)
+**Last verified:** 2026-09-06 (M1a independent PASS and P2 corrective milestone)
 **Product priority owner:** Guy
 **Technical sequencing owner:** Codex
 
@@ -31,6 +31,13 @@ Blueprint and any required LOW Board/prop generation remain separately budgeted
 provider actions with exact owner gates.
 
 ## Active
+
+M1a update: Claude Code passed `768ccb2f..081410dd` with P0=0/P1=0/P2=2.
+The bounded correction hardens the required preview/paid discriminator and
+re-runs the full stability check before M1b. It also fixes the stale inventory
+test exposed by that rerun: M1a added two specs, bringing the total to 385.
+See CURRENT and the M1a P2 correction evidence for final results/limitations.
+This is not M1b, M2, real P1 recovery or render readiness; payment remains last.
 
 ### R0 — Establish one engineering operating model
 

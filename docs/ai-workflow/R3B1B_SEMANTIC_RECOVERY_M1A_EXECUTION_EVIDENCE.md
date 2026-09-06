@@ -1,5 +1,14 @@
 # R3-B1b semantic recovery M1a — source-bound cast foundation
 
+Historical implementation evidence below describes `768ccb2f..081410dd`.
+Claude Code subsequently independently passed that exact range with
+P0=0/P1=0/P2=2, reproducing 153 focused + 198 additional legacy tests and both
+typechecks. The optional-marker and final-full-check P2s are addressed in
+`R3B1B_SEMANTIC_RECOVERY_M1A_P2_CORRECTION_EVIDENCE.md`; they are not claimed
+independently closed by Codex. The earlier full run is not the final corrective
+tree's evidence. In particular its stale 383-file inventory assertion was a
+real M1a regression (two new specs), not an inherited baseline failure.
+
 Date: 2026-09-06. Status: M1a IMPLEMENTED; FOCUSED VALIDATION GREEN;
 FULL CHECK NON-GREEN; INDEPENDENT QA PENDING. M1/M2 NOT COMPLETE.
 

@@ -2312,6 +2312,8 @@ function buildCanonicalLiveExecutionChildOutputAuthority(args: {
         request: typedAuthoringRequest,
         receipt: typedReceipt,
         compileResult: {
+          // Rebuild persisted v9 authority; this is not a live preview result.
+          supportingCastReviewDigest: null,
           template: typedCandidate.template,
           actionSemanticCoverage:
             typedCandidate.actionSemanticCoverage,

@@ -2295,6 +2295,8 @@ export function attestQaWizardCandidateValidation(
       request,
       receipt,
       compileResult: {
+        // Rebuild persisted v9 authority; this is not a live preview result.
+        supportingCastReviewDigest: null,
         template: candidate.template,
         actionSemanticCoverage: candidate.actionSemanticCoverage,
       },
@@ -3718,6 +3720,8 @@ function prepareQaWizardCandidateReconciliationInternal(
     request,
     receipt,
     compileResult: {
+      // Rebuild persisted v9 authority; this is not a live preview result.
+      supportingCastReviewDigest: null,
       template: candidate.template,
       actionSemanticCoverage: candidate.actionSemanticCoverage,
     },

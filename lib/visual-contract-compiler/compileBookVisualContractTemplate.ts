@@ -1519,8 +1519,8 @@ export interface TemplateCompileInput extends DeterministicFactsInput {
 }
 
 export interface TemplateCompileResult {
-  /** Offline preview provenance only; not a current paid-request/receipt authority. */
-  supportingCastReviewDigest?: string;
+  /** Required discriminator: null for the legacy path; a digest for a non-paid preview. */
+  supportingCastReviewDigest: string | null;
   template: BookVisualContractTemplate;
   facts: DeterministicFacts;
   /**
@@ -5845,7 +5845,7 @@ export async function compileBookVisualContractTemplate(
       };
       return {
         template: assembled.template,
-        ...(supportingReview ? { supportingCastReviewDigest: supportingReview.digest } : {}),
+        supportingCastReviewDigest: supportingReview?.digest ?? null,
         facts,
         actionSemanticCoverage:
           assembled.actionSemanticCoverage,

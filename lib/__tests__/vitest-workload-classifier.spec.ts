@@ -55,9 +55,15 @@ describe('Vitest workload classifier', () => {
     );
     const partition = classifyVitestWorkloads(inventory, policy);
 
-    expect(partition.inventory).toHaveLength(383);
+    expect(partition.inventory).toHaveLength(385);
     expect(partition.resourceIntensive).toHaveLength(21);
-    expect(partition.ordinary).toHaveLength(362);
+    expect(partition.ordinary).toHaveLength(364);
+    expect(partition.ordinary).toContain(
+      'lib/__tests__/supporting-cast-review.spec.ts',
+    );
+    expect(partition.ordinary).toContain(
+      'lib/visual-package/__tests__/accepted-supporting-cast-review.spec.ts',
+    );
     expect(new Set(partition.inventory).size).toBe(
       partition.inventory.length,
     );

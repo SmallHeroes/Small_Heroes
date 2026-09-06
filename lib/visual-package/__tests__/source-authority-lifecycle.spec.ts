@@ -9748,6 +9748,20 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         receipt: result.receipt,
         write: true,
       });
+    expect(result.compileResult!.supportingCastReviewDigest).toBeNull();
+    const rebuiltCandidate = buildVisualContractCandidateArtifact({
+      request,
+      receipt: result.receipt,
+      compileResult: {
+        supportingCastReviewDigest: null,
+        template: result.compileResult!.template,
+        actionSemanticCoverage: result.compileResult!.actionSemanticCoverage,
+      },
+    });
+    expect(rebuiltCandidate).toEqual(buildVisualContractCandidateArtifact({
+      request, receipt: result.receipt, compileResult: result.compileResult!,
+    }));
+    expect(rebuiltCandidate).not.toHaveProperty('supportingCastReviewDigest');
     const candidateWrite = persistVisualContractCandidate({
       repoRoot,
       outputDir,
@@ -9927,6 +9941,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
           request,
           receipt: result.receipt,
           compileResult: {
+            supportingCastReviewDigest: null,
             template: fullyActionedBunnyDraft(snapshot),
             actionSemanticCoverage: [],
           },
