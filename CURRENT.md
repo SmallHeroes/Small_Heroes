@@ -1,6 +1,6 @@
 # SmallHeroes — Current Technical State
 
-## General semantic recovery — concrete Decision Gate prepared; product dispositions pending
+## General semantic recovery — planning QA PASS; P2 correction re-gate and product dispositions pending
 
 The provider-free plan is
 `docs/ai-workflow/R3B1B_GENERAL_SEMANTIC_RECOVERY_DECISION_GATE.md`.
@@ -12,6 +12,17 @@ groups, fast-locomotion fidelity, atomic template/coverage recovery, existing
 cover-correction reuse and current-consumer bridge validation. It preserves the
 paid candidate and proposes offline recovery before considering re-authoring.
 Salvage is not yet proven, and failure grants no automatic provider retry.
+
+Claude Code independently reviewed
+`4453cd9e2edbf37d157698fbfd62f69eeecd4c6c..581adc14d97eea0b78e25a7550273a9137238b96`
+and returned planning PASS with P0=0/P1=0/P2=3. All three non-blocking findings
+were validated: the Gate now names the missing cast/prose/runtime/repair
+consumers, explains the v3 receipt/current-catalog candidate-factory boundary,
+and provides an executable raw-inventory algorithm reproducing `cd621f77...`
+(14 files / 412,516 bytes). These documentation corrections await independent
+re-gate; this is not Codex-awarded closure. Claude ran TypeScript (exit 0), but
+no test batteries, replay, Wizard audit or full check in its planning review.
+Its planning PASS grants no implementation or product authority.
 
 The two pending Guy choices are to retain cake/cart on the cover and keep the
 p12 cart visibly parked by the serving area (recommended), or explicitly choose
@@ -155,7 +166,8 @@ is authorized.
 Full evidence:
 `docs/ai-workflow/R3B1B_P1_A1_POST_CARDINALITY_AUTHORING_EXECUTION_EVIDENCE.md`.
 The execution/evidence and both documentation corrections have independent
-Claude Code PASS for their exact ranges. No documentation finding remains.
+Claude Code PASS for their exact ranges. No P1 execution-evidence documentation
+finding remains; the newer planning-review P2 corrections are tracked above.
 This closeout transcribes that verdict; it is not a new candidate acceptance or
 an implementation approval. Product dispositions and semantic recovery remain
 the next gate.

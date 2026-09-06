@@ -2,7 +2,8 @@
 
 Date: 2026-09-06
 
-Status: PROPOSED; PLANNING ONLY; OWNER COVER/CART DECISIONS PENDING
+Status: PLANNING PASS (P0=0/P1=0/P2=3); P2 CORRECTIONS PENDING RE-GATE;
+OWNER COVER/CART DECISIONS PENDING; NO IMPLEMENTATION AUTHORITY
 
 Product owner: Guy. Technical owner: Codex. Independent QA: Claude Code.
 
@@ -42,6 +43,18 @@ without automatically invoking a provider.
   `codex/` branch/worktree from the final reviewed Gate head, with one writer.
   Re-inspect topology and record its actual path/base before implementation;
   do not create an overlapping task or change the held evidence branch.
+
+Planning-review update: Claude Code independently reviewed
+`4453cd9e2edbf37d157698fbfd62f69eeecd4c6c..581adc14d97eea0b78e25a7550273a9137238b96`
+and returned **planning PASS, P0=0/P1=0/P2=3**. It confirmed two commits,
+five Markdown paths, zero non-Markdown paths, clean 0/0 and TypeScript exit 0.
+That review includes the closeout transcription and this Gate; the earlier
+preparation-time observations above remain historical. At correction start,
+HEAD/local upstream are `581adc14`, clean 0/0, and the accepted-intent dependency
+is still clean 0/0 at `63ccb484`. The Lead task remains the sole documentation
+writer. The three non-blocking scoping/reproducibility findings are corrected
+below, not independently closed by Codex. No product decision or implementation
+authority follows from this planning verdict.
 
 ## 2. Why now? Observed behavior and root cause
 
@@ -157,7 +170,10 @@ artifact alone confers no reconciliation approval or Blueprint authority.
 
 ## 5. Likely files, compatibility and commit boundaries
 
-Observed modules to change or test, according to actual contract impact:
+Minimum known consumer inventory to inspect and change or regression-test as
+appropriate; this is not a claim that every listed module needs an edit. M1
+must finish the caller/version inventory before code changes and record each
+consumer's disposition, including evidence for any unchanged path:
 
 - `lib/visual-package/acceptedStorySourceAuthoringAuthority.ts` and
   `storySourceAuthority.ts`: expose only digest-verified accepted input;
@@ -166,6 +182,19 @@ Observed modules to change or test, according to actual contract impact:
   `validateTemplateContract.ts`, `materializeContract.ts`,
   `validateResolvedContract.ts`, `castPresenceContradiction.ts` and adapters:
   authoritative cast, class-based appearance, presence and group projection;
+- `lib/visual-contract-compiler/validateVNextVisualContract.ts`: cast-ID
+  resolution, individual-human shape and bidirectional page-presence checks;
+- `lib/visual-contract-compiler/projectContractProse.ts` and
+  `lib/visual-contract-compiler/buildVisualContractPromptBlock.ts`: cast labels,
+  group/action projections and final prompt text. Prove stale walking, recoil
+  and passive-cutting projections cannot survive effective coverage changes;
+- `lib/visual-contract-compiler/compileBookVisualContract.ts`,
+  `lib/visual-contract-compiler/bookSurfaceRepair.ts` and
+  `lib/visual-contract-compiler/structuralBundleRepair.ts`: alternate authoring
+  contract instructions and repair reference inventories; preserve legacy
+  behavior while preventing unsupported group identities from being dropped;
+- `lib/visual-contract-compiler/writeVisualContractReview.ts`: cast lookup,
+  structured presence and review diffs must expose, not hide, effective changes;
 - `lib/visual-contract-compiler/actionSemanticCatalog.ts`, source evidence and
   coverage validators: catalog expansion and atomic source-backed rebinding;
 - new supporting-cast and semantic-correction modules beside the existing
@@ -174,6 +203,15 @@ Observed modules to change or test, according to actual contract impact:
   `qaWizardCandidateBridge.ts`, reconciliation, `preRenderBlueprint.ts` and
   `lib/generation-pipeline/runtime-blueprint-projection.ts`: composition,
   effective-authority propagation and tests through the real consumers.
+- `lib/visual-package/runtimeAuthority.ts`,
+  `lib/visual-package/preRenderBlueprintProviderWire.ts` and
+  `lib/visual-package/sourcePromptReconciliation.ts`: runtime cast resolution
+  and projection, Blueprint wire cast/reference encoding, and protected
+  source-reconciliation fields. Validate these boundaries offline; listing
+  them does not authorize a Blueprint/provider/downstream execution.
+- `lib/visual-package/visualContractAuthoringLifecycle.ts` and
+  `lib/visual-package/visualContractAuthoringReplayRunner.ts`: distinguish the
+  current-catalog candidate factory from historical receipt/replay handling.
 
 M1: implement typed accepted cast/appearance/group projection and motion
 semantics, with version/consumer inventory and hostile tests.
@@ -190,6 +228,28 @@ template schemas when their persisted contract actually changes. Preserve the
 exact old snapshot-v4/candidate-v9/replay tuple as historical evidence; new
 semantics must not silently rewrite that tuple. No production migration,
 locator promotion or source revision replacement occurs in this scope.
+
+Concrete version-pin boundary (verified at planning HEAD `581adc14`):
+`buildVisualContractCandidateArtifact` in
+`lib/visual-package/visualContractAuthoringLifecycle.ts:6203-6223` rejects
+receipts whose Action Semantic Coverage catalog version/digest do not equal
+the current constants. The held receipt and candidate bind
+`action-semantic-catalog/v3`, digest
+`c8b366c2ca4f6d1b43eb0ee8e4196546e57d5ba279b5786fdb328de9f33acec5`.
+After a catalog bump, that unchanged paid receipt cannot be used to rebuild a
+candidate through this factory. Keep the assertion strict; do not relabel the
+receipt, spoof a provider candidate or relax current-catalog validation.
+
+M1 must preserve an explicit legacy read/validation path for the original v9
+candidate and its frozen v3 bindings. M2 must consume that original as
+historical input, then bind the separately materialized effective template and
+coverage to the new catalog in the new semantic-correction artifact/bridge.
+Test this route without sending the old receipt through the current candidate
+factory. The historical replay runner imports
+`persistVisualContractAuthoringReceipt`, not the candidate factory, and has no
+catalog-constant reference. Static inspection therefore does not establish a
+replay break from this particular pin, but the exact historical replay in §7
+remains a required regression test after implementation, not a test run here.
 
 ## 6. Expected behavior and exact P1 product proposal
 
@@ -297,7 +357,49 @@ of each relative path, size, raw SHA-256 and link count hashes to
 on both reads. This is a new local before/after comparison, not a reconstruction
 of the earlier unpersisted inventory digest. No attempt artifacts were created.
 
-Claude Code handoff (planning review, not implementation PASS):
+Exact inventory serialization (also reproduced during the P2 correction): run
+from the repository root. Paths are repo-relative, include the
+`outputs/r3b1b-p1a1-v22r2-02/` prefix and use `/`. Sort rows by ordinal JavaScript
+string comparison on `path` (not locale sort). Row keys are inserted in exactly
+`path`, `bytes`, `sha256`, `nlink` order; `bytes` and `nlink` are numbers. Hash
+UTF-8 bytes of compact `JSON.stringify(rows)`, without BOM or trailing newline.
+Do not hash the printed summary or apply the artifact canonical-JSON algorithm.
+
+```powershell
+$p1InventoryScript = @'
+const fs = require('fs');
+const path = require('path');
+const crypto = require('crypto');
+const root = 'outputs/r3b1b-p1a1-v22r2-02';
+const rows = [];
+function scan(dir) {
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    const p = path.join(dir, entry.name);
+    const s = fs.lstatSync(p);
+    if (s.isSymbolicLink()) throw new Error('Unexpected link');
+    if (s.isDirectory()) { scan(p); continue; }
+    if (!s.isFile() || s.nlink !== 1) throw new Error('Not a single-link regular file');
+    rows.push({
+      path: p.replaceAll('\\', '/'),
+      bytes: s.size,
+      sha256: crypto.createHash('sha256').update(fs.readFileSync(p)).digest('hex'),
+      nlink: s.nlink,
+    });
+  }
+}
+scan(root);
+rows.sort((a, b) => a.path < b.path ? -1 : a.path > b.path ? 1 : 0);
+const digest = crypto.createHash('sha256').update(JSON.stringify(rows), 'utf8').digest('hex');
+console.log(JSON.stringify({ count: rows.length, bytes: rows.reduce((n, r) => n + r.bytes, 0), rawInventorySha256: digest }));
+if (rows.length !== 14 || rows.reduce((n, r) => n + r.bytes, 0) !== 412516 ||
+    digest !== 'cd621f7712912a92d14fa87432c609c5e92a006363e7eed7be5231a856e8fdd0') {
+  throw new Error('Held P1 inventory differs');
+}
+'@
+node -e $p1InventoryScript
+```
+
+Original Claude Code handoff (completed planning review; retained as history):
 
 > Review the range supplied by Codex on branch
 > `codex/r3b1b-p1-a1-post-cardinality-authoring` in the d53b worktree above.
@@ -314,3 +416,37 @@ Claude Code handoff (planning review, not implementation PASS):
 > and test limitations above. Return planning PASS/HOLD with P0/P1/P2 findings.
 > Remain read-only; do not access credentials, invoke a provider or generate
 > correction/approval/Blueprint artifacts.
+
+### Planning P2 correction handoff
+
+Claude's planning review was documentation/static-code only, with
+`npx tsc --noEmit` exit 0. It did not run test batteries, replay, Wizard audit
+or `npm run check`; the disclosed non-green repository baseline stands.
+It used PowerShell 5.1 because Bash was unavailable. The candidate's separate
+semantic HOLD remains P0=0/P1=3/P2=3.
+
+This corrective milestone changes only this Gate, CURRENT and ROADMAP: it adds
+the ten missing named consumers (P2-1), the exact current-catalog factory pin
+and separate legacy-input/effective-output route (P2-2), and the executable
+inventory serialization (P2-3). No production code or held artifact is changed.
+Codex reran `npx tsc --noEmit` (exit 0) and `git diff --check` (exit 0), then
+extracted and executed the exact Node script from the Markdown block above
+(exit 0): 14 files / 412,516 bytes and the same full `cd621f77...` hash as the
+pre-edit read. No replay, test battery, Wizard audit or `npm run check` was run
+for this documentation correction; no provider, credential or artifact write
+occurred. The unchanged-code baseline is not a full-repository green claim.
+
+> Re-gate the documentation-only correction from
+> `581adc14d97eea0b78e25a7550273a9137238b96` to the exact corrective HEAD supplied
+> by Codex, on the same branch/worktree recorded above. Expect one commit and
+> three Markdown paths. Verify the planning-PASS transcription and inspect the
+> named consumers, especially vNext validation and prose projection. Challenge
+> whether the paid v3 receipt is kept away from the current-catalog candidate
+> factory after the proposed bump, with no weakening or fabricated authority.
+> Execute the inventory block above from the repository root and reproduce
+> the exact hash/count/bytes. Check unchanged owner choices, candidate HOLD,
+> zero spend and absence of implementation/downstream authority. Codex's final
+> handoff supplies fresh TypeScript/diff/inventory results and commit topology.
+> Remain read-only and offline: no credential/provider access, artifact writes,
+> correction execution or downstream actions. Return PASS/HOLD and P0/P1/P2;
+> Codex does not self-award independent closure of these three findings.
