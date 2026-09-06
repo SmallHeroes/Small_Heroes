@@ -10,8 +10,9 @@ Planning base: `be65b3ced874397a08dd2b2aa6283a5b85dfb857`
 
 Attempt branch: `codex/r3b1b-p1-a1-post-cardinality-authoring`
 
-Status: **EXECUTED ON EXACT AUTHORITY; TECHNICAL ARTIFACT PASS; SEMANTIC HOLD;
-NO BLUEPRINT OR DOWNSTREAM AUTHORITY**
+Status: **EXECUTED ON EXACT AUTHORITY; INDEPENDENT EXECUTION QA PASS WITH TWO
+SCOPE P2 CORRECTIONS AWAITING RE-GATE; SEMANTIC HOLD; NO BLUEPRINT OR
+DOWNSTREAM AUTHORITY**
 
 ## Approval record and boundary
 
@@ -393,13 +394,24 @@ candidate-validation identities are recorded in
 Artifact integrity, current structural validation and zero-provider replay
 pass. Product/render semantics do not. Adversarial source review found three
 P1 defects: the cover simultaneously shows and forbids the cake/cart; accepted
-supporting humans are absent from closed cast authority; and two source
-`runs` beats are downgraded to `walks`. Three P2 review items are also recorded.
+supporting humans are absent from closed cast authority, with the page-12 baker
+and cutting action missing even from candidate prose; and fast locomotion on
+pages 2, 6 and 10 is downgraded to `walks`. Three candidate P2 review items are
+also recorded.
 Candidate acceptance is therefore **HOLD**. No automatic retry, Blueprint,
 Board/prop, image, package, locator, render, P2, publication or deployment
 follows. The attempt authority is consumed.
 
-The next proposed milestone is a new provider-free Decision Gate for a general
-supporting-cast/action-semantic correction and Guy's exact cover/page-12 cart
-dispositions. Independent Claude Code review of the execution/evidence commit
-is still required; this closeout does not self-award that PASS.
+Claude Code independently reviewed exact range
+`884fb416161106419df8d63ba45d5ab0483dcf20..57433b7dc669f96eac142888a9d022b3fd900780`
+and returned PASS with P0=0/P1=0/P2=2. It independently reproduced the
+execution/evidence claims and confirmed the separate candidate semantic
+P0=0/P1=3/P2=3 classification. Its two P2s refine the correction scope: page 2
+must join pages 6/10 in the fast-locomotion defect, and page 12's baker/action
+must be restored from accepted source/Visual Direction authority because they
+are absent even from candidate prose. This documentation correction awaits a
+read-only re-gate and does not self-award closure.
+
+The next proposed milestone remains a new provider-free Decision Gate for a
+general supporting-cast/action-semantic correction and Guy's exact cover/page-12
+cart dispositions.

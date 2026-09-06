@@ -10,8 +10,9 @@ Branch: `codex/r3b1b-p1-a1-post-cardinality-authoring`
 
 Execution base: `18f22e758810d5118d9b5bcad7f27b0d07b76b7b`
 
-Status: **LIVE EXECUTION COMPLETED; ARTIFACT-INTEGRITY PASS; SEMANTIC HOLD;
-NO BLUEPRINT OR DOWNSTREAM AUTHORITY**
+Status: **LIVE EXECUTION COMPLETED; INDEPENDENT ARTIFACT/CLAIM QA PASS WITH TWO
+SCOPE P2 CORRECTIONS AWAITING RE-GATE; SEMANTIC HOLD; NO BLUEPRINT OR
+DOWNSTREAM AUTHORITY**
 
 ## Authority and scope
 
@@ -184,10 +185,16 @@ review found three P1 semantic defects. Candidate acceptance is therefore
    kindergarten guard, doctor and parent roles, and the compiler deliberately
    replaces drafted humans with that closed fact set. The validator therefore
    cannot see these omitted roles. Blueprint/runtime authority derives cast
-   only from `humanCast` and frame/page `castIds`; leaving the prose alone would
-   make the required humans uncontrolled or absent in render.
-3. **Running is downgraded to walking.** Pages 6 and 10 explicitly say Dini
-   runs, but their source beats and action requirements use `walks`. The
+   only from `humanCast` and frame/page `castIds`. On pages 1, 5, 9 and 11 some
+   required humans survive only as uncontrolled candidate prose, while page
+   12's baker and active cutting action are absent even from candidate prose.
+   Recovery must project accepted source/Visual Direction authority into typed
+   cast and page action state; lifting existing candidate prose is insufficient.
+3. **Fast locomotion is downgraded to walking.** Page 2 describes Dini
+   hurrying, skipping and scurrying (`darts from side to side` in its Visual
+   Direction), while pages 6 and 10 explicitly say Dini runs. All three pages
+   map the relevant motion to `walks`. On pages 6 and 10 the candidate's own
+   running/chasing prose also conflicts with the `walks` predicates. The
    current closed action catalog contains `walks` and no `runs` predicate, so
    this is a general catalog limitation rather than a story-key special case.
 
@@ -242,21 +249,46 @@ product choice:
 
 - generic accepted supporting-character authority is missing from the
   deterministic human fact layer;
-- the action predicate vocabulary cannot represent running; and
+- the action predicate vocabulary cannot faithfully represent the evidenced
+  fast locomotion, including explicit running; and
 - cover-visible page-1 props require Guy's exact semantic disposition.
 
 The recommended next milestone is provider-free implementation planning for a
-general supporting-cast authority and `runs` action semantics, plus an exact
-Guy cover/page-12 disposition. It must be a new Decision Gate and must prove
+general supporting-cast authority and fast-locomotion action semantics,
+including `runs`, plus an exact Guy cover/page-12 disposition. It must be a new
+Decision Gate and must prove
 the behavior across representative stories rather than special-case Dini.
 Only after that correction independently passes should Codex request a fresh,
 single P1-only re-authoring spend gate. P2 and all later stories remain stopped;
 payment remains last by Guy's product order.
 
-## Independent QA handoff status
+## Independent QA outcome and correction status
 
-This document records Codex and read-only audit-agent measurements. It does not
-self-award the independent Claude Code PASS required by `AGENTS.md` and
-`QUALITY_GATES.md`. Claude Code must review the exact documentation commit and
-the local ignored artifacts above, falsify the technical claims, and separately
-confirm or reject the P0=0 / P1=3 / P2=3 semantic classification.
+Claude Code independently reviewed exact range
+`884fb416161106419df8d63ba45d5ab0483dcf20..57433b7dc669f96eac142888a9d022b3fd900780`
+read-only and returned **PASS with P0=0, P1=0 and P2=2** for artifact and claim
+integrity. It separately confirmed the candidate's semantic classification at
+P0=0/P1=3/P2=3 and confirmed that no Blueprint or render authority exists.
+
+The review reproduced the two-commit/four-document topology; all 12 persisted
+content addresses and bindings; one call/one dispatch with zero repairs,
+retries, cleanup or fallback; both cost calculations; zero-provider replay;
+12-file and 14-file counts/bytes; secret and downstream absence; both
+TypeScript exits; cover-suite exit 0; the five-file 114/114 assertion result
+with process exit 1 and two RPC timeouts; and the exact flagged Wizard audit.
+
+The two review P2s are valid scope corrections and are reflected in the
+semantic section above:
+
+1. page 2 joins pages 6 and 10 in the fast-locomotion-to-`walks` defect; page 2
+   is not mislabeled as literal running; and
+2. page 12's baker and active cutting action are absent even from candidate
+   prose, so recovery must use accepted source/Visual Direction authority and
+   cannot merely lift surviving prose.
+
+Claude could not independently reproduce three non-persisted intermediate
+digests or compare the original eight artifacts to a prior snapshot it never
+held; it did not run `npm run check`; and its Bash surface was unavailable, so
+it used PowerShell 5.1. These are disclosed limitations, not hidden closure.
+This documentation-only P2 correction is a new unreviewed range. It requires a
+read-only independent re-gate; Codex does not self-award its closure.

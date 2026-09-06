@@ -1,6 +1,6 @@
 # SmallHeroes — Current Technical State
 
-## R3-B1b P1-A1 post-cardinality authoring — live artifact PASS; semantic HOLD; no Blueprint authority
+## R3-B1b P1-A1 post-cardinality authoring — independent execution QA PASS with two scope P2s; semantic HOLD; no Blueprint authority
 
 Guy's current product order remains: bring the story catalog through complete
 render qualification first, perform the remaining engineering work afterward,
@@ -56,6 +56,16 @@ expected live child artifacts, no unexpected or temporary paths and no
 downstream authority. After the canonical Supervisor result and validation
 attestation, the contained root has exactly 14 JSON files / 412,516 bytes.
 
+Claude Code independently reviewed exact range
+`884fb416161106419df8d63ba45d5ab0483dcf20..57433b7dc669f96eac142888a9d022b3fd900780`
+read-only and returned **PASS with P0=0, P1=0 and two scope P2s**. It reproduced
+the two-commit topology, complete persisted identity chain, call/dispatch and
+cost accounting, zero-provider replay, containment, TypeScript and disclosed
+non-green Vitest evidence, exact flagged Wizard audit, and the candidate's
+separate semantic HOLD at P0=0/P1=3/P2=3. Both review P2s were validated against
+the accepted source, Visual Directions and candidate and are corrected below;
+their documentation-only correction still requires an independent re-gate.
+
 Adversarial source review nevertheless places the candidate on **semantic
 HOLD with P0=0, P1=3 and P2=3**:
 
@@ -64,10 +74,16 @@ HOLD with P0=0, P1=3 and P2=3**:
 2. the accepted baker, broom man, musicians, playing children and birthday girl
    are absent from `humanCast` and every page `castIds`; the closed
    deterministic extractor currently recognizes only kindergarten guard,
-   doctor and parent, the compiler drops other drafted humans, and
-   Blueprint/runtime cast authority cannot recover them from prose; and
-3. pages 6 and 10 say Dini runs, but the closed action catalog has no `runs`
-   predicate and maps both beats to `walks`.
+   doctor and parent, and the compiler drops other drafted humans. On pages 1,
+   5, 9 and 11 some required humans survive only as uncontrolled candidate
+   prose, while the page-12 baker and active cutting action are absent even
+   from candidate prose; recovery must project accepted source/Visual Direction
+   authority into typed cast and page action state; and
+3. pages 2, 6 and 10 downgrade fast locomotion to `walks`: page 2's
+   hurried/skipped/scurried motion (`darts` in its Visual Direction), and the
+   explicit running on pages 6 and 10. On pages 6 and 10 the candidate's own
+   running/chasing prose also conflicts with its `walks` predicates. The closed
+   action catalog has no `runs` predicate.
 
 The P2 items are the page-12 cart's simultaneous required/optional wording,
 `recoils` overstating Dini's gentle deliberate hand withdrawal, and loss of
@@ -87,16 +103,17 @@ green result is inferred. The real Wizard audit remains digest
 render-qualified, with zero effects. P1 was not promoted.
 
 The next milestone must be a new, provider-free Decision Gate for general
-supporting-cast authority and running semantics, plus Guy's exact cover and
-page-12 cart dispositions. Only after that implementation independently passes
+supporting-cast authority and fast-locomotion semantics, plus Guy's exact cover
+and page-12 cart dispositions. Only after that implementation independently passes
 may a fresh P1-only authoring/spend Gate be requested. No Blueprint, Board/prop
 image, package, locator, render, P2, publication, deployment or payment action
 is authorized.
 
 Full evidence:
 `docs/ai-workflow/R3B1B_P1_A1_POST_CARDINALITY_AUTHORING_EXECUTION_EVIDENCE.md`.
-Independent Claude Code review of this execution/evidence range is still
-required; Codex does not self-award that PASS.
+The full execution/evidence range has independent Claude Code PASS. This
+documentation-only P2 correction is a separate unreviewed range and must be
+re-gated; Codex does not self-award its closure.
 
 ## R3-B1b duplicate coverage-cardinality recovery — implementation and handoff correction independently QA-passed; no retry authority
 
