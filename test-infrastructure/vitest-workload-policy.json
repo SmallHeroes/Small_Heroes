@@ -12,6 +12,10 @@
       "evidence": ["measured_repository_scan_contention"]
     },
     {
+      "path": "lib/__tests__/cooperative-vitest-runner.spec.ts",
+      "evidence": ["direct_child_process_load"]
+    },
+    {
       "path": "lib/__tests__/delivery-input-writer-coverage.spec.ts",
       "evidence": ["measured_repository_scan_contention"]
     },

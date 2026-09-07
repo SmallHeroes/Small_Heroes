@@ -1415,7 +1415,7 @@ describe('B0 composition and explicit filesystem fences', () => {
     });
   });
 
-  it('rejects symlink/junction and hard-link escape authority where the host supports it', () => {
+  it('rejects hard-link escape authority', () => {
     const hardLink = createExecutionFixture();
     const external = path.join(
       hardLink.parent,
@@ -1444,6 +1444,9 @@ describe('B0 composition and explicit filesystem fences', () => {
       ],
     });
 
+  });
+
+  it('rejects directory symlink/junction escape authority where the host supports it', () => {
     const alias = createExecutionFixture();
     const outsideDirectory = path.join(
       alias.parent,
@@ -1468,7 +1471,7 @@ describe('B0 composition and explicit filesystem fences', () => {
       );
       aliasCreated = true;
     } catch {
-      // Some Windows hosts deny symlink creation. Hard-link rejection above
+      // Some Windows hosts deny symlink creation. The separate hard-link test
       // remains the mandatory alias control on those hosts.
     }
     if (aliasCreated) {
@@ -1490,6 +1493,9 @@ describe('B0 composition and explicit filesystem fences', () => {
       });
     }
 
+  });
+
+  it('rejects file symlink escape authority where the host supports it', () => {
     const fileAlias = createExecutionFixture();
     const outsideFile = path.join(
       fileAlias.parent,

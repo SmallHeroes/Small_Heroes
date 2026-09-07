@@ -264,7 +264,7 @@ describe('Wizard all-story render-readiness control plane', () => {
     ).toHaveLength(16);
   });
 
-  it('confines historical accepted-lineage visibility to the closed replay surface', () => {
+  it('rejects a current-surface accepted-lineage allow-list override', () => {
     const current = baseline();
     const injectedCurrent = auditWizardAllStoryRenderReadiness({
       repoRoot: REPO,
@@ -272,6 +272,10 @@ describe('Wizard all-story render-readiness control plane', () => {
       acceptedStoryKeyAllowList: [],
     } as Parameters<typeof auditWizardAllStoryRenderReadiness>[0]);
     expect(injectedCurrent.digest).toBe(current.digest);
+  });
+
+  it('confines historical accepted-lineage visibility to the closed replay surface', () => {
+    const current = baseline();
     const historical = auditWizardAllStoryRenderReadinessForR3B0bReplay({
       repoRoot: REPO,
       now: FIXED_NOW,
@@ -292,7 +296,7 @@ describe('Wizard all-story render-readiness control plane', () => {
     expect(historicalP1.productionStages.renderQualified).toBe(false);
   });
 
-  it('keeps its semantic digest deterministic and environment claims aligned with runtime helpers', () => {
+  it('keeps its semantic digest deterministic without effects', () => {
     const first = baseline();
     const second = auditWizardAllStoryRenderReadiness({
       repoRoot: REPO,
@@ -321,6 +325,10 @@ describe('Wizard all-story render-readiness control plane', () => {
       ordersCreatedOrModified: 0,
     });
 
+  });
+
+  it('aligns disabled-bank environment claims with runtime helpers', () => {
+    vi.stubEnv('ENABLE_WIZARD_QA_RENDER_CATALOG', 'false');
     vi.stubEnv('ENABLE_V3_APPROVED_BANK', 'false');
     const disabled = auditWizardAllStoryRenderReadiness({
       repoRoot: REPO,
@@ -331,6 +339,10 @@ describe('Wizard all-story render-readiness control plane', () => {
     expect(disabled.summary.renderQualifiedCount).toBe(1);
     expect(disabled.environment.v3ApprovedBankEnabled).toBe(false);
 
+  });
+
+  it('disables the QA catalog in production', () => {
+    vi.stubEnv('ENABLE_V3_APPROVED_BANK', 'false');
     vi.stubEnv('NODE_ENV', 'production');
     vi.stubEnv('ENABLE_WIZARD_QA_RENDER_CATALOG', 'true');
     const production = auditWizardAllStoryRenderReadiness({

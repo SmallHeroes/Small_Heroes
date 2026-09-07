@@ -1,6 +1,6 @@
 # SmallHeroes — Roadmap
 
-**Last verified:** 2026-09-07 (M1b compatibility foundation implemented; full check non-green; no M1b PASS)
+**Last verified:** 2026-09-07 (compatibility independently passed; ACK barrier locally validated, independent QA pending; full check non-green)
 **Product priority owner:** Guy
 **Technical sequencing owner:** Codex
 
@@ -31,6 +31,49 @@ Blueprint and any required LOW Board/prop generation remain separately budgeted
 provider actions with exact owner gates.
 
 ## Active
+
+Guy approved the real task-update ACK barrier after the completed timing
+diagnosis. Codex implemented and locally validated in the same task/worktree from
+`3a455c48`; opt-in prototype controls passed before canonical wiring. The
+uninstrumented unchanged bridge passed 15/15, exit 0; 138 focused tests and both
+typechecks passed. A deliberate yield-only mutation failed the new ACK regression.
+One delivered full check retained 4/2 workers and 386/364/22 inventory, with no
+RPC or timeout error. Ordinary tests 4864/19/73; resource tests 660/0/11.
+All 19 failure names plus the setup-suite header match the prior full run;
+those fixture/binding/golden blockers remain, not relabeled inherited or green.
+Next: independent Claude QA of the local scheduling commit, then scope residual
+full-check blockers before advancing readiness or the remaining M1b/M2 work.
+No independent scheduling PASS or product/render acceptance is claimed.
+No provider/render spend, payment, production change or automatic push.
+
+### Prior scheduling attempt and diagnosis (historical)
+
+Claude Code independently passed the compatibility-only range
+`a0344114..3a455c48`, P0=0/P1=0/P2=0, reproducing 361 tests, both typechecks,
+the exact offline replay and protected P1 inventory. This is not completed M1b.
+Guy then approved the diagnosed test-worker scheduling correction and independent
+compound-test splits. Codex drafted locally from `3a455c48`, without
+push or spend; evidence and the approved stop-check:
+`docs/ai-workflow/R3B1B_QA_COOPERATIVE_RUNNER_EVIDENCE.md`.
+The one delivered post-change full check remains NON-GREEN: ordinary
+4864/19/73 tests and resource 650/0/11. No RPC or timeout error was emitted;
+92 focused tests passed, as did Wizard/Supervisor/bridge in the full run.
+Missing fixtures, review/corpus bindings and a golden mismatch remain visible,
+including the correction-acceptance setup failure. However, the subsequent
+uninstrumented canonical isolated bridge passed 15 assertions but exited 1 with
+one onTaskUpdate RPC timeout. Scheduling acceptance is therefore HOLD, not
+completed or ready for an independent PASS. The draft remains uncommitted and
+unstaged at base `3a455c48`. The owner-approved request/ack diagnosis is now
+complete: 17/17 matched updates, 14 spanning two completed yields, up to 46.238s
+round-trip versus at most 1.035ms main handling. Its instrumented bridge passed
+15/15 but does not supersede the failed uninstrumented acceptance. The proposed
+actual-ACK-promise barrier was not yet approved or implemented at that closeout; see
+`outputs/qa-rpc-ack-diagnostic-20260907/RPC_ACK_DIAGNOSIS_AND_GATE.md`.
+That scoped decision was subsequently approved, as recorded above. Then close scheduling acceptance and independent QA,
+and scope residual full-gate blockers before further readiness claims or the
+remaining group/motion cutover. P1 remains HELD and payment remains last.
+
+The following compatibility handoff is historical (before its supplied PASS).
 
 M1a update: after initial PASS `768ccb2f..081410dd` with P0=0/P1=0/P2=2,
 Claude Code independently passed corrective range `081410dd..09d67f38` with

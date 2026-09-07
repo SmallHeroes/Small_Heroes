@@ -1,6 +1,112 @@
 # SmallHeroes — Current Technical State
 
-## M1b compatibility foundation — local implementation; FULL CHECK NON-GREEN
+## ACK-aware QA scheduling — LOCAL ACCEPTANCE MET; INDEPENDENT QA PENDING; FULL CHECK NON-GREEN
+
+Guy approved the actual-ACK barrier Decision Gate on 2026-09-07 (`מאשר`).
+Codex implemented in this same task as sole writer at
+`C:/GNart/Work/sh-r3b1b-semantic-m1`, branch
+`codex/r3b1b-semantic-recovery-m1`, base `3a455c48`.
+The opt-in prototype passed 16 controls before canonical wiring. The runner
+now observes Vitest's already-installed public task-update delegate and waits
+for its real promises before each attempt, preserving the original return,
+receiver, arguments and errors. Cancellation during the wait uses public skip;
+failed ACKs remain failures. No private RPC access or duplicated updates.
+
+Final canonical validation: 138 focused tests passed (60 infrastructure,
+63 affected Supervisor/Wizard, 15 unchanged bridge). The uninstrumented bridge
+exited 0, 181.24s. It also passed 15/15 in the delivered full check, alongside
+Supervisor 48/48, Wizard 15/15 and runner controls 16/16. Both typechecks passed.
+The deliberately broken yield-only control failed the delayed-ACK assertion,
+exit 1, proving that the new regression distinguishes ACK waiting from yielding.
+
+One delivered full check exited 1: ordinary 339/8/17 files and 4864/19/73 tests;
+resource 21/1/0 files and 660/0/11 tests (counts pass/fail/skip). No RPC,
+test/hook/process timeout or diagnostic-protocol error was reported. Exact inventory
+386/364/22, unchanged 4/2 workers; each phase ran once. All 19 failed test names
+and the one failed setup-suite header match the previous full run exactly.
+Missing fixtures, review/corpus bindings and the golden mismatch remain blockers;
+name equality is not a blanket inherited-cause proof or a full-green gate.
+
+The bounded scheduling milestone is locally validated and awaits
+independent read-only Claude review from base `3a455c48`; the focused delivery commit
+is identified in the task handoff. No independent PASS or render qualification
+is claimed. Previous failed single-yield acceptance is preserved below, not
+relabeled as a passing result. The original 14-file P1 inventory still matches.
+Evidence: `docs/ai-workflow/R3B1B_QA_COOPERATIVE_RUNNER_EVIDENCE.md`;
+new logs: `outputs/qa-rpc-ack-barrier-20260907/`.
+No new Supervisor/Wizard split, worker/deadline change, provider, real credential,
+render, payment, deployment or push. External spend $0. P1 remains HELD 0/3/3;
+remaining M1b/M2 and product acceptance are not advanced by this test milestone.
+Next: Claude QA of the committed scheduling range; then scope the residual
+full-check blockers before any full readiness claim or further group/motion
+cutover. No background validation remains after the completed handoff.
+
+## Prior single-yield draft and diagnosis — historical ACCEPTANCE HOLD
+
+Guy approved the bounded cooperative-runner / compound-test split Decision Gate
+on 2026-09-07. Codex is the sole writer in this same task/worktree,
+`C:/GNart/Work/sh-r3b1b-semantic-m1`, branch
+`codex/r3b1b-semantic-recovery-m1`, implementation base
+`3a455c48132fcb61d98f02ccf06f473fcdac1d8c`. At implementation start the worktree
+was clean, ahead 1 / behind 0 of the cached upstream `a0344114`; this does not
+claim a current server observation. No project-remote push is part of this task.
+
+Claude Code's supplied independent review of `a0344114..3a455c48` is
+**PASS P0=0/P1=0/P2=0**, for the M1b compatibility foundation only. It reproduced
+361 tests, both typechecks, the provider-free exact replay and held inventory.
+That PASS does not cover the new scheduling work or complete M1b/M2.
+
+The reproduced bridge RPC error was accompanied by a 221-second worker event-loop
+gap despite 15/15 passing assertions. An opt-in native yield between tasks cut
+the observed maximum gap to 29.6 seconds and removed that reproduced RPC error.
+This is case-scoped diagnostic evidence, not a universal timeout explanation.
+Implementation preserves deadlines, worker limits, concurrency and assertions;
+it separately splits independent Supervisor/Wizard scenarios. Validation and
+the exact approved gate are recorded in
+`docs/ai-workflow/R3B1B_QA_COOPERATIVE_RUNNER_EVIDENCE.md`.
+
+Delivered validation: both typechecks and 92 focused tests passed. One full
+`npm run check` exited 1: ordinary 339/8/17 files and 4864/19/73 tests;
+resource 21/1/0 files and 650/0/11 tests. No RPC or timeout error occurred in
+that run. Wizard 15/15, Supervisor 48/48 and bridge 15/15 passed under aggregate
+load. Residual blockers remain: ten missing-fixture failures, nine review/corpus
+binding or golden failures, and one correction-acceptance setup failure (11
+skipped tests). The exact inventory is 386/364/22; no old spec was removed or
+reclassified. These residual failures are not all declared inherited.
+No independent PASS is claimed for the scheduling change.
+
+**The final isolated acceptance test failed.** With the unchanged real bridge,
+canonical runner and no observer preload, all 15 tests passed but the process
+exited 1 with one onTaskUpdate RPC timeout (273.79s total). This does not erase
+the clean-RPC aggregate observation, but it falsifies readiness to close the
+runner correction. The 92 focused passes are not acceptance of this draft.
+The scheduling edits remain uncommitted and unstaged on HOLD; no green commit,
+independent-QA gate or push handoff is issued. Base remains `3a455c48`.
+
+Guy subsequently approved the bounded request/ack diagnosis. It is completed:
+17/17 real updates matched at all four timing points; 14 spanned at least two
+completed yields. One worker round trip took 46237.9475ms while its main handler
+took 0.3999ms (maximum main handling across all requests 1.0346ms). The long delay
+is after the main send call, on the worker-delivery/dispatch path. The measured
+worker loop gap peaked at 29509.8809ms: a timer opportunity does not bound ACK age.
+The instrumented bridge passed 15/15, exit 0; this does NOT supersede the failed
+uninstrumented acceptance or identify its exact historical failed packet.
+
+Next Decision Gate: a runner-owned barrier tracking the actual existing
+task-update delegate promises before new expensive attempts, with explicit
+concurrency/cancellation/failure controls. This new mechanism was not approved
+or implemented at that diagnosis closeout; the later approval is recorded above.
+No guessed delay, RPC suppression, timeout increase, private
+RPC import or third-suite rewrite. Completed diagnosis and the proposed gate:
+`outputs/qa-rpc-ack-diagnostic-20260907/RPC_ACK_DIAGNOSIS_AND_GATE.md`.
+Canonical code/config/tests were unchanged during this diagnosis; only ignored
+diagnostics and documentation state were written. No background run remains.
+
+P1 remains semantically **HELD at P0=0/P1=3/P2=3**. No group/motion cutover,
+M2, provider, credential, render, original-artifact change, Blueprint, promotion,
+publication, deployment or payment work is included. External spend $0.
+
+## M1b compatibility foundation — historical pre-review handoff; FULL CHECK NON-GREEN
 
 Guy authorized continuation and renders on 2026-09-07. Codex continues in this
 task as sole implementation writer on `codex/r3b1b-semantic-recovery-m1`,

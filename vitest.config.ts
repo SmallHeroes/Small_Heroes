@@ -10,6 +10,7 @@ import vitestWorkloadPolicy from './test-infrastructure/vitest-workload-policy.j
 export default defineConfig({
   test: {
     include: vitestWorkloadPolicy.canonicalIncludes,
+    runner: path.resolve(__dirname, 'test-infrastructure/cooperative-vitest-runner.mjs'),
     // Vitest otherwise uses availableParallelism() - 1 isolated forks.
     // Bound CPU/I/O contention while retaining file-level parallelism.
     ...createVitestExecutionPolicy(availableParallelism()),
