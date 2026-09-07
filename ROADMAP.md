@@ -1,6 +1,6 @@
 # SmallHeroes — Roadmap
 
-**Last verified:** 2026-09-07 (compatibility independently passed; ACK barrier locally validated, independent QA pending; full check non-green)
+**Last verified:** 2026-09-07 (ACK barrier independently passed; residual diagnosis complete, implementation gate pending; full check non-green)
 **Product priority owner:** Guy
 **Technical sequencing owner:** Codex
 
@@ -31,6 +31,22 @@ Blueprint and any required LOW Board/prop generation remain separately budgeted
 provider actions with exact owner gates.
 
 ## Active
+
+Claude independently passed exact scheduling range `3a455c48..ef7a13e8`, no
+P0/P1/P2. Guy then approved residual full-check diagnosis. It identified ten
+tests with non-portable ignored inputs and nine tests plus one setup failure
+caused by v22 authoring-policy metadata leaking into the frozen v21 replay.
+Four isolated diagnostic controls reproduced the failure and recovered the
+exact original review/correction hashes with v21 metadata, without canonical
+edits. All missing source inputs were found, not yet converted into fixtures.
+The proposed bounded correction is historical-policy isolation plus portable
+test data; implementation approval is pending. See
+`docs/ai-workflow/R3B1B_RESIDUAL_CHECK_DIAGNOSIS_AND_GATE.md`.
+No full-green, M1b/M2 completion, render or product acceptance follows; payment
+stays last. No provider spend, push or cleanup. The scheduling PASS ends at
+`ef7a13e8`, not the subsequent diagnosis/documentation range.
+
+### Historical ACK implementation handoff
 
 Guy approved the real task-update ACK barrier after the completed timing
 diagnosis. Codex implemented and locally validated in the same task/worktree from

@@ -1,6 +1,36 @@
 # SmallHeroes — Current Technical State
 
-## ACK-aware QA scheduling — LOCAL ACCEPTANCE MET; INDEPENDENT QA PENDING; FULL CHECK NON-GREEN
+## Residual full-check diagnosis complete — IMPLEMENTATION GATE PENDING
+
+Guy supplied Claude Code's independent **PASS P0=0/P1=0/P2=0** for the exact
+ACK-scheduling range `3a455c48..ef7a13e8`. Branch/HEAD reconcile. Claude reproduced
+138 focused tests, both typechecks, the isolated exit-zero bridge and evidence
+hashes. It verified the delivered full log rather than rerunning the full check;
+remote propagation was unverified during its reported network outage. That PASS
+ends at `ef7a13e8` and does not cover this subsequent diagnostic documentation.
+
+Guy approved bounded residual diagnosis. It is complete, with no canonical code
+or test changes. Two root families explain the recorded failures:
+
+- Ten failed tests depend on dated ignored output inputs absent in this checkout.
+  All original inputs were located in older worktrees; portable text/JSON inputs
+  total 14 files / 155457 bytes. The PNG transport test can use a small valid test
+  PNG instead of committing the unrelated 3MB render. No fixture was copied yet.
+- Nine failed tests plus one setup failure trace to current v22 policy metadata
+  leaking into the v21 historical replay. The reports differ only in that version
+  on 18 rows plus the resultant digest. An isolated in-memory counterfactual
+  recovered the exact approved review AND correction bytes; four diagnostic
+  controls passed, including current v22 isolation. This is not a production fix.
+
+Evidence, exact scope, risks and proposed two-part correction:
+`docs/ai-workflow/R3B1B_RESIDUAL_CHECK_DIAGNOSIS_AND_GATE.md`.
+Next owner decision: approve historical-policy isolation plus portable fixtures
+as one bounded implementation milestone. Do not update approved digest pins,
+weaken checks or reopen the independently passed runner. No full check rerun,
+provider, real credential, render, push, cleanup or M1b/M2 change in this diagnosis.
+Full check remains NON-GREEN; P1 remains HELD P0=0/P1=3/P2=3; spend $0.
+
+## ACK-aware QA scheduling — historical local handoff (subsequently independently passed above)
 
 Guy approved the actual-ACK barrier Decision Gate on 2026-09-07 (`מאשר`).
 Codex implemented in this same task as sole writer at
