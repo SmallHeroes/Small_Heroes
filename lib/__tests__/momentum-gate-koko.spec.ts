@@ -10,7 +10,7 @@ import type { PageBeatV3, StoryPremiseCandidate, StorySpineV3 } from '../story-g
 
 const STOP2 = path.join(
   process.cwd(),
-  'outputs/story-gen-v3-runs/koko_scenario_2_transition-stop2-2026-06-09T14-35-00-165Z'
+  'lib/__tests__/fixtures/residual-gate/momentum'
 );
 
 describe('momentum gate koko stop2 beats', () => {

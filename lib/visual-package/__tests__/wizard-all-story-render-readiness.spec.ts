@@ -270,6 +270,7 @@ describe('Wizard all-story render-readiness control plane', () => {
       repoRoot: REPO,
       now: FIXED_NOW,
       acceptedStoryKeyAllowList: [],
+      authoringPolicy: { version: 'visual-contract-authoring-policy/v21', maximumPages: 0 },
     } as Parameters<typeof auditWizardAllStoryRenderReadiness>[0]);
     expect(injectedCurrent.digest).toBe(current.digest);
   });
@@ -280,7 +281,20 @@ describe('Wizard all-story render-readiness control plane', () => {
       repoRoot: REPO,
       now: FIXED_NOW,
       acceptedStoryKeyAllowList: [CHAMELEON_STORY_KEY],
-    });
+      authoringPolicy: { version: 'visual-contract-authoring-policy/v22', maximumPages: 0 },
+    } as Parameters<typeof auditWizardAllStoryRenderReadinessForR3B0bReplay>[0]);
+    for (const record of current.records) {
+      expect(record.authoringPolicy).toMatchObject({
+        version: 'visual-contract-authoring-policy/v22', maximumPages: 16, admitted: true,
+      });
+    }
+    for (const record of historical.records) {
+      expect(record.authoringPolicy).toMatchObject({
+        version: 'visual-contract-authoring-policy/v21', maximumPages: 16, admitted: true,
+      });
+    }
+    expect(historical.decisions.fantasyAuthoringPolicy.currentMaximumPages).toBe(16);
+    expect(historical.digest).toBe('4e0a667926639526b106bc45cd3c4e7df7c11518d7cf941e35d528d856294977');
     const currentP1 = current.records.find(
       (record) => record.storyKey === 'dragon_dini_adventure',
     )!;

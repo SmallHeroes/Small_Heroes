@@ -1,0 +1,7 @@
+# Historical hashes bind raw UTF-8 bytes, including final-newline presence.
+*.json -text
+*.md -text
+# Exact historical snapshot bytes, enforced by the provenance hash test.
+# Mostly Markdown hard breaks; read-back also preserves two single spaces.
+lexicon/story.md whitespace=-blank-at-eol
+read-back/story.md whitespace=-blank-at-eol

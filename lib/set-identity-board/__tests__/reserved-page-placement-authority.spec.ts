@@ -218,10 +218,7 @@ describe('Reserved Page Placement Authority — narrow deterministic projection'
 describe('Reserved Page Placement Authority — production-scale offline harness', () => {
   const candidatePath = path.join(
     process.cwd(),
-    'outputs',
-    'r1d-lantern-blueprint-wire-20260830T044048214Z',
-    'bridge-corrected',
-    'candidate-template-projections',
+    'lib/__tests__/fixtures/residual-gate/placement',
     'd96336715724d498a19792df094bfb5f085309f2cf946c853d4e6443c4528f2e.json',
   );
 

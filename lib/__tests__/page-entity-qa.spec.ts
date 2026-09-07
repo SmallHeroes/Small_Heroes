@@ -1,3 +1,7 @@
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import sharp from 'sharp';
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -59,12 +63,23 @@ describe('page-entity-qa (0074)', () => {
     expect(isEntityQaVerifiedPass(result)).toBe(false);
   });
 
-  it('local PNG path resolves to base64 data URL', () => {
-    const dataUrl = resolveEntityQaVisionDataUrl(
-      'outputs/style01-auditions/qa-console-chameleon_koko-fantasy-low-20260617-155755/page-05.png',
-    );
-    expect(dataUrl.startsWith('data:image/png;base64,')).toBe(true);
-    expect(dataUrl.length).toBeGreaterThan(1000);
+  it('local PNG path resolves to base64 data URL', async () => {
+    // This tests transport, not visual quality. No rendered book image is needed.
+    const pixels = Buffer.from(Array.from({ length: 16 * 16 * 3 }, (_, i) => i % 251));
+    const png = await sharp(pixels, { raw: { width: 16, height: 16, channels: 3 } })
+      .png({ compressionLevel: 0 }).toBuffer();
+    const root = mkdtempSync(path.join(os.tmpdir(), 'sh-entity-qa-png-'));
+    try {
+      const pngPath = path.join(root, 'transport.png');
+      writeFileSync(pngPath, png);
+      const dataUrl = resolveEntityQaVisionDataUrl(pngPath);
+      expect(dataUrl.startsWith('data:image/png;base64,')).toBe(true);
+      expect(dataUrl.length).toBeGreaterThan(1000);
+      expect(Buffer.from(dataUrl.split(',')[1], 'base64')).toEqual(png);
+      expect(await sharp(png).metadata()).toMatchObject({ format: 'png', width: 16, height: 16 });
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
   });
 
   it('missing API key is error, never pass', async () => {

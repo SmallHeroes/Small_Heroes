@@ -1,6 +1,46 @@
 # SmallHeroes — Current Technical State
 
-## Residual full-check diagnosis complete — IMPLEMENTATION GATE PENDING
+## Residual full-check correction — FULL CHECK GREEN; independent QA pending
+
+Guy explicitly approved both parts of
+`docs/ai-workflow/R3B1B_RESIDUAL_CHECK_DIAGNOSIS_AND_GATE.md` together on
+2026-09-07 (`יש אישור`). Codex is the sole implementation writer in the same
+task/worktree `C:/GNart/Work/sh-r3b1b-semantic-m1`, branch
+`codex/r3b1b-semantic-recovery-m1`, base `d3e6bf7f`.
+
+Implemented: private historical v21/16 readiness policy, current v22 policy
+preserved, exact historical review/correction pins untouched; 14 byte-identical
+tracked regression inputs with provenance and Git byte-preservation attributes;
+test-owned temporary read-back/PNG outputs, no dated-output fallback. No runner,
+deadline, worker, compiler policy, production story or approved artifact change.
+
+77 affected/Wizard tests, 60 infrastructure tests, and both typechecks passed.
+Three opt-in controls also passed with an intentionally altered CURRENT ceiling:
+the real historical lane still reproduces the original report, raw review bytes
+and correction hash. The one delivered `npm run check` exited 0: ordinary
+347 passed/17 skipped files, 4884 passed/73 skipped tests; resource-intensive
+22 passed files, 671 passed tests. Total **5555 passed, 73 skipped, zero failed**.
+Exact 386/364/22 inventory, unchanged 4/2 workers, each phase once; both phase
+diagnostics and the overall gate report passed with empty failure classes.
+This closes the recorded full-check failures locally, not independent QA.
+Evidence: `docs/ai-workflow/R3B1B_RESIDUAL_CHECK_CORRECTION_EVIDENCE.md` and
+`outputs/qa-residual-gate-fix-20260907/`.
+
+The fixture hash guard also rejected a same-size in-memory corruption at the
+expected assertion (intentional negative-control exit 1). All 14 original and
+imported fixture hashes still match; original P1 remains 14 files / 412516 bytes
+with raw inventory `cd621f7712912a92d14fa87432c609c5e92a006363e7eed7be5231a856e8fdd0`.
+Next: Claude read-only QA of the local delivery commit from `d3e6bf7f`, identified
+in the task handoff. No further implementation or background validation is
+implied by this completed milestone; valid findings return as a separate fix.
+
+Independent PASS remains bounded to the earlier `3a455c48..ef7a13e8` scheduling
+range. This implementation awaits its own immutable Claude read-only review.
+P1 remains semantically HELD P0=0/P1=3/P2=3; remaining M1b/M2, render
+qualification and product acceptance remain incomplete. No provider, real key,
+render, payment, deployment, cleanup or push; external spend $0.
+
+## Historical residual diagnosis — implementation was pending at diagnosis closeout
 
 Guy supplied Claude Code's independent **PASS P0=0/P1=0/P2=0** for the exact
 ACK-scheduling range `3a455c48..ef7a13e8`. Branch/HEAD reconcile. Claude reproduced

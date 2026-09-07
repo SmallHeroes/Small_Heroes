@@ -33,8 +33,10 @@ import {
 import { STYLE_IDS } from '@/lib/styles';
 import { parseStorySourceContent } from '@/lib/visual-contract-compiler/storySourceContent';
 import {
+  LEGACY_VISUAL_CONTRACT_AUTHORING_POLICY_VERSION,
   VISUAL_CONTRACT_AUTHORING_MAX_PAGES_CURRENT_POLICY,
   VISUAL_CONTRACT_AUTHORING_POLICY_VERSION,
+  type VisualContractAuthoringPolicyVersion,
 } from '@/lib/visual-contract-compiler/authoringPolicy';
 import {
   isWizardQaCatalogEnabled,
@@ -204,7 +206,7 @@ export interface WizardAllStoryReadinessRecord {
     resemblanceThreshold: number;
   };
   authoringPolicy: {
-    version: typeof VISUAL_CONTRACT_AUTHORING_POLICY_VERSION;
+    version: VisualContractAuthoringPolicyVersion;
     pageCount: number;
     maximumPages: number;
     admitted: boolean;
@@ -1057,9 +1059,26 @@ function nextCanonicalActionFor(
   }
 }
 
+type ReadinessAuthoringPolicy = Readonly<{
+  version: VisualContractAuthoringPolicyVersion;
+  maximumPages: number;
+}>;
+
+// The replay contract binds both metadata and admission semantics. Never derive
+// its ceiling from the evolving current compiler policy.
+const R3B0B_AUTHORING_POLICY: ReadinessAuthoringPolicy = Object.freeze({
+  version: LEGACY_VISUAL_CONTRACT_AUTHORING_POLICY_VERSION,
+  maximumPages: 16,
+});
+const CURRENT_AUTHORING_POLICY: ReadinessAuthoringPolicy = Object.freeze({
+  version: VISUAL_CONTRACT_AUTHORING_POLICY_VERSION,
+  maximumPages: VISUAL_CONTRACT_AUTHORING_MAX_PAGES_CURRENT_POLICY,
+});
+
 function auditWizardAllStoryRenderReadinessWithPolicy(args: {
   repoRoot: string;
   now?: () => Date;
+  authoringPolicy: ReadinessAuthoringPolicy;
   genderProjectionReadinessPolicy: GenderProjectionReadinessPolicy;
   acceptedRootRelative?: string;
   acceptedStoryKeyAllowList?: readonly string[];
@@ -1223,7 +1242,7 @@ function auditWizardAllStoryRenderReadinessWithPolicy(args: {
       const pageCount =
         currentProductSource.pageCount ?? DIRECTION_PAGE_MAP[direction].pages;
       const authoringAdmitted =
-        pageCount <= VISUAL_CONTRACT_AUTHORING_MAX_PAGES_CURRENT_POLICY;
+        pageCount <= args.authoringPolicy.maximumPages;
       const packageValue = publishedPackage;
       // Reconstruct historical audit evidence here; never add a lineage-bypass
       // option to the production selection or sellability helpers.
@@ -1293,7 +1312,7 @@ function auditWizardAllStoryRenderReadinessWithPolicy(args: {
           code: 'visual_contract_authoring_page_policy_blocked',
           stage: 'visual_contract_authoring',
           message:
-            `${pageCount} pages exceed the current ${VISUAL_CONTRACT_AUTHORING_MAX_PAGES_CURRENT_POLICY}-page authoring ceiling`,
+            `${pageCount} pages exceed the current ${args.authoringPolicy.maximumPages}-page authoring ceiling`,
         });
       }
       if (!packageValue) {
@@ -1379,10 +1398,9 @@ function auditWizardAllStoryRenderReadinessWithPolicy(args: {
             qaCandidate?.companionAuthority.resemblanceThreshold ?? 0.7,
         },
         authoringPolicy: {
-          version: VISUAL_CONTRACT_AUTHORING_POLICY_VERSION,
+          version: args.authoringPolicy.version,
           pageCount,
-          maximumPages:
-            VISUAL_CONTRACT_AUTHORING_MAX_PAGES_CURRENT_POLICY,
+          maximumPages: args.authoringPolicy.maximumPages,
           admitted: authoringAdmitted,
         },
         legacyAdjacentArtifacts: {
@@ -1526,8 +1544,7 @@ function auditWizardAllStoryRenderReadinessWithPolicy(args: {
       fantasyAuthoringPolicy: {
         required: blockedStoryKeys.length > 0,
         blockedStoryKeys,
-        currentMaximumPages:
-          VISUAL_CONTRACT_AUTHORING_MAX_PAGES_CURRENT_POLICY,
+        currentMaximumPages: args.authoringPolicy.maximumPages,
       },
       genderContract: {
         wizardOptions: contract.genderOptions,
@@ -1571,6 +1588,7 @@ export function auditWizardAllStoryRenderReadiness(args: {
     repoRoot: args.repoRoot,
     now: args.now,
     acceptedRootRelative: args.acceptedRootRelative,
+    authoringPolicy: CURRENT_AUTHORING_POLICY,
     genderProjectionReadinessPolicy: 'require_neutral_source_authority',
   });
 }
@@ -1587,7 +1605,11 @@ export function auditWizardAllStoryRenderReadinessForR3B0bReplay(args: {
   acceptedStoryKeyAllowList: readonly string[];
 }): WizardAllStoryRenderReadinessReport {
   return auditWizardAllStoryRenderReadinessWithPolicy({
-    ...args,
+    repoRoot: args.repoRoot,
+    now: args.now,
+    acceptedRootRelative: args.acceptedRootRelative,
+    acceptedStoryKeyAllowList: args.acceptedStoryKeyAllowList,
+    authoringPolicy: R3B0B_AUTHORING_POLICY,
     genderProjectionReadinessPolicy: 'legacy_syntactic_projection_only',
   });
 }

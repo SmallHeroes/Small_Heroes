@@ -1,0 +1,89 @@
+{
+  "purpose": "Offline regression fixtures only; not runtime, product acceptance, render, or provider authority.",
+  "files": [
+    {
+      "path": "lexicon/story.md",
+      "bytes": 6917,
+      "sha256": "b2a9ad41cd5dcb02d9f7c2b8e48a0a66307c85745498fb2410b848ef37c9c38f",
+      "source": "C:\\GNart\\Work\\Small_Heroes\\outputs\\sprint-11-runs\\slot01-sprint11_slot01_night_fear_fox_adventure-prose-uri_premise_10-2026-06-12T07-15-49-776Z\\story.md"
+    },
+    {
+      "path": "momentum/page-beats.json",
+      "bytes": 9118,
+      "sha256": "a61ad01c03ed3d3358471b87d25767fcaf2de2a5cebec83120eaf9f04b7c7235",
+      "source": "C:\\GNart\\Work\\Small_Heroes\\outputs\\story-gen-v3-runs\\koko_scenario_2_transition-stop2-2026-06-09T14-35-00-165Z\\page-beats.json"
+    },
+    {
+      "path": "momentum/hardened-premise.json",
+      "bytes": 3685,
+      "sha256": "c20f2f83556aff3887a32140be1d0001fe52a604d20357297492d50417d8a685",
+      "source": "C:\\GNart\\Work\\Small_Heroes\\outputs\\story-gen-v3-runs\\koko_scenario_2_transition-stop2-2026-06-09T14-35-00-165Z\\hardened-premise.json"
+    },
+    {
+      "path": "momentum/story-spine.json",
+      "bytes": 7684,
+      "sha256": "5a17f80e606424f2e6a6e18dce08da2b7058014455e65f4076a10eea43ead503",
+      "source": "C:\\GNart\\Work\\Small_Heroes\\outputs\\story-gen-v3-runs\\koko_scenario_2_transition-stop2-2026-06-09T14-35-00-165Z\\story-spine.json"
+    },
+    {
+      "path": "read-back/story-pages.json",
+      "bytes": 7214,
+      "sha256": "32299e71fcafc9386cfcf2a168bbe9e1a0232f978d8d7c4086962f1c39841df7",
+      "source": "C:\\GNart\\Work\\Small_Heroes\\outputs\\story-gen-v3-runs\\dini_premise_sprint_b-p10-2026-06-09T09-45-32-833Z\\story-pages.json"
+    },
+    {
+      "path": "read-back/story.md",
+      "bytes": 8226,
+      "sha256": "2cbdd7fde688782cb7af881c73cb5b12a36180054cd18d9ff2595cb13c9ca3fa",
+      "source": "C:\\GNart\\Work\\Small_Heroes\\outputs\\story-gen-v3-runs\\dini_premise_sprint_b-p10-2026-06-09T09-45-32-833Z\\story.md"
+    },
+    {
+      "path": "enrichment/request.json",
+      "bytes": 1331,
+      "sha256": "89380b206dd20d6cdee1f46ea1b854f18df3ed591fee9b55cd230eb36438692a",
+      "source": "C:\\GNart\\Work\\sh-wt-r1d-output-budget\\outputs\\r1d-chameleon-first-kindergarten-visual-directions-v1\\request.json"
+    },
+    {
+      "path": "enrichment/visual-directions.json",
+      "bytes": 7000,
+      "sha256": "51e3bb3e7bd8266befe7f1030c86fb979feef919dfc223442dfe039dc6ab9778",
+      "source": "C:\\GNart\\Work\\sh-wt-r1d-output-budget\\outputs\\r1d-chameleon-first-kindergarten-visual-directions-v1\\visual-directions.json"
+    },
+    {
+      "path": "enrichment/candidates/3ef645415b3cdd5945baeaa275d97ae0aa0491bf30addbcc46208475278f534a/integrated.md",
+      "bytes": 8717,
+      "sha256": "9acf0433386ac515d08d5d30f0429dc6b9f03596b29ba0994316ff69507195b1",
+      "source": "C:\\GNart\\Work\\sh-wt-r1d-output-budget\\outputs\\r1d-chameleon-first-kindergarten-visual-directions-v1\\candidates\\3ef645415b3cdd5945baeaa275d97ae0aa0491bf30addbcc46208475278f534a\\integrated.md"
+    },
+    {
+      "path": "enrichment/candidates/3ef645415b3cdd5945baeaa275d97ae0aa0491bf30addbcc46208475278f534a/manifest.json",
+      "bytes": 2732,
+      "sha256": "9500106ebfdeef99b1e220ca18639bd4399ed06b032f71cf33850799120fa459",
+      "source": "C:\\GNart\\Work\\sh-wt-r1d-output-budget\\outputs\\r1d-chameleon-first-kindergarten-visual-directions-v1\\candidates\\3ef645415b3cdd5945baeaa275d97ae0aa0491bf30addbcc46208475278f534a\\manifest.json"
+    },
+    {
+      "path": "enrichment/candidates/3ef645415b3cdd5945baeaa275d97ae0aa0491bf30addbcc46208475278f534a/review-bundle.json",
+      "bytes": 2850,
+      "sha256": "02abc8885da908f2799a9709817837f0d09268d85dd39dfd9c473ce194880dec",
+      "source": "C:\\GNart\\Work\\sh-wt-r1d-output-budget\\outputs\\r1d-chameleon-first-kindergarten-visual-directions-v1\\candidates\\3ef645415b3cdd5945baeaa275d97ae0aa0491bf30addbcc46208475278f534a\\review-bundle.json"
+    },
+    {
+      "path": "enrichment/candidates/3ef645415b3cdd5945baeaa275d97ae0aa0491bf30addbcc46208475278f534a/revision-identity.json",
+      "bytes": 1409,
+      "sha256": "3ef645415b3cdd5945baeaa275d97ae0aa0491bf30addbcc46208475278f534a",
+      "source": "C:\\GNart\\Work\\sh-wt-r1d-output-budget\\outputs\\r1d-chameleon-first-kindergarten-visual-directions-v1\\candidates\\3ef645415b3cdd5945baeaa275d97ae0aa0491bf30addbcc46208475278f534a\\revision-identity.json"
+    },
+    {
+      "path": "enrichment/candidates/3ef645415b3cdd5945baeaa275d97ae0aa0491bf30addbcc46208475278f534a/visual-directions.json",
+      "bytes": 7000,
+      "sha256": "51e3bb3e7bd8266befe7f1030c86fb979feef919dfc223442dfe039dc6ab9778",
+      "source": "C:\\GNart\\Work\\sh-wt-r1d-output-budget\\outputs\\r1d-chameleon-first-kindergarten-visual-directions-v1\\candidates\\3ef645415b3cdd5945baeaa275d97ae0aa0491bf30addbcc46208475278f534a\\visual-directions.json"
+    },
+    {
+      "path": "placement/d96336715724d498a19792df094bfb5f085309f2cf946c853d4e6443c4528f2e.json",
+      "bytes": 81574,
+      "sha256": "0ee942173659430bbdaa7bea4ae6157d1ad4657ad1fcea5ff3e4d37c5c7fd99a",
+      "source": "C:\\GNart\\Work\\sh-order-package-authority\\outputs\\r1d-lantern-blueprint-wire-20260830T044048214Z\\bridge-corrected\\candidate-template-projections\\d96336715724d498a19792df094bfb5f085309f2cf946c853d4e6443c4528f2e.json"
+    }
+  ]
+}

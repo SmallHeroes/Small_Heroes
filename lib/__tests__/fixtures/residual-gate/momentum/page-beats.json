@@ -1,0 +1,122 @@
+[
+  {
+    "page": 1,
+    "event": "קוֹקוֹ בוחנת את הקיר החדש המפוספס ומנסה להתאים את עצמה לפסים.",
+    "childDoes": "{{childName}} נכנס/ת לחדר החדש ומחזיק/ה את הציור הישן ביד.",
+    "companionDoes": "קוֹקוֹ נצמדת לפס ירוק ומצהירה בגאווה שהיא נעלמה — אבל חצי ממנה עדיין בולט.",
+    "whatChanges": "החדר החדש מציג בעיה מצחיקה: קוֹקוֹ לא מצליחה להיעלם לגמרי.",
+    "whatGetsFunnierOrHarder": "החצי הבולט של קוֹקוֹ מזיז את הזנב כמו מגב צבעוני.",
+    "pageTurnReason": "{{childName}} רוצה לראות אם אפשר לעזור לקוֹקוֹ להיעלם שלמה.",
+    "visualAnchor": "Half-blended Koko against striped wall, tail sticking out."
+  },
+  {
+    "page": 2,
+    "event": "{{childName}} מחליט/ה שהקיר נראה מבולגן מדי ורוצה לצבוע אותו מחדש.",
+    "childDoes": "{{childName}} פותח/ת את דלי הצבע ומניח/ה את הציור הישן על הרצפה.",
+    "companionDoes": "קוֹקוֹ מרחרחת את הדלי ואומרת שזה ריח של הרפתקה.",
+    "whatChanges": "המטרה של {{childName}} מתבהרת — להפוך את החדר לשלו/שלה ולמצוא את קוֹקוֹ שלמה.",
+    "whatGetsFunnierOrHarder": "קוֹקוֹ כמעט נופלת לתוך הדלי ומשאירה כתם על הרצפה.",
+    "pageTurnReason": "{{childName}} מרים/ה את המברשת הראשונה — איך זה ישנה את הקיר?",
+    "visualAnchor": "Child holding paintbrush beside open paint bucket, old drawing nearby."
+  },
+  {
+    "page": 3,
+    "event": "קוֹקוֹ מציעה עזרה בדרכה המשונה.",
+    "childDoes": "{{childName}} מצביע/ה על הפס האמצעי הריק ואומר/ת שצריך למלא אותו.",
+    "companionDoes": "קוֹקוֹ קופצת לשם ומתחבאת חצי בפנים, חצי בחוץ.",
+    "whatChanges": "קוֹקוֹ מנסה לעזור אבל בוחרת את המקום הלא נכון.",
+    "whatGetsFunnierOrHarder": "הפס הסגול משתקף על האף של קוֹקוֹ כמו שפם צבעוני.",
+    "pageTurnReason": "{{childName}} מתכונן/ת להתחיל לצבוע בעצמו/ה כדי לתקן.",
+    "visualAnchor": "Koko halfway hidden on purple stripe, nose painted accidentally."
+  },
+  {
+    "page": 4,
+    "event": "{{childName}} מנסה לצבוע מעל הפסים כדי לאחד את הקיר.",
+    "childDoes": "{{childName}} מושך/ת מברשת ארוכה על פני הקיר.",
+    "companionDoes": "קוֹקוֹ רצה אחרי המברשת ומשנה צבע בכל פס.",
+    "whatChanges": "במקום לאחד, נוצר פס חדש בכל משיכה.",
+    "whatGetsFunnierOrHarder": "קוֹקוֹ מהבהבת צבעים כמו מגדלור קטן.",
+    "pageTurnReason": "הקיר מתמלא פסים חדשים — האם {{childName}} יצליח/תצליח לעצור את זה?",
+    "visualAnchor": "Wall covered in overlapping stripes, Koko flashing multiple colors."
+  },
+  {
+    "page": 5,
+    "event": "קוֹקוֹ מתלהבת מדי מההסוואה החדשה.",
+    "childDoes": "{{childName}} מניח/ה את המברשת ומנסה להבין מה קרה.",
+    "companionDoes": "קוֹקוֹ קופצת מפס לפס וצועקת, 'אף אחד לא יראה אותי עכשיו!'",
+    "whatChanges": "קוֹקוֹ נעלמת כמעט לגמרי, רק הזנב נשאר בחוץ.",
+    "whatGetsFunnierOrHarder": "הזנב משאיר שובל צבע סגול על הרצפה.",
+    "pageTurnReason": "{{childName}} צריך/ה למצוא דרך לעצור את הבלגן לפני שכולו נצבע.",
+    "visualAnchor": "Purple tail streak across floor, empty-looking striped wall."
+  },
+  {
+    "page": 6,
+    "event": "{{childName}} מנסה לתקן את הצבעים עם יותר צבע.",
+    "childDoes": "{{childName}} טובל/ת שוב את המברשת ומוסיף/ה עוד שכבה.",
+    "companionDoes": "קוֹקוֹ מתעטשת צבע על הקיר ויוצרת נקודות נוספות.",
+    "whatChanges": "הניסיון לתקן רק מחמיר את המצב — הקיר נהיה פסיפס של פסים.",
+    "whatGetsFunnierOrHarder": "כל התעטשות מוסיפה פס חדש בצבע בלתי צפוי.",
+    "pageTurnReason": "האם יש דרך לעצור את הבלגן לפני שהדלי יישפך?",
+    "visualAnchor": "Splattered wall, Koko mid-sneeze with paint dots flying."
+  },
+  {
+    "page": 7,
+    "event": "הדלי מתהפך והצבעים נוזלים על הרצפה.",
+    "childDoes": "{{childName}} קופץ/ת לאחור כדי לא להחליק.",
+    "companionDoes": "קוֹקוֹ מחליקה לתוך הנחל הצבעוני וצפה בו בשובבות.",
+    "whatChanges": "הבלגן יורד מהרצפה — הצבעים מתערבבים זה בזה.",
+    "whatGetsFunnierOrHarder": "קוֹקוֹ יוצאת מהנחל עם שלושה פסים על הגב.",
+    "pageTurnReason": "{{childName}} מתבונן/ת בקוֹקוֹ הצבעונית — אולי יש פה רמז?",
+    "visualAnchor": "Paint river across floor, Koko floating with multicolored stripes."
+  },
+  {
+    "page": 8,
+    "event": "{{childName}} מנגב/ת את הרצפה ומבחין/ה בדבר מוזר בקיר.",
+    "childDoes": "{{childName}} עוקב/ת עם האצבע אחרי הפס האמצעי הריק.",
+    "companionDoes": "קוֹקוֹ מנסה שוב להיעלם עליו — ועדיין חצי נראית.",
+    "whatChanges": "{{childName}} מתחיל/ה לחשוד שהפס הריק הוא הבעיה האמיתית.",
+    "whatGetsFunnierOrHarder": "קוֹקוֹ מתבלבלת בין מה ריק למה מלא ומסתובבת במקום.",
+    "pageTurnReason": "מה חסר בפס הזה שגורם לקוֹקוֹ לבלוט?",
+    "visualAnchor": "Empty white stripe in center of colorful wall, Koko half-visible there."
+  },
+  {
+    "page": 9,
+    "event": "{{childName}} מגלה את הדפוס — צריך פס אחד שמחבר הכול.",
+    "childDoes": "{{childName}} מחזיק/ה את המברשת ומודד/ת את רוחב הקיר.",
+    "companionDoes": "קוֹקוֹ עוצרת לרגע ומביטה בסקרנות.",
+    "whatChanges": "הבנה חדשה נוצרת — לא עוד הסוואה, אלא חיבור.",
+    "whatGetsFunnierOrHarder": "קוֹקוֹ מנסה לנחש את הצבע הנכון ומניחה על ראשה כובע צבעוני.",
+    "pageTurnReason": "{{childName}} עומד/ת לפעול באומץ ולצייר את הפס הגשר.",
+    "visualAnchor": "Child measuring wall with brush, Koko wearing paint lid like hat."
+  },
+  {
+    "page": 10,
+    "event": "{{childName}} מצייר/ת פס רחב אחד שמחבר את כל הצבעים.",
+    "childDoes": "{{childName}} מושך/ת קו אחד ארוך, מלמעלה עד למטה.",
+    "companionDoes": "קוֹקוֹ מטפסת על הסולם ומתיישבת בדיוק באמצע הפס החדש.",
+    "whatChanges": "הפס המחבר מופיע — קוֹקוֹ יושבת עליו כמו על גשר.",
+    "whatGetsFunnierOrHarder": "הצבעים מתחילים להתערבב סביב הפס וליצור דוגמאות מצחיקות.",
+    "pageTurnReason": "מה יקרה כשהצבעים כולם יגעו זה בזה?",
+    "visualAnchor": "Wide connecting stripe across wall, Koko perched midline like balancing."
+  },
+  {
+    "page": 11,
+    "event": "הצבעים נשפכים יחד לקיר אחד צבעוני.",
+    "childDoes": "{{childName}} מנער/ת את המברשת והצבעים נוזלים בגוונים חדשים.",
+    "companionDoes": "קוֹקוֹ צוחקת כשהפסים מתערבבים ומחליקים סביבה.",
+    "whatChanges": "הקיר כבר לא מפוספס — הוא ציור אחד גדול ומלא חיים.",
+    "whatGetsFunnierOrHarder": "שפריצים קטנים עפים על {{childName}} ועל קוֹקוֹ.",
+    "pageTurnReason": "איך ייראה החדר עכשיו כשהכול התמזג?",
+    "visualAnchor": "Merged rainbow wall, paint splashes around child and Koko laughing."
+  },
+  {
+    "page": 12,
+    "event": "החדר החדש מלא צבע וצחוק.",
+    "childDoes": "{{childName}} תולה את הציור הישן על הקיר החדש ומחייך/ת.",
+    "companionDoes": "קוֹקוֹ מתמתחת על הפס הגשר ונראית שלמה לגמרי.",
+    "whatChanges": "החדר מרגיש שייך באמת — מקום חדש עם פס מחבר.",
+    "whatGetsFunnierOrHarder": "קוֹקוֹ משאירה טביעת כף צבע קטנה מתחת לציור.",
+    "pageTurnReason": "סיום חמים — הקיר החדש חי, והצחוק נשאר.",
+    "visualAnchor": "Finished colorful wall with child’s old drawing, Koko resting content."
+  }
+]

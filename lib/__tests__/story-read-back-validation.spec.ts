@@ -1,26 +1,30 @@
-import { readFileSync, writeFileSync, mkdirSync } from 'fs';
+import { readFileSync, writeFileSync, mkdtempSync, rmSync } from 'fs';
+import os from 'node:os';
 import path from 'path';
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { validateStoryMdReadBack } from '../story-gen-v3/story-read-back-validation';
 import { renderStoryMdFromFiles } from '../story-gen-v3/story-md-renderer';
 
-const RUN_DIR = path.join(
-  process.cwd(),
-  'outputs/test-fixtures/story-read-back-regression'
-);
+let RUN_DIR: string;
 const TRUNCATED_FIXTURE = path.join(
   process.cwd(),
   'lib/story-gen-v3/__fixtures__/dini-popcorn-truncated-p12.md'
 );
 const COMPLETE_PAGES = path.join(
   process.cwd(),
-  'outputs/story-gen-v3-runs/dini_premise_sprint_b-p10-2026-06-09T09-45-32-833Z/story-pages.json'
+  'lib/__tests__/fixtures/residual-gate/read-back/story-pages.json'
 );
 
 describe('story.md read-back validation (P0)', () => {
+  beforeEach(() => {
+    RUN_DIR = mkdtempSync(path.join(os.tmpdir(), 'sh-story-read-back-'));
+  });
+  afterEach(() => {
+    rmSync(RUN_DIR, { recursive: true, force: true });
+  });
+
   it('fails completedEnding when story.md is truncated but story-pages.json is complete', () => {
-    mkdirSync(RUN_DIR, { recursive: true });
     const storyMd = path.join(RUN_DIR, 'story-truncated.md');
     writeFileSync(storyMd, readFileSync(TRUNCATED_FIXTURE, 'utf8'), 'utf8');
     writeFileSync(path.join(RUN_DIR, 'story-pages.json'), readFileSync(COMPLETE_PAGES, 'utf8'));
@@ -40,11 +44,10 @@ describe('story.md read-back validation (P0)', () => {
   });
 
   it('passes when story.md is rendered from complete story-pages.json', () => {
-    mkdirSync(RUN_DIR, { recursive: true });
     const prefix = readFileSync(
       path.join(
         process.cwd(),
-        'outputs/story-gen-v3-runs/dini_premise_sprint_b-p10-2026-06-09T09-45-32-833Z/story.md'
+        'lib/__tests__/fixtures/residual-gate/read-back/story.md'
       ),
       'utf8'
     ).split('--- Page 1 ---')[0];
@@ -71,7 +74,6 @@ describe('story.md read-back validation (P0)', () => {
   });
 
   it('completedEnding is false when story has bare pipe gender chip in prose', () => {
-    mkdirSync(RUN_DIR, { recursive: true });
     const storyMd = path.join(RUN_DIR, 'bare-pipe-chip.md');
     writeFileSync(
       storyMd,

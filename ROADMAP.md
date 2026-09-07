@@ -1,6 +1,6 @@
 # SmallHeroes — Roadmap
 
-**Last verified:** 2026-09-07 (ACK barrier independently passed; residual diagnosis complete, implementation gate pending; full check non-green)
+**Last verified:** 2026-09-07 (residual correction implemented; one delivered full check GREEN; independent QA pending)
 **Product priority owner:** Guy
 **Technical sequencing owner:** Codex
 
@@ -31,6 +31,20 @@ Blueprint and any required LOW Board/prop generation remain separately budgeted
 provider actions with exact owner gates.
 
 ## Active
+
+Guy approved the two-part residual correction (`יש אישור`). Codex implemented
+private historical v21/16 policy isolation and portable byte-exact regression
+fixtures from base `d3e6bf7f` on `codex/r3b1b-semantic-recovery-m1`.
+77 affected/Wizard tests, 60 infrastructure tests, both typechecks and three
+opt-in policy-isolation controls passed. The one delivered full check exited 0:
+5555 passed, 73 skipped, zero failed; exact 386/364/22 inventory, unchanged 4/2
+workers, both phases once. Next: independent Claude read-only QA of the focused
+local implementation commit, identified in the task handoff from base `d3e6bf7f`.
+Remaining M1b/M2, P1 semantic recovery (HELD 0/3/3) and render qualification are
+not completed by a test correction. No provider/render spend, push or cleanup;
+payment remains last. The prior scheduling PASS still ends at `ef7a13e8`.
+
+### Historical diagnosis closeout (before implementation approval)
 
 Claude independently passed exact scheduling range `3a455c48..ef7a13e8`, no
 P0/P1/P2. Guy then approved residual full-check diagnosis. It identified ten

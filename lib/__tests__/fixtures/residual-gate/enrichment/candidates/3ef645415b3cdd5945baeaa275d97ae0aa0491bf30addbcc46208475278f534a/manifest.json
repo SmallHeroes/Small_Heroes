@@ -1,0 +1,72 @@
+{
+  "authorityScope": "visual_directions_enrichment_candidate_only",
+  "candidateDigest": "3ef645415b3cdd5945baeaa275d97ae0aa0491bf30addbcc46208475278f534a",
+  "compositionPolicyVersion": "small-heroes-storyboard-composition-review-policy/v1",
+  "continuityIntent": {
+    "childWardrobeAuthority": "frozen_visual_contract",
+    "childWardrobeTransitionPages": [
+      8
+    ],
+    "companionAccessoryAuthority": "canonical_companion_profile",
+    "companionAppearanceAuthority": "frozen_companion_state",
+    "companionStateTransitionPages": [
+      2,
+      3,
+      5,
+      6
+    ],
+    "version": "small-heroes-story-visual-continuity-intent/v1"
+  },
+  "digest": "42b8f35a72c89d559389c2d278eec3a12733d27061d89cdd2b3b2735cefe6795",
+  "exclusions": [
+    "accepted_revision_publication",
+    "blueprint",
+    "deployment",
+    "production",
+    "provider",
+    "render",
+    "runtime_locator",
+    "story_bank",
+    "visual_contract",
+    "visual_package",
+    "wizard"
+  ],
+  "files": {
+    "integratedStory": {
+      "bytes": 8717,
+      "filename": "integrated.md",
+      "sha256": "9acf0433386ac515d08d5d30f0429dc6b9f03596b29ba0994316ff69507195b1"
+    },
+    "reviewBundle": {
+      "bytes": 2850,
+      "digest": "fa519a11bca42e0d565479329b9d5c0767972814ee28d6e73a764a35a1a3b57c",
+      "filename": "review-bundle.json",
+      "sha256": "02abc8885da908f2799a9709817837f0d09268d85dd39dfd9c473ce194880dec"
+    },
+    "revisionIdentity": {
+      "bytes": 1409,
+      "digest": "3ef645415b3cdd5945baeaa275d97ae0aa0491bf30addbcc46208475278f534a",
+      "filename": "revision-identity.json",
+      "sha256": "3ef645415b3cdd5945baeaa275d97ae0aa0491bf30addbcc46208475278f534a"
+    },
+    "visualDirections": {
+      "bytes": 7000,
+      "filename": "visual-directions.json",
+      "sha256": "51e3bb3e7bd8266befe7f1030c86fb979feef919dfc223442dfe039dc6ab9778"
+    }
+  },
+  "runtimeEligibility": {
+    "eligible": false,
+    "reason": "visual_directions_candidate_not_product_accepted"
+  },
+  "sourceRevision": {
+    "manifestDigest": "1dffb1a6b4f0eda5d389fc33b799a94a86f071a81793867de42b7ea6541ab757",
+    "manifestPath": "story-pipeline/04_approved_story_sources/accepted/chameleon_koko_bedtime/revisions/eca8b3c8a8ed32a6a884cd9bd4fc493fcc6f00fed3c4ebe710c6a870ead2115d/manifest.json",
+    "manifestSha256": "0cb441f8e51d8b1a228db449f07029626a949ef5bd5a0dcd3e1f884676f7635a",
+    "revisionDigest": "eca8b3c8a8ed32a6a884cd9bd4fc493fcc6f00fed3c4ebe710c6a870ead2115d",
+    "storySha256": "b18e824c96bf43a3d3f5b9dfe6457b2ad8a19112b73e89fcfbb55417a02afd09"
+  },
+  "status": "pending_exact_product_review",
+  "storyKey": "chameleon_koko_bedtime",
+  "version": "small-heroes-story-source-visual-direction-enrichment-candidate-manifest/v1"
+}

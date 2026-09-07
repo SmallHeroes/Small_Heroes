@@ -1,16 +1,27 @@
 import { readFileSync } from 'fs';
+import { createHash } from 'node:crypto';
 import path from 'path';
 import { describe, expect, it } from 'vitest';
 
 import { runDeterministicDiagnosis } from '../story-gen-v3/hebrew-read-aloud-editor';
 import { scanChildLexiconInMarkdown } from '../story-gen-v3/child-lexicon-scan';
+import fixtureProvenance from './fixtures/residual-gate/provenance.json';
 
 const SLOT01_STORY = path.join(
   process.cwd(),
-  'outputs/sprint-11-runs/slot01-sprint11_slot01_night_fear_fox_adventure-prose-uri_premise_10-2026-06-12T07-15-49-776Z/story.md'
+  'lib/__tests__/fixtures/residual-gate/lexicon/story.md'
 );
 
 describe('child lexicon ages 5–8 gate', () => {
+  it('preserves all 14 historical regression fixture byte identities without reading provenance locations', () => {
+    expect(fixtureProvenance.files).toHaveLength(14);
+    for (const file of fixtureProvenance.files) {
+      const bytes = readFileSync(path.join(process.cwd(), 'lib/__tests__/fixtures/residual-gate', file.path));
+      expect(bytes.length, file.path).toBe(file.bytes);
+      expect(createHash('sha256').update(bytes).digest('hex'), file.path).toBe(file.sha256);
+    }
+  });
+
   it('flags blocked adult words in prose', () => {
     const bad = `--- Page 1 ---
 {{childName}} חייך. "זה דואט רשמי," אמר אוּרי. פנסו נדלק.

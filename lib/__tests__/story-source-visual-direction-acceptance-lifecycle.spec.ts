@@ -44,6 +44,7 @@ function writeCanonicalJson(filePath: string, value: unknown): Buffer {
 }
 
 function buildFixture() {
+  fs.mkdirSync(OUTPUTS_ROOT, { recursive: true });
   const root = fs.mkdtempSync(
     path.join(OUTPUTS_ROOT, 'visual-direction-acceptance-test-'),
   );
@@ -59,7 +60,7 @@ function buildFixture() {
   );
   const enrichmentTarget = path.join(root, ENRICHMENT_ROOT);
   fs.mkdirSync(path.dirname(enrichmentTarget), { recursive: true });
-  fs.cpSync(path.join(REPO_ROOT, ENRICHMENT_ROOT), enrichmentTarget, {
+  fs.cpSync(path.join(REPO_ROOT, 'lib/__tests__/fixtures/residual-gate/enrichment'), enrichmentTarget, {
     recursive: true,
   });
   const reviewPayload = {
