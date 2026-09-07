@@ -35,6 +35,8 @@ import type {
   ContractLlmCaller,
   ContractLlmCallOptions,
 } from './compileBookVisualContract';
+import { GROUP_VISUAL_CONTRACT_SCHEMA_VERSION } from './contractTemplateTypes';
+import { projectHumanGroup } from './humanGroupCast';
 import {
   extractDeterministicFacts,
   type DeterministicFacts,
@@ -1715,6 +1717,7 @@ export function buildTemplateCompileUserPrompt(input: TemplateCompileInput, fact
     '',
     'DETERMINISTIC FACTS (authoritative — do NOT restate gender/presence/laterality; draft descriptive fields only):',
     ...humanLines,
+    ...(facts.humanGroups ?? []).map(group => `- ${projectHumanGroup(group)} Present on pages [${group.pagesPresent.join(', ')}]. Use its group id in cast references; do not draft it in humanCast.`),
     facts.laterality.length
       ? `Laterality (from the text): ${facts.laterality.map((l) => `p${l.page}:${l.side}`).join(', ')}`
       : 'Laterality: none stated in the text (do NOT invent left/right).',
@@ -2885,6 +2888,7 @@ function overlayPage(
   const castIds: string[] = [childId];
   if (companionPresent && companionId) castIds.push(companionId);
   for (const h of facts.humans) if (h.pagesPresent.includes(page)) castIds.push(h.id);
+  for (const group of facts.humanGroups ?? []) if (group.pagesPresent.includes(page)) castIds.push(group.id);
   const castIdSet = new Set(castIds);
 
   // castStates: keep ONLY the draft's descriptive bodyState, and ONLY for a cast member PRESENT on this page
@@ -4665,6 +4669,7 @@ function assembleTemplateFromDraft(
     childId,
     ...(companionId ? [companionId] : []),
     ...humanCast.map((candidate) => candidate.id),
+    ...(facts.humanGroups ?? []).map(group => group.id),
   ]);
   const currentCoverCastIds = Array.isArray(canonicalCover.castIds)
     ? canonicalCover.castIds
@@ -4715,7 +4720,7 @@ function assembleTemplateFromDraft(
   });
   const template: BookVisualContractTemplate = {
     contractKind: 'template',
-    schemaVersion: VISUAL_CONTRACT_SCHEMA_VERSION,
+    schemaVersion: facts.humanGroups?.length ? GROUP_VISUAL_CONTRACT_SCHEMA_VERSION : VISUAL_CONTRACT_SCHEMA_VERSION,
     version: 1,
     storyKey: input.storyKey,
     worldType,
@@ -4724,6 +4729,7 @@ function assembleTemplateFromDraft(
     ...(setBoardAuthorities ? { setBoardAuthorities } : {}),
     cast: authoritativeCast as unknown as BookVisualContractTemplate['cast'],
     humanCast,
+    ...(facts.humanGroups?.length ? { humanGroups: structuredClone(facts.humanGroups) } : {}),
     recurringProps,
     forbiddenGlobalElements: asArr(draft.forbiddenGlobalElements).filter((x): x is string => typeof x === 'string'),
     coverContract: { ...canonicalCover, worldType } as unknown as BookVisualContractTemplate['coverContract'],
@@ -5244,11 +5250,18 @@ export async function compileBookVisualContractTemplate(
   let pageContractIncompleteFailureSeen = false;
   let pageContractCorrectionGranted = false;
   for (let attempt = 1; ; attempt++) {
+    // Ensemble authority is compiler-owned, never accepted from the model draft.
+    if (facts.humanGroups?.length) {
+      draft = { ...draft, humanGroups: structuredClone(facts.humanGroups) };
+    } else if ('humanGroups' in draft) {
+      const { humanGroups: _unreviewedGroups, ...withoutGroups } = draft;
+      draft = withoutGroups;
+    }
     const castReferenceProjection = projectDraftActionCastReferences({
       draft,
       authoritativeChildId: CHILD_ID,
       authoritativeCompanionId: authoritativeCompanionCastId(input),
-      authoritativeHumanIds: facts.humans.map((human) => human.id),
+      authoritativeHumanIds: [...facts.humans, ...(facts.humanGroups ?? [])].map((human) => human.id),
     });
     draft = castReferenceProjection.draft;
     if (castReferenceProjection.reboundReferenceCount > 0) {
@@ -6490,6 +6503,10 @@ export function assertCastIsFactAuthoritative(
   }
 
   const factHumanIds = new Set(facts.humans.map((h) => h.id));
+  if (JSON.stringify(template.humanGroups ?? []) !== JSON.stringify(facts.humanGroups ?? [])) {
+    errs.push('humanGroups differ from source-reviewed facts');
+    diagnosticIssues.push({ family: 'draft_contract', code: 'fact_authority_mismatch', locator: { kind: 'root', fieldRole: 'cast_presence' } });
+  }
   const tmplHumanIds = new Set(template.humanCast.map((h) => h.id));
   if (factHumanIds.size !== tmplHumanIds.size || [...factHumanIds].some((id) => !tmplHumanIds.has(id))) {
     errs.push(`humanCast ids [${[...tmplHumanIds].join(', ')}] != facts [${[...factHumanIds].join(', ')}]`);
@@ -6508,6 +6525,7 @@ export function assertCastIsFactAuthoritative(
     const expected = new Set<string>([CHILD_ID]);
     if (companionId && facts.companionPresentPages.includes(pc.pageNumber)) expected.add(companionId);
     for (const h of facts.humans) if (h.pagesPresent.includes(pc.pageNumber)) expected.add(h.id);
+    for (const group of facts.humanGroups ?? []) if (group.pagesPresent.includes(pc.pageNumber)) expected.add(group.id);
     const actual = new Set(pc.castIds ?? []);
     const missing = [...expected].filter((id) => !actual.has(id));
     const extra = [...actual].filter((id) => !expected.has(id));

@@ -70,6 +70,18 @@ describe('source-bound supporting cast review input', () => {
     expect(() => review([{ ...band, gender: 'male' }])).toThrow();
     expect(() => review([{ ...bird, appearanceClass: 'reviewed_non_relative' }])).toThrow();
   });
+  it.each(['workshop', 'harbor'])('preserves a recurring group independently of story identity in %s', (key) => {
+    const source = input(key);
+    source.pages[1].text += ' The band returns.';
+    const band = { kind: 'human_group', id: 'human-group:band', role: 'band', aliases: ['band'],
+      identityEvidence: [cite(1, 'A band plays')], presence: [{ pageNumber: 1, evidence: [cite(1, 'A band plays')] }, { pageNumber: 2, evidence: [cite(2, 'The band returns.')] }],
+      appearanceClass: 'reviewed_human_ensemble', membership: 'same_ensemble_when_recurring', cardinality: 'multiple_unspecified' };
+    const facts = supportingCastFacts(source, review([band], source));
+    expect(facts.humans.some(h => h.id === band.id)).toBe(false);
+    expect(facts.humanGroups).toMatchObject([{ id: band.id, pagesPresent: [1, 2], cardinality: 'multiple_unspecified' }]);
+    expect(facts.humanGroups![0]).not.toHaveProperty('gender');
+    expect(facts.humanGroups![0]).not.toHaveProperty('memberCount');
+  });
   it.each([
     ['missing identity evidence', (e: ReturnType<typeof ada>) => { e.identityEvidence = []; }],
     ['missing gender evidence', (e: ReturnType<typeof ada>) => { e.genderEvidence = []; }],

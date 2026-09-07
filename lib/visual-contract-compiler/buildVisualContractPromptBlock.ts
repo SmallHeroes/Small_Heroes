@@ -5,6 +5,7 @@
  * authoritative prompt builder remains available for enforcement-off development
  * compatibility. Both paths share the marker-free provider prose projection.
  */
+import { projectHumanGroup } from './humanGroupCast';
 import {
   assertProviderPromptHasNoInternalSpatialMarkers,
   projectPageProviderPromptProse,
@@ -52,7 +53,7 @@ export interface PvbVisualContractFactsProjection {
   sameLocationAs?: number;
   cast: Array<{
     id: string;
-    role: 'child' | 'companion' | 'human';
+    role: 'child' | 'companion' | 'human' | 'human_group';
     label: string;
   }>;
   wardrobe: {
@@ -107,6 +108,8 @@ export function projectPvbVisualContractFacts(
         label: contract.cast.companion.name ?? 'the companion',
       };
     }
+    const group = contract.humanGroups?.find(member => member.id === castId);
+    if (group) return { id: castId, role: 'human_group' as const, label: projectHumanGroup(group) };
     const human = contract.humanCast?.find((member) => member.id === castId);
     return {
       id: castId,
@@ -296,6 +299,8 @@ export function buildVisualContractPromptBlock(
       if (castId === contract.cast.child.id) presence.push(`child (id=${castId})`);
       else if (castId === contract.cast.companion?.id) presence.push(`companion (id=${castId})`);
       else {
+        const group = contract.humanGroups?.find(member => member.id === castId);
+        if (group) { presence.push(projectHumanGroup(group)); continue; }
         const human = contract.humanCast?.find((member) => member.id === castId);
         presence.push(`${human?.role ?? 'cast member'} (id=${castId})`);
       }
@@ -317,7 +322,7 @@ export function buildVisualContractPromptBlock(
   const castName = (id: string): string => {
     if (id === contract.cast.child.id) return contract.cast.child.name ?? 'the child';
     if (id === contract.cast.companion?.id) return contract.cast.companion.name ?? 'the companion';
-    return contract.humanCast?.find((h) => h.id === id)?.role ?? id;
+    return contract.humanGroups?.find(g => g.id === id)?.role ?? contract.humanCast?.find((h) => h.id === id)?.role ?? id;
   };
 
   // (Slice B) PERSISTENT PROP identity (material / scale-to-child / persistence) for the page's recurring props.

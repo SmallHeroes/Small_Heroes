@@ -7,6 +7,7 @@
  * gate→cave class of bug) must FAIL CLOSED, never silently pass.
  */
 import { resolvePageCheckIds } from './pageCheckIds';
+import { humanGroupCastIssues } from './humanGroupCast';
 import { VISUAL_CONTRACT_SCHEMA_VERSION } from './contractTemplateTypes';
 import {
   projectCoverMustNotShow,
@@ -333,6 +334,7 @@ export function validateBookVisualContract(input: unknown): ContractValidationRe
   if (c.version !== BOOK_VISUAL_CONTRACT_VERSION) {
     errors.push(`version must be ${BOOK_VISUAL_CONTRACT_VERSION}`);
   }
+  errors.push(...humanGroupCastIssues(c));
   if (!isStr(c.worldType)) errors.push('worldType missing');
   if (!isStrArr(c.forbiddenGlobalElements)) errors.push('forbiddenGlobalElements must be a string[]');
 
@@ -488,6 +490,9 @@ export function validateBookVisualContract(input: unknown): ContractValidationRe
   }
   (Array.isArray(c.humanCast) ? c.humanCast : []).forEach((h) => {
     if (isObj(h) && isStr(h.id)) castIdSet.add(h.id);
+  });
+  (Array.isArray(c.humanGroups) ? c.humanGroups : []).forEach((group) => {
+    if (isObj(group) && isStr(group.id)) castIdSet.add(group.id);
   });
 
   // Recurring props — collect ids for propState validation.

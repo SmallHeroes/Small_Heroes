@@ -240,6 +240,13 @@ export async function compileBookVisualContract(
   // Coerce common LLM shape variations into the canonical schema BEFORE validating (general; genuinely
   // missing content still fails closed).
   const parsed = normalizeRawBookVisualContract(parseContractJson(raw)) as Record<string, unknown>;
+  // This legacy entry point has no source-bound supporting-cast review input.
+  // Only the reviewed template compiler may introduce ensemble authority.
+  if ('humanGroups' in parsed) {
+    throw new InvalidVisualContractError(['source_review_required_for_human_groups'], [
+      { family: 'draft_contract', code: 'fact_authority_mismatch', locator: { kind: 'root', fieldRole: 'cast_presence' } },
+    ]);
+  }
 
   // Always forbid stray creatures (gpt-image's default-pet habit — the recurring uninvited armadillo;
   // first seen 2026-06, confirmed by the ענת calibration). General, not per-story: if the LLM didn't

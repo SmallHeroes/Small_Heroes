@@ -846,7 +846,7 @@ describe('repairable producer census and typed-only boundary', () => {
         'validateTemplateContract.ts': 1,
       },
       InvalidVisualContractError: {
-        'compileBookVisualContract.ts': 3,
+        'compileBookVisualContract.ts': 4,
         'contractRenderGuards.ts': 2,
         'validateBookVisualContract.ts': 1,
       },

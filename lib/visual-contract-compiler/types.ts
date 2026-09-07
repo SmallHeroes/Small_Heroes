@@ -768,6 +768,19 @@ export interface VisualContractProvenance {
   compiledFromPages: number;
 }
 
+/** Source-reviewed ensemble, never an individual human or fabricated roster. */
+export interface HumanGroupCastMember {
+  kind: 'human_group';
+  id: string;
+  role: string;
+  aliases: string[];
+  textEvidence: string;
+  pagesPresent: number[];
+  cardinality: 'multiple_unspecified';
+  membership: 'same_ensemble_when_recurring';
+  appearancePolicy: 'reviewed-human-ensemble/v1';
+}
+
 export interface BookVisualContract {
   version: typeof BOOK_VISUAL_CONTRACT_VERSION;
   storyKey?: string;
@@ -785,6 +798,7 @@ export interface BookVisualContract {
    * so existing contracts validate unchanged; the vNext validator resolves per-page castIds against these.
    */
   humanCast?: RecurringHumanCastMember[];
+  humanGroups?: HumanGroupCastMember[];
   recurringProps: RecurringProp[];
   /** Global "never render" list — kills stray entities (e.g. an uninvited dragon) on every page. */
   forbiddenGlobalElements: string[];

@@ -37,6 +37,7 @@ export interface CastRefTarget {
 interface ContradictionContractShape {
   cast?: { companion?: { id?: unknown; name?: unknown } | null } | null;
   humanCast?: ReadonlyArray<{ id?: unknown; role?: unknown; aliases?: unknown }> | null;
+  humanGroups?: ReadonlyArray<{ id?: unknown; role?: unknown; aliases?: unknown }> | null;
   pageContracts?: ReadonlyArray<{ pageNumber?: unknown; mustShow?: unknown; castIds?: unknown }> | null;
 }
 
@@ -66,7 +67,7 @@ export function castRefTargets(contract: ContradictionContractShape): CastRefTar
     // reference ("MUST SHOW: Buni"), never on a species simile/scenery ("bunny stickers", "like a frightened rabbit").
     targets.push({ id: companion.id, role: 'companion', ...splitAliases(companionNameTokens(companion.name, registryId)) });
   }
-  for (const m of contract.humanCast ?? []) {
+  for (const m of [...(contract.humanCast ?? []), ...(contract.humanGroups ?? [])]) {
     if (!m || !isStr(m.id)) continue;
     const aliases = Array.isArray(m.aliases) ? m.aliases.filter(isStr) : [];
     targets.push({ id: m.id, role: isStr(m.role) ? m.role : 'human', ...splitAliases(aliases) });

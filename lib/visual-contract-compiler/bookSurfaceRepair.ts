@@ -1490,11 +1490,12 @@ function referenceAuthority(
   const humanCast = Array.isArray(draft.humanCast)
     ? draft.humanCast.map(recordValue)
     : [];
+  const humanGroups = Array.isArray(draft.humanGroups) ? draft.humanGroups.map(recordValue) : [];
   if (
     !cast ||
     !child ||
     (companion === null && cast.companion !== null) ||
-    humanCast.some((value) => value === null)
+    humanCast.some((value) => value === null) || humanGroups.some(value => value === null)
   ) {
     return null;
   }
@@ -1502,6 +1503,7 @@ function referenceAuthority(
     child,
     ...(companion ? [companion] : []),
     ...(humanCast as Record<string, unknown>[]),
+    ...(humanGroups as Record<string, unknown>[]),
   ];
   const locationIds = (locations as Record<string, unknown>[]).flatMap(
     (value) => (typeof value.id === 'string' ? [value.id] : []),

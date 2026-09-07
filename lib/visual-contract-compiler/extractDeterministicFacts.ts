@@ -11,6 +11,7 @@
  * `standaloneTokenPattern` boundary against niqqud-STRIPPED text (the bank source is fully vowelized).
  */
 import { standaloneTokenPattern, containsAsStandaloneToken, escapeRegexLiteral } from '@/lib/story-bank-personalization';
+import type { HumanGroupCastMember } from './types';
 import {
   companionIdentityTokenPattern,
   companionNameTokens,
@@ -65,6 +66,8 @@ export interface DeterministicFacts {
   companionPresentPages: number[];
   companionAbsentPages: number[];
   humans: HumanFact[];
+  /** Source-reviewed ensembles only; the legacy lexicon never invents these. */
+  humanGroups?: HumanGroupCastMember[];
   /** Laterality facts derived ONLY from explicit שמאל/ימין in the text; empty when the text is silent. */
   laterality: LateralityFact[];
   /** Explicit "the text does not determine this — a human must author it" markers. */

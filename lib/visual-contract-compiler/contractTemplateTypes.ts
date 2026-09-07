@@ -19,6 +19,7 @@ import type {
   BookVisualContract,
   CoverContract,
   HumanCastGender,
+  HumanGroupCastMember,
   PageVisualContract,
   RecurringHumanCastMember,
   RecurringProp,
@@ -30,6 +31,7 @@ import type {
 
 /** Bump when the Template/Resolved SHAPE changes (part of the Resolved hash → a bump safely re-hashes). */
 export const VISUAL_CONTRACT_SCHEMA_VERSION = 'vc-schema/v4' as const;
+export const GROUP_VISUAL_CONTRACT_SCHEMA_VERSION = 'vc-schema/v5' as const;
 /** Bump when the materialize() logic changes (recorded on the Resolved → auditable, safely re-hashes). */
 export const MATERIALIZER_VERSION = 'materializer/v2' as const;
 /** Bump when the deterministic palette table changes (recorded on the Resolved → auditable, safely re-hashes). */
@@ -167,7 +169,7 @@ export interface ResolvedHumanCastMember extends RecurringHumanCastMember {
 /** Story-level authored/compiled contract. Distinct type + loader; may hold UNRESOLVED bindings; NEVER frozen. */
 export interface BookVisualContractTemplate {
   contractKind: 'template';
-  schemaVersion: typeof VISUAL_CONTRACT_SCHEMA_VERSION;
+  schemaVersion: typeof VISUAL_CONTRACT_SCHEMA_VERSION | typeof GROUP_VISUAL_CONTRACT_SCHEMA_VERSION;
   version: BookVisualContract['version'];
   storyKey?: string;
   worldType: string;
@@ -176,6 +178,7 @@ export interface BookVisualContractTemplate {
   setBoardAuthorities?: SetBoardStableAuthority[];
   cast: VisualCast;
   humanCast: TemplateHumanCastMember[];
+  humanGroups?: HumanGroupCastMember[];
   recurringProps: RecurringProp[];
   forbiddenGlobalElements: string[];
   coverContract: CoverContract;

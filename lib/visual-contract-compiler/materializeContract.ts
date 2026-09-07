@@ -13,7 +13,6 @@
  */
 import {
   MATERIALIZER_VERSION,
-  VISUAL_CONTRACT_SCHEMA_VERSION,
   type BookVisualContractTemplate,
   type Garment,
   type ResolvedBookVisualContract,
@@ -23,6 +22,7 @@ import {
   type TemplateHumanCastMember,
   type TemplateTraitBinding,
 } from './contractTemplateTypes';
+import { humanGroupSchemaIsSupported, humanGroupCastIssues } from './humanGroupCast';
 import { DEFAULT_APPEARANCE_PALETTE, normalizeStoryKey, paletteEntryFor, type AppearancePalette } from './appearancePalette';
 import {
   projectResolvedCoarseAppearance,
@@ -152,11 +152,14 @@ export function materialize(
     throw new MaterializationError('input is not a Template (contractKind !== "template")');
   }
   const storyKey = template.storyKey ?? '';
+  if (!humanGroupSchemaIsSupported(template) || humanGroupCastIssues(template).length) {
+    throw new MaterializationError('unsupported group schema or invalid ensemble authority');
+  }
   const humanCast = template.humanCast.map((m) => resolveMember(m, storyKey, family, palette));
 
   return {
     contractKind: 'resolved',
-    schemaVersion: VISUAL_CONTRACT_SCHEMA_VERSION,
+    schemaVersion: template.schemaVersion,
     materializerVersion: MATERIALIZER_VERSION,
     paletteVersion: palette.version,
     version: template.version,
@@ -169,6 +172,7 @@ export function materialize(
       : {}),
     cast: template.cast,
     humanCast,
+    ...(template.humanGroups ? { humanGroups: structuredClone(template.humanGroups) } : {}),
     recurringProps: template.recurringProps,
     forbiddenGlobalElements: template.forbiddenGlobalElements,
     coverContract: template.coverContract,

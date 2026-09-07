@@ -443,6 +443,7 @@ function evidencePathBelongsToFrame(
     '/zones',
     '/cast',
     '/humanCast',
+    '/humanGroups',
     '/recurringProps',
     '/forbiddenGlobalElements',
   ];

@@ -11,6 +11,7 @@
  * This REPLACES the vNext humanCast prose checks (validateVNextVisualContract.ts:157-159) for templates.
  */
 import { validateVNextVisualContract } from './validateVNextVisualContract';
+import { humanGroupSchemaIsSupported } from './humanGroupCast';
 import { bindingCoherenceError } from './appearanceBindingCoherence';
 import {
   draftValidationIssueIsValid,
@@ -338,8 +339,10 @@ function validateBookVisualContractTemplateInternal(input: unknown): TemplateVal
       locator: { kind: 'root', fieldRole: 'value' },
     });
   }
-  if (input.schemaVersion !== VISUAL_CONTRACT_SCHEMA_VERSION) {
-    errors.push(`schemaVersion must equal the supported "${VISUAL_CONTRACT_SCHEMA_VERSION}" (got ${JSON.stringify(input.schemaVersion)})`);
+  if (!humanGroupSchemaIsSupported(input)) {
+    errors.push(input.humanGroups === undefined && input.schemaVersion !== 'vc-schema/v5'
+      ? `schemaVersion must equal the supported "${VISUAL_CONTRACT_SCHEMA_VERSION}" (got ${JSON.stringify(input.schemaVersion)})`
+      : `schemaVersion must use "vc-schema/v5" with non-empty humanGroups; v4 forbids groups (got ${JSON.stringify(input.schemaVersion)})`);
     diagnosticIssues.push({
       family: 'draft_schema',
       code: 'schema_version_invalid',
@@ -396,6 +399,7 @@ function validateBookVisualContractTemplateInternal(input: unknown): TemplateVal
     ...(setBoardAuthorities !== undefined ? { setBoardAuthorities } : {}),
     cast: input.cast as BookVisualContract['cast'],
     humanCast: humanCast.map(toShadowHuman),
+    ...(input.humanGroups !== undefined ? { humanGroups: input.humanGroups as BookVisualContract['humanGroups'] } : {}),
     recurringProps,
     forbiddenGlobalElements,
     coverContract: input.coverContract as BookVisualContract['coverContract'],

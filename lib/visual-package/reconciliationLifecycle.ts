@@ -196,6 +196,7 @@ function pageContractRoot(
         '/zones',
         '/cast',
         '/humanCast',
+        ...(template.humanGroups ? ['/humanGroups'] : []),
         '/recurringProps',
         '/forbiddenGlobalElements',
       ];
@@ -251,6 +252,7 @@ export function buildReconciliationReviewBundle(args: {
               '/zones',
               '/cast',
               '/humanCast',
+              ...(args.template.humanGroups ? ['/humanGroups'] : []),
               '/recurringProps',
               '/forbiddenGlobalElements',
             ]

@@ -53,6 +53,7 @@ export function runtimeWorldAuthorityIssues(
     template.cast.child.id,
     ...(template.cast.companion ? [template.cast.companion.id] : []),
     ...template.humanCast.map((member) => member.id),
+    ...(template.humanGroups ?? []).map(member => member.id),
   ]);
   const referencedLocationIds = new Set([
     template.coverContract.locationId,
@@ -269,6 +270,7 @@ export function runtimeWorldProjectionDigest(
     >,
     never
   > & {
+    humanGroups?: BookVisualContract['humanGroups'];
     humanCast?: Array<{
       id: string;
       role: string;
@@ -296,6 +298,7 @@ export function runtimeWorldProjectionDigest(
       pagesPresent: member.pagesPresent,
       textEvidence: member.textEvidence,
     })),
+    ...(contract.humanGroups ? { humanGroups: contract.humanGroups } : {}),
     recurringProps: contract.recurringProps,
     forbiddenGlobalElements: contract.forbiddenGlobalElements,
     coverContract: contract.coverContract,

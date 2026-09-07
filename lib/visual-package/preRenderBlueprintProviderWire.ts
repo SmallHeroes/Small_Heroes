@@ -1,4 +1,5 @@
 import { canonicalize } from '@/lib/canonical-json';
+import { projectHumanGroup } from '@/lib/visual-contract-compiler/humanGroupCast';
 import {
   projectPageMustNotShow,
   projectPageMustNotShowLegacySpatial,
@@ -234,6 +235,7 @@ export function buildPreRenderBlueprintProviderWire(
         'human',
         member.role,
       ]),
+      ...(template.humanGroups ?? []).map(group => [group.id, 'human_group', projectHumanGroup(group)]),
     ],
     props: template.recurringProps.map((prop) => [
       prop.id,
@@ -647,6 +649,7 @@ function buildRepairAuthorityIndex(
         template.cast.child.id,
         ...(template.cast.companion ? [template.cast.companion.id] : []),
         ...template.humanCast.map((entry) => entry.id),
+        ...(template.humanGroups ?? []).map(entry => entry.id),
       ],
       props: template.recurringProps.map((entry) => entry.id),
       zones: template.zones.map((zone) => [

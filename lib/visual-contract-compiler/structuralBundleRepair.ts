@@ -210,6 +210,7 @@ function referenceAuthority(
     ...(Array.isArray(draft.humanCast)
       ? draft.humanCast.map(recordValue)
       : []),
+    ...(Array.isArray(draft.humanGroups) ? draft.humanGroups.map(recordValue) : []),
   ].filter((value) => value !== null);
   return {
     recurringPropIds: [...recurringPropIds].sort(),

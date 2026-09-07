@@ -1,4 +1,5 @@
 import type { ShotVisualDirection } from '@/backend/providers/pipeline';
+import { projectHumanGroup } from '@/lib/visual-contract-compiler/humanGroupCast';
 import type { PageEntityPresenceContract } from '@/lib/image-entity-presence';
 import type { StoryTimeOfDay } from '@/lib/story-time-of-day';
 import {
@@ -87,6 +88,7 @@ export interface RuntimeBlueprintFrameProjection {
     child: ResolvedBookVisualContract['cast']['child'];
     companion: ResolvedBookVisualContract['cast']['companion'];
     humans: ResolvedBookVisualContract['humanCast'];
+    humanGroups?: ResolvedBookVisualContract['humanGroups'];
   };
   /** Exact page-resolved child wardrobe, including an explicit page override when authored. */
   resolvedChildWardrobe: ResolvedPageContract['childWardrobe'];
@@ -180,7 +182,7 @@ function supportingCharactersFor(
   contract: ResolvedBookVisualContract,
   castIds: readonly string[],
 ): RuntimeBlueprintFrameProjection['supportingCharacters'] {
-  return contract.humanCast
+  const individuals = contract.humanCast
     .filter((member) => castIds.includes(member.id))
     .map((member) => ({
       name: member.role,
@@ -196,6 +198,9 @@ function supportingCharactersFor(
         .filter(Boolean)
         .join('; '),
     }));
+  return [...individuals, ...(contract.humanGroups ?? [])
+    .filter(member => castIds.includes(member.id))
+    .map(member => ({ name: member.role, relationship: member.role, description: projectHumanGroup(member) }))];
 }
 
 function expectedNames(
@@ -210,7 +215,8 @@ function expectedNames(
       return contract.cast.companion.name ?? 'the companion';
     }
     return (
-      contract.humanCast.find((member) => member.id === castId)?.role ?? castId
+      contract.humanCast.find((member) => member.id === castId)?.role ??
+      contract.humanGroups?.find(member => member.id === castId)?.role ?? castId
     );
   });
 }
@@ -283,6 +289,11 @@ function buildBlueprintPromptBlock(args: {
       garments: member.garments,
       forbiddenAppearance: member.forbiddenAppearance,
     })),
+    ...(contract.humanGroups ? { humanGroups: contract.humanGroups
+      .filter(group => frame.castIds.includes(group.id))
+      .map(group => ({ id: group.id, kind: group.kind, role: group.role,
+        cardinality: group.cardinality, membership: group.membership,
+        appearancePolicy: group.appearancePolicy, description: projectHumanGroup(group) })) } : {}),
   };
   return [
     '[PVB RUNTIME FRAME — SOLE WORLD/COMPOSITION AUTHORITY]',
@@ -324,6 +335,7 @@ export function buildRuntimeBlueprintBookProjection(args: {
     child: contract.cast.child,
     companion: contract.cast.companion,
     humans: contract.humanCast,
+    ...(contract.humanGroups ? { humanGroups: contract.humanGroups } : {}),
   };
   const resolvedAppearanceDigest = canonicalJsonDigest(resolvedAppearance);
   const contractHash = computeVisualContractHash(contract);
@@ -383,7 +395,7 @@ export function buildRuntimeBlueprintBookProjection(args: {
           contract.recurringProps.find((prop) => prop.id === propId)?.name ??
           propId,
       );
-    const recurringEntities = contract.humanCast
+    const recurringEntities = [...contract.humanCast, ...(contract.humanGroups ?? [])]
       .filter((member) => frame.castIds.includes(member.id))
       .map((member) => member.role);
     const supportingCharacters =

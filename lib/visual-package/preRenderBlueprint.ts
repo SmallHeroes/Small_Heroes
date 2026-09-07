@@ -465,6 +465,7 @@ function buildContractIndex(template: BookVisualContractTemplate): ContractIndex
   const castIds = new Set<string>([template.cast.child.id]);
   if (template.cast.companion) castIds.add(template.cast.companion.id);
   for (const member of template.humanCast) castIds.add(member.id);
+  for (const group of template.humanGroups ?? []) castIds.add(group.id);
   return {
     locations: new Map(template.locations.map((entry) => [entry.id, entry])),
     zones: new Map(template.zones.map((entry) => [entry.id, entry])),

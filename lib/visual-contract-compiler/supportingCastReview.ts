@@ -175,13 +175,17 @@ export function assertSupportingCastReview(value: unknown, input: SupportingCast
 /** Shared by compiler preview and future recovery; never infer cast from draft prose. */
 export function supportingCastFacts(input: SupportingCastCompilerInput, review: SupportingCastReview): DeterministicFacts {
   assertSupportingCastReview(review, input);
-  assertSupportingCastIndividualCompilerSupported(review);
+  if (review.entries.some(e => e.kind === 'non_human')) fail('compiler_classification_not_yet_supported');
   const facts = extractDeterministicFacts(input);
   const humans = structuredClone(facts.humans);
   for (const entry of review.entries) {
     const overlaps = humans.filter((h) => h.id === entry.id || h.aliasesFound.some((a) => entry.aliases.some((b) => normalizedAlias(a) === normalizedAlias(b))));
     if (overlaps.length > 1) fail('extractor_identity_ambiguous');
     const overlap = overlaps[0];
+    if (entry.kind === 'human_group') {
+      if (overlap) fail('extractor_conflict');
+      continue;
+    }
     if (entry.kind !== 'human_individual') {
       fail('compiler_classification_not_yet_supported');
     }
@@ -201,7 +205,15 @@ export function supportingCastFacts(input: SupportingCastCompilerInput, review: 
     if (overlap) humans[humans.indexOf(overlap)] = human;
     else humans.push(human);
   }
-  return { ...facts, humans };
+  const humanGroups = review.entries.filter(e => e.kind === 'human_group').map(entry => ({
+    kind: 'human_group' as const,
+    id: entry.id, role: entry.role, aliases: [...entry.aliases],
+    textEvidence: entry.identityEvidence.map(e => e.quote).join('\n'),
+    pagesPresent: entry.presence.map(p => p.pageNumber).sort((a, b) => a - b),
+    cardinality: entry.cardinality, membership: entry.membership,
+    appearancePolicy: 'reviewed-human-ensemble/v1' as const,
+  }));
+  return { ...facts, humans, ...(humanGroups.length ? { humanGroups } : {}) };
 }
 
 /** M1a deliberately has no group/non-human schema migration or provider fallback. */

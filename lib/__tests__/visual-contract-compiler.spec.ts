@@ -72,6 +72,15 @@ function validContract(): BookVisualContract {
 }
 
 describe('validateBookVisualContract (fail-closed)', () => {
+  it('rejects ensembles from the legacy compiler that has no source-review authority', async () => {
+    const draft = validContract();
+    draft.humanGroups = [{ kind: 'human_group', id: 'human-group:visitors', role: 'visitors', aliases: ['visitors'],
+      textEvidence: 'The visitors arrive.', pagesPresent: [1], cardinality: 'multiple_unspecified',
+      membership: 'same_ensemble_when_recurring', appearancePolicy: 'reviewed-human-ensemble/v1' }];
+    draft.pageContracts[0].castIds!.push('human-group:visitors');
+    const request = { fullStoryText: 'The visitors arrive.', pageCount: 2 };
+    await expect(compileBookVisualContract(request, { callLLM: async () => JSON.stringify(draft) })).rejects.toThrow('source_review_required_for_human_groups');
+  });
   it('accepts a structurally valid contract', () => {
     const r = validateBookVisualContract(validContract());
     expect(r.ok).toBe(true);

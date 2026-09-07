@@ -97,6 +97,9 @@ function proseAbsencePresenceFlags(
     conjunctionAwareAliases: [],
   }));
   const companion = template.cast?.companion;
+  for (const group of facts.humanGroups ?? []) {
+    targets.push({ id: group.id, role: group.role, aliases: group.aliases, conjunctionAwareAliases: [] });
+  }
   if (companion?.id && companion.name) {
     // Deterministic presence tokens (name parts + registry + manual English/Hebrew aliases, e.g. buni/bunny/rabbit),
     // keyed from the AUTHORITATIVE companion id — the raw registry id, sans the "companion:" cast-namespace prefix.
@@ -166,6 +169,14 @@ export function renderVisualContractReview(args: ReviewReportArgs): string {
   push(`- **Validation:** ${args.valid ? '✅ passes `validateBookVisualContractTemplate`' : '❌ FAILED (candidate rejected — fail-closed)'}`);
   push(`- **Pages:** ${facts.pageCount}`);
   push(`- **Recurring humans:** ${facts.humans.length ? facts.humans.map((h) => `${h.role} (${h.gender})`).join(', ') : 'none detected'}`);
+  if (facts.humanGroups?.length) {
+    push();
+    push('## Source-reviewed human ensembles (not individual people)');
+    for (const group of facts.humanGroups) {
+      push(`- ${group.role} (${group.id}): pages [${group.pagesPresent.join(', ')}]; ${group.cardinality}; ${group.membership}; appearance policy ${group.appearancePolicy}. No exact headcount, gender or family traits inferred.`);
+      push(`  - Source evidence: ${inlineJson(group.textEvidence)}`);
+    }
+  }
   if (!args.valid && args.validationErrors?.length) {
     push();
     push('## ❌ Validation errors');
@@ -253,6 +264,9 @@ export function renderVisualContractReview(args: ReviewReportArgs): string {
     push();
     push('## Differences from the previously approved template');
     const diffs: string[] = [];
+    if (!sameJson(template.humanGroups ?? [], previous.humanGroups ?? [])) {
+      diffs.push(`- humanGroups: candidate=${inlineJson(template.humanGroups ?? [])} vs previous=${inlineJson(previous.humanGroups ?? [])}.`);
+    }
     const coverFields = ['locationId', 'zoneId', 'castIds', 'mustShow', 'mustNotShow'] as const;
     for (const field of coverFields) {
       const candidateValue = template.coverContract[field];

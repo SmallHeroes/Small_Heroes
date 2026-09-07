@@ -11,6 +11,9 @@ import { validateResolvedBookVisualContract } from '@/lib/visual-contract-compil
 import { buildVisualContractPromptBlock } from '@/lib/visual-contract-compiler/buildVisualContractPromptBlock';
 import { derivePageVisualContracts } from '@/lib/visual-contract-compiler/derivePageVisualContracts';
 import { withCurrentActionSemanticCoverage } from '@/lib/__tests__/visual-contract-authoring-draft-fixtures';
+import { contractToCastRegistry, contractPageSupportingCharacters, contractToHumanCastDetectionEntries } from '@/lib/visual-contract-compiler/adapters';
+import { runtimeWorldProjectionDigest } from '../runtimeAuthority';
+import { projectPvbVisualContractFacts } from '@/lib/visual-contract-compiler/buildVisualContractPromptBlock';
 
 const STORY_KEY = 'dragon_dini_adventure';
 const STORY_PATH = 'story-pipeline/04_approved_story_sources/accepted/dragon_dini_adventure/revisions/64dcd0e741f17fc08cde95ad8a5a00b303955aa28ccd065d44f01e49e9d155fc/integrated.md';
@@ -58,7 +61,7 @@ describe('accepted supporting cast preparation and real compiler boundary', () =
   it('rejects unaccepted source preparation', () => {
     expect(() => prepareAcceptedSupportingCastReview({ ...request(), storyKey: 'bunny_ometz_adventure', storyPath: 'story-bank/v3-approved/bunny_ometz_adventure.md', entries: [] })).toThrow('accepted_revision_required');
   });
-  it('rejects an unsupported group before the injected caller, with no fallback', async () => {
+  it('compiles source-reviewed groups as ensembles through materialization and render projections', async () => {
     const initial = prepared();
     const quote = initial.input.pages.find((p) => p.pageNumber === 9)!.text;
     const citation = { pageNumber: 9, source: 'story', quote };
@@ -67,9 +70,33 @@ describe('accepted supporting cast preparation and real compiler boundary', () =
       identityEvidence: [citation], presence: [{ pageNumber: 9, evidence: [citation] }],
       appearanceClass: 'reviewed_human_ensemble', membership: 'same_ensemble_when_recurring', cardinality: 'multiple_unspecified',
     }] });
-    const caller = vi.fn();
-    await expect(compileBookVisualContractTemplate(value.input, { callLLM: caller, supportingCastReview: { ...request(), review: value.review } })).rejects.toThrow('classification_not_yet_supported');
-    expect(caller).not.toHaveBeenCalled();
+    const draft = draftFor(value.input);
+    (draft as Record<string, unknown>).humanGroups = [{ id: 'human-group:forged', memberCount: 3, gender: 'male' }];
+    const caller = vi.fn(async () => JSON.stringify(draft));
+    const result = await compileBookVisualContractTemplate(value.input, { callLLM: caller, supportingCastReview: { ...request(), review: value.review } });
+    expect(caller).toHaveBeenCalledTimes(1);
+    expect(result.template.schemaVersion).toBe('vc-schema/v5');
+    expect(result.template.humanCast).toEqual([]);
+    expect(result.template.humanGroups).toMatchObject([{ id: 'human-group:band', cardinality: 'multiple_unspecified', pagesPresent: [9] }]);
+    expect(result.template.humanGroups![0]).not.toHaveProperty('memberCount');
+    expect(validateBookVisualContractTemplate(result.template)).toMatchObject({ ok: true });
+    const resolved = materialize(result.template, { skinTone: 'warm tan', hairColour: 'brown', hairTexture: 'wavy' });
+    expect(validateResolvedBookVisualContract(resolved)).toMatchObject({ ok: true });
+    expect(resolved.humanGroups).toEqual(result.template.humanGroups);
+    expect(resolved.humanGroups).not.toBe(result.template.humanGroups);
+    expect(materialize(result.template, { skinTone: 'pale', hairColour: 'red', hairTexture: 'curly' }).humanGroups).toEqual(resolved.humanGroups);
+    const page = derivePageVisualContracts(resolved).find(p => p.pageNumber === 9)!;
+    expect(buildVisualContractPromptBlock(page, resolved)).toContain('multiple distinct human members, not one person');
+    expect(projectPvbVisualContractFacts(page, resolved).cast).toContainEqual(expect.objectContaining({ id: 'human-group:band', role: 'human_group' }));
+    expect(contractToCastRegistry(resolved)).toContainEqual(expect.objectContaining({ kind: 'human_group', id: 'human-group:band', wardrobe: '' }));
+    expect(contractToHumanCastDetectionEntries(resolved)['human-group:band'].description).toContain('do not inherit');
+    expect(contractPageSupportingCharacters(resolved, 9)[0].description).toContain('exact headcount and gender unspecified');
+    expect(contractPageSupportingCharacters(resolved, 8)).toEqual([]);
+    const changed = structuredClone(result.template);
+    changed.humanGroups![0].role = 'changed ensemble';
+    expect(runtimeWorldProjectionDigest(changed)).not.toBe(runtimeWorldProjectionDigest(result.template));
+    expect(() => assertCastIsFactAuthoritative(changed, result.facts, value.input)).toThrow('humanGroups differ');
+    expect(() => buildVisualContractCandidateArtifact({ compileResult: result } as unknown as Parameters<typeof buildVisualContractCandidateArtifact>[0])).toThrow('preview_is_not_paid_candidate_authority');
   });
   it('rejects source-input substitution before the caller', async () => {
     const value = prepared();
@@ -105,6 +132,7 @@ describe('accepted supporting cast preparation and real compiler boundary', () =
   it('projects a source-backed arbitrary individual through compiler, materializer, validators and prompt', async () => {
     const value = prepared();
     const draft = draftFor(value.input);
+    (draft as Record<string, unknown>).humanGroups = [{ id: 'human-group:forged', memberCount: 3 }];
     const caller = vi.fn(async () => {
       // A caller cannot mutate the source after its review binding was verified.
       value.input.pages[0].text = 'Mutated outside the compile invocation';
@@ -113,6 +141,8 @@ describe('accepted supporting cast preparation and real compiler boundary', () =
     const result = await compileBookVisualContractTemplate(value.input, { callLLM: caller, supportingCastReview: { ...request(), review: value.review } });
     expect(caller).toHaveBeenCalledTimes(1);
     expect(result.supportingCastReviewDigest).toBe(value.review.digest);
+    expect(result.template.schemaVersion).toBe('vc-schema/v4');
+    expect(result.template).not.toHaveProperty('humanGroups');
     expect(result.provenance.policyVersion).toBe('reviewed-cast-appearance/v1');
     const human = result.template.humanCast.find((h) => h.id === 'human:baker')!;
     expect(human).toMatchObject({ role: 'baker', gender: 'female', pagesPresent: [1, 12] });

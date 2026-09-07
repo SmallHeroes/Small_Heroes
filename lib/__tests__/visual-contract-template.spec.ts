@@ -312,6 +312,50 @@ const templateTotalityCases: Array<{
   },
 ];
 
+describe('bounded human ensemble schema', () => {
+  function grouped(make: () => Obj): Obj {
+    const value = make();
+    value.schemaVersion = 'vc-schema/v5';
+    value.humanGroups = [{ kind: 'human_group', id: 'human-group:visitors', role: 'visitors', aliases: ['visitors'],
+      textEvidence: 'The visitors return.', pagesPresent: [1, 2], cardinality: 'multiple_unspecified',
+      membership: 'same_ensemble_when_recurring', appearancePolicy: 'reviewed-human-ensemble/v1' }];
+    for (const page of value.pageContracts as Obj[]) (page.castIds as string[]).push('human-group:visitors');
+    return value;
+  }
+  for (const [name, make, validate] of [
+    ['template', templateFixture, validateBookVisualContractTemplate],
+    ['resolved', resolvedFixture, validateResolvedBookVisualContract],
+  ] as const) {
+    it(`${name} accepts recurring ensembles but retains legacy v4 unchanged`, () => {
+      expect(validate(grouped(make))).toMatchObject({ ok: true });
+      const legacy = make();
+      expect(validate(legacy)).toMatchObject({ ok: true });
+      expect(legacy).not.toHaveProperty('humanGroups');
+    });
+    it.each([
+      ['null groups', (v: Obj) => { v.humanGroups = null; }],
+      ['malformed member', (v: Obj) => { v.humanGroups = [null]; }],
+      ['empty groups', (v: Obj) => { v.humanGroups = []; }],
+      ['schema downgrade', (v: Obj) => { v.schemaVersion = 'vc-schema/v4'; }],
+      ['missing v5 groups', (v: Obj) => { delete v.humanGroups; }],
+      ['fabricated count', (v: Obj) => { (v.humanGroups as Obj[])[0].memberCount = 3; }],
+      ['fabricated gender', (v: Obj) => { (v.humanGroups as Obj[])[0].gender = 'male'; }],
+      ['family leak', (v: Obj) => { (v.humanGroups as Obj[])[0].appearancePolicy = 'family_profile'; }],
+      ['one-person identity', (v: Obj) => { (v.humanGroups as Obj[])[0].id = 'human:visitors'; }],
+      ['duplicate identity', (v: Obj) => { (v.humanGroups as Obj[]).push((v.humanGroups as Obj[])[0]); }],
+      ['alias collision', (v: Obj) => { (v.humanGroups as Obj[])[0].aliases = ['אמא']; }],
+      ['wrong presence', (v: Obj) => { (v.humanGroups as Obj[])[0].pagesPresent = [1]; }],
+      ['unknown page', (v: Obj) => { (v.humanGroups as Obj[])[0].pagesPresent = [1, 2, 80]; }],
+      ['duplicate presence', (v: Obj) => { (v.humanGroups as Obj[])[0].pagesPresent = [1, 1, 2]; }],
+      ['missing page cast', (v: Obj) => { (v.pageContracts as Obj[])[0].castIds = ['child:hero', 'human:mother']; }],
+      ['group encoded as individual', (v: Obj) => { (v.humanCast as Obj[])[0].id = 'human-group:individual'; }],
+    ] as const)(`${name} rejects %s without throwing`, (_reason, mutate) => {
+      const value = grouped(make); mutate(value);
+      expect(validate(value)).toMatchObject({ ok: false });
+    });
+  }
+});
+
 describe('P0 — Template validator', () => {
   it('accepts a well-formed template', () => {
     const r = validateBookVisualContractTemplate(templateFixture());

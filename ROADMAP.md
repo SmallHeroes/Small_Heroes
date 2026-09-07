@@ -1,6 +1,6 @@
 # SmallHeroes — Roadmap
 
-**Last verified:** 2026-09-07 (residual correction implemented; one delivered full check GREEN; independent QA pending)
+**Last verified:** 2026-09-07 (residual QA PASS received; M1b group foundation full check GREEN, independent QA pending)
 **Product priority owner:** Guy
 **Technical sequencing owner:** Codex
 
@@ -31,6 +31,24 @@ Blueprint and any required LOW Board/prop generation remain separately budgeted
 provider actions with exact owner gates.
 
 ## Active
+
+Continue the approved semantic recovery without another owner approval for
+already-scoped work. The M1b **group sub-slice** is implemented from `fe07a65e`:
+source-reviewed ensembles, explicit group-bearing schema v5, and compiler-to-
+runtime projections without invented headcount/gender/family identity. Delivered
+full check: 5594 passed, 73 existing skips, zero failed; both typechecks passed.
+Next checkpoint: independent read-only QA from base `fe07a65e`; exact head is in
+the task handoff. No independent PASS is yet awarded for this slice. Evidence:
+`docs/ai-workflow/R3B1B_M1B_GROUP_MOTION_EXECUTION.md`.
+
+Claude's supplied PASS P0=0/P1=0/P2=0 for `d3e6bf7f..fe07a65e` closes residual
+correction QA. It does not cover `d3e6bf7f` itself or this new implementation.
+Next code slice remains `runs` plus versioned historical/current catalog replay;
+then M2 atomic recovery after the required independent M1 gate. The current
+catalog stays v3 and P1 stays HELD 0/3/3. No new paid candidate, render, package
+approval or product acceptance; spend $0, no push or cleanup. Payment stays last.
+
+### Historical residual correction handoff (before Claude PASS)
 
 Guy approved the two-part residual correction (`יש אישור`). Codex implemented
 private historical v21/16 policy isolation and portable byte-exact regression

@@ -1,6 +1,55 @@
 # SmallHeroes — Current Technical State
 
-## Residual full-check correction — FULL CHECK GREEN; independent QA pending
+## M1b group foundation — FULL CHECK GREEN; independent QA pending
+
+Guy instructed continued implementation without repeated approval pauses on
+2026-09-07. Codex remains sole writer in `C:/GNart/Work/sh-r3b1b-semantic-m1`,
+branch `codex/r3b1b-semantic-recovery-m1`, starting from `fe07a65e`.
+The approved general semantic-recovery Decision Gate controls this continuation.
+
+Source-reviewed human ensembles now have a separate closed `humanGroups` shape,
+explicit unspecified multiplicity and recurring membership, and non-family
+appearance-continuity policy. Group-bearing template/resolved contracts use
+`vc-schema/v5`; no-group v4 artifacts retain their existing shape. Compiler,
+validators, materializer, repair reference inventories, adapters, review/prose,
+Blueprint wire and runtime authority/projections carry group identities. The
+legacy compiler cannot introduce unreviewed groups. Counts, gender, individual
+rosters and family traits are not synthesized. This is a structural foundation,
+not proof of generated-image continuity or product acceptance.
+
+Delivered validation: 332 focused tests plus 36 census/legacy follow-up tests
+passed (overlapping sets, not an additive unique count). Both typechecks and the
+final complete `npm run check` passed: **5594 passed, 73 existing skips, zero
+failed**, unchanged 386/364/22 file inventory and 4/2 workers. Earlier failed
+attempts, including one resource timeout, remain documented and are not relabeled
+green or inherited. Exact zero-provider held replay still reproduces the original
+candidate. Original P1 remains 14 files / 412516 bytes,
+inventory `cd621f7712912a92d14fa87432c609c5e92a006363e7eed7be5231a856e8fdd0`.
+Final validation and evidence: `docs/ai-workflow/R3B1B_M1B_GROUP_MOTION_EXECUTION.md`
+and `outputs/qa-m1b-groups-20260907/`.
+
+This delivery is the **group sub-slice, not completed M1b**. Current action catalog
+remains v3; `runs` and its historical/current compiler cutover remain next, followed
+by M2 atomic semantic recovery under the approved gate. P1 is still semantically
+HELD P0=0/P1=3/P2=3. No paid candidate was repaired, promoted or overwritten.
+No credential/provider/render/payment/deployment/cleanup/push; external spend $0.
+No independent PASS is claimed for this new range.
+Next checkpoint is Claude's read-only review of the group-foundation delivery
+from `fe07a65e`; exact immutable head and commands are in the task handoff
+`outputs/qa-m1b-groups-20260907/HANDOFF.md`. This task has completed the local
+checkpoint, not started a background render or an independent review.
+
+### Independent residual QA received before this continuation
+
+Claude's supplied read-only PASS P0=0/P1=0/P2=0 covers exactly
+`d3e6bf7f..fe07a65e`. Topology, original fixture/P1 preservation and delivered
+full-check log identity reconciled. Claude reproduced 77 affected/Wizard tests,
+three policy-isolation controls and the expected corruption failure; it verified
+the full log by hash, not a fresh full run. Diagnostic commit `d3e6bf7f` is outside
+that review range. This closes the pending residual QA below, without extending
+PASS to this continuation or granting render/product authority.
+
+## Historical residual full-check delivery — QA was pending at handoff
 
 Guy explicitly approved both parts of
 `docs/ai-workflow/R3B1B_RESIDUAL_CHECK_DIAGNOSIS_AND_GATE.md` together on

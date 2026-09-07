@@ -11,6 +11,7 @@
  * This is what P1's render guard will call before spend.
  */
 import { validateVNextVisualContract } from './validateVNextVisualContract';
+import { humanGroupSchemaIsSupported } from './humanGroupCast';
 import { bindingCoherenceError } from './appearanceBindingCoherence';
 import { DEFERRAL_MARKERS, validateEvidenceOrigin } from './validateTemplateContract';
 import {
@@ -103,8 +104,10 @@ export function validateResolvedBookVisualContract(input: unknown): ResolvedVali
   }
 
   // (Fix 3a) Supported versions — the frozen hash is only meaningful under the versions this build materializes/renders.
-  if (input.schemaVersion !== VISUAL_CONTRACT_SCHEMA_VERSION) {
-    errors.push(`schemaVersion must equal the supported "${VISUAL_CONTRACT_SCHEMA_VERSION}" (got ${JSON.stringify(input.schemaVersion)})`);
+  if (!humanGroupSchemaIsSupported(input)) {
+    errors.push(input.humanGroups === undefined && input.schemaVersion !== 'vc-schema/v5'
+      ? `schemaVersion must equal the supported "${VISUAL_CONTRACT_SCHEMA_VERSION}" (got ${JSON.stringify(input.schemaVersion)})`
+      : `schemaVersion must use "vc-schema/v5" with non-empty humanGroups; v4 forbids groups (got ${JSON.stringify(input.schemaVersion)})`);
   }
   if (input.materializerVersion !== MATERIALIZER_VERSION) {
     errors.push(`materializerVersion must equal the supported "${MATERIALIZER_VERSION}" (got ${JSON.stringify(input.materializerVersion)})`);

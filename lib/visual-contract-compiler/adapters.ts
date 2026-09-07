@@ -10,6 +10,7 @@
  * General, never book-specific. A page/zone the contract does not describe projects to a NEUTRAL, empty value
  * (never a fabricated default) — matching the contract layer's "unknown → neutral, never nature-default" rule.
  */
+import { projectHumanGroup } from './humanGroupCast';
 import type {
   BookVisualContract,
   PageVisualContract,
@@ -285,7 +286,7 @@ export function contractPageEnvironmentClass(
 // 2. contract → Character Registry (recurring human cast, stable ids)
 // ─────────────────────────────────────────────────────────────────────────────
 
-export type ContractCastKind = 'child' | 'companion' | 'human';
+export type ContractCastKind = 'child' | 'companion' | 'human' | 'human_group';
 
 /** A stable-id cast entry projected from the contract — the input WS0b(e) turns into supportingCharacters. */
 export interface ContractCastRegistryEntry {
@@ -356,6 +357,18 @@ export function contractToCastRegistry(contract: BookVisualContract): ContractCa
       pagesPresent: [...human.pagesPresent],
     });
   }
+  for (const group of contract.humanGroups ?? []) {
+    entries.push({
+      id: group.id,
+      kind: 'human_group',
+      role: group.role,
+      description: projectHumanGroup(group),
+      wardrobe: '',
+      forbiddenAppearance: [],
+      aliases: [...group.aliases],
+      pagesPresent: [...group.pagesPresent],
+    });
+  }
   return entries;
 }
 
@@ -378,7 +391,7 @@ export function contractToHumanCastDetectionEntries(
 ): Record<string, HumanCastDetectionEntry> {
   const out: Record<string, HumanCastDetectionEntry> = {};
   for (const e of contractToCastRegistry(contract)) {
-    if (e.kind !== 'human') continue;
+    if (e.kind !== 'human' && e.kind !== 'human_group') continue;
     out[e.id] = {
       name: e.name ?? e.role,
       description: e.description,
@@ -418,7 +431,7 @@ export function contractPageSupportingCharacters(
   pageNumber: number,
 ): ContractSupportingCharacter[] {
   return contractToCastRegistry(contract)
-    .filter((e) => e.kind === 'human' && e.pagesPresent.includes(pageNumber))
+    .filter((e) => (e.kind === 'human' || e.kind === 'human_group') && e.pagesPresent.includes(pageNumber))
     .map((e) => ({
       name: e.name ?? e.role,
       relationship: e.role,

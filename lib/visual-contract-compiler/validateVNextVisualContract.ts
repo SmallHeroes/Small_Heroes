@@ -160,7 +160,7 @@ function collectCastIds(contract: BookVisualContract): Set<string> {
   const ids = new Set<string>();
   if (isStr(contract.cast?.child?.id)) ids.add(contract.cast.child.id);
   if (isStr(contract.cast?.companion?.id)) ids.add(contract.cast.companion!.id);
-  for (const member of contract.humanCast ?? []) {
+  for (const member of [...(contract.humanCast ?? []), ...(contract.humanGroups ?? [])]) {
     if (isStr(member?.id)) ids.add(member.id);
   }
   return ids;

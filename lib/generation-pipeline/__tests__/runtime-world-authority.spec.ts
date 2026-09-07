@@ -347,6 +347,32 @@ function qaResult(pass: boolean) {
 }
 
 describe('R1D-PVB-C shared runtime Blueprint authority', () => {
+  it('carries group authority into actual bound runtime frames without individual family appearance', () => {
+    const value = authority('no_companion', {
+      mutateTemplate(template) {
+        template.schemaVersion = 'vc-schema/v5';
+        template.humanGroups = [{ kind: 'human_group', id: 'human-group:visitors', role: 'visitors', aliases: ['visitors'],
+          textEvidence: 'The visitors return.', pagesPresent: template.pageContracts.map(p => p.pageNumber),
+          cardinality: 'multiple_unspecified', membership: 'same_ensemble_when_recurring', appearancePolicy: 'reviewed-human-ensemble/v1' }];
+        template.coverContract.castIds!.push('human-group:visitors');
+        for (const page of template.pageContracts) page.castIds!.push('human-group:visitors');
+      },
+      mutateWorld({ frames }) {
+        for (const frame of frames) {
+          frame.castIds = [...frame.castIds, 'human-group:visitors'];
+          frame.placements.push({ ...structuredClone(frame.placements[0]), id: 'placement-visitors', subject: { kind: 'cast', castId: 'human-group:visitors' } });
+        }
+      },
+    });
+    for (const frame of value.bookProjection.frames) {
+      expect(frame.castIds).toContain('human-group:visitors');
+      expect(frame.resolvedAppearance.humanGroups).toMatchObject([{ cardinality: 'multiple_unspecified' }]);
+      expect(frame.supportingCharacters).toContainEqual(expect.objectContaining({ name: 'visitors', description: expect.stringContaining('not one person') }));
+      expect(frame.expectedCharacterNames).toContain('visitors');
+      expect(frame.blueprintPromptBlock).toContain('same_ensemble_when_recurring');
+      expect(frame.contractPromptBlock).toContain('human_group');
+    }
+  });
   beforeEach(() => {
     vi.stubEnv('VERCEL_ENV', 'preview');
     vi.stubEnv('VISUAL_CONTRACT_ENFORCEMENT', 'true');

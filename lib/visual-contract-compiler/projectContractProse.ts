@@ -49,6 +49,7 @@ export type ContractProseAuthority = Pick<
   | 'zones'
 > & {
   humanCast?: Array<{ id: string; role: string }>;
+  humanGroups?: Array<{ id: string; role: string }>;
 };
 
 /* ── Closed-enum prose tables ────────────────────────────────────────────────────────────────────
@@ -146,6 +147,8 @@ function castLabel(castId: string, contract: ContractProseAuthority): string {
     contract.humanCast,
   ).find((h) => h.id === castId);
   if (human) return `the ${human.role}`;
+  const group = safeObjectElements<{ id: string; role: string }>(contract.humanGroups).find(g => g.id === castId);
+  if (group) return `the ${group.role} ensemble (multiple humans)`;
   return castId;
 }
 

@@ -509,6 +509,24 @@ describe('R1D-PVB-B — whole-book Blueprint authoring compiler', () => {
       v: 'pre-render-blueprint-provider-wire/v1',
     });
   });
+  it('serializes a reviewed ensemble distinctly from an individual in the Blueprint wire', () => {
+    const fixture = buildBlueprintFixture('no_companion', { mutateTemplate(template) {
+      template.schemaVersion = 'vc-schema/v5';
+      template.humanGroups = [{ kind: 'human_group', id: 'human-group:visitors', role: 'visitors', aliases: ['visitors'],
+        textEvidence: 'The visitors return.', pagesPresent: template.pageContracts.map(p => p.pageNumber),
+        cardinality: 'multiple_unspecified', membership: 'same_ensemble_when_recurring', appearancePolicy: 'reviewed-human-ensemble/v1' }];
+      for (const page of template.pageContracts) page.castIds!.push('human-group:visitors');
+    }, mutateWorld({ frames }) {
+      for (const frame of frames.filter(frame => frame.kind !== 'cover')) {
+        frame.castIds = [...frame.castIds, 'human-group:visitors'];
+        frame.placements.push({ ...structuredClone(frame.placements[0]), id: 'placement-visitors', subject: { kind: 'cast', castId: 'human-group:visitors' } });
+      }
+    } });
+    const wire = serializePreRenderBlueprintProviderWire(fixture.context);
+    expect(wire).toContain('human_group');
+    expect(wire).toContain('multiple distinct human members, not one person');
+    expect(validatePreRenderBookVisualBlueprint(fixture.blueprint, fixture.context)).toMatchObject({ ok: true });
+  });
 
   it('carries approved typed presentation evidence into the Blueprint authoring gate', () => {
     const fixture = buildBlueprintFixture('single_location');
