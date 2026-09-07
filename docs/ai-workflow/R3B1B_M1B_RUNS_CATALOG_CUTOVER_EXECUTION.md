@@ -158,8 +158,8 @@ The checkpoint has focused code coverage and a passing ordinary phase, but is
 intentionally not reported as a fully green milestone. Independent review is
 requested on an immutable local commit with this repository-gate limitation
 explicit. Original candidate remains HELD and M2/downstream qualification is
-not claimed. Local Claude Code is authenticated using the existing subscription;
-Codex will attempt read-only QA after committing, without story-provider access,
+not claimed. Cached Claude Code status reported an existing subscription login;
+at that checkpoint Codex planned read-only QA after committing, without story-provider access,
 secret reads, code edits, push or render permission for the reviewer. The QA
 outcome is not inferred from authentication or from this planned dispatch.
 
@@ -171,6 +171,21 @@ historicalReaderIdentical true and currentFactoryRejectedHistoricalReceipt true.
 This binds a **failed** complete run, not a green one. Final logs live under
 `outputs/qa-m1b-runs-20260908/`; exact immutable range and commands follow in its
 ignored `HANDOFF.md`, after the focused local commit. No push is part of this task.
+
+## Independent QA dispatch result — authentication blocked
+
+Code checkpoint `ff51b3e763f81737c7e45536ff5425253b0b7971`: clean after commit,
+cached ahead 6 / behind 0, 29 files +679/-108, no push. Claude Code was invoked
+with only Read/Glob/Grep/Bash tools, a read-only command allowlist, no session
+persistence, and the exact immutable review brief. Application credentials and
+story providers were excluded. Server authentication failed with HTTP 401 before
+any review/model tokens; final result is_error true, input/output tokens 0,
+total_cost_usd 0. It requested /login. Local cached loggedIn status was not a
+successful server-authentication proof. No QA verdict or independent PASS exists
+for this range, and no reviewer process remains active. This documentation
+follow-up records the blocker without altering the implementation, full-gate
+result, original P1 artifacts, or any downstream authority. Guy must reauthenticate
+Claude Code; Codex has not read, copied or replaced its credentials.
 
 Rollback: focused local commit can be reverted; no persisted production migration
 or authority promotion. Original candidate remains HELD P0=0/P1=3/P2=3.

@@ -1,6 +1,15 @@
 # SmallHeroes — Current Technical State
 
-## M1b running/catalog cutover — CODE CHECKPOINT; FULL CHECK NON-GREEN; QA pending
+## M1b running/catalog cutover — CODE CHECKPOINT; FULL CHECK NON-GREEN; QA auth blocked
+
+Implementation checkpoint committed locally as `ff51b3e7`. The first independent
+Claude Code dispatch failed before model work: HTTP 401 authentication_failed,
+"Not logged in / Please run /login". Cached `claude auth status` had reported
+loggedIn true, but that did not establish server authentication. No review/PASS,
+no model tokens or charge, no code changes from Claude. Guy must reauthenticate
+the local Claude Code session; Codex does not read or repair secret tokens.
+Evidence: `outputs/qa-m1b-runs-20260908/claude-review.jsonl` and `HANDOFF.md`.
+No background render or reviewer remains running. No render was performed.
 
 2026-09-08: Guy approved continued work through a bounded render. Sole writer
 remains this task in `C:/GNart/Work/sh-r3b1b-semantic-m1`, branch
@@ -34,7 +43,7 @@ selected test then passed alone; the prior full attempt failed instead on a
 cause or inherited classification is proven, no timing fix or full PASS claimed.
 All logs are preserved; no deadline/worker/runner was weakened. Inventory is
 387/365/22 with workers 4/2. This is an explicit review checkpoint, not completed
-M1b or a render-ready handoff. Independent QA will address the implementation
+M1b or a render-ready handoff. After reauthentication, independent QA will address the implementation
 and these disclosed repository-gate limits. Evidence/consumer inventory:
 `docs/ai-workflow/R3B1B_M1B_RUNS_CATALOG_CUTOVER_EXECUTION.md`.
 
