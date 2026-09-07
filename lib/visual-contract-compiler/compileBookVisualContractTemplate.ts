@@ -114,7 +114,10 @@ import {
 import {
   ACTION_SEMANTIC_CATALOG,
   ACTION_SEMANTIC_CATALOG_VERSION,
+  actionSemanticCatalogForVersion,
+  type ActionSemanticCatalogVersion,
 } from './actionSemanticCatalog';
+import { actionSchemasForCatalog } from './actionSemanticCatalogWirePolicy';
 import {
   ACTION_SEMANTIC_COVERAGE_VERSION,
   ActionSemanticCapabilityGapError,
@@ -1575,10 +1578,10 @@ export const COMPLETE_STORY_SOURCE_PROMPT_COLUMNS = [
  * Catalog. The first JSON tuple is the sole column declaration; every
  * following tuple preserves catalog order and contains every prompt field.
  */
-export function actionSemanticCatalogPromptTable(): string[] {
+export function actionSemanticCatalogPromptTable(version: ActionSemanticCatalogVersion = ACTION_SEMANTIC_CATALOG_VERSION): string[] {
   return [
     JSON.stringify(ACTION_SEMANTIC_CATALOG_PROMPT_COLUMNS),
-    ...ACTION_SEMANTIC_CATALOG.map((definition) =>
+    ...actionSemanticCatalogForVersion(version).map((definition) =>
       JSON.stringify([
         definition.predicate,
         definition.subjectKinds,
@@ -1636,7 +1639,7 @@ export function completeStorySourcePromptTable(
   ];
 }
 
-export function buildTemplateCompileSystemPrompt(): string {
+export function buildTemplateCompileSystemPrompt(catalogVersion: ActionSemanticCatalogVersion = ACTION_SEMANTIC_CATALOG_VERSION): string {
   return [
     "You are a visual-continuity compiler for a children's picture book, producing a DRAFT for human review.",
     'You are given DETERMINISTIC FACTS extracted from the story (recurring humans, gender, pages present,',
@@ -1654,8 +1657,8 @@ export function buildTemplateCompileSystemPrompt(): string {
     '  cast.child + cast.companion wardrobe,',
     '  recurringProps[] (material/scale/persistence/firstRevealPage), forbiddenGlobalElements[], coverContract, and per-page',
     '  mustShow/mustNotShow/propState/propConstraints/actionRequirements/camera/transition/zoneId/locationId.',
-    `- Action Semantic Catalog authority is ${ACTION_SEMANTIC_CATALOG_VERSION}. Use this JSON tuple table:`,
-    ...actionSemanticCatalogPromptTable(),
+    `- Action Semantic Catalog authority is ${catalogVersion}. Use this JSON tuple table:`,
+    ...actionSemanticCatalogPromptTable(catalogVersion),
     '- actionRequirements: closed typed subject/predicate/object/spatialEffect; cast_group=2+ unique same-page castIds;',
     '  spatialConstraint=static; no movement/relation prose; source_phenomenon=exact same-page sourceEvidenceId;',
     '  no invented/fuzzy identity.',
@@ -1789,9 +1792,9 @@ export function buildTemplateCompileUserPrompt(input: TemplateCompileInput, fact
 
 // ── Repair prompt (Stage 3 — bounded semantic repair of the DESCRIPTIVE draft) ─
 
-export function buildTemplateRepairSystemPrompt(): string {
+export function buildTemplateRepairSystemPrompt(catalogVersion: ActionSemanticCatalogVersion = ACTION_SEMANTIC_CATALOG_VERSION): string {
   return [
-    buildTemplateCompileSystemPrompt(),
+    buildTemplateCompileSystemPrompt(catalogVersion),
     '',
     'FULL-DRAFT REPAIR MODE: author a new complete draft solely from the complete Story Source below; the rejected draft is absent.',
     `${TEMPLATE_REPAIR_ISSUES_MARKER} is [1,storyKey,pageCount,codes,fields,collections,issues]; issue=[family#,code#,kind#,field#,...indexes], with collection# first when applicable.`,
@@ -5030,6 +5033,14 @@ function assembleTemplateFromDraft(
  * are re-derived, so LLM edits to them are ignored). Fail-closed: returns NOTHING unless an attempt fully passes;
  * on exhaustion it throws TemplateRepairExhaustedError carrying the whole attempt trail (write nothing).
  */
+const CURRENT_COMPILER_ACTION_SCHEMAS = {
+  TEMPLATE_DRAFT_JSON_SCHEMA, SOURCE_EVIDENCE_ID_REPAIR_JSON_SCHEMA,
+  PAGE_CONTRACT_REPAIR_JSON_SCHEMA, STRUCTURAL_BUNDLE_REPAIR_JSON_SCHEMA,
+  BOOK_SURFACE_REPAIR_JSON_SCHEMA, PRESENTATION_REQUIREMENT_REPAIR_JSON_SCHEMA,
+  STABLE_PROP_SCOPE_REPAIR_JSON_SCHEMA, REPRESENTED_ELSEWHERE_REPAIR_JSON_SCHEMA,
+  PAGE_SPATIAL_REFERENCE_REPAIR_JSON_SCHEMA,
+};
+
 export async function compileBookVisualContractTemplate(
   input: TemplateCompileInput,
   deps: {
@@ -5039,10 +5050,21 @@ export async function compileBookVisualContractTemplate(
      * provider-free historical replay lane.
      */
     routingPolicyVersion?: VisualContractAuthoringRoutingPolicyVersion;
+    /** Historical wire vocabulary; only the offline replay harness selects v3. */
+    actionSemanticCatalogVersion?: ActionSemanticCatalogVersion;
     /** M1a offline compiler preview only. Current paid lifecycle does not bind this input. */
     supportingCastReview?: { repoRoot: string; storyPath: string; review: SupportingCastReview };
   },
 ): Promise<TemplateCompileResult> {
+  const catalogVersion = deps.actionSemanticCatalogVersion ?? ACTION_SEMANTIC_CATALOG_VERSION;
+  const permittedPredicates = new Set<string>(actionSemanticCatalogForVersion(catalogVersion).map((entry) => entry.predicate));
+  const {
+    TEMPLATE_DRAFT_JSON_SCHEMA, SOURCE_EVIDENCE_ID_REPAIR_JSON_SCHEMA,
+    PAGE_CONTRACT_REPAIR_JSON_SCHEMA, STRUCTURAL_BUNDLE_REPAIR_JSON_SCHEMA,
+    BOOK_SURFACE_REPAIR_JSON_SCHEMA, PRESENTATION_REQUIREMENT_REPAIR_JSON_SCHEMA,
+    STABLE_PROP_SCOPE_REPAIR_JSON_SCHEMA, REPRESENTED_ELSEWHERE_REPAIR_JSON_SCHEMA,
+    PAGE_SPATIAL_REFERENCE_REPAIR_JSON_SCHEMA,
+  } = actionSchemasForCatalog(CURRENT_COMPILER_ACTION_SCHEMAS, catalogVersion);
   // Isolate the verified source across asynchronous injected caller boundaries.
   if (deps.supportingCastReview !== undefined) input = structuredClone(input);
   const routingPolicyVersion =
@@ -5229,7 +5251,7 @@ export async function compileBookVisualContractTemplate(
   let draft = asObj(
     parseContractJson(
       await deps.callLLM(
-        buildTemplateCompileSystemPrompt(),
+        buildTemplateCompileSystemPrompt(catalogVersion),
         buildTemplateCompileUserPrompt(input, facts),
         llmOpts,
         {
@@ -5250,6 +5272,18 @@ export async function compileBookVisualContractTemplate(
   let pageContractIncompleteFailureSeen = false;
   let pageContractCorrectionGranted = false;
   for (let attempt = 1; ; attempt++) {
+    // An injected/captured response cannot smuggle current-only actions through
+    // the historical schema. Do not normalize running into walking.
+    if (Array.isArray(draft.pageContracts)) {
+      for (const page of draft.pageContracts) {
+        const actions = asObj(page).actionRequirements;
+        if (Array.isArray(actions) && actions.some((action) => {
+          const predicate = asObj(action).predicate;
+          return typeof predicate === 'string' && !permittedPredicates.has(predicate) &&
+            ACTION_SEMANTIC_CATALOG.some((entry) => entry.predicate === predicate);
+        })) throw new Error('historical_catalog_predicate_forbidden');
+      }
+    }
     // Ensemble authority is compiler-owned, never accepted from the model draft.
     if (facts.humanGroups?.length) {
       draft = { ...draft, humanGroups: structuredClone(facts.humanGroups) };
@@ -6371,7 +6405,7 @@ export async function compileBookVisualContractTemplate(
         draft = asObj(
           parseContractJson(
             await deps.callLLM(
-              buildTemplateRepairSystemPrompt(),
+              buildTemplateRepairSystemPrompt(catalogVersion),
               buildTemplateRepairUserPrompt(
                 input,
                 facts,

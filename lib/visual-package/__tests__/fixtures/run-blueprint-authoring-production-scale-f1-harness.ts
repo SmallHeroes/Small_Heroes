@@ -53,10 +53,10 @@ const EXPECTED_DIAGNOSTIC_COUNT = 86;
 const EXPECTED_REPAIR_ACCOUNTING = {
   systemBytes: 3_165,
   userBytes: 50_575,
-  schemaBytes: 13_505,
+  schemaBytes: 13_505 + 7, // schema v9 adds runs; v8/v3 fixtures remain frozen
   separatorBytes: 2,
   protocolAllowance: 4_096,
-  estimatedBytes: 71_343,
+  estimatedBytes: 71_343 + 7,
 } as const;
 
 type ProviderCallArgs = Parameters<ProductionAuthoringProvider['call']>[0];

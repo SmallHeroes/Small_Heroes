@@ -67,7 +67,7 @@ describe('production-scale Blueprint F1 offline harness', () => {
       pageCount: 8,
       firstDraftDiagnostics: 86,
       diagnosticTrajectory: [86, 7, 6],
-      repairEstimatedBytes: 71_343,
+      repairEstimatedBytes: 71_343 + 7,
       exactRepairInputTokens: [50_000, null],
       countCalls: 1,
       generationCalls: 3,

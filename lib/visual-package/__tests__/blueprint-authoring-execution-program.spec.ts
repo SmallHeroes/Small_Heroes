@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_KEYS,
   BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_VERSION,
+  LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_CATALOG_V3,
   LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_CAMERA_AUTHORITY,
   LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_DIGEST_CAMERA_AUTHORITY,
   LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_DIGEST_PROMPT_V6,
@@ -288,15 +289,20 @@ describe('Blueprint authoring execution program identity', () => {
       'pre-render-blueprint-repair-wire/v4',
     );
     expect(program.draftSchemaVersion).toBe(
-      'pre-render-blueprint-draft-schema/v8',
+      'pre-render-blueprint-draft-schema/v9',
     );
-    expect(program.digest).toBe(
+    expect(LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_CATALOG_V3.digest).toBe(
       '0944bdb56a83368e6c22feb886f0cfeed3b9a195ad01918e5ffd7d61de275f4b',
     );
-    expect(canonicalJsonDigest(program)).toBe(
+    expect(canonicalJsonDigest(LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_CATALOG_V3)).toBe(
       '9b6684a83f4c482633bfd52da591d61f1887448f39204eb34f5f67645f385aec',
     );
     expect(blueprintAuthoringExecutionProgramIsCurrent(program)).toBe(true);
+    const { digest: _oldDigest, ...oldPayload } = LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_CATALOG_V3;
+    const newPayload = { ...oldPayload, draftSchemaVersion: 'pre-render-blueprint-draft-schema/v9', draftSchemaDigest: canonicalJsonDigest(PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA) };
+    expect(program).toEqual({ ...newPayload, digest: canonicalJsonDigest(newPayload) });
+    expect(blueprintAuthoringExecutionProgramStatus(LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_CATALOG_V3)).toBe('legacy_immutable');
+    expect(blueprintAuthoringExecutionProgramIsCurrent(LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_CATALOG_V3)).toBe(false);
   });
 
   it('admits only complete immutable historical programs for replay', () => {
@@ -452,7 +458,7 @@ describe('Blueprint authoring execution program identity', () => {
         typeof qaWizardBlueprintAuthoringProvenanceVersionsForRequest
       >[0]),
     ).toEqual({
-      draftSchemaVersion: 'pre-render-blueprint-draft-schema/v8',
+      draftSchemaVersion: 'pre-render-blueprint-draft-schema/v9',
       promptVersion: 'pre-render-blueprint-authoring-prompt/v9',
       repairPromptVersion: 'pre-render-blueprint-repair-prompt/v10',
     });

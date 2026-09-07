@@ -8,7 +8,9 @@
 import {
   ACTION_PREDICATE_VALUES,
   ACTION_SEMANTIC_SUBJECT_KIND_VALUES,
+  LEGACY_ACTION_SEMANTIC_CATALOG_VERSION_V3,
 } from '@/lib/visual-contract-compiler/actionSemanticCatalog';
+import { actionSchemaForCatalog } from '@/lib/visual-contract-compiler/actionSemanticCatalogWirePolicy';
 import {
   ACTION_SPATIAL_DIRECTION_VALUES,
   ACTION_SPATIAL_RELATION_VALUES,
@@ -439,35 +441,42 @@ export const PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA: Record<string, unknown> = o
   frames: { type: 'array', items: frame, minItems: 1 },
 });
 
-/** Exact v7 schema retained for immutable request/receipt/program replay. */
+/** Exact v8/v3 vocabulary retained for immutable request/receipt/program replay. */
+export const LEGACY_PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA_V8 = actionSchemaForCatalog(
+  PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA, LEGACY_ACTION_SEMANTIC_CATALOG_VERSION_V3,
+);
+
+/** Exact v7 schema, including its historical action vocabulary. */
 export const LEGACY_PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA_V7: Record<
   string,
   unknown
-> = obj({
+> = actionSchemaForCatalog(obj({
   worldPlan: obj({
     connections: { type: 'array', items: connection },
     affordances: { type: 'array', items: legacyAffordanceV7 },
     revealSafeSupportingGeometry: { type: 'array', items: supportingGeometry },
   }),
   frames: { type: 'array', items: frame, minItems: 1 },
-});
+}), LEGACY_ACTION_SEMANTIC_CATALOG_VERSION_V3);
 
 export const LEGACY_PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA_V6: Record<
   string,
   unknown
-> = obj({
+> = actionSchemaForCatalog(obj({
   worldPlan: obj({
     connections: { type: 'array', items: connection },
     affordances: { type: 'array', items: legacyAffordanceV6 },
     revealSafeSupportingGeometry: { type: 'array', items: supportingGeometry },
   }),
   frames: { type: 'array', items: frame, minItems: 1 },
-});
+}), LEGACY_ACTION_SEMANTIC_CATALOG_VERSION_V3);
 
 export const PRE_RENDER_BLUEPRINT_DRAFT_SCHEMA_VERSION_V8 =
   'pre-render-blueprint-draft-schema/v8' as const;
+export const LEGACY_PRE_RENDER_BLUEPRINT_DRAFT_SCHEMA_VERSION_V8 = PRE_RENDER_BLUEPRINT_DRAFT_SCHEMA_VERSION_V8;
+export const PRE_RENDER_BLUEPRINT_DRAFT_SCHEMA_VERSION_V9 = 'pre-render-blueprint-draft-schema/v9' as const;
 export const PRE_RENDER_BLUEPRINT_DRAFT_SCHEMA_VERSION =
-  PRE_RENDER_BLUEPRINT_DRAFT_SCHEMA_VERSION_V8;
+  PRE_RENDER_BLUEPRINT_DRAFT_SCHEMA_VERSION_V9;
 export const LEGACY_PRE_RENDER_BLUEPRINT_DRAFT_SCHEMA_VERSION_V7 =
   'pre-render-blueprint-draft-schema/v7' as const;
 /** Source-compatibility alias only; frozen programs use the absolute legacy name. */
@@ -476,6 +485,7 @@ export const PRE_RENDER_BLUEPRINT_DRAFT_SCHEMA_VERSION_V7 =
 export const LEGACY_PRE_RENDER_BLUEPRINT_DRAFT_SCHEMA_VERSION_V6 =
   'pre-render-blueprint-draft-schema/v6' as const;
 export type PreRenderBlueprintDraftSchemaVersion =
+  | typeof PRE_RENDER_BLUEPRINT_DRAFT_SCHEMA_VERSION_V9
   | typeof PRE_RENDER_BLUEPRINT_DRAFT_SCHEMA_VERSION_V8
   | typeof LEGACY_PRE_RENDER_BLUEPRINT_DRAFT_SCHEMA_VERSION_V7
   | typeof LEGACY_PRE_RENDER_BLUEPRINT_DRAFT_SCHEMA_VERSION_V6;
@@ -485,8 +495,11 @@ export const PRE_RENDER_BLUEPRINT_DRAFT_SCHEMA_NAME =
 export function preRenderBlueprintDraftJsonSchemaForVersion(
   version: unknown,
 ): Record<string, unknown> | null {
-  if (version === PRE_RENDER_BLUEPRINT_DRAFT_SCHEMA_VERSION_V8) {
+  if (version === PRE_RENDER_BLUEPRINT_DRAFT_SCHEMA_VERSION_V9) {
     return PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA;
+  }
+  if (version === LEGACY_PRE_RENDER_BLUEPRINT_DRAFT_SCHEMA_VERSION_V8) {
+    return LEGACY_PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA_V8;
   }
   if (version === LEGACY_PRE_RENDER_BLUEPRINT_DRAFT_SCHEMA_VERSION_V7) {
     return LEGACY_PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA_V7;

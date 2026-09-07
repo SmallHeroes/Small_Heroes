@@ -1,6 +1,6 @@
 # SmallHeroes — Roadmap
 
-**Last verified:** 2026-09-07 (residual QA PASS received; M1b group foundation full check GREEN, independent QA pending)
+**Last verified:** 2026-09-08 (group QA PASS received; running/catalog code checkpoint, FULL CHECK NON-GREEN, independent QA pending)
 **Product priority owner:** Guy
 **Technical sequencing owner:** Codex
 
@@ -31,6 +31,18 @@ Blueprint and any required LOW Board/prop generation remain separately budgeted
 provider actions with exact owner gates.
 
 ## Active
+
+The group-foundation independent PASS `fe07a65e..d91fc72b` is now received
+(P0=0/P1=0/P2=0). Current continuation from `d91fc72b` implements the remaining
+M1b `runs`/catalog v4 cutover with frozen v3 replay. 396 focused tests and both
+typechecks pass; the final full check remains NON-GREEN (one resource-phase Git
+failure, subsequently passing alone). No native root cause, inherited status or
+repository PASS is claimed. Same sole-writer task/worktree, application spend $0.
+See `docs/ai-workflow/R3B1B_M1B_RUNS_CATALOG_CUTOVER_EXECUTION.md`.
+M2 atomic recovery, semantic acceptance and downstream render qualification
+remain next after independent M1b QA; payment remains last.
+
+Historical group handoff state (superseded by the received PASS above):
 
 Continue the approved semantic recovery without another owner approval for
 already-scoped work. The M1b **group sub-slice** is implemented from `fe07a65e`:

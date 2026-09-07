@@ -32,6 +32,8 @@ import {
   type VisualContractAuthoringReplayEvidence,
 } from './visualContractAuthoringReplayEvidence';
 
+import { ACTION_SEMANTIC_CATALOG_VERSION, LEGACY_ACTION_SEMANTIC_CATALOG_VERSION_V3 } from '../visual-contract-compiler/actionSemanticCatalog';
+
 export const VISUAL_CONTRACT_AUTHORING_REPLAY_RESULT_VERSION =
   'visual-contract-authoring-replay-result/v2' as const;
 
@@ -287,6 +289,8 @@ export async function replayVisualContractAuthoringEvidence(args: {
     receiptVersion === VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION &&
     args.evidence.version ===
       VISUAL_CONTRACT_AUTHORING_REPLAY_EVIDENCE_VERSION;
+  const isLegacyCatalogV3Chain = isCurrentChain &&
+    args.request.actionSemanticAuthority.catalogVersion === LEGACY_ACTION_SEMANTIC_CATALOG_VERSION_V3;
   const isLegacyV1Chain =
     requestVersion ===
       LEGACY_VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION_V55 &&
@@ -300,14 +304,15 @@ export async function replayVisualContractAuthoringEvidence(args: {
     );
   }
   let routingPolicyVersion: VisualContractAuthoringRoutingPolicyVersion;
-  if (isLegacyV1Chain) {
+  if (isLegacyV1Chain || isLegacyCatalogV3Chain) {
     assertValidLegacyVisualContractAuthoringReplayArtifacts({
       snapshot: args.snapshot,
       request: args.request,
       receipt: args.receipt,
     });
-    routingPolicyVersion =
-      LEGACY_VISUAL_CONTRACT_AUTHORING_ROUTING_POLICY_VERSION;
+    routingPolicyVersion = isLegacyV1Chain
+      ? LEGACY_VISUAL_CONTRACT_AUTHORING_ROUTING_POLICY_VERSION
+      : VISUAL_CONTRACT_AUTHORING_ROUTING_POLICY_VERSION;
   } else {
     const requestIssues = visualContractAuthoringRequestIssues({
       request: args.request,
@@ -368,6 +373,8 @@ export async function replayVisualContractAuthoringEvidence(args: {
   const harness = await runOfflineRepairHarness({
     input: storySourceSnapshotToTemplateInput(args.snapshot),
     routingPolicyVersion,
+    actionSemanticCatalogVersion: isLegacyV1Chain || isLegacyCatalogV3Chain
+      ? LEGACY_ACTION_SEMANTIC_CATALOG_VERSION_V3 : ACTION_SEMANTIC_CATALOG_VERSION,
     initialDraft:
       args.evidence.attempts[0]!.responseJson,
     repairResponses: args.evidence.attempts

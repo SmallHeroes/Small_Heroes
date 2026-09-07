@@ -49,6 +49,7 @@ import {
 import {
   LEGACY_PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA_V6,
   LEGACY_PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA_V7,
+  LEGACY_PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA_V8,
   PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA,
   PRE_RENDER_BLUEPRINT_DRAFT_SCHEMA_NAME,
   PRE_RENDER_BLUEPRINT_DRAFT_SCHEMA_VERSION,
@@ -152,11 +153,14 @@ describe('OpenAI Responses structured-output compatibility profile', () => {
       'vc-draft-schema/v21',
     );
     expect(PRE_RENDER_BLUEPRINT_DRAFT_SCHEMA_VERSION).toBe(
-      'pre-render-blueprint-draft-schema/v8',
+      'pre-render-blueprint-draft-schema/v9',
     );
-    expect(canonicalJsonDigest(PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA)).toBe(
+    expect(canonicalJsonDigest(LEGACY_PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA_V8)).toBe(
       '07859ed3aa44e40834adcec70662a79ed92aec7d4a61aaa13fb14585c34a48cc',
     );
+    expect(canonicalJsonDigest(PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA)).toBe('9c3a78e3b25ec8a4d48e375a344b0607ca3cfe6f21cfd3debee568dda1308bfe');
+    expect(JSON.stringify(PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA)).toContain('"runs"');
+    expect(JSON.stringify(LEGACY_PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA_V8)).not.toContain('"runs"');
     expect(
       canonicalJsonDigest(LEGACY_PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA_V7),
     ).toBe(

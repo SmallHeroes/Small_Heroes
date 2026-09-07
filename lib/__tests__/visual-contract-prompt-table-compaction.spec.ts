@@ -1,4 +1,6 @@
 import fs from 'node:fs';
+import { actionSchemaForCatalog } from '../visual-contract-compiler/actionSemanticCatalogWirePolicy';
+import { LEGACY_ACTION_SEMANTIC_CATALOG_VERSION_V3 } from '../visual-contract-compiler/actionSemanticCatalog';
 import os from 'node:os';
 import path from 'node:path';
 
@@ -444,7 +446,7 @@ describe('Visual Contract prompt authority-table compaction', () => {
       { storyKey: 'fox_uri_fantasy', upperBound: 66_097 },
       { storyKey: 'lion_shaket_fantasy', upperBound: 54_957 },
       { storyKey: 'panda_anat_fantasy', upperBound: 68_318 },
-    ]);
+    ].map((row) => ({ ...row, upperBound: row.upperBound + 80 }))); // v4: 73 prompt + 7 schema bytes
     expect(provider.call).not.toHaveBeenCalled();
   });
 
@@ -612,7 +614,7 @@ describe('Visual Contract prompt authority-table compaction', () => {
     expect(
       utf8Lines(legacyActionTable) -
         utf8Lines(compactActionTable),
-    ).toBe(2_060);
+    ).toBe(2_060 + 74); // one additional current predicate; historical savings unchanged
     expect(TEMPLATE_DRAFT_SCHEMA_VERSION).toBe(
       'vc-draft-schema/v21',
     );
@@ -621,9 +623,9 @@ describe('Visual Contract prompt authority-table compaction', () => {
         JSON.stringify(TEMPLATE_DRAFT_JSON_SCHEMA),
         'utf8',
       ),
-    ).toBe(13_977);
+    ).toBe(13_977 + 7);
     expect(
-      canonicalJsonDigest(TEMPLATE_DRAFT_JSON_SCHEMA),
+      canonicalJsonDigest(actionSchemaForCatalog(TEMPLATE_DRAFT_JSON_SCHEMA, LEGACY_ACTION_SEMANTIC_CATALOG_VERSION_V3)),
     ).toBe(
       '82f8c6dbb51c2bacea8265eef33b6cb2f9fb2ba76be8dea516344204966a88d6',
     );
@@ -698,13 +700,13 @@ describe('Visual Contract prompt authority-table compaction', () => {
     );
     expect(fox).toEqual({
       storyKey: 'fox_uri_adventure',
-      upperBound: 50_051,
-      headroom: 29_949,
+      upperBound: 50_051 + 80,
+      headroom: 29_949 - 80,
     });
     expect(worst).toEqual({
       storyKey: 'lion_shaket_fantasy',
-      upperBound: 53_475,
-      headroom: 26_525,
+      upperBound: 53_475 + 80,
+      headroom: 26_525 - 80,
     });
     expect(provider.call).not.toHaveBeenCalled();
   });

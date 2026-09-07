@@ -204,6 +204,40 @@ export type BlueprintAuthoringExecutionProgramStatus =
   | 'legacy_immutable'
   | 'unsupported';
 
+/** Exact catalog-v3/schema-v8 program observed at protected 768ccb2f. */
+export const LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_CATALOG_V3 = Object.freeze({
+  version: 'blueprint-authoring-execution-program/v1',
+  blueprintVersion: 'pre-render-book-visual-blueprint/v5',
+  authoringAuthorityVersion: 'pre-render-blueprint-authoring-authority/v4',
+  authoringProvenanceVersion: 'pre-render-blueprint-authoring-provenance/v4',
+  initialPromptVersion: 'pre-render-blueprint-authoring-prompt/v9',
+  authoringSystemPromptDigest: '4dd98fe44f2a5ee1e06f955122c2b88b5689a24a45dc8cb00fed3dd8c642cec8',
+  repairPromptVersion: 'pre-render-blueprint-repair-prompt/v10',
+  repairSystemPromptDigest: 'd7e2706c26ff927e909f53d9fbcabc42d5b7897cdd0f51c20c8b1461c38e0031',
+  providerWireVersion: 'pre-render-blueprint-provider-wire/v2',
+  repairWireVersion: 'pre-render-blueprint-repair-wire/v4',
+  structuredOutputCompatibilityProfileVersion: 'openai-responses-structured-output-compatibility-profile/v2',
+  structuredOutputCompatibilityProfileDigest: 'c5f7cacccff01c435b15cb9d20d0b6cff9ec4c399c5978b50ee81da9fb54523a',
+  draftSchemaVersion: 'pre-render-blueprint-draft-schema/v8',
+  draftSchemaName: 'PreRenderBookVisualBlueprintWholeBookDraft',
+  draftSchemaDigest: '07859ed3aa44e40834adcec70662a79ed92aec7d4a61aaa13fb14585c34a48cc',
+  tokenRelevantRequestStaticAuthorityDigest: '6b4fe1100ac3aac88fe08fe5a7d394cd6ceb51759c4704f1a968320669014491',
+  exactInputTokenResponseObject: 'response.input_tokens',
+  compositionPolicyVersion: 'blueprint-composition-policy/v1',
+  authoringPolicyDigest: 'a5a2052d1364685e09542fc54d25f3102621ca2fdcdb7a2b3d0a056b69da724f',
+  inputAdmissionPolicyVersion: 'blueprint-authoring-conservative-input-token-admission/v1',
+  inputTokenBoundBasis: 'utf8-byte-level-bpe-monotone-upper-bound',
+  layoutPolicyVersion: 'portrait-layout-compatibility/v1',
+  layoutPolicyDigest: 'a8466698208b55f2f7c8df8e914a6a5468c6c626d1c763c100b6e01a61607c59',
+  countEvidenceVersion: 'openai-responses-input-tokens-count-evidence/v1',
+  countAwareCostPolicyDigest: '0e67b4743b76ac856e14a42b1e71b2522701857ea748ed1265e71e5fc11bec19',
+  admissionLedgerVersion: 'blueprint-authoring-admission-ledger/v1',
+  generationEvidenceVersion: 'openai-responses-blueprint-authoring-evidence/v1',
+  transportAuthorityDigest: 'f0a1718c6ab892bdb05375592ef6951fcb1a756ad15310a6dbda5f4212873b67',
+  digestAlgorithm: 'canonical-json-sha256',
+  digest: '0944bdb56a83368e6c22feb886f0cfeed3b9a195ad01918e5ffd7d61de275f4b',
+} as const satisfies ReplayableBlueprintAuthoringExecutionProgram);
+
 /**
  * Frozen complete snapshot, not reconstructed from mutable current constants.
  * This is the exact prompt-v6/wire-v1 replay-only request-v5 program admitted
@@ -524,6 +558,7 @@ export function blueprintAuthoringExecutionProgramStatus(
   }
   const valueDigest = canonicalJsonDigest(value);
   return [
+    LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_CATALOG_V3,
     LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_CAMERA_AUTHORITY,
     LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_REPAIR_PROMPT_V8,
     LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_PROMPT_V7,

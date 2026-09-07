@@ -344,7 +344,7 @@ describe('R1D-PVB-B - immutable Blueprint review and approval lifecycle', () => 
     const repairAttempts = [{ attempt: 1, errors: ['fixture error'], draft: {} }];
     const current = {
       ...provenanceFor(fixture.blueprint),
-      draftSchemaVersion: 'pre-render-blueprint-draft-schema/v8' as const,
+      draftSchemaVersion: 'pre-render-blueprint-draft-schema/v9' as const,
       promptVersion: 'pre-render-blueprint-authoring-prompt/v9' as const,
       repairPromptVersion: 'pre-render-blueprint-repair-prompt/v10' as const,
       passingAttempt: 2,

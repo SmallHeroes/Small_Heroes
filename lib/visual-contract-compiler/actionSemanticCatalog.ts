@@ -14,7 +14,8 @@ export const LEGACY_ACTION_SEMANTIC_CATALOG_VERSION_V3 =
   'action-semantic-catalog/v3' as const;
 export const LEGACY_ACTION_SEMANTIC_CATALOG_DIGEST_V3 =
   'c8b366c2ca4f6d1b43eb0ee8e4196546e57d5ba279b5786fdb328de9f33acec5' as const;
-export const ACTION_SEMANTIC_CATALOG_VERSION = LEGACY_ACTION_SEMANTIC_CATALOG_VERSION_V3;
+export const ACTION_SEMANTIC_CATALOG_VERSION = 'action-semantic-catalog/v4' as const;
+export type ActionSemanticCatalogVersion = typeof ACTION_SEMANTIC_CATALOG_VERSION | typeof LEGACY_ACTION_SEMANTIC_CATALOG_VERSION_V3;
 
 export const ACTION_SEMANTIC_ENTITY_KIND_VALUES = [
   'cast',
@@ -445,9 +446,31 @@ for (const definition of LEGACY_ACTION_SEMANTIC_CATALOG_V3) {
   Object.freeze(definition);
 }
 
-// No catalog cutover in this compatibility milestone. Future expansion must
-// change the current identity and keep the explicitly named v3 export intact.
-export const ACTION_SEMANTIC_CATALOG = LEGACY_ACTION_SEMANTIC_CATALOG_V3;
+// Literal running is distinct from walking and from source-backed hurried
+// presentation. Like walks, it grants no object, direction or laterality.
+const running = entry({
+  predicate: 'runs',
+  proseProjection: 'runs',
+  objectRule: 'forbidden',
+  objectKinds: [],
+  lateralityAllowed: false,
+  safetyConflictRelation: null,
+  corpusBasis: 'reviewed_production_corpus',
+});
+Object.freeze(running.subjectKinds);
+Object.freeze(running.objectKinds);
+Object.freeze(running.spatialConstraintRelations);
+Object.freeze(running);
+export const ACTION_SEMANTIC_CATALOG = Object.freeze([
+  ...LEGACY_ACTION_SEMANTIC_CATALOG_V3,
+  running,
+] as const);
+
+export function actionSemanticCatalogForVersion(version: ActionSemanticCatalogVersion) {
+  if (version === LEGACY_ACTION_SEMANTIC_CATALOG_VERSION_V3) return LEGACY_ACTION_SEMANTIC_CATALOG_V3;
+  if (version === ACTION_SEMANTIC_CATALOG_VERSION) return ACTION_SEMANTIC_CATALOG;
+  throw new Error('action_semantic_catalog_version_unsupported');
+}
 
 export type ActionPredicate =
   (typeof ACTION_SEMANTIC_CATALOG)[number]['predicate'];

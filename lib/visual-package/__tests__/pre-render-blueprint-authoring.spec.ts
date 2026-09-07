@@ -263,7 +263,7 @@ describe('R1D-PVB-B — whole-book Blueprint authoring compiler', () => {
 
     expect(calls).toBe(1);
     expect(result.provenance).toMatchObject({
-      draftSchemaVersion: 'pre-render-blueprint-draft-schema/v8',
+      draftSchemaVersion: 'pre-render-blueprint-draft-schema/v9',
       promptVersion: 'pre-render-blueprint-authoring-prompt/v9',
       passingAttempt: 1,
       callCount: 1,

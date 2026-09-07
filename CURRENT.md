@@ -1,6 +1,53 @@
 # SmallHeroes — Current Technical State
 
-## M1b group foundation — FULL CHECK GREEN; independent QA pending
+## M1b running/catalog cutover — CODE CHECKPOINT; FULL CHECK NON-GREEN; QA pending
+
+2026-09-08: Guy approved continued work through a bounded render. Sole writer
+remains this task in `C:/GNart/Work/sh-r3b1b-semantic-m1`, branch
+`codex/r3b1b-semantic-recovery-m1`, base `d91fc72b`. At implementation start it
+was clean, cached ahead 5 / behind 0; no remote parity or push is claimed.
+Protected d53b (`768ccb2f`) and accepted-intent (`63ccb484`) dependencies were
+clean and remain read-only. No additional implementation task was created.
+
+Claude's supplied group-foundation PASS P0=0/P1=0/P2=0 covers exactly
+`fe07a65e..d91fc72b`. It closes the pending independent group review below,
+not all M1b: Claude ran a different 10-spec set (294 tests), 30 adversarial
+attacks and both typechecks; it verified the full-check log by hash rather
+than rerunning the full check. Group appearance in generated images remains
+unproven. Its v5-to-v4 last-group-removal caveat is retained for M2.
+
+Current work adds literal `runs` in catalog v4 and keeps the original v3
+catalog, prompt/schema wire identities and historical request/receipt replay
+explicitly separate. The public paid factory remains current-only. Candidate
+envelope v9 is unchanged in shape; its catalog version/digest now dispatches
+explicit v3 or v4 validation without widening the frozen v3 reader. Groups
+remain preview-only; M2's effective correction/bridge is not implemented here.
+
+Focused validation: 396 tests passed across 13 specs. Exact held replay is a candidate
+with providerCalls 0, identical captured call sequence/template identity and
+unchanged historical candidate; the current factory rejects the old receipt.
+Both typechecks pass. The final full repository attempt is **NON-GREEN**:
+ordinary 4936 passed / 73 skipped; resource 670 passed / 1 failed on
+`canonical-pre-live-readiness.spec.ts` (supervisor `git_command_failed`). That
+selected test then passed alone; the prior full attempt failed instead on a
+5000ms materialization test, whose full spec passed alone (15/15). No native
+cause or inherited classification is proven, no timing fix or full PASS claimed.
+All logs are preserved; no deadline/worker/runner was weakened. Inventory is
+387/365/22 with workers 4/2. This is an explicit review checkpoint, not completed
+M1b or a render-ready handoff. Independent QA will address the implementation
+and these disclosed repository-gate limits. Evidence/consumer inventory:
+`docs/ai-workflow/R3B1B_M1B_RUNS_CATALOG_CUTOVER_EXECUTION.md`.
+
+P1 remains semantically HELD P0=0/P1=3/P2=3. No M2 artifact, Blueprint, image,
+publication, payment, deployment, source revision, cleanup or push occurred.
+External spend $0. Existing-key reuse was already owner-selected; only presence
+was checked (no value displayed/copied/changed), no credential/provider execution.
+Render approval does not waive independent M1b QA or exact-artifact acceptance.
+Blueprint current draft schema is v9; v6/v7/v8 and the exact former-current v8
+program retain frozen catalog-v3 replay identities. Old-program fresh dispatch
+remains forbidden. No original candidate or receipt was repinned.
+
+## Historical M1b group delivery — QA was pending at handoff (now closed above)
 
 Guy instructed continued implementation without repeated approval pauses on
 2026-09-07. Codex remains sole writer in `C:/GNart/Work/sh-r3b1b-semantic-m1`,

@@ -73,6 +73,9 @@ import {
 import {
   ACTION_SEMANTIC_CATALOG,
   ACTION_SEMANTIC_CATALOG_VERSION,
+  LEGACY_ACTION_SEMANTIC_CATALOG_VERSION_V3,
+  LEGACY_ACTION_SEMANTIC_CATALOG_DIGEST_V3,
+  type ActionSemanticCatalogVersion,
 } from '@/lib/visual-contract-compiler/actionSemanticCatalog';
 import {
   ACTION_SEMANTIC_COVERAGE_VERSION,
@@ -223,6 +226,16 @@ import {
   assertOpenAIResponsesStructuredOutputSchemaCompatible,
   compatibilityAuthorityFromEvidence,
 } from './openaiResponsesStructuredOutputSchemaCompatibility';
+
+import { actionSchemaForCatalog, actionSchemasForCatalog } from '../visual-contract-compiler/actionSemanticCatalogWirePolicy';
+
+const CURRENT_AUTHORING_ACTION_SCHEMAS = {
+  TEMPLATE_DRAFT_JSON_SCHEMA, SOURCE_EVIDENCE_ID_REPAIR_JSON_SCHEMA,
+  PAGE_CONTRACT_REPAIR_JSON_SCHEMA, STRUCTURAL_BUNDLE_REPAIR_JSON_SCHEMA,
+  BOOK_SURFACE_REPAIR_JSON_SCHEMA, PRESENTATION_REQUIREMENT_REPAIR_JSON_SCHEMA,
+  STABLE_PROP_SCOPE_REPAIR_JSON_SCHEMA, REPRESENTED_ELSEWHERE_REPAIR_JSON_SCHEMA,
+  PAGE_SPATIAL_REFERENCE_REPAIR_JSON_SCHEMA,
+};
 
 export const VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION =
   'visual-contract-authoring-request/v56' as const;
@@ -881,7 +894,7 @@ export interface VisualContractAuthoringRequest {
     };
   };
   actionSemanticAuthority: {
-    catalogVersion: typeof ACTION_SEMANTIC_CATALOG_VERSION;
+    catalogVersion: ActionSemanticCatalogVersion;
     catalogDigest: string;
     coverageVersion: typeof ACTION_SEMANTIC_COVERAGE_VERSION;
     sourceEvidenceCatalogVersion:
@@ -1033,7 +1046,7 @@ export interface VisualContractAuthoringReceipt {
   reconciliationDigest: null;
   actionSemanticCoverage: {
     version: typeof ACTION_SEMANTIC_COVERAGE_VERSION;
-    catalogVersion: typeof ACTION_SEMANTIC_CATALOG_VERSION;
+    catalogVersion: ActionSemanticCatalogVersion;
     catalogDigest: string;
     status:
       | 'not_evaluated'
@@ -1122,7 +1135,7 @@ export interface VisualContractCandidateArtifact {
   authoringReceiptDigest: string;
   templateDigest: string;
   actionSemanticCatalogVersion:
-    typeof ACTION_SEMANTIC_CATALOG_VERSION;
+    ActionSemanticCatalogVersion;
   actionSemanticCatalogDigest: string;
   actionSemanticCoverageVersion:
     typeof ACTION_SEMANTIC_COVERAGE_VERSION;
@@ -1540,14 +1553,14 @@ function readinessWithoutDigest(
   return evidence;
 }
 
-function promptInputs(snapshot: StorySourceAuthoritySnapshot): {
+function promptInputs(snapshot: StorySourceAuthoritySnapshot, catalogVersion: ActionSemanticCatalogVersion = ACTION_SEMANTIC_CATALOG_VERSION): {
   systemPrompt: string;
   userPrompt: string;
   promptAndSchemaTokenUpperBound: number;
 } {
   const input = storySourceSnapshotToTemplateInput(snapshot);
   const facts = extractDeterministicFacts(input);
-  const systemPrompt = buildTemplateCompileSystemPrompt();
+  const systemPrompt = buildTemplateCompileSystemPrompt(catalogVersion);
   const userPrompt = buildTemplateCompileUserPrompt(
     input,
     facts,
@@ -1560,7 +1573,7 @@ function promptInputs(snapshot: StorySourceAuthoritySnapshot): {
     promptAndSchemaTokenUpperBound: callInputTokenUpperBound(
       systemPrompt,
       userPrompt,
-      TEMPLATE_DRAFT_JSON_SCHEMA,
+      actionSchemaForCatalog(TEMPLATE_DRAFT_JSON_SCHEMA, catalogVersion),
     ),
   };
 }
@@ -1657,8 +1670,25 @@ export function buildVisualContractAuthoringRequest(args: {
   requestId: string;
   requestedAt: string;
 }): VisualContractAuthoringRequest {
+  return buildAuthoringRequestForCatalog(args, ACTION_SEMANTIC_CATALOG_VERSION);
+}
+
+// Private reconstruction only: the public factory cannot request old authority.
+function buildAuthoringRequestForCatalog(args: {
+  snapshot: StorySourceAuthoritySnapshot;
+  mode: 'preflight' | 'live';
+  requestId: string;
+  requestedAt: string;
+}, catalogVersion: ActionSemanticCatalogVersion): VisualContractAuthoringRequest {
+  const {
+    TEMPLATE_DRAFT_JSON_SCHEMA, SOURCE_EVIDENCE_ID_REPAIR_JSON_SCHEMA,
+    PAGE_CONTRACT_REPAIR_JSON_SCHEMA, STRUCTURAL_BUNDLE_REPAIR_JSON_SCHEMA,
+    BOOK_SURFACE_REPAIR_JSON_SCHEMA, PRESENTATION_REQUIREMENT_REPAIR_JSON_SCHEMA,
+    STABLE_PROP_SCOPE_REPAIR_JSON_SCHEMA, REPRESENTED_ELSEWHERE_REPAIR_JSON_SCHEMA,
+    PAGE_SPATIAL_REFERENCE_REPAIR_JSON_SCHEMA,
+  } = actionSchemasForCatalog(CURRENT_AUTHORING_ACTION_SCHEMAS, catalogVersion);
   assertValidStorySourceAuthoritySnapshot(args.snapshot);
-  const prompts = promptInputs(args.snapshot);
+  const prompts = promptInputs(args.snapshot, catalogVersion);
   const standardAttemptOutputBudget =
     buildVisualContractAuthoringStandardAttemptOutputBudget(
       args.snapshot.content.pages.length,
@@ -2009,7 +2039,7 @@ export function buildVisualContractAuthoringRequest(args: {
         systemPromptVersion: REPAIR_PROMPT_VERSION,
         userPromptVersion: REPAIR_USER_PROMPT_VERSION,
         systemPromptDigest: canonicalJsonDigest(
-          buildTemplateRepairSystemPrompt(),
+          buildTemplateRepairSystemPrompt(catalogVersion),
         ),
       },
       sourceEvidenceIdRepair: {
@@ -2085,8 +2115,9 @@ export function buildVisualContractAuthoringRequest(args: {
       },
     },
     actionSemanticAuthority: {
-      catalogVersion: ACTION_SEMANTIC_CATALOG_VERSION,
-      catalogDigest: ACTION_SEMANTIC_CATALOG_DIGEST,
+      catalogVersion,
+      catalogDigest: catalogVersion === LEGACY_ACTION_SEMANTIC_CATALOG_VERSION_V3
+        ? LEGACY_ACTION_SEMANTIC_CATALOG_DIGEST_V3 : ACTION_SEMANTIC_CATALOG_DIGEST,
       coverageVersion: ACTION_SEMANTIC_COVERAGE_VERSION,
       sourceEvidenceCatalogVersion:
         SOURCE_EVIDENCE_CATALOG_VERSION,
@@ -2109,7 +2140,7 @@ function buildLegacyVisualContractAuthoringRequestV55(args: {
   requestId: string;
   requestedAt: string;
 }): VisualContractAuthoringRequest {
-  const current = buildVisualContractAuthoringRequest(args);
+  const current = buildAuthoringRequestForCatalog(args, LEGACY_ACTION_SEMANTIC_CATALOG_VERSION_V3);
   const {
     routingPolicyVersion: _routingPolicyVersion,
     digestAlgorithm: _digestAlgorithm,
@@ -3654,7 +3685,16 @@ function visualContractAuthoringAttemptPromptBinding(args: {
   request: VisualContractAuthoringRequest;
   attempt: VisualContractAuthoringAttemptReceipt;
   legacyV1?: boolean;
+  catalogVersion?: ActionSemanticCatalogVersion;
 }): VisualContractAuthoringAttemptPromptBinding | null {
+  const catalogVersion = args.catalogVersion ?? ACTION_SEMANTIC_CATALOG_VERSION;
+  const {
+    TEMPLATE_DRAFT_JSON_SCHEMA, SOURCE_EVIDENCE_ID_REPAIR_JSON_SCHEMA,
+    PAGE_CONTRACT_REPAIR_JSON_SCHEMA, STRUCTURAL_BUNDLE_REPAIR_JSON_SCHEMA,
+    BOOK_SURFACE_REPAIR_JSON_SCHEMA, PRESENTATION_REQUIREMENT_REPAIR_JSON_SCHEMA,
+    STABLE_PROP_SCOPE_REPAIR_JSON_SCHEMA, REPRESENTED_ELSEWHERE_REPAIR_JSON_SCHEMA,
+    PAGE_SPATIAL_REFERENCE_REPAIR_JSON_SCHEMA,
+  } = actionSchemasForCatalog(CURRENT_AUTHORING_ACTION_SCHEMAS, catalogVersion);
   const { request, attempt } = args;
   if (
     attempt.kind === 'initial' &&
@@ -3662,7 +3702,7 @@ function visualContractAuthoringAttemptPromptBinding(args: {
     attempt.budgetClass === 'standard'
   ) {
     return {
-      systemPrompt: buildTemplateCompileSystemPrompt(),
+      systemPrompt: buildTemplateCompileSystemPrompt(catalogVersion),
       systemPromptVersion: TEMPLATE_PROMPT_VERSION,
       userPromptVersion: TEMPLATE_USER_PROMPT_VERSION,
       requestSystemPromptVersion:
@@ -3688,7 +3728,7 @@ function visualContractAuthoringAttemptPromptBinding(args: {
   switch (attempt.repairMode) {
     case 'full_draft':
       return {
-        systemPrompt: buildTemplateRepairSystemPrompt(),
+        systemPrompt: buildTemplateRepairSystemPrompt(catalogVersion),
         systemPromptVersion: REPAIR_PROMPT_VERSION,
         userPromptVersion: REPAIR_USER_PROMPT_VERSION,
         requestSystemPromptVersion:
@@ -3912,7 +3952,7 @@ function visualContractAuthoringAttemptPromptBinding(args: {
 function visualContractAuthoringReceiptPromptAuthorityIssuesForProfile(args: {
   request: VisualContractAuthoringRequest;
   receipt: VisualContractAuthoringReceipt;
-}, legacyV1: boolean): string[] {
+}, legacyV1: boolean, catalogVersion: ActionSemanticCatalogVersion = ACTION_SEMANTIC_CATALOG_VERSION): string[] {
   const issues: string[] = [];
   const {
     digestAlgorithm: _requestDigestAlgorithm,
@@ -3920,6 +3960,9 @@ function visualContractAuthoringReceiptPromptAuthorityIssuesForProfile(args: {
     ...requestPayload
   } = args.request;
   if (
+    args.request.actionSemanticAuthority?.catalogVersion !== catalogVersion ||
+    args.request.actionSemanticAuthority?.catalogDigest !== (catalogVersion === LEGACY_ACTION_SEMANTIC_CATALOG_VERSION_V3
+      ? LEGACY_ACTION_SEMANTIC_CATALOG_DIGEST_V3 : ACTION_SEMANTIC_CATALOG_DIGEST) ||
     args.receipt.requestDigest !== args.request.digest ||
     args.receipt.sourceSnapshotDigest !==
       args.request.sourceSnapshotDigest ||
@@ -4006,6 +4049,7 @@ function visualContractAuthoringReceiptPromptAuthorityIssuesForProfile(args: {
         request: args.request,
         attempt,
         legacyV1,
+        catalogVersion,
       });
     } catch {
       issues.push('receipt_attempt_prompt_route_invalid');
@@ -5951,7 +5995,7 @@ function persistJsonArtifact(args: {
 }
 
 /**
- * Validates the one immutable historical repair lane retained for provider-free
+ * Validates the explicit immutable v3-catalog repair lanes for provider-free
  * replay. It is intentionally not used by production persistence or execution:
  * current request/receipt validators above continue to reject these versions.
  */
@@ -5963,26 +6007,29 @@ export function assertValidLegacyVisualContractAuthoringReplayArtifacts(args: {
   const issues: string[] = [];
   const requestVersion = runtimeStringField(args.request, 'version');
   const policyVersion = runtimeStringField(args.request, 'policyVersion');
+  const legacyV1 = requestVersion === LEGACY_VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION_V55;
   let expectedRequest: VisualContractAuthoringRequest | null = null;
   try {
-    expectedRequest = buildLegacyVisualContractAuthoringRequestV55({
+    const reconstructionArgs = {
       snapshot: args.snapshot,
       mode: args.request.mode,
       requestId: args.request.requestId,
       requestedAt: args.request.requestedAt,
-    });
+    };
+    expectedRequest = legacyV1 ? buildLegacyVisualContractAuthoringRequestV55(reconstructionArgs)
+      : buildAuthoringRequestForCatalog(reconstructionArgs, LEGACY_ACTION_SEMANTIC_CATALOG_VERSION_V3);
   } catch {
     issues.push('legacy_request_reconstruction_failed');
   }
   if (
     requestVersion !==
-      LEGACY_VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION_V55 ||
+      (legacyV1 ? LEGACY_VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION_V55 : VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION) ||
     policyVersion !==
-      LEGACY_VISUAL_CONTRACT_AUTHORING_POLICY_VERSION ||
-    Object.prototype.hasOwnProperty.call(
+      (legacyV1 ? LEGACY_VISUAL_CONTRACT_AUTHORING_POLICY_VERSION : VISUAL_CONTRACT_AUTHORING_POLICY_VERSION) ||
+    (legacyV1 ? Object.prototype.hasOwnProperty.call(
       args.request,
       'routingPolicyVersion',
-    ) ||
+    ) : args.request.routingPolicyVersion !== VISUAL_CONTRACT_AUTHORING_ROUTING_POLICY_VERSION) ||
     !['preflight', 'live'].includes(args.request.mode) ||
     !nonEmpty(args.request.requestId) ||
     args.request.requestId.length > 160 ||
@@ -5990,7 +6037,7 @@ export function assertValidLegacyVisualContractAuthoringReplayArtifacts(args: {
     expectedRequest === null ||
     !exactJson(args.request, expectedRequest)
   ) {
-    issues.push('legacy_request_v55_invalid');
+    issues.push(legacyV1 ? 'legacy_request_v55_invalid' : 'legacy_request_v56_catalog_v3_invalid');
   }
 
   const receipt = args.receipt;
@@ -6002,13 +6049,16 @@ export function assertValidLegacyVisualContractAuthoringReplayArtifacts(args: {
   } = receipt;
   if (
     receiptVersion !==
-      LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION_V58 ||
+      (legacyV1 ? LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION_V58 : VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION) ||
+    receipt.actionSemanticCoverage.catalogVersion !== LEGACY_ACTION_SEMANTIC_CATALOG_VERSION_V3 ||
+    receipt.actionSemanticCoverage.catalogDigest !== LEGACY_ACTION_SEMANTIC_CATALOG_DIGEST_V3 ||
     (receipt.status === 'failed'
       ? !visualContractAuthoringTerminalFailureIsValid(receipt.failure)
       : receipt.failure !== null) ||
     visualContractAuthoringReceiptPromptAuthorityIssuesForProfile(
       { request: args.request, receipt },
-      true,
+      legacyV1,
+      LEGACY_ACTION_SEMANTIC_CATALOG_VERSION_V3,
     ).length > 0 ||
     !receipt.attempts.every((attempt) =>
       visualContractAuthoringAttemptInputAccountingIsValid({
@@ -6019,12 +6069,12 @@ export function assertValidLegacyVisualContractAuthoringReplayArtifacts(args: {
     !visualContractAuthoringAttemptBudgetSequenceIsValidForRouting(
       receipt.attempts,
       receipt.standardAttemptOutputBudget,
-      true,
+      legacyV1,
     ) ||
     !visualContractAuthoringReceiptOutputBudgetBindingsAreValid({
       receipt,
       request: args.request,
-      legacyV1: true,
+      legacyV1,
     }) ||
     !visualContractAuthoringReceiptExhaustionBindingIsValid(receipt) ||
     !visualContractAuthoringReceiptRouteAdmissionBindingIsValid(receipt) ||
@@ -6035,7 +6085,7 @@ export function assertValidLegacyVisualContractAuthoringReplayArtifacts(args: {
     receipt.digestAlgorithm !== 'canonical-json-sha256' ||
     receipt.digest !== canonicalJsonDigest(receiptPayload)
   ) {
-    issues.push('legacy_receipt_v58_invalid');
+    issues.push(legacyV1 ? 'legacy_receipt_v58_invalid' : 'legacy_receipt_v59_catalog_v3_invalid');
   }
 
   if (issues.length > 0) {

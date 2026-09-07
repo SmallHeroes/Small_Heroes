@@ -2656,7 +2656,10 @@ describe('canonical live authoring executable boundary', () => {
       }),
     ).toThrow();
 
-    const legacyReplay = await replayVisualContractAuthoringEvidence({
+    // This synthetic relabel formerly used the same v3 wire vocabulary. After
+    // cutover, relabeling current v4 captures as v55/v58 MUST fail, not migrate
+    // their authority. Exact held v56/v59-v3 replay is separately exercised.
+    await expect(replayVisualContractAuthoringEvidence({
       repoRoot: fixture.repoRoot,
       snapshot: fixture.snapshot,
       request: legacyRequest as unknown as VisualContractAuthoringRequest,
@@ -2664,20 +2667,7 @@ describe('canonical live authoring executable boundary', () => {
       evidence:
         legacyEvidence as unknown as VisualContractAuthoringReplayEvidence,
       evidencePath: legacyEvidencePath,
-    });
-    expect(legacyReplay).toMatchObject({
-      version: 'visual-contract-authoring-replay-result/v2',
-      providerCalls: 0,
-      exactCapturedCallSequence: true,
-      receiptOutcomeCongruent: true,
-      harness: {
-        version: 'visual-contract-offline-repair-harness-result/v4',
-        providerCalls: 0,
-        routingPolicyVersion:
-          'visual-contract-authoring-routing-policy/v1',
-        outcome: 'candidate',
-      },
-    });
+    })).rejects.toThrow(/Invalid immutable legacy Visual Contract authoring replay artifacts/);
     await expect(
       replayVisualContractAuthoringEvidence({
         repoRoot: fixture.repoRoot,

@@ -1,6 +1,7 @@
 import {
   LEGACY_PRE_RENDER_BLUEPRINT_DRAFT_SCHEMA_VERSION_V6,
   LEGACY_PRE_RENDER_BLUEPRINT_DRAFT_SCHEMA_VERSION_V7,
+  LEGACY_PRE_RENDER_BLUEPRINT_DRAFT_SCHEMA_VERSION_V8,
   PRE_RENDER_BLUEPRINT_DRAFT_SCHEMA_VERSION,
   type PreRenderBlueprintDraftSchemaVersion,
 } from './preRenderBlueprintDraftSchema';
@@ -286,7 +287,8 @@ export function preRenderBlueprintPromptAndSchemaVersionsAreCompatible(args: {
   if (
     args.promptVersion === PRE_RENDER_BLUEPRINT_AUTHORING_PROMPT_VERSION_V9
   ) {
-    return args.draftSchemaVersion === PRE_RENDER_BLUEPRINT_DRAFT_SCHEMA_VERSION;
+    return args.draftSchemaVersion === PRE_RENDER_BLUEPRINT_DRAFT_SCHEMA_VERSION ||
+      args.draftSchemaVersion === LEGACY_PRE_RENDER_BLUEPRINT_DRAFT_SCHEMA_VERSION_V8;
   }
   if (
     args.promptVersion === LEGACY_PRE_RENDER_BLUEPRINT_AUTHORING_PROMPT_VERSION_V8
@@ -317,7 +319,8 @@ export function preRenderBlueprintRepairPromptGenerationIsCompatible(args: {
   repairPromptVersion: unknown;
 }): boolean {
   if (
-    args.draftSchemaVersion === PRE_RENDER_BLUEPRINT_DRAFT_SCHEMA_VERSION &&
+    (args.draftSchemaVersion === PRE_RENDER_BLUEPRINT_DRAFT_SCHEMA_VERSION ||
+      args.draftSchemaVersion === LEGACY_PRE_RENDER_BLUEPRINT_DRAFT_SCHEMA_VERSION_V8) &&
     args.promptVersion === PRE_RENDER_BLUEPRINT_AUTHORING_PROMPT_VERSION_V9
   ) {
     return args.repairPromptVersion === PRE_RENDER_BLUEPRINT_REPAIR_PROMPT_VERSION_V10;

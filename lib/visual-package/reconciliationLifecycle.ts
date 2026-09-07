@@ -12,6 +12,9 @@ import {
   LEGACY_ACTION_SEMANTIC_CATALOG_VERSION_V3,
   LEGACY_ACTION_SEMANTIC_CATALOG_DIGEST_V3,
   LEGACY_ACTION_SEMANTIC_CATALOG_V3,
+  ACTION_SEMANTIC_CATALOG,
+  ACTION_SEMANTIC_CATALOG_VERSION,
+  type ActionSemanticCatalogVersion,
 } from '@/lib/visual-contract-compiler/actionSemanticCatalog';
 
 import {
@@ -534,9 +537,13 @@ export function assertVisualContractCandidateForReconciliation(args: {
   candidate: VisualContractCandidateArtifact;
   expectedTemplateDigest?: string;
 }): void {
-  // Explicit version dispatch, not "whatever the current factory accepts".
-  // A future schema/catalog cutover must add its own reader, not widen v9.
-  assertLegacyVisualContractCandidateV9ForReconciliation(args);
+  // The envelope shape is unchanged; catalog identity is independently versioned.
+  // Never widen the frozen v9/v3 reader to accept v4 semantics.
+  if (args.candidate.actionSemanticCatalogVersion === ACTION_SEMANTIC_CATALOG_VERSION) {
+    assertCandidateEnvelopeForCatalog(args, ACTION_SEMANTIC_CATALOG_VERSION);
+  } else {
+    assertLegacyVisualContractCandidateV9ForReconciliation(args);
+  }
 }
 
 /**
@@ -549,6 +556,14 @@ export function assertLegacyVisualContractCandidateV9ForReconciliation(args: {
   candidate: VisualContractCandidateArtifact;
   expectedTemplateDigest?: string;
 }): void {
+  assertCandidateEnvelopeForCatalog(args, LEGACY_ACTION_SEMANTIC_CATALOG_VERSION_V3);
+}
+
+function assertCandidateEnvelopeForCatalog(args: {
+  snapshot: StorySourceAuthoritySnapshot;
+  candidate: VisualContractCandidateArtifact;
+  expectedTemplateDigest?: string;
+}, catalogVersion: ActionSemanticCatalogVersion): void {
   assertValidStorySourceAuthoritySnapshot(args.snapshot);
   const {
     digestAlgorithm: _digestAlgorithm,
@@ -564,8 +579,12 @@ export function assertLegacyVisualContractCandidateV9ForReconciliation(args: {
   });
   // Even after the live catalog expands, a rehashed v9 envelope cannot claim
   // that a new predicate was authored under the frozen v3 authority.
+  const catalog = catalogVersion === LEGACY_ACTION_SEMANTIC_CATALOG_VERSION_V3
+    ? LEGACY_ACTION_SEMANTIC_CATALOG_V3 : ACTION_SEMANTIC_CATALOG;
+  const expectedCatalogDigest = catalogVersion === LEGACY_ACTION_SEMANTIC_CATALOG_VERSION_V3
+    ? LEGACY_ACTION_SEMANTIC_CATALOG_DIGEST_V3 : canonicalJsonDigest(ACTION_SEMANTIC_CATALOG);
   const legacyPredicates = new Set<string>(
-    LEGACY_ACTION_SEMANTIC_CATALOG_V3.map((entry) => entry.predicate),
+    catalog.map((entry) => entry.predicate),
   );
   const legacyPredicatesOnly = args.candidate.template.pageContracts.every(
     (page) => (page.actionRequirements ?? []).every(
@@ -576,9 +595,9 @@ export function assertLegacyVisualContractCandidateV9ForReconciliation(args: {
     args.candidate.version !== 'visual-contract-candidate-artifact/v9' ||
     args.candidate.template.schemaVersion !== 'vc-schema/v4' ||
     args.candidate.actionSemanticCatalogVersion !==
-      LEGACY_ACTION_SEMANTIC_CATALOG_VERSION_V3 ||
+      catalogVersion ||
     args.candidate.actionSemanticCatalogDigest !==
-      LEGACY_ACTION_SEMANTIC_CATALOG_DIGEST_V3 ||
+      expectedCatalogDigest ||
     !legacyPredicatesOnly ||
     args.candidate.sourceEvidenceCatalogVersion !== 'source-evidence-catalog/v1' ||
     args.candidate.sourceEvidenceCatalogVersion !==

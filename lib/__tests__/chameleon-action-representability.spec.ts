@@ -362,7 +362,7 @@ describe('Chameleon action representability calibration', () => {
 
     expect(audit).toMatchObject({
       version: 'action-semantic-representability-audit/v1',
-      catalogVersion: 'action-semantic-catalog/v3',
+      catalogVersion: 'action-semantic-catalog/v4',
       status: 'review_evidence_only',
       authorizes: [],
       intentCount: 15,
@@ -386,7 +386,7 @@ describe('Chameleon action representability calibration', () => {
     ).toEqual([
       ['station_walks', ['subject_kind_unsupported']],
       ['child_turns_station', ['object_forbidden']],
-      ['station_runs', ['predicate_missing']],
+      ['station_runs', ['subject_kind_unsupported']],
       ['station_waves', ['subject_kind_unsupported']],
       ['bus_opens_door', ['subject_kind_unsupported']],
     ]);

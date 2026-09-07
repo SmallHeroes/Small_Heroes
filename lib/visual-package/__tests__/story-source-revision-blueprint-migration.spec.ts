@@ -265,7 +265,7 @@ describe('Story Source revision reconciliation and Blueprint migration', () => {
       expect(migrated.authored.provenance).toMatchObject({
         callCount: 1,
         passingAttempt: 1,
-        draftSchemaVersion: 'pre-render-blueprint-draft-schema/v8',
+        draftSchemaVersion: 'pre-render-blueprint-draft-schema/v9',
         promptVersion: 'pre-render-blueprint-authoring-prompt/v9',
       });
       expect(migrated.authored.repairAttempts).toEqual([]);

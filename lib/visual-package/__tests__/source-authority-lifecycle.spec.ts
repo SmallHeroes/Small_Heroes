@@ -1,4 +1,6 @@
 import fs from 'fs';
+import { runOfflineRepairHarness } from '@/lib/visual-contract-compiler/offlineRepairHarness';
+import { LEGACY_ACTION_SEMANTIC_CATALOG_VERSION_V3, LEGACY_ACTION_SEMANTIC_CATALOG_DIGEST_V3 } from '@/lib/visual-contract-compiler/actionSemanticCatalog';
 import os from 'os';
 import path from 'path';
 
@@ -9577,6 +9579,30 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     ).toThrow(/readiness v56 requires/);
   });
 
+  it('carries literal running through current authoring, coverage and reconciliation, but not historical replay', async () => {
+    const snapshot = bunnySnapshot();
+    const request = requestFor(snapshot, 'live');
+    // Synthetic action shape test, not semantic acceptance of the source beat.
+    const draft = fullyActionedBunnyDraft(snapshot);
+    const page = draft.pageContracts[0]!;
+    Object.assign(page.actionRequirements![0]!, { predicate: 'runs' });
+    page.mustShow = [...new Set([...page.mustShow, ...projectPageMustShow(page, draft as unknown as BookVisualContract)])];
+    const result = await runVisualContractAuthoring({ request, snapshot, provider: successfulProvider(draft) });
+    expect(result.receipt.status).toBe('completed');
+    expect(result.receipt.actionSemanticCoverage.catalogVersion).toBe('action-semantic-catalog/v4');
+    expect(result.compileResult!.template.pageContracts[0]!.actionRequirements![0]!.predicate).toBe('runs');
+    const candidate = buildVisualContractCandidateArtifact({ request, receipt: result.receipt, compileResult: result.compileResult! });
+    expect(() => assertVisualContractCandidateForReconciliation({ snapshot, candidate })).not.toThrow();
+    expect(() => assertLegacyVisualContractCandidateV9ForReconciliation({ snapshot, candidate })).toThrow();
+    const old = await runOfflineRepairHarness({
+      input: storySourceSnapshotToTemplateInput(snapshot), initialDraft: draft,
+      actionSemanticCatalogVersion: LEGACY_ACTION_SEMANTIC_CATALOG_VERSION_V3,
+    });
+    expect(old.outcome).not.toBe('candidate');
+    expect(old.candidateTemplateDigest).toBeNull();
+    expect(old.calls).toHaveLength(1);
+  });
+
   it.each([
     ['catalog version', 'actionSemanticCatalogVersion', 'action-semantic-catalog/v4'],
     ['missing catalog version', 'actionSemanticCatalogVersion', undefined],
@@ -9596,6 +9622,10 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     const candidate = buildVisualContractCandidateArtifact({
       request, receipt: result.receipt, compileResult: result.compileResult!,
     });
+    // Synthetic historical envelope, not a fabricated provider receipt. The
+    // v3-compatible template stays unchanged; attack the frozen reader's tuple.
+    candidate.actionSemanticCatalogVersion = LEGACY_ACTION_SEMANTIC_CATALOG_VERSION_V3;
+    candidate.actionSemanticCatalogDigest = LEGACY_ACTION_SEMANTIC_CATALOG_DIGEST_V3;
     Object.assign(candidate, { [field!]: value });
     // Rehash through JSON so omitted fields really are absent on disk. A
     // matching envelope checksum alone must never establish catalog authority.
@@ -9616,7 +9646,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
 
   it.each([
     ['catalogVersion', 'action-semantic-catalog/v2'],
-    ['catalogVersion', 'action-semantic-catalog/v4'],
+    ['catalogVersion', 'action-semantic-catalog/v3'],
     ['catalogDigest', 'f'.repeat(64)],
   ])('keeps the paid factory strict for a rehashed receipt with %s = %s', async (field, value) => {
     const snapshot = bunnySnapshot();
@@ -9642,6 +9672,8 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     const candidate = buildVisualContractCandidateArtifact({
       request, receipt: result.receipt, compileResult: result.compileResult!,
     });
+    candidate.actionSemanticCatalogVersion = LEGACY_ACTION_SEMANTIC_CATALOG_VERSION_V3;
+    candidate.actionSemanticCatalogDigest = LEGACY_ACTION_SEMANTIC_CATALOG_DIGEST_V3;
     if (mutation === 'future schema') {
       Object.assign(candidate.template, { schemaVersion: 'vc-schema/v5' });
     } else {
@@ -9674,6 +9706,9 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     });
     const immutableBytes = JSON.stringify(candidate);
     expect(() => assertLegacyVisualContractCandidateV9ForReconciliation({
+      snapshot, candidate, expectedTemplateDigest: candidate.templateDigest,
+    })).toThrow(/candidate is stale, malformed/);
+    expect(() => assertVisualContractCandidateForReconciliation({
       snapshot, candidate, expectedTemplateDigest: candidate.templateDigest,
     })).not.toThrow();
     expect(JSON.stringify(candidate)).toBe(immutableBytes);

@@ -38,6 +38,7 @@ export const OFFLINE_REPAIR_HARNESS_RESULT_VERSION =
   'visual-contract-offline-repair-harness-result/v4' as const;
 
 export interface OfflineRepairHarnessScenario {
+  actionSemanticCatalogVersion?: import('./actionSemanticCatalog').ActionSemanticCatalogVersion;
   input: TemplateCompileInput;
   initialDraft: unknown;
   repairResponses?: readonly unknown[];
@@ -623,6 +624,7 @@ export async function runOfflineRepairHarness(
           return responseJson(response);
         },
         routingPolicyVersion,
+        actionSemanticCatalogVersion: scenario.actionSemanticCatalogVersion,
       },
     );
     if (
