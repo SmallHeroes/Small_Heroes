@@ -1673,6 +1673,24 @@ export function buildVisualContractAuthoringRequest(args: {
   return buildAuthoringRequestForCatalog(args, ACTION_SEMANTIC_CATALOG_VERSION);
 }
 
+/** Read-only equality check, never a factory for new historical authority. */
+export function assertHistoricalVisualContractAuthoringRequestV56(args: {
+  snapshot: StorySourceAuthoritySnapshot;
+  request: VisualContractAuthoringRequest;
+}): void {
+  if (args.request.version !== VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION ||
+      args.request.actionSemanticAuthority?.catalogVersion !== LEGACY_ACTION_SEMANTIC_CATALOG_VERSION_V3 ||
+      !['preflight', 'live'].includes(args.request.mode) ||
+      !nonEmpty(args.request.requestId) || args.request.requestId.length > 160 ||
+      !isoTimestampIsValid(args.request.requestedAt) ||
+      !exactJson(args.request, buildAuthoringRequestForCatalog({
+        snapshot: args.snapshot, mode: args.request.mode, requestId: args.request.requestId,
+        requestedAt: args.request.requestedAt,
+      }, LEGACY_ACTION_SEMANTIC_CATALOG_VERSION_V3))) {
+    throw new Error('historical_request_v56_catalog_v3_mismatch');
+  }
+}
+
 // Private reconstruction only: the public factory cannot request old authority.
 function buildAuthoringRequestForCatalog(args: {
   snapshot: StorySourceAuthoritySnapshot;
@@ -5769,6 +5787,15 @@ export function buildVisualContractAuthoringReadinessEvidence(args: {
   canonicalImportPreflightAttestation?:
     CanonicalImportPreflightAttestation;
 }): VisualContractAuthoringReadinessEvidence {
+  return buildAuthoringReadinessForCatalog(args, ACTION_SEMANTIC_CATALOG_VERSION);
+}
+
+function buildAuthoringReadinessForCatalog(args: {
+  snapshot: StorySourceAuthoritySnapshot;
+  request: VisualContractAuthoringRequest;
+  receipt: VisualContractAuthoringReceipt;
+  canonicalImportPreflightAttestation?: CanonicalImportPreflightAttestation;
+}, catalogVersion: ActionSemanticCatalogVersion): VisualContractAuthoringReadinessEvidence {
   const {
     digestAlgorithm: _receiptDigestAlgorithm,
     digest: _receiptDigest,
@@ -5820,10 +5847,10 @@ export function buildVisualContractAuthoringReadinessEvidence(args: {
     ) ||
     !attemptsHaveValidExecution ||
     !attemptsHaveValidInputAccounting ||
-    !visualContractAuthoringReceiptPromptAuthorityIsValid({
+    visualContractAuthoringReceiptPromptAuthorityIssuesForProfile({
       request: args.request,
       receipt: args.receipt,
-    }) ||
+    }, false, catalogVersion).length > 0 ||
     aggregateExecution === null ||
     !exactJson(
       args.receipt.executionAttestation,
@@ -5963,6 +5990,20 @@ export function buildVisualContractAuthoringReadinessEvidence(args: {
       readinessWithoutDigest(withoutDigest),
     ),
   };
+}
+
+/** Exact frozen v56/v59/catalog-v3 readiness; no current readiness is minted. */
+export function assertHistoricalVisualContractAuthoringReadinessV56(args: {
+  snapshot: StorySourceAuthoritySnapshot;
+  request: VisualContractAuthoringRequest;
+  receipt: VisualContractAuthoringReceipt;
+  evidence: VisualContractAuthoringReadinessEvidence;
+  canonicalImportPreflightAttestation?: CanonicalImportPreflightAttestation;
+}): void {
+  assertHistoricalVisualContractAuthoringRequestV56(args);
+  assertValidLegacyVisualContractAuthoringReplayArtifacts(args);
+  const expected = buildAuthoringReadinessForCatalog(args, LEGACY_ACTION_SEMANTIC_CATALOG_VERSION_V3);
+  if (!exactJson(expected, args.evidence)) throw new Error('historical_readiness_v56_catalog_v3_mismatch');
 }
 
 function persistJsonArtifact(args: {

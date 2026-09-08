@@ -1,6 +1,48 @@
 # SmallHeroes — Current Technical State
 
-## M2a atomic semantic correction — LOCAL FULL GATE GREEN; independent QA pending
+## M2b historical-chain prerequisite — IMPLEMENTED; FINAL FULL CHECK NON-GREEN
+
+2026-09-08: Guy supplied Claude's independent M2a **code-scope PASS
+P0=0/P1=0/P2=0** for exactly `1e97f373..fdd568af`; the prior wording P2 is
+closed. Topology matches: 1 commit, 14 files, +3631/-7, clean cached ahead 10 /
+behind 0. Claude reproduced both typechecks, 216 tests, 30 adversarial
+assertions, the historical replay and exact packet/fixture identities. It
+verified the full-check log by hash/content; it did not rerun the full gate,
+perform a CLI write, grant full M2, semantic/product acceptance or render
+readiness. Earlier PASS ranges do not move.
+
+M2b continues in this same sole-writer task/worktree from `fdd568af`. Investigation
+reproduced an additional prerequisite: the complete B0 verifier rejects the
+valid original at `live_authoring_request_not_canonical_current_policy`, before
+the already known current candidate-factory pin. The historical request/readiness
+and complete Supervisor/receipt/replay graph now have explicit read-only
+validation, with a distinct historical result version/status and no current
+consumer authority. The current live verifier and attester still reject the
+original, deliberately. No live factory, bridge-v5 coverage invariant, source,
+receipt or original attestation is weakened or rewritten.
+
+This delivery is the **historical-chain prerequisite inside M2b**, not completed
+M2b: the changed-coverage manifest/consumer cutover and fresh current-consumer
+attestation remain next after independent review of this authority boundary.
+No original M2 acceptance criterion is removed. Application spend USD 0;
+no provider/key access, correction approval, Blueprint, package, render,
+publication, deployment, payment or push.
+
+Evidence and exact upcoming handoff:
+`docs/ai-workflow/R3B1B_M2B_HISTORICAL_CHAIN_EXECUTION.md` and
+`outputs/qa-m2b-history-20260908/HANDOFF.md`. The original P1 remains semantically
+HELD P0=0/P1=3/P2=3 pending exact review; M2a technical PASS is not Guy's
+acceptance of the review packet. Focused core: 61/61; real historical-chain replay
+and 18 hostile assertions passed with zero provider calls. Final complete
+`npm run check` exited 1: **5660 passed, 73 existing skips, one 5000ms timeout**
+in the unchanged Supervisor real-verify-entry sentinel test. Both typechecks
+passed. Earlier full run had three other timeouts; those passed isolated and
+in the final full run. No timing root cause or inherited classification is
+claimed; the full gate remains non-green. Failed logs are retained, with exact
+hashes and limitations in the execution evidence. No independent PASS for this
+new prerequisite is self-awarded.
+
+## Historical M2a handoff — LOCAL FULL GATE GREEN; then awaiting independent QA
 
 M2a core and the actual offline preview CLI are implemented. A real P1
 review-pending packet was produced from a byte-identical original-candidate

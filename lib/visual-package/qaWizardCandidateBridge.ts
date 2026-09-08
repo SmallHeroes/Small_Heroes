@@ -58,6 +58,7 @@ import {
 import {
   assertValidLiveRequestMaterializationManifest,
   verifyCanonicalLiveRequestBundle,
+  verifyHistoricalLiveRequestBundle,
   type LiveRequestMaterializationManifest,
 } from './liveRequestMaterialization';
 import {
@@ -1040,7 +1041,7 @@ function loadCanonicalSupervisorArtifacts(args: {
   authoringReceiptPath: string;
   authoringReadinessPath: string;
   candidatePath: string;
-}): LoadedCanonicalSupervisorAuthority {
+}, profile: 'current' | 'historical_v3' = 'current'): LoadedCanonicalSupervisorAuthority {
   const freshAbsolute = resolveExistingContainedArtifact({
     repoRoot: args.repoRoot,
     relativePath: args.freshReadinessPath,
@@ -1094,11 +1095,14 @@ function loadCanonicalSupervisorArtifacts(args: {
     category: 'live-request-materializations',
     label: 'canonical B0 materialization manifest',
   });
-  const bundleVerification = verifyCanonicalLiveRequestBundle({
+  const bundleVerification = (profile === 'historical_v3'
+    ? verifyHistoricalLiveRequestBundle : verifyCanonicalLiveRequestBundle)({
     repoRoot: args.repoRoot,
     manifestPath: executionRequest.canonicalBundle.manifestPath,
   });
-  if (bundleVerification.status !== 'verified') {
+  if (bundleVerification.status === 'rejected' ||
+      (profile === 'current' && bundleVerification.status !== 'verified') ||
+      (profile === 'historical_v3' && bundleVerification.status !== 'historical_verified')) {
     throw new Error('canonical B0 materialization bundle is no longer valid');
   }
   const verifiedB0AuthorityPairs = [
@@ -1494,6 +1498,16 @@ function loadCanonicalSupervisorArtifacts(args: {
     executionResult,
     executionResultDigest,
     materializationManifest,
+  };
+}
+
+/** Frozen authoring graph only; never reads or attests current consumer Git. */
+export function loadHistoricalCanonicalSupervisorArtifacts(
+  args: Parameters<typeof loadCanonicalSupervisorArtifacts>[0],
+) {
+  return {
+    authorityScope: 'immutable_historical_supervisor_input_only' as const,
+    artifacts: loadCanonicalSupervisorArtifacts(args, 'historical_v3'),
   };
 }
 

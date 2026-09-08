@@ -28,6 +28,7 @@ import {
 } from './acceptedStorySourceAuthoringAuthority';
 import {
   buildVisualContractAuthoringRequest,
+  assertHistoricalVisualContractAuthoringRequestV56,
   projectedMaximumAuthoringCostWithTerminalReferenceCleanupUsd,
   VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION,
   visualContractAuthoringStandardAttemptOutputBudgetIsValid,
@@ -2162,7 +2163,7 @@ function liveRequestPolicyReasonCodes(
 function verifyCanonicalLiveRequestBundleUnsafe(args: {
   repoRoot: string;
   manifestPath: string;
-}): CanonicalLiveRequestVerifiedResult {
+}, profile: 'current' | 'historical_v3' = 'current'): CanonicalLiveRequestVerifiedResult {
   if (
     typeof args.repoRoot !== 'string' ||
     !path.isAbsolute(args.repoRoot)
@@ -2419,7 +2420,12 @@ function verifyCanonicalLiveRequestBundleUnsafe(args: {
 
   let rebuiltLiveRequest: VisualContractAuthoringRequest;
   try {
-    rebuiltLiveRequest =
+    if (profile === 'historical_v3') {
+      const historical = liveRequestArtifact.value as VisualContractAuthoringRequest;
+      assertHistoricalVisualContractAuthoringRequestV56({ snapshot: rebuiltSnapshot, request: historical });
+      if (historical.mode !== 'live') throw new Error('historical_live_mode_required');
+      rebuiltLiveRequest = historical;
+    } else rebuiltLiveRequest =
       buildVisualContractAuthoringRequest({
         snapshot: rebuiltSnapshot,
         mode: 'live',
@@ -2438,7 +2444,7 @@ function verifyCanonicalLiveRequestBundleUnsafe(args: {
   );
   let liveRequestIssues: string[];
   try {
-    liveRequestIssues =
+    liveRequestIssues = profile === 'historical_v3' ? [] :
       visualContractAuthoringRequestIssues({
         request:
           liveRequestArtifact.value as VisualContractAuthoringRequest,
@@ -2899,5 +2905,33 @@ export function verifyCanonicalLiveRequestBundle(args: {
     return rejectedVerificationResult([
       'verification_internal_failure',
     ]);
+  }
+}
+
+export const HISTORICAL_LIVE_REQUEST_VERIFICATION_VERSION = 'historical-live-request-verification/v1' as const;
+export type HistoricalLiveRequestVerificationResult = (
+  | (Omit<CanonicalLiveRequestVerifiedResult, 'version' | 'status'> & { status: 'historical_verified' })
+  | Omit<CanonicalLiveRequestRejectedResult, 'version'>
+) & {
+  version: typeof HISTORICAL_LIVE_REQUEST_VERIFICATION_VERSION;
+  authorityScope: 'immutable_historical_input_only';
+  doesNotAuthorize: readonly string[];
+};
+
+/** Same complete B0 graph checks, explicit frozen profile, non-live result type. */
+export function verifyHistoricalLiveRequestBundle(args: {
+  repoRoot: string; manifestPath: string;
+}): HistoricalLiveRequestVerificationResult {
+  const boundary = {
+    version: HISTORICAL_LIVE_REQUEST_VERIFICATION_VERSION,
+    authorityScope: 'immutable_historical_input_only' as const,
+    doesNotAuthorize: ['live_preflight', 'provider_call', 'credential_load', 'reconciliation_approval', 'render'],
+  };
+  try {
+    const { version: _version, status: _status, ...verified } = verifyCanonicalLiveRequestBundleUnsafe(args, 'historical_v3');
+    return { ...verified, ...boundary, status: 'historical_verified' };
+  } catch (error) {
+    return { ...boundary, status: 'rejected', zeroWrite: true, reasonCodes:
+      error instanceof CanonicalLiveRequestVerificationFailure ? error.reasonCodes : ['verification_internal_failure'] };
   }
 }

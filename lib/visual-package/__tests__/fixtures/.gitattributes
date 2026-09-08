@@ -1,2 +1,5 @@
 # Exact paid-candidate regression evidence; preserve bytes across platforms.
 semantic-recovery-held-p1.json -text
+semantic-recovery-held-request.json -text
+semantic-recovery-held-receipt.json -text
+semantic-recovery-held-readiness.json -text

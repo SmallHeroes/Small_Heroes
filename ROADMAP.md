@@ -1,6 +1,6 @@
 # SmallHeroes — Roadmap
 
-**Last verified:** 2026-09-08 (M2a atomic correction and exact P1 preview implemented locally; independent QA pending)
+**Last verified:** 2026-09-08 (M2a independent code PASS received; M2b historical-chain prerequisite implemented locally; final full check non-green: 5660 passed, 73 existing skips, one timeout)
 **Product priority owner:** Guy
 **Technical sequencing owner:** Codex
 
@@ -31,6 +31,17 @@ Blueprint and any required LOW Board/prop generation remain separately budgeted
 provider actions with exact owner gates.
 
 ## Active
+
+Claude independently passed M2a code scope `1e97f373..fdd568af`, P0=0/P1=0/P2=0,
+and closed the wording P2. It did not award semantic/product acceptance, full M2
+or render readiness. M2b now has a locally implemented historical-chain
+prerequisite: frozen request/readiness/B0/Supervisor/receipt/replay verification
+without minting current authority. New changed-coverage manifest and fresh
+current-consumer attestation remain next after independent review of that
+boundary; no M2 criterion is dropped. Original P1 HOLD and zero provider spend
+remain unchanged. See `R3B1B_M2B_HISTORICAL_CHAIN_EXECUTION.md` in docs/ai-workflow.
+
+Historical M2a implementation checkpoint:
 
 M2a now implements the approved general atomic semantic correction and has
 produced an exact review-pending P1 before/after packet at zero provider cost.

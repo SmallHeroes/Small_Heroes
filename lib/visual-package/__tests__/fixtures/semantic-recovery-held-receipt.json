@@ -1,0 +1,158 @@
+{
+  "actionSemanticCoverage": {
+    "catalogDigest": "c8b366c2ca4f6d1b43eb0ee8e4196546e57d5ba279b5786fdb328de9f33acec5",
+    "catalogVersion": "action-semantic-catalog/v3",
+    "coverageDigest": "e5e5fbe3d684182fd0a5bb98ad5dca142005c9697b3719d9928631cb071ddfa1",
+    "gapCount": 0,
+    "recordCount": 77,
+    "sourceEvidenceCatalogDigest": "f15b78e7f521b1e692f07eefa8e6741cccc2bc159778b43de9aeb2373a46926b",
+    "sourceEvidenceCatalogVersion": "source-evidence-catalog/v1",
+    "status": "complete_review_required",
+    "version": "action-semantic-coverage/v6"
+  },
+  "aggregateUsage": {
+    "cacheWriteInputTokens": 13148,
+    "cachedInputTokens": 0,
+    "inputTokens": 13151,
+    "outputTokens": 15528,
+    "reasoningTokens": 1787,
+    "totalTokens": 28679
+  },
+  "attempts": [
+    {
+      "appliedMaxOutputTokens": 40000,
+      "attempt": 1,
+      "budgetClass": "standard",
+      "completionStatus": "completed",
+      "conservativeAccountedCostUsd": 0.413947,
+      "draftValidationDiagnostics": {
+        "currentUniqueCount": 0,
+        "emittedCount": 0,
+        "finalAttempt": true,
+        "items": [],
+        "newlyIntroducedCount": 0,
+        "persistentCount": 0,
+        "resolvedCount": 0,
+        "truncated": false,
+        "version": "draft-validation-attempt-diagnostics/v5"
+      },
+      "executionAttestation": {
+        "canonicalModelConfirmed": true,
+        "canonicalRouteConfirmed": true,
+        "evidenceKind": "canonical_adapter_observed",
+        "fallbackUsed": false,
+        "logicalProviderCalls": 1,
+        "transportDispatchCount": 1,
+        "transportRetryCount": 0
+      },
+      "inputAccounting": {
+        "ceiling": 75904,
+        "estimatedBytes": 50109,
+        "protocolAllowance": 4096,
+        "schemaBytes": 13977,
+        "separatorBytes": 2,
+        "systemBytes": 8790,
+        "userBytes": 23244
+      },
+      "kind": "initial",
+      "model": "gpt-5.6-sol",
+      "nominalEstimatedCostUsd": 0.376312,
+      "policyMismatchScope": null,
+      "provider": "openai",
+      "providerEvidenceVersion": "openai-responses-authoring-evidence/v6",
+      "providerIncompleteReason": "other_or_absent",
+      "providerReached": true,
+      "repairMode": null,
+      "reservedExposureBeforeCallUsd": 7.656,
+      "responseDigest": "2dd652fa8451db16423b45aaae35b6786101b004f15947ba0e511ab5f86603ae",
+      "responseId": "resp_0e5d11778d63f7d3016a9b282fcd4887d2afa4317ca547ca9c",
+      "routeProvenance": null,
+      "status": "response_received",
+      "systemPromptDigest": "c5e49585f76dc398e07859311508cefe6da954d1d8041ced3f4bdd7a14651d9c",
+      "usage": {
+        "cacheWriteInputTokens": 13148,
+        "cachedInputTokens": 0,
+        "inputTokens": 13151,
+        "outputTokens": 15528,
+        "reasoningTokens": 1787,
+        "totalTokens": 28679
+      },
+      "usageEvidenceComplete": true,
+      "usageEvidenceKind": "canonical_provider_reported",
+      "userPromptDigest": "d3da265e16f460fe63f828606e04192ae0d03339b373beb5863b35b840416c2c",
+      "validationDiagnostics": {
+        "codes": [],
+        "count": 0
+      }
+    }
+  ],
+  "callCount": 1,
+  "candidateDigest": "8632bd95869b93bf115500f3a24890daaa967a39805079e2f0ae86afc2543b18",
+  "conservativeAccountedCostUsd": 0.413947,
+  "digest": "b6c0b37e9c7b7007a9aee47bf39f691e263ca32657ee9491c6dc9ae0204940bf",
+  "digestAlgorithm": "canonical-json-sha256",
+  "doesNotAuthorize": [
+    "D1A1 live provider/model calls",
+    "Story Source or Semantic Reconciliation approval",
+    "Blueprint authoring or approval",
+    "Board mint, import, or approval",
+    "package assembly, publication, promotion, or activation",
+    "render, product, visual, release, deployment, or launch acceptance"
+  ],
+  "draftValidationStatus": "completed",
+  "endpoint": "responses",
+  "executionAttestation": {
+    "canonicalModelConfirmed": true,
+    "canonicalRouteConfirmed": true,
+    "evidenceKind": "canonical_adapter_observed",
+    "fallbackUsed": false,
+    "logicalProviderCalls": 1,
+    "transportDispatchCount": 1,
+    "transportRetryCount": 0
+  },
+  "failure": null,
+  "mode": "live",
+  "model": "gpt-5.6-sol",
+  "nominalEstimatedCostUsd": 0.376312,
+  "pricing": {
+    "cacheWriteInputUsdPerUnit": 5,
+    "cachedInputUsdPerUnit": 0.4,
+    "currency": "USD",
+    "outputUsdPerUnit": 20,
+    "regionalUpliftMultiplier": 1.1,
+    "source": "https://developers.openai.com/api/docs/pricing",
+    "uncachedInputUsdPerUnit": 4,
+    "unitTokens": 1000000,
+    "version": "openai-standard-pricing/2026-08-25-v3"
+  },
+  "pricingDigest": "aa3ad568ad9d815fa09d9c3251cece5d215dbe9a24c9b6f4ce02235646ccbb6a",
+  "projectedMaxCostUsd": 7.656,
+  "provider": "openai",
+  "reconciliationDigest": null,
+  "repairCount": 0,
+  "requestDigest": "2245a757ec6ae6552a974736d248f601609a419c0400a864c70c4880f049ed8d",
+  "serviceTier": "default",
+  "sourceSnapshotDigest": "8de91442f084a45af642bdaa49bd73f31ba37cf03c00ccd0aafad2995e605f16",
+  "standardAttemptOutputBudget": {
+    "digest": "382362dc0fb9498e5bb708fe76c71ee2d021230ef805dca1b4d132d998211f05",
+    "digestAlgorithm": "canonical-json-sha256",
+    "limits": [
+      40000,
+      32000,
+      36000,
+      24000,
+      24000,
+      24000,
+      24000
+    ],
+    "totalPool": 204000,
+    "version": "visual-contract-authoring-standard-attempt-output-budget/v6"
+  },
+  "status": "completed",
+  "structuredDraftReplayEvidence": {
+    "digest": "3134695bf93fc38d94531f6fe7f073e5724f4ef6327330243a141ce0fe26c879",
+    "path": "outputs/r3b1b-p1a1-v22r2-02/b0/structured-draft-replay-evidence/3134695bf93fc38d94531f6fe7f073e5724f4ef6327330243a141ce0fe26c879.json",
+    "version": "visual-contract-authoring-replay-evidence/v2"
+  },
+  "version": "visual-contract-authoring-receipt/v59"
+}

@@ -2,6 +2,16 @@
 
 Date: 2026-09-06
 
+2026-09-08 M2b continuation: M2a independent code PASS `1e97f373..fdd568af`
+is received (P0=0/P1=0/P2=0; wording P2 closed). The first M2b authority boundary
+is complete historical-chain input validation. Active-code investigation proved
+that B0 itself rebuilds the old request against the new catalog, before the
+known candidate-factory pin. An explicit frozen, read-only B0/readiness/
+Supervisor/receipt/replay route therefore precedes the changed-coverage manifest
+and fresh current-consumer cutover. This delivery does not complete M2b or drop
+any acceptance criterion. Evidence: `R3B1B_M2B_HISTORICAL_CHAIN_EXECUTION.md`.
+The original downstream and product-acceptance gates remain closed.
+
 2026-09-08 continuation: M2a implements atomic source-bound recovery and the
 exact review-only P1 preview. M2b is the separately gated changed-coverage
 bridge and historical-chain/current-consumer validation step, after M2a

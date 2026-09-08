@@ -1,0 +1,96 @@
+{
+  "actionSemanticCoverage": {
+    "catalogDigest": "c8b366c2ca4f6d1b43eb0ee8e4196546e57d5ba279b5786fdb328de9f33acec5",
+    "catalogVersion": "action-semantic-catalog/v3",
+    "coverageDigest": "e5e5fbe3d684182fd0a5bb98ad5dca142005c9697b3719d9928631cb071ddfa1",
+    "gapCount": 0,
+    "recordCount": 77,
+    "sourceEvidenceCatalogDigest": "f15b78e7f521b1e692f07eefa8e6741cccc2bc159778b43de9aeb2373a46926b",
+    "sourceEvidenceCatalogVersion": "source-evidence-catalog/v1",
+    "status": "complete_review_required",
+    "version": "action-semantic-coverage/v6"
+  },
+  "authoringOutcome": {
+    "failureCode": null,
+    "status": "completed",
+    "terminalClassification": null
+  },
+  "authoringReceiptDigest": "b6c0b37e9c7b7007a9aee47bf39f691e263ca32657ee9491c6dc9ae0204940bf",
+  "authoringRequestDigest": "2245a757ec6ae6552a974736d248f601609a419c0400a864c70c4880f049ed8d",
+  "blockers": [
+    "canonical_import_preflight_not_attested",
+    "semantic_reconciliation_absent",
+    "human_source_approval_absent"
+  ],
+  "blueprintAuthoringReady": false,
+  "canonicalImportPreflight": {
+    "attestationDigest": null,
+    "attestationVersion": null,
+    "status": "not_attested"
+  },
+  "d1a1Authorized": false,
+  "digest": "9466af78e073d06b917bd77d2c3dada46444d73fa20b5ee850831d48886c61c1",
+  "digestAlgorithm": "canonical-json-sha256",
+  "doesNotAuthorize": [
+    "D1A1 live provider/model calls",
+    "Story Source or Semantic Reconciliation approval",
+    "Blueprint authoring or approval",
+    "Board mint, import, or approval",
+    "package assembly, publication, promotion, or activation",
+    "render, product, visual, release, deployment, or launch acceptance"
+  ],
+  "draftValidation": {
+    "attempts": [
+      {
+        "currentUniqueCount": 0,
+        "emittedCount": 0,
+        "finalAttempt": true,
+        "items": [],
+        "newlyIntroducedCount": 0,
+        "persistentCount": 0,
+        "resolvedCount": 0,
+        "truncated": false,
+        "version": "draft-validation-attempt-diagnostics/v5"
+      }
+    ],
+    "status": "completed"
+  },
+  "executionAttestation": {
+    "canonicalModelConfirmed": true,
+    "canonicalRouteConfirmed": true,
+    "evidenceKind": "canonical_adapter_observed",
+    "fallbackUsed": false,
+    "logicalProviderCalls": 1,
+    "transportDispatchCount": 1,
+    "transportRetryCount": 0
+  },
+  "humanSourceApproval": {
+    "digest": null,
+    "status": "absent"
+  },
+  "semanticReconciliation": {
+    "digest": null,
+    "status": "absent"
+  },
+  "sourceSnapshotDigest": "8de91442f084a45af642bdaa49bd73f31ba37cf03c00ccd0aafad2995e605f16",
+  "standardAttemptOutputBudget": {
+    "digest": "382362dc0fb9498e5bb708fe76c71ee2d021230ef805dca1b4d132d998211f05",
+    "digestAlgorithm": "canonical-json-sha256",
+    "limits": [
+      40000,
+      32000,
+      36000,
+      24000,
+      24000,
+      24000,
+      24000
+    ],
+    "totalPool": 204000,
+    "version": "visual-contract-authoring-standard-attempt-output-budget/v6"
+  },
+  "version": "visual-contract-authoring-readiness/v56",
+  "visualContractCandidate": {
+    "digest": "8632bd95869b93bf115500f3a24890daaa967a39805079e2f0ae86afc2543b18",
+    "status": "candidate"
+  }
+}

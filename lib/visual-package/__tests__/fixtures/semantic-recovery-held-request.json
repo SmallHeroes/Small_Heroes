@@ -1,0 +1,248 @@
+{
+  "actionSemanticAuthority": {
+    "catalogDigest": "c8b366c2ca4f6d1b43eb0ee8e4196546e57d5ba279b5786fdb328de9f33acec5",
+    "catalogVersion": "action-semantic-catalog/v3",
+    "coverageVersion": "action-semantic-coverage/v6",
+    "sourceEvidenceCatalogDigest": "f15b78e7f521b1e692f07eefa8e6741cccc2bc159778b43de9aeb2373a46926b",
+    "sourceEvidenceCatalogVersion": "source-evidence-catalog/v1"
+  },
+  "bookSurfaceRepairStructuredOutput": {
+    "compatibilityEvidenceDigest": "4e2bc4619fc9560cd984415cf28a9be53d31d685c8ba88cec8612421dc79a968",
+    "compatibilityEvidenceVersion": "openai-responses-structured-output-compatibility-evidence/v2",
+    "compatibilityProfileDigest": "c5f7cacccff01c435b15cb9d20d0b6cff9ec4c399c5978b50ee81da9fb54523a",
+    "compatibilityProfileVersion": "openai-responses-structured-output-compatibility-profile/v2",
+    "compatibilityStatus": "compatible",
+    "schemaDigest": "a1d16581b25d9af14b33fdaa21806713f739212e51afa53643ba4c030739b20f",
+    "schemaName": "BookSurfaceRepairPatch",
+    "schemaVersion": "book-surface-repair-schema/v7",
+    "serializedSchemaDigest": "a1d16581b25d9af14b33fdaa21806713f739212e51afa53643ba4c030739b20f",
+    "strict": true
+  },
+  "callBudget": {
+    "maxCalls": 8,
+    "maxRepairCount": 7,
+    "standardMaxCalls": 7,
+    "standardMaxRepairCount": 6,
+    "terminalReferenceCleanup": {
+      "budgetClass": "terminal_reference_cleanup",
+      "eligiblePrecedingRepairModes": [
+        "book_surface_patch",
+        "full_draft"
+      ],
+      "maxCalls": 1,
+      "maxInputTokens": 12000,
+      "maxOutputTokens": 1000,
+      "maxRepairCount": 1,
+      "repairMode": "page_spatial_reference_patch",
+      "residualCode": "out_of_scope_reference",
+      "residualFamily": "draft_contract"
+    }
+  },
+  "compactRepairStructuredOutput": {
+    "compatibilityEvidenceDigest": "fb0d7428ce876b46ca8f096c173feeedf4fdd9a920684e7cabe0ef3102d10482",
+    "compatibilityEvidenceVersion": "openai-responses-structured-output-compatibility-evidence/v2",
+    "compatibilityProfileDigest": "c5f7cacccff01c435b15cb9d20d0b6cff9ec4c399c5978b50ee81da9fb54523a",
+    "compatibilityProfileVersion": "openai-responses-structured-output-compatibility-profile/v2",
+    "compatibilityStatus": "compatible",
+    "schemaDigest": "8f9514a8e2ad479aa7a8d2f01e322dadc34d522829ee417960d2f271adc51c6e",
+    "schemaName": "SourceEvidenceIdRepairPatches",
+    "schemaVersion": "source-evidence-id-repair-schema/v1",
+    "serializedSchemaDigest": "8f9514a8e2ad479aa7a8d2f01e322dadc34d522829ee417960d2f271adc51c6e",
+    "strict": true
+  },
+  "costBudget": {
+    "hardCeilingUsd": 10,
+    "projectedMaxUsd": 7.656
+  },
+  "digest": "2245a757ec6ae6552a974736d248f601609a419c0400a864c70c4880f049ed8d",
+  "digestAlgorithm": "canonical-json-sha256",
+  "endpoint": "responses",
+  "mode": "live",
+  "model": "gpt-5.6-sol",
+  "noFallback": true,
+  "pageContractRepairStructuredOutput": {
+    "compatibilityEvidenceDigest": "0494d8389b5a0c71bf7df5b3d2e741bcbbece0b5d558b473687572ab1359f5c1",
+    "compatibilityEvidenceVersion": "openai-responses-structured-output-compatibility-evidence/v2",
+    "compatibilityProfileDigest": "c5f7cacccff01c435b15cb9d20d0b6cff9ec4c399c5978b50ee81da9fb54523a",
+    "compatibilityProfileVersion": "openai-responses-structured-output-compatibility-profile/v2",
+    "compatibilityStatus": "compatible",
+    "schemaDigest": "1c7049591737ec2ecd68fb585a993ae1d87752f1aa3b41103ee5bc6c010b10d3",
+    "schemaName": "PageContractRepairPatches",
+    "schemaVersion": "page-contract-repair-schema/v3",
+    "serializedSchemaDigest": "1c7049591737ec2ecd68fb585a993ae1d87752f1aa3b41103ee5bc6c010b10d3",
+    "strict": true
+  },
+  "pageSpatialReferenceRepairStructuredOutput": {
+    "compatibilityEvidenceDigest": "fbaedf357056d339612578bbc48e89f13f62063cd54e85161734c7c280731fe7",
+    "compatibilityEvidenceVersion": "openai-responses-structured-output-compatibility-evidence/v2",
+    "compatibilityProfileDigest": "c5f7cacccff01c435b15cb9d20d0b6cff9ec4c399c5978b50ee81da9fb54523a",
+    "compatibilityProfileVersion": "openai-responses-structured-output-compatibility-profile/v2",
+    "compatibilityStatus": "compatible",
+    "schemaDigest": "316d076c978321fb18413e36720ac13ef0093b6d778fb177306e8a7197a97951",
+    "schemaName": "PageSpatialReferenceRepairPatches",
+    "schemaVersion": "page-spatial-reference-repair-schema/v1",
+    "serializedSchemaDigest": "316d076c978321fb18413e36720ac13ef0093b6d778fb177306e8a7197a97951",
+    "strict": true
+  },
+  "policyVersion": "visual-contract-authoring-policy/v22",
+  "presentationRequirementRepairStructuredOutput": {
+    "compatibilityEvidenceDigest": "5e3ae2788cb45b99571ab8f928091a5b1049a3fed0e3af921a8c3da43b550c79",
+    "compatibilityEvidenceVersion": "openai-responses-structured-output-compatibility-evidence/v2",
+    "compatibilityProfileDigest": "c5f7cacccff01c435b15cb9d20d0b6cff9ec4c399c5978b50ee81da9fb54523a",
+    "compatibilityProfileVersion": "openai-responses-structured-output-compatibility-profile/v2",
+    "compatibilityStatus": "compatible",
+    "schemaDigest": "2f69576faeb3603fdeeeec15f1aef5400054e47d616d22b40605f75d116acc3f",
+    "schemaName": "PresentationRequirementRepairPatches",
+    "schemaVersion": "presentation-requirement-repair-schema/v3",
+    "serializedSchemaDigest": "2f69576faeb3603fdeeeec15f1aef5400054e47d616d22b40605f75d116acc3f",
+    "strict": true
+  },
+  "pricing": {
+    "cacheWriteInputUsdPerUnit": 5,
+    "cachedInputUsdPerUnit": 0.4,
+    "currency": "USD",
+    "outputUsdPerUnit": 20,
+    "regionalUpliftMultiplier": 1.1,
+    "source": "https://developers.openai.com/api/docs/pricing",
+    "uncachedInputUsdPerUnit": 4,
+    "unitTokens": 1000000,
+    "version": "openai-standard-pricing/2026-08-25-v3"
+  },
+  "pricingDigest": "aa3ad568ad9d815fa09d9c3251cece5d215dbe9a24c9b6f4ce02235646ccbb6a",
+  "promptAuthority": {
+    "bookSurfaceRepair": {
+      "systemPromptDigest": "8e93d06cf8880bbac9a37e1bc902dcb43dc7364bc90ac0e91ae9445cac062b67",
+      "systemPromptVersion": "book-surface-repair-prompt/v14",
+      "userPromptVersion": "book-surface-repair-user-prompt/v13"
+    },
+    "initial": {
+      "systemPromptDigest": "c5e49585f76dc398e07859311508cefe6da954d1d8041ced3f4bdd7a14651d9c",
+      "systemPromptVersion": "vc-template-prompt/v22",
+      "userPromptDigest": "d3da265e16f460fe63f828606e04192ae0d03339b373beb5863b35b840416c2c",
+      "userPromptVersion": "vc-template-user-prompt/v17"
+    },
+    "pageContractRepair": {
+      "systemPromptDigest": "b6c33afe52d6bd6e4d2689057fb03810cf60b8c05bc184c21a43db3d19771f72",
+      "systemPromptVersion": "page-contract-repair-prompt/v13",
+      "userPromptVersion": "page-contract-repair-user-prompt/v14"
+    },
+    "pageSpatialReferenceRepair": {
+      "systemPromptDigest": "9cee18aa400ff1d576728d4c0c9c39a2ca48d84a512db7a54111e6d2ef6b11ce",
+      "systemPromptVersion": "page-spatial-reference-repair-prompt/v1",
+      "userPromptVersion": "page-spatial-reference-repair-user-prompt/v1"
+    },
+    "presentationRequirementRepair": {
+      "systemPromptDigest": "25f1d48c27112079cb2f4f6501119cf09802ea49a16b2ef6e71516c48345b489",
+      "systemPromptVersion": "presentation-requirement-repair-prompt/v3",
+      "userPromptVersion": "presentation-requirement-repair-user-prompt/v3"
+    },
+    "repair": {
+      "systemPromptDigest": "486e7475ed98193a445eabc360de718e221f66d5dcdd950126e1a8106706c24f",
+      "systemPromptVersion": "vc-repair-prompt/v16",
+      "userPromptVersion": "vc-repair-user-prompt/v15"
+    },
+    "representedElsewhereRepair": {
+      "systemPromptDigest": "31616197c8bf80963735aa92fa633a725138ff4a5a2ebf2d3fabea0880ff5543",
+      "systemPromptVersion": "represented-elsewhere-repair-prompt/v1",
+      "userPromptVersion": "represented-elsewhere-repair-user-prompt/v1"
+    },
+    "sourceEvidenceIdRepair": {
+      "systemPromptDigest": "7dc8735a336a750024bd4c38cb11ef621dcb193f38792f2510ad1f71a95661a0",
+      "systemPromptVersion": "source-evidence-id-repair-prompt/v1",
+      "userPromptVersion": "source-evidence-id-repair-user-prompt/v2"
+    },
+    "stablePropScopeRepair": {
+      "systemPromptDigest": "56810f4b9c343a92facecda7a17261c97f2ceb7547931e4ff46984da0a547833",
+      "systemPromptVersion": "stable-prop-scope-repair-prompt/v1",
+      "userPromptVersion": "stable-prop-scope-repair-user-prompt/v1"
+    },
+    "structuralBundleRepair": {
+      "systemPromptDigest": "ba5ac56f272d43b6930d24cd943de5d6fafe046ee6a77499964c6f2da9772274",
+      "systemPromptVersion": "structural-bundle-repair-prompt/v2",
+      "userPromptVersion": "structural-bundle-repair-user-prompt/v2"
+    }
+  },
+  "promptDigests": {
+    "system": "c5e49585f76dc398e07859311508cefe6da954d1d8041ced3f4bdd7a14651d9c",
+    "user": "d3da265e16f460fe63f828606e04192ae0d03339b373beb5863b35b840416c2c"
+  },
+  "provider": "openai",
+  "reasoningEffort": "medium",
+  "representedElsewhereRepairStructuredOutput": {
+    "compatibilityEvidenceDigest": "dc45b3c077d998cdaeb8a0001e3d137464a103c65e3d5194467402657935cc8b",
+    "compatibilityEvidenceVersion": "openai-responses-structured-output-compatibility-evidence/v2",
+    "compatibilityProfileDigest": "c5f7cacccff01c435b15cb9d20d0b6cff9ec4c399c5978b50ee81da9fb54523a",
+    "compatibilityProfileVersion": "openai-responses-structured-output-compatibility-profile/v2",
+    "compatibilityStatus": "compatible",
+    "schemaDigest": "c15013c5ed2a5482156e19dd95c3e46b10bdb01fa9df5da04c4d78b321c20a4d",
+    "schemaName": "RepresentedElsewhereRepairPatches",
+    "schemaVersion": "represented-elsewhere-repair-schema/v1",
+    "serializedSchemaDigest": "c15013c5ed2a5482156e19dd95c3e46b10bdb01fa9df5da04c4d78b321c20a4d",
+    "strict": true
+  },
+  "requestId": "r3b1b-p1a1-v22r2-02-20260904:b0",
+  "requestedAt": "2026-09-04T18:33:54.430Z",
+  "routingPolicyVersion": "visual-contract-authoring-routing-policy/v2",
+  "serviceTier": "default",
+  "sourceSnapshotDigest": "8de91442f084a45af642bdaa49bd73f31ba37cf03c00ccd0aafad2995e605f16",
+  "stablePropScopeRepairStructuredOutput": {
+    "compatibilityEvidenceDigest": "e272a660a8e113870315d82a8bf604a098b1772ad96626bc702d1a577283b9d8",
+    "compatibilityEvidenceVersion": "openai-responses-structured-output-compatibility-evidence/v2",
+    "compatibilityProfileDigest": "c5f7cacccff01c435b15cb9d20d0b6cff9ec4c399c5978b50ee81da9fb54523a",
+    "compatibilityProfileVersion": "openai-responses-structured-output-compatibility-profile/v2",
+    "compatibilityStatus": "compatible",
+    "schemaDigest": "b189a20c336cb17491ac440f740b21f0bc6596b27e445451b2b8ad11a4c7ee70",
+    "schemaName": "StablePropScopeRepairPatches",
+    "schemaVersion": "stable-prop-scope-repair-schema/v1",
+    "serializedSchemaDigest": "b189a20c336cb17491ac440f740b21f0bc6596b27e445451b2b8ad11a4c7ee70",
+    "strict": true
+  },
+  "structuralBundleRepairStructuredOutput": {
+    "compatibilityEvidenceDigest": "e1bc17d97dbc60456c35c2684ff1446a95e9a0c975635ea4a49fcf0ec514027d",
+    "compatibilityEvidenceVersion": "openai-responses-structured-output-compatibility-evidence/v2",
+    "compatibilityProfileDigest": "c5f7cacccff01c435b15cb9d20d0b6cff9ec4c399c5978b50ee81da9fb54523a",
+    "compatibilityProfileVersion": "openai-responses-structured-output-compatibility-profile/v2",
+    "compatibilityStatus": "compatible",
+    "schemaDigest": "e2741e87904493c50865bb0a89064c743d1a6b10bb2c99aaa8d32642829d03ea",
+    "schemaName": "StructuralBundleRepairPatch",
+    "schemaVersion": "structural-bundle-repair-schema/v4",
+    "serializedSchemaDigest": "e2741e87904493c50865bb0a89064c743d1a6b10bb2c99aaa8d32642829d03ea",
+    "strict": true
+  },
+  "structuredOutput": {
+    "compatibilityEvidenceDigest": "27566fbaf139225926088e6a5cc676809ae6fb3cbbb464c00d3a11091b0af44d",
+    "compatibilityEvidenceVersion": "openai-responses-structured-output-compatibility-evidence/v2",
+    "compatibilityProfileDigest": "c5f7cacccff01c435b15cb9d20d0b6cff9ec4c399c5978b50ee81da9fb54523a",
+    "compatibilityProfileVersion": "openai-responses-structured-output-compatibility-profile/v2",
+    "compatibilityStatus": "compatible",
+    "schemaDigest": "82f8c6dbb51c2bacea8265eef33b6cb2f9fb2ba76be8dea516344204966a88d6",
+    "schemaName": "BookVisualContractTemplateDraft",
+    "schemaVersion": "vc-draft-schema/v21",
+    "serializedSchemaDigest": "82f8c6dbb51c2bacea8265eef33b6cb2f9fb2ba76be8dea516344204966a88d6",
+    "strict": true
+  },
+  "timeoutMs": 1200000,
+  "tokenBudget": {
+    "maxInputTokens": 80000,
+    "outputIncludesReasoning": true,
+    "promptAndSchemaTokenUpperBound": 50109,
+    "standardAttempts": {
+      "digest": "382362dc0fb9498e5bb708fe76c71ee2d021230ef805dca1b4d132d998211f05",
+      "digestAlgorithm": "canonical-json-sha256",
+      "limits": [
+        40000,
+        32000,
+        36000,
+        24000,
+        24000,
+        24000,
+        24000
+      ],
+      "totalPool": 204000,
+      "version": "visual-contract-authoring-standard-attempt-output-budget/v6"
+    }
+  },
+  "toolsDisabled": true,
+  "transportRetries": 0,
+  "version": "visual-contract-authoring-request/v56"
+}
