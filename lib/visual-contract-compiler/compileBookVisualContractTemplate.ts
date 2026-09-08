@@ -2316,7 +2316,7 @@ export function injectAppearance(role: string, humanId: string, reviewedClass?: 
 }
 
 /** Merge the deterministic identity facts (win) with the compiler-injected appearance + the draft's garments. */
-function mergeHuman(fact: HumanFact, draftHuman: Record<string, unknown>): TemplateHumanCastMember {
+export function mergeHuman(fact: HumanFact, draftHuman: Record<string, unknown>): TemplateHumanCastMember {
   return {
     id: fact.id,
     role: fact.role,

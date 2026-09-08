@@ -1,6 +1,6 @@
 # SmallHeroes — Roadmap
 
-**Last verified:** 2026-09-08 (running/catalog independent code PASS received; fresh local full gate GREEN; M2 next)
+**Last verified:** 2026-09-08 (M2a atomic correction and exact P1 preview implemented locally; independent QA pending)
 **Product priority owner:** Guy
 **Technical sequencing owner:** Codex
 
@@ -32,6 +32,20 @@ provider actions with exact owner gates.
 
 ## Active
 
+M2a now implements the approved general atomic semantic correction and has
+produced an exact review-pending P1 before/after packet at zero provider cost.
+Complete local full gate: 5634 passed, 73 existing skips, zero failed, both
+typechecks; inventory 388/366/22, unchanged 4/2 workers. Focused 216/216.
+Original paid artifacts remain unchanged; independent M2a QA and exact semantic
+acceptance are pending. M2b is the separately gated changed-coverage bridge and
+historical-chain/current-consumer validation step, not implemented by M2a.
+No original M2 acceptance criterion is dropped. Blueprint, Boards/package
+qualification and bounded LOW rendering remain downstream, not authorized by
+the preview itself. No new generic implementation permission is requested.
+See `docs/ai-workflow/R3B1B_M2A_ATOMIC_SEMANTIC_CORRECTION_EXECUTION.md`.
+
+Historical M1b checkpoint, before M2a implementation:
+
 Claude's supplied independent PASS P0=0/P1=0/P2=0 covers exactly
 `d91fc72b..711d63f0` (running/catalog cutover), not full M1b completion or
 render readiness. The report reproduces the 396-test battery, both typechecks
@@ -40,7 +54,8 @@ Codex's subsequent complete uninstrumented full gate passed: 5607 tests, 73
 existing skips, zero failed; both typechecks, inventory 387/365/22, workers 4/2.
 No code, timeout or runner policy changed; intermittent failure root cause is
 unresolved, not relabeled fixed. The new log has not been independently reviewed.
-M2 atomic recovery and exact semantic acceptance remain next. Application spend $0.
+M2 atomic recovery and exact semantic acceptance were next at that checkpoint.
+Application spend $0.
 
 Historical checkpoint state before the supplied review:
 

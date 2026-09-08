@@ -55,11 +55,12 @@ describe('Vitest workload classifier', () => {
     );
     const partition = classifyVitestWorkloads(inventory, policy);
 
-    expect(partition.inventory).toHaveLength(387);
+    expect(partition.inventory).toHaveLength(388);
     expect(partition.resourceIntensive).toHaveLength(22);
     expect(partition.resourceIntensive).toContain('lib/__tests__/cooperative-vitest-runner.spec.ts');
     expect(partition.inventory.some((candidate: string) => candidate.endsWith('.fixture.ts'))).toBe(false);
-    expect(partition.ordinary).toHaveLength(365);
+    expect(partition.ordinary).toHaveLength(366);
+    expect(partition.ordinary).toContain('lib/visual-package/__tests__/semantic-correction.spec.ts');
     expect(partition.ordinary).toContain('lib/__tests__/action-semantic-catalog-wire-policy.spec.ts');
     expect(partition.ordinary).toContain(
       'lib/__tests__/supporting-cast-review.spec.ts',

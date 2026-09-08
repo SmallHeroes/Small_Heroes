@@ -2,7 +2,18 @@
 
 Date: 2026-09-06
 
-Status: OWNER APPROVED 2026-09-06; M1a INDEPENDENTLY CLOSED;
+2026-09-08 continuation: M2a implements atomic source-bound recovery and the
+exact review-only P1 preview. M2b is the separately gated changed-coverage
+bridge and historical-chain/current-consumer validation step, after M2a
+independent QA. This is an engineering subdivision under the existing owner
+approval, not removal of any M2 criterion or semantic/product acceptance.
+Prior M1b code-slice PASS ranges and a complete local full gate support
+progression; the later documentation PASS does not award complete M1b or an
+independent repository-gate PASS. Exact current evidence and limitations:
+`R3B1B_M2A_ATOMIC_SEMANTIC_CORRECTION_EXECUTION.md`. No paid action is executed
+in M2a; the original P1 HOLD remains pending exact independent/owner review.
+
+Historical compatibility checkpoint status: OWNER APPROVED 2026-09-06; M1a INDEPENDENTLY CLOSED;
 M1b COMPATIBILITY FOUNDATION IMPLEMENTED; FULL CHECK NON-GREEN;
 INDEPENDENT REVIEW PENDING; NO DOWNSTREAM QUALIFICATION
 

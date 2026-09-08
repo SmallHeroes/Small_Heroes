@@ -1,6 +1,59 @@
 # SmallHeroes — Current Technical State
 
-## M1b running/catalog cutover — INDEPENDENT CODE PASS; fresh full gate GREEN
+## M2a atomic semantic correction — LOCAL FULL GATE GREEN; independent QA pending
+
+M2a core and the actual offline preview CLI are implemented. A real P1
+review-pending packet was produced from a byte-identical original-candidate
+copy: nine operations, three individual humans, two groups, separately bound
+effective template/coverage. Full before/after structures and a concise product
+view are in `outputs/qa-m2a-semantic-20260908/BEFORE_AFTER.md` and
+`REVIEW_SUMMARY.md`. Original P1 remains semantically HELD P0=0/P1=3/P2=3 until
+exact independent/owner review; this packet is not approval or a paid candidate.
+
+Final complete `npm run check` exited 0: **5634 passed, 73 existing skips, zero
+failed**, both typechecks; ordinary 4963, resource-intensive 671. Inventory
+388/366/22, unchanged workers 4/2. Focused 216/216 (7 specs), including 27 new
+tests and actual CLI network-denial proof. Exact historical replay passed with
+zero provider calls; all 14 original files still match 412,516 bytes and
+`cd621f7712912a92d14fa87432c609c5e92a006363e7eed7be5231a856e8fdd0`.
+Full log SHA-256:
+`f0dacd55b720ddccf89f1bf75278dfa1ba4879a82e9bd6f54d07a370ff2d19e5`.
+This is local evidence, not an independent repository PASS or proof that prior
+intermittent native-Git/timing failures are fixed.
+
+Next: independent M2a implementation QA (including the prior wording P2), then
+M2b's explicit changed-coverage/historical-chain bridge and exact semantic
+acceptance before downstream Blueprint/Boards/package qualification and LOW
+sample. Local `claude auth status` at 08:06:50 +03:00 returned loggedIn false,
+exit 1; no review was dispatched. No new generic owner permission is needed.
+Exact committed range, proof and copy-ready inspection/push commands are in
+`outputs/qa-m2a-semantic-20260908/HANDOFF.md`. No process remains running at
+handoff. Execution evidence:
+`docs/ai-workflow/R3B1B_M2A_ATOMIC_SEMANTIC_CORRECTION_EXECUTION.md`.
+
+2026-09-08: this task continues under the approved general semantic-recovery
+Gate, sole writer in `C:/GNart/Work/sh-r3b1b-semantic-m1`, branch
+`codex/r3b1b-semantic-recovery-m1`, base `1e97f373` (clean, cached ahead 9 / behind
+0 at start). Protected d53b `768ccb2f` and accepted-intent `63ccb484` are clean
+and read-only. Engineering subdivision: M2a is atomic source-bound correction
+and an exact review-only P1 preview; M2b is the separately gated effective
+coverage/legacy-chain bridge. No original M2 acceptance criterion is dropped.
+
+Guy supplied Claude's documentation PASS P0=0/P1=0/P2=1 for exactly
+`711d63f0..1e97f373`. It confirms transcription/log identities, not an
+independent repository-gate verdict or M2 authority. P2-1 is corrected locally
+below by adding `local` to the heading; independent re-gate remains pending.
+The reported external-brief hash typo is absent from the committed documents
+and local HANDOFF.md, which correctly use `00c6aa780730...`. No log was edited.
+
+Progression relies on Guy's standing M2 implementation approval, the preceding
+M1b code-slice PASS ranges and the complete local 5607-test gate, not a claim
+that the documentation review independently awarded complete M1b. Intermittent
+native-Git/timing root cause remains unresolved. No independent PASS is claimed
+for M2a. No provider/credential/render/spend, receipt mutation, source rewrite,
+Blueprint, package, promotion, publication, deployment, payment or push.
+
+## Historical M1b running/catalog checkpoint — INDEPENDENT CODE PASS; fresh local full gate GREEN
 
 Checkpoint committed as `cff1abeb`; the attempted independent review of its
 fresh evidence then failed before model work: `Not logged in / Please run
