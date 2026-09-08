@@ -1,6 +1,6 @@
 # SmallHeroes — Roadmap
 
-**Last verified:** 2026-09-08 (group QA PASS received; running/catalog code checkpoint, FULL CHECK NON-GREEN, independent QA pending)
+**Last verified:** 2026-09-08 (running/catalog independent code PASS received; fresh local full gate GREEN; M2 next)
 **Product priority owner:** Guy
 **Technical sequencing owner:** Codex
 
@@ -31,6 +31,18 @@ Blueprint and any required LOW Board/prop generation remain separately budgeted
 provider actions with exact owner gates.
 
 ## Active
+
+Claude's supplied independent PASS P0=0/P1=0/P2=0 covers exactly
+`d91fc72b..711d63f0` (running/catalog cutover), not full M1b completion or
+render readiness. The report reproduces the 396-test battery, both typechecks
+and held replay; its full-check assessment is log/hash verification only.
+Codex's subsequent complete uninstrumented full gate passed: 5607 tests, 73
+existing skips, zero failed; both typechecks, inventory 387/365/22, workers 4/2.
+No code, timeout or runner policy changed; intermittent failure root cause is
+unresolved, not relabeled fixed. The new log has not been independently reviewed.
+M2 atomic recovery and exact semantic acceptance remain next. Application spend $0.
+
+Historical checkpoint state before the supplied review:
 
 The group-foundation independent PASS `fe07a65e..d91fc72b` is now received
 (P0=0/P1=0/P2=0). Current continuation from `d91fc72b` implements the remaining

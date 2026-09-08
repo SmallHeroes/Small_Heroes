@@ -1,6 +1,41 @@
 # SmallHeroes — Current Technical State
 
-## M1b running/catalog cutover — CODE CHECKPOINT; FULL CHECK NON-GREEN; QA auth blocked
+## M1b running/catalog cutover — INDEPENDENT CODE PASS; fresh full gate GREEN
+
+The complete uninstrumented `npm run check` in this continuation exited 0:
+**5607 passed, 73 existing skips, zero failed**. Ordinary 4936 passed and
+resource-intensive 671 passed; exact 387/365/22 inventory and unchanged 4/2
+workers. Both typechecks passed inside this same run. No production/test/runner
+code or timing policy changed. This is a fresh full-run PASS, not a combination
+of isolated results or a claim that intermittent failures have been repaired.
+Claude has not independently reviewed this new run's log. Earlier failed runs
+remain preserved and failed. Full log SHA-256:
+`00c6aa7807308d903c83f210198b3291625691fbf4a1e1cf29bae36fab5e2dc1`.
+Evidence: `docs/ai-workflow/R3B1B_M1B_GATE_DIAGNOSTIC_CONTINUATION.md`.
+Next: the already approved M2 offline atomic correction, with separate effective
+template/coverage and the original paid candidate/receipt unchanged. No render
+readiness or semantic/product acceptance follows from the green repository run.
+
+2026-09-08: Guy supplied Claude Code's independent read-only PASS
+P0=0/P1=0/P2=0 for exactly `d91fc72b..711d63f0`. The delivered report's
+branch, HEAD and 2-commit / 29-file / +703/-108 topology match the local
+repository. Claude reproduced 396/396 focused tests, both typechecks, the
+zero-provider held replay and 27 falsification assertions. It verified the
+failed full-check log by SHA-256, not by rerunning the full repository gate.
+The supplied review supersedes the pending code-review/authentication blocker;
+it does not prove that local CLI authentication has been repaired.
+
+This independent PASS covers code-review scope only. The repository gate was
+NON-GREEN when the report was issued; the fresh local result is recorded above.
+No native root cause or inherited classification has been established. M1b
+completion, M2, P1 semantic acceptance and render readiness were not awarded by
+that review. Original P1 remains HELD
+P0=0/P1=3/P2=3. This task continues as sole writer in the same worktree, from
+clean HEAD `711d63f0`, cached ahead 7 / behind 0; protected dependencies remain
+read-only. Diagnostic output: `outputs/qa-m1b-git-diagnosis-20260908/`.
+No provider, credential, render, push, deployment or payment action is involved.
+
+### Historical checkpoint and failed CLI dispatch (superseded by supplied QA)
 
 Implementation checkpoint committed locally as `ff51b3e7`. The first independent
 Claude Code dispatch failed before model work: HTTP 401 authentication_failed,
@@ -43,8 +78,8 @@ selected test then passed alone; the prior full attempt failed instead on a
 cause or inherited classification is proven, no timing fix or full PASS claimed.
 All logs are preserved; no deadline/worker/runner was weakened. Inventory is
 387/365/22 with workers 4/2. This is an explicit review checkpoint, not completed
-M1b or a render-ready handoff. After reauthentication, independent QA will address the implementation
-and these disclosed repository-gate limits. Evidence/consumer inventory:
+M1b or a render-ready handoff. At this checkpoint, independent QA was still pending;
+the subsequently supplied review and its limits are recorded above. Evidence/consumer inventory:
 `docs/ai-workflow/R3B1B_M1B_RUNS_CATALOG_CUTOVER_EXECUTION.md`.
 
 P1 remains semantically HELD P0=0/P1=3/P2=3. No M2 artifact, Blueprint, image,

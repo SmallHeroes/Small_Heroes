@@ -1,7 +1,12 @@
 # M1b remaining running/catalog cutover
 
-Date: 2026-09-08. Status: code review checkpoint; FINAL FULL CHECK NON-GREEN,
-independent QA pending. Not completed M1b and no downstream authority.
+Date: 2026-09-08. Current status: independent code PASS received for
+`d91fc72b..711d63f0`; subsequent local full gate GREEN (5607 passed / 73 skips),
+with no claim that intermittent failures were repaired. The new full-run evidence
+is in `R3B1B_M1B_GATE_DIAGNOSTIC_CONTINUATION.md` and has not been independently
+reviewed. The received review's repository gate was NON-GREEN at its issue time.
+The original checkpoint evidence below predates that review; see the received
+review section at the end. Not completed M1b and no downstream authority.
 
 ## Authority, topology and observed cause
 
@@ -191,3 +196,25 @@ Rollback: focused local commit can be reverted; no persisted production migratio
 or authority promotion. Original candidate remains HELD P0=0/P1=3/P2=3.
 Independent QA then M2 atomic recovery remain mandatory; broad render permission
 does not waive them. M2 must handle schema v5 -> v4 when the last group is removed.
+
+## Independent review received — 2026-09-08
+
+Guy supplied Claude Code's read-only review of `d91fc72b..711d63f0`:
+**PASS (code-review scope), P0=0/P1=0/P2=0; repository gate NON-GREEN**.
+Codex reconciled the exact branch/worktree/HEAD and 2 commits / 29 paths /
++703/-108 against Git. No independent PASS is extended to this transcription.
+
+Claude ran 396/396 focused tests in 13 specs, both typechecks, the exact held
+replay and 27 adversarial assertions. It checked one historical schema digest
+directly; all nine schema/prompt bindings were additionally covered by the
+replay's exact request reconstruction, not nine independent hand comparisons.
+It verified `full-check-3.log` by hash, without rerunning the full check, and
+confirmed the 14-file / 412516-byte protected P1 inventory. The v55 envelope
+coverage limit remains explicit; frozen wire content shares the positively
+proven v56 reconstruction core. No findings were issued.
+
+The supplied review closes pending independent code QA despite the earlier
+local CLI 401. It does not establish repaired local authentication, a full
+repository PASS, complete M1b/M2, render readiness or Guy's product acceptance.
+No original artifacts, provider calls or render spend are part of this record.
+Prior checkpoint text above is historical evidence, not current pending-QA state.
