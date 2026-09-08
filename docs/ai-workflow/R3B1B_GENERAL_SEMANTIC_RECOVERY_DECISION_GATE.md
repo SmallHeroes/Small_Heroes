@@ -2,6 +2,15 @@
 
 Date: 2026-09-06
 
+2026-09-09 continuation: historical-input PASS `fdd568af..f59fe086` is received,
+P0=0/P1=0/P2=0, with the repository gate still non-green. The next bounded
+implementation is current-consumer read-only validation of the exact effective
+packet: current executing repository and accepted source are checked separately
+from historical authority. No persisted attestation/approval/bridge is produced.
+Changed-coverage manifest and approval/downstream cutover remain inside M2b;
+this is not full M2b completion or removal of a criterion. Cost remains USD 0.
+Evidence: `R3B1B_M2B_CURRENT_CONSUMER_EXECUTION.md`.
+
 2026-09-08 M2b continuation: M2a independent code PASS `1e97f373..fdd568af`
 is received (P0=0/P1=0/P2=0; wording P2 closed). The first M2b authority boundary
 is complete historical-chain input validation. Active-code investigation proved

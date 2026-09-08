@@ -1,6 +1,6 @@
 # SmallHeroes — Roadmap
 
-**Last verified:** 2026-09-08 (M2a independent code PASS received; M2b historical-chain prerequisite implemented locally; final full check non-green: 5660 passed, 73 existing skips, one timeout)
+**Last verified:** 2026-09-09 (M2b historical-input PASS received; current-consumer validation implemented locally; final full check NON-GREEN: 5680 passed / 73 existing skips / 13 timeouts)
 **Product priority owner:** Guy
 **Technical sequencing owner:** Codex
 
@@ -31,6 +31,19 @@ Blueprint and any required LOW Board/prop generation remain separately budgeted
 provider actions with exact owner gates.
 
 ## Active
+
+Claude passed the historical-input boundary `fdd568af..f59fe086` (0/0/0),
+not full M2b or the repository gate. Current-consumer read-only validation is
+now implemented: exact packet reconstruction, source parity, executing-code
+root and clean current Git binding, with repeat observations across replay.
+No actual current attestation is minted while this worktree is unpropagated;
+synthetic-Git integration evidence is explicitly non-authoritative. Remaining:
+changed-coverage manifest, exact correction/reconciliation approval binding and
+consumer cutover, then Blueprint/Boards/package qualification and LOW sample.
+Original semantic HOLD and payment-last priority remain. No new product
+acceptance, paid call, render or push. See current execution evidence.
+
+Historical checkpoint before this supplied PASS:
 
 Claude independently passed M2a code scope `1e97f373..fdd568af`, P0=0/P1=0/P2=0,
 and closed the wording P2. It did not award semantic/product acceptance, full M2

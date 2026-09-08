@@ -6,7 +6,7 @@ import { loadAcceptedSupportingCastReview } from './acceptedSupportingCastReview
 import { resolveExistingContainedArtifact } from './qaWizardCandidateBridge';
 import { createContainedContentAddressedJsonArtifactStore } from './canonicalLiveAuthoringArtifacts';
 import { canonicalContentAddressedJsonBytes } from './canonicalContentAddressedJson';
-import { applySemanticCorrection, buildSemanticCorrectionPlan } from './visualContractSemanticCorrection';
+import { applySemanticCorrection, buildSemanticCorrectionPlan, type SemanticCorrectionContext, type SemanticCorrectionPlan } from './visualContractSemanticCorrection';
 import type { VisualContractCandidateArtifact } from './visualContractAuthoringLifecycle';
 import type { SupportingCastReview } from '@/lib/visual-contract-compiler/supportingCastReview';
 
@@ -15,6 +15,21 @@ export interface SemanticCorrectionPreviewRequest {
   candidatePath: string; supportingCastReviewPath: string; operationsPath: string;
   outputDir: string; write?: boolean;
 }
+/** Shared exact packet construction: consumer validation must not trust a rehash. */
+export function buildSemanticCorrectionReviewPacket(context: SemanticCorrectionContext, plan: SemanticCorrectionPlan) {
+  const correction = applySemanticCorrection(context, plan);
+  const payload = {
+    version: 'visual-contract-semantic-correction-review-packet/v1' as const,
+    decision: 'pending' as const, sourceSnapshotDigest: context.snapshot.digest,
+    supportingCastReview: context.supportingCastReview, plan, correction,
+    before: { template: context.candidate.template, coverage: context.candidate.actionSemanticCoverage },
+    authorityScope: 'exact_semantic_product_review_only' as const,
+    doesNotAuthorize: correction.doesNotAuthorize,
+  };
+  return { ...payload, digestAlgorithm: 'canonical-json-sha256' as const, digest: canonicalHash(payload) };
+}
+export type SemanticCorrectionReviewPacket = ReturnType<typeof buildSemanticCorrectionReviewPacket>;
+
 export function prepareSemanticCorrectionPreview(args: SemanticCorrectionPreviewRequest) {
   if (!args.outputDir.startsWith('outputs/') || path.posix.normalize(args.outputDir) !== args.outputDir || args.outputDir.includes('\\')) throw new Error('semantic_preview_output_must_be_new_outputs_scope');
   const read = (relativePath: string, label: string) => {
@@ -31,16 +46,7 @@ export function prepareSemanticCorrectionPreview(args: SemanticCorrectionPreview
   const accepted = loadAcceptedSupportingCastReview({ ...args, review: supportingCastReview });
   const context = { snapshot: accepted.snapshot, candidate, supportingCastReview };
   const plan = buildSemanticCorrectionPlan(context, read(args.operationsPath, 'semantic operations').value);
-  const correction = applySemanticCorrection(context, plan);
-  const payload = {
-    version: 'visual-contract-semantic-correction-review-packet/v1' as const,
-    decision: 'pending' as const, sourceSnapshotDigest: context.snapshot.digest,
-    supportingCastReview, plan, correction,
-    before: { template: candidate.template, coverage: candidate.actionSemanticCoverage },
-    authorityScope: 'exact_semantic_product_review_only' as const,
-    doesNotAuthorize: correction.doesNotAuthorize,
-  };
-  const packet = { ...payload, digestAlgorithm: 'canonical-json-sha256' as const, digest: canonicalHash(payload) };
+  const packet = buildSemanticCorrectionReviewPacket(context, plan);
   const store = createContainedContentAddressedJsonArtifactStore({
     repoRoot: args.repoRoot, outputDir: args.outputDir, categories: ['semantic-correction-reviews'] as const,
     rejectSymlinkAliases: true, errorPrefix: 'semantic correction review',

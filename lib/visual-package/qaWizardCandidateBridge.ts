@@ -1032,6 +1032,19 @@ function assertLiveConsumerRepositoryAuthority(args: {
   }
 }
 
+/** Fresh, read-only observation for new semantic consumers; no attestation write. */
+export function readCurrentQaWizardConsumerRepositoryAuthority(repoRoot: string) {
+  const consumer = readConsumerRepositoryAuthority(repoRoot);
+  const branch = consumer.branchRef.replace(/^refs\/heads\//, '');
+  if (!consumer.branchRef.startsWith('refs/heads/') || !branch ||
+      ['main', 'master'].includes(branch) ||
+      consumer.upstreamRef !== `refs/remotes/origin/${branch}`) {
+    throw new Error('semantic_consumer_branch_or_upstream_invalid');
+  }
+  assertLiveConsumerRepositoryAuthority({ repoRoot, expected: consumer });
+  return consumer;
+}
+
 function loadCanonicalSupervisorArtifacts(args: {
   repoRoot: string;
   freshReadinessPath: string;

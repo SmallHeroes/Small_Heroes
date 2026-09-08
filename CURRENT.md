@@ -1,6 +1,50 @@
 # SmallHeroes — Current Technical State
 
-## M2b historical-chain prerequisite — IMPLEMENTED; FINAL FULL CHECK NON-GREEN
+## M2b current-consumer validation — IMPLEMENTED; FINAL FULL CHECK NON-GREEN
+
+2026-09-09: Guy supplied Claude's historical-input-boundary PASS
+P0=0/P1=0/P2=0 for exactly `fdd568af..f59fe086`. Branch/worktree and
+1-commit / 15-file / +1142/-12 topology match. Claude independently reproduced
+both typechecks, 61 focused tests, real historical replay, our 18-assertion
+probe and its own 21-assertion probe. It verified the failed full-check log by
+SHA/content; it did not rerun the full gate. This PASS does not complete M2b,
+accept the exact semantic packet, pass the repository gate or authorize render.
+Earlier independent ranges and original P1 HOLD P0=0/P1=3/P2=3 are unchanged.
+
+Continued under the existing general-recovery approval, same sole-writer task
+and worktree `C:/GNart/Work/sh-r3b1b-semantic-m1`, branch
+`codex/r3b1b-semantic-recovery-m1`, from clean `f59fe086`, cached ahead 11 /
+behind 0 at start. Protected d53b `768ccb2f` and accepted-intent `63ccb484`
+remain clean/read-only. No new task, parallel writer, push or cleanup.
+
+Implemented the current-consumer read-only validation boundary: pin the
+executing repository, require clean same-name origin parity, reload the actual
+historical chain, verify the current accepted source matches, reconstruct the
+complete M2a packet, then reobserve inputs/Git across async replay. It returns
+a distinct non-approval proof, not a persisted attestation or bridge manifest.
+The old current-candidate and cover-only v5 routes are unchanged. This is not
+completed M2b: changed-coverage manifest, exact approval/reconciliation binding
+and downstream consumer cutover remain. No acceptance criterion was dropped.
+
+Focused 93/93 tests passed. Actual CLI rejects the current non-parity/dirty
+repository; no real current authority is claimed. A separate probe substitutes
+only current Git observations, traverses the real historical graph twice and
+reconstructs the exact existing packet with zero write/env/provider attempts.
+That synthetic-Git success is diagnostic evidence, not a usable attestation.
+Final `npm run check` exited 1: both typechecks passed; **5680 tests passed,
+73 existing skips, 13 timeouts** in five unchanged resource-intensive specs.
+Ordinary 5022/0 failed; resource 658/13 failed; inventory 390/368/22, workers
+4/2 unchanged. One failure is in the existing bridge regression spec; a code
+contribution is not ruled out. No inherited/root-cause/full-green claim.
+The failed log is retained with SHA-256
+`12b7a5f2ed45766715a03182b40b9eb31a18e9345d02b9f2c3582bf8651ff856`.
+Evidence:
+`docs/ai-workflow/R3B1B_M2B_CURRENT_CONSUMER_EXECUTION.md` and
+`outputs/qa-m2b-consumer-20260909/HANDOFF.md`.
+Application spend USD 0; no credential access, approval, render, Blueprint,
+package, source/locator change, publication, deployment or payment.
+
+## Historical M2b historical-chain prerequisite — IMPLEMENTED; FINAL FULL CHECK NON-GREEN
 
 2026-09-08: Guy supplied Claude's independent M2a **code-scope PASS
 P0=0/P1=0/P2=0** for exactly `1e97f373..fdd568af`; the prior wording P2 is
