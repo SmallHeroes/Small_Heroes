@@ -109,6 +109,14 @@ new defect in the independently reviewed M1b code range.
 
 ## Boundaries
 
+After committing this evidence as `cff1abeb`, Codex attempted a read-only Claude
+Code review with no credential/provider/edit tools. The CLI exited 1 before
+model work with `Not logged in / Please run /login`: zero input/output tokens,
+total_cost_usd 0. Log: `claude-closeout-review.jsonl`. No review verdict resulted,
+and no reviewer remains running. Prior supplied code PASS is not revoked or
+extended. M2 remains mapped, not implemented; automatic independent QA needs
+owner reauthentication or an externally supplied read-only evidence review.
+
 No production code, tests, runner configuration, timeouts, workers, inventory,
 source or original P1 artifacts changed. No render, provider, credential access,
 Blueprint, approval, promotion, publication, deployment, payment or push.

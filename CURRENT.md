@@ -2,6 +2,17 @@
 
 ## M1b running/catalog cutover — INDEPENDENT CODE PASS; fresh full gate GREEN
 
+Checkpoint committed as `cff1abeb`; the attempted independent review of its
+fresh evidence then failed before model work: `Not logged in / Please run
+/login`, exit 1, zero model tokens and USD 0. The supplied prior code PASS
+remains valid; this failed dispatch adds no review verdict. No reviewer or
+validation process remains running. M2 was investigated/mapped but not started;
+no render is active. Local Claude authentication (or externally supplied QA of
+this evidence checkpoint) is required to resume the independent handoff loop.
+No new implementation/render permission or OpenAI key is requested.
+Review log: `outputs/qa-m1b-git-diagnosis-20260908/claude-closeout-review.jsonl`.
+Copy-ready QA brief and inspection/push commands are in that folder's HANDOFF.md.
+
 The complete uninstrumented `npm run check` in this continuation exited 0:
 **5607 passed, 73 existing skips, zero failed**. Ordinary 4936 passed and
 resource-intensive 671 passed; exact 387/365/22 inventory and unchanged 4/2
