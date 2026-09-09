@@ -2,6 +2,24 @@
 
 Date: 2026-09-06
 
+2026-09-09 reviewed-reconciliation continuation under the existing M2b owner
+decision: after disclosure PASS00ad3142..c0b3334e and the explicitly authorized
+documentation push, implement v6 prepare/read review and exact approval
+record/read using the existing reviewer compiler. This is a general offline
+authority-boundary change, not new story content or a paid action. Preserve
+v5 behavior, original Candidate, corrected coverage and exact Guy acceptance.
+Stop-check: production-flow boundary is affected; the smallest validation is
+real fixture transformation plus hostile binding tests and legacy compatibility,
+then the full repository gate. No image-generation, anchor, style, fallback,
+payment or QA policy changes. No unresolved product choice is needed for code;
+real reconciliation mappings still need exact review, not automatic preservation.
+Claude should falsify v6/v5 isolation, effective coverage, source/page evidence,
+replay, digest pins, current proof drift and authority non-escalation. Guy should
+eyeball actual mappings and later visuals; no new creative choice is delegated
+to test fixtures. Real downstream Blueprint/package consumer cutovers remain
+inside M2b after this boundary; this is not M2b completion or render readiness.
+Evidence: R3B1B_M2B_REVIEWED_RECONCILIATION_EXECUTION.md.
+
 2026-09-09 exact-content decision: Guy approved packet
 `b7fdd4e5fbf8f8685de7e25baa9bcefe78df95829ad30a66ab6d23981f15c1c2`
 after the linked before/after summary and explicit acceptance question. This

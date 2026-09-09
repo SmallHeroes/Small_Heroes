@@ -618,12 +618,18 @@ function beatForCoverageRecord(args: {
   };
 }
 
-interface LoadedAuthoringBase {
-  manifest: QaWizardCandidateBridgeManifest;
+/** Pure review inputs, not a persisted approval or a fabricated provider Candidate. */
+export interface ReconciliationAuthoringBasis {
+  bridgeManifestDigest: string;
   snapshot: StorySourceAuthoritySnapshot;
-  candidate: VisualContractCandidateArtifact;
+  candidateDigest: string;
   authority: ReconciliationReviewVisualAuthority;
   baseReconciliation: SourcePromptReconciliation;
+}
+
+interface LoadedAuthoringBase extends ReconciliationAuthoringBasis {
+  manifest: QaWizardCandidateBridgeManifest;
+  candidate: VisualContractCandidateArtifact;
 }
 
 function loadAuthoringBase(args: {
@@ -710,24 +716,26 @@ function loadAuthoringBase(args: {
   }
   return {
     manifest,
+    bridgeManifestDigest: manifest.digest,
     snapshot,
     candidate,
+    candidateDigest: candidate.digest,
     authority,
     baseReconciliation: base.reconciliation,
   };
 }
 
 function buildReviewerPlan(args: {
-  base: LoadedAuthoringBase;
+  base: ReconciliationAuthoringBasis;
   decisions: QaWizardReconciliationReviewerDecisions;
 }): QaWizardReconciliationReviewerPlan {
   const payload = {
     version: args.decisions.version,
     planVersion: QA_WIZARD_RECONCILIATION_REVIEWER_PLAN_VERSION,
-    bridgeManifestDigest: args.base.manifest.digest,
+    bridgeManifestDigest: args.base.bridgeManifestDigest,
     baseReconciliationDigest: canonicalJsonDigest(args.base.baseReconciliation),
     sourceSnapshotDigest: args.base.snapshot.digest,
-    candidateDigest: args.base.candidate.digest,
+    candidateDigest: args.base.candidateDigest,
     templateDigest: args.base.authority.templateDigest,
     actionSemanticCoverageDigest:
       args.base.authority.actionSemanticCoverageDigest,
@@ -806,7 +814,7 @@ function validatedPlan(args: {
 }
 
 function applyReviewerPlan(args: {
-  base: LoadedAuthoringBase;
+  base: ReconciliationAuthoringBasis;
   plan: QaWizardReconciliationReviewerPlan;
 }): SourcePromptReconciliation {
   const reconciliation = structuredClone(args.base.baseReconciliation);
@@ -931,7 +939,7 @@ function applyReviewerPlan(args: {
 
 function validationArgs(args: {
   reconciliation: SourcePromptReconciliation;
-  base: LoadedAuthoringBase;
+  base: ReconciliationAuthoringBasis;
 }) {
   return {
     raw: args.reconciliation,
@@ -968,7 +976,7 @@ function coverageCensus(coverage: readonly ActionSemanticCoverageRecord[]) {
 }
 
 function buildContentReview(args: {
-  base: LoadedAuthoringBase;
+  base: ReconciliationAuthoringBasis;
   plan: QaWizardReconciliationReviewerPlan;
   pending: SourcePromptReconciliation;
   prospectiveApproved: SourcePromptReconciliation;
@@ -978,10 +986,10 @@ function buildContentReview(args: {
   const payload = {
     version: QA_WIZARD_RECONCILIATION_CONTENT_REVIEW_VERSION,
     storyKey: args.base.snapshot.content.storyKey,
-    bridgeManifestDigest: args.base.manifest.digest,
+    bridgeManifestDigest: args.base.bridgeManifestDigest,
     reviewerPlanDigest: args.plan.digest,
     sourceSnapshotDigest: args.base.snapshot.digest,
-    candidateDigest: args.base.candidate.digest,
+    candidateDigest: args.base.candidateDigest,
     templateDigest: args.base.authority.templateDigest,
     actionSemanticCoverageDigest:
       args.base.authority.actionSemanticCoverageDigest,
@@ -1414,21 +1422,13 @@ function buildAuthoringManifest(args: {
   };
 }
 
-export function prepareQaWizardReviewedReconciliation(
-  args: PrepareQaWizardReviewedReconciliationRequest,
-): {
-  reviewerPlan: QaWizardReconciliationReviewerPlan;
-  pendingReconciliation: SourcePromptReconciliation;
-  reviewBundle: ReconciliationReviewBundle;
-  contentReview: QaWizardReconciliationContentReview;
-  contentReviewMarkdown: string;
-  manifest: QaWizardReconciliationAuthoringManifest;
-  artifacts: ReturnType<typeof persistAuthoringArtifacts>;
-} {
-  const base = loadAuthoringBase(args);
-  const decisions = validateReviewerDecisions(
-    readJson(args.repoRoot, args.reviewerDecisionsPath, 'reviewer decisions'),
-  );
+/** Shared deterministic review compiler. It never loads authority or approves content. */
+export function buildReviewedReconciliationContent(args: {
+  base: ReconciliationAuthoringBasis;
+  decisions: unknown;
+}) {
+  const base = args.base;
+  const decisions = validateReviewerDecisions(args.decisions);
   const plan = buildReviewerPlan({ base, decisions });
   const pendingReconciliation = applyReviewerPlan({ base, plan });
   const pendingIssues = sourcePromptReconciliationIssues(
@@ -1473,6 +1473,26 @@ export function prepareQaWizardReviewedReconciliation(
     throw new Error('reconciliation content is not ready for Guy review');
   }
   const contentReviewMarkdown = renderContentReviewMarkdown(contentReview);
+  return { reviewerPlan: plan, pendingReconciliation, reviewBundle, reviewMarkdown, contentReview, contentReviewMarkdown };
+}
+
+export function prepareQaWizardReviewedReconciliation(
+  args: PrepareQaWizardReviewedReconciliationRequest,
+): {
+  reviewerPlan: QaWizardReconciliationReviewerPlan;
+  pendingReconciliation: SourcePromptReconciliation;
+  reviewBundle: ReconciliationReviewBundle;
+  contentReview: QaWizardReconciliationContentReview;
+  contentReviewMarkdown: string;
+  manifest: QaWizardReconciliationAuthoringManifest;
+  artifacts: ReturnType<typeof persistAuthoringArtifacts>;
+} {
+  const base = loadAuthoringBase(args);
+  const decisions = validateReviewerDecisions(
+    readJson(args.repoRoot, args.reviewerDecisionsPath, 'reviewer decisions'),
+  );
+  const { reviewerPlan: plan, pendingReconciliation, reviewBundle, reviewMarkdown,
+    contentReview, contentReviewMarkdown } = buildReviewedReconciliationContent({ base, decisions });
   const manifest = buildAuthoringManifest({
     base,
     bridgeManifestPath: args.bridgeManifestPath,

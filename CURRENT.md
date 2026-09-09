@@ -1,6 +1,48 @@
 # SmallHeroes — Current Technical State
 
-## M2b — re-gate PASS; authorized push and REAL approval/pending-bridge execution
+## M2b — v6 reviewed-reconciliation implementation; independent QA pending
+
+2026-09-09: Guy said to proceed toward a ready book. This task is the sole writer
+on codex/r3b1b-semantic-recovery-m1 at C:/GNart/Work/sh-r3b1b-semantic-m1.
+At implementation start HEAD was c0b3334e, clean. The explicitly authorized
+documentation push advanced live origin28f25ef7..c0b3334e, exit0; local and live
+origin then matched0/0. Protected d53b768ccb2f and accepted-intent63ccb484 were
+clean/read-only. No new task, dependency edit, cleanup or evidence publication.
+
+Claude's supplied disclosure re-gate PASS P0=0/P1=0/P2=0 covers exactly
+00ad3142..c0b3334e and closes the local-storage wording P2. Independent CODE
+PASS still ends at28f25ef7. It does not cover the implementation below.
+
+Functional change: v6 now has prepare/read reviewed-reconciliation and
+record/read exact reconciliation-approval APIs and strict CLI operations. Both
+v5 and v6 reuse the same deterministic reviewer compiler. V6 supplies the
+corrected template AND coverage; no fabricated paid Candidate or v5 relabeling.
+Every source/presentation decision remains explicit. All review content is
+reconstructed from freshly validated historical/current authority on read;
+approval requires the exact review digest and an operator-recorded Guy decision.
+Neither artifact supplies a production context or opens Blueprint/package/render.
+
+Local validation:135/135 focused tests; full npm run check exit0 with5767 passed,
+73 existing skips,0 failures, both typechecks. Inventory391=369ordinary+22resource,
+workers4/2 unchanged. This is one green local run, not a timing reliability fix
+or independent PASS. Validation and final topology are recorded in
+docs/ai-workflow/R3B1B_M2B_REVIEWED_RECONCILIATION_EXECUTION.md.
+No real P1 reconciliation decision/approval is minted by this unreviewed code.
+The existing approval c2b51f0d and pending manifest80177ac9 remain immutable;
+the latter is historical at28f25ef7, not current at this code. Guy's acceptance
+of semantic packet b7fdd4e5 is unchanged and is not being requested again.
+80 pending draft findings are undispositioned review obligations, not a claim
+of80 newly discovered story defects. Tests use structural fixture decisions,
+NOT product-approved mappings. Original P1 remains HELD P0=0/P1=3/P2=3.
+
+Remaining: independent review of this code; exact real reconciliation content;
+actual Blueprint/package consumer cutovers; qualified production artifacts and
+bounded visual verification before a ready book. M2b is NOT complete. The
+resource-phase timing P1 remains open; no timeout/worker/gate relaxation.
+Provider calls0, credential access0, spendUSD0; no render, publication, deployment
+or payment work. New implementation commit is not automatically pushed.
+
+## Historical documentation/pending-bridge execution through c0b3334e
 
 2026-09-09 evidence-review update: Claude supplied documentation/evidence PASS
 P0=0/P1=0/P2=1 for `28f25ef7..00ad3142`. Code PASS still ends at28f25ef7;

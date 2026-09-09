@@ -1,4 +1,4 @@
-/** Offline operator approval and pending reconciliation. Never production authority. */
+/** Offline semantic/reconciliation review and exact operator approval. Never production context authority. */
 import fs from 'node:fs';
 import path from 'node:path';
 import { canonicalHash } from '@/lib/canonical-json';
@@ -6,7 +6,11 @@ import { canonicalContentAddressedJsonBytes } from './canonicalContentAddressedJ
 import { createContainedContentAddressedJsonArtifactStore } from './canonicalLiveAuthoringArtifacts';
 import { resolveExistingContainedArtifact, readCurrentQaWizardConsumerRepositoryAuthority } from './qaWizardCandidateBridge';
 import { validateSemanticCorrectionForCurrentConsumer, type SemanticCorrectionConsumerValidationRequest } from './semanticCorrectionConsumerValidation';
-import { buildProductionReconciliationDraftFromSourceSnapshot } from './reconciliationLifecycle';
+import { buildProductionReconciliationDraftFromSourceSnapshot, approvePendingSourcePromptReconciliation,
+  buildReconciliationReviewBundle } from './reconciliationLifecycle';
+import { buildReviewedReconciliationContent, type ReconciliationAuthoringBasis } from './reconciliationAuthoringLifecycle';
+import { sourcePromptReconciliationIssues } from './sourcePromptReconciliation';
+import { QA_WIZARD_RECONCILIATION_PROSPECTIVE_VALIDATION_TIMESTAMP } from './qaWizardCandidateBridge';
 
 export const SEMANTIC_CORRECTION_APPROVAL_VERSION = 'visual-contract-semantic-correction-approval/v1' as const;
 export const QA_WIZARD_SEMANTIC_BRIDGE_MANIFEST_VERSION = 'qa-wizard-candidate-bridge-manifest/v6' as const;
@@ -14,7 +18,8 @@ const EXCLUSIONS = ['candidate_mutation', 'reconciliation_approval', 'blueprint_
   'blueprint_approval', 'package_approval', 'image_render', 'provider_call', 'credential_load',
   'publication', 'deployment'] as const;
 type Validated = Awaited<ReturnType<typeof validateSemanticCorrectionForCurrentConsumer>>;
-type ApprovalCategory = 'semantic-correction-approvals' | 'bridge-manifests';
+type ApprovalCategory = 'semantic-correction-approvals' | 'bridge-manifests' |
+  'semantic-reconciliation-reviews' | 'semantic-reconciliation-approvals';
 
 function object(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
@@ -58,6 +63,9 @@ function readCanonical<T>(repoRoot: string, relativePath: string, category: Appr
 function publish(args: { repoRoot: string; outputDir: string; category: ApprovalCategory; value: { digest: string };
   write?: boolean; validated: Validated }) {
   const write = writeFlag(args.write);
+  if (Buffer.byteLength(canonicalContentAddressedJsonBytes(args.value), 'utf8') > 4_000_000) {
+    throw new Error('semantic_bridge_artifact_too_large');
+  }
   if (typeof args.outputDir !== 'string' || !args.outputDir.startsWith('outputs/') ||
       args.outputDir.split('/').some(p => !/^[a-zA-Z0-9][a-zA-Z0-9_.-]*$/.test(p)) ||
       path.posix.normalize(args.outputDir) !== args.outputDir) throw new Error('semantic_bridge_output_invalid');
@@ -185,4 +193,125 @@ export async function loadSemanticCorrectionBridge(input: { consumerRepoRoot: st
     throw new Error('semantic_bridge_manifest_reconstruction_mismatch');
   }
   return { manifest, validated: loaded.validated, providerCalls: 0 as const };
+}
+
+export const SEMANTIC_RECONCILIATION_REVIEW_VERSION = 'semantic-reconciliation-review/v1' as const;
+export const SEMANTIC_RECONCILIATION_APPROVAL_VERSION = 'semantic-reconciliation-approval/v1' as const;
+type BridgeIdentity = Parameters<typeof loadSemanticCorrectionBridge>[0];
+type LoadedBridge = Awaited<ReturnType<typeof loadSemanticCorrectionBridge>>;
+
+function reviewBasis(loaded: LoadedBridge): ReconciliationAuthoringBasis {
+  const { manifest, validated } = loaded;
+  return {
+    bridgeManifestDigest: manifest.digest,
+    snapshot: validated.historical.snapshot,
+    candidateDigest: manifest.subject.candidateDigest,
+    authority: { template: manifest.effective.template, templateDigest: manifest.effective.templateDigest,
+      actionSemanticCoverage: manifest.effective.coverage, actionSemanticCoverageDigest: manifest.effective.coverageDigest },
+    baseReconciliation: manifest.reconciliation.reconciliation,
+  };
+}
+
+function reconciliationReviewFor(bridge: BridgeIdentity, decisions: unknown, loaded: LoadedBridge) {
+  const content = buildReviewedReconciliationContent({ base: reviewBasis(loaded), decisions });
+  return sealed({ version: SEMANTIC_RECONCILIATION_REVIEW_VERSION,
+    stage: 'reconciliation_review_pending' as const, authorityScope: 'exact_reconciliation_content_review_only' as const,
+    bridge, semanticApproval: loaded.manifest.approval, subject: loaded.manifest.subject,
+    decisions, content, productionContext: null, providerCalls: 0 as const, doesNotAuthorize: [...EXCLUSIONS] });
+}
+export type SemanticReconciliationReview = ReturnType<typeof reconciliationReviewFor>;
+export interface PrepareSemanticReconciliationReviewRequest extends BridgeIdentity {
+  decisions: unknown; outputDir: string; write?: boolean;
+}
+/** Exact reviewer decisions only: no automatic preservation, rebind or supersession. */
+export async function prepareSemanticReconciliationReview(input: PrepareSemanticReconciliationReviewRequest) {
+  const args = argumentsCopy(input, ['consumerRepoRoot', 'manifestPath', 'expectedManifestDigest', 'decisions', 'outputDir'], ['write']);
+  writeFlag(args.write);
+  const bridge = { consumerRepoRoot: args.consumerRepoRoot, manifestPath: args.manifestPath, expectedManifestDigest: args.expectedManifestDigest };
+  const loaded = await loadSemanticCorrectionBridge(bridge);
+  const review = reconciliationReviewFor(bridge, args.decisions, loaded);
+  const artifact = publish({ repoRoot: args.consumerRepoRoot, outputDir: args.outputDir,
+    category: 'semantic-reconciliation-reviews', value: review, write: args.write, validated: loaded.validated });
+  return { review, artifact, validated: loaded.validated, providerCalls: 0 as const };
+}
+export interface LoadSemanticReconciliationReviewRequest {
+  consumerRepoRoot: string; reviewPath: string; expectedReviewDigest: string;
+}
+/** A rehashed plan, review summary or prospective result is not trusted evidence. */
+export async function loadSemanticReconciliationReview(input: LoadSemanticReconciliationReviewRequest) {
+  const args = argumentsCopy(input, ['consumerRepoRoot', 'reviewPath', 'expectedReviewDigest']);
+  const original = readCanonical<SemanticReconciliationReview>(args.consumerRepoRoot, args.reviewPath,
+    'semantic-reconciliation-reviews', args.expectedReviewDigest);
+  if (!object(original.value.bridge) ||
+      fs.realpathSync(original.value.bridge.consumerRepoRoot) !== fs.realpathSync(args.consumerRepoRoot)) {
+    throw new Error('semantic_reconciliation_review_consumer_mismatch');
+  }
+  const loaded = await loadSemanticCorrectionBridge(original.value.bridge);
+  const review = reconciliationReviewFor(original.value.bridge, original.value.decisions, loaded);
+  if (canonicalContentAddressedJsonBytes(review) !== original.bytes ||
+      readCanonical(args.consumerRepoRoot, args.reviewPath, 'semantic-reconciliation-reviews', args.expectedReviewDigest).bytes !== original.bytes) {
+    throw new Error('semantic_reconciliation_review_reconstruction_mismatch');
+  }
+  return { review, loaded, providerCalls: 0 as const };
+}
+
+function reconciliationApprovalFor(args: LoadSemanticReconciliationReviewRequest & { approvedBy: 'Guy'; approvedAt: string },
+  reviewed: Awaited<ReturnType<typeof loadSemanticReconciliationReview>>) {
+  reviewer(args.approvedBy, args.approvedAt);
+  if (args.approvedAt === QA_WIZARD_RECONCILIATION_PROSPECTIVE_VALIDATION_TIMESTAMP) {
+    throw new Error('semantic_reconciliation_prospective_timestamp_reserved');
+  }
+  const base = reviewBasis(reviewed.loaded);
+  const reconciliation = approvePendingSourcePromptReconciliation({ pending: reviewed.review.content.pendingReconciliation,
+    approvedBy: args.approvedBy, approvedAt: args.approvedAt });
+  const validation = { storyKey: base.snapshot.content.storyKey,
+    sourceIdentity: base.snapshot.content.sourceIdentity, sourceAuthoritySnapshotDigest: base.snapshot.digest,
+    rawStorySource: base.snapshot.content.normalizedRawStorySource, template: base.authority.template,
+    templateDigest: base.authority.templateDigest, actionSemanticCoverage: base.authority.actionSemanticCoverage,
+    ...(base.snapshot.content.authoredCoverAuthority ? { authoredCoverAuthority: base.snapshot.content.authoredCoverAuthority } : {}) };
+  const issues = sourcePromptReconciliationIssues({ ...validation, raw: reconciliation, requireComplete: true });
+  if (issues.length) throw new Error('semantic_reconciliation_approval_incomplete');
+  const reviewBundle = buildReconciliationReviewBundle({ ...validation, reconciliation });
+  return sealed({ version: SEMANTIC_RECONCILIATION_APPROVAL_VERSION,
+    stage: 'reconciliation_approved' as const, authorityScope: 'exact_reconciliation_approval_only' as const,
+    review: { path: args.reviewPath, digest: args.expectedReviewDigest },
+    semanticApproval: reviewed.review.semanticApproval, subject: reviewed.review.subject,
+    approvedBy: args.approvedBy, approvedAt: args.approvedAt,
+    reconciliation, reconciliationDigest: canonicalHash(reconciliation), reviewBundle,
+    productionContext: null, providerCalls: 0 as const,
+    doesNotAuthorize: EXCLUSIONS.filter(value => value !== 'reconciliation_approval') });
+}
+export type SemanticReconciliationApproval = ReturnType<typeof reconciliationApprovalFor>;
+export interface RecordSemanticReconciliationApprovalRequest extends LoadSemanticReconciliationReviewRequest {
+  approvedBy: 'Guy'; approvedAt: string; outputDir: string; write?: boolean;
+}
+/** Records an operator-supplied exact Guy decision; neither authentication nor product acceptance by code. */
+export async function recordSemanticReconciliationApproval(input: RecordSemanticReconciliationApprovalRequest) {
+  const args = argumentsCopy(input, ['consumerRepoRoot', 'reviewPath', 'expectedReviewDigest', 'approvedBy', 'approvedAt', 'outputDir'], ['write']);
+  reviewer(args.approvedBy, args.approvedAt); writeFlag(args.write);
+  const reviewed = await loadSemanticReconciliationReview({ consumerRepoRoot: args.consumerRepoRoot,
+    reviewPath: args.reviewPath, expectedReviewDigest: args.expectedReviewDigest });
+  const approval = reconciliationApprovalFor(args, reviewed);
+  const artifact = publish({ repoRoot: args.consumerRepoRoot, outputDir: args.outputDir,
+    category: 'semantic-reconciliation-approvals', value: approval, write: args.write, validated: reviewed.loaded.validated });
+  return { approval, artifact, validated: reviewed.loaded.validated, providerCalls: 0 as const };
+}
+export interface LoadSemanticReconciliationApprovalRequest {
+  consumerRepoRoot: string; approvalPath: string; expectedApprovalDigest: string;
+}
+/** Replays the full v6 chain and exact review. Still not a Blueprint/package context. */
+export async function loadApprovedSemanticReconciliation(input: LoadSemanticReconciliationApprovalRequest) {
+  const args = argumentsCopy(input, ['consumerRepoRoot', 'approvalPath', 'expectedApprovalDigest']);
+  const original = readCanonical<SemanticReconciliationApproval>(args.consumerRepoRoot, args.approvalPath,
+    'semantic-reconciliation-approvals', args.expectedApprovalDigest);
+  const reviewed = await loadSemanticReconciliationReview({ consumerRepoRoot: args.consumerRepoRoot,
+    reviewPath: original.value.review.path, expectedReviewDigest: original.value.review.digest });
+  const approval = reconciliationApprovalFor({ consumerRepoRoot: args.consumerRepoRoot,
+    reviewPath: original.value.review.path, expectedReviewDigest: original.value.review.digest,
+    approvedBy: original.value.approvedBy, approvedAt: original.value.approvedAt }, reviewed);
+  if (canonicalContentAddressedJsonBytes(approval) !== original.bytes ||
+      readCanonical(args.consumerRepoRoot, args.approvalPath, 'semantic-reconciliation-approvals', args.expectedApprovalDigest).bytes !== original.bytes) {
+    throw new Error('semantic_reconciliation_approval_reconstruction_mismatch');
+  }
+  return { approval, reviewed, providerCalls: 0 as const };
 }

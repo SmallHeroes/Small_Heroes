@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { canonicalHash } from '@/lib/canonical-json';
@@ -8,7 +9,9 @@ import { validateSemanticCorrectionForCurrentConsumer } from '../semanticCorrect
 import { readCurrentQaWizardConsumerRepositoryAuthority, qaWizardCandidateBridgeManifestIsValid,
   loadQaWizardCandidateBridgeManifest } from '../qaWizardCandidateBridge';
 import { recordSemanticCorrectionApproval, loadApprovedSemanticCorrection, prepareSemanticCorrectionBridge,
-  loadSemanticCorrectionBridge, type RecordSemanticCorrectionApprovalRequest } from '../semanticCorrectionApprovalBridge';
+  loadSemanticCorrectionBridge, prepareSemanticReconciliationReview, loadSemanticReconciliationReview,
+  recordSemanticReconciliationApproval, loadApprovedSemanticReconciliation,
+  type RecordSemanticCorrectionApprovalRequest } from '../semanticCorrectionApprovalBridge';
 import { buildSemanticCorrectionReviewPacket } from '../semanticCorrectionPreview';
 import { buildProductionReconciliationDraftFromSourceSnapshot } from '../reconciliationLifecycle';
 import { p1SemanticRecoveryFixture, P1_REQUEST } from './fixtures/semantic-recovery-p1-fixture';
@@ -35,6 +38,42 @@ function rewrite(file:string, change:(value:any)=>void, rehash=false) {
 async function approve(){return recordSemanticCorrectionApproval({...request,write:true});}
 async function bridge(){const approved=await approve();return prepareSemanticCorrectionBridge({consumerRepoRoot:process.cwd(),
   approvalPath:approved.artifact.path,expectedApprovalDigest:approved.approval.digest,outputDir:request.outputDir,write:true});}
+
+// Test-only mapping: exercises exact pointers/hashes, not product semantic judgment.
+function fixtureDecisions(pending: Awaited<ReturnType<typeof bridge>>) {
+  const { template, coverage } = pending.manifest.effective;
+  const visible = new Set(coverage.filter(r => r.disposition.kind !== 'non_visual').map(r => r.pageNumber));
+  return { version: 'qa-wizard-reconciliation-reviewer-decisions/v1',
+    sourceRequirements: pending.manifest.reconciliation.reconciliation.frames.flatMap(frame =>
+      frame.sourceRequirements.filter(r => !(frame.frameKind === 'page' && r.sourceKind === 'story_prose' && visible.has(frame.pageNumber)))
+        .map((r, index) => {
+          const pageIndex = template.pageContracts.findIndex(page => page.pageNumber === frame.pageNumber);
+          const historical = r.sourceKind === 'historical_image_direction';
+          return { frameKind: frame.frameKind, pageNumber: frame.pageNumber, sourceKind: r.sourceKind,
+            sourceTextSha256: createHash('sha256').update(r.sourceText, 'utf8').digest('hex'),
+            visualBeats: [{ id: `fixture:${frame.frameKind}:${frame.pageNumber}:${index}`, description: 'Test-only exact source mapping',
+              aspects: historical ? ['camera'] : ['narrative_meaning'], disposition: 'preserved',
+              contractEvidence: [{ path: historical ? `/pageContracts/${pageIndex}/camera` : '/coverContract/mustShow/0',
+                value: historical ? template.pageContracts[pageIndex]!.camera : template.coverContract.mustShow[0] }],
+              justification: null, supersessionReview: null }] };
+        })),
+    presentationRequirements: pending.manifest.reconciliation.reconciliation.presentationRequirements.requirements.map(r => ({
+      pageNumber: r.pageNumber, beatId: r.beatId, sourceEvidenceId: r.sourceEvidenceId,
+      kind: 'preserved', reboundPointer: null, reboundValue: null, justification: null,
+    })) };
+}
+async function reviewRequest() {
+  const pending = await bridge();
+  return { consumerRepoRoot: process.cwd(), manifestPath: pending.artifact.path, expectedManifestDigest: pending.manifest.digest,
+    decisions: fixtureDecisions(pending), outputDir: rel(path.join(root, 'review-output')), write: true };
+}
+async function reviewed() { return prepareSemanticReconciliationReview(await reviewRequest()); }
+async function approvedReconciliation() {
+  const result = await reviewed();
+  return recordSemanticReconciliationApproval({ consumerRepoRoot: process.cwd(), reviewPath: result.artifact.path,
+    expectedReviewDigest: result.review.digest, approvedBy: 'Guy', approvedAt: request.approvedAt,
+    outputDir: rel(path.join(root, 'reconciliation-output')), write: true });
+}
 beforeEach(()=>{
   vi.clearAllMocks();
   fs.mkdirSync(path.join(process.cwd(),'outputs'),{recursive:true});
@@ -52,6 +91,173 @@ beforeEach(()=>{
     expectedReviewPacketDigest:packet.digest,approvedBy:'Guy',approvedAt:'2026-09-09T06:20:00.000Z',outputDir:rel(path.join(root,'new-output'))};
 });
 afterEach(()=>{vi.restoreAllMocks();if(root)fs.rmSync(root,{recursive:true,force:true});});
+
+describe('v6 reviewed reconciliation with corrected coverage', () => {
+  it('compiles all explicit decisions with effective identities and no authority escalation', async () => {
+    const args = await reviewRequest();
+    const before = canonicalContentAddressedJsonBytes(validated.packet);
+    const preview = await prepareSemanticReconciliationReview({ ...args, write: false });
+    expect(fs.existsSync(abs(args.outputDir))).toBe(false);
+    expect(preview.review.content.contentReview.contentReadyForGuyReview).toBe(true);
+    expect(preview.review.content.pendingReconciliation.review.status).toBe('pending');
+    expect(preview.review.subject.effective).toEqual({
+      templateDigest: validated.packet.correction.effective.templateDigest, coverageDigest: validated.packet.correction.effective.coverageDigest,
+      catalogVersion: validated.packet.correction.effective.catalogVersion, catalogDigest: validated.packet.correction.effective.catalogDigest,
+    });
+    expect(preview.review.productionContext).toBeNull();
+    expect(preview.review.content.reviewerPlan.actionSemanticCoverageDigest).toBe(validated.packet.correction.effective.coverageDigest);
+    expect(preview.review.content.reviewerPlan.actionSemanticCoverageDigest).not.toBe(validated.packet.correction.original.coverageDigest);
+    expect(preview.review.doesNotAuthorize).toContain('reconciliation_approval');
+    expect(preview.review.doesNotAuthorize).toContain('image_render');
+    const result = await prepareSemanticReconciliationReview(args);
+    expect(result.review).toEqual(preview.review);
+    const repeat = await prepareSemanticReconciliationReview(args);
+    expect(repeat.artifact.created).toBe(false);
+    const loaded = await loadSemanticReconciliationReview({ consumerRepoRoot: process.cwd(), reviewPath: result.artifact.path,
+      expectedReviewDigest: result.review.digest });
+    expect(loaded.review).toEqual(result.review);
+    expect(canonicalContentAddressedJsonBytes(validated.packet)).toBe(before);
+  });
+  it('records and reconstructs an exact approval but leaves all downstream consumers closed', async () => {
+    const result = await approvedReconciliation();
+    expect(result.approval.reconciliation.review).toMatchObject({ status: 'approved', reviewedBy: 'Guy', reviewedAt: request.approvedAt });
+    expect(result.approval.productionContext).toBeNull();
+    expect(result.approval.doesNotAuthorize).not.toContain('reconciliation_approval');
+    expect(result.approval.doesNotAuthorize).toContain('blueprint_authoring');
+    expect(result.approval.doesNotAuthorize).toContain('image_render');
+    const loaded = await loadApprovedSemanticReconciliation({ consumerRepoRoot: process.cwd(), approvalPath: result.artifact.path,
+      expectedApprovalDigest: result.approval.digest });
+    expect(loaded.approval).toEqual(result.approval);
+    expect(loaded.approval.reconciliationDigest).toBe(canonicalHash(loaded.approval.reconciliation));
+    expect(() => loadQaWizardCandidateBridgeManifest({ repoRoot: process.cwd(), manifestPath: result.artifact.path })).toThrow();
+  });
+  it('preserves explicit rebind and supersession decisions, and only stamps them in exact approval', async () => {
+    const args = await reviewRequest();
+    const first = args.decisions.presentationRequirements[0]!;
+    const template = validated.packet.correction.effective.template;
+    const index = template.pageContracts.findIndex(page => page.pageNumber === first.pageNumber);
+    Object.assign(first, { kind: 'rebound', reboundPointer: `/pageContracts/${index}/mustShow/2`,
+      reboundValue: template.pageContracts[index]!.mustShow[2] });
+    Object.assign(args.decisions.presentationRequirements[1]!, { kind: 'superseded', justification: 'Explicit fixture-only omission.' });
+    const result = await prepareSemanticReconciliationReview(args);
+    expect(result.review.content.pendingReconciliation.review.status).toBe('pending');
+    const outputDir = rel(path.join(root, 'approval-preview'));
+    const approvalArgs = { consumerRepoRoot: process.cwd(), reviewPath: result.artifact.path, expectedReviewDigest: result.review.digest,
+      approvedBy: 'Guy' as const, approvedAt: request.approvedAt, outputDir };
+    const preview = await recordSemanticReconciliationApproval(approvalArgs);
+    expect(fs.existsSync(abs(outputDir))).toBe(false);
+    const dispositions = preview.approval.reconciliation.presentationRequirementDispositions.entries;
+    expect(dispositions[0]).toMatchObject({ kind: 'rebound', review: { status: 'approved' } });
+    expect(dispositions[1]).toMatchObject({ kind: 'superseded', review: { status: 'approved' } });
+    const stored = await recordSemanticReconciliationApproval({ ...approvalArgs, write: true });
+    expect(stored.approval).toEqual(preview.approval);
+    expect((await recordSemanticReconciliationApproval({ ...approvalArgs, write: true })).artifact.created).toBe(false);
+  });
+  it('rejects a source proof pointing at a different real page even when that value is exact', async () => {
+    const args = await reviewRequest();
+    const source = args.decisions.sourceRequirements.find(r => r.sourceKind === 'historical_image_direction')!;
+    const template = validated.packet.correction.effective.template;
+    const other = template.pageContracts.findIndex(page => page.pageNumber !== source.pageNumber);
+    source.visualBeats[0]!.contractEvidence[0] = { path: `/pageContracts/${other}/camera`, value: template.pageContracts[other]!.camera };
+    await expect(prepareSemanticReconciliationReview(args)).rejects.toThrow();
+  });
+  it.each(['missing-source', 'duplicate-source', 'source-hash', 'missing-presentation', 'duplicate-presentation', 'wrong-value', 'cross-page', 'unknown-key'])(
+    'rejects invalid reviewer decisions: %s before creating output', async kind => {
+      const args = await reviewRequest();
+      const d = args.decisions;
+      if (kind === 'missing-source') d.sourceRequirements.pop();
+      if (kind === 'duplicate-source') d.sourceRequirements.push(d.sourceRequirements[0]!);
+      if (kind === 'source-hash') d.sourceRequirements[0]!.sourceTextSha256 = 'f'.repeat(64);
+      if (kind === 'missing-presentation') d.presentationRequirements.pop();
+      if (kind === 'duplicate-presentation') d.presentationRequirements.push(d.presentationRequirements[0]!);
+      if (kind === 'wrong-value') d.sourceRequirements[0]!.visualBeats[0]!.contractEvidence[0]!.value = 'not the actual contract';
+      if (kind === 'cross-page') d.presentationRequirements[0]!.pageNumber = 999;
+      if (kind === 'unknown-key') (d as any).approved = true;
+      await expect(prepareSemanticReconciliationReview(args)).rejects.toThrow();
+      expect(fs.existsSync(abs(args.outputDir))).toBe(false);
+    });
+  it.each(['scope', 'plan', 'pending', 'subject', 'extra'])('reconstructs and rejects a rehashed review %s change', async kind => {
+    const result = await reviewed();
+    const changed = rewrite(result.artifact.path, value => {
+      if (kind === 'scope') value.doesNotAuthorize = [];
+      if (kind === 'plan') value.content.reviewerPlan.extra = true;
+      if (kind === 'pending') value.content.pendingReconciliation.review.status = 'approved';
+      if (kind === 'subject') value.subject.effective.coverageDigest = 'f'.repeat(64);
+      if (kind === 'extra') value.productionContext = { approved: true };
+    }, true);
+    await expect(loadSemanticReconciliationReview({ consumerRepoRoot: process.cwd(), reviewPath: changed.file,
+      expectedReviewDigest: changed.value.digest })).rejects.toThrow('review_reconstruction_mismatch');
+  });
+  it.each(['scope', 'reconciliation', 'bundle', 'subject', 'extra'])('reconstructs and rejects a rehashed approval %s change', async kind => {
+    const result = await approvedReconciliation();
+    const changed = rewrite(result.artifact.path, value => {
+      if (kind === 'scope') value.doesNotAuthorize = [];
+      if (kind === 'reconciliation') value.reconciliation.review.reviewedBy = 'Claude';
+      if (kind === 'bundle') value.reviewBundle.extra = true;
+      if (kind === 'subject') value.subject.effective.coverageDigest = 'f'.repeat(64);
+      if (kind === 'extra') value.productionContext = { approved: true };
+    }, true);
+    await expect(loadApprovedSemanticReconciliation({ consumerRepoRoot: process.cwd(), approvalPath: changed.file,
+      expectedApprovalDigest: changed.value.digest })).rejects.toThrow('approval_reconstruction_mismatch');
+  });
+  it.each([{ approvedBy: 'Claude' }, { approvedAt: '2000-01-01T00:00:00.000Z' }, { approvedAt: 'bad' },
+    { expectedReviewDigest: 'f'.repeat(64) }, { write: 'true' }, { productionContext: {} }])('rejects invalid exact approval %j', async change => {
+    const result = await reviewed();
+    const outputDir = rel(path.join(root, 'never-created'));
+    await expect(recordSemanticReconciliationApproval({ consumerRepoRoot: process.cwd(), reviewPath: result.artifact.path,
+      expectedReviewDigest: result.review.digest, approvedBy: 'Guy', approvedAt: request.approvedAt, outputDir, write: true, ...change } as any)).rejects.toThrow();
+    expect(fs.existsSync(abs(outputDir))).toBe(false);
+  });
+  it('pins reviewer inputs before asynchronous validation', async () => {
+    const args = await reviewRequest();
+    const original = structuredClone(args.decisions);
+    validate.mockImplementationOnce(async () => { args.decisions.presentationRequirements.length = 0; return validated; });
+    const result = await prepareSemanticReconciliationReview(args);
+    expect(result.review.decisions).toEqual(original);
+  });
+  it.each(['review', 'approval'])('rejects %s bytes changed during fresh chain validation', async kind => {
+    const result = kind === 'review' ? await reviewed() : await approvedReconciliation();
+    validate.mockImplementationOnce(async () => { fs.appendFileSync(abs(result.artifact.path), ' '); return validated; });
+    if (kind === 'review') {
+      await expect(loadSemanticReconciliationReview({ consumerRepoRoot: process.cwd(), reviewPath: result.artifact.path,
+        expectedReviewDigest: result.artifact.digest })).rejects.toThrow();
+    } else {
+      await expect(loadApprovedSemanticReconciliation({ consumerRepoRoot: process.cwd(), approvalPath: result.artifact.path,
+        expectedApprovalDigest: result.artifact.digest })).rejects.toThrow();
+    }
+  });
+  it('rejects current consumer drift before review persistence', async () => {
+    const args = await reviewRequest();
+    current.mockReturnValue({ ...validated.proof.currentConsumer, head: 'e'.repeat(40) });
+    await expect(prepareSemanticReconciliationReview(args)).rejects.toThrow('consumer_changed_before_publish');
+    expect(fs.existsSync(abs(args.outputDir))).toBe(false);
+  });
+  it('rejects a previously approved reconciliation when current proof changes, retaining original bytes', async () => {
+    const result = await approvedReconciliation();
+    const before = fs.readFileSync(abs(result.artifact.path), 'utf8');
+    validate.mockResolvedValue({ ...validated, proof: { ...validated.proof, digest: 'e'.repeat(64) } });
+    await expect(loadApprovedSemanticReconciliation({ consumerRepoRoot: process.cwd(), approvalPath: result.artifact.path,
+      expectedApprovalDigest: result.approval.digest })).rejects.toThrow('manifest_reconstruction_mismatch');
+    expect(fs.readFileSync(abs(result.artifact.path), 'utf8')).toBe(before);
+  });
+  it('requires the trusted approval digest, not merely a self-consistent timestamp substitution', async () => {
+    const result = await approvedReconciliation();
+    const changed = rewrite(result.artifact.path, value => value.approvedAt = '2026-09-10T00:00:00.000Z', true);
+    await expect(loadApprovedSemanticReconciliation({ consumerRepoRoot: process.cwd(), approvalPath: changed.file,
+      expectedApprovalDigest: result.approval.digest })).rejects.toThrow('artifact_not_canonical');
+  });
+  it('exposes all four new CLI operations with sanitized failure and network disabled', () => {
+    const file = path.join(root, 'reconciliation-request.json');
+    for (const operation of ['prepare-reconciliation-review', 'read-reconciliation-review', 'approve-reconciliation', 'read-reconciliation-approval']) {
+      fs.writeFileSync(file, JSON.stringify({ operation, arguments: { unexpected: 'not authority' } }));
+      const run = spawnSync(process.execPath, ['node_modules/tsx/dist/cli.mjs', '--require', './scripts/shims/register-server-only.cjs',
+        '--require', './lib/set-identity-board/__tests__/fixtures/deny-network.cjs', 'scripts/semantic-correction-approval-bridge.ts',
+        '--request', file], { encoding: 'utf8', windowsHide: true, timeout: 15000 });
+      expect(run.error).toBeUndefined(); expect(run.status).toBe(1);
+      expect(JSON.parse(run.stdout)).toEqual({ status: 'rejected', providerCalls: 0 });
+    }
+  }, 20000);
+});
 
 describe('exact semantic approval and changed-coverage pending bridge',()=>{
   it('previews approval with no directory or artifact write',async()=>{

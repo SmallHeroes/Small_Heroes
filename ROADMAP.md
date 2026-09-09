@@ -1,6 +1,6 @@
 # SmallHeroes — Roadmap
 
-**Last verified:** 2026-09-09 (re-gate PASS0/0/0 through28f25ef7; authorized push and real approval/pending-bridge execution verified locally; M2b and gate reliability still open)
+**Last verified:** 2026-09-09 (documentation pushed throughc0b3334e; v6 reviewed-reconciliation code implemented, independent QA pending; M2b and gate reliability still open)
 **Product priority owner:** Guy
 **Technical sequencing owner:** Codex
 
@@ -31,6 +31,21 @@ Blueprint and any required LOW Board/prop generation remain separately budgeted
 provider actions with exact owner gates.
 
 ## Active
+
+V6 reviewed-reconciliation prepare/read and exact approval record/read now use
+the existing reviewer engine with the corrected template and coverage. The
+strict CLI exposes these four offline operations. Structural fixture validation
+is not real P1 semantic acceptance, and productionContext remains null. Code
+review is pending; independent code PASS still ends at28f25ef7. Local focused
+135/135 and full gate5767passed/73existing skips/0failed, both typechecks; this
+single green run does not resolve timing reliability. See CURRENT and
+R3B1B_M2B_REVIEWED_RECONCILIATION_EXECUTION.md for the bounded implementation.
+The approved documentation push actually advanced origin28f25ef7..c0b3334e;
+no new implementation push is inferred. Remaining functional work is the real
+reconciliation review and actual Blueprint/package consumer integration, then
+qualified artifacts and visual verification. No new content, render or spend.
+
+Historical approval/pending-bridge execution at28f25ef7:
 
 The two reviewed commits through28f25ef7 were explicitly authorized and pushed.
 Real clean-parity CLI preview/write/reload and idempotent replay now pass for
