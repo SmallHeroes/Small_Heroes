@@ -158,7 +158,7 @@ export function parseBlueprintReplacementCliArgs(
   return { command: command as BlueprintReplacementCliCommand, values, flags };
 }
 
-function dispatch(parsed: ParsedBlueprintReplacementCli): Record<string, unknown> {
+async function dispatch(parsed: ParsedBlueprintReplacementCli): Promise<Record<string, unknown>> {
   const v = (flag: string): string => {
     const value = parsed.values.get(flag);
     if (value === undefined) throw new CliUsageError(`missing value for ${flag}`);
@@ -168,7 +168,7 @@ function dispatch(parsed: ParsedBlueprintReplacementCli): Record<string, unknown
   const write = parsed.flags.has('--write');
   switch (parsed.command) {
     case 'prepare-replacement': {
-      const result = prepareBlueprintReplacementProposal({
+      const result = (await prepareBlueprintReplacementProposal({
         repoRoot: v('--repo-root'),
         preflightManifestPath: v('--preflight-manifest'),
         outputDir: v('--output-dir'),
@@ -176,7 +176,7 @@ function dispatch(parsed: ParsedBlueprintReplacementCli): Record<string, unknown
         preparedBy: v('--prepared-by'),
         preparedAt: v('--prepared-at'),
         write,
-      });
+      }));
       return {
         command: parsed.command,
         proposalPath: result.proposalPath,
@@ -208,7 +208,7 @@ function dispatch(parsed: ParsedBlueprintReplacementCli): Record<string, unknown
           `--approved-by must be "${QA_WIZARD_BLUEPRINT_REPLACEMENT_APPROVER}"`,
         );
       }
-      const result = approveBlueprintReplacementProposal({
+      const result = (await approveBlueprintReplacementProposal({
         repoRoot: v('--repo-root'),
         proposalPath: v('--proposal-path'),
         proposalDigest: v('--proposal-digest'),
@@ -218,7 +218,7 @@ function dispatch(parsed: ParsedBlueprintReplacementCli): Record<string, unknown
         approvedAt: v('--approved-at'),
         write,
         ...(optional('--note') ? { note: optional('--note')! } : {}),
-      });
+      }));
       return {
         command: parsed.command,
         authorizationPath: result.authorizationPath,
@@ -252,10 +252,10 @@ export interface BlueprintReplacementCliIo {
 }
 
 /**
- * Synchronous entry for every command except `execute-replacement` (which is
- * paid and asynchronous). Returns a process exit code and never throws.
+ * Review-only entry for every command except `execute-replacement`.
+ * Awaits authority validation, returns a process exit code and never throws.
  */
-export function runBlueprintReplacementCli(io: BlueprintReplacementCliIo): number {
+export async function runBlueprintReplacementCli(io: BlueprintReplacementCliIo): Promise<number> {
   const out = io.stdout ?? ((line: string) => process.stdout.write(`${line}\n`));
   const err = io.stderr ?? ((line: string) => process.stderr.write(`${line}\n`));
   let parsed: ParsedBlueprintReplacementCli;
@@ -266,7 +266,7 @@ export function runBlueprintReplacementCli(io: BlueprintReplacementCliIo): numbe
     return 2;
   }
   try {
-    const result = dispatch(parsed);
+    const result = (await dispatch(parsed));
     out(JSON.stringify(result));
     return 0;
   } catch (cause) {
@@ -277,7 +277,8 @@ export function runBlueprintReplacementCli(io: BlueprintReplacementCliIo): numbe
 
 /**
  * Async entry that also runs `execute-replacement`. Kept separate so the
- * synchronous surface and its tests never touch the paid boundary.
+ * review-only surface and its tests never touch the paid boundary. Authority
+ * loading is asynchronous on both surfaces; only this entry permits execution.
  */
 export async function runBlueprintReplacementCliAsync(
   io: BlueprintReplacementCliIo,
@@ -292,7 +293,7 @@ export async function runBlueprintReplacementCliAsync(
     return 2;
   }
   if (parsed.command !== 'execute-replacement') {
-    return runBlueprintReplacementCli(io);
+    return (await runBlueprintReplacementCli(io));
   }
   const v = (flag: string): string => parsed.values.get(flag)!;
   if (!parsed.flags.has('--write')) {

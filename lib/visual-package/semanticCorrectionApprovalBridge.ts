@@ -11,6 +11,8 @@ import { buildProductionReconciliationDraftFromSourceSnapshot, approvePendingSou
 import { buildReviewedReconciliationContent, type ReconciliationAuthoringBasis } from './reconciliationAuthoringLifecycle';
 import { sourcePromptReconciliationIssues } from './sourcePromptReconciliation';
 import { QA_WIZARD_RECONCILIATION_PROSPECTIVE_VALIDATION_TIMESTAMP } from './qaWizardCandidateBridge';
+import { assertProductionTemplateSetBoardAdmission } from './qaWizardCandidateBridge';
+import { buildProductionAuthoringContextFromApprovedReconciliation } from './productionAuthoringContext';
 
 export const SEMANTIC_CORRECTION_APPROVAL_VERSION = 'visual-contract-semantic-correction-approval/v1' as const;
 export const QA_WIZARD_SEMANTIC_BRIDGE_MANIFEST_VERSION = 'qa-wizard-candidate-bridge-manifest/v6' as const;
@@ -19,7 +21,7 @@ const EXCLUSIONS = ['candidate_mutation', 'reconciliation_approval', 'blueprint_
   'publication', 'deployment'] as const;
 type Validated = Awaited<ReturnType<typeof validateSemanticCorrectionForCurrentConsumer>>;
 type ApprovalCategory = 'semantic-correction-approvals' | 'bridge-manifests' |
-  'semantic-reconciliation-reviews' | 'semantic-reconciliation-approvals';
+  'semantic-reconciliation-reviews' | 'semantic-reconciliation-approvals' | 'semantic-production-bridges';
 
 function object(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
@@ -314,4 +316,131 @@ export async function loadApprovedSemanticReconciliation(input: LoadSemanticReco
     throw new Error('semantic_reconciliation_approval_reconstruction_mismatch');
   }
   return { approval, reviewed, providerCalls: 0 as const };
+}
+
+export const SEMANTIC_PRODUCTION_BRIDGE_VERSION = 'qa-wizard-semantic-production-bridge/v1' as const;
+type ApprovedReconciliation = Awaited<ReturnType<typeof loadApprovedSemanticReconciliation>>;
+
+function productionInputPlan(outputDir: string, loaded: ApprovedReconciliation) {
+  const effective = loaded.reviewed.loaded.manifest.effective;
+  return [
+    { category: 'semantic-templates', digest: effective.templateDigest, value: effective.template },
+    { category: 'semantic-reconciliations', digest: loaded.approval.reconciliationDigest, value: loaded.approval.reconciliation },
+  ].map(input => ({ ...input, path: `${outputDir}/${input.category}/${input.digest}.json` }));
+}
+
+function assertProjection(repoRoot: string, input: { path: string; digest: string; value: unknown }) {
+  const file = resolveExistingContainedArtifact({ repoRoot, relativePath: input.path, label: 'semantic production projection' });
+  const expected = canonicalContentAddressedJsonBytes(input.value);
+  if (Buffer.byteLength(expected, 'utf8') > 4_000_000 || fs.statSync(file).size > 4_000_000 ||
+      fs.readFileSync(file, 'utf8') !== expected || canonicalHash(input.value) !== input.digest) {
+    throw new Error('semantic_production_projection_mismatch');
+  }
+}
+
+/** Pure projections are not authority. A failed materialization may leave immutable
+ * projections, never a production bridge. Preview validates destinations but writes nothing. */
+export async function materializeSemanticProductionInputs(input: LoadSemanticReconciliationApprovalRequest & { outputDir: string; write?: boolean }) {
+  const args = argumentsCopy(input, ['consumerRepoRoot', 'approvalPath', 'expectedApprovalDigest', 'outputDir'], ['write']);
+  const write = writeFlag(args.write);
+  if (typeof args.outputDir !== 'string' || !/^outputs\/[a-zA-Z0-9][a-zA-Z0-9_.-]*(\/[a-zA-Z0-9][a-zA-Z0-9_.-]*)*$/.test(args.outputDir)) {
+    throw new Error('semantic_bridge_output_invalid');
+  }
+  const loaded = await loadApprovedSemanticReconciliation({ consumerRepoRoot: args.consumerRepoRoot,
+    approvalPath: args.approvalPath, expectedApprovalDigest: args.expectedApprovalDigest });
+  const repoRoot = fs.realpathSync(args.consumerRepoRoot);
+  const plan = productionInputPlan(args.outputDir, loaded);
+  const store = createContainedContentAddressedJsonArtifactStore({ repoRoot, outputDir: args.outputDir,
+    categories: plan.map(p => p.category), rejectSymlinkAliases: true, errorPrefix: 'semantic production' });
+  for (const projection of plan) {
+    if (Buffer.byteLength(canonicalContentAddressedJsonBytes(projection.value), 'utf8') > 4_000_000) throw new Error('semantic_bridge_artifact_too_large');
+    const category = path.join(repoRoot, args.outputDir, projection.category);
+    try {
+      const info = fs.lstatSync(category);
+      if (!info.isDirectory() || info.isSymbolicLink() || fs.realpathSync(category) !== category) throw new Error('semantic_bridge_category_alias');
+    } catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error; }
+    try {
+      fs.lstatSync(path.join(repoRoot, projection.path));
+      assertProjection(repoRoot, projection);
+    } catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error; }
+  }
+  if (!equal(readCurrentQaWizardConsumerRepositoryAuthority(repoRoot), loaded.reviewed.loaded.validated.proof.currentConsumer)) {
+    throw new Error('semantic_bridge_consumer_changed_before_publish');
+  }
+  if (write) {
+    store.prepare();
+    for (const projection of plan) {
+      store.persist({ category: projection.category, digest: projection.digest, value: projection.value });
+      assertProjection(repoRoot, projection);
+    }
+  }
+  return { inputs: plan.map(({ value: _value, ...identity }) => identity), providerCalls: 0 as const, wrote: write };
+}
+
+export interface PrepareSemanticProductionBridgeRequest extends LoadSemanticReconciliationApprovalRequest {
+  inputDir: string; styleId: string; styleAuthorityPath: string; expectedStyleAuthorityDigest: string;
+  outputDir: string; write?: boolean;
+}
+
+function productionBridgeFor(args: Omit<PrepareSemanticProductionBridgeRequest, 'write' | 'outputDir'>, loaded: ApprovedReconciliation) {
+  digest(args.expectedStyleAuthorityDigest);
+  if (typeof args.inputDir !== 'string' || !/^outputs\/[a-zA-Z0-9][a-zA-Z0-9_.-]*(\/[a-zA-Z0-9][a-zA-Z0-9_.-]*)*$/.test(args.inputDir)) {
+    throw new Error('semantic_bridge_output_invalid');
+  }
+  const inputs = productionInputPlan(args.inputDir, loaded);
+  for (const projection of inputs) assertProjection(args.consumerRepoRoot, projection);
+  resolveExistingContainedArtifact({ repoRoot: args.consumerRepoRoot, relativePath: args.styleAuthorityPath, label: 'semantic production style' });
+  const historical = loaded.reviewed.loaded.validated.historical;
+  const context = buildProductionAuthoringContextFromApprovedReconciliation({ repoRoot: args.consumerRepoRoot,
+    storyKey: loaded.approval.subject.storyKey, storyPath: historical.snapshot.content.sourceIdentity.path,
+    templatePath: inputs[0]!.path, reconciliationPath: inputs[1]!.path,
+    expectedReconciliationDigest: loaded.approval.reconciliationDigest, styleId: args.styleId,
+    styleAuthorityPath: args.styleAuthorityPath, expectedStyleAuthorityDigest: args.expectedStyleAuthorityDigest });
+  assertProductionTemplateSetBoardAdmission({ template: context.template.content, styleId: context.styleId });
+  if (context.template.identity.digest !== loaded.approval.subject.effective.templateDigest ||
+      context.reconciliation.content.actionSemanticCoverageAuthority.actionSemanticCoverageDigest !== loaded.approval.subject.effective.coverageDigest) {
+    throw new Error('semantic_production_effective_authority_mismatch');
+  }
+  const manifest = sealed({ version: SEMANTIC_PRODUCTION_BRIDGE_VERSION,
+    stage: 'production_context_ready' as const, authorityScope: 'blueprint_authoring_context_only' as const,
+    request: args, subject: loaded.approval.subject,
+    reconciliationApproval: { path: args.approvalPath, digest: loaded.approval.digest },
+    inputs: inputs.map(({ value: _value, ...identity }) => identity),
+    productionContext: { version: context.version, digest: context.digest },
+    providerCalls: 0 as const, doesNotAuthorize: ['blueprint_live_execution', 'blueprint_approval', 'package_approval',
+      'image_render', 'provider_call', 'credential_load', 'publication', 'deployment'] });
+  return { manifest, context };
+}
+export type SemanticProductionBridge = ReturnType<typeof productionBridgeFor>['manifest'];
+
+export async function prepareSemanticProductionBridge(input: PrepareSemanticProductionBridgeRequest) {
+  const args = argumentsCopy(input, ['consumerRepoRoot', 'approvalPath', 'expectedApprovalDigest', 'inputDir', 'styleId',
+    'styleAuthorityPath', 'expectedStyleAuthorityDigest', 'outputDir'], ['write']);
+  writeFlag(args.write);
+  const loaded = await loadApprovedSemanticReconciliation({ consumerRepoRoot: args.consumerRepoRoot,
+    approvalPath: args.approvalPath, expectedApprovalDigest: args.expectedApprovalDigest });
+  const { write: _write, outputDir: _outputDir, ...request } = args;
+  const built = productionBridgeFor(request, loaded);
+  const artifact = publish({ repoRoot: args.consumerRepoRoot, outputDir: args.outputDir, category: 'semantic-production-bridges',
+    value: built.manifest, write: args.write, validated: loaded.reviewed.loaded.validated });
+  return { ...built, artifact, providerCalls: 0 as const };
+}
+
+/** Always reconstruct approval/history/current authority and the complete context. */
+export async function loadSemanticProductionBridge(input: { consumerRepoRoot: string; manifestPath: string; expectedManifestDigest: string }) {
+  const args = argumentsCopy(input, ['consumerRepoRoot', 'manifestPath', 'expectedManifestDigest']);
+  const original = readCanonical<SemanticProductionBridge>(args.consumerRepoRoot, args.manifestPath,
+    'semantic-production-bridges', args.expectedManifestDigest);
+  const request = argumentsCopy(original.value.request, ['consumerRepoRoot', 'approvalPath', 'expectedApprovalDigest', 'inputDir',
+    'styleId', 'styleAuthorityPath', 'expectedStyleAuthorityDigest']);
+  if (fs.realpathSync(request.consumerRepoRoot) !== fs.realpathSync(args.consumerRepoRoot)) throw new Error('semantic_production_consumer_mismatch');
+  const loaded = await loadApprovedSemanticReconciliation({ consumerRepoRoot: args.consumerRepoRoot,
+    approvalPath: request.approvalPath, expectedApprovalDigest: request.expectedApprovalDigest });
+  const built = productionBridgeFor(request, loaded);
+  if (canonicalContentAddressedJsonBytes(built.manifest) !== original.bytes ||
+      readCanonical(args.consumerRepoRoot, args.manifestPath, 'semantic-production-bridges', args.expectedManifestDigest).bytes !== original.bytes ||
+      !equal(readCurrentQaWizardConsumerRepositoryAuthority(args.consumerRepoRoot), loaded.reviewed.loaded.validated.proof.currentConsumer)) {
+    throw new Error('semantic_production_bridge_reconstruction_mismatch');
+  }
+  return { ...built, providerCalls: 0 as const };
 }

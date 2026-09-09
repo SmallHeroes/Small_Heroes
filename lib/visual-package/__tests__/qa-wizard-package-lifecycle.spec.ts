@@ -6,13 +6,13 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 const bridgeLoaderMock = vi.hoisted(() => vi.fn());
 
-vi.mock('../qaWizardCandidateBridge', async () => {
+vi.mock('../qaWizardProductionContext', async () => {
   const actual = await vi.importActual<
-    typeof import('../qaWizardCandidateBridge')
-  >('../qaWizardCandidateBridge');
+    typeof import('../qaWizardProductionContext')
+  >('../qaWizardProductionContext');
   return {
     ...actual,
-    loadQaWizardApprovedProductionContext: bridgeLoaderMock,
+    loadQaWizardProductionContext: bridgeLoaderMock,
   };
 });
 
@@ -33,6 +33,7 @@ import {
   recordQaWizardPackageApproval,
 } from '../qaWizardPackageLifecycle';
 import * as visualPackageArtifacts from '../artifacts';
+import { SEMANTIC_PRODUCTION_BRIDGE_VERSION } from '../semanticCorrectionApprovalBridge';
 import { qualifyVisualPackageV4Candidate } from '../visualPackageV4Lifecycle';
 import {
   buildProductionAuthoringContext,
@@ -256,23 +257,26 @@ interface ApprovedBlueprintSubject {
   approvedBlueprintManifestPath: string;
 }
 
-async function approvedBlueprintSubject(): Promise<ApprovedBlueprintSubject> {
+async function approvedBlueprintSubject(semantic = false): Promise<ApprovedBlueprintSubject> {
   const built = buildContext();
   const bridge = approvedBridge(built.context);
+  // The authority loader is a fixture seam here; the real semantic loader is
+  // exercised separately against P1 in semantic-correction-approval-bridge.spec.ts.
+  if (semantic) Object.assign(bridge, { version: SEMANTIC_PRODUCTION_BRIDGE_VERSION, stage: 'production_context_ready' });
   const bridgeManifestPath =
     `outputs/bridge/bridge-manifests/${bridge.digest}.json`;
   bridgeLoaderMock.mockImplementation(() => ({
     manifest: bridge,
     context: built.context,
   }));
-  const preflight = prepareQaWizardBlueprintLiveRequest({
+  const preflight = (await prepareQaWizardBlueprintLiveRequest({
     repoRoot: built.repoRoot,
     bridgeManifestPath,
     outputDir: BLUEPRINT_OUTPUT_DIR,
     requestId: 'blueprint-live-request-001',
     requestedAt: BLUEPRINT_REQUESTED_AT,
     write: true,
-  });
+  }));
   const candidate = await executeQaWizardBlueprintLiveRequest(
     {
       repoRoot: built.repoRoot,
@@ -282,7 +286,7 @@ async function approvedBlueprintSubject(): Promise<ApprovedBlueprintSubject> {
     },
     { providerFactory: () => passingProvider(built.fixture) },
   );
-  const approved = recordQaWizardBlueprintApproval({
+  const approved = (await recordQaWizardBlueprintApproval({
     repoRoot: built.repoRoot,
     candidateManifestPath: candidate.manifestPath,
     outputDir: BLUEPRINT_OUTPUT_DIR,
@@ -294,7 +298,7 @@ async function approvedBlueprintSubject(): Promise<ApprovedBlueprintSubject> {
     approvedBy: 'Guy',
     approvedAt: BLUEPRINT_APPROVED_AT,
     write: true,
-  });
+  }));
   return {
     repoRoot: built.repoRoot,
     context: built.context,
@@ -302,8 +306,8 @@ async function approvedBlueprintSubject(): Promise<ApprovedBlueprintSubject> {
   };
 }
 
-function preparePackage(subject: ApprovedBlueprintSubject) {
-  return prepareQaWizardPackageCandidate({
+async function preparePackage(subject: ApprovedBlueprintSubject) {
+  return (await prepareQaWizardPackageCandidate({
     repoRoot: subject.repoRoot,
     approvedBlueprintManifestPath: subject.approvedBlueprintManifestPath,
     outputDir: PACKAGE_OUTPUT_DIR,
@@ -311,14 +315,14 @@ function preparePackage(subject: ApprovedBlueprintSubject) {
     reviewedBy: 'Guy',
     reviewedAt: PACKAGE_REVIEWED_AT,
     write: true,
-  });
+  }));
 }
 
-function approvePackage(
+async function approvePackage(
   subject: ApprovedBlueprintSubject,
-  prepared: ReturnType<typeof preparePackage>,
+  prepared: Awaited<ReturnType<typeof preparePackage>>,
 ) {
-  return recordQaWizardPackageApproval({
+  return (await recordQaWizardPackageApproval({
     repoRoot: subject.repoRoot,
     candidateManifestPath: prepared.manifestPath,
     outputDir: PACKAGE_OUTPUT_DIR,
@@ -327,7 +331,7 @@ function approvePackage(
     approvedBy: 'Guy',
     approvedAt: PACKAGE_APPROVED_AT,
     write: true,
-  });
+  }));
 }
 
 function fileInventory(root: string): Array<{ path: string; bytes: string }> {
@@ -350,9 +354,29 @@ function fileInventory(root: string): Array<{ path: string; bytes: string }> {
 }
 
 describe('QA Wizard visual-package lifecycle', () => {
+  it.each(['blueprint', 'candidate', 'approval'])('rejects %s byte drift during async authority loading before downstream writes', async stage => {
+    const subject = await approvedBlueprintSubject(true);
+    const prepared = await preparePackage(subject);
+    const approved = await approvePackage(subject, prepared);
+    const target = stage === 'blueprint' ? subject.approvedBlueprintManifestPath : stage === 'candidate' ? prepared.manifestPath : approved.manifestPath;
+    const original = bridgeLoaderMock.getMockImplementation()!;
+    let changed: ReturnType<typeof fileInventory> = [];
+    bridgeLoaderMock.mockImplementationOnce(async (...args) => {
+      fs.appendFileSync(path.join(subject.repoRoot, target), ' ');
+      changed = fileInventory(subject.repoRoot);
+      return original(...args);
+    });
+    const operation = stage === 'blueprint' ? preparePackage(subject) : stage === 'candidate' ? approvePackage(subject, prepared) :
+      publishQaWizardApprovedPackage({ repoRoot: subject.repoRoot, approvedManifestPath: approved.manifestPath,
+        outputDir: PACKAGE_OUTPUT_DIR, publishedAt: PACKAGE_PUBLISHED_AT, write: true });
+    await expect(operation).rejects.toThrow();
+    expect(changed.length).toBeGreaterThan(0);
+    expect(fileInventory(subject.repoRoot)).toEqual(changed);
+  });
+
   it('prepares an exact approval-ready package with zero external counters', async () => {
     const subject = await approvedBlueprintSubject();
-    const preview = prepareQaWizardPackageCandidate({
+    const preview = (await prepareQaWizardPackageCandidate({
       repoRoot: subject.repoRoot,
       approvedBlueprintManifestPath: subject.approvedBlueprintManifestPath,
       outputDir: PACKAGE_OUTPUT_DIR,
@@ -360,7 +384,7 @@ describe('QA Wizard visual-package lifecycle', () => {
       reviewedBy: 'Guy',
       reviewedAt: PACKAGE_REVIEWED_AT,
       write: false,
-    });
+    }));
     expect(preview.manifest.stage).toBe('package_candidate');
     expect(preview.qualification).toMatchObject({
       candidateValid: true,
@@ -389,7 +413,7 @@ describe('QA Wizard visual-package lifecycle', () => {
       false,
     );
 
-    const written = preparePackage(subject);
+    const written = (await preparePackage(subject));
     expect(
       loadQaWizardPackageLifecycleManifest({
         repoRoot: subject.repoRoot,
@@ -404,7 +428,7 @@ describe('QA Wizard visual-package lifecycle', () => {
 
   it('treats invalid Set authority as candidate-invalid without stale-board noise', async () => {
     const subject = await approvedBlueprintSubject();
-    const prepared = preparePackage(subject);
+    const prepared = (await preparePackage(subject));
     const resolver = vi.spyOn(
       visualPackageArtifacts,
       'resolveRequiredBoardArtifacts',
@@ -438,7 +462,7 @@ describe('QA Wizard visual-package lifecycle', () => {
 
   it('records one exact approval, replays without changes, and rejects another timestamp', async () => {
     const subject = await approvedBlueprintSubject();
-    const prepared = preparePackage(subject);
+    const prepared = (await preparePackage(subject));
     const approvalArgs = {
       repoRoot: subject.repoRoot,
       candidateManifestPath: prepared.manifestPath,
@@ -449,27 +473,27 @@ describe('QA Wizard visual-package lifecycle', () => {
       approvedAt: PACKAGE_APPROVED_AT,
       write: true,
     };
-    const written = recordQaWizardPackageApproval(approvalArgs);
+    const written = (await recordQaWizardPackageApproval(approvalArgs));
     expect(written.manifest.stage).toBe('package_approved');
     expect(written.manifest.package.approvedRevisionDigest).toBe(
       written.packageValue.revisionDigest,
     );
     const beforeReplay = fileInventory(subject.repoRoot);
-    const replay = recordQaWizardPackageApproval(approvalArgs);
+    const replay = (await recordQaWizardPackageApproval(approvalArgs));
     expect(replay.approval.digest).toBe(written.approval.digest);
     expect(fileInventory(subject.repoRoot)).toEqual(beforeReplay);
-    expect(() =>
-      recordQaWizardPackageApproval({
+    await expect((async () =>
+      (await recordQaWizardPackageApproval({
         ...approvalArgs,
         approvedAt: '2026-08-25T13:31:00.000Z',
-      }),
-    ).toThrow(/approval decision.*conflicts|different.*approval/i);
+      })))(),
+    ).rejects.toThrow(/approval decision.*conflicts|different.*approval/i);
     expect(fileInventory(subject.repoRoot)).toEqual(beforeReplay);
   });
 
   it('recovers an exact approval after the candidate-keyed decision is durable', async () => {
     const subject = await approvedBlueprintSubject();
-    const prepared = preparePackage(subject);
+    const prepared = (await preparePackage(subject));
     const args = {
       repoRoot: subject.repoRoot,
       candidateManifestPath: prepared.manifestPath,
@@ -480,21 +504,21 @@ describe('QA Wizard visual-package lifecycle', () => {
       approvedAt: PACKAGE_APPROVED_AT,
       write: true,
     };
-    const preview = recordQaWizardPackageApproval({ ...args, write: false });
-    expect(() =>
-      recordQaWizardPackageApproval(args, {
+    const preview = (await recordQaWizardPackageApproval({ ...args, write: false }));
+    await expect((async () =>
+      (await recordQaWizardPackageApproval(args, {
         afterApprovalDecision() {
           throw new Error('simulated_crash_after_package_approval_decision');
         },
-      }),
-    ).toThrow('simulated_crash_after_package_approval_decision');
+      })))(),
+    ).rejects.toThrow('simulated_crash_after_package_approval_decision');
     expect(fs.existsSync(path.join(subject.repoRoot, preview.decisionPath))).toBe(
       true,
     );
     expect(fs.existsSync(path.join(subject.repoRoot, preview.approvalPath))).toBe(
       false,
     );
-    const recovered = recordQaWizardPackageApproval(args);
+    const recovered = (await recordQaWizardPackageApproval(args));
     expect(recovered.manifest.stage).toBe('package_approved');
     expect(
       loadQaWizardPackageLifecycleManifest({
@@ -504,10 +528,10 @@ describe('QA Wizard visual-package lifecycle', () => {
     ).toEqual(recovered.manifest);
   });
 
-  it('publishes with locator CAS and replays without another locator write', async () => {
-    const subject = await approvedBlueprintSubject();
-    const prepared = preparePackage(subject);
-    const approved = approvePackage(subject, prepared);
+  it.each([false, true])('publishes with locator CAS and replays without another locator write (semantic bridge: %s)', async semantic => {
+    const subject = await approvedBlueprintSubject(semantic);
+    const prepared = (await preparePackage(subject));
+    const approved = (await approvePackage(subject, prepared));
     const publicationArgs = {
       repoRoot: subject.repoRoot,
       approvedManifestPath: approved.manifestPath,
@@ -515,7 +539,7 @@ describe('QA Wizard visual-package lifecycle', () => {
       publishedAt: PACKAGE_PUBLISHED_AT,
       write: true,
     };
-    const published = publishQaWizardApprovedPackage(publicationArgs);
+    const published = (await publishQaWizardApprovedPackage(publicationArgs));
     expect(published.manifest.stage).toBe('package_published');
     expect(published.locatorChanged).toBe(true);
     expect(published.manifest.externalCounters.locatorWrites).toBe(1);
@@ -524,7 +548,7 @@ describe('QA Wizard visual-package lifecycle', () => {
     expect(fs.readFileSync(path.join(subject.repoRoot, published.locatorPath), 'utf8'))
       .toBe(`${JSON.stringify(published.locator, null, 2)}\n`);
     const beforeReplay = fileInventory(subject.repoRoot);
-    const replay = publishQaWizardApprovedPackage(publicationArgs);
+    const replay = (await publishQaWizardApprovedPackage(publicationArgs));
     expect(replay.manifest.digest).toBe(published.manifest.digest);
     expect(replay.locatorChanged).toBe(false);
     expect(fileInventory(subject.repoRoot)).toEqual(beforeReplay);
@@ -532,37 +556,37 @@ describe('QA Wizard visual-package lifecycle', () => {
 
   it('rejects a stale or tampered locator before approval or publication', async () => {
     const subject = await approvedBlueprintSubject();
-    const prepared = preparePackage(subject);
+    const prepared = (await preparePackage(subject));
     const locatorAbsolute = path.join(
       subject.repoRoot,
       prepared.manifest.locatorBefore.path,
     );
     fs.mkdirSync(path.dirname(locatorAbsolute), { recursive: true });
     fs.writeFileSync(locatorAbsolute, '{"hostile":true}\n', 'utf8');
-    expect(() => approvePackage(subject, prepared)).toThrow(
+    await expect((async () => (await approvePackage(subject, prepared)))()).rejects.toThrow(
       /locator changed after package review/i,
     );
 
     fs.rmSync(locatorAbsolute);
-    const approved = approvePackage(subject, prepared);
+    const approved = (await approvePackage(subject, prepared));
     fs.writeFileSync(locatorAbsolute, '{"hostile":"after-approval"}\n', 'utf8');
     const inventory = fileInventory(subject.repoRoot);
-    expect(() =>
-      publishQaWizardApprovedPackage({
+    await expect((async () =>
+      (await publishQaWizardApprovedPackage({
         repoRoot: subject.repoRoot,
         approvedManifestPath: approved.manifestPath,
         outputDir: PACKAGE_OUTPUT_DIR,
         publishedAt: PACKAGE_PUBLISHED_AT,
         write: true,
-      }),
-    ).toThrow(/locator changed|reviewed predecessor/i);
+      })))(),
+    ).rejects.toThrow(/locator changed|reviewed predecessor/i);
     expect(fileInventory(subject.repoRoot)).toEqual(inventory);
   });
 
   it('fails closed without removing a held locator lock or publishing bytes', async () => {
     const subject = await approvedBlueprintSubject();
-    const prepared = preparePackage(subject);
-    const approved = approvePackage(subject, prepared);
+    const prepared = (await preparePackage(subject));
+    const approved = (await approvePackage(subject, prepared));
     const args = {
       repoRoot: subject.repoRoot,
       approvedManifestPath: approved.manifestPath,
@@ -570,13 +594,13 @@ describe('QA Wizard visual-package lifecycle', () => {
       publishedAt: PACKAGE_PUBLISHED_AT,
       write: true,
     };
-    const preview = publishQaWizardApprovedPackage({ ...args, write: false });
+    const preview = (await publishQaWizardApprovedPackage({ ...args, write: false }));
     const locatorAbsolute = path.join(subject.repoRoot, preview.locatorPath);
     const lockPath = `${locatorAbsolute}.qa-wizard-package.lock`;
     fs.mkdirSync(path.dirname(lockPath), { recursive: true });
     fs.writeFileSync(lockPath, 'held\n', 'utf8');
 
-    expect(() => publishQaWizardApprovedPackage(args)).toThrow();
+    await expect((async () => (await publishQaWizardApprovedPackage(args)))()).rejects.toThrow();
     expect(fs.readFileSync(lockPath, 'utf8')).toBe('held\n');
     expect(fs.existsSync(locatorAbsolute)).toBe(false);
     expect(fs.existsSync(path.join(subject.repoRoot, preview.packagePath))).toBe(
@@ -595,8 +619,8 @@ describe('QA Wizard visual-package lifecycle', () => {
     'recovers publication after a crash at %s without changing the approved successor',
     async (hookName) => {
       const subject = await approvedBlueprintSubject();
-      const prepared = preparePackage(subject);
-      const approved = approvePackage(subject, prepared);
+      const prepared = (await preparePackage(subject));
+      const approved = (await approvePackage(subject, prepared));
       const args = {
         repoRoot: subject.repoRoot,
         approvedManifestPath: approved.manifestPath,
@@ -604,26 +628,26 @@ describe('QA Wizard visual-package lifecycle', () => {
         publishedAt: PACKAGE_PUBLISHED_AT,
         write: true,
       };
-      const preview = publishQaWizardApprovedPackage({ ...args, write: false });
-      expect(() =>
-        publishQaWizardApprovedPackage(args, {
+      const preview = (await publishQaWizardApprovedPackage({ ...args, write: false }));
+      await expect((async () =>
+        (await publishQaWizardApprovedPackage(args, {
           [hookName]: () => {
             throw new Error(`simulated_crash_${hookName}`);
           },
-        }),
-      ).toThrow(`simulated_crash_${hookName}`);
+        })))(),
+      ).rejects.toThrow(`simulated_crash_${hookName}`);
       expect(
         fs.existsSync(
           path.join(subject.repoRoot, preview.publicationClaimPath),
         ),
       ).toBe(true);
-      expect(() =>
-        publishQaWizardApprovedPackage({
+      await expect((async () =>
+        (await publishQaWizardApprovedPackage({
           ...args,
           publishedAt: '2026-08-25T14:01:00.000Z',
-        }),
-      ).toThrow(/publication claim.*conflicts/i);
-      const recovered = publishQaWizardApprovedPackage(args);
+        })))(),
+      ).rejects.toThrow(/publication claim.*conflicts/i);
+      const recovered = (await publishQaWizardApprovedPackage(args));
       expect(recovered.manifest.stage).toBe('package_published');
       expect(fs.existsSync(path.join(subject.repoRoot, recovered.packagePath))).toBe(
         true,

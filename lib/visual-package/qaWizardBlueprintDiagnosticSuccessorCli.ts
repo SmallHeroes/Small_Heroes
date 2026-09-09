@@ -125,9 +125,9 @@ export function parseBlueprintDiagnosticSuccessorCliArgs(
   return { command, values, flags };
 }
 
-function runNonExecute(
+async function runNonExecute(
   parsed: ParsedBlueprintDiagnosticSuccessorCli,
-): Record<string, unknown> {
+): Promise<Record<string, unknown>> {
   const value = (flag: string): string => {
     const found = parsed.values.get(flag);
     if (found === undefined) throw new CliUsageError(`missing value for ${flag}`);
@@ -135,7 +135,7 @@ function runNonExecute(
   };
   const write = parsed.flags.has('--write');
   if (parsed.command === 'prepare-diagnostic-successor') {
-    const result = prepareBlueprintDiagnosticSuccessorCandidate({
+    const result = (await prepareBlueprintDiagnosticSuccessorCandidate({
       repoRoot: value('--repo-root'),
       predecessorTerminalLookupPath: value(
         '--predecessor-terminal-lookup-path',
@@ -146,7 +146,7 @@ function runNonExecute(
       preparedBy: value('--prepared-by'),
       preparedAt: value('--prepared-at'),
       write,
-    });
+    }));
     return {
       command: parsed.command,
       candidatePath: result.candidatePath,
@@ -162,14 +162,14 @@ function runNonExecute(
         `--approved-by must be exact value ${QA_WIZARD_BLUEPRINT_DIAGNOSTIC_SUCCESSOR_APPROVER}`,
       );
     }
-    const result = authorizeBlueprintDiagnosticSuccessorCandidate({
+    const result = (await authorizeBlueprintDiagnosticSuccessorCandidate({
       repoRoot: value('--repo-root'),
       candidatePath: value('--candidate-path'),
       candidateDigest: value('--candidate-digest'),
       approvedBy: QA_WIZARD_BLUEPRINT_DIAGNOSTIC_SUCCESSOR_APPROVER,
       approvedAt: value('--approved-at'),
       write,
-    });
+    }));
     return {
       command: parsed.command,
       authorizationPath: result.authorizationPath,
@@ -197,7 +197,7 @@ export async function runBlueprintDiagnosticSuccessorCliAsync(
   }
   try {
     if (parsed.command !== 'execute-diagnostic-successor') {
-      out(JSON.stringify(runNonExecute(parsed)));
+      out(JSON.stringify((await runNonExecute(parsed))));
       return 0;
     }
     if (!parsed.flags.has('--write')) {

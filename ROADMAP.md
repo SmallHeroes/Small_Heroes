@@ -1,6 +1,6 @@
 # SmallHeroes — Roadmap
 
-**Last verified:** 2026-09-09 (v6 reviewed-reconciliation code PASS through8766aff1; focused-command P2 corrected locally, re-gate pending; M2b and gate reliability still open)
+**Last verified:** 2026-09-09 (documentation P2 closed through 3743b20a; actual production consumer integration locally green, independent QA pending; M2b and gate reliability still open)
 **Product priority owner:** Guy
 **Technical sequencing owner:** Codex
 
@@ -31,6 +31,25 @@ Blueprint and any required LOW Board/prop generation remain separately budgeted
 provider actions with exact owner gates.
 
 ## Active
+
+The actual semantic production bridge and Blueprint/package consumer cutovers
+are implemented locally from `3743b20a`: full check 5796 passed / 73 existing
+skips / zero failures, both typechecks, unchanged 391-spec inventory and workers.
+This includes all 270 focused-spec tests; independent QA remains pending. Full
+context/style/Set admission is reused; v5 remains supported without relabeling
+v6 or manufacturing a Candidate. Async authority reaches replay/recovery and
+all repository CLI callers. A real P1-content fixture reaches Blueprint
+preflight/reload; package/provider fixture proof is not a real P1 book.
+See CURRENT and `R3B1B_M2B_PRODUCTION_CONSUMERS_EXECUTION.md`.
+
+Claude's supplied `8766aff1..3743b20a` documentation re-gate PASS 0/0/0 closes
+the prior focused-command P2. Independent code PASS remains at `8766aff1`.
+Next: independent consumer QA, real exact reconciliation decisions, production
+Blueprint/Boards/package and authorized visual verification. No generic owner
+approval is pending for implementation; no new product acceptance is fabricated.
+Original semantic HOLD, timing P1 and book readiness remain open. Payments last.
+
+Historical command-correction handoff before its independent re-gate:
 
 Claude supplied code PASS0/0/1 for c0b3334e..8766aff1, independently reproducing
 135focused/140hostile and5767passed/73existing skips/0failed full gate. The sole

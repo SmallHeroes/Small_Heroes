@@ -186,11 +186,11 @@ async function execute(command: string, tokens: string[]): Promise<void> {
         'requestedAt',
       ],
     });
-    const result = prepareQaWizardBlueprintLiveRequest({
+    const result = (await prepareQaWizardBlueprintLiveRequest({
       ...request,
       outputDir,
       write,
-    });
+    }));
     output({
       status: write
         ? 'blueprint_live_request_preflight_persisted'
@@ -301,11 +301,11 @@ async function execute(command: string, tokens: string[]): Promise<void> {
       ],
       optionalKeys: ['note'],
     });
-    const result = recordQaWizardBlueprintApproval({
+    const result = (await recordQaWizardBlueprintApproval({
       ...request,
       outputDir,
       write,
-    });
+    }));
     output({
       status: write
         ? 'exact_blueprint_approval_recorded'

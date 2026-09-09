@@ -2,6 +2,31 @@
 
 Date: 2026-09-06
 
+2026-09-09 production-consumer continuation (Guy: proceed; no repeat generic
+approval). Base3743b20a, same sole-writer worktree/branch. Proposed change:
+materialize exact approved v6 template/reconciliation projections, construct a
+distinct production bridge with complete context/style admission, and route the
+actual Blueprint and package lifecycle consumers through fresh async validation.
+Why now: reviewed v6 artifacts currently have null contexts and are rejected by
+the v5-only consumer loader. General system fix, no story-specific content.
+Likely files: semantic bridge, shared context loader, Blueprint/package lifecycle
+modules, their CLI/callers/tests, canonical state/evidence. Existing artifact
+versions remain readable; consumer functions that load authority migrate to
+Promise-returning APIs and all repository call sites must await them. No fake
+Candidate, cached proof, sync subprocess bridge or null-context bypass.
+Expected: fresh complete authority reaches real consumer preflight/replay while
+wrong pins, pending/null artifacts, stale source/code/style and substitutions
+still fail before paid work. Validate positive/hostile routes, legacy/recovery/
+concurrency regressions, typechecks and full check. CostUSD0 during implementation;
+no provider/image call, source edit, visual decision, payment or gate relaxation.
+Rollback: stop using the additive production bridge; reviewed legacy artifacts
+remain valid with updated awaited callers, or revert the focused implementation.
+Stop-check: production flow changes, so compatibility and async race boundaries
+are explicit QA targets. No unresolved product decision is needed for code;
+real mapping/product/visual approvals remain Guy's. Claude reviews the immutable
+implementation range; no independent PASS inferred. Cowork is not needed for
+this technical integration. Guy eyeballs actual mappings and eventual visuals.
+
 2026-09-09 reviewed-reconciliation continuation under the existing M2b owner
 decision: after disclosure PASS00ad3142..c0b3334e and the explicitly authorized
 documentation push, implement v6 prepare/read review and exact approval

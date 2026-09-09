@@ -1,6 +1,52 @@
 # SmallHeroes — Current Technical State
 
-## M2b — v6 code PASS through8766aff1; focused-command P2 correction
+## M2b — actual production consumer integration (local full check green; QA pending)
+
+2026-09-09: Guy explicitly directed continued implementation without another
+generic approval. This task remains the sole writer on
+`codex/r3b1b-semantic-recovery-m1`, `C:/GNart/Work/sh-r3b1b-semantic-m1`,
+from clean `3743b20a7f46daa248c53536200e45cc97124b69` (local/upstream 0/0).
+Protected d53b `768ccb2f` and accepted-intent `63ccb484` remain read-only.
+
+Received Claude documentation re-gate PASS P0=0/P1=0/P2=0 for exactly
+`8766aff1..3743b20a`; focused-command P2 is closed. Code PASS still ends at
+`8766aff1`, not this implementation. At this continuation's start both prior
+commits had propagated; no push actor is inferred. Prior section below is history.
+
+Implemented: exact raw approved v6 template/reconciliation projections and a
+distinct `qa-wizard-semantic-production-bridge/v1` with a fully reconstructed
+production context. The shared loader dispatches strictly to either that chain
+or the unchanged v5 loader. Actual Blueprint/package consumers, replay, recovery,
+replacement, diagnostic successors and CLIs now await authority validation.
+The shared template loader also uses the existing v4/v5 human-group schema
+predicate: valid v5 ensembles are admitted, unsupported combinations rejected.
+No fabricated Candidate, cached proof, pending/null-context bypass or content edit.
+Caller scalar arguments are pinned; async manifest/ledger/census changes fail
+closed. Execution prechecks are awaited before claims or provider work.
+
+Final `npm run check` exited 0: 5796 passed, 73 existing skips, zero failures;
+both typechecks passed. Inventory remains 391 specs (369 ordinary / 22 resource),
+workers 4/2 unchanged. The final run covers all 270 tests in the seven focused
+specs. Earlier focused development failures are preserved, not relabeled as a
+green final focused rerun. Results and failure history are recorded in
+`docs/ai-workflow/R3B1B_M2B_PRODUCTION_CONSUMERS_EXECUTION.md`. Real P1 fixture
+content reached the real context builder and Blueprint preflight/reload without
+providers. Package lifecycle tests cover both bridge versions, but use a mocked
+authority loader and provider; this is not a real P1 package or live book render.
+Structural fixture reconciliation decisions are NOT Guy's product acceptance.
+
+Remaining: independent QA of this consumer change; exact real reconciliation
+content review/decision; current real production bridge and Blueprint; qualified
+Boards/package and the authorized bounded visual run. Generic implementation/
+render permission is not being requested again. Exact new product decisions are
+not inferred from that permission. Original P1 remains HELD P0=0/P1=3/P2=3;
+M2b/book readiness and the separate resource-phase timing P1 remain open.
+Packet `b7fdd4e5` acceptance is untouched. Existing approval `c2b51f0d` and
+pending manifest `80177ac9` remain immutable; the latter is historical at
+`28f25ef7`, not current authority. No provider/credential access, spend, real
+render, publication, deployment, payment work or automatic implementation push.
+
+## Historical focused-command P2 correction at 3743b20a (before its re-gate)
 
 2026-09-09 supplied Claude review: PASS P0=0/P1=0/P2=1 for exactly
 c0b3334e..8766aff1. Independent code PASS now ends at8766aff1. Claude reports

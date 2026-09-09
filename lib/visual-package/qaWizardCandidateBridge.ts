@@ -137,7 +137,7 @@ export const QA_WIZARD_CANDIDATE_VALIDATION_DOES_NOT_AUTHORIZE = [
   'deployment',
 ] as const;
 
-function assertProductionTemplateSetBoardAdmission(args: {
+export function assertProductionTemplateSetBoardAdmission(args: {
   template: VisualContractCandidateArtifact['template'];
   styleId: string;
 }): void {

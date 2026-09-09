@@ -11,10 +11,14 @@ import { readCurrentQaWizardConsumerRepositoryAuthority, qaWizardCandidateBridge
 import { recordSemanticCorrectionApproval, loadApprovedSemanticCorrection, prepareSemanticCorrectionBridge,
   loadSemanticCorrectionBridge, prepareSemanticReconciliationReview, loadSemanticReconciliationReview,
   recordSemanticReconciliationApproval, loadApprovedSemanticReconciliation,
+  materializeSemanticProductionInputs, prepareSemanticProductionBridge, loadSemanticProductionBridge,
   type RecordSemanticCorrectionApprovalRequest } from '../semanticCorrectionApprovalBridge';
 import { buildSemanticCorrectionReviewPacket } from '../semanticCorrectionPreview';
 import { buildProductionReconciliationDraftFromSourceSnapshot } from '../reconciliationLifecycle';
 import { p1SemanticRecoveryFixture, P1_REQUEST } from './fixtures/semantic-recovery-p1-fixture';
+import { loadQaWizardProductionContext } from '../qaWizardProductionContext';
+import { prepareQaWizardBlueprintLiveRequest, loadQaWizardBlueprintAuthoringManifest } from '../qaWizardBlueprintAuthoringLifecycle';
+import { STYLE01_PRODUCTION_STYLE_AUTHORITY_PATH, STYLE01_PRODUCTION_STYLE_ID } from '../styleAuthority';
 
 vi.mock('../semanticCorrectionConsumerValidation', async original => ({
   ...await original<typeof import('../semanticCorrectionConsumerValidation')>(), validateSemanticCorrectionForCurrentConsumer: vi.fn(),
@@ -74,6 +78,15 @@ async function approvedReconciliation() {
     expectedReviewDigest: result.review.digest, approvedBy: 'Guy', approvedAt: request.approvedAt,
     outputDir: rel(path.join(root, 'reconciliation-output')), write: true });
 }
+async function productionSubject() {
+  const approved = await approvedReconciliation();
+  const identity = { consumerRepoRoot: process.cwd(), approvalPath: approved.artifact.path, expectedApprovalDigest: approved.approval.digest };
+  const inputDir = rel(path.join(root, 'production-inputs'));
+  await materializeSemanticProductionInputs({ ...identity, outputDir: inputDir, write: true });
+  const style = JSON.parse(fs.readFileSync(abs(STYLE01_PRODUCTION_STYLE_AUTHORITY_PATH), 'utf8'));
+  return { ...identity, inputDir, styleId: STYLE01_PRODUCTION_STYLE_ID, styleAuthorityPath: STYLE01_PRODUCTION_STYLE_AUTHORITY_PATH,
+    expectedStyleAuthorityDigest: canonicalHash(style), outputDir: rel(path.join(root, 'production-bridge')), write: true };
+}
 beforeEach(()=>{
   vi.clearAllMocks();
   fs.mkdirSync(path.join(process.cwd(),'outputs'),{recursive:true});
@@ -91,6 +104,117 @@ beforeEach(()=>{
     expectedReviewPacketDigest:packet.digest,approvedBy:'Guy',approvedAt:'2026-09-09T06:20:00.000Z',outputDir:rel(path.join(root,'new-output'))};
 });
 afterEach(()=>{vi.restoreAllMocks();if(root)fs.rmSync(root,{recursive:true,force:true});});
+
+describe('semantic production context and real Blueprint consumer', () => {
+  it('previews and materializes exact projections without creating production authority', async () => {
+    const approved = await approvedReconciliation();
+    const args = { consumerRepoRoot: process.cwd(), approvalPath: approved.artifact.path, expectedApprovalDigest: approved.approval.digest,
+      outputDir: rel(path.join(root, 'inputs')) };
+    const preview = await materializeSemanticProductionInputs(args);
+    expect(preview.wrote).toBe(false); expect(fs.existsSync(abs(args.outputDir))).toBe(false);
+    const written = await materializeSemanticProductionInputs({ ...args, write: true });
+    expect(written.inputs).toEqual(preview.inputs);
+    for (const projection of written.inputs) expect(canonicalHash(JSON.parse(fs.readFileSync(abs(projection.path), 'utf8')))).toBe(projection.digest);
+    expect((await materializeSemanticProductionInputs({ ...args, write: true })).inputs).toEqual(preview.inputs);
+    expect(fs.existsSync(abs(`${args.outputDir}/semantic-production-bridges`))).toBe(false);
+  });
+  it('reconstructs a complete real P1 context and prepares/reloads the actual Blueprint request with zero providers', async () => {
+    const args = await productionSubject();
+    const preview = await prepareSemanticProductionBridge({ ...args, write: false });
+    expect(fs.existsSync(abs(args.outputDir))).toBe(false);
+    const produced = await prepareSemanticProductionBridge(args);
+    expect(produced.manifest).toEqual(preview.manifest);
+    const loaded = await loadQaWizardProductionContext({ repoRoot: process.cwd(), bridgeManifestPath: produced.artifact.path });
+    expect(loaded.context).toEqual(produced.context);
+    expect(loaded.context.template.identity.digest).toBe(validated.packet.correction.effective.templateDigest);
+    expect(loaded.context.reconciliation.content.actionSemanticCoverageAuthority.actionSemanticCoverageDigest).toBe(validated.packet.correction.effective.coverageDigest);
+    const preflight = await prepareQaWizardBlueprintLiveRequest({ repoRoot: process.cwd(), bridgeManifestPath: produced.artifact.path,
+      outputDir: rel(path.join(root, 'blueprint')), requestId: 'semantic-context-test', requestedAt: request.approvedAt, write: true });
+    expect(preflight.manifest.bridge.version).toBe(produced.manifest.version);
+    expect(preflight.manifest.context.digest).toBe(produced.context.digest);
+    expect(await loadQaWizardBlueprintAuthoringManifest({ repoRoot: process.cwd(), manifestPath: preflight.manifestPath })).toEqual(preflight.manifest);
+  });
+  it.each(['context', 'scope', 'subject', 'inputs', 'approval', 'extra'])('rejects rehashed production bridge %s substitution without falling back', async kind => {
+    const produced = await prepareSemanticProductionBridge(await productionSubject());
+    const changed = rewrite(produced.artifact.path, value => {
+      if (kind === 'context') value.productionContext.digest = 'f'.repeat(64);
+      if (kind === 'scope') value.doesNotAuthorize = [];
+      if (kind === 'subject') value.subject.effective.coverageDigest = 'f'.repeat(64);
+      if (kind === 'inputs') value.inputs[0].digest = 'f'.repeat(64);
+      if (kind === 'approval') value.reconciliationApproval.digest = 'f'.repeat(64);
+      if (kind === 'extra') value.approvedForRender = true;
+    }, true);
+    await expect(loadQaWizardProductionContext({ repoRoot: process.cwd(), bridgeManifestPath: changed.file })).rejects.toThrow();
+  });
+  it.each(['projection', 'style', 'approval-pin', 'context-injection', 'missing-projection'])('rejects invalid production inputs: %s before publishing authority', async kind => {
+    const args = await productionSubject();
+    const template = `${args.inputDir}/semantic-templates/${validated.packet.correction.effective.templateDigest}.json`;
+    if (kind === 'projection') fs.appendFileSync(abs(template), ' ');
+    if (kind === 'missing-projection') fs.renameSync(abs(template), abs(template) + '.held');
+    if (kind === 'style') args.expectedStyleAuthorityDigest = 'f'.repeat(64);
+    if (kind === 'approval-pin') args.expectedApprovalDigest = 'f'.repeat(64);
+    if (kind === 'context-injection') (args as any).context = { approved: true };
+    await expect(prepareSemanticProductionBridge(args)).rejects.toThrow();
+    expect(fs.existsSync(abs(args.outputDir))).toBe(false);
+  });
+  it('rejects pending and review-only artifacts at the actual shared consumer boundary', async () => {
+    const pending = await bridge();
+    await expect(loadQaWizardProductionContext({ repoRoot: process.cwd(), bridgeManifestPath: pending.artifact.path })).rejects.toThrow();
+    const review = await reviewed();
+    await expect(loadQaWizardProductionContext({ repoRoot: process.cwd(), bridgeManifestPath: review.artifact.path })).rejects.toThrow();
+  });
+  it('pins production arguments before validation yields', async () => {
+    const args = await productionSubject();
+    const originalStyle = args.styleId;
+    validate.mockImplementationOnce(async () => { (args as { styleId: string }).styleId = 'changed'; args.outputDir = '../escape'; return validated; });
+    const produced = await prepareSemanticProductionBridge(args);
+    expect(produced.context.styleId).toBe(originalStyle);
+    expect(produced.artifact.path).toContain('/production-bridge/');
+  });
+  it('rejects production manifest byte drift during approval validation', async () => {
+    const produced = await prepareSemanticProductionBridge(await productionSubject());
+    validate.mockImplementationOnce(async () => { fs.appendFileSync(abs(produced.artifact.path), ' '); return validated; });
+    await expect(loadSemanticProductionBridge({ consumerRepoRoot: process.cwd(), manifestPath: produced.artifact.path,
+      expectedManifestDigest: produced.manifest.digest })).rejects.toThrow();
+  });
+  it('rejects stale current validation at the real Blueprint entry before creating its output', async () => {
+    const produced = await prepareSemanticProductionBridge(await productionSubject());
+    const outputDir = rel(path.join(root, 'rejected-blueprint'));
+    validate.mockRejectedValueOnce(new Error('current_dirty'));
+    await expect(prepareQaWizardBlueprintLiveRequest({ repoRoot: process.cwd(), bridgeManifestPath: produced.artifact.path,
+      outputDir, requestId: 'semantic-drift-test', requestedAt: request.approvedAt, write: true })).rejects.toThrow('current_dirty');
+    expect(fs.existsSync(abs(outputDir))).toBe(false);
+  });
+  it('rejects Blueprint manifest byte drift across the newly asynchronous authority load', async () => {
+    const produced = await prepareSemanticProductionBridge(await productionSubject());
+    const preflight = await prepareQaWizardBlueprintLiveRequest({ repoRoot: process.cwd(), bridgeManifestPath: produced.artifact.path,
+      outputDir: rel(path.join(root, 'blueprint')), requestId: 'semantic-drift-test', requestedAt: request.approvedAt, write: true });
+    validate.mockImplementationOnce(async () => { fs.appendFileSync(abs(preflight.manifestPath), ' '); return validated; });
+    await expect(loadQaWizardBlueprintAuthoringManifest({ repoRoot: process.cwd(), manifestPath: preflight.manifestPath })).rejects.toThrow();
+  });
+  it('refuses a projection collision without replacing bytes or creating another projection', async () => {
+    const approved = await approvedReconciliation();
+    const args = { consumerRepoRoot: process.cwd(), approvalPath: approved.artifact.path, expectedApprovalDigest: approved.approval.digest,
+      outputDir: rel(path.join(root, 'inputs')), write: true };
+    const preview = await materializeSemanticProductionInputs({ ...args, write: false });
+    const second = abs(preview.inputs[1]!.path);
+    fs.mkdirSync(path.dirname(second), { recursive: true }); fs.writeFileSync(second, 'collision');
+    await expect(materializeSemanticProductionInputs(args)).rejects.toThrow();
+    expect(fs.readFileSync(second, 'utf8')).toBe('collision');
+    expect(fs.existsSync(abs(preview.inputs[0]!.path))).toBe(false);
+  });
+  it('rejects all three production CLI operations with invalid authority, sanitized output and network denied', () => {
+    const file = path.join(root, 'production-request.json');
+    for (const operation of ['materialize-production-inputs', 'prepare-production-bridge', 'read-production-bridge']) {
+      fs.writeFileSync(file, JSON.stringify({ operation, arguments: {} }));
+      const run = spawnSync(process.execPath, ['node_modules/tsx/dist/cli.mjs', '--require', './scripts/shims/register-server-only.cjs',
+        '--require', './lib/set-identity-board/__tests__/fixtures/deny-network.cjs', 'scripts/semantic-correction-approval-bridge.ts', '--request', file],
+        { encoding: 'utf8', windowsHide: true, timeout: 15000 });
+      expect(run.error).toBeUndefined(); expect(run.status).toBe(1);
+      expect(JSON.parse(run.stdout)).toEqual({ status: 'rejected', providerCalls: 0 });
+    }
+  }, 20000);
+});
 
 describe('v6 reviewed reconciliation with corrected coverage', () => {
   it('compiles all explicit decisions with effective identities and no authority escalation', async () => {

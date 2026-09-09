@@ -12,9 +12,9 @@ import {
 } from './integrity';
 import {
   QA_WIZARD_CANDIDATE_BRIDGE_MANIFEST_VERSION,
-  loadQaWizardApprovedProductionContext,
-  type QaWizardCandidateBridgeManifest,
 } from './qaWizardCandidateBridge';
+import { loadQaWizardProductionContext, type QaWizardProductionBridgeAuthority } from './qaWizardProductionContext';
+import { SEMANTIC_PRODUCTION_BRIDGE_VERSION } from './semanticCorrectionApprovalBridge';
 import {
   LEGACY_PRODUCTION_AUTHORING_RUN_REQUEST_VERSION_V4,
   LEGACY_PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION_V7,
@@ -230,7 +230,7 @@ interface ManifestPredecessor {
 }
 
 interface ManifestBridgeAuthority {
-  version: typeof QA_WIZARD_CANDIDATE_BRIDGE_MANIFEST_VERSION;
+  version: typeof QA_WIZARD_CANDIDATE_BRIDGE_MANIFEST_VERSION | typeof SEMANTIC_PRODUCTION_BRIDGE_VERSION;
   digest: string;
   path: string;
 }
@@ -967,7 +967,7 @@ function manifestShapeIsValid(
       manifestExclusions(manifest.stage),
     ) ||
     !exactKeys(manifest.bridge, BRIDGE_KEYS) ||
-    manifest.bridge.version !== QA_WIZARD_CANDIDATE_BRIDGE_MANIFEST_VERSION ||
+    ![QA_WIZARD_CANDIDATE_BRIDGE_MANIFEST_VERSION, SEMANTIC_PRODUCTION_BRIDGE_VERSION].includes(manifest.bridge.version) ||
     typeof manifest.bridge.digest !== 'string' ||
     !HEX_SHA256.test(manifest.bridge.digest) ||
     typeof manifest.bridge.path !== 'string' ||
@@ -1106,11 +1106,11 @@ function requestAuthority(args: {
 }
 
 function bridgeAuthority(args: {
-  bridge: QaWizardCandidateBridgeManifest;
+  bridge: QaWizardProductionBridgeAuthority;
   bridgeManifestPath: string;
 }): ManifestBridgeAuthority {
   if (
-    args.bridge.version !== QA_WIZARD_CANDIDATE_BRIDGE_MANIFEST_VERSION
+    args.bridge.version !== QA_WIZARD_CANDIDATE_BRIDGE_MANIFEST_VERSION && args.bridge.version !== SEMANTIC_PRODUCTION_BRIDGE_VERSION
   ) {
     throw new Error('legacy QA Wizard bridge cannot authorize Blueprint authoring');
   }
@@ -2211,22 +2211,24 @@ function predecessorAuthority(args: {
   };
 }
 
-export function prepareQaWizardBlueprintLiveRequest(args: {
+export async function prepareQaWizardBlueprintLiveRequest(args: {
   repoRoot: string;
   bridgeManifestPath: string;
   outputDir: string;
   requestId: string;
   requestedAt: string;
   write?: boolean;
-}): PreparedQaWizardBlueprintLiveRequest {
+}): Promise<PreparedQaWizardBlueprintLiveRequest> {
+  // Pin scalar request inputs before asynchronous authority validation.
+  args = { ...args };
   if (!canonicalUtcTimestampIsValid(args.requestedAt)) {
     throw new Error('requestedAt must be canonical UTC with millisecond precision');
   }
   const { manifest: bridge, context } =
-    loadQaWizardApprovedProductionContext({
+    (await loadQaWizardProductionContext({
       repoRoot: args.repoRoot,
       bridgeManifestPath: args.bridgeManifestPath,
-    });
+    }));
   const request = buildProductionAuthoringRunRequest({
     context,
     mode: 'live',
@@ -2526,7 +2528,7 @@ interface LoadedQaWizardBlueprintManifest {
   manifest: QaWizardBlueprintAuthoringManifest;
   manifestPath: string;
   outputDir: string;
-  bridge: QaWizardCandidateBridgeManifest;
+  bridge: QaWizardProductionBridgeAuthority;
   context: ProductionAuthoringContext;
   request: ReplayableProductionAuthoringRunRequest;
   receipt: ReplayableProductionAuthoringRunReceipt | null;
@@ -2821,10 +2823,10 @@ function publishAndBindSanitizedFailureCapture(args: {
   };
 }
 
-function loadQaWizardBlueprintManifestAuthority(args: {
+async function loadQaWizardBlueprintManifestAuthority(args: {
   repoRoot: string;
   manifestPath: string;
-}): LoadedQaWizardBlueprintManifest {
+}): Promise<LoadedQaWizardBlueprintManifest> {
   const loaded = readJsonObject({
     repoRoot: args.repoRoot,
     artifactPath: args.manifestPath,
@@ -2846,10 +2848,10 @@ function loadQaWizardBlueprintManifestAuthority(args: {
   });
   const outputDir = outputDirFromManifestPath(args.manifestPath);
   const { manifest: bridge, context } =
-    loadQaWizardApprovedProductionContext({
+    (await loadQaWizardProductionContext({
       repoRoot: args.repoRoot,
       bridgeManifestPath: manifest.bridge.path,
-    });
+    }));
   if (
     bridge.version !== manifest.bridge.version ||
     bridge.digest !== manifest.bridge.digest ||
@@ -2876,10 +2878,10 @@ function loadQaWizardBlueprintManifestAuthority(args: {
     if (manifest.predecessor.path !== expectedPath) {
       throw new Error('Blueprint authoring predecessor path is noncanonical');
     }
-    predecessor = loadQaWizardBlueprintManifestAuthority({
+    predecessor = (await loadQaWizardBlueprintManifestAuthority({
       repoRoot: args.repoRoot,
       manifestPath: manifest.predecessor.path,
-    });
+    }));
     const expectedPredecessorStage =
       manifest.stage === 'blueprint_approved'
         ? 'blueprint_candidate'
@@ -3023,6 +3025,10 @@ function loadQaWizardBlueprintManifestAuthority(args: {
     }
   }
 
+  if (readJsonObject({ repoRoot: args.repoRoot, artifactPath: args.manifestPath,
+    label: 'Blueprint authoring manifest' }).rawBytes !== loaded.rawBytes) {
+    throw new Error('Blueprint authoring manifest changed during authority validation');
+  }
   return {
     manifest,
     manifestPath: args.manifestPath,
@@ -3036,11 +3042,13 @@ function loadQaWizardBlueprintManifestAuthority(args: {
   };
 }
 
-export function loadQaWizardBlueprintAuthoringManifest(args: {
+export async function loadQaWizardBlueprintAuthoringManifest(args: {
   repoRoot: string;
   manifestPath: string;
-}): QaWizardBlueprintAuthoringManifest {
-  return loadQaWizardBlueprintManifestAuthority(args).manifest;
+}): Promise<QaWizardBlueprintAuthoringManifest> {
+  // Pin scalar request inputs before asynchronous authority validation.
+  args = { ...args };
+  return (await loadQaWizardBlueprintManifestAuthority(args)).manifest;
 }
 
 function expectedAuthoringAuthorityDigest(
@@ -3614,7 +3622,14 @@ function executionRecordIsValid(
   );
 }
 
-function loadExecutionRecord(args: {
+/** Authority reads that precede an await must still name the same on-disk bytes. */
+function assertAuthorityBytesUnchanged(repoRoot: string, artifactPath: string, bytes: string): void {
+  if (readJsonObject({ repoRoot, artifactPath, label: 'asynchronous Blueprint authority' }).rawBytes !== bytes) {
+    throw new Error('Blueprint authority changed during asynchronous validation');
+  }
+}
+
+async function loadExecutionRecord(args: {
   repoRoot: string;
   outputDir: string;
   authoringAuthorityDigest: string;
@@ -3622,7 +3637,7 @@ function loadExecutionRecord(args: {
   preflightManifestDigest: string;
   executionIdentityDigest?: string;
   claimIsValid?: (value: unknown) => boolean;
-}): QaWizardBlueprintExecutionResult | null {
+}): Promise<QaWizardBlueprintExecutionResult | null> {
   const key = ledgerKey(args);
   const claimIsValid = args.claimIsValid ?? executionClaimIsValid;
   const lookupPath = terminalLookupPath(args);
@@ -3663,10 +3678,12 @@ function loadExecutionRecord(args: {
   ) {
     throw new Error('Blueprint authoring execution claim is invalid or tampered');
   }
-  const terminal = loadQaWizardBlueprintManifestAuthority({
+  const terminal = (await loadQaWizardBlueprintManifestAuthority({
     repoRoot: args.repoRoot,
     manifestPath: loaded.value.terminalManifestPath,
-  });
+  }));
+  assertAuthorityBytesUnchanged(args.repoRoot, lookupPath, loaded.rawBytes);
+  assertAuthorityBytesUnchanged(args.repoRoot, loaded.value.claimPath, claim.rawBytes);
   if (
     terminal.manifest.digest !== loaded.value.terminalManifestDigest ||
     terminal.manifest.request.digest !== loaded.value.requestDigest ||
@@ -3724,17 +3741,17 @@ function loadExecutionRecord(args: {
 // of truth for both `recoverTerminalLookup` (which then materializes the
 // lookup) and the replacement orphan-eligibility census (which must classify a
 // predecessor without mutating disk). It writes nothing.
-function scanRecoverableTerminalManifests(args: {
+async function scanRecoverableTerminalManifests(args: {
   repoRoot: string;
   outputDir: string;
   authoringAuthorityDigest: string;
   requestDigest: string;
   preflightManifestDigest: string;
   executionIdentityDigest?: string;
-}): {
+}): Promise<{
   ownBinding: QaWizardBlueprintTerminalBinding | null;
   terminals: LoadedQaWizardBlueprintManifest[];
-} {
+}> {
   const identityKey = ledgerKey(args);
   const ownBinding = loadTerminalBindingForIdentity(args);
   const foreignTerminals = foreignBoundTerminalManifestDigests({
@@ -3749,16 +3766,18 @@ function scanRecoverableTerminalManifests(args: {
   if (!fs.existsSync(manifestDirectory)) {
     return { ownBinding, terminals };
   }
-  for (const entry of fs.readdirSync(manifestDirectory, { withFileTypes: true })) {
+  const entries = fs.readdirSync(manifestDirectory, { withFileTypes: true });
+  const census = (values: typeof entries) => canonicalJsonDigest(values.map(entry => [entry.name, entry.isFile(), entry.isDirectory(), entry.isSymbolicLink()]).sort());
+  for (const entry of entries) {
     if (!entry.isFile() || !/^[a-f0-9]{64}\.json$/.test(entry.name)) continue;
     const manifestPath = repoRelativePath(
       args.repoRoot,
       path.join(manifestDirectory, entry.name),
     );
-    const candidate = loadQaWizardBlueprintManifestAuthority({
+    const candidate = (await loadQaWizardBlueprintManifestAuthority({
       repoRoot: args.repoRoot,
       manifestPath,
-    });
+    }));
     if (
       !['blueprint_candidate', 'authoring_failed'].includes(
         candidate.manifest.stage,
@@ -3776,6 +3795,12 @@ function scanRecoverableTerminalManifests(args: {
     }
     terminals.push(candidate);
   }
+  if (census(fs.readdirSync(manifestDirectory, { withFileTypes: true })) !== census(entries) ||
+      canonicalJsonDigest(loadTerminalBindingForIdentity(args)) !== canonicalJsonDigest(ownBinding) ||
+      canonicalJsonDigest([...foreignBoundTerminalManifestDigests({ repoRoot: args.repoRoot, executionIdentityKey: identityKey })].sort()) !==
+        canonicalJsonDigest([...foreignTerminals].sort())) {
+    throw new Error('Blueprint terminal census changed during asynchronous validation');
+  }
   return { ownBinding, terminals };
 }
 
@@ -3786,15 +3811,15 @@ function scanRecoverableTerminalManifests(args: {
 // recoverable through the ordinary lane and therefore must NOT be treated as a
 // replacement-eligible orphan. Mutates nothing, so it is safe under a
 // `write:false` preparation.
-function classifyPredecessorRecoverableTerminal(args: {
+async function classifyPredecessorRecoverableTerminal(args: {
   repoRoot: string;
   outputDir: string;
   authoringAuthorityDigest: string;
   requestDigest: string;
   preflightManifestDigest: string;
   executionIdentityDigest?: string;
-}): 'none' | 'recoverable' | 'ambiguous' {
-  const { ownBinding, terminals } = scanRecoverableTerminalManifests(args);
+}): Promise<'none' | 'recoverable' | 'ambiguous'> {
+  const { ownBinding, terminals } = (await scanRecoverableTerminalManifests(args));
   if (terminals.length === 0) {
     // A binding that names a now-missing terminal is a torn state, not orphan.
     // (The caller also rejects an own binding directly; this is defense in depth.)
@@ -3808,7 +3833,7 @@ function classifyPredecessorRecoverableTerminal(args: {
   return 'ambiguous';
 }
 
-function recoverTerminalLookup(args: {
+async function recoverTerminalLookup(args: {
   repoRoot: string;
   outputDir: string;
   authoringAuthorityDigest: string;
@@ -3817,7 +3842,7 @@ function recoverTerminalLookup(args: {
   executionIdentityDigest?: string;
   claimIsValid?: (value: unknown) => boolean;
   recoverOnlyFromOwnTerminalBinding?: boolean;
-}): QaWizardBlueprintExecutionResult | null {
+}): Promise<QaWizardBlueprintExecutionResult | null> {
   const claimIsValid = args.claimIsValid ?? executionClaimIsValid;
   const expectedClaimPath = claimPath(args);
   const claimArtifact = readJsonObject({
@@ -3845,11 +3870,12 @@ function recoverTerminalLookup(args: {
   // consume a successor terminal and successor recovery can never consume an
   // ordinary one. The scan below is the same read-only source of truth used by
   // the replacement orphan-eligibility census.
-  const { ownBinding, terminals } = scanRecoverableTerminalManifests(args);
+  const { ownBinding, terminals } = (await scanRecoverableTerminalManifests(args));
   // Successor lanes did not exist before terminal bindings and therefore have
   // no legitimate binding-less legacy terminal to adopt. Without this fence a
   // post-claim crash could mis-adopt an unrelated, superseded ordinary terminal
   // that happens to share request/preflight lineage.
+  assertAuthorityBytesUnchanged(args.repoRoot, expectedClaimPath, claimArtifact.rawBytes);
   if (args.recoverOnlyFromOwnTerminalBinding === true && !ownBinding) {
     return null;
   }
@@ -3897,7 +3923,7 @@ function recoverTerminalLookup(args: {
     bytes: canonicalContentAddressedJsonBytes(recordValue),
     hooks: containedPublishHooks({ repoRoot: args.repoRoot }),
   });
-  return loadExecutionRecord(args);
+  return (await loadExecutionRecord(args));
 }
 
 function blueprintAuthorityFromPersistence(args: {
@@ -3975,7 +4001,7 @@ interface BlueprintExecutionClaimBinding {
     preflight: LoadedQaWizardBlueprintManifest;
     authoringAuthorityDigest: string;
     requestDigest: string;
-  }) => void;
+  }) => void | Promise<void>;
 }
 
 async function runBlueprintExecutionUnderClaim(
@@ -3991,10 +4017,10 @@ async function runBlueprintExecutionUnderClaim(
   if (args.write !== true) {
     throw new Error('execute-live requires write=true');
   }
-  const preflight = loadQaWizardBlueprintManifestAuthority({
+  const preflight = (await loadQaWizardBlueprintManifestAuthority({
     repoRoot: args.repoRoot,
     manifestPath: args.preflightManifestPath,
-  });
+  }));
   if (preflight.manifest.stage !== 'live_request_preflight_passed') {
     throw new Error('execute-live requires a preflight-passed manifest');
   }
@@ -4029,7 +4055,7 @@ async function runBlueprintExecutionUnderClaim(
   });
   let existingTerminal: QaWizardBlueprintExecutionResult | null;
   try {
-    existingTerminal = loadExecutionRecord({
+    existingTerminal = (await loadExecutionRecord({
       repoRoot: args.repoRoot,
       outputDir,
       authoringAuthorityDigest,
@@ -4037,7 +4063,7 @@ async function runBlueprintExecutionUnderClaim(
       preflightManifestDigest: preflight.manifest.digest,
       executionIdentityDigest,
       claimIsValid,
-    });
+    }));
   } catch (cause) {
     if (
       cause instanceof Error &&
@@ -4076,7 +4102,7 @@ async function runBlueprintExecutionUnderClaim(
       ) {
         throw new Error('execution_identity_already_claimed');
       }
-      const recovered = recoverTerminalLookup({
+      const recovered = (await recoverTerminalLookup({
         repoRoot: args.repoRoot,
         outputDir,
         authoringAuthorityDigest,
@@ -4086,7 +4112,7 @@ async function runBlueprintExecutionUnderClaim(
         claimIsValid,
         recoverOnlyFromOwnTerminalBinding:
           binding.recoverOnlyFromOwnTerminalBinding,
-      });
+      }));
       if (recovered) return recovered;
       const incident = loadExecutionIncident({
         repoRoot: args.repoRoot,
@@ -4120,7 +4146,7 @@ async function runBlueprintExecutionUnderClaim(
   // The lane gate runs only on the genuine first execution — after replay and
   // the published-claim fence — so a successor's own terminal can never be
   // mistaken for an unresolved predecessor on replay or crash recovery.
-  binding.precheck?.({
+  await binding.precheck?.({
     repoRoot: args.repoRoot,
     outputDir,
     preflight,
@@ -4155,7 +4181,7 @@ async function runBlueprintExecutionUnderClaim(
   }
   if (!claimWrite.created) {
     try {
-      const completedDuringClaimRace = loadExecutionRecord({
+      const completedDuringClaimRace = (await loadExecutionRecord({
         repoRoot: args.repoRoot,
         outputDir,
         authoringAuthorityDigest,
@@ -4163,9 +4189,9 @@ async function runBlueprintExecutionUnderClaim(
         preflightManifestDigest: preflight.manifest.digest,
         executionIdentityDigest,
         claimIsValid,
-      });
+      }));
       if (completedDuringClaimRace) return completedDuringClaimRace;
-      const recovered = recoverTerminalLookup({
+      const recovered = (await recoverTerminalLookup({
         repoRoot: args.repoRoot,
         outputDir,
         authoringAuthorityDigest,
@@ -4175,7 +4201,7 @@ async function runBlueprintExecutionUnderClaim(
         claimIsValid,
         recoverOnlyFromOwnTerminalBinding:
           binding.recoverOnlyFromOwnTerminalBinding,
-      });
+      }));
       if (recovered) return recovered;
       throw executionStateUncertain();
     } catch (cause) {
@@ -4551,11 +4577,13 @@ export async function executeQaWizardBlueprintLiveRequest(
   },
   deps: QaWizardBlueprintExecutionDependencies = {},
 ): Promise<QaWizardBlueprintExecutionResult> {
-  return runBlueprintExecutionUnderClaim(
+  // Pin scalar request inputs before asynchronous authority validation.
+  args = { ...args };
+  return (await runBlueprintExecutionUnderClaim(
     args,
     ordinaryExecutionClaimBinding,
     deps,
-  );
+  ));
 }
 
 // ---------------------------------------------------------------------------
@@ -4802,20 +4830,20 @@ function bindReplacementSuccessorSlot(args: {
  * predecessor (a successor claim) is rejected as a nested replacement. The
  * predecessor is only read, never mutated.
  */
-function loadPredecessorOrphanClaim(args: {
+async function loadPredecessorOrphanClaim(args: {
   repoRoot: string;
   outputDir: string;
   authoringAuthorityDigest: string;
   request: ReplayableProductionAuthoringRunRequest;
   requestDigest: string;
   preflightManifestDigest: string;
-}): {
+}): Promise<{
   claim:
     | QaWizardBlueprintExecutionClaim
     | LegacyQaWizardBlueprintExecutionClaim;
   claimPath: string;
   rawBytes: string;
-} {
+}> {
   if (
     args.request.version !== PRODUCTION_AUTHORING_RUN_REQUEST_VERSION ||
     !blueprintAuthoringExecutionProgramIsCurrent(args.request.program)
@@ -4865,7 +4893,7 @@ function loadPredecessorOrphanClaim(args: {
     preflightManifestDigest: args.preflightManifestDigest,
     executionIdentityDigest: ordinary.executionIdentityDigest,
   } as const;
-  if (loadExecutionRecord(gate)) {
+  if ((await loadExecutionRecord(gate))) {
     throw new Error('replacement predecessor already has a terminal result');
   }
   // Non-mutating recoverability check: a terminal binding for the predecessor's
@@ -4891,14 +4919,14 @@ function loadPredecessorOrphanClaim(args: {
   // exact single recoverable terminal is rejected as recoverable; any ambiguous
   // or torn multi/none-receipt state fails closed rather than authorizing a
   // second paid execution.
-  const recoverableTerminal = classifyPredecessorRecoverableTerminal({
+  const recoverableTerminal = (await classifyPredecessorRecoverableTerminal({
     repoRoot: args.repoRoot,
     outputDir: args.outputDir,
     authoringAuthorityDigest: args.authoringAuthorityDigest,
     requestDigest: args.requestDigest,
     preflightManifestDigest: args.preflightManifestDigest,
     executionIdentityDigest: ordinary.executionIdentityDigest,
-  });
+  }));
   if (recoverableTerminal === 'recoverable') {
     throw new Error('replacement predecessor has a recoverable terminal result');
   }
@@ -4912,6 +4940,10 @@ function loadPredecessorOrphanClaim(args: {
     claimDigest: loaded.value.digest as string,
     claimPath: predecessorClaimPath,
   });
+  assertAuthorityBytesUnchanged(args.repoRoot, predecessorClaimPath, loaded.rawBytes);
+  if (fs.existsSync(resolveRepoPath(args.repoRoot, terminalLookupPath(gate))) || loadTerminalBindingForIdentity(gate)) {
+    throw new Error('replacement predecessor terminal state changed during validation');
+  }
   if (incident) {
     throw new Error(
       'replacement predecessor already has an incident; operator resolution differs',
@@ -4926,14 +4958,14 @@ function loadPredecessorOrphanClaim(args: {
   };
 }
 
-function assertReplacementProposalCurrentEligibility(args: {
+async function assertReplacementProposalCurrentEligibility(args: {
   repoRoot: string;
   proposal: QaWizardBlueprintReplacementProposal;
-}): void {
-  const preflight = loadQaWizardBlueprintManifestAuthority({
+}): Promise<void> {
+  const preflight = (await loadQaWizardBlueprintManifestAuthority({
     repoRoot: args.repoRoot,
     manifestPath: args.proposal.current.preflightManifestPath,
-  });
+  }));
   if (
     preflight.manifest.stage !== 'live_request_preflight_passed' ||
     preflight.request.version !== PRODUCTION_AUTHORING_RUN_REQUEST_VERSION ||
@@ -4963,14 +4995,14 @@ function assertReplacementProposalCurrentEligibility(args: {
   ) {
     throw new Error('replacement proposal current binding is stale or substituted');
   }
-  const predecessor = loadPredecessorOrphanClaim({
+  const predecessor = (await loadPredecessorOrphanClaim({
     repoRoot: args.repoRoot,
     outputDir,
     authoringAuthorityDigest,
     request: preflight.request,
     requestDigest,
     preflightManifestDigest: preflight.manifest.digest,
-  });
+  }));
   if (
     predecessor.claim.digest !== args.proposal.predecessor.claimDigest ||
     predecessor.claimPath !== args.proposal.predecessor.claimPath
@@ -4979,7 +5011,7 @@ function assertReplacementProposalCurrentEligibility(args: {
   }
 }
 
-export function prepareBlueprintReplacementProposal(args: {
+export async function prepareBlueprintReplacementProposal(args: {
   repoRoot: string;
   preflightManifestPath: string;
   outputDir: string;
@@ -4987,11 +5019,13 @@ export function prepareBlueprintReplacementProposal(args: {
   preparedBy: string;
   preparedAt: string;
   write?: boolean;
-}): QaWizardBlueprintReplacementProposalResult {
-  const preflight = loadQaWizardBlueprintManifestAuthority({
+}): Promise<QaWizardBlueprintReplacementProposalResult> {
+  // Pin scalar request inputs before asynchronous authority validation.
+  args = { ...args };
+  const preflight = (await loadQaWizardBlueprintManifestAuthority({
     repoRoot: args.repoRoot,
     manifestPath: args.preflightManifestPath,
-  });
+  }));
   if (preflight.manifest.stage !== 'live_request_preflight_passed') {
     throw new Error('replacement proposal requires a preflight-passed manifest');
   }
@@ -5004,14 +5038,14 @@ export function prepareBlueprintReplacementProposal(args: {
     preflight.context,
   );
   const requestDigest = canonicalJsonDigest(preflight.request);
-  const predecessor = loadPredecessorOrphanClaim({
+  const predecessor = (await loadPredecessorOrphanClaim({
     repoRoot: args.repoRoot,
     outputDir,
     authoringAuthorityDigest,
     request: preflight.request,
     requestDigest,
     preflightManifestDigest: preflight.manifest.digest,
-  });
+  }));
   const proposal = buildBlueprintReplacementProposal({
     reason: args.reason,
     predecessor: {
@@ -5099,7 +5133,7 @@ export function reviewBlueprintReplacementProposal(args: {
   };
 }
 
-export function approveBlueprintReplacementProposal(args: {
+export async function approveBlueprintReplacementProposal(args: {
   repoRoot: string;
   proposalPath: string;
   proposalDigest: string;
@@ -5109,7 +5143,9 @@ export function approveBlueprintReplacementProposal(args: {
   approvedAt: string;
   note?: string;
   write?: boolean;
-}): QaWizardBlueprintReplacementAuthorizationResult {
+}): Promise<QaWizardBlueprintReplacementAuthorizationResult> {
+  // Pin scalar request inputs before asynchronous authority validation.
+  args = { ...args };
   if (args.approvedBy !== QA_WIZARD_BLUEPRINT_REPLACEMENT_APPROVER) {
     throw new Error('replacement authorization is restricted to exact approver "Guy"');
   }
@@ -5135,10 +5171,12 @@ export function approveBlueprintReplacementProposal(args: {
   ) {
     throw new Error('replacement review is not bound to this proposal');
   }
-  assertReplacementProposalCurrentEligibility({
+  (await assertReplacementProposalCurrentEligibility({
     repoRoot: args.repoRoot,
     proposal,
-  });
+  }));
+  assertAuthorityBytesUnchanged(args.repoRoot, args.proposalPath, canonicalContentAddressedJsonBytes(proposal));
+  assertAuthorityBytesUnchanged(args.repoRoot, args.reviewPath, canonicalContentAddressedJsonBytes(review));
   const authorization = buildBlueprintReplacementAuthorization({
     proposal,
     proposalPath: args.proposalPath,
@@ -5252,6 +5290,8 @@ export async function executeBlueprintReplacementLiveRequest(
   },
   deps: QaWizardBlueprintExecutionDependencies = {},
 ): Promise<QaWizardBlueprintExecutionResult> {
+  // Pin scalar request inputs before asynchronous authority validation.
+  args = { ...args };
   if (args.write !== true) {
     throw new Error('execute-replacement requires write=true');
   }
@@ -5296,7 +5336,7 @@ export async function executeBlueprintReplacementLiveRequest(
         requestedAt: ctx.preflight.request.requestedAt,
         preflightManifestPath: ctx.preflight.manifestPath,
       }),
-    precheck: (ctx) => {
+    precheck: async (ctx) => {
       if (
         ctx.preflight.request.version !==
           PRODUCTION_AUTHORING_RUN_REQUEST_VERSION ||
@@ -5319,23 +5359,24 @@ export async function executeBlueprintReplacementLiveRequest(
       }
       // The predecessor must remain an exact unresolved orphan at execute time,
       // so a concurrent resolution cannot be double-dispatched.
-      loadPredecessorOrphanClaim({
+      (await loadPredecessorOrphanClaim({
         repoRoot: ctx.repoRoot,
         outputDir: ctx.outputDir,
         authoringAuthorityDigest: ctx.authoringAuthorityDigest,
         request: ctx.preflight.request,
         requestDigest: ctx.requestDigest,
         preflightManifestDigest: ctx.preflight.manifest.digest,
-      });
+      }));
       // Global single-successor fence, before the claim and any provider: one
       // predecessor claim digest authorizes exactly one successor identity.
+      loadValidatedReplacementAuthorization(args);
       bindReplacementSuccessorSlot({
         repoRoot: ctx.repoRoot,
         authorization,
       });
     },
   };
-  return runBlueprintExecutionUnderClaim(args, binding, deps);
+  return (await runBlueprintExecutionUnderClaim(args, binding, deps));
 }
 
 // ---------------------------------------------------------------------------
@@ -5459,11 +5500,11 @@ interface LoadedEligibleDiagnosticPredecessor {
  * diagnostic-less, legacy-request, orphan/replacement/successor or tampered
  * states fail before a provider/count factory can exist.
  */
-function loadEligibleDiagnosticPredecessor(args: {
+async function loadEligibleDiagnosticPredecessor(args: {
   repoRoot: string;
   terminalLookupPath: string;
   terminalLookupDigest: string;
-}): LoadedEligibleDiagnosticPredecessor {
+}): Promise<LoadedEligibleDiagnosticPredecessor> {
   if (!HEX_SHA256.test(args.terminalLookupDigest)) {
     throw new Error('diagnostic successor terminal lookup digest is invalid');
   }
@@ -5500,10 +5541,10 @@ function loadEligibleDiagnosticPredecessor(args: {
     throw new Error('diagnostic successor requires an exact ordinary-v2 predecessor');
   }
 
-  const preflight = loadQaWizardBlueprintManifestAuthority({
+  const preflight = (await loadQaWizardBlueprintManifestAuthority({
     repoRoot: args.repoRoot,
     manifestPath: claim.value.preflightManifestPath,
-  });
+  }));
   if (
     preflight.manifest.stage !== 'live_request_preflight_passed' ||
     preflight.request.version !== PRODUCTION_AUTHORING_RUN_REQUEST_VERSION ||
@@ -5545,7 +5586,7 @@ function loadEligibleDiagnosticPredecessor(args: {
     throw new Error('diagnostic successor predecessor lineage is inconsistent');
   }
 
-  const terminal = loadExecutionRecord({
+  const terminal = (await loadExecutionRecord({
     repoRoot: args.repoRoot,
     outputDir: preflight.outputDir,
     authoringAuthorityDigest,
@@ -5553,7 +5594,7 @@ function loadEligibleDiagnosticPredecessor(args: {
     preflightManifestDigest: preflight.manifest.digest,
     executionIdentityDigest: ordinary.executionIdentityDigest,
     claimIsValid: ordinary.claimIsValid,
-  });
+  }));
   if (
     terminal === null ||
     terminal.executionRecordPath !== args.terminalLookupPath ||
@@ -5696,19 +5737,21 @@ function rebuildDiagnosticSuccessorCandidate(args: {
   return expected;
 }
 
-export function prepareBlueprintDiagnosticSuccessorCandidate(args: {
+export async function prepareBlueprintDiagnosticSuccessorCandidate(args: {
   repoRoot: string;
   predecessorTerminalLookupPath: string;
   predecessorTerminalLookupDigest: string;
   preparedBy: string;
   preparedAt: string;
   write?: boolean;
-}): QaWizardBlueprintDiagnosticSuccessorCandidateResult {
-  const predecessor = loadEligibleDiagnosticPredecessor({
+}): Promise<QaWizardBlueprintDiagnosticSuccessorCandidateResult> {
+  // Pin scalar request inputs before asynchronous authority validation.
+  args = { ...args };
+  const predecessor = (await loadEligibleDiagnosticPredecessor({
     repoRoot: args.repoRoot,
     terminalLookupPath: args.predecessorTerminalLookupPath,
     terminalLookupDigest: args.predecessorTerminalLookupDigest,
-  });
+  }));
   const candidate = buildBlueprintDiagnosticSuccessorCandidate({
     lineage: predecessor.lineage,
     preparedBy: args.preparedBy,
@@ -5807,14 +5850,16 @@ function bindDiagnosticSuccessorSlot(args: {
   }
 }
 
-export function authorizeBlueprintDiagnosticSuccessorCandidate(args: {
+export async function authorizeBlueprintDiagnosticSuccessorCandidate(args: {
   repoRoot: string;
   candidatePath: string;
   candidateDigest: string;
   approvedBy: typeof QA_WIZARD_BLUEPRINT_DIAGNOSTIC_SUCCESSOR_APPROVER;
   approvedAt: string;
   write?: boolean;
-}): QaWizardBlueprintDiagnosticSuccessorAuthorizationResult {
+}): Promise<QaWizardBlueprintDiagnosticSuccessorAuthorizationResult> {
+  // Pin scalar request inputs before asynchronous authority validation.
+  args = { ...args };
   if (args.approvedBy !== QA_WIZARD_BLUEPRINT_DIAGNOSTIC_SUCCESSOR_APPROVER) {
     throw new Error('diagnostic successor authorization requires exact approver "Guy"');
   }
@@ -5826,15 +5871,16 @@ export function authorizeBlueprintDiagnosticSuccessorCandidate(args: {
     label: 'Blueprint diagnostic successor candidate',
     isValid: blueprintDiagnosticSuccessorCandidateIsValid,
   });
-  const predecessor = loadEligibleDiagnosticPredecessor({
+  const predecessor = (await loadEligibleDiagnosticPredecessor({
     repoRoot: args.repoRoot,
     terminalLookupPath: candidate.terminalLookupPath,
     terminalLookupDigest: candidate.terminalLookupDigest,
-  });
+  }));
   rebuildDiagnosticSuccessorCandidate({
     candidate,
     lineage: predecessor.lineage,
   });
+  assertAuthorityBytesUnchanged(args.repoRoot, args.candidatePath, canonicalContentAddressedJsonBytes(candidate));
   const authorization = buildBlueprintDiagnosticSuccessorAuthorization({
     candidate,
     candidatePath: args.candidatePath,
@@ -5919,15 +5965,15 @@ function loadValidatedDiagnosticSuccessorAuthorization(args: {
   return { authorization, candidate };
 }
 
-function revalidateDiagnosticSuccessorPredecessor(args: {
+async function revalidateDiagnosticSuccessorPredecessor(args: {
   repoRoot: string;
   candidate: QaWizardBlueprintDiagnosticSuccessorCandidate;
-}): void {
-  const predecessor = loadEligibleDiagnosticPredecessor({
+}): Promise<void> {
+  const predecessor = (await loadEligibleDiagnosticPredecessor({
     repoRoot: args.repoRoot,
     terminalLookupPath: args.candidate.terminalLookupPath,
     terminalLookupDigest: args.candidate.terminalLookupDigest,
-  });
+  }));
   rebuildDiagnosticSuccessorCandidate({
     candidate: args.candidate,
     lineage: predecessor.lineage,
@@ -5943,6 +5989,8 @@ export async function executeBlueprintDiagnosticSuccessorLiveRequest(
   },
   deps: QaWizardBlueprintExecutionDependencies = {},
 ): Promise<QaWizardBlueprintExecutionResult> {
+  // Pin scalar request inputs before asynchronous authority validation.
+  args = { ...args };
   if (args.write !== true) {
     throw new Error('execute-diagnostic-successor requires write=true');
   }
@@ -5981,7 +6029,7 @@ export async function executeBlueprintDiagnosticSuccessorLiveRequest(
         authorization,
         authorizationPath: args.authorizationPath,
       }),
-    precheck: (ctx) => {
+    precheck: async (ctx) => {
       if (
         ctx.preflight.request.version !==
           PRODUCTION_AUTHORING_RUN_REQUEST_VERSION ||
@@ -6021,10 +6069,11 @@ export async function executeBlueprintDiagnosticSuccessorLiveRequest(
       // Repeat the complete immutable lineage load immediately before the first
       // claim/provider boundary. Replay returns before this gate with zero calls.
       const reloaded = loadValidatedDiagnosticSuccessorAuthorization(args);
-      revalidateDiagnosticSuccessorPredecessor({
+      (await revalidateDiagnosticSuccessorPredecessor({
         repoRoot: ctx.repoRoot,
         candidate: reloaded.candidate,
-      });
+      }));
+      loadValidatedDiagnosticSuccessorAuthorization(args);
       bindDiagnosticSuccessorSlot({
         repoRoot: ctx.repoRoot,
         authorization,
@@ -6032,7 +6081,7 @@ export async function executeBlueprintDiagnosticSuccessorLiveRequest(
       });
     },
   };
-  return runBlueprintExecutionUnderClaim(
+  return (await runBlueprintExecutionUnderClaim(
     {
       repoRoot: args.repoRoot,
       preflightManifestPath: authorization.preflightManifestPath,
@@ -6041,7 +6090,7 @@ export async function executeBlueprintDiagnosticSuccessorLiveRequest(
     },
     binding,
     deps,
-  );
+  ));
 }
 
 function assertImmutableBytesCompatible(args: {
@@ -6146,7 +6195,7 @@ function approvalDecisionIsValid(
   );
 }
 
-export function recordQaWizardBlueprintApproval(
+export async function recordQaWizardBlueprintApproval(
   args: {
     repoRoot: string;
     candidateManifestPath: string;
@@ -6160,17 +6209,19 @@ export function recordQaWizardBlueprintApproval(
     write?: boolean;
   },
   deps: Pick<QaWizardBlueprintExecutionDependencies, 'hooks'> = {},
-): QaWizardBlueprintApprovalResult {
+): Promise<QaWizardBlueprintApprovalResult> {
+  // Pin scalar request inputs before asynchronous authority validation.
+  args = { ...args };
   if (args.approvedBy !== PRE_RENDER_BLUEPRINT_APPROVER) {
     throw new Error('Blueprint approval is restricted to exact approver "Guy"');
   }
   if (!canonicalUtcTimestampIsValid(args.approvedAt)) {
     throw new Error('approvedAt must be canonical UTC with millisecond precision');
   }
-  const candidate = loadQaWizardBlueprintManifestAuthority({
+  const candidate = (await loadQaWizardBlueprintManifestAuthority({
     repoRoot: args.repoRoot,
     manifestPath: args.candidateManifestPath,
-  });
+  }));
   if (
     candidate.manifest.stage !== 'blueprint_candidate' ||
     !candidate.manifest.blueprint ||

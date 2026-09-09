@@ -18,8 +18,9 @@ import {
 } from './qaWizardBlueprintAuthoringLifecycle';
 import {
   QA_WIZARD_CANDIDATE_BRIDGE_MANIFEST_VERSION,
-  loadQaWizardApprovedProductionContext,
 } from './qaWizardCandidateBridge';
+import { loadQaWizardProductionContext } from './qaWizardProductionContext';
+import { SEMANTIC_PRODUCTION_BRIDGE_VERSION } from './semanticCorrectionApprovalBridge';
 import { writeImmutableLocalArtifact } from './preRenderBlueprintLifecycle';
 import type { VisualPackageReviewReality } from './types';
 import {
@@ -136,7 +137,7 @@ interface ManifestApprovedBlueprint {
 }
 
 interface ManifestBridge {
-  version: typeof QA_WIZARD_CANDIDATE_BRIDGE_MANIFEST_VERSION;
+  version: typeof QA_WIZARD_CANDIDATE_BRIDGE_MANIFEST_VERSION | typeof SEMANTIC_PRODUCTION_BRIDGE_VERSION;
   digest: string;
   path: string;
 }
@@ -630,7 +631,7 @@ function approvedBlueprintPaths(
   };
 }
 
-function buildCandidateAuthority(args: {
+async function buildCandidateAuthority(args: {
   repoRoot: string;
   approvedBlueprintManifestPath: string;
   outputDir: string;
@@ -638,7 +639,7 @@ function buildCandidateAuthority(args: {
   reviewedBy: 'Guy';
   reviewedAt: string;
   locatorBefore?: QaWizardPackageLocatorSnapshot;
-}): PreparedQaWizardPackageCandidate {
+}): Promise<PreparedQaWizardPackageCandidate> {
   if (
     args.reviewedBy !== 'Guy' ||
     !canonicalUtcTimestampIsValid(args.reviewedAt) ||
@@ -654,15 +655,15 @@ function buildCandidateAuthority(args: {
     args.repoRoot,
     resolveRepoPath(args.repoRoot, args.outputDir),
   );
-  const blueprintManifest = loadQaWizardBlueprintAuthoringManifest({
+  const blueprintManifest = (await loadQaWizardBlueprintAuthoringManifest({
     repoRoot: args.repoRoot,
     manifestPath: args.approvedBlueprintManifestPath,
-  });
+  }));
   const paths = approvedBlueprintPaths(blueprintManifest);
-  const loadedContext = loadQaWizardApprovedProductionContext({
+  const loadedContext = (await loadQaWizardProductionContext({
     repoRoot: args.repoRoot,
     bridgeManifestPath: blueprintManifest.bridge.path,
-  });
+  }));
   if (
     loadedContext.manifest.version !== blueprintManifest.bridge.version ||
     loadedContext.manifest.digest !== blueprintManifest.bridge.digest ||
@@ -670,6 +671,10 @@ function buildCandidateAuthority(args: {
     loadedContext.context.digest !== blueprintManifest.context.digest
   ) {
     throw new Error('Approved Blueprint bridge or production context is stale');
+  }
+  if (readContainedUtf8({ repoRoot: args.repoRoot, artifactPath: args.approvedBlueprintManifestPath,
+    label: 'Approved Blueprint manifest' }).bytes !== canonicalContentAddressedJsonBytes(blueprintManifest)) {
+    throw new Error('Approved Blueprint manifest changed during context validation');
   }
   const approvedBlueprint = loadApprovedBlueprintLifecycle({
     repoRoot: args.repoRoot,
@@ -796,7 +801,7 @@ function buildCandidateAuthority(args: {
   };
 }
 
-export function prepareQaWizardPackageCandidate(args: {
+export async function prepareQaWizardPackageCandidate(args: {
   repoRoot: string;
   approvedBlueprintManifestPath: string;
   outputDir: string;
@@ -804,8 +809,10 @@ export function prepareQaWizardPackageCandidate(args: {
   reviewedBy: 'Guy';
   reviewedAt: string;
   write?: boolean;
-}): PreparedQaWizardPackageCandidate {
-  const prepared = buildCandidateAuthority(args);
+}): Promise<PreparedQaWizardPackageCandidate> {
+  // Pin scalar request inputs before asynchronous authority validation.
+  args = { ...args };
+  const prepared = (await buildCandidateAuthority(args));
   if (args.write === true) {
     const persisted = persistVisualPackageV4CandidateReview({
       repoRoot: args.repoRoot,
@@ -870,7 +877,7 @@ function manifestShapeIsValid(
         manifest.approvedBlueprint.planningApprovalDigest,
       ].every((entry) => SHA256_HEX.test(entry)) ||
       !exactKeys(manifest.bridge, ['digest', 'path', 'version']) ||
-      manifest.bridge.version !== QA_WIZARD_CANDIDATE_BRIDGE_MANIFEST_VERSION ||
+      ![QA_WIZARD_CANDIDATE_BRIDGE_MANIFEST_VERSION, SEMANTIC_PRODUCTION_BRIDGE_VERSION].includes(manifest.bridge.version) ||
       !SHA256_HEX.test(manifest.bridge.digest) ||
       !exactKeys(manifest.context, ['digest', 'version']) ||
       !SHA256_HEX.test(manifest.context.digest) ||
@@ -987,16 +994,16 @@ export function loadQaWizardPackageLifecycleManifest(args: {
   return loaded.value;
 }
 
-function loadCandidateAuthority(args: {
+async function loadCandidateAuthority(args: {
   repoRoot: string;
   manifestPath: string;
-}): CandidateAuthority {
+}): Promise<CandidateAuthority> {
   const manifest = loadQaWizardPackageLifecycleManifest(args);
   if (manifest.stage !== 'package_candidate') {
     throw new Error('Package approval requires a package_candidate manifest');
   }
   const outputDir = outputDirFromManifestPath(args.manifestPath);
-  const replay = buildCandidateAuthority({
+  const replay = (await buildCandidateAuthority({
     repoRoot: args.repoRoot,
     approvedBlueprintManifestPath: manifest.approvedBlueprint.path,
     outputDir,
@@ -1006,9 +1013,10 @@ function loadCandidateAuthority(args: {
     reviewedBy: manifest.reviewReality.reviewedBy as 'Guy',
     reviewedAt: manifest.reviewReality.reviewedAt as string,
     locatorBefore: manifest.locatorBefore,
-  });
+  }));
   if (
     replay.manifestPath !== args.manifestPath ||
+    canonicalContentAddressedJsonBytes(loadQaWizardPackageLifecycleManifest(args)) !== canonicalContentAddressedJsonBytes(manifest) ||
     canonicalContentAddressedJsonBytes(replay.manifest) !==
       canonicalContentAddressedJsonBytes(manifest)
   ) {
@@ -1139,7 +1147,7 @@ function assertCompatibleIfPresent(args: {
   }
 }
 
-export function recordQaWizardPackageApproval(
+export async function recordQaWizardPackageApproval(
   args: {
     repoRoot: string;
     candidateManifestPath: string;
@@ -1152,17 +1160,19 @@ export function recordQaWizardPackageApproval(
     write?: boolean;
   },
   hooks: QaWizardPackageLifecycleHooks = {},
-): QaWizardPackageApprovalResult {
+): Promise<QaWizardPackageApprovalResult> {
+  // Pin scalar request inputs before asynchronous authority validation.
+  args = { ...args };
   if (
     args.approvedBy !== 'Guy' ||
     !canonicalUtcTimestampIsValid(args.approvedAt)
   ) {
     throw new Error('Package approval requires exact Guy and canonical UTC time');
   }
-  const candidateAuthority = loadCandidateAuthority({
+  const candidateAuthority = (await loadCandidateAuthority({
     repoRoot: args.repoRoot,
     manifestPath: args.candidateManifestPath,
-  });
+  }));
   sameOutputDir({
     repoRoot: args.repoRoot,
     outputDir: args.outputDir,
@@ -1304,10 +1314,10 @@ export function recordQaWizardPackageApproval(
   };
 }
 
-function loadApprovedAuthority(args: {
+async function loadApprovedAuthority(args: {
   repoRoot: string;
   manifestPath: string;
-}): ApprovedAuthority {
+}): Promise<ApprovedAuthority> {
   const approvedManifest = loadQaWizardPackageLifecycleManifest(args);
   if (
     approvedManifest.stage !== 'package_approved' ||
@@ -1316,10 +1326,10 @@ function loadApprovedAuthority(args: {
   ) {
     throw new Error('Package publication requires a package_approved manifest');
   }
-  const candidateAuthority = loadCandidateAuthority({
+  const candidateAuthority = (await loadCandidateAuthority({
     repoRoot: args.repoRoot,
     manifestPath: approvedManifest.predecessor.path,
-  });
+  }));
   if (
     approvedManifest.predecessor.digest !== candidateAuthority.manifest.digest ||
     approvedManifest.predecessor.version !== candidateAuthority.manifest.version ||
@@ -1383,6 +1393,7 @@ function loadApprovedAuthority(args: {
   });
   if (
     expectedApprovedManifest.digest !== approvedManifest.digest ||
+    canonicalContentAddressedJsonBytes(loadQaWizardPackageLifecycleManifest(args)) !== canonicalContentAddressedJsonBytes(approvedManifest) ||
     canonicalContentAddressedJsonBytes(expectedApprovedManifest) !==
       canonicalContentAddressedJsonBytes(approvedManifest) ||
     approvedManifest.package.approvedRevisionDigest !== packageValue.revisionDigest
@@ -1540,7 +1551,7 @@ function writeMutableFileAtomically(args: {
   }
 }
 
-export function publishQaWizardApprovedPackage(
+export async function publishQaWizardApprovedPackage(
   args: {
     repoRoot: string;
     approvedManifestPath: string;
@@ -1549,14 +1560,16 @@ export function publishQaWizardApprovedPackage(
     write?: boolean;
   },
   hooks: QaWizardPackageLifecycleHooks = {},
-): QaWizardPackagePublicationResult {
+): Promise<QaWizardPackagePublicationResult> {
+  // Pin scalar request inputs before asynchronous authority validation.
+  args = { ...args };
   if (!canonicalUtcTimestampIsValid(args.publishedAt)) {
     throw new Error('Package publication requires canonical UTC time');
   }
-  const authority = loadApprovedAuthority({
+  const authority = (await loadApprovedAuthority({
     repoRoot: args.repoRoot,
     manifestPath: args.approvedManifestPath,
-  });
+  }));
   sameOutputDir({
     repoRoot: args.repoRoot,
     outputDir: args.outputDir,

@@ -2,7 +2,8 @@ import fs from 'node:fs';
 import { parseArgs } from 'node:util';
 import { recordSemanticCorrectionApproval, prepareSemanticCorrectionBridge, loadSemanticCorrectionBridge,
   prepareSemanticReconciliationReview, loadSemanticReconciliationReview,
-  recordSemanticReconciliationApproval, loadApprovedSemanticReconciliation } from '../lib/visual-package/semanticCorrectionApprovalBridge';
+  recordSemanticReconciliationApproval, loadApprovedSemanticReconciliation,
+  materializeSemanticProductionInputs, prepareSemanticProductionBridge, loadSemanticProductionBridge } from '../lib/visual-package/semanticCorrectionApprovalBridge';
 
 async function main() {
   const { values, tokens } = parseArgs({ options: { request: { type: 'string' } }, strict: true, allowPositionals: false, tokens: true });
@@ -36,6 +37,15 @@ async function main() {
   } else if (input.operation === 'read-reconciliation-approval') {
     const result = await loadApprovedSemanticReconciliation(input.arguments);
     process.stdout.write(JSON.stringify({ status: 'reconciliation_approved', digest: result.approval.digest, providerCalls: 0 }) + '\n');
+  } else if (input.operation === 'materialize-production-inputs') {
+    const result = await materializeSemanticProductionInputs(input.arguments);
+    process.stdout.write(JSON.stringify({ status: 'production_inputs_only', ...result }) + '\n');
+  } else if (input.operation === 'prepare-production-bridge') {
+    const result = await prepareSemanticProductionBridge(input.arguments);
+    process.stdout.write(JSON.stringify({ status: 'production_context_ready', digest: result.manifest.digest, artifact: result.artifact, providerCalls: 0 }) + '\n');
+  } else if (input.operation === 'read-production-bridge') {
+    const result = await loadSemanticProductionBridge(input.arguments);
+    process.stdout.write(JSON.stringify({ status: 'production_context_ready', digest: result.manifest.digest, providerCalls: 0 }) + '\n');
   } else throw new Error('operation_invalid');
 }
 main().catch(() => { process.stdout.write(JSON.stringify({ status: 'rejected', providerCalls: 0 }) + '\n'); process.exitCode = 1; });

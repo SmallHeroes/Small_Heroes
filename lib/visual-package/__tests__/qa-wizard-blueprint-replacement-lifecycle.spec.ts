@@ -7,13 +7,13 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 const bridgeLoaderMock = vi.hoisted(() => vi.fn());
 
-vi.mock('../qaWizardCandidateBridge', async () => {
+vi.mock('../qaWizardProductionContext', async () => {
   const actual = await vi.importActual<
-    typeof import('../qaWizardCandidateBridge')
-  >('../qaWizardCandidateBridge');
+    typeof import('../qaWizardProductionContext')
+  >('../qaWizardProductionContext');
   return {
     ...actual,
-    loadQaWizardApprovedProductionContext: bridgeLoaderMock,
+    loadQaWizardProductionContext: bridgeLoaderMock,
   };
 });
 
@@ -319,15 +319,15 @@ function passingProvider(
   };
 }
 
-function prepare(subject: ReturnType<typeof setup>, requestId = 'blueprint-live-request-001') {
-  return prepareQaWizardBlueprintLiveRequest({
+async function prepare(subject: ReturnType<typeof setup>, requestId = 'blueprint-live-request-001') {
+  return (await prepareQaWizardBlueprintLiveRequest({
     repoRoot: subject.repoRoot,
     bridgeManifestPath: subject.bridgeManifestPath,
     outputDir: OUTPUT_DIR,
     requestId,
     requestedAt: REQUESTED_AT,
     write: true,
-  });
+  }));
 }
 
 function ledgerFile(repoRoot: string, ...segments: string[]): string {
@@ -340,7 +340,7 @@ function ledgerFile(repoRoot: string, ...segments: string[]): string {
  * no incident. The predecessor claim bytes are left byte-for-byte intact.
  */
 async function orphanedPredecessor(subject: ReturnType<typeof setup>) {
-  const preflight = prepare(subject);
+  const preflight = (await prepare(subject));
   const completed = await executeQaWizardBlueprintLiveRequest(
     {
       repoRoot: subject.repoRoot,
@@ -398,7 +398,7 @@ async function orphanedPredecessor(subject: ReturnType<typeof setup>) {
  * The predecessor claim bytes are left byte-for-byte intact.
  */
 async function legacyUnboundTerminalPredecessor(subject: ReturnType<typeof setup>) {
-  const preflight = prepare(subject);
+  const preflight = (await prepare(subject));
   const completed = await executeQaWizardBlueprintLiveRequest(
     {
       repoRoot: subject.repoRoot,
@@ -446,7 +446,7 @@ describe('QA Wizard Blueprint replacement (orphan-claim successor) lifecycle', (
     } =
       await orphanedPredecessor(subject);
 
-    const proposal = prepareBlueprintReplacementProposal({
+    const proposal = (await prepareBlueprintReplacementProposal({
       repoRoot: subject.repoRoot,
       preflightManifestPath: preflight.manifestPath,
       outputDir: OUTPUT_DIR,
@@ -454,7 +454,7 @@ describe('QA Wizard Blueprint replacement (orphan-claim successor) lifecycle', (
       preparedBy: 'Codex',
       preparedAt: PREPARED_AT,
       write: true,
-    });
+    }));
     // The predecessor binding's claimDigest is the ordinary claim's own
     // canonical digest — NOT the content authoring-authority digest (which is
     // only the ledger key/filename). Assert both independently.
@@ -477,8 +477,8 @@ describe('QA Wizard Blueprint replacement (orphan-claim successor) lifecycle', (
       write: true,
     });
 
-    expect(() =>
-      approveBlueprintReplacementProposal({
+    await expect((async () =>
+      (await approveBlueprintReplacementProposal({
         repoRoot: subject.repoRoot,
         proposalPath: proposal.proposalPath,
         proposalDigest: proposal.proposal.digest,
@@ -487,10 +487,10 @@ describe('QA Wizard Blueprint replacement (orphan-claim successor) lifecycle', (
         approvedBy: 'Codex' as never,
         approvedAt: APPROVED_AT,
         write: true,
-      }),
-    ).toThrow(/exact approver/);
+      })))(),
+    ).rejects.toThrow(/exact approver/);
 
-    const authorization = approveBlueprintReplacementProposal({
+    const authorization = (await approveBlueprintReplacementProposal({
       repoRoot: subject.repoRoot,
       proposalPath: proposal.proposalPath,
       proposalDigest: proposal.proposal.digest,
@@ -499,7 +499,7 @@ describe('QA Wizard Blueprint replacement (orphan-claim successor) lifecycle', (
       approvedBy: 'Guy',
       approvedAt: APPROVED_AT,
       write: true,
-    });
+    }));
     const successorDigest = authorization.successorExecutionDigest;
     expect(successorDigest).not.toBe(authoringAuthorityDigest);
 
@@ -576,7 +576,7 @@ describe('QA Wizard Blueprint replacement (orphan-claim successor) lifecycle', (
 
   it('rejects preparation when the predecessor is not an unresolved orphan', async () => {
     const subject = setup();
-    const preflight = prepare(subject);
+    const preflight = (await prepare(subject));
     // A completed predecessor terminal is not an orphan.
     await executeQaWizardBlueprintLiveRequest(
       {
@@ -587,8 +587,8 @@ describe('QA Wizard Blueprint replacement (orphan-claim successor) lifecycle', (
       },
       { providerFactory: () => passingProvider(subject.fixture) },
     );
-    expect(() =>
-      prepareBlueprintReplacementProposal({
+    await expect((async () =>
+      (await prepareBlueprintReplacementProposal({
         repoRoot: subject.repoRoot,
         preflightManifestPath: preflight.manifestPath,
         outputDir: OUTPUT_DIR,
@@ -596,14 +596,14 @@ describe('QA Wizard Blueprint replacement (orphan-claim successor) lifecycle', (
         preparedBy: 'Codex',
         preparedAt: PREPARED_AT,
         write: true,
-      }),
-    ).toThrow(/terminal result/);
+      })))(),
+    ).rejects.toThrow(/terminal result/);
   });
 
   it('records an incident and never retries the provider after a successor claim crash', async () => {
     const subject = setup();
     const { preflight } = await orphanedPredecessor(subject);
-    const proposal = prepareBlueprintReplacementProposal({
+    const proposal = (await prepareBlueprintReplacementProposal({
       repoRoot: subject.repoRoot,
       preflightManifestPath: preflight.manifestPath,
       outputDir: OUTPUT_DIR,
@@ -611,7 +611,7 @@ describe('QA Wizard Blueprint replacement (orphan-claim successor) lifecycle', (
       preparedBy: 'Codex',
       preparedAt: PREPARED_AT,
       write: true,
-    });
+    }));
     const review = reviewBlueprintReplacementProposal({
       repoRoot: subject.repoRoot,
       proposalPath: proposal.proposalPath,
@@ -620,7 +620,7 @@ describe('QA Wizard Blueprint replacement (orphan-claim successor) lifecycle', (
       reviewedAt: REVIEWED_AT,
       write: true,
     });
-    const authorization = approveBlueprintReplacementProposal({
+    const authorization = (await approveBlueprintReplacementProposal({
       repoRoot: subject.repoRoot,
       proposalPath: proposal.proposalPath,
       proposalDigest: proposal.proposal.digest,
@@ -629,7 +629,7 @@ describe('QA Wizard Blueprint replacement (orphan-claim successor) lifecycle', (
       approvedBy: 'Guy',
       approvedAt: APPROVED_AT,
       write: true,
-    });
+    }));
     await expect(
       executeBlueprintReplacementLiveRequest(
         {
@@ -675,12 +675,12 @@ describe('QA Wizard Blueprint replacement (orphan-claim successor) lifecycle', (
 const PREPARED_AT_ALT = '2026-08-26T09:05:00.000Z';
 const APPROVED_AT_ALT = '2026-08-26T10:05:00.000Z';
 
-function prepareProposal(
+async function prepareProposal(
   subject: ReturnType<typeof setup>,
   preflightManifestPath: string,
   preparedAt = PREPARED_AT,
 ) {
-  return prepareBlueprintReplacementProposal({
+  return (await prepareBlueprintReplacementProposal({
     repoRoot: subject.repoRoot,
     preflightManifestPath,
     outputDir: OUTPUT_DIR,
@@ -688,12 +688,12 @@ function prepareProposal(
     preparedBy: 'Codex',
     preparedAt,
     write: true,
-  });
+  }));
 }
 
 function reviewProposal(
   subject: ReturnType<typeof setup>,
-  proposal: ReturnType<typeof prepareProposal>,
+  proposal: Awaited<ReturnType<typeof prepareProposal>>,
 ) {
   return reviewBlueprintReplacementProposal({
     repoRoot: subject.repoRoot,
@@ -705,13 +705,13 @@ function reviewProposal(
   });
 }
 
-function approveProposal(
+async function approveProposal(
   subject: ReturnType<typeof setup>,
-  proposal: ReturnType<typeof prepareProposal>,
+  proposal: Awaited<ReturnType<typeof prepareProposal>>,
   review: ReturnType<typeof reviewProposal>,
   overrides: { approvedAt?: string; note?: string } = {},
 ) {
-  return approveBlueprintReplacementProposal({
+  return (await approveBlueprintReplacementProposal({
     repoRoot: subject.repoRoot,
     proposalPath: proposal.proposalPath,
     proposalDigest: proposal.proposal.digest,
@@ -721,14 +721,14 @@ function approveProposal(
     approvedAt: overrides.approvedAt ?? APPROVED_AT,
     write: true,
     ...(overrides.note ? { note: overrides.note } : {}),
-  });
+  }));
 }
 
 async function approvedSuccessor(subject: ReturnType<typeof setup>) {
   const orphan = await orphanedPredecessor(subject);
-  const proposal = prepareProposal(subject, orphan.preflight.manifestPath);
+  const proposal = (await prepareProposal(subject, orphan.preflight.manifestPath));
   const review = reviewProposal(subject, proposal);
-  const authorization = approveProposal(subject, proposal, review);
+  const authorization = (await approveProposal(subject, proposal, review));
   return { ...orphan, proposal, review, authorization };
 }
 
@@ -765,7 +765,7 @@ function writeHandAuthoredLedgerArtifact(
  */
 function forgeInvertedTimeAuthorization(
   subject: ReturnType<typeof setup>,
-  proposal: ReturnType<typeof prepareProposal>,
+  proposal: Awaited<ReturnType<typeof prepareProposal>>,
   times: { reviewedAt: string; approvedAt: string },
 ): { authorizationPath: string; authorizationDigest: string; successorExecutionDigest: string } {
   const p = proposal.proposal;
@@ -830,8 +830,8 @@ describe('QA Wizard Blueprint replacement — adversarial authority', () => {
       QA_WIZARD_BLUEPRINT_AUTHORING_LEDGER_ROOT,
     );
     const beforePrepare = fileInventory(ledgerRoot);
-    expect(() =>
-      prepareBlueprintReplacementProposal({
+    await expect((async () =>
+      (await prepareBlueprintReplacementProposal({
         repoRoot: subject.repoRoot,
         preflightManifestPath: frozen.preflightPath,
         outputDir: OUTPUT_DIR,
@@ -839,8 +839,8 @@ describe('QA Wizard Blueprint replacement — adversarial authority', () => {
         preparedBy: 'Codex',
         preparedAt: PREPARED_AT,
         write: true,
-      }),
-    ).toThrow(/preflight is not current|legacy Blueprint/);
+      })))(),
+    ).rejects.toThrow(/preflight is not current|legacy Blueprint/);
     expect(fileInventory(ledgerRoot)).toEqual(beforePrepare);
 
     const proposal = buildBlueprintReplacementProposal({
@@ -892,8 +892,8 @@ describe('QA Wizard Blueprint replacement — adversarial authority', () => {
       canonicalContentAddressedJsonBytes(review),
     );
     const beforeAuthorize = fileInventory(ledgerRoot);
-    expect(() =>
-      approveBlueprintReplacementProposal({
+    await expect((async () =>
+      (await approveBlueprintReplacementProposal({
         repoRoot: subject.repoRoot,
         proposalPath,
         proposalDigest: proposal.digest,
@@ -902,8 +902,8 @@ describe('QA Wizard Blueprint replacement — adversarial authority', () => {
         approvedBy: 'Guy',
         approvedAt: APPROVED_AT,
         write: true,
-      }),
-    ).toThrow('replacement predecessor preflight is not current');
+      })))(),
+    ).rejects.toThrow('replacement predecessor preflight is not current');
     expect(fileInventory(ledgerRoot)).toEqual(beforeAuthorize);
     expect(
       fs.existsSync(
@@ -919,36 +919,53 @@ describe('QA Wizard Blueprint replacement — adversarial authority', () => {
   it('rejects a second approval that differs only by timestamp (one global slot)', async () => {
     const subject = setup();
     const orphan = await orphanedPredecessor(subject);
-    const proposal = prepareProposal(subject, orphan.preflight.manifestPath);
+    const proposal = (await prepareProposal(subject, orphan.preflight.manifestPath));
     const review = reviewProposal(subject, proposal);
-    approveProposal(subject, proposal, review);
+    (await approveProposal(subject, proposal, review));
     // Same predecessor/proposal/review, different approval timestamp → a
     // different successor identity → the predecessor-keyed slot collides.
-    expect(() =>
-      approveProposal(subject, proposal, review, { approvedAt: APPROVED_AT_ALT }),
-    ).toThrow(/already bound to a different successor/);
+    await expect((async () =>
+      (await approveProposal(subject, proposal, review, { approvedAt: APPROVED_AT_ALT })))(),
+    ).rejects.toThrow(/already bound to a different successor/);
     const slots = fs.readdirSync(
       ledgerFile(subject.repoRoot, 'replacement-authorization-slots'),
     );
     expect(slots).toHaveLength(1);
   });
 
+  it.each(['proposal', 'review'])('rejects %s drift across async replacement eligibility before reserving a successor', async kind => {
+    const subject = setup();
+    const orphan = await orphanedPredecessor(subject);
+    const proposal = await prepareProposal(subject, orphan.preflight.manifestPath);
+    const review = reviewProposal(subject, proposal);
+    const target = kind === 'proposal' ? proposal.proposalPath : review.reviewPath;
+    const original = bridgeLoaderMock.getMockImplementation()!;
+    bridgeLoaderMock.mockImplementationOnce(async (...args) => {
+      fs.appendFileSync(path.join(subject.repoRoot, target), ' ');
+      return original(...args);
+    });
+    await expect(approveProposal(subject, proposal, review)).rejects.toThrow();
+    // Proposal/review preparation creates empty ledger categories up front.
+    // Rejection must leave the successor slot empty, not remove that directory.
+    expect(fs.readdirSync(ledgerFile(subject.repoRoot, 'replacement-authorization-slots'))).toEqual([]);
+  });
+
   it('rejects an alternative proposal for the same predecessor (one global slot)', async () => {
     const subject = setup();
     const orphan = await orphanedPredecessor(subject);
-    const proposalA = prepareProposal(subject, orphan.preflight.manifestPath);
+    const proposalA = (await prepareProposal(subject, orphan.preflight.manifestPath));
     const reviewA = reviewProposal(subject, proposalA);
-    approveProposal(subject, proposalA, reviewA);
+    (await approveProposal(subject, proposalA, reviewA));
     // A distinct proposal (different preparedAt) for the SAME predecessor yields
     // a distinct successor identity, which the slot rejects at approval.
-    const proposalB = prepareProposal(
+    const proposalB = (await prepareProposal(
       subject,
       orphan.preflight.manifestPath,
       PREPARED_AT_ALT,
-    );
+    ));
     expect(proposalB.proposal.digest).not.toBe(proposalA.proposal.digest);
     const reviewB = reviewProposal(subject, proposalB);
-    expect(() => approveProposal(subject, proposalB, reviewB)).toThrow(
+    await expect((async () => (await approveProposal(subject, proposalB, reviewB)))()).rejects.toThrow(
       /already bound to a different successor/,
     );
   });
@@ -956,9 +973,9 @@ describe('QA Wizard Blueprint replacement — adversarial authority', () => {
   it('admits exactly one provider owner across output roots for one predecessor', async () => {
     const subject = setup();
     const orphan = await orphanedPredecessor(subject);
-    const proposalA = prepareProposal(subject, orphan.preflight.manifestPath);
+    const proposalA = (await prepareProposal(subject, orphan.preflight.manifestPath));
     const reviewA = reviewProposal(subject, proposalA);
-    const authorizationA = approveProposal(subject, proposalA, reviewA);
+    const authorizationA = (await approveProposal(subject, proposalA, reviewA));
     const first = vi.fn();
     await executeBlueprintReplacementLiveRequest(
       {
@@ -975,15 +992,15 @@ describe('QA Wizard Blueprint replacement — adversarial authority', () => {
     // A second, distinct authorization (different approval timestamp) cannot
     // obtain a second paid successor even though the predecessor is still an
     // unresolved orphan and the ledger slot lives outside any output root.
-    const proposalB = prepareProposal(
+    const proposalB = (await prepareProposal(
       subject,
       orphan.preflight.manifestPath,
       PREPARED_AT_ALT,
-    );
+    ));
     const reviewB = reviewProposal(subject, proposalB);
-    expect(() =>
-      approveProposal(subject, proposalB, reviewB, { approvedAt: APPROVED_AT_ALT }),
-    ).toThrow(/already bound to a different successor/);
+    await expect((async () =>
+      (await approveProposal(subject, proposalB, reviewB, { approvedAt: APPROVED_AT_ALT })))(),
+    ).rejects.toThrow(/already bound to a different successor/);
   });
 
   it('never lets an existing successor terminal replay under a note-only authorization (exact claim binding)', async () => {
@@ -1007,9 +1024,9 @@ describe('QA Wizard Blueprint replacement — adversarial authority', () => {
     // but has a different authorization digest. Its claim matcher must reject
     // the stored claim (which embeds the first authorization) instead of
     // replaying it.
-    const authorizationNote = approveProposal(subject, proposal, review, {
+    const authorizationNote = (await approveProposal(subject, proposal, review, {
       note: 'operator_added_context',
-    });
+    }));
     expect(authorizationNote.authorization.digest).not.toBe(
       authorization.authorization.digest,
     );
@@ -1088,7 +1105,7 @@ describe('QA Wizard Blueprint replacement — adversarial authority', () => {
     const { authorization } = await approvedSuccessor(subject);
     // A second, structurally valid preflight (distinct request id) is not the
     // one the authorization was minted for.
-    const other = prepare(subject, 'blueprint-live-request-002');
+    const other = (await prepare(subject, 'blueprint-live-request-002'));
     const forbidden = vi.fn(() => passingProvider(subject.fixture));
     await expect(
       executeBlueprintReplacementLiveRequest(
@@ -1144,7 +1161,7 @@ describe('QA Wizard Blueprint replacement — adversarial authority', () => {
   it('rejects a review or approval whose canonical time ordering is inverted', async () => {
     const subject = setup();
     const orphan = await orphanedPredecessor(subject);
-    const proposal = prepareProposal(subject, orphan.preflight.manifestPath);
+    const proposal = (await prepareProposal(subject, orphan.preflight.manifestPath));
     // A review dated before the proposal preparation is rejected.
     expect(() =>
       reviewBlueprintReplacementProposal({
@@ -1158,16 +1175,16 @@ describe('QA Wizard Blueprint replacement — adversarial authority', () => {
     ).toThrow(/review must not precede proposal preparation/);
     const review = reviewProposal(subject, proposal);
     // An approval dated before the review is rejected.
-    expect(() =>
-      approveProposal(subject, proposal, review, {
+    await expect((async () =>
+      (await approveProposal(subject, proposal, review, {
         approvedAt: '2026-08-26T09:15:00.000Z',
-      }),
-    ).toThrow(/approval must not precede the review/);
+      })))(),
+    ).rejects.toThrow(/approval must not precede the review/);
   });
 
   it('publishes terminal ownership before the terminal manifest so a crash cannot expose an unbound terminal', async () => {
     const subject = setup();
-    const preflight = prepare(subject);
+    const preflight = (await prepare(subject));
     // Crash in the true exposure window: ownership binding durable, manifest not
     // yet published. This is the actual publication interval — not the seam
     // after both writes.
@@ -1253,13 +1270,13 @@ describe('QA Wizard Blueprint replacement — adversarial authority', () => {
       preparedAt: PREPARED_AT,
     } as const;
     // A read-only preparation (write:false) rejects and writes no bytes.
-    expect(() =>
-      prepareBlueprintReplacementProposal({ ...base, write: false }),
-    ).toThrow(/recoverable terminal/);
+    await expect((async () =>
+      (await prepareBlueprintReplacementProposal({ ...base, write: false })))(),
+    ).rejects.toThrow(/recoverable terminal/);
     // A write:true preparation rejects before any artifact is created.
-    expect(() =>
-      prepareBlueprintReplacementProposal({ ...base, write: true }),
-    ).toThrow(/recoverable terminal/);
+    await expect((async () =>
+      (await prepareBlueprintReplacementProposal({ ...base, write: true })))(),
+    ).rejects.toThrow(/recoverable terminal/);
     for (const category of [
       'replacement-proposals',
       'replacement-reviews',
@@ -1297,7 +1314,7 @@ describe('QA Wizard Blueprint replacement — adversarial authority', () => {
   it('rejects a hand-authored canonical authorization whose approval predates its review before any slot/claim/provider', async () => {
     const subject = setup();
     const orphan = await orphanedPredecessor(subject);
-    const proposal = prepareProposal(subject, orphan.preflight.manifestPath);
+    const proposal = (await prepareProposal(subject, orphan.preflight.manifestPath));
     // Self-consistent lineage, recomputed digests, but approvedAt < reviewedAt.
     const forged = forgeInvertedTimeAuthorization(subject, proposal, {
       reviewedAt: '2026-08-26T11:00:00.000Z',
@@ -1338,7 +1355,7 @@ describe('QA Wizard Blueprint replacement — adversarial authority', () => {
   it('rejects a hand-authored canonical authorization whose review predates the proposal before any slot/claim/provider', async () => {
     const subject = setup();
     const orphan = await orphanedPredecessor(subject);
-    const proposal = prepareProposal(subject, orphan.preflight.manifestPath);
+    const proposal = (await prepareProposal(subject, orphan.preflight.manifestPath));
     // Only the proposal→review ordering is inverted; approval follows the review.
     const forged = forgeInvertedTimeAuthorization(subject, proposal, {
       reviewedAt: '2026-08-26T08:00:00.000Z',
@@ -1364,7 +1381,7 @@ describe('QA Wizard Blueprint replacement — adversarial authority', () => {
   it('pure authorization builder rejects a review bound to a different proposal path', async () => {
     const subject = setup();
     const orphan = await orphanedPredecessor(subject);
-    const proposal = prepareProposal(subject, orphan.preflight.manifestPath);
+    const proposal = (await prepareProposal(subject, orphan.preflight.manifestPath));
     const review = reviewProposal(subject, proposal);
     // The review is bound to proposal.proposalPath; supplying a different path
     // must be rejected by the pure builder, not only by the filesystem reload.
@@ -1514,7 +1531,7 @@ async function legacyDiagnosticPredecessor(
   subject: ReturnType<typeof setup>,
   mutateLegacyReceipt?: (receipt: Record<string, unknown>) => void,
 ) {
-  const preflight = prepare(subject);
+  const preflight = (await prepare(subject));
   const providerCalls = vi.fn();
   const countCalls = vi.fn();
   const current = await executeQaWizardBlueprintLiveRequest(
@@ -1684,7 +1701,7 @@ async function legacyDiagnosticPredecessor(
 
 function frozenProgramV6RequestAndPreflight(args: {
   subject: ReturnType<typeof setup>;
-  preflight: ReturnType<typeof prepare>;
+  preflight: Awaited<ReturnType<typeof prepare>>;
 }) {
   const request = {
     ...structuredClone(args.preflight.request),
@@ -2070,34 +2087,34 @@ function materializeFrozenDiagnosticSuccessorTarget(args: {
   return { receipt, receiptPath, capture, capturePath, terminal, terminalPath };
 }
 
-function prepareDiagnosticSuccessor(
+async function prepareDiagnosticSuccessor(
   subject: ReturnType<typeof setup>,
   predecessor: Awaited<ReturnType<typeof legacyDiagnosticPredecessor>>,
   preparedAt = DIAGNOSTIC_PREPARED_AT,
 ) {
-  return prepareBlueprintDiagnosticSuccessorCandidate({
+  return (await prepareBlueprintDiagnosticSuccessorCandidate({
     repoRoot: subject.repoRoot,
     predecessorTerminalLookupPath: predecessor.lookupPath,
     predecessorTerminalLookupDigest: predecessor.lookupDigest,
     preparedBy: 'Codex',
     preparedAt,
     write: true,
-  });
+  }));
 }
 
-function authorizeDiagnosticSuccessor(
+async function authorizeDiagnosticSuccessor(
   subject: ReturnType<typeof setup>,
-  candidate: ReturnType<typeof prepareDiagnosticSuccessor>,
+  candidate: Awaited<ReturnType<typeof prepareDiagnosticSuccessor>>,
   approvedAt = DIAGNOSTIC_APPROVED_AT,
 ) {
-  return authorizeBlueprintDiagnosticSuccessorCandidate({
+  return (await authorizeBlueprintDiagnosticSuccessorCandidate({
     repoRoot: subject.repoRoot,
     candidatePath: candidate.candidatePath,
     candidateDigest: candidate.candidate.digest,
     approvedBy: 'Guy',
     approvedAt,
     write: true,
-  });
+  }));
 }
 
 describe('QA Wizard Blueprint failed-terminal diagnostic successor', () => {
@@ -2116,14 +2133,14 @@ describe('QA Wizard Blueprint failed-terminal diagnostic successor', () => {
       bytes: fs.readFileSync(path.join(subject.repoRoot, artifactPath), 'utf8'),
     }));
 
-    const candidate = prepareDiagnosticSuccessor(subject, predecessor);
+    const candidate = (await prepareDiagnosticSuccessor(subject, predecessor));
     expect(candidate.candidate.receiptVersion).toBe(
       LEGACY_PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION_V7,
     );
     expect(candidate.candidate.captureVersion).toBe(
       LEGACY_BLUEPRINT_AUTHORING_SANITIZED_FAILURE_CAPTURE_VERSION_V3,
     );
-    const authorization = authorizeDiagnosticSuccessor(subject, candidate);
+    const authorization = (await authorizeDiagnosticSuccessor(subject, candidate));
     const providerCalls = vi.fn();
     const countCalls = vi.fn();
     const successor = await executeBlueprintDiagnosticSuccessorLiveRequest(
@@ -2161,16 +2178,16 @@ describe('QA Wizard Blueprint failed-terminal diagnostic successor', () => {
         'utf8',
       ),
     ) as { digest: string };
-    expect(() =>
-      prepareBlueprintDiagnosticSuccessorCandidate({
+    await expect((async () =>
+      (await prepareBlueprintDiagnosticSuccessorCandidate({
         repoRoot: subject.repoRoot,
         predecessorTerminalLookupPath: successor.executionRecordPath,
         predecessorTerminalLookupDigest: successorLookup.digest,
         preparedBy: 'Codex',
         preparedAt: '2026-08-31T12:10:00.000Z',
         write: true,
-      }),
-    ).toThrow(/exact ordinary-v2 predecessor/);
+      })))(),
+    ).rejects.toThrow(/exact ordinary-v2 predecessor/);
 
     // Replay authority is the successor's own claim+terminal. Once that durable
     // result exists, loss of legacy predecessor evidence must not strand it.
@@ -2340,16 +2357,16 @@ describe('QA Wizard Blueprint failed-terminal diagnostic successor', () => {
       QA_WIZARD_BLUEPRINT_AUTHORING_LEDGER_ROOT,
     );
     const beforePrepare = fileInventory(ledgerRoot);
-    expect(() =>
-      prepareBlueprintDiagnosticSuccessorCandidate({
+    await expect((async () =>
+      (await prepareBlueprintDiagnosticSuccessorCandidate({
         repoRoot: subject.repoRoot,
         predecessorTerminalLookupPath: frozen.lookupPath,
         predecessorTerminalLookupDigest: frozen.lookup.digest,
         preparedBy: 'Codex',
         preparedAt: DIAGNOSTIC_PREPARED_AT,
         write: true,
-      }),
-    ).toThrow('diagnostic successor predecessor preflight is not current');
+      })))(),
+    ).rejects.toThrow('diagnostic successor predecessor preflight is not current');
     expect(fileInventory(ledgerRoot)).toEqual(beforePrepare);
 
     const candidate = buildBlueprintDiagnosticSuccessorCandidate({
@@ -2365,16 +2382,16 @@ describe('QA Wizard Blueprint failed-terminal diagnostic successor', () => {
       canonicalContentAddressedJsonBytes(candidate),
     );
     const beforeAuthorize = fileInventory(ledgerRoot);
-    expect(() =>
-      authorizeBlueprintDiagnosticSuccessorCandidate({
+    await expect((async () =>
+      (await authorizeBlueprintDiagnosticSuccessorCandidate({
         repoRoot: subject.repoRoot,
         candidatePath,
         candidateDigest: candidate.digest,
         approvedBy: 'Guy',
         approvedAt: DIAGNOSTIC_APPROVED_AT,
         write: true,
-      }),
-    ).toThrow('diagnostic successor predecessor preflight is not current');
+      })))(),
+    ).rejects.toThrow('diagnostic successor predecessor preflight is not current');
     expect(fileInventory(ledgerRoot)).toEqual(beforeAuthorize);
     expect(
       fs.existsSync(
@@ -2389,7 +2406,7 @@ describe('QA Wizard Blueprint failed-terminal diagnostic successor', () => {
 
   it('rejects current evidence, completed terminals, and missing legacy capture before creating successor authority', async () => {
     const currentSubject = setup();
-    const currentPreflight = prepare(currentSubject);
+    const currentPreflight = (await prepare(currentSubject));
     const currentFailed = await executeQaWizardBlueprintLiveRequest(
       {
         repoRoot: currentSubject.repoRoot,
@@ -2408,19 +2425,19 @@ describe('QA Wizard Blueprint failed-terminal diagnostic successor', () => {
         'utf8',
       ),
     ) as { digest: string };
-    expect(() =>
-      prepareBlueprintDiagnosticSuccessorCandidate({
+    await expect((async () =>
+      (await prepareBlueprintDiagnosticSuccessorCandidate({
         repoRoot: currentSubject.repoRoot,
         predecessorTerminalLookupPath: currentFailed.executionRecordPath,
         predecessorTerminalLookupDigest: currentLookup.digest,
         preparedBy: 'Codex',
         preparedAt: DIAGNOSTIC_PREPARED_AT,
         write: true,
-      }),
-    ).toThrow(/not diagnostic-successor eligible|exact legacy v7\/v3/);
+      })))(),
+    ).rejects.toThrow(/not diagnostic-successor eligible|exact legacy v7\/v3/);
 
     const completedSubject = setup();
-    const completedPreflight = prepare(completedSubject);
+    const completedPreflight = (await prepare(completedSubject));
     const completed = await executeQaWizardBlueprintLiveRequest(
       {
         repoRoot: completedSubject.repoRoot,
@@ -2436,21 +2453,21 @@ describe('QA Wizard Blueprint failed-terminal diagnostic successor', () => {
         'utf8',
       ),
     ) as { digest: string };
-    expect(() =>
-      prepareBlueprintDiagnosticSuccessorCandidate({
+    await expect((async () =>
+      (await prepareBlueprintDiagnosticSuccessorCandidate({
         repoRoot: completedSubject.repoRoot,
         predecessorTerminalLookupPath: completed.executionRecordPath,
         predecessorTerminalLookupDigest: completedLookup.digest,
         preparedBy: 'Codex',
         preparedAt: DIAGNOSTIC_PREPARED_AT,
         write: true,
-      }),
-    ).toThrow(/not diagnostic-successor eligible/);
+      })))(),
+    ).rejects.toThrow(/not diagnostic-successor eligible/);
 
     const tornSubject = setup();
     const torn = await legacyDiagnosticPredecessor(tornSubject);
     fs.rmSync(path.join(tornSubject.repoRoot, torn.legacyCapturePath));
-    expect(() => prepareDiagnosticSuccessor(tornSubject, torn)).toThrow();
+    await expect((async () => (await prepareDiagnosticSuccessor(tornSubject, torn)))()).rejects.toThrow();
     const candidateDir = ledgerFile(
       tornSubject.repoRoot,
       'diagnostic-successor-candidates',
@@ -2461,40 +2478,40 @@ describe('QA Wizard Blueprint failed-terminal diagnostic successor', () => {
   it('requires exact Guy authorization and allows only one approval identity for a predecessor', async () => {
     const subject = setup();
     const predecessor = await legacyDiagnosticPredecessor(subject);
-    expect(() =>
-      prepareDiagnosticSuccessor(
+    await expect((async () =>
+      (await prepareDiagnosticSuccessor(
         subject,
         predecessor,
         '2020-01-01T00:00:00.000Z',
-      ),
-    ).toThrow(/preparation identity is invalid/);
-    const candidate = prepareDiagnosticSuccessor(subject, predecessor);
-    expect(() =>
-      authorizeBlueprintDiagnosticSuccessorCandidate({
+      )))(),
+    ).rejects.toThrow(/preparation identity is invalid/);
+    const candidate = (await prepareDiagnosticSuccessor(subject, predecessor));
+    await expect((async () =>
+      (await authorizeBlueprintDiagnosticSuccessorCandidate({
         repoRoot: subject.repoRoot,
         candidatePath: candidate.candidatePath,
         candidateDigest: candidate.candidate.digest,
         approvedBy: 'Codex' as never,
         approvedAt: DIAGNOSTIC_APPROVED_AT,
         write: true,
-      }),
-    ).toThrow(/exact approver/);
-    const first = authorizeDiagnosticSuccessor(subject, candidate);
+      })))(),
+    ).rejects.toThrow(/exact approver/);
+    const first = (await authorizeDiagnosticSuccessor(subject, candidate));
     // Crash window: the predecessor slot is durable but authorization
     // publication was lost. Repeating the exact explicit approvedAt recovers.
     fs.rmSync(path.join(subject.repoRoot, first.authorizationPath));
-    const replay = authorizeDiagnosticSuccessor(subject, candidate);
+    const replay = (await authorizeDiagnosticSuccessor(subject, candidate));
     expect(replay.authorization.digest).toBe(first.authorization.digest);
     expect(fs.existsSync(path.join(subject.repoRoot, replay.authorizationPath))).toBe(
       true,
     );
-    expect(() =>
-      authorizeDiagnosticSuccessor(
+    await expect((async () =>
+      (await authorizeDiagnosticSuccessor(
         subject,
         candidate,
         '2026-08-31T12:06:00.000Z',
-      ),
-    ).toThrow(/already bound to a different successor/);
+      )))(),
+    ).rejects.toThrow(/already bound to a different successor/);
   });
 
   it('freezes v1 evidence identities, rejects extra keys, and is independent of mutable producer aliases', async () => {
@@ -2530,14 +2547,14 @@ describe('QA Wizard Blueprint failed-terminal diagnostic successor', () => {
 
     const subject = setup();
     const predecessor = await legacyDiagnosticPredecessor(subject);
-    const candidate = prepareDiagnosticSuccessor(subject, predecessor);
+    const candidate = (await prepareDiagnosticSuccessor(subject, predecessor));
     expect(
       blueprintDiagnosticSuccessorCandidateIsValid({
         ...candidate.candidate,
         hostileExtraKey: true,
       }),
     ).toBe(false);
-    const authorization = authorizeDiagnosticSuccessor(subject, candidate);
+    const authorization = (await authorizeDiagnosticSuccessor(subject, candidate));
     expect(
       blueprintDiagnosticSuccessorAuthorizationIsValid({
         ...authorization.authorization,
@@ -2549,8 +2566,8 @@ describe('QA Wizard Blueprint failed-terminal diagnostic successor', () => {
   it('can produce a Candidate successor and replay it without provider or counter access', async () => {
     const subject = setup();
     const predecessor = await legacyDiagnosticPredecessor(subject);
-    const candidate = prepareDiagnosticSuccessor(subject, predecessor);
-    const authorization = authorizeDiagnosticSuccessor(subject, candidate);
+    const candidate = (await prepareDiagnosticSuccessor(subject, predecessor));
+    const authorization = (await authorizeDiagnosticSuccessor(subject, candidate));
     const providerCalls = vi.fn();
     const forbiddenCounter = vi.fn(() => {
       throw new Error('counter_must_not_load_for_one_call_candidate');
@@ -2594,8 +2611,8 @@ describe('QA Wizard Blueprint failed-terminal diagnostic successor', () => {
   it('rejects post-authorization predecessor tamper before provider, counter, claim, or terminal publication', async () => {
     const subject = setup();
     const predecessor = await legacyDiagnosticPredecessor(subject);
-    const candidate = prepareDiagnosticSuccessor(subject, predecessor);
-    const authorization = authorizeDiagnosticSuccessor(subject, candidate);
+    const candidate = (await prepareDiagnosticSuccessor(subject, predecessor));
+    const authorization = (await authorizeDiagnosticSuccessor(subject, candidate));
     fs.writeFileSync(
       path.join(subject.repoRoot, predecessor.legacyCapturePath),
       '{}\n',
@@ -2630,8 +2647,8 @@ describe('QA Wizard Blueprint failed-terminal diagnostic successor', () => {
   it('permits exactly one provider owner under concurrent execution', async () => {
     const subject = setup();
     const predecessor = await legacyDiagnosticPredecessor(subject);
-    const candidate = prepareDiagnosticSuccessor(subject, predecessor);
-    const authorization = authorizeDiagnosticSuccessor(subject, candidate);
+    const candidate = (await prepareDiagnosticSuccessor(subject, predecessor));
+    const authorization = (await authorizeDiagnosticSuccessor(subject, candidate));
     const providerCalls = vi.fn();
     const args = {
       repoRoot: subject.repoRoot,
@@ -2654,8 +2671,8 @@ describe('QA Wizard Blueprint failed-terminal diagnostic successor', () => {
   it('records a post-claim incident and never redispatches the diagnostic successor', async () => {
     const subject = setup();
     const predecessor = await legacyDiagnosticPredecessor(subject);
-    const candidate = prepareDiagnosticSuccessor(subject, predecessor);
-    const authorization = authorizeDiagnosticSuccessor(subject, candidate);
+    const candidate = (await prepareDiagnosticSuccessor(subject, predecessor));
+    const authorization = (await authorizeDiagnosticSuccessor(subject, candidate));
     await expect(
       executeBlueprintDiagnosticSuccessorLiveRequest(
         {
@@ -2728,10 +2745,10 @@ describe('QA Wizard Blueprint failed-terminal diagnostic successor', () => {
         subject,
         entry.mutate,
       );
-      expect(
-        () => prepareDiagnosticSuccessor(subject, predecessor),
+      await expect(
+        (async () => (await prepareDiagnosticSuccessor(subject, predecessor)))(),
         entry.name,
-      ).toThrow();
+      ).rejects.toThrow();
       const candidateDir = ledgerFile(
         subject.repoRoot,
         'diagnostic-successor-candidates',

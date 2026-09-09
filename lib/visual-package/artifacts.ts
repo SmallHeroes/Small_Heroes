@@ -3,9 +3,11 @@ import path from 'path';
 
 import {
   VISUAL_CONTRACT_SCHEMA_VERSION,
+  GROUP_VISUAL_CONTRACT_SCHEMA_VERSION,
   type BookVisualContractTemplate,
 } from '@/lib/visual-contract-compiler/contractTemplateTypes';
 import { validateBookVisualContractTemplate } from '@/lib/visual-contract-compiler/validateTemplateContract';
+import { humanGroupSchemaIsSupported } from '@/lib/visual-contract-compiler/humanGroupCast';
 import type { BookVisualContract } from '@/lib/visual-contract-compiler/types';
 import { type SetIdentityBoardRegistryEntry } from '@/lib/set-identity-board/types';
 import { listRequiredSetIdentityIds } from '@/lib/set-identity-board/setDefinition';
@@ -158,10 +160,10 @@ export function loadTemplateForPackage(args: {
     }));
   }
   const schemaVersion = (raw as { schemaVersion?: unknown })?.schemaVersion;
-  if (schemaVersion !== VISUAL_CONTRACT_SCHEMA_VERSION) {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw) || !humanGroupSchemaIsSupported(raw)) {
     issues.push(issue('template_schema_unsupported', `unsupported template schema ${JSON.stringify(schemaVersion)}`, {
       field: 'template.schemaVersion',
-      expected: VISUAL_CONTRACT_SCHEMA_VERSION,
+      expected: [VISUAL_CONTRACT_SCHEMA_VERSION, GROUP_VISUAL_CONTRACT_SCHEMA_VERSION],
       actual: schemaVersion,
     }));
   }

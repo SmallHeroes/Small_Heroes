@@ -136,7 +136,7 @@ function rejectionCode(error: unknown): string {
   return 'package_authority_validation_failed';
 }
 
-function execute(command: string, tokens: string[]): void {
+async function execute(command: string, tokens: string[]): Promise<void> {
   const flags = parseFlags(tokens);
   const requestPath = required(flags, '--request');
   const outputDir = required(flags, '--out');
@@ -153,11 +153,11 @@ function execute(command: string, tokens: string[]): void {
         'reviewedAt',
       ],
     });
-    const result = prepareQaWizardPackageCandidate({
+    const result = (await prepareQaWizardPackageCandidate({
       ...request,
       outputDir,
       write,
-    });
+    }));
     output({
       status: write
         ? 'package_candidate_review_persisted'
@@ -201,11 +201,11 @@ function execute(command: string, tokens: string[]): void {
       ],
       optionalKeys: ['note'],
     });
-    const result = recordQaWizardPackageApproval({
+    const result = (await recordQaWizardPackageApproval({
       ...request,
       outputDir,
       write,
-    });
+    }));
     output({
       status: write
         ? 'exact_package_approval_recorded'
@@ -234,11 +234,11 @@ function execute(command: string, tokens: string[]): void {
       filePath: requestPath,
       requiredKeys: ['repoRoot', 'approvedManifestPath', 'publishedAt'],
     });
-    const result = publishQaWizardApprovedPackage({
+    const result = (await publishQaWizardApprovedPackage({
       ...request,
       outputDir,
       write,
-    });
+    }));
     output({
       status: write
         ? 'canonical_package_published'
@@ -268,14 +268,14 @@ function execute(command: string, tokens: string[]): void {
   throw new Error('invalid_arguments');
 }
 
-function main(): void {
+async function main(): Promise<void> {
   const [command, ...tokens] = process.argv.slice(2);
   if (!command || command === 'help' || command === '--help') {
     process.stdout.write(`${usage()}\n`);
     return;
   }
   try {
-    execute(command, tokens);
+    (await execute(command, tokens));
   } catch (error) {
     output({
       status: 'rejected',
@@ -291,4 +291,4 @@ function main(): void {
   }
 }
 
-main();
+void main();

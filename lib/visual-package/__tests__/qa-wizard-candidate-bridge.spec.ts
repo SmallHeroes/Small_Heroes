@@ -7,6 +7,7 @@ import path from 'node:path';
 import { PassThrough } from 'node:stream';
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { loadQaWizardProductionContext } from '../qaWizardProductionContext';
 
 import {
   STYLE01_PRODUCTION_STYLE_AUTHORITY_PATH,
@@ -2897,6 +2898,8 @@ describe('QA Wizard real-candidate reconciliation bridge', () => {
       manifest: advanced.manifest,
       context: advanced.context,
     });
+    expect(await loadQaWizardProductionContext({ repoRoot: fixture.repoRoot,
+      bridgeManifestPath: advanced.manifestArtifact.path })).toEqual({ manifest: advanced.manifest, context: advanced.context });
     const styleAuthorityAbsolute = path.join(
       fixture.repoRoot,
       advanced.manifest.productionContext!.styleAuthorityPath,
@@ -2908,6 +2911,8 @@ describe('QA Wizard real-candidate reconciliation bridge', () => {
     );
     fs.mkdirSync(path.dirname(styleHardlink), { recursive: true });
     fs.linkSync(styleAuthorityAbsolute, styleHardlink);
+    await expect(loadQaWizardProductionContext({ repoRoot: fixture.repoRoot,
+      bridgeManifestPath: advanced.manifestArtifact.path })).rejects.toThrow(/unique regular file/);
     expect(() =>
       loadQaWizardApprovedProductionContext({
         repoRoot: fixture.repoRoot,

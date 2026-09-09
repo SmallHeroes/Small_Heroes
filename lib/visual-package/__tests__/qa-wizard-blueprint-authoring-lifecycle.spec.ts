@@ -7,13 +7,13 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 const bridgeLoaderMock = vi.hoisted(() => vi.fn());
 
-vi.mock('../qaWizardCandidateBridge', async () => {
+vi.mock('../qaWizardProductionContext', async () => {
   const actual = await vi.importActual<
-    typeof import('../qaWizardCandidateBridge')
-  >('../qaWizardCandidateBridge');
+    typeof import('../qaWizardProductionContext')
+  >('../qaWizardProductionContext');
   return {
     ...actual,
-    loadQaWizardApprovedProductionContext: bridgeLoaderMock,
+    loadQaWizardProductionContext: bridgeLoaderMock,
   };
 });
 
@@ -521,15 +521,15 @@ function policyMismatchProvider(): ProductionAuthoringProvider {
   };
 }
 
-function prepare(args: ReturnType<typeof setup>) {
-  return prepareQaWizardBlueprintLiveRequest({
+async function prepare(args: ReturnType<typeof setup>) {
+  return (await prepareQaWizardBlueprintLiveRequest({
     repoRoot: args.repoRoot,
     bridgeManifestPath: args.bridgeManifestPath,
     outputDir: OUTPUT_DIR,
     requestId: 'blueprint-live-request-001',
     requestedAt: REQUESTED_AT,
     write: true,
-  });
+  }));
 }
 
 function fileInventory(root: string): Array<{ path: string; bytes: string }> {
@@ -608,7 +608,7 @@ function repoRelative(root: string, absolute: string): string {
 
 function materializeHistoricalCompletedTerminal(args: {
   subject: ReturnType<typeof setup>;
-  currentPreflight: ReturnType<typeof prepare>;
+  currentPreflight: Awaited<ReturnType<typeof prepare>>;
   currentResult: Awaited<ReturnType<typeof executeQaWizardBlueprintLiveRequest>>;
   target: HistoricalCompletedTarget;
   providerCalls?: ReturnType<typeof vi.fn>;
@@ -878,21 +878,21 @@ function writeTerminalBindingForHistoricalExecution(args: {
 }
 
 describe('QA Wizard Blueprint authoring operator lifecycle', () => {
-  it('prepares the exact live request without provider access and rejects loose timestamps', () => {
+  it('prepares the exact live request without provider access and rejects loose timestamps', async () => {
     const subject = setup();
-    expect(() =>
-      prepareQaWizardBlueprintLiveRequest({
+    await expect((async () =>
+      (await prepareQaWizardBlueprintLiveRequest({
         repoRoot: subject.repoRoot,
         bridgeManifestPath: subject.bridgeManifestPath,
         outputDir: OUTPUT_DIR,
         requestId: 'bad-timestamp',
         requestedAt: '2026-08-25',
         write: true,
-      }),
-    ).toThrow(/canonical UTC/);
+      })))(),
+    ).rejects.toThrow(/canonical UTC/);
     expect(bridgeLoaderMock).not.toHaveBeenCalled();
 
-    const result = prepare(subject);
+    const result = (await prepare(subject));
     expect(result.request).toMatchObject({
       version: 'production-blueprint-authoring-request/v5',
       mode: 'live',
@@ -904,10 +904,10 @@ describe('QA Wizard Blueprint authoring operator lifecycle', () => {
     });
     expect(result.manifest.stage).toBe('live_request_preflight_passed');
     expect(
-      loadQaWizardBlueprintAuthoringManifest({
+      (await loadQaWizardBlueprintAuthoringManifest({
         repoRoot: subject.repoRoot,
         manifestPath: result.manifestPath,
-      }),
+      })),
     ).toEqual(result.manifest);
     for (const category of [
       'authoring-receipts',
@@ -923,7 +923,7 @@ describe('QA Wizard Blueprint authoring operator lifecycle', () => {
 
   it('reloads a legacy v4 preflight but never lets it mint a fresh claim or reach a provider', async () => {
     const subject = setup();
-    const current = prepare(subject);
+    const current = (await prepare(subject));
     const { program: _program, ...requestWithoutProgram } = current.request;
     void _program;
     const legacyRequest = {
@@ -1012,7 +1012,7 @@ describe('QA Wizard Blueprint authoring operator lifecycle', () => {
     'reloads the frozen %s request-v5 preflight but never lets it fresh-dispatch',
     async (_label, program) => {
     const subject = setup();
-    const current = prepare(subject);
+    const current = (await prepare(subject));
     const replayOnlyRequest = {
       ...current.request,
       program,
@@ -1052,10 +1052,10 @@ describe('QA Wizard Blueprint authoring operator lifecycle', () => {
     );
 
     expect(
-      loadQaWizardBlueprintAuthoringManifest({
+      (await loadQaWizardBlueprintAuthoringManifest({
         repoRoot: subject.repoRoot,
         manifestPath: reboundManifestPath,
-      }),
+      })),
     ).toEqual(reboundManifest);
     const providerFactory = vi.fn(() => passingProvider(subject.fixture));
     const inputTokenCounterFactory = vi.fn(() => {
@@ -1097,7 +1097,7 @@ describe('QA Wizard Blueprint authoring operator lifecycle', () => {
 
   it('rejects a self-redigested noncurrent embedded program before any paid factory or ledger write', async () => {
     const subject = setup();
-    const current = prepare(subject);
+    const current = (await prepare(subject));
     const hostileRequest = structuredClone(current.request);
     const hostileProgram = hostileRequest.program as unknown as Record<
       string,
@@ -1170,7 +1170,7 @@ describe('QA Wizard Blueprint authoring operator lifecycle', () => {
 
   it('claims before lazy provider access, persists a complete Candidate, and replays with zero calls', async () => {
     const subject = setup();
-    const preflight = prepare(subject);
+    const preflight = (await prepare(subject));
     const providerCalls = vi.fn();
     const providerFactory = vi.fn(() => {
       const claimDirectory = path.join(
@@ -1214,10 +1214,10 @@ describe('QA Wizard Blueprint authoring operator lifecycle', () => {
       claim.authoringAuthorityDigest,
     );
     expect(
-      loadQaWizardBlueprintAuthoringManifest({
+      (await loadQaWizardBlueprintAuthoringManifest({
         repoRoot: subject.repoRoot,
         manifestPath: result.manifestPath,
-      }),
+      })),
     ).toEqual(result.manifest);
     const beforeReplay = fileInventory(path.join(subject.repoRoot, OUTPUT_DIR));
     const forbiddenFactory = vi.fn(() => {
@@ -1243,7 +1243,7 @@ describe('QA Wizard Blueprint authoring operator lifecycle', () => {
 
   it('exact-counts an over-byte repair, publishes a v8 Candidate, and replays without loading either factory', async () => {
     const subject = setup();
-    const preflight = prepare(subject);
+    const preflight = (await prepare(subject));
     const invalidFirstDraft = {
       ...(providerDraft(subject.fixture) as Record<string, unknown>),
       worldPlan: 'x'.repeat(80_000),
@@ -1402,7 +1402,7 @@ describe('QA Wizard Blueprint authoring operator lifecycle', () => {
 
   it('publishes and replays a v8 failed terminal when exact counting succeeds but repair generation fails before usage exists', async () => {
     const subject = setup();
-    const preflight = prepare(subject);
+    const preflight = (await prepare(subject));
     const invalidFirstDraft = {
       ...(providerDraft(subject.fixture) as Record<string, unknown>),
       worldPlan: 'x'.repeat(80_000),
@@ -1554,7 +1554,7 @@ describe('QA Wizard Blueprint authoring operator lifecycle', () => {
 
   it('persists repair-route input ineligibility as a failed terminal and replays with zero calls', async () => {
     const subject = setup();
-    const preflight = prepare(subject);
+    const preflight = (await prepare(subject));
     const providerCalls = vi.fn();
     const result = await executeQaWizardBlueprintLiveRequest(
       {
@@ -1595,7 +1595,7 @@ describe('QA Wizard Blueprint authoring operator lifecycle', () => {
 
   it('fails closed after an orphan claim and never automatically retries', async () => {
     const subject = setup();
-    const preflight = prepare(subject);
+    const preflight = (await prepare(subject));
     await expect(
       executeQaWizardBlueprintLiveRequest(
         {
@@ -1647,7 +1647,7 @@ describe('QA Wizard Blueprint authoring operator lifecycle', () => {
 
   it('rejects conflicting incident bytes without overwriting or redispatching', async () => {
     const subject = setup();
-    const preflight = prepare(subject);
+    const preflight = (await prepare(subject));
     await expect(
       executeQaWizardBlueprintLiveRequest(
         {
@@ -1693,7 +1693,7 @@ describe('QA Wizard Blueprint authoring operator lifecycle', () => {
 
   it('recovers a completed terminal manifest after a crash without another provider call', async () => {
     const subject = setup();
-    const preflight = prepare(subject);
+    const preflight = (await prepare(subject));
     await expect(
       executeQaWizardBlueprintLiveRequest(
         {
@@ -1729,7 +1729,7 @@ describe('QA Wizard Blueprint authoring operator lifecycle', () => {
 
   it('classifies a crash after receipt as uncertain and never redispatches', async () => {
     const subject = setup();
-    const preflight = prepare(subject);
+    const preflight = (await prepare(subject));
     const providerCalls = vi.fn();
     await expect(
       executeQaWizardBlueprintLiveRequest(
@@ -1783,7 +1783,7 @@ describe('QA Wizard Blueprint authoring operator lifecycle', () => {
 
   it('admits only one concurrent owner for the same paid request', async () => {
     const subject = setup();
-    const preflight = prepare(subject);
+    const preflight = (await prepare(subject));
     let releaseProvider!: () => void;
     let providerEntered!: () => void;
     const release = new Promise<void>((resolve) => {
@@ -1828,22 +1828,22 @@ describe('QA Wizard Blueprint authoring operator lifecycle', () => {
     const subject = setup();
     const firstOutput = 'outputs/blueprint-operator-a';
     const secondOutput = 'outputs/blueprint-operator-b';
-    const first = prepareQaWizardBlueprintLiveRequest({
+    const first = (await prepareQaWizardBlueprintLiveRequest({
       repoRoot: subject.repoRoot,
       bridgeManifestPath: subject.bridgeManifestPath,
       outputDir: firstOutput,
       requestId: 'caller-request-a',
       requestedAt: '2026-08-25T12:00:00.000Z',
       write: true,
-    });
-    const second = prepareQaWizardBlueprintLiveRequest({
+    }));
+    const second = (await prepareQaWizardBlueprintLiveRequest({
       repoRoot: subject.repoRoot,
       bridgeManifestPath: subject.bridgeManifestPath,
       outputDir: secondOutput,
       requestId: 'caller-request-b',
       requestedAt: '2026-08-25T12:01:00.000Z',
       write: true,
-    });
+    }));
     let releaseProvider!: () => void;
     let providerEntered!: () => void;
     const release = new Promise<void>((resolve) => {
@@ -1915,7 +1915,7 @@ describe('QA Wizard Blueprint authoring operator lifecycle', () => {
 
   it('rejects partial success usage/evidence during receipt replay', async () => {
     const subject = setup();
-    const preflight = prepare(subject);
+    const preflight = (await prepare(subject));
     const result = await executeQaWizardBlueprintLiveRequest(
       {
         repoRoot: subject.repoRoot,
@@ -2126,7 +2126,7 @@ describe('QA Wizard Blueprint authoring operator lifecycle', () => {
 
   it('accepts only the closed three-validation-attempt replay shape for call-budget terminals', async () => {
     const subject = setup();
-    const preflight = prepare(subject);
+    const preflight = (await prepare(subject));
     const calls = vi.fn();
     const exhausted = await executeQaWizardBlueprintLiveRequest(
       {
@@ -2202,7 +2202,7 @@ describe('QA Wizard Blueprint authoring operator lifecycle', () => {
 
   it('binds completion-status terminal failure to exact observed provider evidence', async () => {
     const subject = setup();
-    const preflight = prepare(subject);
+    const preflight = (await prepare(subject));
     const result = await executeQaWizardBlueprintLiveRequest(
       {
         repoRoot: subject.repoRoot,
@@ -2284,7 +2284,7 @@ describe('QA Wizard Blueprint authoring operator lifecycle', () => {
 
   it('persists only closed repair diagnostics and never raw invalid draft material', async () => {
     const subject = setup();
-    const preflight = prepare(subject);
+    const preflight = (await prepare(subject));
     const rawSecret = 'RAW_REPAIR_SECRET_MUST_NEVER_PERSIST';
     const calls = vi.fn();
     const result = await executeQaWizardBlueprintLiveRequest(
@@ -2440,7 +2440,7 @@ describe('QA Wizard Blueprint authoring operator lifecycle', () => {
 
   it('replays a one-error repair whose closed fallback and category codes outnumber the raw issue count', async () => {
     const subject = setup();
-    const preflight = prepare(subject);
+    const preflight = (await prepare(subject));
     const calls = vi.fn();
     const result = await executeQaWizardBlueprintLiveRequest(
       {
@@ -2487,7 +2487,7 @@ describe('QA Wizard Blueprint authoring operator lifecycle', () => {
 
   it('rejects a nested lifecycle junction before provider access', async () => {
     const subject = setup();
-    const preflight = prepare(subject);
+    const preflight = (await prepare(subject));
     const external = tempRoot();
     const authoritiesPath = path.join(
       subject.repoRoot,
@@ -2517,7 +2517,7 @@ describe('QA Wizard Blueprint authoring operator lifecycle', () => {
 
   it('rechecks lifecycle containment at publish and blocks a post-provider junction swap', async () => {
     const subject = setup();
-    const preflight = prepare(subject);
+    const preflight = (await prepare(subject));
     const external = tempRoot();
     const providerCalls = vi.fn();
     let swapped = false;
@@ -2579,7 +2579,7 @@ describe('QA Wizard Blueprint authoring operator lifecycle', () => {
     'rejects an identical-byte hardlink at the %s publication boundary',
     async (surface) => {
       const subject = setup();
-      const preflight = prepare(subject);
+      const preflight = (await prepare(subject));
       const external = tempRoot();
       const providerCalls = vi.fn();
       let installedPath: string | null = null;
@@ -2643,7 +2643,7 @@ describe('QA Wizard Blueprint authoring operator lifecycle', () => {
 
   it('rejects a semantically equal but byte-noncanonical terminal manifest', async () => {
     const baseline = setup();
-    const baselinePreflight = prepare(baseline);
+    const baselinePreflight = (await prepare(baseline));
     const baselineResult = await executeQaWizardBlueprintLiveRequest(
       {
         repoRoot: baseline.repoRoot,
@@ -2655,7 +2655,7 @@ describe('QA Wizard Blueprint authoring operator lifecycle', () => {
     );
 
     const subject = setup();
-    const preflight = prepare(subject);
+    const preflight = (await prepare(subject));
     const hostilePath = path.join(
       subject.repoRoot,
       baselineResult.manifestPath,
@@ -2694,7 +2694,7 @@ describe('QA Wizard Blueprint authoring operator lifecycle', () => {
 
   it('persists a sanitized terminal failure and replays it with zero calls', async () => {
     const subject = setup();
-    const preflight = prepare(subject);
+    const preflight = (await prepare(subject));
     const providerFactory = vi.fn(() => ({
       call: async () => {
         throw new Error('secret_provider_failure_detail');
@@ -2787,7 +2787,7 @@ describe('QA Wizard Blueprint authoring operator lifecycle', () => {
     'accepts and zero-call replays the canonical adapter %s failure receipt',
     async (failureKind) => {
       const subject = setup();
-      const preflight = prepare(subject);
+      const preflight = (await prepare(subject));
       const readCredential = vi.fn(() => {
         if (failureKind === 'credential') {
           throw new Error('raw credential failure must never persist');
@@ -3199,7 +3199,7 @@ describe('QA Wizard Blueprint authoring operator lifecycle', () => {
 
   it('reads only the exact local OpenAI credential after the execution claim and never persists source material', async () => {
     const subject = setup();
-    const preflight = prepare(subject);
+    const preflight = (await prepare(subject));
     const credentialRoot = tempRoot();
     const credentialPath = path.join(credentialRoot, 'approved-local.env');
     const credential = 'sk-test-focused-credential-1234567890';
@@ -3278,7 +3278,7 @@ describe('QA Wizard Blueprint authoring operator lifecycle', () => {
 
   it('replays a canonical combined-invalid response using deterministic evidence precedence', async () => {
     const subject = setup();
-    const preflight = prepare(subject);
+    const preflight = (await prepare(subject));
     const transport: OpenAIResponsesAuthoringTransport = {
       create: vi.fn(async (request) => {
         request.observations.transportDispatchStarted = true;
@@ -3356,7 +3356,7 @@ describe('QA Wizard Blueprint authoring operator lifecycle', () => {
 
   it('replays a repair-time credential failure with prior closed diagnostics', async () => {
     const subject = setup();
-    const preflight = prepare(subject);
+    const preflight = (await prepare(subject));
     const readCredential = vi.fn(() => {
       if (readCredential.mock.calls.length > 1) {
         throw new Error('raw repair credential failure must never persist');
@@ -3460,7 +3460,7 @@ describe('QA Wizard Blueprint authoring operator lifecycle', () => {
 
   it('tears a capture-stripped provider_call_failed terminal that carries prior diagnostics', async () => {
     const subject = setup();
-    const preflight = prepare(subject);
+    const preflight = (await prepare(subject));
     // A provider that returns a canonical INVALID initial draft (grouped validation
     // diagnostics on attempt 1), then fails the repair call at the provider boundary.
     const readCredential = vi.fn(() => {
@@ -3524,7 +3524,7 @@ describe('QA Wizard Blueprint authoring operator lifecycle', () => {
     expect(created.manifest.observabilityCapture).toBeUndefined();
     // With the real receipt-evidence classification restored, the terminal is torn:
     // replay/recovery must refuse before any lookup, and must not load a provider.
-    const replayPreflight = prepare(subject);
+    const replayPreflight = (await prepare(subject));
     const forbidden = vi.fn(() => {
       throw new Error('provider_must_not_load_on_replay');
     });
@@ -3611,7 +3611,7 @@ describe('QA Wizard Blueprint authoring operator lifecycle', () => {
 
   it('tears a diagnostic-less terminal that carries an unexpected capture on replay', async () => {
     const subject = setup();
-    const preflight = prepare(subject);
+    const preflight = (await prepare(subject));
     const result = await executeQaWizardBlueprintLiveRequest(
       {
         repoRoot: subject.repoRoot,
@@ -3651,7 +3651,7 @@ describe('QA Wizard Blueprint authoring operator lifecycle', () => {
 
   it('tears a required terminal rebinding a valid capture from another receipt (recovery)', async () => {
     const subject = setup();
-    const preflight = prepare(subject);
+    const preflight = (await prepare(subject));
     const result = await executeQaWizardBlueprintLiveRequest(
       {
         repoRoot: subject.repoRoot,
@@ -3708,7 +3708,7 @@ describe('QA Wizard Blueprint authoring operator lifecycle', () => {
 
   it('tears a required terminal whose capture is bound under another output root (recovery)', async () => {
     const subject = setup();
-    const preflight = prepare(subject);
+    const preflight = (await prepare(subject));
     const result = await executeQaWizardBlueprintLiveRequest(
       {
         repoRoot: subject.repoRoot,
@@ -3760,7 +3760,7 @@ describe('QA Wizard Blueprint authoring operator lifecycle', () => {
 
   it('replays an exact pre-response adapter policy failure', async () => {
     const subject = setup();
-    const preflight = prepare(subject);
+    const preflight = (await prepare(subject));
     const provider: ProductionAuthoringProvider = {
       call: async (args) => {
         const inputAccounting = blueprintAuthoringInputAccounting({
@@ -3821,7 +3821,7 @@ describe('QA Wizard Blueprint authoring operator lifecycle', () => {
 
   it('rejects reordered receipt bytes even when semantic value and digest match', async () => {
     const subject = setup();
-    const preflight = prepare(subject);
+    const preflight = (await prepare(subject));
     const result = await executeQaWizardBlueprintLiveRequest(
       {
         repoRoot: subject.repoRoot,
@@ -3866,7 +3866,7 @@ describe('QA Wizard Blueprint authoring operator lifecycle', () => {
 
   it('rejects an on-disk non-finite receipt as stale without escaping the loader boundary', async () => {
     const subject = setup();
-    const preflight = prepare(subject);
+    const preflight = (await prepare(subject));
     const result = await executeQaWizardBlueprintLiveRequest(
       {
         repoRoot: subject.repoRoot,
@@ -3901,7 +3901,7 @@ describe('QA Wizard Blueprint authoring operator lifecycle', () => {
 
   it('records one exact Guy approval and rejects a second timestamp without residue', async () => {
     const subject = setup();
-    const preflight = prepare(subject);
+    const preflight = (await prepare(subject));
     const candidate = await executeQaWizardBlueprintLiveRequest(
       {
         repoRoot: subject.repoRoot,
@@ -3924,42 +3924,42 @@ describe('QA Wizard Blueprint authoring operator lifecycle', () => {
       approvedBy: 'Guy' as const,
       approvedAt: APPROVED_AT,
     };
-    const preview = recordQaWizardBlueprintApproval({
+    const preview = (await recordQaWizardBlueprintApproval({
       ...approvalArgs,
       write: false,
-    });
+    }));
     expect(preview.manifest.stage).toBe('blueprint_approved');
     expect(fs.existsSync(path.join(subject.repoRoot, preview.approvalPath))).toBe(
       false,
     );
-    const written = recordQaWizardBlueprintApproval({
+    const written = (await recordQaWizardBlueprintApproval({
       ...approvalArgs,
       write: true,
-    });
+    }));
     expect(
-      loadQaWizardBlueprintAuthoringManifest({
+      (await loadQaWizardBlueprintAuthoringManifest({
         repoRoot: subject.repoRoot,
         manifestPath: written.manifestPath,
-      }),
+      })),
     ).toEqual(written.manifest);
     const inventoryBeforeReplay = fileInventory(
       path.join(subject.repoRoot, OUTPUT_DIR),
     );
-    const replay = recordQaWizardBlueprintApproval({
+    const replay = (await recordQaWizardBlueprintApproval({
       ...approvalArgs,
       write: true,
-    });
+    }));
     expect(replay.attestation.digest).toBe(written.attestation.digest);
     expect(fileInventory(path.join(subject.repoRoot, OUTPUT_DIR))).toEqual(
       inventoryBeforeReplay,
     );
-    expect(() =>
-      recordQaWizardBlueprintApproval({
+    await expect((async () =>
+      (await recordQaWizardBlueprintApproval({
         ...approvalArgs,
         approvedAt: '2026-08-25T12:31:00.000Z',
         write: true,
-      }),
-    ).toThrow(/different approval/);
+      })))(),
+    ).rejects.toThrow(/different approval/);
     expect(fileInventory(path.join(subject.repoRoot, OUTPUT_DIR))).toEqual(
       inventoryBeforeReplay,
     );
@@ -3967,7 +3967,7 @@ describe('QA Wizard Blueprint authoring operator lifecycle', () => {
 
   it('publishes the candidate-keyed approval decision before variable artifacts and recovers exact replay', async () => {
     const subject = setup();
-    const preflight = prepare(subject);
+    const preflight = (await prepare(subject));
     const candidate = await executeQaWizardBlueprintLiveRequest(
       {
         repoRoot: subject.repoRoot,
@@ -3991,55 +3991,55 @@ describe('QA Wizard Blueprint authoring operator lifecycle', () => {
       approvedAt: APPROVED_AT,
       write: true,
     };
-    const preview = recordQaWizardBlueprintApproval({
+    const preview = (await recordQaWizardBlueprintApproval({
       ...approvalArgs,
       write: false,
-    });
-    expect(() =>
-      recordQaWizardBlueprintApproval(approvalArgs, {
+    }));
+    await expect((async () =>
+      (await recordQaWizardBlueprintApproval(approvalArgs, {
         hooks: {
           afterApprovalDecision() {
             throw new Error('simulated_crash_after_approval_decision');
           },
         },
-      }),
-    ).toThrow('simulated_crash_after_approval_decision');
+      })))(),
+    ).rejects.toThrow('simulated_crash_after_approval_decision');
     expect(fs.existsSync(path.join(subject.repoRoot, preview.approvalPath))).toBe(
       false,
     );
     expect(fs.existsSync(path.join(subject.repoRoot, preview.manifestPath))).toBe(
       false,
     );
-    expect(() =>
-      recordQaWizardBlueprintApproval({
+    await expect((async () =>
+      (await recordQaWizardBlueprintApproval({
         ...approvalArgs,
         approvedAt: '2026-08-25T12:31:00.000Z',
-      }),
-    ).toThrow(/approval decision.*conflicts|different approval decision/);
-    const recovered = recordQaWizardBlueprintApproval(approvalArgs);
+      })))(),
+    ).rejects.toThrow(/approval decision.*conflicts|different approval decision/);
+    const recovered = (await recordQaWizardBlueprintApproval(approvalArgs));
     expect(recovered.manifest.stage).toBe('blueprint_approved');
     expect(
-      loadQaWizardBlueprintAuthoringManifest({
+      (await loadQaWizardBlueprintAuthoringManifest({
         repoRoot: subject.repoRoot,
         manifestPath: recovered.manifestPath,
-      }),
+      })),
     ).toEqual(recovered.manifest);
   });
 
   it('rejects added manifest and nested callBudget keys before any provider access', async () => {
     const subject = setup();
-    const preflight = prepare(subject);
+    const preflight = (await prepare(subject));
     const manifestAbsolute = path.join(subject.repoRoot, preflight.manifestPath);
     const originalManifest = fs.readFileSync(manifestAbsolute, 'utf8');
     const hostileManifest = JSON.parse(originalManifest) as Record<string, unknown>;
     hostileManifest.hostileExtraKey = true;
     fs.writeFileSync(manifestAbsolute, `${JSON.stringify(hostileManifest)}\n`, 'utf8');
-    expect(() =>
-      loadQaWizardBlueprintAuthoringManifest({
+    await expect((async () =>
+      (await loadQaWizardBlueprintAuthoringManifest({
         repoRoot: subject.repoRoot,
         manifestPath: preflight.manifestPath,
-      }),
-    ).toThrow(/invalid or tampered/);
+      })))(),
+    ).rejects.toThrow(/invalid or tampered/);
     fs.writeFileSync(manifestAbsolute, originalManifest, 'utf8');
 
     const requestAbsolute = path.join(subject.repoRoot, preflight.requestPath);
@@ -4078,7 +4078,7 @@ describe('QA Wizard Blueprint failed-terminal sanitized capture integration', ()
   }
 
   async function runFailedTerminal(subject: ReturnType<typeof setup>) {
-    const preflight = prepare(subject);
+    const preflight = (await prepare(subject));
     return executeQaWizardBlueprintLiveRequest(
       {
         repoRoot: subject.repoRoot,
@@ -4153,7 +4153,7 @@ describe('QA Wizard Blueprint failed-terminal sanitized capture integration', ()
   it('re-validates the bound capture on replay with zero provider calls', async () => {
     const subject = setup();
     const first = await runFailedTerminal(subject);
-    const preflight = prepare(subject);
+    const preflight = (await prepare(subject));
     const forbiddenFactory = vi.fn(() => {
       throw new Error('provider_must_not_load_on_replay');
     });
@@ -4176,7 +4176,7 @@ describe('QA Wizard Blueprint failed-terminal sanitized capture integration', ()
 
   it('mints, persists, recovers, and replays an exact 223 -> 89 -> 5 per-attempt census', async () => {
     const subject = setup();
-    const preflight = prepare(subject);
+    const preflight = (await prepare(subject));
     const drafts = new Map([
       [1, draftWithExactInvalidAffordanceCount(subject.fixture, 223)],
       [2, draftWithExactInvalidAffordanceCount(subject.fixture, 89)],
@@ -4348,7 +4348,7 @@ describe('QA Wizard Blueprint failed-terminal sanitized capture integration', ()
 
   it('rejects a valid same-aggregate capture whose attempt censuses are swapped', async () => {
     const subject = setup();
-    const preflight = prepare(subject);
+    const preflight = (await prepare(subject));
     const result = await executeQaWizardBlueprintLiveRequest(
       {
         repoRoot: subject.repoRoot,
@@ -4455,7 +4455,7 @@ describe('QA Wizard Blueprint failed-terminal sanitized capture integration', ()
     const forbiddenFactory = vi.fn(() => {
       throw new Error('provider_must_not_load_for_attempt_swap');
     });
-    const replayPreflight = prepare(subject);
+    const replayPreflight = (await prepare(subject));
     await expect(
       executeQaWizardBlueprintLiveRequest(
         {
@@ -4477,7 +4477,7 @@ describe('QA Wizard Blueprint failed-terminal sanitized capture integration', ()
     const absolute = captureAbsolutePath(subject.repoRoot, result.manifest);
     // Tamper the on-disk capture bytes (still valid JSON, wrong content/digest).
     fs.writeFileSync(absolute, '{}\n', 'utf8');
-    const preflight = prepare(subject);
+    const preflight = (await prepare(subject));
     await expect(
       executeQaWizardBlueprintLiveRequest(
         {
@@ -4496,7 +4496,7 @@ describe('QA Wizard Blueprint failed-terminal sanitized capture integration', ()
     const result = await runFailedTerminal(subject);
     const absolute = captureAbsolutePath(subject.repoRoot, result.manifest);
     fs.rmSync(absolute);
-    const preflight = prepare(subject);
+    const preflight = (await prepare(subject));
     await expect(
       executeQaWizardBlueprintLiveRequest(
         {
@@ -4512,7 +4512,7 @@ describe('QA Wizard Blueprint failed-terminal sanitized capture integration', ()
 
   it('binds no capture on a completed candidate terminal', async () => {
     const subject = setup();
-    const preflight = prepare(subject);
+    const preflight = (await prepare(subject));
     const result = await executeQaWizardBlueprintLiveRequest(
       {
         repoRoot: subject.repoRoot,
@@ -4534,7 +4534,7 @@ describe('QA Wizard Blueprint failed-terminal sanitized capture integration', ()
 
   it('binds no capture on a diagnostic-less boundary failure and replays without one', async () => {
     const subject = setup();
-    const preflight = prepare(subject);
+    const preflight = (await prepare(subject));
     const result = await executeQaWizardBlueprintLiveRequest(
       {
         repoRoot: subject.repoRoot,
@@ -4554,7 +4554,7 @@ describe('QA Wizard Blueprint failed-terminal sanitized capture integration', ()
       ),
     ).toBe(false);
     // It replays cleanly with no provider load and no capture requirement.
-    const replayPreflight = prepare(subject);
+    const replayPreflight = (await prepare(subject));
     const forbidden = vi.fn(() => {
       throw new Error('provider_must_not_load_on_replay');
     });
@@ -4592,7 +4592,7 @@ describe('QA Wizard Blueprint failed-terminal sanitized capture integration', ()
     'recovers and replays a completed request-v4 $label terminal from its absolute prompt digest with zero paid dependencies',
     async ({ systemPromptDigest, expectedPromptVersion }) => {
       const subject = setup();
-      const currentPreflight = prepare(subject);
+      const currentPreflight = (await prepare(subject));
       const currentResult = await executeQaWizardBlueprintLiveRequest(
         {
           repoRoot: subject.repoRoot,
@@ -4696,7 +4696,7 @@ describe('QA Wizard Blueprint failed-terminal sanitized capture integration', ()
 
   it('rejects a coordinated current-v7 receipt relabel under the frozen-v6 program', async () => {
     const subject = setup();
-    const currentPreflight = prepare(subject);
+    const currentPreflight = (await prepare(subject));
     const currentResult = await executeQaWizardBlueprintLiveRequest(
       {
         repoRoot: subject.repoRoot,
@@ -4738,7 +4738,7 @@ describe('QA Wizard Blueprint failed-terminal sanitized capture integration', ()
 
   it('recovers and replays a completed frozen request-v5/program-v6 terminal with zero paid dependencies', async () => {
     const subject = setup();
-    const currentPreflight = prepare(subject);
+    const currentPreflight = (await prepare(subject));
     const providerCalls = vi.fn();
     const currentResult = await executeQaWizardBlueprintLiveRequest(
       {
@@ -4840,7 +4840,7 @@ describe('QA Wizard Blueprint failed-terminal sanitized capture integration', ()
 
   it('recovers and replays a frozen replacement terminal before the current-program precheck and with zero paid dependencies', async () => {
     const subject = setup();
-    const currentPreflight = prepare(subject);
+    const currentPreflight = (await prepare(subject));
     const providerCalls = vi.fn();
     const currentResult = await executeQaWizardBlueprintLiveRequest(
       {
@@ -5022,7 +5022,7 @@ describe('QA Wizard Blueprint failed-terminal sanitized capture integration', ()
 
   it('recovers and replays a writer-shaped request-v4/receipt-v6 failed terminal without provider dispatch', async () => {
     const subject = setup();
-    const preflight = prepare(subject);
+    const preflight = (await prepare(subject));
     const result = await runFailedTerminal(subject);
     expect(result.manifest.stage).toBe('authoring_failed');
     expect(result.receipt.version).toBe(
@@ -5157,10 +5157,10 @@ describe('QA Wizard Blueprint failed-terminal sanitized capture integration', ()
       canonicalContentAddressedJsonBytes(legacyTerminal),
     );
 
-    const loaded = loadQaWizardBlueprintAuthoringManifest({
+    const loaded = (await loadQaWizardBlueprintAuthoringManifest({
       repoRoot: subject.repoRoot,
       manifestPath: legacyTerminalPath,
-    });
+    }));
     expect(loaded.stage).toBe('authoring_failed');
     expect(loaded.request.version).toBe(
       LEGACY_PRODUCTION_AUTHORING_RUN_REQUEST_VERSION_V4,
@@ -5233,7 +5233,7 @@ describe('QA Wizard Blueprint failed-terminal sanitized capture integration', ()
 
   it('rejects on replay a diagnostic-bearing terminal that lacks its required capture binding', async () => {
     const subject = setup();
-    const preflight = prepare(subject);
+    const preflight = (await prepare(subject));
     // Fabricate a fully-consistent capture-less authoring_failed terminal for a
     // diagnostic-bearing failure by treating it as diagnostic-less during creation
     // ONLY — the on-disk shape of a hostile/legacy artifact that keeps the
@@ -5260,7 +5260,7 @@ describe('QA Wizard Blueprint failed-terminal sanitized capture integration', ()
     expect(created.manifest.observabilityCapture).toBeUndefined();
     // With the real classification restored, the terminal is torn: replay/recovery
     // must refuse to adopt it as a completed terminal, and must not load a provider.
-    const replayPreflight = prepare(subject);
+    const replayPreflight = (await prepare(subject));
     const forbidden = vi.fn(() => {
       throw new Error('provider_must_not_load_on_replay');
     });
@@ -5280,7 +5280,7 @@ describe('QA Wizard Blueprint failed-terminal sanitized capture integration', ()
 
   it('drives a diagnostic-bearing capture derivation overflow into the incident path, not an ordinary terminal', async () => {
     const subject = setup();
-    const preflight = prepare(subject);
+    const preflight = (await prepare(subject));
     // The sanitized census overflows the fail-closed hard bound: the runner yields a
     // derivation_failed disposition, which must become an incident — never an ordinary
     // replayable authoring_failed terminal that claims a census it does not have.
@@ -5310,7 +5310,7 @@ describe('QA Wizard Blueprint failed-terminal sanitized capture integration', ()
         path.join(subject.repoRoot, OUTPUT_DIR, 'sanitized-failure-captures'),
       ),
     ).toBe(false);
-    const replayPreflight = prepare(subject);
+    const replayPreflight = (await prepare(subject));
     await expect(
       executeQaWizardBlueprintLiveRequest(
         {

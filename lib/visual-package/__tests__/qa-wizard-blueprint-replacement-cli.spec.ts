@@ -24,18 +24,18 @@ const TSX_CLI = path.join(REPO_ROOT, 'node_modules', 'tsx', 'dist', 'cli.mjs');
 const CANONICAL_NPM_SCRIPT =
   'tsx --require ./scripts/shims/register-server-only.cjs scripts/qa-wizard-blueprint-replacement-cli.ts';
 
-function capture(argv: string[]): {
+async function capture(argv: string[]): Promise<{
   code: number;
   out: string[];
   err: string[];
-} {
+}> {
   const out: string[] = [];
   const err: string[] = [];
-  const code = runBlueprintReplacementCli({
+  const code = (await runBlueprintReplacementCli({
     argv,
     stdout: (line) => out.push(line),
     stderr: (line) => err.push(line),
-  });
+  }));
   return { code, out, err };
 }
 
@@ -83,59 +83,59 @@ describe('QA Wizard Blueprint replacement CLI — strict parser (in-process)', (
     expect(parsed.flags.has('--write')).toBe(false);
   });
 
-  it('rejects an unknown command', () => {
-    const { code, err } = capture(['not-a-command']);
+  it('rejects an unknown command', async () => {
+    const { code, err } = (await capture(['not-a-command']));
     expect(code).toBe(2);
     expect(err.join('\n')).toMatch(/unknown command/);
   });
 
-  it('rejects the "--name=value" form', () => {
-    const { code, err } = capture(['prepare-replacement', '--repo-root=.']);
+  it('rejects the "--name=value" form', async () => {
+    const { code, err } = (await capture(['prepare-replacement', '--repo-root=.']));
     expect(code).toBe(2);
     expect(err.join('\n')).toMatch(/--name value/);
   });
 
-  it('rejects duplicate flags', () => {
-    const { code, err } = capture([
+  it('rejects duplicate flags', async () => {
+    const { code, err } = (await capture([
       ...PREPARE_REQUIRED,
       '--reason',
       'orphan_claim_unknown_provider_outcome',
-    ]);
+    ]));
     expect(code).toBe(2);
     expect(err.join('\n')).toMatch(/duplicate flag/);
   });
 
-  it('rejects unknown flags', () => {
-    const { code, err } = capture([...PREPARE_REQUIRED, '--bogus', 'x']);
+  it('rejects unknown flags', async () => {
+    const { code, err } = (await capture([...PREPARE_REQUIRED, '--bogus', 'x']));
     expect(code).toBe(2);
     expect(err.join('\n')).toMatch(/unknown flag/);
   });
 
-  it('rejects positional arguments', () => {
-    const { code, err } = capture(['prepare-replacement', 'positional']);
+  it('rejects positional arguments', async () => {
+    const { code, err } = (await capture(['prepare-replacement', 'positional']));
     expect(code).toBe(2);
     expect(err.join('\n')).toMatch(/positional/);
   });
 
-  it('rejects a value flag with no value', () => {
-    const { code, err } = capture([
+  it('rejects a value flag with no value', async () => {
+    const { code, err } = (await capture([
       'prepare-replacement',
       '--repo-root',
       '--preflight-manifest',
       'x',
-    ]);
+    ]));
     expect(code).toBe(2);
     expect(err.join('\n')).toMatch(/requires a value/);
   });
 
-  it('rejects missing required flags', () => {
-    const { code, err } = capture(['prepare-replacement', '--repo-root', '.']);
+  it('rejects missing required flags', async () => {
+    const { code, err } = (await capture(['prepare-replacement', '--repo-root', '.']));
     expect(code).toBe(2);
     expect(err.join('\n')).toMatch(/missing required flag/);
   });
 
-  it('rejects a non-Guy approver before touching the ledger', () => {
-    const { code, err } = capture([
+  it('rejects a non-Guy approver before touching the ledger', async () => {
+    const { code, err } = (await capture([
       'approve-replacement',
       '--repo-root',
       '.',
@@ -151,13 +151,13 @@ describe('QA Wizard Blueprint replacement CLI — strict parser (in-process)', (
       'Codex',
       '--approved-at',
       '2026-08-26T10:00:00.000Z',
-    ]);
+    ]));
     expect(code).toBe(1);
     expect(err.join('\n')).toMatch(/--approved-by must be "Guy"/);
   });
 
-  it('surfaces a bounded sanitized error (no stack) when the manifest is missing', () => {
-    const { code, out, err } = capture(PREPARE_REQUIRED);
+  it('surfaces a bounded sanitized error (no stack) when the manifest is missing', async () => {
+    const { code, out, err } = (await capture(PREPARE_REQUIRED));
     expect(code).toBe(1);
     expect(out).toEqual([]);
     const message = err.join('\n');

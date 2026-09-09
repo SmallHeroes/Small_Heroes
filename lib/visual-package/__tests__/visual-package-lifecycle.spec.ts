@@ -586,6 +586,18 @@ describe('visual-package candidate -> review -> Guy approval -> promotion', () =
     expectPromotionCode(f, 'template_schema_unsupported');
   });
 
+  it.each([
+    { schemaVersion: 'vc-schema/v4', humanGroups: [] },
+    { schemaVersion: 'vc-schema/v5' },
+    { schemaVersion: 'vc-schema/v5', humanGroups: [] },
+  ])('rejects unsupported human-group schema combinations: %j', change => {
+    const f = fixture();
+    const template = readJson<Record<string, unknown>>(f.templatePath);
+    Object.assign(template, change);
+    writeJson(f.templatePath, template);
+    expectPromotionCode(f, 'template_schema_unsupported');
+  });
+
   it('rejects an invalid template', () => {
     const f = fixture();
     const template = readJson<Record<string, unknown>>(f.templatePath);
