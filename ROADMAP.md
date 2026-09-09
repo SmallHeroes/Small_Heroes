@@ -1,6 +1,6 @@
 # SmallHeroes — Roadmap
 
-**Last verified:** 2026-09-09 (M2b current-consumer independent PASS received; diagnostic archive relocation validated; fresh local full gate GREEN: 5693 passed / 73 existing skips / zero failed)
+**Last verified:** 2026-09-09 (Guy accepted exact correction content; M2b approval/pending bridge implemented; FULL GATE NON-GREEN, independent code review pending)
 **Product priority owner:** Guy
 **Technical sequencing owner:** Codex
 
@@ -31,6 +31,21 @@ Blueprint and any required LOW Board/prop generation remain separately budgeted
 provider actions with exact owner gates.
 
 ## Active
+
+Guy has accepted exact correction packet b7fdd4e5...; unchanged content must not
+be sent back for another generic approval. Approval v1 and effective pending
+bridge v6 are implemented under the existing recovery Gate, using fresh current
+validation and the real reconciliation projection. Focused 148/148; full gate
+5728 passed / 73 existing skips / 2 timeouts (exit 1). The two affected specs
+passed an isolated 47/47 diagnostic; full-gate failure is not relabeled green
+or inherited. This is not complete M2b: reviewed reconciliation advancement and
+Blueprint/package consumer cutovers remain after independent code QA. No real
+approval/bridge or paid artifact was minted with unreviewed code. Original P1
+HOLD remains historical/technical, not a claim Guy's new packet is unaccepted.
+Payment-last and bounded LOW sequencing are unchanged. See CURRENT and the
+M2b approval/pending-bridge execution evidence for exact scope and limitations.
+
+Historical checkpoint before exact content acceptance:
 
 Claude independently passed the current-consumer boundary `f59fe086..aa3eade8`
 (0/0/0), not complete M2b or repository/product/render readiness. Bounded timing

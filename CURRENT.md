@@ -1,6 +1,47 @@
 # SmallHeroes — Current Technical State
 
-## M2b current-consumer boundary — INDEPENDENT PASS; fresh LOCAL FULL GATE GREEN
+## M2b — exact content ACCEPTED; approval/pending-bridge implemented; FULL GATE NON-GREEN
+
+2026-09-09: Guy explicitly approved the exact Dini correction packet
+`b7fdd4e5fbf8f8685de7e25baa9bcefe78df95829ad30a66ab6d23981f15c1c2`
+in response to the linked REVIEW_SUMMARY.md question. Raw packet SHA remains
+`d2020e7381679502380fa44c0e1c357da4204155f73885adabb479759eb3c4ba`.
+This resolves exact content acceptance for that packet; do not ask again unless
+its content changes. It is not reconciliation/Blueprint/package/release approval
+or independent technical closure of the original paid candidate's HELD0/3/3.
+
+Claude's supplied documentation PASS 0/0/0 covers `aa3eade8..4039f4c8` only.
+Before code changes, actual HEAD/upstream/ls-remote matched 4039f4c8, clean 0/0.
+Real current-consumer CLI validation then passed without synthetic Git, and
+three altered-packet probes reached and failed at the intended reader checks.
+Those are local runtime results, not a new independent QA verdict. Evidence:
+`outputs/qa-m2b-real-consumer-20260909/READOUT.md`.
+
+Implementation continues under the approved general recovery Gate in this same
+sole-writer task/worktree C:/GNart/Work/sh-r3b1b-semantic-m1, branch
+codex/r3b1b-semantic-recovery-m1, base 4039f4c8. Protected d53b 768ccb2f and
+accepted-intent 63ccb484 remain read-only. No new task, push or cleanup.
+New approval v1 binds exact content identities and freshly revalidates on use;
+pending bridge v6 projects effective template AND coverage into the real source
+reconciliation builder. The draft stays pending with productionContext null.
+Old v5/cover-only/current-paid and downstream approval loaders remain strict.
+This is approval/pending-bridge support, NOT complete M2b: reviewed reconciliation
+advancement and Blueprint/package consumer cutovers remain next after code QA.
+
+Final focused 148/148 (seven specs, 37 new tests), both typechecks passed.
+Full gate exited 1: 5728 passed / 73 existing skips / 2 resource-phase timeouts.
+Ordinary 5059 passed; resource 669 passed / 2 failed. Both affected specs then
+passed in one isolated diagnostic (47/47); this is NOT a replacement full gate
+or proof of inherited failure/root cause. Inventory 391/369/22, workers 4/2
+unchanged. No timeout or skip relaxation. Independent code QA and repository
+stability remain open. No real P1 machine approval/bridge was minted with unreviewed
+code. Evidence: docs/ai-workflow/R3B1B_M2B_APPROVAL_PENDING_BRIDGE_EXECUTION.md.
+Owner content decision is retained for qualified execution after code review
+and propagation, without a second content approval request. No paid execution,
+image, key access, Blueprint/package/source/locator/payment/publication/deploy;
+application spend USD 0. Original paid artifacts remain immutable.
+
+## Historical M2b current-consumer boundary — INDEPENDENT PASS; LOCAL FULL GATE GREEN
 
 2026-09-09: Guy supplied Claude's read-only PASS P0=0/P1=0/P2=0 for exactly
 `f59fe086..aa3eade8`. The one-commit / 10-path / +607/-15 topology reconciles.

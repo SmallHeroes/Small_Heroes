@@ -2,6 +2,18 @@
 
 Date: 2026-09-06
 
+2026-09-09 exact-content decision: Guy approved packet
+`b7fdd4e5fbf8f8685de7e25baa9bcefe78df95829ad30a66ab6d23981f15c1c2`
+after the linked before/after summary and explicit acceptance question. This
+resolves content acceptance for these exact bytes, not later reconciliation,
+Blueprint, package or release approval. M2b now implements approval v1 and
+changed-coverage pending bridge v6 under §3C, with fresh validation on use.
+The old v5 path is untouched; reviewed-reconciliation/downstream cutovers remain
+inside M2b after independent QA of this authority boundary. No criterion is
+dropped, no additional generic permission requested, and no paid call or real
+P1 machine approval/bridge is minted with unreviewed code. Execution evidence:
+`R3B1B_M2B_APPROVAL_PENDING_BRIDGE_EXECUTION.md`.
+
 2026-09-09 continuation: historical-input PASS `fdd568af..f59fe086` is received,
 P0=0/P1=0/P2=0, with the repository gate still non-green. The next bounded
 implementation is current-consumer read-only validation of the exact effective
