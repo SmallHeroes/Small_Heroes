@@ -1,6 +1,6 @@
 # SmallHeroes — Roadmap
 
-**Last verified:** 2026-09-09 (Guy accepted exact correction content; M2b approval/pending bridge implemented; FULL GATE NON-GREEN, independent code review pending)
+**Last verified:** 2026-09-09 (M2b approval/pending bridge independent code PASS 0/0/6 at 54dbc4a7; bounded P2 correction locally green, re-gate pending; repository stability still open)
 **Product priority owner:** Guy
 **Technical sequencing owner:** Codex
 
@@ -31,6 +31,20 @@ Blueprint and any required LOW Board/prop generation remain separately budgeted
 provider actions with exact owner gates.
 
 ## Active
+
+Claude's code PASS covers 4039f4c8..54dbc4a7 only. Its supplied review reports
+5730 passed/73 skipped/0 failed independently; Codex's earlier two-timeout run
+is retained, and intermittent timing remains unexplained. A bounded P2 response
+adds the named inventory pin, timestamp-behavior tests, evidence navigation,
+wording correction and redundant-check simplification. Shared category and
+operator-timestamp policies are retained with explicit rationale, not claimed
+independently closed. Correction focused150/150; full gate5732 passed/73 existing
+skips/0 failed, both typechecks, exit0. This is not a timing fix. No real
+approval/bridge or render execution, no push/spend. See CURRENT and the existing
+execution document's independent-QA/P2 section. Remaining M2b consumer work is
+unchanged; no new exact-content decision is needed for the accepted packet.
+
+Historical delivery at 54dbc4a7:
 
 Guy has accepted exact correction packet b7fdd4e5...; unchanged content must not
 be sent back for another generic approval. Approval v1 and effective pending

@@ -135,6 +135,20 @@ describe('exact semantic approval and changed-coverage pending bridge',()=>{
     });
     await expect(loadApprovedSemanticCorrection({consumerRepoRoot:process.cwd(),approvalPath:original.artifact.path,expectedApprovalDigest:original.approval.digest})).rejects.toThrow();
   });
+  it.each(['1970-01-01T00:00:00.000Z','2999-12-31T23:59:59.999Z'])('treats canonical operator time %s as metadata, never a replacement for the pinned decision',async approvedAt=>{
+    const original=await approve();
+    const changed=await recordSemanticCorrectionApproval({...request,approvedAt,write:true});
+    expect(changed.approval.approvedAt).toBe(approvedAt);
+    expect(changed.approval.subject).toEqual(original.approval.subject);
+    expect(changed.approval.digest).not.toBe(original.approval.digest);
+    await expect(loadApprovedSemanticCorrection({consumerRepoRoot:process.cwd(),approvalPath:changed.artifact.path,
+      expectedApprovalDigest:original.approval.digest})).rejects.toThrow('artifact_not_canonical');
+    const loaded=await loadApprovedSemanticCorrection({consumerRepoRoot:process.cwd(),approvalPath:changed.artifact.path,
+      expectedApprovalDigest:changed.approval.digest});
+    expect(loaded.approval).toEqual(changed.approval);
+    expect(loaded.approval.authorityScope).toBe('exact_semantic_correction_approval_only');
+    expect(loaded.approval.doesNotAuthorize).toContain('image_render');
+  });
   it.each(['coverage','reconciliation','approval','scope','current'] as const)('rejects rehashed manifest %s substitution',async kind=>{
     const result=await bridge();const changed=rewrite(result.artifact.path,v=>{
       if(kind==='coverage')v.effective.coverageDigest='f'.repeat(64);

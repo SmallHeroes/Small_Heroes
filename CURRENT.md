@@ -1,6 +1,38 @@
 # SmallHeroes — Current Technical State
 
-## M2b — exact content ACCEPTED; approval/pending-bridge implemented; FULL GATE NON-GREEN
+## M2b approval/pending bridge — INDEPENDENT CODE PASS; bounded P2 correction
+
+2026-09-09: supplied Claude Code PASS P0=0/P1=0/P2=6 is accepted for exactly
+`4039f4c8..54dbc4a7` (one commit, eight paths, +664/-4). Branch/HEAD and clean
+ahead1/behind0 reconcile; origin directly observed at 4039f4c8 at correction
+start. Same task is sole writer in C:/GNart/Work/sh-r3b1b-semantic-m1 on
+codex/r3b1b-semantic-recovery-m1. Protected d53b768ccb2f and accepted-intent
+63ccb484 remain clean/read-only. No push, new task or cleanup.
+
+Claude reports 148/148 focused, 175/175 hostile checks, both typechecks and an
+independent full gate of 5730 passed/73 existing skips/0 failed at 54dbc4a7.
+Those independent execution results are attributed to the supplied review;
+its raw full-gate log was not supplied here. Codex's retained failed run at
+that same commit still has two real timeouts. Neither result establishes
+repository stability or timing root cause; neither completes M2b or render
+readiness. Prior failed logs and exact packet acceptance are preserved.
+
+Bounded correction: add missing named spec pin (P2-1), directly reproduce and
+link the ALREADY published inventory recipe (P2-2), pin existing timestamp
+semantics with two tests (P2-3; no new plausibility policy), retain shared
+manifest category as non-blocking hygiene (P2-4), correct chronology framing
+(P2-5), simplify redundant post-write comparison while retaining the strict
+reread (P2-6). These dispositions await independent re-gate; no self-closure.
+Focused 150/150; full correction gate GREEN: 5732 passed/73 existing skips/0
+failed, both typechecks, exit0. Ordinary5061/resource671, workers4/2 unchanged.
+This run is not a timing root-cause fix or stability verdict. No skip change.
+Evidence and exact P2 rationale: docs/ai-workflow/R3B1B_M2B_APPROVAL_PENDING_BRIDGE_EXECUTION.md,
+section "Independent QA and bounded P2 response". Real positive approval/bridge
+execution remains unproven; no machine approval minted. Guy's unchanged packet
+b7fdd4e5... remains accepted. Remaining M2b: reviewed reconciliation advancement
+and actual Blueprint/package consumer cutovers. Application spend USD0.
+
+## Historical delivery at 54dbc4a7 — FULL GATE NON-GREEN
 
 2026-09-09: Guy explicitly approved the exact Dini correction packet
 `b7fdd4e5fbf8f8685de7e25baa9bcefe78df95829ad30a66ab6d23981f15c1c2`

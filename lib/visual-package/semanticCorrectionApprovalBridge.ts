@@ -84,10 +84,9 @@ function publish(args: { repoRoot: string; outputDir: string; category: Approval
     store.prepare();
     const artifact = store.persist({ category: args.category, digest: args.value.digest, value: args.value });
     // The shared legacy-compatible store can accept alternate historical JSON
-    // formatting. This new boundary requires its exact current bytes on return.
-    if (readCanonical(repoRoot, relativePath, args.category, args.value.digest).bytes !== canonicalContentAddressedJsonBytes(args.value)) {
-      throw new Error('semantic_bridge_publication_bytes_mismatch');
-    }
+    // formatting. readCanonical pins the expected digest AND exact canonical
+    // bytes on return; a second byte comparison cannot add an integrity check.
+    readCanonical(repoRoot, relativePath, args.category, args.value.digest);
     return artifact;
   }
   return { path: relativePath, digest: args.value.digest, created: false };
