@@ -1,6 +1,58 @@
 # SmallHeroes — Current Technical State
 
-## M2b — actual production consumer integration (local full check green; QA pending)
+## Blueprint provider-failure observability — local green, independent QA pending
+
+2026-09-09: Guy said continue after the real Dini Blueprint attempt failed.
+Same sole-writer task/worktree/branch, C:/GNart/Work/sh-r3b1b-semantic-m1,
+codex/r3b1b-semantic-recovery-m1, from clean f4cf3f05 (0/0). Protected d53b
+768ccb2f and accepted-intent63ccb484 remain clean/read-only. No new task/push.
+
+Prior code QA is now received: Claude PASS P0=0/P1=0/P2=0 for exactly
+3743b20a..f4cf3f05, independently reporting 5796 passed / 73 existing skips /
+0 failures and both typechecks. Guy explicitly authorized the push, which
+advanced origin3743b20a..f4cf3f05 in the earlier continuation. That code PASS
+does not cover the current diagnostic logging implementation.
+
+Real runtime progress at f4cf3f05: Guy resolved page6 to a gentle chuckle,
+not bursting laughter. One effective mustShow leaf changed; story text,
+other pages/cover and coverage remained identical. Existing content decisions
+plus that reply were operator-recorded; the prior omission proposal was never
+approved. Reconciliation98122830, approvale96509ba, template77e9caf9 and real
+production bridgee38b78c8 reached Blueprint preflight5ead44f3 without mocks.
+Readout: outputs/qa-dini-p6-chuckle-20260909/READOUT.md. Those roots/ledger are
+ignored and untracked, local only, with no verified off-machine backup; code
+push does not preserve them. Original packet/approval/candidate/receipt unchanged.
+
+The authorized bounded Blueprint execution c948c08e then failed terminally:
+manifest17c59994 / receipt0e464a99, provider_call_failed, ONE dispatched call,
+zero repairs/retries/fallback, no response/usage, no Blueprint or images.
+Billing is UNKNOWN, not zero; $5 was the compiler fence, not an actual charge.
+GET model metadata subsequently returned200; it does not explain the earlier
+Responses failure or establish available quota. Original P1 HELD0/3/3,
+resource-phase timing P1, M2b, Boards/package and book readiness remain open.
+
+Verified observability root cause: shared transport already produces a sanitized
+ProviderCallFailureDiagnosticError; Blueprint's catch discards it. Implemented
+best-effort allowlisted stderr logging for credential/transport failures before
+the unchanged terminal boundary. No raw errors/keys/prompts, receipt migration,
+execution-program change, retry/fallback or automatic approval. Other failures
+and count-probe diagnostics remain unchanged. Logs supplement operator evidence;
+they are not authority, crash-durable storage or recovered original diagnostics.
+Gate: docs/ai-workflow/R3B1B_BLUEPRINT_PROVIDER_DIAGNOSTIC_LOG_GATE.md.
+
+Red regression reproduced the missing log on the unchanged adapter. Final
+focused validation:99/99 across3specs. Full npm run check exited0:5808 passed,
+73 existing skips,0 failures; both typechecks passed. Ordinary5137/resource671;
+inventory391(369/22), workers4/2 unchanged. Full log raw SHA256:
+80a86230265b6643bea31928d3d653ccdb9eb453ab7f939f8db7d8bf5efdf653.
+All45 prior runtime-evidence hashes and protected P1 inventory are unchanged.
+This code step has zero
+provider calls, credential reads and spend; no attempt to retry the consumed
+live identity. The tracked change makes f4cf-bound runtime manifests historical,
+not current authority. After QA/explicit propagation, current-input rebuilding
+must still respect consumed identity guards; logging does not unlock a retry.
+
+## Historical M2b consumer implementation handoff (before QA at f4cf3f05)
 
 2026-09-09: Guy explicitly directed continued implementation without another
 generic approval. This task remains the sole writer on

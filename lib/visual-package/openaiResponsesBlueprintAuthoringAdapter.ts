@@ -60,6 +60,7 @@ import { assertOpenAIResponsesStructuredOutputSchemaCompatible } from './openaiR
 import {
   createProviderFailureBoundaryObservations,
 } from './providerFailureDiagnostics';
+import { reportBlueprintProviderFailure } from './blueprintProviderFailureLog';
 import {
   openAIResponsesAuthoringTransport,
   readOpenAIResponsesAuthoringCredential,
@@ -467,7 +468,8 @@ export function createOpenAIResponsesBlueprintAuthoringAdapter(
           const credential = readCredential();
           observations.credentialReadSucceeded = true;
           return credential;
-        } catch {
+        } catch (error) {
+          reportBlueprintProviderFailure({ error, observations, credentialReadFailed: true });
           return closeAndThrow(
             'provider_call_failed',
             preDispatchEvidence,
@@ -483,7 +485,8 @@ export function createOpenAIResponsesBlueprintAuthoringAdapter(
           requestOptions,
           observations,
         });
-      } catch {
+      } catch (error) {
+        reportBlueprintProviderFailure({ error, observations });
         const executionAttestation =
           canonicalAuthoringExecutionAttestation({
             transportDispatchCount:

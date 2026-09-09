@@ -1,6 +1,6 @@
 # SmallHeroes — Roadmap
 
-**Last verified:** 2026-09-09 (documentation P2 closed through 3743b20a; actual production consumer integration locally green, independent QA pending; M2b and gate reliability still open)
+**Last verified:** 2026-09-09 (consumer code PASS through f4cf3f05; real Dini reconciliation/production preflight completed; Blueprint provider attempt failed; diagnostic logging locally green, QA pending)
 **Product priority owner:** Guy
 **Technical sequencing owner:** Codex
 
@@ -31,6 +31,23 @@ Blueprint and any required LOW Board/prop generation remain separately budgeted
 provider actions with exact owner gates.
 
 ## Active
+
+Guy's gentle-chuckle decision for page6 is represented in the real effective
+template and approved reconciliation; original source and other pages unchanged.
+The real production bridge reached Blueprint preflight at reviewed/pushed
+f4cf3f05. One live generation call failed at the provider boundary before any
+Blueprint; zero retry/fallback, usage and actual billing unknown. No images.
+The current bounded continuation preserves sanitized failure classification in
+operator logs without changing terminal receipts, policy, budget or retry rights.
+Local gate:99 focused tests; full5808passed/73existing skips/0failed, both
+typechecks, unchanged391spec inventory and4/2workers. Independent QA pending.
+Original failure cause remains unknown. After the focused code gate/Claude QA,
+investigate the provider failure and a legitimate recovery route before more
+paid work; do not bypass the consumed execution identity. M2b, Boards/package,
+catalog qualification and the resource-timing P1 remain open. Payments last.
+See CURRENT and the diagnostic-log Decision Gate for exact boundaries.
+
+Historical consumer implementation handoff (before Claude PASS f4cf3f05):
 
 The actual semantic production bridge and Blueprint/package consumer cutovers
 are implemented locally from `3743b20a`: full check 5796 passed / 73 existing
