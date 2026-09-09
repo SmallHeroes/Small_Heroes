@@ -2,6 +2,13 @@
 
 ## M2b — re-gate PASS; authorized push and REAL approval/pending-bridge execution
 
+2026-09-09 evidence-review update: Claude supplied documentation/evidence PASS
+P0=0/P1=0/P2=1 for `28f25ef7..00ad3142`. Code PASS still ends at28f25ef7;
+this is not runtime product acceptance or complete M2b. The sole finding is
+local-only evidence disclosure, clarified below; independent closure of this
+wording correction is not claimed. At correction start HEAD00ad3142 was clean,
+ahead1/behind0 and live origin28f25ef7. No new push, code or artifact mutation.
+
 2026-09-09: Claude's supplied re-gate PASS P0=0/P1=0/P2=0 covers
 `54dbc4a7..28f25ef7`; combined reviewed code boundary now ends at28f25ef7.
 P2-1/5/6 fixed, P2-2 withdrawn (recipe already published), P2-3/4 accepted as
@@ -28,6 +35,11 @@ old-v5 consumption without changing either original file. Exact identities,
 commands, launcher failure/correction, logs and seven-group probe are recorded
 in outputs/qa-m2b-real-approval-20260909/READOUT.md. Original14files and packet
 hashes unchanged. Current proofc71ca2fc... is bound to28f25ef7, not timeless.
+Both output roots (artifacts, logs, requests, probe and READOUT) are ignored and
+UNTRACKED: git ls-files returns zero files for them. They are retained only on
+this machine; a fresh clone does not contain them. No off-machine backup is
+verified. Re-execution cannot recover the original logs; Git push does not back
+up this evidence. This correction discloses that limit, not durable archival.
 
 Draft remains reconciliation_pending, productionContext=null, readyForApproval
 false (13frames/54presentation requirements/80pending reconciliation findings).
