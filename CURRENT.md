@@ -1,6 +1,31 @@
 # SmallHeroes — Current Technical State
 
-## M2b — v6 reviewed-reconciliation implementation; independent QA pending
+## M2b — v6 code PASS through8766aff1; focused-command P2 correction
+
+2026-09-09 supplied Claude review: PASS P0=0/P1=0/P2=1 for exactly
+c0b3334e..8766aff1. Independent code PASS now ends at8766aff1. Claude reports
+135/135 focused,140/140 hostile checks and a green full gate reproducing
+5767passed/73existing skips/0failed, both typechecks. These are attributed
+reviewer results, not new Codex executions. Its scratch harness initially had
+two bugs, corrected by the reviewer; no real artifact deletion is inferred
+from its sandbox cleanup report. Protected real artifacts were reported intact.
+
+P2-1 validated: the tracked copy-ready command contained a nonexistent spec
+filter even though the missing32 tests were separately run and disclosed.
+Correction replaces the operational block with exact existing paths, a preflight
+that rejects missing/duplicate paths, and explicit expected5 files/135 tests at
+reviewed8766aff1. Original103+32 history and log hashes remain unchanged.
+This is documentation only, not a test-runner or QA policy change. Independent
+closure of this correction is not claimed; code PASS does not move past8766aff1.
+At correction start: clean8766aff1, ahead1/behind0, local upstreamc0b3334e;
+same sole-writer task/worktree, protected dependencies clean768ccb2f/63ccb484.
+No push is performed in this correction task. No provider, credential or spend.
+
+Next functional work is the actual Blueprint/package consumer cutover and
+real reconciliation content review. M2b and book readiness remain incomplete;
+original P1 HELD0/3/3 and the separate resource-phase timing P1 remain open.
+
+## Historical implementation handoff at8766aff1 (before independent review)
 
 2026-09-09: Guy said to proceed toward a ready book. This task is the sole writer
 on codex/r3b1b-semantic-recovery-m1 at C:/GNart/Work/sh-r3b1b-semantic-m1.

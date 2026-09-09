@@ -1,6 +1,46 @@
 # M2b — v6 reviewed-reconciliation execution
 
-Date: 2026-09-09. Status: IMPLEMENTED; LOCAL VALIDATION GREEN; INDEPENDENT QA PENDING.
+Date: 2026-09-09. Status: CODE PASS THROUGH8766aff1; DOCUMENTATION P2 CORRECTED; RE-GATE PENDING.
+
+## Independent review and focused-command correction
+
+Claude supplied PASS P0=0/P1=0/P2=1 for exactly c0b3334e..8766aff1, extending
+the independent code boundary to8766aff1 only. Reported reproduction:
+135/135 focused,140/140 hostile harness checks,5767passed/73existing skips/
+0failed full gate, both typechecks. These are reviewer-attributed executions.
+The reviewer disclosed two corrected scratch-harness bugs; its final report
+confirms the real approval, pending bridge, packet and protected P1 unchanged.
+No independent product acceptance or real positive execution of the new route.
+
+P2-1 is valid: a nonexistent focused filter did not fail Vitest, and the tracked
+operational block still exposed that historical typo for copying. The corrected
+block below lists exact files, checks each exists and rejects duplicates before
+invoking Vitest, and pairs the command with expected5 files/135 tests at8766aff1.
+The expected output must be checked by the operator; exit0 alone is insufficient.
+This is a documented preflight, not a new global runner or automated output-count
+gate. The prior103+32 execution history and original logs are preserved.
+
+Correction start: clean8766aff1, ahead1/behind0, upstreamc0b3334e, same sole-writer
+task and implementation root. Dependencies clean at768ccb2f and63ccb484.
+Scope: CURRENT, ROADMAP and this document only. No production/test/script edit,
+new artifact authority, credential/provider access, spend or push. The cosmetic
+double validation observation is not a finding and is left unchanged. No new
+size policy, downstream cutover or timing fix is bundled into this correction.
+Correction validation: extracted the exact published block and executed it with
+a process-local npx stub in PowerShell7.6.5 and5.1.26100.9444. Four checks in each:
+valid five-path arguments reach one invocation; the original missing filename
+and a duplicate each reject before invocation; simulated exit7 is propagated.
+No actual focused/full Vitest rerun in this documentation correction. Root
+`npx tsc --noEmit` exit0; `git diff --check` exit0. Original P1 inventory again
+14files/412516bytes/cd621f77..., and the three real artifact hashes below match.
+Local harness/logs: outputs/qa-m2b-focused-command-p2-20260909, ignored/untracked,
+stored only here; no verified off-machine backup and not preserved by Git push.
+preflight-ps7.log SHA256: `8f5200495eb45abe649a24ca68e184f0f6de3cdc87a71aa8d929f9236e11db58`.
+preflight-ps5.log SHA256: `ff3a0248abf4a7094defd4796d96d79a9671bf901c75865c456f31b58dfee8e3`.
+The immutable correction range is in its separate correction handoff.
+Independent closure is pending; this document does not self-extend code PASS.
+
+The following implementation account is historical at its original handoff.
 
 ## Requirement, topology and authority
 
@@ -98,18 +138,41 @@ consumer-validation filename; Vitest selected only the four real specs. The
 actual `semantic-correction-consumer.spec.ts` is run separately and reported
 separately, not silently counted as part of that command.
 
-Commands (from the implementation root):
+Supported focused rerun for reviewed8766aff1 (PowerShell5.1 and7 compatible).
+Expected: **Test Files5 passed(5); Tests135 passed(135); exit0**, no skips.
+Breakdown:74 approval/reconciliation +15 bridge +32 consumer +7 reconciliation
++7 classifier. Stop and investigate any smaller count, even if exit0.
 
 ```powershell
-npx vitest run lib/visual-package/__tests__/semantic-correction-approval-bridge.spec.ts lib/visual-package/__tests__/source-prompt-reconciliation.spec.ts lib/visual-package/__tests__/qa-wizard-candidate-bridge.spec.ts lib/visual-package/__tests__/semantic-correction-consumer-validation.spec.ts lib/__tests__/vitest-workload-classifier.spec.ts --maxWorkers=2
-npx vitest run lib/visual-package/__tests__/semantic-correction-consumer.spec.ts --maxWorkers=1
-npm run check
+Set-Location 'C:\GNart\Work\sh-r3b1b-semantic-m1'
+$focusedSpecs = @(
+  'lib/visual-package/__tests__/semantic-correction-approval-bridge.spec.ts'
+  'lib/visual-package/__tests__/source-prompt-reconciliation.spec.ts'
+  'lib/visual-package/__tests__/qa-wizard-candidate-bridge.spec.ts'
+  'lib/visual-package/__tests__/semantic-correction-consumer.spec.ts'
+  'lib/__tests__/vitest-workload-classifier.spec.ts'
+)
+if ($focusedSpecs.Count -ne 5 -or @($focusedSpecs | Select-Object -Unique).Count -ne 5) {
+  throw 'Expected five distinct focused spec paths'
+}
+foreach ($focusedSpec in $focusedSpecs) {
+  if (-not (Test-Path -LiteralPath $focusedSpec -PathType Leaf)) {
+    throw "Missing focused spec: $focusedSpec"
+  }
+}
+# At8766aff1 expect5 passed files /135 passed tests; verify the printed counts.
+npx vitest run @focusedSpecs --maxWorkers=2
+if ($LASTEXITCODE -ne 0) { throw "Focused Vitest failed: $LASTEXITCODE" }
 ```
 
-The intentionally recorded first command is the command actually run, including
-its unmatched filename; use `semantic-correction-consumer.spec.ts` in its place
-for a combined five-spec rerun. Logs are captured with `2>&1 | Tee-Object` and
-the original `$LASTEXITCODE` propagated. SHA256:
+Historical execution, not a supported copy-ready command: the first run used
+the same four other filters but mistyped the consumer filter as
+`lib/visual-package/__tests__/semantic-correction-consumer-validation.spec.ts`;
+it selected4 specs/103 tests. The separate correct consumer run used
+`semantic-correction-consumer.spec.ts --maxWorkers=1`,32 tests. The full gate
+was `npm run check`. Original logs were captured with `2>&1 | Tee-Object` and
+the original `$LASTEXITCODE` propagated. The corrected block does not rewrite
+what those logs recorded. SHA256:
 
 - bridge-focused.log: `5d3cde185474feb56c16986a13167ac29a6502618b90ff397c078a514d16ac66`
 - focused-final.log: `d7898b8c359e435fba56d24e9259dff490a98f5ca638a58daeca13bf5e3b6459`
@@ -151,7 +214,7 @@ release acceptance is asserted, and M2b is not complete.
 
 ## Next functional work and rollback
 
-Independent code QA of this immutable milestone, fix valid findings if any;
+Original handoff sequence (code review now supplied; P2 correction re-gate pending):
 complete actual v6 Blueprint/package context consumers; author/review the real
 reconciliation decisions and bind them at the qualified current HEAD; produce
 qualified Blueprint/package/Board artifacts, then the bounded visual sample
@@ -163,7 +226,7 @@ Rollback: do not invoke the four additive v6 operations; v5 remains available.
 If code rollback is needed, revert this focused commit with normal review;
 preserve all prior artifacts and evidence, no branch/worktree deletion.
 
-## Claude Code — ready-to-copy review brief
+## Claude Code — original implementation review brief (completed)
 
 Review-only first pass. Worktree and branch above, base c0b3334e; resolve the
 exact implementation HEAD from the final handoff, not an unpinned moving HEAD.

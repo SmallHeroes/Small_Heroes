@@ -1,6 +1,6 @@
 # SmallHeroes — Roadmap
 
-**Last verified:** 2026-09-09 (documentation pushed throughc0b3334e; v6 reviewed-reconciliation code implemented, independent QA pending; M2b and gate reliability still open)
+**Last verified:** 2026-09-09 (v6 reviewed-reconciliation code PASS through8766aff1; focused-command P2 corrected locally, re-gate pending; M2b and gate reliability still open)
 **Product priority owner:** Guy
 **Technical sequencing owner:** Codex
 
@@ -31,6 +31,16 @@ Blueprint and any required LOW Board/prop generation remain separately budgeted
 provider actions with exact owner gates.
 
 ## Active
+
+Claude supplied code PASS0/0/1 for c0b3334e..8766aff1, independently reproducing
+135focused/140hostile and5767passed/73existing skips/0failed full gate. The sole
+P2 is corrected in the documented focused command: exact paths, existence and
+duplicate preflight, expected5 files/135 tests at8766aff1. No production code
+or runner changes; correction re-gate pending. Code PASS ends at8766aff1.
+Actual Blueprint/package consumer cutovers and real reconciliation content
+remain next. The original semantic HOLD and timing P1 are not closed.
+
+Historical implementation handoff at8766aff1, before independent review:
 
 V6 reviewed-reconciliation prepare/read and exact approval record/read now use
 the existing reviewer engine with the corrected template and coverage. The
