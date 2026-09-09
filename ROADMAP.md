@@ -1,6 +1,6 @@
 # SmallHeroes — Roadmap
 
-**Last verified:** 2026-09-09 (M2b historical-input PASS received; current-consumer validation implemented locally; final full check NON-GREEN: 5680 passed / 73 existing skips / 13 timeouts)
+**Last verified:** 2026-09-09 (M2b current-consumer independent PASS received; diagnostic archive relocation validated; fresh local full gate GREEN: 5693 passed / 73 existing skips / zero failed)
 **Product priority owner:** Guy
 **Technical sequencing owner:** Codex
 
@@ -31,6 +31,23 @@ Blueprint and any required LOW Board/prop generation remain separately budgeted
 provider actions with exact owner gates.
 
 ## Active
+
+Claude independently passed the current-consumer boundary `f59fe086..aa3eade8`
+(0/0/0), not complete M2b or repository/product/render readiness. Bounded timing
+diagnostics passed all 13 previously failing cases; a complete uninstrumented
+run also passed those cases but found one separate archive-scan assertion.
+Codex's baseline extraction inside outputs was relocated outside the repository
+after full preservation checks; no code, scanner policy or timeouts changed.
+The scanner passed 4/4 after relocation. The post-relocation complete local gate
+passed 5693 tests with 73 existing skips, zero failed and both typechecks;
+390/368/22 inventory and 4/2 workers unchanged. No new independent gate verdict.
+Intermittent timing root cause is still unresolved. Next implementation remains
+changed-coverage manifest and exact approval/reconciliation/downstream cutover;
+no new M2b code is delivered by this diagnosis. Original P1 HOLD, exact owner
+acceptance and payment-last priority remain. See CURRENT and the bounded
+timing diagnosis evidence for scope, identities and retained failed runs.
+
+Historical checkpoint before the current supplied PASS:
 
 Claude passed the historical-input boundary `fdd568af..f59fe086` (0/0/0),
 not full M2b or the repository gate. Current-consumer read-only validation is

@@ -1,6 +1,50 @@
 # SmallHeroes — Current Technical State
 
-## M2b current-consumer validation — IMPLEMENTED; FINAL FULL CHECK NON-GREEN
+## M2b current-consumer boundary — INDEPENDENT PASS; fresh LOCAL FULL GATE GREEN
+
+2026-09-09: Guy supplied Claude's read-only PASS P0=0/P1=0/P2=0 for exactly
+`f59fe086..aa3eade8`. The one-commit / 10-path / +607/-15 topology reconciles.
+This passes the current-consumer validation boundary only, not complete M2b,
+the repository gate, exact semantic acceptance or render readiness. Claude
+reproduced both typechecks, 93 focused tests, 18 adversarial assertions and
+CLI/probe checks. Its full-gate assessment was log/hash verification only;
+the real Git gate short-circuited its packet attacks and positive validation.
+Synthetic current Git remains explicitly non-authoritative.
+
+This existing task remains sole writer on `codex/r3b1b-semantic-recovery-m1`,
+`C:/GNart/Work/sh-r3b1b-semantic-m1`, clean base `aa3eade8`, cached ahead 12 /
+behind 0 at start. Dependencies d53b `768ccb2f` and accepted-intent `63ccb484`
+remain clean/read-only. Bounded diagnostics found process cost dominates the
+selected formerly failing tests: all 13 passed (15 with two extra controls),
+470 successful Git calls, no native error. Prior timing root cause remains
+unresolved; no deadline, worker, runner, test or production-code change.
+
+The first complete uninstrumented gate passed all 13 formerly failing tests
+but failed a different assertion: 5692 passed / 73 existing skips / one failed.
+The repository-wide escape-hatch scanner reached Codex's earlier extracted
+baseline inside outputs and rejected three archived paths. That extraction
+was created after the preceding thirteen-timeout run; it does not explain it.
+Corrected only this artifact location, moving the extraction (not a Git
+worktree) outside the repo to
+`C:/GNart/Work/sh-r3b1b-diagnostic-archives/base-f59fe086-20260909`.
+Before/after inventories match all 3191 files / 273660655 bytes / 435
+directories and the unchanged dependency junction. The tar and all failed
+logs remain; nothing deleted. The unmodified scanner then passed 4/4.
+Post-relocation complete `npm run check` exited 0: **5693 passed / 73 existing
+skips / zero failed**, both typechecks. Ordinary 5022, resource 671, unchanged
+390/368/22 inventory and 4/2 workers. This is a fresh local full-run result,
+not an independent repository PASS or a timing-reliability fix. Exact log SHA:
+`71ec9cdf6de20316626a1c24f549f047bf11a63413f248dca04f5f67e976b3bc`.
+
+Evidence: `docs/ai-workflow/R3B1B_M2B_BOUNDED_TIMING_DIAGNOSIS.md` and
+`outputs/qa-m2b-timing-20260909/HANDOFF.md`. No diagnostic/test/reviewer process
+remains running at handoff; no new Claude review was dispatched. M2b still needs the changed-coverage
+manifest, exact approval/reconciliation binding and downstream cutover.
+P1 remains HELD P0=0/P1=3/P2=3; exact packet acceptance remains Guy's.
+No provider/key access, render, approval/Blueprint/package/source/locator
+change, payment, publication, deployment or push. Application spend USD 0.
+
+## Historical M2b current-consumer implementation — FINAL FULL CHECK NON-GREEN
 
 2026-09-09: Guy supplied Claude's historical-input-boundary PASS
 P0=0/P1=0/P2=0 for exactly `fdd568af..f59fe086`. Branch/worktree and
