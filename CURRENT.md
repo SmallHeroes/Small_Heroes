@@ -1,6 +1,48 @@
 # SmallHeroes — Current Technical State
 
-## M2b approval/pending bridge — INDEPENDENT CODE PASS; bounded P2 correction
+## M2b — re-gate PASS; authorized push and REAL approval/pending-bridge execution
+
+2026-09-09: Claude's supplied re-gate PASS P0=0/P1=0/P2=0 covers
+`54dbc4a7..28f25ef7`; combined reviewed code boundary now ends at28f25ef7.
+P2-1/5/6 fixed, P2-2 withdrawn (recipe already published), P2-3/4 accepted as
+retained. Timestamp replay rationale applies to read-time windows only;
+a write-time-only bound is possible but not required by this operator trust model.
+Report also records an OUT-OF-RANGE P1-severity reliability finding: a third
+resource timeout, live-execution-supervisor.spec.ts:2318, fake-key rejection,
+8020ms. Both earlier flaky cases passed in that run. It does not block this
+correction's PASS; resource-phase timing reliability remains unresolved.
+Reviewer reports150focused/194hostile/both typechecks; its full run was non-green
+(one resource timeout). Codex's earlier5732/73/0 run remains real, not stability.
+
+Guy explicitly authorized pushing both local commits and local no-cost
+verification. Push advanced origin4039f4c8..28f25ef7, exit0; HEAD/upstream/live
+ls-remote matched28f25ef7, clean0/0 during execution. Same sole-writer task,
+C:/GNart/Work/sh-r3b1b-semantic-m1, codex/r3b1b-semantic-recovery-m1. Protected
+d53b768ccb2f and accepted-intent63ccb484 remain clean/read-only.
+
+At that real reviewed HEAD, the actual CLI successfully previewed, wrote and
+reloaded approval c2b51f0d... and pending bridge80177ac9... under
+outputs/r3b1b-p1-semantic-approval-v1-20260909. No mocked Git. Replay created=false;
+real negative checks rejected wrong digest, rehashed approved-stage copy and
+old-v5 consumption without changing either original file. Exact identities,
+commands, launcher failure/correction, logs and seven-group probe are recorded
+in outputs/qa-m2b-real-approval-20260909/READOUT.md. Original14files and packet
+hashes unchanged. Current proofc71ca2fc... is bound to28f25ef7, not timeless.
+
+Draft remains reconciliation_pending, productionContext=null, readyForApproval
+false (13frames/54presentation requirements/80pending reconciliation findings).
+No reconciliation decisions, Blueprint, package, source/locator, render,
+publication, deployment or payment operation. Provider calls0; spendUSD0.
+Local real positive execution is now proven; independent runtime QA is not claimed.
+Next implementation: v6 reviewed-reconciliation advancement and real downstream
+consumer cutovers. Guy's exact content acceptance remains valid, no re-ask.
+
+This documentation closeout follows execution; it changes current Git and
+therefore stales the saved pending-manifest proof by design. Fresh validation
+and a newly prepared manifest are required at the next clean/parity HEAD;
+do not rewrite the original. No automatic push of this new documentation commit.
+
+## Historical bounded P2 correction at28f25ef7
 
 2026-09-09: supplied Claude Code PASS P0=0/P1=0/P2=6 is accepted for exactly
 `4039f4c8..54dbc4a7` (one commit, eight paths, +664/-4). Branch/HEAD and clean

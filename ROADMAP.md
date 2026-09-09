@@ -1,6 +1,6 @@
 # SmallHeroes — Roadmap
 
-**Last verified:** 2026-09-09 (M2b approval/pending bridge independent code PASS 0/0/6 at 54dbc4a7; bounded P2 correction locally green, re-gate pending; repository stability still open)
+**Last verified:** 2026-09-09 (re-gate PASS0/0/0 through28f25ef7; authorized push and real approval/pending-bridge execution verified locally; M2b and gate reliability still open)
 **Product priority owner:** Guy
 **Technical sequencing owner:** Codex
 
@@ -31,6 +31,22 @@ Blueprint and any required LOW Board/prop generation remain separately budgeted
 provider actions with exact owner gates.
 
 ## Active
+
+The two reviewed commits through28f25ef7 were explicitly authorized and pushed.
+Real clean-parity CLI preview/write/reload and idempotent replay now pass for
+the accepted exact packet. Immutable content approval and pending v6 draft
+exist; no synthetic Git, provider or render. This closes the local positive
+execution gap, not reviewed reconciliation or complete M2b. The draft remains
+unapproved with80pending reconciliation findings; remaining work is the v6
+reviewed-reconciliation flow and actual Blueprint/package consumer cutovers.
+Documentation/code movement stales the pending manifest's28f25ef7 proof; freshly
+validate and prepare another manifest at the next clean/parity HEAD, preserving
+the already-accepted content decision. See CURRENT and real-approval READOUT.
+Claude's new out-of-range P1 tracks resource-phase timing beyond the two earlier
+specs (live-execution-supervisor:2318 also timed out). It is not caused by or a
+block on the corrected code PASS. No stability or release-readiness claim.
+
+Historical bounded P2 correction:
 
 Claude's code PASS covers 4039f4c8..54dbc4a7 only. Its supplied review reports
 5730 passed/73 skipped/0 failed independently; Codex's earlier two-timeout run
