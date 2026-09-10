@@ -12,7 +12,7 @@ import { recordSemanticCorrectionApproval, loadApprovedSemanticCorrection, prepa
   loadSemanticCorrectionBridge, prepareSemanticReconciliationReview, loadSemanticReconciliationReview,
   recordSemanticReconciliationApproval, loadApprovedSemanticReconciliation,
   materializeSemanticProductionInputs, prepareSemanticProductionBridge, loadSemanticProductionBridge,
-  inspectHistoricalSemanticProductionBridge,
+  inspectHistoricalSemanticProductionBridge, inspectHistoricalSemanticProductionRequest,
   type RecordSemanticCorrectionApprovalRequest } from '../semanticCorrectionApprovalBridge';
 import { buildSemanticCorrectionReviewPacket } from '../semanticCorrectionPreview';
 import { buildProductionReconciliationDraftFromSourceSnapshot } from '../reconciliationLifecycle';
@@ -20,6 +20,7 @@ import { p1SemanticRecoveryFixture, P1_REQUEST } from './fixtures/semantic-recov
 import { loadQaWizardProductionContext } from '../qaWizardProductionContext';
 import { prepareQaWizardBlueprintLiveRequest, loadQaWizardBlueprintAuthoringManifest } from '../qaWizardBlueprintAuthoringLifecycle';
 import { STYLE01_PRODUCTION_STYLE_AUTHORITY_PATH, STYLE01_PRODUCTION_STYLE_ID } from '../styleAuthority';
+import { buildProductionAuthoringRunRequest } from '../productionAuthoringRunner';
 
 vi.mock('../semanticCorrectionConsumerValidation', async original => ({
   ...await original<typeof import('../semanticCorrectionConsumerValidation')>(), validateSemanticCorrectionForCurrentConsumer: vi.fn(),
@@ -127,6 +128,45 @@ beforeEach(()=>{
 afterEach(()=>{vi.restoreAllMocks();if(root)fs.rmSync(root,{recursive:true,force:true});});
 
 describe('semantic production context and real Blueprint consumer', () => {
+  it('validates a historical request without exporting a dispatch context', async () => {
+    const { produced, identity } = await historicalProductionSubject();
+    const runRequest = buildProductionAuthoringRunRequest({ context: produced.context, mode: 'live',
+      requestId: 'historical-request', requestedAt: request.approvedAt });
+    const result = await inspectHistoricalSemanticProductionRequest({ ...identity, request: runRequest });
+    expect(result.requestDigest).toBe(canonicalHash(runRequest));
+    expect(result.productionContextDigest).toBe(produced.context.digest);
+    expect(result.authoringAuthorityDigest).toMatch(/^[a-f0-9]{64}$/);
+    expect(result.authorityScope).toBe('historical_semantic_request_evidence_only');
+    expect(result).not.toHaveProperty('context');
+    expect(result).not.toHaveProperty('request');
+    expect(result.providerCalls).toBe(0);
+    await expect(loadSemanticProductionBridge(identity)).rejects.toThrow();
+  });
+  it.each(['context', 'program', 'budget', 'mode', 'extra'])('rejects historical request substitution: %s', async kind => {
+    const { produced, identity } = await historicalProductionSubject();
+    const runRequest = buildProductionAuthoringRunRequest({ context: produced.context, mode: 'live',
+      requestId: 'historical-request', requestedAt: request.approvedAt });
+    if (kind === 'context') runRequest.contextDigest = 'f'.repeat(64);
+    if (kind === 'program') runRequest.program.digest = 'f'.repeat(64);
+    if (kind === 'budget') runRequest.callBudget.maxCalls = 4;
+    if (kind === 'mode') runRequest.mode = 'preflight';
+    if (kind === 'extra') Object.assign(runRequest, { bypass: true });
+    await expect(inspectHistoricalSemanticProductionRequest({ ...identity, request: runRequest })).rejects.toThrow();
+  });
+  it('pins the historical request before awaiting source validation', async () => {
+    const { produced, identity } = await historicalProductionSubject();
+    const runRequest = buildProductionAuthoringRunRequest({ context: produced.context, mode: 'live',
+      requestId: 'pinned-historical-request', requestedAt: request.approvedAt });
+    const expectedDigest = canonicalHash(runRequest);
+    validate.mockImplementationOnce(async () => {
+      runRequest.contextDigest = 'f'.repeat(64);
+      runRequest.program.digest = 'f'.repeat(64);
+      return validated;
+    });
+    const result = await inspectHistoricalSemanticProductionRequest({ ...identity, request: runRequest });
+    expect(result.requestDigest).toBe(expectedDigest);
+    expect(result.requestDigest).not.toBe(canonicalHash(runRequest));
+  });
   it('inspects historical approved production evidence without making it current authority', async () => {
     const { produced, identity } = await historicalProductionSubject();
     await expect(loadSemanticProductionBridge(identity)).rejects.toThrow('semantic_bridge_manifest_reconstruction_mismatch');

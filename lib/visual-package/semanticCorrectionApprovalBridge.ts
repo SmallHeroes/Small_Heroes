@@ -14,6 +14,8 @@ import { sourcePromptReconciliationIssues } from './sourcePromptReconciliation';
 import { QA_WIZARD_RECONCILIATION_PROSPECTIVE_VALIDATION_TIMESTAMP } from './qaWizardCandidateBridge';
 import { assertProductionTemplateSetBoardAdmission } from './qaWizardCandidateBridge';
 import { buildProductionAuthoringContextFromApprovedReconciliation } from './productionAuthoringContext';
+import { productionAuthoringRunRequestReplayIssues, type ProductionAuthoringRunRequest } from './productionAuthoringRunner';
+import { buildPreRenderBlueprintAuthoringAuthority } from './preRenderBlueprint';
 
 export const SEMANTIC_CORRECTION_APPROVAL_VERSION = 'visual-contract-semantic-correction-approval/v1' as const;
 export const QA_WIZARD_SEMANTIC_BRIDGE_MANIFEST_VERSION = 'qa-wizard-candidate-bridge-manifest/v6' as const;
@@ -454,6 +456,37 @@ export async function loadSemanticProductionBridge(input: { consumerRepoRoot: st
 export async function inspectHistoricalSemanticProductionBridge(input: {
   consumerRepoRoot: string; manifestPath: string; expectedManifestDigest: string;
 }) {
+  return (await reconstructHistoricalSemanticProductionBridge(input)).inspection;
+}
+
+/** Request evidence only. The reconstructed context stays private, never a
+ * caller-supplied override of current production authority. Snapshot the request
+ * before the asynchronous historical/current validation boundary. */
+export async function inspectHistoricalSemanticProductionRequest(input: {
+  consumerRepoRoot: string; manifestPath: string; expectedManifestDigest: string;
+  request: ProductionAuthoringRunRequest;
+}) {
+  const args = argumentsCopy(input, ['consumerRepoRoot', 'manifestPath', 'expectedManifestDigest', 'request']);
+  const { request, ...identity } = args;
+  const { inspection, context } = await reconstructHistoricalSemanticProductionBridge(identity);
+  if (request.mode !== 'live' || productionAuthoringRunRequestReplayIssues({ request, context }).length > 0) {
+    throw new Error('semantic_history_request_invalid');
+  }
+  const validation = context.validationContext;
+  const authority = buildPreRenderBlueprintAuthoringAuthority({ storyKey: context.storyKey,
+    source: validation.source, template: validation.templateIdentity, reconciliation: validation.reconciliation,
+    reconciliationArtifactPath: validation.reconciliationArtifactPath, style: validation.style });
+  return sealed({ version: 'historical-semantic-request-inspection/v1' as const,
+    authorityScope: 'historical_semantic_request_evidence_only' as const,
+    inspection, productionContextVersion: context.version, productionContextDigest: context.digest, requestDigest: canonicalHash(request),
+    authoringAuthorityDigest: authority.digest, providerCalls: 0 as const, zeroWrite: true as const,
+    doesNotAuthorize: ['current_production_context', 'execution_claim', 'provider_call', 'retry', 'blueprint_approval', 'image_render'] });
+}
+
+// Private reconstruction shared only by the two evidence-only inspections.
+async function reconstructHistoricalSemanticProductionBridge(input: {
+  consumerRepoRoot: string; manifestPath: string; expectedManifestDigest: string;
+}) {
   const args = argumentsCopy(input, ['consumerRepoRoot', 'manifestPath', 'expectedManifestDigest']);
   const reads: Array<() => void> = [];
   function observed<T>(file: string, category: ApprovalCategory, expected: string) {
@@ -540,11 +573,12 @@ export async function inspectHistoricalSemanticProductionBridge(input: {
   if (!equal(readCurrentQaWizardConsumerRepositoryAuthority(args.consumerRepoRoot), now)) {
     throw new Error('semantic_history_consumer_changed_during_inspection');
   }
-  return sealed({ version: 'historical-semantic-production-inspection/v1' as const,
+  const inspection = sealed({ version: 'historical-semantic-production-inspection/v1' as const,
     authorityScope: 'historical_semantic_production_evidence_only' as const,
     manifestDigest: built.manifest.digest, productionContextDigest: built.context.digest,
     subject: built.manifest.subject, reconciliationApprovalDigest: rebuiltApproval.digest,
     historicalConsumer: previous, currentValidationDigest: approved.validated.proof.digest,
     providerCalls: 0 as const, zeroWrite: true as const,
     doesNotAuthorize: ['current_production_context', 'execution_claim', 'provider_call', 'retry', 'blueprint_approval', 'image_render'] });
+  return { inspection, context: built.context };
 }

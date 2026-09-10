@@ -1,4 +1,28 @@
-# Failed-provider Blueprint recovery — decision brief, not implementation
+# Failed-provider Blueprint recovery — approved scope and implementation record
+
+## Continuation status — 2026-09-10
+
+Claude re-gate PASS0/0/0 for7d6ed521..cf78b4b2 closes both P2s; code PASS stops
+atcf78b4b2. Claude independently reproduced5835/73skipped/0failed and both
+typechecks. The historical non-green runs below and reliability P1 remain.
+The existing USD5 owner decision is unchanged and unused, no new approval needed
+for the scoped offline continuation. No push or paid execution is part of it.
+
+At cleancf78b4b2/0/0, unmocked historical production inspection of real bridge
+e38b78c8 succeeded, recovering contextfe930e70 and inspectionbe789b5b. The prior
+"never unmocked" limitation below describes the earlier milestone, not this run.
+Now implemented: snapshot-bound historical request evidence without context export,
+and read-only failed-provider predecessor ledger/claim/binding/manifest/request/v8
+receipt eligibility, including conflict checks and post-await re-observation.
+The new complete predecessor inspection on the real ledger reached the expected
+current-consumer dirty rejection during edits, so no unmocked success of that
+new API is claimed. Details and final validation are in CURRENT.md.
+
+Still absent: current target advancement, successor authorization/atomic slot,
+executor/CLI and successor concurrency/replay/crash proof. No provider caller
+was added. Independent review before spend applies to the complete implementation,
+not merely these prerequisites. No change to normal current loaders, old replay,
+frozen legacy diagnostic v1, content, model, budget or render/acceptance gates.
 
 ## Owner decision and execution split — 2026-09-10
 

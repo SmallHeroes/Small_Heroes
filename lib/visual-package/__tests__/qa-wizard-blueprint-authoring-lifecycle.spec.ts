@@ -4,8 +4,14 @@ import os from 'node:os';
 import path from 'node:path';
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { SEMANTIC_PRODUCTION_BRIDGE_VERSION } from '../semanticCorrectionApprovalBridge';
 
 const bridgeLoaderMock = vi.hoisted(() => vi.fn());
+const historicalRequestMock = vi.hoisted(() => vi.fn());
+vi.mock('../semanticCorrectionApprovalBridge', async original => ({
+  ...await original<typeof import('../semanticCorrectionApprovalBridge')>(),
+  inspectHistoricalSemanticProductionRequest: historicalRequestMock,
+}));
 
 vi.mock('../qaWizardProductionContext', async () => {
   const actual = await vi.importActual<
@@ -66,6 +72,7 @@ import {
   QA_WIZARD_BLUEPRINT_TERMINAL_BINDING_VERSION,
   executeBlueprintReplacementLiveRequest,
   executeQaWizardBlueprintLiveRequest,
+  inspectFailedProviderBlueprintPredecessor,
   loadQaWizardBlueprintAuthoringManifest,
   prepareQaWizardBlueprintLiveRequest,
   productionBlueprintAuthoringReceiptReplayIsValid,
@@ -173,6 +180,7 @@ const STYLE_ID = 'soft_hand_drawn_storybook';
 
 afterEach(() => {
   bridgeLoaderMock.mockReset();
+  historicalRequestMock.mockReset();
   captureMockState.requiresCapture = null;
   captureMockState.buildThrows = null;
   for (const root of tempRoots.splice(0)) {
@@ -531,6 +539,123 @@ async function prepare(args: ReturnType<typeof setup>) {
     write: true,
   }));
 }
+
+// Real runner/adapter/receipt/immutable ledger, with the historical source-chain
+// boundary mocked here. Its unmocked builders are tested in the semantic spec.
+async function failedProviderPredecessorFixture(kind: 'transport' | 'credential' | 'raw' = 'transport') {
+  const subject = setup();
+  Object.assign(subject.bridge, { version: SEMANTIC_PRODUCTION_BRIDGE_VERSION });
+  const preflight = await prepare(subject);
+  const transport = { create: vi.fn(async (args: Parameters<OpenAIResponsesAuthoringTransport['create']>[0]) => {
+    args.observations.transportDispatchStarted = true;
+    args.observations.transportDispatchCount += 1;
+    args.observations.canonicalRouteConfirmed = true;
+    args.observations.canonicalModelConfirmed = true;
+    throw new Error('synthetic transport failure');
+  }) };
+  const providerFactory = vi.fn(() => kind === 'raw' ? { call: async () => { throw new Error('raw failure'); } } :
+    createOpenAIResponsesBlueprintAuthoringAdapter({ transport, readCredential: () => {
+      if (kind === 'credential') throw new Error('synthetic credential failure');
+      return 'synthetic-key';
+    } }));
+  const terminal = await executeQaWizardBlueprintLiveRequest({ repoRoot: subject.repoRoot,
+    preflightManifestPath: preflight.manifestPath, outputDir: OUTPUT_DIR, write: true }, { providerFactory });
+  const lookup = JSON.parse(fs.readFileSync(path.join(subject.repoRoot, terminal.executionRecordPath), 'utf8'));
+  historicalRequestMock.mockResolvedValue({ requestDigest: lookup.requestDigest,
+    productionContextVersion: subject.context.version,
+    productionContextDigest: preflight.request.contextDigest, authoringAuthorityDigest: lookup.authoringAuthorityDigest,
+    inspection: { manifestDigest: subject.bridge.digest } });
+  return { subject, preflight, terminal, lookup, transport, providerFactory,
+    args: { repoRoot: subject.repoRoot, terminalLookupPath: terminal.executionRecordPath, terminalLookupDigest: lookup.digest } };
+}
+
+describe('failed-provider historical predecessor inspection', () => {
+  function sealedAgain(value: Record<string, unknown>) {
+    const { digest: _digest, digestAlgorithm: _algorithm, ...payload } = value;
+    return { ...payload, digestAlgorithm: 'canonical-json-sha256', digest: canonicalJsonDigest(payload) };
+  }
+  it('checks the canonical failed dispatch ledger with no writes or new provider calls', async () => {
+    const f = await failedProviderPredecessorFixture();
+    const before = fileInventory(f.subject.repoRoot);
+    const result = await inspectFailedProviderBlueprintPredecessor(f.args);
+    expect(result.receiptDigest).toBe(f.terminal.receipt.digest);
+    expect(result.historicalCharge).toBe('unknown');
+    expect(result.authorityScope).toBe('failed_provider_predecessor_evidence_only');
+    expect(result.providerCalls).toBe(0);
+    expect(result).not.toHaveProperty('context');
+    expect(fileInventory(f.subject.repoRoot)).toEqual(before);
+    expect(f.transport.create).toHaveBeenCalledTimes(1);
+    expect(f.providerFactory).toHaveBeenCalledTimes(1);
+  });
+  it.each(['credential', 'raw'] as const)('rejects %s failure without exact canonical dispatch evidence', async kind => {
+    const f = await failedProviderPredecessorFixture(kind);
+    await expect(inspectFailedProviderBlueprintPredecessor(f.args)).rejects.toThrow('receipt_ineligible');
+    expect(historicalRequestMock).not.toHaveBeenCalled();
+  });
+  it.each(['lookup', 'claim', 'preflight', 'terminal', 'receipt', 'binding'])('rejects %s bytes changed during historical validation', async kind => {
+    const f = await failedProviderPredecessorFixture();
+    const claim = JSON.parse(fs.readFileSync(path.join(f.subject.repoRoot, f.lookup.claimPath), 'utf8'));
+    const file = ({ lookup: f.args.terminalLookupPath, claim: f.lookup.claimPath,
+      preflight: f.preflight.manifestPath, terminal: f.terminal.manifestPath, receipt: f.terminal.receiptPath,
+      binding: `${QA_WIZARD_BLUEPRINT_AUTHORING_LEDGER_ROOT}/terminal-bindings/${claim.executionIdentityDigest}.json` })[kind]!;
+    const evidence = await historicalRequestMock();
+    historicalRequestMock.mockImplementationOnce(async () => {
+      fs.appendFileSync(path.join(f.subject.repoRoot, file), ' ');
+      return evidence;
+    });
+    await expect(inspectFailedProviderBlueprintPredecessor(f.args)).rejects.toThrow();
+    expect(f.transport.create).toHaveBeenCalledTimes(1);
+  });
+  it.each(['requestDigest', 'productionContextVersion', 'productionContextDigest', 'authoringAuthorityDigest'])('rejects mismatched historical %s', async key => {
+    const f = await failedProviderPredecessorFixture();
+    const evidence = await historicalRequestMock();
+    historicalRequestMock.mockResolvedValue({ ...evidence, [key]: 'f'.repeat(64) });
+    await expect(inspectFailedProviderBlueprintPredecessor(f.args)).rejects.toThrow('historical_authority_mismatch');
+  });
+  it.each(['lookup-digest', 'claim-version', 'claim-request', 'claim-program', 'claim-time', 'binding', 'incident', 'foreign-binding', 'extra-terminal'])
+    ('rejects substituted or conflicting %s evidence', async kind => {
+      const f = await failedProviderPredecessorFixture();
+      const read = (file: string) => JSON.parse(fs.readFileSync(path.join(f.subject.repoRoot, file), 'utf8'));
+      const write = (file: string, value: Record<string, unknown>) => writeText(f.subject.repoRoot, file,
+        canonicalContentAddressedJsonBytes(sealedAgain(value)));
+      const claim = read(f.lookup.claimPath);
+      const bindingFile = `${QA_WIZARD_BLUEPRINT_AUTHORING_LEDGER_ROOT}/terminal-bindings/${claim.executionIdentityDigest}.json`;
+      if (kind === 'lookup-digest') f.args.terminalLookupDigest = 'f'.repeat(64);
+      if (kind.startsWith('claim-')) {
+        const field = ({ 'claim-version': 'version', 'claim-request': 'requestDigest',
+          'claim-program': 'executionProgramDigest', 'claim-time': 'requestedAt' } as Record<string, string>)[kind]!;
+        claim[field] = kind === 'claim-time' ? '2026-09-10T00:00:00.000Z' : 'f'.repeat(64);
+        const changed = sealedAgain(claim);
+        writeText(f.subject.repoRoot, f.lookup.claimPath, canonicalContentAddressedJsonBytes(changed));
+        f.lookup.claimDigest = changed.digest;
+        const lookup = sealedAgain(f.lookup);
+        writeText(f.subject.repoRoot, f.args.terminalLookupPath, canonicalContentAddressedJsonBytes(lookup));
+        f.args.terminalLookupDigest = lookup.digest;
+      }
+      if (kind === 'binding') write(bindingFile, { ...read(bindingFile), requestDigest: 'f'.repeat(64) });
+      if (kind === 'incident') writeText(f.subject.repoRoot,
+        `${QA_WIZARD_BLUEPRINT_AUTHORING_LEDGER_ROOT}/execution-incidents/${claim.executionIdentityDigest}.json`, '{}');
+      if (kind === 'foreign-binding') write(
+        `${QA_WIZARD_BLUEPRINT_AUTHORING_LEDGER_ROOT}/terminal-bindings/${'f'.repeat(64)}.json`,
+        { ...read(bindingFile), executionIdentityDigest: 'f'.repeat(64) });
+      if (kind === 'extra-terminal') {
+        const other = sealedAgain({ ...f.terminal.manifest,
+          receipt: { ...f.terminal.manifest.receipt!, path: 'outputs/other-receipt.json' } });
+        writeText(f.subject.repoRoot, `${OUTPUT_DIR}/blueprint-authoring-manifests/${other.digest}.json`,
+          canonicalContentAddressedJsonBytes(other));
+      }
+      await expect(inspectFailedProviderBlueprintPredecessor(f.args)).rejects.toThrow();
+      expect(historicalRequestMock).not.toHaveBeenCalled();
+      expect(f.transport.create).toHaveBeenCalledTimes(1);
+    });
+  it('propagates historical rejection and rejects authority injection without dispatch', async () => {
+    const f = await failedProviderPredecessorFixture();
+    historicalRequestMock.mockRejectedValue(new Error('current_consumer_dirty'));
+    await expect(inspectFailedProviderBlueprintPredecessor(f.args)).rejects.toThrow('current_consumer_dirty');
+    await expect(inspectFailedProviderBlueprintPredecessor({ ...f.args, context: f.subject.context } as never)).rejects.toThrow('arguments_invalid');
+    expect(f.providerFactory).toHaveBeenCalledTimes(1);
+  });
+});
 
 function fileInventory(root: string): Array<{ path: string; bytes: string }> {
   if (!fs.existsSync(root)) return [];

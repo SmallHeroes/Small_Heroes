@@ -1,6 +1,6 @@
 # SmallHeroes — Roadmap
 
-**Last verified:** 2026-09-10 (historical prerequisite code PASS7d6ed521 with2 P2s; ancestry classification corrected locally; Claude full gate non-green from resource timeout; paid successor not connected)
+**Last verified:** 2026-09-10 (Claude code PASScf78b4b2, both P2s closed; historical production inspection succeeded on real frozen chain; failed-provider request/ledger evidence implemented locally; paid successor not connected, reliability P1 remains open)
 **Product priority owner:** Guy
 **Technical sequencing owner:** Codex
 

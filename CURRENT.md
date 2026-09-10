@@ -1,5 +1,74 @@
 # SmallHeroes — Current Technical State
 
+## Failed-provider recovery: historical request and predecessor evidence implemented
+
+2026-09-10. Guy's existing implementation approval remains in effect. Sole writer
+continues in C:/GNart/Work/sh-r3b1b-semantic-m1 on
+codex/r3b1b-semantic-recovery-m1. At start HEAD/local upstream were cf78b4b2,
+clean ahead0/behind0. Protected d53b768ccb2f and accepted-intent63ccb484 remain
+clean/read-only. No push, credential load, actual provider call or paid attempt.
+
+Latest received independent QA: Claude PASS P0=0/P1=0/P2=0 for
+7d6ed521886c6a5c2f9c8182417f1bdf01c65a24..cf78b4b20727a72bc5b16bc3db06710b1d18fbbf.
+Both prior P2 findings are CLOSED; code PASS ends at cf78b4b2, not this work.
+Claude independently reported 5835 passed/73 existing skips/0 failed, both
+typechecks0, inventory391/369/22. The older non-green runs below remain historical
+evidence; the separate resource-phase reliability P1 is NOT closed by that green.
+Planning-only b2788c23..4b7dd5a1 remains deliberately ungated, not retroactively
+approved or reviewed. Guy's spend decision was recorded in reviewed7d6ed521.
+
+Before edits, the existing historical production inspection succeeded UNMOCKED
+against the real frozen Dini bridge e38b78c8: context fe930e70, reconciliation
+approval e96509ba, historical consumer f4cf3f05, current validation ba6972db,
+inspection be789b5b, providerCalls0/zeroWrite. This was production-chain evidence,
+not validation of the failed receipt or authority for a new execution.
+
+Implemented now: a private shared historical reconstruction with two public
+evidence-only views; the new request view snapshots its input, validates the
+request against the reconstructed context, and exposes identities, NOT a context.
+The new inspectFailedProviderBlueprintPredecessor verifies the canonical ordinary
+v2 lookup/claim, same-root preflight/terminal/request, current program, full v8
+receipt replay, exactly one initial canonical failed dispatch with no response or
+usage, zero repair/retry/fallback, terminal binding and no conflicting terminal,
+foreign binding or incident. It binds historical semantic request/context/authoring
+authority and re-observes files after asynchronous validation. It writes nothing.
+Historical charge is explicitly unknown. No story, child or page-specific rule.
+
+Real frozen ledger inspection with the NEW implementation reached
+candidate_validation_consumer_repository_stale_or_dirty while this worktree was
+being edited. It passed the synchronous ledger/receipt checks before that current
+source-chain boundary, but this is NOT a successful unmocked end-to-end inspection.
+Do not weaken the current validator or infer completion from fixture tests.
+
+Still to implement under the same approved brief: exact current-target advancement,
+versioned successor candidate/authorization, predecessor-bound atomic single-use
+slot, shared executor/CLI wiring, and successor race/replay/crash tests. No paid
+caller uses either new evidence API. Ordinary/current loaders and frozen legacy
+diagnostic v1 are unchanged. No completed-recovery or render-ready claim.
+One additional USD5 execution remains UNUSED and must wait for independent QA of
+the FULL successor. Original unknown charge is separate. P1 HELD0/3/3, M2b,
+Boards/package and book readiness remain open. Payment work remains deferred.
+
+Validation history: request regression red6 (missing export), then green6;
+ledger fixture initially rejected an incorrect test-only bridge version12/12,
+corrected to the actual exported constant, then green12 and expanded green23.
+The ledger tests use the real runner, canonical adapter with synthetic transport,
+receipt and filesystem ledger; only production/historical context boundaries are
+mocked. They make no external call. One additional request snapshot test is in
+the full run. tsc --noEmit and diff --check passed before the full gate.
+Final npm run check exit0: 5865 passed/73 existing skips/0 failed, both typechecks0;
+ordinary5194/resource671, inventory391(369/22), workers4/2 unchanged. Edited specs
+128/128 and87/87 passed in that full run (30 additional tests total). All45
+prior real-run inventory entries unchanged. The reliability P1 remains open.
+Logs under outputs/qa-blueprint-provider-diagnostic-20260909:
+failed-provider-predecessor-full-check.stdout.log SHA256
+a7943440a430bf17ee462e155b9f0c76e728143b8857423159308280d2980dcf;
+failed-provider-predecessor-full-check.stderr.log SHA256
+4ac40286be04710b2f86dbc6e4080b8573ede58868451ba0d618c46c7095abf5.
+FAILED_PROVIDER_PREDECESSOR_HANDOFF.md contains the immutable review range and
+limitations after commit. These outputs are ignored/local-only with no verified
+off-machine backup. Local commit only; no push and no independent PASS claimed.
+
 ## Historical inspection QA received — ancestry classification correction
 
 2026-09-10: Claude supplied code PASS P0=0/P1=0/P2=2 for exactly

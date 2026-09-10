@@ -14,7 +14,7 @@ import {
   QA_WIZARD_CANDIDATE_BRIDGE_MANIFEST_VERSION,
 } from './qaWizardCandidateBridge';
 import { loadQaWizardProductionContext, type QaWizardProductionBridgeAuthority } from './qaWizardProductionContext';
-import { SEMANTIC_PRODUCTION_BRIDGE_VERSION } from './semanticCorrectionApprovalBridge';
+import { SEMANTIC_PRODUCTION_BRIDGE_VERSION, inspectHistoricalSemanticProductionRequest } from './semanticCorrectionApprovalBridge';
 import {
   LEGACY_PRODUCTION_AUTHORING_RUN_REQUEST_VERSION_V4,
   LEGACY_PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION_V7,
@@ -3049,6 +3049,157 @@ export async function loadQaWizardBlueprintAuthoringManifest(args: {
   // Pin scalar request inputs before asynchronous authority validation.
   args = { ...args };
   return (await loadQaWizardBlueprintManifestAuthority(args)).manifest;
+}
+
+/** Read-only eligibility evidence, NOT an execution or replacement authority.
+ * Historical context reconstruction stays inside the semantic evidence boundary.
+ * Ordinary/current loaders, replay and legacy diagnostic v1 are unchanged. */
+export async function inspectFailedProviderBlueprintPredecessor(input: {
+  repoRoot: string; terminalLookupPath: string; terminalLookupDigest: string;
+}) {
+  if (!exactKeys(input, ['repoRoot', 'terminalLookupPath', 'terminalLookupDigest']) ||
+      typeof input.repoRoot !== 'string' || typeof input.terminalLookupPath !== 'string' ||
+      typeof input.terminalLookupDigest !== 'string' || !HEX_SHA256.test(input.terminalLookupDigest)) {
+    throw new Error('failed_provider_predecessor_arguments_invalid');
+  }
+  const args = { ...input };
+  const reads: Array<{ file: string; bytes: string }> = [];
+  function observed(file: string) {
+    const loaded = readJsonObject({ repoRoot: args.repoRoot, artifactPath: file, label: 'failed provider predecessor' });
+    if (repoRelativePath(args.repoRoot, loaded.absolutePath) !== file ||
+        loaded.rawBytes !== canonicalContentAddressedJsonBytes(loaded.value)) {
+      throw new Error('failed_provider_predecessor_noncanonical');
+    }
+    reads.push({ file, bytes: loaded.rawBytes });
+    return loaded;
+  }
+  function manifestAt(file: string) {
+    const loaded = observed(file);
+    if (!manifestShapeIsValid(loaded.value)) throw new Error('failed_provider_predecessor_manifest_invalid');
+    assertCanonicalContentAddressedJson({ ...loaded, artifactPath: file, digest: loaded.value.digest,
+      category: 'blueprint-authoring-manifests', label: 'failed provider predecessor' });
+    return loaded.value;
+  }
+  const lookup = observed(args.terminalLookupPath).value;
+  if (!executionRecordIsValid(lookup) || lookup.digest !== args.terminalLookupDigest || lookup.status !== 'failed') {
+    throw new Error('failed_provider_predecessor_lookup_invalid');
+  }
+  const claim = observed(lookup.claimPath).value;
+  if (!executionClaimIsValid(claim) || claim.digest !== lookup.claimDigest) {
+    throw new Error('failed_provider_predecessor_requires_ordinary_v2');
+  }
+  const preflight = manifestAt(claim.preflightManifestPath);
+  const terminal = manifestAt(lookup.terminalManifestPath);
+  const outputDir = outputDirFromManifestPath(claim.preflightManifestPath);
+  if (preflight.stage !== 'live_request_preflight_passed' || preflight.digest !== claim.preflightManifestDigest ||
+      preflight.bridge.version !== SEMANTIC_PRODUCTION_BRIDGE_VERSION ||
+      terminal.stage !== 'authoring_failed' || terminal.digest !== lookup.terminalManifestDigest ||
+      outputDirFromManifestPath(lookup.terminalManifestPath) !== outputDir ||
+      terminal.predecessor?.digest !== preflight.digest || terminal.predecessor.path !== claim.preflightManifestPath ||
+      terminal.predecessor.version !== preflight.version ||
+      canonicalJsonDigest(terminal.bridge) !== canonicalJsonDigest(preflight.bridge) ||
+      canonicalJsonDigest(terminal.context) !== canonicalJsonDigest(preflight.context) ||
+      canonicalJsonDigest(terminal.request) !== canonicalJsonDigest(preflight.request) ||
+      terminal.blueprint !== null || terminal.approval !== null || terminal.observabilityCapture !== undefined ||
+      terminal.receipt === null || terminal.receipt.digest !== lookup.receiptDigest || terminal.receipt.path !== lookup.receiptPath) {
+    throw new Error('failed_provider_predecessor_manifest_lineage_invalid');
+  }
+  const requestArtifact = observed(preflight.request.path);
+  assertCanonicalContentAddressedJson({ ...requestArtifact, artifactPath: preflight.request.path,
+    digest: preflight.request.digest, category: 'blueprint-authoring-requests', label: 'failed provider predecessor request' });
+  const request = requestArtifact.value as unknown as ProductionAuthoringRunRequest;
+  if (request.version !== PRODUCTION_AUTHORING_RUN_REQUEST_VERSION || request.version !== preflight.request.version ||
+      !blueprintAuthoringExecutionProgramIsCurrent(request.program) ||
+      request.mode !== 'live' || request.requestId !== preflight.request.requestId ||
+      request.requestedAt !== preflight.request.requestedAt || request.requestedAt !== claim.requestedAt ||
+      canonicalJsonDigest(request) !== preflight.request.digest ||
+      preflight.request.path !== relativeArtifactPath({ repoRoot: args.repoRoot, outputDir,
+        category: 'blueprint-authoring-requests', fileName: `${preflight.request.digest}.json` })) {
+    throw new Error('failed_provider_predecessor_request_invalid');
+  }
+  // Snapshot the receipt before the await as well, then apply the shared full
+  // replay validator (admission, cost accounting, attempts and attestations).
+  observed(terminal.receipt.path);
+  const receipt = loadProductionReceipt({ repoRoot: args.repoRoot, outputDir, authority: terminal.receipt, request });
+  if (receipt.version !== PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION || receipt.version !== terminal.receipt.version) {
+    throw new Error('failed_provider_predecessor_receipt_ineligible');
+  }
+  const attempt = receipt.attempts[0];
+  const exactDispatch = (attestation: typeof receipt.executionAttestation) =>
+    attestation.evidenceKind === 'canonical_adapter_observed' && attestation.canonicalModelConfirmed === true &&
+    attestation.canonicalRouteConfirmed === true && attestation.logicalProviderCalls === 1 &&
+    attestation.transportDispatchCount === 1 && attestation.transportRetryCount === 0 && attestation.fallbackUsed === false;
+  if (receipt.version !== PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION || receipt.status !== 'failed' ||
+      receipt.callCount !== 1 || receipt.repairCount !== 0 || receipt.attempts.length !== 1 ||
+      receipt.callBudget.maxCalls !== 3 || receipt.callBudget.maxRepairCount !== 2 || receipt.noFallback !== true ||
+      receipt.failure?.code !== 'provider_call_failed' || receipt.failure.phase !== 'provider_call' ||
+      receipt.failure.errorClass !== 'provider_execution_failure' || receipt.failure.repairEligibility !== 'ineligible' ||
+      receipt.failure.repairReasonCode !== 'provider_execution_not_repairable' ||
+      receipt.blueprintDigest !== null || receipt.authoringProvenanceDigest !== null || receipt.diagnosticCensusCommitment !== null ||
+      !attempt || attempt.kind !== 'initial' || attempt.attempt !== 1 || attempt.failureCode !== 'provider_call_failed' ||
+      attempt.failureEvidenceKind !== 'provider_adapter_boundary' || attempt.failureEvidenceReason !== 'provider_call_failed' ||
+      attempt.responseId !== null || attempt.responseDigest !== null || attempt.completionStatus !== null ||
+      attempt.usage !== null || attempt.usageEvidenceComplete !== false || attempt.nominalEstimatedCostUsd !== null ||
+      attempt.conservativeCallCostUsd !== null || attempt.diagnosticCensusCommitment !== null ||
+      !exactDispatch(receipt.executionAttestation) || !exactDispatch(attempt.executionAttestation)) {
+    throw new Error('failed_provider_predecessor_receipt_ineligible');
+  }
+  const identity = { repoRoot: args.repoRoot, authoringAuthorityDigest: claim.authoringAuthorityDigest,
+    executionIdentityDigest: claim.executionIdentityDigest, requestDigest: claim.requestDigest,
+    preflightManifestDigest: claim.preflightManifestDigest };
+  if (lookup.authoringAuthorityDigest !== claim.authoringAuthorityDigest || lookup.requestDigest !== claim.requestDigest ||
+      claim.requestDigest !== preflight.request.digest || claim.executionProgramDigest !== request.program.digest ||
+      claim.executionIdentityDigest !== qaWizardBlueprintOrdinaryExecutionIdentityDigest({
+        authoringAuthorityDigest: claim.authoringAuthorityDigest, program: request.program }) ||
+      args.terminalLookupPath !== terminalLookupPath(identity) || lookup.claimPath !== claimPath(identity)) {
+    throw new Error('failed_provider_predecessor_execution_lineage_invalid');
+  }
+  const bindingFile = terminalBindingPath(identity);
+  observed(bindingFile);
+  const binding = loadTerminalBindingForIdentity(identity);
+  if (!binding || binding.terminalManifestDigest !== terminal.digest || binding.terminalManifestPath !== lookup.terminalManifestPath) {
+    throw new Error('failed_provider_predecessor_binding_invalid');
+  }
+  const incidentIdentity = { ...identity, claimDigest: claim.digest, claimPath: lookup.claimPath };
+  const terminalDigest = terminal.digest;
+  const terminalDirectory = path.dirname(resolveRepoPath(args.repoRoot, lookup.terminalManifestPath));
+  function assertNoIncidentOrForeignBinding() {
+    if (loadExecutionIncident(incidentIdentity) ||
+        foreignBoundTerminalManifestDigests({ repoRoot: args.repoRoot, executionIdentityKey: identity.executionIdentityDigest }).has(terminalDigest)) {
+      throw new Error('failed_provider_predecessor_conflicting_evidence');
+    }
+    for (const entry of fs.readdirSync(terminalDirectory, { withFileTypes: true })) {
+      if (!entry.isFile() || !HEX_SHA256.test(entry.name.replace(/\.json$/, ''))) continue;
+      const other = manifestAt(repoRelativePath(args.repoRoot, path.join(terminalDirectory, entry.name)));
+      if (other.digest !== terminalDigest && other.request.digest === identity.requestDigest &&
+          other.predecessor?.digest === identity.preflightManifestDigest &&
+          ['authoring_failed', 'blueprint_candidate'].includes(other.stage)) {
+        throw new Error('failed_provider_predecessor_conflicting_terminal');
+      }
+    }
+  }
+  assertNoIncidentOrForeignBinding();
+  const historical = await inspectHistoricalSemanticProductionRequest({ consumerRepoRoot: args.repoRoot,
+    manifestPath: preflight.bridge.path, expectedManifestDigest: preflight.bridge.digest, request });
+  if (historical.requestDigest !== claim.requestDigest || historical.productionContextVersion !== preflight.context.version ||
+      historical.productionContextDigest !== preflight.context.digest ||
+      historical.authoringAuthorityDigest !== claim.authoringAuthorityDigest ||
+      historical.inspection.manifestDigest !== preflight.bridge.digest) {
+    throw new Error('failed_provider_predecessor_historical_authority_mismatch');
+  }
+  for (const read of reads) assertAuthorityBytesUnchanged(args.repoRoot, read.file, read.bytes);
+  assertNoIncidentOrForeignBinding();
+  return digestPayload({ version: 'failed-provider-blueprint-predecessor-inspection/v1' as const,
+    authorityScope: 'failed_provider_predecessor_evidence_only' as const,
+    historical, executionIdentityDigest: claim.executionIdentityDigest, authoringAuthorityDigest: claim.authoringAuthorityDigest,
+    executionProgramDigest: request.program.digest, requestDigest: claim.requestDigest,
+    requestPath: preflight.request.path, preflightManifestDigest: preflight.digest, preflightManifestPath: claim.preflightManifestPath,
+    claimDigest: claim.digest, claimPath: lookup.claimPath, terminalLookupDigest: lookup.digest, terminalLookupPath: args.terminalLookupPath,
+    terminalBindingDigest: binding.digest, terminalBindingPath: bindingFile,
+    terminalManifestDigest: terminal.digest, terminalManifestPath: lookup.terminalManifestPath,
+    receiptDigest: receipt.digest, receiptPath: terminal.receipt.path, outputDir,
+    historicalCharge: 'unknown' as const, providerCalls: 0 as const, zeroWrite: true as const,
+    doesNotAuthorize: ['successor_execution', 'execution_claim', 'provider_call', 'retry', 'blueprint_approval', 'image_render'] });
 }
 
 function expectedAuthoringAuthorityDigest(
