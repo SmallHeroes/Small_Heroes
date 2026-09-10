@@ -580,5 +580,88 @@ async function reconstructHistoricalSemanticProductionBridge(input: {
     historicalConsumer: previous, currentValidationDigest: approved.validated.proof.digest,
     providerCalls: 0 as const, zeroWrite: true as const,
     doesNotAuthorize: ['current_production_context', 'execution_claim', 'provider_call', 'retry', 'blueprint_approval', 'image_render'] });
-  return { inspection, context: built.context };
+  return { inspection, context: built.context, approved, semanticIdentity, historicalReview: rebuiltReview,
+    historicalApproval: rebuiltApproval, productionRequest: request };
+}
+
+/** Rebase exact existing reviewer decisions onto today's validated bridge.
+ * This prepares a review, not a new Guy approval or an execution authority. */
+export async function prepareHistoricalSemanticAdvancementReview(input: {
+  consumerRepoRoot: string; manifestPath: string; expectedManifestDigest: string;
+  outputDir: string; write?: boolean;
+}) {
+  const args = argumentsCopy(input, ['consumerRepoRoot', 'manifestPath', 'expectedManifestDigest', 'outputDir'], ['write']);
+  writeFlag(args.write);
+  const historical = await reconstructHistoricalSemanticProductionBridge({ consumerRepoRoot: args.consumerRepoRoot,
+    manifestPath: args.manifestPath, expectedManifestDigest: args.expectedManifestDigest });
+  const manifest = manifestFor(historical.semanticIdentity, historical.approved);
+  const bridgePath = `${args.outputDir}/bridge-manifests/${manifest.digest}.json`;
+  const bridge = { consumerRepoRoot: args.consumerRepoRoot, manifestPath: bridgePath, expectedManifestDigest: manifest.digest };
+  const loaded = { manifest, validated: historical.approved.validated, providerCalls: 0 as const };
+  const review = reconciliationReviewFor(bridge, historical.historicalReview.decisions, loaded);
+  // Review prose/plan identities legitimately name the new bridge. Rebuild
+  // once under the old bridge identity to prove this is the only difference.
+  const oldIdentityContent = buildReviewedReconciliationContent({
+    base: { ...reviewBasis(loaded), bridgeManifestDigest: historical.historicalReview.bridge.expectedManifestDigest },
+    decisions: historical.historicalReview.decisions });
+  if (!equal(review.subject, historical.historicalReview.subject) ||
+      !equal(oldIdentityContent, historical.historicalReview.content) ||
+      !equal(review.content.pendingReconciliation, historical.historicalReview.content.pendingReconciliation) ||
+      !equal(review.decisions, historical.historicalReview.decisions)) {
+    throw new Error('semantic_advancement_review_content_changed');
+  }
+  const plans = [
+    { category: 'bridge-manifests' as const, value: manifest },
+    { category: 'semantic-reconciliation-reviews' as const, value: review },
+  ];
+  // Validate both destinations before publishing either dependency. Immutable
+  // writes remain independently resumable; no approval is published here.
+  const publication = { repoRoot: args.consumerRepoRoot, outputDir: args.outputDir,
+    validated: historical.approved.validated };
+  for (const plan of plans) publish({ ...publication, ...plan, write: false });
+  const artifacts = plans.map(plan => publish({ ...publication, ...plan, write: args.write }));
+  return { historicalInspection: historical.inspection, manifest, review, artifacts,
+    authorityScope: 'current_reconciliation_review_only' as const, providerCalls: 0 as const,
+    doesNotAuthorize: [...EXCLUSIONS] };
+}
+
+/** Carries the verified existing Guy decision forward, without changing its
+ * content or decision time. Both old approval and new current proof are checked;
+ * this does not approve a different reconciliation or authorize a provider. */
+export async function advanceHistoricalSemanticProductionBridge(input: {
+  consumerRepoRoot: string; manifestPath: string; expectedManifestDigest: string;
+  outputDir: string; write?: boolean;
+}) {
+  const args = argumentsCopy(input, ['consumerRepoRoot', 'manifestPath', 'expectedManifestDigest', 'outputDir'], ['write']);
+  writeFlag(args.write);
+  const prepared = await prepareHistoricalSemanticAdvancementReview({ ...args, write: false });
+  const historical = await reconstructHistoricalSemanticProductionBridge({ consumerRepoRoot: args.consumerRepoRoot,
+    manifestPath: args.manifestPath, expectedManifestDigest: args.expectedManifestDigest });
+  if (!equal(prepared.historicalInspection, historical.inspection)) throw new Error('semantic_advancement_history_changed');
+  const reviewed = { review: prepared.review, loaded: { manifest: prepared.manifest,
+    validated: historical.approved.validated, providerCalls: 0 as const }, providerCalls: 0 as const };
+  const approval = reconciliationApprovalFor({ consumerRepoRoot: args.consumerRepoRoot,
+    reviewPath: prepared.artifacts[1]!.path, expectedReviewDigest: prepared.review.digest,
+    approvedBy: historical.historicalApproval.approvedBy, approvedAt: historical.historicalApproval.approvedAt }, reviewed);
+  if (!equal(approval.reconciliation, historical.historicalApproval.reconciliation) ||
+      !equal(approval.reviewBundle, historical.historicalApproval.reviewBundle) ||
+      !equal(approval.subject, historical.historicalApproval.subject)) throw new Error('semantic_advancement_approved_content_changed');
+  const approvalPath = `${args.outputDir}/semantic-reconciliation-approvals/${approval.digest}.json`;
+  const built = productionBridgeFor({ ...historical.productionRequest, approvalPath, expectedApprovalDigest: approval.digest },
+    { approval, reviewed, providerCalls: 0 as const });
+  if (built.context.digest !== historical.context.digest) throw new Error('semantic_advancement_production_context_changed');
+  const plans = [
+    { category: 'bridge-manifests' as const, value: prepared.manifest },
+    { category: 'semantic-reconciliation-reviews' as const, value: prepared.review },
+    { category: 'semantic-reconciliation-approvals' as const, value: approval },
+    { category: 'semantic-production-bridges' as const, value: built.manifest },
+  ];
+  const publication = { repoRoot: args.consumerRepoRoot, outputDir: args.outputDir, validated: historical.approved.validated };
+  for (const plan of plans) publish({ ...publication, ...plan, write: false });
+  const artifacts = plans.map(plan => publish({ ...publication, ...plan, write: args.write }));
+  return { manifest: built.manifest, artifact: artifacts[3]!, artifacts, providerCalls: 0 as const,
+    preservedDecision: { approvalDigest: historical.historicalApproval.digest,
+      approvedBy: historical.historicalApproval.approvedBy, approvedAt: historical.historicalApproval.approvedAt,
+      reconciliationDigest: historical.historicalApproval.reconciliationDigest },
+    authorityScope: 'unchanged_approved_content_current_context_only' as const };
 }

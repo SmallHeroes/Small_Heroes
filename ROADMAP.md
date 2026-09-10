@@ -1,6 +1,6 @@
 # SmallHeroes — Roadmap
 
-**Last verified:** 2026-09-10 (Claude code PASScf78b4b2, both P2s closed; historical production inspection succeeded on real frozen chain; failed-provider request/ledger evidence implemented locally; paid successor not connected, reliability P1 remains open)
+**Last verified:** 2026-09-10 (Claude code PASS7db20506; full one-shot failed-provider successor/advancement/CLI connected locally; full gate5880/73skips/0failures, both typechecks0; independent full-route review required before live use; reliability P1 remains open)
 **Product priority owner:** Guy
 **Technical sequencing owner:** Codex
 

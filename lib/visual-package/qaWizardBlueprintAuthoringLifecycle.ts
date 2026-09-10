@@ -77,6 +77,7 @@ import {
 } from './authoringTerminalDiagnostics';
 import {
   BLUEPRINT_AUTHORING_MAX_CALLS,
+  BLUEPRINT_AUTHORING_HARD_COST_CEILING_USD,
   BLUEPRINT_AUTHORING_MAX_INPUT_TOKENS,
   BLUEPRINT_AUTHORING_MAX_OUTPUT_TOKENS,
   BLUEPRINT_AUTHORING_MAX_REPAIRS,
@@ -3214,6 +3215,170 @@ function expectedAuthoringAuthorityDigest(
     reconciliationArtifactPath: validation.reconciliationArtifactPath,
     style: validation.style,
   }).digest;
+}
+
+// Failed-provider successor is a separate versioned lane, never diagnostic v1.
+type FailedProviderPredecessor = Awaited<ReturnType<typeof inspectFailedProviderBlueprintPredecessor>>;
+function failedProviderTarget(preflight: LoadedQaWizardBlueprintManifest, predecessor: FailedProviderPredecessor) {
+  if (preflight.manifest.stage !== 'live_request_preflight_passed' ||
+      preflight.bridge.version !== SEMANTIC_PRODUCTION_BRIDGE_VERSION ||
+      BLUEPRINT_AUTHORING_HARD_COST_CEILING_USD > 5 ||
+      String(PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION) !== 'production-blueprint-authoring-receipt/v8' ||
+      preflight.request.version !== PRODUCTION_AUTHORING_RUN_REQUEST_VERSION ||
+      !blueprintAuthoringExecutionProgramIsCurrent(preflight.request.program) ||
+      preflight.request.program.digest !== predecessor.executionProgramDigest ||
+      preflight.context.digest !== predecessor.historical.productionContextDigest ||
+      expectedAuthoringAuthorityDigest(preflight.context) !== predecessor.authoringAuthorityDigest ||
+      preflight.outputDir === predecessor.outputDir) throw new Error('failed_provider_successor_target_mismatch');
+  return { preflightManifestPath: preflight.manifestPath, preflightManifestDigest: preflight.manifest.digest,
+    requestDigest: canonicalJsonDigest(preflight.request), outputDir: preflight.outputDir,
+    authoringAuthorityDigest: predecessor.authoringAuthorityDigest, executionProgramDigest: predecessor.executionProgramDigest };
+}
+function failedProviderCandidate(predecessor: FailedProviderPredecessor, target: ReturnType<typeof failedProviderTarget>) {
+  return digestPayload({ version: 'failed-provider-blueprint-successor-candidate/v1' as const,
+    predecessor, target, scope: 'one_additional_failed_provider_execution_candidate' as const });
+}
+type FailedProviderCandidate = ReturnType<typeof failedProviderCandidate>;
+function failedProviderAuthorization(candidate: FailedProviderCandidate, candidatePath: string, approvedBy: string, approvedAt: string) {
+  if (approvedBy !== 'Guy' || !canonicalUtcTimestampIsValid(approvedAt)) throw new Error('failed_provider_successor_owner_invalid');
+  return digestPayload({ version: 'failed-provider-blueprint-successor-authorization/v1' as const,
+    candidatePath, candidateDigest: candidate.digest, approvedBy: 'Guy' as const, approvedAt,
+    additionalCeilingUsd: 5 as const, historicalCharge: 'unknown' as const,
+    scope: 'one_additional_failed_provider_execution' as const });
+}
+type FailedProviderAuthorization = ReturnType<typeof failedProviderAuthorization>;
+type FailedProviderCategory = 'failed-provider-candidates' | 'failed-provider-authorizations' | 'failed-provider-slots';
+function failedProviderArtifactPath(category: FailedProviderCategory, digest: string) {
+  if (!HEX_SHA256.test(digest)) throw new Error('failed_provider_successor_digest_invalid');
+  return `${QA_WIZARD_BLUEPRINT_AUTHORING_LEDGER_ROOT}/${category}/${digest}.json`;
+}
+function persistFailedProviderArtifact(repoRoot: string, category: FailedProviderCategory, digest: string, value: object, write: boolean) {
+  const artifactPath = failedProviderArtifactPath(category, digest);
+  if (write) {
+    ensureContainedDirectory({ repoRoot, directoryPath: path.dirname(resolveRepoPath(repoRoot, artifactPath)), writable: true });
+    writeImmutableLocalArtifact({ destinationPath: resolveRepoPath(repoRoot, artifactPath),
+      bytes: canonicalContentAddressedJsonBytes(value), hooks: containedPublishHooks({ repoRoot }) });
+  }
+  return artifactPath;
+}
+function loadFailedProviderArtifact<T>(repoRoot: string, category: FailedProviderCategory, artifactPath: string, digest: string): T {
+  if (artifactPath !== failedProviderArtifactPath(category, digest)) throw new Error('failed_provider_successor_path_invalid');
+  const loaded = readJsonObject({ repoRoot, artifactPath, label: 'failed provider successor' });
+  if (loaded.value.digest !== digest || loaded.value.digestAlgorithm !== DIGEST_ALGORITHM ||
+      canonicalJsonDigest(payloadWithoutDigest(loaded.value)) !== digest ||
+      loaded.rawBytes !== canonicalContentAddressedJsonBytes(loaded.value)) throw new Error('failed_provider_successor_artifact_invalid');
+  return loaded.value as T;
+}
+async function revalidateFailedProviderCandidate(repoRoot: string, candidate: FailedProviderCandidate) {
+  // Keep ledger bytes pinned across BOTH asynchronous validators, not just
+  // inside each validator separately. The later current-context loader retains
+  // its own full source/approval re-observation contract.
+  const paths = [candidate.predecessor.terminalLookupPath, candidate.predecessor.claimPath,
+    candidate.predecessor.terminalBindingPath, candidate.predecessor.terminalManifestPath,
+    candidate.predecessor.preflightManifestPath, candidate.predecessor.requestPath,
+    candidate.predecessor.receiptPath, candidate.target.preflightManifestPath];
+  const guards = paths.map(artifactPath => ({ artifactPath,
+    bytes: readJsonObject({ repoRoot, artifactPath, label: 'failed provider successor lineage' }).rawBytes }));
+  function observe(file: unknown): Record<string, unknown> {
+    if (typeof file !== 'string') throw new Error('failed_provider_successor_reference_invalid');
+    const loaded = readJsonObject({ repoRoot, artifactPath: file, label: 'failed provider semantic history' });
+    guards.push({ artifactPath: file, bytes: loaded.rawBytes });
+    return loaded.value;
+  }
+  function reference(value: unknown, key = 'path') {
+    if (!record(value)) throw new Error('failed_provider_successor_reference_invalid');
+    return observe(value[key]);
+  }
+  // Old reconciliation metadata is not necessarily part of the new target's
+  // loader. Pin its complete five-artifact chain across the later target await.
+  const oldPreflight = observe(candidate.predecessor.preflightManifestPath);
+  const oldBridge = reference(oldPreflight.bridge);
+  const oldApproval = reference(oldBridge.reconciliationApproval);
+  const oldReview = reference(oldApproval.review);
+  const oldPending = reference(oldReview.bridge, 'manifestPath');
+  reference(oldPending.approval);
+  const directory = path.dirname(resolveRepoPath(repoRoot, candidate.predecessor.terminalManifestPath));
+  const names = () => fs.readdirSync(directory).sort();
+  const beforeNames = names();
+  for (const name of beforeNames) if (/^[a-f0-9]{64}\.json$/.test(name)) observe(repoRelativePath(repoRoot, path.join(directory, name)));
+  const predecessor = await inspectFailedProviderBlueprintPredecessor({ repoRoot,
+    terminalLookupPath: candidate.predecessor.terminalLookupPath, terminalLookupDigest: candidate.predecessor.terminalLookupDigest });
+  const preflight = await loadQaWizardBlueprintManifestAuthority({ repoRoot, manifestPath: candidate.target.preflightManifestPath });
+  if (canonicalContentAddressedJsonBytes(candidate) !== canonicalContentAddressedJsonBytes(
+    failedProviderCandidate(predecessor, failedProviderTarget(preflight, predecessor)))) {
+    throw new Error('failed_provider_successor_candidate_stale');
+  }
+  for (const guard of guards) assertAuthorityBytesUnchanged(repoRoot, guard.artifactPath, guard.bytes);
+  if (canonicalJsonDigest(names()) !== canonicalJsonDigest(beforeNames)) throw new Error('failed_provider_successor_terminal_inventory_changed');
+  const incident = loadExecutionIncident({ repoRoot, authoringAuthorityDigest: predecessor.authoringAuthorityDigest,
+    executionIdentityDigest: predecessor.executionIdentityDigest, requestDigest: predecessor.requestDigest,
+    preflightManifestDigest: predecessor.preflightManifestDigest, claimDigest: predecessor.claimDigest, claimPath: predecessor.claimPath });
+  if (incident || foreignBoundTerminalManifestDigests({ repoRoot, executionIdentityKey: predecessor.executionIdentityDigest }).has(predecessor.terminalManifestDigest)) {
+    throw new Error('failed_provider_successor_predecessor_changed');
+  }
+}
+export async function prepareFailedProviderBlueprintSuccessor(input: {
+  repoRoot: string; terminalLookupPath: string; terminalLookupDigest: string; preflightManifestPath: string; write?: boolean;
+}) {
+  const args = { ...input };
+  if (!exactKeys(args, ['repoRoot', 'terminalLookupPath', 'terminalLookupDigest', 'preflightManifestPath',
+    ...(args.write === undefined ? [] : ['write'])]) || (args.write !== undefined && typeof args.write !== 'boolean')) throw new Error('failed_provider_successor_arguments_invalid');
+  const predecessor = await inspectFailedProviderBlueprintPredecessor({ repoRoot: args.repoRoot,
+    terminalLookupPath: args.terminalLookupPath, terminalLookupDigest: args.terminalLookupDigest });
+  const preflight = await loadQaWizardBlueprintManifestAuthority({ repoRoot: args.repoRoot, manifestPath: args.preflightManifestPath });
+  const candidate = failedProviderCandidate(predecessor, failedProviderTarget(preflight, predecessor));
+  await revalidateFailedProviderCandidate(args.repoRoot, candidate);
+  const candidatePath = persistFailedProviderArtifact(args.repoRoot, 'failed-provider-candidates', candidate.digest, candidate, args.write === true);
+  return { candidate, candidatePath, providerCalls: 0 as const };
+}
+export async function authorizeFailedProviderBlueprintSuccessor(input: {
+  repoRoot: string; candidatePath: string; candidateDigest: string; approvedBy: string; approvedAt: string; write?: boolean;
+}) {
+  const args = { ...input };
+  if (!exactKeys(args, ['repoRoot', 'candidatePath', 'candidateDigest', 'approvedBy', 'approvedAt',
+    ...(args.write === undefined ? [] : ['write'])]) || (args.write !== undefined && typeof args.write !== 'boolean')) throw new Error('failed_provider_successor_arguments_invalid');
+  const candidate = loadFailedProviderArtifact<FailedProviderCandidate>(args.repoRoot, 'failed-provider-candidates', args.candidatePath, args.candidateDigest);
+  const authorization = failedProviderAuthorization(candidate, args.candidatePath, args.approvedBy, args.approvedAt);
+  await revalidateFailedProviderCandidate(args.repoRoot, candidate);
+  if (canonicalJsonDigest(loadFailedProviderArtifact(args.repoRoot, 'failed-provider-candidates', args.candidatePath, args.candidateDigest)) !== canonicalJsonDigest(candidate)) {
+    throw new Error('failed_provider_successor_candidate_changed');
+  }
+  const authorizationPath = persistFailedProviderArtifact(args.repoRoot, 'failed-provider-authorizations', authorization.digest, authorization, args.write === true);
+  return { authorization, authorizationPath, providerCalls: 0 as const };
+}
+export async function executeFailedProviderBlueprintSuccessor(input: {
+  repoRoot: string; authorizationPath: string; authorizationDigest: string; write: true;
+}, deps: QaWizardBlueprintExecutionDependencies = {}) {
+  const args = { ...input };
+  if (!exactKeys(args, ['repoRoot', 'authorizationPath', 'authorizationDigest', 'write']) || args.write !== true) throw new Error('failed_provider_successor_arguments_invalid');
+  function load() {
+    const authorization = loadFailedProviderArtifact<FailedProviderAuthorization>(args.repoRoot, 'failed-provider-authorizations', args.authorizationPath, args.authorizationDigest);
+    const candidate = loadFailedProviderArtifact<FailedProviderCandidate>(args.repoRoot, 'failed-provider-candidates', authorization.candidatePath, authorization.candidateDigest);
+    if (canonicalContentAddressedJsonBytes(authorization) !== canonicalContentAddressedJsonBytes(
+      failedProviderAuthorization(candidate, authorization.candidatePath, authorization.approvedBy, authorization.approvedAt))) throw new Error('failed_provider_successor_authorization_invalid');
+    return { authorization, candidate };
+  }
+  const { authorization, candidate } = load();
+  const executionIdentityDigest = canonicalJsonDigest({ version: 'failed-provider-blueprint-successor-identity/v1', authorizationDigest: authorization.digest });
+  const claim = digestPayload({ version: 'failed-provider-blueprint-successor-claim/v1' as const,
+    executionIdentityDigest, ...candidate.target, authorizationDigest: authorization.digest,
+    authorizationPath: args.authorizationPath, predecessorExecutionIdentityDigest: candidate.predecessor.executionIdentityDigest,
+    scope: 'single_use_paid_failed_provider_successor' as const });
+  return runBlueprintExecutionUnderClaim({ repoRoot: args.repoRoot,
+    preflightManifestPath: candidate.target.preflightManifestPath, outputDir: candidate.target.outputDir, write: true }, {
+    executionIdentity: () => executionIdentityDigest, buildClaim: () => claim,
+    claimIsValid: value => canonicalContentAddressedJsonBytes(value) === canonicalContentAddressedJsonBytes(claim),
+    recoverOnlyFromOwnTerminalBinding: true,
+    precheck: async ctx => {
+      if (canonicalJsonDigest(failedProviderTarget(ctx.preflight, candidate.predecessor)) !== canonicalJsonDigest(candidate.target)) throw new Error('failed_provider_successor_target_mismatch');
+      await revalidateFailedProviderCandidate(args.repoRoot, candidate);
+      load();
+      const slot = digestPayload({ version: 'failed-provider-blueprint-successor-slot/v1',
+        predecessorExecutionIdentityDigest: candidate.predecessor.executionIdentityDigest, authorizationDigest: authorization.digest,
+        executionIdentityDigest, scope: 'one_successor_per_failed_provider_predecessor' });
+      persistFailedProviderArtifact(args.repoRoot, 'failed-provider-slots', candidate.predecessor.executionIdentityDigest, slot, true);
+    },
+  }, deps);
 }
 
 function compilerLedgerArtifactPath(args: {

@@ -5,6 +5,7 @@ import path from 'node:path';
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { SEMANTIC_PRODUCTION_BRIDGE_VERSION } from '../semanticCorrectionApprovalBridge';
+import { runFailedProviderBlueprintCli } from '../qaWizardBlueprintFailedProviderCli';
 
 const bridgeLoaderMock = vi.hoisted(() => vi.fn());
 const historicalRequestMock = vi.hoisted(() => vi.fn());
@@ -73,6 +74,7 @@ import {
   executeBlueprintReplacementLiveRequest,
   executeQaWizardBlueprintLiveRequest,
   inspectFailedProviderBlueprintPredecessor,
+  prepareFailedProviderBlueprintSuccessor, authorizeFailedProviderBlueprintSuccessor, executeFailedProviderBlueprintSuccessor,
   loadQaWizardBlueprintAuthoringManifest,
   prepareQaWizardBlueprintLiveRequest,
   productionBlueprintAuthoringReceiptReplayIsValid,
@@ -546,6 +548,14 @@ async function failedProviderPredecessorFixture(kind: 'transport' | 'credential'
   const subject = setup();
   Object.assign(subject.bridge, { version: SEMANTIC_PRODUCTION_BRIDGE_VERSION });
   const preflight = await prepare(subject);
+  // Context loaders are mocked in this spec; these metadata stubs exercise the
+  // cross-validator byte guard, not real semantic approval validation.
+  const stub = 'outputs/mock-semantic';
+  writeJson(subject.repoRoot, subject.bridgeManifestPath, { reconciliationApproval: { path: `${stub}/approval.json` } });
+  writeJson(subject.repoRoot, `${stub}/approval.json`, { review: { path: `${stub}/review.json` } });
+  writeJson(subject.repoRoot, `${stub}/review.json`, { bridge: { manifestPath: `${stub}/pending.json` } });
+  writeJson(subject.repoRoot, `${stub}/pending.json`, { approval: { path: `${stub}/semantic.json` } });
+  writeJson(subject.repoRoot, `${stub}/semantic.json`, {});
   const transport = { create: vi.fn(async (args: Parameters<OpenAIResponsesAuthoringTransport['create']>[0]) => {
     args.observations.transportDispatchStarted = true;
     args.observations.transportDispatchCount += 1;
@@ -654,6 +664,148 @@ describe('failed-provider historical predecessor inspection', () => {
     await expect(inspectFailedProviderBlueprintPredecessor(f.args)).rejects.toThrow('current_consumer_dirty');
     await expect(inspectFailedProviderBlueprintPredecessor({ ...f.args, context: f.subject.context } as never)).rejects.toThrow('arguments_invalid');
     expect(f.providerFactory).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('failed-provider single-use successor', () => {
+  async function authorized() {
+    const f = await failedProviderPredecessorFixture();
+    const preflight = await prepareQaWizardBlueprintLiveRequest({ repoRoot: f.subject.repoRoot,
+      bridgeManifestPath: f.subject.bridgeManifestPath, outputDir: 'outputs/provider-successor',
+      requestId: 'one-authorized-successor', requestedAt: APPROVED_AT, write: true });
+    const prepared = await prepareFailedProviderBlueprintSuccessor({ ...f.args,
+      preflightManifestPath: preflight.manifestPath, write: true });
+    const decision = await authorizeFailedProviderBlueprintSuccessor({ repoRoot: f.subject.repoRoot,
+      candidatePath: prepared.candidatePath, candidateDigest: prepared.candidate.digest,
+      approvedBy: 'Guy', approvedAt: APPROVED_AT, write: true });
+    return { ...f, prepared, decision, successorPreflight: preflight, execution: {
+      repoRoot: f.subject.repoRoot, authorizationPath: decision.authorizationPath,
+      authorizationDigest: decision.authorization.digest, write: true as const } };
+  }
+  it('executes once, replays with zero calls and refuses successor chaining', async () => {
+    const f = await authorized();
+    const result = await executeFailedProviderBlueprintSuccessor(f.execution, { providerFactory: f.providerFactory });
+    expect(result.manifest.stage).toBe('authoring_failed');
+    expect(f.transport.create).toHaveBeenCalledTimes(2); // predecessor + successor
+    const never = vi.fn(() => { throw new Error('must not construct provider on replay'); });
+    const replay = await executeFailedProviderBlueprintSuccessor(f.execution, { providerFactory: never });
+    expect(replay.replayed).toBe(true);
+    expect(replay.receipt.digest).toBe(result.receipt.digest);
+    expect(never).not.toHaveBeenCalled();
+    const lookup = JSON.parse(fs.readFileSync(path.join(f.subject.repoRoot, result.executionRecordPath), 'utf8'));
+    await expect(inspectFailedProviderBlueprintPredecessor({ repoRoot: f.subject.repoRoot,
+      terminalLookupPath: result.executionRecordPath, terminalLookupDigest: lookup.digest })).rejects.toThrow('requires_ordinary_v2');
+  });
+  it('allows only one dispatch under concurrent callers', async () => {
+    const f = await authorized();
+    const results = await Promise.allSettled([1, 2].map(() => executeFailedProviderBlueprintSuccessor(f.execution,
+      { providerFactory: f.providerFactory })));
+    expect(results.some(result => result.status === 'fulfilled')).toBe(true);
+    expect(f.transport.create).toHaveBeenCalledTimes(2);
+  });
+  it('rejects a second authorization identity for the same predecessor', async () => {
+    const f = await authorized();
+    await executeFailedProviderBlueprintSuccessor(f.execution, { providerFactory: f.providerFactory });
+    const second = await authorizeFailedProviderBlueprintSuccessor({ repoRoot: f.subject.repoRoot,
+      candidatePath: f.prepared.candidatePath, candidateDigest: f.prepared.candidate.digest,
+      approvedBy: 'Guy', approvedAt: '2026-08-25T13:00:00.000Z', write: true });
+    const never = vi.fn(() => { throw new Error('duplicate paid attempt'); });
+    await expect(executeFailedProviderBlueprintSuccessor({ ...f.execution,
+      authorizationPath: second.authorizationPath, authorizationDigest: second.authorization.digest },
+    { providerFactory: never })).rejects.toThrow();
+    expect(never).not.toHaveBeenCalled();
+  });
+  it('replays its bound terminal without predecessor files', async () => {
+    const f = await authorized();
+    const result = await executeFailedProviderBlueprintSuccessor(f.execution, { providerFactory: f.providerFactory });
+    fs.unlinkSync(path.join(f.subject.repoRoot, f.args.terminalLookupPath));
+    const never = vi.fn(() => { throw new Error('must not redispatch'); });
+    expect((await executeFailedProviderBlueprintSuccessor(f.execution, { providerFactory: never })).manifest.digest).toBe(result.manifest.digest);
+    expect(never).not.toHaveBeenCalled();
+  });
+  it('produces a successful candidate using the same executor', async () => {
+    const f = await authorized();
+    const calls = vi.fn();
+    const result = await executeFailedProviderBlueprintSuccessor(f.execution,
+      { providerFactory: () => passingProvider(f.subject.fixture, calls) });
+    expect(result.manifest.stage).toBe('blueprint_candidate');
+    expect(calls).toHaveBeenCalledTimes(1);
+  });
+  it('recovers its terminal after a crash without another provider call', async () => {
+    const f = await authorized();
+    await expect(executeFailedProviderBlueprintSuccessor(f.execution, { providerFactory: f.providerFactory,
+      hooks: { afterTerminalManifest: () => { throw new Error('synthetic crash'); } } })).rejects.toThrow();
+    const never = vi.fn(() => { throw new Error('must not redispatch'); });
+    const recovered = await executeFailedProviderBlueprintSuccessor(f.execution, { providerFactory: never });
+    expect(recovered.replayed).toBe(true);
+    expect(never).not.toHaveBeenCalled();
+    expect(f.transport.create).toHaveBeenCalledTimes(2);
+  });
+  it('holds an uncertain post-claim crash without redispatch', async () => {
+    const f = await authorized();
+    const never = vi.fn(() => { throw new Error('must not dispatch'); });
+    await expect(executeFailedProviderBlueprintSuccessor(f.execution, { providerFactory: never,
+      hooks: { afterClaim: () => { throw new Error('synthetic crash'); } } })).rejects.toThrow('execution_state_uncertain');
+    await expect(executeFailedProviderBlueprintSuccessor(f.execution, { providerFactory: never })).rejects.toThrow('execution_state_uncertain');
+    expect(never).not.toHaveBeenCalled();
+  });
+  it('rejects predecessor tampering after authorization and before dispatch', async () => {
+    const f = await authorized();
+    fs.appendFileSync(path.join(f.subject.repoRoot, f.terminal.receiptPath), ' ');
+    const never = vi.fn(() => { throw new Error('must not dispatch'); });
+    await expect(executeFailedProviderBlueprintSuccessor(f.execution, { providerFactory: never })).rejects.toThrow();
+    expect(never).not.toHaveBeenCalled();
+  });
+  it('exposes offline CLI preparation and authorization with strict request ownership', async () => {
+    const f = await authorized();
+    const requestPath = 'outputs/cli-authorization.json';
+    writeJson(f.subject.repoRoot, requestPath, { candidatePath: f.prepared.candidatePath,
+      candidateDigest: f.prepared.candidate.digest, approvedBy: 'Guy', approvedAt: APPROVED_AT });
+    const stdout = vi.fn(), stderr = vi.fn();
+    expect(await runFailedProviderBlueprintCli({ repoRoot: f.subject.repoRoot,
+      argv: ['authorize', '--request', requestPath, '--write'], stdout, stderr })).toBe(0);
+    expect(JSON.parse(stdout.mock.calls[0]![0]).authorizationDigest).toBe(f.decision.authorization.digest);
+    expect(stderr).not.toHaveBeenCalled();
+    for (const argv of [['execute', '--request', requestPath], ['authorize', '--request', requestPath, '--write', '--write'],
+      ['authorize', '--request=' + requestPath], ['unknown', '--request', requestPath]]) {
+      expect(await runFailedProviderBlueprintCli({ repoRoot: f.subject.repoRoot, argv, stdout, stderr })).toBe(1);
+    }
+    writeJson(f.subject.repoRoot, requestPath, { repoRoot: f.subject.repoRoot, write: true });
+    expect(await runFailedProviderBlueprintCli({ repoRoot: f.subject.repoRoot,
+      argv: ['execute', '--request', requestPath, '--write'], stdout, stderr })).toBe(1);
+    expect(f.transport.create).toHaveBeenCalledTimes(1);
+  });
+  it('fences concurrent distinct authorizations through the same predecessor slot', async () => {
+    const f = await authorized();
+    const second = await authorizeFailedProviderBlueprintSuccessor({ repoRoot: f.subject.repoRoot,
+      candidatePath: f.prepared.candidatePath, candidateDigest: f.prepared.candidate.digest,
+      approvedBy: 'Guy', approvedAt: '2026-08-25T14:00:00.000Z', write: true });
+    const outcomes = await Promise.allSettled([f.execution, { ...f.execution,
+      authorizationPath: second.authorizationPath, authorizationDigest: second.authorization.digest }]
+      .map(args => executeFailedProviderBlueprintSuccessor(args, { providerFactory: f.providerFactory })));
+    expect(outcomes.filter(result => result.status === 'fulfilled')).toHaveLength(1);
+    expect(f.transport.create).toHaveBeenCalledTimes(2);
+  });
+  it('does not let ordinary execution adopt the successor preflight', async () => {
+    const f = await authorized();
+    const never = vi.fn(() => { throw new Error('must not dispatch'); });
+    await expect(executeQaWizardBlueprintLiveRequest({ repoRoot: f.subject.repoRoot,
+      preflightManifestPath: f.successorPreflight.manifestPath, outputDir: 'outputs/provider-successor', write: true },
+    { providerFactory: never })).rejects.toThrow('execution_identity_already_consumed');
+    expect(never).not.toHaveBeenCalled();
+  });
+  it('rejects old semantic bytes changed during the later current-target validation', async () => {
+    const f = await authorized();
+    const original = bridgeLoaderMock.getMockImplementation()!;
+    let loads = 0;
+    bridgeLoaderMock.mockImplementation((...args) => {
+      loads += 1;
+      if (loads === 2) fs.appendFileSync(path.join(f.subject.repoRoot, 'outputs/mock-semantic/review.json'), ' ');
+      return original(...args);
+    });
+    const never = vi.fn(() => { throw new Error('must not dispatch'); });
+    await expect(executeFailedProviderBlueprintSuccessor(f.execution, { providerFactory: never })).rejects.toThrow();
+    expect(never).not.toHaveBeenCalled();
   });
 });
 

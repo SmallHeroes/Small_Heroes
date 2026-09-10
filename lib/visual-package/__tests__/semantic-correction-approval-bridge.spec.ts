@@ -12,7 +12,8 @@ import { recordSemanticCorrectionApproval, loadApprovedSemanticCorrection, prepa
   loadSemanticCorrectionBridge, prepareSemanticReconciliationReview, loadSemanticReconciliationReview,
   recordSemanticReconciliationApproval, loadApprovedSemanticReconciliation,
   materializeSemanticProductionInputs, prepareSemanticProductionBridge, loadSemanticProductionBridge,
-  inspectHistoricalSemanticProductionBridge, inspectHistoricalSemanticProductionRequest,
+  inspectHistoricalSemanticProductionBridge, inspectHistoricalSemanticProductionRequest, prepareHistoricalSemanticAdvancementReview,
+  advanceHistoricalSemanticProductionBridge,
   type RecordSemanticCorrectionApprovalRequest } from '../semanticCorrectionApprovalBridge';
 import { buildSemanticCorrectionReviewPacket } from '../semanticCorrectionPreview';
 import { buildProductionReconciliationDraftFromSourceSnapshot } from '../reconciliationLifecycle';
@@ -128,6 +129,48 @@ beforeEach(()=>{
 afterEach(()=>{vi.restoreAllMocks();if(root)fs.rmSync(root,{recursive:true,force:true});});
 
 describe('semantic production context and real Blueprint consumer', () => {
+  it('advances the unchanged approved context through the strict current production loader', async () => {
+    const { produced, identity } = await historicalProductionSubject();
+    const outputDir = rel(path.join(root, 'production-advancement'));
+    const result = await advanceHistoricalSemanticProductionBridge({ ...identity, outputDir, write: true });
+    expect(result.manifest.digest).not.toBe(produced.manifest.digest);
+    expect(result.manifest.productionContext).toEqual(produced.manifest.productionContext);
+    expect(result.preservedDecision.approvedAt).toBe(request.approvedAt);
+    const loaded = await loadSemanticProductionBridge({ consumerRepoRoot: process.cwd(), manifestPath: result.artifact.path,
+      expectedManifestDigest: result.manifest.digest });
+    expect(loaded.context).toEqual(produced.context);
+    const replay = await advanceHistoricalSemanticProductionBridge({ ...identity, outputDir, write: true });
+    expect(replay.artifacts.every(artifact => artifact.created === false)).toBe(true);
+    const preflight = await prepareQaWizardBlueprintLiveRequest({ repoRoot: process.cwd(), bridgeManifestPath: result.artifact.path,
+      outputDir: rel(path.join(root, 'advanced-blueprint')), requestId: 'advanced-current-request', requestedAt: request.approvedAt });
+    expect(preflight.request.contextDigest).toBe(produced.context.digest);
+  });
+  it('advances exact historical decisions to a current review without copying approval authority', async () => {
+    const { identity } = await historicalProductionSubject();
+    const outputDir = rel(path.join(root, 'advancement'));
+    const preview = await prepareHistoricalSemanticAdvancementReview({ ...identity, outputDir });
+    expect(fs.existsSync(abs(outputDir))).toBe(false);
+    const written = await prepareHistoricalSemanticAdvancementReview({ ...identity, outputDir, write: true });
+    expect(written.review).toEqual(preview.review);
+    expect(written.review.productionContext).toBe(null);
+    expect(written.authorityScope).toBe('current_reconciliation_review_only');
+    expect(written.doesNotAuthorize).toContain('reconciliation_approval');
+    const loaded = await loadSemanticReconciliationReview({ consumerRepoRoot: process.cwd(),
+      reviewPath: written.artifacts[1]!.path, expectedReviewDigest: written.review.digest });
+    expect(loaded.review).toEqual(written.review);
+    const replay = await prepareHistoricalSemanticAdvancementReview({ ...identity, outputDir, write: true });
+    expect(replay.review).toEqual(written.review);
+    expect(replay.artifacts.every(artifact => artifact.created === false)).toBe(true);
+    await expect(loadSemanticProductionBridge(identity)).rejects.toThrow();
+  });
+  it('rejects injected advancement decisions and propagates current validation failure without writing', async () => {
+    const { identity } = await historicalProductionSubject();
+    const outputDir = rel(path.join(root, 'rejected-advancement'));
+    await expect(prepareHistoricalSemanticAdvancementReview({ ...identity, outputDir, decisions: {} } as never)).rejects.toThrow('arguments_invalid');
+    validate.mockRejectedValueOnce(new Error('current_consumer_dirty'));
+    await expect(prepareHistoricalSemanticAdvancementReview({ ...identity, outputDir, write: true })).rejects.toThrow('current_consumer_dirty');
+    expect(fs.existsSync(abs(outputDir))).toBe(false);
+  });
   it('validates a historical request without exporting a dispatch context', async () => {
     const { produced, identity } = await historicalProductionSubject();
     const runRequest = buildProductionAuthoringRunRequest({ context: produced.context, mode: 'live',

@@ -1,5 +1,86 @@
 # SmallHeroes — Current Technical State
 
+## Failed-provider successor route implemented — independent review before live use
+
+2026-09-10. Guy reiterated continuation; no additional implementation permission
+was needed. Sole Codex writer remains C:/GNart/Work/sh-r3b1b-semantic-m1,
+codex/r3b1b-semantic-recovery-m1. Start HEAD7db20506, clean ahead1/behind0 against
+local upstreamcf78b4b2; no push. Protected768ccb2f/63ccb484 clean/read-only.
+
+Received Claude PASS0/0/0 forcf78b4b2..7db20506, including independently reproduced
+5865/73skips/0failures, both typechecks and45/45 unchanged inventory entries.
+Code PASS now ends at7db20506, NOT the implementation below. Prior prerequisite
+limitations below remain historical: Claude confirmed both real inspectors still
+rejected while ahead1; the current-consumer0/0 gate was not weakened.
+
+Implemented continuation:
+- Current advancement rebuilds the bridge/review using the actual current proof
+  and exact previous decisions. The review's bridge-bound metadata may change;
+  reconstructing it under the original bridge identity must reproduce the entire
+  old content exactly, and pending reconciliation/subject must stay identical.
+- Production advancement preserves the original verified Guy decision identity
+  and timestamp, requires exact equality of approved reconciliation, review
+  bundle and subject, and requires the resulting full context digest to stay
+  identical. It publishes current bridge/review/approval/production artifacts
+  additively. This carries an unchanged decision forward, not a new approval of
+  changed content or a current-Guy-acceptance claim. Normal current loaders remain
+  strict. The review-only API explicitly does not publish approval.
+- A disjoint failed-provider candidate/authorization/claim/slot lane binds the
+  verified predecessor, an exact fresh preflight, same full context, authoring
+  authority and compiler program, and a different output root. Exact Guy metadata
+  records one additional USD5 exposure with unknown historical charge separate.
+- Execution uses runBlueprintExecutionUnderClaim, not a second provider executor.
+  The predecessor-keyed immutable slot admits at most one authorization identity;
+  claims arbitrate concurrent callers of that identity. Revalidation pins ledger,
+  old semantic-chain and manifest-inventory bytes across the later current-target
+  await. No successor chaining, transport retry/fallback, or ordinary-lane bypass.
+- Replay/recovery uses only this successor's terminal binding and no new provider.
+  An uncertain early post-claim crash remains held; it is not an automatic retry.
+- scripts/blueprint-failed-provider-successor.ts exposes advance/prepare/authorize/
+  execute with a contained JSON --request and optional --write. Execute requires
+  --write and a persisted authorization. Request JSON cannot override repoRoot,
+  consumerRepoRoot or write. Errors use a fixed safe literal; provider diagnostics
+  remain in the existing separate stderr events. No credential-source change:
+  the CLI uses the existing adapter environment, and the lifecycle retains its
+  existing injectable canonical provider factory for the reviewed lazy-key reader.
+
+Validation so far: current advancement3 focused cases and successor12 focused
+cases pass. Successor cases cover successful candidate, failed terminal, identical
+and distinct-authorization concurrency, zero-call replay, recovery after terminal
+crash, held post-claim crash, tamper across awaits, no chaining, no ordinary adoption
+and strict offline CLI authorization. Real runner/adapter/receipt/filesystem with
+synthetic transport; context boundaries remain mocked in ledger tests. Mock
+semantic metadata stubs test byte guards, NOT real semantic validation. Semantic
+tests use real builders/current production loader, with mocked historical/current
+proof validators. Initial advancement comparison rejected legitimate bridge-bound
+metadata differences; fixed by full reconstruction under the original identity,
+not by ignoring arbitrary content. Replay test corrected created=true/false
+expectation. CLI Object.hasOwn was replaced for the repository's existing TS lib;
+no compiler target change. tsc0/diff-check0 before full gate.
+
+Final npm run check exit0:5880passed/73existing skips/0failed, both typechecks0;
+ordinary5209/resource671, inventory391(369/22), workers4/2 unchanged. Edited specs
+131/131 and99/99 passed,15 added tests total. Additional precommit tsc0. Real CLI
+invalid execute invocation exited1 with the fixed safe rejection, no provider.
+Logs in outputs/qa-blueprint-provider-diagnostic-20260909:
+failed-provider-successor-full-check.stdout.log SHA256
+dea797a1a54be08f3b652f376cb29c747cc8c4687c4711d79428532e0d9db22c;
+failed-provider-successor-full-check.stderr.log SHA256
+4a68673bb04813b906286f6afa87491a4c6f458ec12ab4cf5b02d3fb7001d5fe.
+FAILED_PROVIDER_SUCCESSOR_HANDOFF.md carries the immutable range, review targets
+and owner inspection/push commands. Outputs remain ignored/local-only, no verified
+off-machine backup. Independent full-route PASS remains pending.
+
+No live call, credential load, spent allowance,
+artifact migration or original-file mutation. All45 prior inventory entries still
+match. Full unmocked advancement/execution has NOT run; the actual dirty/ahead
+worktree remains ineligible. After independent QA of the full route and explicit
+owner propagation, run real offline advancement/preflight/authorization first;
+only then the already-authorized single USD5 execution. No further generic owner
+approval is required, and no automatic push is implied. A successful Blueprint
+still needs review and Boards/package work before images/book readiness. Original
+P1 HELD0/3/3, resource reliability P1 and M2b remain open. Payment work deferred.
+
 ## Failed-provider recovery: historical request and predecessor evidence implemented
 
 2026-09-10. Guy's existing implementation approval remains in effect. Sole writer

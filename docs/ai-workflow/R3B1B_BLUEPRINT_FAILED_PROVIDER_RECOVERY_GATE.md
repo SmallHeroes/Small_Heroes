@@ -1,5 +1,38 @@
 # Failed-provider Blueprint recovery — approved scope and implementation record
 
+## Full-route continuation — 2026-09-10
+
+Guy reiterated continuation; the existing approval remains sufficient. Received
+Claude PASS0/0/0 forcf78b4b2..7db20506, code PASS ends at7db20506. Same sole writer,
+start clean ahead1/behind0, local upstreamcf78b4b2. No push or paid execution.
+
+Now connected: exact current review/production advancement, a separate versioned
+failed-provider candidate/authorization/claim/slot, shared executor and strict
+request-file CLI. Advancement retains the original verified Guy decision time
+only when approved reconciliation, subject, review bundle and full context are
+identical; it does not manufacture a new decision or permit changed content.
+The review metadata's bridge identity changes explicitly; rebuilding under the
+old identity must reproduce the full old review content. Outputs are additive.
+
+The successor binds the same context/authoring/program identities and a new output
+root. One immutable predecessor slot and one claimed execution fence concurrency.
+Its own terminal binding governs replay and crash recovery; uncertain post-claim
+failures remain held and successor chaining is rejected. No changes to ordinary
+identity/replay, frozen legacy diagnostic v1, provider transport, model, retry,
+budget, source, template or story. CLI execute requires persisted authorization
+and --write. No product/creative change and no new key needed.
+
+Focused proof:3 advancement tests and12 successor tests pass, including one
+successful candidate, failed dispatch, same/different authorization concurrency,
+zero-call replay, terminal crash recovery, held post-claim crash and cross-lane
+rejection. Context boundaries are mocked; no real current advancement or provider
+execution claim. Full gate and immutable review range are recorded in CURRENT
+and FAILED_PROVIDER_SUCCESSOR_HANDOFF.md. No independent PASS is self-awarded.
+Before the already-approved USD5 execution: full-route Claude review, explicit
+owner propagation to satisfy existing0/0, then real offline advancement and fresh
+preflight/authorization. Original unknown charge remains separate. No new generic
+owner approval is requested and no full-book/render-readiness claim is made.
+
 ## Continuation status — 2026-09-10
 
 Claude re-gate PASS0/0/0 for7d6ed521..cf78b4b2 closes both P2s; code PASS stops
