@@ -1,6 +1,29 @@
 # SmallHeroes — Current Technical State
 
-## Blueprint diagnostic logging — PowerShell-compatible capture correction
+## Blueprint failed-provider recovery — investigation complete, decision pending
+
+2026-09-10: Claude supplied documentation PASS0/0/0 for1fad4583..b2788c23;
+stderr-capture P2-1 CLOSED,18 independent checks on PowerShell5.1. Code PASS
+remains38f07659; no independent7.6 rerun is attributed to Claude.
+
+Guy requested continuation. Verified the exact failed v8 receipt/terminal and
+ordinary identity, orphan replacement exclusions and frozen v7 diagnostic-lane
+eligibility. A no-write real prepare-diagnostic-successor call exited1 with
+candidate_validation_consumer_repository_stale_or_dirty, before eligibility:
+historical bridge authority cannot be treated as current dispatch authority.
+The separate v8/provider-call mismatch was verified statically against code.
+
+Proposed bounded successor reuses the shared executor but requires strict
+historical lineage plus current target validation and a single predecessor-bound
+slot. Decision brief: docs/ai-workflow/R3B1B_BLUEPRINT_FAILED_PROVIDER_RECOVERY_GATE.md.
+Implementation has NOT started. Additional live allowance proposed, NOT recorded
+as granted: one execution under unchanged USD5 fence (up to3 calls/2 validation
+repairs, zero transport retry/fallback), separate from unknown prior charge.
+No provider/key access, spend, push or original runtime artifact writes here.
+Started clean b2788c23 ahead2/behind0, same sole writer and protected dependencies.
+Next: resolve this exact additional exposure before enabling the new successor.
+
+## Historical PowerShell-compatible capture correction (before its re-gate)
 
 2026-09-10: Claude re-gated38f07659..1fad4583 with PASS0/0/1, carrying P2-1
 forward: native redirection is lossy in PowerShell5.1, especially with Stop.

@@ -1,6 +1,6 @@
 # SmallHeroes — Roadmap
 
-**Last verified:** 2026-09-10 (diagnostic code PASS through38f07659; Blueprint attempt remains failed; PowerShell-compatible capture correction verified synthetically, re-gate pending)
+**Last verified:** 2026-09-10 (capture P2 independently CLOSED through documentation b2788c23; code PASS38f07659; failed-provider recovery investigated, additional-exposure decision pending)
 **Product priority owner:** Guy
 **Technical sequencing owner:** Codex
 
@@ -46,7 +46,12 @@ P2 requires preserving stderr on the next real attempt; the Gate now mandates
 separate stdout/stderr logs and process ExitCode via Start-Process. Claude's
 38f07659..1fad4583 re-gate carried P2 forward due to PowerShell5.1 redirection;
 the replacement passed eight synthetic cases across5.1/7.6 and Continue/Stop.
-Independent documentation closure is pending; no new paid attempt occurred.
+Claude subsequently closed P2 with PASS0/0/0 for1fad4583..b2788c23,18 independent
+checks on5.1. No new paid attempt occurred. Recovery investigation now confirms
+the existing orphan and legacy-v7 lanes cannot authorize our failed v8 call;
+real no-write preparation first rejects historical repository proof. A bounded
+successor proposal is in R3B1B_BLUEPRINT_FAILED_PROVIDER_RECOVERY_GATE.md;
+implementation not started, additional USD5 execution allowance not yet granted.
 Original failure cause remains unknown. With the focused code PASS received,
 investigate the provider failure and a legitimate recovery route before more
 paid work; do not bypass the consumed execution identity. M2b, Boards/package,
