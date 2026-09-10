@@ -1,6 +1,6 @@
 # SmallHeroes — Roadmap
 
-**Last verified:** 2026-09-10 (Claude code PASS7db20506; full one-shot failed-provider successor/advancement/CLI connected locally; full gate5880/73skips/0failures, both typechecks0; independent full-route review required before live use; reliability P1 remains open)
+**Last verified:** 2026-09-10 (Claude code PASS4e408bda; approved propagation and unmocked offline preparation completed; one live successor exhausted2 validation repairs, final1 action-space diagnostic; conservative accountedUSD1.318115, allowance consumed; no Blueprint/images; reliability P1 remains open)
 **Product priority owner:** Guy
 **Technical sequencing owner:** Codex
 
@@ -31,6 +31,21 @@ Blueprint and any required LOW Board/prop generation remain separately budgeted
 provider actions with exact owner gates.
 
 ## Active
+
+Current successor outcome supersedes the historical preparation notes below:
+Guy approved propagation; Codex pushed exactlycf78b4b2..4e408bda and verified0/0.
+The reviewed route ran on real artifacts: advance/preflight/prepare/authorize
+passed offline. Live execution returned3 completed generation responses plus
+1 count probe,0 transport retry/fallback, but draft validation failed76 ->8 ->1.
+Final issue: action_infeasible at frames[12].affordanceIds. No retained full draft
+means the exact failing compatibility predicate remains unproven. Accounted
+conservativeUSD1.318115 includes probe debit; not an invoice. Original charge
+unknown and separate. The single additional execution allowance is consumed.
+Offline replay returned the same failure with0 provider constructions. Next is
+execution QA and offline diagnosis, not another billable attempt or image render.
+See CURRENT and outputs/r3b1b-dini-failed-provider-successor-20260910/READOUT.md.
+
+Historical sequence before this completed successor:
 
 Guy's gentle-chuckle decision for page6 is represented in the real effective
 template and approved reconciliation; original source and other pages unchanged.

@@ -1,5 +1,72 @@
 # SmallHeroes — Current Technical State
 
+## Failed-provider successor executed — draft-validation HOLD, allowance consumed
+
+2026-09-10. Received Claude Code PASS P0=0/P1=0/P2=1 for
+7db205062551d0a9e56744b51140bd7f15aa2cae..4e408bdab825961ebdbc1fe460b43c64cc57b494.
+Code PASS ends at4e408bda; CLI sanitized-reason-code operability P2 remains open.
+Claude independently reproduced5880passed/73skips/0failed and both typechecks.
+Guy explicitly approved pushing the two local commits and continuing the approved
+USD5 attempt after real offline preparation. Codex pushedcf78b4b2..4e408bda,
+exit0, verified ls-remote at4e408bda and clean0/0. Sole writer remains this task,
+C:/GNart/Work/sh-r3b1b-semantic-m1, codex/r3b1b-semantic-recovery-m1.
+Protected dependencies remained clean at768ccb2f/63ccb484.
+
+Real UNMOCKED advance/preflight/prepare/authorize all succeeded, each exit0,
+providerCalls0, no credential access. Current bridge2f37178a preserves full
+contextfe930e70. New request90c8bb92, preflight2d897a76, successor candidate
+007f7d61 and authorization45ccc002 all came from actual preceding outputs.
+Original content approval metadata is preserved; successor authorization time
+13:14:06Z is the task's recording time for Guy's existing decision, not an exact
+chat-message timestamp. No production code or policy changed.
+
+The ONE approved live execution completed with process exit0 but terminal
+AUTHORING_FAILED: draft_validation_repair_exhausted. All3 generation responses
+completed with usage;2 validation repairs,0 transport retry/fallback. One extra
+input-token count probe dispatched; therefore4 observed HTTP provider dispatches
+total, NOT3 total network calls. No Blueprint/candidate approval or images.
+Diagnostics per generation attempt76 ->8 ->1. Final capture has exactly one
+action_infeasible identity at frames[12].affordanceIds; preRenderBlueprint.ts
+requires a compatible action-space support. The sanitized capture does NOT retain
+the failed draft, action ID or exact failing compatibility predicate, so those
+details are not diagnosed or reconstructed from the count alone.
+
+Generation conservative accountingUSD1.222860 + probe debitUSD0.095255 =
+USD1.318115 underUSD5. Nominal generation-only estimateUSD1.098884. These are
+repository-policy calculations from usage, NOT a verified provider invoice;
+the original failed attempt's actual charge remains unknown and separate.
+The allowance is consumed even though the ceiling was not reached. No chaining
+or new paid attempt is authorized by unused dollar headroom.
+
+Successor identity48de17fa; claim98cdd0e0; slotbab881ed; lookupd9b85207;
+binding462c991f; terminal67a12df2; receipt016128ac; sanitized capture71d49975.
+Offline replay using throwing provider/count factories returned replayed=true,
+same terminal/receipt,0 provider constructions,exit0. All45 original inventory
+entries recomputed unchanged after execution/replay. Original ordinary identity
+beb7c945 remains consumed; no original artifact was rewritten.
+
+Evidence: outputs/r3b1b-dini-failed-provider-successor-20260910/READOUT.md,
+including exact hashes, invocation harness, limitations and Claude handoff.
+Native stdout/stderr were captured separately via hidden Start-Process and its
+ExitCode; stderr is empty, consistent with no provider-boundary error. Logs,
+runtime artifacts and local invocation/replay harnesses are ignored/local-only;
+no verified off-machine backup. The push does not preserve them. Harnesses call
+the reviewed lifecycle/adapters; they are not independently reviewed code files.
+
+Next: read-only independent execution audit and offline diagnosis of action-space
+compatibility/repair guidance, including the limits of retained evidence. Do not
+claim a proven predicate-level root cause without the failed draft. No new live
+run, weakened validator or ledger reset. This documentation closeout is outside
+the independent code PASS; no new independent PASS is self-awarded. M2b,
+Boards/package, book readiness, original P1 HELD0/3/3 and resource-reliability P1
+remain open; payments stay deferred. Earlier sections below are milestone history.
+
+Documentation closeout validation: npx tsc --noEmit exit0, git diff --check exit0;
+3 tracked Markdown paths only,98 additions/1 deletion before this validation note.
+No full test rerun for prose-only changes. Closeout commit stays local; Guy's
+propagation approval covered the two pre-existing commits, not an automatic push
+of later documentation.
+
 ## Failed-provider successor route implemented — independent review before live use
 
 2026-09-10. Guy reiterated continuation; no additional implementation permission

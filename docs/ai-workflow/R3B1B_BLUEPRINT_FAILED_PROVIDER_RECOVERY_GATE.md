@@ -1,5 +1,26 @@
 # Failed-provider Blueprint recovery — approved scope and implementation record
 
+## Execution disposition — 2026-09-10
+
+Claude independently passed the full route7db20506..4e408bda,0/0/1; CLI failure
+classification P2 remains open. Guy explicitly approved propagation and the
+already-budgeted attempt. Codex pushedcf78b4b2..4e408bda and verified clean0/0.
+All real offline steps passed without provider calls. The single live successor
+then consumed its3 generation calls/2 validation repairs, plus1 count probe,
+with0 transport retry/fallback. Terminal67a12df2 is authoring_failed, receipt
+016128ac: draft_validation_repair_exhausted. Diagnostics76 ->8 ->1; final
+action_infeasible at frames[12].affordanceIds. No accepted Blueprint or images.
+Conservative generationUSD1.222860 + probe accountingUSD0.095255 =USD1.318115,
+not invoice-confirmed billing; old unknown charge remains separate. The ONE
+execution allowance is consumed; remaining dollar headroom is not retry authority.
+Real offline replay returned the exact terminal with0 provider constructions.
+Original45 evidence files unchanged. READOUT.md in the new
+outputs/r3b1b-dini-failed-provider-successor-20260910 root records full identities,
+local-only storage, invocation, logs and limitations. Code PASS stays4e408bda.
+No new policy/code change here. Next: independent runtime audit/offline diagnosis.
+The sanitized capture lacks the failed draft; exact action/predicate root cause
+must not be invented. The sections below preserve the pre-execution history.
+
 ## Full-route continuation — 2026-09-10
 
 Guy reiterated continuation; the existing approval remains sufficient. Received
