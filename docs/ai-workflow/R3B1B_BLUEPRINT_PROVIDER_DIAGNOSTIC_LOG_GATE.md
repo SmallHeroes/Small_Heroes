@@ -41,3 +41,13 @@ npm run check
 ```
 
 Before handoff: active worktree contains only this milestone; relevant branch/worktree inventory rechecked, protected dependencies clean at the same hashes. Focused local commit is not automatically pushed. Earlier runtime bridge is historical after HEAD movement. No billing claim, original-error reconstruction, paid retry, ready Blueprint/book or independent PASS follows from this logging fix.
+
+## Review received and required next-attempt capture — 2026-09-10
+
+Claude supplied code PASS P0=0/P1=0/P2=1 for exactly `f4cf3f0500f7a2b9c7660ff4001605fd1d52e24f..38f07659d1a78b10351c902fd6a66fb4f9c7b727`, independently reproducing focused99/99, full5808passed/73existing skips/0failed and both typechecks. The preceding implementation/handoff statements describe that earlier milestone; the code PASS now ends at38f07659, not this documentation correction.
+
+P2-1 is accepted: the previous retained execution log captured stdout only. The reporter writes to stderr, so the next legitimate, separately reviewed billable Blueprint attempt MUST capture stderr as well. In PowerShell, append `1> $stdoutLog 2> $stderrLog` to the approved native Node execution command; use distinct, new absolute paths under that attempt's evidence directory. Never overwrite prior attempt logs. Immediately save `$LASTEXITCODE` after the process returns, before another native command can replace it. A merged `2>&1` log is also acceptable if no consumer expects stdout to remain parseable JSON; separate logs are preferred to preserve that contract.
+
+Capture is part of the next recovery runbook, not permission to run the old command again. Pre-create the evidence directory and verify the new log paths are writable; retain both logs, the recorded exit code and their SHA-256 hashes whether execution succeeds or fails. Inspect stderr AND the structured terminal receipt: process exit0 alone does not establish Blueprint success. The sanitized log remains supplemental, best effort and non-authoritative; do not dump environment variables, raw SDK errors or credentials to augment it. Evidence under outputs remains ignored/local-only with no verified off-machine backup.
+
+No live attempt, credential read, receipt mutation or code change was needed for this correction. The consumed execution identity remains consumed; a valid recovery plan plus review is still required. Original API cause and actual charge remain unknown. Independent closure of this documentation P2 is not claimed.

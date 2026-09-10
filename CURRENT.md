@@ -1,6 +1,29 @@
 # SmallHeroes — Current Technical State
 
-## Blueprint provider-failure observability — local green, independent QA pending
+## Blueprint diagnostic logging — code PASS through 38f07659; stderr-capture P2 correction
+
+2026-09-10: Received Claude Code PASS P0=0/P1=0/P2=1 for exactly
+f4cf3f0500f7a2b9c7660ff4001605fd1d52e24f..38f07659d1a78b10351c902fd6a66fb4f9c7b727.
+Claude independently reports focused99/99, full5808passed/73existing skips/
+0failed, both typechecks, hostile-input containment and all45 prior evidence
+entries unchanged. These are reviewer results, not new Codex test runs.
+
+P2-1 is valid: the prior retained execute-blueprint.log contains stdout only;
+console.error diagnostics require explicit stderr capture on the next attempt.
+The diagnostic-log Gate now requires separate stdout/stderr logs, process exit
+code preservation, and inspection of both logs and terminal receipt. No code
+change or new execution command/authority is introduced. Independent re-gate of
+this documentation correction is pending; code PASS ends at38f07659.
+
+At this correction's start, HEAD/local upstream matched38f07659 with clean0/0;
+the reviewed commit had propagated. No push actor is inferred. Same sole writer,
+branch/worktree; protected dependencies remain clean at768ccb2f/63ccb484.
+No push or paid attempt is part of this documentation correction. The consumed
+paid identity, unknown original failure/billing, P1 HELD0/3/3, M2b/book-readiness
+and resource-phase timing P1 remain unchanged. Next: legitimate recovery plan
+and review, with captured stderr, before another billable Blueprint attempt.
+
+## Historical diagnostic implementation handoff (before Claude review)
 
 2026-09-09: Guy said continue after the real Dini Blueprint attempt failed.
 Same sole-writer task/worktree/branch, C:/GNart/Work/sh-r3b1b-semantic-m1,

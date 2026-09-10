@@ -1,6 +1,6 @@
 # SmallHeroes — Roadmap
 
-**Last verified:** 2026-09-09 (consumer code PASS through f4cf3f05; real Dini reconciliation/production preflight completed; Blueprint provider attempt failed; diagnostic logging locally green, QA pending)
+**Last verified:** 2026-09-10 (diagnostic code PASS through38f07659; Blueprint attempt remains failed; stderr-capture documentation P2 corrected locally, re-gate pending)
 **Product priority owner:** Guy
 **Technical sequencing owner:** Codex
 
@@ -40,8 +40,11 @@ Blueprint; zero retry/fallback, usage and actual billing unknown. No images.
 The current bounded continuation preserves sanitized failure classification in
 operator logs without changing terminal receipts, policy, budget or retry rights.
 Local gate:99 focused tests; full5808passed/73existing skips/0failed, both
-typechecks, unchanged391spec inventory and4/2workers. Independent QA pending.
-Original failure cause remains unknown. After the focused code gate/Claude QA,
+typechecks, unchanged391spec inventory and4/2workers. Claude independently
+reproduced these results and supplied code PASS0/0/1 through38f07659. Its sole
+P2 requires preserving stderr on the next real attempt; the Gate now mandates
+separate stdout/stderr logs and exit-code capture. Documentation re-gate pending.
+Original failure cause remains unknown. With the focused code PASS received,
 investigate the provider failure and a legitimate recovery route before more
 paid work; do not bypass the consumed execution identity. M2b, Boards/package,
 catalog qualification and the resource-timing P1 remain open. Payments last.
