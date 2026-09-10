@@ -1,5 +1,19 @@
 # Failed-provider Blueprint recovery — decision brief, not implementation
 
+## Owner decision and execution split — 2026-09-10
+
+Guy replied "מאשר" to the explicit implementation plus one additional USD5 execution proposal, after independent Claude review of the implementation. This resolves the cost decision below: one additional execution, up to3 generation calls including2 validation repairs, no transport retry/fallback, historical unknown charge separate. It is not permission to skip QA or execute before the complete successor exists. At implementation start HEAD/local upstream both matched4b7dd5a1, clean0/0; no propagation actor inferred.
+
+First prerequisite milestone implemented: `inspectHistoricalSemanticProductionBridge`, a read-only full semantic approval/reconciliation/production-evidence reconstruction. It validates the current accepted source/correction using the existing validator, verifies recorded consumer shape and Git ancestry, reconstructs the historical proof/pending bridge and all subsequent artifacts, rebuilds the complete context internally, and re-observes bytes/current state after the await. It returns only evidence identities/subject, explicitly historical, never a production context. Existing loaders and paid executor have no new caller or bypass. Ancestry is consistency evidence, not authentication of past remote observations. This inspection is NOT historical receipt/claim validation yet.
+
+Scope split: review this historical/current boundary before connecting it to paid authority. Remaining implementation: full failed-provider predecessor ledger/receipt eligibility, versioned exact successor authorization and predecessor-bound atomic slot, current target preflight/rebinding, shared executor/CLI wiring, race/replay/crash tests. No live call can occur through this prerequisite. No full-book or completed-recovery claim.
+
+Validation: red test first failed with missing inspection export; final focused suite115passed/0failed (21 new cases,94 existing), npx tsc --noEmit exit0. Tests use the real context/reconciliation builders with mocked current/historical validation inputs and real local Git ancestry; this does not prove successful inspection of the real frozen run under fresh current authority. Forty-five prior runtime inventory entries recomputed unchanged. Full repository check is recorded in CURRENT at handoff. Code PASS remains38f07659 until independent review; the new milestone is not self-awarded PASS.
+
+The numbered brief below is the original proposal as presented before Guy's approval; its decision-pending wording is historical.
+
+Final prerequisite gate: npm run check exit0,5829passed/73existing skips/0failed; both typechecks0,5158ordinary/671resource,391specs(369/22),workers4/2 unchanged. Full log outputs/qa-blueprint-provider-diagnostic-20260909/historical-inspection-full-check.log SHA256 1ae6e8132b608e88573b16f88afb0e1171b16e1cf0b1172caedcc53deb6d45d7. A single green run does not close the separate resource-phase timing P1. This is Codex validation, not independent QA.
+
 2026-09-10. Guy requested continued progress toward a ready book. Codex investigated in the existing sole-writer task, C:/GNart/Work/sh-r3b1b-semantic-m1, branch codex/r3b1b-semantic-recovery-m1. Start HEAD b2788c2361c1f0bc66fe5142e1d7038aec00c585, clean ahead2/behind0 against local upstream38f07659. Protected d53b768ccb2f and accepted-intent63ccb484 remain read-only. No push, paid call, credential read or runtime artifact mutation in this investigation.
 
 ## 1. Proposed change

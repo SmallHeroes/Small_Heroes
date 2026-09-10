@@ -1,6 +1,7 @@
 /** Offline semantic/reconciliation review and exact operator approval. Never production context authority. */
 import fs from 'node:fs';
 import path from 'node:path';
+import { execFileSync } from 'node:child_process';
 import { canonicalHash } from '@/lib/canonical-json';
 import { canonicalContentAddressedJsonBytes } from './canonicalContentAddressedJson';
 import { createContainedContentAddressedJsonArtifactStore } from './canonicalLiveAuthoringArtifacts';
@@ -443,4 +444,94 @@ export async function loadSemanticProductionBridge(input: { consumerRepoRoot: st
     throw new Error('semantic_production_bridge_reconstruction_mismatch');
   }
   return { ...built, providerCalls: 0 as const };
+}
+
+/** Read-only historical evidence, deliberately NOT a production-context loader.
+ * Revalidate today's source/correction and reconstruct the original approval
+ * chain at its recorded consumer identity. Only digests/subjects leave this
+ * boundary: callers cannot use the result as a context or dispatch authority.
+ * All existing current loaders remain strict and never call this function. */
+export async function inspectHistoricalSemanticProductionBridge(input: {
+  consumerRepoRoot: string; manifestPath: string; expectedManifestDigest: string;
+}) {
+  const args = argumentsCopy(input, ['consumerRepoRoot', 'manifestPath', 'expectedManifestDigest']);
+  const reads: Array<() => void> = [];
+  function observed<T>(file: string, category: ApprovalCategory, expected: string) {
+    const original = readCanonical<T>(args.consumerRepoRoot, file, category, expected);
+    reads.push(() => {
+      if (readCanonical(args.consumerRepoRoot, file, category, expected).bytes !== original.bytes) {
+        throw new Error('semantic_history_changed_during_inspection');
+      }
+    });
+    return original;
+  }
+  const production = observed<SemanticProductionBridge>(args.manifestPath, 'semantic-production-bridges', args.expectedManifestDigest);
+  const request = argumentsCopy(production.value.request, ['consumerRepoRoot', 'approvalPath', 'expectedApprovalDigest', 'inputDir',
+    'styleId', 'styleAuthorityPath', 'expectedStyleAuthorityDigest']);
+  if (fs.realpathSync(request.consumerRepoRoot) !== fs.realpathSync(args.consumerRepoRoot)) {
+    throw new Error('semantic_production_consumer_mismatch');
+  }
+  const accepted = observed<SemanticReconciliationApproval>(request.approvalPath, 'semantic-reconciliation-approvals', request.expectedApprovalDigest);
+  const review = observed<SemanticReconciliationReview>(accepted.value.review.path, 'semantic-reconciliation-reviews', accepted.value.review.digest);
+  const bridgeIdentity = argumentsCopy(review.value.bridge, ['consumerRepoRoot', 'manifestPath', 'expectedManifestDigest']);
+  if (fs.realpathSync(bridgeIdentity.consumerRepoRoot) !== fs.realpathSync(args.consumerRepoRoot)) {
+    throw new Error('semantic_reconciliation_review_consumer_mismatch');
+  }
+  const pending = observed<SemanticCorrectionBridgeManifest>(bridgeIdentity.manifestPath, 'bridge-manifests', bridgeIdentity.expectedManifestDigest);
+  const semanticIdentity = { consumerRepoRoot: args.consumerRepoRoot, approvalPath: pending.value.approval.path,
+    expectedApprovalDigest: pending.value.approval.digest };
+  observed<SemanticCorrectionApproval>(semanticIdentity.approvalPath, 'semantic-correction-approvals', semanticIdentity.expectedApprovalDigest);
+  // This invokes the actual current validator, including full historical replay,
+  // accepted source reconstruction, packet reconstruction and async re-observation.
+  const approved = await loadApprovedSemanticCorrection(semanticIdentity);
+  const now = approved.validated.proof.currentConsumer;
+  const previous = pending.value.currentValidation.currentConsumer;
+  if (!object(previous) || !equal(Object.keys(previous).sort(), Object.keys(now).sort()) ||
+      previous.repositoryRealPath !== now.repositoryRealPath || previous.branchRef !== now.branchRef ||
+      previous.upstreamRef !== now.upstreamRef || typeof previous.head !== 'string' || !/^[a-f0-9]{40}$/.test(previous.head) ||
+      previous.upstreamHead !== previous.head || previous.ahead !== 0 || previous.behind !== 0 ||
+      previous.trackedChanges !== 0 || previous.untrackedChanges !== 0) {
+    throw new Error('semantic_history_consumer_identity_invalid');
+  }
+  // Git ancestry is a consistency check, not proof that a historical remote
+  // observation was authentic. No checkout, detached execution or Git writes.
+  try {
+    execFileSync('git', ['merge-base', '--is-ancestor', previous.head, now.head], {
+      cwd: args.consumerRepoRoot, stdio: 'pipe', windowsHide: true, timeout: 10_000,
+    });
+  } catch { throw new Error('semantic_history_consumer_not_ancestor'); }
+  const { digest: _currentDigest, digestAlgorithm: _algorithm, ...currentPayload } = approved.validated.proof;
+  const historicalProof = sealed({ ...currentPayload, currentConsumer: previous });
+  const historicalValidated = { ...approved.validated, proof: historicalProof };
+  const rebuiltPending = manifestFor(semanticIdentity, { approval: approved.approval, validated: historicalValidated });
+  if (canonicalContentAddressedJsonBytes(rebuiltPending) !== pending.bytes) {
+    throw new Error('semantic_history_pending_reconstruction_mismatch');
+  }
+  const loaded = { manifest: rebuiltPending, validated: historicalValidated, providerCalls: 0 as const };
+  const rebuiltReview = reconciliationReviewFor(bridgeIdentity, review.value.decisions, loaded);
+  if (canonicalContentAddressedJsonBytes(rebuiltReview) !== review.bytes) {
+    throw new Error('semantic_history_review_reconstruction_mismatch');
+  }
+  const reviewed = { review: rebuiltReview, loaded, providerCalls: 0 as const };
+  const rebuiltApproval = reconciliationApprovalFor({ consumerRepoRoot: args.consumerRepoRoot,
+    reviewPath: accepted.value.review.path, expectedReviewDigest: accepted.value.review.digest,
+    approvedBy: accepted.value.approvedBy, approvedAt: accepted.value.approvedAt }, reviewed);
+  if (canonicalContentAddressedJsonBytes(rebuiltApproval) !== accepted.bytes) {
+    throw new Error('semantic_history_approval_reconstruction_mismatch');
+  }
+  const built = productionBridgeFor(request, { approval: rebuiltApproval, reviewed, providerCalls: 0 as const });
+  if (canonicalContentAddressedJsonBytes(built.manifest) !== production.bytes) {
+    throw new Error('semantic_history_production_reconstruction_mismatch');
+  }
+  for (const check of reads) check();
+  if (!equal(readCurrentQaWizardConsumerRepositoryAuthority(args.consumerRepoRoot), now)) {
+    throw new Error('semantic_history_consumer_changed_during_inspection');
+  }
+  return sealed({ version: 'historical-semantic-production-inspection/v1' as const,
+    authorityScope: 'historical_semantic_production_evidence_only' as const,
+    manifestDigest: built.manifest.digest, productionContextDigest: built.context.digest,
+    subject: built.manifest.subject, reconciliationApprovalDigest: rebuiltApproval.digest,
+    historicalConsumer: previous, currentValidationDigest: approved.validated.proof.digest,
+    providerCalls: 0 as const, zeroWrite: true as const,
+    doesNotAuthorize: ['current_production_context', 'execution_claim', 'provider_call', 'retry', 'blueprint_approval', 'image_render'] });
 }

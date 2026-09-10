@@ -12,6 +12,7 @@ import { recordSemanticCorrectionApproval, loadApprovedSemanticCorrection, prepa
   loadSemanticCorrectionBridge, prepareSemanticReconciliationReview, loadSemanticReconciliationReview,
   recordSemanticReconciliationApproval, loadApprovedSemanticReconciliation,
   materializeSemanticProductionInputs, prepareSemanticProductionBridge, loadSemanticProductionBridge,
+  inspectHistoricalSemanticProductionBridge,
   type RecordSemanticCorrectionApprovalRequest } from '../semanticCorrectionApprovalBridge';
 import { buildSemanticCorrectionReviewPacket } from '../semanticCorrectionPreview';
 import { buildProductionReconciliationDraftFromSourceSnapshot } from '../reconciliationLifecycle';
@@ -87,6 +88,22 @@ async function productionSubject() {
   return { ...identity, inputDir, styleId: STYLE01_PRODUCTION_STYLE_ID, styleAuthorityPath: STYLE01_PRODUCTION_STYLE_AUTHORITY_PATH,
     expectedStyleAuthorityDigest: canonicalHash(style), outputDir: rel(path.join(root, 'production-bridge')), write: true };
 }
+async function historicalProductionSubject() {
+  const head = spawnSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).stdout.trim();
+  const parent = spawnSync('git', ['rev-parse', 'HEAD^'], { encoding: 'utf8' }).stdout.trim();
+  const previous = { ...validated.proof.currentConsumer, head: parent, upstreamHead: parent };
+  const { digest: _digest, digestAlgorithm: _algorithm, ...payload } = validated.proof;
+  const oldPayload = { ...payload, currentConsumer: previous };
+  validated = { ...validated, proof: { ...oldPayload, digestAlgorithm: 'canonical-json-sha256', digest: canonicalHash(oldPayload) } };
+  current.mockReturnValue(previous); validate.mockResolvedValue(validated);
+  const produced = await prepareSemanticProductionBridge(await productionSubject());
+  const now = { ...previous, head, upstreamHead: head };
+  const newPayload = { ...oldPayload, currentConsumer: now };
+  validated = { ...validated, proof: { ...newPayload, digestAlgorithm: 'canonical-json-sha256', digest: canonicalHash(newPayload) } };
+  current.mockReturnValue(now); validate.mockResolvedValue(validated);
+  const identity = { consumerRepoRoot: process.cwd(), manifestPath: produced.artifact.path, expectedManifestDigest: produced.manifest.digest };
+  return { produced, identity, previous, now };
+}
 beforeEach(()=>{
   vi.clearAllMocks();
   fs.mkdirSync(path.join(process.cwd(),'outputs'),{recursive:true});
@@ -106,6 +123,67 @@ beforeEach(()=>{
 afterEach(()=>{vi.restoreAllMocks();if(root)fs.rmSync(root,{recursive:true,force:true});});
 
 describe('semantic production context and real Blueprint consumer', () => {
+  it('inspects historical approved production evidence without making it current authority', async () => {
+    const { produced, identity } = await historicalProductionSubject();
+    await expect(loadSemanticProductionBridge(identity)).rejects.toThrow('semantic_bridge_manifest_reconstruction_mismatch');
+    const result = await inspectHistoricalSemanticProductionBridge(identity);
+    expect(result.authorityScope).toBe('historical_semantic_production_evidence_only');
+    expect(result.productionContextDigest).toBe(produced.context.digest);
+    expect(result.manifestDigest).toBe(produced.manifest.digest);
+    expect(result).not.toHaveProperty('context');
+    expect(result.providerCalls).toBe(0);
+    expect(result.zeroWrite).toBe(true);
+    await expect(loadQaWizardProductionContext({ repoRoot: process.cwd(), bridgeManifestPath: produced.artifact.path })).rejects.toThrow();
+  });
+  it.each(['context', 'scope', 'subject', 'inputs', 'approval', 'extra'])('historical inspection rejects rehashed production %s', async kind => {
+    const { produced } = await historicalProductionSubject();
+    const changed = rewrite(produced.artifact.path, value => {
+      if (kind === 'context') value.productionContext.digest = 'f'.repeat(64);
+      if (kind === 'scope') value.doesNotAuthorize = [];
+      if (kind === 'subject') value.subject.effective.coverageDigest = 'f'.repeat(64);
+      if (kind === 'inputs') value.inputs[0].digest = 'f'.repeat(64);
+      if (kind === 'approval') value.reconciliationApproval.digest = 'f'.repeat(64);
+      if (kind === 'extra') value.approvedForRender = true;
+    }, true);
+    await expect(inspectHistoricalSemanticProductionBridge({ consumerRepoRoot: process.cwd(), manifestPath: changed.file,
+      expectedManifestDigest: changed.value.digest })).rejects.toThrow('semantic_history_production_reconstruction_mismatch');
+  });
+  it.each(['production', 'approval', 'review', 'pending'])('historical inspection rejects %s bytes changed across await', async kind => {
+    const { produced, identity } = await historicalProductionSubject();
+    const approvalPath = produced.manifest.request.approvalPath;
+    const approval = JSON.parse(fs.readFileSync(abs(approvalPath), 'utf8'));
+    const review = JSON.parse(fs.readFileSync(abs(approval.review.path), 'utf8'));
+    const file = { production: produced.artifact.path, approval: approvalPath, review: approval.review.path, pending: review.bridge.manifestPath }[kind]!;
+    validate.mockImplementationOnce(async () => { fs.appendFileSync(abs(file), ' '); return validated; });
+    await expect(inspectHistoricalSemanticProductionBridge(identity)).rejects.toThrow();
+  });
+  it.each(['dirty-current', 'source-changed', 'history-changed', 'packet-changed'])('historical inspection propagates real validation rejection: %s', async reason => {
+    const { identity } = await historicalProductionSubject();
+    validate.mockRejectedValueOnce(new Error(reason));
+    await expect(inspectHistoricalSemanticProductionBridge(identity)).rejects.toThrow(reason);
+  });
+  it.each(['branch', 'upstream', 'root', 'ancestry'])('historical inspection rejects inconsistent consumer %s', async kind => {
+    const { identity, now } = await historicalProductionSubject();
+    const changed = { ...now,
+      ...(kind === 'branch' ? { branchRef: 'refs/heads/codex/other' } : {}),
+      ...(kind === 'upstream' ? { upstreamRef: 'refs/remotes/origin/codex/other' } : {}),
+      ...(kind === 'root' ? { repositoryRealPath: now.repositoryRealPath + '-other' } : {}),
+      ...(kind === 'ancestry' ? { head: '0'.repeat(40), upstreamHead: '0'.repeat(40) } : {}),
+    };
+    validate.mockResolvedValue({ ...validated, proof: { ...validated.proof, currentConsumer: changed } });
+    await expect(inspectHistoricalSemanticProductionBridge(identity)).rejects.toThrow(kind === 'ancestry' ? 'not_ancestor' : 'identity_invalid');
+  });
+  it('historical inspection rejects a current consumer changed after validation', async () => {
+    const { identity, now } = await historicalProductionSubject();
+    current.mockReturnValue({ ...now, head: 'e'.repeat(40) });
+    await expect(inspectHistoricalSemanticProductionBridge(identity)).rejects.toThrow('consumer_changed_during_inspection');
+  });
+  it('historical inspection rejects altered projections and injected options without writes', async () => {
+    const { identity, produced } = await historicalProductionSubject();
+    await expect(inspectHistoricalSemanticProductionBridge({ ...identity, write: true } as any)).rejects.toThrow('arguments_invalid');
+    fs.appendFileSync(abs(produced.manifest.inputs[0]!.path), ' ');
+    await expect(inspectHistoricalSemanticProductionBridge(identity)).rejects.toThrow('projection_mismatch');
+  });
   it('previews and materializes exact projections without creating production authority', async () => {
     const approved = await approvedReconciliation();
     const args = { consumerRepoRoot: process.cwd(), approvalPath: approved.artifact.path, expectedApprovalDigest: approved.approval.digest,

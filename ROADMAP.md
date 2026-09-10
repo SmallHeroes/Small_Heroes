@@ -1,6 +1,6 @@
 # SmallHeroes — Roadmap
 
-**Last verified:** 2026-09-10 (capture P2 independently CLOSED through documentation b2788c23; code PASS38f07659; failed-provider recovery investigated, additional-exposure decision pending)
+**Last verified:** 2026-09-10 (recovery implementation/additional USD5 approved; historical evidence prerequisite implemented, independent review pending; paid successor not yet connected)
 **Product priority owner:** Guy
 **Technical sequencing owner:** Codex
 
@@ -51,7 +51,11 @@ checks on5.1. No new paid attempt occurred. Recovery investigation now confirms
 the existing orphan and legacy-v7 lanes cannot authorize our failed v8 call;
 real no-write preparation first rejects historical repository proof. A bounded
 successor proposal is in R3B1B_BLUEPRINT_FAILED_PROVIDER_RECOVERY_GATE.md;
-implementation not started, additional USD5 execution allowance not yet granted.
+Guy subsequently approved implementation and the one additional USD5 execution
+after Claude review. First prerequisite implemented: read-only historical semantic
+production inspection, no context/dispatch authority,115focused tests. Full ledger
+eligibility, successor slot/authorization, current target and executor/CLI wiring
+remain; no paid execution yet. See CURRENT and the Gate's execution split.
 Original failure cause remains unknown. With the focused code PASS received,
 investigate the provider failure and a legitimate recovery route before more
 paid work; do not bypass the consumed execution identity. M2b, Boards/package,

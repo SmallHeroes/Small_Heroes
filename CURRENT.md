@@ -1,6 +1,40 @@
 # SmallHeroes — Current Technical State
 
-## Blueprint failed-provider recovery — investigation complete, decision pending
+## Blueprint recovery approved — historical evidence prerequisite implemented
+
+2026-09-10: Guy explicitly approved the proposed implementation and one additional
+USD5 execution after Claude review, up to3 generation calls/2 validation repairs,
+zero transport retry/fallback; prior unknown charge remains separate. No further
+generic owner approval is requested. Implementation began from clean4b7dd5a1,
+local upstream equal0/0, same sole-writer task/worktree/branch.
+
+Implemented inspectHistoricalSemanticProductionBridge: reconstruct the approved
+historical semantic bridge/reconciliation/production evidence with fresh current
+source/correction validation, canonical bytes, recorded-consumer consistency and
+Git ancestry. Re-observe artifacts/current state across async validation. Return
+only explicitly historical evidence identities, NOT a production context.
+Existing current loaders still reject the stale fixture, including the actual
+shared production-context entry. No new provider/executor/CLI caller exists.
+
+Red first: missing export,1 failed/94 filtered skips. Focused115/115,21 new cases;
+tsc exit0. Real builders plus mocked validation inputs; no claim that real frozen
+run inspection succeeded under current Git authority. Prior45 runtime inventory
+entries recomputed unchanged; no credentials/provider/spend or runtime mutation.
+
+Final npm run check exit0:5829passed/73existing skips/0failed; both typechecks0.
+Ordinary5158/resource671; inventory391=369+22 and workers4/2 unchanged. One green
+run does not close the separate resource-phase timing P1. Full log local-only:
+outputs/qa-blueprint-provider-diagnostic-20260909/historical-inspection-full-check.log,
+SHA256 1ae6e8132b608e88573b16f88afb0e1171b16e1cf0b1172caedcc53deb6d45d7.
+
+This is the first prerequisite, not the complete successor. Historical receipt/
+claim eligibility, atomic one-shot authorization, current target binding and
+shared executor/CLI integration remain to implement after review of this boundary.
+No render yet. Code PASS remains38f07659; original error/billing, P1 HELD0/3/3,
+resource timing P1 and M2b/book readiness unchanged. Gate records exact scope:
+docs/ai-workflow/R3B1B_BLUEPRINT_FAILED_PROVIDER_RECOVERY_GATE.md.
+
+## Historical recovery investigation (before owner approval)
 
 2026-09-10: Claude supplied documentation PASS0/0/0 for1fad4583..b2788c23;
 stderr-capture P2-1 CLOSED,18 independent checks on PowerShell5.1. Code PASS
