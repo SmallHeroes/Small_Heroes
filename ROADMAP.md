@@ -1,6 +1,6 @@
 # SmallHeroes — Roadmap
 
-**Last verified:** 2026-09-10 (recovery implementation/additional USD5 approved; historical evidence prerequisite implemented, independent review pending; paid successor not yet connected)
+**Last verified:** 2026-09-10 (historical prerequisite code PASS7d6ed521 with2 P2s; ancestry classification corrected locally; Claude full gate non-green from resource timeout; paid successor not connected)
 **Product priority owner:** Guy
 **Technical sequencing owner:** Codex
 
@@ -56,6 +56,12 @@ after Claude review. First prerequisite implemented: read-only historical semant
 production inspection, no context/dispatch authority,115focused tests. Full ledger
 eligibility, successor slot/authorization, current target and executor/CLI wiring
 remain; no paid execution yet. See CURRENT and the Gate's execution split.
+Claude reviewed4b7dd5a1..7d6ed521 with PASS0/0/2; its full check had one resource
+timeout in unchanged live-request-materialization.spec.ts, so reliability P1
+remains open despite Codex's prior green run. Planning base4b7dd5a1 is explicitly
+ungated; approval was recorded in reviewed7d6ed521, not in the planning base.
+Ancestry check now distinguishes exit1 from inability to complete the check;
+correction re-gate pending, no new independent PASS claimed.
 Original failure cause remains unknown. With the focused code PASS received,
 investigate the provider failure and a legitimate recovery route before more
 paid work; do not bypass the consumed execution identity. M2b, Boards/package,

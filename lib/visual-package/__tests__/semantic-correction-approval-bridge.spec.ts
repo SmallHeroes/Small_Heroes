@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
-import { spawnSync } from 'node:child_process';
+import { spawnSync, execFileSync } from 'node:child_process';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { canonicalHash } from '@/lib/canonical-json';
 import { canonicalContentAddressedJsonBytes } from '../canonicalContentAddressedJson';
@@ -24,6 +24,10 @@ import { STYLE01_PRODUCTION_STYLE_AUTHORITY_PATH, STYLE01_PRODUCTION_STYLE_ID } 
 vi.mock('../semanticCorrectionConsumerValidation', async original => ({
   ...await original<typeof import('../semanticCorrectionConsumerValidation')>(), validateSemanticCorrectionForCurrentConsumer: vi.fn(),
 }));
+vi.mock('node:child_process', async original => {
+  const actual = await original<typeof import('node:child_process')>();
+  return { ...actual, execFileSync: vi.fn(actual.execFileSync) };
+});
 vi.mock('../qaWizardCandidateBridge', async original => ({
   ...await original<typeof import('../qaWizardCandidateBridge')>(), readCurrentQaWizardConsumerRepositoryAuthority: vi.fn(),
 }));
@@ -171,12 +175,24 @@ describe('semantic production context and real Blueprint consumer', () => {
       ...(kind === 'ancestry' ? { head: '0'.repeat(40), upstreamHead: '0'.repeat(40) } : {}),
     };
     validate.mockResolvedValue({ ...validated, proof: { ...validated.proof, currentConsumer: changed } });
-    await expect(inspectHistoricalSemanticProductionBridge(identity)).rejects.toThrow(kind === 'ancestry' ? 'not_ancestor' : 'identity_invalid');
+    await expect(inspectHistoricalSemanticProductionBridge(identity)).rejects.toThrow(kind === 'ancestry' ? 'ancestry_check_failed' : 'identity_invalid');
   });
   it('historical inspection rejects a current consumer changed after validation', async () => {
     const { identity, now } = await historicalProductionSubject();
     current.mockReturnValue({ ...now, head: 'e'.repeat(40) });
     await expect(inspectHistoricalSemanticProductionBridge(identity)).rejects.toThrow('consumer_changed_during_inspection');
+  });
+  it.each([
+    { label: 'negative ancestry', failure: { status: 1, signal: null }, expected: 'semantic_history_consumer_not_ancestor' },
+    { label: 'missing git', failure: { code: 'ENOENT', status: null }, expected: 'semantic_history_ancestry_check_failed' },
+    { label: 'timeout', failure: { code: 'ETIMEDOUT', signal: 'SIGTERM', status: null }, expected: 'semantic_history_ancestry_check_failed' },
+    { label: 'repository error', failure: { status: 128, signal: null }, expected: 'semantic_history_ancestry_check_failed' },
+    { label: 'signalled status one', failure: { status: 1, signal: 'SIGTERM' }, expected: 'semantic_history_ancestry_check_failed' },
+    { label: 'unstructured error', failure: {}, expected: 'semantic_history_ancestry_check_failed' },
+  ])('historical ancestry classifies $label without raw error output', async ({ failure, expected }) => {
+    const { identity } = await historicalProductionSubject();
+    vi.mocked(execFileSync).mockImplementationOnce(() => { throw Object.assign(new Error('SECRET_RAW_GIT_ERROR'), failure); });
+    await expect(inspectHistoricalSemanticProductionBridge(identity)).rejects.toThrow(new Error(expected));
   });
   it('historical inspection rejects altered projections and injected options without writes', async () => {
     const { identity, produced } = await historicalProductionSubject();

@@ -499,7 +499,20 @@ export async function inspectHistoricalSemanticProductionBridge(input: {
     execFileSync('git', ['merge-base', '--is-ancestor', previous.head, now.head], {
       cwd: args.consumerRepoRoot, stdio: 'pipe', windowsHide: true, timeout: 10_000,
     });
-  } catch { throw new Error('semantic_history_consumer_not_ancestor'); }
+  } catch (error) {
+    // merge-base exit 1 is a negative answer; launch, timeout, signal and other
+    // exit statuses mean the check failed. Never expose Git stderr/message.
+    let negativeAnswer = false;
+    try {
+      if (object(error)) {
+        const status = Object.getOwnPropertyDescriptor(error, 'status')?.value;
+        const signal = Object.getOwnPropertyDescriptor(error, 'signal')?.value;
+        const code = Object.getOwnPropertyDescriptor(error, 'code')?.value;
+        negativeAnswer = status === 1 && (signal === null || signal === undefined) && code === undefined;
+      }
+    } catch { /* An unreadable failure cannot establish negative ancestry. */ }
+    throw new Error(negativeAnswer ? 'semantic_history_consumer_not_ancestor' : 'semantic_history_ancestry_check_failed');
+  }
   const { digest: _currentDigest, digestAlgorithm: _algorithm, ...currentPayload } = approved.validated.proof;
   const historicalProof = sealed({ ...currentPayload, currentConsumer: previous });
   const historicalValidated = { ...approved.validated, proof: historicalProof };

@@ -1,6 +1,51 @@
 # SmallHeroes — Current Technical State
 
-## Blueprint recovery approved — historical evidence prerequisite implemented
+## Historical inspection QA received — ancestry classification correction
+
+2026-09-10: Claude supplied code PASS P0=0/P1=0/P2=2 for exactly
+4b7dd5a1ed4ead5510b10eded99737a1ef7e6154..7d6ed521886c6a5c2f9c8182417f1bdf01c65a24.
+Code-review boundary is7d6ed521, not this correction. Focused115/115 and both
+typechecks independently passed. Claude's full gate was NON-GREEN: ordinary
+5158passed/73skipped, resource670passed/1failed; untouched
+live-request-materialization.spec.ts:1180 'fails closed on help mixture'
+timed out at10306ms. These are attributed reviewer results, not a new Codex run.
+Prior Codex5829/73/0 remains that run's result, not a universal green status.
+The separate resource-phase reliability P1 remains open; no timeout was raised.
+
+P2-1 disposition: planning-only b2788c23..4b7dd5a1 is deliberately outside the
+independent review ranges; no retroactive PASS is claimed. Inspection of the
+immutable4b7dd5a1 Gate confirms it requested a decision, not recorded approval.
+Guy's subsequent approval is first transcribed in7d6ed521, inside the supplied
+review range. This clarifies attribution without inventing a missing approval
+or treating planning prose as execution authority. Independent finding closure
+is pending. No extra transcription-only gate is requested for the planning base.
+
+P2-2 corrected: only Git exit1 without a signal/launch error means not ancestor.
+Launch errors, timeout, signals, other statuses and unstructured errors now emit
+semantic_history_ancestry_check_failed, without raw Git text. Both outcomes
+remain closed; no retry, provider or production-context authority was added.
+Same sole writer at clean7d6ed521/local-upstream0/0 at correction start, protected
+dependencies768ccb2f/63ccb484 unchanged. No push actor inferred; no push or paid
+attempt is part of this correction. Existing USD5 authorization remains unused.
+
+Correction validation history: initial narrow test filter matched nothing and is
+not proof. Corrected red matrix:5failed/1passed/115filtered. After the code fix,
+full focused suite had120passed/1timeout in the existing three-production-CLI
+test (20000ms); retained in ancestry-classification-focused.log, not relabeled
+green or proven inherited. Targeted10/10 passed (111filtered). The subsequent
+full-check ordinary phase passed5164/73existing skips, including all121 tests
+of the edited spec. Full final result follows. No test
+timeouts, worker counts or selections were relaxed.
+
+Final npm run check exit0:5835passed/73existing skips/0failed, both typechecks0,
+ordinary5164/resource671, unchanged391specs(369/22),workers4/2. This run also
+passed the previously timed-out help-mixture case in761ms, but does not resolve
+the standing timing P1 or erase either earlier red run. All45 original evidence
+inventory entries recomputed unchanged. Local log ancestry-classification-full-check.log
+in outputs/qa-blueprint-provider-diagnostic-20260909/ has SHA256
+67b7bfd74bb9725f4b7f4dba6f27d02adab0f42b0d216e50e1ce4fe03b6f5da5.
+
+## Historical prerequisite handoff (before Claude review)
 
 2026-09-10: Guy explicitly approved the proposed implementation and one additional
 USD5 execution after Claude review, up to3 generation calls/2 validation repairs,
