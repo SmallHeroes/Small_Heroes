@@ -1,6 +1,23 @@
 # SmallHeroes — Current Technical State
 
-## Blueprint diagnostic logging — code PASS through 38f07659; stderr-capture P2 correction
+## Blueprint diagnostic logging — PowerShell-compatible capture correction
+
+2026-09-10: Claude re-gated38f07659..1fad4583 with PASS0/0/1, carrying P2-1
+forward: native redirection is lossy in PowerShell5.1, especially with Stop.
+Replaced that instruction with Start-Process process-level stdout/stderr capture
+and process.ExitCode, including argument quoting and launch-failure boundaries.
+Eight synthetic cases passed across PowerShell5.1.26100.9444/7.6.5,
+Continue/Stop and exit0/1; clean JSON, long lines and spaced arguments preserved.
+Gate below records exact evidence. No provider, credentials, billing or runtime
+artifact changes; only new local synthetic evidence. Code PASS stays38f07659;
+independent closure of this documentation correction remains pending.
+
+Started at clean1fad4583, ahead1/behind0 against local upstream38f07659,
+same sole-writer task/branch/worktree. Protected dependencies remain at
+768ccb2f/63ccb484. No push in this correction. Original API cause/billing,
+consumed identity, P1 HELD0/3/3, resource timing P1 and book-readiness unchanged.
+
+## Historical initial stderr-capture correction (superseded by process capture)
 
 2026-09-10: Received Claude Code PASS P0=0/P1=0/P2=1 for exactly
 f4cf3f0500f7a2b9c7660ff4001605fd1d52e24f..38f07659d1a78b10351c902fd6a66fb4f9c7b727.
