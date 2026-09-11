@@ -1,6 +1,6 @@
 # SmallHeroes — Roadmap
 
-**Last verified:** 2026-09-11 (approved repair-v11 ordinary attempt executed at 0ee03c35; provider-boundary failure after 1 dispatch, 0 repairs; actual billing unknown, allowance consumed; offline replay exact/0 provider constructions; code PASS d0af988c; no Blueprint/images; reliability P1 open)
+**Last verified:** 2026-09-11 (safe provider error-detail correction implemented offline; 93 focused tests passed; independent code QA pending, code PASS still d0af988c; prior paid run failed, charge unknown and identity consumed; no Blueprint/images; reliability P1 open)
 **Product priority owner:** Guy
 **Technical sequencing owner:** Codex
 
@@ -31,6 +31,19 @@ Blueprint and any required LOW Board/prop generation remain separately budgeted
 provider actions with exact owner gates.
 
 ## Active
+
+Guy authorized continued implementation. The safe provider-detail gap is now
+fixed in the shared transport and Blueprint log, with closed tokens/bounded hashes
+and no change to persisted evidence, prompts, identities or retry behavior.
+93 focused tests passed; final full gate exit 0, 5913 passed / 73 existing skips /
+0 failures and both typechecks. First full run timed out once; failed logs retained,
+unchanged isolated and full reruns passed. Resource reliability P1 remains open.
+Next is independent code QA, then the reviewed failed-provider recovery route.
+No paid request, key read or reset of the consumed ordinary identity in this step.
+Exact historical provider rejection remains unknown. See CURRENT and
+R3B1B_PROVIDER_ERROR_DETAIL_GATE.md. Book readiness is not inferred from diagnostics.
+
+Historical execution before the diagnostic correction:
 
 Guy approved and the repair-v11 ordinary attempt ran through the existing CLI.
 Current refresh passed at clean 0ee03c35; paid execution terminally failed at the

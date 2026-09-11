@@ -1,5 +1,53 @@
 # SmallHeroes — Current Technical State
 
+## Safe provider error detail implemented — independent code QA pending
+
+2026-09-11. Guy requested continuing to completion without repeated implementation
+approval prompts. Codex implemented the proposed offline diagnostic correction in
+the same sole-writer task, C:/GNart/Work/sh-r3b1b-semantic-m1,
+codex/r3b1b-semantic-recovery-m1, starting clean at e71777ea, ahead 1 / behind 0
+of local upstream 0ee03c35. Protected dependencies 768ccb2f / 63ccb484 stayed clean
+and read-only. No push, credential access, provider call or paid render this milestone.
+
+Claude supplied documentation/runtime PASS P0=0/P1=0/P2=0 for
+0ee03c359f42d8f5641d9194a90b8fabaa33c016..e71777eae23c6ebf31725b897a76ae6574271ac8.
+This does not extend independent code PASS beyond d0af988c. HTTP200 confirms a
+response was received, but cannot rule out an application-level quota/auth/model
+error carried in a stream. The discarded historical error is not recoverable.
+
+Root gap fixed: SDK codes were collapsed, SDK kind omitted from the Blueprint
+operator log, and direct error events lost their detail before the shared catch.
+Log v2 now includes SDK kind plus revalidated, log-only exact allowlisted code/type
+tokens, bounded unknown-token fingerprints and missing/invalid/unavailable states.
+No message, arbitrary raw token, body/header, key, child data or raw request ID.
+Unknown-token input capped at 256 UTF16 code units; log capped at 2048 UTF8 bytes.
+The shared transport retains only this safe sidecar; persisted diagnostic/evidence
+projections, prompts, policies, classifications, retries and identities are unchanged.
+
+Development proof: two real-SDK/fake-fetch HTTP200 regression cases failed before
+the implementation and passed after. Complete affected specs: 46 + 47 = 93 passed,
+including 15 new cases. Final npm run check exit 0: both typechecks, 5913 passed /
+73 existing skips / 0 failures (5242 ordinary + 671 resource), unchanged 392 specs.
+The first actual full run had one 5000ms writer-sentinel timeout; unchanged isolated
+rerun passed 15/15, then unchanged full rerun passed. Original failed logs retained;
+resource reliability P1 is not closed, nor is the failure called proven inherited.
+Original inventory 45/45 and prior PREPARATION snapshot 45/45 recomputed unchanged
+(overlapping sets). Latest live PREPARATION and execute/replay log hashes unchanged.
+Read-only identity probe confirms current program 6d7a87f0 and real historical
+1a957874 remains legacy_immutable, providerCalls 0. No runtime replay at dirty HEAD.
+
+Next: Claude's read-only code QA of this isolated milestone, then the reviewed
+recovery route for the failed provider execution. No fresh paid execution is claimed.
+Ordinary e0ce62dc and prior beb7c945 / successor 48de17fa remain consumed; no reset
+or successor chaining. Broad continuation is not an unlimited spend allowance.
+Actual failed-call charge remains unknown. No Blueprint/image/book acceptance.
+CLI reason-code P2-1, resource reliability P1, original P1 HELD 0/3/3, M2b and
+Boards/package remain open. Payments deferred; previous sections are history.
+
+Tracked gate: docs/ai-workflow/R3B1B_PROVIDER_ERROR_DETAIL_GATE.md.
+Local evidence: outputs/r3b1b-provider-error-detail-20260911/HANDOFF.md and native
+check logs; ignored/local-only, no verified off-machine backup, not preserved by push.
+
 ## Repair-v11 ordinary run completed — provider-boundary HOLD
 
 2026-09-11. Guy explicitly approved propagation plus ONE fresh ordinary Blueprint

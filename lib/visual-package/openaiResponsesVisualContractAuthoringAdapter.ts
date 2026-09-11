@@ -72,6 +72,7 @@ import {
 } from '@/lib/visual-contract-compiler/stablePropScopeRepair';
 
 import { canonicalJsonDigest } from './integrity';
+import { ProviderStreamErrorEventError, providerErrorLogDetailFor } from './providerFailureDiagnostics';
 import {
   OPENAI_RESPONSES_AUTHORING_BASE_URL,
   OPENAI_RESPONSES_AUTHORING_ENDPOINT_URL,
@@ -378,7 +379,7 @@ export async function collectOpenAIResponsesAuthoringStream(
       throw new Error('provider_stream_event_after_terminal');
     }
     if (eventType === 'error') {
-      throw new Error('provider_stream_error_event');
+      throw new ProviderStreamErrorEventError(event);
     }
     if (!TERMINAL_RESPONSE_STREAM_EVENT_TYPES.has(eventType)) {
       continue;
@@ -550,6 +551,9 @@ export const openAIResponsesAuthoringTransport: OpenAIResponsesAuthoringTranspor
             observations,
             OPENAI_SDK_ERROR_CLASSES,
           ),
+          undefined,
+          null,
+          providerErrorLogDetailFor(error, OPENAI_SDK_ERROR_CLASSES),
         );
       }
     },

@@ -45,6 +45,9 @@ import {
 } from '@/lib/visual-package/openaiResponsesVisualContractAuthoringAdapter';
 import {
   ProviderCallFailureDiagnosticError,
+  ProviderStreamErrorEventError,
+  providerErrorLogDetailFor,
+  projectProviderErrorLogDetail,
   ProviderTransportGuardRejectionError,
   buildProviderCallFailureEvidence,
   classifyProviderFailure,
@@ -776,6 +779,56 @@ describe('installed OpenAI SDK 6.35.0 behind fake fetch', () => {
 });
 
 describe('provider call failure evidence sanitization', () => {
+  it.each([
+    ['invalid_value', 'invalid_request_error', 'known', 'known'],
+    ['invalid_prompt', 'server_error', 'known', 'known'],
+    [RAW_CODE, RAW_MESSAGE, 'unrecognized', 'unrecognized'],
+    [null, undefined, 'absent', 'absent'],
+    ['x'.repeat(257), { message: RAW_MESSAGE }, 'invalid', 'invalid'],
+    ['', 42, 'invalid', 'invalid'],
+  ])('captures bounded token state for %s without raw data', (code, type, codeState, typeState) => {
+    const error = new APIError(undefined, { code, type, message: RAW_MESSAGE, param: 'model' }, undefined, undefined);
+    const detail = providerErrorLogDetailFor(error, OPENAI_SDK_ERROR_CLASSES)!;
+    expect(detail).toMatchObject({ source: 'sdk_exception', codeState, typeState, parameterClass: 'model' });
+    expect(detail.code).toBe(codeState === 'known' ? code : null);
+    expect(detail.type).toBe(typeState === 'known' ? type : null);
+    expect(detail.codeDigest).toBe(codeState === 'unrecognized' ? canonicalJsonDigest(code) : null);
+    expect(projectProviderErrorLogDetail(detail)).toEqual(detail);
+    expect(JSON.stringify(detail)).not.toContain('RAW_');
+  });
+
+  it('does not invoke provider-detail getters, inherited fields, coercion or enumeration', () => {
+    const getter = vi.fn(() => { throw Error(RAW_MESSAGE); });
+    const event = Object.create({ type: 'error' });
+    Object.defineProperty(event, 'code', { get: getter });
+    Object.defineProperty(event, 'param', { get: getter });
+    Object.defineProperty(event, 'message', { get: getter });
+    event.toJSON = getter;
+    const error = new ProviderStreamErrorEventError(event);
+    expect(providerErrorLogDetailFor(error, OPENAI_SDK_ERROR_CLASSES)).toMatchObject({
+      code: null, codeState: 'unavailable', typeState: 'absent', parameterClass: 'unknown' });
+    expect(getter).not.toHaveBeenCalled();
+    const hostile = new Proxy({}, { getOwnPropertyDescriptor: getter, ownKeys: getter });
+    expect(projectProviderErrorLogDetail(hostile)).toBeNull();
+    const revoked = Proxy.revocable({}, {}); revoked.revoke();
+    expect(providerErrorLogDetailFor(revoked.proxy, OPENAI_SDK_ERROR_CLASSES)).toBeNull();
+    expect(providerErrorLogDetailFor({ code: 'invalid_prompt' }, OPENAI_SDK_ERROR_CLASSES)).toBeNull();
+  });
+
+  it('leaves diagnostic and persisted evidence bytes unchanged by an operator-only sidecar', () => {
+    const observations = createProviderFailureBoundaryObservations({ httpResponseReceived: true, httpStatus: 200 });
+    const error = new APIError(undefined, { code: 'invalid_prompt', type: 'invalid_request_error', message: RAW_MESSAGE }, undefined, undefined);
+    const diagnostic = classifyOpenAIProviderFailure(error, observations);
+    const plain = new ProviderCallFailureDiagnosticError(diagnostic);
+    const detailed = new ProviderCallFailureDiagnosticError(diagnostic, undefined, null, providerErrorLogDetailFor(error, OPENAI_SDK_ERROR_CLASSES));
+    const args = { authoringRequestDigest: '1'.repeat(64), sourceSnapshotDigest: '2'.repeat(64), authoringReceiptDigest: '3'.repeat(64),
+      attemptIndex: 1, attemptKind: 'initial' as const, provider: 'openai', endpoint: 'responses', model: VISUAL_CONTRACT_AUTHORING_MODEL };
+    expect(JSON.stringify(classifyOpenAIProviderFailure(plain, observations))).toBe(JSON.stringify(classifyOpenAIProviderFailure(detailed, observations)));
+    expect(JSON.stringify(buildProviderCallFailureEvidence({ ...args, diagnostic: plain.diagnostic })))
+      .toBe(JSON.stringify(buildProviderCallFailureEvidence({ ...args, diagnostic: detailed.diagnostic })));
+    expect(JSON.stringify(detailed.diagnostic)).not.toContain('invalid_prompt');
+  });
+
   it('is deterministic, content-addressed, linked, and serializes only allowlisted values and digests', () => {
     const error = new BadRequestError(
       400,

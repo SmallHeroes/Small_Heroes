@@ -565,10 +565,99 @@ export class ProviderCallFailureDiagnosticError extends Error {
     readonly structuredOutputCompatibilityEvidence:
       | OpenAIResponsesStructuredOutputCompatibilityEvidence
       | null = null,
+    /** Supplemental operator detail, deliberately outside diagnostic/evidence identity. */
+    readonly operatorDetail: ProviderErrorLogDetail | null = null,
   ) {
     super(message);
     this.name = 'ProviderCallFailureDiagnosticError';
   }
+}
+
+// Exact tokens from the existing classifier and installed Responses error schema.
+// Unknown identifiers are fingerprinted, NEVER emitted verbatim, even if they
+// look like an error code. Messages, headers, bodies and causes are not inspected.
+const LOG_ERROR_CODES = [
+  'invalid_request_error', 'invalid_value', 'unsupported_value', 'invalid_api_key',
+  'permission_denied', 'model_not_found', 'insufficient_quota', 'rate_limit_exceeded',
+  'server_error', 'invalid_prompt', 'vector_store_timeout', 'invalid_image',
+  'invalid_image_format', 'invalid_base64_image', 'invalid_image_url', 'image_too_large',
+  'image_too_small', 'image_parse_error', 'image_content_policy_violation', 'invalid_image_mode',
+  'image_file_too_large', 'unsupported_image_media_type', 'empty_image_file',
+  'failed_to_download_image', 'image_file_not_found',
+] as const;
+const LOG_ERROR_TYPES = ['invalid_request_error', 'server_error', 'insufficient_quota',
+  'rate_limit_error', 'authentication_error', 'permission_error', 'error'] as const;
+type LogTokenState = 'known' | 'absent' | 'unrecognized' | 'invalid' | 'unavailable';
+interface LogToken { value: string | null; state: LogTokenState; digest: string | null }
+export interface ProviderErrorLogDetail {
+  source: 'sdk_exception' | 'stream_error_event';
+  code: string | null; codeState: LogTokenState; codeDigest: string | null;
+  type: string | null; typeState: LogTokenState; typeDigest: string | null;
+  parameterClass: ProviderParameterClass;
+}
+
+function ownLogField(value: unknown, key: string): { value: unknown; accessible: boolean } {
+  if (!value || typeof value !== 'object') return { value: undefined, accessible: true };
+  try {
+    const descriptor = Object.getOwnPropertyDescriptor(value, key);
+    return descriptor && !('value' in descriptor)
+      ? { value: undefined, accessible: false }
+      : { value: descriptor?.value, accessible: true };
+  } catch { return { value: undefined, accessible: false }; }
+}
+function captureLogToken(raw: ReturnType<typeof ownLogField>, allowed: readonly string[]): LogToken {
+  if (!raw.accessible) return { value: null, state: 'unavailable', digest: null };
+  if (raw.value === undefined || raw.value === null) return { value: null, state: 'absent', digest: null };
+  if (typeof raw.value !== 'string' || raw.value.length === 0 || raw.value.length > 256) return { value: null, state: 'invalid', digest: null };
+  return allowed.includes(raw.value)
+    ? { value: raw.value, state: 'known', digest: null }
+    : { value: null, state: 'unrecognized', digest: canonicalJsonDigest(raw.value) };
+}
+function captureProviderErrorLogDetail(value: unknown, source: ProviderErrorLogDetail['source']): ProviderErrorLogDetail {
+  const code = captureLogToken(ownLogField(value, 'code'), LOG_ERROR_CODES);
+  const type = captureLogToken(ownLogField(value, 'type'), LOG_ERROR_TYPES);
+  const param = ownLogField(value, 'param');
+  return { source, code: code.value, codeState: code.state, codeDigest: code.digest,
+    type: type.value, typeState: type.state, typeDigest: type.digest,
+    parameterClass: param.accessible && typeof param.value === 'string' && param.value.length <= 256
+      ? classifyProviderParameter(param.value) : 'unknown' };
+}
+
+/** Same stable local error and classification; only safe metadata survives. */
+export class ProviderStreamErrorEventError extends Error {
+  readonly operatorDetail: ProviderErrorLogDetail;
+  constructor(event: unknown) {
+    super('provider_stream_error_event');
+    this.operatorDetail = captureProviderErrorLogDetail(event, 'stream_error_event');
+  }
+}
+
+/** Revalidate even injected typed errors. Never enumerate or invoke accessors. */
+export function projectProviderErrorLogDetail(value: unknown): ProviderErrorLogDetail | null {
+  const get = (key: string) => ownLogField(value, key).value;
+  const source = get('source');
+  if (source !== 'sdk_exception' && source !== 'stream_error_event') return null;
+  const token = (key: 'code' | 'type', allowed: readonly string[]): LogToken => {
+    const state = get(`${key}State`);
+    const raw = get(key);
+    if (state === 'known' && typeof raw === 'string' && allowed.includes(raw)) return { value: raw, state, digest: null };
+    const digest = get(`${key}Digest`);
+    if (state === 'unrecognized' && raw === null && typeof digest === 'string' && /^[a-f0-9]{64}$/.test(digest)) return { value: null, state, digest };
+    return { value: null, state: state === 'absent' || state === 'unavailable' ? state : 'invalid', digest: null };
+  };
+  const code = token('code', LOG_ERROR_CODES), type = token('type', LOG_ERROR_TYPES);
+  const parameter = get('parameterClass');
+  const parameters = ['structured_output_schema', 'model', 'service_tier', 'max_tokens', 'tools', 'input', 'unknown'];
+  return { source, code: code.value, codeState: code.state, codeDigest: code.digest,
+    type: type.value, typeState: type.state, typeDigest: type.digest,
+    parameterClass: typeof parameter === 'string' && parameters.includes(parameter) ? parameter as ProviderParameterClass : 'unknown' };
+}
+
+export function providerErrorLogDetailFor(error: unknown, classes: ProviderSdkErrorClasses): ProviderErrorLogDetail | null {
+  try {
+    if (error instanceof ProviderStreamErrorEventError) return projectProviderErrorLogDetail(ownLogField(error, 'operatorDetail').value);
+    return isSdkError(error, classes.apiError) ? captureProviderErrorLogDetail(error, 'sdk_exception') : null;
+  } catch { return null; }
 }
 
 export function localProviderFailureDiagnostic(args: {

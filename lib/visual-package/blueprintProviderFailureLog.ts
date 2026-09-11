@@ -1,6 +1,7 @@
 import {
   classifyProviderFailure,
   localProviderFailureDiagnostic,
+  projectProviderErrorLogDetail,
   type ProviderFailureBoundaryObservations,
 } from './providerFailureDiagnostics';
 
@@ -19,6 +20,10 @@ const CLASSES = ['local_request_validation', 'credential_unavailable', 'sdk_clie
 const CODES = ['invalid_request', 'invalid_api_key', 'permission_denied', 'model_not_found',
   'insufficient_quota', 'rate_limit_exceeded', 'server_error', 'unknown'] as const;
 const PARAMETERS = ['structured_output_schema', 'model', 'service_tier', 'max_tokens', 'tools', 'input', 'unknown'] as const;
+const SDK_KINDS = ['api_user_abort_error', 'api_connection_timeout_error', 'api_connection_error',
+  'bad_request_error', 'authentication_error', 'permission_denied_error', 'not_found_error',
+  'conflict_error', 'unprocessable_entity_error', 'rate_limit_error', 'internal_server_error',
+  'api_error', 'openai_error', 'unknown'] as const;
 
 function field(value: unknown, key: string): unknown {
   if (!value || typeof value !== 'object') return undefined;
@@ -48,12 +53,14 @@ export function reportBlueprintProviderFailure(args: {
   const status = field(diagnostic, 'httpStatus');
   const event = {
     event: 'blueprint_provider_failure',
-    version: 'blueprint-provider-failure-log/v1',
+    version: 'blueprint-provider-failure-log/v2',
     authorityScope: 'diagnostic_log_only',
     phase: member(field(diagnostic, 'phase'), PHASES, 'unknown_adapter'),
     failureClass: member(field(diagnostic, 'failureClass'), CLASSES, 'unclassified_adapter_failure'),
     providerCodeClass: member(field(diagnostic, 'providerCodeClass'), CODES, 'unknown'),
     parameterClass: member(field(diagnostic, 'parameterClass'), PARAMETERS, 'unknown'),
+    sdkErrorKind: member(field(diagnostic, 'sdkErrorKind'), SDK_KINDS, 'unknown'),
+    detail: projectProviderErrorLogDetail(field(args.error, 'operatorDetail')),
     httpStatus: typeof status === 'number' && Number.isInteger(status) && status >= 100 && status <= 599 ? status : null,
     httpResponseReceived: field(diagnostic, 'httpResponseReceived') === true,
     transportDispatchStarted: field(diagnostic, 'transportDispatchStarted') === true,
@@ -62,6 +69,9 @@ export function reportBlueprintProviderFailure(args: {
     providerRequestIdDigest: digest(field(diagnostic, 'providerRequestIdDigest')),
     billingState: 'unknown_no_usage',
   };
-  try { console.error(JSON.stringify(event)); }
+  try {
+    const line = JSON.stringify(event);
+    console.error(Buffer.byteLength(line, 'utf8') <= 2048 ? line : JSON.stringify({ ...event, detail: null }));
+  }
   catch { /* No logging failure may alter terminal behavior or authorize work. */ }
 }

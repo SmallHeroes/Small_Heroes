@@ -817,6 +817,27 @@ describe('canonical OpenAI Responses Blueprint authoring policy', () => {
     } finally { fetch.mockRestore();log.mockRestore(); }
   });
 
+  it.each(['sdk_exception', 'stream_error_event'] as const)('retains exact safe HTTP200 %s details without changing terminal behavior', async source => {
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const detail = { code: 'invalid_prompt', type: 'invalid_request_error', param: 'text.format.schema', message: 'SECRET provider text' };
+    const event = source === 'sdk_exception' ? { error: detail } : { ...detail, type: 'error' };
+    const fetch = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(`data: ${JSON.stringify(event)}\n\n`,
+      { status: 200, headers: { 'content-type': 'text/event-stream' } }));
+    try {
+      const adapter = createOpenAIResponsesBlueprintAuthoringAdapter({ readCredential: () => 'SECRET fake key' });
+      await expect(adapter.call(callArgs())).rejects.toMatchObject({ code: 'provider_call_failed' });
+      await expect(adapter.call(callArgs(2))).rejects.toMatchObject({ code: 'adapter_terminal' });
+      expect(fetch).toHaveBeenCalledTimes(1);
+      const lines = log.mock.calls.filter(([line]) => typeof line === 'string' && line.startsWith('{"event":"blueprint_provider_failure"'));
+      expect(lines).toHaveLength(1);
+      expect(JSON.parse(lines[0]![0])).toMatchObject({ version: 'blueprint-provider-failure-log/v2',
+        httpStatus: 200, sdkErrorKind: source === 'sdk_exception' ? 'api_error' : 'unknown',
+        detail: { source, code: 'invalid_prompt', codeState: 'known', codeDigest: null,
+          type: source === 'sdk_exception' ? 'invalid_request_error' : 'error', typeState: 'known', parameterClass: 'structured_output_schema' } });
+      expect(JSON.stringify(log.mock.calls)).not.toContain('SECRET');
+    } finally { fetch.mockRestore(); log.mockRestore(); }
+  });
+
   it('logs credential failure without dispatch and without the raw credential exception', async () => {
     const log = vi.spyOn(console, 'error').mockImplementation(() => {});
     const transport = canonicalTransport();
@@ -828,6 +849,40 @@ describe('canonical OpenAI Responses Blueprint authoring policy', () => {
       expect(log).toHaveBeenCalledTimes(1);
       expect(JSON.parse(log.mock.calls[0]![0])).toMatchObject({phase:'credential_read',failureClass:'credential_unavailable',transportDispatchStarted:false});
       expect(JSON.stringify(log.mock.calls)).not.toContain('SECRET');
+    } finally { log.mockRestore(); }
+  });
+
+  it.each(['insufficient_quota', 'invalid_api_key', 'model_not_found', 'SECRET_CODE'] as const)('handles HTTP200 SDK %s without treating HTTP success as application success', async code => {
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const fetch = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(`data: ${JSON.stringify({ error: { code, type: 'SECRET_TYPE', message: 'SECRET message' } })}\n\n`,
+      { status: 200, headers: { 'content-type': 'text/event-stream' } }));
+    try {
+      const adapter = createOpenAIResponsesBlueprintAuthoringAdapter({ readCredential: () => 'SECRET key' });
+      await expect(adapter.call(callArgs())).rejects.toMatchObject({ code: 'provider_call_failed' });
+      const line = log.mock.calls[0]![0] as string;
+      const event = JSON.parse(line);
+      expect(event.detail).toMatchObject({ source: 'sdk_exception', code: code === 'SECRET_CODE' ? null : code,
+        codeState: code === 'SECRET_CODE' ? 'unrecognized' : 'known', type: null, typeState: 'unrecognized', typeDigest: canonicalJsonDigest('SECRET_TYPE') });
+      expect(event.failureClass).toBe(({ insufficient_quota: 'provider_quota_exhausted', invalid_api_key: 'provider_authentication', model_not_found: 'provider_resource_not_found', SECRET_CODE: 'provider_rejection_unknown' })[code]);
+      expect(Buffer.byteLength(line)).toBeLessThanOrEqual(2048);
+      expect(JSON.stringify(log.mock.calls)).not.toContain('SECRET');
+      expect(fetch).toHaveBeenCalledTimes(1);
+    } finally { fetch.mockRestore(); log.mockRestore(); }
+  });
+
+  it('reprojects hostile supplemental detail and SDK kind before logging', () => {
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const getter = vi.fn(() => 'SECRET getter');
+    const detail = { source: 'sdk_exception', code: 'SECRET code', codeState: 'known', codeDigest: 'SECRET digest',
+      type: 'SECRET type', typeState: 'unrecognized', typeDigest: 'SECRET digest', parameterClass: 'SECRET param', message: 'SECRET message', toJSON: getter };
+    Object.defineProperty(detail, 'codeDigest', { get: getter });
+    const diagnostic = { ...localProviderFailureDiagnostic({ phase: 'credential_read', failureClass: 'credential_unavailable', observations: createProviderFailureBoundaryObservations() }), sdkErrorKind: 'SECRET kind' };
+    try {
+      reportBlueprintProviderFailure({ error: new ProviderCallFailureDiagnosticError(diagnostic as never, undefined, null, detail as never), observations: createProviderFailureBoundaryObservations() });
+      const line = log.mock.calls[0]![0] as string;
+      expect(JSON.parse(line)).toMatchObject({ sdkErrorKind: 'unknown', detail: { code: null, codeState: 'invalid', type: null, typeState: 'invalid', parameterClass: 'unknown' } });
+      expect(line).not.toContain('SECRET'); expect(getter).not.toHaveBeenCalled();
+      expect(Buffer.byteLength(line)).toBeLessThanOrEqual(2048);
     } finally { log.mockRestore(); }
   });
 
