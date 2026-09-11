@@ -1,6 +1,6 @@
 # SmallHeroes — Roadmap
 
-**Last verified:** 2026-09-11 (Claude code PASS through a227ade0, P0=0/P1=0/P2=3; P2 wording/comment closeout, injected-transport limitation retained; real predecessor eligibility passed offline at clean a227ade0; no new execution/Blueprint/images; reliability P1 open)
+**Last verified:** 2026-09-11 (Claude documentation/comment re-gate PASS a227ade0..6c339c14, P0=0/P1=0/P2=1; A/B closed, C retained; D HEAD-bound inspection wording clarified; code PASS a227ade0; no new execution/Blueprint/images; reliability P1 open)
 **Product priority owner:** Guy
 **Technical sequencing owner:** Codex
 
@@ -31,6 +31,12 @@ Blueprint and any required LOW Board/prop generation remain separately budgeted
 provider actions with exact owner gates.
 
 ## Active
+
+Closeout re-gate PASS received through 6c339c14: A/B closed, C retained, D clarified
+in CURRENT (inspection digest includes the current consumer HEAD, unlike the four
+frozen execution/artifact digests). This wording correction changes no code.
+Next is bounded existing-route successor preparation; no new paid authority or
+book readiness follows from the review. The implementation/closeout history follows.
 
 Claude's independent PASS now covers e71777ea..a227ade0, including the reproduced
 5913/73/0 full gate and 93 focused tests. Current closeout corrects time-scoped

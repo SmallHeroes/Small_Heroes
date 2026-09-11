@@ -2,6 +2,18 @@
 
 ## Safe provider error detail — Claude PASS received; P2 closeout
 
+Latest received re-gate: Claude PASS P0=0/P1=0/P2=1 for
+a227ade0430aa487b77747f58250c19d835ac124..6c339c14677f241425522e6d32f1a8fec23450b7.
+P2-A/B independently closed; P2-C retained as a limitation. Claude proved identical
+comment-stripped executable emit, reran both typechecks and 93 focused tests, and
+independently checked the inspector's write-free behavior and unchanged artifacts.
+Code PASS remains a227ade0; documentation/comment review covers through 6c339c14.
+P2-D is clarified below; no independent closure of this new wording is claimed.
+At this wording correction's start, HEAD/upstream/live origin matched 6c339c14,
+clean 0/0, protected dependencies 768ccb2f / 63ccb484 clean. Same sole writer,
+C:/GNart/Work/sh-r3b1b-semantic-m1, codex/r3b1b-semantic-recovery-m1. No push,
+provider/key access or runtime execution is part of this documentation correction.
+
 Claude supplied PASS P0=0/P1=0/P2=3 for the exact range
 e71777eae23c6ebf31725b897a76ae6574271ac8..a227ade0430aa487b77747f58250c19d835ac124.
 Independent code PASS now ends at a227ade0, not this subsequent closeout.
@@ -29,12 +41,19 @@ to injected raw SDK exceptions. No new provider, retry, key or model behavior.
 Before edits, the existing read-only predecessor inspector passed at clean a227ade0:
 inspection 99d5217575fbdf095d5a931e46069e185a4ed541411d1abc7d4f20aa92b068ce,
 ordinary identity e0ce62dc, program 6d7a87f0, receipt 914db6eb, terminal 9777fc11.
-providerCalls=0, zeroWrite=true, historicalCharge=unknown. This is predecessor
+The inspection digest embeds historical.inspection.currentValidationDigest, whose
+proof includes currentConsumer.head/upstreamHead; it is expected to change at a
+new HEAD. For the same frozen execution/artifacts, the other four digests above
+must still match. Compare inspection digests only at the same validated consumer
+state; an expected HEAD-bound change alone is not artifact drift or tampering.
+providerCalls=0 and zeroWrite=true are declared fields, not counters; write-free
+behavior is supported by code inspection and Claude's independent before/after
+snapshot, not by those literals alone. historicalCharge=unknown. This is predecessor
 eligibility only, NOT a prepared successor/current preflight or paid authorization.
 No candidate, authorization, claim or execution was created; consumed identities
 remain consumed. A later HEAD change does not preserve a current-consumer proof.
 
-Next: reconcile the closeout's review/propagation state, then prepare one bounded
+Next: prepare one bounded
 failed-provider successor through the existing reviewed route. No fresh paid
 attempt is authorized by Claude's PASS; the old one-attempt allowance is consumed.
 Resource reliability P1 and CLI reason-code P2-1 remain open, original P1 HELD
