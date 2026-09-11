@@ -12,7 +12,7 @@ import {
 } from '../../blueprintAuthoringPolicy';
 import {
   buildPreRenderBlueprintAuthoringSystemPrompt,
-  buildPreRenderBlueprintRepairSystemPrompt,
+  buildLegacyPreRenderBlueprintRepairSystemPromptV10 as buildPreRenderBlueprintRepairSystemPrompt,
 } from '../../preRenderBlueprintAuthoring';
 import {
   LEGACY_PRE_RENDER_BLUEPRINT_AUTHORING_SYSTEM_PROMPT_DIGEST_V6,

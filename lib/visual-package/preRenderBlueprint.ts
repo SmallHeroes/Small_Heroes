@@ -1377,36 +1377,25 @@ function actionParticipantEntities(
   return entities;
 }
 
-function actionSupportIsCompatible(
+export function actionSupportRejection(
   affordance: Extract<BlueprintSpatialAffordance, { kind: 'action_space' }>,
   action: PageActionRequirement,
-): boolean {
+): string | null {
   const subjectKind =
     action.subject.kind === 'entity'
       ? action.subject.entity.kind
       : action.subject.kind;
   const entities = actionParticipantEntities(action);
-  return (
-    Array.isArray(affordance.supportedPredicates) &&
-    Array.isArray(affordance.supportedSubjectKinds) &&
-    Array.isArray(affordance.supportedEntities) &&
-    Array.isArray(affordance.supportedSpatialDirections) &&
-    Array.isArray(affordance.supportedSpatialRelations) &&
-    Array.isArray(affordance.supportedSpatialConstraintRelations) &&
-    affordance.supportedPredicates.includes(action.predicate) &&
-    affordance.supportedSubjectKinds.includes(subjectKind) &&
-    entities.every((expected) =>
-      affordance.supportedEntities.some((actual) => entityRefEquals(actual, expected)),
-    ) &&
-    (action.spatialEffect?.kind !== 'directional' ||
-      affordance.supportedSpatialDirections.includes(action.spatialEffect.direction)) &&
-    (action.spatialEffect?.kind !== 'relation' ||
-      affordance.supportedSpatialRelations.includes(action.spatialEffect.relation)) &&
-    (!action.spatialConstraint ||
-      affordance.supportedSpatialConstraintRelations.includes(
-        action.spatialConstraint.relation,
-      ))
-  );
+  if (![affordance.supportedPredicates, affordance.supportedSubjectKinds,
+    affordance.supportedEntities, affordance.supportedSpatialDirections,
+    affordance.supportedSpatialRelations, affordance.supportedSpatialConstraintRelations].every(Array.isArray)) return 'support_shape_invalid';
+  if (!affordance.supportedPredicates.includes(action.predicate)) return 'predicate_unsupported';
+  if (!affordance.supportedSubjectKinds.includes(subjectKind)) return 'subject_kind_unsupported';
+  if (!entities.every(expected => affordance.supportedEntities.some(actual => entityRefEquals(actual, expected)))) return 'participant_entity_unsupported';
+  if (action.spatialEffect?.kind === 'directional' && !affordance.supportedSpatialDirections.includes(action.spatialEffect.direction)) return 'direction_unsupported';
+  if (action.spatialEffect?.kind === 'relation' && !affordance.supportedSpatialRelations.includes(action.spatialEffect.relation)) return 'relation_unsupported';
+  if (action.spatialConstraint && !affordance.supportedSpatialConstraintRelations.includes(action.spatialConstraint.relation)) return 'static_relation_unsupported';
+  return null;
 }
 
 function regionCenter(region: BlueprintRegion): { x: number; y: number } {
@@ -1475,7 +1464,7 @@ function regionsAreStaticallyBeside(
   return horizontalEdgeGap <= BESIDE_MAX_HORIZONTAL_EDGE_GAP;
 }
 
-function staticSpatialConstraintIsFeasible(args: {
+export function staticSpatialConstraintIsFeasible(args: {
   action: PageActionRequirement;
   affordance: Extract<BlueprintSpatialAffordance, { kind: 'action_space' }>;
   placements: readonly BlueprintFramePlacement[];
@@ -2028,43 +2017,36 @@ function validateFrame(args: {
     for (const action of mustActions) {
       const placement = framePlacementForAction(validPlacements, action.checkId);
       const destination = framePlacementForActionDestination(validPlacements, action.checkId);
-      const compatibleSupports = [...affordances.values()].filter(
-        (candidate) =>
-          candidate.kind === 'action_space' &&
-          candidate.zoneId === frame.zoneId &&
-          frameAffordanceIds.includes(candidate.id) &&
-          hasConsumer(candidate, {
-            kind: 'action',
-            pageNumber: frame.pageNumber,
-            checkId: action.checkId,
-          }) &&
-          actionSupportIsCompatible(candidate, action) &&
-          actionParticipantsFitSpace(action, candidate, validPlacements) &&
-          staticSpatialConstraintIsFeasible({
-            action,
-            affordance: candidate,
-            placements: validPlacements,
-          }) &&
-          Boolean(
-            placement &&
-              regionIsValid(candidate.footprint) &&
-              regionIsValid(placement.region) &&
-              regionContains(candidate.footprint, placement.region),
-          ) &&
-          Boolean(
-            placement &&
-              spatialDestinationIsFeasible({
-                action,
-                origin: placement,
-                destination,
-                affordance: candidate,
-                placements: validPlacements,
-              }),
-          ),
-      );
+      // One short-circuit evaluator owns BOTH acceptance and explanation. Preserve
+      // the old predicate order, including guards before geometry dereferences.
+      const reject = (candidate: BlueprintSpatialAffordance): string | null => {
+        if (candidate.kind !== 'action_space') return 'not_action_space';
+        if (candidate.zoneId !== frame.zoneId) return 'zone_mismatch';
+        if (!frameAffordanceIds.includes(candidate.id)) return 'not_selected_in_frame';
+        if (!hasConsumer(candidate, { kind: 'action', pageNumber: frame.pageNumber, checkId: action.checkId })) return 'consumer_binding_missing';
+        const support = actionSupportRejection(candidate, action);
+        if (support !== null) return support;
+        if (!actionParticipantsFitSpace(action, candidate, validPlacements)) return 'participant_outside_space';
+        if (!staticSpatialConstraintIsFeasible({ action, affordance: candidate, placements: validPlacements })) return 'static_geometry_infeasible';
+        if (!(placement && regionIsValid(candidate.footprint) && regionIsValid(placement.region) && regionContains(candidate.footprint, placement.region))) return 'action_region_outside_space';
+        if (!(placement && spatialDestinationIsFeasible({ action, origin: placement, destination, affordance: candidate, placements: validPlacements }))) return 'destination_infeasible';
+        return null;
+      };
+      const evaluated = [...affordances.values()].map(candidate => ({ candidate, reason: reject(candidate) }));
+      const compatibleSupports = evaluated.filter(entry => entry.reason === null).map(entry => entry.candidate);
       if (compatibleSupports.length === 0) {
+        // Prefer actual same-zone action spaces. Stable order and explicit omission
+        // count bound guidance without claiming omitted candidates are compatible.
+        const rejected = evaluated.sort((a, b) =>
+          Number(b.candidate.kind === 'action_space') - Number(a.candidate.kind === 'action_space') ||
+          Number(b.candidate.zoneId === frame.zoneId) - Number(a.candidate.zoneId === frame.zoneId) ||
+          lexicalCompare(a.candidate.id, b.candidate.id));
         issues.push(issue('action_infeasible', `action "${action.checkId}" has no compatible action-space affordance`, {
           field: `${field}.affordanceIds`,
+          actionSpaceRejections: {
+            candidates: rejected.slice(0, 8).map(entry => [entry.candidate.id, entry.reason!]),
+            omittedCandidates: Math.max(0, rejected.length - 8),
+          },
         }));
       } else if (compatibleSupports.length > 1) {
         issues.push(issue('affordance_incompatible', `action "${action.checkId}" has ambiguous action-space assignments`, {

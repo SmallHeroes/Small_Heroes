@@ -589,7 +589,7 @@ export function buildPreRenderBlueprintAuthoringUserPrompt(
   )}`;
 }
 
-export function buildPreRenderBlueprintRepairSystemPrompt(): string {
+export function buildLegacyPreRenderBlueprintRepairSystemPromptV10(): string {
   return [
     'Repair one invalid WHOLE-BOOK Blueprint draft.',
     'Return the complete corrected strict JSON object, not a page fragment.',
@@ -628,13 +628,39 @@ export function buildPreRenderBlueprintRepairSystemPrompt(): string {
   ].join('\n');
 }
 
+export function buildPreRenderBlueprintRepairSystemPrompt(): string {
+  return [buildLegacyPreRenderBlueprintRepairSystemPromptV10(),
+    'ACTION_SPACE_REJECTIONS is repair-only guidance: rows=[groupedDiagnosticIndex,[[affordanceId,firstFailedCheck]],omittedCandidates].',
+    'Checks follow validator order; later checks may also fail. Fix support attributes, selection/binding, containment or geometry as named, then recheck all constraints. Omitted candidates/rows are not proven valid.',
+  ].join('\n');
+}
+
+/** Bounded sidecar: leaves grouped diagnostics and sanitized census unchanged. */
+export function buildActionSpaceRepairSidecar(diagnostics: readonly PreRenderBlueprintRepairDiagnostic[]): string {
+  const grouped = groupPreRenderBlueprintRepairDiagnostics(diagnostics);
+  const rows: unknown[] = [];
+  let omittedRows = 0;
+  for (const diagnostic of diagnostics) {
+    if (!('actionSpaceRejections' in diagnostic) || !diagnostic.actionSpaceRejections) continue;
+    const identity = stableJson(groupPreRenderBlueprintRepairDiagnostics([diagnostic])[0].slice(0, 5));
+    const groupedIndex = grouped.findIndex(row => stableJson(row.slice(0, 5)) === identity);
+    const row = [groupedIndex, diagnostic.actionSpaceRejections.candidates, diagnostic.actionSpaceRejections.omittedCandidates];
+    // Reserve space for the largest safe integer omission counter and envelope.
+    if (Buffer.byteLength(stableJson({ rows: [...rows, row], omittedRows: Number.MAX_SAFE_INTEGER }), 'utf8') > 8192) omittedRows++;
+    else rows.push(row);
+  }
+  return rows.length || omittedRows ? stableJson({ rows, omittedRows }) : '';
+}
+
 export function buildPreRenderBlueprintRepairUserPrompt(args: {
   context: PreRenderBlueprintValidationContext;
   previousDraft: unknown;
   diagnostics: readonly PreRenderBlueprintRepairDiagnostic[];
   consumerCatalog?: PreRenderBlueprintAffordanceConsumerCatalog;
 }): string {
+  const sidecar = buildActionSpaceRepairSidecar(args.diagnostics);
   return [
+    ...(sidecar ? ['ACTION_SPACE_REJECTIONS:', sidecar] : []),
     'GROUPED VALIDATION DIAGNOSTICS [code,field,message,expectedSlot,actualSlot,count]:',
     stableJson(groupPreRenderBlueprintRepairDiagnostics(args.diagnostics)),
     'REPAIR_WIRE:',

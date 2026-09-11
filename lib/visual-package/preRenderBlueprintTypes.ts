@@ -374,6 +374,11 @@ export interface PreRenderBlueprintIssue {
   field?: string;
   expected?: unknown;
   actual?: unknown;
+  /** Repair-only sidecar. Not part of grouped issue or persisted census identity. */
+  actionSpaceRejections?: {
+    candidates: Array<[affordanceId: string, firstFailedCheck: string]>;
+    omittedCandidates: number;
+  };
 }
 
 export type PreRenderBlueprintValidationResult =

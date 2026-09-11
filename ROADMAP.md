@@ -1,6 +1,6 @@
 # SmallHeroes — Roadmap
 
-**Last verified:** 2026-09-10 (Claude code PASS4e408bda; approved propagation and unmocked offline preparation completed; one live successor exhausted2 validation repairs, final1 action-space diagnostic; conservative accountedUSD1.318115, allowance consumed; no Blueprint/images; reliability P1 remains open)
+**Last verified:** 2026-09-11 (offline action-space diagnostics implemented; final full check 5898 passed / 73 existing skips / 0 failed, both typechecks passed; Claude code PASS still4e408bda pending this code review; prior live allowance consumed at conservative accountedUSD1.318115; no Blueprint/images; reliability P1 open)
 **Product priority owner:** Guy
 **Technical sequencing owner:** Codex
 
@@ -31,6 +31,13 @@ Blueprint and any required LOW Board/prop generation remain separately budgeted
 provider actions with exact owner gates.
 
 ## Active
+
+Current approved offline milestone: same-evaluator action-space rejection reasons,
+bounded repair-only sidecar without changing census identities, repair promptv11
+and explicit replay-only preservation of old program1a957874. No new paid attempt
+or changed validation threshold. Final full gate exited 0; Claude review pending.
+See CURRENT and R3B1B_ACTION_SPACE_DIAGNOSTICS_GATE.md; runtime outcome below
+remains held, and the original failed draft's exact predicate remains unknown.
 
 Current successor outcome supersedes the historical preparation notes below:
 Guy approved propagation; Codex pushed exactlycf78b4b2..4e408bda and verified0/0.

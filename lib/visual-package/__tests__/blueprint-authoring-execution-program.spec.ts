@@ -280,7 +280,7 @@ describe('Blueprint authoring execution program identity', () => {
       'pre-render-blueprint-authoring-prompt/v9',
     );
     expect(program.repairPromptVersion).toBe(
-      'pre-render-blueprint-repair-prompt/v10',
+      'pre-render-blueprint-repair-prompt/v11',
     );
     expect(program.providerWireVersion).toBe(
       'pre-render-blueprint-provider-wire/v2',
@@ -299,7 +299,7 @@ describe('Blueprint authoring execution program identity', () => {
     );
     expect(blueprintAuthoringExecutionProgramIsCurrent(program)).toBe(true);
     const { digest: _oldDigest, ...oldPayload } = LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_CATALOG_V3;
-    const newPayload = { ...oldPayload, draftSchemaVersion: 'pre-render-blueprint-draft-schema/v9', draftSchemaDigest: canonicalJsonDigest(PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA) };
+    const newPayload = { ...oldPayload, draftSchemaVersion: 'pre-render-blueprint-draft-schema/v9', draftSchemaDigest: canonicalJsonDigest(PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA), repairPromptVersion: 'pre-render-blueprint-repair-prompt/v11', repairSystemPromptDigest: canonicalJsonDigest(buildPreRenderBlueprintRepairSystemPrompt()) };
     expect(program).toEqual({ ...newPayload, digest: canonicalJsonDigest(newPayload) });
     expect(blueprintAuthoringExecutionProgramStatus(LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_CATALOG_V3)).toBe('legacy_immutable');
     expect(blueprintAuthoringExecutionProgramIsCurrent(LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_CATALOG_V3)).toBe(false);
@@ -460,7 +460,7 @@ describe('Blueprint authoring execution program identity', () => {
     ).toEqual({
       draftSchemaVersion: 'pre-render-blueprint-draft-schema/v9',
       promptVersion: 'pre-render-blueprint-authoring-prompt/v9',
-      repairPromptVersion: 'pre-render-blueprint-repair-prompt/v10',
+      repairPromptVersion: 'pre-render-blueprint-repair-prompt/v11',
     });
     expect(
       qaWizardBlueprintAuthoringProvenanceVersionsForRequest(
@@ -560,10 +560,10 @@ describe('Blueprint authoring execution program identity', () => {
       PRE_RENDER_BLUEPRINT_AUTHORING_SYSTEM_PROMPT_UTF8_BYTES_V9,
     );
     expect(canonicalJsonDigest(currentRepair)).toBe(
-      PRE_RENDER_BLUEPRINT_REPAIR_SYSTEM_PROMPT_DIGEST_V10,
+      '321de3d49271848a5a44dd55cb3b920be65f5893b32b2cb90b7c7a9a50bdceb2',
     );
     expect(Buffer.byteLength(currentRepair, 'utf8')).toBe(
-      PRE_RENDER_BLUEPRINT_REPAIR_SYSTEM_PROMPT_UTF8_BYTES_V10,
+      3509,
     );
     expect(canonicalJsonDigest(cameraAuthorityInitial)).toBe(
       PRE_RENDER_BLUEPRINT_AUTHORING_SYSTEM_PROMPT_DIGEST_V8,

@@ -1,5 +1,49 @@
 # SmallHeroes — Current Technical State
 
+## Action-space repair diagnostics — approved offline implementation
+
+2026-09-11. Guy approved the focused implementation after Claude independently
+confirmed the offline diagnosis and closed replay-wording P2-2. Code PASS stays
+4e408bda; documentation/runtime PASS through41f90dbc is not new code PASS.
+CLI safe-reason-code P2-1 remains open. Sole writer stays this task at
+C:/GNart/Work/sh-r3b1b-semantic-m1, codex/r3b1b-semantic-recovery-m1;
+base41f90dbc, clean ahead1/behind0 at start. Protected768ccb2f/63ccb484 unchanged.
+Approved Gate: docs/ai-workflow/R3B1B_ACTION_SPACE_DIAGNOSTICS_GATE.md.
+
+Implemented one short-circuit compatibility evaluator for acceptance and first
+failed-check reason, decomposing action-support attributes. Existing issue code,
+message, field, expected/actual remain unchanged. Repair-only sidecar does not
+join grouped diagnostic identity or persisted sanitized census. It retains at
+most8 ranked candidate reasons per issue and8192UTF8 JSON bytes overall, with
+explicit candidate/row omissions. First failure does not imply later checks pass.
+No geometry, story, acceptance threshold, budget, retry or fallback change.
+
+Repair promptv11 defines this guidance; V10 prompt bytes and exact old program
+1a957874 are retained for historical replay classification only. New program
+6d7a87f0; new repair system prompt digest321de3d4,3509bytes. Full digests and
+validation in outputs/r3b1b-action-space-diagnostics-20260911/HANDOFF.md.
+The program change grants no paid authority and does not migrate old successor
+eligibility or bypass the strict current-consumer gate. Prior allowance consumed.
+
+Focused18new tests pass: support/binding/frame/spatial helper reasons, valid and
+ambiguous outcomes, candidate cap,8192-byte sidecar,1000-row grouping/census
+invariance, program history/resealed mutation, real compiler fake-call repair
+wiring. Existing116Blueprint tests,33authoring and6program tests passed. Spatial
+support/constraint subcases use direct production helpers, not a replay of the
+missing historical draft. Development reds and corrected fixture mistakes are
+retained in the handoff; no claim that the real historical predicate was found.
+Final npm run check exited 0: 5898 passed (5227 ordinary + 671 resource),
+73 existing skips, zero failed; both typechecks passed. Inventory 392/370/22,
+workers 4/2 unchanged. First full run exited 1 on two introduced test expectations
+(inventory and counted repair bytes); both corrected, not labeled inherited.
+Both runs' native logs and SHA-256 identities are retained in the handoff.
+Original 45 protected inventory entries recomputed with zero mismatches.
+Next: focused local commit and Claude's read-only code review of this milestone;
+no independent PASS self-awarded. No provider/key read,
+spend, image render, push or original runtime artifact edit. Outputs local-only
+and ignored, no verified off-machine backup. M2b, Boards/package, book readiness,
+original P1 HELD0/3/3 and resource reliability P1 remain open. Payments deferred.
+
 ## Failed-provider successor executed — draft-validation HOLD, allowance consumed
 
 2026-09-10. Received Claude Code PASS P0=0/P1=0/P2=1 for

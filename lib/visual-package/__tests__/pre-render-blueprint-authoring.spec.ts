@@ -977,7 +977,7 @@ describe('R1D-PVB-B — whole-book Blueprint authoring compiler', () => {
     expect(result.provenance).toMatchObject({
       passingAttempt: 2,
       callCount: 2,
-      repairPromptVersion: 'pre-render-blueprint-repair-prompt/v10',
+      repairPromptVersion: 'pre-render-blueprint-repair-prompt/v11',
     });
     expect((calls[1] as { system: string }).system).toContain(
       'never return textSafeRegion',

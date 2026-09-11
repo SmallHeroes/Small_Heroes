@@ -238,6 +238,15 @@ export const LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_CATALOG_V3 = Object.fr
   digest: '0944bdb56a83368e6c22feb886f0cfeed3b9a195ad01918e5ffd7d61de275f4b',
 } as const satisfies ReplayableBlueprintAuthoringExecutionProgram);
 
+/** Exact schema-v9/repair-v10 program used by the 2026-09-10 successor.
+ * Inherits only the absolute frozen catalog-v3 snapshot, never live constants. */
+export const LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_REPAIR_V10 = Object.freeze({
+  ...LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_CATALOG_V3,
+  draftSchemaVersion: 'pre-render-blueprint-draft-schema/v9',
+  draftSchemaDigest: '9c3a78e3b25ec8a4d48e375a344b0607ca3cfe6f21cfd3debee568dda1308bfe',
+  digest: '1a957874d1f9a22cf5ee1ec9bdc2a5f7cf89e25a2c95c850015f494aa800048d',
+} as const satisfies ReplayableBlueprintAuthoringExecutionProgram);
+
 /**
  * Frozen complete snapshot, not reconstructed from mutable current constants.
  * This is the exact prompt-v6/wire-v1 replay-only request-v5 program admitted
@@ -558,6 +567,7 @@ export function blueprintAuthoringExecutionProgramStatus(
   }
   const valueDigest = canonicalJsonDigest(value);
   return [
+    LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_REPAIR_V10,
     LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_CATALOG_V3,
     LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_CAMERA_AUTHORITY,
     LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_REPAIR_PROMPT_V8,
