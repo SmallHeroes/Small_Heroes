@@ -1,5 +1,11 @@
 # Provider error-detail logging — approved offline implementation
 
+Closeout update: Claude PASS P0=0/P1=0/P2=3 received for e71777ea..a227ade0.
+The following implementation plan/outcome is historical. Current P2 closeout is
+limited to propagation wording and a comment; injected-transport detail asymmetry
+remains a documented limitation. Code PASS ends at a227ade0. See CURRENT for the
+new read-only eligibility observation and unchanged spend/identity boundaries.
+
 2026-09-11. Guy explicitly requested continued implementation without repeated
 permission prompts. Scope here is the proposed safe error-detail correction.
 Same sole Codex writer/task: C:/GNart/Work/sh-r3b1b-semantic-m1,

@@ -361,8 +361,9 @@ const TERMINAL_RESPONSE_STREAM_EVENT_TYPES = new Set([
 /**
  * Reduces one Responses SSE stream to its sole terminal response without
  * retaining deltas. Raw provider error events are deliberately discarded;
- * callers receive only a stable local error that the existing sanitized
- * provider-failure boundary can classify.
+ * callers receive a stable local error plus sanitized, log-only operatorDetail
+ * (allowlisted tokens, bounded fingerprints and states), never the raw event.
+ * The existing provider-failure classification and persisted evidence stay unchanged.
  */
 export async function collectOpenAIResponsesAuthoringStream(
   stream: AsyncIterable<unknown>,

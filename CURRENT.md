@@ -1,13 +1,61 @@
 # SmallHeroes — Current Technical State
 
-## Safe provider error detail implemented — independent code QA pending
+## Safe provider error detail — Claude PASS received; P2 closeout
+
+Claude supplied PASS P0=0/P1=0/P2=3 for the exact range
+e71777eae23c6ebf31725b897a76ae6574271ac8..a227ade0430aa487b77747f58250c19d835ac124.
+Independent code PASS now ends at a227ade0, not this subsequent closeout.
+Claude independently reproduced both typechecks, focused 93/93 and the full gate
+5913 passed / 73 skipped / 0 failures, unchanged 392 specs. His reported adversarial
+probes found no leaks; that does not prove mathematical hash injectivity or immunity
+to all collisions. His SDK-branch reproduction is consistent with the retained
+classification, not a recovered raw historical event or exact provider error.
+
+At this closeout's start, HEAD/local upstream and live ls-remote all matched
+a227ade0430aa487b77747f58250c19d835ac124, clean 0/0. Remote-tracking reflog records
+update by push at 2026-09-11 17:41:46 +0300 from 0ee03c35 to a227ade0; no actor or
+review chronology is inferred. Earlier local/unpushed statements describe the
+original implementation handoff snapshot, not current propagation. Git cleanliness
+and parity are not independent review evidence and grant no spend authority.
+Same sole-writer Codex task/worktree/branch; dependencies 768ccb2f / 63ccb484 clean.
+
+P2-A: qualify historical push wording and record the observed propagation.
+P2-B: stream-collector comment now describes sanitized operatorDetail as well as
+the stable local error; no executable change. P2-C: retained as a documented
+non-canonical/injected-transport limitation, not fixed or independently closed.
+The real live route uses the canonical transport; do not extend detail guarantees
+to injected raw SDK exceptions. No new provider, retry, key or model behavior.
+
+Before edits, the existing read-only predecessor inspector passed at clean a227ade0:
+inspection 99d5217575fbdf095d5a931e46069e185a4ed541411d1abc7d4f20aa92b068ce,
+ordinary identity e0ce62dc, program 6d7a87f0, receipt 914db6eb, terminal 9777fc11.
+providerCalls=0, zeroWrite=true, historicalCharge=unknown. This is predecessor
+eligibility only, NOT a prepared successor/current preflight or paid authorization.
+No candidate, authorization, claim or execution was created; consumed identities
+remain consumed. A later HEAD change does not preserve a current-consumer proof.
+
+Next: reconcile the closeout's review/propagation state, then prepare one bounded
+failed-provider successor through the existing reviewed route. No fresh paid
+attempt is authorized by Claude's PASS; the old one-attempt allowance is consumed.
+Resource reliability P1 and CLI reason-code P2-1 remain open, original P1 HELD
+0/3/3, M2b, Boards/package and book readiness incomplete. Payments deferred.
+Closeout evidence/re-gate brief: outputs/r3b1b-provider-error-detail-20260911/P2_CLOSEOUT.md
+(ignored/local-only, no verified off-machine backup, not preserved by Git push).
+Closeout validation: npx tsc --noEmit exit 0, focused 46+47=93 passed,
+git diff --check exit 0; no full-suite rerun for Markdown/comment-only changes.
+45/45 original and 45/45 prior snapshot entries unchanged; successful full-gate
+stdout/stderr hashes unchanged. Independent P2 closure is not self-awarded.
+
+## Historical implementation handoff — before the received Claude verdict
 
 2026-09-11. Guy requested continuing to completion without repeated implementation
 approval prompts. Codex implemented the proposed offline diagnostic correction in
 the same sole-writer task, C:/GNart/Work/sh-r3b1b-semantic-m1,
 codex/r3b1b-semantic-recovery-m1, starting clean at e71777ea, ahead 1 / behind 0
 of local upstream 0ee03c35. Protected dependencies 768ccb2f / 63ccb484 stayed clean
-and read-only. No push, credential access, provider call or paid render this milestone.
+and read-only. At that implementation handoff, no push had been performed by that
+task and the commits were local relative to its observed upstream. No credential
+access, provider call or paid render occurred during that implementation task.
 
 Claude supplied documentation/runtime PASS P0=0/P1=0/P2=0 for
 0ee03c359f42d8f5641d9194a90b8fabaa33c016..e71777eae23c6ebf31725b897a76ae6574271ac8.

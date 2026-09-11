@@ -1,6 +1,6 @@
 # SmallHeroes — Roadmap
 
-**Last verified:** 2026-09-11 (safe provider error-detail correction implemented offline; 93 focused tests passed; independent code QA pending, code PASS still d0af988c; prior paid run failed, charge unknown and identity consumed; no Blueprint/images; reliability P1 open)
+**Last verified:** 2026-09-11 (Claude code PASS through a227ade0, P0=0/P1=0/P2=3; P2 wording/comment closeout, injected-transport limitation retained; real predecessor eligibility passed offline at clean a227ade0; no new execution/Blueprint/images; reliability P1 open)
 **Product priority owner:** Guy
 **Technical sequencing owner:** Codex
 
@@ -31,6 +31,18 @@ Blueprint and any required LOW Board/prop generation remain separately budgeted
 provider actions with exact owner gates.
 
 ## Active
+
+Claude's independent PASS now covers e71777ea..a227ade0, including the reproduced
+5913/73/0 full gate and 93 focused tests. Current closeout corrects time-scoped
+propagation wording and a stream comment, without executable changes; it is outside
+that code PASS. Injected/non-canonical transport detail asymmetry remains documented.
+At closeout start live origin/HEAD/upstream matched a227ade0, clean 0/0; no push
+actor inferred. The real read-only predecessor inspector then passed, zero calls
+and writes. This is not successor preparation or spend authority. Next is closeout
+review/propagation reconciliation and bounded existing-route successor preparation.
+No Blueprint or image; consumed allowance, unknown failed charge and open holds remain.
+
+Historical implementation handoff before this received verdict:
 
 Guy authorized continued implementation. The safe provider-detail gap is now
 fixed in the shared transport and Blueprint log, with closed tokens/bounded hashes
