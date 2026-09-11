@@ -1,5 +1,59 @@
 # SmallHeroes — Current Technical State
 
+## Repair-v11 ordinary run completed — provider-boundary HOLD
+
+2026-09-11. Guy explicitly approved propagation plus ONE fresh ordinary Blueprint
+attempt under USD5, up to 3 generations / 2 validation repairs, no transport
+retry/fallback or images. Existing key choice retained. Same sole writer/task,
+C:/GNart/Work/sh-r3b1b-semantic-m1, codex/r3b1b-semantic-recovery-m1.
+At start HEAD/local upstream already matched 0ee03c35, clean 0/0. Authorized push
+was a no-op (Everything up-to-date, exit 0); ls-remote confirmed full 0ee03c35.
+No actor inferred for earlier propagation. Dependencies 768ccb2f / 63ccb484 clean.
+Only three Markdown paths differ from reviewed d0af988c; code PASS stays there.
+The preparation docs closeout has not received an independent verdict.
+
+Real refresh/current strict reload passed at 0ee03c35: bridge a6c3576e,
+request 4a311f29, preflight e90d975b. Full context fe930e70, authoring authority
+3d9c032a, program 6d7a87f0, ordinary identity e0ce62dc and original approved
+content/time preserved. No source/model/policy change. Then the existing tracked
+execute-live CLI ran exactly once through the ordinary claimed lifecycle.
+
+Terminal AUTHORING_FAILED, receipt 914db6eb, manifest 9777fc11, replayed=false.
+Process exit 0 reflects persisted failure, not a valid Blueprint. Exactly one
+logical provider call / HTTP dispatch, zero repairs, count probes, transport
+retries or fallback. No draft validation or repair-v11 execution was reached.
+Failure provider_call_failed / provider_execution_not_repairable; Blueprint null.
+stderr retained http_response / provider_rejection_unknown / HTTP200, code and
+parameter unknown, billingState unknown_no_usage. Exact provider error discarded;
+do not diagnose key/quota/model/schema/story from this classification alone.
+
+Usage and call-cost fields null: actual charge UNKNOWN, not zero. Admission's
+USD4.928 continuation reservation and USD4.224 generation reservation are not
+charges. The one-execution allowance is consumed despite unused ceiling.
+Prior accounted USD1.318115 and original unknown failed charge remain separate.
+No second attempt, claim reset, successor chaining or automatic repair permitted.
+
+Offline terminal replay before docs edits returned identical manifest/receipt,
+replayed=true, providerConstructions=0 with throwing provider AND count factories.
+45 original inventory entries plus 45 preexisting files in PREPARATION.json
+recomputed unchanged (overlapping sets). New ledger claim/lookup/binding for
+e0ce62dc; old identities/artifacts untouched. No images, audio or publication.
+
+Evidence: outputs/r3b1b-dini-repair-v11-live-20260911/READOUT.md, PREPARATION.json,
+native refresh/execute/replay logs and original runtime JSON. All ignored/local-only,
+no verified off-machine backup, not preserved by push. Next: read-only execution
+audit and scoped diagnosis of the safe API error-detail gap; no fresh spend or
+production fix is claimed/authorized here. The installed SDK can report an error
+inside HTTP200 streaming, but that is not proof of this run's exact error.
+Code PASS remains d0af988c; this docs/runtime evidence is outside it. CLI P2-1,
+resource reliability P1, original P1 HELD 0/3/3, M2b, Boards/package and book
+readiness remain open. Payments deferred. Previous sections are milestone history.
+
+Closeout validation: npx tsc --noEmit exit 0; no full-suite rerun for prose-only
+changes. Most recent independent full gate remains 5898/73 skips/0 failures at
+d0af988c. New closeout commit remains local; this task's push approval covered
+the pre-existing 0ee03c35, not automatic propagation of later documentation.
+
 ## Repair-v11 preparation completed — new spend decision pending
 
 2026-09-11. Received Claude Code PASS P0=0/P1=0/P2=0 for the exact range

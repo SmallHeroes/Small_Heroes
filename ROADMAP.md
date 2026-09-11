@@ -1,6 +1,6 @@
 # SmallHeroes — Roadmap
 
-**Last verified:** 2026-09-11 (Claude code PASS 0/0/0 through d0af988c; independently reproduced 5898 passed / 73 skips / 0 failed; actual repair-v11 offline preflight and strict reload passed at d0af988c; fresh USD5 execution proposed, NOT approved; no Blueprint/images; reliability P1 open)
+**Last verified:** 2026-09-11 (approved repair-v11 ordinary attempt executed at 0ee03c35; provider-boundary failure after 1 dispatch, 0 repairs; actual billing unknown, allowance consumed; offline replay exact/0 provider constructions; code PASS d0af988c; no Blueprint/images; reliability P1 open)
 **Product priority owner:** Guy
 **Technical sequencing owner:** Codex
 
@@ -31,6 +31,16 @@ Blueprint and any required LOW Board/prop generation remain separately budgeted
 provider actions with exact owner gates.
 
 ## Active
+
+Guy approved and the repair-v11 ordinary attempt ran through the existing CLI.
+Current refresh passed at clean 0ee03c35; paid execution terminally failed at the
+provider boundary (HTTP200 / unknown rejection), before draft validation/repair.
+No Blueprint/images. One dispatch, zero retries/repairs/probes; actual charge
+unknown, allowance consumed. Exact terminal replay returned with zero provider
+constructions. Next is execution audit and diagnosis of the missing safe provider
+error detail, not another paid attempt. See CURRENT and live-20260911 READOUT.
+
+Historical preparation before the approved execution:
 
 Repair-v11 code review is complete. Actual no-charge preparation produced the
 new-program ordinary identity e0ce62dc with unchanged approved context; no

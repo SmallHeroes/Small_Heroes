@@ -1,6 +1,15 @@
-# Repair-v11 Blueprint execution — owner decision pending
+# Repair-v11 Blueprint execution — approved and executed; boundary HOLD
 
-2026-09-11. Offline preparation approved and completed. Paid execution NOT approved.
+2026-09-11 closeout: Guy explicitly approved this proposal and propagation.
+The existing ordinary CLI executed once at clean propagated 0ee03c35 after
+current refresh, then terminally failed at the provider boundary: 1 dispatch,
+0 repairs/retries/fallback/probes, no Blueprint or images, actual charge unknown.
+Allowance consumed. Offline replay returned the same receipt with 0 provider
+constructions. Evidence: outputs/r3b1b-dini-repair-v11-live-20260911/READOUT.md.
+No new authority follows this outcome. Original proposal below retained as history.
+
+At proposal time on 2026-09-11: offline preparation approved/completed;
+paid execution NOT YET approved.
 Claude code PASS 0/0/0: 41f90dbc..d0af988c. Same sole-writer task/worktree
 C:/GNart/Work/sh-r3b1b-semantic-m1, codex/r3b1b-semantic-recovery-m1.
 Start d0af988c clean 0/0, remote observed equal, protected dependencies clean
