@@ -1,6 +1,6 @@
 # SmallHeroes — Roadmap
 
-**Last verified:** 2026-09-11 (Claude documentation/comment re-gate PASS a227ade0..6c339c14, P0=0/P1=0/P2=1; A/B closed, C retained; D HEAD-bound inspection wording clarified; code PASS a227ade0; no new execution/Blueprint/images; reliability P1 open)
+**Last verified:** 2026-09-11 (P2-D independently closed, PASS 6c339c14..2da63bbc 0/0/0; real offline successor candidate 5e0d3980 prepared/reloaded at 2da63bbc; no authorization/claim/provider call/Blueprint/images; code PASS a227ade0; reliability P1 open)
 **Product priority owner:** Guy
 **Technical sequencing owner:** Codex
 
@@ -31,6 +31,17 @@ Blueprint and any required LOW Board/prop generation remain separately budgeted
 provider actions with exact owner gates.
 
 ## Active
+
+Real offline recovery preparation completed at clean 2da63bbc: current bridge,
+preflight and same-program failed-provider successor candidate, with identical
+read-only re-preparation and unchanged old bytes. No new paid authority or claim.
+Next: one explicit additional USD5-bounded exposure decision, then current refresh
+and authorization through the existing reviewed route after approved propagation.
+Closeout HEAD changes make these prepared proofs historical, not reusable authority.
+No implementation change or new mechanism. Full evidence/limits in CURRENT and
+outputs/r3b1b-dini-repair-v11-successor-preparation-20260911/READOUT.md.
+
+Historical closeout status before preparation:
 
 Closeout re-gate PASS received through 6c339c14: A/B closed, C retained, D clarified
 in CURRENT (inspection digest includes the current consumer HEAD, unlike the four

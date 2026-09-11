@@ -1,5 +1,47 @@
 # SmallHeroes — Current Technical State
 
+## Repair-v11 successor prepared offline — no paid authorization
+
+2026-09-11. Received Claude PASS P0=0/P1=0/P2=0 for
+6c339c14677f241425522e6d32f1a8fec23450b7..2da63bbcfd6df9a3fd55fa093edd082e35d80826;
+P2-D independently closed. Code PASS remains a227ade0; later documentation/comment
+reviews extend through 2da63bbc, not this preparation closeout. Open holds below remain.
+
+Same sole writer/task, C:/GNart/Work/sh-r3b1b-semantic-m1,
+codex/r3b1b-semantic-recovery-m1. At preparation start HEAD/upstream/live origin
+matched 2da63bbc, clean 0/0; dependencies 768ccb2f / 63ccb484 clean/read-only.
+No production changes or push in this preparation task. Existing reviewed APIs
+advanced the historical bridge, prepared/reloaded current preflight, and persisted
+one failed-provider successor candidate for ordinary predecessor e0ce62dc.
+Native process exit 0; read-only re-preparation reproduced the candidate digest.
+
+At 2da63bbc: bridge 428d48a2, request b26754fe, preflight 1f8c3c80,
+candidate 5e0d39806de0ab3123e16e39bfecd8cb2edbd9204117460b8c7080bab9fe402a.
+Program 6d7a87f0, context fe930e70, authoring authority 3d9c032a and original Guy
+decision time 2026-09-09T13:35:13.806Z unchanged. This is a successor candidate,
+not a Blueprint. No authorization, new claim, successor slot, provider call or
+credential read. Global fetch trap observed zero attempts (not an all-network
+measurement); preparation uses only the reviewed offline APIs, never execute.
+Old ledger 12/12 and prior live-root files (31-file combined snapshot), original
+45/45 inventory and prior 45/45 snapshot unchanged. Exactly one ledger addition,
+the new candidate; ledger now 13 files. No reset/chaining of consumed executions.
+
+Full local record: outputs/r3b1b-dini-repair-v11-successor-preparation-20260911/
+READOUT.md, RESULT.json, invocation and separate native logs. Ignored/local-only,
+no verified off-machine backup; push does not preserve them. These proofs are
+consumer-state-bound: a closeout commit makes this preparation historical. Refresh
+through the same reviewed APIs at clean propagated HEAD before any authorization;
+do not reuse stale preflight/candidate, rewind Git or alter program identity.
+
+Next owner exposure decision: propagation plus ONE additional failed-provider
+successor execution under unchanged USD5 hard ceiling, at most 3 generation calls
+including 2 validation repairs, bounded separately accounted count probes per
+existing policy, zero transport retry/fallback. A provider-boundary failure ends
+the attempt. Prior unknown charges remain unknown and separate; the earlier
+one-attempt allowance is consumed. No paid authorization is created by preparation
+or Claude PASS. No images/full-book render, Blueprint acceptance, publication or
+deployment in this proposed attempt. Payments deferred. Book readiness remains open.
+
 ## Safe provider error detail — Claude PASS received; P2 closeout
 
 Latest received re-gate: Claude PASS P0=0/P1=0/P2=1 for
