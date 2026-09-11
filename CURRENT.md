@@ -1,5 +1,55 @@
 # SmallHeroes — Current Technical State
 
+## Repair-v11 preparation completed — new spend decision pending
+
+2026-09-11. Received Claude Code PASS P0=0/P1=0/P2=0 for the exact range
+41f90dbc8e01176d683e4fdf7082250b2a315431..d0af988ccb71ca60ba1520d90c9889d2c4c7b614.
+Code PASS ends at d0af988c. Claude independently reproduced 5898 passed / 73 skips /
+0 failures and both typechecks, plus 8192 shape-valid and 36 malformed differential
+cases with zero mismatches. His corrected probe mistakes are not repository findings.
+CLI reason-code P2-1 and resource-phase reliability P1 remain open.
+
+Guy then requested continuation of the explicitly no-charge preparation. Same
+sole writer/task, C:/GNart/Work/sh-r3b1b-semantic-m1, branch
+codex/r3b1b-semantic-recovery-m1. At preparation start HEAD/local upstream and
+ls-remote matched d0af988c, clean 0/0. The prior commit had propagated; no push
+actor is inferred. Dependencies 768ccb2f / 63ccb484 remained clean/read-only.
+
+No production edit: actual reviewed advancement and ordinary preflight APIs
+created bridge b6206bb3, request a3571af9, preflight 229fab3b under
+outputs/r3b1b-dini-repair-v11-preparation-20260911. Process exit 0. A separate
+strict current-manifest loader verified the persisted preflight, exit 0.
+Full context fe930e70 and original Guy content-decision timestamp were preserved.
+Current program 6d7a87f0 derives ordinary execution identity e0ce62dc, distinct
+from consumed ordinary beb7c945 and consumed successor 48de17fa. At inspection,
+no claim, lookup, binding or incident existed for the new identity. This is
+read-only ledger absence, not a reservation or guarantee against later state changes.
+45 original inventory entries and the 28-file old-successor/ledger snapshot were
+byte-identical before/after. No credential read, provider call, paid authorization,
+execution claim or image. The old allowance remains consumed.
+
+This is preparation evidence at d0af988c, NOT a new Blueprint or permission to
+spend. This documentation commit is outside Claude's code PASS. Its HEAD change
+makes the prepared bridge/preflight historical: after any approved propagation,
+refresh them through the same reviewed APIs at clean 0/0 before paid execution.
+Never rewind Git, reuse a stale current proof, reset the ledger or chain successors.
+
+Next owner decision: propagation plus ONE fresh ordinary Blueprint execution
+using current program 6d7a87f0 under the existing USD5 hard ceiling, max 3 generation
+calls / 2 validation repairs, separately accounted bounded count probes, no
+transport retry/fallback. Existing key choice unchanged. This proposal is NOT
+authorized by the request to prepare. No full book/images, Blueprint approval,
+Boards/package, publication or deployment in that proposed execution.
+Exact gate: docs/ai-workflow/R3B1B_REPAIR_V11_EXECUTION_GATE.md.
+Local ignored READOUT.md, RESULT.json, invocation harnesses and native logs hold
+full identities/evidence; no verified off-machine backup, not preserved by push.
+Original P1 HELD 0/3/3, M2b, Boards/package and book readiness remain open.
+Payments remain deferred. Earlier sections below are historical milestone state.
+
+Preparation/documentation validation: npx tsc --noEmit exit 0; no full-suite rerun
+because production/test code is unchanged. The last independent full result is
+5898 passed / 73 skipped / 0 failed at d0af988c. No new independent PASS claimed.
+
 ## Action-space repair diagnostics — approved offline implementation
 
 2026-09-11. Guy approved the focused implementation after Claude independently

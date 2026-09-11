@@ -1,6 +1,6 @@
 # SmallHeroes — Roadmap
 
-**Last verified:** 2026-09-11 (offline action-space diagnostics implemented; final full check 5898 passed / 73 existing skips / 0 failed, both typechecks passed; Claude code PASS still4e408bda pending this code review; prior live allowance consumed at conservative accountedUSD1.318115; no Blueprint/images; reliability P1 open)
+**Last verified:** 2026-09-11 (Claude code PASS 0/0/0 through d0af988c; independently reproduced 5898 passed / 73 skips / 0 failed; actual repair-v11 offline preflight and strict reload passed at d0af988c; fresh USD5 execution proposed, NOT approved; no Blueprint/images; reliability P1 open)
 **Product priority owner:** Guy
 **Technical sequencing owner:** Codex
 
@@ -31,6 +31,16 @@ Blueprint and any required LOW Board/prop generation remain separately budgeted
 provider actions with exact owner gates.
 
 ## Active
+
+Repair-v11 code review is complete. Actual no-charge preparation produced the
+new-program ordinary identity e0ce62dc with unchanged approved context; no
+provider/key access, claim or paid authorization. Full record in CURRENT and
+R3B1B_REPAIR_V11_EXECUTION_GATE.md. Next is Guy's decision on one new USD5-bounded
+Blueprint attempt, not another code change. Preparation at d0af988c becomes
+historical after this documentation commit; regenerate at the clean propagated
+HEAD before execution. The consumed prior allowance is not revived.
+
+Historical implementation handoff before that review/preparation:
 
 Current approved offline milestone: same-evaluator action-space rejection reasons,
 bounded repair-only sidecar without changing census identities, repair promptv11
