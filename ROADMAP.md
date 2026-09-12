@@ -1,6 +1,6 @@
 # SmallHeroes — Roadmap
 
-**Last verified:** 2026-09-12 (Dini Blueprint1125b395 approved; package66d5dfc2 approved and locally activated as revision4d6e8dee; Wizard selection qualified; provider-free cover+12-page preflight passes after cast-order correction; no images; independent code PASS still a227ade0; reliability P1 open)
+**Last verified:** 2026-09-12 (Dini package4d6e8dee locally active; integrationfcc1758b fullcheck5918passed/73skipped; LOW cover+12images rendered, page7 safety HOLD and prop continuity issues; not customer-ready; independent code PASS still a227ade0; reliability P1 open)
 **Product priority owner:** Guy
 **Technical sequencing owner:** Codex
 
@@ -31,6 +31,17 @@ Blueprint and any required LOW Board/prop generation remain separately budgeted
 provider actions with exact owner gates.
 
 ## Active
+
+Full diagnostic LOW Dini draft now exists: cover+12pages,14 image calls including
+one failed page7 replacement,32 Vision calls.12/13 selected images have automated
+visual/numeric evidence; page7 remains safety-held. Manual viewing found cake/cart
+continuity drift, so this is not product acceptance. Cost estimateUSD1.0986325 on
+returned usage,3 initial QA400 responses unpriced/unknown,not invoice verified.
+Local review book and exact accounting are linked in CURRENT. No customer Order,
+deployment, publication, narration or payment. Next is independent code/operation
+review and typed bridge/prop-continuity correction, not another full paid rerun.
+
+Historical activation/integration sequence before the paid draft:
 
 Dini now has an actual approved Blueprint and locally activated packagev5. The
 single paid Blueprint successor succeeded under its USD5 ceiling; conservative

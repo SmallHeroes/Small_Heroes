@@ -1,5 +1,61 @@
 # SmallHeroes — Current Technical State
 
+## Full Dini LOW illustration draft rendered — visual HOLD, not customer-ready
+
+2026-09-12. Integration committed locally as
+fcc1758b83da53cd89d948dc4e1d78f41b1212f4 (base90dfd387),15files,+15629/-51.
+Full check5918passed/73skipped,zero failures,both typechecks; details below.
+No independent Claude PASS for this range. No push/deploy/customer Order.
+
+Guy explicitly authorized correction and renders through a whole book. Local
+real provider execution now produced cover0 + pages1..12, all1024x1536 LOW,
+using approved package4d6e8dee/runtimev7 and Bar anchor3715cf8f. One additional
+page7 replacement makes14 actual image dispatches. No HIGH, fallback provider,
+new Blueprint, remote storage/database, narration, payment or publication.
+Preview: outputs/r3b1b-dini-low-book-20260912/book-review/index.html.
+Its13 images, exact personalized source text and manifest are local-only.
+
+Execution did not proceed cleanly and is not relabeled as product PASS:
+- Initial cover persisted, but3 QA calls returned HTTP400 because the local
+  adapter supplied its private image URL to Vision. Initial logger did not retain
+  error details; cause follows call-site/payload evidence and successful correction.
+  Inline exact-byte QA transport fixed this without regenerating the cover.
+- The adapter's literal child-ID check missed child:hero. Numeric0.70 evidence
+  for pages1..6 was completed afterward on unchanged bytes via the shared scorer;
+  subsequent pages use authoritative entityPresence. Cover numeric evidence reused.
+- Original page7 and its ONE authorized bounded replacement both failed safety:
+  bridge/open-deck/child proximity. No third attempt, no pass override.
+- After disclosing the operational change, first renders8..12 completed the
+  requested diagnostic draft while retaining the page7 hold. This revised the
+  initial stop-all-pages rule, not the final14-image ceiling. It is not delivery.
+
+Selected set:12/13 images have automated visual plus numeric evidence; page7
+remains HELD and unscored numerically because safety failed first. Manual viewing
+of all13 selected images also found cake/cart continuity drift (page10 visibly
+four cake tiers rather than three; cover differs), and page5 sash visibility.
+Automatic per-page scores do not prove semantic/continuity/product acceptance.
+Free-form operatorNote and legacy compositionStrictRetry are intentionally not
+effective on the closed PVB route; no such bypass was implemented. A proposed
+operator-note repair was abandoned BEFORE spend; the one replacement used the
+same approved prompt authority. Typed correction/continuity work remains.
+
+Accounting:14 image +32 Vision dispatches,43 responses with usage;3 initial
+HTTP400 responses have no usage and are not asserted free. Conservative uncached
+estimate on returned usage USD1.0986325 (images0.908665,Vision0.1899675), not invoice
+verified; excludes prior BlueprintUSD1.358194 and all historical charges. Rates
+retrieved from official OpenAI docs on2026-09-12 and recorded in preview manifest.
+All processes completed. Three image roots plus numeric audit preserve every
+candidate, hold, prompt, request-count ledger and original adapter versions.
+Nothing was deleted. Outputs/ remains ignored/local-only, no verified off-machine
+backup; pushing Git does not preserve these files.
+
+Next: independent review of90dfd387..fcc1758b and separate operation audit, then
+the smallest general typed-authority repair for bridge safety and recurring prop
+appearance before more paid attempts. No release/product/HIGH approval inferred.
+Exact handoffs: activation root INTEGRATION_QA_HANDOFF.md and RENDER_QA_HANDOFF.md.
+
+### Historical activation and integration evidence (before the paid draft)
+
 ## Dini package locally activated; full-book offline preflight unblocked
 
 2026-09-12. Same sole Codex task/writer, C:/GNart/Work/sh-r3b1b-semantic-m1,
