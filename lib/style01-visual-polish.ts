@@ -32,7 +32,9 @@ export type Style01PageExpressionKind =
   | 'curious_uncertain'
   | 'joyful'
   | 'focused'
-  | 'attentive_neutral';
+  | 'attentive_neutral'
+  | 'playful'
+  | 'situational';
 
 const PAGE_EXPRESSION_DIRECTIVES: Record<Style01PageExpressionKind, string> = {
   subdued:
@@ -53,7 +55,40 @@ const PAGE_EXPRESSION_DIRECTIVES: Record<Style01PageExpressionKind, string> = {
     'focused — intent gaze, neutral relaxed mouth, subtle brow concentration',
   attentive_neutral:
     'attentive neutral — relaxed closed mouth, natural gaze and brows; no default smile',
+  playful:
+    'childlike amusement — a spontaneous small laugh or mischievous grin, responsive eyes and cheeks; proportionate to this moment, not a fixed mascot grin',
+  situational:
+    'believable child reaction to the situation; quiet attention is valid, but no forced neutral face, closed mouth or smile',
 };
+
+export interface Style01ExpressionEvidence {
+  narrativeSummary?: string | null;
+  bookPageText?: string | null;
+  imageDirection?: string | null;
+  childName?: string | null;
+  /** Positive, child-owned action predicates only, supplied by the bound caller. */
+  childActionPredicates?: readonly string[];
+}
+
+function normalizeExpressionText(text: string): string {
+  return text.normalize('NFD').replace(/[\u0591-\u05BD\u05BF-\u05C7]/g, '').normalize('NFC');
+}
+
+/** Keep another character's smile/fear out of the child's expression decision. */
+function childExpressionClauses(text: string, childName?: string | null): string {
+  const name = normalizeExpressionText(childName ?? '').trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const subject = new RegExp(`(?:^|[^\\p{L}])(?:${name ? `${name}|` : ''}(?:the )?child|(?:the )?hero|הילד|הילדה)(?=$|[^\\p{L}])`, 'iu');
+  return normalizeExpressionText(text).split(/[.!?\n;]+/).flatMap(clause => {
+    const match = subject.exec(clause);
+    if (!match) return [];
+    // Contrast/concurrent-actor clauses must not transfer another actor's affect.
+    const own = clause.slice(match.index + match[0].length).split(/\b(?:while|whereas|and|but)\b|אבל|בעוד|,(?!\s*(?:curious|unsure|worried|surprised|focused|happy|amused)\b)/iu)[0]!
+      .split(/\b(?:sees?|hears?|watches? the|looks? at)\b|(?:^|\s)(?:ראה|ראתה|שמע|שמעה|מביט אל|מביטה אל)(?:\s|$)/iu)[0]!;
+    // Negation is not positive emotional evidence. Leave ambiguous clauses situational.
+    if (/\b(?:not|never|without|no)\b|(?:^|\s)(?:לא|בלי|אינו|אינה|אל)(?:\s|$)/iu.test(own)) return [];
+    return [own];
+  }).join('\n');
+}
 
 const SUBDUED_RE =
   /\b(crowded out|left out|lonely|dejected|downcast|disappointed|hurt feelings|quiet hush|withdrawn)\b/i;
@@ -68,26 +103,34 @@ const CURIOUS_UNCERTAIN_RE =
 const JOYFUL_RE = /\b(joyful|delighted|happy|beaming|smiles? with relief|proud and gentle)\b/i;
 const FOCUSED_RE = /\b(focused|concentrating|determined|intent)\b/i;
 
-export function resolveStyle01PageExpressionKind(input: {
-  narrativeSummary?: string | null;
-  bookPageText?: string | null;
-  imageDirection?: string | null;
-}): Style01PageExpressionKind {
-  const evidence = [input.narrativeSummary, input.bookPageText, input.imageDirection]
+export function resolveStyle01PageExpressionKind(input: Style01ExpressionEvidence): Style01PageExpressionKind {
+  const raw = [input.narrativeSummary, input.bookPageText, input.imageDirection]
     .filter(Boolean)
     .join('\n');
+  const own = childExpressionClauses(raw, input.childName);
+  // Unattributed or negated affect remains situational, never a guessed child emotion.
+  // This is a conservative cue extractor, not a general-purpose language parser.
+  const evidence = own;
+  if (/(?:^|\s)(?:התאכזב[ה]?|עצוב[ה]?|נעלב[ה]?)(?:\s|$)/u.test(evidence)) return 'subdued';
+  if (/(?:^|\s)(?:דאג[ה]?|פחד[ה]?|חשש[ה]?)(?:\s|$)/u.test(evidence)) return 'worried';
+  if (/(?:^|\s)(?:נבהל[ה]?|הופתע[ה]?)(?:\s|$)/u.test(evidence)) return 'surprised';
+  if (/(?:^|\s)(?:צחק[ה]?|גיחך|גיחכה|חייך|חייכה)(?:\s|$)/u.test(evidence)) {
+    return /חייך|חייכה/u.test(evidence) ? 'joyful' : 'playful';
+  }
   if (SUBDUED_RE.test(evidence)) return 'subdued';
   if (WARY_RE.test(evidence)) return 'wary';
   if (WORRIED_EXPRESSION_RE.test(evidence)) return 'worried';
   if (RESTRAINED_AMUSEMENT_RE.test(evidence)) return 'restrained_amusement';
+  if (/\b(?:laughs?|laughed|giggling|giggles?|giggled)\b/i.test(evidence)) return 'playful';
   if (SURPRISED_RE.test(evidence)) return 'surprised';
   if (CURIOUS_UNCERTAIN_RE.test(evidence)) return 'curious_uncertain';
   if (JOYFUL_RE.test(evidence)) return 'joyful';
   if (FOCUSED_RE.test(evidence)) return 'focused';
-  return 'attentive_neutral';
+  if (input.childActionPredicates?.some(predicate => ['pushes', 'pulls', 'lifts', 'carries', 'balances'].includes(predicate))) return 'focused';
+  return 'situational';
 }
 
-export function buildPageExpressionLock(input: {
+export function buildPageExpressionLock(input: Style01ExpressionEvidence & {
   pageNumber: number;
   companionId?: string | null;
   childPresence?: string;
@@ -98,7 +141,9 @@ export function buildPageExpressionLock(input: {
   if (input.childPresence && !['present', 'partial', 'background'].includes(input.childPresence)) {
     return '';
   }
-  if (input.companionId === 'bunny_ometz') {
+  // Historical per-companion table is only a legacy fallback; never override
+  // current child-scoped / bound Blueprint evidence.
+  if (input.companionId === 'bunny_ometz' && !input.childName && !input.childActionPredicates) {
     const expr = BUNNY_PAGE_EXPRESSIONS[input.pageNumber];
     if (expr) {
       return `PAGE EXPRESSION: ${expr}. Override the default hopeful mood for THIS page only.`;
@@ -107,13 +152,18 @@ export function buildPageExpressionLock(input: {
   const hasPageEvidence = Boolean(
     input.narrativeSummary?.trim() ||
       input.bookPageText?.trim() ||
-      input.imageDirection?.trim()
+      input.imageDirection?.trim() || input.childActionPredicates?.length
   );
   if (!hasPageEvidence) return '';
   const kind = resolveStyle01PageExpressionKind(input);
   return [
     `PAGE EXPRESSION [${kind}]: ${PAGE_EXPRESSION_DIRECTIVES[kind]}.`,
     'This page expression overrides the child-photo expression. Preserve identity, but do NOT copy the photographed smile, open mouth, or gaze.',
+    'CHILD PERFORMANCE: real child, not posing adult. Face and body react together with natural asymmetry, not a repeated portrait pose.',
+    input.childActionPredicates?.some(predicate => ['runs', 'walks', 'pushes', 'pulls', 'carries', 'lifts', 'balances'].includes(predicate))
+      ? 'Show believable weight transfer in the REQUIRED action; do not invent a different gesture or release required contact.'
+      : 'Quiet beats: living attention, relaxed posture; no gratuitous movement.',
+    'Performance changes only expression and micro-acting within approved pose/action/eyeline/placements. No new events, camera changes or contradicted emotion. Preserve age, anatomy and identity.',
   ].join('\n');
 }
 

@@ -199,6 +199,8 @@ function applyEightPageComposition(
           : frame.pageNumber === 5
             ? { x: 80, y: 360, ...smallestCastSize }
             : { x: 80, y: 360, width: 200, height: 200 };
+      // Current v2 fixture varies actual staging, not just the shot labels.
+      if (index % 2 && placement.region.width === 200) placement.region.x = 350;
     }
   }
 }
@@ -264,7 +266,7 @@ describe('R1D-PVB-B — whole-book Blueprint authoring compiler', () => {
     expect(calls).toBe(1);
     expect(result.provenance).toMatchObject({
       draftSchemaVersion: 'pre-render-blueprint-draft-schema/v9',
-      promptVersion: 'pre-render-blueprint-authoring-prompt/v9',
+      promptVersion: 'pre-render-blueprint-authoring-prompt/v10',
       passingAttempt: 1,
       callCount: 1,
     });
@@ -675,7 +677,7 @@ describe('R1D-PVB-B — whole-book Blueprint authoring compiler', () => {
         reasoningEffort: CONFIG.reasoningEffort,
         maxOutputTokens: CONFIG.maxOutputTokens,
         noFallback: true,
-        promptVersion: 'pre-render-blueprint-authoring-prompt/v9',
+        promptVersion: 'pre-render-blueprint-authoring-prompt/v10',
         passingAttempt: 1,
         callCount: 1,
       });
@@ -977,7 +979,7 @@ describe('R1D-PVB-B — whole-book Blueprint authoring compiler', () => {
     expect(result.provenance).toMatchObject({
       passingAttempt: 2,
       callCount: 2,
-      repairPromptVersion: 'pre-render-blueprint-repair-prompt/v11',
+      repairPromptVersion: 'pre-render-blueprint-repair-prompt/v12',
     });
     expect((calls[1] as { system: string }).system).toContain(
       'never return textSafeRegion',
@@ -1265,7 +1267,7 @@ describe('R1D-PVB-B — whole-book Blueprint authoring compiler', () => {
     expect(result.provenance.passingAttempt).toBe(3);
   });
 
-  it('closes an eight-page five-traversal plus one-composition frontier in one provider-free repair', async () => {
+  it('closes an eight-page five-traversal plus cast/hero-composition frontier in one provider-free repair', async () => {
     const fixture = sixTransitionEightPageFixture();
     const corrected = wholeBookDraft(
       fixture.blueprint,
@@ -1311,7 +1313,7 @@ describe('R1D-PVB-B — whole-book Blueprint authoring compiler', () => {
     expect(result.provenance.passingAttempt).toBe(2);
     expect(result.repairAttempts).toHaveLength(1);
     const diagnostics = result.repairAttempts[0]!.diagnostics ?? [];
-    expect(diagnostics).toHaveLength(6);
+    expect(diagnostics).toHaveLength(7);
     expect(
       diagnostics.filter((entry) => entry.code === 'traversal_infeasible'),
     ).toHaveLength(5);
@@ -1329,7 +1331,7 @@ describe('R1D-PVB-B — whole-book Blueprint authoring compiler', () => {
     ]);
     expect(
       diagnostics.filter((entry) => entry.code === 'composition_policy_invalid'),
-    ).toHaveLength(1);
+    ).toHaveLength(2);
     expect(
       diagnostics.find((entry) => entry.code === 'composition_policy_invalid'),
     ).toMatchObject({
@@ -1346,7 +1348,7 @@ describe('R1D-PVB-B — whole-book Blueprint authoring compiler', () => {
     const grouped = JSON.parse(
       calls[1]!.user.split('\nREPAIR_WIRE:\n')[0]!.split('\n').slice(1).join('\n'),
     ) as Array<[string, string | null, string, [number, unknown], [number, unknown], number]>;
-    expect(grouped).toHaveLength(6);
+    expect(grouped).toHaveLength(7);
     expect(grouped.every((entry) => entry[3][0] === 1 && entry[4][0] === 1)).toBe(true);
     const finalValidation = validatePreRenderBookVisualBlueprint(
       result.blueprint,

@@ -185,7 +185,9 @@ export type ReplayableBlueprintAuthoringExecutionProgram = Omit<
   | 'providerWireVersion'
   | 'repairWireVersion'
   | 'draftSchemaVersion'
+  | 'compositionPolicyVersion'
 > & {
+  compositionPolicyVersion: 'blueprint-composition-policy/v1' | 'blueprint-composition-policy/v2';
   initialPromptVersion: PreRenderBlueprintAuthoringPromptVersion;
   repairPromptVersion: PreRenderBlueprintRepairPromptVersion;
   providerWireVersion:
@@ -245,6 +247,14 @@ export const LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_REPAIR_V10 = Object.fr
   draftSchemaVersion: 'pre-render-blueprint-draft-schema/v9',
   draftSchemaDigest: '9c3a78e3b25ec8a4d48e375a344b0607ca3cfe6f21cfd3debee568dda1308bfe',
   digest: '1a957874d1f9a22cf5ee1ec9bdc2a5f7cf89e25a2c95c850015f494aa800048d',
+} as const satisfies ReplayableBlueprintAuthoringExecutionProgram);
+
+/** Exact last v1 composition program, observed at a5b93ddc; replay only. */
+export const LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_REPAIR_V11 = Object.freeze({
+  ...LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_REPAIR_V10,
+  repairPromptVersion: 'pre-render-blueprint-repair-prompt/v11',
+  repairSystemPromptDigest: '321de3d49271848a5a44dd55cb3b920be65f5893b32b2cb90b7c7a9a50bdceb2',
+  digest: '6d7a87f05bc9209d8225ca55168494506c0da4fb2df956701a5039748e771d78',
 } as const satisfies ReplayableBlueprintAuthoringExecutionProgram);
 
 /**
@@ -567,6 +577,7 @@ export function blueprintAuthoringExecutionProgramStatus(
   }
   const valueDigest = canonicalJsonDigest(value);
   return [
+    LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_REPAIR_V11,
     LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_REPAIR_V10,
     LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_CATALOG_V3,
     LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_CAMERA_AUTHORITY,

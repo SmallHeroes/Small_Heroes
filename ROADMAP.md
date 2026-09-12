@@ -1,5 +1,16 @@
 # SmallHeroes — Roadmap
 
+## Owner sequencing update — 2026-09-13
+
+Engine-only child performance/composition improvement is the current milestone.
+No renders now. Situational child acting and fresh Blueprint composition v2 are
+implemented; 244 focused tests and typecheck pass. Full check remains non-green:
+ordinary5275 pass, resource669 pass/2 timeouts in an unchanged spec; not classified
+as inherited or independently closed. Old source, approved
+package, images and reader are unchanged. Next is story improvement with Guy;
+new planning and a visual audition come afterward, not an automatic whole-book
+rerender. No independent PASS or customer-readiness claim follows.
+
 **Last verified:** 2026-09-12 (Dini LOW cover+12 images in local ReaderV2; Guy visually accepted selected page7, automated hold/missing numeric evidence retained; prop continuity open; reader full check had one inventory-count failure subsequently fixed/focused-tested, not rerun; not customer-ready; independent code PASS still a227ade0; reliability P1 open)
 **Product priority owner:** Guy
 **Technical sequencing owner:** Codex

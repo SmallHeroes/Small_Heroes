@@ -51,12 +51,12 @@ const EXPECTED_CONTEXT_DIGEST =
   '0cc212ea805e53395d9757c04b436ac55527aecc2f434c5a35c5c91dbee80d0c';
 const EXPECTED_DIAGNOSTIC_COUNT = 86;
 const EXPECTED_REPAIR_ACCOUNTING = {
-  systemBytes: 3_509,
+  systemBytes: 4_152,
   userBytes: 58_667,
   schemaBytes: 13_505 + 7, // schema v9 adds runs; v8/v3 fixtures remain frozen
   separatorBytes: 2,
   protocolAllowance: 4_096,
-  estimatedBytes: 79_786, // v11 sidecar is counted, never bypasses admission
+  estimatedBytes: 80_429, // v12 directing guidance is counted, never bypasses admission
 } as const;
 
 type ProviderCallArgs = Parameters<ProductionAuthoringProvider['call']>[0];

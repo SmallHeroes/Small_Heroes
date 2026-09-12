@@ -86,6 +86,7 @@ function largestCastArea(frame: PortraitPageBlueprintFrame): number {
  */
 export function preRenderBlueprintCompositionPolicyDiagnostics(
   frames: readonly PortraitBlueprintFrame[],
+  options?: { version: 'blueprint-composition-policy/v1' | 'blueprint-composition-policy/v2'; childCastId?: string },
 ): PreRenderBlueprintCompositionPolicyDiagnostic[] {
   const pages = pageFrames(frames);
   const diagnostics: PreRenderBlueprintCompositionPolicyDiagnostic[] = [];
@@ -209,6 +210,41 @@ export function preRenderBlueprintCompositionPolicyDiagnostics(
     }
   }
 
+  if (options?.version === 'blueprint-composition-policy/v2' && options.childCastId) {
+    const heroFrames = pages.flatMap(frame => {
+      const placement = frame.placements.find(p => p?.subject?.kind === 'cast' && p.subject.castId === options.childCastId);
+      return placement?.region &&
+        [placement.region.x, placement.region.y, placement.region.width, placement.region.height].every(Number.isFinite) &&
+        placement.region.width > 0 && placement.region.height > 0 ? [{ frame, placement }] : [];
+    });
+    if (heroFrames.length >= PRE_RENDER_BLUEPRINT_MIN_BODY_PAGES_FOR_BOOK_DIVERSITY) {
+      const areas = heroFrames.map(({ placement }) => areaRatio(placement.region));
+      const ratio = Math.max(...areas) / Math.min(...areas);
+      if (ratio < MIN_CAST_SCALE_RATIO) diagnostics.push({
+        message: 'hero scale contrast is too small; varying only the companion does not diversify the child',
+        expected: { childCastId: options.childCastId, minimumHeroScaleRatio: MIN_CAST_SCALE_RATIO },
+        actual: { heroScaleRatio: ratio },
+      });
+      for (let i = 2; i < heroFrames.length; i++) {
+        const window = heroFrames.slice(i - 2, i + 1);
+        if (window[2]!.frame.pageNumber - window[0]!.frame.pageNumber !== 2) continue;
+        const regions = window.map(item => item.placement.region);
+        const xs = regions.map(r => r.x + r.width / 2);
+        const ys = regions.map(r => r.y + r.height / 2);
+        const sizes = regions.map(areaRatio);
+        if (Math.max(...xs) - Math.min(...xs) <= 100 && Math.max(...ys) - Math.min(...ys) <= 100 &&
+          Math.max(...sizes) / Math.min(...sizes) <= 1.4 &&
+          new Set(window.map(item => item.placement.depth)).size === 1) {
+          diagnostics.push({
+            message: 'three consecutive pages use near-identical hero staging despite camera labels; author a material change in scale, position or depth within source authority',
+            expected: { maximumNearIdenticalHeroRun: 2, childCastId: options.childCastId },
+            actual: { pageNumbers: window.map(item => item.frame.pageNumber), regions, depth: window[0]!.placement.depth },
+          });
+          break;
+        }
+      }
+    }
+  }
   return diagnostics;
 }
 

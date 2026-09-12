@@ -12,6 +12,7 @@ import {
   LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_PROMPT_V6,
   LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_PROMPT_V7,
   LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_REPAIR_PROMPT_V8,
+  LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_REPAIR_V11,
   blueprintAuthoringEffectivePolicyProjection,
   blueprintAuthoringExecutionProgramIsCurrent,
   blueprintAuthoringExecutionProgramIsReplaySupported,
@@ -27,6 +28,8 @@ import { canonicalJsonDigest } from '../integrity';
 import {
   buildPreRenderBlueprintAuthoringSystemPrompt,
   buildPreRenderBlueprintRepairSystemPrompt,
+  buildLegacyPreRenderBlueprintAuthoringSystemPromptV9,
+  buildLegacyPreRenderBlueprintRepairSystemPromptV11,
 } from '../preRenderBlueprintAuthoring';
 import {
   LEGACY_PRE_RENDER_BLUEPRINT_AUTHORING_SYSTEM_PROMPT_UTF8_BYTES_V5,
@@ -112,6 +115,19 @@ const EXPECTED_PROGRAM_KEYS = [
 ] as const;
 
 describe('Blueprint authoring execution program identity', () => {
+  it('freezes the immediately prior program and prompt bytes for replay only', () => {
+    const legacy = LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_REPAIR_V11;
+    const { digest, ...payload } = legacy;
+    expect(canonicalJsonDigest(payload)).toBe(digest);
+    expect(digest).toBe('6d7a87f05bc9209d8225ca55168494506c0da4fb2df956701a5039748e771d78');
+    expect(blueprintAuthoringExecutionProgramIsReplaySupported(legacy)).toBe(true);
+    expect(blueprintAuthoringExecutionProgramIsCurrent(legacy)).toBe(false);
+    expect(canonicalJsonDigest(buildLegacyPreRenderBlueprintAuthoringSystemPromptV9())).toBe(PRE_RENDER_BLUEPRINT_AUTHORING_SYSTEM_PROMPT_DIGEST_V9);
+    expect(Buffer.byteLength(buildLegacyPreRenderBlueprintAuthoringSystemPromptV9(), 'utf8')).toBe(PRE_RENDER_BLUEPRINT_AUTHORING_SYSTEM_PROMPT_UTF8_BYTES_V9);
+    expect(canonicalJsonDigest(buildLegacyPreRenderBlueprintRepairSystemPromptV11())).toBe('321de3d49271848a5a44dd55cb3b920be65f5893b32b2cb90b7c7a9a50bdceb2');
+    expect(legacy.compositionPolicyVersion).toBe('blueprint-composition-policy/v1');
+    expect(buildBlueprintAuthoringExecutionProgram().compositionPolicyVersion).toBe('blueprint-composition-policy/v2');
+  });
   it('binds exact prompt, schema, wire, compiler, admission, cost, and policy evidence', () => {
     const program = buildBlueprintAuthoringExecutionProgram();
     expect(program.version).toBe(BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_VERSION);
@@ -277,10 +293,10 @@ describe('Blueprint authoring execution program identity', () => {
     );
     expect(Object.isFrozen(BLUEPRINT_AUTHORING_REPAIR_ORDINALS)).toBe(true);
     expect(program.initialPromptVersion).toBe(
-      'pre-render-blueprint-authoring-prompt/v9',
+      'pre-render-blueprint-authoring-prompt/v10',
     );
     expect(program.repairPromptVersion).toBe(
-      'pre-render-blueprint-repair-prompt/v11',
+      'pre-render-blueprint-repair-prompt/v12',
     );
     expect(program.providerWireVersion).toBe(
       'pre-render-blueprint-provider-wire/v2',
@@ -299,7 +315,7 @@ describe('Blueprint authoring execution program identity', () => {
     );
     expect(blueprintAuthoringExecutionProgramIsCurrent(program)).toBe(true);
     const { digest: _oldDigest, ...oldPayload } = LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_CATALOG_V3;
-    const newPayload = { ...oldPayload, draftSchemaVersion: 'pre-render-blueprint-draft-schema/v9', draftSchemaDigest: canonicalJsonDigest(PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA), repairPromptVersion: 'pre-render-blueprint-repair-prompt/v11', repairSystemPromptDigest: canonicalJsonDigest(buildPreRenderBlueprintRepairSystemPrompt()) };
+    const newPayload = { ...oldPayload, compositionPolicyVersion: 'blueprint-composition-policy/v2', initialPromptVersion: 'pre-render-blueprint-authoring-prompt/v10', authoringSystemPromptDigest: canonicalJsonDigest(buildPreRenderBlueprintAuthoringSystemPrompt()), draftSchemaVersion: 'pre-render-blueprint-draft-schema/v9', draftSchemaDigest: canonicalJsonDigest(PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA), repairPromptVersion: 'pre-render-blueprint-repair-prompt/v12', repairSystemPromptDigest: canonicalJsonDigest(buildPreRenderBlueprintRepairSystemPrompt()) };
     expect(program).toEqual({ ...newPayload, digest: canonicalJsonDigest(newPayload) });
     expect(blueprintAuthoringExecutionProgramStatus(LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_CATALOG_V3)).toBe('legacy_immutable');
     expect(blueprintAuthoringExecutionProgramIsCurrent(LEGACY_BLUEPRINT_AUTHORING_EXECUTION_PROGRAM_CATALOG_V3)).toBe(false);
@@ -459,8 +475,8 @@ describe('Blueprint authoring execution program identity', () => {
       >[0]),
     ).toEqual({
       draftSchemaVersion: 'pre-render-blueprint-draft-schema/v9',
-      promptVersion: 'pre-render-blueprint-authoring-prompt/v9',
-      repairPromptVersion: 'pre-render-blueprint-repair-prompt/v11',
+      promptVersion: 'pre-render-blueprint-authoring-prompt/v10',
+      repairPromptVersion: 'pre-render-blueprint-repair-prompt/v12',
     });
     expect(
       qaWizardBlueprintAuthoringProvenanceVersionsForRequest(
@@ -554,16 +570,16 @@ describe('Blueprint authoring execution program identity', () => {
     const cameraAuthorityRepair = frozenBlueprintRepairSystemPromptV9();
 
     expect(canonicalJsonDigest(currentInitial)).toBe(
-      PRE_RENDER_BLUEPRINT_AUTHORING_SYSTEM_PROMPT_DIGEST_V9,
+      '21e85b8fd6b9453951812f15403fec7a410413f5244f7c3f299aabd5447a05c3',
     );
     expect(Buffer.byteLength(currentInitial, 'utf8')).toBe(
-      PRE_RENDER_BLUEPRINT_AUTHORING_SYSTEM_PROMPT_UTF8_BYTES_V9,
+      3685,
     );
     expect(canonicalJsonDigest(currentRepair)).toBe(
-      '321de3d49271848a5a44dd55cb3b920be65f5893b32b2cb90b7c7a9a50bdceb2',
+      'f674b796950bee23e165f80974cd3007a23971c34f351c64a2bb65ec86fa65cc',
     );
     expect(Buffer.byteLength(currentRepair, 'utf8')).toBe(
-      3509,
+      4152,
     );
     expect(canonicalJsonDigest(cameraAuthorityInitial)).toBe(
       PRE_RENDER_BLUEPRINT_AUTHORING_SYSTEM_PROMPT_DIGEST_V8,

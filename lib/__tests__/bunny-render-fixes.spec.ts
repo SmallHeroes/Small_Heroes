@@ -272,7 +272,9 @@ describe('visual polish — smoke #2 brief (cover locks, expression, gaze, size,
       challengeCategory: 'MEDICAL_PROCEDURE',
       companion: { id: 'bunny_ometz', name: 'הארנבון בּוּנִי', visualDescription: 'cream-white bunny' },
     });
-    expect(prompt).toMatch(/PAGE EXPRESSION:.*curious and slightly nervous/i);
+    // Named-child evidence replaces the page-number expression override.
+    expect(prompt).toContain('PAGE EXPRESSION [situational]');
+    expect(prompt).toContain('No new events, camera changes or contradicted emotion');
     expect(prompt).toMatch(/PAGE SCENE FIDELITY/);
     expect(prompt).toMatch(/INSIDE the clinic room/);
     expect(prompt).toMatch(/Do NOT hide Bunny behind the door/);
@@ -280,7 +282,7 @@ describe('visual polish — smoke #2 brief (cover locks, expression, gaze, size,
     expect(prompt).toMatch(/SCENE INTERACTION \/ GAZE/);
   });
 
-  it('p6 carries brave-uncertainty expression and mutual gaze for thermometer beat', () => {
+  it('p6 allows a situational child response and retains mutual gaze for thermometer beat', () => {
     const { prompt } = assembleStyle01Phase2Prompt({
       pageNumber: 6,
       rawScenePrompt: 'nurse leaning in with thermometer, child hand slightly forward',
@@ -293,7 +295,8 @@ describe('visual polish — smoke #2 brief (cover locks, expression, gaze, size,
       challengeCategory: 'MEDICAL_PROCEDURE',
       companion: { id: 'bunny_ometz', name: 'הארנבון בּוּנִי', visualDescription: 'cream-white bunny' },
     });
-    expect(prompt).toMatch(/PAGE EXPRESSION:.*NOT a broad smile/i);
+    expect(prompt).toContain('PAGE EXPRESSION [situational]');
+    expect(prompt).toContain('no forced neutral face, closed mouth or smile');
     expect(prompt).toMatch(/SCENE INTERACTION \/ GAZE/);
     expect(prompt).toMatch(/NOT at the camera/);
   });

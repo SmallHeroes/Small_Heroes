@@ -51,6 +51,17 @@ function pageFrame(args: {
 }
 
 describe('pre-render Blueprint composition policy', () => {
+  it('v2 rejects cloned hero staging even when camera labels change', () => {
+    const frames = Array.from({ length: 8 }, (_, index) => pageFrame({
+      page: index + 1, shot: index % 2 ? 'medium' : 'wide',
+      angle: index % 2 ? 'low_angle' : 'eye_level', castWidth: 190, castHeight: 420,
+    }));
+    const diagnostics = preRenderBlueprintCompositionPolicyDiagnostics(frames, {
+      version: 'blueprint-composition-policy/v2', childCastId: 'child:hero',
+    });
+    expect(diagnostics.some(d => d.message.includes('near-identical hero staging'))).toBe(true);
+  });
+
   it('rejects the measured eight-page trajectory: label variety without a close-up or material scale change', () => {
     const cameras: Array<[
       BlueprintFrameCamera['shot'],
@@ -188,6 +199,29 @@ describe('pre-render Blueprint composition policy', () => {
     ];
 
     expect(preRenderBlueprintCompositionPolicyIssues(frames)).toEqual([]);
+    expect(preRenderBlueprintCompositionPolicyDiagnostics(frames, {
+      version: 'blueprint-composition-policy/v2', childCastId: 'child:hero',
+    })).toEqual([]);
+  });
+
+  it('v1 accepts varied companion scale but v2 requires the hero to vary too', () => {
+    const frames = Array.from({ length: 8 }, (_, index) => {
+      const frame = pageFrame({ page: index + 1,
+        shot: index === 2 ? 'close_up' : index % 2 ? 'medium' : 'wide',
+        angle: index % 3 === 0 ? 'eye_level' : index % 3 === 1 ? 'low_angle' : 'high_angle',
+        castWidth: 100, castHeight: 150 });
+      const companion = structuredClone(frame.placements[0]!);
+      companion.subject = { kind: 'cast', castId: 'companion:friend' };
+      companion.region.width = companion.region.height = index === 2 ? 400 : 200;
+      frame.placements.push(companion);
+      return frame;
+    });
+    expect(preRenderBlueprintCompositionPolicyDiagnostics(frames, {
+      version: 'blueprint-composition-policy/v1', childCastId: 'child:hero',
+    })).toEqual([]);
+    expect(preRenderBlueprintCompositionPolicyDiagnostics(frames, {
+      version: 'blueprint-composition-policy/v2', childCastId: 'child:hero',
+    }).some(d => d.message.includes('hero scale contrast'))).toBe(true);
   });
 
   it('keeps shorter calibration proofs backward-compatible', () => {
@@ -229,6 +263,7 @@ describe('pre-render Blueprint composition policy', () => {
     expect(result.ok).toBe(false);
     if (!result.ok) {
       expect(result.issues.some((issue) => issue.code === 'composition_policy_invalid')).toBe(true);
+      expect(result.issues.some(issue => issue.message.includes('hero scale contrast'))).toBe(true);
     }
   });
 });

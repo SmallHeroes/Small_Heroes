@@ -542,7 +542,7 @@ export function preRenderBlueprintAuthoringInputErrors(
   return errors;
 }
 
-export function buildPreRenderBlueprintAuthoringSystemPrompt(): string {
+export function buildLegacyPreRenderBlueprintAuthoringSystemPromptV9(): string {
   return [
     "Author one whole-book portrait 2:3 schematic Blueprint for a children's book.",
     'Return exactly one strict-schema JSON object, never a page fragment or prose.',
@@ -628,11 +628,27 @@ export function buildLegacyPreRenderBlueprintRepairSystemPromptV10(): string {
   ].join('\n');
 }
 
-export function buildPreRenderBlueprintRepairSystemPrompt(): string {
+export function buildLegacyPreRenderBlueprintRepairSystemPromptV11(): string {
   return [buildLegacyPreRenderBlueprintRepairSystemPromptV10(),
     'ACTION_SPACE_REJECTIONS is repair-only guidance: rows=[groupedDiagnosticIndex,[[affordanceId,firstFailedCheck]],omittedCandidates].',
     'Checks follow validator order; later checks may also fail. Fix support attributes, selection/binding, containment or geometry as named, then recheck all constraints. Omitted candidates/rows are not proven valid.',
   ].join('\n');
+}
+
+/** Versioned directing guidance for newly authored plans, never runtime geometry overrides. */
+const CHILD_CENTERED_DIRECTING_RULES = [
+  'COMPOSITION v2: for 8+ child-present pages, child scale (not largest companion) needs 3.5x contrast.',
+  'Never repeat near-identical hero staging on three consecutive pages: materially vary scale, screen position or depth, not merely camera labels.',
+  'Plan the child as an active, age-appropriate participant. Express reactions through readable face, eyeline and action within source authority; quiet beats are alive too.',
+  'Choose motivated reaction close-ups, over-shoulder interaction, spatial wides or dynamic angles as the beat permits. Preserve required actions, cast, contacts, geography and reveal limits; never invent story events for variety.',
+].join('\n');
+
+export function buildPreRenderBlueprintAuthoringSystemPrompt(): string {
+  return [buildLegacyPreRenderBlueprintAuthoringSystemPromptV9(), CHILD_CENTERED_DIRECTING_RULES].join('\n');
+}
+
+export function buildPreRenderBlueprintRepairSystemPrompt(): string {
+  return [buildLegacyPreRenderBlueprintRepairSystemPromptV11(), CHILD_CENTERED_DIRECTING_RULES].join('\n');
 }
 
 /** Bounded sidecar: leaves grouped diagnostics and sanitized census unchanged. */

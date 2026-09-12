@@ -11,7 +11,10 @@ import { BLUEPRINT_AUTHORING_MAX_REPAIRS } from './blueprintAuthoringPolicy';
 export const PRE_RENDER_BLUEPRINT_AUTHORING_PROMPT_VERSION_V9 =
   'pre-render-blueprint-authoring-prompt/v9' as const;
 export const PRE_RENDER_BLUEPRINT_AUTHORING_PROMPT_VERSION =
-  PRE_RENDER_BLUEPRINT_AUTHORING_PROMPT_VERSION_V9;
+  'pre-render-blueprint-authoring-prompt/v10' as const;
+export const PRE_RENDER_BLUEPRINT_AUTHORING_SYSTEM_PROMPT_DIGEST_V10 =
+  '21e85b8fd6b9453951812f15403fec7a410413f5244f7c3f299aabd5447a05c3' as const;
+export const PRE_RENDER_BLUEPRINT_AUTHORING_SYSTEM_PROMPT_UTF8_BYTES_V10 = 3685 as const;
 export const LEGACY_PRE_RENDER_BLUEPRINT_AUTHORING_PROMPT_VERSION_V8 =
   'pre-render-blueprint-authoring-prompt/v8' as const;
 /** Source-compatibility alias only; frozen programs use the absolute legacy name. */
@@ -51,8 +54,13 @@ export const LEGACY_PRE_RENDER_BLUEPRINT_AUTHORING_SYSTEM_PROMPT_UTF8_BYTES_V6 =
   2_144 as const;
 export const PRE_RENDER_BLUEPRINT_REPAIR_PROMPT_VERSION_V10 =
   'pre-render-blueprint-repair-prompt/v10' as const;
-export const PRE_RENDER_BLUEPRINT_REPAIR_PROMPT_VERSION =
+export const PRE_RENDER_BLUEPRINT_REPAIR_PROMPT_VERSION_V11 =
   'pre-render-blueprint-repair-prompt/v11' as const;
+export const PRE_RENDER_BLUEPRINT_REPAIR_PROMPT_VERSION =
+  'pre-render-blueprint-repair-prompt/v12' as const;
+export const PRE_RENDER_BLUEPRINT_REPAIR_SYSTEM_PROMPT_DIGEST_V12 =
+  'f674b796950bee23e165f80974cd3007a23971c34f351c64a2bb65ec86fa65cc' as const;
+export const PRE_RENDER_BLUEPRINT_REPAIR_SYSTEM_PROMPT_UTF8_BYTES_V12 = 4152 as const;
 export const LEGACY_PRE_RENDER_BLUEPRINT_REPAIR_PROMPT_VERSION_V9 =
   'pre-render-blueprint-repair-prompt/v9' as const;
 /** Source-compatibility alias only; frozen programs use the absolute legacy name. */
@@ -100,6 +108,7 @@ export const PRE_RENDER_BLUEPRINT_MAX_REPAIR_ATTEMPTS =
   BLUEPRINT_AUTHORING_MAX_REPAIRS;
 
 export type PreRenderBlueprintAuthoringPromptVersion =
+  | typeof PRE_RENDER_BLUEPRINT_AUTHORING_PROMPT_VERSION
   | typeof PRE_RENDER_BLUEPRINT_AUTHORING_PROMPT_VERSION_V9
   | typeof LEGACY_PRE_RENDER_BLUEPRINT_AUTHORING_PROMPT_VERSION_V8
   | typeof LEGACY_PRE_RENDER_BLUEPRINT_AUTHORING_PROMPT_VERSION_V7
@@ -107,6 +116,7 @@ export type PreRenderBlueprintAuthoringPromptVersion =
   | typeof LEGACY_PRE_RENDER_BLUEPRINT_AUTHORING_PROMPT_VERSION_V5;
 export type PreRenderBlueprintRepairPromptVersion =
   | typeof PRE_RENDER_BLUEPRINT_REPAIR_PROMPT_VERSION
+  | typeof PRE_RENDER_BLUEPRINT_REPAIR_PROMPT_VERSION_V11
   | typeof PRE_RENDER_BLUEPRINT_REPAIR_PROMPT_VERSION_V10
   | typeof LEGACY_PRE_RENDER_BLUEPRINT_REPAIR_PROMPT_VERSION_V9
   | typeof LEGACY_PRE_RENDER_BLUEPRINT_REPAIR_PROMPT_VERSION_V8
@@ -126,6 +136,8 @@ export interface PreRenderBlueprintHistoricalPromptEvidenceProfile {
 export function preRenderBlueprintSystemPromptUtf8BytesForDigest(
   systemPromptDigest: unknown,
 ): number | null {
+  if (systemPromptDigest === PRE_RENDER_BLUEPRINT_AUTHORING_SYSTEM_PROMPT_DIGEST_V10) return PRE_RENDER_BLUEPRINT_AUTHORING_SYSTEM_PROMPT_UTF8_BYTES_V10;
+  if (systemPromptDigest === PRE_RENDER_BLUEPRINT_REPAIR_SYSTEM_PROMPT_DIGEST_V12) return PRE_RENDER_BLUEPRINT_REPAIR_SYSTEM_PROMPT_UTF8_BYTES_V12;
   if (systemPromptDigest === PRE_RENDER_BLUEPRINT_REPAIR_SYSTEM_PROMPT_DIGEST_V11) return PRE_RENDER_BLUEPRINT_REPAIR_SYSTEM_PROMPT_UTF8_BYTES_V11;
   if (
     systemPromptDigest === PRE_RENDER_BLUEPRINT_AUTHORING_SYSTEM_PROMPT_DIGEST_V9
@@ -229,6 +241,7 @@ export function preRenderBlueprintAuthoringPromptVersionIsSupported(
   value: unknown,
 ): value is PreRenderBlueprintAuthoringPromptVersion {
   return (
+    value === PRE_RENDER_BLUEPRINT_AUTHORING_PROMPT_VERSION ||
     value === PRE_RENDER_BLUEPRINT_AUTHORING_PROMPT_VERSION_V9 ||
     value === LEGACY_PRE_RENDER_BLUEPRINT_AUTHORING_PROMPT_VERSION_V8 ||
     value === LEGACY_PRE_RENDER_BLUEPRINT_AUTHORING_PROMPT_VERSION_V7 ||
@@ -242,6 +255,7 @@ export function preRenderBlueprintRepairPromptVersionIsSupported(
 ): value is PreRenderBlueprintRepairPromptVersion {
   return (
     value === PRE_RENDER_BLUEPRINT_REPAIR_PROMPT_VERSION ||
+    value === PRE_RENDER_BLUEPRINT_REPAIR_PROMPT_VERSION_V11 ||
     value === PRE_RENDER_BLUEPRINT_REPAIR_PROMPT_VERSION_V10 ||
     value === LEGACY_PRE_RENDER_BLUEPRINT_REPAIR_PROMPT_VERSION_V9 ||
     value === LEGACY_PRE_RENDER_BLUEPRINT_REPAIR_PROMPT_VERSION_V8 ||
@@ -290,6 +304,9 @@ export function preRenderBlueprintPromptAndSchemaVersionsAreCompatible(args: {
   draftSchemaVersion: unknown;
   promptVersion: unknown;
 }): boolean {
+  if (args.promptVersion === PRE_RENDER_BLUEPRINT_AUTHORING_PROMPT_VERSION) {
+    return args.draftSchemaVersion === PRE_RENDER_BLUEPRINT_DRAFT_SCHEMA_VERSION;
+  }
   if (
     args.promptVersion === PRE_RENDER_BLUEPRINT_AUTHORING_PROMPT_VERSION_V9
   ) {
@@ -324,6 +341,10 @@ export function preRenderBlueprintRepairPromptGenerationIsCompatible(args: {
   promptVersion: unknown;
   repairPromptVersion: unknown;
 }): boolean {
+  if (args.promptVersion === PRE_RENDER_BLUEPRINT_AUTHORING_PROMPT_VERSION) {
+    return args.draftSchemaVersion === PRE_RENDER_BLUEPRINT_DRAFT_SCHEMA_VERSION &&
+      args.repairPromptVersion === PRE_RENDER_BLUEPRINT_REPAIR_PROMPT_VERSION;
+  }
   if (
     (args.draftSchemaVersion === PRE_RENDER_BLUEPRINT_DRAFT_SCHEMA_VERSION ||
       args.draftSchemaVersion === LEGACY_PRE_RENDER_BLUEPRINT_DRAFT_SCHEMA_VERSION_V8) &&
@@ -331,7 +352,7 @@ export function preRenderBlueprintRepairPromptGenerationIsCompatible(args: {
   ) {
     return args.repairPromptVersion === PRE_RENDER_BLUEPRINT_REPAIR_PROMPT_VERSION_V10 ||
       (args.draftSchemaVersion === PRE_RENDER_BLUEPRINT_DRAFT_SCHEMA_VERSION &&
-        args.repairPromptVersion === PRE_RENDER_BLUEPRINT_REPAIR_PROMPT_VERSION);
+        args.repairPromptVersion === PRE_RENDER_BLUEPRINT_REPAIR_PROMPT_VERSION_V11);
   }
   if (
     args.draftSchemaVersion ===

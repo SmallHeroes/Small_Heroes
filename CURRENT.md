@@ -1,5 +1,58 @@
 # SmallHeroes — Current Technical State
 
+## Child performance and composition engine — 2026-09-13
+
+Guy requested more varied compositions and a livelier, childlike protagonist,
+including situational reactions where prose does not spell out emotion. Engine
+work only is authorized now: NO renders; story improvement follows separately.
+Decision Gate: docs/ai-workflow/CHILD_PERFORMANCE_COMPOSITION_GATE_20260913.md.
+Codex is sole writer at sh-r3b1b-semantic-m1; Claude remains paused. No independent
+PASS is claimed and prior review boundaries do not move.
+
+Style01 now extracts bounded child-scoped English/Hebrew reaction cues (including
+niqqud), uses situational rather than forced-neutral fallback, and adds compact
+childlike micro-acting guidance inside approved action/eyeline/pose/placements.
+Only positive, directly child-owned contract actions supply physical engagement;
+other-actor and must_not actions do not. Generic current evidence supersedes the
+old Bunny page-number expression table; legacy calls without actor context retain
+that table. This is conservative cue extraction, not a complete language parser.
+
+Fresh production Blueprint authoring uses composition policy v2: for at least
+8 child-present body pages, hero area contrast must reach 3.5x, and three
+consecutive pages may not repeat near-identical hero staging (center spread <=100
+in both normalized axes, area ratio <=1.4, same depth). Existing v1 camera/cast
+rules remain. Initial prompt v10 and repair v12 include motivated shot/reaction
+guidance; their bytes are included in existing admission/cost accounting. Frozen
+initial v9/repair v11/program and composition v1 remain replay-compatible, not
+current execution authority. No runtime camera remapping or approved-plan mutation.
+
+Offline real-package audit: all13 old prompts were attentive_neutral. Shared
+assembly now yields joyful on page1 and playful on page6; other pages allow
+situational reaction. Original package still qualifies, all13 image hashes match,
+and the bound runtime projection is unchanged. Applying v2 hypothetically flags
+the existing near-identical hero staging on pages6-8; v1 is NOT retroactively
+rejected. Evidence: outputs/child-performance-offline-audit.ts and .json.
+
+Validation: final focused run 244/244 in9 specs, npx tsc --noEmit exit0. The
+second full npm run check returned exit1: ordinary5275 passed/73 skipped;
+resource669 passed/2 failed, both 5000ms timeouts in unchanged
+canonical-materialization-input.spec.ts (CLI ordering and denied-boundary tests).
+The preceding full run's resource phase passed671/671. This is NOT proof that the
+two failures are inherited, and the full check remains NON-GREEN. The ordinary
+phase preceded a final one-line actor-name exclusion/new regression; the244
+focused tests and typecheck were rerun afterward. No timeout limit was increased.
+Isolated unchanged-spec recheck:14 passed/1 timeout (denied-boundary test,5000ms);
+the CLI-ordering case passed. Repository stability remains open, not waived.
+Local logs: outputs/child-performance-name-scoped-focused.*, final-typecheck.*,
+final-full-check.* (all with child-performance- prefix). These ignored local
+records have no verified off-machine backup and are not preserved by a Git push.
+No new provider calls, render, story/source edit,
+package activation, threshold change, reader change, publication or push. Current
+reader still shows the OLD illustrations. Prompt/unit proof is not visual product
+acceptance. Page7 visual acceptance and incomplete numeric evidence below persist.
+Next: independent engineering review when Claude resumes, then improve the story
+with Guy before commissioning a new visual plan or image sample.
+
 ## Owner page 7 acceptance and local ReaderV2 review — 2026-09-12
 
 Guy explicitly visually accepted the selected page 7, image SHA

@@ -221,12 +221,73 @@ describe('Style 01 child expression and small-frame fidelity', () => {
 
   it.each([
     ['child feels crowded out in a quiet hush', 'subdued'],
-    ['the protective circle is a little too tight', 'wary'],
+    ['the protective circle is a little too tight', 'situational'],
     ['the child watches with a surprised almost-smile', 'restrained_amusement'],
     ['the child kneels nearby, curious and unsure', 'curious_uncertain'],
     ['the child smiles with relief', 'joyful'],
   ] as const)('classifies closed page expression %s', (summary, expected) => {
     expect(resolveStyle01PageExpressionKind({ narrativeSummary: summary })).toBe(expected);
+  });
+
+  it.each([
+    ['בָּר צָחַק.', 'playful'],
+    ['בר חייך.', 'joyful'],
+    ['בר נבהל לרגע.', 'surprised'],
+    ['בר התאכזב.', 'subdued'],
+    ['בר לא צחק. דיני צחקה.', 'situational'],
+    ['דיני חייכה. בר עמד לידה.', 'situational'],
+  ])('attributes Hebrew reaction to the child only: %s', (text, expected) => {
+    expect(resolveStyle01PageExpressionKind({ bookPageText: text, childName: 'בר' })).toBe(expected);
+  });
+
+  it('does not force a neutral face when the child has no explicit emotion word', () => {
+    expect(resolveStyle01PageExpressionKind({ narrativeSummary: 'The child guides the cart between the bumps.' })).toBe('situational');
+  });
+
+  it('does not treat a child name as emotional evidence', () => {
+    expect(resolveStyle01PageExpressionKind({ childName: 'Happy', narrativeSummary: 'Happy waits beside the cart.' })).toBe('situational');
+    expect(resolveStyle01PageExpressionKind({ childName: 'Happy', narrativeSummary: 'Happy laughed.' })).toBe('playful');
+  });
+
+  it.each([
+    'The child did not laugh. The dragon laughed.',
+    'The dragon is worried. The child stands nearby.',
+    'The child waits while the dragon laughs.',
+    'The child watches the dragon laugh.',
+    'The child sees a worried dragon.',
+  ])('does not transfer negated or another actor affect: %s', narrativeSummary => {
+    expect(resolveStyle01PageExpressionKind({ narrativeSummary })).toBe('situational');
+  });
+
+  it('binds Hebrew amusement and child-owned physical effort in actual assembly', () => {
+    const authority = frame({ summary: 'The child steadies the cart.' });
+    authority.contractPage.actionRequirements = [{
+      checkId: 'action:push', polarity: 'must', predicate: 'pushes',
+      subject: { kind: 'entity', entity: { kind: 'cast', id: 'child:hero' } },
+    }] as typeof authority.contractPage.actionRequirements;
+    const before = structuredClone(authority);
+    const result = assembleStyle01Phase2Prompt({
+      pageNumber: 1, authoritativeBlueprintFrame: authority,
+      childFirstName: 'בר', bookPageText: 'בָּר צָחַק.',
+    });
+    expect(result.prompt).toContain('PAGE EXPRESSION [playful]');
+    expect(result.prompt).toContain('believable weight transfer');
+    expect(result.prompt).toContain('do not invent a different gesture');
+    expect(authority).toEqual(before);
+    authority.contractPage.actionRequirements![0]!.polarity = 'must_not';
+    const negative = assembleStyle01Phase2Prompt({
+      pageNumber: 1, authoritativeBlueprintFrame: authority, childFirstName: 'בר',
+    });
+    expect(negative.prompt).not.toContain('believable weight transfer');
+    expect(negative.prompt).toContain('PAGE EXPRESSION [situational]');
+    authority.contractPage.actionRequirements![0] = {
+      checkId: 'action:push', polarity: 'must', predicate: 'pushes',
+      subject: { kind: 'entity', entity: { kind: 'cast', id: 'companion:friend' } },
+    };
+    const otherActor = assembleStyle01Phase2Prompt({
+      pageNumber: 1, authoritativeBlueprintFrame: authority, childFirstName: 'בר',
+    });
+    expect(otherActor.prompt).not.toContain('believable weight transfer');
   });
 
   it('adds the fidelity guard only when the approved child placement is small', () => {

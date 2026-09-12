@@ -266,7 +266,7 @@ describe('Story Source revision reconciliation and Blueprint migration', () => {
         callCount: 1,
         passingAttempt: 1,
         draftSchemaVersion: 'pre-render-blueprint-draft-schema/v9',
-        promptVersion: 'pre-render-blueprint-authoring-prompt/v9',
+        promptVersion: 'pre-render-blueprint-authoring-prompt/v10',
       });
       expect(migrated.authored.repairAttempts).toEqual([]);
       expect(migrated.authored.blueprint.worldPlan.affordances).toEqual(

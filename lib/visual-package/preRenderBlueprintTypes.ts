@@ -35,8 +35,13 @@ export const PRE_RENDER_BLUEPRINT_RECONCILIATION_DIGEST_ALGORITHM =
   'canonical-json-sha256-excluding-review-lifecycle/v1' as const;
 export const PRE_RENDER_BLUEPRINT_COORDINATE_SPACE =
   'normalized-1000/v1' as const;
-export const PRE_RENDER_BLUEPRINT_COMPOSITION_POLICY_VERSION =
+export const LEGACY_PRE_RENDER_BLUEPRINT_COMPOSITION_POLICY_VERSION =
   'blueprint-composition-policy/v1' as const;
+export const PRE_RENDER_BLUEPRINT_COMPOSITION_POLICY_VERSION =
+  'blueprint-composition-policy/v2' as const;
+export type PreRenderBlueprintCompositionPolicyVersion =
+  | typeof PRE_RENDER_BLUEPRINT_COMPOSITION_POLICY_VERSION
+  | typeof LEGACY_PRE_RENDER_BLUEPRINT_COMPOSITION_POLICY_VERSION;
 export const PRE_RENDER_BLUEPRINT_PORTRAIT_ASPECT_RATIO = {
   width: 2,
   height: 3,
@@ -304,7 +309,7 @@ export interface PreRenderBookVisualBlueprint {
    * retain their immutable validation semantics; newly authored Blueprints
    * opt in and are checked against actual placement scale, not labels alone.
    */
-  compositionPolicyVersion?: typeof PRE_RENDER_BLUEPRINT_COMPOSITION_POLICY_VERSION;
+  compositionPolicyVersion?: PreRenderBlueprintCompositionPolicyVersion;
   identity: PreRenderBlueprintIdentity;
   visualContract: BookVisualContractTemplate;
   worldPlan: PreRenderBlueprintWorldPlan;

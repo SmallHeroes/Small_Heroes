@@ -34,6 +34,7 @@ import {
 import {
   PRE_RENDER_BLUEPRINT_AUTHORING_AUTHORITY_VERSION,
   PRE_RENDER_BLUEPRINT_COMPOSITION_POLICY_VERSION,
+  LEGACY_PRE_RENDER_BLUEPRINT_COMPOSITION_POLICY_VERSION,
   PRE_RENDER_BLUEPRINT_COORDINATE_SPACE,
   PRE_RENDER_BLUEPRINT_DIGEST_ALGORITHM,
   PRE_RENDER_BLUEPRINT_PORTRAIT_ASPECT_RATIO,
@@ -2488,7 +2489,8 @@ function validatePreRenderBookVisualBlueprintInternal(
   if (
     input.compositionPolicyVersion !== undefined &&
     input.compositionPolicyVersion !==
-      PRE_RENDER_BLUEPRINT_COMPOSITION_POLICY_VERSION
+      PRE_RENDER_BLUEPRINT_COMPOSITION_POLICY_VERSION &&
+    input.compositionPolicyVersion !== LEGACY_PRE_RENDER_BLUEPRINT_COMPOSITION_POLICY_VERSION
   ) {
     issues.push(issue('composition_policy_invalid', 'unsupported composition policy version', {
       field: 'compositionPolicyVersion',
@@ -2695,11 +2697,12 @@ function validatePreRenderBookVisualBlueprintInternal(
   });
 
   if (
-    blueprint.compositionPolicyVersion ===
-    PRE_RENDER_BLUEPRINT_COMPOSITION_POLICY_VERSION
+    blueprint.compositionPolicyVersion === PRE_RENDER_BLUEPRINT_COMPOSITION_POLICY_VERSION ||
+    blueprint.compositionPolicyVersion === LEGACY_PRE_RENDER_BLUEPRINT_COMPOSITION_POLICY_VERSION
   ) {
     for (const diagnostic of preRenderBlueprintCompositionPolicyDiagnostics(
       blueprint.frames,
+      { version: blueprint.compositionPolicyVersion, childCastId: blueprint.visualContract.cast.child.id },
     )) {
       issues.push(
         issue('composition_policy_invalid', diagnostic.message, {

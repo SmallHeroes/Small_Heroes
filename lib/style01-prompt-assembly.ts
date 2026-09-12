@@ -407,6 +407,11 @@ export function assembleStyle01Phase2Prompt(
           companionId: input.companion?.id,
           childPresence: entityPresence.childPresence,
           narrativeSummary: frame.narrative.summary,
+          childName: input.childFirstName,
+          childActionPredicates: (frame.contractPage.actionRequirements ?? [])
+            .filter(action => action.polarity === 'must' && action.subject.kind === 'entity' &&
+              action.subject.entity.kind === 'cast' && action.subject.entity.id === frame.resolvedAppearance.child.id)
+            .map(action => action.predicate),
           bookPageText: input.bookPageText,
           imageDirection: safeNarrativeSummary,
         })
@@ -815,6 +820,7 @@ export function assembleStyle01Phase2Prompt(
         companionId: input.companion?.id,
         childPresence: entityPresence.childPresence,
         bookPageText: input.bookPageText,
+        childName: input.childFirstName,
         imageDirection,
       });
   const mutualGazeLock = isCover

@@ -11,7 +11,7 @@ import {
   blueprintAuthoringInputAccounting,
 } from '../../blueprintAuthoringPolicy';
 import {
-  buildPreRenderBlueprintAuthoringSystemPrompt,
+  buildLegacyPreRenderBlueprintAuthoringSystemPromptV9 as buildPreRenderBlueprintAuthoringSystemPrompt,
   buildLegacyPreRenderBlueprintRepairSystemPromptV10 as buildPreRenderBlueprintRepairSystemPrompt,
 } from '../../preRenderBlueprintAuthoring';
 import {
