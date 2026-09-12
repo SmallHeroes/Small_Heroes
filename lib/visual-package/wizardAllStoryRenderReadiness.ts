@@ -58,7 +58,7 @@ import {
   repoRelativePath,
 } from './integrity';
 import type { StorySourceIdentity } from './types';
-import { evaluateVisualPackageV4Qualification } from './visualPackageV4';
+import { evaluateVisualPackageV4Qualification, visualPackageV4LocatorPath } from './visualPackageV4';
 import { evaluateWizardVisualPackageSelection } from './wizardVisualPackageSelection';
 
 export const WIZARD_ALL_STORY_RENDER_READINESS_VERSION =
@@ -1150,11 +1150,11 @@ function auditWizardAllStoryRenderReadinessWithPolicy(args: {
           })
         : { revisions: [], issues: [] };
       const publishedPackageQualification =
-        evaluateVisualPackageV4Qualification({
+        acceptedStoryVisible ? evaluateVisualPackageV4Qualification({
           repoRoot: args.repoRoot,
           storyKey,
           styleId,
-        });
+        }) : { packageValue: null, packagePath: null };
       const publishedPackage = publishedPackageQualification.packageValue;
       const publishedPackageSource = inspectWizardStorySourceEvidence({
         repoRoot: args.repoRoot,
@@ -1163,11 +1163,17 @@ function auditWizardAllStoryRenderReadinessWithPolicy(args: {
         expectedSnapshot: publishedPackage?.sourceSnapshot,
         expected: { storyKey, category, companionId, direction },
       });
-      const currentSelection = evaluateWizardVisualPackageSelection({
+      const currentSelection = acceptedStoryVisible ? evaluateWizardVisualPackageSelection({
         repoRoot: args.repoRoot,
         storyKey,
         styleId,
-      });
+      }) : {
+        // Closed historical replay only: reconstruct absence at that snapshot,
+        // not today's filesystem. Later packages must not rewrite its evidence.
+        renderQualified: false, visualPackageRequired: false, storyKey, styleId,
+        packagePath: null, sourcePath: null,
+        reasons: [`current v4 locator is missing: ${visualPackageV4LocatorPath({ repoRoot: args.repoRoot, storyKey, styleId })}`],
+      };
       const selection = acceptedStoryVisible
         ? currentSelection
         : { ...currentSelection, visualPackageRequired: false };

@@ -347,6 +347,28 @@ function qaResult(pass: boolean) {
 }
 
 describe('R1D-PVB-C shared runtime Blueprint authority', () => {
+  it.each(['cover', 'page'] as const)('accepts reordered %s cast membership without mutating either authority', (kind) => {
+    const value = authority('single_location');
+    const frame = value.packageValue.blueprint.content.frames.find(entry => entry.kind === kind)!;
+    expect(frame.castIds.length).toBeGreaterThan(1);
+    frame.castIds = [...frame.castIds].reverse();
+    const frameBefore = structuredClone(frame.castIds);
+    const contractBefore = structuredClone(value.contract);
+    expect(() => buildRuntimeBlueprintBookProjection(value)).not.toThrow();
+    expect(frame.castIds).toEqual(frameBefore);
+    expect(value.contract).toEqual(contractBefore);
+  });
+
+  it.each(['missing', 'extra', 'duplicate'] as const)('still rejects %s cast membership', (change) => {
+    const value = authority('single_location');
+    const frame = value.packageValue.blueprint.content.frames.find(entry => entry.kind === 'page')!;
+    frame.castIds = [...frame.castIds];
+    if (change === 'missing') frame.castIds.pop();
+    if (change === 'extra') frame.castIds.push('human:unapproved');
+    if (change === 'duplicate') frame.castIds.push(frame.castIds[0]);
+    expect(() => buildRuntimeBlueprintBookProjection(value)).toThrow('location/zone/cast differs');
+  });
+
   it('carries group authority into actual bound runtime frames without individual family appearance', () => {
     const value = authority('no_companion', {
       mutateTemplate(template) {

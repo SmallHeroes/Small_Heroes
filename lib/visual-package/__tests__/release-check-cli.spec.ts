@@ -33,7 +33,7 @@ describe('release-check render qualification mode (actual CLI)', () => {
   it('ordinary mode stays compatible and explicitly disclaims render readiness', () => {
     const result = runReleaseCheck();
     expect(result.status, result.stderr).toBe(0);
-    expect(result.stdout).toContain('render-qualified slots: 1/18');
+    expect(result.stdout).toContain('render-qualified slots: 2/18');
     expect(result.stdout).toContain('not a render-readiness claim');
   });
 

@@ -743,7 +743,7 @@ describe('visual-package candidate -> review -> Guy approval -> promotion', () =
 describe('all-slot zero-cost audit and explicit strict release mode', () => {
   afterEach(() => vi.unstubAllEnvs());
 
-  it('reports every slot and recognizes only the current Chameleon package as render-qualified', () => {
+  it('reports every slot and recognizes the current Chameleon and Dini packages as render-qualified', () => {
     vi.stubEnv('ENABLE_V3_APPROVED_BANK', 'true');
     const audit = auditMvpRenderQualification({
       repoRoot: REPO,
@@ -752,12 +752,10 @@ describe('all-slot zero-cost audit and explicit strict release mode', () => {
     });
     expect(audit.nominalSlotCount).toBe(18);
     expect(audit.records).toHaveLength(18);
-    expect(audit.productSellableCount).toBe(17);
-    expect(audit.renderQualifiedCount).toBe(1);
+    expect(audit.productSellableCount).toBe(18);
+    expect(audit.renderQualifiedCount).toBe(2);
     const unavailable = audit.records.filter((record) => !record.productSellable);
-    expect(unavailable.map((record) => record.storyKey)).toEqual([
-      'dragon_dini_adventure',
-    ]);
+    expect(unavailable).toEqual([]);
     expect(
       audit.records.find(
         (record) => record.storyKey === 'chameleon_koko_bedtime',
@@ -775,8 +773,8 @@ describe('all-slot zero-cost audit and explicit strict release mode', () => {
     });
     for (const record of audit.records) {
       expect(record.nominallySellable).toBe(true);
-      expect(record.productSellable).toBe(record.storyKey !== 'dragon_dini_adventure');
-      if (record.storyKey === 'chameleon_koko_bedtime') {
+      expect(record.productSellable).toBe(true);
+      if (['chameleon_koko_bedtime', 'dragon_dini_adventure'].includes(record.storyKey)) {
         expect(record.renderQualified).toBe(true);
         expect(record.reasons).toEqual([]);
         continue;

@@ -66,11 +66,11 @@ describe('Wizard all-story render-readiness control plane', () => {
     expect(new Set(report.records.map((record) => record.storyKey)).size).toBe(18);
     expect(report.summary).toEqual({
       nominalSlotCount: 18,
-      environmentProductSellableCount: 17,
+      environmentProductSellableCount: 18,
       qaLowReadyCount: 18,
       acceptedProductLineageCount: 2,
       visualContractAuthoringAdmittedCount: 18,
-      renderQualifiedCount: 1,
+      renderQualifiedCount: 2,
       sourceCorpusConflictCount: 18,
       supportedGenderProjectionReadyCount: 2,
       supportedNarrationInputReadyCount: 18,
@@ -84,18 +84,15 @@ describe('Wizard all-story render-readiness control plane', () => {
     );
     expect(dini).toMatchObject({
       acceptedProductLineage: { kind: 'present' },
-      earliestBlocker: 'package_bound_visual_contract_template_unavailable',
-      nextCanonicalAction: {
-        code: 'author_visual_contract_for_exact_accepted_source',
-        providerSpendAuthorized: false,
-      },
+      earliestBlocker: null,
+      nextCanonicalAction: null,
       productTextReadiness: {
         supportedGenderProjectionReady: true,
         supportedNarrationAutomatedPreflightReady: true,
       },
       productionStages: {
         acceptedSourceRevision: true,
-        renderQualified: false,
+        renderQualified: true,
       },
       sources: {
         currentProductSourceRole: 'accepted_product_source',
@@ -302,8 +299,8 @@ describe('Wizard all-story render-readiness control plane', () => {
       (record) => record.storyKey === 'dragon_dini_adventure',
     )!;
     expect(currentP1.acceptedProductLineage.kind).toBe('present');
-    expect(currentP1.environmentProductSellable).toBe(false);
-    expect(currentP1.productionStages.renderQualified).toBe(false);
+    expect(currentP1.environmentProductSellable).toBe(true);
+    expect(currentP1.productionStages.renderQualified).toBe(true);
     expect(historicalP1.acceptedProductLineage.kind).toBe('absent');
     expect(historicalP1.environmentProductSellable).toBe(true);
     expect(historicalP1.sources.corpusDecisionRequired).toBe(true);
@@ -349,8 +346,8 @@ describe('Wizard all-story render-readiness control plane', () => {
       now: FIXED_NOW,
     });
     expect(disabled.records).toHaveLength(18);
-    expect(disabled.summary.environmentProductSellableCount).toBe(1);
-    expect(disabled.summary.renderQualifiedCount).toBe(1);
+    expect(disabled.summary.environmentProductSellableCount).toBe(2);
+    expect(disabled.summary.renderQualifiedCount).toBe(2);
     expect(disabled.environment.v3ApprovedBankEnabled).toBe(false);
 
   });
@@ -619,7 +616,7 @@ describe('Wizard readiness forbidden-boundary isolation', () => {
       now: FIXED_NOW,
     });
     expect(report).toMatchObject({
-      summary: { nominalSlotCount: 18, renderQualifiedCount: 1 },
+      summary: { nominalSlotCount: 18, renderQualifiedCount: 2 },
       effects: { providerCalls: 0, imagesGenerated: 0, ordersCreatedOrModified: 0 },
     });
   });

@@ -1,6 +1,6 @@
 # SmallHeroes — Roadmap
 
-**Last verified:** 2026-09-11 (P2-D independently closed, PASS 6c339c14..2da63bbc 0/0/0; real offline successor candidate 5e0d3980 prepared/reloaded at 2da63bbc; no authorization/claim/provider call/Blueprint/images; code PASS a227ade0; reliability P1 open)
+**Last verified:** 2026-09-12 (Dini Blueprint1125b395 approved; package66d5dfc2 approved and locally activated as revision4d6e8dee; Wizard selection qualified; provider-free cover+12-page preflight passes after cast-order correction; no images; independent code PASS still a227ade0; reliability P1 open)
 **Product priority owner:** Guy
 **Technical sequencing owner:** Codex
 
@@ -31,6 +31,25 @@ Blueprint and any required LOW Board/prop generation remain separately budgeted
 provider actions with exact owner gates.
 
 ## Active
+
+Dini now has an actual approved Blueprint and locally activated packagev5. The
+single paid Blueprint successor succeeded under its USD5 ceiling; conservative
+accounting USD1.358194, prior historical costs separate. Subsequent approval and
+activation cost0. A runtime cast-array order comparison blocked an otherwise
+valid page11; a general non-mutating membership comparison fixes that mismatch,
+with added positive/negative tests and actual cover+12-page provider-free proof.
+No source/Blueprint rewrite, new authoring spend, QA bypass or remote deployment.
+Full gate now green:5918passed/73skipped, zero failures, both typechecks passed.
+Historical package visibility now follows the existing private replay boundary;
+golden review/correction authority is unchanged. Current tests recognize two
+qualified packages, not one. Next is local commit/independent review and the
+explicitly authorized LOW cover+12-page run with the existing canonical Bar anchor.
+Provider-free package/Order and exact-byte local transport preflights pass.
+Full-book images/reader/product
+acceptance, broader catalog and payment work are not complete. CURRENT and
+outputs/r3b1b-dini-activation-20260912/ contain the exact evidence and boundaries.
+
+Historical preparation state before the approvals/execution above:
 
 Real offline recovery preparation completed at clean 2da63bbc: current bridge,
 preflight and same-program failed-provider successor candidate, with identical

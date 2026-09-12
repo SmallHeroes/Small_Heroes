@@ -1,5 +1,101 @@
 # SmallHeroes — Current Technical State
 
+## Dini package locally activated; full-book offline preflight unblocked
+
+2026-09-12. Same sole Codex task/writer, C:/GNart/Work/sh-r3b1b-semantic-m1,
+codex/r3b1b-semantic-recovery-m1. Activation started clean at90dfd387, local
+upstream90dfd387; protected768ccb2f/63ccb484 clean/read-only. Guy explicitly
+approved Blueprint1125b395, then package66d5dfc2 and local activation, not customer
+publication. Existing reviewed lifecycle APIs recorded approvals and promoted the
+canonical local Dini locator to revision4d6e8dee. No provider/key/remote service,
+customer order, image, deployment or push in this activation milestone.
+
+Previous paid successor at90dfd387 completed:3 generations,2 validation repairs,
+diagnostics199->5->0,1 count probe, no transport retries/fallback. Conservative
+accounting USD1.358194 including probes (not invoice-verified), under USD5;
+historical charges separate, allowance consumed. Blueprint1125b395 has12 pages
+plus cover. Receipt0750c9b1, terminalb63fff7a, approved Blueprint manifest3f952bce.
+Code independent PASS remains a227ade0; prior preparation review covers90dfd387.
+These actual runtime operations/new correction have no independent QA PASS yet.
+
+Activation: approved package manifest390c4258, published manifestc4dbd8c3,
+revision4d6e8dee1f97a21880a2a3dfe37f97fbce3bd02fd69763f131df543456ac162f;
+Wizard selection renderQualified=true, reasons=[],12 pages, exact accepted source.
+Approval replay and publication preview/write match;67/67 previous artifact/ledger
+files unchanged. The first preflight omitted Order authority and correctly held.
+An explicit local-only Order-input snapshot then exposed a real runtime bug:
+page11's cast lists contain identical IDs in different order. Blueprint validation
+compares membership; runtime incorrectly compared raw array order. General fix:
+compare sorted copies without deduplication, and reject missing cast arrays.
+No approved content or artifact was rewritten and no quality gate was disabled.
+
+New regression tests fail before correction (2 failures,3 passes), then39/39
+focused runtime tests pass. Real package preflight passes cover0 + pages1..12,
+runtime authorityv7, enforced Order-package matching, reference checks and no-op
+render callback. Uses representative family data and local input only: it does
+NOT prove a durable database order, actual child anchor, image quality, reader
+delivery, production acceptance or release. Full repository check recorded below.
+
+### Integration correction completed locally (2026-09-12)
+
+Guy explicitly authorized the remaining correction and subsequent renders.
+Historical R3B0b replay filtered later accepted lineages but still read their new
+published packages. The private historical visibility boundary now also excludes
+those package observations. Current/public qualification is unchanged. Historical
+digest4e0a6679 and correction/review bindings reproduce without rewriting golden
+authority. Current-only inventory tests now recognize Chameleon and Dini as the
+two qualified packages; the other16 nominal slots remain unqualified.
+
+Full npm run check now EXIT0: ordinary353 passed/17 skipped specs,
+5247 passed/73 skipped tests; resource22 passed specs/671 passed tests.
+Combined5918 passed/73 skipped, zero failures. Both typechecks passed and separate
+npx tsc --noEmit exit0. Earlier failing logs remain preserved, not relabeled.
+Focused historical review/correction23/23 and current integration77/77 passed.
+67/67 earlier evidence files rehashed unchanged; dependencies clean/read-only.
+Logs: check-integration.stdout.log SHA54b2d46e862d51284d103a60bc2a4c202c6b9d8fa5659778233b04a299b06721;
+stderr SHAf6a7788e6b878777c043062002c5fa341a706311ddf222951da015a82f62fb04.
+This local green result is not independent Claude PASS and does not close the
+earlier resource reliability P1. The activation/cast-order/replay range is ready
+for an immutable local commit and independent review; no push performed here.
+
+Render continuation: local LOW cover+12 pages explicitly authorized. Exact prior
+Bar canonical anchor3715cf8f found in barfidelity1 and visually inspected. The
+ignored local operational adapter uses real package/Order qualification and
+generateImage projection/QA, not a fixture package; provider-free whole-book
+qualification and exact-byte local storage inspection passed. Max13 image
+dispatches/52 QA dispatches, no image replacements, stop on first QA hold,
+threshold0.70, no HIGH/deploy/customer Order. Storage transport is a local adapter,
+not remote Supabase integration evidence. No render has run at this commit.
+See LOW_BOOK_EXECUTION_GATE.md and render-book.ts in the activation evidence root.
+
+### Prior failed check (historical; superseded by the green integration above)
+
+Full gate was NON-GREEN: ordinary phase23 failed/5224 passed/73 skipped across9 failed
+specs, after both typechecks passed. Current-package inventory expectations and
+historical review/correction bindings fail after activation; not all failures are
+independently classified or proven harmless. No golden authority was rewritten.
+Final npm run check exit1: resource phase659 passed/1 failed/11 skipped plus one
+suite setup failure (historical review-batch binding); ordinary results above.
+Combined5883 passed/24 failed/84 skipped, with the suite setup failure additional.
+The 11 resource skips are caused by failed setup, not the prior73 baseline skips.
+Release CLI expects1/18 while activation now reports2/18. No timeout occurred in
+these reported failures; this does not close the historical reliability P1.
+At that earlier handoff no commit/push had been made.
+
+Next: independent QA of the cast-order/replay fixes and local activation, and
+the authorized bounded LOW render; HIGH/full-book image production
+and final visual acceptance remain incomplete. Do not use the legacy fixture-based
+full-book measurement script or relabel a QA-disabled single-page audition as a
+finished book. Resource reliability P1, CLI reason-code P2-1, noncanonical detail
+P2-C and original held P1 evidence remain historical/open; no blanket M2b/catalog
+or release PASS. Payments deferred. Current evidence/QA brief:
+outputs/r3b1b-dini-activation-20260912/READOUT.md and CLAUDE_HANDOFF.md.
+Ignored runtime logs/approval ledgers have no verified off-machine backup; Git
+preserves only explicitly tracked package/locator and docs, not outputs/. A new
+HEAD makes live authoring proofs historical; do not spend again because of that.
+
+### Historical preparation state (superseded by the activation above)
+
 ## Repair-v11 successor prepared offline — no paid authorization
 
 2026-09-11. Received Claude PASS P0=0/P1=0/P2=0 for

@@ -30,8 +30,8 @@ describe('render-qualification audit actual CLI', () => {
     expect(result.status, result.stderr).toBe(0);
     expect(JSON.parse(result.stdout)).toMatchObject({
       nominalSlotCount: 18,
-      productSellableCount: 1,
-      renderQualifiedCount: 1,
+      productSellableCount: 2,
+      renderQualifiedCount: 2,
     });
   });
 
@@ -40,20 +40,20 @@ describe('render-qualification audit actual CLI', () => {
     expect(result.status, result.stderr).toBe(1);
     expect(JSON.parse(result.stdout)).toMatchObject({
       nominalSlotCount: 18,
-      productSellableCount: 1,
-      renderQualifiedCount: 1,
+      productSellableCount: 2,
+      renderQualifiedCount: 2,
     });
   });
 
-  it('fails both strict scopes with 17 sellable products and 17 unqualified nominal slots', () => {
+  it('fails both strict scopes with 18 sellable products and 16 unqualified nominal slots', () => {
     const sellableOnly = runAudit(['--require-render-qualified'], true);
     const allNominal = runAudit(['--require-all-render-ready'], true);
     expect(sellableOnly.status, sellableOnly.stderr).toBe(1);
     expect(allNominal.status, allNominal.stderr).toBe(1);
     expect(JSON.parse(allNominal.stdout)).toMatchObject({
       nominalSlotCount: 18,
-      productSellableCount: 17,
-      renderQualifiedCount: 1,
+      productSellableCount: 18,
+      renderQualifiedCount: 2,
     });
   });
 });

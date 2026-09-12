@@ -111,7 +111,8 @@ describe('GET /api/wizard/mvp-matrix', () => {
         candidateDigest: string | null;
       }]>) {
         const currentProductPackage =
-          category.category === 'TRANSITION' && directionName === 'bedtime';
+          (category.category === 'TRANSITION' && directionName === 'bedtime') ||
+          (category.category === 'NEW_SIBLING' && directionName === 'adventure');
         expect(direction.qaAuthoringReady).toBe(false);
         expect(direction.candidateDigest).toBeNull();
         expect(direction.productionRenderQualified).toBe(
@@ -143,10 +144,9 @@ describe('GET /api/wizard/mvp-matrix', () => {
         selectable: boolean;
       }]>) {
         const currentProductPackage =
-          category.category === 'TRANSITION' && directionName === 'bedtime';
-        const acceptedSourceWithoutPackage =
-          category.category === 'NEW_SIBLING' && directionName === 'adventure';
-        expect(direction.sellable).toBe(!acceptedSourceWithoutPackage);
+          (category.category === 'TRANSITION' && directionName === 'bedtime') ||
+          (category.category === 'NEW_SIBLING' && directionName === 'adventure');
+        expect(direction.sellable).toBe(true);
         expect(direction.qaAuthoringReady).toBe(false);
         expect(direction.productionRenderQualified).toBe(
           currentProductPackage,

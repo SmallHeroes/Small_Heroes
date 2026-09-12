@@ -44,6 +44,8 @@ const CHAMELEON_PRODUCT_REVISION = path.join(
 );
 const CHAMELEON_PACKAGE_REVISION_DIGEST =
   '836a3414174dbe3060010371e81ebdbef821f705650a199cc4bbfd70081d523f';
+const DINI_PRODUCT_REVISION = path.join(process.cwd(),
+  'story-pipeline/04_approved_story_sources/accepted/dragon_dini_adventure/revisions/64dcd0e741f17fc08cde95ad8a5a00b303955aa28ccd065d44f01e49e9d155fc/integrated.md');
 const CHAMELEON_PACKAGE_LOCATOR_RELATIVE_PATH = path.join(
   'visual-packages',
   'approved',
@@ -163,14 +165,16 @@ describe('resolveStoryProductTruth', () => {
         expect(resolved.storyDirection).toBe(direction);
         const isPublishedChameleon =
           companionId === 'chameleon_koko' && direction === 'bedtime';
+        const isPublishedDini = companionId === 'dragon_dini' && direction === 'adventure';
         expect(resolved.source).toBe(
-          isPublishedChameleon
+          isPublishedChameleon || isPublishedDini
             ? 'visual_package_v4'
             : 'v3_approved_binding',
         );
         expect(resolved.storyFile).toBe(
           isPublishedChameleon
             ? CHAMELEON_PRODUCT_REVISION
+            : isPublishedDini ? DINI_PRODUCT_REVISION
             : path.join(V3_APPROVED_DIR, `${companionId}_${direction}.md`),
         );
       }
@@ -324,7 +328,7 @@ describe('resolveStoryProductTruth', () => {
     ).toThrow('No bank story for companion=bunny_ometz direction=bedtime');
   });
 
-  it('QA flag binds all sellable slots to the autonomous QA bank with canonical page counts', () => {
+  it('QA flag preserves accepted packages and binds other sellable slots to the QA bank', () => {
     process.env.ENABLE_WIZARD_QA_RENDER_CATALOG = 'true';
     const expectedPages = { bedtime: 8, adventure: 12, fantasy: 16 } as const;
 
@@ -340,9 +344,11 @@ describe('resolveStoryProductTruth', () => {
         });
         const isPublishedChameleon =
           companionId === 'chameleon_koko' && direction === 'bedtime';
+        const isPublishedDini = companionId === 'dragon_dini' && direction === 'adventure';
         expect(resolved.storyFile).toBe(
           isPublishedChameleon
             ? CHAMELEON_PRODUCT_REVISION
+            : isPublishedDini ? DINI_PRODUCT_REVISION
             : path.join(QA_AUTONOMOUS_DIR, `${companionId}_${direction}.md`),
         );
         expect(resolved.pages).toBe(expectedPages[direction]);

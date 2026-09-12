@@ -62,7 +62,7 @@ describe('Wizard all-story readiness actual CLI', () => {
     expect(new Set(report.records.map((record) => record.storyKey)).size).toBe(
       18,
     );
-    expect(report.summary.renderQualifiedCount).toBe(1);
+    expect(report.summary.renderQualifiedCount).toBe(2);
     expect(report.effects).toEqual({
       filesWritten: 0,
       directoriesCreated: 0,

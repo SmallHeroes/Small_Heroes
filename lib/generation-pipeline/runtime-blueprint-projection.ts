@@ -352,8 +352,11 @@ export function buildRuntimeBlueprintBookProjection(args: {
     if (
       contractPage.locationId !== frame.locationId ||
       contractPage.zoneId !== frame.zoneId ||
-      canonicalJsonDigest(contractPage.castIds) !==
-        canonicalJsonDigest(frame.castIds)
+      !Array.isArray(contractPage.castIds) ||
+      // Cast authority is membership, not source-list order (as in Blueprint validation).
+      // Sort copies without deduplicating: missing, extra and repeated IDs still differ.
+      canonicalJsonDigest([...contractPage.castIds].sort()) !==
+        canonicalJsonDigest([...frame.castIds].sort())
     ) {
       invalid(`frame ${frame.id} location/zone/cast differs from resolved contract`);
     }
