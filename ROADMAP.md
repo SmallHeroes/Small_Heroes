@@ -1,6 +1,6 @@
 # SmallHeroes — Roadmap
 
-**Last verified:** 2026-09-12 (Dini package4d6e8dee locally active; integrationfcc1758b fullcheck5918passed/73skipped; LOW cover+12images rendered, page7 safety HOLD and prop continuity issues; not customer-ready; independent code PASS still a227ade0; reliability P1 open)
+**Last verified:** 2026-09-12 (Dini LOW cover+12 images in local ReaderV2; Guy visually accepted selected page7, automated hold/missing numeric evidence retained; prop continuity open; reader full check had one inventory-count failure subsequently fixed/focused-tested, not rerun; not customer-ready; independent code PASS still a227ade0; reliability P1 open)
 **Product priority owner:** Guy
 **Technical sequencing owner:** Codex
 
@@ -31,6 +31,13 @@ Blueprint and any required LOW Board/prop generation remain separately budgeted
 provider actions with exact owner gates.
 
 ## Active
+
+2026-09-12 owner update: Guy visually accepted the selected page 7. No further
+render solely for the automated bridge concern; original automated failure and
+missing numerical score remain evidence, not overwritten. The paragraph below
+records the pre-acceptance draft handoff. Current task supplies a hash-verified
+local ReaderV2 link for whole-book judgment; cake/cart continuity, outstanding
+numerical evidence and independent technical QA remain open. No release follows.
 
 Full diagnostic LOW Dini draft now exists: cover+12pages,14 image calls including
 one failed page7 replacement,32 Vision calls.12/13 selected images have automated

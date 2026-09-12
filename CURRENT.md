@@ -1,5 +1,51 @@
 # SmallHeroes — Current Technical State
 
+## Owner page 7 acceptance and local ReaderV2 review — 2026-09-12
+
+Guy explicitly visually accepted the selected page 7, image SHA
+725a3e83810f40e4d3cb70e666b5ed0f348d54b2ed5be78d4cfa4a7440b40b23.
+Do not rerender solely for the automated bridge concern. Original safety_failed
+and null numeric score remain unchanged; no threshold, automatic PASS, delivery
+or release override follows. The original manifest/QA handoffs below predate this
+owner decision: their page 7 repair requirement is historical, not current intent.
+Separate local record: original image root/book-review/owner-review.json.
+Code/accounting verification and cake/cart continuity review remain in scope;
+Claude is paused, so Codex's checks are engineering checks, not independent PASS.
+
+Guy requested a reader link. The new local-only /dev/local-book adapter reuses
+ReaderV2's existing qa_fixture payload, with exact manifest text and hash-checked
+images. LOCAL_BOOK_REVIEW_DIR selects the directory at server startup (never via
+request paths). Production/test/hosted Vercel environments fail closed. No customer
+Order, paid provider, remote storage, key access, layout change or publication.
+Local URL: http://127.0.0.1:3117/dev/local-book (requires this machine/server).
+Gate: docs/ai-workflow/LOCAL_BOOK_READER_GATE_20260912.md.
+Validation: 54 focused reader tests passed; after updating the exact inventory
+from 392 to 393 specs (new local-book-review.spec.ts), 19 loader/classifier tests
+passed. npx tsc --noEmit passed. The full npm run check returned exit 1: ordinary
+5258 passed / 1 failed / 73 skipped, resource 671 passed. Its sole failure was
+the old classifier count, subsequently corrected and retested; the full command
+was NOT rerun and is NOT relabeled green. No resource timeout occurred in this run;
+the historical resource reliability finding is not closed by that observation.
+
+Browser verification: all cover/page0..12 visited with loaded images, no framework
+error overlay, no browser errors reported; desktop 1440x1000 and mobile 390x844
+screenshots inspected, mobile backward navigation works and no horizontal overflow.
+Local image HTTP/source/copy SHA matches 13/13. Ledger arithmetic independently
+recomputed from the four non-overlapping local ledgers: 14 image / 32 Vision calls,
+3 unknown-usage responses; recorded-rate estimate USD1.0986325, not invoice-verified.
+This milestone made zero paid calls. Page7 numeric evidence remains incomplete.
+
+Local startup initially failed general env validation; the preserved restart uses
+inert placeholder configuration only, generation disabled, payments none, no real
+keys/DB/storage. Server binds 127.0.0.1:3117. Start command and evidence/QA handoff:
+outputs/r3b1b-dini-activation-20260912/LOCAL_READER_HANDOFF.md.
+Original manifest/handoffs/images/ledgers were not rewritten; owner-review.json is
+an additive local record, with the exact accepted image SHA also recorded above.
+The existing mobile reader hides the desktop header/disclosure; this remains a
+local owner-review fixture, not a customer-release status or mobile UI redesign.
+
+### Historical paid-draft handoff (before owner page 7 acceptance)
+
 ## Full Dini LOW illustration draft rendered — visual HOLD, not customer-ready
 
 2026-09-12. Integration committed locally as
