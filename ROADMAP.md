@@ -2,6 +2,16 @@
 
 ## Owner sequencing update — 2026-09-13
 
+Latest: Claude supplied PASS0/0/1 for e1bdc90d..81738ff1 and closed the three
+earlier expression P2s. The remaining narrow watch-with/as actor leak is now
+corrected locally:284 focused tests/tsc pass, real-book offline audit byte-identical.
+Independent re-gate of this new correction is pending. Full check not rerun here;
+prior20-timeout NON-GREEN result and repository reliability P1 remain open.
+No new renders now; story improvement with Guy follows this engine correction.
+Reader predecessor remains unreviewed; no deploy/customer-readiness implication.
+
+Previous correction checkpoint:
+
 Claude supplied PASS0/0/3 for a5b93ddc..e1bdc90d only; reader predecessor remains
 outside that range. The three expression P2s are reproduced and corrected locally,
 269 focused tests/tsc pass; correction re-gate is pending. Resource reliability
@@ -20,7 +30,7 @@ package, images and reader are unchanged. Next is story improvement with Guy;
 new planning and a visual audition come afterward, not an automatic whole-book
 rerender. No independent PASS or customer-readiness claim follows.
 
-**Last verified:** 2026-09-13 (supplied independent PASS a5b93ddc..e1bdc90d only, P2 correction re-gate pending; reader predecessor unreviewed; resource reliability P1 open; Dini story/prop continuity and page7 numeric evidence open; no new renders or customer-readiness claim)
+**Last verified:** 2026-09-13 (supplied independent re-gate PASS e1bdc90d..81738ff1, new as-boundary P2 correction re-gate pending; reader predecessor unreviewed; resource reliability P1 open; Dini story/prop continuity and page7 numeric evidence open; no new renders or customer-readiness claim)
 **Product priority owner:** Guy
 **Technical sequencing owner:** Codex
 

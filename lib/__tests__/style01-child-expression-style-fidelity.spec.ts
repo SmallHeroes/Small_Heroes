@@ -278,6 +278,46 @@ describe('Style 01 child expression and small-frame fidelity', () => {
     expect(resolveStyle01PageExpressionKind({ childName: 'Bar', narrativeSummary })).toBe(expected);
   });
 
+  it.each([
+    ['Bar watched with delight as Dini laughed.', 'situational'],
+    ['Bar watched with quiet care as Dini laughed.', 'situational'],
+    ['Bar watches with interest as a dragon giggles.', 'situational'],
+    ['Bar is watching with interest as a friend is laughing.', 'situational'],
+    ['Bar watched with interest while Dini giggled.', 'situational'],
+    ['Bar watched as Dini laughed.', 'situational'],
+    ['Bar watched Dini laugh.', 'situational'],
+    ['Bar watched with a surprised almost-smile as Dini laughed.', 'restrained_amusement'],
+    ['Bar watched with worried eyes as Dini laughed.', 'worried'],
+    ['Bar laughed as Dini watched.', 'playful'],
+    ['Bar watched with a surprised almost-smile.', 'restrained_amusement'],
+    ['Bar was as happy as Dini.', 'situational'],
+    ['Bar watched with interest as Dini laughed. Bar laughed.', 'playful'],
+  ])('bounds concurrent as-clause evidence in every source: %s', (text, expected) => {
+    for (const field of ['narrativeSummary', 'bookPageText', 'imageDirection'] as const) {
+      expect(resolveStyle01PageExpressionKind({ childName: 'Bar', [field]: text })).toBe(expected);
+    }
+  });
+
+  it('handles concurrent affect for generic and arbitrary named children', () => {
+    expect(resolveStyle01PageExpressionKind({
+      narrativeSummary: 'The child watched with quiet care as the dragon laughed.',
+    })).toBe('situational');
+    expect(resolveStyle01PageExpressionKind({
+      childName: 'Maya', narrativeSummary: 'Maya watched with quiet care as Leo laughed.',
+    })).toBe('situational');
+  });
+
+  it('does not transfer concurrent laughter through actual assembly or mutate the frame', () => {
+    const authority = frame({ summary: 'The child watched with quiet care as the dragon laughed.' });
+    const before = structuredClone(authority);
+    const result = assembleStyle01Phase2Prompt({
+      pageNumber: 1, authoritativeBlueprintFrame: authority,
+    });
+    expect(result.prompt).toContain('PAGE EXPRESSION [situational]');
+    expect(result.prompt).not.toContain('PAGE EXPRESSION [playful]');
+    expect(authority).toEqual(before);
+  });
+
   it('binds the corrected Hebrew cue through actual assembly without changing the frame', () => {
     const authority = frame({ summary: 'The child waits beside the cart.' });
     const before = structuredClone(authority);

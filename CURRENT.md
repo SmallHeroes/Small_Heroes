@@ -1,5 +1,42 @@
 # SmallHeroes — Current Technical State
 
+## Expression concurrent-clause correction — 2026-09-13
+
+Supplied Claude re-gate PASS P0=0/P1=0/P2=1 covers exactly
+e1bdc90d6dfd857086bd353972a899963cd62281..81738ff167d0f8419f35a14a70622f5df607a39e.
+All three prior P2s closed; reviewer reproduced269 focused tests,41 adversarial
+assertions and tsc0. Topology reconciled at clean81738ff1/ahead5, dependencies
+768ccb2f/63ccb484 clean. This does not cover reader predecessor a5b93ddc.
+
+The new narrow P2 is reproduced and corrected locally: `watched with ... as`
+could transfer another actor's laughter through the own-reaction exception.
+English `as` now bounds the evidence before perception extraction, preserving
+the child's cue before that boundary. No story-specific override or new parser.
+Gate: docs/ai-workflow/CHILD_EXPRESSION_AS_BOUNDARY_GATE_20260913.md.
+15 new tests/controls: before7 failed/58 passed; after284/284 in9 focused specs,
+tsc0. New provider-free audit is byte-identical to the prior audit:
+1c550fd206310cc3964da3c5a53bf3f772b0fd3378639036549edf87de20d76a,
+13/13 images intact, qualified package, unchanged projection,9 situational/
+2 focused/1 joyful/1 playful. No gain on this book or new visual acceptance claimed.
+
+Full repository check NOT rerun for this bounded correction; last full invocation
+below remains NON-GREEN with20 timeouts. Claude supplied48/48 isolated passes for
+live-execution-supervisor versus his earlier3/3 isolated acceptance-lifecycle
+timeouts. This supports investigating contention separately from standalone
+failures; it does not independently establish either root cause. No timeouts
+raised, failures waived or inherited classification made here.
+
+Limitations: conservative `as ...` truncation can miss the child's own comparative
+or role phrase; fallback remains situational. Niqqud stripping does not convert
+deficient pointed spelling to full spelling (e.g. חיך vs חייך); uncovered Hebrew
+present/perception forms remain limited. New boundary correction awaits Claude
+re-gate, not independent self-PASS. Prior status sections below are historical.
+No renders, provider calls, story edits, image replacement, reader edits,
+deployment or push. Page7 owner acceptance plus original failure/missing score,
+cake/cart continuity and product/story acceptance remain unchanged/open.
+Next: review the focused correction, then improve story with Guy before new
+planning/rendering. Reader containment QA and repository stability remain separate.
+
 ## Supplied child-performance QA and P2 corrections — 2026-09-13
 
 Claude Code supplied PASS P0=0/P1=0/P2=3 for the exact range

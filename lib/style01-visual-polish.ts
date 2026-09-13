@@ -82,7 +82,9 @@ function childExpressionClauses(text: string, childName?: string | null): string
     const match = subject.exec(clause);
     if (!match) return [];
     // Contrast/concurrent-actor clauses must not transfer another actor's affect.
-    const own = clause.slice(match.index + match[0].length).split(/\b(?:while|whereas|and|but)\b|אבל|בעוד|,(?!\s*(?:curious|unsure|worried|surprised|focused|happy|amused)\b)/iu)[0]!
+    // Bound "watched with [own reaction] as [other actor]" before the watch-with
+    // exception below. Ambiguous "as ..." phrases remain conservatively unscoped.
+    const own = clause.slice(match.index + match[0].length).split(/\b(?:while|whereas|as|and|but)\b|אבל|בעוד|,(?!\s*(?:curious|unsure|worried|surprised|focused|happy|amused)\b)/iu)[0]!
       .split(/\b(?:sees?|saw|seen|seeing|hears?|heard|hearing|watch(?:es|ed|ing)?(?!\s+with\b)|look(?:s|ed|ing)?\s+at)\b|(?:^|\s)(?:ראה|ראתה|שמע|שמעה|מביט אל|מביטה אל)(?:\s|$)/iu)[0]!;
     // Negation is not positive emotional evidence. Leave ambiguous clauses situational.
     // אל after a smile is usually "toward", not "don't". Recognize only a
