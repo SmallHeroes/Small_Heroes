@@ -2,6 +2,24 @@
 
 ## Delegated review and general v4 source adapter — 2026-09-13
 
+Full npm run check completed exit1: ordinary5324 pass/73 skip; resource664 pass/
+7 fail. All7 failures are5000ms timeouts in3 unchanged specs: canonical-pre-live-
+readiness(1), live-execution-request-materialization(4), canonical-materialization-
+input(2). Both typechecks completed successfully. This run is NON-GREEN; no timeout
+increase, inherited/flaky classification or repository stability closure. The
+code reviewed by the agent is the code tested here; later edits are docs only.
+
+Supplied delegated technical review completed: /root/dini_publication_review
+PASS/no findings for39c528a4..0951cc8a only. Independently ran13 lifecycle tests
+and rejected rehashed pending status, valid-enum world-mode drift and valid-shaped
+continuity drift. The editorial agent also verified exact JSON transcription
+(SHA9598627f...) and descriptive creative brief (SHA60e26309...) without findings.
+Neither review is attributed to Claude. Publication binding packet is prepared
+in execution-01/publication-binding-pending.json, deliberately non-executable:
+Guy's exact manuscript acceptance is preserved, but delegation to review is not
+relabeled as Guy's approval of unseen resulting editorial-review bytes. No new
+accepted source has been written. Runtime/Blueprint/render remain excluded.
+
 Guy explicitly authorized other agents while Claude is paused. Independent
 delegated editorial agent /root/dini_editorial_review returned pass on exact
 225f2b01... manuscript, no revisions; real both-gender projections inspected.
@@ -14,8 +32,8 @@ sync CJS API retained. Six import/re-export paths in3 TS files made relative so
 foreign cwd cannot bind another worktree's code. No duplicated validator or new
 schema; v2/creative-v1 unchanged. Gate CREATIVE_REPLACEMENT_V4_ADAPTER_GATE_20260913.md.
 90 focused/adjacent tests pass in8 specs; initial before-code regression3 failed/
-9 passed. Full repository check running, not green yet. Technical agent review of
-completed immutable range follows. No real source publication, runtime cutover,
+9 passed. Full repository check and technical agent review completed as above.
+No real source publication, runtime cutover,
 provider/render, credential access or push. Older unmet-editorial/adapter notes
 below are historical; publication prerequisites and existing open gates persist.
 

@@ -54,8 +54,29 @@ v4 authority, preview/publication/idempotent replay, reload without staging,
 tampered/missing source/review/acceptance/identity, rehashed authority drift,
 hardlinks, fork rejection and plain Node from a foreign cwd with hostile aliases.
 All test publication is isolated fixture data; no real source published here.
-Full repository check started; result pending, not claimed green.
+Full repository check completed exit1: ordinary5324pass/73skip, resource664pass/
+7fail. All failures5000ms timeouts: canonical-pre-live-readiness(1),
+live-execution-request-materialization(4),canonical-materialization-input(2),
+all unchanged. Both typechecks passed. Full gate NON-GREEN, not waived/inherited.
 
 Delegated editorial reviewer independently returned pass on exact225f2b01...,
 no prose revisions. Separate attribution and exact returned JSON are stored under
 outputs/dini-story-rewrite-20260913/execution-01/. Not Claude Code PASS.
+
+Delegated technical agent /root/dini_publication_review returned PASS/no findings
+for exact39c528a4..0951cc8a, independently13/13 lifecycle tests plus rehashed
+valid-enum world-mode, status and continuity attacks. All rejected; neutral cwd
+real v4 succeeded. No extension to later documentation, full tree or publication.
+Editorial agent additionally verified review transcription SHA9598627f... and
+descriptive creative brief SHA60e26309... with no findings. Old approved source,
+package and image files remain untouched. Reviewer reports separately attributed.
+
+No publication request/acceptance manufactured: exact source wording acceptance
+exists, but the owner's delegation to review does not itself attest acceptance
+of resulting unseen review bytes. publication-binding-pending.json explicitly
+leaves that binding null. This is the remaining publication decision, not another
+request to approve the same story wording or any image-generation authority.
+
+Full-check log hashes (ignored/local-only, no verified remote backup):
+stdout ead71331f6001a9d6eff5df31cce826f8a1abc099a903cce97d62a0753874115;
+stderr cc9a180b0f98a1fb842c4c64c4bbbd7b6c55ee52c90f594fd3d0ab24c2562c6e.
