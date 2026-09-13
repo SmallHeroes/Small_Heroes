@@ -249,9 +249,9 @@ export function preRenderBlueprintCompositionPolicyDiagnostics(
 }
 
 /**
- * Backward-compatible human-readable projection used by existing callers and
- * product-facing review surfaces. The richer diagnostic function above owns
- * the measurements so repair authority and the displayed message cannot drift.
+ * Legacy v1 human-readable projection, currently used by tests only. Production
+ * validation/repair calls diagnostics directly with the declared policy version
+ * and child ID; this helper does not enforce v2.
  */
 export function preRenderBlueprintCompositionPolicyIssues(
   frames: readonly PortraitBlueprintFrame[],

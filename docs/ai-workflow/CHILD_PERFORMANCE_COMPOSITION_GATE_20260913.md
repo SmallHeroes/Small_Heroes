@@ -64,7 +64,7 @@ unless valid findings require a separate correction. Guy judges new images later
   3685/4152; the production-scale harness accounts all extra bytes under unchanged
   spend/token admission, preserving its non-convergence result.
 - Shared assembly on the actual bound Dini package: page1 joyful, page6 playful,
-  other11 situational; 13/13 original image hashes match; projection byte-unchanged;
+  other9 situational and2 focused; 13/13 original image hashes match; projection byte-unchanged;
   existing composition-v1 package remains qualified. Hypothetical v2 detects
   near-identical hero placement on pages6-8. No candidate or images regenerated.
 - Second full check exit1: ordinary5275 passed/73 skipped, resource669 passed/2
@@ -99,3 +99,8 @@ the existing calibration exemption. No story/Blueprint/package migration or
 independent QA was performed; approved immutable assets are not retrofitted.
 Resource-phase reliability P1 is not independently closed. Guy's page7 visual
 acceptance coexists with original safety_failed and missing numeric evidence.
+
+Post-review transcription correction: Claude correctly identified that the original
+audit includes focused pages7-8. The earlier "other11 situational" prose was wrong;
+the original audit bytes/hash are unchanged. Supplied review PASS0/0/3 is bounded
+to a5b93ddc..e1bdc90d; its P2 corrections have a separate gate and re-gate range.

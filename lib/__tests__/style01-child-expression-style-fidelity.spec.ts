@@ -244,6 +244,51 @@ describe('Style 01 child expression and small-frame fidelity', () => {
     expect(resolveStyle01PageExpressionKind({ narrativeSummary: 'The child guides the cart between the bumps.' })).toBe('situational');
   });
 
+  it.each([
+    ['בר חייך אל העוגה', 'joyful'],
+    ['בר חייך אל התות', 'joyful'],
+    ['בר הביט אל העוגה וחייך', 'joyful'],
+    ['בר חייך בשמחה', 'joyful'],
+    ['בר עמד ולא צחק', 'situational'],
+    ['בר ולא חייך אל העוגה', 'situational'],
+    ['בר אל תצחק', 'situational'],
+    ['בר אל תעשה פנים joyful', 'situational'],
+    ['בר ובלא צחק', 'situational'],
+    ['בר ובלי צחוק חייך', 'situational'],
+    ['בר ואינו joyful', 'situational'],
+    ['בר וְלֹא צָחַק', 'situational'],
+  ])('P2 Hebrew preposition and negation: %s', (bookPageText, expected) => {
+    expect(resolveStyle01PageExpressionKind({ childName: 'בר', bookPageText })).toBe(expected);
+  });
+
+  it.each([
+    ['Bar saw Dini laugh.', 'situational'],
+    ['Bar heard Dini giggling.', 'situational'],
+    ['Bar saw Dini giggle.', 'situational'],
+    ['Bar watched Dini laughing.', 'situational'],
+    ['Bar is watching Dini laughing.', 'situational'],
+    ['Bar has seen Dini laughing.', 'situational'],
+    ['Bar is hearing Dini giggling.', 'situational'],
+    ['Bar looked at Dini giggling.', 'situational'],
+    ['Bar is laughing.', 'playful'],
+    ['Bar is giggling.', 'playful'],
+    ['Bar is not laughing.', 'situational'],
+    ['Bar watched with a surprised almost-smile.', 'restrained_amusement'],
+  ])('P2 perception tense and participles: %s', (narrativeSummary, expected) => {
+    expect(resolveStyle01PageExpressionKind({ childName: 'Bar', narrativeSummary })).toBe(expected);
+  });
+
+  it('binds the corrected Hebrew cue through actual assembly without changing the frame', () => {
+    const authority = frame({ summary: 'The child waits beside the cart.' });
+    const before = structuredClone(authority);
+    const result = assembleStyle01Phase2Prompt({
+      pageNumber: 1, authoritativeBlueprintFrame: authority,
+      childFirstName: 'בר', bookPageText: 'בר חייך אל העוגה.',
+    });
+    expect(result.prompt).toContain('PAGE EXPRESSION [joyful]');
+    expect(authority).toEqual(before);
+  });
+
   it('does not treat a child name as emotional evidence', () => {
     expect(resolveStyle01PageExpressionKind({ childName: 'Happy', narrativeSummary: 'Happy waits beside the cart.' })).toBe('situational');
     expect(resolveStyle01PageExpressionKind({ childName: 'Happy', narrativeSummary: 'Happy laughed.' })).toBe('playful');

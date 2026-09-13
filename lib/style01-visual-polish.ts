@@ -83,9 +83,12 @@ function childExpressionClauses(text: string, childName?: string | null): string
     if (!match) return [];
     // Contrast/concurrent-actor clauses must not transfer another actor's affect.
     const own = clause.slice(match.index + match[0].length).split(/\b(?:while|whereas|and|but)\b|אבל|בעוד|,(?!\s*(?:curious|unsure|worried|surprised|focused|happy|amused)\b)/iu)[0]!
-      .split(/\b(?:sees?|hears?|watches? the|looks? at)\b|(?:^|\s)(?:ראה|ראתה|שמע|שמעה|מביט אל|מביטה אל)(?:\s|$)/iu)[0]!;
+      .split(/\b(?:sees?|saw|seen|seeing|hears?|heard|hearing|watch(?:es|ed|ing)?(?!\s+with\b)|look(?:s|ed|ing)?\s+at)\b|(?:^|\s)(?:ראה|ראתה|שמע|שמעה|מביט אל|מביטה אל)(?:\s|$)/iu)[0]!;
     // Negation is not positive emotional evidence. Leave ambiguous clauses situational.
-    if (/\b(?:not|never|without|no)\b|(?:^|\s)(?:לא|בלי|אינו|אינה|אל)(?:\s|$)/iu.test(own)) return [];
+    // אל after a smile is usually "toward", not "don't". Recognize only a
+    // leading imperative אל + future-form verb here; retain prefixed ו negation.
+    if (/\b(?:not|never|without|no)\b|(?:^|\s)ו?(?:לא|בלי|בלא|אינו|אינה)(?:\s|$)/iu.test(own) ||
+      /^\s*ו?אל\s+ת\p{L}+/u.test(own)) return [];
     return [own];
   }).join('\n');
 }
@@ -111,17 +114,17 @@ export function resolveStyle01PageExpressionKind(input: Style01ExpressionEvidenc
   // Unattributed or negated affect remains situational, never a guessed child emotion.
   // This is a conservative cue extractor, not a general-purpose language parser.
   const evidence = own;
-  if (/(?:^|\s)(?:התאכזב[ה]?|עצוב[ה]?|נעלב[ה]?)(?:\s|$)/u.test(evidence)) return 'subdued';
-  if (/(?:^|\s)(?:דאג[ה]?|פחד[ה]?|חשש[ה]?)(?:\s|$)/u.test(evidence)) return 'worried';
-  if (/(?:^|\s)(?:נבהל[ה]?|הופתע[ה]?)(?:\s|$)/u.test(evidence)) return 'surprised';
-  if (/(?:^|\s)(?:צחק[ה]?|גיחך|גיחכה|חייך|חייכה)(?:\s|$)/u.test(evidence)) {
+  if (/(?:^|\s)ו?(?:התאכזב[ה]?|עצוב[ה]?|נעלב[ה]?)(?:\s|$)/u.test(evidence)) return 'subdued';
+  if (/(?:^|\s)ו?(?:דאג[ה]?|פחד[ה]?|חשש[ה]?)(?:\s|$)/u.test(evidence)) return 'worried';
+  if (/(?:^|\s)ו?(?:נבהל[ה]?|הופתע[ה]?)(?:\s|$)/u.test(evidence)) return 'surprised';
+  if (/(?:^|\s)ו?(?:צחק[ה]?|גיחך|גיחכה|חייך|חייכה)(?:\s|$)/u.test(evidence)) {
     return /חייך|חייכה/u.test(evidence) ? 'joyful' : 'playful';
   }
   if (SUBDUED_RE.test(evidence)) return 'subdued';
   if (WARY_RE.test(evidence)) return 'wary';
   if (WORRIED_EXPRESSION_RE.test(evidence)) return 'worried';
   if (RESTRAINED_AMUSEMENT_RE.test(evidence)) return 'restrained_amusement';
-  if (/\b(?:laughs?|laughed|giggling|giggles?|giggled)\b/i.test(evidence)) return 'playful';
+  if (/\b(?:laughs?|laughed|laughing|giggling|giggles?|giggled)\b/i.test(evidence)) return 'playful';
   if (SURPRISED_RE.test(evidence)) return 'surprised';
   if (CURIOUS_UNCERTAIN_RE.test(evidence)) return 'curious_uncertain';
   if (JOYFUL_RE.test(evidence)) return 'joyful';

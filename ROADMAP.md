@@ -2,6 +2,15 @@
 
 ## Owner sequencing update — 2026-09-13
 
+Claude supplied PASS0/0/3 for a5b93ddc..e1bdc90d only; reader predecessor remains
+outside that range. The three expression P2s are reproduced and corrected locally,
+269 focused tests/tsc pass; correction re-gate is pending. Resource reliability
+remains a recurring blocker, not merely assumed flakiness. This full run exits1:
+ordinary5299 pass/2 timeouts, resource653 pass/18 timeouts (5s and60s), all in
+unchanged specs; no inherited classification or gate relaxation. No renders now.
+
+Earlier implementation checkpoint:
+
 Engine-only child performance/composition improvement is the current milestone.
 No renders now. Situational child acting and fresh Blueprint composition v2 are
 implemented; 244 focused tests and typecheck pass. Full check remains non-green:
@@ -11,7 +20,7 @@ package, images and reader are unchanged. Next is story improvement with Guy;
 new planning and a visual audition come afterward, not an automatic whole-book
 rerender. No independent PASS or customer-readiness claim follows.
 
-**Last verified:** 2026-09-12 (Dini LOW cover+12 images in local ReaderV2; Guy visually accepted selected page7, automated hold/missing numeric evidence retained; prop continuity open; reader full check had one inventory-count failure subsequently fixed/focused-tested, not rerun; not customer-ready; independent code PASS still a227ade0; reliability P1 open)
+**Last verified:** 2026-09-13 (supplied independent PASS a5b93ddc..e1bdc90d only, P2 correction re-gate pending; reader predecessor unreviewed; resource reliability P1 open; Dini story/prop continuity and page7 numeric evidence open; no new renders or customer-readiness claim)
 **Product priority owner:** Guy
 **Technical sequencing owner:** Codex
 

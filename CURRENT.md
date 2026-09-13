@@ -1,6 +1,50 @@
 # SmallHeroes — Current Technical State
 
-## Child performance and composition engine — 2026-09-13
+## Supplied child-performance QA and P2 corrections — 2026-09-13
+
+Claude Code supplied PASS P0=0/P1=0/P2=3 for the exact range
+a5b93ddc4e5a931e89510c2664be1e2f991347a6..e1bdc90d6dfd857086bd353972a899963cd62281.
+Reviewer topology matches: clean e1bdc90d, ahead4, protected768ccb2f/63ccb484.
+He independently reproduced244 focused tests, tsc0, frozen program digests and
+v2 composition/admission behavior. This does NOT review the reader predecessor
+a5b93ddc or earlier unreviewed commits, grant product acceptance, or close the
+resource-phase reliability P1. No PASS extension to the correction is claimed.
+
+All three P2 findings reproduced: Hebrew אל treated as blanket negation,
+English past perception transferring another actor's affect, and missing
+laughing/prefixed Hebrew negation. The bounded correction handles prepositional
+אל versus a leading אל+future-form imperative, covered past/progressive perception,
+and ו-prefixed negation/emotion cues. It adds no provider call or parser framework.
+The v1 helper comment now accurately says tests-only; production v2 uses the
+diagnostic path. Gate: docs/ai-workflow/CHILD_EXPRESSION_P2_GATE_20260913.md.
+Validation: before15 failures/35 passes; after269 focused passes in9 specs,tsc0.
+Full check exit1: ordinary5299 passed/2 failed/73 skipped; resource653 passed/
+18 failed. All20 failures report timeouts (5000ms or60000ms), across6 unchanged
+specs: wizard-all-story-render-readiness, canonical-materialization-input,
+canonical-pre-live-readiness, live-execution-request-materialization,
+live-execution-supervisor and qa-wizard-candidate-bridge. Full-check NON-GREEN;
+these are not all5000ms defaults, not classified as inherited, and no limit was
+raised. No additional reruns are used to relabel this invocation as passing.
+
+Evidence transcription correction: the original audit actually contains9
+situational/2 focused/1 joyful/1 playful (focused pages7-8), not11 situational.
+The old audit hash1c550fd2... is unchanged. Fresh provider-free audit to
+outputs/child-expression-p2-offline-audit.json has that same exact hash/distribution,
+13 intact images, qualified existing package and unchanged projection. No
+increase in specific-expression count on this book is claimed from the P2 fix.
+The original stdout-only audit script does not write its own artifact; the shell
+redirected its output. Old logs were not overwritten.
+
+Resource reliability is a recurring open blocker, not established as flakiness:
+our prior isolated canonical-materialization timeout remains recorded; Claude
+reports acceptance-lifecycle timing out3/3 on his machine too (supplied evidence,
+not independently rerun here). Do not raise defaults or classify all failures as
+inherited. No reader, source, image, package, budget or threshold changes now.
+Next: Claude re-gate of this focused correction; repository timing needs separate
+investigation, and reader predecessor QA remains open. Then
+improve story with Guy before any new planning/rendering. No renders authorized now.
+
+## Child performance and composition engine — implementation checkpoint before QA
 
 Guy requested more varied compositions and a livelier, childlike protagonist,
 including situational reactions where prose does not spell out emotion. Engine
