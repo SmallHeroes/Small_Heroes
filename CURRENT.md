@@ -1,5 +1,48 @@
 # SmallHeroes — Current Technical State
 
+## Dini story rewrite — owner-review draft, 2026-09-13
+
+Claude supplied PASS P0=0/P1=0/P2=0 for exactly
+81738ff167d0f8419f35a14a70622f5df607a39e..ca29d599d4d8b5e605b8cfb02251ee2a807163bf,
+284/284 in9 focused specs and tsc0. This closes the concurrent-as P2 only,
+not the entire tree, npm run check or reader predecessor a5b93ddc. Prior
+sections below are historical checkpoints, not outstanding expression findings.
+
+Guy then approved proceeding to story improvement, with no renders. Same Codex
+task, sole writer in sh-r3b1b-semantic-m1, branch codex/r3b1b-semantic-recovery-m1;
+start ca29d599, clean/ahead6 vs upstream90dfd387, protected768ccb2f/63ccb484 clean.
+This is a separate creative staging draft, not an accepted-source edit, bank
+migration, new approved revision, Architect run or independent editorial PASS.
+
+Draft: outputs/dini-story-rewrite-20260913/draft.md
+SHA256 e73ac4c07b6a3337e09e7dc97568fa5d02ca460f4020cea9b769ec2ea8a25af6.
+Readable Bar copy: outputs/dini-story-rewrite-20260913/read-with-bar.md
+SHA256 57ad63ef88dc48f3bf8d819f0bca5ccee540e9487da67349addaffced4136ed2.
+README there records creative intent, limitations and revision sequence.
+12 numbered prose pages; simple whitespace counts47-54 per page after boy-chip
+expansion (punctuation tokens included). Both gender expansions were inspected;
+no unresolved braces remain. No production loader/editorial acceptance inferred.
+No imageDirection/visual plan is authored now: story choice precedes that work.
+The revision gives the child an early want, a failed attempt, frustration,
+physical investigation, useful help-seeking, shared pacing and a comic callback.
+These are creative proposals for Guy, not a quality score or guaranteed visual gain.
+
+Preservation check: old source raw SHA remains
+a5942c3646d08bc037395851311e9627bdfc1dd29f7874a45b000b87af416630;
+all13 image hashes match the original manifest. No source, locator, package,
+Blueprint, reader, code, provider or credential changes. Draft files are ignored,
+local-only, with no verified off-machine backup; Git push does not preserve them.
+No render, spend, deployment or push performed. The old reader remains unchanged.
+
+Next: Guy reads/edits the candidate; explicit content acceptance precedes a NEW
+approved-source revision. Package4d6e8dee/Blueprint1125b395 and existing images
+remain bound to the OLD source. Blueprint/reconciliation/render are separate
+subsequent decisions; no automatic reuse or production activation follows.
+Repository stability P1 (last full check20 timeouts), reader route QA, cake/cart
+continuity validation, page7 missing numeric evidence and product acceptance
+remain open. No timeout root cause inferred; owner page7 visual acceptance stays
+alongside original safety_failed. No full check/test suite rerun for prose/docs.
+
 ## Expression concurrent-clause correction — 2026-09-13
 
 Supplied Claude re-gate PASS P0=0/P1=0/P2=1 covers exactly

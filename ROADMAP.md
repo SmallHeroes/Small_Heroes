@@ -2,6 +2,16 @@
 
 ## Owner sequencing update — 2026-09-13
 
+Current: supplied Claude PASS0/0/0 for81738ff1..ca29d599 closes the remaining
+expression P2, not the full repository gate. Guy approved moving to story work.
+A separate12-page Dini rewrite and readable Bar copy now await Guy's creative
+judgment under outputs/dini-story-rewrite-20260913/ (local-only staging).
+No accepted source, Blueprint, image or reader replacement. Content acceptance
+must precede a new approved revision, then separate Blueprint/render decisions.
+Full-check reliability, reader QA and recurring cake/cart continuity remain open.
+
+Previous concurrent-clause checkpoint:
+
 Latest: Claude supplied PASS0/0/1 for e1bdc90d..81738ff1 and closed the three
 earlier expression P2s. The remaining narrow watch-with/as actor leak is now
 corrected locally:284 focused tests/tsc pass, real-book offline audit byte-identical.
@@ -30,7 +40,7 @@ package, images and reader are unchanged. Next is story improvement with Guy;
 new planning and a visual audition come afterward, not an automatic whole-book
 rerender. No independent PASS or customer-readiness claim follows.
 
-**Last verified:** 2026-09-13 (supplied independent re-gate PASS e1bdc90d..81738ff1, new as-boundary P2 correction re-gate pending; reader predecessor unreviewed; resource reliability P1 open; Dini story/prop continuity and page7 numeric evidence open; no new renders or customer-readiness claim)
+**Last verified:** 2026-09-13 (supplied independent re-gate PASS81738ff1..ca29d599; separate story rewrite awaiting Guy, no content acceptance/revision activation; reader predecessor unreviewed; stability P1, prop continuity and page7 numeric evidence open; no renders or customer-readiness claim)
 **Product priority owner:** Guy
 **Technical sequencing owner:** Codex
 
