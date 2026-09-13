@@ -1,0 +1,23 @@
+{
+  "approvedContent": {
+    "creativeBriefSha256": "60e2630986ad4fdb72c9ae72ca3e8a023385adee3cff58761dcfe18a7f18d1f8",
+    "editorialReviewSha256": "9598627f72507b93ddd7f7722f167077a02b9db65b59cabab4be5e81d9b5fc36",
+    "storySha256": "225f2b01b3fa2247b0dbffcd86b3bcfd4c89b2a90ae38af8b1842b1341826fd8"
+  },
+  "identity": {
+    "briefId": "dragon_dini_adventure_shared_cake_delivery_revision02",
+    "category": "NEW_SIBLING",
+    "companionId": "dragon_dini",
+    "direction": "adventure",
+    "pageCount": 12
+  },
+  "predecessor": {
+    "manifestPath": "story-pipeline/04_approved_story_sources/accepted/dragon_dini_adventure/revisions/64dcd0e741f17fc08cde95ad8a5a00b303955aa28ccd065d44f01e49e9d155fc/manifest.json",
+    "manifestSha256": "cd99b3ddbfc34bcca682888e142f6103ba09f2a5b758496bf9b4f9838bb1b505",
+    "revisionDigest": "64dcd0e741f17fc08cde95ad8a5a00b303955aa28ccd065d44f01e49e9d155fc"
+  },
+  "sourceGenderMode": "neutral",
+  "sourceProfile": "gender_flexible",
+  "storyKey": "dragon_dini_adventure",
+  "version": "small-heroes-story-source-creative-replacement-identity/v1"
+}

@@ -2,6 +2,16 @@
 
 ## Owner sequencing update — 2026-09-13
 
+Latest: Guy accepted the delegated editorial review and text-only publication.
+New accepted Dini text revisionf77f4ca5... is published locally as7 immutable
+files, runtime-ineligible pending visual directions. Real reload/idempotent replay
+and13 lifecycle tests/tsc passed;28 old source/book files including13 images
+unchanged, old package still selected. No rendering, code change, runtime cutover
+or push. Earlier publication-pending statements below are historical. Next is
+new visual-direction/Blueprint/package preparation and review, not automatic
+reuse of old illustrations or permission to spend. Full-check/stability and
+other open technical gates remain unchanged. See CURRENT and publication gate.
+
 Current delegated-review update: Guy authorized alternate agents. Editorial
 review passed unchanged225f2b01... and its descriptive metadata; technical agent
 passed the general v4 predecessor adapter range39c528a4..0951cc8a. No findings.

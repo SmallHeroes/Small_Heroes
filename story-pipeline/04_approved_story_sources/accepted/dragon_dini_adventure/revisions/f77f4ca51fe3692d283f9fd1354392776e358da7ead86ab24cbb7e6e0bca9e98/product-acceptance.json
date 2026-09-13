@@ -1,0 +1,35 @@
+{
+  "acceptedAt": "2026-09-13T15:28:14.000Z",
+  "acceptedBy": "Guy",
+  "approvedEditorialReviewSha256": "9598627f72507b93ddd7f7722f167077a02b9db65b59cabab4be5e81d9b5fc36",
+  "approvedStoryRevisionSha256": "225f2b01b3fa2247b0dbffcd86b3bcfd4c89b2a90ae38af8b1842b1341826fd8",
+  "decision": "Guy replied yes to accepting the new delegated editorial review and publishing the already accepted revision-02 text only, without rendering. acceptedAt records Codex's observation time of this approval, not a supplied message timestamp. No runtime locator, Blueprint, visual package, render, deployment or push authority follows.",
+  "digest": "4980f69ff7cbe18511f77c50866d6ecd5f817413fa0c54632717ee78c67baf10",
+  "exclusions": [
+    "blueprint",
+    "deployment",
+    "production",
+    "render",
+    "runtime_locator",
+    "story_bank",
+    "visual_contract",
+    "visual_directions",
+    "visual_package",
+    "wizard"
+  ],
+  "predecessor": {
+    "manifestPath": "story-pipeline/04_approved_story_sources/accepted/dragon_dini_adventure/revisions/64dcd0e741f17fc08cde95ad8a5a00b303955aa28ccd065d44f01e49e9d155fc/manifest.json",
+    "manifestSha256": "cd99b3ddbfc34bcca682888e142f6103ba09f2a5b758496bf9b4f9838bb1b505",
+    "revisionDigest": "64dcd0e741f17fc08cde95ad8a5a00b303955aa28ccd065d44f01e49e9d155fc"
+  },
+  "reviewBundle": {
+    "digest": "fb16b1a8c2aa4d77f0c91ba87d4b9d771315aed7b3c5b64e09d2e28a86f1a65e",
+    "sha256": "b147486c942b57fa01d340cb04df2520c58af60322247d455fdafdcea323c9d9"
+  },
+  "revisionDigest": "f77f4ca51fe3692d283f9fd1354392776e358da7ead86ab24cbb7e6e0bca9e98",
+  "sourceGenderMode": "neutral",
+  "sourceProfile": "gender_flexible",
+  "status": "accepted",
+  "storyKey": "dragon_dini_adventure",
+  "version": "small-heroes-story-source-creative-replacement-product-acceptance/v1"
+}

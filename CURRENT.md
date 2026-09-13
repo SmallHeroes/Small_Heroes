@@ -1,5 +1,43 @@
 # SmallHeroes — Current Technical State
 
+## Dini text successor published locally — 2026-09-13
+
+Guy explicitly answered yes to acceptance of the new delegated editorial review
+and text-only publication, without rendering. New immutable accepted revision:
+f77f4ca51fe3692d283f9fd1354392776e358da7ead86ab24cbb7e6e0bca9e98,
+under story-pipeline/04_approved_story_sources/accepted/dragon_dini_adventure/revisions/.
+Seven files include unchanged approved story225f2b01..., review9598627f...,
+brief60e26309... and exact product acceptance. Manifest raw SHA
+cc7c81e1676be63f548c056d5be572281e536c0de1da81026ad7ddee24b52dfa.
+acceptedAt2026-09-13T15:28:14.000Z is the approval observation time, not an
+asserted original message timestamp. Pending packets/notes below are historical.
+
+Real lifecycle preview exit0; publish created:true; shared self-contained reload
+exit0; identical replay created:false. Before/after hashes match for28 existing
+source/book-review files, including13/13 original images. Old package4d6e8dee
+still selected and render-qualified; no locator change. New authority is strictly
+story_text_only, runtimeEligibility.eligible=false (visual_directions_not_approved).
+No new integrated.md, Blueprint, visual contract/package, image, reader or code edit.
+
+13/13 lifecycle tests and npx tsc --noEmit pass this turn. Full check not rerun
+for data/docs; prior5988pass/7timeout/73skip remains NON-GREEN, not waived.
+Raw staged diff check exits2 for one existing EOF blank line in the hash-bound
+creative brief; exact reviewed bytes retained, all7 staged blobs match published
+files. Diagnostic excluding only blank-at-eof exits0; no Git setting changed.
+Delegated reviews cover manuscript and prior code39c528a4..0951cc8a, not independent
+QA of this publication. No Claude PASS extension, release or visual acceptance.
+Same sole-writer task/branch/worktree; start3af5fec9 clean/ahead11. Protected
+dependencies768ccb2f/63ccb484 clean. No credential access, provider, cost or push.
+
+Gate/evidence: docs/ai-workflow/DINI_TEXT_PUBLICATION_GATE_20260913.md.
+Local execution logs/request: outputs/dini-story-rewrite-20260913/execution-01/.
+Accepted source files are included in the local Git milestone; output logs and
+readable draft copy remain ignored/local-only, no verified off-machine backup.
+Next: derive/review new visual directions and reconcile a new Blueprint/package
+before any separate rendering decision. Old13 images remain tied to old source.
+Stability P1, reader-route QA, recurring-object gate and page7 numeric evidence
+remain open; Guy's page7 visual acceptance coexists with original safety_failed.
+
 ## Delegated review and general v4 source adapter — 2026-09-13
 
 Full npm run check completed exit1: ordinary5324 pass/73 skip; resource664 pass/
