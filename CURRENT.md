@@ -1,5 +1,31 @@
 # SmallHeroes — Current Technical State
 
+## Owner-accepted Dini rewrite — source preparation, publication pending
+
+2026-09-13: Guy's "מעולה תמשיך לביצוע" accepts revision02 wording
+(SHA225f2b01...); previous awaiting-content-decision statements below are historical.
+Approval permits source preparation, not a fabricated independent editorial PASS
+or paid Blueprint/render. Local owner observation and preflight evidence:
+outputs/dini-story-rewrite-20260913/execution-01/.
+Gate: docs/ai-workflow/DINI_REWRITE_SOURCE_PREPARATION_GATE_20260913.md.
+
+Actual shared checks pass: canonical neutral12-page candidate, both materializer
+gender projections, full v4 predecessor authority validation, current package
+qualification and13/13 old images. Final preflight exit0; first helper import-path
+failure preserved. No accepted revision published, runtime locator changed,
+source/Blueprint/package replaced, provider called or render performed.
+
+Publication prerequisites remain: an independent editorial/artifact review of
+the exact new story, and general v4-predecessor support in the creative-replacement
+publisher. Its CJS loadPredecessor currently accepts v2/creative-v1 only; the shared
+TS validator already accepts and verifies real v4 but is not wired there. No
+allowlist-only workaround, older ancestor fork or self-issued PASS created.
+The lifecycle's exact editorial-review acceptance cannot be bound before that
+review exists. Technical adapter is investigated but NOT implemented this turn.
+Do not ask Guy to approve the same unchanged story again; changes arising from
+review remain subject to his product judgment. No new code PASS or full-check
+green claimed; existing stability/reader/prop/page7 evidence boundaries persist.
+
 ## Dini draft revision 02 — four owner-approved edits, 2026-09-13
 
 Guy approved implementing four focused creative edits, not final content

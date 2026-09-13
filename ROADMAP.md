@@ -2,6 +2,13 @@
 
 ## Owner sequencing update — 2026-09-13
 
+Latest: Guy accepted revision02 wording and authorized execution. Source
+preparation verifies the candidate and preserves the old qualified book. No new
+source revision published yet: independent editorial/artifact review is missing,
+and creative-replacement lifecycle lacks v4-predecessor support (general adapter
+not implemented). No rerender/Blueprint spend or old-source overwrite. Details
+and exact proof in CURRENT and DINI_REWRITE_SOURCE_PREPARATION_GATE_20260913.md.
+
 Story update: Guy approved four focused edits; revision02 now exists separately
 under outputs/dini-story-rewrite-20260913/revision-02/ for his reading. Only
 pages1/6/8/10/12 changed. No final content acceptance, source activation or render.
