@@ -2,6 +2,10 @@
 
 ## Owner sequencing update — 2026-09-13
 
+Story update: Guy approved four focused edits; revision02 now exists separately
+under outputs/dini-story-rewrite-20260913/revision-02/ for his reading. Only
+pages1/6/8/10/12 changed. No final content acceptance, source activation or render.
+
 Current: supplied Claude PASS0/0/0 for81738ff1..ca29d599 closes the remaining
 expression P2, not the full repository gate. Guy approved moving to story work.
 A separate12-page Dini rewrite and readable Bar copy now await Guy's creative

@@ -1,5 +1,23 @@
 # SmallHeroes — Current Technical State
 
+## Dini draft revision 02 — four owner-approved edits, 2026-09-13
+
+Guy approved implementing four focused creative edits, not final content
+acceptance: birthday-friend motivation on page1, Dini's useful market solution
+on6, coordinated recovery causing the cake dance on10, and the same strawberry
+on8/12 with explicit transfer to the child's slice. Only pages1/6/8/10/12 changed;
+the other7 pages and the first draft are preserved. Both gender readings inspected.
+New local staging directory: outputs/dini-story-rewrite-20260913/revision-02/.
+draft.md SHA256:225f2b01b3fa2247b0dbffcd86b3bcfd4c89b2a90ae38af8b1842b1341826fd8.
+read-with-bar.md SHA256:cefeb0056b5f15f275c4ea2f97ab36ec91595575e705faf0d14e153cdb7ca0f4.
+12 pages retained; previous draft hashes below unchanged, old accepted source
+a5942c36... unchanged,13/13 original image hashes intact. No production edit,
+source approval/migration, Blueprint, reader replacement, render, spend or push.
+Same sole-writer worktree/branch; start4e14e9b7 clean/ahead7, protected dependencies
+768ccb2f/63ccb484 clean. Drafts remain ignored/local-only, not preserved by Git push.
+Next is Guy's reading of revision02; approval to edit is not acceptance to activate.
+All technical PASS boundaries and open gates below remain unchanged.
+
 ## Dini story rewrite — owner-review draft, 2026-09-13
 
 Claude supplied PASS P0=0/P1=0/P2=0 for exactly
