@@ -1,7 +1,7 @@
-import { stripNikud } from '@/lib/hebrew-text';
+import { stripNikud } from '../hebrew-text';
 import type { Finding, FindingSeverity } from './types';
 
-export { stripNikud } from '@/lib/hebrew-text';
+export { stripNikud } from '../hebrew-text';
 
 export function normalizeCompanionId(raw: string): string {
   return raw.trim().toLowerCase().replace(/-/g, '_');

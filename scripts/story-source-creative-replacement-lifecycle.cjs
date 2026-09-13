@@ -406,6 +406,7 @@ function loadPredecessor(request, roots = {}) {
     (manifest.version ===
       'small-heroes-product-accepted-story-source-revision-manifest/v2' &&
       manifest.status === 'product_accepted_story_source_revision') ||
+    manifest.version === 'small-heroes-product-accepted-story-source-revision-manifest/v4' ||
     (manifest.version === ACCEPTED_REVISION_VERSION &&
       manifest.status === ACCEPTED_REVISION_STATUS);
   if (
@@ -416,6 +417,27 @@ function loadPredecessor(request, roots = {}) {
     !canonicalDigestIsValid(manifest)
   ) {
     throw new Error('story_source_creative_replacement_predecessor_invalid');
+  }
+  if (manifest.version === 'small-heroes-product-accepted-story-source-revision-manifest/v4') {
+    // Keep both this synchronous CLI and self-contained successor reload on the
+    // genuine full v4 validator, not merely its version label or manifest hash.
+    try {
+      const { loadAcceptedStorySourceAuthoringAuthority } = require('tsx/cjs/api').require(
+        '../lib/visual-package/acceptedStorySourceAuthoringAuthority.ts', __filename,
+      );
+      const authority = loadAcceptedStorySourceAuthoringAuthority({
+        repoRoot,
+        storyKey: request.storyKey,
+        storyPath: `${acceptedRoot}/${request.storyKey}/revisions/${request.predecessor.revisionDigest}/integrated.md`,
+        acceptedRootRelative: acceptedRoot,
+      });
+      if (!authority || authority.revisionDigest !== request.predecessor.revisionDigest ||
+          authority.manifestSha256 !== file.sha256 || authority.manifestDigest !== manifest.digest) {
+        throw new Error('identity_mismatch');
+      }
+    } catch {
+      throw new Error('story_source_creative_replacement_predecessor_invalid');
+    }
   }
   return { file, manifest };
 }

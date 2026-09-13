@@ -2,8 +2,8 @@ import { createHash } from 'crypto';
 import fs from 'fs';
 import path from 'path';
 
-import { canonicalHash } from '@/lib/canonical-json';
-import { parseStoryMarkdown } from '@/lib/story-validators/parser';
+import { canonicalHash } from '../canonical-json';
+import { parseStoryMarkdown } from '../story-validators/parser';
 
 import {
   STORY_SOURCE_IDENTITY_VERSION,

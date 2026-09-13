@@ -1,5 +1,24 @@
 # SmallHeroes — Current Technical State
 
+## Delegated review and general v4 source adapter — 2026-09-13
+
+Guy explicitly authorized other agents while Claude is paused. Independent
+delegated editorial agent /root/dini_editorial_review returned pass on exact
+225f2b01... manuscript, no revisions; real both-gender projections inspected.
+JSON plus separate attribution in outputs/dini-story-rewrite-20260913/execution-01/.
+This is that agent's editorial judgment, not Claude Code PASS or self-PASS.
+
+General adapter implemented in the creative replacement's common predecessor
+loader: existing full shared v4 validator, exact revision/manifest bindings,
+sync CJS API retained. Six import/re-export paths in3 TS files made relative so
+foreign cwd cannot bind another worktree's code. No duplicated validator or new
+schema; v2/creative-v1 unchanged. Gate CREATIVE_REPLACEMENT_V4_ADAPTER_GATE_20260913.md.
+90 focused/adjacent tests pass in8 specs; initial before-code regression3 failed/
+9 passed. Full repository check running, not green yet. Technical agent review of
+completed immutable range follows. No real source publication, runtime cutover,
+provider/render, credential access or push. Older unmet-editorial/adapter notes
+below are historical; publication prerequisites and existing open gates persist.
+
 ## Owner-accepted Dini rewrite — source preparation, publication pending
 
 2026-09-13: Guy's "מעולה תמשיך לביצוע" accepts revision02 wording

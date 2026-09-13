@@ -2,11 +2,11 @@ import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { canonicalize } from '@/lib/canonical-json';
+import { canonicalize } from '../canonical-json';
 import {
   assertValidStoryVisualContinuityIntent,
   type StoryVisualContinuityIntent,
-} from '@/lib/visual-contract-compiler/storyVisualContinuityIntent';
+} from '../visual-contract-compiler/storyVisualContinuityIntent';
 
 import { repoRelativePath } from './integrity';
 

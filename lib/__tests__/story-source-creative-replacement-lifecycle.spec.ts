@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { createRequire } from 'node:module';
+import { spawnSync } from 'node:child_process';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
@@ -204,6 +205,113 @@ afterEach(() => {
   for (const root of temporaryRoots.splice(0)) {
     fs.rmSync(root, { recursive: true, force: true });
   }
+});
+
+function buildV4Fixture() {
+  const fixture = buildFixture();
+  const storyKey = 'dragon_dini_adventure';
+  const digest = '64dcd0e741f17fc08cde95ad8a5a00b303955aa28ccd065d44f01e49e9d155fc';
+  const predecessorRoot = `story-pipeline/04_approved_story_sources/accepted/${storyKey}/revisions/${digest}`;
+  fs.cpSync(path.join(REPO_ROOT, predecessorRoot), path.join(fixture.root, predecessorRoot), { recursive: true });
+  const predecessorPath = path.join(fixture.root, predecessorRoot, 'manifest.json');
+  const bytes = fs.readFileSync(predecessorPath);
+  const brief = { ...creativeBrief(), category: 'NEW_SIBLING', direction: 'adventure', pageCount: 12 };
+  writeJson(fixture.briefPath, brief);
+  const text = `---\ntitle: "{{childName}} והדרך החדשה"\ncompanionId: dragon_dini\ndirection: adventure\ncategory: NEW_SIBLING\npages: 12\ngender: neutral\nendingType: resolution\n---\n\n${Array.from({ length: 12 }, (_, i) => `--- Page ${i + 1} ---\n\n{{childName}} {פתח|פתחה} את השער.\n`).join('\n')}`;
+  writeBytes(fixture.storyPath, text);
+  const request = {
+    ...fixture.request, storyKey,
+    identity: { companionId: 'dragon_dini', category: 'NEW_SIBLING', direction: 'adventure', pageCount: 12 },
+    predecessor: { manifestPath: relative(fixture.root, predecessorPath), manifestSha256: materializer.sha256(bytes), revisionDigest: digest },
+    creativeBrief: { ...fixture.request.creativeBrief, sha256: materializer.sha256(fs.readFileSync(fixture.briefPath)) },
+    storyRevision: { ...fixture.request.storyRevision, sha256: materializer.sha256(text) },
+    approvedStoryRevisionSha256: materializer.sha256(text),
+  };
+  writeJson(fixture.requestPath, request);
+  return { ...fixture, request, predecessorPath, predecessorRoot, predecessorBytes: bytes };
+}
+
+describe('creative replacement from fully verified v4 predecessor', () => {
+  it('publishes and reloads without staging, then rejects a corrupted predecessor', () => {
+    const fixture = buildV4Fixture();
+    const args = { requestPath: relative(fixture.root, fixture.requestPath), write: false };
+    const preview = lifecycle.publish(args, fixture.roots);
+    expect(preview.created).toBe(false);
+    const published = lifecycle.publish({ ...args, write: true }, fixture.roots);
+    expect(published.revisionDigest).toBe(preview.revisionDigest);
+    expect(published.manifest.runtimeEligibility.eligible).toBe(false);
+    const manifestPath = `${published.target}/manifest.json`;
+    expect(lifecycle.publish({ ...args, write: true }, fixture.roots).created).toBe(false);
+    fs.rmSync(path.join(fixture.root, 'outputs'), { recursive: true, force: true });
+    expect(lifecycle.loadAcceptedCreativeReplacement({ manifestPath }, fixture.roots).storySha256)
+      .toBe(fixture.request.approvedStoryRevisionSha256);
+    fs.appendFileSync(path.join(fixture.root, fixture.predecessorRoot, 'story.md'), 'tamper');
+    expect(() => lifecycle.loadAcceptedCreativeReplacement({ manifestPath }, fixture.roots))
+      .toThrow('story_source_creative_replacement_predecessor_invalid');
+  });
+
+  it.each(['story.md', 'technical-review.json', 'product-acceptance.json', 'revision-identity.json'])(
+    'rejects a tampered v4 %s before creating a successor', filename => {
+      const fixture = buildV4Fixture();
+      fs.appendFileSync(path.join(fixture.root, fixture.predecessorRoot, filename), 'tamper');
+      const before = fs.readdirSync(path.dirname(fixture.predecessorPath));
+      expect(() => lifecycle.publish({ requestPath: relative(fixture.root, fixture.requestPath), write: true }, fixture.roots))
+        .toThrow('story_source_creative_replacement_predecessor_invalid');
+      expect(fs.readdirSync(path.dirname(fixture.predecessorPath))).toEqual(before);
+      expect(fs.readdirSync(path.dirname(path.dirname(fixture.predecessorPath))))
+        .toEqual([fixture.request.predecessor.revisionDigest]);
+    },
+  );
+
+  it('rejects an incomplete v4 inventory and a second distinct successor', () => {
+    const missing = buildV4Fixture();
+    fs.unlinkSync(path.join(missing.root, missing.predecessorRoot, 'technical-review.json'));
+    expect(() => lifecycle.publish({ requestPath: relative(missing.root, missing.requestPath), write: false }, missing.roots))
+      .toThrow('story_source_creative_replacement_predecessor_invalid');
+    const fork = buildV4Fixture();
+    const args = { requestPath: relative(fork.root, fork.requestPath), write: true };
+    lifecycle.publish(args, fork.roots);
+    const revised = fs.readFileSync(fork.storyPath, 'utf8').replace('את השער', 'את הדלת');
+    writeBytes(fork.storyPath, revised);
+    writeJson(fork.requestPath, { ...fork.request,
+      storyRevision: { ...fork.request.storyRevision, sha256: materializer.sha256(revised) },
+      approvedStoryRevisionSha256: materializer.sha256(revised),
+    });
+    expect(() => lifecycle.publish(args, fork.roots)).toThrow('story_source_creative_replacement_predecessor_not_current');
+  });
+
+  it('rejects rehashed v4 authority drift and hard-linked predecessor files', () => {
+    const forged = buildV4Fixture();
+    const manifest = JSON.parse(fs.readFileSync(forged.predecessorPath, 'utf8'));
+    manifest.acceptedWorldMode = 'fantasy';
+    const { digest: _oldDigest, ...payload } = manifest;
+    writeJson(forged.predecessorPath, { ...payload, digest: materializer.sha256(materializer.canonicalBytes(payload)) });
+    writeJson(forged.requestPath, { ...forged.request, predecessor: {
+      ...forged.request.predecessor, manifestSha256: materializer.sha256(fs.readFileSync(forged.predecessorPath)),
+    } });
+    expect(() => lifecycle.publish({ requestPath: relative(forged.root, forged.requestPath), write: false }, forged.roots))
+      .toThrow('story_source_creative_replacement_predecessor_invalid');
+    const linked = buildV4Fixture();
+    fs.linkSync(path.join(linked.root, linked.predecessorRoot, 'story.md'), path.join(linked.root, 'linked-story.md'));
+    expect(() => lifecycle.publish({ requestPath: relative(linked.root, linked.requestPath), write: false }, linked.roots))
+      .toThrow('story_source_creative_replacement_predecessor_invalid');
+  });
+
+  it('runs the unchanged sync CJS interface in plain Node despite foreign cwd aliases', () => {
+    const fixture = buildV4Fixture();
+    writeJson(path.join(fixture.root, 'tsconfig.json'), {
+      compilerOptions: { baseUrl: '.', paths: { '@/*': ['./nonexistent-foreign-code/*'] } },
+    });
+    const child = spawnSync(process.execPath, ['-e',
+      `const lifecycle=require(process.argv[1]);const r=lifecycle.publish(JSON.parse(process.argv[2]),JSON.parse(process.argv[3]));console.log(JSON.stringify(r));`,
+      path.join(REPO_ROOT, 'scripts/story-source-creative-replacement-lifecycle.cjs'),
+      JSON.stringify({ requestPath: relative(fixture.root, fixture.requestPath), write: false }),
+      JSON.stringify(fixture.roots),
+    ], { cwd: fixture.root, encoding: 'utf8' });
+    expect(child.stderr).toBe('');
+    expect(child.status).toBe(0);
+    expect(JSON.parse(child.stdout).manifest.runtimeEligibility.eligible).toBe(false);
+  });
 });
 
 describe('general Story Source creative replacement lifecycle', () => {
