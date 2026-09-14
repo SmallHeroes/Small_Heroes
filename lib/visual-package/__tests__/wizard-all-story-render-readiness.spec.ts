@@ -33,6 +33,8 @@ const CHAMELEON_SOURCE =
 const CHAMELEON_PACKAGE =
   '836a3414174dbe3060010371e81ebdbef821f705650a199cc4bbfd70081d523f';
 const DINI_STORY_KEY = 'dragon_dini_adventure';
+const DINI_APPROVED_PACKAGE_SOURCE =
+  'story-pipeline/04_approved_story_sources/accepted/dragon_dini_adventure/revisions/64dcd0e741f17fc08cde95ad8a5a00b303955aa28ccd065d44f01e49e9d155fc/integrated.md';
 const DINI_TEXT_ONLY_REVISION =
   'f77f4ca51fe3692d283f9fd1354392776e358da7ead86ab24cbb7e6e0bca9e98';
 
@@ -229,6 +231,10 @@ describe('Wizard all-story render-readiness control plane', () => {
             path: null,
             issues: ['strict_accepted_product_revision_unavailable'],
           },
+          approvedVisualPackageSource: {
+            available: true,
+            path: DINI_APPROVED_PACKAGE_SOURCE,
+          },
           currentProductSourceRole: null,
           currentProductSourcePath: null,
           corpusDecisionRequired: false,
@@ -236,6 +242,9 @@ describe('Wizard all-story render-readiness control plane', () => {
         productionStages: {
           sourceCorpusConfirmed: false,
           acceptedSourceRevision: false,
+          // This qualifies the old package against its own bound integrated source;
+          // the text-only successor remains blocked and is not the current source.
+          renderQualified: true,
         },
         nextCanonicalAction: {
           code: 'prepare_and_accept_story_source_revision',

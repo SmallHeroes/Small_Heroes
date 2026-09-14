@@ -9,13 +9,29 @@ accepted story.md but no reviewed integrated.md. Production behavior was verifie
 valid product acceptance makes lineage present and closes V3 fallback, while the
 strict accepted-source inventory deliberately enumerates only integrated.md
 revisions. The intended fail-closed boundary is therefore retained: text-only
-acceptance cannot become current product source or narration/render authority.
+acceptance cannot become current product source, narration input or new render/spend
+authority for that text.
+
+Claude's independent re-gate of3073b5ca..2ff3b4bd returned PASS0/0/1 and closed
+the original missing-coverage P2. Its new P2 found one unstated split in the record:
+`productionStages.renderQualified` remains true because approved package4d6e8dee
+is still qualified against its own older bound source64dcd0e7. That does not select
+or qualify text-only successorf77f4ca5, whose current source remains null and whose
+missing-revision blocker controls the next action. The correction now pins both the
+true render-qualified flag and the exact old package-bound source, and narrows the
+contract wording instead of changing production behavior.
+Correction validation: exact text-only test1/1 in1.41s, complete changed spec16/16
+in14.32s, `npx tsc --noEmit` and `git diff --check` pass. The full check was not
+rerun for this additive assertion/documentation correction; the immediately prior
+NON-GREEN result and all three timeout records remain current and unwaived.
 
 Test-only coverage now copies exactly accepted Dini revision f77f4ca5 into a
 contained temporary accepted root and proves lineage present, zero strict accepted
 revisions, unavailable current source, null text readiness, blocker
 accepted_story_source_revision_missing, the visual-direction acceptance next action,
-Guy decision required and provider spend false. It removes only its own mkdtemp root
+Guy decision required and provider spend false. It also proves the old approved
+package remains independently qualified against its exact bound integrated source.
+It removes only its own mkdtemp root
 in finally. The existing canonical integrated baseline was strengthened to prove
 Dini's narration-input, critical-TTS and automated-preflight readiness plus zero
 soft-TTS items. A first two-audit version passed alone but crossed the 5s test limit

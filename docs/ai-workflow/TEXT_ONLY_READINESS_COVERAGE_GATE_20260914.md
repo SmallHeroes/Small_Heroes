@@ -12,9 +12,12 @@ and closes V3 fallback. A creative-replacement revision has story.md and
 runtimeEligibility false; acceptedProductSourceRevisionInventory deliberately
 enumerates only fully reviewed integrated.md authoring revisions. Therefore a
 text-only-only lineage must not become current product source, narration input,
-or render authority. It reports accepted_story_source_revision_missing and routes
-to visual-direction review/acceptance. When the matching integrated revision is
-added, the strict accepted source becomes available and text readiness is computed.
+or new render/spend authority for that text. It reports
+accepted_story_source_revision_missing and routes to visual-direction
+review/acceptance. A pre-existing approved package may remain render-qualified
+against its own bound older integrated source; that status does not select or
+qualify the text-only successor. When the matching integrated revision is added,
+the strict accepted source becomes available and text readiness is computed.
 
 This is a safety boundary, not a defect correction: accepted prose may exist
 without being served against a stale visual package. The dedicated test must use
@@ -54,10 +57,30 @@ and matching stderr
 
 Acceptance: the dedicated text-only phase proves lineage present, zero strict revisions, no
 current source/text readiness, revision-missing blocker and no provider-spend
-authority. The existing canonical integrated baseline proves selected accepted
-source, successful supported narration/gender/critical gates, zero soft-TTS items
-and no blocker. The isolated test must remain independent of future accepted Dini
-revisions by copying only the exact text-only revision it owns.
+authority. It also pins the deliberately surprising split: the old package remains
+render-qualified and exposes its exact bound older integrated source, while the
+text-only successor is not selected or qualified. The existing canonical integrated
+baseline proves selected accepted source, successful supported narration/gender/
+critical gates, zero soft-TTS items and no blocker. The isolated test must remain
+independent of future accepted Dini revisions by copying only the exact text-only
+revision it owns.
+
+## Independent re-gate and P2 clarification
+Claude independently returned PASS P0=0/P1=0/P2=1 for
+3073b5ca9c141a8185894b8a6b759cd1ba93c64f..2ff3b4bd28bce5fb4a025f87f3c3a8aaf89f9b3f
+and closed the original missing-coverage P2. Its new P2 correctly observed that the
+test did not pin `productionStages.renderQualified: true`, despite the gate's broad
+"no render authority" wording. Production inspection and Claude's whole-record
+probe agree: the flag belongs to approved package4d6e8dee and its bound
+64dcd0e7 integrated source, not to f77f4ca5. This correction adds the explicit
+positive package-source and render-qualified assertions and narrows the prose; it
+does not change runtime behavior, thresholds or authority.
+
+Correction validation: exact selected test1/1 in1.412s; complete changed spec16/16
+in14.32s; `npx tsc --noEmit` and `git diff --check` exit0. The full check was not
+rerun because this correction adds assertions and documentation only. Its immediately
+prior NON-GREEN result and three timeout records above remain current and receive no
+waiver or classification.
 
 ## Stop-check and exclusions
 Test-only general authority-boundary coverage, zero production behavior or spend.

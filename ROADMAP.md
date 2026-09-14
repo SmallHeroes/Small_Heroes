@@ -5,8 +5,12 @@
 Latest 2026-09-14: Claude accepted the fixture fix through3073b5ca with
 PASS0/0/1 and requested one missing authority-boundary test. Test-only coverage now
 pins that accepted story.md without reviewed integrated.md produces lineage present
-but no current source, narration/render authority or spend; the canonical integrated
-baseline proves the ready side. Changed spec16/16 and tsc pass. Full check exit1:
+but no current source, narration or new render/spend authority. Claude's re-gate
+closed that P2 with PASS0/0/1 and identified one clarification: the old package
+correctly remains render-qualified against its own older bound source. The correction
+pins that split explicitly; the canonical integrated baseline proves the ready side.
+Correction test1/1, changed spec16/16 and tsc pass; full check was not rerun for the
+additive assertion/docs correction. Its preceding result remains exit1:
 ordinary5337pass/2timeouts/73skip; resource670pass/1timeout. The new test passes
 inside the full run; all3 failures are5s timeouts in pre-existing tests and stability
 remains open without waiver or timeout increase. No product bytes or render changed.
