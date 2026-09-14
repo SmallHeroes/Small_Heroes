@@ -32,6 +32,9 @@ const CHAMELEON_SOURCE =
   'story-pipeline/04_approved_story_sources/accepted/chameleon_koko_bedtime/revisions/3ef645415b3cdd5945baeaa275d97ae0aa0491bf30addbcc46208475278f534a/integrated.md';
 const CHAMELEON_PACKAGE =
   '836a3414174dbe3060010371e81ebdbef821f705650a199cc4bbfd70081d523f';
+const DINI_STORY_KEY = 'dragon_dini_adventure';
+const DINI_TEXT_ONLY_REVISION =
+  'f77f4ca51fe3692d283f9fd1354392776e358da7ead86ab24cbb7e6e0bca9e98';
 
 function baseline() {
   vi.stubEnv('ENABLE_V3_APPROVED_BANK', 'true');
@@ -88,7 +91,10 @@ describe('Wizard all-story render-readiness control plane', () => {
       nextCanonicalAction: null,
       productTextReadiness: {
         supportedGenderProjectionReady: true,
+        supportedNarrationInputReady: true,
+        supportedCriticalTtsGateReady: true,
         supportedNarrationAutomatedPreflightReady: true,
+        softTtsReviewItemCount: 0,
       },
       productionStages: {
         acceptedSourceRevision: true,
@@ -172,6 +178,74 @@ describe('Wizard all-story render-readiness control plane', () => {
       path: CHAMELEON_SOURCE,
     });
     expect(chameleon?.sources.corpusDecisionRequired).toBe(false);
+  });
+
+  it('keeps a text-only accepted revision out of current source and narration authority', () => {
+    const temporaryRoot = fs.mkdtempSync(
+      path.join(REPO, 'outputs', 'wizard-text-only-readiness-'),
+    );
+    try {
+      const acceptedRoot = path.join(temporaryRoot, 'accepted');
+      const revisionsRoot = path.join(
+        acceptedRoot,
+        DINI_STORY_KEY,
+        'revisions',
+      );
+      fs.mkdirSync(revisionsRoot, { recursive: true });
+      const canonicalRevisionsRoot = path.join(
+        REPO,
+        'story-pipeline/04_approved_story_sources/accepted',
+        DINI_STORY_KEY,
+        'revisions',
+      );
+      fs.cpSync(
+        path.join(canonicalRevisionsRoot, DINI_TEXT_ONLY_REVISION),
+        path.join(revisionsRoot, DINI_TEXT_ONLY_REVISION),
+        { recursive: true },
+      );
+      const acceptedRootRelative = path
+        .relative(REPO, acceptedRoot)
+        .split(path.sep)
+        .join('/');
+      vi.stubEnv('ENABLE_V3_APPROVED_BANK', 'true');
+      vi.stubEnv('ENABLE_WIZARD_QA_RENDER_CATALOG', 'false');
+
+      const textOnly = auditWizardAllStoryRenderReadiness({
+        repoRoot: REPO,
+        now: FIXED_NOW,
+        acceptedRootRelative,
+      });
+      const textOnlyDini = textOnly.records.find(
+        (record) => record.storyKey === DINI_STORY_KEY,
+      )!;
+      expect(textOnlyDini).toMatchObject({
+        acceptedProductLineage: { kind: 'present' },
+        productTextReadiness: null,
+        earliestBlocker: 'accepted_story_source_revision_missing',
+        sources: {
+          acceptedProductRevisions: [],
+          acceptedProductSource: {
+            available: false,
+            path: null,
+            issues: ['strict_accepted_product_revision_unavailable'],
+          },
+          currentProductSourceRole: null,
+          currentProductSourcePath: null,
+          corpusDecisionRequired: false,
+        },
+        productionStages: {
+          sourceCorpusConfirmed: false,
+          acceptedSourceRevision: false,
+        },
+        nextCanonicalAction: {
+          code: 'prepare_and_accept_story_source_revision',
+          requiresGuyDecision: true,
+          providerSpendAuthorized: false,
+        },
+      });
+    } finally {
+      fs.rmSync(temporaryRoot, { recursive: true, force: true });
+    }
   });
 
   it('freezes direction contracts, policy blockers, narration review items, and product/UI mismatches', () => {

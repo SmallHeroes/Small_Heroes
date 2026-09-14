@@ -1,5 +1,44 @@
 # SmallHeroes — Current Technical State
 
+## Text-only accepted-source readiness coverage — 2026-09-14
+
+Claude supplied PASS P0=0/P1=0/P2=1 for exactly aa2e0711..3073b5ca and
+accepted the fixture-isolation correction. Its new P2 observed that no dedicated
+test pinned the Wizard behavior for a creative-replacement revision containing
+accepted story.md but no reviewed integrated.md. Production behavior was verified:
+valid product acceptance makes lineage present and closes V3 fallback, while the
+strict accepted-source inventory deliberately enumerates only integrated.md
+revisions. The intended fail-closed boundary is therefore retained: text-only
+acceptance cannot become current product source or narration/render authority.
+
+Test-only coverage now copies exactly accepted Dini revision f77f4ca5 into a
+contained temporary accepted root and proves lineage present, zero strict accepted
+revisions, unavailable current source, null text readiness, blocker
+accepted_story_source_revision_missing, the visual-direction acceptance next action,
+Guy decision required and provider spend false. It removes only its own mkdtemp root
+in finally. The existing canonical integrated baseline was strengthened to prove
+Dini's narration-input, critical-TTS and automated-preflight readiness plus zero
+soft-TTS items. A first two-audit version passed alone but crossed the 5s test limit
+under combined load; redundant work was removed instead of increasing a timeout.
+
+The changed Wizard spec passes 16/16; the new text-only test completes in2.31s
+alone and1.46s inside the full check. Adjacent four-spec run is56/57, with only
+the unchanged correction-acceptance :674 timeout; that same test also times out
+alone at5.72s. npx tsc --noEmit passes. Full npm run check remains NON-GREEN
+exit1: ordinary5337pass/2failed/73skip, resource670pass/1failed. All three are
+5s timeout records: two unchanged tests in the Wizard spec (allow-list override
+5.33s; semantic digest5.14s) and unchanged correction-acceptance isolation5.66s.
+The new coverage passes in that run. No timeout increase, waiver, stability closure
+or claim that failures are inherited/flaky.
+
+Gate: docs/ai-workflow/TEXT_ONLY_READINESS_COVERAGE_GATE_20260914.md. Same
+sole-writer task/worktree/branch, start3073b5ca clean/ahead14; protected dependencies
+768ccb2f/63ccb484 remain read-only. No production, story, accepted-source, reader,
+Blueprint, image, package, provider, credential, render, spend, deployment or push
+change. This coverage requires independent QA; repository stability remains open.
+After re-gate, the product path remains new visual directions, Blueprint and package
+for the accepted Dini text before any full-book render.
+
 ## Correction-acceptance fixture isolation — 2026-09-14
 
 Root cause of the deterministic readiness-summary failure at correction-acceptance
