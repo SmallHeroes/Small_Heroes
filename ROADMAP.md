@@ -2,6 +2,16 @@
 
 ## Owner sequencing update — 2026-09-13
 
+Latest 2026-09-14: deterministic readiness-summary failure root cause proved and
+fixed test-only. Historical fixture copied new Dini text-only lineage into an
+absent-to-present baseline. It now preserves all other accepted stories but starts
+with an empty safe Dini revisions skeleton; exact expectations unchanged. Corrected
+test, whole spec and adjacent suites57/57 plus tsc pass. Full check still exit1:
+5993pass/2failed tests/87skip plus one hook timeout; resource671/671. All3 timeout
+records are in2 unchanged files and both files pass isolated14/14 and131/131;
+no stability closure or root-cause claim. Independent re-gate pending. No product
+or render changes; next remains visual-direction/Blueprint/package preparation.
+
 2026-09-14: Claude supplied PASS0/0/3 for ca29d599..419a43b8. Guy approved
 bounded diagnostic/status correction, now implemented in the general lifecycle:
 explicit toolchain/load/unexpected-validator errors and early v4 accepted status.

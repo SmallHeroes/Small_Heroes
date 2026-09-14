@@ -191,15 +191,14 @@ function buildFixture() {
     acceptedRoot,
     { recursive: true },
   );
-  const fixtureRevisionRoot = path.join(
-    acceptedRoot,
-    STORY_KEY,
-    'revisions',
-    P1_REVISION_DIGEST,
-  );
-  if (fs.existsSync(fixtureRevisionRoot)) {
-    fs.rmSync(fixtureRevisionRoot, { recursive: true, force: true });
+  // This fixture measures one Dini acceptance moving from absent to present.
+  // Remove the story's whole copied lineage so later real successors cannot
+  // contaminate the baseline while every other accepted story stays intact.
+  const fixtureStoryRoot = path.join(acceptedRoot, STORY_KEY);
+  if (fs.existsSync(fixtureStoryRoot)) {
+    fs.rmSync(fixtureStoryRoot, { recursive: true, force: true });
   }
+  fs.mkdirSync(path.join(fixtureStoryRoot, 'revisions'), { recursive: true });
   return {
     acceptedRoot,
     acceptedRootRelative: repoRelative(acceptedRoot),

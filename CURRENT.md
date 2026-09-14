@@ -1,5 +1,43 @@
 # SmallHeroes — Current Technical State
 
+## Correction-acceptance fixture isolation — 2026-09-14
+
+Root cause of the deterministic readiness-summary failure at correction-acceptance
+spec: buildFixture copied the complete canonical accepted root, then deleted only
+Dini revision64dcd0e7. After text-only successor f77f4ca5 was published, that
+unrelated product-acceptance remained in the fixture baseline. Lineage disposition
+therefore saw Dini present while strict accepted authoring inventory ignored its
+story.md-only, runtime-ineligible revision. Publishing the fixture's integrated
+revision then changed narration/TTS facts by one story, violating the historical
+absent-to-present scenario. This was fixture contamination, not a narration-rule
+or accepted-story defect.
+
+Guy approved continuing. Test-only fix removes the copied Dini story root and
+recreates an empty safe revisions directory before the fixture publication. All
+other accepted stories remain copied. Exact summary expectations are unchanged;
+canonical accepted-root byte-preservation and per-other-story invariants remain.
+First experiment removed the whole root and failed target validation, proving the
+publisher requires the directory skeleton; final empty skeleton passes. Exact
+previous failing test1/1, whole spec11/11, adjacent readiness/authority/resolver
+suite57/57 and npx tsc --noEmit pass. No production module changed.
+
+Full npm run check remains NON-GREEN exit1. Ordinary:5322pass/2failed tests/
+87skip plus one failed beforeAll hook; resource:671/671 pass. Total5993pass,
+2failed tests,87skip, with3 timeout records:30s review-batch beforeAll and two5s
+semantic-correction bridge tests. The corrected :703 assertion passed inside the
+full run. Both timeout files pass isolated immediately afterward:14/14 in32.87s
+and131/131 in98.83s; the two timed tests complete3.595s/3.018s. This supports
+load sensitivity but does not prove root cause, close stability or authorize
+timeout increases. No inherited/flaky waiver.
+
+Gate: docs/ai-workflow/CORRECTION_ACCEPTANCE_FIXTURE_ISOLATION_GATE_20260914.md.
+Same sole-writer task/worktree/branch; start aa2e0711 clean/ahead13; protected
+dependencies768ccb2f/63ccb484 clean. Accepted f77f4ca5, old predecessor/package,
+13 reader images and runtime selection unchanged. No story/source/reader/Blueprint,
+provider, credential, render, spend, deployment or push. New correction awaits
+independent QA; prior Claude PASS boundaries stay intact. Next after re-gate is
+visual-direction/Blueprint planning; repository stability remains separately open.
+
 ## Creative replacement diagnostics P2 correction — 2026-09-14
 
 Supplied Claude PASS P0=0/P1=0/P2=3 for exactly ca29d599..419a43b8 reconciles:
