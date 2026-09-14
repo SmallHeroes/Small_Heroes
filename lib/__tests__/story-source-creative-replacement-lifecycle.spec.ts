@@ -232,6 +232,122 @@ function buildV4Fixture() {
 }
 
 describe('creative replacement from fully verified v4 predecessor', () => {
+  function runBridgeFault(fixture: ReturnType<typeof buildFixture>, fault: string, manifestPath?: string) {
+    const child = spawnSync(process.execPath, ['-e', `
+      const Module=require('node:module');
+      const original=Module._load;
+      const fault=process.argv[2];
+      let touched=false;
+      Module._load=function(id,...args) {
+        if(id!=='tsx/cjs/api') return original.call(this,id,...args);
+        touched=true;
+        if(fault==='missing') throw Object.assign(new Error('private-install-path'),{code:'MODULE_NOT_FOUND'});
+        if(fault==='incompatible') return {};
+        return {require() {
+          if(fault==='load') throw new Error('private-module-path');
+          if(fault==='export') return {};
+          return {loadAcceptedStorySourceAuthoringAuthority() {
+            if(fault==='validation') throw new Error('accepted_story_source_manifest_file_stale');
+            if(fault==='null') return null;
+            if(fault==='io') throw Object.assign(new Error('private-file-path'),{code:'EACCES'});
+            throw new TypeError('private-validator-details');
+          }};
+        }};
+      };
+      const lifecycle=require(process.argv[1]);
+      const input=JSON.parse(process.argv[3]),roots=JSON.parse(process.argv[4]);
+      try {
+        const result=input.manifestPath ? lifecycle.loadAcceptedCreativeReplacement(input,roots) : lifecycle.publish(input,roots);
+        console.log(JSON.stringify({ok:true,touched,created:result.created}));
+      } catch(error) {
+        console.log(JSON.stringify({ok:false,touched,message:error.message,causeName:error.cause?.name,causeCode:error.cause?.code}));
+      }
+    `, path.join(REPO_ROOT, 'scripts/story-source-creative-replacement-lifecycle.cjs'), fault,
+    JSON.stringify(manifestPath ? {manifestPath} : {requestPath:relative(fixture.root, fixture.requestPath),write:true}),
+    JSON.stringify(fixture.roots)], {cwd:fixture.root,encoding:'utf8'});
+    expect(child.status).toBe(0);
+    expect(child.stderr).toBe('');
+    return JSON.parse(child.stdout);
+  }
+
+  it.each([
+    ['missing', 'toolchain_unavailable'], ['incompatible', 'toolchain_unavailable'],
+    ['load', 'validator_load_failed'], ['export', 'validator_load_failed'],
+    ['bug', 'validator_failed'], ['io', 'validator_failed'],
+    ['validation', 'predecessor_invalid'], ['null', 'predecessor_invalid'],
+  ])('classifies %s without creating a successor and preserves the reload boundary', (fault, code) => {
+    const fixture = buildV4Fixture();
+    const revisionsRoot = path.dirname(path.dirname(fixture.predecessorPath));
+    const before = fs.readdirSync(revisionsRoot);
+    const failed = runBridgeFault(fixture, fault);
+    expect(failed).toMatchObject({ok:false,touched:true,message:`story_source_creative_replacement_${code}`});
+    if (fault === 'missing') expect(failed.causeCode).toBe('MODULE_NOT_FOUND');
+    if (fault === 'io') expect(failed.causeCode).toBe('EACCES');
+    if (fault === 'bug') expect(failed.causeName).toBe('TypeError');
+    expect(fs.readdirSync(revisionsRoot)).toEqual(before);
+    const published = lifecycle.publish({requestPath:relative(fixture.root,fixture.requestPath),write:true},fixture.roots);
+    const dir = path.join(fixture.root,published.target);
+    const bytes = fs.readdirSync(dir).map(name => [name,fs.readFileSync(path.join(dir,name))] as const);
+    expect(runBridgeFault(fixture,fault,`${published.target}/manifest.json`)).toMatchObject({ok:false,message:`story_source_creative_replacement_${code}`});
+    for(const [name,original] of bytes) expect(fs.readFileSync(path.join(dir,name))).toEqual(original);
+  });
+
+  it('rejects unaccepted v4 status before touching the toolchain', () => {
+    const fixture = buildV4Fixture();
+    const {digest:_old,...payload} = JSON.parse(fs.readFileSync(fixture.predecessorPath,'utf8'));
+    payload.status = 'pending';
+    writeJson(fixture.predecessorPath,{...payload,digest:materializer.sha256(materializer.canonicalBytes(payload))});
+    writeJson(fixture.requestPath,{...fixture.request,predecessor:{...fixture.request.predecessor,manifestSha256:materializer.sha256(fs.readFileSync(fixture.predecessorPath))}});
+    expect(runBridgeFault(fixture,'missing')).toMatchObject({ok:false,touched:false,message:'story_source_creative_replacement_predecessor_invalid'});
+  });
+
+  it.each([
+    ['missing','toolchain_unavailable'], ['load','validator_load_failed'],
+    ['bug','validator_failed'], ['validation','predecessor_invalid'],
+  ])('the actual CLI emits only the stable %s code, never private cause details', (fault,code) => {
+    const fixture = buildV4Fixture();
+    // Real repo predecessor, isolated staged inputs, preview-only even if a fault
+    // injection unexpectedly stops working: no real publication can occur.
+    const cliRequest = {...fixture.request,
+      creativeBrief:{...fixture.request.creativeBrief,path:relative(REPO_ROOT,fixture.briefPath)},
+      storyRevision:{...fixture.request.storyRevision,path:relative(REPO_ROOT,fixture.storyPath)},
+      editorialReview:{...fixture.request.editorialReview,path:relative(REPO_ROOT,fixture.reviewPath)},
+    };
+    writeJson(fixture.requestPath,cliRequest);
+    const hook = path.join(fixture.root,'fault-hook.cjs');
+    writeBytes(hook, `
+      const Module=require('node:module'),original=Module._load;
+      Module._load=function(id,...args){
+        if(id!=='tsx/cjs/api')return original.call(this,id,...args);
+        const fault=${JSON.stringify(fault)};
+        if(fault==='missing')throw new Error('PRIVATE_INSTALL_PATH:secret');
+        return {require(){
+          if(fault==='load')throw new Error('PRIVATE_MODULE_PATH:secret');
+          return {loadAcceptedStorySourceAuthoringAuthority(){
+            if(fault==='validation')throw new Error('accepted_story_source_embedded_digest_invalid:technical-review.json');
+            throw new TypeError('PRIVATE_RUNTIME_DETAILS:secret');
+          }};
+        }};
+      };
+    `);
+    const child=spawnSync(process.execPath,['--require',hook,
+      path.join(REPO_ROOT,'scripts/story-source-creative-replacement-lifecycle.cjs'),
+      'publish','--request',relative(REPO_ROOT,fixture.requestPath),'--write','false',
+    ],{cwd:fixture.root,encoding:'utf8'});
+    expect(child.status).toBe(1);
+    expect(child.stdout).toBe('');
+    expect(child.stderr.trim()).toBe(`story_source_creative_replacement_${code}`);
+  });
+
+  it('does not require the v4 toolchain for legacy v2 or creative-v1 predecessors', () => {
+    const fixture = buildFixture();
+    expect(runBridgeFault(fixture,'missing')).toMatchObject({ok:true,touched:false,created:true});
+    const first = lifecycle.publish({requestPath:relative(fixture.root,fixture.requestPath),write:false},fixture.roots);
+    const manifestPath = `${first.target}/manifest.json`;
+    writeJson(fixture.requestPath,{...fixture.request,predecessor:{manifestPath,manifestSha256:materializer.sha256(fs.readFileSync(path.join(fixture.root,manifestPath))),revisionDigest:first.revisionDigest}});
+    expect(runBridgeFault(fixture,'missing')).toMatchObject({ok:true,touched:false,created:true});
+  });
+
   it('publishes and reloads without staging, then rejects a corrupted predecessor', () => {
     const fixture = buildV4Fixture();
     const args = { requestPath: relative(fixture.root, fixture.requestPath), write: false };

@@ -1,5 +1,43 @@
 # SmallHeroes — Current Technical State
 
+## Creative replacement diagnostics P2 correction — 2026-09-14
+
+Supplied Claude PASS P0=0/P1=0/P2=3 for exactly ca29d599..419a43b8 reconciles:
+6 commits,17 files,+1095/-7; reviewer reports56 tests/5 specs and tsc0. His
+structural manuscript review is not an Editor verdict; three prose suggestions
+are not authorization to alter accepted text. No new P0/P1 in that review;
+existing stability, reader, recurring-object and page7 evidence gates stay open.
+
+Guy approved the P2 correction. Same task sole writer in sh-r3b1b-semantic-m1,
+codex/r3b1b-semantic-recovery-m1, start419a43b8 clean/ahead12; dependencies
+768ccb2f/63ccb484 clean/read-only. General CJS lifecycle now distinguishes
+toolchain_unavailable, validator_load_failed, validator_failed from genuine
+predecessor_invalid. Causes preserved for library callers; CLI outer codes only.
+tsx remains a devDependency by explicit authoring-tool contract (include dev
+dependencies); no dependency migration/install or claim omit-dev is supported.
+Known shared validation namespace remains data-invalid; I/O already normalized
+inside that validator is not reclassified. v4 status now checked before bridge
+loading and still checked by the genuine shared validator. Legacy paths unchanged.
+
+Tests first reproduced7 failures/16 passes. Final focused7 specs:77/77, including
+27 lifecycle tests (14 added). Isolated child-process module fault injection,
+publish/reload no-write behavior, actual CLI bounded diagnostics, cause retention,
+early status rejection and legacy controls pass. No actual omit-dev installation
+performed or node_modules mutated. Real accepted source reload passes;28 previous
+source/book files and13 images remain unchanged; old qualified package selected.
+Gate: docs/ai-workflow/CREATIVE_REPLACEMENT_DIAGNOSTICS_GATE_20260914.md.
+Full npm run check completed exit1: ordinary5338pass/73skip, resource670pass/
+1failed assertion; total6008pass/1fail/73skip. Both typechecks pass; no timeouts
+in this run. The single failure is correction-acceptance-lifecycle.spec.ts:703,
+"isolates injected accepted-source facts from canonical package qualification":
+narration/critical readiness expected17 vs18; soft items8 vs10, stories4 vs5.
+Same assertion reproduced alone (1fail/10skip); an initial unmatched "summary"
+filter skipped all11 and is not counted as a pass. That test and its correction
+publisher were not changed. Root cause remains unclassified; no inherited/flaky
+claim, no assertion weakening or stability closure. New P2
+code has no independent re-gate yet. No source/reader/Blueprint/render/provider/
+credential/spend/push actions. The accepted f77f4ca5 revision remains unchanged.
+
 ## Dini text successor published locally — 2026-09-13
 
 Guy explicitly answered yes to acceptance of the new delegated editorial review

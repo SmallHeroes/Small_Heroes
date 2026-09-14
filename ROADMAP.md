@@ -2,6 +2,16 @@
 
 ## Owner sequencing update — 2026-09-13
 
+2026-09-14: Claude supplied PASS0/0/3 for ca29d599..419a43b8. Guy approved
+bounded diagnostic/status correction, now implemented in the general lifecycle:
+explicit toolchain/load/unexpected-validator errors and early v4 accepted status.
+77 focused tests pass. Full check6008pass/1assertion-failure/73skip, exit1;
+no timeouts this run. Readiness-summary failure also reproduced in isolation,
+not classified as inherited. Independent P2 re-gate pending;
+accepted story remains unchanged. No new prose/visual/render authority. Next
+creative step remains new visual directions/Blueprint/package, with no automatic
+reuse of the old13 images. Existing stability/reader/recurring-object gates remain.
+
 Latest: Guy accepted the delegated editorial review and text-only publication.
 New accepted Dini text revisionf77f4ca5... is published locally as7 immutable
 files, runtime-ineligible pending visual directions. Real reload/idempotent replay

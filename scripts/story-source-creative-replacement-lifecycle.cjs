@@ -406,7 +406,8 @@ function loadPredecessor(request, roots = {}) {
     (manifest.version ===
       'small-heroes-product-accepted-story-source-revision-manifest/v2' &&
       manifest.status === 'product_accepted_story_source_revision') ||
-    manifest.version === 'small-heroes-product-accepted-story-source-revision-manifest/v4' ||
+    (manifest.version === 'small-heroes-product-accepted-story-source-revision-manifest/v4' &&
+      manifest.status === 'product_accepted_story_source_revision') ||
     (manifest.version === ACCEPTED_REVISION_VERSION &&
       manifest.status === ACCEPTED_REVISION_STATUS);
   if (
@@ -421,21 +422,46 @@ function loadPredecessor(request, roots = {}) {
   if (manifest.version === 'small-heroes-product-accepted-story-source-revision-manifest/v4') {
     // Keep both this synchronous CLI and self-contained successor reload on the
     // genuine full v4 validator, not merely its version label or manifest hash.
+    // This authoring tool requires dev dependencies (npm ci --include=dev).
+    // An omit-dev installation is not evidence that the predecessor is corrupt.
+    let bridge;
     try {
-      const { loadAcceptedStorySourceAuthoringAuthority } = require('tsx/cjs/api').require(
+      bridge = require('tsx/cjs/api');
+      if (typeof bridge?.require !== 'function') throw new Error('tsx_api_incompatible');
+    } catch (cause) {
+      throw new Error('story_source_creative_replacement_toolchain_unavailable', { cause });
+    }
+    let loadAcceptedStorySourceAuthoringAuthority;
+    try {
+      ({ loadAcceptedStorySourceAuthoringAuthority } = bridge.require(
         '../lib/visual-package/acceptedStorySourceAuthoringAuthority.ts', __filename,
-      );
-      const authority = loadAcceptedStorySourceAuthoringAuthority({
+      ));
+      if (typeof loadAcceptedStorySourceAuthoringAuthority !== 'function') {
+        throw new Error('validator_export_invalid');
+      }
+    } catch (cause) {
+      throw new Error('story_source_creative_replacement_validator_load_failed', { cause });
+    }
+    let authority;
+    try {
+      authority = loadAcceptedStorySourceAuthoringAuthority({
         repoRoot,
         storyKey: request.storyKey,
         storyPath: `${acceptedRoot}/${request.storyKey}/revisions/${request.predecessor.revisionDigest}/integrated.md`,
         acceptedRootRelative: acceptedRoot,
       });
-      if (!authority || authority.revisionDigest !== request.predecessor.revisionDigest ||
-          authority.manifestSha256 !== file.sha256 || authority.manifestDigest !== manifest.digest) {
-        throw new Error('identity_mismatch');
-      }
-    } catch {
+    } catch (cause) {
+      // Shared validation errors have a stable namespace. Unexpected exceptions
+      // are tool failures, not a verdict on the data. Keep causes for library
+      // diagnostics; main() prints only our bounded outer code.
+      const rejected = cause instanceof Error && cause.name === 'Error' &&
+        /^accepted_story_source_[a-z_]+(?::[a-z0-9._-]+)?$/.test(cause.message);
+      throw new Error(rejected
+        ? 'story_source_creative_replacement_predecessor_invalid'
+        : 'story_source_creative_replacement_validator_failed', { cause });
+    }
+    if (!authority || authority.revisionDigest !== request.predecessor.revisionDigest ||
+        authority.manifestSha256 !== file.sha256 || authority.manifestDigest !== manifest.digest) {
       throw new Error('story_source_creative_replacement_predecessor_invalid');
     }
   }
