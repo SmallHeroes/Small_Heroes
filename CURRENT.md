@@ -1,5 +1,46 @@
 # SmallHeroes — Current Technical State
 
+## Qwen style calibration: text-only candidate improved; not production QA — 2026-09-15
+
+Guy wants automatic book QA, not a recurring manual inspection workflow. Tested
+his proposal with12 live Qwen3.7-Plus assessments: same4 target PNGs across baseline,
+explicit style-tolerance rubric, and rubric plus2 positive illustrated examples.
+Base6542e4fa, sole writer in semantic-m1, clean ahead22 at start. No active QA gate,
+source, render, audio, reader, threshold or production default changed.
+
+Baseline and visual-example arms each rejected all4 images. Text-only rubric
+rejected the known original anatomy defect and accepted corrected page1/page8/page12.
+That is1/1 owner-defect agreement and3/3 provisional-normal agreement, NOT a general
+accuracy rate: only one known defect, related original/corrected pair, one story,
+single attempt per arm/target; normal labels are implementer-provisional. Example
+images were separate page families4/6, not the target or its corrected variant.
+No target label/path/prior verdict was supplied. No post-result tuning performed.
+
+The explicit distinction between coherent stylization/occlusion and disconnected
+body structure is a promising candidate. Adding these examples did not improve it.
+Non-anatomical otherFindings still complain about undefined axles, wing-bone detail
+and instruments; those are exploratory/unvalidated, not regeneration authority.
+This experiment does NOT solve object/location continuity or automatic release.
+
+Documented official async endpoint yielded12 IDs/12 succeeded receipts, zero
+unknowns/retries in this run; prior504 cause and older unknown costs remain open.
+Returned version="hidden" retained: configured hash is not an attested deployment.
+35420 input/3428 output tokens; current token-list-rate estimate0.013550148USD
+for these12 only, not invoice-confirmed billing. Fixed ledger reservation remains
+3USD (12x0.25), distinct from estimated spend; no hard provider dollar-cap claim.
+
+154/154 across9specs, tsc0, diff-check0. Fake-key replay reproduces all12 outcomes;
+legacy Qwen replay still3defects/3unknowns. All55 checked image/audio hashes unchanged.
+Fullcheck not rerun/remains NON-GREEN. No independent technical PASS or push.
+Evidence outputs/visual-qa-style-calibration-20260915 remains ignored/local-only;
+reportSHA6c594f929677def8dd93dbabd10c53509b894283e224d27156c19179dc0c0946.
+Next: freeze text-only candidate, evaluate additional real defect types/styles and
+normal occlusions before wiring automatic defect-specific repair/recheck. Keep
+continuity checking reference/state-based rather than guessing from a single page.
+No per-book human QA is proposed as the product solution; autonomous reliability
+and bounded repair are still to be established, not silently assumed.
+Gate/handoff: docs/ai-workflow/STYLE_CALIBRATION_{GATE,HANDOFF}_20260915.md.
+
 ## Alternative-family visual QA experiment: no deployable winner — 2026-09-15
 
 Guy approved the recommended bounded comparison on existing illustrations. Same

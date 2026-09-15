@@ -5,13 +5,20 @@ import { comparisonModels, comparisonInput, parseComparisonReview, COMPARISON_VE
 import { previewCheckpoint, previewSha, writePreviewJson } from '../../lib/local-story-preview';
 
 export async function inspectComparison(args: { root: string; step: string; model: ComparisonModel; bytes: Buffer; sha: string; key: string;
-  fetcher?: typeof fetch; pause?: () => Promise<void>; reconcileOnly?: boolean }) {
+  fetcher?: typeof fetch; pause?: () => Promise<void>; reconcileOnly?: boolean; transportMode?: 'official_async';
+  calibration?: { mode: 'rubric' | 'examples'; examples: Array<{ bytes: Buffer; sha: string; verdict: 'pass' | 'defect'; explanation: string }> } }) {
   if (!Object.prototype.hasOwnProperty.call(comparisonModels, args.model)) throw Error('comparison_model_not_allowed');
   if (!/^[a-z][a-z0-9-]{0,50}$/.test(args.step)) throw Error('comparison_invalid_step');
   if (previewSha(args.bytes) !== args.sha || !args.bytes.subarray(0, 8).equals(Buffer.from([137,80,78,71,13,10,26,10]))) throw Error('comparison_image_binding');
-  const model = comparisonModels[args.model], input = comparisonInput(args.model, `data:image/png;base64,${args.bytes.toString('base64')}`);
+  if (args.transportMode !== undefined && args.transportMode !== 'official_async') throw Error('comparison_invalid_transport');
+  for (const e of args.calibration?.examples ?? []) {
+    if (previewSha(e.bytes) !== e.sha || !e.bytes.subarray(0,8).equals(Buffer.from([137,80,78,71,13,10,26,10]))) throw Error('comparison_example_binding');
+  }
+  const model = comparisonModels[args.model], input = comparisonInput(args.model, `data:image/png;base64,${args.bytes.toString('base64')}`,
+    args.calibration ? { mode: args.calibration.mode, examples: args.calibration.examples.map(e => ({ image:`data:image/png;base64,${e.bytes.toString('base64')}`, verdict:e.verdict, explanation:e.explanation })) } : undefined);
   const transport = args.fetcher ?? fetch;
-  const policy = { version: COMPARISON_VERSION, model, imageSha: args.sha, requestSha: previewSha(JSON.stringify(input)), cancelAfter: '120s' };
+  const policy = { version: COMPARISON_VERSION, model, imageSha: args.sha, requestSha: previewSha(JSON.stringify(input)), cancelAfter: '120s',
+    ...(args.transportMode ? { transportMode: args.transportMode } : {}) };
   const safeResult = (prediction: any) => {
     // Official endpoints empirically return "hidden". Record that limitation;
     // do not claim a provider-attested deployment snapshot from the requested version.
@@ -59,7 +66,9 @@ export async function inspectComparison(args: { root: string; step: string; mode
         }
         return response.json();
       };
-      let prediction = await request('https://api.replicate.com/v1/predictions', { method: 'POST', headers: { 'Cancel-After': '120s', Prefer: 'wait=1' }, body: JSON.stringify({ version: model.version, input }) });
+      const asyncMode = args.transportMode === 'official_async';
+      let prediction = await request(asyncMode ? `https://api.replicate.com/v1/models/${model.name}/predictions` : 'https://api.replicate.com/v1/predictions',
+        { method: 'POST', headers: { 'Cancel-After': '120s', ...(asyncMode ? {} : { Prefer: 'wait=1' }) }, body: JSON.stringify(asyncMode ? { input } : { version: model.version, input }) });
       if (typeof prediction.id !== 'string' || !/^[a-z0-9]{8,80}$/.test(prediction.id)) throw Error('comparison_prediction_id');
       const id = prediction.id;
       // Persist only selected metadata, never provider-echoed inputs, URLs, logs or credentials.

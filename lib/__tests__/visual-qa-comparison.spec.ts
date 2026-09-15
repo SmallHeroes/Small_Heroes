@@ -3,7 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import sharp from 'sharp';
 import { beforeEach, afterEach, describe, it, expect, vi } from 'vitest';
-import { comparisonInput, comparisonModels, comparisonSummary, parseComparisonReview } from '../visual-qa-comparison';
+import { comparisonInput, comparisonModels, comparisonSummary, parseComparisonReview, COMPARISON_INSTRUCTION, STYLE_TOLERANCE } from '../visual-qa-comparison';
 import { previewSha } from '../local-story-preview';
 import { inspectComparison } from '../../scripts/lib/visual-qa-comparison';
 
@@ -17,6 +17,57 @@ const prediction = (extra = {}) => ({ id: 'prediction123', model: comparisonMode
 const response = (value: unknown) => new Response(JSON.stringify(value), { status: 200 });
 
 describe('cross-family comparison', () => {
+  it('isolates the rubric from examples, preserving baseline and target-last ordering', () => {
+    const target = `data:image/png;base64,${bytes.toString('base64')}`, example = 'data:image/png;base64,example';
+    const baseline = comparisonInput('qwen', target);
+    const rubric = comparisonInput('qwen', target, { mode:'rubric', examples:[] });
+    const examples = comparisonInput('qwen', target, { mode:'examples', examples:[{image:example,verdict:'pass',explanation:'Normal illustrated grip.'}] });
+    expect(baseline.system_prompt).toBe(COMPARISON_INSTRUCTION);
+    expect(rubric.system_prompt).toBe(`${COMPARISON_INSTRUCTION}\n\n${STYLE_TOLERANCE}`);
+    expect(examples.system_prompt).toBe(rubric.system_prompt);
+    expect(rubric.prompt).toBe(baseline.prompt); expect(rubric.image).toEqual([target]);
+    expect(examples.image).toEqual([example,target]);
+    expect(examples.prompt).toContain('IMAGE 1: STYLE EXAMPLE ONLY. Anatomy verdict: pass.');
+    expect(examples.prompt).toContain('IMAGE 2: TARGET TO INSPECT. Evaluate ONLY this final image.');
+    expect(examples.max_tokens).toBe(3000); expect(examples.prompt).not.toContain('expected');
+  });
+  it('rejects target-as-example, empty examples, unsupported model and invalid calibration modes', () => {
+    const uri = `data:image/png;base64,${bytes.toString('base64')}`;
+    expect(()=>comparisonInput('qwen',uri,{mode:'examples',examples:[{image:uri,verdict:'pass',explanation:'Same target.'}]})).toThrow('invalid_calibration_example');
+    expect(()=>comparisonInput('qwen',uri,{mode:'examples',examples:[]})).toThrow('invalid_style_calibration');
+    expect(()=>comparisonInput('sonnet',uri,{mode:'rubric',examples:[]})).toThrow('invalid_style_calibration');
+    expect(()=>comparisonInput('qwen',uri,{mode:'bad' as 'rubric',examples:[]})).toThrow('invalid_style_calibration');
+  });
+  it('uses documented async official endpoint and binds calibration and transport to replay', async () => {
+    const mock=vi.fn().mockResolvedValue(response(prediction({model:comparisonModels.qwen.name,version:'hidden'})));
+    const args={...options(),model:'qwen' as const,transportMode:'official_async' as const,calibration:{mode:'rubric' as const,examples:[]},fetcher:mock as typeof fetch};
+    expect(await inspectComparison(args)).toMatchObject({observed:'pass'});
+    expect(mock.mock.calls[0][0]).toBe('https://api.replicate.com/v1/models/qwen/qwen3-7-plus/predictions');
+    expect(mock.mock.calls[0][1].headers.Prefer).toBeUndefined();
+    expect(mock.mock.calls[0][1].headers['Cancel-After']).toBe('120s');
+    expect(JSON.parse(mock.mock.calls[0][1].body).version).toBeUndefined();
+    expect(JSON.parse(mock.mock.calls[0][1].body).input.system_prompt).toContain(STYLE_TOLERANCE);
+    await inspectComparison(args); expect(mock).toHaveBeenCalledTimes(1);
+    await expect(inspectComparison({...args,calibration:undefined})).rejects.toThrow('checkpoint_identity_changed');
+    await expect(inspectComparison({...args,transportMode:undefined})).rejects.toThrow('checkpoint_identity_changed');
+    expect(mock).toHaveBeenCalledTimes(1);
+  });
+  it('rejects an example hash mismatch before any claim or provider call', async () => {
+    const mock=vi.fn();
+    await expect(inspectComparison({...options(),model:'qwen',calibration:{mode:'examples',examples:[{bytes,sha:'0'.repeat(64),verdict:'pass',explanation:'Normal.'}]},fetcher:mock as typeof fetch})).rejects.toThrow('comparison_example_binding');
+    expect(mock).not.toHaveBeenCalled(); expect(fs.readdirSync(root)).toEqual([]);
+  });
+  it('binds exemplar bytes and explanation to the cached paid request', async () => {
+    const example=await sharp({create:{width:64,height:64,channels:3,background:'#abc'}}).png().toBuffer();
+    const mock=vi.fn().mockResolvedValue(response(prediction({model:comparisonModels.qwen.name,version:'hidden'})));
+    const e={bytes:example,sha:previewSha(example),verdict:'pass' as const,explanation:'Ordinary grip.'};
+    const args={...options(),model:'qwen' as const,calibration:{mode:'examples' as const,examples:[e]},fetcher:mock as typeof fetch};
+    await inspectComparison(args);
+    const sent=JSON.parse(mock.mock.calls[0][1].body).input;
+    expect(sent.image).toEqual([`data:image/png;base64,${example.toString('base64')}`,`data:image/png;base64,${bytes.toString('base64')}`]);
+    await expect(inspectComparison({...args,calibration:{mode:'examples',examples:[{...e,explanation:'Changed lesson.'}]}})).rejects.toThrow('checkpoint_identity_changed');
+    expect(mock).toHaveBeenCalledTimes(1);
+  });
   it('separates owner evidence, provisional agreement, unknowns and unlabelled rows', () => {
     expect(comparisonSummary([
       { label: { expected: 'defect', authority: 'owner' }, observed: 'pass' },

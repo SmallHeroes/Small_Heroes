@@ -6,6 +6,10 @@ export const comparisonModels = {
   qwen: { name: 'qwen/qwen3-7-plus', version: 'b964682d1c195be9959b5ebab520cb203fafd1d3b318b4893ebbb68ac8acfd98' },
 } as const;
 export type ComparisonModel = keyof typeof comparisonModels;
+export const STYLE_TOLERANCE = `STYLE CALIBRATION: This is a children's watercolor illustration, not an anatomical diagram.
+Do not report missing nail beds, skin creases, knuckle detail, visible toes inside a shoe, or an exact count of visible fingers as defects by themselves. A rounded finger group in a grip, fingers partly overlapping, an occluded thumb, and simplified shoes are acceptable when the visible outer form, ownership and attachment are coherent.
+Still reject clear structural errors: extra/disconnected body fragments, a limb belonging to no plausible body, a hand visibly fused through another body part, or an impossible exposed joint. Simplification is not permission to ignore these errors. Do not require unseen anatomy and do not invent a connection to excuse an exposed contradiction.`;
+export type StyleCalibration = { mode: 'rubric' | 'examples'; examples: Array<{ image: string; verdict: 'pass' | 'defect'; explanation: string }> };
 const finding = z.object({ location: z.string().trim().min(1).max(400), evidence: z.string().trim().min(1).max(1200) }).strict();
 export const comparisonReviewSchema = z.object({
   anatomy: z.object({ verdict: z.enum(['pass', 'defect', 'uncertain']), explanation: z.string().trim().min(1).max(2000), findings: z.array(finding).max(8) }).strict(),
@@ -23,10 +27,20 @@ export function parseComparisonReview(text: string) {
   return r;
 }
 
-export function comparisonInput(model: ComparisonModel, image: string) {
+export function comparisonInput(model: ComparisonModel, image: string, calibration?: StyleCalibration) {
   if (!Object.prototype.hasOwnProperty.call(comparisonModels, model)) throw Error('comparison_model_not_allowed');
   if (!image.startsWith('data:image/png;base64,')) throw Error('comparison_image_not_inline_png');
   const common = { prompt: 'Inspect the supplied image.', system_prompt: COMPARISON_INSTRUCTION, max_tokens: 3000 };
+  if (calibration) {
+    if (model !== 'qwen' || !['rubric','examples'].includes(calibration.mode) ||
+      (calibration.mode === 'rubric' ? calibration.examples.length !== 0 : calibration.examples.length < 1 || calibration.examples.length > 4)) throw Error('invalid_style_calibration');
+    for (const e of calibration.examples) {
+      if (!e.image.startsWith('data:image/png;base64,') || !['pass','defect'].includes(e.verdict) || !e.explanation.trim() || e.explanation.length > 1500 || e.image === image) throw Error('invalid_calibration_example');
+    }
+    return { ...common, system_prompt: `${COMPARISON_INSTRUCTION}\n\n${STYLE_TOLERANCE}`,
+      prompt: calibration.mode === 'rubric' ? common.prompt : `${calibration.examples.map((e,i) => `IMAGE ${i+1}: STYLE EXAMPLE ONLY. Anatomy verdict: ${e.verdict}. Explanation: ${e.explanation}`).join('\n')}\nIMAGE ${calibration.examples.length+1}: TARGET TO INSPECT. Evaluate ONLY this final image. Do not copy an example verdict or its objects onto the target.`,
+      image: [...calibration.examples.map(e => e.image), image], temperature: 0 };
+  }
   return model === 'sonnet' ? { ...common, image, max_image_resolution: 2 } : { ...common, image: [image], temperature: 0 };
 }
 
