@@ -1,5 +1,24 @@
 # SmallHeroes — Current Technical State
 
+## Two zoom-out visual directions delivered; engine unchanged — 2026-09-15
+
+Guy approved proceeding with two wider-framing samples, leaving the judge unchanged.
+Base85dd7f18, semantic-m1, sole coordinator repository writer. Two image-only workers
+followed creative-production skill; one built-in ImageGen call each, no retries.
+Outputs/zoom-out-direction-20260915 contains page-02-wide.png/page-10-wide.png,
+before/after index.html and REPORT.md with exact prompts and limitations (local-only,
+ignored, not backed up by push). Not production-runner or LOW/API billing evidence.
+Both visually pull back substantially; boy roughly24-25% height, beyond requested
+30-35% reduction target. These are visual estimates, not automated measurements.
+Expanded scenery changes details; slope retains source stone bridge and is not a
+continuity repair. These are creative direction references, not QA/product PASS.
+Real engine compliance remains unproven; no calibration bypass or reader replacement.
+Judge/thresholds/hold/engine unchanged. All30 scoped reader PNG/MP3/JSON and3 engine
+files preserve aggregate e64a86a29a73dae8c1ed3f4f48f187f6d50162778b00c31e6a6261f03cb7285e
+(30 total files including engine files). tsc0; no code tests needed for docs/assets;
+fullcheck not rerun/remains NON-GREEN. No push or credential access this milestone.
+Gate/results/handoff: docs/ai-workflow/ZOOM_OUT_VISUAL_AUDITION_20260915.md.
+
 ## Precise-region probe completed; Qwen calibration track stopped — 2026-09-15
 
 Guy requested autonomous completion and an end to wasteful repeated attempts.
