@@ -211,6 +211,8 @@ export async function evaluateStoredPageChildResemblanceVision(args: {
   fetchImpl?: VisionFetch;
   apiKey?: string | null;
   model?: string;
+  /** Explicit reasoning opt-in; legacy callers keep their Chat Completions contract. */
+  reasoningEffort?: 'medium';
   maxRetries?: number;
 }): Promise<StoredPageChildResemblanceVisionResult> {
   assertThreshold(args.threshold);
@@ -247,6 +249,7 @@ export async function evaluateStoredPageChildResemblanceVision(args: {
       fetchImpl: args.fetchImpl,
       apiKey: args.apiKey,
       model: args.model,
+      reasoningEffort: args.reasoningEffort,
       maxRetries: args.maxRetries,
     }),
     referenceBytesSha256: reference.sha256,
@@ -261,6 +264,7 @@ export async function evaluatePageChildResemblanceVision(args: {
   fetchImpl?: VisionFetch;
   apiKey?: string | null;
   model?: string;
+  reasoningEffort?: 'medium';
   maxRetries?: number;
   /** Optional batch fence checked immediately before every provider attempt. */
   shouldStartAttempt?: (attempt: number) => boolean;
@@ -269,6 +273,8 @@ export async function evaluatePageChildResemblanceVision(args: {
   assertThreshold(threshold);
   const apiKey = args.apiKey ?? process.env.OPENAI_API_KEY?.trim() ?? null;
   const model = resolveModel(args.model);
+  const reasoning = args.reasoningEffort !== undefined;
+  if (reasoning && (model !== 'gpt-5.5' || args.reasoningEffort !== 'medium')) throw Error('unsupported_identity_reasoning_profile');
   if (!apiKey) {
     return {
       evaluatorVersion: PAGE_CHILD_RESEMBLANCE_VISION_VERSION,
@@ -309,14 +315,22 @@ export async function evaluatePageChildResemblanceVision(args: {
       };
     }
     try {
-      const response = await fetchImpl('https://api.openai.com/v1/chat/completions', {
+      const response = await fetchImpl(reasoning ? 'https://api.openai.com/v1/responses' : 'https://api.openai.com/v1/chat/completions', {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${apiKey}`,
           'Content-Type': 'application/json',
         },
-        signal: AbortSignal.timeout(resolvePageChildResemblanceTimeoutMs()),
-        body: JSON.stringify({
+        signal: AbortSignal.timeout(reasoning ? 180_000 : resolvePageChildResemblanceTimeoutMs()),
+        body: JSON.stringify(reasoning ? {
+          model, store: false, reasoning: { effort: args.reasoningEffort }, max_output_tokens: 6000,
+          text: { format: { type: 'json_object' } },
+          input: [{ role: 'user', content: [
+            { type: 'input_image', image_url: args.referenceImageUrl, detail: 'high' },
+            { type: 'input_image', image_url: args.candidateImageUrl, detail: 'high' },
+            { type: 'input_text', text: PROMPT },
+          ] }],
+        } : {
           model,
           max_tokens: 180,
           temperature: 0,
@@ -337,10 +351,19 @@ export async function evaluatePageChildResemblanceVision(args: {
       }
       const payload = await response.json() as {
         choices?: Array<{ message?: { content?: string } }>;
+        status?: string;
+        output?: Array<{ type?: string; role?: string; content?: Array<{ type?: string; text?: string }> }>;
       };
+      if (reasoning && payload.status !== 'completed') {
+        lastReason = 'malformed';
+        continue;
+      }
       let decoded: unknown = null;
       try {
-        decoded = JSON.parse(payload.choices?.[0]?.message?.content ?? 'null');
+        const text = reasoning ? payload.output?.filter(item => item.type === 'message' && item.role === 'assistant')
+          .flatMap(item => item.content ?? []).filter(item => item.type === 'output_text').map(item => item.text ?? '').join('')
+          : payload.choices?.[0]?.message?.content;
+        decoded = JSON.parse(text ?? 'null');
       } catch {
         decoded = null;
       }

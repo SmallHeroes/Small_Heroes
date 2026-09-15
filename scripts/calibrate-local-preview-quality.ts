@@ -3,11 +3,11 @@ import path from 'node:path';
 import { z } from 'zod';
 import { parse as parseEnv } from 'dotenv';
 import { bindPreviewRun, previewImageDigest, previewSha, writePreviewJson } from '../lib/local-story-preview';
-import { ANATOMY_INSPECTION_INSTRUCTION, PREVIEW_QUALITY_VERSION, PREVIEW_JUDGE_INSTRUCTION, QUALITY_CATEGORIES, qualityDisposition } from '../lib/local-preview-quality';
+import { ANATOMY_INSPECTION_INSTRUCTION, PREVIEW_JUDGE_MODEL, PREVIEW_JUDGE_EFFORT, PREVIEW_QUALITY_VERSION, PREVIEW_JUDGE_INSTRUCTION, QUALITY_CATEGORIES, qualityDisposition } from '../lib/local-preview-quality';
 import { judgePreviewCandidate } from './lib/local-preview-judge';
 
 const configSchema = z.object({
-  sourceRoot: z.string(), outputRoot: z.string(), budgetUsd: z.number().positive().max(3),
+  sourceRoot: z.string(), outputRoot: z.string(), budgetUsd: z.number().positive().max(5),
   cases: z.array(z.object({ id: z.string().regex(/^[a-z][a-z0-9-]{0,30}$/), pageNumber: z.number().int().min(0).max(24),
     image: z.string(), previousPages: z.array(z.number().int().min(0).max(24)).max(3),
     expected: z.array(z.object({ category: z.enum(QUALITY_CATEGORIES), verdict: z.enum(['pass', 'defect']) }).strict()).min(1),
@@ -67,7 +67,7 @@ async function main() {
       const result = { id: c.id, matched, expected: c.expected, ...decision };
       results.push(result); console.log(JSON.stringify(result));
     }
-    const result = { version: PREVIEW_QUALITY_VERSION, instructionSha: previewSha(PREVIEW_JUDGE_INSTRUCTION),
+    const result = { version: PREVIEW_QUALITY_VERSION, model: PREVIEW_JUDGE_MODEL, effort: PREVIEW_JUDGE_EFFORT, instructionSha: previewSha(PREVIEW_JUDGE_INSTRUCTION),
       anatomyInstructionSha: previewSha(ANATOMY_INSPECTION_INSTRUCTION),
       status: results.every(r => r.matched) ? 'calibration_cases_matched' : 'calibration_hold',
       independentQa: 'pending', generalAccuracyProven: false, results };

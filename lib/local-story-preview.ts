@@ -112,7 +112,7 @@ export function bindPreviewRun(root: string, identity: unknown) {
 export interface PreviewCheckpoint<T> { fingerprint: string; value: T; usage: Record<string, unknown> | null; }
 // Upper-rate estimate, not an invoice: all tokens charged at $30/M, ignoring
 // cheaper input/cached rates. Covers this lane's pinned gpt-image-2, gpt-5.4,
-// gpt-4o models (official model pricing checked 2026-09-15). Missing usage keeps
+// gpt-5.5 and gpt-4o models (official pricing checked 2026-09-15, inputs <272K). Missing usage keeps
 // the entire reservation, including errors/unknown outcomes. Never assume free.
 export function previewUsageUpperUsd(usage: Record<string, unknown> | null): number | null {
   const input = usage?.input_tokens ?? usage?.prompt_tokens;

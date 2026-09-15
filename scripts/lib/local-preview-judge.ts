@@ -3,7 +3,7 @@ import OpenAI from 'openai';
 import sharp from 'sharp';
 import { zodTextFormat } from 'openai/helpers/zod';
 import { previewCheckpoint, previewImageDigest, previewSha } from '../../lib/local-story-preview';
-import { ANATOMY_INSPECTION_INSTRUCTION, anatomyInspectionSchema, PREVIEW_JUDGE_INSTRUCTION, PREVIEW_QUALITY_VERSION, previewQualityReviewSchema } from '../../lib/local-preview-quality';
+import { ANATOMY_INSPECTION_INSTRUCTION, anatomyInspectionSchema, PREVIEW_JUDGE_MODEL, PREVIEW_JUDGE_EFFORT, PREVIEW_JUDGE_INSTRUCTION, PREVIEW_QUALITY_VERSION, previewQualityReviewSchema } from '../../lib/local-preview-quality';
 
 export async function judgePreviewCandidate(args: {
   root: string; step: string; budgetUsd: number; apiKey: string;
@@ -34,12 +34,12 @@ export async function judgePreviewCandidate(args: {
       { type: 'input_image', image_url: `data:image/png;base64,${crop.toString('base64')}`, detail: 'high' });
   }
   const anatomyRecord = await previewCheckpoint({ root: args.root, step: `${args.step}-anatomy`,
-    input: { version: PREVIEW_QUALITY_VERSION, instruction: ANATOMY_INSPECTION_INSTRUCTION, candidateSha: args.candidateSha, model: 'gpt-5.4', effort: 'high', maxOutputTokens: 10000 },
+    input: { version: PREVIEW_QUALITY_VERSION, instruction: ANATOMY_INSPECTION_INSTRUCTION, candidateSha: args.candidateSha, model: PREVIEW_JUDGE_MODEL, effort: PREVIEW_JUDGE_EFFORT, maxOutputTokens: 10000 },
     reserveUsd: 0.5, budgetUsd: args.budgetUsd, produce: async () => {
       args.permit?.();
       const client = new OpenAI({ apiKey: args.apiKey, baseURL: 'https://api.openai.com/v1', maxRetries: 0, timeout: 300_000 });
-      const response = await client.responses.create({ model: 'gpt-5.4', store: false, instructions: ANATOMY_INSPECTION_INSTRUCTION,
-        input: [{ role: 'user', content: candidateContent }], reasoning: { effort: 'high' }, max_output_tokens: 10000,
+      const response = await client.responses.create({ model: PREVIEW_JUDGE_MODEL, store: false, instructions: ANATOMY_INSPECTION_INSTRUCTION,
+        input: [{ role: 'user', content: candidateContent }], reasoning: { effort: PREVIEW_JUDGE_EFFORT }, max_output_tokens: 10000,
         text: { format: zodTextFormat(anatomyInspectionSchema, 'anatomy_inspection') } });
       return { value: { status: response.status, text: response.output_text }, usage: response.usage as unknown as Record<string, unknown> };
     } });
@@ -48,7 +48,7 @@ export async function judgePreviewCandidate(args: {
   if (anatomy.verdict === 'defect' && !anatomy.correction.trim()) throw Error('anatomy_missing_correction');
   const input = { version: PREVIEW_QUALITY_VERSION, instruction: PREVIEW_JUDGE_INSTRUCTION, anatomy,
     candidateSha: args.candidateSha, contextSha: args.contextSha, context: args.context,
-    references: args.references.map(({ role, sha }) => ({ role, sha })), model: 'gpt-5.4' };
+    references: args.references.map(({ role, sha }) => ({ role, sha })), model: PREVIEW_JUDGE_MODEL, effort: PREVIEW_JUDGE_EFFORT, maxOutputTokens: 4500 };
   if (JSON.stringify(input).length > 50000 || args.references.length > 6) throw Error('preview_judge_input_limit');
   const record = await previewCheckpoint({ root: args.root, step: args.step, input,
     reserveUsd: 1, budgetUsd: args.budgetUsd, produce: async () => {
@@ -60,9 +60,9 @@ export async function judgePreviewCandidate(args: {
       content.push(...candidateContent);
       // Explicit official origin, no retries, one request per checkpoint.
       const client = new OpenAI({ apiKey: args.apiKey, baseURL: 'https://api.openai.com/v1', maxRetries: 0, timeout: 180_000 });
-      const response = await client.responses.create({ model: 'gpt-5.4', store: false,
+      const response = await client.responses.create({ model: PREVIEW_JUDGE_MODEL, store: false,
         instructions: PREVIEW_JUDGE_INSTRUCTION, input: [{ role: 'user', content }],
-        reasoning: { effort: 'medium' }, max_output_tokens: 4500,
+        reasoning: { effort: PREVIEW_JUDGE_EFFORT }, max_output_tokens: 4500,
         text: { format: zodTextFormat(previewQualityReviewSchema, 'preview_quality') } });
       return { value: { status: response.status, text: response.output_text }, usage: response.usage as unknown as Record<string, unknown> };
     } });

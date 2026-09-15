@@ -40,12 +40,13 @@ describe('preview continuity contract', () => {
 describe('evidence-bound quality disposition', () => {
   it('rejects missing, failed, stale, incomplete or falsely summarized calibration before paid rendering', () => {
     const hash = (s: string) => createHash('sha256').update(s).digest('hex');
-    const record = { version: PREVIEW_QUALITY_VERSION, instructionSha: hash(PREVIEW_JUDGE_INSTRUCTION), anatomyInstructionSha: hash(ANATOMY_INSPECTION_INSTRUCTION),
+    const record = { version: PREVIEW_QUALITY_VERSION, model: 'gpt-5.5', effort: 'medium', instructionSha: hash(PREVIEW_JUDGE_INSTRUCTION), anatomyInstructionSha: hash(ANATOMY_INSPECTION_INSTRUCTION),
       status: 'calibration_cases_matched', results: [['anatomy', 'defect'], ['anatomy', 'pass'], ['props', 'defect'], ['environment', 'defect']].map(([category, verdict]) => ({
         matched: true, expected: [{ category, verdict }], review: review(a, b, verdict === 'defect' ? category : undefined),
       })) };
     expect(validateQualityCalibration(record).results).toHaveLength(4);
     for (const invalid of [{}, { ...record, status: 'calibration_hold' }, { ...record, instructionSha: a },
+      { ...record, version: 'local-preview-quality/v4' }, { ...record, model: 'gpt-5.4' }, { ...record, effort: 'high' },
       { ...record, results: record.results.slice(1) }, { ...record, results: record.results.map(r => ({ ...r, review: review() })) }]) {
       expect(() => validateQualityCalibration(invalid)).toThrow();
     }

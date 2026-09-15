@@ -50,6 +50,29 @@ function availableInspection(args: {
 }
 
 describe('page child resemblance vision', () => {
+  it('opts into 5.5 medium Responses without changing identity scoring or image order', async () => {
+    const fetchImpl = vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
+      expect(url).toBe('https://api.openai.com/v1/responses');
+      const body = JSON.parse(String(init?.body));
+      expect(body).toMatchObject({ model: 'gpt-5.5', store: false, reasoning: { effort: 'medium' }, max_output_tokens: 6000 });
+      expect(body).not.toHaveProperty('temperature'); expect(body).not.toHaveProperty('max_tokens');
+      expect(body.input[0].content[0].image_url).toBe('anchor');
+      expect(body.input[0].content[1].image_url).toBe('candidate');
+      return new Response(JSON.stringify({ status: 'completed', output: [{ type: 'message', role: 'assistant', content: [{ type: 'output_text', text: JSON.stringify(base) }] }] }));
+    });
+    const result = await evaluatePageChildResemblanceVision({ referenceImageUrl: 'anchor', candidateImageUrl: 'candidate',
+      threshold: 0.7, apiKey: 'test', model: 'gpt-5.5', reasoningEffort: 'medium', maxRetries: 0, fetchImpl });
+    expect(result).toMatchObject({ status: 'passed', resemblanceScore: 0.7, model: 'gpt-5.5', attempts: 1 });
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
+  it('does not accept parseable but incomplete reasoning output or silently fall back', async () => {
+    const fetchImpl = vi.fn(async () => new Response(JSON.stringify({ status: 'incomplete', output: [{ type: 'message', role: 'assistant', content: [{ type: 'output_text', text: JSON.stringify(base) }] }] })));
+    const args = { referenceImageUrl: 'a', candidateImageUrl: 'b', threshold: 0.7, apiKey: 'test',
+      model: 'gpt-5.5', reasoningEffort: 'medium' as const, maxRetries: 0, fetchImpl };
+    expect(await evaluatePageChildResemblanceVision(args)).toMatchObject({ status: 'evidence_unknown', reasonCode: 'malformed', attempts: 1 });
+    await expect(evaluatePageChildResemblanceVision({ ...args, model: 'gpt-4o' })).rejects.toThrow('unsupported_identity_reasoning_profile');
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
   it('clamps an oversized provider timeout below the 300 second route boundary', () => {
     vi.stubEnv('PAGE_CHILD_RESEMBLANCE_TIMEOUT_MS', '99999999');
     expect(resolvePageChildResemblanceTimeoutMs()).toBe(60_000);
@@ -63,6 +86,8 @@ describe('page child resemblance vision', () => {
   it('passes exactly 0.70 and sends the anchor before the scene', async () => {
     const fetchImpl = vi.fn(async (_url: string | URL | Request, init?: RequestInit) => {
       const body = JSON.parse(String(init?.body));
+      expect(body).toMatchObject({ max_tokens: 180, temperature: 0 });
+      expect(body).not.toHaveProperty('reasoning');
       const content = body.messages[0].content;
       expect(content[0].image_url.url).toBe('https://assets.test/anchor.png');
       expect(content[1].image_url.url).toBe('https://assets.test/page.png');
@@ -235,6 +260,23 @@ describe('stored-byte page child resemblance vision', () => {
   const candidateData = Buffer.from('candidate-exact-image-bytes', 'utf8');
   const referenceSha = 'a'.repeat(64);
   const candidateSha = 'b'.repeat(64);
+
+  it('forwards the explicit reasoning profile through the exact-stored-byte boundary', async () => {
+    const fetchImpl = vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
+      expect(url).toBe('https://api.openai.com/v1/responses');
+      const body = JSON.parse(String(init?.body));
+      expect(body).toMatchObject({ model: 'gpt-5.5', reasoning: { effort: 'medium' } });
+      expect(body.input[0].content[0].image_url).toBe(`data:image/png;base64,${referenceData.toString('base64')}`);
+      expect(body.input[0].content[1].image_url).toBe(`data:image/webp;base64,${candidateData.toString('base64')}`);
+      return new Response(JSON.stringify({ status: 'completed', output: [{ type: 'message', role: 'assistant', content: [{ type: 'output_text', text: JSON.stringify(base) }] }] }));
+    });
+    const stored = await evaluateStoredPageChildResemblanceVision({ referenceImageUrl: referenceUrl, candidateImageUrl: candidateUrl,
+      threshold: 0.7, apiKey: 'test', model: 'gpt-5.5', reasoningEffort: 'medium', maxRetries: 0, fetchImpl,
+      inspectWithBytes: async url => url === referenceUrl ? availableInspection({ data: referenceData, sha256: referenceSha, format: 'png', mime: 'image/png' })
+        : availableInspection({ data: candidateData, sha256: candidateSha, format: 'webp', mime: 'image/webp' }) });
+    expect(stored).toMatchObject({ result: { status: 'passed', model: 'gpt-5.5' }, referenceBytesSha256: referenceSha, candidateBytesSha256: candidateSha });
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
 
   it('inspects each stored URL once and sends exact buffers to Vision in anchor-first order, returning both exact SHAs', async () => {
     const inspectWithBytes = vi.fn(async (url: string | null | undefined) => {

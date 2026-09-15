@@ -1,5 +1,55 @@
 # SmallHeroes — Current Technical State
 
+## GPT-5.5 Medium local QA recheck completed; anatomy still HELD — 2026-09-15
+
+Guy explicitly requested5.5 Medium for both visual QA and child resemblance.
+Implemented local policyv5: blind anatomy and contextual QA both5.5/medium;
+shared numerical identity has an opt-in Responses medium path with6000 output
+tokens (legacy4o Chat Completions defaults180 tokens unchanged). Threshold0.70,
+feature weights, parser and original judgments are unchanged. New independent
+identity CLI checks existing reader images, not production. The historical
+review-local-story-preview CLI remains a legacy4o/5.4 workflow; new rechecks use
+recheck-local-preview-identity. New-generation CLI still keeps numerical identity
+and whole-book reconciliation pending; this comparison is not that cutover.
+
+Live:8 visual QA calls, four unchanged known cases;3/4 matched expectations.
+Original malformed anatomy25c1545f still passed incorrectly. Corrected anatomy
+b30c4633 passed; four-tier cake71b84da5 and wood-to-stone bridge4fdb96e0 were
+detected. This does NOT establish anatomy reliability or general accuracy.
+Additional judge findings (Dini scale, cart/scene details) are model observations,
+not independently verified requirements to repair. New render calibration remains
+HELD; no new image, audio, manuscript, reader or acceptance change was made.
+
+13 individual identity calls on the CURRENT narrated reader:11passed; page9
+subject_not_assessable, score0.60; page11 uncertain, score0.45. These two are
+evidence_unknown, not confirmed different children or auto-repair instructions.
+Remaining non-unit scores: page4/6=0.85, page12=0.75. Scores are fixed weighted
+feature sums, not probabilities. All13 raw responses identify5.5-2026-04-23 and
+medium. Old identity results used some different candidate bytes; no aggregate
+accuracy-improvement claim is made. All13PNG/12MP3 hashes verified unchanged;
+reader manifest9905fb7a and accepted source225f2b01 unchanged.
+
+Evidence (ignored/local-only, not preserved by Git push):
+- outputs/local-preview-quality-calibration-v5-20260915/calibration-policy.json
+  SHA2564a8b236fe7ab400397ffbe316bb3fb05d5889e4e1c54df02dd66358675be7c88.
+- outputs/local-preview-identity-v5-20260915/identity-review.json
+  SHA256918ee8ec027a6fb3aa9d2a9df41df70d5a8fabc583181ec36a29bd5fa97da301.
+
+Accounting:21claims/21known receipts, zero retries or unmatched claims. Two5USD
+planning fences. All-token-$30/M upper accounting2.76165+1.32684=4.08849USD;
+usage/list-rate estimate0.920425+0.33429=1.254715USD, NOT verified invoice charges.
+No reservation exceeded. Fake-key offline CLI replays reproduced both reports
+without new receipts: identity exit0; calibration expected HOLD exit2 (live shell
+reported1 for the script's nonzero exit). Old roots/media were not overwritten.
+
+Validation:116/116 focused tests across9specs; tsc0; diff-check0. Full check was
+not rerun and remains NON-GREEN, no independent technical PASS or release claim.
+Same sole-writer branch/worktree, base4f0b6396, ahead18 at start; protected
+d53b768ccb2f / accepted-intent63ccb484 clean. Focused commit local, no push.
+Next unresolved issue is visual perception/localization of anatomy, not model
+selection alone. Gate/handoff: LOCAL_PREVIEW_GPT55_GATE_20260915.md and
+LOCAL_PREVIEW_GPT55_HANDOFF_20260915.md under docs/ai-workflow.
+
 ## Local continuity/repair implementation; anatomy calibration HELD — 2026-09-15
 
 Guy approved continuing the general continuity/anatomy/framing QA loop and next

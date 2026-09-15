@@ -27,6 +27,11 @@ describe('real preview judge adapter with mocked provider transport', () => {
     expect(first.checks.find(c => c.category === 'anatomy')?.verdict).toBe('defect');
     expect(JSON.stringify(create.mock.calls[0])).not.toContain('NARRATIVE_SENTINEL');
     expect(JSON.stringify(create.mock.calls[1])).toContain('NARRATIVE_SENTINEL');
+    for (const [request] of create.mock.calls) {
+      expect(request.model).toBe('gpt-5.5');
+      expect(request.reasoning).toEqual({ effort: 'medium' });
+      expect(request.store).toBe(false);
+    }
     expect(create.mock.calls[0][0].input[0].content.filter((c: { type: string }) => c.type === 'input_image')).toHaveLength(5);
     expect(await judgePreviewCandidate(args())).toEqual(first); expect(create).toHaveBeenCalledTimes(2);
   });

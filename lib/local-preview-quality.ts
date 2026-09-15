@@ -1,7 +1,9 @@
 import { createHash } from 'node:crypto';
 import { z } from 'zod';
 
-export const PREVIEW_QUALITY_VERSION = 'local-preview-quality/v4';
+export const PREVIEW_QUALITY_VERSION = 'local-preview-quality/v5';
+export const PREVIEW_JUDGE_MODEL = 'gpt-5.5';
+export const PREVIEW_JUDGE_EFFORT = 'medium';
 const id = z.string().regex(/^[a-z][a-z0-9_]{0,49}$/);
 const text = z.string().trim().min(1).max(1800);
 const sha = z.string().regex(/^[a-f0-9]{64}$/);
@@ -133,6 +135,7 @@ Uncertain is not pass and does not authorize regeneration. Do not grant publicat
 
 export function validateQualityCalibration(value: unknown) {
   const report = z.object({ version: z.literal(PREVIEW_QUALITY_VERSION),
+    model: z.literal(PREVIEW_JUDGE_MODEL), effort: z.literal(PREVIEW_JUDGE_EFFORT),
     instructionSha: sha, anatomyInstructionSha: sha,
     status: z.literal('calibration_cases_matched'),
     results: z.array(z.object({ matched: z.literal(true), review: previewQualityReviewSchema,
