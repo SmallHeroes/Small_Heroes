@@ -45,3 +45,63 @@ quality recommendation; four-case sample cannot establish population reliability
 Official docs checked: https://developers.openai.com/api/docs/guides/flex-processing
 and https://developers.openai.com/api/docs/pricing. Flex slower/occasionally unavailable;
 gpt-5.5 rates2.5/.25/15USD per million input/cached/output (standard5/.5/30).
+
+## Completed evidence and independent review handoff
+
+Implementation range4a66197db4a1634c672926cf60dab88d433dcadf..
+d7bdf371 (resolve full SHA before review). This completion documentation is a later
+separate commit, not an extension of independent code PASS (none has been issued).
+Same branch/worktree, sole task writer; no push. New generic isolated builder/runner
+and11tests; existing active adapters unchanged.74/74 in4specs, tsc0,diffcheck0.
+
+12known completed/0unknown calls, all actual Flex/gpt-5.5-2026-04-23. No attempts
+beyond declared ceiling, SDK maxRetries0, no fallbacks. Unique usage list estimate
+0.6753635USD; conservative4.66815under8. No invoice verification.4shared anatomy
+calls cost0.112735; contextual control4cost0.30634; compact4cost0.2562885.
+Hypothetical full lanes0.419075 vs0.3690235; shared anatomy counted only once in
+actual total. Control Standard-equivalent0.83815 is counterfactual, NOT new paid
+Standard requests. Additional compact savings11.9433%, combined55.9717%; original
+60–70% goal not achieved. Context input60418→50253, output10353→9632; reasoning
+6726→7878. Cache0→6144; visible output3627→1754. Do not equate report brevity
+with reduced hidden reasoning. Latency15.312–58.387sec, sum388.366sec.
+
+Both arms anatomy pass on all four cases, thus BOTH known extra-hand positives3/12
+MISSED, negatives0/9matched. Negatives are anatomy-only implementer labels, not
+gold full-category PASS. Cover control flags framing omitted by compact; page9
+compact flags gate drift omitted by control. Both page12 overall passed despite
+extra hand. No statistical equivalence, calibration or runtime authority follows.
+Compact is a bundle of projection/order/report changes; cannot attribute each
+saving/quality difference causally from this sample. Recommend Flex-only migration
+next, not active compact rollout. Neither change solves existing anatomy failures.
+
+All local evidence outputs/qa-cost-experiment-20260915: identity,12claim/result
+pairs,8input/decision pairs,report,COST_COMPARISON.json,REPORT.md. Inputs/config and
+cost summarizer outputs/qa-cost-experiment-input-20260915. Ignored/local-only; push
+does not back up any paid evidence. Whole book originals/manifests preserved.
+Actual artifact replay with dummy key/network forbidden:0providerDispatches, same
+decisions, exit0. First replay ESM named import failed before execution; CommonJS
+invocation worked. No paid replay call. Fullcheck remains NON-GREEN/not rerun.
+
+Claude first pass read-only. Falsification targets: actual tier/rate accounting,
+no double-count shared anatomy, artifact/request identity and resume cache, no
+expected-label leakage into prompts, current-state projection/future isolation,
+reference/crop parity, conservative admission, no active adapter imports/cutover,
+and correct distinction between cost success and quality failure. No keys/providers,
+rendering, edits, commits, push or independent self-PASS in this handoff.
+
+```powershell
+Set-Location 'C:/GNart/Work/sh-r3b1b-semantic-m1'
+$reviewBase = '4a66197db4a1634c672926cf60dab88d433dcadf'
+$codeTip = git rev-parse d7bdf371
+$docsTip = git log -1 --format=%H -- docs/ai-workflow/QA_COST_EXPERIMENT_20260915.md
+git status --short --branch
+git worktree list --porcelain
+git branch -vv
+git diff --stat "$reviewBase..$docsTip"
+git diff --check "$reviewBase..$docsTip"
+npx.cmd tsc --noEmit
+npx.cmd vitest run lib/qa-cost-experiment.spec.ts lib/__tests__/local-preview-judge.spec.ts lib/__tests__/local-preview-quality.spec.ts lib/__tests__/local-story-preview.spec.ts
+node outputs/qa-cost-experiment-input-20260915/summarize.cjs
+# Optional push only on Guy's explicit instruction; carries all ahead commits:
+# git push origin codex/r3b1b-semantic-recovery-m1
+```

@@ -1,5 +1,30 @@
 # SmallHeroes — Current Technical State
 
+## QA cost experiment completed; compact lane NOT promoted — 2026-09-15
+
+Code commit d7bdf371 above4a66197d.12/12completed Responses, actual served tier flex,
+model gpt-5.5-2026-04-23, medium. Four shared blind anatomy calls plus8contextual.
+Unique paid-call list estimate0.6753635USD, no invoice verification;0unknown,
+no retries/fallback. Conservative4.66815USD under8planning ceiling. Per four-page
+lane including shared anatomy: control Flex0.419075 / compact Flex0.3690235;
+control Standard-equivalent0.838150 is counterfactual pricing, not a live control.
+Compact adds11.94% savings over Flex; combined55.97%, so60-70% target not proven.
+Compact input16.82% lower,6144cached tokens vs0; visible output51.64% lower but
+reasoning17.13% higher. Runtime15.3-58.4seconds per request,388.366seconds sum.
+
+Quality: both arms missed BOTH known extra-hand positives3/12 (0/2); both passed
+anatomy-only negatives0/9. Page0compact missed framing flagged by control; page9
+compact caught gate drift missed by control. No independent goldset/calibration,
+no equivalence/non-inferiority claim from four cases. Existing judge still flawed.
+Recommend Flex-only transport migration next; compact lane remains isolated, NOT
+adopted. Active judge/thresholds/book reader/images/audio unchanged; no release.
+74/74focused tests and tsc0; offline actual-artifact replay with dummy key and
+network forbidden reproduced decisions at0providerDispatches. Initial ESM named
+import replay command failed before execution; CommonJS invocation succeeded.
+Results and all raw receipts are ignored/local-only outputs/qa-cost-experiment-
+20260915/REPORT.md and COST_COMPARISON.json. No push or independent PASS.
+Re-gate brief appended to docs/ai-workflow/QA_COST_EXPERIMENT_20260915.md.
+
 ## QA cost experiment prepared — 2026-09-15
 
 Owner explicitly approved bounded experiment following cost diagnosis. Sole writer
