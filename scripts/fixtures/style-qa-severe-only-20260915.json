@@ -1,0 +1,112 @@
+{
+  "version": "frozen-qa-benchmark/v1",
+  "id": "severe-only-20260915",
+  "severityPolicy": "severe-only",
+  "promptSha": "a838b1214eb7c207540f65aa6be4cf23f74b29ff036a58cc7a49bde42db6e078",
+  "cases": [
+    {
+      "id": "case-01",
+      "root": "local",
+      "file": "local-story-preview-dini-20260915/page-01.png",
+      "sha": "25c1545f37bfd9e74158f99c79c88698a2a5e320f9c56366ffdd9525f91ebddb",
+      "cohort": "replication",
+      "family": "dini-one",
+      "label": {
+        "expected": "defect",
+        "authority": "owner",
+        "basis": "Original owner-rejected severe anatomy. No new acceptance inferred."
+      }
+    },
+    {
+      "id": "case-02",
+      "root": "local",
+      "file": "local-story-preview-dini-20260915/repair-01/page-01.png",
+      "sha": "b30c463338ad0cab6a06add458fafc0f3d28047fac21f86c927171399c10271f",
+      "cohort": "replication",
+      "family": "dini-one",
+      "label": {
+        "expected": "pass",
+        "authority": "provisional",
+        "basis": "Pre-existing provisional normal assessment retained. Selected for severe-only calibration; not a new held-out case."
+      }
+    },
+    {
+      "id": "case-03",
+      "root": "archive",
+      "file": "gallery-render/20260613-141804-low/style01-1.png",
+      "sha": "513ba8f26d857d8bfd3bc52a8aa80dd87bfbc29eaac8603f1afe8a935e05f36a",
+      "cohort": "replication",
+      "family": "fox-window",
+      "label": {
+        "expected": "pass",
+        "authority": "provisional",
+        "basis": "Pre-existing provisional normal assessment retained. Selected for severe-only calibration; not a new held-out case."
+      }
+    },
+    {
+      "id": "case-07",
+      "root": "archive",
+      "file": "forensics-bunny-assets/page4.png",
+      "sha": "bd1250e6be4907906b6554cf6934e998bec1c572e9e2b27b56b7979c3e8d80f8",
+      "cohort": "replication",
+      "family": "bunny-night",
+      "label": {
+        "expected": "pass",
+        "authority": "provisional",
+        "basis": "Pre-existing provisional normal assessment retained. Selected for severe-only calibration; not a new held-out case."
+      }
+    },
+    {
+      "id": "case-09",
+      "root": "local",
+      "file": "local-story-preview-dini-20260915/page-02.png",
+      "sha": "47815f776e9389dda7fe5f351a1b0cfd569c384ca5980ed62e789d7709f77eed",
+      "cohort": "replication",
+      "family": "dini-two",
+      "label": {
+        "expected": "pass",
+        "authority": "provisional",
+        "basis": "Pre-existing provisional normal assessment retained. Selected for severe-only calibration; not a new held-out case."
+      }
+    },
+    {
+      "id": "case-10",
+      "root": "local",
+      "file": "local-story-preview-dini-20260915/page-10.png",
+      "sha": "4fdb96e06d1157b5d6daad024731994199150762350ea14672e6069c539b0647",
+      "cohort": "replication",
+      "family": "dini-ten",
+      "label": {
+        "expected": "pass",
+        "authority": "provisional",
+        "basis": "Pre-existing provisional normal assessment retained. Selected for severe-only calibration; not a new held-out case."
+      }
+    },
+    {
+      "id": "case-11",
+      "root": "archive",
+      "file": "bunny-full-render-images/raw/_superseded/2026-06-11T08-03-30-074Z-p5.png",
+      "sha": "715d7786d11e5cf85404968a3cc0a6b7c0149082752a1db90edd71f9a788ebfd",
+      "cohort": "replication",
+      "family": "bunny-mirror",
+      "label": {
+        "expected": "pass",
+        "authority": "provisional",
+        "basis": "Pre-existing provisional normal assessment retained. Selected for severe-only calibration; not a new held-out case."
+      }
+    },
+    {
+      "id": "case-12",
+      "root": "archive",
+      "file": "bunny-full-render-images/raw/_superseded/2026-06-11T08-03-30-074Z-p4.png",
+      "sha": "ad76906eec860d509d600866a044845b81ea25623c824c3d9325eb2a961c1f98",
+      "cohort": "replication",
+      "family": "bunny-shush",
+      "label": {
+        "expected": "pass",
+        "authority": "provisional",
+        "basis": "Pre-existing provisional normal assessment retained. Selected for severe-only calibration; not a new held-out case."
+      }
+    }
+  ]
+}

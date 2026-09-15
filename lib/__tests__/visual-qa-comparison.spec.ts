@@ -17,6 +17,13 @@ const prediction = (extra = {}) => ({ id: 'prediction123', model: comparisonMode
 const response = (value: unknown) => new Response(JSON.stringify(value), { status: 200 });
 
 describe('cross-family comparison', () => {
+  it('rejects unbound detail bytes and incompatible detail modes before dispatch',async()=>{
+    const mock=vi.fn();
+    await expect(inspectComparison({...options(),model:'qwen',calibration:{mode:'rubric',examples:[]},detailImages:[{bytes,sha:'0'.repeat(64)}],fetcher:mock as typeof fetch})).rejects.toThrow('comparison_detail_binding');
+    expect(()=>comparisonInput('sonnet','data:image/png;base64,target',undefined,['data:image/png;base64,crop'])).toThrow('invalid_comparison_details');
+    expect(()=>comparisonInput('qwen','data:image/png;base64,target',{mode:'rubric',examples:[]},['data:image/png;base64,target'])).toThrow('invalid_comparison_details');
+    expect(mock).not.toHaveBeenCalled();
+  });
   it('isolates the rubric from examples, preserving baseline and target-last ordering', () => {
     const target = `data:image/png;base64,${bytes.toString('base64')}`, example = 'data:image/png;base64,example';
     const baseline = comparisonInput('qwen', target);

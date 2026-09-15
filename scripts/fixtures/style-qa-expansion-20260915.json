@@ -1,0 +1,163 @@
+{
+  "version": "frozen-qa-benchmark/v1",
+  "id": "style-expansion-20260915",
+  "promptSha": "353519e183a7e93d93f8094772bfccdd3dd6ed0d8c0f0b1757789937a06ab3e3",
+  "cases": [
+    {
+      "id": "case-01",
+      "root": "local",
+      "file": "local-story-preview-dini-20260915/page-01.png",
+      "sha": "25c1545f37bfd9e74158f99c79c88698a2a5e320f9c56366ffdd9525f91ebddb",
+      "cohort": "replication",
+      "family": "dini-one",
+      "label": {
+        "expected": "defect",
+        "authority": "owner",
+        "basis": "Guy rejected this exact original anatomy; existing owner label, not a new judgement."
+      }
+    },
+    {
+      "id": "case-02",
+      "root": "local",
+      "file": "local-story-preview-dini-20260915/repair-01/page-01.png",
+      "sha": "b30c463338ad0cab6a06add458fafc0f3d28047fac21f86c927171399c10271f",
+      "cohort": "replication",
+      "family": "dini-one",
+      "label": {
+        "expected": "pass",
+        "authority": "provisional",
+        "basis": "Previously assessed repaired crouch; repeatability control, implementer-provisional."
+      }
+    },
+    {
+      "id": "case-03",
+      "root": "archive",
+      "file": "gallery-render/20260613-141804-low/style01-1.png",
+      "sha": "513ba8f26d857d8bfd3bc52a8aa80dd87bfbc29eaac8603f1afe8a935e05f36a",
+      "cohort": "expansion",
+      "family": "fox-window",
+      "label": {
+        "expected": "pass",
+        "authority": "provisional",
+        "basis": "Kneeling child at a window; hands on sill, normal hidden joints and shoe soles."
+      }
+    },
+    {
+      "id": "case-04",
+      "root": "archive",
+      "file": "gallery-render/20260613-141804-low/style02-3.png",
+      "sha": "5a3019881b38a6136051091592834fe0d9d68a2c03b25a7f10ba75d5dc09398e",
+      "cohort": "expansion",
+      "family": "bunny-doctor",
+      "label": {
+        "expected": "pass",
+        "authority": "provisional",
+        "basis": "Seated child with overlapping hands; coherent wrist and digit ownership."
+      }
+    },
+    {
+      "id": "case-05",
+      "root": "archive",
+      "file": "gallery-render/20260613-141804-low/style01-4.png",
+      "sha": "154b7caa6c7e32174cc15e50e4cd2abb0059b0c4bcf40b755d53b4423ff147f1",
+      "cohort": "expansion",
+      "family": "dragon-bedroom",
+      "label": {
+        "expected": "pass",
+        "authority": "provisional",
+        "basis": "Standing girl with hands on hips and bare feet; simplified but coherent digits."
+      }
+    },
+    {
+      "id": "case-06",
+      "root": "archive",
+      "file": "gallery-render/20260613-141804-low/style02-5.png",
+      "sha": "c337ac12b8ddb7b980eb843dd707903efcd43724260a6a21416c96466a249f03",
+      "cohort": "expansion",
+      "family": "chameleon-move",
+      "label": {
+        "expected": "pass",
+        "authority": "provisional",
+        "basis": "Kneeling child holding blanket; legs and far hand partially obscured by box/blanket."
+      }
+    },
+    {
+      "id": "case-07",
+      "root": "archive",
+      "file": "forensics-bunny-assets/page4.png",
+      "sha": "bd1250e6be4907906b6554cf6934e998bec1c572e9e2b27b56b7979c3e8d80f8",
+      "cohort": "expansion",
+      "family": "bunny-night",
+      "label": {
+        "expected": "pass",
+        "authority": "provisional",
+        "basis": "Kneeling girl shushing and reaching; ordinary bent arms and folded legs."
+      }
+    },
+    {
+      "id": "case-08",
+      "root": "archive",
+      "file": "phase-a-calibration/2026-06-12T08-01-37-651Z/p4_dynamic_low.png",
+      "sha": "91b91cf8e5d979130ff3ef5627655bd655b7733c11e4399c25597e22013f4940",
+      "cohort": "expansion",
+      "family": "bunny-shush",
+      "label": {
+        "expected": "pass",
+        "authority": "provisional",
+        "basis": "Girl shushing with one raised open palm; ordinary foreshortening and fingers."
+      }
+    },
+    {
+      "id": "case-09",
+      "root": "local",
+      "file": "local-story-preview-dini-20260915/page-02.png",
+      "sha": "47815f776e9389dda7fe5f351a1b0cfd569c384ca5980ed62e789d7709f77eed",
+      "cohort": "expansion",
+      "family": "dini-two",
+      "label": {
+        "expected": "pass",
+        "authority": "provisional",
+        "basis": "Child behind tilted cart/cake; far arm and leg occluded, not automatically missing limbs."
+      }
+    },
+    {
+      "id": "case-10",
+      "root": "local",
+      "file": "local-story-preview-dini-20260915/page-10.png",
+      "sha": "4fdb96e06d1157b5d6daad024731994199150762350ea14672e6069c539b0647",
+      "cohort": "expansion",
+      "family": "dini-ten",
+      "label": {
+        "expected": "pass",
+        "authority": "provisional",
+        "basis": "Child pushing cart dynamically; two grips, bent running legs."
+      }
+    },
+    {
+      "id": "case-11",
+      "root": "archive",
+      "file": "bunny-full-render-images/raw/_superseded/2026-06-11T08-03-30-074Z-p5.png",
+      "sha": "715d7786d11e5cf85404968a3cc0a6b7c0149082752a1db90edd71f9a788ebfd",
+      "cohort": "expansion",
+      "family": "bunny-mirror",
+      "label": {
+        "expected": "pass",
+        "authority": "provisional",
+        "basis": "Girl and mirror reflection; duplicate reflected body is not extra anatomy. Other reflection consistency unscored."
+      }
+    },
+    {
+      "id": "case-12",
+      "root": "archive",
+      "file": "bunny-full-render-images/raw/_superseded/2026-06-11T08-03-30-074Z-p4.png",
+      "sha": "ad76906eec860d509d600866a044845b81ea25623c824c3d9325eb2a961c1f98",
+      "cohort": "expansion",
+      "family": "bunny-shush",
+      "label": {
+        "expected": "pass",
+        "authority": "provisional",
+        "basis": "Girl shushing, other hand near rabbit; visible arms attach coherently."
+      }
+    }
+  ]
+}

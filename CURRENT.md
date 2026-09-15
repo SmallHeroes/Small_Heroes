@@ -1,5 +1,50 @@
 # SmallHeroes — Current Technical State
 
+## Expanded QA probes and owner severity policy: no deployable winner — 2026-09-15
+
+Guy approved continuation and clarified that non-realistic illustration should only
+be blocked for clearly wrong, severe defects. This product intent is accepted; no
+active QA/default/resemblance threshold or repair/release gate was changed.
+Sole writer in semantic-m1, base936ce970, clean ahead23 at start. Protected d53b
+768ccb2f / accepted-intent63ccb484 clean. Main project90364542 supplied archived
+illustrations read-only; its unrelated dirty state was not touched.
+
+Added reusable hash/prompt-bound local benchmark runner with strict preflight and
+separate cohorts, optional exact detail crops, severe-only classified findings versus
+nonblocking notes, and finding-level verification with report-bound proposals.
+All are isolated experiment paths. No full-book/image/audio render, source/reader
+edit, active gate bypass, push, or independent technical PASS.
+
+Four sequential, separately bound stages; no post-result rewriting:
+- Frozen rubric expansion12: original/corrected replicate;5 of10 additional
+  provisional-normal illustrations accepted and5 rejected. No new unequivocal
+  anatomy-defect label found in scoped archive scan; not multi-defect sensitivity.
+- Full image plus exact detail crop4: all4 rejected (original +3 controls). Detail
+  did not cure oversensitivity. Crop boxes implementer-selected, not automatic QA.
+- Owner severe-only policy8: all8 accepted, INCLUDING known original defect. Failed
+  regression; cannot activate. It described a cart grip absent from the original.
+- Verify detector findings4: all4 accepted, again INCLUDING original defect.
+  It denied the disconnection while discussing the red-sleeved arm, suggesting wrong
+  region/limb grounding; this is an inference, not proven internal model reasoning.
+
+No candidate is ready to control unattended repair/release. Normal labels are
+implementer-provisional; only1 owner-labelled real defect; later stages deliberately
+post-selected. Same Qwen model, not independent QA or statistical general accuracy.
+Next: pixel-localized finding identification and correspondence verification before
+severity decisions. Do not globally soften away detector signals or require Guy to
+manually inspect every generated book. Existing bounded repair/recheck loop remains
+available but its anatomy calibration is not established by these experiments.
+
+28 claims/28 known succeeded receipts/0 unresolved or paid retries, no locks left.
+57507 input/6913 output tokens; estimate0.023483145USD using previously observed
+Qwen token list rates (not invoice-confirmed). Retained reservations7USD across
+3+1+2+1USD stages; not hard provider billing caps. Returned model version hidden.
+182/182 across12specs, tsc0 and diff-check0; fullcheck NOT rerun/remains NON-GREEN.
+Fake-key replay preserves four-stage results and older3-arm calibration. All39
+checked inputs/reader media/prior reports byte-identical;13PNG/12MP3 reader intact.
+Evidence outputs/qa-validation-*-20260915 ignored/local-only, not backed up by push.
+Gate and immutable-report hashes: docs/ai-workflow/FROZEN_QA_EXPANSION_{GATE,HANDOFF}_20260915.md.
+
 ## Qwen style calibration: text-only candidate improved; not production QA — 2026-09-15
 
 Guy wants automatic book QA, not a recurring manual inspection workflow. Tested

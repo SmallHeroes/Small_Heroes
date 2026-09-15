@@ -1,0 +1,109 @@
+{
+  "version": "frozen-qa-benchmark/v1",
+  "id": "finding-verification-20260915",
+  "severityPolicy": "verify-findings",
+  "promptSha": "d4b46a48ca9099d33c7193f050b28f8d87e95ec049b315ff579ac4d0a07240f6",
+  "cases": [
+    {
+      "id": "case-01",
+      "root": "local",
+      "file": "local-story-preview-dini-20260915/page-01.png",
+      "sha": "25c1545f37bfd9e74158f99c79c88698a2a5e320f9c56366ffdd9525f91ebddb",
+      "cohort": "replication",
+      "family": "dini-one",
+      "label": {
+        "expected": "defect",
+        "authority": "owner",
+        "basis": "Guy rejected this exact original anatomy; existing owner label, not a new judgement."
+      },
+      "findingReview": {
+        "sourceReportFile": "qa-validation-style-expansion-20260915/report.json",
+        "sourceReportSha": "c8b9558c00b99d334e3336113d0e0f338bcb51bcbc20bf978399cf8760e431ac",
+        "findings": [
+          {
+            "id": "f-0",
+            "location": "Child's right arm (viewer's left)",
+            "evidence": "The upper arm segment appears detached from the shoulder and forearm, lacking a coherent elbow joint and appearing as a floating shape."
+          }
+        ]
+      }
+    },
+    {
+      "id": "case-07",
+      "root": "archive",
+      "file": "forensics-bunny-assets/page4.png",
+      "sha": "bd1250e6be4907906b6554cf6934e998bec1c572e9e2b27b56b7979c3e8d80f8",
+      "cohort": "replication",
+      "family": "bunny-night",
+      "label": {
+        "expected": "pass",
+        "authority": "provisional",
+        "basis": "Kneeling girl shushing and reaching; ordinary bent arms and folded legs."
+      },
+      "findingReview": {
+        "sourceReportFile": "qa-validation-style-expansion-20260915/report.json",
+        "sourceReportSha": "c8b9558c00b99d334e3336113d0e0f338bcb51bcbc20bf978399cf8760e431ac",
+        "findings": [
+          {
+            "id": "f-0",
+            "location": "Child's left hand on creature",
+            "evidence": "Fingers visually fuse into the creature's body surface; individual digit tips and separation are missing, creating a malformed connection."
+          },
+          {
+            "id": "f-1",
+            "location": "Child's right hand at mouth",
+            "evidence": "The tip of the index finger lacks defined structure and appears to smear into the lip/mouth area, obscuring the boundary between hand and face."
+          }
+        ]
+      }
+    },
+    {
+      "id": "case-09",
+      "root": "local",
+      "file": "local-story-preview-dini-20260915/page-02.png",
+      "sha": "47815f776e9389dda7fe5f351a1b0cfd569c384ca5980ed62e789d7709f77eed",
+      "cohort": "replication",
+      "family": "dini-two",
+      "label": {
+        "expected": "pass",
+        "authority": "provisional",
+        "basis": "Child behind tilted cart/cake; far arm and leg occluded, not automatically missing limbs."
+      },
+      "findingReview": {
+        "sourceReportFile": "qa-validation-style-expansion-20260915/report.json",
+        "sourceReportSha": "c8b9558c00b99d334e3336113d0e0f338bcb51bcbc20bf978399cf8760e431ac",
+        "findings": [
+          {
+            "id": "f-0",
+            "location": "Child's right arm and cart handle",
+            "evidence": "The forearm visually merges into the solid blue cart frame, with the hand appearing disconnected or fused through the material rather than grasping it."
+          }
+        ]
+      }
+    },
+    {
+      "id": "case-10",
+      "root": "local",
+      "file": "local-story-preview-dini-20260915/page-10.png",
+      "sha": "4fdb96e06d1157b5d6daad024731994199150762350ea14672e6069c539b0647",
+      "cohort": "replication",
+      "family": "dini-ten",
+      "label": {
+        "expected": "pass",
+        "authority": "provisional",
+        "basis": "Child pushing cart dynamically; two grips, bent running legs."
+      },
+      "findingReview": {
+        "sourceReportFile": "qa-validation-style-expansion-20260915/report.json",
+        "sourceReportSha": "c8b9558c00b99d334e3336113d0e0f338bcb51bcbc20bf978399cf8760e431ac",
+        "findings": [
+          {
+            "id": "f-0",
+            "location": "Child's left hand on the cart handle",
+            "evidence": "Fingers are malformed and fused, lacking distinct digit separation; the grip on the handle is structurally incoherent with no clear thumb opposition."
+          }
+        ]
+      }
+    }
+  ]
+}

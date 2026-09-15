@@ -1,0 +1,84 @@
+{
+  "version": "frozen-qa-benchmark/v1",
+  "id": "contact-details-20260915",
+  "viewMode": "full-and-details",
+  "promptSha": "4aa98b5515999c3fc191d699867741b949cae879e68835bdd661f2c2527a72a3",
+  "cases": [
+    {
+      "id": "case-01",
+      "root": "local",
+      "file": "local-story-preview-dini-20260915/page-01.png",
+      "sha": "25c1545f37bfd9e74158f99c79c88698a2a5e320f9c56366ffdd9525f91ebddb",
+      "cohort": "replication",
+      "family": "dini-one",
+      "detailBox": {
+        "left": 100,
+        "top": 160,
+        "width": 550,
+        "height": 1200
+      },
+      "label": {
+        "expected": "defect",
+        "authority": "owner",
+        "basis": "Existing Guy-rejected original; retained positive control."
+      }
+    },
+    {
+      "id": "case-07",
+      "root": "archive",
+      "file": "forensics-bunny-assets/page4.png",
+      "sha": "bd1250e6be4907906b6554cf6934e998bec1c572e9e2b27b56b7979c3e8d80f8",
+      "cohort": "replication",
+      "family": "bunny-night",
+      "detailBox": {
+        "left": 50,
+        "top": 360,
+        "width": 680,
+        "height": 880
+      },
+      "label": {
+        "expected": "pass",
+        "authority": "provisional",
+        "basis": "Post-selected contact/occlusion diagnostic. Original pre-run provisional normal label retained, not independent ground truth."
+      }
+    },
+    {
+      "id": "case-09",
+      "root": "local",
+      "file": "local-story-preview-dini-20260915/page-02.png",
+      "sha": "47815f776e9389dda7fe5f351a1b0cfd569c384ca5980ed62e789d7709f77eed",
+      "cohort": "replication",
+      "family": "dini-two",
+      "detailBox": {
+        "left": 380,
+        "top": 240,
+        "width": 460,
+        "height": 760
+      },
+      "label": {
+        "expected": "pass",
+        "authority": "provisional",
+        "basis": "Post-selected contact/occlusion diagnostic. Original pre-run provisional normal label retained, not independent ground truth."
+      }
+    },
+    {
+      "id": "case-10",
+      "root": "local",
+      "file": "local-story-preview-dini-20260915/page-10.png",
+      "sha": "4fdb96e06d1157b5d6daad024731994199150762350ea14672e6069c539b0647",
+      "cohort": "replication",
+      "family": "dini-ten",
+      "detailBox": {
+        "left": 20,
+        "top": 180,
+        "width": 500,
+        "height": 750
+      },
+      "label": {
+        "expected": "pass",
+        "authority": "provisional",
+        "basis": "Post-selected contact/occlusion diagnostic. Original pre-run provisional normal label retained, not independent ground truth."
+      }
+    }
+  ]
+}

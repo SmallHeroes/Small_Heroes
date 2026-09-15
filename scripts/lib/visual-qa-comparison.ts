@@ -3,10 +3,14 @@ import path from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { comparisonModels, comparisonInput, parseComparisonReview, COMPARISON_VERSION, type ComparisonModel } from '../../lib/visual-qa-comparison';
 import { previewCheckpoint, previewSha, writePreviewJson } from '../../lib/local-story-preview';
+import { parseSevereAnatomyReview } from '../../lib/illustrated-anatomy-severity';
+import { findingReviewInput,parseFindingReview,type FindingProposal } from '../../lib/anatomy-finding-review';
 
 export async function inspectComparison(args: { root: string; step: string; model: ComparisonModel; bytes: Buffer; sha: string; key: string;
   fetcher?: typeof fetch; pause?: () => Promise<void>; reconcileOnly?: boolean; transportMode?: 'official_async';
-  calibration?: { mode: 'rubric' | 'examples'; examples: Array<{ bytes: Buffer; sha: string; verdict: 'pass' | 'defect'; explanation: string }> } }) {
+  detailImages?: Array<{bytes:Buffer;sha:string}>;
+  findings?: FindingProposal[];
+  calibration?: { mode: 'rubric' | 'examples' | 'severe-only'; examples: Array<{ bytes: Buffer; sha: string; verdict: 'pass' | 'defect'; explanation: string }> } }) {
   if (!Object.prototype.hasOwnProperty.call(comparisonModels, args.model)) throw Error('comparison_model_not_allowed');
   if (!/^[a-z][a-z0-9-]{0,50}$/.test(args.step)) throw Error('comparison_invalid_step');
   if (previewSha(args.bytes) !== args.sha || !args.bytes.subarray(0, 8).equals(Buffer.from([137,80,78,71,13,10,26,10]))) throw Error('comparison_image_binding');
@@ -14,8 +18,13 @@ export async function inspectComparison(args: { root: string; step: string; mode
   for (const e of args.calibration?.examples ?? []) {
     if (previewSha(e.bytes) !== e.sha || !e.bytes.subarray(0,8).equals(Buffer.from([137,80,78,71,13,10,26,10]))) throw Error('comparison_example_binding');
   }
-  const model = comparisonModels[args.model], input = comparisonInput(args.model, `data:image/png;base64,${args.bytes.toString('base64')}`,
-    args.calibration ? { mode: args.calibration.mode, examples: args.calibration.examples.map(e => ({ image:`data:image/png;base64,${e.bytes.toString('base64')}`, verdict:e.verdict, explanation:e.explanation })) } : undefined);
+  for (const d of args.detailImages ?? []) {
+    if (previewSha(d.bytes)!==d.sha || !d.bytes.subarray(0,8).equals(Buffer.from([137,80,78,71,13,10,26,10]))) throw Error('comparison_detail_binding');
+  }
+  if(args.findings && (args.model!=='qwen' || args.calibration || args.detailImages?.length)) throw Error('finding_review_incompatible_mode');
+  const model = comparisonModels[args.model], input = args.findings ? findingReviewInput(`data:image/png;base64,${args.bytes.toString('base64')}`,args.findings) : comparisonInput(args.model, `data:image/png;base64,${args.bytes.toString('base64')}`,
+    args.calibration ? { mode: args.calibration.mode, examples: args.calibration.examples.map(e => ({ image:`data:image/png;base64,${e.bytes.toString('base64')}`, verdict:e.verdict, explanation:e.explanation })) } : undefined,
+    args.detailImages?.map(d=>`data:image/png;base64,${d.bytes.toString('base64')}`));
   const transport = args.fetcher ?? fetch;
   const policy = { version: COMPARISON_VERSION, model, imageSha: args.sha, requestSha: previewSha(JSON.stringify(input)), cancelAfter: '120s',
     ...(args.transportMode ? { transportMode: args.transportMode } : {}) };
@@ -82,6 +91,8 @@ export async function inspectComparison(args: { root: string; step: string; mode
     } });
   if (record.value.status !== 'succeeded') throw Error('comparison_provider_not_succeeded');
   // Malformed known output is held, never repaired with another paid call.
-  try { return { observed: parseComparisonReview(record.value.text).anatomy.verdict, review: parseComparisonReview(record.value.text), renderAuthorized: false as const }; }
+  try { if(args.findings) return parseFindingReview(record.value.text,args.findings);
+    const review=args.calibration?.mode==='severe-only' ? parseSevereAnatomyReview(record.value.text) : parseComparisonReview(record.value.text);
+    return { observed: review.anatomy.verdict, review, renderAuthorized: false as const }; }
   catch { return { observed: 'unknown' as const, reason: 'invalid_review', renderAuthorized: false as const }; }
 }
