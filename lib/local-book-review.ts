@@ -15,6 +15,7 @@ const manifestSchema = z.object({
     automatedPassed: z.boolean(),
     reason: z.string(),
     score: z.number().finite().min(0).max(1).nullable(),
+    audio: z.object({ fileName: z.string().regex(/^page-\d{2}\.mp3$/), sha: digest, textSha: digest }).strict().optional(),
   })).min(2).max(100),
 });
 const ownerSchema = z.object({
@@ -51,6 +52,8 @@ async function readManifest(root: string) {
     if (page.pageNumber !== index || page.imageName !== `page-${String(index).padStart(2, '0')}.png`) {
       throw new Error('Review pages must be contiguous from cover zero');
     }
+    if (page.audio && (page.audio.fileName !== `page-${String(index).padStart(2, '0')}.mp3` ||
+      page.audio.textSha !== createHash('sha256').update(page.text).digest('hex'))) throw new Error('Review audio text binding mismatch');
   });
   return manifest;
 }
@@ -66,6 +69,7 @@ export async function loadLocalBookReview() {
   const root = await reviewRoot();
   const manifest = await readManifest(root);
   await Promise.all(manifest.pages.map(page => verifiedImage(root, page)));
+  await Promise.all(manifest.pages.filter(page => page.audio).map(page => verifiedAudio(root, page.audio!)));
   let owner: z.infer<typeof ownerSchema> | null = null;
   try {
     owner = ownerSchema.parse(JSON.parse((await containedRead(root, 'owner-review.json')).toString('utf8')));
@@ -82,11 +86,27 @@ export async function loadLocalBookReview() {
       pages: manifest.pages.map(page => ({
         pageNumber: page.pageNumber, text: page.text,
         imageUrl: `/api/dev/local-book-image?page=${page.pageNumber}&sha=${page.imageSha}`,
-        audioUrl: null, isCover: page.pageNumber === 0, pageLayout: 'standard',
+        audioUrl: page.audio ? `/api/dev/local-book-audio?page=${page.pageNumber}&sha=${page.audio.sha}` : null,
+        isCover: page.pageNumber === 0, pageLayout: 'standard',
       })),
     },
   };
   return { payload, automated: manifest.pages, owner };
+}
+
+async function verifiedAudio(root: string, audio: { fileName: string; sha: string }) {
+  const bytes = await containedRead(root, audio.fileName);
+  if (createHash('sha256').update(bytes).digest('hex') !== audio.sha) throw new Error('Review audio digest mismatch');
+  if (!(bytes.subarray(0, 3).toString('ascii') === 'ID3' || (bytes.length > 2 && bytes[0] === 0xff && (bytes[1] & 0xe0) === 0xe0))) throw new Error('Review audio is not MP3');
+  return bytes;
+}
+
+export async function loadLocalBookAudio(pageNumber: number, sha: string): Promise<Buffer> {
+  const root = await reviewRoot();
+  const manifest = await readManifest(root);
+  const page = manifest.pages.find(item => item.pageNumber === pageNumber);
+  if (!page?.audio || page.audio.sha !== sha) throw new Error('Unknown review audio');
+  return verifiedAudio(root, page.audio);
 }
 
 export async function loadLocalBookImage(pageNumber: number, sha: string): Promise<Buffer> {

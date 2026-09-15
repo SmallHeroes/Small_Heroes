@@ -5,6 +5,7 @@ import os from 'node:os';
 import { createHash } from 'node:crypto';
 import { loadLocalBookReview, loadLocalBookImage } from '../local-book-review';
 import { GET } from '../../app/api/dev/local-book-image/route';
+import { GET as AUDIO } from '../../app/api/dev/local-book-audio/route';
 
 const bytes = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10, 1]);
 const sha = createHash('sha256').update(bytes).digest('hex');
@@ -31,6 +32,31 @@ beforeEach(async () => {
 afterEach(async () => { vi.unstubAllEnvs(); await rm(root, { recursive: true, force: true }); });
 
 describe('local book reader: exact data and no release authority', () => {
+  it('serves source-bound local narration without changing visible text or quality status', async () => {
+    const mp3 = Buffer.from('ID3test-audio'); const audioSha = createHash('sha256').update(mp3).digest('hex');
+    const value = manifest();
+    Object.assign(value.pages[1], { audio: { fileName: 'page-01.mp3', sha: audioSha,
+      textSha: createHash('sha256').update(value.pages[1].text).digest('hex') } });
+    await save(value); await writeFile(path.join(root, 'page-01.mp3'), mp3);
+    const result = await loadLocalBookReview();
+    expect(result.payload.book!.pages[1].audioUrl).toContain(`page=1&sha=${audioSha}`);
+    expect(result.payload.book!.pages[1].text).toBe(value.pages[1].text);
+    expect(result.automated[1].automatedPassed).toBe(false);
+    const response = await AUDIO(new Request(`http://localhost/api/dev/local-book-audio?page=1&sha=${audioSha}`));
+    expect(response.headers.get('content-type')).toBe('audio/mpeg');
+    expect(Buffer.from(await response.arrayBuffer())).toEqual(mp3);
+    vi.stubEnv('VERCEL', '1');
+    expect((await AUDIO(new Request(`http://localhost/api/dev/local-book-audio?page=1&sha=${audioSha}`))).status).toBe(404);
+  });
+  it.each(['text', 'bytes', 'path', 'format'])('rejects invalid audio %s', async fault => {
+    const mp3 = Buffer.from(fault === 'format' ? 'not mp3' : 'ID3test');
+    const value = manifest();
+    Object.assign(value.pages[1], { audio: { fileName: fault === 'path' ? '../audio.mp3' : 'page-01.mp3',
+      sha: createHash('sha256').update(mp3).digest('hex'),
+      textSha: createHash('sha256').update(fault === 'text' ? 'other prose' : value.pages[1].text).digest('hex') } });
+    await save(value); await writeFile(path.join(root, 'page-01.mp3'), fault === 'bytes' ? 'changed' : mp3);
+    await expect(loadLocalBookReview()).rejects.toThrow();
+  });
   it('uses exact manifest text, cover and hash-bound local image URLs', async () => {
     const result = await loadLocalBookReview();
     expect(result.payload.book?.pages[1].text).toBe(manifest().pages[1].text);

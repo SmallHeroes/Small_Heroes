@@ -3,7 +3,9 @@ import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { z } from 'zod';
 import { parseStoryMarkdown } from './story-validators/parser';
-import { STYLE_01_SHARED, STYLE_01_RENDERING_CORRECTION, STYLE_01_CANONICAL_CHILD_ANCHOR_RULE } from './style01-gptimage';
+import { STYLE_01_SHARED, STYLE_01_RENDERING_CORRECTION, STYLE_01_CANONICAL_CHILD_ANCHOR_RULE, STYLE_01_FRAMING_RULE, STYLE_01_FRAMING_RULE_CLOSE_UP, buildStyle01ChildAnatomicalLock } from './style01-gptimage';
+import { buildStyle01AnatomyIntegrityLock } from './style01-visual-polish';
+import { previewContinuitySchema, previewContinuityContext } from './local-preview-quality';
 
 // This is an audition artifact, deliberately not a VisualPackage or runtime authority.
 export const PREVIEW_VERSION = 'local-story-preview/v1';
@@ -22,7 +24,10 @@ export const previewPlanSchema = z.object({
     companionAction: z.string(), scene: z.string(),
     props: z.array(z.object({ id: z.string(), state: z.string() }).strict()),
   }).strict()),
+  continuity: previewContinuitySchema.optional(),
 }).strict();
+// New paid runs require structured continuity; old saved plans remain readable.
+export const previewPlanV2Schema = previewPlanSchema.extend({ continuity: previewContinuitySchema });
 export type PreviewPlan = z.infer<typeof previewPlanSchema>;
 
 export function previewStory(raw: string, childName: string, gender: 'boy' | 'girl') {
@@ -65,11 +70,19 @@ export function previewPagePrompt(plan: PreviewPlan, pageNumber: number, text: s
   if (!p || p.pageNumber !== pageNumber) throw Error('unknown_page');
   return [
     STYLE_01_SHARED, STYLE_01_RENDERING_CORRECTION, STYLE_01_CANONICAL_CHILD_ANCHOR_RULE,
+    buildStyle01ChildAnatomicalLock({ childAge, allowDistinctSupportingChildren: true }), buildStyle01AnatomyIntegrityLock(),
+    p.shot === 'close' ? STYLE_01_FRAMING_RULE_CLOSE_UP : STYLE_01_FRAMING_RULE,
     'Reference roles: image 1 = exact child identity and watercolor technique ONLY; image 2 = exact companion design ONLY; image 3, when attached = recurring PROP design board ONLY. Never copy their pose, expression, composition or blank backdrop. No panels, collage, captions, words or typography.',
     `CHILD: ${childAge}-year-old ${gender}; same face/hair/skin identity. BOOK WARDROBE LOCK: ${plan.wardrobe}`,
     `COMPANION: ${companionDescription}`,
     `VISUAL LANGUAGE: ${plan.visualLanguage}`,
     `LOCATION LOCK: ${plan.locations.find(l => l.id === p.locationId)!.design}`,
+    ...(plan.continuity ? [
+      `STRUCTURED CONTINUITY (same identity; only source-supported state changes): ${JSON.stringify(previewContinuityContext(plan.continuity, pageNumber))}`,
+      ...plan.continuity.pages[pageNumber].visibleLocationIds.filter(id => id !== p.locationId)
+        .map(id => `VISIBLE BACKGROUND LOCATION ${id}: ${plan.locations.find(l => l.id === id)!.design}`),
+      'Canonical standing-height ratio is independent of posture and perspective. A crouching child does not make the companion grow. Numeric frame occupancy is a drawing target, not text to paint.',
+    ] : []),
     `CAMERA: ${p.shot}, ${p.angle}. COMPOSITION: ${p.composition}`,
     `CHILD ACTION: ${p.childAction}. EXPRESSION: ${p.childExpression}. GAZE: ${p.childGaze}.`,
     'The child must be caught in a meaningful action, responding to the situation. Natural childlike asymmetry and weight; never a neutral portrait pasted into scenery. Expressions are transient, not identity. Do not make every page smile.',
@@ -97,6 +110,28 @@ export function bindPreviewRun(root: string, identity: unknown) {
 }
 
 export interface PreviewCheckpoint<T> { fingerprint: string; value: T; usage: Record<string, unknown> | null; }
+// Upper-rate estimate, not an invoice: all tokens charged at $30/M, ignoring
+// cheaper input/cached rates. Covers this lane's pinned gpt-image-2, gpt-5.4,
+// gpt-4o models (official model pricing checked 2026-09-15). Missing usage keeps
+// the entire reservation, including errors/unknown outcomes. Never assume free.
+export function previewUsageUpperUsd(usage: Record<string, unknown> | null): number | null {
+  const input = usage?.input_tokens ?? usage?.prompt_tokens;
+  const output = usage?.output_tokens ?? usage?.completion_tokens;
+  if (typeof input !== 'number' || typeof output !== 'number' || !Number.isSafeInteger(input) || !Number.isSafeInteger(output) || input < 0 || output < 0 || input + output === 0) return null;
+  return (input + output) * 30 / 1_000_000;
+}
+export function previewAccountedUsd(root: string): number {
+  if (!fs.existsSync(root)) return 0;
+  return fs.readdirSync(root).filter(n => n.endsWith('.claim.json')).reduce((sum, n) => {
+    const claim = JSON.parse(fs.readFileSync(path.join(root, n), 'utf8'));
+    if (!Number.isFinite(claim.reserveUsd) || claim.reserveUsd <= 0) throw Error('invalid_reservation_record');
+    const resultFile = path.join(root, n.replace('.claim.json', '.result.json'));
+    if (!fs.existsSync(resultFile)) return sum + claim.reserveUsd;
+    const result = JSON.parse(fs.readFileSync(resultFile, 'utf8'));
+    if (result.fingerprint !== claim.fingerprint) throw Error('checkpoint_identity_changed');
+    return sum + (previewUsageUpperUsd(result.usage) ?? claim.reserveUsd);
+  }, 0);
+}
 // Claim first, persist result second. A crash between the two is UNKNOWN, never a free retry.
 export async function previewCheckpoint<T>(args: {
   root: string; step: string; input: unknown; reserveUsd: number; budgetUsd: number;
@@ -112,20 +147,21 @@ export async function previewCheckpoint<T>(args: {
   if (fs.existsSync(result)) {
     const prior = JSON.parse(fs.readFileSync(result, 'utf8')) as PreviewCheckpoint<T>;
     if (!fs.existsSync(claim) || prior.fingerprint !== fingerprint || JSON.parse(fs.readFileSync(claim, 'utf8')).fingerprint !== fingerprint) throw Error('checkpoint_identity_changed');
+    const priorReservation = JSON.parse(fs.readFileSync(claim, 'utf8')).reserveUsd;
+    if ((previewUsageUpperUsd(prior.usage) ?? priorReservation) > priorReservation + 1e-8) throw Error('preview_usage_exceeded_reservation');
     return prior;
   }
   if (fs.existsSync(claim)) throw Error('paid_step_outcome_unknown_no_automatic_retry');
   // The CLI holds an exclusive run.lock around this whole operation.
-  const reserved = fs.readdirSync(root).filter(n => n.endsWith('.claim.json')).reduce((sum, n) => {
-    const v = JSON.parse(fs.readFileSync(path.join(root, n), 'utf8')).reserveUsd;
-    if (!Number.isFinite(v) || v <= 0) throw Error('invalid_reservation_record');
-    return sum + v;
-  }, 0);
+  const reserved = previewAccountedUsd(root);
   if (reserved + args.reserveUsd > args.budgetUsd + 1e-8) throw Error('preview_budget_exhausted');
   writePreviewJson(claim, { fingerprint, reserveUsd: args.reserveUsd, at: new Date().toISOString(), invoiceVerified: false });
   const made = await args.produce();
   const record = { fingerprint, value: made.value, usage: made.usage ?? null };
   writePreviewJson(result, record);
+  // Preserve known results but halt this run if the observed upper estimate exceeded
+  // the admission allowance. This is not an unknown outcome and must never be rebilled.
+  if ((previewUsageUpperUsd(record.usage) ?? args.reserveUsd) > args.reserveUsd + 1e-8) throw Error('preview_usage_exceeded_reservation');
   return record;
 }
 
@@ -133,4 +169,13 @@ export function previewImageDigest(file: string) {
   const bytes = fs.readFileSync(file);
   if (!bytes.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))) throw Error('preview_image_not_png');
   return previewSha(bytes);
+}
+
+export function previewAutomatedPassed(identityStatus: string, visual: {
+  clearVisualSafetyIssue?: boolean; sceneMatches?: boolean; recurringPropsConsistent?: boolean;
+  childFeelsActive?: boolean; anatomyCoherent?: boolean;
+}) {
+  return identityStatus === 'passed' && visual.clearVisualSafetyIssue === false &&
+    visual.sceneMatches === true && visual.recurringPropsConsistent === true &&
+    visual.childFeelsActive === true && visual.anatomyCoherent === true;
 }

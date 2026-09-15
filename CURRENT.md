@@ -1,5 +1,68 @@
 # SmallHeroes — Current Technical State
 
+## Local continuity/repair implementation; anatomy calibration HELD — 2026-09-15
+
+Guy approved continuing the general continuity/anatomy/framing QA loop and next
+audio audition without repeated authorization questions. Same sole-writer worktree
+C:/GNart/Work/sh-r3b1b-semantic-m1, codex/r3b1b-semantic-recovery-m1, base4d3bfab0
+(ahead17 at start). Protected d53b768ccb2f / accepted-intent63ccb484 remain read-only.
+
+Implemented in the LOCAL PREVIEW lane, not customer production: required structured
+entity invariants/source-backed state changes, visible background location IDs,
+canonical companion standing-height ratio, numerical framing targets/quotas;
+shared Style01 framing and anatomy locks; image/context-bound eight-category QA;
+at most two repairs per page, each fully rechecked. Unknown/malformed/incomplete
+QA does not authorize image regeneration. A regression-calibration prerequisite
+now blocks new paid preview runs until the current judge policy meets known cases.
+New runs require a new identity/config; old saved artifact bytes are not migrated.
+The only additional shared Style01 change is opt-in distinct supporting children;
+legacy callers retain their existing wording. No source, threshold or production
+authority changed. No independent technical PASS is claimed.
+
+**The visual problem is NOT solved.** Live regression experiments used original
+PNG bytes without giving the judge expected answers. Context-only v1 matched2/4;
+overlapping-detail v2 matched3/4; blind anatomy v3 returned known INCOMPLETE after
+using its4500-token output allowance; v4 with10000-token allowance matched3/4.
+The judge still passed the owner-rejected original anatomy. It did identify the
+four-tier cake and wood-to-stone bridge and passed the corrected anatomy control.
+Passing one control is not proof of low false-positive rate. New image generation
+remains blocked by calibration_hold. No new images were generated in this milestone.
+Further localization/perception validation and real scale/framing test examples
+are needed; neither tighter prose nor a boolean schema is reported as a solution.
+Final whole-book reconciliation and numerical resemblance remain separate pending
+obligations; the CLI deliberately does not mark those as completed.
+
+Audio delivered: all12 body pages narrated using the existing ElevenLabs mom voice
+and the shared pronunciation/pacing preparation. New local root:
+outputs/local-preview-narration-dini-20260915. Reader at
+http://127.0.0.1:3117/dev/local-book now serves that derivative.13/13 image hashes
+and13/13 displayed texts match reader-repair-de19861015bd;12/12 MP3 hashes and
+text bindings verify; accepted prose remains225f2b01. Audio does not alter existing
+QA/owner verdicts. Browser verified page1 MP3 HTTP200, readyState4, currentTime28.87s
+of36.08s, pause control and no console errors. This proves playback, not pronunciation
+or narration product acceptance. All new evidence/audio remains ignored/local-only.
+
+Accounting disclosure:17 OpenAI QA calls returned recorded usage across four
+separate calibration roots; v3 incomplete is accounted, not retried as unknown.
+Conservative all-token-$30/M estimates:1.42836 +1.89738 +0.29190 +3.07839 USD.
+These are NOT invoices/actual charges. The final v4 contextual call's upper estimate
+exceeded its0.50 reservation, leaving that root0.07839 above its3.00 planning fence.
+Results are preserved. Contextual QA reservation is now1.00; observed over-reservation
+results halt and also hold replay without rebilling. Admission remains a planning
+control, not a provider-enforced charge cap.12 audio calls retain6.00 total planning
+reservations in their separate7.00 root because token-based pricing does not apply.
+No unknown claims, image calls, new credentials, upload, deployment or push.
+
+Validation: focused code and boundary tests plus tsc/diff-check; exact final results
+in LOCAL_PREVIEW_CONTINUITY_HANDOFF_20260915.md. Full check remains NON-GREEN:
+ordinary5402pass/6fail/73skip; resource644pass/27fail; exit1. It ran during ongoing
+edits, so is not a final-tree full gate. No blanket inherited/flaky classification,
+timeout increase, stability closure or release readiness. Original route-review and
+production-readiness limits remain. Guy's historical page7 approval remains scoped
+to its original bytes, not any successor image.
+
+Gate: docs/ai-workflow/LOCAL_PREVIEW_CONTINUITY_GATE_20260915.md.
+
 ## Local story-to-reader preview — 2026-09-15 (implementation)
 
 Guy approved automatic creative-preview progression and existing-key LOW renders,
