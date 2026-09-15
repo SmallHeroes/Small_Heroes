@@ -1,5 +1,33 @@
 # SmallHeroes — Current Technical State
 
+## Anatomy evidence rules: isolated offline milestone — 2026-09-16
+
+Guy approved the offline recommendation. New pure anatomy-evidence-policy module
+distinguishes attached, supported occlusion, fully hidden, unresolved and localized
+defect observations. Open parts inventory supports extra fragments; external
+reference-authorized endpoint limits are optional, never guessed by species.
+Uncertainty/incomplete ownership holds, even alongside defects; every result has
+renderAuthorized:false, repairAuthorized:false, pixelAccuracyProven:false.
+Exact repeated endpoint boxes hold rather than counting a crop twice. Approximate
+duplicate regions and hallucinated evidence remain limitations, not solved vision.
+
+32 synthetic policy tests and 103 adjacent tests pass (135/135 in five specs);
+tsc --noEmit exit 0 and diff check 0.
+These prove deterministic evidence handling, NOT visual accuracy or calibration.
+Read-only archive script replayed eight saved inspections across v1/v2/v3/sol:
+only two unique Dini images, all raw verdicts pass. Seven inspection validations
+return observed_pass; v2/sample-b rejects anatomy_box_outside_image. The three
+inventory sample-a suspect arms have non-null regions; removing the null-region
+exemption would not change those cases. No old prose/labels converted to new
+evidence; old operator labels not independently revalidated in this milestone.
+
+No imports from active QA/render paths; existing policies, prompts, model, Flex,
+thresholds, reader/media and archived receipts unchanged. Zero paid/API calls,
+no key access, renders or narration. Full check not rerun for this isolated offline
+addition; stability remains open/NON-GREEN. Independent QA pending, no self-PASS.
+Worktree semantic-m1, base7952ab1e; focused local commit, no push or release.
+Brief/replay commands: docs/ai-workflow/ANATOMY_OFFLINE_RULES_20260916.md.
+
 ## Shared local-preview QA migrated to Flex only — 2026-09-15
 
 Guy approved the Flex-only recommendation after the cost experiment. Implemented
