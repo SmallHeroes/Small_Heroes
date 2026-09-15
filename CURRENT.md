@@ -1,5 +1,53 @@
 # SmallHeroes — Current Technical State
 
+## Alternative-family visual QA experiment: no deployable winner — 2026-09-15
+
+Guy approved the recommended bounded comparison on existing illustrations. Same
+sole writer/worktree/branch, base59f79166, clean ahead21 at start; protected d53b
+768ccb2f and accepted-intent63ccb484 clean. Added isolated preparation/transport/
+summary tooling, not an active QA or production change. No render/audio/source edit.
+
+Prepared30 SHA-unique page images:6 smoke,8 development,16 reserved/unlabelled,
+with related page variants kept out of conflicting splits. Only1 owner anatomical
+defect label;5 provisional implementer controls;24 unlabelled. This is a candidate
+dataset, NOT30 human-labelled examples or a completed held-out benchmark.
+
+Alternative access checked using existing Replicate token (no plaintext output):
+Qwen3.7-Plus and Claude Sonnet4.5 metadata available. Requested versions pinned;
+Qwen response version is "hidden", not provider-attested snapshot identity.
+Both configured for same full PNG/instruction; prior Sol multi-crop prompt differs,
+so no controlled architecture-only improvement claim. MagicAssessor not installed
+or run; custom serving deferred. No direct Anthropic/Gemini credential in checked env.
+
+Qwen:6 cases attempted,3 bound receipts,3 unresolved POST504 claims. Known verdicts:
+original rejected anatomy DEFECT (agreement with Guy); page9 and corrected page1
+also DEFECT (disagreement with provisional controls). Corrected-image critique
+demands nail beds and separate digits even where fingers are visible; implementer
+considers it oversensitive, not independent QA. No winner or render unlock.
+Sonnet:1 attempted creation, no dispatch ID/result; scoped prediction listing had
+no matching Sonnet run. Original HTTP status was not captured. Cost/outcome UNKNOWN,
+not free; no retry and no remaining Sonnet cases run. Two-model comparison incomplete.
+
+Recovered first Qwen result by GET to persisted ID after discovering hidden version.
+A later504 had a possible remote result, but provider-redacted input image prevents
+exact-input recovery; it remains unknown. No creation resubmission. Explicit
+continuation ran only independent unattempted cases; old claims still refuse POST.
+7 total claims/3 known receipts/4 unresolved; no locks remain. Fixed0.25USD per claim
+retained:1.75USD accounting reservation vs3USD planning cap, NOT a verified charge.
+Known Qwen3 receipts only:5346input/994output, list-rate estimate0.00256989USD;
+unknown outcomes NOT included, so this is NOT total cost. No invoice accessed.
+
+149/149 across9specs, tsc0, diff-check0; fullcheck NOT rerun/remains NON-GREEN.
+Fake-key Qwen replay reproduces3defects/3unknowns with no new calls. All30 dataset
+images plus13reader PNG/12MP3 byte hashes unchanged. Independent QA pending.
+Evidence outputs/visual-qa-cross-family-20260915 is ignored/local-only, not preserved
+by Git push. DatasetSHAc155ee0c890d1850589490210ee5284a3aa1cb6eac5ee72abe3df244061f9134;
+Qwen reportSHA6209ca1a704dc443d38bf1bfd783fcd4059d6efb7d05dccdb20057afb7f5eb79.
+Next: independent style-aware labels (including valid simplified hands/occlusions)
+and a stable alternative transport before broader evaluation. Do not turn model
+agreement, unknown provider outcomes or provisional labels into product acceptance.
+Gate/handoff: docs/ai-workflow/VISUAL_QA_COMPARISON_{GATE,HANDOFF}_20260915.md.
+
 ## GPT-5.6 Sol Medium anatomy comparison completed; still HELD — 2026-09-15
 
 Guy requested the exact model. Added an optional allowlisted model only to the
