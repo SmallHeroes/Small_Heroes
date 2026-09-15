@@ -1,5 +1,24 @@
 # SmallHeroes — Current Technical State
 
+## Owner-directed next book draft production started — 2026-09-15
+
+Guy explicitly requested autonomous story selection/rewrite, full-book LOW images,
+existing keys, narration and cost report while away. Selected panda_anat adventure;
+new separate12-page editorial manuscript, not accepted-bank publication or Dini edit.
+Base fc076a78, semantic-m1, sole task writer; protected worktrees remain read-only.
+Generic standalone owner-book-draft executor uses shared validators/prompts/image
+renderer/checkpoints/judge, literal unaccepted-draft authority and pinned inputs.
+Existing calibrated/accepted renderer and current judge are unchanged; no synthetic
+PASS. Always productionReady:false, pending product acceptance, no automatic repairs.
+13 page/cover images plus1prop-board, then12 audio pages; conservative ceilings
+10USD images/10USD diagnostics/6USD audio, not invoice or hard provider billing caps.
+Frozen plan adds roomy framing, varied acting, recurring prop/location/scale locks.
+85/85 in5 focused specs and tsc0; first incorrect test-path invocation found no
+tests, corrected above. Full check not rerun/remains NON-GREEN. Live work pending
+at this record; no independent PASS, push, deployment, or reader replacement.
+Gate: docs/ai-workflow/NEXT_BOOK_DRAFT_GATE_20260915.md. Inputs and future paid
+receipts in outputs/panda-book-*-20260915 are ignored/local-only, not Git backup.
+
 ## Two zoom-out visual directions delivered; engine unchanged — 2026-09-15
 
 Guy approved proceeding with two wider-framing samples, leaving the judge unchanged.
