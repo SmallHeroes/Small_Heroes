@@ -1,5 +1,20 @@
 # SmallHeroes — Current Technical State
 
+## QA cost experiment prepared — 2026-09-15
+
+Owner explicitly approved bounded experiment following cost diagnosis. Sole writer
+semantic-m1, base4a66197d, clean/ahead28 at intake; protected worktrees clean.
+Isolated Flex control versus compact-context/concise-report experiment on original
+panda pages0/3/9/12; two known extra-hand positives, two anatomy-only negatives.
+Same gpt-5.5 medium,5high-detail candidate views, eight categories, output caps.
+4shared blind anatomy calls +8contextual max;8USD conservative ceiling, no retries,
+no tier/model fallback, no new renders/audio or active judge/calibration changes.
+74/74 in4focused specs, tsc0, offline preflight4cases/0providerCalls. Live results
+pending at this preparation record. No independent PASS or production authority.
+Gate docs/ai-workflow/QA_COST_EXPERIMENT_20260915.md; ignored/local-only experiment
+inputs outputs/qa-cost-experiment-input-20260915 and evidence qa-cost-experiment-
+20260915. Actual request hashes, served tier/model and response usage retained.
+
 ## Panda full narrated editorial draft delivered; visual defects remain — 2026-09-15
 
 Guy's autonomous full-book instruction executed: selected panda_anat, rewrote a
