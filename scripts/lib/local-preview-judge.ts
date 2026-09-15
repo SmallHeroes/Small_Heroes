@@ -5,6 +5,17 @@ import { zodTextFormat } from 'openai/helpers/zod';
 import { previewCheckpoint, previewImageDigest, previewSha } from '../../lib/local-story-preview';
 import { ANATOMY_INSPECTION_INSTRUCTION, anatomyInspectionSchema, PREVIEW_JUDGE_MODEL, PREVIEW_JUDGE_EFFORT, PREVIEW_JUDGE_INSTRUCTION, PREVIEW_QUALITY_VERSION, previewQualityReviewSchema } from '../../lib/local-preview-quality';
 
+// Transport identity is deliberately separate from quality/calibration and prompt content.
+const transport = Object.freeze({ version: 'preview-judge-flex/v1', serviceTier: 'flex' as const, timeoutMs: 900_000, maxRetries: 0 });
+function responseEvidence(response: OpenAI.Responses.Response) {
+  return { status: response.status, text: response.output_text, requestedServiceTier: transport.serviceTier,
+    serviceTier: response.service_tier ?? null, model: response.model, responseId: response.id,
+    incompleteDetails: response.incomplete_details ?? null };
+}
+function requireFlex(value: { serviceTier: unknown }) {
+  if (value.serviceTier !== transport.serviceTier) throw Error('preview_judge_service_tier_mismatch');
+}
+
 export async function judgePreviewCandidate(args: {
   root: string; step: string; budgetUsd: number; apiKey: string;
   candidatePath: string; candidateSha: string; contextSha: string; context: unknown;
@@ -34,15 +45,17 @@ export async function judgePreviewCandidate(args: {
       { type: 'input_image', image_url: `data:image/png;base64,${crop.toString('base64')}`, detail: 'high' });
   }
   const anatomyRecord = await previewCheckpoint({ root: args.root, step: `${args.step}-anatomy`,
-    input: { version: PREVIEW_QUALITY_VERSION, instruction: ANATOMY_INSPECTION_INSTRUCTION, candidateSha: args.candidateSha, model: PREVIEW_JUDGE_MODEL, effort: PREVIEW_JUDGE_EFFORT, maxOutputTokens: 10000 },
+    input: { version: PREVIEW_QUALITY_VERSION, instruction: ANATOMY_INSPECTION_INSTRUCTION, candidateSha: args.candidateSha, model: PREVIEW_JUDGE_MODEL, effort: PREVIEW_JUDGE_EFFORT, maxOutputTokens: 10000, transport },
     reserveUsd: 0.5, budgetUsd: args.budgetUsd, produce: async () => {
       args.permit?.();
-      const client = new OpenAI({ apiKey: args.apiKey, baseURL: 'https://api.openai.com/v1', maxRetries: 0, timeout: 300_000 });
-      const response = await client.responses.create({ model: PREVIEW_JUDGE_MODEL, store: false, instructions: ANATOMY_INSPECTION_INSTRUCTION,
+      const client = new OpenAI({ apiKey: args.apiKey, baseURL: 'https://api.openai.com/v1', maxRetries: transport.maxRetries, timeout: transport.timeoutMs });
+      const response = await client.responses.create({ model: PREVIEW_JUDGE_MODEL, service_tier: transport.serviceTier, store: false, instructions: ANATOMY_INSPECTION_INSTRUCTION,
         input: [{ role: 'user', content: candidateContent }], reasoning: { effort: PREVIEW_JUDGE_EFFORT }, max_output_tokens: 10000,
         text: { format: zodTextFormat(anatomyInspectionSchema, 'anatomy_inspection') } });
-      return { value: { status: response.status, text: response.output_text }, usage: response.usage as unknown as Record<string, unknown> };
+      return { value: responseEvidence(response), usage: response.usage as unknown as Record<string, unknown> };
     } });
+  // Validate after persistence, so even wrong-tier/incomplete paid results remain accounted.
+  requireFlex(anatomyRecord.value);
   if (anatomyRecord.value.status !== 'completed') throw Error('preview_anatomy_inspection_incomplete');
   const anatomy = anatomyInspectionSchema.parse(JSON.parse(anatomyRecord.value.text));
   if (anatomy.verdict === 'defect' && !anatomy.correction.trim()) throw Error('anatomy_missing_correction');
@@ -50,7 +63,7 @@ export async function judgePreviewCandidate(args: {
     candidateSha: args.candidateSha, contextSha: args.contextSha, context: args.context,
     references: args.references.map(({ role, sha }) => ({ role, sha })), model: PREVIEW_JUDGE_MODEL, effort: PREVIEW_JUDGE_EFFORT, maxOutputTokens: 4500 };
   if (JSON.stringify(input).length > 50000 || args.references.length > 6) throw Error('preview_judge_input_limit');
-  const record = await previewCheckpoint({ root: args.root, step: args.step, input,
+  const record = await previewCheckpoint({ root: args.root, step: args.step, input: { ...input, transport },
     reserveUsd: 1, budgetUsd: args.budgetUsd, produce: async () => {
       args.permit?.();
       const content: OpenAI.Responses.ResponseInputContent[] = [{ type: 'input_text', text: JSON.stringify(input) }];
@@ -59,13 +72,14 @@ export async function judgePreviewCandidate(args: {
       }
       content.push(...candidateContent);
       // Explicit official origin, no retries, one request per checkpoint.
-      const client = new OpenAI({ apiKey: args.apiKey, baseURL: 'https://api.openai.com/v1', maxRetries: 0, timeout: 180_000 });
-      const response = await client.responses.create({ model: PREVIEW_JUDGE_MODEL, store: false,
+      const client = new OpenAI({ apiKey: args.apiKey, baseURL: 'https://api.openai.com/v1', maxRetries: transport.maxRetries, timeout: transport.timeoutMs });
+      const response = await client.responses.create({ model: PREVIEW_JUDGE_MODEL, service_tier: transport.serviceTier, store: false,
         instructions: PREVIEW_JUDGE_INSTRUCTION, input: [{ role: 'user', content }],
         reasoning: { effort: PREVIEW_JUDGE_EFFORT }, max_output_tokens: 4500,
         text: { format: zodTextFormat(previewQualityReviewSchema, 'preview_quality') } });
-      return { value: { status: response.status, text: response.output_text }, usage: response.usage as unknown as Record<string, unknown> };
+      return { value: responseEvidence(response), usage: response.usage as unknown as Record<string, unknown> };
     } });
+  requireFlex(record.value);
   if (record.value.status !== 'completed') throw Error('preview_judge_incomplete');
   const review = previewQualityReviewSchema.parse(JSON.parse(record.value.text));
   // A contextual reviewer cannot erase a blind anatomy defect/uncertainty. Preserve both raw records.

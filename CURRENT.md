@@ -1,5 +1,33 @@
 # SmallHeroes — Current Technical State
 
+## Shared local-preview QA migrated to Flex only — 2026-09-15
+
+Guy approved the Flex-only recommendation after the cost experiment. Implemented
+above 89de57e4 in semantic-m1: both blind anatomy and contextual QA request Flex,
+15-minute timeout, zero SDK retries, no Standard fallback. Known response tier,
+model, ID, incomplete details and usage are retained before served-tier validation.
+Missing/non-Flex tier throws, never produces a visual verdict; anatomy transport
+failure suppresses its contextual call. Owner-draft caller may still assess other
+pages under its existing three-failure policy; no claim that every error stops
+the entire book immediately. Unknown outcomes retain reservation and block retry.
+
+Transport is checkpoint-bound but excluded from model-visible context. Model,
+medium effort, prompts, schemas, crops, output caps, calibration identity and
+thresholds unchanged. Old Standard checkpoints reject at the judge boundary,
+not necessarily CLI startup; preserve old roots, never relabel or overwrite them.
+Scope is shared local-preview adapter and its three CLI consumers, not all
+customer production QA. Compact lane is NOT promoted; anatomy misses remain.
+
+105/105 focused tests in five specs, tsc exit 0, diff check 0; includes real SDK
+with intercepted fetch returning 429, one dispatch/no retry, no external network.
+All 25 reader image/audio hashes verified against manifest. First inline Node
+hash-verification command had a syntax error; native PowerShell verification
+succeeded. Zero paid calls/renders/audio this milestone. Existing budget accounting
+unchanged, no invoice claim. Full npm run check not rerun for this bounded adapter
+change; repository stability remains NON-GREEN/open. No independent PASS, push,
+deployment, release, story or reader change. Review brief and exact PowerShell
+handoff: docs/ai-workflow/QA_FLEX_TRANSPORT_20260915.md.
+
 ## QA cost experiment completed; compact lane NOT promoted — 2026-09-15
 
 Code commit d7bdf371 above4a66197d.12/12completed Responses, actual served tier flex,
