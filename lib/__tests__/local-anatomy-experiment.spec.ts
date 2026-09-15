@@ -65,6 +65,21 @@ afterEach(() => fs.rmSync(root, { recursive: true, force: true }));
 const response = (value: unknown) => ({ status: 'completed', model: 'gpt-5.5-2026-04-23', id: 'response-test', output_text: JSON.stringify(value), usage: { input_tokens: 100, output_tokens: 100 } });
 const args = () => ({ root, step: 'sample-a', budgetUsd: 2, apiKey: 'test', candidatePath: file, candidateSha: sha, anchorPath: file, anchorSha: sha });
 describe('real experimental two-stage adapter', () => {
+  it('pins the explicit Sol experiment to medium in both stages and isolates its receipts from the default', async () => {
+    create.mockResolvedValueOnce({ ...response({ status: 'located', box, observation: 'target' }), model: 'gpt-5.6-sol' })
+      .mockResolvedValueOnce({ ...response({ ...valid, limbInventory }), model: 'gpt-5.6-sol' });
+    const options = { ...args(), inspectionMode: 'grounded_inventory' as const, model: 'gpt-5.6-sol' as const };
+    const result = await inspectLocalizedAnatomy(options);
+    expect(result).toMatchObject({ status: 'inspected', renderAuthorized: false });
+    for (const [request] of create.mock.calls) expect(request).toMatchObject({ model: 'gpt-5.6-sol', reasoning: { effort: 'medium' }, store: false });
+    expect(await inspectLocalizedAnatomy(options)).toEqual(result);
+    await expect(inspectLocalizedAnatomy({ ...args(), inspectionMode: 'grounded_inventory' })).rejects.toThrow('checkpoint_identity_changed');
+    expect(create).toHaveBeenCalledTimes(2);
+  });
+  it('rejects arbitrary model overrides before dispatch', async () => {
+    await expect(inspectLocalizedAnatomy({ ...args(), model: 'gpt-5.6' as 'gpt-5.6-sol' })).rejects.toThrow('invalid_anatomy_model');
+    expect(create).not.toHaveBeenCalled();
+  });
   it('grounded mode refuses misplaced limb evidence and retains the known receipt without retry', async () => {
     create.mockResolvedValueOnce(response({ status: 'located', box, observation: 'target' })).mockResolvedValueOnce(response({ ...valid,
       limbInventory: limbInventory.map(l => ({ ...l, region: { x: 0, y: 0, width: 0.01, height: 0.01 } })) }));

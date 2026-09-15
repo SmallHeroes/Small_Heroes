@@ -11,8 +11,10 @@ import { CHILD_LOCALIZATION_INSTRUCTION, LOCALIZED_ANATOMY_INSTRUCTION, LOCAL_AN
   childLocalizationSchema, localizedAnatomySchema, localizedAnatomyDisposition, localizedCropRect } from '../../lib/local-anatomy-experiment';
 
 export async function inspectLocalizedAnatomy(args: { root: string; step: string; budgetUsd: number; apiKey: string;
-  candidatePath: string; candidateSha: string; anchorPath: string; anchorSha: string; inspectionMode?: 'inventory' | 'grounded_inventory' }) {
+  candidatePath: string; candidateSha: string; anchorPath: string; anchorSha: string; inspectionMode?: 'inventory' | 'grounded_inventory'; model?: 'gpt-5.6-sol' }) {
   if (!/^[a-z][a-z0-9-]{0,35}$/.test(args.step)) throw Error('invalid_anatomy_step');
+  if (args.model !== undefined && args.model !== 'gpt-5.6-sol') throw Error('invalid_anatomy_model');
+  const model = args.model ?? PREVIEW_JUDGE_MODEL;
   const bytes = fs.readFileSync(args.candidatePath), anchor = fs.readFileSync(args.anchorPath);
   if (previewSha(bytes) !== args.candidateSha || previewSha(anchor) !== args.anchorSha) throw Error('anatomy_image_binding');
   const meta = await sharp(bytes).metadata();
@@ -20,12 +22,12 @@ export async function inspectLocalizedAnatomy(args: { root: string; step: string
   const image = (b: Buffer): OpenAI.Responses.ResponseInputImage => ({ type: 'input_image', image_url: `data:image/png;base64,${b.toString('base64')}`, detail: 'high' });
   const grounded = args.inspectionMode === 'grounded_inventory', inventory = Boolean(args.inspectionMode);
   const instruction = grounded ? GROUNDED_INVENTORY_INSTRUCTION : inventory ? INVENTORY_ANATOMY_INSTRUCTION : LOCALIZED_ANATOMY_INSTRUCTION;
-  const policy = { version: grounded ? LOCAL_ANATOMY_GROUNDED_VERSION : inventory ? LOCAL_ANATOMY_INVENTORY_VERSION : LOCAL_ANATOMY_VERSION, model: PREVIEW_JUDGE_MODEL, effort: PREVIEW_JUDGE_EFFORT, candidateSha: args.candidateSha };
+  const policy = { version: grounded ? LOCAL_ANATOMY_GROUNDED_VERSION : inventory ? LOCAL_ANATOMY_INVENTORY_VERSION : LOCAL_ANATOMY_VERSION, model, effort: PREVIEW_JUDGE_EFFORT, candidateSha: args.candidateSha };
   const client = new OpenAI({ apiKey: args.apiKey, baseURL: 'https://api.openai.com/v1', maxRetries: 0, timeout: 180_000 });
   const locateRecord = await previewCheckpoint({ root: args.root, step: `${args.step}-locate`, budgetUsd: args.budgetUsd, reserveUsd: 0.3,
     input: { ...policy, instruction: CHILD_LOCALIZATION_INSTRUCTION, anchorSha: args.anchorSha, maxOutputTokens: 2500 },
     produce: async () => {
-      const response = await client.responses.create({ model: PREVIEW_JUDGE_MODEL, store: false, reasoning: { effort: PREVIEW_JUDGE_EFFORT }, max_output_tokens: 2500,
+      const response = await client.responses.create({ model, store: false, reasoning: { effort: PREVIEW_JUDGE_EFFORT }, max_output_tokens: 2500,
         instructions: CHILD_LOCALIZATION_INSTRUCTION, text: { format: zodTextFormat(childLocalizationSchema, 'child_localization') },
         input: [{ role: 'user', content: [{ type: 'input_text', text: 'REFERENCE CHILD' }, image(anchor), { type: 'input_text', text: 'FULL ILLUSTRATION TO LOCATE IN' }, image(bytes)] }] });
       return { value: { status: response.status, text: response.output_text, model: response.model, responseId: response.id }, usage: response.usage as unknown as Record<string, unknown> };
@@ -46,7 +48,7 @@ export async function inspectLocalizedAnatomy(args: { root: string; step: string
     upperSha: previewSha(upper), lowerSha: previewSha(lower), imageWidth: meta.width, imageHeight: meta.height, maxOutputTokens: 6000 };
   const judgeRecord = await previewCheckpoint({ root: args.root, step: `${args.step}-inspect`, budgetUsd: args.budgetUsd, reserveUsd: 0.5, input,
     produce: async () => {
-      const response = await client.responses.create({ model: PREVIEW_JUDGE_MODEL, store: false, reasoning: { effort: PREVIEW_JUDGE_EFFORT }, max_output_tokens: 6000,
+      const response = await client.responses.create({ model, store: false, reasoning: { effort: PREVIEW_JUDGE_EFFORT }, max_output_tokens: 6000,
         instructions: instruction, text: { format: inventory ? zodTextFormat(inventoryAnatomySchema, 'inventory_anatomy') : zodTextFormat(localizedAnatomySchema, 'localized_anatomy') },
         input: [{ role: 'user', content: [{ type: 'input_text', text: JSON.stringify({ imageWidth: meta.width, imageHeight: meta.height, cropRect: rect }) },
           { type: 'input_text', text: 'FULL ILLUSTRATION' }, image(bytes), { type: 'input_text', text: 'TARGET CHILD CROP' }, image(crop),

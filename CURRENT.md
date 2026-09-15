@@ -1,5 +1,38 @@
 # SmallHeroes — Current Technical State
 
+## GPT-5.6 Sol Medium anatomy comparison completed; still HELD — 2026-09-15
+
+Guy requested the exact model. Added an optional allowlisted model only to the
+isolated anatomy experiment, with model-bound run/checkpoint identities; default
+5.5 and active QA remain unchanged. Same sole writer/worktree/branch, base807b59ea,
+clean ahead20 at start; protected d53b768ccb2f / accepted-intent63ccb484 clean.
+Both locator and inspector used gpt-5.6-sol/medium on the same original/corrected
+pair and grounded instructions. Crops differ from5.5; not an inspector-only A/B.
+
+Both images received raw PASS: original owner-rejected anatomy was missed again;
+corrected control matched. Original ownership/product rejection is NOT overridden.
+The model described the suspect rear fragment as an ordinarily occluded arm.
+Geometry validation passed but does not prove those visual observations true.
+Report experiment_hold, renderAuthorized=false. No active judge cutover, repair,
+image/audio generation, source/reader change, threshold change or render unlock.
+
+4calls/4known receipts, each response model gpt-5.6-sol; no retries/orphan claims.
+Usage14674input/4038output, including1514cached/13148cache-write input tokens.
+Standard-list-rate estimate0.1471536USD including cache writes; NOT invoice or
+verified serving-tier charges. Existing30USD/M all-token accounting0.56136USD,
+within2USD planning cap and per-call reservations. Serving tier was not recorded;
+the standard estimate must not be represented as an exact charge.
+Fake-key replay exit2 reproduces the report without new calls; old v1/v2/v3 replay
+still exits2/1/2. Both stored crops verified pixel-equal to source regions; all
+13reader PNG/12MP3 hashes unchanged.131/131 across8specs, tsc0, diff-check0.
+Full check not rerun and remains NON-GREEN; independent QA pending, no self-PASS.
+
+Evidence outputs/localized-anatomy-sol-20260915 is ignored/local-only, not preserved
+by Git push. ReportSHA6f1fd42c57d79bd8bc91259b8933fd0b29c34643752f0effdefa9eec8099323b.
+Gate/handoff: docs/ai-workflow/ANATOMY_SOL_{GATE,HANDOFF}_20260915.md.
+Next: retain human anatomy review; this pair provides no basis to promote Sol as
+an autonomous anatomy gate. No broader model-quality comparison is established.
+
 ## Localized anatomy experiment finished; perception failure persists — 2026-09-15
 
 Guy approved automatic child localization + targeted anatomy testing, with free

@@ -10,6 +10,7 @@ import { inspectLocalizedAnatomy } from './lib/local-anatomy-experiment';
 
 const configSchema = z.object({ sourceRoot: z.string(), outputRoot: z.string(), budgetUsd: z.number().positive().max(5),
   inspectionMode: z.enum(['inventory', 'grounded_inventory']).optional(),
+  model: z.literal('gpt-5.6-sol').optional(),
   cases: z.array(z.object({ id: z.string().regex(/^[a-z][a-z0-9-]{0,30}$/), image: z.string(), expected: z.enum(['pass', 'defect']) }).strict()).min(2).max(8) }).strict();
 async function main() {
   if (process.env.VERCEL || process.env.VERCEL_ENV || process.env.NODE_ENV === 'production') throw Error('local_preview_only');
@@ -29,7 +30,7 @@ async function main() {
     return { ...c, candidatePath, candidateSha: previewImageDigest(candidatePath) }; });
   if (new Set(inputs.map(c => c.id)).size !== inputs.length) throw Error('experiment_duplicate_case');
   const grounded = config.inspectionMode === 'grounded_inventory';
-  const policy = { version: grounded ? LOCAL_ANATOMY_GROUNDED_VERSION : config.inspectionMode ? LOCAL_ANATOMY_INVENTORY_VERSION : LOCAL_ANATOMY_VERSION, model: PREVIEW_JUDGE_MODEL, effort: PREVIEW_JUDGE_EFFORT,
+  const policy = { version: grounded ? LOCAL_ANATOMY_GROUNDED_VERSION : config.inspectionMode ? LOCAL_ANATOMY_INVENTORY_VERSION : LOCAL_ANATOMY_VERSION, model: config.model ?? PREVIEW_JUDGE_MODEL, effort: PREVIEW_JUDGE_EFFORT,
     localizationInstructionSha: previewSha(CHILD_LOCALIZATION_INSTRUCTION), inspectionInstructionSha: previewSha(grounded ? GROUNDED_INVENTORY_INSTRUCTION : config.inspectionMode ? INVENTORY_ANATOMY_INSTRUCTION : LOCALIZED_ANATOMY_INSTRUCTION) };
   bindPreviewRun(root, { ...policy, config, inputs, anchorSha });
   const key = process.env.OPENAI_API_KEY?.trim() || parseEnv(fs.readFileSync(process.argv[3])).OPENAI_API_KEY?.trim();
@@ -40,7 +41,7 @@ async function main() {
     for (const c of inputs) {
       // Neither case ID, expected label, filename, source story nor prior verdict enters model input.
       const result = await inspectLocalizedAnatomy({ root, step: c.id, budgetUsd: config.budgetUsd, apiKey: key,
-        anchorPath, anchorSha, candidatePath: c.candidatePath, candidateSha: c.candidateSha, inspectionMode: config.inspectionMode });
+        anchorPath, anchorSha, candidatePath: c.candidatePath, candidateSha: c.candidateSha, inspectionMode: config.inspectionMode, model: config.model });
       const matched = result.status === 'inspected' && result.review.verdict === c.expected;
       results.push({ id: c.id, candidateSha: c.candidateSha, expected: c.expected, matched, ...result });
       console.log(JSON.stringify({ case: c.id, matched, ...result }));
