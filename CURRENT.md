@@ -1,5 +1,46 @@
 # SmallHeroes — Current Technical State
 
+## Panda full narrated editorial draft delivered; visual defects remain — 2026-09-15
+
+Guy's autonomous full-book instruction executed: selected panda_anat, rewrote a
+separate12-page resilience story "בר וענת: מקום לעוד אחד", froze source/plan and
+produced13LOW illustrations plus12Hebrew narration MP3s (427.389388seconds).
+Final local-only reader: http://127.0.0.1:3119/ in Chrome; outputs/panda-book-final-
+draft-20260915/index.html also works as a local artifact. Dini not replaced.
+Source SHA43a49b1a..., plan-v2 SHA0da49685...; actual13final provider prompt hashes
+reproduced offline in outputs/panda-book-draft-20260915/PROMPTS.json. Plan construction
+is manual and pinned, not an accepted Blueprint or automated golden-path cutover.
+
+Original diagnostic results: passed0/3/9, repair1/2/4/5/7/8/10/11, incomplete6,
+budget-held12. These are diagnostic dispositions, NOT release/product acceptance.
+Implementer found extra conductor hands on3/12. One LOW precise correction each
+FAILED to remove them; both retained separately, neither selected. Corrected-image
+recheck again passed3 and held12 for prop uncertainty, missing its anatomy too.
+Final reader retains all13original full-run images and all12audio bytes, explicitly
+holds3/12 alongside preserved original judgments. No retry loop or changed judge.
+Companion scale, framing, supporting costume/gate continuity remain imperfect;
+numerical resemblance absent, calibration not established, productionReady:false.
+
+59known paid results,0unknown:18image calls (includes discarded samples and2failed
+corrections),29diagnostic calls,12narration calls. Price-list estimate4.033789USD:
+images0.283179 / QA3.340410 / audio benchmark0.410200. Not invoice verified;
+ElevenLabs subscription read missing_permissions, voice multiplier unverified.
+Conservative accounted18.898740USD under26USD aggregate planning ceiling; reservations
+are not charges. Separate4USD recheck allocation used unused aggregate allowance,
+not a mutation of the original10USD diagnostic identity. All receipts/cost details
+in outputs/panda-book-draft-20260915/COST.json and COST.md.
+
+100/100 focused tests in7specs; tsc0; diffcheck0. Chrome page1 playback previously
+verified and final page12 reached31/37sec then ended; final cover left open. Local
+reader scopes/asset hashes and hostile Host/Origin/traversal checks verified. Codex
+in-app audio playback crashed; Chrome works. No full pronunciation listening claim.
+Full check not rerun/remains NON-GREEN; no independent technical PASS. Sole writer
+semantic-m1, basefc076a78 plus executor79a71d30 and final local milestone. Protected
+d53b768ccb2f / accepted-intent63ccb484 remain clean. No push/deployment/publication.
+All outputs including ZIP are ignored/local-only, not backed up by Git or off-machine.
+Handoff: docs/ai-workflow/NEXT_BOOK_DRAFT_COMPLETION_20260915.md. No further paid
+attempts scheduled; finished draft delivery does not close visual/release readiness.
+
 ## Owner-directed next book draft production started — 2026-09-15
 
 Guy explicitly requested autonomous story selection/rewrite, full-book LOW images,

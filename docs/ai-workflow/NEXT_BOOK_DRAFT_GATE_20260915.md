@@ -43,3 +43,37 @@ Rollback: stop the isolated executor; original images/reader remain unchanged.
 Final deliverable: separate full draft reader with audio, findings and usage/cost
 report distinguishing invoices, estimates and retained reservations. No new owner
 decision needed for this reversible draft under the latest explicit instruction.
+
+Sample observation and bounded correction: first prop board plus cover/page1 made
+three known paid results. Board depicted four wheels instead of invented two-wheel
+plan; cover/page1 also copied anchor toe shapes and exceeded wide framing targets.
+Do not silently alter that run. Freeze successor plan with four-wheel cart (story
+does not specify count), reuse exact paid board through optional pinned propBoard,
+and use a face-only crop of existing identity anchor; original remains unchanged.
+Draft-only page framing replaces generic35-50% range with exact structured percent
+and explicit middle-distance placement. Current production prompt and QA unchanged.
+Second sample fixes footwear; visual inspection still estimates child around43%,
+above33% target. No compliance claim or further wording-loop retries. Continue the
+explicit full editorial draft and retain framing findings for owner review.
+Total planned image calls now16: original3 + successor13 (board reused), all within
+original image planning allowance including discarded samples; not16 accepted pages.
+Inputs source/plan/config snapshots remain separate; no manuscript change in v2.
+86/86 focused tests and tsc0 after correction. Independent review still pending.
+
+Full-book implementer visual inspection found unmistakable extra conductor hands
+on pages3 and12. Under Guy's explicit autonomous completion/repair intent, permit
+one precise LOW correction per affected image through the existing manual-request
+repair tool (adapt only its exact owner-draft identity/budget binding). This is
+implementer-observed editorial correction, NOT automatic authority from uncalibrated
+QA. No retry loop, calibration override, changed judge, or automatic PASS. Retain
+original candidates and diagnostics; recheck changed bytes, reuse unchanged audio
+because source is identical. Two extra calls remain inside aggregate image10USD
+planning allowance. Lesser framing/state concerns remain disclosed, not whitewashed.
+
+Original diagnostics stopped at their10USD conservative ceiling: page6 returned an
+incomplete response, and page12 contextual assessment was not dispatched. Preserve
+both facts. Allocate4USD of unused aggregate image allowance to a SEPARATE bounded
+corrected-image diagnostic root, keeping the overall26USD planning ceiling unchanged.
+Only current corrected pages3/12 are rechecked, same judge, no incomplete-response
+retry and no mutation of the original diagnostic budget/identity. Two correction
+images plus this allocation fit below26USD using recorded conservative accounting.

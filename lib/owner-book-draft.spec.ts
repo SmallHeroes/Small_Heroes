@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { draftManifest, draftOutputRoot, loadOwnerDraft, ownerDraftSchema } from '../scripts/run-owner-book-draft';
+import { draftManifest, draftOutputRoot, loadOwnerDraft, ownerDraftSchema, ownerDraftPagePrompt } from '../scripts/run-owner-book-draft';
 import { previewCheckpoint, previewSha, bindPreviewRun } from './local-story-preview';
 
 const roots: string[] = [];
@@ -21,6 +21,13 @@ function fixture() {
   return { repo, config };
 }
 describe('explicit local editorial draft boundary', () => {
+  it('uses exact per-page framing rather than generic 35-50 percent framing', () => {
+    const { repo, config } = fixture(); const { plan } = loadOwnerDraft(repo, config);
+    const prompt = ownerDraftPagePrompt(plan, 1, 'First.', 5, 'boy', 'panda');
+    expect(prompt).toContain('target 33% of TOTAL IMAGE HEIGHT');
+    expect(prompt).not.toContain('Characters fill NO MORE than 35-50%');
+    expect(prompt).toContain('Step camera BACK');
+  });
   it('loads pinned source and complete continuity without granting acceptance', () => {
     const { repo, config } = fixture(); const { story } = loadOwnerDraft(repo, config);
     expect(story.pages).toHaveLength(2);

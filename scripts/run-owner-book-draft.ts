@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { parse as parseEnv } from 'dotenv';
 import { bindPreviewRun, previewCheckpoint, previewImageDigest, previewPagePrompt, previewSha, previewStory, validatePreviewPlan, writePreviewJson } from '../lib/local-story-preview';
 import { PREVIEW_QUALITY_VERSION, PREVIEW_JUDGE_MODEL, PREVIEW_JUDGE_EFFORT, qualityDisposition, validatePreviewContinuity } from '../lib/local-preview-quality';
+import { STYLE_01_FRAMING_RULE } from '../lib/style01-gptimage';
 
 // Separate, explicit editorial artifact authority. Never an order/release/package path.
 export const DRAFT_VERSION = 'owner-book-draft/v1';
@@ -13,6 +14,7 @@ const asset = z.object({ file: z.string().min(1), sha }).strict();
 export const ownerDraftSchema = z.object({
   intent: z.literal('owner_requested_unaccepted_draft'),
   story: asset, plan: asset, childAnchor: asset, companionAnchor: asset,
+  propBoard: asset.optional(),
   childName: z.string().min(1).max(50), childAge: z.number().int().min(3).max(8), gender: z.enum(['boy', 'girl']),
   companionDescription: z.string().min(1).max(1500), outputDir: z.string().min(1),
   imageBudgetUsd: z.number().positive().max(10), qaBudgetUsd: z.number().positive().max(10),
@@ -46,7 +48,8 @@ export function loadOwnerDraft(repo: string, raw: unknown) {
   if ((plan.pages.length + (plan.recurringProps.length ? 1 : 0)) * 0.5 > config.imageBudgetUsd) throw Error('draft_initial_reservation_limit');
   const refs = [read(config.childAnchor), read(config.companionAnchor)];
   const root = draftOutputRoot(repo, config.outputDir);
-  return { config, story, plan, refs, root };
+  const propBoard = config.propBoard ? read(config.propBoard) : undefined;
+  return { config, story, plan, refs, root, propBoard };
 }
 
 export function draftManifest(story: ReturnType<typeof previewStory>, planSha: string, pages: unknown[]) {
@@ -56,6 +59,14 @@ export function draftManifest(story: ReturnType<typeof previewStory>, planSha: s
     automaticRepair: 'disabled_uncalibrated', pages };
 }
 
+export function ownerDraftPagePrompt(plan: ReturnType<typeof validatePreviewPlan>, pageNumber: number, text: string, age: number, gender: string, companion: string) {
+  const page = plan.pages[pageNumber], framing = plan.continuity!.pages[pageNumber];
+  const percent = Math.round(framing.childHeightFraction * 100);
+  const exact = `DRAFT CAMERA AUTHORITY: ${page.shot}. Child FULL standing figure target ${percent}% of TOTAL IMAGE HEIGHT, approximately ${Math.round(1536 * framing.childHeightFraction)} pixels in this 1536-pixel-tall picture. Environment target ${Math.round(framing.environmentAreaFraction * 100)}% of image area. This page-specific target replaces any generic 35-50% range. Keep the child recognizable without enlarging the figure.`;
+  return previewPagePrompt(plan, pageNumber, text, age, gender, companion).replace(STYLE_01_FRAMING_RULE, exact) + '\n\n' + exact +
+    (page.shot === 'wide' ? '\nWIDE STAGING: Place all main characters in the middle distance, never looming foreground. Roughly head at 48% and feet at 81% of canvas height for a standing child; foreground ground and distant sky/village remain visible. Step camera BACK, do not fill available space with bodies. Single scenic picture, no borders.' : '');
+}
+
 function save(file: string, value: unknown) {
   if (!fs.existsSync(file)) writePreviewJson(file, value);
   else if (JSON.stringify(JSON.parse(fs.readFileSync(file, 'utf8'))) !== JSON.stringify(value)) throw Error('draft_evidence_changed');
@@ -63,7 +74,7 @@ function save(file: string, value: unknown) {
 
 export async function runOwnerBookDraft(configFile: string, mode: 'preflight' | 'render' | 'qa', keyFile?: string, throughPage?: number) {
   const repo = path.resolve(__dirname, '..');
-  const { config, story, plan, refs, root } = loadOwnerDraft(repo, JSON.parse(fs.readFileSync(configFile, 'utf8')));
+  const { config, story, plan, refs, root, propBoard } = loadOwnerDraft(repo, JSON.parse(fs.readFileSync(configFile, 'utf8')));
   if (throughPage !== undefined && (!Number.isInteger(throughPage) || throughPage < 0 || throughPage >= plan.pages.length)) throw Error('draft_page_limit');
   const normalized = await Promise.all(refs.map(async ref => ({ ...ref,
     bytes: await sharp(ref.bytes).resize({ width: 1024, height: 1024, fit: 'inside', withoutEnlargement: true }).png().toBuffer() })));
@@ -113,7 +124,11 @@ export async function runOwnerBookDraft(configFile: string, mode: 'preflight' | 
     };
     if (plan.recurringProps.length) {
       const boardName = 'prop-board.png';
-      if (mode === 'render') await makeImage('prop-board', [
+      if (propBoard) {
+        const file = path.join(root, boardName);
+        if (!fs.existsSync(file)) fs.writeFileSync(file, propBoard.bytes, { flag: 'wx' });
+        if (previewImageDigest(file) !== propBoard.sha) throw Error('draft_supplied_board_changed');
+      } else if (mode === 'render') await makeImage('prop-board', [
         'Watercolor picture-book object design sheet on pale paper. No people or animals, no words, labels or panels. One separated full view per object, no overlaps. Living path shown as a simple short ochre carpet-like earthen strip with thin grass edges, NO blue flower yet. Props only, no scene.',
         plan.visualLanguage, ...plan.recurringProps.map(p => `${p.id}: ${p.design}`),
       ].join('\n'), [], boardName);
@@ -129,7 +144,7 @@ export async function runOwnerBookDraft(configFile: string, mode: 'preflight' | 
         if (throughPage !== undefined && page.pageNumber > throughPage) break;
         const text = page.pageNumber === 0 ? story.title : story.pages[page.pageNumber - 1].text;
         const imageName = `page-${String(page.pageNumber).padStart(2, '0')}.png`;
-        const prompt = previewPagePrompt(plan, page.pageNumber, text, config.childAge, config.gender, config.companionDescription);
+        const prompt = ownerDraftPagePrompt(plan, page.pageNumber, text, config.childAge, config.gender, config.companionDescription);
         const made = await makeImage(`page-${String(page.pageNumber).padStart(2, '0')}`, prompt, refPaths, imageName);
         pages.push({ pageNumber: page.pageNumber, text, imageName, imageSha: made.sha, automatedPassed: false, score: null,
           reason: 'editorial_draft_visual_and_numerical_qa_not_accepted' });

@@ -9,6 +9,16 @@ import { previewCheckpoint, previewImageDigest, previewSha, writePreviewJson } f
 const requestSchema = z.object({ pages: z.array(z.object({ pageNumber: z.number().int().min(0).max(24),
   predecessorSha: z.string().regex(/^[a-f0-9]{64}$/), correction: z.string().min(1).max(2000),
 }).strict()).min(1).max(3) }).strict();
+export function repairBinding(identity: { version?: string; sourceSha?: string; config: {
+  intent?: string; story?: { sha: string }; plan?: { sha: string }; imageBudgetUsd?: number; budgetUsd?: number;
+} }, manifest: { sourceSha: string; planSha?: string; productionReady?: boolean }) {
+  const ownerDraft = identity.version === 'owner-book-draft/v1' && identity.config.intent === 'owner_requested_unaccepted_draft';
+  const sourceSha = ownerDraft ? identity.config.story?.sha : identity.sourceSha;
+  const budgetUsd = ownerDraft ? identity.config.imageBudgetUsd : identity.config.budgetUsd;
+  if (sourceSha !== manifest.sourceSha || (ownerDraft && (manifest.productionReady !== false || manifest.planSha !== identity.config.plan?.sha))) throw Error('repair_source_mismatch');
+  if (typeof budgetUsd !== 'number' || !Number.isFinite(budgetUsd) || budgetUsd <= 0 || budgetUsd > 10) throw Error('repair_budget_invalid');
+  return { sourceSha, budgetUsd };
+}
 async function main() {
   if (process.env.VERCEL || process.env.VERCEL_ENV || process.env.NODE_ENV === 'production') throw Error('local_preview_only');
   const root = fs.realpathSync(process.argv[2]);
@@ -19,7 +29,7 @@ async function main() {
   if (new Set(request.pages.map(p => p.pageNumber)).size !== request.pages.length) throw Error('duplicate_repair_page');
   const identity = JSON.parse(fs.readFileSync(path.join(root, 'identity.json'), 'utf8'));
   const manifest = JSON.parse(fs.readFileSync(path.join(root, 'manifest.json'), 'utf8'));
-  if (identity.sourceSha !== manifest.sourceSha) throw Error('repair_source_mismatch');
+  const { budgetUsd } = repairBinding(identity, manifest);
   for (const p of request.pages) {
     const original = manifest.pages[p.pageNumber];
     if (!original || original.pageNumber !== p.pageNumber || original.imageName !== `page-${String(p.pageNumber).padStart(2, '0')}.png` || original.imageSha !== p.predecessorSha || previewImageDigest(path.join(root, original.imageName)) !== p.predecessorSha) throw Error('repair_predecessor_mismatch');
@@ -41,7 +51,7 @@ async function main() {
       const name = manifest.pages[p.pageNumber].imageName;
       const refs = [path.join(root, name), path.join(root, 'prop-board-reference.png'), path.join(root, 'reference-1.png'), path.join(root, 'reference-2.png')];
       const prompt = `Make a precise correction to image 1, the existing full book page. Preserve its watercolor rendering, composition, background, child identity, pose, expression and all unaffected objects. Image 2 is the prop design authority. Image 3 is the child identity reference, image 4 the companion identity reference; do not copy their neutral poses. Return one full corrected image, no text, panels, labels or borders.\nCORRECTION: ${p.correction}`;
-      const result = await previewCheckpoint({ root, step: `repair-${String(p.pageNumber).padStart(2, '0')}`, input: { prompt, refs: refs.map(previewImageDigest), sourceSha: manifest.sourceSha }, reserveUsd: 0.5, budgetUsd: identity.config.budgetUsd, produce: async () => {
+      const result = await previewCheckpoint({ root, step: `repair-${String(p.pageNumber).padStart(2, '0')}`, input: { prompt, refs: refs.map(previewImageDigest), sourceSha: manifest.sourceSha }, reserveUsd: 0.5, budgetUsd, produce: async () => {
         dispatched = false;
         const result = await generateGPTImage({ finalPrompt: prompt, referenceImages: refs, referenceMode: 'explicit_role_map', requireReferenceEdit: true,
           modelOverride: 'gpt-image-2', quality: 'low', size: '1024x1536', requestTimeoutMs: 600000 });
@@ -76,4 +86,4 @@ async function main() {
     fs.closeSync(fd); fs.unlinkSync(lock);
   }
 }
-main().catch(() => { console.error('local_preview_repair_failed_see_checkpoints'); process.exitCode = 1; });
+if (require.main === module) main().catch(() => { console.error('local_preview_repair_failed_see_checkpoints'); process.exitCode = 1; });
