@@ -1,5 +1,43 @@
 # SmallHeroes — Current Technical State
 
+## Localized anatomy experiment finished; perception failure persists — 2026-09-15
+
+Guy approved automatic child localization + targeted anatomy testing, with free
+technical direction. Same sole-writer task/worktree/branch, base53b9ff5b, clean
+ahead19 at start. Protected d53b768ccb2f / accepted-intent63ccb484 unchanged/clean.
+Added experimental tooling only, NOT an active QA/production cutover: automatic
+child box, exact-pixel padded body/upper/lower crops, direct and inventory-first
+inspection, strict geometry, incomplete/contradictory evidence holds and replay.
+All outputs explicitly renderAuthorized=false; v5 render-calibration hold remains.
+
+Results with5.5 Medium: v1 located all6 children and matched5/5 provisional anatomy
+controls but again missed the original owner-rejected anatomy. v2 inventory still
+missed sample-a, then stopped on invalid sample-b boxes (x1+width1);4/12 planned
+calls executed, no complete v2 report. Its sample-a boxes also lay outside the
+child, so that raw verdict is not valid spatial evidence. v3 explicitly defines
+full-image fractional units and validates regions against the crop (2% tolerance).
+It completed the original/corrected pair with usable coordinates, but still missed
+the original and passed the corrected image. No new perception reliability claim.
+Plausible-occlusion wording and scale were hypotheses, not proven sole causes;
+even localized/inventoried evidence was rationalized as normal anatomy. Series ended
+without more prompt tuning, image rendering, gate override or media/source changes.
+
+20calls/20known receipts (12+4+4), no retries, unmatched claims or lock remaining.
+Task planning limit5USD; conservative all-token accounting2.59341USD; standard
+usage/list-rate estimate0.78765USD, NOT invoice-verified charges. No reservation
+exceeded. Fake-key offline replay reproduces v1 HOLD(exit2), v2 geometry error(exit1),
+v3 HOLD(exit2) without new receipts. All13 reader PNG/12MP3 hashes unchanged;
+manifest9905fb7a / accepted prose225f2b01 unchanged. Prior QA and owner decisions
+unchanged, including separate identity-unknown pages9/11. Anatomy is not identity.
+
+Validation:129/129 across8specs, tsc0, diff-check0. Full check NOT rerun and remains
+NON-GREEN; independent QA pending, no release/product acceptance claimed. Evidence
+roots outputs/localized-anatomy-v{1,2,3}-20260915 are ignored/local-only; Git push
+does not preserve them. Gate/handoff under docs/ai-workflow/LOCALIZED_ANATOMY_*.
+Next: treat automatic anatomy judgments as insufficient for autonomous release;
+select a complementary review approach before expanding renders. This experiment
+does not grant a five-page render or remove the current calibration prerequisite.
+
 ## GPT-5.5 Medium local QA recheck completed; anatomy still HELD — 2026-09-15
 
 Guy explicitly requested5.5 Medium for both visual QA and child resemblance.
