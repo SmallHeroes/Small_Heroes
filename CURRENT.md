@@ -1,5 +1,40 @@
 # SmallHeroes — Current Technical State
 
+## Precise-region probe completed; Qwen calibration track stopped — 2026-09-15
+
+Guy requested autonomous completion and an end to wasteful repeated attempts.
+Same task/sole writer, base c175586a, clean ahead24/behind0 at start.
+Reused existing frozen runner, transport, prompts and parsers without code changes.
+Four known succeeded Qwen assessments: full image plus a tightly localized crop,
+original and corrected under rubric/severe-only. Rubric rejected BOTH; severe-only
+accepted BOTH, including the owner-rejected severe original. The latter again
+described a cart grip not drawn in the image. Explicit style tolerance and this
+oracle crop have not yielded reliable discrimination; wrong-limb localization
+alone is not an adequate explanation/solution. Internal model cause is unproven.
+
+STOPPED this prompt/crop calibration track under Guy's repeated-failure rule.
+No more live attempts scheduled. This completes the bounded diagnostic, NOT
+automatic anatomy QA, book release or a general impossibility proof. Do not
+activate either candidate or silently send anatomy-rejected images into repair.
+A future alternative needs a materially different, falsifiable mechanism; more
+wording variants on this same pair are not the default next action.
+
+4 claims/4 unique known succeeded IDs/0 unknown/0 retries; both locks released.
+8708 input/1176 output tokens; estimated0.003698184USD using previously recorded
+token list rates, not invoice verification.1USD retained reservations, not charges
+or hard billing cap. Runner generic ceiling remains12calls/3USD per root; the two
+frozen two-case manifests limited this execution to4calls, not a new global cap.
+Provider version hidden. Oracle boxes chosen by implementer, normals provisional;
+only one owner-labelled defect, same-family pair, no independent technical PASS.
+
+45/45 across3 relevant specs, tsc0, offline replay networkCalls0.185 pre-existing
+PNG/MP3/JSON files in scoped preview/narration trees and prior benchmark reports
+byte-unchanged (aggregate c714e090fca28c274926c9522081271ecd5ec3db15e787d7b0ba69355c6b0b73).
+No production code/prompt/default/threshold/source/reader change, no render/audio,
+push or deployment. Full repository check not rerun; remains NON-GREEN.
+Reports/crops/receipts remain ignored local-only outputs, not preserved by a push.
+Details: docs/ai-workflow/PRECISE_REGION_QA_{GATE,HANDOFF}_20260915.md.
+
 ## Expanded QA probes and owner severity policy: no deployable winner — 2026-09-15
 
 Guy approved continuation and clarified that non-realistic illustration should only

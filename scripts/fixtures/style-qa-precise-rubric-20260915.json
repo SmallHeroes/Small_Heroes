@@ -1,0 +1,46 @@
+{
+  "version": "frozen-qa-benchmark/v1",
+  "id": "precise-rubric-20260915",
+  "viewMode": "full-and-details",
+  "promptSha": "4aa98b5515999c3fc191d699867741b949cae879e68835bdd661f2c2527a72a3",
+  "cases": [
+    {
+      "id": "original",
+      "root": "local",
+      "file": "local-story-preview-dini-20260915/page-01.png",
+      "sha": "25c1545f37bfd9e74158f99c79c88698a2a5e320f9c56366ffdd9525f91ebddb",
+      "cohort": "replication",
+      "family": "dini-one",
+      "detailBox": {
+        "left": 50,
+        "top": 700,
+        "width": 280,
+        "height": 320
+      },
+      "label": {
+        "expected": "defect",
+        "authority": "owner",
+        "basis": "Guy-rejected severe anatomy original. Oracle region selected for diagnosis, not automatic localization."
+      }
+    },
+    {
+      "id": "corrected",
+      "root": "local",
+      "file": "local-story-preview-dini-20260915/repair-01/page-01.png",
+      "sha": "b30c463338ad0cab6a06add458fafc0f3d28047fac21f86c927171399c10271f",
+      "cohort": "replication",
+      "family": "dini-one",
+      "detailBox": {
+        "left": 50,
+        "top": 700,
+        "width": 280,
+        "height": 320
+      },
+      "label": {
+        "expected": "pass",
+        "authority": "provisional",
+        "basis": "Implementer-provisional corrected control, same coordinates. Not owner or independent acceptance."
+      }
+    }
+  ]
+}
