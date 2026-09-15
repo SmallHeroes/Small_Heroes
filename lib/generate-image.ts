@@ -219,6 +219,7 @@ export async function generateReplicateImage(input: GenerateImageInput): Promise
 }
 
 export type GPTImageReferenceMode =
+  | 'explicit_role_map'
   | 'identity'
   | 'companion_dual'
   | 'style'
@@ -473,6 +474,7 @@ function resolveReferencePrefix(
   mode: GPTImageReferenceMode,
   referenceCount: number
 ): string {
+  if (mode === 'explicit_role_map') return '[REFERENCE ROLES]\nUse each attached image ONLY for its explicitly assigned role in the prompt below. Never infer a character, style, pose or composition from attachment order alone.\n\n';
   if (mode === 'anchor_template') return STYLE01_ANCHOR_TEMPLATE_BASE_PREFIX;
   if (mode === 'anchor_template_photo_last') return STYLE01_ANCHOR_TEMPLATE_PHOTO_LAST_PREFIX;
   if (mode === 'anchor_photo_template_middle') return STYLE01_ANCHOR_PHOTO_TEMPLATE_MIDDLE_PREFIX;

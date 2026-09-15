@@ -1,5 +1,31 @@
 # SmallHeroes — Current Technical State
 
+## Local story-to-reader preview — 2026-09-15 (implementation)
+
+Guy approved automatic creative-preview progression and existing-key LOW renders,
+without another per-stage product question. Additive local CLI consumes the genuine
+accepted creative-replacement validator, plans the whole book, binds source and
+reference digests, creates recurring-prop reference art, renders cover/interiors and
+writes the existing local-reader manifest. This is explicitly an unaccepted local
+draft, not a production VisualPackage, Blueprint approval or runtime cutover.
+Production gates and accepted prose are unchanged. No independent PASS is claimed.
+
+Exact checkpoint resume reuses saved results; uncertain paid outcomes cannot be
+automatically repeated. USD10 maximum configured reservation budget, LOW only,
+one planner call and one image per step; the first 12-page book reserves USD8.
+Reservations are conservative planning allowances, not charges or provider-enforced
+price guarantees. Provider usage remains recorded separately. No HIGH/audio,
+deployment, push, automatic all-catalog render or old-reader image overwrite.
+The only shared transport change is opt-in explicit_role_map: existing reference
+mode defaults are unchanged. It avoids legacy Bolly/Style02 prefix contamination.
+
+Offline Dini preflight verified accepted f77f4ca5 / prose225f2b01 and canonical
+Bar3715cf8f / Dini cee1a7e9 source anchors, providerCalls0. New focused tests24/24.
+Live execution has not yet started at this implementation record. Gate:
+docs/ai-workflow/LOCAL_STORY_PREVIEW_GATE_20260915.md. Outputs will be ignored and
+local-only; git push does not preserve them. Existing full-check NON-GREEN and
+reader-route independent-review limitations below remain open.
+
 ## Text-only accepted-source readiness coverage — 2026-09-14
 
 Claude supplied PASS P0=0/P1=0/P2=1 for exactly aa2e0711..3073b5ca and
