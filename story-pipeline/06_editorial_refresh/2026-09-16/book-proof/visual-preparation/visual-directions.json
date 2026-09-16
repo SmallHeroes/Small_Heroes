@@ -1,0 +1,247 @@
+{
+  "version": "small-heroes-story-visual-direction-record/v1",
+  "storyKey": "panda_anat_adventure",
+  "pages": [
+    {
+      "pageNumber": 1,
+      "settingKey": "moon_station",
+      "setting": "The same enclosed playground: cardboard station beside the toy shed, grass, sandbox and a curving path toward a bench and yellow flower.",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "station_driver",
+        "ticket_child"
+      ],
+      "mainAction": "The child approaches with eager forward steps and the handmade steering wheel; the companion pauses beside the occupied station entrance. Keep the child small enough to read the surrounding play space.",
+      "heroObject": "Loose cardboard steering wheel with one paper fastener",
+      "shotType": "wide",
+      "cameraAngle": "high_angle",
+      "lighting": "Soft consistent daytime light in the same playground.",
+      "continuityAnchors": [
+        "Station is a fixed cardboard playhouse with a closed roof, not a spacecraft.",
+        "Keep the grass and path visible; ordinary daylight, no outer space."
+      ]
+    },
+    {
+      "pageNumber": 2,
+      "settingKey": "moon_station",
+      "setting": "At the unchanged entrance to the cardboard station, with the playground visible beyond.",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "station_driver",
+        "ticket_child"
+      ],
+      "mainAction": "The child turns the loose wheel alone, shoulders lowered and gaze dropping toward it; the companion notices activity beyond the station. Other children are absorbed in pretend engine noises, not mocking the child.",
+      "heroObject": "The same loose steering wheel",
+      "shotType": "medium",
+      "cameraAngle": "three_quarter",
+      "lighting": "Soft consistent daytime light in the same playground.",
+      "continuityAnchors": [
+        "Same station roof and doorway as page 1.",
+        "One readable moment; no takeoff, moving building or duplicated protagonist."
+      ]
+    },
+    {
+      "pageNumber": 3,
+      "settingKey": "sandbox_path",
+      "setting": "Beside the path near the sandbox; the same yellow flower is visible beyond the sand.",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "adam"
+      ],
+      "mainAction": "The child peers through Adam's cardboard tube with a surprised half smile; Adam leans closer, pleased to be noticed, while the companion watches. Show the tube's open circular end and the flower in the distance.",
+      "heroObject": "Plain cardboard telescope tube",
+      "shotType": "medium_wide",
+      "cameraAngle": "eye_level",
+      "lighting": "Soft consistent daytime light in the same playground.",
+      "continuityAnchors": [
+        "Telescope is a hollow unpowered tube, not a glass instrument.",
+        "Yellow flower stays rooted beyond the sandbox, inside the playground."
+      ]
+    },
+    {
+      "pageNumber": 4,
+      "settingKey": "toy_shed",
+      "setting": "On the safe level path beside the toy shed, with the original station behind.",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "adam"
+      ],
+      "mainAction": "The child and Adam walk inside the lifted bottomless box, separate legs visibly reaching the ground; the child leads at the front-mounted wheel. The companion follows outside, supporting the rear wall.",
+      "heroObject": "Open-top bottomless cardboard walking rover",
+      "shotType": "wide",
+      "cameraAngle": "three_quarter",
+      "lighting": "Soft consistent daytime light in the same playground.",
+      "continuityAnchors": [
+        "Rover is one lightweight rectangular box with no floor, wheels, motor or windshield.",
+        "The same paper-fastened wheel is now attached to the front wall."
+      ]
+    },
+    {
+      "pageNumber": 5,
+      "settingKey": "sandbox_path",
+      "setting": "The path curves around the same sandbox; station behind, yellow flower ahead.",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "adam"
+      ],
+      "mainAction": "The child steers the walking box around the sand while glancing back toward the station with an inviting expression. Adam walks inside; the companion catches the rear turn a beat late, gently bumping the box edge.",
+      "heroObject": "The unchanged bottomless walking rover",
+      "shotType": "extreme_wide",
+      "cameraAngle": "high_angle",
+      "lighting": "Soft consistent daytime light in the same playground.",
+      "continuityAnchors": [
+        "Feet propel the box; the sandbox remains ordinary sand, not a lunar crater.",
+        "Maintain the same station, sandbox, path and flower geography."
+      ]
+    },
+    {
+      "pageNumber": 6,
+      "settingKey": "moon_station",
+      "setting": "At the same station entrance; the walking rover is parked visibly on nearby grass.",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "adam",
+        "station_driver",
+        "ticket_child"
+      ],
+      "mainAction": "The child makes an open-handed invitation with Adam beside the entrance. The station driver looks out, while the ticket child points toward the grass; the companion waits nearby. The child's face is hopeful but tentative.",
+      "heroObject": "Parked walking rover on grass",
+      "shotType": "medium_wide",
+      "cameraAngle": "three_quarter",
+      "lighting": "Soft consistent daytime light in the same playground.",
+      "continuityAnchors": [
+        "Rover has been set down and is empty; no one is simultaneously inside it.",
+        "Grass stays green and safe: lava is spoken pretend play, never literal fire."
+      ]
+    },
+    {
+      "pageNumber": 7,
+      "settingKey": "rug_route",
+      "setting": "On clear level ground between the station and the path, inside the same fence.",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "adam",
+        "teacher"
+      ],
+      "mainAction": "The child and Adam look down in amused surprise as the companion sits softly on the grass beside the rug's curled edge. Show one aftermath moment, with no airborne tumble or duplicate companion.",
+      "heroObject": "Partly unrolled play rug",
+      "shotType": "wide",
+      "cameraAngle": "eye_level",
+      "lighting": "Soft consistent daytime light in the same playground.",
+      "continuityAnchors": [
+        "Rug starts at the station and points to the existing path; not a bridge.",
+        "Teacher stays a distant supervising adult; no hazardous drop or traffic."
+      ]
+    },
+    {
+      "pageNumber": 8,
+      "settingKey": "rug_route",
+      "setting": "The same flat rug links the station entrance to the path and parked rover.",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "adam",
+        "station_driver"
+      ],
+      "mainAction": "The child presses the rug's middle flat with a delighted smile. Adam and the now-standing companion hold opposite ends; the station driver tests the flat rug with one foot. Separate bodies and clear contact points.",
+      "heroObject": "The same now-flat play rug",
+      "shotType": "medium",
+      "cameraAngle": "high_angle",
+      "lighting": "Soft consistent daytime light in the same playground.",
+      "continuityAnchors": [
+        "Choose the flattening moment, not the earlier helping-hand moment too.",
+        "Rover remains waiting at the path end; grass is still ordinary grass."
+      ]
+    },
+    {
+      "pageNumber": 9,
+      "settingKey": "rover_path",
+      "setting": "On the same path between the rug exit and bench, with the flower beyond the bench.",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "adam",
+        "station_driver"
+      ],
+      "mainAction": "The child lowers the telescope slightly, brows relaxing into a thoughtful smile while offering Adam a turn. Adam stands at the attached steering wheel; the companion points toward the tube without covering the child's hands.",
+      "heroObject": "Cardboard telescope beside the same attached wheel",
+      "shotType": "medium_close",
+      "cameraAngle": "eye_level",
+      "lighting": "Soft consistent daytime light in the same playground.",
+      "continuityAnchors": [
+        "Adam drives this leg; the child navigates; the station driver joins behind.",
+        "Keep enough box rim and distant bench visible to locate the close view."
+      ]
+    },
+    {
+      "pageNumber": 10,
+      "settingKey": "bench_detour",
+      "setting": "At the same bench beside the bush; the clear path bends around it toward the yellow flower.",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "adam",
+        "station_driver"
+      ],
+      "mainAction": "The child has lowered the tube and points toward the side path with sudden understanding. Adam pauses at the wheel while the companion steadies the rear wall before contact with the bench; the station driver follows behind.",
+      "heroObject": "Bottomless rover stopped before the bench",
+      "shotType": "wide",
+      "cameraAngle": "high_angle",
+      "lighting": "Soft consistent daytime light in the same playground.",
+      "continuityAnchors": [
+        "The route goes beside the bench, never through it; no crash or broken box.",
+        "Same bench, bush and flower placement; show the available detour clearly."
+      ]
+    },
+    {
+      "pageNumber": 11,
+      "settingKey": "yellow_flower",
+      "setting": "At the rooted yellow flower beside the same path beyond the bench.",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "adam",
+        "station_driver",
+        "station_friends"
+      ],
+      "mainAction": "The child bends toward the flower with fascinated eyes and hands kept away from the ladybug. Adam has stepped aside from the wheel; the station driver calls toward the station while the companion watches from behind.",
+      "heroObject": "Yellow flower with one small ladybug",
+      "shotType": "close",
+      "cameraAngle": "ground_level",
+      "lighting": "Soft consistent daytime light in the same playground.",
+      "continuityAnchors": [
+        "Flower is lower than the attached steering wheel; no giant flower or insect.",
+        "Friends approach in the background; avoid crowding the child's hands and face."
+      ]
+    },
+    {
+      "pageNumber": 12,
+      "settingKey": "moon_station",
+      "setting": "Back beside the unchanged cardboard station, with the same rug ready to be stored.",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "adam",
+        "station_driver",
+        "ticket_child",
+        "station_friends"
+      ],
+      "mainAction": "The child and friends pause together after rolling the rug; the child smiles toward the companion, who is finally speaking to an attentive group. Adam holds the telescope; the detached wheel rests inside the child's bag.",
+      "heroObject": "Rolled rug and returned personal play objects",
+      "shotType": "medium_wide",
+      "cameraAngle": "three_quarter",
+      "lighting": "Soft consistent daytime light in the same playground.",
+      "continuityAnchors": [
+        "Choose the final conversation, not a simultaneous return journey.",
+        "Wheel is no longer mounted; rover is set down nearby; no garage has appeared yet."
+      ]
+    }
+  ]
+}

@@ -1,0 +1,111 @@
+{
+  "status": "pending_preparation_not_accepted",
+  "runtimeAuthority": "none",
+  "story": {
+    "path": "../panda_anat_adventure_revision02.md",
+    "sha256": "5bed647c29ca61b6fe75ccd39b3e73fb6be5ea2d775f4add220026dc20714b0e"
+  },
+  "editorialReview": {
+    "path": "../editorial-revision02/editorial-review.json",
+    "sha256": "79271dfb6b000e066b5bbb26eace873705bf88760aa34a62a8aab304e64536d1"
+  },
+  "interpretation": "Exact excerpts bind each selected illustration moment to the source. State labels are planning annotations, not validated runtime state or evidence of pixels. Labels ending inferred record continuity assumptions where the text does not specify storage. One frame per page; no multiple temporal copies.",
+  "pages": [
+    {
+      "pageNumber": 1,
+      "sourceExcerpt": "אבל כשהגיעו, כבר ישבה ילדה בתא הנהג, וילד אחר חילק כרטיסים.",
+      "wheel": "wheel_loose_child",
+      "telescope": "tube_not_yet_introduced",
+      "rover": "rover_not_yet_used",
+      "rug": "rug_not_yet_introduced"
+    },
+    {
+      "pageNumber": 2,
+      "sourceExcerpt": "{{childName}} {סובב|סובבה} את ההגה לבד. הוא השמיע חריקה קטנה.",
+      "wheel": "wheel_loose_child",
+      "telescope": "tube_not_yet_introduced",
+      "rover": "rover_not_yet_used",
+      "rug": "rug_not_yet_introduced"
+    },
+    {
+      "pageNumber": 3,
+      "sourceExcerpt": "{{childName}} {הסתכל|הסתכלה} דרך הצינור.",
+      "wheel": "wheel_loose_child",
+      "telescope": "tube_loaned_by_adam_to_child",
+      "rover": "rover_not_yet_used",
+      "rug": "rug_not_yet_introduced"
+    },
+    {
+      "pageNumber": 4,
+      "sourceExcerpt": "הם נכנסו פנימה, הרימו יחד את הארגז הקל והתחילו ללכת.",
+      "wheel": "wheel_attached_child_drives",
+      "telescope": "tube_in_rover",
+      "rover": "rover_walks_child_adam_inside_companion_behind",
+      "rug": "rug_not_yet_introduced"
+    },
+    {
+      "pageNumber": 5,
+      "sourceExcerpt": "{{childName}} {סובב|סובבה} את ההגה. כולם פנו סביב החול, על השביל.",
+      "wheel": "wheel_attached_child_drives",
+      "telescope": "tube_in_rover_at_selected_turn_moment",
+      "rover": "rover_walks_around_sandbox",
+      "rug": "rug_not_yet_introduced"
+    },
+    {
+      "pageNumber": 6,
+      "sourceExcerpt": "הם הניחו את הרכב על הדשא וחזרו אל התחנה.",
+      "wheel": "wheel_attached_parked",
+      "telescope": "tube_with_parked_rover_inferred",
+      "rover": "rover_parked_empty_on_grass",
+      "rug": "rug_rolled_by_fence_not_in_frame"
+    },
+    {
+      "pageNumber": 7,
+      "sourceExcerpt": "היא נחתה בישיבה רכה.",
+      "wheel": "wheel_attached_parked",
+      "telescope": "tube_with_parked_rover_inferred",
+      "rover": "rover_parked_empty",
+      "rug": "rug_partly_unrolled_edge_curled"
+    },
+    {
+      "pageNumber": 8,
+      "sourceExcerpt": "{{childName}} {יישר|יישרה} את האמצע.",
+      "wheel": "wheel_attached_parked",
+      "telescope": "tube_with_parked_rover_inferred",
+      "rover": "rover_waits_at_path_end",
+      "rug": "rug_held_and_flattened"
+    },
+    {
+      "pageNumber": 9,
+      "sourceExcerpt": "אתה תנהג עכשיו. אני אמצא לנו מעבר. ליד הפרח נתחלף.",
+      "wheel": "wheel_attached_adam_drives",
+      "telescope": "tube_held_by_child",
+      "rover": "rover_child_adam_inside_girl_behind",
+      "rug": "rug_flat_left_behind"
+    },
+    {
+      "pageNumber": 10,
+      "sourceExcerpt": "{{childName}} {הוריד|הורידה} את הצינור מהעין.",
+      "wheel": "wheel_attached_adam_drives",
+      "telescope": "tube_lowered_by_child",
+      "rover": "rover_stopped_before_bench",
+      "rug": "rug_flat_left_behind"
+    },
+    {
+      "pageNumber": 11,
+      "sourceExcerpt": "{{childName}} {התכופף|התכופפה} לראות, בלי לגעת.",
+      "wheel": "wheel_attached_adam_yields",
+      "telescope": "tube_retained_not_focal_inferred",
+      "rover": "rover_stopped_beside_flower",
+      "rug": "rug_flat_at_station"
+    },
+    {
+      "pageNumber": 12,
+      "sourceExcerpt": "ההגה חזר אל התיק, והטלסקופ אל אדם.",
+      "wheel": "wheel_detached_in_child_bag",
+      "telescope": "tube_returned_to_adam",
+      "rover": "rover_set_down_near_station_inferred",
+      "rug": "rug_rolled_together"
+    }
+  ]
+}

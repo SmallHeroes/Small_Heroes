@@ -1,0 +1,99 @@
+{
+  "status": "offline_preparation_valid_not_published",
+  "storyKey": "panda_anat_adventure",
+  "sourceSha256": "5bed647c29ca61b6fe75ccd39b3e73fb6be5ea2d775f4add220026dc20714b0e",
+  "editorialReviewSha256": "79271dfb6b000e066b5bbb26eace873705bf88760aa34a62a8aab304e64536d1",
+  "files": [
+    {
+      "name": "creative-brief.json",
+      "bytes": 6112,
+      "sha256": "a9b15dd2da6a9dc6685aa0c247bba3868d960b6a324633acb929a3b25c89faa4"
+    },
+    {
+      "name": "visual-directions.json",
+      "bytes": 11800,
+      "sha256": "b1455bbdfe5d364a8ca7a5377f1ee90fdaa498df0bd1692df985ff0461611d21"
+    },
+    {
+      "name": "continuity-intent.json",
+      "bytes": 321,
+      "sha256": "18f275c57f5bc320d5be7ac5abd40280b79da56e2730d38f3c6e9e523e831d56"
+    },
+    {
+      "name": "source-grounding.json",
+      "bytes": 4505,
+      "sha256": "0cab9ec8cb33f6164aefa0f6648b47759904d911ba16780b62c9b56926d0f458"
+    },
+    {
+      "name": "DESIGN_LOCKS.md",
+      "bytes": 5537,
+      "sha256": "de7ad61e3b17cbee943ab4154b651402155f8204fae6dd24875b2b75f5b1b9d8"
+    }
+  ],
+  "metrics": {
+    "pageCount": 12,
+    "widePageNumbers": [
+      1,
+      4,
+      5,
+      7,
+      10
+    ],
+    "closeFocusPageNumbers": [
+      9,
+      11
+    ],
+    "distinctShotTypes": [
+      "close",
+      "extreme_wide",
+      "medium",
+      "medium_close",
+      "medium_wide",
+      "wide"
+    ],
+    "distinctCameraAngles": [
+      "eye_level",
+      "ground_level",
+      "high_angle",
+      "three_quarter"
+    ],
+    "adjacentRepeatedPairs": [],
+    "maximumShotTypeRun": 1
+  },
+  "directionLengths": [
+    744,
+    659,
+    647,
+    658,
+    659,
+    707,
+    634,
+    657,
+    711,
+    704,
+    694,
+    736
+  ],
+  "sourceExcerptCount": 12,
+  "parsedProseUnchanged": true,
+  "originalEvidenceVerified": true,
+  "negativeControls": [
+    "source_hash_change",
+    "editor_hash_change",
+    "missing_page",
+    "wrong_story_key",
+    "wrong_page_evidence",
+    "repeated_composition",
+    "gender_override",
+    "wardrobe_override",
+    "changed_prose",
+    "directions_already_present"
+  ],
+  "providerCalls": 0,
+  "writes": 0,
+  "limitations": [
+    "No accepted-source publication or enrichment prepare invocation",
+    "No visual correctness or numerical image-scale evidence",
+    "No independent QA or product acceptance"
+  ]
+}

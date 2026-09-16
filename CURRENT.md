@@ -1,5 +1,38 @@
 # SmallHeroes — Current Technical State
 
+## Panda fresh visual preparation validated offline; not published — 2026-09-17
+
+Same sole-writer task/worktree/branch, base95a8d7b1 clean ahead55. New files only
+under book-proof/visual-preparation plus this status. DECISION.md records the
+bounded data milestone: no production edits, source publication, image or audio.
+Unchanged revision02 source5bed647c and genuine Editor79271dfb bind twelve fresh
+directions, a source-derived creative brief, continuity intent and exact excerpts.
+Proposed design notes separate prop designs from page occupants, keep one grounded
+playground, record wheel/telescope/rover/rug state and single moments per frame.
+Design notes and state labels are planning data, NOT a runtime contract or gate.
+
+Actual shared validators accept brief/directions/continuity/authority/composition;
+in-memory direction injection preserves original source bytes and parsed prose.
+12/12 excerpts match their own page. Composition:5 wide,2 close-focus,6 shot
+types,4 angles,0 adjacent repeated pairs,maximum same-shot run1. Numeric frame
+occupancy and actual visual consistency remain unmeasured. Shared original-source
+inspector revalidates Panda's genuine predecessor evidence. No fake acceptance
+request or enrichment publication constructed; no accepted source changed.
+
+Repeatable offline verifier passes10 negative controls; first run exposed a
+harness comparison mismatch (saved evidence adds storyKey), corrected without
+changing authority checks. Verification JSON records exact five input hashes.
+Enrichment spec8/8, tsc0, intake --check18/216 unchanged. Full check not rerun for
+this data milestone; previous6364pass/73skip remains scoped to prior code state.
+No independent self-PASS. No credentials/provider calls/spend/push.
+
+Next dependencies are explicit in DESIGN_LOCKS.md: independent code re-gate,
+fresh exact-content acceptance, real replacement/enrichment lifecycle, then
+contract/Blueprint/package and bound anchors before bounded visual sample.
+The old corpus approval is not reused for rewritten Panda. Full-book goal OPEN;
+no claim that preparation equals a rendered/narrated reader-ready book.
+Handoff:book-proof/visual-preparation/HANDOFF.md.
+
 ## Original-source first replacement implemented; independent QA pending — 2026-09-17
 
 Same task/sole writer/worktree/branch; clean start4fd7eda0 ahead54. Decision:

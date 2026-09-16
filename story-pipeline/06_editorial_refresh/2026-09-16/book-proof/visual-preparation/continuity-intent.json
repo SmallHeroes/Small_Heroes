@@ -1,0 +1,8 @@
+{
+  "version": "small-heroes-story-visual-continuity-intent/v1",
+  "childWardrobeAuthority": "frozen_visual_contract",
+  "childWardrobeTransitionPages": [],
+  "companionAccessoryAuthority": "canonical_companion_profile",
+  "companionAppearanceAuthority": "frozen_companion_state",
+  "companionStateTransitionPages": []
+}
