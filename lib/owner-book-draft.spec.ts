@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { spawnSync } from 'node:child_process';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { draftManifest, draftOutputRoot, loadOwnerDraft, ownerDraftSchema, ownerDraftPagePrompt, ownerDraftPropBoardPrompt, runGatedDraftPages, runOwnerBookDraft } from '../scripts/run-owner-book-draft';
 import { QUALITY_CATEGORIES } from './local-preview-quality';
@@ -32,6 +33,7 @@ describe('explicit local editorial draft boundary', () => {
     plan.recurringProps = [{ id: 'chair', design: 'four wooden legs, one blue seat' }];
     const prompt = ownerDraftPropBoardPrompt(plan);
     expect(prompt).toContain('chair: four wooden legs, one blue seat');
+    expect(prompt).toContain('No people or animals');
     expect(prompt).not.toMatch(/living path|blue flower|ochre carpet/i);
   });
   it.each([[2, 1], [1, 1], [3], []])('rejects invalid sample selection %j', (...samplePages) => {
@@ -42,6 +44,30 @@ describe('explicit local editorial draft boundary', () => {
     const { repo, config } = fixture();
     expect(loadOwnerDraft(repo, { ...config, samplePages: [1], imageBudgetUsd: 0.5 }).plan.pages).toHaveLength(3);
     expect(() => loadOwnerDraft(repo, { ...config, samplePages: [1], qaBudgetUsd: 1 })).toThrow('draft_sample_qa_reservation_limit');
+  });
+  it.each([false, true])('preserves legacy board reservation; supplied board=%s', supplied => {
+    const { repo, config } = fixture();
+    const plan = JSON.parse(fs.readFileSync(path.join(repo, 'plan.json'), 'utf8'));
+    plan.recurringProps = [{ id: 'chair', design: 'wooden chair' }];
+    plan.continuity.entities = [{ id: 'chair', kind: 'prop', invariants: [{ attribute: 'material', value: 'wood' }] }];
+    const text = JSON.stringify(plan); fs.writeFileSync(path.join(repo, 'plan.json'), text); config.plan.sha = previewSha(text);
+    const withBoard = { ...config, ...(supplied ? { propBoard: config.childAnchor } : {}) };
+    expect(() => loadOwnerDraft(repo, { ...withBoard, imageBudgetUsd: 1.5 })).toThrow('draft_initial_reservation_limit');
+    expect(loadOwnerDraft(repo, { ...withBoard, imageBudgetUsd: 2 }).plan.pages).toHaveLength(3);
+    const required = supplied ? 0.5 : 1;
+    expect(loadOwnerDraft(repo, { ...withBoard, samplePages: [1], imageBudgetUsd: required }).plan.pages).toHaveLength(3);
+    expect(() => loadOwnerDraft(repo, { ...withBoard, samplePages: [1], imageBudgetUsd: required - 0.01 })).toThrow('draft_initial_reservation_limit');
+  });
+  it.each([['--sample', '--render'], ['--sample', '--qa'], ['--render', '--qa']])('sanitizes real CLI conflict %s %s before opening config or credentials', (first, second) => {
+    const { repo } = fixture();
+    const codeRoot = path.resolve(__dirname, '..');
+    const result = spawnSync(process.execPath, ['--require', require.resolve('tsx/cjs'), '--require',
+      path.join(codeRoot, 'scripts/shims/register-server-only.cjs'), path.join(codeRoot, 'scripts/run-owner-book-draft.ts'),
+      path.join(repo, 'missing-config.json'), first, second, '--key-env-file', path.join(repo, 'missing-key.env')],
+    { cwd: repo, encoding: 'utf8', timeout: 15000, env: { ...process.env, OPENAI_API_KEY: '', TSX_TSCONFIG_PATH: path.join(codeRoot, 'tsconfig.json') } });
+    expect(result.error).toBeUndefined(); expect(result.status).toBe(1);
+    expect(result.stdout).toBe(''); expect(result.stderr.trim()).toBe('draft_conflicting_modes');
+    expect(fs.readdirSync(path.join(repo, 'outputs'))).toEqual([]);
   });
   it('uses exact per-page framing rather than generic 35-50 percent framing', () => {
     const { repo, config } = fixture(); const { plan } = loadOwnerDraft(repo, config);
@@ -167,6 +193,51 @@ describe('real owner-draft entry point with mocked providers', () => {
     expect(JSON.parse(fs.readFileSync(path.join(root, 'steps/page-01.result.json'), 'utf8')).usage).toEqual({ input_tokens: 100, output_tokens: 100 });
     expect(JSON.parse(fs.readFileSync(path.join(root, 'sample-manifest.json'), 'utf8'))).toMatchObject({ productionReady: false, samplePages: [1, 2], unassessed: [2] });
     await runOwnerBookDraft(file, 'sample'); expect(generateGPTImage).toHaveBeenCalledTimes(1);
+    expect(fs.existsSync(path.join(root, 'run.lock'))).toBe(false);
+  });
+  it('binds second-page QA to prior text, image, unaccepted metadata and comparison reference', async () => {
+    const { file, root } = await inputs();
+    vi.mocked(judgePreviewCandidate).mockImplementation(async args => ({ candidateSha: args.candidateSha, contextSha: args.contextSha,
+      checks: QUALITY_CATEGORIES.map(category => ({ category, verdict: 'pass', observation: 'observed', correction: '' })) }));
+    const result = await runOwnerBookDraft(file, 'sample');
+    expect(result?.status).toBe('sample_diagnostically_passed_not_accepted');
+    expect(judgePreviewCandidate).toHaveBeenCalledTimes(2);
+    const first = vi.mocked(judgePreviewCandidate).mock.calls[0][0];
+    const second = vi.mocked(judgePreviewCandidate).mock.calls[1][0];
+    expect(first.context).toMatchObject({ priorPages: [] });
+    const prior = { pageNumber: 1, text: 'First.', imageName: 'page-01.png', imageSha: first.candidateSha,
+      automatedPassed: false, score: null, reason: 'editorial_draft_visual_and_numerical_qa_not_accepted' };
+    expect(second.context).toMatchObject({ pageNumber: 2, text: 'Second.', priorPages: [prior], purpose: 'diagnostic_only', calibrationStatus: 'not_established' });
+    expect(second.references[second.references.length - 1]).toEqual({ file: path.join(root, prior.imageName), sha: prior.imageSha,
+      role: 'previous diagnostic sample page 1; comparison only, not canonical design' });
+    expect(previewSha(fs.readFileSync(path.join(root, prior.imageName)))).toBe(prior.imageSha);
+    expect(second.contextSha).toBe(result?.results[1].contextSha);
+    expect(result).toMatchObject({ productionReady: false, productAcceptance: 'pending' });
+    // Exercise the legacy consumer too, not just the shared helper's shape.
+    const legacy = await inputs();
+    const legacyConfig = JSON.parse(fs.readFileSync(legacy.file, 'utf8')); delete legacyConfig.samplePages;
+    fs.writeFileSync(legacy.file, JSON.stringify(legacyConfig));
+    await runOwnerBookDraft(legacy.file, 'render');
+    const manifest = JSON.parse(fs.readFileSync(path.join(legacy.root, 'manifest.json'), 'utf8'));
+    expect(manifest.pages[1]).toEqual(prior);
+    vi.mocked(judgePreviewCandidate).mockClear();
+    await runOwnerBookDraft(legacy.file, 'qa');
+    expect(vi.mocked(judgePreviewCandidate).mock.calls[2][0].context).toEqual(second.context);
+  });
+  it('rejects v1 sample identity before dispatch or modifying old evidence', async () => {
+    const { file, root } = await inputs();
+    vi.mocked(judgePreviewCandidate).mockImplementation(async args => ({ candidateSha: args.candidateSha, contextSha: args.contextSha,
+      checks: QUALITY_CATEGORIES.map(category => ({ category, verdict: 'uncertain', observation: 'uncertain', correction: '' })) }));
+    await runOwnerBookDraft(file, 'sample');
+    const identityFile = path.join(root, 'identity.json');
+    const identity = JSON.parse(fs.readFileSync(identityFile, 'utf8'));
+    expect(identity.samplePolicy).toBe('shared-quality-before-next-page/v2');
+    identity.samplePolicy = 'shared-quality-before-next-page/v1'; fs.writeFileSync(identityFile, JSON.stringify(identity));
+    const original = fs.readFileSync(identityFile);
+    vi.mocked(generateGPTImage).mockClear(); vi.mocked(judgePreviewCandidate).mockClear();
+    await expect(runOwnerBookDraft(file, 'sample')).rejects.toThrow('preview_input_changed_new_run_required');
+    expect(generateGPTImage).not.toHaveBeenCalled(); expect(judgePreviewCandidate).not.toHaveBeenCalled();
+    expect(fs.readFileSync(identityFile)).toEqual(original);
     expect(fs.existsSync(path.join(root, 'run.lock'))).toBe(false);
   });
   it.each(['render', 'qa'] as const)('cannot bypass configured sample QA with %s mode', async mode => {

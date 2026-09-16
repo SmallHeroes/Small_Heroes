@@ -1,5 +1,27 @@
 # SmallHeroes — Current Technical State
 
+## Shared draft sample: narrow QA correction — 2026-09-16
+
+Claude supplied HOLD0/1/4 for d1a79ab3..c94b0511, independently reconciled with
+documentation-only successor6b14617a. Corrections in this milestone restore the
+generic no-animals board constraint removed in c94b0511, legacy supplied-board
+upfront reservation, sanitized CLI conflict errors, and shared prior-page text/
+unaccepted metadata. No additional board QA or paid rerender. Sample policy v2
+requires a new root; old paid v1 evidence is not resumed or rewritten.
+124 focused tests (owner48/quality28/judge16/checkpoints32) and tsc0. New tests
+reproduced regressions first; real runner with mocked providers proves second-page
+context equals legacy QA context. Three actual offline CLI processes confirm only
+draft_conflicting_modes on stderr, no stack. Full check rerun completed exit1:
+ordinary5640pass/2fail/73skip, resource671/671. Same two reported assertion failures
+as preceding run (Anthropic model inventory and393-vs409 spec inventory), no baseline
+reproduction or stability closure. Both full-check typechecks passed.
+Correct reader root outputs/panda-book-final-draft-20260915:25/25 manifest-bound
+PNG/MP3 hashes verified. Existing Kim source/paid images unchanged; page7 absent.
+No new provider calls, key-file access, spend, render/audio, push or product approval.
+Independent re-gate pending; do not self-close Claude's HOLD. Separate unreviewed
+range5e25996f..d1a79ab3 and NON-GREEN stability remain open. Handoff:
+docs/ai-workflow/OWNER_DRAFT_SAMPLE_CORRECTION_20260916.md.
+
 ## Existing shared draft runner: live gated sample HELD — 2026-09-16
 
 Code c94b0511 executed one prop-board and page3 through generateGPTImage, then
@@ -10,8 +32,12 @@ and too-tight framing. Raw blind anatomy separately flags the shelter's feet as
 disconnected anatomy; contextual QA accepts their enchanted-prop connection. Both
 raw records preserved; current blind-override policy retains defect. This is an
 intent-sensitive false-positive risk, not proof of calibrated anatomy detection.
-Operator also found unwanted animal passengers on the prop board: no board-level
-QA exists in this milestone. Do not adopt board or held page as approved anchors.
+Operator also found unwanted animal passengers on the prop board. Correction to
+the original attribution: c94b0511 removed the generic `or animals` exclusion;
+that is a code regression, not merely missing board QA. No counterfactual proves
+the omission alone caused these pixels. Separate board QA was also absent, but
+is not the proposed remedy for this regression. Do not adopt board or held page
+as approved anchors; restoring prose does not prove future visual compliance.
 
 Four known provider results/zero unknown, usage-based list estimateUSD0.1572235
 (not invoice), conservative accountedUSD0.81999, below image2/QA4 budgets. Actual

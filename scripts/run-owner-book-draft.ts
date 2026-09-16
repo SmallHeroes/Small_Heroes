@@ -48,7 +48,9 @@ export function loadOwnerDraft(repo: string, raw: unknown) {
   plan.continuity = validatePreviewContinuity(plan.continuity, plan, [story.title, ...story.pages.map(p => p.text)]);
   if (config.samplePages && (new Set(config.samplePages).size !== config.samplePages.length ||
     config.samplePages.some((p, i, list) => p >= plan.pages.length || (i > 0 && p <= list[i - 1])))) throw Error('draft_sample_selection');
-  if (((config.samplePages?.length ?? plan.pages.length) + (plan.recurringProps.length && !config.propBoard ? 1 : 0)) * 0.5 > config.imageBudgetUsd) throw Error('draft_initial_reservation_limit');
+  // Only sample mode deducts a supplied board; keep the legacy upfront fence unchanged.
+  const boardReservation = plan.recurringProps.length && (!config.samplePages || !config.propBoard) ? 1 : 0;
+  if (((config.samplePages?.length ?? plan.pages.length) + boardReservation) * 0.5 > config.imageBudgetUsd) throw Error('draft_initial_reservation_limit');
   if (config.samplePages && config.qaBudgetUsd < 1.5) throw Error('draft_sample_qa_reservation_limit');
   const refs = [read(config.childAnchor), read(config.companionAnchor)];
   const root = draftOutputRoot(repo, config.outputDir);
@@ -77,8 +79,15 @@ function save(file: string, value: unknown) {
 }
 
 export function ownerDraftPropBoardPrompt(plan: ReturnType<typeof validatePreviewPlan>) {
-  return ['Watercolor picture-book object design sheet on pale paper. No people, words, labels or panels. One separated full view per listed object, no overlaps. Depict ONLY the listed objects, not scenery or unrelated props. Preserve each listed structure and material. This is a design reference, not a story scene.',
+  return ['Watercolor picture-book object design sheet on pale paper. No people or animals, no words, labels or panels. One separated full view per listed object, no overlaps. Depict ONLY the listed objects, not scenery or unrelated props. Preserve each listed structure and material. This is a design reference, not a story scene.',
     plan.visualLanguage, ...plan.recurringProps.map(p => `${p.id}: ${p.design}`)].join('\n');
+}
+
+// Shared manifest/context representation. Diagnostic pass never grants acceptance.
+function draftPageRow(story: ReturnType<typeof previewStory>, pageNumber: number, candidate: QualityCandidate) {
+  return { pageNumber, text: pageNumber === 0 ? story.title : story.pages[pageNumber - 1].text,
+    imageName: candidate.imageName, imageSha: candidate.imageSha, automatedPassed: false, score: null,
+    reason: 'editorial_draft_visual_and_numerical_qa_not_accepted' };
 }
 
 type SamplePageResult = { pageNumber: number; status: string; candidate?: QualityCandidate;
@@ -126,7 +135,7 @@ export async function runOwnerBookDraft(configFile: string, mode: 'preflight' | 
   const identity = { version: DRAFT_VERSION, config, refs: normalized.map(r => ({ file: r.file, sourceSha: r.sha, transportSha: previewSha(r.bytes) })),
     imageModel: 'gpt-image-2', quality: 'low', size: '1024x1536', qualityVersion: PREVIEW_QUALITY_VERSION,
     judgeModel: PREVIEW_JUDGE_MODEL, judgeEffort: PREVIEW_JUDGE_EFFORT, productionReady: false, automaticRepair: false,
-    ...(config.samplePages ? { samplePolicy: 'shared-quality-before-next-page/v1' } : {}) };
+    ...(config.samplePages ? { samplePolicy: 'shared-quality-before-next-page/v2' } : {}) };
   if (mode === 'preflight') { console.log(JSON.stringify({ status: 'offline_preflight_ok', pages: plan.pages.length, sourceSha: story.sourceSha, planSha: config.plan.sha, providerCalls: 0 })); return; }
   bindPreviewRun(root, identity);
   const lock = path.join(root, 'run.lock'), fd = fs.openSync(lock, 'wx');
@@ -187,7 +196,7 @@ export async function runOwnerBookDraft(configFile: string, mode: 'preflight' | 
       const { judgePreviewCandidate } = await import('./lib/local-preview-judge');
       const report = await runGatedDraftPages({ pages: config.samplePages!,
         context: (pageNumber, prior) => ({ plan, pageNumber, text: pageNumber === 0 ? story.title : story.pages[pageNumber - 1].text,
-          priorPages: prior.map(p => ({ pageNumber: p.pageNumber, ...p.candidate })), calibrationStatus: 'not_established', purpose: 'diagnostic_only' }),
+          priorPages: prior.map(p => draftPageRow(story, p.pageNumber, p.candidate!)), calibrationStatus: 'not_established', purpose: 'diagnostic_only' }),
         render: async pageNumber => {
           const text = pageNumber === 0 ? story.title : story.pages[pageNumber - 1].text;
           const imageName = `page-${String(pageNumber).padStart(2, '0')}.png`;
@@ -218,8 +227,7 @@ export async function runOwnerBookDraft(configFile: string, mode: 'preflight' | 
         const imageName = `page-${String(page.pageNumber).padStart(2, '0')}.png`;
         const prompt = ownerDraftPagePrompt(plan, page.pageNumber, text, config.childAge, config.gender, config.companionDescription);
         const made = await makeImage(`page-${String(page.pageNumber).padStart(2, '0')}`, prompt, refPaths, imageName);
-        pages.push({ pageNumber: page.pageNumber, text, imageName, imageSha: made.sha, automatedPassed: false, score: null,
-          reason: 'editorial_draft_visual_and_numerical_qa_not_accepted' });
+        pages.push(draftPageRow(story, page.pageNumber, { imageName, imageSha: made.sha }));
       }
       if (pages.length === plan.pages.length) save(path.join(root, 'manifest.json'), draftManifest(story, config.plan.sha, pages));
       console.log(JSON.stringify({ status: pages.length === plan.pages.length ? 'draft_images_complete' : 'draft_sample_complete', pages: pages.length }));
@@ -270,12 +278,16 @@ export async function runOwnerBookDraft(configFile: string, mode: 'preflight' | 
   }
 }
 
-if (require.main === module) {
-  const args = process.argv.slice(2), configFile = args[0];
+export async function ownerDraftCli(args: string[]) {
+  const configFile = args[0];
   const mode = args.includes('--sample') ? 'sample' : args.includes('--render') ? 'render' : args.includes('--qa') ? 'qa' : 'preflight';
   if (['--sample', '--render', '--qa'].filter(flag => args.includes(flag)).length > 1) throw Error('draft_conflicting_modes');
   const key = args.indexOf('--key-env-file'), through = args.indexOf('--through-page');
-  runOwnerBookDraft(configFile, mode, key >= 0 ? args[key + 1] : undefined, through >= 0 ? Number(args[through + 1]) : undefined).then(result => {
+  return runOwnerBookDraft(configFile, mode, key >= 0 ? args[key + 1] : undefined, through >= 0 ? Number(args[through + 1]) : undefined);
+}
+
+if (require.main === module) {
+  ownerDraftCli(process.argv.slice(2)).then(result => {
     if (result?.status === 'sample_held') process.exitCode = 2;
   }).catch(error => {
     const message = error instanceof Error ? error.message : '';

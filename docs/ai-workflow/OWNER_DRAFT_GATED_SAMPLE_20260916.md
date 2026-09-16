@@ -1,5 +1,9 @@
 # Existing-system gated draft sample — approved Decision Gate
 
+Subsequent independent review: Claude HOLD0/1/4 on d1a79ab3..c94b0511,
+reconciled at documentation-only6b14617a. Narrow correction and re-gate brief:
+OWNER_DRAFT_SAMPLE_CORRECTION_20260916.md. Historical paid artifacts remain held.
+
 Guy explicitly forbids off-system renders, directs implementation, and authorizes
 paid rendering using existing key. Current task sole writer, semantic-m1 branch
 codex/r3b1b-semantic-recovery-m1, base d1a79ab334536ac032192b411dba2aad2bd46839,
@@ -84,20 +88,30 @@ Contextual QA: defects relative_scale/props/scene/framing, otherspass. Blind
 anatomy flags biological-looking shelter feet; contextual anatomy accepts magical
 prop connection. Existing override retains blind defect without altering raw logs.
 This reveals false-positive risk; does not establish reliable anatomy adjudication.
-Operator found extra animal passengers in prop board; no separate board QA exists
-in this milestone. Board is not approved; frame/identity defects also remain.
+Operator found extra animal passengers in prop board. Corrected causal attribution:
+c94b0511 removed the generic `or animals` exclusion while removing prior-story
+living-path prose. This is a verified prompt regression; a counterfactual proving
+it alone caused the pixels was not run. Separate board QA is absent, but adding
+paid QA is not the remedy for this omission. Restore the free constraint first.
+Board is not approved; restoration alone establishes no visual detection accuracy.
+Existing scale/props/scene/framing defects remain; no new product acceptance.
 
 Image SHA prop-board0a8776ae0456f4fb9446996ec2649867a69ae577003a53e241868d9f9171ff28;
 page3a3839a668d82dc07aa91f00ffcb4da208975d6b7ceb27c8697f029427453a6f0.
 Source6ad80286... unchanged; plan a6c7d233eb17ae433ff038a7696954b7a131913f3c7db3dbc6f1a4b27c932eb2.
 Page7 not generated. Unmodified rejected audition remains evidence only, not refs.
-All25 panda reader image/audio hashes recomputed unchanged. No customer activation.
+All25 panda reader image/audio hashes recomputed unchanged. Exact root:
+outputs/panda-book-final-draft-20260915 (manifest.json), NOT
+outputs/panda-book-render-v2-20260915/reader. Correction handoff includes the full
+read-only verification command. No customer activation.
 
 Usage-based price estimateUSD0.1572235, conservativeUSD0.81999, four known outcomes.
 Not an invoice; local cost-audit.json includes tokens, per-row math and receipt SHA.
 Offline audit helper writes/compares cost-audit.json only, calls no provider.
 Real run replay with throwing fetch and dummy key reproduced manifest/hold with
-providerDispatches0 and no real key read. Do not infer a fresh visual review from replay.
+providerDispatches0 and no real key read. This historical replay used c94b0511;
+corrected sample policy v2 requires a fresh root. Do not rerun this old paid root
+under corrected prompts/context. Do not infer a fresh visual review from replay.
 
 Artifacts ignored/local-only, no verified off-machine backup. Push never preserves
 outputs/kim-system-sample-20260916 or its sibling input directory. Logs/receipts
@@ -106,7 +120,7 @@ must remain unchanged; no evidence migration or provider work in independent QA.
 Falsification targets: first non-pass prevents next render, mode/prefix bypasses,
 complete-plan requirement despite selected pages, exact source/ref/request binding,
 usage preservation/no unknown retries, no repair authority, same raw blind/contextual
-conflict, generic board still lacking separate QA, cost bounds and local-only scope.
+conflict, restored generic animal exclusion, cost bounds and local-only scope.
 
 Inspection and focused checks (PowerShell):
 ```powershell
