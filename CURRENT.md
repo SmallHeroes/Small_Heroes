@@ -1,5 +1,33 @@
 # SmallHeroes — Current Technical State
 
+## Shared repair live result: page2 repaired/pass, page7 HELD — 2026-09-16
+Execution at575bda08, new root outputs/uri-system-repair-20260916. Imported existing
+board/page2 without new generation or authority. Rejudged page2: framing defect;
+one corrective edit used FOUR role-mapped refs, original retained. Recheck all8
+categories pass; judge explicitly estimates ~40% occupancy vs target33% and allows
+it as approximate wide staging. No exact compliance or independent PASS claimed.
+Then page7 generated/judged: scene defect (multiple droplets vs one; Uri touches
+lantern rather than paws at belly). Other7 categories pass. Repair cap already used,
+so sample_held and page10 absent/unassessed. No second repair or verdict override.
+Do not conflate this scene-direction mismatch with an anatomy defect or acceptance.
+Three requested completed pages remain incomplete. Viewer in new root/index.html.
+Eight claims/eight known results/no unknowns:2 image+6 QA. New list estimateUSD0.34618
+(image0.074275,QA0.271905); cumulative UriUSD0.4612585 including previous0.1150785.
+Conservative new accountingUSD2.16495 is NOT an extra charge. Invoice not verified.
+All28 old files across original input/output and evidence-correction roots unchanged.
+Startup logger attempt failed before provider dispatch: direct require-only TS hook
+failed dynamic import. No claims or images in that failed launch; original logs
+retained. Corrected capture-tsx.cjs invokes existing tsx CLI; direct child exit2
+and separate stdout/stderr retained in outputs/draft-repair-once-evidence-20260916.
+Full check COMPLETED NON-GREEN: ordinary5651pass/2fail/73skip; resource670pass/1fail.
+Ordinary failures: Claude-model inventory and classifier393vs409. Resource: canonical
+pre-live-readiness.spec.ts:913 timeout5000ms (observed5693ms). No baseline comparison;
+do not classify all failures inherited. Both typechecks passed. Focused135/135.
+No customer/runtime/catalog cutover, audio, push, independent technical PASS or
+product acceptance. Next issue to assess before further spend: distinguish strict
+incidental staging preferences from story-critical constraints, without erasing the
+raw page7 verdict or weakening body/identity/continuity checks unilaterally.
+
 ## Bounded shared-sample repair implementation — 2026-09-16
 Guy approved one bounded correction then continuing Uri2/7/10. Local editorial
 owner-draft now has opt-in sampleRepairOnce, single repair across the WHOLE sample,
@@ -9,8 +37,8 @@ alone decides defect vs hold; malformed/uncertain/transport/budget outcomes do n
 authorize repair. New attempt filename/checkpoint/QA binding; every valid attempt
 persisted before next image. Plan, judge, thresholds and anchors unchanged.
 135 focused tests pass (owner59,quality28,judge16,checkpoints32), tsc0, CLI preflight0.
-Full check running at implementation checkpoint; no stability closure claimed.
-Paid execution pending: fresh outputs/uri-system-repair-20260916, input
+Full check was running at implementation checkpoint; completed outcome above.
+At preparation, paid execution was pending for outputs/uri-system-repair-20260916; input
 outputs/uri-system-repair-input-20260916/config.json SHA9eb0755d48025cd95bd05fae6d68982ebf095549468cb4c4053c04b3d7e2d5a2.
 Reuses original board and page2 bytes, judges imported candidate anew, at most one
 repair plus pages7/10 if allowed. ImageUSD2/QAUSD5 fences, LOW, no narration/fullbook.
