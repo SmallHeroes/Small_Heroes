@@ -1,5 +1,26 @@
 # SmallHeroes — Current Technical State
 
+## Kim prop-design data correction prepared offline — 2026-09-16
+
+Claude supplied re-gate PASS0/0/1 on6b14617a..c1ae489a, closing previous HOLD0/1/4.
+He did not rerun the full repository check. New P2 independently verified: bus
+design/invariants require Bar/Kim passengers, contradicting board's no-people/
+animals instruction. The sock design also carries Kim placement, and shared style
+positively describes a human child. Data correction only, no engine changes:
+new plan separates object identity from page3 sock/page7 passenger state and removes
+positive child-subject wording from shared style. Existing child expressions/actions
+and all geometry/framing/location/source data preserved. Exactly seven plan leaves.
+New local input root outputs/kim-system-sample-v2-input-20260916, planSHA90660c71...;
+config binds same source/anchors, pages3/7, image2/QA4 and fresh future output root.
+Actual shared validators and assembled board/page prompts checked offline, tsc0;
+no provider calls, keys, images/audio, push or new paid output root at validation.
+All26 files in both historical paid/input roots byte-preserved. Existing held page/
+board are not approved; new prompt compliance is not established by these checks.
+Inputs/validator ignored and local-only; no verified off-machine backup. Code PASS
+ends atc1ae489a; this data/docs milestone has no independent re-gate yet. Full-check
+NON-GREEN and other review gaps remain. Handoff and exact local input hashes:
+docs/ai-workflow/KIM_PROP_DESIGN_DATA_CORRECTION_20260916.md.
+
 ## Shared draft sample: narrow QA correction — 2026-09-16
 
 Claude supplied HOLD0/1/4 for d1a79ab3..c94b0511, independently reconciled with
@@ -18,7 +39,7 @@ reproduction or stability closure. Both full-check typechecks passed.
 Correct reader root outputs/panda-book-final-draft-20260915:25/25 manifest-bound
 PNG/MP3 hashes verified. Existing Kim source/paid images unchanged; page7 absent.
 No new provider calls, key-file access, spend, render/audio, push or product approval.
-Independent re-gate pending; do not self-close Claude's HOLD. Separate unreviewed
+At that handoff, independent re-gate was pending; subsequent scoped PASS is above. Separate unreviewed
 range5e25996f..d1a79ab3 and NON-GREEN stability remain open. Handoff:
 docs/ai-workflow/OWNER_DRAFT_SAMPLE_CORRECTION_20260916.md.
 
@@ -45,7 +66,8 @@ receipt replay with throwing network fence and dummy key reproduced sample_held
 with providerDispatches0; no real key read. Source and three rejected old images
 unchanged; all25 panda reader image/audio hashes preserved. Inputs/receipts/cost
 audit under outputs/kim-system-sample[-input]-20260916, ignored/local-only with no
-verified off-machine backup; push does not preserve. New code has no independent PASS.
+verified off-machine backup; push does not preserve. At that completion handoff,
+new code had no independent PASS; subsequent scoped reviews are recorded above.
 
 Full npm run check completed exit1: ordinary5633pass/2fail/73skip; resource671/671.
 Failures: anthropic-model-authority expects only retired Sonnet but also finds
