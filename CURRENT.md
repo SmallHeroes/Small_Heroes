@@ -1,5 +1,28 @@
 # SmallHeroes — Current Technical State
 
+## Kim three-page LOW audition completed — 2026-09-16
+
+Guy approved visual planning plus three LOW sample images using the existing key.
+Same task/semantic-m1 basecd0e0114. Created isolated audition plan/prompts and three
+768x1152 gpt-image-2 LOW PNGs for draft story pages1/3/7. Existing child face and
+canonical Kim front image reused; page1 used provisionally for shelter design only.
+Installed imagegen CLI, three successful invocations, no deliberate retries/repairs,
+no paid QA/audio. SDK-internal attempts not instrumented; no zero-retry claim.
+CLI does not persist usage or provider IDs: actual total cost UNKNOWN, not zero.
+Official rates cannot reconstruct missing usage; no measured cost-saving claim.
+
+Visual operator inspection: more environmental space, different actions/compositions,
+recognizable teal-roof/cream-post/honey-bench shelter across intentional locations.
+Not final acceptance: page1 lifted step is unclear; page3 contact is with laundry
+rather than clearly releasing line, roof not lowered as far as planned; page7
+window-hand ownership is ambiguous. No automatic PASS or calibrated resemblance
+score; current judge unchanged. Do not advance these as release-qualified pages.
+Draft source/reference hashes verified unchanged; no accepted story/package/reader
+changes. No production code edits; tsc0, full check not rerun/NON-GREEN remains.
+Review: outputs/kim-low-audition-20260916/review-board.html. Prompt set and plan in
+same root, ignored/local-only with no verified off-machine backup. Gate/handoff:
+docs/ai-workflow/KIM_LOW_AUDITION_20260916.md. No full book, narration or push.
+
 ## Targeted anatomy visual pilot completed; futility stop — 2026-09-16
 
 Code milestone def8df46 above 5e25996f executed exactly four GPT-5.5 medium/Flex
