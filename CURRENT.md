@@ -1,5 +1,25 @@
 # SmallHeroes — Current Technical State
 
+## Existing shared draft runner: gated sample implementation — 2026-09-16
+
+Guy rejects off-system image calls and explicitly authorizes implementation plus
+paid sample with existing key. Base d1a79ab3, same semantic-m1 task sole writer.
+Existing run-owner-book-draft now has opt-in samplePages/sample mode using real
+shared validators, generateGPTImage, previewCheckpoint, runPreviewQualityLoop
+and judgePreviewCandidate. It judges/persists each page before rendering another;
+defect/uncertainty/error stops. No calibrated auto-repair or product PASS invented.
+Generic prop-board prompt removes prior-story living-path leakage. Legacy full
+draft modes remain separate; sample configs reject render/qa/prefix bypass.
+LOCAL EDITORIAL pathway only, not accepted package/order/customer runtime cutover.
+
+Real Kim 9-entry cover/body plan validated offline, draft source unchanged at
+6ad80286..., plan a6c7d233..., original child/Kim refs; rejected audition images
+not reused. Bound sample selection3/7, image budgetUSD2 + QA budgetUSD4 using shared
+conservative checkpoints. Max one new prop board/two pages; no paid repair/audio.
+117 focused tests pass including real-entry mocked-provider hold/replay/mode guards;
+tsc0. Full check executing separately, no stability closure claimed. Paid run pending.
+Gate/QA: docs/ai-workflow/OWNER_DRAFT_GATED_SAMPLE_20260916.md.
+
 ## Kim three-page LOW audition completed — 2026-09-16
 
 Guy approved visual planning plus three LOW sample images using the existing key.
