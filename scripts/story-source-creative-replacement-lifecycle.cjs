@@ -5,6 +5,7 @@ const path = require('node:path');
 
 const materializer = require('./materialize-story-source-revision.cjs');
 const editorialContract = require('./story-editorial-validation-contract.cjs');
+const { loadOriginalAcceptedSource } = require('./lib/original-accepted-story-source.cjs');
 
 const REPO_ROOT = path.resolve(__dirname, '..');
 const OUTPUTS_ROOT_RELATIVE = 'outputs';
@@ -23,6 +24,9 @@ const ACCEPTED_REVISION_VERSION =
   'small-heroes-product-accepted-story-source-creative-replacement-manifest/v1';
 const ACCEPTED_REVISION_STATUS =
   'product_accepted_story_source_creative_replacement';
+const ORIGINAL_REQUEST_VERSION = REQUEST_VERSION.replace('/v1', '/v2');
+const ORIGINAL_ACCEPTED_REVISION_VERSION = ACCEPTED_REVISION_VERSION.replace('/v1', '/v2');
+const artifactVersion = (version, original) => original ? version.replace('/v1', '/v2') : version;
 const SOURCE_PROFILE = 'gender_flexible';
 const SOURCE_GENDER_MODE = 'neutral';
 const SHA256_HEX = /^[a-f0-9]{64}$/;
@@ -264,21 +268,16 @@ function validateRequest(value) {
       'storyRevision',
       'version',
     ]) ||
-    value.version !== REQUEST_VERSION ||
+    ![REQUEST_VERSION, ORIGINAL_REQUEST_VERSION].includes(value.version) ||
     !SAFE_SEGMENT.test(value.storyKey) ||
     value.sourceProfile !== SOURCE_PROFILE ||
     !validIdentity(value.identity) ||
     !validBoundFile(value.creativeBrief) ||
     !validBoundFile(value.storyRevision) ||
     !validBoundFile(value.editorialReview) ||
-    !exactKeys(value.predecessor, [
-      'manifestPath',
-      'manifestSha256',
-      'revisionDigest',
-    ]) ||
+    !validPredecessor(value.predecessor, value.version === ORIGINAL_REQUEST_VERSION) ||
     !canonicalRepoRelativePathIsValid(value.predecessor.manifestPath) ||
     !SHA256_HEX.test(value.predecessor.manifestSha256) ||
-    !SHA256_HEX.test(value.predecessor.revisionDigest) ||
     value.acceptedBy !== 'Guy' ||
     !canonicalUtcTimestampIsValid(value.acceptedAt) ||
     value.approvedStoryRevisionSha256 !== value.storyRevision.sha256 ||
@@ -291,6 +290,12 @@ function validateRequest(value) {
     throw new Error('story_source_creative_replacement_request_invalid');
   }
   return value;
+}
+
+function validPredecessor(value, original) {
+  return original
+    ? exactKeys(value, ['kind', 'manifestPath', 'manifestSha256']) && value.kind === 'accepted_root_v1'
+    : exactKeys(value, ['manifestPath', 'manifestSha256', 'revisionDigest']) && SHA256_HEX.test(value.revisionDigest);
 }
 
 function readRequestFile(requestPath, roots = {}) {
@@ -385,6 +390,10 @@ function loadPredecessor(request, roots = {}) {
   const repoRoot = roots.repoRoot || REPO_ROOT;
   const acceptedRoot =
     roots.acceptedRootRelative || ACCEPTED_ROOT_RELATIVE;
+  if (request.version === ORIGINAL_REQUEST_VERSION) {
+    return loadOriginalAcceptedSource({ repoRoot, acceptedRoot, storyKey: request.storyKey,
+      predecessor: request.predecessor, identity: request.identity, readFile: readOriginalFile });
+  }
   const expectedPath =
     `${acceptedRoot}/${request.storyKey}/revisions/` +
     `${request.predecessor.revisionDigest}/manifest.json`;
@@ -408,7 +417,7 @@ function loadPredecessor(request, roots = {}) {
       manifest.status === 'product_accepted_story_source_revision') ||
     (manifest.version === 'small-heroes-product-accepted-story-source-revision-manifest/v4' &&
       manifest.status === 'product_accepted_story_source_revision') ||
-    (manifest.version === ACCEPTED_REVISION_VERSION &&
+    ([ACCEPTED_REVISION_VERSION, ORIGINAL_ACCEPTED_REVISION_VERSION].includes(manifest.version) &&
       manifest.status === ACCEPTED_REVISION_STATUS);
   if (
     file.sha256 !== request.predecessor.manifestSha256 ||
@@ -418,6 +427,10 @@ function loadPredecessor(request, roots = {}) {
     !canonicalDigestIsValid(manifest)
   ) {
     throw new Error('story_source_creative_replacement_predecessor_invalid');
+  }
+  if (manifest.version === ORIGINAL_ACCEPTED_REVISION_VERSION) {
+    if ((roots.predecessorDepth || 0) >= 32) throw new Error('story_source_creative_replacement_predecessor_invalid');
+    loadAcceptedCreativeReplacement({ manifestPath: expectedPath }, { ...roots, predecessorDepth: (roots.predecessorDepth || 0) + 1 });
   }
   if (manifest.version === 'small-heroes-product-accepted-story-source-revision-manifest/v4') {
     // Keep both this synchronous CLI and self-contained successor reload on the
@@ -466,6 +479,24 @@ function loadPredecessor(request, roots = {}) {
     }
   }
   return { file, manifest };
+}
+
+function readOriginalFile(args) {
+  try {
+    if (!canonicalRepoRelativePathIsValid(args.relativePath)) throw new Error(args.code);
+    assertNoLinkComponents(args.repoRoot, path.resolve(args.repoRoot, args.relativePath), args.code);
+    return readContainedRegularFile(args);
+  } catch { throw new Error(args.code); }
+}
+
+// Inspection has no acceptance request and cannot publish a successor.
+function inspectOriginalAcceptedSource({ storyKey, manifestSha256 }, roots = {}) {
+  const repoRoot = roots.repoRoot || REPO_ROOT;
+  const acceptedRoot = roots.acceptedRootRelative || ACCEPTED_ROOT_RELATIVE;
+  const loaded = loadOriginalAcceptedSource({ repoRoot, acceptedRoot, storyKey,
+    predecessor: { kind: 'accepted_root_v1', manifestPath: `${acceptedRoot}/${storyKey}/manifest.json`, manifestSha256 },
+    readFile: readOriginalFile });
+  return { predecessor: loaded.descriptor, ...loaded.evidence };
 }
 
 function readBoundOutput(reference, request, roots, maximumBytes, code) {
@@ -555,9 +586,9 @@ function loadInputs(requestPath, roots = {}) {
 
 function buildRevisionIdentity(loaded) {
   return {
-    version: REVISION_IDENTITY_VERSION,
+    version: artifactVersion(REVISION_IDENTITY_VERSION, loaded.predecessor.original),
     storyKey: loaded.request.storyKey,
-    predecessor: {
+    predecessor: loaded.predecessor.descriptor || {
       manifestPath: loaded.predecessor.file.relativePath,
       manifestSha256: loaded.predecessor.file.sha256,
       revisionDigest: loaded.predecessor.manifest.revisionDigest,
@@ -591,7 +622,7 @@ function buildRevision(loaded) {
     girl: projectionDescriptor(loaded.storyText, 'girl'),
   };
   const reviewPayload = {
-    version: REVIEW_BUNDLE_VERSION,
+    version: artifactVersion(REVIEW_BUNDLE_VERSION, loaded.predecessor.original),
     status: 'product_editorial_pass',
     authorityScope: 'story_text_only',
     storyKey: loaded.request.storyKey,
@@ -614,7 +645,7 @@ function buildRevision(loaded) {
     'utf8',
   );
   const acceptancePayload = {
-    version: ACCEPTANCE_VERSION,
+    version: artifactVersion(ACCEPTANCE_VERSION, loaded.predecessor.original),
     status: 'accepted',
     acceptedAt: loaded.request.acceptedAt,
     acceptedBy: 'Guy',
@@ -649,7 +680,7 @@ function buildRevision(loaded) {
     ...(digest ? { digest } : {}),
   });
   const manifestPayload = {
-    version: ACCEPTED_REVISION_VERSION,
+    version: artifactVersion(ACCEPTED_REVISION_VERSION, loaded.predecessor.original),
     status: ACCEPTED_REVISION_STATUS,
     authorityScope: 'story_text_only',
     storyKey: loaded.request.storyKey,
@@ -757,6 +788,7 @@ function loadAcceptedCreativeReplacement({ manifestPath }, roots = {}) {
     manifestFile.bytes,
     'story_source_creative_replacement_accepted_invalid',
   );
+  const original = manifest.version === ORIGINAL_ACCEPTED_REVISION_VERSION;
   if (
     !exactKeys(manifest, [
       'authorityScope',
@@ -773,7 +805,8 @@ function loadAcceptedCreativeReplacement({ manifestPath }, roots = {}) {
       'storyKey',
       'version',
     ]) ||
-    manifest.version !== ACCEPTED_REVISION_VERSION ||
+    ![ACCEPTED_REVISION_VERSION, ORIGINAL_ACCEPTED_REVISION_VERSION].includes(manifest.version) ||
+    !validPredecessor(manifest.predecessor, original) ||
     manifest.status !== ACCEPTED_REVISION_STATUS ||
     manifest.authorityScope !== 'story_text_only' ||
     manifest.storyKey !== storyKey ||
@@ -867,7 +900,7 @@ function loadAcceptedCreativeReplacement({ manifestPath }, roots = {}) {
       'storyKey',
       'version',
     ]) ||
-    acceptance.version !== ACCEPTANCE_VERSION ||
+    acceptance.version !== artifactVersion(ACCEPTANCE_VERSION, original) ||
     acceptance.status !== 'accepted' ||
     acceptance.acceptedBy !== 'Guy' ||
     !canonicalUtcTimestampIsValid(acceptance.acceptedAt) ||
@@ -908,6 +941,7 @@ function loadAcceptedCreativeReplacement({ manifestPath }, roots = {}) {
     pageCount: manifest.identity?.pageCount,
   };
   const syntheticRequest = {
+    version: original ? ORIGINAL_REQUEST_VERSION : REQUEST_VERSION,
     storyKey,
     identity: requestIdentity,
     predecessor: manifest.predecessor,
@@ -995,7 +1029,7 @@ function assertNoAcceptedFork({
       throw new Error('story_source_creative_replacement_predecessor_not_current');
     }
     if (
-      manifest.version === ACCEPTED_REVISION_VERSION &&
+      [ACCEPTED_REVISION_VERSION, ORIGINAL_ACCEPTED_REVISION_VERSION].includes(manifest.version) &&
       manifest.status === ACCEPTED_REVISION_STATUS &&
       manifest.predecessor?.revisionDigest === predecessorDigest &&
       manifest.revisionDigest !== proposedRevisionDigest
@@ -1059,7 +1093,7 @@ function writeRevisionAtomically(revisionsRoot, target, files) {
   }
 }
 
-function publish({ requestPath, write }, roots = {}) {
+function publishUnlocked({ requestPath, write, expectedRequestSha }, roots = {}) {
   if (typeof write !== 'boolean') {
     throw new Error('story_source_creative_replacement_arguments_invalid');
   }
@@ -1067,6 +1101,9 @@ function publish({ requestPath, write }, roots = {}) {
   const acceptedRoot =
     roots.acceptedRootRelative || ACCEPTED_ROOT_RELATIVE;
   const loaded = loadInputs(requestPath, roots);
+  if (expectedRequestSha && loaded.requestResult.file.sha256 !== expectedRequestSha) {
+    throw new Error('story_source_creative_replacement_request_changed');
+  }
   const built = buildRevision(loaded);
   const storyRoot = path.resolve(
     repoRoot,
@@ -1082,16 +1119,16 @@ function publish({ requestPath, write }, roots = {}) {
     storyRoot,
     'story_source_creative_replacement_target_invalid',
   );
-  assertSafeDirectory(
-    storyRoot,
-    revisionsRoot,
-    'story_source_creative_replacement_target_invalid',
-  );
+  const original = loaded.predecessor.original === true;
+  const revisionsExist = fs.existsSync(revisionsRoot);
+  if (revisionsExist || !original) {
+    assertSafeDirectory(storyRoot, revisionsRoot, 'story_source_creative_replacement_target_invalid');
+  }
   const target = path.join(revisionsRoot, built.revisionDigest);
   if (path.dirname(target) !== revisionsRoot) {
     throw new Error('story_source_creative_replacement_target_invalid');
   }
-  assertNoAcceptedFork({
+  if (revisionsExist && !original) assertNoAcceptedFork({
     repoRoot,
     revisionsRoot,
     predecessorDigest: loaded.request.predecessor.revisionDigest,
@@ -1105,6 +1142,11 @@ function publish({ requestPath, write }, roots = {}) {
       target: path.relative(repoRoot, target).replaceAll('\\', '/'),
     };
   }
+  if (original && revisionsExist && fs.readdirSync(revisionsRoot).some(name => SHA256_HEX.test(name))) {
+    // An original root is not current once any accepted revision exists. Do not
+    // start a new fork or adopt an unrelated intermediate revision implicitly.
+    throw new Error('story_source_creative_replacement_predecessor_not_current');
+  }
   if (!write) {
     return {
       created: false,
@@ -1113,6 +1155,8 @@ function publish({ requestPath, write }, roots = {}) {
       target: path.relative(repoRoot, target).replaceAll('\\', '/'),
     };
   }
+  if (!revisionsExist) fs.mkdirSync(revisionsRoot);
+  assertSafeDirectory(storyRoot, revisionsRoot, 'story_source_creative_replacement_target_invalid');
   writeRevisionAtomically(revisionsRoot, target, built.files);
   return {
     created: true,
@@ -1120,6 +1164,27 @@ function publish({ requestPath, write }, roots = {}) {
     revisionDigest: built.revisionDigest,
     target: path.relative(repoRoot, target).replaceAll('\\', '/'),
   };
+}
+
+function publish(args, roots = {}) {
+  if (typeof args.write !== 'boolean') throw new Error('story_source_creative_replacement_arguments_invalid');
+  const initialRequest = readRequestFile(args.requestPath, roots);
+  const { request } = initialRequest;
+  if (request.version !== ORIGINAL_REQUEST_VERSION || !args.write) return publishUnlocked(args, roots);
+  const repoRoot = roots.repoRoot || REPO_ROOT;
+  const acceptedRoot = roots.acceptedRootRelative || ACCEPTED_ROOT_RELATIVE;
+  // Validate the full source and all request inputs before even creating a lock.
+  loadInputs(args.requestPath, roots);
+  const storyRoot = path.resolve(repoRoot, acceptedRoot, request.storyKey);
+  assertSafeDirectory(path.resolve(repoRoot, acceptedRoot), storyRoot, 'story_source_creative_replacement_target_invalid');
+  const lockPath = path.join(storyRoot, '.creative-replacement.lock');
+  let fd;
+  try { fd = fs.openSync(lockPath, 'wx'); }
+  catch { throw new Error('story_source_creative_replacement_locked'); }
+  try {
+    // Re-read bindings inside the exclusive lock; no stale prepared snapshot.
+    return publishUnlocked({ ...args, expectedRequestSha: initialRequest.file.sha256 }, roots);
+  } finally { fs.closeSync(fd); fs.unlinkSync(lockPath); }
 }
 
 function parseArgs(argv) {
@@ -1161,6 +1226,9 @@ function main(argv) {
 }
 
 module.exports = {
+  ORIGINAL_REQUEST_VERSION,
+  ORIGINAL_ACCEPTED_REVISION_VERSION,
+  inspectOriginalAcceptedSource,
   ACCEPTANCE_VERSION,
   ACCEPTED_REVISION_STATUS,
   ACCEPTED_REVISION_VERSION,

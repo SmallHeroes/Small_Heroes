@@ -3,7 +3,7 @@ import path from 'node:path';
 import { createRequire } from 'node:module';
 import { spawnSync } from 'node:child_process';
 
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 const require = createRequire(import.meta.url);
 const lifecycle = require(
@@ -202,6 +202,7 @@ function buildFixture() {
 }
 
 afterEach(() => {
+  vi.restoreAllMocks();
   for (const root of temporaryRoots.splice(0)) {
     fs.rmSync(root, { recursive: true, force: true });
   }
@@ -230,6 +231,265 @@ function buildV4Fixture() {
   writeJson(fixture.requestPath, request);
   return { ...fixture, request, predecessorPath, predecessorRoot, predecessorBytes: bytes };
 }
+
+function buildOriginalFixture(storyKey = 'panda_anat_adventure') {
+  const fixture = buildFixture();
+  const acceptedRoot = 'story-pipeline/04_approved_story_sources/accepted';
+  const originalRoot = `${acceptedRoot}/${storyKey}`;
+  for (const name of ['story.md', 'editorial-review.json', 'manifest.json']) {
+    writeBytes(path.join(fixture.root, originalRoot, name), fs.readFileSync(path.join(REPO_ROOT, originalRoot, name)));
+  }
+  const manifestPath = `${originalRoot}/manifest.json`;
+  const manifest = JSON.parse(fs.readFileSync(path.join(fixture.root, manifestPath), 'utf8'));
+  const approvalPath = manifest.record.productAcceptance.path;
+  writeBytes(path.join(fixture.root, approvalPath), fs.readFileSync(path.join(REPO_ROOT, approvalPath)));
+  const approval = JSON.parse(fs.readFileSync(path.join(fixture.root, approvalPath), 'utf8'));
+  if (approval.corpusManifestPath) {
+    writeBytes(path.join(fixture.root, approval.corpusManifestPath), fs.readFileSync(path.join(REPO_ROOT, approval.corpusManifestPath)));
+    const corpusStoryRoot = path.join(path.dirname(approval.corpusManifestPath), storyKey);
+    for (const name of ['story.md', 'editorial-review.json']) {
+      writeBytes(path.join(fixture.root, corpusStoryRoot, name), fs.readFileSync(path.join(REPO_ROOT, corpusStoryRoot, name)));
+    }
+  }
+  const r = manifest.record;
+  const brief = { ...creativeBrief(), category: r.category, direction: r.direction };
+  writeJson(fixture.briefPath, brief);
+  const text = story().replace('companionId: fox_uri', `companionId: ${r.companionId}`)
+    .replace('direction: bedtime', `direction: ${r.direction}`).replace('category: TRANSITION', `category: ${r.category}`);
+  writeBytes(fixture.storyPath, text);
+  const request = { ...fixture.request,
+    version: 'small-heroes-story-source-creative-replacement-request/v2', storyKey,
+    identity: { companionId: r.companionId, direction: r.direction, category: r.category, pageCount: 2 },
+    predecessor: { kind: 'accepted_root_v1', manifestPath,
+      manifestSha256: materializer.sha256(fs.readFileSync(path.join(fixture.root, manifestPath))) },
+    creativeBrief: { ...fixture.request.creativeBrief, sha256: materializer.sha256(fs.readFileSync(fixture.briefPath)) },
+    storyRevision: { ...fixture.request.storyRevision, sha256: materializer.sha256(text) },
+    approvedStoryRevisionSha256: materializer.sha256(text),
+  };
+  writeJson(fixture.requestPath, request);
+  return { ...fixture, request, originalRoot, manifestPath, approvalPath, originalManifest: manifest };
+}
+
+describe('first creative replacement from original accepted source', () => {
+  const argsFor = (f: ReturnType<typeof buildOriginalFixture>, write = false) => ({ requestPath: relative(f.root, f.requestPath), write });
+  const repin = (f: ReturnType<typeof buildOriginalFixture>) => {
+    f.request.predecessor.manifestSha256 = materializer.sha256(fs.readFileSync(path.join(f.root, f.manifestPath)));
+    writeJson(f.requestPath, f.request);
+  };
+  it('previews without creating revisions, publishes, reloads and replays the exact source', () => {
+    const f = buildOriginalFixture();
+    const revisions = path.join(f.root, f.originalRoot, 'revisions');
+    const args = { requestPath: relative(f.root, f.requestPath), write: false };
+    expect(fs.existsSync(revisions)).toBe(false);
+    const preview = lifecycle.publish(args, f.roots);
+    expect(fs.existsSync(revisions)).toBe(false);
+    expect(preview.manifest.version).toBe('small-heroes-product-accepted-story-source-creative-replacement-manifest/v2');
+    expect(preview.manifest.predecessor).toEqual(f.request.predecessor);
+    const published = lifecycle.publish({ ...args, write: true }, f.roots);
+    expect(published.created).toBe(true);
+    expect(published.revisionDigest).toBe(preview.revisionDigest);
+    expect(lifecycle.loadAcceptedCreativeReplacement({ manifestPath: `${published.target}/manifest.json` }, f.roots).storySha256)
+      .toBe(f.request.storyRevision.sha256);
+    expect(lifecycle.publish({ ...args, write: true }, f.roots).created).toBe(false);
+    expect(fs.readFileSync(path.join(f.root, f.manifestPath)))
+      .toEqual(fs.readFileSync(path.join(REPO_ROOT, f.manifestPath)));
+  });
+
+  it('verifies all18 original roots read-only, including the independent single-story acceptance', () => {
+    const root = 'story-pipeline/04_approved_story_sources/accepted';
+    const records = fs.readdirSync(path.join(REPO_ROOT, root), { withFileTypes: true }).filter(x => x.isDirectory());
+    expect(records).toHaveLength(18);
+    for (const { name: storyKey } of records) {
+      const bytes = fs.readFileSync(path.join(REPO_ROOT, root, storyKey, 'manifest.json'));
+      const manifest = JSON.parse(bytes.toString('utf8'));
+      const result = lifecycle.inspectOriginalAcceptedSource({ storyKey, manifestSha256: materializer.sha256(bytes) });
+      expect(result.storySha256).toBe(manifest.record.story.sha256);
+      expect(result.reviewSha256).toBe(manifest.record.editorialReview.sha256);
+      expect(result.approvalSha256).toBe(manifest.record.productAcceptance.sha256);
+      expect(result.predecessor).not.toHaveProperty('revisionDigest');
+    }
+  });
+
+  it('handles a single-story original and refuses a new root fork once a revision exists', () => {
+    const f = buildOriginalFixture('dragon_dini_adventure');
+    const first = lifecycle.publish(argsFor(f, true), f.roots);
+    writeBytes(f.storyPath, fs.readFileSync(f.storyPath, 'utf8').trimEnd().replace('השער', 'החלון') + '\n');
+    f.request.storyRevision.sha256 = materializer.sha256(fs.readFileSync(f.storyPath));
+    f.request.approvedStoryRevisionSha256 = f.request.storyRevision.sha256;
+    writeJson(f.requestPath, f.request);
+    expect(() => lifecycle.publish(argsFor(f, true), f.roots)).toThrow('predecessor_not_current');
+    expect(fs.readdirSync(path.join(f.root, f.originalRoot, 'revisions'))).toEqual([first.revisionDigest]);
+  });
+
+  it.each(['story.md', 'editorial-review.json', 'manifest.json'])('rejects altered original %s without creating a revisions directory', name => {
+    const f = buildOriginalFixture();
+    fs.appendFileSync(path.join(f.root, f.originalRoot, name), ' ');
+    expect(() => lifecycle.publish(argsFor(f, true), f.roots)).toThrow('original_invalid');
+    expect(fs.existsSync(path.join(f.root, f.originalRoot, 'revisions'))).toBe(false);
+  });
+
+  it.each(['approval', 'corpus', 'member', 'review-copy'])('rejects altered %s evidence behind a rehashed manifest', kind => {
+    const f = buildOriginalFixture();
+    const m = f.originalManifest;
+    if (kind === 'approval') {
+      const approval = JSON.parse(fs.readFileSync(path.join(f.root, f.approvalPath), 'utf8'));
+      approval.acceptedBy = 'NotGuy';
+      writeJson(path.join(f.root, f.approvalPath), approval);
+      const bytes = fs.readFileSync(path.join(f.root, f.approvalPath));
+      m.record.productAcceptance.sha256 = materializer.sha256(bytes);
+      m.record.productAcceptance.bytes = bytes.length;
+    } else {
+      const approval = JSON.parse(fs.readFileSync(path.join(f.root, f.approvalPath), 'utf8'));
+      if (kind === 'corpus') fs.appendFileSync(path.join(f.root, approval.corpusManifestPath), ' ');
+      if (kind === 'member') {
+        const corpus = JSON.parse(fs.readFileSync(path.join(f.root, approval.corpusManifestPath), 'utf8'));
+        corpus.records.find((r: any) => r.slot === f.request.storyKey).storySha256 = '0'.repeat(64);
+        writeJson(path.join(f.root, approval.corpusManifestPath), corpus);
+        approval.corpusManifestSha256 = materializer.sha256(fs.readFileSync(path.join(f.root, approval.corpusManifestPath)));
+        writeJson(path.join(f.root, f.approvalPath), approval);
+        const bytes = fs.readFileSync(path.join(f.root, f.approvalPath));
+        m.record.productAcceptance.sha256 = materializer.sha256(bytes);
+        m.record.productAcceptance.bytes = bytes.length;
+      }
+      if (kind === 'review-copy') fs.appendFileSync(path.join(f.root, m.record.editorialReview.sourcePath), ' ');
+    }
+    writeJson(path.join(f.root, f.manifestPath), m); repin(f);
+    expect(() => lifecycle.publish(argsFor(f, true), f.roots)).toThrow();
+    expect(fs.existsSync(path.join(f.root, f.originalRoot, 'revisions'))).toBe(false);
+  });
+
+  it.each(['identity', 'audit', 'exclusions', 'status', 'extra', 'approval-path'])('rejects rehashed manifest %s substitution', kind => {
+    const f = buildOriginalFixture(); const m = f.originalManifest;
+    if (kind === 'identity') m.record.companionId = 'fox_uri';
+    if (kind === 'audit') m.record.independentArtifactAudit.reviewedHead = '1'.repeat(40);
+    if (kind === 'exclusions') m.record.excludedAuthorities = [];
+    if (kind === 'status') m.status = 'pending';
+    if (kind === 'extra') m.runtimeOverride = true;
+    if (kind === 'approval-path') m.record.productAcceptance.path = 'outputs/../outside.json';
+    writeJson(path.join(f.root, f.manifestPath), m); repin(f);
+    expect(() => lifecycle.publish(argsFor(f, true), f.roots)).toThrow('original_invalid');
+    expect(fs.existsSync(path.join(f.root, f.originalRoot, 'revisions'))).toBe(false);
+  });
+
+  it('keeps versions explicit and never treats an original hash as a revision digest', () => {
+    const f = buildOriginalFixture();
+    expect(() => lifecycle.validateRequest({ ...f.request, version: lifecycle.REQUEST_VERSION })).toThrow('request_invalid');
+    expect(() => lifecycle.validateRequest({ ...f.request, predecessor: { ...f.request.predecessor, revisionDigest: f.request.predecessor.manifestSha256 } })).toThrow('request_invalid');
+  });
+
+  it('refuses hardlinked authority, held locks and pre-existing revision branches', () => {
+    const f = buildOriginalFixture();
+    const original = path.join(f.root, f.originalRoot, 'story.md');
+    const link = path.join(f.root, 'story-link.md');
+    fs.linkSync(original, link);
+    expect(() => lifecycle.publish(argsFor(f, true), f.roots)).toThrow('original_invalid');
+    fs.unlinkSync(link);
+    const lock = path.join(f.root, f.originalRoot, '.creative-replacement.lock');
+    writeBytes(lock, 'held');
+    expect(() => lifecycle.publish(argsFor(f, true), f.roots)).toThrow('locked');
+    expect(fs.readFileSync(lock, 'utf8')).toBe('held');
+    fs.unlinkSync(lock);
+    fs.mkdirSync(path.join(f.root, f.originalRoot, 'revisions', 'f'.repeat(64)), { recursive: true });
+    expect(() => lifecycle.publish(argsFor(f), f.roots)).toThrow('predecessor_not_current');
+  });
+
+  it('rejects request mutation after acquiring the lock and releases only its own lock', () => {
+    const f = buildOriginalFixture();
+    const open = fs.openSync;
+    vi.spyOn(fs, 'openSync').mockImplementation(((file: any, flags: any, mode: any) => {
+      const fd = open(file, flags, mode);
+      if (String(file).endsWith('.creative-replacement.lock')) {
+        writeJson(f.requestPath, { ...f.request, decision: f.request.decision + ' Changed concurrently.' });
+      }
+      return fd;
+    }) as any);
+    expect(() => lifecycle.publish(argsFor(f, true), f.roots)).toThrow('request_changed');
+    expect(fs.existsSync(path.join(f.root, f.originalRoot, 'revisions'))).toBe(false);
+    expect(fs.existsSync(path.join(f.root, f.originalRoot, '.creative-replacement.lock'))).toBe(false);
+  });
+
+  it('revalidates original evidence on reload and when it becomes a subsequent predecessor', () => {
+    const f = buildOriginalFixture();
+    const first = lifecycle.publish(argsFor(f, true), f.roots);
+    const successor = { ...f.request, version: lifecycle.REQUEST_VERSION,
+      predecessor: { manifestPath: `${first.target}/manifest.json`, revisionDigest: first.revisionDigest,
+        manifestSha256: materializer.sha256(fs.readFileSync(path.join(f.root, first.target, 'manifest.json'))) } };
+    writeJson(f.requestPath, successor);
+    const second = lifecycle.publish(argsFor(f, true), f.roots);
+    expect(second.created).toBe(true);
+    fs.appendFileSync(path.join(f.root, f.originalRoot, 'story.md'), ' ');
+    expect(() => lifecycle.loadAcceptedCreativeReplacement({ manifestPath: `${first.target}/manifest.json` }, f.roots)).toThrow('original_invalid');
+    expect(() => lifecycle.loadAcceptedCreativeReplacement({ manifestPath: `${second.target}/manifest.json` }, f.roots)).toThrow('original_invalid');
+  });
+
+  it('rejects aliased original directories and aliased empty revisions targets', () => {
+    const f = buildOriginalFixture();
+    const original = path.join(f.root, f.originalRoot);
+    const parked = path.join(f.root, 'parked-original');
+    fs.renameSync(original, parked); // Both paths are within this test-owned temporary root.
+    fs.symlinkSync(parked, original, 'junction');
+    try { expect(() => lifecycle.publish(argsFor(f, true), f.roots)).toThrow('original_invalid'); }
+    finally { fs.unlinkSync(original); fs.renameSync(parked, original); }
+    const empty = path.join(f.root, 'empty-target'); fs.mkdirSync(empty);
+    const revisions = path.join(original, 'revisions'); fs.symlinkSync(empty, revisions, 'junction');
+    try { expect(() => lifecycle.publish(argsFor(f, true), f.roots)).toThrow('target_invalid'); }
+    finally { fs.unlinkSync(revisions); }
+    expect(fs.readdirSync(empty)).toEqual([]);
+  });
+
+  it('feeds a v2 successor through the real visual-direction enrichment consumer without old directions', () => {
+    const f = buildOriginalFixture();
+    // Structural fixture only: fresh12-page text, no real product acceptance.
+    const text = fs.readFileSync(f.storyPath, 'utf8').split('--- Page 1 ---')[0].replace('pages: 2', 'pages: 12')
+      + Array.from({ length: 12 }, (_, i) => `--- Page ${i + 1} ---\n\n{{childName}} {פתח|פתחה} את השער.\n\n`).join('').trimEnd() + '\n';
+    writeBytes(f.storyPath, text);
+    const brief = { ...creativeBrief(), category: f.request.identity.category, direction: f.request.identity.direction, pageCount: 12 };
+    writeJson(f.briefPath, brief);
+    f.request.identity.pageCount = 12;
+    f.request.creativeBrief.sha256 = materializer.sha256(fs.readFileSync(f.briefPath));
+    f.request.storyRevision.sha256 = materializer.sha256(text);
+    f.request.approvedStoryRevisionSha256 = f.request.storyRevision.sha256;
+    writeJson(f.requestPath, f.request);
+    const published = lifecycle.publish(argsFor(f, true), f.roots);
+    const directions = require('../../scripts/story-visual-direction-contract.cjs');
+    const enrichment = require('../../scripts/story-source-visual-direction-enrichment-lifecycle.cjs');
+    const record = directions.normalizeVisualDirectionRecord({ version: directions.RECORD_VERSION,
+      storyKey: f.request.storyKey, pages: Array.from({ length: 12 }, (_, i) => ({
+        pageNumber: i + 1, settingKey: 'garden_gate', setting: 'The same garden beside a wooden gate.',
+        childPresence: 'present', companionPresence: 'present', supportingCharacters: [],
+        mainAction: 'The child opens the gate while the companion watches.', heroObject: 'Wooden garden gate',
+        shotType: ['wide', 'close', 'medium', 'detail'][i % 4], cameraAngle: ['eye_level', 'high_angle', 'low_angle'][i % 3],
+        lighting: 'Soft daylight', continuityAnchors: ['Same garden gate'],
+      })) });
+    const directionPath = path.join(f.root, 'outputs', 'fresh-directions.json');
+    writeBytes(directionPath, JSON.stringify(record, null, 2) + '\n');
+    const requestPath = path.join(f.root, 'outputs', 'enrichment-request.json');
+    const request = { version: enrichment.REQUEST_VERSION, storyKey: f.request.storyKey,
+      sourceRevision: { manifestPath: `${published.target}/manifest.json`,
+        manifestSha256: materializer.sha256(fs.readFileSync(path.join(f.root, published.target, 'manifest.json'))),
+        manifestDigest: published.manifest.digest, revisionDigest: published.revisionDigest },
+      visualDirections: { path: relative(f.root, directionPath), bytes: fs.statSync(directionPath).size,
+        sha256: materializer.sha256(fs.readFileSync(directionPath)) },
+      compositionPolicyVersion: enrichment.COMPOSITION_POLICY_VERSION,
+      continuityIntent: { version: enrichment.CONTINUITY_INTENT_VERSION,
+        childWardrobeAuthority: 'frozen_visual_contract', childWardrobeTransitionPages: [],
+        companionAccessoryAuthority: 'canonical_companion_profile', companionAppearanceAuthority: 'frozen_companion_state', companionStateTransitionPages: [] },
+    };
+    writeJson(requestPath, request);
+    const args = { requestPath: relative(f.root, requestPath), outputRoot: 'outputs/fresh-enrichment', write: false };
+    const preview = enrichment.prepare(args, f.roots);
+    expect(preview.sourceRevisionDigest).toBe(published.revisionDigest);
+    expect(preview.runtimeEligibility.eligible).toBe(false);
+    expect(fs.existsSync(path.join(f.root, args.outputRoot))).toBe(false);
+    const made = enrichment.prepare({ ...args, write: true }, f.roots);
+    expect(made.created).toBe(true);
+    expect(fs.readFileSync(path.join(f.root, made.target, 'integrated.md'), 'utf8').replace(/^imageDirection:.*\r?\n/gm, ''))
+      .toBe(text);
+    expect(enrichment.loadExistingCandidate(args, f.roots).candidate.candidateDigest).toBe(made.candidateDigest);
+    fs.appendFileSync(path.join(f.root, f.approvalPath), ' ');
+    expect(() => enrichment.prepare(args, f.roots)).toThrow('original_invalid');
+  });
+});
 
 describe('creative replacement from fully verified v4 predecessor', () => {
   function runBridgeFault(fixture: ReturnType<typeof buildFixture>, fault: string, manifestPath?: string) {

@@ -1,5 +1,42 @@
 # SmallHeroes — Current Technical State
 
+## Original-source first replacement implemented; independent QA pending — 2026-09-17
+
+Same task/sole writer/worktree/branch; clean start4fd7eda0 ahead54. Decision:
+ORIGINAL_SOURCE_REPLACEMENT_DECISION.md. General source compatibility, no Panda
+bypass. New explicit request/v2 uses accepted_root_v1 manifest path/hash, not a
+fabricated revisionDigest. Derived identity/review/acceptance/manifest use v2;
+existing v1 request and artifact bytes are preserved. New original verifier uses
+the genuine single/corpus approval validators, source and editorial validators,
+checks contained bound files, corpus membership, audit, exclusions and identity.
+
+Dry-run creates no revisions directory. Real publication is exercised ONLY in
+test-owned roots: exclusive lock, re-read and request-hash check inside lock,
+atomic first revision, exact replay, stale-root/fork refusal and link/collision
+checks. Shared loader revalidates original evidence, including as a later
+predecessor. Existing enrichment consumer produces/reloads a fresh candidate
+from the new source format, preserving all prose bytes, without old directions.
+
+Red proof: new first-replacement fixture failed request_invalid on base. Green:
+49 lifecycle tests (27existing+22new),8 enrichment+16 Editor =73/73; tsc0.
+Full npm run check EXIT0: both typechecks pass, ordinary5693pass/73skip,
+resource671/671, total6364pass/73skip across410 files. No timeouts/settings changed.
+Captured final supervisor summary:book-proof/original-source-check-summary.json
+(summary only, not full log). No claim of permanent load stability or self-QA PASS.
+
+Actual18 original roots verified read-only (17corpus,1single); retained result
+book-proof/original-source-inspection.json. All18 refreshed sources match their
+original companion/category/direction. Existing Kim eca8b3c8 and Dini f77f4ca5
+creative revisions rebuild byte-identically through the actual loader. Intake
+--check18/216 unchanged. Proposed source5bed647c and Editor79271dfb preserved.
+
+No real accepted source, approval, current locator, reader, image or audio changed.
+Zero credentials/provider calls/spend/push. Protected d53b768ccb2f and wave2
+63ccb484 remain clean. Next: exact-source preparation and fresh visual planning
+through the existing lifecycle; technical re-gate and fresh content acceptance
+are not inferred from this implementation. Full-book goal remains OPEN.
+Handoff:ORIGINAL_SOURCE_REPLACEMENT_HANDOFF.md.
+
 ## Book proof: revised Panda text gets real Editor PASS — 2026-09-17
 
 Separate data/evidence milestone after test-only675f7f5d; same task/sole writer.

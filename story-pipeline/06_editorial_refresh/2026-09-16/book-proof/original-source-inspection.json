@@ -1,0 +1,208 @@
+{
+  "version": "original-source-inspection-evidence/v1",
+  "baseCommit": "4fd7eda0e9d39d39ac80443d9a1e0987739b9f41",
+  "validationSurface": "inspectOriginalAcceptedSource",
+  "status": "verified_original_evidence_not_new_story_approval",
+  "providerCalls": 0,
+  "sourceWrites": 0,
+  "records": [
+    {
+      "storyKey": "bunny_ometz_adventure",
+      "predecessor": {
+        "kind": "accepted_root_v1",
+        "manifestPath": "story-pipeline/04_approved_story_sources/accepted/bunny_ometz_adventure/manifest.json",
+        "manifestSha256": "a95b9a0d7bccd86074dec9dfea92bff643fa22eccc332a88a548a16487ff6984"
+      },
+      "storySha256": "e8f3315cefb19cc206d77654fd9349ef471837293fa68b198b356448c27f22ff",
+      "reviewSha256": "7ecf822a2dc6a015c1d6399cd198104a1b9e55edceb767c13078f1efa717df5c",
+      "approvalSha256": "e027fa32ed6cfc667bf75862e0c637ff38f173e5396615810bc11597c7efb7dc"
+    },
+    {
+      "storyKey": "bunny_ometz_bedtime",
+      "predecessor": {
+        "kind": "accepted_root_v1",
+        "manifestPath": "story-pipeline/04_approved_story_sources/accepted/bunny_ometz_bedtime/manifest.json",
+        "manifestSha256": "e3d2cdf9ab5ca255b97915fc6d1cd60633b1bee79b48ad9dd8527e4882e1a92c"
+      },
+      "storySha256": "c0a1933c2e475ec37c96efae28b7c5cd805844c934dda4498145850df4569941",
+      "reviewSha256": "15ce569d0781a829796aa50b652f128d7a997a7c98086af137213bebfd98fd60",
+      "approvalSha256": "e027fa32ed6cfc667bf75862e0c637ff38f173e5396615810bc11597c7efb7dc"
+    },
+    {
+      "storyKey": "bunny_ometz_fantasy",
+      "predecessor": {
+        "kind": "accepted_root_v1",
+        "manifestPath": "story-pipeline/04_approved_story_sources/accepted/bunny_ometz_fantasy/manifest.json",
+        "manifestSha256": "039d4fe240ae0ec715d4fe2dfd1a0b419dce0f0e23d17895fa109c494d428fcc"
+      },
+      "storySha256": "ff68603d3a491486ac53b11a5ba237cbb8697f5199d62a23a2a3358bbd4bffa7",
+      "reviewSha256": "7eb49f1ff3e861f3a9b022d91fd537d3b30a0ef78b76b1a579b0514c9992d0a6",
+      "approvalSha256": "e027fa32ed6cfc667bf75862e0c637ff38f173e5396615810bc11597c7efb7dc"
+    },
+    {
+      "storyKey": "chameleon_koko_adventure",
+      "predecessor": {
+        "kind": "accepted_root_v1",
+        "manifestPath": "story-pipeline/04_approved_story_sources/accepted/chameleon_koko_adventure/manifest.json",
+        "manifestSha256": "92a348ceae94df32721424d3f259f2737515008cb816cf2efa720d1543888372"
+      },
+      "storySha256": "b20b74e622f601501dfabc65cd7b3af401df04cbef7441457d74208b34ace782",
+      "reviewSha256": "06250b5ad5b072c769e040b4cef6595a1630fdb0bff1b80879d2a889de4d7ffc",
+      "approvalSha256": "e027fa32ed6cfc667bf75862e0c637ff38f173e5396615810bc11597c7efb7dc"
+    },
+    {
+      "storyKey": "chameleon_koko_bedtime",
+      "predecessor": {
+        "kind": "accepted_root_v1",
+        "manifestPath": "story-pipeline/04_approved_story_sources/accepted/chameleon_koko_bedtime/manifest.json",
+        "manifestSha256": "32b3d0b7777839d874dc412c7c84a0cb8744512372791d51b2cd6b66d3cec4dd"
+      },
+      "storySha256": "49d2866ee4cdef5ea5155c87f7769f6c653ba224ff4b5ec490a039dfd632a76d",
+      "reviewSha256": "2b71f2c57e5345e2515936b129f2fdff99fb7c27acdb4bea2ad56e27cda458f7",
+      "approvalSha256": "e027fa32ed6cfc667bf75862e0c637ff38f173e5396615810bc11597c7efb7dc"
+    },
+    {
+      "storyKey": "chameleon_koko_fantasy",
+      "predecessor": {
+        "kind": "accepted_root_v1",
+        "manifestPath": "story-pipeline/04_approved_story_sources/accepted/chameleon_koko_fantasy/manifest.json",
+        "manifestSha256": "b304e9a2e9e88a2a7b18599b03f50cb3357e665587dfa3376359d0ca5f3e62d8"
+      },
+      "storySha256": "5cbaed07bc640877e91c2d4c5a0dd86928e839a09ddf076ece8c582f826b9a61",
+      "reviewSha256": "75a59ba89d41e60d32a780e740a36304f230857f17337692fe7b5bca179ffa11",
+      "approvalSha256": "e027fa32ed6cfc667bf75862e0c637ff38f173e5396615810bc11597c7efb7dc"
+    },
+    {
+      "storyKey": "dragon_dini_adventure",
+      "predecessor": {
+        "kind": "accepted_root_v1",
+        "manifestPath": "story-pipeline/04_approved_story_sources/accepted/dragon_dini_adventure/manifest.json",
+        "manifestSha256": "332c37ff00be6a3bbccc7afd858b063bcb430750d1242e856b9d51930e9f6c0a"
+      },
+      "storySha256": "39ad403d98ff528c1313879ec4f4fe020a17271b452040c179938ecf2cc7dfce",
+      "reviewSha256": "292613f4f183e66d9a513111c64d214f7338fc23224eaef023305fbc7d2c94bf",
+      "approvalSha256": "8ed395879be2c589d4aac40835414d4ee5e4a08cff115a54b1ba7a136d490a84"
+    },
+    {
+      "storyKey": "dragon_dini_bedtime",
+      "predecessor": {
+        "kind": "accepted_root_v1",
+        "manifestPath": "story-pipeline/04_approved_story_sources/accepted/dragon_dini_bedtime/manifest.json",
+        "manifestSha256": "d2566fe97b370e93389fd3f5ce6469fbb62dd636c231fd8847f9d4ac1fb0fd14"
+      },
+      "storySha256": "3a82fde86f891138b0b8abbaea59ddb16c8a95320cee2d2d65ae34575f3c7044",
+      "reviewSha256": "bcd2e91c25b7a4278a0fa8889f95019a41469f11fa71d1ce301b0de0a39ddcd2",
+      "approvalSha256": "e027fa32ed6cfc667bf75862e0c637ff38f173e5396615810bc11597c7efb7dc"
+    },
+    {
+      "storyKey": "dragon_dini_fantasy",
+      "predecessor": {
+        "kind": "accepted_root_v1",
+        "manifestPath": "story-pipeline/04_approved_story_sources/accepted/dragon_dini_fantasy/manifest.json",
+        "manifestSha256": "88cdd02a2dd9de32c51180304a6b38f5d93e44ea003da3e879c86f35e08b7d64"
+      },
+      "storySha256": "ba59843988731539de236ec21ee2240c2c02b5962fcdf59f187775d0b0869fe7",
+      "reviewSha256": "6cfe422b0df9b472b80d2598287f53eb332bed67011548ba8c0dd1594da0a465",
+      "approvalSha256": "e027fa32ed6cfc667bf75862e0c637ff38f173e5396615810bc11597c7efb7dc"
+    },
+    {
+      "storyKey": "fox_uri_adventure",
+      "predecessor": {
+        "kind": "accepted_root_v1",
+        "manifestPath": "story-pipeline/04_approved_story_sources/accepted/fox_uri_adventure/manifest.json",
+        "manifestSha256": "533910b8f3f4b166dc0c278d981564a0034a07a2fcf5e9c3cdaa2931b87189a2"
+      },
+      "storySha256": "cdc1192bc365605bfd5c72a0bb56adabfcef0f3984b2312bae41d980d796f550",
+      "reviewSha256": "8838f1e8e47a72b98e45c2e2b932e80ff1365f0c9a0bd8b51f9589c147e733f2",
+      "approvalSha256": "e027fa32ed6cfc667bf75862e0c637ff38f173e5396615810bc11597c7efb7dc"
+    },
+    {
+      "storyKey": "fox_uri_bedtime",
+      "predecessor": {
+        "kind": "accepted_root_v1",
+        "manifestPath": "story-pipeline/04_approved_story_sources/accepted/fox_uri_bedtime/manifest.json",
+        "manifestSha256": "dbb746c9182846a5984aa65f7e136ff740ccbc2d4798b439b49b42486db59397"
+      },
+      "storySha256": "02de53756aebb01af6233e3aa3f7be2f301991e4e1fd44ad7d51dd5c54c55fbe",
+      "reviewSha256": "3287cfec1d59586087032170ee4bca58fe0e1fa9deedd2a7b82dee313e5bc0f4",
+      "approvalSha256": "e027fa32ed6cfc667bf75862e0c637ff38f173e5396615810bc11597c7efb7dc"
+    },
+    {
+      "storyKey": "fox_uri_fantasy",
+      "predecessor": {
+        "kind": "accepted_root_v1",
+        "manifestPath": "story-pipeline/04_approved_story_sources/accepted/fox_uri_fantasy/manifest.json",
+        "manifestSha256": "b23177494d278a846acd5ec7a1c461dbdaaa56b10a330cd0dadaa3671d7de23e"
+      },
+      "storySha256": "60c0dc057e484fca75cb41beae10cc396d5e32a78b3db84b2b8c559f84cf79ee",
+      "reviewSha256": "452c756f71dff54237d0038b6d75c498b98c4da1220bd7e5dbfd6fcaa2931f4c",
+      "approvalSha256": "e027fa32ed6cfc667bf75862e0c637ff38f173e5396615810bc11597c7efb7dc"
+    },
+    {
+      "storyKey": "lion_shaket_adventure",
+      "predecessor": {
+        "kind": "accepted_root_v1",
+        "manifestPath": "story-pipeline/04_approved_story_sources/accepted/lion_shaket_adventure/manifest.json",
+        "manifestSha256": "e90015847e1f5148248fd5a94d59e83fe49eca15d3df50a3fe19d280cc1400d1"
+      },
+      "storySha256": "b16dba08984b2ca96797e7f357066b63c914055bb361da332520dcd289b2975f",
+      "reviewSha256": "adb37b3f3a9b89520aabda0930a70e2b00c4bfbfdf041efe7650e29c97b1366e",
+      "approvalSha256": "e027fa32ed6cfc667bf75862e0c637ff38f173e5396615810bc11597c7efb7dc"
+    },
+    {
+      "storyKey": "lion_shaket_bedtime",
+      "predecessor": {
+        "kind": "accepted_root_v1",
+        "manifestPath": "story-pipeline/04_approved_story_sources/accepted/lion_shaket_bedtime/manifest.json",
+        "manifestSha256": "4e61fe5edfbe40131c42a2fa482ba120267b7a55b3b6bf0c41a0a5397e45f729"
+      },
+      "storySha256": "b6a30f1174c684cfb0f1c8a0041bcbae1dd4df10c58274829e78ea7956180cf0",
+      "reviewSha256": "e0c5e22b7f33a721a51b074084c451685c239c6f3665fcfe173f12168cff22fe",
+      "approvalSha256": "e027fa32ed6cfc667bf75862e0c637ff38f173e5396615810bc11597c7efb7dc"
+    },
+    {
+      "storyKey": "lion_shaket_fantasy",
+      "predecessor": {
+        "kind": "accepted_root_v1",
+        "manifestPath": "story-pipeline/04_approved_story_sources/accepted/lion_shaket_fantasy/manifest.json",
+        "manifestSha256": "cfd98200464aebc6538cdc7cd621062e7cbafaed5eda8f4c4ca4b6dc2c3962a4"
+      },
+      "storySha256": "933e7c3ccbc8c905b4594959e117b0d2bbad9a3fdd0b73808ca989f074de55c6",
+      "reviewSha256": "56d3f7f421cb40d272f5a22a212aa0d5e9fc26dcd563dad02834438049ed0db5",
+      "approvalSha256": "e027fa32ed6cfc667bf75862e0c637ff38f173e5396615810bc11597c7efb7dc"
+    },
+    {
+      "storyKey": "panda_anat_adventure",
+      "predecessor": {
+        "kind": "accepted_root_v1",
+        "manifestPath": "story-pipeline/04_approved_story_sources/accepted/panda_anat_adventure/manifest.json",
+        "manifestSha256": "38a65fd8bb6aabba665a22fe2a9d316b19f7d3e540d1032603d5fb9b306df758"
+      },
+      "storySha256": "97f1fffc2809ede2ad29ea3ed7cbfc0806d6a759f0b998e52bcfbe1f6f943249",
+      "reviewSha256": "1c9812cf0a35a8b06acc8d99aed12922fe9e9cf79bc3a2645ccfdc34864efe62",
+      "approvalSha256": "e027fa32ed6cfc667bf75862e0c637ff38f173e5396615810bc11597c7efb7dc"
+    },
+    {
+      "storyKey": "panda_anat_bedtime",
+      "predecessor": {
+        "kind": "accepted_root_v1",
+        "manifestPath": "story-pipeline/04_approved_story_sources/accepted/panda_anat_bedtime/manifest.json",
+        "manifestSha256": "35c91796d7e7184639325b96f04bf85813e347f2fe3b9ea0a4969b69dbe9e101"
+      },
+      "storySha256": "ca9a162a43ecf0d6b111de4a4e29940205b2f91b0d61d0eba0f219c2f22ff91c",
+      "reviewSha256": "419b2ec3ccc5544f2693e427d5554aa838a8d786b7d83a1eb47285143a23808c",
+      "approvalSha256": "e027fa32ed6cfc667bf75862e0c637ff38f173e5396615810bc11597c7efb7dc"
+    },
+    {
+      "storyKey": "panda_anat_fantasy",
+      "predecessor": {
+        "kind": "accepted_root_v1",
+        "manifestPath": "story-pipeline/04_approved_story_sources/accepted/panda_anat_fantasy/manifest.json",
+        "manifestSha256": "10dbc9aa6cf61a6874f9a297df28eacc467d9dfebe583671bc973f65b8a20aba"
+      },
+      "storySha256": "67b40182094b46c3cddcb999a554d066e6ea60cfe3794fed1395e51d49c1231e",
+      "reviewSha256": "a7fd35187889826abce6863fbe8c5ca41a092deaafa8058c56a652a65931c6ad",
+      "approvalSha256": "e027fa32ed6cfc667bf75862e0c637ff38f173e5396615810bc11597c7efb7dc"
+    }
+  ]
+}

@@ -1,5 +1,13 @@
 # Next general gap: original accepted sources versus replacement revisions
 
+Update2026-09-17: the general first-replacement implementation is now present,
+with73 focused tests and a full6364pass/73skip check. Read-only inspection covers
+all18 actual originals; synthetic end-to-end tests cover publication/reload and
+the genuine visual-direction enrichment consumer. See ORIGINAL_SOURCE_REPLACEMENT_HANDOFF.md
+in the parent directory. Independent technical QA remains pending. No actual
+source has been published or accepted by this work. The diagnosis below records
+the pre-implementation state and still explains why old directions cannot be reused.
+
 Read-only observation on08eb84b2 with only test/evidence edits in progress.
 No source publication, approval creation, provider call or runtime override.
 
