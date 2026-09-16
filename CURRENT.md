@@ -1,5 +1,33 @@
 # SmallHeroes — Current Technical State
 
+## Book proof: revised Panda text gets real Editor PASS — 2026-09-17
+
+Separate data/evidence milestone after test-only675f7f5d; same task/sole writer.
+Two bounded reviews under Guy's existing-key authorization, no image/audio calls.
+Revision01 received REVISE with one minor read-aloud issue on pages5/12, zero
+major issues. Revision02 changes those two pages only, metadata unchanged and
+8 real name/gender projections pass. Actual shared source preflight succeeds.
+Exact source5bed647c29ca61b6fe75ccd39b3e73fb6be5ea2d775f4add220026dc20714b0e
+received model Editor PASS, zero issues/priorities; review79271dfb6b000e066b5bbb26eace873705bf88760aa34a62a8aab304e64536d1.
+This is NOT independent technical QA, Guy acceptance or runtime readiness.
+
+New calls: revision01 usage6527input/2925output, revision02 6573input/1801output.
+Configured estimatesUSD0.122284/0.0888515; conservativeUSD0.28356/0.25122.
+Including original review, totalsUSD0.367503 estimate/USD0.83016 conservative.
+Not invoice verified. Each admitted belowUSD1.50, no retry or further paid review.
+8 request/result/review/report copies match local paid records byte-for-byte.
+Both actual checkpoint replays with throwing providers return same reports at
+0 calls. Ignored original roots disclosed in book-proof/README.md; no verified
+off-machine backup, no push. Original corpus/intake/OWNER_APPROVAL unchanged18/216.
+
+Next root cause identified:16 slots including Panda have only accepted root/v1,
+whereas creative replacement requires revision/v2/v4/creative-v1. Need general
+first-replacement support with full source evidence, not legacy directions or
+invented acceptance. SOURCE_INTAKE_GAP.md records read-only findings and scope.
+No accepted source, current locator, visual plan, image, narration or reader changed.
+Full check6342pass/73skip and tsc0 from immediately preceding test milestone;
+no production code in this data milestone. Goal remains OPEN; book not complete.
+
 ## Book proof: deterministic test premises corrected, full check green — 2026-09-17
 
 Same sole writer/task/worktree/branch, base08eb84b2 clean ahead52/behind0.

@@ -1,0 +1,22 @@
+{
+  "fingerprint": "c0a8335b95300179967a8127c0bff64757b8d4d0b33713dbf87890744ea47667",
+  "value": {
+    "completed": true,
+    "terminalReason": null,
+    "text": "{\"version\":\"small-heroes-story-editorial-review/v1\",\"verdict\":\"pass\",\"strengths\":[\"The child’s concrete wish to drive creates an immediate social conflict, then evolves through building, inviting, negotiating and navigating rather than being resolved by a lesson.\",\"Cause and effect escalate clearly: exclusion leads to a new vehicle, the discovered “sun” prompts an invitation, imaginary lava requires a road, and the bench creates a child-led navigation climax.\",\"Anat is specific through patient observation, cautious timing, physical participation and dry personification of the road. Her precision prevents the collision, while the child still makes the decisive route choice.\",\"The walking box, many shoe-wheels, rolling carpet, flower-sun and beetle spacecraft provide varied, playful illustration opportunities. Both gender projections read naturally in Hebrew.\"],\"issues\":[],\"revisionPriorities\":[],\"mustPreserve\":[\"The child’s shift from wanting the steering role exclusively to sharing it through a concrete agreement with Adam.\",\"The playground objects becoming a coherent space adventure while retaining understandable real-world geography.\",\"Anat’s delayed opening, precise noticing and understated jokes about the unruly road.\",\"The carpet sequence, especially Anat’s soft landing and the image of the road trying to travel by itself.\",\"The page 10 climax in which Anat stops the vehicle but the child changes perspective and discovers the route.\",\"The final return to the station and the chair-for-the-tired-road joke, which pays off the story’s central imaginative play.\"]}",
+    "model": "gpt-5.6-sol",
+    "serviceTier": "default",
+    "usage": {
+      "inputTokens": 6573,
+      "cachedInputTokens": 1088,
+      "cacheWriteTokens": 5482,
+      "outputTokens": 1801,
+      "reasoningTokens": 1491,
+      "totalTokens": 8374
+    }
+  },
+  "usage": {
+    "input_tokens": 6573,
+    "output_tokens": 1801
+  }
+}

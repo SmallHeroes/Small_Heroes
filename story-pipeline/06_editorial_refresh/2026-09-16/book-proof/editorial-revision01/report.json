@@ -1,0 +1,18 @@
+{
+  "version": "existing-story-editorial-review/v1",
+  "status": "review_completed",
+  "verdict": "revise",
+  "sourceSha": "01712a5cbda703155c86aafc0e420dfa3fd3d095be8cac11e047ff71d0500ae9",
+  "requestSha": "3aace41591c8121c124ae1199f8000458c3cfeacd2bd1c4db5e4f71b863b7b00",
+  "reviewSha": "bfc059017d39dd24f8fa3382525afa2b7644cff86de134f6c6e32849fce72b1a",
+  "model": "gpt-5.6-sol",
+  "serviceTier": "default",
+  "configuredRateEstimateUsd": 0.122284,
+  "accountedUpperUsd": 0.28356,
+  "reservationUsd": 1.03404,
+  "invoiceVerified": false,
+  "independentTechnicalPass": false,
+  "productAcceptance": "not_granted_by_this_review",
+  "runtimeAuthority": "none",
+  "productionReady": false
+}
