@@ -35,6 +35,10 @@ function canonicalCandidate(bytes, approved, source) {
     source.key, 'slot_identity');
   assert.equal(before.pages.length, source.pages, 'slot_page_count');
   assert.equal(Number(before.frontmatter.pages), source.pages, 'declared_page_count');
+  // The shared parser exposes only the FIRST direction in each page. Inspect
+  // every raw direction line too: an empty first value must not hide a later one.
+  const directionLines = [...candidate.matchAll(/^imageDirection:([^\n]*)$/gim)];
+  assert.ok(directionLines.every(match => match[1].trim() === ''), 'no_reused_directions');
   assert.ok(after.pages.every(page => page.imageDirection === ''), 'no_reused_directions');
   const record = { companionId: after.frontmatter.companionId, brief: {
     category: after.frontmatter.category, direction: after.frontmatter.direction,

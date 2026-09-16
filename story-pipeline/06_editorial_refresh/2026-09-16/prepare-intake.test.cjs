@@ -4,6 +4,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const { canonicalCandidate, prepare, hash } = require('./prepare-intake.cjs');
+const { parseStoryMarkdown } = require('../../../lib/story-validators/parser.ts');
 const { validateEditorialPassDraft } = require('../../../scripts/story-editorial-validation-contract.cjs');
 const sources = JSON.parse(fs.readFileSync(path.join(__dirname, 'sources.json'))).sources;
 const approvals = JSON.parse(fs.readFileSync(path.join(__dirname, 'OWNER_APPROVAL.json'))).manuscripts;
@@ -69,4 +70,32 @@ test('CRLF and LF produce identical candidates while binding their own input byt
   const lf = changed(s => s);
   const crlf = changed(s => s.replaceAll('\n', '\r\n'));
   assert.equal(canonicalCandidate(...lf).text, canonicalCandidate(...crlf).text);
+});
+
+// Synthetic approval descriptors exist only in memory to reach the direction
+// boundary. They are NOT owner approvals and never change OWNER_APPROVAL.json.
+test('injected nonempty image direction is rejected, not stripped', () => {
+  const fixture = changed(s => s.replace('--- Page 1 ---',
+    '--- Page 1 ---\nimageDirection: reuse the old prop board'));
+  assert.equal(parseStoryMarkdown(fixture[0].toString('utf8')).pages[0].imageDirection,
+    'reuse the old prop board', 'injection must not be a no-op');
+  assert.throws(() => canonicalCandidate(...fixture), /no_reused_directions/);
+});
+test('empty image direction preserves next prose line and is not a false rejection', () => {
+  const fixture = changed(s => s.replace('--- Page 1 ---',
+    '--- Page 1 ---\nimageDirection:   '));
+  const result = canonicalCandidate(...fixture);
+  assert.deepEqual(parseStoryMarkdown(result.text).pages,
+    parseStoryMarkdown(raw.toString('utf8')).pages);
+});
+test('a later nonempty direction cannot hide behind an empty first direction', () => {
+  for (const injected of ['imageDirection: reuse the old prop board',
+    'IMAGEDIRECTION:\treuse the old prop board',
+    'imageDirection:   \nimageDirection: reuse the old prop board']) {
+    const fixture = changed(s => s.replace('--- Page 1 ---',
+      '--- Page 1 ---\nimageDirection:\n' + injected));
+    // The shared parser exposes only the FIRST direction; this is the blind spot.
+    assert.equal(parseStoryMarkdown(fixture[0].toString('utf8')).pages[0].imageDirection, '');
+    assert.throws(() => canonicalCandidate(...fixture), /no_reused_directions/);
+  }
 });

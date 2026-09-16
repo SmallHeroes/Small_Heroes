@@ -1,5 +1,32 @@
 # SmallHeroes — Current Technical State
 
+## Intake QA received; direction-guard correction awaiting re-gate — 2026-09-16
+
+Claude supplied independent PASS P0=0/P1=0/P2=1 for7b21c36a..e7f1a023 only.
+All18 canonical projections and bindings independently verified. This is technical
+intake review, NOT external Editor PASS or source publication. P2 correctly notes
+that all18 manuscripts and reading predecessors have zero imageDirection lines:
+the corpus run did not exercise direction rejection or stripping. README now says
+this explicitly. Historical manifest/approval/source/candidate bytes unchanged.
+
+Same sole writer/task/branch, correction starts e7f1a023 clean ahead49/behind0;
+protected d53b768ccb2f and wave2 63ccb484 clean. Added synthetic direction controls.
+Found an additional real preparation-helper bypass: empty first direction followed
+by nonempty direction is accepted because the shared parser exposes only the first.
+Red proof13pass/1fail (Missing expected exception, exit1) before helper change.
+Four-line helper addition inspects ALL raw direction values, preserving the parsed
+check. Shared parser and scripts/lib/app production paths remain unchanged.
+
+After fix:14/14 preparation tests; --check18/216 and unchanged saved manifest;
+45/45 existing lifecycle/personalization tests; tsc --noEmit exit0. Empty direction
+control preserves following prose, duplicate/mixed-case/tabbed controls reject.
+Synthetic approval descriptors stay in memory; actual OWNER_APPROVAL untouched.
+Trust boundary documented: hashes do not defend against forged approval records.
+No source/reader/runtime switch, provider/key/image/audio use, spend or push.
+Full check not rerun and prior NON-GREEN remains. No self-closure of independent
+P2/review: correction needs re-gate, brief INTAKE_DIRECTION_REGATE.md in the corpus.
+Editorial/publication/visual prerequisites remain; no repeat Guy content approval.
+
 ## All18 canonical text intake prepared, NOT published — 2026-09-16
 
 Continued on Guy's instruction from7b21c36a, clean ahead48/behind0, same task
