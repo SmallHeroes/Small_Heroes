@@ -1,0 +1,882 @@
+{
+  "status": "existing_personalization_functions_checked",
+  "manuscripts": 18,
+  "nameGenderCases": 144,
+  "renderedTextPages": 1728,
+  "negativeControlsRejected": 5,
+  "checks": [
+    {
+      "key": "bunny_ometz_adventure",
+      "childName": "בר",
+      "childGender": "boy",
+      "pages": 12
+    },
+    {
+      "key": "bunny_ometz_adventure",
+      "childName": "בר",
+      "childGender": "girl",
+      "pages": 12
+    },
+    {
+      "key": "bunny_ometz_adventure",
+      "childName": "נועה",
+      "childGender": "boy",
+      "pages": 12
+    },
+    {
+      "key": "bunny_ometz_adventure",
+      "childName": "נועה",
+      "childGender": "girl",
+      "pages": 12
+    },
+    {
+      "key": "bunny_ometz_adventure",
+      "childName": "אור מאיר",
+      "childGender": "boy",
+      "pages": 12
+    },
+    {
+      "key": "bunny_ometz_adventure",
+      "childName": "אור מאיר",
+      "childGender": "girl",
+      "pages": 12
+    },
+    {
+      "key": "bunny_ometz_adventure",
+      "childName": "אן־לי",
+      "childGender": "boy",
+      "pages": 12
+    },
+    {
+      "key": "bunny_ometz_adventure",
+      "childName": "אן־לי",
+      "childGender": "girl",
+      "pages": 12
+    },
+    {
+      "key": "bunny_ometz_bedtime",
+      "childName": "בר",
+      "childGender": "boy",
+      "pages": 8
+    },
+    {
+      "key": "bunny_ometz_bedtime",
+      "childName": "בר",
+      "childGender": "girl",
+      "pages": 8
+    },
+    {
+      "key": "bunny_ometz_bedtime",
+      "childName": "נועה",
+      "childGender": "boy",
+      "pages": 8
+    },
+    {
+      "key": "bunny_ometz_bedtime",
+      "childName": "נועה",
+      "childGender": "girl",
+      "pages": 8
+    },
+    {
+      "key": "bunny_ometz_bedtime",
+      "childName": "אור מאיר",
+      "childGender": "boy",
+      "pages": 8
+    },
+    {
+      "key": "bunny_ometz_bedtime",
+      "childName": "אור מאיר",
+      "childGender": "girl",
+      "pages": 8
+    },
+    {
+      "key": "bunny_ometz_bedtime",
+      "childName": "אן־לי",
+      "childGender": "boy",
+      "pages": 8
+    },
+    {
+      "key": "bunny_ometz_bedtime",
+      "childName": "אן־לי",
+      "childGender": "girl",
+      "pages": 8
+    },
+    {
+      "key": "bunny_ometz_fantasy",
+      "childName": "בר",
+      "childGender": "boy",
+      "pages": 16
+    },
+    {
+      "key": "bunny_ometz_fantasy",
+      "childName": "בר",
+      "childGender": "girl",
+      "pages": 16
+    },
+    {
+      "key": "bunny_ometz_fantasy",
+      "childName": "נועה",
+      "childGender": "boy",
+      "pages": 16
+    },
+    {
+      "key": "bunny_ometz_fantasy",
+      "childName": "נועה",
+      "childGender": "girl",
+      "pages": 16
+    },
+    {
+      "key": "bunny_ometz_fantasy",
+      "childName": "אור מאיר",
+      "childGender": "boy",
+      "pages": 16
+    },
+    {
+      "key": "bunny_ometz_fantasy",
+      "childName": "אור מאיר",
+      "childGender": "girl",
+      "pages": 16
+    },
+    {
+      "key": "bunny_ometz_fantasy",
+      "childName": "אן־לי",
+      "childGender": "boy",
+      "pages": 16
+    },
+    {
+      "key": "bunny_ometz_fantasy",
+      "childName": "אן־לי",
+      "childGender": "girl",
+      "pages": 16
+    },
+    {
+      "key": "chameleon_koko_adventure",
+      "childName": "בר",
+      "childGender": "boy",
+      "pages": 12
+    },
+    {
+      "key": "chameleon_koko_adventure",
+      "childName": "בר",
+      "childGender": "girl",
+      "pages": 12
+    },
+    {
+      "key": "chameleon_koko_adventure",
+      "childName": "נועה",
+      "childGender": "boy",
+      "pages": 12
+    },
+    {
+      "key": "chameleon_koko_adventure",
+      "childName": "נועה",
+      "childGender": "girl",
+      "pages": 12
+    },
+    {
+      "key": "chameleon_koko_adventure",
+      "childName": "אור מאיר",
+      "childGender": "boy",
+      "pages": 12
+    },
+    {
+      "key": "chameleon_koko_adventure",
+      "childName": "אור מאיר",
+      "childGender": "girl",
+      "pages": 12
+    },
+    {
+      "key": "chameleon_koko_adventure",
+      "childName": "אן־לי",
+      "childGender": "boy",
+      "pages": 12
+    },
+    {
+      "key": "chameleon_koko_adventure",
+      "childName": "אן־לי",
+      "childGender": "girl",
+      "pages": 12
+    },
+    {
+      "key": "chameleon_koko_bedtime",
+      "childName": "בר",
+      "childGender": "boy",
+      "pages": 8
+    },
+    {
+      "key": "chameleon_koko_bedtime",
+      "childName": "בר",
+      "childGender": "girl",
+      "pages": 8
+    },
+    {
+      "key": "chameleon_koko_bedtime",
+      "childName": "נועה",
+      "childGender": "boy",
+      "pages": 8
+    },
+    {
+      "key": "chameleon_koko_bedtime",
+      "childName": "נועה",
+      "childGender": "girl",
+      "pages": 8
+    },
+    {
+      "key": "chameleon_koko_bedtime",
+      "childName": "אור מאיר",
+      "childGender": "boy",
+      "pages": 8
+    },
+    {
+      "key": "chameleon_koko_bedtime",
+      "childName": "אור מאיר",
+      "childGender": "girl",
+      "pages": 8
+    },
+    {
+      "key": "chameleon_koko_bedtime",
+      "childName": "אן־לי",
+      "childGender": "boy",
+      "pages": 8
+    },
+    {
+      "key": "chameleon_koko_bedtime",
+      "childName": "אן־לי",
+      "childGender": "girl",
+      "pages": 8
+    },
+    {
+      "key": "chameleon_koko_fantasy",
+      "childName": "בר",
+      "childGender": "boy",
+      "pages": 16
+    },
+    {
+      "key": "chameleon_koko_fantasy",
+      "childName": "בר",
+      "childGender": "girl",
+      "pages": 16
+    },
+    {
+      "key": "chameleon_koko_fantasy",
+      "childName": "נועה",
+      "childGender": "boy",
+      "pages": 16
+    },
+    {
+      "key": "chameleon_koko_fantasy",
+      "childName": "נועה",
+      "childGender": "girl",
+      "pages": 16
+    },
+    {
+      "key": "chameleon_koko_fantasy",
+      "childName": "אור מאיר",
+      "childGender": "boy",
+      "pages": 16
+    },
+    {
+      "key": "chameleon_koko_fantasy",
+      "childName": "אור מאיר",
+      "childGender": "girl",
+      "pages": 16
+    },
+    {
+      "key": "chameleon_koko_fantasy",
+      "childName": "אן־לי",
+      "childGender": "boy",
+      "pages": 16
+    },
+    {
+      "key": "chameleon_koko_fantasy",
+      "childName": "אן־לי",
+      "childGender": "girl",
+      "pages": 16
+    },
+    {
+      "key": "dragon_dini_adventure",
+      "childName": "בר",
+      "childGender": "boy",
+      "pages": 12
+    },
+    {
+      "key": "dragon_dini_adventure",
+      "childName": "בר",
+      "childGender": "girl",
+      "pages": 12
+    },
+    {
+      "key": "dragon_dini_adventure",
+      "childName": "נועה",
+      "childGender": "boy",
+      "pages": 12
+    },
+    {
+      "key": "dragon_dini_adventure",
+      "childName": "נועה",
+      "childGender": "girl",
+      "pages": 12
+    },
+    {
+      "key": "dragon_dini_adventure",
+      "childName": "אור מאיר",
+      "childGender": "boy",
+      "pages": 12
+    },
+    {
+      "key": "dragon_dini_adventure",
+      "childName": "אור מאיר",
+      "childGender": "girl",
+      "pages": 12
+    },
+    {
+      "key": "dragon_dini_adventure",
+      "childName": "אן־לי",
+      "childGender": "boy",
+      "pages": 12
+    },
+    {
+      "key": "dragon_dini_adventure",
+      "childName": "אן־לי",
+      "childGender": "girl",
+      "pages": 12
+    },
+    {
+      "key": "dragon_dini_bedtime",
+      "childName": "בר",
+      "childGender": "boy",
+      "pages": 8
+    },
+    {
+      "key": "dragon_dini_bedtime",
+      "childName": "בר",
+      "childGender": "girl",
+      "pages": 8
+    },
+    {
+      "key": "dragon_dini_bedtime",
+      "childName": "נועה",
+      "childGender": "boy",
+      "pages": 8
+    },
+    {
+      "key": "dragon_dini_bedtime",
+      "childName": "נועה",
+      "childGender": "girl",
+      "pages": 8
+    },
+    {
+      "key": "dragon_dini_bedtime",
+      "childName": "אור מאיר",
+      "childGender": "boy",
+      "pages": 8
+    },
+    {
+      "key": "dragon_dini_bedtime",
+      "childName": "אור מאיר",
+      "childGender": "girl",
+      "pages": 8
+    },
+    {
+      "key": "dragon_dini_bedtime",
+      "childName": "אן־לי",
+      "childGender": "boy",
+      "pages": 8
+    },
+    {
+      "key": "dragon_dini_bedtime",
+      "childName": "אן־לי",
+      "childGender": "girl",
+      "pages": 8
+    },
+    {
+      "key": "dragon_dini_fantasy",
+      "childName": "בר",
+      "childGender": "boy",
+      "pages": 16
+    },
+    {
+      "key": "dragon_dini_fantasy",
+      "childName": "בר",
+      "childGender": "girl",
+      "pages": 16
+    },
+    {
+      "key": "dragon_dini_fantasy",
+      "childName": "נועה",
+      "childGender": "boy",
+      "pages": 16
+    },
+    {
+      "key": "dragon_dini_fantasy",
+      "childName": "נועה",
+      "childGender": "girl",
+      "pages": 16
+    },
+    {
+      "key": "dragon_dini_fantasy",
+      "childName": "אור מאיר",
+      "childGender": "boy",
+      "pages": 16
+    },
+    {
+      "key": "dragon_dini_fantasy",
+      "childName": "אור מאיר",
+      "childGender": "girl",
+      "pages": 16
+    },
+    {
+      "key": "dragon_dini_fantasy",
+      "childName": "אן־לי",
+      "childGender": "boy",
+      "pages": 16
+    },
+    {
+      "key": "dragon_dini_fantasy",
+      "childName": "אן־לי",
+      "childGender": "girl",
+      "pages": 16
+    },
+    {
+      "key": "fox_uri_adventure",
+      "childName": "בר",
+      "childGender": "boy",
+      "pages": 12
+    },
+    {
+      "key": "fox_uri_adventure",
+      "childName": "בר",
+      "childGender": "girl",
+      "pages": 12
+    },
+    {
+      "key": "fox_uri_adventure",
+      "childName": "נועה",
+      "childGender": "boy",
+      "pages": 12
+    },
+    {
+      "key": "fox_uri_adventure",
+      "childName": "נועה",
+      "childGender": "girl",
+      "pages": 12
+    },
+    {
+      "key": "fox_uri_adventure",
+      "childName": "אור מאיר",
+      "childGender": "boy",
+      "pages": 12
+    },
+    {
+      "key": "fox_uri_adventure",
+      "childName": "אור מאיר",
+      "childGender": "girl",
+      "pages": 12
+    },
+    {
+      "key": "fox_uri_adventure",
+      "childName": "אן־לי",
+      "childGender": "boy",
+      "pages": 12
+    },
+    {
+      "key": "fox_uri_adventure",
+      "childName": "אן־לי",
+      "childGender": "girl",
+      "pages": 12
+    },
+    {
+      "key": "fox_uri_bedtime",
+      "childName": "בר",
+      "childGender": "boy",
+      "pages": 8
+    },
+    {
+      "key": "fox_uri_bedtime",
+      "childName": "בר",
+      "childGender": "girl",
+      "pages": 8
+    },
+    {
+      "key": "fox_uri_bedtime",
+      "childName": "נועה",
+      "childGender": "boy",
+      "pages": 8
+    },
+    {
+      "key": "fox_uri_bedtime",
+      "childName": "נועה",
+      "childGender": "girl",
+      "pages": 8
+    },
+    {
+      "key": "fox_uri_bedtime",
+      "childName": "אור מאיר",
+      "childGender": "boy",
+      "pages": 8
+    },
+    {
+      "key": "fox_uri_bedtime",
+      "childName": "אור מאיר",
+      "childGender": "girl",
+      "pages": 8
+    },
+    {
+      "key": "fox_uri_bedtime",
+      "childName": "אן־לי",
+      "childGender": "boy",
+      "pages": 8
+    },
+    {
+      "key": "fox_uri_bedtime",
+      "childName": "אן־לי",
+      "childGender": "girl",
+      "pages": 8
+    },
+    {
+      "key": "fox_uri_fantasy",
+      "childName": "בר",
+      "childGender": "boy",
+      "pages": 16
+    },
+    {
+      "key": "fox_uri_fantasy",
+      "childName": "בר",
+      "childGender": "girl",
+      "pages": 16
+    },
+    {
+      "key": "fox_uri_fantasy",
+      "childName": "נועה",
+      "childGender": "boy",
+      "pages": 16
+    },
+    {
+      "key": "fox_uri_fantasy",
+      "childName": "נועה",
+      "childGender": "girl",
+      "pages": 16
+    },
+    {
+      "key": "fox_uri_fantasy",
+      "childName": "אור מאיר",
+      "childGender": "boy",
+      "pages": 16
+    },
+    {
+      "key": "fox_uri_fantasy",
+      "childName": "אור מאיר",
+      "childGender": "girl",
+      "pages": 16
+    },
+    {
+      "key": "fox_uri_fantasy",
+      "childName": "אן־לי",
+      "childGender": "boy",
+      "pages": 16
+    },
+    {
+      "key": "fox_uri_fantasy",
+      "childName": "אן־לי",
+      "childGender": "girl",
+      "pages": 16
+    },
+    {
+      "key": "lion_shaket_adventure",
+      "childName": "בר",
+      "childGender": "boy",
+      "pages": 12
+    },
+    {
+      "key": "lion_shaket_adventure",
+      "childName": "בר",
+      "childGender": "girl",
+      "pages": 12
+    },
+    {
+      "key": "lion_shaket_adventure",
+      "childName": "נועה",
+      "childGender": "boy",
+      "pages": 12
+    },
+    {
+      "key": "lion_shaket_adventure",
+      "childName": "נועה",
+      "childGender": "girl",
+      "pages": 12
+    },
+    {
+      "key": "lion_shaket_adventure",
+      "childName": "אור מאיר",
+      "childGender": "boy",
+      "pages": 12
+    },
+    {
+      "key": "lion_shaket_adventure",
+      "childName": "אור מאיר",
+      "childGender": "girl",
+      "pages": 12
+    },
+    {
+      "key": "lion_shaket_adventure",
+      "childName": "אן־לי",
+      "childGender": "boy",
+      "pages": 12
+    },
+    {
+      "key": "lion_shaket_adventure",
+      "childName": "אן־לי",
+      "childGender": "girl",
+      "pages": 12
+    },
+    {
+      "key": "lion_shaket_bedtime",
+      "childName": "בר",
+      "childGender": "boy",
+      "pages": 8
+    },
+    {
+      "key": "lion_shaket_bedtime",
+      "childName": "בר",
+      "childGender": "girl",
+      "pages": 8
+    },
+    {
+      "key": "lion_shaket_bedtime",
+      "childName": "נועה",
+      "childGender": "boy",
+      "pages": 8
+    },
+    {
+      "key": "lion_shaket_bedtime",
+      "childName": "נועה",
+      "childGender": "girl",
+      "pages": 8
+    },
+    {
+      "key": "lion_shaket_bedtime",
+      "childName": "אור מאיר",
+      "childGender": "boy",
+      "pages": 8
+    },
+    {
+      "key": "lion_shaket_bedtime",
+      "childName": "אור מאיר",
+      "childGender": "girl",
+      "pages": 8
+    },
+    {
+      "key": "lion_shaket_bedtime",
+      "childName": "אן־לי",
+      "childGender": "boy",
+      "pages": 8
+    },
+    {
+      "key": "lion_shaket_bedtime",
+      "childName": "אן־לי",
+      "childGender": "girl",
+      "pages": 8
+    },
+    {
+      "key": "lion_shaket_fantasy",
+      "childName": "בר",
+      "childGender": "boy",
+      "pages": 16
+    },
+    {
+      "key": "lion_shaket_fantasy",
+      "childName": "בר",
+      "childGender": "girl",
+      "pages": 16
+    },
+    {
+      "key": "lion_shaket_fantasy",
+      "childName": "נועה",
+      "childGender": "boy",
+      "pages": 16
+    },
+    {
+      "key": "lion_shaket_fantasy",
+      "childName": "נועה",
+      "childGender": "girl",
+      "pages": 16
+    },
+    {
+      "key": "lion_shaket_fantasy",
+      "childName": "אור מאיר",
+      "childGender": "boy",
+      "pages": 16
+    },
+    {
+      "key": "lion_shaket_fantasy",
+      "childName": "אור מאיר",
+      "childGender": "girl",
+      "pages": 16
+    },
+    {
+      "key": "lion_shaket_fantasy",
+      "childName": "אן־לי",
+      "childGender": "boy",
+      "pages": 16
+    },
+    {
+      "key": "lion_shaket_fantasy",
+      "childName": "אן־לי",
+      "childGender": "girl",
+      "pages": 16
+    },
+    {
+      "key": "panda_anat_adventure",
+      "childName": "בר",
+      "childGender": "boy",
+      "pages": 12
+    },
+    {
+      "key": "panda_anat_adventure",
+      "childName": "בר",
+      "childGender": "girl",
+      "pages": 12
+    },
+    {
+      "key": "panda_anat_adventure",
+      "childName": "נועה",
+      "childGender": "boy",
+      "pages": 12
+    },
+    {
+      "key": "panda_anat_adventure",
+      "childName": "נועה",
+      "childGender": "girl",
+      "pages": 12
+    },
+    {
+      "key": "panda_anat_adventure",
+      "childName": "אור מאיר",
+      "childGender": "boy",
+      "pages": 12
+    },
+    {
+      "key": "panda_anat_adventure",
+      "childName": "אור מאיר",
+      "childGender": "girl",
+      "pages": 12
+    },
+    {
+      "key": "panda_anat_adventure",
+      "childName": "אן־לי",
+      "childGender": "boy",
+      "pages": 12
+    },
+    {
+      "key": "panda_anat_adventure",
+      "childName": "אן־לי",
+      "childGender": "girl",
+      "pages": 12
+    },
+    {
+      "key": "panda_anat_bedtime",
+      "childName": "בר",
+      "childGender": "boy",
+      "pages": 8
+    },
+    {
+      "key": "panda_anat_bedtime",
+      "childName": "בר",
+      "childGender": "girl",
+      "pages": 8
+    },
+    {
+      "key": "panda_anat_bedtime",
+      "childName": "נועה",
+      "childGender": "boy",
+      "pages": 8
+    },
+    {
+      "key": "panda_anat_bedtime",
+      "childName": "נועה",
+      "childGender": "girl",
+      "pages": 8
+    },
+    {
+      "key": "panda_anat_bedtime",
+      "childName": "אור מאיר",
+      "childGender": "boy",
+      "pages": 8
+    },
+    {
+      "key": "panda_anat_bedtime",
+      "childName": "אור מאיר",
+      "childGender": "girl",
+      "pages": 8
+    },
+    {
+      "key": "panda_anat_bedtime",
+      "childName": "אן־לי",
+      "childGender": "boy",
+      "pages": 8
+    },
+    {
+      "key": "panda_anat_bedtime",
+      "childName": "אן־לי",
+      "childGender": "girl",
+      "pages": 8
+    },
+    {
+      "key": "panda_anat_fantasy",
+      "childName": "בר",
+      "childGender": "boy",
+      "pages": 16
+    },
+    {
+      "key": "panda_anat_fantasy",
+      "childName": "בר",
+      "childGender": "girl",
+      "pages": 16
+    },
+    {
+      "key": "panda_anat_fantasy",
+      "childName": "נועה",
+      "childGender": "boy",
+      "pages": 16
+    },
+    {
+      "key": "panda_anat_fantasy",
+      "childName": "נועה",
+      "childGender": "girl",
+      "pages": 16
+    },
+    {
+      "key": "panda_anat_fantasy",
+      "childName": "אור מאיר",
+      "childGender": "boy",
+      "pages": 16
+    },
+    {
+      "key": "panda_anat_fantasy",
+      "childName": "אור מאיר",
+      "childGender": "girl",
+      "pages": 16
+    },
+    {
+      "key": "panda_anat_fantasy",
+      "childName": "אן־לי",
+      "childGender": "boy",
+      "pages": 16
+    },
+    {
+      "key": "panda_anat_fantasy",
+      "childName": "אן־לי",
+      "childGender": "girl",
+      "pages": 16
+    }
+  ],
+  "providerCalls": 0,
+  "writes": 0,
+  "runtimePromotion": false,
+  "limitations": [
+    "Not exhaustive Hebrew grammar analysis",
+    "Not the full bank/visual/release gate",
+    "Tests four names; does not establish validity for every possible input",
+    "A parent-supplied name retains its exact spelling, including its own hyphen"
+  ]
+}

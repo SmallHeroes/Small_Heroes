@@ -1,0 +1,837 @@
+{
+  "status": "offline_structure_and_preservation_checked",
+  "sourcesUnchanged": 18,
+  "reportSlots": 18,
+  "priorUriIdentitiesPreservedInApprovalBaseline": 3,
+  "ownerApprovedManuscriptsBound": 18,
+  "authoredDashCharacters": 0,
+  "readingCopyMatchesAllDrafts": true,
+  "completeDrafts": 18,
+  "totalDraftPages": 216,
+  "rejectedNegativeControls": 17,
+  "candidates": [
+    {
+      "file": "bunny_ometz_adventure.md",
+      "sha256": "c668d53c4301afb7b790ec777fdeb7dc161fb83918b15e0105d8dba02bbc4a66",
+      "bytes": 5659,
+      "pages": 12,
+      "genderChips": 22,
+      "genders": [
+        {
+          "gender": "boy",
+          "words": 517,
+          "wordsPerPage": [
+            41,
+            45,
+            41,
+            42,
+            48,
+            42,
+            46,
+            44,
+            43,
+            40,
+            42,
+            43
+          ]
+        },
+        {
+          "gender": "girl",
+          "words": 517,
+          "wordsPerPage": [
+            41,
+            45,
+            41,
+            42,
+            48,
+            42,
+            46,
+            44,
+            43,
+            40,
+            42,
+            43
+          ]
+        }
+      ]
+    },
+    {
+      "file": "bunny_ometz_bedtime.md",
+      "sha256": "1cf445ccf2fe6fae498145351e66f3c41dcca1a17d411f713eecbe0dfd8e7b97",
+      "bytes": 3959,
+      "pages": 8,
+      "genderChips": 16,
+      "genders": [
+        {
+          "gender": "boy",
+          "words": 349,
+          "wordsPerPage": [
+            45,
+            44,
+            41,
+            45,
+            42,
+            45,
+            43,
+            44
+          ]
+        },
+        {
+          "gender": "girl",
+          "words": 349,
+          "wordsPerPage": [
+            45,
+            44,
+            41,
+            45,
+            42,
+            45,
+            43,
+            44
+          ]
+        }
+      ]
+    },
+    {
+      "file": "bunny_ometz_fantasy.md",
+      "sha256": "3ad89857fbf267c85f6f9ee3062985dd1882038fcd5b121d99ab47d3cd3052e0",
+      "bytes": 7853,
+      "pages": 16,
+      "genderChips": 26,
+      "genders": [
+        {
+          "gender": "boy",
+          "words": 728,
+          "wordsPerPage": [
+            44,
+            48,
+            45,
+            49,
+            43,
+            44,
+            44,
+            47,
+            44,
+            45,
+            51,
+            46,
+            41,
+            47,
+            44,
+            46
+          ]
+        },
+        {
+          "gender": "girl",
+          "words": 728,
+          "wordsPerPage": [
+            44,
+            48,
+            45,
+            49,
+            43,
+            44,
+            44,
+            47,
+            44,
+            45,
+            51,
+            46,
+            41,
+            47,
+            44,
+            46
+          ]
+        }
+      ]
+    },
+    {
+      "file": "chameleon_koko_adventure.md",
+      "sha256": "27473350ffb6e3826c62b4ec015ed9d38ebe7dba30bac1e5c4f5d2c0954ccb2b",
+      "bytes": 5951,
+      "pages": 12,
+      "genderChips": 22,
+      "genders": [
+        {
+          "gender": "boy",
+          "words": 543,
+          "wordsPerPage": [
+            44,
+            44,
+            44,
+            48,
+            50,
+            48,
+            44,
+            48,
+            40,
+            42,
+            44,
+            47
+          ]
+        },
+        {
+          "gender": "girl",
+          "words": 543,
+          "wordsPerPage": [
+            44,
+            44,
+            44,
+            48,
+            50,
+            48,
+            44,
+            48,
+            40,
+            42,
+            44,
+            47
+          ]
+        }
+      ]
+    },
+    {
+      "file": "chameleon_koko_bedtime.md",
+      "sha256": "c315d64204dda872295a9025ac07dbe51ae666a34b003a42bc79b46e93ee1447",
+      "bytes": 4115,
+      "pages": 8,
+      "genderChips": 15,
+      "genders": [
+        {
+          "gender": "boy",
+          "words": 374,
+          "wordsPerPage": [
+            49,
+            46,
+            47,
+            48,
+            47,
+            46,
+            43,
+            48
+          ]
+        },
+        {
+          "gender": "girl",
+          "words": 374,
+          "wordsPerPage": [
+            49,
+            46,
+            47,
+            48,
+            47,
+            46,
+            43,
+            48
+          ]
+        }
+      ]
+    },
+    {
+      "file": "chameleon_koko_fantasy.md",
+      "sha256": "2a22b06ff373d44fdbf30accfaad1c9c308ec8c2574a26581d87460470ff2cec",
+      "bytes": 7780,
+      "pages": 16,
+      "genderChips": 31,
+      "genders": [
+        {
+          "gender": "boy",
+          "words": 717,
+          "wordsPerPage": [
+            41,
+            44,
+            45,
+            46,
+            44,
+            43,
+            46,
+            46,
+            45,
+            42,
+            48,
+            41,
+            44,
+            47,
+            47,
+            48
+          ]
+        },
+        {
+          "gender": "girl",
+          "words": 717,
+          "wordsPerPage": [
+            41,
+            44,
+            45,
+            46,
+            44,
+            43,
+            46,
+            46,
+            45,
+            42,
+            48,
+            41,
+            44,
+            47,
+            47,
+            48
+          ]
+        }
+      ]
+    },
+    {
+      "file": "dragon_dini_adventure.md",
+      "sha256": "ffc415d3d3efae7f7e8dc62c0da908cc3e5500aeab53762b51400374fd296398",
+      "bytes": 7489,
+      "pages": 12,
+      "genderChips": 40,
+      "genders": [
+        {
+          "gender": "boy",
+          "words": 669,
+          "wordsPerPage": [
+            65,
+            52,
+            47,
+            54,
+            51,
+            64,
+            51,
+            57,
+            53,
+            60,
+            52,
+            63
+          ]
+        },
+        {
+          "gender": "girl",
+          "words": 669,
+          "wordsPerPage": [
+            65,
+            52,
+            47,
+            54,
+            51,
+            64,
+            51,
+            57,
+            53,
+            60,
+            52,
+            63
+          ]
+        }
+      ]
+    },
+    {
+      "file": "dragon_dini_bedtime.md",
+      "sha256": "32e5d53bc1735b9c773d4e386c00ba05e29a86a1d844f5ab1faba554b1d9b357",
+      "bytes": 4093,
+      "pages": 8,
+      "genderChips": 18,
+      "genders": [
+        {
+          "gender": "boy",
+          "words": 365,
+          "wordsPerPage": [
+            44,
+            45,
+            43,
+            44,
+            51,
+            45,
+            47,
+            46
+          ]
+        },
+        {
+          "gender": "girl",
+          "words": 365,
+          "wordsPerPage": [
+            44,
+            45,
+            43,
+            44,
+            51,
+            45,
+            47,
+            46
+          ]
+        }
+      ]
+    },
+    {
+      "file": "dragon_dini_fantasy.md",
+      "sha256": "04c9b32ae84bc3ec41c4ac530869167ea7d00991f88d29abd6fa3549ab85a48f",
+      "bytes": 7961,
+      "pages": 16,
+      "genderChips": 42,
+      "genders": [
+        {
+          "gender": "boy",
+          "words": 729,
+          "wordsPerPage": [
+            49,
+            50,
+            46,
+            44,
+            43,
+            48,
+            47,
+            45,
+            44,
+            42,
+            43,
+            50,
+            42,
+            43,
+            45,
+            48
+          ]
+        },
+        {
+          "gender": "girl",
+          "words": 729,
+          "wordsPerPage": [
+            49,
+            50,
+            46,
+            44,
+            43,
+            48,
+            47,
+            45,
+            44,
+            42,
+            43,
+            50,
+            42,
+            43,
+            45,
+            48
+          ]
+        }
+      ]
+    },
+    {
+      "file": "fox_uri_adventure.md",
+      "sha256": "da50961ed320c08330bb758d87a67b84fdd00fa493c04ae17a6d5e6c0364102a",
+      "bytes": 7850,
+      "pages": 12,
+      "genderChips": 34,
+      "genders": [
+        {
+          "gender": "boy",
+          "words": 713,
+          "wordsPerPage": [
+            69,
+            64,
+            57,
+            61,
+            56,
+            56,
+            64,
+            61,
+            56,
+            56,
+            58,
+            55
+          ]
+        },
+        {
+          "gender": "girl",
+          "words": 713,
+          "wordsPerPage": [
+            69,
+            64,
+            57,
+            61,
+            56,
+            56,
+            64,
+            61,
+            56,
+            56,
+            58,
+            55
+          ]
+        }
+      ]
+    },
+    {
+      "file": "fox_uri_bedtime.md",
+      "sha256": "5a94eb86d2b7421d98a61b23cb35d95b2d98e45f5851a297a5d0bb8a9001156f",
+      "bytes": 5149,
+      "pages": 8,
+      "genderChips": 20,
+      "genders": [
+        {
+          "gender": "boy",
+          "words": 481,
+          "wordsPerPage": [
+            67,
+            58,
+            54,
+            58,
+            61,
+            61,
+            62,
+            60
+          ]
+        },
+        {
+          "gender": "girl",
+          "words": 481,
+          "wordsPerPage": [
+            67,
+            58,
+            54,
+            58,
+            61,
+            61,
+            62,
+            60
+          ]
+        }
+      ]
+    },
+    {
+      "file": "fox_uri_fantasy.md",
+      "sha256": "28193d9a55945ea54adfa2f364fb147a11b574182b425e04e49fe813ff60f130",
+      "bytes": 10687,
+      "pages": 16,
+      "genderChips": 41,
+      "genders": [
+        {
+          "gender": "boy",
+          "words": 985,
+          "wordsPerPage": [
+            74,
+            59,
+            56,
+            56,
+            65,
+            54,
+            60,
+            68,
+            70,
+            54,
+            60,
+            60,
+            59,
+            63,
+            63,
+            64
+          ]
+        },
+        {
+          "gender": "girl",
+          "words": 985,
+          "wordsPerPage": [
+            74,
+            59,
+            56,
+            56,
+            65,
+            54,
+            60,
+            68,
+            70,
+            54,
+            60,
+            60,
+            59,
+            63,
+            63,
+            64
+          ]
+        }
+      ]
+    },
+    {
+      "file": "lion_shaket_adventure.md",
+      "sha256": "423025cdbeae16515d2cc7e37cec03a521e7d51f6a529fc9ae796089ff980642",
+      "bytes": 5833,
+      "pages": 12,
+      "genderChips": 22,
+      "genders": [
+        {
+          "gender": "boy",
+          "words": 523,
+          "wordsPerPage": [
+            43,
+            42,
+            39,
+            45,
+            44,
+            50,
+            46,
+            41,
+            41,
+            41,
+            45,
+            46
+          ]
+        },
+        {
+          "gender": "girl",
+          "words": 523,
+          "wordsPerPage": [
+            43,
+            42,
+            39,
+            45,
+            44,
+            50,
+            46,
+            41,
+            41,
+            41,
+            45,
+            46
+          ]
+        }
+      ]
+    },
+    {
+      "file": "lion_shaket_bedtime.md",
+      "sha256": "81314a9371960952e4d3c9c6798d5ae8528997bc9e83189c156d9650d488771d",
+      "bytes": 3879,
+      "pages": 8,
+      "genderChips": 13,
+      "genders": [
+        {
+          "gender": "boy",
+          "words": 346,
+          "wordsPerPage": [
+            42,
+            42,
+            42,
+            43,
+            43,
+            43,
+            45,
+            46
+          ]
+        },
+        {
+          "gender": "girl",
+          "words": 346,
+          "wordsPerPage": [
+            42,
+            42,
+            42,
+            43,
+            43,
+            43,
+            45,
+            46
+          ]
+        }
+      ]
+    },
+    {
+      "file": "lion_shaket_fantasy.md",
+      "sha256": "70846176f160122c768a5814864f84a3a96ff9f555d439f4e3b87e213f1a1b03",
+      "bytes": 7465,
+      "pages": 16,
+      "genderChips": 28,
+      "genders": [
+        {
+          "gender": "boy",
+          "words": 711,
+          "wordsPerPage": [
+            46,
+            45,
+            40,
+            45,
+            42,
+            44,
+            40,
+            44,
+            44,
+            49,
+            45,
+            48,
+            47,
+            45,
+            44,
+            43
+          ]
+        },
+        {
+          "gender": "girl",
+          "words": 711,
+          "wordsPerPage": [
+            46,
+            45,
+            40,
+            45,
+            42,
+            44,
+            40,
+            44,
+            44,
+            49,
+            45,
+            48,
+            47,
+            45,
+            44,
+            43
+          ]
+        }
+      ]
+    },
+    {
+      "file": "panda_anat_adventure.md",
+      "sha256": "01bdc89f31d5ae115e830f719e96aafb205061eaaac14b04651ae2a7f4fdbb3a",
+      "bytes": 5777,
+      "pages": 12,
+      "genderChips": 25,
+      "genders": [
+        {
+          "gender": "boy",
+          "words": 528,
+          "wordsPerPage": [
+            45,
+            42,
+            44,
+            44,
+            43,
+            49,
+            44,
+            43,
+            45,
+            46,
+            42,
+            41
+          ]
+        },
+        {
+          "gender": "girl",
+          "words": 528,
+          "wordsPerPage": [
+            45,
+            42,
+            44,
+            44,
+            43,
+            49,
+            44,
+            43,
+            45,
+            46,
+            42,
+            41
+          ]
+        }
+      ]
+    },
+    {
+      "file": "panda_anat_bedtime.md",
+      "sha256": "c1d9c0a27789a964cee8f8c6726c903a983c6f97d5459ba1fb35f6168e9fe652",
+      "bytes": 3921,
+      "pages": 8,
+      "genderChips": 17,
+      "genders": [
+        {
+          "gender": "boy",
+          "words": 352,
+          "wordsPerPage": [
+            45,
+            41,
+            43,
+            45,
+            42,
+            45,
+            43,
+            48
+          ]
+        },
+        {
+          "gender": "girl",
+          "words": 352,
+          "wordsPerPage": [
+            45,
+            41,
+            43,
+            45,
+            42,
+            45,
+            43,
+            48
+          ]
+        }
+      ]
+    },
+    {
+      "file": "panda_anat_fantasy.md",
+      "sha256": "92c72f12e0e264d295566e68f932aedd2503ac56431a7ecdd6a6b2d0c4cca24e",
+      "bytes": 8001,
+      "pages": 16,
+      "genderChips": 41,
+      "genders": [
+        {
+          "gender": "boy",
+          "words": 725,
+          "wordsPerPage": [
+            48,
+            46,
+            40,
+            46,
+            45,
+            41,
+            42,
+            45,
+            47,
+            50,
+            49,
+            44,
+            45,
+            45,
+            45,
+            47
+          ]
+        },
+        {
+          "gender": "girl",
+          "words": 725,
+          "wordsPerPage": [
+            48,
+            46,
+            40,
+            46,
+            45,
+            41,
+            42,
+            45,
+            47,
+            50,
+            49,
+            44,
+            45,
+            45,
+            45,
+            47
+          ]
+        }
+      ]
+    }
+  ],
+  "providerCalls": 0,
+  "writes": 0,
+  "productContentApprovedByGuy": true,
+  "runtimeBookAccepted": false,
+  "independentReview": "not_performed",
+  "limits": [
+    "Not the production bank validator",
+    "Chip expansion is not Hebrew grammar validation",
+    "Not a read-aloud or child/parent test",
+    "No visual/narration/runtime readiness",
+    "All eighteen have owner content approval, not runtime source publication",
+    "Inherited categories do not establish clinical or category suitability"
+  ]
+}

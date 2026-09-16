@@ -1,6 +1,39 @@
 # SmallHeroes — Current Technical State
 
-## All eighteen editorial drafts saved; no runtime promotion — 2026-09-16
+## Guy approved all18 texts; typography and personalization checked — 2026-09-16
+
+Guy approved the new stories, requested no authored dashes, and explicitly required
+dynamic child name plus boy/girl forms. Same task/worktree/sole writer; clean start
+529b7522c68febf16feedace04c3d587afb19f93, ahead47/behind0 to local upstream.
+Scope is punctuation/name/gender copyediting and recorded owner content approval,
+not another plot rewrite or runtime bank migration. No provider/key/render calls.
+
+Removed65 authored dash/maqaf characters across18 title/prose templates; Markdown
+frontmatter/page markers remain technical syntax. Rephrased name-prefix joins
+instead of gluing letters to placeholders. Uri bedtime girl/grandmother plural
+agreement corrected. Lion bedtime's supporting friend is now 'the friend': the
+unchanged shared gate rejected her fixed name Yael as a leftover protagonist.
+This was a supporting name collision, not proof the protagonist was hardcoded.
+
+OWNER_APPROVAL.json records Guy's content decision and binds all18 before/after
+hashes to529b7522. Prior validation-all18.json and Uri evidence are historical and
+unchanged; current Uri bytes legitimately differ after the newly requested edits.
+Do not request the same content approval again. Files remain technically staged
+with runtimeAuthority:none until separate source publication/consumer binding.
+
+Local checker:18 original accepted sources unchanged;18 current approval bindings;
+216 pages, zero authored dashes,17 mutation controls rejected, reading copy matches.
+Shared parser/resolver/personalization gate:144 name/gender cases,1728 text-page
+expansions,5 negative controls; exact name preserved including multiword/hyphenated
+input. These are text expansions, not image renders or exhaustive grammar proof.
+Existing personalization-gate spec18/18 passed; standalone tsc --noEmit exit0.
+READ_ALL_HE.md uses Bar/boy only as an explicitly labeled reading example.
+Evidence: validation-typography.json and personalization-check.json; handoff in
+TYPOGRAPHY_PERSONALIZATION_HANDOFF.md. No independent technical self-PASS, active
+QA/threshold/source/reader change, publication, deployment or push. Existing full
+check remains NON-GREEN; content approval does not close it or visual QA findings.
+
+## Historical all18 writing wave before owner approval — 2026-09-16
 
 Guy explicitly authorized rewriting ALL remaining stories without interim stops.
 Same task/sole writer in sh-r3b1b-semantic-m1 on

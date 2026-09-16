@@ -38,6 +38,9 @@ function validateManuscript(text, direction, companion = 'fox_uri') {
   const markers = [...text.matchAll(/^--- Page (\d+) ---$/gm)];
   assert.deepEqual(markers.map(x => Number(x[1])), Array.from({ length: count }, (_, i) => i + 1));
   const body = text.slice(markers[0].index);
+  const visibleText = text.match(/^title:.*$/m)[0] + '\n' + body.replace(/^--- Page \d+ ---$/gm, '');
+  assert.doesNotMatch(visibleText, /[\p{Dash_Punctuation}\u2212\u00ad]/u, 'authored_dash_in_story');
+  assert.ok(text.match(/^title:.*$/m)[0].includes('{{childName}}'), 'title_requires_child_name');
   assert.doesNotMatch(text, /\p{L}\{\{childName\}\}|\{\{childName\}\}\p{L}/u, 'glued_child_placeholder');
   const allTokensResolved = text.replace(/\{\{childName\}\}/g, 'בר')
     .replace(/\{([^{}|]+)\|([^{}|]+)\}/g, (_, boy) => boy);
@@ -61,15 +64,29 @@ function validateManuscript(text, direction, companion = 'fox_uri') {
 
 const priorUri = JSON.parse(fs.readFileSync(path.join(__dirname, 'validation.json'), 'utf8')).candidates;
 assert.deepEqual(priorUri.map(x => x.file).sort(), directions.map(d => `fox_uri_${d}.md`).sort());
+const priorAll = JSON.parse(fs.readFileSync(path.join(__dirname, 'validation-all18.json'), 'utf8')).candidates;
+const approval = JSON.parse(fs.readFileSync(path.join(__dirname, 'OWNER_APPROVAL.json'), 'utf8'));
+assert.equal(approval.decision, 'approved');
+assert.equal(approval.approvedBy, 'Guy');
+assert.equal(approval.runtimeAuthority, 'none');
+assert.deepEqual(approval.manuscripts.map(r => r.file).sort(), expectedKeys.map(k => k + '.md'));
+for (const row of approval.manuscripts) {
+  const before = priorAll.find(r => r.file === row.file);
+  assert.equal(row.beforeSha256, before.sha256, 'approval_baseline_changed');
+  assert.equal(row.beforeBytes, before.bytes, 'approval_baseline_size_changed');
+}
 const actualFiles = fs.readdirSync(__dirname).filter(f => companions.some(c => f.startsWith(c + '_')) && f.endsWith('.md')).sort();
 assert.deepEqual(actualFiles, expectedKeys.map(k => k + '.md'), 'missing_or_extra_draft');
 const candidates = companions.flatMap(companion => directions.map(direction => {
   const file = `${companion}_${direction}.md`;
   const bytes = fs.readFileSync(path.join(__dirname, file));
+  const approved = approval.manuscripts.find(row => row.file === file);
+  assert.equal(hash(bytes), approved.sha256, `approved_text_changed:${file}`);
+  assert.equal(bytes.length, approved.bytes, `approved_size_changed:${file}`);
   if (companion === 'fox_uri') {
     const prior = priorUri.find(row => row.file === file);
-    assert.equal(hash(bytes), prior.sha256, `uri_changed:${file}`);
-    assert.equal(bytes.length, prior.bytes, `uri_size_changed:${file}`);
+    assert.equal(approved.beforeSha256, prior.sha256, `uri_pre_edit_identity:${file}`);
+    assert.equal(approved.beforeBytes, prior.bytes, `uri_pre_edit_size:${file}`);
   }
   return { file, sha256: hash(bytes), bytes: bytes.length,
     ...validateManuscript(bytes.toString('utf8').replace(/\r\n/g, '\n'), direction, companion) };
@@ -86,11 +103,13 @@ const mutations = [
   s => s.replace('{{childName}}', 'הלך{{childName}}'),
   s => s.replace('companionId: fox_uri', 'companionId: dragon_dini'),
   s => s.replace('category: NIGHT_FEAR', 'category: SOCIAL'),
+  ...['-', '־', '–', '—', '\u2212', '\u00ad'].map(dash => s => s + '\nאסור' + dash + 'כאן'),
+  s => s.replace('title: "{{childName}}', 'title: "בר'),
 ];
 for (const [index, mutation] of mutations.entries()) {
   assert.throws(() => validateManuscript(mutation(specimen), 'bedtime'), `mutation_not_rejected:${index}`);
 }
-const readingHeader = "# כל 18 הסיפורים — עותק קריאה\n\nטיוטות עריכה, 2026-09-16. השם בר ונוסח הילד נבחרו כאן רק לנוחות הקריאה; כתבי־היד הנפרדים שומרים גם את נוסח הילדה. זה אינו מקור מאושר או ספר מרונדר. אין כאן תמונות או קריינות.\n\n";
+const readingHeader = "# כל 18 הסיפורים: עותק קריאה\n\nהתוכן אושר בידי גיא, בכפוף להסרת מקפים והתאמה לפרמטרי הילד. נוסח זה כולל את תיקוני הפיסוק והפרסונליזציה. השם בר ונוסח הילד הם דוגמה לקריאה בלבד; כתבי היד הנפרדים שומרים שם משתנה ונוסח לילד ולילדה. הקבצים טרם פורסמו כמקורות פעילים בצינור. אין כאן תמונות או קריינות.\n\n";
 const resolveReading = text => text.replace(/\r\n/g, '\n').replace(/\{\{childName\}\}/g, 'בר')
   .replace(/\{([^{}|]+)\|([^{}|]+)\}/g, (_, boy) => boy);
 const expectedReading = readingHeader + candidates.map((row, index) => {
@@ -105,12 +124,14 @@ assert.equal(fs.readFileSync(path.join(__dirname, 'READ_ALL_HE.md'), 'utf8').rep
 
 console.log(JSON.stringify({ status: 'offline_structure_and_preservation_checked',
   sourcesUnchanged: inventory.sources.length, reportSlots: expectedKeys.length,
-  priorUriDraftsUnchanged: priorUri.length,
+  priorUriIdentitiesPreservedInApprovalBaseline: priorUri.length,
+  ownerApprovedManuscriptsBound: approval.manuscripts.length,
+  authoredDashCharacters: 0,
   readingCopyMatchesAllDrafts: true,
   completeDrafts: candidates.length, totalDraftPages: candidates.reduce((n, c) => n + c.pages, 0),
   rejectedNegativeControls: mutations.length, candidates, providerCalls: 0, writes: 0,
-  productAccepted: false, independentReview: 'not_performed',
+  productContentApprovedByGuy: true, runtimeBookAccepted: false, independentReview: 'not_performed',
   limits: ['Not the production bank validator', 'Chip expansion is not Hebrew grammar validation',
     'Not a read-aloud or child/parent test', 'No visual/narration/runtime readiness',
-    'All eighteen are editorial drafts, not accepted revisions',
+    'All eighteen have owner content approval, not runtime source publication',
     'Inherited categories do not establish clinical or category suitability'] }, null, 2));

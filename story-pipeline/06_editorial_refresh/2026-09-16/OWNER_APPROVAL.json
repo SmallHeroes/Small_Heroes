@@ -1,0 +1,189 @@
+{
+  "version": "editorial-product-approval/v1",
+  "date": "2026-09-16",
+  "approvedBy": "Guy",
+  "decision": "approved",
+  "scope": "New story content; not runtime source publication, independent technical QA or book acceptance",
+  "baselineCommit": "529b7522c68febf16feedace04c3d587afb19f93",
+  "ownerRequests": [
+    "להוריד את המקפים בכל הסיפורים; מעבר לזה אני מאשר את הסיפורים החדשים",
+    "כל הסיפורים צריכים לעמוד בפרמטרים: שם הילד, כינוי גוף זכר ונקבה"
+  ],
+  "appliedEdits": [
+    "Removed authored hyphen/dash punctuation from title and story prose; technical Markdown separators retained",
+    "Sentence-level adjustments preserve natural Hebrew around name placeholders",
+    "Corrected Uri bedtime plural agreement for girl plus grandmother",
+    "Lion bedtime supporting friend is called החברה, not fixed יעל, to satisfy the unchanged shared personalization gate"
+  ],
+  "manuscripts": [
+    {
+      "file": "bunny_ometz_adventure.md",
+      "beforeSha256": "214cde822d7a75238ca59409e6a94f553cbe9ea54b84bd8f32e8dac705b2f256",
+      "beforeBytes": 5670,
+      "sha256": "c668d53c4301afb7b790ec777fdeb7dc161fb83918b15e0105d8dba02bbc4a66",
+      "bytes": 5659,
+      "removedDashCharacters": 6,
+      "remainingAuthoredDashCharacters": 0
+    },
+    {
+      "file": "bunny_ometz_bedtime.md",
+      "beforeSha256": "88d70191c886a1669354694b62fb5ed3f691a5dd06af97639146f8031468f1b7",
+      "beforeBytes": 3966,
+      "sha256": "1cf445ccf2fe6fae498145351e66f3c41dcca1a17d411f713eecbe0dfd8e7b97",
+      "bytes": 3959,
+      "removedDashCharacters": 5,
+      "remainingAuthoredDashCharacters": 0
+    },
+    {
+      "file": "bunny_ometz_fantasy.md",
+      "beforeSha256": "a651fff5c5b3c6fa5c54b8a1145c08fec4c722a7ac8ed7c13e8e6fb0c7da59e2",
+      "beforeBytes": 7857,
+      "sha256": "3ad89857fbf267c85f6f9ee3062985dd1882038fcd5b121d99ab47d3cd3052e0",
+      "bytes": 7853,
+      "removedDashCharacters": 3,
+      "remainingAuthoredDashCharacters": 0
+    },
+    {
+      "file": "chameleon_koko_adventure.md",
+      "beforeSha256": "14342f8543178f124f11ec6d8320f1068ff77f0fa52ae5348def4d7176599953",
+      "beforeBytes": 5963,
+      "sha256": "27473350ffb6e3826c62b4ec015ed9d38ebe7dba30bac1e5c4f5d2c0954ccb2b",
+      "bytes": 5951,
+      "removedDashCharacters": 5,
+      "remainingAuthoredDashCharacters": 0
+    },
+    {
+      "file": "chameleon_koko_bedtime.md",
+      "beforeSha256": "ce8b9b640a41c95c54338f4a89f1d5c7c0fb970ff90d159125baa828306e41b6",
+      "beforeBytes": 4118,
+      "sha256": "c315d64204dda872295a9025ac07dbe51ae666a34b003a42bc79b46e93ee1447",
+      "bytes": 4115,
+      "removedDashCharacters": 1,
+      "remainingAuthoredDashCharacters": 0
+    },
+    {
+      "file": "chameleon_koko_fantasy.md",
+      "beforeSha256": "defcb11c42d3d562e3cdae6b0c179114789c48b954535e9f20525133cd119761",
+      "beforeBytes": 7789,
+      "sha256": "2a22b06ff373d44fdbf30accfaad1c9c308ec8c2574a26581d87460470ff2cec",
+      "bytes": 7780,
+      "removedDashCharacters": 4,
+      "remainingAuthoredDashCharacters": 0
+    },
+    {
+      "file": "dragon_dini_adventure.md",
+      "beforeSha256": "624bf2d3010b2ebc7102163a602d3ca1565be8b5d9dd8ea8987dd27aff4e2b1a",
+      "beforeBytes": 7486,
+      "sha256": "ffc415d3d3efae7f7e8dc62c0da908cc3e5500aeab53762b51400374fd296398",
+      "bytes": 7489,
+      "removedDashCharacters": 7,
+      "remainingAuthoredDashCharacters": 0
+    },
+    {
+      "file": "dragon_dini_bedtime.md",
+      "beforeSha256": "62b346a036ce526a9d6dfb6f90e1e84ec78f8d21595d9d4bd171370a92706c24",
+      "beforeBytes": 4096,
+      "sha256": "32e5d53bc1735b9c773d4e386c00ba05e29a86a1d844f5ab1faba554b1d9b357",
+      "bytes": 4093,
+      "removedDashCharacters": 1,
+      "remainingAuthoredDashCharacters": 0
+    },
+    {
+      "file": "dragon_dini_fantasy.md",
+      "beforeSha256": "36eb6ce31c7008e0cdd58fca40fd79bfef515ca1cd9fc48853bd9fe158509362",
+      "beforeBytes": 7951,
+      "sha256": "04c9b32ae84bc3ec41c4ac530869167ea7d00991f88d29abd6fa3549ab85a48f",
+      "bytes": 7961,
+      "removedDashCharacters": 6,
+      "remainingAuthoredDashCharacters": 0
+    },
+    {
+      "file": "fox_uri_adventure.md",
+      "beforeSha256": "cfa5df18b974dbda76f701ec5a52a659cc06b1d171fcfd0815041e971c4a0cd5",
+      "beforeBytes": 7856,
+      "sha256": "da50961ed320c08330bb758d87a67b84fdd00fa493c04ae17a6d5e6c0364102a",
+      "bytes": 7850,
+      "removedDashCharacters": 2,
+      "remainingAuthoredDashCharacters": 0
+    },
+    {
+      "file": "fox_uri_bedtime.md",
+      "beforeSha256": "14ee86669780640e816e5b80f9e7516f32b9452ec9facf6b5a84592bbcba3c9f",
+      "beforeBytes": 5147,
+      "sha256": "5a94eb86d2b7421d98a61b23cb35d95b2d98e45f5851a297a5d0bb8a9001156f",
+      "bytes": 5149,
+      "removedDashCharacters": 4,
+      "remainingAuthoredDashCharacters": 0
+    },
+    {
+      "file": "fox_uri_fantasy.md",
+      "beforeSha256": "590dd8fd76e3eb7fa1013cfd56f4e91f482dd961f34e2f330bc4f4f984baa102",
+      "beforeBytes": 10696,
+      "sha256": "28193d9a55945ea54adfa2f364fb147a11b574182b425e04e49fe813ff60f130",
+      "bytes": 10687,
+      "removedDashCharacters": 7,
+      "remainingAuthoredDashCharacters": 0
+    },
+    {
+      "file": "lion_shaket_adventure.md",
+      "beforeSha256": "d2e7de988d583b329178e2eeaaf64f63635207d1f45feb51db1de6d0a71b787f",
+      "beforeBytes": 5836,
+      "sha256": "423025cdbeae16515d2cc7e37cec03a521e7d51f6a529fc9ae796089ff980642",
+      "bytes": 5833,
+      "removedDashCharacters": 1,
+      "remainingAuthoredDashCharacters": 0
+    },
+    {
+      "file": "lion_shaket_bedtime.md",
+      "beforeSha256": "6ce6a66d2b7fbf04b833484c899d180153744198e12ebbfdadf56a6aa924402a",
+      "beforeBytes": 3829,
+      "sha256": "81314a9371960952e4d3c9c6798d5ae8528997bc9e83189c156d9650d488771d",
+      "bytes": 3879,
+      "removedDashCharacters": 0,
+      "remainingAuthoredDashCharacters": 0
+    },
+    {
+      "file": "lion_shaket_fantasy.md",
+      "beforeSha256": "616c1e89d9584a38c52321e6092961275ba56fdc315964ab5385e8c59f242151",
+      "beforeBytes": 7468,
+      "sha256": "70846176f160122c768a5814864f84a3a96ff9f555d439f4e3b87e213f1a1b03",
+      "bytes": 7465,
+      "removedDashCharacters": 1,
+      "remainingAuthoredDashCharacters": 0
+    },
+    {
+      "file": "panda_anat_adventure.md",
+      "beforeSha256": "e94bc94cb9f0a0b995d7b24e2def31f06a7500eb16628349995863c1f93f24b3",
+      "beforeBytes": 5780,
+      "sha256": "01bdc89f31d5ae115e830f719e96aafb205061eaaac14b04651ae2a7f4fdbb3a",
+      "bytes": 5777,
+      "removedDashCharacters": 3,
+      "remainingAuthoredDashCharacters": 0
+    },
+    {
+      "file": "panda_anat_bedtime.md",
+      "beforeSha256": "5bd54810485782e1e32aeaf2e1203996089d6b83e2c8b47ed049dab7435efbc3",
+      "beforeBytes": 3922,
+      "sha256": "c1d9c0a27789a964cee8f8c6726c903a983c6f97d5459ba1fb35f6168e9fe652",
+      "bytes": 3921,
+      "removedDashCharacters": 2,
+      "remainingAuthoredDashCharacters": 0
+    },
+    {
+      "file": "panda_anat_fantasy.md",
+      "beforeSha256": "83f73e7625dee9ea117ffbf11ef7b3a1169ef389c0dd8d20b6b5b390b99e294f",
+      "beforeBytes": 8014,
+      "sha256": "92c72f12e0e264d295566e68f932aedd2503ac56431a7ecdd6a6b2d0c4cca24e",
+      "bytes": 8001,
+      "removedDashCharacters": 7,
+      "remainingAuthoredDashCharacters": 0
+    }
+  ],
+  "checks": {
+    "authoredDashesRemaining": 0,
+    "personalizationCases": 144,
+    "negativePersonalizationControls": 5
+  },
+  "runtimeAuthority": "none",
+  "independentReview": "not_performed"
+}
