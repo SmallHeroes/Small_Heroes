@@ -1,5 +1,44 @@
 # SmallHeroes — Current Technical State
 
+## Owner priority: editorial refresh before more renders — 2026-09-16
+
+Guy requests reading/improving all stories after finding Uri's balcony plot dull.
+This task read all18 selected accepted-text slots plus six companion bibles;
+source hashes and exact selection live in
+story-pipeline/06_editorial_refresh/2026-09-16/sources.json. Dini text revision
+f77f4ca5 and Kim bedtime replacement eca8b3c8 were selected instead of their base
+texts. This is an EDITORIAL reading selection, not a claim about runtime resolution.
+Important mismatch: the shown Uri sample uses legacy `manginat hatipot`; the
+accepted-text collection contains `or ha'akevot hahafukhot`. Fix source selection
+and acceptance visibility before spending again; no resolver fix performed here.
+
+Completed first editorial wave: source-backed Hebrew diagnosis and concrete edit
+direction for18/18, plus THREE complete Uri drafts (8/12/16 pages,36 total), not
+18 rewritten manuscripts. Fifteen remain diagnosed/not rewritten. All new files
+are in the separate06_editorial_refresh/2026-09-16 staging directory; none is
+registered, promoted, product-accepted or supplied as rendering authority.
+Adventure: child-built tent travels on a toy cart in a closed garden. Bedtime:
+retain the shadow/kitten idea with a personal last-slide want and quieter ending.
+Fantasy: personal drawing delivery, one low-light star-path rule rather than a
+sequence of unrelated magic systems. URI_EDIT_NOTES_HE.md records self-review,
+causal choices, continuity needs and remaining pacing questions, not quality PASS.
+
+Offline checker passes:18 source hashes/sizes unchanged,18 report slots,
+3 draft structures,36 pages, both gender-chip expansions,8 negative controls.
+Initial checker probe exposed title tokens outside its validation scope; corrected
+to validate title as well as body. Initial combined shell call ended with tsc0
+after checker failure; final checker was run separately and exited0. No claim that
+the first checker run passed. Script is local validation tooling, not production
+code or the bank validator; expansion is not full Hebrew-language validation.
+Uri repair page2/page7 hashes still4c6823aa.../40a59b8e..., unchanged. No runtime
+consumers of the new directory found in app/backend/lib/scripts/package.json.
+Final standalone npx --no-install tsc --noEmit exited0 before commit.
+No provider/credential/image/audio actions; external API costUSD0. No push,
+independent review, product acceptance, full-book completion or launch claim.
+Existing full repository check remains NON-GREEN; not rerun for editorial scope.
+Next manuscript wave is Bunny x3, then Kim/Lion/Panda/Dini. Existing image QA and
+environment-continuity issues remain open; these text drafts do not resolve them.
+
 ## Shared repair live result: page2 repaired/pass, page7 HELD — 2026-09-16
 Execution at575bda08, new root outputs/uri-system-repair-20260916. Imported existing
 board/page2 without new generation or authority. Rejudged page2: framing defect;

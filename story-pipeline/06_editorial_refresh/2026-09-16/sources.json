@@ -1,0 +1,151 @@
+{
+  "version": "editorial-reading-inventory/v1",
+  "base": "b1a5c4b1c3dd3b660e2198f4111479f87762401e",
+  "selection": "accepted text reading set; NOT runtime resolution or render eligibility",
+  "sources": [
+    {
+      "key": "bunny_ometz_adventure",
+      "file": "story-pipeline/04_approved_story_sources/accepted/bunny_ometz_adventure/story.md",
+      "sha256": "e8f3315cefb19cc206d77654fd9349ef471837293fa68b198b356448c27f22ff",
+      "bytes": 8650,
+      "title": "\"{{childName}} ו־יריד הצלילים שמעבר לנשימה\"",
+      "pages": 12
+    },
+    {
+      "key": "bunny_ometz_bedtime",
+      "file": "story-pipeline/04_approved_story_sources/accepted/bunny_ometz_bedtime/story.md",
+      "sha256": "c0a1933c2e475ec37c96efae28b7c5cd805844c934dda4498145850df4569941",
+      "bytes": 6678,
+      "title": "\"{{childName}} ו־הלילה שבו הכלים פחדו\"",
+      "pages": 8
+    },
+    {
+      "key": "bunny_ometz_fantasy",
+      "file": "story-pipeline/04_approved_story_sources/accepted/bunny_ometz_fantasy/story.md",
+      "sha256": "ff68603d3a491486ac53b11a5ba237cbb8697f5199d62a23a2a3358bbd4bffa7",
+      "bytes": 12374,
+      "title": "\"{{childName}} והדלת בגודל הצעד\"",
+      "pages": 16
+    },
+    {
+      "key": "chameleon_koko_adventure",
+      "file": "story-pipeline/04_approved_story_sources/accepted/chameleon_koko_adventure/story.md",
+      "sha256": "b20b74e622f601501dfabc65cd7b3af401df04cbef7441457d74208b34ace782",
+      "bytes": 12990,
+      "title": "\"{{childName}} וקִים במשלוח שעבר בין כולם\"",
+      "pages": 12
+    },
+    {
+      "key": "chameleon_koko_bedtime",
+      "file": "story-pipeline/04_approved_story_sources/accepted/chameleon_koko_bedtime/revisions/eca8b3c8a8ed32a6a884cd9bd4fc493fcc6f00fed3c4ebe710c6a870ead2115d/story.md",
+      "sha256": "b18e824c96bf43a3d3f5b9dfe6457b2ad8a19112b73e89fcfbb55417a02afd09",
+      "bytes": 4142,
+      "title": "\"{{childName}} וקִים: הפנס שהגיע לגן לפני כולם\"",
+      "pages": 8
+    },
+    {
+      "key": "chameleon_koko_fantasy",
+      "file": "story-pipeline/04_approved_story_sources/accepted/chameleon_koko_fantasy/story.md",
+      "sha256": "5cbaed07bc640877e91c2d4c5a0dd86928e839a09ddf076ece8c582f826b9a61",
+      "bytes": 10655,
+      "title": "\"{{childName}} והעיר שאין לה צד קדמי\"",
+      "pages": 16
+    },
+    {
+      "key": "dragon_dini_adventure",
+      "file": "story-pipeline/04_approved_story_sources/accepted/dragon_dini_adventure/revisions/f77f4ca51fe3692d283f9fd1354392776e358da7ead86ab24cbb7e6e0bca9e98/story.md",
+      "sha256": "225f2b01b3fa2247b0dbffcd86b3bcfd4c89b2a90ae38af8b1842b1341826fd8",
+      "bytes": 7194,
+      "title": "\"{{childName}} ודיני: העוגה שהתנדנדה כל הדרך\"",
+      "pages": 12
+    },
+    {
+      "key": "dragon_dini_bedtime",
+      "file": "story-pipeline/04_approved_story_sources/accepted/dragon_dini_bedtime/story.md",
+      "sha256": "3a82fde86f891138b0b8abbaea59ddb16c8a95320cee2d2d65ae34575f3c7044",
+      "bytes": 9106,
+      "title": "\"{{childName}} ודגיג הנהר המנומנם\"",
+      "pages": 8
+    },
+    {
+      "key": "dragon_dini_fantasy",
+      "file": "story-pipeline/04_approved_story_sources/accepted/dragon_dini_fantasy/story.md",
+      "sha256": "ba59843988731539de236ec21ee2240c2c02b5962fcdf59f187775d0b0869fe7",
+      "bytes": 8996,
+      "title": "\"{{childName}} והקפיצה שבחרה בית\"",
+      "pages": 16
+    },
+    {
+      "key": "fox_uri_adventure",
+      "file": "story-pipeline/04_approved_story_sources/accepted/fox_uri_adventure/story.md",
+      "sha256": "cdc1192bc365605bfd5c72a0bb56adabfcef0f3984b2312bae41d980d796f550",
+      "bytes": 10358,
+      "title": "\"{{childName}} ואור העקבות ההפוכות\"",
+      "pages": 12
+    },
+    {
+      "key": "fox_uri_bedtime",
+      "file": "story-pipeline/04_approved_story_sources/accepted/fox_uri_bedtime/story.md",
+      "sha256": "02de53756aebb01af6233e3aa3f7be2f301991e4e1fd44ad7d51dd5c54c55fbe",
+      "bytes": 7594,
+      "title": "\"{{childName}} ו־הצל שביקש לישון\"",
+      "pages": 8
+    },
+    {
+      "key": "fox_uri_fantasy",
+      "file": "story-pipeline/04_approved_story_sources/accepted/fox_uri_fantasy/story.md",
+      "sha256": "60c0dc057e484fca75cb41beae10cc396d5e32a78b3db84b2b8c559f84cf79ee",
+      "bytes": 13428,
+      "title": "\"{{childName}} ו־הלילה שביקש לנוח\"",
+      "pages": 16
+    },
+    {
+      "key": "lion_shaket_adventure",
+      "file": "story-pipeline/04_approved_story_sources/accepted/lion_shaket_adventure/story.md",
+      "sha256": "b16dba08984b2ca96797e7f357066b63c914055bb361da332520dcd289b2975f",
+      "bytes": 9851,
+      "title": "\"{{childName}} והגשר שמקשיב לרגליים\"",
+      "pages": 12
+    },
+    {
+      "key": "lion_shaket_bedtime",
+      "file": "story-pipeline/04_approved_story_sources/accepted/lion_shaket_bedtime/story.md",
+      "sha256": "b6a30f1174c684cfb0f1c8a0041bcbae1dd4df10c58274829e78ea7956180cf0",
+      "bytes": 7917,
+      "title": "\"{{childName}} והסיבוב שנרדם בשלושה קצבים\"",
+      "pages": 8
+    },
+    {
+      "key": "lion_shaket_fantasy",
+      "file": "story-pipeline/04_approved_story_sources/accepted/lion_shaket_fantasy/story.md",
+      "sha256": "933e7c3ccbc8c905b4594959e117b0d2bbad9a3fdd0b73808ca989f074de55c6",
+      "bytes": 8741,
+      "title": "\"{{childName}} ו־המטע שחלם להיות שמיים\"",
+      "pages": 16
+    },
+    {
+      "key": "panda_anat_adventure",
+      "file": "story-pipeline/04_approved_story_sources/accepted/panda_anat_adventure/story.md",
+      "sha256": "97f1fffc2809ede2ad29ea3ed7cbfc0806d6a759f0b998e52bcfbe1f6f943249",
+      "bytes": 7750,
+      "title": "\"{{childName}} והשביל שרצה להצטרף\"",
+      "pages": 12
+    },
+    {
+      "key": "panda_anat_bedtime",
+      "file": "story-pipeline/04_approved_story_sources/accepted/panda_anat_bedtime/story.md",
+      "sha256": "ca9a162a43ecf0d6b111de4a4e29940205b2f91b0d61d0eba0f219c2f22ff91c",
+      "bytes": 6443,
+      "title": "\"{{childName}} ו־קידת הצללים\"",
+      "pages": 8
+    },
+    {
+      "key": "panda_anat_fantasy",
+      "file": "story-pipeline/04_approved_story_sources/accepted/panda_anat_fantasy/story.md",
+      "sha256": "67b40182094b46c3cddcb999a554d066e6ea60cfe3794fed1395e51d49c1231e",
+      "bytes": 13606,
+      "title": "\"{{childName}} ו־עפיפון שתי הרוחות\"",
+      "pages": 16
+    }
+  ]
+}

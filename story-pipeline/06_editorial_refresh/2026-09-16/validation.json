@@ -1,0 +1,156 @@
+{
+  "status": "offline_structure_and_preservation_checked",
+  "sourcesUnchanged": 18,
+  "reportSlots": 18,
+  "completeDrafts": 3,
+  "totalDraftPages": 36,
+  "rejectedNegativeControls": 8,
+  "candidates": [
+    {
+      "file": "fox_uri_adventure.md",
+      "sha256": "cfa5df18b974dbda76f701ec5a52a659cc06b1d171fcfd0815041e971c4a0cd5",
+      "bytes": 7856,
+      "pages": 12,
+      "genderChips": 34,
+      "genders": [
+        {
+          "gender": "boy",
+          "words": 715,
+          "wordsPerPage": [
+            69,
+            64,
+            57,
+            62,
+            56,
+            57,
+            64,
+            61,
+            56,
+            56,
+            58,
+            55
+          ]
+        },
+        {
+          "gender": "girl",
+          "words": 715,
+          "wordsPerPage": [
+            69,
+            64,
+            57,
+            62,
+            56,
+            57,
+            64,
+            61,
+            56,
+            56,
+            58,
+            55
+          ]
+        }
+      ]
+    },
+    {
+      "file": "fox_uri_bedtime.md",
+      "sha256": "14ee86669780640e816e5b80f9e7516f32b9452ec9facf6b5a84592bbcba3c9f",
+      "bytes": 5147,
+      "pages": 8,
+      "genderChips": 19,
+      "genders": [
+        {
+          "gender": "boy",
+          "words": 481,
+          "wordsPerPage": [
+            67,
+            58,
+            55,
+            57,
+            61,
+            61,
+            62,
+            60
+          ]
+        },
+        {
+          "gender": "girl",
+          "words": 481,
+          "wordsPerPage": [
+            67,
+            58,
+            55,
+            57,
+            61,
+            61,
+            62,
+            60
+          ]
+        }
+      ]
+    },
+    {
+      "file": "fox_uri_fantasy.md",
+      "sha256": "590dd8fd76e3eb7fa1013cfd56f4e91f482dd961f34e2f330bc4f4f984baa102",
+      "bytes": 10696,
+      "pages": 16,
+      "genderChips": 41,
+      "genders": [
+        {
+          "gender": "boy",
+          "words": 989,
+          "wordsPerPage": [
+            75,
+            59,
+            56,
+            57,
+            65,
+            53,
+            60,
+            68,
+            70,
+            56,
+            60,
+            60,
+            59,
+            63,
+            64,
+            64
+          ]
+        },
+        {
+          "gender": "girl",
+          "words": 989,
+          "wordsPerPage": [
+            75,
+            59,
+            56,
+            57,
+            65,
+            53,
+            60,
+            68,
+            70,
+            56,
+            60,
+            60,
+            59,
+            63,
+            64,
+            64
+          ]
+        }
+      ]
+    }
+  ],
+  "providerCalls": 0,
+  "writes": 0,
+  "productAccepted": false,
+  "independentReview": "not_performed",
+  "limits": [
+    "Not the production bank validator",
+    "Chip expansion is not Hebrew grammar validation",
+    "Not a read-aloud or child/parent test",
+    "No visual/narration/runtime readiness",
+    "Fifteen other manuscripts are diagnosed but not rewritten"
+  ]
+}
