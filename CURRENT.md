@@ -1,6 +1,21 @@
 # SmallHeroes — Current Technical State
 
-## Uri three-page shared sample prepared — 2026-09-16
+## Uri shared sample executed: HELD after first page — 2026-09-16
+Paid execution at fbc0d108 used the existing shared owner-draft sample pipeline.
+Four receipted calls: LOW prop board, LOW page2, blind anatomy and contextual QA.
+All four results have usage; no unknown outcome. Page2 framing defect: child over
+half image height despite assembled 33% target. Other seven contextual categories
+pass, not product acceptance or proof of visual QA accuracy. Manifest sample_held,
+maxRepairs0; pages7/10 absent/unassessed. CLI exit1; lock released. No retries,
+fallback, narration, full-book completion or customer/order cutover. Three-page
+request remains incomplete; no gate bypass or threshold relaxation.
+Receipt estimateUSD0.1150785 (images0.034786,QA0.0802925), not invoice verified;
+conservative checkpoint totalUSD0.70842, not an additional charge. Read-only audit
+helper reproduces all four matches and image hashes. Viewer at local output index.html.
+Next technical gap: reliable wide staging; the target reached the generation request
+but not the image. No counterfactual proves a replacement prompt will solve it.
+
+### Preparation record
 Guy requests three pages of another book through the existing pipeline and existing
 key. Selected unchanged fox_uri_adventure prose, Bar/boy/5; all12 parsed page texts/
 directions identical after removing archive metadata preamble in local input copy.

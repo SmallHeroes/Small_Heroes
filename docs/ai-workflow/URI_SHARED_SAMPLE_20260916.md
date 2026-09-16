@@ -57,3 +57,48 @@ Initial offline failure exposed the metadata-wrapper incompatibility; fixed in a
 new local copy, not parser or catalog. A too-literal diagnostic regex was replaced
 by actual assembled PROP inventory checks. No paid calls occurred during preparation.
 Full check not rerun: previous NON-GREEN status remains; no independent plan PASS.
+
+## Paid result and falsification targets
+Execution code/inputs held fixed at fbc0d108. CLI --sample --key-env-file used the
+existing local key source without printing it. Terminal exit1: sample_qa page2
+held_repair_limit, sample_held assessed1 unassessed[7,10]. Four claims/four matching
+results, zero unknowns; no page7/page10 images or remaining run.lock. No repair,
+retry or fallback. Three requested pages NOT completed; do not report otherwise.
+Prop board SHA9f0034952b4736ca9d649d186b8a17d2f0089f82175f6c93035ed4a8d320d857.
+Page2 SHA68ffa083bf3ba9c0e93c32491b864fdf88c3175273645e9c33866c8df496444c.
+Both inspected: board has three static objects, no characters; page depicts the
+planned child/fox action but child height visually exceeds half the frame. Board
+had no automated QA call, and inspection is not independent product acceptance.
+Blind anatomy pass; contextual anatomy/identity/relative_scale/props/environment/
+scene/safety pass, framing defect. Preserve these as MODEL verdicts. The prompt
+contains wide staging, numeric 33%/507px target and placement twice; target omission
+is falsified. This run demonstrates noncompliance, not its deeper causal explanation
+or a guaranteed remedy. No threshold changed, no historical verdict overwritten.
+
+| Call | List estimate USD | Conservative USD |
+| --- | ---: | ---: |
+| prop-board | 0.0059 | 0.0117 |
+| page-02 | 0.028886 | 0.11556 |
+| qa-02-anatomy | 0.022885 | 0.17652 |
+| qa-02 | 0.0574075 | 0.40464 |
+| Total | 0.1150785 | 0.70842 |
+
+Both QA receipts report GPT-5.5-2026-04-23, serviceTier flex, cached_tokens0.
+Image usage: text2034/image1892 input tokens,316 image output tokens.
+QA usage:16823 input/2549 output tokens (reasoning included, not added twice).
+Prices per million: image text input5/image input8/image output30;
+QA Flex input2.5/output15. Verified 2026-09-16 using OpenAI's
+[image API announcement](https://community.openai.com/t/introducing-gpt-image-2-available-today-in-the-api-and-codex/1379479)
+and [GPT-5.5 pricing announcement](https://openai.com/index/introducing-gpt-5-5/).
+List estimate is NOT an invoice; conservative all-token30/M accounting is NOT
+an extra charge. Reservations are not charges. No unknown bill treated as zero.
+Read-only node outputs/uri-system-sample-input-20260916/audit-results.cjs checks
+fingerprints, models, tiers, usage splits, image digests and stop evidence, writes0.
+cost-audit.json captures its output; index.html is a local diagnostic viewer only.
+
+Independent QA should inspect the immutable docs range from8bd79174 to the final
+closeout HEAD plus the named local artifacts separately. No production diff;
+code PASS remains c1ae489a. Falsify source page equality, full-plan validity,
+selected page order, target propagation, four receipts/cost arithmetic, absence
+of post-hold dispatches, raw model verdict preservation and local-only disclosure.
+No independent PASS self-awarded; full check and previous out-of-range issues open.
