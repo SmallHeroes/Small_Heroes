@@ -1,5 +1,37 @@
 # SmallHeroes — Current Technical State
 
+## All18 canonical text intake prepared, NOT published — 2026-09-16
+
+Continued on Guy's instruction from7b21c36a, clean ahead48/behind0, same task
+and sole-writer worktree/branch. INTAKE_DECISION.md records the bounded scope.
+Actual publication text validator rejects the two staging frontmatter fields.
+Prepared18 additive intake/*.md candidates with only those fields removed and
+CRLF normalized to LF. Original approved manuscripts/approval and accepted sources
+are unchanged. All216 parsed pages, titles and remaining metadata match exactly.
+
+prepare-intake.cjs uses the real validateEditorialPassDraft gender_flexible
+boundary, not a copied text validator. --emit only prints candidates; --check
+recomputes approval/predecessor hashes and verifies saved bytes and manifest.
+The sidecar binds approval, draft and candidate hashes and explicitly says
+prepared_not_published / publicationReady:false / runtimeAuthority:none.
+The reader and runtime bank still use their existing sources. No images changed.
+
+Checks:18/18 canonical text validations;11/11 focused preparation tests;
+existing lifecycle27 + personalization18 =45/45; existing corpus checker exit0;
+existing name/gender probe144 cases/1728 text pages and5 negative controls;
+tsc --noEmit exit0. No production caller/module changed. Full npm run check not
+rerun for this isolated corpus preparation; prior NON-GREEN status stays open.
+
+Important remaining boundary: validateEditorialPassDraft is a STRUCTURAL check,
+not an external Editor verdict. New Editor and independent artifact reviews are
+not supplied. No old review is copied, no self-PASS and no publish/loadInputs call.
+Lifecycle-compatible creative briefs and verified publication predecessor bindings
+also remain; the reading-source inventory is not proof of runtime selection.
+Next: review these exact candidate bytes, then evidence-bound source promotion and
+new page-grounded visual preparation. Guy's existing content approval remains valid
+and is not requested again. Handoff: story-pipeline/06_editorial_refresh/2026-09-16/
+INTAKE_HANDOFF.md. Zero provider/key/image/audio calls, no spend, no push.
+
 ## Guy approved all18 texts; typography and personalization checked — 2026-09-16
 
 Guy approved the new stories, requested no authored dashes, and explicitly required

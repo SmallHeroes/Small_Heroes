@@ -1,0 +1,392 @@
+{
+  "version": "editorial-canonical-intake/v1",
+  "status": "prepared_not_published",
+  "ownerContentApproval": {
+    "path": "story-pipeline/06_editorial_refresh/2026-09-16/OWNER_APPROVAL.json",
+    "sha256": "6b542b0b5d51f3e9dc3012e51e7ce600797249a33c57174793f7c9861611b153"
+  },
+  "readingInventory": {
+    "path": "story-pipeline/06_editorial_refresh/2026-09-16/sources.json",
+    "sha256": "0a7fc8ba84fbe812f94509571eac5a675a0dbbba2528ac07f10daa0124561512"
+  },
+  "storyCount": 18,
+  "pageCount": 216,
+  "transform": "Remove exact staging status/runtimeAuthority header lines; CRLF to LF only",
+  "runtimeAuthority": "none",
+  "publicationReady": false,
+  "missingPrerequisites": [
+    "External Editor review and independent artifact review",
+    "Lifecycle-compatible creative briefs and verified publication predecessor bindings",
+    "Publication request with required evidence, then fresh visual directions and consumer qualification"
+  ],
+  "limits": [
+    "Structural validator is not an Editor verdict",
+    "Reading predecessor is not a verified runtime locator or publication predecessor",
+    "No creative replacement loadInputs/publish call was made",
+    "Owner-approved prose is preserved; no approval is inferred for missing review evidence"
+  ],
+  "records": [
+    {
+      "key": "bunny_ometz_adventure",
+      "path": "story-pipeline/06_editorial_refresh/2026-09-16/intake/bunny_ometz_adventure.md",
+      "sha256": "a1509025707cbf392a246fc25034095c148bc4484e3e08ab782d26671223cf12",
+      "bytes": 5612,
+      "pages": 12,
+      "manuscriptPath": "story-pipeline/06_editorial_refresh/2026-09-16/bunny_ometz_adventure.md",
+      "manuscriptSha256": "c668d53c4301afb7b790ec777fdeb7dc161fb83918b15e0105d8dba02bbc4a66",
+      "readingPredecessor": {
+        "path": "story-pipeline/04_approved_story_sources/accepted/bunny_ometz_adventure/story.md",
+        "sha256": "e8f3315cefb19cc206d77654fd9349ef471837293fa68b198b356448c27f22ff"
+      },
+      "contentFidelity": "title_metadata_and_parsed_pages_equal",
+      "structuralValidation": "validateEditorialPassDraft_gender_flexible",
+      "editorialReview": "not_supplied",
+      "artifactIndependentReview": "not_supplied",
+      "visualDirections": "not_prepared",
+      "runtimeAuthority": "none",
+      "publicationReady": false
+    },
+    {
+      "key": "bunny_ometz_bedtime",
+      "path": "story-pipeline/06_editorial_refresh/2026-09-16/intake/bunny_ometz_bedtime.md",
+      "sha256": "987246e8dd3fa61f0540ef665734b1a4915f9787248f6fd6caeb08c73235fc2d",
+      "bytes": 3912,
+      "pages": 8,
+      "manuscriptPath": "story-pipeline/06_editorial_refresh/2026-09-16/bunny_ometz_bedtime.md",
+      "manuscriptSha256": "1cf445ccf2fe6fae498145351e66f3c41dcca1a17d411f713eecbe0dfd8e7b97",
+      "readingPredecessor": {
+        "path": "story-pipeline/04_approved_story_sources/accepted/bunny_ometz_bedtime/story.md",
+        "sha256": "c0a1933c2e475ec37c96efae28b7c5cd805844c934dda4498145850df4569941"
+      },
+      "contentFidelity": "title_metadata_and_parsed_pages_equal",
+      "structuralValidation": "validateEditorialPassDraft_gender_flexible",
+      "editorialReview": "not_supplied",
+      "artifactIndependentReview": "not_supplied",
+      "visualDirections": "not_prepared",
+      "runtimeAuthority": "none",
+      "publicationReady": false
+    },
+    {
+      "key": "bunny_ometz_fantasy",
+      "path": "story-pipeline/06_editorial_refresh/2026-09-16/intake/bunny_ometz_fantasy.md",
+      "sha256": "7d0f618bc590d85393fcd003ade3b62a642b0d81158d8a90ff714c1c2cefe98b",
+      "bytes": 7806,
+      "pages": 16,
+      "manuscriptPath": "story-pipeline/06_editorial_refresh/2026-09-16/bunny_ometz_fantasy.md",
+      "manuscriptSha256": "3ad89857fbf267c85f6f9ee3062985dd1882038fcd5b121d99ab47d3cd3052e0",
+      "readingPredecessor": {
+        "path": "story-pipeline/04_approved_story_sources/accepted/bunny_ometz_fantasy/story.md",
+        "sha256": "ff68603d3a491486ac53b11a5ba237cbb8697f5199d62a23a2a3358bbd4bffa7"
+      },
+      "contentFidelity": "title_metadata_and_parsed_pages_equal",
+      "structuralValidation": "validateEditorialPassDraft_gender_flexible",
+      "editorialReview": "not_supplied",
+      "artifactIndependentReview": "not_supplied",
+      "visualDirections": "not_prepared",
+      "runtimeAuthority": "none",
+      "publicationReady": false
+    },
+    {
+      "key": "chameleon_koko_adventure",
+      "path": "story-pipeline/06_editorial_refresh/2026-09-16/intake/chameleon_koko_adventure.md",
+      "sha256": "04ac3316bbe7effdcd8345f2b1495724b9fe425c43e67ea1e7050a3fb187a193",
+      "bytes": 5904,
+      "pages": 12,
+      "manuscriptPath": "story-pipeline/06_editorial_refresh/2026-09-16/chameleon_koko_adventure.md",
+      "manuscriptSha256": "27473350ffb6e3826c62b4ec015ed9d38ebe7dba30bac1e5c4f5d2c0954ccb2b",
+      "readingPredecessor": {
+        "path": "story-pipeline/04_approved_story_sources/accepted/chameleon_koko_adventure/story.md",
+        "sha256": "b20b74e622f601501dfabc65cd7b3af401df04cbef7441457d74208b34ace782"
+      },
+      "contentFidelity": "title_metadata_and_parsed_pages_equal",
+      "structuralValidation": "validateEditorialPassDraft_gender_flexible",
+      "editorialReview": "not_supplied",
+      "artifactIndependentReview": "not_supplied",
+      "visualDirections": "not_prepared",
+      "runtimeAuthority": "none",
+      "publicationReady": false
+    },
+    {
+      "key": "chameleon_koko_bedtime",
+      "path": "story-pipeline/06_editorial_refresh/2026-09-16/intake/chameleon_koko_bedtime.md",
+      "sha256": "e8b09d6bfa8527dd5be19050b4801ac10ad83189a7307fa56cce63060e843fc2",
+      "bytes": 4068,
+      "pages": 8,
+      "manuscriptPath": "story-pipeline/06_editorial_refresh/2026-09-16/chameleon_koko_bedtime.md",
+      "manuscriptSha256": "c315d64204dda872295a9025ac07dbe51ae666a34b003a42bc79b46e93ee1447",
+      "readingPredecessor": {
+        "path": "story-pipeline/04_approved_story_sources/accepted/chameleon_koko_bedtime/revisions/eca8b3c8a8ed32a6a884cd9bd4fc493fcc6f00fed3c4ebe710c6a870ead2115d/story.md",
+        "sha256": "b18e824c96bf43a3d3f5b9dfe6457b2ad8a19112b73e89fcfbb55417a02afd09"
+      },
+      "contentFidelity": "title_metadata_and_parsed_pages_equal",
+      "structuralValidation": "validateEditorialPassDraft_gender_flexible",
+      "editorialReview": "not_supplied",
+      "artifactIndependentReview": "not_supplied",
+      "visualDirections": "not_prepared",
+      "runtimeAuthority": "none",
+      "publicationReady": false
+    },
+    {
+      "key": "chameleon_koko_fantasy",
+      "path": "story-pipeline/06_editorial_refresh/2026-09-16/intake/chameleon_koko_fantasy.md",
+      "sha256": "5534ef039b8cdffb78ccb3cf7af140fcb740554c3589f3bd47471c3d509ab60d",
+      "bytes": 7733,
+      "pages": 16,
+      "manuscriptPath": "story-pipeline/06_editorial_refresh/2026-09-16/chameleon_koko_fantasy.md",
+      "manuscriptSha256": "2a22b06ff373d44fdbf30accfaad1c9c308ec8c2574a26581d87460470ff2cec",
+      "readingPredecessor": {
+        "path": "story-pipeline/04_approved_story_sources/accepted/chameleon_koko_fantasy/story.md",
+        "sha256": "5cbaed07bc640877e91c2d4c5a0dd86928e839a09ddf076ece8c582f826b9a61"
+      },
+      "contentFidelity": "title_metadata_and_parsed_pages_equal",
+      "structuralValidation": "validateEditorialPassDraft_gender_flexible",
+      "editorialReview": "not_supplied",
+      "artifactIndependentReview": "not_supplied",
+      "visualDirections": "not_prepared",
+      "runtimeAuthority": "none",
+      "publicationReady": false
+    },
+    {
+      "key": "dragon_dini_adventure",
+      "path": "story-pipeline/06_editorial_refresh/2026-09-16/intake/dragon_dini_adventure.md",
+      "sha256": "d4395ee31b286f0dbd0dd6822741255b29b3c53462535e0c8d5b56115c9c0f79",
+      "bytes": 7442,
+      "pages": 12,
+      "manuscriptPath": "story-pipeline/06_editorial_refresh/2026-09-16/dragon_dini_adventure.md",
+      "manuscriptSha256": "ffc415d3d3efae7f7e8dc62c0da908cc3e5500aeab53762b51400374fd296398",
+      "readingPredecessor": {
+        "path": "story-pipeline/04_approved_story_sources/accepted/dragon_dini_adventure/revisions/f77f4ca51fe3692d283f9fd1354392776e358da7ead86ab24cbb7e6e0bca9e98/story.md",
+        "sha256": "225f2b01b3fa2247b0dbffcd86b3bcfd4c89b2a90ae38af8b1842b1341826fd8"
+      },
+      "contentFidelity": "title_metadata_and_parsed_pages_equal",
+      "structuralValidation": "validateEditorialPassDraft_gender_flexible",
+      "editorialReview": "not_supplied",
+      "artifactIndependentReview": "not_supplied",
+      "visualDirections": "not_prepared",
+      "runtimeAuthority": "none",
+      "publicationReady": false
+    },
+    {
+      "key": "dragon_dini_bedtime",
+      "path": "story-pipeline/06_editorial_refresh/2026-09-16/intake/dragon_dini_bedtime.md",
+      "sha256": "147c4581a5b791e7323a73a251594dfa225b8f4afe8330c3bb1f71d0e3fae54f",
+      "bytes": 4046,
+      "pages": 8,
+      "manuscriptPath": "story-pipeline/06_editorial_refresh/2026-09-16/dragon_dini_bedtime.md",
+      "manuscriptSha256": "32e5d53bc1735b9c773d4e386c00ba05e29a86a1d844f5ab1faba554b1d9b357",
+      "readingPredecessor": {
+        "path": "story-pipeline/04_approved_story_sources/accepted/dragon_dini_bedtime/story.md",
+        "sha256": "3a82fde86f891138b0b8abbaea59ddb16c8a95320cee2d2d65ae34575f3c7044"
+      },
+      "contentFidelity": "title_metadata_and_parsed_pages_equal",
+      "structuralValidation": "validateEditorialPassDraft_gender_flexible",
+      "editorialReview": "not_supplied",
+      "artifactIndependentReview": "not_supplied",
+      "visualDirections": "not_prepared",
+      "runtimeAuthority": "none",
+      "publicationReady": false
+    },
+    {
+      "key": "dragon_dini_fantasy",
+      "path": "story-pipeline/06_editorial_refresh/2026-09-16/intake/dragon_dini_fantasy.md",
+      "sha256": "812795f48606deafa4b427907b199a5e9ec55640abf80f714bfc06025e176ff4",
+      "bytes": 7914,
+      "pages": 16,
+      "manuscriptPath": "story-pipeline/06_editorial_refresh/2026-09-16/dragon_dini_fantasy.md",
+      "manuscriptSha256": "04c9b32ae84bc3ec41c4ac530869167ea7d00991f88d29abd6fa3549ab85a48f",
+      "readingPredecessor": {
+        "path": "story-pipeline/04_approved_story_sources/accepted/dragon_dini_fantasy/story.md",
+        "sha256": "ba59843988731539de236ec21ee2240c2c02b5962fcdf59f187775d0b0869fe7"
+      },
+      "contentFidelity": "title_metadata_and_parsed_pages_equal",
+      "structuralValidation": "validateEditorialPassDraft_gender_flexible",
+      "editorialReview": "not_supplied",
+      "artifactIndependentReview": "not_supplied",
+      "visualDirections": "not_prepared",
+      "runtimeAuthority": "none",
+      "publicationReady": false
+    },
+    {
+      "key": "fox_uri_adventure",
+      "path": "story-pipeline/06_editorial_refresh/2026-09-16/intake/fox_uri_adventure.md",
+      "sha256": "af304469be5c6a997c18c15f1305ed222f43990ddfdc560391b9b2040e7dcd01",
+      "bytes": 7803,
+      "pages": 12,
+      "manuscriptPath": "story-pipeline/06_editorial_refresh/2026-09-16/fox_uri_adventure.md",
+      "manuscriptSha256": "da50961ed320c08330bb758d87a67b84fdd00fa493c04ae17a6d5e6c0364102a",
+      "readingPredecessor": {
+        "path": "story-pipeline/04_approved_story_sources/accepted/fox_uri_adventure/story.md",
+        "sha256": "cdc1192bc365605bfd5c72a0bb56adabfcef0f3984b2312bae41d980d796f550"
+      },
+      "contentFidelity": "title_metadata_and_parsed_pages_equal",
+      "structuralValidation": "validateEditorialPassDraft_gender_flexible",
+      "editorialReview": "not_supplied",
+      "artifactIndependentReview": "not_supplied",
+      "visualDirections": "not_prepared",
+      "runtimeAuthority": "none",
+      "publicationReady": false
+    },
+    {
+      "key": "fox_uri_bedtime",
+      "path": "story-pipeline/06_editorial_refresh/2026-09-16/intake/fox_uri_bedtime.md",
+      "sha256": "b8ce1f58aaf6a7b4eccab24db3f603d4a02d9c356603eb067d0c195bee1f49f3",
+      "bytes": 5102,
+      "pages": 8,
+      "manuscriptPath": "story-pipeline/06_editorial_refresh/2026-09-16/fox_uri_bedtime.md",
+      "manuscriptSha256": "5a94eb86d2b7421d98a61b23cb35d95b2d98e45f5851a297a5d0bb8a9001156f",
+      "readingPredecessor": {
+        "path": "story-pipeline/04_approved_story_sources/accepted/fox_uri_bedtime/story.md",
+        "sha256": "02de53756aebb01af6233e3aa3f7be2f301991e4e1fd44ad7d51dd5c54c55fbe"
+      },
+      "contentFidelity": "title_metadata_and_parsed_pages_equal",
+      "structuralValidation": "validateEditorialPassDraft_gender_flexible",
+      "editorialReview": "not_supplied",
+      "artifactIndependentReview": "not_supplied",
+      "visualDirections": "not_prepared",
+      "runtimeAuthority": "none",
+      "publicationReady": false
+    },
+    {
+      "key": "fox_uri_fantasy",
+      "path": "story-pipeline/06_editorial_refresh/2026-09-16/intake/fox_uri_fantasy.md",
+      "sha256": "f5b4a7e12c3fc66bc8c205ac0421bbf1b33a4c5b9dfec68b5b1c195fc9baa127",
+      "bytes": 10640,
+      "pages": 16,
+      "manuscriptPath": "story-pipeline/06_editorial_refresh/2026-09-16/fox_uri_fantasy.md",
+      "manuscriptSha256": "28193d9a55945ea54adfa2f364fb147a11b574182b425e04e49fe813ff60f130",
+      "readingPredecessor": {
+        "path": "story-pipeline/04_approved_story_sources/accepted/fox_uri_fantasy/story.md",
+        "sha256": "60c0dc057e484fca75cb41beae10cc396d5e32a78b3db84b2b8c559f84cf79ee"
+      },
+      "contentFidelity": "title_metadata_and_parsed_pages_equal",
+      "structuralValidation": "validateEditorialPassDraft_gender_flexible",
+      "editorialReview": "not_supplied",
+      "artifactIndependentReview": "not_supplied",
+      "visualDirections": "not_prepared",
+      "runtimeAuthority": "none",
+      "publicationReady": false
+    },
+    {
+      "key": "lion_shaket_adventure",
+      "path": "story-pipeline/06_editorial_refresh/2026-09-16/intake/lion_shaket_adventure.md",
+      "sha256": "09086359f779b2706ba69663300e087244ca6beb67b073d0fcaef5b6f421131a",
+      "bytes": 5786,
+      "pages": 12,
+      "manuscriptPath": "story-pipeline/06_editorial_refresh/2026-09-16/lion_shaket_adventure.md",
+      "manuscriptSha256": "423025cdbeae16515d2cc7e37cec03a521e7d51f6a529fc9ae796089ff980642",
+      "readingPredecessor": {
+        "path": "story-pipeline/04_approved_story_sources/accepted/lion_shaket_adventure/story.md",
+        "sha256": "b16dba08984b2ca96797e7f357066b63c914055bb361da332520dcd289b2975f"
+      },
+      "contentFidelity": "title_metadata_and_parsed_pages_equal",
+      "structuralValidation": "validateEditorialPassDraft_gender_flexible",
+      "editorialReview": "not_supplied",
+      "artifactIndependentReview": "not_supplied",
+      "visualDirections": "not_prepared",
+      "runtimeAuthority": "none",
+      "publicationReady": false
+    },
+    {
+      "key": "lion_shaket_bedtime",
+      "path": "story-pipeline/06_editorial_refresh/2026-09-16/intake/lion_shaket_bedtime.md",
+      "sha256": "838ecf668f6893e1990ed88a4b61e573e76de159637538aca922798f5fb7331d",
+      "bytes": 3832,
+      "pages": 8,
+      "manuscriptPath": "story-pipeline/06_editorial_refresh/2026-09-16/lion_shaket_bedtime.md",
+      "manuscriptSha256": "81314a9371960952e4d3c9c6798d5ae8528997bc9e83189c156d9650d488771d",
+      "readingPredecessor": {
+        "path": "story-pipeline/04_approved_story_sources/accepted/lion_shaket_bedtime/story.md",
+        "sha256": "b6a30f1174c684cfb0f1c8a0041bcbae1dd4df10c58274829e78ea7956180cf0"
+      },
+      "contentFidelity": "title_metadata_and_parsed_pages_equal",
+      "structuralValidation": "validateEditorialPassDraft_gender_flexible",
+      "editorialReview": "not_supplied",
+      "artifactIndependentReview": "not_supplied",
+      "visualDirections": "not_prepared",
+      "runtimeAuthority": "none",
+      "publicationReady": false
+    },
+    {
+      "key": "lion_shaket_fantasy",
+      "path": "story-pipeline/06_editorial_refresh/2026-09-16/intake/lion_shaket_fantasy.md",
+      "sha256": "c4d630c94a91fabdcc7cb9631f063b7891a896b21c22cef1607be44482df3264",
+      "bytes": 7418,
+      "pages": 16,
+      "manuscriptPath": "story-pipeline/06_editorial_refresh/2026-09-16/lion_shaket_fantasy.md",
+      "manuscriptSha256": "70846176f160122c768a5814864f84a3a96ff9f555d439f4e3b87e213f1a1b03",
+      "readingPredecessor": {
+        "path": "story-pipeline/04_approved_story_sources/accepted/lion_shaket_fantasy/story.md",
+        "sha256": "933e7c3ccbc8c905b4594959e117b0d2bbad9a3fdd0b73808ca989f074de55c6"
+      },
+      "contentFidelity": "title_metadata_and_parsed_pages_equal",
+      "structuralValidation": "validateEditorialPassDraft_gender_flexible",
+      "editorialReview": "not_supplied",
+      "artifactIndependentReview": "not_supplied",
+      "visualDirections": "not_prepared",
+      "runtimeAuthority": "none",
+      "publicationReady": false
+    },
+    {
+      "key": "panda_anat_adventure",
+      "path": "story-pipeline/06_editorial_refresh/2026-09-16/intake/panda_anat_adventure.md",
+      "sha256": "02d337de762d2be2e920289027051f2231cb58490ecf6271a069c9681fc3cc63",
+      "bytes": 5730,
+      "pages": 12,
+      "manuscriptPath": "story-pipeline/06_editorial_refresh/2026-09-16/panda_anat_adventure.md",
+      "manuscriptSha256": "01bdc89f31d5ae115e830f719e96aafb205061eaaac14b04651ae2a7f4fdbb3a",
+      "readingPredecessor": {
+        "path": "story-pipeline/04_approved_story_sources/accepted/panda_anat_adventure/story.md",
+        "sha256": "97f1fffc2809ede2ad29ea3ed7cbfc0806d6a759f0b998e52bcfbe1f6f943249"
+      },
+      "contentFidelity": "title_metadata_and_parsed_pages_equal",
+      "structuralValidation": "validateEditorialPassDraft_gender_flexible",
+      "editorialReview": "not_supplied",
+      "artifactIndependentReview": "not_supplied",
+      "visualDirections": "not_prepared",
+      "runtimeAuthority": "none",
+      "publicationReady": false
+    },
+    {
+      "key": "panda_anat_bedtime",
+      "path": "story-pipeline/06_editorial_refresh/2026-09-16/intake/panda_anat_bedtime.md",
+      "sha256": "c50e5e28d1531aebce795fee1e03bf81046a3924865d409fa004bdc9283f6311",
+      "bytes": 3874,
+      "pages": 8,
+      "manuscriptPath": "story-pipeline/06_editorial_refresh/2026-09-16/panda_anat_bedtime.md",
+      "manuscriptSha256": "c1d9c0a27789a964cee8f8c6726c903a983c6f97d5459ba1fb35f6168e9fe652",
+      "readingPredecessor": {
+        "path": "story-pipeline/04_approved_story_sources/accepted/panda_anat_bedtime/story.md",
+        "sha256": "ca9a162a43ecf0d6b111de4a4e29940205b2f91b0d61d0eba0f219c2f22ff91c"
+      },
+      "contentFidelity": "title_metadata_and_parsed_pages_equal",
+      "structuralValidation": "validateEditorialPassDraft_gender_flexible",
+      "editorialReview": "not_supplied",
+      "artifactIndependentReview": "not_supplied",
+      "visualDirections": "not_prepared",
+      "runtimeAuthority": "none",
+      "publicationReady": false
+    },
+    {
+      "key": "panda_anat_fantasy",
+      "path": "story-pipeline/06_editorial_refresh/2026-09-16/intake/panda_anat_fantasy.md",
+      "sha256": "10b2e9ae93d37e3d33afeed8397f09ee49cde5779c142f79abb76b2da7236d24",
+      "bytes": 7954,
+      "pages": 16,
+      "manuscriptPath": "story-pipeline/06_editorial_refresh/2026-09-16/panda_anat_fantasy.md",
+      "manuscriptSha256": "92c72f12e0e264d295566e68f932aedd2503ac56431a7ecdd6a6b2d0c4cca24e",
+      "readingPredecessor": {
+        "path": "story-pipeline/04_approved_story_sources/accepted/panda_anat_fantasy/story.md",
+        "sha256": "67b40182094b46c3cddcb999a554d066e6ea60cfe3794fed1395e51d49c1231e"
+      },
+      "contentFidelity": "title_metadata_and_parsed_pages_equal",
+      "structuralValidation": "validateEditorialPassDraft_gender_flexible",
+      "editorialReview": "not_supplied",
+      "artifactIndependentReview": "not_supplied",
+      "visualDirections": "not_prepared",
+      "runtimeAuthority": "none",
+      "publicationReady": false
+    }
+  ],
+  "providerCalls": 0,
+  "writes": 0
+}
