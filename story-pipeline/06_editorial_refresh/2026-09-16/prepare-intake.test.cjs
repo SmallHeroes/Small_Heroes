@@ -99,3 +99,32 @@ test('a later nonempty direction cannot hide behind an empty first direction', (
     assert.throws(() => canonicalCandidate(...fixture), /no_reused_directions/);
   }
 });
+
+test('indented nonempty directions are rejected even when the parser leaves them in prose', () => {
+  for (const indent of ['  ', '\t', ' \t ', '\u00a0']) {
+    for (const pageNumber of [1, 7]) {
+      const marker = `--- Page ${pageNumber} ---`;
+      const fixture = changed(s => s.replace(marker,
+        `${marker}\nimageDirection:\n${indent}ImageDirection: hidden stale board`));
+      const parsed = parseStoryMarkdown(fixture[0].toString('utf8')).pages[pageNumber - 1];
+      assert.equal(parsed.imageDirection, '');
+      assert.match(parsed.text, /ImageDirection: hidden stale board/);
+      assert.throws(() => canonicalCandidate(...fixture), /no_reused_directions/);
+    }
+  }
+});
+test('empty indented first directions preserve prose, including next-line text', () => {
+  for (const indent of ['  ', '\t', ' \t ', '\u00a0']) {
+    const fixture = changed(s => s.replace('--- Page 1 ---',
+      `--- Page 1 ---\n${indent}imageDirection: \t`));
+    const result = canonicalCandidate(...fixture);
+    assert.deepEqual(parseStoryMarkdown(result.text).pages,
+      parseStoryMarkdown(raw.toString('utf8')).pages);
+  }
+});
+test('ordinary prose mentioning imageDirection is accepted without modification', () => {
+  const fixture = changed(s => s.replace('--- Page 1 ---',
+    '--- Page 1 ---\nהכיתוב imageDirection: מופיע בתוך משפט.'));
+  const result = canonicalCandidate(...fixture);
+  assert.match(result.text, /הכיתוב imageDirection: מופיע בתוך משפט\./);
+});

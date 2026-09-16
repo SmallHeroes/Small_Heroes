@@ -1,5 +1,25 @@
 # SmallHeroes — Current Technical State
 
+## Indented direction P2 corrected locally, re-gate pending — 2026-09-16
+
+Claude supplied PASS P0=0/P1=0/P2=1 for e7f1a023..bfe886db only. He reproduced
+the prior empty-first bypass and confirmed output neutrality. Remaining P2: an
+indented later nonempty direction escapes the raw scan and remains visible prose.
+No current manuscript is affected; this is not a hidden runtime instruction.
+Same task/sole writer/worktree/branch, clean start bfe886db ahead50/behind0.
+Protected d53b768ccb2f and wave2 63ccb484 unchanged and clean.
+
+Reproduced before fix:16/17 tests pass, indented-line rejection fails with Missing
+expected exception. Intake regex now permits leading whitespace excluding CR/LF
+before the reserved key; no shared parser or production module change. Final17/17
+pass: spaces/tabs/mixed/NBSP in pages1/7, empty-first prose preservation and ordinary
+mid-sentence mention control. --check18/216 reproduces unchanged candidates and
+manifest; tsc exit0. Full check and adjacent45 tests not rerun in this correction;
+previous NON-GREEN persists. Approval/manuscripts/accepted sources untouched.
+No provider/key/render/spend/push or runtime authority. Prior PASS not extended.
+Re-gate brief: story-pipeline/06_editorial_refresh/2026-09-16/INTAKE_INDENT_REGATE.md.
+Remaining editorial, lifecycle, publication and visual prerequisites unchanged.
+
 ## Intake QA received; direction-guard correction awaiting re-gate — 2026-09-16
 
 Claude supplied independent PASS P0=0/P1=0/P2=1 for7b21c36a..e7f1a023 only.
