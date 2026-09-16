@@ -1,6 +1,47 @@
 # SmallHeroes — Current Technical State
 
-## Owner priority: editorial refresh before more renders — 2026-09-16
+## All eighteen editorial drafts saved; no runtime promotion — 2026-09-16
+
+Guy explicitly authorized rewriting ALL remaining stories without interim stops.
+Same task/sole writer in sh-r3b1b-semantic-m1 on
+codex/r3b1b-semantic-recovery-m1; continuation started clean at
+0eb569d7d278a2a17bcec7892007dc6cf165e9dc, ahead46/behind0 to local upstream.
+CONTINUATION.md extends the first-wave decision, with no render/API allowance used.
+
+Completed fifteen additional full manuscripts: Bunny/Kim/Lion/Panda/Dini x3.
+Together with the byte-preserved Uri trio, the editorial set is now18/18,
+216 text pages (six each of8/12/16), NOT eighteen accepted or rendered books.
+All are additive under story-pipeline/06_editorial_refresh/2026-09-16/.
+CATALOG_HE.md indexes the texts and explains creative/category caveats.
+READ_ALL_HE.md is a plain Markdown reading copy using Bar/boy as an example;
+the separate manuscripts retain boy/girl chips. No reader route/UI was changed.
+
+Child wants and reciprocal companion roles replace generic lesson tours. Kim
+adventure now centers a changed friendship game; Lion centers an actual lost turn
+or lost chosen fruit; Panda centers joining play/show/festival. Dini cake preserves
+its accepted predecessor's voice, with targeted continuity polish: fixed stacked
+tiers sway rather than rotate, wooden bridge to explicit dirt slope, baker's
+arrival seeded. Other drafts are structural rewrites, not pixel-specific repairs.
+Inherited MEDICAL_PROCEDURE/NEW_SIBLING tags do not establish clinical/category
+suitability; this is disclosed, and no category/runtime reassignment was made.
+
+Offline validation:18 source hashes/sizes and3 prior Uri draft hashes/sizes match;
+18 exact manuscript slots,216 ordered pages, both gender-token expansions,
+10 rejected negative controls, derived reading copy matches all manuscripts.
+Evidence: validation-all18.json; previous validation.json/HANDOFF.md preserved.
+Self-edit caught gender agreement, a repeated prop placement and gift-ownership
+continuity issues; corrected in the drafts. Initial checker rejected a glued name
+placeholder; final standalone checker exits0. These are author checks, NOT an
+independent PASS or proof of literary quality/Hebrew grammar/child suitability.
+Standalone npx --no-install tsc --noEmit exited0 before closeout.
+No provider/key/image/audio calls, external API costUSD0, no source promotion,
+catalog/Blueprint/package change, active QA change, deployment or push in this task.
+Existing full check remains NON-GREEN and was not rerun for editorial/tooling scope.
+Next: creative reading of the saved complete set, then explicitly bind selected
+final texts to new accepted revisions before using the generation pipeline.
+Existing image QA, reader route review and environment-continuity issues remain open.
+
+## Historical first editorial wave:18 diagnoses and3 Uri drafts — 2026-09-16
 
 Guy requests reading/improving all stories after finding Uri's balcony plot dull.
 This task read all18 selected accepted-text slots plus six companion bibles;
@@ -14,7 +55,8 @@ and acceptance visibility before spending again; no resolver fix performed here.
 
 Completed first editorial wave: source-backed Hebrew diagnosis and concrete edit
 direction for18/18, plus THREE complete Uri drafts (8/12/16 pages,36 total), not
-18 rewritten manuscripts. Fifteen remain diagnosed/not rewritten. All new files
+18 rewritten manuscripts. At first-wave closeout fifteen remained diagnosed/not rewritten;
+the continuation above now supersedes that count. All first-wave new files
 are in the separate06_editorial_refresh/2026-09-16 staging directory; none is
 registered, promoted, product-accepted or supplied as rendering authority.
 Adventure: child-built tent travels on a toy cart in a closed garden. Bedtime:
@@ -36,7 +78,8 @@ Final standalone npx --no-install tsc --noEmit exited0 before commit.
 No provider/credential/image/audio actions; external API costUSD0. No push,
 independent review, product acceptance, full-book completion or launch claim.
 Existing full repository check remains NON-GREEN; not rerun for editorial scope.
-Next manuscript wave is Bunny x3, then Kim/Lion/Panda/Dini. Existing image QA and
+The next manuscript wave at that closeout was Bunny x3, then Kim/Lion/Panda/Dini;
+all have now been drafted in the continuation above. Existing image QA and
 environment-continuity issues remain open; these text drafts do not resolve them.
 
 ## Shared repair live result: page2 repaired/pass, page7 HELD — 2026-09-16
