@@ -62,6 +62,47 @@ describe('offline evidence rules (synthetic observations, NOT visual accuracy)',
     const f = fixture(); f.subjects[0].parts = Array.from({ length: 3 }, (_, i) => ({ ...f.subjects[0].parts[0], id: `hand_${i}` }));
     expect(adjudicateAnatomyEvidence(f, expected())).toMatchObject({ disposition: 'held_uncertain', defects: [], repairAuthorized: false });
   });
+  it.each([0, 1e-7, -1e-7, 0.001])('holds near-duplicate endpoints offset by %s rather than inventing excess', offset => {
+    const f = fixture(); f.subjects[0].parts = Array.from({ length: 3 }, (_, i) => ({ ...f.subjects[0].parts[0], id: `hand_${i}`, region: { ...box, x: box.x + i * offset } }));
+    expect(adjudicateAnatomyEvidence(f, expected())).toMatchObject({ disposition: 'held_uncertain', defects: [] });
+  });
+  it.each([0.89, 0.9, 0.91])('applies the provisional IoU boundary at %s', ratio => {
+    const f = fixture(), part = f.subjects[0].parts[0];
+    f.subjects[0].parts = [
+      { ...part, id: 'a', region: { x: 0, y: 0, width: 1, height: 1 } },
+      { ...part, id: 'b', region: { x: 0, y: 0, width: ratio, height: 1 } },
+      { ...part, id: 'c', region: box },
+    ];
+    const result = adjudicateAnatomyEvidence(f, expected());
+    expect(result.disposition).toBe(ratio >= 0.9 ? 'held_uncertain' : 'observed_defect');
+  });
+  it.each([0.5e-6, 2e-6])('uses edge tolerance for tiny boxes with offset %s', offset => {
+    const f = fixture(), part = f.subjects[0].parts[0];
+    f.subjects[0].parts = [
+      { ...part, id: 'a', region: { ...box, width: 1e-8, height: 1e-8 } },
+      { ...part, id: 'b', region: { ...box, x: box.x + offset, width: 1e-8, height: 1e-8 } },
+      { ...part, id: 'c', region: { ...box, x: 0.6 } },
+    ];
+    expect(adjudicateAnatomyEvidence(f, expected()).disposition).toBe(offset <= 1e-6 ? 'held_uncertain' : 'observed_defect');
+  });
+  it('near-duplicate holds preserve separately reported visible defects', () => {
+    const f = fixture(), part = f.subjects[0].parts[0];
+    part.attachment = { state: 'defect', kind: 'disconnected_fragment', observation: 'Visible detached part', correction: 'Fix detached part' };
+    f.subjects[0].parts.push({ ...part, id: 'other_view', region: { ...box, x: box.x + 1e-7 } });
+    expect(adjudicateAnatomyEvidence(f, expected())).toMatchObject({ disposition: 'held_uncertain', defects: [{ kind: 'disconnected_fragment' }, { kind: 'disconnected_fragment' }], repairAuthorized: false });
+  });
+  it('rejects old policy identity instead of silently applying new tolerances', () => {
+    expect(() => adjudicateAnatomyEvidence({ ...fixture(), version: 'anatomy-evidence-policy/offline-v1' }, expected())).toThrow();
+  });
+  it('policy-local bounds reject out-of-image attachment boundaries', () => {
+    const f = fixture(); f.subjects[0].parts[0].attachment = { state: 'occluded', occluder: 'cart', boundary: { ...boundary, region: { ...box, y: 0.99 } } };
+    expect(() => adjudicateAnatomyEvidence(f, expected())).toThrow('anatomy_box_outside_image');
+  });
+  it('cannot detect an omitted third hand when reported coverage claims complete', () => {
+    // No image is supplied: the omitted physical endpoint has no record to inspect.
+    const f = fixture(); f.subjects[0].parts.push({ ...f.subjects[0].parts[0], id: 'hand_b', region: { ...box, x: 0.6 } });
+    expect(adjudicateAnatomyEvidence(f, expected())).toMatchObject({ disposition: 'observed_pass', pixelAccuracyProven: false, repairAuthorized: false });
+  });
   it.each(['incomplete', 'missing_subject', 'unknown_subject'])('holds %s coverage', problem => {
     const f = fixture(), e = expected();
     if (problem === 'incomplete') f.coverage = 'incomplete';

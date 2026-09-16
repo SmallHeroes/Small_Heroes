@@ -1,5 +1,29 @@
 # SmallHeroes — Current Technical State
 
+## Offline anatomy independent PASS and P2 corrections — 2026-09-16
+
+Claude supplied independent PASS P0=0/P1=0/P2=4 for exactly
+7952ab1ead39f92c174664639e80a9214cdc4df1..01f092eabf3988694c3195907ba0b6882867d5c1.
+He reported 135/135, tsc0, matching archive replay, 22 adversarial cases, active
+judge bytes unchanged and no provider/key access. PASS is offline-contract only.
+
+Codex reproduced P2-1: exact boxes held but 1e-7 offsets created excess-hand
+defect. Corrected in offline-v2: near edges <=1e-6 or IoU>=0.9 hold ambiguity,
+never merge into PASS; suppress only derived count defects, retain explicit ones.
+Tolerances are uncalibrated research rules. Below-threshold duplicate evidence
+remains possible. P2-2 consumer comment preserves defects under held_uncertain;
+P2-3 policy-local versioned box schema removes legacy dependency; P2-4 explicit
+omission limitation/test shows falsely complete reports can still observed_pass.
+No claim that omission or hallucination was solved; all authority flags stay false.
+
+148/148 focused tests (45 policy +103 adjacent), tsc exit0, diff check0. Old eight
+inspection replay outcomes unchanged on two unique images, zero provider calls
+and writes. Five active judge/quality files byte-unchanged; new module imported
+only by its spec. Full check not rerun, stability remains open/NON-GREEN. No paid
+calls, keys, renders, media edits, push, release or active judge migration.
+Corrections require independent re-gate; prior PASS boundary does not move.
+Brief/PowerShell: docs/ai-workflow/ANATOMY_OFFLINE_P2_20260916.md.
+
 ## Anatomy evidence rules: isolated offline milestone — 2026-09-16
 
 Guy approved the offline recommendation. New pure anatomy-evidence-policy module

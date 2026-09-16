@@ -1,8 +1,24 @@
 import { z } from 'zod';
-import { normalizedBoxSchema, validateNormalizedBox } from './local-anatomy-experiment';
 
 // Offline research only. No provider, prompt, calibration, repair or release integration.
-export const ANATOMY_EVIDENCE_VERSION = 'anatomy-evidence-policy/offline-v1';
+export const ANATOMY_EVIDENCE_VERSION = 'anatomy-evidence-policy/offline-v2';
+// Versioned local snapshot: legacy experiment schema changes cannot alter this policy.
+const normalizedBoxSchema = z.object({ x: z.number().min(0).max(1), y: z.number().min(0).max(1),
+  width: z.number().positive().max(1), height: z.number().positive().max(1) }).strict();
+type Box = z.infer<typeof normalizedBoxSchema>;
+function validateNormalizedBox(box: Box) {
+  if (box.x + box.width > 1 + 1e-8 || box.y + box.height > 1 + 1e-8) throw Error('anatomy_box_outside_image');
+}
+// Research ambiguity tolerances only, not pixel-grounded sameness or calibrated QA.
+const EDGE_EPSILON = 1e-6, DUPLICATE_IOU = 0.9;
+function potentiallySameEndpoint(a: Box, b: Box) {
+  if ([a.x - b.x, a.y - b.y, a.x + a.width - b.x - b.width,
+    a.y + a.height - b.y - b.height].every(delta => Math.abs(delta) <= EDGE_EPSILON)) return true;
+  const intersection = Math.max(0, Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x)) *
+    Math.max(0, Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y));
+  const union = a.width * a.height + b.width * b.height - intersection;
+  return union > 0 && intersection / union >= DUPLICATE_IOU;
+}
 const id = z.string().regex(/^[a-z][a-z0-9_-]{0,63}$/);
 const note = z.string().trim().min(1).max(1200);
 const sha = z.string().regex(/^[a-f0-9]{64}$/);
@@ -60,9 +76,8 @@ export function adjudicateAnatomyEvidence(value: unknown, expectation: unknown) 
     for (const [kind, max] of [['hand_endpoint', policy.maxVisibleHands], ['foot_endpoint', policy.maxVisibleFeet]] as const) {
       const visible = subject.parts.filter(p => p.kind === kind && p.attachment.state !== 'hidden');
       // Repeated crops/records of the same endpoint must not create a count defect.
-      const distinctRegions = new Set(visible.map(p => JSON.stringify(p.region)));
-      if (distinctRegions.size !== visible.length) {
-        holds.push(`${subject.id}:${kind}:duplicate_region`);
+      if (visible.some((part, i) => visible.slice(i + 1).some(other => potentiallySameEndpoint(part.region!, other.region!)))) {
+        holds.push(`${subject.id}:${kind}:ambiguous_duplicate_region`);
         continue;
       }
       // An unresolved fragment must not become a definite extra hand by counting it.
@@ -71,6 +86,8 @@ export function adjudicateAnatomyEvidence(value: unknown, expectation: unknown) 
       }
     }
   }
+  // disposition controls holding, not defect presence. Consumers must retain/inspect
+  // defects even under held_uncertain. Neither field authorizes repair in this policy.
   return { disposition: holds.length ? 'held_uncertain' : defects.length ? 'observed_defect' : 'observed_pass',
     holds, defects, evidence: report, renderAuthorized: false as const, repairAuthorized: false as const,
     pixelAccuracyProven: false as const };
