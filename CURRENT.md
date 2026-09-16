@@ -1,5 +1,30 @@
 # SmallHeroes — Current Technical State
 
+## Book proof: deterministic test premises corrected, full check green — 2026-09-17
+
+Same sole writer/task/worktree/branch, base08eb84b2 clean ahead52/behind0.
+BOOK_PROOF_STABILITY_DECISION.md scopes two test-only corrections. Both failures
+reproduced isolated before editing (7pass/2fail). Workload test now compares exact
+disjoint coverage against discovery and policy, retains22 resource targets and
+all named/negative assertions, and exercises a genuinely new ordinary spec.
+Model scan now preserves full dotted/qualified tokens. Only the existing Replicate
+ID at its exact registry path is exempted from first-party IDs; its version is
+pinned. Unknown/nested namespaces, moved IDs and truncated tokens remain rejected.
+No runtime/model/policy/timeout or production-code change. Focused11/11, tsc0.
+
+Full npm run check EXIT0: both typechecks pass; ordinary5671pass/73skip across388
+files, resource671/671 across22. Total6342pass/73skip,410 inventory, zero failures.
+One observed full green run, NOT proof of permanent load stability or release.
+Raw supervisor summary is preserved in book-proof/stability-check-summary.json;
+it is the final summary only, not a complete stdout/stderr log. No timeout raised,
+test removed, test exclusion changed, or unknown previous failure relabeled.
+Independent technical re-gate remains pending; no self-PASS or automatic push.
+
+Parallel editorial reassessment is a separate bounded milestone with separate
+decision/evidence files; it is not included in this test-only commit. Accepted
+sources/intake/OWNER_APPROVAL remain unchanged. Old visual/reader/release gates
+remain open regardless of this green check. Handoff:BOOK_PROOF_STABILITY_HANDOFF.md.
+
 ## Book proof: real Editor review before images — 2026-09-17
 
 Guy's active goal is a good complete book through the system, with prudent spend

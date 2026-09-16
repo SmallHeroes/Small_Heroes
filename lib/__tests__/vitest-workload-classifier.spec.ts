@@ -55,11 +55,23 @@ describe('Vitest workload classifier', () => {
     );
     const partition = classifyVitestWorkloads(inventory, policy);
 
-    expect(partition.inventory).toHaveLength(393);
+    expect(partition.inventory).toEqual(inventory);
     expect(partition.resourceIntensive).toHaveLength(22);
+    expect(partition.resourceIntensive).toEqual(
+      policy.resourceIntensiveSpecs.map((entry: { path: string }) => entry.path),
+    );
     expect(partition.resourceIntensive).toContain('lib/__tests__/cooperative-vitest-runner.spec.ts');
     expect(partition.inventory.some((candidate: string) => candidate.endsWith('.fixture.ts'))).toBe(false);
-    expect(partition.ordinary).toHaveLength(371);
+    expect(partition.ordinary).toEqual(
+      inventory.filter((candidate: string) => !partition.resourceIntensive.includes(candidate)),
+    );
+    expect([...partition.ordinary, ...partition.resourceIntensive].sort()).toEqual(inventory);
+    const addedSpec = 'lib/__tests__/zz-new-unlisted-workload-control.spec.ts';
+    expect(inventory).not.toContain(addedSpec);
+    const expanded = classifyVitestWorkloads([...inventory, addedSpec].sort(), policy);
+    expect(expanded.inventory).toEqual([...inventory, addedSpec].sort());
+    expect(expanded.ordinary).toEqual([...partition.ordinary, addedSpec].sort());
+    expect(expanded.resourceIntensive).toEqual(partition.resourceIntensive);
     expect(partition.ordinary).toContain('lib/__tests__/local-book-review.spec.ts');
     expect(partition.ordinary).toContain('lib/visual-package/__tests__/blueprint-action-space-diagnostics.spec.ts');
     expect(partition.ordinary).toContain('lib/visual-package/__tests__/semantic-correction-approval-bridge.spec.ts');

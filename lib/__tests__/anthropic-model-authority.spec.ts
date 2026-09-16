@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { comparisonModels } from '../visual-qa-comparison';
 
 import {
   ANTHROPIC_AUTHORIZED_HARDCODED_MODEL_IDS,
@@ -10,6 +11,21 @@ import {
   ANTHROPIC_SUPPORT_MODEL_DEFAULT,
   ANTHROPIC_VISION_MODEL_DEFAULT,
 } from '../../backend/providers/anthropic-model-authority';
+
+// Existing Replicate configuration is a separate namespace, not a first-party
+// Claude API model. Pin the exact registry location; never exempt a whole provider.
+const replicateRegistry = 'lib/visual-qa-comparison.ts';
+const replicateModel = 'anthropic/claude-4.5-sonnet';
+
+function modelTokens(source: string): string[] {
+  return [...source.matchAll(/[a-zA-Z0-9_./-]*claude-[a-zA-Z0-9_./-]+/gu)].map((match) => match[0]);
+}
+
+function permitted(model: string, location: string): boolean {
+  return ANTHROPIC_AUTHORIZED_HARDCODED_MODEL_IDS.includes(
+    model as (typeof ANTHROPIC_AUTHORIZED_HARDCODED_MODEL_IDS)[number],
+  ) || (model === replicateModel && location === replicateRegistry);
+}
 
 function productionSourceFiles(root: string): string[] {
   const files: string[] = [];
@@ -46,24 +62,41 @@ describe('Anthropic hardcoded model authority', () => {
     for (const file of productionSourceFiles(root)) {
       if (path.normalize(file) === authorityFile) continue;
       const source = fs.readFileSync(file, 'utf8');
-      for (const match of source.matchAll(/claude-[a-z0-9-]+/gu)) {
-        const locations = found.get(match[0]) ?? [];
+      for (const model of modelTokens(source)) {
+        const locations = found.get(model) ?? [];
         locations.push(path.relative(root, file).replace(/\\/gu, '/'));
-        found.set(match[0], locations);
+        found.set(model, locations);
       }
     }
 
-    expect([...found.keys()].sort()).toEqual(
-      [...new Set(found.keys())]
-        .filter((model) =>
-          ANTHROPIC_AUTHORIZED_HARDCODED_MODEL_IDS.includes(
-            model as (typeof ANTHROPIC_AUTHORIZED_HARDCODED_MODEL_IDS)[number]
-          )
-        )
-        .sort()
-    );
+    expect(found.size).toBeGreaterThan(0);
+    expect([...found.entries()].flatMap(([model, locations]) =>
+      locations.filter((location) => !permitted(model, location)).map((location) => ({ model, location })),
+    )).toEqual([]);
     for (const retired of ANTHROPIC_RETIRED_MODEL_IDS) {
       expect(found.has(retired), `${retired} found in ${found.get(retired)?.join(', ')}`).toBe(false);
     }
+  });
+
+  it('pins the existing Replicate registry entry without changing model authority', () => {
+    expect(comparisonModels.sonnet).toEqual({
+      name: replicateModel,
+      version: '459655107e29a683cb6deb73a9640cf9aeae39ea7c87803a2ae81c311f6ef44f',
+    });
+    expect(permitted(replicateModel, replicateRegistry)).toBe(true);
+    expect(permitted(replicateModel, 'scripts/another-provider.ts')).toBe(false);
+  });
+
+  it('preserves complete qualified and dotted tokens instead of authorizing substrings', () => {
+    const tokens = [
+      replicateModel, 'claude-sonnet-4-6', 'claude-4.5-sonnet',
+      'anthropic/claude-unknown', 'other/claude-sonnet-4-6',
+      'prefix/anthropic/claude-4.5-sonnet', 'preclaude-sonnet-4-6',
+      'claude-sonnet-4-6/unknown', 'claude-4', ...ANTHROPIC_RETIRED_MODEL_IDS,
+    ];
+    expect(modelTokens(tokens.map((token) => JSON.stringify(token)).join(', '))).toEqual(tokens);
+    expect(tokens.map((token) => permitted(token, replicateRegistry))).toEqual(
+      tokens.map((_, index) => index < 2),
+    );
   });
 });
