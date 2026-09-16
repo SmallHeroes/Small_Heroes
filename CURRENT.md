@@ -1,12 +1,25 @@
 # SmallHeroes — Current Technical State
 
+## Uri evidence review reconciliation — 2026-09-16
+Claude supplied HOLD P0=0/P1=1/P2=1 on8bd79174..64dac53f. No independent
+re-gate closure claimed. Correct documentation boundaries, not paid artifacts:
+the historical tool returned exit_code1; the CLI sample_held branch assigns2.
+A zero-provider Node exit2 probe reproduces tool exit1 unless PowerShell explicitly
+exits with LASTEXITCODE, then tool exit2. This explains why wrapper status cannot
+be treated as direct child status; historical native LASTEXITCODE was not captured.
+No evidence of a post-manifest exception, and no retrospective assertion of native2.
+Offline parseStoryMarkdown compares all12 text/imageDirection fields; previewStory
+projects pageNumber/personalized text only. Directions preserved and compared, NOT
+automatically consumed as rendering authority. Correction awaiting independent QA.
+
 ## Uri shared sample executed: HELD after first page — 2026-09-16
 Paid execution at fbc0d108 used the existing shared owner-draft sample pipeline.
 Four receipted calls: LOW prop board, LOW page2, blind anatomy and contextual QA.
 All four results have usage; no unknown outcome. Page2 framing defect: child over
 half image height despite assembled 33% target. Other seven contextual categories
 pass, not product acceptance or proof of visual QA accuracy. Manifest sample_held,
-maxRepairs0; pages7/10 absent/unassessed. CLI exit1; lock released. No retries,
+maxRepairs0; pages7/10 absent/unassessed. Tool/wrapper exit1 observed; native CLI
+exit not captured separately (sample_held code assigns2); lock released. No retries,
 fallback, narration, full-book completion or customer/order cutover. Three-page
 request remains incomplete; no gate bypass or threshold relaxation.
 Receipt estimateUSD0.1150785 (images0.034786,QA0.0802925), not invoice verified;
@@ -17,8 +30,9 @@ but not the image. No counterfactual proves a replacement prompt will solve it.
 
 ### Preparation record
 Guy requests three pages of another book through the existing pipeline and existing
-key. Selected unchanged fox_uri_adventure prose, Bar/boy/5; all12 parsed page texts/
-directions identical after removing archive metadata preamble in local input copy.
+key. Selected unchanged fox_uri_adventure prose, Bar/boy/5; parseStoryMarkdown
+compared all12 page texts/directions after removing the metadata preamble in local
+input copy. previewStory subsequently projects only pageNumber/personalized text.
 Full13-entry plan, selected2/7/10, static prop designs, existing child/fox refs.
 Real offline validators and CLI preflight exit0,124 focused tests and tsc0. No code
 changes; local owner-draft shared pipeline only, not customer/order activation.

@@ -10,8 +10,10 @@ Keep this task; no parallel implementation or automatic push.
 Read the complete v3-approved fox_uri_adventure.md, 12 pages. It has a child-led
 investigation, comic companion, sensory discovery and shared rhythm. Original source
 bytes preserved. A local input copy strips metadata preceding the frontmatter, which
-the preview parser otherwise rejects. All12 parsed page prose/directions deep-equal
-the original; only transport wrapper/EOL differ. Personalize Bar/boy/5. No editorial replacement,
+the preview parser otherwise rejects. parseStoryMarkdown's all12 page text and
+imageDirection fields deep-equal the original in the offline validator. previewStory
+then projects only pageNumber/personalized text; it does NOT pass imageDirection
+to render prompts. Only transport wrapper/EOL differ. Personalize Bar/boy/5. No editorial replacement,
 catalog publication or acceptance inferred from the folder name. This is the existing
 LOCAL EDITORIAL owner-draft pipeline, not customer/order/release activation.
 Create full13-entry plan and sample[2,7,10], source/plan/reference SHA-bound. Page2
@@ -60,7 +62,8 @@ Full check not rerun: previous NON-GREEN status remains; no independent plan PAS
 
 ## Paid result and falsification targets
 Execution code/inputs held fixed at fbc0d108. CLI --sample --key-env-file used the
-existing local key source without printing it. Terminal exit1: sample_qa page2
+existing local key source without printing it. Tool/wrapper exit_code1 observed,
+not separately captured native CLI exit status: sample_qa page2
 held_repair_limit, sample_held assessed1 unassessed[7,10]. Four claims/four matching
 results, zero unknowns; no page7/page10 images or remaining run.lock. No repair,
 retry or fallback. Three requested pages NOT completed; do not report otherwise.
@@ -102,3 +105,46 @@ code PASS remains c1ae489a. Falsify source page equality, full-plan validity,
 selected page order, target propagation, four receipts/cost arithmetic, absence
 of post-hold dispatches, raw model verdict preservation and local-only disclosure.
 No independent PASS self-awarded; full check and previous out-of-range issues open.
+
+## Documentation correction after Claude HOLD on8bd79174..64dac53f
+Claude supplied P0=0/P1=1/P2=1. Source, plan, prompt, four receipts, verdicts and
+cost checks confirmed in that review; no PASS inferred from those confirmations.
+
+P1: the prior phrase "CLI terminal exit1" conflated execution boundaries. Historical
+tool output from write_stdin session57720 (chunk8e17f1) reported exit_code1 and:
+```json
+{"stage":"sample_qa","page":2,"status":"held_repair_limit"}
+{"status":"sample_held","assessed":1,"unassessed":[7,10]}
+```
+This excerpt is transcribed from the conversation's tool response, not a raw native
+process log recovered from disk. No native LASTEXITCODE/stderr split was captured.
+CLI code assigns2 for sample_held and1 in catch. Replacing the historical observation
+with2 would be unsupported. Fresh zero-provider boundary probes on the same tool:
+```powershell
+node -e "process.exitCode = 2"
+# tools.exec_command returned exit_code1 (chunk d41cfa), no stdout.
+
+node -e "process.exitCode = 2"
+$uriProbeExit = $LASTEXITCODE
+Write-Output "nativeExit=$uriProbeExit"
+exit $uriProbeExit
+# tools.exec_command returned exit_code2, stdout nativeExit=2 (chunk d62c6c).
+```
+Thus wrapper1 is compatible with native2 here, without an application exception.
+This reproduces a mechanism, NOT a replay of the paid run or proof of its native
+exit. Keep historical native exit unmeasured; no exception asserted or concealed.
+Future live commands should capture and explicitly propagate LASTEXITCODE and
+retain stdout/stderr with the run; no paid replay performed just to recover it.
+
+P2: validate.cjs explicitly calls parseStoryMarkdown on original and normalized
+sources and deep-compares .pages, whose entries DO include imageDirection. The
+claim was supported at that boundary, but naming it was missing. previewStory uses
+that parser internally, then omits imageDirection from its returned pages; plans
+are the explicit visual input to prompt assembly. No automatic direction ingestion
+or source-to-plan semantic equivalence claimed. No evidence this omission caused
+the measured framing defect: the actual request already carries wide/33%/507pixels.
+
+Changes in this correction: CURRENT.md and this gate only in Git; new local
+re-gate handoff outside both paid/input roots. Existing HANDOFF.md is historical,
+superseded on these two wording points, not silently overwritten. No code, judge,
+plan, source, input, paid image, receipt, verdict or cost changes; no key/provider.
