@@ -3,12 +3,12 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { draftManifest, draftOutputRoot, loadOwnerDraft, ownerDraftSchema, ownerDraftPagePrompt, ownerDraftPropBoardPrompt, runGatedDraftPages, runOwnerBookDraft } from '../scripts/run-owner-book-draft';
+import { draftManifest, draftOutputRoot, loadOwnerDraft, ownerDraftSchema, ownerDraftPagePrompt, ownerDraftPropBoardPrompt, ownerDraftRepairPrompt, runGatedDraftPages, runOwnerBookDraft } from '../scripts/run-owner-book-draft';
 import { QUALITY_CATEGORIES } from './local-preview-quality';
 import sharp from 'sharp';
 import { generateGPTImage } from './generate-image';
 import { judgePreviewCandidate } from '../scripts/lib/local-preview-judge';
-vi.mock('./generate-image', () => ({ generateGPTImage: vi.fn() }));
+vi.mock('./generate-image', () => ({ generateGPTImage: vi.fn(), resolveGPTImageEditMaxReferences: () => 4 }));
 vi.mock('../scripts/lib/local-preview-judge', () => ({ judgePreviewCandidate: vi.fn() }));
 import { previewCheckpoint, previewSha, bindPreviewRun } from './local-story-preview';
 
@@ -28,6 +28,23 @@ function fixture() {
   return { repo, config };
 }
 describe('explicit local editorial draft boundary', () => {
+  it('requires explicit sample opt-in and unique selected imported candidates', () => {
+    const { repo, config } = fixture();
+    expect(() => loadOwnerDraft(repo, { ...config, sampleRepairOnce: true })).toThrow('draft_repair_sample_only');
+    expect(() => loadOwnerDraft(repo, { ...config, samplePages: [1], sampleInitialImages: [{ pageNumber: 1, image: config.childAnchor }] })).toThrow('draft_repair_sample_only');
+    for (const pages of [[1, 1], [2]]) expect(() => loadOwnerDraft(repo, { ...config, samplePages: [1], sampleRepairOnce: true,
+      sampleInitialImages: pages.map(pageNumber => ({ pageNumber, image: config.childAnchor })) })).toThrow('draft_initial_image_selection');
+  });
+  it('reserves one run-wide repair, deducts only pinned imports and checks their hashes', () => {
+    const { repo, config } = fixture();
+    const next = { ...config, samplePages: [1, 2], sampleRepairOnce: true };
+    expect(() => loadOwnerDraft(repo, { ...next, imageBudgetUsd: 1 })).toThrow('draft_initial_reservation_limit');
+    expect(loadOwnerDraft(repo, { ...next, imageBudgetUsd: 1.5 }).initialImages).toEqual([]);
+    const imported = { ...next, imageBudgetUsd: 1, sampleInitialImages: [{ pageNumber: 1, image: config.childAnchor }] };
+    expect(loadOwnerDraft(repo, imported).initialImages).toHaveLength(1);
+    fs.appendFileSync(path.join(repo, config.childAnchor.file), 'changed');
+    expect(() => loadOwnerDraft(repo, imported)).toThrow('draft_input_changed');
+  });
   it('makes a generic prop board without predecessor-story instructions', () => {
     const { repo, config } = fixture(); const { plan } = loadOwnerDraft(repo, config);
     plan.recurringProps = [{ id: 'chair', design: 'four wooden legs, one blue seat' }];
@@ -130,6 +147,45 @@ describe('shared quality before next draft sample page', () => {
     expect(events).toEqual(['render1', 'judge1', 'persist1', 'render2', 'judge2', 'persist2']);
     expect(result).toMatchObject({ productionReady: false, productAcceptance: 'pending', automaticRepair: false, unassessed: [] });
   });
+  it('repairs once across the whole sample, carries bound feedback and preserves both verdicts', async () => {
+    const { args } = setup('defect');
+    const renders = vi.fn(async (page: number, attempt: number) => ({ imageSha: String(page + attempt).repeat(64), imageName: `p${page}-${attempt}.png` }));
+    const result = await runGatedDraftPages({ ...args, maxTotalRepairs: 1, render: renders,
+      judge: async (_p, candidate, _c, contextSha, _prior, attempt) => ({ ...review(contextSha, attempt ? 'pass' : 'defect'), candidateSha: candidate.imageSha }) });
+    expect(renders.mock.calls.map(c => c.slice(0, 2))).toEqual([[1, 0], [1, 1], [2, 0]]);
+    expect(result).toMatchObject({ repairsUsed: 1, automaticRepair: true, status: 'sample_held' });
+    expect(result.results.map(r => r.status)).toEqual(['passed', 'held_repair_limit']);
+    expect(result.results[0].history).toHaveLength(2);
+    expect(renders.mock.calls[1]).toEqual([1, 1, expect.objectContaining({ imageSha: '1'.repeat(64) }),
+      expect.objectContaining({ candidateSha: '1'.repeat(64) }), expect.any(String)]);
+  });
+  it.each(['uncertain', 'malformed', 'mismatch', 'transport', 'mixed'] as const)('opt-in still cannot repair %s', async failure => {
+    const { args } = setup('pass');
+    const result = await runGatedDraftPages({ ...args, maxTotalRepairs: 1, judge: async (_p, _c, _ctx, contextSha) => {
+      if (failure === 'transport') throw Error('transport_failed');
+      if (failure === 'malformed') return {};
+      const value = review(failure === 'mismatch' ? 'b'.repeat(64) : contextSha, failure === 'uncertain' ? 'uncertain' : 'defect');
+      if (failure === 'mixed') value.checks[0].verdict = 'uncertain';
+      return value;
+    } });
+    expect(result.status).toBe('sample_held'); expect(args.render).toHaveBeenCalledTimes(1); expect(result.repairsUsed).toBe(0);
+  });
+  it('one failed repair stops before the next page', async () => {
+    const { args } = setup('defect');
+    const render = vi.fn(async (_page: number, attempt: number) => ({ imageSha: attempt ? 'b'.repeat(64) : imageSha, imageName: `attempt${attempt}.png` }));
+    const result = await runGatedDraftPages({ ...args, render, maxTotalRepairs: 1,
+      judge: async (_p, c, _ctx, h) => ({ ...review(h, 'defect'), candidateSha: c.imageSha }) });
+    expect(render).toHaveBeenCalledTimes(2); expect(result.results[0].history).toHaveLength(2); expect(result.unassessed).toEqual([2]);
+  });
+  it('repair prompt requires bound defects and distinguishes edit target from canonical design', () => {
+    const candidate = { imageSha, imageName: 'page-01.png' }, ctx = 'b'.repeat(64);
+    const base = 'image 3, when attached = recurring PROP design board ONLY.';
+    for (const verdict of ['pass', 'uncertain'] as const) expect(() => ownerDraftRepairPrompt(base, candidate, review(ctx, verdict), ctx, 3)).toThrow('draft_repair_requires_bound_defect');
+    expect(() => ownerDraftRepairPrompt(base, candidate, review(ctx, 'defect'), 'c'.repeat(64), 3)).toThrow('quality_evidence_binding');
+    const prompt = ownerDraftRepairPrompt(base, candidate, review(ctx, 'defect'), ctx, 3);
+    expect(prompt).toContain('previous candidate EDIT TARGET ONLY'); expect(prompt).not.toContain('recurring PROP design board ONLY');
+    expect(prompt).toContain('fix connection'); expect(prompt).toContain('numeric targets remain authoritative');
+  });
   it.each(['defect', 'uncertain'] as const)('stops after %s, preserves evidence, never repairs or renders next', async verdict => {
     const { args, events } = setup(verdict); const result = await runGatedDraftPages(args);
     expect(events).toEqual(['render1', 'judge1', 'persist1']);
@@ -183,6 +239,37 @@ describe('real owner-draft entry point with mocked providers', () => {
       usage: { input_tokens: 100, output_tokens: 100 } }));
     return { file, root };
   }
+  it('imports without generation, repairs to a new file, checkpoints both attempts and carries repaired prior context', async () => {
+    const { file, root } = await inputs();
+    const config = JSON.parse(fs.readFileSync(file, 'utf8'));
+    config.sampleRepairOnce = true;
+    config.sampleInitialImages = [{ pageNumber: 1, image: config.childAnchor }];
+    fs.writeFileSync(file, JSON.stringify(config));
+    const original = fs.readFileSync(path.resolve(__dirname, '..', config.childAnchor.file));
+    const different = await sharp({ create: { width: 16, height: 16, channels: 3, background: 'blue' } }).png().toBuffer();
+    const originalImpl = vi.mocked(generateGPTImage).getMockImplementation()!;
+    vi.mocked(generateGPTImage).mockImplementation(async args => {
+      expect(fs.existsSync(path.join(root, 'sample-page-01-attempt-0.json'))).toBe(true);
+      return { ...await originalImpl(args), buffer: different };
+    });
+    vi.mocked(judgePreviewCandidate).mockImplementation(async args => ({ candidateSha: args.candidateSha, contextSha: args.contextSha,
+      checks: QUALITY_CATEGORIES.map(category => ({ category, verdict: args.step === 'qa-01' && category === 'framing' ? 'defect' : 'pass',
+        observation: 'too large in frame', correction: category === 'framing' ? 'step back' : '' })) }));
+    const result = await runOwnerBookDraft(file, 'sample');
+    expect(result).toMatchObject({ status: 'sample_diagnostically_passed_not_accepted', repairsUsed: 1, productionReady: false });
+    expect(generateGPTImage).toHaveBeenCalledTimes(2);
+    expect(vi.mocked(judgePreviewCandidate).mock.calls.map(c => c[0].step)).toEqual(['qa-01', 'qa-01-repair-01', 'qa-02']);
+    expect(fs.readFileSync(path.join(root, 'page-01.png'))).toEqual(original);
+    expect(fs.readFileSync(path.join(root, 'page-01-repair-01.png'))).toEqual(different);
+    const request = JSON.parse(fs.readFileSync(path.join(root, 'page-01-repair-01.request.json'), 'utf8'));
+    expect(request.references).toHaveLength(3); expect(request.repairOf.imageSha).toBe(previewSha(original));
+    expect(request.prompt).toContain('step back'); expect(request.prompt).not.toContain('recurring PROP design board ONLY');
+    expect(vi.mocked(judgePreviewCandidate).mock.calls[2][0].context).toMatchObject({ priorPages: [{ imageName: 'page-01-repair-01.png', imageSha: previewSha(different) }] });
+    expect(fs.existsSync(path.join(root, 'steps/page-01.claim.json'))).toBe(false);
+    const imageCalls = vi.mocked(generateGPTImage).mock.calls.length;
+    await runOwnerBookDraft(file, 'sample'); expect(generateGPTImage).toHaveBeenCalledTimes(imageCalls);
+    expect(fs.readFileSync(path.resolve(__dirname, '..', config.childAnchor.file))).toEqual(original);
+  });
   it('persists usage and held manifest; no second image after real shared verdict; checkpoint replay does not regenerate', async () => {
     const { file, root } = await inputs();
     vi.mocked(judgePreviewCandidate).mockImplementation(async args => ({ candidateSha: args.candidateSha, contextSha: args.contextSha,

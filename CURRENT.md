@@ -1,5 +1,28 @@
 # SmallHeroes — Current Technical State
 
+## Bounded shared-sample repair implementation — 2026-09-16
+Guy approved one bounded correction then continuing Uri2/7/10. Local editorial
+owner-draft now has opt-in sampleRepairOnce, single repair across the WHOLE sample,
+plus hash-pinned initial candidate import (not acceptance). Default v2/legacy stays
+unchanged; opt-in v3 identity prevents adopting old roots. Existing quality loop
+alone decides defect vs hold; malformed/uncertain/transport/budget outcomes do not
+authorize repair. New attempt filename/checkpoint/QA binding; every valid attempt
+persisted before next image. Plan, judge, thresholds and anchors unchanged.
+135 focused tests pass (owner59,quality28,judge16,checkpoints32), tsc0, CLI preflight0.
+Full check running at implementation checkpoint; no stability closure claimed.
+Paid execution pending: fresh outputs/uri-system-repair-20260916, input
+outputs/uri-system-repair-input-20260916/config.json SHA9eb0755d48025cd95bd05fae6d68982ebf095549468cb4c4053c04b3d7e2d5a2.
+Reuses original board and page2 bytes, judges imported candidate anew, at most one
+repair plus pages7/10 if allowed. ImageUSD2/QAUSD5 fences, LOW, no narration/fullbook.
+Logs/checks/capture wrapper in outputs/draft-repair-once-evidence-20260916.
+All named roots ignored/local-only, no verified off-machine backup, push excludes them.
+Claude supplied PASS0/0/1 on64dac53f..29baf75c. Remaining inventory P2 addressed by
+explicitly listing outputs/uri-evidence-correction-20260916/HANDOFF.md and
+preservation.json here. His harness returned2 for BOTH wrapper probes; previous P1
+closure rests on scoped disclosure, not independent wrapper-mechanism reproduction.
+No independent PASS on this implementation. Gate:
+docs/ai-workflow/DRAFT_SAMPLE_REPAIR_ONCE_20260916.md.
+
 ## Uri evidence review reconciliation — 2026-09-16
 Claude supplied HOLD P0=0/P1=1/P2=1 on8bd79174..64dac53f. No independent
 re-gate closure claimed. Correct documentation boundaries, not paid artifacts:
