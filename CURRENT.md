@@ -1,5 +1,20 @@
 # SmallHeroes — Current Technical State
 
+## Uri three-page shared sample prepared — 2026-09-16
+Guy requests three pages of another book through the existing pipeline and existing
+key. Selected unchanged fox_uri_adventure prose, Bar/boy/5; all12 parsed page texts/
+directions identical after removing archive metadata preamble in local input copy.
+Full13-entry plan, selected2/7/10, static prop designs, existing child/fox refs.
+Real offline validators and CLI preflight exit0,124 focused tests and tsc0. No code
+changes; local owner-draft shared pipeline only, not customer/order activation.
+Allowed up to one LOW prop board plus3 LOW pages, imageUSD2/QAUSD5 conservative
+fences. Judge unchanged GPT-5.5 medium/Flex. First non-pass halts; no auto-repair,
+fallback or retries. At preparation paid execution pending, no new product PASS.
+Local input/output roots outputs/uri-system-sample[-input]-20260916 are ignored,
+no verified off-machine backup. Gate: docs/ai-workflow/URI_SHARED_SAMPLE_20260916.md.
+Claude's supplied Kim data PASS0/0/0 covers c1ae489a..8bd79174; code PASS remains
+c1ae489a. Full-check NON-GREEN and other out-of-range review gaps remain open.
+
 ## Kim prop-design data correction prepared offline — 2026-09-16
 
 Claude supplied re-gate PASS0/0/1 on6b14617a..c1ae489a, closing previous HOLD0/1/4.
