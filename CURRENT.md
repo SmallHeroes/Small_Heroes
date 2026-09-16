@@ -1,6 +1,34 @@
 # SmallHeroes — Current Technical State
 
-## Existing shared draft runner: gated sample implementation — 2026-09-16
+## Existing shared draft runner: live gated sample HELD — 2026-09-16
+
+Code c94b0511 executed one prop-board and page3 through generateGPTImage, then
+the unchanged shared blind/contextual GPT-5.5 medium/Flex judge. Sample HELD;
+page7 NOT generated, no repair/retry/fallback/audio. Contextual QA found relative
+scale (small stop/Kim), prop geometry/duplicate sock, missing rope-roof contact,
+and too-tight framing. Raw blind anatomy separately flags the shelter's feet as
+disconnected anatomy; contextual QA accepts their enchanted-prop connection. Both
+raw records preserved; current blind-override policy retains defect. This is an
+intent-sensitive false-positive risk, not proof of calibrated anatomy detection.
+Operator also found unwanted animal passengers on the prop board: no board-level
+QA exists in this milestone. Do not adopt board or held page as approved anchors.
+
+Four known provider results/zero unknown, usage-based list estimateUSD0.1572235
+(not invoice), conservative accountedUSD0.81999, below image2/QA4 budgets. Actual
+receipt replay with throwing network fence and dummy key reproduced sample_held
+with providerDispatches0; no real key read. Source and three rejected old images
+unchanged; all25 panda reader image/audio hashes preserved. Inputs/receipts/cost
+audit under outputs/kim-system-sample[-input]-20260916, ignored/local-only with no
+verified off-machine backup; push does not preserve. New code has no independent PASS.
+
+Full npm run check completed exit1: ordinary5633pass/2fail/73skip; resource671/671.
+Failures: anthropic-model-authority expects only retired Sonnet but also finds
+claude-4; vitest-workload-classifier expects393 specs but inventory409. No timeout
+in the reported two failures; no baseline-cause proof or stability closure claimed.
+117 focused tests and tsc0. The source/consumer integration is local editorial,
+NOT customer/order/package activation; book not ready or product accepted.
+
+### Implementation preparation record
 
 Guy rejects off-system image calls and explicitly authorizes implementation plus
 paid sample with existing key. Base d1a79ab3, same semantic-m1 task sole writer.
@@ -17,7 +45,7 @@ Real Kim 9-entry cover/body plan validated offline, draft source unchanged at
 not reused. Bound sample selection3/7, image budgetUSD2 + QA budgetUSD4 using shared
 conservative checkpoints. Max one new prop board/two pages; no paid repair/audio.
 117 focused tests pass including real-entry mocked-provider hold/replay/mode guards;
-tsc0. Full check executing separately, no stability closure claimed. Paid run pending.
+tsc0. At preparation full check was running and paid execution was pending.
 Gate/QA: docs/ai-workflow/OWNER_DRAFT_GATED_SAMPLE_20260916.md.
 
 ## Kim three-page LOW audition completed — 2026-09-16
