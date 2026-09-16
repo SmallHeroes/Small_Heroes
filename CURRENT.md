@@ -1,5 +1,46 @@
 # SmallHeroes — Current Technical State
 
+## Book proof: real Editor review before images — 2026-09-17
+
+Guy's active goal is a good complete book through the system, with prudent spend
+and general fixes. Goal remains OPEN, not reduced to text preparation. Prior
+intake re-gate supplied PASS0/0/0 through bfbf5473; no Editor/release authority.
+Started clean bfbf5473 ahead51 on same task/sole-writer branch/worktree. Scope and
+cost fence in BOOK_PROOF_DECISION.md; no protected dependency writes.
+
+Added general review-only CLI scripts/review-story-candidate.cjs using existing
+Editor contract/schema/validator, provider and paid checkpoint. Exact source SHA,
+boy/girl projections, immutable snapshots, bounded admission, one call/no retries,
+hold on unknown outcomes; no rewrite/publish/render. Default is offline preflight.
+Existing-key reuse was explicitly authorized; no new key or secret output.
+
+One real gpt-5.6-sol/high/default Editor call on approved Panda adventure02d337de...
+returned REVISE, not PASS. Strengths: child agency, Anat, humor, both gender forms.
+Single major gap: insufficient adventure movement, mostly stationary play.
+Usage5853input/3993output; configured estimateUSD0.1563675, conservative accounted
+USD0.29538, reservedUSD0.96051 underUSD1.50. Not an invoice. Zero image/audio calls.
+Real checkpoint replay with throwing provider:0 calls, identical verdict/report.
+Exact request/result/review/report copies tracked in book-proof/editorial; original
+ignored outputs/panda-approved-editor-20260916 retained locally, no verified backup.
+
+Separate proposed revision01 adds real walking play-space progression and ties
+sharing the wheel to navigation. It preserves the approved original unchanged.
+12 pages,8 real name/gender checks, no prose dashes, structural preflight passes.
+Proposal is NOT independently edited or Guy-approved; no second paid review.
+
+Focused tests43/43 (new16, adjacent27). Our initial test replaceAll type error was
+fixed before live. Full npm run check then passed both typechecks but exits1:
+ordinary5667pass/2fail/73skip; resource671/671pass. New spec passes. Failures are
+fixed inventory393 vs410 and model-ID regex capturing claude-4 from a namespaced
+dotted Replicate model. No untouched-base full run; no stability closure/waiver.
+Actual Wizard audit:2/18 render-qualified from existing Dini/Kim sources; Panda
+still fallback/source_text_not_ready. Canonical intake18/216 unchanged.
+
+Next: assess the proposed revision, close general pipeline/stability gaps, then
+fresh page-grounded visual preparation and a bounded sample before full book/audio.
+All reader/anatomy/continuity acceptance remains unproven. No runtime switch,
+deployment, push or self-awarded independent PASS. BOOK_PROOF_HANDOFF.md is ready.
+
 ## Indented direction P2 corrected locally, re-gate pending — 2026-09-16
 
 Claude supplied PASS P0=0/P1=0/P2=1 for e7f1a023..bfe886db only. He reproduced
