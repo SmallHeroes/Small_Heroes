@@ -31,7 +31,7 @@ const attachment = z.discriminatedUnion('state', [
   z.object({ state: z.literal('defect'), kind: z.enum(['extra_part', 'disconnected_fragment', 'merged_parts', 'impossible_joint']),
     observation: note, correction: note }).strict(),
 ]);
-const reportSchema = z.object({
+export const anatomyEvidenceSchema = z.object({
   version: z.literal(ANATOMY_EVIDENCE_VERSION), candidateSha: sha, contextSha: sha,
   coverage: z.enum(['complete', 'incomplete']),
   subjects: z.array(z.object({ id, parts: z.array(z.object({
@@ -47,11 +47,11 @@ const expectedSchema = z.object({
     maxVisibleFeet: z.number().int().min(0).max(64).nullable(),
   }).strict()).min(1).max(32),
 }).strict();
-export type AnatomyEvidence = z.infer<typeof reportSchema>;
+export type AnatomyEvidence = z.infer<typeof anatomyEvidenceSchema>;
 export type AnatomyExpectation = z.infer<typeof expectedSchema>;
 
 export function adjudicateAnatomyEvidence(value: unknown, expectation: unknown) {
-  const report = reportSchema.parse(value), expected = expectedSchema.parse(expectation);
+  const report = anatomyEvidenceSchema.parse(value), expected = expectedSchema.parse(expectation);
   if (report.candidateSha !== expected.candidateSha || report.contextSha !== expected.contextSha) throw Error('anatomy_evidence_binding');
   const expectedIds = new Set(expected.subjects.map(s => s.id));
   const observedIds = new Set(report.subjects.map(s => s.id));

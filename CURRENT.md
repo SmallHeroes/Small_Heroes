@@ -1,5 +1,28 @@
 # SmallHeroes — Current Technical State
 
+## Targeted anatomy visual pilot prepared — 2026-09-16
+
+Claude supplied offline-only re-gate PASS0/0/0 on 01f092ea..5e25996f, with
+148/148, tsc0 and14 adversarial cases. No pixel accuracy or full-check closure.
+Guy approved next small visual experiment using existing images/key, then story
+work if useful. New isolated adapter targets one identified human per request,
+exports the unchanged reviewed offline-v2 evidence schema and adjudicates with it.
+Active judge/prompts/thresholds/render pipeline unchanged; no automatic repairs.
+
+Four targets/three images: Dini original child, Dini corrected child, panda3
+conductor, panda3 tuba player. Two operator defect labels and two operator
+negative labels, visually inspected at preparation; not an independent goldset.
+Neutral descriptions only sent; no labels/count limits/story text/filenames.
+GPT-5.5 medium/Flex, five high-detail views, max6000output tokens, no retries,
+no fallback. Max8calls, stop after4if neither positive has reported defects;
+otherwise repeat reverse order. Conservative3USD budget,0.5reservation/call.
+Known malformed/incomplete/over-budget/tier failures persist and halt; unknowns
+reserve cost and cannot retry. Preparatory code113/113 focused tests and tsc0.
+Live results pending. No new image/audio calls, no reader change or product PASS.
+Gate docs/ai-workflow/ANATOMY_VISION_PILOT_20260916.md. Ignored/local-only config:
+outputs/anatomy-vision-pilot-input-20260916/config.json; receipts in separately
+bound outputs/anatomy-vision-pilot-20260916. No push or independent adapter PASS.
+
 ## Offline anatomy independent PASS and P2 corrections — 2026-09-16
 
 Claude supplied independent PASS P0=0/P1=0/P2=4 for exactly
