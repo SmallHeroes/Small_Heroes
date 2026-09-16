@@ -1,6 +1,31 @@
 # SmallHeroes — Current Technical State
 
-## Targeted anatomy visual pilot prepared — 2026-09-16
+## Targeted anatomy visual pilot completed; futility stop — 2026-09-16
+
+Code milestone def8df46 above 5e25996f executed exactly four GPT-5.5 medium/Flex
+vision calls. Both operator-negative controls passed. Dini original held_uncertain
+with no defects; panda3 conductor falsely passed after omitting the extra hand.
+Zero of two operator-positive cases produced explicit defect evidence. Preset
+no_positive_defect_evidence_after_first_round stopped the pilot; no repeat round,
+retries, fallback, new images or audio. No claim of reliable automatic anatomy QA.
+
+Observed usage: input27636 (cached3840), output10605; four completed/priced calls,
+zero unknown outcomes. Flex list-price estimate USD0.204525 (not an invoice);
+conservative checkpoint accounting USD1.11723 under the USD3 ceiling. Actual
+receipt replay reproduced the report with network forbidden/providerDispatches0,
+no key read. Final seven focused specs173/173. Full check not rerun: NON-GREEN
+stability remains open. Active five judge/quality files unchanged; all25 panda
+reader PNG/MP3 hashes preserved. No independent PASS for the new adapter.
+
+Next-story editorial draft only: outputs/next-book-kim-draft-20260916/story.md,
+8 pages/614 words, SHA6ad8028651496247e70c7e1bdce1ab648ecf66642a5e44a43f548f0b6f0728a3.
+Bar and Kim help a walking bus stop find home. Accepted source unchanged; no
+publication, Blueprint, render or narration. This personalized draft is not a
+generic catalog revision or product acceptance. Pilot receipts/report and draft
+are ignored/local-only; no verified off-machine backup and push will not save them.
+Results/handoff: docs/ai-workflow/ANATOMY_VISION_PILOT_20260916.md.
+
+### Preparation record (before paid execution)
 
 Claude supplied offline-only re-gate PASS0/0/0 on 01f092ea..5e25996f, with
 148/148, tsc0 and14 adversarial cases. No pixel accuracy or full-check closure.
@@ -18,7 +43,7 @@ no fallback. Max8calls, stop after4if neither positive has reported defects;
 otherwise repeat reverse order. Conservative3USD budget,0.5reservation/call.
 Known malformed/incomplete/over-budget/tier failures persist and halt; unknowns
 reserve cost and cannot retry. Preparatory code113/113 focused tests and tsc0.
-Live results pending. No new image/audio calls, no reader change or product PASS.
+At preparation, live results were pending. No new image/audio calls, no reader change or product PASS.
 Gate docs/ai-workflow/ANATOMY_VISION_PILOT_20260916.md. Ignored/local-only config:
 outputs/anatomy-vision-pilot-input-20260916/config.json; receipts in separately
 bound outputs/anatomy-vision-pilot-20260916. No push or independent adapter PASS.
