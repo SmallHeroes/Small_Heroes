@@ -1,5 +1,34 @@
 # SmallHeroes — Current Technical State
 
+## Panda visual successor prepared; actual visual review next — 2026-09-17
+
+Guy supplied Claude re-gate PASS P0=0/P1=0/P2=0 for949a360d..8d85366e:
+both publication-evidence findings are closed. Reviewer explicitly corrected the
+ordinary/resource attribution and verified all12 artifacts and write-enabled
+replay. This does not extend the code PASS4fd7eda0..95a8d7b1 or grant creative
+acceptance of the visual data. Stability remains a risk, not closed by one green run.
+
+Guy authorized this bounded visual continuation. Same sole writer/worktree and
+branch, clean8d85366e ahead59 at start. One authored leaf changed: page9 mainAction
+now keeps the telescope at eye level, preserving lowering/discovery for page10.
+The real enrichment lifecycle created successor407c34c88fd6c5a851ed253c0534f01332a599222a2d6a6ecff967e65b81d160.
+It remains pending_exact_product_review, runtime ineligible. Accepted story bytes,
+the original pending candidate and all other page-direction fields are unchanged.
+
+Dry run, write, reload and write-enabled replay exit0; replay created:false.
+Verifier proves12 old files unchanged by hash/size/mtime, 5 successor files unchanged
+on replay, exact tracked copies,12 prose-preserving pages and one changed leaf.
+Enrichment8 + acceptance5 =13/13; tsc0. Full repository check not rerun for this
+data/evidence milestone; no new stability claim. No production code, source,
+approval, thresholds, provider, credentials, image/audio spend or push. Cost$0.
+
+See story-pipeline/06_editorial_refresh/2026-09-16/book-proof/visual-refinement/HANDOFF.md
+for the actual12-page visual-data review, and CONTRACT_MAPPING.md for downstream
+prop/state/set/cast destinations. That mapping is planning, not runtime enforcement.
+The accepted-source authoring gate requires a genuine Claude review bound to the
+new candidate/review-bundle plus exact product acceptance. Neither is fabricated.
+No contract, Blueprint, qualified package, images, narration or full book yet.
+
 ## Publication QA received; replay evidence and visual-scope clarification — 2026-09-17
 
 Guy supplied Claude PASS P0=0/P1=0/P2=2 for87282474..949a360d (28 files).
