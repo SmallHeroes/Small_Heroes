@@ -1,0 +1,176 @@
+{
+  "schemaVersion": "panda-publication-replay-observation/v1",
+  "baseCommit": "949a360df86840c761384eaeaa698b87016c12f9",
+  "startedAt": "2026-09-17 10:40:44 UTC",
+  "endedAt": "2026-09-17 10:40:47 UTC",
+  "scope": "fresh replay, not reconstruction of prior replay logs",
+  "source": {
+    "command": "node scripts/story-source-creative-replacement-lifecycle.cjs publish --request outputs/panda-approved-source-20260917/request.json --write true\nexit $LASTEXITCODE",
+    "exitCode": 0,
+    "receipt": "publication-replay-receipt.json"
+  },
+  "visual": {
+    "command": "node --import tsx --require ./scripts/shims/register-server-only.cjs scripts/story-source-visual-direction-enrichment-lifecycle.cjs prepare --request outputs/panda-approved-source-20260917/enrichment-request.json --output-root outputs/panda-visual-enrichment-20260917 --write true\nexit $LASTEXITCODE",
+    "exitCode": 0,
+    "receipt": "enrichment-replay-receipt.json"
+  },
+  "artifactCount": 12,
+  "artifactBytesSizesAndMtimesUnchanged": true,
+  "before": {
+    "files": [
+      {
+        "path": "C:\\GNart\\Work\\sh-r3b1b-semantic-m1\\outputs\\panda-visual-enrichment-20260917\\50103b10c6d72866987aa6fbe0a2c5bc4397d14eff5f64f2d3e4433fa6b82a16\\integrated.md",
+        "bytes": 15000,
+        "lastWriteTimeUtc": "2026-09-17T06:19:50.9232177Z",
+        "sha256": "355597392756b6fca1ecd77decafc61c74e383855e74730be8e8feba9206b0eb"
+      },
+      {
+        "path": "C:\\GNart\\Work\\sh-r3b1b-semantic-m1\\outputs\\panda-visual-enrichment-20260917\\50103b10c6d72866987aa6fbe0a2c5bc4397d14eff5f64f2d3e4433fa6b82a16\\manifest.json",
+        "bytes": 2677,
+        "lastWriteTimeUtc": "2026-09-17T06:19:50.9246419Z",
+        "sha256": "12c7ab4cd0b31ddb386918fedc03be8cf28677bfd2f46c384ab0628740e4f888"
+      },
+      {
+        "path": "C:\\GNart\\Work\\sh-r3b1b-semantic-m1\\outputs\\panda-visual-enrichment-20260917\\50103b10c6d72866987aa6fbe0a2c5bc4397d14eff5f64f2d3e4433fa6b82a16\\review-bundle.json",
+        "bytes": 2754,
+        "lastWriteTimeUtc": "2026-09-17T06:19:50.9246419Z",
+        "sha256": "62756442522446b43c83dddf1587e0af652778cc7b2ee1b3853afa1171883bc4"
+      },
+      {
+        "path": "C:\\GNart\\Work\\sh-r3b1b-semantic-m1\\outputs\\panda-visual-enrichment-20260917\\50103b10c6d72866987aa6fbe0a2c5bc4397d14eff5f64f2d3e4433fa6b82a16\\revision-identity.json",
+        "bytes": 1352,
+        "lastWriteTimeUtc": "2026-09-17T06:19:50.9242171Z",
+        "sha256": "50103b10c6d72866987aa6fbe0a2c5bc4397d14eff5f64f2d3e4433fa6b82a16"
+      },
+      {
+        "path": "C:\\GNart\\Work\\sh-r3b1b-semantic-m1\\outputs\\panda-visual-enrichment-20260917\\50103b10c6d72866987aa6fbe0a2c5bc4397d14eff5f64f2d3e4433fa6b82a16\\visual-directions.json",
+        "bytes": 11800,
+        "lastWriteTimeUtc": "2026-09-17T06:19:50.9246419Z",
+        "sha256": "b1455bbdfe5d364a8ca7a5377f1ee90fdaa498df0bd1692df985ff0461611d21"
+      },
+      {
+        "path": "C:\\GNart\\Work\\sh-r3b1b-semantic-m1\\story-pipeline\\04_approved_story_sources\\accepted\\panda_anat_adventure\\revisions\\9ea583e13fa979e1105a60f52721f550f518e5eed01295983f2f02e2c7aaf3cb\\creative-brief.json",
+        "bytes": 6112,
+        "lastWriteTimeUtc": "2026-09-17T06:19:04.4604018Z",
+        "sha256": "a9b15dd2da6a9dc6685aa0c247bba3868d960b6a324633acb929a3b25c89faa4"
+      },
+      {
+        "path": "C:\\GNart\\Work\\sh-r3b1b-semantic-m1\\story-pipeline\\04_approved_story_sources\\accepted\\panda_anat_adventure\\revisions\\9ea583e13fa979e1105a60f52721f550f518e5eed01295983f2f02e2c7aaf3cb\\editorial-review.json",
+        "bytes": 1686,
+        "lastWriteTimeUtc": "2026-09-17T06:19:04.4604018Z",
+        "sha256": "79271dfb6b000e066b5bbb26eace873705bf88760aa34a62a8aab304e64536d1"
+      },
+      {
+        "path": "C:\\GNart\\Work\\sh-r3b1b-semantic-m1\\story-pipeline\\04_approved_story_sources\\accepted\\panda_anat_adventure\\revisions\\9ea583e13fa979e1105a60f52721f550f518e5eed01295983f2f02e2c7aaf3cb\\manifest.json",
+        "bytes": 2553,
+        "lastWriteTimeUtc": "2026-09-17T06:19:04.4604018Z",
+        "sha256": "27b943a26cc5d3a0ebd6e4ddccabda80caf2fad38bef184b23131d638c0b8c7e"
+      },
+      {
+        "path": "C:\\GNart\\Work\\sh-r3b1b-semantic-m1\\story-pipeline\\04_approved_story_sources\\accepted\\panda_anat_adventure\\revisions\\9ea583e13fa979e1105a60f52721f550f518e5eed01295983f2f02e2c7aaf3cb\\product-acceptance.json",
+        "bytes": 1638,
+        "lastWriteTimeUtc": "2026-09-17T06:19:04.4614065Z",
+        "sha256": "f16deceb4470f87f672d47ff5e58564654f22d865a3f49d9f46300d13fb45142"
+      },
+      {
+        "path": "C:\\GNart\\Work\\sh-r3b1b-semantic-m1\\story-pipeline\\04_approved_story_sources\\accepted\\panda_anat_adventure\\revisions\\9ea583e13fa979e1105a60f52721f550f518e5eed01295983f2f02e2c7aaf3cb\\review-bundle.json",
+        "bytes": 1705,
+        "lastWriteTimeUtc": "2026-09-17T06:19:04.4614065Z",
+        "sha256": "1bd8a4b12a50de3e9d5da9d7fc8f2c27fcef99c9d70f9521c66ba5e1fa16f42b"
+      },
+      {
+        "path": "C:\\GNart\\Work\\sh-r3b1b-semantic-m1\\story-pipeline\\04_approved_story_sources\\accepted\\panda_anat_adventure\\revisions\\9ea583e13fa979e1105a60f52721f550f518e5eed01295983f2f02e2c7aaf3cb\\revision-identity.json",
+        "bytes": 939,
+        "lastWriteTimeUtc": "2026-09-17T06:19:04.4614065Z",
+        "sha256": "9ea583e13fa979e1105a60f52721f550f518e5eed01295983f2f02e2c7aaf3cb"
+      },
+      {
+        "path": "C:\\GNart\\Work\\sh-r3b1b-semantic-m1\\story-pipeline\\04_approved_story_sources\\accepted\\panda_anat_adventure\\revisions\\9ea583e13fa979e1105a60f52721f550f518e5eed01295983f2f02e2c7aaf3cb\\story.md",
+        "bytes": 6586,
+        "lastWriteTimeUtc": "2026-09-17T06:19:04.4614065Z",
+        "sha256": "5bed647c29ca61b6fe75ccd39b3e73fb6be5ea2d775f4add220026dc20714b0e"
+      }
+    ],
+    "lockPresent": false
+  },
+  "after": {
+    "files": [
+      {
+        "path": "C:\\GNart\\Work\\sh-r3b1b-semantic-m1\\outputs\\panda-visual-enrichment-20260917\\50103b10c6d72866987aa6fbe0a2c5bc4397d14eff5f64f2d3e4433fa6b82a16\\integrated.md",
+        "bytes": 15000,
+        "lastWriteTimeUtc": "2026-09-17T06:19:50.9232177Z",
+        "sha256": "355597392756b6fca1ecd77decafc61c74e383855e74730be8e8feba9206b0eb"
+      },
+      {
+        "path": "C:\\GNart\\Work\\sh-r3b1b-semantic-m1\\outputs\\panda-visual-enrichment-20260917\\50103b10c6d72866987aa6fbe0a2c5bc4397d14eff5f64f2d3e4433fa6b82a16\\manifest.json",
+        "bytes": 2677,
+        "lastWriteTimeUtc": "2026-09-17T06:19:50.9246419Z",
+        "sha256": "12c7ab4cd0b31ddb386918fedc03be8cf28677bfd2f46c384ab0628740e4f888"
+      },
+      {
+        "path": "C:\\GNart\\Work\\sh-r3b1b-semantic-m1\\outputs\\panda-visual-enrichment-20260917\\50103b10c6d72866987aa6fbe0a2c5bc4397d14eff5f64f2d3e4433fa6b82a16\\review-bundle.json",
+        "bytes": 2754,
+        "lastWriteTimeUtc": "2026-09-17T06:19:50.9246419Z",
+        "sha256": "62756442522446b43c83dddf1587e0af652778cc7b2ee1b3853afa1171883bc4"
+      },
+      {
+        "path": "C:\\GNart\\Work\\sh-r3b1b-semantic-m1\\outputs\\panda-visual-enrichment-20260917\\50103b10c6d72866987aa6fbe0a2c5bc4397d14eff5f64f2d3e4433fa6b82a16\\revision-identity.json",
+        "bytes": 1352,
+        "lastWriteTimeUtc": "2026-09-17T06:19:50.9242171Z",
+        "sha256": "50103b10c6d72866987aa6fbe0a2c5bc4397d14eff5f64f2d3e4433fa6b82a16"
+      },
+      {
+        "path": "C:\\GNart\\Work\\sh-r3b1b-semantic-m1\\outputs\\panda-visual-enrichment-20260917\\50103b10c6d72866987aa6fbe0a2c5bc4397d14eff5f64f2d3e4433fa6b82a16\\visual-directions.json",
+        "bytes": 11800,
+        "lastWriteTimeUtc": "2026-09-17T06:19:50.9246419Z",
+        "sha256": "b1455bbdfe5d364a8ca7a5377f1ee90fdaa498df0bd1692df985ff0461611d21"
+      },
+      {
+        "path": "C:\\GNart\\Work\\sh-r3b1b-semantic-m1\\story-pipeline\\04_approved_story_sources\\accepted\\panda_anat_adventure\\revisions\\9ea583e13fa979e1105a60f52721f550f518e5eed01295983f2f02e2c7aaf3cb\\creative-brief.json",
+        "bytes": 6112,
+        "lastWriteTimeUtc": "2026-09-17T06:19:04.4604018Z",
+        "sha256": "a9b15dd2da6a9dc6685aa0c247bba3868d960b6a324633acb929a3b25c89faa4"
+      },
+      {
+        "path": "C:\\GNart\\Work\\sh-r3b1b-semantic-m1\\story-pipeline\\04_approved_story_sources\\accepted\\panda_anat_adventure\\revisions\\9ea583e13fa979e1105a60f52721f550f518e5eed01295983f2f02e2c7aaf3cb\\editorial-review.json",
+        "bytes": 1686,
+        "lastWriteTimeUtc": "2026-09-17T06:19:04.4604018Z",
+        "sha256": "79271dfb6b000e066b5bbb26eace873705bf88760aa34a62a8aab304e64536d1"
+      },
+      {
+        "path": "C:\\GNart\\Work\\sh-r3b1b-semantic-m1\\story-pipeline\\04_approved_story_sources\\accepted\\panda_anat_adventure\\revisions\\9ea583e13fa979e1105a60f52721f550f518e5eed01295983f2f02e2c7aaf3cb\\manifest.json",
+        "bytes": 2553,
+        "lastWriteTimeUtc": "2026-09-17T06:19:04.4604018Z",
+        "sha256": "27b943a26cc5d3a0ebd6e4ddccabda80caf2fad38bef184b23131d638c0b8c7e"
+      },
+      {
+        "path": "C:\\GNart\\Work\\sh-r3b1b-semantic-m1\\story-pipeline\\04_approved_story_sources\\accepted\\panda_anat_adventure\\revisions\\9ea583e13fa979e1105a60f52721f550f518e5eed01295983f2f02e2c7aaf3cb\\product-acceptance.json",
+        "bytes": 1638,
+        "lastWriteTimeUtc": "2026-09-17T06:19:04.4614065Z",
+        "sha256": "f16deceb4470f87f672d47ff5e58564654f22d865a3f49d9f46300d13fb45142"
+      },
+      {
+        "path": "C:\\GNart\\Work\\sh-r3b1b-semantic-m1\\story-pipeline\\04_approved_story_sources\\accepted\\panda_anat_adventure\\revisions\\9ea583e13fa979e1105a60f52721f550f518e5eed01295983f2f02e2c7aaf3cb\\review-bundle.json",
+        "bytes": 1705,
+        "lastWriteTimeUtc": "2026-09-17T06:19:04.4614065Z",
+        "sha256": "1bd8a4b12a50de3e9d5da9d7fc8f2c27fcef99c9d70f9521c66ba5e1fa16f42b"
+      },
+      {
+        "path": "C:\\GNart\\Work\\sh-r3b1b-semantic-m1\\story-pipeline\\04_approved_story_sources\\accepted\\panda_anat_adventure\\revisions\\9ea583e13fa979e1105a60f52721f550f518e5eed01295983f2f02e2c7aaf3cb\\revision-identity.json",
+        "bytes": 939,
+        "lastWriteTimeUtc": "2026-09-17T06:19:04.4614065Z",
+        "sha256": "9ea583e13fa979e1105a60f52721f550f518e5eed01295983f2f02e2c7aaf3cb"
+      },
+      {
+        "path": "C:\\GNart\\Work\\sh-r3b1b-semantic-m1\\story-pipeline\\04_approved_story_sources\\accepted\\panda_anat_adventure\\revisions\\9ea583e13fa979e1105a60f52721f550f518e5eed01295983f2f02e2c7aaf3cb\\story.md",
+        "bytes": 6586,
+        "lastWriteTimeUtc": "2026-09-17T06:19:04.4614065Z",
+        "sha256": "5bed647c29ca61b6fe75ccd39b3e73fb6be5ea2d775f4add220026dc20714b0e"
+      }
+    ],
+    "lockPresent": false
+  },
+  "sourcePublisherTransientLockExpected": true,
+  "providerCalls": 0,
+  "spendUsd": 0
+}

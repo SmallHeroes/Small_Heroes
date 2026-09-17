@@ -1,5 +1,22 @@
 # Publication validation record
 
+## Later independent review and fresh replay observation
+
+Claude's supplied review of87282474..949a360d reports67/67 changed-spec tests,
+tsc0 and full6364pass/73skip, exit0:ordinary5693,resource671. This is the reviewer's
+observation, not a new Codex full run or permanent stability closure. Contrary to
+the report's interim resource attribution, the four earlier Codex failures below
+were ordinary-phase; resource passed. The matrix assertion was already corrected
+when the reviewer ran, so those full runs are not identical test snapshots.
+
+Fresh source and enrichment --write true replays both exited0 with created:false.
+Separate replay receipts exactly equal creating receipts except that field.
+replay-preservation.json records observation times and before/after12-file
+SHA256,size,mtime equality. No lock remained. This is fresh evidence, not recovery
+of prior console output. The source publisher acquires/removes its ordinary lock.
+Existing creating receipts and all accepted/pending artifact bytes are untouched.
+Both replay JSONs and preservation evidence are committed, not only local logs.
+
 ## Offline evidence
 
 - Five copied publication/preparation inputs compared byte-for-byte before use.

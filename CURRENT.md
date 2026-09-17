@@ -1,5 +1,34 @@
 # SmallHeroes — Current Technical State
 
+## Publication QA received; replay evidence and visual-scope clarification — 2026-09-17
+
+Guy supplied Claude PASS P0=0/P1=0/P2=2 for87282474..949a360d (28 files).
+Reviewer independently reported five changed specs67/67, tsc0 and full check
+6364pass/73skip, exit0 (ordinary5693,resource671). This records an independent
+green observation, not a guarantee of stability or visual/product readiness.
+Correction to the supplied report's interim narration: our previous four failures
+were in ORDINARY, not resource; resource was671/671 green. The fourth inventory
+assertion was corrected after our failing full run, before949a360d. Thus the runs
+did not have identical test bytes; three timeouts suggest load sensitivity but
+do not prove machine-only causation. Historical Codex failure evidence is retained.
+
+Same sole writer/task, clean949a360d ahead58 at correction start. P2-1: fresh real
+source and enrichment CLI replays both return created:false; new separate replay
+receipts and before/after preservation are recorded under source-publication.
+All12 artifact files have identical SHA/size/mtime, and no lock remains. Existing
+creating receipts stay created:true. Source replay uses its normal transient lock;
+not claimed write-free. New captures do not reconstruct the prior missing logs.
+P2-2: candidate is PAGE DIRECTIONS ONLY, not a complete render plan. It lacks
+canonical prop-design/shared-style authority, contract/Blueprint/package and bound
+references. No fake recurringProps/visualLanguage fields were added to its schema.
+
+No source/approval/candidate/preparation, production or test changes, no provider,
+credentials, image/audio spend or push. Cost$0. Corrections await independent
+re-gate; no self-closure. Source-code PASS stays4fd7eda0..95a8d7b1; visual data
+ea3850d7 remains outside independent creative approval. Next: genuine visual
+review/acceptance and remaining contract/package pipeline, not an ad-hoc render.
+Correction handoff:story-pipeline/06_editorial_refresh/2026-09-16/book-proof/source-publication/REGATE_HANDOFF.md.
+
 ## Guy-accepted Panda text published; visual candidate held — 2026-09-17
 
 Guy explicitly accepted revision02 (source5bed647c, genuine Editor79271dfb).
@@ -22,7 +51,7 @@ with V3 disabled it remains2/2. Five test files adapt explicit inventory asserti
 retain432 text projections (408 selected+24 held), and require all16 unqualified
 nominal slots blocked. No production code, timeout or QA threshold changed.
 
-Latest full check is NON-GREEN:6360passed/4failed/73skipped,410 specs. Three failures
+Codex's recorded full check was NON-GREEN:6360passed/4failed/73skipped,410 specs. Three failures
 are5000ms timeouts; the fourth was another old matrix-inventory assertion, corrected
 after that run. No full rerun of that last test-only correction is claimed.
 Final serial focused74/74 passed (six specs); isolated bridge1/1 passed in2040ms

@@ -1,4 +1,11 @@
-# Claude Code: approved Panda source publication and pending visual candidate
+# Claude Code: approved Panda source and pending page-direction candidate
+
+## Status after independent review
+
+Claude supplied PASS0/0/2 for87282474..949a360d and a later full green observation
+(6364pass/73skip,exit0). Corrections are in REGATE_HANDOFF.md. The original review
+scope below remains historical. No complete render plan or visual quality PASS
+is implied by the term candidate: it contains page directions only.
 
 ## Immutable review boundary
 
@@ -24,7 +31,11 @@ the observed, necessary test-inventory adjustments. No production code changed.
 
 Actual existing CLIs ran dry, write, reload and identical replay. Text publication
 created seven immutable files. Enrichment created five pending candidate files.
-Both exact replays returned created:false. No acceptance was synthesized for
+Both exact replays were reported as created:false, but their results were not
+retained in the original tracked receipts. Fresh later CLI captures are now saved
+as publication-replay-receipt.json and enrichment-replay-receipt.json, with
+replay-preservation.json. They do not reconstruct the earlier unretained runs.
+No acceptance was synthesized for
 the visual candidate. No source locator, contract, Blueprint, board, package,
 image, audio, reader, credential or provider operation was performed.
 
@@ -42,6 +53,12 @@ Identities:
 
 See publication-receipt.json, enrichment-receipt.json and verification.json for
 full bindings, paths, byte sizes and SHA256 values, not abbreviated identities.
+
+The direction schema contains version,storyKey,pages, not recurringProps or
+visualLanguage. It is NOT the draft-render plan schema used in prior auditions.
+Canonical recurring-object design and shared style still require downstream
+authority, alongside contract/Blueprint/package and bound visual references.
+Per-page prose and composition checks do not supply those missing layers.
 
 ## Observable runtime consequence
 
@@ -83,8 +100,8 @@ These are byte copies, not a new publication or a paid regeneration.
 
 ## Validation and falsification
 
-Exact test outcomes and failed attempts are recorded in VALIDATION.md. Latest
-full check is NON-GREEN:6360pass/4fail/73skip. Three timeouts remain unresolved
+Exact test outcomes and failed attempts are recorded in VALIDATION.md. The original
+Codex full check was NON-GREEN:6360pass/4fail/73skip. Three timeouts remained unresolved
 at full-suite scope; one inventory assertion was fixed after that run. Subsequent
 isolated/serial results do not retroactively turn this full result green.
 Final six-spec serial run passed74/74; the specifically timed-out bridge test
