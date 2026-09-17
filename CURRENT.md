@@ -1,5 +1,31 @@
 # SmallHeroes — Current Technical State
 
+## Panda evidence PASS received; page6 companion gap verified — 2026-09-18
+
+Claude supplied evidence PASS for508f49b4..e9a859d3 and agreed with semantic HOLD;
+no fresh numeric severity verdict was supplied. Prior196/196 and costs independently
+confirmed by Claude, not newly claimed as rerun here. No PASS boundary expansion.
+Codex verified the new finding: accepted direction6 requires companion nearby, but
+compiled characterPresence.companion=false and castIds contains only child:hero.
+Story-text-only extractor omits6; supporting-cast assembly preserves that vector.
+Adding human supporting cast alone cannot fix companion presence.
+
+Two reviewer attributions need correction, proven against decoded captured draft:
+raw humanCast contains only child, not any supporting identity; compiled primary
+child remains. Raw typed actionRequirements already contain the conflicting5/8/12
+actions. Compiler adds their prose to mustShow, not the actions themselves. A prose-
+projection-only fix leaves contradictory typed actions. Cover attribution accepted.
+Review witness includes3 in-memory negative controls; all6 paid hashes preserved.
+No production fix, source/candidate/receipt mutation, new approval, provider/key,
+render/audio or spend. Same task/worktree/branch, clean e9a859d3 ahead2 at start;
+protected dependencies768ccb2f/63ccb484 remain read-only. No push.
+
+Next correction must carry source-bound reviewed companion presence through the
+effective-artifact consumers, alongside existing supporting cast and coherent
+selected-moment/prop-state correction. Do not weaken legacy authority or regenerate
+blindly. Contract remains HELD. No full-check, stability or release claim.
+Response/re-gate: story-pipeline/06_editorial_refresh/2026-09-16/book-proof/contract-authoring/REVIEW_RESPONSE.md.
+
 ## Panda live contract authored; semantic HOLD before any images — 2026-09-18
 
 Claude supplied PASS0/0/0 new for4ab3bf1c..508f49b4; earlier review boundaries
