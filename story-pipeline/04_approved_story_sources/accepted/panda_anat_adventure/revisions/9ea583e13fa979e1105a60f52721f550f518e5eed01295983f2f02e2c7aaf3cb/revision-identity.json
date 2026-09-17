@@ -1,0 +1,23 @@
+{
+  "approvedContent": {
+    "creativeBriefSha256": "a9b15dd2da6a9dc6685aa0c247bba3868d960b6a324633acb929a3b25c89faa4",
+    "editorialReviewSha256": "79271dfb6b000e066b5bbb26eace873705bf88760aa34a62a8aab304e64536d1",
+    "storySha256": "5bed647c29ca61b6fe75ccd39b3e73fb6be5ea2d775f4add220026dc20714b0e"
+  },
+  "identity": {
+    "briefId": "panda_anat_adventure_moon_station_revision02",
+    "category": "SOCIAL",
+    "companionId": "panda_anat",
+    "direction": "adventure",
+    "pageCount": 12
+  },
+  "predecessor": {
+    "kind": "accepted_root_v1",
+    "manifestPath": "story-pipeline/04_approved_story_sources/accepted/panda_anat_adventure/manifest.json",
+    "manifestSha256": "38a65fd8bb6aabba665a22fe2a9d316b19f7d3e540d1032603d5fb9b306df758"
+  },
+  "sourceGenderMode": "neutral",
+  "sourceProfile": "gender_flexible",
+  "storyKey": "panda_anat_adventure",
+  "version": "small-heroes-story-source-creative-replacement-identity/v2"
+}

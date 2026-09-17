@@ -94,7 +94,11 @@ describe('GET /api/wizard/mvp-matrix', () => {
     );
     expect(medical?.directions?.adventure?.sellable).toBe(true);
     const social = body.categories.find((c: { category: string }) => c.category === 'SOCIAL');
-    expect(social?.directions?.adventure?.sellable).toBe(true);
+    // The accepted replacement is text-only; stale V3 visuals must not restore sellability.
+    expect(social?.directions?.adventure).toMatchObject({
+      sellable: false,
+      productionRenderQualified: false,
+    });
     expect(social?.directions?.bedtime?.sellable).toBe(true);
   });
 
@@ -146,7 +150,8 @@ describe('GET /api/wizard/mvp-matrix', () => {
         const currentProductPackage =
           (category.category === 'TRANSITION' && directionName === 'bedtime') ||
           (category.category === 'NEW_SIBLING' && directionName === 'adventure');
-        expect(direction.sellable).toBe(true);
+        const textOnlyReplacement = category.category === 'SOCIAL' && directionName === 'adventure';
+        expect(direction.sellable).toBe(!textOnlyReplacement);
         expect(direction.qaAuthoringReady).toBe(false);
         expect(direction.productionRenderQualified).toBe(
           currentProductPackage,

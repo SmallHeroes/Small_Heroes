@@ -1,0 +1,35 @@
+{
+  "acceptedAt": "2026-09-17T06:01:44.000Z",
+  "acceptedBy": "Guy",
+  "approvedEditorialReviewSha256": "79271dfb6b000e066b5bbb26eace873705bf88760aa34a62a8aab304e64536d1",
+  "approvedStoryRevisionSha256": "5bed647c29ca61b6fe75ccd39b3e73fb6be5ea2d775f4add220026dc20714b0e",
+  "decision": "Guy explicitly replied 'כן מאשר' to the request to accept panda_anat_adventure_revision02.md in this task. Accept this exact revised story text with its genuine Editor PASS for source publication; visual directions, rendering quality, runtime package qualification and release remain separate gates.",
+  "digest": "1ccb14ee63a2e49b4c20fdbd9e06ad18856659579b81d4a1fc138cdb01945804",
+  "exclusions": [
+    "blueprint",
+    "deployment",
+    "production",
+    "render",
+    "runtime_locator",
+    "story_bank",
+    "visual_contract",
+    "visual_directions",
+    "visual_package",
+    "wizard"
+  ],
+  "predecessor": {
+    "kind": "accepted_root_v1",
+    "manifestPath": "story-pipeline/04_approved_story_sources/accepted/panda_anat_adventure/manifest.json",
+    "manifestSha256": "38a65fd8bb6aabba665a22fe2a9d316b19f7d3e540d1032603d5fb9b306df758"
+  },
+  "reviewBundle": {
+    "digest": "601cc4702e200582db1fe3421e7871230e5403e6f27586f866549811f582535d",
+    "sha256": "1bd8a4b12a50de3e9d5da9d7fc8f2c27fcef99c9d70f9521c66ba5e1fa16f42b"
+  },
+  "revisionDigest": "9ea583e13fa979e1105a60f52721f550f518e5eed01295983f2f02e2c7aaf3cb",
+  "sourceGenderMode": "neutral",
+  "sourceProfile": "gender_flexible",
+  "status": "accepted",
+  "storyKey": "panda_anat_adventure",
+  "version": "small-heroes-story-source-creative-replacement-product-acceptance/v2"
+}

@@ -1,0 +1,43 @@
+{
+  "schemaVersion": "small-heroes-vitest-check-summary/v1",
+  "canonicalFileCount": 410,
+  "ordinaryFileCount": 388,
+  "resourceIntensiveFileCount": 22,
+  "phases": {
+    "ordinary": {
+      "schemaVersion": "small-heroes-vitest-phase-diagnostic/v1",
+      "phase": "ordinary",
+      "workerLimit": 4,
+      "fileCount": 388,
+      "elapsedMs": 190923,
+      "exitCode": 1,
+      "signal": null,
+      "launchErrorCode": null,
+      "diagnosticProtocolOk": true,
+      "diagnosticRecords": 1,
+      "diagnosticBytes": 254,
+      "classes": [
+        "test_timeout",
+        "signal_or_exit_failure"
+      ],
+      "gateStatus": "failed"
+    },
+    "resourceIntensive": {
+      "schemaVersion": "small-heroes-vitest-phase-diagnostic/v1",
+      "phase": "resource_intensive",
+      "workerLimit": 2,
+      "fileCount": 22,
+      "elapsedMs": 219946,
+      "exitCode": 0,
+      "signal": null,
+      "launchErrorCode": null,
+      "diagnosticProtocolOk": true,
+      "diagnosticRecords": 1,
+      "diagnosticBytes": 249,
+      "classes": [],
+      "gateStatus": "passed"
+    },
+    "gateStatus": "failed"
+  },
+  "gateStatus": "failed"
+}

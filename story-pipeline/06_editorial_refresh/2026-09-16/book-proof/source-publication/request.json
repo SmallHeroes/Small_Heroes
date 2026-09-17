@@ -1,0 +1,33 @@
+{
+  "version": "small-heroes-story-source-creative-replacement-request/v2",
+  "storyKey": "panda_anat_adventure",
+  "sourceProfile": "gender_flexible",
+  "identity": {
+    "category": "SOCIAL",
+    "companionId": "panda_anat",
+    "direction": "adventure",
+    "pageCount": 12
+  },
+  "predecessor": {
+    "kind": "accepted_root_v1",
+    "manifestPath": "story-pipeline/04_approved_story_sources/accepted/panda_anat_adventure/manifest.json",
+    "manifestSha256": "38a65fd8bb6aabba665a22fe2a9d316b19f7d3e540d1032603d5fb9b306df758"
+  },
+  "creativeBrief": {
+    "path": "outputs/panda-approved-source-20260917/creative-brief.json",
+    "sha256": "a9b15dd2da6a9dc6685aa0c247bba3868d960b6a324633acb929a3b25c89faa4"
+  },
+  "storyRevision": {
+    "path": "outputs/panda-approved-source-20260917/story.md",
+    "sha256": "5bed647c29ca61b6fe75ccd39b3e73fb6be5ea2d775f4add220026dc20714b0e"
+  },
+  "editorialReview": {
+    "path": "outputs/panda-approved-source-20260917/editorial-review.json",
+    "sha256": "79271dfb6b000e066b5bbb26eace873705bf88760aa34a62a8aab304e64536d1"
+  },
+  "approvedStoryRevisionSha256": "5bed647c29ca61b6fe75ccd39b3e73fb6be5ea2d775f4add220026dc20714b0e",
+  "approvedEditorialReviewSha256": "79271dfb6b000e066b5bbb26eace873705bf88760aa34a62a8aab304e64536d1",
+  "acceptedBy": "Guy",
+  "acceptedAt": "2026-09-17T06:01:44.000Z",
+  "decision": "Guy explicitly replied 'כן מאשר' to the request to accept panda_anat_adventure_revision02.md in this task. Accept this exact revised story text with its genuine Editor PASS for source publication; visual directions, rendering quality, runtime package qualification and release remain separate gates."
+}

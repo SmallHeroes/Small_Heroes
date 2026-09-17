@@ -137,17 +137,22 @@ describe('MVP_STORY_MATRIX helpers', () => {
     expect(isSlotSellable('HIDDEN_CATEGORY', 'bedtime')).toBe(false);
   });
 
-  it('keeps legacy slots and published accepted source lineages sellable', () => {
+  it('keeps ready slots sellable while holding the accepted text-only replacement', () => {
     process.env.ENABLE_V3_APPROVED_BANK = 'true';
+    const held: string[] = [];
     for (const category of allMvpCategories()) {
       const companionId = companionForCategory(category)!;
       for (const direction of ['bedtime', 'adventure', 'fantasy'] as const) {
         expect(configuredSlotStatus(category, direction)).toBe('approved_v3');
         expect(fs.existsSync(path.join(V3_APPROVED_DIR, `${companionId}_${direction}.md`))).toBe(true);
         expect(fs.existsSync(path.join(V3_APPROVED_DIR, `${companionId}_${direction}.import.json`))).toBe(true);
-        expect(isSlotSellable(category, direction)).toBe(true);
+        const textOnlyReplacement = category === 'SOCIAL' && direction === 'adventure';
+        const sellable = isSlotSellable(category, direction);
+        expect(sellable).toBe(!textOnlyReplacement);
+        if (!sellable) held.push(`${companionId}_${direction}`);
       }
     }
+    expect(held).toEqual(['panda_anat_adventure']);
   });
 
   it('does not let the approved-v3 flag reopen a package-required product lineage', () => {

@@ -1,0 +1,26 @@
+{
+  "compositionPolicyVersion": "small-heroes-storyboard-composition-review-policy/v1",
+  "continuityIntent": {
+    "childWardrobeAuthority": "frozen_visual_contract",
+    "childWardrobeTransitionPages": [],
+    "companionAccessoryAuthority": "canonical_companion_profile",
+    "companionAppearanceAuthority": "frozen_companion_state",
+    "companionStateTransitionPages": [],
+    "version": "small-heroes-story-visual-continuity-intent/v1"
+  },
+  "integratedStory": {
+    "sha256": "355597392756b6fca1ecd77decafc61c74e383855e74730be8e8feba9206b0eb"
+  },
+  "sourceRevision": {
+    "manifestDigest": "b46a0d71e010d31541b4d027380632eb6143edac2e3d54dde81039164f86f96b",
+    "manifestPath": "story-pipeline/04_approved_story_sources/accepted/panda_anat_adventure/revisions/9ea583e13fa979e1105a60f52721f550f518e5eed01295983f2f02e2c7aaf3cb/manifest.json",
+    "manifestSha256": "27b943a26cc5d3a0ebd6e4ddccabda80caf2fad38bef184b23131d638c0b8c7e",
+    "revisionDigest": "9ea583e13fa979e1105a60f52721f550f518e5eed01295983f2f02e2c7aaf3cb",
+    "storySha256": "5bed647c29ca61b6fe75ccd39b3e73fb6be5ea2d775f4add220026dc20714b0e"
+  },
+  "storyKey": "panda_anat_adventure",
+  "version": "small-heroes-story-source-visual-direction-enrichment-identity/v1",
+  "visualDirections": {
+    "sha256": "b1455bbdfe5d364a8ca7a5377f1ee90fdaa498df0bd1692df985ff0461611d21"
+  }
+}

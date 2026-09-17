@@ -45,15 +45,18 @@ describe('render-qualification audit actual CLI', () => {
     });
   });
 
-  it('fails both strict scopes with 18 sellable products and 16 unqualified nominal slots', () => {
+  it('fails both strict scopes with 17 sellable products and 16 unqualified nominal slots', () => {
     const sellableOnly = runAudit(['--require-render-qualified'], true);
     const allNominal = runAudit(['--require-all-render-ready'], true);
     expect(sellableOnly.status, sellableOnly.stderr).toBe(1);
     expect(allNominal.status, allNominal.stderr).toBe(1);
     expect(JSON.parse(allNominal.stdout)).toMatchObject({
       nominalSlotCount: 18,
-      productSellableCount: 18,
+      productSellableCount: 17,
       renderQualifiedCount: 2,
     });
+    expect(JSON.parse(allNominal.stdout).records.find(
+      (record: { storyKey: string }) => record.storyKey === 'panda_anat_adventure',
+    )).toMatchObject({ productSellable: false, renderQualified: false, storySourcePath: null });
   });
 });

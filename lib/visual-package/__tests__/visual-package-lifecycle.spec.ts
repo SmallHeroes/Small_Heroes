@@ -752,10 +752,13 @@ describe('all-slot zero-cost audit and explicit strict release mode', () => {
     });
     expect(audit.nominalSlotCount).toBe(18);
     expect(audit.records).toHaveLength(18);
-    expect(audit.productSellableCount).toBe(18);
+    expect(audit.productSellableCount).toBe(17);
     expect(audit.renderQualifiedCount).toBe(2);
     const unavailable = audit.records.filter((record) => !record.productSellable);
-    expect(unavailable).toEqual([]);
+    expect(unavailable.map(record => record.storyKey)).toEqual(['panda_anat_adventure']);
+    expect(unavailable[0]).toMatchObject({
+      productSellable: false, renderQualified: false, storySourcePath: null,
+    });
     expect(
       audit.records.find(
         (record) => record.storyKey === 'chameleon_koko_bedtime',
@@ -773,7 +776,7 @@ describe('all-slot zero-cost audit and explicit strict release mode', () => {
     });
     for (const record of audit.records) {
       expect(record.nominallySellable).toBe(true);
-      expect(record.productSellable).toBe(true);
+      expect(record.productSellable).toBe(record.storyKey !== 'panda_anat_adventure');
       if (['chameleon_koko_bedtime', 'dragon_dini_adventure'].includes(record.storyKey)) {
         expect(record.renderQualified).toBe(true);
         expect(record.reasons).toEqual([]);
@@ -794,7 +797,13 @@ describe('all-slot zero-cost audit and explicit strict release mode', () => {
     expect(evaluateRenderQualificationReleaseGate(audit, false)).toMatchObject({ strict: false, pass: true });
     const strict = evaluateRenderQualificationReleaseGate(audit, true);
     expect(strict.pass).toBe(false);
-    expect(strict.failures).toHaveLength(16);
+    expect(strict.failures).toHaveLength(15);
+    expect(strict.failures.map(failure => failure.storyKey)).not.toContain('panda_anat_adventure');
+    // All-nominal scope must still block the held source as well as the other 15 slots.
+    const allNominal = evaluateRenderQualificationReleaseGate(audit, true, 'all_nominal');
+    expect(allNominal.pass).toBe(false);
+    expect(allNominal.failures).toHaveLength(16);
+    expect(allNominal.failures.map(failure => failure.storyKey)).toContain('panda_anat_adventure');
     expect(strict.failures.map((failure) => failure.storyKey)).not.toContain(
       'chameleon_koko_bedtime',
     );

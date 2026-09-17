@@ -1,0 +1,131 @@
+{
+  "briefVersion": "story-creative-brief/v1",
+  "id": "panda_anat_adventure_moon_station_revision02",
+  "status": "draft_for_guy_review",
+  "category": "SOCIAL",
+  "direction": "adventure",
+  "pageCount": 12,
+  "workingTitle": "הדרך לתחנת הירח",
+  "mechanicKey": "shared_walking_rover_playground_route",
+  "creativePromise": "An overlooked child and a slow, warm panda build a walking cardboard rover, turn playground obstacles into a shared expedition, and bring the original group along.",
+  "hiddenUnderlayer": "Joining need not mean winning the existing role; making space and sharing control creates a reciprocal friendship.",
+  "openingHook": "The child brings a handmade steering wheel, but the pretend station already has a driver and nobody hears the invitation.",
+  "childWant": "To drive, contribute something personal, and be heard by the other children.",
+  "physicalProblem": "An occupied station, a sandbox to go around, pretend lava across grass, a curling rug and a bench obstruct the route.",
+  "playRule": "Ordinary playground materials become pretend space equipment, but move only through ordinary bodily actions.",
+  "setPieces": [
+    {
+      "id": "moon_station",
+      "name": "Cardboard station",
+      "dramaticUse": "Occupied opening; invitation; attentive return."
+    },
+    {
+      "id": "sandbox_path",
+      "name": "Sandbox and yellow flower",
+      "dramaticUse": "A telescope reframes a nearby flower as a shared destination."
+    },
+    {
+      "id": "rug_route",
+      "name": "Rolled play rug",
+      "dramaticUse": "A comic failed unrolling becomes a cooperative route."
+    },
+    {
+      "id": "bench_detour",
+      "name": "Bench and bush",
+      "dramaticUse": "Narrow telescope vision yields to a wider view and a child-led detour."
+    }
+  ],
+  "lockedCausalMovement": [
+    "The ignored steering wheel leads the child to Adam and the telescope.",
+    "The telescope reveals a flower, prompting construction of the bottomless walking box.",
+    "The child returns to invite the station group rather than leaving them behind.",
+    "The pretend lava rule leads to the rug; the companion's soft tumble leads to cooperative flattening.",
+    "Sharing driving lets the child navigate; lowering the telescope reveals the bench detour.",
+    "Adam yields the wheel as agreed; the group returns and finally gives the companion time to speak."
+  ],
+  "companionWrongHelp": "Waiting for the perfect pause initially allows the game to restart; later the slow turn and curling rug create gentle physical comedy.",
+  "comicEscalations": [
+    {
+      "level": 1,
+      "setup": "A box is lifted and walked.",
+      "consequence": "The vehicle has many shoes."
+    },
+    {
+      "level": 2,
+      "setup": "The companion sits on a curling rug edge.",
+      "consequence": "The road seems to try travelling on its own."
+    },
+    {
+      "level": 3,
+      "setup": "Everyone waits for the companion's final suggestion.",
+      "consequence": "The road, not the companion, supposedly needs a seat."
+    }
+  ],
+  "attempts": [
+    {
+      "attempt": "Offer the wheel at the occupied entrance.",
+      "failure": "Pretend engine noises drown out the child."
+    },
+    {
+      "attempt": "Invite the group across the lawn.",
+      "failure": "Their new pretend lava rule requires a different route."
+    },
+    {
+      "attempt": "Navigate only through the telescope.",
+      "failure": "The bench blocks the narrow view until the child lowers the tube."
+    }
+  ],
+  "childDiscovery": "A new route and shared roles invite others in; looking beyond a narrow view reveals room to move.",
+  "childClimaxAction": "The child lowers the telescope, finds the side path, directs the detour and later leads the return.",
+  "visiblePayoff": "The group reaches the flower, Adam keeps the turn-taking promise, and the return call gets answers.",
+  "endingEnergy": "A warm group conversation after packing up, ending on the road-needs-a-seat joke.",
+  "recurringObjects": [
+    "Paper-fastened cardboard steering wheel",
+    "Hollow cardboard telescope",
+    "Open-top bottomless walking box",
+    "Play rug",
+    "Cardboard station",
+    "Bench and bush",
+    "Rooted yellow flower"
+  ],
+  "transientCast": [
+    "Adam",
+    "Station driver",
+    "Ticket child",
+    "Other station friends",
+    "Supervising teacher"
+  ],
+  "rereadHooks": [
+    "The little flower is visible before becoming the destination.",
+    "The slow companion notices what the fast game misses.",
+    "The travelling-road joke returns at the end."
+  ],
+  "lineTargets": {
+    "childRepeatable": "רכב הנעליים מגיע!",
+    "parentReread": "בשביל הדרך. היא נסעה היום המון."
+  },
+  "companionIndispensability": "The companion notices Adam, helps support the walking box, causes the rug gag, points to the telescope during the role dispute and stops the box safely before the bench; the child supplies the route and invitation.",
+  "worldAndSafetyLocks": [
+    "One enclosed, supervised playground in daylight.",
+    "Space, crater, sun and lava are pretend labels; no real rocket, lava or alien landscape.",
+    "Lightweight bottomless box moved by feet, no motor or actual wheels.",
+    "Rug lies on clear level ground; soft seated landing, no fall from height.",
+    "Flower and ladybug are observed without touching."
+  ],
+  "mustAvoid": [
+    "A lecture about friendship",
+    "Companion solving the detour instead of the child",
+    "Permanent exclusion or ridicule by the group",
+    "Changing stationary landmarks between views",
+    "Duplicate limbs or multiple moments combined into one body",
+    "Fixed protagonist name or gender",
+    "Inheriting visual directions from the predecessor story"
+  ],
+  "oldStoryAntiCopy": [
+    "Use only revision02 as the page sequence; the predecessor is lineage evidence, not a source of visual directions."
+  ],
+  "modelFreedom": [
+    "Minor environmental texture and expressive staging within the source actions.",
+    "Camera position within the fresh directions; no changes to prose, roles or physical sequence."
+  ]
+}

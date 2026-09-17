@@ -38,6 +38,14 @@ const DINI_APPROVED_PACKAGE_SOURCE =
 const DINI_TEXT_ONLY_REVISION =
   'f77f4ca51fe3692d283f9fd1354392776e358da7ead86ab24cbb7e6e0bca9e98';
 
+// Explicit current inventory, not an exception inferred from an unavailable source.
+// These accepted texts have no accepted visual directions and must NOT be selected.
+const TEXT_ONLY_SOURCES = new Map([
+  ['panda_anat_adventure',
+    'story-pipeline/04_approved_story_sources/accepted/panda_anat_adventure/revisions/9ea583e13fa979e1105a60f52721f550f518e5eed01295983f2f02e2c7aaf3cb/story.md'],
+]);
+const creativeReplacement = require('../../../scripts/story-source-creative-replacement-lifecycle.cjs');
+
 function baseline() {
   vi.stubEnv('ENABLE_V3_APPROVED_BANK', 'true');
   vi.stubEnv('ENABLE_WIZARD_QA_RENDER_CATALOG', 'false');
@@ -71,15 +79,15 @@ describe('Wizard all-story render-readiness control plane', () => {
     expect(new Set(report.records.map((record) => record.storyKey)).size).toBe(18);
     expect(report.summary).toEqual({
       nominalSlotCount: 18,
-      environmentProductSellableCount: 18,
+      environmentProductSellableCount: 17,
       qaLowReadyCount: 18,
       acceptedProductLineageCount: 2,
       visualContractAuthoringAdmittedCount: 18,
       renderQualifiedCount: 2,
-      sourceCorpusConflictCount: 18,
+      sourceCorpusConflictCount: 17,
       supportedGenderProjectionReadyCount: 2,
-      supportedNarrationInputReadyCount: 18,
-      supportedCriticalTtsGateReadyCount: 18,
+      supportedNarrationInputReadyCount: 17,
+      supportedCriticalTtsGateReadyCount: 17,
       supportedNarrationAutomatedPreflightReadyCount: 2,
       softTtsReviewItemCount: 10,
       storiesWithSoftTtsReviewItemsCount: 5,
@@ -111,8 +119,8 @@ describe('Wizard all-story render-readiness control plane', () => {
       required: true,
       currentFallback: 'v3_product_fallback',
       alternate: 'qa_low_only',
-      conflictingSlotCount: 18,
-      decisionRequiredSlotCount: 16,
+      conflictingSlotCount: 17,
+      decisionRequiredSlotCount: 15,
     });
 
     for (const record of report.records) {
@@ -124,9 +132,34 @@ describe('Wizard all-story render-readiness control plane', () => {
       expect(record.qaAuthority.resemblanceThreshold).toBe(0.7);
       expect(record.sources.v3ProductFallback.available).toBe(true);
       expect(record.sources.qaLowOnly.available).toBe(true);
+      if (TEXT_ONLY_SOURCES.has(record.storyKey)) {
+        expect(record).toMatchObject({
+          acceptedProductLineage: { kind: 'present' },
+          productTextReadiness: null,
+          environmentProductSellable: false,
+          earliestBlocker: 'accepted_story_source_revision_missing',
+          sources: {
+            currentProductSourcePath: null,
+            currentProductSourceRole: null,
+            corpusDecisionRequired: false,
+            acceptedProductRevisions: [],
+            acceptedProductSource: {
+              available: false,
+              issues: ['strict_accepted_product_revision_unavailable'],
+            },
+          },
+          productionStages: { acceptedSourceRevision: false, renderQualified: false },
+          nextCanonicalAction: {
+            code: 'prepare_and_accept_story_source_revision',
+            requiresGuyDecision: true,
+            providerSpendAuthorized: false,
+          },
+        });
+      }
       if (
         record.storyKey !== CHAMELEON_STORY_KEY &&
-        record.storyKey !== 'dragon_dini_adventure'
+        record.storyKey !== 'dragon_dini_adventure' &&
+        !TEXT_ONLY_SOURCES.has(record.storyKey)
       ) {
         expect(record.sources.corpusDecisionRequired).toBe(true);
         expect(record.earliestBlocker).toBe(
@@ -307,13 +340,33 @@ describe('Wizard all-story render-readiness control plane', () => {
     ]);
   });
 
-  it('keeps all 432 selected product page projections executable without mistaking execution for gender authority', () => {
+  it('checks all 432 selected or held-text projections without selecting an unqualified text-only revision', () => {
     const report = baseline();
     vi.spyOn(console, 'warn').mockImplementation(() => undefined);
     let projectionCount = 0;
+    let selectedProjectionCount = 0;
+    let heldProjectionCount = 0;
+    const heldKeys = new Set<string>();
     for (const record of report.records) {
-      const sourcePath = record.sources.currentProductSourcePath;
+      let sourcePath = record.sources.currentProductSourcePath;
       const companion = getCompanionById(record.companionId);
+      const textOnlyPath = TEXT_ONLY_SOURCES.get(record.storyKey);
+      if (textOnlyPath) {
+        // Validate the actual accepted text through the shared loader, not merely
+        // a file found on disk. Exercising TTS does not select it for runtime.
+        expect(sourcePath).toBeNull();
+        expect(record.productTextReadiness).toBeNull();
+        expect(record.productionStages.renderQualified).toBe(false);
+        const accepted = creativeReplacement.loadAcceptedCreativeReplacement({
+          manifestPath: textOnlyPath.replace(/story\.md$/, 'manifest.json'),
+        }, { repoRoot: REPO });
+        expect(accepted.storyPath).toBe(textOnlyPath);
+        expect(accepted.manifest.runtimeEligibility).toEqual({
+          eligible: false, reason: 'visual_directions_not_approved',
+        });
+        sourcePath = accepted.storyPath;
+        heldKeys.add(record.storyKey);
+      }
       expect(sourcePath).toBeTruthy();
       expect(companion).not.toBeNull();
       const parsed = parseStorySourceContent(
@@ -328,10 +381,15 @@ describe('Wizard all-story render-readiness control plane', () => {
           }).trim();
           expect(buildPageNarrationTtsText(projected, false)).not.toBe('');
           projectionCount += 1;
+          if (textOnlyPath) heldProjectionCount += 1;
+          else selectedProjectionCount += 1;
         }
       }
     }
     expect(projectionCount).toBe(432);
+    expect(selectedProjectionCount).toBe(408);
+    expect(heldProjectionCount).toBe(24);
+    expect([...heldKeys].sort()).toEqual([...TEXT_ONLY_SOURCES.keys()].sort());
     expect(
       report.summary.supportedNarrationAutomatedPreflightReadyCount,
     ).toBe(2);
@@ -341,7 +399,7 @@ describe('Wizard all-story render-readiness control plane', () => {
           record.productTextReadiness?.supportedNarrationInputReady &&
           !record.productTextReadiness.supportedGenderProjectionReady,
       ),
-    ).toHaveLength(16);
+    ).toHaveLength(15);
   });
 
   it('rejects a current-surface accepted-lineage allow-list override', () => {

@@ -1,0 +1,65 @@
+{
+  "authorityScope": "visual_directions_enrichment_candidate_only",
+  "candidateDigest": "50103b10c6d72866987aa6fbe0a2c5bc4397d14eff5f64f2d3e4433fa6b82a16",
+  "compositionPolicyVersion": "small-heroes-storyboard-composition-review-policy/v1",
+  "continuityIntent": {
+    "childWardrobeAuthority": "frozen_visual_contract",
+    "childWardrobeTransitionPages": [],
+    "companionAccessoryAuthority": "canonical_companion_profile",
+    "companionAppearanceAuthority": "frozen_companion_state",
+    "companionStateTransitionPages": [],
+    "version": "small-heroes-story-visual-continuity-intent/v1"
+  },
+  "digest": "82cd0dc2460ed32f25243ffca30164655c27b674f5d548945e9988b85ac82bcf",
+  "exclusions": [
+    "accepted_revision_publication",
+    "blueprint",
+    "deployment",
+    "production",
+    "provider",
+    "render",
+    "runtime_locator",
+    "story_bank",
+    "visual_contract",
+    "visual_package",
+    "wizard"
+  ],
+  "files": {
+    "integratedStory": {
+      "bytes": 15000,
+      "filename": "integrated.md",
+      "sha256": "355597392756b6fca1ecd77decafc61c74e383855e74730be8e8feba9206b0eb"
+    },
+    "reviewBundle": {
+      "bytes": 2754,
+      "digest": "d6a7c9fba9ac03eea09c0aec9876eb1fb7aec2074b108bc31c5dab15689ed85d",
+      "filename": "review-bundle.json",
+      "sha256": "62756442522446b43c83dddf1587e0af652778cc7b2ee1b3853afa1171883bc4"
+    },
+    "revisionIdentity": {
+      "bytes": 1352,
+      "digest": "50103b10c6d72866987aa6fbe0a2c5bc4397d14eff5f64f2d3e4433fa6b82a16",
+      "filename": "revision-identity.json",
+      "sha256": "50103b10c6d72866987aa6fbe0a2c5bc4397d14eff5f64f2d3e4433fa6b82a16"
+    },
+    "visualDirections": {
+      "bytes": 11800,
+      "filename": "visual-directions.json",
+      "sha256": "b1455bbdfe5d364a8ca7a5377f1ee90fdaa498df0bd1692df985ff0461611d21"
+    }
+  },
+  "runtimeEligibility": {
+    "eligible": false,
+    "reason": "visual_directions_candidate_not_product_accepted"
+  },
+  "sourceRevision": {
+    "manifestDigest": "b46a0d71e010d31541b4d027380632eb6143edac2e3d54dde81039164f86f96b",
+    "manifestPath": "story-pipeline/04_approved_story_sources/accepted/panda_anat_adventure/revisions/9ea583e13fa979e1105a60f52721f550f518e5eed01295983f2f02e2c7aaf3cb/manifest.json",
+    "manifestSha256": "27b943a26cc5d3a0ebd6e4ddccabda80caf2fad38bef184b23131d638c0b8c7e",
+    "revisionDigest": "9ea583e13fa979e1105a60f52721f550f518e5eed01295983f2f02e2c7aaf3cb",
+    "storySha256": "5bed647c29ca61b6fe75ccd39b3e73fb6be5ea2d775f4add220026dc20714b0e"
+  },
+  "status": "pending_exact_product_review",
+  "storyKey": "panda_anat_adventure",
+  "version": "small-heroes-story-source-visual-direction-enrichment-candidate-manifest/v1"
+}

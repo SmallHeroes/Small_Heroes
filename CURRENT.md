@@ -1,5 +1,46 @@
 # SmallHeroes — Current Technical State
 
+## Guy-accepted Panda text published; visual candidate held — 2026-09-17
+
+Guy explicitly accepted revision02 (source5bed647c, genuine Editor79271dfb).
+Same task/sole writer in sh-r3b1b-semantic-m1 on codex/r3b1b-semantic-recovery-m1;
+clean start87282474 ahead57. Independent source-code PASS remains4fd7eda0..95a8d7b1;
+Guy supplied Claude's evidence-only P2 closure PASS0/0/0 for ea3850d7..87282474.
+Neither review covers the fresh visual preparation or this publication.
+
+Actual reviewed lifecycle published immutable text revision9ea583e13fa979e1105a60f52721f550f518e5eed01295983f2f02e2c7aaf3cb
+with seven files and story_text_only authority. Real enrichment produced candidate
+50103b10c6d72866987aa6fbe0a2c5bc4397d14eff5f64f2d3e4433fa6b82a16,
+twelve directions, status pending_exact_product_review. Both dry-run/write/reload
+and identical created:false replay succeeded. No visual acceptance fabricated.
+Source prose is exact;18 original roots and intake18/216 reverified unchanged.
+
+Publication has a real fail-closed local runtime consequence: Panda's old V3
+fallback is no longer selected. Current source remains null until the integrated
+revision is accepted. With V3 enabled the sellable inventory is17, render-qualified2;
+with V3 disabled it remains2/2. Five test files adapt explicit inventory assertions,
+retain432 text projections (408 selected+24 held), and require all16 unqualified
+nominal slots blocked. No production code, timeout or QA threshold changed.
+
+Latest full check is NON-GREEN:6360passed/4failed/73skipped,410 specs. Three failures
+are5000ms timeouts; the fourth was another old matrix-inventory assertion, corrected
+after that run. No full rerun of that last test-only correction is claimed.
+Final serial focused74/74 passed (six specs); isolated bridge1/1 passed in2040ms
+(130 filtered tests not claimed run). Fresh tsc0. These do not close full-load
+stability or classify the full-run timeouts as inherited. No third full run.
+Validation results, including isolated outcomes, are recorded in source-publication/
+VALIDATION.md. Do not infer repository-wide green or independent PASS from focused
+checks. This milestone's review/handoff is source-publication/HANDOFF.md under
+story-pipeline/06_editorial_refresh/2026-09-16/book-proof.
+
+New source files, requests, receipts and five exact candidate copies are retained
+in Git with this milestone; ignored execution roots and raw logs remain local,
+with no verified off-machine backup. Handoff lists both roots and rehydration.
+No credential/provider/image/audio calls, spending or push. Cost this milestone$0.
+Next: independent source/visual review and exact visual acceptance, then contract,
+Blueprint, package/references and bounded LOW proof. No full rendered/narrated
+book or launch acceptance is claimed; full-book goal remains incomplete.
+
 ## Independent original-source PASS received; P2 test traceability corrected — 2026-09-17
 
 Guy supplied Claude Code PASS P0=0/P1=0/P2=1 for4fd7eda0..95a8d7b1 ONLY.

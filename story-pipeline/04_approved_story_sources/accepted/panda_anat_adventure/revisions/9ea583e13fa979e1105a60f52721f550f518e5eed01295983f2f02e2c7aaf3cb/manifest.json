@@ -1,0 +1,73 @@
+{
+  "authorityScope": "story_text_only",
+  "digest": "b46a0d71e010d31541b4d027380632eb6143edac2e3d54dde81039164f86f96b",
+  "exclusions": [
+    "blueprint",
+    "deployment",
+    "production",
+    "render",
+    "runtime_locator",
+    "story_bank",
+    "visual_contract",
+    "visual_directions",
+    "visual_package",
+    "wizard"
+  ],
+  "files": {
+    "creativeBrief": {
+      "bytes": 6112,
+      "filename": "creative-brief.json",
+      "sha256": "a9b15dd2da6a9dc6685aa0c247bba3868d960b6a324633acb929a3b25c89faa4"
+    },
+    "editorialReview": {
+      "bytes": 1686,
+      "filename": "editorial-review.json",
+      "sha256": "79271dfb6b000e066b5bbb26eace873705bf88760aa34a62a8aab304e64536d1"
+    },
+    "productAcceptance": {
+      "bytes": 1638,
+      "digest": "1ccb14ee63a2e49b4c20fdbd9e06ad18856659579b81d4a1fc138cdb01945804",
+      "filename": "product-acceptance.json",
+      "sha256": "f16deceb4470f87f672d47ff5e58564654f22d865a3f49d9f46300d13fb45142"
+    },
+    "reviewBundle": {
+      "bytes": 1705,
+      "digest": "601cc4702e200582db1fe3421e7871230e5403e6f27586f866549811f582535d",
+      "filename": "review-bundle.json",
+      "sha256": "1bd8a4b12a50de3e9d5da9d7fc8f2c27fcef99c9d70f9521c66ba5e1fa16f42b"
+    },
+    "revisionIdentity": {
+      "bytes": 939,
+      "digest": "9ea583e13fa979e1105a60f52721f550f518e5eed01295983f2f02e2c7aaf3cb",
+      "filename": "revision-identity.json",
+      "sha256": "9ea583e13fa979e1105a60f52721f550f518e5eed01295983f2f02e2c7aaf3cb"
+    },
+    "story": {
+      "bytes": 6586,
+      "filename": "story.md",
+      "sha256": "5bed647c29ca61b6fe75ccd39b3e73fb6be5ea2d775f4add220026dc20714b0e"
+    }
+  },
+  "identity": {
+    "briefId": "panda_anat_adventure_moon_station_revision02",
+    "category": "SOCIAL",
+    "companionId": "panda_anat",
+    "direction": "adventure",
+    "pageCount": 12
+  },
+  "predecessor": {
+    "kind": "accepted_root_v1",
+    "manifestPath": "story-pipeline/04_approved_story_sources/accepted/panda_anat_adventure/manifest.json",
+    "manifestSha256": "38a65fd8bb6aabba665a22fe2a9d316b19f7d3e540d1032603d5fb9b306df758"
+  },
+  "revisionDigest": "9ea583e13fa979e1105a60f52721f550f518e5eed01295983f2f02e2c7aaf3cb",
+  "runtimeEligibility": {
+    "eligible": false,
+    "reason": "visual_directions_not_approved"
+  },
+  "sourceGenderMode": "neutral",
+  "sourceProfile": "gender_flexible",
+  "status": "product_accepted_story_source_creative_replacement",
+  "storyKey": "panda_anat_adventure",
+  "version": "small-heroes-product-accepted-story-source-creative-replacement-manifest/v2"
+}

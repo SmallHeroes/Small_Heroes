@@ -1,0 +1,46 @@
+{
+  "version": "small-heroes-story-source-visual-direction-enrichment-candidate-manifest/v1",
+  "status": "pending_exact_product_review",
+  "created": true,
+  "candidateDigest": "50103b10c6d72866987aa6fbe0a2c5bc4397d14eff5f64f2d3e4433fa6b82a16",
+  "manifestDigest": "82cd0dc2460ed32f25243ffca30164655c27b674f5d548945e9988b85ac82bcf",
+  "reviewBundleDigest": "d6a7c9fba9ac03eea09c0aec9876eb1fb7aec2074b108bc31c5dab15689ed85d",
+  "sourceRevisionDigest": "9ea583e13fa979e1105a60f52721f550f518e5eed01295983f2f02e2c7aaf3cb",
+  "visualDirectionSha256": "b1455bbdfe5d364a8ca7a5377f1ee90fdaa498df0bd1692df985ff0461611d21",
+  "integratedStorySha256": "355597392756b6fca1ecd77decafc61c74e383855e74730be8e8feba9206b0eb",
+  "composition": {
+    "pageCount": 12,
+    "widePageNumbers": [
+      1,
+      4,
+      5,
+      7,
+      10
+    ],
+    "closeFocusPageNumbers": [
+      9,
+      11
+    ],
+    "distinctShotTypes": [
+      "close",
+      "extreme_wide",
+      "medium",
+      "medium_close",
+      "medium_wide",
+      "wide"
+    ],
+    "distinctCameraAngles": [
+      "eye_level",
+      "ground_level",
+      "high_angle",
+      "three_quarter"
+    ],
+    "adjacentRepeatedPairs": [],
+    "maximumShotTypeRun": 1
+  },
+  "target": "outputs/panda-visual-enrichment-20260917/50103b10c6d72866987aa6fbe0a2c5bc4397d14eff5f64f2d3e4433fa6b82a16",
+  "runtimeEligibility": {
+    "eligible": false,
+    "reason": "visual_directions_candidate_not_product_accepted"
+  }
+}
