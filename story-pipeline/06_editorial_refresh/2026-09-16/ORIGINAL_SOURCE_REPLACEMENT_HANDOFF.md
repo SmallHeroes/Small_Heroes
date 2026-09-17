@@ -1,5 +1,47 @@
 # Claude Code: original accepted source to first creative replacement
 
+## Review received and P2 traceability correction — 2026-09-17
+
+Guy supplied Claude Code's independent PASS P0=0/P1=0/P2=1 for the immutable
+range4fd7eda0e9d39d39ac80443d9a1e0987739b9f41..95a8d7b15f4f59abed6f3ebc33c72cfb40b64263.
+Claude independently reports a complete npm run check exit0: ordinary388 files,
+resource22 files,410 total, both phases passed. The historical NON-GREEN finding
+is closed by that observed run, not a claim of permanent reliability or release.
+Claude also reports62 negative probes,18/18 originals, both creative revisions'
+7-file byte preservation and equivalent base/head behavior for all5 revisions.
+These are attributed reviewer results, not newly executed Codex experiments.
+
+The remaining P2 was an unnamed Editor spec, not a failed test. Exact files and
+reproduction command are now below. Codex re-ran all3 together at ea3850d7:
+49+8+16 =73/73, exit0. All three spec blobs and scripts/lib paths are unchanged
+between95a8d7b1 and ea3850d7. No count is inferred from a different Editor spec.
+
+This correction is two Markdown files only (this file and CURRENT.md), based on
+ea3850d733f5383472f44dc9ae278014a6d67d5c, clean ahead56 at start. Same sole writer,
+branch/worktree as below; d53b768ccb2f and wave2 63ccb484 clean and untouched.
+No provider, credentials, paid calls, source promotion or push. No fresh full
+check was run for the documentation correction; focused73/73 and tsc0 were run.
+Independent closure of P2 is requested, not self-awarded. The independent code
+PASS still ends at95a8d7b1; ea3850d7 visual preparation and this correction are
+outside that range. New Panda content acceptance and downstream gates remain open.
+
+Re-gate target: verify that story-candidate-review.spec.ts is the genuine16-case
+review-story-candidate.cjs suite, reproduce the exact73-case command, and confirm
+this correction does not alter source/approval/intake or extend PASS boundaries.
+
+```powershell
+Set-Location 'C:/GNart/Work/sh-r3b1b-semantic-m1'
+git status --short --branch
+git log -1 --format='%H %P %s'
+git diff --stat ea3850d733f5383472f44dc9ae278014a6d67d5c HEAD
+git diff --check ea3850d733f5383472f44dc9ae278014a6d67d5c HEAD
+git diff --name-only 95a8d7b1 ea3850d7 -- scripts lib
+npx vitest run lib/__tests__/story-source-creative-replacement-lifecycle.spec.ts lib/__tests__/story-source-visual-direction-enrichment-lifecycle.spec.ts lib/__tests__/story-candidate-review.spec.ts
+npx tsc --noEmit
+# Only on Guy's explicit push request; carries the entire accumulated branch:
+# git push origin codex/r3b1b-semantic-recovery-m1
+```
+
 ## Scope and topology
 
 Review-only first pass. Branch codex/r3b1b-semantic-recovery-m1, worktree
@@ -35,7 +77,15 @@ milestone closes that compatibility gap, not full book/readiness/release gates.
 ## Evidence
 
 One red fixture on base: request_invalid,1failed/27filtered. After implementation:
-49/49 lifecycle (27existing,22new),8/8 enrichment,16/16 Editor, total73/73.
+49/49 lifecycle (27existing,22new),8/8 enrichment,16/16 Editor, total73/73:
+
+- lib/__tests__/story-source-creative-replacement-lifecycle.spec.ts:49
+- lib/__tests__/story-source-visual-direction-enrichment-lifecycle.spec.ts:8
+- lib/__tests__/story-candidate-review.spec.ts:16 (scripts/review-story-candidate.cjs)
+
+The Editor count does not refer to hebrew-read-aloud-editor.spec.ts or
+story-source-revision-materializer.spec.ts. Exact rerun command appears above.
+
 tsc exit0. Full npm run check exit0, both typechecks pass, ordinary5693pass/73skip,
 resource671/671, total6364pass/73skip,410 files. Captured supervisor summary
 book-proof/original-source-check-summary.json is a final summary, not full logs.

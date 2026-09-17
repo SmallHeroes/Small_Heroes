@@ -1,5 +1,28 @@
 # SmallHeroes — Current Technical State
 
+## Independent original-source PASS received; P2 test traceability corrected — 2026-09-17
+
+Guy supplied Claude Code PASS P0=0/P1=0/P2=1 for4fd7eda0..95a8d7b1 ONLY.
+Reviewer independently ran npm run check exit0 (ordinary388/resource22,410 total)
+and explicitly closed the previous NON-GREEN limitation. This establishes that
+observed green run, not permanent stability, visual quality or launch readiness.
+Reported62 fault probes and18/18 original roots passed; original acceptance still
+cannot authorize rewritten text. No independent PASS is inferred for ea3850d7.
+
+Valid P2: handoff omitted the exact16-case Editor spec name. Corrected in
+ORIGINAL_SOURCE_REPLACEMENT_HANDOFF.md with all3 paths and copy-ready command.
+Fresh combined run at ea3850d7: creative-replacement49, enrichment8,
+story-candidate-review.spec.ts16 =73/73, exit0; tsc0. scripts/lib paths unchanged
+since95a8d7b1. This is a documentation-only correction, not independent P2 closure.
+No full check rerun, source/approval/intake mutation, provider, credentials, cost
+or push. Start clean ea3850d7 ahead56, same sole writer; protected768ccb2f/63ccb484
+clean. No new content acceptance was included in the supplied technical review.
+
+Remaining: exact-content acceptance of Panda revision02, visual preparation review
+and real source/enrichment/contract/package progression before paid sample. Local
+CLI authentication is no longer evidence that QA is unavailable: Guy supplied the
+external review directly. Full-book goal is still incomplete, not release-ready.
+
 ## Panda fresh visual preparation validated offline; not published — 2026-09-17
 
 Same sole-writer task/worktree/branch, base95a8d7b1 clean ahead55. New files only
