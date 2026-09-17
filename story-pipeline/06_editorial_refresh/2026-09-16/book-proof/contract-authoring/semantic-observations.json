@@ -1,0 +1,60 @@
+{
+  "status": "semantic_hold_codex_observation_not_independent_QA",
+  "candidateDigest": "41d400698df1aa452b326a050b5f1a316ea4679ffb80e093fa16c6466c7ff2ba",
+  "templateDigest": "0521e50b66e5be397c4ba4c23516a0c852faa16465517c81523fc167df80053e",
+  "sourceSnapshotDigest": "36230817452cdbfd56896bd445c07a39b3b526cfe11475f3533235f2d0cb2143",
+  "providerCalls": 0,
+  "findings": [
+    {
+      "id": "CAST",
+      "severity": "blocking",
+      "observation": "Extractor humans=[], compiled humanCast=[]; all12 cast lists omit supporting identities despite Adam/station children/teacher in approved directions and contract prose.",
+      "cause": "Compiler overlays legacy deterministic humans; canonical live request does not carry source-bound supporting-cast review. Existing offline semantic-correction mechanism must be used, not manual mutation of paid candidate."
+    },
+    {
+      "id": "MOMENT",
+      "severity": "blocking",
+      "pages": [
+        5,
+        8,
+        12
+      ],
+      "observation": "Draft already merges narrative beats into simultaneous must actions. On8 reaches_toward and rug flattening coexist; on12 walks, rug pushing, wheel placing conflict with selected final conversation. On5 telescope viewing intrudes on selected rear-turn moment.",
+      "cause": "Typed coverage validity does not establish fidelity to selected illustration moment. Compiler projects those actions into mustShow; no schema validation error was emitted."
+    },
+    {
+      "id": "COVER",
+      "severity": "blocking",
+      "observation": "Cover mustShow requests wheel/station while compiler-generated mustNotShow forbids both before firstRevealPage1.",
+      "cause": "Draft asks for them; deterministic page0 lifecycle projection appends prohibitions. Existing explicit cover-visible-prop correction is the intended route; do not drop no-spoiler policy globally."
+    },
+    {
+      "id": "CUSTODY",
+      "severity": "blocking",
+      "pages": [
+        3,
+        4,
+        5,
+        6,
+        11
+      ],
+      "observation": "Not one unequivocal telescope holder/resting place:6 says rover OR Adam;11 says available but secondary;4 tube inside a floorless moving box has no support.3 asks Adam with tube plus child viewing it. Prior P2 not closed."
+    },
+    {
+      "id": "STAGING",
+      "severity": "blocking",
+      "pages": [
+        7,
+        10
+      ],
+      "observation": "7 requires sitting on rug instead of approved grass beside it.10 omits the child pointing out the detour and asks turns instead."
+    },
+    {
+      "id": "CAPACITY",
+      "severity": "follow_up",
+      "observation": "Rover scale says several children instead of making the approved two-child occupancy legible; final scene must not add the station driver inside."
+    }
+  ],
+  "partialSuccess": "Page9 propState explicitly names Adam holding wheel, and child tube remains at eye level. Not complete closure because Adam is not an authoritative cast identity.",
+  "boundaries": "No candidate/source mutation, no reconciliation approval, no Blueprint/render/narration/pixel acceptance."
+}

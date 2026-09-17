@@ -1,5 +1,40 @@
 # SmallHeroes — Current Technical State
 
+## Panda live contract authored; semantic HOLD before any images — 2026-09-18
+
+Claude supplied PASS0/0/0 new for4ab3bf1c..508f49b4; earlier review boundaries
+remain unchanged. Guy's standing explicit paid/key-reuse continuation authority
+was used separately from source acceptance. Sole writer/task in semantic-m1,
+codex/r3b1b-semantic-recovery-m1; clean508f49b4 ahead1 at start; dependencies
+768ccb2f/63ccb484 clean/read-only. No push in this milestone.
+
+One real canonical authoring run completed with native exit0: sol medium/default,
+2 provider calls,1 source-evidence-id repair,0 retries/fallbacks/cleanup calls.
+Request1922c7d8, receipt68352dc5, artifact41d40069, template0521e50b, snapshot36230817.
+Nominal usage-derived cost$0.437444; conservative accounted$0.481196; invoice not
+independently verified. Reserved$7.656/hard fence$10 are not charges. No image/audio.
+Six content addresses verified,9 accepted source files preserve bytes/hash/mtime;
+offline replay reproduces candidate and exact call sequence with providerCalls0.
+Focused3 specs196/196 and tsc0; existing2 verifiers0. Full check not rerun.
+
+Structural completion is NOT semantic acceptance. Codex inspection holds candidate:
+supporting humans absent from structured cast, mixed selected moments on5/8/12,
+cover wheel/station both required and forbidden, unresolved tube custody, staging
+drift7/10 and loose rover capacity. Prior P2s not closed. Draft vs compiler origin
+is recorded; no independent PASS is claimed for this new artifact or observation.
+BlueprintAuthoringReady:false and d1a1Authorized:false remain. No runtime promotion.
+
+Next: existing source-bound supporting-cast/semantic-correction preview route,
+offline, preserving paid candidate and receipt; then review/reconciliation before
+Blueprint/references/sample. Do not pay for another blind full contract attempt.
+No approved prose/direction, engine, threshold, package, reader or key file changed.
+New roots outputs/panda-contract-authoring-20260918-01 and
+outputs/panda-contract-execution-20260918-01 are ignored/untracked, local-only with
+no verified off-machine backup; pushing evidence does not preserve original logs.
+Prior snapshot root outputs/panda-contract-source-20260917 remains required input.
+Evidence, cost, semantic witness, exact QA/PowerShell handoff:
+story-pipeline/06_editorial_refresh/2026-09-16/book-proof/contract-authoring/HANDOFF.md.
+
 ## Panda visual directions product-accepted and published — 2026-09-17
 
 Guy explicitly replied "מאשר" to the exact12 reviewed directions including the

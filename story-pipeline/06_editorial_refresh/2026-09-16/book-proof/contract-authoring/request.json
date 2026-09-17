@@ -1,0 +1,248 @@
+{
+  "version": "visual-contract-authoring-request/v56",
+  "policyVersion": "visual-contract-authoring-policy/v22",
+  "routingPolicyVersion": "visual-contract-authoring-routing-policy/v2",
+  "mode": "live",
+  "requestId": "panda-contract-20260918-01",
+  "requestedAt": "2026-09-17T21:28:13.841Z",
+  "sourceSnapshotDigest": "36230817452cdbfd56896bd445c07a39b3b526cfe11475f3533235f2d0cb2143",
+  "provider": "openai",
+  "endpoint": "responses",
+  "model": "gpt-5.6-sol",
+  "serviceTier": "default",
+  "reasoningEffort": "medium",
+  "structuredOutput": {
+    "strict": true,
+    "schemaName": "BookVisualContractTemplateDraft",
+    "schemaVersion": "vc-draft-schema/v21",
+    "schemaDigest": "1623863f48a101678ca9225e372720635c5c12442a2a0239ceb04ac98c020502",
+    "compatibilityProfileVersion": "openai-responses-structured-output-compatibility-profile/v2",
+    "compatibilityProfileDigest": "c5f7cacccff01c435b15cb9d20d0b6cff9ec4c399c5978b50ee81da9fb54523a",
+    "compatibilityEvidenceVersion": "openai-responses-structured-output-compatibility-evidence/v2",
+    "compatibilityEvidenceDigest": "3cbc802b16b71f1f45a81f1af9ee0a25199e94303475cc7d2b979cc9afb1c111",
+    "compatibilityStatus": "compatible",
+    "serializedSchemaDigest": "1623863f48a101678ca9225e372720635c5c12442a2a0239ceb04ac98c020502"
+  },
+  "compactRepairStructuredOutput": {
+    "strict": true,
+    "schemaName": "SourceEvidenceIdRepairPatches",
+    "schemaVersion": "source-evidence-id-repair-schema/v1",
+    "schemaDigest": "8f9514a8e2ad479aa7a8d2f01e322dadc34d522829ee417960d2f271adc51c6e",
+    "compatibilityProfileVersion": "openai-responses-structured-output-compatibility-profile/v2",
+    "compatibilityProfileDigest": "c5f7cacccff01c435b15cb9d20d0b6cff9ec4c399c5978b50ee81da9fb54523a",
+    "compatibilityEvidenceVersion": "openai-responses-structured-output-compatibility-evidence/v2",
+    "compatibilityEvidenceDigest": "fb0d7428ce876b46ca8f096c173feeedf4fdd9a920684e7cabe0ef3102d10482",
+    "compatibilityStatus": "compatible",
+    "serializedSchemaDigest": "8f9514a8e2ad479aa7a8d2f01e322dadc34d522829ee417960d2f271adc51c6e"
+  },
+  "pageContractRepairStructuredOutput": {
+    "strict": true,
+    "schemaName": "PageContractRepairPatches",
+    "schemaVersion": "page-contract-repair-schema/v3",
+    "schemaDigest": "2daefd455b3d6616eeaa75cc9d2bf81819721a394fb1f03d0b2262d24af91b2e",
+    "compatibilityProfileVersion": "openai-responses-structured-output-compatibility-profile/v2",
+    "compatibilityProfileDigest": "c5f7cacccff01c435b15cb9d20d0b6cff9ec4c399c5978b50ee81da9fb54523a",
+    "compatibilityEvidenceVersion": "openai-responses-structured-output-compatibility-evidence/v2",
+    "compatibilityEvidenceDigest": "bba1bba730cb4861083e222e372863252a6691792954639c4294b7c6c17dc0aa",
+    "compatibilityStatus": "compatible",
+    "serializedSchemaDigest": "2daefd455b3d6616eeaa75cc9d2bf81819721a394fb1f03d0b2262d24af91b2e"
+  },
+  "representedElsewhereRepairStructuredOutput": {
+    "strict": true,
+    "schemaName": "RepresentedElsewhereRepairPatches",
+    "schemaVersion": "represented-elsewhere-repair-schema/v1",
+    "schemaDigest": "c15013c5ed2a5482156e19dd95c3e46b10bdb01fa9df5da04c4d78b321c20a4d",
+    "compatibilityProfileVersion": "openai-responses-structured-output-compatibility-profile/v2",
+    "compatibilityProfileDigest": "c5f7cacccff01c435b15cb9d20d0b6cff9ec4c399c5978b50ee81da9fb54523a",
+    "compatibilityEvidenceVersion": "openai-responses-structured-output-compatibility-evidence/v2",
+    "compatibilityEvidenceDigest": "dc45b3c077d998cdaeb8a0001e3d137464a103c65e3d5194467402657935cc8b",
+    "compatibilityStatus": "compatible",
+    "serializedSchemaDigest": "c15013c5ed2a5482156e19dd95c3e46b10bdb01fa9df5da04c4d78b321c20a4d"
+  },
+  "pageSpatialReferenceRepairStructuredOutput": {
+    "strict": true,
+    "schemaName": "PageSpatialReferenceRepairPatches",
+    "schemaVersion": "page-spatial-reference-repair-schema/v1",
+    "schemaDigest": "316d076c978321fb18413e36720ac13ef0093b6d778fb177306e8a7197a97951",
+    "compatibilityProfileVersion": "openai-responses-structured-output-compatibility-profile/v2",
+    "compatibilityProfileDigest": "c5f7cacccff01c435b15cb9d20d0b6cff9ec4c399c5978b50ee81da9fb54523a",
+    "compatibilityEvidenceVersion": "openai-responses-structured-output-compatibility-evidence/v2",
+    "compatibilityEvidenceDigest": "fbaedf357056d339612578bbc48e89f13f62063cd54e85161734c7c280731fe7",
+    "compatibilityStatus": "compatible",
+    "serializedSchemaDigest": "316d076c978321fb18413e36720ac13ef0093b6d778fb177306e8a7197a97951"
+  },
+  "structuralBundleRepairStructuredOutput": {
+    "strict": true,
+    "schemaName": "StructuralBundleRepairPatch",
+    "schemaVersion": "structural-bundle-repair-schema/v4",
+    "schemaDigest": "b572d9501f25ec1936ca3520b4981316ece2b3041393a97ffdbc42621cf82a09",
+    "compatibilityProfileVersion": "openai-responses-structured-output-compatibility-profile/v2",
+    "compatibilityProfileDigest": "c5f7cacccff01c435b15cb9d20d0b6cff9ec4c399c5978b50ee81da9fb54523a",
+    "compatibilityEvidenceVersion": "openai-responses-structured-output-compatibility-evidence/v2",
+    "compatibilityEvidenceDigest": "abc61536863b86d1bcf086336daee3d1b25cb6f19d30a2b7890084c449616e4a",
+    "compatibilityStatus": "compatible",
+    "serializedSchemaDigest": "b572d9501f25ec1936ca3520b4981316ece2b3041393a97ffdbc42621cf82a09"
+  },
+  "bookSurfaceRepairStructuredOutput": {
+    "strict": true,
+    "schemaName": "BookSurfaceRepairPatch",
+    "schemaVersion": "book-surface-repair-schema/v7",
+    "schemaDigest": "a0f68be847897929fb7f76e57b3507de694b8a4dab5f318c05627b7acb613468",
+    "compatibilityProfileVersion": "openai-responses-structured-output-compatibility-profile/v2",
+    "compatibilityProfileDigest": "c5f7cacccff01c435b15cb9d20d0b6cff9ec4c399c5978b50ee81da9fb54523a",
+    "compatibilityEvidenceVersion": "openai-responses-structured-output-compatibility-evidence/v2",
+    "compatibilityEvidenceDigest": "3566b60450d9a50baf6706e63067cab832ffbd541cb588101219735c65a1c589",
+    "compatibilityStatus": "compatible",
+    "serializedSchemaDigest": "a0f68be847897929fb7f76e57b3507de694b8a4dab5f318c05627b7acb613468"
+  },
+  "presentationRequirementRepairStructuredOutput": {
+    "strict": true,
+    "schemaName": "PresentationRequirementRepairPatches",
+    "schemaVersion": "presentation-requirement-repair-schema/v3",
+    "schemaDigest": "2f69576faeb3603fdeeeec15f1aef5400054e47d616d22b40605f75d116acc3f",
+    "compatibilityProfileVersion": "openai-responses-structured-output-compatibility-profile/v2",
+    "compatibilityProfileDigest": "c5f7cacccff01c435b15cb9d20d0b6cff9ec4c399c5978b50ee81da9fb54523a",
+    "compatibilityEvidenceVersion": "openai-responses-structured-output-compatibility-evidence/v2",
+    "compatibilityEvidenceDigest": "5e3ae2788cb45b99571ab8f928091a5b1049a3fed0e3af921a8c3da43b550c79",
+    "compatibilityStatus": "compatible",
+    "serializedSchemaDigest": "2f69576faeb3603fdeeeec15f1aef5400054e47d616d22b40605f75d116acc3f"
+  },
+  "stablePropScopeRepairStructuredOutput": {
+    "strict": true,
+    "schemaName": "StablePropScopeRepairPatches",
+    "schemaVersion": "stable-prop-scope-repair-schema/v1",
+    "schemaDigest": "b189a20c336cb17491ac440f740b21f0bc6596b27e445451b2b8ad11a4c7ee70",
+    "compatibilityProfileVersion": "openai-responses-structured-output-compatibility-profile/v2",
+    "compatibilityProfileDigest": "c5f7cacccff01c435b15cb9d20d0b6cff9ec4c399c5978b50ee81da9fb54523a",
+    "compatibilityEvidenceVersion": "openai-responses-structured-output-compatibility-evidence/v2",
+    "compatibilityEvidenceDigest": "e272a660a8e113870315d82a8bf604a098b1772ad96626bc702d1a577283b9d8",
+    "compatibilityStatus": "compatible",
+    "serializedSchemaDigest": "b189a20c336cb17491ac440f740b21f0bc6596b27e445451b2b8ad11a4c7ee70"
+  },
+  "toolsDisabled": true,
+  "noFallback": true,
+  "transportRetries": 0,
+  "timeoutMs": 1200000,
+  "tokenBudget": {
+    "maxInputTokens": 80000,
+    "promptAndSchemaTokenUpperBound": 53937,
+    "standardAttempts": {
+      "version": "visual-contract-authoring-standard-attempt-output-budget/v6",
+      "limits": [
+        40000,
+        32000,
+        36000,
+        24000,
+        24000,
+        24000,
+        24000
+      ],
+      "totalPool": 204000,
+      "digestAlgorithm": "canonical-json-sha256",
+      "digest": "382362dc0fb9498e5bb708fe76c71ee2d021230ef805dca1b4d132d998211f05"
+    },
+    "outputIncludesReasoning": true
+  },
+  "callBudget": {
+    "maxCalls": 8,
+    "maxRepairCount": 7,
+    "standardMaxCalls": 7,
+    "standardMaxRepairCount": 6,
+    "terminalReferenceCleanup": {
+      "budgetClass": "terminal_reference_cleanup",
+      "maxCalls": 1,
+      "maxRepairCount": 1,
+      "maxInputTokens": 12000,
+      "maxOutputTokens": 1000,
+      "eligiblePrecedingRepairModes": [
+        "book_surface_patch",
+        "full_draft"
+      ],
+      "repairMode": "page_spatial_reference_patch",
+      "residualFamily": "draft_contract",
+      "residualCode": "out_of_scope_reference"
+    }
+  },
+  "pricing": {
+    "version": "openai-standard-pricing/2026-08-25-v3",
+    "currency": "USD",
+    "unitTokens": 1000000,
+    "uncachedInputUsdPerUnit": 4,
+    "cacheWriteInputUsdPerUnit": 5,
+    "cachedInputUsdPerUnit": 0.4,
+    "outputUsdPerUnit": 20,
+    "regionalUpliftMultiplier": 1.1,
+    "source": "https://developers.openai.com/api/docs/pricing"
+  },
+  "pricingDigest": "aa3ad568ad9d815fa09d9c3251cece5d215dbe9a24c9b6f4ce02235646ccbb6a",
+  "costBudget": {
+    "projectedMaxUsd": 7.656,
+    "hardCeilingUsd": 10
+  },
+  "promptDigests": {
+    "system": "348ef379add8da7fe46c074c9e213e3ed187cd0dfb4bfe628688eec2237a104d",
+    "user": "05da6be62705b619915798e4b42010475303ec2cec6e398bb163d080b69b32cc"
+  },
+  "promptAuthority": {
+    "initial": {
+      "systemPromptVersion": "vc-template-prompt/v22",
+      "userPromptVersion": "vc-template-user-prompt/v17",
+      "systemPromptDigest": "348ef379add8da7fe46c074c9e213e3ed187cd0dfb4bfe628688eec2237a104d",
+      "userPromptDigest": "05da6be62705b619915798e4b42010475303ec2cec6e398bb163d080b69b32cc"
+    },
+    "repair": {
+      "systemPromptVersion": "vc-repair-prompt/v16",
+      "userPromptVersion": "vc-repair-user-prompt/v15",
+      "systemPromptDigest": "b1eb57f23450cf10137886cf60efeb6741545a30a174b78a86d47026300fb800"
+    },
+    "sourceEvidenceIdRepair": {
+      "systemPromptVersion": "source-evidence-id-repair-prompt/v1",
+      "userPromptVersion": "source-evidence-id-repair-user-prompt/v2",
+      "systemPromptDigest": "7dc8735a336a750024bd4c38cb11ef621dcb193f38792f2510ad1f71a95661a0"
+    },
+    "pageContractRepair": {
+      "systemPromptVersion": "page-contract-repair-prompt/v13",
+      "userPromptVersion": "page-contract-repair-user-prompt/v14",
+      "systemPromptDigest": "b6c33afe52d6bd6e4d2689057fb03810cf60b8c05bc184c21a43db3d19771f72"
+    },
+    "representedElsewhereRepair": {
+      "systemPromptVersion": "represented-elsewhere-repair-prompt/v1",
+      "userPromptVersion": "represented-elsewhere-repair-user-prompt/v1",
+      "systemPromptDigest": "31616197c8bf80963735aa92fa633a725138ff4a5a2ebf2d3fabea0880ff5543"
+    },
+    "pageSpatialReferenceRepair": {
+      "systemPromptVersion": "page-spatial-reference-repair-prompt/v1",
+      "userPromptVersion": "page-spatial-reference-repair-user-prompt/v1",
+      "systemPromptDigest": "9cee18aa400ff1d576728d4c0c9c39a2ca48d84a512db7a54111e6d2ef6b11ce"
+    },
+    "structuralBundleRepair": {
+      "systemPromptVersion": "structural-bundle-repair-prompt/v2",
+      "userPromptVersion": "structural-bundle-repair-user-prompt/v2",
+      "systemPromptDigest": "ba5ac56f272d43b6930d24cd943de5d6fafe046ee6a77499964c6f2da9772274"
+    },
+    "bookSurfaceRepair": {
+      "systemPromptVersion": "book-surface-repair-prompt/v14",
+      "userPromptVersion": "book-surface-repair-user-prompt/v13",
+      "systemPromptDigest": "8e93d06cf8880bbac9a37e1bc902dcb43dc7364bc90ac0e91ae9445cac062b67"
+    },
+    "presentationRequirementRepair": {
+      "systemPromptVersion": "presentation-requirement-repair-prompt/v3",
+      "userPromptVersion": "presentation-requirement-repair-user-prompt/v3",
+      "systemPromptDigest": "25f1d48c27112079cb2f4f6501119cf09802ea49a16b2ef6e71516c48345b489"
+    },
+    "stablePropScopeRepair": {
+      "systemPromptVersion": "stable-prop-scope-repair-prompt/v1",
+      "userPromptVersion": "stable-prop-scope-repair-user-prompt/v1",
+      "systemPromptDigest": "56810f4b9c343a92facecda7a17261c97f2ceb7547931e4ff46984da0a547833"
+    }
+  },
+  "actionSemanticAuthority": {
+    "catalogVersion": "action-semantic-catalog/v4",
+    "catalogDigest": "767e563e91edc6ec20ea9e6a27e4b606b60aa97dbca09b0868ca5f3da710c9be",
+    "coverageVersion": "action-semantic-coverage/v6",
+    "sourceEvidenceCatalogVersion": "source-evidence-catalog/v1",
+    "sourceEvidenceCatalogDigest": "0417cb66bac37f04f6a26bab78bc05cec7452d438c895acc956346f06f39b019"
+  },
+  "digestAlgorithm": "canonical-json-sha256",
+  "digest": "1922c7d8a6bb8497e9a89f51eb6a261b30aa32703e912c7712ae680aaa4b0b62"
+}
