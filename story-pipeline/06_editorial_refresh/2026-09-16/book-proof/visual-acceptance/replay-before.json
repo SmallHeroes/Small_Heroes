@@ -1,0 +1,110 @@
+[
+  {
+    "file": "outputs/panda-visual-acceptance-prepared-20260917/407c34c88fd6c5a851ed253c0534f01332a599222a2d6a6ecff967e65b81d160/enrichment-manifest.json",
+    "bytes": 2677,
+    "sha256": "32859644171661001741fc62c3f2f21007d52a0c7d401c992e74a2b520c87255",
+    "mtimeMs": 1789676027212.8286
+  },
+  {
+    "file": "outputs/panda-visual-acceptance-prepared-20260917/407c34c88fd6c5a851ed253c0534f01332a599222a2d6a6ecff967e65b81d160/enrichment-review-bundle.json",
+    "bytes": 2754,
+    "sha256": "cabc32c33240bab13c307fa9904356037eb73e8c7248bece40cc32268dd24d52",
+    "mtimeMs": 1789676027212.8286
+  },
+  {
+    "file": "outputs/panda-visual-acceptance-prepared-20260917/407c34c88fd6c5a851ed253c0534f01332a599222a2d6a6ecff967e65b81d160/integrated.md",
+    "bytes": 15023,
+    "sha256": "318c9b8a1cb0f65c792e9bd77e5d5bbf323c629a64ade9abb8b3fb7fe7b2651d",
+    "mtimeMs": 1789676027213.8318
+  },
+  {
+    "file": "outputs/panda-visual-acceptance-prepared-20260917/407c34c88fd6c5a851ed253c0534f01332a599222a2d6a6ecff967e65b81d160/manifest.json",
+    "bytes": 4038,
+    "sha256": "93c379b2f9e6b7552be0ec39b1373d027810372b71bba901d70d7f0e8d95e8fa",
+    "mtimeMs": 1789676027214.833
+  },
+  {
+    "file": "outputs/panda-visual-acceptance-prepared-20260917/407c34c88fd6c5a851ed253c0534f01332a599222a2d6a6ecff967e65b81d160/product-acceptance.json",
+    "bytes": 1439,
+    "sha256": "c69b1074fb3b930bef007f88c2c5eb3c74bb5a7d61d1693b0355fd25da04b81c",
+    "mtimeMs": 1789676027213.8318
+  },
+  {
+    "file": "outputs/panda-visual-acceptance-prepared-20260917/407c34c88fd6c5a851ed253c0534f01332a599222a2d6a6ecff967e65b81d160/revision-identity.json",
+    "bytes": 1352,
+    "sha256": "407c34c88fd6c5a851ed253c0534f01332a599222a2d6a6ecff967e65b81d160",
+    "mtimeMs": 1789676027213.8318
+  },
+  {
+    "file": "outputs/panda-visual-acceptance-prepared-20260917/407c34c88fd6c5a851ed253c0534f01332a599222a2d6a6ecff967e65b81d160/story.md",
+    "bytes": 6586,
+    "sha256": "5bed647c29ca61b6fe75ccd39b3e73fb6be5ea2d775f4add220026dc20714b0e",
+    "mtimeMs": 1789676027213.8318
+  },
+  {
+    "file": "outputs/panda-visual-acceptance-prepared-20260917/407c34c88fd6c5a851ed253c0534f01332a599222a2d6a6ecff967e65b81d160/technical-review.json",
+    "bytes": 1841,
+    "sha256": "4e8625f5674fbde417665214a619b01d39bc85224ad65453163c9228ecac2506",
+    "mtimeMs": 1789676027214.833
+  },
+  {
+    "file": "outputs/panda-visual-acceptance-prepared-20260917/407c34c88fd6c5a851ed253c0534f01332a599222a2d6a6ecff967e65b81d160/visual-directions.json",
+    "bytes": 11823,
+    "sha256": "b5e7691a1da79058c95d0f7cd40aeec2725b70c9cbcb0b9ff5d09f11c7ade6ce",
+    "mtimeMs": 1789676027214.833
+  },
+  {
+    "file": "story-pipeline/04_approved_story_sources/accepted/panda_anat_adventure/revisions/407c34c88fd6c5a851ed253c0534f01332a599222a2d6a6ecff967e65b81d160/enrichment-manifest.json",
+    "bytes": 2677,
+    "sha256": "32859644171661001741fc62c3f2f21007d52a0c7d401c992e74a2b520c87255",
+    "mtimeMs": 1789676028809.27
+  },
+  {
+    "file": "story-pipeline/04_approved_story_sources/accepted/panda_anat_adventure/revisions/407c34c88fd6c5a851ed253c0534f01332a599222a2d6a6ecff967e65b81d160/enrichment-review-bundle.json",
+    "bytes": 2754,
+    "sha256": "cabc32c33240bab13c307fa9904356037eb73e8c7248bece40cc32268dd24d52",
+    "mtimeMs": 1789676028809.27
+  },
+  {
+    "file": "story-pipeline/04_approved_story_sources/accepted/panda_anat_adventure/revisions/407c34c88fd6c5a851ed253c0534f01332a599222a2d6a6ecff967e65b81d160/integrated.md",
+    "bytes": 15023,
+    "sha256": "318c9b8a1cb0f65c792e9bd77e5d5bbf323c629a64ade9abb8b3fb7fe7b2651d",
+    "mtimeMs": 1789676028809.27
+  },
+  {
+    "file": "story-pipeline/04_approved_story_sources/accepted/panda_anat_adventure/revisions/407c34c88fd6c5a851ed253c0534f01332a599222a2d6a6ecff967e65b81d160/manifest.json",
+    "bytes": 4038,
+    "sha256": "93c379b2f9e6b7552be0ec39b1373d027810372b71bba901d70d7f0e8d95e8fa",
+    "mtimeMs": 1789676028824.688
+  },
+  {
+    "file": "story-pipeline/04_approved_story_sources/accepted/panda_anat_adventure/revisions/407c34c88fd6c5a851ed253c0534f01332a599222a2d6a6ecff967e65b81d160/product-acceptance.json",
+    "bytes": 1439,
+    "sha256": "c69b1074fb3b930bef007f88c2c5eb3c74bb5a7d61d1693b0355fd25da04b81c",
+    "mtimeMs": 1789676028809.27
+  },
+  {
+    "file": "story-pipeline/04_approved_story_sources/accepted/panda_anat_adventure/revisions/407c34c88fd6c5a851ed253c0534f01332a599222a2d6a6ecff967e65b81d160/revision-identity.json",
+    "bytes": 1352,
+    "sha256": "407c34c88fd6c5a851ed253c0534f01332a599222a2d6a6ecff967e65b81d160",
+    "mtimeMs": 1789676028809.27
+  },
+  {
+    "file": "story-pipeline/04_approved_story_sources/accepted/panda_anat_adventure/revisions/407c34c88fd6c5a851ed253c0534f01332a599222a2d6a6ecff967e65b81d160/story.md",
+    "bytes": 6586,
+    "sha256": "5bed647c29ca61b6fe75ccd39b3e73fb6be5ea2d775f4add220026dc20714b0e",
+    "mtimeMs": 1789676028809.27
+  },
+  {
+    "file": "story-pipeline/04_approved_story_sources/accepted/panda_anat_adventure/revisions/407c34c88fd6c5a851ed253c0534f01332a599222a2d6a6ecff967e65b81d160/technical-review.json",
+    "bytes": 1841,
+    "sha256": "4e8625f5674fbde417665214a619b01d39bc85224ad65453163c9228ecac2506",
+    "mtimeMs": 1789676028809.27
+  },
+  {
+    "file": "story-pipeline/04_approved_story_sources/accepted/panda_anat_adventure/revisions/407c34c88fd6c5a851ed253c0534f01332a599222a2d6a6ecff967e65b81d160/visual-directions.json",
+    "bytes": 11823,
+    "sha256": "b5e7691a1da79058c95d0f7cd40aeec2725b70c9cbcb0b9ff5d09f11c7ade6ce",
+    "mtimeMs": 1789676028809.27
+  }
+]

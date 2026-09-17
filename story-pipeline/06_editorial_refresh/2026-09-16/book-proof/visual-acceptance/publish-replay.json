@@ -1,0 +1,22 @@
+{
+  "version": "small-heroes-product-accepted-story-source-revision-manifest/v3",
+  "status": "product_accepted_story_source_revision",
+  "created": false,
+  "wouldCreate": false,
+  "revisionDigest": "407c34c88fd6c5a851ed253c0534f01332a599222a2d6a6ecff967e65b81d160",
+  "manifestDigest": "eea352803ce0c26f7cf46f0eaa400694fdbc9b0a1ec0fa98eb1e8f5853c18ad0",
+  "productAcceptanceDigest": "dc513a7e2db3f329e8e1715a4b4c6f087ca4c0f3a16428318da225439c048bcc",
+  "target": "story-pipeline/04_approved_story_sources/accepted/panda_anat_adventure/revisions/407c34c88fd6c5a851ed253c0534f01332a599222a2d6a6ecff967e65b81d160",
+  "runtimeEligibility": {
+    "eligible": false,
+    "reason": "accepted_story_source_requires_fresh_visual_contract"
+  },
+  "externalCounters": {
+    "providerCalls": 0,
+    "imageRenders": 0,
+    "audioRenders": 0,
+    "databaseWrites": 0,
+    "storageWrites": 0,
+    "locatorWrites": 0
+  }
+}

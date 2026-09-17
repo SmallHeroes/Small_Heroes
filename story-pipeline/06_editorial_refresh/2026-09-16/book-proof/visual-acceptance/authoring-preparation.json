@@ -1,0 +1,86 @@
+{
+  "saved": {
+    "path": "outputs/panda-contract-source-20260917/source-snapshots/36230817452cdbfd56896bd445c07a39b3b526cfe11475f3533235f2d0cb2143.json",
+    "digest": "36230817452cdbfd56896bd445c07a39b3b526cfe11475f3533235f2d0cb2143",
+    "created": true
+  },
+  "replay": {
+    "path": "outputs/panda-contract-source-20260917/source-snapshots/36230817452cdbfd56896bd445c07a39b3b526cfe11475f3533235f2d0cb2143.json",
+    "digest": "36230817452cdbfd56896bd445c07a39b3b526cfe11475f3533235f2d0cb2143",
+    "created": false
+  },
+  "pages": 12,
+  "directions": 12,
+  "authority": {
+    "version": "accepted-story-source-authoring-authority/v1",
+    "revisionDigest": "407c34c88fd6c5a851ed253c0534f01332a599222a2d6a6ecff967e65b81d160",
+    "manifestDigest": "eea352803ce0c26f7cf46f0eaa400694fdbc9b0a1ec0fa98eb1e8f5853c18ad0",
+    "manifestSha256": "93c379b2f9e6b7552be0ec39b1373d027810372b71bba901d70d7f0e8d95e8fa",
+    "productAcceptanceDigest": "dc513a7e2db3f329e8e1715a4b4c6f087ca4c0f3a16428318da225439c048bcc",
+    "technicalReviewDigest": "e4793d6e256737546cc83a707e1908b5efdc76bf9a3508d7d78a6b216deb5e1d",
+    "continuityIntent": {
+      "childWardrobeAuthority": "frozen_visual_contract",
+      "childWardrobeTransitionPages": [],
+      "companionAccessoryAuthority": "canonical_companion_profile",
+      "companionAppearanceAuthority": "frozen_companion_state",
+      "companionStateTransitionPages": [],
+      "version": "small-heroes-story-visual-continuity-intent/v1"
+    },
+    "fileSha256": {
+      "enrichment-manifest.json": "32859644171661001741fc62c3f2f21007d52a0c7d401c992e74a2b520c87255",
+      "enrichment-review-bundle.json": "cabc32c33240bab13c307fa9904356037eb73e8c7248bece40cc32268dd24d52",
+      "integrated.md": "318c9b8a1cb0f65c792e9bd77e5d5bbf323c629a64ade9abb8b3fb7fe7b2651d",
+      "product-acceptance.json": "c69b1074fb3b930bef007f88c2c5eb3c74bb5a7d61d1693b0355fd25da04b81c",
+      "revision-identity.json": "407c34c88fd6c5a851ed253c0534f01332a599222a2d6a6ecff967e65b81d160",
+      "story.md": "5bed647c29ca61b6fe75ccd39b3e73fb6be5ea2d775f4add220026dc20714b0e",
+      "technical-review.json": "4e8625f5674fbde417665214a619b01d39bc85224ad65453163c9228ecac2506",
+      "visual-directions.json": "b5e7691a1da79058c95d0f7cd40aeec2725b70c9cbcb0b9ff5d09f11c7ade6ce",
+      "manifest.json": "93c379b2f9e6b7552be0ec39b1373d027810372b71bba901d70d7f0e8d95e8fa"
+    }
+  },
+  "request": {
+    "built": true,
+    "version": "visual-contract-authoring-request/v56",
+    "mode": "preflight",
+    "keys": [
+      "version",
+      "policyVersion",
+      "routingPolicyVersion",
+      "mode",
+      "requestId",
+      "requestedAt",
+      "sourceSnapshotDigest",
+      "provider",
+      "endpoint",
+      "model",
+      "serviceTier",
+      "reasoningEffort",
+      "structuredOutput",
+      "compactRepairStructuredOutput",
+      "pageContractRepairStructuredOutput",
+      "representedElsewhereRepairStructuredOutput",
+      "pageSpatialReferenceRepairStructuredOutput",
+      "structuralBundleRepairStructuredOutput",
+      "bookSurfaceRepairStructuredOutput",
+      "presentationRequirementRepairStructuredOutput",
+      "stablePropScopeRepairStructuredOutput",
+      "toolsDisabled",
+      "noFallback",
+      "transportRetries",
+      "timeoutMs",
+      "tokenBudget",
+      "callBudget",
+      "pricing",
+      "pricingDigest",
+      "costBudget",
+      "promptDigests",
+      "promptAuthority",
+      "actionSemanticAuthority",
+      "digestAlgorithm",
+      "digest"
+    ],
+    "model": "gpt-5.6-sol",
+    "reasoningEffort": "medium"
+  },
+  "providerCalls": 0
+}

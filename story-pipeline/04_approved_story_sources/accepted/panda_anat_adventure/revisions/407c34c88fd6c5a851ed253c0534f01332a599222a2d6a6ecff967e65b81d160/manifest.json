@@ -1,0 +1,101 @@
+{
+  "authorityScope": "story_source_and_visual_directions_only",
+  "continuityIntent": {
+    "childWardrobeAuthority": "frozen_visual_contract",
+    "childWardrobeTransitionPages": [],
+    "companionAccessoryAuthority": "canonical_companion_profile",
+    "companionAppearanceAuthority": "frozen_companion_state",
+    "companionStateTransitionPages": [],
+    "version": "small-heroes-story-visual-continuity-intent/v1"
+  },
+  "digest": "eea352803ce0c26f7cf46f0eaa400694fdbc9b0a1ec0fa98eb1e8f5853c18ad0",
+  "digestAlgorithm": "canonical-json-sha256",
+  "exclusions": [
+    "blueprint",
+    "deployment",
+    "image_render",
+    "production",
+    "provider_call",
+    "runtime_locator",
+    "story_bank_current_pointer",
+    "visual_contract",
+    "visual_package",
+    "wizard"
+  ],
+  "files": {
+    "enrichmentManifest": {
+      "bytes": 2677,
+      "digest": "630bc33679814b6308a497976b23181a229f519cd96027928384ce45036b62d2",
+      "filename": "enrichment-manifest.json",
+      "sha256": "32859644171661001741fc62c3f2f21007d52a0c7d401c992e74a2b520c87255"
+    },
+    "enrichmentReviewBundle": {
+      "bytes": 2754,
+      "digest": "6b125a90e8e8b24f9c7b81a9611f8f89edf83e80d4bac9c48aec807e83572da1",
+      "filename": "enrichment-review-bundle.json",
+      "sha256": "cabc32c33240bab13c307fa9904356037eb73e8c7248bece40cc32268dd24d52"
+    },
+    "integratedStory": {
+      "bytes": 15023,
+      "filename": "integrated.md",
+      "sha256": "318c9b8a1cb0f65c792e9bd77e5d5bbf323c629a64ade9abb8b3fb7fe7b2651d"
+    },
+    "productAcceptance": {
+      "bytes": 1439,
+      "digest": "dc513a7e2db3f329e8e1715a4b4c6f087ca4c0f3a16428318da225439c048bcc",
+      "filename": "product-acceptance.json",
+      "sha256": "c69b1074fb3b930bef007f88c2c5eb3c74bb5a7d61d1693b0355fd25da04b81c"
+    },
+    "revisionIdentity": {
+      "bytes": 1352,
+      "digest": "407c34c88fd6c5a851ed253c0534f01332a599222a2d6a6ecff967e65b81d160",
+      "filename": "revision-identity.json",
+      "sha256": "407c34c88fd6c5a851ed253c0534f01332a599222a2d6a6ecff967e65b81d160"
+    },
+    "story": {
+      "bytes": 6586,
+      "filename": "story.md",
+      "sha256": "5bed647c29ca61b6fe75ccd39b3e73fb6be5ea2d775f4add220026dc20714b0e"
+    },
+    "technicalReview": {
+      "bytes": 1841,
+      "digest": "e4793d6e256737546cc83a707e1908b5efdc76bf9a3508d7d78a6b216deb5e1d",
+      "filename": "technical-review.json",
+      "sha256": "4e8625f5674fbde417665214a619b01d39bc85224ad65453163c9228ecac2506"
+    },
+    "visualDirections": {
+      "bytes": 11823,
+      "filename": "visual-directions.json",
+      "sha256": "b5e7691a1da79058c95d0f7cd40aeec2725b70c9cbcb0b9ff5d09f11c7ade6ce"
+    }
+  },
+  "identity": {
+    "briefId": "panda_anat_adventure_moon_station_revision02",
+    "category": "SOCIAL",
+    "companionId": "panda_anat",
+    "direction": "adventure",
+    "pageCount": 12
+  },
+  "parent": {
+    "manifestDigest": "b46a0d71e010d31541b4d027380632eb6143edac2e3d54dde81039164f86f96b",
+    "manifestPath": "story-pipeline/04_approved_story_sources/accepted/panda_anat_adventure/revisions/9ea583e13fa979e1105a60f52721f550f518e5eed01295983f2f02e2c7aaf3cb/manifest.json",
+    "manifestSha256": "27b943a26cc5d3a0ebd6e4ddccabda80caf2fad38bef184b23131d638c0b8c7e",
+    "revisionDigest": "9ea583e13fa979e1105a60f52721f550f518e5eed01295983f2f02e2c7aaf3cb",
+    "storySha256": "5bed647c29ca61b6fe75ccd39b3e73fb6be5ea2d775f4add220026dc20714b0e"
+  },
+  "productAcceptance": {
+    "acceptedAt": "2026-09-17T20:12:45.000Z",
+    "acceptedBy": "Guy",
+    "digest": "dc513a7e2db3f329e8e1715a4b4c6f087ca4c0f3a16428318da225439c048bcc"
+  },
+  "revisionDigest": "407c34c88fd6c5a851ed253c0534f01332a599222a2d6a6ecff967e65b81d160",
+  "runtimeEligibility": {
+    "eligible": false,
+    "reason": "accepted_story_source_requires_fresh_visual_contract"
+  },
+  "sourceGenderMode": "neutral",
+  "sourceProfile": "gender_flexible",
+  "status": "product_accepted_story_source_revision",
+  "storyKey": "panda_anat_adventure",
+  "version": "small-heroes-product-accepted-story-source-revision-manifest/v3"
+}

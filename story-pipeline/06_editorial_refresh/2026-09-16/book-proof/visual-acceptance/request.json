@@ -1,0 +1,21 @@
+{
+  "version": "small-heroes-story-source-visual-direction-acceptance-request/v1",
+  "storyKey": "panda_anat_adventure",
+  "candidate": {
+    "candidateDigest": "407c34c88fd6c5a851ed253c0534f01332a599222a2d6a6ecff967e65b81d160",
+    "outputRoot": "outputs/panda-visual-refinement-candidate-20260917",
+    "requestPath": "outputs/panda-visual-refinement-inputs-20260917/enrichment-request.json",
+    "reviewBundleDigest": "6b125a90e8e8b24f9c7b81a9611f8f89edf83e80d4bac9c48aec807e83572da1"
+  },
+  "technicalReview": {
+    "path": "outputs/panda-visual-acceptance-inputs-20260917/technical-review.json",
+    "bytes": 1841,
+    "sha256": "4e8625f5674fbde417665214a619b01d39bc85224ad65453163c9228ecac2506",
+    "digest": "e4793d6e256737546cc83a707e1908b5efdc76bf9a3508d7d78a6b216deb5e1d"
+  },
+  "productAcceptance": {
+    "acceptedAt": "2026-09-17T20:12:45.000Z",
+    "acceptedBy": "Guy",
+    "decision": "Guy explicitly replied 'מאשר' to acceptance of the twelve reviewed visual directions including the telescope correction, as the basis for continuation. This accepts candidate 407c34c8 and its two accepted non-blocking downstream authoring obligations; not unseen images, render quality or launch."
+  }
+}

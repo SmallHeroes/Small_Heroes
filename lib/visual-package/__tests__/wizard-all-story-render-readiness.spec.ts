@@ -38,9 +38,11 @@ const DINI_APPROVED_PACKAGE_SOURCE =
 const DINI_TEXT_ONLY_REVISION =
   'f77f4ca51fe3692d283f9fd1354392776e358da7ead86ab24cbb7e6e0bca9e98';
 
-// Explicit current inventory, not an exception inferred from an unavailable source.
-// These accepted texts have no accepted visual directions and must NOT be selected.
-const TEXT_ONLY_SOURCES = new Map([
+const PANDA_STORY_KEY = 'panda_anat_adventure';
+const PANDA_ACCEPTED_SOURCE =
+  'story-pipeline/04_approved_story_sources/accepted/panda_anat_adventure/revisions/407c34c88fd6c5a851ed253c0534f01332a599222a2d6a6ecff967e65b81d160/integrated.md';
+// Historical text-only predecessors remain valid evidence, not current selectors.
+const TEXT_ONLY_PREDECESSORS = new Map([
   ['panda_anat_adventure',
     'story-pipeline/04_approved_story_sources/accepted/panda_anat_adventure/revisions/9ea583e13fa979e1105a60f52721f550f518e5eed01295983f2f02e2c7aaf3cb/story.md'],
 ]);
@@ -81,14 +83,14 @@ describe('Wizard all-story render-readiness control plane', () => {
       nominalSlotCount: 18,
       environmentProductSellableCount: 17,
       qaLowReadyCount: 18,
-      acceptedProductLineageCount: 2,
+      acceptedProductLineageCount: 3,
       visualContractAuthoringAdmittedCount: 18,
       renderQualifiedCount: 2,
-      sourceCorpusConflictCount: 17,
-      supportedGenderProjectionReadyCount: 2,
-      supportedNarrationInputReadyCount: 17,
-      supportedCriticalTtsGateReadyCount: 17,
-      supportedNarrationAutomatedPreflightReadyCount: 2,
+      sourceCorpusConflictCount: 18,
+      supportedGenderProjectionReadyCount: 3,
+      supportedNarrationInputReadyCount: 18,
+      supportedCriticalTtsGateReadyCount: 18,
+      supportedNarrationAutomatedPreflightReadyCount: 3,
       softTtsReviewItemCount: 10,
       storiesWithSoftTtsReviewItemsCount: 5,
     });
@@ -119,7 +121,7 @@ describe('Wizard all-story render-readiness control plane', () => {
       required: true,
       currentFallback: 'v3_product_fallback',
       alternate: 'qa_low_only',
-      conflictingSlotCount: 17,
+      conflictingSlotCount: 18,
       decisionRequiredSlotCount: 15,
     });
 
@@ -132,34 +134,45 @@ describe('Wizard all-story render-readiness control plane', () => {
       expect(record.qaAuthority.resemblanceThreshold).toBe(0.7);
       expect(record.sources.v3ProductFallback.available).toBe(true);
       expect(record.sources.qaLowOnly.available).toBe(true);
-      if (TEXT_ONLY_SOURCES.has(record.storyKey)) {
+      if (record.storyKey === PANDA_STORY_KEY) {
         expect(record).toMatchObject({
           acceptedProductLineage: { kind: 'present' },
-          productTextReadiness: null,
+          productTextReadiness: {
+            supportedGenderProjectionReady: true,
+            supportedNarrationAutomatedPreflightReady: true,
+          },
           environmentProductSellable: false,
-          earliestBlocker: 'accepted_story_source_revision_missing',
+          earliestBlocker: 'package_bound_visual_contract_template_unavailable',
           sources: {
-            currentProductSourcePath: null,
-            currentProductSourceRole: null,
+            currentProductSourcePath: PANDA_ACCEPTED_SOURCE,
+            currentProductSourceRole: 'accepted_product_source',
             corpusDecisionRequired: false,
-            acceptedProductRevisions: [],
             acceptedProductSource: {
-              available: false,
-              issues: ['strict_accepted_product_revision_unavailable'],
+              available: true,
+              issues: [],
             },
           },
-          productionStages: { acceptedSourceRevision: false, renderQualified: false },
+          productionStages: {
+            acceptedSourceRevision: true,
+            publishedPackageBoundVisualContractTemplate: false,
+            publishedPackageBoundApprovedBlueprint: false,
+            publishedPackageBoundBoardsAndProps: false,
+            approvedVisualPackage: false,
+            renderQualified: false,
+          },
           nextCanonicalAction: {
-            code: 'prepare_and_accept_story_source_revision',
-            requiresGuyDecision: true,
+            stage: 'visual_contract_authoring',
+            code: 'author_visual_contract_for_exact_accepted_source',
+            requiresGuyDecision: false,
             providerSpendAuthorized: false,
           },
         });
+        expect(record.sources.acceptedProductRevisions).toHaveLength(1);
       }
       if (
         record.storyKey !== CHAMELEON_STORY_KEY &&
         record.storyKey !== 'dragon_dini_adventure' &&
-        !TEXT_ONLY_SOURCES.has(record.storyKey)
+        record.storyKey !== PANDA_STORY_KEY
       ) {
         expect(record.sources.corpusDecisionRequired).toBe(true);
         expect(record.earliestBlocker).toBe(
@@ -340,22 +353,20 @@ describe('Wizard all-story render-readiness control plane', () => {
     ]);
   });
 
-  it('checks all 432 selected or held-text projections without selecting an unqualified text-only revision', () => {
+  it('checks all 432 current projections while preserving text-only predecessors without granting render authority', () => {
     const report = baseline();
     vi.spyOn(console, 'warn').mockImplementation(() => undefined);
     let projectionCount = 0;
     let selectedProjectionCount = 0;
-    let heldProjectionCount = 0;
-    const heldKeys = new Set<string>();
     for (const record of report.records) {
-      let sourcePath = record.sources.currentProductSourcePath;
+      const sourcePath = record.sources.currentProductSourcePath;
       const companion = getCompanionById(record.companionId);
-      const textOnlyPath = TEXT_ONLY_SOURCES.get(record.storyKey);
+      const textOnlyPath = TEXT_ONLY_PREDECESSORS.get(record.storyKey);
       if (textOnlyPath) {
-        // Validate the actual accepted text through the shared loader, not merely
-        // a file found on disk. Exercising TTS does not select it for runtime.
-        expect(sourcePath).toBeNull();
-        expect(record.productTextReadiness).toBeNull();
+        // The integrated successor is selected, never the text-only predecessor.
+        // Selection for text/narration does not qualify a visual package.
+        expect(sourcePath).toBe(PANDA_ACCEPTED_SOURCE);
+        expect(record.productTextReadiness?.supportedNarrationInputReady).toBe(true);
         expect(record.productionStages.renderQualified).toBe(false);
         const accepted = creativeReplacement.loadAcceptedCreativeReplacement({
           manifestPath: textOnlyPath.replace(/story\.md$/, 'manifest.json'),
@@ -364,8 +375,10 @@ describe('Wizard all-story render-readiness control plane', () => {
         expect(accepted.manifest.runtimeEligibility).toEqual({
           eligible: false, reason: 'visual_directions_not_approved',
         });
-        sourcePath = accepted.storyPath;
-        heldKeys.add(record.storyKey);
+        const prior = parseStorySourceContent(fs.readFileSync(path.join(REPO, accepted.storyPath), 'utf8'));
+        const current = parseStorySourceContent(fs.readFileSync(path.join(REPO, sourcePath!), 'utf8'));
+        expect(current.pages.map(p => ({ pageNumber: p.pageNumber, text: p.text })))
+          .toEqual(prior.pages.map(p => ({ pageNumber: p.pageNumber, text: p.text })));
       }
       expect(sourcePath).toBeTruthy();
       expect(companion).not.toBeNull();
@@ -381,18 +394,15 @@ describe('Wizard all-story render-readiness control plane', () => {
           }).trim();
           expect(buildPageNarrationTtsText(projected, false)).not.toBe('');
           projectionCount += 1;
-          if (textOnlyPath) heldProjectionCount += 1;
-          else selectedProjectionCount += 1;
+          selectedProjectionCount += 1;
         }
       }
     }
     expect(projectionCount).toBe(432);
-    expect(selectedProjectionCount).toBe(408);
-    expect(heldProjectionCount).toBe(24);
-    expect([...heldKeys].sort()).toEqual([...TEXT_ONLY_SOURCES.keys()].sort());
+    expect(selectedProjectionCount).toBe(432);
     expect(
       report.summary.supportedNarrationAutomatedPreflightReadyCount,
-    ).toBe(2);
+    ).toBe(3);
     expect(
       report.records.filter(
         (record) =>

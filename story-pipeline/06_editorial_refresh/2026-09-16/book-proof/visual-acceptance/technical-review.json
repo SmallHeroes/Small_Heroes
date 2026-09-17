@@ -1,0 +1,26 @@
+{
+  "acceptedMinor": [
+    {
+      "code": "page9_sharing_gesture_implied",
+      "disposition": "accepted_non_blocking",
+      "note": "The corrected page 9 mainAction depicts the child still sighting through the tube, so the spoken hand-over (\"you drive now, by the flower we swap\") is carried by Adam already holding the wheel and by the continuity anchor rather than by a visible offering gesture. The previous wording showed the offer but lowered the tube a page early. Choosing the earlier instant is consistent with the set-wide one-readable-moment discipline; authoring should keep Adam clearly in possession of the wheel so the arrangement stays legible."
+    },
+    {
+      "code": "telescope_custody_unpinned",
+      "disposition": "accepted_non_blocking",
+      "note": "Telescope custody is unstated between pages 4 and 9: Adam owns it on page 3, the companion sights through it on page 5, the child holds it on pages 9 and 10, and it returns to Adam on page 12. No direction records the hand-overs. CONTRACT_MAPPING already routes prop lifecycle to pageContracts[].propState, so this is a downstream authoring item, but it should be pinned before board or page authoring so the tube does not appear in two hands."
+    }
+  ],
+  "baseCommit": "8d85366eba7bb8b814f58e372daef74026c6afa5",
+  "blocker": 0,
+  "candidateDigest": "407c34c88fd6c5a851ed253c0534f01332a599222a2d6a6ecff967e65b81d160",
+  "digest": "e4793d6e256737546cc83a707e1908b5efdc76bf9a3508d7d78a6b216deb5e1d",
+  "digestAlgorithm": "canonical-json-sha256",
+  "headCommit": "87e892c5a50171527ddcac4d24b2de0833babf23",
+  "major": 0,
+  "minor": 2,
+  "reviewBundleDigest": "6b125a90e8e8b24f9c7b81a9611f8f89edf83e80d4bac9c48aec807e83572da1",
+  "reviewer": "Claude Code",
+  "status": "pass",
+  "version": "small-heroes-story-source-visual-direction-technical-review/v1"
+}

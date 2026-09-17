@@ -1,0 +1,31 @@
+{
+  "acceptedAt": "2026-09-17T20:12:45.000Z",
+  "acceptedBy": "Guy",
+  "authorityScope": "story_source_and_visual_directions_only",
+  "candidateDigest": "407c34c88fd6c5a851ed253c0534f01332a599222a2d6a6ecff967e65b81d160",
+  "decision": "Guy explicitly replied 'מאשר' to acceptance of the twelve reviewed visual directions including the telescope correction, as the basis for continuation. This accepts candidate 407c34c8 and its two accepted non-blocking downstream authoring obligations; not unseen images, render quality or launch.",
+  "digest": "dc513a7e2db3f329e8e1715a4b4c6f087ca4c0f3a16428318da225439c048bcc",
+  "digestAlgorithm": "canonical-json-sha256",
+  "exclusions": [
+    "blueprint",
+    "deployment",
+    "image_render",
+    "production",
+    "provider_call",
+    "runtime_locator",
+    "story_bank_current_pointer",
+    "visual_contract",
+    "visual_package",
+    "wizard"
+  ],
+  "reviewBundleDigest": "6b125a90e8e8b24f9c7b81a9611f8f89edf83e80d4bac9c48aec807e83572da1",
+  "revisionDigest": "407c34c88fd6c5a851ed253c0534f01332a599222a2d6a6ecff967e65b81d160",
+  "runtimeEligibility": {
+    "eligible": false,
+    "reason": "accepted_story_source_requires_fresh_visual_contract"
+  },
+  "status": "accepted",
+  "storyKey": "panda_anat_adventure",
+  "technicalReviewDigest": "e4793d6e256737546cc83a707e1908b5efdc76bf9a3508d7d78a6b216deb5e1d",
+  "version": "small-heroes-story-source-visual-direction-product-acceptance/v1"
+}

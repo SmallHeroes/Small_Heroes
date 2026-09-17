@@ -1,5 +1,46 @@
 # SmallHeroes — Current Technical State
 
+## Panda visual directions product-accepted and published — 2026-09-17
+
+Guy explicitly replied "מאשר" to the exact12 reviewed directions including the
+telescope correction. Existing acceptance lifecycle published revision407c34c88fd6c5a851ed253c0534f01332a599222a2d6a6ecff967e65b81d160
+with9 files, manifest digest eea352803ce0c26f7cf46f0eaa400694fdbc9b0a1ec0fa98eb1e8f5853c18ad0.
+Genuine Claude PASS0/0/2 remains8d85366e..87e892c5; no independent PASS for this
+publication milestone is claimed. Same sole writer/worktree/branch; clean4ab3bf1c,
+local/upstream0/0 at start. Protected dependencies768ccb2f/63ccb484 remain read-only.
+
+Prepare dry/write, publish dry/write and both write:true replays exit0; creating
+receipts remain created:true and replays created:false.18 prepared/published file
+snapshots preserve bytes/hash/mtime. Original text7 + original candidate5 + corrected
+candidate5 remain intact; old candidate manifests retain their historical pending status.
+No prose/direction changes or new creative approvals. Reviewer JSON values preserved
+through canonical serialization. Product acceptedAt is the recording observation.
+
+Real accepted authoring loader and source-snapshot builder accept the new revision:
+12 pages/12 directions, snapshot36230817452cdbfd56896bd445c07a39b3b526cfe11475f3533235f2d0cb2143.
+Canonical import preflight passes; mode=preflight request builds and validates.
+This does not test credentials, provider connectivity or current pricing and does
+not author a contract. No paid request was dispatched or persisted as mode=live.
+
+Readiness now selects Panda integrated407c34c8 for source/narration preparation:
+accepted count2->3, source-conflict count17->18, automated narration preflight2->3.
+Sellable17 with V3 enabled /2 disabled and render-qualified2 stay unchanged.
+Panda itself is NOT sellable/render-qualified; next action is actual visual-contract
+authoring with requiresGuyDecision:false, providerSpendAuthorized:false in the audit.
+Two stale Wizard test expectations initially failed (not timeouts); the one spec
+now asserts the new exact selector and missing-package boundary, preserves the
+isolated text-only rejection test, and checks432 selected gender/name projections
+plus predecessor prose identity. Final9 specs94/94 with maxWorkers1; tsc0 and both
+artifact verifiers0. Full npm run check not rerun; no stability or release claim.
+
+Evidence/QA brief:story-pipeline/06_editorial_refresh/2026-09-16/book-proof/visual-acceptance/HANDOFF.md.
+Next is the actual separately budgeted authoring lifecycle, reconciliation,
+Blueprint and references/package; carry Adam-at-wheel9 and single telescope custody
+into actual per-page contract state. These P2 obligations remain open downstream.
+No production code, thresholds, runtime locator, database, provider, credentials,
+image/audio, push or spend in this milestone. Cost$0. No further product decision
+is pending for these exact12 directions; product acceptance of future pixels remains separate.
+
 ## Panda visual-data PASS received; exact product acceptance pending — 2026-09-17
 
 Guy supplied Claude PASS P0=0/P1=0/P2=2 for8d85366e..87e892c5, explicitly reviewing
