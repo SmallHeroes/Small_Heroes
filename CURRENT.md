@@ -1,5 +1,26 @@
 # SmallHeroes — Current Technical State
 
+## Panda visual-data PASS received; exact product acceptance pending — 2026-09-17
+
+Guy supplied Claude PASS P0=0/P1=0/P2=2 for8d85366e..87e892c5, explicitly reviewing
+all12 directions against the accepted story. Reviewer confirmed telescope chronology,
+unchanged prose, one changed leaf, preservation, runtime ineligibility and13/13+tsc0.
+The genuine supplied technical-review.json is retained under book-proof/visual-refinement;
+Codex validated its canonical digest and exact candidate/bundle/head bindings.
+Candidate407c34c8 remains unchanged and pending_exact_product_review. No product
+acceptance is inferred. This evidence closeout does not extend the independent PASS.
+
+Both P2s remain accepted non-blocking downstream authoring obligations: make Adam's
+wheel possession legible on9; pin one telescope holder/resting place per selected
+moment without adding simultaneous actions or duplicate props. See REVIEW_RECEIVED.md.
+No fresh direction edit or re-gate of the same candidate is required by this report.
+Next: Guy's exact visual-candidate product acceptance, then the existing acceptance
+lifecycle and real contract/reconciliation/Blueprint/package; mapping alone is not enforcement.
+
+Closeout began clean87e892c5, local/upstream0/0, same sole writer/worktree/branch;
+protected dependencies clean at768ccb2f/63ccb484. No source/candidate/approval/engine
+mutation, provider, credentials, image/audio, spend or push. Cost$0.
+
 ## Panda visual successor prepared; actual visual review next — 2026-09-17
 
 Guy supplied Claude re-gate PASS P0=0/P1=0/P2=0 for949a360d..8d85366e:
