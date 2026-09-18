@@ -169,8 +169,7 @@ export function applySemanticCorrection(context: SemanticCorrectionContext, untr
         facts.companionPresentPages.includes(operation.pageNumber)) fail('companion_before_state_mismatch');
     if (facts.companionAbsentPages.includes(operation.pageNumber)) fail('companion_presence_conflict');
     assertAcceptedCompanionPresenceEvidence({ rawJson: operation.acceptedVisualDirectionsJson,
-      expectedSha256: context.snapshot.content.acceptedRevisionAuthority!.fileSha256['visual-directions.json'],
-      storyKey: input.storyKey, pageCount: input.pageCount, pageNumber: operation.pageNumber });
+      snapshot: context.snapshot, pageNumber: operation.pageNumber });
     facts.companionPresentPages.push(operation.pageNumber);
     facts.companionPresentPages.sort((a, b) => a - b);
     page.characterPresence = { ...page.characterPresence, companion: true };

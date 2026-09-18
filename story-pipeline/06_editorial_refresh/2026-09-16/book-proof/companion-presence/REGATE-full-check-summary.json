@@ -1,0 +1,70 @@
+{
+  "command": "npm run check",
+  "nativeExit": 0,
+  "source": "Final runner JSON copied from process output; complete stdout/stderr archive not retained",
+  "priorAttempt": {
+    "stage": "tsc",
+    "nativeExit": 1,
+    "code": "TS18047",
+    "vitestStarted": false,
+    "fix": "Explicit return from the missing-authority fail branch"
+  },
+  "focusedOverlap": false,
+  "counts": {
+    "ordinary": {
+      "passedTests": 5729,
+      "failedTests": 0,
+      "skippedTests": 73
+    },
+    "resourceIntensive": {
+      "passedTests": 671,
+      "failedTests": 0,
+      "skippedTests": 0
+    }
+  },
+  "runner": {
+    "schemaVersion": "small-heroes-vitest-check-summary/v1",
+    "canonicalFileCount": 411,
+    "ordinaryFileCount": 389,
+    "resourceIntensiveFileCount": 22,
+    "phases": {
+      "ordinary": {
+        "schemaVersion": "small-heroes-vitest-phase-diagnostic/v1",
+        "phase": "ordinary",
+        "workerLimit": 4,
+        "fileCount": 389,
+        "elapsedMs": 146883,
+        "exitCode": 0,
+        "signal": null,
+        "launchErrorCode": null,
+        "diagnosticProtocolOk": true,
+        "diagnosticRecords": 1,
+        "diagnosticBytes": 240,
+        "classes": [],
+        "gateStatus": "passed"
+      },
+      "resourceIntensive": {
+        "schemaVersion": "small-heroes-vitest-phase-diagnostic/v1",
+        "phase": "resource_intensive",
+        "workerLimit": 2,
+        "fileCount": 22,
+        "elapsedMs": 239530,
+        "exitCode": 0,
+        "signal": null,
+        "launchErrorCode": null,
+        "diagnosticProtocolOk": true,
+        "diagnosticRecords": 1,
+        "diagnosticBytes": 249,
+        "classes": [],
+        "gateStatus": "passed"
+      },
+      "gateStatus": "passed"
+    },
+    "gateStatus": "passed"
+  },
+  "limitations": [
+    "Single green observation, not permanent repository stability",
+    "No threshold or worker-policy changes",
+    "Semantic holds and runtime restrictions unchanged"
+  ]
+}

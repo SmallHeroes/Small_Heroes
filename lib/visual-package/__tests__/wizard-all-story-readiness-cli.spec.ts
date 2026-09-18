@@ -106,7 +106,7 @@ describe('Wizard all-story readiness actual CLI', () => {
     };
     expect(
       report.summary.supportedNarrationAutomatedPreflightReadyCount,
-    ).toBe(2);
+    ).toBe(3);
     expect(report.summary.nominalSlotCount).toBe(18);
   });
 

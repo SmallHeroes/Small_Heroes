@@ -51,25 +51,62 @@ function seal<T extends { digest: string; digestAlgorithm: string }>(value: T): 
   const { digest: _d, digestAlgorithm: _a, ...payload } = value;
   return { ...value, digest: canonicalHash(payload) };
 }
+// Synthetic, integrity-consistent snapshot for defense-in-depth parser tests only.
+// This is NOT an accepted disk revision; the public consumer must reload authority.
+function syntheticDirectionEvidence(rawJson: string) {
+  const snapshot = structuredClone(pandaPresenceFixture().context.snapshot);
+  snapshot.content.acceptedRevisionAuthority!.fileSha256['visual-directions.json'] = createHash('sha256').update(rawJson).digest('hex');
+  return { rawJson, snapshot: seal(snapshot), pageNumber: 6 };
+}
 
 describe('accepted typed companion presence, additive review-only v2', () => {
   it.each(['absent', 'offscreen', '', 'PRESENT', 'present ', null, undefined])('a correctly hash-bound document with presence %s still cannot authorize addition', value => {
-    const rawJson = JSON.stringify({ version: 'small-heroes-story-visual-direction-record/v1', storyKey: 'generic_story',
-      pages: [{ pageNumber: 1, companionPresence: value, mainAction: 'the companion waits nearby' }] });
-    const expectedSha256 = createHash('sha256').update(rawJson).digest('hex');
-    expect(() => assertAcceptedCompanionPresenceEvidence({ rawJson, expectedSha256, storyKey: 'generic_story', pageCount: 1, pageNumber: 1 })).toThrow();
+    const doc = JSON.parse(pandaPresenceFixture().operation.acceptedVisualDirectionsJson);
+    doc.pages[5].companionPresence = value;
+    expect(() => assertAcceptedCompanionPresenceEvidence(syntheticDirectionEvidence(JSON.stringify(doc)))).toThrow(
+      typeof value === 'string' ? 'not_present' : undefined);
   });
   it.each(['story', 'version', 'missing page', 'duplicate page', 'order', 'malformed'])('rejects hash-bound invalid direction %s', kind => {
-    const doc = { version: 'small-heroes-story-visual-direction-record/v1', storyKey: 'generic_story',
-      pages: [1, 2].map(pageNumber => ({ pageNumber, companionPresence: 'present' })) };
+    const doc = JSON.parse(pandaPresenceFixture().operation.acceptedVisualDirectionsJson);
     if (kind === 'story') doc.storyKey = 'wrong';
     if (kind === 'version') doc.version = 'unknown';
     if (kind === 'missing page') doc.pages.pop();
     if (kind === 'duplicate page') doc.pages[1]!.pageNumber = 1;
     if (kind === 'order') doc.pages.reverse();
     const rawJson = kind === 'malformed' ? '{' : JSON.stringify(doc);
-    expect(() => assertAcceptedCompanionPresenceEvidence({ rawJson, expectedSha256: createHash('sha256').update(rawJson).digest('hex'),
-      storyKey: 'generic_story', pageCount: 2, pageNumber: 1 })).toThrow();
+    expect(() => assertAcceptedCompanionPresenceEvidence(syntheticDirectionEvidence(rawJson))).toThrow(
+      ['missing page', 'duplicate page', 'order'].includes(kind) ? 'coverage_mismatch' : undefined);
+  });
+  it('validates the snapshot at the direct helper boundary and leaves valid inputs unchanged', () => {
+    const { context, operation } = pandaPresenceFixture();
+    const args = { rawJson: operation.acceptedVisualDirectionsJson, snapshot: context.snapshot, pageNumber: 6 };
+    const before = canonicalHash(args);
+    expect(() => assertAcceptedCompanionPresenceEvidence(args)).not.toThrow();
+    expect(canonicalHash(args)).toBe(before);
+    args.snapshot.digest = '0'.repeat(64);
+    expect(() => assertAcceptedCompanionPresenceEvidence(args)).toThrow('Invalid Story Source authority snapshot');
+  });
+  it('rejects missing acceptance even on an integrity-consistent snapshot', () => {
+    const { context, operation } = pandaPresenceFixture();
+    context.snapshot.content.acceptedRevisionAuthority = null;
+    expect(() => assertAcceptedCompanionPresenceEvidence({ rawJson: operation.acceptedVisualDirectionsJson,
+      snapshot: seal(context.snapshot), pageNumber: 6 })).toThrow('accepted_authority_required');
+  });
+  it('does not accept an attacker hash, story or count in place of snapshot authority', () => {
+    const { context } = pandaPresenceFixture();
+    const forged = { rawJson: '{}', snapshot: context.snapshot, pageNumber: 6,
+      expectedSha256: createHash('sha256').update('{}').digest('hex'), storyKey: 'forged', pageCount: 0 };
+    expect(() => assertAcceptedCompanionPresenceEvidence(forged)).toThrow('source_mismatch');
+    // Compile-time regression: a detached hash is no longer a valid public input.
+    expect(() => {
+      // @ts-expect-error snapshot required; obsolete hash-only API is forbidden
+      assertAcceptedCompanionPresenceEvidence({ rawJson: '{}', expectedSha256: forged.expectedSha256, storyKey: 'forged', pageCount: 0, pageNumber: 6 });
+    }).toThrow();
+  });
+  it('rejects a poisoned snapshot hash rather than trusting a caller assertion', () => {
+    const { context } = pandaPresenceFixture();
+    context.snapshot.content.acceptedRevisionAuthority!.fileSha256['visual-directions.json'] = createHash('sha256').update('{}').digest('hex');
+    expect(() => assertAcceptedCompanionPresenceEvidence({ rawJson: '{}', snapshot: context.snapshot, pageNumber: 6 })).toThrow('Invalid Story Source authority snapshot');
   });
   it('repairs the real omission and projects it downstream without changing any other page or source', () => {
     const { context, plan } = pandaPresenceFixture();

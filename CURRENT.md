@@ -1,5 +1,33 @@
 # SmallHeroes — Current Technical State
 
+## Companion helper authority boundary hardened; CLI expectation aligned — 2026-09-18
+
+Claude supplied PASS0/0/1 for3fb03452..3ae68d60. Its P2 mitigation now requires
+the complete snapshot at the evidence helper boundary and validates it there,
+deriving hash/story/page count rather than trusting separate caller strings.
+Explicit missing-authority rejection; caller non-null assertion removed. Current
+disk-source and historical-candidate binding remain mandatory in the lifecycle.
+No claim that a self-consistent in-memory snapshot proves owner acceptance.
+
+CLI narration expected count2->3 matches accepted Panda and its sibling test;
+gate remains exit1 for the incomplete18-story matrix. No readiness code, policy,
+timeout, source, candidate, original evidence or approval changes. Same task/writer
+and semantic-m1 branch, clean3ae68d60/ahead4 at start; protected worktrees clean.
+Zero provider/key/render/audio calls, cost$0, no push.
+
+Focused7 specs280/280; direct helper spec36/36 after explicit null-branch return
+fix; standalone tsc0. First full-check start stopped at tsc TS18047 (no Vitest),
+then corrected and restarted after focused tests finished. Final npm run check0:
+both typechecks0, ordinary5729 passed/73 skipped, resource671 passed; total6400
+passed/0 failed/73 skipped across411 files. No thresholds/worker changes, no focused
+overlap. One green observation, NOT permanent stability closure or launch readiness.
+Exact final summary and QA/PowerShell brief: companion-presence/REGATE.md below.
+Offline witness reproduces unchanged plan9dad12a8/correction6e2db082/effective
+dc9ee910, six paid files preserved. New code awaits independent re-gate.
+All remaining semantic HOLDs stand: no Blueprint, sample, render or product acceptance.
+Next remains supporting cast and coherent moment/cover/staging/custody correction.
+Full path: story-pipeline/06_editorial_refresh/2026-09-16/book-proof/companion-presence/REGATE.md.
+
 ## Source-bound companion presence correction implemented, review pending — 2026-09-18
 
 Claude supplied PASS0/0/0 for e9a859d3..3fb03452, evidence only; semantic HOLD
