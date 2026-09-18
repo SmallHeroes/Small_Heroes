@@ -1,0 +1,67 @@
+{
+  "command": "npm run check",
+  "nativeExit": 1,
+  "source": "Final runner JSON copied from process output; full stdout/stderr archive not retained",
+  "runner": {
+    "schemaVersion": "small-heroes-vitest-check-summary/v1",
+    "canonicalFileCount": 411,
+    "ordinaryFileCount": 389,
+    "resourceIntensiveFileCount": 22,
+    "phases": {
+      "ordinary": {
+        "schemaVersion": "small-heroes-vitest-phase-diagnostic/v1",
+        "phase": "ordinary",
+        "workerLimit": 4,
+        "fileCount": 389,
+        "elapsedMs": 136144,
+        "exitCode": 1,
+        "signal": null,
+        "launchErrorCode": null,
+        "diagnosticProtocolOk": true,
+        "diagnosticRecords": 1,
+        "diagnosticBytes": 240,
+        "classes": [
+          "signal_or_exit_failure"
+        ],
+        "gateStatus": "failed"
+      },
+      "resourceIntensive": {
+        "schemaVersion": "small-heroes-vitest-phase-diagnostic/v1",
+        "phase": "resource_intensive",
+        "workerLimit": 2,
+        "fileCount": 22,
+        "elapsedMs": 316451,
+        "exitCode": 1,
+        "signal": null,
+        "launchErrorCode": null,
+        "diagnosticProtocolOk": true,
+        "diagnosticRecords": 1,
+        "diagnosticBytes": 263,
+        "classes": [
+          "test_timeout",
+          "signal_or_exit_failure"
+        ],
+        "gateStatus": "failed"
+      },
+      "gateStatus": "failed"
+    },
+    "gateStatus": "failed"
+  },
+  "counts": {
+    "ordinary": {
+      "failedTests": 1,
+      "passedTests": 5724,
+      "skippedTests": 73
+    },
+    "resourceIntensive": {
+      "failedTests": 1,
+      "passedTests": 670,
+      "skippedTests": 0
+    }
+  },
+  "limitations": [
+    "No baseline run; failures not classified as inherited",
+    "Focused run overlapped initial full-gate work",
+    "No stability or release closure"
+  ]
+}

@@ -14,9 +14,12 @@ import { applyCoverVisibleRecurringPropOperations } from './visualContractCandid
 import { assertVisualContractCandidateForReconciliation } from './reconciliationLifecycle';
 import { storySourceSnapshotToTemplateInput, type StorySourceAuthoritySnapshot } from './storySourceAuthority';
 import type { VisualContractCandidateArtifact } from './visualContractAuthoringLifecycle';
+import { assertAcceptedCompanionPresenceEvidence } from './acceptedCompanionPresenceEvidence';
 
 export const SEMANTIC_CORRECTION_PLAN_VERSION = 'visual-contract-semantic-correction-plan/v1' as const;
 export const SEMANTIC_CORRECTION_VERSION = 'visual-contract-semantic-correction/v1' as const;
+const PRESENCE_PLAN_VERSION = 'visual-contract-semantic-correction-plan/v2' as const;
+const PRESENCE_CORRECTION_VERSION = 'visual-contract-semantic-correction/v2' as const;
 export const SEMANTIC_CORRECTION_DOES_NOT_AUTHORIZE = Object.freeze([
   'candidate_mutation', 'receipt_mutation', 'reconciliation_approval',
   'blueprint_authoring', 'blueprint_approval', 'visual_package_approval',
@@ -34,6 +37,13 @@ const actionTarget = {
   expectedActionDigest: digest, newBeatId: text,
 };
 const operationsSchema = z.array(z.discriminatedUnion('kind', [
+  z.object({ kind: z.literal('require_companion_presence'), pageNumber,
+    companionId: text, expectedCompanionPresent: z.literal(false),
+    expectedCastIds: z.array(text).min(1).max(32),
+    // Raw bytes, not a caller-supplied digest or prose interpretation. The accepted
+    // revision binds this entire document; consumers reload that revision from disk.
+    acceptedVisualDirectionsJson: z.string().min(1).max(250_000),
+  }).strict(),
   z.object({ kind: z.literal('replace_action_predicate'), ...actionTarget, predicate }).strict(),
   z.object({ kind: z.literal('action_to_presentation'), ...actionTarget,
     mustShowIndex: index, expectedMustShow: text,
@@ -64,7 +74,7 @@ const subjectSchema = z.object({
   effectiveCatalogDigest: digest,
 }).strict();
 const planSchema = z.object({
-  version: z.literal(SEMANTIC_CORRECTION_PLAN_VERSION), subject: subjectSchema,
+  version: z.enum([SEMANTIC_CORRECTION_PLAN_VERSION, PRESENCE_PLAN_VERSION]), subject: subjectSchema,
   operations: operationsSchema, authorityScope: z.literal('pending_exact_semantic_review'),
   digestAlgorithm: z.literal('canonical-json-sha256'), digest,
 }).strict();
@@ -108,8 +118,9 @@ function factsFor(context: SemanticCorrectionContext) {
 /** Source/candidate/review are pinned before any selected operation is applied. */
 export function buildSemanticCorrectionPlan(context: SemanticCorrectionContext, operations: unknown): SemanticCorrectionPlan {
   factsFor(context);
-  return sealed({ version: SEMANTIC_CORRECTION_PLAN_VERSION,
-    subject: subject(context), operations: operationsSchema.parse(operations),
+  const parsed = operationsSchema.parse(operations);
+  return sealed({ version: parsed.some(op => op.kind === 'require_companion_presence') ? PRESENCE_PLAN_VERSION : SEMANTIC_CORRECTION_PLAN_VERSION,
+    subject: subject(context), operations: parsed,
     authorityScope: 'pending_exact_semantic_review' as const });
 }
 
@@ -117,6 +128,8 @@ export function applySemanticCorrection(context: SemanticCorrectionContext, untr
   const plan = planSchema.parse(untrustedPlan);
   const { digest: planDigest, digestAlgorithm: _algorithm, ...payload } = plan;
   if (!same(plan.subject, subject(context)) || planDigest !== canonicalHash(payload)) fail('plan_binding_mismatch');
+  const presenceOperations = plan.operations.filter(op => op.kind === 'require_companion_presence');
+  if (plan.version !== (presenceOperations.length ? PRESENCE_PLAN_VERSION : SEMANTIC_CORRECTION_PLAN_VERSION)) fail('plan_version_mismatch');
   const { input, facts } = factsFor(context);
   const original = context.candidate.template;
   const originalCheck = validateBookVisualContractTemplate(original);
@@ -141,6 +154,30 @@ export function applySemanticCorrection(context: SemanticCorrectionContext, untr
   }
   assertCastIsFactAuthoritative(template, facts, input);
 
+  // Resolve source-backed presence before any operation that consumes cast. Never
+  // modify legacy extraction or reinterpret paid candidate/source bytes.
+  const presencePages = new Set<number>();
+  for (const operation of presenceOperations) {
+    if (presencePages.has(operation.pageNumber)) fail('overlapping_operations');
+    presencePages.add(operation.pageNumber);
+    const before = original.pageContracts.find(p => p.pageNumber === operation.pageNumber);
+    const page = template.pageContracts.find(p => p.pageNumber === operation.pageNumber);
+    if (!before || !page) fail('page_missing');
+    if (!template.cast.companion || operation.companionId !== template.cast.companion.id) fail('companion_identity_mismatch');
+    if (before.characterPresence?.companion !== operation.expectedCompanionPresent ||
+        !same(before.castIds, operation.expectedCastIds) || before.castIds?.includes(operation.companionId) ||
+        facts.companionPresentPages.includes(operation.pageNumber)) fail('companion_before_state_mismatch');
+    if (facts.companionAbsentPages.includes(operation.pageNumber)) fail('companion_presence_conflict');
+    assertAcceptedCompanionPresenceEvidence({ rawJson: operation.acceptedVisualDirectionsJson,
+      expectedSha256: context.snapshot.content.acceptedRevisionAuthority!.fileSha256['visual-directions.json'],
+      storyKey: input.storyKey, pageCount: input.pageCount, pageNumber: operation.pageNumber });
+    facts.companionPresentPages.push(operation.pageNumber);
+    facts.companionPresentPages.sort((a, b) => a - b);
+    page.characterPresence = { ...page.characterPresence, companion: true };
+    page.castIds = [...(page.castIds ?? []), operation.companionId];
+  }
+  assertCastIsFactAuthoritative(template, facts, input);
+
   // Stable original indices allow several deletions without stale coverage pointers.
   const presentation = template.pageContracts.map(page => page.mustShow.map(value => ({ value, removed: false })));
   const writes = new Set<string>();
@@ -156,7 +193,7 @@ export function applySemanticCorrection(context: SemanticCorrectionContext, untr
     if (entry.excerpt !== record.sourcePhrase) fail('coverage_source_mismatch');
   }
   for (const operation of plan.operations) {
-    if (operation.kind === 'cover_visible_recurring_prop') continue;
+    if (operation.kind === 'cover_visible_recurring_prop' || operation.kind === 'require_companion_presence') continue;
     const pi = original.pageContracts.findIndex(p => p.pageNumber === operation.pageNumber);
     if (pi < 0) fail('page_missing');
     const before = original.pageContracts[pi]!;
@@ -243,7 +280,7 @@ export function applySemanticCorrection(context: SemanticCorrectionContext, untr
   assertCastIsFactAuthoritative(template, facts, input);
   if (same(template, original) && same(coverage, context.candidate.actionSemanticCoverage)) fail('no_change');
   return sealed({
-    version: SEMANTIC_CORRECTION_VERSION, planDigest, subject: plan.subject,
+    version: presenceOperations.length ? PRESENCE_CORRECTION_VERSION : SEMANTIC_CORRECTION_VERSION, planDigest, subject: plan.subject,
     original: { templateDigest: context.candidate.templateDigest, coverageDigest: context.candidate.actionSemanticCoverageDigest },
     effective: { template, templateDigest: canonicalHash(template), coverage, coverageDigest: canonicalHash(coverage),
       catalogVersion: ACTION_SEMANTIC_CATALOG_VERSION, catalogDigest: canonicalHash(ACTION_SEMANTIC_CATALOG) },

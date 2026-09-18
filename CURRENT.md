@@ -1,5 +1,44 @@
 # SmallHeroes — Current Technical State
 
+## Source-bound companion presence correction implemented, review pending — 2026-09-18
+
+Claude supplied PASS0/0/0 for e9a859d3..3fb03452, evidence only; semantic HOLD
+unchanged. No extension of earlier code/acceptance PASS ranges. This milestone
+starts clean3fb03452 ahead3, same sole writer/task/branch semantic-m1; protected
+dependencies768ccb2f/63ccb484 clean/read-only. No push.
+
+New general review-only require_companion_presence operation binds exact accepted
+visual-direction bytes to snapshot revision SHA and explicit typed present. It
+updates effective companion facts, characterPresence and castIds together before
+other operations. No names/page exceptions in production, no legacy extractor or
+paid authoring mutation. Presence plans/results are v2; old v1 packet b7fdd4e5 is
+byte-identical in regression. Existing consumer reconstructs against accepted disk
+authority; hashes alone do not grant acceptance. No presence removal supported.
+
+Actual Panda offline witness changes ONLY page6's companion flag and castIds;
+other pages and all action coverage unchanged. Empty supporting-cast review is a
+bounded control, NOT cast recovery. Effective template dc9ee910; original paid
+candidate41d40069 remains HELD and unchanged, six run files preserve bytes/mtime.
+A tracked semantic copy of the candidate is now a test fixture; this is not a
+backup of original run logs/receipts. Original outputs still local-only/no verified
+off-machine backup. Zero provider/key/render/audio calls; additional cost$0.
+
+Focused6 specs269/269 (new32, correction27, consumer32, bridge131, accepted cast18,
+cast29); four offline witnesses exit0 including unchanged paid replay. Full-check
+ordinary phase failed: CLI narration readiness count expected2/actual3 at:109;
+this milestone does not modify the readiness code or its spec. Resource phase
+22files:21 passed/1 failed, tests670 passed/1 timeout in acceptance-lifecycle
+package-qualification isolation. Full check exit1; both typechecks exit0. No
+baseline reproduction or inherited-failure classification claimed. Exact final
+runner summary retained in companion-presence/full-check-summary.json.
+No repository stability closure, independent code PASS, visual accuracy, full
+semantic recovery or runtime/Blueprint/render authority is claimed.
+
+Next: independent code review, then source-bound supporting cast, coherent selected
+moment/action coverage, cover and single-object custody/staging corrections. Never
+render this partial correction. Exact scope, tests, rollback and QA attack targets:
+story-pipeline/06_editorial_refresh/2026-09-16/book-proof/companion-presence/HANDOFF.md.
+
 ## Panda evidence PASS received; page6 companion gap verified — 2026-09-18
 
 Claude supplied evidence PASS for508f49b4..e9a859d3 and agreed with semantic HOLD;

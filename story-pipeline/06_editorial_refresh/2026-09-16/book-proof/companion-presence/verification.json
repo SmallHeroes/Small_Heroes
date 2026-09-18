@@ -1,0 +1,66 @@
+{
+  "version": "companion-presence-offline-witness/v1",
+  "originalCandidateDigest": "41d400698df1aa452b326a050b5f1a316ea4679ffb80e093fa16c6466c7ff2ba",
+  "sourceSnapshotDigest": "36230817452cdbfd56896bd445c07a39b3b526cfe11475f3533235f2d0cb2143",
+  "planDigest": "9dad12a8a888df05feb2c768f94d6e3775ad76930402de75788942e962b411ab",
+  "correctionDigest": "6e2db08270f7f695a4a04ff1f3994db9e7136f74cd0dabcda8b4b862d1e5cfc1",
+  "effectiveTemplateDigest": "dc9ee910290634b429a15db1e922c92164d50155e33ec46a40dc3e83a905dc35",
+  "changedPages": [
+    6
+  ],
+  "changesOnly": [
+    "characterPresence.companion:false->true",
+    "castIds:add-authoritative-companion"
+  ],
+  "sourceAndInputsUnchanged": true,
+  "paidArtifactsPreserved": [
+    {
+      "path": "outputs/panda-contract-authoring-20260918-01/source-snapshots/36230817452cdbfd56896bd445c07a39b3b526cfe11475f3533235f2d0cb2143.json",
+      "sha256": "10f88f6902fafdbaff7e65f472eca8f35014ae78c164982154e3c1ca88119fc3",
+      "bytes": 91560,
+      "mtimeMs": 1789681070308.763
+    },
+    {
+      "path": "outputs/panda-contract-authoring-20260918-01/authoring-requests/1922c7d8a6bb8497e9a89f51eb6a261b30aa32703e912c7712ae680aaa4b0b62.json",
+      "sha256": "8f1108b9f2beb7eaec05c4396a0d159ae20368ca375746aff0ea77805af30d9f",
+      "bytes": 12998,
+      "mtimeMs": 1789681070311.7651
+    },
+    {
+      "path": "outputs/panda-contract-authoring-20260918-01/authoring-receipts/68352dc505773d003ff2e1a64516d596ea83c97ca7b44d9877df2ea182cac63e.json",
+      "sha256": "1c37a16a4befc23e16bae8e0408da07a18ab2c476c5d1b0e862079ea9fcd6782",
+      "bytes": 9728,
+      "mtimeMs": 1789681290335.048
+    },
+    {
+      "path": "outputs/panda-contract-authoring-20260918-01/structured-draft-replay-evidence/98b1de1bf31aebfa8ab1497114180c7aa0dafd0f125266f678da684ba57371ff.json",
+      "sha256": "60013e131cda6d0d8f37bfbf1acbc39d20eaed9c8372bcd453258770b5405702",
+      "bytes": 167188,
+      "mtimeMs": 1789681290344.5703
+    },
+    {
+      "path": "outputs/panda-contract-authoring-20260918-01/readiness-evidence/74ad8d28535a890366b2c2b7a224a443d09b9c12e20c26ea1e1a1e5abab48e8f.json",
+      "sha256": "b17c25cb422ff49a2cc1da9f8d7ba236fc469a4b2d94d83822dbe764dff3b78e",
+      "bytes": 5101,
+      "mtimeMs": 1789681290361.1104
+    },
+    {
+      "path": "outputs/panda-contract-authoring-20260918-01/contract-candidates/41d400698df1aa452b326a050b5f1a316ea4679ffb80e093fa16c6466c7ff2ba.json",
+      "sha256": "c67a73a1137755260a542433c917dfcef29c33a6976954f14a1029c342ddbf52",
+      "bytes": 115026,
+      "mtimeMs": 1789681290380.6313
+    }
+  ],
+  "negativeControls": 3,
+  "providerCalls": 0,
+  "costUsd": 0,
+  "candidateStillHeld": true,
+  "runtimeEligible": false,
+  "limitations": [
+    "presence-only review overlay",
+    "not supporting-cast recovery",
+    "not selected-moment/cover/custody recovery",
+    "no product acceptance or independent code PASS",
+    "original outputs local-only without verified backup"
+  ]
+}

@@ -1,0 +1,3238 @@
+{
+  "actionSemanticCatalogDigest": "767e563e91edc6ec20ea9e6a27e4b606b60aa97dbca09b0868ca5f3da710c9be",
+  "actionSemanticCatalogVersion": "action-semantic-catalog/v4",
+  "actionSemanticCoverage": [
+    {
+      "beatId": "beat:p1:station_built",
+      "disposition": {
+        "contractPointer": "/pageContracts/0/mustShow/0",
+        "contractValue": "Fixed cardboard station built from boxes beside the toy shed",
+        "kind": "presentation_requirement",
+        "presentationClass": "static_state"
+      },
+      "pageNumber": 1,
+      "reviewState": "unreviewed",
+      "sourceEvidenceId": "se1_400ea3925555b9ad2809eb8cefa85b7de9b8c7f9fd620744683be54e93fe386c",
+      "sourcePhrase": "בגן השעשועים בנו הילדים תחנת ירח מארגזים.",
+      "version": "action-semantic-coverage/v6"
+    },
+    {
+      "beatId": "beat:p1:child_approaches_station",
+      "disposition": {
+        "checkId": "action:p1_child_approaches_station",
+        "kind": "action_requirement"
+      },
+      "pageNumber": 1,
+      "reviewState": "unreviewed",
+      "sourceEvidenceId": "se1_3363609e2ec4d3e8a2211171ed97467ab0ee9f6a914a18d21571fd2ef2235472",
+      "sourcePhrase": "{{childName}} {בא|באה} עם הגה מצויר מקרטון.",
+      "version": "action-semantic-coverage/v6"
+    },
+    {
+      "beatId": "beat:p1:child_holds_wheel",
+      "disposition": {
+        "checkId": "action:p1_child_holds_wheel",
+        "kind": "action_requirement"
+      },
+      "pageNumber": 1,
+      "reviewState": "unreviewed",
+      "sourceEvidenceId": "se1_3363609e2ec4d3e8a2211171ed97467ab0ee9f6a914a18d21571fd2ef2235472",
+      "sourcePhrase": "{{childName}} {בא|באה} עם הגה מצויר מקרטון.",
+      "version": "action-semantic-coverage/v6"
+    },
+    {
+      "beatId": "beat:p1:wheel_fastener",
+      "disposition": {
+        "contractPointer": "/pageContracts/0/mustShow/1",
+        "contractValue": "Handmade cardboard steering wheel with one paper fastener",
+        "kind": "presentation_requirement",
+        "presentationClass": "static_state"
+      },
+      "pageNumber": 1,
+      "reviewState": "unreviewed",
+      "sourceEvidenceId": "se1_96c30ec713d280ac483683022441d3ddce425d127b1fda1ebcfaba73e8800eed",
+      "sourcePhrase": "הוא הסתובב באמת, על פין נייר.",
+      "version": "action-semantic-coverage/v6"
+    },
+    {
+      "beatId": "beat:p1:station_roles_occupied",
+      "disposition": {
+        "contractPointer": "/pageContracts/0/mustShow/2",
+        "contractValue": "Station driver already seated inside and ticket child distributing tickets",
+        "kind": "presentation_requirement",
+        "presentationClass": "static_state"
+      },
+      "pageNumber": 1,
+      "reviewState": "unreviewed",
+      "sourceEvidenceId": "se1_04fd0f921733793619076820f01f8d4c3c173d7244d58ddfcf8071f930da039f",
+      "sourcePhrase": "אבל כשהגיעו, כבר ישבה ילדה בתא הנהג, וילד אחר חילק כרטיסים.",
+      "version": "action-semantic-coverage/v6"
+    },
+    {
+      "beatId": "beat:p2:child_beside_doorway",
+      "disposition": {
+        "contractPointer": "/pageContracts/1/mustShow/0",
+        "contractValue": "Child beside the station doorway",
+        "kind": "presentation_requirement",
+        "presentationClass": "static_state"
+      },
+      "pageNumber": 2,
+      "reviewState": "unreviewed",
+      "sourceEvidenceId": "se1_32897b9efce6741582895a0766872d21c1e1457f77f86dcf2737a456ee3c835c",
+      "sourcePhrase": "{{childName}} {עמד|עמדה} ליד הפתח.",
+      "version": "action-semantic-coverage/v6"
+    },
+    {
+      "beatId": "beat:p2:engine_noise",
+      "disposition": {
+        "kind": "non_visual",
+        "rationale": "sound_only"
+      },
+      "pageNumber": 2,
+      "reviewState": "unreviewed",
+      "sourceEvidenceId": "se1_96bbc5f38068c0d0b1704bbeb7330c9fda108da48a297a416a263511fcb67a49",
+      "sourcePhrase": "איש לא שמע מעל רעש המנועים.",
+      "version": "action-semantic-coverage/v6"
+    },
+    {
+      "beatId": "beat:p2:child_turns_wheel",
+      "disposition": {
+        "checkId": "action:p2_child_turns_wheel",
+        "kind": "action_requirement"
+      },
+      "pageNumber": 2,
+      "reviewState": "unreviewed",
+      "sourceEvidenceId": "se1_072518a191c226303c2592b2ad14a307fdce7939215d495332eaca411087e5e7",
+      "sourcePhrase": "{{childName}} {סובב|סובבה} את ההגה לבד.",
+      "version": "action-semantic-coverage/v6"
+    },
+    {
+      "beatId": "beat:p2:small_creak",
+      "disposition": {
+        "contractPointer": "/pageContracts/1/mustShow/1",
+        "contractValue": "Same loose cardboard wheel turning alone",
+        "kind": "presentation_requirement",
+        "presentationClass": "graphic_sound_cue"
+      },
+      "pageNumber": 2,
+      "reviewState": "unreviewed",
+      "sourceEvidenceId": "se1_34edde01a8a533d2b2929f5a7116d6b9f365efd612567ccd11e6475d39b5ae6d",
+      "sourcePhrase": "הוא השמיע חריקה קטנה.",
+      "version": "action-semantic-coverage/v6"
+    },
+    {
+      "beatId": "beat:p2:panda_looks_beyond_station",
+      "disposition": {
+        "checkId": "action:p2_panda_looks_beyond_station",
+        "kind": "action_requirement"
+      },
+      "pageNumber": 2,
+      "reviewState": "unreviewed",
+      "sourceEvidenceId": "se1_c3951fb8379a80942cc9f46e1aa1fe879c24bd27781f552813641bd8b3b3a9e6",
+      "sourcePhrase": "היא הסתכלה מעבר לארגזים.",
+      "version": "action-semantic-coverage/v6"
+    },
+    {
+      "beatId": "beat:p3:adam_with_tube",
+      "disposition": {
+        "contractPointer": "/pageContracts/2/mustShow/0",
+        "contractValue": "Adam seated beside the path with a long cardboard tube",
+        "kind": "presentation_requirement",
+        "presentationClass": "static_state"
+      },
+      "pageNumber": 3,
+      "reviewState": "unreviewed",
+      "sourceEvidenceId": "se1_46eb7c8c7976376b747ab313b4aa2ef42ae4b18d39b67f49988e9d85e6151f41",
+      "sourcePhrase": "ליד השביל ישב ילד עם צינור קרטון ארוך.",
+      "version": "action-semantic-coverage/v6"
+    },
+    {
+      "beatId": "beat:p3:child_peeks_through_tube",
+      "disposition": {
+        "checkId": "action:p3_child_peeks_through_tube",
+        "kind": "action_requirement"
+      },
+      "pageNumber": 3,
+      "reviewState": "unreviewed",
+      "sourceEvidenceId": "se1_2a379fcb69890ea8d214e9707ccb641e74b80dd9fa24d0bcde0bb140cbbbe115",
+      "sourcePhrase": "{{childName}} {הסתכל|הסתכלה} דרך הצינור.",
+      "version": "action-semantic-coverage/v6"
+    },
+    {
+      "beatId": "beat:p3:flower_through_tube",
+      "disposition": {
+        "contractPointer": "/pageContracts/2/mustShow/2",
+        "contractValue": "Small rooted yellow flower visible beyond the sandbox",
+        "kind": "presentation_requirement",
+        "presentationClass": "composition_focus"
+      },
+      "pageNumber": 3,
+      "reviewState": "unreviewed",
+      "sourceEvidenceId": "se1_15e483b9f49295739249313579aa3d8e8b7323e091b5cb695b05d6268c939899",
+      "sourcePhrase": "בקצהו נראה פרח צהוב, מעבר לארגז החול.",
+      "version": "action-semantic-coverage/v6"
+    },
+    {
+      "beatId": "beat:p3:small_dirty_flower",
+      "disposition": {
+        "contractPointer": "/pageContracts/2/mustShow/2",
+        "contractValue": "Small rooted yellow flower visible beyond the sandbox",
+        "kind": "presentation_requirement",
+        "presentationClass": "static_state"
+      },
+      "pageNumber": 3,
+      "reviewState": "unreviewed",
+      "sourceEvidenceId": "se1_49aebb9810d2d15c8ed974721a1c91a03f86cd364b599d6a29ae02aa84e1f065",
+      "sourcePhrase": "היא קטנה וקצת מלוכלכת.״",
+      "version": "action-semantic-coverage/v6"
+    },
+    {
+      "beatId": "beat:p4:bottomless_box",
+      "disposition": {
+        "contractPointer": "/pageContracts/3/mustShow/0",
+        "contractValue": "One wide open-top bottomless cardboard box beside the toy shed",
+        "kind": "presentation_requirement",
+        "presentationClass": "static_state"
+      },
+      "pageNumber": 4,
+      "reviewState": "unreviewed",
+      "sourceEvidenceId": "se1_53b6e85b27898a3f0be55e5158ac7ff3ca47086f7d4fecc550276b1329defb73",
+      "sourcePhrase": "ליד מחסן הצעצועים היה ארגז רחב, פתוח מלמעלה ובלי תחתית.",
+      "version": "action-semantic-coverage/v6"
+    },
+    {
+      "beatId": "beat:p4:child_places_wheel",
+      "disposition": {
+        "checkId": "action:p4_child_places_wheel",
+        "kind": "action_requirement"
+      },
+      "pageNumber": 4,
+      "reviewState": "unreviewed",
+      "sourceEvidenceId": "se1_062c9c2a1095d1c726c7758949280a7d42dbc278b817480378c797a876c60036",
+      "sourcePhrase": "{{childName}} {חיבר|חיברה} את ההגה לדופן הקדמית.",
+      "version": "action-semantic-coverage/v6"
+    },
+    {
+      "beatId": "beat:p4:telescope_inside",
+      "disposition": {
+        "contractPointer": "/pageContracts/3/mustShow/2",
+        "contractValue": "Cardboard telescope placed inside the rover",
+        "kind": "presentation_requirement",
+        "presentationClass": "static_state"
+      },
+      "pageNumber": 4,
+      "reviewState": "unreviewed",
+      "sourceEvidenceId": "se1_6f3ad53072bd5de49c75c87dcf4ac3bda1140077d5432413a03c95577a1b85f2",
+      "sourcePhrase": "אדם הכניס את הטלסקופ.",
+      "version": "action-semantic-coverage/v6"
+    },
+    {
+      "beatId": "beat:p4:child_walks",
+      "disposition": {
+        "checkId": "action:p4_child_walks",
+        "kind": "action_requirement"
+      },
+      "pageNumber": 4,
+      "reviewState": "unreviewed",
+      "sourceEvidenceId": "se1_b0c20f89d12ae26423fd1ec633b13c3534ea3d26e4a19bba9a66732642d7a670",
+      "sourcePhrase": "הם נכנסו פנימה, הרימו יחד את הארגז הקל והתחילו ללכת.",
+      "version": "action-semantic-coverage/v6"
+    },
+    {
+      "beatId": "beat:p4:visible_leg_wheels",
+      "disposition": {
+        "contractPointer": "/pageContracts/3/mustShow/3",
+        "contractValue": "Visible legs reaching the ground inside the lightweight box",
+        "kind": "presentation_requirement",
+        "presentationClass": "composition_focus"
+      },
+      "pageNumber": 4,
+      "reviewState": "unreviewed",
+      "sourceEvidenceId": "se1_be2456f3330d3e192f78640371c4203b7f721e571a61dacaa8561d3511f1ab59",
+      "sourcePhrase": "הרגליים היו הגלגלים.",
+      "version": "action-semantic-coverage/v6"
+    },
+    {
+      "beatId": "beat:p4:panda_holds_rover",
+      "disposition": {
+        "checkId": "action:p4_panda_holds_rover",
+        "kind": "action_requirement"
+      },
+      "pageNumber": 4,
+      "reviewState": "unreviewed",
+      "sourceEvidenceId": "se1_fc392899bea400e6e88e9d7a1fe42ca9c91a44995bbdbed05fcf63f7e6532d87",
+      "sourcePhrase": "ענת הלכה מאחור והחזיקה את הדופן.",
+      "version": "action-semantic-coverage/v6"
+    },
+    {
+      "beatId": "beat:p5:child_turns",
+      "disposition": {
+        "checkId": "action:p5_child_turns",
+        "kind": "action_requirement"
+      },
+      "pageNumber": 5,
+      "reviewState": "unreviewed",
+      "sourceEvidenceId": "se1_0cac6c85a646912499eea10c3843d8655fde5fe737cae0ab4e9d9a3a7a6f8d4d",
+      "sourcePhrase": "{{childName}} {סובב|סובבה} את ההגה.",
+      "version": "action-semantic-coverage/v6"
+    },
+    {
+      "beatId": "beat:p5:path_around_sand",
+      "disposition": {
+        "contractPointer": "/pageContracts/4/mustShow/0",
+        "contractValue": "Walking rover following the path around the ordinary sandbox",
+        "kind": "presentation_requirement",
+        "presentationClass": "composition_focus"
+      },
+      "pageNumber": 5,
+      "reviewState": "unreviewed",
+      "sourceEvidenceId": "se1_07d1b7b7b2572874ba2468df82a08d624a810687ec3c745a3c29ef865e1b9b77",
+      "sourcePhrase": "כולם פנו סביב החול, על השביל.",
+      "version": "action-semantic-coverage/v6"
+    },
+    {
+      "beatId": "beat:p5:panda_turns",
+      "disposition": {
+        "checkId": "action:p5_panda_turns",
+        "kind": "action_requirement"
+      },
+      "pageNumber": 5,
+      "reviewState": "unreviewed",
+      "sourceEvidenceId": "se1_3b0ee543a47494a51020b15c19e03e2fdde90b8bba046ace4f881eb949d2e316",
+      "sourcePhrase": "ענת פנתה קצת מאוחר.",
+      "version": "action-semantic-coverage/v6"
+    },
+    {
+      "beatId": "beat:p5:flower_ahead",
+      "disposition": {
+        "contractPointer": "/pageContracts/4/mustShow/2",
+        "contractValue": "Yellow flower waiting beyond the sandbox",
+        "kind": "presentation_requirement",
+        "presentationClass": "composition_focus"
+      },
+      "pageNumber": 5,
+      "reviewState": "unreviewed",
+      "sourceEvidenceId": "se1_56e756529504c3992f1438d344171cbb5e20204160e1cdff4684fcda4ca80cae",
+      "sourcePhrase": "מעבר למכתש חיכה הפרח הצהוב.",
+      "version": "action-semantic-coverage/v6"
+    },
+    {
+      "beatId": "beat:p5:child_looks_at_flower",
+      "disposition": {
+        "checkId": "action:p5_child_looks_at_flower",
+        "kind": "action_requirement"
+      },
+      "pageNumber": 5,
+      "reviewState": "unreviewed",
+      "sourceEvidenceId": "se1_9c2bf60d6cb6aa9b788574f7f2319ff3578d8f94a052b485e970bfb218f17f63",
+      "sourcePhrase": "{{childName}} {הביט|הביטה} בפרח, ואז בחזרה לתחנה.",
+      "version": "action-semantic-coverage/v6"
+    },
+    {
+      "beatId": "beat:p5:panda_peeks_at_telescope",
+      "disposition": {
+        "checkId": "action:p5_panda_peeks_at_telescope",
+        "kind": "action_requirement"
+      },
+      "pageNumber": 5,
+      "reviewState": "unreviewed",
+      "sourceEvidenceId": "se1_cbb6a4248e7d4bb2d3e611ccb90c79cfb674c504bd3d06db0398fcb28064c9d2",
+      "sourcePhrase": "ענת הציצה בטלסקופ.",
+      "version": "action-semantic-coverage/v6"
+    },
+    {
+      "beatId": "beat:p6:rover_on_grass",
+      "disposition": {
+        "contractPointer": "/pageContracts/5/mustShow/0",
+        "contractValue": "Empty walking rover set down on nearby grass",
+        "kind": "presentation_requirement",
+        "presentationClass": "static_state"
+      },
+      "pageNumber": 6,
+      "reviewState": "unreviewed",
+      "sourceEvidenceId": "se1_739f68810b7eae90f24c7196a200871c2911bc56a093799993711c46fba6b133",
+      "sourcePhrase": "הם הניחו את הרכב על הדשא וחזרו אל התחנה.",
+      "version": "action-semantic-coverage/v6"
+    },
+    {
+      "beatId": "beat:p6:child_approaches_doorway",
+      "disposition": {
+        "checkId": "action:p6_child_approaches_doorway",
+        "kind": "action_requirement"
+      },
+      "pageNumber": 6,
+      "reviewState": "unreviewed",
+      "sourceEvidenceId": "se1_eb4b1518cf98082bd90b0678016ce1dd5949692753068ee7ab3716db568c2bdf",
+      "sourcePhrase": "{{childName}} {ניגש|ניגשה} לפתח עם אדם.",
+      "version": "action-semantic-coverage/v6"
+    },
+    {
+      "beatId": "beat:p6:driver_peeks_out",
+      "disposition": {
+        "contractPointer": "/pageContracts/5/mustShow/2",
+        "contractValue": "Station driver looking out through the entrance",
+        "kind": "presentation_requirement",
+        "presentationClass": "static_state"
+      },
+      "pageNumber": 6,
+      "reviewState": "unreviewed",
+      "sourceEvidenceId": "se1_2f316b526decc5ef3676358e18eca019d5e1cec2bb77602531feac1a373d73b9",
+      "sourcePhrase": "הילדה הציצה החוצה.",
+      "version": "action-semantic-coverage/v6"
+    },
+    {
+      "beatId": "beat:p6:ticket_child_points",
+      "disposition": {
+        "contractPointer": "/pageContracts/5/mustShow/3",
+        "contractValue": "Ticket child pointing toward ordinary green grass",
+        "kind": "presentation_requirement",
+        "presentationClass": "composition_focus"
+      },
+      "pageNumber": 6,
+      "reviewState": "unreviewed",
+      "sourceEvidenceId": "se1_ebd09bbb2665f1a1fe2d8442ef213ac2f0d5f69bc1e573a8f9a9c1b69919f74e",
+      "sourcePhrase": "הילד עם הכרטיסים הצביע על הדשא.",
+      "version": "action-semantic-coverage/v6"
+    },
+    {
+      "beatId": "beat:p6:child_looks_at_path",
+      "disposition": {
+        "checkId": "action:p6_child_looks_at_path",
+        "kind": "action_requirement"
+      },
+      "pageNumber": 6,
+      "reviewState": "unreviewed",
+      "sourceEvidenceId": "se1_989521f0e10ebf86bc7f3e959f5be7e66c2db4dd754eaacfba023e4a1f423045",
+      "sourcePhrase": "{{childName}} {הביט|הביטה} בשביל הפנוי.",
+      "version": "action-semantic-coverage/v6"
+    },
+    {
+      "beatId": "beat:p6:longer_route",
+      "disposition": {
+        "contractPointer": "/pageContracts/5/mustShow/4",
+        "contractValue": "Clear safe path visible beyond the station",
+        "kind": "presentation_requirement",
+        "presentationClass": "composition_focus"
+      },
+      "pageNumber": 6,
+      "reviewState": "unreviewed",
+      "sourceEvidenceId": "se1_886706096fd4d6721885aa924c0473b1926599762d8c764305e2107e1f87b85c",
+      "sourcePhrase": "הדרך לשמש נעשתה ארוכה יותר.",
+      "version": "action-semantic-coverage/v6"
+    },
+    {
+      "beatId": "beat:p7:rolled_rug",
+      "disposition": {
+        "contractPointer": "/pageContracts/6/mustShow/0",
+        "contractValue": "One partly unrolled play rug extending from the station toward the path",
+        "kind": "presentation_requirement",
+        "presentationClass": "static_state"
+      },
+      "pageNumber": 7,
+      "reviewState": "unreviewed",
+      "sourceEvidenceId": "se1_ba7b3e34a7dc2610bfe59034da298a44f2af675f898c2ffcf0863ca1b9df3d9a",
+      "sourcePhrase": "ליד הגדר נח שטיח משחק מגולגל.",
+      "version": "action-semantic-coverage/v6"
+    },
+    {
+      "beatId": "beat:p7:teacher_supervises",
+      "disposition": {
+        "contractPointer": "/pageContracts/6/mustShow/4",
+        "contractValue": "Distant supervising teacher and safe fenced playground",
+        "kind": "presentation_requirement",
+        "presentationClass": "static_state"
+      },
+      "pageNumber": 7,
+      "reviewState": "unreviewed",
+      "sourceEvidenceId": "se1_911ea9f1ff2477cfe0d4e31686dc708e759c8d56ef43272b553569795a86f0b4",
+      "sourcePhrase": "הגננת הסכימה שיפרשו אותו על הקרקע הפנויה.",
+      "version": "action-semantic-coverage/v6"
+    },
+    {
+      "beatId": "beat:p7:child_pushes_rug",
+      "disposition": {
+        "checkId": "action:p7_child_pushes_rug",
+        "kind": "action_requirement"
+      },
+      "pageNumber": 7,
+      "reviewState": "unreviewed",
+      "sourceEvidenceId": "se1_a5ba974a64a2f81e92171faff33b165d73ca2d7ece35113fff502493f19be7b5",
+      "sourcePhrase": "{{childName}} ואדם התחילו לגלגל אותו מהתחנה אל השביל.",
+      "version": "action-semantic-coverage/v6"
+    },
+    {
+      "beatId": "beat:p7:curled_edge",
+      "disposition": {
+        "contractPointer": "/pageContracts/6/mustShow/1",
+        "contractValue": "Rug's near edge curled back on the level ground",
+        "kind": "presentation_requirement",
+        "presentationClass": "static_state"
+      },
+      "pageNumber": 7,
+      "reviewState": "unreviewed",
+      "sourceEvidenceId": "se1_3ab833590023dc8d8ee118a85a3f8b11eacb9063f90c8bf4792e7e7c5baff259",
+      "sourcePhrase": "הקצה התקפל בחזרה.",
+      "version": "action-semantic-coverage/v6"
+    },
+    {
+      "beatId": "beat:p7:panda_sits_on_rug",
+      "disposition": {
+        "checkId": "action:p7_panda_sits_on_rug",
+        "kind": "action_requirement"
+      },
+      "pageNumber": 7,
+      "reviewState": "unreviewed",
+      "sourceEvidenceId": "se1_0a77b64b529fe98604669692bdd6196bcc56f4ffd52e45163bc3cf4ebcf1da19",
+      "sourcePhrase": "ענת התיישבה עליו כדי להחזיק, והשטיח דחף אותה לאט אל הדשא.",
+      "version": "action-semantic-coverage/v6"
+    },
+    {
+      "beatId": "beat:p7:soft_landing",
+      "disposition": {
+        "contractPointer": "/pageContracts/6/mustShow/2",
+        "contractValue": "Companion seated on the rug after a soft slide toward the grass",
+        "kind": "presentation_requirement",
+        "presentationClass": "static_state"
+      },
+      "pageNumber": 7,
+      "reviewState": "unreviewed",
+      "sourceEvidenceId": "se1_199f79a9753d899a921d3522e356d739b669731f7fb1ca03615b011b1a39db8d",
+      "sourcePhrase": "היא נחתה בישיבה רכה.",
+      "version": "action-semantic-coverage/v6"
+    },
+    {
+      "beatId": "beat:p8:child_reaches_toward_panda",
+      "disposition": {
+        "checkId": "action:p8_child_reaches_toward_panda",
+        "kind": "action_requirement"
+      },
+      "pageNumber": 8,
+      "reviewState": "unreviewed",
+      "sourceEvidenceId": "se1_db3e802b79a0309bbe177bb9983f6cfaf2ae42d046191fa13c9804ea28baef4e",
+      "sourcePhrase": "{{childName}} {צחק|צחקה} {והושיט|והושיטה} לענת יד.",
+      "version": "action-semantic-coverage/v6"
+    },
+    {
+      "beatId": "beat:p8:panda_holds_rug",
+      "disposition": {
+        "checkId": "action:p8_panda_holds_rug",
+        "kind": "action_requirement"
+      },
+      "pageNumber": 8,
+      "reviewState": "unreviewed",
+      "sourceEvidenceId": "se1_7a29e0ee174d5fa236fc5c476afc8bd883cd5201b2449c7b71afaa01857aa3d6",
+      "sourcePhrase": "אדם החזיק קצה אחד; ענת, לאחר שקמה, החזיקה את השני.",
+      "version": "action-semantic-coverage/v6"
+    },
+    {
+      "beatId": "beat:p8:child_pushes_rug_flat",
+      "disposition": {
+        "checkId": "action:p8_child_pushes_rug_flat",
+        "kind": "action_requirement"
+      },
+      "pageNumber": 8,
+      "reviewState": "unreviewed",
+      "sourceEvidenceId": "se1_110f3646bbbfa6c4a7a4356a7b5e8a7e79a4408688b05b4873f7a4adee2a3427",
+      "sourcePhrase": "{{childName}} {יישר|יישרה} את האמצע.",
+      "version": "action-semantic-coverage/v6"
+    },
+    {
+      "beatId": "beat:p8:rug_stays_flat",
+      "disposition": {
+        "contractPointer": "/pageContracts/7/mustShow/0",
+        "contractValue": "Same play rug now lying flat between station entrance and path",
+        "kind": "presentation_requirement",
+        "presentationClass": "static_state"
+      },
+      "pageNumber": 8,
+      "reviewState": "unreviewed",
+      "sourceEvidenceId": "se1_584a2b7c6b69429a5bb5dbf5126e0f3e6a40e8824bb45549f22849fdd6b272b3",
+      "sourcePhrase": "הדרך נשארה שטוחה.",
+      "version": "action-semantic-coverage/v6"
+    },
+    {
+      "beatId": "beat:p8:driver_tests_rug",
+      "disposition": {
+        "contractPointer": "/pageContracts/7/mustShow/3",
+        "contractValue": "Station driver testing the flat rug with one foot",
+        "kind": "presentation_requirement",
+        "presentationClass": "static_state"
+      },
+      "pageNumber": 8,
+      "reviewState": "unreviewed",
+      "sourceEvidenceId": "se1_f331b07c2bb2698122c0f648a6809b3a2b56678025296a89e3d825676e906be4",
+      "sourcePhrase": "הילדה יצאה מהחללית והניחה נעל על השטיח.",
+      "version": "action-semantic-coverage/v6"
+    },
+    {
+      "beatId": "beat:p8:driver_follows_route",
+      "disposition": {
+        "contractPointer": "/pageContracts/7/mustShow/4",
+        "contractValue": "Parked rover waiting at the path end",
+        "kind": "presentation_requirement",
+        "presentationClass": "composition_focus"
+      },
+      "pageNumber": 8,
+      "reviewState": "unreviewed",
+      "sourceEvidenceId": "se1_4b2c067a872775265d7a1a8fb90c87ff427fdc36697c0b880493ea7d1af8859d",
+      "sourcePhrase": "היא צעדה בעקבות {{childName}} עד הרכב שחיכה בקצה.",
+      "version": "action-semantic-coverage/v6"
+    },
+    {
+      "beatId": "beat:p9:adam_at_wheel",
+      "disposition": {
+        "contractPointer": "/pageContracts/8/mustShow/0",
+        "contractValue": "Adam positioned at the rover's mounted steering wheel",
+        "kind": "presentation_requirement",
+        "presentationClass": "static_state"
+      },
+      "pageNumber": 9,
+      "reviewState": "unreviewed",
+      "sourceEvidenceId": "se1_56abf85186b915a1cbd1576c826ac0444769099574e7f2a888393f1918094b77",
+      "sourcePhrase": "אדם נכנס לרכב ותפס את ההגה.",
+      "version": "action-semantic-coverage/v6"
+    },
+    {
+      "beatId": "beat:p9:child_holds_telescope",
+      "disposition": {
+        "checkId": "action:p9_child_holds_telescope",
+        "kind": "action_requirement"
+      },
+      "pageNumber": 9,
+      "reviewState": "unreviewed",
+      "sourceEvidenceId": "se1_13fd3aa0b2fe7fbd346672a0282b1d94c62fabae547046077343bdc02b552929",
+      "sourcePhrase": "ענת הצביעה על הטלסקופ שבידיים של {{childName}}.",
+      "version": "action-semantic-coverage/v6"
+    },
+    {
+      "beatId": "beat:p9:panda_points_at_telescope",
+      "disposition": {
+        "checkId": "action:p9_panda_points_at_telescope",
+        "kind": "action_requirement"
+      },
+      "pageNumber": 9,
+      "reviewState": "unreviewed",
+      "sourceEvidenceId": "se1_13fd3aa0b2fe7fbd346672a0282b1d94c62fabae547046077343bdc02b552929",
+      "sourcePhrase": "ענת הצביעה על הטלסקופ שבידיים של {{childName}}.",
+      "version": "action-semantic-coverage/v6"
+    },
+    {
+      "beatId": "beat:p9:bench_through_tube",
+      "disposition": {
+        "contractPointer": "/pageContracts/8/mustShow/2",
+        "contractValue": "Large bench visible through or aligned with the tube's sightline",
+        "kind": "presentation_requirement",
+        "presentationClass": "composition_focus"
+      },
+      "pageNumber": 9,
+      "reviewState": "unreviewed",
+      "sourceEvidenceId": "se1_d7d19a3046f5a166249509006b975e0e2cdb5309182bbd8c15261d2fdc3abca1",
+      "sourcePhrase": "מבעד לצינור נראה הספסל הגדול.",
+      "version": "action-semantic-coverage/v6"
+    },
+    {
+      "beatId": "beat:p9:bench_hides_flower",
+      "disposition": {
+        "contractPointer": "/pageContracts/8/mustShow/4",
+        "contractValue": "Flower beyond the bench remains partly obscured",
+        "kind": "presentation_requirement",
+        "presentationClass": "static_state"
+      },
+      "pageNumber": 9,
+      "reviewState": "unreviewed",
+      "sourceEvidenceId": "se1_f1dec39642ce9d9de9a3e2eb30899281228b5ea980c3a0cafbaac41aefd9f81c",
+      "sourcePhrase": "ליד הפרח נתחלף.״",
+      "version": "action-semantic-coverage/v6"
+    },
+    {
+      "beatId": "beat:p9:driver_joins_rear",
+      "disposition": {
+        "contractPointer": "/pageContracts/8/mustShow/3",
+        "contractValue": "Station driver joined behind the rover",
+        "kind": "presentation_requirement",
+        "presentationClass": "static_state"
+      },
+      "pageNumber": 9,
+      "reviewState": "unreviewed",
+      "sourceEvidenceId": "se1_3d3a98361522e55a660164f075ee345e1c1cb76607219766b7f2478a0e7b5451",
+      "sourcePhrase": "הכריזה הילדה, והצטרפה מאחור.",
+      "version": "action-semantic-coverage/v6"
+    },
+    {
+      "beatId": "beat:p10:bench_approaches_view",
+      "disposition": {
+        "contractPointer": "/pageContracts/9/mustShow/0",
+        "contractValue": "Rover stopped just before the large bench without contact",
+        "kind": "presentation_requirement",
+        "presentationClass": "composition_focus"
+      },
+      "pageNumber": 10,
+      "reviewState": "unreviewed",
+      "sourceEvidenceId": "se1_0999d8e4e73d42059764b818d04fc8ca0732995e2068ed47098d849a0399739f",
+      "sourcePhrase": "ענת החזיקה את הדופן ועצרה רגע לפני שהארגז נגע בספסל.",
+      "version": "action-semantic-coverage/v6"
+    },
+    {
+      "beatId": "beat:p10:panda_holds_rover",
+      "disposition": {
+        "checkId": "action:p10_panda_holds_rover",
+        "kind": "action_requirement"
+      },
+      "pageNumber": 10,
+      "reviewState": "unreviewed",
+      "sourceEvidenceId": "se1_0999d8e4e73d42059764b818d04fc8ca0732995e2068ed47098d849a0399739f",
+      "sourcePhrase": "ענת החזיקה את הדופן ועצרה רגע לפני שהארגז נגע בספסל.",
+      "version": "action-semantic-coverage/v6"
+    },
+    {
+      "beatId": "beat:p10:tube_lowered",
+      "disposition": {
+        "contractPointer": "/pageContracts/9/mustShow/2",
+        "contractValue": "Child's cardboard tube lowered from the eye",
+        "kind": "presentation_requirement",
+        "presentationClass": "static_state"
+      },
+      "pageNumber": 10,
+      "reviewState": "unreviewed",
+      "sourceEvidenceId": "se1_ab011d586c240a77701f684aff48dcd8c18923f344acd6a263d632ac2f396165",
+      "sourcePhrase": "{{childName}} {הוריד|הורידה} את הצינור מהעין.",
+      "version": "action-semantic-coverage/v6"
+    },
+    {
+      "beatId": "beat:p10:side_path_visible",
+      "disposition": {
+        "contractPointer": "/pageContracts/9/mustShow/3",
+        "contractValue": "Clear side path bending beside the bush around the bench",
+        "kind": "presentation_requirement",
+        "presentationClass": "composition_focus"
+      },
+      "pageNumber": 10,
+      "reviewState": "unreviewed",
+      "sourceEvidenceId": "se1_d2fc9635b12bb509b573437c81a280535d2892ff029cadf642277aa2d26a5656",
+      "sourcePhrase": "בלי הטלסקופ ראו גם את מה שבצדדים.",
+      "version": "action-semantic-coverage/v6"
+    },
+    {
+      "beatId": "beat:p10:child_turns",
+      "disposition": {
+        "checkId": "action:p10_child_turns",
+        "kind": "action_requirement"
+      },
+      "pageNumber": 10,
+      "reviewState": "unreviewed",
+      "sourceEvidenceId": "se1_97ed0aeefd449c1d8ffb56a53c5b3cd11e5ff3e6c15604beeb61d8a58340044f",
+      "sourcePhrase": "כולם פנו.",
+      "version": "action-semantic-coverage/v6"
+    },
+    {
+      "beatId": "beat:p10:rover_uses_detour",
+      "disposition": {
+        "contractPointer": "/pageContracts/9/mustShow/3",
+        "contractValue": "Clear side path bending beside the bush around the bench",
+        "kind": "presentation_requirement",
+        "presentationClass": "composition_focus"
+      },
+      "pageNumber": 10,
+      "reviewState": "unreviewed",
+      "sourceEvidenceId": "se1_2b8a2b232122e66346a3e9d050dac7fd51cf63fb70e61279f30acdf2651a9b09",
+      "sourcePhrase": "הארגז עבר ליד הספסל, ונעלי הרכב צעדו אל הכתם הצהוב שבקצה השביל.",
+      "version": "action-semantic-coverage/v6"
+    },
+    {
+      "beatId": "beat:p11:flower_below_wheel",
+      "disposition": {
+        "contractPointer": "/pageContracts/10/mustShow/2",
+        "contractValue": "Flower visibly lower than the mounted steering wheel",
+        "kind": "presentation_requirement",
+        "presentationClass": "static_state"
+      },
+      "pageNumber": 11,
+      "reviewState": "unreviewed",
+      "sourceEvidenceId": "se1_3305cacf2193ba73c93ac5b808cc8b9992289a1a3b4d77dbc9ca10093afcaf61",
+      "sourcePhrase": "הפרח היה נמוך יותר מההגה.",
+      "version": "action-semantic-coverage/v6"
+    },
+    {
+      "beatId": "beat:p11:ladybug_climbs",
+      "disposition": {
+        "contractPointer": "/pageContracts/10/mustShow/1",
+        "contractValue": "One tiny ladybug climbing on the flower",
+        "kind": "presentation_requirement",
+        "presentationClass": "ambient_event"
+      },
+      "pageNumber": 11,
+      "reviewState": "unreviewed",
+      "sourceEvidenceId": "se1_a9aec8347fb4b88e5c5abb9319de77934db334498d9c6f79e3cf9a8158cc54dd",
+      "sourcePhrase": "חיפושית טיפסה עליו.",
+      "version": "action-semantic-coverage/v6"
+    },
+    {
+      "beatId": "beat:p11:child_bends_toward_flower",
+      "disposition": {
+        "checkId": "action:p11_child_bends_toward_flower",
+        "kind": "action_requirement"
+      },
+      "pageNumber": 11,
+      "reviewState": "unreviewed",
+      "sourceEvidenceId": "se1_5e359c07877a8dc072e82299e9bb8400cb317b53c39311fbd1ef592297773cae",
+      "sourcePhrase": "{{childName}} {התכופף|התכופפה} לראות, בלי לגעת.",
+      "version": "action-semantic-coverage/v6"
+    },
+    {
+      "beatId": "beat:p11:child_does_not_touch_flower",
+      "disposition": {
+        "checkId": "action:p11_child_does_not_touch_flower",
+        "kind": "action_requirement"
+      },
+      "pageNumber": 11,
+      "reviewState": "unreviewed",
+      "sourceEvidenceId": "se1_5e359c07877a8dc072e82299e9bb8400cb317b53c39311fbd1ef592297773cae",
+      "sourcePhrase": "{{childName}} {התכופף|התכופפה} לראות, בלי לגעת.",
+      "version": "action-semantic-coverage/v6"
+    },
+    {
+      "beatId": "beat:p11:driver_place_cleared",
+      "disposition": {
+        "contractPointer": "/pageContracts/10/mustShow/3",
+        "contractValue": "Adam clear of the driver's place beside the wheel",
+        "kind": "presentation_requirement",
+        "presentationClass": "static_state"
+      },
+      "pageNumber": 11,
+      "reviewState": "unreviewed",
+      "sourceEvidenceId": "se1_57c6c17afbac0172f2fcc25cbbb12d7d33d48273da297564eff82e4c7ca3f420",
+      "sourcePhrase": "אדם פינה את המקום ליד ההגה, בדיוק כמו שסיכמו.",
+      "version": "action-semantic-coverage/v6"
+    },
+    {
+      "beatId": "beat:p11:friends_approach",
+      "disposition": {
+        "contractPointer": "/pageContracts/10/mustShow/4",
+        "contractValue": "Station friends approaching in the background without crowding",
+        "kind": "presentation_requirement",
+        "presentationClass": "ambient_event"
+      },
+      "pageNumber": 11,
+      "reviewState": "unreviewed",
+      "sourceEvidenceId": "se1_09aa02cbfb8322498bd930ac126c9c19e186a972d2b2a7ffb2d6df7cd7dba61a",
+      "sourcePhrase": "הם באו לראות.",
+      "version": "action-semantic-coverage/v6"
+    },
+    {
+      "beatId": "beat:p12:child_walks",
+      "disposition": {
+        "checkId": "action:p12_child_walks",
+        "kind": "action_requirement"
+      },
+      "pageNumber": 12,
+      "reviewState": "unreviewed",
+      "sourceEvidenceId": "se1_7117a09d3fbcc402bfdb8e71cbc156a9d4a9a79e111f9b4b09e77979add00c9b",
+      "sourcePhrase": "{{childName}} {הוביל|הובילה} את רכב הנעליים בחזרה לתחנה.",
+      "version": "action-semantic-coverage/v6"
+    },
+    {
+      "beatId": "beat:p12:voices_answer",
+      "disposition": {
+        "kind": "non_visual",
+        "rationale": "sound_only"
+      },
+      "pageNumber": 12,
+      "reviewState": "unreviewed",
+      "sourceEvidenceId": "se1_6da3b7a5a4e6a1df80894a547da419af2294a29d5c502d0ed5c1bf22efd2598c",
+      "sourcePhrase": "הפעם ענו {לו|לה} קולות מכל צד.",
+      "version": "action-semantic-coverage/v6"
+    },
+    {
+      "beatId": "beat:p12:child_pushes_rug",
+      "disposition": {
+        "checkId": "action:p12_child_pushes_rug",
+        "kind": "action_requirement"
+      },
+      "pageNumber": 12,
+      "reviewState": "unreviewed",
+      "sourceEvidenceId": "se1_7f06678d6103ef06d6b8d70d82e96e2fe7d77e1a198a7500a3cc438068c32ed2",
+      "sourcePhrase": "בסוף המשחק גלגלו את השטיח יחד.",
+      "version": "action-semantic-coverage/v6"
+    },
+    {
+      "beatId": "beat:p12:child_places_wheel",
+      "disposition": {
+        "checkId": "action:p12_child_places_wheel",
+        "kind": "action_requirement"
+      },
+      "pageNumber": 12,
+      "reviewState": "unreviewed",
+      "sourceEvidenceId": "se1_44c03c8b143ed1a25a57e7b446f49129c92bc0419c65fcdffa1f03d2def06be1",
+      "sourcePhrase": "ההגה חזר אל התיק, והטלסקופ אל אדם.",
+      "version": "action-semantic-coverage/v6"
+    },
+    {
+      "beatId": "beat:p12:telescope_returned",
+      "disposition": {
+        "contractPointer": "/pageContracts/11/mustShow/3",
+        "contractValue": "Adam holding the cardboard telescope",
+        "kind": "presentation_requirement",
+        "presentationClass": "static_state"
+      },
+      "pageNumber": 12,
+      "reviewState": "unreviewed",
+      "sourceEvidenceId": "se1_44c03c8b143ed1a25a57e7b446f49129c92bc0419c65fcdffa1f03d2def06be1",
+      "sourcePhrase": "ההגה חזר אל התיק, והטלסקופ אל אדם.",
+      "version": "action-semantic-coverage/v6"
+    },
+    {
+      "beatId": "beat:p12:final_gathering",
+      "disposition": {
+        "contractPointer": "/pageContracts/11/mustShow/0",
+        "contractValue": "Group gathered beside the unchanged cardboard station after the return",
+        "kind": "presentation_requirement",
+        "presentationClass": "composition_focus"
+      },
+      "pageNumber": 12,
+      "reviewState": "unreviewed",
+      "sourceEvidenceId": "se1_33376a2af8f239cc076bdfde3ee2097dc64cfb2045ae5b8e0d3d07f62ecfc8ec",
+      "sourcePhrase": "כולם חיכו.",
+      "version": "action-semantic-coverage/v6"
+    }
+  ],
+  "actionSemanticCoverageDigest": "69a53a2a4a750df7e16e9f6fcefda2e356a5296d2bd637605ec15d37c5456841",
+  "actionSemanticCoverageVersion": "action-semantic-coverage/v6",
+  "authoringReceiptDigest": "68352dc505773d003ff2e1a64516d596ea83c97ca7b44d9877df2ea182cac63e",
+  "authoringRequestDigest": "1922c7d8a6bb8497e9a89f51eb6a261b30aa32703e912c7712ae680aaa4b0b62",
+  "digest": "41d400698df1aa452b326a050b5f1a316ea4679ffb80e093fa16c6466c7ff2ba",
+  "digestAlgorithm": "canonical-json-sha256",
+  "doesNotAuthorize": [
+    "D1A1 live provider/model calls",
+    "Story Source or Semantic Reconciliation approval",
+    "Blueprint authoring or approval",
+    "Board mint, import, or approval",
+    "package assembly, publication, promotion, or activation",
+    "render, product, visual, release, deployment, or launch acceptance"
+  ],
+  "sourceEvidenceCatalogDigest": "0417cb66bac37f04f6a26bab78bc05cec7452d438c895acc956346f06f39b019",
+  "sourceEvidenceCatalogVersion": "source-evidence-catalog/v1",
+  "sourceSnapshotDigest": "36230817452cdbfd56896bd445c07a39b3b526cfe11475f3533235f2d0cb2143",
+  "status": "candidate",
+  "template": {
+    "cast": {
+      "child": {
+        "id": "child:hero",
+        "role": "child",
+        "wardrobe": {
+          "description": "Book-locked practical playground outfit: solid teal short-sleeved top, warm ochre pull-on trousers, white ankle socks, and navy closed-toe playground shoes.",
+          "forbidden": [
+            "wardrobe changes between pages",
+            "space suit",
+            "astronaut helmet",
+            "vehicle-driver uniform",
+            "cape",
+            "high heels",
+            "open-toe shoes"
+          ]
+        }
+      },
+      "companion": {
+        "id": "companion:panda_anat",
+        "name": "הפנדה עֲנָת",
+        "role": "companion",
+        "wardrobe": {
+          "description": "small pause-stone / leaf she sets down before entering; at on the ground before her (pause marker ritual); appears during her pause ritual before entering a social scene; NOT mandatory whenever visible",
+          "forbidden": [
+            "held bouquet",
+            "large prop in paws",
+            "conflicting handheld object",
+            "notebook",
+            "umbrella",
+            "pause-stone on ground",
+            "leaf on ground",
+            "stone prop",
+            "leaf prop"
+          ]
+        }
+      }
+    },
+    "contractKind": "template",
+    "coverContract": {
+      "castIds": [
+        "child:hero",
+        "companion:panda_anat"
+      ],
+      "locationId": "loc_playground",
+      "mustNotShow": [
+        "literal spacecraft",
+        "outer space",
+        "literal lava or fire",
+        "motorized vehicle",
+        "astronaut wardrobe",
+        "companion pause-marker object",
+        "spoiler view of the ladybug",
+        "Cardboard play station (first revealed on page 1 — no spoiler)",
+        "Handmade steering wheel (first revealed on page 1 — no spoiler)",
+        "Cardboard telescope tube (first revealed on page 3 — no spoiler)",
+        "Bottomless walking rover (first revealed on page 4 — no spoiler)",
+        "Yellow flower (first revealed on page 3 — no spoiler)",
+        "Play rug (first revealed on page 7 — no spoiler)",
+        "Ladybug (first revealed on page 11 — no spoiler)",
+        "Child's bag (first revealed on page 12 — no spoiler)"
+      ],
+      "mustShow": [
+        "Child approaching the fixed cardboard station with the handmade cardboard steering wheel",
+        "Companion beside the station entrance",
+        "Cardboard station beside the toy shed",
+        "Ordinary grass and the curving playground path",
+        "Clear visual promise of collaborative imaginative play"
+      ],
+      "timeOfDay": "day",
+      "worldType": "Grounded contemporary children's playground; all space-travel, lunar, lava, and vehicle language remains imaginative pretend play within an ordinary fenced outdoor setting.",
+      "zoneId": "zone_station_entrance"
+    },
+    "forbiddenGlobalElements": [
+      "literal outer space",
+      "starscape replacing the playground",
+      "real spacecraft",
+      "station takeoff",
+      "moving station building",
+      "literal moon surface",
+      "literal lava",
+      "fire",
+      "smoke",
+      "burning grass",
+      "motorized rover",
+      "real vehicle wheels",
+      "windshield on rover",
+      "floor inside rover",
+      "road traffic",
+      "hazardous drop",
+      "crash into bench",
+      "broken cardboard box",
+      "giant flower",
+      "giant insect",
+      "picked flower",
+      "duplicate protagonist",
+      "duplicate companion",
+      "held bouquet",
+      "large prop in companion paws",
+      "conflicting companion handheld object",
+      "companion notebook",
+      "companion umbrella",
+      "visible pause-stone prop",
+      "visible leaf pause prop",
+      "new garage on page 12"
+    ],
+    "humanCast": [],
+    "locations": [
+      {
+        "anchors": [
+          {
+            "description": "Fixed cardboard play station beside the toy shed.",
+            "id": "anchor_station"
+          },
+          {
+            "description": "Open entrance of the cardboard play station.",
+            "id": "anchor_station_entrance"
+          },
+          {
+            "description": "Toy shed adjacent to the station.",
+            "id": "anchor_toy_shed"
+          },
+          {
+            "description": "Safe ordinary grass surrounding the path.",
+            "id": "anchor_grass"
+          },
+          {
+            "description": "Sandbox beside the curving path.",
+            "id": "anchor_sandbox"
+          },
+          {
+            "description": "Continuous level path linking the station, sandbox, bench, and flower.",
+            "id": "anchor_path"
+          },
+          {
+            "description": "Clear level ground between the station entrance and the path.",
+            "id": "anchor_rug_ground"
+          },
+          {
+            "description": "Large fixed bench beside the path.",
+            "id": "anchor_bench"
+          },
+          {
+            "description": "Bush beside the bench and path detour.",
+            "id": "anchor_bush"
+          },
+          {
+            "description": "Small rooted flower patch at the far end of the path.",
+            "id": "anchor_flower_patch"
+          },
+          {
+            "description": "Playground perimeter fence.",
+            "id": "anchor_fence"
+          }
+        ],
+        "description": "A compact fenced playground containing a fixed cardboard play station beside a toy shed, grass, a sandbox, a continuous curving path, a play-rug staging area, a bench with an adjacent bush, and a rooted yellow flower beyond the bench.",
+        "environmentClass": "outdoor",
+        "id": "loc_playground",
+        "lighting": "Soft, consistent diffuse daylight with gentle shadows and no dramatic or portable light sources.",
+        "name": "Enclosed playground",
+        "setIdentityId": "set_playground_day",
+        "setReference": {
+          "prompt": "Character-free continuity board of one enclosed playground in soft daytime light: fixed cardboard play station beside a toy shed, clear ground leading to a curving level path, sandbox along the path, large bench beside a bush, rooted flower patch beyond the bench, surrounding grass, and perimeter fence. Preserve the stated topology and ordinary real-world scale. Include no people, animals, portable play objects, vehicles, rugs, loose cardboard pieces, dramatic effects, or pretend-space transformations.",
+          "status": "pending"
+        },
+        "timeOfDay": "day",
+        "topology": "The station and toy shed share one side of the playground. Clear ground leads from the station entrance to the curving path. The path passes the sandbox, continues toward the bench, bends beside the bench and bush, and ends at the rooted flower patch. Grass borders the route throughout."
+      }
+    ],
+    "pageContracts": [
+      {
+        "actionRequirements": [
+          {
+            "checkId": "action:p1_child_approaches_station",
+            "object": {
+              "id": "anchor_station_entrance",
+              "kind": "anchor"
+            },
+            "polarity": "must",
+            "predicate": "approaches",
+            "subject": {
+              "entity": {
+                "id": "child:hero",
+                "kind": "cast"
+              },
+              "kind": "entity"
+            }
+          },
+          {
+            "checkId": "action:p1_child_holds_wheel",
+            "object": {
+              "id": "prop_wheel",
+              "kind": "prop"
+            },
+            "polarity": "must",
+            "predicate": "holds",
+            "subject": {
+              "entity": {
+                "id": "child:hero",
+                "kind": "cast"
+              },
+              "kind": "entity"
+            }
+          }
+        ],
+        "camera": "Wide high-angle establishing view that keeps the child and companion small enough for the station, toy shed, grass, and route geography to read clearly.",
+        "castIds": [
+          "child:hero",
+          "companion:panda_anat"
+        ],
+        "characterPresence": {
+          "child": true,
+          "companion": true
+        },
+        "locationId": "loc_playground",
+        "mustNotShow": [
+          "station moving or taking off",
+          "real spacecraft controls",
+          "literal launch effects",
+          "mocking behavior",
+          "companion pause-marker object",
+          "Cardboard telescope tube",
+          "Bottomless walking rover",
+          "Yellow flower",
+          "Play rug",
+          "Ladybug",
+          "Child's bag"
+        ],
+        "mustShow": [
+          "Fixed cardboard station built from boxes beside the toy shed",
+          "Handmade cardboard steering wheel with one paper fastener",
+          "Station driver already seated inside and ticket child distributing tickets",
+          "Open station doorway and ordinary playground ground",
+          "Occupied social play scene at the station",
+          "Cardboard play station",
+          "Handmade steering wheel",
+          "the child approaches Open entrance of the cardboard play station.",
+          "the child holds Handmade steering wheel"
+        ],
+        "pageNumber": 1,
+        "propConstraints": [
+          {
+            "anchorId": "anchor_station",
+            "propId": "prop_station",
+            "stateId": "state_station_fixed_occupied",
+            "visibility": "required"
+          },
+          {
+            "anchorId": "anchor_station_entrance",
+            "propId": "prop_wheel",
+            "stateId": "state_wheel_loose",
+            "visibility": "required"
+          },
+          {
+            "propId": "prop_telescope",
+            "visibility": "forbidden"
+          },
+          {
+            "propId": "prop_rover",
+            "visibility": "forbidden"
+          },
+          {
+            "propId": "prop_flower",
+            "visibility": "forbidden"
+          },
+          {
+            "propId": "prop_rug",
+            "visibility": "forbidden"
+          },
+          {
+            "propId": "prop_ladybug",
+            "visibility": "forbidden"
+          },
+          {
+            "propId": "prop_bag",
+            "visibility": "forbidden"
+          }
+        ],
+        "propState": [
+          {
+            "propId": "prop_station",
+            "state": "fixed, occupied, closed-roof station with open entrance"
+          },
+          {
+            "propId": "prop_wheel",
+            "state": "loose and carried; paper fastener visibly permits rotation"
+          }
+        ],
+        "sameLocationAs": null,
+        "transition": {
+          "cue": null,
+          "fromZoneId": null,
+          "kind": "steady",
+          "toZoneId": null
+        },
+        "zoneId": "zone_station_entrance"
+      },
+      {
+        "actionRequirements": [
+          {
+            "checkId": "action:p2_child_turns_wheel",
+            "polarity": "must",
+            "predicate": "turns",
+            "subject": {
+              "entity": {
+                "id": "child:hero",
+                "kind": "cast"
+              },
+              "kind": "entity"
+            }
+          },
+          {
+            "checkId": "action:p2_panda_looks_beyond_station",
+            "object": {
+              "id": "anchor_path",
+              "kind": "anchor"
+            },
+            "polarity": "must",
+            "predicate": "looks_at",
+            "subject": {
+              "entity": {
+                "id": "companion:panda_anat",
+                "kind": "cast"
+              },
+              "kind": "entity"
+            }
+          }
+        ],
+        "camera": "Medium three-quarter view at the unchanged doorway, retaining enough background to support the companion's sightline beyond the boxes.",
+        "castIds": [
+          "child:hero",
+          "companion:panda_anat"
+        ],
+        "characterPresence": {
+          "child": true,
+          "companion": true
+        },
+        "locationId": "loc_playground",
+        "mustNotShow": [
+          "moving station",
+          "literal engines",
+          "takeoff",
+          "duplicate child",
+          "companion pause-marker object",
+          "Cardboard telescope tube",
+          "Bottomless walking rover",
+          "Yellow flower",
+          "Play rug",
+          "Ladybug",
+          "Child's bag"
+        ],
+        "mustShow": [
+          "Child beside the station doorway",
+          "Same loose cardboard wheel turning alone",
+          "Other children absorbed in pretend engine play",
+          "Companion's sightline directed beyond the station boxes",
+          "Unchanged station roof and doorway",
+          "Cardboard play station",
+          "Handmade steering wheel",
+          "the child turns",
+          "הפנדה עֲנָת looks at Continuous level path linking the station, sandbox, bench, and flower."
+        ],
+        "pageNumber": 2,
+        "propConstraints": [
+          {
+            "anchorId": "anchor_station",
+            "propId": "prop_station",
+            "stateId": "state_station_fixed",
+            "visibility": "required"
+          },
+          {
+            "anchorId": "anchor_station_entrance",
+            "propId": "prop_wheel",
+            "stateId": "state_wheel_turning_loose",
+            "visibility": "required"
+          },
+          {
+            "propId": "prop_telescope",
+            "visibility": "forbidden"
+          },
+          {
+            "propId": "prop_rover",
+            "visibility": "forbidden"
+          },
+          {
+            "propId": "prop_flower",
+            "visibility": "forbidden"
+          },
+          {
+            "propId": "prop_rug",
+            "visibility": "forbidden"
+          },
+          {
+            "propId": "prop_ladybug",
+            "visibility": "forbidden"
+          },
+          {
+            "propId": "prop_bag",
+            "visibility": "forbidden"
+          }
+        ],
+        "propState": [
+          {
+            "propId": "prop_station",
+            "state": "fixed and unchanged"
+          },
+          {
+            "propId": "prop_wheel",
+            "state": "loose; being turned by the child; emits only a small imagined or graphic creak"
+          }
+        ],
+        "sameLocationAs": 1,
+        "transition": {
+          "cue": null,
+          "fromZoneId": null,
+          "kind": "steady",
+          "toZoneId": null
+        },
+        "zoneId": "zone_station_entrance"
+      },
+      {
+        "actionRequirements": [
+          {
+            "checkId": "action:p3_child_peeks_through_tube",
+            "object": {
+              "id": "prop_telescope",
+              "kind": "prop"
+            },
+            "polarity": "must",
+            "predicate": "peeks_at",
+            "subject": {
+              "entity": {
+                "id": "child:hero",
+                "kind": "cast"
+              },
+              "kind": "entity"
+            }
+          }
+        ],
+        "camera": "Eye-level medium-wide view aligning the tube's open end with the distant flower while retaining Adam, companion, sandbox, and path geography.",
+        "castIds": [
+          "child:hero",
+          "companion:panda_anat"
+        ],
+        "characterPresence": {
+          "child": true,
+          "companion": true
+        },
+        "locationId": "loc_playground",
+        "mustNotShow": [
+          "glass telescope",
+          "electronic telescope",
+          "literal sun replacing the flower",
+          "flower inside the sandbox",
+          "companion pause-marker object",
+          "Bottomless walking rover",
+          "Play rug",
+          "Ladybug",
+          "Child's bag"
+        ],
+        "mustShow": [
+          "Adam seated beside the path with a long cardboard tube",
+          "Child viewing through the open-ended cardboard tube",
+          "Small rooted yellow flower visible beyond the sandbox",
+          "Ordinary sandbox and continuous playground path",
+          "Companion nearby without an accessory prop",
+          "Cardboard telescope tube",
+          "Yellow flower",
+          "the child peeks at Cardboard telescope tube"
+        ],
+        "pageNumber": 3,
+        "propConstraints": [
+          {
+            "anchorId": "anchor_sandbox",
+            "propId": "prop_telescope",
+            "stateId": "state_telescope_hollow",
+            "visibility": "required"
+          },
+          {
+            "anchorId": "anchor_flower_patch",
+            "propId": "prop_flower",
+            "stateId": "state_flower_rooted",
+            "visibility": "required"
+          },
+          {
+            "propId": "prop_rover",
+            "visibility": "forbidden"
+          },
+          {
+            "propId": "prop_rug",
+            "visibility": "forbidden"
+          },
+          {
+            "propId": "prop_ladybug",
+            "visibility": "forbidden"
+          },
+          {
+            "propId": "prop_bag",
+            "visibility": "forbidden"
+          }
+        ],
+        "propState": [
+          {
+            "propId": "prop_telescope",
+            "state": "plain hollow tube temporarily used by the child"
+          },
+          {
+            "propId": "prop_flower",
+            "state": "small, rooted, yellow, slightly dirty, beyond the sandbox"
+          },
+          {
+            "propId": "prop_wheel",
+            "state": "retained off-focus for later use"
+          }
+        ],
+        "sameLocationAs": null,
+        "transition": {
+          "cue": "Arrival beside the path near the sandbox.",
+          "fromZoneId": "zone_station_entrance",
+          "kind": "after_transition",
+          "toZoneId": "zone_sandbox_path"
+        },
+        "zoneId": "zone_sandbox_path"
+      },
+      {
+        "actionRequirements": [
+          {
+            "checkId": "action:p4_child_places_wheel",
+            "object": {
+              "id": "prop_wheel",
+              "kind": "prop"
+            },
+            "polarity": "must",
+            "predicate": "places",
+            "subject": {
+              "entity": {
+                "id": "child:hero",
+                "kind": "cast"
+              },
+              "kind": "entity"
+            }
+          },
+          {
+            "checkId": "action:p4_child_walks",
+            "polarity": "must",
+            "predicate": "walks",
+            "subject": {
+              "entity": {
+                "id": "child:hero",
+                "kind": "cast"
+              },
+              "kind": "entity"
+            }
+          },
+          {
+            "checkId": "action:p4_panda_holds_rover",
+            "object": {
+              "id": "prop_rover",
+              "kind": "prop"
+            },
+            "polarity": "must",
+            "predicate": "holds",
+            "subject": {
+              "entity": {
+                "id": "companion:panda_anat",
+                "kind": "cast"
+              },
+              "kind": "entity"
+            }
+          }
+        ],
+        "camera": "Wide three-quarter view showing the entire bottomless box, all ground-contacting legs, the front-mounted wheel, the companion outside at the rear, and the fixed station behind.",
+        "castIds": [
+          "child:hero",
+          "companion:panda_anat"
+        ],
+        "characterPresence": {
+          "child": true,
+          "companion": true
+        },
+        "locationId": "loc_playground",
+        "mustNotShow": [
+          "real wheels",
+          "motor",
+          "floor inside rover",
+          "windshield",
+          "companion pause-marker object",
+          "Play rug",
+          "Ladybug",
+          "Child's bag"
+        ],
+        "mustShow": [
+          "One wide open-top bottomless cardboard box beside the toy shed",
+          "Cardboard wheel attached to the rover's front wall",
+          "Cardboard telescope placed inside the rover",
+          "Visible legs reaching the ground inside the lightweight box",
+          "Station remaining fixed behind the walking group",
+          "Bottomless walking rover",
+          "Handmade steering wheel",
+          "Cardboard telescope tube",
+          "the child places Handmade steering wheel",
+          "the child walks",
+          "הפנדה עֲנָת holds Bottomless walking rover"
+        ],
+        "pageNumber": 4,
+        "propConstraints": [
+          {
+            "anchorId": "anchor_toy_shed",
+            "propId": "prop_rover",
+            "stateId": "state_rover_bottomless_walking",
+            "visibility": "required"
+          },
+          {
+            "anchorId": "anchor_toy_shed",
+            "propId": "prop_wheel",
+            "stateId": "state_wheel_front_mounted",
+            "visibility": "required"
+          },
+          {
+            "anchorId": "anchor_toy_shed",
+            "propId": "prop_telescope",
+            "stateId": "state_telescope_inside_rover",
+            "visibility": "required"
+          },
+          {
+            "propId": "prop_rug",
+            "visibility": "forbidden"
+          },
+          {
+            "propId": "prop_ladybug",
+            "visibility": "forbidden"
+          },
+          {
+            "propId": "prop_bag",
+            "visibility": "forbidden"
+          }
+        ],
+        "propState": [
+          {
+            "propId": "prop_rover",
+            "state": "open-top, bottomless, lifted for walking"
+          },
+          {
+            "propId": "prop_wheel",
+            "state": "attached by its paper fastener to the front wall"
+          },
+          {
+            "propId": "prop_telescope",
+            "state": "placed inside the rover"
+          }
+        ],
+        "sameLocationAs": null,
+        "transition": {
+          "cue": "Arrival beside the toy shed to assemble and start the walking rover.",
+          "fromZoneId": "zone_sandbox_path",
+          "kind": "after_transition",
+          "toZoneId": "zone_toy_shed_path"
+        },
+        "zoneId": "zone_toy_shed_path"
+      },
+      {
+        "actionRequirements": [
+          {
+            "checkId": "action:p5_child_turns",
+            "polarity": "must",
+            "predicate": "turns",
+            "subject": {
+              "entity": {
+                "id": "child:hero",
+                "kind": "cast"
+              },
+              "kind": "entity"
+            }
+          },
+          {
+            "checkId": "action:p5_panda_turns",
+            "polarity": "must",
+            "predicate": "turns",
+            "subject": {
+              "entity": {
+                "id": "companion:panda_anat",
+                "kind": "cast"
+              },
+              "kind": "entity"
+            }
+          },
+          {
+            "checkId": "action:p5_child_looks_at_flower",
+            "object": {
+              "id": "prop_flower",
+              "kind": "prop"
+            },
+            "polarity": "must",
+            "predicate": "looks_at",
+            "subject": {
+              "entity": {
+                "id": "child:hero",
+                "kind": "cast"
+              },
+              "kind": "entity"
+            }
+          },
+          {
+            "checkId": "action:p5_panda_peeks_at_telescope",
+            "object": {
+              "id": "prop_telescope",
+              "kind": "prop"
+            },
+            "polarity": "must",
+            "predicate": "peeks_at",
+            "subject": {
+              "entity": {
+                "id": "companion:panda_anat",
+                "kind": "cast"
+              },
+              "kind": "entity"
+            }
+          }
+        ],
+        "camera": "Extreme-wide high-angle view preserving the station-sandbox-path-flower geography and clearly showing the box propelled by feet.",
+        "castIds": [
+          "child:hero",
+          "companion:panda_anat"
+        ],
+        "characterPresence": {
+          "child": true,
+          "companion": true
+        },
+        "locationId": "loc_playground",
+        "mustNotShow": [
+          "literal lunar crater",
+          "literal space terrain",
+          "hidden feet",
+          "real wheels",
+          "companion pause-marker object",
+          "Play rug",
+          "Ladybug",
+          "Child's bag"
+        ],
+        "mustShow": [
+          "Walking rover following the path around the ordinary sandbox",
+          "Visible feet propelling the bottomless box",
+          "Yellow flower waiting beyond the sandbox",
+          "Station visible behind the group",
+          "Cardboard telescope available for viewing",
+          "Bottomless walking rover",
+          "Handmade steering wheel",
+          "Cardboard telescope tube",
+          "Yellow flower",
+          "the child turns",
+          "הפנדה עֲנָת turns",
+          "the child looks at Yellow flower",
+          "הפנדה עֲנָת peeks at Cardboard telescope tube"
+        ],
+        "pageNumber": 5,
+        "propConstraints": [
+          {
+            "anchorId": "anchor_sandbox",
+            "propId": "prop_rover",
+            "stateId": "state_rover_turning_on_path",
+            "visibility": "required"
+          },
+          {
+            "anchorId": "anchor_sandbox",
+            "propId": "prop_wheel",
+            "stateId": "state_wheel_mounted_turning",
+            "visibility": "required"
+          },
+          {
+            "anchorId": "anchor_sandbox",
+            "propId": "prop_telescope",
+            "stateId": "state_telescope_available",
+            "visibility": "required"
+          },
+          {
+            "anchorId": "anchor_flower_patch",
+            "propId": "prop_flower",
+            "stateId": "state_flower_ahead",
+            "visibility": "required"
+          },
+          {
+            "propId": "prop_rug",
+            "visibility": "forbidden"
+          },
+          {
+            "propId": "prop_ladybug",
+            "visibility": "forbidden"
+          },
+          {
+            "propId": "prop_bag",
+            "visibility": "forbidden"
+          }
+        ],
+        "propState": [
+          {
+            "propId": "prop_rover",
+            "state": "walking around the sandbox curve"
+          },
+          {
+            "propId": "prop_wheel",
+            "state": "front-mounted and being turned"
+          },
+          {
+            "propId": "prop_telescope",
+            "state": "available in the rover"
+          },
+          {
+            "propId": "prop_flower",
+            "state": "rooted ahead beyond the sandbox"
+          }
+        ],
+        "sameLocationAs": null,
+        "transition": {
+          "cue": "The walking rover reaches the path curve beside the sandbox.",
+          "fromZoneId": "zone_toy_shed_path",
+          "kind": "after_transition",
+          "toZoneId": "zone_sandbox_path"
+        },
+        "zoneId": "zone_sandbox_path"
+      },
+      {
+        "actionRequirements": [
+          {
+            "checkId": "action:p6_child_approaches_doorway",
+            "object": {
+              "id": "sp_station_doorway",
+              "kind": "spatial"
+            },
+            "polarity": "must",
+            "predicate": "approaches",
+            "subject": {
+              "entity": {
+                "id": "child:hero",
+                "kind": "cast"
+              },
+              "kind": "entity"
+            }
+          },
+          {
+            "checkId": "action:p6_child_looks_at_path",
+            "object": {
+              "id": "anchor_path",
+              "kind": "anchor"
+            },
+            "polarity": "must",
+            "predicate": "looks_at",
+            "subject": {
+              "entity": {
+                "id": "child:hero",
+                "kind": "cast"
+              },
+              "kind": "entity"
+            }
+          }
+        ],
+        "camera": "Medium-wide three-quarter view balancing the doorway conversation, empty rover on grass, pointing gesture, and visible safe route.",
+        "castIds": [
+          "child:hero"
+        ],
+        "characterPresence": {
+          "child": true,
+          "companion": false
+        },
+        "locationId": "loc_playground",
+        "mustNotShow": [
+          "anyone simultaneously inside the parked rover",
+          "literal lava",
+          "fire",
+          "scorched grass",
+          "companion pause-marker object",
+          "Play rug",
+          "Ladybug",
+          "Child's bag"
+        ],
+        "mustShow": [
+          "Empty walking rover set down on nearby grass",
+          "Child and Adam together at the station entrance",
+          "Station driver looking out through the entrance",
+          "Ticket child pointing toward ordinary green grass",
+          "Clear safe path visible beyond the station",
+          "Cardboard play station",
+          "Bottomless walking rover",
+          "Handmade steering wheel",
+          "Cardboard telescope tube",
+          "the child approaches the open doorway in the fixed cardboard station [spatial:sp_station_doorway]",
+          "the child looks at Continuous level path linking the station, sandbox, bench, and flower."
+        ],
+        "pageNumber": 6,
+        "propConstraints": [
+          {
+            "anchorId": "anchor_station",
+            "propId": "prop_station",
+            "stateId": "state_station_invitation_scene",
+            "visibility": "required"
+          },
+          {
+            "anchorId": "anchor_grass",
+            "propId": "prop_rover",
+            "stateId": "state_rover_parked_empty",
+            "visibility": "required"
+          },
+          {
+            "anchorId": "anchor_grass",
+            "propId": "prop_wheel",
+            "stateId": "state_wheel_mounted_parked",
+            "visibility": "required"
+          },
+          {
+            "anchorId": "anchor_station_entrance",
+            "propId": "prop_telescope",
+            "stateId": "state_telescope_returned",
+            "visibility": "required"
+          },
+          {
+            "propId": "prop_rug",
+            "visibility": "forbidden"
+          },
+          {
+            "propId": "prop_ladybug",
+            "visibility": "forbidden"
+          },
+          {
+            "propId": "prop_bag",
+            "visibility": "forbidden"
+          }
+        ],
+        "propState": [
+          {
+            "propId": "prop_station",
+            "state": "fixed and occupied at entrance"
+          },
+          {
+            "propId": "prop_rover",
+            "state": "empty, set down on grass"
+          },
+          {
+            "propId": "prop_wheel",
+            "state": "still attached to parked rover"
+          },
+          {
+            "propId": "prop_telescope",
+            "state": "with the parked rover or Adam"
+          }
+        ],
+        "sameLocationAs": null,
+        "transition": {
+          "cue": "The group returns to the station after setting the rover on the grass.",
+          "fromZoneId": "zone_sandbox_path",
+          "kind": "after_transition",
+          "toZoneId": "zone_station_entrance"
+        },
+        "zoneId": "zone_station_entrance"
+      },
+      {
+        "actionRequirements": [
+          {
+            "checkId": "action:p7_child_pushes_rug",
+            "object": {
+              "id": "prop_rug",
+              "kind": "prop"
+            },
+            "polarity": "must",
+            "predicate": "pushes",
+            "subject": {
+              "entity": {
+                "id": "child:hero",
+                "kind": "cast"
+              },
+              "kind": "entity"
+            }
+          },
+          {
+            "checkId": "action:p7_panda_sits_on_rug",
+            "object": {
+              "id": "prop_rug",
+              "kind": "prop"
+            },
+            "polarity": "must",
+            "predicate": "sits_on",
+            "subject": {
+              "entity": {
+                "id": "companion:panda_anat",
+                "kind": "cast"
+              },
+              "kind": "entity"
+            }
+          }
+        ],
+        "camera": "Wide eye-level aftermath view showing the rug's full direction, curled edge, seated companion, amused helpers, level ground, and distant supervision.",
+        "castIds": [
+          "child:hero",
+          "companion:panda_anat"
+        ],
+        "characterPresence": {
+          "child": true,
+          "companion": true
+        },
+        "locationId": "loc_playground",
+        "mustNotShow": [
+          "bridge over a gap",
+          "airborne fall",
+          "hazardous drop",
+          "traffic",
+          "companion pause-marker object",
+          "Ladybug",
+          "Child's bag"
+        ],
+        "mustShow": [
+          "One partly unrolled play rug extending from the station toward the path",
+          "Rug's near edge curled back on the level ground",
+          "Companion seated on the rug after a soft slide toward the grass",
+          "Child and Adam beside the unrolling rug",
+          "Distant supervising teacher and safe fenced playground",
+          "Play rug",
+          "Bottomless walking rover",
+          "the child pushes Play rug",
+          "הפנדה עֲנָת sits on Play rug"
+        ],
+        "pageNumber": 7,
+        "propConstraints": [
+          {
+            "anchorId": "anchor_rug_ground",
+            "propId": "prop_rug",
+            "stateId": "state_rug_partly_unrolled",
+            "visibility": "required"
+          },
+          {
+            "anchorId": "anchor_grass",
+            "propId": "prop_rover",
+            "stateId": "state_rover_parked",
+            "visibility": "required"
+          },
+          {
+            "propId": "prop_ladybug",
+            "visibility": "forbidden"
+          },
+          {
+            "propId": "prop_bag",
+            "visibility": "forbidden"
+          }
+        ],
+        "propState": [
+          {
+            "propId": "prop_rug",
+            "state": "partly unrolled with one edge curled back"
+          },
+          {
+            "propId": "prop_rover",
+            "state": "parked off the route on grass"
+          }
+        ],
+        "sameLocationAs": null,
+        "transition": {
+          "cue": "The rug is brought onto the clear ground between station and path.",
+          "fromZoneId": "zone_station_entrance",
+          "kind": "after_transition",
+          "toZoneId": "zone_rug_corridor"
+        },
+        "zoneId": "zone_rug_corridor"
+      },
+      {
+        "actionRequirements": [
+          {
+            "checkId": "action:p8_child_reaches_toward_panda",
+            "object": {
+              "id": "companion:panda_anat",
+              "kind": "cast"
+            },
+            "polarity": "must",
+            "predicate": "reaches_toward",
+            "subject": {
+              "entity": {
+                "id": "child:hero",
+                "kind": "cast"
+              },
+              "kind": "entity"
+            }
+          },
+          {
+            "checkId": "action:p8_panda_holds_rug",
+            "object": {
+              "id": "prop_rug",
+              "kind": "prop"
+            },
+            "polarity": "must",
+            "predicate": "holds",
+            "subject": {
+              "entity": {
+                "id": "companion:panda_anat",
+                "kind": "cast"
+              },
+              "kind": "entity"
+            }
+          },
+          {
+            "checkId": "action:p8_child_pushes_rug_flat",
+            "object": {
+              "id": "prop_rug",
+              "kind": "prop"
+            },
+            "polarity": "must",
+            "predicate": "pushes",
+            "subject": {
+              "entity": {
+                "id": "child:hero",
+                "kind": "cast"
+              },
+              "kind": "entity"
+            }
+          }
+        ],
+        "camera": "Medium high-angle view with distinct contact points at the rug's middle and both ends, plus the testing foot and parked rover endpoint.",
+        "castIds": [
+          "child:hero",
+          "companion:panda_anat"
+        ],
+        "characterPresence": {
+          "child": true,
+          "companion": true
+        },
+        "locationId": "loc_playground",
+        "mustNotShow": [
+          "curled rug edge remaining",
+          "literal hot lava",
+          "burned grass",
+          "duplicate bodies",
+          "companion pause-marker object",
+          "Ladybug",
+          "Child's bag"
+        ],
+        "mustShow": [
+          "Same play rug now lying flat between station entrance and path",
+          "Child flattening the rug's middle",
+          "Adam and companion holding opposite rug ends",
+          "Station driver testing the flat rug with one foot",
+          "Parked rover waiting at the path end",
+          "Play rug",
+          "Bottomless walking rover",
+          "the child reaches toward הפנדה עֲנָת",
+          "הפנדה עֲנָת holds Play rug",
+          "the child pushes Play rug"
+        ],
+        "pageNumber": 8,
+        "propConstraints": [
+          {
+            "anchorId": "anchor_rug_ground",
+            "propId": "prop_rug",
+            "stateId": "state_rug_flat",
+            "visibility": "required"
+          },
+          {
+            "anchorId": "anchor_path",
+            "propId": "prop_rover",
+            "stateId": "state_rover_waiting",
+            "visibility": "required"
+          },
+          {
+            "propId": "prop_ladybug",
+            "visibility": "forbidden"
+          },
+          {
+            "propId": "prop_bag",
+            "visibility": "forbidden"
+          }
+        ],
+        "propState": [
+          {
+            "propId": "prop_rug",
+            "state": "fully flattened and held at both ends"
+          },
+          {
+            "propId": "prop_rover",
+            "state": "parked at the path end"
+          }
+        ],
+        "sameLocationAs": 7,
+        "transition": {
+          "cue": null,
+          "fromZoneId": null,
+          "kind": "steady",
+          "toZoneId": null
+        },
+        "zoneId": "zone_rug_corridor"
+      },
+      {
+        "actionRequirements": [
+          {
+            "checkId": "action:p9_child_holds_telescope",
+            "object": {
+              "id": "prop_telescope",
+              "kind": "prop"
+            },
+            "polarity": "must",
+            "predicate": "holds",
+            "subject": {
+              "entity": {
+                "id": "child:hero",
+                "kind": "cast"
+              },
+              "kind": "entity"
+            }
+          },
+          {
+            "checkId": "action:p9_panda_points_at_telescope",
+            "object": {
+              "id": "prop_telescope",
+              "kind": "prop"
+            },
+            "polarity": "must",
+            "predicate": "points_at",
+            "subject": {
+              "entity": {
+                "id": "companion:panda_anat",
+                "kind": "cast"
+              },
+              "kind": "entity"
+            }
+          }
+        ],
+        "camera": "Eye-level medium-close view retaining the child's tube, Adam at the wheel, enough rover rim, the companion's pointing action, and the distant bench obstruction.",
+        "castIds": [
+          "child:hero",
+          "companion:panda_anat"
+        ],
+        "characterPresence": {
+          "child": true,
+          "companion": true
+        },
+        "locationId": "loc_playground",
+        "mustNotShow": [
+          "child driving this leg",
+          "glass telescope optics",
+          "bench moved from path",
+          "giant flower",
+          "companion pause-marker object",
+          "Ladybug",
+          "Child's bag"
+        ],
+        "mustShow": [
+          "Adam positioned at the rover's mounted steering wheel",
+          "Child holding the cardboard telescope at eye level",
+          "Large bench visible through or aligned with the tube's sightline",
+          "Station driver joined behind the rover",
+          "Flower beyond the bench remains partly obscured",
+          "Bottomless walking rover",
+          "Handmade steering wheel",
+          "Cardboard telescope tube",
+          "Yellow flower",
+          "the child holds Cardboard telescope tube",
+          "הפנדה עֲנָת points at Cardboard telescope tube"
+        ],
+        "pageNumber": 9,
+        "propConstraints": [
+          {
+            "anchorId": "anchor_path",
+            "propId": "prop_rover",
+            "stateId": "state_rover_adam_driving",
+            "visibility": "required"
+          },
+          {
+            "anchorId": "anchor_path",
+            "propId": "prop_wheel",
+            "stateId": "state_wheel_held_by_adam",
+            "visibility": "required"
+          },
+          {
+            "anchorId": "anchor_bench",
+            "propId": "prop_telescope",
+            "stateId": "state_telescope_child_navigation",
+            "visibility": "required"
+          },
+          {
+            "anchorId": "anchor_flower_patch",
+            "propId": "prop_flower",
+            "stateId": "state_flower_obscured_by_bench",
+            "visibility": "required"
+          },
+          {
+            "propId": "prop_ladybug",
+            "visibility": "forbidden"
+          },
+          {
+            "propId": "prop_bag",
+            "visibility": "forbidden"
+          }
+        ],
+        "propState": [
+          {
+            "propId": "prop_rover",
+            "state": "occupied walking rover beginning the next leg"
+          },
+          {
+            "propId": "prop_wheel",
+            "state": "front-mounted and held by Adam"
+          },
+          {
+            "propId": "prop_telescope",
+            "state": "held at the child's eye level for navigation"
+          },
+          {
+            "propId": "prop_flower",
+            "state": "rooted beyond the bench and partly hidden"
+          }
+        ],
+        "sameLocationAs": null,
+        "transition": {
+          "cue": "The group reaches the path segment approaching the bench.",
+          "fromZoneId": "zone_rug_corridor",
+          "kind": "after_transition",
+          "toZoneId": "zone_bench_detour"
+        },
+        "zoneId": "zone_bench_detour"
+      },
+      {
+        "actionRequirements": [
+          {
+            "checkId": "action:p10_panda_holds_rover",
+            "object": {
+              "id": "prop_rover",
+              "kind": "prop"
+            },
+            "polarity": "must",
+            "predicate": "holds",
+            "subject": {
+              "entity": {
+                "id": "companion:panda_anat",
+                "kind": "cast"
+              },
+              "kind": "entity"
+            }
+          },
+          {
+            "checkId": "action:p10_child_turns",
+            "polarity": "must",
+            "predicate": "turns",
+            "subject": {
+              "entity": {
+                "id": "child:hero",
+                "kind": "cast"
+              },
+              "kind": "entity"
+            }
+          }
+        ],
+        "camera": "Wide high-angle view making the no-contact stopping distance and complete side-path detour around the bench immediately legible.",
+        "castIds": [
+          "child:hero",
+          "companion:panda_anat"
+        ],
+        "characterPresence": {
+          "child": true,
+          "companion": true
+        },
+        "locationId": "loc_playground",
+        "mustNotShow": [
+          "collision",
+          "broken rover",
+          "route through the bench",
+          "literal vehicle braking hardware",
+          "companion pause-marker object",
+          "Ladybug",
+          "Child's bag"
+        ],
+        "mustShow": [
+          "Rover stopped just before the large bench without contact",
+          "Companion holding the rear wall",
+          "Child's cardboard tube lowered from the eye",
+          "Clear side path bending beside the bush around the bench",
+          "Yellow flower visible at the far end of the detour",
+          "Bottomless walking rover",
+          "Handmade steering wheel",
+          "Cardboard telescope tube",
+          "Yellow flower",
+          "הפנדה עֲנָת holds Bottomless walking rover",
+          "the child turns"
+        ],
+        "pageNumber": 10,
+        "propConstraints": [
+          {
+            "anchorId": "anchor_bench",
+            "propId": "prop_rover",
+            "stateId": "state_rover_stopped_before_bench",
+            "visibility": "required"
+          },
+          {
+            "anchorId": "anchor_bench",
+            "propId": "prop_wheel",
+            "stateId": "state_wheel_mounted",
+            "visibility": "required"
+          },
+          {
+            "anchorId": "anchor_bench",
+            "propId": "prop_telescope",
+            "stateId": "state_telescope_lowered",
+            "visibility": "required"
+          },
+          {
+            "anchorId": "anchor_flower_patch",
+            "propId": "prop_flower",
+            "stateId": "state_flower_detour_endpoint",
+            "visibility": "required"
+          },
+          {
+            "propId": "prop_ladybug",
+            "visibility": "forbidden"
+          },
+          {
+            "propId": "prop_bag",
+            "visibility": "forbidden"
+          }
+        ],
+        "propState": [
+          {
+            "propId": "prop_rover",
+            "state": "paused intact just before bench, then aligned to detour"
+          },
+          {
+            "propId": "prop_wheel",
+            "state": "front-mounted with Adam"
+          },
+          {
+            "propId": "prop_telescope",
+            "state": "lowered from the child's eye"
+          },
+          {
+            "propId": "prop_flower",
+            "state": "visible beyond the side path"
+          }
+        ],
+        "sameLocationAs": 9,
+        "transition": {
+          "cue": null,
+          "fromZoneId": null,
+          "kind": "steady",
+          "toZoneId": null
+        },
+        "zoneId": "zone_bench_detour"
+      },
+      {
+        "actionRequirements": [
+          {
+            "checkId": "action:p11_child_bends_toward_flower",
+            "object": {
+              "id": "prop_flower",
+              "kind": "prop"
+            },
+            "polarity": "must",
+            "predicate": "bends_toward",
+            "subject": {
+              "entity": {
+                "id": "child:hero",
+                "kind": "cast"
+              },
+              "kind": "entity"
+            }
+          },
+          {
+            "checkId": "action:p11_child_does_not_touch_flower",
+            "object": {
+              "id": "prop_flower",
+              "kind": "prop"
+            },
+            "polarity": "must_not",
+            "predicate": "touches",
+            "subject": {
+              "entity": {
+                "id": "child:hero",
+                "kind": "cast"
+              },
+              "kind": "entity"
+            }
+          }
+        ],
+        "camera": "Ground-level close view emphasizing the natural scale of flower and ladybug, the child's safe viewing distance, the lower wheel above them, and uncrowded background arrivals.",
+        "castIds": [
+          "child:hero",
+          "companion:panda_anat"
+        ],
+        "characterPresence": {
+          "child": true,
+          "companion": true
+        },
+        "locationId": "loc_playground",
+        "mustNotShow": [
+          "child touching the flower",
+          "child touching the ladybug",
+          "giant flower",
+          "giant insect",
+          "picked flower",
+          "companion pause-marker object",
+          "Child's bag",
+          "the child must NOT touches Yellow flower"
+        ],
+        "mustShow": [
+          "Low rooted yellow flower beside the path",
+          "One tiny ladybug climbing on the flower",
+          "Flower visibly lower than the mounted steering wheel",
+          "Adam clear of the driver's place beside the wheel",
+          "Station friends approaching in the background without crowding",
+          "Yellow flower",
+          "Ladybug",
+          "Bottomless walking rover",
+          "Handmade steering wheel",
+          "the child bends toward Yellow flower"
+        ],
+        "pageNumber": 11,
+        "propConstraints": [
+          {
+            "anchorId": "anchor_flower_patch",
+            "propId": "prop_flower",
+            "stateId": "state_flower_with_ladybug",
+            "visibility": "required"
+          },
+          {
+            "anchorId": "anchor_flower_patch",
+            "propId": "prop_ladybug",
+            "stateId": "state_ladybug_climbing",
+            "visibility": "required"
+          },
+          {
+            "anchorId": "anchor_flower_patch",
+            "propId": "prop_rover",
+            "stateId": "state_rover_at_flower",
+            "visibility": "required"
+          },
+          {
+            "anchorId": "anchor_flower_patch",
+            "propId": "prop_wheel",
+            "stateId": "state_wheel_place_cleared",
+            "visibility": "required"
+          },
+          {
+            "propId": "prop_bag",
+            "visibility": "forbidden"
+          }
+        ],
+        "propState": [
+          {
+            "propId": "prop_flower",
+            "state": "rooted, low, yellow, supporting one ladybug"
+          },
+          {
+            "propId": "prop_ladybug",
+            "state": "climbing naturally on the flower"
+          },
+          {
+            "propId": "prop_rover",
+            "state": "stopped beside the flower"
+          },
+          {
+            "propId": "prop_wheel",
+            "state": "mounted; driver's place cleared as agreed"
+          },
+          {
+            "propId": "prop_telescope",
+            "state": "available but secondary"
+          }
+        ],
+        "sameLocationAs": null,
+        "transition": {
+          "cue": "The group arrives at the rooted flower beyond the bench.",
+          "fromZoneId": "zone_bench_detour",
+          "kind": "after_transition",
+          "toZoneId": "zone_flower_end"
+        },
+        "zoneId": "zone_flower_end"
+      },
+      {
+        "actionRequirements": [
+          {
+            "checkId": "action:p12_child_walks",
+            "polarity": "must",
+            "predicate": "walks",
+            "subject": {
+              "entity": {
+                "id": "child:hero",
+                "kind": "cast"
+              },
+              "kind": "entity"
+            }
+          },
+          {
+            "checkId": "action:p12_child_pushes_rug",
+            "object": {
+              "id": "prop_rug",
+              "kind": "prop"
+            },
+            "polarity": "must",
+            "predicate": "pushes",
+            "subject": {
+              "entity": {
+                "id": "child:hero",
+                "kind": "cast"
+              },
+              "kind": "entity"
+            }
+          },
+          {
+            "checkId": "action:p12_child_places_wheel",
+            "object": {
+              "id": "prop_wheel",
+              "kind": "prop"
+            },
+            "polarity": "must",
+            "predicate": "places",
+            "subject": {
+              "entity": {
+                "id": "child:hero",
+                "kind": "cast"
+              },
+              "kind": "entity"
+            }
+          }
+        ],
+        "camera": "Medium-wide three-quarter final gathering beside the station, framed after cleanup so the rolled rug, stored wheel, returned telescope, set-down rover, and attentive group read in one calm scene.",
+        "castIds": [
+          "child:hero",
+          "companion:panda_anat"
+        ],
+        "characterPresence": {
+          "child": true,
+          "companion": true
+        },
+        "locationId": "loc_playground",
+        "mustNotShow": [
+          "wheel still mounted on rover",
+          "rug simultaneously flat and rolled",
+          "new garage",
+          "literal return from space",
+          "companion pause-marker object"
+        ],
+        "mustShow": [
+          "Group gathered beside the unchanged cardboard station after the return",
+          "Play rug rolled together for storage",
+          "Detached cardboard wheel stored inside the child's bag",
+          "Adam holding the cardboard telescope",
+          "Bottomless rover set down nearby and no garage present",
+          "Cardboard play station",
+          "Bottomless walking rover",
+          "Play rug",
+          "Handmade steering wheel",
+          "Cardboard telescope tube",
+          "Child's bag",
+          "the child walks",
+          "the child pushes Play rug",
+          "the child places Handmade steering wheel"
+        ],
+        "pageNumber": 12,
+        "propConstraints": [
+          {
+            "anchorId": "anchor_station",
+            "propId": "prop_station",
+            "stateId": "state_station_final",
+            "visibility": "required"
+          },
+          {
+            "anchorId": "anchor_grass",
+            "propId": "prop_rover",
+            "stateId": "state_rover_set_down_final",
+            "visibility": "required"
+          },
+          {
+            "anchorId": "anchor_station_entrance",
+            "propId": "prop_rug",
+            "stateId": "state_rug_rolled",
+            "visibility": "required"
+          },
+          {
+            "anchorId": "anchor_station_entrance",
+            "propId": "prop_wheel",
+            "stateId": "state_wheel_in_bag",
+            "visibility": "required"
+          },
+          {
+            "anchorId": "anchor_station_entrance",
+            "propId": "prop_telescope",
+            "stateId": "state_telescope_with_adam",
+            "visibility": "required"
+          },
+          {
+            "anchorId": "anchor_station_entrance",
+            "propId": "prop_bag",
+            "stateId": "state_bag_storing_wheel",
+            "visibility": "required"
+          }
+        ],
+        "propState": [
+          {
+            "propId": "prop_station",
+            "state": "fixed and unchanged at final gathering"
+          },
+          {
+            "propId": "prop_rover",
+            "state": "returned and set down nearby"
+          },
+          {
+            "propId": "prop_rug",
+            "state": "rolled for storage"
+          },
+          {
+            "propId": "prop_wheel",
+            "state": "detached and placed inside child's bag"
+          },
+          {
+            "propId": "prop_telescope",
+            "state": "returned to Adam"
+          },
+          {
+            "propId": "prop_bag",
+            "state": "open enough to show the stored wheel"
+          }
+        ],
+        "sameLocationAs": null,
+        "transition": {
+          "cue": "The group has returned to the station for cleanup and the final conversation.",
+          "fromZoneId": "zone_flower_end",
+          "kind": "after_transition",
+          "toZoneId": "zone_station_entrance"
+        },
+        "zoneId": "zone_station_entrance"
+      }
+    ],
+    "provenance": {
+      "compiledFromPages": 12,
+      "model": "gpt-5.6-sol",
+      "source": "llm"
+    },
+    "recurringProps": [
+      {
+        "description": "Fixed child-built station made from boxes, with an occupied driver compartment, open entrance, and closed cardboard roof; it remains an ordinary stationary playhouse.",
+        "firstRevealPage": 1,
+        "id": "prop_station",
+        "material": "Corrugated cardboard and paper tape",
+        "name": "Cardboard play station",
+        "persistence": "Stable set element; never flies, rolls, or transforms into a real spacecraft.",
+        "scale": "Child-sized fixed playhouse"
+      },
+      {
+        "description": "Loose circular cardboard steering wheel drawn by hand and able to rotate on one paper fastener; later mounted on the rover's front wall and finally returned to the child's bag.",
+        "firstRevealPage": 1,
+        "id": "prop_wheel",
+        "material": "Flat cardboard with one paper fastener",
+        "name": "Handmade steering wheel",
+        "persistence": "Portable recurring page-frame prop with one continuous identity.",
+        "scale": "Small two-hand child prop"
+      },
+      {
+        "description": "Long plain hollow cardboard tube used for pretend telescopic viewing, with open circular ends and no lenses or electronics.",
+        "firstRevealPage": 3,
+        "id": "prop_telescope",
+        "material": "Plain cardboard tube",
+        "name": "Cardboard telescope tube",
+        "persistence": "Portable recurring page-frame prop associated with Adam and temporarily shared.",
+        "scale": "Long enough for a child to hold at eye level"
+      },
+      {
+        "description": "One lightweight wide rectangular cardboard box, open at the top and without a floor; children's visible feet propel it while the mounted wheel sits on its front wall.",
+        "firstRevealPage": 4,
+        "id": "prop_rover",
+        "material": "Light corrugated cardboard",
+        "name": "Bottomless walking rover",
+        "persistence": "Recurring page-frame construction; never gains wheels, motor, floor, windshield, or machinery.",
+        "scale": "Wide enough for several children to stand inside while their legs reach the ground"
+      },
+      {
+        "description": "One small rooted yellow flower beyond the sandbox and bench, lower than the mounted steering wheel.",
+        "firstRevealPage": 3,
+        "id": "prop_flower",
+        "material": "Living plant",
+        "name": "Yellow flower",
+        "persistence": "Rooted recurring page-frame landmark; never enlarged, picked, or moved.",
+        "scale": "Small low playground flower"
+      },
+      {
+        "description": "One rollable play rug used as a flat pretend route between the station and path, later rolled for storage.",
+        "firstRevealPage": 7,
+        "id": "prop_rug",
+        "material": "Flexible woven play mat",
+        "name": "Play rug",
+        "persistence": "Recurring page-frame prop from its first reveal through cleanup.",
+        "scale": "Long enough to span the clear ground from station toward path"
+      },
+      {
+        "description": "One tiny ladybug climbing on the rooted yellow flower.",
+        "firstRevealPage": 11,
+        "id": "prop_ladybug",
+        "material": "Living insect",
+        "name": "Ladybug",
+        "persistence": "Single-scene living detail; not handled or relocated.",
+        "scale": "Natural tiny insect scale"
+      },
+      {
+        "description": "The child's ordinary playground bag used to store the detached cardboard wheel at the end.",
+        "firstRevealPage": 12,
+        "id": "prop_bag",
+        "material": "Soft fabric",
+        "name": "Child's bag",
+        "persistence": "Page-frame storage support; not a vehicle or space pack.",
+        "scale": "Child-sized personal bag"
+      }
+    ],
+    "schemaVersion": "vc-schema/v4",
+    "setBoardAuthorities": [
+      {
+        "areas": [
+          {
+            "id": "area_station",
+            "locationId": "loc_playground",
+            "spatialNodes": [
+              {
+                "description": "Open doorway in the fixed cardboard station.",
+                "id": "sp_station_doorway",
+                "kind": "doorway"
+              },
+              {
+                "description": "Fixed cardboard station wall beneath its closed roof.",
+                "id": "sp_station_wall",
+                "kind": "wall"
+              },
+              {
+                "description": "Level ground immediately outside the station entrance.",
+                "id": "sp_station_ground",
+                "kind": "floor"
+              },
+              {
+                "description": "Exterior wall of the adjacent toy shed.",
+                "id": "sp_toy_shed_wall",
+                "kind": "wall"
+              }
+            ],
+            "spatialRelations": [
+              {
+                "relation": "centered_in",
+                "subjectId": "sp_station_doorway"
+              },
+              {
+                "objectId": "sp_station_wall",
+                "relation": "adjacent_to",
+                "subjectId": "sp_station_doorway"
+              },
+              {
+                "objectId": "sp_station_wall",
+                "relation": "adjacent_to",
+                "subjectId": "sp_toy_shed_wall"
+              }
+            ],
+            "zoneProjection": {
+              "cardinality": "one_to_one",
+              "zoneIds": [
+                "zone_station_entrance"
+              ]
+            }
+          },
+          {
+            "id": "area_sandbox_curve",
+            "locationId": "loc_playground",
+            "spatialNodes": [
+              {
+                "description": "Level path curving beside the sandbox.",
+                "id": "sp_sandbox_path",
+                "kind": "floor"
+              },
+              {
+                "description": "Low fixed boundary of the ordinary sandbox.",
+                "id": "sp_sandbox_edge",
+                "kind": "ledge"
+              },
+              {
+                "description": "Grass bordering the path and sandbox.",
+                "id": "sp_sandbox_grass",
+                "kind": "floor"
+              }
+            ],
+            "spatialRelations": [
+              {
+                "objectId": "sp_sandbox_path",
+                "relation": "adjacent_to",
+                "subjectId": "sp_sandbox_edge"
+              },
+              {
+                "objectId": "sp_sandbox_path",
+                "relation": "adjacent_to",
+                "subjectId": "sp_sandbox_grass"
+              }
+            ],
+            "zoneProjection": {
+              "cardinality": "one_to_one",
+              "zoneIds": [
+                "zone_sandbox_path"
+              ]
+            }
+          },
+          {
+            "id": "area_toy_shed_path",
+            "locationId": "loc_playground",
+            "spatialNodes": [
+              {
+                "description": "Safe level path beside the toy shed.",
+                "id": "sp_shed_path",
+                "kind": "floor"
+              },
+              {
+                "description": "Grass bordering the toy-shed path.",
+                "id": "sp_shed_grass",
+                "kind": "floor"
+              },
+              {
+                "description": "Fixed exterior wall of the toy shed.",
+                "id": "sp_shed_wall",
+                "kind": "wall"
+              }
+            ],
+            "spatialRelations": [
+              {
+                "objectId": "sp_shed_path",
+                "relation": "adjacent_to",
+                "subjectId": "sp_shed_grass"
+              },
+              {
+                "objectId": "sp_shed_path",
+                "relation": "adjacent_to",
+                "subjectId": "sp_shed_wall"
+              }
+            ],
+            "zoneProjection": {
+              "cardinality": "one_to_one",
+              "zoneIds": [
+                "zone_toy_shed_path"
+              ]
+            }
+          },
+          {
+            "id": "area_rug_ground",
+            "locationId": "loc_playground",
+            "spatialNodes": [
+              {
+                "description": "Clear level ground between station and path.",
+                "id": "sp_rug_ground",
+                "kind": "floor"
+              },
+              {
+                "description": "Grass bordering the clear ground.",
+                "id": "sp_rug_grass",
+                "kind": "floor"
+              },
+              {
+                "description": "Fixed playground perimeter fence beyond the clear ground.",
+                "id": "sp_rug_fence",
+                "kind": "wall"
+              }
+            ],
+            "spatialRelations": [
+              {
+                "objectId": "sp_rug_ground",
+                "relation": "adjacent_to",
+                "subjectId": "sp_rug_grass"
+              },
+              {
+                "objectId": "sp_rug_grass",
+                "relation": "adjacent_to",
+                "subjectId": "sp_rug_fence"
+              }
+            ],
+            "zoneProjection": {
+              "cardinality": "one_to_one",
+              "zoneIds": [
+                "zone_rug_corridor"
+              ]
+            }
+          },
+          {
+            "id": "area_bench_detour",
+            "locationId": "loc_playground",
+            "spatialNodes": [
+              {
+                "description": "Large fixed playground bench beside the path.",
+                "id": "sp_bench",
+                "kind": "furniture"
+              },
+              {
+                "description": "Level path approaching and bending around the bench.",
+                "id": "sp_bench_path",
+                "kind": "floor"
+              },
+              {
+                "description": "Stable outer edge of the bush beside the detour.",
+                "id": "sp_bush_edge",
+                "kind": "wall"
+              }
+            ],
+            "spatialRelations": [
+              {
+                "objectId": "sp_bench_path",
+                "relation": "adjacent_to",
+                "subjectId": "sp_bench"
+              },
+              {
+                "objectId": "sp_bench_path",
+                "relation": "adjacent_to",
+                "subjectId": "sp_bush_edge"
+              },
+              {
+                "objectId": "sp_bush_edge",
+                "relation": "opposite_to",
+                "subjectId": "sp_bench"
+              }
+            ],
+            "zoneProjection": {
+              "cardinality": "one_to_one",
+              "zoneIds": [
+                "zone_bench_detour"
+              ]
+            }
+          },
+          {
+            "id": "area_flower_end",
+            "locationId": "loc_playground",
+            "spatialNodes": [
+              {
+                "description": "Level path edge beside the rooted flower patch.",
+                "id": "sp_flower_path",
+                "kind": "floor"
+              },
+              {
+                "description": "Ordinary soil and grass supporting the rooted flower.",
+                "id": "sp_flower_ground",
+                "kind": "floor"
+              }
+            ],
+            "spatialRelations": [
+              {
+                "objectId": "sp_flower_path",
+                "relation": "adjacent_to",
+                "subjectId": "sp_flower_ground"
+              }
+            ],
+            "zoneProjection": {
+              "cardinality": "one_to_one",
+              "zoneIds": [
+                "zone_flower_end"
+              ]
+            }
+          }
+        ],
+        "fixedObjects": [],
+        "locations": [
+          {
+            "environmentClass": "outdoor",
+            "lighting": "Soft, consistent diffuse daylight with gentle shadows.",
+            "locationId": "loc_playground",
+            "name": "Enclosed playground",
+            "timeOfDay": "day"
+          }
+        ],
+        "setIdentityId": "set_playground_day"
+      }
+    ],
+    "storyKey": "panda_anat_adventure",
+    "version": 1,
+    "worldType": "Grounded contemporary children's playground; all space-travel, lunar, lava, and vehicle language remains imaginative pretend play within an ordinary fenced outdoor setting.",
+    "zones": [
+      {
+        "description": "The exterior entrance and immediate ground around the fixed cardboard station beside the toy shed.",
+        "id": "zone_station_entrance",
+        "locationId": "loc_playground",
+        "name": "Cardboard station entrance",
+        "spatialNodes": [
+          {
+            "description": "Open doorway in the fixed cardboard station.",
+            "id": "sp_station_doorway",
+            "kind": "doorway"
+          },
+          {
+            "description": "Fixed cardboard station wall beneath its closed roof.",
+            "id": "sp_station_wall",
+            "kind": "wall"
+          },
+          {
+            "description": "Level ground immediately outside the station entrance.",
+            "id": "sp_station_ground",
+            "kind": "floor"
+          },
+          {
+            "description": "Exterior wall of the adjacent toy shed.",
+            "id": "sp_toy_shed_wall",
+            "kind": "wall"
+          }
+        ],
+        "spatialRelations": [
+          {
+            "relation": "centered_in",
+            "subjectId": "sp_station_doorway"
+          },
+          {
+            "objectId": "sp_station_wall",
+            "relation": "adjacent_to",
+            "subjectId": "sp_station_doorway"
+          },
+          {
+            "objectId": "sp_station_wall",
+            "relation": "adjacent_to",
+            "subjectId": "sp_toy_shed_wall"
+          }
+        ],
+        "stableGeometry": [
+          "doorway \"sp_station_doorway\": Open doorway in the fixed cardboard station.",
+          "wall \"sp_station_wall\": Fixed cardboard station wall beneath its closed roof.",
+          "floor \"sp_station_ground\": Level ground immediately outside the station entrance.",
+          "wall \"sp_toy_shed_wall\": Exterior wall of the adjacent toy shed.",
+          "\"sp_station_doorway\" is centered in the zone",
+          "\"sp_station_doorway\" is adjacent to \"sp_station_wall\"",
+          "\"sp_toy_shed_wall\" is adjacent to \"sp_station_wall\""
+        ]
+      },
+      {
+        "description": "The level path segment curving beside the sandbox, with sightlines back toward the station and onward toward the flower.",
+        "id": "zone_sandbox_path",
+        "locationId": "loc_playground",
+        "name": "Sandbox path curve",
+        "spatialNodes": [
+          {
+            "description": "Level path curving beside the sandbox.",
+            "id": "sp_sandbox_path",
+            "kind": "floor"
+          },
+          {
+            "description": "Low fixed boundary of the ordinary sandbox.",
+            "id": "sp_sandbox_edge",
+            "kind": "ledge"
+          },
+          {
+            "description": "Grass bordering the path and sandbox.",
+            "id": "sp_sandbox_grass",
+            "kind": "floor"
+          }
+        ],
+        "spatialRelations": [
+          {
+            "objectId": "sp_sandbox_path",
+            "relation": "adjacent_to",
+            "subjectId": "sp_sandbox_edge"
+          },
+          {
+            "objectId": "sp_sandbox_path",
+            "relation": "adjacent_to",
+            "subjectId": "sp_sandbox_grass"
+          }
+        ],
+        "stableGeometry": [
+          "floor \"sp_sandbox_path\": Level path curving beside the sandbox.",
+          "ledge \"sp_sandbox_edge\": Low fixed boundary of the ordinary sandbox.",
+          "floor \"sp_sandbox_grass\": Grass bordering the path and sandbox.",
+          "\"sp_sandbox_edge\" is adjacent to \"sp_sandbox_path\"",
+          "\"sp_sandbox_grass\" is adjacent to \"sp_sandbox_path\""
+        ]
+      },
+      {
+        "description": "Safe level path and open ground beside the toy shed, with the station behind it.",
+        "id": "zone_toy_shed_path",
+        "locationId": "loc_playground",
+        "name": "Toy-shed path staging area",
+        "spatialNodes": [
+          {
+            "description": "Safe level path beside the toy shed.",
+            "id": "sp_shed_path",
+            "kind": "floor"
+          },
+          {
+            "description": "Grass bordering the toy-shed path.",
+            "id": "sp_shed_grass",
+            "kind": "floor"
+          },
+          {
+            "description": "Fixed exterior wall of the toy shed.",
+            "id": "sp_shed_wall",
+            "kind": "wall"
+          }
+        ],
+        "spatialRelations": [
+          {
+            "objectId": "sp_shed_path",
+            "relation": "adjacent_to",
+            "subjectId": "sp_shed_grass"
+          },
+          {
+            "objectId": "sp_shed_path",
+            "relation": "adjacent_to",
+            "subjectId": "sp_shed_wall"
+          }
+        ],
+        "stableGeometry": [
+          "floor \"sp_shed_path\": Safe level path beside the toy shed.",
+          "floor \"sp_shed_grass\": Grass bordering the toy-shed path.",
+          "wall \"sp_shed_wall\": Fixed exterior wall of the toy shed.",
+          "\"sp_shed_grass\" is adjacent to \"sp_shed_path\"",
+          "\"sp_shed_wall\" is adjacent to \"sp_shed_path\""
+        ]
+      },
+      {
+        "description": "Level open ground inside the fence where a temporary play rug can link the station entrance to the existing path.",
+        "id": "zone_rug_corridor",
+        "locationId": "loc_playground",
+        "name": "Clear ground between station and path",
+        "spatialNodes": [
+          {
+            "description": "Clear level ground between station and path.",
+            "id": "sp_rug_ground",
+            "kind": "floor"
+          },
+          {
+            "description": "Grass bordering the clear ground.",
+            "id": "sp_rug_grass",
+            "kind": "floor"
+          },
+          {
+            "description": "Fixed playground perimeter fence beyond the clear ground.",
+            "id": "sp_rug_fence",
+            "kind": "wall"
+          }
+        ],
+        "spatialRelations": [
+          {
+            "objectId": "sp_rug_ground",
+            "relation": "adjacent_to",
+            "subjectId": "sp_rug_grass"
+          },
+          {
+            "objectId": "sp_rug_grass",
+            "relation": "adjacent_to",
+            "subjectId": "sp_rug_fence"
+          }
+        ],
+        "stableGeometry": [
+          "floor \"sp_rug_ground\": Clear level ground between station and path.",
+          "floor \"sp_rug_grass\": Grass bordering the clear ground.",
+          "wall \"sp_rug_fence\": Fixed playground perimeter fence beyond the clear ground.",
+          "\"sp_rug_grass\" is adjacent to \"sp_rug_ground\"",
+          "\"sp_rug_fence\" is adjacent to \"sp_rug_grass\""
+        ]
+      },
+      {
+        "description": "The path approach to the large bench, with a safe bend beside the adjacent bush leading onward to the flower.",
+        "id": "zone_bench_detour",
+        "locationId": "loc_playground",
+        "name": "Bench and side-path detour",
+        "spatialNodes": [
+          {
+            "description": "Large fixed playground bench beside the path.",
+            "id": "sp_bench",
+            "kind": "furniture"
+          },
+          {
+            "description": "Level path approaching and bending around the bench.",
+            "id": "sp_bench_path",
+            "kind": "floor"
+          },
+          {
+            "description": "Stable outer edge of the bush beside the detour.",
+            "id": "sp_bush_edge",
+            "kind": "wall"
+          }
+        ],
+        "spatialRelations": [
+          {
+            "objectId": "sp_bench_path",
+            "relation": "adjacent_to",
+            "subjectId": "sp_bench"
+          },
+          {
+            "objectId": "sp_bench_path",
+            "relation": "adjacent_to",
+            "subjectId": "sp_bush_edge"
+          },
+          {
+            "objectId": "sp_bush_edge",
+            "relation": "opposite_to",
+            "subjectId": "sp_bench"
+          }
+        ],
+        "stableGeometry": [
+          "furniture \"sp_bench\": Large fixed playground bench beside the path.",
+          "floor \"sp_bench_path\": Level path approaching and bending around the bench.",
+          "wall \"sp_bush_edge\": Stable outer edge of the bush beside the detour.",
+          "\"sp_bench\" is adjacent to \"sp_bench_path\"",
+          "\"sp_bush_edge\" is adjacent to \"sp_bench_path\"",
+          "\"sp_bench\" is opposite \"sp_bush_edge\""
+        ]
+      },
+      {
+        "description": "The far path edge beyond the bench, containing the low rooted yellow flower in ordinary playground ground.",
+        "id": "zone_flower_end",
+        "locationId": "loc_playground",
+        "name": "Yellow flower at path end",
+        "spatialNodes": [
+          {
+            "description": "Level path edge beside the rooted flower patch.",
+            "id": "sp_flower_path",
+            "kind": "floor"
+          },
+          {
+            "description": "Ordinary soil and grass supporting the rooted flower.",
+            "id": "sp_flower_ground",
+            "kind": "floor"
+          }
+        ],
+        "spatialRelations": [
+          {
+            "objectId": "sp_flower_path",
+            "relation": "adjacent_to",
+            "subjectId": "sp_flower_ground"
+          }
+        ],
+        "stableGeometry": [
+          "floor \"sp_flower_path\": Level path edge beside the rooted flower patch.",
+          "floor \"sp_flower_ground\": Ordinary soil and grass supporting the rooted flower.",
+          "\"sp_flower_ground\" is adjacent to \"sp_flower_path\""
+        ]
+      }
+    ]
+  },
+  "templateDigest": "0521e50b66e5be397c4ba4c23516a0c852faa16465517c81523fc167df80053e",
+  "version": "visual-contract-candidate-artifact/v9"
+}
