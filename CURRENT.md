@@ -1,5 +1,32 @@
 # SmallHeroes — Current Technical State
 
+## Five-page request NOT completed: paid sample held after page2 — 2026-09-19
+
+Executed follow-up atc3aadde0 using the explicitly authorized existing key through
+the existing owner-draft CLI. Native exit2; new page1 automated passed, new page2
+held_repair_limit (extra box + supporting cast relocated outside station). Pages3-5
+NOT rendered. Never describe this as five-page completion or product acceptance.
+Two attempts failed to complete the sequence; paid work stopped for diminishing
+returns, not missing owner permission. No more calls/automatic wakeups running.
+
+Window topology is visually corrected in the new page1; selected atlas/context
+does not guarantee scene compliance. Page2 still invents a box and relocates cast;
+this time the shared judge catches both. Causal limitation: selection alone did
+not eliminate hallucinated props. Earlier false PASS remains preserved.
+Code observation: prior passed pages are comparison references for QA, NOT inputs
+to first-attempt next-page generation. General continuity conditioning is the
+next engineering hypothesis, not an implemented or empirically proven solution.
+
+New run2images/4QA; oldrun4images/6QAclaims (5known/1unknown). Aggregate known
+usage estimate$0.5926585 at current official rates, plus unresolved $1 reservation.
+Conservative aggregate accounting$4.56373 vs$9.50 fence; not invoice verification.
+Canonical/source15files and historical run56files preservation verified again,
+including bytes/hash/mtime. Reader/readout replay byte-identical. Browser UI test
+blocked by local-file URL policy; no alternate route attempted, UI unverified.
+Reader: outputs/panda-five-page-selected-sample-20260919/index.html.
+Outcome/QA brief: five-page-sample/OUTCOME.md. All six outputs roots ignored/local,
+no verified off-machine backup. No independent PASS, source publication or push.
+
 ## Five-page sample follow-up: selected prop references — 2026-09-19
 
 First paid local sample at5d8de889 was deliberately stopped after page2 generation.
