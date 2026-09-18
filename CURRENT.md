@@ -1,5 +1,35 @@
 # SmallHeroes — Current Technical State
 
+## Five-page sample follow-up: selected prop references — 2026-09-19
+
+First paid local sample at5d8de889 was deliberately stopped after page2 generation.
+Page1 and its one repair put the station window on the wrong wall; contextual QA
+correctly failed the original but falsely passed the repair. Page2 introduced
+future boxes/telescope. All original verdicts/pixels remain immutable; no manual
+PASS. Interrupted page2 contextual request has unknown outcome and retains $1.
+First run conservative accounting: images$0.52650, QA$2.57386 including unknown;
+aggregate$3.10036, not an invoice. Native stopped exit4294967295. No sample manifest.
+
+Follow-up general, opt-in local sample fix: selected prop-board atlas pixels and
+current-page effective continuity context replace full-board/full-plan inputs.
+Same selected reference pixels reach generation and QA; prior3 comparison window
+unchanged. No judge, threshold, model or production path changes. New policyv5;
+legacy v2/v3/v4 unchanged when projection is absent. Crop content requires review;
+rectangle binding is not semantic segmentation or proof of pixel compliance.
+Page1/2 camera data clarifies existing front/left topology, not acceptance of the
+failed front-wall layout. Approved prose/main actions and canonical HOLD unchanged.
+
+Fresh input root panda-five-page-selected-input-20260919 and fresh paid target
+panda-five-page-selected-sample-20260919. Reuse exact original board; max5 images,
+no new repair allowance, no reuse of failed pages, no retry of unknown request.
+New fences images$2.50/QA$3.89964 + old$3.10036 = aggregate$9.50.
+Preparation/preflight0 with providerCalls0. Focused143/143, tsc0; fullcheck0:
+both typechecks0, ordinary5737pass/73skip (389files,151066ms), resource671pass
+(22files,225016ms), total6408pass/0fail/73skip. No overlapping test runs or timeout
+changes. One observed green run, not permanent stability. Independent review pending.
+All outputs roots local/ignored, no verified off-machine backup. No push/audio.
+See five-page-sample/SELECTED_PROPS_HANDOFF.md for failure evidence and scope.
+
 ## Five-page owner sample preparation — 2026-09-19
 
 Guy explicitly requests five consecutive pages with existing paid key and autonomous

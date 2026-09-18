@@ -1,0 +1,12 @@
+{
+  "checkedDateAsiaJerusalem": "2026-09-19",
+  "source": "https://developers.openai.com/api/docs/pricing",
+  "retrieval": "official OpenAI Docs fetch, Standard image-generation and Flex text-model tables",
+  "perMillionTokens": {
+    "gpt-image-2-standard": { "textInput": 5, "imageInput": 8, "imageOutput": 30 },
+    "gpt-5.5-flex-below-272k": { "input": 2.5, "cachedInput": 0.25, "output": 15 }
+  },
+  "imageCacheDiscount": "not assumed; per-modality uncached rates applied to all reported image/text input tokens",
+  "invoiceVerified": false,
+  "note": "The old 2026-09-15 report's image rates match today's Batch table, not Standard. Do not reuse them for this synchronous image run. This snapshot does not revise historical receipts."
+}

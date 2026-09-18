@@ -3,7 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { draftManifest, draftOutputRoot, loadOwnerDraft, ownerDraftSchema, ownerDraftPagePrompt, ownerDraftPropBoardPrompt, ownerDraftRepairPrompt, runGatedDraftPages, runOwnerBookDraft, sampleComparisonPages } from '../scripts/run-owner-book-draft';
+import { draftManifest, draftOutputRoot, loadOwnerDraft, ownerDraftSchema, ownerDraftPagePrompt, ownerDraftPropBoardPrompt, ownerDraftRepairPrompt, runGatedDraftPages, runOwnerBookDraft, sampleComparisonPages, projectDraftPropReferences, selectedDraftQaContext } from '../scripts/run-owner-book-draft';
 import { QUALITY_CATEGORIES } from './local-preview-quality';
 import sharp from 'sharp';
 import { generateGPTImage } from './generate-image';
@@ -28,6 +28,39 @@ function fixture() {
   return { repo, config };
 }
 describe('explicit local editorial draft boundary', () => {
+  it('binds the optional prop atlas to a supplied board, sample and complete prop inventory', () => {
+    const { repo, config } = fixture();
+    for (const patch of [{ propBoardRegions: {} }, { samplePages: [1], propBoardRegions: {} },
+      { samplePages: [1], propBoard: config.childAnchor, propBoardRegions: { invented: { left: 0, top: 0, width: 1, height: 1 } } }])
+      expect(() => loadOwnerDraft(repo, { ...config, ...patch })).toThrow('draft_prop_regions_binding');
+  });
+  it('projects only requested prop pixels and rejects a region beyond image bounds', async () => {
+    const red = await sharp({ create: { width: 16, height: 16, channels: 3, background: '#ff0000' } }).png().toBuffer();
+    const blue = await sharp({ create: { width: 16, height: 16, channels: 3, background: '#0000ff' } }).png().toBuffer();
+    const board = await sharp({ create: { width: 32, height: 16, channels: 3, background: 'white' } }).composite([
+      { input: red, left: 0, top: 0 }, { input: blue, left: 16, top: 0 }]).png().toBuffer();
+    const regions = { first: { left: 0, top: 0, width: 16, height: 16 }, future: { left: 16, top: 0, width: 16, height: 16 } };
+    const result = await projectDraftPropReferences(board, regions, [{ pageNumber: 1, props: [{ id: 'first' }] }, { pageNumber: 2, props: [] }]);
+    expect(result.has(2)).toBe(false);
+    const pixel = await sharp(result.get(1)!).extract({ left: 256, top: 256, width: 1, height: 1 }).removeAlpha().raw().toBuffer();
+    expect([...pixel]).toEqual([255, 0, 0]);
+    await expect(projectDraftPropReferences(board, { first: { left: 17, top: 0, width: 16, height: 16 } }, [])).rejects.toThrow('draft_prop_region_outside_image');
+    await expect(projectDraftPropReferences(board, regions, [{ pageNumber: 1, props: [{ id: 'missing' }] }])).rejects.toThrow('draft_prop_region_missing');
+  });
+  it('narrows QA to selected state without leaking future pages or dropping accumulated changes', () => {
+    const { repo, config } = fixture(); const { plan } = loadOwnerDraft(repo, config);
+    plan.recurringProps = [{ id: 'chair', design: 'wooden chair' }, { id: 'future', design: 'FUTURE_PROP_SENTINEL' }];
+    plan.pages[1].props = [{ id: 'chair', state: 'on grass' }];
+    plan.pages[2].scene = 'FUTURE_SCENE_SENTINEL';
+    plan.continuity!.entities = [{ id: 'chair', kind: 'prop', invariants: [{ attribute: 'color', value: 'red' }] }];
+    plan.continuity!.pages[1].visibleEntityIds = ['chair'];
+    plan.continuity!.pages[1].changes = [{ entityId: 'chair', attribute: 'color', value: 'blue', storyEvidence: 'First.' }];
+    const context = selectedDraftQaContext(plan, 1);
+    expect(context.continuity.entities[0].currentState.color).toBe('blue');
+    expect(context.page.pageNumber).toBe(1); expect(context.recurringProps.map(p => p.id)).toEqual(['chair']);
+    expect(JSON.stringify(context)).not.toContain('FUTURE_');
+    expect(plan.pages[2].scene).toBe('FUTURE_SCENE_SENTINEL');
+  });
   it('requires explicit sample opt-in and unique selected imported candidates', () => {
     const { repo, config } = fixture();
     expect(() => loadOwnerDraft(repo, { ...config, sampleRepairOnce: true })).toThrow('draft_repair_sample_only');
@@ -257,7 +290,7 @@ describe('real owner-draft entry point with mocked providers', () => {
       usage: { input_tokens: 100, output_tokens: 100 } }));
     return { file, root };
   }
-  it('runs five real-entry pages with at most six judge references and matched context', async () => {
+  it.each([false, true])('runs five real-entry pages with bounded references/context; atlas=%s', async atlas => {
     const { file, root } = await inputs();
     const repo = path.resolve(__dirname, '..'), config = JSON.parse(fs.readFileSync(file, 'utf8'));
     const storyFile = path.resolve(repo, config.story.file), planFile = path.resolve(repo, config.plan.file);
@@ -267,6 +300,11 @@ describe('real owner-draft entry point with mocked providers', () => {
     plan.continuity.pages = [0, 1, 2, 3, 4, 5].map(pageNumber => ({ ...plan.continuity.pages[0], pageNumber }));
     plan.recurringProps = [{ id: 'chair', design: 'wooden chair' }];
     plan.continuity.entities = [{ id: 'chair', kind: 'prop', invariants: [{ attribute: 'material', value: 'wood' }] }];
+    if (atlas) {
+      for (const p of plan.pages) p.props = [{ id: 'chair', state: 'on grass' }];
+      for (const p of plan.continuity.pages) p.visibleEntityIds = ['chair'];
+      config.propBoardRegions = { chair: { left: 0, top: 0, width: 16, height: 16 } };
+    }
     const planBytes = JSON.stringify(plan);
     fs.writeFileSync(storyFile, story); fs.writeFileSync(planFile, planBytes);
     config.story.sha = previewSha(story); config.plan.sha = previewSha(planBytes);
@@ -276,6 +314,8 @@ describe('real owner-draft entry point with mocked providers', () => {
     expect(() => ownerDraftSchema.parse({ ...config, samplePages: [0, 1, 2, 3, 4, 5] })).toThrow();
     fs.writeFileSync(file, JSON.stringify(config));
     vi.mocked(judgePreviewCandidate).mockImplementation(async args => {
+      expect('selectedPlan' in (args.context as object)).toBe(atlas);
+      expect('plan' in (args.context as object)).toBe(!atlas);
       const context = args.context as { pageNumber: number; priorPages: { pageNumber: number }[] };
       const expected = [1, 2, 3, 4].filter(p => p < context.pageNumber).slice(-3);
       expect(context.priorPages.map(p => p.pageNumber)).toEqual(expected);
@@ -286,7 +326,8 @@ describe('real owner-draft entry point with mocked providers', () => {
     });
     const result = await runOwnerBookDraft(file, 'sample');
     expect(result?.results).toHaveLength(5); expect(generateGPTImage).toHaveBeenCalledTimes(5);
-    expect(JSON.parse(fs.readFileSync(path.join(root, 'identity.json'), 'utf8')).samplePolicy).toBe('shared-quality-before-next-page/v4-five-page-window');
+    expect(JSON.parse(fs.readFileSync(path.join(root, 'identity.json'), 'utf8')).samplePolicy).toBe(atlas
+      ? 'shared-quality-before-next-page/v5-selected-props-and-state' : 'shared-quality-before-next-page/v4-five-page-window');
   });
   it('imports without generation, repairs to a new file, checkpoints both attempts and carries repaired prior context', async () => {
     const { file, root } = await inputs();
