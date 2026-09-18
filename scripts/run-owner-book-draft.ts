@@ -18,9 +18,9 @@ export const ownerDraftSchema = z.object({
   childName: z.string().min(1).max(50), childAge: z.number().int().min(3).max(8), gender: z.enum(['boy', 'girl']),
   companionDescription: z.string().min(1).max(1500), outputDir: z.string().min(1),
   imageBudgetUsd: z.number().positive().max(10), qaBudgetUsd: z.number().positive().max(10),
-  samplePages: z.array(z.number().int().min(0).max(24)).min(1).max(3).optional(),
+  samplePages: z.array(z.number().int().min(0).max(24)).min(1).max(5).optional(),
   sampleRepairOnce: z.literal(true).optional(),
-  sampleInitialImages: z.array(z.object({ pageNumber: z.number().int().min(0).max(24), image: asset }).strict()).min(1).max(3).optional(),
+  sampleInitialImages: z.array(z.object({ pageNumber: z.number().int().min(0).max(24), image: asset }).strict()).min(1).max(5).optional(),
 }).strict();
 
 export function draftOutputRoot(repo: string, outputDir: string) {
@@ -109,6 +109,10 @@ function draftPageRow(story: ReturnType<typeof previewStory>, pageNumber: number
 type SamplePageResult = { pageNumber: number; status: string; candidate?: QualityCandidate;
   contextSha?: string; history?: Awaited<ReturnType<typeof runPreviewQualityLoop>>['history']; error?: string };
 
+// Three canonical references plus at most three comparison images fit the shared
+// judge ceiling. Context and pixels must describe the same comparison window.
+export function sampleComparisonPages<T>(prior: T[]): T[] { return prior.slice(-3); }
+
 // Existing shared quality loop is the only verdict authority. Repair is opt-in and run-wide bounded.
 export async function runGatedDraftPages(args: {
   pages: number[]; context: (page: number, prior: SamplePageResult[]) => unknown;
@@ -117,7 +121,7 @@ export async function runGatedDraftPages(args: {
   judge: (page: number, candidate: QualityCandidate, context: unknown, contextSha: string, prior: SamplePageResult[], attempt: number) => Promise<unknown>;
   persist: (result: SamplePageResult) => void;
 }) {
-  if (!args.pages.length || args.pages.length > 3 || args.pages.some((p, i) => !Number.isInteger(p) || p < 0 || p > 24 || (i > 0 && p <= args.pages[i - 1]))) throw Error('draft_sample_selection');
+  if (!args.pages.length || args.pages.length > 5 || args.pages.some((p, i) => !Number.isInteger(p) || p < 0 || p > 24 || (i > 0 && p <= args.pages[i - 1]))) throw Error('draft_sample_selection');
   const limit = args.maxTotalRepairs ?? 0;
   if (limit !== 0 && limit !== 1) throw Error('draft_sample_repair_limit');
   let repairsUsed = 0;
@@ -160,7 +164,8 @@ export async function runOwnerBookDraft(configFile: string, mode: 'preflight' | 
   const identity = { version: DRAFT_VERSION, config, refs: normalized.map(r => ({ file: r.file, sourceSha: r.sha, transportSha: previewSha(r.bytes) })),
     imageModel: 'gpt-image-2', quality: 'low', size: '1024x1536', qualityVersion: PREVIEW_QUALITY_VERSION,
     judgeModel: PREVIEW_JUDGE_MODEL, judgeEffort: PREVIEW_JUDGE_EFFORT, productionReady: false, automaticRepair: Boolean(config.sampleRepairOnce),
-    ...(config.samplePages ? { samplePolicy: config.sampleRepairOnce ? 'shared-quality-before-next-page/v3-repair-once' : 'shared-quality-before-next-page/v2' } : {}) };
+    ...(config.samplePages ? { samplePolicy: config.samplePages.length > 3 ? 'shared-quality-before-next-page/v4-five-page-window'
+      : config.sampleRepairOnce ? 'shared-quality-before-next-page/v3-repair-once' : 'shared-quality-before-next-page/v2' } : {}) };
   if (mode === 'preflight') { console.log(JSON.stringify({ status: 'offline_preflight_ok', pages: plan.pages.length, sourceSha: story.sourceSha, planSha: config.plan.sha, providerCalls: 0 })); return; }
   bindPreviewRun(root, identity);
   const lock = path.join(root, 'run.lock'), fd = fs.openSync(lock, 'wx');
@@ -222,7 +227,7 @@ export async function runOwnerBookDraft(configFile: string, mode: 'preflight' | 
       const { judgePreviewCandidate } = await import('./lib/local-preview-judge');
       const report = await runGatedDraftPages({ pages: config.samplePages!, maxTotalRepairs: config.sampleRepairOnce ? 1 : 0,
         context: (pageNumber, prior) => ({ plan, pageNumber, text: pageNumber === 0 ? story.title : story.pages[pageNumber - 1].text,
-          priorPages: prior.map(p => draftPageRow(story, p.pageNumber, p.candidate!)), calibrationStatus: 'not_established', purpose: 'diagnostic_only' }),
+          priorPages: sampleComparisonPages(prior).map(p => draftPageRow(story, p.pageNumber, p.candidate!)), calibrationStatus: 'not_established', purpose: 'diagnostic_only' }),
         render: async (pageNumber, attempt, prior, review, contextSha) => {
           const text = pageNumber === 0 ? story.title : story.pages[pageNumber - 1].text;
           const step = `page-${String(pageNumber).padStart(2, '0')}${attempt ? '-repair-01' : ''}`;
@@ -252,7 +257,7 @@ export async function runOwnerBookDraft(configFile: string, mode: 'preflight' | 
           step: `qa-${String(pageNumber).padStart(2, '0')}${attempt ? '-repair-01' : ''}`, budgetUsd: config.qaBudgetUsd, apiKey: key,
           candidatePath: path.join(root, candidate.imageName), candidateSha: candidate.imageSha, context, contextSha,
           references: [...refPaths.map((file, i) => ({ file, sha: previewImageDigest(file), role: ['child identity', 'companion identity', 'prop design'][i] })),
-            ...prior.map(p => ({ file: path.join(root, p.candidate!.imageName), sha: p.candidate!.imageSha, role: `previous diagnostic sample page ${p.pageNumber}; comparison only, not canonical design` }))],
+            ...sampleComparisonPages(prior).map(p => ({ file: path.join(root, p.candidate!.imageName), sha: p.candidate!.imageSha, role: `previous diagnostic sample page ${p.pageNumber}; comparison only, not canonical design` }))],
           permit: () => permit('/v1/responses') });
           if (config.sampleRepairOnce) {
             const decision = qualityDisposition(review, candidate.imageSha, contextSha);

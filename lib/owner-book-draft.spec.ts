@@ -3,7 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { draftManifest, draftOutputRoot, loadOwnerDraft, ownerDraftSchema, ownerDraftPagePrompt, ownerDraftPropBoardPrompt, ownerDraftRepairPrompt, runGatedDraftPages, runOwnerBookDraft } from '../scripts/run-owner-book-draft';
+import { draftManifest, draftOutputRoot, loadOwnerDraft, ownerDraftSchema, ownerDraftPagePrompt, ownerDraftPropBoardPrompt, ownerDraftRepairPrompt, runGatedDraftPages, runOwnerBookDraft, sampleComparisonPages } from '../scripts/run-owner-book-draft';
 import { QUALITY_CATEGORIES } from './local-preview-quality';
 import sharp from 'sharp';
 import { generateGPTImage } from './generate-image';
@@ -213,7 +213,25 @@ describe('shared quality before next draft sample page', () => {
     const { args } = setup('pass'); args.persist.mockImplementation(() => { throw Error('write_failed'); });
     await expect(runGatedDraftPages(args)).rejects.toThrow('write_failed'); expect(args.render).toHaveBeenCalledTimes(1);
   });
-  it.each([[], [1, 1], [2, 1], [-1], [25], [1, 2, 3, 4]])('rejects invalid selection before callbacks %j', async (...pages) => {
+  it('accepts five consecutive pages and persists QA before every next render', async () => {
+    const { args, events } = setup('pass');
+    const result = await runGatedDraftPages({ ...args, pages: [1, 2, 3, 4, 5] });
+    expect(events).toEqual([1, 2, 3, 4, 5].flatMap(p => [`render${p}`, `judge${p}`, `persist${p}`]));
+    expect(result.results).toHaveLength(5); expect(result.unassessed).toEqual([]);
+    expect(result.productionReady).toBe(false);
+  });
+  it('holds a five-page run at the first uncertain page, leaving later pages unassessed', async () => {
+    const { args } = setup('pass');
+    const result = await runGatedDraftPages({ ...args, pages: [1, 2, 3, 4, 5],
+      judge: async (p, _c, _ctx, sha) => review(sha, p === 4 ? 'uncertain' : 'pass') });
+    expect(result.results.map(p => p.status)).toEqual(['passed', 'passed', 'passed', 'held_uncertain']);
+    expect(result.unassessed).toEqual([5]); expect(args.render).toHaveBeenCalledTimes(4);
+  });
+  it('uses the last three comparisons without mutating or truncating the evidence', () => {
+    const prior = [1, 2, 3, 4]; expect(sampleComparisonPages(prior)).toEqual([2, 3, 4]);
+    expect(prior).toEqual([1, 2, 3, 4]); expect(sampleComparisonPages([1, 2])).toEqual([1, 2]);
+  });
+  it.each([[], [1, 1], [2, 1], [-1], [25], [1, 2, 3, 4, 5, 6]])('rejects invalid selection before callbacks %j', async (...pages) => {
     const { args } = setup('pass'); await expect(runGatedDraftPages({ ...args, pages })).rejects.toThrow('draft_sample_selection');
     expect(args.render).not.toHaveBeenCalled();
   });
@@ -239,6 +257,37 @@ describe('real owner-draft entry point with mocked providers', () => {
       usage: { input_tokens: 100, output_tokens: 100 } }));
     return { file, root };
   }
+  it('runs five real-entry pages with at most six judge references and matched context', async () => {
+    const { file, root } = await inputs();
+    const repo = path.resolve(__dirname, '..'), config = JSON.parse(fs.readFileSync(file, 'utf8'));
+    const storyFile = path.resolve(repo, config.story.file), planFile = path.resolve(repo, config.plan.file);
+    const story = '---\ntitle: Test\npages: 5\n---\n' + [1, 2, 3, 4, 5].map(p => `--- Page ${p} ---\nPage ${p}.`).join('\n');
+    const plan = JSON.parse(fs.readFileSync(planFile, 'utf8'));
+    plan.pages = [0, 1, 2, 3, 4, 5].map(pageNumber => ({ ...plan.pages[0], pageNumber }));
+    plan.continuity.pages = [0, 1, 2, 3, 4, 5].map(pageNumber => ({ ...plan.continuity.pages[0], pageNumber }));
+    plan.recurringProps = [{ id: 'chair', design: 'wooden chair' }];
+    plan.continuity.entities = [{ id: 'chair', kind: 'prop', invariants: [{ attribute: 'material', value: 'wood' }] }];
+    const planBytes = JSON.stringify(plan);
+    fs.writeFileSync(storyFile, story); fs.writeFileSync(planFile, planBytes);
+    config.story.sha = previewSha(story); config.plan.sha = previewSha(planBytes);
+    config.samplePages = [1, 2, 3, 4, 5]; config.propBoard = config.childAnchor;
+    expect(() => loadOwnerDraft(repo, { ...config, imageBudgetUsd: 2.49 })).toThrow('draft_initial_reservation_limit');
+    expect(loadOwnerDraft(repo, { ...config, imageBudgetUsd: 2.5 }).config.samplePages).toHaveLength(5);
+    expect(() => ownerDraftSchema.parse({ ...config, samplePages: [0, 1, 2, 3, 4, 5] })).toThrow();
+    fs.writeFileSync(file, JSON.stringify(config));
+    vi.mocked(judgePreviewCandidate).mockImplementation(async args => {
+      const context = args.context as { pageNumber: number; priorPages: { pageNumber: number }[] };
+      const expected = [1, 2, 3, 4].filter(p => p < context.pageNumber).slice(-3);
+      expect(context.priorPages.map(p => p.pageNumber)).toEqual(expected);
+      expect(args.references).toHaveLength(3 + expected.length);
+      expect(args.references.slice(3).map(r => Number(r.role.match(/page (\d+)/)![1]))).toEqual(expected);
+      return { candidateSha: args.candidateSha, contextSha: args.contextSha,
+        checks: QUALITY_CATEGORIES.map(category => ({ category, verdict: 'pass', observation: 'observed', correction: '' })) };
+    });
+    const result = await runOwnerBookDraft(file, 'sample');
+    expect(result?.results).toHaveLength(5); expect(generateGPTImage).toHaveBeenCalledTimes(5);
+    expect(JSON.parse(fs.readFileSync(path.join(root, 'identity.json'), 'utf8')).samplePolicy).toBe('shared-quality-before-next-page/v4-five-page-window');
+  });
   it('imports without generation, repairs to a new file, checkpoints both attempts and carries repaired prior context', async () => {
     const { file, root } = await inputs();
     const config = JSON.parse(fs.readFileSync(file, 'utf8'));

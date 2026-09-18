@@ -1,5 +1,39 @@
 # SmallHeroes — Current Technical State
 
+## Five-page owner sample preparation — 2026-09-19
+
+Guy explicitly requests five consecutive pages with existing paid key and autonomous
+continuation. Same task/sole writer, semantic-m1 branch, starting32654edf clean/ahead5;
+protected d53b768ccb2f/accepted-intent63ccb484 clean/read-only. No push.
+Claude supplied PASS0/0/0 exactly3ae68d60..32654edf (280/280); this closes the helper P2,
+not the canonical Panda semantic HOLD. No expansion of any earlier PASS.
+
+Existing LOCAL EDITORIAL owner-draft sample lane extended3->5, retaining the shared
+before-next-page QA/one-run-wide-repair/unknown-outcome fences. At most3 prior pages
+in both comparison context and image references; six-reference judge cap unchanged.
+New4/5-page run policyv4; old1-3-page identities preserved. No production consumer,
+judge/model/threshold/calibration edits. Independent review of this change pending.
+
+Separate new complete diagnostic plan binds exact accepted revision407c34c8 prose
+and visual directions; uses existing Bar/Anat anchors, fixed geography, cast,
+single-moment custody and two-child bottomless-box capacity. This is NOT recovery
+or rendering of candidate41d40069, NOT a Blueprint/package or canonical pipeline
+completion. Canonical semantic HOLD and all production qualification gates remain.
+The explicit existing owner-draft lane is documented in OWNER_DRAFT_GATED_SAMPLE_20260916;
+it must not be presented as customer-runtime evidence. Guy was told this distinction.
+
+Selected1-5 (no cover); LOW1024x1536, one new prop board, at most one bound-defect
+repair. Image fence$3.50+QA$6.00, conservative admission limits not actual charges.
+No audio/full book/source publication/push. Preflight0/providerCalls0, sourceSHA5bed647c,
+directionsSHAb5e7691a, planSHA9be1831e. Focused4specs139/139; standalone tsc0/diffcheck0.
+Full npm run check0: both typechecks0; ordinary5733pass/73skip across389files,
+resource671pass across22files; total6404pass/0fail/73skip. No overlap with focused
+tests, no worker/timeout changes. One green observation, not permanent stability.
+No paid call yet at this preparation record. Inputs/outputs are
+ignored/local-only with no verified off-machine backup. Gate, reproducible preparation
+and one-use existing-CLI evidence wrapper: book-proof/five-page-sample/ under the
+2026-09-16 editorial refresh. Old source and paid evidence are not overwritten.
+
 ## Companion helper authority boundary hardened; CLI expectation aligned — 2026-09-18
 
 Claude supplied PASS0/0/1 for3fb03452..3ae68d60. Its P2 mitigation now requires
