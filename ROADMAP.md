@@ -2,6 +2,12 @@
 
 ## Latest owner priority: coherent book sequence — 2026-09-19
 
+Claude capacity re-gate HOLD0/1/0 received for5e990881..f6bdf5f7: both prior findings
+closed, but the compact repair projection had dropped the STYLE_01 anatomy/identity/
+framing locks. Codex stopped on usage limits; Guy reassigned the correction to Claude,
+so this fix is NOT independently reviewed and awaits Codex. Locks are now restored
+opportunistically by real transport fit, with the prior worst-case guarantee unchanged.
+
 Claude whole-book HOLD0/1/1 received for093d37c0..5e990881. Local capacity correction
 now adds page-scaled planner allowance/accounting and all-page worst-repair admission
 before images; independent re-gate pending. No new rendering or production cutover.

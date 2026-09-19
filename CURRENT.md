@@ -1,5 +1,43 @@
 # SmallHeroes — Current Technical State
 
+## Repair lock restoration — 2026-09-19
+
+Claude reported HOLD0/1/0 for5e990881..f6bdf5f7: both prior findings closed, but the
+compact repair projection had dropped all six STYLE_01 lock blocks (4070 chars incl.
+the1601-char anatomy locks) while the brief's preserved-field list did not name them.
+Codex stopped on usage limits at clean f6bdf5f7/ahead11; Guy explicitly reassigned the
+correction to Claude. **Claude authored this fix and therefore is NOT independent on
+it: it needs Codex's review, not Claude's.** No push, no self-PASS, no product
+acceptance. Measurement first: restoring all locks under the 8x1800 schema-maximum
+correction guarantee needs 34522 chars against a 31000 cap, so Codex's omission was
+forced arithmetic, not an oversight.
+
+Locks are now OPPORTUNISTIC, never a new requirement. localRepairPrompt assembles the
+widest tier that the real transport planner accepts — full (all six blocks) → anatomy
+(child anatomical + anatomy integrity) → none — reusing the identical builders the
+initial prompt uses, never a paraphrase. The bare 'none' tier is assembled last and
+returned even when oversized, so assertLocalImagePrompt still raises the same typed
+hold. Tier selection is validated through planGPTImageRequest, not JS length, closing
+the LF-vs-multipart-CRLF gap. Corrections are never truncated at any tier; observations
+still stay in the QA receipt. Chosen tier is logged per repair attempt and reported per
+page by preflight, with an exact binary-searched full-lock threshold.
+
+On the real saved Panda book, at the absolute 8x1800 worst case:6 pages keep full
+locks,6 keep the anatomy locks, and only page12 falls back to none at30452 chars —
+byte-identical to before, so the pre-existing guarantee is provably unpaid-for. Full
+locks survive to1385-1800 correction chars per category depending on the page; real
+judge corrections are far shorter. Size remains the gate and locks never mask an
+oversized page: preflight asserts size BEFORE computing tiers, and an unreachable full
+tier reports null rather than throwing. No judge model, effort, threshold, schema,
+resemblance0.70, image limit, transport or production path changed.
+
+Focused222/222 (planning45, sequence29, owner72, quality28, judge16, preview32), tsc0.
+Both witnesses exit0; preservation still56 snapshots,3 reader hashes,2 images. Claude's
+own independent drop audit, which originally found the regression, now reports0 chars
+dropped on the worst page. npm run check NOT re-run by Claude for this commit. Cost$0,
+no provider calls, credentials, renders or publication. Pixel outcome of repairs remains
+an empirical question no offline evidence can settle.
+
 ## Whole-book QA capacity correction — 2026-09-19
 
 Claude reports HOLD0/1/1 for093d37c0..5e990881: planner output headroom and late repair

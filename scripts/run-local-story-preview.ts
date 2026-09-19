@@ -14,7 +14,7 @@ import {
 import { PREVIEW_QUALITY_VERSION, runPreviewQualityLoop, validateQualityCalibration } from '../lib/local-preview-quality';
 import { WHOLE_BOOK_PLANNING_VERSION, WHOLE_BOOK_PLANNING_INSTRUCTION, wholeBookDraftSchema, wholeBookPlanningInput, compileWholeBookDraft } from '../lib/local-book-planning';
 import { sequencePagePacket, sequenceRenderPrompt, type ReviewedSequencePage } from '../lib/local-book-sequence';
-import { localPlannerCapacity, localRepairPrompt, assertLocalImagePrompt, preflightLocalBookPrompts } from '../lib/local-preview-capacity';
+import { localPlannerCapacity, buildLocalRepairPrompt, assertLocalImagePrompt, preflightLocalBookPrompts } from '../lib/local-preview-capacity';
 import { judgePreviewCandidate } from './lib/local-preview-judge';
 import { narratePreviewPage } from './lib/local-preview-narration';
 
@@ -208,8 +208,13 @@ export async function runLocalStoryPreview(configFile: string, live: boolean, ke
           if (comparison && previewImageDigest(path.join(root, comparison.imageName)) !== comparison.imageSha) throw Error('preview_scene_reference_changed');
           const refs = comparison ? [...refPaths, path.join(root, comparison.imageName)] : [...refPaths];
           let prompt = sequencePacket ? sequenceRenderPrompt(basePrompt, sequencePacket, priorScene && !prior ? refs.length : null) : basePrompt;
-          if (prior && review) prompt = localRepairPrompt(plan, page.pageNumber, text, details, sequencePacket, refs.length,
-            review.checks.filter(c => c.verdict === 'defect'));
+          if (prior && review) {
+            const repair = buildLocalRepairPrompt(plan, page.pageNumber, text, details, sequencePacket, refs.length,
+              review.checks.filter(c => c.verdict === 'defect'));
+            // Which STYLE_01 lock tier survived this repair's correction volume.
+            console.log(JSON.stringify({ stage: 'repair_locks', page: page.pageNumber, attempt, lockTier: repair.lockTier }));
+            prompt = repair.prompt;
+          }
           const made = await makeImage(`page-${number}-attempt-${attempt}`, prompt, refs, name, Boolean(prior));
           return { imageName: name, imageSha: made.sha };
         },

@@ -9,8 +9,10 @@ import { QUALITY_CATEGORIES, PREVIEW_QUALITY_VERSION, PREVIEW_JUDGE_MODEL, PREVI
 import { runLocalStoryPreview } from '../../scripts/run-local-story-preview';
 import { generateGPTImage } from '../generate-image';
 import { judgePreviewCandidate } from '../../scripts/lib/local-preview-judge';
-import { localPlannerCapacity, localRepairPrompt, preflightLocalBookPrompts, assertLocalImagePrompt } from '../local-preview-capacity';
+import { localPlannerCapacity, localRepairPrompt, buildLocalRepairPrompt, preflightLocalBookPrompts, assertLocalImagePrompt } from '../local-preview-capacity';
 import { sequencePageState } from '../local-book-sequence';
+import { STYLE_01_SHARED, STYLE_01_RENDERING_CORRECTION, STYLE_01_CANONICAL_CHILD_ANCHOR_RULE, STYLE_01_FRAMING_RULE, buildStyle01ChildAnatomicalLock } from '../style01-gptimage';
+import { buildStyle01AnatomyIntegrityLock } from '../style01-visual-polish';
 
 const provider = vi.hoisted(() => ({ create: vi.fn() }));
 vi.mock('openai', () => ({ default: class { responses = { create: provider.create }; } }));
@@ -304,6 +306,54 @@ describe('capacity policy boundaries', () => {
     expect(effective.continuity.entities[0]).toEqual({ id: 'crate', kind: 'prop', currentState: { color: 'red', material: 'wood' } });
     expect(plan.continuity!.entities[0].invariants[0].value).toBe('blue'); // original evidence untouched
     expect(preflightLocalBookPrompts(plan, sequence, [story.title, ...story.pages.map(p => p.text)], { childAge: 5, gender: 'boy', companionDescription: 'panda' }).rows).toHaveLength(3);
+  });
+  it('carries the SAME STYLE_01 identity/anatomy/framing locks the initial prompt uses', () => {
+    const { draft, story } = planningFixture(); const { plan, sequence } = compileWholeBookDraft(draft, story);
+    const details = { childAge: 5, gender: 'boy', companionDescription: 'panda' };
+    const packet = { ...sequencePageState(sequence, plan, 2), predecessor: null };
+    const { prompt, lockTier } = buildLocalRepairPrompt(plan, 2, story.pages[1].text, details, packet, 4,
+      [{ category: 'anatomy', correction: 'redraw the detached forearm' }]);
+    expect(lockTier).toBe('full');
+    const initial = previewPagePrompt(plan, 2, story.pages[1].text, 5, 'boy', 'panda');
+    for (const block of [STYLE_01_SHARED, STYLE_01_RENDERING_CORRECTION, STYLE_01_CANONICAL_CHILD_ANCHOR_RULE,
+      STYLE_01_FRAMING_RULE, buildStyle01ChildAnatomicalLock({ childAge: 5, allowDistinctSupportingChildren: true }),
+      buildStyle01AnatomyIntegrityLock()]) {
+      expect(initial).toContain(block); // the block really is part of the initial prompt
+      expect(prompt).toContain(block);  // and the repair now carries the identical text
+    }
+  });
+  it.each([0, 600, 1200, 1800])('degrades lock tiers by real transport fit at %i correction chars, never truncating', per => {
+    const { draft, story } = planningFixture(); const { plan, sequence } = compileWholeBookDraft(draft, story);
+    const details = { childAge: 5, gender: 'boy', companionDescription: 'panda' };
+    const packet = { ...sequencePageState(sequence, plan, 2), predecessor: null };
+    const checks = QUALITY_CATEGORIES.map(category => ({ category, correction: `${category} `.repeat(per).slice(0, per) }));
+    const { prompt, lockTier } = buildLocalRepairPrompt(plan, 2, story.pages[1].text, details, packet, 4, checks);
+    expect(['full', 'anatomy', 'none']).toContain(lockTier);
+    // Whatever the tier, the prompt is sendable and every correction survives in full.
+    expect(() => assertLocalImagePrompt(prompt, 4, true)).not.toThrow();
+    for (const c of checks) if (c.correction) expect(prompt).toContain(`${c.category}: ${c.correction.replace(/\s+/gu, ' ').trim()}`);
+    // A narrower tier never smuggles lock text back in.
+    if (lockTier === 'none') expect(prompt).not.toContain(buildStyle01AnatomyIntegrityLock());
+    if (lockTier !== 'full') expect(prompt).not.toContain(STYLE_01_CANONICAL_CHILD_ANCHOR_RULE);
+  });
+  it('reports an exact full-lock threshold and never exceeds the pre-existing worst case', () => {
+    const { draft, story } = planningFixture(); const { plan, sequence } = compileWholeBookDraft(draft, story);
+    const details = { childAge: 5, gender: 'boy', companionDescription: 'panda' };
+    const texts = [story.title, ...story.pages.map(p => p.text)];
+    const rows = preflightLocalBookPrompts(plan, sequence, texts, details).rows;
+    for (const row of rows) {
+      const packet = row.pageNumber ? { ...sequencePageState(sequence, plan, row.pageNumber), predecessor: null } : null;
+      const margin = row.pageNumber ? 512 : 0;
+      const at = (per: number) => buildLocalRepairPrompt(plan, row.pageNumber, texts[row.pageNumber], details, packet, 4,
+        QUALITY_CATEGORIES.map(category => ({ category, correction: 'X'.repeat(per) })), margin).lockTier;
+      const threshold = row.fullLockCorrectionCharsPerCategory;
+      expect(threshold).not.toBeNull(); // this fixture is small enough for full locks
+      expect(at(threshold!)).toBe('full');
+      if (threshold! < 1800) expect(at(threshold! + 1)).not.toBe('full');
+      // The schema-maximum worst case stays sendable, which is the guarantee locks must not cost.
+      expect(row.maxRepairCharsWithMargin).toBeLessThanOrEqual(31000);
+      expect(at(1800)).toBe(row.lockTierAtMaxCorrections);
+    }
   });
   it('checks the actual transport prefix and multipart newline expansion, not JS length alone', () => {
     expect(() => assertLocalImagePrompt('\n'.repeat(17000), 3, true)).toThrow('exceeds the provider character limit');
