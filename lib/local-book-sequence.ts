@@ -111,7 +111,7 @@ export function sequencePredecessor(s: BookSequence, pageNumber: number, complet
   return { pageNumber: previous.pageNumber, ...candidate, authority: 'comparison_only_not_canonical' as const };
 }
 
-export function sequencePagePacket(s: BookSequence, plan: PreviewPlan, pageNumber: number, completed: readonly ReviewedSequencePage[]) {
+export function sequencePageState(s: BookSequence, plan: PreviewPlan, pageNumber: number) {
   const page = s.pages[pageNumber - 1];
   if (!page) return fail('unknown_page');
   const visible = new Set([...page.visibleCastIds, ...plan.continuity!.pages[pageNumber].visibleEntityIds]);
@@ -120,7 +120,11 @@ export function sequencePagePacket(s: BookSequence, plan: PreviewPlan, pageNumbe
     pageNumber, sceneId: page.sceneId, visibleCastIds: page.visibleCastIds,
     // State persists for invisible entities in the ledger, but visibility never forces them on screen.
     relations: page.states.filter(x => visible.has(x.entityId)), allowedTransitions: page.transitions,
-    sceneChangeEvidence: page.sceneChangeEvidence, predecessor: sequencePredecessor(s, pageNumber, completed) };
+    sceneChangeEvidence: page.sceneChangeEvidence };
+}
+
+export function sequencePagePacket(s: BookSequence, plan: PreviewPlan, pageNumber: number, completed: readonly ReviewedSequencePage[]) {
+  return { ...sequencePageState(s, plan, pageNumber), predecessor: sequencePredecessor(s, pageNumber, completed) };
 }
 
 export function sequenceRenderPrompt(base: string, packet: ReturnType<typeof sequencePagePacket>, referenceIndex: number | null) {

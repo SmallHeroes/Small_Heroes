@@ -2,6 +2,10 @@
 
 ## Latest owner priority: coherent book sequence — 2026-09-19
 
+Claude whole-book HOLD0/1/1 received for093d37c0..5e990881. Local capacity correction
+now adds page-scaled planner allowance/accounting and all-page worst-repair admission
+before images; independent re-gate pending. No new rendering or production cutover.
+
 Latest: joint whole-book plan+physical sequence is mandatory in automatic local
 preview planning before any image; tests preserve8/12/16-page composition and acting
 choices. Refreshed18-story input coverage is verified, not18 generated storyboards.

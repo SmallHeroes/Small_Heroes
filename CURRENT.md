@@ -1,5 +1,42 @@
 # SmallHeroes — Current Technical State
 
+## Whole-book QA capacity correction — 2026-09-19
+
+Claude reports HOLD0/1/1 for093d37c0..5e990881: planner output headroom and late repair
+prompt overflow. All207 tests and preservation/corpus witnesses were independently
+reproduced, but no PASS and no live16-page failure observation. Current sole-writer
+task implements the correction from clean5e990881/ahead10; protected dependencies
+768ccb2f/63ccb484 remain clean/read-only. No push or independent self-PASS.
+
+Automatic local planner now requests24000/28000/32000 output tokens for8/12/16 pages,
+same model/effort; input UTF8+schema+4096 protocol allowance derives a conservative
+reservation using the existing30USD/M upper accounting. Versioned request/identity
+binds capacity.10USD run fence unchanged. Upfront minimum is the larger of the old
+nominal image floor and planner+first image, NOT full-book/QA cost authorization or
+completion guarantee. Actual accumulated usage/unknown reservations gate each step.
+Incomplete output details persist; that root is terminal with no automatic rebill.
+A policy/configuration change requires a NEW root, preserving paid/unknown evidence.
+
+Before any image, ALL initial and worst-schema repair prompts are size-checked through
+the actual transport planner (prefix/multipart CRLF included). Repair keeps all current
+effective values, page direction and sequence; every full correction is sent with only
+whitespace normalized. Historical invariants and verbose observations remain in raw
+evidence, not repeated in the edit prompt. Initial cap24000 unchanged; compact repair
+cap31000 within the existing provider32000 guard. No QA threshold/calibration changes.
+
+Focused216/216 (39+29+72+28+16+32), tsc0. Real entry covers8/12/16 with mocked providers;
+real saved Panda13 prompts fit, worst repair30452 multipart chars INCLUDING512 margin
+and all8 corrections at1800 chars. No fake visual verdicts persisted. Preservation56
+snapshot files/3 reader hashes/2 images unchanged. Full check native exit0: both
+typechecks0, ordinary5810 passed/73 skipped (391 files), resource671 passed (22 files),
+total6481 passed/73 skipped/0 failed. One observed green run, not independent PASS or
+permanent stability. Exact log hashes and serial phase durations are in the handoff.
+Logs: outputs/whole-book-capacity-validation-20260919 (ignored/local, no verified
+off-machine backup). Read-only witness and re-gate brief: book-proof/capacity-correction/.
+No render/provider calls/credential reads; new cost0. Owner-draft capacity and customer
+production remain unmigrated. Original sequence validator093d37c0 still needs its
+independent review; canonical Panda HOLDs and visual-quality uncertainty remain.
+
 ## Automatic whole-book planning before local preview images — 2026-09-19
 
 Guy expands the requirement to every authored story: understand the entire sequence

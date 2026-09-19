@@ -14,6 +14,7 @@ import {
 import { PREVIEW_QUALITY_VERSION, runPreviewQualityLoop, validateQualityCalibration } from '../lib/local-preview-quality';
 import { WHOLE_BOOK_PLANNING_VERSION, WHOLE_BOOK_PLANNING_INSTRUCTION, wholeBookDraftSchema, wholeBookPlanningInput, compileWholeBookDraft } from '../lib/local-book-planning';
 import { sequencePagePacket, sequenceRenderPrompt, type ReviewedSequencePage } from '../lib/local-book-sequence';
+import { localPlannerCapacity, localRepairPrompt, assertLocalImagePrompt, preflightLocalBookPrompts } from '../lib/local-preview-capacity';
 import { judgePreviewCandidate } from './lib/local-preview-judge';
 import { narratePreviewPage } from './lib/local-preview-narration';
 
@@ -89,12 +90,17 @@ export async function runLocalStoryPreview(configFile: string, live: boolean, ke
     const normalized = await sharp(bytes).resize({ width: 1024, height: 1024, fit: 'inside', withoutEnlargement: true }).png().toBuffer();
     return { path: absolute, sourceSha: previewSha(bytes), sha: previewSha(normalized), normalized };
   }));
-  const identity = { version: PREVIEW_VERSION, planningVersion: WHOLE_BOOK_PLANNING_VERSION, qualityVersion: PREVIEW_QUALITY_VERSION, calibrationSha: previewSha(calibration), config, acceptedRevision: accepted.revisionDigest,
+  const instruction = PLANNER_INSTRUCTION + '\n' + CONTINUITY_INSTRUCTION + '\n' + WHOLE_BOOK_PLANNING_INSTRUCTION;
+  const bookInput = wholeBookPlanningInput(story, config.childAge, config.gender, config.companionDescription);
+  const requestText = { instructions: instruction, input: JSON.stringify(bookInput), text: { format: zodTextFormat(wholeBookDraftSchema, 'local_complete_book_visual_plan') } };
+  const capacity = localPlannerCapacity(story.pages.length, requestText);
+  const identity = { version: PREVIEW_VERSION, planningVersion: WHOLE_BOOK_PLANNING_VERSION, capacity, qualityVersion: PREVIEW_QUALITY_VERSION, calibrationSha: previewSha(calibration), config, acceptedRevision: accepted.revisionDigest,
     sourceSha: story.sourceSha, refs: refs.map(({ normalized: _, ...ref }) => ref),
     imageModel: 'gpt-image-2', plannerModel: 'gpt-5.4', quality: 'low',
     authority: 'local_unaccepted_creative_preview_only', independentQa: 'pending',
-    invoiceVerified: false, estimatedReservationUsd: 1 + 0.5 * (story.pages.length + 2) };
-  if (identity.estimatedReservationUsd > config.budgetUsd) throw Error('insufficient_preview_budget');
+    // Staged admission, NOT a worst-case full-book quote. Per-step guards still apply.
+    invoiceVerified: false, minimumAdmissionUsd: Math.max(1 + 0.5 * (story.pages.length + 2), capacity.reserveUsd + 0.5) };
+  if (identity.minimumAdmissionUsd > config.budgetUsd) throw Error('insufficient_preview_budget');
   if (!live) { console.log(JSON.stringify({ status: 'offline_preflight_ok', ...identity, providerCalls: 0 })); return; }
   const previousKey = process.env.OPENAI_API_KEY;
   const key = previousKey?.trim() || (keyEnvFile ? parseEnv(fs.readFileSync(keyEnvFile)).OPENAI_API_KEY?.trim() : null);
@@ -125,28 +131,26 @@ export async function runLocalStoryPreview(configFile: string, live: boolean, ke
       return file;
     });
     const client = new OpenAI({ apiKey: key, maxRetries: 0, timeout: 600_000 });
-    const instruction = PLANNER_INSTRUCTION + '\n' + CONTINUITY_INSTRUCTION + '\n' + WHOLE_BOOK_PLANNING_INSTRUCTION;
-    const bookInput = wholeBookPlanningInput(story, config.childAge, config.gender, config.companionDescription);
-    const planInput = { instruction, ...bookInput };
-    const planRecord = await previewCheckpoint({ root, step: 'plan', input: planInput, reserveUsd: 1, budgetUsd: config.budgetUsd, produce: async () => {
+    const planInput = { requestText, capacity };
+    const planRecord = await previewCheckpoint({ root, step: 'plan', input: planInput, reserveUsd: capacity.reserveUsd, budgetUsd: config.budgetUsd, produce: async () => {
       permit('/v1/responses');
       const response = await client.responses.create({ model: 'gpt-5.4', store: false,
-        reasoning: { effort: 'medium' }, max_output_tokens: 14000,
-        instructions: instruction,
-        input: JSON.stringify(bookInput),
-        text: { format: zodTextFormat(wholeBookDraftSchema, 'local_complete_book_visual_plan') },
+        reasoning: { effort: 'medium' }, max_output_tokens: capacity.maxOutputTokens, ...requestText,
       });
       // Save the returned response even if subsequent semantic validation rejects it.
-      return { value: { status: response.status, outputText: response.output_text }, usage: response.usage as unknown as Record<string, unknown> };
+      return { value: { status: response.status, incompleteDetails: response.incomplete_details ?? null, outputText: response.output_text }, usage: response.usage as unknown as Record<string, unknown> };
     } });
-    if (planRecord.value.status !== 'completed') throw Error('planner_incomplete');
+    if (planRecord.value.status !== 'completed') throw Error('planner_incomplete_new_run_required');
     // ALL pages must reconcile before the first board, cover or page image call.
     const { plan, sequence } = compileWholeBookDraft(JSON.parse(planRecord.value.outputText), story);
     writeOrVerifyJson(path.join(root, 'whole-book-plan.json'), plan);
     writeOrVerifyJson(path.join(root, 'book-sequence.json'), sequence);
+    const texts = [story.title, ...story.pages.map(p => p.text)];
+    const details = { childAge: config.childAge, gender: config.gender, companionDescription: config.companionDescription };
+    writeOrVerifyJson(path.join(root, 'prompt-capacity.json'), preflightLocalBookPrompts(plan, sequence, texts, details));
     console.log(JSON.stringify({ stage: 'plan_ready', pages: plan.pages.length, shots: [...new Set(plan.pages.map(p => p.shot))], locations: plan.locations.length, recurringProps: plan.recurringProps.length }));
-    const makeImage = async (step: string, prompt: string, references: string[], fileName: string) => {
-      if (prompt.length > 24000 || references.length > 4) throw Error('preview_image_input_limit');
+    const makeImage = async (step: string, prompt: string, references: string[], fileName: string, repair = false) => {
+      assertLocalImagePrompt(prompt, references.length, repair);
       const input = { model: 'gpt-image-2', quality: 'low', size: '1024x1536', prompt, refs: references.map(previewImageDigest) };
       const result = await previewCheckpoint({ root, step, input, reserveUsd: 0.5, budgetUsd: config.budgetUsd, produce: async () => {
         permit(references.length ? '/v1/images/edits' : '/v1/images/generations');
@@ -200,15 +204,13 @@ export async function runLocalStoryPreview(configFile: string, live: boolean, ke
       const result = await runPreviewQualityLoop({ context, maxRepairs: 2,
         render: async (attempt, prior, review) => {
           const name = attempt === 0 ? imageName : `page-${number}-repair-${attempt}.png`;
-          const correction = review ? '\nCORRECT THESE VERIFIED DEFECTS WHILE PRESERVING ALL IDENTITY/STATE LOCKS:\n' +
-            review.checks.filter(c => c.verdict === 'defect').map(c => `${c.category}: ${c.observation}. ${c.correction}`).join('\n') : '';
           const comparison = prior ?? priorScene;
           if (comparison && previewImageDigest(path.join(root, comparison.imageName)) !== comparison.imageSha) throw Error('preview_scene_reference_changed');
           const refs = comparison ? [...refPaths, path.join(root, comparison.imageName)] : [...refPaths];
           let prompt = sequencePacket ? sequenceRenderPrompt(basePrompt, sequencePacket, priorScene && !prior ? refs.length : null) : basePrompt;
-          if (prior && refs.length === 3) prompt = prompt.replace('image 3, when attached = recurring PROP design board ONLY.', 'image 3 = failed candidate EDIT TARGET ONLY; no prop board attached.');
-          const roles = prior ? `\nReference image ${refs.length} is the failed candidate to correct, NOT canonical truth. Preserve correct parts; fix diagnosed defects.` : '';
-          const made = await makeImage(`page-${number}-attempt-${attempt}`, prompt + roles + correction, refs, name);
+          if (prior && review) prompt = localRepairPrompt(plan, page.pageNumber, text, details, sequencePacket, refs.length,
+            review.checks.filter(c => c.verdict === 'defect'));
+          const made = await makeImage(`page-${number}-attempt-${attempt}`, prompt, refs, name, Boolean(prior));
           return { imageName: name, imageSha: made.sha };
         },
         judge: (candidate, contextSha, attempt) => judgePreviewCandidate({ root, step: `qa-${number}-attempt-${attempt}`,

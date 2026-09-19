@@ -9,10 +9,12 @@ import { QUALITY_CATEGORIES, PREVIEW_QUALITY_VERSION, PREVIEW_JUDGE_MODEL, PREVI
 import { runLocalStoryPreview } from '../../scripts/run-local-story-preview';
 import { generateGPTImage } from '../generate-image';
 import { judgePreviewCandidate } from '../../scripts/lib/local-preview-judge';
+import { localPlannerCapacity, localRepairPrompt, preflightLocalBookPrompts, assertLocalImagePrompt } from '../local-preview-capacity';
+import { sequencePageState } from '../local-book-sequence';
 
 const provider = vi.hoisted(() => ({ create: vi.fn() }));
 vi.mock('openai', () => ({ default: class { responses = { create: provider.create }; } }));
-vi.mock('../generate-image', () => ({ generateGPTImage: vi.fn() }));
+vi.mock('../generate-image', async importOriginal => ({ ...await importOriginal<typeof import('../generate-image')>(), generateGPTImage: vi.fn() }));
 vi.mock('../../scripts/lib/local-preview-judge', () => ({ judgePreviewCandidate: vi.fn() }));
 
 export function planningFixture(count = 2) {
@@ -99,10 +101,10 @@ afterEach(() => {
   for (const root of testRoots.splice(0)) fs.rmSync(root, { recursive: true, force: true });
 });
 
-async function realEntryFixture() {
+async function realEntryFixture(count = 2) {
   const repo = path.resolve(__dirname, '../..');
   const input = fs.mkdtempSync(path.join(repo, 'outputs', 'whole-book-entry-test-')); testRoots.push(input);
-  const root = path.join(input, 'run'); const { raw, story, draft } = planningFixture();
+  const root = path.join(input, 'run'); const { raw, story, draft } = planningFixture(count);
   const source = path.join(input, 'story.md'); fs.writeFileSync(source, raw);
   // Only source acceptance is stubbed. Compiler, schema, checkpoint, image gate and
   // actual runner are real; no synthetic source is published or called accepted in artifacts.
@@ -131,6 +133,46 @@ async function realEntryFixture() {
 }
 
 describe('actual local preview entry: mandatory whole-book pre-render boundary', () => {
+  it.each([8, 12, 16])('sends and binds scaled capacity for ALL %i pages through the actual provider seam', async count => {
+    const { file, root } = await realEntryFixture(count);
+    await runLocalStoryPreview(file, true);
+    const request = provider.create.mock.calls[0][0];
+    const capacity = localPlannerCapacity(count, { instructions: request.instructions, input: request.input, text: request.text });
+    expect(request.max_output_tokens).toBe(16000 + 1000 * count);
+    expect(request.reasoning).toEqual({ effort: 'medium' });
+    expect(request.model).toBe('gpt-5.4');
+    const identity = JSON.parse(fs.readFileSync(path.join(root, 'identity.json'), 'utf8'));
+    expect(identity.capacity).toEqual(capacity);
+    expect(JSON.parse(fs.readFileSync(path.join(root, 'steps/plan.claim.json'), 'utf8')).reserveUsd).toBe(capacity.reserveUsd);
+    expect(capacity.reserveUsd).toBeGreaterThanOrEqual((capacity.inputTokenUpperBound + request.max_output_tokens) * .00003);
+    expect(JSON.parse(fs.readFileSync(path.join(root, 'prompt-capacity.json'), 'utf8')).rows).toHaveLength(count + 1);
+    expect(generateGPTImage).toHaveBeenCalledTimes(count + 1);
+    await runLocalStoryPreview(file, true);
+    expect(provider.create).toHaveBeenCalledTimes(1);
+  });
+  it('checks the last-page envelope before the first board or image', async () => {
+    const { file, root, draft } = await realEntryFixture(16);
+    const last = draft.plan.pages[16];
+    for (const key of ['composition', 'childAction', 'childExpression', 'childGaze', 'companionAction', 'scene'] as const) last[key] = key.repeat(300).slice(0, 1800);
+    for (let i = 0; i < 8; i++) {
+      const id = `prop_${i}`;
+      draft.plan.recurringProps.push({ id, design: 'D'.repeat(1800) });
+      last.props.push({ id, state: 'intact' });
+      draft.plan.continuity.entities.push({ id, kind: 'prop', invariants: [{ attribute: 'material', value: 'wood' }] });
+      draft.plan.continuity.pages[16].visibleEntityIds.push(id);
+      draft.sequence.initialStates.push({ entityId: id, value: { relation: 'at', targetId: 'room' } });
+    }
+    await expect(runLocalStoryPreview(file, true)).rejects.toThrow('preview_image_input_limit');
+    expect(provider.create).toHaveBeenCalledTimes(1); expect(generateGPTImage).not.toHaveBeenCalled();
+    expect(fs.existsSync(path.join(root, 'steps/prop-board.claim.json'))).toBe(false);
+  });
+  it('retains terminal incomplete details and never rebills that root', async () => {
+    const { file, root } = await realEntryFixture(16);
+    provider.create.mockResolvedValue({ status: 'incomplete', incomplete_details: { reason: 'max_output_tokens' }, output_text: '', usage: { input_tokens: 2000, output_tokens: 32000 } });
+    for (let i = 0; i < 2; i++) await expect(runLocalStoryPreview(file, true)).rejects.toThrow('planner_incomplete_new_run_required');
+    expect(provider.create).toHaveBeenCalledTimes(1); expect(generateGPTImage).not.toHaveBeenCalled();
+    expect(JSON.parse(fs.readFileSync(path.join(root, 'steps/plan.result.json'), 'utf8')).value.incompleteDetails).toEqual({ reason: 'max_output_tokens' });
+  });
   it.each(['missing_last', 'bad_last', 'legacy_plan_only', 'incomplete'])('blocks the FIRST image on %s anywhere in the book, and never repurchases the failed plan', async defect => {
     const { file, root, draft } = await realEntryFixture();
     if (defect === 'missing_last') draft.sequence.pages.pop();
@@ -200,7 +242,8 @@ describe('actual local preview entry: mandatory whole-book pre-render boundary',
     const judgeImpl = vi.mocked(judgePreviewCandidate).getMockImplementation()!;
     vi.mocked(judgePreviewCandidate).mockImplementation(async args => {
       const review = await judgeImpl(args);
-      if (args.step === 'qa-02-attempt-0') Object.assign(review.checks.find(c => c.category === 'scene')!, { verdict: 'defect', correction: 'restore relation' });
+      if (args.step === 'qa-02-attempt-0') review.checks.forEach(c => Object.assign(c,
+        { verdict: 'defect', observation: 'O'.repeat(1800), correction: c.category + 'X'.repeat(1800 - c.category.length) }));
       return review;
     });
     await runLocalStoryPreview(file, true);
@@ -208,6 +251,9 @@ describe('actual local preview entry: mandatory whole-book pre-render boundary',
     expect(calls.map(([a]) => a.referenceImages?.length)).toEqual([2, 2, 3, 3]);
     expect(calls[3][0].referenceImages?.[2]).toBe(path.join(root, 'page-02.png'));
     expect(calls[3][0].finalPrompt).toContain('image 3 = failed candidate EDIT TARGET ONLY');
+    for (const category of QUALITY_CATEGORIES) expect(calls[3][0].finalPrompt).toContain(category + 'X'.repeat(1800 - category.length));
+    expect(calls[3][0].finalPrompt).not.toContain('O'.repeat(1800));
+    expect(calls[3][0].finalPrompt.length).toBeLessThanOrEqual(31000);
     expect(vi.mocked(judgePreviewCandidate).mock.calls[3][0].context).toEqual(vi.mocked(judgePreviewCandidate).mock.calls[2][0].context);
   });
   it('refuses silent reuse of an old plan-only identity before any model dispatch', async () => {
@@ -228,5 +274,49 @@ describe('actual local preview entry: mandatory whole-book pre-render boundary',
     const { file, root, config } = await realEntryFixture(); config.budgetUsd = .5; fs.writeFileSync(file, JSON.stringify(config));
     await expect(runLocalStoryPreview(file, true)).rejects.toThrow('insufficient_preview_budget');
     expect(provider.create).not.toHaveBeenCalled(); expect(generateGPTImage).not.toHaveBeenCalled(); expect(fs.existsSync(root)).toBe(false);
+  });
+});
+
+describe('capacity policy boundaries', () => {
+  it('reserves UTF8 input plus output using the same upper rate, rejecting oversized input', () => {
+    const ascii = localPlannerCapacity(16, 'a'.repeat(100));
+    const hebrew = localPlannerCapacity(16, 'א'.repeat(100));
+    expect(hebrew.inputTokenUpperBound - ascii.inputTokenUpperBound).toBe(100);
+    expect(() => localPlannerCapacity(16, 'x'.repeat(90000))).toThrow('planner_input_capacity');
+    for (const n of [0, 1, 25, 1.5]) expect(() => localPlannerCapacity(n, {})).toThrow('planner_page_count');
+  });
+  it('keeps every effective invariant, frame, acting and sequence field in compact repair', () => {
+    const { draft, story } = planningFixture();
+    draft.plan.recurringProps.push({ id: 'crate', design: 'one blue wooden crate' });
+    draft.plan.continuity.entities.push({ id: 'crate', kind: 'prop', invariants: [{ attribute: 'color', value: 'blue' }, { attribute: 'material', value: 'wood' }] });
+    draft.plan.pages.forEach(p => p.props.push({ id: 'crate', state: p.pageNumber === 2 ? 'painted red' : 'blue' }));
+    draft.plan.continuity.pages.forEach(p => p.visibleEntityIds.push('crate'));
+    draft.plan.continuity.pages[2].changes.push({ entityId: 'crate', attribute: 'color', value: 'red', storyEvidence: 'Beat 2.' });
+    draft.sequence.mutableAttributes.push({ entityId: 'crate', attribute: 'color' });
+    draft.sequence.initialStates.push({ entityId: 'crate', value: { relation: 'at', targetId: 'room' } });
+    const { plan, sequence } = compileWholeBookDraft(draft, story);
+    const packet = { ...sequencePageState(sequence, plan, 2), predecessor: null };
+    const prompt = localRepairPrompt(plan, 2, story.pages[1].text, { childAge: 5, gender: 'boy', companionDescription: 'panda' }, packet, 4,
+      [{ category: 'scene', correction: 'One\r\n\tcomplete correction.' }]);
+    expect(prompt).toContain(JSON.stringify(plan.pages[2])); expect(prompt).toContain(JSON.stringify(packet));
+    expect(prompt).toContain('scene: One complete correction.'); expect(prompt).toContain('image 4 = failed candidate');
+    const effective = JSON.parse(prompt.split('\n').find(line => line.startsWith('CURRENT PAGE AUTHORITY: '))!.slice('CURRENT PAGE AUTHORITY: '.length));
+    expect(effective.continuity.entities[0]).toEqual({ id: 'crate', kind: 'prop', currentState: { color: 'red', material: 'wood' } });
+    expect(plan.continuity!.entities[0].invariants[0].value).toBe('blue'); // original evidence untouched
+    expect(preflightLocalBookPrompts(plan, sequence, [story.title, ...story.pages.map(p => p.text)], { childAge: 5, gender: 'boy', companionDescription: 'panda' }).rows).toHaveLength(3);
+  });
+  it('checks the actual transport prefix and multipart newline expansion, not JS length alone', () => {
+    expect(() => assertLocalImagePrompt('\n'.repeat(17000), 3, true)).toThrow('exceeds the provider character limit');
+    expect(() => assertLocalImagePrompt('x'.repeat(31001), 3, true)).toThrow('preview_image_input_limit');
+  });
+  it('reserves enough room for the maximum permitted predecessor metadata', () => {
+    const { draft, story } = planningFixture(); const { plan, sequence } = compileWholeBookDraft(draft, story);
+    const details = { childAge: 5, gender: 'boy', companionDescription: 'panda' };
+    const packet = { ...sequencePageState(sequence, plan, 2), predecessor: {
+      pageNumber: 24, imageName: 'page-24-repair-2.png', imageSha: 'f'.repeat(64), authority: 'comparison_only_not_canonical' as const } };
+    const checks = QUALITY_CATEGORIES.map(category => ({ category, correction: '界'.repeat(1800) }));
+    const actual = assertLocalImagePrompt(localRepairPrompt(plan, 2, story.pages[1].text, details, packet, 4, checks), 4, true);
+    const reserved = preflightLocalBookPrompts(plan, sequence, [story.title, ...story.pages.map(p => p.text)], details).rows[2];
+    expect(actual.finalPrompt.replace(/\r\n|\r|\n/g, '\r\n').length).toBeLessThan(reserved.maxRepairMultipartCharsWithMargin);
   });
 });

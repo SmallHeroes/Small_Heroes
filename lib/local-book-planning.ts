@@ -3,7 +3,7 @@ import { BOOK_SEQUENCE_VERSION, bookSequenceSchema, validateBookSequence } from 
 import { previewPlanV2Schema, previewSha, validatePreviewPlan, type previewStory } from './local-story-preview';
 import { validatePreviewContinuity } from './local-preview-quality';
 
-export const WHOLE_BOOK_PLANNING_VERSION = 'local-whole-book-planning/v1';
+export const WHOLE_BOOK_PLANNING_VERSION = 'local-whole-book-planning/v2';
 // The model authors facts, never their hashes. Sparse transitions avoid restating
 // every unchanged fact on every page. Expansion is deterministic before any image.
 const sequencePage = bookSequenceSchema.shape.pages.element;
