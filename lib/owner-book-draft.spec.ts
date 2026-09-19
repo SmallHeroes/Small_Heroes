@@ -27,6 +27,12 @@ function fixture() {
     outputDir: 'outputs/test-book', imageBudgetUsd: 10, qaBudgetUsd: 10 };
   return { repo, config };
 }
+function sequenceFixture(plan: ReturnType<typeof loadOwnerDraft>['plan'], sourceSha: string, planSha: string) {
+  return { version: 'local-book-sequence/v1', sourceSha, planSha, premise: 'A child learns to share an adventure', mutableAttributes: [],
+    pages: plan.pages.slice(1).map(p => ({ pageNumber: p.pageNumber, sceneId: 'visit', beat: 'A new child response in the same scene', sceneChangeEvidence: null,
+      visibleCastIds: ['child', 'companion'], transitions: [],
+      states: ['child', 'companion', ...plan.continuity!.entities.map(e => e.id)].map(entityId => ({ entityId, value: { relation: 'at', targetId: p.locationId } })) })) };
+}
 describe('explicit local editorial draft boundary', () => {
   it('binds the optional prop atlas to a supplied board, sample and complete prop inventory', () => {
     const { repo, config } = fixture();
@@ -190,7 +196,7 @@ describe('shared quality before next draft sample page', () => {
     expect(result.results.map(r => r.status)).toEqual(['passed', 'held_repair_limit']);
     expect(result.results[0].history).toHaveLength(2);
     expect(renders.mock.calls[1]).toEqual([1, 1, expect.objectContaining({ imageSha: '1'.repeat(64) }),
-      expect.objectContaining({ candidateSha: '1'.repeat(64) }), expect.any(String)]);
+      expect.objectContaining({ candidateSha: '1'.repeat(64) }), expect.any(String), []]);
   });
   it.each(['uncertain', 'malformed', 'mismatch', 'transport', 'mixed'] as const)('opt-in still cannot repair %s', async failure => {
     const { args } = setup('pass');
@@ -290,7 +296,8 @@ describe('real owner-draft entry point with mocked providers', () => {
       usage: { input_tokens: 100, output_tokens: 100 } }));
     return { file, root };
   }
-  it.each([false, true])('runs five real-entry pages with bounded references/context; atlas=%s', async atlas => {
+  it.each(['legacy', 'atlas', 'sequence'])('runs five real-entry pages with bounded references/context; mode=%s', async mode => {
+    const atlas = mode !== 'legacy';
     const { file, root } = await inputs();
     const repo = path.resolve(__dirname, '..'), config = JSON.parse(fs.readFileSync(file, 'utf8'));
     const storyFile = path.resolve(repo, config.story.file), planFile = path.resolve(repo, config.plan.file);
@@ -308,6 +315,11 @@ describe('real owner-draft entry point with mocked providers', () => {
     const planBytes = JSON.stringify(plan);
     fs.writeFileSync(storyFile, story); fs.writeFileSync(planFile, planBytes);
     config.story.sha = previewSha(story); config.plan.sha = previewSha(planBytes);
+    if (mode === 'sequence') {
+      const sequence = JSON.stringify(sequenceFixture(plan, config.story.sha, config.plan.sha));
+      const target = path.join(path.dirname(file), 'sequence.json'); fs.writeFileSync(target, sequence);
+      config.sequence = { file: path.relative(repo, target), sha: previewSha(sequence) };
+    }
     config.samplePages = [1, 2, 3, 4, 5]; config.propBoard = config.childAnchor;
     expect(() => loadOwnerDraft(repo, { ...config, imageBudgetUsd: 2.49 })).toThrow('draft_initial_reservation_limit');
     expect(loadOwnerDraft(repo, { ...config, imageBudgetUsd: 2.5 }).config.samplePages).toHaveLength(5);
@@ -326,8 +338,80 @@ describe('real owner-draft entry point with mocked providers', () => {
     });
     const result = await runOwnerBookDraft(file, 'sample');
     expect(result?.results).toHaveLength(5); expect(generateGPTImage).toHaveBeenCalledTimes(5);
-    expect(JSON.parse(fs.readFileSync(path.join(root, 'identity.json'), 'utf8')).samplePolicy).toBe(atlas
+    if (mode === 'sequence') {
+      vi.mocked(generateGPTImage).mock.calls.forEach(([args], i) => {
+        expect(args.referenceImages).toHaveLength(i ? 4 : 3);
+        if (i) expect(args.referenceImages?.[3]).toBe(path.join(root, `page-0${i}.png`));
+        const request = JSON.parse(fs.readFileSync(path.join(root, `page-0${i + 1}.request.json`), 'utf8'));
+        expect((vi.mocked(judgePreviewCandidate).mock.calls[i][0].context as { sequence: unknown }).sequence).toEqual(request.sequence);
+        expect(args.finalPrompt).toContain(JSON.stringify(request.sequence));
+      });
+    }
+    expect(JSON.parse(fs.readFileSync(path.join(root, 'identity.json'), 'utf8')).samplePolicy).toBe(mode === 'sequence'
+      ? 'shared-quality-before-next-page/v6-book-sequence' : atlas
       ? 'shared-quality-before-next-page/v5-selected-props-and-state' : 'shared-quality-before-next-page/v4-five-page-window');
+  });
+  async function addSequence(file: string, cut = false) {
+    const repo = path.resolve(__dirname, '..'), config = JSON.parse(fs.readFileSync(file, 'utf8'));
+    const plan = JSON.parse(fs.readFileSync(path.resolve(repo, config.plan.file), 'utf8'));
+    const seq = sequenceFixture(plan, config.story.sha, config.plan.sha);
+    if (cut) Object.assign(seq.pages[1], { sceneId: 'next_visit', sceneChangeEvidence: 'Second.' });
+    const target = path.join(path.dirname(file), 'sequence.json'), bytes = JSON.stringify(seq); fs.writeFileSync(target, bytes);
+    config.sequence = { file: path.relative(repo, target), sha: previewSha(bytes) }; fs.writeFileSync(file, JSON.stringify(config));
+    return { config, seq, target, repo };
+  }
+  it('does not carry prior pixels across a source-evidenced scene visit cut', async () => {
+    const { file } = await inputs(); await addSequence(file, true);
+    vi.mocked(judgePreviewCandidate).mockImplementation(async args => {
+      // No prop atlas exists in this fixture. Sequence mode must still avoid full future-plan context.
+      expect(args.context).toHaveProperty('selectedPlan.scope', 'current_page_effective_state_only');
+      expect(args.context).not.toHaveProperty('plan');
+      return { candidateSha: args.candidateSha, contextSha: args.contextSha,
+        checks: QUALITY_CATEGORIES.map(category => ({ category, verdict: 'pass', observation: 'observed', correction: '' })) };
+    });
+    expect((await runOwnerBookDraft(file, 'sample'))?.results).toHaveLength(2);
+    expect(vi.mocked(generateGPTImage).mock.calls.map(([a]) => a.referenceImages?.length)).toEqual([2, 2]);
+  });
+  it('stops a tampered predecessor before the next provider dispatch', async () => {
+    const { file, root } = await inputs(); await addSequence(file);
+    vi.mocked(judgePreviewCandidate).mockImplementation(async args => {
+      const review = { candidateSha: args.candidateSha, contextSha: args.contextSha,
+        checks: QUALITY_CATEGORIES.map(category => ({ category, verdict: 'pass' as const, observation: 'observed', correction: '' })) };
+      fs.writeFileSync(args.candidatePath, await sharp({ create: { width: 16, height: 16, channels: 3, background: 'red' } }).png().toBuffer()); return review;
+    });
+    const result = await runOwnerBookDraft(file, 'sample');
+    expect(result?.results[1]).toMatchObject({ status: 'held_error', error: 'draft_scene_reference_changed' });
+    expect(generateGPTImage).toHaveBeenCalledTimes(1); expect(judgePreviewCandidate).toHaveBeenCalledTimes(1);
+    expect(fs.existsSync(path.join(root, 'page-02.png'))).toBe(false);
+  });
+  it('rejects sequence drift before reading a credential or binding an output run', async () => {
+    const { file, root } = await inputs(); const { config, seq, target } = await addSequence(file);
+    seq.pages[1].states[0].value.targetId = 'companion'; const bytes = JSON.stringify(seq);
+    fs.writeFileSync(target, bytes); config.sequence.sha = previewSha(bytes); fs.writeFileSync(file, JSON.stringify(config));
+    vi.stubEnv('OPENAI_API_KEY', '');
+    await expect(runOwnerBookDraft(file, 'sample', 'credential-must-not-be-opened')).rejects.toThrow('unexplained_change');
+    expect(generateGPTImage).not.toHaveBeenCalled(); expect(judgePreviewCandidate).not.toHaveBeenCalled(); expect(fs.existsSync(root)).toBe(false);
+  });
+  it('keeps same sequence packet during repair without exceeding the four-reference transport cap', async () => {
+    const { file, root } = await inputs(); const { config } = await addSequence(file);
+    config.sampleRepairOnce = true; fs.writeFileSync(file, JSON.stringify(config));
+    const originalImpl = vi.mocked(generateGPTImage).getMockImplementation()!;
+    vi.mocked(generateGPTImage).mockImplementation(async args => {
+      const out = await originalImpl(args);
+      if (args.finalPrompt.includes('TARGETED CORRECTIVE EDIT')) return { ...out, buffer: await sharp({ create: { width: 16, height: 16, channels: 3, background: 'red' } }).png().toBuffer() };
+      return out;
+    });
+    vi.mocked(judgePreviewCandidate).mockImplementation(async args => ({ candidateSha: args.candidateSha, contextSha: args.contextSha,
+      checks: QUALITY_CATEGORIES.map(category => ({ category, verdict: args.step === 'qa-02' && category === 'scene' ? 'defect' : 'pass', observation: 'scene', correction: category === 'scene' ? 'restore position' : '' })) }));
+    const result = await runOwnerBookDraft(file, 'sample'); expect(result?.status).toBe('sample_diagnostically_passed_not_accepted');
+    expect(vi.mocked(generateGPTImage).mock.calls.map(([a]) => a.referenceImages?.length)).toEqual([2, 3, 3]);
+    const first = JSON.parse(fs.readFileSync(path.join(root, 'page-02.request.json'), 'utf8'));
+    const repaired = JSON.parse(fs.readFileSync(path.join(root, 'page-02-repair-01.request.json'), 'utf8'));
+    expect(repaired.sequence).toEqual(first.sequence);
+    expect(vi.mocked(generateGPTImage).mock.calls[2][0].referenceImages?.[2]).toBe(path.join(root, 'page-02.png'));
+    expect(repaired.prompt).not.toContain('image 3 = prior same-scene');
+    const before = vi.mocked(generateGPTImage).mock.calls.length;
+    await runOwnerBookDraft(file, 'sample'); expect(generateGPTImage).toHaveBeenCalledTimes(before);
   });
   it('imports without generation, repairs to a new file, checkpoints both attempts and carries repaired prior context', async () => {
     const { file, root } = await inputs();

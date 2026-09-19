@@ -6,6 +6,7 @@ import { parse as parseEnv } from 'dotenv';
 import { bindPreviewRun, previewCheckpoint, previewImageDigest, previewPagePrompt, previewSha, previewStory, validatePreviewPlan, writePreviewJson } from '../lib/local-story-preview';
 import { PREVIEW_QUALITY_VERSION, PREVIEW_JUDGE_MODEL, PREVIEW_JUDGE_EFFORT, previewContinuityContext, qualityDisposition, validatePreviewContinuity, runPreviewQualityLoop, type QualityCandidate, type PreviewQualityReview } from '../lib/local-preview-quality';
 import { STYLE_01_FRAMING_RULE } from '../lib/style01-gptimage';
+import { validateBookSequence, validateSequenceSelection, sequencePagePacket, sequenceRenderPrompt } from '../lib/local-book-sequence';
 
 // Separate, explicit editorial artifact authority. Never an order/release/package path.
 export const DRAFT_VERSION = 'owner-book-draft/v1';
@@ -15,6 +16,7 @@ export const ownerDraftSchema = z.object({
   intent: z.literal('owner_requested_unaccepted_draft'),
   story: asset, plan: asset, childAnchor: asset, companionAnchor: asset,
   propBoard: asset.optional(),
+  sequence: asset.optional(),
   // Optional reviewed atlas coordinates in the exact supplied board's pixels.
   // Projection hides unselected prop designs; never invents replacement pixels.
   propBoardRegions: z.record(z.object({ left: z.number().int().min(0).max(8192), top: z.number().int().min(0).max(8192),
@@ -57,6 +59,13 @@ export function loadOwnerDraft(repo: string, raw: unknown) {
   if (config.propBoardRegions && (!config.samplePages || !config.propBoard ||
     JSON.stringify(Object.keys(config.propBoardRegions).sort()) !== JSON.stringify(plan.recurringProps.map(p => p.id).sort()))) throw Error('draft_prop_regions_binding');
   plan.continuity = validatePreviewContinuity(plan.continuity, plan, [story.title, ...story.pages.map(p => p.text)]);
+  const sequence = config.sequence ? validateBookSequence(JSON.parse(read(config.sequence).bytes.toString('utf8')), {
+    sourceSha: config.story.sha, planSha: config.plan.sha, plan, texts: [story.title, ...story.pages.map(p => p.text)],
+  }) : null;
+  if (sequence) {
+    if (!config.samplePages || (plan.recurringProps.length && !config.propBoardRegions)) throw Error('draft_sequence_sample_projection_required');
+    validateSequenceSelection(sequence, config.samplePages);
+  }
   if (config.samplePages && (new Set(config.samplePages).size !== config.samplePages.length ||
     config.samplePages.some((p, i, list) => p >= plan.pages.length || (i > 0 && p <= list[i - 1])))) throw Error('draft_sample_selection');
   // Only sample mode deducts a supplied board; keep the legacy upfront fence unchanged.
@@ -67,7 +76,7 @@ export function loadOwnerDraft(repo: string, raw: unknown) {
   const refs = [read(config.childAnchor), read(config.companionAnchor)];
   const root = draftOutputRoot(repo, config.outputDir);
   const propBoard = config.propBoard ? read(config.propBoard) : undefined;
-  return { config, story, plan, refs, root, propBoard, initialImages };
+  return { config, story, plan, refs, root, propBoard, initialImages, sequence };
 }
 
 export function draftManifest(story: ReturnType<typeof previewStory>, planSha: string, pages: unknown[]) {
@@ -150,7 +159,7 @@ export function selectedDraftQaContext(plan: ReturnType<typeof validatePreviewPl
 export async function runGatedDraftPages(args: {
   pages: number[]; context: (page: number, prior: SamplePageResult[]) => unknown;
   maxTotalRepairs?: 0 | 1;
-  render: (page: number, attempt: number, prior: QualityCandidate | null, review: PreviewQualityReview | null, contextSha: string) => Promise<QualityCandidate>;
+  render: (page: number, attempt: number, prior: QualityCandidate | null, review: PreviewQualityReview | null, contextSha: string, completed: readonly SamplePageResult[]) => Promise<QualityCandidate>;
   judge: (page: number, candidate: QualityCandidate, context: unknown, contextSha: string, prior: SamplePageResult[], attempt: number) => Promise<unknown>;
   persist: (result: SamplePageResult) => void;
 }) {
@@ -168,7 +177,7 @@ export async function runGatedDraftPages(args: {
       const result = await runPreviewQualityLoop({ context, maxRepairs: limit - repairsUsed,
         render: async (attempt, prior, review) => {
           if (attempt > 0 && ++repairsUsed > limit) throw Error('draft_sample_repair_limit');
-          return (candidate = await args.render(pageNumber, attempt, prior, review, contextSha));
+          return (candidate = await args.render(pageNumber, attempt, prior, review, contextSha, structuredClone(results)));
         },
         judge: (made, sha, attempt) => args.judge(pageNumber, made, context, sha, results, attempt),
       });
@@ -188,7 +197,7 @@ export async function runGatedDraftPages(args: {
 
 export async function runOwnerBookDraft(configFile: string, mode: 'preflight' | 'render' | 'qa' | 'sample', keyFile?: string, throughPage?: number) {
   const repo = path.resolve(__dirname, '..');
-  const { config, story, plan, refs, root, propBoard, initialImages } = loadOwnerDraft(repo, JSON.parse(fs.readFileSync(configFile, 'utf8')));
+  const { config, story, plan, refs, root, propBoard, initialImages, sequence } = loadOwnerDraft(repo, JSON.parse(fs.readFileSync(configFile, 'utf8')));
   if ((mode === 'sample' && (!config.samplePages || throughPage !== undefined)) ||
     (config.samplePages && mode !== 'preflight' && mode !== 'sample')) throw Error('draft_sample_mode_required');
   if (throughPage !== undefined && (!Number.isInteger(throughPage) || throughPage < 0 || throughPage >= plan.pages.length)) throw Error('draft_page_limit');
@@ -200,7 +209,8 @@ export async function runOwnerBookDraft(configFile: string, mode: 'preflight' | 
   const identity = { version: DRAFT_VERSION, config, refs: normalized.map(r => ({ file: r.file, sourceSha: r.sha, transportSha: previewSha(r.bytes) })),
     imageModel: 'gpt-image-2', quality: 'low', size: '1024x1536', qualityVersion: PREVIEW_QUALITY_VERSION,
     judgeModel: PREVIEW_JUDGE_MODEL, judgeEffort: PREVIEW_JUDGE_EFFORT, productionReady: false, automaticRepair: Boolean(config.sampleRepairOnce),
-    ...(config.samplePages ? { samplePolicy: projected ? 'shared-quality-before-next-page/v5-selected-props-and-state'
+    ...(config.samplePages ? { samplePolicy: sequence ? 'shared-quality-before-next-page/v6-book-sequence'
+      : projected ? 'shared-quality-before-next-page/v5-selected-props-and-state'
       : config.samplePages.length > 3 ? 'shared-quality-before-next-page/v4-five-page-window'
       : config.sampleRepairOnce ? 'shared-quality-before-next-page/v3-repair-once' : 'shared-quality-before-next-page/v2' } : {}) };
   if (mode === 'preflight') { console.log(JSON.stringify({ status: 'offline_preflight_ok', pages: plan.pages.length, sourceSha: story.sourceSha, planSha: config.plan.sha, providerCalls: 0 })); return; }
@@ -226,8 +236,8 @@ export async function runOwnerBookDraft(configFile: string, mode: 'preflight' | 
       return file;
     });
     const makeImage = async (step: string, prompt: string, references: string[], fileName: string) => {
-      if (prompt.length > 24000 || references.length > (config.sampleRepairOnce ? 4 : 3)) throw Error('draft_image_input_limit');
-      if (config.sampleRepairOnce && references.length > (await import('../lib/generate-image')).resolveGPTImageEditMaxReferences()) throw Error('draft_reference_cap');
+      if (prompt.length > 24000 || references.length > (config.sampleRepairOnce || sequence ? 4 : 3)) throw Error('draft_image_input_limit');
+      if ((config.sampleRepairOnce || sequence) && references.length > (await import('../lib/generate-image')).resolveGPTImageEditMaxReferences()) throw Error('draft_reference_cap');
       const result = await previewCheckpoint({ root, step, input: { version: DRAFT_VERSION, model: 'gpt-image-2', quality: 'low', size: '1024x1536', prompt, refs: references.map(previewImageDigest) },
         reserveUsd: 0.5, budgetUsd: config.imageBudgetUsd, produce: async () => {
           const { generateGPTImage } = await import('../lib/generate-image');
@@ -273,10 +283,11 @@ export async function runOwnerBookDraft(configFile: string, mode: 'preflight' | 
       bindPreviewRun(qaRoot, identity);
       const { judgePreviewCandidate } = await import('./lib/local-preview-judge');
       const report = await runGatedDraftPages({ pages: config.samplePages!, maxTotalRepairs: config.sampleRepairOnce ? 1 : 0,
-        context: (pageNumber, prior) => ({ ...(projected ? { selectedPlan: selectedDraftQaContext(plan, pageNumber) } : { plan }),
+        context: (pageNumber, prior) => ({ ...((projected || sequence) ? { selectedPlan: selectedDraftQaContext(plan, pageNumber) } : { plan }),
+          ...(sequence ? { sequence: sequencePagePacket(sequence, plan, pageNumber, prior) } : {}),
           pageNumber, text: pageNumber === 0 ? story.title : story.pages[pageNumber - 1].text,
           priorPages: sampleComparisonPages(prior).map(p => draftPageRow(story, p.pageNumber, p.candidate!)), calibrationStatus: 'not_established', purpose: 'diagnostic_only' }),
-        render: async (pageNumber, attempt, prior, review, contextSha) => {
+        render: async (pageNumber, attempt, prior, review, contextSha, completed) => {
           const text = pageNumber === 0 ? story.title : story.pages[pageNumber - 1].text;
           const step = `page-${String(pageNumber).padStart(2, '0')}${attempt ? '-repair-01' : ''}`;
           const imageName = `${step}.png`;
@@ -288,14 +299,24 @@ export async function runOwnerBookDraft(configFile: string, mode: 'preflight' | 
             save(path.join(root, `${step}.import.json`), { file: initial.file, sha: initial.sha, pageNumber, authority: 'unassessed_candidate_only', sourceSha: story.sourceSha, planSha: config.plan.sha });
             return { imageName, imageSha: initial.sha };
           }
-          const base = ownerDraftPagePrompt(plan, pageNumber, text, config.childAge, config.gender, config.companionDescription);
+          let base = ownerDraftPagePrompt(plan, pageNumber, text, config.childAge, config.gender, config.companionDescription);
           const references = [...pageRefs.get(pageNumber)!];
+          const sequencePacket = sequence ? sequencePagePacket(sequence, plan, pageNumber, completed) : null;
+          if (sequencePacket) {
+            const predecessor = sequencePacket.predecessor;
+            if (predecessor && (!/^page-\d{2}(?:-repair-01)?\.png$/.test(predecessor.imageName) ||
+              previewImageDigest(path.join(root, predecessor.imageName)) !== predecessor.imageSha)) throw Error('draft_scene_reference_changed');
+            // Repairs use their own edit target instead of a fifth reference. State remains identical.
+            if (predecessor && !attempt) references.push(path.join(root, predecessor.imageName));
+            base = sequenceRenderPrompt(base, sequencePacket, predecessor && !attempt ? references.length : null);
+          }
           if (attempt) {
             if (!prior || !review || !/^page-\d{2}\.png$/.test(prior.imageName) || previewImageDigest(path.join(root, prior.imageName)) !== prior.imageSha) throw Error('draft_repair_candidate_binding');
             references.push(path.join(root, prior.imageName));
           }
           const prompt = attempt ? ownerDraftRepairPrompt(base, prior!, review, contextSha, references.length) : base;
           save(path.join(root, `${step}.request.json`), { prompt, sourceSha: story.sourceSha, planSha: config.plan.sha, references: references.map(previewImageDigest),
+            ...(sequencePacket ? { sequence: sequencePacket } : {}),
             ...(attempt ? { repairOf: prior, reviewSha: previewSha(JSON.stringify(review)), contextSha } : {}) });
           const made = await makeImage(step, prompt, references, imageName);
           return { imageName, imageSha: made.sha };

@@ -1,5 +1,49 @@
 # SmallHeroes — Current Technical State
 
+## Book-wide sequence recovery implemented locally; visual proof pending — 2026-09-19
+
+Guy requests diagnosis and a systemic fix after the station occupants moved without
+story support. Same task/sole writer, semantic-m1, base4ee9afc1 clean/ahead8;
+protected d53b768ccb2f and accepted-intent63ccb484 remain clean/read-only. No push.
+Whole-book planning already existed. Verified gaps were downstream: no inherited
+typed physical relations, and prior pages reached QA but not initial generation.
+Selected prop images alone did not prevent the new extra-box/cast-relocation defect.
+
+New optional local-book-sequence/v1 sidecar validates every body page before key
+access: identity bindings, complete persistent entity state (including offscreen),
+scene visits, source-excerpt-linked changes, and appearance-change opt-ins. One
+effective packet reaches generation and QA. Adjacent same-scene passed pixels are
+an additional comparison reference, never canonical authority; stale/held/missing
+predecessors reject. Scene cuts do not inherit prior pixels. Repair uses its own
+edit target within the unchanged four-reference cap. Current-page QA projection
+also applies without a prop atlas. Legacy identities remain unchanged without opt-in.
+
+Implemented consumer: run-owner-book-draft.ts --sample only, new policyv6. Other
+local-preview and production paths are NOT migrated or newly qualified. The canonical
+Panda candidate remains HELD; source, old images and original verdicts are untouched.
+Exact source quotes are byte evidence, not proof of semantic entailment. A single
+principal relation is not a complete contact/3D model. No claim of reliable visual
+QA, resolved anatomy, product acceptance, or completion of the five-page request.
+
+Focused177/177 (29+72+28+16+32), tsc0, real Panda preparation/preflight0. All12
+pages modeled offline; deliberate unexplained driver relocation rejected. Read-only
+witness verifies56 historical snapshot files incl15 source/canonical files, plus
+three second-reader hashes and both page-image hashes. All12 prompt size probes fit24000 chars (max22296);
+synthetic reviews used for size probes are NOT pixel evidence or authority.
+Final fullcheck0: both typechecks0; ordinary5771pass/73skip (390files,144095ms),
+resource671pass (22files,214662ms); total6442pass/0fail/73skip. Serial phases,
+no overlapping test runs or changed timeouts. Observed green, not permanent
+stability or independent PASS. Exact log hashes and commands in QA_HANDOFF.md.
+
+New local ignored roots: outputs/panda-book-sequence-input-20260919 (3 files;
+sequence28541088...) and outputs/panda-book-sequence-validation-20260919 (check logs).
+No verified off-machine backup; Git push does not preserve them. Proposed live root
+outputs/panda-book-sequence-unexecuted-20260919 does NOT exist. Cost$0, no provider
+calls or new key access. Old unknown QA reservation$1 remains unresolved; the offline
+config does not renew aggregate spend authority. Diagnosis, preparation and QA brief:
+story-pipeline/06_editorial_refresh/2026-09-16/book-proof/sequence-recovery/.
+Next: independent code/data review, then bounded same-scene pair before pages3-5.
+
 ## Five-page request NOT completed: paid sample held after page2 — 2026-09-19
 
 Executed follow-up atc3aadde0 using the explicitly authorized existing key through
@@ -13,9 +57,9 @@ Window topology is visually corrected in the new page1; selected atlas/context
 does not guarantee scene compliance. Page2 still invents a box and relocates cast;
 this time the shared judge catches both. Causal limitation: selection alone did
 not eliminate hallucinated props. Earlier false PASS remains preserved.
-Code observation: prior passed pages are comparison references for QA, NOT inputs
+At the end of this paid run: prior passed pages were comparison references for QA, NOT inputs
 to first-attempt next-page generation. General continuity conditioning is the
-next engineering hypothesis, not an implemented or empirically proven solution.
+next engineering hypothesis at this historical boundary, not then implemented or proven.
 
 New run2images/4QA; oldrun4images/6QAclaims (5known/1unknown). Aggregate known
 usage estimate$0.5926585 at current official rates, plus unresolved $1 reservation.

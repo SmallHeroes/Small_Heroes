@@ -1,5 +1,14 @@
 # SmallHeroes — Roadmap
 
+## Latest owner priority: coherent book sequence — 2026-09-19
+
+Following the held Panda five-page attempt, diagnose and preserve the whole book's
+world/situation rather than retry isolated prompts. Local owner-sample sequence
+state and same-scene generation conditioning are implemented; independent review
+and a controlled visual pair remain pending. Five consecutive pages are not complete.
+This does not replace canonical spatial-contract authority or close Panda HOLDs.
+No new renders/spend in this correction. See CURRENT and sequence-recovery/DIAGNOSIS.md.
+
 ## Owner sequencing update — 2026-09-13
 
 Latest 2026-09-14: Claude accepted the fixture fix through3073b5ca with
