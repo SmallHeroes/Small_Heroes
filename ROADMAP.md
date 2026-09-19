@@ -2,6 +2,12 @@
 
 ## Latest owner priority: coherent book sequence — 2026-09-19
 
+Latest: joint whole-book plan+physical sequence is mandatory in automatic local
+preview planning before any image; tests preserve8/12/16-page composition and acting
+choices. Refreshed18-story input coverage is verified, not18 generated storyboards.
+Production must consume reviewed revision-bound plans through its existing frozen
+contract/Blueprint authority; no local-data shortcut or runtime migration is claimed.
+
 Following the held Panda five-page attempt, diagnose and preserve the whole book's
 world/situation rather than retry isolated prompts. Local owner-sample sequence
 state and same-scene generation conditioning are implemented; independent review

@@ -3,8 +3,8 @@ import path from 'node:path';
 import sharp from 'sharp';
 import { z } from 'zod';
 import { parse as parseEnv } from 'dotenv';
-import { bindPreviewRun, previewCheckpoint, previewImageDigest, previewPagePrompt, previewSha, previewStory, validatePreviewPlan, writePreviewJson } from '../lib/local-story-preview';
-import { PREVIEW_QUALITY_VERSION, PREVIEW_JUDGE_MODEL, PREVIEW_JUDGE_EFFORT, previewContinuityContext, qualityDisposition, validatePreviewContinuity, runPreviewQualityLoop, type QualityCandidate, type PreviewQualityReview } from '../lib/local-preview-quality';
+import { bindPreviewRun, previewCheckpoint, previewImageDigest, previewPagePrompt, previewSha, previewStory, validatePreviewPlan, writePreviewJson, selectedDraftQaContext } from '../lib/local-story-preview';
+import { PREVIEW_QUALITY_VERSION, PREVIEW_JUDGE_MODEL, PREVIEW_JUDGE_EFFORT, qualityDisposition, validatePreviewContinuity, runPreviewQualityLoop, type QualityCandidate, type PreviewQualityReview } from '../lib/local-preview-quality';
 import { STYLE_01_FRAMING_RULE } from '../lib/style01-gptimage';
 import { validateBookSequence, validateSequenceSelection, sequencePagePacket, sequenceRenderPrompt } from '../lib/local-book-sequence';
 
@@ -147,13 +147,7 @@ export async function projectDraftPropReferences(bytes: Buffer, regions: NonNull
   return output;
 }
 
-export function selectedDraftQaContext(plan: ReturnType<typeof validatePreviewPlan>, pageNumber: number) {
-  const page = plan.pages[pageNumber];
-  const continuity = previewContinuityContext(plan.continuity!, pageNumber);
-  return { scope: 'current_page_effective_state_only', wardrobe: plan.wardrobe, visualLanguage: plan.visualLanguage,
-    page, recurringProps: plan.recurringProps.filter(p => page.props.some(active => active.id === p.id)),
-    locations: plan.locations.filter(l => continuity.page.visibleLocationIds.includes(l.id)), continuity };
-}
+export { selectedDraftQaContext } from '../lib/local-story-preview';
 
 // Existing shared quality loop is the only verdict authority. Repair is opt-in and run-wide bounded.
 export async function runGatedDraftPages(args: {

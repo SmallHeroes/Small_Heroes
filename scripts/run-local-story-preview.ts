@@ -9,10 +9,11 @@ import { parse as parseEnv } from 'dotenv';
 import { generateGPTImage } from '../lib/generate-image';
 import {
   PREVIEW_VERSION, bindPreviewRun, previewCheckpoint, previewImageDigest,
-  previewPagePrompt, previewPlanV2Schema, previewSha, previewStory,
-  validatePreviewPlan, writePreviewJson,
+  previewPagePrompt, previewSha, previewStory, selectedDraftQaContext, writePreviewJson,
 } from '../lib/local-story-preview';
-import { PREVIEW_QUALITY_VERSION, validatePreviewContinuity, runPreviewQualityLoop, validateQualityCalibration } from '../lib/local-preview-quality';
+import { PREVIEW_QUALITY_VERSION, runPreviewQualityLoop, validateQualityCalibration } from '../lib/local-preview-quality';
+import { WHOLE_BOOK_PLANNING_VERSION, WHOLE_BOOK_PLANNING_INSTRUCTION, wholeBookDraftSchema, wholeBookPlanningInput, compileWholeBookDraft } from '../lib/local-book-planning';
+import { sequencePagePacket, sequenceRenderPrompt, type ReviewedSequencePage } from '../lib/local-book-sequence';
 import { judgePreviewCandidate } from './lib/local-preview-judge';
 import { narratePreviewPage } from './lib/local-preview-narration';
 
@@ -88,7 +89,7 @@ export async function runLocalStoryPreview(configFile: string, live: boolean, ke
     const normalized = await sharp(bytes).resize({ width: 1024, height: 1024, fit: 'inside', withoutEnlargement: true }).png().toBuffer();
     return { path: absolute, sourceSha: previewSha(bytes), sha: previewSha(normalized), normalized };
   }));
-  const identity = { version: PREVIEW_VERSION, qualityVersion: PREVIEW_QUALITY_VERSION, calibrationSha: previewSha(calibration), config, acceptedRevision: accepted.revisionDigest,
+  const identity = { version: PREVIEW_VERSION, planningVersion: WHOLE_BOOK_PLANNING_VERSION, qualityVersion: PREVIEW_QUALITY_VERSION, calibrationSha: previewSha(calibration), config, acceptedRevision: accepted.revisionDigest,
     sourceSha: story.sourceSha, refs: refs.map(({ normalized: _, ...ref }) => ref),
     imageModel: 'gpt-image-2', plannerModel: 'gpt-5.4', quality: 'low',
     authority: 'local_unaccepted_creative_preview_only', independentQa: 'pending',
@@ -124,22 +125,25 @@ export async function runLocalStoryPreview(configFile: string, live: boolean, ke
       return file;
     });
     const client = new OpenAI({ apiKey: key, maxRetries: 0, timeout: 600_000 });
-    const instruction = PLANNER_INSTRUCTION + '\n' + CONTINUITY_INSTRUCTION;
-    const planInput = { instruction, story, age: config.childAge, gender: config.gender, companionDescription: config.companionDescription };
+    const instruction = PLANNER_INSTRUCTION + '\n' + CONTINUITY_INSTRUCTION + '\n' + WHOLE_BOOK_PLANNING_INSTRUCTION;
+    const bookInput = wholeBookPlanningInput(story, config.childAge, config.gender, config.companionDescription);
+    const planInput = { instruction, ...bookInput };
     const planRecord = await previewCheckpoint({ root, step: 'plan', input: planInput, reserveUsd: 1, budgetUsd: config.budgetUsd, produce: async () => {
       permit('/v1/responses');
       const response = await client.responses.create({ model: 'gpt-5.4', store: false,
         reasoning: { effort: 'medium' }, max_output_tokens: 14000,
         instructions: instruction,
-        input: JSON.stringify({ story, childAge: config.childAge, gender: config.gender, companionDescription: config.companionDescription }),
-        text: { format: zodTextFormat(previewPlanV2Schema, 'local_book_visual_plan') },
+        input: JSON.stringify(bookInput),
+        text: { format: zodTextFormat(wholeBookDraftSchema, 'local_complete_book_visual_plan') },
       });
       // Save the returned response even if subsequent semantic validation rejects it.
       return { value: { status: response.status, outputText: response.output_text }, usage: response.usage as unknown as Record<string, unknown> };
     } });
     if (planRecord.value.status !== 'completed') throw Error('planner_incomplete');
-    const plan = validatePreviewPlan(JSON.parse(planRecord.value.outputText), story.pages.length);
-    plan.continuity = validatePreviewContinuity(plan.continuity, plan, [story.title, ...story.pages.map(p => p.text)]);
+    // ALL pages must reconcile before the first board, cover or page image call.
+    const { plan, sequence } = compileWholeBookDraft(JSON.parse(planRecord.value.outputText), story);
+    writeOrVerifyJson(path.join(root, 'whole-book-plan.json'), plan);
+    writeOrVerifyJson(path.join(root, 'book-sequence.json'), sequence);
     console.log(JSON.stringify({ stage: 'plan_ready', pages: plan.pages.length, shots: [...new Set(plan.pages.map(p => p.shot))], locations: plan.locations.length, recurringProps: plan.recurringProps.length }));
     const makeImage = async (step: string, prompt: string, references: string[], fileName: string) => {
       if (prompt.length > 24000 || references.length > 4) throw Error('preview_image_input_limit');
@@ -173,10 +177,15 @@ export async function runLocalStoryPreview(configFile: string, live: boolean, ke
     }
     const pages: { pageNumber: number; imageName: string; imageSha: string; text: string; automatedPassed: boolean; reason: string; score: null;
       audio?: { fileName: string; sha: string; textSha: string } }[] = [];
+    const completed: ReviewedSequencePage[] = [];
     for (const page of plan.pages) {
       const text = page.pageNumber === 0 ? story.title : story.pages[page.pageNumber - 1].text;
       const imageName = `page-${String(page.pageNumber).padStart(2, '0')}.png`;
-      const prompt = previewPagePrompt(plan, page.pageNumber, text, config.childAge, config.gender, config.companionDescription);
+      const sequencePacket = page.pageNumber > 0 ? sequencePagePacket(sequence, plan, page.pageNumber, completed) : null;
+      const priorScene = sequencePacket?.predecessor;
+      if (priorScene && (!/^page-\d{2}(?:-repair-[12])?\.png$/.test(priorScene.imageName) ||
+        previewImageDigest(path.join(root, priorScene.imageName)) !== priorScene.imageSha)) throw Error('preview_scene_reference_changed');
+      const basePrompt = previewPagePrompt(plan, page.pageNumber, text, config.childAge, config.gender, config.companionDescription);
       const number = String(page.pageNumber).padStart(2, '0');
       // Book context is bound to exact prior bytes. Failed pages never become references.
       const relevant = pages.filter(p => p.pageNumber > 0 &&
@@ -184,7 +193,8 @@ export async function runLocalStoryPreview(configFile: string, live: boolean, ke
           plan.continuity!.pages[page.pageNumber].visibleLocationIds.includes(id)) ||
           plan.continuity!.pages[p.pageNumber].visibleEntityIds.some(id => plan.continuity!.pages[page.pageNumber].visibleEntityIds.includes(id))));
       const selected = relevant.length > 3 ? [relevant[0], ...relevant.slice(-2)] : relevant;
-      const context = { plan, pageNumber: page.pageNumber, text, priorPages: selected };
+      const context = { selectedPlan: selectedDraftQaContext(plan, page.pageNumber), bookPremise: sequence.premise,
+        ...(sequencePacket ? { sequence: sequencePacket } : {}), pageNumber: page.pageNumber, text, priorPages: selected };
       const references = refPaths.map((file, i) => ({ file, sha: previewImageDigest(file), role: ['child identity', 'companion identity', 'prop design'][i] }));
       references.push(...selected.map(p => ({ file: path.join(root, p.imageName), sha: p.imageSha, role: `previous reviewed page ${p.pageNumber}, not a new canonical design` })));
       const result = await runPreviewQualityLoop({ context, maxRepairs: 2,
@@ -192,8 +202,12 @@ export async function runLocalStoryPreview(configFile: string, live: boolean, ke
           const name = attempt === 0 ? imageName : `page-${number}-repair-${attempt}.png`;
           const correction = review ? '\nCORRECT THESE VERIFIED DEFECTS WHILE PRESERVING ALL IDENTITY/STATE LOCKS:\n' +
             review.checks.filter(c => c.verdict === 'defect').map(c => `${c.category}: ${c.observation}. ${c.correction}`).join('\n') : '';
-          const refs = prior ? [...refPaths, path.join(root, prior.imageName)] : refPaths;
-          const roles = prior ? '\nReference image 4 is the failed candidate to correct, NOT canonical truth. Preserve correct parts; fix diagnosed defects.' : '';
+          const comparison = prior ?? priorScene;
+          if (comparison && previewImageDigest(path.join(root, comparison.imageName)) !== comparison.imageSha) throw Error('preview_scene_reference_changed');
+          const refs = comparison ? [...refPaths, path.join(root, comparison.imageName)] : [...refPaths];
+          let prompt = sequencePacket ? sequenceRenderPrompt(basePrompt, sequencePacket, priorScene && !prior ? refs.length : null) : basePrompt;
+          if (prior && refs.length === 3) prompt = prompt.replace('image 3, when attached = recurring PROP design board ONLY.', 'image 3 = failed candidate EDIT TARGET ONLY; no prop board attached.');
+          const roles = prior ? `\nReference image ${refs.length} is the failed candidate to correct, NOT canonical truth. Preserve correct parts; fix diagnosed defects.` : '';
           const made = await makeImage(`page-${number}-attempt-${attempt}`, prompt + roles + correction, refs, name);
           return { imageName: name, imageSha: made.sha };
         },
@@ -206,6 +220,7 @@ export async function runLocalStoryPreview(configFile: string, live: boolean, ke
         console.log(JSON.stringify({ status: result.status, page: page.pageNumber, attempts: result.history.length }));
         throw Error('preview_quality_hold');
       }
+      if (page.pageNumber > 0) completed.push({ pageNumber: page.pageNumber, ...result });
       pages.push({ pageNumber: page.pageNumber, ...result.candidate, text,
         // Numerical resemblance and final book reconciliation remain distinct obligations.
         automatedPassed: false, reason: 'visual_checks_passed_numerical_and_book_review_pending', score: null });
@@ -229,7 +244,8 @@ export async function runLocalStoryPreview(configFile: string, live: boolean, ke
       }
       return { ...page, imageName };
     });
-    const manifest = { version: PREVIEW_VERSION, sourceSha: story.sourceSha, planSha: previewSha(JSON.stringify(plan)),
+    const manifest = { version: PREVIEW_VERSION, planningVersion: WHOLE_BOOK_PLANNING_VERSION,
+      sourceSha: story.sourceSha, planSha: sequence.planSha, sequenceSha: previewSha(JSON.stringify(sequence, null, 2) + '\n'),
       status: 'complete_local_draft_pending_visual_review', productionReady: false, pages };
     const manifestPath = path.join(root, 'manifest.json');
     if (!fs.existsSync(manifestPath)) writePreviewJson(manifestPath, manifest);

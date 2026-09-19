@@ -93,6 +93,16 @@ export function previewPagePrompt(plan: PreviewPlan, pageNumber: number, text: s
   ].join('\n\n');
 }
 
+// Both local renderers consume the same current-page state projection. The full
+// story belongs in book planning, not in every image's visual requirements.
+export function selectedDraftQaContext(plan: PreviewPlan, pageNumber: number) {
+  const page = plan.pages[pageNumber];
+  const continuity = previewContinuityContext(plan.continuity!, pageNumber);
+  return { scope: 'current_page_effective_state_only', wardrobe: plan.wardrobe, visualLanguage: plan.visualLanguage,
+    page, recurringProps: plan.recurringProps.filter(p => page.props.some(active => active.id === p.id)),
+    locations: plan.locations.filter(l => continuity.page.visibleLocationIds.includes(l.id)), continuity };
+}
+
 export function writePreviewJson(file: string, value: unknown) {
   fs.writeFileSync(file, JSON.stringify(value, null, 2) + '\n', { flag: 'wx' });
 }

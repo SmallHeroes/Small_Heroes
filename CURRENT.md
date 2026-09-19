@@ -1,5 +1,43 @@
 # SmallHeroes — Current Technical State
 
+## Automatic whole-book planning before local preview images — 2026-09-19
+
+Guy expands the requirement to every authored story: understand the entire sequence
+before any image while preserving composition/camera/acting variety. Same sole-writer
+task/worktree/branch, base093d37c0 clean/ahead9; no push. No additional approvals asked.
+
+run-local-story-preview now requires a joint plan+sequence from its existing single
+planner call. Compact initial state + per-page transitions expands through the shared
+whole-book validator; missing/invalid last page blocks the FIRST board/cover/page image.
+Complete plan/ledger persist first. Hashes derive in code. All existing variety,
+framing, source acceptance, calibration, budget and checkpoint guards remain.
+Current-state QA projection is shared with owner samples; prior same-scene passed
+pixels reach initial generation but are never canonical truth. Repair uses its own
+target; cover/cross-scene pixels are not generation predecessors. New planning identity
+rejects old plan-only roots rather than upgrading or recharging them silently.
+
+Scope is automatic local planning/rendering, NOT production contract/Blueprint/package
+migration. Owner-draft still has the prior optional sequence entry. The production
+contract already has book-wide world/zone/state authority; no diagnostic sidecar
+overrides it. No source publication, slot qualification or canonical HOLD closure.
+Intake coverage18/216 verified in both genders (432 personalized pages); this is input
+coverage, NOT18 generated plans or measured semantic understanding. Support8/12/16
+pages verified; no fixed12 assumption. Earlier docs'12-page shorthand is not a policy.
+
+Focused207/207 (planning30+sequence29+owner72+quality28+judge16+preview32), tsc0.
+Read-only corpus and prior preservation witnesses0:56 snapshot files,3 reader hashes,
+both current page images unchanged. Final npm run check native exit0, both typechecks0:
+ordinary391 files/5801 passed/73 skipped and resource22 files/671 passed; total6472
+passed/73 skipped/0 failed. One observed green run, not independent QA, persistent
+stability or release acceptance. Exact log hashes are in the whole-book QA handoff.
+Local ignored logs: outputs/whole-book-planning-validation-20260919/; no verified
+off-machine backup. Cost$0, no provider calls, renders or actual credential reads.
+New plan semantics and visual improvement remain unmeasured; prior false PASS and
+unknown$1 reservation retained. Full prop-board pixels in the automatic preview still
+need empirical scrutiny; narrowed text context is not pixel-level prop selection.
+Design and independent-QA handoff: book-proof/whole-book-planning/. Next is independent
+review then a bounded visual sequence, not another request for owner's intent.
+
 ## Book-wide sequence recovery implemented locally; visual proof pending — 2026-09-19
 
 Guy requests diagnosis and a systemic fix after the station occupants moved without
