@@ -11,7 +11,7 @@ import { generateGPTImage } from '../generate-image';
 import { judgePreviewCandidate } from '../../scripts/lib/local-preview-judge';
 import { localPlannerCapacity, localRepairPrompt, buildLocalRepairPrompt, preflightLocalBookPrompts, assertLocalImagePrompt } from '../local-preview-capacity';
 import { sequencePageState } from '../local-book-sequence';
-import { STYLE_01_SHARED, STYLE_01_RENDERING_CORRECTION, STYLE_01_CANONICAL_CHILD_ANCHOR_RULE, STYLE_01_FRAMING_RULE, buildStyle01ChildAnatomicalLock } from '../style01-gptimage';
+import { STYLE_01_SHARED, STYLE_01_RENDERING_CORRECTION, STYLE_01_CANONICAL_CHILD_ANCHOR_RULE, STYLE_01_FRAMING_RULE, STYLE_01_FRAMING_RULE_CLOSE_UP, buildStyle01ChildAnatomicalLock } from '../style01-gptimage';
 import { buildStyle01AnatomyIntegrityLock } from '../style01-visual-polish';
 
 const provider = vi.hoisted(() => ({ create: vi.fn() }));
@@ -280,6 +280,57 @@ describe('actual local preview entry: mandatory whole-book pre-render boundary',
 });
 
 describe('capacity policy boundaries', () => {
+  it.each([3, 4])('actually crosses all repair lock tiers with %i references without losing authority', refs => {
+    const { draft, story } = planningFixture(); const { plan, sequence } = compileWholeBookDraft(draft, story);
+    const details = { childAge: 5, gender: 'boy', companionDescription: 'panda' };
+    const packet = { ...sequencePageState(sequence, plan, 2), predecessor: null };
+    const checks = QUALITY_CATEGORIES.map(category => ({ category, correction: `${category}: repair ONLY this defect.` }));
+    const seen = new Set<string>(); let authority: string | undefined;
+    for (let length = 18000; length <= 31000; length += 250) {
+      const text = 'T'.repeat(length);
+      const result = buildLocalRepairPrompt(plan, 2, text, details, packet, refs, checks);
+      if (result.lockTier === 'none' && result.prompt.length > 31000) {
+        expect(() => assertLocalImagePrompt(result.prompt, refs, true)).toThrow('preview_image_input_limit');
+        break;
+      }
+      expect(() => assertLocalImagePrompt(result.prompt, refs, true)).not.toThrow();
+      seen.add(result.lockTier);
+      const current = result.prompt.split('\n').find(line => line.startsWith('CURRENT PAGE AUTHORITY: '));
+      authority ??= current; expect(current).toBe(authority);
+      expect(result.prompt).toContain(JSON.stringify(packet));
+      expect(result.prompt).toContain(`PAGE TEXT (evidence, not text to paint): ${text}`);
+      expect(result.prompt).toContain(`image ${refs} = failed candidate EDIT TARGET ONLY`);
+      let previous = -1;
+      for (const c of checks) { const at = result.prompt.indexOf(`${c.category}: ${c.correction}`); expect(at).toBeGreaterThan(previous); previous = at; }
+      expect(result.prompt.includes(buildStyle01AnatomyIntegrityLock())).toBe(result.lockTier !== 'none');
+      expect(result.prompt.includes(STYLE_01_CANONICAL_CHILD_ANCHOR_RULE)).toBe(result.lockTier === 'full');
+    }
+    expect([...seen]).toEqual(['full', 'anatomy', 'none']);
+  });
+  it.each([3, 9])('keeps the exact close-up and age-%i anatomy rules, not wide-shot substitutes', age => {
+    const { draft, story } = planningFixture(3); const { plan, sequence } = compileWholeBookDraft(draft, story);
+    const packet = { ...sequencePageState(sequence, plan, 3), predecessor: null };
+    const result = buildLocalRepairPrompt(plan, 3, story.pages[2].text,
+      { childAge: age, gender: 'girl', companionDescription: 'panda' }, packet, 3, [{ category: 'anatomy', correction: 'Repair the hand.' }]);
+    expect(result.lockTier).toBe('full');
+    expect(result.prompt).toContain(STYLE_01_FRAMING_RULE_CLOSE_UP);
+    expect(result.prompt).not.toContain(STYLE_01_FRAMING_RULE);
+    expect(result.prompt).toContain(buildStyle01ChildAnatomicalLock({ childAge: age, allowDistinctSupportingChildren: true }));
+  });
+  it('selects a smaller tier when only multipart newline expansion exhausts transport capacity', () => {
+    const { draft, story } = planningFixture(); const { plan, sequence } = compileWholeBookDraft(draft, story);
+    const details = { childAge: 5, gender: 'boy', companionDescription: 'panda' };
+    const packet = { ...sequencePageState(sequence, plan, 2), predecessor: null };
+    const checks = [{ category: 'anatomy' as const, correction: 'Repair the hand.' }];
+    const flat = buildLocalRepairPrompt(plan, 2, 'x'.repeat(14500), details, packet, 4, checks);
+    const multiline = buildLocalRepairPrompt(plan, 2, '\n'.repeat(14500), details, packet, 4, checks);
+    expect(flat.lockTier).toBe('full'); expect(multiline.lockTier).toBe('none');
+    expect(multiline.prompt.length).toBeLessThan(31000);
+    expect(() => assertLocalImagePrompt(multiline.prompt, 4, true)).not.toThrow();
+    const fullMultiline = flat.prompt.replace('x'.repeat(14500), '\n'.repeat(14500));
+    expect(fullMultiline.length).toBeLessThan(31000);
+    expect(() => assertLocalImagePrompt(fullMultiline, 4, true)).toThrow('exceeds the provider character limit');
+  });
   it('reserves UTF8 input plus output using the same upper rate, rejecting oversized input', () => {
     const ascii = localPlannerCapacity(16, 'a'.repeat(100));
     const hebrew = localPlannerCapacity(16, 'א'.repeat(100));

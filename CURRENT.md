@@ -1,5 +1,40 @@
 # SmallHeroes — Current Technical State
 
+## Codex resumed: repair lock counter-check — 2026-09-22
+
+Resume reconciled clean a2d30f89/ahead12 on codex/r3b1b-semantic-recovery-m1 in
+C:/GNart/Work/sh-r3b1b-semantic-m1. Claude had already implemented the fix while
+Codex was paused; do not overwrite it or count Claude as its independent reviewer.
+Codex is the sole writer for this test/evidence milestone. Protected dependencies
+768ccb2f/63ccb484 clean/read-only. No new production changes or paid calls.
+
+Counter-check confirms all six exact locks on13 saved Panda pages for a short
+synthetic correction, and reproduces their absence from the f6bdf5f7 baseline loaded
+directly from Git into memory. At8x1800 corrections the fallback still exists:
+6 full,6 anatomy,1 none. This is bounded restoration, NOT guaranteed anatomy locks
+on every repair, nor measured pixel success. All effective state, corrections and
+sequence packets survive. Both3/4 reference roles checked. Old held images unchanged.
+
+Added five regression cases genuinely crossing all tiers, proving current authority
+and correction preservation, age/close-shot rules and multipart-only overflow.
+Focused227/227. Read-only witness checks82 current attributes including cover;
+preservation56 snapshots/3 reader hashes/2 images and corpus18/216/432 still hold.
+Fresh full check NON-GREEN, native1: ordinary5821pass/73skip, resource668pass/3timeouts.
+Both typechecks passed. Two timeouts reproduce in a selected one-worker rerun; the
+third passes. No claim all failures are full-load-only, no baseline causality proof,
+no timeout change or stability closure. Detailed commands/log hashes are recorded
+in capacity-correction/CODEX_REPAIR_REVIEW.md.
+The previous handoff's full-check contradiction and independence/length overclaims
+are corrected explicitly; no historical execution is reconstructed.
+
+Next is the OUTSTANDING sequence/planning code review, not a repeated prose gate:
+4ee9afc1..093d37c0 ledger/owner consumer and093d37c0..5e990881 automatic planning,
+at the frozen current surface including capacity corrections. This does not grant
+independent PASS, semantic/product acceptance or production authority. Following
+technical closure, use the already-authorized smallest consecutive visual sample.
+No new render, credential read or push in this milestone; cost0. Local outputs/logs
+remain ignored and without a verified off-machine backup.
+
 ## Repair lock restoration — 2026-09-19
 
 Claude reported HOLD0/1/0 for5e990881..f6bdf5f7: both prior findings closed, but the

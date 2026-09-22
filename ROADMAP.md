@@ -1,5 +1,17 @@
 # SmallHeroes — Roadmap
 
+## Resumed engineering verification — 2026-09-22
+
+Codex counter-checked Claude's a2d30f89 repair-lock restoration without changing its
+runtime code. Five additional regressions pass; focused227/227 and both typechecks
+pass, but full check remains NON-GREEN (3 resource-phase timeouts;2 reproduce in a
+selected isolated rerun). No timeout changes or stability closure. Saved Panda probes
+confirm bounded full/anatomy/none behavior, NOT unconditional lock retention or
+visual success. See capacity-correction/CODEX_REPAIR_REVIEW.md for current evidence.
+Next QA targets the remaining ledger/planning consumer chain, rather than another
+documentation-only loop. Then the authorized small consecutive visual proof; no
+new renders, source/production cutover or product acceptance claimed here.
+
 ## Latest owner priority: coherent book sequence — 2026-09-19
 
 Claude capacity re-gate HOLD0/1/0 received for5e990881..f6bdf5f7: both prior findings

@@ -1,5 +1,10 @@
 # Repair lock restoration — QA handoff
 
+Codex reconciliation, 2026-09-22: the implementation described here is frozen at
+`a2d30f89`, parent `f6bdf5f7`. See `CODEX_REPAIR_REVIEW.md` for the fresh counter-check,
+validation results and remaining review boundary. This historical brief is not an
+independent PASS; its author implemented the fix.
+
 Read-only review requested. No provider, credentials, images, publication or push.
 
 ## Authorship and independence
@@ -34,12 +39,14 @@ capacity brief's preserved-field list ("scale/framing … remain") did not name 
 
 ## Why the omission was forced, not careless
 
-Page12 repair body without corrections is16052 chars; the8x1800 schema-maximum
-correction guarantee adds14400, totalling30452 against a31000 local cap and32000
-transport ceiling. Restoring all locks under that same guarantee needs34522 — over by
-3522. Restoring only the anatomy locks needs32053 — still over. **No unconditional
-restoration exists.** The fix therefore makes locks opportunistic instead of dropping
-the guarantee.
+The saved page12 schema-maximum envelope is30452 multipart chars, including transport
+prefix and predecessor allowance. The8x1800 corrections contribute14400 of those
+characters. Adding all4070 lock characters plus their separators exceeds both the
+31000 raw-input cap and32000 transport ceiling; anatomy alone also exceeds the
+existing envelope's room. Unconditional restoration does not fit this UNCHANGED
+representation and these caps. This is not a proof that every alternative lossless
+representation is impossible. The implemented fix makes locks opportunistic instead
+of changing the pre-existing admission guarantee.
 
 ## What changed
 
@@ -75,9 +82,11 @@ Real saved Panda book,13 pages, at the absolute8x1800 worst case:
 - `none`: page12 only, at **30452 chars — byte-identical to before the fix**
 
 `fullLockCorrectionCharsPerCategory` ranges1385 (page12) to1800 (never degrades).
-Real judge corrections are far shorter than1385, so in practice every page keeps the
-full set. Claude's own independent drop audit — the probe that originally found the
-regression — now reports **0 chars dropped** on page12.
+The saved Panda plan keeps the full set for short synthetic corrections. This is not
+a measured upper bound on future judge corrections; sufficiently long corrections
+still reduce the tier. Claude's original drop-audit probe now reports **0 chars
+dropped** on page12 with its short correction, but this is an author-run probe after
+Claude implemented the fix, not independent review of that fix.
 
 Focused **222/222** (planning45, sequence29, owner72, quality28, judge16, preview32),
 `tsc` 0. Both witnesses exit0; preservation still56 snapshot files,3 reader hashes,2
@@ -108,5 +117,7 @@ cannot be settled offline. Labelled directive lines (`CAMERA:`, `CHILD ACTION:` 
 remain absent from the repair prompt by design; their values survive as fields inside
 `CURRENT PAGE AUTHORITY`, which Claude verified across79 attribute values. This commit
 does not generate plans for the18 stories, does not close any semantic HOLD, and does
-not qualify anything for release. `npm run check` was run for this commit; a single
-green run is not enduring stability or release acceptance.
+not qualify anything for release. The prior version of this brief said
+`npm run check` was run for this commit while CURRENT said it was NOT re-run by Claude.
+No fresh log was identified here to settle that contradiction. Do not count a full
+run on `a2d30f89` from this brief; the fresh Codex run is recorded separately.
