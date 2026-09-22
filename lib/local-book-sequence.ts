@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { createHash } from 'node:crypto';
-import type { PreviewPlan } from './local-story-preview';
+import { previewStoryEvidence, type PreviewPlan, type PreviewStory } from './local-story-preview';
 import { qualityDisposition, type QualityCandidate, type PreviewQualityReview } from './local-preview-quality';
 
 // Local diagnostic authority only. Does not mint a production contract or source approval.
@@ -33,10 +33,13 @@ const unique = (items: string[]) => new Set(items).size === items.length;
 const equal = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
 
 export function validateBookSequence(raw: unknown, input: {
-  sourceSha: string; planSha: string; texts: string[]; plan: PreviewPlan;
+  story: PreviewStory; planSha: string; plan: PreviewPlan;
 }): BookSequence {
-  const s = bookSequenceSchema.parse(raw), { plan, texts } = input;
-  if (s.sourceSha !== input.sourceSha || s.planSha !== input.planSha) fail('source_binding');
+  // Reject the removed detached API even for untyped callers; do not silently ignore it.
+  if ('texts' in input || 'sourceSha' in input) fail('source_binding');
+  const { sourceSha, texts } = previewStoryEvidence(input.story);
+  const s = bookSequenceSchema.parse(raw), { plan } = input;
+  if (s.sourceSha !== sourceSha || s.planSha !== input.planSha) fail('source_binding');
   if (!plan.continuity || texts.length !== plan.pages.length || s.pages.length !== texts.length - 1) fail('coverage');
   const entities = ['child', 'companion', ...plan.continuity!.entities.map(e => e.id)];
   const locations = plan.locations.map(l => l.id);

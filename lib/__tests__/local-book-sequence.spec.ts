@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { bookSequenceSchema, validateBookSequence, validateSequenceSelection, sequencePredecessor, sequencePagePacket, sequenceRenderPrompt } from '../local-book-sequence';
 import { QUALITY_CATEGORIES } from '../local-preview-quality';
-import type { PreviewPlan } from '../local-story-preview';
+import { previewStory, type PreviewPlan } from '../local-story-preview';
 
 function fixture() {
   const plan: PreviewPlan = { wardrobe: 'blue', visualLanguage: 'watercolor', locations: [{ id: 'garden', design: 'garden' }, { id: 'room', design: 'room' }],
@@ -19,7 +19,9 @@ function fixture() {
         { entityId: 'hut', value: { relation: 'at', targetId: 'garden' } },
         { entityId: 'ball', value: { relation: 'unestablished', targetId: null } },
       ], transitions: [] })) });
-  const input = { plan, sourceSha: sequence.sourceSha, planSha: sequence.planSha, texts: ['Cover', 'She sits inside.', 'He waits outside.', 'She comes outside.'] };
+  const story = previewStory('---\ntitle: Cover\npages: 3\n---\n--- Page 1 ---\nShe sits inside.\n--- Page 2 ---\nHe waits outside.\n--- Page 3 ---\nShe comes outside.', 'Bar', 'boy');
+  sequence.sourceSha = story.sourceSha;
+  const input = { plan, story, planSha: sequence.planSha };
   return { sequence, input };
 }
 function previous() {
@@ -29,6 +31,23 @@ function previous() {
       checks: QUALITY_CATEGORIES.map(category => ({ category, verdict: 'pass' as const, observation: 'observed', correction: '' })) } }] };
 }
 describe('whole-book local sequence state', () => {
+  it('rejects detached texts even when their declared hash matches the sequence', () => {
+    const { sequence, input } = fixture();
+    const texts = [input.story.title, ...input.story.pages.map(p => p.text + ' extra')];
+    expect(() => validateBookSequence(sequence, { ...input, texts } as typeof input)).toThrow('source_binding');
+    // @ts-expect-error Detached hash/text API must not be reintroduced.
+    expect(() => validateBookSequence(sequence, { plan: input.plan, planSha: input.planSha, sourceSha: sequence.sourceSha, texts })).toThrow('source_binding');
+  });
+  it('rejects modified prose inside a genuine parsed story with unchanged sourceSha', () => {
+    const { sequence, input } = fixture();
+    input.story.pages.forEach(p => { p.text += ' extra'; });
+    expect(() => validateBookSequence(sequence, input)).toThrow('preview_story_source_binding');
+  });
+  it('rejects a different parsed source even when all original quotes still occur', () => {
+    const { sequence, input } = fixture();
+    input.story = previewStory('---\ntitle: Cover\npages: 3\n---\n--- Page 1 ---\nShe sits inside. extra\n--- Page 2 ---\nHe waits outside. extra\n--- Page 3 ---\nShe comes outside. extra', 'Bar', 'boy');
+    expect(() => validateBookSequence(sequence, input)).toThrow('source_binding');
+  });
   it('inherits physical relationships while expressions/camera change', () => {
     const { sequence, input } = fixture(); input.plan.pages[2].angle = 'eye_level'; input.plan.pages[2].childExpression = 'disappointed';
     const before = JSON.stringify({ sequence, input }); const s = validateBookSequence(sequence, input);

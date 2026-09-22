@@ -1,5 +1,40 @@
 # SmallHeroes — Current Technical State
 
+## Sequence review received; parser-bound source correction — 2026-09-22
+
+Claude supplied PASS0/0/2 for4ee9afc1..093d37c0,093d37c0..5e990881 and
+a2d30f89..9d0bbe1d. The sequence/planning dependency review requested below is now
+complete. Claude-authoredf6bdf5f7..a2d30f89 remains outside his independent PASS;
+Codex's counter-check stays evidence, not an independent self-award.
+
+Codex resumed from clean9d0bbe1d/ahead13 in the same branch/worktree, sole writer.
+Valid P2 source-binding gap reproduced from Git baseline in memory: detached
+modified texts with the old hash passed. Correction now requires an unmodified
+parser-produced story, with private process-local provenance and defensive evidence
+copies. Validator derives texts/sourceSha itself; both runtime callers and offline
+preparation migrated. Serialized stories/plans/sequences and paid artifacts unchanged.
+This is integrity, NOT accepted-source authority or proof of semantic entailment.
+Cloned/persisted story JSON must be reparsed from original source before validation.
+
+Fourteen regressions added. First focused run240/241: real owner CLI case timed out
+at5000ms (6493ms observed); repeat241/241, native0. Standalone tsc0. No error text
+is inferred for Claude's earlier intermittent failure. P2 stability remains OPEN;
+startup controls show seconds spent before substantive CLI work, not root cause.
+No timeout/cache/concurrency changes. Fresh full check native1: ordinary5826pass/
+9timeouts/73skip, resource664pass/7timeouts. Both typechecks pass; all241 focused
+tests also pass inside the full run. Repository remains RED; no untouched-base
+counterfactual or classification of every failure as inherited. Final witnesses:
+56 historical snapshots/3 reader hashes/2 images unchanged, corpus18/216/432 and
+repair-lock82-attribute checks hold, source bypass reproduced and rejected.
+See book-proof/source-binding-correction/QA_HANDOFF.md for commands and limits.
+
+Claude confirms his older full check did run and he saw exit0, but retained only
+the tail; the older CURRENT denial was stale. That reported observation is not
+promoted into captured full-log evidence or stability. Historical failures retained.
+No new render/provider/key access/push; cost0. Current correction needs independent
+re-gate. Product/semantic holds and the unfinished five-page visual proof stay open.
+Local outputs/logs remain ignored, without verified off-machine backup.
+
 ## Codex resumed: repair lock counter-check — 2026-09-22
 
 Resume reconciled clean a2d30f89/ahead12 on codex/r3b1b-semantic-recovery-m1 in

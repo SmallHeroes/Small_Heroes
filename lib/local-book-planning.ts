@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { BOOK_SEQUENCE_VERSION, bookSequenceSchema, validateBookSequence } from './local-book-sequence';
-import { previewPlanV2Schema, previewSha, validatePreviewPlan, type previewStory } from './local-story-preview';
+import { previewPlanV2Schema, previewSha, previewStoryEvidence, validatePreviewPlan, type previewStory } from './local-story-preview';
 import { validatePreviewContinuity } from './local-preview-quality';
 
 export const WHOLE_BOOK_PLANNING_VERSION = 'local-whole-book-planning/v2';
@@ -37,13 +37,14 @@ Do not duplicate compositions just to preserve continuity. Do not add an object 
 Plan the ending too so later states do not contradict earlier setup. Never rewrite the approved story.`;
 
 export function wholeBookPlanningInput(story: ReturnType<typeof previewStory>, childAge: number, gender: string, companionDescription: string) {
+  previewStoryEvidence(story);
   return { planningVersion: WHOLE_BOOK_PLANNING_VERSION, story: structuredClone(story), childAge, gender, companionDescription };
 }
 
 export function compileWholeBookDraft(raw: unknown, story: ReturnType<typeof previewStory>) {
+  const { sourceSha, texts } = previewStoryEvidence(story);
   const draft = wholeBookDraftSchema.parse(raw);
-  const texts = [story.title, ...story.pages.map(p => p.text)];
-  const plan = validatePreviewPlan(draft.plan, story.pages.length);
+  const plan = validatePreviewPlan(draft.plan, texts.length - 1);
   plan.continuity = validatePreviewContinuity(plan.continuity, plan, texts);
   const planBytes = JSON.stringify(plan, null, 2) + '\n';
   if (new Set(draft.sequence.initialStates.map(x => x.entityId)).size !== draft.sequence.initialStates.length) throw Error('book_sequence_duplicate_initial_entity');
@@ -55,8 +56,8 @@ export function compileWholeBookDraft(raw: unknown, story: ReturnType<typeof pre
     }
     return { ...page, states: [...states].map(([entityId, value]) => ({ entityId, value: structuredClone(value) })) };
   });
-  const sequence = validateBookSequence({ version: BOOK_SEQUENCE_VERSION, sourceSha: story.sourceSha,
+  const sequence = validateBookSequence({ version: BOOK_SEQUENCE_VERSION, sourceSha,
     planSha: previewSha(planBytes), premise: draft.sequence.premise, mutableAttributes: draft.sequence.mutableAttributes, pages },
-  { sourceSha: story.sourceSha, planSha: previewSha(planBytes), plan, texts });
+  { story, planSha: previewSha(planBytes), plan });
   return { plan, sequence };
 }

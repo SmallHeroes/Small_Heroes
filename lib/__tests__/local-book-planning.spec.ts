@@ -35,6 +35,15 @@ export function planningFixture(count = 2) {
 }
 
 describe('complete story planning before images', () => {
+  it('rejects a cloned or tampered story at both planning and compilation boundaries', () => {
+    const { story, draft } = planningFixture();
+    const clone = structuredClone(story);
+    for (const value of [clone, story]) {
+      value.pages[0].text += ' extra';
+      expect(() => wholeBookPlanningInput(value, 5, 'boy', 'panda')).toThrow('preview_story_source_binding');
+      expect(() => compileWholeBookDraft(draft, value)).toThrow('preview_story_source_binding');
+    }
+  });
   it.each([8, 12, 16])('compiles all %i pages without rewriting any presentation field or input', count => {
     const { story, draft } = planningFixture(count); const before = JSON.stringify(draft);
     const out = compileWholeBookDraft(draft, story);
@@ -63,8 +72,8 @@ describe('complete story planning before images', () => {
     expect(() => compileWholeBookDraft(kind === 'no_sequence' ? { plan: draft.plan } : draft, story)).toThrow();
   });
   it('applies a source-linked transition once and inherits it on following pages', () => {
-    const { draft, story } = planningFixture(3);
-    story.pages[1].text = 'The child leaves the room.';
+    const { draft, raw } = planningFixture(3);
+    const story = previewStory(raw.replace('The child waits inside. Beat 2.', 'The child leaves the room.'), 'Bar', 'boy');
     draft.sequence.pages[1].transitions.push({ entityId: 'child', from: { relation: 'inside', targetId: 'room' }, to: { relation: 'beside', targetId: 'room' }, evidence: story.pages[1].text });
     const out = compileWholeBookDraft(draft, story);
     expect(out.sequence.pages.map(p => p.states[0].value.relation)).toEqual(['inside', 'beside', 'beside']);

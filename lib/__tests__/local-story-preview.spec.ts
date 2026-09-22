@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { bindPreviewRun, previewCheckpoint, previewImageDigest, previewPagePrompt, previewSha, previewStory, validatePreviewPlan, previewUsageUpperUsd, previewAccountedUsd, previewAutomatedPassed, type PreviewPlan } from '../local-story-preview';
+import { bindPreviewRun, previewCheckpoint, previewImageDigest, previewPagePrompt, previewSha, previewStory, previewStoryEvidence, validatePreviewPlan, previewUsageUpperUsd, previewAccountedUsd, previewAutomatedPassed, type PreviewPlan } from '../local-story-preview';
 import { planGPTImageRequest } from '../generate-image';
 
 const roots: string[] = [];
@@ -21,6 +21,29 @@ const plan = (count = 2): PreviewPlan => ({
 });
 
 describe('local story preview — offline', () => {
+  it.each(['boy', 'girl'] as const)('derives %s evidence from the parser without changing the serialized story', gender => {
+    const story = previewStory(raw, 'נועה', gender);
+    const evidence = previewStoryEvidence(story);
+    expect(evidence).toEqual({ sourceSha: previewSha(raw), texts: [story.title, ...story.pages.map(p => p.text)] });
+    expect(Object.keys(story)).toEqual(['title', 'pages', 'sourceSha']);
+    expect(Object.getOwnPropertySymbols(story)).toHaveLength(0);
+    evidence.texts[1] = 'tampered copy'; evidence.sourceSha = 'f'.repeat(64);
+    expect(previewStoryEvidence(story).texts[1]).toBe(story.pages[0].text);
+    expect(previewStoryEvidence(story).sourceSha).toBe(previewSha(raw));
+    expect(previewStoryEvidence(previewStory(raw, 'נועה', gender))).toEqual(previewStoryEvidence(story));
+  });
+  it.each(['text', 'title', 'hash', 'order', 'missing', 'extra', 'clone', 'json'])('rejects modified/unregistered source evidence: %s', mutation => {
+    let story = previewStory(raw, 'בר', 'boy');
+    if (mutation === 'text') story.pages.forEach(p => { p.text += ' extra'; });
+    if (mutation === 'title') story.title += ' extra';
+    if (mutation === 'hash') story.sourceSha = 'f'.repeat(64);
+    if (mutation === 'order') story.pages.reverse();
+    if (mutation === 'missing') story.pages.pop();
+    if (mutation === 'extra') Object.assign(story, { approved: true });
+    if (mutation === 'clone') story = structuredClone(story);
+    if (mutation === 'json') story = JSON.parse(JSON.stringify(story));
+    expect(() => previewStoryEvidence(story)).toThrow('preview_story_source_binding');
+  });
   it('face identity cannot promote malformed or unassessed anatomy', () => {
     const visual = { clearVisualSafetyIssue: false, sceneMatches: true, recurringPropsConsistent: true, childFeelsActive: true };
     expect(previewAutomatedPassed('passed', visual)).toBe(false);

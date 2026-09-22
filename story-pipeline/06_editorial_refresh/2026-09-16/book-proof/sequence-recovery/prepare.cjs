@@ -47,7 +47,7 @@ const pages=plan.pages.slice(1).map((p,i)=>{
 });
 const sequence={version:'local-book-sequence/v1',sourceSha:prior.story.sha,planSha:prior.plan.sha,
   premise:'A child wants to belong to a pretend moon-station game. Instead of staying excluded, the child creates a shared journey with another child and the panda companion, invites the others, negotiates roles and learns to explore together. The playground is real; space travel is pretend.',mutableAttributes:[],pages};
-const input={sourceSha:prior.story.sha,planSha:prior.plan.sha,plan,texts:[story.title,...story.pages.map(p=>p.text)]};
+const input={story,planSha:prior.plan.sha,plan};
 const validated=validateBookSequence(sequence,input);validateSequenceSelection(validated,[1,2,3,4,5]);
 const bad=structuredClone(sequence);bad.pages[1].states.find(x=>x.entityId==='station_driver').value=value('beside','station');
 assert.throws(()=>validateBookSequence(bad,input),/unexplained_change/);

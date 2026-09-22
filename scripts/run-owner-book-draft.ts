@@ -60,7 +60,7 @@ export function loadOwnerDraft(repo: string, raw: unknown) {
     JSON.stringify(Object.keys(config.propBoardRegions).sort()) !== JSON.stringify(plan.recurringProps.map(p => p.id).sort()))) throw Error('draft_prop_regions_binding');
   plan.continuity = validatePreviewContinuity(plan.continuity, plan, [story.title, ...story.pages.map(p => p.text)]);
   const sequence = config.sequence ? validateBookSequence(JSON.parse(read(config.sequence).bytes.toString('utf8')), {
-    sourceSha: config.story.sha, planSha: config.plan.sha, plan, texts: [story.title, ...story.pages.map(p => p.text)],
+    story, planSha: config.plan.sha, plan,
   }) : null;
   if (sequence) {
     if (!config.samplePages || (plan.recurringProps.length && !config.propBoardRegions)) throw Error('draft_sequence_sample_projection_required');

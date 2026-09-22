@@ -1,5 +1,22 @@
 # SmallHeroes — Roadmap
 
+## Sequence dependency reviewed; source boundary hardened — 2026-09-22
+
+Claude's PASS0/0/2 now covers the original ledger/planning dependency and Codex's
+repair counter-check range, not Claude's own repair implementation. The request
+below for that first dependency review is historical, no longer the next action.
+Codex corrected its detached source/text API using private parser provenance with
+unchanged artifact bytes; independent re-gate pending. Focused241/241 on rerun after
+a captured-in-tool5s timeout; no stability closure. Fresh full gate remains RED:
+6490pass/16timeouts/73skip, native1; both typechecks and all241 focused cases pass.
+Source/corpus/preservation/repair witnesses pass without changing historical images.
+Timing investigation is separate from source binding; no timeout increase, QA
+weakening or pixel claim. No new renders/cost/push.
+
+Next: adversarial source-boundary re-gate, then the already-authorized smallest
+consecutive visual proof. Do not confuse structural/technical PASS with correct
+images or five completed pages. Semantic and production/release holds remain.
+
 ## Resumed engineering verification — 2026-09-22
 
 Codex counter-checked Claude's a2d30f89 repair-lock restoration without changing its

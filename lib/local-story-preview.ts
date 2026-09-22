@@ -30,7 +30,20 @@ export const previewPlanSchema = z.object({
 export const previewPlanV2Schema = previewPlanSchema.extend({ continuity: previewContinuitySchema });
 export type PreviewPlan = z.infer<typeof previewPlanSchema>;
 
-export function previewStory(raw: string, childName: string, gender: 'boy' | 'girl') {
+declare const parsedStoryOrigin: unique symbol;
+export type PreviewStory = { title: string; pages: { pageNumber: number; text: string }[]; sourceSha: string;
+  readonly [parsedStoryOrigin]: true };
+// Process-local provenance, never a persisted approval or model-authored claim.
+// Weak keys do not retain completed books. No marker is added to serialized artifacts.
+const parsedStoryEvidence = new WeakMap<PreviewStory, { serialized: string; sourceSha: string; texts: string[] }>();
+
+export function previewStoryEvidence(story: PreviewStory) {
+  const evidence = parsedStoryEvidence.get(story);
+  if (!evidence || JSON.stringify(story) !== evidence.serialized) throw Error('preview_story_source_binding');
+  return { sourceSha: evidence.sourceSha, texts: [...evidence.texts] };
+}
+
+export function previewStory(raw: string, childName: string, gender: 'boy' | 'girl'): PreviewStory {
   if (!childName.trim() || childName.length > 50 || /[{}\r\n]/u.test(childName)) throw Error('invalid_child_name');
   const parsed = parseStoryMarkdown(raw);
   if (parsed.pages.length < 2 || parsed.pages.length > 24 || Number(parsed.frontmatter.pages) !== parsed.pages.length) throw Error('invalid_story_page_count');
@@ -44,7 +57,10 @@ export function previewStory(raw: string, childName: string, gender: 'boy' | 'gi
     return { pageNumber: p.pageNumber, text: personalize(p.text) };
   });
   if (typeof parsed.frontmatter.title !== 'string') throw Error('missing_story_title');
-  return { title: personalize(parsed.frontmatter.title), pages, sourceSha: previewSha(raw) };
+  const story = { title: personalize(parsed.frontmatter.title), pages, sourceSha: previewSha(raw) } as PreviewStory;
+  parsedStoryEvidence.set(story, { serialized: JSON.stringify(story), sourceSha: story.sourceSha,
+    texts: [story.title, ...pages.map(p => p.text)] });
+  return story;
 }
 
 export function validatePreviewPlan(value: unknown, pageCount: number): PreviewPlan {
