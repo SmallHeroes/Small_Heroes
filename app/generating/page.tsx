@@ -1,6 +1,5 @@
 import { Suspense } from 'react';
 import type { Metadata } from 'next';
-import { SiteHeader } from '@/app/components/SiteHeader';
 import { GeneratingClient } from './generating-client';
 import '../landing/main.css';
 
@@ -10,12 +9,11 @@ export const metadata: Metadata = {
 };
 
 export default function GeneratingPage() {
+  /* No site chrome: the waiting scene owns the whole viewport (per Guy).
+     The scene itself carries a quiet way back home. */
   return (
-    <>
-      <SiteHeader variant="compact" />
-      <Suspense fallback={null}>
-        <GeneratingClient />
-      </Suspense>
-    </>
+    <Suspense fallback={null}>
+      <GeneratingClient />
+    </Suspense>
   );
 }

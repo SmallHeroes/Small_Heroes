@@ -51,7 +51,7 @@ export default function AccessibilityPage() {
       <ul>
         <li>רכז הנגישות: גיא נגר</li>
         <li>
-          אימייל: <a href="mailto:hello@smallheroes.co.il">hello@smallheroes.co.il</a>
+          אימייל: <a href="mailto:hellosmallheroes@gmail.com">hellosmallheroes@gmail.com</a>
         </li>
       </ul>
       <p>

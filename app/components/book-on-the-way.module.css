@@ -4,23 +4,20 @@
   font-family: var(--fb, 'Rubik', sans-serif);
   position: relative;
   width: 100%;
-  max-width: 460px;
-  margin: 0 auto;
-  padding: 42px 26px 34px;
-  border-radius: 28px;
+  /* the FULL night sky, not a card in a page (per Guy) */
+  min-height: 100dvh;
+  margin: 0;
+  padding: 48px 24px 56px;
   overflow: hidden;
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   text-align: center;
   color: #fff;
   isolation: isolate;
   background:
-    radial-gradient(135% 95% at 50% 6%, #4a3d84 0%, #342b64 44%, #241d46 100%);
-  box-shadow:
-    0 34px 90px -34px rgba(24, 16, 58, 0.75),
-    0 0 0 1px rgba(255, 255, 255, 0.07) inset,
-    0 2px 0 0 rgba(255, 255, 255, 0.08) inset;
+    radial-gradient(120% 70% at 50% 0%, #4a3d84 0%, #342b64 46%, #241d46 100%);
 }
 
 /* warm dawn light pooling up from the base of the card */
@@ -61,10 +58,10 @@
 
 .moon {
   position: absolute;
-  top: 30px;
-  left: 34px;
-  width: 26px;
-  height: 26px;
+  top: 7%;
+  left: 8%;
+  width: 34px;
+  height: 34px;
   border-radius: 50%;
   background: #fff3cd;
   box-shadow:
@@ -77,9 +74,15 @@
 .scene {
   position: relative;
   z-index: 1;
-  width: 220px;
-  height: 214px;
+  width: clamp(220px, 26vw, 288px);
+  aspect-ratio: 212 / 206;
+  height: auto;
   margin: 4px 0 0;
+}
+
+.scene svg {
+  width: 100%;
+  height: 100%;
 }
 
 .book {
@@ -150,6 +153,69 @@
   0% { opacity: 0; transform: translateY(0) scale(0.5) rotate(0deg); }
   20% { opacity: 1; }
   100% { opacity: 0; transform: translateY(-150px) scale(1) rotate(40deg); }
+}
+
+/* a star that falls across the sky every few seconds */
+.shooting {
+  position: absolute;
+  top: var(--top, 18%);
+  inset-inline-start: -12%;
+  width: 88px;
+  height: 2px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0), #fff 60%, rgba(255, 255, 255, 0));
+  filter: drop-shadow(0 0 5px rgba(255, 255, 255, 0.8));
+  rotate: 16deg;
+  opacity: 0;
+  pointer-events: none;
+  animation: botwShoot var(--dur, 8s) ease-in var(--delay, 0s) infinite;
+}
+
+@keyframes botwShoot {
+  0%, 88% { opacity: 0; translate: 0 0; }
+  90% { opacity: 1; }
+  100% { opacity: 0; translate: 62vw 90px; }
+}
+
+/* soft night clouds drifting behind everything */
+.cloud {
+  position: absolute;
+  top: var(--top, 20%);
+  width: 320px;
+  height: 96px;
+  border-radius: 999px;
+  background: radial-gradient(50% 50% at 50% 50%, rgba(255, 255, 255, 0.055), transparent 72%);
+  pointer-events: none;
+  animation: botwDrift var(--dur, 70s) linear var(--delay, 0s) infinite;
+}
+
+@keyframes botwDrift {
+  from { translate: -30vw 0; }
+  to { translate: 110vw 0; }
+}
+
+/* the quiet way back home */
+.homeLink {
+  position: absolute;
+  z-index: 3;
+  top: 20px;
+  inset-inline-start: 20px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: background 0.16s ease, color 0.16s ease;
+}
+
+.homeLink:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
 }
 
 /* ── ready-state confirmation badge ── */
@@ -348,8 +414,15 @@
   .rise,
   .progressBar,
   .badge,
-  .badgeRing {
+  .badgeRing,
+  .shooting,
+  .cloud {
     animation: none;
+  }
+
+  .shooting,
+  .cloud {
+    display: none;
   }
 
   .rise {
@@ -359,8 +432,7 @@
 
 @media (max-width: 640px) {
   .wrap {
-    padding: 34px 18px 26px;
-    border-radius: 24px;
+    padding: 40px 16px 48px;
   }
 
   .title,

@@ -438,7 +438,11 @@ function getVisiblePhysicalSteps() {
     steps.push(1);
     if (isCompanionStepEnabled()) steps.push(2);
   }
-  steps.push(3, 4, 5, 6, 7, 8);
+  // Step 5 (style choice) is WITHDRAWN while style02 is unproven (per Guy,
+  // 2026-09-01): one style means no choice to make. ensureDefaultStyleSelection
+  // still runs on init, so the order payload always carries the default style.
+  // Put 5 back here the day style02 earns its place.
+  steps.push(3, 4, 6, 7, 8);
   steps.push(9);
   return steps;
 }

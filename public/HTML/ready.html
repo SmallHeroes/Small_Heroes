@@ -57,7 +57,12 @@
 
       <!-- ── Hero ──────────────────────────────────────────── -->
       <section class="ready-hero">
-        <div class="ready-sparkle-wrap" aria-hidden="true">✨</div>
+        <!-- the cover IS the invitation - it replaces the sparkle once the
+             book loads (per Guy: show the cover that tempts you in) -->
+        <a href="#" class="ready-cover-frame" id="readyCoverLink" hidden>
+          <img id="readyCoverImg" class="ready-cover-img" alt="כריכת הספר" />
+        </a>
+        <div class="ready-sparkle-wrap" id="readySparkle" aria-hidden="true">✨</div>
         <h1 class="ready-headline" id="readyHeadline"></h1>
         <h2 class="ready-title" id="readyTitle"></h2>
         <p class="ready-cover-text" id="readyCoverText"></p>

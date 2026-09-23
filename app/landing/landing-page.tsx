@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { COMMON } from '@/content';
 import type { LandingContent } from '@/content/landing';
 import { CategoryChallengeCard } from '@/app/category-challenge-card';
@@ -13,6 +13,8 @@ import '@/app/legal/legal.css';
 import { AboutSection } from './about-section';
 import { HeroDoodles, ValueDoodles, HelpsDoodles } from './hero-doodles';
 import { HeroCollage } from './hero-collage';
+import { NameMoment, type HeroChild } from './name-moment';
+import { HearPage } from './hear-page';
 import { CompanionSpotlight } from '@/app/components/CompanionSpotlight';
 import { warmCompanionIdleVideos } from '@/lib/web/companion-idle-video';
 
@@ -61,8 +63,6 @@ function SectionWave({ fill }: { fill: string }) {
   );
 }
 
-type GalleryStyle = 'style01' | 'style02';
-
 const GALLERY_STYLE01 = [
   '/Images/gallery/gallery-1.jpg',
   '/Images/gallery/gallery-2.jpg',
@@ -72,24 +72,58 @@ const GALLERY_STYLE01 = [
   '/Images/gallery/gallery-6.jpg',
 ];
 
-const GALLERY_STYLE02 = [
-  '/Images/gallery/gallery-r-1.jpg',
-  '/Images/gallery/gallery-r-2.jpg',
-  '/Images/gallery/gallery-r-3.jpg',
-  '/Images/gallery/gallery-r-4.jpg',
-  '/Images/gallery/gallery-r-5.jpg',
-  '/Images/gallery/gallery-r-6.jpg',
-];
-
 type LandingPageProps = {
   content: LandingContent;
   startHref: string;
   matrixCategories: MvpMatrixCategoryPayload[];
 };
 
+const CHILD_KEY = 'sh.hero-child';
+
 export default function LandingPage({ content: L, startHref, matrixCategories }: LandingPageProps) {
-  const [galleryStyle, setGalleryStyle] = useState<GalleryStyle>('style01');
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(null);
+
+  /* The Name Moment: the page speaks the child's name once the parent
+     types it (remembered on this device). Empty = the content's own lines. */
+  const [child, setChild] = useState<HeroChild>({ name: '', gender: 'boy' });
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(CHILD_KEY);
+      if (raw) {
+        const saved = JSON.parse(raw) as Partial<HeroChild>;
+        setChild({
+          name: typeof saved.name === 'string' ? saved.name.slice(0, 16) : '',
+          gender: saved.gender === 'girl' ? 'girl' : 'boy',
+        });
+      }
+    } catch {
+      /* storage optional */
+    }
+  }, []);
+  const onChildChange = useCallback((next: HeroChild) => {
+    setChild(next);
+    try {
+      window.localStorage.setItem(CHILD_KEY, JSON.stringify(next));
+    } catch {
+      /* storage optional */
+    }
+  }, []);
+
+  const heroName = child.name.trim();
+  const girl = child.gender === 'girl';
+  const h1Line1 = heroName ? `הפעם, ${heroName}` : girl ? 'הפעם, הילדה שלכם' : L.hero.h1Line1;
+  const h1Line2 = heroName || girl
+    ? girl ? 'היא הגיבורה של הסיפור.' : 'הוא הגיבור של הסיפור.'
+    : L.hero.h1Line2;
+  const ctaPrimary = heroName
+    ? `להתחיל את הספר של ${heroName}`
+    : girl ? 'להתחיל את הספר שלה' : L.hero.ctaPrimary;
+  const sampleLine1 = heroName
+    ? `${heroName} לא ${girl ? 'מקבלת' : 'מקבל'} שיעור.`
+    : girl ? 'הילדה שלכם לא מקבלת שיעור.' : L.sample.h2Line1;
+  const sampleLine2 = heroName || girl
+    ? girl ? 'היא מקבלת תפקיד ראשי.' : 'הוא מקבל תפקיד ראשי.'
+    : L.sample.h2Line2;
   /* Companion Spotlight - home cards open the companion dialog instead of navigating. */
   const [spotlight, setSpotlight] = useState<SpotlightState | null>(null);
 
@@ -99,28 +133,6 @@ export default function LandingPage({ content: L, startHref, matrixCategories }:
       return null;
     });
   }, []);
-
-  const btnStyle01Ref = useRef<HTMLButtonElement>(null);
-  const btnStyle02Ref = useRef<HTMLButtonElement>(null);
-  const pillRef = useRef<HTMLSpanElement>(null);
-
-  const positionPill = useCallback((active: GalleryStyle) => {
-    const pill = pillRef.current;
-    const btn = active === 'style01' ? btnStyle01Ref.current : btnStyle02Ref.current;
-    if (!pill || !btn) return;
-    pill.style.left = `${btn.offsetLeft}px`;
-    pill.style.width = `${btn.offsetWidth}px`;
-  }, []);
-
-  useEffect(() => {
-    positionPill(galleryStyle);
-  }, [galleryStyle, positionPill]);
-
-  useEffect(() => {
-    const onResize = () => positionPill(galleryStyle);
-    window.addEventListener('resize', onResize);
-    return () => window.removeEventListener('resize', onResize);
-  }, [galleryStyle, positionPill]);
 
   useEffect(() => initLandingMotion(), []);
 
@@ -147,10 +159,14 @@ export default function LandingPage({ content: L, startHref, matrixCategories }:
               <div className="hero-text">
                 <div className="hero-badge" data-reveal="hero" data-reveal-delay="0">{L.hero.badge}</div>
                 <h1 className="hero-h1" data-reveal="hero" data-reveal-delay="60">
-                  <span className="hero-h1-line">{L.hero.h1Line1}</span>{' '}
-                  <span className="hero-h1-line hero-h1-line--accent">{L.hero.h1Line2}</span>
+                  {/* keyed on the text: a new name re-mounts the line and it
+                      pops in (name-pop), so the change is felt, not swapped */}
+                  <span key={h1Line1} className="hero-h1-line name-pop">{h1Line1}</span>{' '}
+                  <span key={h1Line2} className="hero-h1-line hero-h1-line--accent name-pop">{h1Line2}</span>
                 </h1>
                 <p className="hero-sub2" data-reveal="hero" data-reveal-delay="120">{L.hero.sub}</p>
+
+                <NameMoment child={child} onChange={onChildChange} />
 
                 <div className="hero-btns" data-reveal="hero" data-reveal-delay="180">
                   <a
@@ -158,7 +174,7 @@ export default function LandingPage({ content: L, startHref, matrixCategories }:
                     className="btn-primary"
                     data-event="landing_start_click"
                   >
-                    {L.hero.ctaPrimary}
+                    <span key={ctaPrimary} className="name-pop">{ctaPrimary}</span>
                   </a>
                   {/* lands on the sample section — the book itself (a video of
                       it, once Guy's clip exists). The gallery is a look, not a
@@ -180,6 +196,12 @@ export default function LandingPage({ content: L, startHref, matrixCategories }:
                 <div className="hero-float">
                   <HeroCollage />
                 </div>
+                {/* the arc the pictures tell, said in three words */}
+                <ol className="hero-captions" aria-hidden="true">
+                  <li>רגע של פחד</li>
+                  <li>חבר מלווה</li>
+                  <li>יוצאת גאה</li>
+                </ol>
               </div>
             </div>
           </section>
@@ -264,12 +286,14 @@ export default function LandingPage({ content: L, startHref, matrixCategories }:
               <div className="sample-text">
                 <div className="sample-kicker" data-reveal="up">{L.sample.kicker}</div>
                 <h2 className="sample-h2" data-reveal="up" data-reveal-delay="60">
-                  {L.sample.h2Line1}
+                  <span key={sampleLine1} className="name-pop">{sampleLine1}</span>
                   <br />
-                  <span className="mk-sweep">{L.sample.h2Line2}</span>
+                  <span key={sampleLine2} className="mk-sweep name-pop">{sampleLine2}</span>
                 </h2>
                 <p className="sample-p" data-reveal="up" data-reveal-delay="120">{L.sample.p1}</p>
                 <p className="sample-p sample-p--soft" data-reveal="up" data-reveal-delay="160">{L.sample.p2}</p>
+
+                <HearPage />
 
                 {/* The CTA that pointed at the gallery is gone (per Guy: the
                     gallery is show, not a sample). The sample IS this section —
@@ -295,74 +319,19 @@ export default function LandingPage({ content: L, startHref, matrixCategories }:
               <h2 className="gallery-h2" data-reveal="up">{L.gallery.h2}</h2>
               <p className="gallery-sub" data-reveal="up" data-reveal-delay="60">{L.gallery.sub}</p>
 
-              <div
-                className="gallery-toggle"
-                role="tablist"
-                aria-label="סגנון איור בגלריה"
-                data-reveal="fade"
-                data-reveal-delay="120"
-              >
-                <button
-                  ref={btnStyle01Ref}
-                  type="button"
-                  className={
-                    'gallery-toggle-btn' + (galleryStyle === 'style01' ? ' is-active' : '')
-                  }
-                  role="tab"
-                  aria-selected={galleryStyle === 'style01'}
-                  onClick={() => setGalleryStyle('style01')}
-                >
-                  {L.gallery.toggleStyle01}
-                </button>
-                <button
-                  ref={btnStyle02Ref}
-                  type="button"
-                  className={
-                    'gallery-toggle-btn' + (galleryStyle === 'style02' ? ' is-active' : '')
-                  }
-                  role="tab"
-                  aria-selected={galleryStyle === 'style02'}
-                  onClick={() => setGalleryStyle('style02')}
-                >
-                  {L.gallery.toggleStyle02}
-                </button>
-                <span className="gallery-toggle-pill" ref={pillRef} />
-              </div>
+              {/* the style toggle is WITHDRAWN while style02 is unproven (per
+                  Guy) - one style, one track. Bring it back with the style. */}
             </div>
 
             <div className="gallery-layers" data-reveal="fade" data-reveal-delay="180">
-              <div
-                className={
-                  'gallery-track gallery-layer' +
-                  (galleryStyle === 'style01' ? ' is-visible' : '')
-                }
-                aria-hidden={galleryStyle !== 'style01'}
-              >
+              <div className="gallery-track gallery-layer is-visible">
                 {GALLERY_STYLE01.map((src) => (
                   <div key={src} className="gallery-card">
                     <img src={src} alt="עמוד מתוך ספר - מאוייר" loading="lazy" />
                   </div>
                 ))}
               </div>
-
-              <div
-                className={
-                  'gallery-track gallery-layer' +
-                  (galleryStyle === 'style02' ? ' is-visible' : '')
-                }
-                aria-hidden={galleryStyle !== 'style02'}
-              >
-                {GALLERY_STYLE02.map((src) => (
-                  <div key={src} className="gallery-card">
-                    <img src={src} alt="עמוד מתוך ספר - ריאליסטי" loading="lazy" />
-                  </div>
-                ))}
-              </div>
             </div>
-
-            {galleryStyle === 'style02' ? (
-              <p className="gallery-style02-preview-note">{L.gallery.style02PreviewNote}</p>
-            ) : null}
 
             <div className="wrap gallery-cta-wrap" data-reveal="up" data-reveal-delay="200">
               <a href={startHref} className="btn-primary" data-event="landing_start_click">
