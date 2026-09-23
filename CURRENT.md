@@ -1,5 +1,27 @@
 # SmallHeroes — Current Technical State
 
+## Controlled comparison completed, both HELD — 2026-09-23
+
+Code commits69a75de0 /94285789 remain local, no push. LOW and MEDIUM each generated
+one image plus two unchanged QA calls, native2. LOW failed wheel spokes; MEDIUM
+matched the wheel but QA flagged station height versus the authored1.4 ratio.
+Same page1 prompt/references/QA context; no story/plan/gate changes. No conclusion
+of model superiority, visual calibration or multi-page continuity from n=1.
+
+New nominal usage total0.25998 USD (LOW0.12878 + MEDIUM0.13120), not invoice
+verified. Final cumulative accounted upper8.13226 of9.50, old unknown1 retained.
+Preservation172/172 then203/203 by SHA/size/mtime. No repair/retry/fallback, no
+new board, no page2, no locks. All six input/output/execution roots are ignored,
+machine-local and without verified backup; pushing does not preserve them.
+
+204 focused tests/tsc0; full gate still RED (41 failures on model-only worktree,
+not rerun for quality). Stop paid ladder here. Next recommendation is explicit
+upstream criticality of authored visual constraints, keeping genuine continuity
+and anatomy blocking; no retrospective relaxation was implemented. Independent
+QA brief, exact code range, costs, hashes and commands:
+story-pipeline/06_editorial_refresh/2026-09-16/book-proof/sequence-recovery/MODEL_COMPARISON_HANDOFF.md.
+Separate site merge70d4f245 has no path overlap; no live deployment QA is claimed.
+
 ## LOW result and separate MEDIUM comparison — 2026-09-23
 
 LOW ran from69a75de0: native2, one Sunburst image/two QA calls; page1 held on

@@ -1,5 +1,15 @@
 # SmallHeroes — Roadmap
 
+## Controlled comparison closed; no further paid ladder — 2026-09-23
+
+Sunburst LOW still failed wheel spokes. MEDIUM matched the wheel but station
+height failed unchanged QA. Two images/four QA,0.25998 USD nominal, cumulative
+accounted8.13226 of9.50. No successor page or five-page proof; both artifacts held.
+Next: independent review of79dea3db..94285789 and explicit constraint-criticality
+design before more spend. Keep whole-book state and canonical references; do not
+retroactively change QA or claim model/quality superiority from two observations.
+Full gate remains RED. No push/customer cutover/product acceptance.
+
 ## Model-only LOW held; isolate quality once — 2026-09-23
 
 Sunburst LOW retained the wheel-spoke mismatch (one image/two QA;0.12878 nominal).
