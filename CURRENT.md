@@ -1,5 +1,17 @@
 # SmallHeroes — Current Technical State
 
+## Pair stopped honestly; one bounded repair follows — 2026-09-23
+
+Pair execution on10e11493 completed native2: page1 held_repair_limit for extra wheel
+spokes; page2 was not rendered. Other seven categories passed, which does NOT prove
+same-scene continuity. Source/previous artifacts110/110 preserved. One image/two QA
+calls, known usage estimate0.120325 (saved19Sep pricing, not invoice); accounted
+upper0.72273, cumulative5.28646 including historical unknown1-dollar reservation.
+Existing generic owner repair mode will import that held image as UNASSESSED,
+rerun QA and allow only one bound correction before any page2. No code/threshold
+relaxation or failed-image acceptance. New caps1+3 fit cumulative9.28646<9.50;
+stop after this bounded follow-up if held. See PAIR_REPAIR_GATE.md. No push.
+
 ## Authorized same-scene measurement started — 2026-09-23
 
 Claude reports PASS0/0/0 for254404b6..56fbe397, closing the owner-loader P2;

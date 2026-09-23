@@ -6,10 +6,13 @@ require('../../../../../scripts/shims/register-server-only.cjs');require('tsx/cj
 const {previewAccountedUsd,previewSha}=require('../../../../../lib/local-story-preview.ts');
 const {loadOwnerDraft}=require('../../../../../scripts/run-owner-book-draft.ts');
 const repo=path.resolve(__dirname,'../../../../..');
-const input='outputs/panda-sequence-pair-input-20260923';
-const output='outputs/panda-sequence-pair-sample-20260923';
-const logs='outputs/panda-sequence-pair-execution-20260923';
-const predecessors=['outputs/panda-five-page-sample-20260919','outputs/panda-five-page-selected-sample-20260919'];
+const repair=process.argv[2]==='--prepare-repair'||process.argv[2]==='--run-repair';
+const prefix=repair?'panda-sequence-pair-repair':'panda-sequence-pair';
+const input='outputs/'+prefix+'-input-20260923';
+const output='outputs/'+prefix+'-sample-20260923';
+const logs='outputs/'+prefix+'-execution-20260923';
+const predecessors=['outputs/panda-five-page-sample-20260919','outputs/panda-five-page-selected-sample-20260919',
+  ...(repair?['outputs/panda-sequence-pair-sample-20260923']:[])];
 const baselineFile='outputs/panda-book-sequence-input-20260919/config.json';
 const read=rel=>JSON.parse(fs.readFileSync(path.join(repo,rel),'utf8'));
 const write=(rel,value)=>fs.writeFileSync(path.join(repo,rel),typeof value==='string'?value:JSON.stringify(value,null,2)+'\n',{flag:'wx'});
@@ -21,7 +24,19 @@ function accounting(){
   return {roots,priorAccountedUpperUsd:prior,newImageCapUsd:1,newQaCapUsd:3,aggregateFenceUsd:9.5,
     priorPlusNewCapsUsd:prior+4,invoiceVerified:false,unknownReservationsRetained:true};
 }
-function expectedConfig(){return {...read(baselineFile),outputDir:output,samplePages:[1,2],imageBudgetUsd:1,qaBudgetUsd:3};}
+function expectedConfig(){
+  const config={...read(baselineFile),outputDir:output,samplePages:[1,2],imageBudgetUsd:1,qaBudgetUsd:3};
+  if(repair){
+    const held=read('outputs/panda-sequence-pair-sample-20260923/sample-page-01.json');
+    assert.equal(held.status,'held_repair_limit');assert.equal(held.history.length,1);
+    assert.equal(held.candidate.imageSha,'4de520dd875e240d2793d1ee47032bf13304c604eb64e3f57e772183b08d6176');
+    const {qualityDisposition}=require('../../../../../lib/local-preview-quality.ts');
+    assert.equal(qualityDisposition(held.history[0].review,held.candidate.imageSha,held.contextSha).disposition,'repair');
+    config.sampleRepairOnce=true;
+    config.sampleInitialImages=[{pageNumber:1,image:{file:'outputs/panda-sequence-pair-sample-20260923/page-01.png',sha:held.candidate.imageSha}}];
+  }
+  return config;
+}
 function observe(){
   const files=new Set();
   for(const root of ['outputs/panda-five-page-execution-20260919','outputs/panda-five-page-selected-execution-20260919'])
@@ -30,7 +45,8 @@ function observe(){
     const file=rel+'/'+entry.name;if(entry.isDirectory())walk(file);else if(entry.isFile())files.add(file);else throw Error('preservation_alias');
   }}
   for(const root of [...predecessors,'outputs/panda-five-page-input-20260919','outputs/panda-five-page-selected-input-20260919',
-    'outputs/panda-book-sequence-input-20260919','outputs/panda-five-page-execution-20260919','outputs/panda-five-page-selected-execution-20260919'])walk(root);
+    'outputs/panda-book-sequence-input-20260919','outputs/panda-five-page-execution-20260919','outputs/panda-five-page-selected-execution-20260919',
+    ...(repair?['outputs/panda-sequence-pair-input-20260923','outputs/panda-sequence-pair-execution-20260923']:[])])walk(root);
   for(const asset of ['story','plan','childAnchor','companionAnchor','propBoard','sequence'])files.add(expectedConfig()[asset].file);
   return [...files].sort().map(file=>{const b=fs.readFileSync(path.join(repo,file)),s=fs.statSync(path.join(repo,file));return {file,sha256:previewSha(b),bytes:b.length,mtimeMs:s.mtimeMs};});
 }
@@ -53,7 +69,7 @@ function run(keyFile){
   const args=['--import','tsx','--require','./scripts/shims/register-server-only.cjs','scripts/run-owner-book-draft.ts',input+'/config.json','--sample','--key-env-file',keyFile];
   fs.mkdirSync(path.join(repo,logs));write(logs+'/before.json',before);
   write(logs+'/invocation.json',{head,args,startedAt:new Date().toISOString(),configSha:previewSha(fs.readFileSync(path.join(repo,input,'config.json'))),cost,
-    scope:'two-page owner-authorized diagnostic; not release or product acceptance; no repairs'});
+    scope:repair?'owner-authorized one-bound-repair diagnostic; imported candidate is unassessed and rejudged; no acceptance':'two-page owner-authorized diagnostic; not release or product acceptance; no repairs'});
   // Force the specifically supplied existing file, not an ambient credential override.
   const env={...process.env};delete env.OPENAI_API_KEY;
   const child=spawn(process.execPath,args,{cwd:repo,env,windowsHide:true,stdio:['ignore','pipe','pipe']});
@@ -71,6 +87,6 @@ function run(keyFile){
     process.exitCode=summary.preserved&&summary.aggregateAccountedUpperUsd<=9.5?(nativeExit===0?0:nativeExit===2?2:1):1;
   });
 }
-if(require.main===module){try{if(process.argv[2]==='--prepare')prepare();else if(process.argv[2]==='--run')run(process.argv[3]);else throw Error('explicit_mode_required');}
+if(require.main===module){try{if(['--prepare','--prepare-repair'].includes(process.argv[2]))prepare();else if(['--run','--run-repair'].includes(process.argv[2]))run(process.argv[3]);else throw Error('explicit_mode_required');}
 catch(error){console.error(/^[a-z_]+$/.test(error.message)?error.message:'pair_harness_validation_failed');process.exitCode=1;}}
 module.exports={accounting,expectedConfig,observe};
