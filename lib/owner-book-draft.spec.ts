@@ -11,6 +11,8 @@ import { judgePreviewCandidate } from '../scripts/lib/local-preview-judge';
 vi.mock('./generate-image', () => ({ generateGPTImage: vi.fn(), resolveGPTImageEditMaxReferences: () => 4 }));
 vi.mock('../scripts/lib/local-preview-judge', () => ({ judgePreviewCandidate: vi.fn() }));
 import { previewCheckpoint, previewSha, bindPreviewRun } from './local-story-preview';
+import * as storyPreview from './local-story-preview';
+import * as previewQuality from './local-preview-quality';
 
 const roots: string[] = [];
 afterEach(() => { vi.unstubAllEnvs(); vi.clearAllMocks(); for (const r of roots.splice(0)) fs.rmSync(r, { recursive: true, force: true }); });
@@ -33,7 +35,53 @@ function sequenceFixture(plan: ReturnType<typeof loadOwnerDraft>['plan'], source
       visibleCastIds: ['child', 'companion'], transitions: [],
       states: ['child', 'companion', ...plan.continuity!.entities.map(e => e.id)].map(entityId => ({ entityId, value: { relation: 'at', targetId: p.locationId } })) })) };
 }
+function sourceBoundaryFixture(mode: string) {
+  const { repo, config } = fixture();
+  const plan = JSON.parse(fs.readFileSync(path.join(repo, config.plan.file), 'utf8'));
+  const sequence = JSON.stringify(sequenceFixture(plan, config.story.sha, config.plan.sha));
+  if (mode === 'sequence') fs.writeFileSync(path.join(repo, 'sequence.json'), sequence);
+  return { repo, config: ownerDraftSchema.parse({ ...config,
+    ...(mode === 'legacy' ? {} : { samplePages: [1], propBoard: config.childAnchor, propBoardRegions: {} }),
+    ...(mode === 'sequence' ? { sequence: { file: 'sequence.json', sha: previewSha(sequence) } } : {}),
+  }) };
+}
 describe('explicit local editorial draft boundary', () => {
+  it.each(['legacy', 'atlas', 'sequence'])('validates source evidence before plan/continuity and uses its exact texts; mode=%s', mode => {
+    const { repo, config } = sourceBoundaryFixture(mode);
+    const evidence = vi.spyOn(storyPreview, 'previewStoryEvidence');
+    const plan = vi.spyOn(storyPreview, 'validatePreviewPlan');
+    const continuity = vi.spyOn(previewQuality, 'validatePreviewContinuity');
+    try {
+      const loaded = loadOwnerDraft(repo, config);
+      expect(evidence).toHaveBeenCalledWith(loaded.story);
+      expect(evidence.mock.invocationCallOrder[0]).toBeLessThan(plan.mock.invocationCallOrder[0]);
+      expect(evidence.mock.invocationCallOrder[0]).toBeLessThan(continuity.mock.invocationCallOrder[0]);
+      const texts = evidence.mock.results[0].value.texts;
+      expect(plan.mock.calls[0][1]).toBe(texts.length - 1);
+      expect(continuity.mock.calls[0][2]).toBe(texts);
+      expect(texts).toEqual(['Test', 'First.', 'Second.']);
+      expect(fs.readdirSync(path.join(repo, 'outputs'))).toEqual([]);
+    } finally { continuity.mockRestore(); plan.mockRestore(); evidence.mockRestore(); }
+  });
+  it.each(['legacy', 'atlas', 'sequence'].flatMap(mode => ['mutated', 'cloned'].map(kind => ({ mode, kind }))))(
+    'rejects invalid parsed provenance before either validator; mode=$mode kind=$kind', ({ mode, kind }) => {
+      const { repo, config } = sourceBoundaryFixture(mode);
+      const originalParser = storyPreview.previewStory;
+      const parser = vi.spyOn(storyPreview, 'previewStory').mockImplementation((...args) => {
+        const story = originalParser(...args);
+        if (kind === 'cloned') return structuredClone(story);
+        story.pages.forEach(page => { page.text += ' extra'; });
+        return story;
+      });
+      const plan = vi.spyOn(storyPreview, 'validatePreviewPlan');
+      const continuity = vi.spyOn(previewQuality, 'validatePreviewContinuity');
+      try {
+        expect(() => loadOwnerDraft(repo, config)).toThrow('preview_story_source_binding');
+        expect(plan).not.toHaveBeenCalled(); expect(continuity).not.toHaveBeenCalled();
+        expect(generateGPTImage).not.toHaveBeenCalled(); expect(judgePreviewCandidate).not.toHaveBeenCalled();
+        expect(fs.readdirSync(path.join(repo, 'outputs'))).toEqual([]);
+      } finally { continuity.mockRestore(); plan.mockRestore(); parser.mockRestore(); }
+    });
   it('binds the optional prop atlas to a supplied board, sample and complete prop inventory', () => {
     const { repo, config } = fixture();
     for (const patch of [{ propBoardRegions: {} }, { samplePages: [1], propBoardRegions: {} },

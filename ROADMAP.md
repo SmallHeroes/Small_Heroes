@@ -1,5 +1,14 @@
 # SmallHeroes — Roadmap
 
+## Owner-loader invariant follow-up — 2026-09-23
+
+Source-boundary re-gate received for9d0bbe1d..254404b6: PASS0/0/2. Original P2
+closed; a new consistency P2 now corrected by one unconditional owner-loader check
+before plan/continuity validation in all modes. Focused250/250 and both typechecks
+pass; preservation unchanged, no paid calls. Narrow follow-up awaits re-gate;
+test instability remains OPEN/RED, with no new full-run or visual-quality claim.
+The authorized consecutive visual proof, semantic holds and release gates remain.
+
 ## Sequence dependency reviewed; source boundary hardened — 2026-09-22
 
 Claude's PASS0/0/2 now covers the original ledger/planning dependency and Codex's

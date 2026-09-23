@@ -35,3 +35,23 @@ failures. No automatic timeout increases, quarantine, reduced assertions or clai
 that all failures are inherited. Any runtime performance fix needs its own measured
 root cause and milestone. Cost0/no keys/providers/renders. No unresolved product
 choice for this integrity correction; Claude should fault-inject the new boundary.
+
+## Owner-loader follow-up — 2026-09-23
+
+Claude PASS0/0/2 on9d0bbe1d..254404b6 closes the original gap; new P2 is the
+owner loader's pre-sequence derivation of texts, with no check in legacy/atlas.
+Existing verified read+parse flow is not an exploit, but the source invariant
+should be uniform. Same task/branch, clean base254404b6/ahead14, sole Codex writer.
+Standing owner implementation authority applies; no new product decision.
+
+One unconditional evidence check immediately after parsing; plan page count and
+continuity both consume that returned texts array, before the optional sequence.
+No parser, serialization, prompt, budget, threshold, paid artifact or production
+cutover changes. Rejected: guarding only the sequence mode, widening the threat
+model, deep-freezing objects, or retuning timeouts in this small correction.
+Nine focused regressions cover positive ordering/data flow and mutated/cloned
+parser results across legacy/atlas/sequence. All existing focused specs, tsc and
+four preservation/input witnesses run; full check is not repeated for this small
+guard reuse. Its last16-timeout RED remains open, not waived or relabeled.
+Rollback this follow-up commit only, with no artifact migration. Cost0, no keys,
+providers/renders/push. Independent re-gate required; no self-PASS.

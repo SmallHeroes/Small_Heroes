@@ -3,7 +3,7 @@ import path from 'node:path';
 import sharp from 'sharp';
 import { z } from 'zod';
 import { parse as parseEnv } from 'dotenv';
-import { bindPreviewRun, previewCheckpoint, previewImageDigest, previewPagePrompt, previewSha, previewStory, validatePreviewPlan, writePreviewJson, selectedDraftQaContext } from '../lib/local-story-preview';
+import { bindPreviewRun, previewCheckpoint, previewImageDigest, previewPagePrompt, previewSha, previewStory, previewStoryEvidence, validatePreviewPlan, writePreviewJson, selectedDraftQaContext } from '../lib/local-story-preview';
 import { PREVIEW_QUALITY_VERSION, PREVIEW_JUDGE_MODEL, PREVIEW_JUDGE_EFFORT, qualityDisposition, validatePreviewContinuity, runPreviewQualityLoop, type QualityCandidate, type PreviewQualityReview } from '../lib/local-preview-quality';
 import { STYLE_01_FRAMING_RULE } from '../lib/style01-gptimage';
 import { validateBookSequence, validateSequenceSelection, sequencePagePacket, sequenceRenderPrompt } from '../lib/local-book-sequence';
@@ -55,10 +55,11 @@ export function loadOwnerDraft(repo: string, raw: unknown) {
   };
   const source = read(config.story), planSource = read(config.plan);
   const story = previewStory(source.bytes.toString('utf8'), config.childName, config.gender);
-  const plan = validatePreviewPlan(JSON.parse(planSource.bytes.toString('utf8')), story.pages.length);
+  const { texts } = previewStoryEvidence(story);
+  const plan = validatePreviewPlan(JSON.parse(planSource.bytes.toString('utf8')), texts.length - 1);
   if (config.propBoardRegions && (!config.samplePages || !config.propBoard ||
     JSON.stringify(Object.keys(config.propBoardRegions).sort()) !== JSON.stringify(plan.recurringProps.map(p => p.id).sort()))) throw Error('draft_prop_regions_binding');
-  plan.continuity = validatePreviewContinuity(plan.continuity, plan, [story.title, ...story.pages.map(p => p.text)]);
+  plan.continuity = validatePreviewContinuity(plan.continuity, plan, texts);
   const sequence = config.sequence ? validateBookSequence(JSON.parse(read(config.sequence).bytes.toString('utf8')), {
     story, planSha: config.plan.sha, plan,
   }) : null;

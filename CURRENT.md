@@ -1,5 +1,25 @@
 # SmallHeroes — Current Technical State
 
+## Uniform owner-loader source evidence — 2026-09-23
+
+Claude PASS0/0/2 for9d0bbe1d..254404b6 closes the original detached-text P2.
+New P2 is consistency/order in loadOwnerDraft, not an exploitable current input:
+plan/continuity used story fields before an optional sequence provenance check.
+Codex now checks parser evidence unconditionally immediately after parsing; both
+validators use its texts, in legacy/atlas/sequence. One runtime file changed.
+Same task/branch/worktree, sole writer; start254404b6 clean/ahead14. Protected
+768ccb2f/63ccb484 clean/read-only. No source, image, prompt, threshold or budget change.
+
+Nine new ordering/dataflow/rejection cases pass; six focused specs250/250 on first
+run, both typechecks0. Four witnesses retain56/3/2 preservation,18/216/432 input
+coverage and82 effective repair attributes. No full check repeated for this small
+guard reuse; prior6490pass/16timeouts/73skip remains RED and stability OPEN.
+The guard compares serialized representations, not every JS property; ignored
+metadata is not source evidence. No semantic entailment or visual acceptance claim.
+Independent re-gate of this follow-up pending; no prior PASS enlarged. See
+book-proof/source-binding-correction/OWNER_LOADER_HANDOFF.md. Cost0, no provider,
+credential access, render or push; five-page visual proof remains incomplete.
+
 ## Sequence review received; parser-bound source correction — 2026-09-22
 
 Claude supplied PASS0/0/2 for4ee9afc1..093d37c0,093d37c0..5e990881 and
