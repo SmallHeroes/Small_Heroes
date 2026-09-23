@@ -13,6 +13,8 @@ import '@/app/legal/legal.css';
 import { AboutSection } from './about-section';
 import { HeroDoodles, ValueDoodles, HelpsDoodles } from './hero-doodles';
 import { HeroCollage } from './hero-collage';
+import { NameMoment, type HeroChild } from './name-moment';
+import { HearPage } from './hear-page';
 import { CompanionSpotlight } from '@/app/components/CompanionSpotlight';
 import { warmCompanionIdleVideos } from '@/lib/web/companion-idle-video';
 
@@ -76,8 +78,52 @@ type LandingPageProps = {
   matrixCategories: MvpMatrixCategoryPayload[];
 };
 
+const CHILD_KEY = 'sh.hero-child';
+
 export default function LandingPage({ content: L, startHref, matrixCategories }: LandingPageProps) {
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(null);
+
+  /* The Name Moment: the page speaks the child's name once the parent
+     types it (remembered on this device). Empty = the content's own lines. */
+  const [child, setChild] = useState<HeroChild>({ name: '', gender: 'boy' });
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(CHILD_KEY);
+      if (raw) {
+        const saved = JSON.parse(raw) as Partial<HeroChild>;
+        setChild({
+          name: typeof saved.name === 'string' ? saved.name.slice(0, 16) : '',
+          gender: saved.gender === 'girl' ? 'girl' : 'boy',
+        });
+      }
+    } catch {
+      /* storage optional */
+    }
+  }, []);
+  const onChildChange = useCallback((next: HeroChild) => {
+    setChild(next);
+    try {
+      window.localStorage.setItem(CHILD_KEY, JSON.stringify(next));
+    } catch {
+      /* storage optional */
+    }
+  }, []);
+
+  const heroName = child.name.trim();
+  const girl = child.gender === 'girl';
+  const h1Line1 = heroName ? `הפעם, ${heroName}` : girl ? 'הפעם, הילדה שלכם' : L.hero.h1Line1;
+  const h1Line2 = heroName || girl
+    ? girl ? 'היא הגיבורה של הסיפור.' : 'הוא הגיבור של הסיפור.'
+    : L.hero.h1Line2;
+  const ctaPrimary = heroName
+    ? `להתחיל את הספר של ${heroName}`
+    : girl ? 'להתחיל את הספר שלה' : L.hero.ctaPrimary;
+  const sampleLine1 = heroName
+    ? `${heroName} לא ${girl ? 'מקבלת' : 'מקבל'} שיעור.`
+    : girl ? 'הילדה שלכם לא מקבלת שיעור.' : L.sample.h2Line1;
+  const sampleLine2 = heroName || girl
+    ? girl ? 'היא מקבלת תפקיד ראשי.' : 'הוא מקבל תפקיד ראשי.'
+    : L.sample.h2Line2;
   /* Companion Spotlight - home cards open the companion dialog instead of navigating. */
   const [spotlight, setSpotlight] = useState<SpotlightState | null>(null);
 
@@ -113,10 +159,14 @@ export default function LandingPage({ content: L, startHref, matrixCategories }:
               <div className="hero-text">
                 <div className="hero-badge" data-reveal="hero" data-reveal-delay="0">{L.hero.badge}</div>
                 <h1 className="hero-h1" data-reveal="hero" data-reveal-delay="60">
-                  <span className="hero-h1-line">{L.hero.h1Line1}</span>{' '}
-                  <span className="hero-h1-line hero-h1-line--accent">{L.hero.h1Line2}</span>
+                  {/* keyed on the text: a new name re-mounts the line and it
+                      pops in (name-pop), so the change is felt, not swapped */}
+                  <span key={h1Line1} className="hero-h1-line name-pop">{h1Line1}</span>{' '}
+                  <span key={h1Line2} className="hero-h1-line hero-h1-line--accent name-pop">{h1Line2}</span>
                 </h1>
                 <p className="hero-sub2" data-reveal="hero" data-reveal-delay="120">{L.hero.sub}</p>
+
+                <NameMoment child={child} onChange={onChildChange} />
 
                 <div className="hero-btns" data-reveal="hero" data-reveal-delay="180">
                   <a
@@ -124,7 +174,7 @@ export default function LandingPage({ content: L, startHref, matrixCategories }:
                     className="btn-primary"
                     data-event="landing_start_click"
                   >
-                    {L.hero.ctaPrimary}
+                    <span key={ctaPrimary} className="name-pop">{ctaPrimary}</span>
                   </a>
                   {/* lands on the sample section — the book itself (a video of
                       it, once Guy's clip exists). The gallery is a look, not a
@@ -146,6 +196,12 @@ export default function LandingPage({ content: L, startHref, matrixCategories }:
                 <div className="hero-float">
                   <HeroCollage />
                 </div>
+                {/* the arc the pictures tell, said in three words */}
+                <ol className="hero-captions" aria-hidden="true">
+                  <li>רגע של פחד</li>
+                  <li>חבר מלווה</li>
+                  <li>יוצאת גאה</li>
+                </ol>
               </div>
             </div>
           </section>
@@ -230,12 +286,14 @@ export default function LandingPage({ content: L, startHref, matrixCategories }:
               <div className="sample-text">
                 <div className="sample-kicker" data-reveal="up">{L.sample.kicker}</div>
                 <h2 className="sample-h2" data-reveal="up" data-reveal-delay="60">
-                  {L.sample.h2Line1}
+                  <span key={sampleLine1} className="name-pop">{sampleLine1}</span>
                   <br />
-                  <span className="mk-sweep">{L.sample.h2Line2}</span>
+                  <span key={sampleLine2} className="mk-sweep name-pop">{sampleLine2}</span>
                 </h2>
                 <p className="sample-p" data-reveal="up" data-reveal-delay="120">{L.sample.p1}</p>
                 <p className="sample-p sample-p--soft" data-reveal="up" data-reveal-delay="160">{L.sample.p2}</p>
+
+                <HearPage />
 
                 {/* The CTA that pointed at the gallery is gone (per Guy: the
                     gallery is show, not a sample). The sample IS this section —
