@@ -1,5 +1,15 @@
 # SmallHeroes — Roadmap
 
+## Measured sequence pair held before page2 — 2026-09-23
+
+Actual paid pair stopped on a wheel geometry defect. One existing-loop repair also
+failed; no more paid retries this task. Two new images/six QA calls, ~0.3400155 USD
+nominal usage from saved pricing; cumulative accounted6.65329 with old unknown1
+retained. No page2/five-page or visual-continuity completion claim. Outcome/QA brief
+in sequence-recovery/PAIR_OUTCOME_HANDOFF.md. Generic bounded object repair is the
+next investigation; no runtime implementation or gate relaxation granted by this
+result. Semantic, independent-QA, full-check and release boundaries remain open.
+
 ## Consecutive visual measurement — 2026-09-23
 
 Owner-loader re-gate received: Claude PASS0/0/0 on254404b6..56fbe397 only.

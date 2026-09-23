@@ -5,32 +5,56 @@ require('../../../../../scripts/shims/register-server-only.cjs');require('tsx/cj
 const {previewAccountedUsd,previewSha,previewStory}=require('../../../../../lib/local-story-preview.ts');
 const repo=path.resolve(__dirname,'../../../../..');
 globalThis.fetch=()=>{throw Error('offline_provider_forbidden');};
-const output='outputs/panda-sequence-pair-sample-20260923',root=path.join(repo,output);
+const repair=process.argv.includes('--repair'),prefix=repair?'panda-sequence-pair-repair':'panda-sequence-pair';
+const output='outputs/'+prefix+'-sample-20260923',root=path.join(repo,output);
 const read=rel=>JSON.parse(fs.readFileSync(path.join(repo,rel),'utf8'));
-const config=read('outputs/panda-sequence-pair-input-20260923/config.json');
-const execution=read('outputs/panda-sequence-pair-execution-20260923/execution.json');
+const config=read('outputs/'+prefix+'-input-20260923/config.json');
+const execution=read('outputs/'+prefix+'-execution-20260923/execution.json');
 assert.equal(execution.preserved,true);assert(!fs.existsSync(path.join(root,'run.lock')));
+assert.deepEqual(read(output+'/identity.json').config,config);
+assert.equal(read('outputs/'+prefix+'-execution-20260923/invocation.json').configSha,
+  previewSha(fs.readFileSync(path.join(repo,'outputs/'+prefix+'-input-20260923/config.json'))));
 const source=fs.readFileSync(path.join(repo,config.story.file),'utf8');assert.equal(previewSha(source),config.story.sha);
 const story=previewStory(source,config.childName,config.gender),manifest=read(output+'/sample-manifest.json');
 assert.equal(manifest.sourceSha,config.story.sha);assert.equal(manifest.planSha,config.plan.sha);assert.deepEqual(manifest.samplePages,[1,2]);
-const {loadOwnerDraft,ownerDraftPagePrompt,selectedDraftQaContext}=require('../../../../../scripts/run-owner-book-draft.ts');
+const {loadOwnerDraft,ownerDraftPagePrompt,ownerDraftRepairPrompt,selectedDraftQaContext}=require('../../../../../scripts/run-owner-book-draft.ts');
 const {sequencePagePacket,sequenceRenderPrompt}=require('../../../../../lib/local-book-sequence.ts');
 const {PREVIEW_QUALITY_VERSION,qualityDisposition}=require('../../../../../lib/local-preview-quality.ts');
 const {plan,sequence}=loadOwnerDraft(repo,config),completed=[];
 for(const row of manifest.results){
-  const n=row.pageNumber,step='page-'+String(n).padStart(2,'0'),packet=sequencePagePacket(sequence,plan,n,completed);
-  const request=read(output+'/'+step+'.request.json');assert.deepEqual(request.sequence,packet);
-  assert.equal(request.prompt,sequenceRenderPrompt(ownerDraftPagePrompt(plan,n,story.pages[n-1].text,config.childAge,config.gender,config.companionDescription),packet,n===2?4:null));
-  const refs=['reference-1.png','reference-2.png','prop-reference-'+String(n).padStart(2,'0')+'.png',...(n===2?['page-01.png']:[])];
-  assert.deepEqual(request.references,refs.map(f=>previewSha(fs.readFileSync(path.join(root,f)))));
-  const imageRecord=read(output+'/steps/'+step+'.result.json');assert.equal(imageRecord.value.referencesPassed,refs.length);
-  assert.equal(imageRecord.fingerprint,previewSha(JSON.stringify({version:'owner-book-draft/v1',model:'gpt-image-2',quality:'low',size:'1024x1536',prompt:request.prompt,refs:request.references})));
+  const n=row.pageNumber,packet=sequencePagePacket(sequence,plan,n,completed);
   const context={selectedPlan:selectedDraftQaContext(plan,n),sequence:packet,pageNumber:n,text:story.pages[n-1].text,
     priorPages:completed.map(p=>({pageNumber:p.pageNumber,text:story.pages[p.pageNumber-1].text,imageName:p.candidate.imageName,imageSha:p.candidate.imageSha,
       automatedPassed:false,score:null,reason:'editorial_draft_visual_and_numerical_qa_not_accepted'})),calibrationStatus:'not_established',purpose:'diagnostic_only'};
   if(row.history?.length){
     assert.equal(row.contextSha,previewSha(JSON.stringify({version:PREVIEW_QUALITY_VERSION,context})));
-    const decision=qualityDisposition(row.history[0].review,row.candidate.imageSha,row.contextSha);
+    for(const [i,item] of row.history.entries()){
+      const {candidate,review}=item,step=candidate.imageName.replace(/\.png$/,'');
+      assert.match(step,/^page-\d{2}(?:-repair-01)?$/);
+      assert.equal(previewSha(fs.readFileSync(path.join(root,candidate.imageName))),candidate.imageSha);
+      qualityDisposition(review,candidate.imageSha,row.contextSha);
+      const qaStep=step.replace(/^page-/,'qa-');
+      const rawReview=JSON.parse(read(output+'/qa/steps/'+qaStep+'.result.json').value.text);
+      const anatomy=JSON.parse(read(output+'/qa/steps/'+qaStep+'-anatomy.result.json').value.text);
+      if(anatomy.verdict!=='pass')Object.assign(rawReview.checks.find(c=>c.category==='anatomy'),
+        {verdict:anatomy.verdict,observation:anatomy.observation,correction:anatomy.correction});
+      assert.deepEqual(review,rawReview);
+      if(fs.existsSync(path.join(root,step+'.import.json'))){
+        assert.equal(i,0);const imported=read(output+'/'+step+'.import.json');
+        assert.equal(imported.authority,'unassessed_candidate_only');assert.equal(imported.sha,candidate.imageSha);
+        assert.equal(previewSha(fs.readFileSync(imported.file)),candidate.imageSha);
+        continue;
+      }
+      const request=read(output+'/'+step+'.request.json');assert.deepEqual(request.sequence,packet);
+      const refs=['reference-1.png','reference-2.png','prop-reference-'+String(n).padStart(2,'0')+'.png',
+        ...(i>0?[row.history[i-1].candidate.imageName]:packet.predecessor?[packet.predecessor.imageName]:[])];
+      let prompt=sequenceRenderPrompt(ownerDraftPagePrompt(plan,n,story.pages[n-1].text,config.childAge,config.gender,config.companionDescription),packet,packet.predecessor&&i===0?4:null);
+      if(i>0)prompt=ownerDraftRepairPrompt(prompt,row.history[i-1].candidate,row.history[i-1].review,row.contextSha,4);
+      assert.equal(request.prompt,prompt);assert.deepEqual(request.references,refs.map(f=>previewSha(fs.readFileSync(path.join(root,f)))));
+      const imageRecord=read(output+'/steps/'+step+'.result.json');assert.equal(imageRecord.value.referencesPassed,refs.length);
+      assert.equal(imageRecord.fingerprint,previewSha(JSON.stringify({version:'owner-book-draft/v1',model:'gpt-image-2',quality:'low',size:'1024x1536',prompt:request.prompt,refs:request.references})));
+    }
+    const decision=qualityDisposition(row.history.at(-1).review,row.candidate.imageSha,row.contextSha);
     assert.equal(row.status,decision.disposition==='repair'?'held_repair_limit':decision.disposition);
   }
   completed.push(row);
@@ -58,7 +82,8 @@ function inspect(rel){
   }
   return rows;
 }
-const fresh=inspect(output),historical=['outputs/panda-five-page-sample-20260919','outputs/panda-five-page-selected-sample-20260919'].flatMap(inspect);
+const fresh=inspect(output),historical=['outputs/panda-five-page-sample-20260919','outputs/panda-five-page-selected-sample-20260919',
+  ...(repair?['outputs/panda-sequence-pair-sample-20260923']:[])].flatMap(inspect);
 const sum=rows=>rows.reduce((n,r)=>n+(r.nominalUsageEstimateUsd??0),0);
 const cost={invoiceVerified:false,pricingSnapshot:pricing,newKnownUsageEstimateUsd:sum(fresh),newUnpricedSteps:fresh.filter(r=>r.nominalUsageEstimateUsd===null).map(r=>r.step),
   newAccountedUpperUsd:previewAccountedUsd(path.join(root,'steps'))+previewAccountedUsd(path.join(root,'qa/steps')),
@@ -66,7 +91,7 @@ const cost={invoiceVerified:false,pricingSnapshot:pricing,newKnownUsageEstimateU
   aggregateUnknownReservationUsd:[...historical,...fresh].filter(r=>r.outcome==='unknown_reservation_retained').reduce((n,r)=>n+r.reserveUsd,0),steps:fresh};
 assert(Math.abs(cost.newAccountedUpperUsd-execution.newAccountedUpperUsd)<1e-8);
 const pages=manifest.results.filter(r=>r.candidate).map(r=>{
-  assert.match(r.candidate.imageName,/^page-\d{2}\.png$/);assert.equal(previewSha(fs.readFileSync(path.join(root,r.candidate.imageName))),r.candidate.imageSha);
+  assert.match(r.candidate.imageName,/^page-\d{2}(?:-repair-01)?\.png$/);assert.equal(previewSha(fs.readFileSync(path.join(root,r.candidate.imageName))),r.candidate.imageSha);
   return {...r,text:story.pages[r.pageNumber-1].text};
 });
 const report={title:story.title,status:manifest.status,pages,unassessed:manifest.unassessed,cost,execution,productionReady:false,productAcceptance:'pending',audio:false,

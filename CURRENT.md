@@ -1,5 +1,24 @@
 # SmallHeroes — Current Technical State
 
+## Paid measurement closed HELD; no further retries — 2026-09-23
+
+Both first pair attempt10e11493 and bounded repair32307df2 ended native2. Only
+page1 generated, then edited once; wheel spoke-count defect persists and repair QA
+also flags wheel scale. No page2 dispatch, no five-page completion, no measured
+same-scene predecessor success. Do not infer continuity solved from page1 geometry.
+No gate relaxation; original and repaired images/reviews retained. Total new calls:
+two images/six QA, all outcomes known. Nominal usage estimate0.3400155 (saved19Sep
+pricing, not invoice); conservative new2.08956, cumulative6.65329<9.50 including
+old unknown1 reservation. Further paid attempts stopped after the failed correction.
+Preservation110/110 then137/137; source/sequence witness checks still pass.155 focused
+tests/tsc0, no full check rerun: RED/open persists. No app/scripts/lib changes or push.
+Reader/evidence and ready-to-copy independent QA brief:
+book-proof/sequence-recovery/PAIR_OUTCOME_HANDOFF.md. Isolated local artifacts,
+no verified off-machine backup, no canonical candidate/production/acceptance cutover.
+Next investigation: spatially bounded generic repair, not another full-image retry
+or silently weakening design constraints. Neither that repair nor semantic entailment
+is claimed solved. This closes the paid experiment, not the requested five-page proof.
+
 ## Pair stopped honestly; one bounded repair follows — 2026-09-23
 
 Pair execution on10e11493 completed native2: page1 held_repair_limit for extra wheel
