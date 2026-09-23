@@ -1,5 +1,14 @@
 # SmallHeroes — Roadmap
 
+## Consecutive visual measurement — 2026-09-23
+
+Owner-loader re-gate received: Claude PASS0/0/0 on254404b6..56fbe397 only.
+Proceed with the already-authorized minimum same-scene pair1/2 before3-5, using
+unchanged owner-sample code/inputs and cumulative spend accounting. No repeated
+approval question, new repair loop or production cutover. PAIR_GATE.md records
+155 focused passes, tsc0 and preserved historical artifacts. Outcome pending.
+Repository stability remains RED/open; structural PASS is not visual acceptance.
+
 ## Owner-loader invariant follow-up — 2026-09-23
 
 Source-boundary re-gate received for9d0bbe1d..254404b6: PASS0/0/2. Original P2

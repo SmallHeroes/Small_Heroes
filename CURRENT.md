@@ -1,5 +1,16 @@
 # SmallHeroes — Current Technical State
 
+## Authorized same-scene measurement started — 2026-09-23
+
+Claude reports PASS0/0/0 for254404b6..56fbe397, closing the owner-loader P2;
+duplicate review does not require another gate. Code PASS is range-bound, not whole-tree.
+Codex is preparing the already-authorized minimum consecutive pair1/2 through the
+existing owner sample CLI, with unchanged inputs/models and no repairs. No paid call
+at preparation time. Pair caps1+3 fit prior accounted4.56373 plus retained unknown1
+(already included), aggregate8.56373 below9.50. No budget reset or old-root replay.
+See book-proof/sequence-recovery/PAIR_GATE.md. New evidence roots are local/ignored.
+Full check RED16timeouts and semantic/visual/release holds remain open; no push.
+
 ## Uniform owner-loader source evidence — 2026-09-23
 
 Claude PASS0/0/2 for9d0bbe1d..254404b6 closes the original detached-text P2.
