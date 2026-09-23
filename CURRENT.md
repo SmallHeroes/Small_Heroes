@@ -1,5 +1,22 @@
 # SmallHeroes — Current Technical State
 
+## LOW result and separate MEDIUM comparison — 2026-09-23
+
+LOW ran from69a75de0: native2, one Sunburst image/two QA calls; page1 held on
+wheel spokes, page2 unrendered. Other seven context categories and blind anatomy
+passed; no visual accuracy or model-superiority claim. Nominal usage0.12878 USD,
+accounted upper0.74079; cumulative7.39408, historical unknown1 retained.
+172/172 old artifacts unchanged including mtime; no retry/fallback/repair.
+
+Per the approved staged recommendation, now preparing one quality-only MEDIUM
+page1, same model/prompt/refs/size/QA. Optional sample-only imageQuality defaults
+to LOW without changing omitted config bytes.204/204 focused tests and tsc0.
+Original LOW offline report still reproduces. New preparation checks203 files,
+caps0.50+1.50, maximum cumulative9.39408 under9.50. No paid MEDIUM call yet at
+this preparation point. QUALITY_COMPARISON_GATE.md records the separate scope.
+No further paid ladder after this one result. Full gate below remains RED;
+no full rerun, independent PASS, push, product acceptance or customer cutover.
+
 ## Owner-approved model-only comparison — 2026-09-23
 
 Guy accepted the revised diagnosis and instructed continuation. Same task/worktree,

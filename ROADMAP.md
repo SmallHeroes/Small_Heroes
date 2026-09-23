@@ -1,5 +1,13 @@
 # SmallHeroes — Roadmap
 
+## Model-only LOW held; isolate quality once — 2026-09-23
+
+Sunburst LOW retained the wheel-spoke mismatch (one image/two QA;0.12878 nominal).
+Page2 never dispatched. Preparing one MEDIUM first-page comparison with unchanged
+prompt/references/QA;204 focused tests pass. Existing aggregate9.50 fence retained,
+new caps2.00 fit maximum9.39408. No further paid ladder after this measurement.
+No claim that a single sample calibrates quality or solves book continuity.
+
 ## Compare image capability before expanding repair — 2026-09-23
 
 Guy approved a model-only Sunburst audition through the existing owner pipeline.

@@ -32,13 +32,13 @@ const hasOwn = (value: object, property: PropertyKey): boolean =>
   Object.prototype.hasOwnProperty.call(value, property);
 
 describe('generateGPTImage (3a) — real cancellation + no hidden SDK retries', () => {
-  it('passes the explicit Sunburst model to the actual edit seam without changing LOW or retry policy', async () => {
+  it.each(['low', 'medium'] as const)('passes explicit Sunburst %s to actual edit seam without changing retry policy', async quality => {
     editSpy.mockResolvedValue(OK_RESPONSE);
     const result = await generateGPTImage({ finalPrompt: 'unchanged scene', referenceImages: ['package.json'],
       referenceMode: 'explicit_role_map', requireReferenceEdit: true, modelOverride: 'gpt-image-2.5-sunburst',
-      quality: 'low', size: '1024x1536', requestTimeoutMs: 600000 });
+      quality, size: '1024x1536', requestTimeoutMs: 600000 });
     expect(editSpy).toHaveBeenCalledTimes(1); expect(generateSpy).not.toHaveBeenCalled();
-    expect(editSpy.mock.calls[0][0]).toMatchObject({ model: 'gpt-image-2.5-sunburst', quality: 'low', size: '1024x1536', n: 1 });
+    expect(editSpy.mock.calls[0][0]).toMatchObject({ model: 'gpt-image-2.5-sunburst', quality, size: '1024x1536', n: 1 });
     expect(editSpy.mock.calls[0][1]).toMatchObject({ maxRetries: 0, timeout: 600000 });
     expect(result).toMatchObject({ model: 'gpt-image-2.5-sunburst', fallbackUsed: false, referenceCountPassed: 1 });
   });

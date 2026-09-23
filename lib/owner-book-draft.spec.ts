@@ -51,7 +51,18 @@ describe('explicit local editorial draft boundary', () => {
     const loaded = loadOwnerDraft(repo, config);
     expect(loaded.config).toEqual(config);
     expect(loaded.config).not.toHaveProperty('imageModel');
+    expect(loaded.config).not.toHaveProperty('imageQuality');
     expect(loaded.imageModel).toBe('gpt-image-2');
+    expect(loaded.imageQuality).toBe('low');
+  });
+  it.each(['low', 'medium'])('limits explicit quality %s to sample configurations', imageQuality => {
+    const { repo, config } = fixture();
+    expect(() => loadOwnerDraft(repo, { ...config, imageQuality })).toThrow('draft_image_quality_sample_only');
+    expect(loadOwnerDraft(repo, { ...config, imageQuality, samplePages: [1] }).imageQuality).toBe(imageQuality);
+  });
+  it.each(['high', 'auto', 'MEDIUM', 'medium ', '', null])('rejects quality %s before reading inputs', imageQuality => {
+    const { repo, config } = fixture(); fs.unlinkSync(path.join(repo, config.story.file));
+    expect(() => loadOwnerDraft(repo, { ...config, imageQuality, samplePages: [1] })).toThrow(/imageQuality/);
   });
   it.each(['gpt-image-2', 'gpt-image-2.5-sunburst'])('limits explicit model %s to sample configurations', imageModel => {
     const { repo, config } = fixture();
@@ -362,10 +373,14 @@ describe('real owner-draft entry point with mocked providers', () => {
       usage: { input_tokens: 100, output_tokens: 100 } }));
     return { file, root };
   }
-  it.each([undefined, 'gpt-image-2', 'gpt-image-2.5-sunburst'])('binds model %s to real-entry dispatch, identity, checkpoint and replay', async imageModel => {
+  it.each([
+    [undefined, undefined], ['gpt-image-2', undefined], ['gpt-image-2.5-sunburst', undefined],
+    ['gpt-image-2', 'low'], ['gpt-image-2', 'medium'], ['gpt-image-2.5-sunburst', 'medium'],
+  ])('binds model %s / quality %s to real-entry dispatch, identity, checkpoint and replay', async (imageModel, imageQuality) => {
     const { file, root } = await inputs();
     const config = JSON.parse(fs.readFileSync(file, 'utf8'));
     if (imageModel !== undefined) config.imageModel = imageModel;
+    if (imageQuality !== undefined) config.imageQuality = imageQuality;
     fs.writeFileSync(file, JSON.stringify(config));
     vi.stubEnv('GPT_IMAGE_MODEL', 'unapproved-ambient-model');
     vi.mocked(judgePreviewCandidate).mockImplementation(async args => ({ candidateSha: args.candidateSha, contextSha: args.contextSha,
@@ -373,17 +388,24 @@ describe('real owner-draft entry point with mocked providers', () => {
     const result = await runOwnerBookDraft(file, 'sample');
     expect(result?.status).toBe('sample_diagnostically_passed_not_accepted');
     const selected = imageModel ?? 'gpt-image-2';
-    for (const [args] of vi.mocked(generateGPTImage).mock.calls) expect(args).toMatchObject({ modelOverride: selected, quality: 'low', size: '1024x1536' });
+    const quality = imageQuality ?? 'low';
+    for (const [args] of vi.mocked(generateGPTImage).mock.calls) expect(args).toMatchObject({ modelOverride: selected, quality, size: '1024x1536' });
     const identity = JSON.parse(fs.readFileSync(path.join(root, 'identity.json'), 'utf8'));
-    expect(identity).toMatchObject({ config, imageModel: selected, quality: 'low', judgeModel: 'gpt-5.5', judgeEffort: 'medium' });
+    expect(identity).toMatchObject({ config, imageModel: selected, quality, judgeModel: 'gpt-5.5', judgeEffort: 'medium' });
     const request = JSON.parse(fs.readFileSync(path.join(root, 'page-01.request.json'), 'utf8'));
     const record = JSON.parse(fs.readFileSync(path.join(root, 'steps/page-01.result.json'), 'utf8'));
     expect(record.value.model).toBe(selected);
     expect(record.fingerprint).toBe(previewSha(JSON.stringify({ version: 'owner-book-draft/v1', model: selected,
-      quality: 'low', size: '1024x1536', prompt: request.prompt, refs: request.references })));
+      quality, size: '1024x1536', prompt: request.prompt, refs: request.references })));
     await runOwnerBookDraft(file, 'sample');
     expect(generateGPTImage).toHaveBeenCalledTimes(2);
     const savedIdentity = fs.readFileSync(path.join(root, 'identity.json'));
+    config.imageQuality = quality === 'medium' ? 'low' : 'medium';
+    fs.writeFileSync(file, JSON.stringify(config));
+    await expect(runOwnerBookDraft(file, 'sample')).rejects.toThrow('preview_input_changed_new_run_required');
+    expect(generateGPTImage).toHaveBeenCalledTimes(2);
+    expect(fs.readFileSync(path.join(root, 'identity.json'))).toEqual(savedIdentity);
+    if (imageQuality === undefined) delete config.imageQuality; else config.imageQuality = imageQuality;
     config.imageModel = selected === 'gpt-image-2' ? 'gpt-image-2.5-sunburst' : 'gpt-image-2';
     fs.writeFileSync(file, JSON.stringify(config));
     await expect(runOwnerBookDraft(file, 'sample')).rejects.toThrow('preview_input_changed_new_run_required');
