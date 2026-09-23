@@ -24,6 +24,8 @@ export const ownerDraftSchema = z.object({
   childName: z.string().min(1).max(50), childAge: z.number().int().min(3).max(8), gender: z.enum(['boy', 'girl']),
   companionDescription: z.string().min(1).max(1500), outputDir: z.string().min(1),
   imageBudgetUsd: z.number().positive().max(10), qaBudgetUsd: z.number().positive().max(10),
+  // Opt-in diagnostic comparison only. Omission preserves historical config bytes.
+  imageModel: z.enum(['gpt-image-2', 'gpt-image-2.5-sunburst']).optional(),
   samplePages: z.array(z.number().int().min(0).max(24)).min(1).max(5).optional(),
   sampleRepairOnce: z.literal(true).optional(),
   sampleInitialImages: z.array(z.object({ pageNumber: z.number().int().min(0).max(24), image: asset }).strict()).min(1).max(5).optional(),
@@ -42,6 +44,8 @@ export function draftOutputRoot(repo: string, outputDir: string) {
 export function loadOwnerDraft(repo: string, raw: unknown) {
   if (process.env.VERCEL || process.env.VERCEL_ENV || process.env.NODE_ENV === 'production') throw Error('local_draft_only');
   const config = ownerDraftSchema.parse(raw);
+  if (config.imageModel !== undefined && !config.samplePages) throw Error('draft_image_model_sample_only');
+  const imageModel = config.imageModel ?? 'gpt-image-2';
   if ((config.sampleRepairOnce && !config.samplePages) || (config.sampleInitialImages && !config.sampleRepairOnce)) throw Error('draft_repair_sample_only');
   if (config.sampleInitialImages && (new Set(config.sampleInitialImages.map(p => p.pageNumber)).size !== config.sampleInitialImages.length ||
     config.sampleInitialImages.some(p => !config.samplePages!.includes(p.pageNumber)))) throw Error('draft_initial_image_selection');
@@ -77,7 +81,7 @@ export function loadOwnerDraft(repo: string, raw: unknown) {
   const refs = [read(config.childAnchor), read(config.companionAnchor)];
   const root = draftOutputRoot(repo, config.outputDir);
   const propBoard = config.propBoard ? read(config.propBoard) : undefined;
-  return { config, story, plan, refs, root, propBoard, initialImages, sequence };
+  return { config, story, plan, refs, root, propBoard, initialImages, sequence, imageModel };
 }
 
 export function draftManifest(story: ReturnType<typeof previewStory>, planSha: string, pages: unknown[]) {
@@ -192,7 +196,7 @@ export async function runGatedDraftPages(args: {
 
 export async function runOwnerBookDraft(configFile: string, mode: 'preflight' | 'render' | 'qa' | 'sample', keyFile?: string, throughPage?: number) {
   const repo = path.resolve(__dirname, '..');
-  const { config, story, plan, refs, root, propBoard, initialImages, sequence } = loadOwnerDraft(repo, JSON.parse(fs.readFileSync(configFile, 'utf8')));
+  const { config, story, plan, refs, root, propBoard, initialImages, sequence, imageModel } = loadOwnerDraft(repo, JSON.parse(fs.readFileSync(configFile, 'utf8')));
   if ((mode === 'sample' && (!config.samplePages || throughPage !== undefined)) ||
     (config.samplePages && mode !== 'preflight' && mode !== 'sample')) throw Error('draft_sample_mode_required');
   if (throughPage !== undefined && (!Number.isInteger(throughPage) || throughPage < 0 || throughPage >= plan.pages.length)) throw Error('draft_page_limit');
@@ -202,7 +206,7 @@ export async function runOwnerBookDraft(configFile: string, mode: 'preflight' | 
   const projected = config.propBoardRegions ? await projectDraftPropReferences(propBoard!.bytes, config.propBoardRegions,
     plan.pages.filter(p => config.samplePages!.includes(p.pageNumber))) : null;
   const identity = { version: DRAFT_VERSION, config, refs: normalized.map(r => ({ file: r.file, sourceSha: r.sha, transportSha: previewSha(r.bytes) })),
-    imageModel: 'gpt-image-2', quality: 'low', size: '1024x1536', qualityVersion: PREVIEW_QUALITY_VERSION,
+    imageModel, quality: 'low', size: '1024x1536', qualityVersion: PREVIEW_QUALITY_VERSION,
     judgeModel: PREVIEW_JUDGE_MODEL, judgeEffort: PREVIEW_JUDGE_EFFORT, productionReady: false, automaticRepair: Boolean(config.sampleRepairOnce),
     ...(config.samplePages ? { samplePolicy: sequence ? 'shared-quality-before-next-page/v6-book-sequence'
       : projected ? 'shared-quality-before-next-page/v5-selected-props-and-state'
@@ -233,19 +237,19 @@ export async function runOwnerBookDraft(configFile: string, mode: 'preflight' | 
     const makeImage = async (step: string, prompt: string, references: string[], fileName: string) => {
       if (prompt.length > 24000 || references.length > (config.sampleRepairOnce || sequence ? 4 : 3)) throw Error('draft_image_input_limit');
       if ((config.sampleRepairOnce || sequence) && references.length > (await import('../lib/generate-image')).resolveGPTImageEditMaxReferences()) throw Error('draft_reference_cap');
-      const result = await previewCheckpoint({ root, step, input: { version: DRAFT_VERSION, model: 'gpt-image-2', quality: 'low', size: '1024x1536', prompt, refs: references.map(previewImageDigest) },
+      const result = await previewCheckpoint({ root, step, input: { version: DRAFT_VERSION, model: imageModel, quality: 'low', size: '1024x1536', prompt, refs: references.map(previewImageDigest) },
         reserveUsd: 0.5, budgetUsd: config.imageBudgetUsd, produce: async () => {
           const { generateGPTImage } = await import('../lib/generate-image');
           permit(references.length ? '/v1/images/edits' : '/v1/images/generations');
           const image = await generateGPTImage({ finalPrompt: prompt, referenceImages: references, referenceMode: 'explicit_role_map',
-            requireReferenceEdit: references.length > 0, modelOverride: 'gpt-image-2', quality: 'low', size: '1024x1536', requestTimeoutMs: 600_000 });
+            requireReferenceEdit: references.length > 0, modelOverride: imageModel, quality: 'low', size: '1024x1536', requestTimeoutMs: 600_000 });
           // Persist known provider output before checking transport assertions.
           fs.writeFileSync(path.join(root, fileName), image.buffer, { flag: 'wx' });
           return { value: { fileName, sha: previewSha(image.buffer), promptSha: previewSha(image.finalPrompt), durationMs: image.durationMs,
             model: image.model, fallbackUsed: Boolean(image.fallbackUsed), referencesPassed: image.referenceCountPassed }, usage: image.usage };
         } });
       const value = result.value;
-      if (value.model !== 'gpt-image-2' || value.fallbackUsed || value.referencesPassed !== references.length || value.fileName !== fileName ||
+      if (value.model !== imageModel || value.fallbackUsed || value.referencesPassed !== references.length || value.fileName !== fileName ||
         previewImageDigest(path.join(root, fileName)) !== value.sha) throw Error('draft_image_binding');
       console.log(JSON.stringify({ stage: step, imageSha: value.sha }));
       return value;

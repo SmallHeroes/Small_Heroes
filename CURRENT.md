@@ -1,5 +1,27 @@
 # SmallHeroes — Current Technical State
 
+## Owner-approved model-only comparison — 2026-09-23
+
+Guy accepted the revised diagnosis and instructed continuation. Same task/worktree,
+sole writer Codex, start79dea3db clean/ahead18; protected768ccb2f/63ccb484 clean.
+The prior regional-repair recommendation below is superseded in priority by a
+small controlled Sunburst comparison, NOT by relaxing QA or accepting held pixels.
+Owner CLI now has an optional allowlisted sample-only imageModel; omission retains
+Image2 and old config identity. LOW, dimensions, prompts, source/plan/sequence,
+references, QA5.5-medium/Flex and all gates stay unchanged. No production cutover.
+
+192/192 focused tests (owner95, image transport23, preview42, sequence32), tsc0;
+both historical offline readouts still reproduce exactly. Preflight0/providerCalls0.
+Official model metadata lookup200; no generation has happened at this preparation
+point. First page prompt is byte-identical to the baseline;172 files monitored.
+New caps1 image +1.80 QA fit9.45329 maximum including prior6.65329 and old unknown1.
+No repair/retry/budget refill; at most pair1/2, stop on first hold/error/fence.
+Fresh full check native1: both phases failed; resource642pass/29fail, including
+timeouts AND assertion mismatches. No untouched-base causality proof. Logs are in
+the new comparison input root. Both typechecks passed; stability remains RED/open.
+See sequence-recovery/MODEL_COMPARISON_GATE.md and model-comparison.cjs.
+Independent QA pending; no push, full book, narration or acceptance.
+
 ## Paid measurement closed HELD; no further retries — 2026-09-23
 
 Both first pair attempt10e11493 and bounded repair32307df2 ended native2. Only

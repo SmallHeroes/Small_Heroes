@@ -46,6 +46,24 @@ function sourceBoundaryFixture(mode: string) {
   }) };
 }
 describe('explicit local editorial draft boundary', () => {
+  it('preserves the omitted model config while resolving the historical default', () => {
+    const { repo, config } = fixture();
+    const loaded = loadOwnerDraft(repo, config);
+    expect(loaded.config).toEqual(config);
+    expect(loaded.config).not.toHaveProperty('imageModel');
+    expect(loaded.imageModel).toBe('gpt-image-2');
+  });
+  it.each(['gpt-image-2', 'gpt-image-2.5-sunburst'])('limits explicit model %s to sample configurations', imageModel => {
+    const { repo, config } = fixture();
+    expect(() => loadOwnerDraft(repo, { ...config, imageModel })).toThrow('draft_image_model_sample_only');
+    expect(loadOwnerDraft(repo, { ...config, imageModel, samplePages: [1] }).imageModel).toBe(imageModel);
+  });
+  it.each(['gpt-image-2.5-flare', 'gpt-6-astra', 'GPT-IMAGE-2', 'gpt-image-2.5-sunburst ', '', null])(
+    'rejects unsupported or malformed model %s before reading inputs', imageModel => {
+      const { repo, config } = fixture();
+      fs.unlinkSync(path.join(repo, config.story.file));
+      expect(() => loadOwnerDraft(repo, { ...config, imageModel, samplePages: [1] })).toThrow(/imageModel/);
+    });
   it.each(['legacy', 'atlas', 'sequence'])('validates source evidence before plan/continuity and uses its exact texts; mode=%s', mode => {
     const { repo, config } = sourceBoundaryFixture(mode);
     const evidence = vi.spyOn(storyPreview, 'previewStoryEvidence');
@@ -338,12 +356,54 @@ describe('real owner-draft entry point with mocked providers', () => {
       outputDir: path.relative(repo, root), samplePages: [1, 2] };
     const file = path.join(input, 'config.json'); fs.writeFileSync(file, JSON.stringify(actual));
     vi.stubEnv('OPENAI_API_KEY', 'test-only-no-network');
-    vi.mocked(generateGPTImage).mockImplementation(async args => ({ buffer: bytes, finalPrompt: args.finalPrompt, model: 'gpt-image-2',
+    vi.mocked(generateGPTImage).mockImplementation(async args => ({ buffer: bytes, finalPrompt: args.finalPrompt, model: args.modelOverride ?? 'gpt-image-2',
       durationMs: 1, hasReferencePhoto: true, apiMode: 'images.edit', fallbackUsed: false,
       referenceCountRequested: args.referenceImages?.length ?? 0, referenceCountPassed: args.referenceImages?.length ?? 0,
       usage: { input_tokens: 100, output_tokens: 100 } }));
     return { file, root };
   }
+  it.each([undefined, 'gpt-image-2', 'gpt-image-2.5-sunburst'])('binds model %s to real-entry dispatch, identity, checkpoint and replay', async imageModel => {
+    const { file, root } = await inputs();
+    const config = JSON.parse(fs.readFileSync(file, 'utf8'));
+    if (imageModel !== undefined) config.imageModel = imageModel;
+    fs.writeFileSync(file, JSON.stringify(config));
+    vi.stubEnv('GPT_IMAGE_MODEL', 'unapproved-ambient-model');
+    vi.mocked(judgePreviewCandidate).mockImplementation(async args => ({ candidateSha: args.candidateSha, contextSha: args.contextSha,
+      checks: QUALITY_CATEGORIES.map(category => ({ category, verdict: 'pass', observation: 'observed', correction: '' })) }));
+    const result = await runOwnerBookDraft(file, 'sample');
+    expect(result?.status).toBe('sample_diagnostically_passed_not_accepted');
+    const selected = imageModel ?? 'gpt-image-2';
+    for (const [args] of vi.mocked(generateGPTImage).mock.calls) expect(args).toMatchObject({ modelOverride: selected, quality: 'low', size: '1024x1536' });
+    const identity = JSON.parse(fs.readFileSync(path.join(root, 'identity.json'), 'utf8'));
+    expect(identity).toMatchObject({ config, imageModel: selected, quality: 'low', judgeModel: 'gpt-5.5', judgeEffort: 'medium' });
+    const request = JSON.parse(fs.readFileSync(path.join(root, 'page-01.request.json'), 'utf8'));
+    const record = JSON.parse(fs.readFileSync(path.join(root, 'steps/page-01.result.json'), 'utf8'));
+    expect(record.value.model).toBe(selected);
+    expect(record.fingerprint).toBe(previewSha(JSON.stringify({ version: 'owner-book-draft/v1', model: selected,
+      quality: 'low', size: '1024x1536', prompt: request.prompt, refs: request.references })));
+    await runOwnerBookDraft(file, 'sample');
+    expect(generateGPTImage).toHaveBeenCalledTimes(2);
+    const savedIdentity = fs.readFileSync(path.join(root, 'identity.json'));
+    config.imageModel = selected === 'gpt-image-2' ? 'gpt-image-2.5-sunburst' : 'gpt-image-2';
+    fs.writeFileSync(file, JSON.stringify(config));
+    await expect(runOwnerBookDraft(file, 'sample')).rejects.toThrow('preview_input_changed_new_run_required');
+    expect(generateGPTImage).toHaveBeenCalledTimes(2);
+    expect(fs.readFileSync(path.join(root, 'identity.json'))).toEqual(savedIdentity);
+  });
+  it.each(['wrong_model', 'fallback'])('preserves paid evidence but blocks %s before QA or next image', async fault => {
+    const { file, root } = await inputs();
+    const config = JSON.parse(fs.readFileSync(file, 'utf8')); config.imageModel = 'gpt-image-2.5-sunburst';
+    fs.writeFileSync(file, JSON.stringify(config));
+    const original = vi.mocked(generateGPTImage).getMockImplementation()!;
+    vi.mocked(generateGPTImage).mockImplementation(async args => ({ ...await original(args),
+      ...(fault === 'wrong_model' ? { model: 'gpt-image-2' } : { fallbackUsed: true }) }));
+    const result = await runOwnerBookDraft(file, 'sample');
+    expect(result).toMatchObject({ status: 'sample_held', unassessed: [2] });
+    expect(generateGPTImage).toHaveBeenCalledTimes(1); expect(judgePreviewCandidate).not.toHaveBeenCalled();
+    expect(fs.existsSync(path.join(root, 'page-01.png'))).toBe(true);
+    expect(JSON.parse(fs.readFileSync(path.join(root, 'steps/page-01.result.json'), 'utf8')).usage).toEqual({ input_tokens: 100, output_tokens: 100 });
+    expect(fs.existsSync(path.join(root, 'run.lock'))).toBe(false);
+  });
   it.each(['legacy', 'atlas', 'sequence'])('runs five real-entry pages with bounded references/context; mode=%s', async mode => {
     const atlas = mode !== 'legacy';
     const { file, root } = await inputs();

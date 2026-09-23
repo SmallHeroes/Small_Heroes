@@ -1,5 +1,15 @@
 # SmallHeroes — Roadmap
 
+## Compare image capability before expanding repair — 2026-09-23
+
+Guy approved a model-only Sunburst audition through the existing owner pipeline.
+Optional explicit sample model selection implemented; all old defaults, prompts,
+QA and source authority remain unchanged.192 focused tests/tsc0, paid execution
+not yet started at preparation. At most pair1/2 under the existing9.50 aggregate
+fence, no automatic repair. This replaces regional-edit implementation as the
+immediate priority. Severity policy and five-page proof remain later work; do not
+retroactively PASS held images. Full check/independent QA/product acceptance open.
+
 ## Measured sequence pair held before page2 — 2026-09-23
 
 Actual paid pair stopped on a wheel geometry defect. One existing-loop repair also
