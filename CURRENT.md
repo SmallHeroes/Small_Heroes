@@ -1,5 +1,39 @@
 # SmallHeroes — Current Technical State
 
+## Prospective visual priorities implemented; independent QA pending — 2026-09-24
+
+Guy confirmed the push and instructed continuation. At this milestone's start,
+local HEAD and `ls-remote origin` both matched `e491c9bc`, clean 0/0. Earlier
+propagation statements below are historical observations, not current push state.
+Same task/worktree/branch: sh-r3b1b-semantic-m1 / codex/r3b1b-semantic-recovery-m1.
+
+Implemented an opt-in, source/plan-bound `visualPriority` asset on **fresh local
+owner samples only**. Nonfunctional surface decoration is recorded in separate
+`decorativeChecks`; no existing invariant/state-change attribute may be demoted.
+Eight mandatory categories retain their defect/uncertainty veto, including blind
+anatomy. Policy and page scope bind v6-decorative evidence; legacy v5 stays exact
+when omitted. Per-page projection, repair, persisted review and same-scene
+predecessor all consume the policy. No old held review is reinterpreted. No image
+imports under this opt-in. No automatic-planner or customer-runtime cutover.
+
+330/330 focused tests in nine specs; both typechecks exit0. Offline comparison
+reports reproduce LOW $0.12878 and MEDIUM $0.13120 nominal estimates, 172/203-file
+preservation and cumulative accounted upper $8.13226. Both images remain HELD.
+No real provider calls, images, audio, credential use, source/plan edits or push
+in this milestone. Test providers were mocked. Full `npm run check` not repeated:
+the last recorded full gate remains RED, not reclassified as inherited or closed.
+
+This is a narrower first implementation, NOT automatic recognition of what is
+cosmetic. A false author declaration/semantic alias can pass schema validation;
+the core judge can also miss pixels. Fresh plan/preferences need content review.
+The historical spoke and height failures remain failures; no scale tolerance was
+relaxed. No visual/product PASS. Next: Claude adversarial QA of this code, then
+review a fresh minimal plan/policy before a bounded visual experiment.
+
+Gate and copy-ready handoff:
+`story-pipeline/06_editorial_refresh/2026-09-16/book-proof/sequence-recovery/VISUAL_PRIORITY_GATE.md`
+and `VISUAL_PRIORITY_HANDOFF.md` in the same directory.
+
 ## Documentation re-gate PASS recorded — 2026-09-24
 
 Claude supplied PASS for90c91555..aa0faa73, all four documentation targets met.

@@ -8,6 +8,8 @@ import { previewSha, previewCheckpoint, previewAccountedUsd } from '../local-sto
 const { create, constructor } = vi.hoisted(() => ({ create: vi.fn(), constructor: vi.fn() }));
 vi.mock('openai', () => ({ default: class { responses = { create }; constructor(options: unknown) { constructor(options); } } }));
 import { judgePreviewCandidate } from '../../scripts/lib/local-preview-judge';
+import { compileVisualPriorityPolicy, visualPriorityForPage, visualPriorityDigest } from '../local-visual-priority';
+import { previewQualityContextSha, qualityDisposition } from '../local-preview-quality';
 let root: string, candidatePath: string, candidateSha: string;
 const contextSha = 'a'.repeat(64);
 beforeEach(async () => {
@@ -24,6 +26,47 @@ const receipt = (step: string) => JSON.parse(fs.readFileSync(path.join(root, 'st
 const args = () => ({ root, candidatePath, candidateSha, contextSha, step: 'judge-test', apiKey: 'test', budgetUsd: 3,
   context: { expectedPose: 'NARRATIVE_SENTINEL' }, references: [] });
 describe('real preview judge adapter with mocked provider transport', () => {
+  function policyArgs() {
+    const book = compileVisualPriorityPolicy({ version: 'local-visual-priority/v1', sourceSha: contextSha, planSha: contextSha,
+      decorativePreferences: [{ id: 'flowers', entityId: 'wall', attribute: 'motif', preference: 'PAINTED_FLOWER_SENTINEL', scope: 'nonfunctional_surface_detail', rationale: 'surface only' }] },
+    { sourceSha: contextSha, planSha: contextSha, continuity: { companionStandingHeightInChildHeights: 0.7,
+      entities: [{ id: 'wall', kind: 'landmark', invariants: [{ attribute: 'material', value: 'stone' }] }],
+      pages: [0, 1, 2].map(pageNumber => ({ pageNumber, visibleEntityIds: ['wall'], visibleLocationIds: ['park'], changes: [], childHeightFraction: 0.3, environmentAreaFraction: 0.7 })) } });
+    const policy = visualPriorityForPage(book, 1)!;
+    const value = { ...args(), policy, contextSha: previewQualityContextSha(args().context, policy) };
+    const review = { ...reviewPass(), contextSha: value.contextSha, policySha: visualPriorityDigest(policy),
+      decorativeChecks: [{ preferenceId: 'flowers', verdict: 'variation', observation: 'painted dots' }] };
+    return { value, review };
+  }
+  it.each(['defect', 'uncertain'] as const)('new judge wire schema binds preferences but blind anatomy cannot see them or lose its %s veto', async verdict => {
+    const { value, review } = policyArgs();
+    create.mockResolvedValueOnce(response({ verdict, visibleBodyTraces: ['third detached hand'], observation: 'extra hand', correction: 'remove extra hand' }))
+      .mockResolvedValueOnce(response(review));
+    const actual = await judgePreviewCandidate(value);
+    expect(qualityDisposition(actual, candidateSha, value.contextSha, value.policy).disposition).toBe(verdict === 'defect' ? 'repair' : 'held_uncertain');
+    expect(actual).toHaveProperty('decorativeChecks.0.verdict', 'variation');
+    const [blind, contextual] = create.mock.calls.map(([r]) => r);
+    expect(JSON.stringify(blind)).not.toContain('PAINTED_FLOWER_SENTINEL');
+    expect(contextual.instructions).toContain('PAINTED_FLOWER_SENTINEL');
+    expect(contextual.text.format.name).toBe('preview_priority_quality');
+    expect(contextual.text.format.schema.required).toContain('decorativeChecks');
+    expect(JSON.parse(receipt('judge-test').value.text)).toEqual(review); // raw contextual PASS preserved
+    expect(await judgePreviewCandidate(value)).toEqual(actual); expect(create).toHaveBeenCalledTimes(2);
+  });
+  it('rejects wrong policy/context before any request, including blind anatomy', async () => {
+    const { value } = policyArgs();
+    await expect(judgePreviewCandidate({ ...value, contextSha })).rejects.toThrow('quality_evidence_binding');
+    await expect(judgePreviewCandidate({ ...value, policy: structuredClone(value.policy) })).rejects.toThrow('visual_priority_unvalidated_or_changed');
+    expect(create).not.toHaveBeenCalled();
+  });
+  it('preserves but rejects a paid legacy-shaped review under the new policy without retry', async () => {
+    const { value } = policyArgs();
+    create.mockResolvedValueOnce(response(anatomyPass())).mockResolvedValueOnce(response({ ...reviewPass(), contextSha: value.contextSha }));
+    await expect(judgePreviewCandidate(value)).rejects.toThrow();
+    const raw = fs.readFileSync(path.join(root, 'steps/judge-test.result.json'));
+    await expect(judgePreviewCandidate(value)).rejects.toThrow(); expect(create).toHaveBeenCalledTimes(2);
+    expect(fs.readFileSync(path.join(root, 'steps/judge-test.result.json'))).toEqual(raw);
+  });
   it('blind anatomy failure survives contextual PASS and replay makes zero new calls', async () => {
     create.mockResolvedValueOnce(response({ verdict: 'defect', visibleBodyTraces: ['disconnected visible arm'], observation: 'visible defect', correction: 'connect arm' }))
       .mockResolvedValueOnce(response({ candidateSha, contextSha, checks: QUALITY_CATEGORIES.map(category => ({ category, verdict: 'pass', observation: 'clear', correction: '' })) }));

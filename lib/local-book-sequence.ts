@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { createHash } from 'node:crypto';
 import { previewStoryEvidence, type PreviewPlan, type PreviewStory } from './local-story-preview';
 import { qualityDisposition, type QualityCandidate, type PreviewQualityReview } from './local-preview-quality';
+import { visualPriorityForPage, type VisualPriorityPolicy } from './local-visual-priority';
 
 // Local diagnostic authority only. Does not mint a production contract or source approval.
 export const BOOK_SEQUENCE_VERSION = 'local-book-sequence/v1';
@@ -102,7 +103,8 @@ export function validateSequenceSelection(s: BookSequence, pages: number[]) {
 export type ReviewedSequencePage = { pageNumber: number; status: string; candidate?: QualityCandidate;
   contextSha?: string; history?: { candidate: QualityCandidate; review: PreviewQualityReview }[] };
 
-export function sequencePredecessor(s: BookSequence, pageNumber: number, completed: readonly ReviewedSequencePage[]) {
+export function sequencePredecessor(s: BookSequence, pageNumber: number, completed: readonly ReviewedSequencePage[], policy?: VisualPriorityPolicy) {
+  if (policy && (policy.sourceSha !== s.sourceSha || policy.planSha !== s.planSha)) return fail('priority_source_binding');
   const page = s.pages[pageNumber - 1];
   if (!page) return fail('unknown_page');
   if (pageNumber === 1 || s.pages[pageNumber - 2].sceneId !== page.sceneId) return null;
@@ -110,7 +112,7 @@ export function sequencePredecessor(s: BookSequence, pageNumber: number, complet
   const candidate = previous?.candidate;
   if (previous?.pageNumber !== pageNumber - 1 || previous.status !== 'passed' || !candidate || !last ||
     !equal(candidate, last.candidate) || !previous.contextSha ||
-    qualityDisposition(last.review, candidate.imageSha, previous.contextSha).disposition !== 'passed') return fail('unreviewed_predecessor');
+    qualityDisposition(last.review, candidate.imageSha, previous.contextSha, visualPriorityForPage(policy, pageNumber - 1)).disposition !== 'passed') return fail('unreviewed_predecessor');
   return { pageNumber: previous.pageNumber, ...candidate, authority: 'comparison_only_not_canonical' as const };
 }
 
@@ -126,8 +128,8 @@ export function sequencePageState(s: BookSequence, plan: PreviewPlan, pageNumber
     sceneChangeEvidence: page.sceneChangeEvidence };
 }
 
-export function sequencePagePacket(s: BookSequence, plan: PreviewPlan, pageNumber: number, completed: readonly ReviewedSequencePage[]) {
-  return { ...sequencePageState(s, plan, pageNumber), predecessor: sequencePredecessor(s, pageNumber, completed) };
+export function sequencePagePacket(s: BookSequence, plan: PreviewPlan, pageNumber: number, completed: readonly ReviewedSequencePage[], policy?: VisualPriorityPolicy) {
+  return { ...sequencePageState(s, plan, pageNumber), predecessor: sequencePredecessor(s, pageNumber, completed, policy) };
 }
 
 export function sequenceRenderPrompt(base: string, packet: ReturnType<typeof sequencePagePacket>, referenceIndex: number | null) {

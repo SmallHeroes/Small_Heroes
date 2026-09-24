@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { bookSequenceSchema, validateBookSequence, validateSequenceSelection, sequencePredecessor, sequencePagePacket, sequenceRenderPrompt } from '../local-book-sequence';
 import { QUALITY_CATEGORIES } from '../local-preview-quality';
 import { previewStory, type PreviewPlan } from '../local-story-preview';
+import { compileVisualPriorityPolicy, visualPriorityForPage, visualPriorityDigest } from '../local-visual-priority';
 
 function fixture() {
   const plan: PreviewPlan = { wardrobe: 'blue', visualLanguage: 'watercolor', locations: [{ id: 'garden', design: 'garden' }, { id: 'room', design: 'room' }],
@@ -31,6 +32,23 @@ function previous() {
       checks: QUALITY_CATEGORIES.map(category => ({ category, verdict: 'pass' as const, observation: 'observed', correction: '' })) } }] };
 }
 describe('whole-book local sequence state', () => {
+  it('requires the same source/plan and preceding-page policy when carrying a cosmetic-warning predecessor', () => {
+    const { sequence, input } = fixture(), s = validateBookSequence(sequence, input);
+    const raw = { version: 'local-visual-priority/v1', sourceSha: s.sourceSha, planSha: s.planSha,
+      decorativePreferences: [{ id: 'motif', entityId: 'hut', attribute: 'painted_motif', preference: 'flowers', scope: 'nonfunctional_surface_detail', rationale: 'surface decoration only' }] };
+    const book = compileVisualPriorityPolicy(raw, { sourceSha: s.sourceSha, planSha: s.planSha, continuity: input.plan.continuity! });
+    const p = previous();
+    const warning = { ...p, history: [{ ...p.history[0], review: { ...p.history[0].review,
+      policySha: visualPriorityDigest(visualPriorityForPage(book, 1)!),
+      decorativeChecks: [{ preferenceId: 'motif', verdict: 'variation' as const, observation: 'dots instead of flowers' }] } }] };
+    expect(sequencePredecessor(s, 2, [warning], book)?.imageSha).toBe(p.candidate.imageSha);
+    expect(() => sequencePredecessor(s, 2, [warning])).toThrow();
+    expect(() => sequencePredecessor(s, 2, [p], book)).toThrow();
+    warning.history[0].review.policySha = visualPriorityDigest(visualPriorityForPage(book, 2)!);
+    expect(() => sequencePredecessor(s, 2, [warning], book)).toThrow('quality_priority_binding');
+    const foreign = compileVisualPriorityPolicy({ ...raw, planSha: 'f'.repeat(64) }, { sourceSha: s.sourceSha, planSha: 'f'.repeat(64), continuity: input.plan.continuity! });
+    expect(() => sequencePredecessor(s, 2, [warning], foreign)).toThrow('priority_source_binding');
+  });
   it('rejects detached texts even when their declared hash matches the sequence', () => {
     const { sequence, input } = fixture();
     const texts = [input.story.title, ...input.story.pages.map(p => p.text + ' extra')];

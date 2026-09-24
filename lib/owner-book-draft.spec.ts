@@ -13,6 +13,7 @@ vi.mock('../scripts/lib/local-preview-judge', () => ({ judgePreviewCandidate: vi
 import { previewCheckpoint, previewSha, bindPreviewRun } from './local-story-preview';
 import * as storyPreview from './local-story-preview';
 import * as previewQuality from './local-preview-quality';
+import { VISUAL_PRIORITY_VERSION, visualPriorityDigest } from './local-visual-priority';
 
 const roots: string[] = [];
 afterEach(() => { vi.unstubAllEnvs(); vi.clearAllMocks(); for (const r of roots.splice(0)) fs.rmSync(r, { recursive: true, force: true }); });
@@ -354,6 +355,68 @@ describe('shared quality before next draft sample page', () => {
 });
 
 describe('real owner-draft entry point with mocked providers', () => {
+  async function priorityInputs() {
+    const { file, root } = await inputs(), repo = path.resolve(__dirname, '..');
+    const config = JSON.parse(fs.readFileSync(file, 'utf8'));
+    const plan = JSON.parse(fs.readFileSync(path.resolve(repo, config.plan.file), 'utf8'));
+    // A visible landmark, no extra prop-board generation or paid transport.
+    plan.continuity.entities = [{ id: 'wall', kind: 'landmark', invariants: [{ attribute: 'material', value: 'stone' }] }];
+    plan.continuity.pages.forEach((p: { visibleEntityIds: string[] }) => { p.visibleEntityIds = ['wall']; });
+    const planBytes = JSON.stringify(plan); fs.writeFileSync(path.resolve(repo, config.plan.file), planBytes); config.plan.sha = previewSha(planBytes);
+    const policy = { version: VISUAL_PRIORITY_VERSION, sourceSha: config.story.sha, planSha: config.plan.sha,
+      decorativePreferences: [{ id: 'motif', entityId: 'wall', attribute: 'painted_motif', preference: 'tiny flowers', scope: 'nonfunctional_surface_detail', rationale: 'Background surface decoration only.' }] };
+    const target = path.join(path.dirname(file), 'priority.json'), bytes = JSON.stringify(policy); fs.writeFileSync(target, bytes);
+    config.visualPriority = { file: path.relative(repo, target), sha: previewSha(bytes) };
+    fs.writeFileSync(file, JSON.stringify(config)); await addSequence(file);
+    return { file, root, target, policy, repo };
+  }
+  it('carries prospective preferences through the real two-page sequence entry, persists variation and resumes without generation', async () => {
+    const { file, root } = await priorityInputs();
+    vi.mocked(judgePreviewCandidate).mockImplementation(async args => {
+      expect(args.policy?.pageNumber).toBe((args.context as { pageNumber: number }).pageNumber);
+      expect(args.contextSha).toBe(previewQuality.previewQualityContextSha(args.context, args.policy));
+      return { candidateSha: args.candidateSha, contextSha: args.contextSha, policySha: visualPriorityDigest(args.policy!),
+        checks: QUALITY_CATEGORIES.map(category => ({ category, verdict: 'pass', observation: 'observed', correction: '' })),
+        decorativeChecks: [{ preferenceId: 'motif', verdict: 'variation', observation: 'painted dots not flowers; same stone wall' }] };
+    });
+    const result = await runOwnerBookDraft(file, 'sample');
+    expect(result?.results.map(r => r.status)).toEqual(['passed', 'passed']);
+    expect(generateGPTImage).toHaveBeenCalledTimes(2);
+    for (const [args] of vi.mocked(generateGPTImage).mock.calls) {
+      expect(args.finalPrompt).toContain('DECORATIVE PREFERENCE DATA');
+      expect(args.finalPrompt).not.toContain('Return one decorativeCheck');
+    }
+    expect(vi.mocked(generateGPTImage).mock.calls[1][0].referenceImages?.slice(-1)[0]).toBe(path.join(root, 'page-01.png'));
+    expect(JSON.parse(fs.readFileSync(path.join(root, 'identity.json'), 'utf8')).qualityVersion).toBe(previewQuality.PRIORITY_QUALITY_VERSION);
+    const manifest = fs.readFileSync(path.join(root, 'sample-manifest.json'));
+    expect(JSON.parse(manifest.toString()).results[0].history[0].review.decorativeChecks[0].verdict).toBe('variation');
+    await runOwnerBookDraft(file, 'sample'); expect(generateGPTImage).toHaveBeenCalledTimes(2);
+    expect(fs.readFileSync(path.join(root, 'sample-manifest.json'))).toEqual(manifest);
+    const config = JSON.parse(fs.readFileSync(file, 'utf8')); delete config.visualPriority; fs.writeFileSync(file, JSON.stringify(config));
+    await expect(runOwnerBookDraft(file, 'sample')).rejects.toThrow('preview_input_changed_new_run_required');
+    expect(generateGPTImage).toHaveBeenCalledTimes(2);
+  });
+  it.each(['defect', 'uncertain'] as const)('does not continue the real sample on mandatory %s despite decorative variation', async verdict => {
+    const { file, root } = await priorityInputs();
+    vi.mocked(judgePreviewCandidate).mockImplementation(async args => ({ candidateSha: args.candidateSha, contextSha: args.contextSha, policySha: visualPriorityDigest(args.policy!),
+      checks: QUALITY_CATEGORIES.map(category => ({ category, verdict: category === 'scene' ? verdict : 'pass', observation: 'child moved outside without a transition', correction: 'restore inside occupancy' })),
+      decorativeChecks: [{ preferenceId: 'motif', verdict: 'variation', observation: 'dots' }] }));
+    const result = await runOwnerBookDraft(file, 'sample');
+    expect(result?.unassessed).toEqual([2]); expect(generateGPTImage).toHaveBeenCalledTimes(1);
+    expect(fs.existsSync(path.join(root, 'page-02.png'))).toBe(false);
+  });
+  it.each(['binding', 'collision', 'hash', 'legacy', 'import'])('rejects %s priority authority before key access or any paid output', async kind => {
+    const { file, root, target, policy } = await priorityInputs();
+    const config = JSON.parse(fs.readFileSync(file, 'utf8'));
+    if (kind === 'binding') policy.planSha = 'a'.repeat(64);
+    if (kind === 'collision') policy.decorativePreferences[0].attribute = 'material';
+    if (kind === 'legacy') delete config.samplePages;
+    if (kind === 'import') { config.sampleRepairOnce = true; config.sampleInitialImages = [{ pageNumber: 1, image: config.childAnchor }]; }
+    const bytes = JSON.stringify(policy); fs.writeFileSync(target, bytes); config.visualPriority.sha = kind === 'hash' ? 'a'.repeat(64) : previewSha(bytes);
+    fs.writeFileSync(file, JSON.stringify(config)); vi.stubEnv('OPENAI_API_KEY', '');
+    await expect(runOwnerBookDraft(file, 'sample', 'credential-must-not-be-opened')).rejects.toThrow(/visual_priority|input_changed/);
+    expect(generateGPTImage).not.toHaveBeenCalled(); expect(judgePreviewCandidate).not.toHaveBeenCalled(); expect(fs.existsSync(root)).toBe(false);
+  });
   async function inputs() {
     const { repo: temp, config } = fixture();
     const repo = path.resolve(__dirname, '..');

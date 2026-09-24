@@ -1,7 +1,10 @@
 import { createHash } from 'node:crypto';
 import { z } from 'zod';
+import { visualPriorityDigest, type VisualPriorityPolicy } from './local-visual-priority';
 
 export const PREVIEW_QUALITY_VERSION = 'local-preview-quality/v5';
+export const PRIORITY_QUALITY_VERSION = 'local-preview-quality/v6-decorative';
+export const previewQualityVersion = (policy?: VisualPriorityPolicy) => policy ? PRIORITY_QUALITY_VERSION : PREVIEW_QUALITY_VERSION;
 export const PREVIEW_JUDGE_MODEL = 'gpt-5.5';
 export const PREVIEW_JUDGE_EFFORT = 'medium';
 const id = z.string().regex(/^[a-z][a-z0-9_]{0,49}$/);
@@ -89,7 +92,18 @@ export const previewQualityReviewSchema = z.object({
     observation: text, correction: z.string().max(1800),
   }).strict()).length(QUALITY_CATEGORIES.length),
 }).strict();
-export type PreviewQualityReview = z.infer<typeof previewQualityReviewSchema>;
+export const priorityQualityReviewSchema = previewQualityReviewSchema.extend({
+  policySha: sha,
+  decorativeChecks: z.array(z.object({
+    preferenceId: id, verdict: z.enum(['matched', 'variation', 'not_visible', 'uncertain']), observation: text,
+  }).strict()).max(12),
+});
+export type PreviewQualityReview = (z.infer<typeof previewQualityReviewSchema> & { policySha?: never; decorativeChecks?: never }) | z.infer<typeof priorityQualityReviewSchema>;
+
+export function previewQualityContextSha(context: unknown, policy?: VisualPriorityPolicy) {
+  return digest({ version: previewQualityVersion(policy), context,
+    ...(policy ? { visualPrioritySha: visualPriorityDigest(policy) } : {}) });
+}
 
 export const anatomyInspectionSchema = z.object({
   verdict: z.enum(['pass', 'defect', 'uncertain']),
@@ -154,25 +168,36 @@ export function validateQualityCalibration(value: unknown) {
   return report;
 }
 
-export function qualityDisposition(value: unknown, candidateSha: string, contextSha: string) {
-  const review = previewQualityReviewSchema.parse(value);
+export function qualityDisposition(value: unknown, candidateSha: string, contextSha: string, policy?: VisualPriorityPolicy): {
+  review: PreviewQualityReview; disposition: 'held_uncertain' | 'repair' | 'passed';
+} {
+  const policySha = policy ? visualPriorityDigest(policy) : undefined;
+  const prioritized = policy ? priorityQualityReviewSchema.parse(value) : undefined;
+  const review = prioritized ?? previewQualityReviewSchema.parse(value);
+  if (policy && prioritized) {
+    if (prioritized.policySha !== policySha) throw Error('quality_priority_binding');
+    const ids = prioritized.decorativeChecks.map(c => c.preferenceId);
+    if (new Set(ids).size !== ids.length || JSON.stringify([...ids].sort()) !==
+      JSON.stringify(policy.decorativePreferences.map(p => p.id).sort())) throw Error('quality_priority_coverage');
+  }
   if (review.candidateSha !== candidateSha || review.contextSha !== contextSha) throw Error('quality_evidence_binding');
   if (new Set(review.checks.map(c => c.category)).size !== QUALITY_CATEGORIES.length) throw Error('quality_category_coverage');
   if (review.checks.some(c => c.verdict === 'defect' && !c.correction.trim())) throw Error('quality_missing_correction');
   // Never spend on a partially unreadable judgment, even if another category failed.
-  const disposition = review.checks.some(c => c.verdict === 'uncertain') ? 'held_uncertain'
+  const disposition = (review.checks.some(c => c.verdict === 'uncertain') ||
+    prioritized?.decorativeChecks.some(c => c.verdict === 'uncertain')) ? 'held_uncertain'
     : review.checks.some(c => c.verdict === 'defect') ? 'repair' : 'passed';
   return { review, disposition } as const;
 }
 
 export interface QualityCandidate { imageSha: string; imageName: string; }
 export async function runPreviewQualityLoop<T extends QualityCandidate>(args: {
-  context: unknown; maxRepairs: number;
+  context: unknown; maxRepairs: number; policy?: VisualPriorityPolicy;
   render: (attempt: number, prior: T | null, review: PreviewQualityReview | null) => Promise<T>;
   judge: (candidate: T, contextSha: string, attempt: number) => Promise<unknown>;
 }) {
   if (!Number.isInteger(args.maxRepairs) || args.maxRepairs < 0 || args.maxRepairs > 2) throw Error('invalid_quality_repair_limit');
-  const contextSha = digest({ version: PREVIEW_QUALITY_VERSION, context: args.context });
+  const contextSha = previewQualityContextSha(args.context, args.policy);
   const history: { candidate: T; review: PreviewQualityReview }[] = [];
   let prior: T | null = null;
   let review: PreviewQualityReview | null = null;
@@ -181,7 +206,7 @@ export async function runPreviewQualityLoop<T extends QualityCandidate>(args: {
     sha.parse(candidate.imageSha);
     if (prior?.imageSha === candidate.imageSha) throw Error('quality_repair_unchanged');
     // Exceptions propagate. No conversion of transport/schema failures into visual defects.
-    const decision = qualityDisposition(await args.judge(candidate, contextSha, attempt), candidate.imageSha, contextSha);
+    const decision = qualityDisposition(await args.judge(candidate, contextSha, attempt), candidate.imageSha, contextSha, args.policy);
     history.push({ candidate, review: decision.review });
     if (decision.disposition !== 'repair') return { status: decision.disposition, candidate, history, contextSha };
     prior = candidate; review = decision.review;

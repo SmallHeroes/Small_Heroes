@@ -4,6 +4,8 @@ import sharp from 'sharp';
 import { zodTextFormat } from 'openai/helpers/zod';
 import { previewCheckpoint, previewImageDigest, previewSha } from '../../lib/local-story-preview';
 import { ANATOMY_INSPECTION_INSTRUCTION, anatomyInspectionSchema, PREVIEW_JUDGE_MODEL, PREVIEW_JUDGE_EFFORT, PREVIEW_JUDGE_INSTRUCTION, PREVIEW_QUALITY_VERSION, previewQualityReviewSchema } from '../../lib/local-preview-quality';
+import { priorityQualityReviewSchema, previewQualityVersion, previewQualityContextSha, qualityDisposition } from '../../lib/local-preview-quality';
+import { visualPriorityPrompt, VISUAL_PRIORITY_INSTRUCTION, type VisualPriorityPolicy } from '../../lib/local-visual-priority';
 
 // Transport identity is deliberately separate from quality/calibration and prompt content.
 const transport = Object.freeze({ version: 'preview-judge-flex/v1', serviceTier: 'flex' as const, timeoutMs: 900_000, maxRetries: 0 });
@@ -20,8 +22,12 @@ export async function judgePreviewCandidate(args: {
   root: string; step: string; budgetUsd: number; apiKey: string;
   candidatePath: string; candidateSha: string; contextSha: string; context: unknown;
   references: { role: string; file: string; sha: string }[];
+  policy?: VisualPriorityPolicy;
   permit?: () => void;
 }) {
+  // Validate policy and its context binding BEFORE even the blind paid inspection.
+  const instruction = PREVIEW_JUDGE_INSTRUCTION + (args.policy ? '\n\n' + VISUAL_PRIORITY_INSTRUCTION + visualPriorityPrompt(args.policy) : '');
+  if (args.policy && previewQualityContextSha(args.context, args.policy) !== args.contextSha) throw Error('quality_evidence_binding');
   if (previewImageDigest(args.candidatePath) !== args.candidateSha) throw Error('judge_candidate_changed');
   const candidateBytes = fs.readFileSync(args.candidatePath);
   if (previewSha(candidateBytes) !== args.candidateSha) throw Error('judge_candidate_changed');
@@ -59,7 +65,7 @@ export async function judgePreviewCandidate(args: {
   if (anatomyRecord.value.status !== 'completed') throw Error('preview_anatomy_inspection_incomplete');
   const anatomy = anatomyInspectionSchema.parse(JSON.parse(anatomyRecord.value.text));
   if (anatomy.verdict === 'defect' && !anatomy.correction.trim()) throw Error('anatomy_missing_correction');
-  const input = { version: PREVIEW_QUALITY_VERSION, instruction: PREVIEW_JUDGE_INSTRUCTION, anatomy,
+  const input = { version: previewQualityVersion(args.policy), instruction, anatomy,
     candidateSha: args.candidateSha, contextSha: args.contextSha, context: args.context,
     references: args.references.map(({ role, sha }) => ({ role, sha })), model: PREVIEW_JUDGE_MODEL, effort: PREVIEW_JUDGE_EFFORT, maxOutputTokens: 4500 };
   if (JSON.stringify(input).length > 50000 || args.references.length > 6) throw Error('preview_judge_input_limit');
@@ -74,14 +80,15 @@ export async function judgePreviewCandidate(args: {
       // Explicit official origin, no retries, one request per checkpoint.
       const client = new OpenAI({ apiKey: args.apiKey, baseURL: 'https://api.openai.com/v1', maxRetries: transport.maxRetries, timeout: transport.timeoutMs });
       const response = await client.responses.create({ model: PREVIEW_JUDGE_MODEL, service_tier: transport.serviceTier, store: false,
-        instructions: PREVIEW_JUDGE_INSTRUCTION, input: [{ role: 'user', content }],
+        instructions: instruction, input: [{ role: 'user', content }],
         reasoning: { effort: PREVIEW_JUDGE_EFFORT }, max_output_tokens: 4500,
-        text: { format: zodTextFormat(previewQualityReviewSchema, 'preview_quality') } });
+        text: { format: args.policy ? zodTextFormat(priorityQualityReviewSchema, 'preview_priority_quality') : zodTextFormat(previewQualityReviewSchema, 'preview_quality') } });
       return { value: responseEvidence(response), usage: response.usage as unknown as Record<string, unknown> };
     } });
   requireFlex(record.value);
   if (record.value.status !== 'completed') throw Error('preview_judge_incomplete');
-  const review = previewQualityReviewSchema.parse(JSON.parse(record.value.text));
+  const review = args.policy ? qualityDisposition(JSON.parse(record.value.text), args.candidateSha, args.contextSha, args.policy).review
+    : previewQualityReviewSchema.parse(JSON.parse(record.value.text));
   // A contextual reviewer cannot erase a blind anatomy defect/uncertainty. Preserve both raw records.
   if (anatomy.verdict !== 'pass') {
     const check = review.checks.find(c => c.category === 'anatomy');
