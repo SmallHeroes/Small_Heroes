@@ -34,6 +34,7 @@ function previous() {
 describe('whole-book local sequence state', () => {
   it('requires the same source/plan and preceding-page policy when carrying a cosmetic-warning predecessor', () => {
     const { sequence, input } = fixture(), s = validateBookSequence(sequence, input);
+    input.plan.continuity!.entities.find(e => e.id === 'hut')!.invariants = [{ attribute: 'material', value: 'cardboard' }];
     const raw = { version: 'local-visual-priority/v1', sourceSha: s.sourceSha, planSha: s.planSha,
       decorativePreferences: [{ id: 'motif', entityId: 'hut', attribute: 'painted_motif', preference: 'flowers', scope: 'nonfunctional_surface_detail', rationale: 'surface decoration only' }] };
     const book = compileVisualPriorityPolicy(raw, { sourceSha: s.sourceSha, planSha: s.planSha, continuity: input.plan.continuity! });

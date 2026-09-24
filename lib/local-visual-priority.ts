@@ -20,6 +20,11 @@ declare const validated: unique symbol;
 export type VisualPriorityPolicy = PolicyData & { readonly [validated]: true; readonly pageNumber?: number };
 const compiled = new WeakMap<VisualPriorityPolicy, { serialized: string; pages: PreviewContinuity['pages'] }>();
 const serialize = (v: unknown) => JSON.stringify(v);
+const normalizeAttribute = (value: string) => value.normalize('NFKC').trim()
+  .replace(/([a-z0-9])([A-Z])/g, '$1_$2').toLowerCase().replace(/[\s-]+/gu, '_');
+// Known aggregate fields cannot prove independence of a decorative attribute.
+// This is a conservative admission rule, not semantic analysis of arbitrary prose.
+const aggregateAttributes = new Set(['canonical_design', 'design', 'description', 'identity_and_wardrobe', 'geography']);
 
 export function compileVisualPriorityPolicy(raw: unknown, authority: {
   sourceSha: string; planSha: string; continuity: PreviewContinuity;
@@ -27,14 +32,15 @@ export function compileVisualPriorityPolicy(raw: unknown, authority: {
   const data = visualPrioritySchema.parse(raw);
   if (data.sourceSha !== authority.sourceSha || data.planSha !== authority.planSha) throw Error('visual_priority_source_binding');
   if (new Set(data.decorativePreferences.map(p => p.id)).size !== data.decorativePreferences.length ||
-    new Set(data.decorativePreferences.map(p => `${p.entityId}:${p.attribute.toLowerCase()}`)).size !== data.decorativePreferences.length) throw Error('visual_priority_duplicate');
+    new Set(data.decorativePreferences.map(p => `${p.entityId}:${normalizeAttribute(p.attribute)}`)).size !== data.decorativePreferences.length) throw Error('visual_priority_duplicate');
   for (const p of data.decorativePreferences) {
     const entity = authority.continuity.entities.find(e => e.id === p.entityId);
     if (!entity || entity.kind === 'supporting_character') throw Error('visual_priority_entity');
+    if (entity.invariants.some(i => aggregateAttributes.has(normalizeAttribute(i.attribute)))) throw Error('visual_priority_aggregate_invariant');
     // A preference cannot demote an invariant or a story-supported state change.
     // Semantic aliases/prose conflicts still require editorial review; no regex can prove intent.
-    if (entity.invariants.some(i => i.attribute.trim().toLowerCase() === p.attribute.toLowerCase()) ||
-      authority.continuity.pages.some(page => page.changes.some(c => c.entityId === p.entityId && c.attribute.trim().toLowerCase() === p.attribute.toLowerCase()))) throw Error('visual_priority_required_collision');
+    if (entity.invariants.some(i => normalizeAttribute(i.attribute) === normalizeAttribute(p.attribute)) ||
+      authority.continuity.pages.some(page => page.changes.some(c => c.entityId === p.entityId && normalizeAttribute(c.attribute) === normalizeAttribute(p.attribute)))) throw Error('visual_priority_required_collision');
   }
   const policy = data as VisualPriorityPolicy;
   compiled.set(policy, { serialized: serialize(policy), pages: structuredClone(authority.continuity.pages) });

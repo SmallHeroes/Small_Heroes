@@ -1,5 +1,41 @@
 # SmallHeroes — Current Technical State
 
+## Decorative-preference QA corrections implemented; re-gate pending — 2026-09-24
+
+Claude's supplied technical PASS covers exactly `e491c9bc..8145309c`, with F1
+Medium and F2 Low, not P-counts. At correction start HEAD/local upstream and
+`ls-remote origin` all matched 8145309c, clean 0/0. No push actor inferred.
+Same task, branch and worktree remain the sole implementation writer; d53b at
+768ccb2f and accepted-intent-wave-2 at 63ccb484 remain protected/read-only.
+
+Codex reproduced both findings before production edits. Known aggregate invariant
+fields now reject preferences on their target entity, including mixed aggregate
+and granular fields. Lexical normalization covers case, spacing, hyphens, camel
+case and NFKC. This is NOT semantic detection of arbitrary prose or aliases.
+The old handoff's wheel/height statement is narrowed to preserved historical
+requirements; fresh plan authoring still needs granular requirements and review.
+
+Opt-in sample prompt preflight now checks the actual board/selected-page builders
+and enabled repair capacity BEFORE root binding, credentials or a paid board.
+Same-scene predecessor metadata receives a bounded allowance without inventing
+QA authority. All mandatory repair corrections appear once: contextual corrections
+are bounded to 400 characters; independent anatomy retains 1800. No truncation;
+oversized reviews hold with raw evidence retained. Opt-in version is now
+`local-preview-quality/v7-bounded-decorative`; old v6 roots cannot resume into it.
+Omitted-policy v5 behavior/instructions/repair representation remain unchanged.
+
+365/365 focused tests across nine files, tsc and autonomous typecheck exit0.
+Read-only historical reports still reproduce 172/203-file preservation, nominal
+$0.12878/$0.13120 and cumulative upper $8.13226; both images remain HELD. No
+provider calls, credentials, images, audio, old input/artifact edits or push in
+this correction. Full check not rerun; previously RED gate remains open, not
+reclassified as inherited or stable. No independent self-PASS or visual claim.
+
+Next: Claude re-gates the focused correction using
+`story-pipeline/06_editorial_refresh/2026-09-16/book-proof/sequence-recovery/VISUAL_PRIORITY_CORRECTION_HANDOFF.md`.
+Then a fresh granular plan/policy can be reviewed for the smallest visual test.
+The suggested judge-only paid comparison is deferred, not silently enabled.
+
 ## Prospective visual priorities implemented; independent QA pending — 2026-09-24
 
 Guy confirmed the push and instructed continuation. At this milestone's start,

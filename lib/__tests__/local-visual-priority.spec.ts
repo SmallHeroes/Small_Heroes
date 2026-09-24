@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { compileVisualPriorityPolicy, visualPriorityDigest, visualPriorityForPage, visualPriorityPrompt, VISUAL_PRIORITY_VERSION } from '../local-visual-priority';
-import { QUALITY_CATEGORIES, previewQualityContextSha, qualityDisposition, runPreviewQualityLoop, type PreviewContinuity } from '../local-preview-quality';
+import { QUALITY_CATEGORIES, priorityCorrectionLimit, previewQualityContextSha, qualityDisposition, runPreviewQualityLoop, type PreviewContinuity } from '../local-preview-quality';
 import { ownerDraftRepairPrompt, runGatedDraftPages } from '../../scripts/run-owner-book-draft';
 
 const a = 'a'.repeat(64), b = 'b'.repeat(64);
@@ -20,6 +20,59 @@ function review(policy: ReturnType<typeof fixture>['policy'], candidateSha = a, 
     decorativeChecks: policy.decorativePreferences.map(p => ({ preferenceId: p.id, verdict: 'variation' as 'variation' | 'uncertain', observation: 'Painted dots instead of flowers; same coherent object.' })) };
 }
 describe('prospective decorative preferences, not retroactive waivers', () => {
+  it.each(['canonicalDesign', ' CANONICAL DESIGN ', 'canonical-design', 'ｃａｎｏｎｉｃａｌ＿ｄｅｓｉｇｎ', 'description', 'design', 'identity_and_wardrobe', 'geography'])('rejects known aggregate field %s even alongside a granular invariant', attribute => {
+    const { raw, authority } = fixture();
+    authority.continuity.entities[0].invariants.push({ attribute, value: 'All appearance requirements in one paragraph.' });
+    expect(() => compileVisualPriorityPolicy(raw, authority)).toThrow('visual_priority_aggregate_invariant');
+  });
+  it.each(['spoke count', 'SpokeCount', ' SPOKE-COUNT ', 'ｓｐｏｋｅ＿ｃｏｕｎｔ'])('normalizes %s consistently for invariants, changes and duplicate preferences', attribute => {
+    const { raw, authority } = fixture(); raw.decorativePreferences[0].attribute = attribute;
+    authority.continuity.entities[0].invariants.push({ attribute: 'spoke_count', value: 'three' });
+    expect(() => compileVisualPriorityPolicy(raw, authority)).toThrow('visual_priority_required_collision');
+    authority.continuity.entities[0].invariants.pop();
+    authority.continuity.pages[1].changes.push({ entityId: 'cart', attribute: 'spoke_count', value: 'four', storyEvidence: 'four' });
+    expect(() => compileVisualPriorityPolicy(raw, authority)).toThrow('visual_priority_required_collision');
+    authority.continuity.pages[1].changes = [];
+    raw.decorativePreferences.push({ ...raw.decorativePreferences[0], id: 'second', attribute: 'spoke_count' });
+    expect(() => compileVisualPriorityPolicy(raw, authority)).toThrow('visual_priority_duplicate');
+  });
+  it('does not reject granular target merely because an unrelated entity uses an aggregate field', () => {
+    const { raw, authority } = fixture();
+    authority.continuity.entities.push({ id: 'other', kind: 'landmark', invariants: [{ attribute: 'design', value: 'opaque' }] });
+    expect(() => compileVisualPriorityPolicy(raw, authority)).not.toThrow();
+  });
+  it.each(QUALITY_CATEGORIES)('bounds %s corrections without truncation and leaves legacy limits unchanged', category => {
+    const { policy } = fixture(), r = review(policy), c = r.checks.find(c => c.category === category)!;
+    Object.assign(c, { verdict: 'defect', correction: 'X'.repeat(priorityCorrectionLimit(category)) });
+    expect(qualityDisposition(r, a, b, policy).disposition).toBe('repair');
+    c.correction += 'X'; expect(() => qualityDisposition(r, a, b, policy)).toThrow();
+    c.correction = 'X'.repeat(1800);
+    expect(qualityDisposition({ candidateSha: a, contextSha: b, checks: r.checks }, a, b).disposition).toBe('repair');
+  });
+  it('retains every maximum correction once, preserves raw observations, and keeps legacy duplication byte-equivalent', () => {
+    const { policy } = fixture(), r = review(policy);
+    for (const c of r.checks) Object.assign(c, { verdict: 'defect', observation: 'RAW_OBSERVATION_' + c.category,
+      correction: (c.category + ':\\"\n\t').padEnd(priorityCorrectionLimit(c.category), 'X') });
+    const original = JSON.stringify(r);
+    const prompt = ownerDraftRepairPrompt('BASE', { imageSha: a, imageName: 'page.png' }, r, b, 4, policy);
+    for (const c of r.checks) {
+      const correction = `${c.category}: ${c.correction.replace(/\s+/gu, ' ').trim()}`;
+      expect(prompt.split(correction)).toHaveLength(2);
+    }
+    expect(prompt).not.toContain('RAW_OBSERVATION'); expect(JSON.stringify(r)).toBe(original);
+    expect(prompt.split('TARGETED CORRECTIVE EDIT')).toHaveLength(2);
+    const legacy = { candidateSha: a, contextSha: b, checks: r.checks };
+    const old = ownerDraftRepairPrompt('BASE', { imageSha: a, imageName: 'page.png' }, legacy, b, 4);
+    const [before, after] = old.split('\n\nBASE\n\n');
+    expect(before).toBe(after); expect(before).toContain(`BOUND DEFECT DATA: ${JSON.stringify(r.checks)}`);
+  });
+  it.each(['spoke count', 'rim ring color', 'diameter', 'roof height'])('rejects %s preference against a real-plan-shaped aggregate invariant', attribute => {
+    const { raw, authority } = fixture();
+    authority.continuity.entities[0].invariants = [{ attribute: 'canonical_design',
+      value: 'Three broad spokes, rust-red rim ring, diameter 0.27 child heights; roof about 1.4 standing child heights.' }];
+    raw.decorativePreferences[0].attribute = attribute;
+    expect(() => compileVisualPriorityPolicy(raw, authority)).toThrow('visual_priority_aggregate_invariant');
+  });
   it('retains cosmetic evidence without consuming a repair and never reinterprets legacy reviews', async () => {
     const { policy } = fixture(), render = vi.fn(async () => ({ imageSha: a, imageName: 'page.png' }));
     const result = await runPreviewQualityLoop({ context: {}, policy, maxRepairs: 2, render,

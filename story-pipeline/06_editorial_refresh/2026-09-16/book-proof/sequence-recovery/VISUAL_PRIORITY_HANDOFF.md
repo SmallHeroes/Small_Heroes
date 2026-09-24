@@ -28,8 +28,14 @@ duplicates, stale hashes, exact normalized attribute collisions with invariants
 and state changes. Process-local validated handles reject cloning/mutation.
 This is integrity validation, not a signed content-approval authority.
 
-All existing invariants still apply. The policy is ADDITIVE; it cannot reclassify
-the historical wheel-spoke or height requirement. If a future plan deliberately
+All existing invariants still apply. The historical wheel-spoke and height
+requirements and verdicts were not edited or reclassified. Correction after F1:
+at this reviewed revision, the code did NOT prevent a future policy from naming
+such details inside an aggregate prose invariant; only exact structured attribute
+collisions were blocked. This historical preservation claim is not a future-run
+semantic guarantee. See VISUAL_PRIORITY_CORRECTION_HANDOFF.md for the prospective
+admission correction, which has its own independent re-gate boundary.
+If a future plan deliberately
 omits unnecessary precision, that is a separate prospective content decision,
 not a silent waiver. No current paid plan/source/artifact was edited.
 

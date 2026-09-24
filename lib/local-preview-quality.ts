@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { visualPriorityDigest, type VisualPriorityPolicy } from './local-visual-priority';
 
 export const PREVIEW_QUALITY_VERSION = 'local-preview-quality/v5';
-export const PRIORITY_QUALITY_VERSION = 'local-preview-quality/v6-decorative';
+export const PRIORITY_QUALITY_VERSION = 'local-preview-quality/v7-bounded-decorative';
 export const previewQualityVersion = (policy?: VisualPriorityPolicy) => policy ? PRIORITY_QUALITY_VERSION : PREVIEW_QUALITY_VERSION;
 export const PREVIEW_JUDGE_MODEL = 'gpt-5.5';
 export const PREVIEW_JUDGE_EFFORT = 'medium';
@@ -92,7 +92,17 @@ export const previewQualityReviewSchema = z.object({
     observation: text, correction: z.string().max(1800),
   }).strict()).length(QUALITY_CATEGORIES.length),
 }).strict();
+export const PRIORITY_CORRECTION_LIMIT = 400;
+// Blind anatomy retains its independent 1800-character contract, including on merge.
+export const priorityCorrectionLimit = (category: typeof QUALITY_CATEGORIES[number]) => category === 'anatomy' ? 1800 : PRIORITY_CORRECTION_LIMIT;
+export const PRIORITY_CORRECTION_INSTRUCTION = `For mandatory defects, correction must name the location and concrete change in at most ${PRIORITY_CORRECTION_LIMIT} characters (anatomy may use ${priorityCorrectionLimit('anatomy')}). Keep detailed evidence in observation. Do not omit defects to shorten the response.`;
+const qualityCheck = previewQualityReviewSchema.shape.checks.element;
 export const priorityQualityReviewSchema = previewQualityReviewSchema.extend({
+  checks: z.array(z.union([
+    qualityCheck.extend({ category: z.literal('anatomy') }),
+    qualityCheck.extend({ category: z.enum(['identity', 'relative_scale', 'props', 'environment', 'scene', 'framing', 'safety']),
+      correction: z.string().max(PRIORITY_CORRECTION_LIMIT) }),
+  ])).length(QUALITY_CATEGORIES.length),
   policySha: sha,
   decorativeChecks: z.array(z.object({
     preferenceId: id, verdict: z.enum(['matched', 'variation', 'not_visible', 'uncertain']), observation: text,

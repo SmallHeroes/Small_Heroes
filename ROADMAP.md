@@ -1,5 +1,15 @@
 # SmallHeroes — Roadmap
 
+## Decorative-preference correction ready for re-gate — 2026-09-24
+
+Claude technically passed e491c9bc..8145309c with F1 Medium/F2 Low. Codex reproduced
+both and implemented known-aggregate admission rejection plus pre-spend image/
+repair envelope checks. Opt-in repair v7 carries bounded corrections once while
+preserving raw QA; legacy v5 is unchanged. 365 focused tests and both typechecks
+pass. Independent correction re-gate is pending; full gate remains RED and paid
+images HELD. No new spending or push. After re-gate, author/review fresh granular
+requirements before the smallest visual experiment, not retroactive forgiveness.
+
 ## Comparison technically reviewed; visual/product boundary unchanged — 2026-09-24
 
 Claude's technical PASS covers79dea3db..94285789 and both measurement records.

@@ -4,7 +4,7 @@ import sharp from 'sharp';
 import { zodTextFormat } from 'openai/helpers/zod';
 import { previewCheckpoint, previewImageDigest, previewSha } from '../../lib/local-story-preview';
 import { ANATOMY_INSPECTION_INSTRUCTION, anatomyInspectionSchema, PREVIEW_JUDGE_MODEL, PREVIEW_JUDGE_EFFORT, PREVIEW_JUDGE_INSTRUCTION, PREVIEW_QUALITY_VERSION, previewQualityReviewSchema } from '../../lib/local-preview-quality';
-import { priorityQualityReviewSchema, previewQualityVersion, previewQualityContextSha, qualityDisposition } from '../../lib/local-preview-quality';
+import { priorityQualityReviewSchema, previewQualityVersion, previewQualityContextSha, qualityDisposition, PRIORITY_CORRECTION_INSTRUCTION } from '../../lib/local-preview-quality';
 import { visualPriorityPrompt, VISUAL_PRIORITY_INSTRUCTION, type VisualPriorityPolicy } from '../../lib/local-visual-priority';
 
 // Transport identity is deliberately separate from quality/calibration and prompt content.
@@ -26,7 +26,7 @@ export async function judgePreviewCandidate(args: {
   permit?: () => void;
 }) {
   // Validate policy and its context binding BEFORE even the blind paid inspection.
-  const instruction = PREVIEW_JUDGE_INSTRUCTION + (args.policy ? '\n\n' + VISUAL_PRIORITY_INSTRUCTION + visualPriorityPrompt(args.policy) : '');
+  const instruction = PREVIEW_JUDGE_INSTRUCTION + (args.policy ? '\n\n' + VISUAL_PRIORITY_INSTRUCTION + '\n' + PRIORITY_CORRECTION_INSTRUCTION + visualPriorityPrompt(args.policy) : '');
   if (args.policy && previewQualityContextSha(args.context, args.policy) !== args.contextSha) throw Error('quality_evidence_binding');
   if (previewImageDigest(args.candidatePath) !== args.candidateSha) throw Error('judge_candidate_changed');
   const candidateBytes = fs.readFileSync(args.candidatePath);

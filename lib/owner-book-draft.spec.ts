@@ -3,7 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { draftManifest, draftOutputRoot, loadOwnerDraft, ownerDraftSchema, ownerDraftPagePrompt, ownerDraftPropBoardPrompt, ownerDraftRepairPrompt, runGatedDraftPages, runOwnerBookDraft, sampleComparisonPages, projectDraftPropReferences, selectedDraftQaContext } from '../scripts/run-owner-book-draft';
+import { draftManifest, draftOutputRoot, loadOwnerDraft, ownerDraftSchema, ownerDraftPagePrompt, ownerDraftPropBoardPrompt, ownerDraftRepairPrompt, preflightDraftPriorityPrompts, DRAFT_PREDECESSOR_PROMPT_ALLOWANCE, runGatedDraftPages, runOwnerBookDraft, sampleComparisonPages, projectDraftPropReferences, selectedDraftQaContext } from '../scripts/run-owner-book-draft';
 import { QUALITY_CATEGORIES } from './local-preview-quality';
 import sharp from 'sharp';
 import { generateGPTImage } from './generate-image';
@@ -370,6 +370,91 @@ describe('real owner-draft entry point with mocked providers', () => {
     fs.writeFileSync(file, JSON.stringify(config)); await addSequence(file);
     return { file, root, target, policy, repo };
   }
+  it('rejects oversized policy page before opening credentials, creating root or generating a missing board', async () => {
+    const { file, root, target, policy, repo } = await priorityInputs();
+    const config = JSON.parse(fs.readFileSync(file, 'utf8'));
+    const plan = JSON.parse(fs.readFileSync(path.resolve(repo, config.plan.file), 'utf8'));
+    // Valid whole plan whose late selected page is enormous; the board would be paid first.
+    plan.recurringProps = [{ id: 'wall', design: 'stone wall' }];
+    plan.continuity.entities[0].kind = 'prop';
+    for (const key of ['composition', 'childAction', 'childExpression', 'childGaze', 'companionAction', 'scene']) plan.pages[2][key] = 'X'.repeat(1800);
+    policy.decorativePreferences = Array.from({ length: 12 }, (_, i) => ({ ...policy.decorativePreferences[0], id: `detail_${i}`, attribute: `detail_${i}`, preference: 'x'.repeat(400), rationale: 'x'.repeat(400) }));
+    const bytes = JSON.stringify(plan); fs.writeFileSync(path.resolve(repo, config.plan.file), bytes); config.plan.sha = previewSha(bytes);
+    delete config.sequence;
+    policy.planSha = config.plan.sha; const policyBytes = JSON.stringify(policy); fs.writeFileSync(target, policyBytes); config.visualPriority.sha = previewSha(policyBytes);
+    fs.writeFileSync(file, JSON.stringify(config)); vi.stubEnv('OPENAI_API_KEY', '');
+    await expect(runOwnerBookDraft(file, 'sample', 'key-must-not-be-opened')).rejects.toThrow('draft_image_input_limit');
+    expect(fs.existsSync(root)).toBe(false); expect(generateGPTImage).not.toHaveBeenCalled(); expect(judgePreviewCandidate).not.toHaveBeenCalled();
+  });
+  it('reserves repair capacity before credentials even when every initial prompt fits', async () => {
+    const { file, root, target, policy, repo } = await priorityInputs();
+    const config = JSON.parse(fs.readFileSync(file, 'utf8'));
+    const plan = JSON.parse(fs.readFileSync(path.resolve(repo, config.plan.file), 'utf8'));
+    delete config.sequence;
+    for (const key of ['composition', 'childAction', 'childExpression', 'childGaze', 'companionAction', 'scene']) plan.pages[2][key] = 'X'.repeat(1800);
+    const bytes = JSON.stringify(plan); fs.writeFileSync(path.resolve(repo, config.plan.file), bytes); config.plan.sha = previewSha(bytes);
+    policy.planSha = config.plan.sha;
+    policy.decorativePreferences = Array.from({ length: 7 }, (_, i) => ({ ...policy.decorativePreferences[0], id: `detail_${i}`, attribute: `detail_${i}`, preference: 'x'.repeat(400), rationale: 'x'.repeat(400) }));
+    const policyBytes = JSON.stringify(policy); fs.writeFileSync(target, policyBytes); config.visualPriority.sha = previewSha(policyBytes);
+    const rows = preflightDraftPriorityPrompts(loadOwnerDraft(repo, config));
+    expect(rows).toHaveLength(2); expect(Math.max(...rows.map(r => r.characters))).toBeLessThanOrEqual(24000);
+    config.sampleRepairOnce = true; fs.writeFileSync(file, JSON.stringify(config)); vi.stubEnv('OPENAI_API_KEY', '');
+    await expect(runOwnerBookDraft(file, 'sample', 'key-must-not-be-opened')).rejects.toThrow('draft_image_input_limit');
+    expect(fs.existsSync(root)).toBe(false); expect(generateGPTImage).not.toHaveBeenCalled(); expect(judgePreviewCandidate).not.toHaveBeenCalled();
+  });
+  it('checks board overflow and escaped policy bytes offline; omitted policy keeps legacy admission', async () => {
+    const { file, target, policy, repo } = await priorityInputs();
+    const config = JSON.parse(fs.readFileSync(file, 'utf8')); delete config.sequence;
+    const plan = JSON.parse(fs.readFileSync(path.resolve(repo, config.plan.file), 'utf8'));
+    plan.recurringProps = Array.from({ length: 8 }, (_, i) => ({ id: `prop_${i}`, design: 'X'.repeat(1800) }));
+    plan.continuity.entities.push(...plan.recurringProps.map((p: { id: string }) => ({ id: p.id, kind: 'prop', invariants: [{ attribute: 'material', value: 'wood' }] })));
+    policy.decorativePreferences = Array.from({ length: 12 }, (_, i) => ({ ...policy.decorativePreferences[0], id: `detail_${i}`, attribute: `detail_${i}`, entityId: 'prop_0', preference: '\u0001'.repeat(400), rationale: 'x'.repeat(400) }));
+    const bytes = JSON.stringify(plan); fs.writeFileSync(path.resolve(repo, config.plan.file), bytes); config.plan.sha = previewSha(bytes);
+    policy.planSha = config.plan.sha; const p = JSON.stringify(policy); fs.writeFileSync(target, p); config.visualPriority.sha = previewSha(p);
+    const loaded = loadOwnerDraft(repo, config);
+    expect(() => preflightDraftPriorityPrompts(loaded)).toThrow('draft_image_input_limit');
+    expect(preflightDraftPriorityPrompts({ ...loaded, visualPriority: undefined })).toEqual([]);
+    expect(generateGPTImage).not.toHaveBeenCalled(); expect(judgePreviewCandidate).not.toHaveBeenCalled();
+  });
+  it.each([false, true].flatMap(board => [false, true].map(cut => ({ board, cut }))))('bounds actual maximum repairs and predecessor roles (board=$board, cut=$cut)', async ({ board, cut }) => {
+    const { file, root, repo, target, policy } = await priorityInputs();
+    const config = JSON.parse(fs.readFileSync(file, 'utf8')); config.sampleRepairOnce = true;
+    if (board) {
+      const plan = JSON.parse(fs.readFileSync(path.resolve(repo, config.plan.file), 'utf8'));
+      plan.recurringProps = [{ id: 'wall', design: 'stone wall' }]; plan.continuity.entities[0].kind = 'prop';
+      for (const p of plan.pages) p.props = [{ id: 'wall', state: 'unchanged stone wall' }];
+      const bytes = JSON.stringify(plan); fs.writeFileSync(path.resolve(repo, config.plan.file), bytes); config.plan.sha = previewSha(bytes);
+      policy.planSha = config.plan.sha; const p = JSON.stringify(policy); fs.writeFileSync(target, p); config.visualPriority.sha = previewSha(p);
+      config.propBoard = config.childAnchor; config.propBoardRegions = { wall: { left: 0, top: 0, width: 16, height: 16 } };
+    }
+    fs.writeFileSync(file, JSON.stringify(config));
+    const withSequence = await addSequence(file, cut);
+    const loaded = loadOwnerDraft(repo, withSequence.config);
+    const bounds = preflightDraftPriorityPrompts(loaded);
+    const baseRun = vi.mocked(generateGPTImage).getMockImplementation()!;
+    vi.mocked(generateGPTImage).mockImplementation(async args => ({ ...await baseRun(args),
+      ...(args.finalPrompt.includes('TARGETED CORRECTIVE EDIT') ? { buffer: await sharp({ create: { width: 16, height: 16, channels: 3, background: 'red' } }).png().toBuffer() } : {}) }));
+    vi.mocked(judgePreviewCandidate).mockImplementation(async args => ({ candidateSha: args.candidateSha, contextSha: args.contextSha, policySha: visualPriorityDigest(args.policy!),
+      checks: QUALITY_CATEGORIES.map(category => ({ category, verdict: args.step === 'qa-02' ? 'defect' : 'pass', observation: 'full observed evidence',
+        correction: (category + ':').padEnd(previewQuality.priorityCorrectionLimit(category), 'X') })),
+      decorativeChecks: [{ preferenceId: 'motif', verdict: 'variation', observation: 'dots' }] }));
+    const result = await runOwnerBookDraft(file, 'sample'); expect(result?.repairsUsed).toBe(1);
+    for (const [i, [call]] of vi.mocked(generateGPTImage).mock.calls.entries()) {
+      const step = ['page-1', 'page-2', 'page-2-repair'][i];
+      expect(call.finalPrompt.length).toBeLessThanOrEqual(bounds.find(r => r.step === step)!.characters);
+    }
+    const saved = JSON.parse(fs.readFileSync(path.join(root, 'page-02-repair-01.request.json'), 'utf8'));
+    expect(saved.prompt).toContain(`reference image ${board ? 4 : 3}`);
+    expect(JSON.stringify(saved.sequence.predecessor).length).toBeLessThan(DRAFT_PREDECESSOR_PROMPT_ALLOWANCE);
+    expect(saved.sequence.predecessor === null).toBe(cut);
+    expect(saved.prompt).not.toContain('full observed evidence');
+    const history = JSON.parse(fs.readFileSync(path.join(root, 'sample-page-02-attempt-0.json'), 'utf8'));
+    expect(history.review.checks.every((c: { observation: string }) => c.observation === 'full observed evidence')).toBe(true);
+    expect(bounds.map(r => r.step)).toEqual(['page-1', 'page-1-repair', 'page-2', 'page-2-repair']);
+    expect(bounds.every(r => r.characters < 24000)).toBe(true);
+    const maxPredecessor = { pageNumber: 24, imageName: 'page-24-repair-01.png', imageSha: 'f'.repeat(64), authority: 'comparison_only_not_canonical' };
+    expect(JSON.stringify(maxPredecessor).length).toBeLessThan(DRAFT_PREDECESSOR_PROMPT_ALLOWANCE);
+  });
   it('carries prospective preferences through the real two-page sequence entry, persists variation and resumes without generation', async () => {
     const { file, root } = await priorityInputs();
     vi.mocked(judgePreviewCandidate).mockImplementation(async args => {
@@ -392,6 +477,11 @@ describe('real owner-draft entry point with mocked providers', () => {
     expect(JSON.parse(manifest.toString()).results[0].history[0].review.decorativeChecks[0].verdict).toBe('variation');
     await runOwnerBookDraft(file, 'sample'); expect(generateGPTImage).toHaveBeenCalledTimes(2);
     expect(fs.readFileSync(path.join(root, 'sample-manifest.json'))).toEqual(manifest);
+    const identityPath = path.join(root, 'identity.json'), originalIdentity = fs.readFileSync(identityPath);
+    fs.writeFileSync(identityPath, JSON.stringify({ ...JSON.parse(originalIdentity.toString()), qualityVersion: 'local-preview-quality/v6-decorative' }));
+    await expect(runOwnerBookDraft(file, 'sample')).rejects.toThrow('preview_input_changed_new_run_required');
+    expect(generateGPTImage).toHaveBeenCalledTimes(2);
+    fs.writeFileSync(identityPath, originalIdentity);
     const config = JSON.parse(fs.readFileSync(file, 'utf8')); delete config.visualPriority; fs.writeFileSync(file, JSON.stringify(config));
     await expect(runOwnerBookDraft(file, 'sample')).rejects.toThrow('preview_input_changed_new_run_required');
     expect(generateGPTImage).toHaveBeenCalledTimes(2);

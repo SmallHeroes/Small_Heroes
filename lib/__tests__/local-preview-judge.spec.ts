@@ -9,7 +9,7 @@ const { create, constructor } = vi.hoisted(() => ({ create: vi.fn(), constructor
 vi.mock('openai', () => ({ default: class { responses = { create }; constructor(options: unknown) { constructor(options); } } }));
 import { judgePreviewCandidate } from '../../scripts/lib/local-preview-judge';
 import { compileVisualPriorityPolicy, visualPriorityForPage, visualPriorityDigest } from '../local-visual-priority';
-import { previewQualityContextSha, qualityDisposition } from '../local-preview-quality';
+import { previewQualityContextSha, qualityDisposition, priorityCorrectionLimit, PRIORITY_CORRECTION_INSTRUCTION } from '../local-preview-quality';
 let root: string, candidatePath: string, candidateSha: string;
 const contextSha = 'a'.repeat(64);
 beforeEach(async () => {
@@ -58,6 +58,27 @@ describe('real preview judge adapter with mocked provider transport', () => {
     await expect(judgePreviewCandidate({ ...value, contextSha })).rejects.toThrow('quality_evidence_binding');
     await expect(judgePreviewCandidate({ ...value, policy: structuredClone(value.policy) })).rejects.toThrow('visual_priority_unvalidated_or_changed');
     expect(create).not.toHaveBeenCalled();
+  });
+  it('retains the full blind anatomy correction and advertises typed contextual correction bounds', async () => {
+    const { value, review } = policyArgs(), correction = 'X'.repeat(priorityCorrectionLimit('anatomy'));
+    create.mockResolvedValueOnce(response({ verdict: 'defect', visibleBodyTraces: ['third hand'], observation: 'hand at shoulder', correction }))
+      .mockResolvedValueOnce(response(review));
+    const actual = await judgePreviewCandidate(value);
+    expect(actual.checks.find(c => c.category === 'anatomy')!.correction).toBe(correction);
+    const [blind, contextual] = create.mock.calls.map(([r]) => r);
+    expect(blind.instructions).toBe(ANATOMY_INSPECTION_INSTRUCTION);
+    expect(contextual.instructions).toContain(PRIORITY_CORRECTION_INSTRUCTION);
+    const variants = contextual.text.format.schema.properties.checks.items.anyOf;
+    expect(variants.map((v: { properties: { correction: { maxLength: number } } }) => v.properties.correction.maxLength)).toEqual([1800, 400]);
+    expect(JSON.parse(receipt('judge-test').value.text)).toEqual(review);
+  });
+  it('holds an oversized contextual correction without truncation, retry or rewriting raw evidence', async () => {
+    const { value, review } = policyArgs();
+    Object.assign(review.checks.find(c => c.category === 'props')!, { verdict: 'defect', correction: 'X'.repeat(401) });
+    create.mockResolvedValueOnce(response(anatomyPass())).mockResolvedValueOnce(response(review));
+    await expect(judgePreviewCandidate(value)).rejects.toThrow();
+    expect(JSON.parse(receipt('judge-test').value.text)).toEqual(review);
+    await expect(judgePreviewCandidate(value)).rejects.toThrow(); expect(create).toHaveBeenCalledTimes(2);
   });
   it('preserves but rejects a paid legacy-shaped review under the new policy without retry', async () => {
     const { value } = policyArgs();
