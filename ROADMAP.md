@@ -3,8 +3,9 @@
 ## Comparison technically reviewed; visual/product boundary unchanged — 2026-09-24
 
 Claude's technical PASS covers79dea3db..94285789 and both measurement records.
-Provenance and exit wording corrected in documentation only; independent re-gate
-of the correction pending. Provider metadata capture/observed-exit logging remain
+His documentation re-gate PASS now covers90c91555..aa0faa73; original Medium/Low/Low
+finding grades recorded without translating them to P counts. This subsequent
+transcription does not extend either PASS. Provider metadata capture/observed-exit logging remain
 future code work. No new render. Prospective constraint-criticality decision and
 continuity proof remain next; full gate RED and both images HELD.
 

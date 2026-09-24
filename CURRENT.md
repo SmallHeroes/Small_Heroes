@@ -1,5 +1,17 @@
 # SmallHeroes — Current Technical State
 
+## Documentation re-gate PASS recorded — 2026-09-24
+
+Claude supplied PASS for90c91555..aa0faa73, all four documentation targets met.
+Code PASS remains79dea3db..94285789 plus the two measurement records. Original
+finding grades now recorded faithfully: F1 Medium/non-blocking, F2 Low, F3 Low;
+no conversion to P0/P1/P2. Metadata capture, observed-exit logging and estimator
+comment remain deferred. Both images HELD; full gate RED; no product acceptance.
+The reviewed HEAD was clean/ahead22; the earlier18 commits are outside these
+reviews and require gate-record reconciliation before propagation. This new
+transcription is documentation only, outside the frozen PASS. No code, artifacts,
+provider calls or push. Details and commands in MODEL_COMPARISON_QA_RESPONSE.md.
+
 ## Independent model-comparison PASS; documentation correction — 2026-09-24
 
 Claude supplied technical PASS for79dea3db..94285789 plus both measurement

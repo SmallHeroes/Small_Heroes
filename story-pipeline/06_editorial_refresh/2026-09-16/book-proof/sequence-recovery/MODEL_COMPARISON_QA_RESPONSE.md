@@ -21,14 +21,45 @@ never modification of saved provider or QA evidence.
 ## Supplied independent verdict and exact boundary
 
 Claude supplied PASS (technical) for79dea3db..94285789 plus both measurement
-records, reviewed at documentation closeout90c91555. No P0/P1/P2 counts were
-supplied, so none are inferred. He reported204/204 and tsc0, ten black-box real-CLI
+records, reviewed at documentation closeout90c91555. Supplied grades were F1
+Medium (non-blocking), F2 Low and F3 Low. No P0/P1/P2 counts were supplied, so
+none are inferred or mapped from that different scale. He reported204/204 and
+tsc0, ten black-box real-CLI
 cases, old-root identity byte compatibility, independent hashes/fingerprints/raw
 QA/ledger/preservation recomputation, and both offline reports reproducing.
 He did not recheck live pricing. This is attributed independent evidence, not a
 claim Codex reran those probes now. No PASS of the entire ahead set, product,
-visual accuracy, continuity, release or full gate. This new correction is outside
-that PASS and has NOT received its own independent re-gate.
+visual accuracy, continuity, release or full gate. At the original corrective
+handoff this correction was outside that PASS and had no independent re-gate.
+The subsequently supplied re-gate below covers it through aa0faa73 only.
+
+## Supplied documentation re-gate — frozen aa0faa73
+
+Claude subsequently supplied PASS for90c91555..aa0faa73eb5e2710675fa69234350bb95c5286f3:
+one commit, five Markdown paths,+199/-10. All four falsification targets held.
+He reported tsc0, both offline reports unchanged, his independent recomputation
+41/41, and a direct inspection of58 files across the six ignored evidence roots.
+He reports saving scratchpad/evidence-roots-baseline-aa0faa73.json for later
+reviews; this is reviewer-provided context, not a tracked or independently backed
+up artifact claimed by Codex. Optional-field and token-to-tier limitations and
+intended-versus-observed exit distinctions were accepted by the reviewer.
+
+The sole non-blocking nit was to retain the original Medium/Low/Low grades,
+now recorded above. F2 metadata capture, F3 observed-exit logging and the estimator
+comment remain deferred. Full gate RED; both images HELD. No product/continuity
+acceptance and no extension to the earlier18 commits. At re-gate HEAD the branch
+was clean/ahead22; propagation would carry all22, not just the four latest commits
+Claude says he reviewed. This transcription adds a further local documentation
+commit; it is outside the frozen PASS and has no self-awarded independent PASS.
+
+Transcription scope: same sole-writer task/branch/worktree, base aa0faa73, three
+Markdown paths only, zero code/artifact/spend/push. tsc0, diff check clean, both
+offline reports exit0 with unchanged costs/preservation; no tests/full gate rerun.
+For optional transcription QA,
+freeze its direct successor and inspect aa0faa73..HEAD; verify the supplied grades
+and the two exact PASS boundaries without rerunning or expanding the paid work.
+Use the existing inspection/push commands below with that documentation range;
+inspect the entire actual ahead set before any owner-authorized push.
 
 Claude classified the historical41 failures as39 timeouts +2 assertion failures
 and found no import/spawn path from the15 failing files to the changed owner CLI.
@@ -97,7 +128,8 @@ held images. All six evidence roots remain local/ignored with no verified backup
 
 ## Re-gate brief and copy-ready commands
 
-Codex validation for this prose correction: tsc exit0, diff --check clean; both
+Codex validation for the original prose correction committed aa0faa73:
+tsc exit0, diff --check clean; both
 offline reports exit0/providerCallsThisReport0 with original costs and dispositions,
 including the original203-file SHA/size/mtime preservation. Five Markdown paths
 only; zero runtime/test/output paths edited. No focused/full test rerun claimed.
