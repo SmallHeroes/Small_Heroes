@@ -14,11 +14,15 @@ Two commits, eight paths, +477/-7:
 1. 69a75de0ac8adf69539dc54172d07a943482f864: optional sample-only model selection.
 2. 9428578931f9e4d0459443818d9f4b620da0fdd3: optional sample-only quality selection.
 
-Codex sole writer; no task delegated, independent QA pending. Code tip clean,
+Codex sole writer; no task delegated, independent QA was pending at handoff. See
+MODEL_COMPARISON_QA_RESPONSE.md for the subsequently supplied technical PASS and
+documentation corrections; that PASS does not extend to this wording revision.
+Code tip clean,
 ahead20/behind0 at execution; this handoff and current-state update are a separate
 documentation closeout afterward, not another code change. Freeze its actual SHA
-separately if reviewing transcription. No push. Protected d53b768ccb2f and
-accepted-intent63ccb484 remain unchanged/clean. Reconcile actual reviewer HEAD
+separately if reviewing transcription. No push. Protected worktree d53b at commit
+768ccb2f and accepted-intent worktree at commit63ccb484 remain unchanged/clean.
+Reconcile actual reviewer HEAD
 before accepting any verdict. No extension of earlier independent PASS ranges.
 
 ## Implementation, compatibility and unchanged surfaces
@@ -28,9 +32,14 @@ allowlist: gpt-image-2 / gpt-image-2.5-sunburst. Optional imageQuality: low/medi
 Explicit settings require samplePages; unknown/malformed values reject before
 input or credential access. Omission keeps Image2 LOW and old config bytes.
 Requested model/quality bind identity, checkpoints and actual shared image call.
-Changing either cannot reuse an old root. Wrong returned model/fallback evidence
-is retained and holds before QA/next image. Quality is request-side evidence, not
-a provider attestation of internal compute or guaranteed visual improvement.
+Changing either cannot reuse an old root. A mocked generator result with a wrong
+model or fallback flag is retained and holds before QA/next image. This exercises
+the caller's defensive contract, NOT detection of a provider model substitution:
+the current shared generator echoes the requested model and computes fallbackUsed
+by comparing that string to itself, so that condition cannot fire in its real
+implementation. The installed SDK ImagesResponse has no model field. Model and
+quality provenance in these saved artifacts is request-side only, not provider
+attestation of internal model/compute or guaranteed visual improvement.
 
 No shared generator, judge/anatomy, prompt assembly, sequence state, source/plan,
 references, dimensions, thresholds, production/Wizard/reader or default changes.
@@ -65,6 +74,12 @@ same three reference hashes/bytes,1024x1536, same source/plan/sequence and exact
 context SHA779e28104086f7149c5b28ac9f6d56a0006a5cd8daaeb9cebd7513be3f823be9.
 Context judge GPT5.5 medium/Flex and blind anatomy unchanged. Request-side model
 is Sunburst; metadata GET200 established account availability before paid calls.
+Both image responses reported5251 input tokens; output image tokens increased
+from158 to343 (ratio2.170886). This independently supports changed consumption,
+consistent with the changed quality request, but token count alone is NOT an
+attestation of the exact quality tier. The SDK exposes optional top-level quality
+and size fields; the shared generator does not retain them. Their presence or
+values in the original responses cannot be recovered from the saved artifacts.
 
 | Run | Native exit | Images / QA | Automated result | Usage estimate USD | Accounted upper USD |
 | --- | --- | --- | --- | --- | --- |
@@ -141,8 +156,13 @@ another identical full-image retry or a new paid ladder under this handoff.
    edit seam for Sunburst LOW/MEDIUM, maxRetries0 and unchanged references.
 3. Compare real saved prompt/ref/context hashes, including actual normalized
    reference pixels; detect any hidden simultaneous prompt or judge changes.
-4. Recompute claims/results/costs including old unresolved reservation; reconcile
-   native exits2 versus wrapper exit1. No retry/next page/import occurred.
+4. Recompute claims/results/costs including old unresolved reservation. Both child
+   native exits2 are persisted. The surrounding execution tool reported exit1 in
+   Codex's session, but the harness's own exit was not independently captured in
+   these artifacts; its normal successful-preservation branch assigns2. Claude
+   did not reproduce a2-to1 conversion. Do not attribute the tool observation to
+   the harness, PowerShell or another layer without measurement. No retry/next
+   page/import occurred. See the QA response for the deferred logging follow-up.
 5. Independently recompute preservation and raw QA-to-manifest binding rather
    than relying only on our helper. Report accuracy limitations honestly.
 6. Check the full-check RED disclosure and exact tested code range. Do not label

@@ -5,7 +5,8 @@
 Guy accepted Codex's revised recommendation and instructed implementation in this
 task. Continue on codex/r3b1b-semantic-recovery-m1 in
 C:/GNart/Work/sh-r3b1b-semantic-m1, base79dea3db, clean/ahead18. Codex is sole
-writer. Protected d53b768ccb2f and accepted-intent63ccb484 remain read-only/clean.
+writer. Protected worktree d53b at commit768ccb2f and accepted-intent worktree at
+commit63ccb484 remain read-only/clean.
 No independent PASS is claimed for this new implementation or the entire tree.
 
 ## Problem and recommendation
@@ -50,7 +51,10 @@ Likely files: scripts/run-owner-book-draft.ts, its spec, request-boundary test,
 one evidence harness/readout and CURRENT/ROADMAP. No shared generator change.
 Tests: old defaults/identity; exact allowlist; sample-only override; selected
 model reaches provider and checkpoints; changed model cannot resume old root;
-wrong model/fallback fails closed with result retained. Run focused tests, tsc,
+mocked wrong-model/fallback results hold at the caller with evidence retained.
+This does not attest provider identity: the shared generator returns its own
+requested model and its fallbackUsed comparison is always false. The actual
+transport test proves the requested model only. Run focused tests, tsc,
 full check separately (prior full gate RED16timeouts; do not infer green).
 Before dispatch compare actual prompt and reference hashes with saved baseline.
 Preserve old SHA/bytes/mtime; no root overwrite. After dispatch inspect pixels,

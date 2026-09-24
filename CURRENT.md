@@ -1,5 +1,26 @@
 # SmallHeroes — Current Technical State
 
+## Independent model-comparison PASS; documentation correction — 2026-09-24
+
+Claude supplied technical PASS for79dea3db..94285789 plus both measurement
+records, reviewed at90c91555 clean/ahead21.204 tests/tsc0, real-CLI probes,
+accounting and203-file preservation independently verified by him. Not product,
+continuity, visual-accuracy, full-gate or entire-ahead-set acceptance.
+
+Codex verified F1: returned model is request-side; fallbackUsed compares identical
+strings. Corrected the handoff and gate to limit the mocked guard claim. F2:
+optional provider quality/size metadata is not retained;158 vs343 output tokens
+corroborate changed consumption, not exact tier attestation. Capture remains a
+separate follow-up. F3: saved child nativeExit2; harness normally assigns2; outer
+tool exit1 observation is not an independently captured harness exit. Wording
+corrected; future observed-exit logging deferred. No production/test/artifact
+changes, no spend, no push, no independent self-closure of this correction.
+
+Full gate remains RED; Claude's39-timeout/2-assertion classification and lack of
+direct import/spawn reachability are not stability proof. Both images remain
+HELD; no additional render or threshold change. Details/re-gate/commands:
+story-pipeline/06_editorial_refresh/2026-09-16/book-proof/sequence-recovery/MODEL_COMPARISON_QA_RESPONSE.md.
+
 ## Controlled comparison completed, both HELD — 2026-09-23
 
 Code commits69a75de0 /94285789 remain local, no push. LOW and MEDIUM each generated

@@ -1,5 +1,13 @@
 # SmallHeroes — Roadmap
 
+## Comparison technically reviewed; visual/product boundary unchanged — 2026-09-24
+
+Claude's technical PASS covers79dea3db..94285789 and both measurement records.
+Provenance and exit wording corrected in documentation only; independent re-gate
+of the correction pending. Provider metadata capture/observed-exit logging remain
+future code work. No new render. Prospective constraint-criticality decision and
+continuity proof remain next; full gate RED and both images HELD.
+
 ## Controlled comparison closed; no further paid ladder — 2026-09-23
 
 Sunburst LOW still failed wheel spokes. MEDIUM matched the wheel but station
