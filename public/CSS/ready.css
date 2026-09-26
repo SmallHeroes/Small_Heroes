@@ -274,3 +274,28 @@
     margin-top: 0;
   }
 }
+
+
+/* ── the cover invitation (per Guy) ─────────────────────────────────── */
+.ready-cover-frame {
+  display: block;
+  width: clamp(168px, 26vw, 224px);
+  margin: 0 auto 8px;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 18px 44px rgba(40, 24, 88, 0.28), 0 2px 0 rgba(255, 255, 255, 0.6) inset;
+  rotate: -2deg;
+  transition: rotate 0.22s ease, transform 0.22s ease, box-shadow 0.22s ease;
+}
+
+.ready-cover-frame:hover {
+  rotate: 0deg;
+  transform: translateY(-4px) scale(1.02);
+  box-shadow: 0 24px 56px rgba(40, 24, 88, 0.34);
+}
+
+.ready-cover-img {
+  display: block;
+  width: 100%;
+  height: auto;
+}

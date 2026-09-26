@@ -24,7 +24,9 @@
   --wow-yellow-ink: var(--n-900);
   --wow-glow: #ffd9a8;
   /* Heading voice: Suez One (the face Guy approved; Rubik run reverted) */
-  --font-wow-display: var(--font-rubik), 'Rubik', sans-serif;
+  /* the storybook voice (per Guy, wow round 2): Suez One on the big lines,
+     Rubik behind it. Flip this one line to go back. */
+  --font-wow-display: var(--font-suez), var(--font-rubik), 'Rubik', sans-serif;
   --font-wow-body: var(--font-rubik), 'Rubik', sans-serif;
 }
 

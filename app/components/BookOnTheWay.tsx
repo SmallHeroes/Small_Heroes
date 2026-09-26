@@ -54,6 +54,17 @@ const STAGE_ICONS = [
 type StarPos = { top: string; left?: string; right?: string; size: number; delay: string };
 
 const STAR_POSITIONS: StarPos[] = [
+  /* the sky is the whole viewport now - stars reach the wide margins */
+  { top: '8%', left: '26%', size: 2, delay: '1.8s' },
+  { top: '18%', left: '33%', size: 3, delay: '0.2s' },
+  { top: '12%', right: '30%', size: 2, delay: '2.4s' },
+  { top: '26%', right: '24%', size: 2, delay: '0.9s' },
+  { top: '34%', left: '20%', size: 2, delay: '1.5s' },
+  { top: '48%', left: '14%', size: 3, delay: '2.1s' },
+  { top: '52%', right: '13%', size: 2, delay: '0.5s' },
+  { top: '78%', left: '10%', size: 2, delay: '1.2s' },
+  { top: '82%', right: '12%', size: 3, delay: '2.8s' },
+  { top: '88%', left: '40%', size: 2, delay: '0.6s' },
   { top: '9%', left: '13%', size: 3, delay: '0s' },
   { top: '15%', right: '17%', size: 2, delay: '0.7s' },
   { top: '29%', left: '7%', size: 4, delay: '1.3s' },
@@ -74,12 +85,19 @@ const RISE_POSITIONS = [
   { left: '60%', delay: '2.6s' },
   { left: '38%', delay: '3.4s' },
   { left: '54%', delay: '0.8s' },
+  { left: '22%', delay: '2s' },
+  { left: '70%', delay: '4.2s' },
 ];
 
 function StarField() {
   return (
     <div className={styles.stars} aria-hidden="true">
       <span className={styles.moon} />
+      <span className={styles.cloud} style={{ '--top': '14%', '--dur': '84s', '--delay': '-30s' } as React.CSSProperties} />
+      <span className={styles.cloud} style={{ '--top': '38%', '--dur': '110s', '--delay': '-70s' } as React.CSSProperties} />
+      <span className={styles.cloud} style={{ '--top': '72%', '--dur': '96s', '--delay': '-12s' } as React.CSSProperties} />
+      <span className={styles.shooting} style={{ '--top': '12%', '--dur': '9s', '--delay': '2s' } as React.CSSProperties} />
+      <span className={styles.shooting} style={{ '--top': '30%', '--dur': '13s', '--delay': '7.5s' } as React.CSSProperties} />
       {STAR_POSITIONS.map((pos, i) => (
         <span
           key={`star-${i}`}
@@ -159,7 +177,7 @@ function OpenBookIllustration() {
       <path d="M100 60 L112 60 L112 166 L106 160 L100 166 Z" fill="url(#botwSpine)" />
       <path d="M106 62 L106 158" stroke="#c9b6ff" strokeWidth="1" opacity="0.5" strokeLinecap="round" />
 
-      {/* left page — the story being written */}
+      {/* left page - the story being written */}
       <g stroke="#c1aee4" strokeWidth="2.6" strokeLinecap="round" opacity="0.6">
         <path d="M40 86 C55 83 72 82 92 84" />
         <path d="M38 101 C55 98 74 97 96 99" />
@@ -167,7 +185,7 @@ function OpenBookIllustration() {
         <path d="M40 131 C53 129 66 128 82 130" />
       </g>
 
-      {/* right page — a little illustrated scene coming to life */}
+      {/* right page - a little illustrated scene coming to life */}
       <circle cx="168" cy="96" r="8.5" fill="url(#botwSun)" />
       <path d="M116 134 C138 118 162 118 186 126 L186 150 C160 145 138 145 116 151 Z" fill="#c4ead0" />
       <path d="M116 144 C140 132 166 132 186 140 L186 150 C160 146 138 146 116 151 Z" fill="#9ad7ae" />
@@ -242,7 +260,7 @@ export function BookOnTheWay({ childName, ready = false, readerHref }: BookOnThe
         <h1 className={styles.readyTitle}>
           הספר של <span className={styles.titleAccent}>{displayName}</span> מוכן! ✨
         </h1>
-        <p className={styles.sub}>הרגע שחיכיתם לו הגיע — בואו נפתח אותו יחד.</p>
+        <p className={styles.sub}>הרגע שחיכיתם לו הגיע - בואו נפתח אותו יחד.</p>
         {readerHref ? (
           <Link href={readerHref} className={styles.readyBtn}>
             לפתיחת הספר
@@ -254,6 +272,9 @@ export function BookOnTheWay({ childName, ready = false, readerHref }: BookOnThe
 
   return (
     <div className={styles.wrap} dir="rtl">
+      <a href="/" className={styles.homeLink}>
+        חזרה לאתר
+      </a>
       <StarField />
 
       {RISE_POSITIONS.map((pos, i) => (
@@ -295,7 +316,7 @@ export function BookOnTheWay({ childName, ready = false, readerHref }: BookOnThe
       </div>
 
       <p className={styles.note}>
-        אפשר לסגור את החלון בשקט — שום דבר לא יאבד. הקסם ממשיך לקרות גם כשאתם לא כאן ✨
+        אפשר לסגור את החלון בשקט - שום דבר לא יאבד. הקסם ממשיך לקרות גם כשאתם לא כאן ✨
       </p>
     </div>
   );

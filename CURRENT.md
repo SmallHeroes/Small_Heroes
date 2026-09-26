@@ -1,5 +1,36 @@
 # SmallHeroes — Current Technical State
 
+## Website integration checkpoint — 2026-09-26, LOCAL ONLY
+
+Guy requested integration of Claude's website and the removal of the middle
+hero caption, then explicitly limited this session to a local checkpoint so
+he can shut down the computer. No deployment, push or long test suite today.
+
+Branch `codex/site-release-ui-integration-20260926` in
+`C:/GNart/Work/sh-site-release-ui-integration` integrates website/caption head
+992493f5 into served-release base f223a54a. This task is the sole writer.
+Eleven conflict paths (including CURRENT) were resolved: keep approved website
+landing/name/audio/styles and the two captions, release Spotlight helper seams,
+release legal text/contact addresses, release next.config and clean font license.
+The new gallery and creation/ready-screen UI are included. Backend/API, render
+pipeline, source/package authority and deployment configuration remain unchanged
+against f223a54a. Claude's branches and the QA-bound release branch are untouched.
+
+NEXT SESSION: inspect the complete merge diff, verify the creation/ready flow,
+finish the already-diagnosed expiring name/gender handoff and reconcile contact
+address differences (release legal pages retained, website content has its newer
+address). Run focused/full tests, build and release checks, then browser checks
+on desktop/mobile. Prepare an immutable Claude QA brief before QA promotion.
+No independent PASS, complete functional verification or release readiness is
+claimed by this local checkpoint. QA and the existing preview are unchanged.
+
+Decision/scope: `docs/ai-workflow/SITE_UI_INTEGRATION_20260926.md`.
+
+Checkpoint validation: initial tsc caught an auto-merge duplication of the
+Spotlight state/callback. Removing the duplicate (retaining one identical copy)
+made the repeated `npx tsc --noEmit` exit 0. No long test/build was started.
+This merge is a local, typed checkpoint, not independently reviewed or deployed.
+
 ## R1D — exact-byte human verification plus mandatory child resemblance (live Preview ceremony COMPLETE; same Order ready)
 
 Guy approved exact current page 6 and the controlled human-verification path without lowering or

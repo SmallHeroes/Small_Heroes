@@ -2587,3 +2587,314 @@
     top: -9px;
   }
 }
+
+
+/* ═══════════════════════════════════════════════════════════════════
+   WOW ROUND 2 — "הדף שמכיר את הילד שלך"
+   The page speaks the child's name, lets the parent hear the book, and
+   sets its headlines in the storybook face. */
+
+/* ── storybook voice: Suez One on the big lines only ────────────────── */
+.hero-h1,
+.section-h2,
+.sample-h2,
+.gallery-h2,
+.footer-h2 {
+  font-family: var(--font-suez), var(--fd);
+  font-weight: 400;
+  letter-spacing: 0;
+}
+
+.hero-h1-line--accent {
+  letter-spacing: 0;
+}
+
+/* ── a changed line pops in ──────────────────────────────────────────── */
+.name-pop {
+  display: inline-block;
+  animation: name-pop 360ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.hero-h1 .name-pop {
+  display: block;
+}
+
+.hero-h1 .hero-h1-line--accent.name-pop {
+  display: block;
+  width: fit-content;
+}
+
+@keyframes name-pop {
+  from { opacity: 0; translate: 0 8px; }
+  to { opacity: 1; translate: 0 0; }
+}
+
+/* ── the Name Moment ─────────────────────────────────────────────────── */
+.name-moment {
+  margin: 0 0 24px;
+  max-width: 560px;
+}
+
+.name-moment-label {
+  display: block;
+  font-family: var(--fb);
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--n-700);
+  margin-bottom: 8px;
+}
+
+.name-moment-row {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+}
+
+.name-moment-input {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 48px;
+  padding: 0 16px;
+  border-radius: 16px;
+  border: 1.5px solid var(--purple-200);
+  background: #fff;
+  font-family: var(--fb);
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--n-900);
+  box-shadow: 0 6px 20px rgba(55, 16, 94, 0.06);
+  transition: border-color 0.16s ease, box-shadow 0.16s ease;
+}
+
+.name-moment-input::placeholder {
+  color: var(--n-300);
+  font-weight: 500;
+}
+
+.name-moment-input:focus {
+  outline: none;
+  border-color: var(--purple-500);
+  box-shadow: 0 0 0 4px rgba(147, 73, 229, 0.16), 0 6px 20px rgba(55, 16, 94, 0.08);
+}
+
+.name-moment-chips {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 16px;
+  background: var(--purple-50);
+  border: 1px solid var(--purple-100);
+}
+
+.name-moment-chip {
+  min-width: 56px;
+  padding: 0 12px;
+  border-radius: 12px;
+  border: none;
+  background: transparent;
+  font-family: var(--fb);
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--purple-700);
+  cursor: pointer;
+  transition: background 0.16s ease, color 0.16s ease;
+}
+
+.name-moment-chip.is-on {
+  background: var(--purple-500);
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(147, 73, 229, 0.3);
+}
+
+.name-moment-chip:focus-visible {
+  outline: 2px solid var(--purple-500);
+  outline-offset: 2px;
+}
+
+.name-moment-hint {
+  margin: 8px 0 0;
+  font-size: 14px;
+  color: var(--n-500);
+}
+
+/* ── the arc under the pictures ──────────────────────────────────────── */
+.hero-captions {
+  position: absolute;
+  left: 4%;
+  right: 4%;
+  bottom: -40px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--fb);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--purple-600);
+  pointer-events: none;
+}
+
+/* the pictures run left-to-right (fear -> friend -> out), so the captions
+   do too - each word sits under its own beat; the words themselves stay RTL */
+.hero-captions {
+  direction: ltr;
+}
+
+.hero-captions li {
+  position: relative;
+  direction: rtl;
+  padding-inline-start: 16px;
+}
+
+.hero-captions li::before {
+  content: '';
+  position: absolute;
+  inset-inline-start: 0;
+  top: 0.5em;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--yellow-400);
+}
+
+/* ── hear it ─────────────────────────────────────────────────────────── */
+.hear-page {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  margin-top: 24px;
+}
+
+.hear-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 56px;
+  padding: 0 24px 0 16px;
+  border-radius: 999px;
+  border: 1.5px solid rgba(255, 255, 255, 0.28);
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  font-family: var(--fb);
+  font-size: 17px;
+  font-weight: 700;
+  cursor: pointer;
+  backdrop-filter: blur(6px);
+  transition: background 0.18s ease, border-color 0.18s ease, transform 0.18s ease;
+}
+
+.hear-btn:hover {
+  background: rgba(255, 255, 255, 0.14);
+  border-color: rgba(255, 255, 255, 0.5);
+  transform: translateY(-1px);
+}
+
+.hear-btn:focus-visible {
+  outline: 3px solid var(--yellow-400);
+  outline-offset: 3px;
+}
+
+.hear-btn-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--yellow-400);
+  color: var(--n-900);
+}
+
+.hear-btn-icon svg {
+  width: 20px;
+  height: 20px;
+}
+
+.hear-btn.is-playing .hear-btn-icon {
+  background: #fff;
+}
+
+/* the sound made visible: rings breathe out of the icon while it plays */
+.hear-btn.is-playing::before,
+.hear-btn.is-playing::after {
+  content: '';
+  position: absolute;
+  inset-inline-start: 16px;
+  top: 8px;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 215, 69, 0.7);
+  pointer-events: none;
+  animation: hear-ring 1.6s ease-out infinite;
+}
+
+.hear-btn.is-playing::after {
+  animation-delay: 0.8s;
+}
+
+@keyframes hear-ring {
+  from { transform: scale(1); opacity: 0.8; }
+  to { transform: scale(2.2); opacity: 0; }
+}
+
+.hear-hint {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+/* while listening, a bedside lamp warms the book */
+.sample-section--dark .sample-book-illustration img {
+  transition: box-shadow 0.6s ease;
+}
+
+.sample-section--dark[data-listening] .sample-book-illustration img {
+  box-shadow: 0 34px 70px rgba(0, 0, 0, 0.45), 0 0 80px 24px rgba(255, 196, 96, 0.26);
+  animation: lamp-breathe 3s ease-in-out infinite;
+}
+
+@keyframes lamp-breathe {
+  0%, 100% { filter: brightness(1); }
+  50% { filter: brightness(1.06); }
+}
+
+@media (max-width: 960px) {
+  .hero-captions {
+    display: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .name-moment {
+    max-width: none;
+  }
+
+  .name-moment-row {
+    flex-direction: column;
+  }
+
+  .name-moment-chips {
+    align-self: center;
+  }
+
+  .name-moment-label,
+  .name-moment-hint {
+    text-align: center;
+  }
+
+  .hear-btn {
+    font-size: 16px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .name-pop,
+  .hear-btn.is-playing::before,
+  .hear-btn.is-playing::after,
+  .sample-section--dark[data-listening] .sample-book-illustration img {
+    animation: none;
+  }
+}

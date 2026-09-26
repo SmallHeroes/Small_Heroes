@@ -59,6 +59,9 @@ const bookEl           = document.getElementById('readyBook');
 const headlineEl       = document.getElementById('readyHeadline');
 const titleEl          = document.getElementById('readyTitle');
 const coverTextEl      = document.getElementById('readyCoverText');
+const coverLinkEl      = document.getElementById('readyCoverLink');
+const coverImgEl       = document.getElementById('readyCoverImg');
+const sparkleEl        = document.getElementById('readySparkle');
 const dedicationEl     = document.getElementById('readyDedication');
 
 const btnReadEl        = document.getElementById('readyBtnRead');
@@ -153,6 +156,23 @@ function renderBook(data) {
   // Hero
   if (titleEl)      titleEl.textContent      = book.title || '';
   if (coverTextEl)  coverTextEl.textContent  = book.coverText || '';
+
+  // The cover art, when the book has one - it replaces the sparkle and
+  // opens the reader on click (same destination as the primary button).
+  const coverPage = Array.isArray(book.pages)
+    ? (book.pages.find((p) => p && p.isCover && typeof p.imageUrl === 'string' && p.imageUrl.trim()) ||
+       book.pages.find((p) => p && typeof p.imageUrl === 'string' && p.imageUrl.trim()))
+    : null;
+  if (coverPage && coverLinkEl && coverImgEl) {
+    coverImgEl.src = coverPage.imageUrl.trim();
+    coverLinkEl.hidden = false;
+    if (sparkleEl) sparkleEl.hidden = true;
+    coverLinkEl.addEventListener('click', (e) => {
+      e.preventDefault();
+      const readBtn = document.getElementById('readyBtnRead');
+      if (readBtn) readBtn.click();
+    });
+  }
   if (dedicationEl) dedicationEl.textContent = data.childName
     ? RDY.dedicationPrefix.replace('{name}', data.childName)
     : '';

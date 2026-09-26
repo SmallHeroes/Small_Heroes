@@ -26,7 +26,7 @@ export const EMAIL = {
     subject: 'קוד כניסה לגיבורים קטנים',
     headline: 'קוד הכניסה שלך',
     instruction: 'הכניסו את הקוד הבא כדי להתחבר לחשבון:',
-    preheader: (code: string) => `קוד הכניסה שלכם: ${code} — תקף ל-10 דקות`,
+    preheader: (code: string) => `קוד הכניסה שלכם: ${code} - תקף ל-10 דקות`,
     ttlNote: (minutes: number) => `תקף ל-${minutes} דקות`,
     ignoreNote: 'לא ביקשת? התעלם',
     plainText: (code: string) =>
@@ -42,13 +42,13 @@ export const EMAIL = {
   body: {
     greeting:  (name: string)      => `שלום ${name},`,
     headline:  (childName: string) => `הספר של ${childName} מוכן!`,
-    subtitle:  (childName: string) => `ההרפתקה האישית של ${childName} מחכה — לקריאה או להאזנה, מתי שתרצו.`,
+    subtitle:  (childName: string) => `ההרפתקה האישית של ${childName} מחכה - לקריאה או להאזנה, מתי שתרצו.`,
     intro:     (childName: string) => `הספר האישי של ${childName} מוכן לצפייה. לחצו על הכפתור כדי לפתוח אותו:`,
     btnRead:   'פתחו את הספר',
     btnListen: 'השמע את הספר',
     btnAudio:  'האזנה לקריינות',
     btnPdf:    'הורדת PDF להדפסה',
-    footer:    'גיבורים קטנים — סיפורי חוסן לילדים',
+    footer:    'גיבורים קטנים - סיפורי חוסן לילדים',
   },
 };
 
@@ -68,9 +68,9 @@ export function checkoutProductDescription(
   storyDirection?: string | null
 ): string {
   const byDirection: Record<string, string> = {
-    bedtime: `סיפור לפני שינה — ${physicalPagesFor('bedtime')} עמודים`,
-    adventure: `הרפתקה — ${physicalPagesFor('adventure')} עמודים`,
-    fantasy: `מסע פלאי — ${physicalPagesFor('fantasy')} עמודים`,
+    bedtime: `סיפור לפני שינה - ${physicalPagesFor('bedtime')} עמודים`,
+    adventure: `הרפתקה - ${physicalPagesFor('adventure')} עמודים`,
+    fantasy: `מסע פלאי - ${physicalPagesFor('fantasy')} עמודים`,
   };
   const dir = typeof storyDirection === 'string' ? storyDirection.trim().toLowerCase() : '';
   if (dir && byDirection[dir]) return byDirection[dir];
