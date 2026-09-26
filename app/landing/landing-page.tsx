@@ -196,10 +196,9 @@ export default function LandingPage({ content: L, startHref, matrixCategories }:
                 <div className="hero-float">
                   <HeroCollage />
                 </div>
-                {/* the arc the pictures tell, said in three words */}
+                {/* Label the opening and outcome; the middle beat stays visual. */}
                 <ol className="hero-captions" aria-hidden="true">
                   <li>רגע של פחד</li>
-                  <li>חבר מלווה</li>
                   <li>יוצאת גאה</li>
                 </ol>
               </div>

@@ -1,5 +1,32 @@
 # SmallHeroes — Current Technical State
 
+## Hero caption endpoints — 2026-09-26
+
+Guy requested removal of the middle hero caption, preserving `רגע של פחד`
+and `יוצאת גאה` under the first and last images. Codex implemented only that
+deletion and corrected the adjacent comment. The unchanged flex/space-between
+and LTR container keep the two RTL captions at the endpoints. The pictured
+girl, all three images, accessible image descriptions, motion and responsive
+visibility remain unchanged; no name/gender personalization was added.
+
+Isolated worktree: `C:/GNart/Work/sh-site-hero-caption`, branch
+`codex/site-hero-caption-endpoints`, based on frozen website merge
+`70d4f2455a6e0231d5d1c8ce7fa4ccbcbe37e719`. This task is sole writer; Claude's
+website worktrees and the QA-bound release branch were not edited. The local
+node_modules junction reuses qaexperience1 dependencies; no install was run.
+
+Validation: `npx tsc --noEmit` exit 0; `npx vitest run
+lib/__tests__/landing-motion.spec.ts --silent` exit 0, 3/3; `git diff --check`
+clean. Source regression checks the exact two labels, HeroCollage retention
+and endpoint layout rules. No browser/pixel verification or full check is
+claimed for this tiny copy change. No deployment, push or independent PASS.
+
+Integration handoff: carry this focused commit into the planned release-based
+UI integration, not the engine branch and not a direct promotion of the old
+website runtime. The existing preview URL remains unchanged. Claude's review
+targets are the exact two captions and unchanged images, styles and runtime.
+Prior dated technical-state sections below remain historical.
+
 **Updated:** 2026-08-12
 **Maintainer:** Codex
 **Working branch:** `codex/r1d-reader-premium-site-qa-integration` in `C:\Users\guyna\.codex\worktrees\qaexperience1\Small_Heroes`, combining the Reader milestone at `773f364fddada45eee236a8e4876bb93ae673eef` with Claude's two website commits `4ebf319c` and `b3582646`.
