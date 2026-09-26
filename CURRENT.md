@@ -1,5 +1,41 @@
 # SmallHeroes — Current Technical State
 
+## Site / engine integration audit — 2026-09-26
+
+Guy requested inspection of Claude's website work and explicit propagation of
+what is needed. This task remains the only engine-worktree writer. This audit
+changes documentation only; it does not cut over customer runtime or a domain.
+
+At audit start engine HEAD was c7bab93b, clean ahead 1 of origin 8145309c.
+Claude's four latest UI commits were already merged/pushed at 70d4f245 on
+codex/r1d-reader-premium-site-qa-integration (source 51ce55fc). The Vercel
+deployment for 70d4f245 was READY, but qa.smallheroes.co.il still resolved to
+dpl_B919bcgPteP7xWxtMyR5YmPBTiov / f223a54a on the release-reader-voice-final
+branch. Both deployment metadata and returned HTML corroborated that identity.
+
+The UI branch is not an updated engine integration: it diverges from c7bab93b
+by 93 UI-only / 577 engine-only commits. The release f223a54a is an ancestor of
+c7bab93b. A no-checkout merge preview of UI with either release or engine reports
+10 conflicted paths. Pointing the stable QA domain directly at the UI preview
+would substitute an older runtime missing the release/v1 route family. No alias
+or environment was changed. A live browser test also found the landing name /
+gender customization does not prefill the Wizard.
+
+Latest whole-book sequence / decorative-priority improvements are explicitly
+local owner-sample features, not a completed customer order-path cutover. A
+push or an asset merge alone cannot establish that integration.
+
+Fresh validation: UI tsc exit0 and 43/43 focused tests in nine files; engine
+365/365 in nine files, tsc exit0 and autonomous typecheck exit0. No paid render,
+photo analysis, checkout, order creation or audio generation. Full check not
+rerun; the recorded RED gate and c7bab93b independent re-gate remain open.
+
+The authorized propagation for this task is limited to the existing c7bab93b
+engine correction and this audit's documentation on the same feature branch.
+This is a scope statement, not a claim that a future push has already occurred.
+The report contains the exact integration boundary, review targets and commands:
+`docs/ai-workflow/SITE_ENGINE_INTEGRATION_AUDIT_20260926.md`.
+
 ## Decorative-preference QA corrections implemented; re-gate pending — 2026-09-24
 
 Claude's supplied technical PASS covers exactly `e491c9bc..8145309c`, with F1
