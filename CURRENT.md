@@ -1,5 +1,31 @@
 # SmallHeroes — Current Technical State
 
+## Approved QA website promotion — 2026-09-27, executing; not Production
+
+Guy explicitly requests Claude's latest website design on stable QA. The root
+cause is branch divergence: qa.smallheroes.co.il follows the preserved release
+branch at f223a54a, while Claude's separate preview follows 70d4f245. The integrated
+implementation at 1f6fe519 contains the reviewed UI on the release runtime;
+production code remains byte-identical to the independent re-gate at 82a91b36.
+
+Promotion uses a normal fast-forward of codex/r1d-release-reader-voice-final,
+retaining its Preview environment and domain binding. No main/Production change,
+old-backend substitution, engine-branch merge, setting change, order or paid
+provider call. Existing contact/copy LOW observations remain unchanged/disclosed.
+
+Fresh build and product/config release-check exit 0. After restoring 15 existing
+ignored fixtures byte-identically, two full checks passed both typechecks and all
+4761 ordinary tests. The second also passed all 635 resource tests, but still
+exited 1 with three Vitest onTaskUpdate RPC errors. The first resource run had
+11 failed tests. Full check remains RED: no assertion/timeout/skip was weakened,
+no causal or stability closure is claimed. Only 1/18 stories is render-qualified;
+DB/order/payment/playback verification is not supplied by these checks.
+
+Proceeding with the explicitly requested protected QA UI deployment, NOT launch
+readiness. Deployment and post-deploy browser checks are pending at this commit's
+creation. Full decision, rollback and local-evidence disclosure:
+docs/ai-workflow/SITE_QA_PROMOTION_20260927.md.
+
 ## Website held-screen re-gate — 2026-09-27, independent technical PASS recorded
 
 Guy forwarded Claude Code's confirmation that the technical PASS for
