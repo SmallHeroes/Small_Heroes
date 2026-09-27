@@ -1,5 +1,28 @@
 # SmallHeroes — Current Technical State
 
+## QA book trial admission checked — 2026-09-27; one eligible story, not full readiness
+
+Guy asked to check/fix the current state and tell him when he can render a book.
+Fresh read-only checks on deployed a0835b72 support starting a supervised QA trial
+of TRANSITION / chameleon_koko / bedtime. Live preorder returned HTTP 200 with
+the exact approved source/package/Blueprint bindings; live Wizard matrix exposes
+only this slot as selectable/render-qualified. Local qualification audit agrees:
+1/18 qualified, 18/18 sellable. The worker OPTIONS probe returned 204 with its
+exact version marker. The staging database is healthy and all eight specifically
+checked worker/order columns exist. Provider-key metadata is configured; no key
+value was printed or copied and no provider validity/spend test was performed.
+
+The latest website design remains live on the preserved release runtime. The
+latest local engine continuity work is NOT thereby connected to the Wizard.
+Full check remains RED; no runner fix or stability closure is claimed. Some
+branch-scoped flags are sensitive and returned null through the read API: this
+is unreadability, not an observed false/empty runtime value or fresh flag proof.
+No code/config change was justified by these admission checks. No new Order,
+payment, image, narration, email, deployment or push; model spend $0. This is
+an admission observation for an already eligible QA flow, not proof that a new book
+will finish or pass visual/product review. Readout and independent review scope:
+docs/ai-workflow/QA_BOOK_TRIAL_READINESS_20260927.md.
+
 ## Website QA is live — 2026-09-27, a0835b72; Production unchanged
 
 Completed Guy's explicit QA promotion. codex/r1d-release-reader-voice-final was
