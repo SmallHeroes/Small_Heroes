@@ -1,10 +1,37 @@
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import vm from 'node:vm';
+import ts from 'typescript';
 import { describe, expect, it, vi } from 'vitest';
+import { ROUTES } from '../routes';
+
+const React = require('react');
+const { renderToStaticMarkup } = require('react-dom/server');
 
 const root = process.cwd();
 const source = (path: string) => readFileSync(join(root, path), 'utf8');
+
+// Render the JSX from the actual branch, not a copied test-only component.
+// This tests output navigation only; it does not simulate polling or hydration.
+function generatingBranchMarkup(condition: string): string {
+  const code = source('app/generating/generating-client.tsx');
+  const tree = ts.createSourceFile('generating-client.tsx', code, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+  const component = tree.statements.find((node): node is ts.FunctionDeclaration =>
+    ts.isFunctionDeclaration(node) && node.name?.text === 'GeneratingClient');
+  const branch = component?.body?.statements.find((node): node is ts.IfStatement =>
+    ts.isIfStatement(node) && node.expression.getText(tree) === condition);
+  if (!branch || !ts.isBlock(branch.thenStatement)) throw new Error('expected generating state branch');
+  const result = branch.thenStatement.statements.find(ts.isReturnStatement);
+  if (!result?.expression) throw new Error('expected generating state output');
+  const js = ts.transpileModule(`(${result.expression.getText(tree)});`, {
+    fileName: 'state.tsx', compilerOptions: { jsx: ts.JsxEmit.React, target: ts.ScriptTarget.ES2022 },
+  }).outputText;
+  const element = vm.runInNewContext(js, {
+    React, ROUTES, error: 'fixture error',
+    styles: Object.fromEntries(['errorWrap', 'errorIcon', 'errorTitle', 'errorMsg', 'errorBack'].map((key) => [key, key])),
+  });
+  return renderToStaticMarkup(element);
+}
 
 async function readyScreen(data: Record<string, unknown>) {
   const elements = new Map<string, any>();
@@ -37,6 +64,13 @@ async function readyScreen(data: Record<string, unknown>) {
 }
 
 describe('accepted Landing and Wizard presentation boundary', () => {
+  it.each(['heldReview && !ready', 'error'])('keeps a real home link in the %s state without release actions', (condition) => {
+    const html = generatingBranchMarkup(condition);
+    expect(html).toContain('<a href="/" class="errorBack">חזרה לדף הבית</a>');
+    expect(html.match(/<a\b/g)).toHaveLength(1);
+    expect(html).not.toMatch(/<form\b|<button\b|accessKey=|\/read-v2|\/api\//);
+  });
+
   it('keeps the accepted 2027 Landing composition and its required media', () => {
     const page = source('app/page.tsx');
     const landing = source('app/landing/landing-page.tsx');

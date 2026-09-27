@@ -140,6 +140,9 @@ export function GeneratingClient({
         </div>
         <h1 className={styles.errorTitle}>הספר שלך בבדיקה אישית</h1>
         <p className={styles.errorMsg}>הספר שלך בבדיקה אישית — נעדכן במייל בקרוב</p>
+        <a href={ROUTES.home} className={styles.errorBack}>
+          חזרה לדף הבית
+        </a>
       </div>
     );
   }

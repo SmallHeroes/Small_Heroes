@@ -1,5 +1,34 @@
 # SmallHeroes — Current Technical State
 
+## Website held-screen correction — 2026-09-27, LOCAL; independent re-gate pending
+
+Claude's forwarded review changes the decision on 4a293f66 to HOLD: removing
+the global header left the separate under-review screen without a way home.
+Codex reproduced this: rendering that branch's actual JSX before the fix failed
+the new navigation assertion, while the error branch and six existing UI tests
+passed. The correction adds only a native ROUTES.home anchor with the existing
+errorBack style to the held branch. No status, polling, release, key or provider
+behavior changes; no global header is reintroduced into the fullscreen scene.
+
+Same sole-writer worktree/branch: sh-site-release-ui-integration /
+codex/site-release-ui-integration-20260926, corrective base 4a293f66. Focused
+UI/status suite: 15 files / 132 tests pass; tsc 0; build 0 with 39/39 static
+pages and the existing skipped-env warning. Full check not repeated for this
+three-line UI correction; the previously observed fixture/RPC failures remain
+open. No current full-green, configured environment or live transaction claim.
+
+Claude reports browser success at the predecessor for handoff/storage, hero,
+Spotlight, ready cover/key and held redirect. That is reviewer evidence, not a
+new Codex browser run; desktop/mobile re-gate of the corrected held screen is
+still requested. Codex's added tests render JSX extracted from the actual state
+branches via React DOM server; they do not test hydration, polling or layout.
+
+Retain the review's three LOW observations (cosmetic backend-facing copy, boy
+default, existing Wizard refresh mapping), unresolved contact address and old
+gendered/repeated copy. Do not relabel the HOLD or these observations as closed.
+No push, deployment, provider/key access or cost; QA stays on f223a54a.
+Full corrective brief: docs/ai-workflow/SITE_HELD_NAVIGATION_REGATE_20260927.md.
+
 ## Website integration follow-up — 2026-09-27, LOCAL; browser verification blocked
 
 Guy resumed the local UI integration. This task remains the sole writer on
