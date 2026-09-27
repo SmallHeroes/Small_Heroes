@@ -72,3 +72,26 @@ exist and must remain attached to that branch. No secrets or settings are change
   Production/main remains ed1da86c. Protected and engine worktrees are untouched.
 
 Deployment and fresh browser checks are still pending at this commit's creation.
+
+## Completion observation (after a0835b72 was deployed)
+
+The pending sentence above describes the pre-push checkpoint, not current state.
+Normal fast-forward push completed f223a54a -> a0835b72. Deployment
+dpl_B6iLmc3JkghRXnEF5hd9CTihXgjs became READY at 2026-09-27T17:29:55Z;
+its Git metadata names a0835b72216d792f38da6b557364147f184773ab and the existing
+release branch. Stable QA alias API names the same deployment. Production alias
+remains dpl_2X7E6d1acZ5vKJVhLSuKFGP5Q4HN; main remains ed1da86c.
+
+Desktop/mobile browser checks confirmed the updated design, name/gender handoff,
+six loaded gallery images, two endpoint captions, Suez font, absent Style 02
+selector, existing voice-sample completion, and missing-order return navigation
+on both generating wrappers. No horizontal overflow in the measured landing or
+mobile Wizard viewport. No application console errors observed; Vercel login
+FedCM errors are separated. QA protection required renewed authenticated preview
+access after deployment; protection was not disabled and no access token is
+persisted in these documents. No new order or held/ready order was fabricated.
+
+Full check stays RED despite all assertions passing on its second run. No
+stability closure or general release readiness is implied by successful QA UI
+deployment. This completion documentation is local after the deployed commit;
+it does not describe another deployment or extend Claude's independent code PASS.

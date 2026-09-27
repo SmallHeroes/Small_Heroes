@@ -1,5 +1,36 @@
 # SmallHeroes — Current Technical State
 
+## Website QA is live — 2026-09-27, a0835b72; Production unchanged
+
+Completed Guy's explicit QA promotion. codex/r1d-release-reader-voice-final was
+fast-forwarded f223a54a -> a0835b72216d792f38da6b557364147f184773ab and pushed
+normally. Server/local/upstream agree. Vercel deployment
+dpl_B6iLmc3JkghRXnEF5hd9CTihXgjs is READY; the alias API independently confirms
+qa.smallheroes.co.il points to it, with no alias error. This is the existing QA
+branch/environment, not Claude's old-runtime preview or a Production promotion.
+Production/main stays ed1da86c; smallheroes.co.il remains on
+dpl_2X7E6d1acZ5vKJVhLSuKFGP5Q4HN. No environment/protection settings changed.
+
+Fresh live browser checks on stable QA: desktop 1440x1000 and mobile 390x844;
+new name/gender hero and Suez heading, exactly two endpoint captions, all six
+gallery images loaded, Style 02 selector absent. Synthetic name/girl choice
+updates the hero and reaches Wizard step 1 as the same name/girl. The existing
+2.64-second voice sample reaches its end and resets without an audio error.
+Landing scrollWidth 1432/1440 desktop and 382/390 mobile; mobile Wizard 382/390.
+Both generating wrappers show the missing-order error and a working home link.
+The held/ready state remains covered by Claude's earlier browser re-gate, NOT
+a new live held order. Browser errors observed were Vercel-login FedCM messages,
+not application errors. Synthetic name/gender were cleared through the UI;
+pre-existing draft/photo data was not uploaded, removed or submitted. Viewport
+override reset; stable QA tab left open for Guy.
+
+Full-check RED and 1/18 render qualification remain as recorded below. No order,
+payment, image/TTS generation, new engine cutover, product acceptance or launch
+claim. Model spend $0. Deployed code is unchanged from 82a91b36. This local
+documentation closeout does not extend independent code PASS and is not another
+deployment. Exact verification/push inspection and read-only handoff:
+docs/ai-workflow/SITE_QA_PROMOTION_HANDOFF_20260927.md.
+
 ## Approved QA website promotion — 2026-09-27, executing; not Production
 
 Guy explicitly requests Claude's latest website design on stable QA. The root
