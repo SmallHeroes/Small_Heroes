@@ -1,5 +1,31 @@
 # SmallHeroes — Current Technical State
 
+## Website held-screen re-gate — 2026-09-27, independent technical PASS recorded
+
+Guy forwarded Claude Code's confirmation that the technical PASS for
+82a91b36fb34e57353f31aada79152564497c3c5 stands. The corrective range is
+4a293f66a4e22042649add5477b39455658e1b8f..82a91b36fb34e57353f31aada79152564497c3c5.
+Claude reports real-browser checks of both generating wrappers at desktop and
+mobile, mutation checks against the base and head without the link, 132/132
+tests and tsc exit 0. These are reviewer-reported observations, not fresh Codex
+browser measurements. No P0/P1/P2 counts were supplied in this confirmation.
+
+At this documentation closeout's start, Codex independently confirmed exact
+HEAD/parent, tree 8a90c48b0f3ed761a2a59772844d9b42e7438833, clean status and no
+upstream on codex/site-release-ui-integration-20260926. The reported navigation
+HOLD is closed by Claude's re-gate. This documentation-only successor does not
+extend his code PASS beyond 82a91b36; the implementation and tests are unchanged.
+The earlier pending/HOLD sections below are historical, not current verdicts.
+
+Remaining boundaries: the three LOW observations, unresolved contact address,
+older copy issues, configured order/payment/playback verification and historical
+full-check fixture/RPC failures are not closed. No full-gate GREEN, new render
+qualification, product acceptance or release readiness follows. No repeat of the
+same code re-gate is needed; next is reconciliation of promotion prerequisites.
+This task performs no push, deployment, provider call or credential access.
+The QA-bound release worktree remains at f223a54a; no live deployment is checked
+or changed by this closeout. Cost: $0.
+
 ## Website held-screen correction — 2026-09-27, LOCAL; independent re-gate pending
 
 Claude's forwarded review changes the decision on 4a293f66 to HOLD: removing
