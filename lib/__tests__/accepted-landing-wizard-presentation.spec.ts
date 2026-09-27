@@ -1,9 +1,40 @@
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
-import { describe, expect, it } from 'vitest';
+import vm from 'node:vm';
+import { describe, expect, it, vi } from 'vitest';
 
 const root = process.cwd();
 const source = (path: string) => readFileSync(join(root, path), 'utf8');
+
+async function readyScreen(data: Record<string, unknown>) {
+  const elements = new Map<string, any>();
+  const getElement = (id: string) => {
+    if (!elements.has(id)) elements.set(id, {
+      hidden: ['readyCoverLink', 'readyBook', 'readyError'].includes(id),
+      href: '#', src: '', textContent: '', click: vi.fn(),
+      setAttribute: vi.fn(), classList: { add: vi.fn(), remove: vi.fn() },
+      addEventListener: vi.fn(),
+    });
+    return elements.get(id);
+  };
+  const fetch = vi.fn(async () => ({ status: 200, ok: true, json: async () => data }));
+  const replace = vi.fn();
+  const context = vm.createContext({
+    URLSearchParams, console, setTimeout, clearTimeout,
+    window: { location: { search: '?orderId=fixture&accessKey=test-key', replace } },
+    document: { getElementById: getElement },
+    SH_ROUTES: {
+      generating: '/generating',
+      readerV2: (id: string, key: string) => `/book/${id}/read-v2?accessKey=${key}`,
+      listen: (id: string, key: string) => `/book/${id}/listen?accessKey=${key}`,
+    },
+    fetch, requestAnimationFrame: (fn: () => void) => fn(),
+    saveBookToHistory: vi.fn(), track: vi.fn(),
+  });
+  vm.runInContext(source('public/JS/ready.js'), context);
+  await new Promise<void>((resolve) => setImmediate(resolve));
+  return { getElement, fetch, replace };
+}
 
 describe('accepted Landing and Wizard presentation boundary', () => {
   it('keeps the accepted 2027 Landing composition and its required media', () => {
@@ -63,5 +94,49 @@ describe('accepted Landing and Wizard presentation boundary', () => {
     expect(nextConfig).toContain("excludes['/api/debug/replicate-image']");
     expect(nextConfig).toContain("'./public/Videos/**/*'");
     expect(nextConfig).toContain("'./public/Images/**/*'");
+  });
+
+  it('renders the real ready client with its cover and the same keyed reader destination', async () => {
+    const { getElement, fetch } = await readyScreen({ status: 'ready', childName: 'נועה', book: {
+      title: 'ספר בדיקה', pages: [
+        { imageUrl: '/page.png' },
+        { isCover: true, imageUrl: '/cover.png' },
+        { audioUrl: '/page.mp3' },
+      ],
+    } });
+    expect(fetch).toHaveBeenCalledExactlyOnceWith('/api/orders/fixture?accessKey=test-key');
+    expect(getElement('readyBook').hidden).toBe(false);
+    expect(getElement('readyCoverImg').src).toBe('/cover.png');
+    expect(getElement('readyCoverLink').hidden).toBe(false);
+    expect(getElement('readySparkle').hidden).toBe(true);
+    expect(getElement('readyBtnRead').href).toBe('/book/fixture/read-v2?accessKey=test-key');
+    const click = getElement('readyCoverLink').addEventListener.mock.calls[0][1];
+    click({ preventDefault: vi.fn() });
+    expect(getElement('readyBtnRead').click).toHaveBeenCalledOnce();
+    expect(getElement('readyBtnAudio').href).toBe('/book/fixture/listen?accessKey=test-key');
+    expect(getElement('readyBtnAudio').hidden).toBe(false);
+    expect(getElement('readyBtnPdf').hidden).toBe(true);
+    expect(getElement('readyBtnVideo').hidden).toBe(true);
+  });
+
+  it('keeps the no-cover fallback and does not offer cover-only audio as narration', async () => {
+    const { getElement } = await readyScreen({ status: 'partial', book: {
+      pages: [{ isCover: true, audioUrl: '/cover.mp3' }],
+    } });
+    expect(getElement('readyBook').hidden).toBe(false);
+    expect(getElement('readyCoverLink').hidden).toBe(true);
+    expect(getElement('readySparkle').hidden).toBe(false);
+    expect(getElement('readyBtnAudio').hidden).toBe(true);
+    expect(source('public/CSS/main.css')).toMatch(/\[hidden\]\s*\{\s*display:\s*none\s*!important/);
+  });
+
+  it('does not let the new cover UI present an under-review book as ready', async () => {
+    const { getElement, replace } = await readyScreen({ status: 'under_review', book: {
+      pages: [{ isCover: true, imageUrl: '/held.png' }],
+    } });
+    expect(replace).toHaveBeenCalledExactlyOnceWith('/generating?orderId=fixture&accessKey=test-key');
+    expect(getElement('readyBook').hidden).toBe(true);
+    expect(getElement('readyCoverLink').hidden).toBe(true);
+    expect(getElement('readyCoverImg').src).toBe('');
   });
 });

@@ -1199,6 +1199,13 @@ function renderCompanionCards() {
 }
 
 /* ── INIT ────────────────────────────────────────────────────── */
+function applyLandingIdentityHandoff() {
+  const handoff = globalThis.SmallHeroesChildHandoff;
+  if (!handoff) return;
+  try { handoff.retireLegacy(window.localStorage); } catch (_) { /* optional */ }
+  try { handoff.applyToWizard(window.sessionStorage, state); } catch (_) { /* optional */ }
+}
+
 function init() {
   document.body.classList.add('wizard-booting');
 
@@ -1212,6 +1219,7 @@ function init() {
   }
 
   const restored = restoreWizardState();
+  applyLandingIdentityHandoff();
 
   if (!restored) {
     if (!pendingHandoff) {

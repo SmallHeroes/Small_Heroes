@@ -35,7 +35,7 @@ describe('buildEmailHtml — two buttons, cover, RTL, Gmail-safe', () => {
     const html = buildEmailHtml(base);
     expect(html).toContain('dir="rtl"');
     expect(html).toContain('הספר של נועם מוכן!');
-    expect(html).toContain('גיבורים קטנים — סיפורי חוסן לילדים');
+    expect(html).toContain('גיבורים קטנים - סיפורי חוסן לילדים');
   });
 
   it('primary CTA → readUrl; secondary CTA (listen) → listenUrl when present', () => {

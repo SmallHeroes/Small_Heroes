@@ -15,6 +15,7 @@ import { HeroDoodles, ValueDoodles, HelpsDoodles } from './hero-doodles';
 import { HeroCollage } from './hero-collage';
 import { NameMoment, type HeroChild } from './name-moment';
 import { HearPage } from './hear-page';
+import childHandoff from '@/public/JS/hero-child-handoff';
 import { CompanionSpotlight } from '@/app/components/CompanionSpotlight';
 import { warmCompanionIdleVideos } from '@/lib/web/companion-idle-video';
 
@@ -78,24 +79,19 @@ type LandingPageProps = {
   matrixCategories: MvpMatrixCategoryPayload[];
 };
 
-const CHILD_KEY = 'sh.hero-child';
-
 export default function LandingPage({ content: L, startHref, matrixCategories }: LandingPageProps) {
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(null);
 
-  /* The Name Moment: the page speaks the child's name once the parent
-     types it (remembered on this device). Empty = the content's own lines. */
+  /* Optional same-tab prefill, expiring after 30 minutes. Browser access stays
+     after hydration; a stored value never changes the server's initial markup. */
   const [child, setChild] = useState<HeroChild>({ name: '', gender: 'boy' });
   useEffect(() => {
     try {
-      const raw = window.localStorage.getItem(CHILD_KEY);
-      if (raw) {
-        const saved = JSON.parse(raw) as Partial<HeroChild>;
-        setChild({
-          name: typeof saved.name === 'string' ? saved.name.slice(0, 16) : '',
-          gender: saved.gender === 'girl' ? 'girl' : 'boy',
-        });
-      }
+      childHandoff.retireLegacy(window.localStorage);
+    } catch { /* persistent storage can be disabled independently */ }
+    try {
+      const saved = childHandoff.load(window.sessionStorage);
+      if (saved) setChild(saved);
     } catch {
       /* storage optional */
     }
@@ -103,7 +99,7 @@ export default function LandingPage({ content: L, startHref, matrixCategories }:
   const onChildChange = useCallback((next: HeroChild) => {
     setChild(next);
     try {
-      window.localStorage.setItem(CHILD_KEY, JSON.stringify(next));
+      childHandoff.save(window.sessionStorage, next);
     } catch {
       /* storage optional */
     }

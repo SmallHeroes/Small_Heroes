@@ -55,9 +55,12 @@ describe('Vitest workload classifier', () => {
     );
     const partition = classifyVitestWorkloads(inventory, policy);
 
-    expect(partition.inventory).toHaveLength(374);
+    expect(partition.inventory).toHaveLength(375);
     expect(partition.resourceIntensive).toHaveLength(20);
-    expect(partition.ordinary).toHaveLength(354);
+    expect(partition.ordinary).toHaveLength(355);
+    expect(partition.ordinary).toContain(
+      'lib/__tests__/hero-child-handoff.spec.ts',
+    );
     expect(new Set(partition.inventory).size).toBe(
       partition.inventory.length,
     );

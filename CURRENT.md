@@ -1,5 +1,50 @@
 # SmallHeroes — Current Technical State
 
+## Website integration follow-up — 2026-09-27, LOCAL; browser verification blocked
+
+Guy resumed the local UI integration. This task remains the sole writer on
+`codex/site-release-ui-integration-20260926` in
+`C:/GNart/Work/sh-site-release-ui-integration`, from merge checkpoint 9b68338a.
+Claude's landing/name/audio/gallery/creation/ready UI and the two endpoint hero
+captions are combined with release f223a54a, not with the older website backend.
+
+Implemented the missing Landing-to-Wizard identity handoff. One shared client
+contract stores only versioned name/gender with a 30-minute expiry in same-tab
+sessionStorage, consumes once after Wizard draft restoration, and never replaces
+an existing name OR gender. Invalid/expired/blocked storage degrades safely.
+Only the obsolete Landing localStorage key is retired; Wizard drafts survive.
+No new identity URL parameters, analytics properties or order authority.
+
+Validation: 14 focused specs / 112 tests pass, including 25 handoff cases and
+the actual ready.js client under mocked DOM/fetch for cover, keyed reader/audio,
+no-cover fallback and under-review redirect. tsc exits 0; build exits 0 with
+39/39 static pages. Build retains the existing skip-env-validation warning and
+does not substitute for the separately successful typecheck. Stale email-copy
+and test-inventory expectations were corrected without weakening assertions.
+
+Literal full check remains RED: ordinary 331 passed / 7 failed / 17 skipped
+files, 4745 passed / 11 failed / 73 skipped tests. One failure was the inventory
+count, corrected and re-tested separately; ten concern missing ignored outputs
+fixtures in six unchanged specs. Resource: 20 files / 635 tests passed, but
+three onTaskUpdate RPC errors and native exit 1. No fresh base full run proves
+all failures inherited. The full run preceded the three new ready-client tests.
+
+Product/config release check exits 0 (18/18 sellable); strict render check exits
+1 (only 1/18 qualified). DB schema was NOT checked, as no DATABASE_URL exists.
+Browser verification is NOT complete: the built server rejected missing service
+environment; an attempted process-scoped dummy configuration was blocked by the
+tool policy before launch. The failed server was stopped; no guard was relaxed,
+no real credentials fetched, no order/provider/payment/render performed.
+
+Before QA promotion: independently review the full f223a54a-to-successor merge
+surface, complete desktop/mobile browser and configured environment validation,
+and reconcile contact addresses after Guy chooses between the existing website
+Gmail address and the release legal-page address. No independent PASS, push,
+deployment, alias change or launch claim. QA-bound release remains f223a54a;
+engine branch remains 5f4e938f (ahead 1), separately owned and not merged here.
+See `docs/ai-workflow/SITE_UI_VERIFICATION_20260927.md` for exact commands,
+limitations, topology and adversarial targets. Cost of this milestone: $0.
+
 ## Website integration checkpoint — 2026-09-26, LOCAL ONLY
 
 Guy requested integration of Claude's website and the removal of the middle

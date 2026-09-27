@@ -1,5 +1,21 @@
 # Site UI integration: local checkpoint
 
+## Resumed implementation gate — 2026-09-27
+
+Guy resumed work after the local checkpoint. Branch/head is 9b68338a, clean;
+the bound release and Claude branches still match their recorded server heads.
+Scope now resumes local validation and the previously diagnosed identity gap.
+Root cause: Landing alone writes sh.hero-child to persistent localStorage;
+legacy Wizard has no reader. Use one small shared browser/CommonJS contract
+for both consumers: sessionStorage, exact name/gender fields, version 1,
+30-minute TTL, fail closed on invalid/expired data, consume once, no URL or
+analytics identity, preserve an existing Wizard identity as one atomic pair.
+Delete only the obsolete Landing key; never import it or delete Wizard drafts.
+Rollback is a focused revert. No backend/source/price/authority changes. Mocked
+failure/boundary tests and real browser pre-order navigation are required.
+Contact email choice was sent to Guy asynchronously; no new legal claims.
+Preview/release promotion is still gated by validation and independent review.
+
 ## Decision Gate before merge
 
 Guy requested the approved Claude website plus the two-endpoint hero caption
