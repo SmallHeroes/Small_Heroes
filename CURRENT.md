@@ -1,5 +1,40 @@
 # SmallHeroes — Current Technical State
 
+## Personal Wizard prototype P1 — 2026-09-29; Claude implements, Codex reviews
+
+Per Guy's explicit assignment for this milestone only (brief:
+`PERSONAL_WIZARD_CLAUDE_BUILD_BRIEF_20260928.md` on the engine branch, `ef865968`),
+Claude built an isolated prototype on the new branch `codex/personal-wizard-prototype`
+(base `713017e1`, worktree `C:/GNart/Work/sh-personal-wizard-prototype`).
+
+- **Route:** `/dev/personal-wizard`. It is 404 unless `isDevEnvironment()` and the
+  explicit `PERSONAL_WIZARD_PREVIEW=true`; middleware still 404s `/dev` on real
+  production.
+- **Flow:** five stages; one versioned draft/request contract for voice, chips
+  and typing; real local microphone capture; an inline editable details list; a
+  required companion with an optional direction; photo preview only; the
+  existing voices and book types without price; a summary built from the exact
+  request.
+- **Server:** request-preview validation with a server-derived identity.
+- **No live processing:** no provider call, key read, order, payment, render or
+  persistence. The recording stays on the device. The extraction UX uses a
+  clearly labelled, handwritten fixture that never receives audio.
+- **Unchanged:** existing Wizard, release/v1, orders, matrix and story bank.
+  `public/CSS/tokens.css` was copied byte-identical from design `90364542` and is
+  loaded only by the prototype page.
+
+Evidence and review targets:
+`docs/ai-workflow/PERSONAL_WIZARD_PROTOTYPE_IMPLEMENTATION_20260929.md`.
+
+- **Tests:** 56 focused tests; tsc 0; 88/88 headless-Chrome checks with a fake
+  microphone.
+- **Full check:** RED as before. The same 10 ordinary failures reproduce at the
+  base `713017e1`. The pinned spec-inventory counts were updated for the four new
+  specs.
+- **Not claimed:** no self-PASS, product acceptance, Safari/iOS or device proof.
+
+Live intake (P2) is a separate commit.
+
 ## QA book trial admission checked — 2026-09-27; one eligible story, not full readiness
 
 Guy asked to check/fix the current state and tell him when he can render a book.
