@@ -1,8 +1,10 @@
-# Personal Wizard prototype: implementation evidence (P1)
+# Personal Wizard prototype: implementation evidence (P1 + P2)
 
-Status: P1 implemented by Claude Code on a dedicated branch. Codex reviews next.
-There is no self-PASS, no product acceptance and no claim that a book can be made
-from this flow. Guy owns UX and product acceptance.
+Status: P1 and P2 implemented by Claude Code on a dedicated branch, in two
+commits. Codex reviews next. There is no self-PASS, no product acceptance and no
+claim that a book can be made from this flow. Guy owns UX and product
+acceptance. The P2 live provider path is implemented, but it is unverified
+against the real provider (section 5b).
 
 Execution source: `docs/ai-workflow/PERSONAL_WIZARD_CLAUDE_BUILD_BRIEF_20260928.md`
 on `codex/r3b1b-semantic-recovery-m1` (commit `ef865968`). Guy explicitly assigned
@@ -260,8 +262,8 @@ action, never the recorder.
   - **Resource phase:** 20/20 files and 635/635 tests passed, yet the runner
     marked the phase failed with class `on_task_update_rpc_timeout`. That is the
     runner-stability class already tracked separately, not a test failure. A
-    same-command run at the base was started for comparison; its result is
-    recorded with the P2 update.
+    same-command run at the base gave the identical result: 20/20 files and
+    635/635 tests passed, and the same `on_task_update_rpc_timeout` gate failure.
   - **Base comparison, ordinary phase:** 6 failed / 332 passed / 17 skipped
     files, and 10 failed / 4,751 passed / 73 skipped tests. The difference from
     this branch is exactly the four new spec files, all passing, and the
@@ -270,6 +272,201 @@ action, never the recorder.
 Not verified: Safari or iOS, a physical phone, a real soft keyboard, real
 microphones beyond Chrome's fake device, screen-reader output, long real speech,
 and Firefox. Screenshots and a fake device are not proof of those.
+
+## 5b. P2: live intake (separate commit on top of P1 `fd030932`)
+
+**Surfaces.** All are new files:
+
+- `lib/personal-wizard/intake-config.ts`: switches, the dated price table, conservative
+  reservations.
+- `intake-ledger.ts`: per-process idempotency, spend and job ceilings.
+- `audio-probe.ts`: container sniffing and a measured duration.
+- `intake-extraction.ts`: instructions, the strict JSON schema, and the sanitizer.
+- `intake-service.ts`: the HTTP-free core with an injected provider.
+- `intake-openai.ts`: the only provider SDK import.
+- `intake-gate.ts`: authority.
+- `intake-live-client.ts`: the browser client.
+- Routes `app/api/dev/personal-wizard/intake/{status,audio,text}/route.ts`.
+- UI wiring in the existing prototype files.
+
+**Authority.** Every one of these must hold, and each is refused before the body
+is read:
+
+- the real production 404 (middleware) and `isDevEnvironment()`;
+- `PERSONAL_WIZARD_PREVIEW=true` and `PERSONAL_WIZARD_LIVE_INTAKE=true`;
+- priced model ids in `PERSONAL_WIZARD_TRANSCRIBE_MODEL` and
+  `PERSONAL_WIZARD_EXTRACT_MODEL`;
+- `PERSONAL_WIZARD_INTAKE_BUDGET_USD` (at most 5) and
+  `PERSONAL_WIZARD_INTAKE_MAX_JOBS` (at most 20), both per process;
+- `OPENAI_API_KEY`, read only after every other switch is valid (tested with a
+  recording env proxy);
+- same origin and a per-IP rate limit;
+- a signed-in `sh_session` user whose email is on
+  `PERSONAL_WIZARD_INTAKE_OPERATORS`.
+
+No query parameter, header or client flag grants anything. The status route only
+tells the UI whether to offer live processing.
+
+**Checks before any spend.**
+
+- Job and draft ids must match the contract patterns.
+- The declared type must be webm or mp4; the provider does not take ogg, so ogg
+  clips stay local.
+- Size must be 512 B to 3 MiB, enforced while streaming the body.
+- The container is sniffed from the bytes and must equal the declared type.
+- Duration is **measured** with ffprobe from the audio packets, because Chrome's
+  MediaRecorder WebM has no trustworthy header duration. It must be 1 s to
+  91.5 s; a client-declared duration is not used at all.
+- The conservative upper bound is then reserved in the ledger:
+  - transcription per started second;
+  - extraction with worst-case input bytes (a token is at least one byte) and
+    3,000 output tokens, reasoning included;
+  - times 1.1.
+- The ledger refuses a repeated (user, job) pair (409, never re-run or re-billed),
+  a second in-flight job for the same user (409), the job ceiling (429) and the
+  budget (402). Reservations are never refunded.
+
+**Provider and model.** Checked 2026-09-29 on the provider's pricing, model and
+speech-to-text pages.
+
+- **Transcription:** `gpt-transcribe`, the documented recommendation for recorded
+  speech in its original language, at $0.0045 per audio minute.
+- **Extraction:** chosen by env from `gpt-6-luna` ($0.10 in / $0.50 out per 1M)
+  or `gpt-6-sol` ($2 / $10). Both support strict structured outputs and
+  `reasoning.effort`.
+- **Recommendation for the first trial:** `gpt-6-sol`. Rule-following matters more
+  than cost at two samples.
+- **Worst-case reservation per 90 s sample:** $0.0824 with sol, $0.0112 with
+  luna, computed from the real functions (transcription $0.0074 plus
+  extraction). The actual cost should be lower.
+- **Call settings:** `maxRetries: 0`, a 60 s timeout, `store: false`,
+  `reasoning.effort: 'low'`.
+- **Prompt handling:** the transcript is passed only as delimited user data, and
+  angle brackets are neutralised. The instructions forbid inference: no
+  diagnosis, no residence from "loves the sea", family only if mentioned, and
+  direction only on an explicit request.
+- **Language hint:** gpt-transcribe's `languages` hint is deliberately not sent
+  until a live call proves its multipart form. A fixed Hebrew `prompt` gives the
+  context instead.
+
+**Data handling, stated to match what was checked.**
+
+- **Our side:** the audio exists in memory and in one private temporary file,
+  created only for the ffprobe duration check and removed in `finally`. Nothing
+  is persisted. Logs carry only the outcome code, the reservation and ledger
+  counts: no transcript, fact, email or audio.
+- **Provider side**, per its data-controls page on 2026-09-29:
+  - `/v1/audio/transcriptions`: not used for training, no abuse-monitoring
+    retention, no application state.
+  - `/v1/responses`: not used for training, up to 30 days of abuse-monitoring
+    retention; `store: false` avoids application state.
+- **UI:** the copy says exactly this and promises no deletion at the provider.
+
+**UI (live mode only; local mode is P1 behaviour):**
+
+- The pre-record note adds the provider-retention line.
+- "Done, organise the details" uploads once.
+- Processing can be cancelled, which aborts the request; a late answer cannot
+  land.
+- Once sent, a clip cannot be resent by accident.
+- A transcript correction is re-sent only through the explicit "re-organise from
+  the corrected text" action.
+- Refusals map to specific messages, and existing details are always kept.
+- "Continue without" aborts the running job.
+
+**P2 verification.**
+
+- **Focused tests:** 5 new spec files with 37 tests, plus an updated boundary
+  spec.
+  - `intake-extraction` (9): switches, key-read order, prices, delimiting,
+    rules, schema, sanitizer.
+  - `intake-service` (12):
+    - happy path; declared type versus bytes; size bounds;
+    - measured duration refusals made before any reservation;
+    - idempotency per user; one job in flight; budget and job ceilings;
+    - no retry; timeout;
+    - an unclear transcript skips paid extraction; malformed or incomplete
+      answers are refused;
+    - out-of-set topic; the text path.
+  - `audio-probe` (3): real ffmpeg-made webm/opus, mp4/aac and ogg clips measured
+    by the real ffprobe; a fake container gives null; the temporary file is
+    removed.
+  - `intake-routes` (7): the real routes and gate with the session, provider and
+    probe replaced. Covers flags/config 404, 401/403/503, cross-origin, oversize
+    (declared and actual), a duplicate job, text path and status truthfulness.
+  - `intake-live-client` (5): the upload shape, answer validation (wrong job,
+    fixture-labelled or malformed answers rejected), error mapping, and aborted
+    versus network.
+  - Total: 93 prototype tests across 9 files; tsc 0.
+- **Real browser:** 29/29 checks (scratch `pw2-browser.cjs`, port 3418,
+  placeholder env, fake microphone).
+  - Real server with live off: status reports `live_flag_off`, audio is 404, the
+    UI stays local.
+  - Real server with live on and no session: status reports `not_signed_in`,
+    audio is 401 before any job, and no intake log line appears.
+  - Live UI against simulated server answers:
+    - one upload for a double "done", with the recorder type and a fresh job id;
+    - the microphone is released;
+    - merged details carry the "from the recording" badge;
+    - no accidental resend;
+    - editing the transcript sends nothing until the explicit action, which
+      sends one request;
+    - a cancelled job adds nothing even when the server answers later;
+    - a budget refusal keeps every detail;
+    - a send during another job is refused as busy, is not marked sent, and
+      stays sendable;
+    - "continue without" drops the job for good;
+    - no console errors.
+  - The P1 harness re-run on the final P2 code still passes 88/88 in local mode.
+- **`npm run check` on the P2 tree:**
+  - Ordinary phase: 6 failed / 341 passed / 17 skipped files, and 10 failed /
+    4,844 passed / 73 skipped tests. The 10 failures are exactly the
+    pre-existing base set.
+  - Against the base: +9 files and +93 tests, all passing; the classifier counts
+    were updated to 384/364.
+  - Resource phase: 20/20 files and 635/635 tests, with the same
+    `on_task_update_rpc_timeout` runner gate as the base. Exit 1, as at the base.
+
+- **Real browser recordings:** WebM files produced by Chrome's actual
+  MediaRecorder with a fake device, `audio/webm;codecs=opus` and a 1 s timeslice
+  as the prototype uses, measured by the server probe as:
+  - 3 s recorded, 3,000 ms measured;
+  - 1.4 s recorded, 1,380 ms measured.
+
+  This is the header-less case the probe exists for (scratch
+  `pw2-mediarecorder-probe.cjs`).
+- **Found and fixed in self-review before commit:** a clip sent while another job
+  was still processing, such as the labelled example, was refused silently yet
+  marked "sent". It is now refused with the "busy" message and stays sendable. A
+  browser check covers it.
+
+**Live connection: UNVERIFIED.**
+
+- No provider key was read and no provider call was made. Cost so far: $0.
+- A real audio → transcript → extraction → edited facts → request chain has not
+  been observed.
+- The ledger is per process. That is exact for one local server; on a
+  multi-instance deployment each instance keeps its own ceilings. Durable
+  idempotency and spend control are required before any public use.
+
+**Running the trial.** It needs Guy's explicit approval of key use and of the
+spend cap. The brief recommends at most $1 across two short samples, from a
+synthetic voice or a consenting adult, with no real child data. On a server whose
+env holds the real `OPENAI_API_KEY` and database credentials, set:
+
+```
+PERSONAL_WIZARD_PREVIEW=true
+PERSONAL_WIZARD_LIVE_INTAKE=true
+PERSONAL_WIZARD_INTAKE_OPERATORS=<operator email>
+PERSONAL_WIZARD_TRANSCRIBE_MODEL=gpt-transcribe
+PERSONAL_WIZARD_EXTRACT_MODEL=gpt-6-sol
+PERSONAL_WIZARD_INTAKE_BUDGET_USD=1
+PERSONAL_WIZARD_INTAKE_MAX_JOBS=2
+```
+
+Sign in at `/login` with the operator email, open `/dev/personal-wizard`, and
+record. The server log prints one JSON line per job with its reservation and
+ledger totals, and no content.
 
 ## 6. Not done in P1
 
@@ -299,3 +496,19 @@ and Firefox. Screenshots and a fake device are not proof of those.
 6. **Scope.** Confirm that existing Wizard, release/v1 and order code are
    untouched: `git diff --stat 713017e1..HEAD` touches only the new paths,
    `tokens.css`, the classifier counts and docs.
+7. **P2 authority.** Try to reach a provider call, or a read of
+   `OPENAI_API_KEY`, without every switch, a session and the operator allowlist.
+   Also try reaching the body parser before the gate.
+8. **P2 billing.** Try to bill twice or beyond the ceiling: a repeated or
+   concurrent job id, parallel jobs for one user, SDK retries, a reservation
+   smaller than the real worst case, refunds.
+9. **P2 audio.** Try to pass unmeasured or disguised audio: a forged magic
+   number, a lying `Content-Type`, ogg, a client-claimed duration, a streamed
+   body over 3 MiB.
+10. **P2 extraction.** Try to make its output break the rules: instructions
+    inside the transcript, a `</transcript>` break-out, malformed or incomplete
+    JSON, out-of-set topics, invalid names or ages, oversized values.
+11. **P2 late answers.** Try to make an aborted, cancelled or superseded live job
+    change the draft or the summary.
+12. **P2 data.** Try to leave data behind: the temporary file on every error path,
+    content in logs, or anything written to browser storage.

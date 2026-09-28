@@ -10,6 +10,7 @@ import {
   applyIntakeResult,
   buildReviewedRequest,
   confirmFactsReview,
+  failIntakeJob,
   randomId,
   requestIssues,
   setChildName,
@@ -17,6 +18,13 @@ import {
   startIntakeJob,
 } from '@/lib/personal-wizard/draft';
 import { runFixtureIntake, type FixtureExampleId } from '@/lib/personal-wizard/intake-fixture';
+import {
+  fetchLiveIntakeStatus,
+  submitAudioIntake,
+  submitTextIntake,
+  type LiveIntakeResponse,
+} from '@/lib/personal-wizard/intake-live-client';
+import type { RecordedClip } from '@/lib/personal-wizard/recorder';
 
 import { useDraftStore, useObjectUrl, usePlayback, useRecorder, useSoftKeyboardOpen } from './hooks';
 import styles from './personal-wizard.module.css';
@@ -40,11 +48,9 @@ const FIXTURE_DELAY_MS = 1500;
 
 type Props = {
   options: WizardOptionsView;
-  /** P1: false. Live transcription/extraction is a separate, gated milestone. */
-  liveIntake: boolean;
 };
 
-export function PersonalWizard({ options, liveIntake }: Props) {
+export function PersonalWizard({ options }: Props) {
   const { draft, update, read } = useDraftStore();
   const recorder = useRecorder();
   const playback = usePlayback();
@@ -63,6 +69,22 @@ export function PersonalWizard({ options, liveIntake }: Props) {
   const allowedTopicIds = useMemo(() => new Set(options.topics.map((topic) => topic.id)), [options.topics]);
   const issues = requestIssues(draft);
   const name = normalizeText(draft.child.name);
+
+  // Live intake (P2) is offered only when the server says this signed-in operator may use it.
+  // The answer only shapes the UI; the intake routes enforce authority on every request.
+  const [liveIntake, setLiveIntake] = useState(false);
+  useEffect(() => {
+    let active = true;
+    void fetchLiveIntakeStatus().then((live) => {
+      if (active) setLiveIntake(live);
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
+  const pendingLive = useRef<{ jobId: string; controller: AbortController } | null>(null);
+  const [sentClip, setSentClip] = useState<Blob | null>(null);
+  useEffect(() => () => pendingLive.current?.controller.abort(), []);
 
   // Only a real step change moves focus (not the initial mount, even under StrictMode re-runs).
   useEffect(() => {
@@ -152,7 +174,67 @@ export function PersonalWizard({ options, liveIntake }: Props) {
     ).then(receiveIntake);
   };
 
+  /**
+   * One live job at a time; cancel and "continue without" abort it, and a late answer cannot land.
+   * Returns false (and says so) when another job, live or example, is still processing.
+   */
+  const runLiveJob = (submitJob: (jobId: string, signal: AbortSignal) => Promise<LiveIntakeResponse>): boolean => {
+    if (read().intake?.status === 'processing') {
+      setIntakeNotice({ kind: 'error', error: 'busy' });
+      return false;
+    }
+    const jobId = randomId('j');
+    const controller = new AbortController();
+    pendingLive.current?.controller.abort();
+    pendingLive.current = { jobId, controller };
+    update((latest) => startIntakeJob(latest, jobId, 'transcript'));
+    setIntakeNotice(null);
+    void submitJob(jobId, controller.signal).then((response) => {
+      if (pendingLive.current?.jobId === jobId) pendingLive.current = null;
+      if (response.ok) {
+        receiveIntake(response.result);
+        return;
+      }
+      if (response.error === 'aborted') return;
+      update((latest) => failIntakeJob(latest, jobId));
+      if (read().intake?.jobId === jobId) setIntakeNotice({ kind: 'error', error: response.error });
+    });
+    return true;
+  };
+
+  const sendClip = (clip: RecordedClip) => {
+    if (!clip.sendable) {
+      setIntakeNotice({ kind: 'error', error: 'rejected_audio' });
+      return;
+    }
+    const started = runLiveJob((jobId, signal) =>
+      submitAudioIntake({ jobId, draftId: read().draftId, audio: clip.blob, mimeType: clip.mimeType, signal }),
+    );
+    // Only a clip that really left is marked sent; a refused start leaves "send" available.
+    if (started) setSentClip(clip.blob);
+  };
+
+  const reorganizeTranscript = (text: string) => {
+    runLiveJob((jobId, signal) => submitTextIntake({ jobId, draftId: read().draftId, text, signal }));
+  };
+
+  // "Done, organise the details" requests exactly one submission; the controller hands it out once.
+  const recorderPhase = recorder.snapshot.phase;
+  useEffect(() => {
+    if (!liveIntake || !sendRequested || recorderPhase !== 'recorded') return;
+    const clip = recorderController()?.takeSendRequest();
+    if (clip) sendClip(clip);
+    // sendClip reads the latest draft through the store ref; re-running on its identity is not wanted.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [liveIntake, sendRequested, recorderPhase, recorderController]);
+
+  const abortLive = () => {
+    pendingLive.current?.controller.abort();
+    pendingLive.current = null;
+  };
+
   const cancelIntake = () => {
+    abortLive();
     update(abandonIntakeJob);
     setIntakeNotice({ kind: 'abandoned' });
   };
@@ -187,6 +269,7 @@ export function PersonalWizard({ options, liveIntake }: Props) {
       controller?.stop('left_step');
     }
     if (prompt === 'processing' || read().intake?.status === 'processing') {
+      abortLive();
       update(abandonIntakeJob);
       setIntakeNotice({ kind: 'abandoned' });
     }
@@ -333,7 +416,12 @@ export function PersonalWizard({ options, liveIntake }: Props) {
             lateIgnored={lateIgnored}
             onStartFixture={startFixture}
             onCancelIntake={cancelIntake}
-            onSendClip={() => undefined}
+            onSendClip={() => {
+              const clip = recorder.snapshot.clip;
+              if (clip) sendClip(clip);
+            }}
+            clipSent={Boolean(recorder.snapshot.clip && recorder.snapshot.clip.blob === sentClip)}
+            onReorganize={liveIntake ? reorganizeTranscript : undefined}
             prompt={prompt}
             onPromptChoice={onPromptChoice}
           />

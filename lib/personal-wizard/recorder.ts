@@ -24,8 +24,11 @@ export const RECORDING_MIME_CANDIDATES = [
   'audio/ogg',
 ] as const;
 
-/** Base types the intake path accepts. A clip in any other container stays local-only. */
-export const ACCEPTED_AUDIO_BASE_TYPES: readonly string[] = ['audio/webm', 'audio/mp4', 'audio/ogg'];
+/**
+ * Base types the intake path accepts (the transcription provider takes webm and mp4, not ogg).
+ * A clip in any other container, for example ogg, stays local-only.
+ */
+export const ACCEPTED_AUDIO_BASE_TYPES: readonly string[] = ['audio/webm', 'audio/mp4'];
 
 /** Clips shorter than this are treated as empty (an accidental tap), not sent. */
 export const MIN_CLIP_MS = 1000;

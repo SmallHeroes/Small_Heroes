@@ -40,9 +40,25 @@ describe('personal Wizard prototype boundaries', () => {
     }
   });
 
-  it('contains no provider SDK or key access in the P1 surface', () => {
+  it('confines the provider SDK and key access to the two live-intake modules', () => {
+    const PROVIDER_SDK_ALLOWED = 'lib/personal-wizard/intake-openai.ts';
+    const KEY_READ_ALLOWED = 'lib/personal-wizard/intake-config.ts';
     for (const file of files) {
-      expect(read(file), file).not.toMatch(/from 'openai'|elevenlabs|OPENAI_API_KEY|ELEVENLABS/i);
+      const source = read(file);
+      expect(source, file).not.toMatch(/elevenlabs/i);
+      if (file !== PROVIDER_SDK_ALLOWED) expect(source, file).not.toMatch(/from 'openai'/);
+      if (file !== KEY_READ_ALLOWED) expect(source, file).not.toMatch(/OPENAI_API_KEY/);
+    }
+    expect(read(PROVIDER_SDK_ALLOWED)).toMatch(/maxRetries: 0/);
+    expect(read(PROVIDER_SDK_ALLOWED)).toMatch(/store: false/);
+  });
+
+  it('keeps provider and server-only intake modules out of client components', () => {
+    const clientFiles = files.filter((file) => file.startsWith('app/dev/personal-wizard/') && file !== 'app/dev/personal-wizard/page.tsx');
+    for (const file of clientFiles) {
+      expect(read(file), file).not.toMatch(
+        /^import (?!type)[^;]*from '@\/lib\/personal-wizard\/(intake-openai|intake-service|intake-gate|intake-config|intake-ledger|audio-probe)'/m,
+      );
     }
   });
 

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, type RefObject } from 'react';
 
-import { CHIPS, COMMON, RECORDER, SOURCE_BADGE, TEST_PANEL, TRANSCRIPT, meetCopy } from '@/lib/personal-wizard/copy';
+import { CHIPS, COMMON, INTAKE_ERRORS, RECORDER, SOURCE_BADGE, TEST_PANEL, TRANSCRIPT, meetCopy } from '@/lib/personal-wizard/copy';
 import { LIMITS, normalizeText, type PersonalBookDraft } from '@/lib/personal-wizard/contract';
 import {
   addTypedFact,
@@ -14,6 +14,7 @@ import {
   type FactOutcome,
 } from '@/lib/personal-wizard/draft';
 import type { FixtureExampleId } from '@/lib/personal-wizard/intake-fixture';
+import type { LiveIntakeError } from '@/lib/personal-wizard/intake-live-client';
 import type { MediaStreamLike, RecorderSnapshot, RecordingController } from '@/lib/personal-wizard/recorder';
 
 import { FactsList } from './FactsList';
@@ -25,7 +26,8 @@ export type IntakeNotice =
   | { kind: 'nothing_new' }
   | { kind: 'not_understood' }
   | { kind: 'abandoned' }
-  | { kind: 'failed' };
+  | { kind: 'failed' }
+  | { kind: 'error'; error: LiveIntakeError };
 
 export type MeetPrompt = 'processing' | 'recording' | null;
 
@@ -45,6 +47,9 @@ type Props = {
   onStartFixture: (exampleId: FixtureExampleId) => void;
   onCancelIntake: () => void;
   onSendClip: () => void;
+  clipSent: boolean;
+  /** Live only: explicit re-organisation of a corrected transcript. Absent when not connected. */
+  onReorganize?: (text: string) => void;
   prompt: MeetPrompt;
   onPromptChoice: (choice: 'wait' | 'skip') => void;
 };
@@ -62,6 +67,10 @@ export function StepMeet(props: Props) {
   const [extraValue, setExtraValue] = useState('');
   const [factMessage, setFactMessage] = useState<{ field: 'chips' | 'other' | 'extra'; text: string } | null>(null);
   const [transcriptOpen, setTranscriptOpen] = useState(false);
+  const transcriptText = draft.transcript?.text ?? '';
+  const [transcriptDraft, setTranscriptDraft] = useState(transcriptText);
+  useEffect(() => setTranscriptDraft(transcriptText), [transcriptText]);
+  const canReorganize = Boolean(props.onReorganize) && draft.transcript?.source === 'transcript';
 
   const placeRef = useRef<HTMLInputElement | null>(null);
   const [placeValue, setPlaceValue] = useState(draft.storyPlace?.value ?? '');
@@ -122,6 +131,7 @@ export function StepMeet(props: Props) {
         voiceCta={copy.voiceCta}
         voiceNote={liveIntake ? copy.voiceNoteLive : copy.voiceNoteLocal}
         transcriptProcessing={transcriptProcessing}
+        clipSent={props.clipSent}
         onCancelProcessing={props.onCancelIntake}
         onSend={props.onSendClip}
       />
@@ -327,7 +337,37 @@ export function StepMeet(props: Props) {
               <h3 className={styles.factGroupTitle}>
                 {draft.transcript.source === 'fixture' ? TRANSCRIPT.titleFixture : TRANSCRIPT.titleLive}
               </h3>
-              <p className={styles.transcriptText}>{draft.transcript.text}</p>
+              {canReorganize ? (
+                <>
+                  <label className="sr-only" htmlFor="pw-transcript-edit">
+                    {TRANSCRIPT.editLabel}
+                  </label>
+                  <textarea
+                    id="pw-transcript-edit"
+                    className={styles.textarea}
+                    value={transcriptDraft}
+                    maxLength={4000}
+                    rows={5}
+                    aria-describedby="pw-transcript-note"
+                    onChange={(event) => setTranscriptDraft(event.target.value)}
+                  />
+                  <p id="pw-transcript-note" className={styles.hint}>
+                    {TRANSCRIPT.editNote}
+                  </p>
+                  <div className={styles.actionsRow}>
+                    <button
+                      type="button"
+                      className={styles.btnSecondary}
+                      disabled={processing || normalizeText(transcriptDraft) === normalizeText(transcriptText) || !normalizeText(transcriptDraft)}
+                      onClick={() => props.onReorganize?.(transcriptDraft)}
+                    >
+                      {TRANSCRIPT.reorganize}
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <p className={styles.transcriptText}>{draft.transcript.text}</p>
+              )}
             </div>
           ) : null}
         </div>
@@ -394,8 +434,10 @@ function IntakeStatus({ notice }: { notice: IntakeNotice | null }) {
   else if (notice?.kind === 'not_understood') text = RECORDER.notUnderstood;
   else if (notice?.kind === 'abandoned') text = RECORDER.abandoned;
   else if (notice?.kind === 'failed') text = RECORDER.failed;
+  else if (notice?.kind === 'error') text = INTAKE_ERRORS[notice.error];
+  const tone = notice?.kind === 'error' || notice?.kind === 'failed' || notice?.kind === 'not_understood' ? 'attention' : undefined;
   return (
-    <p className={styles.intakeStatus} role="status" aria-live="polite">
+    <p className={styles.intakeStatus} data-tone={tone} role="status" aria-live="polite">
       {text}
     </p>
   );

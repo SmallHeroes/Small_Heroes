@@ -1191,3 +1191,30 @@
     transform: none;
   }
 }
+
+/* ── Live intake (P2) ─────────────────────────────────────── */
+
+.intakeStatus[data-tone='attention'] {
+  color: var(--ink);
+}
+
+.textarea {
+  inline-size: 100%;
+  min-block-size: 120px;
+  padding: 12px 14px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-raised);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.6;
+  box-sizing: border-box;
+  resize: vertical;
+}
+
+.textarea:focus {
+  border-color: var(--interactive);
+  box-shadow: 0 0 0 3px rgba(136, 108, 255, 0.14);
+  outline: none;
+}

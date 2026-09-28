@@ -21,12 +21,13 @@ export const viewport: Viewport = {
 };
 
 /**
- * Personal Wizard prototype (P1). Isolated preview route: no orders, payment, render or provider
- * call. Gated by middleware (/dev is 404 on real production), `isDevEnvironment()` and the
- * explicit PERSONAL_WIZARD_PREVIEW flag. Rollback: unset the flag.
+ * Personal Wizard prototype. Isolated preview route: no orders, payment or render. Gated by
+ * middleware (/dev is 404 on real production), `isDevEnvironment()` and the explicit
+ * PERSONAL_WIZARD_PREVIEW flag. Live intake (P2) is a further, separately gated server switch that
+ * the client discovers through the status route. Rollback: unset the flags.
  */
 export default function PersonalWizardPage() {
   if (!isDevEnvironment() || !isPersonalWizardPreviewEnabled()) notFound();
   const { companions, topics, voices, packages } = resolvePersonalWizardOptions();
-  return <PersonalWizard options={{ companions, topics, voices, packages }} liveIntake={false} />;
+  return <PersonalWizard options={{ companions, topics, voices, packages }} />;
 }

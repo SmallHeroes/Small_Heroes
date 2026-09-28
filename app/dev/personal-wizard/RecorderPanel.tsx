@@ -17,6 +17,8 @@ type Props = {
   voiceCta: string;
   voiceNote: string;
   transcriptProcessing: boolean;
+  /** The current clip was already sent once; sending again needs a new recording. */
+  clipSent: boolean;
   onCancelProcessing: () => void;
   onSend: () => void;
 };
@@ -32,6 +34,7 @@ export function RecorderPanel({
   voiceCta,
   voiceNote,
   transcriptProcessing,
+  clipSent,
   onCancelProcessing,
   onSend,
 }: Props) {
@@ -50,9 +53,11 @@ export function RecorderPanel({
   else if (phase === 'stopping') status = RECORDER.stopping;
   else if (phase === 'recorded' && clip) {
     const reason = RECORDER.stopReason[clip.reason];
-    const base = liveIntake
-      ? RECORDER.recordedReady(formatDuration(clip.durationMs))
-      : RECORDER.recordedLocal(formatDuration(clip.durationMs));
+    const base = !liveIntake
+      ? RECORDER.recordedLocal(formatDuration(clip.durationMs))
+      : clipSent
+        ? RECORDER.sent
+        : RECORDER.recordedReady(formatDuration(clip.durationMs));
     status = reason ? `${reason} ${base}` : base;
   } else if (phase === 'error' && error) status = RECORDER.errors[error];
   else if (phase === 'idle' && snapshot.abandonedPermission) status = RECORDER.cancelledPermission;
@@ -72,6 +77,7 @@ export function RecorderPanel({
             </button>
           ) : null}
           <p className={styles.voiceNote}>{voiceNote}</p>
+          {liveIntake ? <p className={styles.hint}>{RECORDER.privacyLive}</p> : null}
         </>
       ) : null}
 
@@ -124,7 +130,7 @@ export function RecorderPanel({
         <>
           {liveIntake && !clip.sendable ? <p className={styles.hint}>{RECORDER.notSendable}</p> : null}
           <div className={styles.actionsRow}>
-            {liveIntake && clip.sendable && !transcriptProcessing ? (
+            {liveIntake && clip.sendable && !transcriptProcessing && !clipSent ? (
               <button type="button" className={styles.btnPrimarySmall} onClick={onSend}>
                 {RECORDER.send}
               </button>

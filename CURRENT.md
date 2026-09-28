@@ -35,6 +35,20 @@ Evidence and review targets:
 
 Live intake (P2) is a separate commit.
 
+- **P2** adds gated live intake:
+  - Routes: `/api/dev/personal-wizard/intake/{status,audio,text}`.
+  - Authority: the preview and live flags, priced env-chosen models
+    (`gpt-transcribe` plus `gpt-6-sol` or `gpt-6-luna`), per-process budget and
+    job ceilings, and a signed-in operator allowlist.
+  - Before spend: the container is sniffed from the bytes, the duration is
+    measured with ffprobe, and a conservative reservation is made with
+    idempotency per user.
+  - No retries; `store: false`; no content logging.
+- **P2 evidence:** 93 prototype tests; 29/29 browser checks against the real
+  server (fail-closed) and simulated answers.
+- **Live provider path: UNVERIFIED.** No key read, no call, $0. It needs Guy's
+  approval (brief cap: $1 for two short synthetic samples).
+
 ## QA book trial admission checked — 2026-09-27; one eligible story, not full readiness
 
 Guy asked to check/fix the current state and tell him when he can render a book.

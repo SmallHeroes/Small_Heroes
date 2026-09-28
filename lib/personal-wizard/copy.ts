@@ -4,6 +4,7 @@
  */
 import type { FactKind, GrammaticalAddress } from './contract';
 import type { FactGroupId } from './draft';
+import type { LiveIntakeError } from './intake-live-client';
 import type { RecorderErrorKind, StopReason } from './recorder';
 
 export function g(address: GrammaticalAddress | null, boy: string, girl: string): string {
@@ -172,6 +173,24 @@ export const RECORDER = {
   } satisfies Record<RecorderErrorKind, string>,
   retry: 'לנסות שוב',
   level: 'עוצמת הקול שהמיקרופון קולט',
+  sent: 'ההקלטה נשלחה לעיבוד.',
+  privacyLive:
+    'ההקלטה והתמלול נשלחים לעיבוד אצל ספק חיצוני ואינם נשמרים אצלנו. הספק עשוי לשמור את טקסט התמלול עד 30 יום לבדיקות אבטחה.',
+};
+
+/** Parent-facing text for live intake failures (P2). An aborted request says nothing extra. */
+export const INTAKE_ERRORS: Record<LiveIntakeError, string> = {
+  not_signed_in: 'עיבוד חי לא זמין כרגע. אפשר להמשיך בכתיבה או בבחירה.',
+  not_operator: 'עיבוד חי לא זמין כרגע. אפשר להמשיך בכתיבה או בבחירה.',
+  disabled: 'עיבוד חי לא זמין כרגע. אפשר להמשיך בכתיבה או בבחירה.',
+  rejected_audio: 'ההקלטה לא התקבלה לעיבוד (קצרה או ארוכה מדי, או בפורמט שלא נתמך). אפשר לנסות שוב או לכתוב.',
+  busy: 'יש כבר עיבוד פעיל. אפשר לנסות שוב בעוד רגע.',
+  budget: 'תקציב הניסוי של האבטיפוס נגמר. אפשר להמשיך בכתיבה או בבחירה.',
+  rate_limited: 'היו יותר מדי ניסיונות ברצף. אפשר לנסות שוב בעוד דקה.',
+  failed: 'העיבוד לא הצליח. הפרטים שכבר ברשימה נשארו. אפשר לנסות שוב או לכתוב.',
+  network: 'לא הצלחנו להגיע לשרת. הפרטים שכבר ברשימה נשארו. אפשר לנסות שוב או לכתוב.',
+  malformed_response: 'העיבוד לא הצליח. הפרטים שכבר ברשימה נשארו. אפשר לנסות שוב או לכתוב.',
+  aborted: '',
 };
 
 export const TRANSCRIPT = {
@@ -180,6 +199,7 @@ export const TRANSCRIPT = {
   titleLive: 'התמלול',
   titleFixture: 'תמלול לדוגמה (כתוב מראש, לא מההקלטה)',
   editNote: 'תיקון התמלול לא נשלח מחדש מעצמו.',
+  editLabel: 'תיקון התמלול',
   reorganize: 'לסדר שוב מהטקסט המתוקן',
 };
 
