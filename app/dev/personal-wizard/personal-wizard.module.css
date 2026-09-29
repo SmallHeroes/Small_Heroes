@@ -1147,27 +1147,6 @@
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .recDot[data-live] {
-    animation: none;
-  }
-
-  .companionCard:hover,
-  .recordButton:hover .recordCircle,
-  .btnContinue:hover:not(:disabled) {
-    transform: none;
-  }
-
-  .recordPulse[data-live],
-  .decodeWave > span,
-  .decodeFlow > span,
-  .decodeLines > span,
-  .decodeSpark,
-  .decodeStep {
-    animation: none;
-  }
-}
-
 /* ── Live intake (P2) ─────────────────────────────────────── */
 
 .intakeStatus[data-tone='attention'] {
@@ -1799,4 +1778,31 @@
   align-items: center;
   gap: 10px;
   text-align: center;
+}
+
+/*
+ * Reduced motion. Keep this block LAST: its selectors match the animated rules' specificity, so it
+ * only wins by coming after them. A new animation or hover transform goes above it and gets a line
+ * here; reduced-motion.spec.ts resolves the cascade and fails otherwise. Text, status and cancel
+ * stay; only the movement stops.
+ */
+@media (prefers-reduced-motion: reduce) {
+  .recDot[data-live] {
+    animation: none;
+  }
+
+  .companionCard:hover,
+  .recordButton:hover .recordCircle,
+  .btnContinue:hover:not(:disabled) {
+    transform: none;
+  }
+
+  .recordPulse[data-live],
+  .decodeWave > span,
+  .decodeFlow > span,
+  .decodeLines > span,
+  .decodeSpark,
+  .decodeStep {
+    animation: none;
+  }
 }

@@ -55,9 +55,9 @@ describe('Vitest workload classifier', () => {
     );
     const partition = classifyVitestWorkloads(inventory, policy);
 
-    expect(partition.inventory).toHaveLength(384);
+    expect(partition.inventory).toHaveLength(385);
     expect(partition.resourceIntensive).toHaveLength(20);
-    expect(partition.ordinary).toHaveLength(364);
+    expect(partition.ordinary).toHaveLength(365);
     expect(partition.ordinary).toContain(
       'lib/__tests__/hero-child-handoff.spec.ts',
     );
@@ -70,6 +70,7 @@ describe('Vitest workload classifier', () => {
       'lib/personal-wizard/__tests__/intake-service.spec.ts',
       'lib/personal-wizard/__tests__/prototype-boundary.spec.ts',
       'lib/personal-wizard/__tests__/recorder.spec.ts',
+      'lib/personal-wizard/__tests__/reduced-motion.spec.ts',
       'lib/personal-wizard/__tests__/request-acceptance.spec.ts',
     ]) {
       expect(partition.ordinary).toContain(spec);
