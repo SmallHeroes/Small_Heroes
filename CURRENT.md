@@ -11,6 +11,7 @@ of the frozen QA-correction head `1a22af62`; the QA-fix commits are untouched.
 | `a3dd9c92` | Model: a recording may fill the EMPTY name/age as suggestions. It never overwrites; a correction replaces or retires its own; "continue" approves. The address is never extracted. A single requested direction is approved with the shown list; the companion never is. |
 | `c85ebccc` | UI: the hero form and the meet step became one voice-first step, "ספרו לנו קצת על הילד שלכם" (four steps). |
 | `996cb68b` | Editing a heard age focuses the chosen age. |
+| `04546f4a` | Codex QA of `cbe09b31` (PASS, P2 1): a removed direction stays removed across corrections (`topicTombstones`); a deliberate pick restores it. A different proposal over a chosen direction is an explicit keep-or-replace question. |
 
 The voice-first step:
 
@@ -28,7 +29,16 @@ Evidence:
 - **Browser:** voice-first 59/59, adapted P1 99/99, adapted P2 38/38.
 - **Full check:** RED exactly as at the base. The same 10 ordinary failures, and
   resource 635/635 with the same gate. +136 tests, all prototype.
-- **Details:** section 9 of the evidence doc, including before/after screenshots.
+- **Codex QA of `cbe09b31` (both pending ranges):** technical PASS, P0 0 / P1 0 /
+  P2 1.
+  - The P2 is fixed in `04546f4a`, with 5 request-boundary tests that fail on the
+    previous code.
+  - Now: 141 prototype tests; browser voice-first 74/74 (including 15 direction
+    checks), P1 99/99, P2 38/38.
+  - Full check RED exactly as at the base (+141 tests, all prototype).
+  - Re-gate range: `cbe09b31..` the docs commit after `04546f4a`.
+- **Details:** sections 9 (voice-first, with before/after screenshots) and 10 (this
+  QA and its correction) of the evidence doc.
 
 The acceptance proof (real audio → real transcription → card → correction →
 request) is shown only with **simulated** intake answers. The real provider path is

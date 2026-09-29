@@ -893,3 +893,98 @@ That step is **not proven**:
 The live trial needs Guy's explicit approval of key use and spend. The brief's cap
 is $1 for two short samples from a synthetic voice or a consenting adult, with the
 operator allowlist; the env block is in section 5b. No push, deployment or book.
+
+## 10. Codex QA of `cbe09b31`: technical PASS with one P2, and its correction
+
+Codex reviewed both pending ranges, `8aa9f1d7..1a22af62` and `1a22af62..cbe09b31`:
+
+- 143/143 tests and tsc 0;
+- a real labelled-fixture browser flow;
+- the earlier vulnerabilities, exercised independently.
+
+The verdict was **technical PASS, P0 0 / P1 0 / P2 1**. All five earlier findings
+are closed. This is not real-audio, product or release acceptance.
+
+**P2: a removed direction was not durable.** Its root cause and consequence:
+
+- `dismissIntentSuggestion` only filtered the current suggestions.
+- A re-extraction after correcting the same transcript re-added the removed topic.
+- Since `c85ebccc`, "continue" then adopted it, so the request carried `sirens`
+  although the parent had removed it.
+
+I reproduced it exactly with Codex's `intent-regression.cjs`, including its base
+control (at `1a22af62` the topic also came back, but the request stayed `null`), and
+I agree.
+
+**Fix (same removal concept as places and facts; draft v4).**
+
+- **Remember removals.** `topicTombstones` records a topic the parent removed. That
+  covers:
+  - declining a suggestion (removing it in the card, "לא עכשיו" on step 2, or
+    "keep the current one");
+  - moving away from a direction that came from a recording or the example
+    (removing it in the card, clearing it or choosing something else on step 2,
+    or replacing it through the card question).
+- **Never re-suggest.** A later extraction never suggests a tombstoned topic, so
+  "continue" cannot adopt it.
+- **A deliberate pick undoes it.** The parent picking the topic from the list lifts
+  the tombstone and makes it the parent's own choice. Choosing a *pending*
+  suggestion keeps its origin and records no removal: step 2's "לבחור" now goes
+  through the same adoption path as the list.
+- **No overwrite.** A manual choice is never overwritten; a different proposal stays
+  a proposal.
+
+**UX note, handled in the same narrow change.** When a direction is already chosen
+and a correction brings a different one, the card no longer lists both alike:
+
+- The current direction is the only row.
+- The new one is an explicit question: "כבר נבחר כיוון: ״…״. בהקלטה עלה ״…״.
+  להחליף?", with "להחליף ל״…״" and "להשאיר את ״…״", and the note "אם לא
+  תבחרו, נשאיר את ״…״."
+- Two or more proposals with no current choice say that the choice is made on
+  the next step.
+- Going straight back to the summary leaves the ignored proposal out of the
+  summary, where only the chosen direction appears.
+
+The four steps and the recording's prominence are unchanged. Extraction prompts,
+gates, timeouts, prices and auth are untouched. No key, live call, render, push or
+deployment.
+
+**Evidence.**
+
+- **Tests:** 5 new request-boundary tests, one per case in the brief:
+  1. removed → unrelated correction → continue → absent, and the server agrees; a
+     no-removal control is included;
+  2. an approved direction removed, or replaced by the parent's own choice, or
+     replaced through the question, does not come back;
+  3. a deliberate pick restores it as the parent's own choice (also for an example
+     topic), while choosing a pending suggestion keeps its origin and records
+     nothing;
+  4. a manual choice is never overwritten, and declining is remembered;
+  5. correction chains, including an unclear link, plus example-only provenance
+     still flagged end to end.
+
+  All five fail on the previous `draft.ts` and pass now. The draft spec has 56
+  tests.
+- **Codex's `intent-regression.cjs`, unchanged:** its assertion that encoded the
+  bug (`head.requestIntent.topicId === 'sirens'`) now fails with `null`.
+- **Replay with corrected expectations** (scratch `pw6-intent-replay.cjs`): the base
+  control is unchanged; the head gives `revived: []` and request/server intent
+  `null`. The second case still keeps `sirens` after a `night` proposal; "keep"
+  then a correction re-asks nothing; "replace" adopts `night` with its origin.
+- **Browser:** a new direction scenario in the voice-first harness (17 checks) covers
+  removal surviving a correction through to a `null` request, the keep/replace
+  question, return-to-summary with the proposal ignored, keep, and replace with
+  origin. Screenshot: `voice-after/after-8-direction-question-1440.png`.
+  - Voice-first harness, all scenarios: 74/74.
+  - Adapted P1 harness: 99/99.
+  - Adapted P2 harness: 38/38.
+- **Fix commit:** `04546f4a`. tsc 0; 141 prototype tests plus classifier 7/7.
+- **Full check at `04546f4a`:** RED exactly as at the base.
+  - **Ordinary phase:** 364 files, 10 failed, 4892 passed, 73 skipped (4975). These
+    are the same 10 failures. That is +5 against `c85ebccc` (the new tests) and
+    +141 against the base, all prototype.
+  - **Resource phase:** 635/635, with the same `on_task_update_rpc_timeout` gate.
+  - No timeout or pinned count changed.
+  - The voice-first harness was re-run at the committed `04546f4a`: 74/74.
+- **Re-gate range:** `cbe09b31..` this documentation commit.
