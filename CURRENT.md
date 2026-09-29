@@ -18,8 +18,14 @@ for the active state; they remain as history.
 - **Correction of the HOLD:**
   - `8b74711f`: P1-1 and the owner's correction/exclusion rules.
   - `fd03371b`: P2-1.
-  - The documentation commit that follows (P2-2).
-  - It awaits Codex's re-gate.
+  - `7086b0f0`: P2-2 (documentation).
+- **Codex re-gate of `684d2c10..7086b0f0`: HOLD, P0 0 / P1 1 / P2 0.**
+  - P2-1 and P2-2 are closed.
+  - P1-1 is not fully closed. Answering "remove" on a corrected transcript's stale-detail
+    question discarded the new keep/remove question about the direction, so the direction went
+    through without a decision.
+- **Successor:** `cbda44b8` fixes that path, followed by the documentation commit (evidence doc
+  §14). It awaits Codex's re-gate of `7086b0f0..` that commit.
 
 ### What v2 is now
 
@@ -38,6 +44,9 @@ for the active state; they remain as history.
   - The proposal stands on the exact difficulties it came from. It is withdrawn if one is removed
     or reworded before approval; after approval, the parent answers an explicit keep-or-remove
     question.
+  - This also holds when the removal comes from answering a corrected transcript's question.
+    Codex's re-gate found that path open at `7086b0f0`; `cbda44b8` fixes it, pending Codex's
+    re-gate.
   - The request marks it as derived, and the server refuses it when no difficulty is left.
 - **Parent corrections and exclusions are final:**
   - An edited detail is the parent's own.
@@ -66,12 +75,13 @@ for the active state; they remain as history.
     - The audio and transcript were not retained, so the failing stage (transcription or
       extraction) is unknown.
     - The values are not recorded here.
-- **The HOLD correction used no provider calls.**
+- **The HOLD correction and its successor used no provider calls.**
 
 ### Evidence for the correction
 
-Section 13 of the evidence doc holds the probe before and after the fix, the tests, the real
-browser paths, and the full check.
+- **Section 13 of the evidence doc:** the probe before and after the fix, the tests, the real
+  browser paths, and the full check.
+- **Section 14:** the re-gate finding and its fix.
 
 ## Personal Wizard prototype: voice-first rework — 2026-09-29; Claude implements, Codex reviews
 

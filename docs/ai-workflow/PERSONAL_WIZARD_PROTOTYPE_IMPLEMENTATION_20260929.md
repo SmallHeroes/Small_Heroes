@@ -1473,3 +1473,96 @@ results.
   `684d2c10` (UI, not reviewed).
 - **Retained frozen reproduction:** Codex's probe under
   `C:/Users/guyna/.codex/visualizations/2026/09/29/personal-wizard-qa-4b6bb761/`, unchanged.
+
+## 14. Codex re-gate of the correction (`684d2c10..7086b0f0`): HOLD, and its successor
+
+**Verdict:** HOLD, P0 0 / P1 1 / P2 0.
+- P2-1 and P2-2 are closed.
+- The four original P1-1 reproductions are closed.
+
+**The finding.** P1-1 was not fully closed.
+- **The bug:** `resolveConflict` answered "remove" on a `stale_fact` question with
+  `next(removeFact(draft, …), { conflicts })`. There, `conflicts` came from the draft *before*
+  `removeFact` ran.
+- **Effect:** `removeFact` raised the `stale_direction` question and cleared the evidence, and
+  the older list overwrote that question.
+- **Result:** the approved derived direction reached the server with no `basis`, no question and
+  no decision, for both sources, with or without another difficulty left.
+
+**Commits:** `cbda44b8` and this documentation commit. The frozen range `684d2c10..7086b0f0` is
+not rewritten.
+
+### 14.1 Reproduced first
+
+- **Codex's new probe** (`personal-wizard-qa-7086b0f0/probe.cjs`, sha256 `8e0a62e0…532a`), as a
+  byte-identical copy at `7086b0f0`:
+  - exit 0;
+  - 10/10 closure and control groups pass;
+  - all four stale-fact bypasses reproduce (`intent: sirens`, no question, server accepted).
+- **The new regression tests, before the fix:** the three that cover the defect fail, and the
+  two controls pass.
+
+### 14.2 What changed
+
+- **The fix:** "remove" on a `stale_fact` question now builds on `removeFact`'s result and closes
+  only the answered question.
+- **Audit of `resolveConflict`:**
+  - `similar_removed` "accept" had the same shape. It is harmless today, since `afterFactAdded`
+    changes only `noDifficulty`, and it is now composed like `addTypedFact`.
+  - `stale_direction` and `stale_place` already built on their helper's result. The `keep`,
+    basics and story-place branches use no helper.
+- **UI audit:**
+  - Every resolve button calls `resolveConflict` on the latest draft
+    (`update((current) => …)`).
+  - `receiveIntake` reads and writes in the same tick.
+- **Not a marker-only fix:** the missing parent decision is restored. A `basis` marker alone would
+  still pass the server while another difficulty remains.
+
+### 14.3 After the fix
+
+- **Codex's probe, unchanged:**
+  - Run with the fix in the worktree before committing. HEAD was still `7086b0f0`, so its head
+    pin passes.
+  - It exits 1 at line 136, its assertion that the question is absent.
+  - At `cbda44b8` it stops at its head pin (line 16), by design.
+- **Outcome copy** (scratch `regate2/probe-outcomes.cjs`) at `cbda44b8`: the same scenarios, with
+  the head reported instead of pinned and the four cases reported instead of asserted.
+  - The original 10 groups pass.
+  - In all four cases the question is present, and "continue" is blocked
+    (`direction_unconfirmed`).
+  - **Keep:** the server accepts `sirens` as the parent's choice, with no `basis`.
+  - **Remove:** `intent: null`, and it stays null after a correction or a new recording repeats
+    the difficulty.
+  - 0 provider calls.
+- **Tests:** tsc 0; 176/176 prototype tests (+5). The new block covers:
+  - the question, and "continue" blocked;
+  - keep and remove, with later processing;
+  - an unrelated open question staying open;
+  - requested and chosen directions not being questioned;
+  - the `similar_removed` branch keeping other open questions.
+
+  Each of the first four runs both sources × both remaining-difficulty states, through
+  `buildReviewedRequest` AND `acceptPersonalBookRequest`.
+- **Browser: not run for this path.**
+  - A stale-detail question needs a transcript correction, and only the live text extraction
+    produces one: a provider call, not authorized.
+  - Example mode starts new recordings only.
+  - The card's continue guard for `direction_unconfirmed` is the same one browser path D
+    exercised (§13.3).
+
+### 14.4 Full check
+
+`npm run check` at `cbda44b8` gives **exit 1, the same as the base.** This is not green.
+
+- **Ordinary phase:** 364 files. Tests: 10 failed, 4927 passed, 73 skipped (5010).
+  - The 10 failures are the same inherited tests, by exact name, as at the branch base
+    `713017e1` (see §13.5).
+  - 4927 passed is 5 more than at `fd03371b`: the new tests.
+- **Resource-intensive phase:** 20 files, 635/635 tests passed. Its gate still fails with
+  `on_task_update_rpc_timeout` and `signal_or_exit_failure`, as at the base.
+
+### 14.5 Re-gate
+
+- **Range:** `7086b0f0..` this documentation commit.
+- **Frozen probes:** Codex's probes (`…-4b6bb761/` and `…-7086b0f0/`) were read and copied, never
+  rewritten.
