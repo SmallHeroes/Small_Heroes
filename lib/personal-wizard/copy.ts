@@ -94,7 +94,11 @@ export function meetCopy(name: string, address: GrammaticalAddress | null) {
     recordingPrompt: 'ההקלטה עדיין פעילה.',
     recordingResume: 'לחזור להקלטה',
     recordingSkip: 'לעצור ולהמשיך בלי לשלוח',
-    conflictKeepNote: 'אם לא תבחרו, נשאיר את מה שכתבתם.',
+    conflictKeepNote: 'אם לא תבחרו, נשאיר את מה שכבר ברשימה.',
+    staleFact: (value: string) => `בתמלול המתוקן כבר לא מופיע ״${value}״. להשאיר אותו בסיפור?`,
+    stalePlace: (value: string) => `בתמלול המתוקן כבר לא מופיע מקום ההרפתקה ״${value}״. להשאיר אותו?`,
+    staleKeep: 'להשאיר',
+    staleRemove: 'להסיר',
     conflictAge: (typed: string, heard: string) => `כתבתם ${typed} ושמענו ${heard}. מה נכון?`,
     conflictName: (typed: string, heard: string) => `כתבתם ״${typed}״ ושמענו ״${heard}״. איך לקרוא ל${g(address, 'גיבור', 'גיבורה')}?`,
     conflictPlace: (typed: string, heard: string) => `כתבתם ״${typed}״ ושמענו ״${heard}״. איפה מתחילה ההרפתקה?`,
@@ -158,6 +162,10 @@ export const RECORDER = {
   processedAdded: (count: number) =>
     count === 1 ? 'הוספנו פרט אחד לרשימה. אפשר לערוך או להסיר אותו.' : `הוספנו ${count} פרטים לרשימה. אפשר לערוך או להסיר כל אחד.`,
   processedNothingNew: 'לא מצאנו פרטים חדשים.',
+  retiredByCorrection: (count: number) =>
+    count === 1
+      ? 'הצעה אחת שלא הופיעה בתמלול המתוקן הוסרה מהרשימה.'
+      : `${count} הצעות שלא הופיעו בתמלול המתוקן הוסרו מהרשימה.`,
   suggestionNext: 'הצעה לכיוון הסיפור תחכה לכם בשלב הבא.',
   notUnderstood: 'לא הצלחנו להבין מספיק. אפשר לנסות שוב או לכתוב.',
   abandoned: 'ביטלנו. אם תגיע תשובה מאוחרת, לא נוסיף אותה.',

@@ -22,7 +22,7 @@ import { RecorderPanel } from './RecorderPanel';
 import styles from './personal-wizard.module.css';
 
 export type IntakeNotice =
-  | { kind: 'added'; count: number; suggestions: number }
+  | { kind: 'added'; count: number; suggestions: number; retired?: number }
   | { kind: 'nothing_new' }
   | { kind: 'not_understood' }
   | { kind: 'abandoned' }
@@ -271,6 +271,32 @@ export function StepMeet(props: Props) {
       {draft.conflicts.length > 0 ? (
         <div className={styles.conflicts}>
           {draft.conflicts.map((conflict) => {
+            // A corrected transcript no longer contains an already approved detail: keep or remove.
+            if (conflict.field === 'stale_fact' || conflict.field === 'stale_place') {
+              const question =
+                conflict.field === 'stale_fact' ? copy.staleFact(conflict.value) : copy.stalePlace(conflict.value);
+              return (
+                <div key={conflict.id} className={styles.conflict} role="group" aria-label={question}>
+                  <p className={styles.conflictQuestion}>{question}</p>
+                  <div className={styles.actionsRow}>
+                    <button
+                      type="button"
+                      className={styles.btnSecondary}
+                      onClick={() => update((current) => resolveConflict(current, conflict.id, 'keep'))}
+                    >
+                      {copy.staleKeep}
+                    </button>
+                    <button
+                      type="button"
+                      className={styles.btnSecondary}
+                      onClick={() => update((current) => resolveConflict(current, conflict.id, 'accept'))}
+                    >
+                      {copy.staleRemove}
+                    </button>
+                  </div>
+                </div>
+              );
+            }
             const typed =
               conflict.field === 'age'
                 ? String(draft.child.age ?? '')
@@ -429,6 +455,7 @@ function IntakeStatus({ notice }: { notice: IntakeNotice | null }) {
   let text = '';
   if (notice?.kind === 'added') {
     text = notice.count > 0 ? RECORDER.processedAdded(notice.count) : RECORDER.processedNothingNew;
+    if (notice.retired) text += ` ${RECORDER.retiredByCorrection(notice.retired)}`;
     if (notice.suggestions > 0) text += ` ${RECORDER.suggestionNext}`;
   } else if (notice?.kind === 'nothing_new') text = RECORDER.processedNothingNew;
   else if (notice?.kind === 'not_understood') text = RECORDER.notUnderstood;

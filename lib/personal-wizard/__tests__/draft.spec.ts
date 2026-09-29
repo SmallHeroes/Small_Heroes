@@ -24,6 +24,7 @@ import {
   createDraft,
   dismissIntentSuggestion,
   editFactValue,
+  failIntakeJob,
   removeFact,
   requestContainsFixtureData,
   resolveConflict,
@@ -38,6 +39,8 @@ import {
   type IdFactory,
 } from '../draft';
 import { buildFixtureResult } from '../intake-fixture';
+import { resolvePersonalWizardOptions } from '../options';
+import { acceptPersonalBookRequest } from '../request-acceptance';
 
 function sequentialIds(): IdFactory {
   let counter = 0;
@@ -226,7 +229,7 @@ describe('intake merge never overwrites, resurrects or lands late', () => {
     const merged = merge(draft, transcriptResult('j_00000001', { mentionedAge: 6, mentionedName: 'ברי' }), makeId);
     draft = merged.draft;
     expect(draft.child).toMatchObject({ name: 'בר', age: 5 });
-    expect(draft.conflicts.map((conflict) => [conflict.field, conflict.proposed])).toEqual([
+    expect(draft.conflicts.map((conflict) => [conflict.field, 'proposed' in conflict ? conflict.proposed : null])).toEqual([
       ['name', 'ברי'],
       ['age', 6],
     ]);
@@ -330,7 +333,7 @@ describe('the labelled fixture goes through the same merge and stays marked', ()
       ['other', 'fixture'],
       ['recent_event', 'fixture'],
     ]);
-    expect(draft.conflicts.map((conflict) => [conflict.field, conflict.proposed, conflict.source])).toEqual([
+    expect(draft.conflicts.map((conflict) => [conflict.field, 'proposed' in conflict ? conflict.proposed : null, conflict.source])).toEqual([
       ['age', 6, 'fixture'],
     ]);
     expect(draft.intent).toBeNull();
@@ -403,5 +406,192 @@ describe('summary and request round-trip', () => {
     expect(
       reviewedPersonalBookRequestSchema.safeParse({ ...built.request, child: { ...built.request.child, age: 9 } }).success,
     ).toBe(false);
+  });
+});
+
+describe('a corrected transcript supersedes the proposals of the transcript it corrects', () => {
+  const kinds = (facts: Array<{ kind: string; value: string }>) => facts.map((fact) => `${fact.kind}:${fact.value}`);
+  const record = (
+    draft: PersonalBookDraft,
+    jobId: string,
+    facts: IntakeExtraction['facts'],
+    makeId: IdFactory,
+    extra: Partial<IntakeExtraction> = {},
+  ) => merge(startIntakeJob(draft, jobId, 'transcript'), transcriptResult(jobId, { facts, ...extra }), makeId);
+  const correct = (
+    draft: PersonalBookDraft,
+    jobId: string,
+    supersedes: string,
+    facts: IntakeExtraction['facts'],
+    makeId: IdFactory,
+    extra: Partial<IntakeExtraction> = {},
+  ) =>
+    merge(
+      startIntakeJob(draft, jobId, 'transcript', { supersedesJobId: supersedes }),
+      transcriptResult(jobId, { facts, ...extra }),
+      makeId,
+    );
+  const finalRequest = (draft: PersonalBookDraft) => {
+    const built = buildReviewedRequest(setCompanion(confirmFactsReview(draft), 'panda_anat'));
+    if (!built.ok) throw new Error(`request not built: ${built.issues.map((issue) => issue.code).join(',')}`);
+    return built.request;
+  };
+
+  it("reviewer case: correcting 'גר באודם' to 'גר בחיפה' leaves only the corrected residence, and the server agrees", () => {
+    const { draft: start, makeId } = basics();
+    let draft = record(start, 'j_00000001', [{ kind: 'residence', value: 'גר באודם' }], makeId).draft;
+    const corrected = correct(draft, 'j_00000002', 'j_00000001', [{ kind: 'residence', value: 'גר בחיפה' }], makeId);
+    expect(corrected.applied && corrected.retired).toBe(1);
+    draft = corrected.draft;
+    expect(draft.conflicts).toEqual([]);
+    const request = finalRequest(draft);
+    expect(kinds(request.facts)).toEqual(['residence:גר בחיפה']);
+    const accepted = acceptPersonalBookRequest(request, resolvePersonalWizardOptions());
+    expect(accepted.ok && kinds(accepted.canonical.facts)).toEqual(['residence:גר בחיפה']);
+  });
+
+  it('control: a second RECORDING still adds to the first; only a correction supersedes', () => {
+    const { draft: start, makeId } = basics();
+    let draft = record(start, 'j_00000001', [{ kind: 'residence', value: 'גר באודם' }], makeId).draft;
+    draft = record(draft, 'j_00000002', [{ kind: 'interest', value: 'ציור' }], makeId).draft;
+    expect(kinds(finalRequest(draft).facts)).toEqual(['residence:גר באודם', 'interest:ציור']);
+  });
+
+  it('a detail deleted from the transcript leaves; an unchanged one keeps its identity', () => {
+    const { draft: start, makeId } = basics();
+    let draft = record(
+      start,
+      'j_00000001',
+      [
+        { kind: 'interest', value: 'ציור' },
+        { kind: 'habit', value: 'שירה במקלחת' },
+      ],
+      makeId,
+    ).draft;
+    const paintingId = activeFacts(draft).find((fact) => fact.value === 'ציור')?.id;
+    draft = correct(draft, 'j_00000002', 'j_00000001', [{ kind: 'interest', value: 'ציור' }], makeId).draft;
+    expect(activeFacts(draft).map((fact) => [fact.id, fact.value])).toEqual([[paintingId, 'ציור']]);
+    expect(kinds(finalRequest(draft).facts)).toEqual(['interest:ציור']);
+  });
+
+  it('a changed family detail replaces the old one instead of sitting next to it', () => {
+    const { draft: start, makeId } = basics();
+    let draft = record(start, 'j_00000001', [{ kind: 'family', value: 'אחות קטנה בשם נועה' }], makeId).draft;
+    draft = correct(draft, 'j_00000002', 'j_00000001', [{ kind: 'family', value: 'אחות קטנה בשם נוגה' }], makeId).draft;
+    expect(kinds(finalRequest(draft).facts)).toEqual(['family:אחות קטנה בשם נוגה']);
+  });
+
+  it("the parent's own edits and removals survive a correction", () => {
+    const { draft: start, makeId } = basics();
+    let draft = record(
+      start,
+      'j_00000001',
+      [
+        { kind: 'interest', value: 'ציור' },
+        { kind: 'interest', value: 'שחייה' },
+      ],
+      makeId,
+    ).draft;
+    const [painting, swimming] = activeFacts(draft);
+    draft = editFactValue(draft, painting.id, 'ציור בצבעי מים').draft;
+    draft = removeFact(draft, swimming.id);
+    const corrected = correct(draft, 'j_00000002', 'j_00000001', [{ kind: 'interest', value: 'שחייה' }], makeId);
+    expect(corrected.applied && corrected.retired).toBe(0);
+    draft = corrected.draft;
+    expect(draft.conflicts).toEqual([]);
+    expect(kinds(finalRequest(draft).facts)).toEqual(['interest:ציור בצבעי מים']);
+  });
+
+  it('typed and chip details, and other recordings, are untouched', () => {
+    const { draft: start, makeId } = basics();
+    let draft = addTypedFact(start, 'habit', 'סופר מדרגות', makeId).draft;
+    draft = toggleChip(draft, { id: 'music', label: 'מוזיקה', kind: 'interest' }, makeId).draft;
+    draft = record(draft, 'j_00000001', [{ kind: 'interest', value: 'ציור' }], makeId).draft;
+    draft = record(draft, 'j_00000002', [{ kind: 'interest', value: 'כדור' }], makeId).draft;
+    draft = correct(draft, 'j_00000003', 'j_00000002', [{ kind: 'interest', value: 'כדורגל' }], makeId).draft;
+    expect(kinds(finalRequest(draft).facts)).toEqual([
+      'habit:סופר מדרגות',
+      'interest:מוזיקה',
+      'interest:ציור',
+      'interest:כדורגל',
+    ]);
+  });
+
+  it('an already approved detail missing from the correction becomes an explicit question', () => {
+    const { draft: start, makeId } = basics();
+    let draft = record(
+      start,
+      'j_00000001',
+      [
+        { kind: 'interest', value: 'ציור' },
+        { kind: 'interest', value: 'שחייה' },
+      ],
+      makeId,
+    ).draft;
+    draft = confirmFactsReview(draft);
+    draft = correct(draft, 'j_00000002', 'j_00000001', [{ kind: 'interest', value: 'שחייה' }], makeId).draft;
+    const question = draft.conflicts.find((conflict) => conflict.field === 'stale_fact');
+    expect(question && 'value' in question ? question.value : null).toBe('ציור');
+    expect(buildReviewedRequest(setCompanion(draft, 'panda_anat'))).toMatchObject({ ok: false });
+    const removed = resolveConflict(draft, question?.id ?? '', 'accept');
+    expect(kinds(finalRequest(removed).facts)).toEqual(['interest:שחייה']);
+    const kept = resolveConflict(draft, question?.id ?? '', 'keep');
+    expect(kinds(finalRequest(kept).facts)).toEqual(['interest:ציור', 'interest:שחייה']);
+    // A removal chosen here is the parent's removal: a later recording cannot bring it back.
+    const later = record(removed, 'j_00000003', [{ kind: 'interest', value: 'ציור' }], makeId).draft;
+    expect(kinds(finalRequest(later).facts)).toEqual(['interest:שחייה']);
+  });
+
+  it('places follow the same rules: proposed places are replaced, approved ones are asked about', () => {
+    const { draft: start, makeId } = basics();
+    let draft = record(start, 'j_00000001', [], makeId, { storyPlace: 'ליד הים' }).draft;
+    draft = correct(draft, 'j_00000002', 'j_00000001', [], makeId, { storyPlace: 'באודם' }).draft;
+    expect(draft.storyPlace).toMatchObject({ value: 'באודם', status: 'proposed' });
+    expect(draft.conflicts).toEqual([]);
+
+    let approved = confirmFactsReview(draft);
+    approved = correct(approved, 'j_00000003', 'j_00000002', [], makeId).draft;
+    const question = approved.conflicts.find((conflict) => conflict.field === 'stale_place');
+    expect(question).toBeDefined();
+    const removed = resolveConflict(approved, question?.id ?? '', 'accept');
+    expect(finalRequest(removed).storyPlace).toBeNull();
+    expect(removed.conflicts).toEqual([]);
+  });
+
+  it('questions and topic suggestions raised by the corrected transcript are dropped with it', () => {
+    const { draft: start, makeId } = basics();
+    let draft = record(start, 'j_00000001', [], makeId, { mentionedAge: 6, explicitTopicId: 'transitions' }).draft;
+    expect(draft.conflicts).toHaveLength(1);
+    expect(draft.intentSuggestions).toHaveLength(1);
+    draft = correct(draft, 'j_00000002', 'j_00000001', [{ kind: 'interest', value: 'ציור' }], makeId).draft;
+    expect(draft.conflicts).toEqual([]);
+    expect(draft.intentSuggestions).toEqual([]);
+  });
+
+  it('late, failed-and-retried and unclear corrections behave', () => {
+    const { draft: start, makeId } = basics();
+    const original = record(start, 'j_00000001', [{ kind: 'interest', value: 'ציור' }], makeId).draft;
+
+    // Cancelled correction: its late answer changes nothing.
+    const cancelled = abandonIntakeJob(startIntakeJob(original, 'j_00000002', 'transcript', { supersedesJobId: 'j_00000001' }));
+    const late = merge(cancelled, transcriptResult('j_00000002', { facts: [{ kind: 'interest', value: 'שחייה' }] }), makeId);
+    expect(late.applied).toBe(false);
+    expect(kinds(finalRequest(late.draft).facts)).toEqual(['interest:ציור']);
+
+    // Failed correction, then a retry with a new job id that supersedes the same transcript.
+    const failed = failIntakeJob(
+      startIntakeJob(original, 'j_00000003', 'transcript', { supersedesJobId: 'j_00000001' }),
+      'j_00000003',
+    );
+    const retried = correct(failed, 'j_00000004', 'j_00000001', [{ kind: 'interest', value: 'שחייה' }], makeId);
+    expect(kinds(finalRequest(retried.draft).facts)).toEqual(['interest:שחייה']);
+    // The failed job's answer, if it ever arrived, is not the running job's.
+    const stray = merge(retried.draft, transcriptResult('j_00000003', { facts: [{ kind: 'interest', value: 'כדור' }] }), makeId);
+    expect(stray.applied).toBe(false);
+
+    // An unclear correction retires nothing.
+    const unclear = correct(original, 'j_00000005', 'j_00000001', [], makeId, { understood: false });
+    expect(unclear.applied && unclear.retired).toBe(0);
+    expect(kinds(finalRequest(unclear.draft).facts)).toEqual(['interest:ציור']);
   });
 });

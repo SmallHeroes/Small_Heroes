@@ -126,6 +126,12 @@ export type Fact = {
   revision: number;
   /** Comparison keys of values this fact held before a parent edit; a later proposal of one never returns. */
   previousKeys: string[];
+  /**
+   * True once the parent stated the detail themselves: typed it, pressed its chip, edited it, or
+   * adopted a proposal by typing it. Approving the shown list does not make a proposal parent-owned;
+   * a corrected transcript may therefore retire or question it, but never a parent-owned detail.
+   */
+  parentOwned: boolean;
 };
 
 /** The adventure's starting place. A story choice, never an address or a residence fact. */
@@ -135,18 +141,41 @@ export type StoryPlace = {
   status: 'proposed' | 'included';
   jobId?: string;
   revision: number;
+  /** Typed by the parent, or chosen by the parent in a question; see `Fact.parentOwned`. */
+  parentOwned: boolean;
 };
 
 export type ConflictField = 'name' | 'age' | 'storyPlace';
 
-/** A late or mismatching suggestion is shown next to the parent's value; it never overwrites it. */
-export type Conflict = {
-  id: string;
-  field: ConflictField;
-  proposed: string | number;
-  jobId: string;
-  source: 'transcript' | 'fixture';
-};
+/**
+ * Questions shown next to the list; none of them overwrites anything by itself.
+ * - name/age/storyPlace: a suggestion that differs from the current value.
+ * - stale_fact/stale_place: a corrected transcript no longer contains a detail the parent had already
+ *   approved; the parent decides whether it stays.
+ */
+export type Conflict =
+  | {
+      id: string;
+      field: ConflictField;
+      proposed: string | number;
+      jobId: string;
+      source: 'transcript' | 'fixture';
+    }
+  | {
+      id: string;
+      field: 'stale_fact';
+      factId: string;
+      value: string;
+      jobId: string;
+      source: 'transcript' | 'fixture';
+    }
+  | {
+      id: string;
+      field: 'stale_place';
+      value: string;
+      jobId: string;
+      source: 'transcript' | 'fixture';
+    };
 
 export type Intent = { kind: 'just_for_fun' } | { kind: 'topic'; topicId: string };
 
@@ -157,6 +186,11 @@ export type IntakeJobState = {
   basedOnRevision: number;
   source: 'transcript' | 'fixture';
   status: 'processing' | 'applied' | 'abandoned' | 'failed';
+  /**
+   * Set when the job re-organises a corrected transcript: the job whose transcript it replaces. Its
+   * unapproved proposals are retired instead of left to accumulate next to the corrected ones.
+   */
+  supersedesJobId?: string;
 };
 
 export type TranscriptView = {

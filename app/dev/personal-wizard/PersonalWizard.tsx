@@ -155,8 +155,8 @@ export function PersonalWizard({ options }: Props) {
     }
     update(() => outcome.draft);
     if (!outcome.understood) setIntakeNotice({ kind: 'not_understood' });
-    else if (outcome.added > 0 || outcome.suggestions > 0) {
-      setIntakeNotice({ kind: 'added', count: outcome.added, suggestions: outcome.suggestions });
+    else if (outcome.added > 0 || outcome.suggestions > 0 || outcome.retired > 0) {
+      setIntakeNotice({ kind: 'added', count: outcome.added, suggestions: outcome.suggestions, retired: outcome.retired });
     } else if (outcome.conflicts === 0) setIntakeNotice({ kind: 'nothing_new' });
     else setIntakeNotice(null);
   };
@@ -178,7 +178,10 @@ export function PersonalWizard({ options }: Props) {
    * One live job at a time; cancel and "continue without" abort it, and a late answer cannot land.
    * Returns false (and says so) when another job, live or example, is still processing.
    */
-  const runLiveJob = (submitJob: (jobId: string, signal: AbortSignal) => Promise<LiveIntakeResponse>): boolean => {
+  const runLiveJob = (
+    submitJob: (jobId: string, signal: AbortSignal) => Promise<LiveIntakeResponse>,
+    options: { supersedesJobId?: string } = {},
+  ): boolean => {
     if (read().intake?.status === 'processing') {
       setIntakeNotice({ kind: 'error', error: 'busy' });
       return false;
@@ -187,7 +190,7 @@ export function PersonalWizard({ options }: Props) {
     const controller = new AbortController();
     pendingLive.current?.controller.abort();
     pendingLive.current = { jobId, controller };
-    update((latest) => startIntakeJob(latest, jobId, 'transcript'));
+    update((latest) => startIntakeJob(latest, jobId, 'transcript', options));
     setIntakeNotice(null);
     void submitJob(jobId, controller.signal).then((response) => {
       if (pendingLive.current?.jobId === jobId) pendingLive.current = null;
@@ -214,8 +217,11 @@ export function PersonalWizard({ options }: Props) {
     if (started) setSentClip(clip.blob);
   };
 
+  // A corrected transcript replaces the one it corrects: its stale proposals are retired, not kept.
   const reorganizeTranscript = (text: string) => {
-    runLiveJob((jobId, signal) => submitTextIntake({ jobId, draftId: read().draftId, text, signal }));
+    runLiveJob((jobId, signal) => submitTextIntake({ jobId, draftId: read().draftId, text, signal }), {
+      supersedesJobId: read().transcript?.jobId,
+    });
   };
 
   // "Done, organise the details" requests exactly one submission; the controller hands it out once.

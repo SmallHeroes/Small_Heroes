@@ -136,12 +136,23 @@ export function addTypedFact(
   if (existing?.status === 'included') return { draft, outcome: 'duplicate' };
   if (existing?.status === 'proposed') {
     // The parent typed what a recording proposed: that is the parent's own statement now.
-    return { draft: replaceFact(draft, { ...existing, status: 'included', revision: draft.revision + 1 }), outcome: 'adopted' };
+    return {
+      draft: replaceFact(draft, { ...existing, status: 'included', parentOwned: true, revision: draft.revision + 1 }),
+      outcome: 'adopted',
+    };
   }
   if (storyFactCount(draft.facts) >= LIMITS.factsMax) return { draft, outcome: 'limit' };
   if (existing) {
     // Explicit re-entry of a removed detail restores it.
-    const restored: Fact = { ...existing, kind, value, source: 'typed', status: 'included', revision: draft.revision + 1 };
+    const restored: Fact = {
+      ...existing,
+      kind,
+      value,
+      source: 'typed',
+      status: 'included',
+      parentOwned: true,
+      revision: draft.revision + 1,
+    };
     return { draft: replaceFact(draft, restored), outcome: 'restored' };
   }
   const fact: Fact = {
@@ -152,6 +163,7 @@ export function addTypedFact(
     status: 'included',
     revision: draft.revision + 1,
     previousKeys: [],
+    parentOwned: true,
   };
   return { draft: next(draft, { facts: [...draft.facts, fact] }), outcome: 'added' };
 }
@@ -171,7 +183,7 @@ export function toggleChip(
   if (sameValue && sameValue.status !== 'removed') {
     // The detail already exists (typed or proposed); link the chip to it instead of duplicating.
     return {
-      draft: replaceFact(draft, { ...sameValue, chipId: chip.id, status: 'included', revision: draft.revision + 1 }),
+      draft: replaceFact(draft, { ...sameValue, chipId: chip.id, status: 'included', parentOwned: true, revision: draft.revision + 1 }),
       outcome: 'adopted',
     };
   }
@@ -189,6 +201,7 @@ export function toggleChip(
         value: chip.label,
         source: 'chip',
         status: 'included',
+        parentOwned: true,
         revision: draft.revision + 1,
         previousKeys,
       }),
@@ -204,6 +217,7 @@ export function toggleChip(
     chipId: chip.id,
     revision: draft.revision + 1,
     previousKeys: [],
+    parentOwned: true,
   };
   return { draft: next(draft, { facts: [...draft.facts, fact] }), outcome: 'added' };
 }
@@ -222,7 +236,10 @@ export function editFactValue(
   if (value.length > LIMITS.factValueMax) return { draft, outcome: 'too_long' };
   if (value === fact.value) {
     if (fact.status === 'proposed') {
-      return { draft: replaceFact(draft, { ...fact, status: 'included', revision: draft.revision + 1 }), outcome: 'saved' };
+      return {
+        draft: replaceFact(draft, { ...fact, status: 'included', parentOwned: true, revision: draft.revision + 1 }),
+        outcome: 'saved',
+      };
     }
     return { draft, outcome: 'unchanged' };
   }
@@ -234,7 +251,7 @@ export function editFactValue(
   const oldKey = comparableText(fact.value);
   const previousKeys = oldKey !== key && !fact.previousKeys.includes(oldKey) ? [...fact.previousKeys, oldKey] : fact.previousKeys;
   return {
-    draft: replaceFact(draft, { ...fact, value, status: 'included', revision: draft.revision + 1, previousKeys }),
+    draft: replaceFact(draft, { ...fact, value, status: 'included', parentOwned: true, revision: draft.revision + 1, previousKeys }),
     outcome: 'saved',
   };
 }
@@ -260,10 +277,10 @@ export function commitStoryPlace(draft: PersonalBookDraft, rawValue: string): Pe
       : draft.placeTombstones;
   return next(draft, {
     storyPlace: value
-      ? { value, source: 'typed', status: 'included', revision: draft.revision + 1 }
+      ? { value, source: 'typed', status: 'included', revision: draft.revision + 1, parentOwned: true }
       : null,
     placeTombstones: tombstones,
-    conflicts: draft.conflicts.filter((conflict) => conflict.field !== 'storyPlace'),
+    conflicts: draft.conflicts.filter((conflict) => conflict.field !== 'storyPlace' && conflict.field !== 'stale_place'),
   });
 }
 
@@ -318,9 +335,19 @@ export function startIntakeJob(
   draft: PersonalBookDraft,
   jobId: string,
   source: 'transcript' | 'fixture',
+  options: { supersedesJobId?: string } = {},
 ): PersonalBookDraft {
   // One job at a time: a newer job supersedes (abandons) any unfinished one.
-  return { ...draft, intake: { jobId, basedOnRevision: draft.revision, source, status: 'processing' } };
+  return {
+    ...draft,
+    intake: {
+      jobId,
+      basedOnRevision: draft.revision,
+      source,
+      status: 'processing',
+      ...(options.supersedesJobId ? { supersedesJobId: options.supersedesJobId } : {}),
+    },
+  };
 }
 
 export function abandonIntakeJob(draft: PersonalBookDraft): PersonalBookDraft {
@@ -346,6 +373,8 @@ export type MergeOutcome =
       conflicts: number;
       omitted: number;
       suggestions: number;
+      /** Unapproved proposals of a superseded transcript that the correction no longer contains. */
+      retired: number;
     }
   | {
       applied: false;
@@ -373,12 +402,68 @@ export function applyIntakeResult(
     transcript: result.transcript ? { jobId: job.jobId, text: result.transcript, source: result.source } : draft.transcript,
   };
   if (!extraction.understood) {
-    return { applied: true, draft: base, understood: false, added: 0, conflicts: 0, omitted: 0, suggestions: 0 };
+    // An unclear correction changes nothing: the earlier transcript's details stay as they were.
+    return { applied: true, draft: base, understood: false, added: 0, conflicts: 0, omitted: 0, suggestions: 0, retired: 0 };
   }
 
   let added = 0;
   let omitted = 0;
-  const facts = [...draft.facts];
+  let retired = 0;
+  let facts = [...draft.facts];
+  let storyPlace = draft.storyPlace;
+  let conflicts: Conflict[] = [...draft.conflicts];
+  let intentSuggestions = [...draft.intentSuggestions];
+
+  /*
+   * A corrected transcript REPLACES the transcript it corrects (job S). Details proposed by S:
+   * - still present in the correction: kept as they are (same id, same status);
+   * - removed by the parent: stay removed (tombstone), whatever the correction says;
+   * - parent-owned (typed, chipped, edited): kept; the parent's own statement is not the model's;
+   * - only proposed (never approved): retired, so they cannot accumulate next to the correction;
+   * - already approved via "continue": kept, with an explicit keep-or-remove question.
+   * Questions and topic suggestions raised by S are obsolete and dropped. Other recordings, typed
+   * and chip details are untouched.
+   */
+  const superseded = job.supersedesJobId;
+  if (superseded) {
+    const correctedKeys = new Set(extraction.facts.map((fact) => comparableText(fact.value)));
+    const kept: Fact[] = [];
+    const questions: Conflict[] = [];
+    for (const fact of facts) {
+      const fromSuperseded = fact.jobId === superseded && fact.status !== 'removed' && !fact.parentOwned;
+      if (!fromSuperseded || correctedKeys.has(comparableText(fact.value))) {
+        kept.push(fact);
+      } else if (fact.status === 'proposed') {
+        retired += 1;
+      } else {
+        kept.push(fact);
+        questions.push({
+          id: context.makeId('c'),
+          field: 'stale_fact',
+          factId: fact.id,
+          value: fact.value,
+          jobId: job.jobId,
+          source: result.source,
+        });
+      }
+    }
+    facts = kept;
+    conflicts = [...conflicts.filter((conflict) => conflict.jobId !== superseded), ...questions];
+    intentSuggestions = intentSuggestions.filter((item) => item.jobId !== superseded);
+    if (storyPlace && storyPlace.jobId === superseded && !storyPlace.parentOwned) {
+      const correctedPlace = extraction.storyPlace ? comparableText(extraction.storyPlace) : null;
+      if (correctedPlace !== comparableText(storyPlace.value)) {
+        if (storyPlace.status === 'proposed') {
+          storyPlace = null;
+          retired += 1;
+        } else if (!correctedPlace) {
+          conflicts.push({ id: context.makeId('c'), field: 'stale_place', value: storyPlace.value, jobId: job.jobId, source: result.source });
+        }
+        // An approved place with a different corrected place is asked below like any other mismatch.
+      }
+    }
+  }
+
   const seen = new Set<string>();
   for (const proposal of extraction.facts) {
     const key = comparableText(proposal.value);
@@ -396,18 +481,18 @@ export function applyIntakeResult(
       jobId: job.jobId,
       revision,
       previousKeys: [],
+      parentOwned: false,
     });
     added += 1;
   }
 
-  const conflicts: Conflict[] = [...draft.conflicts];
-  const pushConflict = (field: Conflict['field'], proposed: string | number) => {
-    const withoutField = conflicts.filter((conflict) => conflict.field !== field);
-    conflicts.length = 0;
-    conflicts.push(...withoutField, { id: context.makeId('c'), field, proposed, jobId: job.jobId, source: result.source });
+  const pushConflict = (field: 'name' | 'age' | 'storyPlace', proposed: string | number) => {
+    conflicts = [
+      ...conflicts.filter((conflict) => conflict.field !== field),
+      { id: context.makeId('c'), field, proposed, jobId: job.jobId, source: result.source },
+    ];
   };
 
-  let storyPlace = draft.storyPlace;
   if (extraction.storyPlace) {
     const key = comparableText(extraction.storyPlace);
     if (draft.placeTombstones.includes(key)) {
@@ -415,7 +500,14 @@ export function applyIntakeResult(
     } else if (storyPlace) {
       if (comparableText(storyPlace.value) !== key) pushConflict('storyPlace', extraction.storyPlace);
     } else {
-      storyPlace = { value: extraction.storyPlace, source: result.source, status: 'proposed', jobId: job.jobId, revision };
+      storyPlace = {
+        value: extraction.storyPlace,
+        source: result.source,
+        status: 'proposed',
+        jobId: job.jobId,
+        revision,
+        parentOwned: false,
+      };
       added += 1;
     }
   }
@@ -440,7 +532,6 @@ export function applyIntakeResult(
   }
 
   let suggestions = 0;
-  const intentSuggestions = [...draft.intentSuggestions];
   const topicId = extraction.explicitTopicId;
   if (
     topicId &&
@@ -460,6 +551,7 @@ export function applyIntakeResult(
     conflicts: conflicts.filter((conflict) => !draft.conflicts.some((old) => old.id === conflict.id)).length,
     omitted,
     suggestions,
+    retired,
   };
 }
 
@@ -472,6 +564,12 @@ export function resolveConflict(
   if (!conflict) return draft;
   const conflicts = draft.conflicts.filter((candidate) => candidate.id !== conflictId);
   if (choice === 'keep') return next(draft, { conflicts });
+  // "accept" = accept what the corrected transcript says: the stale detail goes, as a parent removal.
+  if (conflict.field === 'stale_fact') return next(removeFact(draft, conflict.factId), { conflicts });
+  if (conflict.field === 'stale_place') {
+    const cleared = commitStoryPlace(draft, '');
+    return next(cleared, { conflicts: cleared.conflicts.filter((candidate) => candidate.id !== conflictId) });
+  }
   if (conflict.field === 'name') {
     return next(draft, { child: { ...draft.child, name: String(conflict.proposed) }, conflicts });
   }
@@ -488,6 +586,7 @@ export function resolveConflict(
       status: 'included',
       jobId: conflict.jobId,
       revision: draft.revision + 1,
+      parentOwned: true,
     },
     placeTombstones,
     conflicts,
