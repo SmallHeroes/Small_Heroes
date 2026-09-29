@@ -40,24 +40,27 @@ describe('personal Wizard prototype boundaries', () => {
     }
   });
 
-  it('confines the provider SDK and key access to the two live-intake modules', () => {
-    const PROVIDER_SDK_ALLOWED = 'lib/personal-wizard/intake-openai.ts';
+  it('confines provider SDKs to the two isolated server adapters and key access to one module', () => {
+    const PROVIDER_SDK_ALLOWED = ['lib/personal-wizard/intake-openai.ts', 'lib/personal-wizard/story-openai.ts'];
     const KEY_READ_ALLOWED = 'lib/personal-wizard/intake-config.ts';
     for (const file of files) {
       const source = read(file);
       expect(source, file).not.toMatch(/elevenlabs/i);
-      if (file !== PROVIDER_SDK_ALLOWED) expect(source, file).not.toMatch(/from 'openai'/);
+      if (!PROVIDER_SDK_ALLOWED.includes(file)) expect(source, file).not.toMatch(/from 'openai'/);
       if (file !== KEY_READ_ALLOWED) expect(source, file).not.toMatch(/OPENAI_API_KEY/);
     }
-    expect(read(PROVIDER_SDK_ALLOWED)).toMatch(/maxRetries: 0/);
-    expect(read(PROVIDER_SDK_ALLOWED)).toMatch(/store: false/);
+    for (const file of PROVIDER_SDK_ALLOWED) {
+      expect(read(file)).toMatch(/maxRetries: 0/);
+      expect(read(file)).toMatch(/store: false/);
+      expect(read(file)).toMatch(/^import 'server-only';/);
+    }
   });
 
   it('keeps provider and server-only intake modules out of client components', () => {
     const clientFiles = files.filter((file) => file.startsWith('app/dev/personal-wizard/') && file !== 'app/dev/personal-wizard/page.tsx');
     for (const file of clientFiles) {
       expect(read(file), file).not.toMatch(
-        /^import (?!type)[^;]*from '@\/lib\/personal-wizard\/(intake-openai|intake-service|intake-gate|intake-config|intake-ledger|audio-probe)'/m,
+        /^import (?!type)[^;]*from '@\/lib\/personal-wizard\/(intake-openai|intake-service|intake-gate|intake-config|intake-ledger|audio-probe|story-openai|story-writer|story-access|story-config)'/m,
       );
     }
   });

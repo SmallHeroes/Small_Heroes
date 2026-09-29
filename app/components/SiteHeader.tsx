@@ -11,9 +11,14 @@ export type SiteHeaderProps = {
   variant?: 'full' | 'compact';
   /** Logo click asks before leaving (wizard). */
   confirmLeave?: boolean;
+  /** Isolated product previews may supply their own navigation; public defaults stay unchanged. */
+  navigation?: ReadonlyArray<{ label: string; href: string }>;
+  startHref?: string;
+  startLabel?: string;
+  homeHref?: string;
 };
 
-export function SiteHeader({ variant = 'full', confirmLeave = false }: SiteHeaderProps) {
+export function SiteHeader({ variant = 'full', confirmLeave = false, navigation, startHref = ROUTES.start, startLabel = 'ליצור ספר', homeHref = ROUTES.home }: SiteHeaderProps) {
   const [scrolled, setScrolled] = useState(false);
   const [user, setUser] = useState<AuthUser | null>(null);
   const rafRef = useRef<number | null>(null);
@@ -84,7 +89,7 @@ export function SiteHeader({ variant = 'full', confirmLeave = false }: SiteHeade
     <header className={headerClass}>
       <div className={styles.inner}>
         <div className={styles.startCluster}>
-          <Link href={ROUTES.home} className={logoClass} aria-label={COMMON.brand} onClick={onLogoClick}>
+          <Link href={homeHref} className={logoClass} aria-label={COMMON.brand} onClick={onLogoClick}>
             {/* the rounded diamond + yellow spark (per Guy) */}
             <svg className={styles.logoMark} viewBox="0 0 44 44" aria-hidden="true" focusable="false">
               <rect
@@ -109,6 +114,7 @@ export function SiteHeader({ variant = 'full', confirmLeave = false }: SiteHeade
 
           {variant === 'full' ? (
             <nav className={styles.navLinks} aria-label="ניווט ראשי">
+              {navigation ? navigation.map((link) => <a key={link.href} href={link.href} className={styles.navLinkDesktop}>{link.label}</a>) : <>
               <a href="/#how" className={styles.navLinkDesktop}>
                 איך זה עובד
               </a>
@@ -119,14 +125,15 @@ export function SiteHeader({ variant = 'full', confirmLeave = false }: SiteHeade
               <a href="/#about" className={styles.navLinkDesktop}>
                 קצת עלינו
               </a>
+              </>}
             </nav>
           ) : null}
         </div>
 
         <div className={styles.endCluster}>
           {variant === 'full' ? (
-            <a href={ROUTES.start} className={styles.navCta} data-event="nav_start_click">
-              ליצור ספר
+            <a href={startHref} className={styles.navCta} data-event="nav_start_click">
+              {startLabel}
             </a>
           ) : null}
           <AccountControl user={user} onAuthChange={onAuthChange} />

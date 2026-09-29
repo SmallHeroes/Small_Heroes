@@ -1,7 +1,9 @@
 /**
  * POST /api/dev/personal-wizard/request — validates a reviewed personal-book request for the
  * prototype and returns its server-derived identity. No provider, no database, no order, no
- * persistence, no logging of request content. The personal writer is not connected.
+ * persistence, no logging of request content. This endpoint never invokes a writer.
+ * Its legacy `writer: not_connected` marker describes validation-only behavior, not
+ * availability of the separate, explicitly gated /story pilot action.
  *
  * Gates: middleware 404s /api/dev on real production; `isDevEnvironment()`; the explicit
  * PERSONAL_WIZARD_PREVIEW flag; same-origin; per-IP rate limit; body byte ceiling.

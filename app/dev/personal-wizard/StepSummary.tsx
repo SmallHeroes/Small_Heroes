@@ -17,6 +17,7 @@ import { buildReviewedRequest, summarizeRequest } from '@/lib/personal-wizard/dr
 
 import type { WizardOptionsView } from './PersonalWizard';
 import styles from './personal-wizard.module.css';
+import { StoryPreview } from './StoryPreview';
 
 export type Submission =
   | { state: 'idle' }
@@ -253,6 +254,7 @@ export function StepSummary({ draft, options, titleRef, photoUrl, submission, on
           </details>
         ) : null}
       </div>
+      {submission.state === 'accepted' ? <StoryPreview request={submission.canonical} requestId={submission.requestId} stale={stale} onEdit={() => onEdit(1)} /> : null}
     </section>
   );
 }

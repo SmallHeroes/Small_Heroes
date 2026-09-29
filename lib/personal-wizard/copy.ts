@@ -49,7 +49,7 @@ export const HERO = {
     name && address ? `איפה ${name} ${g(address, 'גר', 'גרה')}?` : 'איפה גרים?',
   residencePlaceholder: 'למשל: חיפה, קיבוץ עין גדי',
   residenceRow: (value: string) => `מקום מגורים: ${value}`,
-  residenceHint: 'המקום שבו גרים. ההרפתקה יכולה להתחיל במקום אחר.',
+  residenceHint: 'יישוב או אזור כללי, בלי כתובת. ההרפתקה יכולה להתחיל במקום אחר.',
   errors: {
     child_name_missing: 'צריך שם לספר',
     child_name_invalid: 'אפשר להשתמש באותיות, רווח, גרש או מקף',
@@ -86,7 +86,7 @@ export function tellCopy(name: string, address: GrammaticalAddress | null) {
   const loves = known ? `${name} ${g(address, 'אוהב', 'אוהבת')}` : null;
   return {
     title: 'ספרו לנו על הילד שלכם',
-    lead: 'דקה אחת מספיקה. ספרו בחופשיות, ואנחנו נסדר את הפרטים.',
+    lead: 'ספרו בחופשיות על הדברים שאוהבים ועל מה שתרצו לתת לו מקום. את הפרטים תוכלו לבדוק ולתקן לפני שנכתוב.',
     voiceCta: 'ספרו לנו בקול',
     voiceCtaLocal: 'בדיקת מיקרופון',
     durationHint: 'חצי דקה עד דקה, בכל סדר שנוח לכם.',
@@ -98,7 +98,7 @@ export function tellCopy(name: string, address: GrammaticalAddress | null) {
     processingVoice: 'מפענחים את מה שסיפרתם',
     processingWritten: 'מפענחים את מה שכתבתם',
     processingFixture: 'מפענחים את הדוגמה',
-    processingStatus: 'מפענחים ומסדרים את הפרטים. עוד כמה שניות.',
+    processingStatus: 'מסדרים את הפרטים. בסיום תוכלו לבדוק, לתקן ולהחליט מה ייכנס לסיפור.',
     // What organising does, in order; shown one after another, never as a progress claim.
     decodeSteps: (written: boolean) => [
       written ? 'קוראים את מה שכתבתם' : 'מקשיבים להקלטה',
@@ -125,16 +125,16 @@ export function tellCopy(name: string, address: GrammaticalAddress | null) {
     lovesError: 'בחרו או כתבו לפחות דבר אחד',
     otherChip: 'משהו אחר',
     lovesOtherLabel: 'מה עוד?',
-    hardTitle: name ? `מה קשה ל${name}` : 'מה קשה',
+    hardTitle: name ? `יש משהו שתרצו לעזור ל${name} להתמודד איתו דרך הסיפור?` : 'יש משהו שתרצו לתת לו מקום בסיפור?',
     hardQuestion: name ? `מה קצת קשה ל${name} בזמן האחרון?` : 'מה קצת קשה בזמן האחרון?',
     hardHint: 'במילים שלכם, בלי אבחנות. הסיפור ייתן לזה מקום.',
     hardError: 'בחרו, כתבו, או סמנו שאין משהו מיוחד',
     hardNone: 'אין משהו מיוחד',
     hardNoneRow: 'אין משהו מיוחד שקשה עכשיו',
     hardOtherLabel: 'מה קשה, במילים שלכם?',
-    directionTitle: 'הסיפור יעזור עם',
+    directionTitle: 'הנושא שבחרתם לסיפור',
     directionFromHard: 'לפי מה שקשה',
-    directionRemovedNote: 'בלי כיוון, זו תהיה הרפתקה בשביל הכיף.',
+    directionRemovedNote: 'בלי נושא מסוים, נשאיר מקום לדמיון, לבחירות ולחברות בתוך ההרפתקה.',
     bonusTitle: 'עוד פרטים',
     bonusAdd: 'להוסיף עוד פרט',
     placeLabel: name ? `איפה מתחילה ההרפתקה של ${name}?` : 'איפה מתחילה ההרפתקה?',
@@ -320,8 +320,8 @@ export function companionCopy(name: string, address: GrammaticalAddress | null) 
     sub: 'בוחרים חבר או חברה לסיפור.',
     rosterNote: 'הדמויות מוצגות לבדיקת האבטיפוס. בחירה כאן עוד לא מאשרת את הדמות לאיור בספר.',
     missing: 'בחרו חבר או חברה לסיפור',
-    intentTitle: 'במה הסיפור יעזור?',
-    intentSub: 'לא חובה. אפשר גם הרפתקה בלי נושא מיוחד.',
+    intentTitle: 'הכיוון של הסיפור',
+    intentSub: 'אפשר לבחור משהו שתרצו לתת לו מקום, או להמשיך בלי קושי מסוים. בכל מקרה זו תהיה הרפתקה, לא שיעור.',
     justForFun: 'הרפתקה בשביל הכיף',
     clearIntent: 'בלי לבחור כיוון',
     suggestion: (label: string, source: 'transcript' | 'fixture' | 'chip') =>
@@ -331,7 +331,7 @@ export function companionCopy(name: string, address: GrammaticalAddress | null) 
           ? `בחרתם ש${g(address, 'קשה לו', 'קשה לה')}: ״${label}״. לבחור בזה?`
           : `במה שסיפרתם עלה: ״${label}״. לבחור בזה?`,
     suggestionAccept: 'לבחור',
-    suggestionDismiss: 'לא עכשיו',
+    suggestionDismiss: 'בלי הכיוון הזה',
     avoidTitle: 'מה לא תרצו שיופיע?',
     avoidHint: 'לא חובה. למשל: בלי כלבים גדולים. אין צורך להסביר למה.',
     avoidLimit: 'אפשר עד 5 דברים.',
@@ -350,7 +350,7 @@ export const LENGTH_COPY: Record<string, { name: string; depth: string }> = {
 
 export function bookCopy(name: string) {
   return {
-    title: 'איך הספר ייראה ויישמע',
+    title: 'אורך ואפשרויות הספר',
     photoTitle: `תמונה של ${name}`,
     optional: 'לא חובה',
     photoPick: 'בחירת תמונה',
@@ -368,7 +368,7 @@ export function bookCopy(name: string) {
     noSample: 'דוגמה תתווסף בהמשך',
     lengthTitle: 'כמה ארוך הספר?',
     lengthNote:
-      'כל הספרים הם הרפתקה עם קסם ופנטזיה. ההבדל הוא באורך ובעומק העלילה. מחיר וזמינות ייקבעו כשהכתיבה האישית תחובר.',
+      'בכל אורך, הרפתקה עם קסם, הומור ורגעים של בחירה ועזרה. ההבדל הוא באורך ובעומק העלילה. המחיר והפקת הספר המלא עדיין אינם זמינים בניסוי.',
     pages: (count: number) => `${count} עמודים`,
     clearChoice: 'לבחור אחר כך',
   };
@@ -388,7 +388,7 @@ export function summaryCopy(name: string, address: GrammaticalAddress | null) {
     residenceLine: (value: string) => `מקום מגורים: ${value}`,
     noDifficulty: 'אין משהו מיוחד שקשה עכשיו',
     noFacts: 'בלי פרטים נוספים. הסיפור יתבסס על הבחירות שמסרתם.',
-    intentHelps: (label: string) => `הסיפור יעזור עם: ${label}`,
+    intentHelps: (label: string) => `הכיוון של הסיפור: ${label}`,
     intentNone: 'הרפתקה בלי נושא מיוחד',
     avoid: (items: readonly string[]) => `בלי: ${items.join(', ')}`,
     photoNone: 'בלי תמונה',
@@ -398,10 +398,10 @@ export function summaryCopy(name: string, address: GrammaticalAddress | null) {
     fixtureWarning: 'חלק מהפרטים הם דוגמה מוכנה ולא מידע שמסרתם.',
     connectionTitle: 'מה קורה בלחיצה',
     connectionBody:
-      'נבדוק את הבקשה בשרת האבטיפוס ונכין את הפרטים. יצירת הספר עדיין לא מחוברת, ולכן לא ייכתב סיפור, לא ייווצרו איורים ולא יהיה חיוב.',
+      'נבדוק את הפרטים בשרת. הבדיקה הזו אינה כותבת סיפור ואינה עולה כסף. לאחריה אפשר להתחיל כתיבת טיוטת טקסט בניסוי מורשה. איורים, קריינות ורכישה עדיין אינם מחוברים למסלול הזה.',
     finish: 'לסיים את בקשת הספר',
     finishing: 'בודקים את הבקשה',
-    accepted: 'הפרטים מוכנים. יצירת הספר עדיין לא מחוברת באבטיפוס הזה.',
+    accepted: 'הפרטים נבדקו ומוכנים. כתיבת טיוטה היא פעולה נפרדת בהמשך המסך.',
     requestId: (id: string) => `מזהה הבקשה: ${id}`,
     payload: 'מה הבקשה נושאת (לבדיקה)',
     rejected: 'השרת לא קיבל את הבקשה. אפשר לתקן ולנסות שוב.',

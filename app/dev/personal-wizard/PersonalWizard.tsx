@@ -15,6 +15,8 @@ import {
   randomId,
   requestIssues,
   setPhotoChoice,
+  setCompanion,
+  setLength,
   startIntakeJob,
 } from '@/lib/personal-wizard/draft';
 import { runFixtureIntake, type FixtureExampleId } from '@/lib/personal-wizard/intake-fixture';
@@ -57,6 +59,21 @@ type Props = {
 
 export function PersonalWizard({ options }: Props) {
   const { draft, update, read } = useDraftStore();
+  // Optional, non-authoritative product-preview choices. Unknown/legacy direction hints are ignored.
+  const prefilled = useRef(false);
+  useEffect(() => {
+    if (prefilled.current) return;
+    prefilled.current = true;
+    const params = new URLSearchParams(window.location.search);
+    const companion = params.get('companion');
+    const length = params.get('length');
+    update((current) => {
+      let next = current;
+      if (!next.companionId && companion && options.companions.some((item) => item.id === companion)) next = setCompanion(next, companion);
+      if (!next.bookOptions.lengthId && options.lengths.some((item) => item.id === length)) next = setLength(next, length);
+      return next;
+    });
+  }, [options.companions, options.lengths, update]);
   const recorder = useRecorder();
   const playback = usePlayback();
   const [step, setStep] = useState<Step>(1);

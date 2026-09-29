@@ -1,5 +1,58 @@
 # SmallHeroes — Current Technical State
 
+## Personal story product pilot — active (2026-09-30)
+
+Codex is implementing on isolated `codex/personal-story-product`, based on
+`fd2b26bdd694e95fcea68393da97df35b2cf97d4`, at
+`C:/Users/guyna/.codex/worktrees/personal-story-product/Small_Heroes`.
+This section supersedes the older “writer not connected” product state below;
+the pure request validator keeps that legacy marker for compatibility and never
+writes/charges. The separate `/story` capability endpoint controls pilot availability.
+No independent technical PASS is claimed for this new milestone. No push/deployment.
+
+- **Product:** personal Hebrew fantasy adventures with resilience/coping central,
+  not just a personalised gift. A chosen difficulty is optional; concrete child
+  choices, mutual help and a modest ending matter. No treatment/outcome promise.
+- **Local design:** `/dev/personal-product` preserves the approved visual language
+  and assets, with a revised hero, an early explicitly hand-written synthetic
+  example, six freely chosen companions and length-only wizard links. Public `/`
+  and `/start` remain on their existing flow; this is not a public rollout.
+- **Writer:** strict reviewed facts -> whole-story plan -> bound manuscript,
+  8/12/16 spreads representing 16/24/32 display pages. Server-resolved companion,
+  optional topic, explicit exclusions, no transcript/photo input. Result remains
+  `pending_product_review`, `runtimeEligible:false`; no render/source authority.
+- **Money/security:** operator-only loopback development, default-off flags,
+  existing key, explicit priced model, two calls maximum, no retries/fallback.
+  Per-process reservations are not durable cross-instance/family budget authority.
+- **Live observation:** two intermediate-code text trials stopped at plan coverage,
+  one call each. Estimates $0.037582 + $0.038606 = **$0.076188**, not invoice charges;
+  reservations $0.9372 against the $1 fence. No images/audio or third paid call.
+  r2 had eight beats numbered `[1,2,5,7,8,1,1,1]`; the first raw response was not saved.
+  Final adapter attaches deterministic metadata to exact ordered arrays; the final
+  version has **not completed a successful live manuscript**, including resilience.
+- **Verification:** final `npx tsc --noEmit` 0; 256/256 focused tests in 14 specs;
+  browser desktop 1440x900 and mobile 390x844, no horizontal overflow. Companion
+  and length handoffs work, removed fixture fact absent from accepted request,
+  optional topic null and writing disabled honestly in the no-key demo.
+- **Full gate RED:** ordinary 368 files, 23 failures (10 artifact/content signatures,
+  13 timeouts); resource 20 files, 635 tests passed but 3 unhandled `onTaskUpdate`
+  RPC timeouts, both native phase exits 1. The six timed-out specs passed in a
+  separate single-worker run, 102/102. No untouched-base reproduction or causal
+  attribution of all full-gate failures; no stability/release closure.
+
+Plans, decisions, limits and adversarial targets:
+`docs/ai-workflow/PERSONAL_STORY_PRODUCT_DECISION.md`,
+`PERSONAL_PRODUCT_UX_COPY_SEO_SPEC.md`, `PERSONAL_STORY_PRODUCT_EVIDENCE.md`.
+Next: Claude Code independently reviews this exact new commit; Guy judges the local
+copy/design. Then re-prove the bounded live text chain before any visual bridge.
+The local evidence under `outputs/` is ignored/untracked, with no verified off-machine
+backup; a Git push does not preserve it. Current localhost server has paid intake
+and writing OFF, synthetic nonfunctional service settings, and no real data connection.
+
+The previous prototype correction/motion PASS is bounded to its supplied ranges,
+ending at `fd2b26bd`; it does not cover this pilot. Historical pending statements
+below are retained as history rather than rewritten as a new PASS.
+
 ## Personal Wizard prototype v2 — CURRENT (2026-09-29); Claude implements, Codex reviews
 
 Branch `codex/personal-wizard-prototype` (no upstream, unpushed), worktree

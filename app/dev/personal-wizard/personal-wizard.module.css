@@ -1806,3 +1806,12 @@
     animation: none;
   }
 }
+.manuscript {
+  margin-top: 24px;
+  line-height: 1.9;
+  overflow-wrap: anywhere;
+}
+.manuscript section {
+  padding: 16px 0;
+  border-bottom: 1px solid var(--pw-border, #ddd);
+}

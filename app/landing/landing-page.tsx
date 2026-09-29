@@ -15,6 +15,7 @@ import { HeroDoodles, ValueDoodles, HelpsDoodles } from './hero-doodles';
 import { HeroCollage } from './hero-collage';
 import { NameMoment, type HeroChild } from './name-moment';
 import { HearPage } from './hear-page';
+import { PersonalStoryMoment } from './personal-story-moment';
 import childHandoff from '@/public/JS/hero-child-handoff';
 import { CompanionSpotlight } from '@/app/components/CompanionSpotlight';
 import { warmCompanionIdleVideos } from '@/lib/web/companion-idle-video';
@@ -77,15 +78,17 @@ type LandingPageProps = {
   content: LandingContent;
   startHref: string;
   matrixCategories: MvpMatrixCategoryPayload[];
+  personalPreview?: boolean;
 };
 
-export default function LandingPage({ content: L, startHref, matrixCategories }: LandingPageProps) {
+export default function LandingPage({ content: L, startHref, matrixCategories, personalPreview = false }: LandingPageProps) {
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(null);
 
   /* Optional same-tab prefill, expiring after 30 minutes. Browser access stays
      after hydration; a stored value never changes the server's initial markup. */
   const [child, setChild] = useState<HeroChild>({ name: '', gender: 'boy' });
   useEffect(() => {
+    if (personalPreview) return;
     try {
       childHandoff.retireLegacy(window.localStorage);
     } catch { /* persistent storage can be disabled independently */ }
@@ -95,7 +98,7 @@ export default function LandingPage({ content: L, startHref, matrixCategories }:
     } catch {
       /* storage optional */
     }
-  }, []);
+  }, [personalPreview]);
   const onChildChange = useCallback((next: HeroChild) => {
     setChild(next);
     try {
@@ -107,17 +110,17 @@ export default function LandingPage({ content: L, startHref, matrixCategories }:
 
   const heroName = child.name.trim();
   const girl = child.gender === 'girl';
-  const h1Line1 = heroName ? `הפעם, ${heroName}` : girl ? 'הפעם, הילדה שלכם' : L.hero.h1Line1;
-  const h1Line2 = heroName || girl
+  const h1Line1 = personalPreview ? L.hero.h1Line1 : heroName ? `הפעם, ${heroName}` : girl ? 'הפעם, הילדה שלכם' : L.hero.h1Line1;
+  const h1Line2 = !personalPreview && (heroName || girl)
     ? girl ? 'היא הגיבורה של הסיפור.' : 'הוא הגיבור של הסיפור.'
     : L.hero.h1Line2;
-  const ctaPrimary = heroName
-    ? `להתחיל את הספר של ${heroName}`
-    : girl ? 'להתחיל את הספר שלה' : L.hero.ctaPrimary;
-  const sampleLine1 = heroName
+  const ctaPrimary = !personalPreview && heroName
+    ? `${personalPreview ? 'מתחילים את הסיפור' : 'להתחיל את הספר'} של ${heroName}`
+    : girl && !personalPreview ? 'להתחיל את הספר שלה' : L.hero.ctaPrimary;
+  const sampleLine1 = !personalPreview && heroName
     ? `${heroName} לא ${girl ? 'מקבלת' : 'מקבל'} שיעור.`
-    : girl ? 'הילדה שלכם לא מקבלת שיעור.' : L.sample.h2Line1;
-  const sampleLine2 = heroName || girl
+    : !personalPreview && girl ? 'הילדה שלכם לא מקבלת שיעור.' : L.sample.h2Line1;
+  const sampleLine2 = !personalPreview && (heroName || girl)
     ? girl ? 'היא מקבלת תפקיד ראשי.' : 'הוא מקבל תפקיד ראשי.'
     : L.sample.h2Line2;
   /* Companion Spotlight - home cards open the companion dialog instead of navigating. */
@@ -140,13 +143,13 @@ export default function LandingPage({ content: L, startHref, matrixCategories }:
 
   return (
     <>
-      <div className="landing-body" data-motion="on">
+      <div className={'landing-body' + (personalPreview ? ' personal-product' : '')} data-motion="on">
         <a href="#main" className="skip-link">
           דילוג לתוכן
         </a>
         {/* 2026: thin scroll-progress bar — pure CSS scroll-timeline, no JS (falls back to hidden) */}
         <div className="scroll-progress" aria-hidden="true" />
-        <SiteHeader variant="full" />
+        <SiteHeader variant="full" startHref={personalPreview ? startHref : undefined} startLabel={personalPreview ? L.hero.ctaPrimary : undefined} homeHref={personalPreview ? '/dev/personal-product' : undefined} navigation={personalPreview ? [{ label: 'קטע לדוגמה', href: '#personal-story-example' }, { label: 'איך זה עובד', href: '#how' }, { label: 'החברים', href: '#helps' }] : undefined} />
 
         <main id="main">
           <section className="hero">
@@ -162,7 +165,7 @@ export default function LandingPage({ content: L, startHref, matrixCategories }:
                 </h1>
                 <p className="hero-sub2" data-reveal="hero" data-reveal-delay="120">{L.hero.sub}</p>
 
-                <NameMoment child={child} onChange={onChildChange} />
+                {!personalPreview ? <NameMoment child={child} onChange={onChildChange} /> : <p className="personal-pilot-note">תצוגת פיתוח. בסיום ההיכרות תקבלו כרטיס פרטים לעריכה, עדיין לא ספר מלא.</p>}
 
                 <div className="hero-btns" data-reveal="hero" data-reveal-delay="180">
                   <a
@@ -175,10 +178,11 @@ export default function LandingPage({ content: L, startHref, matrixCategories }:
                   {/* lands on the sample section — the book itself (a video of
                       it, once Guy's clip exists). The gallery is a look, not a
                       sample, so it is no longer the destination. */}
-                  <a href="#sample" className="btn-light">
+                  <a href={personalPreview ? '#personal-story-example' : '#sample'} className="btn-light">
                     {L.hero.ctaSecondary}
                   </a>
                 </div>
+                {personalPreview ? <ul className="personal-hero-notes">{L.hero.ctaNotes.map((note) => <li key={note}>{note}</li>)}</ul> : null}
 
               </div>
 
@@ -200,6 +204,8 @@ export default function LandingPage({ content: L, startHref, matrixCategories }:
               </div>
             </div>
           </section>
+
+          {personalPreview ? <PersonalStoryMoment /> : null}
 
           {/* מה מקבלים — the concrete promise, straight after the hero */}
           {/* the storybook sky continues here and fades out inside this
@@ -245,8 +251,8 @@ export default function LandingPage({ content: L, startHref, matrixCategories }:
                       the matrix source untouched. */}
                   {/* one short emotional line per card; the grey description
                       paragraph was dropped per Guy (people don't read it) */}
-                  const marketing = L.helps.cards[slot.category];
-                  const displaySlot = { ...slot, oneLiner: '' };
+                  const marketing = personalPreview ? null : L.helps.cards[slot.category];
+                  const displaySlot = { ...slot, label: personalPreview ? slot.companion.name : slot.label, companion: personalPreview ? { ...slot.companion, name: '' } : slot.companion, oneLiner: '' };
                   return (
                     <CategoryChallengeCard
                       key={slot.category}
@@ -254,6 +260,7 @@ export default function LandingPage({ content: L, startHref, matrixCategories }:
                       lead={marketing?.lead}
                       as="button"
                       onClick={(event) => {
+                        if (personalPreview) { window.location.assign(`${startHref}?companion=${encodeURIComponent(slot.companion.id)}`); return; }
                         const rect = event.currentTarget.getBoundingClientRect();
                         setSpotlight({
                           slot: displaySlot,
@@ -262,7 +269,7 @@ export default function LandingPage({ content: L, startHref, matrixCategories }:
                         });
                       }}
                       data-event="landing_companion_spotlight_open"
-                      data-category={slot.category}
+                      data-category={personalPreview ? undefined : slot.category}
                       data-reveal="up"
                       data-reveal-delay={String(80 + index * 55)}
                     />
@@ -288,7 +295,7 @@ export default function LandingPage({ content: L, startHref, matrixCategories }:
                 <p className="sample-p" data-reveal="up" data-reveal-delay="120">{L.sample.p1}</p>
                 <p className="sample-p sample-p--soft" data-reveal="up" data-reveal-delay="160">{L.sample.p2}</p>
 
-                <HearPage />
+                <HearPage label={personalPreview ? 'להאזין לדוגמת קול' : undefined} />
 
                 {/* The CTA that pointed at the gallery is gone (per Guy: the
                     gallery is show, not a sample). The sample IS this section —
@@ -303,6 +310,7 @@ export default function LandingPage({ content: L, startHref, matrixCategories }:
                     alt="המחשה - דוגמה לספר מותאם אישית"
                     loading="lazy"
                   />
+                  {personalPreview ? <figcaption>המחשת עיצוב בלבד, לא ספר אישי שהושלם</figcaption> : null}
                 </figure>
               </div>
             </div>
@@ -473,17 +481,17 @@ export default function LandingPage({ content: L, startHref, matrixCategories }:
                         <li key={feature}>{feature}</li>
                       ))}
                     </ul>
-                    <div className="price-num">
+                    {!personalPreview ? <div className="price-num">
                       <span className="price-now">
                         ₪<span className="price-now-digits">{card.price}</span>
                       </span>
-                    </div>
+                    </div> : null}
 
                     <a
                       className="btn-primary price-cta"
-                      href={`${startHref}${startHref.includes('?') ? '&' : '?'}direction=${card.direction}`}
+                      href={`${startHref}${startHref.includes('?') ? '&' : '?'}${personalPreview ? `length=${['short', 'medium', 'long'][index]}` : `direction=${card.direction}`}`}
                       data-event="landing_pricing_cta"
-                      data-direction={card.direction}
+                      data-direction={personalPreview ? undefined : card.direction}
                     >
                       {card.cta}
                     </a>

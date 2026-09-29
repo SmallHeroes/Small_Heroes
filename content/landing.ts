@@ -310,7 +310,8 @@ export const LANDING_COPY = {
   },
 } as const;
 
-export type LandingContent = ReturnType<typeof getLandingContent>;
+type CopyShape<T> = T extends string ? string : T extends readonly (infer U)[] ? readonly CopyShape<U>[] : T extends object ? { [K in keyof T]: CopyShape<T[K]> } : T;
+export type LandingContent = CopyShape<ReturnType<typeof getLandingContent>>;
 
 function pricingCardsFromMatrix(categories: MvpMatrixCategoryPayload[]) {
   const ref = categories[0]?.directions;

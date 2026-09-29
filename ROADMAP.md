@@ -8,6 +8,24 @@ This roadmap records technical milestone state. Guy can change product priority 
 
 ## Active
 
+### P-personal — voice-first personal adventure product pilot (2026-09-30)
+
+- **Product decision:** resilience/coping is central; difficulty selection remains
+  optional. Six companion personalities and three lengths, not genre-based plans.
+- **Implemented locally, pending independent QA:** reviewed-request text writer
+  plans the whole story before prose; scoped personal landing/design and wizard links.
+  Public site, orders, accepted-source bank and image QA are not cut over.
+- **Evidence/limits:** focused 256/256 and tsc 0; full repository gate RED. Two live
+  text trials were held before manuscript, estimated $0.076188. Final deterministic
+  numbering and resilience schema have offline proof but no successful live book.
+- **Next order:** independent technical QA and Guy's design/copy acceptance ->
+  bounded live manuscript -> semantic/editorial acceptance -> approved visual plan
+  bridge -> smallest qualified illustration sequence -> narration/package.
+- **Before public rollout:** durable jobs/recovery, cross-instance spend/idempotency,
+  privacy/deletion policy, truthful pricing/checkout and release qualification.
+- **No shortcut:** schema compliance is not literary/visual accuracy; no implicit
+  render, promotion, publication, push or deployment authority.
+
 ### R0 — Establish one engineering operating model
 
 - **Goal:** make Codex the technical owner and primary implementer, Claude Code the independent technical QA, Claude Cowork the product/creative consultant, and Guy the product owner.

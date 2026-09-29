@@ -1,0 +1,33 @@
+/* Isolated extension of Claude's approved paper / purple / Suez language.
+   No changes to public-page tokens, artwork or legacy layout. */
+.personal-product .hero-h1 { font-size: clamp(36px, 4.6vw, 62px); line-height: 1.2; }
+.personal-product .hero-sub2 { max-width: 48ch; }
+.personal-product .personal-pilot-note { max-width: 48ch; margin: 0 0 24px; font-size: 14px; line-height: 1.65; color: var(--n-600); }
+.personal-product .personal-hero-notes { display: flex; flex-wrap: wrap; gap: 8px 20px; padding: 0; margin: 20px 0 0; list-style: none; font-size: 14px; color: var(--purple-700); }
+.personal-product .personal-hero-notes li { border-inline-start: 2px solid var(--purple-200); padding-inline-start: 10px; }
+.personal-story-example { padding: 80px 0; background: var(--purple-50); scroll-margin-top: 90px; }
+.personal-example-kicker { width: fit-content; margin: 0 auto 12px; padding: 5px 14px; border-radius: 10px; background: var(--yellow-400); color: var(--n-900); font-size: 14px; font-weight: 700; }
+.personal-story-example .section-h2 { max-width: 24ch; margin-inline: auto; text-wrap: balance; }
+.personal-example-layout { display: grid; grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.6fr); gap: 28px; margin: 36px auto 0; max-width: 1000px; align-items: start; }
+.personal-profile { padding: 28px; border: 1px solid var(--purple-200); border-radius: 20px; background: #fff; }
+.personal-profile h3, .personal-excerpt h3 { font-family: var(--font-suez), var(--fd); font-size: 22px; margin: 0 0 18px; font-weight: 400; color: var(--purple-700); }
+.personal-profile ul { list-style: none; display: flex; flex-wrap: wrap; gap: 8px; padding: 0; margin: 0; }
+.personal-profile li { padding: 7px 12px; border-radius: 12px; background: var(--purple-50); color: var(--n-700); font-size: 15px; line-height: 1.5; }
+.personal-profile p { margin: 20px 0 0; font-size: 13px; color: var(--n-600); }
+.personal-excerpt { padding: 32px; border-radius: 20px; background: #fff; box-shadow: var(--shadow-card); }
+.personal-excerpt blockquote { padding: 0; margin: 0; border: 0; }
+.personal-excerpt blockquote p { margin: 0 0 14px; font-size: 18px; line-height: 1.8; color: var(--n-800); }
+.personal-example-reflection { margin: 24px 0 0; padding-top: 20px; border-top: 1px solid var(--purple-100); color: var(--purple-700); font-size: 15px; line-height: 1.7; }
+.personal-example-disclosure { max-width: 74ch; margin: 24px auto 0; color: var(--n-600); font-size: 13px; line-height: 1.6; text-align: center; }
+.personal-product .sample-book-illustration figcaption { color: #fff; font-size: 13px; line-height: 1.6; margin-top: 12px; }
+@media (max-width: 860px) {
+  .personal-example-layout { grid-template-columns: 1fr; gap: 16px; }
+  .personal-story-example { padding: 56px 0; }
+  .personal-profile, .personal-excerpt { padding: 24px; }
+  .personal-product .personal-hero-notes { justify-content: center; }
+  .personal-product .personal-pilot-note { margin-inline: auto; }
+}
+@media (max-width: 420px) {
+  .personal-product .hero-h1 { font-size: 34px; }
+  .personal-excerpt blockquote p { font-size: 17px; }
+}

@@ -12,7 +12,7 @@ const SAMPLE_SRC = '/voice-samples/4RZ84U1b4WCqpu57LvIq.mp3';
  * lamp glow behind the book, a pulse ring on the button) - the page shows
  * the parent what bedtime with this book sounds like.
  */
-export function HearPage() {
+export function HearPage({ label = 'לשמוע איך זה נשמע' }: { label?: string }) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [playing, setPlaying] = useState(false);
 
@@ -62,7 +62,7 @@ export function HearPage() {
             </svg>
           )}
         </span>
-        <span className="hear-btn-label">{playing ? 'מנגן... ללחוץ לעצירה' : 'לשמוע איך זה נשמע'}</span>
+        <span className="hear-btn-label">{playing ? 'מנגן... ללחוץ לעצירה' : label}</span>
       </button>
       <span className="hear-hint">קטע קצר בקול של אמא, מתוך הקריינות</span>
       <audio

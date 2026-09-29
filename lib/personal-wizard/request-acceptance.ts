@@ -18,7 +18,7 @@ export type AcceptanceResult =
       canonical: ReviewedPersonalBookRequest;
       optionsFingerprint: string;
       containsFixtureData: boolean;
-      /** The personal writer/runtime is not connected; nothing is written, rendered or charged. */
+      /** Legacy validation-only marker, not /story pilot availability. This pure boundary never writes/renders/charges. */
       writer: 'not_connected';
     }
   | { ok: false; issues: AcceptanceIssue[] };
