@@ -1113,3 +1113,194 @@ section-12 rework.
   - the observer's `evidence.json`;
   - screenshots.
 - The protected d53b and accepted-intent worktrees were untouched.
+
+## 12. Voice-first v2: Guy's review after the trial (2026-09-29)
+
+**Commits:**
+- `b2acfbd6`: the v2 flow and contract.
+- `e7b25322`: the provider-call record (F4).
+- This documentation commit.
+
+Re-gate range: `c655bc4c..` this documentation commit.
+
+### 12.1 Decision gate (brief)
+
+- **Proposed change:** Guy's review, in chat after the trial.
+  - Five must-haves: name, age, where the child lives, what they love, what is hard.
+    Everything else is a bonus, and whatever the recording lacks is asked afterwards.
+  - The grammatical address comes from the recording, not a question.
+  - Start screen: text above and one big button below. The only alternatives are
+    "prefer chips" (chips shown per question) and "prefer writing".
+  - While recording: the must-haves as cues. While processing: only an animation,
+    nothing else on the screen.
+  - All six companions, by name only.
+  - No story type: every book is adventure with fantasy, and tiers differ only in
+    length and plot depth.
+- **Guy's two decisions (chat):**
+  - "Collect during recording": cues now; live capture later, as a separate decision.
+  - "What is hard": it becomes the story's direction by default, and the parent can
+    remove it.
+- **Why now:** live trial F1 lost everything hard for the child, and it was the
+  product owner's review.
+- **Scope:** a general change to the dev-only prototype. No production wiring, no
+  story-specific data, no hard-coded child or companion. The topic mapping uses the
+  configured topic list; companions come from the configured roster, and a companion
+  without card art on disk is dropped.
+- **Cost:** none. Tests use fakes, and the browser checks ran on a fixture-mode server
+  with no provider key and live intake off. A v2 live trial needs a new authorization.
+- **Rollback:** revert the two commits. No flag, env or data change.
+- **Do not:**
+  - no paid calls;
+  - no change to production prices, packages or the story bank;
+  - no push.
+
+### 12.2 What changed
+
+- **Extraction v2**
+  - `loves`, `hard` and `bonus` are separate arrays with their own `maxItems` (6/4/8),
+    listed before the bonus details.
+  - New fields: `mentionedAddress` (boy/girl only from the parent's grammar; never from
+    the name or the voice; null when absent or mixed), `residence` (a place name) and
+    `hardTopicId` (the best-matching allowed topic for what is hard).
+  - The sanitizer takes the must-haves first, so a bonus detail that repeats one is the
+    one dropped. Group ceilings are enforced again in the contract (`too_many_*`).
+  - A `hardTopicId` survives only with a surviving difficulty.
+  - The "loves" verb is removed from values (F3), and the instruction says "every
+    detail appears once" (F2).
+- **Draft v5**
+  - Address and residence are single-valued basics with the name/age rules: filled
+    when empty, questioned otherwise, and replaced or retired by a correction of their
+    own job. The chain hand-off also covers an unclear correction.
+  - Residence is no longer a fact kind. `difficulty` is new.
+  - Ceilings are per group everywhere: typed, chip, merge and request.
+  - `noDifficulty` is the parent's "nothing special". A heard or added difficulty
+    replaces it, and it cannot be set while a difficulty is listed.
+- **What is hard becomes the direction**
+  - A heard `hardTopicId` is proposed as `reason: 'hard'`, unless the parent asked for
+    a topic (`reason: 'asked'` wins). A "what is hard" chip proposes its topic as a
+    `source: 'chip'` suggestion.
+  - A single pending suggestion is adopted by "continue", as before. A chip adoption
+    is the parent's own (no `suggestedBy`).
+  - Removal is durable (tombstone). Removing the last difficulty withdraws a pending
+    hard suggestion without a tombstone.
+- **Request v3 (server-enforced):**
+  - `child.residence`, `addressSource` and `residenceSource`;
+  - at least one love;
+  - either difficulties or `noDifficulty`, never both;
+  - `bookOptions.lengthId` instead of `packageId`;
+  - fixture provenance now also follows the address and residence.
+- **Screens:**
+  - **Start:** only the text, the button and the two alternatives. The privacy line
+    stays in live mode: the parent must know the audio goes to a provider. The test
+    tools sit in a closed `<details>`.
+  - **Recording:** timer, level, the five cues, finish and cancel.
+  - **Processing:** the animation, one line and cancel. Progress, notices and the
+    bottom bar are hidden.
+  - **Card:** name, age, address and residence rows (value with its provenance badge,
+    or the question), then "what they love", "what is hard", "the story will help
+    with", the bonus details, and "add another detail".
+  - **Chips mode:** the same card with every question open.
+  - **Write mode:** the same text extraction job as a transcript correction, with its
+    own processing title and privacy line. The text survives a failed or cancelled job.
+- **Other steps:**
+  - Six companions, names only.
+  - Length tiers 16/24/32 pages, from the catalogue's beat counts, described by plot
+    depth and shown without prices.
+  - The summary shows residence, the two must-have lists, the companion by name, and
+    "the story will help with".
+- **Removed:** the "still recording / still processing" prompts. "Continue" now exists
+  only with the card, and the recording and processing screens carry their own finish
+  and cancel. A defensive guard stays in `continueFromTell`.
+- **Provider record (`e7b25322`, F4)**
+  - Each call is recorded: kind, model, `sent`, outcome, ms, usage numbers and
+    estimate.
+  - Numbers only; they are returned and logged next to the reservation.
+  - The estimate is not a bill.
+  - `sent` is false when the job was already aborted as the call started.
+
+### 12.3 Decisions to confirm (Guy) or challenge (Codex)
+
+1. **The address from the parent's grammar** reverses the v1 rule "never heard". It is
+   never taken from the name or the voice, and it is asked when not heard.
+2. **`hardTopicId` is a model best-match:** a deliberate, visible exception to "never
+   infer". It is only a suggestion, and removable.
+3. **Residence is required,** because Guy said the five must appear. It is stored as
+   the parent's words, is not an address, and is never used as the adventure's place.
+4. **The ceilings (6/4/8)** are engineering defaults, not product numbers.
+5. **Length tiers** reuse the bedtime/adventure/fantasy beat counts. Mapping them to
+   production prices and the story bank is a separate gate: payments, the story bank,
+   and `resolveStoryProductTruth`.
+6. **Semantic duplicates (F2)** are handled by instruction only; the code catches exact
+   duplicates.
+
+### 12.4 Falsification targets for Codex
+
+1. **Crowding out:** can a bonus-heavy answer still push out a love or a difficulty
+   anywhere? That covers the schema, sanitizer, merge, manual add, chips and the
+   request schema.
+2. **Address from the name:** can the address come from the name, or from anything
+   other than `mentionedAddress`? Mixed or absent forms must leave it unset.
+3. **Correction chains for address and residence:** do they follow the name/age
+   behavior? Replace or retire an unapproved value, question an approved or typed one,
+   hand off through an unclear correction.
+4. **The hard-derived direction:**
+   - removal durability;
+   - withdrawal when the last difficulty goes;
+   - a chip never overriding a chosen or pending direction;
+   - adoption provenance.
+5. **`noDifficulty`:** difficulties and `noDifficulty` are mutually exclusive, both in
+   the draft and on the server.
+6. **Focused screens:** is there any path to approve the list behind an unfinished
+   recording or job?
+7. **Writing:** one job under the same ledger, gate and log rules, and the text is
+   kept on failure.
+8. **Call record:** no content in the logged calls; the `sent` semantics; estimates
+   never presented as billed.
+
+### 12.5 Evidence
+
+- **Type check and tests:** tsc 0.
+  - Prototype tests 153/153 at `e7b25322`; 150/150 at `b2acfbd6`.
+  - Draft spec 63, extraction 11, service 17.
+- **Full check (on the intermediate tree, before the split):** RED exactly like the
+  base.
+  - **Ordinary phase:** 364 files, the same 10 unrelated failures, 4901 passed, 73
+    skipped. The failures are page-entity-qa, story-read-back-validation, the
+    visual-direction lifecycle and reserved-page placement.
+  - **Resource phase:** 635/635, with the same `on_task_update_rpc_timeout` gate.
+- **Full check at the head `e7b25322`:** RED exactly like the base.
+  - **Ordinary phase:** 364 files, 10 failed, 4904 passed, 73 skipped (4987). The
+    failing set is byte-identical to the intermediate run, and none of it is in the
+    prototype.
+  - That is +3 against the intermediate run (the F4 tests) and +12 prototype tests
+    against the `04546f4a` base (141 to 153).
+  - **Resource phase:** 635/635, with the same `on_task_update_rpc_timeout` gate.
+  - No timeout or pinned count changed.
+- **Browser, fixture mode:** a loopback dev server with no provider key, live intake
+  off and placeholder env values. Viewed at 375×812 and 1440×900.
+  - The start, processing, card, chips, write, companion, length and summary screens
+    all render.
+  - Continue with missing must-haves shows each field's error and focuses the name.
+  - The sparse example asks exactly name, age, residence and what is hard.
+  - A "what is hard" chip proposes and adopts its topic.
+  - The request was accepted as `reviewed-personal-book-request/v3`, with provenance
+    per value (address `fixture`; name, age and residence `typed`; difficulty `chip`;
+    intent `night` without `suggestedBy`; length `long`).
+  - A fake microphone showed the recording screen with the five cues. A stubbed live
+    status showed the live start screen (privacy line) and the write screen (send
+    enabled); the stub answered only the status route and blocked anything else.
+  - Screenshots stay in the session scratchpad (`v2/shots/`): start at 390 and 1440,
+    the live start, recording, processing, the full card of the complete example, and
+    the live write screen. No real child data is in them.
+
+### 12.6 Not done or unverified
+
+- **A real-audio run of v2:** it needs Guy's new authorization. The suggested scope
+  stays at two samples (complete and sparse), within $1.
+  - The call record now lets that run separate the reservation, the usage-based
+    estimate and any bill.
+- **Live capture while the parent speaks:** deferred by Guy. It needs a streaming
+  provider path and its own cost gate.
+- **Production:** replacing story types with length tiers in prices, packages and the
+  story bank is a separate decision gate, with Codex as technical owner.
+- **Browsers:** Safari/iOS is still unverified.
