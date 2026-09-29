@@ -24,8 +24,19 @@ for the active state; they remain as history.
   - P1-1 is not fully closed. Answering "remove" on a corrected transcript's stale-detail
     question discarded the new keep/remove question about the direction, so the direction went
     through without a decision.
-- **Successor:** `cbda44b8` fixes that path, followed by the documentation commit (evidence doc
-  §14). It awaits Codex's re-gate of `7086b0f0..` that commit.
+- **Successor:** `cbda44b8` fixes that path; `d05faeab` documents it (evidence doc §14).
+- **Codex re-gate of `7086b0f0..d05faeab`: technical PASS, P0 0 / P1 0 / P2 0.**
+  - It closes the residual stale-fact/direction P1.
+  - It covers that exact range only. It is not an all-branch, release, live-voice, product or
+    repository-stability PASS.
+- **Never reviewed as a range:** `4b6bb761..684d2c10`, that is `31fbcd37` (UI) and `684d2c10`
+  (docs). No approval applies to it retroactively.
+- **Stability stays open:**
+  - The full check is RED with the inherited failures.
+  - In Codex's re-gate, the first focused run (started alongside tsc) failed 4 audio-probe tests:
+    3 timed out at 5 s, and the temp-file count read 0 instead of 1.
+  - They passed alone and on a rerun of the same command.
+  - The cause is not established; evidence doc §14.6 has a reading.
 
 ### What v2 is now
 
@@ -45,8 +56,10 @@ for the active state; they remain as history.
     or reworded before approval; after approval, the parent answers an explicit keep-or-remove
     question.
   - This also holds when the removal comes from answering a corrected transcript's question.
-    Codex's re-gate found that path open at `7086b0f0`; `cbda44b8` fixes it, pending Codex's
-    re-gate.
+    Codex's re-gate found that path open at `7086b0f0`. `cbda44b8` fixes it, and Codex passed
+    `7086b0f0..d05faeab`.
+  - That path is proven at the model, request and server-acceptance boundaries, not in a
+    browser: a transcript correction needs the live text extraction.
   - The request marks it as derived, and the server refuses it when no difficulty is left.
 - **Parent corrections and exclusions are final:**
   - An edited detail is the parent's own.

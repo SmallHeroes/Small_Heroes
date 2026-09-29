@@ -1566,3 +1566,47 @@ not rewritten.
 - **Range:** `7086b0f0..` this documentation commit.
 - **Frozen probes:** Codex's probes (`…-4b6bb761/` and `…-7086b0f0/`) were read and copied, never
   rewritten.
+
+### 14.6 Codex re-gate of `7086b0f0..d05faeab`: technical PASS
+
+**Verdict:** P0 0 / P1 0 / P2 0 for that exact range. It closes the residual
+stale-fact/direction P1.
+
+- **Not covered:** this is not an all-branch, release, live-voice, product or
+  repository-stability PASS.
+- **Never reviewed as a range:** `4b6bb761..684d2c10` (`31fbcd37` UI, `684d2c10` docs). No
+  approval applies to it retroactively.
+
+**What Codex verified independently** (its own probe; the old module loaded from Git, not checked
+out):
+
+- **The four combinations,** each at the base and at the head:
+  - the base reproduces the bypass;
+  - the head keeps the question and refuses to build (`direction_unconfirmed`);
+  - keep = the parent's choice, with no `basis`;
+  - remove = null, and it stays null after a correction and after a new recording.
+- **Further checks:**
+  - an unrelated name question is byte-identical throughout;
+  - re-answering the closed question is a no-op;
+  - the input draft is not mutated;
+  - an asked topic stays valid;
+  - two consecutive removals keep exactly one question;
+  - a similar-detail restoration keeps the decision open.
+
+**Codex's own focused runs:** tsc 0, and the focused suite finished at 183/183 (176 prototype + 7
+classifier) on a rerun. The first run, started alongside tsc, was 179 passed / 4 failed, in
+`audio-probe.spec.ts`:
+- 3 tests timed out at 5000 ms;
+- the temp-file count assertion read 0 instead of 1.
+
+The same spec passed alone (11/11), and the same full command passed on the rerun. Codex did not
+establish the cause.
+
+**My reading, from the code only (not reproduced):**
+- **The timeouts:** the real-media tests spawn ffmpeg to make and decode tones of up to 120 s,
+  under vitest's default 5 s per-test timeout. Under CPU contention they can run past it.
+- **The file count:** the assertion compares a global count of `pw-intake-*` files in the OS
+  temp folder. A timed-out sibling's measurement keeps running in the background, so its temp
+  file can exist when the check starts and be gone when it ends. That fits "0 instead of 1": the
+  count went down, not up. It points to a knock-on of the timeouts, not a leak.
+- **Status:** a candidate follow-up, not part of this milestone. Stability stays open.
