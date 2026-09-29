@@ -1548,6 +1548,12 @@
   outline: none;
 }
 
+/* The link recipe sits at the start of a column; on the focused screens it belongs in the middle. */
+.processingView .linkButton,
+.recordingActions .linkButton {
+  align-self: center;
+}
+
 .processingSub {
   margin: 0;
   font-size: 15px;
