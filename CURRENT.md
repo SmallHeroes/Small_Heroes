@@ -1,5 +1,39 @@
 # SmallHeroes — Current Technical State
 
+## Personal Wizard prototype: voice-first rework — 2026-09-29; Claude implements, Codex reviews
+
+This follows Guy's direct review, as the brief "ההקלטה היא המסלול הראשי, הפרטים הם
+התוצאה שלה", on branch `codex/personal-wizard-prototype`. It is a separate range on top
+of the frozen QA-correction head `1a22af62`; the QA-fix commits are untouched.
+
+| Commit | Change |
+| --- | --- |
+| `a3dd9c92` | Model: a recording may fill the EMPTY name/age as suggestions. It never overwrites; a correction replaces or retires its own; "continue" approves. The address is never extracted. A single requested direction is approved with the shown list; the companion never is. |
+| `c85ebccc` | UI: the hero form and the meet step became one voice-first step, "ספרו לנו קצת על הילד שלכם" (four steps). |
+| `996cb68b` | Editing a heard age focuses the chosen age. |
+
+The voice-first step:
+
+- **The recording comes first.** With live processing off, it says prominently
+  "בדיקת מיקרופון בלבד, כרגע לא מפענחים פרטים.".
+- **The details card sits directly under it.** Its title is "זה מה שהבנו על …" when
+  the data came from a recording. Heard values show with edit; only missing
+  required values are asked; the address is always explicit.
+- **"מעדיפים לכתוב או לבחור?"** opens the same chips and fields.
+- **One continue: "אלה הפרטים, ממשיכים".**
+
+Evidence:
+
+- **Tests:** tsc 0; 136 prototype tests plus classifier 7/7.
+- **Browser:** voice-first 59/59, adapted P1 99/99, adapted P2 38/38.
+- **Full check:** RED exactly as at the base. The same 10 ordinary failures, and
+  resource 635/635 with the same gate. +136 tests, all prototype.
+- **Details:** section 9 of the evidence doc, including before/after screenshots.
+
+The acceptance proof (real audio → real transcription → card → correction →
+request) is shown only with **simulated** intake answers. The real provider path is
+**UNVERIFIED**: no key read, $0. It needs Guy's key and spend approval.
+
 ## Personal Wizard prototype P1 + P2 + QA correction batch — 2026-09-29; Claude implements, Codex reviews
 
 Per Guy's explicit assignment for this milestone only (brief:

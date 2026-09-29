@@ -726,3 +726,170 @@ uses no new screen.
 - No Safari/iOS or physical-device QA.
 - No push, deployment, order, payment or render.
 - No self-PASS: Codex re-gates, and Guy owns product acceptance.
+
+## 9. Voice-first rework: the recording is the main path, the details are its result
+
+Source: the follow-up brief "לקלוד: ההקלטה היא המסלול הראשי, הפרטים הם התוצאה שלה"
+(2026-09-29), written after Guy reviewed the prototype and pasted to Claude by Guy
+under the same split: Claude implements, Codex reviews. The brief's own observation
+was that the recording existed, but a large manual form sat right below it. With
+live processing off, the screen could not show any result.
+
+This is a **separate range on top of the frozen QA-correction head `1a22af62`**. It
+does not touch the QA-fix commits. Range: `1a22af62..` this documentation commit (code
+head `996cb68b`).
+
+### 9.1 What changed
+
+| Commit | Change |
+| --- | --- |
+| `a3dd9c92` | Model (draft v3; request contract unchanged at v2); see below. |
+| `c85ebccc` | UI (details below the table). |
+| `996cb68b` | Self-review fix: "עריכה" on a heard age moves focus to the chosen age instead of dropping it to the page. |
+
+**Model, `a3dd9c92`:**
+
+- **Name and age.** A recording, or the labelled example, may fill an EMPTY name
+  or age with a suggestion owned by its job (`child.nameJobId` / `ageJobId`).
+  - A filled value is never overwritten, only questioned.
+  - A correction replaces or retires its own unapproved suggestion; the chain
+    continues; an unclear correction hands it on.
+  - "Continue" approves the suggestion.
+- **Address.** The grammatical address is never extracted.
+- **Direction.** A single direction the parent asked for is approved with the
+  shown list. Two or more are left to the parent. The parent's own choice wins,
+  and the companion is never chosen.
+- **Name normalization.** `commitChildName` normalizes without changing
+  provenance.
+- **Test example.** A third labelled test-panel example, the brief's
+  illustration.
+
+**UI:**
+
+- **Four steps instead of five.** The old hero form and the old meet step became
+  one step, "ספרו לנו קצת על הילד שלכם", with the brief's lead text.
+- **The recording card comes first.** Its CTA and notes are truthful:
+  - live: "ספרו לנו בקול", and it says up front that "done" sends the recording
+    and shows what was understood;
+  - live off: a prominent "בדיקת מיקרופון בלבד, כרגע לא מפענחים פרטים." and the
+    button "בדיקת מיקרופון";
+  - a short suggested length, not a minimum.
+- **The details card is directly under it.** It appears only when there is
+  something real: a result, a value, the manual path, or a continue attempt. It
+  never shows fields pretending to be results.
+  - Title: "זה מה שהבנו על …" when anything came from a recording; otherwise
+    "הפרטים על …". Example data never reads as "what we understood".
+  - Heard name and age appear as values with "עריכה" and a source badge.
+  - Missing required values appear as fields, so only those are asked.
+  - The address is always an explicit choice.
+  - Conflicts and correction questions are inline.
+  - Every detail is editable and removable. A removed detail stays out of the
+    book.
+  - The requested direction appears as its own group.
+- **"מעדיפים לכתוב או לבחור?"** is one visible toggle under the card. It opens the
+  same chips and fields: other, adventure place (separate from residence), extra
+  detail. They feed the same card, and switching loses nothing.
+- **One continue: "אלה הפרטים, ממשיכים".**
+  - If recording or processing is still running, it asks first.
+  - Missing basics are shown in the card, with focus on the first one.
+  - Otherwise it approves the one shared version and moves on.
+- **Accessible status.** The result is announced in a `role=status` line and
+  focus is not moved. The processing state is text, not only colour.
+- **Conflict wording.** "כתבתם" is used only when the parent typed the current
+  value; otherwise the question says "ברשימה מופיע".
+
+### 9.2 Decisions to confirm (Guy) or challenge (Codex)
+
+1. **A requested direction is approved with the card.** This deliberately changes
+   the P1 rule "offered, not selected":
+   - the brief lists the direction among the extracted, editable values, and one
+     continue advances that version;
+   - it can be removed in the card and changed on step 2;
+   - two or more are never chosen for the parent.
+2. **Four steps instead of five.** The basics moved into the voice-first step, so
+   the parent reaches the microphone without filling a form first.
+3. **Typed basics stay fields; heard basics show as values with "edit".** Nothing
+   collapses under the cursor.
+4. **With live off, the CTA is "בדיקת מיקרופון".** It is not presented as the full
+   experience.
+5. **The manual toggle sits under the card** (disclosure order). In manual mode
+   the card shows the basics first, and the fields follow the toggle.
+
+### 9.3 Evidence at `996cb68b`
+
+The full check ran at `c85ebccc`. `996cb68b` changes one UI component that no spec
+reads except the static boundary checks, which pass at `996cb68b`.
+
+- **tsc:** 0.
+- **Prototype suites:** 136 tests in 9 files (draft 51, recorder 21, intake-service 14, audio-probe 11, request-acceptance 9, intake-extraction 9, intake-routes 9, prototype-boundary 7, intake-live-client 5), plus the classifier 7/7.
+- **New model tests (8)**, including the brief's example through server
+  acceptance. On the same inputs, the previous `draft.ts` drops a heard name and
+  age and never adopts the direction.
+- **Changed old assertions (on purpose, by this brief):**
+  - the companion step moved from step 3 to step 2 (`reports missing required
+    choices by step`);
+  - the P1 browser checks "direction offered, not selected" became "direction
+    shown in the card is approved with it";
+  - the P1 "step 2 copy" check now reads the manual copy.
+- **Browser**, headless Chrome, fake microphone, placeholder env, no provider:
+  - **Voice-first harness: 59/59.** It includes the age-focus check, which fails
+    without `996cb68b` (58/59).
+    - Live off:
+      - the honest banner and CTA; no form, fields or card up front;
+      - the mic test sends nothing and shows no card;
+      - the manual path shows the same fields, and switching loses nothing;
+      - example data is labelled and never reads as understood;
+      - continuing with nothing asks exactly name, age and address, with focus
+        on the name;
+      - 390 px has no overflow.
+    - Live, with simulated server answers:
+      - processing is an accessible status, with no card;
+      - the brief's sentence becomes name, age, residence, interest, habit and
+        the "רעשים ואזעקות" direction, with no place, family or fear invented;
+      - focus is not stolen;
+      - a detail edited in place survives a transcript correction that retires
+        "אודם" for "חיפה";
+      - a second recording's different name is a question, never an overwrite;
+      - a refused recording deletes nothing;
+      - only the missing address is asked.
+      - The request then carries exactly the corrected version: child
+        `transcript/transcript` with an explicit address; facts `habit:לוחש
+        לכדור לפני כל בעיטה`, `interest:כדורגל` and `residence:חיפה`, all
+        `transcript`; `storyPlace` null; intent `sirens`, `suggestedBy:
+        transcript`; three uploads for three recordings.
+    - A recording without name or age asks name, age and address.
+  - **Adapted P1 harness:** 99/99 (was 97). The old checks run on the new step: errors, focus, chips, edits, example conflicts, cancel, continue-while-processing, companion, book, summary, payload v2, storage, external calls, beforeunload, permission denied, cancel during permission, hidden page, keyboard, example provenance through server acceptance, responsive 390/720/1440.
+  - **Adapted P2 harness:** 38/38. The live and simulated checks run on the new step, including the approved-then-corrected-twice flow.
+- **Before/after screenshots**, synthetic data only:
+  `C:\Users\guyna\AppData\Local\Temp\claude\C--GNart-Work-Small-Heroes\af9211ff-30ea-426d-9794-43cad9ee3788\scratchpad\voice-before\`
+  and `...\voice-after\`.
+- **Full check:** `npm run check` at `c85ebccc` is RED exactly as at the base.
+  - **Ordinary phase:** 364 files, 10 failed, 4887 passed, 73 skipped (4970).
+    These are the same 10 failures as section 8.3: missing `outputs/` artifacts.
+    That is +8 tests against `1c8287b5` and +136 against the base, all prototype.
+  - **Resource phase:** 20 files, 635/635, with the same
+    `on_task_update_rpc_timeout` gate.
+  - No timeout or pinned count changed.
+
+### 9.4 The acceptance proof the brief asks for
+
+The brief's acceptance chain is: real audio → real transcription → extracted
+details visible at once → a detail corrected → a validated request carrying only
+the corrected version.
+
+What is proven here:
+
+- the whole chain in the real UI, with a real MediaRecorder recording from a fake
+  microphone;
+- the real request and validation server;
+- **simulated** intake answers for the transcription and extraction step.
+
+That step is **not proven**:
+
+- no key was read, no provider was called, and the cost is $0;
+- a fixture or a working microphone button is not a substitute, and this document
+  does not claim one.
+
+The live trial needs Guy's explicit approval of key use and spend. The brief's cap
+is $1 for two short samples from a synthetic voice or a consenting adult, with the
+operator allowlist; the env block is in section 5b. No push, deployment or book.
