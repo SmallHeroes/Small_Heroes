@@ -2,7 +2,7 @@ import 'server-only';
 
 import OpenAI, { toFile } from 'openai';
 
-import type { LiveIntakeConfig } from './intake-config';
+import type { LiveIntakeConfig, ProviderUsage } from './intake-config';
 import { TRANSCRIBE_CONTEXT_PROMPT } from './intake-extraction';
 import type { IntakeProvider } from './intake-service';
 
@@ -14,7 +14,18 @@ import type { IntakeProvider } from './intake-service';
  *   provider's own abuse-monitoring retention still applies (see the evidence document).
  * - The `languages` hint of gpt-transcribe is deliberately not sent until a live trial proves the
  *   multipart encoding; the documented free-text `prompt` carries the Hebrew context instead.
+ * - Each call reports the provider's usage numbers (tokens, seconds), flattened; never content.
  */
+export function numericUsage(value: unknown, prefix = ''): ProviderUsage | null {
+  if (!value || typeof value !== 'object') return null;
+  const out: ProviderUsage = {};
+  for (const [key, entry] of Object.entries(value as Record<string, unknown>)) {
+    if (typeof entry === 'number' && Number.isFinite(entry)) out[`${prefix}${key}`] = entry;
+    else if (entry && typeof entry === 'object') Object.assign(out, numericUsage(entry, `${prefix}${key}.`) ?? {});
+  }
+  return Object.keys(out).length > 0 ? out : null;
+}
+
 export function createOpenAiIntakeProvider(
   config: Pick<LiveIntakeConfig, 'apiKey' | 'transcribeModel' | 'extractModel'>,
 ): IntakeProvider {
@@ -26,7 +37,7 @@ export function createOpenAiIntakeProvider(
         { model: config.transcribeModel, file, prompt: TRANSCRIBE_CONTEXT_PROMPT, response_format: 'json' },
         { signal },
       );
-      return { text: response.text };
+      return { text: response.text, usage: numericUsage((response as { usage?: unknown }).usage) };
     },
     async extract({ instructions, userText, schema, maxOutputTokens, signal }) {
       const response = await client.responses.create(
@@ -48,7 +59,7 @@ export function createOpenAiIntakeProvider(
         },
         { signal },
       );
-      return { status: response.status ?? 'unknown', outputText: response.output_text ?? '' };
+      return { status: response.status ?? 'unknown', outputText: response.output_text ?? '', usage: numericUsage(response.usage) };
     },
   };
 }

@@ -13,9 +13,12 @@ import { sniffAudioContainer, type AudioMeasurement, type ProviderAudioContainer
 import {
   INTAKE_HARD_LIMITS,
   MAX_TRANSCRIPT_BYTES,
+  extractionEstimateUsd,
   extractionUpperBoundUsd,
+  transcriptionEstimateUsd,
   transcriptionUpperBoundUsd,
   type LiveIntakeConfig,
+  type ProviderUsage,
 } from './intake-config';
 import {
   EXTRACTION_INSTRUCTIONS,
@@ -38,14 +41,33 @@ import { MIN_CLIP_MS, baseMimeType } from './recorder';
  * contract-validated result. No step retries a provider call.
  */
 export type IntakeProvider = {
-  transcribe(input: { audio: Buffer; container: ProviderAudioContainer; signal: AbortSignal }): Promise<{ text: string }>;
+  transcribe(input: {
+    audio: Buffer;
+    container: ProviderAudioContainer;
+    signal: AbortSignal;
+  }): Promise<{ text: string; usage?: ProviderUsage | null }>;
   extract(input: {
     instructions: string;
     userText: string;
     schema: object;
     maxOutputTokens: number;
     signal: AbortSignal;
-  }): Promise<{ status: string; outputText: string }>;
+  }): Promise<{ status: string; outputText: string; usage?: ProviderUsage | null }>;
+};
+
+/**
+ * One provider call of a job, for honest accounting (live trial F4): which calls were made, how
+ * long they took and what the provider reported, never content. `sent` is false when the job was
+ * already aborted as the call started, so the request could not have left.
+ */
+export type ProviderCallRecord = {
+  kind: 'transcribe' | 'extract';
+  model: string;
+  sent: boolean;
+  outcome: 'ok' | 'failed';
+  ms: number;
+  usage: ProviderUsage | null;
+  estimatedUsd: number | null;
 };
 
 export type IntakeServiceDeps = {
@@ -76,9 +98,13 @@ export type IntakeFailureCode =
   | 'extraction_malformed'
   | 'client_aborted';
 
+/**
+ * `reservedUsd` is the conservative ledger reservation; `estimatedUsd` the usage-based estimate
+ * (null when a call reported no usage). Neither is a bill.
+ */
 export type IntakeOutcome =
-  | { ok: true; result: IntakeResult; reservedUsd: number }
-  | { ok: false; status: number; code: IntakeFailureCode };
+  | { ok: true; result: IntakeResult; reservedUsd: number; estimatedUsd: number | null; calls: ProviderCallRecord[] }
+  | { ok: false; status: number; code: IntakeFailureCode; calls?: ProviderCallRecord[] };
 
 const PROVIDER_AUDIO_TYPES: ReadonlySet<string> = new Set(['audio/webm', 'audio/mp4']);
 const MIN_AUDIO_BYTES = 512;
@@ -124,6 +150,33 @@ function guardSignal(parent: AbortSignal | undefined, timeoutMs: number) {
   };
 }
 
+/** Times and records one provider call, including a call that fails or is aborted. */
+async function tracked<T extends { usage?: ProviderUsage | null }>(
+  calls: ProviderCallRecord[],
+  call: { kind: ProviderCallRecord['kind']; model: string; signal: AbortSignal; estimate: (result: T) => number | null },
+  run: () => Promise<T>,
+): Promise<T> {
+  const started = Date.now();
+  const sent = !call.signal.aborted;
+  try {
+    const result = await run();
+    const usage = result.usage ?? null;
+    calls.push({ kind: call.kind, model: call.model, sent, outcome: 'ok', ms: Date.now() - started, usage, estimatedUsd: call.estimate(result) });
+    return result;
+  } catch (error) {
+    calls.push({ kind: call.kind, model: call.model, sent, outcome: 'failed', ms: Date.now() - started, usage: null, estimatedUsd: null });
+    throw error;
+  }
+}
+
+/** The job's estimate: the sum when every call that ran reported enough to estimate it. */
+function totalEstimate(calls: readonly ProviderCallRecord[]): number | null {
+  if (calls.length === 0) return 0;
+  return calls.every((call) => call.estimatedUsd !== null)
+    ? calls.reduce((sum, call) => sum + (call.estimatedUsd ?? 0), 0)
+    : null;
+}
+
 function extractionReserveUsd(deps: IntakeServiceDeps): number {
   const topicIds = deps.topics.map((topic) => topic.id);
   const fixedBytes =
@@ -135,18 +188,23 @@ function extractionReserveUsd(deps: IntakeServiceDeps): number {
 
 async function extract(
   provider: IntakeProvider,
-  topics: IntakeServiceDeps['topics'],
+  deps: Pick<IntakeServiceDeps, 'topics' | 'config'>,
   transcript: string,
   signal: AbortSignal,
+  calls: ProviderCallRecord[],
 ): Promise<IntakeExtraction> {
+  const { topics } = deps;
   const topicIds = topics.map((topic) => topic.id);
-  const answer = await provider.extract({
-    instructions: EXTRACTION_INSTRUCTIONS,
-    userText: buildExtractionUserText(transcript, topics),
-    schema: extractionJsonSchema(topicIds),
-    maxOutputTokens: INTAKE_HARD_LIMITS.extractMaxOutputTokens,
-    signal,
-  });
+  const model = deps.config.extractModel;
+  const answer = await tracked(calls, { kind: 'extract', model, signal, estimate: (result) => extractionEstimateUsd(model, result.usage ?? null) }, () =>
+    provider.extract({
+      instructions: EXTRACTION_INSTRUCTIONS,
+      userText: buildExtractionUserText(transcript, topics),
+      schema: extractionJsonSchema(topicIds),
+      maxOutputTokens: INTAKE_HARD_LIMITS.extractMaxOutputTokens,
+      signal,
+    }),
+  );
   if (answer.status !== 'completed') throw new ExtractionMalformedError();
   let json: unknown;
   try {
@@ -157,11 +215,17 @@ async function extract(
   return sanitizeExtraction(json, new Set(topicIds));
 }
 
-function failureFor(error: unknown, guard: { timedOut: () => boolean }, parent?: AbortSignal): IntakeOutcome {
-  if (error instanceof ExtractionMalformedError) return fail(502, 'extraction_malformed');
-  if (guard.timedOut()) return fail(504, 'provider_timeout');
-  if (parent?.aborted) return fail(499, 'client_aborted');
-  return fail(502, 'provider_failed');
+function failureFor(
+  error: unknown,
+  guard: { timedOut: () => boolean },
+  parent: AbortSignal | undefined,
+  calls: ProviderCallRecord[],
+): IntakeOutcome {
+  const withCalls = (outcome: IntakeOutcome): IntakeOutcome => (outcome.ok ? outcome : { ...outcome, calls });
+  if (error instanceof ExtractionMalformedError) return withCalls(fail(502, 'extraction_malformed'));
+  if (guard.timedOut()) return withCalls(fail(504, 'provider_timeout'));
+  if (parent?.aborted) return withCalls(fail(499, 'client_aborted'));
+  return withCalls(fail(502, 'provider_failed'));
 }
 
 export async function runAudioIntake(
@@ -190,14 +254,20 @@ export async function runAudioIntake(
   if (!begin.ok) return fail(LEDGER_STATUS[begin.code], begin.code);
 
   const guard = guardSignal(input.signal, deps.timeoutMs ?? INTAKE_HARD_LIMITS.providerTimeoutMs);
+  const calls: ProviderCallRecord[] = [];
   try {
     const provider = deps.createProvider();
-    const transcription = await provider.transcribe({ audio: input.bytes, container, signal: guard.signal });
+    const model = deps.config.transcribeModel;
+    const transcription = await tracked(
+      calls,
+      { kind: 'transcribe', model, signal: guard.signal, estimate: () => transcriptionEstimateUsd(model, durationMs) },
+      () => provider.transcribe({ audio: input.bytes, container, signal: guard.signal }),
+    );
     const transcript = normalizeText(String(transcription.text ?? '')).slice(0, LIMITS.transcriptMax).trim();
     const extraction =
       comparableText(transcript).length < MIN_UNDERSTANDABLE_CHARS
         ? notUnderstoodExtraction()
-        : await extract(provider, deps.topics, transcript, guard.signal);
+        : await extract(provider, deps, transcript, guard.signal, calls);
     const result = intakeResultSchema.parse({
       jobId: input.jobId,
       source: 'transcript',
@@ -205,10 +275,10 @@ export async function runAudioIntake(
       extraction,
     });
     deps.ledger.finish(input.userId, input.jobId, 'done');
-    return { ok: true, result, reservedUsd };
+    return { ok: true, result, reservedUsd, estimatedUsd: totalEstimate(calls), calls };
   } catch (error) {
     deps.ledger.finish(input.userId, input.jobId, 'failed');
-    return failureFor(error, guard, input.signal);
+    return failureFor(error, guard, input.signal, calls);
   } finally {
     guard.dispose();
   }
@@ -230,17 +300,18 @@ export async function runTextIntake(
   if (!begin.ok) return fail(LEDGER_STATUS[begin.code], begin.code);
 
   const guard = guardSignal(input.signal, deps.timeoutMs ?? INTAKE_HARD_LIMITS.providerTimeoutMs);
+  const calls: ProviderCallRecord[] = [];
   try {
     const extraction =
       comparableText(text).length < MIN_UNDERSTANDABLE_CHARS
         ? notUnderstoodExtraction()
-        : await extract(deps.createProvider(), deps.topics, text, guard.signal);
+        : await extract(deps.createProvider(), deps, text, guard.signal, calls);
     const result = intakeResultSchema.parse({ jobId: input.jobId, source: 'transcript', transcript: text, extraction });
     deps.ledger.finish(input.userId, input.jobId, 'done');
-    return { ok: true, result, reservedUsd };
+    return { ok: true, result, reservedUsd, estimatedUsd: totalEstimate(calls), calls };
   } catch (error) {
     deps.ledger.finish(input.userId, input.jobId, 'failed');
-    return failureFor(error, guard, input.signal);
+    return failureFor(error, guard, input.signal, calls);
   } finally {
     guard.dispose();
   }

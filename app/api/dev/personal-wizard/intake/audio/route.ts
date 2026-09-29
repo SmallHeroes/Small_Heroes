@@ -57,6 +57,9 @@ export async function POST(req: NextRequest) {
       kind: 'audio',
       outcome: outcome.ok ? 'ok' : outcome.code,
       reservedUsd: outcome.ok ? Number(outcome.reservedUsd.toFixed(6)) : undefined,
+      // Usage-based estimate and each provider call (numbers only): not a bill, not the reservation.
+      estimatedUsd: outcome.ok && outcome.estimatedUsd !== null ? Number(outcome.estimatedUsd.toFixed(6)) : undefined,
+      calls: outcome.calls,
       ledger: ledger.snapshot(),
     }),
   );

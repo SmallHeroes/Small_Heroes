@@ -125,6 +125,25 @@ export function readIntakeApiKey(env: Readonly<Record<string, string | undefined
 }
 
 /** Upper bound for transcribing `durationMs` of audio, rounded up to the whole second. */
+/** Numbers a provider reported about one call (tokens, seconds). Never content. */
+export type ProviderUsage = Record<string, number>;
+
+/**
+ * Usage-based ESTIMATES, from the price table and what was measured or reported. They are not a
+ * bill and not the reservation (live trial F4). Transcription: the measured audio minutes at the
+ * listed per-minute price. Extraction: reported input and output tokens (reasoning is counted in
+ * the output) at the listed token prices; null when the provider reported no token counts.
+ */
+export function transcriptionEstimateUsd(model: TranscribeModel, durationMs: number): number {
+  return (Math.max(0, durationMs) / 60_000) * PERSONAL_INTAKE_PRICE_ASSUMPTIONS.transcription[model].usdPerMinute;
+}
+
+export function extractionEstimateUsd(model: ExtractModel, usage: ProviderUsage | null): number | null {
+  if (!usage || !Number.isFinite(usage.input_tokens) || !Number.isFinite(usage.output_tokens)) return null;
+  const { inputUsdPerMTok, outputUsdPerMTok } = PERSONAL_INTAKE_PRICE_ASSUMPTIONS.extraction[model];
+  return (usage.input_tokens * inputUsdPerMTok + usage.output_tokens * outputUsdPerMTok) / 1_000_000;
+}
+
 export function transcriptionUpperBoundUsd(model: TranscribeModel, durationMs: number): number {
   const minutes = Math.ceil(Math.max(0, durationMs) / 1000) / 60;
   const { usdPerMinute } = PERSONAL_INTAKE_PRICE_ASSUMPTIONS.transcription[model];

@@ -4,6 +4,7 @@ import type { AudioMeasurement } from '../audio-probe';
 import { intakeResultSchema } from '../contract';
 import { IntakeLedger } from '../intake-ledger';
 import { runAudioIntake, runTextIntake, type IntakeProvider, type IntakeServiceDeps } from '../intake-service';
+import { numericUsage } from '../intake-openai';
 
 const WEBM = Buffer.concat([Buffer.from([0x1a, 0x45, 0xdf, 0xa3]), Buffer.alloc(2000, 7)]);
 const MP4 = Buffer.concat([Buffer.from([0, 0, 0, 24]), Buffer.from('ftypisom'), Buffer.alloc(2000, 3)]);
@@ -38,24 +39,39 @@ function fakeProvider(
     transcribeError: Error;
     extractError: Error;
     hang: boolean;
+    transcribeUsage: Record<string, number> | null;
+    extractUsage: Record<string, number> | null;
   }> = {},
 ): { provider: IntakeProvider; calls: Calls } {
   const calls: Calls = { transcribe: 0, extract: 0, userTexts: [], instructions: [] };
   const provider: IntakeProvider = {
     async transcribe({ signal }) {
       calls.transcribe += 1;
+      // Like the SDK: a request whose signal is already aborted is never sent.
+      if (signal.aborted) throw new Error('aborted');
       if (overrides.hang) {
         await new Promise((_, reject) => signal.addEventListener('abort', () => reject(new Error('aborted'))));
       }
       if (overrides.transcribeError) throw overrides.transcribeError;
-      return { text: overrides.transcript ?? 'הוא אוהב לבנות מגדלים ומתלהב מהים. הוא בן שש.' };
+      return {
+        text: overrides.transcript ?? 'הוא אוהב לבנות מגדלים ומתלהב מהים. הוא בן שש.',
+        usage: overrides.transcribeUsage === undefined ? { seconds: 20 } : overrides.transcribeUsage,
+      };
     },
-    async extract({ userText, instructions }) {
+    async extract({ userText, instructions, signal }) {
       calls.extract += 1;
+      if (signal.aborted) throw new Error('aborted');
       calls.userTexts.push(userText);
       calls.instructions.push(instructions);
       if (overrides.extractError) throw overrides.extractError;
-      return { status: overrides.status ?? 'completed', outputText: JSON.stringify(overrides.extraction ?? GOOD_EXTRACTION) };
+      return {
+        status: overrides.status ?? 'completed',
+        outputText: JSON.stringify(overrides.extraction ?? GOOD_EXTRACTION),
+        usage:
+          overrides.extractUsage === undefined
+            ? { input_tokens: 1500, output_tokens: 400, 'output_tokens_details.reasoning_tokens': 120 }
+            : overrides.extractUsage,
+      };
     },
   };
   return { provider, calls };
@@ -97,6 +113,62 @@ const audio = (overrides: Partial<{ userId: string; jobId: string; draftId: stri
   declaredType: 'audio/webm;codecs=opus',
   bytes: WEBM,
   ...overrides,
+});
+
+describe('provider call records (live trial F4)', () => {
+  it('records each call with its usage, and a usage-based estimate that is not the reservation', async () => {
+    const outcome = await runAudioIntake(deps(fakeProvider().provider), audio());
+    expect(outcome.ok).toBe(true);
+    if (!outcome.ok) return;
+    expect(outcome.calls.map(({ kind, model, sent, outcome: result, usage }) => ({ kind, model, sent, result, usage }))).toEqual([
+      { kind: 'transcribe', model: 'gpt-transcribe', sent: true, result: 'ok', usage: { seconds: 20 } },
+      {
+        kind: 'extract',
+        model: 'gpt-6-sol',
+        sent: true,
+        result: 'ok',
+        usage: { input_tokens: 1500, output_tokens: 400, 'output_tokens_details.reasoning_tokens': 120 },
+      },
+    ]);
+    // 20 s at $0.0045/min, plus 1500 in and 400 out tokens at $2/$10 per million.
+    const expected = (20 / 60) * 0.0045 + (1500 * 2 + 400 * 10) / 1_000_000;
+    expect(outcome.estimatedUsd).toBeCloseTo(expected, 10);
+    expect(outcome.estimatedUsd).toBeLessThan(outcome.reservedUsd);
+  });
+
+  it('without token counts there is no estimate; a failed or aborted call is still recorded', async () => {
+    const noUsage = await runAudioIntake(deps(fakeProvider({ extractUsage: null }).provider), audio());
+    expect(noUsage.ok && noUsage.estimatedUsd).toBeNull();
+
+    const failed = await runAudioIntake(deps(fakeProvider({ extractError: new Error('boom') }).provider), audio());
+    expect(failed.ok).toBe(false);
+    if (failed.ok) return;
+    expect(failed.calls?.map((call) => [call.kind, call.sent, call.outcome, call.estimatedUsd === null])).toEqual([
+      ['transcribe', true, 'ok', false],
+      ['extract', true, 'failed', true],
+    ]);
+
+    // Aborted before anything started: the call is recorded as never sent.
+    const controller = new AbortController();
+    controller.abort();
+    const aborted = await runAudioIntake(deps(fakeProvider().provider), { ...audio(), signal: controller.signal });
+    expect(aborted).toMatchObject({ ok: false, code: 'client_aborted' });
+    if (aborted.ok) return;
+    expect(aborted.calls?.map((call) => [call.kind, call.sent])).toEqual([['transcribe', false]]);
+
+    // Refused before the provider: no calls at all.
+    const refused = await runAudioIntake(deps(fakeProvider().provider), audio({ declaredType: 'audio/ogg' }));
+    expect(refused).toMatchObject({ ok: false });
+    expect(!refused.ok && refused.calls).toBeUndefined();
+  });
+
+  it('the adapter keeps only numbers from the provider usage, flattened', () => {
+    expect(
+      numericUsage({ type: 'tokens', input_tokens: 10, output_tokens: 2, input_token_details: { audio_tokens: 8, text: 'x' } }),
+    ).toEqual({ input_tokens: 10, output_tokens: 2, 'input_token_details.audio_tokens': 8 });
+    expect(numericUsage(undefined)).toBeNull();
+    expect(numericUsage({ type: 'duration' })).toBeNull();
+  });
 });
 
 describe('runAudioIntake', () => {
