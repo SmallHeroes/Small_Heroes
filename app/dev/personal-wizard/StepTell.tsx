@@ -19,6 +19,7 @@ import type { LiveIntakeError } from '@/lib/personal-wizard/intake-live-client';
 import type { MediaStreamLike, RecorderSnapshot, RecordingController } from '@/lib/personal-wizard/recorder';
 
 import { ChildBasics } from './ChildBasics';
+import { DecodingView } from './DecodingView';
 import { FactsList } from './FactsList';
 import { ManualEntry } from './ManualEntry';
 import { MustHaves } from './MustHaves';
@@ -134,8 +135,7 @@ export function StepTell(props: Props) {
     controller: recorder.controller,
     playback,
     liveIntake,
-    voiceCta: liveIntake ? copy.voiceCta : copy.voiceCtaLocal,
-    banner: liveIntake ? null : copy.localBanner,
+    voiceCta: copy.voiceCta,
     hint: copy.durationHint,
     cuesTitle: copy.cuesTitle,
     cues: MUST_HAVE_CUES,
@@ -145,29 +145,18 @@ export function StepTell(props: Props) {
   };
 
   if (view === 'processing') {
+    const written = draft.intake?.medium === 'written';
     const title =
-      draft.intake?.source === 'fixture'
-        ? copy.processingFixture
-        : draft.intake?.medium === 'written'
-          ? copy.processingWritten
-          : copy.processingVoice;
+      draft.intake?.source === 'fixture' ? copy.processingFixture : written ? copy.processingWritten : copy.processingVoice;
     return (
-      <section className={styles.processingView} aria-labelledby="pw-step-title" aria-busy="true">
-        <span className={styles.processingOrb} aria-hidden="true">
-          <span className={styles.processingDot} />
-          <span className={styles.processingDot} />
-          <span className={styles.processingDot} />
-        </span>
-        <h1 id="pw-step-title" className={styles.processingTitle} tabIndex={-1} ref={titleRef}>
-          {title}
-        </h1>
-        <p className={styles.processingSub} role="status" aria-live="polite">
-          {copy.processingSub}
-        </p>
-        <button type="button" className={styles.linkButton} onClick={props.onCancelIntake}>
-          {COMMON.cancel}
-        </button>
-      </section>
+      <DecodingView
+        title={title}
+        steps={copy.decodeSteps(written)}
+        status={copy.processingStatus}
+        cancelLabel={COMMON.cancel}
+        onCancel={props.onCancelIntake}
+        titleRef={titleRef}
+      />
     );
   }
 
@@ -185,24 +174,37 @@ export function StepTell(props: Props) {
   if (view === 'start') {
     return (
       <section className={styles.startView} aria-labelledby="pw-step-title">
-        <div className={styles.startText}>
-          <h1 id="pw-step-title" className={styles.stepTitle} tabIndex={-1} ref={titleRef}>
-            {copy.title}
-          </h1>
-          <p className={styles.startLead}>{copy.lead}</p>
-        </div>
-        <div className={styles.startAction}>
-          <RecorderPanel view="start" {...recorderProps} />
-          <IntakeStatus notice={props.intakeNotice} />
-          <div className={styles.altLinks}>
-            <button type="button" className={styles.altLink} onClick={() => props.onMode('chips')}>
-              {copy.chipsLink}
-            </button>
-            <button type="button" className={styles.altLink} onClick={() => props.onMode('write')}>
-              {copy.writeLink}
-            </button>
+        <div className={styles.startHero}>
+          <div className={styles.startText}>
+            <h1 id="pw-step-title" className={styles.stepTitle} tabIndex={-1} ref={titleRef}>
+              {copy.title}
+            </h1>
+            <p className={styles.startLead}>{copy.lead}</p>
           </div>
-          {liveIntake ? <p className={styles.privacyLine}>{RECORDER.privacyLive}</p> : null}
+          <div className={styles.startAction}>
+            <RecorderPanel view="start" {...recorderProps} />
+            <IntakeStatus notice={props.intakeNotice} />
+            <div className={styles.altButtons}>
+              <button type="button" className={styles.altButton} onClick={() => props.onMode('chips')}>
+                <ChipsIcon />
+                {copy.chipsLink}
+              </button>
+              <button type="button" className={styles.altButton} onClick={() => props.onMode('write')}>
+                <PenIcon />
+                {copy.writeLink}
+              </button>
+            </div>
+            {liveIntake ? (
+              <p className={styles.privacyLine}>{RECORDER.privacyLive}</p>
+            ) : (
+              <div className={styles.previewNote}>
+                <p>{copy.localNote}</p>
+                <button type="button" className={styles.linkButton} onClick={() => props.onStartFixture('voice')}>
+                  {copy.exampleCta}
+                </button>
+              </div>
+            )}
+          </div>
         </div>
         <TestPanel {...props} />
       </section>
@@ -550,6 +552,34 @@ function WriteBox({
         </>
       )}
     </div>
+  );
+}
+
+function ChipsIcon() {
+  return (
+    <svg className={styles.altIcon} viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path
+        d="M4 6.5A2.5 2.5 0 0 1 6.5 4h4A2.5 2.5 0 0 1 13 6.5v0A2.5 2.5 0 0 1 10.5 9h-4A2.5 2.5 0 0 1 4 6.5Zm0 11A2.5 2.5 0 0 1 6.5 15h11a2.5 2.5 0 0 1 0 5h-11A2.5 2.5 0 0 1 4 17.5Zm11-11A2.5 2.5 0 0 1 17.5 4v0a2.5 2.5 0 0 1 0 5v0A2.5 2.5 0 0 1 15 6.5Zm-11 5.5A2.5 2.5 0 0 1 6.5 9.5h6a2.5 2.5 0 0 1 0 5h-6A2.5 2.5 0 0 1 4 12Z"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.6"
+      />
+    </svg>
+  );
+}
+
+function PenIcon() {
+  return (
+    <svg className={styles.altIcon} viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path
+        d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16v4Zm9.5-13.5 4 4"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
   );
 }
 

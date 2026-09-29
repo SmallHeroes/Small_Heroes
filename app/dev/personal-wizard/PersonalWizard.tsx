@@ -43,8 +43,11 @@ export type WizardOptionsView = {
 /** 1 = tell us (voice first, manual alternative), 2 = companion and direction, 3 = look and sound, 4 = summary. */
 type Step = 1 | 2 | 3 | 4;
 
-/** The fixture answers after a short delay so processing, cancel and "continue without" can be exercised. */
-const FIXTURE_DELAY_MS = 1500;
+/**
+ * The example answers after a delay close to a real job (a live one took about 11 s), so the
+ * decoding screen and its cancel can be seen and exercised.
+ */
+const FIXTURE_DELAY_MS = 6000;
 
 type Props = {
   options: WizardOptionsView;

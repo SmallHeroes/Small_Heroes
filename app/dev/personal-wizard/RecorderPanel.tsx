@@ -22,8 +22,6 @@ type Props = {
   /** Live processing connected (P2). In P1 the recording never leaves the device. */
   liveIntake: boolean;
   voiceCta: string;
-  /** Shown when nothing is decoded (live processing off). */
-  banner: string | null;
   /** A suggested length, not a required minimum. */
   hint: string;
   cuesTitle: string;
@@ -44,7 +42,6 @@ export function RecorderPanel({
   playback,
   liveIntake,
   voiceCta,
-  banner,
   hint,
   cuesTitle,
   cues,
@@ -192,7 +189,6 @@ export function RecorderPanel({
 
   return (
     <div className={styles.startRecorder} data-phase={phase}>
-      {banner ? <p className={styles.localBanner}>{banner}</p> : null}
       {phase === 'idle' || (phase === 'error' && error && RETRYABLE.has(error)) ? (
         <button type="button" className={styles.recordButton} onClick={start}>
           <span className={styles.recordCircle} aria-hidden="true">
