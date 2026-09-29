@@ -43,7 +43,7 @@ vi.mock('@/lib/personal-wizard/intake-openai', () => ({
 
 vi.mock('@/lib/personal-wizard/audio-probe', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../audio-probe')>()),
-  probeAudioDurationMs: vi.fn(async () => 12_000),
+  measureAudioDuration: vi.fn(async () => ({ ok: true, durationMs: 12_000, decodedMs: 12_000, timelineMs: 12_010 })),
 }));
 
 const { POST: audioPost } = await import('@/app/api/dev/personal-wizard/intake/audio/route');

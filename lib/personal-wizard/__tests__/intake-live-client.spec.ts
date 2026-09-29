@@ -69,6 +69,8 @@ describe('live intake client', () => {
     expect(mapIntakeError(409, 'duplicate_job')).toBe('busy');
     expect(mapIntakeError(415, 'format_mismatch')).toBe('rejected_audio');
     expect(mapIntakeError(413, 'too_long')).toBe('rejected_audio');
+    expect(mapIntakeError(422, 'timeline_invalid')).toBe('rejected_audio');
+    expect(mapIntakeError(422, 'timeline_mismatch')).toBe('rejected_audio');
     expect(mapIntakeError(502, 'provider_failed')).toBe('failed');
   });
 

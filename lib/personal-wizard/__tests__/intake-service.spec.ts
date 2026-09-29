@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import type { AudioMeasurement } from '../audio-probe';
 import { intakeResultSchema } from '../contract';
 import { IntakeLedger } from '../intake-ledger';
 import { runAudioIntake, runTextIntake, type IntakeProvider, type IntakeServiceDeps } from '../intake-service';
@@ -60,9 +61,9 @@ function fakeProvider(
 
 function deps(
   provider: IntakeProvider,
-  options: { ledger?: IntakeLedger; durationMs?: number | null; budgetUsd?: number; maxJobs?: number; timeoutMs?: number } = {},
-): IntakeServiceDeps & { probes: number[] } {
-  const probes: number[] = [];
+  options: { ledger?: IntakeLedger; measurement?: AudioMeasurement; budgetUsd?: number; maxJobs?: number; timeoutMs?: number } = {},
+): IntakeServiceDeps & { probes: Array<{ bytes: number; maxDurationMs: number }> } {
+  const probes: Array<{ bytes: number; maxDurationMs: number }> = [];
   return {
     provider,
     ledger: options.ledger ?? new IntakeLedger(),
@@ -72,9 +73,9 @@ function deps(
       budgetUsd: options.budgetUsd ?? 1,
       maxJobs: options.maxJobs ?? 5,
     },
-    probeDurationMs: async (bytes) => {
-      probes.push(bytes.length);
-      return options.durationMs === undefined ? 20_000 : options.durationMs;
+    measureAudio: async (bytes, _container, maxDurationMs) => {
+      probes.push({ bytes: bytes.length, maxDurationMs });
+      return options.measurement ?? { ok: true, durationMs: 20_000, decodedMs: 20_000, timelineMs: 20_010 };
     },
     topics: TOPICS,
     timeoutMs: options.timeoutMs,
@@ -129,19 +130,37 @@ describe('runAudioIntake', () => {
     }
   });
 
-  it('measures duration itself: unreadable, too short and too long are refused before any spend', async () => {
-    for (const [durationMs, code] of [
-      [null, 'duration_unreadable'],
-      [400, 'too_short'],
-      [120_000, 'too_long'],
+  it('trusts only its own measurement: every refusal lands before the ledger and the provider', async () => {
+    const ok = (durationMs: number): AudioMeasurement => ({ ok: true, durationMs, decodedMs: durationMs, timelineMs: durationMs });
+    for (const [measurement, code, status] of [
+      [{ ok: false, reason: 'unreadable' }, 'duration_unreadable', 422],
+      [{ ok: false, reason: 'timeline_invalid' }, 'timeline_invalid', 422],
+      [{ ok: false, reason: 'timeline_mismatch' }, 'timeline_mismatch', 422],
+      [{ ok: false, reason: 'too_long' }, 'too_long', 413],
+      [ok(400), 'too_short', 422],
+      [ok(120_000), 'too_long', 413],
     ] as const) {
       const { provider, calls } = fakeProvider();
-      const service = deps(provider, { durationMs });
+      const service = deps(provider, { measurement: measurement as AudioMeasurement });
       const outcome = await runAudioIntake(service, audio());
-      expect(outcome).toMatchObject({ ok: false, code });
+      expect(outcome, code).toMatchObject({ ok: false, code, status });
       expect(calls.transcribe).toBe(0);
-      expect(service.ledger.snapshot().reservedTotalUsd).toBe(0);
+      expect(service.ledger.snapshot()).toMatchObject({ jobs: 0, reservedTotalUsd: 0 });
     }
+  });
+
+  it('asks the measurement to stop at the recording ceiling plus rounding tolerance', async () => {
+    const service = deps(fakeProvider().provider);
+    await runAudioIntake(service, audio());
+    expect(service.probes).toEqual([{ bytes: WEBM.length, maxDurationMs: 91_500 }]);
+  });
+
+  it('reserves on the measured duration, not on anything the client claims', async () => {
+    const short = await runAudioIntake(deps(fakeProvider().provider, { measurement: { ok: true, durationMs: 5_000, decodedMs: 5_000, timelineMs: 5_000 } }), audio());
+    const long = await runAudioIntake(deps(fakeProvider().provider, { measurement: { ok: true, durationMs: 90_000, decodedMs: 90_000, timelineMs: 89_990 } }), audio());
+    expect(short.ok && long.ok).toBe(true);
+    if (!short.ok || !long.ok) return;
+    expect(long.reservedUsd - short.reservedUsd).toBeCloseTo(((90 - 5) / 60) * 0.0045 * 1.1, 10);
   });
 
   it('runs a (user, job) pair at most once; another user with the same id is independent', async () => {

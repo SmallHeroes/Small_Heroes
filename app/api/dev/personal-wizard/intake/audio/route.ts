@@ -5,13 +5,13 @@
  * Refused before the body is read unless: not production (middleware + isDevEnvironment), the
  * explicit preview and live flags, priced models, budget and job ceilings, same origin, rate limit,
  * and a signed-in operator session. The body is read with a hard byte ceiling. Audio exists in
- * memory and in one private temporary file for the duration probe, removed in `finally`. Nothing is
+ * memory and in one private temporary file for the duration measurement, removed in `finally`. Nothing is
  * persisted and no transcript, fact or email is logged.
  */
 import { NextRequest, NextResponse } from 'next/server';
 
 import { LIMITS } from '@/lib/personal-wizard/contract';
-import { probeAudioDurationMs } from '@/lib/personal-wizard/audio-probe';
+import { measureAudioDuration } from '@/lib/personal-wizard/audio-probe';
 import { NO_STORE, gateLiveIntake, readBodyWithLimit } from '@/lib/personal-wizard/intake-gate';
 import { getIntakeLedger } from '@/lib/personal-wizard/intake-ledger';
 import { createOpenAiIntakeProvider } from '@/lib/personal-wizard/intake-openai';
@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
       provider: createOpenAiIntakeProvider(access.config),
       ledger,
       config: access.config,
-      probeDurationMs: (audio, container) => probeAudioDurationMs(audio, container),
+      measureAudio: (audio, container, maxDurationMs) => measureAudioDuration(audio, container, { maxDurationMs }),
       topics: resolvePersonalWizardOptions().topics,
     },
     {

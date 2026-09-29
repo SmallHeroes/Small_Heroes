@@ -10,7 +10,7 @@ import {
   type IntakeExtraction,
   type IntakeResult,
 } from './contract';
-import { sniffAudioContainer, type ProviderAudioContainer } from './audio-probe';
+import { sniffAudioContainer, type AudioMeasurement, type ProviderAudioContainer } from './audio-probe';
 import {
   INTAKE_HARD_LIMITS,
   MAX_TRANSCRIPT_BYTES,
@@ -32,9 +32,10 @@ import { MIN_CLIP_MS, baseMimeType } from './recorder';
  * Live intake core, independent of HTTP and of any provider SDK (the provider is injected).
  *
  * Order of operations for audio: ids -> declared type -> byte bounds -> container sniffed from the
- * bytes must equal the declared type -> measured duration bounds -> conservative cost reserved in
- * the ledger (idempotency, one job per user, budget, job count) -> transcribe -> extract ->
- * sanitize -> contract-validated result. No step retries a provider call.
+ * bytes must equal the declared type -> duration measured from a validated timeline AND decoded
+ * audio (they must agree; the larger is used) -> conservative cost reserved in the ledger
+ * (idempotency, one job per user, budget, job count) -> transcribe -> extract -> sanitize ->
+ * contract-validated result. No step retries a provider call.
  */
 export type IntakeProvider = {
   transcribe(input: { audio: Buffer; container: ProviderAudioContainer; signal: AbortSignal }): Promise<{ text: string }>;
@@ -51,7 +52,8 @@ export type IntakeServiceDeps = {
   provider: IntakeProvider;
   ledger: IntakeLedger;
   config: Pick<LiveIntakeConfig, 'transcribeModel' | 'extractModel' | 'budgetUsd' | 'maxJobs'>;
-  probeDurationMs: (bytes: Buffer, container: ProviderAudioContainer) => Promise<number | null>;
+  /** Must refuse anything that decodes to more than `maxDurationMs`; see audio-probe.ts. */
+  measureAudio: (bytes: Buffer, container: ProviderAudioContainer, maxDurationMs: number) => Promise<AudioMeasurement>;
   topics: ReadonlyArray<{ id: string; label: string }>;
   timeoutMs?: number;
 };
@@ -64,6 +66,8 @@ export type IntakeFailureCode =
   | 'too_short'
   | 'too_long'
   | 'duration_unreadable'
+  | 'timeline_invalid'
+  | 'timeline_mismatch'
   | LedgerRefusal
   | 'provider_failed'
   | 'provider_timeout'
@@ -80,6 +84,13 @@ const MIN_AUDIO_BYTES = 512;
 const DURATION_TOLERANCE_MS = 1500;
 /** Fewer meaningful characters than this cannot hold a detail; extraction is not called. */
 const MIN_UNDERSTANDABLE_CHARS = 6;
+
+const MEASUREMENT_REFUSAL: Record<Exclude<AudioMeasurement, { ok: true }>['reason'], { status: number; code: IntakeFailureCode }> = {
+  unreadable: { status: 422, code: 'duration_unreadable' },
+  timeline_invalid: { status: 422, code: 'timeline_invalid' },
+  timeline_mismatch: { status: 422, code: 'timeline_mismatch' },
+  too_long: { status: 413, code: 'too_long' },
+};
 
 const LEDGER_STATUS: Record<LedgerRefusal, number> = {
   duplicate_job: 409,
@@ -169,8 +180,12 @@ export async function runAudioIntake(
   const sniffed = sniffAudioContainer(input.bytes);
   if (sniffed !== declared) return fail(415, 'format_mismatch');
   const container = sniffed as ProviderAudioContainer;
-  const durationMs = await deps.probeDurationMs(input.bytes, container);
-  if (durationMs === null) return fail(422, 'duration_unreadable');
+  const measurement = await deps.measureAudio(input.bytes, container, LIMITS.recordingMaxMs + DURATION_TOLERANCE_MS);
+  if (!measurement.ok) {
+    const refusal = MEASUREMENT_REFUSAL[measurement.reason];
+    return fail(refusal.status, refusal.code);
+  }
+  const { durationMs } = measurement;
   if (durationMs < MIN_CLIP_MS) return fail(422, 'too_short');
   if (durationMs > LIMITS.recordingMaxMs + DURATION_TOLERANCE_MS) return fail(413, 'too_long');
 

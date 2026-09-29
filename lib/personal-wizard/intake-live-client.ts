@@ -22,7 +22,16 @@ export type LiveIntakeResponse = { ok: true; result: IntakeResult } | { ok: fals
 
 type FetchLike = (input: string, init: RequestInit) => Promise<Response>;
 
-const REJECTED_AUDIO = new Set(['unsupported_format', 'format_mismatch', 'too_large', 'too_short', 'too_long', 'duration_unreadable']);
+const REJECTED_AUDIO = new Set([
+  'unsupported_format',
+  'format_mismatch',
+  'too_large',
+  'too_short',
+  'too_long',
+  'duration_unreadable',
+  'timeline_invalid',
+  'timeline_mismatch',
+]);
 
 export function mapIntakeError(status: number, code: string | undefined): LiveIntakeError {
   if (status === 401) return 'not_signed_in';

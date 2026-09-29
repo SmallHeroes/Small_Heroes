@@ -9,7 +9,7 @@ import { getIntakeLedger } from '@/lib/personal-wizard/intake-ledger';
 import { createOpenAiIntakeProvider } from '@/lib/personal-wizard/intake-openai';
 import { runTextIntake } from '@/lib/personal-wizard/intake-service';
 import { resolvePersonalWizardOptions } from '@/lib/personal-wizard/options';
-import { probeAudioDurationMs } from '@/lib/personal-wizard/audio-probe';
+import { measureAudioDuration } from '@/lib/personal-wizard/audio-probe';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
       provider: createOpenAiIntakeProvider(access.config),
       ledger,
       config: access.config,
-      probeDurationMs: (audio, container) => probeAudioDurationMs(audio, container),
+      measureAudio: (audio, container, maxDurationMs) => measureAudioDuration(audio, container, { maxDurationMs }),
       topics: resolvePersonalWizardOptions().topics,
     },
     {
