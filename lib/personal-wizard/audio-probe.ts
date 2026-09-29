@@ -12,6 +12,8 @@ import { join } from 'path';
  * Server-side audio checks that do not trust the browser or the container's own claims.
  *
  * - The container is identified from the bytes, not from the declared MIME type.
+ * - The file holds exactly one stream, and it is audio: a second audio track (or any video) is
+ *   something a provider could decode that was never measured here.
  * - The duration is established twice and must agree:
  *   1. the packet timeline must be well formed (starts near zero allowing only encoder pre-roll,
  *      never steps backwards, has no holes), and its span is measured;
@@ -50,7 +52,7 @@ const DECODE_BYTES_PER_SECOND = DECODE_RATE * 2; // mono s16le
 
 export type AudioMeasurement =
   | { ok: true; durationMs: number; decodedMs: number; timelineMs: number }
-  | { ok: false; reason: 'unreadable' | 'timeline_invalid' | 'timeline_mismatch' | 'too_long' };
+  | { ok: false; reason: 'unreadable' | 'unexpected_streams' | 'timeline_invalid' | 'timeline_mismatch' | 'too_long' };
 
 type MeasureOptions = {
   /** Anything that decodes to more than this is refused as soon as the ceiling is crossed. */
@@ -67,6 +69,17 @@ function runProbe(bin: string, args: string[], timeoutMs: number): Promise<{ std
       else resolve({ stdout: String(stdout), stderr: String(stderr) });
     });
   });
+}
+
+/** `csv` = one `codec_type` per stream. A recorder clip is exactly one audio stream. */
+export function validateStreamLayout(csv: string): { ok: true } | { ok: false; reason: 'unreadable' | 'unexpected_streams' } {
+  const types = csv
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+  if (types.length === 0) return { ok: false, reason: 'unreadable' };
+  if (types.length !== 1 || types[0] !== 'audio') return { ok: false, reason: 'unexpected_streams' };
+  return { ok: true };
 }
 
 type TimelineResult = { ok: true; spanS: number } | { ok: false; reason: 'unreadable' | 'timeline_invalid' };
@@ -155,6 +168,20 @@ export async function measureAudioDuration(
   const timeoutMs = options.timeoutMs ?? 20_000;
   try {
     await writeFile(file, bytes, { mode: 0o600, flag: 'wx' });
+    let layout: { stdout: string; stderr: string };
+    try {
+      layout = await runProbe(
+        options.ffprobePath ?? ffprobeInstaller.path,
+        ['-v', 'error', '-show_entries', 'stream=codec_type', '-of', 'csv=p=0', file],
+        timeoutMs,
+      );
+    } catch {
+      return { ok: false, reason: 'unreadable' };
+    }
+    if (layout.stderr.trim().length > 0) return { ok: false, reason: 'unreadable' };
+    const streams = validateStreamLayout(layout.stdout);
+    if (!streams.ok) return streams;
+
     let probe: { stdout: string; stderr: string };
     try {
       probe = await runProbe(

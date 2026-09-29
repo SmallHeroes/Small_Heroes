@@ -139,6 +139,7 @@ describe('runAudioIntake', () => {
     const ok = (durationMs: number): AudioMeasurement => ({ ok: true, durationMs, decodedMs: durationMs, timelineMs: durationMs });
     for (const [measurement, code, status] of [
       [{ ok: false, reason: 'unreadable' }, 'duration_unreadable', 422],
+      [{ ok: false, reason: 'unexpected_streams' }, 'unexpected_streams', 422],
       [{ ok: false, reason: 'timeline_invalid' }, 'timeline_invalid', 422],
       [{ ok: false, reason: 'timeline_mismatch' }, 'timeline_mismatch', 422],
       [{ ok: false, reason: 'too_long' }, 'too_long', 413],

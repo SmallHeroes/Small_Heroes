@@ -6,7 +6,7 @@ import { join } from 'path';
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { measureAudioDuration, sniffAudioContainer, validateTimeline } from '../audio-probe';
+import { measureAudioDuration, sniffAudioContainer, validateStreamLayout, validateTimeline } from '../audio-probe';
 
 /**
  * Real media made with the bundled ffmpeg and measured with the bundled ffprobe + ffmpeg: no mocks.
@@ -39,6 +39,17 @@ describe('container sniffing', () => {
     expect(sniffAudioContainer(make('s.mp4', [...tone(1), '-c:a', 'aac', '-f', 'mp4']))).toBe('audio/mp4');
     expect(sniffAudioContainer(make('s.ogg', [...tone(1), '-c:a', 'libopus', '-f', 'ogg']))).toBe('audio/ogg');
     expect(sniffAudioContainer(Buffer.from('RIFF....WAVEfmt '))).toBeNull();
+  });
+});
+
+describe('stream layout', () => {
+  it('accepts exactly one audio stream and nothing else', () => {
+    expect(validateStreamLayout('audio\n')).toEqual({ ok: true });
+    expect(validateStreamLayout('audio\r\naudio\r\n')).toEqual({ ok: false, reason: 'unexpected_streams' });
+    expect(validateStreamLayout('audio\nvideo\n')).toEqual({ ok: false, reason: 'unexpected_streams' });
+    expect(validateStreamLayout('video\n')).toEqual({ ok: false, reason: 'unexpected_streams' });
+    expect(validateStreamLayout('audio\ndata\n')).toEqual({ ok: false, reason: 'unexpected_streams' });
+    expect(validateStreamLayout('')).toEqual({ ok: false, reason: 'unreadable' });
   });
 });
 
@@ -95,6 +106,21 @@ describe('measured duration from real media', () => {
     );
     expect(gap).toEqual({ ok: false, reason: 'timeline_invalid' });
     expect(shifted).toEqual({ ok: false, reason: 'timeline_invalid' });
+  });
+
+  it('refuses a short first audio stream hiding a long second one, and any video, in WebM and MP4', async () => {
+    const twoTracks = (name: string, codec: string[], format: string) =>
+      make(name, [...tone(3), '-f', 'lavfi', '-i', 'sine=frequency=660:duration=120', '-map', '0:a', '-map', '1:a', ...codec, '-f', format]);
+    expect(await measure(twoTracks('two.webm', ['-c:a', 'libopus', '-b:a', '12k'], 'webm'))).toEqual({ ok: false, reason: 'unexpected_streams' });
+    expect(await measure(twoTracks('two.mp4', ['-c:a', 'aac', '-b:a', '16k'], 'mp4'), 'audio/mp4')).toEqual({ ok: false, reason: 'unexpected_streams' });
+    const withVideo = make('av.webm', [
+      ...tone(3),
+      '-f', 'lavfi', '-i', 'color=c=black:s=16x16:d=3',
+      '-map', '0:a', '-map', '1:v', '-c:a', 'libopus', '-c:v', 'libvpx', '-b:v', '8k', '-f', 'webm',
+    ]);
+    expect(await measure(withVideo)).toEqual({ ok: false, reason: 'unexpected_streams' });
+    // Control: the same short tone as a single stream is accepted.
+    expect(await measure(make('one.webm', [...tone(3), '-c:a', 'libopus', '-b:a', '12k', '-f', 'webm']))).toMatchObject({ ok: true });
   });
 
   it('keeps a long-but-allowed recording and refuses truncated or corrupt input', async () => {

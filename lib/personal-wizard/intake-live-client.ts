@@ -29,6 +29,7 @@ const REJECTED_AUDIO = new Set([
   'too_short',
   'too_long',
   'duration_unreadable',
+  'unexpected_streams',
   'timeline_invalid',
   'timeline_mismatch',
 ]);

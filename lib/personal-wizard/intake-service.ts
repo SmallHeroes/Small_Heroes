@@ -67,6 +67,7 @@ export type IntakeFailureCode =
   | 'too_short'
   | 'too_long'
   | 'duration_unreadable'
+  | 'unexpected_streams'
   | 'timeline_invalid'
   | 'timeline_mismatch'
   | LedgerRefusal
@@ -88,6 +89,7 @@ const MIN_UNDERSTANDABLE_CHARS = 6;
 
 const MEASUREMENT_REFUSAL: Record<Exclude<AudioMeasurement, { ok: true }>['reason'], { status: number; code: IntakeFailureCode }> = {
   unreadable: { status: 422, code: 'duration_unreadable' },
+  unexpected_streams: { status: 422, code: 'unexpected_streams' },
   timeline_invalid: { status: 422, code: 'timeline_invalid' },
   timeline_mismatch: { status: 422, code: 'timeline_mismatch' },
   too_long: { status: 413, code: 'too_long' },
