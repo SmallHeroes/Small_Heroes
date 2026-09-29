@@ -988,3 +988,128 @@ deployment.
   - No timeout or pinned count changed.
   - The voice-first harness was re-run at the committed `04546f4a`: 74/74.
 - **Re-gate range:** `cbe09b31..` this documentation commit.
+
+## 11. First real-audio trial (authorized 2026-09-29): partial, one live sample
+
+Guy authorized a two-sample live trial of the frozen code at `7996e632`. The ceiling
+was USD 1.00 and two jobs. Result: the live chain works end to end, and one sample
+completed. It exposed an extraction defect: details said last are silently lost at
+the 12-detail ceiling. Sample 2 was not run; Guy chose to rework the flow first
+(section 12). This is not product acceptance.
+
+**Setup, verifiable from the evidence folder:**
+
+- **Code and server:**
+  - Code `7996e632`, clean worktree. No source, prompt, copy or threshold changed during
+    the run.
+  - `next dev` bound to `127.0.0.1:3431` only. The loopback bind was verified; an
+    earlier all-interfaces start was stopped before sign-in.
+- **Flags:**
+  - `PERSONAL_WIZARD_PREVIEW=true` and `PERSONAL_WIZARD_LIVE_INTAKE=true`.
+  - Models: `gpt-transcribe` and `gpt-6-sol`.
+  - `PERSONAL_WIZARD_INTAKE_BUDGET_USD=1` and `PERSONAL_WIZARD_INTAKE_MAX_JOBS=2`.
+  - `DISABLE_IMAGE_GENERATION=true`.
+  - One allowlisted operator, redacted here.
+- **Secrets:** passed to the child process by name only, and never printed. No shared
+  or deployment env file was modified.
+- **Database, used for sign-in only:**
+  - The main `.env.local` points at production with stale credentials.
+  - The run therefore used the staging project `qvksgpzzosotubcbizay` through its
+    session pooler (5432), with the credentials the operator refreshed.
+  - The intake itself writes nothing to any database.
+- **Identity:**
+  - The operator signed in through the real `/login` send-code/verify-code flow,
+    against staging.
+  - **Limitation:** with no `RESEND_API_KEY`, the code came from the route's dev
+    fallback, not from an email.
+  - The operator allowlist gate was live.
+
+**Attempts, in order:**
+
+| # | What happened | Paid job | Result |
+| --- | --- | --- | --- |
+| 0 | Server bound to all interfaces; stopped before sign-in | none | no spend |
+| 1 | Production DB unreachable, then stale credentials; 4 failed send-code calls | none | no rows written, no spend |
+| 2 | Staging, signed in, `live:true`. Chrome's fake-audio file ended (`%noloop`), so the recorder treated it as an interruption and did not send. This is correct app behavior. | none | no spend |
+| 3 | Automated synthetic sample 1 (TTS voice, fictional profile): uploaded, then the browser was closed at Guy's request while processing | job 1 | `client_aborted`, reservation `$0.0763939`, no result |
+| 4 | **Guy's own microphone** (consenting adult). A passive observer script watched and never clicked. | job 2 `j_e4101d142d40399021c00550` | `ok`, reservation `$0.0797764` |
+
+**Dispatches and cost:**
+
+- **Job 1:**
+  - The ledger reserved the job after measurement, then the client aborted about
+    4.5 s into the request.
+  - The app does not log per-call dispatch, so whether transcription or extraction
+    reached OpenAI is **unknown** (0 to 2 calls, never more; `maxRetries: 0`).
+  - Next logged `200 in 4523ms` for this request. That is a dev-logger artifact of the
+    closed connection; the route's own event line says `client_aborted` (499).
+- **Job 2:** exactly **2 calls**: one transcription (`gpt-transcribe`) and one
+  extraction (`gpt-6-sol`), with no retries. Latency was 11.35 s server-side and 11.39 s
+  in the browser.
+  - The reservation implies a measured duration of about 58 s (derived, not measured
+    directly).
+- **Reservations:** `$0.1561703` of `$1.00`. The ledger ended at 2/2 jobs, so it
+  refuses any further intake.
+- **Usage-based estimate: not available.** The provider adapter does not keep token
+  or usage figures (see F4), so there is no measured number. The reservation is the
+  upper bound. The billed amount is visible only in the OpenAI usage dashboard;
+  nothing is claimed here.
+
+**What the live sample caught.** Child names are redacted: `[child]`, `[sister]`,
+`[brother]`.
+
+- **Name and age:** both extracted, marked "from the recording".
+- **Details:** 12 in total.
+  - 7 interests, for example football, trampoline, running and jumping,
+    birthdays, cakes and sweets, and playing with each sibling.
+  - 2 family entries (the two siblings).
+  - 3 traits, filed as `other`.
+- **Nothing invented:** no residence, no adventure place, no direction, and no
+  address guess. The operator chose "boy".
+- **Request:** companion `fox_uri`, direction "just for fun". The photo stayed local:
+  the request carries `local_preview_not_sent`, and the server saw no upload.
+  - The server answered `accepted_preview` with `containsFixtureData: false` and
+    `writer: not_connected`.
+
+**Findings.** None was fixed during the measurement. F1 and F2 are addressed by the
+section-12 rework.
+
+- **F1 (P1): silent loss at the detail ceiling.**
+  - The parent's last sentence named four fears (loud noises, monsters, unfamiliar
+    things, a little of the dark), and none of them reached the card.
+  - The model returned exactly 12 facts, the schema `maxItems` and the sanitizer
+    ceiling, so the fears were most likely truncated. The raw model output is not
+    retained, so the cause cannot be proven from logs.
+  - Two of the 12 slots held the same siblings twice.
+  - Nothing tells the parent that anything was left out; the card says "we added 14
+    details".
+  - Manual recovery is blocked too: with 12 facts, adding another answers
+    "up to 12 details" until one is removed.
+  - Deterministic reproduction: any extraction with more than 12 facts loses the rest,
+    with no `omitted` signal in `IntakeExtraction`.
+- **F2 (P2): cross-kind duplicates pass the exact-text de-duplication.** Example: "loves
+  playing with his sister [sister]" next to "family: sister [sister]".
+- **F3 (P3, copy): "loves" is said twice.** The summary group title "[child] loves" is
+  followed by values that begin with "loves".
+- **F4 (P2, observability): no usage is recorded.** Provider usage (tokens or audio
+  seconds) is not kept, so a trial cannot separate a usage-based estimate from the
+  reservation.
+- **F5 (note): the dev request log can show `200` for a client-aborted intake.** The
+  route's JSON event line is the authority.
+
+**Not exercised live:**
+- "Edit one detail": the operator did not edit one.
+- "Remove the suggested direction": none was suggested, because the parent asked for
+  none. The tombstone rule stays covered by the unit tests.
+- Sample 2, the sparse profile: it needs a third job, which was not authorized. Guy
+  chose to run it on the reworked flow instead.
+
+**After the run:**
+- The trial server was stopped: port 3431 is closed and both processes are gone.
+- Live intake is off; no env files were touched.
+- The evidence stays local in the session scratchpad and is **not committed**, because
+  it holds the operator's transcript and a photo thumbnail:
+  - the redacted server log;
+  - the observer's `evidence.json`;
+  - screenshots.
+- The protected d53b and accepted-intent worktrees were untouched.
