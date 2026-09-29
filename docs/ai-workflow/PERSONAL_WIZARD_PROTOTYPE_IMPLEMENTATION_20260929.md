@@ -1304,3 +1304,25 @@ Re-gate range: `c655bc4c..` this documentation commit.
 - **Production:** replacing story types with length tiers in prices, packages and the
   story bank is a separate decision gate, with Codex as technical owner.
 - **Browsers:** Safari/iOS is still unverified.
+
+### 12.7 Guy's second look (same day): `4b6bb761`, `31fbcd37`
+
+- **`4b6bb761`:** the cancel link is centered on the recording and processing screens.
+- **`31fbcd37`, start screen:**
+  - The title, lead and microphone are centered together, with no empty band on tall
+    screens.
+  - The microphone is the main action. The two alternatives ("answer from ready
+    answers", "write free text") are quiet pill buttons instead of underlined links.
+- **`31fbcd37`, preview mode:** one small line says the recording is not decoded
+  here, and a link runs the labelled example of decoding. The fixture still takes no
+  audio; the boundary test is unchanged.
+- **`31fbcd37`, processing:** a "decoding" animation of sound bars flowing into lines
+  of text, with one step line.
+  - The steps advance every 2.2 s and stop at the last one. They describe the work and
+    are not progress; screen readers get one status line.
+  - The example's delay is 6 s (was 1.5 s), close to the 11 s of the real trial job.
+- **Environment note:** the desktop app's built-in browser pane blocks microphone
+  capture, so recording can only be tried in a regular browser. The prototype URL is
+  loopback, a secure context.
+- **Evidence:** tsc 0 and 153/153 prototype tests. Browser checks at 1440 and 390:
+  start, decoding with its steps, then the card.
