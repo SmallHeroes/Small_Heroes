@@ -1,6 +1,82 @@
 # SmallHeroes — Current Technical State
 
+## Personal Wizard prototype v2 — CURRENT (2026-09-29); Claude implements, Codex reviews
+
+Branch `codex/personal-wizard-prototype` (no upstream, unpushed), worktree
+`C:/GNart/Work/sh-personal-wizard-prototype`. This summary supersedes the v1 sections below
+for the active state; they remain as history.
+
+### Frozen ranges
+
+- **v1:** `cbe09b31..7996e632`. Codex PASS, P0/P1/P2 0.
+- **Trial record for v1:** `c655bc4c` (evidence doc §11).
+- **v2, reviewed by Codex:** `b2acfbd6`, `e7b25322`, `acdc9885`, `4b6bb761`.
+  - Codex QA of `7996e632..4b6bb761` = **HOLD, P0 0 / P1 1 / P2 2**, with an owner-feedback
+    addendum.
+- **v2 after that review:** `31fbcd37` (quieter start screen, decoding animation) and `684d2c10`
+  (docs §12.7).
+- **Correction of the HOLD:**
+  - `8b74711f`: P1-1 and the owner's correction/exclusion rules.
+  - `fd03371b`: P2-1.
+  - The documentation commit that follows (P2-2).
+  - It awaits Codex's re-gate.
+
+### What v2 is now
+
+- **Voice first:**
+  - **Start screen:** text, then a large microphone, then two quiet alternatives ("answer from
+    ready answers", "write free text").
+  - **Recording:** the five must-haves appear as cues. These are **reminders only**; nothing is
+    extracted while the parent speaks.
+  - **Processing:** only a decoding animation, with timed step lines that are not progress.
+- **Five must-haves:** name, age, residence, what the child loves, what is hard. "Nothing
+  special" is an allowed answer for what is hard.
+  - Missing ones are asked right in the editable card; everything else is a bonus detail.
+- **Grammatical address:** heard from explicit speech (he/she, בן/בת); **never from the name or
+  the voice**. It is asked when absent or mixed. The residence is heard like the name.
+- **What is hard proposes the story's direction.**
+  - The proposal stands on the exact difficulties it came from. It is withdrawn if one is removed
+    or reworded before approval; after approval, the parent answers an explicit keep-or-remove
+    question.
+  - The request marks it as derived, and the server refuses it when no difficulty is left.
+- **Parent corrections and exclusions are final:**
+  - An edited detail is the parent's own.
+  - An exact repeat of a removed or replaced wording is omitted.
+  - A detail that reads like a removed one is only asked about.
+  - The request carries only reviewed inputs, never the transcript.
+- **Book options:** six companions, names only. No story type: length tiers of 16/24/32 pages, in
+  the prototype only; production prices and the story bank are a separate decision.
+- **Versions:** request v3, extraction v2, draft v5.
+
+### Provider path, measured facts only
+
+- **v1 (`7996e632`), first real-audio trial, partial (§11):**
+  - 2 jobs; `$0.1561703` reserved of $1.
+  - One job was client-aborted, and which calls it dispatched is unknown.
+  - No usage was recorded; the billed amount is not known.
+- **v2 (code `684d2c10`), one live recording in Guy's owner review:**
+  - **Setup:** loopback, staging sign-in with the dev code, operator allowlist, $1 / 8-job cap.
+  - **Result:** 1 job, 2 provider calls; the request was accepted.
+  - **Cost:** reservation `$0.0814935`; usage-based estimate `$0.010296`.
+    - Reported usage: 49 s of audio, and 1087 input / 445 output tokens (287 reasoning).
+    - The estimate is not a bill.
+  - **Guy reports** that the name, the residence and one interest were misrecognized, and that
+    he corrected them in the card. He also removed one correctly recognized detail that he did not
+    want in the book.
+    - The audio and transcript were not retained, so the failing stage (transcription or
+      extraction) is unknown.
+    - The values are not recorded here.
+- **The HOLD correction used no provider calls.**
+
+### Evidence for the correction
+
+Section 13 of the evidence doc holds the probe before and after the fix, the tests, the real
+browser paths, and the full check.
+
 ## Personal Wizard prototype: voice-first rework — 2026-09-29; Claude implements, Codex reviews
+
+> **History (v1).** The current state is the v2 section above. Statements below, for example
+> "the address is never extracted" or "provider path unverified", describe v1.
 
 This follows Guy's direct review, as the brief "ההקלטה היא המסלול הראשי, הפרטים הם
 התוצאה שלה", on branch `codex/personal-wizard-prototype`. It is a separate range on top

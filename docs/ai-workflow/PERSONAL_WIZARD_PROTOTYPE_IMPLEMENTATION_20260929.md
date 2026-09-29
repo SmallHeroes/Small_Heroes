@@ -1326,3 +1326,150 @@ Re-gate range: `c655bc4c..` this documentation commit.
   loopback, a secure context.
 - **Evidence:** tsc 0 and 153/153 prototype tests. Browser checks at 1440 and 390:
   start, decoding with its steps, then the card.
+
+## 13. Codex QA of v2 (`7996e632..4b6bb761`): HOLD, and its correction
+
+**Verdict:** HOLD, P0 0 / P1 1 / P2 2, with an owner-feedback addendum.
+
+**Commits:**
+- `8b74711f`: P1-1 and the owner's rules.
+- `fd03371b`: P2-1.
+- This documentation commit: P2-2, CURRENT.md.
+
+These two replace the local, never-pushed `1a881aa4` and `d397a5d6`. Those had used two of the
+owner's reported wordings in tests and in one code comment, against the addendum's
+synthetic-only rule. They were rewritten before any handoff, and now differ only in those test
+values and that comment. The old objects remain only in this machine's reflog.
+
+The work was reconciled onto `684d2c10`: `31fbcd37` and `684d2c10` were already committed
+before the correction started. No provider call, credential read, push, deployment,
+generation or price change was made during the correction.
+
+### 13.1 Reproduced first
+
+- **Codex's `probe.cjs`,** a byte-identical copy (sha256 `d8dad8e6…61c`), run from the
+  worktree at `684d2c10`, exits 0. Its assertions of the defect hold:
+  1. After a removal, "nothing special" and a correction repeating the removed difficulty,
+     the request has `intent = sirens`, with no difficulty and `noDifficulty` true. This holds
+     for both transcript and fixture provenance.
+  2. After removing one of two difficulties, the request has `intent = sirens` with
+     difficulty `["חושך"]`.
+  3. After editing the difficulty to "חושך", the request has `intent = sirens`.
+  - Both negative controls pass.
+- **Real browser at `684d2c10`, fixture server, no key:**
+  - **Path A:** complete example → edit the difficulty to "חושך" → continue → accepted
+    preview. The direction row still read "רעשים ואזעקות" after the edit, and the accepted
+    payload had difficulty `["חושך"]` with `intent.topicId: "sirens"`.
+  - **Path B:** empty "ready answers" card → "להקליט במקום". The view stayed on the card
+    ("בואו נכיר"), with no record button and the bottom bar still visible.
+
+### 13.2 What changed
+
+- **P1-1 (`8b74711f`)**
+  - **Evidence on every hard-derived proposal:** it carries the difficulty facts it stands on,
+    each with its wording (comparison key) at that moment.
+  - **Proposed only on complete support:** the proposal is made only when every difficulty the
+    model matched is listed as heard. None may be removed, reworded (a replaced wording is
+    never evidence) or left out.
+  - **Before approval:** removing or rewording any of that evidence withdraws the proposal
+    (no tombstone), with no replacement guessed.
+  - **After approval:** it raises a `stale_direction` question with keep or remove. "Continue"
+    keeps it open (`direction_unconfirmed`) and no request builds past it.
+  - **Adoption on "continue"** re-checks the evidence.
+  - **On the request:** a derived direction carries `basis: 'difficulty'`, and the schema
+    refuses one with no difficulty (`direction_without_difficulty`).
+  - **Untouched:** requested (`asked`) and parent-chosen directions.
+- **Owner addendum (`8b74711f`)**
+  - Editing a detail makes it the parent's own (`source: 'typed'`).
+  - An incoming detail that reads like a removed one (`similarDetails`, a local token heuristic)
+    becomes a `similar_removed` question. Unanswered, it stays out; adding it is the parent's
+    explicit choice.
+  - A near-repeat of a listed detail is not added twice.
+  - The heard card now says: "בדקו במיוחד את השם והמקום. אפשר לתקן או להסיר כל פרט, ומה שתסירו
+    לא ייכנס לספר."
+- **P2-1 (`fd03371b`):** the step-1 view logic moved to `lib/personal-wizard/tell-view.ts`.
+  An explicit switch to recording or writing clears the kept-open card while it is empty;
+  with details present, the card stays.
+
+### 13.3 After the fix
+
+Everything below was run at `fd03371b`, and first at the old `d397a5d6` with identical
+results.
+
+- **Codex's probe, unchanged:** it now exits 1 at its first defect assertion (`request.intent`
+  is `null`). This is what Codex's brief expects: "after a fix, those assertions SHOULD fail".
+- **A copy of the probe that reports outcomes** instead of asserting the defect (scratch
+  `probe-outcomes.cjs`):
+  - All four cases give `intent: null`.
+  - Case 2 keeps difficulty `["חושך"]`; case 3 keeps `["חושך"]`.
+  - Both of Codex's negative controls pass.
+- **Tests:** tsc 0; 171/171 prototype tests (+18).
+  - **P1-1:** the four cases, corrections and repeated corrections, a response landing after a
+    removal, the after-approval question, the server refusal, and chips.
+  - **Controls:** a dismissed direction stays out, a requested topic needs no difficulty, and a
+    deliberate pick restores.
+  - **Owner addendum:**
+    - corrected name, residence and interest survive a new recording and a correction;
+    - exclusion before approval, and after approval with a pending job;
+    - a detail similar to a removed one is asked about;
+    - deliberate restoration, and no near-repeat;
+    - no transcript in the request;
+    - `similarDetails` cases.
+  - **P2-1:** empty and populated switches.
+  - Every request is checked through `buildReviewedRequest` AND `acceptPersonalBookRequest`.
+- **Real browser, same paths (scratch `browser-regate.cjs`):**
+  - **A:** the direction row disappears on the edit; the accepted payload has difficulty
+    `["חושך"]`, `intent: null`, and no "רעשים ואזעקות" in the summary.
+  - **B, empty:** back on the start screen, with the title, the record button, no form and no
+    bottom bar.
+  - **B, populated:** the card and the typed name stay.
+  - **C (owner scenario 6):** complete example → name, residence and one interest corrected, an
+    unrelated correct detail removed → summary → accepted payload.
+    - The payload has the corrected name and residence (`typed`) and the corrected interest
+      (`typed`).
+    - The removed detail is absent from both the payload and the summary, and there is no
+      transcript.
+  - **D:** direction approved → back → its difficulty removed. The question appears; "continue"
+    stays on step 1 with focus on the first missing must-have ("what is hard").
+    "Remove the direction" plus "nothing special" then continues with no direction.
+
+### 13.4 The owner's live observations, kept separate
+
+- **What Guy observed** in his v2 recording: a misrecognized name, residence and interest,
+  corrected by hand, and one correct detail removed. Afterwards the flow was fine.
+- **What the offline tests prove:** the correction and exclusion contract at the request
+  boundary, with synthetic stand-ins, not his values.
+- **What the browser proves:** path C and path D above.
+- **Diagnosis:** the audio and transcript of that recording were not retained, and the server
+  logs no content by design. So it is **unknown** whether transcription or extraction
+  introduced the errors.
+  - No model change, retry or new recording was made.
+  - A recognition experiment would need its own bounded authorization.
+- **No accuracy claim** is made from one sample.
+
+### 13.5 Full check at the correction head
+
+`npm run check` at `fd03371b` gives **exit 1, the same as the base.** This is not green.
+
+- **Ordinary phase:** 364 files. Tests: 10 failed, 4922 passed, 73 skipped (5005).
+  - The 10 failures are the same inherited tests, by exact name, as at the branch base
+    `713017e1` (a separate baseline worktree) and at v2 `e7b25322`:
+    - child lexicon ages 5–8;
+    - momentum gate koko;
+    - page entity QA;
+    - story read-back validation (2);
+    - visual direction acceptance lifecycle (4);
+    - reserved page placement authority (1).
+  - None is a prototype test.
+  - 4922 passed is 18 more than v2's 4904: the new tests.
+- **Resource-intensive phase:** 20 files, 635/635 tests passed. Its gate still fails with
+  `on_task_update_rpc_timeout` and `signal_or_exit_failure`, as at the base.
+- **First run at `d397a5d6`:** the identical result.
+
+### 13.6 Re-gate
+
+- **Range:** `684d2c10..` this documentation commit.
+- **Full range since Codex's review:** `4b6bb761..` this commit, which includes `31fbcd37` and
+  `684d2c10` (UI, not reviewed).
+- **Retained frozen reproduction:** Codex's probe under
+  `C:/Users/guyna/.codex/visualizations/2026/09/29/personal-wizard-qa-4b6bb761/`, unchanged.
