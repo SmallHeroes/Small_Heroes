@@ -29,8 +29,16 @@ for the active state; they remain as history.
   - It closes the residual stale-fact/direction P1.
   - It covers that exact range only. It is not an all-branch, release, live-voice, product or
     repository-stability PASS.
-- **Never reviewed as a range:** `4b6bb761..684d2c10`, that is `31fbcd37` (UI) and `684d2c10`
-  (docs). No approval applies to it retroactively.
+- **Codex documentation closeout of `d05faeab..8ce1784c`: PASS.**
+- **Codex UI review of `4b6bb761..684d2c10` (`31fbcd37`, `684d2c10`): technical PASS, P0 0 /
+  P1 0 / P2 1.**
+  - This is the previously missing review; it does not extend the stale-fact PASS.
+  - **The P2:** the reduced-motion rules sat above the animation rules they override, with equal
+    specificity, so the decoding animations kept running.
+  - `fc587266` fixes it. The same order had also defeated the recording pulse and the
+    microphone's hover scale, and those are fixed too.
+  - Awaiting Codex's re-gate of `8ce1784c..` the documentation commit that follows (evidence doc
+    §15).
 - **Stability stays open:**
   - The full check is RED with the inherited failures.
   - In Codex's re-gate, the first focused run (started alongside tsc) failed 4 audio-probe tests:
@@ -46,6 +54,8 @@ for the active state; they remain as history.
   - **Recording:** the five must-haves appear as cues. These are **reminders only**; nothing is
     extracted while the parent speaks.
   - **Processing:** only a decoding animation, with timed step lines that are not progress.
+  - **Reduced motion** stops the decoding, pulse and hover movement; text, status and cancel
+    stay (`fc587266`, pending re-gate).
 - **Five must-haves:** name, age, residence, what the child loves, what is hard. "Nothing
   special" is an allowed answer for what is hard.
   - Missing ones are asked right in the editable card; everything else is a bonus detail.
@@ -95,6 +105,7 @@ for the active state; they remain as history.
 - **Section 13 of the evidence doc:** the probe before and after the fix, the tests, the real
   browser paths, and the full check.
 - **Section 14:** the re-gate finding and its fix.
+- **Section 15:** the UI review's reduced-motion finding and its fix.
 
 ## Personal Wizard prototype: voice-first rework — 2026-09-29; Claude implements, Codex reviews
 

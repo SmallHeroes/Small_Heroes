@@ -1610,3 +1610,85 @@ establish the cause.
   file can exist when the check starts and be gone when it ends. That fits "0 instead of 1": the
   count went down, not up. It points to a knock-on of the timeouts, not a leak.
 - **Status:** a candidate follow-up, not part of this milestone. Stability stays open.
+
+## 15. Codex UI review of `4b6bb761..684d2c10`: technical PASS with one P2, and its fix
+
+**Verdicts:**
+- **Documentation closeout `d05faeab..8ce1784c`:** PASS.
+- **UI range `4b6bb761..684d2c10`** (`31fbcd37` start screen and decoding animation, `684d2c10`
+  docs): technical PASS, P0 0 / P1 0 / P2 1.
+  - This is the previously missing review; it does not extend the stale-fact PASS.
+  - Codex's browser and tests ran at `8ce1784c`.
+
+**P2-1.** The `prefers-reduced-motion: reduce` block (then at lines 1150–1169) set
+`animation: none` on the decoding elements, but later rules of equal specificity (lines 1561,
+1607, 1643, 1674, 1714) set their animations again and won by source order. Codex showed this
+from the source and the loaded CSSOM, not with the preference switched on.
+
+**Commit:** `fc587266` and this documentation commit.
+
+### 15.1 Reproduced first, with the preference switched on
+
+- **Setup:** real headless Chrome (scratch `regate3/browser-motion.cjs`) on the fixture server (no
+  key, live intake off), with Chrome's fake media device (a synthetic tone; nothing sent).
+- **Measured values:** each element's computed `animation-name` and its running
+  `getAnimations()`, with `prefers-reduced-motion` emulated as `reduce`
+  (`matchMedia(...).matches === true`) and as `no-preference`.
+- **At `8ce1784c`, with reduce:**
+  - all 16 decoding elements still ran: 6 wave bars `pw-wave`, 3 flow dots `pw-flow`, 3 lines
+    `pw-write`, 3 sparks `pw-twinkle`, the step `pw-step-in`, one running animation each;
+  - the recording pulse ran `pw-breathe`;
+  - the microphone scaled on hover (`matrix(1.03, …)`).
+- **Two variants beyond the review:** the same order had also defeated `.recordPulse[data-live]`
+  (line 1438) and `.recordButton:hover .recordCircle` (line 1289). The recording dot and the
+  companion and continue hovers came before the block and were already correct.
+
+### 15.2 What changed
+
+- **The move:** the reduced-motion block moves, byte for byte, to the end of the stylesheet, with
+  a note that it must stay last. Every rule it overrides now comes before it.
+- **Unchanged:** no animation, timing, extraction, provider, copy or layout.
+
+### 15.3 After the fix
+
+- **Real browser, same script, at `fc587266`:**
+  - **With reduce:** all 16 decoding elements are `none` with 0 running animations, the pulse is
+    `none`/0, and the microphone hover is `transform: none`.
+  - **With `no-preference`:** everything runs as before, and the microphone scales.
+  - **Both modes:** processing, cancel back to the start, and processing to the result card are
+    unchanged.
+  - **The screen with reduce:** the static art, the title, the step line and "ביטול" stay.
+- **Regression test** `lib/personal-wizard/__tests__/reduced-motion.spec.ts`: it resolves the
+  stylesheet's cascade (source order, specificity, `!important`, media; other media queries
+  counted as matching) for every moving element, by the exact selectors that match it. Its five
+  tests:
+  1. the specificity rule, checked on the selectors that matter;
+  2. with reduced motion, all 21 moving targets resolve to `none`: the 16 decoding elements, the
+     pulse, the dot and 3 hover transforms;
+  3. without it, each keeps its keyframes or transform;
+  4. any animation or hover transform it does not cover fails it;
+  5. a control puts the block back in its old place and finds exactly the reviewed elements plus
+     the pulse and microphone moving.
+- **Failing before:** run against the `8ce1784c` stylesheet, the reduced-motion test fails
+  (`.decodeWave` bar 1 resolves to `pw-wave`, not `none`).
+- **Checks:** tsc 0; focused suite 11 files, 188/188 (181 prototype + 7 classifier), run after
+  tsc, not alongside it. The workload classifier counts the new ordinary spec (385/365).
+
+### 15.4 Full check
+
+`npm run check` at `fc587266` gives **exit 1, the same as the base.** This is not green.
+
+- **Partition:** 385 canonical files, 365 ordinary, 20 resource-intensive.
+- **Ordinary phase:** Tests: 10 failed, 4932 passed, 73 skipped (5015).
+  - The 10 failures are the same inherited tests, by exact name, as at the branch base
+    `713017e1`.
+  - 4932 passed is 5 more than at `cbda44b8`: the new spec.
+  - `audio-probe.spec.ts` passed in this run (11/11), and the flake stays open.
+- **Resource-intensive phase:** 635/635 tests passed. Its gate still fails with
+  `on_task_update_rpc_timeout` and `signal_or_exit_failure`, as at the base.
+
+### 15.5 Re-gate
+
+- **Range:** `8ce1784c..` this documentation commit.
+- **Not claimed:** an operating-system reduced-motion run, iOS/Safari, or assistive technology.
+  The browser run emulates the media feature in Chrome.
