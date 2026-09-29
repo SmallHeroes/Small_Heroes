@@ -17,9 +17,11 @@ import {
   setChildAddress,
   setChildAge,
   setChildName,
+  setChildResidence,
   setCompanion,
   setIntent,
-  setPackage,
+  setLength,
+  setNoDifficulty,
   setVoice,
 } from '../draft';
 import { PROTOTYPE_COMPANION_ROSTER, resolvePersonalWizardOptions } from '../options';
@@ -32,30 +34,33 @@ function validRequest(): ReviewedPersonalBookRequest {
   const makeId = (prefix: 'd' | 'f' | 'j' | 'c') => `${prefix}_${String((counter += 1)).padStart(8, '0')}`;
   let draft = createDraft('d_00000000test');
   draft = setChildAddress(setChildAge(setChildName(draft, 'נועה'), 4), 'girl');
+  draft = setNoDifficulty(setChildResidence(draft, 'חיפה'), true);
   draft = addTypedFact(draft, 'interest', 'ציור', makeId).draft;
   draft = confirmFactsReview(draft);
   draft = setIntent(setCompanion(draft, 'panda_anat'), { kind: 'topic', topicId: 'social' });
-  draft = setVoice(setPackage(draft, 'adventure'), 'mom');
+  draft = setVoice(setLength(draft, 'medium'), 'mom');
   const built = buildReviewedRequest(draft);
   if (!built.ok) throw new Error('fixture request invalid');
   return built.request;
 }
 
 describe('resolvePersonalWizardOptions', () => {
-  it('offers the configured roster with on-disk card art, existing voices and catalogue page counts', () => {
-    expect(options.companions.map((companion) => companion.id)).toEqual(PROTOTYPE_COMPANION_ROSTER.map((entry) => entry.id));
+  it('offers all six companions with on-disk card art by name, the voices, and three length tiers', () => {
+    expect(options.companions.map((companion) => companion.id)).toEqual([...PROTOTYPE_COMPANION_ROSTER]);
+    expect(options.companions).toHaveLength(6);
     expect(options.unavailableCompanionIds).toEqual([]);
     for (const companion of options.companions) {
+      expect(Object.keys(companion).sort()).toEqual(['id', 'image', 'name']);
       expect(companion.name.length).toBeGreaterThan(0);
       expect(companion.image).toMatch(/^\/companions\//);
-      expect(companion.personality).not.toMatch(/[–—]/);
     }
     expect(options.voices.map((voice) => voice.id)).toEqual(VOICES.map((voice) => voice.id));
     expect(options.voices.find((voice) => voice.id === 'dad_v2')?.sampleUrl).toBeNull();
-    expect(options.packages.map((pkg) => [pkg.id, pkg.pages])).toEqual([
-      ['bedtime', 16],
-      ['adventure', 24],
-      ['fantasy', 32],
+    // Every book is an adventure with fantasy; tiers differ only in length (Guy 2026-09-29).
+    expect(options.lengths).toEqual([
+      { id: 'short', pages: 16 },
+      { id: 'medium', pages: 24 },
+      { id: 'long', pages: 32 },
     ]);
     expect(options.topics.map((topic) => topic.id)).toContain('transitions');
     expect(options.fingerprint).toMatch(/^[0-9a-f]{64}$/);
@@ -67,7 +72,7 @@ describe('resolvePersonalWizardOptions', () => {
     try {
       const bare = resolvePersonalWizardOptions(emptyRoot);
       expect(bare.companions).toEqual([]);
-      expect(bare.unavailableCompanionIds).toEqual(PROTOTYPE_COMPANION_ROSTER.map((entry) => entry.id));
+      expect(bare.unavailableCompanionIds).toEqual([...PROTOTYPE_COMPANION_ROSTER]);
       expect(bare.voices.every((voice) => voice.sampleUrl === null)).toBe(true);
       expect(bare.fingerprint).not.toBe(options.fingerprint);
     } finally {
@@ -103,8 +108,13 @@ describe('acceptPersonalBookRequest', () => {
       ['unknown companion', { ...request, companion: { id: 'octopus_seara' } }],
       ['unknown topic', { ...request, intent: { kind: 'topic', topicId: 'other' } }],
       ['fake OTHER category', { ...request, intent: { kind: 'topic', topicId: 'OTHER' } }],
-      ['unknown voice', { ...request, bookOptions: { packageId: null, voiceId: 'clone_of_parent' } }],
-      ['unknown package', { ...request, bookOptions: { packageId: 'long_12', voiceId: null } }],
+      ['unknown voice', { ...request, bookOptions: { lengthId: null, voiceId: 'clone_of_parent' } }],
+      ['unknown length', { ...request, bookOptions: { lengthId: 'long_12', voiceId: null } }],
+      ['a story type instead of a length', { ...request, bookOptions: { packageId: 'adventure', voiceId: null } }],
+      ['no residence', { ...request, child: { ...request.child, residence: '' } }],
+      ['nothing loved', { ...request, facts: [] }],
+      ['what is hard unanswered', { ...request, noDifficulty: false }],
+      ['a residence fact', { ...request, facts: [...request.facts, { id: 'f_99999998', kind: 'residence', value: 'קיבוץ', source: 'typed' }] }],
       ['un-normalized text', { ...request, avoid: ['  בלי חושך'] }],
       ['address other', { ...request, child: { ...request.child, address: 'other' } }],
       ['age 2', { ...request, child: { ...request.child, age: 2 } }],
@@ -125,10 +135,14 @@ describe('acceptPersonalBookRequest', () => {
     const request = validRequest();
     const withFixture = {
       ...request,
-      facts: [...request.facts, { id: 'f_99999999', kind: 'residence', value: 'קיבוץ', source: 'fixture' }],
+      facts: [...request.facts, { id: 'f_99999999', kind: 'favorite_place', value: 'הים', source: 'fixture' }],
     };
     const result = acceptPersonalBookRequest(withFixture, options);
     expect(result.ok && result.containsFixtureData).toBe(true);
+    for (const field of ['addressSource', 'residenceSource'] as const) {
+      const heardFromExample = acceptPersonalBookRequest({ ...request, child: { ...request.child, [field]: 'fixture' } }, options);
+      expect(heardFromExample.ok && heardFromExample.containsFixtureData, field).toBe(true);
+    }
   });
 
   it('canonical JSON is key-order independent and keeps array order', () => {

@@ -2,7 +2,16 @@
 
 import type { RefObject } from 'react';
 
-import { COMMON, SOURCE_BADGE, companionCopy, factLabel, storyPlaceLabel, summaryCopy, tellCopy } from '@/lib/personal-wizard/copy';
+import {
+  COMMON,
+  LENGTH_COPY,
+  SOURCE_BADGE,
+  companionCopy,
+  factLabel,
+  storyPlaceLabel,
+  summaryCopy,
+  tellCopy,
+} from '@/lib/personal-wizard/copy';
 import { normalizeText, type PersonalBookDraft, type ReviewedPersonalBookRequest } from '@/lib/personal-wizard/contract';
 import { buildReviewedRequest, summarizeRequest } from '@/lib/personal-wizard/draft';
 
@@ -67,13 +76,14 @@ export function StepSummary({ draft, options, titleRef, photoUrl, submission, on
   const model = summarizeRequest(build.request);
   const companion = options.companions.find((candidate) => candidate.id === model.companionId);
   const voice = options.voices.find((candidate) => candidate.id === model.voiceId);
-  const pkg = options.packages.find((candidate) => candidate.id === model.packageId);
+  const length = options.lengths.find((candidate) => candidate.id === model.lengthId);
+  const lengthText = length ? `${LENGTH_COPY[length.id]?.name ?? length.id}, ${length.pages} עמודים` : null;
   const intentText =
     model.intent === null
       ? copy.intentNone
       : model.intent.kind === 'just_for_fun'
         ? companionCopy(name, draft.child.address).justForFun
-        : options.topics.find((topic) => topic.id === (model.intent as { topicId: string }).topicId)?.label ?? '';
+        : copy.intentHelps(options.topics.find((topic) => topic.id === (model.intent as { topicId: string }).topicId)?.label ?? '');
   const stale = submission.state !== 'idle' && submission.revision !== draft.revision;
   // Name/age/topic accepted from a suggestion keep a visible origin, like facts do.
   const originBadge = (origin: 'fixture' | 'transcript' | null) =>
@@ -82,11 +92,10 @@ export function StepSummary({ draft, options, titleRef, photoUrl, submission, on
         {SOURCE_BADGE[origin]}
       </span>
     ) : null;
-  const childOrigin = [model.child.nameSource, model.child.ageSource].includes('fixture')
-    ? 'fixture'
-    : [model.child.nameSource, model.child.ageSource].includes('transcript')
-      ? 'transcript'
-      : null;
+  const heroSources = [model.child.nameSource, model.child.ageSource, model.child.addressSource];
+  const childOrigin = heroSources.includes('fixture') ? 'fixture' : heroSources.includes('transcript') ? 'transcript' : null;
+  const residenceSource = model.child.residenceSource;
+  const residenceOrigin = residenceSource === 'fixture' || residenceSource === 'transcript' ? residenceSource : null;
   const intentOrigin = model.intent?.kind === 'topic' ? model.intent.suggestedBy ?? null : null;
 
   return (
@@ -107,6 +116,10 @@ export function StepSummary({ draft, options, titleRef, photoUrl, submission, on
             {copy.childLine(model.child.age)}
             {originBadge(childOrigin)}
           </p>
+          <p className={styles.summaryText}>
+            {copy.residenceLine(model.child.residence)}
+            {originBadge(residenceOrigin)}
+          </p>
         </section>
 
         <section className={styles.summarySection} aria-labelledby="pw-sum-facts">
@@ -126,6 +139,12 @@ export function StepSummary({ draft, options, titleRef, photoUrl, submission, on
                 </span>
               ) : null}
             </p>
+          ) : null}
+          {model.noDifficulty ? (
+            <div className={styles.summaryGroup}>
+              <h3 className={styles.factGroupTitle}>{tell.groupTitle.hard}</h3>
+              <p className={styles.summaryText}>{copy.noDifficulty}</p>
+            </div>
           ) : null}
           {model.factGroups.map((group) => (
             <div key={group.group} className={styles.summaryGroup}>
@@ -159,7 +178,7 @@ export function StepSummary({ draft, options, titleRef, photoUrl, submission, on
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img className={styles.summaryCompanionImage} src={companion.image} alt="" />
               <p className={styles.summaryText}>
-                <strong>{companion.name}</strong>. {companion.personality}
+                <strong>{companion.name}</strong>
               </p>
             </div>
           ) : null}
@@ -194,7 +213,7 @@ export function StepSummary({ draft, options, titleRef, photoUrl, submission, on
             <ul className={styles.summaryList}>
               <li>{model.photo === 'none' ? copy.photoNone : copy.photoLocal}</li>
               <li>{copy.voice(voice ? voice.label : null)}</li>
-              <li>{copy.pkg(pkg ? `${pkg.name}, ${pkg.pages} עמודים` : null)}</li>
+              <li>{copy.length(lengthText)}</li>
             </ul>
           </div>
         </section>

@@ -337,42 +337,6 @@
 
 /* ── Acquaintance: voice card ─────────────────────────────── */
 
-.voiceCard {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 12px;
-  padding: 24px 20px;
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-xl);
-  background: var(--brand-purple-faint);
-  text-align: center;
-}
-
-.micButton {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  min-block-size: 56px;
-  padding: 0 28px;
-  border: none;
-  border-radius: var(--radius-pill);
-  background: var(--interactive);
-  color: var(--ink-inverse);
-  font-family: var(--font-display);
-  font-size: 19px;
-  font-weight: 800;
-  cursor: pointer;
-  box-shadow: var(--shadow-primary-btn);
-  transition: background var(--dur-fast) var(--ease-soft), transform var(--dur-fast) var(--ease-soft);
-}
-
-.micButton:hover {
-  background: var(--interactive-hover);
-  transform: translateY(-1px);
-}
-
 .micIcon {
   inline-size: var(--icon-lg);
   block-size: var(--icon-lg);
@@ -389,14 +353,6 @@
   font-size: 15px;
   font-weight: 700;
   line-height: 1.5;
-}
-
-.voiceNote {
-  margin: 0;
-  max-inline-size: 46ch;
-  font-size: var(--text-body-sm-size);
-  line-height: 1.6;
-  color: var(--ink-2);
 }
 
 .voiceStatus {
@@ -657,8 +613,10 @@
   padding: 10px 12px;
 }
 
+/* The text wraps inside its column; the actions stay beside it, even on a phone. */
 .factText {
-  flex: 1 1 200px;
+  flex: 1 1 auto;
+  min-inline-size: 0;
   font-size: 15px;
   line-height: 1.5;
   color: var(--ink);
@@ -667,7 +625,13 @@
 
 .factActions {
   display: inline-flex;
+  flex: 0 0 auto;
   gap: 4px;
+}
+
+.basicRow,
+.factRow:not([data-editing]) {
+  flex-wrap: nowrap;
 }
 
 .linkButton {
@@ -756,49 +720,32 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
-  padding: 16px;
-  border: 1.5px dashed var(--border-strong);
+  margin-block-start: var(--sp-md);
+  padding: 4px 16px;
+  border: 1.5px dashed var(--border);
   border-radius: var(--radius-md);
+}
+
+.testPanel[open] {
+  padding-block-end: 16px;
 }
 
 .testTitle {
+  display: flex;
+  align-items: center;
+  min-block-size: var(--touch-target);
   margin: 0;
   font-size: var(--text-eyebrow-size);
   font-weight: 700;
-  color: var(--ink-2);
-}
-
-.processing {
-  margin: 0;
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--brand-purple-deep);
-}
-
-.prompt {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding: 16px;
-  border: 1.5px solid var(--interactive);
-  border-radius: var(--radius-md);
-  background: var(--surface-raised);
-  box-shadow: var(--shadow-2);
-}
-
-.promptText {
-  margin: 0;
-  font-size: 15.5px;
-  font-weight: 600;
-  color: var(--ink-strong);
-  text-align: center;
+  color: var(--ink-3);
+  cursor: pointer;
 }
 
 /* ── Companion + intent ───────────────────────────────────── */
 
 .companionGrid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
 }
 
@@ -871,12 +818,6 @@
   font-size: 16px;
   font-weight: 700;
   color: var(--ink-strong);
-}
-
-.companionLine {
-  font-size: 13.5px;
-  line-height: 1.5;
-  color: var(--ink-2);
 }
 
 .intentGrid {
@@ -1209,10 +1150,6 @@
     padding: 24px;
   }
 
-  .companionGrid {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-  }
-
   .intentGrid {
     display: flex;
     flex-wrap: wrap;
@@ -1229,9 +1166,15 @@
   }
 
   .companionCard:hover,
-  .micButton:hover,
+  .recordButton:hover .recordCircle,
   .btnContinue:hover:not(:disabled) {
     transform: none;
+  }
+
+  .recordPulse[data-live],
+  .processingOrb,
+  .processingDot {
+    animation: none;
   }
 }
 
@@ -1260,4 +1203,399 @@
   border-color: var(--interactive);
   box-shadow: 0 0 0 3px rgba(136, 108, 255, 0.14);
   outline: none;
+}
+
+/* ── Voice-first v2 (Guy 2026-09-29): one big button, focused recording and processing ── */
+
+/* A hidden region must stay hidden even when its class sets a display. */
+.page [hidden] {
+  display: none !important;
+}
+
+/* Before the card there is no bottom bar, so nothing needs to clear it. */
+.main[data-focused] {
+  padding-block-end: var(--sp-lg);
+}
+
+/* The start screen: text above, the button low on the screen, two quiet alternatives. */
+.startView {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-lg);
+  min-block-size: calc(100dvh - 230px);
+  padding-block-start: var(--sp-md);
+}
+
+.startText {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-sm);
+}
+
+.startLead {
+  margin: 0 auto;
+  max-inline-size: 34ch;
+  font-size: 17px;
+  line-height: 1.65;
+  color: var(--ink-2);
+  text-align: center;
+}
+
+.startAction {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  margin-block-start: auto;
+  padding-block-end: var(--sp-sm);
+}
+
+.startRecorder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  text-align: center;
+}
+
+/* The halo reaches 26px past the circle: the padding keeps it clear of the text around it. */
+.recordButton {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 34px;
+  padding: 26px 0 0;
+  border: none;
+  background: none;
+  color: var(--ink-strong);
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.recordCircle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: 132px;
+  block-size: 132px;
+  border-radius: 50%;
+  background: var(--interactive);
+  color: var(--ink-inverse);
+  box-shadow:
+    0 0 0 12px rgba(136, 108, 255, 0.14),
+    0 0 0 26px rgba(136, 108, 255, 0.07),
+    var(--shadow-primary-btn);
+  transition: transform var(--dur-fast) var(--ease-soft), background var(--dur-fast) var(--ease-soft);
+}
+
+.recordButton:hover .recordCircle {
+  background: var(--interactive-hover);
+  transform: scale(1.03);
+}
+
+.recordButton:focus-visible {
+  outline: none;
+}
+
+.recordButton:focus-visible .recordCircle {
+  outline: var(--focus-ring);
+  outline-offset: 30px;
+}
+
+.recordCircle .micIcon {
+  inline-size: 54px;
+  block-size: 54px;
+}
+
+.recordLabel {
+  line-height: 1.2;
+}
+
+.micIconSmall {
+  inline-size: 18px;
+  block-size: 18px;
+  margin-inline-end: 6px;
+}
+
+.altLinks {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 2px 20px;
+}
+
+.altLink,
+.switchLink {
+  min-block-size: var(--touch-target);
+  padding: 0 6px;
+  border: none;
+  background: none;
+  color: var(--brand-purple-deep);
+  font-family: var(--font-body);
+  font-size: 15.5px;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  cursor: pointer;
+}
+
+.switchLink {
+  align-self: center;
+}
+
+.privacyLine {
+  margin: 0;
+  max-inline-size: 48ch;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--ink-3);
+  text-align: center;
+}
+
+/* Recording: the must-haves as cues, the finish button, nothing else. */
+.recordingPanel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 28px 20px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-xl);
+  background: var(--brand-purple-faint);
+  text-align: center;
+}
+
+.recordPulse {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: 96px;
+  block-size: 96px;
+  border-radius: 50%;
+  background: var(--interactive);
+  color: var(--ink-inverse);
+}
+
+.recordPulse .micIcon {
+  inline-size: 40px;
+  block-size: 40px;
+}
+
+.recordPulse[data-live] {
+  animation: pw-breathe 1.8s ease-out infinite;
+}
+
+@keyframes pw-breathe {
+  0% {
+    box-shadow: 0 0 0 0 rgba(136, 108, 255, 0.45);
+  }
+  70% {
+    box-shadow: 0 0 0 24px rgba(136, 108, 255, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(136, 108, 255, 0);
+  }
+}
+
+.cues {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  margin-block: 6px;
+}
+
+.cuesTitle {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--ink-strong);
+}
+
+.cueList {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cue {
+  padding: 6px 14px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-pill);
+  background: var(--surface-raised);
+  color: var(--brand-purple-deep);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.recordingActions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.btnPrimary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-block-size: var(--control-h);
+  padding: 0 28px;
+  border: none;
+  border-radius: var(--radius-pill);
+  background: var(--interactive);
+  color: var(--ink-inverse);
+  font-family: var(--font-body);
+  font-size: var(--text-button-size);
+  font-weight: var(--text-button-weight);
+  box-shadow: var(--shadow-primary-btn);
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease-soft);
+}
+
+.btnPrimary:hover:not(:disabled) {
+  background: var(--interactive-hover);
+}
+
+.btnPrimary:disabled {
+  opacity: 0.45;
+  box-shadow: none;
+  cursor: not-allowed;
+}
+
+/* Processing: only the animation and one line, centered on the screen. */
+.processingView {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-block-size: calc(100dvh - 170px);
+  text-align: center;
+}
+
+.processingOrb {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  inline-size: 124px;
+  block-size: 124px;
+  margin-block-end: 18px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, var(--brand-purple-soft), var(--interactive) 70%);
+  box-shadow: 0 0 0 14px rgba(136, 108, 255, 0.1);
+  animation: pw-orb 2.4s ease-in-out infinite;
+}
+
+.processingDot {
+  inline-size: 12px;
+  block-size: 12px;
+  border-radius: 50%;
+  background: var(--ink-inverse);
+  animation: pw-dot 1.2s ease-in-out infinite;
+}
+
+.processingDot:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.processingDot:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+@keyframes pw-orb {
+  0%,
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 14px rgba(136, 108, 255, 0.1);
+  }
+  50% {
+    transform: scale(1.04);
+    box-shadow: 0 0 0 26px rgba(136, 108, 255, 0.05);
+  }
+}
+
+@keyframes pw-dot {
+  0%,
+  80%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.55;
+  }
+  40% {
+    transform: translateY(-9px);
+    opacity: 1;
+  }
+}
+
+.processingTitle {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(22px, 3vw, 28px);
+  font-weight: 800;
+  line-height: 1.3;
+  color: var(--ink-strong);
+}
+
+.processingTitle:focus {
+  outline: none;
+}
+
+.processingSub {
+  margin: 0;
+  font-size: 15px;
+  color: var(--ink-2);
+}
+
+/* The card: the five must-haves first, then the bonus details. */
+.missingNote {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--brand-purple-deep);
+  text-align: center;
+}
+
+.mustHave {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-block-start: 14px;
+  border-block-start: 1px solid var(--border-soft);
+}
+
+.mustHaveTitle {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.4;
+  color: var(--ink-strong);
+}
+
+.rowNote {
+  display: inline-block;
+  margin-inline-start: 8px;
+  font-size: 12.5px;
+  color: var(--ink-3);
+}
+
+.chip[data-variant='none'] {
+  border-style: dashed;
+  color: var(--ink-2);
+}
+
+.cardFooter,
+.cardRecorder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  text-align: center;
 }

@@ -19,9 +19,11 @@ import {
 import { g } from './copy';
 
 /**
- * simple = details only; mixed = conflicts, place and a direction; voice = the voice-first brief's
- * illustration (name, age, residence, a habit and an explicitly requested direction; no adventure
- * place, family or fear invented).
+ * voice = everything a parent might say in one go: the five must-haves (name, age, where the child
+ * lives, what they love, what is hard) and a habit; what is hard suggests a direction. simple = only
+ * what the child loves, a favourite place and a habit, so the card asks for the missing must-haves.
+ * mixed = conflicts, an adventure place and an explicitly requested direction; nothing loved or hard.
+ * No example invents a fear, a family member or a residence that its transcript does not say.
  */
 export type FixtureExampleId = 'simple' | 'mixed' | 'voice';
 
@@ -37,19 +39,23 @@ export function buildFixtureResult(request: FixtureIntakeRequest): IntakeResult 
     return intakeResultSchema.parse({
       jobId: request.jobId,
       source: 'fixture',
-      transcript: `בר ${g(a, 'בן', 'בת')} חמש, ${g(a, 'גר', 'גרה')} באודם, ${g(a, 'אוהב', 'אוהבת')} כדורגל, ולפני בעיטה ${g(a, 'הוא לוחש', 'היא לוחשת')} לכדור. הייתי רוצה הרפתקה על רעשים חזקים.`,
+      transcript: `קוראים ${g(a, 'לו', 'לה')} בר, ${g(a, 'הוא בן', 'היא בת')} חמש ו${g(a, 'גר', 'גרה')} באודם. ${g(a, 'הוא', 'היא')} מאוד ${g(a, 'אוהב', 'אוהבת')} כדורגל ולקפוץ על הטרמפולינה, ולפני בעיטה ${g(a, 'הוא לוחש', 'היא לוחשת')} לכדור. קצת קשה ${g(a, 'לו', 'לה')} עם רעשים חזקים, כמו אזעקות.`,
       extraction: {
         version: PERSONAL_INTAKE_EXTRACTION_VERSION,
         understood: true,
         facts: [
-          { kind: 'residence', value: 'אודם' },
           { kind: 'interest', value: 'כדורגל' },
+          { kind: 'interest', value: 'לקפוץ על הטרמפולינה' },
+          { kind: 'difficulty', value: 'רעשים חזקים, כמו אזעקות' },
           { kind: 'habit', value: `${g(a, 'לוחש', 'לוחשת')} לכדור לפני בעיטה` },
         ],
         storyPlace: null,
         mentionedName: 'בר',
         mentionedAge: 5,
-        explicitTopicId: 'sirens',
+        mentionedAddress: a,
+        residence: 'אודם',
+        explicitTopicId: null,
+        hardTopicId: 'sirens',
       },
     });
   }
@@ -62,15 +68,18 @@ export function buildFixtureResult(request: FixtureIntakeRequest): IntakeResult 
         version: PERSONAL_INTAKE_EXTRACTION_VERSION,
         understood: true,
         facts: [
-          { kind: 'interest', value: 'בניית מגדלים מקוביות' },
-          { kind: 'interest', value: 'ציור בגיר על המדרכה' },
+          { kind: 'interest', value: 'לבנות מגדלים מקוביות' },
+          { kind: 'interest', value: 'לצייר בגיר על המדרכה' },
           { kind: 'favorite_place', value: 'הים' },
           { kind: 'habit', value: 'ספירת המדרגות בקול בכל ערב' },
         ],
         storyPlace: null,
         mentionedName: null,
         mentionedAge: null,
+        mentionedAddress: a,
+        residence: null,
         explicitTopicId: null,
+        hardTopicId: null,
       },
     });
   }
@@ -82,7 +91,6 @@ export function buildFixtureResult(request: FixtureIntakeRequest): IntakeResult 
       version: PERSONAL_INTAKE_EXTRACTION_VERSION,
       understood: true,
       facts: [
-        { kind: 'residence', value: 'קיבוץ' },
         { kind: 'family', value: 'אחות קטנה בשם נועה' },
         { kind: 'other', value: `${g(a, 'לא אוהב', 'לא אוהבת')} מסיבות רועשות` },
         { kind: 'recent_event', value: `${g(a, 'מתחיל', 'מתחילה')} גן חדש בספטמבר` },
@@ -90,7 +98,10 @@ export function buildFixtureResult(request: FixtureIntakeRequest): IntakeResult 
       storyPlace: 'ליד הים',
       mentionedName: null,
       mentionedAge: 6,
+      mentionedAddress: a,
+      residence: 'קיבוץ',
       explicitTopicId: 'transitions',
+      hardTopicId: null,
     },
   });
 }

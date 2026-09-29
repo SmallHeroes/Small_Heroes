@@ -6,12 +6,12 @@ import { COMMON, SOURCE_BADGE, factLabel, storyPlaceLabel, tellCopy } from '@/li
 import type { Fact, PersonalBookDraft } from '@/lib/personal-wizard/contract';
 import {
   FACT_GROUP_OF_KIND,
-  FACT_GROUP_ORDER,
   activeFacts,
   commitStoryPlace,
   editFactValue,
   removeFact,
   type EditOutcome,
+  type FactGroupId,
 } from '@/lib/personal-wizard/draft';
 
 import styles from './personal-wizard.module.css';
@@ -20,7 +20,11 @@ type Props = {
   draft: PersonalBookDraft;
   update: (change: (draft: PersonalBookDraft) => PersonalBookDraft) => void;
   copy: ReturnType<typeof tellCopy>;
-  onEditPlace: () => void;
+  /** Which groups to list, in order. The adventure place is listed with 'places'. */
+  groups: readonly FactGroupId[];
+  /** Group titles; the must-have blocks carry their own title. */
+  showTitles?: boolean;
+  onEditPlace?: () => void;
 };
 
 const EDIT_MESSAGE: Partial<Record<EditOutcome, keyof ReturnType<typeof tellCopy>['factOutcome']>> = {
@@ -29,8 +33,8 @@ const EDIT_MESSAGE: Partial<Record<EditOutcome, keyof ReturnType<typeof tellCopy
   duplicate: 'duplicate',
 };
 
-/** The details list inside the card: every entry path lands here, each row editable and removable. */
-export function FactsList({ draft, update, copy, onEditPlace }: Props) {
+/** Details rows inside the card: every entry path lands here, each row editable and removable. */
+export function FactsList({ draft, update, copy, groups, showTitles = true, onEditPlace }: Props) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState('');
   const [editError, setEditError] = useState<string | null>(null);
@@ -69,13 +73,13 @@ export function FactsList({ draft, update, copy, onEditPlace }: Props) {
 
   return (
     <>
-      {FACT_GROUP_ORDER.map((group) => {
+      {groups.map((group) => {
         const groupFacts = facts.filter((fact) => FACT_GROUP_OF_KIND[fact.kind] === group);
-        const showPlace = group === 'places' && place;
+        const showPlace = group === 'places' && place && onEditPlace;
         if (groupFacts.length === 0 && !showPlace) return null;
         return (
           <div key={group} className={styles.factGroup}>
-            <h3 className={styles.factGroupTitle}>{copy.groupTitle[group]}</h3>
+            {showTitles ? <h3 className={styles.factGroupTitle}>{copy.groupTitle[group]}</h3> : null}
             <ul className={styles.factRows}>
               {showPlace && place ? (
                 <li className={styles.factRow} data-status={place.status}>

@@ -1,6 +1,7 @@
 /**
- * POST /api/dev/personal-wizard/intake/text — explicit re-organisation of a transcript the parent
- * corrected (extraction only; no audio). Same authority, ledger and logging rules as the audio route.
+ * POST /api/dev/personal-wizard/intake/text — extraction only, no audio: a text the parent wrote
+ * instead of recording, or an explicit re-organisation of a transcript the parent corrected. Same
+ * authority, ledger and logging rules as the audio route.
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';

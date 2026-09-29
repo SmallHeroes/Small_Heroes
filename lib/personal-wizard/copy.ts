@@ -1,6 +1,6 @@
 /**
- * Hebrew copy for the personal Wizard prototype. Inflection follows the parent's explicit choice
- * of grammatical address, never the child's name or photo.
+ * Hebrew copy for the personal Wizard prototype. Inflection follows the grammatical address the
+ * parent chose or used when talking about the child, never the child's name or photo.
  */
 import type { FactKind, GrammaticalAddress } from './contract';
 import type { FactGroupId } from './draft';
@@ -32,85 +32,127 @@ export const COMMON = {
   add: 'הוספה',
 };
 
-/** The child's basics (name, age, grammatical address), asked in the details card. */
+/** The child's basics (name, age, grammatical address, residence), asked in the details card. */
 export const HERO = {
   nameLabel: 'השם שיופיע בספר',
   namePlaceholder: 'למשל: בר',
   nameRow: (name: string) => `שם: ${name}`,
-  ageLabel: 'גיל',
+  ageLabel: (address: GrammaticalAddress | null) => (address ? g(address, 'בן כמה?', 'בת כמה?') : 'בן או בת כמה?'),
   ageRow: (age: number) => `גיל: ${age}`,
   ageHint: 'האבטיפוס בנוי לגילי 3 עד 8.',
   addressLabel: (name: string) => (name ? `איך לפנות ל${name} בסיפור?` : 'איך לפנות בסיפור?'),
   addressBoy: 'בלשון זכר',
   addressGirl: 'בלשון נקבה',
-  addressHint: 'נכתוב את הסיפור לפי הבחירה הזו, לא לפי השם או הקול.',
+  addressRow: (address: GrammaticalAddress) => `פנייה: ${address === 'girl' ? 'בלשון נקבה' : 'בלשון זכר'}`,
+  addressHint: 'נכתוב את הסיפור בלשון הזו. לא נסיק אותה מהשם.',
+  residenceLabel: (name: string, address: GrammaticalAddress | null) =>
+    name && address ? `איפה ${name} ${g(address, 'גר', 'גרה')}?` : 'איפה גרים?',
+  residencePlaceholder: 'למשל: חיפה, קיבוץ עין גדי',
+  residenceRow: (value: string) => `מקום מגורים: ${value}`,
+  residenceHint: 'המקום שבו גרים. ההרפתקה יכולה להתחיל במקום אחר.',
   errors: {
     child_name_missing: 'צריך שם לספר',
     child_name_invalid: 'אפשר להשתמש באותיות, רווח, גרש או מקף',
     child_age_missing: 'בחרו גיל',
     child_address_missing: 'בחרו איך לפנות בסיפור',
+    child_residence_missing: 'כתבו איפה גרים',
   },
 };
 
-export const CHIPS = [
+/** What the child loves (picked or typed; a recording proposes them too). */
+export const LOVES_CHIPS = [
   { id: 'ball', label: 'כדור' },
   { id: 'crafts', label: 'יצירה' },
   { id: 'building', label: 'בנייה' },
   { id: 'music', label: 'מוזיקה' },
   { id: 'animals', label: 'בעלי חיים' },
   { id: 'outdoor', label: 'משחק בחוץ' },
+  { id: 'dance', label: 'ריקוד' },
+  { id: 'stories', label: 'סיפורים' },
 ] as const;
 
+/** "What is hard" chips are the story topics: picking one also proposes it as the direction. */
+export const hardChipId = (topicId: string) => `hard_${topicId}`;
+
+/** The five must-haves, as short cues shown while recording and next to the writing box. */
+export const MUST_HAVE_CUES = ['שם', 'גיל', 'איפה גרים', 'מה אוהבים', 'מה קשה'] as const;
+
 /**
- * The voice-first step: the parent talks first and the details card is the result. Until the name
- * and grammatical address are known, the copy stays neutral (it never guesses either).
+ * The voice-first step: the parent talks (or picks, or writes) first and the details card is the
+ * result. Until the name and grammatical address are known, the copy stays neutral.
  */
 export function tellCopy(name: string, address: GrammaticalAddress | null) {
   const known = Boolean(name) && address !== null;
   const loves = known ? `${name} ${g(address, 'אוהב', 'אוהבת')}` : null;
   return {
-    title: 'ספרו לנו קצת על הילד שלכם',
-    lead: 'איך קוראים לו או לה, מה אוהבים לעשות, ואיזה פרט קטן הופך אותם למי שהם. אפשר לספר גם על מקום מוכר או משהו שחשוב לכם בסיפור.',
+    title: 'ספרו לנו על הילד שלכם',
+    lead: 'דקה אחת מספיקה. ספרו בחופשיות, ואנחנו נסדר את הפרטים.',
     voiceCta: 'ספרו לנו בקול',
     voiceCtaLocal: 'בדיקת מיקרופון',
-    durationHint: 'חצי דקה עד דקה מספיקות, בכל סדר שנוח לכם.',
-    localBanner: 'בדיקת מיקרופון בלבד, כרגע לא מפענחים פרטים.',
-    voiceNoteLive:
-      'בסיום נשלח את ההקלטה לעיבוד ונראה לכם כאן מה הבנו, כדי שתוכלו לתקן לפני שזה נכנס לסיפור. ההקלטה אינה הקול שיקריא את הספר.',
-    voiceNoteLocal:
-      'באבטיפוס הזה ההקלטה נשארת במכשיר שלכם ולא נשלחת לעיבוד. את הפרטים אפשר לכתוב או לבחור.',
-    manualToggle: 'מעדיפים לכתוב או לבחור?',
+    durationHint: 'חצי דקה עד דקה, בכל סדר שנוח לכם.',
+    localBanner: 'בדיקת מיקרופון בלבד: באבטיפוס הזה ההקלטה נשארת במכשיר ולא מפוענחת.',
+    chipsLink: 'מעדיפים לבחור מצ׳יפים',
+    writeLink: 'מעדיפים לכתוב',
+    cuesTitle: 'כדאי לספר:',
+    processingVoice: 'מסדרים את מה שסיפרתם',
+    processingWritten: 'מסדרים את מה שכתבתם',
+    processingFixture: 'מסדרים את הדוגמה',
+    processingSub: 'עוד כמה שניות',
+    writeTitle: 'כתבו לנו על הילד שלכם',
+    writeLead: 'כמה משפטים מספיקים, בכל סדר שנוח לכם.',
+    writeLabel: 'מה תרצו לספר?',
+    writeSend: 'סדרו את הפרטים',
+    writeLocalNote: 'באבטיפוס הזה, בלי עיבוד חי, הטקסט לא מסודר אוטומטית. אפשר לענות על השאלות במקום.',
+    writeToQuestions: 'לענות על שאלות',
+    chipsTitle: 'בואו נכיר',
+    switchToVoice: 'להקליט במקום',
     cardTitleHeard: name ? `זה מה שהבנו על ${name}` : 'זה מה שהבנו',
-    cardTitleOwn: name ? `הפרטים על ${name}` : 'הפרטים שלכם',
+    cardTitleOwn: name ? `הפרטים על ${name}` : 'הפרטים על הילד',
     cardNote: 'אפשר לערוך או להסיר כל פרט. מה שתסירו לא ייכנס לספר.',
-    chipsLabel: loves ? `דברים ש${loves}` : 'דברים שאוהבים לעשות',
+    missingNote: (count: number) =>
+      count === 1 ? 'חסר עוד פרט אחד. שאלנו עליו כאן למטה.' : `חסרים עוד ${count} פרטים. שאלנו עליהם כאן למטה.`,
+    lovesTitle: loves ? `מה ${loves}` : 'מה אוהבים',
+    lovesQuestion: loves ? `מה ${name} הכי ${g(address, 'אוהב', 'אוהבת')}?` : 'מה הכי אוהבים?',
+    lovesError: 'בחרו או כתבו לפחות דבר אחד',
     otherChip: 'משהו אחר',
-    otherLabel: loves ? `מה עוד ${loves}?` : 'עוד משהו שאוהבים לעשות',
+    lovesOtherLabel: 'מה עוד?',
+    hardTitle: name ? `מה קשה ל${name}` : 'מה קשה',
+    hardQuestion: name ? `מה קצת קשה ל${name} בזמן האחרון?` : 'מה קצת קשה בזמן האחרון?',
+    hardHint: 'במילים שלכם, בלי אבחנות. הסיפור ייתן לזה מקום.',
+    hardError: 'בחרו, כתבו, או סמנו שאין משהו מיוחד',
+    hardNone: 'אין משהו מיוחד',
+    hardNoneRow: 'אין משהו מיוחד שקשה עכשיו',
+    hardOtherLabel: 'מה קשה, במילים שלכם?',
+    directionTitle: 'הסיפור יעזור עם',
+    directionFromHard: 'לפי מה שקשה',
+    directionRemovedNote: 'בלי כיוון, זו תהיה הרפתקה בשביל הכיף.',
+    bonusTitle: 'עוד פרטים',
+    bonusAdd: 'להוסיף עוד פרט',
     placeLabel: name ? `איפה מתחילה ההרפתקה של ${name}?` : 'איפה מתחילה ההרפתקה?',
-    placeHint: 'למשל באודם, ליד הים או בגינה ליד הבית. זה המקום של הסיפור, לא כתובת.',
+    placeHint: 'לא חובה. למשל ליד הים או בגינה ליד הבית. זה המקום של הסיפור, לא כתובת.',
     extraLabel: 'עוד פרט קטן',
     extraHint: known
       ? `משהו ש${name} ${g(address, 'נוהג', 'נוהגת')} לומר או לעשות. לא חובה.`
       : 'משהו שנוהגים לומר או לעשות. לא חובה.',
-    listEmpty: 'עוד אין פרטים נוספים. אפשר להמשיך גם בלי, והסיפור יתבסס על מה שמסרתם.',
+    recordMore: 'להוסיף בהקלטה',
     groupTitle: {
-      interests: loves ?? 'אוהבים לעשות',
+      loves: loves ?? 'אוהבים לעשות',
+      hard: name ? `מה קשה ל${name}` : 'מה קשה',
       places: 'מקומות',
       habits: 'הרגלים ומשפטים',
       more: 'עוד',
     } satisfies Record<FactGroupId, string>,
-    directionTitle: 'כיוון לסיפור',
     // A direction is already chosen and a recording (or the example) brings another: an explicit choice.
-    directionChange: (current: string, proposed: string, source: 'transcript' | 'fixture') =>
-      `כבר נבחר כיוון: ״${current}״. ${source === 'fixture' ? 'בדוגמה' : 'בהקלטה'} עלה ״${proposed}״. להחליף?`,
+    directionChange: (current: string, proposed: string, source: 'transcript' | 'fixture' | 'chip') =>
+      `כבר נבחר כיוון: ״${current}״. ${source === 'fixture' ? 'בדוגמה' : source === 'chip' ? 'בבחירה שלכם' : 'במה שסיפרתם'} עלה ״${proposed}״. להחליף?`,
     directionReplace: (proposed: string) => `להחליף ל״${proposed}״`,
     directionKeep: (current: string) => `להשאיר את ״${current}״`,
     directionKeepNote: (current: string) => `אם לא תבחרו, נשאיר את ״${current}״.`,
     directionPickLater: 'עלו כמה כיוונים. אפשר לבחור ביניהם בשלב הבא.',
     continue: 'אלה הפרטים, ממשיכים',
-    processingPrompt: 'הפרטים מההקלטה עוד בעיבוד.',
+    processingPrompt: 'הפרטים עוד בעיבוד.',
     processingWait: 'לחכות',
-    processingSkip: 'להמשיך בלי הפרטים מההקלטה',
+    processingSkip: 'להמשיך בלי הפרטים האלה',
     recordingPrompt: 'ההקלטה עדיין פעילה.',
     recordingResume: 'לחזור להקלטה',
     recordingSkip: 'לעצור ולהמשיך בלי לשלוח',
@@ -126,11 +168,15 @@ export function tellCopy(name: string, address: GrammaticalAddress | null) {
       `${typed ? `כתבתם ״${current}״` : `ברשימה מופיע ״${current}״`} ושמענו ״${heard}״. ${
         address ? `איך לקרוא ל${g(address, 'גיבור', 'גיבורה')}?` : 'באיזה שם להשתמש בספר?'
       }`,
+    conflictAddress: (current: string, heard: string, typed: boolean) =>
+      `${typed ? `בחרתם ${current}` : `ברשימה מופיע ${current}`}, ובמה שסיפרתם עלה ${heard}. איך לפנות בסיפור?`,
+    conflictResidence: (current: string, heard: string, typed: boolean) =>
+      `${typed ? `כתבתם ״${current}״` : `ברשימה מופיע ״${current}״`} ושמענו ״${heard}״. איפה גרים?`,
     conflictPlace: (current: string, heard: string, typed: boolean) =>
       `${typed ? `כתבתם ״${current}״` : `ברשימה מופיע ״${current}״`} ושמענו ״${heard}״. איפה מתחילה ההרפתקה?`,
-    conflictFixtureNote: 'ההצעה הזו הגיעה מהדוגמה המוכנה, לא מההקלטה.',
+    conflictFixtureNote: 'ההצעה הזו הגיעה מהדוגמה המוכנה, לא ממה שסיפרתם.',
     factOutcome: {
-      limit: 'אפשר עד 12 פרטים. כמה פרטים קטנים מספיקים.',
+      limit: 'הגעתם למספר המקסימלי כאן. אפשר להסיר פרט ולהוסיף אחר.',
       duplicate: 'הפרט הזה כבר ברשימה.',
       too_long: 'קצר יותר, בבקשה (עד 80 תווים).',
       empty: 'כתבו משהו קצר, או הסירו את הפרט.',
@@ -142,8 +188,6 @@ export function factLabel(kind: FactKind, value: string): string {
   switch (kind) {
     case 'favorite_place':
       return `מקום אהוב: ${value}`;
-    case 'residence':
-      return `מקום מגורים: ${value}`;
     case 'family':
       return `משפחה: ${value}`;
     case 'recent_event':
@@ -155,7 +199,8 @@ export function factLabel(kind: FactKind, value: string): string {
 
 export const storyPlaceLabel = (value: string) => `מקום ההרפתקה: ${value}`;
 
-export const SOURCE_BADGE = { fixture: 'דוגמה', transcript: 'מההקלטה' } as const;
+/** Provenance badges. A written text and a recording are both "what you told us". */
+export const SOURCE_BADGE = { fixture: 'דוגמה', transcript: 'ממה שסיפרתם' } as const;
 
 export const RECORDER = {
   requesting: 'מחכים לאישור המיקרופון',
@@ -187,21 +232,21 @@ export const RECORDER = {
   cancelledPermission: 'ביטלנו. המיקרופון לא נפתח.',
   processing: 'מסדרים את הפרטים',
   processedAdded: (count: number) =>
-    count === 1 ? 'הוספנו פרט אחד לרשימה. אפשר לערוך או להסיר אותו.' : `הוספנו ${count} פרטים לרשימה. אפשר לערוך או להסיר כל אחד.`,
+    count === 1 ? 'הוספנו פרט אחד. אפשר לערוך או להסיר אותו.' : `הוספנו ${count} פרטים. אפשר לערוך או להסיר כל אחד.`,
   processedNothingNew: 'לא מצאנו פרטים חדשים.',
   retiredByCorrection: (count: number) =>
     count === 1
       ? 'הצעה אחת שלא הופיעה בתמלול המתוקן הוסרה מהרשימה.'
       : `${count} הצעות שלא הופיעו בתמלול המתוקן הוסרו מהרשימה.`,
-  notUnderstood: 'לא הצלחנו להבין מספיק. אפשר לנסות שוב או לכתוב.',
+  notUnderstood: 'לא הצלחנו להבין מספיק. אפשר לנסות שוב, לכתוב או לבחור.',
   abandoned: 'ביטלנו. אם תגיע תשובה מאוחרת, לא נוסיף אותה.',
   failed: 'העיבוד לא הצליח. הפרטים שכבר ברשימה נשארו. אפשר לנסות שוב או לכתוב.',
   errors: {
-    insecure_context: 'הקלטה אפשרית רק בחיבור מאובטח. אפשר לכתוב או לבחור כאן.',
-    unsupported: 'הדפדפן הזה לא תומך בהקלטה. אפשר לכתוב או לבחור כאן.',
-    permission_denied: 'לא הצלחנו לפתוח את המיקרופון. אפשר לכתוב או לבחור כאן.',
-    no_device: 'לא מצאנו מיקרופון. אפשר לכתוב או לבחור כאן.',
-    device_busy: 'המיקרופון תפוס כרגע. אפשר לנסות שוב, או לכתוב ולבחור כאן.',
+    insecure_context: 'הקלטה אפשרית רק בחיבור מאובטח. אפשר לכתוב או לבחור.',
+    unsupported: 'הדפדפן הזה לא תומך בהקלטה. אפשר לכתוב או לבחור.',
+    permission_denied: 'לא הצלחנו לפתוח את המיקרופון. אפשר לכתוב או לבחור.',
+    no_device: 'לא מצאנו מיקרופון. אפשר לכתוב או לבחור.',
+    device_busy: 'המיקרופון תפוס כרגע. אפשר לנסות שוב, לכתוב או לבחור.',
     empty: 'לא הצלחנו להבין מספיק. אפשר לנסות שוב או לכתוב.',
     failed: 'ההקלטה נעצרה בגלל תקלה. הפרטים שכתבתם נשארו. אפשר לנסות שוב או לכתוב.',
   } satisfies Record<RecorderErrorKind, string>,
@@ -210,6 +255,8 @@ export const RECORDER = {
   sent: 'ההקלטה נשלחה לעיבוד.',
   privacyLive:
     'ההקלטה והתמלול נשלחים לעיבוד אצל ספק חיצוני ואינם נשמרים אצלנו. הספק עשוי לשמור את טקסט התמלול עד 30 יום לבדיקות אבטחה.',
+  privacyWritten:
+    'הטקסט נשלח לעיבוד אצל ספק חיצוני ואינו נשמר אצלנו. הספק עשוי לשמור אותו עד 30 יום לבדיקות אבטחה.',
 };
 
 /** Parent-facing text for live intake failures (P2). An aborted request says nothing extra. */
@@ -228,38 +275,43 @@ export const INTAKE_ERRORS: Record<LiveIntakeError, string> = {
 };
 
 export const TRANSCRIPT = {
-  show: 'הצגת התמלול',
-  hide: 'הסתרת התמלול',
+  show: 'הצגת מה ששמענו',
+  showWritten: 'הצגת מה שכתבתם',
+  hide: 'הסתרה',
   titleLive: 'התמלול',
+  titleWritten: 'מה שכתבתם',
   titleFixture: 'תמלול לדוגמה (כתוב מראש, לא מההקלטה)',
-  editNote: 'תיקון התמלול לא נשלח מחדש מעצמו.',
-  editLabel: 'תיקון התמלול',
+  editNote: 'תיקון הטקסט לא נשלח מחדש מעצמו.',
+  editLabel: 'תיקון הטקסט',
   reorganize: 'לסדר שוב מהטקסט המתוקן',
 };
 
 export const TEST_PANEL = {
-  title: 'כלי בדיקה לאבטיפוס',
+  toggle: 'כלי בדיקה לאבטיפוס',
   note: 'הדוגמאות כתובות מראש. הן לא נגזרות מההקלטה שלכם, וההקלטה לא נשלחת אליהן.',
   delayNote: 'הדוגמה מגיעה אחרי השהיה קצרה, כדי שאפשר יהיה לבדוק עיבוד, ביטול והמשך.',
-  simple: 'טעינת דוגמה: פרטים פשוטים',
+  voice: 'טעינת דוגמה: הכל נאמר',
+  simple: 'טעינת דוגמה: חסרים פרטים',
   mixed: 'טעינת דוגמה: סתירה, מקום וכיוון',
-  voice: 'טעינת דוגמה: שם, גיל ומגורים',
   lateIgnored: 'הגיעה תשובה מאוחרת ולא נוספה.',
-  processing: 'מסדרים את הפרטים מהדוגמה',
 };
 
 export function companionCopy(name: string, address: GrammaticalAddress | null) {
   return {
     title: `מי יצטרף ל${name} להרפתקה?`,
-    sub: 'בוחרים חבר או חברה לסיפור. לכל אחד יש אופי משלו.',
+    sub: 'בוחרים חבר או חברה לסיפור.',
     rosterNote: 'הדמויות מוצגות לבדיקת האבטיפוס. בחירה כאן עוד לא מאשרת את הדמות לאיור בספר.',
     missing: 'בחרו חבר או חברה לסיפור',
-    intentTitle: 'יש משהו שתרצו לתת לו מקום בסיפור?',
-    intentSub: 'לא חובה. אפשר גם לבקש הרפתקה בלי נושא מיוחד.',
+    intentTitle: 'במה הסיפור יעזור?',
+    intentSub: 'לא חובה. אפשר גם הרפתקה בלי נושא מיוחד.',
     justForFun: 'הרפתקה בשביל הכיף',
     clearIntent: 'בלי לבחור כיוון',
-    suggestion: (label: string, source: 'transcript' | 'fixture') =>
-      source === 'fixture' ? `בדוגמה המוכנה עלה: ״${label}״. לבחור בזה?` : `שמענו בהקלטה: ״${label}״. לבחור בזה?`,
+    suggestion: (label: string, source: 'transcript' | 'fixture' | 'chip') =>
+      source === 'fixture'
+        ? `בדוגמה המוכנה עלה: ״${label}״. לבחור בזה?`
+        : source === 'chip'
+          ? `בחרתם ש${g(address, 'קשה לו', 'קשה לה')}: ״${label}״. לבחור בזה?`
+          : `במה שסיפרתם עלה: ״${label}״. לבחור בזה?`,
     suggestionAccept: 'לבחור',
     suggestionDismiss: 'לא עכשיו',
     avoidTitle: 'מה לא תרצו שיופיע?',
@@ -270,6 +322,13 @@ export function companionCopy(name: string, address: GrammaticalAddress | null) 
     childRef: g(address, 'הגיבור', 'הגיבורה'),
   };
 }
+
+/** Length tiers: every book is an adventure with fantasy; only length and plot depth differ. */
+export const LENGTH_COPY: Record<string, { name: string; depth: string }> = {
+  short: { name: 'קצר', depth: 'עלילה פשוטה וקצרה' },
+  medium: { name: 'בינוני', depth: 'עוד תחנות בדרך' },
+  long: { name: 'ארוך', depth: 'מסע מלא ועלילה עמוקה' },
+};
 
 export function bookCopy(name: string) {
   return {
@@ -289,8 +348,9 @@ export function bookCopy(name: string) {
     playSample: 'האזנה לדוגמה',
     stopSample: 'עצירה',
     noSample: 'דוגמה תתווסף בהמשך',
-    packageTitle: 'איזה ספר?',
-    packageNote: 'סוגי הספרים מוצגים לבדיקת האבטיפוס. מחיר וזמינות ייקבעו כשהכתיבה האישית תחובר.',
+    lengthTitle: 'כמה ארוך הספר?',
+    lengthNote:
+      'כל הספרים הם הרפתקה עם קסם ופנטזיה. ההבדל הוא באורך ובעומק העלילה. מחיר וזמינות ייקבעו כשהכתיבה האישית תחובר.',
     pages: (count: number) => `${count} עמודים`,
     clearChoice: 'לבחור אחר כך',
   };
@@ -307,13 +367,16 @@ export function summaryCopy(name: string, address: GrammaticalAddress | null) {
       look: 'מראה וקול',
     },
     childLine: (age: number) => `${name}, ${g(address, 'בן', 'בת')} ${age}, בלשון ${g(address, 'זכר', 'נקבה')}`,
+    residenceLine: (value: string) => `מקום מגורים: ${value}`,
+    noDifficulty: 'אין משהו מיוחד שקשה עכשיו',
     noFacts: 'בלי פרטים נוספים. הסיפור יתבסס על הבחירות שמסרתם.',
-    intentNone: 'לא נבחר כיוון מיוחד',
+    intentHelps: (label: string) => `הסיפור יעזור עם: ${label}`,
+    intentNone: 'הרפתקה בלי נושא מיוחד',
     avoid: (items: readonly string[]) => `בלי: ${items.join(', ')}`,
     photoNone: 'בלי תמונה',
     photoLocal: 'נבחרה תמונה לתצוגה בלבד. באבטיפוס היא לא נשלחת.',
     voice: (label: string | null) => `קריינות: ${label ?? 'עוד לא נבחרה'}`,
-    pkg: (label: string | null) => `סוג הספר: ${label ?? 'עוד לא נבחר'}`,
+    length: (label: string | null) => `אורך: ${label ?? 'עוד לא נבחר'}`,
     fixtureWarning: 'חלק מהפרטים הם דוגמה מוכנה ולא מידע שמסרתם.',
     connectionTitle: 'מה קורה בלחיצה',
     connectionBody:
@@ -331,6 +394,9 @@ export function summaryCopy(name: string, address: GrammaticalAddress | null) {
       child_name_invalid: 'השם צריך תיקון',
       child_age_missing: 'חסר גיל',
       child_address_missing: 'חסרה לשון פנייה',
+      child_residence_missing: 'חסר מקום מגורים',
+      loves_missing: 'חסר מה אוהבים',
+      hard_missing: 'חסר מה קשה (או ״אין משהו מיוחד״)',
       facts_unreviewed: 'יש פרטים שעוד לא אישרתם ברשימה',
       companion_missing: 'עוד לא נבחר חבר להרפתקה',
       contract_violation: 'יש פרט שלא עומד בכללי הבקשה',

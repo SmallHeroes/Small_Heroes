@@ -29,11 +29,16 @@ vi.mock('@/lib/personal-wizard/intake-openai', () => ({
           status: 'completed',
           outputText: JSON.stringify({
             understood: true,
-            facts: [{ kind: 'interest', value: 'בניית מגדלים' }],
-            storyPlace: null,
             mentionedName: null,
             mentionedAge: null,
+            mentionedAddress: null,
+            residence: null,
+            loves: ['בניית מגדלים'],
+            hard: [],
+            bonus: [],
+            storyPlace: null,
             explicitTopicId: null,
+            hardTopicId: null,
           }),
         };
       },

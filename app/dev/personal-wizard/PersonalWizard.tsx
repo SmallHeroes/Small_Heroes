@@ -9,6 +9,7 @@ import {
   applyIntakeResult,
   buildReviewedRequest,
   commitChildName,
+  commitChildResidence,
   confirmFactsReview,
   failIntakeJob,
   randomId,
@@ -30,13 +31,13 @@ import styles from './personal-wizard.module.css';
 import { StepBook } from './StepBook';
 import { StepCompanion } from './StepCompanion';
 import { StepSummary, type Submission } from './StepSummary';
-import { StepTell, type IntakeNotice, type TellPrompt } from './StepTell';
+import { StepTell, tellViewOf, type IntakeNotice, type TellMode } from './StepTell';
 
 export type WizardOptionsView = {
-  companions: Array<{ id: string; name: string; image: string; personality: string }>;
+  companions: Array<{ id: string; name: string; image: string }>;
   topics: Array<{ id: string; label: string }>;
   voices: Array<{ id: string; label: string; description: string; emoji: string; sampleUrl: string | null }>;
-  packages: Array<{ id: string; kicker: string; name: string; pages: number }>;
+  lengths: Array<{ id: string; pages: number }>;
 };
 
 /** 1 = tell us (voice first, manual alternative), 2 = companion and direction, 3 = look and sound, 4 = summary. */
@@ -57,7 +58,8 @@ export function PersonalWizard({ options }: Props) {
   const [returnToSummary, setReturnToSummary] = useState(false);
   const [showErrors, setShowErrors] = useState({ tell: false, companion: false });
   const [manualOpen, setManualOpen] = useState(false);
-  const [prompt, setPrompt] = useState<TellPrompt>(null);
+  const [tellMode, setTellMode] = useState<TellMode>('voice');
+  const [cardOpened, setCardOpened] = useState(false);
   const [intakeNotice, setIntakeNotice] = useState<IntakeNotice | null>(null);
   const [lateIgnored, setLateIgnored] = useState(false);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
@@ -69,6 +71,12 @@ export function PersonalWizard({ options }: Props) {
   const allowedTopicIds = useMemo(() => new Set(options.topics.map((topic) => topic.id)), [options.topics]);
   const issues = requestIssues(draft);
   const name = normalizeText(draft.child.name);
+  const tellView = tellViewOf({ draft, phase: recorder.snapshot.phase, mode: tellMode, cardOpened });
+  useEffect(() => {
+    if (tellView === 'card' && !cardOpened) setCardOpened(true);
+  }, [tellView, cardOpened]);
+  // Step 1 before the card: only the start screen, the recording or the processing. No bottom bar.
+  const focusedTell = step === 1 && tellView !== 'card';
 
   // Live intake (P2) is offered only when the server says this signed-in operator may use it.
   // The answer only shapes the UI; the intake routes enforce authority on every request.
@@ -134,7 +142,6 @@ export function PersonalWizard({ options }: Props) {
       controller?.stop('left_step');
     }
     playback.stop();
-    setPrompt(null);
     setStep(target);
   };
 
@@ -180,7 +187,7 @@ export function PersonalWizard({ options }: Props) {
    */
   const runLiveJob = (
     submitJob: (jobId: string, signal: AbortSignal) => Promise<LiveIntakeResponse>,
-    options: { supersedesJobId?: string } = {},
+    options: { supersedesJobId?: string; medium?: 'voice' | 'written' } = {},
   ): boolean => {
     if (read().intake?.status === 'processing') {
       setIntakeNotice({ kind: 'error', error: 'busy' });
@@ -221,6 +228,14 @@ export function PersonalWizard({ options }: Props) {
   const reorganizeTranscript = (text: string) => {
     runLiveJob((jobId, signal) => submitTextIntake({ jobId, draftId: read().draftId, text, signal }), {
       supersedesJobId: read().transcript?.jobId,
+      medium: read().transcript?.medium ?? 'voice',
+    });
+  };
+
+  // Writing instead of talking: the same extraction, one job, the same card.
+  const submitWritten = (text: string) => {
+    runLiveJob((jobId, signal) => submitTextIntake({ jobId, draftId: read().draftId, text, signal }), {
+      medium: 'written',
     });
   };
 
@@ -249,55 +264,38 @@ export function PersonalWizard({ options }: Props) {
     window.setTimeout(() => document.querySelector<HTMLElement>(selector)?.focus(), 0);
   };
 
-  /** Name, age and address are required before leaving step 1; the card shows what is missing. */
-  const basicsReady = (): boolean => {
-    const missing = requestIssues(read()).filter((issue) => issue.code.startsWith('child_'));
+  /** Where each must-have is asked in the card, in the order the card asks them. */
+  const MUST_HAVE_FIELD: Record<string, string> = {
+    child_name_missing: '#pw-child-name',
+    child_name_invalid: '#pw-child-name',
+    child_age_missing: 'input[name="pw-age"]',
+    child_address_missing: 'input[name="pw-address"]',
+    child_residence_missing: '#pw-residence',
+    loves_missing: '#pw-loves button, #pw-loves input',
+    hard_missing: '#pw-hard button, #pw-hard input',
+  };
+
+  /** The five must-haves are required before leaving step 1; the card asks for what is missing. */
+  const mustHavesReady = (): boolean => {
+    const missing = requestIssues(read()).filter((issue) => issue.code in MUST_HAVE_FIELD);
     if (missing.length === 0) return true;
     setShowErrors((current) => ({ ...current, tell: true }));
-    const first = missing[0].code;
-    focusFirstInvalid(
-      first.startsWith('child_name') ? '#pw-child-name' : first === 'child_age_missing' ? 'input[name="pw-age"]' : 'input[name="pw-address"]',
-    );
+    focusFirstInvalid(MUST_HAVE_FIELD[missing[0].code]);
     return false;
   };
 
-  /** "These are the details, continue": approves the one shared version and moves on. */
-  const finishTell = () => {
-    setPrompt(null);
-    if (!basicsReady()) return;
-    update((current) => confirmFactsReview(commitChildName(current)));
-    advance();
-  };
-
+  /**
+   * "These are the details, continue": approves the one shared version and moves on. The button is
+   * only there with the card, never while recording or processing (those screens have their own
+   * finish and cancel), so nothing can be approved behind an unfinished job.
+   */
   const continueFromTell = () => {
     const { phase } = recorder.snapshot;
-    if (phase === 'requesting' || phase === 'recording' || phase === 'stopping') {
-      setPrompt('recording');
-      return;
-    }
-    if (read().intake?.status === 'processing') {
-      setPrompt('processing');
-      return;
-    }
-    finishTell();
-  };
-
-  const onPromptChoice = (choice: 'wait' | 'skip') => {
-    if (choice === 'wait') {
-      setPrompt(null);
-      return;
-    }
-    if (prompt === 'recording') {
-      const controller = recorder.controller();
-      controller?.withdrawSendRequest();
-      controller?.stop('left_step');
-    }
-    if (prompt === 'processing' || read().intake?.status === 'processing') {
-      abortLive();
-      update(abandonIntakeJob);
-      setIntakeNotice({ kind: 'abandoned' });
-    }
-    finishTell();
+    if (phase === 'requesting' || phase === 'recording' || phase === 'stopping') return;
+    if (read().intake?.status === 'processing') return;
+    if (!mustHavesReady()) return;
+    update((current) => confirmFactsReview(commitChildResidence(commitChildName(current))));
+    advance();
   };
 
   const submit = async () => {
@@ -382,9 +380,11 @@ export function PersonalWizard({ options }: Props) {
         <span className={styles.brand}>גיבורים קטנים</span>
         <span className={styles.prototypeBadge}>{COMMON.prototypeBadge}</span>
       </header>
-      <p className={styles.draftNotice}>{COMMON.draftNotice}</p>
+      <p className={styles.draftNotice} hidden={step === 1 && tellView === 'processing'}>
+        {COMMON.draftNotice}
+      </p>
 
-      <div className={styles.progress}>
+      <div className={styles.progress} hidden={step === 1 && tellView === 'processing'}>
         <p className={styles.progressLabel}>
           {COMMON.stepOf(step)}: {STEP_NAMES[step - 1]}
         </p>
@@ -399,9 +399,15 @@ export function PersonalWizard({ options }: Props) {
         </ol>
       </div>
 
-      <main className={styles.main}>
+      <main className={styles.main} data-focused={focusedTell || undefined}>
         {step === 1 ? (
           <StepTell
+            view={tellView}
+            mode={tellMode}
+            onMode={(mode) => {
+              setIntakeNotice(null);
+              setTellMode(mode);
+            }}
             draft={draft}
             update={update}
             titleRef={titleRef}
@@ -418,8 +424,7 @@ export function PersonalWizard({ options }: Props) {
             }}
             clipSent={Boolean(recorder.snapshot.clip && recorder.snapshot.clip.blob === sentClip)}
             onReorganize={liveIntake ? reorganizeTranscript : undefined}
-            prompt={prompt}
-            onPromptChoice={onPromptChoice}
+            onSubmitWritten={liveIntake ? submitWritten : undefined}
             issues={issues}
             showErrors={showErrors.tell}
             manualOpen={manualOpen}
@@ -459,7 +464,12 @@ export function PersonalWizard({ options }: Props) {
         ) : null}
       </main>
 
-      <nav className={styles.bottomBar} aria-label="ניווט בין השלבים" data-keyboard={keyboardOpen || undefined}>
+      <nav
+        className={styles.bottomBar}
+        aria-label="ניווט בין השלבים"
+        data-keyboard={keyboardOpen || undefined}
+        hidden={focusedTell}
+      >
         <div className={styles.bottomBarInner}>
           {step > 1 ? (
             <button type="button" className={styles.btnBack} onClick={onBack}>

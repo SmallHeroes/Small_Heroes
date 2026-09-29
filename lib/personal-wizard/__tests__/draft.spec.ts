@@ -20,6 +20,7 @@ import {
   buildReviewedRequest,
   chipIsSelected,
   commitChildName,
+  commitChildResidence,
   commitStoryPlace,
   confirmFactsReview,
   createDraft,
@@ -33,11 +34,14 @@ import {
   setChildAddress,
   setChildAge,
   setChildName,
+  setChildResidence,
   setCompanion,
   setIntent,
+  setNoDifficulty,
   startIntakeJob,
   summarizeRequest,
   toggleChip,
+  toggleHardChip,
   type IdFactory,
 } from '../draft';
 import { buildFixtureResult } from '../intake-fixture';
@@ -54,12 +58,30 @@ function sequentialIds(): IdFactory {
 
 const ALLOWED_TOPICS = new Set(['transitions', 'night', 'social']);
 
+/**
+ * The child's single-valued basics, all typed, and "nothing special is hard" answered. What the
+ * child loves is a list, so tests add it themselves, or through `ready` right before a request.
+ */
 function basics(makeId = sequentialIds()): { draft: PersonalBookDraft; makeId: IdFactory } {
   let draft = createDraft('d_00000000test');
   draft = setChildName(draft, 'בר');
   draft = setChildAge(draft, 5);
   draft = setChildAddress(draft, 'boy');
+  draft = setChildResidence(draft, 'אודם');
+  draft = setNoDifficulty(draft, true);
   return { draft, makeId };
+}
+
+/** The same basics without a residence, for tests where a recording is heard to fill it. */
+function basicsWithoutResidence(makeId = sequentialIds()): { draft: PersonalBookDraft; makeId: IdFactory } {
+  const { draft } = basics(makeId);
+  return { draft: setChildResidence(draft, ''), makeId };
+}
+
+/** Adds the must-have "what the child loves" (typed, a fixed id) only when none is listed yet. */
+function ready(draft: PersonalBookDraft): PersonalBookDraft {
+  if (activeFacts(draft).some((fact) => fact.kind === 'interest')) return draft;
+  return addTypedFact(draft, 'interest', 'ספרים', () => 'f_baseline01').draft;
 }
 
 function extraction(partial: Partial<IntakeExtraction>): IntakeExtraction {
@@ -70,7 +92,10 @@ function extraction(partial: Partial<IntakeExtraction>): IntakeExtraction {
     storyPlace: null,
     mentionedName: null,
     mentionedAge: null,
+    mentionedAddress: null,
+    residence: null,
     explicitTopicId: null,
+    hardTopicId: null,
     ...partial,
   };
 }
@@ -121,12 +146,17 @@ describe('manual, chip and mixed entry reach one request', () => {
     expect(reviewedPersonalBookRequestSchema.parse(built.request)).toEqual(built.request);
   });
 
-  it('continuing with no details is allowed and invents nothing', () => {
+  it('continuing needs what the child loves; nothing is invented to fill a must-have', () => {
     const { draft: start } = basics();
     const draft = setCompanion(confirmFactsReview(start), 'panda_anat');
-    const built = buildReviewedRequest(draft);
-    expect(built.ok && built.request.facts).toEqual([]);
+    const refused = buildReviewedRequest(draft);
+    expect(!refused.ok && refused.issues.map((issue) => issue.code)).toEqual(['loves_missing']);
+    const built = buildReviewedRequest(ready(draft));
+    expect(built.ok && built.request.facts.map((fact) => [fact.kind, fact.value, fact.source])).toEqual([
+      ['interest', 'ספרים', 'typed'],
+    ]);
     expect(built.ok && built.request.storyPlace).toBeNull();
+    expect(built.ok && [built.request.noDifficulty, built.request.intent]).toEqual([true, null]);
   });
 
   it('pressing a chip twice removes it; renaming its value keeps a single fact', () => {
@@ -151,13 +181,24 @@ describe('manual, chip and mixed entry reach one request', () => {
     expect(activeFacts(typed.draft)).toHaveLength(1);
   });
 
-  it('enforces the fact ceiling and bounded lengths', () => {
+  it('enforces a ceiling per group, so a full group never blocks another (live trial F1)', () => {
     const { draft: start, makeId } = basics();
     let draft = start;
-    for (let index = 0; index < LIMITS.factsMax; index += 1) {
+    for (let index = 0; index < LIMITS.lovesMax; index += 1) {
       draft = addTypedFact(draft, 'interest', `תחביב ${'א'.repeat(index + 1)}`, makeId).draft;
     }
+    for (let index = 0; index < LIMITS.bonusMax; index += 1) {
+      draft = addTypedFact(draft, index % 2 ? 'habit' : 'family', `פרט ${'ב'.repeat(index + 1)}`, makeId).draft;
+    }
     expect(addTypedFact(draft, 'interest', 'עוד אחד', makeId).outcome).toBe('limit');
+    expect(addTypedFact(draft, 'other', 'עוד פרט', makeId).outcome).toBe('limit');
+    // Both other groups are full, and what is hard still gets in, up to its own ceiling.
+    for (let index = 0; index < LIMITS.hardMax; index += 1) {
+      const added = addTypedFact(draft, 'difficulty', `קשה ${'ג'.repeat(index + 1)}`, makeId);
+      expect(added.outcome).toBe('added');
+      draft = added.draft;
+    }
+    expect(addTypedFact(draft, 'difficulty', 'עוד קושי', makeId).outcome).toBe('limit');
     expect(addTypedFact(start, 'interest', 'א'.repeat(LIMITS.factValueMax + 1), makeId).outcome).toBe('too_long');
     expect(addAvoid(start, 'ב'.repeat(LIMITS.avoidItemMax + 1)).outcome).toBe('too_long');
   });
@@ -244,12 +285,17 @@ describe('intake merge never overwrites, resurrects or lands late', () => {
     expect(approved.conflicts).toEqual([]);
   });
 
-  it('ignores an out-of-range or equal age, and never extracts grammatical address', () => {
+  it('ignores an out-of-range or equal age; a heard address never overrides the parent\'s choice', () => {
     const { draft: start, makeId } = basics();
     const draft = startIntakeJob(start, 'j_00000001', 'transcript');
-    const merged = merge(draft, transcriptResult('j_00000001', { mentionedAge: 11 }), makeId);
+    const merged = merge(draft, transcriptResult('j_00000001', { mentionedAge: 11, mentionedAddress: 'boy' }), makeId);
     expect(merged.draft.conflicts).toEqual([]);
-    expect(merged.draft.child.address).toBe('boy');
+    expect(merged.draft.child).toMatchObject({ address: 'boy', addressSource: 'typed' });
+    const other = merge(startIntakeJob(start, 'j_00000002', 'transcript'), transcriptResult('j_00000002', { mentionedAddress: 'girl' }), makeId);
+    expect(other.draft.child.address).toBe('boy');
+    expect(other.draft.conflicts.map((conflict) => [conflict.field, 'proposed' in conflict ? conflict.proposed : null])).toEqual([
+      ['address', 'girl'],
+    ]);
   });
 
   it('keeps the adventure place separate, never resurrects a removed place, and asks on mismatch', () => {
@@ -291,7 +337,7 @@ describe('intake merge never overwrites, resurrects or lands late', () => {
     ).draft;
     expect(draft.intent).toBeNull();
     expect(draft.companionId).toBe('chameleon_koko');
-    expect(draft.intentSuggestions).toEqual([{ topicId: 'transitions', jobId: 'j_00000001', source: 'transcript' }]);
+    expect(draft.intentSuggestions).toEqual([{ topicId: 'transitions', jobId: 'j_00000001', source: 'transcript', reason: 'asked' }]);
     expect(dismissIntentSuggestion(draft, 'transitions').intentSuggestions).toEqual([]);
 
     const unknown = startIntakeJob(draft, 'j_00000002', 'transcript');
@@ -330,32 +376,46 @@ describe('the labelled fixture goes through the same merge and stays marked', ()
     expect(merged.applied).toBe(true);
     draft = merged.draft;
     expect(activeFacts(draft).map((fact) => [fact.kind, fact.source])).toEqual([
-      ['residence', 'fixture'],
       ['family', 'fixture'],
       ['other', 'fixture'],
       ['recent_event', 'fixture'],
     ]);
+    // The typed age and residence are only questioned; the heard address equals the chosen one.
     expect(draft.conflicts.map((conflict) => [conflict.field, 'proposed' in conflict ? conflict.proposed : null, conflict.source])).toEqual([
       ['age', 6, 'fixture'],
+      ['residence', 'קיבוץ', 'fixture'],
     ]);
     expect(draft.intent).toBeNull();
-    expect(draft.intentSuggestions.map((item) => item.topicId)).toEqual(['transitions']);
+    expect(draft.intentSuggestions.map((item) => [item.topicId, item.reason])).toEqual([['transitions', 'asked']]);
 
-    draft = setCompanion(confirmFactsReview(draft), 'dragon_dini');
+    draft = setCompanion(confirmFactsReview(ready(draft)), 'dragon_dini');
     const built = buildReviewedRequest(draft);
     expect(built.ok).toBe(true);
     if (!built.ok) return;
     expect(requestContainsFixtureData(built.request)).toBe(true);
-    expect(built.request.child.age).toBe(5);
+    expect(built.request.child).toMatchObject({ age: 5, residence: 'אודם', residenceSource: 'typed' });
     expect(summarizeRequest(built.request).containsFixtureData).toBe(true);
   });
 
-  it('simple example never invents family or residence', () => {
+  it('simple example never invents family, residence or a difficulty; the card asks for them', () => {
     const result = buildFixtureResult({ jobId: 'j_00000001', exampleId: 'simple', address: 'girl' });
     expect(result.source).toBe('fixture');
     expect(result.extraction.facts.map((fact) => fact.kind)).not.toContain('family');
-    expect(result.extraction.facts.map((fact) => fact.kind)).not.toContain('residence');
+    expect(result.extraction.facts.map((fact) => fact.kind)).not.toContain('difficulty');
+    expect(result.extraction).toMatchObject({ residence: null, mentionedName: null, mentionedAge: null, mentionedAddress: 'girl' });
     expect(result.transcript).toContain('היא');
+    const merged = applyIntakeResult(startIntakeJob(createDraft('d_00000000test'), 'j_00000001', 'fixture'), result, {
+      allowedTopicIds: ALLOWED_TOPICS,
+      makeId: sequentialIds(),
+    });
+    expect(requestIssues(merged.draft).map((issue) => issue.code)).toEqual([
+      'child_name_missing',
+      'child_age_missing',
+      'child_residence_missing',
+      'hard_missing',
+      'facts_unreviewed',
+      'companion_missing',
+    ]);
   });
 });
 
@@ -363,8 +423,9 @@ describe('summary and request round-trip', () => {
   it('summary shows exactly the request facts: no removed, no unapproved', () => {
     const { draft: start, makeId } = basics();
     let draft = addTypedFact(start, 'interest', 'ציור', makeId).draft;
+    draft = addTypedFact(draft, 'interest', 'שחייה', makeId).draft;
     draft = addTypedFact(draft, 'favorite_place', 'הים', makeId).draft;
-    draft = addTypedFact(draft, 'residence', 'קיבוץ', makeId).draft;
+    draft = addTypedFact(draft, 'habit', 'שר באוטו', makeId).draft;
     const toRemove = activeFacts(draft)[0];
     draft = removeFact(draft, toRemove.id);
     draft = confirmFactsReview(draft);
@@ -377,9 +438,11 @@ describe('summary and request round-trip', () => {
     const byId = (left: { id: string }, right: { id: string }) => left.id.localeCompare(right.id);
     const summaryFacts = summary.factGroups.flatMap((group) => group.facts);
     expect([...summaryFacts].sort(byId)).toEqual([...built.request.facts].sort(byId));
-    expect(summaryFacts.map((fact) => fact.value).sort()).toEqual(['הים', 'קיבוץ']);
-    expect(summary.factGroups.map((group) => group.group)).toEqual(['places']);
-    expect(built.request.facts.map((fact) => fact.kind)).toEqual(['favorite_place', 'residence']);
+    expect(summaryFacts.map((fact) => fact.value).sort()).toEqual(['הים', 'שחייה', 'שר באוטו'].sort());
+    expect(summary.factGroups.map((group) => group.group)).toEqual(['loves', 'places', 'habits']);
+    expect(built.request.facts.map((fact) => fact.kind)).toEqual(['interest', 'favorite_place', 'habit']);
+    expect(summary.child.residence).toBe('אודם');
+    expect(summary.noDifficulty).toBe(true);
     expect(summary.avoid).toEqual(['בלי כלבים גדולים']);
   });
 
@@ -389,13 +452,16 @@ describe('summary and request round-trip', () => {
       ['child_name_missing', 1],
       ['child_age_missing', 1],
       ['child_address_missing', 1],
+      ['child_residence_missing', 1],
+      ['loves_missing', 1],
+      ['hard_missing', 1],
       ['companion_missing', 2],
     ]);
   });
 
   it('the strict request schema rejects authority fields a browser might add', () => {
     const { draft: start } = basics();
-    const built = buildReviewedRequest(setCompanion(confirmFactsReview(start), 'fox_uri'));
+    const built = buildReviewedRequest(setCompanion(confirmFactsReview(ready(start)), 'fox_uri'));
     expect(built.ok).toBe(true);
     if (!built.ok) return;
     for (const extra of [{ approved: true }, { runtimeEligible: true }, { budgetUsd: 5 }]) {
@@ -408,6 +474,37 @@ describe('summary and request round-trip', () => {
     expect(
       reviewedPersonalBookRequestSchema.safeParse({ ...built.request, child: { ...built.request.child, age: 9 } }).success,
     ).toBe(false);
+  });
+
+  it('the server enforces the must-haves too: residence, something loved, and "what is hard" answered once', () => {
+    const { draft: start, makeId } = basics();
+    const built = buildReviewedRequest(setCompanion(confirmFactsReview(ready(start)), 'fox_uri'));
+    expect(built.ok).toBe(true);
+    if (!built.ok) return;
+    const request = built.request;
+    const difficulty = { id: 'f_hard0001', kind: 'difficulty' as const, value: 'מפחד מהחושך', source: 'typed' as const };
+    const refusals: Array<[string, unknown, string]> = [
+      ['no residence', { ...request, child: { ...request.child, residence: '' } }, 'too_small'],
+      ['nothing loved', { ...request, facts: [] }, 'loves_missing'],
+      ['nothing hard and no answer', { ...request, noDifficulty: false }, 'hard_missing'],
+      ['"nothing special" with a difficulty', { ...request, facts: [...request.facts, difficulty] }, 'no_difficulty_with_difficulties'],
+    ];
+    for (const [label, candidate, code] of refusals) {
+      const parsed = reviewedPersonalBookRequestSchema.safeParse(candidate);
+      expect(parsed.success, label).toBe(false);
+      if (!parsed.success) expect(parsed.error.issues.map((issue) => issue.code === 'custom' ? issue.message : issue.code), label).toContain(code);
+    }
+    // Control: a difficulty instead of "nothing special" is a valid answer.
+    expect(reviewedPersonalBookRequestSchema.safeParse({ ...request, noDifficulty: false, facts: [...request.facts, difficulty] }).success).toBe(true);
+    // Ceilings are per group on the wire as well.
+    const tooManyLoves = Array.from({ length: LIMITS.lovesMax + 1 }, (_, index) => ({
+      id: `f_love${String(index).padStart(4, '0')}`,
+      kind: 'interest' as const,
+      value: `אהבה ${'א'.repeat(index + 1)}`,
+      source: 'typed' as const,
+    }));
+    expect(reviewedPersonalBookRequestSchema.safeParse({ ...request, facts: tooManyLoves }).success).toBe(false);
+    void makeId;
   });
 });
 
@@ -434,29 +531,30 @@ describe('a corrected transcript supersedes the proposals of the transcript it c
       makeId,
     );
   const finalRequest = (draft: PersonalBookDraft) => {
-    const built = buildReviewedRequest(setCompanion(confirmFactsReview(draft), 'panda_anat'));
+    const built = buildReviewedRequest(setCompanion(confirmFactsReview(ready(draft)), 'panda_anat'));
     if (!built.ok) throw new Error(`request not built: ${built.issues.map((issue) => issue.code).join(',')}`);
     return built.request;
   };
 
   it("reviewer case: correcting 'גר באודם' to 'גר בחיפה' leaves only the corrected residence, and the server agrees", () => {
-    const { draft: start, makeId } = basics();
-    let draft = record(start, 'j_00000001', [{ kind: 'residence', value: 'גר באודם' }], makeId).draft;
-    const corrected = correct(draft, 'j_00000002', 'j_00000001', [{ kind: 'residence', value: 'גר בחיפה' }], makeId);
+    const { draft: start, makeId } = basicsWithoutResidence();
+    let draft = record(start, 'j_00000001', [], makeId, { residence: 'אודם' }).draft;
+    expect(draft.child).toMatchObject({ residence: 'אודם', residenceSource: 'transcript', residenceJobId: 'j_00000001' });
+    const corrected = correct(draft, 'j_00000002', 'j_00000001', [], makeId, { residence: 'חיפה' });
     expect(corrected.applied && corrected.retired).toBe(1);
     draft = corrected.draft;
     expect(draft.conflicts).toEqual([]);
     const request = finalRequest(draft);
-    expect(kinds(request.facts)).toEqual(['residence:גר בחיפה']);
+    expect(request.child).toMatchObject({ residence: 'חיפה', residenceSource: 'transcript' });
     const accepted = acceptPersonalBookRequest(request, resolvePersonalWizardOptions());
-    expect(accepted.ok && kinds(accepted.canonical.facts)).toEqual(['residence:גר בחיפה']);
+    expect(accepted.ok && accepted.canonical.child.residence).toBe('חיפה');
   });
 
   it('control: a second RECORDING still adds to the first; only a correction supersedes', () => {
     const { draft: start, makeId } = basics();
-    let draft = record(start, 'j_00000001', [{ kind: 'residence', value: 'גר באודם' }], makeId).draft;
+    let draft = record(start, 'j_00000001', [{ kind: 'family', value: 'אחות קטנה' }], makeId).draft;
     draft = record(draft, 'j_00000002', [{ kind: 'interest', value: 'ציור' }], makeId).draft;
-    expect(kinds(finalRequest(draft).facts)).toEqual(['residence:גר באודם', 'interest:ציור']);
+    expect(kinds(finalRequest(draft).facts)).toEqual(['family:אחות קטנה', 'interest:ציור']);
   });
 
   it('a detail deleted from the transcript leaves; an unchanged one keeps its identity', () => {
@@ -480,7 +578,7 @@ describe('a corrected transcript supersedes the proposals of the transcript it c
     const { draft: start, makeId } = basics();
     let draft = record(start, 'j_00000001', [{ kind: 'family', value: 'אחות קטנה בשם נועה' }], makeId).draft;
     draft = correct(draft, 'j_00000002', 'j_00000001', [{ kind: 'family', value: 'אחות קטנה בשם נוגה' }], makeId).draft;
-    expect(kinds(finalRequest(draft).facts)).toEqual(['family:אחות קטנה בשם נוגה']);
+    expect(kinds(finalRequest(draft).facts)).toEqual(['family:אחות קטנה בשם נוגה', 'interest:ספרים']);
   });
 
   it("the parent's own edits and removals survive a correction", () => {
@@ -598,51 +696,38 @@ describe('a corrected transcript supersedes the proposals of the transcript it c
   });
 
   it('a correction of a correction: what the first correction kept, the second can still change', () => {
-    const { draft: start, makeId } = basics();
-    let draft = record(start, 'j_00000001', [{ kind: 'residence', value: 'גר באודם' }], makeId).draft;
-    draft = correct(
-      draft,
-      'j_00000002',
-      'j_00000001',
-      [
-        { kind: 'residence', value: 'גר באודם' },
-        { kind: 'habit', value: 'שר שירים' },
-      ],
-      makeId,
-    ).draft;
-    const second = correct(
-      draft,
-      'j_00000003',
-      'j_00000002',
-      [
-        { kind: 'residence', value: 'גר בחיפה' },
-        { kind: 'habit', value: 'שר שירים' },
-      ],
-      makeId,
-    );
+    const { draft: start, makeId } = basicsWithoutResidence();
+    let draft = record(start, 'j_00000001', [], makeId, { residence: 'אודם' }).draft;
+    draft = correct(draft, 'j_00000002', 'j_00000001', [{ kind: 'habit', value: 'שר שירים' }], makeId, { residence: 'אודם' }).draft;
+    expect(draft.child.residenceJobId).toBe('j_00000002');
+    const second = correct(draft, 'j_00000003', 'j_00000002', [{ kind: 'habit', value: 'שר שירים' }], makeId, { residence: 'חיפה' });
     expect(second.applied && second.retired).toBe(1);
     const request = finalRequest(second.draft);
-    expect(kinds(request.facts)).toEqual(['habit:שר שירים', 'residence:גר בחיפה']);
+    expect(kinds(request.facts)).toEqual(['habit:שר שירים', 'interest:ספרים']);
+    expect(request.child.residence).toBe('חיפה');
     const accepted = acceptPersonalBookRequest(request, resolvePersonalWizardOptions());
-    expect(accepted.ok && kinds(accepted.canonical.facts)).toEqual(['habit:שר שירים', 'residence:גר בחיפה']);
+    expect(accepted.ok && accepted.canonical.child.residence).toBe('חיפה');
   });
 
   it('an unclear correction in the middle changes nothing, and hands its details to the next one', () => {
-    const { draft: start, makeId } = basics();
-    let draft = record(start, 'j_00000001', [{ kind: 'residence', value: 'גר באודם' }], makeId, {
+    const { draft: start, makeId } = basicsWithoutResidence();
+    let draft = record(start, 'j_00000001', [{ kind: 'habit', value: 'שר שירים' }], makeId, {
       explicitTopicId: 'night',
       mentionedAge: 6,
+      residence: 'אודם',
     }).draft;
     draft = correct(draft, 'j_00000002', 'j_00000001', [], makeId, { understood: false }).draft;
     // Negative control: the unclear step itself keeps every detail, question and suggestion.
-    expect(activeFacts(draft).map((fact) => fact.value)).toEqual(['גר באודם']);
+    expect(activeFacts(draft).map((fact) => fact.value)).toEqual(['שר שירים']);
+    expect(draft.child).toMatchObject({ residence: 'אודם', residenceJobId: 'j_00000002' });
     expect(draft.conflicts.map((conflict) => conflict.field)).toEqual(['age']);
     expect(draft.intentSuggestions.map((item) => item.topicId)).toEqual(['night']);
     // The next correction corrects the transcript on screen, and with it everything handed on.
-    draft = correct(draft, 'j_00000003', 'j_00000002', [{ kind: 'residence', value: 'גר בחיפה' }], makeId).draft;
+    draft = correct(draft, 'j_00000003', 'j_00000002', [], makeId, { residence: 'חיפה' }).draft;
     expect(draft.conflicts).toEqual([]);
     expect(draft.intentSuggestions).toEqual([]);
-    expect(kinds(finalRequest(draft).facts)).toEqual(['residence:גר בחיפה']);
+    expect(kinds(finalRequest(draft).facts)).toEqual(['interest:ספרים']);
+    expect(draft.child.residence).toBe('חיפה');
   });
 
   it('an open keep-or-remove question is asked again by the next correction, and settles when the detail returns', () => {
@@ -714,7 +799,7 @@ describe('a corrected transcript supersedes the proposals of the transcript it c
     expect(silent.transcript?.jobId).toBe('j_00000001');
     expect(kinds(finalRequest(silent).facts)).toEqual(['interest:ציור']);
     silent = correct(silent, 'j_00000003', 'j_00000001', [], makeId).draft;
-    expect(kinds(finalRequest(silent).facts)).toEqual([]);
+    expect(kinds(finalRequest(silent).facts)).toEqual(['interest:ספרים']);
   });
 });
 
@@ -740,10 +825,10 @@ describe('example provenance follows every surviving value, not only facts', () 
     let draft = fixtureOnlyCoreValues(makeId, start);
     // Chosen straight from the topic list, as the reviewer's probe does.
     draft = setIntent(draft, { kind: 'topic', topicId: 'night' });
-    const built = buildReviewedRequest(setCompanion(confirmFactsReview(draft), 'fox_uri'));
+    const built = buildReviewedRequest(setCompanion(confirmFactsReview(ready(draft)), 'fox_uri'));
     expect(built.ok).toBe(true);
     if (!built.ok) return;
-    expect(built.request.facts).toEqual([]);
+    expect(built.request.facts.map((fact) => fact.source)).toEqual(['typed']);
     expect(built.request.child).toMatchObject({ name: 'נועה', age: 6, address: 'boy', nameSource: 'fixture', ageSource: 'fixture' });
     expect(built.request.intent).toEqual({ kind: 'topic', topicId: 'night', suggestedBy: 'fixture' });
     expect(requestContainsFixtureData(built.request)).toBe(true);
@@ -768,7 +853,7 @@ describe('example provenance follows every surviving value, not only facts', () 
     draft = setChildName(draft, 'נועה');
     draft = setChildAge(draft, 6);
     draft = setIntent(draft, { kind: 'topic', topicId: 'social' });
-    const built = buildReviewedRequest(setCompanion(confirmFactsReview(draft), 'fox_uri'));
+    const built = buildReviewedRequest(setCompanion(confirmFactsReview(ready(draft)), 'fox_uri'));
     expect(built.ok).toBe(true);
     if (!built.ok) return;
     expect(built.request.child).toMatchObject({ nameSource: 'typed', ageSource: 'typed' });
@@ -782,7 +867,7 @@ describe('example provenance follows every surviving value, not only facts', () 
     draft = merge(draft, transcriptResult('j_00000001', { mentionedAge: 6, explicitTopicId: 'transitions' }), makeId).draft;
     draft = resolveConflict(draft, draft.conflicts[0].id, 'accept');
     draft = setIntent(draft, { kind: 'topic', topicId: 'transitions' });
-    const built = buildReviewedRequest(setCompanion(confirmFactsReview(draft), 'fox_uri'));
+    const built = buildReviewedRequest(setCompanion(confirmFactsReview(ready(draft)), 'fox_uri'));
     expect(built.ok).toBe(true);
     if (!built.ok) return;
     expect(built.request.child.ageSource).toBe('transcript');
@@ -792,14 +877,18 @@ describe('example provenance follows every surviving value, not only facts', () 
 
   it('the strict schema requires the provenance fields and their allowed values', () => {
     const { draft: start } = basics();
-    const built = buildReviewedRequest(setCompanion(confirmFactsReview(start), 'fox_uri'));
+    const built = buildReviewedRequest(setCompanion(confirmFactsReview(ready(start)), 'fox_uri'));
     expect(built.ok).toBe(true);
     if (!built.ok) return;
     const { nameSource: _dropped, ...withoutSource } = built.request.child;
+    const { addressSource: _droppedAddress, ...withoutAddressSource } = built.request.child;
     const bad = [
       { ...built.request, child: withoutSource },
+      { ...built.request, child: withoutAddressSource },
       { ...built.request, child: { ...built.request.child, nameSource: 'chip' } },
       { ...built.request, child: { ...built.request.child, ageSource: 'guessed' } },
+      { ...built.request, child: { ...built.request.child, addressSource: 'voice' } },
+      { ...built.request, child: { ...built.request.child, residenceSource: 'model' } },
       { ...built.request, intent: { kind: 'topic', topicId: 'night', suggestedBy: 'model' } },
       { ...built.request, intent: { kind: 'just_for_fun', suggestedBy: 'fixture' } },
     ];
@@ -820,7 +909,7 @@ describe('voice-first entry: a recording may fill the empty name and age; "conti
   ) => merge(startIntakeJob(draft, jobId, 'transcript', { supersedesJobId: supersedes }), transcriptResult(jobId, partial), makeId);
   const codes = (draft: PersonalBookDraft) => requestIssues(draft).map((issue) => issue.code);
 
-  it('fills an empty name and age as suggestions; the address stays the parent\'s explicit choice', () => {
+  it('fills the empty basics as suggestions; what was not heard is asked, never guessed', () => {
     const makeId = sequentialIds();
     const merged = record(
       empty(),
@@ -834,18 +923,71 @@ describe('voice-first entry: a recording may fill the empty name and age; "conti
       name: 'בר',
       age: 5,
       address: null,
+      residence: '',
       nameSource: 'transcript',
       ageSource: 'transcript',
+      addressSource: 'typed',
+      residenceSource: 'typed',
       nameJobId: 'j_00000001',
       ageJobId: 'j_00000001',
+      addressJobId: null,
+      residenceJobId: null,
     });
     expect(draft.conflicts).toEqual([]);
-    // Heard but not yet approved, and the address is never inferred.
-    expect(codes(draft)).toEqual(['child_address_missing', 'facts_unreviewed', 'companion_missing']);
-    draft = setCompanion(setChildAddress(confirmFactsReview(draft), 'boy'), 'fox_uri');
+    // Heard but not yet approved; the address, residence and what is hard were not said, so they are asked.
+    expect(codes(draft)).toEqual([
+      'child_address_missing',
+      'child_residence_missing',
+      'hard_missing',
+      'facts_unreviewed',
+      'companion_missing',
+    ]);
+    draft = setCompanion(setNoDifficulty(setChildResidence(setChildAddress(confirmFactsReview(draft), 'boy'), 'אודם'), true), 'fox_uri');
     expect(draft.child).toMatchObject({ nameJobId: null, ageJobId: null });
     const built = buildReviewedRequest(draft);
-    expect(built.ok && built.request.child).toEqual({ name: 'בר', age: 5, address: 'boy', nameSource: 'transcript', ageSource: 'transcript' });
+    expect(built.ok && built.request.child).toEqual({
+      name: 'בר',
+      age: 5,
+      address: 'boy',
+      residence: 'אודם',
+      nameSource: 'transcript',
+      ageSource: 'transcript',
+      addressSource: 'typed',
+      residenceSource: 'typed',
+    });
+  });
+
+  it('the address and the residence are heard like the name: filled when empty, then approved with the list', () => {
+    const makeId = sequentialIds();
+    let draft = record(empty(), 'j_00000001', { mentionedAddress: 'girl', residence: 'חיפה' }, makeId).draft;
+    expect(draft.child).toMatchObject({
+      address: 'girl',
+      addressSource: 'transcript',
+      addressJobId: 'j_00000001',
+      residence: 'חיפה',
+      residenceSource: 'transcript',
+      residenceJobId: 'j_00000001',
+    });
+    // Mixed or absent forms are not guessed: nothing heard, nothing filled.
+    expect(record(empty(), 'j_00000002', { mentionedAddress: null }, makeId).draft.child.address).toBeNull();
+    // Another recording never overwrites; it asks.
+    draft = record(draft, 'j_00000003', { mentionedAddress: 'boy', residence: 'אודם' }, makeId).draft;
+    expect(draft.child).toMatchObject({ address: 'girl', residence: 'חיפה' });
+    expect(draft.conflicts.map((conflict) => [conflict.field, 'proposed' in conflict ? conflict.proposed : null])).toEqual([
+      ['address', 'boy'],
+      ['residence', 'אודם'],
+    ]);
+    const accepted = resolveConflict(draft, draft.conflicts[0].id, 'accept');
+    expect(accepted.child).toMatchObject({ address: 'boy', addressSource: 'transcript', addressJobId: null });
+    // A correction replaces or retires its own unapproved address and residence.
+    const heard = record(empty(), 'j_00000004', { mentionedAddress: 'girl', residence: 'חיפה' }, makeId).draft;
+    const retired = correct(heard, 'j_00000005', 'j_00000004', {}, makeId);
+    expect(retired.applied && retired.retired).toBe(2);
+    expect(retired.draft.child).toMatchObject({ address: null, residence: '', addressJobId: null, residenceJobId: null });
+    const replaced = correct(heard, 'j_00000006', 'j_00000004', { mentionedAddress: 'boy', residence: 'אודם' }, makeId).draft;
+    expect(replaced.child).toMatchObject({ address: 'boy', residence: 'אודם', addressJobId: 'j_00000006', residenceJobId: 'j_00000006' });
+    // "Continue" approves them with the list.
+    expect(confirmFactsReview(replaced).child).toMatchObject({ addressJobId: null, residenceJobId: null, addressSource: 'transcript' });
   });
 
   it('never overwrites a filled name or age: another recording, or a typed value, only asks', () => {
@@ -937,24 +1079,36 @@ describe('voice-first entry: a recording may fill the empty name and age; "conti
     expect(two.intentSuggestions.map((item) => item.topicId)).toEqual(['transitions', 'night']);
   });
 
-  it("the brief's example: exactly what was said, labelled; nothing invented", () => {
+  it("the complete example: the five must-haves exactly as said, labelled; nothing invented", () => {
     const makeId = sequentialIds();
     const context = { allowedTopicIds: new Set(['sirens', 'night']), makeId };
     const example = buildFixtureResult({ jobId: 'j_00000001', exampleId: 'voice', address: 'boy' });
     const merged = applyIntakeResult(startIntakeJob(empty(), 'j_00000001', 'fixture'), example, context);
     expect(merged.applied).toBe(true);
     let draft = merged.draft;
-    expect(draft.child).toMatchObject({ name: 'בר', age: 5, address: null, nameSource: 'fixture', ageSource: 'fixture' });
+    expect(draft.child).toMatchObject({
+      name: 'בר',
+      age: 5,
+      address: 'boy',
+      residence: 'אודם',
+      nameSource: 'fixture',
+      ageSource: 'fixture',
+      addressSource: 'fixture',
+      residenceSource: 'fixture',
+    });
     expect(activeFacts(draft).map((fact) => [fact.kind, fact.value, fact.source])).toEqual([
-      ['residence', 'אודם', 'fixture'],
       ['interest', 'כדורגל', 'fixture'],
+      ['interest', 'לקפוץ על הטרמפולינה', 'fixture'],
+      ['difficulty', 'רעשים חזקים, כמו אזעקות', 'fixture'],
       ['habit', 'לוחש לכדור לפני בעיטה', 'fixture'],
     ]);
     expect(draft.storyPlace).toBeNull();
-    expect(draft.intentSuggestions.map((item) => item.topicId)).toEqual(['sirens']);
-    expect(JSON.stringify(draft)).not.toMatch(/פחד|משפחה/);
+    // What is hard suggests the direction; nothing else is asked for.
+    expect(draft.intentSuggestions.map((item) => [item.topicId, item.reason])).toEqual([['sirens', 'hard']]);
+    expect(JSON.stringify(draft)).not.toMatch(/משפחה/);
+    expect(codes(draft)).toEqual(['facts_unreviewed', 'companion_missing']);
 
-    draft = setCompanion(setChildAddress(confirmFactsReview(draft), 'boy'), 'panda_anat');
+    draft = setCompanion(confirmFactsReview(draft), 'panda_anat');
     const built = buildReviewedRequest(draft);
     expect(built.ok).toBe(true);
     if (!built.ok) return;
@@ -968,6 +1122,8 @@ describe('voice-first entry: a recording may fill the empty name and age; "conti
   it('normalizing the name for the request keeps where it came from', () => {
     const typed = commitChildName(setChildName(empty(), '  בר '));
     expect(typed.child).toMatchObject({ name: 'בר', nameSource: 'typed' });
+    const place = commitChildResidence(setChildResidence(empty(), '  קיבוץ   עין גדי '));
+    expect(place.child).toMatchObject({ residence: 'קיבוץ עין גדי', residenceSource: 'typed' });
     const heard = { ...empty(), child: { ...empty().child, name: 'בר ', nameSource: 'transcript' as const } };
     expect(commitChildName(heard).child).toMatchObject({ name: 'בר', nameSource: 'transcript' });
     expect(commitChildName(typed)).toBe(typed);
@@ -993,7 +1149,7 @@ describe('a removed direction stays removed; only a deliberate choice brings it 
   };
   /** Continue, then the real request boundary: the built request and the server's acceptance. */
   const submit = (draft: PersonalBookDraft) => {
-    const built = buildReviewedRequest(setCompanion(confirmFactsReview(draft), 'fox_uri'));
+    const built = buildReviewedRequest(setCompanion(confirmFactsReview(ready(draft)), 'fox_uri'));
     if (!built.ok) throw new Error(`request not built: ${built.issues.map((issue) => issue.code).join(',')}`);
     const accepted = acceptPersonalBookRequest(built.request, resolvePersonalWizardOptions());
     if (!accepted.ok) throw new Error('server refused the request');
@@ -1108,5 +1264,127 @@ describe('a removed direction stays removed; only a deliberate choice brings it 
     // Declined example direction: another example run does not bring it back either.
     const declined = dismissIntentSuggestion(example, 'night');
     expect(hear(declined, 'j_00000005', 'night', makeId, { source: 'fixture' }).intentSuggestions).toEqual([]);
+  });
+});
+
+describe('voice-first v2: what is hard, the direction it suggests, and "nothing special"', () => {
+  const hearHard = (
+    draft: PersonalBookDraft,
+    jobId: string,
+    makeId: IdFactory,
+    partial: Partial<IntakeExtraction> = {},
+  ) =>
+    merge(
+      startIntakeJob(draft, jobId, 'transcript'),
+      transcriptResult(jobId, { facts: [{ kind: 'difficulty', value: 'מפחד מהחושך' }], hardTopicId: 'night', ...partial }),
+      makeId,
+    ).draft;
+  const hardChip = { id: 'hard_night', label: 'פחדים בלילה', topicId: 'night' };
+
+  it('a heard difficulty suggests its topic; "continue" adopts it with its origin; an explicit request wins', () => {
+    const { draft: start, makeId } = basics();
+    const heard = hearHard(start, 'j_00000001', makeId);
+    // "Nothing special" no longer holds once a difficulty is heard.
+    expect(heard.noDifficulty).toBe(false);
+    expect(heard.intentSuggestions).toEqual([{ topicId: 'night', jobId: 'j_00000001', source: 'transcript', reason: 'hard' }]);
+    // Negative control: nothing is chosen before "continue".
+    expect(heard.intent).toBeNull();
+    const approved = confirmFactsReview(heard);
+    expect(approved.intent).toEqual({ kind: 'topic', topicId: 'night', suggestedBy: 'transcript' });
+    const built = buildReviewedRequest(setCompanion(ready(approved), 'fox_uri'));
+    expect(built.ok && [built.request.noDifficulty, built.request.facts.map((fact) => fact.kind)]).toEqual([
+      false,
+      ['difficulty', 'interest'],
+    ]);
+
+    const asked = hearHard(start, 'j_00000002', makeId, { explicitTopicId: 'transitions' });
+    expect(asked.intentSuggestions.map((item) => [item.topicId, item.reason])).toEqual([['transitions', 'asked']]);
+  });
+
+  it('a removed direction from what is hard stays removed; removing the last difficulty withdraws a pending one', () => {
+    const { draft: start, makeId } = basics();
+    const dismissed = dismissIntentSuggestion(hearHard(start, 'j_00000001', makeId), 'night');
+    expect(hearHard(dismissed, 'j_00000002', makeId, { facts: [{ kind: 'difficulty', value: 'חושך' }] }).intentSuggestions).toEqual([]);
+
+    const heard = hearHard(start, 'j_00000003', makeId);
+    const difficulty = activeFacts(heard).find((fact) => fact.kind === 'difficulty');
+    const withdrawn = removeFact(heard, difficulty?.id ?? '');
+    expect(withdrawn.intentSuggestions).toEqual([]);
+    // Withdrawn is not declined: said again later, it is suggested again.
+    expect(withdrawn.topicTombstones).toEqual([]);
+    expect(hearHard(withdrawn, 'j_00000004', makeId, { facts: [{ kind: 'difficulty', value: 'חושך בלילה' }] }).intentSuggestions).toHaveLength(1);
+    // Control: with another difficulty still listed, the suggestion stays.
+    const two = hearHard(start, 'j_00000005', makeId, {
+      facts: [
+        { kind: 'difficulty', value: 'מפחד מהחושך' },
+        { kind: 'difficulty', value: 'רעשים חזקים' },
+      ],
+    });
+    const first = activeFacts(two).find((fact) => fact.value === 'מפחד מהחושך');
+    expect(removeFact(two, first?.id ?? '').intentSuggestions).toHaveLength(1);
+  });
+
+  it('a "what is hard" chip proposes its topic; unpicking withdraws it; adopted, it is the parent\'s own choice', () => {
+    const { draft: start, makeId } = basics();
+    const picked = toggleHardChip(start, hardChip, makeId);
+    expect(picked.outcome).toBe('added');
+    expect(activeFacts(picked.draft).map((fact) => [fact.kind, fact.value, fact.source])).toEqual([['difficulty', 'פחדים בלילה', 'chip']]);
+    expect(picked.draft.noDifficulty).toBe(false);
+    expect(picked.draft.intentSuggestions).toEqual([{ topicId: 'night', jobId: null, source: 'chip', reason: 'hard' }]);
+
+    const unpicked = toggleHardChip(picked.draft, hardChip, makeId);
+    expect(unpicked.outcome).toBe('removed');
+    expect(unpicked.draft.intentSuggestions).toEqual([]);
+
+    const approved = confirmFactsReview(picked.draft);
+    expect(approved.intent).toEqual({ kind: 'topic', topicId: 'night' });
+    const built = buildReviewedRequest(setCompanion(ready(approved), 'fox_uri'));
+    expect(built.ok && built.request.intent).toEqual({ kind: 'topic', topicId: 'night' });
+    expect(built.ok && requestContainsFixtureData(built.request)).toBe(false);
+
+    // No proposal over a chosen direction, a pending one, or a removed topic.
+    expect(toggleHardChip(setIntent(start, { kind: 'just_for_fun' }), hardChip, makeId).draft.intentSuggestions).toEqual([]);
+    expect(toggleHardChip(hearHard(start, 'j_00000001', makeId, { hardTopicId: 'social' }), hardChip, makeId).draft.intentSuggestions.map((item) => item.topicId)).toEqual(['social']);
+    const removedTopic = dismissIntentSuggestion(picked.draft, 'night');
+    const again = toggleHardChip(toggleHardChip(removedTopic, hardChip, makeId).draft, hardChip, makeId);
+    expect(again.draft.intentSuggestions).toEqual([]);
+  });
+
+  it('"nothing special" answers the must-have only while no difficulty is listed', () => {
+    const { draft: start, makeId } = basics();
+    const open = setNoDifficulty(start, false);
+    expect(requestIssues(ready(open)).map((issue) => issue.code)).toContain('hard_missing');
+    const withDifficulty = addTypedFact(open, 'difficulty', 'קשה לו להיפרד בבוקר', makeId).draft;
+    expect(setNoDifficulty(withDifficulty, true)).toBe(withDifficulty);
+    expect(requestIssues(ready(withDifficulty)).map((issue) => issue.code)).not.toContain('hard_missing');
+    // A difficulty added after "nothing special" replaces that answer.
+    expect(addTypedFact(start, 'difficulty', 'רעשים', makeId).draft.noDifficulty).toBe(false);
+    expect(toggleChip(start, { id: 'hard_sirens', label: 'רעשים ואזעקות', kind: 'difficulty' }, makeId).draft.noDifficulty).toBe(false);
+  });
+
+  it('live trial F1 in the merge: a full bonus group never keeps out a love or what is hard', () => {
+    const { draft: start, makeId } = basics();
+    let draft = start;
+    for (let index = 0; index < LIMITS.bonusMax; index += 1) {
+      draft = addTypedFact(draft, 'other', `תכונה ${'א'.repeat(index + 1)}`, makeId).draft;
+    }
+    const merged = merge(
+      startIntakeJob(draft, 'j_00000001', 'transcript'),
+      transcriptResult('j_00000001', {
+        facts: [
+          { kind: 'interest', value: 'כדורגל' },
+          { kind: 'difficulty', value: 'רעשים חזקים' },
+          { kind: 'difficulty', value: 'מפלצות' },
+          { kind: 'family', value: 'אחות בשם יובל' },
+        ],
+      }),
+      makeId,
+    );
+    expect(merged.applied && [merged.added, merged.omitted]).toEqual([3, 1]);
+    expect(activeFacts(merged.draft).filter((fact) => fact.source === 'transcript').map((fact) => fact.value)).toEqual([
+      'כדורגל',
+      'רעשים חזקים',
+      'מפלצות',
+    ]);
   });
 });

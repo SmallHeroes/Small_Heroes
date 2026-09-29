@@ -59,9 +59,9 @@ export function acceptPersonalBookRequest(input: unknown, options: PersonalWizar
       issues.push({ path: 'intent.topicId', code: 'topic_not_offered' });
     }
   }
-  const { packageId, voiceId } = request.bookOptions;
-  if (packageId !== null && !options.packages.some((pkg) => pkg.id === packageId)) {
-    issues.push({ path: 'bookOptions.packageId', code: 'package_not_offered' });
+  const { lengthId, voiceId } = request.bookOptions;
+  if (lengthId !== null && !options.lengths.some((length) => length.id === lengthId)) {
+    issues.push({ path: 'bookOptions.lengthId', code: 'length_not_offered' });
   }
   if (voiceId !== null && !options.voices.some((voice) => voice.id === voiceId)) {
     issues.push({ path: 'bookOptions.voiceId', code: 'voice_not_offered' });

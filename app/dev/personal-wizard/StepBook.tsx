@@ -2,9 +2,9 @@
 
 import { useRef, useState, type RefObject } from 'react';
 
-import { bookCopy } from '@/lib/personal-wizard/copy';
+import { LENGTH_COPY, bookCopy } from '@/lib/personal-wizard/copy';
 import { normalizeText, type PersonalBookDraft } from '@/lib/personal-wizard/contract';
-import { setPackage, setVoice } from '@/lib/personal-wizard/draft';
+import { setLength, setVoice } from '@/lib/personal-wizard/draft';
 
 import type { WizardOptionsView } from './PersonalWizard';
 import styles from './personal-wizard.module.css';
@@ -139,35 +139,36 @@ export function StepBook({ draft, update, options, titleRef, photoUrl, onPhoto, 
       </div>
 
       <div className={styles.card}>
-        <fieldset className={styles.fieldset} aria-describedby="pw-package-note">
-          <legend className={styles.sectionTitle}>{copy.packageTitle}</legend>
+        <fieldset className={styles.fieldset} aria-describedby="pw-length-note">
+          <legend className={styles.sectionTitle}>{copy.lengthTitle}</legend>
           <div className={styles.optionGrid}>
-            {options.packages.map((pkg) => {
-              const selected = draft.bookOptions.packageId === pkg.id;
+            {options.lengths.map((length) => {
+              const selected = draft.bookOptions.lengthId === length.id;
+              const text = LENGTH_COPY[length.id];
               return (
-                <label key={pkg.id} className={styles.optionCard} data-selected={selected || undefined}>
+                <label key={length.id} className={styles.optionCard} data-selected={selected || undefined}>
                   <input
                     className={styles.radioInput}
                     type="radio"
-                    name="pw-package"
-                    value={pkg.id}
+                    name="pw-length"
+                    value={length.id}
                     checked={selected}
-                    onChange={() => update((current) => setPackage(current, pkg.id))}
+                    onChange={() => update((current) => setLength(current, length.id))}
                   />
-                  <span className={styles.optionKicker}>{pkg.kicker}</span>
-                  <span className={styles.optionName}>{pkg.name}</span>
-                  <span className={styles.optionDesc}>{copy.pages(pkg.pages)}</span>
+                  <span className={styles.optionName}>{text?.name ?? length.id}</span>
+                  <span className={styles.optionKicker}>{copy.pages(length.pages)}</span>
+                  <span className={styles.optionDesc}>{text?.depth}</span>
                 </label>
               );
             })}
           </div>
-          {draft.bookOptions.packageId ? (
-            <button type="button" className={styles.linkButton} onClick={() => update((current) => setPackage(current, null))}>
+          {draft.bookOptions.lengthId ? (
+            <button type="button" className={styles.linkButton} onClick={() => update((current) => setLength(current, null))}>
               {copy.clearChoice}
             </button>
           ) : null}
-          <p id="pw-package-note" className={styles.hint}>
-            {copy.packageNote}
+          <p id="pw-length-note" className={styles.hint}>
+            {copy.lengthNote}
           </p>
         </fieldset>
       </div>

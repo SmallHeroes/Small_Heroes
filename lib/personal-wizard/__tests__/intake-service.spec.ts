@@ -16,14 +16,16 @@ const TOPICS = [
 
 const GOOD_EXTRACTION = {
   understood: true,
-  facts: [
-    { kind: 'interest', value: 'בניית מגדלים' },
-    { kind: 'favorite_place', value: 'הים' },
-  ],
-  storyPlace: null,
   mentionedName: null,
   mentionedAge: 6,
+  mentionedAddress: null,
+  residence: null,
+  loves: ['בניית מגדלים'],
+  hard: [],
+  bonus: [{ kind: 'favorite_place', value: 'הים' }],
+  storyPlace: null,
   explicitTopicId: 'transitions',
+  hardTopicId: null,
 };
 
 type Calls = { transcribe: number; extract: number; userTexts: string[]; instructions: string[] };

@@ -7,23 +7,31 @@ import { join } from 'path';
 import { DIRECTION_PAGE_MAP, TOPICS, displayPagesForBeats } from '@/backend/config/wizard';
 import { VOICES } from '@/backend/config/voices';
 import { getCompanionById } from '@/lib/companions';
-import { DIRECTION_EXPERIENCE_CARDS, DIRECTION_ORDER } from '@/lib/web/direction-display';
 
 /**
- * Prototype roster: a configured list, not a hardcoded story companion. Only companions whose
- * card art exists on disk are offered (fail closed). Being listed here is NOT render
- * qualification for a personal book.
- *
- * `personality` is PROTOTYPE COPY for Guy's product review: short character lines derived from
- * each companion's canonical essence in lib/companion-deep-profiles.ts, deliberately free of the
- * challenge-category ("helps with X") framing. It does not replace the canonical profile.
+ * Prototype roster: a configured list, not a hardcoded story companion. All six companions with
+ * card art are offered, by name only (Guy 2026-09-29); one whose art is missing on disk is dropped
+ * (fail closed). Being listed here is NOT render qualification for a personal book.
  */
-export const PROTOTYPE_COMPANION_ROSTER: ReadonlyArray<{ id: string; personality: string }> = [
-  { id: 'dragon_dini', personality: 'רוצה לשמור על כולם. לפעמים גם הזנב שלה רוצה לעזור.' },
-  { id: 'panda_anat', personality: 'לא ממהרת לשום מקום, ולכן שמה לב לדבר הקטן שכולם פספסו.' },
-  { id: 'fox_uri', personality: 'שועל קטן עם פנס, שבודק כל צל מקרוב. אבל לא בהגזמה.' },
-  { id: 'chameleon_koko', personality: 'שובבה שמחליפה צבעים, ולוקחת איתה צבע מכל מקום שביקרה בו.' },
+export const PROTOTYPE_COMPANION_ROSTER: readonly string[] = [
+  'dragon_dini',
+  'panda_anat',
+  'fox_uri',
+  'chameleon_koko',
+  'lion_shaket',
+  'bunny_ometz',
 ];
+
+/**
+ * Book length tiers (Guy 2026-09-29): every book is an adventure with fantasy, and the tiers differ
+ * only in length and plot depth. Page counts reuse the current catalogue's beat counts, shortest to
+ * longest; mapping them to production prices and the story bank is a separate decision.
+ */
+export const PROTOTYPE_LENGTHS = [
+  { id: 'short', beatsOf: 'bedtime' },
+  { id: 'medium', beatsOf: 'adventure' },
+  { id: 'long', beatsOf: 'fantasy' },
+] as const;
 
 /** Optional story directions offered next to "just for fun" (canonical, non-legacy topic ids). */
 export const PROTOTYPE_TOPIC_IDS = [
@@ -40,12 +48,12 @@ export const PROTOTYPE_TOPIC_IDS = [
 ] as const;
 
 export type PersonalWizardOptions = {
-  companions: Array<{ id: string; name: string; image: string; personality: string }>;
+  companions: Array<{ id: string; name: string; image: string }>;
   unavailableCompanionIds: string[];
   topics: Array<{ id: string; label: string }>;
   voices: Array<{ id: string; label: string; description: string; emoji: string; sampleUrl: string | null }>;
-  /** Existing package ids and display page counts; shown as prototype proposals without price. */
-  packages: Array<{ id: string; kicker: string; name: string; pages: number }>;
+  /** Length tiers with display page counts; shown as prototype proposals without price. */
+  lengths: Array<{ id: string; pages: number }>;
   /** Binds a request identity to the exact option set it was validated against. */
   fingerprint: string;
 };
@@ -65,14 +73,14 @@ function publicAssetExists(publicPath: string, root: string): boolean {
 export function resolvePersonalWizardOptions(root: string = process.cwd()): PersonalWizardOptions {
   const companions: PersonalWizardOptions['companions'] = [];
   const unavailableCompanionIds: string[] = [];
-  for (const entry of PROTOTYPE_COMPANION_ROSTER) {
-    const companion = getCompanionById(entry.id);
+  for (const id of PROTOTYPE_COMPANION_ROSTER) {
+    const companion = getCompanionById(id);
     const image = companion?.cardImage ?? companion?.image;
     if (!companion || !image || !publicAssetExists(image, root)) {
-      unavailableCompanionIds.push(entry.id);
+      unavailableCompanionIds.push(id);
       continue;
     }
-    companions.push({ id: companion.id, name: companion.name, image, personality: entry.personality });
+    companions.push({ id: companion.id, name: companion.name, image });
   }
 
   const topics = PROTOTYPE_TOPIC_IDS.map((id) => {
@@ -89,24 +97,23 @@ export function resolvePersonalWizardOptions(root: string = process.cwd()): Pers
     sampleUrl: voice.previewUrl && publicAssetExists(voice.previewUrl, root) ? voice.previewUrl : null,
   }));
 
-  const packages = DIRECTION_ORDER.map((id) => {
-    const beats = DIRECTION_PAGE_MAP[id]?.pages;
-    if (!beats) throw new Error(`personal_wizard_package_missing:${id}`);
-    const card = DIRECTION_EXPERIENCE_CARDS[id];
-    return { id, kicker: card.kicker, name: card.name, pages: displayPagesForBeats(beats) };
+  const lengths = PROTOTYPE_LENGTHS.map(({ id, beatsOf }) => {
+    const beats = DIRECTION_PAGE_MAP[beatsOf]?.pages;
+    if (!beats) throw new Error(`personal_wizard_length_missing:${id}`);
+    return { id, pages: displayPagesForBeats(beats) };
   });
 
   const fingerprint = createHash('sha256')
     .update(
       JSON.stringify({
-        schema: 'personal-wizard-options/v1',
+        schema: 'personal-wizard-options/v2',
         companions,
         topics,
         voices: voices.map(({ id, label }) => ({ id, label })),
-        packages,
+        lengths,
       }),
     )
     .digest('hex');
 
-  return { companions, unavailableCompanionIds, topics, voices, packages, fingerprint };
+  return { companions, unavailableCompanionIds, topics, voices, lengths, fingerprint };
 }

@@ -3,7 +3,6 @@ import 'server-only';
 import {
   ID_PATTERNS,
   LIMITS,
-  PERSONAL_INTAKE_EXTRACTION_VERSION,
   comparableText,
   intakeResultSchema,
   normalizeText,
@@ -23,6 +22,7 @@ import {
   ExtractionMalformedError,
   buildExtractionUserText,
   extractionJsonSchema,
+  notUnderstoodExtraction,
   sanitizeExtraction,
 } from './intake-extraction';
 import type { IntakeLedger, LedgerRefusal } from './intake-ledger';
@@ -103,18 +103,6 @@ const LEDGER_STATUS: Record<LedgerRefusal, number> = {
 };
 
 const fail = (status: number, code: IntakeFailureCode): IntakeOutcome => ({ ok: false, status, code });
-
-function notUnderstood(): IntakeExtraction {
-  return {
-    version: PERSONAL_INTAKE_EXTRACTION_VERSION,
-    understood: false,
-    facts: [],
-    storyPlace: null,
-    mentionedName: null,
-    mentionedAge: null,
-    explicitTopicId: null,
-  };
-}
 
 function guardSignal(parent: AbortSignal | undefined, timeoutMs: number) {
   const controller = new AbortController();
@@ -208,7 +196,7 @@ export async function runAudioIntake(
     const transcript = normalizeText(String(transcription.text ?? '')).slice(0, LIMITS.transcriptMax).trim();
     const extraction =
       comparableText(transcript).length < MIN_UNDERSTANDABLE_CHARS
-        ? notUnderstood()
+        ? notUnderstoodExtraction()
         : await extract(provider, deps.topics, transcript, guard.signal);
     const result = intakeResultSchema.parse({
       jobId: input.jobId,
@@ -245,7 +233,7 @@ export async function runTextIntake(
   try {
     const extraction =
       comparableText(text).length < MIN_UNDERSTANDABLE_CHARS
-        ? notUnderstood()
+        ? notUnderstoodExtraction()
         : await extract(deps.createProvider(), deps.topics, text, guard.signal);
     const result = intakeResultSchema.parse({ jobId: input.jobId, source: 'transcript', transcript: text, extraction });
     deps.ledger.finish(input.userId, input.jobId, 'done');

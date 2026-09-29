@@ -1,10 +1,19 @@
 'use client';
 
-import { useEffect, useRef, useState, type RefObject } from 'react';
+import { useEffect, useRef, useState, type ComponentProps, type RefObject } from 'react';
 
-import { COMMON, INTAKE_ERRORS, RECORDER, SOURCE_BADGE, TEST_PANEL, TRANSCRIPT, companionCopy, tellCopy } from '@/lib/personal-wizard/copy';
-import { normalizeText, type PersonalBookDraft } from '@/lib/personal-wizard/contract';
-import { activeFacts, dismissIntentSuggestion, resolveConflict, setIntent, type RequestIssue } from '@/lib/personal-wizard/draft';
+import {
+  COMMON,
+  HERO,
+  INTAKE_ERRORS,
+  MUST_HAVE_CUES,
+  RECORDER,
+  TEST_PANEL,
+  TRANSCRIPT,
+  tellCopy,
+} from '@/lib/personal-wizard/copy';
+import { LIMITS, normalizeText, type GrammaticalAddress, type PersonalBookDraft } from '@/lib/personal-wizard/contract';
+import { BONUS_GROUP_ORDER, FACT_GROUP_OF_KIND, activeFacts, resolveConflict, type RequestIssue } from '@/lib/personal-wizard/draft';
 import type { FixtureExampleId } from '@/lib/personal-wizard/intake-fixture';
 import type { LiveIntakeError } from '@/lib/personal-wizard/intake-live-client';
 import type { MediaStreamLike, RecorderSnapshot, RecordingController } from '@/lib/personal-wizard/recorder';
@@ -12,6 +21,7 @@ import type { MediaStreamLike, RecorderSnapshot, RecordingController } from '@/l
 import { ChildBasics } from './ChildBasics';
 import { FactsList } from './FactsList';
 import { ManualEntry } from './ManualEntry';
+import { MustHaves } from './MustHaves';
 import { RecorderPanel } from './RecorderPanel';
 import styles from './personal-wizard.module.css';
 
@@ -23,9 +33,59 @@ export type IntakeNotice =
   | { kind: 'failed' }
   | { kind: 'error'; error: LiveIntakeError };
 
-export type TellPrompt = 'processing' | 'recording' | null;
+/** How the parent chose to tell us: talking (the default), picking chips, or writing. */
+export type TellMode = 'voice' | 'chips' | 'write';
+
+/**
+ * What step 1 shows. start = only the text and the big button; recording and processing = only
+ * that; write = the writing box; card = what was understood, with the missing must-haves asked.
+ */
+export type TellView = 'start' | 'recording' | 'processing' | 'write' | 'card';
+
+/** Anything told, picked or typed so far. Once there is, the card replaces the start screen. */
+export function hasTellContent(draft: PersonalBookDraft): boolean {
+  return (
+    Boolean(normalizeText(draft.child.name)) ||
+    draft.child.age !== null ||
+    draft.child.address !== null ||
+    Boolean(normalizeText(draft.child.residence)) ||
+    activeFacts(draft).length > 0 ||
+    draft.noDifficulty ||
+    draft.storyPlace !== null ||
+    draft.conflicts.length > 0 ||
+    draft.intentSuggestions.length > 0 ||
+    draft.intent !== null ||
+    draft.transcript !== null
+  );
+}
+
+export function tellViewOf(input: {
+  draft: PersonalBookDraft;
+  phase: RecorderSnapshot['phase'];
+  mode: TellMode;
+  /** The card was shown once: it stays, even if the parent removes everything from it. */
+  cardOpened: boolean;
+}): TellView {
+  if (input.draft.intake?.status === 'processing') return 'processing';
+  if (input.phase === 'requesting' || input.phase === 'recording' || input.phase === 'stopping') return 'recording';
+  if (input.cardOpened || input.mode === 'chips' || hasTellContent(input.draft)) return 'card';
+  return input.mode === 'write' ? 'write' : 'start';
+}
+
+const MUST_HAVE_ISSUES = new Set([
+  'child_name_missing',
+  'child_name_invalid',
+  'child_age_missing',
+  'child_address_missing',
+  'child_residence_missing',
+  'loves_missing',
+  'hard_missing',
+]);
 
 type Props = {
+  view: TellView;
+  mode: TellMode;
+  onMode: (mode: TellMode) => void;
   draft: PersonalBookDraft;
   update: (change: (draft: PersonalBookDraft) => PersonalBookDraft) => void;
   titleRef: RefObject<HTMLHeadingElement | null>;
@@ -44,36 +104,161 @@ type Props = {
   clipSent: boolean;
   /** Live only: explicit re-organisation of a corrected transcript. Absent when not connected. */
   onReorganize?: (text: string) => void;
-  prompt: TellPrompt;
-  onPromptChoice: (choice: 'wait' | 'skip') => void;
+  /** Live only: organise a text the parent wrote instead of recording. */
+  onSubmitWritten?: (text: string) => void;
   issues: RequestIssue[];
   showErrors: boolean;
-  /** The manual path ("prefer to write or pick?"): secondary, and kept open across steps. */
+  /** "Add another detail" (optional bonus fields): kept open across steps. */
   manualOpen: boolean;
   onToggleManual: () => void;
   topics: ReadonlyArray<{ id: string; label: string }>;
 };
 
 /**
- * Voice-first "tell us about your child". The recording is the main path; what was understood is
- * shown right under it as one editable card, and only missing or conflicting required values are
- * asked. Writing and picking are the same fields behind one visible toggle, feeding the same card.
+ * Voice-first "tell us about your child". The start screen is the text and one big button, with
+ * picking and writing as quiet alternatives. While recording, the five must-haves are cues; while
+ * processing, only the processing shows. The result is one editable card: what was understood, and
+ * right there the questions for whatever of the five is still missing.
  */
 export function StepTell(props: Props) {
-  const { draft, update, titleRef, recorder, playback, liveIntake, prompt } = props;
+  const { view, draft, update, titleRef, recorder, playback, liveIntake } = props;
   const name = normalizeText(draft.child.name);
   const copy = tellCopy(name, draft.child.address);
-  const processing = draft.intake?.status === 'processing';
-  const fixtureProcessing = processing && draft.intake?.source === 'fixture';
-  const transcriptProcessing = processing && draft.intake?.source === 'transcript';
+  // Kept here, not in the writing box: the box unmounts while processing, and a failed or cancelled
+  // processing must give the parent's text back, not an empty box.
+  const [writtenText, setWrittenText] = useState('');
+
+  const recorderProps = {
+    snapshot: recorder.snapshot,
+    stream: recorder.stream,
+    controller: recorder.controller,
+    playback,
+    liveIntake,
+    voiceCta: liveIntake ? copy.voiceCta : copy.voiceCtaLocal,
+    banner: liveIntake ? null : copy.localBanner,
+    hint: copy.durationHint,
+    cuesTitle: copy.cuesTitle,
+    cues: MUST_HAVE_CUES,
+    recordMoreLabel: liveIntake ? copy.recordMore : copy.voiceCtaLocal,
+    clipSent: props.clipSent,
+    onSend: props.onSendClip,
+  };
+
+  if (view === 'processing') {
+    const title =
+      draft.intake?.source === 'fixture'
+        ? copy.processingFixture
+        : draft.intake?.medium === 'written'
+          ? copy.processingWritten
+          : copy.processingVoice;
+    return (
+      <section className={styles.processingView} aria-labelledby="pw-step-title" aria-busy="true">
+        <span className={styles.processingOrb} aria-hidden="true">
+          <span className={styles.processingDot} />
+          <span className={styles.processingDot} />
+          <span className={styles.processingDot} />
+        </span>
+        <h1 id="pw-step-title" className={styles.processingTitle} tabIndex={-1} ref={titleRef}>
+          {title}
+        </h1>
+        <p className={styles.processingSub} role="status" aria-live="polite">
+          {copy.processingSub}
+        </p>
+        <button type="button" className={styles.linkButton} onClick={props.onCancelIntake}>
+          {COMMON.cancel}
+        </button>
+      </section>
+    );
+  }
+
+  if (view === 'recording') {
+    return (
+      <section className={styles.step} aria-labelledby="pw-step-title">
+        <h1 id="pw-step-title" className={styles.stepTitle} tabIndex={-1} ref={titleRef}>
+          {copy.title}
+        </h1>
+        <RecorderPanel view="recording" {...recorderProps} />
+      </section>
+    );
+  }
+
+  if (view === 'start') {
+    return (
+      <section className={styles.startView} aria-labelledby="pw-step-title">
+        <div className={styles.startText}>
+          <h1 id="pw-step-title" className={styles.stepTitle} tabIndex={-1} ref={titleRef}>
+            {copy.title}
+          </h1>
+          <p className={styles.startLead}>{copy.lead}</p>
+        </div>
+        <div className={styles.startAction}>
+          <RecorderPanel view="start" {...recorderProps} />
+          <IntakeStatus notice={props.intakeNotice} />
+          <div className={styles.altLinks}>
+            <button type="button" className={styles.altLink} onClick={() => props.onMode('chips')}>
+              {copy.chipsLink}
+            </button>
+            <button type="button" className={styles.altLink} onClick={() => props.onMode('write')}>
+              {copy.writeLink}
+            </button>
+          </div>
+          {liveIntake ? <p className={styles.privacyLine}>{RECORDER.privacyLive}</p> : null}
+        </div>
+        <TestPanel {...props} />
+      </section>
+    );
+  }
+
+  if (view === 'write') {
+    return (
+      <section className={styles.step} aria-labelledby="pw-step-title">
+        <h1 id="pw-step-title" className={styles.stepTitle} tabIndex={-1} ref={titleRef}>
+          {copy.writeTitle}
+        </h1>
+        <p className={styles.stepSub}>{copy.writeLead}</p>
+        <WriteBox
+          copy={copy}
+          text={writtenText}
+          onText={setWrittenText}
+          liveIntake={liveIntake}
+          onSubmit={props.onSubmitWritten}
+          onQuestions={() => props.onMode('chips')}
+        />
+        <IntakeStatus notice={props.intakeNotice} />
+        <div className={styles.altLinks}>
+          <button type="button" className={styles.altLink} onClick={() => props.onMode('voice')}>
+            {copy.switchToVoice}
+          </button>
+          {liveIntake ? (
+            <button type="button" className={styles.altLink} onClick={() => props.onMode('chips')}>
+              {copy.chipsLink}
+            </button>
+          ) : null}
+        </div>
+      </section>
+    );
+  }
+
+  return <DetailsCard {...props} copy={copy} recorderProps={recorderProps} />;
+}
+
+function DetailsCard(
+  props: Props & {
+    copy: ReturnType<typeof tellCopy>;
+    recorderProps: Omit<ComponentProps<typeof RecorderPanel>, 'view'>;
+  },
+) {
+  const { draft, update, titleRef, copy } = props;
+  const name = normalizeText(draft.child.name);
 
   const [transcriptOpen, setTranscriptOpen] = useState(false);
   const transcriptText = draft.transcript?.text ?? '';
   const [transcriptDraft, setTranscriptDraft] = useState(transcriptText);
   useEffect(() => setTranscriptDraft(transcriptText), [transcriptText]);
   const canReorganize = Boolean(props.onReorganize) && draft.transcript?.source === 'transcript';
+  const written = draft.transcript?.medium === 'written';
 
-  // "Edit" on the place row opens the manual fields (if closed) and puts the cursor in the place field.
+  // "Edit" on the place row opens the optional fields (if closed) and puts the cursor in the place field.
   const placeRef = useRef<HTMLInputElement | null>(null);
   const [focusPlace, setFocusPlace] = useState(false);
   useEffect(() => {
@@ -83,347 +268,307 @@ export function StepTell(props: Props) {
     setFocusPlace(false);
   }, [focusPlace, props.manualOpen]);
 
-  const promptRef = useRef<HTMLDivElement | null>(null);
-  useEffect(() => {
-    if (prompt) promptRef.current?.querySelector<HTMLButtonElement>('button')?.focus();
-  }, [prompt]);
-
   const facts = activeFacts(draft);
-  const topicLabel = (topicId: string) => props.topics.find((topic) => topic.id === topicId)?.label ?? topicId;
-  // A direction the parent asked for is part of what was understood: pending, or already approved.
-  const directions = [
-    ...(draft.intent?.kind === 'topic' && draft.intent.suggestedBy
-      ? [
-          {
-            key: `intent-${draft.intent.topicId}`,
-            topicId: draft.intent.topicId,
-            source: draft.intent.suggestedBy,
-            status: 'included' as const,
-            remove: () => update((current) => setIntent(current, null)),
-          },
-        ]
-      : []),
-    ...draft.intentSuggestions.map((suggestion) => ({
-      key: `suggestion-${suggestion.topicId}`,
-      topicId: suggestion.topicId,
-      source: suggestion.source,
-      status: 'proposed' as const,
-      remove: () => update((current) => dismissIntentSuggestion(current, suggestion.topicId)),
-    })),
-  ];
-  // With a direction already chosen (from any path), a different proposal is a question, never a
-  // second row that could read as chosen; without one, proposals are rows approved with the list.
-  const currentDirection =
-    draft.intent === null
-      ? null
-      : draft.intent.kind === 'just_for_fun'
-        ? companionCopy(name, draft.child.address).justForFun
-        : topicLabel(draft.intent.topicId);
-  const directionRows = directions.filter((direction) => direction.status === 'included' || currentDirection === null);
   const heard =
-    draft.child.nameSource === 'transcript' ||
-    draft.child.ageSource === 'transcript' ||
-    facts.some((fact) => fact.source === 'transcript') ||
-    draft.storyPlace?.source === 'transcript' ||
-    directions.some((direction) => direction.source === 'transcript');
-  const hasValues =
-    Boolean(name) ||
-    draft.child.age !== null ||
-    draft.child.address !== null ||
-    facts.length > 0 ||
-    draft.storyPlace !== null ||
-    draft.conflicts.length > 0 ||
-    directions.length > 0;
-  // No card before there is something real to show: no fields pretending to be results.
-  const showCard = props.manualOpen || props.showErrors || hasValues || draft.transcript !== null;
-  const listEmpty = facts.length === 0 && !draft.storyPlace && directions.length === 0;
+    [draft.child.nameSource, draft.child.ageSource, draft.child.addressSource, draft.child.residenceSource].some(
+      (source) => source === 'transcript' || source === 'fixture',
+    ) ||
+    facts.some((fact) => fact.source === 'transcript' || fact.source === 'fixture') ||
+    draft.transcript !== null;
+  const missing = props.issues.filter((issue) => MUST_HAVE_ISSUES.has(issue.code)).length;
+  const bonusFacts = facts.filter((fact) => BONUS_GROUP_ORDER.includes(FACT_GROUP_OF_KIND[fact.kind]));
+  const title = heard ? copy.cardTitleHeard : hasTellContent(draft) ? copy.cardTitleOwn : copy.chipsTitle;
 
   return (
     <section className={styles.step} aria-labelledby="pw-step-title">
       <h1 id="pw-step-title" className={styles.stepTitle} tabIndex={-1} ref={titleRef}>
-        {copy.title}
+        {title}
       </h1>
-      <p className={styles.stepSub}>{copy.lead}</p>
-
-      <RecorderPanel
-        snapshot={recorder.snapshot}
-        stream={recorder.stream}
-        controller={recorder.controller}
-        playback={playback}
-        liveIntake={liveIntake}
-        voiceCta={liveIntake ? copy.voiceCta : copy.voiceCtaLocal}
-        voiceNote={liveIntake ? copy.voiceNoteLive : copy.voiceNoteLocal}
-        banner={liveIntake ? null : copy.localBanner}
-        hint={copy.durationHint}
-        transcriptProcessing={transcriptProcessing}
-        clipSent={props.clipSent}
-        onCancelProcessing={props.onCancelIntake}
-        onSend={props.onSendClip}
-      />
-
       <IntakeStatus notice={props.intakeNotice} />
+      {heard && missing > 0 ? <p className={styles.missingNote}>{copy.missingNote(missing)}</p> : null}
+      {!hasTellContent(draft) && props.mode === 'chips' ? (
+        <button type="button" className={styles.switchLink} onClick={() => props.onMode('voice')}>
+          {copy.switchToVoice}
+        </button>
+      ) : null}
 
-      {/* The area under the recording becomes the card; the manual path follows it. */}
-      {showCard ? (
-        <section className={styles.factsCard} aria-labelledby="pw-facts-title">
-          <h2 id="pw-facts-title" className={styles.sectionTitle}>
-            {heard ? copy.cardTitleHeard : copy.cardTitleOwn}
-          </h2>
-          {!listEmpty ? <p className={styles.hint}>{copy.cardNote}</p> : null}
+      <section className={styles.factsCard} aria-labelledby="pw-step-title">
+        {facts.length > 0 ? <p className={styles.hint}>{copy.cardNote}</p> : null}
+        <ChildBasics draft={draft} update={update} issues={props.issues} showErrors={props.showErrors} />
+        <Conflicts draft={draft} update={update} copy={copy} name={name} />
+        <MustHaves
+          draft={draft}
+          update={update}
+          copy={copy}
+          issues={props.issues}
+          showErrors={props.showErrors}
+          topics={props.topics}
+        />
+        {bonusFacts.length > 0 || draft.storyPlace ? (
+          <div className={styles.mustHave} role="group" aria-labelledby="pw-bonus-title">
+            <h3 id="pw-bonus-title" className={styles.mustHaveTitle}>
+              {copy.bonusTitle}
+            </h3>
+            <FactsList
+              draft={draft}
+              update={update}
+              copy={copy}
+              groups={BONUS_GROUP_ORDER}
+              onEditPlace={() => {
+                if (!props.manualOpen) props.onToggleManual();
+                setFocusPlace(true);
+              }}
+            />
+          </div>
+        ) : null}
+        <button
+          type="button"
+          className={styles.disclosure}
+          aria-expanded={props.manualOpen}
+          aria-controls="pw-manual"
+          onClick={props.onToggleManual}
+        >
+          {copy.bonusAdd}
+        </button>
+        {props.manualOpen ? <ManualEntry draft={draft} update={update} copy={copy} placeInputRef={placeRef} /> : null}
+      </section>
 
-          <ChildBasics draft={draft} update={update} issues={props.issues} showErrors={props.showErrors} />
-
-          {draft.conflicts.length > 0 ? (
-            <div className={styles.conflicts}>
-              {draft.conflicts.map((conflict) => {
-                // A corrected transcript no longer contains an already approved detail: keep or remove.
-                if (conflict.field === 'stale_fact' || conflict.field === 'stale_place') {
-                  const question =
-                    conflict.field === 'stale_fact' ? copy.staleFact(conflict.value) : copy.stalePlace(conflict.value);
-                  return (
-                    <div key={conflict.id} className={styles.conflict} role="group" aria-label={question}>
-                      <p className={styles.conflictQuestion}>{question}</p>
-                      <div className={styles.actionsRow}>
-                        <button
-                          type="button"
-                          className={styles.btnSecondary}
-                          onClick={() => update((current) => resolveConflict(current, conflict.id, 'keep'))}
-                        >
-                          {copy.staleKeep}
-                        </button>
-                        <button
-                          type="button"
-                          className={styles.btnSecondary}
-                          onClick={() => update((current) => resolveConflict(current, conflict.id, 'accept'))}
-                        >
-                          {copy.staleRemove}
-                        </button>
-                      </div>
-                    </div>
-                  );
-                }
-                const current =
-                  conflict.field === 'age'
-                    ? String(draft.child.age ?? '')
-                    : conflict.field === 'name'
-                      ? name
-                      : draft.storyPlace?.value ?? '';
-                const typed =
-                  conflict.field === 'age'
-                    ? draft.child.ageSource === 'typed'
-                    : conflict.field === 'name'
-                      ? draft.child.nameSource === 'typed'
-                      : draft.storyPlace?.source === 'typed';
-                const heardValue = String(conflict.proposed);
-                const question =
-                  conflict.field === 'age'
-                    ? copy.conflictAge(current, heardValue, typed)
-                    : conflict.field === 'name'
-                      ? copy.conflictName(current, heardValue, typed)
-                      : copy.conflictPlace(current, heardValue, typed);
-                return (
-                  <div key={conflict.id} className={styles.conflict} role="group" aria-label={question}>
-                    <p className={styles.conflictQuestion}>{question}</p>
-                    {conflict.source === 'fixture' ? <p className={styles.hint}>{copy.conflictFixtureNote}</p> : null}
+      <div className={styles.cardFooter}>
+        <RecorderPanel view="card" {...props.recorderProps} />
+        {draft.transcript ? (
+          <div className={styles.transcript}>
+            <button
+              type="button"
+              className={styles.linkButton}
+              aria-expanded={transcriptOpen}
+              aria-controls="pw-transcript"
+              onClick={() => setTranscriptOpen((open) => !open)}
+            >
+              {transcriptOpen ? TRANSCRIPT.hide : written ? TRANSCRIPT.showWritten : TRANSCRIPT.show}
+            </button>
+            {transcriptOpen ? (
+              <div id="pw-transcript" className={styles.transcriptBody}>
+                <h3 className={styles.factGroupTitle}>
+                  {draft.transcript.source === 'fixture'
+                    ? TRANSCRIPT.titleFixture
+                    : written
+                      ? TRANSCRIPT.titleWritten
+                      : TRANSCRIPT.titleLive}
+                </h3>
+                {canReorganize ? (
+                  <>
+                    <label className="sr-only" htmlFor="pw-transcript-edit">
+                      {TRANSCRIPT.editLabel}
+                    </label>
+                    <textarea
+                      id="pw-transcript-edit"
+                      className={styles.textarea}
+                      value={transcriptDraft}
+                      maxLength={LIMITS.transcriptMax}
+                      rows={5}
+                      aria-describedby="pw-transcript-note"
+                      onChange={(event) => setTranscriptDraft(event.target.value)}
+                    />
+                    <p id="pw-transcript-note" className={styles.hint}>
+                      {TRANSCRIPT.editNote}
+                    </p>
                     <div className={styles.actionsRow}>
                       <button
                         type="button"
                         className={styles.btnSecondary}
-                        onClick={() => update((latest) => resolveConflict(latest, conflict.id, 'keep'))}
+                        disabled={
+                          normalizeText(transcriptDraft) === normalizeText(transcriptText) || !normalizeText(transcriptDraft)
+                        }
+                        onClick={() => props.onReorganize?.(transcriptDraft)}
                       >
-                        {current}
-                      </button>
-                      <button
-                        type="button"
-                        className={styles.btnSecondary}
-                        onClick={() => update((latest) => resolveConflict(latest, conflict.id, 'accept'))}
-                      >
-                        {heardValue}
+                        {TRANSCRIPT.reorganize}
                       </button>
                     </div>
-                  </div>
-                );
-              })}
-              <p className={styles.hint}>{copy.conflictKeepNote}</p>
+                  </>
+                ) : (
+                  <p className={styles.transcriptText}>{draft.transcript.text}</p>
+                )}
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+      </div>
+
+      <TestPanel {...props} />
+    </section>
+  );
+}
+
+const addressLabel = (address: GrammaticalAddress | null) =>
+  address === 'girl' ? HERO.addressGirl : address === 'boy' ? HERO.addressBoy : '';
+
+/** Questions shown next to the list; none of them overwrites anything by itself. */
+function Conflicts({
+  draft,
+  update,
+  copy,
+  name,
+}: {
+  draft: PersonalBookDraft;
+  update: Props['update'];
+  copy: ReturnType<typeof tellCopy>;
+  name: string;
+}) {
+  if (draft.conflicts.length === 0) return null;
+  return (
+    <div className={styles.conflicts}>
+      {draft.conflicts.map((conflict) => {
+        // A corrected transcript no longer contains an already approved detail: keep or remove.
+        if (conflict.field === 'stale_fact' || conflict.field === 'stale_place') {
+          const question = conflict.field === 'stale_fact' ? copy.staleFact(conflict.value) : copy.stalePlace(conflict.value);
+          return (
+            <div key={conflict.id} className={styles.conflict} role="group" aria-label={question}>
+              <p className={styles.conflictQuestion}>{question}</p>
+              <div className={styles.actionsRow}>
+                <button
+                  type="button"
+                  className={styles.btnSecondary}
+                  onClick={() => update((current) => resolveConflict(current, conflict.id, 'keep'))}
+                >
+                  {copy.staleKeep}
+                </button>
+                <button
+                  type="button"
+                  className={styles.btnSecondary}
+                  onClick={() => update((current) => resolveConflict(current, conflict.id, 'accept'))}
+                >
+                  {copy.staleRemove}
+                </button>
+              </div>
             </div>
-          ) : null}
-
-          <FactsList
-            draft={draft}
-            update={update}
-            copy={copy}
-            onEditPlace={() => {
-              if (!props.manualOpen) props.onToggleManual();
-              setFocusPlace(true);
-            }}
-          />
-          {directions.length > 0 ? (
-            <div className={styles.factGroup}>
-              <h3 className={styles.factGroupTitle}>{copy.directionTitle}</h3>
-              {directionRows.length > 0 ? (
-              <ul className={styles.factRows}>
-                {directionRows.map((direction) => (
-                  <li key={direction.key} className={styles.factRow} data-status={direction.status}>
-                    <span className={styles.factText}>
-                      {topicLabel(direction.topicId)}
-                      <span className={styles.sourceBadge} data-source={direction.source}>
-                        {SOURCE_BADGE[direction.source]}
-                      </span>
-                    </span>
-                    <span className={styles.factActions}>
-                      <button type="button" className={styles.linkButton} onClick={direction.remove}>
-                        {COMMON.remove}
-                        <span className="sr-only">: {topicLabel(direction.topicId)}</span>
-                      </button>
-                    </span>
-                  </li>
-                ))}
-              </ul>
-              ) : null}
-              {currentDirection !== null
-                ? draft.intentSuggestions.map((suggestion) => {
-                    const proposed = topicLabel(suggestion.topicId);
-                    const question = copy.directionChange(currentDirection, proposed, suggestion.source);
-                    return (
-                      <div key={`change-${suggestion.topicId}`} className={styles.conflict} role="group" aria-label={question}>
-                        <p className={styles.conflictQuestion}>{question}</p>
-                        <div className={styles.actionsRow}>
-                          <button
-                            type="button"
-                            className={styles.btnSecondary}
-                            onClick={() => update((latest) => setIntent(latest, { kind: 'topic', topicId: suggestion.topicId }))}
-                          >
-                            {copy.directionReplace(proposed)}
-                          </button>
-                          <button
-                            type="button"
-                            className={styles.btnSecondary}
-                            onClick={() => update((latest) => dismissIntentSuggestion(latest, suggestion.topicId))}
-                          >
-                            {copy.directionKeep(currentDirection)}
-                          </button>
-                        </div>
-                        <p className={styles.hint}>{copy.directionKeepNote(currentDirection)}</p>
-                      </div>
-                    );
-                  })
-                : null}
-              {currentDirection === null && draft.intentSuggestions.length > 1 ? (
-                <p className={styles.hint}>{copy.directionPickLater}</p>
-              ) : null}
+          );
+        }
+        let current: string;
+        let heardValue = String(conflict.proposed);
+        let typed: boolean;
+        let question: string;
+        if (conflict.field === 'age') {
+          current = String(draft.child.age ?? '');
+          typed = draft.child.ageSource === 'typed';
+          question = copy.conflictAge(current, heardValue, typed);
+        } else if (conflict.field === 'name') {
+          current = name;
+          typed = draft.child.nameSource === 'typed';
+          question = copy.conflictName(current, heardValue, typed);
+        } else if (conflict.field === 'address') {
+          current = addressLabel(draft.child.address);
+          heardValue = addressLabel(conflict.proposed === 'girl' ? 'girl' : 'boy');
+          typed = draft.child.addressSource === 'typed';
+          question = copy.conflictAddress(current, heardValue, typed);
+        } else if (conflict.field === 'residence') {
+          current = normalizeText(draft.child.residence);
+          typed = draft.child.residenceSource === 'typed';
+          question = copy.conflictResidence(current, heardValue, typed);
+        } else {
+          current = draft.storyPlace?.value ?? '';
+          typed = draft.storyPlace?.source === 'typed';
+          question = copy.conflictPlace(current, heardValue, typed);
+        }
+        return (
+          <div key={conflict.id} className={styles.conflict} role="group" aria-label={question}>
+            <p className={styles.conflictQuestion}>{question}</p>
+            {conflict.source === 'fixture' ? <p className={styles.hint}>{copy.conflictFixtureNote}</p> : null}
+            <div className={styles.actionsRow}>
+              <button
+                type="button"
+                className={styles.btnSecondary}
+                onClick={() => update((latest) => resolveConflict(latest, conflict.id, 'keep'))}
+              >
+                {current}
+              </button>
+              <button
+                type="button"
+                className={styles.btnSecondary}
+                onClick={() => update((latest) => resolveConflict(latest, conflict.id, 'accept'))}
+              >
+                {heardValue}
+              </button>
             </div>
-          ) : null}
-          {listEmpty ? <p className={styles.hint}>{copy.listEmpty}</p> : null}
-        </section>
-      ) : null}
+          </div>
+        );
+      })}
+      <p className={styles.hint}>{copy.conflictKeepNote}</p>
+    </div>
+  );
+}
 
-      <button
-        type="button"
-        className={styles.disclosure}
-        aria-expanded={props.manualOpen}
-        aria-controls="pw-manual"
-        onClick={props.onToggleManual}
-      >
-        {copy.manualToggle}
-      </button>
-      {props.manualOpen ? <ManualEntry draft={draft} update={update} copy={copy} placeInputRef={placeRef} /> : null}
-
-      {draft.transcript ? (
-        <div className={styles.transcript}>
-          <button
-            type="button"
-            className={styles.linkButton}
-            aria-expanded={transcriptOpen}
-            aria-controls="pw-transcript"
-            onClick={() => setTranscriptOpen((open) => !open)}
-          >
-            {transcriptOpen ? TRANSCRIPT.hide : TRANSCRIPT.show}
-          </button>
-          {transcriptOpen ? (
-            <div id="pw-transcript" className={styles.transcriptBody}>
-              <h3 className={styles.factGroupTitle}>
-                {draft.transcript.source === 'fixture' ? TRANSCRIPT.titleFixture : TRANSCRIPT.titleLive}
-              </h3>
-              {canReorganize ? (
-                <>
-                  <label className="sr-only" htmlFor="pw-transcript-edit">
-                    {TRANSCRIPT.editLabel}
-                  </label>
-                  <textarea
-                    id="pw-transcript-edit"
-                    className={styles.textarea}
-                    value={transcriptDraft}
-                    maxLength={4000}
-                    rows={5}
-                    aria-describedby="pw-transcript-note"
-                    onChange={(event) => setTranscriptDraft(event.target.value)}
-                  />
-                  <p id="pw-transcript-note" className={styles.hint}>
-                    {TRANSCRIPT.editNote}
-                  </p>
-                  <div className={styles.actionsRow}>
-                    <button
-                      type="button"
-                      className={styles.btnSecondary}
-                      disabled={processing || normalizeText(transcriptDraft) === normalizeText(transcriptText) || !normalizeText(transcriptDraft)}
-                      onClick={() => props.onReorganize?.(transcriptDraft)}
-                    >
-                      {TRANSCRIPT.reorganize}
-                    </button>
-                  </div>
-                </>
-              ) : (
-                <p className={styles.transcriptText}>{draft.transcript.text}</p>
-              )}
-            </div>
-          ) : null}
-        </div>
-      ) : null}
-
-      <aside className={styles.testPanel} aria-labelledby="pw-test-title">
-        <h2 id="pw-test-title" className={styles.testTitle}>
-          {TEST_PANEL.title}
-        </h2>
-        <p className={styles.hint}>{TEST_PANEL.note}</p>
-        <div className={styles.actionsRow}>
-          {(['voice', 'simple', 'mixed'] as const).map((exampleId) => (
-            <button
-              key={exampleId}
-              type="button"
-              className={styles.btnSecondary}
-              disabled={processing}
-              onClick={() => props.onStartFixture(exampleId)}
-            >
-              {TEST_PANEL[exampleId]}
-            </button>
-          ))}
-          {fixtureProcessing ? (
-            <button type="button" className={styles.btnGhost} onClick={props.onCancelIntake}>
-              {COMMON.cancel}
-            </button>
-          ) : null}
-        </div>
-        <p className={styles.hint}>{TEST_PANEL.delayNote}</p>
-        {fixtureProcessing ? <p className={styles.processing}>{TEST_PANEL.processing}</p> : null}
-        {props.lateIgnored ? <p className={styles.hint}>{TEST_PANEL.lateIgnored}</p> : null}
-      </aside>
-
-      {prompt ? (
-        <div className={styles.prompt} ref={promptRef} role="group" aria-labelledby="pw-prompt-text">
-          <p id="pw-prompt-text" className={styles.promptText}>
-            {prompt === 'processing' ? copy.processingPrompt : copy.recordingPrompt}
-          </p>
+/** Writing instead of talking: the same organising, the same card. */
+function WriteBox({
+  copy,
+  text,
+  onText,
+  liveIntake,
+  onSubmit,
+  onQuestions,
+}: {
+  copy: ReturnType<typeof tellCopy>;
+  text: string;
+  onText: (text: string) => void;
+  liveIntake: boolean;
+  onSubmit?: (text: string) => void;
+  onQuestions: () => void;
+}) {
+  return (
+    <div className={styles.card}>
+      <label className={styles.label} htmlFor="pw-write">
+        {copy.writeLabel}
+      </label>
+      <p className={styles.hint} id="pw-write-cues">
+        {copy.cuesTitle} {MUST_HAVE_CUES.join(' · ')}
+      </p>
+      <textarea
+        id="pw-write"
+        className={styles.textarea}
+        rows={6}
+        maxLength={LIMITS.transcriptMax}
+        value={text}
+        aria-describedby="pw-write-cues"
+        onChange={(event) => onText(event.target.value)}
+      />
+      {liveIntake && onSubmit ? (
+        <>
           <div className={styles.actionsRow}>
-            <button type="button" className={styles.btnSecondary} onClick={() => props.onPromptChoice('wait')}>
-              {prompt === 'processing' ? copy.processingWait : copy.recordingResume}
-            </button>
-            <button type="button" className={styles.btnPrimarySmall} onClick={() => props.onPromptChoice('skip')}>
-              {prompt === 'processing' ? copy.processingSkip : copy.recordingSkip}
+            <button type="button" className={styles.btnPrimary} disabled={!normalizeText(text)} onClick={() => onSubmit(text)}>
+              {copy.writeSend}
             </button>
           </div>
-        </div>
-      ) : null}
-    </section>
+          <p className={styles.privacyLine}>{RECORDER.privacyWritten}</p>
+        </>
+      ) : (
+        <>
+          <p className={styles.hint}>{copy.writeLocalNote}</p>
+          <div className={styles.actionsRow}>
+            <button type="button" className={styles.btnSecondary} onClick={onQuestions}>
+              {copy.writeToQuestions}
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+/** The labelled examples: a quiet, closed tool at the bottom, never part of the parent's path. */
+function TestPanel(props: Props) {
+  return (
+    <details className={styles.testPanel}>
+      <summary className={styles.testTitle}>{TEST_PANEL.toggle}</summary>
+      <p className={styles.hint}>{TEST_PANEL.note}</p>
+      <div className={styles.actionsRow}>
+        {(['voice', 'simple', 'mixed'] as const).map((exampleId) => (
+          <button key={exampleId} type="button" className={styles.btnSecondary} onClick={() => props.onStartFixture(exampleId)}>
+            {TEST_PANEL[exampleId]}
+          </button>
+        ))}
+      </div>
+      <p className={styles.hint}>{TEST_PANEL.delayNote}</p>
+      {props.lateIgnored ? <p className={styles.hint}>{TEST_PANEL.lateIgnored}</p> : null}
+    </details>
   );
 }
 

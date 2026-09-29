@@ -28,6 +28,6 @@ export const viewport: Viewport = {
  */
 export default function PersonalWizardPage() {
   if (!isDevEnvironment() || !isPersonalWizardPreviewEnabled()) notFound();
-  const { companions, topics, voices, packages } = resolvePersonalWizardOptions();
-  return <PersonalWizard options={{ companions, topics, voices, packages }} />;
+  const { companions, topics, voices, lengths } = resolvePersonalWizardOptions();
+  return <PersonalWizard options={{ companions, topics, voices, lengths }} />;
 }

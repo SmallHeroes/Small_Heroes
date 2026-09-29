@@ -19,7 +19,10 @@ const RESULT = {
     storyPlace: null,
     mentionedName: null,
     mentionedAge: null,
+    mentionedAddress: 'girl',
+    residence: null,
     explicitTopicId: null,
+    hardTopicId: null,
   },
 };
 

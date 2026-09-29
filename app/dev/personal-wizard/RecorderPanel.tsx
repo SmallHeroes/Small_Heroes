@@ -7,7 +7,14 @@ import type { MediaStreamLike, RecorderSnapshot, RecordingController } from '@/l
 import { useLevelMeter, useObjectUrl } from './hooks';
 import styles from './personal-wizard.module.css';
 
+/**
+ * start = the one big button (and a finished clip's controls); recording = the focused recording
+ * screen with the must-have cues; card = a compact "add by voice" under the details card.
+ */
+export type RecorderView = 'start' | 'recording' | 'card';
+
 type Props = {
+  view: RecorderView;
   snapshot: RecorderSnapshot;
   stream: MediaStreamLike | null;
   controller: () => RecordingController | null;
@@ -15,33 +22,34 @@ type Props = {
   /** Live processing connected (P2). In P1 the recording never leaves the device. */
   liveIntake: boolean;
   voiceCta: string;
-  voiceNote: string;
-  /** Shown prominently in every phase when nothing is decoded (live processing off). */
+  /** Shown when nothing is decoded (live processing off). */
   banner: string | null;
   /** A suggested length, not a required minimum. */
   hint: string;
-  transcriptProcessing: boolean;
+  cuesTitle: string;
+  cues: readonly string[];
+  recordMoreLabel: string;
   /** The current clip was already sent once; sending again needs a new recording. */
   clipSent: boolean;
-  onCancelProcessing: () => void;
   onSend: () => void;
 };
 
 const RETRYABLE = new Set(['permission_denied', 'no_device', 'device_busy', 'empty', 'failed']);
 
 export function RecorderPanel({
+  view,
   snapshot,
   stream,
   controller,
   playback,
   liveIntake,
   voiceCta,
-  voiceNote,
   banner,
   hint,
-  transcriptProcessing,
+  cuesTitle,
+  cues,
+  recordMoreLabel,
   clipSent,
-  onCancelProcessing,
   onSend,
 }: Props) {
   const level = useLevelMeter(stream);
@@ -67,124 +75,142 @@ export function RecorderPanel({
     status = reason ? `${reason} ${base}` : base;
   } else if (phase === 'error' && error) status = RECORDER.errors[error];
   else if (phase === 'idle' && snapshot.abandonedPermission) status = RECORDER.cancelledPermission;
-  if (transcriptProcessing) status = RECORDER.processing;
 
   const isLive = phase === 'requesting' || phase === 'recording' || phase === 'stopping';
-  const liveText = phase === 'recording' ? (snapshot.warned ? RECORDER.warn : RECORDER.recording) : status;
+  // Under the card a sent clip needs no status: what came of it is the card itself.
+  const shown = view === 'card' && phase === 'recorded' && clipSent ? '' : status;
+  const liveText = phase === 'recording' ? (snapshot.warned ? RECORDER.warn : RECORDER.recording) : shown;
+  // Always mounted so state changes are announced; visually hidden while the recording screen
+  // already shows the same state, and when empty. The timer is not a live region.
+  const statusRegion = (
+    <p className={isLive || !liveText ? 'sr-only' : styles.voiceStatus} role="status" aria-live="polite">
+      {liveText}
+    </p>
+  );
 
-  return (
-    <div className={styles.voiceCard} data-phase={phase}>
-      {banner ? <p className={styles.localBanner}>{banner}</p> : null}
-      {phase === 'idle' || phase === 'error' ? (
-        <>
-          {phase === 'idle' || (error && RETRYABLE.has(error)) ? (
-            <button type="button" className={styles.micButton} onClick={start}>
-              <MicIcon />
-              <span>{phase === 'error' ? RECORDER.retry : voiceCta}</span>
-            </button>
-          ) : null}
-          {phase === 'idle' ? <p className={styles.hint}>{hint}</p> : null}
-          <p className={styles.voiceNote}>{voiceNote}</p>
-          {liveIntake ? <p className={styles.hint}>{RECORDER.privacyLive}</p> : null}
-        </>
-      ) : null}
-
-      {isLive ? (
-        <div className={styles.recRow}>
-          <span className={styles.recState}>
-            <span className={styles.recDot} data-live={phase === 'recording' || undefined} aria-hidden="true" />
-            <span>{phase === 'recording' ? RECORDER.recording : status}</span>
+  if (view === 'recording') {
+    return (
+      <div className={styles.recordingPanel} data-phase={phase}>
+        <span className={styles.recordPulse} data-live={phase === 'recording' || undefined} aria-hidden="true">
+          <MicIcon />
+        </span>
+        <p className={styles.recState}>{phase === 'recording' ? RECORDER.recording : status}</p>
+        {phase === 'recording' || phase === 'stopping' ? (
+          <span className={styles.timer} role="timer" aria-label={RECORDER.timer(snapshot.elapsedMs, LIMITS.recordingMaxMs)}>
+            {RECORDER.timer(snapshot.elapsedMs, LIMITS.recordingMaxMs)}
           </span>
-          {phase === 'recording' || phase === 'stopping' ? (
-            <span className={styles.timer} role="timer" aria-label={RECORDER.timer(snapshot.elapsedMs, LIMITS.recordingMaxMs)}>
-              {RECORDER.timer(snapshot.elapsedMs, LIMITS.recordingMaxMs)}
-            </span>
-          ) : null}
-          {phase === 'recording' && level !== null ? (
-            <span className={styles.level} title={RECORDER.level}>
-              <span className="sr-only">{RECORDER.level}</span>
-              <span className={styles.levelFill} style={{ inlineSize: `${Math.round(level * 100)}%` }} aria-hidden="true" />
-            </span>
-          ) : null}
+        ) : null}
+        {phase === 'recording' && level !== null ? (
+          <span className={styles.level} title={RECORDER.level}>
+            <span className="sr-only">{RECORDER.level}</span>
+            <span className={styles.levelFill} style={{ inlineSize: `${Math.round(level * 100)}%` }} aria-hidden="true" />
+          </span>
+        ) : null}
+        {statusRegion}
+        {phase === 'recording' && snapshot.warned ? <p className={styles.warn}>{RECORDER.warn}</p> : null}
+        <div className={styles.cues}>
+          <p className={styles.cuesTitle}>{cuesTitle}</p>
+          <ul className={styles.cueList}>
+            {cues.map((cue) => (
+              <li key={cue} className={styles.cue}>
+                {cue}
+              </li>
+            ))}
+          </ul>
         </div>
-      ) : null}
-
-      {/* Always mounted so state changes are announced; visually hidden while the recording row
-          already shows the same state, and when empty. The timer is not a live region. */}
-      <p className={isLive || !liveText ? 'sr-only' : styles.voiceStatus} role="status" aria-live="polite">
-        {liveText}
-      </p>
-
-      {phase === 'recording' && snapshot.warned ? <p className={styles.warn}>{RECORDER.warn}</p> : null}
-
-      {phase === 'requesting' || phase === 'recording' ? (
-        <div className={styles.actionsRow}>
-          {phase === 'recording' ? (
-            <button
-              type="button"
-              className={styles.btnPrimarySmall}
-              onClick={() => (liveIntake ? controller()?.finish() : controller()?.stop('user_stop'))}
-            >
-              {liveIntake ? RECORDER.finishLive : RECORDER.finishLocal}
-            </button>
-          ) : null}
-          <button type="button" className={styles.btnSecondary} onClick={() => controller()?.cancel()}>
-            {COMMON.cancel}
-          </button>
-        </div>
-      ) : null}
-
-      {phase === 'recorded' && clip ? (
-        <>
-          {liveIntake && !clip.sendable ? <p className={styles.hint}>{RECORDER.notSendable}</p> : null}
-          <div className={styles.actionsRow}>
-            {liveIntake && clip.sendable && !transcriptProcessing && !clipSent ? (
-              <button type="button" className={styles.btnPrimarySmall} onClick={onSend}>
-                {RECORDER.send}
-              </button>
-            ) : null}
-            {clipUrl ? (
+        {phase === 'requesting' || phase === 'recording' ? (
+          <div className={styles.recordingActions}>
+            {phase === 'recording' ? (
               <button
                 type="button"
-                className={styles.btnSecondary}
-                aria-pressed={playback.playingId === 'clip'}
-                onClick={() => (playback.playingId === 'clip' ? playback.stop() : playback.play('clip', clipUrl))}
+                className={styles.btnPrimary}
+                onClick={() => (liveIntake ? controller()?.finish() : controller()?.stop('user_stop'))}
               >
-                {playback.playingId === 'clip' ? RECORDER.stopListen : RECORDER.listen}
+                {liveIntake ? RECORDER.finishLive : RECORDER.finishLocal}
               </button>
             ) : null}
-            <button type="button" className={styles.btnSecondary} onClick={start}>
-              {RECORDER.newRecording}
-            </button>
-            <button
-              type="button"
-              className={styles.btnGhost}
-              onClick={() => {
-                playback.stop();
-                controller()?.discardClip();
-              }}
-            >
-              {RECORDER.deleteRecording}
+            <button type="button" className={styles.linkButton} onClick={() => controller()?.cancel()}>
+              {COMMON.cancel}
             </button>
           </div>
-          <p className={styles.hint}>{RECORDER.deleteNote}</p>
-        </>
-      ) : null}
+        ) : null}
+      </div>
+    );
+  }
 
-      {transcriptProcessing ? (
+  const clipControls =
+    phase === 'recorded' && clip ? (
+      <>
+        {liveIntake && !clip.sendable ? <p className={styles.hint}>{RECORDER.notSendable}</p> : null}
         <div className={styles.actionsRow}>
-          <button type="button" className={styles.btnSecondary} onClick={onCancelProcessing}>
-            {COMMON.cancel}
+          {liveIntake && clip.sendable && !clipSent ? (
+            <button type="button" className={styles.btnPrimarySmall} onClick={onSend}>
+              {RECORDER.send}
+            </button>
+          ) : null}
+          {clipUrl ? (
+            <button
+              type="button"
+              className={styles.btnSecondary}
+              aria-pressed={playback.playingId === 'clip'}
+              onClick={() => (playback.playingId === 'clip' ? playback.stop() : playback.play('clip', clipUrl))}
+            >
+              {playback.playingId === 'clip' ? RECORDER.stopListen : RECORDER.listen}
+            </button>
+          ) : null}
+          <button type="button" className={styles.btnSecondary} onClick={start}>
+            {view === 'card' ? recordMoreLabel : RECORDER.newRecording}
+          </button>
+          <button
+            type="button"
+            className={styles.btnGhost}
+            onClick={() => {
+              playback.stop();
+              controller()?.discardClip();
+            }}
+          >
+            {RECORDER.deleteRecording}
           </button>
         </div>
+        <p className={styles.hint}>{RECORDER.deleteNote}</p>
+      </>
+    ) : null;
+
+  if (view === 'card') {
+    return (
+      <div className={styles.cardRecorder}>
+        {statusRegion}
+        {clipControls ?? (
+          <button type="button" className={styles.btnSecondary} onClick={start}>
+            <MicIcon small />
+            {recordMoreLabel}
+          </button>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className={styles.startRecorder} data-phase={phase}>
+      {banner ? <p className={styles.localBanner}>{banner}</p> : null}
+      {phase === 'idle' || (phase === 'error' && error && RETRYABLE.has(error)) ? (
+        <button type="button" className={styles.recordButton} onClick={start}>
+          <span className={styles.recordCircle} aria-hidden="true">
+            <MicIcon />
+          </span>
+          <span className={styles.recordLabel}>{phase === 'error' ? RECORDER.retry : voiceCta}</span>
+        </button>
       ) : null}
+      {statusRegion}
+      {phase === 'idle' ? <p className={styles.hint}>{hint}</p> : null}
+      {clipControls}
     </div>
   );
 }
 
-function MicIcon() {
+function MicIcon({ small = false }: { small?: boolean }) {
   return (
-    <svg className={styles.micIcon} viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+    <svg className={small ? styles.micIconSmall : styles.micIcon} viewBox="0 0 24 24" aria-hidden="true" focusable="false">
       <path
         d="M12 14a3 3 0 0 0 3-3V5a3 3 0 1 0-6 0v6a3 3 0 0 0 3 3Zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2Z"
         fill="currentColor"

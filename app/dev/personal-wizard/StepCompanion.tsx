@@ -64,7 +64,6 @@ export function StepCompanion({ draft, update, options, showErrors, titleRef }: 
                   <img className={styles.companionImage} src={companion.image} alt="" loading="lazy" />
                 </span>
                 <span className={styles.companionName}>{companion.name}</span>
-                <span className={styles.companionLine}>{companion.personality}</span>
               </label>
             );
           })}
