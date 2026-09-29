@@ -932,6 +932,10 @@ export function applyIntakeResult(
   };
 }
 
+/**
+ * Answers one open question. Each branch builds on the state its helper returns and closes only the
+ * answered question, so a question the helper raises is never overwritten by an older list.
+ */
 export function resolveConflict(
   draft: PersonalBookDraft,
   conflictId: string,
@@ -961,10 +965,15 @@ export function resolveConflict(
       previousKeys: [],
       parentOwned: true,
     };
-    return next(afterFactAdded(draft, conflict.kind), { facts: [...draft.facts, fact], conflicts });
+    return afterFactAdded(next(draft, { facts: [...draft.facts, fact], conflicts }), conflict.kind);
   }
-  // "accept" = accept what the corrected transcript says: the stale detail goes, as a parent removal.
-  if (conflict.field === 'stale_fact') return next(removeFact(draft, conflict.factId), { conflicts });
+  if (conflict.field === 'stale_fact') {
+    // "accept" = accept what the corrected transcript says: the stale detail goes, as a parent removal.
+    // Built on what removeFact returns: a direction that stood on this detail raises its own question
+    // there, and it must stay open (Codex re-gate, P1-1). Only the answered question closes.
+    const removed = removeFact(draft, conflict.factId);
+    return next(removed, { conflicts: removed.conflicts.filter((candidate) => candidate.id !== conflictId) });
+  }
   if (conflict.field === 'stale_place') {
     const cleared = commitStoryPlace(draft, '');
     return next(cleared, { conflicts: cleared.conflicts.filter((candidate) => candidate.id !== conflictId) });

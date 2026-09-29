@@ -1759,3 +1759,139 @@ describe('Codex QA of v2, P2-1: an explicit switch leaves an empty card', () => 
     expect(tellViewOf({ draft: withName, phase: 'recorded', ...switched })).toBe('card');
   });
 });
+
+// ── Codex re-gate of the correction (7086b0f0, HOLD 2026-09-29) ─────────────────────────────────
+
+describe('Codex re-gate, P1-1: answering a stale difficulty keeps the direction question', () => {
+  const fear = { kind: 'difficulty' as const, value: 'רעשים חזקים' };
+  const dark = { kind: 'difficulty' as const, value: 'חושך' };
+  type Source = 'transcript' | 'fixture';
+  const CASES = [
+    ['transcript', false],
+    ['transcript', true],
+    ['fixture', false],
+    ['fixture', true],
+  ] as const;
+  /** A hearing: a correction of the transcript on screen, or with `newRecording` a recording of its own. */
+  const hear = (
+    draft: PersonalBookDraft,
+    jobId: string,
+    makeId: IdFactory,
+    source: Source,
+    partial: Partial<IntakeExtraction>,
+    newRecording = false,
+  ) => {
+    const supersedes = !newRecording && draft.transcript ? { supersedesJobId: draft.transcript.jobId } : {};
+    const merged = applyIntakeResult(
+      startIntakeJob(draft, jobId, source, supersedes),
+      { jobId, source, transcript: 'synthetic', extraction: extraction(partial) },
+      { allowedTopicIds: V2_TOPICS, makeId },
+    );
+    if (!merged.applied) throw new Error(`not applied: ${merged.reason}`);
+    return merged.draft;
+  };
+  /**
+   * The reviewer's path: approved with the direction derived from `fear` (and `dark`, when another
+   * difficulty is left), then a correction that no longer says `fear`, its question answered "remove".
+   */
+  const staleAnswered = (
+    source: Source,
+    remaining: boolean,
+    first: Partial<IntakeExtraction> = { hardTopicId: 'sirens' },
+    correction: Partial<IntakeExtraction> = {},
+  ) => {
+    const { draft: start, makeId } = basics();
+    const approved = confirmFactsReview(ready(hear(start, 'j_00000001', makeId, source, { facts: remaining ? [fear, dark] : [fear], ...first })));
+    const corrected = hear(approved, 'j_00000002', makeId, source, { facts: remaining ? [dark] : [], ...correction });
+    const question = corrected.conflicts.find((conflict) => conflict.field === 'stale_fact');
+    expect(question).toMatchObject({ field: 'stale_fact', value: fear.value });
+    const answered = resolveConflict(corrected, question?.id ?? '', 'accept');
+    expect(activeFacts(answered).map((fact) => fact.value)).not.toContain(fear.value);
+    return { approved, answered: remaining ? answered : setNoDifficulty(answered, true), makeId };
+  };
+  /** What stops "continue" and the request, as the card's continue guard sees it. */
+  const blockers = (draft: PersonalBookDraft) => {
+    const built = buildReviewedRequest(setCompanion(confirmFactsReview(ready(draft)), 'dragon_dini'));
+    return built.ok ? [] : built.issues.map((issue) => issue.code);
+  };
+  const directionQuestion = (draft: PersonalBookDraft) => draft.conflicts.find((conflict) => conflict.field === 'stale_direction');
+
+  it('the question is raised, and "continue" cannot approve past it', () => {
+    for (const [source, remaining] of CASES) {
+      const { approved, answered } = staleAnswered(source, remaining);
+      expect(approved.intent).toEqual({ kind: 'topic', topicId: 'sirens', suggestedBy: source });
+      expect(directionQuestion(answered)).toMatchObject({ topicId: 'sirens' });
+      // Undecided: still shown, no longer marked as derived, and not yet approved.
+      expect(answered.intent).toEqual({ kind: 'topic', topicId: 'sirens', suggestedBy: source });
+      expect(answered.intentEvidence).toBeNull();
+      const continued = confirmFactsReview(answered);
+      expect(directionQuestion(continued)).toBeDefined();
+      expect(requestIssues(continued).map((issue) => issue.code)).toContain('direction_unconfirmed');
+      expect(blockers(answered)).toContain('direction_unconfirmed');
+    }
+  });
+
+  it('kept: the parent\'s own choice; removed: gone, and it stays gone on later processing', () => {
+    for (const [source, remaining] of CASES) {
+      const { answered, makeId } = staleAnswered(source, remaining);
+      const question = directionQuestion(answered);
+      expect(question).toBeDefined();
+      const kept = submitBoth(resolveConflict(answered, question?.id ?? '', 'keep'));
+      expect(kept.canonical.intent).toEqual({ kind: 'topic', topicId: 'sirens', suggestedBy: source });
+      expect(kept.request.intent).not.toHaveProperty('basis');
+      expect(kept.request.facts.filter((fact) => fact.kind === 'difficulty').map((fact) => fact.value)).toEqual(remaining ? ['חושך'] : []);
+
+      const dropped = resolveConflict(answered, question?.id ?? '', 'accept');
+      expect(dropped.intent).toBeNull();
+      expect(dropped.topicTombstones).toContain('sirens');
+      expect(submitBoth(dropped).canonical.intent).toBeNull();
+      // Said again, in a correction or in a new recording: neither the difficulty nor the direction returns.
+      for (const [jobId, newRecording] of [['j_00000003', false], ['j_00000004', true]] as const) {
+        const later = hear(dropped, jobId, makeId, source, { facts: [fear], hardTopicId: 'sirens' }, newRecording);
+        expect(activeFacts(later).map((fact) => fact.value)).not.toContain(fear.value);
+        expect(later.intentSuggestions).toEqual([]);
+        expect(submitBoth(later).canonical.intent).toBeNull();
+      }
+    }
+  });
+
+  it('an unrelated open question stays open', () => {
+    for (const [source, remaining] of CASES) {
+      const { answered } = staleAnswered(source, remaining, { hardTopicId: 'sirens' }, { mentionedName: 'נועם' });
+      expect(answered.conflicts.map((conflict) => conflict.field).sort()).toEqual(['name', 'stale_direction']);
+    }
+  });
+
+  it('a direction the parent asked for, or chose, is not questioned when a difficulty goes', () => {
+    for (const [source, remaining] of CASES) {
+      const asked = staleAnswered(source, remaining, { explicitTopicId: 'sirens' }).answered;
+      expect(directionQuestion(asked)).toBeUndefined();
+      expect(submitBoth(asked).canonical.intent).toEqual({ kind: 'topic', topicId: 'sirens', suggestedBy: source });
+
+      const { draft: start, makeId } = basics();
+      let chosen = hear(start, 'j_00000001', makeId, source, { facts: remaining ? [fear, dark] : [fear] });
+      chosen = confirmFactsReview(ready(setIntent(chosen, { kind: 'topic', topicId: 'night' })));
+      chosen = hear(chosen, 'j_00000002', makeId, source, { facts: remaining ? [dark] : [] });
+      const question = chosen.conflicts.find((conflict) => conflict.field === 'stale_fact');
+      chosen = resolveConflict(chosen, question?.id ?? '', 'accept');
+      if (!remaining) chosen = setNoDifficulty(chosen, true);
+      expect(directionQuestion(chosen)).toBeUndefined();
+      expect(submitBoth(chosen).canonical.intent).toEqual({ kind: 'topic', topicId: 'night' });
+    }
+  });
+
+  it('a detail added back from a "reads like a removed one" question keeps the other open questions', () => {
+    const { draft: start, makeId } = basics();
+    let draft = confirmFactsReview(ready(hear(start, 'j_00000001', makeId, 'transcript', { facts: [fear], hardTopicId: 'sirens' })));
+    draft = setNoDifficulty(removeFact(draft, activeFacts(draft).find((fact) => fact.value === fear.value)?.id ?? '', makeId), true);
+    expect(directionQuestion(draft)).toBeDefined();
+    draft = hear(draft, 'j_00000002', makeId, 'transcript', { facts: [{ kind: 'difficulty', value: 'רעשים חזקים מאוד' }] }, true);
+    const similar = draft.conflicts.find((conflict) => conflict.field === 'similar_removed');
+    expect(similar).toMatchObject({ value: 'רעשים חזקים מאוד', removedValue: fear.value });
+    const added = resolveConflict(draft, similar?.id ?? '', 'accept');
+    expect(activeFacts(added).map((fact) => fact.value)).toContain('רעשים חזקים מאוד');
+    expect(added.noDifficulty).toBe(false);
+    expect(added.conflicts.map((conflict) => conflict.field)).toEqual(['stale_direction']);
+    expect(blockers(added)).toContain('direction_unconfirmed');
+  });
+});
