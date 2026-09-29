@@ -12,8 +12,11 @@
  */
 import { z } from 'zod';
 
-/** v3: a recording may propose the child's name and age while they are still empty (voice-first entry). */
-export const PERSONAL_BOOK_DRAFT_VERSION = 'personal-book-draft/v3' as const;
+/**
+ * v3: a recording may propose the child's name and age while they are still empty (voice-first entry).
+ * v4: a direction the parent removed is remembered (`topicTombstones`), like removed places and facts.
+ */
+export const PERSONAL_BOOK_DRAFT_VERSION = 'personal-book-draft/v4' as const;
 /** v2 carries the provenance of the child's name/age and of a suggested direction. */
 export const REVIEWED_PERSONAL_BOOK_REQUEST_VERSION = 'reviewed-personal-book-request/v2' as const;
 export const PERSONAL_INTAKE_EXTRACTION_VERSION = 'personal-intake-extraction/v1' as const;
@@ -243,6 +246,12 @@ export type PersonalBookDraft = {
   companionId: string | null;
   intent: Intent | null;
   intentSuggestions: IntentSuggestion[];
+  /**
+   * Topic ids the parent removed: a declined suggestion, or a direction from a recording or the
+   * example that the parent removed or replaced. A later extraction never suggests them again; the
+   * parent picking one deliberately lifts it.
+   */
+  topicTombstones: string[];
   avoid: string[];
   photo: PhotoChoice;
   bookOptions: { packageId: string | null; voiceId: string | null };

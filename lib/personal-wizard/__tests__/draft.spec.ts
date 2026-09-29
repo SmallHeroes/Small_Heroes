@@ -973,3 +973,140 @@ describe('voice-first entry: a recording may fill the empty name and age; "conti
     expect(commitChildName(typed)).toBe(typed);
   });
 });
+
+describe('a removed direction stays removed; only a deliberate choice brings it back', () => {
+  const TOPICS = new Set(['sirens', 'night', 'transitions']);
+  const hear = (
+    draft: PersonalBookDraft,
+    jobId: string,
+    topic: string | null,
+    makeId: IdFactory,
+    options: { supersedes?: string; source?: 'transcript' | 'fixture'; extra?: Partial<IntakeExtraction> } = {},
+  ) => {
+    const source = options.source ?? 'transcript';
+    const started = startIntakeJob(draft, jobId, source, options.supersedes ? { supersedesJobId: options.supersedes } : {});
+    return applyIntakeResult(
+      started,
+      { jobId, source, transcript: 'synthetic', extraction: extraction({ explicitTopicId: topic, ...options.extra }) },
+      { allowedTopicIds: TOPICS, makeId },
+    ).draft;
+  };
+  /** Continue, then the real request boundary: the built request and the server's acceptance. */
+  const submit = (draft: PersonalBookDraft) => {
+    const built = buildReviewedRequest(setCompanion(confirmFactsReview(draft), 'fox_uri'));
+    if (!built.ok) throw new Error(`request not built: ${built.issues.map((issue) => issue.code).join(',')}`);
+    const accepted = acceptPersonalBookRequest(built.request, resolvePersonalWizardOptions());
+    if (!accepted.ok) throw new Error('server refused the request');
+    return { intent: built.request.intent, serverIntent: accepted.canonical.intent, fixture: accepted.containsFixtureData };
+  };
+
+  it('reviewer case: removed, then an unrelated correction of the same transcript, then continue: still absent', () => {
+    const { draft: start, makeId } = basics();
+    const heard = hear(start, 'j_00000001', 'sirens', makeId, { extra: { facts: [{ kind: 'interest', value: 'ציור' }] } });
+    const removed = dismissIntentSuggestion(heard, 'sirens');
+    const corrected = hear(removed, 'j_00000002', 'sirens', makeId, {
+      supersedes: 'j_00000001',
+      extra: { facts: [{ kind: 'interest', value: 'ציור בגיר' }] },
+    });
+    expect(corrected.intentSuggestions).toEqual([]);
+    expect(submit(corrected)).toEqual({ intent: null, serverIntent: null, fixture: false });
+    // Control: without the removal the same sequence approves the direction the parent asked for.
+    const kept = hear(heard, 'j_00000003', 'sirens', makeId, { supersedes: 'j_00000001' });
+    expect(submit(kept).intent).toEqual({ kind: 'topic', topicId: 'sirens', suggestedBy: 'transcript' });
+  });
+
+  it('an approved direction from a recording, removed or replaced later, does not come back', () => {
+    const { draft: start, makeId } = basics();
+    const approved = confirmFactsReview(hear(start, 'j_00000001', 'sirens', makeId));
+    expect(approved.intent).toEqual({ kind: 'topic', topicId: 'sirens', suggestedBy: 'transcript' });
+
+    // Removed in the card, then the transcript is corrected and still says it.
+    const removed = hear(setIntent(approved, null), 'j_00000002', 'sirens', makeId, { supersedes: 'j_00000001' });
+    expect(removed.intentSuggestions).toEqual([]);
+    expect(submit(removed).intent).toBeNull();
+
+    // Replaced by the parent's own choice on step 2.
+    const replaced = hear(setIntent(approved, { kind: 'just_for_fun' }), 'j_00000003', 'sirens', makeId, { supersedes: 'j_00000001' });
+    expect(replaced.intentSuggestions).toEqual([]);
+    expect(submit(replaced).intent).toEqual({ kind: 'just_for_fun' });
+
+    // Replaced through the card's question by a newer proposal: the old one is not re-offered later.
+    const offered = hear(approved, 'j_00000004', 'night', makeId, { supersedes: 'j_00000001' });
+    const switched = setIntent(offered, { kind: 'topic', topicId: 'night' });
+    expect(switched.intent).toEqual({ kind: 'topic', topicId: 'night', suggestedBy: 'transcript' });
+    const later = hear(switched, 'j_00000005', 'sirens', makeId, { supersedes: 'j_00000004' });
+    expect(later.intentSuggestions).toEqual([]);
+    expect(submit(later).serverIntent).toEqual({ kind: 'topic', topicId: 'night', suggestedBy: 'transcript' });
+  });
+
+  it("a deliberate pick restores a removed topic as the parent's own choice; choosing a suggestion keeps its origin", () => {
+    const { draft: start, makeId } = basics();
+    const removed = dismissIntentSuggestion(hear(start, 'j_00000001', 'sirens', makeId), 'sirens');
+    const picked = setIntent(removed, { kind: 'topic', topicId: 'sirens' });
+    expect(picked.intent).toEqual({ kind: 'topic', topicId: 'sirens' });
+    expect(picked.topicTombstones).toEqual([]);
+    // A later correction that says it again neither duplicates nor relabels the parent's pick.
+    const again = hear(picked, 'j_00000002', 'sirens', makeId, { supersedes: 'j_00000001' });
+    expect(again.intentSuggestions).toEqual([]);
+    expect(submit(again)).toEqual({ intent: { kind: 'topic', topicId: 'sirens' }, serverIntent: { kind: 'topic', topicId: 'sirens' }, fixture: false });
+
+    // Choosing the pending suggestion (card or list) is not a removal: origin kept, nothing remembered.
+    const chosen = setIntent(hear(start, 'j_00000003', 'sirens', makeId), { kind: 'topic', topicId: 'sirens' });
+    expect(chosen.intent).toEqual({ kind: 'topic', topicId: 'sirens', suggestedBy: 'transcript' });
+    expect(chosen.topicTombstones).toEqual([]);
+    // Choosing it again changes nothing and never drops its origin.
+    expect(setIntent(chosen, { kind: 'topic', topicId: 'sirens' })).toBe(chosen);
+
+    // Example origin: removed, then picked by the parent, it is the parent's choice, not example data.
+    const exampleRemoved = dismissIntentSuggestion(hear(start, 'j_00000004', 'night', makeId, { source: 'fixture' }), 'night');
+    expect(submit(setIntent(exampleRemoved, { kind: 'topic', topicId: 'night' }))).toEqual({
+      intent: { kind: 'topic', topicId: 'night' },
+      serverIntent: { kind: 'topic', topicId: 'night' },
+      fixture: false,
+    });
+  });
+
+  it("a manual choice is never overwritten by extraction; declining the other proposal is remembered", () => {
+    const { draft: start, makeId } = basics();
+    const manual = setIntent(start, { kind: 'topic', topicId: 'night' });
+    const heard = hear(manual, 'j_00000001', 'sirens', makeId);
+    expect(heard.intent).toEqual({ kind: 'topic', topicId: 'night' });
+    expect(heard.intentSuggestions.map((item) => item.topicId)).toEqual(['sirens']);
+    expect(submit(heard).serverIntent).toEqual({ kind: 'topic', topicId: 'night' });
+
+    // The same topic heard again adds nothing and does not relabel the manual choice.
+    const same = hear(manual, 'j_00000002', 'night', makeId);
+    expect(same.intentSuggestions).toEqual([]);
+    expect(same.intent).toEqual({ kind: 'topic', topicId: 'night' });
+
+    const fun = hear(setIntent(start, { kind: 'just_for_fun' }), 'j_00000003', 'sirens', makeId);
+    expect(submit(fun).intent).toEqual({ kind: 'just_for_fun' });
+
+    // "Keep the current one" declines the proposal; a correction does not raise it again.
+    const declined = dismissIntentSuggestion(heard, 'sirens');
+    const corrected = hear(declined, 'j_00000004', 'sirens', makeId, { supersedes: 'j_00000001' });
+    expect(corrected.intentSuggestions).toEqual([]);
+    expect(corrected.intent).toEqual({ kind: 'topic', topicId: 'night' });
+  });
+
+  it('correction chains and example-only provenance keep working', () => {
+    const { draft: start, makeId } = basics();
+    // Removed after the first transcript; an unclear correction, then a clear one that says it again.
+    let chain = dismissIntentSuggestion(hear(start, 'j_00000001', 'sirens', makeId), 'sirens');
+    chain = hear(chain, 'j_00000002', null, makeId, { supersedes: 'j_00000001', extra: { understood: false } });
+    chain = hear(chain, 'j_00000003', 'sirens', makeId, { supersedes: 'j_00000002' });
+    expect(chain.intentSuggestions).toEqual([]);
+    expect(submit(chain).intent).toBeNull();
+
+    // Example-only direction: approved with the list, still flagged as example data end to end.
+    const example = hear(start, 'j_00000004', 'night', makeId, { source: 'fixture' });
+    expect(submit(example)).toEqual({
+      intent: { kind: 'topic', topicId: 'night', suggestedBy: 'fixture' },
+      serverIntent: { kind: 'topic', topicId: 'night', suggestedBy: 'fixture' },
+      fixture: true,
+    });
+    // Declined example direction: another example run does not bring it back either.
+    const declined = dismissIntentSuggestion(example, 'night');
+    expect(hear(declined, 'j_00000005', 'night', makeId, { source: 'fixture' }).intentSuggestions).toEqual([]);
+  });
+});

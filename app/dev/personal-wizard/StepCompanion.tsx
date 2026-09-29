@@ -92,14 +92,8 @@ export function StepCompanion({ draft, update, options, showErrors, titleRef }: 
                   <button
                     type="button"
                     className={styles.btnSecondary}
-                    onClick={() =>
-                      update((current) =>
-                        dismissIntentSuggestion(
-                          setIntent(current, { kind: 'topic', topicId: suggestion.topicId, suggestedBy: suggestion.source }),
-                          suggestion.topicId,
-                        ),
-                      )
-                    }
+                    // Choosing adopts the suggestion with its origin; only declining is remembered as a removal.
+                    onClick={() => update((current) => setIntent(current, { kind: 'topic', topicId: suggestion.topicId }))}
                   >
                     {copy.suggestionAccept}
                   </button>

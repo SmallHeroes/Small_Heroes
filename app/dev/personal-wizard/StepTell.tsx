@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, type RefObject } from 'react';
 
-import { COMMON, INTAKE_ERRORS, RECORDER, SOURCE_BADGE, TEST_PANEL, TRANSCRIPT, tellCopy } from '@/lib/personal-wizard/copy';
+import { COMMON, INTAKE_ERRORS, RECORDER, SOURCE_BADGE, TEST_PANEL, TRANSCRIPT, companionCopy, tellCopy } from '@/lib/personal-wizard/copy';
 import { normalizeText, type PersonalBookDraft } from '@/lib/personal-wizard/contract';
 import { activeFacts, dismissIntentSuggestion, resolveConflict, setIntent, type RequestIssue } from '@/lib/personal-wizard/draft';
 import type { FixtureExampleId } from '@/lib/personal-wizard/intake-fixture';
@@ -111,6 +111,15 @@ export function StepTell(props: Props) {
       remove: () => update((current) => dismissIntentSuggestion(current, suggestion.topicId)),
     })),
   ];
+  // With a direction already chosen (from any path), a different proposal is a question, never a
+  // second row that could read as chosen; without one, proposals are rows approved with the list.
+  const currentDirection =
+    draft.intent === null
+      ? null
+      : draft.intent.kind === 'just_for_fun'
+        ? companionCopy(name, draft.child.address).justForFun
+        : topicLabel(draft.intent.topicId);
+  const directionRows = directions.filter((direction) => direction.status === 'included' || currentDirection === null);
   const heard =
     draft.child.nameSource === 'transcript' ||
     draft.child.ageSource === 'transcript' ||
@@ -251,8 +260,9 @@ export function StepTell(props: Props) {
           {directions.length > 0 ? (
             <div className={styles.factGroup}>
               <h3 className={styles.factGroupTitle}>{copy.directionTitle}</h3>
+              {directionRows.length > 0 ? (
               <ul className={styles.factRows}>
-                {directions.map((direction) => (
+                {directionRows.map((direction) => (
                   <li key={direction.key} className={styles.factRow} data-status={direction.status}>
                     <span className={styles.factText}>
                       {topicLabel(direction.topicId)}
@@ -269,6 +279,38 @@ export function StepTell(props: Props) {
                   </li>
                 ))}
               </ul>
+              ) : null}
+              {currentDirection !== null
+                ? draft.intentSuggestions.map((suggestion) => {
+                    const proposed = topicLabel(suggestion.topicId);
+                    const question = copy.directionChange(currentDirection, proposed, suggestion.source);
+                    return (
+                      <div key={`change-${suggestion.topicId}`} className={styles.conflict} role="group" aria-label={question}>
+                        <p className={styles.conflictQuestion}>{question}</p>
+                        <div className={styles.actionsRow}>
+                          <button
+                            type="button"
+                            className={styles.btnSecondary}
+                            onClick={() => update((latest) => setIntent(latest, { kind: 'topic', topicId: suggestion.topicId }))}
+                          >
+                            {copy.directionReplace(proposed)}
+                          </button>
+                          <button
+                            type="button"
+                            className={styles.btnSecondary}
+                            onClick={() => update((latest) => dismissIntentSuggestion(latest, suggestion.topicId))}
+                          >
+                            {copy.directionKeep(currentDirection)}
+                          </button>
+                        </div>
+                        <p className={styles.hint}>{copy.directionKeepNote(currentDirection)}</p>
+                      </div>
+                    );
+                  })
+                : null}
+              {currentDirection === null && draft.intentSuggestions.length > 1 ? (
+                <p className={styles.hint}>{copy.directionPickLater}</p>
+              ) : null}
             </div>
           ) : null}
           {listEmpty ? <p className={styles.hint}>{copy.listEmpty}</p> : null}

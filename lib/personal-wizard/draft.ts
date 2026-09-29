@@ -57,6 +57,7 @@ export function createDraft(draftId: string): PersonalBookDraft {
     companionId: null,
     intent: null,
     intentSuggestions: [],
+    topicTombstones: [],
     avoid: [],
     photo: 'none',
     bookOptions: { packageId: null, voiceId: null },
@@ -317,26 +318,46 @@ export function setCompanion(draft: PersonalBookDraft, companionId: string): Per
   return next(draft, { companionId });
 }
 
+const withTombstone = (tombstones: readonly string[], topicId: string): string[] =>
+  tombstones.includes(topicId) ? [...tombstones] : [...tombstones, topicId];
+
 /**
  * Choosing a topic that is currently suggested (from the suggestion card or from the list) adopts the
  * suggestion: the choice keeps its origin and the suggestion is settled. Any other choice is the
  * parent's own, without an origin.
+ *
+ * Removal is durable, like removed places and facts: moving away from a direction that came from a
+ * recording or the example (clearing it, or choosing something else) remembers that topic, so a later
+ * correction cannot bring it back. Deliberately picking a topic lifts its tombstone.
  */
 export function setIntent(draft: PersonalBookDraft, intent: Intent | null): PersonalBookDraft {
-  if (intent?.kind === 'topic' && !intent.suggestedBy) {
-    const suggestion = draft.intentSuggestions.find((item) => item.topicId === intent.topicId);
+  const current = draft.intent;
+  let topicTombstones = draft.topicTombstones;
+  let intentSuggestions = draft.intentSuggestions;
+  let chosen = intent;
+  const keepsCurrent = intent?.kind === 'topic' && current?.kind === 'topic' && intent.topicId === current.topicId;
+  // Choosing the direction that is already chosen changes nothing (and never drops its origin).
+  if (keepsCurrent) return draft;
+  if (current?.kind === 'topic' && current.suggestedBy) {
+    topicTombstones = withTombstone(topicTombstones, current.topicId);
+  }
+  if (intent?.kind === 'topic') {
+    topicTombstones = topicTombstones.filter((topicId) => topicId !== intent.topicId);
+    const suggestion = intentSuggestions.find((item) => item.topicId === intent.topicId);
     if (suggestion) {
-      return next(draft, {
-        intent: { ...intent, suggestedBy: suggestion.source },
-        intentSuggestions: draft.intentSuggestions.filter((item) => item.topicId !== intent.topicId),
-      });
+      chosen = { ...intent, suggestedBy: intent.suggestedBy ?? suggestion.source };
+      intentSuggestions = intentSuggestions.filter((item) => item.topicId !== intent.topicId);
     }
   }
-  return next(draft, { intent });
+  return next(draft, { intent: chosen, intentSuggestions, topicTombstones });
 }
 
+/** The parent declines a suggested topic: it leaves the list and later extractions do not re-suggest it. */
 export function dismissIntentSuggestion(draft: PersonalBookDraft, topicId: string): PersonalBookDraft {
-  return next(draft, { intentSuggestions: draft.intentSuggestions.filter((item) => item.topicId !== topicId) });
+  return next(draft, {
+    intentSuggestions: draft.intentSuggestions.filter((item) => item.topicId !== topicId),
+    topicTombstones: withTombstone(draft.topicTombstones, topicId),
+  });
 }
 
 export function setPhotoChoice(draft: PersonalBookDraft, photo: PhotoChoice): PersonalBookDraft {
@@ -620,6 +641,7 @@ export function applyIntakeResult(
   if (
     topicId &&
     context.allowedTopicIds.has(topicId) &&
+    !draft.topicTombstones.includes(topicId) &&
     !(draft.intent?.kind === 'topic' && draft.intent.topicId === topicId) &&
     !intentSuggestions.some((item) => item.topicId === topicId)
   ) {

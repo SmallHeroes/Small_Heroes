@@ -100,6 +100,13 @@ export function tellCopy(name: string, address: GrammaticalAddress | null) {
       more: 'עוד',
     } satisfies Record<FactGroupId, string>,
     directionTitle: 'כיוון לסיפור',
+    // A direction is already chosen and a recording (or the example) brings another: an explicit choice.
+    directionChange: (current: string, proposed: string, source: 'transcript' | 'fixture') =>
+      `כבר נבחר כיוון: ״${current}״. ${source === 'fixture' ? 'בדוגמה' : 'בהקלטה'} עלה ״${proposed}״. להחליף?`,
+    directionReplace: (proposed: string) => `להחליף ל״${proposed}״`,
+    directionKeep: (current: string) => `להשאיר את ״${current}״`,
+    directionKeepNote: (current: string) => `אם לא תבחרו, נשאיר את ״${current}״.`,
+    directionPickLater: 'עלו כמה כיוונים. אפשר לבחור ביניהם בשלב הבא.',
     continue: 'אלה הפרטים, ממשיכים',
     processingPrompt: 'הפרטים מההקלטה עוד בעיבוד.',
     processingWait: 'לחכות',
