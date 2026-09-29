@@ -415,9 +415,21 @@ export function applyIntakeResult(
     intake: { ...job, status: 'applied' },
     transcript: result.transcript ? { jobId: job.jobId, text: result.transcript, source: result.source } : draft.transcript,
   };
+  // Ownership follows the transcript on screen: once the correction is the transcript shown, whatever
+  // the corrected job S still owns moves to it, so the next correction corrects it in turn (a chain).
+  const superseded = job.supersedesJobId;
+  const takeOver = <T extends { jobId?: string }>(item: T): T =>
+    superseded && item.jobId === superseded && base.transcript?.jobId === job.jobId ? { ...item, jobId: job.jobId } : item;
   if (!extraction.understood) {
     // An unclear correction changes nothing: the earlier transcript's details stay as they were.
-    return { applied: true, draft: base, understood: false, added: 0, conflicts: 0, omitted: 0, suggestions: 0, retired: 0 };
+    const unchanged: PersonalBookDraft = {
+      ...base,
+      facts: base.facts.map(takeOver),
+      storyPlace: base.storyPlace && takeOver(base.storyPlace),
+      conflicts: base.conflicts.map(takeOver),
+      intentSuggestions: base.intentSuggestions.map(takeOver),
+    };
+    return { applied: true, draft: unchanged, understood: false, added: 0, conflicts: 0, omitted: 0, suggestions: 0, retired: 0 };
   }
 
   let added = 0;
@@ -435,10 +447,10 @@ export function applyIntakeResult(
    * - parent-owned (typed, chipped, edited): kept; the parent's own statement is not the model's;
    * - only proposed (never approved): retired, so they cannot accumulate next to the correction;
    * - already approved via "continue": kept, with an explicit keep-or-remove question.
-   * Questions and topic suggestions raised by S are obsolete and dropped. Other recordings, typed
-   * and chip details are untouched.
+   * Questions and topic suggestions raised by S are obsolete and dropped. What S kept now belongs to
+   * the correction (see takeOver), so a later correction asks again about anything it still lacks.
+   * Other recordings, typed and chip details are untouched.
    */
-  const superseded = job.supersedesJobId;
   if (superseded) {
     const correctedKeys = new Set(extraction.facts.map((fact) => comparableText(fact.value)));
     const kept: Fact[] = [];
@@ -476,6 +488,8 @@ export function applyIntakeResult(
         // An approved place with a different corrected place is asked below like any other mismatch.
       }
     }
+    facts = facts.map(takeOver);
+    storyPlace = storyPlace && takeOver(storyPlace);
   }
 
   const seen = new Set<string>();
