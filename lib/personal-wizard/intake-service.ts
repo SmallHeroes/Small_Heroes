@@ -49,7 +49,8 @@ export type IntakeProvider = {
 };
 
 export type IntakeServiceDeps = {
-  provider: IntakeProvider;
+  /** Called only after validation and the ledger reservation succeeded; never for a refused request. */
+  createProvider: () => IntakeProvider;
   ledger: IntakeLedger;
   config: Pick<LiveIntakeConfig, 'transcribeModel' | 'extractModel' | 'budgetUsd' | 'maxJobs'>;
   /** Must refuse anything that decodes to more than `maxDurationMs`; see audio-probe.ts. */
@@ -142,11 +143,16 @@ function extractionReserveUsd(deps: IntakeServiceDeps): number {
   return extractionUpperBoundUsd(deps.config.extractModel, fixedBytes + MAX_TRANSCRIPT_BYTES);
 }
 
-async function extract(deps: IntakeServiceDeps, transcript: string, signal: AbortSignal): Promise<IntakeExtraction> {
-  const topicIds = deps.topics.map((topic) => topic.id);
-  const answer = await deps.provider.extract({
+async function extract(
+  provider: IntakeProvider,
+  topics: IntakeServiceDeps['topics'],
+  transcript: string,
+  signal: AbortSignal,
+): Promise<IntakeExtraction> {
+  const topicIds = topics.map((topic) => topic.id);
+  const answer = await provider.extract({
     instructions: EXTRACTION_INSTRUCTIONS,
-    userText: buildExtractionUserText(transcript, deps.topics),
+    userText: buildExtractionUserText(transcript, topics),
     schema: extractionJsonSchema(topicIds),
     maxOutputTokens: INTAKE_HARD_LIMITS.extractMaxOutputTokens,
     signal,
@@ -195,10 +201,13 @@ export async function runAudioIntake(
 
   const guard = guardSignal(input.signal, deps.timeoutMs ?? INTAKE_HARD_LIMITS.providerTimeoutMs);
   try {
-    const transcription = await deps.provider.transcribe({ audio: input.bytes, container, signal: guard.signal });
+    const provider = deps.createProvider();
+    const transcription = await provider.transcribe({ audio: input.bytes, container, signal: guard.signal });
     const transcript = normalizeText(String(transcription.text ?? '')).slice(0, LIMITS.transcriptMax).trim();
     const extraction =
-      comparableText(transcript).length < MIN_UNDERSTANDABLE_CHARS ? notUnderstood() : await extract(deps, transcript, guard.signal);
+      comparableText(transcript).length < MIN_UNDERSTANDABLE_CHARS
+        ? notUnderstood()
+        : await extract(provider, deps.topics, transcript, guard.signal);
     const result = intakeResultSchema.parse({
       jobId: input.jobId,
       source: 'transcript',
@@ -233,7 +242,9 @@ export async function runTextIntake(
   const guard = guardSignal(input.signal, deps.timeoutMs ?? INTAKE_HARD_LIMITS.providerTimeoutMs);
   try {
     const extraction =
-      comparableText(text).length < MIN_UNDERSTANDABLE_CHARS ? notUnderstood() : await extract(deps, text, guard.signal);
+      comparableText(text).length < MIN_UNDERSTANDABLE_CHARS
+        ? notUnderstood()
+        : await extract(deps.createProvider(), deps.topics, text, guard.signal);
     const result = intakeResultSchema.parse({ jobId: input.jobId, source: 'transcript', transcript: text, extraction });
     deps.ledger.finish(input.userId, input.jobId, 'done');
     return { ok: true, result, reservedUsd };

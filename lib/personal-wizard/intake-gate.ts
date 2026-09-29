@@ -6,15 +6,23 @@ import { resolveUserFromRequest } from '@/lib/auth-session';
 import { isDevEnvironment } from '@/lib/dev-only-guard';
 import { enforceRateLimit, enforceSameOrigin } from '@/lib/request-security';
 
-import { resolveLiveIntakeConfig, type LiveIntakeConfig, type LiveIntakeDisabledReason } from './intake-config';
+import {
+  readIntakeApiKey,
+  resolveLiveIntakeSettings,
+  type LiveIntakeConfig,
+  type LiveIntakeDisabledReason,
+} from './intake-config';
 
 /**
  * Authority for live intake: explicit server flags AND a signed-in session whose email is on the
  * operator allowlist. No query parameter, header or client flag grants access, and NODE_ENV alone
  * is not the boundary (middleware + isDevEnvironment + the flags all apply). A disabled or
- * unauthorised caller is refused before the body is read.
+ * unauthorised caller is refused before the body is read, and the provider credential is read only
+ * after the operator session is confirmed.
  */
 export const NO_STORE = { 'Cache-Control': 'no-store' } as const;
+
+type Env = Readonly<Record<string, string | undefined>>;
 
 export type LiveIntakeAccess =
   | { ok: true; userId: string; config: LiveIntakeConfig }
@@ -41,31 +49,38 @@ async function operatorFor(
 export async function gateLiveIntake(
   req: NextRequest,
   resolveSession: SessionResolver = resolveUserFromRequest,
+  env: Env = process.env,
 ): Promise<LiveIntakeAccess> {
   const notFound = { ok: false as const, response: NextResponse.json({ error: 'not_found' }, { status: 404, headers: NO_STORE }) };
   if (!isDevEnvironment()) return notFound;
-  const resolution = resolveLiveIntakeConfig();
+  const resolution = resolveLiveIntakeSettings(env);
   if (!resolution.enabled) return notFound;
   const originError = enforceSameOrigin(req);
   if (originError) return { ok: false, response: originError };
   const rateLimitError = enforceRateLimit(req, { namespace: 'dev-personal-wizard-intake', limit: 12, windowMs: 60_000 });
   if (rateLimitError) return { ok: false, response: rateLimitError };
-  const operator = await operatorFor(req, resolution.config.operators, resolveSession);
+  const operator = await operatorFor(req, resolution.settings.operators, resolveSession);
   if (!operator.ok) {
     return { ok: false, response: NextResponse.json({ error: operator.error }, { status: operator.status, headers: NO_STORE }) };
   }
-  return { ok: true, userId: operator.userId, config: resolution.config };
+  const apiKey = readIntakeApiKey(env);
+  if (!apiKey) {
+    return { ok: false, response: NextResponse.json({ error: 'live_unavailable' }, { status: 503, headers: NO_STORE }) };
+  }
+  return { ok: true, userId: operator.userId, config: { ...resolution.settings, apiKey } };
 }
 
 /** Status for the page: tells the UI whether to offer live processing. It grants nothing. */
 export async function liveIntakeStatus(
   req: NextRequest,
   resolveSession: SessionResolver = resolveUserFromRequest,
+  env: Env = process.env,
 ): Promise<{ live: boolean; reason: LiveIntakeDisabledReason | 'not_signed_in' | 'not_operator' | 'session_unavailable' | null }> {
-  const resolution = resolveLiveIntakeConfig();
+  const resolution = resolveLiveIntakeSettings(env);
   if (!resolution.enabled) return { live: false, reason: resolution.reason };
-  const operator = await operatorFor(req, resolution.config.operators, resolveSession);
+  const operator = await operatorFor(req, resolution.settings.operators, resolveSession);
   if (!operator.ok) return { live: false, reason: operator.error as 'not_signed_in' | 'not_operator' | 'session_unavailable' };
+  if (!readIntakeApiKey(env)) return { live: false, reason: 'api_key_missing' };
   return { live: true, reason: null };
 }
 

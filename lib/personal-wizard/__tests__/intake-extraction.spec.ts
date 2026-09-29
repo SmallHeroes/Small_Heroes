@@ -5,7 +5,8 @@ import {
   INTAKE_HARD_LIMITS,
   PERSONAL_INTAKE_PRICE_ASSUMPTIONS,
   extractionUpperBoundUsd,
-  resolveLiveIntakeConfig,
+  readIntakeApiKey,
+  resolveLiveIntakeSettings,
   transcriptionUpperBoundUsd,
 } from '../intake-config';
 import {
@@ -27,8 +28,8 @@ const LIVE_ENV = {
   OPENAI_API_KEY: 'test-value-not-a-key',
 };
 
-describe('resolveLiveIntakeConfig', () => {
-  it('stays off unless every explicit switch is valid, and reads the key last', () => {
+describe('live intake settings and credential', () => {
+  it('stays off unless every explicit switch is valid', () => {
     const cases: Array<[Partial<typeof LIVE_ENV>, string]> = [
       [{ PERSONAL_WIZARD_PREVIEW: 'false' }, 'preview_off'],
       [{ PERSONAL_WIZARD_LIVE_INTAKE: '1' }, 'live_flag_off'],
@@ -38,28 +39,30 @@ describe('resolveLiveIntakeConfig', () => {
       [{ PERSONAL_WIZARD_INTAKE_BUDGET_USD: '0' }, 'budget_invalid'],
       [{ PERSONAL_WIZARD_INTAKE_BUDGET_USD: '50' }, 'budget_invalid'],
       [{ PERSONAL_WIZARD_INTAKE_MAX_JOBS: '2.5' }, 'max_jobs_invalid'],
-      [{ OPENAI_API_KEY: '  ' }, 'api_key_missing'],
     ];
     for (const [override, reason] of cases) {
-      expect(resolveLiveIntakeConfig({ ...LIVE_ENV, ...override })).toEqual({ enabled: false, reason });
+      expect(resolveLiveIntakeSettings({ ...LIVE_ENV, ...override })).toEqual({ enabled: false, reason });
     }
-    const enabled = resolveLiveIntakeConfig(LIVE_ENV);
+    const enabled = resolveLiveIntakeSettings(LIVE_ENV);
     expect(enabled.enabled).toBe(true);
     if (!enabled.enabled) return;
-    expect([...enabled.config.operators]).toEqual(['guy@example.com']);
-    expect(enabled.config).toMatchObject({ transcribeModel: 'gpt-transcribe', extractModel: 'gpt-6-sol', budgetUsd: 1, maxJobs: 2 });
+    expect([...enabled.settings.operators]).toEqual(['guy@example.com']);
+    expect(enabled.settings).toMatchObject({ transcribeModel: 'gpt-transcribe', extractModel: 'gpt-6-sol', budgetUsd: 1, maxJobs: 2 });
+    expect(enabled.settings).not.toHaveProperty('apiKey');
   });
 
-  it('never touches OPENAI_API_KEY while any earlier switch is off', () => {
+  it('resolving the settings never reads the credential, even with every switch on', () => {
     const reads: string[] = [];
-    const env = new Proxy({ ...LIVE_ENV, PERSONAL_WIZARD_LIVE_INTAKE: 'false' } as Record<string, string>, {
+    const env = new Proxy({ ...LIVE_ENV } as Record<string, string>, {
       get(target, key: string) {
         reads.push(key);
         return target[key];
       },
     });
-    resolveLiveIntakeConfig(env);
+    expect(resolveLiveIntakeSettings(env).enabled).toBe(true);
     expect(reads).not.toContain('OPENAI_API_KEY');
+    expect(readIntakeApiKey(env)).toBe('test-value-not-a-key');
+    expect(readIntakeApiKey({ OPENAI_API_KEY: '   ' })).toBeNull();
   });
 
   it('prices are dated and sourced; reservations are conservative upper bounds', () => {

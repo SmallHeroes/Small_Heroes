@@ -49,6 +49,7 @@ vi.mock('@/lib/personal-wizard/audio-probe', async (importOriginal) => ({
 const { POST: audioPost } = await import('@/app/api/dev/personal-wizard/intake/audio/route');
 const { POST: textPost } = await import('@/app/api/dev/personal-wizard/intake/text/route');
 const { GET: statusGet } = await import('@/app/api/dev/personal-wizard/intake/status/route');
+const { gateLiveIntake } = await import('@/lib/personal-wizard/intake-gate');
 
 const LIVE_ENV: Record<string, string> = {
   PERSONAL_WIZARD_PREVIEW: 'true',
@@ -119,13 +120,19 @@ describe('live intake routes', () => {
       ['PERSONAL_WIZARD_LIVE_INTAKE', 'false'],
       ['PERSONAL_WIZARD_INTAKE_OPERATORS', ''],
       ['PERSONAL_WIZARD_EXTRACT_MODEL', 'gpt-4o'],
-      ['OPENAI_API_KEY', ''],
     ] as const) {
       process.env[key] = value;
       const response = await audioPost(audioRequest());
       expect(response.status, key).toBe(404);
       process.env[key] = LIVE_ENV[key];
     }
+    expect(providerCalls.factoryConfigs).toHaveLength(0);
+    // A missing credential is only discovered for a confirmed operator, and is still refused.
+    process.env.OPENAI_API_KEY = '';
+    const keyless = await audioPost(audioRequest());
+    expect(keyless.status).toBe(503);
+    expect(await keyless.json()).toEqual({ error: 'live_unavailable' });
+    process.env.OPENAI_API_KEY = LIVE_ENV.OPENAI_API_KEY;
     expect(providerCalls.factoryConfigs).toHaveLength(0);
   });
 
@@ -169,6 +176,75 @@ describe('live intake routes', () => {
     );
     expect(response.status).toBe(200);
     expect(providerCalls).toMatchObject({ transcribe: 0, extract: 1 });
+  });
+
+  it('text body must be exactly {jobId, draftId, text} strings: everything else is a 400 before any provider', async () => {
+    const post = (body: string) =>
+      textPost(
+        new NextRequest('http://localhost:3000/api/dev/personal-wizard/intake/text', {
+          method: 'POST',
+          body,
+          headers: { origin: 'http://localhost:3000', 'content-type': 'application/json', 'x-forwarded-for': ip() },
+        }),
+      );
+    for (const body of [
+      'null',
+      '[]',
+      '42',
+      '"text"',
+      'true',
+      JSON.stringify({ jobId: 1, draftId: 'd_000000000001', text: 'x' }),
+      JSON.stringify({ jobId: nextJobId(), draftId: 'd_000000000001' }),
+      JSON.stringify({ jobId: nextJobId(), draftId: 'd_000000000001', text: 'היא אוהבת לצייר', approved: true }),
+    ]) {
+      const response = await post(body);
+      expect(response.status, body).toBe(400);
+      expect(await response.json()).toEqual({ error: 'bad_request' });
+    }
+    expect((await post(JSON.stringify({ jobId: nextJobId(), draftId: 'd_000000000001', text: 'א'.repeat(30_000) }))).status).toBe(413);
+    expect(providerCalls.factoryConfigs).toHaveLength(0);
+    expect(providerCalls.extract).toBe(0);
+  });
+
+  it('reads the provider credential only after the operator session is confirmed', async () => {
+    const events: string[] = [];
+    const env = new Proxy({ ...LIVE_ENV } as Record<string, string>, {
+      get(target, key: string) {
+        if (key === 'OPENAI_API_KEY') events.push('key');
+        return target[key];
+      },
+    });
+    const request = () =>
+      new NextRequest('http://localhost:3000/api/dev/personal-wizard/intake/audio', {
+        method: 'POST',
+        headers: { origin: 'http://localhost:3000', 'x-forwarded-for': ip() },
+      });
+    const anonymous = await gateLiveIntake(
+      request(),
+      async () => {
+        events.push('session');
+        return null;
+      },
+      env,
+    );
+    expect(anonymous.ok).toBe(false);
+    expect(events).toEqual(['session']);
+    events.length = 0;
+    const operator = await gateLiveIntake(
+      request(),
+      async () => {
+        events.push('session');
+        return { user: { id: 'user_k', email: 'operator@example.com' } };
+      },
+      env,
+    );
+    expect(operator.ok).toBe(true);
+    expect(events).toEqual(['session', 'key']);
+    const keyless = await gateLiveIntake(request(), async () => ({ user: { id: 'user_k', email: 'operator@example.com' } }), {
+      ...LIVE_ENV,
+      OPENAI_API_KEY: '',
+    });
+    expect(keyless.ok ? 200 : keyless.response.status).toBe(503);
   });
 
   it('status tells the UI the truth and grants nothing', async () => {

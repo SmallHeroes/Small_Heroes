@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
   const ledger = getIntakeLedger();
   const outcome = await runAudioIntake(
     {
-      provider: createOpenAiIntakeProvider(access.config),
+      createProvider: () => createOpenAiIntakeProvider(access.config),
       ledger,
       config: access.config,
       measureAudio: (audio, container, maxDurationMs) => measureAudioDuration(audio, container, { maxDurationMs }),

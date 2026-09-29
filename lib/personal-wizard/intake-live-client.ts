@@ -36,7 +36,7 @@ const REJECTED_AUDIO = new Set([
 export function mapIntakeError(status: number, code: string | undefined): LiveIntakeError {
   if (status === 401) return 'not_signed_in';
   if (status === 403 && code === 'not_operator') return 'not_operator';
-  if (status === 404) return 'disabled';
+  if (status === 404 || code === 'live_unavailable') return 'disabled';
   if (status === 402) return 'budget';
   if (status === 409) return 'busy';
   if (status === 429) return code === 'job_limit' ? 'budget' : 'rate_limited';

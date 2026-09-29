@@ -3,6 +3,7 @@
  * corrected (extraction only; no audio). Same authority, ledger and logging rules as the audio route.
  */
 import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
 
 import { NO_STORE, gateLiveIntake, readBodyWithLimit } from '@/lib/personal-wizard/intake-gate';
 import { getIntakeLedger } from '@/lib/personal-wizard/intake-ledger';
@@ -17,23 +18,29 @@ export const maxDuration = 90;
 
 const MAX_BODY_BYTES = 24 * 1024;
 
+/** Exactly these three strings; anything else (null, arrays, scalars, extra fields) is a 400. */
+const textBodySchema = z.object({ jobId: z.string(), draftId: z.string(), text: z.string() }).strict();
+
 export async function POST(req: NextRequest) {
   const access = await gateLiveIntake(req);
   if (!access.ok) return access.response;
 
   const raw = await readBodyWithLimit(req, MAX_BODY_BYTES);
   if (!raw) return NextResponse.json({ error: 'too_large' }, { status: 413, headers: NO_STORE });
-  let body: { jobId?: unknown; draftId?: unknown; text?: unknown };
+  let json: unknown;
   try {
-    body = JSON.parse(raw.toString('utf8'));
+    json = JSON.parse(raw.toString('utf8'));
   } catch {
     return NextResponse.json({ error: 'bad_request' }, { status: 400, headers: NO_STORE });
   }
+  const parsed = textBodySchema.safeParse(json);
+  if (!parsed.success) return NextResponse.json({ error: 'bad_request' }, { status: 400, headers: NO_STORE });
+  const body = parsed.data;
 
   const ledger = getIntakeLedger();
   const outcome = await runTextIntake(
     {
-      provider: createOpenAiIntakeProvider(access.config),
+      createProvider: () => createOpenAiIntakeProvider(access.config),
       ledger,
       config: access.config,
       measureAudio: (audio, container, maxDurationMs) => measureAudioDuration(audio, container, { maxDurationMs }),
@@ -41,8 +48,8 @@ export async function POST(req: NextRequest) {
     },
     {
       userId: access.userId,
-      jobId: typeof body.jobId === 'string' ? body.jobId : '',
-      draftId: typeof body.draftId === 'string' ? body.draftId : '',
+      jobId: body.jobId,
+      draftId: body.draftId,
       text: body.text,
       signal: req.signal,
     },

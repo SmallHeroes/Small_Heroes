@@ -62,10 +62,15 @@ function fakeProvider(
 function deps(
   provider: IntakeProvider,
   options: { ledger?: IntakeLedger; measurement?: AudioMeasurement; budgetUsd?: number; maxJobs?: number; timeoutMs?: number } = {},
-): IntakeServiceDeps & { probes: Array<{ bytes: number; maxDurationMs: number }> } {
+): IntakeServiceDeps & { probes: Array<{ bytes: number; maxDurationMs: number }>; constructed: () => number } {
   const probes: Array<{ bytes: number; maxDurationMs: number }> = [];
+  let constructed = 0;
   return {
-    provider,
+    createProvider: () => {
+      constructed += 1;
+      return provider;
+    },
+    constructed: () => constructed,
     ledger: options.ledger ?? new IntakeLedger(),
     config: {
       transcribeModel: 'gpt-transcribe',
@@ -145,6 +150,7 @@ describe('runAudioIntake', () => {
       const outcome = await runAudioIntake(service, audio());
       expect(outcome, code).toMatchObject({ ok: false, code, status });
       expect(calls.transcribe).toBe(0);
+      expect(service.constructed()).toBe(0);
       expect(service.ledger.snapshot()).toMatchObject({ jobs: 0, reservedTotalUsd: 0 });
     }
   });
@@ -190,8 +196,10 @@ describe('runAudioIntake', () => {
 
   it('enforces the budget and the job ceiling before calling the provider', async () => {
     const { provider, calls } = fakeProvider();
-    const broke = await runAudioIntake(deps(provider, { budgetUsd: 0.0001 }), audio());
+    const brokeService = deps(provider, { budgetUsd: 0.0001 });
+    const broke = await runAudioIntake(brokeService, audio());
     expect(broke).toMatchObject({ ok: false, code: 'budget_exhausted', status: 402 });
+    expect(brokeService.constructed()).toBe(0);
     const ledger = new IntakeLedger();
     await runAudioIntake(deps(provider, { ledger, maxJobs: 1 }), audio());
     const capped = await runAudioIntake(deps(provider, { ledger, maxJobs: 1 }), audio({ jobId: 'j_000000000009' }));

@@ -13,7 +13,7 @@ import { LIMITS } from './contract';
  *   PERSONAL_WIZARD_EXTRACT_MODEL           (must have a price below)
  *   PERSONAL_WIZARD_INTAKE_BUDGET_USD       (per server process, > 0 and <= hard ceiling)
  *   PERSONAL_WIZARD_INTAKE_MAX_JOBS         (per server process, 1..hard ceiling)
- *   OPENAI_API_KEY                          (read only after every switch above is valid)
+ *   OPENAI_API_KEY                          (read only after an operator session is confirmed)
  *
  * Model ids are configuration, not code defaults: the operator chooses from the priced models.
  */
@@ -49,14 +49,16 @@ export const INTAKE_HARD_LIMITS = {
   providerTimeoutMs: 60_000,
 } as const;
 
-export type LiveIntakeConfig = {
+/** Non-secret switches: resolving them never touches the provider credential. */
+export type LiveIntakeSettings = {
   transcribeModel: TranscribeModel;
   extractModel: ExtractModel;
   budgetUsd: number;
   maxJobs: number;
   operators: ReadonlySet<string>;
-  apiKey: string;
 };
+
+export type LiveIntakeConfig = LiveIntakeSettings & { apiKey: string };
 
 export type LiveIntakeDisabledReason =
   | 'preview_off'
@@ -68,17 +70,17 @@ export type LiveIntakeDisabledReason =
   | 'max_jobs_invalid'
   | 'api_key_missing';
 
-export type LiveIntakeResolution =
-  | { enabled: true; config: LiveIntakeConfig }
-  | { enabled: false; reason: LiveIntakeDisabledReason };
+export type LiveIntakeSettingsResolution =
+  | { enabled: true; settings: LiveIntakeSettings }
+  | { enabled: false; reason: Exclude<LiveIntakeDisabledReason, 'api_key_missing'> };
 
 const hasPrice = (table: object, model: string) => model.length > 0 && Object.prototype.hasOwnProperty.call(table, model);
 
 const EMAIL = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 
-export function resolveLiveIntakeConfig(
+export function resolveLiveIntakeSettings(
   env: Readonly<Record<string, string | undefined>> = process.env,
-): LiveIntakeResolution {
+): LiveIntakeSettingsResolution {
   if (env.PERSONAL_WIZARD_PREVIEW !== 'true') return { enabled: false, reason: 'preview_off' };
   if (env.PERSONAL_WIZARD_LIVE_INTAKE !== 'true') return { enabled: false, reason: 'live_flag_off' };
   const operators = new Set(
@@ -104,19 +106,22 @@ export function resolveLiveIntakeConfig(
   if (!Number.isInteger(maxJobs) || maxJobs < 1 || maxJobs > INTAKE_HARD_LIMITS.maxJobs) {
     return { enabled: false, reason: 'max_jobs_invalid' };
   }
-  const apiKey = (env.OPENAI_API_KEY ?? '').trim();
-  if (!apiKey) return { enabled: false, reason: 'api_key_missing' };
   return {
     enabled: true,
-    config: {
+    settings: {
       transcribeModel: transcribeModel as TranscribeModel,
       extractModel: extractModel as ExtractModel,
       budgetUsd,
       maxJobs,
       operators,
-      apiKey,
     },
   };
+}
+
+/** The provider credential. Call only after the caller is an authorised operator. */
+export function readIntakeApiKey(env: Readonly<Record<string, string | undefined>> = process.env): string | null {
+  const apiKey = (env.OPENAI_API_KEY ?? '').trim();
+  return apiKey || null;
 }
 
 /** Upper bound for transcribing `durationMs` of audio, rounded up to the whole second. */
