@@ -16,12 +16,12 @@ export function formatDuration(ms: number): string {
   return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`;
 }
 
-export const STEP_NAMES = ['הגיבור', 'היכרות', 'חבר והרפתקה', 'מראה וקול', 'הספר'] as const;
+export const STEP_NAMES = ['היכרות', 'חבר והרפתקה', 'מראה וקול', 'הספר'] as const;
 
 export const COMMON = {
   prototypeBadge: 'אבטיפוס',
   draftNotice: 'הפרטים נשמרים רק בחלון הזה. רענון או סגירה ימחקו אותם.',
-  stepOf: (step: number) => `שלב ${step} מתוך 5`,
+  stepOf: (step: number) => `שלב ${step} מתוך ${STEP_NAMES.length}`,
   back: 'חזרה',
   next: 'להמשיך',
   backToSummary: 'חזרה לסיכום',
@@ -32,17 +32,18 @@ export const COMMON = {
   add: 'הוספה',
 };
 
+/** The child's basics (name, age, grammatical address), asked in the details card. */
 export const HERO = {
-  title: 'מי הגיבור או הגיבורה של הספר?',
-  sub: 'שלושה פרטים קצרים, ואז נכיר יותר.',
   nameLabel: 'השם שיופיע בספר',
   namePlaceholder: 'למשל: בר',
+  nameRow: (name: string) => `שם: ${name}`,
   ageLabel: 'גיל',
+  ageRow: (age: number) => `גיל: ${age}`,
   ageHint: 'האבטיפוס בנוי לגילי 3 עד 8.',
-  addressLabel: 'איך לפנות בסיפור?',
+  addressLabel: (name: string) => (name ? `איך לפנות ל${name} בסיפור?` : 'איך לפנות בסיפור?'),
   addressBoy: 'בלשון זכר',
   addressGirl: 'בלשון נקבה',
-  addressHint: 'נכתוב את הסיפור לפי הבחירה הזו, לא לפי השם.',
+  addressHint: 'נכתוב את הסיפור לפי הבחירה הזו, לא לפי השם או הקול.',
   errors: {
     child_name_missing: 'צריך שם לספר',
     child_name_invalid: 'אפשר להשתמש באותיות, רווח, גרש או מקף',
@@ -60,34 +61,46 @@ export const CHIPS = [
   { id: 'outdoor', label: 'משחק בחוץ' },
 ] as const;
 
-export function meetCopy(name: string, address: GrammaticalAddress | null) {
+/**
+ * The voice-first step: the parent talks first and the details card is the result. Until the name
+ * and grammatical address are known, the copy stays neutral (it never guesses either).
+ */
+export function tellCopy(name: string, address: GrammaticalAddress | null) {
+  const known = Boolean(name) && address !== null;
+  const loves = known ? `${name} ${g(address, 'אוהב', 'אוהבת')}` : null;
   return {
-    title: `בואו נכיר את ${name}`,
-    lead: `מה ${name} ${g(address, 'אוהב', 'אוהבת')} לעשות? אפשר לספר גם על מקום אהוב, הרגל מצחיק או משהו שקרה לאחרונה. כמה פרטים קטנים מספיקים.`,
+    title: 'ספרו לנו קצת על הילד שלכם',
+    lead: 'איך קוראים לו או לה, מה אוהבים לעשות, ואיזה פרט קטן הופך אותם למי שהם. אפשר לספר גם על מקום מוכר או משהו שחשוב לכם בסיפור.',
     voiceCta: 'ספרו לנו בקול',
+    voiceCtaLocal: 'בדיקת מיקרופון',
+    durationHint: 'חצי דקה עד דקה מספיקות, בכל סדר שנוח לכם.',
+    localBanner: 'בדיקת מיקרופון בלבד, כרגע לא מפענחים פרטים.',
     voiceNoteLive:
-      'בסיום נשלח את ההקלטה לעיבוד ונציג את הפרטים לעריכה לפני שישמשו בסיפור. ההקלטה אינה הקול שיקריא את הספר.',
+      'בסיום נשלח את ההקלטה לעיבוד ונראה לכם כאן מה הבנו, כדי שתוכלו לתקן לפני שזה נכנס לסיפור. ההקלטה אינה הקול שיקריא את הספר.',
     voiceNoteLocal:
-      'באבטיפוס הזה ההקלטה נשארת במכשיר שלכם ולא נשלחת לעיבוד. ההקלטה אינה הקול שיקריא את הספר.',
-    orPickOrType: 'אפשר גם לבחור או לכתוב',
-    chipsLabel: `דברים ש${name} ${g(address, 'אוהב', 'אוהבת')}`,
+      'באבטיפוס הזה ההקלטה נשארת במכשיר שלכם ולא נשלחת לעיבוד. את הפרטים אפשר לכתוב או לבחור.',
+    manualToggle: 'מעדיפים לכתוב או לבחור?',
+    cardTitleHeard: name ? `זה מה שהבנו על ${name}` : 'זה מה שהבנו',
+    cardTitleOwn: name ? `הפרטים על ${name}` : 'הפרטים שלכם',
+    cardNote: 'אפשר לערוך או להסיר כל פרט. מה שתסירו לא ייכנס לספר.',
+    chipsLabel: loves ? `דברים ש${loves}` : 'דברים שאוהבים לעשות',
     otherChip: 'משהו אחר',
-    otherLabel: `מה עוד ${name} ${g(address, 'אוהב', 'אוהבת')}?`,
-    placeLabel: `איפה מתחילה ההרפתקה של ${name}?`,
+    otherLabel: loves ? `מה עוד ${loves}?` : 'עוד משהו שאוהבים לעשות',
+    placeLabel: name ? `איפה מתחילה ההרפתקה של ${name}?` : 'איפה מתחילה ההרפתקה?',
     placeHint: 'למשל באודם, ליד הים או בגינה ליד הבית. זה המקום של הסיפור, לא כתובת.',
     extraLabel: 'עוד פרט קטן',
-    extraHint: `משהו ש${name} ${g(address, 'נוהג', 'נוהגת')} לומר או לעשות. לא חובה.`,
-    listTitle: 'הפרטים שניקח לסיפור',
-    listEmpty: 'עוד אין פרטים. אפשר להמשיך גם בלי, והסיפור יתבסס על הבחירות שמסרתם.',
+    extraHint: known
+      ? `משהו ש${name} ${g(address, 'נוהג', 'נוהגת')} לומר או לעשות. לא חובה.`
+      : 'משהו שנוהגים לומר או לעשות. לא חובה.',
+    listEmpty: 'עוד אין פרטים נוספים. אפשר להמשיך גם בלי, והסיפור יתבסס על מה שמסרתם.',
     groupTitle: {
-      interests: `${name} ${g(address, 'אוהב', 'אוהבת')}`,
+      interests: loves ?? 'אוהבים לעשות',
       places: 'מקומות',
       habits: 'הרגלים ומשפטים',
       more: 'עוד',
     } satisfies Record<FactGroupId, string>,
-    continueWith: 'להמשיך עם הפרטים האלה',
-    continueWithout: 'להמשיך בלי פרטים נוספים',
-    continueWithoutNote: 'הסיפור יתבסס על הבחירות שכבר מסרתם. לא נמציא פרטים.',
+    directionTitle: 'כיוון לסיפור',
+    continue: 'אלה הפרטים, ממשיכים',
     processingPrompt: 'הפרטים מההקלטה עוד בעיבוד.',
     processingWait: 'לחכות',
     processingSkip: 'להמשיך בלי הפרטים מההקלטה',
@@ -99,9 +112,15 @@ export function meetCopy(name: string, address: GrammaticalAddress | null) {
     stalePlace: (value: string) => `בתמלול המתוקן כבר לא מופיע מקום ההרפתקה ״${value}״. להשאיר אותו?`,
     staleKeep: 'להשאיר',
     staleRemove: 'להסיר',
-    conflictAge: (typed: string, heard: string) => `כתבתם ${typed} ושמענו ${heard}. מה נכון?`,
-    conflictName: (typed: string, heard: string) => `כתבתם ״${typed}״ ושמענו ״${heard}״. איך לקרוא ל${g(address, 'גיבור', 'גיבורה')}?`,
-    conflictPlace: (typed: string, heard: string) => `כתבתם ״${typed}״ ושמענו ״${heard}״. איפה מתחילה ההרפתקה?`,
+    // "You wrote" only when the parent typed the current value; otherwise it is simply what the list holds.
+    conflictAge: (current: string, heard: string, typed: boolean) =>
+      `${typed ? `כתבתם ${current}` : `ברשימה מופיע ${current}`} ושמענו ${heard}. מה נכון?`,
+    conflictName: (current: string, heard: string, typed: boolean) =>
+      `${typed ? `כתבתם ״${current}״` : `ברשימה מופיע ״${current}״`} ושמענו ״${heard}״. ${
+        address ? `איך לקרוא ל${g(address, 'גיבור', 'גיבורה')}?` : 'באיזה שם להשתמש בספר?'
+      }`,
+    conflictPlace: (current: string, heard: string, typed: boolean) =>
+      `${typed ? `כתבתם ״${current}״` : `ברשימה מופיע ״${current}״`} ושמענו ״${heard}״. איפה מתחילה ההרפתקה?`,
     conflictFixtureNote: 'ההצעה הזו הגיעה מהדוגמה המוכנה, לא מההקלטה.',
     factOutcome: {
       limit: 'אפשר עד 12 פרטים. כמה פרטים קטנים מספיקים.',
@@ -167,7 +186,6 @@ export const RECORDER = {
     count === 1
       ? 'הצעה אחת שלא הופיעה בתמלול המתוקן הוסרה מהרשימה.'
       : `${count} הצעות שלא הופיעו בתמלול המתוקן הוסרו מהרשימה.`,
-  suggestionNext: 'הצעה לכיוון הסיפור תחכה לכם בשלב הבא.',
   notUnderstood: 'לא הצלחנו להבין מספיק. אפשר לנסות שוב או לכתוב.',
   abandoned: 'ביטלנו. אם תגיע תשובה מאוחרת, לא נוסיף אותה.',
   failed: 'העיבוד לא הצליח. הפרטים שכבר ברשימה נשארו. אפשר לנסות שוב או לכתוב.',
@@ -218,6 +236,7 @@ export const TEST_PANEL = {
   delayNote: 'הדוגמה מגיעה אחרי השהיה קצרה, כדי שאפשר יהיה לבדוק עיבוד, ביטול והמשך.',
   simple: 'טעינת דוגמה: פרטים פשוטים',
   mixed: 'טעינת דוגמה: סתירה, מקום וכיוון',
+  voice: 'טעינת דוגמה: שם, גיל ומגורים',
   lateIgnored: 'הגיעה תשובה מאוחרת ולא נוספה.',
   processing: 'מסדרים את הפרטים מהדוגמה',
 };

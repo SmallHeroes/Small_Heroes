@@ -16,6 +16,10 @@ type Props = {
   liveIntake: boolean;
   voiceCta: string;
   voiceNote: string;
+  /** Shown prominently in every phase when nothing is decoded (live processing off). */
+  banner: string | null;
+  /** A suggested length, not a required minimum. */
+  hint: string;
   transcriptProcessing: boolean;
   /** The current clip was already sent once; sending again needs a new recording. */
   clipSent: boolean;
@@ -33,6 +37,8 @@ export function RecorderPanel({
   liveIntake,
   voiceCta,
   voiceNote,
+  banner,
+  hint,
   transcriptProcessing,
   clipSent,
   onCancelProcessing,
@@ -68,6 +74,7 @@ export function RecorderPanel({
 
   return (
     <div className={styles.voiceCard} data-phase={phase}>
+      {banner ? <p className={styles.localBanner}>{banner}</p> : null}
       {phase === 'idle' || phase === 'error' ? (
         <>
           {phase === 'idle' || (error && RETRYABLE.has(error)) ? (
@@ -76,6 +83,7 @@ export function RecorderPanel({
               <span>{phase === 'error' ? RECORDER.retry : voiceCta}</span>
             </button>
           ) : null}
+          {phase === 'idle' ? <p className={styles.hint}>{hint}</p> : null}
           <p className={styles.voiceNote}>{voiceNote}</p>
           {liveIntake ? <p className={styles.hint}>{RECORDER.privacyLive}</p> : null}
         </>

@@ -383,13 +383,13 @@ describe('summary and request round-trip', () => {
     expect(summary.avoid).toEqual(['בלי כלבים גדולים']);
   });
 
-  it('reports missing required choices by step', () => {
+  it('reports missing required choices by step (1 = tell us, 2 = companion)', () => {
     const empty = buildReviewedRequest(createDraft('d_00000000test'));
     expect(!empty.ok && empty.issues.map((issue) => [issue.code, issue.step])).toEqual([
       ['child_name_missing', 1],
       ['child_age_missing', 1],
       ['child_address_missing', 1],
-      ['companion_missing', 3],
+      ['companion_missing', 2],
     ]);
   });
 

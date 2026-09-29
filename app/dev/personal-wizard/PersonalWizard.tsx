@@ -2,18 +2,17 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 
-import { COMMON, STEP_NAMES, meetCopy, summaryCopy } from '@/lib/personal-wizard/copy';
+import { COMMON, STEP_NAMES, summaryCopy, tellCopy } from '@/lib/personal-wizard/copy';
 import { normalizeText, type IntakeResult } from '@/lib/personal-wizard/contract';
 import {
   abandonIntakeJob,
-  activeFacts,
   applyIntakeResult,
   buildReviewedRequest,
+  commitChildName,
   confirmFactsReview,
   failIntakeJob,
   randomId,
   requestIssues,
-  setChildName,
   setPhotoChoice,
   startIntakeJob,
 } from '@/lib/personal-wizard/draft';
@@ -30,9 +29,8 @@ import { useDraftStore, useObjectUrl, usePlayback, useRecorder, useSoftKeyboardO
 import styles from './personal-wizard.module.css';
 import { StepBook } from './StepBook';
 import { StepCompanion } from './StepCompanion';
-import { StepHero } from './StepHero';
-import { StepMeet, type IntakeNotice, type MeetPrompt } from './StepMeet';
 import { StepSummary, type Submission } from './StepSummary';
+import { StepTell, type IntakeNotice, type TellPrompt } from './StepTell';
 
 export type WizardOptionsView = {
   companions: Array<{ id: string; name: string; image: string; personality: string }>;
@@ -41,7 +39,8 @@ export type WizardOptionsView = {
   packages: Array<{ id: string; kicker: string; name: string; pages: number }>;
 };
 
-type Step = 1 | 2 | 3 | 4 | 5;
+/** 1 = tell us (voice first, manual alternative), 2 = companion and direction, 3 = look and sound, 4 = summary. */
+type Step = 1 | 2 | 3 | 4;
 
 /** The fixture answers after a short delay so processing, cancel and "continue without" can be exercised. */
 const FIXTURE_DELAY_MS = 1500;
@@ -56,8 +55,9 @@ export function PersonalWizard({ options }: Props) {
   const playback = usePlayback();
   const [step, setStep] = useState<Step>(1);
   const [returnToSummary, setReturnToSummary] = useState(false);
-  const [showErrors, setShowErrors] = useState({ hero: false, companion: false });
-  const [prompt, setPrompt] = useState<MeetPrompt>(null);
+  const [showErrors, setShowErrors] = useState({ tell: false, companion: false });
+  const [manualOpen, setManualOpen] = useState(false);
+  const [prompt, setPrompt] = useState<TellPrompt>(null);
   const [intakeNotice, setIntakeNotice] = useState<IntakeNotice | null>(null);
   const [lateIgnored, setLateIgnored] = useState(false);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
@@ -128,7 +128,7 @@ export function PersonalWizard({ options }: Props) {
   }, [liveIntake, sendRequested, recorderController]);
 
   const goTo = (target: Step) => {
-    if (step === 2 && target !== 2) {
+    if (step === 1 && target !== 1) {
       const controller = recorder.controller();
       controller?.withdrawSendRequest();
       controller?.stop('left_step');
@@ -141,7 +141,7 @@ export function PersonalWizard({ options }: Props) {
   const advance = () => {
     if (returnToSummary) {
       setReturnToSummary(false);
-      goTo(5);
+      goTo(4);
     } else {
       goTo((step + 1) as Step);
     }
@@ -245,13 +245,31 @@ export function PersonalWizard({ options }: Props) {
     setIntakeNotice({ kind: 'abandoned' });
   };
 
-  const finishMeet = () => {
-    update(confirmFactsReview);
+  const focusFirstInvalid = (selector: string) => {
+    window.setTimeout(() => document.querySelector<HTMLElement>(selector)?.focus(), 0);
+  };
+
+  /** Name, age and address are required before leaving step 1; the card shows what is missing. */
+  const basicsReady = (): boolean => {
+    const missing = requestIssues(read()).filter((issue) => issue.code.startsWith('child_'));
+    if (missing.length === 0) return true;
+    setShowErrors((current) => ({ ...current, tell: true }));
+    const first = missing[0].code;
+    focusFirstInvalid(
+      first.startsWith('child_name') ? '#pw-child-name' : first === 'child_age_missing' ? 'input[name="pw-age"]' : 'input[name="pw-address"]',
+    );
+    return false;
+  };
+
+  /** "These are the details, continue": approves the one shared version and moves on. */
+  const finishTell = () => {
     setPrompt(null);
+    if (!basicsReady()) return;
+    update((current) => confirmFactsReview(commitChildName(current)));
     advance();
   };
 
-  const continueFromMeet = () => {
+  const continueFromTell = () => {
     const { phase } = recorder.snapshot;
     if (phase === 'requesting' || phase === 'recording' || phase === 'stopping') {
       setPrompt('recording');
@@ -261,7 +279,7 @@ export function PersonalWizard({ options }: Props) {
       setPrompt('processing');
       return;
     }
-    finishMeet();
+    finishTell();
   };
 
   const onPromptChoice = (choice: 'wait' | 'skip') => {
@@ -279,11 +297,7 @@ export function PersonalWizard({ options }: Props) {
       update(abandonIntakeJob);
       setIntakeNotice({ kind: 'abandoned' });
     }
-    finishMeet();
-  };
-
-  const focusFirstInvalid = (selector: string) => {
-    window.setTimeout(() => document.querySelector<HTMLElement>(selector)?.focus(), 0);
+    finishTell();
   };
 
   const submit = async () => {
@@ -320,27 +334,10 @@ export function PersonalWizard({ options }: Props) {
 
   const onContinue = () => {
     if (step === 1) {
-      const heroIssues = issues.filter((issue) => issue.step === 1);
-      if (heroIssues.length > 0) {
-        setShowErrors((current) => ({ ...current, hero: true }));
-        const first = heroIssues[0].code;
-        focusFirstInvalid(
-          first.startsWith('child_name') ? '#pw-child-name' : first === 'child_age_missing' ? 'input[name="pw-age"]' : 'input[name="pw-address"]',
-        );
-        return;
-      }
-      update((current) => {
-        const normalized = normalizeText(current.child.name);
-        return normalized === current.child.name ? current : setChildName(current, normalized);
-      });
-      advance();
+      continueFromTell();
       return;
     }
     if (step === 2) {
-      continueFromMeet();
-      return;
-    }
-    if (step === 3) {
       if (!draft.companionId) {
         setShowErrors((current) => ({ ...current, companion: true }));
         focusFirstInvalid('input[name="pw-companion"]');
@@ -349,7 +346,7 @@ export function PersonalWizard({ options }: Props) {
       advance();
       return;
     }
-    if (step === 4) {
+    if (step === 3) {
       advance();
       return;
     }
@@ -361,7 +358,7 @@ export function PersonalWizard({ options }: Props) {
     goTo((step - 1) as Step);
   };
 
-  const onEdit = (target: 1 | 2 | 3 | 4) => {
+  const onEdit = (target: 1 | 2 | 3) => {
     setReturnToSummary(true);
     goTo(target);
   };
@@ -371,17 +368,13 @@ export function PersonalWizard({ options }: Props) {
     update((current) => setPhotoChoice(current, file ? 'local_preview_not_sent' : 'none'));
   };
 
-  const hasStoryDetails = activeFacts(draft).length > 0 || draft.storyPlace !== null;
-  const summaryBuild = step === 5 ? buildReviewedRequest(draft) : null;
+  const summaryBuild = step === 4 ? buildReviewedRequest(draft) : null;
   const acceptedCurrent = submission.state === 'accepted' && submission.revision === draft.revision;
   let continueLabel = returnToSummary ? COMMON.backToSummary : COMMON.next;
-  if (step === 2 && !returnToSummary) {
-    const meet = meetCopy(name, draft.child.address);
-    continueLabel = hasStoryDetails ? meet.continueWith : meet.continueWithout;
-  }
-  if (step === 5) continueLabel = summaryCopy(name, draft.child.address).finish;
+  if (step === 1 && !returnToSummary) continueLabel = tellCopy(name, draft.child.address).continue;
+  if (step === 4) continueLabel = summaryCopy(name, draft.child.address).finish;
   const continueDisabled =
-    step === 5 && (submission.state === 'submitting' || !summaryBuild?.ok || acceptedCurrent);
+    step === 4 && (submission.state === 'submitting' || !summaryBuild?.ok || acceptedCurrent);
 
   return (
     <div className={styles.page} data-ready={ready || undefined}>
@@ -408,10 +401,7 @@ export function PersonalWizard({ options }: Props) {
 
       <main className={styles.main}>
         {step === 1 ? (
-          <StepHero draft={draft} update={update} issues={issues} showErrors={showErrors.hero} titleRef={titleRef} />
-        ) : null}
-        {step === 2 ? (
-          <StepMeet
+          <StepTell
             draft={draft}
             update={update}
             titleRef={titleRef}
@@ -430,9 +420,14 @@ export function PersonalWizard({ options }: Props) {
             onReorganize={liveIntake ? reorganizeTranscript : undefined}
             prompt={prompt}
             onPromptChoice={onPromptChoice}
+            issues={issues}
+            showErrors={showErrors.tell}
+            manualOpen={manualOpen}
+            onToggleManual={() => setManualOpen((open) => !open)}
+            topics={options.topics}
           />
         ) : null}
-        {step === 3 ? (
+        {step === 2 ? (
           <StepCompanion
             draft={draft}
             update={update}
@@ -441,7 +436,7 @@ export function PersonalWizard({ options }: Props) {
             titleRef={titleRef}
           />
         ) : null}
-        {step === 4 ? (
+        {step === 3 ? (
           <StepBook
             draft={draft}
             update={update}
@@ -452,7 +447,7 @@ export function PersonalWizard({ options }: Props) {
             playback={playback}
           />
         ) : null}
-        {step === 5 ? (
+        {step === 4 ? (
           <StepSummary
             draft={draft}
             options={options}

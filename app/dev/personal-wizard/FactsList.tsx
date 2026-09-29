@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 
-import { COMMON, SOURCE_BADGE, factLabel, meetCopy, storyPlaceLabel } from '@/lib/personal-wizard/copy';
+import { COMMON, SOURCE_BADGE, factLabel, storyPlaceLabel, tellCopy } from '@/lib/personal-wizard/copy';
 import type { Fact, PersonalBookDraft } from '@/lib/personal-wizard/contract';
 import {
   FACT_GROUP_OF_KIND,
@@ -19,16 +19,17 @@ import styles from './personal-wizard.module.css';
 type Props = {
   draft: PersonalBookDraft;
   update: (change: (draft: PersonalBookDraft) => PersonalBookDraft) => void;
-  copy: ReturnType<typeof meetCopy>;
+  copy: ReturnType<typeof tellCopy>;
   onEditPlace: () => void;
 };
 
-const EDIT_MESSAGE: Partial<Record<EditOutcome, keyof ReturnType<typeof meetCopy>['factOutcome']>> = {
+const EDIT_MESSAGE: Partial<Record<EditOutcome, keyof ReturnType<typeof tellCopy>['factOutcome']>> = {
   empty: 'empty',
   too_long: 'too_long',
   duplicate: 'duplicate',
 };
 
+/** The details list inside the card: every entry path lands here, each row editable and removable. */
 export function FactsList({ draft, update, copy, onEditPlace }: Props) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState('');
@@ -36,7 +37,6 @@ export function FactsList({ draft, update, copy, onEditPlace }: Props) {
 
   const facts = activeFacts(draft);
   const place = draft.storyPlace;
-  const isEmpty = facts.length === 0 && !place;
 
   const startEdit = (fact: Fact) => {
     setEditingId(fact.id);
@@ -68,12 +68,7 @@ export function FactsList({ draft, update, copy, onEditPlace }: Props) {
     ) : null;
 
   return (
-    <section className={styles.factsCard} aria-labelledby="pw-facts-title">
-      <h2 id="pw-facts-title" className={styles.sectionTitle}>
-        {copy.listTitle}
-      </h2>
-      {isEmpty ? <p className={styles.hint}>{copy.listEmpty}</p> : null}
-
+    <>
       {FACT_GROUP_ORDER.map((group) => {
         const groupFacts = facts.filter((fact) => FACT_GROUP_OF_KIND[fact.kind] === group);
         const showPlace = group === 'places' && place;
@@ -180,6 +175,6 @@ export function FactsList({ draft, update, copy, onEditPlace }: Props) {
           </div>
         );
       })}
-    </section>
+    </>
   );
 }

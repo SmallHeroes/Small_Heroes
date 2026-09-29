@@ -2,7 +2,7 @@
 
 import type { RefObject } from 'react';
 
-import { COMMON, SOURCE_BADGE, companionCopy, factLabel, meetCopy, storyPlaceLabel, summaryCopy } from '@/lib/personal-wizard/copy';
+import { COMMON, SOURCE_BADGE, companionCopy, factLabel, storyPlaceLabel, summaryCopy, tellCopy } from '@/lib/personal-wizard/copy';
 import { normalizeText, type PersonalBookDraft, type ReviewedPersonalBookRequest } from '@/lib/personal-wizard/contract';
 import { buildReviewedRequest, summarizeRequest } from '@/lib/personal-wizard/draft';
 
@@ -28,16 +28,16 @@ type Props = {
   titleRef: RefObject<HTMLHeadingElement | null>;
   photoUrl: string | null;
   submission: Submission;
-  onEdit: (step: 1 | 2 | 3 | 4) => void;
+  onEdit: (step: 1 | 2 | 3) => void;
 };
 
 export function StepSummary({ draft, options, titleRef, photoUrl, submission, onEdit }: Props) {
   const name = normalizeText(draft.child.name);
   const copy = summaryCopy(name, draft.child.address);
-  const meet = meetCopy(name, draft.child.address);
+  const tell = tellCopy(name, draft.child.address);
   const build = buildReviewedRequest(draft);
 
-  const editButton = (step: 1 | 2 | 3 | 4, section: string) => (
+  const editButton = (step: 1 | 2 | 3, section: string) => (
     <button type="button" className={styles.linkButton} onClick={() => onEdit(step)}>
       {COMMON.edit}
       <span className="sr-only">: {section}</span>
@@ -55,7 +55,7 @@ export function StepSummary({ draft, options, titleRef, photoUrl, submission, on
             {build.issues.map((issue) => (
               <li key={issue.code} className={styles.factRow}>
                 <span className={styles.factText}>{copy.missing[issue.code]}</span>
-                {issue.step !== 5 ? editButton(issue.step as 1 | 2 | 3, copy.missing[issue.code]) : null}
+                {issue.step !== 4 ? editButton(issue.step, copy.missing[issue.code]) : null}
               </li>
             ))}
           </ul>
@@ -114,7 +114,7 @@ export function StepSummary({ draft, options, titleRef, photoUrl, submission, on
             <h2 id="pw-sum-facts" className={styles.sectionTitle}>
               {copy.sections.facts}
             </h2>
-            {editButton(2, copy.sections.facts)}
+            {editButton(1, copy.sections.facts)}
           </header>
           {model.factGroups.length === 0 && !model.storyPlace ? <p className={styles.summaryText}>{copy.noFacts}</p> : null}
           {model.storyPlace ? (
@@ -129,7 +129,7 @@ export function StepSummary({ draft, options, titleRef, photoUrl, submission, on
           ) : null}
           {model.factGroups.map((group) => (
             <div key={group.group} className={styles.summaryGroup}>
-              <h3 className={styles.factGroupTitle}>{meet.groupTitle[group.group]}</h3>
+              <h3 className={styles.factGroupTitle}>{tell.groupTitle[group.group]}</h3>
               <ul className={styles.summaryList}>
                 {group.facts.map((fact) => (
                   <li key={fact.id}>
@@ -152,7 +152,7 @@ export function StepSummary({ draft, options, titleRef, photoUrl, submission, on
             <h2 id="pw-sum-companion" className={styles.sectionTitle}>
               {copy.sections.companion}
             </h2>
-            {editButton(3, copy.sections.companion)}
+            {editButton(2, copy.sections.companion)}
           </header>
           {companion ? (
             <div className={styles.summaryCompanion}>
@@ -170,7 +170,7 @@ export function StepSummary({ draft, options, titleRef, photoUrl, submission, on
             <h2 id="pw-sum-intent" className={styles.sectionTitle}>
               {copy.sections.intent}
             </h2>
-            {editButton(3, copy.sections.intent)}
+            {editButton(2, copy.sections.intent)}
           </header>
           <p className={styles.summaryText}>
             {intentText}
@@ -184,7 +184,7 @@ export function StepSummary({ draft, options, titleRef, photoUrl, submission, on
             <h2 id="pw-sum-look" className={styles.sectionTitle}>
               {copy.sections.look}
             </h2>
-            {editButton(4, copy.sections.look)}
+            {editButton(3, copy.sections.look)}
           </header>
           <div className={styles.summaryLook}>
             {photoUrl && model.photo === 'local_preview_not_sent' ? (

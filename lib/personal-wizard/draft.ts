@@ -723,7 +723,8 @@ export type RequestIssueCode =
   | 'companion_missing'
   | 'contract_violation';
 
-export type RequestIssue = { code: RequestIssueCode; step: 1 | 2 | 3 | 5; detail?: string[] };
+/** Steps: 1 = tell us about the child (voice or manual), 2 = companion and direction, 4 = summary. */
+export type RequestIssue = { code: RequestIssueCode; step: 1 | 2 | 4; detail?: string[] };
 
 export function requestIssues(draft: PersonalBookDraft): RequestIssue[] {
   const issues: RequestIssue[] = [];
@@ -739,9 +740,9 @@ export function requestIssues(draft: PersonalBookDraft): RequestIssue[] {
     draft.child.ageJobId !== null ||
     draft.conflicts.length > 0
   ) {
-    issues.push({ code: 'facts_unreviewed', step: 2 });
+    issues.push({ code: 'facts_unreviewed', step: 1 });
   }
-  if (!draft.companionId) issues.push({ code: 'companion_missing', step: 3 });
+  if (!draft.companionId) issues.push({ code: 'companion_missing', step: 2 });
   return issues;
 }
 
@@ -788,7 +789,7 @@ export function buildReviewedRequest(draft: PersonalBookDraft): RequestBuildResu
       issues: [
         {
           code: 'contract_violation',
-          step: 5,
+          step: 4,
           detail: parsed.error.issues.map((issue) => `${issue.path.join('.')}: ${issue.message}`),
         },
       ],
