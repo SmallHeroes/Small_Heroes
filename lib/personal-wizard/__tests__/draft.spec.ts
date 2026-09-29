@@ -7,6 +7,7 @@ import {
   isValidChildName,
   normalizeText,
   reviewedPersonalBookRequestSchema,
+  similarDetails,
   type IntakeExtraction,
   type IntakeResult,
   type PersonalBookDraft,
@@ -1112,7 +1113,7 @@ describe('voice-first entry: a recording may fill the empty name and age; "conti
     const built = buildReviewedRequest(draft);
     expect(built.ok).toBe(true);
     if (!built.ok) return;
-    expect(built.request.intent).toEqual({ kind: 'topic', topicId: 'sirens', suggestedBy: 'fixture' });
+    expect(built.request.intent).toEqual({ kind: 'topic', topicId: 'sirens', suggestedBy: 'fixture', basis: 'difficulty' });
     expect(built.request.storyPlace).toBeNull();
     expect(requestContainsFixtureData(built.request)).toBe(true);
     const accepted = acceptPersonalBookRequest(built.request, resolvePersonalWizardOptions());
@@ -1286,7 +1287,16 @@ describe('voice-first v2: what is hard, the direction it suggests, and "nothing 
     const heard = hearHard(start, 'j_00000001', makeId);
     // "Nothing special" no longer holds once a difficulty is heard.
     expect(heard.noDifficulty).toBe(false);
-    expect(heard.intentSuggestions).toEqual([{ topicId: 'night', jobId: 'j_00000001', source: 'transcript', reason: 'hard' }]);
+    const heardFact = activeFacts(heard).find((fact) => fact.kind === 'difficulty');
+    expect(heard.intentSuggestions).toEqual([
+      {
+        topicId: 'night',
+        jobId: 'j_00000001',
+        source: 'transcript',
+        reason: 'hard',
+        evidence: [{ factId: heardFact?.id, key: comparableText('מפחד מהחושך') }],
+      },
+    ]);
     // Negative control: nothing is chosen before "continue".
     expect(heard.intent).toBeNull();
     const approved = confirmFactsReview(heard);
@@ -1313,7 +1323,8 @@ describe('voice-first v2: what is hard, the direction it suggests, and "nothing 
     // Withdrawn is not declined: said again later, it is suggested again.
     expect(withdrawn.topicTombstones).toEqual([]);
     expect(hearHard(withdrawn, 'j_00000004', makeId, { facts: [{ kind: 'difficulty', value: 'חושך בלילה' }] }).intentSuggestions).toHaveLength(1);
-    // Control: with another difficulty still listed, the suggestion stays.
+    // Codex P1-1 case 2: the topic was matched to BOTH difficulties it came with, so removing either
+    // withdraws it, even with the other still listed.
     const two = hearHard(start, 'j_00000005', makeId, {
       facts: [
         { kind: 'difficulty', value: 'מפחד מהחושך' },
@@ -1321,7 +1332,12 @@ describe('voice-first v2: what is hard, the direction it suggests, and "nothing 
       ],
     });
     const first = activeFacts(two).find((fact) => fact.value === 'מפחד מהחושך');
-    expect(removeFact(two, first?.id ?? '').intentSuggestions).toHaveLength(1);
+    expect(removeFact(two, first?.id ?? '').intentSuggestions).toEqual([]);
+    // Control: removing a difficulty the suggestion does not stand on leaves it alone.
+    const typed = addTypedFact(start, 'difficulty', 'קשה לו להיפרד בבוקר', makeId).draft;
+    const withUnrelated = hearHard(typed, 'j_00000006', makeId);
+    const unrelated = activeFacts(withUnrelated).find((fact) => fact.value === 'קשה לו להיפרד בבוקר');
+    expect(removeFact(withUnrelated, unrelated?.id ?? '').intentSuggestions.map((item) => item.topicId)).toEqual(['night']);
   });
 
   it('a "what is hard" chip proposes its topic; unpicking withdraws it; adopted, it is the parent\'s own choice', () => {
@@ -1330,7 +1346,10 @@ describe('voice-first v2: what is hard, the direction it suggests, and "nothing 
     expect(picked.outcome).toBe('added');
     expect(activeFacts(picked.draft).map((fact) => [fact.kind, fact.value, fact.source])).toEqual([['difficulty', 'פחדים בלילה', 'chip']]);
     expect(picked.draft.noDifficulty).toBe(false);
-    expect(picked.draft.intentSuggestions).toEqual([{ topicId: 'night', jobId: null, source: 'chip', reason: 'hard' }]);
+    const chipFact = activeFacts(picked.draft)[0];
+    expect(picked.draft.intentSuggestions).toEqual([
+      { topicId: 'night', jobId: null, source: 'chip', reason: 'hard', evidence: [{ factId: chipFact.id, key: comparableText('פחדים בלילה') }] },
+    ]);
 
     const unpicked = toggleHardChip(picked.draft, hardChip, makeId);
     expect(unpicked.outcome).toBe('removed');
@@ -1339,7 +1358,7 @@ describe('voice-first v2: what is hard, the direction it suggests, and "nothing 
     const approved = confirmFactsReview(picked.draft);
     expect(approved.intent).toEqual({ kind: 'topic', topicId: 'night' });
     const built = buildReviewedRequest(setCompanion(ready(approved), 'fox_uri'));
-    expect(built.ok && built.request.intent).toEqual({ kind: 'topic', topicId: 'night' });
+    expect(built.ok && built.request.intent).toEqual({ kind: 'topic', topicId: 'night', basis: 'difficulty' });
     expect(built.ok && requestContainsFixtureData(built.request)).toBe(false);
 
     // No proposal over a chosen direction, a pending one, or a removed topic.
@@ -1386,5 +1405,330 @@ describe('voice-first v2: what is hard, the direction it suggests, and "nothing 
       'רעשים חזקים',
       'מפלצות',
     ]);
+  });
+});
+
+// ── Codex QA of v2 (HOLD 2026-09-29) and the owner addendum ─────────────────────────────────────
+
+const V2_TOPICS = new Set(['sirens', 'night', 'transitions', 'social']);
+
+/** A request that went all the way: the reviewed request AND the server's acceptance of it. */
+function submitBoth(draft: PersonalBookDraft) {
+  const built = buildReviewedRequest(setCompanion(confirmFactsReview(ready(draft)), 'dragon_dini'));
+  if (!built.ok) throw new Error(`request not built: ${built.issues.map((issue) => issue.code).join(',')}`);
+  const accepted = acceptPersonalBookRequest(built.request, resolvePersonalWizardOptions());
+  if (!accepted.ok) throw new Error(`server refused: ${JSON.stringify(accepted.issues)}`);
+  return { request: built.request, canonical: accepted.canonical };
+}
+
+describe('Codex QA of v2, P1-1: a derived direction stands on its exact difficulties', () => {
+  const fear = { kind: 'difficulty' as const, value: 'רעשים חזקים' };
+  const dark = { kind: 'difficulty' as const, value: 'חושך' };
+  /** A hearing; like the probe, it corrects the transcript on screen when there is one. */
+  const hear = (
+    draft: PersonalBookDraft,
+    jobId: string,
+    makeId: IdFactory,
+    facts: IntakeExtraction['facts'],
+    partial: Partial<IntakeExtraction> = { hardTopicId: 'sirens' },
+    source: 'transcript' | 'fixture' = 'transcript',
+  ) => {
+    const started = startIntakeJob(draft, jobId, source, draft.transcript ? { supersedesJobId: draft.transcript.jobId } : {});
+    const merged = applyIntakeResult(
+      started,
+      { jobId, source, transcript: 'synthetic', extraction: extraction({ facts, ...partial }) },
+      { allowedTopicIds: V2_TOPICS, makeId },
+    );
+    if (!merged.applied) throw new Error(`not applied: ${merged.reason}`);
+    return merged.draft;
+  };
+  const difficultyId = (draft: PersonalBookDraft, value: string) =>
+    activeFacts(draft).find((fact) => fact.kind === 'difficulty' && fact.value === value)?.id ?? '';
+
+  it('case 1: removed, then "nothing special", then a correction repeats it: no direction comes back', () => {
+    for (const source of ['transcript', 'fixture'] as const) {
+      const { draft: start, makeId } = basics();
+      let draft = hear(setNoDifficulty(start, false), 'j_00000001', makeId, [fear], { hardTopicId: 'sirens' }, source);
+      expect(draft.intentSuggestions.map((item) => item.topicId)).toEqual(['sirens']);
+      draft = removeFact(draft, difficultyId(draft, fear.value), makeId);
+      expect(draft.intentSuggestions).toEqual([]);
+      draft = setNoDifficulty(draft, true);
+      draft = hear(draft, 'j_00000002', makeId, [fear], { hardTopicId: 'sirens' }, source);
+      // The fact stays excluded, and the topic that stood on it is not proposed again.
+      expect(activeFacts(draft).filter((fact) => fact.kind === 'difficulty')).toEqual([]);
+      expect(draft.intentSuggestions).toEqual([]);
+      const { request, canonical } = submitBoth(draft);
+      expect([request.intent, request.noDifficulty, canonical.intent]).toEqual([null, true, null]);
+    }
+  });
+
+  it('case 2: removing one of the difficulties it was matched to withdraws it', () => {
+    const { draft: start, makeId } = basics();
+    let draft = hear(start, 'j_00000001', makeId, [fear, dark]);
+    draft = removeFact(draft, difficultyId(draft, fear.value), makeId);
+    expect(draft.intentSuggestions).toEqual([]);
+    const { request, canonical } = submitBoth(draft);
+    expect(request.facts.filter((fact) => fact.kind === 'difficulty').map((fact) => fact.value)).toEqual(['חושך']);
+    expect([request.intent, canonical.intent]).toEqual([null, null]);
+  });
+
+  it('case 3: editing the difficulty withdraws the pending direction; nothing guesses a replacement', () => {
+    const { draft: start, makeId } = basics();
+    let draft = hear(start, 'j_00000001', makeId, [fear]);
+    draft = editFactValue(draft, difficultyId(draft, fear.value), 'חושך', makeId).draft;
+    expect(draft.intentSuggestions).toEqual([]);
+    const { request, canonical } = submitBoth(draft);
+    expect(request.facts.filter((fact) => fact.kind === 'difficulty').map((fact) => [fact.value, fact.source])).toEqual([['חושך', 'typed']]);
+    expect([request.intent, canonical.intent]).toEqual([null, null]);
+  });
+
+  it('case 4: the complete example, its difficulty edited in the card, then continue: no stale direction', () => {
+    const makeId = sequentialIds();
+    const example = buildFixtureResult({ jobId: 'j_00000001', exampleId: 'voice', address: 'boy' });
+    let draft = applyIntakeResult(startIntakeJob(createDraft('d_00000000test'), 'j_00000001', 'fixture'), example, {
+      allowedTopicIds: V2_TOPICS,
+      makeId,
+    }).draft;
+    expect(draft.intentSuggestions.map((item) => item.topicId)).toEqual(['sirens']);
+    draft = editFactValue(draft, difficultyId(draft, 'רעשים חזקים, כמו אזעקות'), 'חושך', makeId).draft;
+    const { request, canonical } = submitBoth(draft);
+    expect(request.facts.filter((fact) => fact.kind === 'difficulty').map((fact) => fact.value)).toEqual(['חושך']);
+    expect([request.intent, canonical.intent]).toEqual([null, null]);
+  });
+
+  it('controls: a dismissed direction stays out; a requested topic needs no difficulty; a deliberate pick restores', () => {
+    const { draft: start, makeId } = basics();
+    // Dismissed, the difficulty removed, "nothing special", then said again: still out.
+    let dismissed = dismissIntentSuggestion(hear(start, 'j_00000001', makeId, [fear]), 'sirens');
+    dismissed = setNoDifficulty(removeFact(dismissed, difficultyId(dismissed, fear.value), makeId), true);
+    expect(submitBoth(hear(dismissed, 'j_00000002', makeId, [fear])).canonical.intent).toBeNull();
+    // A topic the parent asked for stands without any difficulty, and is not marked as derived.
+    const asked = hear(start, 'j_00000003', makeId, [], { explicitTopicId: 'sirens', hardTopicId: null });
+    expect(submitBoth(asked).canonical.intent).toEqual({ kind: 'topic', topicId: 'sirens', suggestedBy: 'transcript' });
+    // Withdrawn by an edit, then deliberately picked: the parent's own choice, not a derived one.
+    let edited = hear(start, 'j_00000004', makeId, [fear]);
+    edited = editFactValue(edited, difficultyId(edited, fear.value), 'חושך', makeId).draft;
+    const picked = setIntent(edited, { kind: 'topic', topicId: 'sirens' });
+    expect(submitBoth(picked).canonical.intent).toEqual({ kind: 'topic', topicId: 'sirens' });
+  });
+
+  it('corrections, repeated corrections and a response landing after a removal', () => {
+    const { draft: start, makeId } = basics();
+    // A correction that still says the same difficulty keeps a supported proposal.
+    let draft = hear(start, 'j_00000001', makeId, [fear]);
+    draft = hear(draft, 'j_00000002', makeId, [fear]);
+    expect(draft.intentSuggestions.map((item) => [item.topicId, item.jobId])).toEqual([['sirens', 'j_00000002']]);
+    // A correction that drops the difficulty retires it and its proposal.
+    const dropped = hear(draft, 'j_00000003', makeId, [], { hardTopicId: null });
+    expect(dropped.intentSuggestions).toEqual([]);
+    // A job started before the parent removed the difficulty cannot bring it, or its topic, back.
+    const pending = startIntakeJob(hear(start, 'j_00000004', makeId, [fear]), 'j_00000005', 'transcript');
+    const removed = removeFact(pending, difficultyId(pending, fear.value), makeId);
+    const late = applyIntakeResult(
+      removed,
+      { jobId: 'j_00000005', source: 'transcript', transcript: 'synthetic', extraction: extraction({ facts: [fear], hardTopicId: 'sirens' }) },
+      { allowedTopicIds: V2_TOPICS, makeId },
+    );
+    expect(late.applied).toBe(true);
+    expect(activeFacts(late.draft).filter((fact) => fact.kind === 'difficulty')).toEqual([]);
+    expect(late.draft.intentSuggestions).toEqual([]);
+  });
+
+  it('after approval: removing or rewording its difficulty asks explicitly; continue cannot approve it again', () => {
+    const { draft: start, makeId } = basics();
+    const approved = confirmFactsReview(ready(hear(start, 'j_00000001', makeId, [fear])));
+    expect(approved.intent).toEqual({ kind: 'topic', topicId: 'sirens', suggestedBy: 'transcript' });
+    for (const change of ['remove', 'edit'] as const) {
+      const changed =
+        change === 'remove'
+          ? removeFact(approved, difficultyId(approved, fear.value), makeId)
+          : editFactValue(approved, difficultyId(approved, fear.value), 'חושך', makeId).draft;
+      const question = changed.conflicts.find((conflict) => conflict.field === 'stale_direction');
+      expect(question).toMatchObject({ field: 'stale_direction', topicId: 'sirens' });
+      expect(requestIssues(changed).map((issue) => issue.code)).toContain('direction_unconfirmed');
+      // "Continue" keeps the question open; no request can be built past it.
+      const continued = confirmFactsReview(changed);
+      expect(continued.conflicts.map((conflict) => conflict.field)).toEqual(['stale_direction']);
+      expect(buildReviewedRequest(setCompanion(continued, 'fox_uri')).ok).toBe(false);
+      // Kept: the parent's own choice now, no longer marked as derived.
+      const kept = resolveConflict(changed, question?.id ?? '', 'keep');
+      const keptCanonical = submitBoth(change === 'remove' ? setNoDifficulty(kept, true) : kept).canonical;
+      expect(keptCanonical.intent).toEqual({ kind: 'topic', topicId: 'sirens', suggestedBy: 'transcript' });
+      // Removed: gone, and remembered as removed.
+      const dropped = resolveConflict(changed, question?.id ?? '', 'accept');
+      expect(dropped.intent).toBeNull();
+      expect(dropped.topicTombstones).toContain('sirens');
+    }
+  });
+
+  it('the server refuses a direction marked as derived when no difficulty is left', () => {
+    const { draft: start, makeId } = basics();
+    const { request } = submitBoth(hear(start, 'j_00000001', makeId, [fear]));
+    expect(request.intent).toEqual({ kind: 'topic', topicId: 'sirens', suggestedBy: 'transcript', basis: 'difficulty' });
+    const withoutDifficulty = { ...request, noDifficulty: true, facts: request.facts.filter((fact) => fact.kind !== 'difficulty') };
+    const parsed = reviewedPersonalBookRequestSchema.safeParse(withoutDifficulty);
+    expect(parsed.success).toBe(false);
+    if (!parsed.success) expect(parsed.error.issues.map((issue) => issue.message)).toContain('direction_without_difficulty');
+    expect(acceptPersonalBookRequest(withoutDifficulty, resolvePersonalWizardOptions()).ok).toBe(false);
+  });
+
+  it('a chip: rewording or unpicking its fact withdraws its proposal', () => {
+    const { draft: start, makeId } = basics();
+    const chip = { id: 'hard_night', label: 'פחדים בלילה', topicId: 'night' };
+    const picked = toggleHardChip(start, chip, makeId).draft;
+    const reworded = editFactValue(picked, activeFacts(picked)[0].id, 'פחד מהחושך בחדר', makeId).draft;
+    expect(reworded.intentSuggestions).toEqual([]);
+    expect(submitBoth(reworded).canonical.intent).toBeNull();
+    expect(toggleHardChip(picked, chip, makeId).draft.intentSuggestions).toEqual([]);
+  });
+});
+
+describe('owner addendum: a parent correction or exclusion is final', () => {
+  const complete = (makeId: IdFactory) =>
+    applyIntakeResult(
+      startIntakeJob(createDraft('d_00000000test'), 'j_00000001', 'fixture'),
+      buildFixtureResult({ jobId: 'j_00000001', exampleId: 'voice', address: 'boy' }),
+      { allowedTopicIds: V2_TOPICS, makeId },
+    ).draft;
+  const factId = (draft: PersonalBookDraft, value: string) => activeFacts(draft).find((fact) => fact.value === value)?.id ?? '';
+  /** A later hearing of the same things in the old wording (synthetic stand-ins for a misrecognition). */
+  const hearAgain = (draft: PersonalBookDraft, jobId: string, makeId: IdFactory, supersedes?: string) =>
+    applyIntakeResult(
+      startIntakeJob(draft, jobId, 'transcript', supersedes ? { supersedesJobId: supersedes } : {}),
+      {
+        jobId,
+        source: 'transcript',
+        transcript: 'synthetic',
+        extraction: extraction({
+          mentionedName: 'בר',
+          residence: 'אודם',
+          facts: [
+            { kind: 'interest', value: 'כדורגל' },
+            { kind: 'habit', value: 'לוחש לכדור לפני בעיטה' },
+          ],
+        }),
+      },
+      { allowedTopicIds: V2_TOPICS, makeId },
+    ).draft;
+
+  it('corrected name, residence and interest reach the request; a later hearing of the old wording only asks', () => {
+    for (const supersedes of [undefined, 'j_00000001']) {
+      const makeId = sequentialIds();
+      let draft = complete(makeId);
+      draft = setChildName(draft, 'בארי');
+      draft = commitChildResidence(setChildResidence(draft, 'חיפה'));
+      draft = editFactValue(draft, factId(draft, 'כדורגל'), 'כדורסל', makeId).draft;
+      // Approved, then the parent returns to the card and something is heard again: a new recording,
+      // or a correction of the first transcript.
+      draft = confirmFactsReview(draft);
+      draft = hearAgain(draft, 'j_00000002', makeId, supersedes);
+      // The old name and place come back only as questions; the old interest wording is not re-added.
+      expect(draft.conflicts.map((conflict) => conflict.field).filter((field) => field === 'name' || field === 'residence')).toEqual([
+        'name',
+        'residence',
+      ]);
+      expect(activeFacts(draft).map((fact) => fact.value)).not.toContain('כדורגל');
+      const { request, canonical } = submitBoth(draft);
+      expect(canonical.child).toMatchObject({ name: 'בארי', nameSource: 'typed', residence: 'חיפה', residenceSource: 'typed' });
+      expect(request.facts.map((fact) => [fact.kind, fact.value, fact.source])).toEqual([
+        ['interest', 'כדורסל', 'typed'],
+        ['interest', 'לקפוץ על הטרמפולינה', 'fixture'],
+        ['difficulty', 'רעשים חזקים, כמו אזעקות', 'fixture'],
+        ['habit', 'לוחש לכדור לפני בעיטה', 'fixture'],
+      ]);
+    }
+  });
+
+  it('a correctly heard detail removed before approval stays out through continue, request and re-extraction', () => {
+    const makeId = sequentialIds();
+    let draft = complete(makeId);
+    draft = removeFact(draft, factId(draft, 'לוחש לכדור לפני בעיטה'), makeId);
+    draft = confirmFactsReview(draft);
+    draft = hearAgain(draft, 'j_00000002', makeId, 'j_00000001');
+    const { request } = submitBoth(draft);
+    expect(JSON.stringify(request)).not.toContain('לוחש לכדור');
+    expect(summarizeRequest(request).factGroups.flatMap((group) => group.facts.map((fact) => fact.value))).not.toContain('לוחש לכדור לפני בעיטה');
+  });
+
+  it('removed after approval while another hearing is pending: the late answer does not reverse it', () => {
+    const makeId = sequentialIds();
+    let draft = confirmFactsReview(complete(makeId));
+    draft = startIntakeJob(draft, 'j_00000002', 'transcript');
+    draft = removeFact(draft, factId(draft, 'לוחש לכדור לפני בעיטה'), makeId);
+    const late = applyIntakeResult(
+      draft,
+      {
+        jobId: 'j_00000002',
+        source: 'transcript',
+        transcript: 'synthetic',
+        extraction: extraction({ facts: [{ kind: 'habit', value: 'לוחש לכדור לפני בעיטה' }] }),
+      },
+      { allowedTopicIds: V2_TOPICS, makeId },
+    );
+    expect(late.applied).toBe(true);
+    expect(JSON.stringify(submitBoth(late.draft).request)).not.toContain('לוחש לכדור');
+  });
+
+  it('a detail that reads like a removed one is asked about, never silently re-added', () => {
+    const makeId = sequentialIds();
+    const hearInterest = (draft: PersonalBookDraft, jobId: string, value: string) =>
+      applyIntakeResult(
+        startIntakeJob(draft, jobId, 'transcript'),
+        { jobId, source: 'transcript', transcript: 'synthetic', extraction: extraction({ facts: [{ kind: 'interest', value }] }) },
+        { allowedTopicIds: V2_TOPICS, makeId },
+      ).draft;
+    let draft = hearInterest(complete(makeId), 'j_00000002', 'לרכוב על אופניים');
+    draft = removeFact(draft, factId(draft, 'לרכוב על אופניים'), makeId);
+    draft = hearInterest(draft, 'j_00000003', 'לרכוב באופניים');
+    const question = draft.conflicts.find((conflict) => conflict.field === 'similar_removed');
+    expect(question).toMatchObject({ value: 'לרכוב באופניים', removedValue: 'לרכוב על אופניים' });
+    expect(activeFacts(draft).map((fact) => fact.value)).not.toContain('לרכוב באופניים');
+    // Unanswered, "continue" keeps it out.
+    expect(JSON.stringify(submitBoth(draft).request)).not.toContain('אופניים');
+    // Added only on the parent's explicit answer, as their own statement.
+    const added = resolveConflict(draft, question?.id ?? '', 'accept');
+    expect(activeFacts(added).find((fact) => fact.value === 'לרכוב באופניים')).toMatchObject({ status: 'included', parentOwned: true });
+  });
+
+  it('a deliberate re-entry restores a removed detail; a near-repeat of a listed one is not added twice', () => {
+    const makeId = sequentialIds();
+    let draft = complete(makeId);
+    draft = removeFact(draft, factId(draft, 'כדורגל'), makeId);
+    const restored = addTypedFact(draft, 'interest', 'כדורגל', makeId);
+    expect(restored.outcome).toBe('restored');
+    const nearRepeat = applyIntakeResult(
+      startIntakeJob(restored.draft, 'j_00000002', 'transcript'),
+      {
+        jobId: 'j_00000002',
+        source: 'transcript',
+        transcript: 'synthetic',
+        extraction: extraction({ facts: [{ kind: 'habit', value: 'לוחש לכדור לפני כל בעיטה' }] }),
+      },
+      { allowedTopicIds: V2_TOPICS, makeId },
+    );
+    expect(nearRepeat.applied && nearRepeat.omitted).toBe(1);
+    expect(activeFacts(nearRepeat.draft).filter((fact) => fact.value.includes('לוחש'))).toHaveLength(1);
+  });
+
+  it('the request carries only reviewed, permitted inputs: never the transcript', () => {
+    const makeId = sequentialIds();
+    let draft = complete(makeId);
+    draft = removeFact(draft, factId(draft, 'לוחש לכדור לפני בעיטה'), makeId);
+    expect(draft.transcript?.text).toContain('לוחש לכדור');
+    const { request, canonical } = submitBoth(draft);
+    for (const payload of [request, canonical]) {
+      expect(Object.keys(payload)).not.toContain('transcript');
+      expect(JSON.stringify(payload)).not.toContain('לוחש');
+    }
+    expect(reviewedPersonalBookRequestSchema.safeParse({ ...request, transcript: 'raw text' }).success).toBe(false);
+  });
+
+  it('similar phrasings of one detail, and different details', () => {
+    expect(similarDetails('לרכוב על אופניים', 'לרכוב באופניים')).toBe(true);
+    expect(similarDetails('מפחד מהחושך', 'פחד מחושך')).toBe(true);
+    expect(similarDetails('לצייר', 'לצייר דינוזאורים')).toBe(false);
+    expect(similarDetails('כדורגל', 'כדורסל')).toBe(false);
+    // A misheard place is not "similar": nothing merges or rewrites it; the parent corrects it.
+    expect(similarDetails('שכונת הדקל', 'שכונת הדגל')).toBe(false);
   });
 });

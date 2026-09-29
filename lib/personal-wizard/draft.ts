@@ -16,7 +16,11 @@
  *   the parent approves the shown list (it is part of that list) or picks it;
  * - the five must-haves (name, age, where the child lives, what they love, what is hard) are asked
  *   when missing; the grammatical address and the residence may be heard like the name and age;
- * - what is hard suggests the story's direction unless the parent asked for one (Guy 2026-09-29).
+ * - what is hard suggests the story's direction unless the parent asked for one (Guy 2026-09-29);
+ *   the suggestion stands on the exact difficulties it came from: withdrawn when one of them is
+ *   removed or changed before approval, questioned when that happens after approval (Codex P1-1);
+ * - a parent's correction or removal wins: an incoming detail that reads like a removed one is
+ *   asked about, never silently re-added (owner addendum 2026-09-29).
  */
 import {
   LIMITS,
@@ -28,11 +32,13 @@ import {
   factCeiling,
   factCeilingGroup,
   isValidChildName,
+  similarDetails,
   normalizeText,
   reviewedPersonalBookRequestSchema,
   type Conflict,
   type ConflictField,
   type CoreValueSource,
+  type DirectionEvidence,
   type Fact,
   type FactKind,
   type GrammaticalAddress,
@@ -79,6 +85,7 @@ export function createDraft(draftId: string): PersonalBookDraft {
     placeTombstones: [],
     companionId: null,
     intent: null,
+    intentEvidence: null,
     intentSuggestions: [],
     topicTombstones: [],
     avoid: [],
@@ -168,11 +175,44 @@ function afterFactAdded(draft: PersonalBookDraft, kind: FactKind): PersonalBookD
   return kind === 'difficulty' && draft.noDifficulty ? { ...draft, noDifficulty: false } : draft;
 }
 
-/** A direction proposed from what is hard has nothing to stand on once no difficulty is listed. */
-function withoutOrphanHardSuggestions(draft: PersonalBookDraft): PersonalBookDraft {
-  if (hasActiveDifficulty(draft.facts)) return draft;
-  const kept = draft.intentSuggestions.filter((item) => item.reason !== 'hard');
-  return kept.length === draft.intentSuggestions.length ? draft : { ...draft, intentSuggestions: kept };
+/** Each fact is still listed, with the value it had when the direction was derived from it. */
+function evidenceHolds(facts: readonly Fact[], evidence: DirectionEvidence | null | undefined): boolean {
+  if (!evidence || evidence.length === 0) return false;
+  return evidence.every(({ factId, key }) => {
+    const fact = facts.find((candidate) => candidate.id === factId);
+    return fact !== undefined && fact.status !== 'removed' && comparableText(fact.value) === key;
+  });
+}
+
+/**
+ * After a difficulty is removed or changed (Codex P1-1). A pending direction derived from it is
+ * withdrawn: not declined, so said again it may be proposed again. An approved one becomes an explicit
+ * keep-or-remove question; nothing guesses a replacement topic. A direction the parent asked for, or
+ * chose, does not stand on a difficulty and is untouched.
+ */
+function reconcileDerivedDirections(draft: PersonalBookDraft, makeId: IdFactory): PersonalBookDraft {
+  const intentSuggestions = draft.intentSuggestions.filter(
+    (item) => item.reason !== 'hard' || evidenceHolds(draft.facts, item.evidence),
+  );
+  let conflicts = draft.conflicts;
+  let intentEvidence = draft.intentEvidence;
+  if (intentEvidence && !evidenceHolds(draft.facts, intentEvidence)) {
+    if (draft.intent?.kind === 'topic' && !conflicts.some((conflict) => conflict.field === 'stale_direction')) {
+      conflicts = [
+        ...conflicts,
+        { id: makeId('c'), field: 'stale_direction', topicId: draft.intent.topicId, jobId: null, source: draft.intent.suggestedBy ?? 'chip' },
+      ];
+    }
+    intentEvidence = null;
+  }
+  if (
+    intentSuggestions.length === draft.intentSuggestions.length &&
+    conflicts === draft.conflicts &&
+    intentEvidence === draft.intentEvidence
+  ) {
+    return draft;
+  }
+  return { ...draft, intentSuggestions, conflicts, intentEvidence };
 }
 
 export function activeFacts(draft: PersonalBookDraft): Fact[] {
@@ -248,7 +288,7 @@ export function toggleChip(
 ): { draft: PersonalBookDraft; outcome: FactOutcome | 'removed' } {
   const linked = draft.facts.find((fact) => fact.chipId === chip.id);
   if (linked && linked.status !== 'removed') {
-    return { draft: removeFact(draft, linked.id), outcome: 'removed' };
+    return { draft: removeFact(draft, linked.id, makeId), outcome: 'removed' };
   }
   const key = comparableText(chip.label);
   const sameValue = draft.facts.find((fact) => fact.id !== linked?.id && factKeys(fact).includes(key));
@@ -313,19 +353,22 @@ export function toggleHardChip(
   chip: HardChipDefinition,
   makeId: IdFactory,
 ): { draft: PersonalBookDraft; outcome: FactOutcome | 'removed' } {
+  // Unpicking removes the chip's fact, and with it (see removeFact) the proposal that stood on it.
   const toggled = toggleChip(draft, { id: chip.id, label: chip.label, kind: 'difficulty' }, makeId);
   const after = toggled.draft;
-  if (toggled.outcome === 'removed') {
-    const intentSuggestions = after.intentSuggestions.filter(
-      (item) => !(item.source === 'chip' && item.topicId === chip.topicId),
-    );
-    return { draft: { ...after, intentSuggestions }, outcome: 'removed' };
-  }
   if (toggled.outcome !== 'added' && toggled.outcome !== 'restored' && toggled.outcome !== 'adopted') return toggled;
   if (after.intent !== null || after.intentSuggestions.length > 0 || after.topicTombstones.includes(chip.topicId)) {
     return toggled;
   }
-  const suggestion: IntentSuggestion = { topicId: chip.topicId, jobId: null, source: 'chip', reason: 'hard' };
+  const fact = after.facts.find((candidate) => candidate.chipId === chip.id && candidate.status !== 'removed');
+  if (!fact) return toggled;
+  const suggestion: IntentSuggestion = {
+    topicId: chip.topicId,
+    jobId: null,
+    source: 'chip',
+    reason: 'hard',
+    evidence: [{ factId: fact.id, key: comparableText(fact.value) }],
+  };
   return { draft: { ...after, intentSuggestions: [suggestion] }, outcome: toggled.outcome };
 }
 
@@ -338,10 +381,15 @@ export function setNoDifficulty(draft: PersonalBookDraft, value: boolean): Perso
 
 export type EditOutcome = 'saved' | 'unchanged' | 'empty' | 'too_long' | 'duplicate' | 'missing';
 
+/**
+ * A parent's correction: the new wording is the parent's own ('typed'), the old one can never be
+ * proposed again, and a direction derived from the old wording no longer stands (Codex P1-1).
+ */
 export function editFactValue(
   draft: PersonalBookDraft,
   factId: string,
   rawValue: string,
+  makeId: IdFactory = randomId,
 ): { draft: PersonalBookDraft; outcome: EditOutcome } {
   const fact = draft.facts.find((candidate) => candidate.id === factId);
   if (!fact || fact.status === 'removed') return { draft, outcome: 'missing' };
@@ -364,17 +412,27 @@ export function editFactValue(
   if (clash) return { draft, outcome: 'duplicate' };
   const oldKey = comparableText(fact.value);
   const previousKeys = oldKey !== key && !fact.previousKeys.includes(oldKey) ? [...fact.previousKeys, oldKey] : fact.previousKeys;
-  return {
-    draft: replaceFact(draft, { ...fact, value, status: 'included', parentOwned: true, revision: draft.revision + 1, previousKeys }),
-    outcome: 'saved',
-  };
+  const edited = replaceFact(draft, {
+    ...fact,
+    value,
+    source: 'typed',
+    status: 'included',
+    parentOwned: true,
+    revision: draft.revision + 1,
+    previousKeys,
+  });
+  return { draft: fact.kind === 'difficulty' ? reconcileDerivedDirections(edited, makeId) : edited, outcome: 'saved' };
 }
 
-export function removeFact(draft: PersonalBookDraft, factId: string): PersonalBookDraft {
+/**
+ * A parent's exclusion: the detail stays out, even if it was heard correctly, and nothing brings it
+ * back silently. Typing or picking it again deliberately restores it.
+ */
+export function removeFact(draft: PersonalBookDraft, factId: string, makeId: IdFactory = randomId): PersonalBookDraft {
   const fact = draft.facts.find((candidate) => candidate.id === factId);
   if (!fact || fact.status === 'removed') return draft;
   const removed = replaceFact(draft, { ...fact, status: 'removed', revision: draft.revision + 1 });
-  return fact.kind === 'difficulty' ? withoutOrphanHardSuggestions(removed) : removed;
+  return fact.kind === 'difficulty' ? reconcileDerivedDirections(removed, makeId) : removed;
 }
 
 // ── Story place (commit on blur: every committed replacement tombstones the old value) ──
@@ -440,6 +498,7 @@ export function setIntent(draft: PersonalBookDraft, intent: Intent | null): Pers
   let topicTombstones = draft.topicTombstones;
   let intentSuggestions = draft.intentSuggestions;
   let chosen = intent;
+  let intentEvidence: DirectionEvidence | null = null;
   const keepsCurrent = intent?.kind === 'topic' && current?.kind === 'topic' && intent.topicId === current.topicId;
   // Choosing the direction that is already chosen changes nothing (and never drops its origin).
   if (keepsCurrent) return draft;
@@ -453,9 +512,15 @@ export function setIntent(draft: PersonalBookDraft, intent: Intent | null): Pers
       const origin = intent.suggestedBy ?? suggestionOrigin(suggestion);
       chosen = origin ? { kind: 'topic', topicId: intent.topicId, suggestedBy: origin } : { kind: 'topic', topicId: intent.topicId };
       intentSuggestions = intentSuggestions.filter((item) => item.topicId !== intent.topicId);
+      // Adopting a derived proposal keeps what it stands on; a stale one is adopted as a plain choice.
+      if (suggestion.reason === 'hard' && evidenceHolds(draft.facts, suggestion.evidence)) {
+        intentEvidence = suggestion.evidence ?? null;
+      }
     }
   }
-  return next(draft, { intent: chosen, intentSuggestions, topicTombstones });
+  // An explicit choice settles any open question about the previous direction.
+  const conflicts = draft.conflicts.filter((conflict) => conflict.field !== 'stale_direction');
+  return next(draft, { intent: chosen, intentEvidence, intentSuggestions, topicTombstones, conflicts });
 }
 
 /** A suggestion adopted from what the parent told us keeps that origin; their own chip has none. */
@@ -695,7 +760,12 @@ export function applyIntakeResult(
     storyPlace = storyPlace && takeOver(storyPlace);
   }
 
-  // Each group has its own ceiling, so a long list of one kind can never push out another (F1).
+  /*
+   * Each group has its own ceiling, so a long list of one kind can never push out another (F1). The
+   * parent's decisions win (owner addendum): an exact repeat of a removed or replaced wording is
+   * omitted; a detail that reads like one the parent removed is only ASKED about; one that reads like a
+   * detail already listed is the same detail and is omitted.
+   */
   const seen = new Set<string>();
   for (const proposal of extraction.facts) {
     const key = comparableText(proposal.value);
@@ -704,6 +774,27 @@ export function applyIntakeResult(
       continue;
     }
     seen.add(key);
+    const group = factCeilingGroup(proposal.kind);
+    const sameGroup = facts.filter((fact) => factCeilingGroup(fact.kind) === group);
+    const removedLike = sameGroup.find((fact) => fact.status === 'removed' && similarDetails(fact.value, proposal.value));
+    if (removedLike) {
+      if (!conflicts.some((conflict) => conflict.field === 'similar_removed' && comparableText(conflict.value) === key)) {
+        conflicts.push({
+          id: context.makeId('c'),
+          field: 'similar_removed',
+          kind: proposal.kind,
+          value: proposal.value,
+          removedValue: removedLike.value,
+          jobId: job.jobId,
+          source: result.source,
+        });
+      }
+      continue;
+    }
+    if (sameGroup.some((fact) => fact.status !== 'removed' && similarDetails(fact.value, proposal.value))) {
+      omitted += 1;
+      continue;
+    }
     facts.push({
       id: context.makeId('f'),
       kind: proposal.kind,
@@ -791,7 +882,7 @@ export function applyIntakeResult(
   }
 
   let suggestions = 0;
-  const proposeTopic = (topicId: string | null, reason: IntentSuggestion['reason']) => {
+  const proposeTopic = (topicId: string | null, reason: IntentSuggestion['reason'], evidence?: DirectionEvidence) => {
     if (
       topicId &&
       context.allowedTopicIds.has(topicId) &&
@@ -799,17 +890,39 @@ export function applyIntakeResult(
       !(draft.intent?.kind === 'topic' && draft.intent.topicId === topicId) &&
       !intentSuggestions.some((item) => item.topicId === topicId)
     ) {
-      intentSuggestions.push({ topicId, jobId: job.jobId, source: result.source, reason });
+      intentSuggestions.push({ topicId, jobId: job.jobId, source: result.source, reason, ...(evidence ? { evidence } : {}) });
       suggestions += 1;
     }
   };
   proposeTopic(extraction.explicitTopicId, 'asked');
-  // What is hard becomes the direction unless the parent asked for one (Guy 2026-09-29).
-  if (!extraction.explicitTopicId) proposeTopic(extraction.hardTopicId, 'hard');
+  /*
+   * What is hard becomes the direction unless the parent asked for one (Guy 2026-09-29). The model
+   * matched the topic against ALL the difficulties it heard, so the proposal needs every one of them
+   * listed now with exactly that wording: if the parent removed or reworded any, or one was not taken
+   * in, nothing is proposed rather than a topic standing on excluded content (Codex P1-1).
+   */
+  if (!extraction.explicitTopicId && extraction.hardTopicId) {
+    const heardDifficulties = extraction.facts.filter((fact) => fact.kind === 'difficulty');
+    const evidence: Array<{ factId: string; key: string }> = [];
+    const complete = heardDifficulties.length > 0 && heardDifficulties.every((heardFact) => {
+      const heardKey = comparableText(heardFact.value);
+      const listed = facts.find(
+        (fact) => fact.kind === 'difficulty' && fact.status !== 'removed' && comparableText(fact.value) === heardKey,
+      );
+      if (listed && !evidence.some((item) => item.factId === listed.id)) evidence.push({ factId: listed.id, key: heardKey });
+      return Boolean(listed);
+    });
+    if (complete) proposeTopic(extraction.hardTopicId, 'hard', evidence);
+  }
 
+  // Anything this merge retired or replaced may have been what a direction stood on.
+  const merged = reconcileDerivedDirections(
+    { ...base, child, facts, noDifficulty, storyPlace, conflicts, intentSuggestions },
+    context.makeId,
+  );
   return {
     applied: true,
-    draft: { ...base, child, facts, noDifficulty, storyPlace, conflicts, intentSuggestions },
+    draft: merged,
     understood: true,
     added,
     conflicts: conflicts.filter((conflict) => !draft.conflicts.some((old) => old.id === conflict.id)).length,
@@ -827,7 +940,29 @@ export function resolveConflict(
   const conflict = draft.conflicts.find((candidate) => candidate.id === conflictId);
   if (!conflict) return draft;
   const conflicts = draft.conflicts.filter((candidate) => candidate.id !== conflictId);
+  // "keep" = keep what the list holds: the direction stays (now the parent's own), the removed detail stays out.
   if (choice === 'keep') return next(draft, { conflicts });
+  if (conflict.field === 'stale_direction') {
+    // "accept" = drop the direction whose basis the parent removed; the topic is then remembered as removed.
+    const cleared = setIntent(draft, null);
+    return next(cleared, { conflicts: cleared.conflicts.filter((candidate) => candidate.id !== conflictId) });
+  }
+  if (conflict.field === 'similar_removed') {
+    // "accept" = the parent asks to add it after all: their own explicit statement.
+    if (atCeiling(draft.facts, conflict.kind)) return next(draft, { conflicts });
+    const fact: Fact = {
+      id: randomId('f'),
+      kind: conflict.kind,
+      value: conflict.value,
+      source: conflict.source,
+      status: 'included',
+      jobId: conflict.jobId,
+      revision: draft.revision + 1,
+      previousKeys: [],
+      parentOwned: true,
+    };
+    return next(afterFactAdded(draft, conflict.kind), { facts: [...draft.facts, fact], conflicts });
+  }
   // "accept" = accept what the corrected transcript says: the stale detail goes, as a parent removal.
   if (conflict.field === 'stale_fact') return next(removeFact(draft, conflict.factId), { conflicts });
   if (conflict.field === 'stale_place') {
@@ -867,7 +1002,11 @@ export function resolveConflict(
  */
 export function confirmFactsReview(draft: PersonalBookDraft): PersonalBookDraft {
   const revision = draft.revision + 1;
-  const adopted = draft.intent === null && draft.intentSuggestions.length === 1 ? draft.intentSuggestions[0] : null;
+  // A derived proposal is approved only while everything it stands on is still listed as it was.
+  const suggestions = draft.intentSuggestions.filter(
+    (item) => item.reason !== 'hard' || evidenceHolds(draft.facts, item.evidence),
+  );
+  const adopted = draft.intent === null && suggestions.length === 1 ? suggestions[0] : null;
   const origin = adopted ? suggestionOrigin(adopted) : undefined;
   return {
     ...draft,
@@ -878,13 +1017,16 @@ export function confirmFactsReview(draft: PersonalBookDraft): PersonalBookDraft 
         ? { kind: 'topic', topicId: adopted.topicId, suggestedBy: origin }
         : { kind: 'topic', topicId: adopted.topicId }
       : draft.intent,
-    intentSuggestions: adopted ? [] : draft.intentSuggestions,
+    intentEvidence: adopted ? (adopted.reason === 'hard' ? adopted.evidence ?? null : null) : draft.intentEvidence,
+    intentSuggestions: adopted ? [] : suggestions,
     facts: draft.facts.map((fact) => (fact.status === 'proposed' ? { ...fact, status: 'included', revision } : fact)),
     storyPlace:
       draft.storyPlace && draft.storyPlace.status === 'proposed'
         ? { ...draft.storyPlace, status: 'included', revision }
         : draft.storyPlace,
-    conflicts: [],
+    // Unanswered questions keep what the list holds (a detail like a removed one stays out), except a
+    // direction whose basis was removed: that needs the parent's explicit answer.
+    conflicts: draft.conflicts.filter((conflict) => conflict.field === 'stale_direction'),
     intake: draft.intake && draft.intake.status === 'processing' ? { ...draft.intake, status: 'abandoned' } : draft.intake,
     factsReviewedAtRevision: revision,
   };
@@ -900,6 +1042,7 @@ export type RequestIssueCode =
   | 'child_residence_missing'
   | 'loves_missing'
   | 'hard_missing'
+  | 'direction_unconfirmed'
   | 'facts_unreviewed'
   | 'companion_missing'
   | 'contract_violation';
@@ -919,6 +1062,7 @@ export function requestIssues(draft: PersonalBookDraft): RequestIssue[] {
   const facts = activeFacts(draft);
   if (!facts.some((fact) => fact.kind === 'interest')) issues.push({ code: 'loves_missing', step: 1 });
   if (!draft.noDifficulty && !facts.some((fact) => fact.kind === 'difficulty')) issues.push({ code: 'hard_missing', step: 1 });
+  if (draft.conflicts.some((conflict) => conflict.field === 'stale_direction')) issues.push({ code: 'direction_unconfirmed', step: 1 });
   if (
     draft.facts.some((fact) => fact.status === 'proposed') ||
     draft.storyPlace?.status === 'proposed' ||
@@ -966,7 +1110,11 @@ export function buildReviewedRequest(draft: PersonalBookDraft): RequestBuildResu
         ? { value: normalizeText(draft.storyPlace.value), source: draft.storyPlace.source }
         : null,
     companion: { id: draft.companionId },
-    intent: draft.intent,
+    // A direction derived from what is hard says so, and the server then requires a difficulty.
+    intent:
+      draft.intent?.kind === 'topic' && evidenceHolds(draft.facts, draft.intentEvidence)
+        ? { ...draft.intent, basis: 'difficulty' as const }
+        : draft.intent,
     avoid: draft.avoid.map(normalizeText),
     appearance: { photo: draft.photo },
     bookOptions: { ...draft.bookOptions },

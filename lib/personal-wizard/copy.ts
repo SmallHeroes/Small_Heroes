@@ -117,6 +117,7 @@ export function tellCopy(name: string, address: GrammaticalAddress | null) {
     cardTitleHeard: name ? `זה מה שהבנו על ${name}` : 'זה מה שהבנו',
     cardTitleOwn: name ? `הפרטים על ${name}` : 'הפרטים על הילד',
     cardNote: 'אפשר לערוך או להסיר כל פרט. מה שתסירו לא ייכנס לספר.',
+    cardNoteHeard: 'בדקו במיוחד את השם והמקום. אפשר לתקן או להסיר כל פרט, ומה שתסירו לא ייכנס לספר.',
     missingNote: (count: number) =>
       count === 1 ? 'חסר עוד פרט אחד. שאלנו עליו כאן למטה.' : `חסרים עוד ${count} פרטים. שאלנו עליהם כאן למטה.`,
     lovesTitle: loves ? `מה ${loves}` : 'מה אוהבים',
@@ -169,6 +170,15 @@ export function tellCopy(name: string, address: GrammaticalAddress | null) {
     stalePlace: (value: string) => `בתמלול המתוקן כבר לא מופיע מקום ההרפתקה ״${value}״. להשאיר אותו?`,
     staleKeep: 'להשאיר',
     staleRemove: 'להסיר',
+    staleDirection: (topic: string) =>
+      `הכיוון ״${topic}״ הוצע ממה שקשה, ושיניתם או הסרתם את מה שהוא נשען עליו. להשאיר את הכיוון בסיפור?`,
+    staleDirectionKeep: 'להשאיר את הכיוון',
+    staleDirectionRemove: 'להסיר את הכיוון',
+    staleDirectionNote: 'צריך לבחור לפני שממשיכים.',
+    similarRemoved: (value: string, removedValue: string) =>
+      `במה שסיפרתם עלה ״${value}״, שנשמע כמו ״${removedValue}״ שהסרתם. להוסיף אותו בכל זאת?`,
+    similarAdd: 'להוסיף',
+    similarSkip: 'לא להוסיף',
     // "You wrote" only when the parent typed the current value; otherwise it is simply what the list holds.
     conflictAge: (current: string, heard: string, typed: boolean) =>
       `${typed ? `כתבתם ${current}` : `ברשימה מופיע ${current}`} ושמענו ${heard}. מה נכון?`,
@@ -405,6 +415,7 @@ export function summaryCopy(name: string, address: GrammaticalAddress | null) {
       child_residence_missing: 'חסר מקום מגורים',
       loves_missing: 'חסר מה אוהבים',
       hard_missing: 'חסר מה קשה (או ״אין משהו מיוחד״)',
+      direction_unconfirmed: 'צריך להחליט אם להשאיר את הכיוון של הסיפור',
       facts_unreviewed: 'יש פרטים שעוד לא אישרתם ברשימה',
       companion_missing: 'עוד לא נבחר חבר להרפתקה',
       contract_violation: 'יש פרט שלא עומד בכללי הבקשה',

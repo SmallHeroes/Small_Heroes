@@ -81,6 +81,7 @@ const MUST_HAVE_ISSUES = new Set([
   'child_residence_missing',
   'loves_missing',
   'hard_missing',
+  'direction_unconfirmed',
 ]);
 
 type Props = {
@@ -295,9 +296,13 @@ function DetailsCard(
       ) : null}
 
       <section className={styles.factsCard} aria-labelledby="pw-step-title">
-        {facts.length > 0 ? <p className={styles.hint}>{copy.cardNote}</p> : null}
+        {heard ? (
+          <p className={styles.cardNoteHeard}>{copy.cardNoteHeard}</p>
+        ) : facts.length > 0 ? (
+          <p className={styles.hint}>{copy.cardNote}</p>
+        ) : null}
         <ChildBasics draft={draft} update={update} issues={props.issues} showErrors={props.showErrors} />
-        <Conflicts draft={draft} update={update} copy={copy} name={name} />
+        <Conflicts draft={draft} update={update} copy={copy} name={name} topics={props.topics} />
         <MustHaves
           draft={draft}
           update={update}
@@ -410,16 +415,72 @@ function Conflicts({
   update,
   copy,
   name,
+  topics,
 }: {
   draft: PersonalBookDraft;
   update: Props['update'];
   copy: ReturnType<typeof tellCopy>;
   name: string;
+  topics: Props['topics'];
 }) {
   if (draft.conflicts.length === 0) return null;
+  const topicLabel = (topicId: string) => topics.find((topic) => topic.id === topicId)?.label ?? topicId;
+  const keepNote = draft.conflicts.some((conflict) => conflict.field !== 'stale_direction');
   return (
     <div className={styles.conflicts}>
       {draft.conflicts.map((conflict) => {
+        // An approved direction whose basis the parent removed or changed: only an explicit answer.
+        if (conflict.field === 'stale_direction') {
+          const question = copy.staleDirection(topicLabel(conflict.topicId));
+          return (
+            <div key={conflict.id} className={styles.conflict} role="group" aria-label={question} data-conflict="stale_direction">
+              <p className={styles.conflictQuestion}>{question}</p>
+              <div className={styles.actionsRow}>
+                <button
+                  type="button"
+                  className={styles.btnSecondary}
+                  onClick={() => update((current) => resolveConflict(current, conflict.id, 'keep'))}
+                >
+                  {copy.staleDirectionKeep}
+                </button>
+                <button
+                  type="button"
+                  className={styles.btnSecondary}
+                  onClick={() => update((current) => resolveConflict(current, conflict.id, 'accept'))}
+                >
+                  {copy.staleDirectionRemove}
+                </button>
+              </div>
+              <p className={styles.hint}>{copy.staleDirectionNote}</p>
+            </div>
+          );
+        }
+        // A new detail that reads like one the parent removed: added only on request.
+        if (conflict.field === 'similar_removed') {
+          const question = copy.similarRemoved(conflict.value, conflict.removedValue);
+          return (
+            <div key={conflict.id} className={styles.conflict} role="group" aria-label={question} data-conflict="similar_removed">
+              <p className={styles.conflictQuestion}>{question}</p>
+              {conflict.source === 'fixture' ? <p className={styles.hint}>{copy.conflictFixtureNote}</p> : null}
+              <div className={styles.actionsRow}>
+                <button
+                  type="button"
+                  className={styles.btnSecondary}
+                  onClick={() => update((current) => resolveConflict(current, conflict.id, 'accept'))}
+                >
+                  {copy.similarAdd}
+                </button>
+                <button
+                  type="button"
+                  className={styles.btnSecondary}
+                  onClick={() => update((current) => resolveConflict(current, conflict.id, 'keep'))}
+                >
+                  {copy.similarSkip}
+                </button>
+              </div>
+            </div>
+          );
+        }
         // A corrected transcript no longer contains an already approved detail: keep or remove.
         if (conflict.field === 'stale_fact' || conflict.field === 'stale_place') {
           const question = conflict.field === 'stale_fact' ? copy.staleFact(conflict.value) : copy.stalePlace(conflict.value);
@@ -494,7 +555,7 @@ function Conflicts({
           </div>
         );
       })}
-      <p className={styles.hint}>{copy.conflictKeepNote}</p>
+      {keepNote ? <p className={styles.hint}>{copy.conflictKeepNote}</p> : null}
     </div>
   );
 }

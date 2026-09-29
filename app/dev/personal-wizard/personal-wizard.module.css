@@ -1745,6 +1745,17 @@
 }
 
 /* The card: the five must-haves first, then the bonus details. */
+.cardNoteHeard {
+  margin: 0;
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  background: var(--brand-purple-faint);
+  color: var(--ink-strong);
+  font-size: 14.5px;
+  font-weight: 600;
+  line-height: 1.55;
+}
+
 .missingNote {
   margin: 0;
   font-size: 15px;

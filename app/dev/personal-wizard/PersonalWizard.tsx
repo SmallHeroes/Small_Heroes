@@ -276,6 +276,7 @@ export function PersonalWizard({ options }: Props) {
     child_residence_missing: '#pw-residence',
     loves_missing: '#pw-loves button, #pw-loves input',
     hard_missing: '#pw-hard button, #pw-hard input',
+    direction_unconfirmed: '[data-conflict="stale_direction"] button',
   };
 
   /** The five must-haves are required before leaving step 1; the card asks for what is missing. */

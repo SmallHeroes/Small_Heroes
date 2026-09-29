@@ -126,6 +126,35 @@ export function comparableText(value: string): string {
     .trim();
 }
 
+/** Words that carry no detail of their own when comparing two phrasings of one detail. */
+const DETAIL_STOPWORDS = new Set(['על', 'את', 'של', 'עם', 'גם', 'מאוד', 'ממש', 'הכי', 'קצת', 'הוא', 'היא', 'לו', 'לה', 'כמו', 'יש', 'זה', 'זו', 'או', 'כל']);
+/** One-letter Hebrew prefixes (ו, ה, ב, ל, מ, ש, כ), peeled from longer words (up to two). */
+const DETAIL_PREFIX = /^[והבלמשכ]/u;
+
+function detailTokens(value: string): Set<string> {
+  const tokens = new Set<string>();
+  for (const word of comparableText(value).split(' ')) {
+    if (!word || DETAIL_STOPWORDS.has(word)) continue;
+    let token = word;
+    for (let peel = 0; peel < 2 && token.length >= 4 && DETAIL_PREFIX.test(token); peel += 1) token = token.slice(1);
+    if (token.length >= 2) tokens.add(token);
+  }
+  return tokens;
+}
+
+/**
+ * Two phrasings that probably name the same detail ("לרכוב על אופניים" / "לרכוב באופניים"):
+ * most of their words are shared once prefixes and filler words are set aside. A cheap local
+ * heuristic, used only to omit a near-repeat or to ASK the parent, never to change a value.
+ */
+export function similarDetails(left: string, right: string): boolean {
+  const a = detailTokens(left);
+  const b = detailTokens(right);
+  if (a.size === 0 || b.size === 0) return false;
+  const shared = [...a].filter((token) => b.has(token)).length;
+  return shared / new Set([...a, ...b]).size >= 0.6;
+}
+
 /** Letters (any script), combining marks, spaces, apostrophe/geresh, gershayim and hyphen/maqaf. */
 const NAME_PATTERN = /^[\p{L}\p{M}][\p{L}\p{M} '’׳״"\-־]*$/u;
 
@@ -220,6 +249,27 @@ export type Conflict =
       value: string;
       jobId: string;
       source: 'transcript' | 'fixture';
+    }
+  | {
+      /**
+       * An approved direction derived from a difficulty the parent then removed or changed: kept or
+       * removed only by the parent's explicit answer (it is not approved again by "continue").
+       */
+      id: string;
+      field: 'stale_direction';
+      topicId: string;
+      jobId: null;
+      source: 'transcript' | 'fixture' | 'chip';
+    }
+  | {
+      /** A new detail that reads like one the parent removed: added only if the parent says so. */
+      id: string;
+      field: 'similar_removed';
+      kind: FactKind;
+      value: string;
+      removedValue: string;
+      jobId: string;
+      source: 'transcript' | 'fixture';
     };
 
 /**
@@ -229,6 +279,13 @@ export type Conflict =
 export type Intent =
   | { kind: 'just_for_fun' }
   | { kind: 'topic'; topicId: string; suggestedBy?: 'transcript' | 'fixture' };
+
+/**
+ * What a direction derived from "what is hard" stands on: the difficulty facts it was derived from,
+ * each with the comparison key of its value at that moment. When one is removed or its value
+ * changes, the derivation no longer holds (Codex QA of v2, P1-1).
+ */
+export type DirectionEvidence = ReadonlyArray<{ factId: string; key: string }>;
 
 /**
  * A proposed direction, awaiting the parent's "continue". `reason`: 'asked' = the parent explicitly
@@ -241,6 +298,8 @@ export type IntentSuggestion = {
   jobId: string | null;
   source: 'transcript' | 'fixture' | 'chip';
   reason: 'asked' | 'hard';
+  /** reason 'hard' only: withdrawn as soon as any of it is removed or changed. */
+  evidence?: DirectionEvidence;
 };
 
 /** How the parent told us: a recording, or a written text. Display only; provenance is `source`. */
@@ -308,6 +367,11 @@ export type PersonalBookDraft = {
   placeTombstones: string[];
   companionId: string | null;
   intent: Intent | null;
+  /**
+   * The adopted direction was derived from these difficulty facts. When one of them is removed or
+   * changed, the parent is asked whether the direction stays (a `stale_direction` question).
+   */
+  intentEvidence: DirectionEvidence | null;
   intentSuggestions: IntentSuggestion[];
   /**
    * Topic ids the parent removed: a declined suggestion, or a direction from a recording or the
@@ -347,6 +411,8 @@ const requestIntentSchema = z.discriminatedUnion('kind', [
       kind: z.literal('topic'),
       topicId: z.string().regex(OPTION_ID),
       suggestedBy: z.enum(['transcript', 'fixture']).optional(),
+      /** The direction stands on the request's difficulties (derived from what is hard). */
+      basis: z.literal('difficulty').optional(),
     })
     .strict(),
 ]);
@@ -414,6 +480,10 @@ export const reviewedPersonalBookRequestSchema = z
     }
     if (!request.noDifficulty && difficulties === 0) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['facts'], message: 'hard_missing' });
+    }
+    // A direction derived from what is hard cannot outlive every difficulty it stood on.
+    if (request.intent?.kind === 'topic' && request.intent.basis === 'difficulty' && difficulties === 0) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['intent'], message: 'direction_without_difficulty' });
     }
   });
 
