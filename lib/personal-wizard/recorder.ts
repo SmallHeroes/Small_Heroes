@@ -6,7 +6,9 @@
  * Guarantees (brief 2026-09-28 §6):
  * - the microphone opens only after an explicit start; a permission granted after a cancel closes
  *   the tracks immediately and never starts a surprise recording;
- * - the Blob is built only after the recorder's final `stop` event (never from a partial chunk);
+ * - the Blob is built only after the recorder's final `stop` event; if that event never comes (watchdog)
+ *   or `stop()` throws, the clip is kept locally, marked unverified ('incomplete') and never sent
+ *   automatically. Only the parent's explicit send can use it;
  * - a double "done" press yields exactly one send request (`takeSendRequest`);
  * - elapsed time comes from the clock, not from ticks or chunk counts;
  * - reaching the time or size ceiling stops the microphone but never sends by itself;
@@ -38,7 +40,15 @@ export function baseMimeType(mime: string): string {
 }
 
 export type RecorderPhase = 'idle' | 'requesting' | 'recording' | 'stopping' | 'recorded' | 'error';
-export type StopReason = 'user_done' | 'user_stop' | 'time_limit' | 'size_limit' | 'interrupted' | 'left_step';
+export type StopReason =
+  | 'user_done'
+  | 'user_stop'
+  | 'time_limit'
+  | 'size_limit'
+  | 'interrupted'
+  | 'left_step'
+  /** The recorder never confirmed its final data (watchdog, or `stop()` failed). */
+  | 'incomplete';
 export type RecorderErrorKind =
   | 'insecure_context'
   | 'unsupported'
@@ -56,6 +66,11 @@ export type RecordedClip = {
   reason: StopReason;
   /** False when the container is not accepted for processing or the clip exceeds the byte ceiling. */
   sendable: boolean;
+  /**
+   * True only when the recorder delivered its final data and `stop` event. An unverified clip is
+   * kept for listening and may be sent only by an explicit parent action, never by "done".
+   */
+  verified: boolean;
 };
 
 export type RecorderSnapshot = {
@@ -239,7 +254,7 @@ export class RecordingController {
     this.discardOnStop = false;
     this.stoppedAt = null;
     recorder.ondataavailable = (event) => this.onData(attempt, event.data);
-    recorder.onstop = () => this.onRecorderStop(attempt);
+    recorder.onstop = () => this.finalize(attempt, true);
     recorder.onerror = () => this.onRecorderError(attempt);
     const onEnded = () => {
       if (attempt === this.attempt) this.stop('interrupted');
@@ -266,7 +281,7 @@ export class RecordingController {
       this.stop('user_done');
     } else if (phase === 'stopping') {
       this.set({ sendRequested: true });
-    } else if (phase === 'recorded' && clip) {
+    } else if (phase === 'recorded' && clip?.verified) {
       this.set({ sendRequested: true });
     }
   }
@@ -276,10 +291,10 @@ export class RecordingController {
     if (this.snapshot.sendRequested) this.set({ sendRequested: false });
   }
 
-  /** Hands out the clip once per request; later calls return null until the next `finish`. */
+  /** Hands out a verified clip once per request; later calls return null until the next `finish`. */
   takeSendRequest(): RecordedClip | null {
     const { phase, clip, sendRequested } = this.snapshot;
-    if (!sendRequested || phase !== 'recorded' || !clip) return null;
+    if (!sendRequested || phase !== 'recorded' || !clip?.verified) return null;
     this.set({ sendRequested: false });
     return clip;
   }
@@ -301,12 +316,13 @@ export class RecordingController {
     try {
       this.recorder?.stop();
     } catch {
-      this.onRecorderStop(attempt);
+      this.finalize(attempt, false);
       return;
     }
-    // If the final `stop` event never arrives, finish with what was captured and free the microphone.
+    // If the final `stop` event never arrives, free the microphone and keep what was captured as an
+    // unverified local clip.
     this.watchdog = this.deps.setTimeout(() => {
-      if (attempt === this.attempt && this.snapshot.phase === 'stopping') this.onRecorderStop(attempt);
+      if (attempt === this.attempt && this.snapshot.phase === 'stopping') this.finalize(attempt, false);
     }, 4000);
   }
 
@@ -373,7 +389,11 @@ export class RecordingController {
     this.fail('failed');
   }
 
-  private onRecorderStop(attempt: number): void {
+  /**
+   * `verified` = the recorder delivered its final data and `stop` event. Otherwise (watchdog, a
+   * throwing `stop()`) the clip is 'incomplete': kept locally, and any pending "done" is withdrawn.
+   */
+  private finalize(attempt: number, verified: boolean): void {
     if (attempt !== this.attempt) return;
     this.clearWatchdog();
     this.clearTick();
@@ -382,6 +402,7 @@ export class RecordingController {
       this.stopReason = 'interrupted';
       this.stoppedAt = this.deps.now();
     }
+    if (!verified) this.stopReason = 'incomplete';
     const mimeType = (this.recorder?.mimeType || this.requestedMime || '').trim();
     const phase = this.snapshot.phase;
     this.releaseStream();
@@ -405,11 +426,19 @@ export class RecordingController {
       phase: 'recorded',
       elapsedMs: durationMs,
       bytes: blob.size,
-      clip: { blob, mimeType, durationMs, bytes: blob.size, reason: this.stopReason, sendable },
+      sendRequested: verified ? this.snapshot.sendRequested : false,
+      clip: { blob, mimeType, durationMs, bytes: blob.size, reason: this.stopReason, sendable, verified },
     });
   }
 
   private releaseStream(): void {
+    const recorder = this.recorder;
+    if (recorder) {
+      // Late events (a final chunk or `stop` after the watchdog) must not touch a finished clip.
+      recorder.ondataavailable = null;
+      recorder.onstop = null;
+      recorder.onerror = null;
+    }
     const stream = this.stream;
     if (stream) {
       if (this.endedListener) {

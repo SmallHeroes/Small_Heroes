@@ -44,6 +44,8 @@ class FakeRecorder implements MediaRecorderLike {
   stopCalls = 0;
   /** When false, stop() never delivers the final events (to exercise the watchdog). */
   deliverOnStop = true;
+  /** When true, stop() throws like a recorder in an unexpected state. */
+  throwOnStop = false;
   constructor(
     readonly mimeType: string,
     private readonly tail: Blob | null = new Blob(['tail'], { type: 'audio/webm' }),
@@ -53,7 +55,7 @@ class FakeRecorder implements MediaRecorderLike {
     this.started += 1;
   }
   stop() {
-    if (this.state === 'inactive') throw Object.assign(new Error('inactive'), { name: 'InvalidStateError' });
+    if (this.throwOnStop || this.state === 'inactive') throw Object.assign(new Error('inactive'), { name: 'InvalidStateError' });
     this.stopCalls += 1;
     this.state = 'inactive';
     if (!this.deliverOnStop) return;
@@ -65,6 +67,11 @@ class FakeRecorder implements MediaRecorderLike {
   }
   emit(bytes: number) {
     this.ondataavailable?.({ data: new Blob([new Uint8Array(bytes)], { type: this.mimeType }) });
+  }
+  /** Final events arriving late, dispatched to whatever handlers are attached at that moment. */
+  deliverLateFinalEvents(bytes: number) {
+    this.ondataavailable?.({ data: new Blob([new Uint8Array(bytes)], { type: this.mimeType }) });
+    this.onstop?.();
   }
   /** Browser-initiated stop (device lost): flush + stop without our stop() call. */
   browserStop() {
@@ -379,18 +386,65 @@ describe('RecordingController: interruption, cancel and cleanup', () => {
     expect(stream.track.stopped).toBe(1);
   });
 
-  it('finishes with what was captured if the final stop event never arrives', async () => {
+  it('reviewer case: "done" + missing final events keeps an unverified local clip and never sends it', async () => {
     const h = harness();
     const stream = await startRecording(h);
     h.recorders[0].deliverOnStop = false;
-    h.recorders[0].emit(300);
-    h.clock.now += 3_000;
-    h.controller.stop('user_stop');
+    h.clock.now += 2_000;
+    h.recorders[0].emit(1024);
+    h.controller.finish();
     expect(stream.track.stopped).toBe(0);
     h.fireTimeouts();
-    expect(h.last()).toMatchObject({ phase: 'recorded' });
-    expect(h.last().clip?.bytes).toBe(300);
     expect(stream.track.stopped).toBe(1);
+    expect(h.last()).toMatchObject({ phase: 'recorded', sendRequested: false });
+    expect(h.last().clip).toMatchObject({ bytes: 1024, reason: 'incomplete', verified: false });
+    expect(h.controller.takeSendRequest()).toBeNull();
+    // Pressing "done" again cannot promote it to the automatic path either.
+    h.controller.finish();
+    expect(h.controller.takeSendRequest()).toBeNull();
+  });
+
+  it('late final events after the timeout cannot change or send the finished clip', async () => {
+    const h = harness();
+    await startRecording(h);
+    const recorder = h.recorders[0];
+    recorder.deliverOnStop = false;
+    h.clock.now += 2_000;
+    recorder.emit(1024);
+    h.controller.finish();
+    h.fireTimeouts();
+    const before = h.last();
+    recorder.deliverLateFinalEvents(4096);
+    await flush();
+    expect(h.last()).toBe(before);
+    expect(h.last().clip).toMatchObject({ bytes: 1024, verified: false });
+    expect(h.controller.takeSendRequest()).toBeNull();
+  });
+
+  it('a throwing stop() is an unverified finish, not a send', async () => {
+    const h = harness();
+    const stream = await startRecording(h);
+    h.clock.now += 2_000;
+    h.recorders[0].emit(700);
+    h.recorders[0].throwOnStop = true;
+    h.controller.finish();
+    expect(stream.track.stopped).toBe(1);
+    expect(h.last().clip).toMatchObject({ bytes: 700, reason: 'incomplete', verified: false });
+    expect(h.last().sendRequested).toBe(false);
+    expect(h.controller.takeSendRequest()).toBeNull();
+  });
+
+  it('control: a normal finish is verified and follows the automatic "done" path once', async () => {
+    const h = harness();
+    await startRecording(h);
+    h.clock.now += 2_000;
+    h.recorders[0].emit(500);
+    h.controller.finish();
+    await flush();
+    expect(h.last().clip).toMatchObject({ reason: 'user_done', verified: true });
+    const clip = h.controller.takeSendRequest();
+    expect(clip?.verified).toBe(true);
+    expect(h.controller.takeSendRequest()).toBeNull();
   });
 
   it('dispose releases the microphone and stops publishing snapshots', async () => {
