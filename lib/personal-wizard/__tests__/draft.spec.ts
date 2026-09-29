@@ -19,6 +19,7 @@ import {
   applyIntakeResult,
   buildReviewedRequest,
   chipIsSelected,
+  commitChildName,
   commitStoryPlace,
   confirmFactsReview,
   createDraft,
@@ -27,6 +28,7 @@ import {
   failIntakeJob,
   removeFact,
   requestContainsFixtureData,
+  requestIssues,
   resolveConflict,
   setChildAddress,
   setChildAge,
@@ -802,5 +804,172 @@ describe('example provenance follows every surviving value, not only facts', () 
       { ...built.request, intent: { kind: 'just_for_fun', suggestedBy: 'fixture' } },
     ];
     for (const candidate of bad) expect(reviewedPersonalBookRequestSchema.safeParse(candidate).success).toBe(false);
+  });
+});
+
+describe('voice-first entry: a recording may fill the empty name and age; "continue" approves what is shown', () => {
+  const empty = () => createDraft('d_00000000test');
+  const record = (draft: PersonalBookDraft, jobId: string, partial: Partial<IntakeExtraction>, makeId: IdFactory) =>
+    merge(startIntakeJob(draft, jobId, 'transcript'), transcriptResult(jobId, partial), makeId);
+  const correct = (
+    draft: PersonalBookDraft,
+    jobId: string,
+    supersedes: string,
+    partial: Partial<IntakeExtraction>,
+    makeId: IdFactory,
+  ) => merge(startIntakeJob(draft, jobId, 'transcript', { supersedesJobId: supersedes }), transcriptResult(jobId, partial), makeId);
+  const codes = (draft: PersonalBookDraft) => requestIssues(draft).map((issue) => issue.code);
+
+  it('fills an empty name and age as suggestions; the address stays the parent\'s explicit choice', () => {
+    const makeId = sequentialIds();
+    const merged = record(
+      empty(),
+      'j_00000001',
+      { mentionedName: 'בר', mentionedAge: 5, facts: [{ kind: 'interest', value: 'כדורגל' }] },
+      makeId,
+    );
+    expect(merged.applied && merged.added).toBe(3);
+    let draft = merged.draft;
+    expect(draft.child).toEqual({
+      name: 'בר',
+      age: 5,
+      address: null,
+      nameSource: 'transcript',
+      ageSource: 'transcript',
+      nameJobId: 'j_00000001',
+      ageJobId: 'j_00000001',
+    });
+    expect(draft.conflicts).toEqual([]);
+    // Heard but not yet approved, and the address is never inferred.
+    expect(codes(draft)).toEqual(['child_address_missing', 'facts_unreviewed', 'companion_missing']);
+    draft = setCompanion(setChildAddress(confirmFactsReview(draft), 'boy'), 'fox_uri');
+    expect(draft.child).toMatchObject({ nameJobId: null, ageJobId: null });
+    const built = buildReviewedRequest(draft);
+    expect(built.ok && built.request.child).toEqual({ name: 'בר', age: 5, address: 'boy', nameSource: 'transcript', ageSource: 'transcript' });
+  });
+
+  it('never overwrites a filled name or age: another recording, or a typed value, only asks', () => {
+    const makeId = sequentialIds();
+    let draft = record(empty(), 'j_00000001', { mentionedName: 'בר', mentionedAge: 5 }, makeId).draft;
+    draft = record(draft, 'j_00000002', { mentionedName: 'באר', mentionedAge: 6 }, makeId).draft;
+    expect(draft.child).toMatchObject({ name: 'בר', age: 5, nameJobId: 'j_00000001', ageJobId: 'j_00000001' });
+    expect(draft.conflicts.map((conflict) => [conflict.field, 'proposed' in conflict ? conflict.proposed : null])).toEqual([
+      ['name', 'באר'],
+      ['age', 6],
+    ]);
+    // Control: the same values heard again change nothing and ask nothing.
+    const again = record(setChildName(empty(), 'בר'), 'j_00000003', { mentionedName: 'בר' }, makeId).draft;
+    expect(again.conflicts).toEqual([]);
+    expect(again.child).toMatchObject({ name: 'בר', nameSource: 'typed', nameJobId: null });
+    // Out-of-range or invalid values are not suggested at all.
+    const ignored = record(empty(), 'j_00000004', { mentionedName: 'בר2', mentionedAge: 11 }, makeId).draft;
+    expect(ignored.child).toMatchObject({ name: '', age: null, nameJobId: null, ageJobId: null });
+  });
+
+  it('a correction replaces or retires its own unapproved name and age, and the chain continues', () => {
+    const makeId = sequentialIds();
+    const heard = record(empty(), 'j_00000001', { mentionedName: 'בר', mentionedAge: 5 }, makeId).draft;
+
+    const replaced = correct(heard, 'j_00000002', 'j_00000001', { mentionedName: 'באר', mentionedAge: 6 }, makeId);
+    expect(replaced.applied && [replaced.added, replaced.retired]).toEqual([2, 2]);
+    expect(replaced.draft.child).toMatchObject({ name: 'באר', age: 6, nameJobId: 'j_00000002', ageJobId: 'j_00000002' });
+    expect(replaced.draft.conflicts).toEqual([]);
+
+    const retired = correct(heard, 'j_00000003', 'j_00000001', {}, makeId);
+    expect(retired.applied && retired.retired).toBe(2);
+    expect(retired.draft.child).toMatchObject({ name: '', age: null, nameSource: 'typed', ageSource: 'typed', nameJobId: null, ageJobId: null });
+    expect(codes(retired.draft)).toContain('child_name_missing');
+    expect(codes(retired.draft)).toContain('child_age_missing');
+
+    const kept = correct(heard, 'j_00000004', 'j_00000001', { mentionedName: 'בר', mentionedAge: 5 }, makeId).draft;
+    expect(kept.child).toMatchObject({ name: 'בר', age: 5, nameJobId: 'j_00000004', ageJobId: 'j_00000004' });
+    const chained = correct(kept, 'j_00000005', 'j_00000004', {}, makeId).draft;
+    expect(chained.child).toMatchObject({ name: '', age: null });
+  });
+
+  it('an approved or hand-edited value is only ever questioned by a correction', () => {
+    const makeId = sequentialIds();
+    const heard = record(empty(), 'j_00000001', { mentionedName: 'בר', mentionedAge: 5 }, makeId).draft;
+
+    const approved = confirmFactsReview(heard);
+    const changed = correct(approved, 'j_00000002', 'j_00000001', { mentionedName: 'באר' }, makeId).draft;
+    expect(changed.child).toMatchObject({ name: 'בר', nameSource: 'transcript' });
+    expect(changed.conflicts.map((conflict) => conflict.field)).toEqual(['name']);
+    const silent = correct(approved, 'j_00000003', 'j_00000001', {}, makeId).draft;
+    expect(silent.child).toMatchObject({ name: 'בר', age: 5 });
+    expect(silent.conflicts).toEqual([]);
+
+    const edited = setChildName(heard, 'באר');
+    expect(edited.child).toMatchObject({ nameSource: 'typed', nameJobId: null });
+    const afterEdit = correct(edited, 'j_00000004', 'j_00000001', { mentionedName: 'בר' }, makeId).draft;
+    expect(afterEdit.child.name).toBe('באר');
+    expect(afterEdit.conflicts.map((conflict) => conflict.field)).toEqual(['name']);
+  });
+
+  it('an unclear correction keeps the suggestions and hands them to the next correction', () => {
+    const makeId = sequentialIds();
+    let draft = record(empty(), 'j_00000001', { mentionedName: 'בר', mentionedAge: 5 }, makeId).draft;
+    draft = correct(draft, 'j_00000002', 'j_00000001', { understood: false }, makeId).draft;
+    expect(draft.child).toMatchObject({ name: 'בר', age: 5, nameJobId: 'j_00000002', ageJobId: 'j_00000002' });
+    draft = correct(draft, 'j_00000003', 'j_00000002', { mentionedName: 'באר', mentionedAge: 5 }, makeId).draft;
+    expect(draft.child).toMatchObject({ name: 'באר', age: 5, nameJobId: 'j_00000003', ageJobId: 'j_00000003' });
+  });
+
+  it('a direction the parent asked for is approved with the shown list; the companion never is', () => {
+    const { draft: start, makeId } = basics();
+    const heard = record(start, 'j_00000001', { explicitTopicId: 'transitions' }, makeId).draft;
+    // Negative control: before "continue" nothing is chosen.
+    expect(heard.intent).toBeNull();
+    const approved = confirmFactsReview(heard);
+    expect(approved.intent).toEqual({ kind: 'topic', topicId: 'transitions', suggestedBy: 'transcript' });
+    expect(approved.intentSuggestions).toEqual([]);
+    expect(approved.companionId).toBeNull();
+
+    // Removed from the list first: nothing is chosen.
+    expect(confirmFactsReview(dismissIntentSuggestion(heard, 'transitions')).intent).toBeNull();
+    // The parent's own earlier choice is kept; the suggestion waits for the next step.
+    const own = confirmFactsReview(setIntent(heard, { kind: 'just_for_fun' }));
+    expect(own.intent).toEqual({ kind: 'just_for_fun' });
+    expect(own.intentSuggestions.map((item) => item.topicId)).toEqual(['transitions']);
+    // Two suggestions: the parent picks, not the list.
+    const two = confirmFactsReview(record(heard, 'j_00000002', { explicitTopicId: 'night' }, makeId).draft);
+    expect(two.intent).toBeNull();
+    expect(two.intentSuggestions.map((item) => item.topicId)).toEqual(['transitions', 'night']);
+  });
+
+  it("the brief's example: exactly what was said, labelled; nothing invented", () => {
+    const makeId = sequentialIds();
+    const context = { allowedTopicIds: new Set(['sirens', 'night']), makeId };
+    const example = buildFixtureResult({ jobId: 'j_00000001', exampleId: 'voice', address: 'boy' });
+    const merged = applyIntakeResult(startIntakeJob(empty(), 'j_00000001', 'fixture'), example, context);
+    expect(merged.applied).toBe(true);
+    let draft = merged.draft;
+    expect(draft.child).toMatchObject({ name: 'בר', age: 5, address: null, nameSource: 'fixture', ageSource: 'fixture' });
+    expect(activeFacts(draft).map((fact) => [fact.kind, fact.value, fact.source])).toEqual([
+      ['residence', 'אודם', 'fixture'],
+      ['interest', 'כדורגל', 'fixture'],
+      ['habit', 'לוחש לכדור לפני בעיטה', 'fixture'],
+    ]);
+    expect(draft.storyPlace).toBeNull();
+    expect(draft.intentSuggestions.map((item) => item.topicId)).toEqual(['sirens']);
+    expect(JSON.stringify(draft)).not.toMatch(/פחד|משפחה/);
+
+    draft = setCompanion(setChildAddress(confirmFactsReview(draft), 'boy'), 'panda_anat');
+    const built = buildReviewedRequest(draft);
+    expect(built.ok).toBe(true);
+    if (!built.ok) return;
+    expect(built.request.intent).toEqual({ kind: 'topic', topicId: 'sirens', suggestedBy: 'fixture' });
+    expect(built.request.storyPlace).toBeNull();
+    expect(requestContainsFixtureData(built.request)).toBe(true);
+    const accepted = acceptPersonalBookRequest(built.request, resolvePersonalWizardOptions());
+    expect(accepted.ok && accepted.containsFixtureData).toBe(true);
+  });
+
+  it('normalizing the name for the request keeps where it came from', () => {
+    const typed = commitChildName(setChildName(empty(), '  בר '));
+    expect(typed.child).toMatchObject({ name: 'בר', nameSource: 'typed' });
+    const heard = { ...empty(), child: { ...empty().child, name: 'בר ', nameSource: 'transcript' as const } };
+    expect(commitChildName(heard).child).toMatchObject({ name: 'בר', nameSource: 'transcript' });
+    expect(commitChildName(typed)).toBe(typed);
   });
 });

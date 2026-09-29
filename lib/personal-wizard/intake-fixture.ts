@@ -18,7 +18,12 @@ import {
 } from './contract';
 import { g } from './copy';
 
-export type FixtureExampleId = 'simple' | 'mixed';
+/**
+ * simple = details only; mixed = conflicts, place and a direction; voice = the voice-first brief's
+ * illustration (name, age, residence, a habit and an explicitly requested direction; no adventure
+ * place, family or fear invented).
+ */
+export type FixtureExampleId = 'simple' | 'mixed' | 'voice';
 
 export type FixtureIntakeRequest = {
   jobId: string;
@@ -28,6 +33,26 @@ export type FixtureIntakeRequest = {
 
 export function buildFixtureResult(request: FixtureIntakeRequest): IntakeResult {
   const a = request.address;
+  if (request.exampleId === 'voice') {
+    return intakeResultSchema.parse({
+      jobId: request.jobId,
+      source: 'fixture',
+      transcript: `בר ${g(a, 'בן', 'בת')} חמש, ${g(a, 'גר', 'גרה')} באודם, ${g(a, 'אוהב', 'אוהבת')} כדורגל, ולפני בעיטה ${g(a, 'הוא לוחש', 'היא לוחשת')} לכדור. הייתי רוצה הרפתקה על רעשים חזקים.`,
+      extraction: {
+        version: PERSONAL_INTAKE_EXTRACTION_VERSION,
+        understood: true,
+        facts: [
+          { kind: 'residence', value: 'אודם' },
+          { kind: 'interest', value: 'כדורגל' },
+          { kind: 'habit', value: `${g(a, 'לוחש', 'לוחשת')} לכדור לפני בעיטה` },
+        ],
+        storyPlace: null,
+        mentionedName: 'בר',
+        mentionedAge: 5,
+        explicitTopicId: 'sirens',
+      },
+    });
+  }
   if (request.exampleId === 'simple') {
     return intakeResultSchema.parse({
       jobId: request.jobId,

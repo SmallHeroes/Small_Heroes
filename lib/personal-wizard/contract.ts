@@ -12,7 +12,8 @@
  */
 import { z } from 'zod';
 
-export const PERSONAL_BOOK_DRAFT_VERSION = 'personal-book-draft/v2' as const;
+/** v3: a recording may propose the child's name and age while they are still empty (voice-first entry). */
+export const PERSONAL_BOOK_DRAFT_VERSION = 'personal-book-draft/v3' as const;
 /** v2 carries the provenance of the child's name/age and of a suggested direction. */
 export const REVIEWED_PERSONAL_BOOK_REQUEST_VERSION = 'reviewed-personal-book-request/v2' as const;
 export const PERSONAL_INTAKE_EXTRACTION_VERSION = 'personal-intake-extraction/v1' as const;
@@ -227,6 +228,13 @@ export type PersonalBookDraft = {
     address: GrammaticalAddress | null;
     nameSource: CoreValueSource;
     ageSource: CoreValueSource;
+    /**
+     * The intake job whose suggestion filled an EMPTY name/age and still awaits the parent's
+     * "continue" (voice-first entry). null once the parent edits the value or approves the list, and
+     * always for typed values. A correction of that job may replace or retire the suggestion.
+     */
+    nameJobId: string | null;
+    ageJobId: string | null;
   };
   facts: Fact[];
   storyPlace: StoryPlace | null;

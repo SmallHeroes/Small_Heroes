@@ -10,8 +10,10 @@
  * - removed facts, replaced values and removed places are tombstoned and never return;
  * - a result is applied only to the job that is still `processing` (late results after a cancel,
  *   a newer job or "continue without" are ignored);
- * - companion and intent are never chosen on the parent's behalf; an explicit topic is only a
- *   suggestion.
+ * - a recording may fill the child's EMPTY name or age with a suggestion (voice-first entry); a
+ *   filled one is never overwritten, only questioned;
+ * - the companion is never chosen on the parent's behalf; an explicit topic stays a suggestion until
+ *   the parent approves the shown list (it is part of that list) or picks it.
  */
 import {
   LIMITS,
@@ -48,7 +50,7 @@ export function createDraft(draftId: string): PersonalBookDraft {
     version: PERSONAL_BOOK_DRAFT_VERSION,
     draftId,
     revision: 0,
-    child: { name: '', age: null, address: null, nameSource: 'typed', ageSource: 'typed' },
+    child: { name: '', age: null, address: null, nameSource: 'typed', ageSource: 'typed', nameJobId: null, ageJobId: null },
     facts: [],
     storyPlace: null,
     placeTombstones: [],
@@ -74,16 +76,23 @@ function next(draft: PersonalBookDraft, patch: Partial<PersonalBookDraft>): Pers
 /** Raw input is kept while typing; normalization happens when the request is built. */
 export function setChildName(draft: PersonalBookDraft, raw: string): PersonalBookDraft {
   return next(draft, {
-    child: { ...draft.child, name: raw.slice(0, LIMITS.nameMax + 10), nameSource: 'typed' },
+    child: { ...draft.child, name: raw.slice(0, LIMITS.nameMax + 10), nameSource: 'typed', nameJobId: null },
     conflicts: draft.conflicts.filter((conflict) => conflict.field !== 'name'),
   });
+}
+
+/** Normalizes the name for the request without changing where it came from. */
+export function commitChildName(draft: PersonalBookDraft): PersonalBookDraft {
+  const normalized = normalizeText(draft.child.name);
+  if (normalized === draft.child.name) return draft;
+  return next(draft, { child: { ...draft.child, name: normalized } });
 }
 
 export function setChildAge(draft: PersonalBookDraft, age: number | null): PersonalBookDraft {
   const valid = age === null || (Number.isInteger(age) && age >= PROTOTYPE_AGE_MIN && age <= PROTOTYPE_AGE_MAX);
   if (!valid) return draft;
   return next(draft, {
-    child: { ...draft.child, age, ageSource: 'typed' },
+    child: { ...draft.child, age, ageSource: 'typed', ageJobId: null },
     conflicts: draft.conflicts.filter((conflict) => conflict.field !== 'age'),
   });
 }
@@ -418,12 +427,19 @@ export function applyIntakeResult(
   // Ownership follows the transcript on screen: once the correction is the transcript shown, whatever
   // the corrected job S still owns moves to it, so the next correction corrects it in turn (a chain).
   const superseded = job.supersedesJobId;
+  const movesToCorrection = (jobId: string | null | undefined) =>
+    Boolean(superseded) && jobId === superseded && base.transcript?.jobId === job.jobId;
   const takeOver = <T extends { jobId?: string }>(item: T): T =>
-    superseded && item.jobId === superseded && base.transcript?.jobId === job.jobId ? { ...item, jobId: job.jobId } : item;
+    movesToCorrection(item.jobId) ? { ...item, jobId: job.jobId } : item;
   if (!extraction.understood) {
     // An unclear correction changes nothing: the earlier transcript's details stay as they were.
     const unchanged: PersonalBookDraft = {
       ...base,
+      child: {
+        ...base.child,
+        nameJobId: movesToCorrection(base.child.nameJobId) ? job.jobId : base.child.nameJobId,
+        ageJobId: movesToCorrection(base.child.ageJobId) ? job.jobId : base.child.ageJobId,
+      },
       facts: base.facts.map(takeOver),
       storyPlace: base.storyPlace && takeOver(base.storyPlace),
       conflicts: base.conflicts.map(takeOver),
@@ -540,23 +556,63 @@ export function applyIntakeResult(
     }
   }
 
-  const currentName = normalizeText(draft.child.name);
-  if (
-    extraction.mentionedName &&
-    currentName &&
-    isValidChildName(extraction.mentionedName) &&
-    comparableText(extraction.mentionedName) !== comparableText(currentName)
-  ) {
-    pushConflict('name', extraction.mentionedName);
-  }
-  if (
+  /*
+   * The child's name and age. A recording may fill an EMPTY field with a suggestion that awaits the
+   * parent's "continue" (voice-first entry); a filled field is never overwritten, only questioned.
+   * A correction replaces or retires the unapproved suggestion of the transcript it corrects, like
+   * any other detail of that transcript; an approved or typed value is only ever questioned.
+   */
+  let child = draft.child;
+  const heardName =
+    extraction.mentionedName && isValidChildName(extraction.mentionedName) ? extraction.mentionedName : null;
+  const heardAge =
     extraction.mentionedAge !== null &&
-    draft.child.age !== null &&
     extraction.mentionedAge >= PROTOTYPE_AGE_MIN &&
-    extraction.mentionedAge <= PROTOTYPE_AGE_MAX &&
-    extraction.mentionedAge !== draft.child.age
-  ) {
-    pushConflict('age', extraction.mentionedAge);
+    extraction.mentionedAge <= PROTOTYPE_AGE_MAX
+      ? extraction.mentionedAge
+      : null;
+
+  if (superseded && child.nameJobId === superseded) {
+    if (heardName && comparableText(heardName) === comparableText(child.name)) {
+      if (movesToCorrection(child.nameJobId)) child = { ...child, nameJobId: job.jobId };
+    } else {
+      retired += 1;
+      if (heardName) {
+        child = { ...child, name: heardName, nameSource: result.source, nameJobId: job.jobId };
+        added += 1;
+      } else {
+        child = { ...child, name: '', nameSource: 'typed', nameJobId: null };
+      }
+    }
+  } else if (heardName) {
+    const currentName = normalizeText(child.name);
+    if (!currentName) {
+      child = { ...child, name: heardName, nameSource: result.source, nameJobId: job.jobId };
+      added += 1;
+    } else if (comparableText(heardName) !== comparableText(currentName)) {
+      pushConflict('name', heardName);
+    }
+  }
+
+  if (superseded && child.ageJobId === superseded) {
+    if (heardAge !== null && heardAge === child.age) {
+      if (movesToCorrection(child.ageJobId)) child = { ...child, ageJobId: job.jobId };
+    } else {
+      retired += 1;
+      if (heardAge !== null) {
+        child = { ...child, age: heardAge, ageSource: result.source, ageJobId: job.jobId };
+        added += 1;
+      } else {
+        child = { ...child, age: null, ageSource: 'typed', ageJobId: null };
+      }
+    }
+  } else if (heardAge !== null) {
+    if (child.age === null) {
+      child = { ...child, age: heardAge, ageSource: result.source, ageJobId: job.jobId };
+      added += 1;
+    } else if (heardAge !== child.age) {
+      pushConflict('age', heardAge);
+    }
   }
 
   let suggestions = 0;
@@ -573,7 +629,7 @@ export function applyIntakeResult(
 
   return {
     applied: true,
-    draft: { ...base, facts, storyPlace, conflicts, intentSuggestions },
+    draft: { ...base, child, facts, storyPlace, conflicts, intentSuggestions },
     understood: true,
     added,
     conflicts: conflicts.filter((conflict) => !draft.conflicts.some((old) => old.id === conflict.id)).length,
@@ -599,10 +655,16 @@ export function resolveConflict(
     return next(cleared, { conflicts: cleared.conflicts.filter((candidate) => candidate.id !== conflictId) });
   }
   if (conflict.field === 'name') {
-    return next(draft, { child: { ...draft.child, name: String(conflict.proposed), nameSource: conflict.source }, conflicts });
+    return next(draft, {
+      child: { ...draft.child, name: String(conflict.proposed), nameSource: conflict.source, nameJobId: null },
+      conflicts,
+    });
   }
   if (conflict.field === 'age') {
-    return next(draft, { child: { ...draft.child, age: Number(conflict.proposed), ageSource: conflict.source }, conflicts });
+    return next(draft, {
+      child: { ...draft.child, age: Number(conflict.proposed), ageSource: conflict.source, ageJobId: null },
+      conflicts,
+    });
   }
   const oldKey = draft.storyPlace ? comparableText(draft.storyPlace.value) : null;
   const placeTombstones =
@@ -622,15 +684,23 @@ export function resolveConflict(
 }
 
 /**
- * "Continue with these details": approves exactly the shown list. Proposed items become
- * included, open conflicts keep the parent's existing value, and an unfinished job is abandoned
- * so a late result cannot change the book behind the parent's back.
+ * "These are the details, continue": approves exactly the shown list. Proposed items, and a name or
+ * age heard in a recording, become approved; open conflicts keep the existing value; and an
+ * unfinished job is abandoned so a late result cannot change the book behind the parent's back.
+ *
+ * A story direction the parent asked for is shown in that list, so a single pending suggestion is
+ * approved with it and becomes the chosen direction (keeping its origin), unless the parent already
+ * chose one. Two or more suggestions are left for the parent to pick. The companion is never chosen.
  */
 export function confirmFactsReview(draft: PersonalBookDraft): PersonalBookDraft {
   const revision = draft.revision + 1;
+  const adopted = draft.intent === null && draft.intentSuggestions.length === 1 ? draft.intentSuggestions[0] : null;
   return {
     ...draft,
     revision,
+    child: { ...draft.child, nameJobId: null, ageJobId: null },
+    intent: adopted ? { kind: 'topic', topicId: adopted.topicId, suggestedBy: adopted.source } : draft.intent,
+    intentSuggestions: adopted ? [] : draft.intentSuggestions,
     facts: draft.facts.map((fact) => (fact.status === 'proposed' ? { ...fact, status: 'included', revision } : fact)),
     storyPlace:
       draft.storyPlace && draft.storyPlace.status === 'proposed'
@@ -665,6 +735,8 @@ export function requestIssues(draft: PersonalBookDraft): RequestIssue[] {
   if (
     draft.facts.some((fact) => fact.status === 'proposed') ||
     draft.storyPlace?.status === 'proposed' ||
+    draft.child.nameJobId !== null ||
+    draft.child.ageJobId !== null ||
     draft.conflicts.length > 0
   ) {
     issues.push({ code: 'facts_unreviewed', step: 2 });
