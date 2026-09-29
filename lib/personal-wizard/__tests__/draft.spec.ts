@@ -45,6 +45,7 @@ import {
   toggleHardChip,
   type IdFactory,
 } from '../draft';
+import { switchTellMode, tellViewOf } from '../tell-view';
 import { buildFixtureResult } from '../intake-fixture';
 import { resolvePersonalWizardOptions } from '../options';
 import { acceptPersonalBookRequest } from '../request-acceptance';
@@ -1730,5 +1731,31 @@ describe('owner addendum: a parent correction or exclusion is final', () => {
     expect(similarDetails('כדורגל', 'כדורסל')).toBe(false);
     // A misheard place is not "similar": nothing merges or rewrites it; the parent corrects it.
     expect(similarDetails('שכונת הדקל', 'שכונת הדגל')).toBe(false);
+  });
+});
+
+describe('Codex QA of v2, P2-1: an explicit switch leaves an empty card', () => {
+  const empty = createDraft('d_00000000test');
+  const withName = setChildName(empty, 'נוגה');
+
+  it('"record instead" from an empty picking card returns to the recording start', () => {
+    const inCard = { mode: 'chips' as const, cardOpened: true };
+    expect(tellViewOf({ draft: empty, phase: 'idle', ...inCard })).toBe('card');
+    const switched = switchTellMode(inCard, 'voice', empty);
+    expect(switched).toEqual({ mode: 'voice', cardOpened: false });
+    expect(tellViewOf({ draft: empty, phase: 'idle', ...switched })).toBe('start');
+    // Writing instead, too.
+    const toWrite = switchTellMode(inCard, 'write', empty);
+    expect(tellViewOf({ draft: empty, phase: 'idle', ...toWrite })).toBe('write');
+  });
+
+  it('with details already in the card, switching keeps the card and every detail', () => {
+    const inCard = { mode: 'chips' as const, cardOpened: true };
+    const switched = switchTellMode(inCard, 'voice', withName);
+    expect(switched).toEqual({ mode: 'voice', cardOpened: true });
+    expect(tellViewOf({ draft: withName, phase: 'idle', ...switched })).toBe('card');
+    // Recording from the card shows the recording screen, and the card again afterwards.
+    expect(tellViewOf({ draft: withName, phase: 'recording', ...switched })).toBe('recording');
+    expect(tellViewOf({ draft: withName, phase: 'recorded', ...switched })).toBe('card');
   });
 });

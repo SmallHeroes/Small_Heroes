@@ -31,7 +31,9 @@ import styles from './personal-wizard.module.css';
 import { StepBook } from './StepBook';
 import { StepCompanion } from './StepCompanion';
 import { StepSummary, type Submission } from './StepSummary';
-import { StepTell, tellViewOf, type IntakeNotice, type TellMode } from './StepTell';
+import { switchTellMode, tellViewOf, type TellMode } from '@/lib/personal-wizard/tell-view';
+
+import { StepTell, type IntakeNotice } from './StepTell';
 
 export type WizardOptionsView = {
   companions: Array<{ id: string; name: string; image: string }>;
@@ -410,7 +412,9 @@ export function PersonalWizard({ options }: Props) {
             mode={tellMode}
             onMode={(mode) => {
               setIntakeNotice(null);
-              setTellMode(mode);
+              const switched = switchTellMode({ mode: tellMode, cardOpened }, mode, read());
+              setTellMode(switched.mode);
+              setCardOpened(switched.cardOpened);
             }}
             draft={draft}
             update={update}

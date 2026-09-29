@@ -14,6 +14,7 @@ import {
 } from '@/lib/personal-wizard/copy';
 import { LIMITS, normalizeText, type GrammaticalAddress, type PersonalBookDraft } from '@/lib/personal-wizard/contract';
 import { BONUS_GROUP_ORDER, FACT_GROUP_OF_KIND, activeFacts, resolveConflict, type RequestIssue } from '@/lib/personal-wizard/draft';
+import { hasTellContent, type TellMode, type TellView } from '@/lib/personal-wizard/tell-view';
 import type { FixtureExampleId } from '@/lib/personal-wizard/intake-fixture';
 import type { LiveIntakeError } from '@/lib/personal-wizard/intake-live-client';
 import type { MediaStreamLike, RecorderSnapshot, RecordingController } from '@/lib/personal-wizard/recorder';
@@ -33,45 +34,6 @@ export type IntakeNotice =
   | { kind: 'abandoned' }
   | { kind: 'failed' }
   | { kind: 'error'; error: LiveIntakeError };
-
-/** How the parent chose to tell us: talking (the default), picking chips, or writing. */
-export type TellMode = 'voice' | 'chips' | 'write';
-
-/**
- * What step 1 shows. start = only the text and the big button; recording and processing = only
- * that; write = the writing box; card = what was understood, with the missing must-haves asked.
- */
-export type TellView = 'start' | 'recording' | 'processing' | 'write' | 'card';
-
-/** Anything told, picked or typed so far. Once there is, the card replaces the start screen. */
-export function hasTellContent(draft: PersonalBookDraft): boolean {
-  return (
-    Boolean(normalizeText(draft.child.name)) ||
-    draft.child.age !== null ||
-    draft.child.address !== null ||
-    Boolean(normalizeText(draft.child.residence)) ||
-    activeFacts(draft).length > 0 ||
-    draft.noDifficulty ||
-    draft.storyPlace !== null ||
-    draft.conflicts.length > 0 ||
-    draft.intentSuggestions.length > 0 ||
-    draft.intent !== null ||
-    draft.transcript !== null
-  );
-}
-
-export function tellViewOf(input: {
-  draft: PersonalBookDraft;
-  phase: RecorderSnapshot['phase'];
-  mode: TellMode;
-  /** The card was shown once: it stays, even if the parent removes everything from it. */
-  cardOpened: boolean;
-}): TellView {
-  if (input.draft.intake?.status === 'processing') return 'processing';
-  if (input.phase === 'requesting' || input.phase === 'recording' || input.phase === 'stopping') return 'recording';
-  if (input.cardOpened || input.mode === 'chips' || hasTellContent(input.draft)) return 'card';
-  return input.mode === 'write' ? 'write' : 'start';
-}
 
 const MUST_HAVE_ISSUES = new Set([
   'child_name_missing',
