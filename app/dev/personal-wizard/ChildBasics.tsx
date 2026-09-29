@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import { COMMON, HERO, SOURCE_BADGE } from '@/lib/personal-wizard/copy';
 import { PROTOTYPE_AGES, normalizeText, type CoreValueSource, type PersonalBookDraft } from '@/lib/personal-wizard/contract';
@@ -25,6 +25,13 @@ export function ChildBasics({ draft, update, issues, showErrors }: Props) {
   const name = normalizeText(draft.child.name);
   const [editingName, setEditingName] = useState(false);
   const [editingAge, setEditingAge] = useState(false);
+  // "Edit" replaces the age row with the choices: focus moves to the chosen age, not to the page.
+  const ageFieldRef = useRef<HTMLFieldSetElement | null>(null);
+  useEffect(() => {
+    if (!editingAge) return;
+    const field = ageFieldRef.current;
+    (field?.querySelector<HTMLInputElement>('input:checked') ?? field?.querySelector<HTMLInputElement>('input'))?.focus();
+  }, [editingAge]);
   const nameIssue = showErrors ? issues.find((issue) => issue.code.startsWith('child_name')) : undefined;
   const ageIssue = showErrors ? issues.find((issue) => issue.code === 'child_age_missing') : undefined;
   const addressIssue = showErrors ? issues.find((issue) => issue.code === 'child_address_missing') : undefined;
@@ -79,7 +86,7 @@ export function ChildBasics({ draft, update, issues, showErrors }: Props) {
       )}
 
       {showAgeField ? (
-        <fieldset className={styles.fieldset} aria-describedby={ageIssue ? 'pw-age-error' : 'pw-age-hint'}>
+        <fieldset ref={ageFieldRef} className={styles.fieldset} aria-describedby={ageIssue ? 'pw-age-error' : 'pw-age-hint'}>
           <legend className={styles.label}>{HERO.ageLabel}</legend>
           <div className={styles.segmented}>
             {PROTOTYPE_AGES.map((age) => (
