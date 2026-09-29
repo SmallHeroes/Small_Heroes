@@ -12,8 +12,9 @@
  */
 import { z } from 'zod';
 
-export const PERSONAL_BOOK_DRAFT_VERSION = 'personal-book-draft/v1' as const;
-export const REVIEWED_PERSONAL_BOOK_REQUEST_VERSION = 'reviewed-personal-book-request/v1' as const;
+export const PERSONAL_BOOK_DRAFT_VERSION = 'personal-book-draft/v2' as const;
+/** v2 carries the provenance of the child's name/age and of a suggested direction. */
+export const REVIEWED_PERSONAL_BOOK_REQUEST_VERSION = 'reviewed-personal-book-request/v2' as const;
 export const PERSONAL_INTAKE_EXTRACTION_VERSION = 'personal-intake-extraction/v1' as const;
 
 export const PROTOTYPE_AGES = [3, 4, 5, 6, 7, 8] as const;
@@ -56,6 +57,14 @@ export type FactKind = (typeof FACT_KINDS)[number];
 
 /** Provenance, not proof of truth. `fixture` = a prepared example, never derived from the parent's audio. */
 export const FACT_SOURCES = ['typed', 'chip', 'transcript', 'fixture'] as const;
+
+/**
+ * Where the child's name or age came from. 'typed' = the parent entered it; 'transcript' or
+ * 'fixture' = the parent accepted a suggested value from a recording or from the labelled example.
+ * Editing the field by hand is the deliberate transition back to 'typed'.
+ */
+export const CORE_VALUE_SOURCES = ['typed', 'transcript', 'fixture'] as const;
+export type CoreValueSource = (typeof CORE_VALUE_SOURCES)[number];
 export type FactSource = (typeof FACT_SOURCES)[number];
 
 /** proposed = extracted, awaiting the parent's "continue with these details"; removed = tombstone. */
@@ -177,7 +186,13 @@ export type Conflict =
       source: 'transcript' | 'fixture';
     };
 
-export type Intent = { kind: 'just_for_fun' } | { kind: 'topic'; topicId: string };
+/**
+ * `suggestedBy` records that a topic was chosen from a recording's or the example's suggestion, so
+ * example-derived choices stay flagged as example data.
+ */
+export type Intent =
+  | { kind: 'just_for_fun' }
+  | { kind: 'topic'; topicId: string; suggestedBy?: 'transcript' | 'fixture' };
 
 export type IntentSuggestion = { topicId: string; jobId: string; source: 'transcript' | 'fixture' };
 
@@ -210,6 +225,8 @@ export type PersonalBookDraft = {
     name: string;
     age: number | null;
     address: GrammaticalAddress | null;
+    nameSource: CoreValueSource;
+    ageSource: CoreValueSource;
   };
   facts: Fact[];
   storyPlace: StoryPlace | null;
@@ -241,7 +258,13 @@ const requestFactSchema = z
 
 const requestIntentSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('just_for_fun') }).strict(),
-  z.object({ kind: z.literal('topic'), topicId: z.string().regex(OPTION_ID) }).strict(),
+  z
+    .object({
+      kind: z.literal('topic'),
+      topicId: z.string().regex(OPTION_ID),
+      suggestedBy: z.enum(['transcript', 'fixture']).optional(),
+    })
+    .strict(),
 ]);
 
 export const reviewedPersonalBookRequestSchema = z
@@ -255,6 +278,8 @@ export const reviewedPersonalBookRequestSchema = z
         name: z.string().refine(isValidChildName, { message: 'invalid_child_name' }),
         age: z.number().int().min(PROTOTYPE_AGE_MIN).max(PROTOTYPE_AGE_MAX),
         address: z.enum(GRAMMATICAL_ADDRESSES),
+        nameSource: z.enum(CORE_VALUE_SOURCES),
+        ageSource: z.enum(CORE_VALUE_SOURCES),
       })
       .strict(),
     facts: z.array(requestFactSchema).max(LIMITS.factsMax),

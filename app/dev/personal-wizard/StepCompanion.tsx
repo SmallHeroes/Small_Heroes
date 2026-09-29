@@ -94,7 +94,10 @@ export function StepCompanion({ draft, update, options, showErrors, titleRef }: 
                     className={styles.btnSecondary}
                     onClick={() =>
                       update((current) =>
-                        dismissIntentSuggestion(setIntent(current, { kind: 'topic', topicId: suggestion.topicId }), suggestion.topicId),
+                        dismissIntentSuggestion(
+                          setIntent(current, { kind: 'topic', topicId: suggestion.topicId, suggestedBy: suggestion.source }),
+                          suggestion.topicId,
+                        ),
                       )
                     }
                   >

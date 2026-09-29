@@ -75,6 +75,19 @@ export function StepSummary({ draft, options, titleRef, photoUrl, submission, on
         ? companionCopy(name, draft.child.address).justForFun
         : options.topics.find((topic) => topic.id === (model.intent as { topicId: string }).topicId)?.label ?? '';
   const stale = submission.state !== 'idle' && submission.revision !== draft.revision;
+  // Name/age/topic accepted from a suggestion keep a visible origin, like facts do.
+  const originBadge = (origin: 'fixture' | 'transcript' | null) =>
+    origin ? (
+      <span className={styles.sourceBadge} data-source={origin}>
+        {SOURCE_BADGE[origin]}
+      </span>
+    ) : null;
+  const childOrigin = [model.child.nameSource, model.child.ageSource].includes('fixture')
+    ? 'fixture'
+    : [model.child.nameSource, model.child.ageSource].includes('transcript')
+      ? 'transcript'
+      : null;
+  const intentOrigin = model.intent?.kind === 'topic' ? model.intent.suggestedBy ?? null : null;
 
   return (
     <section className={styles.step} aria-labelledby="pw-step-title">
@@ -90,7 +103,10 @@ export function StepSummary({ draft, options, titleRef, photoUrl, submission, on
             </h2>
             {editButton(1, copy.sections.hero)}
           </header>
-          <p className={styles.summaryText}>{copy.childLine(model.child.age)}</p>
+          <p className={styles.summaryText}>
+            {copy.childLine(model.child.age)}
+            {originBadge(childOrigin)}
+          </p>
         </section>
 
         <section className={styles.summarySection} aria-labelledby="pw-sum-facts">
@@ -156,7 +172,10 @@ export function StepSummary({ draft, options, titleRef, photoUrl, submission, on
             </h2>
             {editButton(3, copy.sections.intent)}
           </header>
-          <p className={styles.summaryText}>{intentText}</p>
+          <p className={styles.summaryText}>
+            {intentText}
+            {originBadge(intentOrigin)}
+          </p>
           {model.avoid.length > 0 ? <p className={styles.summaryText}>{copy.avoid(model.avoid)}</p> : null}
         </section>
 

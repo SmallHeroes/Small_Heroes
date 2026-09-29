@@ -595,3 +595,92 @@ describe('a corrected transcript supersedes the proposals of the transcript it c
     expect(kinds(finalRequest(unclear.draft).facts)).toEqual(['interest:ציור']);
   });
 });
+
+describe('example provenance follows every surviving value, not only facts', () => {
+  const fixtureOnlyCoreValues = (makeId: IdFactory, start: PersonalBookDraft) => {
+    let draft = startIntakeJob(start, 'j_00000001', 'fixture');
+    draft = merge(
+      draft,
+      {
+        jobId: 'j_00000001',
+        source: 'fixture',
+        transcript: 'example',
+        extraction: extraction({ mentionedName: 'נועה', mentionedAge: 6, explicitTopicId: 'night' }),
+      },
+      makeId,
+    ).draft;
+    for (const conflict of [...draft.conflicts]) draft = resolveConflict(draft, conflict.id, 'accept');
+    return draft;
+  };
+
+  it('reviewer case: example name, age and topic with no example facts still flag the request as example data', () => {
+    const { draft: start, makeId } = basics();
+    let draft = fixtureOnlyCoreValues(makeId, start);
+    // Chosen straight from the topic list, as the reviewer's probe does.
+    draft = setIntent(draft, { kind: 'topic', topicId: 'night' });
+    const built = buildReviewedRequest(setCompanion(confirmFactsReview(draft), 'fox_uri'));
+    expect(built.ok).toBe(true);
+    if (!built.ok) return;
+    expect(built.request.facts).toEqual([]);
+    expect(built.request.child).toMatchObject({ name: 'נועה', age: 6, address: 'boy', nameSource: 'fixture', ageSource: 'fixture' });
+    expect(built.request.intent).toEqual({ kind: 'topic', topicId: 'night', suggestedBy: 'fixture' });
+    expect(requestContainsFixtureData(built.request)).toBe(true);
+    const accepted = acceptPersonalBookRequest(built.request, resolvePersonalWizardOptions());
+    expect(accepted.ok && accepted.containsFixtureData).toBe(true);
+  });
+
+  it('adopting a topic through the list settles its suggestion; the suggestion card does the same', () => {
+    const { draft: start, makeId } = basics();
+    const draft = fixtureOnlyCoreValues(makeId, start);
+    expect(draft.intentSuggestions.map((item) => item.topicId)).toEqual(['night']);
+    const viaList = setIntent(draft, { kind: 'topic', topicId: 'night' });
+    expect(viaList.intentSuggestions).toEqual([]);
+    const viaCard = setIntent(draft, { kind: 'topic', topicId: 'night', suggestedBy: 'fixture' });
+    expect(viaCard.intent).toEqual({ kind: 'topic', topicId: 'night', suggestedBy: 'fixture' });
+  });
+
+  it('editing by hand is the deliberate transition back to parent input', () => {
+    const { draft: start, makeId } = basics();
+    let draft = fixtureOnlyCoreValues(makeId, start);
+    draft = setIntent(draft, { kind: 'topic', topicId: 'night' });
+    draft = setChildName(draft, 'נועה');
+    draft = setChildAge(draft, 6);
+    draft = setIntent(draft, { kind: 'topic', topicId: 'social' });
+    const built = buildReviewedRequest(setCompanion(confirmFactsReview(draft), 'fox_uri'));
+    expect(built.ok).toBe(true);
+    if (!built.ok) return;
+    expect(built.request.child).toMatchObject({ nameSource: 'typed', ageSource: 'typed' });
+    expect(built.request.intent).toEqual({ kind: 'topic', topicId: 'social' });
+    expect(requestContainsFixtureData(built.request)).toBe(false);
+  });
+
+  it('values accepted from a live recording are marked as such, not as example data', () => {
+    const { draft: start, makeId } = basics();
+    let draft = startIntakeJob(start, 'j_00000001', 'transcript');
+    draft = merge(draft, transcriptResult('j_00000001', { mentionedAge: 6, explicitTopicId: 'transitions' }), makeId).draft;
+    draft = resolveConflict(draft, draft.conflicts[0].id, 'accept');
+    draft = setIntent(draft, { kind: 'topic', topicId: 'transitions' });
+    const built = buildReviewedRequest(setCompanion(confirmFactsReview(draft), 'fox_uri'));
+    expect(built.ok).toBe(true);
+    if (!built.ok) return;
+    expect(built.request.child.ageSource).toBe('transcript');
+    expect(built.request.intent).toEqual({ kind: 'topic', topicId: 'transitions', suggestedBy: 'transcript' });
+    expect(requestContainsFixtureData(built.request)).toBe(false);
+  });
+
+  it('the strict schema requires the provenance fields and their allowed values', () => {
+    const { draft: start } = basics();
+    const built = buildReviewedRequest(setCompanion(confirmFactsReview(start), 'fox_uri'));
+    expect(built.ok).toBe(true);
+    if (!built.ok) return;
+    const { nameSource: _dropped, ...withoutSource } = built.request.child;
+    const bad = [
+      { ...built.request, child: withoutSource },
+      { ...built.request, child: { ...built.request.child, nameSource: 'chip' } },
+      { ...built.request, child: { ...built.request.child, ageSource: 'guessed' } },
+      { ...built.request, intent: { kind: 'topic', topicId: 'night', suggestedBy: 'model' } },
+      { ...built.request, intent: { kind: 'just_for_fun', suggestedBy: 'fixture' } },
+    ];
+    for (const candidate of bad) expect(reviewedPersonalBookRequestSchema.safeParse(candidate).success).toBe(false);
+  });
+});

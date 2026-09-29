@@ -48,7 +48,7 @@ export function createDraft(draftId: string): PersonalBookDraft {
     version: PERSONAL_BOOK_DRAFT_VERSION,
     draftId,
     revision: 0,
-    child: { name: '', age: null, address: null },
+    child: { name: '', age: null, address: null, nameSource: 'typed', ageSource: 'typed' },
     facts: [],
     storyPlace: null,
     placeTombstones: [],
@@ -74,7 +74,7 @@ function next(draft: PersonalBookDraft, patch: Partial<PersonalBookDraft>): Pers
 /** Raw input is kept while typing; normalization happens when the request is built. */
 export function setChildName(draft: PersonalBookDraft, raw: string): PersonalBookDraft {
   return next(draft, {
-    child: { ...draft.child, name: raw.slice(0, LIMITS.nameMax + 10) },
+    child: { ...draft.child, name: raw.slice(0, LIMITS.nameMax + 10), nameSource: 'typed' },
     conflicts: draft.conflicts.filter((conflict) => conflict.field !== 'name'),
   });
 }
@@ -83,7 +83,7 @@ export function setChildAge(draft: PersonalBookDraft, age: number | null): Perso
   const valid = age === null || (Number.isInteger(age) && age >= PROTOTYPE_AGE_MIN && age <= PROTOTYPE_AGE_MAX);
   if (!valid) return draft;
   return next(draft, {
-    child: { ...draft.child, age },
+    child: { ...draft.child, age, ageSource: 'typed' },
     conflicts: draft.conflicts.filter((conflict) => conflict.field !== 'age'),
   });
 }
@@ -308,7 +308,21 @@ export function setCompanion(draft: PersonalBookDraft, companionId: string): Per
   return next(draft, { companionId });
 }
 
+/**
+ * Choosing a topic that is currently suggested (from the suggestion card or from the list) adopts the
+ * suggestion: the choice keeps its origin and the suggestion is settled. Any other choice is the
+ * parent's own, without an origin.
+ */
 export function setIntent(draft: PersonalBookDraft, intent: Intent | null): PersonalBookDraft {
+  if (intent?.kind === 'topic' && !intent.suggestedBy) {
+    const suggestion = draft.intentSuggestions.find((item) => item.topicId === intent.topicId);
+    if (suggestion) {
+      return next(draft, {
+        intent: { ...intent, suggestedBy: suggestion.source },
+        intentSuggestions: draft.intentSuggestions.filter((item) => item.topicId !== intent.topicId),
+      });
+    }
+  }
   return next(draft, { intent });
 }
 
@@ -571,10 +585,10 @@ export function resolveConflict(
     return next(cleared, { conflicts: cleared.conflicts.filter((candidate) => candidate.id !== conflictId) });
   }
   if (conflict.field === 'name') {
-    return next(draft, { child: { ...draft.child, name: String(conflict.proposed) }, conflicts });
+    return next(draft, { child: { ...draft.child, name: String(conflict.proposed), nameSource: conflict.source }, conflicts });
   }
   if (conflict.field === 'age') {
-    return next(draft, { child: { ...draft.child, age: Number(conflict.proposed) }, conflicts });
+    return next(draft, { child: { ...draft.child, age: Number(conflict.proposed), ageSource: conflict.source }, conflicts });
   }
   const oldKey = draft.storyPlace ? comparableText(draft.storyPlace.value) : null;
   const placeTombstones =
@@ -662,6 +676,8 @@ export function buildReviewedRequest(draft: PersonalBookDraft): RequestBuildResu
       name: normalizeText(draft.child.name),
       age: draft.child.age,
       address: draft.child.address,
+      nameSource: draft.child.nameSource,
+      ageSource: draft.child.ageSource,
     },
     facts: includedFacts(draft).map((fact) => ({
       id: fact.id,
@@ -695,8 +711,15 @@ export function buildReviewedRequest(draft: PersonalBookDraft): RequestBuildResu
   return { ok: true, request: parsed.data };
 }
 
+/** True when ANY surviving value came from the labelled example: facts, place, name, age or topic. */
 export function requestContainsFixtureData(request: ReviewedPersonalBookRequest): boolean {
-  return request.facts.some((fact) => fact.source === 'fixture') || request.storyPlace?.source === 'fixture';
+  return (
+    request.facts.some((fact) => fact.source === 'fixture') ||
+    request.storyPlace?.source === 'fixture' ||
+    request.child.nameSource === 'fixture' ||
+    request.child.ageSource === 'fixture' ||
+    (request.intent?.kind === 'topic' && request.intent.suggestedBy === 'fixture')
+  );
 }
 
 // ── Summary (derived from the request, so it shows exactly what the request carries) ──
