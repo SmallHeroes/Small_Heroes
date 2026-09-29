@@ -1,10 +1,14 @@
 # Personal Wizard prototype: implementation evidence (P1 + P2)
 
 Status: P1 and P2 implemented by Claude Code on a dedicated branch, in two
-commits. Codex reviews next. There is no self-PASS, no product acceptance and no
-claim that a book can be made from this flow. Guy owns UX and product
-acceptance. The P2 live provider path is implemented, but it is unverified
-against the real provider (section 5b).
+commits. Codex's QA of `713017e1..8aa9f1d7` was HOLD (P0 0, P1 2, P2 3). The
+correction batch in section 8 fixes the five findings and two variants found in
+self-review, in focused commits on the same branch. Codex re-gates next. There is
+no self-PASS, no product acceptance and no claim that a book can be made from
+this flow. Guy owns UX and product acceptance. The P2 live provider path is
+implemented, but it is unverified against the real provider (section 5b).
+Sections 1 to 7 describe the reviewed range; where section 8 changed a
+behaviour, section 8 wins.
 
 Execution source: `docs/ai-workflow/PERSONAL_WIZARD_CLAUDE_BUILD_BRIEF_20260928.md`
 on `codex/r3b1b-semantic-recovery-m1` (commit `ef865968`). Guy explicitly assigned
@@ -316,7 +320,10 @@ tells the UI whether to offer live processing.
 - The container is sniffed from the bytes and must equal the declared type.
 - Duration is **measured** with ffprobe from the audio packets, because Chrome's
   MediaRecorder WebM has no trustworthy header duration. It must be 1 s to
-  91.5 s; a client-declared duration is not used at all.
+  91.5 s; a client-declared duration is not used at all. (Superseded in
+  section 8, P1-1: packet timestamps alone could be shifted; the audio is now
+  decoded and counted, the timeline validated, and exactly one audio stream
+  required.)
 - The conservative upper bound is then reserved in the ledger:
   - transcription per started second;
   - extraction with worst-case input bytes (a token is at least one byte) and
@@ -352,7 +359,8 @@ speech-to-text pages.
 **Data handling, stated to match what was checked.**
 
 - **Our side:** the audio exists in memory and in one private temporary file,
-  created only for the ffprobe duration check and removed in `finally`. Nothing
+  created only for the duration check (ffprobe + a bounded ffmpeg decode since
+  section 8) and removed in `finally`. Nothing
   is persisted. Logs carry only the outcome code, the reservation and ledger
   counts: no transcript, fact, email or audio.
 - **Provider side**, per its data-controls page on 2026-09-29:
@@ -512,3 +520,209 @@ ledger totals, and no content.
     change the draft or the summary.
 12. **P2 data.** Try to leave data behind: the temporary file on every error path,
     content in logs, or anything written to browser storage.
+
+## 8. Correction batch after Codex QA (HOLD on `713017e1..8aa9f1d7`)
+
+Codex's independent QA of `713017e1..8aa9f1d7` was **HOLD**: P0 0, P1 2, P2 3,
+plus one key-order observation. Before changing anything, every reproduction
+was validated against the exact frozen head `8aa9f1d7`, and each one reproduced.
+I agree with all five findings and the observation; there is no disagreement.
+Scope stayed as requested: no redesign, no new approval screen, no change to the
+old Wizard, engine, reader or payments, no push or deployment, and no live
+provider call. The unconnected-writer boundary is unchanged: nothing is sent to
+a writer.
+
+### 8.1 Reproductions at `8aa9f1d7`
+
+| Finding | Reproduced at `8aa9f1d7` |
+| --- | --- |
+| P1-1 | Codex's offset file: ffprobe span 65 543 ms against 120 s of decoded audio; accepted, one transcription dispatch to the stub |
+| P1-2 | "גר באודם" corrected to "גר בחיפה": both residences in the request and in server acceptance |
+| P2-1 | Final chunk and `stop` suppressed, watchdog fired: `takeSendRequest()` handed out the partial clip, `reason: user_done` |
+| P2-2 | Example name, age and topic accepted: `containsFixtureData` false in the browser and on the server |
+| P2-3 | JSON `null` to the text route: an exception, after the provider was constructed once |
+| Observation | `OPENAI_API_KEY` read before the operator session was checked |
+
+### 8.2 Fixes: one focused commit per finding, then two self-review variants
+
+| Commit | Finding | Change |
+| --- | --- | --- |
+| `07c8f30a` | P1-1 | Duration is no longer trusted from packet timestamps. The audio is decoded (ffmpeg, mono 8 kHz, a hard output ceiling that stops the decoder early) and its samples counted. The packet timeline must be well formed: start within 0.5 s of zero (encoder pre-roll only), never step back, no hole over 1 s. The two measurements must agree within max(0.5 s, 5%), and the larger is used. Refusals are `duration_unreadable`, `timeline_invalid`, `timeline_mismatch` and `too_long`, all before any reservation or provider. On Windows the temporary file is removed only after the decoder process has exited. |
+| `4143f9fa` | P1-2 | "Re-organise from the corrected text" now carries `supersedesJobId`. See the rules below this table. A new recording still adds; it is not a correction. |
+| `2b9bce58` | P2-1 | Only the recorder's own `stop` event after its final data produces a **verified** clip. A watchdog or a throwing `stop()` produces an unverified clip, `reason: incomplete`, with the automatic send withdrawn. `finish()`/`takeSendRequest()` hand out verified clips only. Late events after the timeout are detached. The UI discloses the incomplete clip, which stays local. |
+| `215e885c` | P2-2 | Request contract v2. `child.nameSource` and `child.ageSource` (typed, transcript or fixture) and `intent.suggestedBy` are set when a suggested value is accepted. `requestContainsFixtureData` and server acceptance cover them. Typing the name or age again is the deliberate transition back to parent input. The summary shows origin badges on the child line and on the direction. |
+| `372a314b` | P2-3 and the observation | The text body must be exactly `{jobId, draftId, text}` strings: `null`, arrays, scalars and extra fields get 400 before any service or provider. The provider is created by a factory only after the ledger admits the job. Settings resolution never reads the key; the gate reads it only after the operator session is confirmed. A signed-in operator with no key gets 503 `live_unavailable`. |
+| `b01da3b1` | P1-2 variant (self-review) | Details a correction kept stayed owned by the job it corrected, so the next correction could not reach them. The effects: correcting twice, or once after an unclear correction, left two residences again; an open keep-or-remove question vanished; a kept place survived. Ownership now follows the transcript on screen, as a chain. |
+| `1c8287b5` | P1-1 variant (self-review) | The probe and the decoder read only the first audio stream. A 3 s + 120 s two-track WebM or MP4, or audio plus video, measured as 3 s and was accepted. The file must now hold exactly one stream, of type audio, or it is refused as `unexpected_streams` (422) before any provider. |
+
+The correction rules from `4143f9fa` apply to details owned by the corrected
+transcript:
+
+- still present in the correction: kept, with the same id;
+- parent-owned (typed, chips, edited, adopted) or removed by the parent: left
+  exactly as they are;
+- only proposed and now absent: retired and counted in the notice ("הצעה אחת שלא
+  הופיעה בתמלול המתוקן הוסרה מהרשימה.");
+- already approved and now absent: an inline keep-or-remove question ("בתמלול
+  המתוקן כבר לא מופיע ״…״. להשאיר אותו בסיפור?").
+
+Questions and suggestions raised by the corrected transcript are dropped. This
+uses no new screen.
+
+### 8.3 Evidence at the code head `1c8287b5`
+
+- **tsc:** exit 0.
+- **Prototype suites:** 128 tests in 9 files, all passing, plus 7/7 in the
+  workload classifier (counts pinned in P2).
+
+  | Spec | Tests |
+  | --- | --- |
+  | draft | 43 |
+  | recorder | 21 |
+  | intake-service | 14 |
+  | audio-probe | 11 |
+  | request-acceptance | 9 |
+  | intake-extraction | 9 |
+  | intake-routes | 9 |
+  | prototype-boundary | 7 |
+  | intake-live-client | 5 |
+
+  Every finding has its reviewer case as a test with the corrected expected
+  behaviour, plus controls: a normal 120 s tone stays `too_long`; a second
+  recording stays additive; a normal finish is verified and follows "done" once;
+  typed values stay typed; a valid body still reaches the service; a
+  single-stream clip is accepted. The five chained-correction tests from
+  `b01da3b1` were run against the previous `draft.ts`: four fail there, and the
+  controls test passes on both, as intended.
+- **Real media**, from the bundled ffmpeg and ffprobe with no mocks:
+
+  | Input | Result |
+  | --- | --- |
+  | WebM 3 s | ok, 3021 ms |
+  | MP4 2 s | ok, 2023 ms |
+  | 89 s | ok |
+  | 120 s | `too_long` (the decoder stops early) |
+  | Offset, shift and hole files | `timeline_invalid` |
+  | Stretched ×1.3 and ×1.08 | `timeline_mismatch` |
+  | Truncated or corrupt | `duration_unreadable` |
+  | Two audio tracks (WebM, MP4), or audio + video | `unexpected_streams` |
+  | Chrome MediaRecorder 3.0 s and 1.4 s, fake microphone | ok, 3000 ms and 1380 ms |
+
+- **Codex's own probes**, copied byte-identical (SHA-256 prefixes `0983dd3d`,
+  `83514b1e`) and run with the worktree as the working directory. Codex's folder
+  was not written to.
+  - `boundaries.cjs`, unchanged: 401 with events `["sessionCheck"]` only (the key
+    is not read), and the `null` body no longer throws, with `providerCreated: 0`.
+  - `probe.cjs`, unchanged:
+    - Section 1 still passes. It models the correction as a plain second job,
+      which is a new recording and additive by design (8.4).
+    - Section 2's assertion that encoded the bug, `assert(partial)`, now fails
+      with `actual: null`, so the script stops there.
+    - It also imports the removed `probeAudioDurationMs`.
+  - A replay of the same inputs with the corrected expectations, using a
+    correction job and the current API, passes. It shows:
+    - one residence, "גר בחיפה", in the request and in server acceptance, with a
+      plain second recording still additive as the control;
+    - a clip that is `incomplete`, `verified: false`, never handed out;
+    - `nameSource`/`ageSource` `fixture` and `suggestedBy: fixture`, flagged by
+      both client and server;
+    - Codex's two 120 s tones refused as `too_long` / `timeline_invalid`, with
+      zero dispatches and the provider never constructed;
+    - the `null` body answered 400 `bad_request` with zero providers created.
+- **Browser**, headless Chrome with a fake microphone and placeholder env:
+  - P1: 97/97, up from 88. The main flow's payload is v2 with `typed` sources
+    (the parent kept 5 over the example's 6). It adds the reviewer's P2-2 case in
+    the real UI:
+    1. load the mixed example;
+    2. accept its age 6;
+    3. remove every example detail and the example place;
+    4. adopt its suggested direction from the card.
+
+    The summary then shows the example warning and badges on the child line and
+    the direction. The payload is v2, with no facts, `ageSource: fixture` and
+    `suggestedBy: fixture`. The server answers `containsFixtureData: true`.
+  - P2: 38/38 against the real server (fail-closed paths) and simulated answers.
+    The corrected transcript keeps the bike, retires "הים", adds the new detail
+    and announces the retired proposal. The request carries exactly the typed
+    text and only `jobId`, `draftId` and `text`. A new approved-then-corrected
+    flow then runs:
+    1. approve, go back and correct;
+    2. one keep-or-remove question for "הים" only; "keep" keeps it;
+    3. a second correction asks again; "remove" removes it;
+    4. the summary holds exactly the kept details.
+
+    No console errors.
+  - Harness honesty note: the earlier P2 run (29/29) typed the correction after a
+    triple-click that did not select the textarea, so the text was appended and
+    that check used `includes`. The simulated answer does not depend on the
+    text, so no conclusion changed. The harness now replaces the text and asserts
+    it exactly.
+- **Full check:** `npm run check` at `1c8287b5` is RED exactly as at the base
+  `713017e1`.
+  - **Ordinary phase:** 364 files, 10 failed, 4879 passed, 73 skipped (4962).
+    - The same 10 failures: child-lexicon 1, momentum-gate-koko 1,
+      page-entity-qa 1, story-read-back 2, visual-direction lifecycle 4,
+      reserved-page-placement 1.
+    - Each reads `outputs/` artifacts that are absent from this worktree
+      (ENOENT).
+    - At the base: 355 files, 10 failed, 4751 passed (4834). The difference is
+      exactly the 9 prototype specs and their 128 tests.
+  - **Resource phase:** 20 files, 635/635 passed, with the same
+    `on_task_update_rpc_timeout` gate as at the base.
+  - The correction batch added no spec file and changed no timeout or pinned
+    count.
+
+### 8.4 Design points Codex may want to challenge
+
+1. **A plain second recording stays additive.** Codex's `probe.cjs` section 1
+   runs two ordinary jobs, "גר באודם" then "גר בחיפה", and both still land.
+   That is a second recording, not a correction. If every job superseded the
+   previous one, a parent who records "he paints" and then "he also swims" would
+   lose the first recording. The fix therefore sits on the only correction
+   action, the explicit re-organise of the shown transcript, which is what the
+   finding described. A contradiction between two separate recordings stays
+   visible in the editable list before approval.
+2. **An incomplete clip can still be sent, by hand.** The automatic path is
+   withdrawn. The disclosed state reads "ההקלטה לא הסתיימה כרגיל, ולכן לא נשלחה.
+   … אפשר להאזין לו, לשלוח אותו בכל זאת או להקליט מחדש." This follows the
+   required correction's "allow an explicit user decision where safe". The server
+   still sniffs, measures (8.2) and reserves before any provider. If Codex judges
+   this unsafe, removing the manual send for unverified clips is a one-line
+   change.
+3. **"Keep" is not permanent immunity.** A detail the parent kept after one
+   correction is asked about again if a later correction still lacks it. It is
+   never removed silently. The alternative, treating "keep" as parent ownership,
+   would be a product choice.
+4. **Choosing a topic while its example suggestion is pending adopts the
+   suggestion's origin.** This is conservative, so the warning cannot be dodged
+   through the list. "לא עכשיו" and then choosing the topic, or typing the
+   name/age again, is the deliberate transition to parent input. An example
+   *fact* edited by hand keeps its example origin (the edit modifies example
+   content), so it stays flagged.
+5. **Exactly one audio stream is strict.** Chrome MediaRecorder WebM passes.
+   Safari/iOS MP4 is unverified on this machine. If Safari adds a non-audio
+   track, live intake fails closed with the existing rejected-audio message,
+   and typing still works.
+
+### 8.5 Re-gate targets
+
+1. Chains: correct, correct again; unclear correction then correct; a correction
+   during another job; a late or stale correction; then check that no superseded
+   detail or question survives, and no approved detail is dropped silently.
+2. Anything that makes an unverified clip leave automatically, or makes a late
+   recorder event change a finished clip.
+3. Any surviving example-derived value (name, age, place, topic, fact) that
+   reaches the request with `containsFixtureData: false`.
+4. Any file shape where the measured audio is less than what a provider could
+   decode: streams, timestamps, containers, edit lists.
+5. Any intake body or header shape that reaches `createProvider` or the key
+   before validation and the session.
+
+### 8.6 Still not done or unverified
+
+- **Live provider path: UNVERIFIED.** No key read, no provider call, $0. A live
+  trial needs Guy's explicit approval (brief cap: $1 for two short synthetic
+  samples).
+- No Safari/iOS or physical-device QA.
+- No push, deployment, order, payment or render.
+- No self-PASS: Codex re-gates, and Guy owns product acceptance.

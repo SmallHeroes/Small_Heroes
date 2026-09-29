@@ -1,6 +1,6 @@
 # SmallHeroes — Current Technical State
 
-## Personal Wizard prototype P1 — 2026-09-29; Claude implements, Codex reviews
+## Personal Wizard prototype P1 + P2 + QA correction batch — 2026-09-29; Claude implements, Codex reviews
 
 Per Guy's explicit assignment for this milestone only (brief:
 `PERSONAL_WIZARD_CLAUDE_BUILD_BRIEF_20260928.md` on the engine branch, `ef865968`),
@@ -41,13 +41,38 @@ Live intake (P2) is a separate commit.
     (`gpt-transcribe` plus `gpt-6-sol` or `gpt-6-luna`), per-process budget and
     job ceilings, and a signed-in operator allowlist.
   - Before spend: the container is sniffed from the bytes, the duration is
-    measured with ffprobe, and a conservative reservation is made with
-    idempotency per user.
+    measured (since the correction batch: decoded and counted, the packet
+    timeline validated, exactly one audio stream), and a conservative
+    reservation is made with idempotency per user.
   - No retries; `store: false`; no content logging.
 - **P2 evidence:** 93 prototype tests; 29/29 browser checks against the real
   server (fail-closed) and simulated answers.
 - **Live provider path: UNVERIFIED.** No key read, no call, $0. It needs Guy's
   approval (brief cap: $1 for two short synthetic samples).
+
+**Codex QA correction batch.** Codex's QA of `713017e1..8aa9f1d7` was HOLD (P0 0,
+P1 2, P2 3). All five reproduced exactly at `8aa9f1d7`, and there is no
+disagreement. Fixes are in focused commits:
+
+| Commit | Fix |
+| --- | --- |
+| `07c8f30a` | P1-1: duration decoded and counted, malformed timelines refused |
+| `4143f9fa` | P1-2: a corrected transcript supersedes its own proposals; approved ones become a keep-or-remove question |
+| `2b9bce58` | P2-1: an unverified recording is never sent automatically |
+| `215e885c` | P2-2: example provenance follows name, age and topic; request contract v2 |
+| `372a314b` | P2-3: strict text body before any provider; key read only after the operator session |
+| `b01da3b1` | Self-found P1-2 variant: correction chains |
+| `1c8287b5` | Self-found P1-1 variant: exactly one audio stream |
+
+- **Evidence:** 128 prototype tests; tsc 0; browser P1 97/97 and
+  P2 38/38.
+- **Full check:** RED exactly as at the base. The same 10 ordinary failures
+  (missing `outputs/` artifacts), and resource 635/635 with the same
+  `on_task_update_rpc_timeout` gate. +128 tests, all prototype.
+- **Scope:** no redesign, no new screen, no old-Wizard/engine/reader/payment
+  change, no push/deploy, $0.
+- **Details:** section 8 of the evidence doc.
+- **Next:** Codex re-gate.
 
 ## QA book trial admission checked — 2026-09-27; one eligible story, not full readiness
 
