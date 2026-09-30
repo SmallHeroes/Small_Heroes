@@ -19,9 +19,33 @@ import { NextResponse, type NextRequest } from 'next/server';
  * Read process.env DIRECTLY here — middleware is edge and must not import the server-only env module.
  */
 export function middleware(req: NextRequest): NextResponse {
+  const { pathname } = req.nextUrl;
+  const vercelEnv = (process.env.VERCEL_ENV || '').toLowerCase();
+  const stagingQaAllowed =
+    (vercelEnv === 'preview' || vercelEnv === 'development') &&
+    process.env.ALLOW_STAGING_QA === 'true';
+
+  // Only the named QA preview opts into the personal homepage. Keep its scoped fonts/CSS
+  // and page-level gates on the existing preview route; never import them into public `/`.
+  // Host/forwarded headers cannot enable this on production or without every server flag.
+  if (
+    stagingQaAllowed &&
+    process.env.PERSONAL_WIZARD_PREVIEW === 'true' &&
+    process.env.PERSONAL_PRODUCT_QA_HOME === 'true' &&
+    req.nextUrl.hostname === 'qa.smallheroes.co.il' &&
+    pathname === '/' &&
+    (req.method === 'GET' || req.method === 'HEAD')
+  ) {
+    const target = req.nextUrl.clone();
+    target.pathname = '/dev/personal-product';
+    const response = NextResponse.rewrite(target);
+    response.headers.set('X-Robots-Tag', 'noindex, nofollow');
+    response.headers.set('Cache-Control', 'private, no-store');
+    return response;
+  }
+
   if (process.env.NODE_ENV !== 'production') return NextResponse.next();
 
-  const { pathname } = req.nextUrl;
   const isDevPageRoute = pathname === '/dev' || pathname.startsWith('/dev/');
   const isDevApiRoute = pathname === '/api/dev' || pathname.startsWith('/api/dev/');
   const isDebugApiRoute = pathname === '/api/debug' || pathname.startsWith('/api/debug/');
@@ -33,11 +57,6 @@ export function middleware(req: NextRequest): NextResponse {
   // (fake-paid) order and starts generation. Everything else under /dev is open for QA.
   const isBookCreationTrigger =
     pathname === '/api/dev/fake-payment/confirm' || isReleaseV1FakeConfirm;
-
-  const vercelEnv = (process.env.VERCEL_ENV || '').toLowerCase();
-  const stagingQaAllowed =
-    (vercelEnv === 'preview' || vercelEnv === 'development') &&
-    process.env.ALLOW_STAGING_QA === 'true';
 
   if (
     stagingQaAllowed &&
@@ -77,6 +96,7 @@ export function middleware(req: NextRequest): NextResponse {
 
 export const config = {
   matcher: [
+    '/',
     '/dev/:path*',
     '/api/debug/:path*',
     '/api/dev/:path*',

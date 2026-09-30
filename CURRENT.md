@@ -1,5 +1,42 @@
 # SmallHeroes — Current Technical State
 
+## Personal site — QA-only integration in progress (2026-09-30)
+
+Codex owns `codex/personal-site-qa-integration-20260930` in the managed
+`C:/Users/guyna/.codex/worktrees/personal-site-qa/Small_Heroes` checkout, based on
+Claude's `86ca47e8`. Guy explicitly authorized the safe homepage/wizard move to QA.
+This entry supersedes the older pending-review/promotion statements below, not their historical evidence.
+
+- **Independent writer review received:** Claude reviewed exactly `fd2b26bd..45b9e754` in
+  his detached checkout. Paid writing is HOLD (two P2 token-cap/timeout predictions grounded
+  in two planning measurements); he found no risk shipping with writing OFF. No independent
+  approval of the separate engine branch is implied.
+- **Claude landing re-gate:** Codex's technical review covers `c0827427..86ca47e8`, no findings;
+  the earlier round-2 changes were also checked. Product acceptance remains Guy's.
+- **New Codex delta:** opt-in root rewrite only on the exact QA hostname and a recognized
+  non-production Vercel runtime, with all three UI/staging switches ON. Existing preview
+  page gates, scoped CSS/fonts, noindex, public production `/`, `/start`, and payment gates stay intact.
+  The new middleware delta has NOT received independent Claude PASS.
+- **Validation so far:** tsc passes; focused suite **337/337 in 17 files**, including 31
+  real-middleware cases. An in-memory Git-blob control confirms the base does not rewrite;
+  four deliberately broken fences are detected. The test inventory increases 389→390,
+  ordinary 369→370, resource 20 unchanged; no thresholds or workload gates weakened.
+- **Release/config check:** `ENABLE_V3_APPROVED_BANK=true npm run release-check` exits 0;
+  config-only, 18/18 product slots, 1/18 render-qualified, database check skipped because
+  no DATABASE_URL is configured here. This is not a render/readiness or schema certification.
+- **Stability:** first complete check was RED: ordinary 11 failures (10 missing-fixture failures
+  matching the recorded baseline, plus the new inventory-count expectation, since fixed),
+  resource 635/635 tests but three `onTaskUpdate` RPC errors, resource native exit 1.
+  Fresh complete check after the inventory fix is also RED: ordinary 10 failures / 5056
+  passes / 73 skipped; resource 635/635 plus three RPC errors, native exit 1. No stability closure.
+- **QA environment:** only the existing QA branch's preview now has UI switches ON and explicit
+  live-intake/writer OFF overrides. No production environment value, alias or protection changed.
+  Deployment, root-to-wizard runtime verification, and the immutable handoff remain pending.
+- **Exclusions:** no provider, key read, paid audio/image render, engine merge, production push,
+  database mutation/migration, launch acceptance or cleanup. Provider spend $0.
+
+Decision Gate and execution record: `docs/ai-workflow/PERSONAL_SITE_QA_INTEGRATION_20260930.md`.
+
 ## Personal landing: the living-story hero (direction proof) — pushed as its own branch, awaiting Codex (2026-09-30)
 
 Claude built it at Guy's direction on `claude/personal-landing-wow`. It is pushed to origin as a separate branch and
