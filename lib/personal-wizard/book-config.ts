@@ -2,7 +2,7 @@ import 'server-only';
 import { STORY_PRICES, storyReservationUsd, type StoryModel } from './story-config';
 import { STORYBOARD_BOOK_CHECKS, STORYBOARD_FRAME_CHECKS } from './storyboard';
 
-export const BOOK_LIMITS = { inputBytesPerCall: 128_000, timeoutMs: 180_000, maxBudgetUsd: 10, maxJobs: 10 } as const;
+export const BOOK_LIMITS = { inputBytesPerCall: 128_000, maxBudgetUsd: 10, maxJobs: 10 } as const;
 export const BOOK_SPREAD_COUNTS = [8, 12, 16] as const;
 /** Initial headroom, NOT live adequacy proof. Caps include reasoning, not only JSON.
  * Keep reservation, runner and SDK on this one policy; never shrink it to fit money.
@@ -18,7 +18,7 @@ export type PersonalBookSettings = { model: StoryModel; budgetUsd: number; maxJo
 export function personalBookReservationUsd(model: StoryModel, narrativeSpreads: number) {
   const price = STORY_PRICES[model];
   const limits = personalBookOutputLimits(narrativeSpreads);
-  return storyReservationUsd(model) + (2 * BOOK_LIMITS.inputBytesPerCall * price.input +
+  return storyReservationUsd(model, narrativeSpreads) + (2 * BOOK_LIMITS.inputBytesPerCall * price.input +
     (limits.storyboardOutputTokens + limits.reviewOutputTokens) * price.output) / 1_000_000 * 1.1;
 }
 export function assertPersonalBookSettings(settings: PersonalBookSettings) {

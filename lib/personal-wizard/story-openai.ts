@@ -4,7 +4,7 @@ import OpenAI from 'openai';
 import { zodTextFormat } from 'openai/helpers/zod';
 import { z } from 'zod';
 import { personalStoryPlanSchema, personalManuscriptSchema } from './story-contract';
-import { STORY_LIMITS, type StoryModel } from './story-config';
+import { STORY_LIMITS, personalStoryOutputLimits, generationTimeoutMs, type StoryModel } from './story-config';
 import { StoryWriterError, type StoryProvider } from './story-writer';
 
 export function personalProviderSchema(stage: 'plan' | 'manuscript', context: { brief: { beats: number; requestId: string; resilienceMode: 'chosen_topic' | 'adventure_only' }; planDigest?: string }) {
@@ -31,10 +31,13 @@ export function decodePersonalProviderOutput(stage: 'plan' | 'manuscript', conte
 }
 
 export function createPersonalStoryProvider(apiKey: string, model: StoryModel): StoryProvider {
-  const client = new OpenAI({ apiKey, maxRetries: 0, timeout: STORY_LIMITS.timeoutMs });
+  const client = new OpenAI({ apiKey, maxRetries: 0 });
   return {
     async generate(call, signal) {
       const context = JSON.parse(call.input);
+      const limits = personalStoryOutputLimits(context.brief.beats);
+      const cap = call.stage === 'plan' ? limits.planOutputTokens : limits.manuscriptOutputTokens;
+      if (call.maxOutputTokens !== cap) throw new StoryWriterError('story_output_limit');
       const schema = personalProviderSchema(call.stage, context);
       const format = zodTextFormat(schema, `personal_story_${call.stage}`);
       // Reservation includes everything we explicitly send, including schema/instructions.
@@ -46,7 +49,7 @@ export function createPersonalStoryProvider(apiKey: string, model: StoryModel): 
         text: { format },
       };
       if (Buffer.byteLength(JSON.stringify(payload), 'utf8') > STORY_LIMITS.inputBytesPerCall) throw new StoryWriterError('story_input_limit');
-      const response = await client.responses.create(payload, { signal });
+      const response = await client.responses.create(payload, { signal, timeout: generationTimeoutMs(cap) });
       const usage = response.usage ? { inputTokens: response.usage.input_tokens, outputTokens: response.usage.output_tokens } : null;
       try {
         if (response.status !== 'completed' || !response.output_text) throw new StoryWriterError('story_provider_incomplete');

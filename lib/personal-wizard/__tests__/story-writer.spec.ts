@@ -108,7 +108,7 @@ describe('personal manuscript writer at the reviewed request boundary', () => {
     await run(storyRequest(), p, ledger);
     await expect(run(storyRequest(), p, ledger)).rejects.toThrow('duplicate_job');
     expect(p.generate).toHaveBeenCalledTimes(2);
-    expect(ledger.snapshot().reservedTotalUsd).toBe(storyReservationUsd(settings.model));
+    expect(ledger.snapshot().reservedTotalUsd).toBe(storyReservationUsd(settings.model, 8));
   });
   it('refuses budget exhaustion before provider factory', async () => {
     const factory = vi.fn(() => provider());

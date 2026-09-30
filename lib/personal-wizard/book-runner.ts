@@ -2,7 +2,7 @@ import 'server-only';
 import { z } from 'zod';
 import { canonicalJson } from './request-acceptance';
 import { preparePersonalStory, writePersonalStory, StoryWriterError, type StoryProvider } from './story-writer';
-import { STORY_PRICES, storyReservationUsd } from './story-config';
+import { STORY_PRICES, storyReservationUsd, personalStoryOutputLimits, generationTimeoutMs } from './story-config';
 import { IntakeLedger } from './intake-ledger';
 import type { PersonalWizardOptions } from './options';
 import type { StoryUsage, PersonalStoryResult } from './story-contract';
@@ -19,6 +19,7 @@ export type BookAccounting = { model: PersonalBookSettings['model']; reservedUsd
   providerAttempts: number; stages: { stage: BookStage; usage: StoryUsage }[]; kind: 'usage_estimate_not_invoice' };
 export class PersonalBookError extends Error {
   accounting?: BookAccounting;
+  writerResult?: PersonalStoryResult;
   constructor(readonly code: string) { super(code); }
 }
 const usageSchema = z.object({ inputTokens: z.number().int().nonnegative(), outputTokens: z.number().int().nonnegative() }).strict();
@@ -76,6 +77,7 @@ export async function generatePersonalBook(args: {
   const begin = args.ledger.begin(args.userId, args.jobId, reservedUsd, settings);
   if (!begin.ok) fail(`book_${begin.code}`);
   let active: BookStage = 'plan';
+  let completedManuscript: PersonalStoryResult | undefined;
   // Counts actual generate() invocations, NOT intended calls or acknowledged network dispatch.
   async function dispatch(stage: BookStage, call: (signal: AbortSignal) => Promise<{ output: unknown; usage: StoryUsage }>) {
     assertCurrent(); active = stage;
@@ -87,7 +89,10 @@ export async function generatePersonalBook(args: {
     const cancelled = new Promise<never>((_, reject) => { rejectAbort = reject; });
     const cancel = () => { controller.abort(); rejectAbort(new PersonalBookError(timedOut ? 'book_timeout' : 'book_cancelled')); };
     args.signal.addEventListener('abort', cancel, { once: true });
-    const timer = setTimeout(() => { timedOut = true; cancel(); }, BOOK_LIMITS.timeoutMs);
+    const storyLimits = personalStoryOutputLimits(narrativeSpreads);
+    const cap = stage === 'plan' ? storyLimits.planOutputTokens : stage === 'manuscript' ? storyLimits.manuscriptOutputTokens :
+      stage === 'storyboard' ? outputLimits.storyboardOutputTokens : outputLimits.reviewOutputTokens;
+    const timer = setTimeout(() => { timedOut = true; cancel(); }, generationTimeoutMs(cap));
     try {
       if (args.signal.aborted) cancel();
       const answer = await Promise.race([cancelled, Promise.resolve().then(() => {
@@ -119,7 +124,7 @@ export async function generatePersonalBook(args: {
     let writerResult: PersonalStoryResult;
     try {
       writerResult = await writePersonalStory({ prepared, userId: args.userId, jobId: args.jobId,
-        settings: { model: settings.model, budgetUsd: storyReservationUsd(settings.model), maxJobs: 1, operators: settings.operators },
+        settings: { model: settings.model, budgetUsd: storyReservationUsd(settings.model, narrativeSpreads), maxJobs: 1, operators: settings.operators },
         ledger: new IntakeLedger(), signal: args.signal,
         provider: () => ({ generate: async call => {
           try { return { output: await dispatch(call.stage,
@@ -136,10 +141,12 @@ export async function generatePersonalBook(args: {
       if (error instanceof PersonalBookError) throw error;
       // The legacy writer wraps provider errors; preserve only our known nested codes.
       const code = (error as { code?: string })?.code;
+      if (code === 'story_timeout') fail('book_timeout');
       if (code && ['book_timeout', 'book_source_changed', 'book_reservation_exceeded', 'book_provider_failed'].includes(code)) fail(code);
       throw new PersonalBookError('book_story_invalid');
     }
     assertCurrent();
+    completedManuscript = writerResult;
     const source = preparePersonalStoryboard(args.request, writerResult, args.options);
     const visual = async (call: BookVisualCall) => {
       if (Buffer.byteLength(call.instructions + call.input, 'utf8') > BOOK_LIMITS.inputBytesPerCall - 24_000) fail('book_input_limit');
@@ -165,6 +172,13 @@ export async function generatePersonalBook(args: {
   } catch (error) {
     args.ledger.finish(args.userId, args.jobId, 'failed');
     const failure = error instanceof PersonalBookError ? error : new PersonalBookError('book_failed');
+    // A failed later stage does not erase the completed paid manuscript. Diagnostic
+    // display only: never attach it to a changed/cancelled request or issue packets.
+    if (!args.signal.aborted && failure.code !== 'book_source_changed') {
+      try {
+        if (preparePersonalStory(args.request, args.options).accepted.requestId === originalRequestId) failure.writerResult = completedManuscript;
+      } catch { /* No partial output for an invalid/changed request. */ }
+    }
     failure.accounting = accounting(); emit(active, 'failed', failure.code); throw failure;
   }
 }

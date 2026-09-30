@@ -5,7 +5,7 @@ import { IntakeLedger } from '@/lib/personal-wizard/intake-ledger';
 import { readIntakeApiKey } from '@/lib/personal-wizard/intake-config';
 import { resolvePersonalWizardOptions } from '@/lib/personal-wizard/options';
 import { storyAccess, storyResponse } from '@/lib/personal-wizard/story-access';
-import { STORY_LIMITS, storyReservationUsd } from '@/lib/personal-wizard/story-config';
+import { storyReservationUsd } from '@/lib/personal-wizard/story-config';
 import { createPersonalStoryProvider } from '@/lib/personal-wizard/story-openai';
 import { preparePersonalStory, writePersonalStory, StoryWriterError } from '@/lib/personal-wizard/story-writer';
 
@@ -36,21 +36,15 @@ export async function POST(req: NextRequest) {
   let prepared;
   try { prepared = preparePersonalStory(parsed.data.request, resolvePersonalWizardOptions()); }
   catch (error) { return storyResponse({ error: error instanceof StoryWriterError ? error.code : 'story_invalid_request' }, 422); }
-  // No key access before an authorised caller AND a valid reviewed request/length.
-  const apiKey = readIntakeApiKey();
-  if (!apiKey) return storyResponse({ error: 'writer_unavailable' }, 503);
-  const controller = new AbortController();
-  const cancel = () => controller.abort();
-  req.signal.addEventListener('abort', cancel, { once: true });
-  if (req.signal.aborted) controller.abort();
-  const timer = setTimeout(cancel, STORY_LIMITS.timeoutMs);
   try {
-    return storyResponse(await writePersonalStory({ prepared, userId: access.userId, jobId: parsed.data.jobId, settings: access.settings, ledger: ledger(), signal: controller.signal, provider: () => createPersonalStoryProvider(apiKey, access.settings.model), record: (receipt) => console.info(JSON.stringify({ event: 'personal_manuscript_pilot', ...receipt })) }));
+    return storyResponse(await writePersonalStory({ prepared, userId: access.userId, jobId: parsed.data.jobId, settings: access.settings, ledger: ledger(), signal: req.signal, provider: () => {
+      // The writer reserves before invoking this factory; budget refusals read no key.
+      const apiKey = readIntakeApiKey();
+      if (!apiKey) throw new StoryWriterError('writer_unavailable');
+      return createPersonalStoryProvider(apiKey, access.settings.model);
+    }, record: (receipt) => console.info(JSON.stringify({ event: 'personal_manuscript_pilot', ...receipt })) }));
   } catch (error) {
     const code = error instanceof StoryWriterError ? error.code : 'story_failed';
-    return storyResponse({ error: code, accounting: error instanceof StoryWriterError ? error.accounting ?? null : null }, ['duplicate_job', 'user_busy', 'job_limit', 'budget_exhausted'].includes(code) ? 409 : code === 'story_cancelled' ? 408 : 502);
-  } finally {
-    clearTimeout(timer);
-    req.signal.removeEventListener('abort', cancel);
+    return storyResponse({ error: code, accounting: error instanceof StoryWriterError ? error.accounting ?? null : null }, ['duplicate_job', 'user_busy', 'job_limit', 'budget_exhausted'].includes(code) ? 409 : ['story_cancelled', 'story_timeout'].includes(code) ? 408 : code === 'writer_unavailable' ? 503 : 502);
   }
 }

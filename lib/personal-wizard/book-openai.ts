@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { wholeBookDraftSchema } from '../local-book-planning';
 import { personalStoryboardReviewSchema, STORYBOARD_BOOK_CHECKS, STORYBOARD_FRAME_CHECKS } from './storyboard';
 import { createPersonalStoryProvider } from './story-openai';
-import type { StoryModel } from './story-config';
+import { generationTimeoutMs, type StoryModel } from './story-config';
 import { BOOK_LIMITS, personalBookOutputLimits } from './book-config';
 import type { BookVisualCall, PersonalBookProvider } from './book-runner';
 import type { StoryUsage } from './story-contract';
@@ -57,7 +57,7 @@ export function decodePersonalBookProviderOutput(call: BookVisualCall, raw: unkn
 
 /** Caller must validate request/settings and reserve the entire job before constructing this. */
 export function createPersonalBookProvider(apiKey: string, model: StoryModel): PersonalBookProvider {
-  const client = new OpenAI({ apiKey, maxRetries: 0, timeout: BOOK_LIMITS.timeoutMs });
+  const client = new OpenAI({ apiKey, maxRetries: 0 });
   return { story: createPersonalStoryProvider(apiKey, model), visual: { async generate(call, signal) {
     const schema = personalBookProviderSchema(call);
     const limits = personalBookOutputLimits(call.context.narrativeSpreads);
@@ -67,7 +67,7 @@ export function createPersonalBookProvider(apiKey: string, model: StoryModel): P
       instructions: call.instructions + '\nProvider output: ordered arrays have NO pageNumber; book/continuity start with cover. Review fixed groups have NO category/hash/pageNumber metadata.',
       input: call.input, max_output_tokens: call.maxOutputTokens, text: { format: zodTextFormat(schema, `personal_book_${call.stage}`) } };
     if (Buffer.byteLength(JSON.stringify(payload), 'utf8') > BOOK_LIMITS.inputBytesPerCall) throw new BookProviderError('book_provider_input_limit');
-    const response = await client.responses.create(payload, { signal });
+    const response = await client.responses.create(payload, { signal, timeout: generationTimeoutMs(call.maxOutputTokens) });
     const usage = response.usage ? { inputTokens: response.usage.input_tokens, outputTokens: response.usage.output_tokens } : null;
     try {
       if (response.status !== 'completed' || !response.output_text) throw new BookProviderError('book_provider_incomplete');

@@ -9,12 +9,20 @@ export const STORY_PRICES = {
 export type StoryModel = keyof typeof STORY_PRICES;
 export const STORY_LIMITS = {
   inputBytesPerCall: 64_000,
-  planOutputTokens: 5000,
-  manuscriptOutputTokens: 12_000,
-  timeoutMs: 180_000,
   budgetUsd: 5,
   maxJobs: 10,
 } as const;
+/** Reasoning-inclusive headroom, not live adequacy proof. */
+export function personalStoryOutputLimits(narrativeSpreads: number) {
+  if (![8, 12, 16].includes(narrativeSpreads)) throw Error('story_length_invalid');
+  const outputTokens = 4_000 + 500 * narrativeSpreads;
+  return { planOutputTokens: outputTokens, manuscriptOutputTokens: outputTokens };
+}
+/** Conservative local ceiling, not a throughput SLA or cloud duration promise. */
+export function generationTimeoutMs(outputTokens: number): number {
+  if (!Number.isInteger(outputTokens) || outputTokens < 1 || outputTokens > 55_000) throw Error('generation_cap_invalid');
+  return 60_000 + Math.ceil(outputTokens / 25) * 1_000;
+}
 export type StorySettings = { model: StoryModel; budgetUsd: number; maxJobs: number; operators: Set<string> };
 export function resolveStorySettings(env: Readonly<Record<string, string | undefined>> = process.env): StorySettings | null {
   if (env.PERSONAL_WIZARD_PREVIEW !== 'true' || env.PERSONAL_WIZARD_STORY_WRITER !== 'true') return null;
@@ -26,7 +34,8 @@ export function resolveStorySettings(env: Readonly<Record<string, string | undef
   if (!operators.size || !Number.isFinite(budgetUsd) || budgetUsd <= 0 || budgetUsd > STORY_LIMITS.budgetUsd || !Number.isInteger(maxJobs) || maxJobs < 1 || maxJobs > STORY_LIMITS.maxJobs) return null;
   return { model: model as StoryModel, budgetUsd, maxJobs, operators };
 }
-export function storyReservationUsd(model: StoryModel): number {
+export function storyReservationUsd(model: StoryModel, narrativeSpreads = 16): number {
   const price = STORY_PRICES[model];
-  return (2 * STORY_LIMITS.inputBytesPerCall * price.input + (STORY_LIMITS.planOutputTokens + STORY_LIMITS.manuscriptOutputTokens) * price.output) / 1_000_000 * 1.1;
+  const limits = personalStoryOutputLimits(narrativeSpreads);
+  return (2 * STORY_LIMITS.inputBytesPerCall * price.input + (limits.planOutputTokens + limits.manuscriptOutputTokens) * price.output) / 1_000_000 * 1.1;
 }

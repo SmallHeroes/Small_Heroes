@@ -5,6 +5,7 @@ vi.mock('openai', () => ({ default: class {
   constructor(options: unknown) { sdk.options = options; }
 } }));
 import { createPersonalStoryProvider, decodePersonalProviderOutput, personalProviderSchema } from '../story-openai';
+import { generationTimeoutMs } from '../story-config';
 
 const digest = 'a'.repeat(64);
 const context = (beats = 8) => ({ brief: { beats, requestId: 'r_bound', resilienceMode: 'adventure_only' as const }, planDigest: digest });
@@ -47,20 +48,21 @@ describe('real adapter schema and deterministic metadata', () => {
     expect(() => personalProviderSchema('manuscript', { brief: context().brief })).toThrow('story_provider_context');
     expect(() => personalProviderSchema('plan', context(9))).toThrow('story_provider_context');
     const provider = createPersonalStoryProvider('fake-test-key', 'gpt-6-sol');
-    await expect(provider.generate({ stage: 'manuscript', input: JSON.stringify({ brief: context().brief }), instructions: 'text', maxOutputTokens: 100 }, new AbortController().signal)).rejects.toThrow('story_provider_context');
+    await expect(provider.generate({ stage: 'manuscript', input: JSON.stringify({ brief: context().brief }), instructions: 'text', maxOutputTokens: 8000 }, new AbortController().signal)).rejects.toThrow('story_provider_context');
     expect(sdk.create).not.toHaveBeenCalled();
   });
   it('uses strict exact-count SDK schema, no retry/storage, and passes the abort signal', async () => {
     sdk.create.mockResolvedValue({ status: 'completed', output_text: JSON.stringify(raw('plan')), usage: { input_tokens: 100, output_tokens: 200 } });
     const signal = new AbortController().signal;
-    const result: any = await createPersonalStoryProvider('fake-test-key', 'gpt-6-sol').generate({ stage: 'plan', input: JSON.stringify(context()), instructions: 'rules', maxOutputTokens: 5000 }, signal);
+    const result: any = await createPersonalStoryProvider('fake-test-key', 'gpt-6-sol').generate({ stage: 'plan', input: JSON.stringify(context()), instructions: 'rules', maxOutputTokens: 8000 }, signal);
     expect(sdk.options).toMatchObject({ maxRetries: 0 });
     const [payload, options] = sdk.create.mock.calls[0];
-    expect(payload).toMatchObject({ model: 'gpt-6-sol', store: false, service_tier: 'default', reasoning: { effort: 'medium' }, max_output_tokens: 5000 });
+    expect(payload).toMatchObject({ model: 'gpt-6-sol', store: false, service_tier: 'default', reasoning: { effort: 'medium' }, max_output_tokens: 8000 });
     expect(payload.text.format.strict).toBe(true);
     expect(payload.text.format.schema.properties.beats).toMatchObject({ minItems: 8, maxItems: 8 });
     expect(payload.text.format.schema.properties.beats.items.properties).not.toHaveProperty('pageNumber');
     expect(options.signal).toBe(signal);
+    expect(options.timeout).toBe(generationTimeoutMs(8000));
     expect(result.output.beats[7].pageNumber).toBe(8);
     expect(result.usage).toEqual({ inputTokens: 100, outputTokens: 200 });
   });
@@ -71,7 +73,7 @@ describe('real adapter schema and deterministic metadata', () => {
   ])('retains billed usage on %s adapter failure without a retry', async (status, output_text, code) => {
     sdk.create.mockResolvedValue({ status, output_text, usage: { input_tokens: 100, output_tokens: 200 } });
     const provider = createPersonalStoryProvider('fake-test-key', 'gpt-6-sol');
-    const error: any = await provider.generate({ stage: 'plan', input: JSON.stringify(context()), instructions: 'rules', maxOutputTokens: 5000 }, new AbortController().signal).catch((error) => error);
+    const error: any = await provider.generate({ stage: 'plan', input: JSON.stringify(context()), instructions: 'rules', maxOutputTokens: 8000 }, new AbortController().signal).catch((error) => error);
     expect(error.code).toBe(code); expect(error.providerUsage).toEqual({ inputTokens: 100, outputTokens: 200 });
     expect(sdk.create).toHaveBeenCalledTimes(1);
   });

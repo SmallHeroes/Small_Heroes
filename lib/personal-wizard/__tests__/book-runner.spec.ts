@@ -8,6 +8,7 @@ import { generatePersonalBook, PersonalBookError, PERSONAL_BOOK_REVIEW_INSTRUCTI
 import { resolvePersonalWizardOptions, PROTOTYPE_COMPANION_ROSTER } from '../options';
 import { BOOK_LIMITS, personalBookOutputLimits, personalBookReservationUsd, resolvePersonalBookSettings, type PersonalBookSettings } from '../book-config';
 import { IntakeLedger } from '../intake-ledger';
+import { generationTimeoutMs, personalStoryOutputLimits } from '../story-config';
 import { createPersonalBookProvider, decodePersonalBookProviderOutput, personalBookProviderSchema } from '../book-openai';
 import { STORYBOARD_BOOK_CHECKS, STORYBOARD_FRAME_CHECKS } from '../storyboard';
 
@@ -30,6 +31,12 @@ const errorOf = async (promise: Promise<unknown>): Promise<PersonalBookError> =>
 };
 
 describe('automatic personal manuscript -> full storyboard -> separate semantic review', () => {
+  it('retains completed prose after a later failure, but never returns frame packets', async () => {
+    const f = await setup(); vi.mocked(f.provider.visual.generate).mockRejectedValue(Error('private'));
+    const failure = await errorOf(generatePersonalBook(f.args));
+    expect(failure.code).toBe('book_provider_failed'); expect(failure.writerResult?.manuscript).toEqual(f.result.manuscript);
+    expect(failure.accounting?.providerAttempts).toBe(3); expect(failure).not.toHaveProperty('framePackets');
+  });
   it.each([['short', 8, 16], ['medium', 12, 24], ['long', 16, 32]])('runs all four stages in one job for %s', async (length, count, display) => {
     const f = await setup(length as string); const events: unknown[] = [];
     const result = await generatePersonalBook({ ...f.args, record: event => events.push(event) });
@@ -166,9 +173,26 @@ describe('automatic personal manuscript -> full storyboard -> separate semantic 
     vi.mocked(f.provider.story.generate).mockImplementation(async (_call, signal) => { observed = signal; return new Promise(() => {}); });
     vi.useFakeTimers();
     try {
-      const pending = errorOf(generatePersonalBook(f.args)); await vi.advanceTimersByTimeAsync(BOOK_LIMITS.timeoutMs + 1);
+      const pending = errorOf(generatePersonalBook(f.args)); await vi.advanceTimersByTimeAsync(generationTimeoutMs(personalStoryOutputLimits(8).planOutputTokens) + 1);
       const error = await pending; expect(error.code).toBe('book_timeout'); expect(observed?.aborted).toBe(true);
       expect(error.accounting?.providerAttempts).toBe(1); expect(f.ledger.snapshot().inFlight).toBe(0);
+    } finally { vi.useRealTimers(); }
+  });
+  it.each(['storyboard', 'review'] as const)('gives %s its cap-derived deadline rather than the former 180s', async stage => {
+    const f = await setup(); let observed: AbortSignal | undefined;
+    vi.mocked(f.provider.visual.generate).mockImplementation(async (call, signal) => {
+      if (call.stage === stage) { observed = signal; return new Promise(() => {}); }
+      return { output: f.draft, usage: null };
+    });
+    vi.useFakeTimers();
+    try {
+      const pending = errorOf(generatePersonalBook(f.args)); await vi.advanceTimersByTimeAsync(180001);
+      expect(observed?.aborted).toBe(false);
+      const caps = personalBookOutputLimits(8);
+      await vi.advanceTimersByTimeAsync(generationTimeoutMs(stage === 'storyboard' ? caps.storyboardOutputTokens : caps.reviewOutputTokens) - 180000);
+      const failure = await pending; expect(failure.code).toBe('book_timeout'); expect(observed?.aborted).toBe(true);
+      expect(failure.accounting?.providerAttempts).toBe(stage === 'storyboard' ? 3 : 4);
+      expect(failure.accounting?.estimatedUsd).toBeNull(); expect(f.ledger.snapshot().inFlight).toBe(0);
     } finally { vi.useRealTimers(); }
   });
 });
@@ -188,7 +212,7 @@ function providerReview(f: Awaited<ReturnType<typeof setup>>) {
 }
 
 describe('actual OpenAI adapter, deterministic metadata and default-off configuration', () => {
-  it.each([[8, 32_000, 39_000, 1.8128], [12, 39_000, 47_000, 1.9778], [16, 51_000, 55_000, 2.1978]])(
+  it.each([[8, 32_000, 39_000, 1.8018], [12, 39_000, 47_000, 2.0108], [16, 51_000, 55_000, 2.2748]])(
     'sizes reasoning-inclusive caps and full reservations for %s spreads', (count, author, reviewer, solReservation) => {
       expect(personalBookOutputLimits(count)).toEqual({ storyboardOutputTokens: author, reviewOutputTokens: reviewer });
       const checkCount = STORYBOARD_BOOK_CHECKS.length + STORYBOARD_FRAME_CHECKS.length * (count + 1);
@@ -196,7 +220,8 @@ describe('actual OpenAI adapter, deterministic metadata and default-off configur
       expect(author).toBeLessThanOrEqual(128_000); expect(reviewer).toBeLessThanOrEqual(128_000);
       // Independent arithmetic includes the unchanged writer's two caps, four input budgets,
       // both new visual caps, the existing rate cards and the same 10% buffer.
-      const output = 5_000 + 12_000 + author + reviewer;
+      const storyLimits = personalStoryOutputLimits(count);
+      const output = storyLimits.planOutputTokens + storyLimits.manuscriptOutputTokens + author + reviewer;
       const input = 2 * 64_000 + 2 * 128_000;
       expect(personalBookReservationUsd('gpt-6-sol', count)).toBeCloseTo((input * 2 + output * 10) / 1_000_000 * 1.1, 10);
       expect(personalBookReservationUsd('gpt-6-sol', count)).toBeCloseTo(solReservation, 10);
@@ -245,11 +270,13 @@ describe('actual OpenAI adapter, deterministic metadata and default-off configur
     const result = await generatePersonalBook({ ...f.args, provider: () => createPersonalBookProvider('fake-test-key', 'gpt-6-sol') });
     expect(result.framePackets).toHaveLength(f.book.narrativeSpreads + 1); expect(sdk.create).toHaveBeenCalledTimes(4);
     const limits = personalBookOutputLimits(f.book.narrativeSpreads);
-    expect(sdk.create.mock.calls.map(([payload]) => payload.max_output_tokens)).toEqual([5_000, 12_000, limits.storyboardOutputTokens, limits.reviewOutputTokens]);
+    const storyLimits = personalStoryOutputLimits(f.book.narrativeSpreads);
+    expect(sdk.create.mock.calls.map(([payload]) => payload.max_output_tokens)).toEqual([storyLimits.planOutputTokens, storyLimits.manuscriptOutputTokens, limits.storyboardOutputTokens, limits.reviewOutputTokens]);
     expect(result.accounting.reservedUsd).toBe(personalBookReservationUsd('gpt-6-sol', f.book.narrativeSpreads));
     for (const [payload, opts] of sdk.create.mock.calls) {
       expect(payload).toMatchObject({ store: false, reasoning: { effort: 'medium' }, service_tier: 'default' });
       expect(payload.text.format.strict).toBe(true); expect(opts.signal).toBeInstanceOf(AbortSignal);
+      expect(opts.timeout).toBe(generationTimeoutMs(payload.max_output_tokens));
     }
     expect(sdk.options).toHaveLength(2); sdk.options.forEach(opts => expect(opts).toMatchObject({ maxRetries: 0 }));
   });

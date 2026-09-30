@@ -8,7 +8,8 @@ import { acceptPersonalBookRequest, canonicalJson } from './request-acceptance';
 import { IntakeLedger } from './intake-ledger';
 import { comparableText } from './contract';
 import { personalStoryPlanSchema, personalManuscriptSchema, type PersonalStoryResult, type StoryUsage } from './story-contract';
-import { STORY_LIMITS, STORY_PRICES, storyReservationUsd, type StorySettings } from './story-config';
+import { STORY_LIMITS, STORY_PRICES, personalStoryOutputLimits, storyReservationUsd, type StorySettings } from './story-config';
+import { withGenerationDeadline } from './generation-deadline';
 
 export class StoryWriterError extends Error {
   accounting?: PersonalStoryResult['accounting'];
@@ -61,7 +62,7 @@ export function preparePersonalStory(input: unknown, options: PersonalWizardOpti
   const call: StoryCall = {
     stage: 'plan', instructions: `${STORY_INSTRUCTIONS}\n${RESILIENCE_INSTRUCTIONS}`,
     input: canonicalJson({ brief, task: `Plan the entire adventure before prose. Produce EXACTLY ${brief.beats} beats in narrative order. The engine assigns page numbers from array order; do NOT include pageNumber in individual beats. Each beat is one narrative spread representing TWO display pages. resilience.moments refer to positions 1 through ${brief.beats} in that array. Give each move a cause, each child action a consequence, and track locations, recurring objects/custody and unfinished actions in continuity. factIds must refer only to approved facts, and at least one interest must influence action. Include the chosen companion throughout. The final beat pays off an earlier choice. Do not force four locations or a particular plot.` }),
-    maxOutputTokens: STORY_LIMITS.planOutputTokens,
+    maxOutputTokens: personalStoryOutputLimits(brief.beats).planOutputTokens,
   };
   checkInput(call);
   return { accepted, brief, call };
@@ -75,7 +76,7 @@ export async function writePersonalStory(args: {
 }): Promise<PersonalStoryResult> {
   const { prepared, userId, jobId, settings, ledger, signal } = args;
   if (signal.aborted) fail('story_cancelled');
-  const reservedUsd = storyReservationUsd(settings.model);
+  const reservedUsd = storyReservationUsd(settings.model, prepared.brief.beats);
   const begin = ledger.begin(userId, jobId, reservedUsd, settings);
   if (!begin.ok) fail(begin.code);
   const usage: StoryUsage[] = [];
@@ -89,8 +90,11 @@ export async function writePersonalStory(args: {
   };
   try {
     const provider = args.provider();
+    const generate = (call: StoryCall) => withGenerationDeadline(call.maxOutputTokens, signal,
+      reason => new StoryWriterError(reason === 'timeout' ? 'story_timeout' : 'story_cancelled'),
+      stageSignal => provider.generate(call, stageSignal));
     calls += 1;
-    const planned = await provider.generate(prepared.call, signal);
+    const planned = await generate(prepared.call);
     usage.push(planned.usage);
     if (signal.aborted) fail('story_cancelled');
     const parsedPlan = personalStoryPlanSchema.safeParse(planned.output);
@@ -107,12 +111,12 @@ export async function writePersonalStory(args: {
     const call: StoryCall = {
       stage: 'manuscript', instructions: `${STORY_INSTRUCTIONS}\n${RESILIENCE_INSTRUCTIONS}`,
       input: canonicalJson({ brief: prepared.brief, plan, planDigest, task: 'Write the complete Hebrew story following this whole-story plan, in the exact beat order/count. Do NOT include pageNumber in output pages; the engine assigns numbering from array order. Each spread gets 35 to 65 words for ages 3 to 5, or 45 to 85 words for ages 6 to 8. Keep a natural read-aloud voice and visible, causally clear action; no imageDirection markers, headings in prose or moral summary. Personal facts are permissions, not a requirement to repeat every detail. No new real-world biographical claims.' }),
-      maxOutputTokens: STORY_LIMITS.manuscriptOutputTokens,
+      maxOutputTokens: personalStoryOutputLimits(prepared.brief.beats).manuscriptOutputTokens,
     };
     checkInput(call);
     if (signal.aborted) fail('story_cancelled');
     calls += 1;
-    const written = await provider.generate(call, signal);
+    const written = await generate(call);
     usage.push(written.usage);
     if (signal.aborted) fail('story_cancelled');
     const parsed = personalManuscriptSchema.safeParse(written.output);

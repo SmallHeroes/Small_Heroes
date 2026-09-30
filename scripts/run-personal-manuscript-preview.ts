@@ -4,7 +4,7 @@ import { resolve, relative, isAbsolute } from 'path';
 import { resolvePersonalWizardOptions } from '../lib/personal-wizard/options';
 import { preparePersonalStory, writePersonalStory, StoryWriterError } from '../lib/personal-wizard/story-writer';
 import { createPersonalStoryProvider } from '../lib/personal-wizard/story-openai';
-import { resolveStorySettings, STORY_LIMITS } from '../lib/personal-wizard/story-config';
+import { resolveStorySettings } from '../lib/personal-wizard/story-config';
 import { readIntakeApiKey } from '../lib/personal-wizard/intake-config';
 import { IntakeLedger } from '../lib/personal-wizard/intake-ledger';
 
@@ -21,13 +21,13 @@ async function main() {
   // Reject an existing output root BEFORE paid calls. No overwrite/replay can re-bill this root.
   mkdirSync(outputRoot, { recursive: true });
   mkdirSync(output, { recursive: false });
-  const apiKey = readIntakeApiKey();
-  if (!apiKey) throw new Error('existing_key_unavailable');
   const startedAt = new Date().toISOString();
-  const signal = AbortSignal.timeout(STORY_LIMITS.timeoutMs);
+  const signal = new AbortController().signal; // Writer owns each stage's bounded deadline.
   let receipt: unknown = null;
   try {
     const result = await writePersonalStory({ prepared, userId: 'explicit-local-operator', jobId: 's_singlepreview0001', settings, ledger: new IntakeLedger(), signal, provider: () => {
+      const apiKey = readIntakeApiKey();
+      if (!apiKey) throw new StoryWriterError('writer_unavailable');
       const actual = createPersonalStoryProvider(apiKey, settings.model);
       return { generate: async (call, signal) => {
         const response = await actual.generate(call, signal);

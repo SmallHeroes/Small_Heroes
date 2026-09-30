@@ -27,7 +27,8 @@ export async function GET(req: NextRequest) {
     model: allowed.settings.model, maxProviderAttempts: 4,
     reservations: BOOK_SPREAD_COUNTS.map(narrativeSpreads => {
       const reservationUsd = personalBookReservationUsd(allowed.settings.model, narrativeSpreads);
-      return { narrativeSpreads, displayPages: narrativeSpreads * 2, outputLimits: personalBookOutputLimits(narrativeSpreads),
+      const lengthId = resolvePersonalWizardOptions().lengths.find(length => length.pages === narrativeSpreads * 2)?.id;
+      return { lengthId, narrativeSpreads, displayPages: narrativeSpreads * 2, outputLimits: personalBookOutputLimits(narrativeSpreads),
         reservationUsd, fitsConfiguredTotalBudget: reservationUsd <= allowed.settings.budgetUsd };
     }) });
 }
@@ -62,6 +63,7 @@ export async function POST(req: NextRequest) {
     const code = error instanceof PersonalBookError ? error.code : 'book_failed';
     const status = ['book_duplicate_job', 'book_user_busy', 'book_job_limit', 'book_budget_exhausted'].includes(code) ? 409 :
       ['book_cancelled', 'book_timeout'].includes(code) ? 408 : code === 'book_unavailable' ? 503 : 502;
-    return storyResponse({ error: code, accounting: error instanceof PersonalBookError ? error.accounting ?? null : null }, status);
+    return storyResponse({ error: code, writerResult: error instanceof PersonalBookError ? error.writerResult ?? null : null,
+      accounting: error instanceof PersonalBookError ? error.accounting ?? null : null }, status);
   }
 }

@@ -1,5 +1,44 @@
 # SmallHeroes — Current Technical State
 
+## Personal wizard -> complete book planner: local pilot connection (2026-09-30)
+
+Guy explicitly requested activation with the existing key. Same Codex chat is
+sole writer on `codex/personal-book-storyboard-bridge`, base `10f54930`, no upstream.
+This correction does not self-close Claude's paid writer/runner HOLDs.
+
+- Summary now invokes the four-stage book route with the SERVER-reviewed request,
+  not the manuscript-only route: plan -> prose -> whole-story storyboard ->
+  semantic diagnostic. Same six companions/three lengths, no catalogue cutover.
+  Revision/unmount abort and epoch guards remain; display validates request,
+  spread coverage, digest bindings and disposition. Holds stay holds. A later
+  failure may display completed prose only, never frame/render authority.
+- Writer caps now 8k/10k/12k for each stage at 8/12/16 narrative spreads. Each
+  stage and SDK request gets cap/25 tok/s + 60s, no retry; standalone route and CLI
+  no longer share a 180s whole-job timer. Timeouts/cancel remain distinct. This
+  floor is conservative headroom, NOT measured throughput/quality assurance.
+- Full Sol reservations $1.8018/$2.0108/$2.2748; Astra five times these amounts.
+  $10 hard book limit unchanged; medium/long Astra no longer fit it. Writer key
+  access now follows reservation. Existing rate cards, estimates not invoices.
+- Typecheck 0. Focused **428/428 in 18 files**, plus audio **11/11 in one file**.
+  Full check is still RED: first ordinary run 375 files, 11 failed/5243 passed/
+  73 skipped. Ten missing-fixture failures match previous named records; one NEW
+  stale classifier inventory caused by adding two specs was fixed (395 total,
+  375 ordinary) and its 7/7 tests passed. Resource stage was still running when
+  this entry was written. No full-green, causal independence or release claim.
+- Planned operator pilot: one loopback-only local server on 3443, existing key
+  in memory and established staging DB, live intake $1/eight jobs; gpt-6-sol
+  medium book $3/one job. Old writer flag OFF. No paid dispatch by startup,
+  no new credential, cloud live flag, deployment, image or narration.
+  Process-local ledgers are NOT a cloud-wide cap or restart-safe spending record.
+
+Decision: `docs/ai-workflow/PERSONAL_BOOK_LIVE_CONNECTION_DECISION_20260930.md`.
+Raw logs and scoped launcher: `outputs/personal-book-live-connection-20260930/`,
+ignored/untracked, local-only without verified off-machine backup. Runtime and
+independent-QA handoff will be appended after browser verification. No push.
+
+**Next:** activate/check the real local wizard, let Guy record and judge the
+generated text; independent Claude review required before claiming closure.
+
 ## Personal book output-budget correction — implemented, awaiting Claude re-gate (2026-09-30)
 
 Claude's verdict on `07d3c8d3..bcd8a226` is **HOLD, one P2**: fixed 12k storyboard

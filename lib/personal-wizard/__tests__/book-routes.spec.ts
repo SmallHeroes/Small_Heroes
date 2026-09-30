@@ -114,7 +114,7 @@ describe('real local diagnostic book route', () => {
     const response = await GET(new NextRequest(url)); const body = await response.json();
     expect(body.liveAvailabilityUnverified).toBe(true); expect(body.maxProviderAttempts).toBe(4); expect(body.runtimeEligible).toBe(false); expect(deps.keyReads).toBe(0);
     expect(body).not.toHaveProperty('reservationUsd');
-    expect(body.reservations).toEqual([8, 12, 16].map(narrativeSpreads => ({ narrativeSpreads, displayPages: narrativeSpreads * 2,
+    expect(body.reservations).toEqual([8, 12, 16].map((narrativeSpreads, index) => ({ lengthId: ['short', 'medium', 'long'][index], narrativeSpreads, displayPages: narrativeSpreads * 2,
       outputLimits: personalBookOutputLimits(narrativeSpreads), reservationUsd: personalBookReservationUsd('gpt-6-sol', narrativeSpreads), fitsConfiguredTotalBudget: true })));
     deps.user = null; expect((await GET(new NextRequest(url))).status).toBe(401);
   });
@@ -137,8 +137,8 @@ describe('real local diagnostic book route', () => {
     fixture = await personalStoryboardFixture('long');
     process.env.PERSONAL_WIZARD_BOOK_MODEL = 'gpt-6-astra'; process.env.PERSONAL_WIZARD_BOOK_BUDGET_USD = '10';
     const status = await GET(new NextRequest(url)); const body = await status.json();
-    expect(body.reservations.map((row: { fitsConfiguredTotalBudget: boolean }) => row.fitsConfiguredTotalBudget)).toEqual([true, true, false]);
-    expect(body.reservations[2].reservationUsd).toBeCloseTo(10.989, 10);
+    expect(body.reservations.map((row: { fitsConfiguredTotalBudget: boolean }) => row.fitsConfiguredTotalBudget)).toEqual([true, false, false]);
+    expect(body.reservations[2].reservationUsd).toBeCloseTo(11.374, 10);
     expect(body.reservations[2].outputLimits).toEqual({ storyboardOutputTokens: 51_000, reviewOutputTokens: 55_000 });
     const response = await POST(req(job()));
     expect(response.status).toBe(409); expect((await response.json()).error).toBe('book_budget_exhausted');

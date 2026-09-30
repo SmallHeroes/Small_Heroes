@@ -66,11 +66,13 @@ describe('actual local manuscript route', () => {
     const first = await POST(request(job()));
     expect(first.status).toBe(502); expect(JSON.stringify(await first.json())).not.toContain('private-provider-sentinel');
     expect((await POST(request(job()))).status).toBe(409); expect(deps.calls).toBe(1);
+    expect(deps.keyReads).toBe(1);
   });
   it('limits jobs/budget across requests, not separately per manuscript stage', async () => {
     expect((await POST(request(job()))).status).toBe(200);
     expect((await POST(request(job('s_routejob0000002')))).status).toBe(200);
     expect((await POST(request(job('s_routejob0000003')))).status).toBe(409); expect(deps.calls).toBe(4);
+    expect(deps.keyReads).toBe(2);
   });
   it('status route also enforces signed-in operator authority', async () => {
     deps.user = null;
