@@ -7,15 +7,12 @@
 .personal-product .personal-hero-notes li { border-inline-start: 2px solid var(--purple-200); padding-inline-start: 10px; }
 .personal-kicker { width: fit-content; margin: 0 auto 12px; padding: 5px 14px; border-radius: 10px; background: var(--yellow-400); color: var(--n-900); font-size: 14px; font-weight: 700; }
 .personal-product .sample-book-illustration figcaption { color: #fff; font-size: 13px; line-height: 1.6; margin-top: 12px; }
-/* How it works, right after the hero: one panel of three steps in the page's card language, then short notes.
+/* How it works, right after the hero: a trail of three stops (personal-wow.css), then short notes.
    It sits inside the storybook sky, so it carries the exact wash the hero hands over (and the value
    section picks up): no seam on either side. */
 .personal-how { padding: 80px 0; background: linear-gradient(rgba(244, 241, 255, 0.26), rgba(244, 241, 255, 0.26)), #fff; scroll-margin-top: 90px; }
 .personal-how .section-h2 { max-width: 24ch; margin-inline: auto; text-wrap: balance; }
 .personal-how-line { display: block; }
-.personal-how-steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); max-width: 1000px; margin: 32px auto 0; padding: 0; list-style: none; border: 1px solid var(--border); border-radius: 20px; background: #fff; box-shadow: var(--shadow-card); }
-.personal-how-step { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; padding: 28px; text-align: start; }
-.personal-how-step + .personal-how-step { border-inline-start: 1px solid var(--purple-100); }
 .personal-how-notes { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px 28px; max-width: 1000px; margin: 24px auto 0; padding: 0; list-style: none; color: var(--purple-700); font-size: 15px; line-height: 1.6; }
 .personal-how-notes li { display: inline-flex; align-items: center; gap: 8px; }
 .personal-how-notes svg { width: 18px; height: 18px; flex: none; color: var(--purple-500); }
@@ -23,9 +20,6 @@
 .personal-how-preview { max-width: 60ch; margin: 0; color: var(--n-600); font-size: 13px; line-height: 1.6; text-align: center; text-wrap: balance; }
 @media (max-width: 860px) {
   .personal-how { padding: 56px 0; }
-  .personal-how-steps { grid-template-columns: 1fr; max-width: 520px; }
-  .personal-how-step { padding: 20px; }
-  .personal-how-step + .personal-how-step { border-inline-start: 0; border-top: 1px solid var(--purple-100); }
   .personal-how-notes { flex-direction: column; align-items: flex-start; gap: 8px; width: fit-content; max-width: 100%; }
   .personal-product .personal-hero-notes { justify-content: center; }
   .personal-product .personal-pilot-note { margin-inline: auto; }

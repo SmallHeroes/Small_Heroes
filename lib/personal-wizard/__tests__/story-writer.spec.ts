@@ -7,7 +7,9 @@ import { resolvePersonalWizardOptions, PROTOTYPE_COMPANION_ROSTER } from '../opt
 import { canonicalJson } from '../request-acceptance';
 import { resolveStorySettings, storyReservationUsd, type StorySettings } from '../story-config';
 import type { ReviewedPersonalBookRequest } from '../contract';
-import { getPersonalLandingContent, PERSONAL_HOW_IT_WORKS } from '@/content/personal-landing';
+import { existsSync } from 'fs';
+import { join } from 'path';
+import { getPersonalLandingContent, PERSONAL_HOW_IT_WORKS, PERSONAL_VOICE_DEMO } from '@/content/personal-landing';
 import { LIMITS } from '../contract';
 import { bookCopy, RECORDER, tellCopy } from '../copy';
 import { getLandingContent } from '@/content/landing';
@@ -191,5 +193,14 @@ describe('writer switches and product copy', () => {
     expect(recording.previewNote).toContain('כתיבת הספר המלא עדיין בפיתוח');
     expect(JSON.stringify(recording)).not.toMatch(/מבטיחים|מובטח/);
     expect(JSON.stringify(getLandingContent([]))).not.toContain('הקלט');
+  });
+  it('labels the living-book demo as an illustration and points only at art that exists', () => {
+    expect(PERSONAL_VOICE_DEMO.label).toContain('המחשה');
+    for (const example of PERSONAL_VOICE_DEMO.examples) {
+      // three phrases peel off as stickers, and the spoken line carries the name the book is titled with
+      expect(example.speech.filter((segment) => 'sticker' in segment)).toHaveLength(3);
+      expect(example.speech.map((segment) => segment.text).join('')).toContain(example.name);
+      for (const file of [example.art, example.companionImage]) expect(existsSync(join(process.cwd(), 'public', file))).toBe(true);
+    }
   });
 });

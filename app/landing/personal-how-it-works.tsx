@@ -54,8 +54,14 @@ const NOTE_ICONS = [
   ),
 ];
 
-/** The preview's "how it works", right after the hero: tell us by voice, check and complete, choose a friend. */
-export function PersonalHowItWorks({ startHref }: { startHref: string }) {
+type Friend = { id: string; name: string };
+
+/**
+ * The preview's "how it works", right after the hero, as a trail with three stops: tell us by voice,
+ * check and complete, choose a friend (the friends wait at the last stop). The trail draws itself as
+ * it comes into view (the page's own reveal system; everything simply shows under reduced motion).
+ */
+export function PersonalHowItWorks({ startHref, friends }: { startHref: string; friends: readonly Friend[] }) {
   return (
     <section id="how" className="personal-how" aria-labelledby="personal-how-title">
       <div className="wrap">
@@ -66,15 +72,30 @@ export function PersonalHowItWorks({ startHref }: { startHref: string }) {
           <span className="personal-how-line">{H.title[1]}</span>
         </h2>
         <p className="section-lede">{H.lede}</p>
-        <ol className="personal-how-steps">
-          {H.steps.map((step, index) => (
-            <li key={step.title} className="personal-how-step">
-              <span className="value-card-mark" aria-hidden="true">{STEP_ICONS[index]}</span>
-              <h3 className="value-card-title">{step.title}</h3>
-              <p className="value-card-body">{step.body}</p>
-            </li>
-          ))}
-        </ol>
+        <div className="ph-trail">
+          <svg className="ph-trail-line" data-reveal="fade" viewBox="0 0 1000 170" preserveAspectRatio="none" aria-hidden="true" focusable="false">
+            <path d="M833,52 C700,52 640,124 500,124 C360,124 300,52 167,52" />
+          </svg>
+          <ol className="ph-stops">
+            {H.steps.map((step, index) => (
+              <li key={step.title} className="ph-stop" data-stop={index} data-reveal="up" data-reveal-delay={String(150 + index * 220)}>
+                <span className="ph-badge" aria-hidden="true">
+                  {STEP_ICONS[index]}
+                  <span className="ph-num">{index + 1}</span>
+                </span>
+                <h3 className="ph-title">{step.title}</h3>
+                <p className="ph-body">{step.body}</p>
+                {index === H.steps.length - 1 && friends.length ? (
+                  <span className="ph-friends" aria-hidden="true">
+                    {friends.map((friend) => (
+                      <img key={friend.id} src={`/Images/spotlight/${friend.id}.png`} alt="" loading="lazy" decoding="async" draggable={false} />
+                    ))}
+                  </span>
+                ) : null}
+              </li>
+            ))}
+          </ol>
+        </div>
         <ul className="personal-how-notes">
           {H.notes.map((note, index) => (
             <li key={note}>

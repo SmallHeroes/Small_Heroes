@@ -16,9 +16,13 @@ import { HeroCollage } from './hero-collage';
 import { NameMoment, type HeroChild } from './name-moment';
 import { HearPage } from './hear-page';
 import { PersonalHowItWorks } from './personal-how-it-works';
+import { PersonalWowHero } from './personal-wow/PersonalWowHero';
 import childHandoff from '@/public/JS/hero-child-handoff';
 import { CompanionSpotlight } from '@/app/components/CompanionSpotlight';
 import { warmCompanionIdleVideos } from '@/lib/web/companion-idle-video';
+
+/* the preview's honest one-liner under the hero copy (both heroes show the same words) */
+const PERSONAL_PILOT_NOTE = 'תצוגת פיתוח. בסיום ההיכרות תקבלו כרטיס פרטים לעריכה, עדיין לא ספר מלא.';
 
 type SpotlightState = {
   slot: MvpMatrixCategoryPayload;
@@ -152,61 +156,66 @@ export default function LandingPage({ content: L, startHref, matrixCategories, p
         <SiteHeader variant="full" startHref={personalPreview ? startHref : undefined} startLabel={personalPreview ? L.hero.ctaPrimary : undefined} homeHref={personalPreview ? '/dev/personal-product' : undefined} navigation={personalPreview ? [{ label: 'איך זה עובד', href: '#how' }, { label: 'החברים', href: '#helps' }] : undefined} />
 
         <main id="main">
-          <section className="hero">
-            <HeroDoodles />
-            <div className="wrap hero-wrap">
-              <div className="hero-text">
-                <div className="hero-badge" data-reveal="hero" data-reveal-delay="0">{L.hero.badge}</div>
-                <h1 className="hero-h1" data-reveal="hero" data-reveal-delay="60">
-                  {/* keyed on the text: a new name re-mounts the line and it
-                      pops in (name-pop), so the change is felt, not swapped */}
-                  <span key={h1Line1} className="hero-h1-line name-pop">{h1Line1}</span>{' '}
-                  <span key={h1Line2} className="hero-h1-line hero-h1-line--accent name-pop">{h1Line2}</span>
-                </h1>
-                <p className="hero-sub2" data-reveal="hero" data-reveal-delay="120">{L.hero.sub}</p>
+          {/* the preview stages the same words as a living book; the public hero is unchanged */}
+          {personalPreview ? (
+            <PersonalWowHero hero={L.hero} pilotNote={PERSONAL_PILOT_NOTE} startHref={startHref} />
+          ) : (
+            <section className="hero">
+              <HeroDoodles />
+              <div className="wrap hero-wrap">
+                <div className="hero-text">
+                  <div className="hero-badge" data-reveal="hero" data-reveal-delay="0">{L.hero.badge}</div>
+                  <h1 className="hero-h1" data-reveal="hero" data-reveal-delay="60">
+                    {/* keyed on the text: a new name re-mounts the line and it
+                        pops in (name-pop), so the change is felt, not swapped */}
+                    <span key={h1Line1} className="hero-h1-line name-pop">{h1Line1}</span>{' '}
+                    <span key={h1Line2} className="hero-h1-line hero-h1-line--accent name-pop">{h1Line2}</span>
+                  </h1>
+                  <p className="hero-sub2" data-reveal="hero" data-reveal-delay="120">{L.hero.sub}</p>
 
-                {!personalPreview ? <NameMoment child={child} onChange={onChildChange} /> : <p className="personal-pilot-note">תצוגת פיתוח. בסיום ההיכרות תקבלו כרטיס פרטים לעריכה, עדיין לא ספר מלא.</p>}
+                  {!personalPreview ? <NameMoment child={child} onChange={onChildChange} /> : <p className="personal-pilot-note">{PERSONAL_PILOT_NOTE}</p>}
 
-                <div className="hero-btns" data-reveal="hero" data-reveal-delay="180">
-                  <a
-                    href={startHref}
-                    className="btn-primary"
-                    data-event="landing_start_click"
-                  >
-                    <span key={ctaPrimary} className="name-pop">{ctaPrimary}</span>
-                  </a>
-                  {/* lands on the sample section — the book itself (a video of
-                      it, once Guy's clip exists). The gallery is a look, not a
-                      sample, so it is no longer the destination. */}
-                  <a href={personalPreview ? '#how' : '#sample'} className="btn-light">
-                    {L.hero.ctaSecondary}
-                  </a>
+                  <div className="hero-btns" data-reveal="hero" data-reveal-delay="180">
+                    <a
+                      href={startHref}
+                      className="btn-primary"
+                      data-event="landing_start_click"
+                    >
+                      <span key={ctaPrimary} className="name-pop">{ctaPrimary}</span>
+                    </a>
+                    {/* lands on the sample section — the book itself (a video of
+                        it, once Guy's clip exists). The gallery is a look, not a
+                        sample, so it is no longer the destination. */}
+                    <a href={personalPreview ? '#how' : '#sample'} className="btn-light">
+                      {L.hero.ctaSecondary}
+                    </a>
+                  </div>
+                  {personalPreview ? <ul className="personal-hero-notes">{L.hero.ctaNotes.map((note) => <li key={note}>{note}</li>)}</ul> : null}
+
                 </div>
-                {personalPreview ? <ul className="personal-hero-notes">{L.hero.ctaNotes.map((note) => <li key={note}>{note}</li>)}</ul> : null}
 
-              </div>
-
-              <div className="hero-img-wrap" data-reveal="scale" data-reveal-delay="120" data-tilt="hero">
-                {/* Guy's three story beats, now separate files, so the collage
-                    is composed in CSS and the beats can arrive IN ORDER —
-                    fear, then the friend, then walking out. Desktop keeps the
-                    3D cursor tilt (motion.ts, hover+fine-pointer only):
-                    rotation lives on .hero-float, so it never fights the
-                    per-panel reveal transforms. */}
-                <div className="hero-float">
-                  <HeroCollage />
+                <div className="hero-img-wrap" data-reveal="scale" data-reveal-delay="120" data-tilt="hero">
+                  {/* Guy's three story beats, now separate files, so the collage
+                      is composed in CSS and the beats can arrive IN ORDER —
+                      fear, then the friend, then walking out. Desktop keeps the
+                      3D cursor tilt (motion.ts, hover+fine-pointer only):
+                      rotation lives on .hero-float, so it never fights the
+                      per-panel reveal transforms. */}
+                  <div className="hero-float">
+                    <HeroCollage />
+                  </div>
+                  {/* Label the opening and outcome; the middle beat stays visual. */}
+                  <ol className="hero-captions" aria-hidden="true">
+                    <li>רגע של פחד</li>
+                    <li>יוצאת גאה</li>
+                  </ol>
                 </div>
-                {/* Label the opening and outcome; the middle beat stays visual. */}
-                <ol className="hero-captions" aria-hidden="true">
-                  <li>רגע של פחד</li>
-                  <li>יוצאת גאה</li>
-                </ol>
               </div>
-            </div>
-          </section>
+            </section>
+          )}
 
           {/* the preview explains how it works (the recording first) straight after the hero */}
-          {personalPreview ? <PersonalHowItWorks startHref={startHref} /> : null}
+          {personalPreview ? <PersonalHowItWorks startHref={startHref} friends={matrixCategories.map((slot) => ({ id: slot.companion.id, name: slot.companion.name }))} /> : null}
 
           {/* מה מקבלים — the concrete promise, straight after the hero */}
           {/* the storybook sky continues here and fades out inside this

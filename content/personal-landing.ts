@@ -6,6 +6,63 @@ export const PERSONAL_PRODUCT_METADATA = {
 };
 
 /**
+ * The hero's living demo: a parent talks, the key phrases become stickers on the book's page, and the
+ * adventure colours itself in. Invented families, existing illustrations; labelled as an illustration.
+ */
+export const PERSONAL_VOICE_DEMO = {
+  label: 'המחשה: שמות מומצאים ואיורים קיימים',
+  description: 'הדגמה: הורה מספר על הילד בקול, הפרטים החשובים נאספים לספר, והאיור של ההרפתקה מתמלא בצבע.',
+  titlePrefix: 'ההרפתקה של',
+  pause: 'עצירת ההדגמה',
+  play: 'המשך ההדגמה',
+  show: 'להציג את הדוגמה של',
+  examples: [
+    {
+      name: 'נגה',
+      companion: 'עם הדרקונית דיני',
+      companionImage: '/Images/spotlight/dragon_dini.png',
+      art: '/Images/gallery/gallery-3.jpg',
+      speech: [
+        { text: 'קוראים לה ' },
+        { text: 'נגה, היא בת שש.', sticker: 'נגה · בת 6' },
+        { text: ' היא ממש ' },
+        { text: 'אוהבת מגלשות,', sticker: 'אוהבת מגלשות' },
+        { text: ' ו' },
+        { text: 'במים עמוקים היא עוד קצת חוששת.', sticker: 'קצת חוששת ממים עמוקים' },
+      ],
+    },
+    {
+      name: 'איתי',
+      companion: 'עם האריה ליאו',
+      companionImage: '/Images/spotlight/lion_shaket.png',
+      art: '/Images/gallery/gallery-1.jpg',
+      speech: [
+        { text: 'זה ' },
+        { text: 'איתי, הוא בן חמש.', sticker: 'איתי · בן 5' },
+        { text: ' הוא ' },
+        { text: 'לא מפספס אף שלולית,', sticker: 'קופץ בכל שלולית' },
+        { text: ' ו' },
+        { text: 'בונה מגדלים עד התקרה.', sticker: 'בונה מגדלים' },
+      ],
+    },
+    {
+      name: 'מאיה',
+      companion: 'עם הפנדה עֲנָת',
+      companionImage: '/Images/spotlight/panda_anat.png',
+      art: '/Images/gallery/gallery-5.jpg',
+      speech: [
+        { text: 'זאת ' },
+        { text: 'מאיה, היא בת שבע.', sticker: 'מאיה · בת 7' },
+        { text: ' היא ' },
+        { text: 'אוספת אבנים נוצצות,', sticker: 'אוספת אבנים נוצצות' },
+        { text: ' ו' },
+        { text: 'בלילה לוקח לה זמן להירדם.', sticker: 'לוקח לה זמן להירדם' },
+      ],
+    },
+  ],
+} as const;
+
+/**
  * The preview's "how it works", right after the hero, with the recording at its heart: talk, check and
  * complete, choose a friend for the journey. Every claim matches the wizard.
  */

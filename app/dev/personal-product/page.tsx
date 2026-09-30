@@ -14,6 +14,7 @@ import '@/app/category-challenge-card.css';
 import '@/app/landing/wow-2027.css';
 import '@/app/premium-2027.css';
 import './personal-product.css';
+import './personal-wow.css';
 
 export const dynamic = 'force-dynamic';
 export const metadata: Metadata = { ...PERSONAL_PRODUCT_METADATA, title: 'הכיוון האישי החדש · תצוגה מקדימה', robots: { index: false, follow: false } };
