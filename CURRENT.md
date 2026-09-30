@@ -23,13 +23,23 @@ This correction does not self-close Claude's paid writer/runner HOLDs.
   Full check is still RED: first ordinary run 375 files, 11 failed/5243 passed/
   73 skipped. Ten missing-fixture failures match previous named records; one NEW
   stale classifier inventory caused by adding two specs was fixed (395 total,
-  375 ordinary) and its 7/7 tests passed. Resource stage was still running when
-  this entry was written. No full-green, causal independence or release claim.
-- Planned operator pilot: one loopback-only local server on 3443, existing key
+  375 ordinary) and its 7/7 tests passed. Resource: 635/635 tests passed but three
+  onTaskUpdate RPC errors gave native exit 1. No full-green, causal independence
+  or release claim. Activation successor: all 19 focused files **440/440**, tsc 0.
+- Active operator pilot: one loopback-only local server on 3443, existing key
   in memory and established staging DB, live intake $1/eight jobs; gpt-6-sol
   medium book $3/one job. Old writer flag OFF. No paid dispatch by startup,
   no new credential, cloud live flag, deployment, image or narration.
   Process-local ledgers are NOT a cloud-wide cap or restart-safe spending record.
+- Initial boot stopped at env validation before dispatch; its logs were retained.
+  Successor boot uses an unreachable loopback storage endpoint with no real
+  storage key (this voice/text path has no storage calls), existing internal
+  generation secret and staging database. Payment provider none/waitlist.
+  Browser verified wizard 200, processing example -> editable facts -> removal
+  -> six companions -> length -> server request boundary. Caller is signed OUT;
+  live intake correctly refuses. A clear sign-in link now appears only for the
+  exact signed-out status, and returning focus refreshes status without deleting
+  the in-memory draft. No auth/operator bypass. Live generation not yet observed.
 
 Decision: `docs/ai-workflow/PERSONAL_BOOK_LIVE_CONNECTION_DECISION_20260930.md`.
 Raw logs and scoped launcher: `outputs/personal-book-live-connection-20260930/`,

@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { PERSONAL_INTAKE_EXTRACTION_VERSION } from '../contract';
 import {
   fetchLiveIntakeStatus,
+  fetchLiveIntakeAvailability,
   mapIntakeError,
   submitAudioIntake,
   submitTextIntake,
@@ -96,5 +97,17 @@ describe('live intake client', () => {
     expect(await fetchLiveIntakeStatus(fakeFetch(200, { live: true }))).toBe(true);
     expect(await fetchLiveIntakeStatus(fakeFetch(200, { live: 'yes' }))).toBe(false);
     expect(await fetchLiveIntakeStatus(fakeFetch(404, { error: 'not_found' }))).toBe(false);
+  });
+
+  it('offers sign-in only for an explicit signed-out status, never as access authority', async () => {
+    expect(await fetchLiveIntakeAvailability(fakeFetch(200, { live: false, reason: 'not_signed_in' })))
+      .toEqual({ live: false, signInRequired: true });
+    for (const body of [null, {}, { live: false, reason: 'not_operator' }, { live: 'false', reason: 'not_signed_in' }]) {
+      expect(await fetchLiveIntakeAvailability(fakeFetch(200, body))).toEqual({ live: false, signInRequired: false });
+    }
+    expect(await fetchLiveIntakeAvailability(fakeFetch(401, { live: false, reason: 'not_signed_in' })))
+      .toEqual({ live: false, signInRequired: false });
+    expect(await fetchLiveIntakeAvailability(fakeFetch(200, { live: true, reason: 'not_signed_in' })))
+      .toEqual({ live: true, signInRequired: false });
   });
 });

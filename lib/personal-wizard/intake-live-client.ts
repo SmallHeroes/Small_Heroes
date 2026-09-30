@@ -66,15 +66,23 @@ async function send(run: () => Promise<Response>, jobId: string, signal: AbortSi
   }
 }
 
-export async function fetchLiveIntakeStatus(fetchImpl: FetchLike = fetch): Promise<boolean> {
+export async function fetchLiveIntakeAvailability(fetchImpl: FetchLike = fetch): Promise<{ live: boolean; signInRequired: boolean }> {
+  const unavailable = { live: false, signInRequired: false };
   try {
     const response = await fetchImpl('/api/dev/personal-wizard/intake/status', { cache: 'no-store' });
-    if (!response.ok) return false;
+    if (!response.ok) return unavailable;
     const body: unknown = await response.json();
-    return Boolean(body && typeof body === 'object' && (body as { live?: unknown }).live === true);
+    if (!body || typeof body !== 'object') return unavailable;
+    const status = body as { live?: unknown; reason?: unknown };
+    return { live: status.live === true, signInRequired: status.live === false && status.reason === 'not_signed_in' };
   } catch {
-    return false;
+    return unavailable;
   }
+}
+
+/** Compatibility for consumers which need only the non-authoritative live flag. */
+export async function fetchLiveIntakeStatus(fetchImpl: FetchLike = fetch): Promise<boolean> {
+  return (await fetchLiveIntakeAvailability(fetchImpl)).live;
 }
 
 export function submitAudioIntake(input: {

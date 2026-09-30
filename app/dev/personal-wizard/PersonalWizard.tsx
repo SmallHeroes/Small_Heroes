@@ -21,7 +21,7 @@ import {
 } from '@/lib/personal-wizard/draft';
 import { runFixtureIntake, type FixtureExampleId } from '@/lib/personal-wizard/intake-fixture';
 import {
-  fetchLiveIntakeStatus,
+  fetchLiveIntakeAvailability,
   submitAudioIntake,
   submitTextIntake,
   type LiveIntakeResponse,
@@ -103,13 +103,24 @@ export function PersonalWizard({ options }: Props) {
   // Live intake (P2) is offered only when the server says this signed-in operator may use it.
   // The answer only shapes the UI; the intake routes enforce authority on every request.
   const [liveIntake, setLiveIntake] = useState(false);
+  const [intakeSignInRequired, setIntakeSignInRequired] = useState(false);
   useEffect(() => {
     let active = true;
-    void fetchLiveIntakeStatus().then((live) => {
-      if (active) setLiveIntake(live);
-    });
+    let requestEpoch = 0;
+    const refresh = () => {
+      const epoch = ++requestEpoch;
+      void fetchLiveIntakeAvailability().then((status) => {
+        if (!active || epoch !== requestEpoch) return;
+        setLiveIntake(status.live);
+        setIntakeSignInRequired(status.signInRequired);
+      });
+    };
+    refresh();
+    // Returning from sign-in must not require a reload that would erase the in-memory draft.
+    window.addEventListener('focus', refresh);
     return () => {
       active = false;
+      window.removeEventListener('focus', refresh);
     };
   }, []);
   const pendingLive = useRef<{ jobId: string; controller: AbortController } | null>(null);
@@ -439,6 +450,7 @@ export function PersonalWizard({ options }: Props) {
             recorder={recorder}
             playback={playback}
             liveIntake={liveIntake}
+            signInRequired={intakeSignInRequired}
             intakeNotice={intakeNotice}
             lateIgnored={lateIgnored}
             onStartFixture={startFixture}

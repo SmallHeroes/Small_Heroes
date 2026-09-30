@@ -60,6 +60,7 @@ type Props = {
   };
   playback: { playingId: string | null; play: (id: string, url: string) => void; stop: () => void };
   liveIntake: boolean;
+  signInRequired?: boolean;
   intakeNotice: IntakeNotice | null;
   lateIgnored: boolean;
   onStartFixture: (exampleId: FixtureExampleId) => void;
@@ -161,6 +162,15 @@ export function StepTell(props: Props) {
               <p className={styles.privacyLine}>{RECORDER.privacyLive}</p>
             ) : (
               <div className={styles.previewNote}>
+                {props.signInRequired ? (
+                  <p role="status">
+                    כדי לפענח את ההקלטה וליצור סיפור בניסוי החי צריך להתחבר לפני ההקלטה.{' '}
+                    <a className={styles.linkButton} href="/login" target="_blank" rel="noopener noreferrer">
+                      התחברות לניסוי בחלון נוסף
+                    </a>
+                    {' '}לאחר ההתחברות חזרו לחלון הזה.
+                  </p>
+                ) : null}
                 <p>{copy.localNote}</p>
                 <button type="button" className={styles.linkButton} onClick={() => props.onStartFixture('voice')}>
                   {copy.exampleCta}
