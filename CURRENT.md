@@ -1,5 +1,53 @@
 # SmallHeroes — Current Technical State
 
+## Personal whole-book storyboard bridge — implemented locally, awaiting QA (2026-09-30)
+
+Active task/worktree: this Codex chat, sole writer at
+`C:/Users/guyna/.codex/worktrees/personal-story-product/Small_Heroes`, branch
+`codex/personal-book-storyboard-bridge`, based on `45b9e754`. No upstream, push,
+deployment or independent PASS. The older pilot section below describes the base;
+it is no longer the active implementation branch.
+
+- **Implemented:** exact reviewed request + final writer result -> whole-book
+  planning input -> cover/all-spread storyboard and inherited typed state -> bound
+  semantic-review disposition -> same-context render/QA frame packets. This is an
+  offline diagnostic bridge, not a public or paid render-flow cutover.
+- **Binding:** literal final prose, all six companions, 8/12/16 narrative spreads
+  distinct from 16/24/32 display pages. A current request/result/options recheck is
+  mandatory at extraction. Edits, removals, changed plan/review and mutated objects
+  reject stale work. Offscreen state persists; camera and expression remain variable.
+- **Holds:** schema success stays pending. Full source-bound semantic review is
+  required for packets; uncertain/contradictory reports hold. Supplied reports may
+  be wrong or fabricated; no accuracy or product acceptance follows. Every output
+  keeps `runtimeEligible:false`, including a supported diagnostic report.
+- **Reuse/compatibility:** four pinned donor modules match `ef865968` blobs exactly;
+  preview adds a literal constructor. These are local copies, not a shared extraction.
+  One pure anatomical-lock helper adds an opt-in flag with unchanged omitted/false
+  behavior. Public UI/routes, writer implementation, catalog and production callers
+  are unchanged; resemblance remains 0.70. No default live author/reviewer adapter.
+- **Verification:** tsc native 0; focused **389/389 in 19 files**, native 0, including
+  actual CLI native 0/1/2, containment/no overwrite and source-edit negative cases.
+  Final full check native 1: ordinary 371 files, 10 failed / 5121 passed / 73 skipped;
+  resource 20 files, 635/635 passed but three unhandled `onTaskUpdate` RPC timeouts,
+  native 1. Gate remains **RED**. Failure names match recorded artifact/content
+  signatures; no untouched-base reproduction proves causal independence. The added
+  inventory assertion failure was fixed, not relabelled inherited. No timeout change.
+- **Cost:** $0, no live provider, images or audio. Final code hashes were unchanged
+  throughout recorded checks. No stability, creative, visual, release or self-PASS.
+
+Decision, reproduction, raw-log identities and falsification targets:
+`docs/ai-workflow/PERSONAL_STORYBOARD_BRIDGE_DECISION_20260930.md`,
+`PERSONAL_STORYBOARD_BRIDGE_QA_20260930.md`,
+`PERSONAL_STORYBOARD_BRIDGE_VERIFICATION_20260930.json`.
+Raw evidence root: `outputs/personal-storyboard-bridge-20260930/`, ignored/untracked,
+local-only with no verified off-machine backup; push does not preserve it.
+
+**Next:** Claude independently reviews the frozen bridge range. The base writer's
+QA and successful final-code live manuscript are still open. Then prove the bounded
+live text chain and semantically review real prose/storyboard before connecting
+qualified image/QA adapters, the smallest consecutive visual sample and narration.
+This milestone does not finish the recording-to-delivered-book product.
+
 ## Personal story product pilot — active (2026-09-30)
 
 Codex is implementing on isolated `codex/personal-story-product`, based on

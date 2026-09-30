@@ -18,9 +18,16 @@ This roadmap records technical milestone state. Guy can change product priority 
 - **Evidence/limits:** focused 256/256 and tsc 0; full repository gate RED. Two live
   text trials were held before manuscript, estimated $0.076188. Final deterministic
   numbering and resilience schema have offline proof but no successful live book.
+- **Offline bridge implemented, awaiting independent QA:**
+  `codex/personal-book-storyboard-bridge`, base `45b9e754`, exact final personal
+  manuscript -> whole-book visual plan/inherited state -> bound semantic hold ->
+  identical render/QA frame context. Diagnostic only, runtime-ineligible; no live
+  author, reviewer or renderer is enabled. Focused 389/389 (19 files), tsc 0;
+  full check still RED (10 ordinary failures and resource RPC errors). Local donor
+  copies are not shared-module consolidation, and structure is not visual accuracy.
 - **Next order:** independent technical QA and Guy's design/copy acceptance ->
   bounded live manuscript -> semantic/editorial acceptance -> approved visual plan
-  bridge -> smallest qualified illustration sequence -> narration/package.
+  acceptance of the bridge -> smallest qualified illustration sequence -> narration/package.
 - **Before public rollout:** durable jobs/recovery, cross-instance spend/idempotency,
   privacy/deletion policy, truthful pricing/checkout and release qualification.
 - **No shortcut:** schema compliance is not literary/visual accuracy; no implicit

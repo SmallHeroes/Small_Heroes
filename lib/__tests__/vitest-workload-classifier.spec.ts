@@ -55,9 +55,9 @@ describe('Vitest workload classifier', () => {
     );
     const partition = classifyVitestWorkloads(inventory, policy);
 
-    expect(partition.inventory).toHaveLength(388);
+    expect(partition.inventory).toHaveLength(391);
     expect(partition.resourceIntensive).toHaveLength(20);
-    expect(partition.ordinary).toHaveLength(368);
+    expect(partition.ordinary).toHaveLength(371);
     expect(partition.ordinary).toContain(
       'lib/__tests__/hero-child-handoff.spec.ts',
     );
@@ -75,6 +75,9 @@ describe('Vitest workload classifier', () => {
       'lib/personal-wizard/__tests__/story-openai.spec.ts',
       'lib/personal-wizard/__tests__/story-routes.spec.ts',
       'lib/personal-wizard/__tests__/story-writer.spec.ts',
+      'lib/personal-wizard/__tests__/storyboard.spec.ts',
+      'lib/__tests__/local-book-sequence.spec.ts',
+      'lib/__tests__/local-preview-quality.spec.ts',
     ]) {
       expect(partition.ordinary).toContain(spec);
     }

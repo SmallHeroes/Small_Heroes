@@ -1,0 +1,217 @@
+{
+  "scope": "local_test_evidence_not_independent_pass",
+  "recorded": "2026-09-30T08:05:15.874Z",
+  "cwd": "C:\\Users\\guyna\\.codex\\worktrees\\personal-story-product\\Small_Heroes",
+  "codeHashes": {
+    "lib/local-book-sequence.ts": "d2a62e14cc2e175abd92f6470fb8f3050691eaee868784bdc5787102a378bd40",
+    "lib/local-book-planning.ts": "85c6b6da886a50144de40a2dc33a06feca862d2a5651369390aa827deb335730",
+    "lib/local-preview-quality.ts": "0ca2a2170de7e34ff23e4703b8230a35baf2a79f8629f8887bcfb87e686bada7",
+    "lib/local-visual-priority.ts": "21dedfb99a528aa41afb755354301f1586b0501be38347735732a670afa2bce0",
+    "lib/local-story-preview.ts": "1422b9a1da32185b76e4ec274eda08c9265b0d60b4a24e221247e56896893b59",
+    "lib/style01-gptimage.ts": "24624b2f28754ea188c7b089c21daad16f61a7574fb1da2682515158f98a18ab",
+    "lib/personal-wizard/storyboard.ts": "520ebe73ee57837ae722d0d49be98f01bd9efbb6b95e492758300cf92e49e02c",
+    "scripts/prepare-personal-storyboard.ts": "6553e48292516255e61e626e5aeb64af34bdb17e96cdf8356e057371a907fba8",
+    "lib/personal-wizard/__tests__/storyboard.spec.ts": "5f4ce09361647153b597053036565e539242b8f5c308873f431ac18e8d948cbb",
+    "lib/__tests__/local-book-sequence.spec.ts": "e841641932aa5567d14c7b8df68aa4f0f3c4a4e7d9e8ba2a280aef77c4c9aad9",
+    "lib/__tests__/local-preview-quality.spec.ts": "e16427551be7229cae0f71b9b643b3eabfd714142a1233b4f3fbaa45b39ef5c6",
+    "lib/__tests__/vitest-workload-classifier.spec.ts": "e07e72ceb2f914cd79123ba2595fd0fc6738bfe41e43bac9d005ede69c31a987"
+  },
+  "codeUnchangedDuringChecks": true,
+  "localRawVerificationSha256": "9ea75aca71917fdaa81893cf51b34f3b916752f3aca76beadc054442feb2d807",
+  "runs": [
+    {
+      "name": "tsc",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "C:\\GNart\\Work\\sh-order-package-authority\\node_modules\\typescript\\bin\\tsc",
+        "--noEmit"
+      ],
+      "started": "2026-09-30T07:58:55.147Z",
+      "completed": "2026-09-30T07:59:01.713Z",
+      "exitCode": 0,
+      "signal": null,
+      "stdout": {
+        "file": "tsc.stdout.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "stderr": {
+        "file": "tsc.stderr.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "summaries": [],
+      "failures": [],
+      "phaseRecords": []
+    },
+    {
+      "name": "focused",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "C:\\GNart\\Work\\sh-order-package-authority\\node_modules\\vitest\\vitest.mjs",
+        "run",
+        "lib/personal-wizard",
+        "lib/__tests__/local-book-sequence.spec.ts",
+        "lib/__tests__/local-preview-quality.spec.ts",
+        "lib/__tests__/vitest-workload-classifier.spec.ts",
+        "lib/__tests__/style01-prompt-assembly-child-presence.spec.ts",
+        "lib/__tests__/style01-child-expression-style-fidelity.spec.ts",
+        "--maxWorkers",
+        "1"
+      ],
+      "started": "2026-09-30T07:59:01.719Z",
+      "completed": "2026-09-30T07:59:25.079Z",
+      "exitCode": 0,
+      "signal": null,
+      "stdout": {
+        "file": "focused.stdout.log",
+        "bytes": 7214,
+        "sha256": "5890b02bcf299960b0f350f8370fdbdca34353b7e4579a43fd4531c0ae47f4f9"
+      },
+      "stderr": {
+        "file": "focused.stderr.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "summaries": [
+        " Test Files  19 passed (19)",
+        "      Tests  389 passed (389)",
+        "   Duration  22.79s (transform 1.11s, setup 0ms, collect 3.52s, tests 15.73s, environment 2ms, prepare 1.10s)"
+      ],
+      "failures": [],
+      "phaseRecords": []
+    },
+    {
+      "name": "full-check",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "C:/Program Files/nodejs/node_modules/npm/bin/npm-cli.js",
+        "run",
+        "check"
+      ],
+      "started": "2026-09-30T07:59:25.080Z",
+      "completed": "2026-09-30T08:05:15.871Z",
+      "exitCode": 1,
+      "signal": null,
+      "stdout": {
+        "file": "full-check.stdout.log",
+        "bytes": 151155,
+        "sha256": "18e11522159fdc73902c946879676f0462d7db027a943ecea5ab28e186fb31db"
+      },
+      "stderr": {
+        "file": "full-check.stderr.log",
+        "bytes": 169764,
+        "sha256": "690ec29eaaa85561d8b20c5640bc272bf871984e87c9b669aba9af14ea5359b8"
+      },
+      "summaries": [
+        " Test Files  6 failed | 348 passed | 17 skipped (371)",
+        "      Tests  10 failed | 5121 passed | 73 skipped (5204)",
+        "   Duration  105.00s (transform 12.53s, setup 0ms, collect 97.80s, tests 234.63s, environment 56ms, prepare 27.21s)",
+        " Test Files  20 passed (20)",
+        "      Tests  635 passed (635)",
+        "     Errors  3 errors",
+        "   Duration  237.38s (transform 2.31s, setup 0ms, collect 10.14s, tests 460.12s, environment 3ms, prepare 1.27s)"
+      ],
+      "failures": [
+        " FAIL  lib/__tests__/child-lexicon-ages-5-8.spec.ts > child lexicon ages 5–8 gate > slot #1 revised story passes child lexicon scan",
+        " FAIL  lib/__tests__/momentum-gate-koko.spec.ts > momentum gate koko stop2 beats > detects child action on slash-chip childDoes (>=4 pages)",
+        " FAIL  lib/__tests__/page-entity-qa.spec.ts > page-entity-qa (0074) > local PNG path resolves to base64 data URL",
+        " FAIL  lib/__tests__/story-read-back-validation.spec.ts > story.md read-back validation (P0) > fails completedEnding when story.md is truncated but story-pages.json is complete",
+        " FAIL  lib/__tests__/story-read-back-validation.spec.ts > story.md read-back validation (P0) > passes when story.md is rendered from complete story-pages.json",
+        " FAIL  lib/__tests__/story-source-visual-direction-acceptance-lifecycle.spec.ts > general Visual Directions acceptance and publication lifecycle > prepares one exact runtime-ineligible publication bundle and byte-replays it",
+        " FAIL  lib/__tests__/story-source-visual-direction-acceptance-lifecycle.spec.ts > general Visual Directions acceptance and publication lifecycle > publishes only an exact staged bundle and replays one complete accepted directory",
+        " FAIL  lib/__tests__/story-source-visual-direction-acceptance-lifecycle.spec.ts > general Visual Directions acceptance and publication lifecycle > fails closed on stale authority, wrong approver, HOLD review, and hardlinks",
+        " FAIL  lib/__tests__/story-source-visual-direction-acceptance-lifecycle.spec.ts > general Visual Directions acceptance and publication lifecycle > rejects staging and accepted-target collisions without partial replacement",
+        " FAIL  lib/set-identity-board/__tests__/reserved-page-placement-authority.spec.ts > Reserved Page Placement Authority — production-scale offline harness > proves d963 as home v6 unchanged + route 10 events grouped into exactly 6 v7 reservations"
+      ],
+      "phaseRecords": [
+        {
+          "schemaVersion": "small-heroes-vitest-phase-diagnostic/v1",
+          "phase": "ordinary",
+          "workerLimit": 4,
+          "fileCount": 371,
+          "elapsedMs": 105685,
+          "exitCode": 1,
+          "signal": null,
+          "launchErrorCode": null,
+          "diagnosticProtocolOk": true,
+          "diagnosticRecords": 1,
+          "diagnosticBytes": 240,
+          "classes": [
+            "signal_or_exit_failure"
+          ],
+          "gateStatus": "failed"
+        },
+        {
+          "schemaVersion": "small-heroes-vitest-phase-diagnostic/v1",
+          "phase": "resource_intensive",
+          "workerLimit": 2,
+          "fileCount": 20,
+          "elapsedMs": 237954,
+          "exitCode": 1,
+          "signal": null,
+          "launchErrorCode": null,
+          "diagnosticProtocolOk": true,
+          "diagnosticRecords": 1,
+          "diagnosticBytes": 277,
+          "classes": [
+            "on_task_update_rpc_timeout",
+            "signal_or_exit_failure"
+          ],
+          "gateStatus": "failed"
+        },
+        {
+          "schemaVersion": "small-heroes-vitest-check-summary/v1",
+          "canonicalFileCount": 391,
+          "ordinaryFileCount": 371,
+          "resourceIntensiveFileCount": 20,
+          "phases": {
+            "ordinary": {
+              "schemaVersion": "small-heroes-vitest-phase-diagnostic/v1",
+              "phase": "ordinary",
+              "workerLimit": 4,
+              "fileCount": 371,
+              "elapsedMs": 105685,
+              "exitCode": 1,
+              "signal": null,
+              "launchErrorCode": null,
+              "diagnosticProtocolOk": true,
+              "diagnosticRecords": 1,
+              "diagnosticBytes": 240,
+              "classes": [
+                "signal_or_exit_failure"
+              ],
+              "gateStatus": "failed"
+            },
+            "resourceIntensive": {
+              "schemaVersion": "small-heroes-vitest-phase-diagnostic/v1",
+              "phase": "resource_intensive",
+              "workerLimit": 2,
+              "fileCount": 20,
+              "elapsedMs": 237954,
+              "exitCode": 1,
+              "signal": null,
+              "launchErrorCode": null,
+              "diagnosticProtocolOk": true,
+              "diagnosticRecords": 1,
+              "diagnosticBytes": 277,
+              "classes": [
+                "on_task_update_rpc_timeout",
+                "signal_or_exit_failure"
+              ],
+              "gateStatus": "failed"
+            },
+            "gateStatus": "failed"
+          },
+          "gateStatus": "failed"
+        }
+      ]
+    }
+  ],
+  "limitations": [
+    "Logs and recorder are ignored/untracked local-only, no verified off-machine backup.",
+    "No untouched-base reproduction of the ten artifact/content failures.",
+    "Supplied or synthetic semantic reports are not model accuracy, creative acceptance or independent QA.",
+    "No live provider or render adapter enabled by the bridge."
+  ]
+}

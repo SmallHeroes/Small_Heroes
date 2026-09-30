@@ -686,13 +686,14 @@ function buildChildAgeLockLine(age: number): string {
 export function buildStyle01ChildAnatomicalLock(input?: {
   companionId?: string | null;
   childAge?: number;
+  allowDistinctSupportingChildren?: boolean;
 }): string {
   const age = Math.max(2, Math.min(12, input?.childAge ?? 5));
   const base = `CHILD ANATOMICAL LOCK (structural only — NO hair color, skin tone, eye color, or face-feature descriptors here; those come ONLY from CHILD VISUAL LOCK):
 - Age: ${buildChildAgeLockLine(age)}
 - Body proportions: child-appropriate build for age ${age}. Head-to-body ratio appropriate for this age. NOT an adult body shrunk down.
 - Expression: gentle childlike expression vocabulary; SAME child every page.
-- EXACTLY ONE child protagonist when a child is present — NEVER two children, NEVER a duplicate protagonist, NEVER a second copy of the same child in background/foreground.`;
+- EXACTLY ONE child protagonist when a child is present — ${input?.allowDistinctSupportingChildren ? 'distinct supporting children required by the scene are allowed; NEVER two copies of the protagonist' : 'NEVER two children'}, NEVER a duplicate protagonist, NEVER a second copy of the same child in background/foreground.`;
 
   if (input?.companionId === 'dragon_dini') {
     return `${base}
