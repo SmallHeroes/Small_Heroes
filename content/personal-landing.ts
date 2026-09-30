@@ -6,60 +6,31 @@ export const PERSONAL_PRODUCT_METADATA = {
 };
 
 /**
- * The hero's living demo: a parent talks, the key phrases become stickers on the book's page, and the
- * adventure colours itself in. Invented families, existing illustrations; labelled as an illustration.
+ * The hero's living story (Guy's idea): a parent tells us about Yuval out loud; the voice flows into the
+ * book and Yuval's adventure with Buni rises out of it, one moment at a time: afraid of a vaccination,
+ * a friend who holds her hand, walking out proud. An invented example on the existing hero art, labelled.
  */
-export const PERSONAL_VOICE_DEMO = {
-  label: 'המחשה: שמות מומצאים ואיורים קיימים',
-  description: 'הדגמה: הורה מספר על הילד בקול, הפרטים החשובים נאספים לספר, והאיור של ההרפתקה מתמלא בצבע.',
-  titlePrefix: 'ההרפתקה של',
+export const PERSONAL_VOICE_STORY = {
+  label: 'המחשה: יובל ובּוּנִי הם דוגמה מומצאת',
+  description: 'הדגמה: הורה מספר על יובל בקול, והסיפור שלה עולה מתוך הספר: פחד לפני חיסון, חבר שמחזיק לה את היד, ויציאה בגאווה.',
   pause: 'עצירת ההדגמה',
   play: 'המשך ההדגמה',
-  show: 'להציג את הדוגמה של',
-  examples: [
-    {
-      name: 'נגה',
-      companion: 'עם הדרקונית דיני',
-      companionImage: '/Images/spotlight/dragon_dini.png',
-      art: '/Images/gallery/gallery-3.jpg',
-      speech: [
-        { text: 'קוראים לה ' },
-        { text: 'נגה, היא בת שש.', sticker: 'נגה · בת 6' },
-        { text: ' היא ממש ' },
-        { text: 'אוהבת מגלשות,', sticker: 'אוהבת מגלשות' },
-        { text: ' ו' },
-        { text: 'במים עמוקים היא עוד קצת חוששת.', sticker: 'קצת חוששת ממים עמוקים' },
-      ],
-    },
-    {
-      name: 'איתי',
-      companion: 'עם האריה ליאו',
-      companionImage: '/Images/spotlight/lion_shaket.png',
-      art: '/Images/gallery/gallery-1.jpg',
-      speech: [
-        { text: 'זה ' },
-        { text: 'איתי, הוא בן חמש.', sticker: 'איתי · בן 5' },
-        { text: ' הוא ' },
-        { text: 'לא מפספס אף שלולית,', sticker: 'קופץ בכל שלולית' },
-        { text: ' ו' },
-        { text: 'בונה מגדלים עד התקרה.', sticker: 'בונה מגדלים' },
-      ],
-    },
-    {
-      name: 'מאיה',
-      companion: 'עם הפנדה עֲנָת',
-      companionImage: '/Images/spotlight/panda_anat.png',
-      art: '/Images/gallery/gallery-5.jpg',
-      speech: [
-        { text: 'זאת ' },
-        { text: 'מאיה, היא בת שבע.', sticker: 'מאיה · בת 7' },
-        { text: ' היא ' },
-        { text: 'אוספת אבנים נוצצות,', sticker: 'אוספת אבנים נוצצות' },
-        { text: ' ו' },
-        { text: 'בלילה לוקח לה זמן להירדם.', sticker: 'לוקח לה זמן להירדם' },
-      ],
-    },
+  title: 'יובל והארנבון בּוּנִי',
+  // Each line raises one moment out of the book; the last moment rises with the title.
+  lines: [
+    [
+      { text: 'זאת ' },
+      { text: 'יובל, היא בת שש.', sticker: 'יובל · בת 6' },
+      { text: ' בשבוע הבא יש לה חיסון, ו' },
+      { text: 'היא ממש מפחדת.', sticker: 'מפחדת מחיסונים' },
+    ],
+    [
+      { text: 'היא ' },
+      { text: 'אוהבת ארנבים', sticker: 'אוהבת ארנבים' },
+      { text: ', ורוצה שמישהו יחזיק לה את היד.' },
+    ],
   ],
+  beats: ['/Images/hero-beat-1.webp', '/Images/hero-beat-2.webp', '/Images/hero-beat-3.webp'],
 } as const;
 
 /**

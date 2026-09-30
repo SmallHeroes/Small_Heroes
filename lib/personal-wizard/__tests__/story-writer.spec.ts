@@ -9,7 +9,7 @@ import { resolveStorySettings, storyReservationUsd, type StorySettings } from '.
 import type { ReviewedPersonalBookRequest } from '../contract';
 import { existsSync } from 'fs';
 import { join } from 'path';
-import { getPersonalLandingContent, PERSONAL_HOW_IT_WORKS, PERSONAL_VOICE_DEMO } from '@/content/personal-landing';
+import { getPersonalLandingContent, PERSONAL_HOW_IT_WORKS, PERSONAL_VOICE_STORY } from '@/content/personal-landing';
 import { LIMITS } from '../contract';
 import { bookCopy, RECORDER, tellCopy } from '../copy';
 import { getLandingContent } from '@/content/landing';
@@ -194,13 +194,13 @@ describe('writer switches and product copy', () => {
     expect(JSON.stringify(recording)).not.toMatch(/מבטיחים|מובטח/);
     expect(JSON.stringify(getLandingContent([]))).not.toContain('הקלט');
   });
-  it('labels the living-book demo as an illustration and points only at art that exists', () => {
-    expect(PERSONAL_VOICE_DEMO.label).toContain('המחשה');
-    for (const example of PERSONAL_VOICE_DEMO.examples) {
-      // three phrases peel off as stickers, and the spoken line carries the name the book is titled with
-      expect(example.speech.filter((segment) => 'sticker' in segment)).toHaveLength(3);
-      expect(example.speech.map((segment) => segment.text).join('')).toContain(example.name);
-      for (const file of [example.art, example.companionImage]) expect(existsSync(join(process.cwd(), 'public', file))).toBe(true);
-    }
+  it('labels the hero story as an illustration and points only at art that exists', () => {
+    const story = PERSONAL_VOICE_STORY;
+    expect(story.label).toContain('המחשה');
+    // one more moment than spoken lines: the last one rises with the title
+    expect(story.beats).toHaveLength(story.lines.length + 1);
+    expect(story.lines.map((line) => line.map((segment) => segment.text).join('')).join(' ')).toContain('יובל');
+    expect(story.title).toContain('יובל');
+    for (const file of story.beats) expect(existsSync(join(process.cwd(), 'public', file))).toBe(true);
   });
 });

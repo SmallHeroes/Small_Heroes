@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { Fredoka, Playpen_Sans_Hebrew } from 'next/font/google';
 import { notFound } from 'next/navigation';
 import { isDevEnvironment } from '@/lib/dev-only-guard';
 import { isPersonalWizardPreviewEnabled } from '@/lib/personal-wizard/flags';
@@ -17,6 +18,10 @@ import './personal-product.css';
 import './personal-wow.css';
 
 export const dynamic = 'force-dynamic';
+
+// The preview's type voice (per Guy: childlike, bigger): Fredoka for the page, a hand for the spoken words.
+const fredoka = Fredoka({ subsets: ['hebrew', 'latin'], weight: ['400', '500', '600', '700'], variable: '--font-fredoka', display: 'swap' });
+const playpen = Playpen_Sans_Hebrew({ subsets: ['hebrew'], weight: ['400', '500', '600'], variable: '--font-playpen', display: 'swap' });
 export const metadata: Metadata = { ...PERSONAL_PRODUCT_METADATA, title: 'הכיוון האישי החדש · תצוגה מקדימה', robots: { index: false, follow: false } };
 export default function PersonalProductPage() {
   if (!isDevEnvironment() || !isPersonalWizardPreviewEnabled()) notFound();
@@ -24,5 +29,9 @@ export default function PersonalProductPage() {
   const offered = new Set(resolvePersonalWizardOptions().companions.map((companion) => companion.id));
   // Personal preview eligibility is asset-backed roster availability, not legacy topic sellability.
   const companions = categories.filter((slot) => offered.has(slot.companion.id)).map((slot) => ({ ...slot, publicVisible: true }));
-  return <LandingPage content={getPersonalLandingContent()} startHref="/dev/personal-wizard" matrixCategories={companions} personalPreview />;
+  return (
+    <div className={`${fredoka.variable} ${playpen.variable}`}>
+      <LandingPage content={getPersonalLandingContent()} startHref="/dev/personal-wizard" matrixCategories={companions} personalPreview />
+    </div>
+  );
 }

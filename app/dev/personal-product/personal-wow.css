@@ -1,33 +1,59 @@
 /* ═══════════════════════════════════════════════════════════════════════
-   PERSONAL-WOW.CSS — the preview landing's living-book layer (preview only).
-   The same system: Suez One on the big lines, Rubik behind it, Frank Ruhl in
-   the book; purple and strong yellow as the brand, coral as the warm accent
-   (the wow-2027 palette), paper for pages. New patterns: sticker, speech
-   bubble, voice orb, paper blob, the book spread.
-   Physical left/right on purpose inside the stage: it is a composition (orb
-   and words on the start side, the companion behind the far corner).
+   PERSONAL-WOW.CSS — the preview landing's storybook layer (preview only).
+   Round 2 of the direction proof, per Guy: a warmer page (not the lavender /
+   purple / yellow trio), a childlike type voice, everything bigger, and a
+   story that rises out of a book as a parent tells it. Purple stays the brand
+   (cover, button, ribbon), strong yellow stays the tag, coral is the warm
+   accent (the wow-2027 palette). Physical left/right inside the stage on
+   purpose: it is a composition.
    ═══════════════════════════════════════════════════════════════════════ */
 
 :root {
-  --pw-paper: #fffdf7;
-  --pw-paper-shade: #efe6d6;
   --pw-coral-tint: #ffe2d6;
   --pw-coral-ink: #7a2a17;
+  --pw-dawn-1: #ffe9da;
+  --pw-dawn-2: #fff3ea;
+  --pw-sky-hand-over: #fcfbff;
   --pw-ease: cubic-bezier(0.22, 1, 0.36, 1);
-  --pw-sticker-shadow: 0 6px 14px rgba(40, 33, 74, 0.16);
 }
 
-/* ── Hero layout ─────────────────────────────────────────────────────── */
-.pw-hero {
-  padding: 28px 0 48px;
+/* ── The type voice (preview only): Fredoka everywhere, a hand for the voice ── */
+.personal-product {
+  --font-suez: var(--font-fredoka);
+  --font-rubik: var(--font-fredoka);
+  --font-wow-display: var(--font-fredoka), 'Fredoka', sans-serif;
+  --font-wow-body: var(--font-fredoka), 'Fredoka', sans-serif;
+  --fd: var(--font-fredoka), 'Fredoka', sans-serif;
+  --fb: var(--font-fredoka), 'Fredoka', sans-serif;
+  font-family: var(--fb);
 }
+
+/* Suez shipped one weight, so its headings were set at 400; Fredoka needs its bold */
+.personal-product :is(h1, h2, h3, .section-h2, .sample-h2, .gallery-h2, .footer-h2, .landing-card-title, .value-card-title, .why-card-title, .trust-point__title, .price-name, .ph-title) {
+  font-weight: 700;
+}
+
+.personal-product .section-lede { font-size: clamp(18px, 1.9vw, 21px); }
+.personal-product :is(.value-card-body, .ph-body, .why-card-body, .trust-point__text, .faq-a p) { font-size: 17px; }
+
+/* ── Hero: dawn instead of lavender, handing over to the sky below ────── */
+.pw-hero {
+  padding: 24px 0 40px;
+  background:
+    radial-gradient(60% 55% at 12% 18%, rgba(255, 215, 69, 0.22), transparent 70%),
+    radial-gradient(50% 50% at 88% 30%, rgba(255, 138, 101, 0.18), transparent 70%),
+    linear-gradient(180deg, var(--pw-dawn-1) 0%, var(--pw-dawn-2) 58%, var(--pw-sky-hand-over) 100%);
+}
+
+.pw-hero .hero-doodles { background: none; }
+.pw-hero .hero-doodle { color: #f2a488; }
 
 .pw-hero-wrap {
   position: relative;
   z-index: 1;
   display: grid;
-  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
-  gap: clamp(24px, 4vw, 72px);
+  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+  gap: clamp(20px, 3vw, 56px);
   align-items: center;
 }
 
@@ -42,72 +68,67 @@
   align-items: center;
   gap: 8px;
   margin: 0;
-  padding: 8px 16px 8px 18px;
-  border-radius: 14px;
+  padding: 9px 18px 9px 20px;
+  border-radius: 16px;
   background: var(--yellow-400);
   color: var(--n-900);
-  font-size: 15px;
-  font-weight: 700;
+  font-size: 16px;
+  font-weight: 600;
   rotate: -2deg;
-  box-shadow: 0 3px 0 rgba(28, 27, 33, 0.1), 0 10px 22px rgba(245, 194, 27, 0.25);
+  box-shadow: 0 3px 0 rgba(28, 27, 33, 0.1), 0 10px 22px rgba(245, 194, 27, 0.22);
 }
 
-.pw-badge svg { width: 16px; height: 16px; color: var(--purple-600); }
+.pw-badge svg { width: 17px; height: 17px; color: var(--purple-600); }
 
 .pw-h1 {
-  margin: 22px 0 18px;
-  font-family: var(--font-suez), var(--fd);
-  font-weight: 400;
-  line-height: 1.04;
-  letter-spacing: 0;
+  margin: 22px 0 20px;
+  font-family: var(--fd);
+  font-weight: 700;
+  line-height: 1.02;
+  letter-spacing: -0.01em;
   color: var(--n-900);
-  font-size: clamp(44px, 5.4vw, 80px);
+  font-size: clamp(46px, 5.9vw, 94px);
 }
 
 .pw-h1-a {
   display: block;
-  font-size: 0.66em;
+  font-size: 0.64em;
   color: var(--n-800);
 }
 
 .pw-h1-b {
   display: block;
-  margin-top: 0.08em;
+  margin-top: 0.06em;
   color: var(--purple-500);
   text-wrap: balance;
 }
 
-/* the highlighter swipe: drawn once, from the start side */
+/* a hand-drawn brush stroke under the promise, in the warm accent (one per line) */
 .pw-ink {
-  background-image: linear-gradient(transparent 60%, var(--yellow-400) 60%, var(--yellow-400) 88%, transparent 88%);
+  padding-bottom: 0.14em;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 20' preserveAspectRatio='none'%3E%3Cpath d='M4 13 C 55 4, 120 5, 196 10' fill='none' stroke='%23ff8a65' stroke-width='6' stroke-linecap='round'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
-  background-position: right bottom;
-  background-size: 0% 100%;
+  background-size: 100% 0.26em;
+  background-position: 50% 100%;
   -webkit-box-decoration-break: clone;
   box-decoration-break: clone;
-  padding: 0 0.06em;
-  animation: pw-ink 1s 0.35s var(--pw-ease) forwards;
-}
-
-@keyframes pw-ink {
-  to { background-size: 100% 100%; }
 }
 
 .pw-sub {
   margin: 0;
-  max-width: 44ch;
-  font-size: clamp(17px, 1.35vw, 19.5px);
-  line-height: 1.72;
+  max-width: 42ch;
+  font-size: clamp(18px, 1.45vw, 21px);
+  line-height: 1.66;
   color: var(--n-600);
   text-wrap: pretty;
 }
 
 .pw-pilot {
   margin: 14px 0 0;
-  max-width: 46ch;
+  max-width: 44ch;
   padding-inline-start: 12px;
-  border-inline-start: 3px solid var(--yellow-400);
-  font-size: 14px;
+  border-inline-start: 3px solid #ff8a65;
+  font-size: 15px;
   line-height: 1.6;
   color: var(--n-600);
 }
@@ -121,17 +142,17 @@
 
 .pw-cta {
   gap: 12px;
-  min-height: 60px;
-  padding: 0 12px 0 28px;
-  font-size: 18px;
+  min-height: 64px;
+  padding: 0 12px 0 30px;
+  font-size: 20px;
 }
 
 .pw-cta-mic {
   position: relative;
   display: inline-grid;
   place-items: center;
-  width: 40px;
-  height: 40px;
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
   background: #fff;
   color: var(--purple-600);
@@ -146,14 +167,14 @@
   animation: pw-breathe 2.6s ease-in-out infinite;
 }
 
-.pw-cta-mic svg { width: 20px; height: 20px; }
+.pw-cta-mic svg { width: 22px; height: 22px; }
 
 @keyframes pw-breathe {
   0%, 100% { opacity: 0; transform: scale(0.92); }
   50% { opacity: 1; transform: scale(1.08); }
 }
 
-.pw-cta-2 { min-height: 60px; padding: 0 26px; font-size: 17px; }
+.pw-cta-2 { min-height: 64px; padding: 0 28px; font-size: 18px; }
 
 .pw-notes {
   display: flex;
@@ -168,304 +189,185 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 7px 14px;
+  padding: 8px 15px;
   border-radius: 999px;
   background: #fff;
-  box-shadow: 0 2px 0 var(--purple-100), 0 6px 16px rgba(40, 33, 74, 0.06);
-  font-size: 14px;
-  font-weight: 600;
+  box-shadow: 0 2px 0 rgba(255, 138, 101, 0.25), 0 6px 16px rgba(80, 40, 20, 0.07);
+  font-size: 15px;
+  font-weight: 500;
   color: var(--purple-700);
 }
 
-.pw-notes svg { width: 16px; height: 16px; color: var(--purple-500); }
+.pw-notes svg { width: 17px; height: 17px; color: var(--purple-500); }
 
-/* ── The stage ───────────────────────────────────────────────────────── */
-.vb-stage {
+/* ── The stage: a voice, a book, and the story rising out of it ───────── */
+.vs {
+  position: relative;
+  width: 100%;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.vs-stage {
   position: relative;
   container-type: inline-size;
-  width: 100%;
-  max-width: 680px;
-  margin: 0 auto;
-  aspect-ratio: 1 / 1.02;
+  aspect-ratio: 1 / 0.96;
 }
 
-.vb-blob { position: absolute; z-index: 0; pointer-events: none; }
-.vb-blob--sun { fill: var(--yellow-200); width: 78%; left: -12%; bottom: -2%; }
-.vb-blob--lilac { fill: var(--purple-100); width: 52%; right: -9%; top: -8%; }
-.vb-blob--coral { fill: var(--pw-coral-tint); width: 22%; left: 30%; top: 30%; }
-
-.vb-float-spark { position: absolute; z-index: 3; pointer-events: none; animation: vb-float 5s ease-in-out infinite alternate; }
-.vb-float-spark--a { width: 5cqi; top: 26%; left: 34%; color: var(--yellow-400); }
-.vb-float-spark--b { width: 3.4cqi; top: 4%; left: 12%; color: var(--purple-300); animation-delay: -2.4s; }
-
-@keyframes vb-float {
-  from { transform: translateY(0) rotate(0deg); }
-  to { transform: translateY(-8px) rotate(14deg); }
-}
-
-/* the voice: an orb on the start side, the words in a bubble beside it */
-.vb-talk { position: absolute; inset: 0; z-index: 4; pointer-events: none; }
-
-.vb-orb {
-  position: absolute;
-  top: 3%;
-  right: 1%;
-  display: grid;
-  place-items: center;
-  width: 12cqi;
-  height: 12cqi;
-  border-radius: 50%;
-  background: var(--purple-500);
-  color: #fff;
-  box-shadow: 0 10px 24px rgba(123, 47, 204, 0.35), inset 0 -4px 0 rgba(55, 16, 94, 0.25);
-}
-
-.vb-orb svg { width: 46%; height: 46%; position: relative; }
-
-.vb-orb-ring {
-  position: absolute;
-  inset: 0;
-  border-radius: 50%;
-  border: 2px solid var(--purple-300);
-  opacity: 0;
-}
-
-.vb-stage[data-talking='true'] .vb-orb-ring { animation: vb-ring 1.8s ease-out infinite; }
-.vb-stage[data-talking='true'] .vb-orb-ring--late { animation-delay: 0.9s; }
-
-@keyframes vb-ring {
-  from { opacity: 0.8; transform: scale(1); }
-  to { opacity: 0; transform: scale(1.75); }
-}
-
-.vb-bubble {
-  position: absolute;
-  top: 2.5%;
-  right: 16%;
-  left: 29%;
-  margin: 0;
-  min-height: calc(3 * 1.55em + 2 * 0.85em);
-  padding: 0.85em 1.05em;
-  border-radius: 1.3em;
-  background: #fff;
-  border: 2px solid var(--purple-100);
-  box-shadow: 0 14px 30px rgba(40, 33, 74, 0.1);
-  font-size: clamp(12.5px, 3cqi, 20px);
-  font-weight: 500;
-  line-height: 1.55;
-  color: var(--n-800);
-}
-
-/* the tail points at the orb */
-.vb-bubble::after {
-  content: '';
-  position: absolute;
-  top: 1.1em;
-  right: -0.72em;
-  width: 1.1em;
-  height: 1.1em;
-  background: #fff;
-  border-top: 2px solid var(--purple-100);
-  border-right: 2px solid var(--purple-100);
-  border-top-right-radius: 0.2em;
-  transform: rotate(45deg) skew(10deg, 10deg);
-}
-
-.vb-w { opacity: 0; transition: opacity 0.2s ease; }
-.vb-w[data-on='true'] { opacity: 1; }
-
-.vb-mark {
-  background-image: linear-gradient(transparent 56%, var(--yellow-300) 56%, var(--yellow-300) 94%, transparent 94%);
-  background-repeat: no-repeat;
-  background-position: right bottom;
-  background-size: 0% 100%;
-  -webkit-box-decoration-break: clone;
-  box-decoration-break: clone;
-  background-color: transparent;
-  color: inherit;
-  transition: background-size 0.45s var(--pw-ease);
-}
-
-.vb-mark[data-lit='true'] { background-size: 100% 100%; }
-
-/* the book */
-.vb-book {
-  position: absolute;
-  z-index: 2;
-  left: 2%;
-  right: 2%;
-  bottom: max(9%, 52px);
-  aspect-ratio: 2.12 / 1.4;
-}
-
-.vb-companion {
+.vs-bokeh {
   position: absolute;
   z-index: 0;
-  left: 2%;
-  bottom: calc(100% - 10cqi);
-  height: 28cqi;
-  width: auto;
-  opacity: 0;
-  transform: translateY(14px);
-  transition: opacity 0.5s var(--pw-ease), transform 0.6s var(--pw-ease);
-  filter: drop-shadow(0 8px 10px rgba(40, 33, 74, 0.14));
-}
-
-.vb-companion[data-active='true'] {
-  opacity: 1;
-  transform: translateY(0);
-  animation: vb-bob 3.4s 0.6s ease-in-out infinite alternate;
-}
-
-@keyframes vb-bob {
-  from { translate: 0 0; }
-  to { translate: 0 -6px; }
-}
-
-.vb-book::before {
-  content: '';
-  position: absolute;
-  inset: -12% -6%;
-  z-index: 0;
   border-radius: 50%;
-  background: radial-gradient(closest-side, rgba(255, 215, 69, 0.55), rgba(255, 215, 69, 0));
-  opacity: 0;
-  transition: opacity 1.2s ease;
   pointer-events: none;
+  animation: vs-drift 9s ease-in-out infinite alternate;
 }
 
-.vb-stage[data-colored='true'] .vb-book::before { opacity: 1; }
+.vs-bokeh--a { width: 38cqi; height: 38cqi; left: -2%; top: 8%; background: radial-gradient(circle, rgba(255, 215, 69, 0.45), rgba(255, 215, 69, 0) 68%); }
+.vs-bokeh--b { width: 32cqi; height: 32cqi; right: 2%; top: 38%; background: radial-gradient(circle, rgba(255, 138, 101, 0.32), rgba(255, 138, 101, 0) 68%); animation-delay: -3s; }
+.vs-bokeh--c { width: 46cqi; height: 46cqi; left: 28%; bottom: -4%; background: radial-gradient(circle, rgba(201, 165, 246, 0.4), rgba(201, 165, 246, 0) 68%); animation-delay: -6s; }
 
-.vb-cover {
+@keyframes vs-drift {
+  from { translate: 0 0; }
+  to { translate: 2cqi -2cqi; }
+}
+
+/* the voice's ribbon: drawn as the telling starts, sparks travel it while it talks */
+.vs-ribbon {
   position: absolute;
   inset: 0;
   z-index: 1;
-  padding: 2.2cqi;
-  border-radius: 2.4cqi;
-  background: linear-gradient(160deg, var(--purple-500), var(--purple-700));
-  box-shadow: 0 1.4cqi 0 var(--purple-800), 0 3cqi 5cqi -1cqi rgba(55, 16, 94, 0.45);
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
 }
 
-/* a stitched rim: only the edge of the cover shows around the pages */
-.vb-cover::after {
+.vs-ribbon path {
+  fill: none;
+  stroke-linecap: round;
+  stroke-dasharray: 1 1;
+  stroke-dashoffset: 1;
+  transition: stroke-dashoffset 1.7s cubic-bezier(0.45, 0, 0.2, 1);
+}
+
+.vs-ribbon-line { stroke: url(#vs-ribbon-ink); stroke-width: 10; }
+.vs-ribbon-glow { stroke: #ffd9a8; stroke-width: 30; opacity: 0.55; filter: blur(8px); }
+.vs[data-voice='true'] .vs-ribbon path { stroke-dashoffset: 0; }
+.vs-motes circle { fill: #fff; filter: drop-shadow(0 0 5px #ffd745); }
+
+/* the book: an illustrated open book at the foot of the stage */
+.vs-book {
+  position: absolute;
+  z-index: 2;
+  left: 5%;
+  right: 5%;
+  bottom: 2.5%;
+}
+
+.vs-book svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+  filter: drop-shadow(0 2.2cqi 2.4cqi rgba(80, 40, 20, 0.22));
+}
+
+.vs-book-cover { fill: var(--purple-600); }
+.vs-book-edge { fill: #efe2cc; }
+.vs-book-gutter { stroke: rgba(120, 90, 50, 0.28); stroke-width: 3; }
+
+/* a warm light from the pages while the story rises */
+.vs-book::before {
   content: '';
   position: absolute;
-  inset: 0.9cqi;
-  border: 1.5px dashed rgba(255, 255, 255, 0.4);
-  border-radius: 1.8cqi;
-  pointer-events: none;
-}
-
-.vb-pages {
-  position: relative;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  height: 100%;
-  border-radius: 1.2cqi;
-  overflow: hidden;
-  box-shadow: 0 0.5cqi 0 #e7dcc8, 0 1cqi 0 #efe6d6;
-}
-
-.vb-page {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  background: var(--pw-paper);
-}
-
-/* RTL: the words page is on the right, the gutter on its left */
-.vb-page--words { background: linear-gradient(to left, var(--pw-paper) 72%, var(--pw-paper-shade)); padding-top: 7%; }
-.vb-page--art { background: linear-gradient(to right, var(--pw-paper) 72%, var(--pw-paper-shade)); }
-
-.vb-gutter {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 50%;
-  width: 7%;
-  translate: -50% 0;
-  background: linear-gradient(to right, transparent, rgba(92, 70, 40, 0.16) 50%, transparent);
-  pointer-events: none;
-}
-
-.vb-page > * { transition: opacity 0.45s ease; }
-.vb-stage[data-leaving='true'] :is(.vb-bubble, .vb-page > *) { opacity: 0; }
-.vb-bubble { transition: opacity 0.45s ease; }
-.vb-stage[data-resetting='true'] *,
-.vb-stage[data-resetting='true'] *::before,
-.vb-stage[data-resetting='true'] *::after { transition: none !important; }
-
-.vb-title-small {
-  font-size: 2cqi;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  color: var(--purple-600);
-}
-
-.vb-name {
-  margin-top: 0.6cqi;
-  font-family: var(--font-suez), var(--fd);
-  font-size: 7.4cqi;
-  line-height: 1.1;
-  color: var(--purple-700);
-  clip-path: inset(0 0 0 100%);
-  transition: clip-path 0.9s cubic-bezier(0.6, 0, 0.3, 1);
-}
-
-.vb-stage[data-titled='true'] .vb-name { clip-path: inset(0 0 0 0); }
-
-.vb-with {
-  margin-top: 0.4cqi;
-  font-family: var(--font-frank), 'Frank Ruhl Libre', serif;
-  font-size: 2.5cqi;
-  color: var(--n-600);
+  z-index: -1;
+  left: 16%;
+  right: 16%;
+  top: -75%;
+  height: 130%;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(255, 215, 69, 0.55), rgba(255, 215, 69, 0));
   opacity: 0;
-  transition: opacity 0.6s ease 0.3s;
+  transition: opacity 1.1s ease;
 }
 
-.vb-stage[data-titled='true'] .vb-with { opacity: 1; }
+.vs[data-glow='true'] .vs-book::before { opacity: 1; }
 
-.vb-stickers { position: absolute; inset: 42% 0 10% 0; }
-
-.vb-sticker {
+/* the three moments, rising from the spine */
+.vs-card {
   position: absolute;
-  padding: 0.5em 0.85em;
-  border-radius: 0.8em;
-  border: 0.22em solid #fff;
-  box-shadow: var(--pw-sticker-shadow);
-  font-size: clamp(9.5px, 2.15cqi, 14.5px);
-  font-weight: 700;
-  line-height: 1.25;
-  white-space: nowrap;
+  z-index: 3;
+  transform-origin: 50% 100%;
   opacity: 0;
+  scale: 0.22;
+  translate: var(--from);
+  rotate: 0deg;
+  transition:
+    opacity 0.6s ease,
+    scale 1s cubic-bezier(0.2, 1.2, 0.4, 1),
+    translate 1s cubic-bezier(0.2, 1.2, 0.4, 1),
+    rotate 1s cubic-bezier(0.2, 1.2, 0.4, 1);
 }
 
-.vb-sticker[data-landed='true'] { opacity: 1; }
-.vb-sticker[data-slot='0'] { top: 4%; right: 9%; rotate: -4deg; background: var(--yellow-300); color: var(--n-900); }
-.vb-sticker[data-slot='1'] { top: 37%; left: 7%; rotate: 3deg; background: var(--pw-coral-tint); color: var(--pw-coral-ink); }
-.vb-sticker[data-slot='2'] { top: 70%; right: 12%; rotate: -2deg; background: var(--purple-100); color: var(--purple-700); }
-/* the resting tilt lives in `rotate`; the flight animates translate/scale/rotate and ends on the same tilt */
-.vb-sticker { transform-origin: center; }
+.vs-card[data-risen='true'] { opacity: 1; scale: 1; translate: 0 0; rotate: var(--tilt); }
+.vs-card[data-card='0'] { right: 5%; top: 33%; width: 25%; --tilt: 5deg; --from: -32cqi 17cqi; }
+.vs-card[data-card='1'] { right: 36%; top: 24%; width: 27%; --tilt: -3deg; --from: -0.5cqi 24cqi; z-index: 4; }
+.vs-card[data-card='2'] { left: 4%; top: 17%; width: 31%; --tilt: -5deg; --from: 30cqi 28cqi; z-index: 5; }
 
-.vb-folio {
-  position: absolute;
-  bottom: 3.5%;
-  font-family: var(--font-frank), 'Frank Ruhl Libre', serif;
-  font-size: 1.7cqi;
-  color: var(--n-500);
+/* the paper frame floats a little once it has risen (the card itself owns the rise) */
+.vs-card-frame {
+  display: block;
+  padding: 0.9cqi;
+  border-radius: 1.6cqi;
+  background: #fffdf8;
+  box-shadow: 0 1.8cqi 3.6cqi -0.6cqi rgba(80, 40, 20, 0.35);
 }
 
-.vb-art {
+.vs-card[data-risen='true'] .vs-card-frame { animation: vs-bob 4.6s 1s ease-in-out infinite alternate; }
+.vs-card[data-card='1'][data-risen='true'] .vs-card-frame { animation-delay: 1.8s; animation-duration: 5.2s; }
+.vs-card[data-card='2'][data-risen='true'] .vs-card-frame { animation-delay: 2.4s; animation-duration: 4.9s; }
+
+@keyframes vs-bob {
+  from { translate: 0 0; }
+  to { translate: 0 -0.9cqi; }
+}
+
+/* golden dust rising from the spine while the story is told */
+.vs-dust { position: absolute; z-index: 2; left: 50%; bottom: 29%; width: 0; height: 0; pointer-events: none; opacity: 0; transition: opacity 0.8s ease; }
+.vs[data-glow='true'] .vs-dust { opacity: 1; }
+.vs-dust span {
   position: absolute;
-  inset: 6% 7% 11% 7%;
-  border-radius: 0.8cqi;
+  width: 1cqi;
+  height: 1cqi;
+  border-radius: 50%;
+  background: #ffd745;
+  box-shadow: 0 0 1.2cqi #ffd745;
+  opacity: 0;
+  animation: vs-dust 3.4s linear infinite;
+}
+.vs-dust span:nth-child(1) { left: -6cqi; animation-delay: 0s; }
+.vs-dust span:nth-child(2) { left: 3cqi; animation-delay: 0.6s; width: 0.7cqi; height: 0.7cqi; }
+.vs-dust span:nth-child(3) { left: -2cqi; animation-delay: 1.2s; }
+.vs-dust span:nth-child(4) { left: 7cqi; animation-delay: 1.8s; width: 0.8cqi; height: 0.8cqi; background: #ff8a65; box-shadow: 0 0 1.2cqi #ff8a65; }
+.vs-dust span:nth-child(5) { left: -9cqi; animation-delay: 2.4s; width: 0.7cqi; height: 0.7cqi; }
+.vs-dust span:nth-child(6) { left: 1cqi; animation-delay: 3s; background: #fff; }
+
+@keyframes vs-dust {
+  0% { opacity: 0; translate: 0 0; }
+  18% { opacity: 1; }
+  100% { opacity: 0; translate: 2.5cqi -34cqi; }
+}
+
+.vs-card-art {
+  position: relative;
+  display: block;
+  aspect-ratio: 2 / 3;
+  border-radius: 1cqi;
   overflow: hidden;
-  background: var(--pw-paper);
-  box-shadow: inset 0 0 0 1px rgba(92, 70, 40, 0.08);
+  background: #fffaf1;
 }
 
-.vb-art img {
+.vs-card-art img {
   position: absolute;
   inset: 0;
   width: 100%;
@@ -473,82 +375,203 @@
   object-fit: cover;
 }
 
-/* first a pencil sketch, then the colour washes in from the spine */
-.vb-art-sketch { filter: grayscale(1) contrast(1.3) brightness(1.2); opacity: 0.55; }
+/* a pencil sketch first; the colour rises up from the book */
+.vs-sketch { filter: grayscale(1) contrast(1.3) brightness(1.18); opacity: 0.6; }
 
-.vb-art-color {
-  clip-path: circle(0% at 100% 50%);
-  transition: clip-path 1.25s cubic-bezier(0.45, 0, 0.2, 1);
+.vs-color {
+  clip-path: circle(0% at 50% 100%);
+  transition: clip-path 1.3s cubic-bezier(0.45, 0, 0.2, 1);
 }
 
-.vb-stage[data-colored='true'] .vb-art-color { clip-path: circle(150% at 100% 50%); }
+.vs-card[data-colored='true'] .vs-color { clip-path: circle(150% at 50% 100%); }
 
-.vb-spark { position: absolute; z-index: 2; width: 4cqi; color: var(--yellow-400); opacity: 0; scale: 0.3; }
-.vb-spark--a { top: 2%; left: 4%; }
-.vb-spark--b { top: 40%; left: -2%; width: 2.8cqi; color: var(--purple-300); }
-.vb-spark--c { bottom: 8%; left: 12%; width: 3.2cqi; }
+.vs-card-spark { position: absolute; width: 4.2cqi; color: var(--yellow-400); opacity: 0; scale: 0.3; }
+.vs-card-spark--a { top: -2.2cqi; left: -2cqi; }
+.vs-card-spark--b { bottom: 12%; right: -2.2cqi; width: 3cqi; color: #ff8a65; }
+.vs-card[data-colored='true'] .vs-card-spark { animation: vs-spark 0.9s var(--pw-ease) both; }
+.vs-card[data-colored='true'] .vs-card-spark--b { animation-delay: 0.3s; }
 
-.vb-stage[data-colored='true'] .vb-spark { animation: vb-spark 0.9s var(--pw-ease) both; }
-.vb-stage[data-colored='true'] .vb-spark--b { animation-delay: 0.25s; }
-.vb-stage[data-colored='true'] .vb-spark--c { animation-delay: 0.45s; }
-
-@keyframes vb-spark {
+@keyframes vs-spark {
   0% { opacity: 0; scale: 0.3; rotate: -30deg; }
   60% { opacity: 1; scale: 1.25; rotate: 10deg; }
   100% { opacity: 1; scale: 1; rotate: 0deg; }
 }
 
-.vb-warm { position: absolute; width: 1px; height: 1px; overflow: hidden; opacity: 0; pointer-events: none; }
-.vb-warm img { width: 1px; height: 1px; }
-
-/* controls and the honest label */
-.vb-foot {
+/* the book gets its title */
+.vs-title {
   position: absolute;
-  z-index: 5;
-  left: 2%;
-  right: 2%;
-  bottom: 0;
+  z-index: 7;
+  left: 50%;
+  bottom: 8%;
+  translate: -50% 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 1.2cqi;
+  padding: 1.1cqi 3.2cqi;
+  border-radius: 999px;
+  background: var(--purple-600);
+  color: #fff;
+  font-family: var(--fd);
+  font-weight: 700;
+  font-size: clamp(16px, 4.3cqi, 34px);
+  white-space: nowrap;
+  box-shadow: 0 1.2cqi 3cqi rgba(81, 24, 137, 0.35), 0 0 0 0.55cqi rgba(255, 255, 255, 0.85);
+  opacity: 0;
+  scale: 0.6;
+  transition: opacity 0.5s ease, scale 0.8s cubic-bezier(0.2, 1.4, 0.4, 1);
+}
+
+.vs[data-titled='true'] .vs-title { opacity: 1; scale: 1; }
+.vs-title-spark { width: 2.8cqi; color: var(--yellow-400); }
+
+/* the voice: an orb on the start side, the words in a bubble beside it */
+.vs-voice { position: absolute; inset: 0; z-index: 6; pointer-events: none; }
+
+.vs-orb {
+  position: absolute;
+  top: 1%;
+  right: 1.5%;
+  display: grid;
+  place-items: center;
+  width: 15cqi;
+  height: 15cqi;
+  border-radius: 50%;
+  color: #fff;
+  background: radial-gradient(circle at 35% 30%, #b98af5 0%, var(--purple-500) 45%, var(--purple-700) 100%);
+  box-shadow: 0 0 0 1.1cqi rgba(255, 255, 255, 0.6), 0 1.6cqi 4cqi rgba(123, 47, 204, 0.4), 0 0 7cqi rgba(255, 138, 101, 0.4);
+}
+
+.vs-orb svg { width: 44%; height: 44%; position: relative; }
+
+.vs-orb-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 0.45cqi solid rgba(255, 138, 101, 0.75);
+  opacity: 0;
+}
+
+.vs[data-talking='true'] .vs-orb { animation: vs-speak 0.5s ease-in-out infinite alternate; }
+.vs[data-talking='true'] .vs-orb-ring { animation: vs-ring 1.7s ease-out infinite; }
+.vs[data-talking='true'] .vs-orb-ring--late { animation-delay: 0.85s; }
+
+@keyframes vs-speak {
+  from { scale: 1; }
+  to { scale: 1.05; }
+}
+
+@keyframes vs-ring {
+  from { opacity: 0.9; transform: scale(1); }
+  to { opacity: 0; transform: scale(1.8); }
+}
+
+.vs-bubble {
+  position: absolute;
+  top: 1.5%;
+  right: 19.5%;
+  left: 34%;
+  margin: 0;
+  min-height: calc(3 * 1.45em + 1.7em);
+  padding: 0.85em 1.05em;
+  border-radius: 1.25em;
+  background: #fff;
+  box-shadow: 0 1.4cqi 3.6cqi rgba(80, 40, 20, 0.12);
+  font-family: var(--font-playpen), 'Playpen Sans Hebrew', var(--fb);
+  font-weight: 500;
+  font-size: clamp(13px, 3cqi, 23px);
+  line-height: 1.45;
+  color: var(--n-800);
+  transition: opacity 0.4s ease;
+}
+
+.vs-bubble[data-empty='true'] { opacity: 0; }
+
+.vs-bubble::after {
+  content: '';
+  position: absolute;
+  top: 1.2em;
+  right: -0.62em;
+  width: 1.1em;
+  height: 1.1em;
+  background: #fff;
+  border-top-right-radius: 0.25em;
+  transform: rotate(45deg) skew(8deg, 8deg);
+}
+
+.vs-line { display: block; }
+.vs-line + .vs-line { margin-top: 0.35em; }
+.vs-w { opacity: 0; transition: opacity 0.18s ease; }
+.vs-w[data-on='true'] { opacity: 1; }
+
+.vs-mark {
+  background-color: transparent;
+  background-image: linear-gradient(transparent 58%, rgba(255, 138, 101, 0.38) 58%, rgba(255, 138, 101, 0.38) 94%, transparent 94%);
+  background-repeat: no-repeat;
+  background-position: right bottom;
+  background-size: 0% 100%;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+  color: inherit;
+  transition: background-size 0.45s var(--pw-ease);
+}
+
+.vs-mark[data-lit='true'] { background-size: 100% 100%; }
+
+/* the phrases, stuck onto their moments */
+.vs-sticker {
+  position: absolute;
+  z-index: 8;
+  padding: 0.45em 0.85em;
+  border-radius: 0.8em;
+  border: 0.22em solid #fff;
+  box-shadow: 0 0.6cqi 1.4cqi rgba(80, 40, 20, 0.2);
+  font-family: var(--fd);
+  font-weight: 700;
+  font-size: clamp(11px, 2.4cqi, 18px);
+  line-height: 1.2;
+  white-space: nowrap;
+  opacity: 0;
+}
+
+.vs-sticker[data-landed='true'] { opacity: 1; }
+.vs-sticker[data-sticker='0'] { top: 30%; right: 2%; rotate: -5deg; background: var(--yellow-300); color: var(--n-900); }
+.vs-sticker[data-sticker='1'] { top: 65%; right: 9%; rotate: 4deg; background: var(--pw-coral-tint); color: var(--pw-coral-ink); }
+.vs-sticker[data-sticker='2'] { top: 21%; right: 42%; rotate: -3deg; background: var(--purple-100); color: var(--purple-700); }
+
+/* the telling ends: everything fades, resets unseen, and begins again */
+.vs[data-leaving='true'] :is(.vs-card, .vs-sticker, .vs-title, .vs-bubble, .vs-ribbon) { opacity: 0 !important; transition: opacity 0.6s ease !important; }
+.vs[data-resetting='true'] *,
+.vs[data-resetting='true'] *::before,
+.vs[data-resetting='true'] *::after { transition: none !important; }
+.vs[data-paused='true'] :is(.vs-bokeh, .vs-orb, .vs-orb-ring, .vs-card-frame, .vs-dust span) { animation-play-state: paused; }
+
+.vs-foot {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  margin-top: 8px;
+  padding-inline: 2%;
 }
 
-.vb-controls { display: inline-flex; align-items: center; gap: 8px; order: 2; }
-
-.vb-toggle {
+.vs-toggle {
   display: inline-grid;
   place-items: center;
-  width: 36px;
-  height: 36px;
+  width: 38px;
+  height: 38px;
   border-radius: 50%;
-  border: 1.5px solid var(--purple-200);
+  border: 1.5px solid rgba(255, 138, 101, 0.5);
   background: #fff;
   color: var(--purple-600);
   cursor: pointer;
+  order: 2;
 }
 
-.vb-toggle svg { width: 16px; height: 16px; }
+.vs-toggle svg { width: 16px; height: 16px; }
+.vs-toggle:focus-visible { outline: 3px solid var(--purple-400); outline-offset: 3px; }
+.vs-label { font-size: 13px; color: var(--n-600); }
 
-.vb-dot {
-  width: 12px;
-  height: 12px;
-  padding: 0;
-  border-radius: 999px;
-  border: 0;
-  background: var(--purple-200);
-  cursor: pointer;
-  transition: width 0.3s var(--pw-ease), background 0.3s ease;
-}
-
-.vb-dot[aria-current='true'] { width: 28px; background: var(--purple-500); }
-
-.vb-toggle:focus-visible,
-.vb-dot:focus-visible { outline: 3px solid var(--purple-400); outline-offset: 3px; }
-
-.vb-label { font-size: 12.5px; color: var(--n-600); }
-
-.vb-sr {
+.vs-sr {
   position: absolute;
   width: 1px;
   height: 1px;
@@ -557,12 +580,9 @@
   white-space: nowrap;
 }
 
-/* paused or off screen: nothing keeps moving */
-.vb-stage[data-paused='true'] :is(.vb-companion, .vb-float-spark, .vb-orb-ring) { animation-play-state: paused; }
-
-/* ── Phones: the book comes up between the headline and the words ────── */
+/* ── Phones: the story comes up between the headline and the words ─────── */
 @media (max-width: 960px) {
-  .pw-hero { padding: 18px 0 36px; }
+  .pw-hero { padding: 16px 0 34px; }
   .pw-hero-wrap {
     grid-template-columns: minmax(0, 1fr);
     grid-template-areas: 'badge' 'h1' 'stage' 'sub' 'pilot' 'ctas' 'notes';
@@ -572,17 +592,28 @@
   }
   .pw-copy { display: contents; }
   .pw-badge { grid-area: badge; }
-  .pw-h1 { grid-area: h1; margin: 16px 0 10px; }
-  .vb-stage { grid-area: stage; margin: 6px 0 18px; }
+  .pw-h1 { grid-area: h1; margin: 16px 0 8px; }
+  .vs { grid-area: stage; margin: 4px 0 18px; }
   .pw-sub { grid-area: sub; }
   .pw-pilot { grid-area: pilot; }
   .pw-ctas { grid-area: ctas; justify-content: center; width: 100%; }
   .pw-notes { grid-area: notes; justify-content: center; }
 }
 
+/* a narrow stage gives the words the whole top row */
+@container (max-width: 560px) {
+  .vs-bubble { left: 2%; font-size: 3.7cqi; }
+}
+
 @media (max-width: 520px) {
   .pw-cta, .pw-cta-2 { width: 100%; justify-content: center; }
-  .vb-label { font-size: 11.5px; }
+  .vs-stage { aspect-ratio: 1 / 1.1; }
+  .vs-card[data-card='0'] { top: 40%; }
+  .vs-card[data-card='1'] { top: 33%; }
+  .vs-card[data-card='2'] { top: 27%; }
+  .vs-sticker[data-sticker='0'] { top: 37%; }
+  .vs-sticker[data-sticker='1'] { top: 69%; }
+  .vs-sticker[data-sticker='2'] { top: 30%; }
 }
 
 /* ── How it works: a trail with three stops ──────────────────────────── */
@@ -726,6 +757,5 @@
     animation: none !important;
     transition: none !important;
   }
-  .pw-ink { background-size: 100% 100% !important; }
   .ph-trail-line { clip-path: none !important; }
 }

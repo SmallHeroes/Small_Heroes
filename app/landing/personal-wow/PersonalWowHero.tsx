@@ -1,7 +1,7 @@
 import { HeroDoodles } from '@/app/landing/hero-doodles';
-import { PERSONAL_VOICE_DEMO } from '@/content/personal-landing';
+import { PERSONAL_VOICE_STORY } from '@/content/personal-landing';
 
-import { VoiceBookStage } from './VoiceBookStage';
+import { VoiceStoryStage } from './VoiceStoryStage';
 
 type HeroCopy = {
   badge: string;
@@ -42,8 +42,8 @@ const NOTE_ICONS = [
 ];
 
 /**
- * The preview's hero: the same words, staged as a living book. Copy on the start side; on phones the
- * stage moves up between the headline and the text so the book is seen before it is read about.
+ * The preview's hero: the same words, beside a story that rises out of a book as a parent tells it.
+ * Copy on the start side; on phones the story moves up between the headline and the text.
  */
 export function PersonalWowHero({ hero, pilotNote, startHref }: { hero: HeroCopy; pilotNote: string; startHref: string }) {
   return (
@@ -83,7 +83,7 @@ export function PersonalWowHero({ hero, pilotNote, startHref }: { hero: HeroCopy
             ))}
           </ul>
         </div>
-        <VoiceBookStage demo={PERSONAL_VOICE_DEMO} />
+        <VoiceStoryStage story={PERSONAL_VOICE_STORY} />
       </div>
     </section>
   );
