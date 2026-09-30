@@ -85,9 +85,33 @@ it off the public landing").
   - Counts: canonical 388, ordinary 368, resource 20. The preview server was started during the last
     ~40 s of the resource phase, to show Guy the page.
 
+## Codex QA (2026-09-30)
+
+**Verdict:** technical PASS, with P0, P1 and P2 all 0. It covers `45b9e754..77f6d430` only.
+
+- **What the PASS is not:** product acceptance, release readiness, a privacy-policy certification, or approval
+  to push or deploy.
+- **Preview isolation:** an independent in-memory harness rendered the base and head `LandingPage` with
+  ReactDOMServer.
+  - The public markup was identical, including with an explicit `personalPreview=false`.
+  - The preview control contained the section, the link, the FAQ and the note.
+  - The real browser showed no recording copy on `/` or `/start`.
+  - The component code still ships in the shared bundle. Rendering isolation is not bundle exclusion.
+- **Wizard claims and non-operator honesty:** verified against the code. In a real browser, the CTA reached the
+  local-only start screen, the labelled example worked, and no microphone permission was requested.
+- **Privacy copy:** consistent with the existing disclosure. Provider retention and legal compliance were not
+  audited.
+- **Codex's own checks:**
+  - tsc 0;
+  - 14 specs, 257/257;
+  - `git diff --check` clean;
+  - an untouched-path diff;
+  - a focused browser and accessibility audit at 1024 to 1440 px and 390x844.
+- **Full gate:** not re-run by Codex. It remains RED and open.
+
 ## Open
 
-- **Guy:** product acceptance of the copy and the placement.
-- **Codex:** technical QA of the exact range.
+- **Guy:** product acceptance of the copy and the placement. Push is his call.
+- **Claude:** the independent review of the writer at `45b9e754` is still open. This PASS does not cover it.
 - **Public recording copy:** it reaches public pages only together with the personal flow. That is Guy's call,
   with Codex.
