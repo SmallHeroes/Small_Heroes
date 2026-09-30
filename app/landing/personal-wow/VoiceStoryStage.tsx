@@ -1,6 +1,12 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  createFamilyTransition,
+  createStickerFlights,
+  type FamilyTransition,
+  type StageScheduler,
+} from '@/lib/web/voice-stage-lifecycle';
 
 type Segment = { readonly text: string; readonly sticker?: string };
 type Beat = { readonly image: string; readonly portrait?: boolean };
@@ -101,10 +107,18 @@ function Spark({ className }: { className: string }) {
   );
 }
 
+const browserScheduler: StageScheduler = {
+  setTimeout: (run, ms) => window.setTimeout(run, ms),
+  clearTimeout: (id) => window.clearTimeout(id),
+  requestAnimationFrame: (run) => requestAnimationFrame(run),
+  cancelAnimationFrame: (id) => cancelAnimationFrame(id),
+};
+
 /**
  * The hero's living stories. Runs only while on screen, in a visible tab and with motion allowed; the
- * pause control holds it and the dots choose a family. Under reduced motion a finished story is shown
- * (its opening line in the bubble, every moment in colour and tagged) and the dots switch families instantly.
+ * pause control holds it (stickers in flight too) and the dots choose a family, the latest press
+ * winning. Under reduced motion a finished story is shown (its opening line in the bubble, every
+ * moment in colour and tagged) and the dots switch families instantly.
  */
 export function VoiceStoryStage({ demo }: { demo: VoiceStories }) {
   const total = demo.stories.length;
@@ -122,6 +136,8 @@ export function VoiceStoryStage({ demo }: { demo: VoiceStories }) {
   const markRefs = useRef(new Map<string, HTMLElement>());
   const tagRefs = useRef<Array<HTMLElement | null>>([]);
   const flown = useRef(new Set<number>());
+  const [flights] = useState(createStickerFlights);
+  const transition = useRef<FamilyTransition | null>(null);
 
   const story = demo.stories[index];
   const events = useMemo(() => buildTimeline(story), [story]);
@@ -166,33 +182,59 @@ export function VoiceStoryStage({ demo }: { demo: VoiceStories }) {
   const running = motionAllowed && !paused && onScreen && pageVisible && !leaving && !resetting;
   const talking = running && view.line >= 0 && view.typed < (lineTokens[view.line]?.length ?? 0);
 
-  // Fade out, change family unseen (no transitions while hidden), fade back in.
-  const leaveTo = useCallback((next: number) => {
-    setLeaving(true);
-    window.setTimeout(() => {
-      for (const tag of tagRefs.current) tag?.getAnimations().forEach((animation) => animation.cancel());
+  // Fade out, change family unseen (no transitions while hidden), fade back in. One owned fade: the
+  // latest choice wins, and it is cancelled on unmount. Made per mount, from the family on stage.
+  useEffect(() => {
+    const restart = (family: number) => {
+      flights.clear();
       flown.current = new Set();
       setLanded([]);
-      setResetting(true);
-      setIndex(next);
+      setIndex(family);
       setStep(0);
-      requestAnimationFrame(() => requestAnimationFrame(() => {
+    };
+    const owned = createFamilyTransition(browserScheduler, {
+      leave: () => setLeaving(true),
+      swap: (family) => {
+        restart(family);
+        setResetting(true);
+      },
+      jump: restart,
+      settle: () => {
         setResetting(false);
         setLeaving(false);
-      }));
-    }, 600);
-  }, []);
+      },
+    }, index);
+    transition.current = owned;
+    return () => {
+      owned.dispose();
+      if (transition.current === owned) transition.current = null;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [flights]);
 
   useEffect(() => {
     if (!running) return;
     const event = events[step];
     if (!event) return;
     const timer = window.setTimeout(() => {
-      if (event.kind === 'end') leaveTo((index + 1) % total);
-      else setStep((current) => current + 1);
+      if (event.kind !== 'end') setStep((current) => current + 1);
+      else if (transition.current) transition.current.request((transition.current.shown + 1) % total, true);
     }, event.after);
     return () => window.clearTimeout(timer);
-  }, [running, step, events, leaveTo, index, total]);
+  }, [running, step, events, total]);
+
+  // Stickers in flight follow the stage: held with it, landed at once under reduced motion, dropped on unmount.
+  useEffect(() => {
+    flights.run(running);
+  }, [flights, running]);
+
+  useEffect(() => {
+    if (motionAllowed) return;
+    transition.current?.stillness();
+    flights.settle();
+  }, [flights, motionAllowed]);
+
+  useEffect(() => () => flights.clear(), [flights]);
 
   // A phrase that has just been said flies from the bubble onto its moment.
   useEffect(() => {
@@ -220,9 +262,9 @@ export function VoiceStoryStage({ demo }: { demo: VoiceStories }) {
         ],
         { duration: 860, easing: 'cubic-bezier(0.3, 0.7, 0.2, 1)', fill: 'forwards' },
       );
-      flight.onfinish = () => setLanded((current) => (current.includes(tagIndex) ? current : [...current, tagIndex]));
+      flights.start(tagIndex, flight, (tag) => setLanded((current) => (current.includes(tag) ? current : [...current, tag])));
     });
-  }, [view.line, view.typed, complete, lineEnds, tags]);
+  }, [view.line, view.typed, complete, lineEnds, tags, flights]);
 
   // The other families' pictures start loading once the first is under way, never before first paint.
   useEffect(() => {
@@ -231,14 +273,7 @@ export function VoiceStoryStage({ demo }: { demo: VoiceStories }) {
     return () => window.clearTimeout(timer);
   }, [warm, running]);
 
-  const choose = (next: number) => {
-    if (next === index) return;
-    if (!motionAllowed) {
-      setIndex(next);
-      return;
-    }
-    leaveTo(next);
-  };
+  const choose = (next: number) => transition.current?.request(next, motionAllowed);
 
   // Still (reduced motion): the opening line only; the tags on the pictures carry the rest.
   const bubbleLines = complete ? [0] : view.line >= 0 ? [view.line] : [];
