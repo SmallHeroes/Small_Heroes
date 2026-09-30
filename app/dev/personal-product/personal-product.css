@@ -5,46 +5,31 @@
 .personal-product .personal-pilot-note { max-width: 48ch; margin: 0 0 24px; font-size: 14px; line-height: 1.65; color: var(--n-600); }
 .personal-product .personal-hero-notes { display: flex; flex-wrap: wrap; gap: 8px 20px; padding: 0; margin: 20px 0 0; list-style: none; font-size: 14px; color: var(--purple-700); }
 .personal-product .personal-hero-notes li { border-inline-start: 2px solid var(--purple-200); padding-inline-start: 10px; }
-.personal-story-example { padding: 80px 0; background: var(--purple-50); scroll-margin-top: 90px; }
-.personal-example-kicker { width: fit-content; margin: 0 auto 12px; padding: 5px 14px; border-radius: 10px; background: var(--yellow-400); color: var(--n-900); font-size: 14px; font-weight: 700; }
-.personal-story-example .section-h2 { max-width: 24ch; margin-inline: auto; text-wrap: balance; }
-.personal-example-layout { display: grid; grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.6fr); gap: 28px; margin: 36px auto 0; max-width: 1000px; align-items: start; }
-.personal-profile { padding: 28px; border: 1px solid var(--purple-200); border-radius: 20px; background: #fff; }
-.personal-profile h3, .personal-excerpt h3 { font-family: var(--font-suez), var(--fd); font-size: 22px; margin: 0 0 18px; font-weight: 400; color: var(--purple-700); }
-.personal-profile ul { list-style: none; display: flex; flex-wrap: wrap; gap: 8px; padding: 0; margin: 0; }
-.personal-profile li { padding: 7px 12px; border-radius: 12px; background: var(--purple-50); color: var(--n-700); font-size: 15px; line-height: 1.5; }
-.personal-profile p { margin: 20px 0 0; font-size: 13px; color: var(--n-600); }
-.personal-excerpt { padding: 32px; border-radius: 20px; background: #fff; box-shadow: var(--shadow-card); }
-.personal-excerpt blockquote { padding: 0; margin: 0; border: 0; }
-.personal-excerpt blockquote p { margin: 0 0 14px; font-size: 18px; line-height: 1.8; color: var(--n-800); }
-.personal-example-reflection { margin: 24px 0 0; padding-top: 20px; border-top: 1px solid var(--purple-100); color: var(--purple-700); font-size: 15px; line-height: 1.7; }
-.personal-example-disclosure { max-width: 74ch; margin: 24px auto 0; color: var(--n-600); font-size: 13px; line-height: 1.6; text-align: center; }
+.personal-kicker { width: fit-content; margin: 0 auto 12px; padding: 5px 14px; border-radius: 10px; background: var(--yellow-400); color: var(--n-900); font-size: 14px; font-weight: 700; }
 .personal-product .sample-book-illustration figcaption { color: #fff; font-size: 13px; line-height: 1.6; margin-top: 12px; }
-/* The recording, explained: one panel of three steps in the page's card language, then short notes. */
-.personal-recording { padding: 80px 0; background: #fff; scroll-margin-top: 90px; }
-.personal-recording .section-h2 { max-width: 24ch; margin-inline: auto; text-wrap: balance; }
-.personal-recording-line { display: block; }
-.personal-recording-steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); max-width: 1000px; margin: 32px auto 0; padding: 0; list-style: none; border: 1px solid var(--border); border-radius: 20px; background: #fff; box-shadow: var(--shadow-card); }
-.personal-recording-step { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; padding: 28px; text-align: start; }
-.personal-recording-step + .personal-recording-step { border-inline-start: 1px solid var(--purple-100); }
-.personal-recording-notes { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px 28px; max-width: 1000px; margin: 24px auto 0; padding: 0; list-style: none; color: var(--purple-700); font-size: 15px; line-height: 1.6; }
-.personal-recording-notes li { display: inline-flex; align-items: center; gap: 8px; }
-.personal-recording-notes svg { width: 18px; height: 18px; flex: none; color: var(--purple-500); }
-.personal-recording-foot { display: flex; flex-direction: column; align-items: center; gap: 12px; margin-top: 32px; }
-.personal-recording-preview { max-width: 60ch; margin: 0; color: var(--n-600); font-size: 13px; line-height: 1.6; text-align: center; text-wrap: balance; }
+/* How it works, right after the hero: one panel of three steps in the page's card language, then short notes.
+   It sits inside the storybook sky, so it carries the exact wash the hero hands over (and the value
+   section picks up): no seam on either side. */
+.personal-how { padding: 80px 0; background: linear-gradient(rgba(244, 241, 255, 0.26), rgba(244, 241, 255, 0.26)), #fff; scroll-margin-top: 90px; }
+.personal-how .section-h2 { max-width: 24ch; margin-inline: auto; text-wrap: balance; }
+.personal-how-line { display: block; }
+.personal-how-steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); max-width: 1000px; margin: 32px auto 0; padding: 0; list-style: none; border: 1px solid var(--border); border-radius: 20px; background: #fff; box-shadow: var(--shadow-card); }
+.personal-how-step { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; padding: 28px; text-align: start; }
+.personal-how-step + .personal-how-step { border-inline-start: 1px solid var(--purple-100); }
+.personal-how-notes { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px 28px; max-width: 1000px; margin: 24px auto 0; padding: 0; list-style: none; color: var(--purple-700); font-size: 15px; line-height: 1.6; }
+.personal-how-notes li { display: inline-flex; align-items: center; gap: 8px; }
+.personal-how-notes svg { width: 18px; height: 18px; flex: none; color: var(--purple-500); }
+.personal-how-foot { display: flex; flex-direction: column; align-items: center; gap: 12px; margin-top: 32px; }
+.personal-how-preview { max-width: 60ch; margin: 0; color: var(--n-600); font-size: 13px; line-height: 1.6; text-align: center; text-wrap: balance; }
 @media (max-width: 860px) {
-  .personal-recording { padding: 56px 0; }
-  .personal-recording-steps { grid-template-columns: 1fr; max-width: 520px; }
-  .personal-recording-step { padding: 20px; }
-  .personal-recording-step + .personal-recording-step { border-inline-start: 0; border-top: 1px solid var(--purple-100); }
-  .personal-recording-notes { flex-direction: column; align-items: flex-start; gap: 8px; width: fit-content; max-width: 100%; }
-  .personal-example-layout { grid-template-columns: 1fr; gap: 16px; }
-  .personal-story-example { padding: 56px 0; }
-  .personal-profile, .personal-excerpt { padding: 24px; }
+  .personal-how { padding: 56px 0; }
+  .personal-how-steps { grid-template-columns: 1fr; max-width: 520px; }
+  .personal-how-step { padding: 20px; }
+  .personal-how-step + .personal-how-step { border-inline-start: 0; border-top: 1px solid var(--purple-100); }
+  .personal-how-notes { flex-direction: column; align-items: flex-start; gap: 8px; width: fit-content; max-width: 100%; }
   .personal-product .personal-hero-notes { justify-content: center; }
   .personal-product .personal-pilot-note { margin-inline: auto; }
 }
 @media (max-width: 420px) {
   .personal-product .hero-h1 { font-size: 34px; }
-  .personal-excerpt blockquote p { font-size: 17px; }
 }

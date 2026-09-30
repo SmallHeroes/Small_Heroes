@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { PERSONAL_RECORDING_INFO as R } from '@/content/personal-landing';
+import { PERSONAL_HOW_IT_WORKS as H } from '@/content/personal-landing';
 
 function LineIcon({ children }: { children: ReactNode }) {
   return (
@@ -17,7 +17,7 @@ const MIC = (
   </LineIcon>
 );
 
-/* Order matches R.steps: talk · check the card · answer only what is missing */
+/* Order matches H.steps: talk · check and complete the card · choose a friend for the journey */
 const STEP_ICONS = [
   MIC,
   (
@@ -29,14 +29,15 @@ const STEP_ICONS = [
   ),
   (
     <LineIcon>
-      <path d="M4.5 5h15a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1h-8l-4 3.5V16h-3a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z" />
-      <path d="M10 9.2a2 2 0 1 1 2.8 1.8c-.5.3-.8.7-.8 1.3" />
-      <path d="M12 14.2v.01" />
+      <circle cx="9" cy="8" r="3.2" />
+      <path d="M3.5 19.5c.6-3.3 2.8-5.2 5.5-5.2s4.9 1.9 5.5 5.2" />
+      <circle cx="16.8" cy="9.2" r="2.5" />
+      <path d="M15.6 14.5c2.5-.2 4.4 1.4 5 4.5" />
     </LineIcon>
   ),
 ];
 
-/* Order matches R.notes: the microphone · writing instead · where the recording goes */
+/* Order matches H.notes: the microphone · writing instead · where the recording goes */
 const NOTE_ICONS = [
   MIC,
   (
@@ -53,40 +54,40 @@ const NOTE_ICONS = [
   ),
 ];
 
-/** How parents tell us about the child: a short recording, a card to check, a question only for what is missing. */
-export function PersonalRecordingInfo({ startHref }: { startHref: string }) {
+/** The preview's "how it works", right after the hero: tell us by voice, check and complete, choose a friend. */
+export function PersonalHowItWorks({ startHref }: { startHref: string }) {
   return (
-    <section id="personal-recording" className="personal-recording" aria-labelledby="personal-recording-title">
+    <section id="how" className="personal-how" aria-labelledby="personal-how-title">
       <div className="wrap">
-        <p className="personal-example-kicker">{R.kicker}</p>
-        <h2 id="personal-recording-title" className="section-h2">
+        <p className="personal-kicker">{H.kicker}</p>
+        <h2 id="personal-how-title" className="section-h2">
           {/* one sentence per line; the space keeps the heading's accessible name readable */}
-          <span className="personal-recording-line">{R.title[0]}</span>{' '}
-          <span className="personal-recording-line">{R.title[1]}</span>
+          <span className="personal-how-line">{H.title[0]}</span>{' '}
+          <span className="personal-how-line">{H.title[1]}</span>
         </h2>
-        <p className="section-lede">{R.lede}</p>
-        <ol className="personal-recording-steps">
-          {R.steps.map((step, index) => (
-            <li key={step.title} className="personal-recording-step">
+        <p className="section-lede">{H.lede}</p>
+        <ol className="personal-how-steps">
+          {H.steps.map((step, index) => (
+            <li key={step.title} className="personal-how-step">
               <span className="value-card-mark" aria-hidden="true">{STEP_ICONS[index]}</span>
               <h3 className="value-card-title">{step.title}</h3>
               <p className="value-card-body">{step.body}</p>
             </li>
           ))}
         </ol>
-        <ul className="personal-recording-notes">
-          {R.notes.map((note, index) => (
+        <ul className="personal-how-notes">
+          {H.notes.map((note, index) => (
             <li key={note}>
               {NOTE_ICONS[index]}
               {note}
             </li>
           ))}
         </ul>
-        <div className="personal-recording-foot">
+        <div className="personal-how-foot">
           <a href={startHref} className="btn-primary" data-event="landing_start_click">
-            {R.cta}
+            {H.cta}
           </a>
-          <p className="personal-recording-preview">{R.previewNote}</p>
+          <p className="personal-how-preview">{H.previewNote}</p>
         </div>
       </div>
     </section>

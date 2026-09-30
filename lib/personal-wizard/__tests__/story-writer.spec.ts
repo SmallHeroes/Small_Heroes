@@ -7,7 +7,7 @@ import { resolvePersonalWizardOptions, PROTOTYPE_COMPANION_ROSTER } from '../opt
 import { canonicalJson } from '../request-acceptance';
 import { resolveStorySettings, storyReservationUsd, type StorySettings } from '../story-config';
 import type { ReviewedPersonalBookRequest } from '../contract';
-import { getPersonalLandingContent, PERSONAL_RECORDING_INFO } from '@/content/personal-landing';
+import { getPersonalLandingContent, PERSONAL_HOW_IT_WORKS } from '@/content/personal-landing';
 import { LIMITS } from '../contract';
 import { bookCopy, RECORDER, tellCopy } from '../copy';
 import { getLandingContent } from '@/content/landing';
@@ -170,9 +170,9 @@ describe('writer switches and product copy', () => {
     expect(personal.faq.items.some((item) => item.a.includes('טיפול'))).toBe(true);
     expect(getLandingContent([]).pricing.cards.map((card) => card.price)).toEqual(['59', '79', '99']);
   });
-  it('explains the recording with the wizard facts and keeps it off the public landing', () => {
-    const recording = PERSONAL_RECORDING_INFO;
-    const [talk] = recording.steps;
+  it('explains how it works, recording first, with the wizard facts and keeps it off the public landing', () => {
+    const recording = PERSONAL_HOW_IT_WORKS;
+    const [talk, , friend] = recording.steps;
     // Same span as the wizard's hint, and the hard stop the recorder enforces.
     expect(tellCopy('', null).durationHint).toContain('חצי דקה עד דקה');
     expect(talk.title).toContain('חצי דקה עד דקה');
@@ -186,6 +186,9 @@ describe('writer switches and product copy', () => {
     const faq = getPersonalLandingContent().faq.items.find((item) => item.q === 'מה קורה להקלטה?');
     expect(faq?.a.startsWith(RECORDER.privacyLive)).toBe(true);
     expect(recording.previewNote).toContain('בודקים מורשים');
+    // The friend is chosen freely, not by topic, and the merged section keeps the development status honest.
+    expect(friend.body).toContain('בלי קשר לנושא');
+    expect(recording.previewNote).toContain('כתיבת הספר המלא עדיין בפיתוח');
     expect(JSON.stringify(recording)).not.toMatch(/מבטיחים|מובטח/);
     expect(JSON.stringify(getLandingContent([]))).not.toContain('הקלט');
   });

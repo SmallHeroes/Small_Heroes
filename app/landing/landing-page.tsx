@@ -15,8 +15,7 @@ import { HeroDoodles, ValueDoodles, HelpsDoodles } from './hero-doodles';
 import { HeroCollage } from './hero-collage';
 import { NameMoment, type HeroChild } from './name-moment';
 import { HearPage } from './hear-page';
-import { PersonalStoryMoment } from './personal-story-moment';
-import { PersonalRecordingInfo } from './personal-recording-info';
+import { PersonalHowItWorks } from './personal-how-it-works';
 import childHandoff from '@/public/JS/hero-child-handoff';
 import { CompanionSpotlight } from '@/app/components/CompanionSpotlight';
 import { warmCompanionIdleVideos } from '@/lib/web/companion-idle-video';
@@ -150,7 +149,7 @@ export default function LandingPage({ content: L, startHref, matrixCategories, p
         </a>
         {/* 2026: thin scroll-progress bar — pure CSS scroll-timeline, no JS (falls back to hidden) */}
         <div className="scroll-progress" aria-hidden="true" />
-        <SiteHeader variant="full" startHref={personalPreview ? startHref : undefined} startLabel={personalPreview ? L.hero.ctaPrimary : undefined} homeHref={personalPreview ? '/dev/personal-product' : undefined} navigation={personalPreview ? [{ label: 'קטע לדוגמה', href: '#personal-story-example' }, { label: 'ההקלטה', href: '#personal-recording' }, { label: 'איך זה עובד', href: '#how' }, { label: 'החברים', href: '#helps' }] : undefined} />
+        <SiteHeader variant="full" startHref={personalPreview ? startHref : undefined} startLabel={personalPreview ? L.hero.ctaPrimary : undefined} homeHref={personalPreview ? '/dev/personal-product' : undefined} navigation={personalPreview ? [{ label: 'איך זה עובד', href: '#how' }, { label: 'החברים', href: '#helps' }] : undefined} />
 
         <main id="main">
           <section className="hero">
@@ -179,7 +178,7 @@ export default function LandingPage({ content: L, startHref, matrixCategories, p
                   {/* lands on the sample section — the book itself (a video of
                       it, once Guy's clip exists). The gallery is a look, not a
                       sample, so it is no longer the destination. */}
-                  <a href={personalPreview ? '#personal-story-example' : '#sample'} className="btn-light">
+                  <a href={personalPreview ? '#how' : '#sample'} className="btn-light">
                     {L.hero.ctaSecondary}
                   </a>
                 </div>
@@ -206,8 +205,8 @@ export default function LandingPage({ content: L, startHref, matrixCategories, p
             </div>
           </section>
 
-          {personalPreview ? <PersonalStoryMoment /> : null}
-          {personalPreview ? <PersonalRecordingInfo startHref={startHref} /> : null}
+          {/* the preview explains how it works (the recording first) straight after the hero */}
+          {personalPreview ? <PersonalHowItWorks startHref={startHref} /> : null}
 
           {/* מה מקבלים — the concrete promise, straight after the hero */}
           {/* the storybook sky continues here and fades out inside this
@@ -346,56 +345,59 @@ export default function LandingPage({ content: L, startHref, matrixCategories, p
           </section>
 
 
-          <section className="how-it-works-section how-section" id="how">
-            <div className="wrap">
-              <h2 className="section-h2" data-reveal="up">{L.how.h2}</h2>
-              <p className="section-lede" data-reveal="up" data-reveal-delay="60">{L.how.lede}</p>
+          {/* the preview has its own how-it-works after the hero */}
+          {personalPreview ? null : (
+            <section className="how-it-works-section how-section" id="how">
+              <div className="wrap">
+                <h2 className="section-h2" data-reveal="up">{L.how.h2}</h2>
+                <p className="section-lede" data-reveal="up" data-reveal-delay="60">{L.how.lede}</p>
 
-              <div className="steps-row">
-                {/* the dashed trail that turns three cards into one journey */}
-                <svg
-                  className="how-trail"
-                  viewBox="0 0 1000 60"
-                  preserveAspectRatio="none"
-                  aria-hidden="true"
-                  focusable="false"
-                >
-                  <path
-                    d="M6,50 C280,2 720,2 994,50"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="3.5"
-                    strokeLinecap="round"
-                    strokeDasharray="0.5 13"
-                  />
-                </svg>
-                {L.how.steps.map((step, index) => {
-                  /* presentation only: the "N. " prefix in the copy becomes a
-                     number chip; the content file stays untouched */
-                  const numbered = step.title.match(/^(\d+)\.\s*(.*)$/);
-                  return (
-                    <article key={step.title} className="how-card" data-reveal="up" data-reveal-delay={String(100 + index * 90)}>
-                      <div className="how-step">
-                        <span className="how-step-num" aria-hidden="true">{numbered ? numbered[1] : index + 1}</span>
-                        <div className="landing-card-title">{numbered ? numbered[2] : step.title}</div>
-                        <p className="landing-card-body">{step.body}</p>
-                        {'emphasis' in step && step.emphasis ? (
-                          <p className="how-step-emphasis">{step.emphasis}</p>
-                        ) : null}
-                      </div>
-                    </article>
-                  );
-                })}
-              </div>
+                <div className="steps-row">
+                  {/* the dashed trail that turns three cards into one journey */}
+                  <svg
+                    className="how-trail"
+                    viewBox="0 0 1000 60"
+                    preserveAspectRatio="none"
+                    aria-hidden="true"
+                    focusable="false"
+                  >
+                    <path
+                      d="M6,50 C280,2 720,2 994,50"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="3.5"
+                      strokeLinecap="round"
+                      strokeDasharray="0.5 13"
+                    />
+                  </svg>
+                  {L.how.steps.map((step, index) => {
+                    /* presentation only: the "N. " prefix in the copy becomes a
+                       number chip; the content file stays untouched */
+                    const numbered = step.title.match(/^(\d+)\.\s*(.*)$/);
+                    return (
+                      <article key={step.title} className="how-card" data-reveal="up" data-reveal-delay={String(100 + index * 90)}>
+                        <div className="how-step">
+                          <span className="how-step-num" aria-hidden="true">{numbered ? numbered[1] : index + 1}</span>
+                          <div className="landing-card-title">{numbered ? numbered[2] : step.title}</div>
+                          <p className="landing-card-body">{step.body}</p>
+                          {'emphasis' in step && step.emphasis ? (
+                            <p className="how-step-emphasis">{step.emphasis}</p>
+                          ) : null}
+                        </div>
+                      </article>
+                    );
+                  })}
+                </div>
 
-              <div className="how-foot" data-reveal="up" data-reveal-delay="300">
-                <p className="how-closing">{L.how.closing}</p>
-                <a href={startHref} className="btn-primary" data-event="landing_start_click">
-                  {L.how.cta}
-                </a>
+                <div className="how-foot" data-reveal="up" data-reveal-delay="300">
+                  <p className="how-closing">{L.how.closing}</p>
+                  <a href={startHref} className="btn-primary" data-event="landing_start_click">
+                    {L.how.cta}
+                  </a>
+                </div>
               </div>
-            </div>
-          </section>
+            </section>
+          )}
 
           {/* למה הסיפורים שלנו עובדים אחרת — the story-craft argument */}
           <section className="section why-section" id="why">
