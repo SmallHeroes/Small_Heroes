@@ -26,6 +26,9 @@ This correction does not self-close Claude's paid writer/runner HOLDs.
   375 ordinary) and its 7/7 tests passed. Resource: 635/635 tests passed but three
   onTaskUpdate RPC errors gave native exit 1. No full-green, causal independence
   or release claim. Activation successor: all 19 focused files **440/440**, tsc 0.
+  Frozen `806ce4d7` full rerun: ordinary 10 failed/5245 passed/73 skipped,
+  native 1; resource 635/635 plus 3 RPC errors, native 1; overall RED. Ten failed
+  names match prior logs exactly. Our stale inventory failure is gone.
 - Active operator pilot: one loopback-only local server on 3443, existing key
   in memory and established staging DB, live intake $1/eight jobs; gpt-6-sol
   medium book $3/one job. Old writer flag OFF. No paid dispatch by startup,
@@ -36,7 +39,8 @@ This correction does not self-close Claude's paid writer/runner HOLDs.
   storage key (this voice/text path has no storage calls), existing internal
   generation secret and staging database. Payment provider none/waitlist.
   Browser verified wizard 200, processing example -> editable facts -> removal
-  -> six companions -> length -> server request boundary. Caller is signed OUT;
+  -> six companions -> length -> server request accepted with fixture labels and
+  the removed football interest absent from its actual JSON. Caller is signed OUT;
   live intake correctly refuses. A clear sign-in link now appears only for the
   exact signed-out status, and returning focus refreshes status without deleting
   the in-memory draft. No auth/operator bypass. Live generation not yet observed.
@@ -44,7 +48,9 @@ This correction does not self-close Claude's paid writer/runner HOLDs.
 Decision: `docs/ai-workflow/PERSONAL_BOOK_LIVE_CONNECTION_DECISION_20260930.md`.
 Raw logs and scoped launcher: `outputs/personal-book-live-connection-20260930/`,
 ignored/untracked, local-only without verified off-machine backup. Runtime and
-independent-QA handoff will be appended after browser verification. No push.
+independent-QA handoff: `docs/ai-workflow/PERSONAL_BOOK_LIVE_CONNECTION_QA_20260930.md`.
+Frozen code range `10f54930..806ce4d7` (two commits, 26 paths). Runtime not independently
+gated; no claim of completed live model execution. No push.
 
 **Next:** activate/check the real local wizard, let Guy record and judge the
 generated text; independent Claude review required before claiming closure.
