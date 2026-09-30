@@ -3,14 +3,19 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 type Segment = { readonly text: string; readonly sticker?: string };
-export type VoiceStory = {
+type Beat = { readonly image: string; readonly portrait?: boolean };
+type Story = {
+  readonly name: string;
+  readonly lines: readonly (readonly Segment[])[];
+  readonly beats: readonly Beat[];
+};
+export type VoiceStories = {
   readonly label: string;
   readonly description: string;
   readonly pause: string;
   readonly play: string;
-  readonly title: string;
-  readonly lines: readonly (readonly Segment[])[];
-  readonly beats: readonly string[];
+  readonly show: string;
+  readonly stories: readonly Story[];
 };
 
 type Token = { segment: number; text: string };
@@ -18,13 +23,12 @@ type Event =
   | { kind: 'rest'; after: number }
   | { kind: 'line'; line: number; after: number }
   | { kind: 'rise'; beat: number; after: number }
-  | { kind: 'type'; line: number; token: number; after: number }
+  | { kind: 'type'; token: number; after: number }
   | { kind: 'color'; beat: number; after: number }
-  | { kind: 'hush'; after: number }
-  | { kind: 'title'; after: number }
+  | { kind: 'hold'; after: number }
   | { kind: 'end'; after: number };
 
-type View = { line: number; typed: number; risen: number; colored: number; hushed: boolean; titled: boolean };
+type View = { line: number; typed: number; risen: number; colored: number };
 
 /** Tokens in speaking order; spaces stay attached, so the bubble lays out like the whole sentence. */
 function tokensOf(line: readonly Segment[]): Token[] {
@@ -35,7 +39,7 @@ function tokensOf(line: readonly Segment[]): Token[] {
   return tokens;
 }
 
-/** Index of the last token of each segment: a sticker flies when its phrase has been said. */
+/** Index of the last token of each segment: a tag flies when its phrase has been said. */
 function segmentEnds(tokens: Token[]) {
   const ends = new Map<number, number>();
   tokens.forEach((token, index) => ends.set(token.segment, index));
@@ -43,34 +47,30 @@ function segmentEnds(tokens: Token[]) {
 }
 
 /**
- * The whole story as one timeline. Per line: a moment rises out of the book (a pencil sketch), the
- * line is spoken, its phrases fly onto the moment, and the moment fills with colour. Then the voice
- * hushes, the last moment rises in colour and the book gets its title.
+ * One story as a timeline. Per spoken line: its moment comes up as a pencil sketch, the line is said,
+ * each highlighted phrase flies onto the moment as a tag, and the moment fills with colour. Then a
+ * hold on the finished story, and the next family.
  */
-function buildTimeline(story: VoiceStory): Event[] {
-  const events: Event[] = [{ kind: 'rest', after: 700 }];
+function buildTimeline(story: Story): Event[] {
+  const events: Event[] = [{ kind: 'rest', after: 600 }];
   story.lines.forEach((line, lineIndex) => {
     const tokens = tokensOf(line);
     const ends = segmentEnds(tokens);
-    events.push({ kind: 'line', line: lineIndex, after: 150 });
-    events.push({ kind: 'rise', beat: lineIndex, after: 850 });
+    events.push({ kind: 'line', line: lineIndex, after: 120 });
+    events.push({ kind: 'rise', beat: lineIndex, after: 750 });
     tokens.forEach((token, tokenIndex) => {
-      const endsSticker = [...ends.entries()].some(([segment, end]) => end === tokenIndex && line[segment].sticker);
-      events.push({ kind: 'type', line: lineIndex, token: tokenIndex, after: endsSticker ? 720 : /^\s+$/.test(token.text) ? 0 : 118 });
+      const endsTag = [...ends.entries()].some(([segment, end]) => end === tokenIndex && line[segment].sticker);
+      events.push({ kind: 'type', token: tokenIndex, after: endsTag ? 700 : /^\s+$/.test(token.text) ? 0 : 115 });
     });
-    events.push({ kind: 'color', beat: lineIndex, after: 1500 });
+    events.push({ kind: 'color', beat: lineIndex, after: 1250 });
   });
-  const last = story.lines.length;
-  events.push({ kind: 'hush', after: 350 });
-  events.push({ kind: 'rise', beat: last, after: 650 });
-  events.push({ kind: 'color', beat: last, after: 900 });
-  events.push({ kind: 'title', after: 4200 });
+  events.push({ kind: 'hold', after: 3800 });
   events.push({ kind: 'end', after: 0 });
   return events;
 }
 
 function viewAt(events: Event[], step: number): View {
-  const view: View = { line: -1, typed: 0, risen: 0, colored: 0, hushed: false, titled: false };
+  const view: View = { line: -1, typed: 0, risen: 0, colored: 0 };
   for (let index = 0; index <= step && index < events.length; index += 1) {
     const event = events[index];
     if (event.kind === 'line') {
@@ -79,14 +79,9 @@ function viewAt(events: Event[], step: number): View {
     } else if (event.kind === 'type') view.typed = event.token + 1;
     else if (event.kind === 'rise') view.risen = Math.max(view.risen, event.beat + 1);
     else if (event.kind === 'color') view.colored = Math.max(view.colored, event.beat + 1);
-    else if (event.kind === 'hush') view.hushed = true;
-    else if (event.kind === 'title') view.titled = true;
   }
   return view;
 }
-
-// The voice's path, from the orb on the start side, round and down into the book's spine.
-const RIBBON = 'M 905 110 C 1010 260, 900 420, 760 455 C 610 492, 560 560, 500 668';
 
 function MicIcon() {
   return (
@@ -107,20 +102,13 @@ function Spark({ className }: { className: string }) {
 }
 
 /**
- * The hero's living story. Runs only while on screen, in a visible tab and with motion allowed; the
- * pause control holds it. Under reduced motion the finished story is shown, both lines in the bubble.
+ * The hero's living stories. Runs only while on screen, in a visible tab and with motion allowed; the
+ * pause control holds it and the dots choose a family. Under reduced motion a finished story is shown
+ * (its opening line in the bubble, every moment in colour and tagged) and the dots switch families instantly.
  */
-export function VoiceStoryStage({ story }: { story: VoiceStory }) {
-  const events = useMemo(() => buildTimeline(story), [story]);
-  const lineTokens = useMemo(() => story.lines.map((line) => tokensOf(line)), [story]);
-  const lineEnds = useMemo(() => lineTokens.map((tokens) => segmentEnds(tokens)), [lineTokens]);
-  const stickers = useMemo(
-    () => story.lines.flatMap((line, lineIndex) =>
-      line.flatMap((segment, segmentIndex) => (segment.sticker ? [{ line: lineIndex, segment: segmentIndex, text: segment.sticker }] : [])),
-    ),
-    [story],
-  );
-
+export function VoiceStoryStage({ demo }: { demo: VoiceStories }) {
+  const total = demo.stories.length;
+  const [index, setIndex] = useState(0);
   const [step, setStep] = useState(0);
   const [leaving, setLeaving] = useState(false);
   const [resetting, setResetting] = useState(false);
@@ -129,10 +117,24 @@ export function VoiceStoryStage({ story }: { story: VoiceStory }) {
   const [onScreen, setOnScreen] = useState(false);
   const [pageVisible, setPageVisible] = useState(true);
   const [landed, setLanded] = useState<number[]>([]);
+  const [warm, setWarm] = useState(false);
   const rootRef = useRef<HTMLElement | null>(null);
   const markRefs = useRef(new Map<string, HTMLElement>());
-  const stickerRefs = useRef<Array<HTMLElement | null>>([]);
+  const tagRefs = useRef<Array<HTMLElement | null>>([]);
   const flown = useRef(new Set<number>());
+
+  const story = demo.stories[index];
+  const events = useMemo(() => buildTimeline(story), [story]);
+  const lineTokens = useMemo(() => story.lines.map((line) => tokensOf(line)), [story]);
+  const lineEnds = useMemo(() => lineTokens.map((tokens) => segmentEnds(tokens)), [lineTokens]);
+  // Every tag, in speaking order: which line (and so which moment) it belongs to, and its slot there.
+  const tags = useMemo(
+    () => story.lines.flatMap((line, lineIndex) => {
+      let slot = 0;
+      return line.flatMap((segment, segmentIndex) => (segment.sticker ? [{ line: lineIndex, segment: segmentIndex, text: segment.sticker, slot: slot++ }] : []));
+    }),
+    [story],
+  );
 
   useEffect(() => {
     const query = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -159,25 +161,26 @@ export function VoiceStoryStage({ story }: { story: VoiceStory }) {
 
   const complete = !motionAllowed;
   const view: View = complete
-    ? { line: story.lines.length - 1, typed: Number.MAX_SAFE_INTEGER, risen: story.beats.length, colored: story.beats.length, hushed: false, titled: true }
+    ? { line: story.lines.length - 1, typed: Number.MAX_SAFE_INTEGER, risen: story.beats.length, colored: story.beats.length }
     : viewAt(events, step);
   const running = motionAllowed && !paused && onScreen && pageVisible && !leaving && !resetting;
-  const currentTokens = view.line >= 0 ? lineTokens[view.line] : [];
-  const talking = running && view.line >= 0 && !view.hushed && view.typed < currentTokens.length;
+  const talking = running && view.line >= 0 && view.typed < (lineTokens[view.line]?.length ?? 0);
 
-  const restart = useCallback(() => {
+  // Fade out, change family unseen (no transitions while hidden), fade back in.
+  const leaveTo = useCallback((next: number) => {
     setLeaving(true);
     window.setTimeout(() => {
-      for (const sticker of stickerRefs.current) sticker?.getAnimations().forEach((animation) => animation.cancel());
+      for (const tag of tagRefs.current) tag?.getAnimations().forEach((animation) => animation.cancel());
       flown.current = new Set();
       setLanded([]);
       setResetting(true);
+      setIndex(next);
       setStep(0);
       requestAnimationFrame(() => requestAnimationFrame(() => {
         setResetting(false);
         setLeaving(false);
       }));
-    }, 650);
+    }, 600);
   }, []);
 
   useEffect(() => {
@@ -185,23 +188,23 @@ export function VoiceStoryStage({ story }: { story: VoiceStory }) {
     const event = events[step];
     if (!event) return;
     const timer = window.setTimeout(() => {
-      if (event.kind === 'end') restart();
+      if (event.kind === 'end') leaveTo((index + 1) % total);
       else setStep((current) => current + 1);
     }, event.after);
     return () => window.clearTimeout(timer);
-  }, [running, step, events, restart]);
+  }, [running, step, events, leaveTo, index, total]);
 
   // A phrase that has just been said flies from the bubble onto its moment.
   useEffect(() => {
     if (complete || view.line < 0) return;
     const ends = lineEnds[view.line];
-    stickers.forEach((sticker, index) => {
-      if (sticker.line !== view.line || flown.current.has(index)) return;
-      const end = ends.get(sticker.segment);
+    tags.forEach((tag, tagIndex) => {
+      if (tag.line !== view.line || flown.current.has(tagIndex)) return;
+      const end = ends.get(tag.segment);
       if (end === undefined || end >= view.typed) return;
-      flown.current.add(index);
-      const mark = markRefs.current.get(`${sticker.line}-${sticker.segment}`);
-      const target = stickerRefs.current[index];
+      flown.current.add(tagIndex);
+      const mark = markRefs.current.get(`${tag.line}-${tag.segment}`);
+      const target = tagRefs.current[tagIndex];
       if (!mark || !target) return;
       const from = mark.getBoundingClientRect();
       const to = target.getBoundingClientRect();
@@ -215,109 +218,66 @@ export function VoiceStoryStage({ story }: { story: VoiceStory }) {
           { translate: `${dx * 0.45}px ${dy * 0.45 - 48}px`, scale: '1.12', rotate: `${tilt - 10}deg`, opacity: 1, offset: 0.6 },
           { translate: '0px 0px', scale: '1', rotate: `${tilt}deg`, opacity: 1 },
         ],
-        { duration: 880, easing: 'cubic-bezier(0.3, 0.7, 0.2, 1)', fill: 'forwards' },
+        { duration: 860, easing: 'cubic-bezier(0.3, 0.7, 0.2, 1)', fill: 'forwards' },
       );
-      flight.onfinish = () => setLanded((current) => (current.includes(index) ? current : [...current, index]));
+      flight.onfinish = () => setLanded((current) => (current.includes(tagIndex) ? current : [...current, tagIndex]));
     });
-  }, [view.line, view.typed, complete, lineEnds, stickers]);
+  }, [view.line, view.typed, complete, lineEnds, tags]);
 
-  const bubbleLines = complete ? story.lines.map((_, index) => index) : view.line >= 0 && !view.hushed ? [view.line] : [];
+  // The other families' pictures start loading once the first is under way, never before first paint.
+  useEffect(() => {
+    if (warm || !running) return;
+    const timer = window.setTimeout(() => setWarm(true), 2000);
+    return () => window.clearTimeout(timer);
+  }, [warm, running]);
+
+  const choose = (next: number) => {
+    if (next === index) return;
+    if (!motionAllowed) {
+      setIndex(next);
+      return;
+    }
+    leaveTo(next);
+  };
+
+  // Still (reduced motion): the opening line only; the tags on the pictures carry the rest.
+  const bubbleLines = complete ? [0] : view.line >= 0 ? [view.line] : [];
 
   return (
     <figure
       className="vs"
       ref={rootRef}
-      aria-label={story.description}
+      aria-label={demo.description}
       data-talking={talking ? 'true' : 'false'}
-      data-voice={view.line >= 0 ? 'true' : 'false'}
-      data-titled={view.titled ? 'true' : 'false'}
-      data-glow={view.risen > 0 ? 'true' : 'false'}
       data-leaving={leaving ? 'true' : 'false'}
       data-resetting={resetting ? 'true' : 'false'}
       data-paused={!running ? 'true' : 'false'}
+      data-complete={complete ? 'true' : 'false'}
     >
       <div className="vs-stage">
         <span className="vs-bokeh vs-bokeh--a" aria-hidden="true" />
         <span className="vs-bokeh vs-bokeh--b" aria-hidden="true" />
-        <span className="vs-bokeh vs-bokeh--c" aria-hidden="true" />
 
-        <svg className="vs-ribbon" viewBox="0 0 1000 960" aria-hidden="true" focusable="false">
-          <defs>
-            <linearGradient id="vs-ribbon-ink" x1="1" y1="0" x2="0" y2="1">
-              <stop offset="0" stopColor="#9349e5" />
-              <stop offset="0.55" stopColor="#ff8a65" />
-              <stop offset="1" stopColor="#ffd745" />
-            </linearGradient>
-          </defs>
-          <path className="vs-ribbon-glow" d={RIBBON} pathLength={1} />
-          <path className="vs-ribbon-line" d={RIBBON} pathLength={1} />
-          {talking ? (
-            <g className="vs-motes">
-              {[0, 0.7, 1.4].map((delay) => (
-                <circle key={delay} r="7">
-                  <animateMotion dur="2.1s" begin={`${delay}s`} repeatCount="indefinite" path={RIBBON} />
-                </circle>
-              ))}
-            </g>
-          ) : null}
-        </svg>
-
-        <div className="vs-book" aria-hidden="true">
-          <svg viewBox="0 0 600 220">
-            <defs>
-              <linearGradient id="vs-page-r" x1="1" y1="0" x2="0" y2="0">
-                <stop offset="0" stopColor="#fffaf1" />
-                <stop offset="0.82" stopColor="#fff4e3" />
-                <stop offset="1" stopColor="#e8d4b3" />
-              </linearGradient>
-              <linearGradient id="vs-page-l" x1="0" y1="0" x2="1" y2="0">
-                <stop offset="0" stopColor="#fffaf1" />
-                <stop offset="0.82" stopColor="#fff4e3" />
-                <stop offset="1" stopColor="#e8d4b3" />
-              </linearGradient>
-            </defs>
-            <path className="vs-book-cover" d="M14,74 Q150,42 300,70 Q450,42 586,74 L586,200 Q450,176 300,212 Q150,176 14,200 Z" />
-            <path className="vs-book-edge" d="M26,64 Q160,32 300,60 Q440,32 574,64 L574,190 Q440,165 300,198 Q160,165 26,190 Z" />
-            <path d="M30,56 Q165,22 300,52 L300,188 Q165,158 30,182 Z" fill="url(#vs-page-l)" />
-            <path d="M570,56 Q435,22 300,52 L300,188 Q435,158 570,182 Z" fill="url(#vs-page-r)" />
-            <path className="vs-book-gutter" d="M300,52 L300,188" />
-          </svg>
-        </div>
-
-        <span className="vs-dust" aria-hidden="true">
-          <span />
-          <span />
-          <span />
-          <span />
-          <span />
-          <span />
-        </span>
-
-        {story.beats.map((beat, index) => (
+        {story.beats.map((beat, beatIndex) => (
           <span
-            key={beat}
+            key={`${index}-${beat.image}`}
             className="vs-card"
-            data-card={index}
-            data-risen={index < view.risen ? 'true' : 'false'}
-            data-colored={index < view.colored ? 'true' : 'false'}
+            data-card={beatIndex}
+            data-portrait={beat.portrait ? 'true' : 'false'}
+            data-risen={beatIndex < view.risen ? 'true' : 'false'}
+            data-colored={beatIndex < view.colored ? 'true' : 'false'}
             aria-hidden="true"
           >
             <span className="vs-card-frame">
               <span className="vs-card-art">
-                <img className="vs-sketch" src={beat} alt="" draggable={false} loading={index === 0 ? 'eager' : 'lazy'} />
-                <img className="vs-color" src={beat} alt="" draggable={false} loading={index === 0 ? 'eager' : 'lazy'} />
+                <img className="vs-sketch" src={beat.image} alt="" draggable={false} />
+                <img className="vs-color" src={beat.image} alt="" draggable={false} />
               </span>
             </span>
             <Spark className="vs-card-spark vs-card-spark--a" />
             <Spark className="vs-card-spark vs-card-spark--b" />
           </span>
         ))}
-
-        <span className="vs-title" aria-hidden="true">
-          <Spark className="vs-title-spark" />
-          {story.title}
-          <Spark className="vs-title-spark" />
-        </span>
 
         <div className="vs-voice" aria-hidden="true">
           <span className="vs-orb">
@@ -364,33 +324,55 @@ export function VoiceStoryStage({ story }: { story: VoiceStory }) {
           </p>
         </div>
 
-        {stickers.map((sticker, index) => (
+        {tags.map((tag, tagIndex) => (
           <span
-            key={`${sticker.line}-${sticker.segment}`}
-            className="vs-sticker"
-            data-sticker={index}
-            data-tilt={[-5, 4, -3][index] ?? 0}
-            data-landed={complete || landed.includes(index) ? 'true' : 'false'}
-            ref={(node) => { stickerRefs.current[index] = node; }}
+            key={`${index}-${tag.line}-${tag.segment}`}
+            className="vs-tag"
+            data-beat={tag.line}
+            data-slot={tag.slot}
+            data-tilt={tag.slot === 0 ? [-5, 4, -4][tag.line] ?? 0 : 3}
+            data-landed={complete || landed.includes(tagIndex) ? 'true' : 'false'}
+            ref={(node) => { tagRefs.current[tagIndex] = node; }}
             aria-hidden="true"
           >
-            {sticker.text}
+            {tag.text}
           </span>
         ))}
+
+        {/* warm the other families' pictures so a change of story never flashes */}
+        {warm ? (
+          <span className="vs-warm" aria-hidden="true">
+            {demo.stories.filter((_, storyIndex) => storyIndex !== index).flatMap((item) => item.beats).map((beat) => (
+              <img key={beat.image} src={beat.image} alt="" decoding="async" />
+            ))}
+          </span>
+        ) : null}
       </div>
 
       <figcaption className="vs-foot">
-        {motionAllowed ? (
-          <button type="button" className="vs-toggle" onClick={() => setPaused((was) => !was)}>
-            {paused ? (
-              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M8 5.5v13l10.5-6.5z" fill="currentColor" /></svg>
-            ) : (
-              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M8 5h3v14H8zM13 5h3v14h-3z" fill="currentColor" /></svg>
-            )}
-            <span className="vs-sr">{paused ? story.play : story.pause}</span>
-          </button>
-        ) : null}
-        <span className="vs-label">{story.label}</span>
+        <span className="vs-controls">
+          {motionAllowed ? (
+            <button type="button" className="vs-toggle" onClick={() => setPaused((was) => !was)}>
+              {paused ? (
+                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M8 5.5v13l10.5-6.5z" fill="currentColor" /></svg>
+              ) : (
+                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M8 5h3v14H8zM13 5h3v14h-3z" fill="currentColor" /></svg>
+              )}
+              <span className="vs-sr">{paused ? demo.play : demo.pause}</span>
+            </button>
+          ) : null}
+          {demo.stories.map((item, storyIndex) => (
+            <button
+              key={item.name}
+              type="button"
+              className="vs-dot"
+              aria-label={`${demo.show} ${item.name}`}
+              aria-current={storyIndex === index ? 'true' : undefined}
+              onClick={() => choose(storyIndex)}
+            />
+          ))}
+        </span>
+        <span className="vs-label">{demo.label}</span>
       </figcaption>
     </figure>
   );

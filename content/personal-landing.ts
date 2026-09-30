@@ -6,31 +6,82 @@ export const PERSONAL_PRODUCT_METADATA = {
 };
 
 /**
- * The hero's living story (Guy's idea): a parent tells us about Yuval out loud; the voice flows into the
- * book and Yuval's adventure with Buni rises out of it, one moment at a time: afraid of a vaccination,
- * a friend who holds her hand, walking out proud. An invented example on the existing hero art, labelled.
+ * The hero's living stories (Guy's idea): a parent tells us about a child out loud, and each spoken line
+ * brings up one moment of that child's adventure, tagged with what was said: the hard part, the friend,
+ * the way through. Three invented families take turns; labelled as an illustration.
+ * Yuval's three moments are the approved hero art. Bar's and Aviv's are stand-ins from the existing
+ * gallery until their own consistent pictures exist (the child's look changes between pictures).
  */
-export const PERSONAL_VOICE_STORY = {
-  label: 'המחשה: יובל ובּוּנִי הם דוגמה מומצאת',
-  description: 'הדגמה: הורה מספר על יובל בקול, והסיפור שלה עולה מתוך הספר: פחד לפני חיסון, חבר שמחזיק לה את היד, ויציאה בגאווה.',
+export const PERSONAL_VOICE_STORIES = {
+  label: 'המחשה: שמות מומצאים ואיורים קיימים',
+  description: 'הדגמה: הורה מספר על הילד בקול, וכל משפט מעלה רגע מתוך ההרפתקה שלו, עם מה שנאמר: הקושי, החבר והדרך שנמצאה.',
   pause: 'עצירת ההדגמה',
   play: 'המשך ההדגמה',
-  title: 'יובל והארנבון בּוּנִי',
-  // Each line raises one moment out of the book; the last moment rises with the title.
-  lines: [
-    [
-      { text: 'זאת ' },
-      { text: 'יובל, היא בת שש.', sticker: 'יובל · בת 6' },
-      { text: ' בשבוע הבא יש לה חיסון, ו' },
-      { text: 'היא ממש מפחדת.', sticker: 'מפחדת מחיסונים' },
-    ],
-    [
-      { text: 'היא ' },
-      { text: 'אוהבת ארנבים', sticker: 'אוהבת ארנבים' },
-      { text: ', ורוצה שמישהו יחזיק לה את היד.' },
-    ],
+  show: 'להציג את הסיפור של',
+  stories: [
+    {
+      name: 'יובל',
+      lines: [
+        [
+          { text: 'זאת ' },
+          { text: 'יובל, היא בת שש.', sticker: 'יובל · בת 6' },
+          { text: ' בשבוע הבא יש לה חיסון, ו' },
+          { text: 'היא ממש מפחדת.', sticker: 'מפחדת מחיסונים' },
+        ],
+        [
+          { text: 'היא ' },
+          { text: 'אוהבת ארנבים', sticker: 'אוהבת ארנבים' },
+          { text: ', ורוצה שמישהו יחזיק לה את היד.' },
+        ],
+        [
+          { text: 'הכי הייתי רוצה ש' },
+          { text: 'תצא משם גאה בעצמה.', sticker: 'יוצאת גאה' },
+        ],
+      ],
+      beats: [{ image: '/Images/hero-beat-1.webp' }, { image: '/Images/hero-beat-2.webp' }, { image: '/Images/hero-beat-3.webp' }],
+    },
+    {
+      name: 'בר',
+      lines: [
+        [
+          { text: 'זה ' },
+          { text: 'בר, הוא בן חמש.', sticker: 'בר · בן 5' },
+          { text: ' בלילה ' },
+          { text: 'החושך מפחיד אותו,', sticker: 'מפחד מהחושך' },
+          { text: ' והוא לא מוכן לכבות את האור.' },
+        ],
+        [
+          { text: 'הוא הכי ' },
+          { text: 'אוהב שועלים ופנסים.', sticker: 'אוהב שועלים ופנסים' },
+        ],
+        [
+          { text: 'הייתי רוצה שיגלה ש' },
+          { text: 'גם בלילה יש הרפתקאות.', sticker: 'מגלה את הלילה' },
+        ],
+      ],
+      beats: [{ image: '/Images/gallery/gallery-r-1.jpg' }, { image: '/Images/spotlight/fox_uri.png', portrait: true }, { image: '/Images/gallery/gallery-6.jpg' }],
+    },
+    {
+      name: 'אביב',
+      lines: [
+        [
+          { text: 'זאת ' },
+          { text: 'אביב, היא בת ארבע.', sticker: 'אביב · בת 4' },
+          { text: ' עברנו דירה, ו' },
+          { text: 'היא התחילה גן חדש.', sticker: 'בית חדש וגן חדש' },
+        ],
+        [
+          { text: 'בבקרים קשה לה להיפרד, והיא ' },
+          { text: 'אוהבת פנדות.', sticker: 'אוהבת פנדות' },
+        ],
+        [
+          { text: 'הייתי רוצה ש' },
+          { text: 'תרגיש שוב בבית.', sticker: 'מרגישה בבית' },
+        ],
+      ],
+      beats: [{ image: '/Images/gallery/gallery-4.jpg' }, { image: '/Images/spotlight/panda_anat.png', portrait: true }, { image: '/Images/gallery/gallery-5.jpg' }],
+    },
   ],
-  beats: ['/Images/hero-beat-1.webp', '/Images/hero-beat-2.webp', '/Images/hero-beat-3.webp'],
 } as const;
 
 /**

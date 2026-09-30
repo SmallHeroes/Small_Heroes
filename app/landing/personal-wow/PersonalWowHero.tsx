@@ -1,5 +1,5 @@
 import { HeroDoodles } from '@/app/landing/hero-doodles';
-import { PERSONAL_VOICE_STORY } from '@/content/personal-landing';
+import { PERSONAL_VOICE_STORIES } from '@/content/personal-landing';
 
 import { VoiceStoryStage } from './VoiceStoryStage';
 
@@ -42,7 +42,7 @@ const NOTE_ICONS = [
 ];
 
 /**
- * The preview's hero: the same words, beside a story that rises out of a book as a parent tells it.
+ * The preview's hero: the same words, beside a child's story coming up picture by picture as a parent tells it.
  * Copy on the start side; on phones the story moves up between the headline and the text.
  */
 export function PersonalWowHero({ hero, pilotNote, startHref }: { hero: HeroCopy; pilotNote: string; startHref: string }) {
@@ -83,7 +83,7 @@ export function PersonalWowHero({ hero, pilotNote, startHref }: { hero: HeroCopy
             ))}
           </ul>
         </div>
-        <VoiceStoryStage story={PERSONAL_VOICE_STORY} />
+        <VoiceStoryStage demo={PERSONAL_VOICE_STORIES} />
       </div>
     </section>
   );

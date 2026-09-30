@@ -9,7 +9,7 @@ import { resolveStorySettings, storyReservationUsd, type StorySettings } from '.
 import type { ReviewedPersonalBookRequest } from '../contract';
 import { existsSync } from 'fs';
 import { join } from 'path';
-import { getPersonalLandingContent, PERSONAL_HOW_IT_WORKS, PERSONAL_VOICE_STORY } from '@/content/personal-landing';
+import { getPersonalLandingContent, PERSONAL_HOW_IT_WORKS, PERSONAL_VOICE_STORIES } from '@/content/personal-landing';
 import { LIMITS } from '../contract';
 import { bookCopy, RECORDER, tellCopy } from '../copy';
 import { getLandingContent } from '@/content/landing';
@@ -194,13 +194,14 @@ describe('writer switches and product copy', () => {
     expect(JSON.stringify(recording)).not.toMatch(/מבטיחים|מובטח/);
     expect(JSON.stringify(getLandingContent([]))).not.toContain('הקלט');
   });
-  it('labels the hero story as an illustration and points only at art that exists', () => {
-    const story = PERSONAL_VOICE_STORY;
-    expect(story.label).toContain('המחשה');
-    // one more moment than spoken lines: the last one rises with the title
-    expect(story.beats).toHaveLength(story.lines.length + 1);
-    expect(story.lines.map((line) => line.map((segment) => segment.text).join('')).join(' ')).toContain('יובל');
-    expect(story.title).toContain('יובל');
-    for (const file of story.beats) expect(existsSync(join(process.cwd(), 'public', file))).toBe(true);
+  it('labels the hero stories as an illustration and points only at art that exists', () => {
+    expect(PERSONAL_VOICE_STORIES.label).toContain('המחשה');
+    for (const story of PERSONAL_VOICE_STORIES.stories) {
+      // one picture per spoken line, a tag on every picture, and the child named in the telling
+      expect(story.beats).toHaveLength(story.lines.length);
+      for (const line of story.lines) expect(line.some((segment) => 'sticker' in segment)).toBe(true);
+      expect(story.lines.map((line) => line.map((segment) => segment.text).join('')).join(' ')).toContain(story.name);
+      for (const beat of story.beats) expect(existsSync(join(process.cwd(), 'public', beat.image))).toBe(true);
+    }
   });
 });
