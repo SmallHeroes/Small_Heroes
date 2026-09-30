@@ -10,6 +10,9 @@
 :root {
   --pw-page: #fffdf8;
   --pw-page-2: #fffaf1;
+  /* the hero sky (Guy picked it over warm white and mint) */
+  --pw-sky-1: #e6f0ff;
+  --pw-sky-2: #f1f5ff;
   --pw-sky-hand-over: #fcfbff;
   --pw-ease: cubic-bezier(0.22, 1, 0.36, 1);
 }
@@ -33,13 +36,13 @@
 .personal-product .section-lede { font-size: clamp(18px, 1.9vw, 21px); }
 .personal-product :is(.value-card-body, .ph-body, .why-card-body, .trust-point__text, .faq-a p) { font-size: 17px; }
 
-/* ── Hero: a clean warm page that hands over to the sky below ────────── */
+/* ── Hero: a soft sky that hands over to the sky below ────────────────── */
 .pw-hero {
   padding: 64px 0 40px;
   background:
-    radial-gradient(46% 50% at 8% 20%, rgba(255, 215, 69, 0.16), transparent 70%),
-    radial-gradient(42% 48% at 30% 88%, rgba(174, 123, 240, 0.12), transparent 70%),
-    linear-gradient(180deg, var(--pw-page) 0%, var(--pw-page-2) 58%, var(--pw-sky-hand-over) 100%);
+    radial-gradient(46% 50% at 8% 20%, rgba(255, 215, 69, 0.18), transparent 70%),
+    radial-gradient(42% 48% at 30% 88%, rgba(174, 123, 240, 0.14), transparent 70%),
+    linear-gradient(180deg, var(--pw-sky-1) 0%, var(--pw-sky-2) 58%, var(--pw-sky-hand-over) 100%);
 }
 
 .pw-hero .hero-doodles { background: none; }
