@@ -1,6 +1,6 @@
 # SmallHeroes — Current Technical State
 
-## Personal site — QA-only integration in progress (2026-09-30)
+## Personal site — QA-only integration deployed and runtime-checked (2026-09-30)
 
 Codex owns `codex/personal-site-qa-integration-20260930` in the managed
 `C:/Users/guyna/.codex/worktrees/personal-site-qa/Small_Heroes` checkout, based on
@@ -29,9 +29,21 @@ This entry supersedes the older pending-review/promotion statements below, not t
   resource 635/635 tests but three `onTaskUpdate` RPC errors, resource native exit 1.
   Fresh complete check after the inventory fix is also RED: ordinary 10 failures / 5056
   passes / 73 skipped; resource 635/635 plus three RPC errors, native exit 1. No stability closure.
-- **QA environment:** only the existing QA branch's preview now has UI switches ON and explicit
-  live-intake/writer OFF overrides. No production environment value, alias or protection changed.
-  Deployment, root-to-wizard runtime verification, and the immutable handoff remain pending.
+- **QA environment and deployment:** the existing QA branch was fast-forwarded and pushed to
+  `4135987873d3cf6978c79a11320d35bd3d4055ea` (48 commits from the previous QA tip).
+  Vercel's Git preview is READY at `dpl_CAfr6uM8Uog7eVkKEDKa2eqpuXd3`; its completed
+  alias assignment moved `qa.smallheroes.co.il` to that exact deployment. No manual alias
+  override was needed. Only this branch's preview has UI switches ON and explicit live-intake/writer
+  OFF overrides. Production alias remains `dpl_2X7E6d1acZ5vKJVhLSuKFGP5Q4HN`; no production
+  environment value or protection changed.
+- **Runtime evidence:** authenticated QA root and wizard HTTP 200; root matched path
+  `/dev/personal-product`, noindex/no-store. Live-intake status is `{live:false,reason:"live_flag_off"}`;
+  writer GET returns 404. In the existing authorised Chrome tab, a deliberate reload replaced the
+  previously loaded old homepage with the new hero. CTA → wizard → example processing → editable
+  card → synthetic name correction → companion → length/voice → summary was exercised without
+  microphone, final submission or provider call. At 390px: no horizontal overflow or broken loaded images.
+- **Handoff:** independent read-only QA requested for `86ca47e8..41359878`, not self-PASSed.
+  This documentation closeout is local only and does not change the deployed QA code identity.
 - **Exclusions:** no provider, key read, paid audio/image render, engine merge, production push,
   database mutation/migration, launch acceptance or cleanup. Provider spend $0.
 
