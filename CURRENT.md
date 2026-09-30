@@ -1,6 +1,57 @@
 # SmallHeroes — Current Technical State
 
+## Personal book automatic runner — local diagnostic implementation, awaiting QA (2026-09-30)
+
+Same Codex implementation chat/worktree and `codex/personal-book-storyboard-bridge`,
+successor based on `07d3c8d3`. Claude's site is separately owned on
+`claude/personal-landing-wow`; it advanced to `ef8269b4` during this work and was not
+edited, merged or staged here. Protected d53b `768ccb2f` and wave2 `63ccb484` remain
+clean. No upstream, push, deployment or independent PASS for this branch.
+
+- **Implemented:** one bounded job automatically executes plan -> final manuscript
+  -> whole-book storyboard -> separate semantic model review. Supported diagnostic
+  review produces identical-context render/QA packets; held review produces none.
+  All six companions and three lengths use the same path. Every output remains
+  `runtimeEligible:false`; no renderer/anchors/narration are connected.
+- **Real consumer:** default-off, development/loopback/authenticated operator
+  `/api/dev/personal-wizard/book`. Whole-job budget/cancel/duplicate checks precede
+  key access. Shared local access guard retains the old manuscript route's policy.
+  No wizard UI invokes this endpoint yet; browser revision/cancellation wiring is
+  still required. This does not complete voice-to-delivered-book.
+- **Limits:** four generate() attempts, no retry/fallback/repair, 180s per stage.
+  Process ledger holds one user lock and one full reservation. Unknown usage stays
+  null; a known usage subtotal can stop overspend even with another usage missing.
+  Estimates are not invoices and reuse existing rate cards without fresh verification.
+  A separate same-model review is not independent Claude QA or visual accuracy.
+- **Verification:** final tsc native 0; **462/462 in 21 focused files**, native 0
+  (new runner 45 + route 28; prior storyboard 60 retained). Full check native 1:
+  ordinary 373 files, 10 failed / 5194 passed / 73 skipped; resource 20 files,
+  635/635 passed plus three unhandled `onTaskUpdate` RPC timeouts, native 1.
+  **Gate RED.** Ten failure names match the preceding recorded gate; no untouched
+  base run proves causal independence. No timeout/worker/policy change.
+- **Corrections during implementation:** broad test caught the new SDK adapter
+  outside the old allowlist (461 passed/1 failed). Explicit third server adapter
+  allowance plus stronger client-import exclusions fixed it. It was not relabelled
+  inherited. Initial evidence recorder failure was fixed before final logs.
+- **Preservation/cost:** final code hashes stable during recorded checks; previous
+  bridge raw logs unchanged; fixture body and all prior assertions byte-identical
+  after EOL normalization. $0, no real key load, provider, images or audio.
+
+Decision, independent-QA targets and tracked raw-log identities:
+`docs/ai-workflow/PERSONAL_BOOK_RUNNER_DECISION_20260930.md`,
+`PERSONAL_BOOK_RUNNER_QA_20260930.md`, `PERSONAL_BOOK_RUNNER_VERIFICATION_20260930.json`.
+Raw root `outputs/personal-book-runner-20260930/` is ignored/untracked, local-only,
+no verified off-machine backup; pushing does not preserve it.
+
+**Next:** independent QA of this successor and the prior bridge/base writer still
+open. Then bounded real text/semantic creative proof, UI integration and qualified
+consecutive image/QA sample; durable recovery/spend and narration/package remain.
+No self-PASS, creative/product acceptance, release qualification or public cutover.
+
 ## Personal whole-book storyboard bridge — implemented locally, awaiting QA (2026-09-30)
+
+Prior milestone recorded at `07d3c8d3`; execution capability is superseded by the
+automatic successor above. The prior independent review remains open.
 
 Active task/worktree: this Codex chat, sole writer at
 `C:/Users/guyna/.codex/worktrees/personal-story-product/Small_Heroes`, branch
@@ -48,9 +99,9 @@ live text chain and semantically review real prose/storyboard before connecting
 qualified image/QA adapters, the smallest consecutive visual sample and narration.
 This milestone does not finish the recording-to-delivered-book product.
 
-## Personal story product pilot — active (2026-09-30)
+## Personal story product pilot — prior base record (2026-09-30)
 
-Codex is implementing on isolated `codex/personal-story-product`, based on
+The base pilot was implemented on isolated `codex/personal-story-product`, based on
 `fd2b26bdd694e95fcea68393da97df35b2cf97d4`, at
 `C:/Users/guyna/.codex/worktrees/personal-story-product/Small_Heroes`.
 This section supersedes the older “writer not connected” product state below;

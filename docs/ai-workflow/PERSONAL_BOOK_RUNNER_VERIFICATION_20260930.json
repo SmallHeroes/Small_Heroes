@@ -1,0 +1,250 @@
+{
+  "scope": "local_test_evidence_not_independent_pass",
+  "recorded": "2026-09-30T09:08:52.162Z",
+  "cwd": "C:\\Users\\guyna\\.codex\\worktrees\\personal-story-product\\Small_Heroes",
+  "codeHashesBefore": {
+    "app/api/dev/personal-wizard/book/route.ts": "56187d04d0aa1214b73fde85a86ff8e08bc4c4387430b92cbfb4aaefe46bb038",
+    "lib/personal-wizard/book-config.ts": "1374f4029a0bfa2323909db43ce8838b6aa2a27e75970615c25c029567961641",
+    "lib/personal-wizard/book-runner.ts": "695877275814acaaf8dd89afc64dbc2bf81db7073f269217c447ce2b09c03c91",
+    "lib/personal-wizard/book-openai.ts": "6b41527099b9b2cc5981ea43f34633261659075979f6ff7d778202ee47d65c53",
+    "lib/personal-wizard/story-access.ts": "967259a42c9036eff6d89b35c9c6dc3ee77f6c6ef139cd4f34cb2e3ef0297c66",
+    "lib/personal-wizard/story-writer.ts": "dc438e704dd40c7f35c934e646063b014ad4691636100e2a175bc269af55d7fb",
+    "lib/personal-wizard/story-openai.ts": "6b56261a50646ab922c989acef0b85d5e91db34197ef6e877b1d1a624aa665c7",
+    "lib/personal-wizard/storyboard.ts": "520ebe73ee57837ae722d0d49be98f01bd9efbb6b95e492758300cf92e49e02c",
+    "lib/local-book-planning.ts": "85c6b6da886a50144de40a2dc33a06feca862d2a5651369390aa827deb335730",
+    "lib/local-book-sequence.ts": "d2a62e14cc2e175abd92f6470fb8f3050691eaee868784bdc5787102a378bd40",
+    "lib/personal-wizard/__tests__/book-runner.spec.ts": "9f906ebb055ed71f390a3adefc6656c8b31e70a04b8e7c277b29d5ee3caf51ee",
+    "lib/personal-wizard/__tests__/book-routes.spec.ts": "bc2493c35031caa7b6499a030d0faa27992bcddd4bac9e805c9d63cc8ab8ec0a",
+    "lib/personal-wizard/__tests__/personal-storyboard-fixture.ts": "de2116d945caee1e441abdd78249c971da6fd8f1dbe0a800d3ab60d8f75636ad",
+    "lib/personal-wizard/__tests__/storyboard.spec.ts": "52bce2986111e64d8e81abbcaaeb211fd5985b074679b23cb7bd2c72c0a02170",
+    "lib/__tests__/vitest-workload-classifier.spec.ts": "f2aa29c3b75f1378dd004b10480f8356557b8d8b4868aa126736459e87c8cf04",
+    "lib/personal-wizard/__tests__/prototype-boundary.spec.ts": "c5d1f17c2abd6843c6938dafc7ddbb5e2b5a50cb6cc56c86c9bf19761e101584"
+  },
+  "codeHashesAfter": {
+    "app/api/dev/personal-wizard/book/route.ts": "56187d04d0aa1214b73fde85a86ff8e08bc4c4387430b92cbfb4aaefe46bb038",
+    "lib/personal-wizard/book-config.ts": "1374f4029a0bfa2323909db43ce8838b6aa2a27e75970615c25c029567961641",
+    "lib/personal-wizard/book-runner.ts": "695877275814acaaf8dd89afc64dbc2bf81db7073f269217c447ce2b09c03c91",
+    "lib/personal-wizard/book-openai.ts": "6b41527099b9b2cc5981ea43f34633261659075979f6ff7d778202ee47d65c53",
+    "lib/personal-wizard/story-access.ts": "967259a42c9036eff6d89b35c9c6dc3ee77f6c6ef139cd4f34cb2e3ef0297c66",
+    "lib/personal-wizard/story-writer.ts": "dc438e704dd40c7f35c934e646063b014ad4691636100e2a175bc269af55d7fb",
+    "lib/personal-wizard/story-openai.ts": "6b56261a50646ab922c989acef0b85d5e91db34197ef6e877b1d1a624aa665c7",
+    "lib/personal-wizard/storyboard.ts": "520ebe73ee57837ae722d0d49be98f01bd9efbb6b95e492758300cf92e49e02c",
+    "lib/local-book-planning.ts": "85c6b6da886a50144de40a2dc33a06feca862d2a5651369390aa827deb335730",
+    "lib/local-book-sequence.ts": "d2a62e14cc2e175abd92f6470fb8f3050691eaee868784bdc5787102a378bd40",
+    "lib/personal-wizard/__tests__/book-runner.spec.ts": "9f906ebb055ed71f390a3adefc6656c8b31e70a04b8e7c277b29d5ee3caf51ee",
+    "lib/personal-wizard/__tests__/book-routes.spec.ts": "bc2493c35031caa7b6499a030d0faa27992bcddd4bac9e805c9d63cc8ab8ec0a",
+    "lib/personal-wizard/__tests__/personal-storyboard-fixture.ts": "de2116d945caee1e441abdd78249c971da6fd8f1dbe0a800d3ab60d8f75636ad",
+    "lib/personal-wizard/__tests__/storyboard.spec.ts": "52bce2986111e64d8e81abbcaaeb211fd5985b074679b23cb7bd2c72c0a02170",
+    "lib/__tests__/vitest-workload-classifier.spec.ts": "f2aa29c3b75f1378dd004b10480f8356557b8d8b4868aa126736459e87c8cf04",
+    "lib/personal-wizard/__tests__/prototype-boundary.spec.ts": "c5d1f17c2abd6843c6938dafc7ddbb5e2b5a50cb6cc56c86c9bf19761e101584"
+  },
+  "codeUnchanged": true,
+  "providerCallsByThisRecorder": 0,
+  "costUsdByThisRecorder": 0,
+  "runs": [
+    {
+      "name": "tsc",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "C:\\GNart\\Work\\sh-order-package-authority\\node_modules\\typescript\\bin\\tsc",
+        "--noEmit"
+      ],
+      "started": "2026-09-30T09:01:44.525Z",
+      "completed": "2026-09-30T09:01:53.990Z",
+      "exitCode": 0,
+      "signal": null,
+      "stdout": {
+        "file": "final-tsc.stdout.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "stderr": {
+        "file": "final-tsc.stderr.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "summaries": [],
+      "failures": [],
+      "phaseRecords": []
+    },
+    {
+      "name": "focused",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "C:\\GNart\\Work\\sh-order-package-authority\\node_modules\\vitest\\vitest.mjs",
+        "run",
+        "lib/personal-wizard",
+        "lib/__tests__/local-book-sequence.spec.ts",
+        "lib/__tests__/local-preview-quality.spec.ts",
+        "lib/__tests__/vitest-workload-classifier.spec.ts",
+        "lib/__tests__/style01-prompt-assembly-child-presence.spec.ts",
+        "lib/__tests__/style01-child-expression-style-fidelity.spec.ts",
+        "--maxWorkers",
+        "1"
+      ],
+      "started": "2026-09-30T09:01:53.997Z",
+      "completed": "2026-09-30T09:02:21.832Z",
+      "exitCode": 0,
+      "signal": null,
+      "stdout": {
+        "file": "final-focused.stdout.log",
+        "bytes": 7470,
+        "sha256": "36ad5b1dbcfd6aa239170ec1374646fe39bf6cab991dca08f59bb2241a7f7cdd"
+      },
+      "stderr": {
+        "file": "final-focused.stderr.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "summaries": [
+        " Test Files  21 passed (21)",
+        "      Tests  462 passed (462)",
+        "   Duration  27.19s (transform 1.44s, setup 0ms, collect 4.80s, tests 18.20s, environment 3ms, prepare 1.32s)"
+      ],
+      "failures": [],
+      "phaseRecords": []
+    },
+    {
+      "name": "full-check",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "C:/Program Files/nodejs/node_modules/npm/bin/npm-cli.js",
+        "run",
+        "check"
+      ],
+      "started": "2026-09-30T09:02:21.833Z",
+      "completed": "2026-09-30T09:08:52.159Z",
+      "exitCode": 1,
+      "signal": null,
+      "stdout": {
+        "file": "final-full-check.stdout.log",
+        "bytes": 152204,
+        "sha256": "899685c8542b4fc25ec465096fd5074afcd5c5ab690ba7fdecd25998dcb82eff"
+      },
+      "stderr": {
+        "file": "final-full-check.stderr.log",
+        "bytes": 169764,
+        "sha256": "1a4544eba28c80d12b4dc2827c46f286b140b14686c613715c0453f539c2fabb"
+      },
+      "summaries": [
+        " Test Files  6 failed | 350 passed | 17 skipped (373)",
+        "      Tests  10 failed | 5194 passed | 73 skipped (5277)",
+        "   Duration  115.10s (transform 15.62s, setup 0ms, collect 115.97s, tests 245.85s, environment 59ms, prepare 30.83s)",
+        " Test Files  20 passed (20)",
+        "      Tests  635 passed (635)",
+        "     Errors  3 errors",
+        "   Duration  263.18s (transform 2.65s, setup 0ms, collect 11.05s, tests 510.48s, environment 3ms, prepare 1.43s)"
+      ],
+      "failures": [
+        " FAIL  lib/__tests__/child-lexicon-ages-5-8.spec.ts > child lexicon ages 5–8 gate > slot #1 revised story passes child lexicon scan",
+        " FAIL  lib/__tests__/momentum-gate-koko.spec.ts > momentum gate koko stop2 beats > detects child action on slash-chip childDoes (>=4 pages)",
+        " FAIL  lib/__tests__/page-entity-qa.spec.ts > page-entity-qa (0074) > local PNG path resolves to base64 data URL",
+        " FAIL  lib/__tests__/story-read-back-validation.spec.ts > story.md read-back validation (P0) > fails completedEnding when story.md is truncated but story-pages.json is complete",
+        " FAIL  lib/__tests__/story-read-back-validation.spec.ts > story.md read-back validation (P0) > passes when story.md is rendered from complete story-pages.json",
+        " FAIL  lib/__tests__/story-source-visual-direction-acceptance-lifecycle.spec.ts > general Visual Directions acceptance and publication lifecycle > prepares one exact runtime-ineligible publication bundle and byte-replays it",
+        " FAIL  lib/__tests__/story-source-visual-direction-acceptance-lifecycle.spec.ts > general Visual Directions acceptance and publication lifecycle > publishes only an exact staged bundle and replays one complete accepted directory",
+        " FAIL  lib/__tests__/story-source-visual-direction-acceptance-lifecycle.spec.ts > general Visual Directions acceptance and publication lifecycle > fails closed on stale authority, wrong approver, HOLD review, and hardlinks",
+        " FAIL  lib/__tests__/story-source-visual-direction-acceptance-lifecycle.spec.ts > general Visual Directions acceptance and publication lifecycle > rejects staging and accepted-target collisions without partial replacement",
+        " FAIL  lib/set-identity-board/__tests__/reserved-page-placement-authority.spec.ts > Reserved Page Placement Authority — production-scale offline harness > proves d963 as home v6 unchanged + route 10 events grouped into exactly 6 v7 reservations"
+      ],
+      "phaseRecords": [
+        {
+          "schemaVersion": "small-heroes-vitest-phase-diagnostic/v1",
+          "phase": "ordinary",
+          "workerLimit": 4,
+          "fileCount": 373,
+          "elapsedMs": 115886,
+          "exitCode": 1,
+          "signal": null,
+          "launchErrorCode": null,
+          "diagnosticProtocolOk": true,
+          "diagnosticRecords": 1,
+          "diagnosticBytes": 240,
+          "classes": [
+            "signal_or_exit_failure"
+          ],
+          "gateStatus": "failed"
+        },
+        {
+          "schemaVersion": "small-heroes-vitest-phase-diagnostic/v1",
+          "phase": "resource_intensive",
+          "workerLimit": 2,
+          "fileCount": 20,
+          "elapsedMs": 263786,
+          "exitCode": 1,
+          "signal": null,
+          "launchErrorCode": null,
+          "diagnosticProtocolOk": true,
+          "diagnosticRecords": 1,
+          "diagnosticBytes": 277,
+          "classes": [
+            "on_task_update_rpc_timeout",
+            "signal_or_exit_failure"
+          ],
+          "gateStatus": "failed"
+        },
+        {
+          "schemaVersion": "small-heroes-vitest-check-summary/v1",
+          "canonicalFileCount": 393,
+          "ordinaryFileCount": 373,
+          "resourceIntensiveFileCount": 20,
+          "phases": {
+            "ordinary": {
+              "schemaVersion": "small-heroes-vitest-phase-diagnostic/v1",
+              "phase": "ordinary",
+              "workerLimit": 4,
+              "fileCount": 373,
+              "elapsedMs": 115886,
+              "exitCode": 1,
+              "signal": null,
+              "launchErrorCode": null,
+              "diagnosticProtocolOk": true,
+              "diagnosticRecords": 1,
+              "diagnosticBytes": 240,
+              "classes": [
+                "signal_or_exit_failure"
+              ],
+              "gateStatus": "failed"
+            },
+            "resourceIntensive": {
+              "schemaVersion": "small-heroes-vitest-phase-diagnostic/v1",
+              "phase": "resource_intensive",
+              "workerLimit": 2,
+              "fileCount": 20,
+              "elapsedMs": 263786,
+              "exitCode": 1,
+              "signal": null,
+              "launchErrorCode": null,
+              "diagnosticProtocolOk": true,
+              "diagnosticRecords": 1,
+              "diagnosticBytes": 277,
+              "classes": [
+                "on_task_update_rpc_timeout",
+                "signal_or_exit_failure"
+              ],
+              "gateStatus": "failed"
+            },
+            "gateStatus": "failed"
+          },
+          "gateStatus": "failed"
+        }
+      ]
+    }
+  ],
+  "rawReport": {
+    "file": "outputs/personal-book-runner-20260930/final-verification.json",
+    "sha256": "2e4ce8420f1e6e232256913ceccb53c34ec924e10a3874c7130f0a15686e57c9"
+  },
+  "fixtureBodyAndPriorAssertionsUnchanged": true,
+  "previousBridgeRawLogsPreserved": true,
+  "failureNamesMatchPreviousRecordedGate": true,
+  "limitations": [
+    "Mocked providers and auth; no real SDK/network/auth/browser or image accuracy proof.",
+    "Generate invocation counts are not acknowledged provider network dispatches.",
+    "Usage estimates are not invoices; rate card reused, not freshly verified.",
+    "Process-local ledger is not durable, cross-instance or cross-endpoint authority.",
+    "UI consumer/revision cancellation and renderer/narration cutovers are not implemented.",
+    "Raw logs ignored/untracked/local-only, no verified off-machine backup.",
+    "No independent QA or product/creative/release PASS is claimed."
+  ]
+}
