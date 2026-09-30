@@ -8,7 +8,6 @@
    ═══════════════════════════════════════════════════════════════════════ */
 
 :root {
-  --pw-page: #fffdf8;
   --pw-page-2: #fffaf1;
   /* the hero sky (Guy picked it over warm white and mint) */
   --pw-sky-1: #e6f0ff;
@@ -87,7 +86,7 @@
   line-height: 1.08;
   letter-spacing: -0.01em;
   color: var(--n-900);
-  font-size: clamp(42px, 4.6vw, 72px);
+  font-size: clamp(34px, 3.5vw, 56px);
 }
 
 .pw-h1-a { display: block; }
@@ -111,21 +110,11 @@
 
 .pw-sub {
   margin: 0;
-  max-width: 42ch;
-  font-size: clamp(18px, 1.45vw, 21px);
-  line-height: 1.66;
+  max-width: 44ch;
+  font-size: clamp(16px, 1.15vw, 18px);
+  line-height: 1.65;
   color: var(--n-600);
   text-wrap: pretty;
-}
-
-.pw-pilot {
-  margin: 14px 0 0;
-  max-width: 44ch;
-  padding-inline-start: 12px;
-  border-inline-start: 3px solid var(--yellow-400);
-  font-size: 15px;
-  line-height: 1.6;
-  color: var(--n-600);
 }
 
 .pw-ctas {
@@ -170,30 +159,6 @@
 }
 
 .pw-cta-2 { min-height: 64px; padding: 0 28px; font-size: 18px; }
-
-.pw-notes {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin: 18px 0 0;
-  padding: 0;
-  list-style: none;
-}
-
-.pw-notes li {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 15px;
-  border-radius: 999px;
-  background: #fff;
-  box-shadow: 0 2px 0 var(--purple-100), 0 6px 16px rgba(40, 33, 74, 0.07);
-  font-size: 15px;
-  font-weight: 500;
-  color: var(--purple-700);
-}
-
-.pw-notes svg { width: 17px; height: 17px; color: var(--purple-500); }
 
 /* ── The stage: a voice, and a story's moments coming up as it is told ── */
 .vs {
@@ -490,7 +455,7 @@
   .pw-hero { padding: 36px 0 34px; }
   .pw-hero-wrap {
     grid-template-columns: minmax(0, 1fr);
-    grid-template-areas: 'badge' 'h1' 'stage' 'sub' 'pilot' 'ctas' 'notes';
+    grid-template-areas: 'badge' 'h1' 'stage' 'sub' 'ctas';
     gap: 0;
     justify-items: center;
     text-align: center;
@@ -500,9 +465,7 @@
   .pw-h1 { grid-area: h1; margin: 16px 0 8px; }
   .vs { grid-area: stage; margin: 4px 0 18px; }
   .pw-sub { grid-area: sub; }
-  .pw-pilot { grid-area: pilot; }
   .pw-ctas { grid-area: ctas; justify-content: center; width: 100%; }
-  .pw-notes { grid-area: notes; justify-content: center; }
 }
 
 /* a narrow stage: the words take the top, the three moments fan out below */
@@ -591,8 +554,8 @@
 
 .ph-badge svg { width: 44px; height: 44px; }
 .ph-stop[data-stop='0'] .ph-badge { background: var(--yellow-300); color: var(--n-900); rotate: -4deg; }
-.ph-stop[data-stop='1'] .ph-badge { background: var(--pw-coral-tint); color: var(--pw-coral-ink); rotate: 3deg; }
-.ph-stop[data-stop='2'] .ph-badge { background: var(--purple-100); color: var(--purple-700); rotate: -2deg; }
+.ph-stop[data-stop='1'] .ph-badge { background: var(--purple-100); color: var(--purple-700); rotate: 3deg; }
+.ph-stop[data-stop='2'] .ph-badge { background: var(--yellow-200); color: var(--n-900); rotate: -2deg; }
 
 .ph-num {
   position: absolute;
@@ -627,16 +590,6 @@
   line-height: 1.7;
   color: var(--n-600);
   text-wrap: pretty;
-}
-
-.ph-friends { display: flex; justify-content: center; margin-top: 14px; }
-
-.ph-friends img {
-  width: 48px;
-  height: 60px;
-  margin-inline: -5px;
-  object-fit: contain;
-  filter: drop-shadow(0 4px 6px rgba(40, 33, 74, 0.16));
 }
 
 @media (max-width: 860px) {

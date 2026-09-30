@@ -10,7 +10,6 @@ type HeroCopy = {
   sub: string;
   ctaPrimary: string;
   ctaSecondary: string;
-  ctaNotes: readonly string[];
 };
 
 function Sparkle() {
@@ -31,21 +30,11 @@ function Mic() {
   );
 }
 
-/* Order matches the notes: record/write/choose · you decide what goes in */
-const NOTE_ICONS = [
-  <Mic key="mic" />,
-  (
-    <svg key="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
-      <path d="M4.5 12.5l4.5 4.5 10.5-11" />
-    </svg>
-  ),
-];
-
 /**
  * The preview's hero: the same words, beside a child's story coming up picture by picture as a parent tells it.
  * Copy on the start side; on phones the story moves up between the headline and the text.
  */
-export function PersonalWowHero({ hero, pilotNote, startHref }: { hero: HeroCopy; pilotNote: string; startHref: string }) {
+export function PersonalWowHero({ hero, startHref }: { hero: HeroCopy; startHref: string }) {
   return (
     <section className="hero pw-hero">
       <HeroDoodles />
@@ -62,7 +51,6 @@ export function PersonalWowHero({ hero, pilotNote, startHref }: { hero: HeroCopy
             </span>
           </h1>
           <p className="pw-sub">{hero.sub}</p>
-          <p className="pw-pilot">{pilotNote}</p>
           <div className="pw-ctas">
             <a href={startHref} className="btn-primary pw-cta" data-event="landing_start_click">
               <span className="pw-cta-mic">
@@ -74,14 +62,6 @@ export function PersonalWowHero({ hero, pilotNote, startHref }: { hero: HeroCopy
               {hero.ctaSecondary}
             </a>
           </div>
-          <ul className="pw-notes">
-            {hero.ctaNotes.map((note, index) => (
-              <li key={note}>
-                {NOTE_ICONS[index] ?? null}
-                {note}
-              </li>
-            ))}
-          </ul>
         </div>
         <VoiceStoryStage demo={PERSONAL_VOICE_STORIES} />
       </div>

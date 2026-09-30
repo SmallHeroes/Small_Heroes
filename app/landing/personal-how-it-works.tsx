@@ -54,14 +54,12 @@ const NOTE_ICONS = [
   ),
 ];
 
-type Friend = { id: string; name: string };
-
 /**
  * The preview's "how it works", right after the hero, as a trail with three stops: tell us by voice,
- * check and complete, choose a friend (the friends wait at the last stop). The trail draws itself as
- * it comes into view (the page's own reveal system; everything simply shows under reduced motion).
+ * check and complete, choose a friend. The trail draws itself as it comes into view (the page's own
+ * reveal system; everything simply shows under reduced motion).
  */
-export function PersonalHowItWorks({ startHref, friends }: { startHref: string; friends: readonly Friend[] }) {
+export function PersonalHowItWorks({ startHref }: { startHref: string }) {
   return (
     <section id="how" className="personal-how" aria-labelledby="personal-how-title">
       <div className="wrap">
@@ -85,13 +83,6 @@ export function PersonalHowItWorks({ startHref, friends }: { startHref: string; 
                 </span>
                 <h3 className="ph-title">{step.title}</h3>
                 <p className="ph-body">{step.body}</p>
-                {index === H.steps.length - 1 && friends.length ? (
-                  <span className="ph-friends" aria-hidden="true">
-                    {friends.map((friend) => (
-                      <img key={friend.id} src={`/Images/spotlight/${friend.id}.png`} alt="" loading="lazy" decoding="async" draggable={false} />
-                    ))}
-                  </span>
-                ) : null}
               </li>
             ))}
           </ol>

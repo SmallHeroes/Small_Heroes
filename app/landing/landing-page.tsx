@@ -21,7 +21,7 @@ import childHandoff from '@/public/JS/hero-child-handoff';
 import { CompanionSpotlight } from '@/app/components/CompanionSpotlight';
 import { warmCompanionIdleVideos } from '@/lib/web/companion-idle-video';
 
-/* the preview's honest one-liner under the hero copy (both heroes show the same words) */
+/* the preview's development one-liner in the shared hero's preview branch */
 const PERSONAL_PILOT_NOTE = 'תצוגת פיתוח. בסיום ההיכרות תקבלו כרטיס פרטים לעריכה, עדיין לא ספר מלא.';
 
 type SpotlightState = {
@@ -158,7 +158,7 @@ export default function LandingPage({ content: L, startHref, matrixCategories, p
         <main id="main">
           {/* the preview stages the same words as a living book; the public hero is unchanged */}
           {personalPreview ? (
-            <PersonalWowHero hero={L.hero} pilotNote={PERSONAL_PILOT_NOTE} startHref={startHref} />
+            <PersonalWowHero hero={L.hero} startHref={startHref} />
           ) : (
             <section className="hero">
               <HeroDoodles />
@@ -215,7 +215,7 @@ export default function LandingPage({ content: L, startHref, matrixCategories, p
           )}
 
           {/* the preview explains how it works (the recording first) straight after the hero */}
-          {personalPreview ? <PersonalHowItWorks startHref={startHref} friends={matrixCategories.map((slot) => ({ id: slot.companion.id, name: slot.companion.name }))} /> : null}
+          {personalPreview ? <PersonalHowItWorks startHref={startHref} /> : null}
 
           {/* מה מקבלים — the concrete promise, straight after the hero */}
           {/* the storybook sky continues here and fades out inside this
