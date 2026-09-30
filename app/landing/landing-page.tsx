@@ -16,6 +16,7 @@ import { HeroCollage } from './hero-collage';
 import { NameMoment, type HeroChild } from './name-moment';
 import { HearPage } from './hear-page';
 import { PersonalStoryMoment } from './personal-story-moment';
+import { PersonalRecordingInfo } from './personal-recording-info';
 import childHandoff from '@/public/JS/hero-child-handoff';
 import { CompanionSpotlight } from '@/app/components/CompanionSpotlight';
 import { warmCompanionIdleVideos } from '@/lib/web/companion-idle-video';
@@ -149,7 +150,7 @@ export default function LandingPage({ content: L, startHref, matrixCategories, p
         </a>
         {/* 2026: thin scroll-progress bar — pure CSS scroll-timeline, no JS (falls back to hidden) */}
         <div className="scroll-progress" aria-hidden="true" />
-        <SiteHeader variant="full" startHref={personalPreview ? startHref : undefined} startLabel={personalPreview ? L.hero.ctaPrimary : undefined} homeHref={personalPreview ? '/dev/personal-product' : undefined} navigation={personalPreview ? [{ label: 'קטע לדוגמה', href: '#personal-story-example' }, { label: 'איך זה עובד', href: '#how' }, { label: 'החברים', href: '#helps' }] : undefined} />
+        <SiteHeader variant="full" startHref={personalPreview ? startHref : undefined} startLabel={personalPreview ? L.hero.ctaPrimary : undefined} homeHref={personalPreview ? '/dev/personal-product' : undefined} navigation={personalPreview ? [{ label: 'קטע לדוגמה', href: '#personal-story-example' }, { label: 'ההקלטה', href: '#personal-recording' }, { label: 'איך זה עובד', href: '#how' }, { label: 'החברים', href: '#helps' }] : undefined} />
 
         <main id="main">
           <section className="hero">
@@ -206,6 +207,7 @@ export default function LandingPage({ content: L, startHref, matrixCategories, p
           </section>
 
           {personalPreview ? <PersonalStoryMoment /> : null}
+          {personalPreview ? <PersonalRecordingInfo startHref={startHref} /> : null}
 
           {/* מה מקבלים — the concrete promise, straight after the hero */}
           {/* the storybook sky continues here and fades out inside this

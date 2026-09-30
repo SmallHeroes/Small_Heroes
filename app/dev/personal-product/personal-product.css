@@ -20,7 +20,24 @@
 .personal-example-reflection { margin: 24px 0 0; padding-top: 20px; border-top: 1px solid var(--purple-100); color: var(--purple-700); font-size: 15px; line-height: 1.7; }
 .personal-example-disclosure { max-width: 74ch; margin: 24px auto 0; color: var(--n-600); font-size: 13px; line-height: 1.6; text-align: center; }
 .personal-product .sample-book-illustration figcaption { color: #fff; font-size: 13px; line-height: 1.6; margin-top: 12px; }
+/* The recording, explained: one panel of three steps in the page's card language, then short notes. */
+.personal-recording { padding: 80px 0; background: #fff; scroll-margin-top: 90px; }
+.personal-recording .section-h2 { max-width: 24ch; margin-inline: auto; text-wrap: balance; }
+.personal-recording-line { display: block; }
+.personal-recording-steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); max-width: 1000px; margin: 32px auto 0; padding: 0; list-style: none; border: 1px solid var(--border); border-radius: 20px; background: #fff; box-shadow: var(--shadow-card); }
+.personal-recording-step { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; padding: 28px; text-align: start; }
+.personal-recording-step + .personal-recording-step { border-inline-start: 1px solid var(--purple-100); }
+.personal-recording-notes { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px 28px; max-width: 1000px; margin: 24px auto 0; padding: 0; list-style: none; color: var(--purple-700); font-size: 15px; line-height: 1.6; }
+.personal-recording-notes li { display: inline-flex; align-items: center; gap: 8px; }
+.personal-recording-notes svg { width: 18px; height: 18px; flex: none; color: var(--purple-500); }
+.personal-recording-foot { display: flex; flex-direction: column; align-items: center; gap: 12px; margin-top: 32px; }
+.personal-recording-preview { max-width: 60ch; margin: 0; color: var(--n-600); font-size: 13px; line-height: 1.6; text-align: center; text-wrap: balance; }
 @media (max-width: 860px) {
+  .personal-recording { padding: 56px 0; }
+  .personal-recording-steps { grid-template-columns: 1fr; max-width: 520px; }
+  .personal-recording-step { padding: 20px; }
+  .personal-recording-step + .personal-recording-step { border-inline-start: 0; border-top: 1px solid var(--purple-100); }
+  .personal-recording-notes { flex-direction: column; align-items: flex-start; gap: 8px; width: fit-content; max-width: 100%; }
   .personal-example-layout { grid-template-columns: 1fr; gap: 16px; }
   .personal-story-example { padding: 56px 0; }
   .personal-profile, .personal-excerpt { padding: 24px; }

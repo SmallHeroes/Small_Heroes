@@ -7,7 +7,9 @@ import { resolvePersonalWizardOptions, PROTOTYPE_COMPANION_ROSTER } from '../opt
 import { canonicalJson } from '../request-acceptance';
 import { resolveStorySettings, storyReservationUsd, type StorySettings } from '../story-config';
 import type { ReviewedPersonalBookRequest } from '../contract';
-import { getPersonalLandingContent } from '@/content/personal-landing';
+import { getPersonalLandingContent, PERSONAL_RECORDING_INFO } from '@/content/personal-landing';
+import { LIMITS } from '../contract';
+import { bookCopy, RECORDER, tellCopy } from '../copy';
 import { getLandingContent } from '@/content/landing';
 
 const options = resolvePersonalWizardOptions();
@@ -167,5 +169,24 @@ describe('writer switches and product copy', () => {
     expect(personal.hero.sub).toContain('שנכתב כדי לעזור לילד שלכם להתמודד');
     expect(personal.faq.items.some((item) => item.a.includes('טיפול'))).toBe(true);
     expect(getLandingContent([]).pricing.cards.map((card) => card.price)).toEqual(['59', '79', '99']);
+  });
+  it('explains the recording with the wizard facts and keeps it off the public landing', () => {
+    const recording = PERSONAL_RECORDING_INFO;
+    const [talk] = recording.steps;
+    // Same span as the wizard's hint, and the hard stop the recorder enforces.
+    expect(tellCopy('', null).durationHint).toContain('חצי דקה עד דקה');
+    expect(talk.title).toContain('חצי דקה עד דקה');
+    expect(LIMITS.recordingMaxMs).toBe(90_000);
+    expect(talk.body).toContain('עד דקה וחצי');
+    // Writing and ready answers stay alternatives; the recording is never the narration.
+    expect(recording.notes.join(' ')).toMatch(/לכתוב.*לבחור/);
+    expect(bookCopy('בר').voiceNote).toContain('ההקלטה לא משמשת לקול הספר');
+    expect(recording.notes.join(' ')).toContain('לא משמשת לקריינות');
+    // The FAQ repeats the wizard's privacy line word for word, then the preview's local-only case.
+    const faq = getPersonalLandingContent().faq.items.find((item) => item.q === 'מה קורה להקלטה?');
+    expect(faq?.a.startsWith(RECORDER.privacyLive)).toBe(true);
+    expect(recording.previewNote).toContain('בודקים מורשים');
+    expect(JSON.stringify(recording)).not.toMatch(/מבטיחים|מובטח/);
+    expect(JSON.stringify(getLandingContent([]))).not.toContain('הקלט');
   });
 });
