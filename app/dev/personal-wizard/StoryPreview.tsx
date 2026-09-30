@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState } from 'react';
 import type { ReviewedPersonalBookRequest } from '@/lib/personal-wizard/contract';
-import { bookAvailabilitySchema, readBookPreview, readBookPartialPreview, type BookPreview, type BookPartialPreview } from '@/lib/personal-wizard/book-preview';
+import { bookAvailabilitySchema, fetchBookAvailability, readBookPreview, readBookPartialPreview, type BookPreview, type BookPartialPreview } from '@/lib/personal-wizard/book-preview';
+import { watchAvailability } from '@/lib/personal-wizard/availability-client';
 import styles from './personal-wizard.module.css';
 
 type Props = { request: ReviewedPersonalBookRequest; requestId: string; stale: boolean; onEdit: () => void };
@@ -21,15 +22,7 @@ export function StoryPreview({ request, requestId, stale, onEdit }: Props) {
   const currentPartial = partial?.writerResult.requestId === requestId ? partial : null;
   const manuscriptResult = currentResult?.writerResult ?? currentPartial?.writerResult;
   const accounting = currentResult?.accounting ?? currentPartial?.accounting;
-  useEffect(() => {
-    let live = true;
-    void fetch('/api/dev/personal-wizard/book', { cache: 'no-store' }).then(async (response) => {
-      if (!response.ok) return;
-      const parsed = bookAvailabilitySchema.safeParse(await response.json());
-      if (live && parsed.success) setAvailability(parsed.data);
-    }).catch(() => undefined);
-    return () => { live = false; };
-  }, []);
+  useEffect(() => watchAvailability(window, fetchBookAvailability, setAvailability), []);
   useEffect(() => {
     epoch.current += 1;
     active.current?.abort(); active.current = null;

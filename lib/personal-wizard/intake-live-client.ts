@@ -4,6 +4,7 @@
  * error, never a partial success.
  */
 import { intakeResultSchema, type IntakeResult } from './contract';
+import type { AvailabilityFetch } from './availability-client';
 
 export type LiveIntakeError =
   | 'not_signed_in'
@@ -20,7 +21,7 @@ export type LiveIntakeError =
 
 export type LiveIntakeResponse = { ok: true; result: IntakeResult } | { ok: false; error: LiveIntakeError };
 
-type FetchLike = (input: string, init: RequestInit) => Promise<Response>;
+type FetchLike = AvailabilityFetch;
 
 const REJECTED_AUDIO = new Set([
   'unsupported_format',
@@ -66,23 +67,25 @@ async function send(run: () => Promise<Response>, jobId: string, signal: AbortSi
   }
 }
 
-export async function fetchLiveIntakeAvailability(fetchImpl: FetchLike = fetch): Promise<{ live: boolean; signInRequired: boolean }> {
+export async function fetchLiveIntakeAvailability(fetchImpl: FetchLike = fetch): Promise<{ live: boolean; signInRequired: boolean } | undefined> {
   const unavailable = { live: false, signInRequired: false };
   try {
     const response = await fetchImpl('/api/dev/personal-wizard/intake/status', { cache: 'no-store' });
-    if (!response.ok) return unavailable;
+    if ([401, 403, 404].includes(response.status)) return unavailable;
+    if (!response.ok) return undefined;
     const body: unknown = await response.json();
-    if (!body || typeof body !== 'object') return unavailable;
+    if (!body || typeof body !== 'object') return undefined;
     const status = body as { live?: unknown; reason?: unknown };
+    if (typeof status.live !== 'boolean') return undefined;
     return { live: status.live === true, signInRequired: status.live === false && status.reason === 'not_signed_in' };
   } catch {
-    return unavailable;
+    return undefined;
   }
 }
 
 /** Compatibility for consumers which need only the non-authoritative live flag. */
 export async function fetchLiveIntakeStatus(fetchImpl: FetchLike = fetch): Promise<boolean> {
-  return (await fetchLiveIntakeAvailability(fetchImpl)).live;
+  return (await fetchLiveIntakeAvailability(fetchImpl))?.live === true;
 }
 
 export function submitAudioIntake(input: {

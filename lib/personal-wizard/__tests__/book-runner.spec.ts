@@ -178,18 +178,22 @@ describe('automatic personal manuscript -> full storyboard -> separate semantic 
       expect(error.accounting?.providerAttempts).toBe(1); expect(f.ledger.snapshot().inFlight).toBe(0);
     } finally { vi.useRealTimers(); }
   });
-  it.each(['storyboard', 'review'] as const)('gives %s its cap-derived deadline rather than the former 180s', async stage => {
-    const f = await setup(); let observed: AbortSignal | undefined;
+  it.each(['short', 'medium', 'long'].flatMap(length => (['storyboard', 'review'] as const).map(stage => ({ length, stage }))))(
+    'times out $length/$stage at its exact cap-derived deadline', async ({ length, stage }) => {
+    const f = await setup(length); let observed: AbortSignal | undefined;
     vi.mocked(f.provider.visual.generate).mockImplementation(async (call, signal) => {
       if (call.stage === stage) { observed = signal; return new Promise(() => {}); }
       return { output: f.draft, usage: null };
     });
     vi.useFakeTimers();
     try {
-      const pending = errorOf(generatePersonalBook(f.args)); await vi.advanceTimersByTimeAsync(180001);
-      expect(observed?.aborted).toBe(false);
-      const caps = personalBookOutputLimits(8);
-      await vi.advanceTimersByTimeAsync(generationTimeoutMs(stage === 'storyboard' ? caps.storyboardOutputTokens : caps.reviewOutputTokens) - 180000);
+      let settled = false;
+      const pending = errorOf(generatePersonalBook(f.args)).then(error => { settled = true; return error; });
+      const caps = personalBookOutputLimits(f.book.narrativeSpreads);
+      const deadline = generationTimeoutMs(stage === 'storyboard' ? caps.storyboardOutputTokens : caps.reviewOutputTokens);
+      await vi.advanceTimersByTimeAsync(deadline - 1);
+      expect(settled).toBe(false); expect(observed?.aborted).toBe(false);
+      await vi.advanceTimersByTimeAsync(1);
       const failure = await pending; expect(failure.code).toBe('book_timeout'); expect(observed?.aborted).toBe(true);
       expect(failure.accounting?.providerAttempts).toBe(stage === 'storyboard' ? 3 : 4);
       expect(failure.accounting?.estimatedUsd).toBeNull(); expect(f.ledger.snapshot().inFlight).toBe(0);

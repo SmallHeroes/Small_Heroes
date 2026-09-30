@@ -1,4 +1,6 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { watchAvailability } from '../availability-client';
 
 import { PERSONAL_INTAKE_EXTRACTION_VERSION } from '../contract';
 import {
@@ -99,15 +101,103 @@ describe('live intake client', () => {
     expect(await fetchLiveIntakeStatus(fakeFetch(404, { error: 'not_found' }))).toBe(false);
   });
 
+  it('distinguishes an indeterminate refresh from an authoritative disabled state', async () => {
+    for (const body of [null, {}, { live: 'false' }]) {
+      expect(await fetchLiveIntakeAvailability(fakeFetch(200, body))).toBeUndefined();
+    }
+    expect(await fetchLiveIntakeAvailability(fakeFetch(503, { error: 'temporary' }))).toBeUndefined();
+    expect(await fetchLiveIntakeAvailability(async () => { throw Error('network'); })).toBeUndefined();
+    expect(await fetchLiveIntakeAvailability(fakeFetch(200, { live: false })))
+      .toEqual({ live: false, signInRequired: false });
+  });
+
   it('offers sign-in only for an explicit signed-out status, never as access authority', async () => {
     expect(await fetchLiveIntakeAvailability(fakeFetch(200, { live: false, reason: 'not_signed_in' })))
       .toEqual({ live: false, signInRequired: true });
-    for (const body of [null, {}, { live: false, reason: 'not_operator' }, { live: 'false', reason: 'not_signed_in' }]) {
-      expect(await fetchLiveIntakeAvailability(fakeFetch(200, body))).toEqual({ live: false, signInRequired: false });
+    expect(await fetchLiveIntakeAvailability(fakeFetch(200, { live: false, reason: 'not_operator' })))
+      .toEqual({ live: false, signInRequired: false });
+    for (const body of [null, {}, { live: 'false', reason: 'not_signed_in' }]) {
+      expect(await fetchLiveIntakeAvailability(fakeFetch(200, body))).toBeUndefined();
     }
     expect(await fetchLiveIntakeAvailability(fakeFetch(401, { live: false, reason: 'not_signed_in' })))
       .toEqual({ live: false, signInRequired: false });
     expect(await fetchLiveIntakeAvailability(fakeFetch(200, { live: true, reason: 'not_signed_in' })))
       .toEqual({ live: true, signInRequired: false });
+  });
+});
+
+const settle = async () => { for (let i = 0; i < 12; i++) await Promise.resolve(); };
+const deferred = <T>() => {
+  let resolve!: (value: T) => void;
+  let reject!: (reason: Error) => void;
+  const promise = new Promise<T>((yes, no) => { resolve = yes; reject = no; });
+  return { promise, resolve, reject };
+};
+describe('shared availability focus lifecycle', () => {
+  it('keeps the known live state through a failed focus refresh; explicit false still revokes it', async () => {
+    const target = new EventTarget(), calls: Call[] = [];
+    let body: unknown = { live: true }, status = 200;
+    let current = { live: false, signInRequired: false };
+    const publish = vi.fn(value => { current = value; });
+    const stop = watchAvailability(target, () => fetchLiveIntakeAvailability(async (url, init) => fakeFetch(status, body, calls)(url, init)), publish);
+    await settle(); expect(current.live).toBe(true);
+    status = 503; target.dispatchEvent(new Event('focus')); await settle();
+    expect(current.live).toBe(true); expect(publish).toHaveBeenCalledTimes(1);
+    status = 200; body = { live: false, reason: 'not_signed_in' };
+    target.dispatchEvent(new Event('focus')); await settle();
+    expect(current).toEqual({ live: false, signInRequired: true });
+    expect(calls).toHaveLength(3);
+    for (const { url, init } of calls) {
+      expect(url).toBe('/api/dev/personal-wizard/intake/status');
+      expect(init).toEqual({ cache: 'no-store' });
+    }
+    stop();
+  });
+  it.each([401, 403, 404])('treats HTTP %i as explicit unavailability, irrespective of the body', async status => {
+    expect(await fetchLiveIntakeAvailability(fakeFetch(status, { live: true })))
+      .toEqual({ live: false, signInRequired: false });
+  });
+  it('keeps the initial state closed on a throwing read and retries only on focus', async () => {
+    const target = new EventTarget(), publish = vi.fn();
+    const read = vi.fn().mockRejectedValueOnce(Error('temporary')).mockResolvedValueOnce(true);
+    const stop = watchAvailability(target, read, publish);
+    await settle(); expect(publish).not.toHaveBeenCalled(); expect(read).toHaveBeenCalledTimes(1);
+    target.dispatchEvent(new Event('focus')); await settle();
+    expect(publish).toHaveBeenCalledWith(true); expect(read).toHaveBeenCalledTimes(2); stop();
+  });
+  it.each([false, true, undefined])('ignores an old live=true response after a newer %s result', async newest => {
+    const target = new EventTarget(), publish = vi.fn();
+    const old = deferred<boolean | undefined>(), next = deferred<boolean | undefined>();
+    const read = vi.fn().mockReturnValueOnce(old.promise).mockReturnValueOnce(next.promise);
+    const stop = watchAvailability(target, read, publish);
+    target.dispatchEvent(new Event('focus')); next.resolve(newest); await settle();
+    old.resolve(true); await settle();
+    expect(publish.mock.calls).toEqual(newest === undefined ? [] : [[newest]]); stop();
+  });
+  it('does not let an older refusal override a newer available result', async () => {
+    const target = new EventTarget(), publish = vi.fn();
+    const old = deferred<boolean>(), next = deferred<boolean>();
+    const stop = watchAvailability(target, vi.fn().mockReturnValueOnce(old.promise).mockReturnValueOnce(next.promise), publish);
+    target.dispatchEvent(new Event('focus')); next.resolve(true); await settle();
+    old.resolve(false); await settle(); expect(publish.mock.calls).toEqual([[true]]); stop();
+  });
+  it('removes the listener and ignores a pending result or rejection after unmount', async () => {
+    for (const rejects of [false, true]) {
+      const target = new EventTarget(), publish = vi.fn(), pending = deferred<boolean>();
+      const read = vi.fn(() => pending.promise);
+      const stop = watchAvailability(target, read, publish); stop();
+      target.dispatchEvent(new Event('focus'));
+      if (rejects) pending.reject(Error('late')); else pending.resolve(true);
+      await settle(); expect(publish).not.toHaveBeenCalled(); expect(read).toHaveBeenCalledTimes(1);
+    }
+  });
+  it('wires both actual UI effects to the guarded focus watcher', () => {
+    const wizard = readFileSync('app/dev/personal-wizard/PersonalWizard.tsx', 'utf8');
+    const book = readFileSync('app/dev/personal-wizard/StoryPreview.tsx', 'utf8');
+    expect(wizard).toContain('useEffect(() => watchAvailability(window, fetchLiveIntakeAvailability');
+    expect(book).toContain('useEffect(() => watchAvailability(window, fetchBookAvailability, setAvailability), [])');
+    // Retain withdrawal on a real revocation; do not "fix" availability by bypassing it.
+    expect(wizard).toContain('!liveIntake && sendRequested');
+    expect(wizard).toContain('withdrawSendRequest()');
   });
 });

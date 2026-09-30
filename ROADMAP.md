@@ -12,7 +12,16 @@ This roadmap records technical milestone state. Guy can change product priority 
 
 - **Product decision:** resilience/coping is central; difficulty selection remains
   optional. Six companion personalities and three lengths, not genre-based plans.
-- **Implemented locally, pending independent QA:** reviewed-request text writer
+- **Current local pilot:** Claude technical PASS for `10f54930..806ce4d7`, not
+  the whole branch; earlier bridge `45b9e754..07d3c8d3` remains unreviewed.
+  Voice intake -> reviewed request -> full manuscript/storyboard/semantic diagnostic
+  is connected locally on 3443 for an authenticated operator, existing bounded
+  $1/eight-intake and $3/one-book allowances. No completed live book yet.
+  Availability/focus correction based on `30961ca5` is implemented, awaiting
+  independent re-gate: focused 467/467, tsc 0; full gate still RED (ten ordinary
+  failures and resource RPC errors). No provider call or spend in the correction.
+  Missing-key reservation behavior and durable tab-independent recovery stay open.
+- **Historical implementation record, before current local activation:** reviewed-request text writer
   plans the whole story before prose; scoped personal landing/design and wizard links.
   Public site, orders, accepted-source bank and image QA are not cut over.
 - **Evidence/limits:** focused 256/256 and tsc 0; full repository gate RED. Two live
@@ -25,7 +34,7 @@ This roadmap records technical milestone state. Guy can change product priority 
   author, reviewer or renderer is enabled. Focused 389/389 (19 files), tsc 0;
   full check still RED (10 ordinary failures and resource RPC errors). Local donor
   copies are not shared-module consolidation, and structure is not visual accuracy.
-- **Automatic successor implemented, Claude HOLD / output-budget correction awaiting re-gate:** base `07d3c8d3`,
+- **Historical successor HOLD / output-budget correction record:** base `07d3c8d3`,
   one operator job runs narrative plan/manuscript/full storyboard/separate semantic
   review, max four attempts, one process reservation/lock; same-context frame packets
   only for a supported diagnostic. A default-off local/authenticated route exists;
@@ -37,9 +46,10 @@ This roadmap records technical milestone state. Guy can change product priority 
   keeps $10 ceiling and rejects unaffordable jobs before key access. Focused
   486/486 (21 files), tsc 0; full gate remains RED. No live adequacy measurement
   and no self-closure of HOLD; base writer/bridge remain unreviewed.
-- **Next order:** independent technical QA (base writer, bridge and successor) and Guy's design/copy acceptance ->
-  bounded live manuscript -> semantic/editorial acceptance -> approved visual plan
-  acceptance of the bridge -> smallest qualified illustration sequence -> narration/package.
+- **Next order:** successor availability re-gate and remaining bridge review; Guy's already authorized local
+  recording/profile review and manuscript trial -> creative/semantic acceptance ->
+  accepted visual plan and qualified bridge -> smallest qualified illustration
+  sequence -> narration/package.
 - **Before public rollout:** durable jobs/recovery, cross-instance spend/idempotency,
   privacy/deletion policy, truthful pricing/checkout and release qualification.
 - **No shortcut:** schema compliance is not literary/visual accuracy; no implicit

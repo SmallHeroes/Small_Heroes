@@ -1,5 +1,54 @@
 # SmallHeroes — Current Technical State
 
+## Personal live pilot — Claude PASS received, availability correction implemented (2026-09-30)
+
+Claude's received technical verdict is PASS, no P0/P1/P2, for exactly
+`10f54930..806ce4d7`; documentation successor `30961ca5` was consistent. His
+earlier writer/runner HOLD findings are addressed by that review. This does NOT
+award PASS to the earlier bridge `45b9e754..07d3c8d3`, the whole branch, creative
+quality, public activation or release. Four P3 observations were supplied.
+
+Same chat/sole writer, branch `codex/personal-book-storyboard-bridge`, correction
+base `30961ca5`, no upstream. Implemented two bounded follow-ups (P3-1/P3-4):
+
+- Unknown GET availability (network/5xx/malformed) no longer overwrites a known
+  live state or withdraws pending send intent. Initial state remains closed.
+  Explicit boolean false or HTTP 401/403/404 still disables the UI. Routes still
+  authorize every paid POST; a cached display value grants no access.
+- Both intake and book summary refresh on mount/focus with the same browser-only
+  newest-response/unmount guard. Returning from sign-in requires no draft-erasing
+  reload. No polling, automatic POST/retry, draft edit, budget or server change.
+- Exact visual-stage deadlines now tested for all three lengths, and the story
+  adapter's cap-equality boundary is exercised before SDK dispatch for both stages.
+  Four in-memory test-only mutations are caught (6/3/4/1 failed tests respectively).
+- Typecheck 0; focused 467/467 in 19 files. Full check remains RED: ordinary
+  10 failed/5272 passed/73 skipped in 375 files; all ten names match the prior
+  `806ce4d7` log. Resource 635/635 in 20 files, but three onTaskUpdate RPC errors,
+  native 1; overall native 1. Matching logs are not causal independence proof.
+- Chrome: signed-in operator live intake visible; manual synthetic profile ->
+  request accepted 200 -> book GET 200 -> enabled story/storyboard button and
+  short quote $1.8018. No paid button pressed or microphone used. Browser emitted
+  one hydration attribute warning (`cz-shortcut-listen` on body); not a zero-error
+  browser claim. Transient/sign-in races proven offline, not with live auth toggles.
+
+Live process on 3443 was NOT restarted. Existing intake $1/eight jobs and Sol
+medium book $3/one job remain; no new key, ledger reset, provider call or cost ($0).
+P3-2 (missing key consumes reservation/job) remains documented, with no refund or
+key-before-budget bypass. P3-3 (tab-bound long job/recovery) needs a separately
+planned durable-job milestone before public rollout. No images/narration/push.
+
+Successor is awaiting independent re-gate, not self-PASS. Handoff:
+`docs/ai-workflow/PERSONAL_BOOK_AVAILABILITY_CORRECTION_QA_20260930.md`.
+Evidence: `outputs/personal-book-availability-correction-20260930/`, ignored,
+local-only/untracked, no verified off-machine backup. Previous evidence untouched
+except the live server's naturally appended request/HMR log.
+
+**Next:** Guy can use the already authorized live wizard at
+`http://127.0.0.1:3443/dev/personal-wizard` to record, review/remove/correct details,
+then explicitly create one manuscript/storyboard trial. Keep the tab open; do not
+restart to replenish limits. Creative quality and a successful live book are not
+yet proven. Claude receives the committed correction range for read-only re-gate.
+
 ## Personal wizard -> complete book planner: local pilot connection (2026-09-30)
 
 Guy explicitly requested activation with the existing key. Same Codex chat is

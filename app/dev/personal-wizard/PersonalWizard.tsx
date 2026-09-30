@@ -27,6 +27,7 @@ import {
   type LiveIntakeResponse,
 } from '@/lib/personal-wizard/intake-live-client';
 import type { RecordedClip } from '@/lib/personal-wizard/recorder';
+import { watchAvailability } from '@/lib/personal-wizard/availability-client';
 
 import { useDraftStore, useObjectUrl, usePlayback, useRecorder, useSoftKeyboardOpen } from './hooks';
 import styles from './personal-wizard.module.css';
@@ -104,25 +105,10 @@ export function PersonalWizard({ options }: Props) {
   // The answer only shapes the UI; the intake routes enforce authority on every request.
   const [liveIntake, setLiveIntake] = useState(false);
   const [intakeSignInRequired, setIntakeSignInRequired] = useState(false);
-  useEffect(() => {
-    let active = true;
-    let requestEpoch = 0;
-    const refresh = () => {
-      const epoch = ++requestEpoch;
-      void fetchLiveIntakeAvailability().then((status) => {
-        if (!active || epoch !== requestEpoch) return;
-        setLiveIntake(status.live);
-        setIntakeSignInRequired(status.signInRequired);
-      });
-    };
-    refresh();
-    // Returning from sign-in must not require a reload that would erase the in-memory draft.
-    window.addEventListener('focus', refresh);
-    return () => {
-      active = false;
-      window.removeEventListener('focus', refresh);
-    };
-  }, []);
+  useEffect(() => watchAvailability(window, fetchLiveIntakeAvailability, status => {
+    setLiveIntake(status.live);
+    setIntakeSignInRequired(status.signInRequired);
+  }), []);
   const pendingLive = useRef<{ jobId: string; controller: AbortController } | null>(null);
   const [sentClip, setSentClip] = useState<Blob | null>(null);
   useEffect(() => () => pendingLive.current?.controller.abort(), []);

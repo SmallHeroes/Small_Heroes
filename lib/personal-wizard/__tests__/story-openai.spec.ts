@@ -5,7 +5,7 @@ vi.mock('openai', () => ({ default: class {
   constructor(options: unknown) { sdk.options = options; }
 } }));
 import { createPersonalStoryProvider, decodePersonalProviderOutput, personalProviderSchema } from '../story-openai';
-import { generationTimeoutMs } from '../story-config';
+import { generationTimeoutMs, personalStoryOutputLimits } from '../story-config';
 
 const digest = 'a'.repeat(64);
 const context = (beats = 8) => ({ brief: { beats, requestId: 'r_bound', resilienceMode: 'adventure_only' as const }, planDigest: digest });
@@ -65,6 +65,31 @@ describe('real adapter schema and deterministic metadata', () => {
     expect(options.timeout).toBe(generationTimeoutMs(8000));
     expect(result.output.beats[7].pageNumber).toBe(8);
     expect(result.usage).toEqual({ inputTokens: 100, outputTokens: 200 });
+  });
+  it.each([8, 12, 16])('rejects mismatched caps before SDK dispatch for %i spreads', async count => {
+    sdk.create.mockResolvedValue({ status: 'completed', output_text: JSON.stringify(raw('plan', count)), usage: null });
+    const provider = createPersonalStoryProvider('fake-test-key', 'gpt-6-sol');
+    const limits = personalStoryOutputLimits(count);
+    for (const stage of ['plan', 'manuscript'] as const) {
+      const cap = stage === 'plan' ? limits.planOutputTokens : limits.manuscriptOutputTokens;
+      for (const maxOutputTokens of [cap - 1, cap + 1, personalStoryOutputLimits(count === 8 ? 12 : 8).planOutputTokens]) {
+        await expect(provider.generate({ stage, input: JSON.stringify(context(count)), instructions: 'rules', maxOutputTokens },
+          new AbortController().signal)).rejects.toThrow('story_output_limit');
+        expect(sdk.create).not.toHaveBeenCalled();
+      }
+    }
+  });
+  it.each([8, 12, 16])('dispatches each matching stage cap and timeout for %i spreads', async count => {
+    const limits = personalStoryOutputLimits(count);
+    for (const stage of ['plan', 'manuscript'] as const) {
+      sdk.create.mockResolvedValue({ status: 'completed', output_text: JSON.stringify(raw(stage, count)), usage: null });
+      const cap = stage === 'plan' ? limits.planOutputTokens : limits.manuscriptOutputTokens;
+      await createPersonalStoryProvider('fake-test-key', 'gpt-6-sol').generate({ stage, input: JSON.stringify(context(count)),
+        instructions: 'rules', maxOutputTokens: cap }, new AbortController().signal);
+      const [payload, options] = sdk.create.mock.calls[sdk.create.mock.calls.length - 1];
+      expect(payload.max_output_tokens).toBe(cap);
+      expect(options.timeout).toBe(generationTimeoutMs(cap));
+    }
   });
   it.each([
     ['incomplete', '', 'story_provider_incomplete'],

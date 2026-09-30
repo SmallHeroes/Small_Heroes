@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { personalStoryResultSchema } from './story-contract';
+import type { AvailabilityFetch } from './availability-client';
 
 // Browser display validation only. Never recreates server compilation/render authority.
 const hash = z.string().regex(/^[a-f0-9]{64}$/);
@@ -45,3 +46,16 @@ export function readBookPreview(raw: unknown, requestId: string): BookPreview | 
 export const bookAvailabilitySchema = z.object({ configured: z.literal(true), model: z.string(),
   reservations: z.array(z.object({ lengthId: z.string(), reservationUsd: z.number().nonnegative(),
     fitsConfiguredTotalBudget: z.boolean() })) });
+
+/** null is an explicit access refusal; undefined is a transient/invalid read. */
+export async function fetchBookAvailability(fetchImpl: AvailabilityFetch = fetch): Promise<z.infer<typeof bookAvailabilitySchema> | null | undefined> {
+  try {
+    const response = await fetchImpl('/api/dev/personal-wizard/book', { cache: 'no-store' });
+    if ([401, 403, 404].includes(response.status)) return null;
+    if (!response.ok) return undefined;
+    const parsed = bookAvailabilitySchema.safeParse(await response.json());
+    return parsed.success ? parsed.data : undefined;
+  } catch {
+    return undefined;
+  }
+}

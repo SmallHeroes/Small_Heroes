@@ -1,6 +1,7 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { readFileSync } from 'fs';
-import { bookAvailabilitySchema, readBookPreview, readBookPartialPreview } from '../book-preview';
+import { bookAvailabilitySchema, fetchBookAvailability, readBookPreview, readBookPartialPreview } from '../book-preview';
+import { watchAvailability, type AvailabilityFetch } from '../availability-client';
 import { personalStoryboardFixture } from './personal-storyboard-fixture';
 import { storyboardReviewDisposition } from '../storyboard';
 const output = async () => {
@@ -42,5 +43,43 @@ describe('browser book diagnostic boundary', () => {
     expect(readBookPartialPreview(raw, data.writerResult.requestId)?.writerResult.manuscript.pages).toHaveLength(8);
     expect(readBookPreview(raw, data.writerResult.requestId)).toBeNull();
     expect(readBookPartialPreview(raw, 'stale')).toBeNull();
+  });
+});
+
+const quote = { configured: true, model: 'gpt-6-sol', reservations: [
+  { lengthId: 'short', reservationUsd: 1.8018, fitsConfiguredTotalBudget: true },
+] };
+const response = (status: number, body: unknown): AvailabilityFetch => async () => new Response(JSON.stringify(body), { status });
+describe('book availability is read-only and refreshes after sign-in', () => {
+  it('accepts only valid quotes, not malformed or temporarily unavailable reads', async () => {
+    expect(await fetchBookAvailability(response(200, quote))).toEqual(quote);
+    for (const body of [null, {}, { ...quote, configured: false }, { ...quote, reservations: [{ lengthId: 'short' }] }]) {
+      expect(await fetchBookAvailability(response(200, body))).toBeUndefined();
+    }
+    expect(await fetchBookAvailability(response(503, quote))).toBeUndefined();
+    expect(await fetchBookAvailability(async () => { throw Error('network'); })).toBeUndefined();
+    expect(await fetchBookAvailability(async () => new Response('bad json', { status: 200 }))).toBeUndefined();
+  });
+  it.each([401, 403, 404])('clears stale quotes on authoritative HTTP %i', async status => {
+    expect(await fetchBookAvailability(response(status, quote))).toBeNull();
+  });
+  it('enables a quote on returning focus without remount, retains it on 503, then clears on sign-out', async () => {
+    const target = new EventTarget();
+    let status = 401;
+    const fetcher = vi.fn(async (_url: string, _init: RequestInit) => response(status, quote)('', {}));
+    let current: Awaited<ReturnType<typeof fetchBookAvailability>> = null;
+    const publish = vi.fn(value => { current = value; });
+    const stop = watchAvailability(target, () => fetchBookAvailability(fetcher), publish);
+    const settle = async () => { for (let i = 0; i < 12; i++) await Promise.resolve(); };
+    await settle(); expect(current).toBeNull();
+    status = 200; target.dispatchEvent(new Event('focus')); await settle(); expect(current).toEqual(quote);
+    status = 503; target.dispatchEvent(new Event('focus')); await settle(); expect(current).toEqual(quote);
+    expect(publish).toHaveBeenCalledTimes(2);
+    status = 401; target.dispatchEvent(new Event('focus')); await settle(); expect(current).toBeNull();
+    expect(publish).toHaveBeenCalledTimes(3); expect(fetcher).toHaveBeenCalledTimes(4);
+    for (const [url, init] of fetcher.mock.calls) {
+      expect(url).toBe('/api/dev/personal-wizard/book'); expect(init).toEqual({ cache: 'no-store' });
+    }
+    stop();
   });
 });
