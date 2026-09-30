@@ -25,13 +25,18 @@ This roadmap records technical milestone state. Guy can change product priority 
   author, reviewer or renderer is enabled. Focused 389/389 (19 files), tsc 0;
   full check still RED (10 ordinary failures and resource RPC errors). Local donor
   copies are not shared-module consolidation, and structure is not visual accuracy.
-- **Automatic successor implemented, awaiting independent QA:** base `07d3c8d3`,
+- **Automatic successor implemented, Claude HOLD / output-budget correction awaiting re-gate:** base `07d3c8d3`,
   one operator job runs narrative plan/manuscript/full storyboard/separate semantic
   review, max four attempts, one process reservation/lock; same-context frame packets
   only for a supported diagnostic. A default-off local/authenticated route exists;
   no UI consumer, renderer or narration cutover. Focused 462/462 (21 files), tsc 0;
   full check RED, ten ordinary failures matching prior records plus resource RPC
   errors. No live provider or price verification, no independent/creative PASS.
+  Claude held `07d3c8d3..bcd8a226` for insufficient reasoning-inclusive output
+  headroom. Corrective policy scales caps/reservations by spread/check count,
+  keeps $10 ceiling and rejects unaffordable jobs before key access. Focused
+  486/486 (21 files), tsc 0; full gate remains RED. No live adequacy measurement
+  and no self-closure of HOLD; base writer/bridge remain unreviewed.
 - **Next order:** independent technical QA (base writer, bridge and successor) and Guy's design/copy acceptance ->
   bounded live manuscript -> semantic/editorial acceptance -> approved visual plan
   acceptance of the bridge -> smallest qualified illustration sequence -> narration/package.

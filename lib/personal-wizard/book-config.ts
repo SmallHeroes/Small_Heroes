@@ -1,13 +1,25 @@
 import 'server-only';
 import { STORY_PRICES, storyReservationUsd, type StoryModel } from './story-config';
+import { STORYBOARD_BOOK_CHECKS, STORYBOARD_FRAME_CHECKS } from './storyboard';
 
-export const BOOK_LIMITS = { inputBytesPerCall: 128_000, storyboardOutputTokens: 12_000,
-  reviewOutputTokens: 6_000, timeoutMs: 180_000, maxBudgetUsd: 10, maxJobs: 10 } as const;
+export const BOOK_LIMITS = { inputBytesPerCall: 128_000, timeoutMs: 180_000, maxBudgetUsd: 10, maxJobs: 10 } as const;
+export const BOOK_SPREAD_COUNTS = [8, 12, 16] as const;
+/** Initial headroom, NOT live adequacy proof. Caps include reasoning, not only JSON.
+ * Keep reservation, runner and SDK on this one policy; never shrink it to fit money.
+ */
+export function personalBookOutputLimits(narrativeSpreads: number) {
+  if (!(BOOK_SPREAD_COUNTS as readonly number[]).includes(narrativeSpreads)) throw Error('book_length_invalid');
+  const frames = narrativeSpreads + 1;
+  const checks = STORYBOARD_BOOK_CHECKS.length + STORYBOARD_FRAME_CHECKS.length * frames;
+  return { storyboardOutputTokens: Math.max(32_000, 3_000 * frames),
+    reviewOutputTokens: Math.ceil(Math.max(32_000, 16_000 + 512 * checks) / 1_000) * 1_000 };
+}
 export type PersonalBookSettings = { model: StoryModel; budgetUsd: number; maxJobs: number; operators: Set<string> };
-export function personalBookReservationUsd(model: StoryModel) {
+export function personalBookReservationUsd(model: StoryModel, narrativeSpreads: number) {
   const price = STORY_PRICES[model];
+  const limits = personalBookOutputLimits(narrativeSpreads);
   return storyReservationUsd(model) + (2 * BOOK_LIMITS.inputBytesPerCall * price.input +
-    (BOOK_LIMITS.storyboardOutputTokens + BOOK_LIMITS.reviewOutputTokens) * price.output) / 1_000_000 * 1.1;
+    (limits.storyboardOutputTokens + limits.reviewOutputTokens) * price.output) / 1_000_000 * 1.1;
 }
 export function assertPersonalBookSettings(settings: PersonalBookSettings) {
   if (!settings || !Object.prototype.hasOwnProperty.call(STORY_PRICES, settings.model) || !Number.isFinite(settings.budgetUsd) ||

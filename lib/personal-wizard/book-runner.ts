@@ -6,7 +6,7 @@ import { STORY_PRICES, storyReservationUsd } from './story-config';
 import { IntakeLedger } from './intake-ledger';
 import type { PersonalWizardOptions } from './options';
 import type { StoryUsage, PersonalStoryResult } from './story-contract';
-import { BOOK_LIMITS, assertPersonalBookSettings, personalBookReservationUsd, type PersonalBookSettings } from './book-config';
+import { BOOK_LIMITS, assertPersonalBookSettings, personalBookOutputLimits, personalBookReservationUsd, type PersonalBookSettings } from './book-config';
 import { preparePersonalStoryboard, compilePersonalStoryboard, personalStoryboardReviewInput,
   storyboardReviewDisposition, personalStoryboardFrame, PERSONAL_STORYBOARD_INSTRUCTION, type PersonalStoryboard } from './storyboard';
 
@@ -53,7 +53,9 @@ export async function generatePersonalBook(args: {
   const prepared = preparePersonalStory(args.request, args.options);
   const settings = { ...args.settings, operators: new Set(args.settings.operators) };
   const originalRequestId = prepared.accepted.requestId;
-  const reservedUsd = personalBookReservationUsd(settings.model);
+  const narrativeSpreads = prepared.brief.beats;
+  const outputLimits = personalBookOutputLimits(narrativeSpreads);
+  const reservedUsd = personalBookReservationUsd(settings.model, narrativeSpreads);
   const stages: BookAccounting['stages'] = [];
   const accounting = (): BookAccounting => {
     const price = STORY_PRICES[settings.model];
@@ -144,12 +146,12 @@ export async function generatePersonalBook(args: {
       return dispatch(call.stage, signal => provider.visual.generate(structuredClone(call), signal));
     };
     const rawDraft = await visual({ stage: 'storyboard', instructions: PERSONAL_STORYBOARD_INSTRUCTION,
-      input: canonicalJson(source.planningInput), maxOutputTokens: BOOK_LIMITS.storyboardOutputTokens,
+      input: canonicalJson(source.planningInput), maxOutputTokens: outputLimits.storyboardOutputTokens,
       context: { narrativeSpreads: source.story.pages.length, sourceDigest: source.sourceDigest } });
     let book: PersonalStoryboard;
     try { book = compilePersonalStoryboard(source, rawDraft); } catch { return fail('book_storyboard_invalid'); }
     const rawReview = await visual({ stage: 'review', instructions: PERSONAL_BOOK_REVIEW_INSTRUCTION,
-      input: canonicalJson(personalStoryboardReviewInput(book)), maxOutputTokens: BOOK_LIMITS.reviewOutputTokens,
+      input: canonicalJson(personalStoryboardReviewInput(book)), maxOutputTokens: outputLimits.reviewOutputTokens,
       context: { narrativeSpreads: book.narrativeSpreads, sourceDigest: book.sourceDigest, storyboardDigest: book.storyboardDigest } });
     let review: ReturnType<typeof storyboardReviewDisposition>;
     try { review = storyboardReviewDisposition(book, rawReview); } catch { return fail('book_review_invalid'); }

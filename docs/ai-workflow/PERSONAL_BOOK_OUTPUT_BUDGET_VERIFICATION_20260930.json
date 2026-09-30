@@ -1,0 +1,273 @@
+{
+  "scope": "local_test_evidence_not_independent_pass",
+  "recorded": "2026-09-30T10:21:52.459Z",
+  "cwd": "C:\\Users\\guyna\\.codex\\worktrees\\personal-story-product\\Small_Heroes",
+  "codeHashesBefore": {
+    "app/api/dev/personal-wizard/book/route.ts": "52b332e06a168e212dc267e5c739919e590738a2c3b5c3137bcf1bdbce72bcb8",
+    "lib/personal-wizard/book-config.ts": "4b253702f4424d77e7b322b0937028ae6dd01badff1828dbbdc1b11122e63d94",
+    "lib/personal-wizard/book-runner.ts": "17cea499c80e8e3dfd00132f0c3ba35f346307037f848902895f06a354536e1c",
+    "lib/personal-wizard/book-openai.ts": "cfcc6426b3c0ac03d66871a068d0c83f0de25af894286c5860762c60aa239636",
+    "lib/personal-wizard/story-writer.ts": "dc438e704dd40c7f35c934e646063b014ad4691636100e2a175bc269af55d7fb",
+    "lib/personal-wizard/story-openai.ts": "6b56261a50646ab922c989acef0b85d5e91db34197ef6e877b1d1a624aa665c7",
+    "lib/personal-wizard/story-config.ts": "45b908b3cbb93ecdc2368ae675d37a8fb12ce1e339430260d47814328b24e102",
+    "lib/personal-wizard/storyboard.ts": "520ebe73ee57837ae722d0d49be98f01bd9efbb6b95e492758300cf92e49e02c",
+    "lib/personal-wizard/story-access.ts": "967259a42c9036eff6d89b35c9c6dc3ee77f6c6ef139cd4f34cb2e3ef0297c66",
+    "lib/personal-wizard/__tests__/book-runner.spec.ts": "899220085f22db45cfc40d510024ae5f8a59e6670185fa7c4e5ee2cdda289fe6",
+    "lib/personal-wizard/__tests__/book-routes.spec.ts": "147338950ee54a7358214e3d6f638a951bffdbc92777f6941122d391525d728a",
+    "lib/personal-wizard/__tests__/personal-storyboard-fixture.ts": "de2116d945caee1e441abdd78249c971da6fd8f1dbe0a800d3ab60d8f75636ad",
+    "lib/personal-wizard/__tests__/storyboard.spec.ts": "52bce2986111e64d8e81abbcaaeb211fd5985b074679b23cb7bd2c72c0a02170"
+  },
+  "codeHashesAfter": {
+    "app/api/dev/personal-wizard/book/route.ts": "52b332e06a168e212dc267e5c739919e590738a2c3b5c3137bcf1bdbce72bcb8",
+    "lib/personal-wizard/book-config.ts": "4b253702f4424d77e7b322b0937028ae6dd01badff1828dbbdc1b11122e63d94",
+    "lib/personal-wizard/book-runner.ts": "17cea499c80e8e3dfd00132f0c3ba35f346307037f848902895f06a354536e1c",
+    "lib/personal-wizard/book-openai.ts": "cfcc6426b3c0ac03d66871a068d0c83f0de25af894286c5860762c60aa239636",
+    "lib/personal-wizard/story-writer.ts": "dc438e704dd40c7f35c934e646063b014ad4691636100e2a175bc269af55d7fb",
+    "lib/personal-wizard/story-openai.ts": "6b56261a50646ab922c989acef0b85d5e91db34197ef6e877b1d1a624aa665c7",
+    "lib/personal-wizard/story-config.ts": "45b908b3cbb93ecdc2368ae675d37a8fb12ce1e339430260d47814328b24e102",
+    "lib/personal-wizard/storyboard.ts": "520ebe73ee57837ae722d0d49be98f01bd9efbb6b95e492758300cf92e49e02c",
+    "lib/personal-wizard/story-access.ts": "967259a42c9036eff6d89b35c9c6dc3ee77f6c6ef139cd4f34cb2e3ef0297c66",
+    "lib/personal-wizard/__tests__/book-runner.spec.ts": "899220085f22db45cfc40d510024ae5f8a59e6670185fa7c4e5ee2cdda289fe6",
+    "lib/personal-wizard/__tests__/book-routes.spec.ts": "147338950ee54a7358214e3d6f638a951bffdbc92777f6941122d391525d728a",
+    "lib/personal-wizard/__tests__/personal-storyboard-fixture.ts": "de2116d945caee1e441abdd78249c971da6fd8f1dbe0a800d3ab60d8f75636ad",
+    "lib/personal-wizard/__tests__/storyboard.spec.ts": "52bce2986111e64d8e81abbcaaeb211fd5985b074679b23cb7bd2c72c0a02170"
+  },
+  "codeUnchanged": true,
+  "priorEvidenceFiles": 22,
+  "priorEvidenceUnchanged": true,
+  "providerCallsByThisRecorder": 0,
+  "costUsdByThisRecorder": 0,
+  "runs": [
+    {
+      "name": "tsc",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "C:\\GNart\\Work\\sh-order-package-authority\\node_modules\\typescript\\bin\\tsc",
+        "--noEmit"
+      ],
+      "started": "2026-09-30T10:15:06.592Z",
+      "completed": "2026-09-30T10:15:17.991Z",
+      "exitCode": 0,
+      "signal": null,
+      "stdout": {
+        "file": "tsc.stdout.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "stderr": {
+        "file": "tsc.stderr.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "summaries": [],
+      "failures": [],
+      "phaseRecords": []
+    },
+    {
+      "name": "focused",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "C:\\GNart\\Work\\sh-order-package-authority\\node_modules\\vitest\\vitest.mjs",
+        "run",
+        "lib/personal-wizard",
+        "lib/__tests__/local-book-sequence.spec.ts",
+        "lib/__tests__/local-preview-quality.spec.ts",
+        "lib/__tests__/vitest-workload-classifier.spec.ts",
+        "lib/__tests__/style01-prompt-assembly-child-presence.spec.ts",
+        "lib/__tests__/style01-child-expression-style-fidelity.spec.ts",
+        "--maxWorkers",
+        "1"
+      ],
+      "started": "2026-09-30T10:15:17.996Z",
+      "completed": "2026-09-30T10:15:44.688Z",
+      "exitCode": 0,
+      "signal": null,
+      "stdout": {
+        "file": "focused.stdout.log",
+        "bytes": 7466,
+        "sha256": "11a382f5bfc48381983d3e4a860e3a1c2bcc6678b272388bdc65753d0229bffd"
+      },
+      "stderr": {
+        "file": "focused.stderr.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "summaries": [
+        " Test Files  21 passed (21)",
+        "      Tests  486 passed (486)",
+        "   Duration  26.02s (transform 1.32s, setup 0ms, collect 4.37s, tests 17.48s, environment 2ms, prepare 1.20s)"
+      ],
+      "failures": [],
+      "phaseRecords": []
+    },
+    {
+      "name": "full-check",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "C:/Program Files/nodejs/node_modules/npm/bin/npm-cli.js",
+        "run",
+        "check"
+      ],
+      "started": "2026-09-30T10:15:44.688Z",
+      "completed": "2026-09-30T10:21:52.447Z",
+      "exitCode": 1,
+      "signal": null,
+      "stdout": {
+        "file": "full-check.stdout.log",
+        "bytes": 150529,
+        "sha256": "b46e54f26be0476a785ce73c76647d0159d4742f6917de17cff150a8bf883fa4"
+      },
+      "stderr": {
+        "file": "full-check.stderr.log",
+        "bytes": 169764,
+        "sha256": "208f16c9502b5fa3acbe52ce8e5a27bf62e431ec39ae99c8e8d5a8049123275c"
+      },
+      "summaries": [
+        " Test Files  6 failed | 350 passed | 17 skipped (373)",
+        "      Tests  10 failed | 5218 passed | 73 skipped (5301)",
+        "   Duration  102.21s (transform 14.37s, setup 0ms, collect 102.43s, tests 211.19s, environment 52ms, prepare 26.52s)",
+        " Test Files  20 passed (20)",
+        "      Tests  635 passed (635)",
+        "     Errors  3 errors",
+        "   Duration  255.42s (transform 2.36s, setup 0ms, collect 9.14s, tests 496.92s, environment 3ms, prepare 1.25s)"
+      ],
+      "failures": [
+        " FAIL  lib/__tests__/child-lexicon-ages-5-8.spec.ts > child lexicon ages 5–8 gate > slot #1 revised story passes child lexicon scan",
+        " FAIL  lib/__tests__/momentum-gate-koko.spec.ts > momentum gate koko stop2 beats > detects child action on slash-chip childDoes (>=4 pages)",
+        " FAIL  lib/__tests__/page-entity-qa.spec.ts > page-entity-qa (0074) > local PNG path resolves to base64 data URL",
+        " FAIL  lib/__tests__/story-read-back-validation.spec.ts > story.md read-back validation (P0) > fails completedEnding when story.md is truncated but story-pages.json is complete",
+        " FAIL  lib/__tests__/story-read-back-validation.spec.ts > story.md read-back validation (P0) > passes when story.md is rendered from complete story-pages.json",
+        " FAIL  lib/__tests__/story-source-visual-direction-acceptance-lifecycle.spec.ts > general Visual Directions acceptance and publication lifecycle > prepares one exact runtime-ineligible publication bundle and byte-replays it",
+        " FAIL  lib/__tests__/story-source-visual-direction-acceptance-lifecycle.spec.ts > general Visual Directions acceptance and publication lifecycle > publishes only an exact staged bundle and replays one complete accepted directory",
+        " FAIL  lib/__tests__/story-source-visual-direction-acceptance-lifecycle.spec.ts > general Visual Directions acceptance and publication lifecycle > fails closed on stale authority, wrong approver, HOLD review, and hardlinks",
+        " FAIL  lib/__tests__/story-source-visual-direction-acceptance-lifecycle.spec.ts > general Visual Directions acceptance and publication lifecycle > rejects staging and accepted-target collisions without partial replacement",
+        " FAIL  lib/set-identity-board/__tests__/reserved-page-placement-authority.spec.ts > Reserved Page Placement Authority — production-scale offline harness > proves d963 as home v6 unchanged + route 10 events grouped into exactly 6 v7 reservations"
+      ],
+      "phaseRecords": [
+        {
+          "schemaVersion": "small-heroes-vitest-phase-diagnostic/v1",
+          "phase": "ordinary",
+          "workerLimit": 4,
+          "fileCount": 373,
+          "elapsedMs": 102924,
+          "exitCode": 1,
+          "signal": null,
+          "launchErrorCode": null,
+          "diagnosticProtocolOk": true,
+          "diagnosticRecords": 1,
+          "diagnosticBytes": 240,
+          "classes": [
+            "signal_or_exit_failure"
+          ],
+          "gateStatus": "failed"
+        },
+        {
+          "schemaVersion": "small-heroes-vitest-phase-diagnostic/v1",
+          "phase": "resource_intensive",
+          "workerLimit": 2,
+          "fileCount": 20,
+          "elapsedMs": 256020,
+          "exitCode": 1,
+          "signal": null,
+          "launchErrorCode": null,
+          "diagnosticProtocolOk": true,
+          "diagnosticRecords": 1,
+          "diagnosticBytes": 277,
+          "classes": [
+            "on_task_update_rpc_timeout",
+            "signal_or_exit_failure"
+          ],
+          "gateStatus": "failed"
+        },
+        {
+          "schemaVersion": "small-heroes-vitest-check-summary/v1",
+          "canonicalFileCount": 393,
+          "ordinaryFileCount": 373,
+          "resourceIntensiveFileCount": 20,
+          "phases": {
+            "ordinary": {
+              "schemaVersion": "small-heroes-vitest-phase-diagnostic/v1",
+              "phase": "ordinary",
+              "workerLimit": 4,
+              "fileCount": 373,
+              "elapsedMs": 102924,
+              "exitCode": 1,
+              "signal": null,
+              "launchErrorCode": null,
+              "diagnosticProtocolOk": true,
+              "diagnosticRecords": 1,
+              "diagnosticBytes": 240,
+              "classes": [
+                "signal_or_exit_failure"
+              ],
+              "gateStatus": "failed"
+            },
+            "resourceIntensive": {
+              "schemaVersion": "small-heroes-vitest-phase-diagnostic/v1",
+              "phase": "resource_intensive",
+              "workerLimit": 2,
+              "fileCount": 20,
+              "elapsedMs": 256020,
+              "exitCode": 1,
+              "signal": null,
+              "launchErrorCode": null,
+              "diagnosticProtocolOk": true,
+              "diagnosticRecords": 1,
+              "diagnosticBytes": 277,
+              "classes": [
+                "on_task_update_rpc_timeout",
+                "signal_or_exit_failure"
+              ],
+              "gateStatus": "failed"
+            },
+            "gateStatus": "failed"
+          },
+          "gateStatus": "failed"
+        }
+      ]
+    }
+  ],
+  "policyProbe": {
+    "scope": "offline_policy_probe_not_live_adequacy_or_independent_qa",
+    "baseSha": "bcd8a226b16023270dbfa6d368bee29816178eae",
+    "currentConfigSha256": "4b253702f4424d77e7b322b0937028ae6dd01badff1828dbbdc1b11122e63d94",
+    "baseNegativeControls": 9,
+    "invalidLengthsRejected": 8,
+    "rows": [
+      {
+        "narrativeSpreads": 8,
+        "frames": 9,
+        "requiredChecks": 43,
+        "storyboardOutputTokens": 32000,
+        "reviewOutputTokens": 39000,
+        "solReservationUsd": 1.8128000000000002,
+        "astraReservationUsd": 9.064,
+        "baseLimitsAndReservationRejected": true
+      },
+      {
+        "narrativeSpreads": 12,
+        "frames": 13,
+        "requiredChecks": 59,
+        "storyboardOutputTokens": 39000,
+        "reviewOutputTokens": 47000,
+        "solReservationUsd": 1.9778000000000002,
+        "astraReservationUsd": 9.889000000000001,
+        "baseLimitsAndReservationRejected": true
+      },
+      {
+        "narrativeSpreads": 16,
+        "frames": 17,
+        "requiredChecks": 75,
+        "storyboardOutputTokens": 51000,
+        "reviewOutputTokens": 55000,
+        "solReservationUsd": 2.1978000000000004,
+        "astraReservationUsd": 10.989,
+        "baseLimitsAndReservationRejected": true
+      }
+    ],
+    "providerCalls": 0,
+    "keyReads": 0,
+    "costUsd": 0,
+    "codeUnchanged": true
+  }
+}

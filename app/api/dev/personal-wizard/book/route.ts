@@ -5,7 +5,7 @@ import { IntakeLedger } from '@/lib/personal-wizard/intake-ledger';
 import { readIntakeApiKey } from '@/lib/personal-wizard/intake-config';
 import { resolvePersonalWizardOptions } from '@/lib/personal-wizard/options';
 import { personalOperatorAccess, storyResponse } from '@/lib/personal-wizard/story-access';
-import { resolvePersonalBookSettings, personalBookReservationUsd } from '@/lib/personal-wizard/book-config';
+import { BOOK_SPREAD_COUNTS, resolvePersonalBookSettings, personalBookOutputLimits, personalBookReservationUsd } from '@/lib/personal-wizard/book-config';
 import { generatePersonalBook, PersonalBookError } from '@/lib/personal-wizard/book-runner';
 import { createPersonalBookProvider } from '@/lib/personal-wizard/book-openai';
 import { preparePersonalStory, StoryWriterError } from '@/lib/personal-wizard/story-writer';
@@ -24,7 +24,12 @@ export async function GET(req: NextRequest) {
   if (!allowed.ok) return allowed.response;
   // Configuration is not a claim that the credential/provider is available.
   return storyResponse({ configured: true, liveAvailabilityUnverified: true, runtimeEligible: false,
-    model: allowed.settings.model, reservationUsd: personalBookReservationUsd(allowed.settings.model), maxProviderAttempts: 4 });
+    model: allowed.settings.model, maxProviderAttempts: 4,
+    reservations: BOOK_SPREAD_COUNTS.map(narrativeSpreads => {
+      const reservationUsd = personalBookReservationUsd(allowed.settings.model, narrativeSpreads);
+      return { narrativeSpreads, displayPages: narrativeSpreads * 2, outputLimits: personalBookOutputLimits(narrativeSpreads),
+        reservationUsd, fitsConfiguredTotalBudget: reservationUsd <= allowed.settings.budgetUsd };
+    }) });
 }
 
 export async function POST(req: NextRequest) {

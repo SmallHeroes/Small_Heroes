@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { personalStoryboardFixture } from './personal-storyboard-fixture';
 import type { PersonalBookProvider } from '../book-runner';
-import { personalBookReservationUsd } from '../book-config';
+import { personalBookOutputLimits, personalBookReservationUsd } from '../book-config';
 
 const deps = vi.hoisted(() => ({ user: { id: 'operator', email: 'operator@example.com' } as { id: string; email: string } | null,
   production: false, sessionFails: false, keyReads: 0, hasKey: true, provider: null as PersonalBookProvider | null, factory: 0 }));
@@ -80,7 +80,7 @@ describe('real local diagnostic book route', () => {
     expect(response.status).toBe(400); expect(deps.keyReads).toBe(0);
   });
   it('checks reservation, duplicate and job cap before additional key reads', async () => {
-    process.env.PERSONAL_WIZARD_BOOK_BUDGET_USD = String(personalBookReservationUsd('gpt-6-sol') - .001);
+    process.env.PERSONAL_WIZARD_BOOK_BUDGET_USD = String(personalBookReservationUsd('gpt-6-sol', 8) - .001);
     expect((await POST(req(job()))).status).toBe(409); expect(deps.keyReads).toBe(0);
     process.env.PERSONAL_WIZARD_BOOK_BUDGET_USD = '5';
     expect((await POST(req(job()))).status).toBe(200);
@@ -113,6 +113,36 @@ describe('real local diagnostic book route', () => {
   it('GET is an operator configuration check, not key/provider availability attestation', async () => {
     const response = await GET(new NextRequest(url)); const body = await response.json();
     expect(body.liveAvailabilityUnverified).toBe(true); expect(body.maxProviderAttempts).toBe(4); expect(body.runtimeEligible).toBe(false); expect(deps.keyReads).toBe(0);
+    expect(body).not.toHaveProperty('reservationUsd');
+    expect(body.reservations).toEqual([8, 12, 16].map(narrativeSpreads => ({ narrativeSpreads, displayPages: narrativeSpreads * 2,
+      outputLimits: personalBookOutputLimits(narrativeSpreads), reservationUsd: personalBookReservationUsd('gpt-6-sol', narrativeSpreads), fitsConfiguredTotalBudget: true })));
     deps.user = null; expect((await GET(new NextRequest(url))).status).toBe(401);
+  });
+  it.each([['short', 8], ['medium', 12], ['long', 16]] as const)('uses the %s reservation and caps through the real HTTP consumer', async (length, count) => {
+    fixture = await personalStoryboardFixture(length);
+    // Provider closures deliberately read this fixture, as they do in the existing route tests.
+    process.env.PERSONAL_WIZARD_BOOK_BUDGET_USD = String(personalBookReservationUsd('gpt-6-sol', count) - .001);
+    const denied = await POST(req(job()));
+    expect(denied.status).toBe(409); expect((await denied.json()).error).toBe('book_budget_exhausted');
+    expect(deps.keyReads).toBe(0); expect(deps.factory).toBe(0); expect(attempts()).toBe(0);
+    // Refusal must not consume a job: the exact same id may run after sufficient explicit budget.
+    process.env.PERSONAL_WIZARD_BOOK_BUDGET_USD = String(personalBookReservationUsd('gpt-6-sol', count));
+    const response = await POST(req(job())); const body = await response.json();
+    expect(response.status).toBe(200); expect(body.accounting.reservedUsd).toBe(personalBookReservationUsd('gpt-6-sol', count));
+    const calls = vi.mocked(deps.provider!.visual.generate).mock.calls.map(([call]) => call.maxOutputTokens);
+    const limits = personalBookOutputLimits(count);
+    expect(calls).toEqual([limits.storyboardOutputTokens, limits.reviewOutputTokens]); expect(attempts()).toBe(4);
+  });
+  it('shows and enforces an unaffordable long Astra reservation without lowering caps or raising budget', async () => {
+    fixture = await personalStoryboardFixture('long');
+    process.env.PERSONAL_WIZARD_BOOK_MODEL = 'gpt-6-astra'; process.env.PERSONAL_WIZARD_BOOK_BUDGET_USD = '10';
+    const status = await GET(new NextRequest(url)); const body = await status.json();
+    expect(body.reservations.map((row: { fitsConfiguredTotalBudget: boolean }) => row.fitsConfiguredTotalBudget)).toEqual([true, true, false]);
+    expect(body.reservations[2].reservationUsd).toBeCloseTo(10.989, 10);
+    expect(body.reservations[2].outputLimits).toEqual({ storyboardOutputTokens: 51_000, reviewOutputTokens: 55_000 });
+    const response = await POST(req(job()));
+    expect(response.status).toBe(409); expect((await response.json()).error).toBe('book_budget_exhausted');
+    expect(deps.keyReads).toBe(0); expect(deps.factory).toBe(0); expect(attempts()).toBe(0);
+    expect((globalThis as typeof globalThis & { __personalBookPilotLedger?: { snapshot(): unknown } }).__personalBookPilotLedger!.snapshot()).toEqual({ jobs: 0, inFlight: 0, reservedTotalUsd: 0 });
   });
 });

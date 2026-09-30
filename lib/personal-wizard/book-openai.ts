@@ -6,7 +6,7 @@ import { wholeBookDraftSchema } from '../local-book-planning';
 import { personalStoryboardReviewSchema, STORYBOARD_BOOK_CHECKS, STORYBOARD_FRAME_CHECKS } from './storyboard';
 import { createPersonalStoryProvider } from './story-openai';
 import type { StoryModel } from './story-config';
-import { BOOK_LIMITS } from './book-config';
+import { BOOK_LIMITS, personalBookOutputLimits } from './book-config';
 import type { BookVisualCall, PersonalBookProvider } from './book-runner';
 import type { StoryUsage } from './story-contract';
 
@@ -60,7 +60,8 @@ export function createPersonalBookProvider(apiKey: string, model: StoryModel): P
   const client = new OpenAI({ apiKey, maxRetries: 0, timeout: BOOK_LIMITS.timeoutMs });
   return { story: createPersonalStoryProvider(apiKey, model), visual: { async generate(call, signal) {
     const schema = personalBookProviderSchema(call);
-    const expectedTokens = call.stage === 'storyboard' ? BOOK_LIMITS.storyboardOutputTokens : BOOK_LIMITS.reviewOutputTokens;
+    const limits = personalBookOutputLimits(call.context.narrativeSpreads);
+    const expectedTokens = call.stage === 'storyboard' ? limits.storyboardOutputTokens : limits.reviewOutputTokens;
     if (call.maxOutputTokens !== expectedTokens) throw new BookProviderError('book_provider_context');
     const payload = { model, store: false, service_tier: 'default' as const, reasoning: { effort: 'medium' as const },
       instructions: call.instructions + '\nProvider output: ordered arrays have NO pageNumber; book/continuity start with cover. Review fixed groups have NO category/hash/pageNumber metadata.',

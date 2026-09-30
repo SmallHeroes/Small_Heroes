@@ -1,6 +1,47 @@
 # SmallHeroes — Current Technical State
 
+## Personal book output-budget correction — implemented, awaiting Claude re-gate (2026-09-30)
+
+Claude's verdict on `07d3c8d3..bcd8a226` is **HOLD, one P2**: fixed 12k storyboard
+and 6k review caps risk exhausting reasoning-inclusive output. Neither party
+observed this in a live call. The correction is based on frozen `bcd8a226`, same
+Codex chat/sole writer on `codex/personal-book-storyboard-bridge`, no upstream.
+It does NOT self-close that HOLD or review the earlier writer/bridge.
+
+- One validated 8/12/16-spread policy controls reservation, runner and actual SDK
+  caps: storyboard 32k/39k/51k, review 39k/47k/55k; includes cover/check counts.
+  Initial headroom, not live token adequacy, semantic or visual accuracy proof.
+- GET now lists three length-specific caps/reservations and comparison to total
+  configured budget, not a flat quote or remaining money. Actual ledger remains
+  the job/spend authority. Medium reasoning, all checks, no retry and holds remain.
+- Whole-job Sol reservations $1.8128/$1.9778/$2.1978; Astra $9.064/$9.889/$10.989,
+  existing rate cards, not invoices. $10 ceiling unchanged: long Astra refuses
+  before key access/attempts/job consumption. No silent cap/model/budget override.
+- Native tsc 0; **486/486 focused tests in 21 files**, 0 (runner 65, route 32).
+  Full check native 1: ordinary 373 files, 10 failed/5218 passed/73 skipped;
+  resource 20 files, 635/635 passed, three unhandled onTaskUpdate RPC errors,
+  native 1. **Gate RED.** Same ten names as the recorded base; no untouched-base
+  reproduction establishes causal independence. No worker/timeout policy change.
+- Offline Git-in-memory control: nine old-cap/reserve falsifications, eight
+  invalid lengths rejected. Verifier 0: 22 previous raw evidence files preserved
+  with hashes/sizes/mtimes; seven writer/bridge files unchanged against frozen Git.
+  Code hashes stable throughout checks. No real key load/provider/render/audio,
+  no push/deployment, cost $0. Claude's concurrent site was not edited or merged.
+
+New Decision/QA/verification: `docs/ai-workflow/PERSONAL_BOOK_OUTPUT_BUDGET_*_20260930.*`.
+New raw root `outputs/personal-book-output-budget-20260930/` is ignored/untracked,
+local-only without verified off-machine backup; push does not preserve it.
+Earlier raw roots and their historical results/verifiers were not rewritten.
+
+**Next:** Claude independently re-gates the whole runner/correction; writer and
+bridge review stay open. Then bounded live text/token/creative calibration.
+Base writer's 5k/12k caps, 104k/128k input bounds and 180s per-stage timeout are
+still uncalibrated. No delivered book, UI wiring, narration or release claim.
+
 ## Personal book automatic runner — local diagnostic implementation, awaiting QA (2026-09-30)
+
+Historical implementation record at `bcd8a226`; superseded by the HOLD/correction
+above, not an independent PASS. Its recorded test counts/evidence remain original.
 
 Same Codex implementation chat/worktree and `codex/personal-book-storyboard-bridge`,
 successor based on `07d3c8d3`. Claude's site is separately owned on
