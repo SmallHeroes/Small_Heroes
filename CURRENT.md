@@ -1,5 +1,27 @@
 # SmallHeroes — Current Technical State
 
+## Personal landing: the living-story hero (direction proof) — pushed as its own branch, awaiting Codex (2026-09-30)
+
+Claude built it at Guy's direction on `claude/personal-landing-wow`. It is pushed to origin as a separate branch and
+is not on QA. Guy approved the direction ("זה טוב") after three rounds; product acceptance of the details is his.
+
+- **Change (the preview only):**
+  - The hero tells three invented families' stories as a parent speaks, one picture per line. Each picture comes up
+    as a sketch, gets a yellow sticker from what was said, and fills with colour.
+  - The hero has a soft sky, Fredoka type (preview only), and one headline size.
+  - "How it works" is a trail of three stops.
+  - Public `/` is identical.
+- **QA:** `qa.smallheroes.co.il` serves `codex/r1d-release-reader-voice-final` @ `a0835b72`. This branch is a
+  fast-forward of it, and it carries the prototype, Codex's writer pilot `45b9e754` and the landing.
+  - Showing `/dev/personal-product` needs `ALLOW_STAGING_QA=true` and `PERSONAL_WIZARD_PREVIEW=true`.
+  - Codex decides the move, after QA and a review of `45b9e754`.
+- **Open:**
+  - Codex technical QA and the QA integration;
+  - the environment switches (Guy approves);
+  - consistent pictures for Bar and Aviv, which needs paid generation (Guy approves).
+
+Details: `docs/ai-workflow/PERSONAL_LANDING_WOW_20260930.md`.
+
 ## Preview landing: one "how it works" after the hero — round 2 local, awaiting Codex re-gate (2026-09-30)
 
 Claude, on branch `claude/personal-landing-recording-info` from `45b9e754`, in worktree
