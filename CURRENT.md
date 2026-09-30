@@ -15,8 +15,14 @@ is not on QA. Guy approved the direction ("זה טוב") after three rounds; pro
   fast-forward of it, and it carries the prototype, Codex's writer pilot `45b9e754` and the landing.
   - Showing `/dev/personal-product` needs `ALLOW_STAGING_QA=true` and `PERSONAL_WIZARD_PREVIEW=true`.
   - Codex decides the move, after QA and a review of `45b9e754`.
+- **Codex hero QA of `cdf5938b..c0827427`: HOLD, P0 0 / P1 0 / P2 2.**
+  - P2-1: a pending family change could override the latest choice.
+  - P2-2: pause and reduced motion did not govern a sticker already in flight.
+  - Corrected locally in `b7f4bf28`: one owned fade and owned flights, 23 regression tests, and real-Chrome
+    scenarios.
+  - The corrective range `c0827427..` the documentation commit awaits Codex's re-gate. It is not pushed.
 - **Open:**
-  - Codex technical QA and the QA integration;
+  - the Codex re-gate and the QA integration;
   - the environment switches (Guy approves);
   - consistent pictures for Bar and Aviv, which needs paid generation (Guy approves).
 
@@ -166,6 +172,10 @@ for the active state; they remain as history.
     microphone's hover scale, and those are fixed too.
   - Awaiting Codex's re-gate of `8ce1784c..` the documentation commit that follows (evidence doc
     §15).
+  - **Closed 2026-09-29:** Codex re-gated exactly `8ce1784c..fd2b26bd`: PASS, P0 0 / P1 0 / P2 0.
+    - The closure rests on Codex's source and cascade checks, focused tests and negative controls.
+    - The Chrome figures remain Claude's reported evidence.
+    - It is not a branch, product or release acceptance, and it grants no push.
 - **Stability stays open:**
   - The full check is RED with the inherited failures.
   - In Codex's re-gate, the first focused run (started alongside tsc) failed 4 audio-probe tests:
