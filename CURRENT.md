@@ -1,5 +1,39 @@
 # SmallHeroes — Current Technical State
 
+## Preview landing: the recording, explained — local, awaiting Codex QA (2026-09-30)
+
+Claude, on branch `claude/personal-landing-recording-info` from `45b9e754`, in worktree
+`C:/GNart/Work/sh-personal-story-redesign`. The code commit is `26b7e58f`; the documentation
+commit follows it. No push or deployment.
+
+Guy did not take the landing redesign. It is kept on `claude/personal-story-redesign` and is not
+for QA. Instead he asked for a little information about the recording on the existing design.
+
+- **Change (the preview only):** on `/dev/personal-product`, one section after the story example.
+  - Steps: talk for half a minute to a minute; check the card; answer only what is missing.
+  - Notes: the microphone opens on a click; write or choose instead; the recording is not stored
+    by us and is not the narration.
+  - Also a header link and one FAQ entry.
+- **Unchanged:**
+  - Public `/` and `/start`: the visible markup is identical, and the public copy has no
+    recording text.
+  - The page design, the wizard, the engine, payments, budgets, story sources and QA thresholds.
+- **Claims:** taken from the wizard and tied by a copy test. They cover the 90 s limit, the
+  duration hint, the alternatives, the narration note, the privacy line word for word, and
+  operator-only live decoding.
+- **Verification:**
+  - `npx tsc --noEmit` exits 0, and 257/257 pass in 14 focused specs.
+  - Real Chrome at desktop and mobile: no overflow and no console errors. The section's
+    accessibility is clean.
+  - Full check: exit 1, the same as the base. There are 10 inherited ordinary failures
+    (identical names), and the resource phase passes 635/635 with the `on_task_update_rpc_timeout` gate.
+- **Open:**
+  - Codex technical QA of the exact range;
+  - Guy's product acceptance;
+  - recording copy reaches public pages only together with the personal flow.
+
+Details: `docs/ai-workflow/PERSONAL_LANDING_RECORDING_INFO_20260930.md`.
+
 ## Personal story product pilot — active (2026-09-30)
 
 Codex is implementing on isolated `codex/personal-story-product`, based on
