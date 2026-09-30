@@ -1,6 +1,6 @@
 # SmallHeroes — Current Technical State
 
-## Preview landing: the recording, explained — Codex technical PASS, awaiting Guy (2026-09-30)
+## Preview landing: one "how it works" after the hero — round 2 local, awaiting Codex re-gate (2026-09-30)
 
 Claude, on branch `claude/personal-landing-recording-info` from `45b9e754`, in worktree
 `C:/GNart/Work/sh-personal-story-redesign`. The code commit is `26b7e58f`; the documentation
@@ -33,8 +33,19 @@ for QA. Instead he asked for a little information about the recording on the exi
   - Codex verified preview isolation independently (base and head rendered in memory: identical public
     markup), the wizard claims, the non-operator path and the privacy wording, in a real browser.
   - Codex did not re-run the full gate, which stays RED and open.
+- **Round 2 (Guy's review), code `42c67ce3`:**
+  - The story example is removed for now.
+  - The recording section and the old "how it works" are merged into one section right after the hero,
+    carrying the sky's wash.
+  - The header and the hero's second button point at it. The shared how section renders only on the
+    public page.
+  - Public `/` is still identical. Re-gate range: `41eba860..` the documentation commit.
+  - Full check: exit 1, the same as round 1 and the base. There are 10 ordinary failures with identical names, 5001 passed, and the resource phase passes 635/635 with the `on_task_update_rpc_timeout` gate. The preview server ran throughout.
 - **Open:**
+  - Codex re-gate of round 2;
   - Guy's product acceptance;
+  - Guy wants new companions that are friends for the journey, not topics. Claude has proposed concepts;
+    the choice, art and writer profiles are pending, behind a Decision Gate.
   - push is Guy's call;
   - recording copy reaches public pages only together with the personal flow;
   - Claude's independent review of the writer at `45b9e754` is still open.

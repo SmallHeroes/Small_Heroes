@@ -5,6 +5,43 @@
 - **QA range:** `45b9e754..` the documentation commit.
 - **Status:** local only. There was no push, deployment, provider call or charge.
 
+## Round 2 (Guy's review, 2026-09-30): one "how it works" right after the hero
+
+- **Code commit:** `42c67ce3`. The re-gate range is `41eba860..` the documentation commit that follows it.
+- **Guy's review:**
+  - The hand-written story example is weaker, so it comes off for now.
+  - The recording section and "how it works" said nearly the same thing, so they become one section, right
+    after the hero.
+- **The preview page now runs:** hero, then how it works, then value, then the companions; the rest is as
+  before.
+- **The merged section:** `app/landing/personal-how-it-works.tsx`, with content `PERSONAL_HOW_IT_WORKS` and id
+  `how`.
+  - Steps: talk for half a minute to a minute; check and complete the card, answering only what is missing;
+    choose a friend for the journey, freely and not by topic.
+  - The three notes are as before.
+  - The preview note also says the full book is still in development. The old step 3 used to carry that.
+  - It carries the storybook sky's exact wash, `rgba(244, 241, 255, 0.26)` over white. The field runs from the
+    hero into the value section with no seam, as the landing's sky comments require.
+- **Removed:**
+  - The example section: its component (`app/landing/personal-story-moment.tsx`), its copy
+    (`PERSONAL_STORY_MOMENT`) and its styles. It can be restored from `45b9e754`.
+  - The preview's `how` copy override, which nothing rendered any more.
+- **Navigation:** the header shows "איך זה עובד" and "החברים". The hero's second button reads "איך זה עובד" and
+  points at the merged section.
+- **Shared component:** the old how section renders only when `personalPreview` is false.
+- **Unchanged:** public `/`. Its visible markup is identical to the base (47,178 characters), and it has no
+  recording text.
+- **Claims:** the table below still applies. The new friend step matches the wizard: the companion is chosen
+  on its own screen (`companionCopy().sub`), and the direction is chosen separately and is optional
+  (`companionCopy().intentSub`).
+- **Evidence:**
+  - `npx tsc --noEmit` exits 0; 257/257 in 14 focused specs. The copy test now also checks the topic-free friend
+    step and the development-status note.
+  - Real Chrome at 1440x900 and 390x844: no overflow and no console errors. Both seams were checked.
+  - Accessibility: 0 contrast failures; headings go H1, H2, three H3s, H2; one tab stop with visible focus.
+  - Keyboard order: the hero CTA, "איך זה עובד", the section CTA, then the companions.
+- **Full check at `42c67ce3`:** exit 1, the same as round 1 and the base. There are 10 ordinary failures with identical names, 5001 passed, and the resource phase passes 635/635 with the `on_task_update_rpc_timeout` gate. The preview server ran throughout.
+
 ## Request
 
 Guy saw the landing redesign (v2) and did not take that direction. Instead he asked for "קצת מידע על הענין
