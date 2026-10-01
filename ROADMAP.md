@@ -14,8 +14,12 @@ This roadmap records technical milestone state. Guy can change product priority 
   runner/endpoint, three scoped calls, whole manuscript and editor display,
   default five-stage compatibility, no storyboard/image/audio spend. Final-spread
   provider schema fixes the observed structural failure, without literary proof.
-  Focused 406/406, mocked real-component browser 49/49. Independent Claude QA and
-  actual operator reading/quality judgment pending; no public release or push.
+  Commit `c94e46fc`, focused 406/406 + tsc 0, mocked real-component browser 49/49.
+  Live local Next request/quote verified 200 using synthetic chips in existing
+  operator Chrome session; explicit text action enabled, no provider call. Full
+  check RED: ordinary 10 failed/5575 passed, resource 635 passed/3 RPC errors.
+  Independent Claude QA and actual operator reading/quality judgment pending;
+  no public release or push. Handoff `PERSONAL_TEXT_READING_QA_20261001.md`.
   Manual local pilot: one intake <=$0.10, one story <=$1, no automatic call,
   single-process/common-Git consumed-claim boundary. Full gate still unclosed.
 

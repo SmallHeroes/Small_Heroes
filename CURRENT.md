@@ -24,20 +24,29 @@ adapter 23, writer 38, editor 39, planning 60, trial 26, intake client 18,
 classifier 7). Real StoryPreview browser harness 49/49 with mocked transport:
 three-stage scope, full eight-spread fixture, editing/original display, HOLD,
 cancel/stale guards and 390/1024px container checks. Not a real voice/provider
-run or full mobile/Next validation. Full check is being measured separately;
-initial run found one stale source-wiring expectation (old fetch function name),
-now corrected without weakening its availability watcher guard. No green full
-gate, literary quality or release claim. Independent Claude QA still required.
+run or full mobile/Next validation. Implementation commit `c94e46fc`, standalone
+tsc 0. Final full check on those production bytes: native 1; ordinary 5575 passed,
+10 failed, 73 skipped across 382 files; resource 635 passed across 20 files with
+three onTaskUpdate RPC errors/native 1. The initial stale source-wiring expectation
+was fixed; remaining ten names match prior logs, not a fresh baseline proof.
+No green full gate, literary quality or release claim. Independent Claude QA
+still required; handoff `docs/ai-workflow/PERSONAL_TEXT_READING_QA_20261001.md`.
 
-Manual local pilot preparation: one existing operator, one intake <=$0.10,
+Manual local pilot activated at `c94e46fc`: one existing operator, one intake <=$0.10,
 one story <=$1, GPT-6.1 Sol medium; no automatic provider dispatch. Text reserves
 $0.8184/$0.8844/$0.9504 for 8/12/16 spreads, conservative bounds not bills. Legacy
 five-stage reservation cannot fit that $1 ceiling. Same local origin/auth/request
 and operator checks, staging auth database, no real storage key or payment path.
 Atomic common-Git launcher claim prevents restart/refill; single-process ledgers,
 not public deployment readiness. Ignored local evidence under
-`outputs/personal-text-reading-validation-20261001/`; launcher/readiness evidence
-will be recorded after activation. No new paid call or push for this milestone.
+`outputs/personal-text-reading-validation-20261001/`. Chrome's existing operator
+session reached request validation 200 and story-only quote 200 with an enabled
+writing button using synthetic manual chip facts. Writing/transcription buttons
+were NOT invoked. Signed-out book quote 401; intake status 200/live false,
+not_signed_in. `readiness.json`, launch metadata, sanitized log and full-check log
+preserved locally (ignored, no verified backup). Browser returned to empty voice
+start for Guy; his explicit action consumes the one paid allowance. No new paid
+call after pilot activation, no push. The stopped comparison claim SHA unchanged.
 
 ## Text comparison stopped; reading-only wizard requested 2026 10 01
 
