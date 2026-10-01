@@ -7,8 +7,10 @@ subsequent decoding screen. Codex owns this implementation; Claude Code's first
 review must be read-only. Worktree:
 `C:/Users/guyna/.codex/worktrees/personal-site-qa/Small_Heroes`, branch
 `codex/personal-site-qa-integration-20260930`, base
-`86f1bb585b1cbda87e06a4373d84b6484cd50d25`. The final immutable head will be
-recorded in the documentation successor after the code commit, before handoff.
+`86f1bb585b1cbda87e06a4373d84b6484cd50d25`. Frozen code head is
+`50eb17e5fdce5c2ae35d2a1d6aca4a4deae23bab`: one commit, 20 files,
+994 insertions / 439 deletions. Review exactly `86f1bb58..50eb17e5`;
+the later documentation-only closeout does not change that code target.
 
 UI source is `719dcb7f..2194e9a8` in Claude's clean isolated wizard checkout.
 Destination is only QA's `codex/r1d-release-reader-voice-final`, initially
@@ -82,13 +84,37 @@ numbers describe his source milestone, not this integration's measurement.
 
 ## Deployment and runtime boundary
 
-The requested mutation is a non-forced QA branch fast-forward/push only after
-remote and worktree reconciliation. Existing UI preview switches stay ON and
+The requested non-forced QA branch fast-forward/push was completed after
+remote and clean-worktree reconciliation: remote `41359878` advanced to
+`50eb17e5`, two commits including the earlier docs-only `86f1bb58`.
+Git ls-remote confirms the exact new tip. Existing UI preview switches stay ON and
 intake/writer OFF. Book runner is not on this QA branch. No production alias,
 environment, deployment protection, database, provider key or pilot claim change.
 Provider spend is $0. Prior QA READY deployment for rollback:
 `dpl_CAfr6uM8Uog7eVkKEDKa2eqpuXd3`. Production baseline:
 `dpl_2X7E6d1acZ5vKJVhLSuKFGP5Q4HN`.
+
+Vercel's exact Git-commit metadata filter found preview deployment
+`dpl_8nhVmZT5hasBEmCzWL5iTbrGJrqc`,
+`https://small-heroes-r2jnyo6b3-smallheroes-projects.vercel.app`.
+Its build log reports Build Completed and inspection now confirms READY.
+Independent inspection of `https://qa.smallheroes.co.il` returns that same
+deployment ID, rather than inferring alias promotion from push. Production's
+inspection still returns the recorded baseline ID. No manual alias override,
+environment change or protection change occurred.
+
+Authenticated CLI measurements after READY: QA root and wizard HTTP 200.
+Wizard HTML contains the new voiceStage/cueArc, one-minute lead, explicit local
+non-decoding note, labelled test panel and noindex. Root retains a wizard link
+and noindex. These are HTTP/source facts, not browser layout/animation evidence.
+Intake status HTTP 200 returns `{live:false,reason:"live_flag_off"}`; writer GET
+HTTP 404 returns `{error:"not_found"}`; absent book GET HTTP 404. A probe during
+BUILDING returned 403; it was superseded by these explicitly later measurements.
+Saved HTML/body files join the ignored local evidence root without verified backup.
+
+The implementation-owner agent found no blocker in this frozen port and verified
+the exclusion paths and quiet processing branch. It did not inspect runtime or
+run tests and is not independent Claude PASS. Browser acceptance remains open.
 
 Browser evidence must distinguish real QA from local preview, protected login
 from loaded app, and labelled fixture animation from live decoding. The local
@@ -111,3 +137,19 @@ from loaded app, and labelled fixture animation from live decoding. The local
 
 Do not render, read credentials, call providers, edit branches or push during
 the first review. Return exact range, findings and evidence limits.
+
+## PowerShell inspection and push handoff
+
+The requested code is already pushed. Do not stage anything or merge the engine.
+The optional final push below is a no-op only while the release checkout still
+equals the recorded deployed code; its guard refuses a moved tip.
+
+```powershell
+$qaRelease = 'C:/GNart/Work/sh-release-reader-final'
+git -C $qaRelease status --short --branch
+git -C $qaRelease log --oneline 41359878..50eb17e5
+git -C $qaRelease ls-remote origin refs/heads/codex/r1d-release-reader-voice-final
+vercel inspect https://qa.smallheroes.co.il --format=json
+if ((git -C $qaRelease rev-parse HEAD) -ne '50eb17e5fdce5c2ae35d2a1d6aca4a4deae23bab') { throw 'QA release tip moved; reconcile first' }
+git -C $qaRelease push origin codex/r1d-release-reader-voice-final
+```

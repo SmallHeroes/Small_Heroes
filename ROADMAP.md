@@ -15,9 +15,11 @@ UI only onto the existing QA release branch; preserve its landing/middleware and
 paid-OFF behavior. Local engine at 3443 stays separate. Focused checks 347/347 and
 standalone tsc 0; final full check RED with ten known fixture failures and three
 resource RPC errors. Config-only release check 0, DB skipped. Separate Next build
-0 (npm build blocked by shared Prisma DLL). Runtime verification and independent
-Claude review remain pending. No production rollout,
-live cloud generation or rendering.
+0 (npm build blocked by shared Prisma DLL). QA branch pushed at `50eb17e5`,
+Git preview READY and stable alias moved; root/wizard HTTP 200 and paid routes
+OFF/refused. Production unchanged. Browser interaction/layout verification and
+independent Claude review remain open. No production rollout, live cloud
+generation or rendering. Local engine at 3443 remains the separate story path.
 
 Remote personal-story writing next needs durable shared budget/idempotency,
 recoverable stage jobs and a retention/deletion disclosure decision; process

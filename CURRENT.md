@@ -1,12 +1,14 @@
 # SmallHeroes — Current Technical State
 
-## Updated recording wizard being promoted to QA
+## Updated recording wizard deployed to QA
 
 Guy explicitly requested the latest recording screen and its subsequent decoding
-screen on QA. Codex is porting only Claude UI `719dcb7f..2194e9a8` onto
+screen on QA. Codex ported only Claude UI `719dcb7f..2194e9a8` onto
 `codex/personal-site-qa-integration-20260930`, base `86f1bb58`. The current QA
-release branch is `codex/r1d-release-reader-voice-final` at `41359878`; only a
-docs-only predecessor separates these bases. No whole engine merge is intended.
+release branch `codex/r1d-release-reader-voice-final` was fast-forwarded/pushed
+from `41359878` to `50eb17e5fdce5c2ae35d2a1d6aca4a4deae23bab`, verified with
+ls-remote. This carried the prior docs-only `86f1bb58` and the single UI milestone.
+No whole engine merge occurred. This later documentation closeout stays local.
 
 - The older QA parent is retained. A StepTell conflict was resolved with an
   optional sign-in prop, unused by QA; no availability client or engine API was
@@ -23,7 +25,19 @@ docs-only predecessor separates these bases. No whole engine merge is intended.
   generated schema differs only in whitespace/comment formatting; separate
   `npx next build` exits 0. A temporary production-mode preview could not run
   without configured service env; it was stopped, no fake credentials added.
-  Cloud deployment/runtime verification remain pending.
+  Vercel's clean build completed and its Git preview is READY.
+- Stable `qa.smallheroes.co.il` now resolves to
+  `dpl_8nhVmZT5hasBEmCzWL5iTbrGJrqc` / `small-heroes-r2jnyo6b3-smallheroes-projects.vercel.app`.
+  Production remains `dpl_2X7E6d1acZ5vKJVhLSuKFGP5Q4HN`; no alias override,
+  environment or protection change was needed.
+- Authenticated CLI HTTP checks: QA root/wizard 200, updated voiceStage/cueArc,
+  one-minute lead, explicit non-live note, test-panel and noindex markers present.
+  Intake status 200 `{live:false,reason:"live_flag_off"}`; writer GET 404
+  `{error:"not_found"}`; absent book GET 404. Earlier pre-READY probe returned
+  403 and is not treated as a passing app check.
+- Fresh browser layout/interaction validation remains open: Chrome control
+  timed out, IAB QA reached Vercel login and local preview was blocked. No
+  protected-login screen was called a working app; no protection was relaxed.
 - The first complete check had 12 failures: ten recorded fixture failures, a
   stale copy expectation since corrected, and an unchanged materializer EEXIST.
   The materializer subsequently passed 31/31 in isolation; causality is unproved.
@@ -34,6 +48,8 @@ docs-only predecessor separates these bases. No whole engine merge is intended.
   QA-only preview work, not release approval or cloud live writing activation.
 
 Decision and rollback: `docs/ai-workflow/PERSONAL_WIZARD_QA_UI_DECISION_20261001.md`.
+Frozen independent review: `86f1bb58..50eb17e5`, with complete brief at
+`docs/ai-workflow/PERSONAL_WIZARD_QA_UI_HANDOFF_20261001.md`.
 
 ### Remote writing prerequisite
 
