@@ -99,6 +99,9 @@ No editor, packager, shared normalizer or existing registry bytes changed.
 - Exact-admission mutation removed the registry block and prepared caller input:
   all twelve metadata/request negatives plus actual CLI fail (13 failures).
   Each negative request is otherwise structurally accepted, all artifacts null.
+  This was the targeted filter `rejects an unregistered|registry-invalid`, NOT
+  the entire spec. Subsequent Claude full-spec mutation also fails the six
+  typed-source tests: 19 in that broader run. No claim of 13 total failures.
 - NFKC removal: wide-alef test fails, presentation-shin control still passes
   because NFC normalizes it; do not claim both were mutation-sensitive.
 - Editor-preflight removal: one new held-selection test fails. All mutations

@@ -13,12 +13,15 @@ This roadmap records technical milestone state. Guy can change product priority 
 - Received independent PASS for `6de84b4f..43978d85` and separately
   `8695d196..6de84b4f`; correction `43978d85..9adf6555` also has independent
   PASS, P0/P1/P2 = 0. Follow-up exact synthetic-registry admission and post-strip
-  NFC correction at base `9adf6555` awaits its own re-gate: focused 456/456 +
+  NFC correction `9adf6555..719dcb7f` has independent PASS: focused 456/456 +
   tsc 0, deliberate regression controls; $0. Current full gate RED: ten ordinary
   failure names match prior run, 5470 ordinary passes, 635/635 resource assertions
   with three RPC errors. Customer writing/prompt/model/budget unchanged. Valid planner
   HOLD evidence/classification/UX and repo stability remain open. Address the
   plan-only HOLD boundary before a trial that evaluates held proposals.
+- P3-D fixture-provenance invariant added at base `719dcb7f`, test-only successor
+  awaiting its own re-gate. Labels are not synthetic-origin authentication.
+  13-versus-19 admission-mutation count reconciled as targeted-versus-full spec.
 - Bounded adventure-selection successor implemented at base `6de84b4f`: two
   distinct concise proposals inside the existing plan call, retained original
   selection receipt, deterministic soft word targets, offline phase-separated

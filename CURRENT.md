@@ -1,5 +1,24 @@
 # SmallHeroes — Current Technical State
 
+## Registry QA received; fixture-provenance regression guard (2026-10-01)
+
+Received independent Claude PASS for EXACTLY `9adf6555..719dcb7f`, P0/P1/P2 = 0.
+It closes P3-A/B/C, with one non-blocking P3-D: registry labels themselves need
+a regression invariant. Full report read; receipt and handoff:
+`docs/ai-workflow/PERSONAL_REGISTRY_PROVENANCE_QA_20261001.md`.
+Same chat/sole writer, same branch/worktree, correction base `719dcb7f`.
+Added test asserts every core/fact/place source is fixture and any suggested topic
+is fixture, never transcript. No runtime guard/schema/registry bytes changed;
+labels catch accidental copies, not proof that content is synthetic.
+Focused two specs 94/94, tsc 0; relabelling one registry name source makes the
+new invariant fail (1 failed/47 skipped), then registry bytes restored unchanged.
+
+Mutation-count clarification: Codex's 13 used the named targeted filter
+`rejects an unregistered|registry-invalid`; Claude's full spec also included six
+typed-source cases, giving 19. Different run scopes, not a contradictory total.
+No provider, secret value, paid reset, render, narration, push/deploy; $0.
+Next separate milestone remains valid planner HOLD evidence/classification/UI.
+
 ## Offline comparison registry and Unicode correction (2026-10-01)
 
 Received independent Claude PASS for EXACTLY `43978d85..9adf6555`, P0/P1/P2 = 0,
@@ -19,7 +38,7 @@ Same chat/sole Codex writer, `codex/personal-book-storyboard-bridge`, worktree
   joiner cases fail on the reviewed base; visible accents remain distinguishable
   and stored text unchanged. Additional tests cover NFKC compatibility and editor
   selection preflight, without changing editor implementation.
-- Deliberate removal of registry admission fails 13 tests, including the real CLI
+- Deliberate removal of registry admission fails 13 targeted tests, including the real CLI
   with no downstream artifacts. Removing NFKC fails the wide-alef guard (the shin
   control still passes under NFC); removing editor selection preflight fails its
   new test. All mutations restored. Focused 14 files 456/456, tsc 0.
@@ -31,7 +50,8 @@ Same chat/sole Codex writer, `codex/personal-book-storyboard-bridge`, worktree
   secret-value read, paid allowance reset, image/audio, UI activation, push or
   deployment; $0. Input registry admission does NOT anonymize supplied prose.
 
-Successor awaits independent re-gate, not self-PASS. Valid planner HOLD evidence,
+Independent re-gate subsequently received through `719dcb7f`, exact scope above.
+Valid planner HOLD evidence,
 classification/UX remains the next separate milestone BEFORE trials evaluating
 held proposals. Earlier bridge and stability remain open; no literary improvement
 or product acceptance claimed. Do not reopen the historical one-shot paid trial.

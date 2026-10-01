@@ -43,6 +43,15 @@ async function fixture() {
       improvedDraft: artifact(improved, newCommit), improvedEdited: artifact(edit(improved), newCommit) }] }, f, prepared };
 }
 describe('offline phase-separated blind evidence packaging', () => {
+  it('pins every registry provenance label to fixture data without claiming proof of synthetic origin', () => {
+    for (const { request } of personalStoryEvaluationProfiles()) {
+      const sources = [request.child.nameSource, request.child.ageSource, request.child.addressSource,
+        request.child.residenceSource, ...request.facts.map(fact => fact.source),
+        ...(request.storyPlace ? [request.storyPlace.source] : [])];
+      expect(sources.every(source => source === 'fixture')).toBe(true);
+      if (request.intent?.kind === 'topic') expect(request.intent.suggestedBy ?? 'fixture').toBe('fixture');
+    }
+  });
   it('registers diverse synthetic inputs without paying for them or treating held-out as already evaluated', () => {
     const rows = personalStoryEvaluationProfiles();
     expect(rows).toHaveLength(12); expect(rows.filter(row => row.split === 'held_out')).toHaveLength(3);
