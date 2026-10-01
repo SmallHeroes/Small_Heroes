@@ -16,6 +16,8 @@ import { HeroCollage } from './hero-collage';
 import { NameMoment, type HeroChild } from './name-moment';
 import { HearPage } from './hear-page';
 import { PersonalHowItWorks } from './personal-how-it-works';
+import { PersonalProof } from './personal-proof';
+import { PERSONAL_COMPANION_LINES } from '@/content/personal-landing';
 import { PersonalWowHero } from './personal-wow/PersonalWowHero';
 import childHandoff from '@/public/JS/hero-child-handoff';
 import { CompanionSpotlight } from '@/app/components/CompanionSpotlight';
@@ -153,12 +155,12 @@ export default function LandingPage({ content: L, startHref, matrixCategories, p
         </a>
         {/* 2026: thin scroll-progress bar — pure CSS scroll-timeline, no JS (falls back to hidden) */}
         <div className="scroll-progress" aria-hidden="true" />
-        <SiteHeader variant="full" startHref={personalPreview ? startHref : undefined} startLabel={personalPreview ? L.hero.ctaPrimary : undefined} homeHref={personalPreview ? '/dev/personal-product' : undefined} navigation={personalPreview ? [{ label: 'איך זה עובד', href: '#how' }, { label: 'החברים', href: '#helps' }] : undefined} />
+        <SiteHeader variant="full" startHref={personalPreview ? startHref : undefined} startLabel={personalPreview ? L.hero.ctaPrimary : undefined} homeHref={personalPreview ? '/dev/personal-product' : undefined} navigation={personalPreview ? [{ label: 'דוגמה', href: '#example' }, { label: 'איך זה עובד', href: '#how' }, { label: 'החברים', href: '#helps' }] : undefined} />
 
         <main id="main">
           {/* the preview stages the same words as a living book; the public hero is unchanged */}
           {personalPreview ? (
-            <PersonalWowHero hero={L.hero} startHref={startHref} />
+            <PersonalWowHero hero={L.hero} startHref={startHref} secondaryHref="#example" />
           ) : (
             <section className="hero">
               <HeroDoodles />
@@ -214,7 +216,9 @@ export default function LandingPage({ content: L, startHref, matrixCategories, p
             </section>
           )}
 
-          {/* the preview explains how it works (the recording first) straight after the hero */}
+          {/* the preview proves the promise straight after the hero: what a parent said and what it changed in
+              the story (site audit 2026-10-01); then it explains how it works, the recording first */}
+          {personalPreview ? <PersonalProof /> : null}
           {personalPreview ? <PersonalHowItWorks startHref={startHref} /> : null}
 
           {/* מה מקבלים — the concrete promise, straight after the hero */}
@@ -267,7 +271,7 @@ export default function LandingPage({ content: L, startHref, matrixCategories, p
                     <CategoryChallengeCard
                       key={slot.category}
                       slot={displaySlot}
-                      lead={marketing?.lead}
+                      lead={personalPreview ? PERSONAL_COMPANION_LINES[slot.companion.id] : marketing?.lead}
                       as="button"
                       onClick={(event) => {
                         if (personalPreview) { window.location.assign(`${startHref}?companion=${encodeURIComponent(slot.companion.id)}`); return; }

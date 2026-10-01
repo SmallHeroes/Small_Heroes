@@ -1,5 +1,33 @@
 # SmallHeroes — Current Technical State
 
+## Claude landing clarity prepared for QA
+
+Guy asked to push Claude's latest work to QA. Codex selectively ported source
+`86ca47e8..ae502594` (three focused commits) onto the clean existing integration
+base `c3db7a85`: the continuous sky wash, clearer personal-book hero, labelled
+hand-written example and six companion-character lines. No whole-branch merge.
+The inherited development note now explicitly distinguishes paid-OFF QA from
+separate authorized local trials. Destination's updated wizard tests survived.
+
+Focused checks **350/350 in 17 files**, tsc 0. Real shared-component SSR public
+markup equals the base Git blob (50,566 UTF-8 bytes); a deliberate in-memory
+removal of the preview JSX fence is detected. No fresh browser layout/interaction
+acceptance: browser inventory timed out twice. Full check RED: ordinary 5069
+passed / 10 failed / 73 skipped; the ten failure names match the prior UI log.
+Resource 635/635 with three onTaskUpdate RPC errors, native exit 1. Config-only
+release check 0, 18/18 sellable, 1/18 render-qualified, DB skipped. No stability,
+render-readiness or release PASS. QA publication/runtime results are recorded
+in the subsequent closeout; no current successful deployment is inferred here.
+`npm run build` stops at the shared Prisma Windows DLL rename (EPERM); separate
+`npx next build` exits 0. The local pilot was not stopped to release that lock.
+
+APIs, middleware, wizard, model settings, schema, packages and payments unchanged.
+Local engine remains `2ec333a3`, loopback 3443/PID 145892. Protected checkouts stay
+at `768ccb2f` and `63ccb484`; frozen Claude source clean. No keys, providers,
+DB writes, image/audio renders or cost. Independent Claude review remains pending.
+Decision and complete brief: `docs/ai-workflow/PERSONAL_LANDING_QA_CLARITY_DECISION_20261002.md`
+and `docs/ai-workflow/PERSONAL_LANDING_QA_CLARITY_HANDOFF_20261002.md`.
+
 ## Updated recording wizard deployed to QA
 
 Guy explicitly requested the latest recording screen and its subsequent decoding

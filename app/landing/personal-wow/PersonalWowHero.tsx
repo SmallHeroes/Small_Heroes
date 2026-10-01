@@ -10,6 +10,8 @@ type HeroCopy = {
   sub: string;
   ctaPrimary: string;
   ctaSecondary: string;
+  /** Verified facts in a row under the actions (ages, how to tell us, who decides). */
+  ctaNotes?: readonly string[];
 };
 
 function Sparkle() {
@@ -34,7 +36,7 @@ function Mic() {
  * The preview's hero: the same words, beside a child's story coming up picture by picture as a parent tells it.
  * Copy on the start side; on phones the story moves up between the headline and the text.
  */
-export function PersonalWowHero({ hero, startHref }: { hero: HeroCopy; startHref: string }) {
+export function PersonalWowHero({ hero, startHref, secondaryHref = '#how' }: { hero: HeroCopy; startHref: string; secondaryHref?: string }) {
   return (
     <section className="hero pw-hero">
       <HeroDoodles />
@@ -58,10 +60,17 @@ export function PersonalWowHero({ hero, startHref }: { hero: HeroCopy; startHref
               </span>
               {hero.ctaPrimary}
             </a>
-            <a href="#how" className="btn-light pw-cta-2">
+            <a href={secondaryHref} className="btn-light pw-cta-2">
               {hero.ctaSecondary}
             </a>
           </div>
+          {hero.ctaNotes?.length ? (
+            <ul className="pw-facts">
+              {hero.ctaNotes.map((note) => (
+                <li key={note}>{note}</li>
+              ))}
+            </ul>
+          ) : null}
         </div>
         <VoiceStoryStage demo={PERSONAL_VOICE_STORIES} />
       </div>

@@ -8,6 +8,15 @@ This roadmap records technical milestone state. Guy can change product priority 
 
 ## Active
 
+### Claude landing clarity QA integration
+
+Port the three source landing commits `86ca47e8..ae502594` onto `c3db7a85` only.
+Focused 350/350, tsc 0, public SSR byte-equal with a real-fence negative control.
+Full check RED (ten recorded failure names, three resource RPC errors); release
+config check 0, DB skipped. Runtime publication verification and independent
+Claude review follow the local commit. Paid cloud writing stays OFF; no engine
+merge or production rollout. Browser layout remains unverified by Codex.
+
 ### Recording wizard QA UI promotion
 
 Guy authorized the latest recording UI and decoding screen on QA. Port Claude's

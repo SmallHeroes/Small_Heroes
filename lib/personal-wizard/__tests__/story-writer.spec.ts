@@ -9,8 +9,8 @@ import { resolveStorySettings, storyReservationUsd, type StorySettings } from '.
 import type { ReviewedPersonalBookRequest } from '../contract';
 import { existsSync } from 'fs';
 import { join } from 'path';
-import { getPersonalLandingContent, PERSONAL_HOW_IT_WORKS, PERSONAL_VOICE_STORIES } from '@/content/personal-landing';
-import { LIMITS } from '../contract';
+import { getPersonalLandingContent, PERSONAL_COMPANION_LINES, PERSONAL_HOW_IT_WORKS, PERSONAL_PROOF, PERSONAL_START_LABEL, PERSONAL_VOICE_STORIES } from '@/content/personal-landing';
+import { LIMITS, PROTOTYPE_AGE_MAX, PROTOTYPE_AGE_MIN } from '../contract';
 import { bookCopy, RECORDER, tellCopy } from '../copy';
 import { getLandingContent } from '@/content/landing';
 
@@ -168,7 +168,10 @@ describe('writer switches and product copy', () => {
     expect(personal.pricing.cards.map((card) => card.price)).toEqual(['', '', '']);
     expect(personal.pricing.cards.map((card) => card.pages)).toEqual(['16 עמודים', '24 עמודים', '32 עמודים']);
     expect(personal.helps.closing).not.toContain('לכל נושא');
-    expect(personal.hero.sub).toContain('שנכתב כדי לעזור לילד שלכם להתמודד');
+    // The hero names the product and the coping purpose, and stays honest that it is still being built.
+    expect(`${personal.hero.h1Line1} ${personal.hero.h1Line2}`).toContain('שנכתב במיוחד לילד שלכם');
+    expect(personal.hero.sub).toContain('להתמודד');
+    expect(personal.hero.sub).toContain('עדיין בפיתוח');
     expect(personal.faq.items.some((item) => item.a.includes('טיפול'))).toBe(true);
     expect(getLandingContent([]).pricing.cards.map((card) => card.price)).toEqual(['59', '79', '99']);
   });
@@ -189,6 +192,8 @@ describe('writer switches and product copy', () => {
     const faq = getPersonalLandingContent().faq.items.find((item) => item.q === 'מה קורה להקלטה?');
     expect(faq?.a.startsWith(RECORDER.privacyLive)).toBe(true);
     expect(recording.previewNote).toContain('בודקים מורשים');
+    expect(recording.previewNote).toContain('באתר ה־QA הפענוח החי כבוי');
+    expect(recording.previewNote).toContain('ניסויים מקומיים נפרדים');
     // The friend is chosen freely, not by topic, and the merged section keeps the development status honest.
     expect(friend.body).toContain('בלי קשר לנושא');
     expect(recording.previewNote).toContain('כתיבת הספר המלא עדיין בפיתוח');
@@ -204,5 +209,31 @@ describe('writer switches and product copy', () => {
       expect(story.lines.map((line) => line.map((segment) => segment.text).join('')).join(' ')).toContain(story.name);
       for (const beat of story.beats) expect(existsSync(join(process.cwd(), 'public', beat.image))).toBe(true);
     }
+  });
+  it('tells the example with the hero family\'s own words and approved picture, labelled as hand-written', () => {
+    // Site audit 2026-10-01: prove that a detail changes the story, and claim only what the preview does.
+    const yuval = PERSONAL_VOICE_STORIES.stories.find((story) => story.name === 'יובל')!;
+    expect(PERSONAL_PROOF.told).toEqual(yuval.lines.map((line) => line.map((segment) => segment.text).join('')));
+    expect(yuval.beats.map((beat) => beat.image)).toContain(PERSONAL_PROOF.image);
+    expect(existsSync(join(process.cwd(), 'public', PERSONAL_PROOF.image))).toBe(true);
+    expect(PERSONAL_PROOF.note).toContain('דוגמה ספרותית');
+    expect(PERSONAL_PROOF.note).toContain('אינה טקסט שהמנוע כתב');
+    // The child acts in the story, and the fear is not promised away.
+    expect(PERSONAL_PROOF.story.join(' ')).toContain('אני מחזיקה לך את הכפה');
+    expect(PERSONAL_PROOF.story.join(' ')).toContain('הלב שלה עוד דפק מהר');
+  });
+  it('gives every offered friend a line of character, never a difficulty to be "for"', () => {
+    for (const id of PROTOTYPE_COMPANION_ROSTER) expect(PERSONAL_COMPANION_LINES[id], id).toBeTruthy();
+    for (const line of Object.values(PERSONAL_COMPANION_LINES)) expect(line).not.toMatch(/פחד|פוחד|כעס|חושך|אח חדש|אחות חדשה|ביישנ|חיסון|לילדים ש/);
+  });
+  it('states only the wizard\'s facts beside the hero\'s one action', () => {
+    const personal = getPersonalLandingContent();
+    expect(personal.hero.ctaNotes).toContain(`לגילאי ${PROTOTYPE_AGE_MIN} עד ${PROTOTYPE_AGE_MAX}`);
+    expect(personal.faq.items.find((item) => item.q === 'לאיזה גיל זה מתאים?')?.a).toContain(`${PROTOTYPE_AGE_MIN} עד ${PROTOTYPE_AGE_MAX}`);
+    expect(personal.faq.items[0]?.a).toContain('עדיין בפיתוח');
+    // One action, named for what happens next, wherever the page offers it.
+    for (const label of [personal.hero.ctaPrimary, PERSONAL_HOW_IT_WORKS.cta, personal.gallery.cta, personal.footer.cta]) expect(label).toBe(PERSONAL_START_LABEL);
+    expect(personal.value.items).toHaveLength(3);
+    expect(personal.why.h2).not.toBe(personal.hero.h1Line2);
   });
 });
