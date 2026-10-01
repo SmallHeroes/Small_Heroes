@@ -120,8 +120,29 @@ both negatives; matching evidence/usage/reservation/lock/duplicate behavior stay
 correct; and final production bytes, protected checkouts and historical artifacts
 are unchanged. Recheck the whole relevant runner boundary, not just added lines.
 
-This successor needs its own technical re-gate. No self-PASS, semantic/factual
-attestation, literary acceptance, stability closure or launch readiness is claimed.
+The successor received the independent re-gate recorded below. No self-PASS,
+semantic/factual attestation, literary acceptance, stability closure or launch
+readiness is claimed.
 Next product dependency remains a fresh bounded, phase-separated creative
 comparison across the registered synthetic profiles. Do not infer authorization
 to reopen the old paid trial, reset its allowance or render illustrations.
+
+## Independent re gate received
+
+Claude Code technical PASS for exactly
+`d553dd410c179c65ab89da6dcad67797d0beba4d..4de35c3dc26093b940342cee98fe73052bce7564`,
+P0/P1/P2 = 0, no findings; P3-E closed. His detached review checkout is clean at
+`4de35c3d`, matching the implementation HEAD at closeout intake. Report:
+`C:/Users/guyna/AppData/Local/Temp/claude/C--GNart-Work-Small-Heroes/af9211ff-30ea-426d-9794-43cad9ee3788/scratchpad/qa-bind/CLAUDE-QA-BIND-4de35c3d.md`,
+SHA256 `5352ee90dda8aecfd0d680740785646b0ee19b86fee2208b964e8005dd60fd63`.
+
+Reviewer measurements, not fresh Codex reruns: tsc 0, three new cases pass,
+717/717 across 25 files; instrumentation proves each negative fails inside
+binding after exactly one mocked dispatch; six targeted mutations distinguish
+request binding, canonical digest, error classification and the earlier attempt
+guard. Production bytes and six historical artifacts remain unchanged. No new
+full-check run; the prior frozen full gate remains RED. No spend/provider/key use.
+
+The closeout changes only this document, CURRENT and ROADMAP. The original
+offline receipt is preserved with its pre-review `pending` field. No prior PASS
+is widened; earlier bridge and literary/product/release acceptance remain open.

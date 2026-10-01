@@ -23,9 +23,17 @@ This roadmap records technical milestone state. Guy can change product priority 
   remains open. Test-only P3-E successor at base `d553dd41` adds matching,
   foreign-revision and stale-digest HOLD cases after one real mocked dispatch;
   removal of rebinding fails both negatives. Focused 717/717 + tsc 0, no production
-  change and no fresh full/browser run; successor awaits independent re-gate.
+  change and no fresh full/browser run. Claude independent re-gate PASS for exactly
+  `d553dd41..4de35c3d` closes P3-E, no findings; independently reproduced 717/717
+  and tsc 0, instrumented one-dispatch binding and six targeted mutations.
+  Subsequent documentation closeout does not expand that technical PASS.
   Next quality step is a separately bounded creative comparison, not another
   declaration that structural tests establish literary quality.
+  Read-only readiness audit proposes development profiles 1/5/9, matched old/new
+  first drafts plus separate current edits: at most 15 calls, $4.158 configured
+  reservation, not actual charges. Historical trial cannot supply the matched
+  baseline or a fresh allowance. Aggregate execution-family enforcement and
+  explicit new text allowance are required before running; no execution approved.
 - Received independent PASS for `6de84b4f..43978d85` and separately
   `8695d196..6de84b4f`; correction `43978d85..9adf6555` also has independent
   PASS, P0/P1/P2 = 0. Follow-up exact synthetic-registry admission and post-strip
@@ -33,8 +41,9 @@ This roadmap records technical milestone state. Guy can change product priority 
   tsc 0, deliberate regression controls; $0. Current full gate RED: ten ordinary
   failure names match prior run, 5470 ordinary passes, 635/635 resource assertions
   with three RPC errors. Customer writing/prompt/model/budget unchanged. Valid planner
-  HOLD evidence/classification/UX and repo stability remain open. Address the
-  plan-only HOLD boundary before a trial that evaluates held proposals.
+  HOLD evidence/classification/UX is covered by the later exact PASS ranges above;
+  repo stability and literary quality remain open. No trial has yet measured
+  the current planner or its held proposals.
 - P3-D fixture-provenance invariant added at base `719dcb7f`, test-only successor
   has Claude technical PASS for exactly `719dcb7f..4de61548`, no findings.
   Labels are not synthetic-origin authentication.

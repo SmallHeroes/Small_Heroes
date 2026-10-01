@@ -4,7 +4,9 @@
 
 Received Claude Code technical PASS for exactly `719dcb7f..4de61548` (registry
 provenance, no findings) and separately `4de61548..d553dd41` (planner HOLD,
-P0/P1/P2 = 0, one non-blocking P3-E). Report identity and corrective handoff:
+P0/P1/P2 = 0, one non-blocking P3-E). Subsequent independent re-gate PASS for
+exactly `d553dd41..4de35c3d` closes P3-E, P0/P1/P2 = 0, no findings.
+Report identities and corrective handoff:
 `docs/ai-workflow/PERSONAL_HOLD_BINDING_REGRESSION_QA_20261001.md`.
 His frozen full check at `d553dd41` remains RED: ordinary 10 failed/5519
 passed/73 skipped; resource 635/635 assertions with three RPC errors. Our earlier
@@ -21,16 +23,36 @@ All three use one actual runner dispatch to a mocked provider. They retain paid
 accounting, reservation, lock release, no later stages and duplicate-job checks.
 Removing only runner rebinding fails both negative cases; the matching control
 passes. Production bytes restored unchanged; final diff has no production paths.
-Focused 717/717 across 25 specs, standalone tsc 0. No new full check or browser run
-for this test-only successor. Independent re-gate for it is still pending.
+Focused 717/717 across 25 specs, standalone tsc 0. No new Codex full check or browser
+run for this test-only successor. Claude independently reproduced 717/717 and tsc 0,
+instrumented the binding point after one mocked dispatch and ran six targeted
+mutations. His clean detached checkout is at `4de35c3d`; production runner/writer/
+reader bytes match the previously reviewed base. No fresh full check by either
+reviewer is claimed; the frozen `d553dd41` full result remains RED.
 
 New ignored/unbacked evidence root `outputs/personal-hold-binding-validation-20261001/`;
 six historical paid artifacts rehashed 6/6 unchanged. No live provider, key use or
 disclosure, allowance reset, image/audio call, push/deploy or public activation;
 $0. Earlier bridge `45b9e754..07d3c8d3` and literary quality remain open.
+Same chat/sole writer, documentation closeout at base `4de35c3d`; no production
+change or expansion of any reviewed range. The offline validation receipt retains
+its historical `pending` field and is not rewritten to manufacture a new receipt.
 Next quality dependency is a separately bounded first-draft comparison and
 separate edit comparison across the registered synthetic profiles, not another
 inference that technical PASS establishes excellent stories.
+
+Read-only readiness audit: no generated registered-profile baseline/current pairs
+exist. The consumed historical trial is fixed to different requests/root and is
+not reusable. Individual manuscript CLI ledgers do not enforce aggregate cohort
+spend; a separate bounded execution family is required before a new paid trial.
+Proposed initial development sample: `synthetic_1`, `synthetic_5`, `synthetic_9`,
+short/medium/long, three companions, ages 3/5/6; held-out profiles untouched.
+Frozen baseline `6de84b4f` versus current writer, same model/medium reasoning:
+up to 12 writer calls plus three current-draft edits, no model critic/images/audio.
+Local configured reservation arithmetic totals $4.158, not live pricing or an
+invoice. This measures the combined planner/headroom change, not prompt-only
+causality or reliable quality across the whole registry. No new allowance or
+trial execution/implementation is granted by this audit.
 
 ## Valid planner HOLD retained through the local wizard 2026 10 01
 
