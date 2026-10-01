@@ -20,6 +20,7 @@ import type { LiveIntakeError } from '@/lib/personal-wizard/intake-live-client';
 import type { MediaStreamLike, RecorderSnapshot, RecordingController } from '@/lib/personal-wizard/recorder';
 
 import { ChildBasics } from './ChildBasics';
+import { CueTags } from './CueTags';
 import { DecodingView } from './DecodingView';
 import { FactsList } from './FactsList';
 import { ManualEntry } from './ManualEntry';
@@ -60,6 +61,7 @@ type Props = {
   };
   playback: { playingId: string | null; play: (id: string, url: string) => void; stop: () => void };
   liveIntake: boolean;
+  signInRequired?: boolean;
   intakeNotice: IntakeNotice | null;
   lateIgnored: boolean;
   onStartFixture: (exampleId: FixtureExampleId) => void;
@@ -99,7 +101,6 @@ export function StepTell(props: Props) {
     playback,
     liveIntake,
     voiceCta: copy.voiceCta,
-    hint: copy.durationHint,
     cuesTitle: copy.cuesTitle,
     cues: MUST_HAVE_CUES,
     recordMoreLabel: liveIntake ? copy.recordMore : copy.voiceCtaLocal,
@@ -123,53 +124,47 @@ export function StepTell(props: Props) {
     );
   }
 
-  if (view === 'recording') {
+  // Start and recording are one stage: pressing the microphone keeps the title, the arc of cues and
+  // the microphone in place, and only what is under it changes. The same tree keeps them mounted.
+  if (view === 'start' || view === 'recording') {
+    const idle = view === 'start';
     return (
-      <section className={styles.step} aria-labelledby="pw-step-title">
-        <h1 id="pw-step-title" className={styles.stepTitle} tabIndex={-1} ref={titleRef}>
-          {copy.title}
-        </h1>
-        <RecorderPanel view="recording" {...recorderProps} />
-      </section>
-    );
-  }
-
-  if (view === 'start') {
-    return (
-      <section className={styles.startView} aria-labelledby="pw-step-title">
-        <div className={styles.startHero}>
-          <div className={styles.startText}>
-            <h1 id="pw-step-title" className={styles.stepTitle} tabIndex={-1} ref={titleRef}>
-              {copy.title}
-            </h1>
-            <p className={styles.startLead}>{copy.lead}</p>
-          </div>
-          <div className={styles.startAction}>
-            <RecorderPanel view="start" {...recorderProps} />
+      <section className={styles.voiceStage} data-view={view} aria-labelledby="pw-step-title">
+        <div className={styles.stageText}>
+          <h1 id="pw-step-title" className={styles.stageTitle} tabIndex={-1} ref={titleRef}>
+            {copy.title}
+          </h1>
+          <p className={styles.stageLead}>{copy.lead}</p>
+        </div>
+        <RecorderPanel view="stage" {...recorderProps} />
+        {idle ? (
+          <div className={styles.stageMore}>
             <IntakeStatus notice={props.intakeNotice} />
             <div className={styles.altButtons}>
-              <button type="button" className={styles.altButton} onClick={() => props.onMode('chips')}>
-                <ChipsIcon />
-                {copy.chipsLink}
-              </button>
               <button type="button" className={styles.altButton} onClick={() => props.onMode('write')}>
                 <PenIcon />
                 {copy.writeLink}
               </button>
+              <button type="button" className={styles.altButton} onClick={() => props.onMode('chips')}>
+                <ChipsIcon />
+                {copy.chipsLink}
+              </button>
             </div>
             {liveIntake ? (
               <p className={styles.privacyLine}>{RECORDER.privacyLive}</p>
+            ) : props.signInRequired ? (
+              <p className={styles.privacyLine} role="status">
+                {copy.signInNote}{' '}
+                <a className={styles.inlineLink} href="/login" target="_blank" rel="noopener noreferrer">
+                  {copy.signInLink}
+                </a>
+              </p>
             ) : (
-              <div className={styles.previewNote}>
-                <p>{copy.localNote}</p>
-                <button type="button" className={styles.linkButton} onClick={() => props.onStartFixture('voice')}>
-                  {copy.exampleCta}
-                </button>
-              </div>
+              <p className={styles.privacyLine}>{copy.localNote}</p>
             )}
           </div>
-        </div>
-        <TestPanel {...props} />
+        ) : null}
+        {idle ? <TestPanel {...props} /> : null}
       </section>
     );
   }
@@ -258,11 +253,7 @@ function DetailsCard(
       ) : null}
 
       <section className={styles.factsCard} aria-labelledby="pw-step-title">
-        {heard ? (
-          <p className={styles.cardNoteHeard}>{copy.cardNoteHeard}</p>
-        ) : facts.length > 0 ? (
-          <p className={styles.hint}>{copy.cardNote}</p>
-        ) : null}
+        {heard ? <p className={styles.cardNoteHeard}>{copy.cardNoteHeard}</p> : null}
         <ChildBasics draft={draft} update={update} issues={props.issues} showErrors={props.showErrors} />
         <Conflicts draft={draft} update={update} copy={copy} name={name} topics={props.topics} />
         <MustHaves
@@ -540,12 +531,10 @@ function WriteBox({
 }) {
   return (
     <div className={styles.card}>
-      <label className={styles.label} htmlFor="pw-write">
+      <label className="sr-only" htmlFor="pw-write">
         {copy.writeLabel}
       </label>
-      <p className={styles.hint} id="pw-write-cues">
-        {copy.cuesTitle} {MUST_HAVE_CUES.join(' · ')}
-      </p>
+      <CueTags id="pw-write-cues" cues={MUST_HAVE_CUES} label={copy.cuesTitle} layout="row" />
       <textarea
         id="pw-write"
         className={styles.textarea}

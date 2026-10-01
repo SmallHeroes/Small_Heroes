@@ -135,7 +135,21 @@ const TARGETS: { name: string; selectors: string[]; property: Property }[] = [
   ...bars('.decodeLines', 3),
   ...[1, 2, 3].map((spark) => ({ name: `spark ${spark}`, selectors: ['.decodeSpark', `.decodeSpark[data-spark='${spark}']`], property: 'animation' as const })),
   { name: 'decoding step', selectors: ['.decodeStep'], property: 'animation' },
-  { name: 'recording pulse', selectors: ['.recordPulse', '.recordPulse[data-live]'], property: 'animation' },
+  // The voice stage: the halos breathe at rest and follow the measured input level while listening.
+  { name: 'idle halo', selectors: ['.halo'], property: 'animation' },
+  { name: 'idle halo 2', selectors: ['.halo', ".halo[data-halo='2']"], property: 'animation' },
+  { name: 'voice halo 1', selectors: ['.halo', ".stage[data-phase='recording'] .halo"], property: 'transform' },
+  {
+    name: 'voice halo 2',
+    selectors: [
+      '.halo',
+      ".halo[data-halo='2']",
+      ".stage[data-phase='recording'] .halo",
+      ".stage[data-phase='recording'] .halo[data-halo='2']",
+    ],
+    property: 'transform',
+  },
+  { name: 'cue entrance', selectors: ['.cueArc > .cueTag'], property: 'animation' },
   { name: 'recording dot', selectors: ['.recDot', '.recDot[data-live]'], property: 'animation' },
   { name: 'microphone hover', selectors: ['.recordCircle', '.recordButton:hover .recordCircle'], property: 'transform' },
   { name: 'companion hover', selectors: ['.companionCard', '.companionCard:hover'], property: 'transform' },
@@ -178,7 +192,11 @@ describe('reduced motion wins the cascade in the prototype stylesheet', () => {
     const resolved = motionOf(css).resolve('no-preference');
     const expected: Record<string, string> = {
       'decoding step': 'pw-step-in',
-      'recording pulse': 'pw-breathe',
+      'idle halo': 'pw-glow',
+      'idle halo 2': 'pw-glow',
+      'voice halo 1': 'scale(calc(1 + var(--level, 0) * 0.32))',
+      'voice halo 2': 'scale(calc(1 + var(--level, 0) * 0.5))',
+      'cue entrance': 'pw-cue-in',
       'recording dot': 'pw-pulse',
       'microphone hover': 'scale(1.03)',
       'companion hover': 'translateY(-2px)',
@@ -223,7 +241,11 @@ describe('reduced motion wins the cascade in the prototype stylesheet', () => {
       ...TARGETS.filter((target) => target.name.startsWith('.decode') || target.name.startsWith('spark') || target.name === 'decoding step').map(
         (target) => target.name,
       ),
-      'recording pulse',
+      'idle halo',
+      'idle halo 2',
+      'voice halo 1',
+      'voice halo 2',
+      'cue entrance',
       'microphone hover',
     ]);
   });

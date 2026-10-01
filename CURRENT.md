@@ -1,5 +1,51 @@
 # SmallHeroes — Current Technical State
 
+## Updated recording wizard being promoted to QA
+
+Guy explicitly requested the latest recording screen and its subsequent decoding
+screen on QA. Codex is porting only Claude UI `719dcb7f..2194e9a8` onto
+`codex/personal-site-qa-integration-20260930`, base `86f1bb58`. The current QA
+release branch is `codex/r1d-release-reader-voice-final` at `41359878`; only a
+docs-only predecessor separates these bases. No whole engine merge is intended.
+
+- The older QA parent is retained. A StepTell conflict was resolved with an
+  optional sign-in prop, unused by QA; no availability client or engine API was
+  imported. Paid-off QA explicitly says local clips are not decoded.
+- Draft-loss disclosure now covers unsent writing and retained clips, not only
+  committed facts. It remains hidden during recording/processing. Ten tests cover
+  this boundary. Existing 90-second limit and narration separation remain.
+- Final focused checks: **347/347 in 17 files**, standalone tsc exit 0. Final full
+  check is RED: ordinary 5066 passed / 10 failed / 73 skipped; resource 635/635
+  with three onTaskUpdate RPC errors, native exit 1. No stability PASS.
+- Config-only release check exits 0: 18/18 sellable, 1/18 render-qualified, DB
+  skipped because DATABASE_URL is not configured. No schema/readiness acceptance.
+- `npm run build` stopped at Prisma's locked shared Windows DLL (EPERM). The
+  generated schema differs only in whitespace/comment formatting; separate
+  `npx next build` exits 0. A temporary production-mode preview could not run
+  without configured service env; it was stopped, no fake credentials added.
+  Cloud deployment/runtime verification remain pending.
+- The first complete check had 12 failures: ten recorded fixture failures, a
+  stale copy expectation since corrected, and an unchanged materializer EEXIST.
+  The materializer subsequently passed 31/31 in isolation; causality is unproved.
+- API, ledger, request/draft model, schema, middleware, homepage, StoryPreview,
+  DecodingView and package files are unchanged. Local 3443 pilot and its claims
+  remain untouched. No credential read, provider, render or cost; spend $0.
+- Independent Claude review is pending. Guy retains product acceptance. This is
+  QA-only preview work, not release approval or cloud live writing activation.
+
+Decision and rollback: `docs/ai-workflow/PERSONAL_WIZARD_QA_UI_DECISION_20261001.md`.
+
+### Remote writing prerequisite
+
+Read-only investigation confirms current intake/story budgets are process-memory
+Maps. A safe cloud pilot needs atomic durable shared spend/idempotency and staged
+recoverable jobs; merely relaxing loopback would multiply/reset allowances.
+Existing generation receipts/jobs require paid Orders and cannot be repurposed
+by inventing orders. The current privacy promise says submitted text is not
+stored by us; durable personal facts/manuscripts require an explicit retention,
+deletion and disclosure decision first. Cloud writing remains OFF; neither a UI
+deployment nor the subsequent decoding animation closes these requirements.
+
 ## Personal site — QA-only integration deployed and runtime-checked (2026-09-30)
 
 Codex owns `codex/personal-site-qa-integration-20260930` in the managed

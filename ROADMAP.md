@@ -8,6 +8,21 @@ This roadmap records technical milestone state. Guy can change product priority 
 
 ## Active
 
+### Recording wizard QA UI promotion
+
+Guy authorized the latest recording UI and decoding screen on QA. Port Claude's
+UI only onto the existing QA release branch; preserve its landing/middleware and
+paid-OFF behavior. Local engine at 3443 stays separate. Focused checks 347/347 and
+standalone tsc 0; final full check RED with ten known fixture failures and three
+resource RPC errors. Config-only release check 0, DB skipped. Separate Next build
+0 (npm build blocked by shared Prisma DLL). Runtime verification and independent
+Claude review remain pending. No production rollout,
+live cloud generation or rendering.
+
+Remote personal-story writing next needs durable shared budget/idempotency,
+recoverable stage jobs and a retention/deletion disclosure decision; process
+Maps and one awaited long POST are not a safe cloud pilot boundary.
+
 ### P-personal — voice-first personal adventure product pilot (2026-09-30)
 
 - **Product decision:** resilience/coping is central; difficulty selection remains

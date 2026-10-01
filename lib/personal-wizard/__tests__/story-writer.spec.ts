@@ -175,14 +175,15 @@ describe('writer switches and product copy', () => {
   it('explains how it works, recording first, with the wizard facts and keeps it off the public landing', () => {
     const recording = PERSONAL_HOW_IT_WORKS;
     const [talk, , friend] = recording.steps;
-    // Same span as the wizard's hint, and the hard stop the recorder enforces.
-    expect(tellCopy('', null).durationHint).toContain('חצי דקה עד דקה');
+    // Landing suggests half-to-one minute; the shorter wizard lead invites one minute.
+    // Neither changes the recorder's measured hard stop.
+    expect(tellCopy('', null).lead).toContain('דקה אחת');
     expect(talk.title).toContain('חצי דקה עד דקה');
     expect(LIMITS.recordingMaxMs).toBe(90_000);
     expect(talk.body).toContain('עד דקה וחצי');
     // Writing and ready answers stay alternatives; the recording is never the narration.
     expect(recording.notes.join(' ')).toMatch(/לכתוב.*לבחור/);
-    expect(bookCopy('בר').voiceNote).toContain('ההקלטה לא משמשת לקול הספר');
+    expect(bookCopy('בר').voiceNote).toBe('ההקלטה שלכם לא משמשת לקול הספר.');
     expect(recording.notes.join(' ')).toContain('לא משמשת לקריינות');
     // The FAQ repeats the wizard's privacy line word for word, then the preview's local-only case.
     const faq = getPersonalLandingContent().faq.items.find((item) => item.q === 'מה קורה להקלטה?');

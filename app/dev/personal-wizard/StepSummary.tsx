@@ -221,7 +221,6 @@ export function StepSummary({ draft, options, titleRef, photoUrl, submission, on
       </div>
 
       <div className={styles.statusBox}>
-        <h2 className={styles.sectionTitle}>{copy.connectionTitle}</h2>
         <p className={styles.summaryText}>{copy.connectionBody}</p>
         <div role="status" aria-live="polite" className={styles.submission}>
           {submission.state === 'submitting' ? <p>{copy.finishing}</p> : null}

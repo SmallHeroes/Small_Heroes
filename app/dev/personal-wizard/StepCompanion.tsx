@@ -39,12 +39,8 @@ export function StepCompanion({ draft, update, options, showErrors, titleRef }: 
       <h1 id="pw-step-title" className={styles.stepTitle} tabIndex={-1} ref={titleRef}>
         {copy.title}
       </h1>
-      <p className={styles.stepSub}>{copy.sub}</p>
 
-      <fieldset
-        className={styles.fieldset}
-        aria-describedby={missingCompanion ? 'pw-companion-error' : 'pw-roster-note'}
-      >
+      <fieldset className={styles.fieldset} aria-describedby={missingCompanion ? 'pw-companion-error' : undefined}>
         <legend className="sr-only">{copy.title}</legend>
         <div className={styles.companionGrid}>
           {options.companions.map((companion) => {
@@ -73,9 +69,6 @@ export function StepCompanion({ draft, update, options, showErrors, titleRef }: 
             {copy.missing}
           </p>
         ) : null}
-        <p id="pw-roster-note" className={styles.hint}>
-          {copy.rosterNote}
-        </p>
       </fieldset>
 
       {draft.companionId ? (

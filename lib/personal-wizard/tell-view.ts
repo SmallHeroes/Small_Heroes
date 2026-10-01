@@ -15,6 +15,13 @@ export type TellMode = 'voice' | 'chips' | 'write';
  */
 export type TellView = 'start' | 'recording' | 'processing' | 'write' | 'card';
 
+/** Unsent text and local clips are not draft revisions, but still need a loss disclosure. */
+export function showDraftNotice(step: number, view: TellView, hasRecordedClip: boolean): boolean {
+  if (step !== 1) return true;
+  if (view === 'processing' || view === 'recording') return false;
+  return view === 'write' || view === 'card' || hasRecordedClip;
+}
+
 /** Anything told, picked or typed so far. Once there is, the card replaces the start screen. */
 export function hasTellContent(draft: PersonalBookDraft): boolean {
   return (
