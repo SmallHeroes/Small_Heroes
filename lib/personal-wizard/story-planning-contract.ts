@@ -30,7 +30,8 @@ export type AdventureSelection = z.infer<typeof adventureSelectionSchema>;
 export function adventureSelectionIssue(selection: AdventureSelection, facts: readonly { id: string; kind: string }[], spreads: number, usedPlanFactIds: readonly string[]): string | null {
   const [a, b] = selection.candidates;
   if (a.id !== 'A' || b.id !== 'B') return 'story_selection_identity';
-  const normalize = (s: string) => comparableText(s.normalize('NFKC')).replace(/[\p{P}\p{Z}\p{Cf}\s]/gu, '');
+  // Comparison only: CGJ/variation selectors are Mn, not Cf. Keep stored prose intact.
+  const normalize = (s: string) => comparableText(s.normalize('NFKC')).replace(/[\p{P}\p{Z}\p{Cf}\p{Default_Ignorable_Code_Point}\s]/gu, '');
   if (new Set(selection.contrast.dimensions).size !== selection.contrast.dimensions.length ||
     selection.contrast.dimensions.some(key => normalize(a[key]) === normalize(b[key]))) return 'story_selection_not_distinct';
   const known = new Map(facts.map(fact => [fact.id, fact.kind]));

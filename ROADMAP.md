@@ -10,11 +10,18 @@ This roadmap records technical milestone state. Guy can change product priority 
 
 ### P-personal literary quality milestone (2026-10-01)
 
+- Received independent PASS for `6de84b4f..43978d85` and separately
+  `8695d196..6de84b4f`. Bounded Unicode/regression correction on `43978d85`
+  awaits its own re-gate: focused 430/430 + tsc 0; full gate RED (10 ordinary
+  failures, 635/635 resource tests with three RPC errors); no paid calls. Valid planner
+  HOLD evidence/classification/UX and repo stability remain open. Address the
+  plan-only HOLD boundary before a trial that evaluates held proposals.
 - Bounded adventure-selection successor implemented at base `6de84b4f`: two
   distinct concise proposals inside the existing plan call, retained original
   selection receipt, deterministic soft word targets, offline phase-separated
   blinded review. 12 synthetic profiles registered, not generated/evaluated.
-  Final focused 412/412 + tsc 0; independent QA pending. No creative-improvement
+  Original focused 412/412 + tsc 0; independent technical PASS received through
+  `43978d85`, with non-blocking P3s above. No creative-improvement
   claim. Next: matched old/new FIRST drafts, separate draft/edit comparisons and
   text-only final critique under a fresh bounded text-trial allowance. Do not
   reuse the claimed paid root or distribute all review phases to one reviewer.
@@ -28,8 +35,9 @@ This roadmap records technical milestone state. Guy can change product priority 
 - Latest focused 360/360 + typecheck 0; full gate RED (missing fixtures, resource
   timeouts/RPC errors). Claude technical PASS received for `2da203c2..5f3ba39c`;
   separate availability PASS for `30961ca5..2da203c2`. Small P3 correction
-  (error accounting/diagnosis and regression guards) awaits independent re-gate;
-  focused 372/372, tsc 0. Receipt stripping remains a documented legacy trust limit.
+  (error accounting/diagnosis and regression guards) has independent PASS for
+  `8695d196..6de84b4f`; focused 372/372, tsc 0. Receipt stripping remains a
+  documented legacy trust limit.
 - Next: independent code/creative scrutiny of preserved before/after evidence,
   then a separately bounded text trial of the final successor. Do not pay for
   illustrations while story quality and the earlier storyboard failure are open.

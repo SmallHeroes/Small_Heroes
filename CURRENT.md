@@ -1,5 +1,44 @@
 # SmallHeroes — Current Technical State
 
+## Selection QA received; small regression correction (2026-10-01)
+
+Received Claude technical PASS for `6de84b4f..43978d85` (P0/P1/P2 = 0, four
+non-blocking P3s) and separately `8695d196..6de84b4f` (no new findings). Exact
+attachment identity, topology and review boundaries are in
+`docs/ai-workflow/PERSONAL_SELECTION_P3_CORRECTION_20261001.md`.
+These are independent predecessor verdicts, not acceptance of this correction.
+Same chat/sole writer, `codex/personal-book-storyboard-bridge`, implementation
+worktree `personal-story-product/Small_Heroes`, corrective base `43978d85`.
+
+- P3-2 addressed locally: Default_Ignorable_Code_Point removes CGJ and variation
+  selectors from candidate comparison only. Shared normalizer and stored wording
+  unchanged. Six regression variants fail on the reviewed pre-fix code; all pass
+  after correction. A positive control preserves non-ignorable accented letters.
+- P3-4 regression guards added: corresponding semantic IDs must change with seed;
+  distinct public first-draft prose must occupy both A positions across a frozen
+  seed bank, with private labels matching; every non-fixture source rejects even
+  with all artifact slots absent; actual CLI invalid input leaves no package.
+  Four deliberate breakages yield 1/1/6/2 test failures; all restored. Packager
+  and comparison production code remain byte-identical to the reviewed base.
+- Final focused 14 files 430/430, tsc 0. Full check native 1: ordinary 381 files,
+  10 failed / 5444 passed / 73 skipped; names match the earlier recorded 10.
+  Resource 20 files, 635/635 BUT three onTaskUpdate RPC errors, gate failed.
+  Both typechecks passed. No fresh baseline run or causality/stability closure.
+  Historical six paid artifacts rehashed 6/6 unchanged.
+- P3-1 remains OPEN: valid planner needs_work is remapped to generic book failure
+  and its plan-only evidence is not preserved. The runner test name now describes
+  that honestly, without changing behavior. Fix HOLD evidence/classification/UX
+  in a separate bounded milestone BEFORE evaluating trials with held proposals.
+- P3-3 remains OPEN: extra timeout passing alone does not prove load causality;
+  no thresholds, suppression or historical logs changed. Earlier bridge remains
+  unreviewed. No current-planner literary improvement measured yet.
+
+Correction awaits independent re-gate, not self-PASS. No provider/key-value read,
+paid allowance reset, image/audio, public activation, push or deployment; $0.
+Next substantive path: preserve valid HOLD diagnostics, then matched blind FIRST
+draft comparison on registered profiles, separated from edit/final assessment,
+with a fresh bounded text allowance. Never reopen the claimed historical trial.
+
 ## Adventure selection + phase-separated literary evidence (2026-10-01)
 
 Guy adopted the narrow current-planner improvement plus four refinements: genuinely
@@ -47,8 +86,9 @@ Decision: `docs/ai-workflow/PERSONAL_ADVENTURE_SELECTION_DECISION_20261001.md`.
   fact is a literary verdict or current-planner causal comparison. Zero live
   calls, secret-value reads, dollars, renders, narration, push or deployment.
 
-Independent Claude re-gate pending for this exact successor; the preceding P3
-correction remains separately pending, not silently folded into any prior PASS.
+Independent Claude PASS subsequently received for this exact successor through
+`43978d85` and separately for the preceding correction through `6de84b4f`;
+see the current receipt above. No earlier scope is silently expanded.
 Next substantive evidence: matched blind first-draft comparison on the registered
 profiles, then distinct editing/final reviews. A fresh bounded text execution
 allowance is needed; do not reopen the old one-shot trial or pay for illustrations.
@@ -91,7 +131,8 @@ and `codex/personal-book-storyboard-bridge` branch, correction base `8695d196`.
   renders, server/budget reset, push or deployment. Old estimated $0.280328 and
   unknown seventh-attempt usage remain unchanged.
 
-Independent corrective re-gate pending; no self-awarded closure/PASS. Handoff:
+Independent corrective PASS subsequently received for `8695d196..6de84b4f`;
+see the current receipt above. Original handoff:
 `docs/ai-workflow/PERSONAL_STORY_EDITOR_P3_CORRECTION_20261001.md`.
 Next substantive product evidence is a separately bounded text trial of the final
 one-beat/one-spread writer, not more images or a claim of excellent stories from tests.

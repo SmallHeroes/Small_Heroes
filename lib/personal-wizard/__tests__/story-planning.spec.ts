@@ -45,6 +45,9 @@ describe('current planner selection, distinct from literary acceptance', () => {
     ['duplicate_id', 'story_selection_identity'], ['duplicate_dimensions', 'story_selection_not_distinct'],
     ['identical', 'story_selection_not_distinct'], ['niqqud', 'story_selection_not_distinct'],
     ['bidi', 'story_selection_not_distinct'], ['zero_width', 'story_selection_not_distinct'], ['scenery_dimension', 'story_plan_invalid'],
+    ['cgj', 'story_selection_not_distinct'], ['variation_text', 'story_selection_not_distinct'],
+    ['variation_emoji', 'story_selection_not_distinct'], ['variation_supplement', 'story_selection_not_distinct'],
+    ['variation_mongolian', 'story_selection_not_distinct'], ['variation_mongolian_four', 'story_selection_not_distinct'],
     ['removed_fact', 'story_selection_fact_mismatch'], ['duplicate_fact', 'story_selection_fact_mismatch'],
     ['no_interest', 'story_selection_personal_fact_missing'], ['early_end', 'story_selection_outline_binding'],
     ['foreign_spread', 'story_selection_outline_binding'], ['duplicate_spread', 'story_selection_outline_binding'],
@@ -61,6 +64,13 @@ describe('current planner selection, distinct from literary acceptance', () => {
       if (['niqqud', 'bidi', 'zero_width'].includes(kind)) {
         s.candidates[0].childWant = 'למצוא את המכתב';
         s.candidates[1].childWant = kind === 'niqqud' ? 'לִמְצוֹא אֶת הַמִּכְתָּב' : kind === 'bidi' ? '\u202eלמצוא את המכתב\u202c' : 'למצוא\u200b את המכתב';
+        s.contrast.dimensions = ['childWant'];
+      }
+      const invisible = { cgj: '\u034f', variation_text: '\ufe0e', variation_emoji: '\ufe0f',
+        variation_supplement: '\u{e0100}', variation_mongolian: '\u180b', variation_mongolian_four: '\u180f' };
+      if (kind in invisible) {
+        s.candidates[0].childWant = 'למצוא את המכתב';
+        s.candidates[1].childWant = `למצוא${invisible[kind as keyof typeof invisible]} את המכתב`;
         s.contrast.dimensions = ['childWant'];
       }
       if (kind === 'scenery_dimension') s.contrast.dimensions = ['location'];
@@ -94,6 +104,13 @@ describe('current planner selection, distinct from literary acceptance', () => {
     s.candidates[1] = { ...s.candidates[0], id: 'B', childWant: 'Send the same drawing to the very same cloud' };
     s.contrast.dimensions = ['childWant'];
     expect(adventureSelectionIssue(s, [{ id: 'f_interest0001', kind: 'interest' }], 8, ['f_interest0001'])).toBeNull();
+  });
+  it('preserves stored wording and non-ignorable accented-letter differences', () => {
+    const s = fixtureAdventureSelection();
+    s.candidates[0].childWant = 'Find Élan'; s.candidates[1].childWant = 'Find Elan\u034f';
+    s.contrast.dimensions = ['childWant']; const before = structuredClone(s);
+    expect(adventureSelectionIssue(s, [{ id: 'f_interest0001', kind: 'interest' }], 8, ['f_interest0001'])).toBeNull();
+    expect(s).toEqual(before);
   });
   it.each([8, 12, 16])('strict SDK requires both ideas and still admits editor schema for %i spreads', async count => {
     const context = { brief: { beats: count, requestId: 'r_fixture', resilienceMode: 'adventure_only' as const } };

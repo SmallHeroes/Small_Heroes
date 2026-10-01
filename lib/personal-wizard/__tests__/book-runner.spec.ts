@@ -36,7 +36,7 @@ const errorOf = async (promise: Promise<unknown>): Promise<PersonalBookError> =>
 };
 
 describe('automatic personal manuscript -> full storyboard -> separate semantic review', () => {
-  it('holds a malformed current adventure selection after one paid attempt before all later stages', async () => {
+  it('holds a valid needs_work selection with the current generic diagnosis after one paid attempt before all later stages', async () => {
     const f = await setup(); const output = { ...f.draftResult.plan, adventureSelection: structuredClone(f.draftResult.planning!.selection) };
     output.adventureSelection.outlineChecks.earned_payoff.outcome = 'needs_work';
     vi.mocked(f.provider.story.generate).mockResolvedValue({ output, usage: { inputTokens: 100, outputTokens: 200 } });

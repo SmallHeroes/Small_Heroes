@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createHash } from 'node:crypto';
-import { readFileSync, mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
+import { readFileSync, mkdtempSync, mkdirSync, writeFileSync, rmSync, existsSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { tmpdir } from 'node:os';
 import { buildStoryComparison, renderBlindStoryComparison, storyReviewPacket, STORY_REVIEW_PHASES } from '../story-comparison';
@@ -89,6 +89,36 @@ describe('offline phase-separated blind evidence packaging', () => {
     const partial = buildStoryComparison(manifest, options);
     expect(source(partial)).toBe(source(full)); expect(source(full)).toMatch(/^r[a-f0-9]{24}$/);
   });
+  it('each semantic packet identity changes when only the private seed changes', async () => {
+    const { manifest } = await fixture();
+    const first = buildStoryComparison(manifest, options);
+    const second = buildStoryComparison({ ...manifest, seed: 'another-frozen-private-evaluation-seed' }, options);
+    const identities = (output: typeof first) => new Map((output.privateEvidence.labels as any[])
+      .map(row => [JSON.stringify([row.caseId, row.phase, row.source ?? null]), row.packet]));
+    const before = identities(first), after = identities(second);
+    expect([...after.keys()]).toEqual([...before.keys()]); expect(before.size).toBe(6);
+    for (const [identity, packet] of before) expect(after.get(identity)).not.toBe(packet);
+  });
+  it('counterbalances actual public first-draft prose and keeps private A/B labels aligned', async () => {
+    const { manifest } = await fixture(); const row = manifest.cases[0];
+    // Distinguishable synthetic prose; no edit receipts can mask the assignment.
+    const baseline: any = row.baselineDraft.result, improved: any = row.improvedDraft.result;
+    baseline.manuscript.pages[0].text += ' לפתע התגלגל אגוז אל השביל.';
+    row.baselineEdited = row.improvedEdited = null as any;
+    const texts: Record<string, string> = { baselineDraft: baseline.manuscript.pages[0].text, improvedDraft: improved.manuscript.pages[0].text };
+    expect(texts.baselineDraft).not.toBe(texts.improvedDraft);
+    const inA = new Set<string>();
+    for (let i = 0; i < 12; i++) {
+      manifest.seed = `a-frozen-private-evaluation-seed-${i}`;
+      const output = buildStoryComparison(manifest, options);
+      const pair: any = output.blind.firstDraftPairs[0];
+      const labels: any = (output.privateEvidence.labels as any[]).find(label => label.packet === pair.packet);
+      const a = pair.A.pages[0].text, b = pair.B.pages[0].text;
+      expect(new Set([a, b])).toEqual(new Set(Object.values(texts)));
+      expect(a).toBe(texts[labels.A]); expect(b).toBe(texts[labels.B]); inA.add(a);
+    }
+    expect(inA).toEqual(new Set(Object.values(texts)));
+  });
   it('independently shuffles editing arms instead of always putting the baseline first', async () => {
     const { manifest } = await fixture(); const firstArms = new Set<string>();
     for (let i = 0; i < 12; i++) {
@@ -130,6 +160,26 @@ describe('offline phase-separated blind evidence packaging', () => {
     const output = buildStoryComparison(manifest, options);
     expect(output.blind.firstDraftPairs).toHaveLength(0); expect(output.blind.editingPairs).toHaveLength(1);
     expect(output.privateEvidence.cases[0]).toMatchObject({ planningComparisonAvailable: false, missingSlots: ['improvedDraft', 'improvedEdited'] });
+  });
+  it('accepts an all-fixture registry with no supplied artifacts and retains missing coverage', async () => {
+    const { manifest } = await fixture(); const row = manifest.cases[0];
+    row.baselineDraft = row.baselineEdited = row.improvedDraft = row.improvedEdited = null as any;
+    const output = buildStoryComparison(manifest, options);
+    expect(output.blind.firstDraftPairs).toEqual([]); expect(output.blind.editingPairs).toEqual([]);
+    expect(output.blind.finalTexts).toEqual([]); expect(output.blind.premisePairs).toEqual([]);
+    expect(output.privateEvidence.cases[0]).toMatchObject({ missingSlots: ['baselineDraft', 'baselineEdited', 'improvedDraft', 'improvedEdited'] });
+  });
+  it.each(['name', 'age', 'address', 'residence', 'fact', 'story_place'])('rejects non-fixture %s at the registry without any downstream artifact', async kind => {
+    const { manifest } = await fixture(); const row = manifest.cases[0], request = row.registeredRequest;
+    row.baselineDraft = row.baselineEdited = row.improvedDraft = row.improvedEdited = null as any;
+    if (kind === 'name') request.child.nameSource = 'typed';
+    if (kind === 'age') request.child.ageSource = 'typed';
+    if (kind === 'address') request.child.addressSource = 'typed';
+    if (kind === 'residence') { expect(request.child.residence).not.toBeNull(); request.child.residenceSource = 'typed'; }
+    if (kind === 'fact') { expect(request.facts.length).toBeGreaterThan(0); request.facts[0].source = 'typed'; }
+    if (kind === 'story_place') { expect(request.storyPlace).not.toBeNull(); request.storyPlace!.source = 'typed'; }
+    expect(() => preparePersonalStory(request, options)).not.toThrow();
+    expect(() => buildStoryComparison(manifest, options)).toThrow('story_comparison_synthetic_registry');
   });
   it('is reproducible for a frozen seed and escapes story markup', async () => {
     const { manifest } = await fixture(); const result: any = manifest.cases[0].improvedDraft.result;
@@ -173,6 +223,23 @@ describe('offline phase-separated blind evidence packaging', () => {
       expect(readFileSync(path.join(root, 'private-evidence.json'), 'utf8')).toContain('PRIVATE_SELECTION_SENTINEL');
       expect(() => packageMain(['--manifest', 'does-not-exist', '--output-name', 'synthetic-sample'])).toThrow('already_exists');
       expect(() => packageMain(['--manifest', file, '--output-name', '../escape'])).toThrow('arguments');
+    } finally { rmSync(temporary, { recursive: true, force: true }); }
+  });
+  it.each(['binding', 'schema'])('actual offline command leaves no package behind after rejecting a %s-invalid manifest', async kind => {
+    const { manifest } = await fixture();
+    if (kind === 'binding') manifest.cases[0].improvedDraft.sourceCommit = oldCommit;
+    else manifest.version = 'unsupported-comparison-version';
+    const temporary = mkdtempSync(path.join(tmpdir(), 'personal-comparison-rejected-spec-'));
+    try {
+      const outputs = path.join(temporary, 'outputs'); mkdirSync(outputs);
+      const file = path.join(temporary, 'manifest.json'); writeFileSync(file, JSON.stringify(manifest), { flag: 'wx' });
+      const originalResolve = path.resolve.bind(path);
+      vi.spyOn(path, 'resolve').mockImplementation((...parts) => parts.length === 1 && parts[0] === 'outputs' ? outputs : originalResolve(...parts));
+      const before = readdirSync(outputs); const root = path.join(outputs, 'rejected-sample');
+      const run = () => packageMain(['--manifest', file, '--output-name', 'rejected-sample']);
+      if (kind === 'binding') expect(run).toThrow('story_comparison_request_or_commit');
+      else expect(run).toThrow();
+      expect(existsSync(root)).toBe(false); expect(readdirSync(outputs)).toEqual(before);
     } finally { rmSync(temporary, { recursive: true, force: true }); }
   });
 });
