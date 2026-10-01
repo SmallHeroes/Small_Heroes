@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 const sdk = vi.hoisted(() => ({ create: vi.fn(), options: [] as unknown[] }));
 vi.mock('openai', () => ({ default: class {
   responses = { create: sdk.create }; constructor(options: unknown) { sdk.options.push(options); }
@@ -12,10 +12,13 @@ import { IntakeLedger } from '../intake-ledger';
 import { generationTimeoutMs, personalStoryOutputLimits } from '../story-config';
 import { createPersonalBookProvider, decodePersonalBookProviderOutput, personalBookProviderSchema } from '../book-openai';
 import { STORYBOARD_BOOK_CHECKS, STORYBOARD_FRAME_CHECKS } from '../storyboard';
+import * as storyWriter from '../story-writer';
+import * as storyEditor from '../story-editor';
 
 const options = resolvePersonalWizardOptions();
 const settings: PersonalBookSettings = { model: 'gpt-6-sol', budgetUsd: 5, maxJobs: 3, operators: new Set(['test@example.com']) };
 beforeEach(() => { sdk.create.mockReset(); sdk.options = []; });
+afterEach(() => vi.restoreAllMocks());
 async function setup(length = 'short', companion = 'dragon_dini') {
   const f = await personalStoryboardFixture(length, companion);
   const provider: PersonalBookProvider = {
@@ -33,6 +36,50 @@ const errorOf = async (promise: Promise<unknown>): Promise<PersonalBookError> =>
 };
 
 describe('automatic personal manuscript -> full storyboard -> separate semantic review', () => {
+  it('diagnoses the real editor input limit after exactly two completed writer calls', async () => {
+    const f = await setup('long'); const plan = structuredClone(f.draftResult.plan);
+    for (const beat of plan.beats) for (const key of ['location', 'transitionReason', 'childAction', 'companionAction', 'consequence', 'continuity'] as const) beat[key] = 'x'.repeat(400);
+    vi.mocked(f.provider.story.generate).mockImplementation(async call => ({
+      output: call.stage === 'plan' ? plan : { ...f.draftResult.manuscript, planDigest: JSON.parse(call.input).planDigest,
+        pages: f.draftResult.manuscript.pages.map(page => ({ ...page, text: 'x'.repeat(1500) })) },
+      usage: { inputTokens: 100, outputTokens: 200 },
+    }));
+    const events: { stage: string; outcome: string; code: string | null }[] = [];
+    const failure = await errorOf(generatePersonalBook({ ...f.args, record: event => events.push(event) }));
+    expect(failure.code).toBe('book_editor_input_limit'); expect(failure.accounting?.providerAttempts).toBe(2);
+    expect(events[events.length - 1]).toMatchObject({ stage: 'editor', outcome: 'failed', code: 'book_editor_input_limit' });
+    expect(failure.writerResult?.manuscript.pages).toHaveLength(16);
+    expect(f.provider.story.generate).toHaveBeenCalledTimes(2);
+    expect(f.provider.editor.generate).not.toHaveBeenCalled(); expect(f.provider.visual.generate).not.toHaveBeenCalled();
+    expect(f.ledger.snapshot().inFlight).toBe(0);
+  });
+  it.each(['input_limit', 'source_binding', 'unrecognised'] as const)('keeps paid draft and bounded diagnosis for editor preflight %s', async code => {
+    const f = await setup();
+    vi.spyOn(storyEditor, 'prepareStoryEdit').mockImplementation(() => {
+      if (code === 'unrecognised') throw Error('PRIVATE_PREFLIGHT_SENTINEL');
+      throw new storyEditor.StoryEditorError(code);
+    });
+    const failure = await errorOf(generatePersonalBook(f.args));
+    expect(failure.code).toBe(code === 'unrecognised' ? 'book_editor_invalid' : `book_editor_${code}`);
+    expect(failure.accounting?.providerAttempts).toBe(2);
+    expect(failure.writerResult?.manuscript).toEqual(f.draftResult.manuscript);
+    expect(f.provider.editor.generate).not.toHaveBeenCalled(); expect(f.provider.visual.generate).not.toHaveBeenCalled();
+    expect(f.ledger.snapshot().inFlight).toBe(0);
+    expect(JSON.stringify(failure)).not.toContain('PRIVATE_PREFLIGHT_SENTINEL');
+  });
+  it('refuses a sixth dispatch from a faulty subordinate writer before invoking the provider', async () => {
+    const f = await setup();
+    vi.spyOn(storyWriter, 'writePersonalStory').mockImplementation(async args => {
+      const subordinate = args.provider();
+      for (let i = 0; i < 6; i++) await subordinate.generate(args.prepared.call, args.signal);
+      return f.draftResult;
+    });
+    const failure = await errorOf(generatePersonalBook(f.args));
+    expect(failure.accounting?.providerAttempts).toBe(5);
+    expect(f.provider.story.generate).toHaveBeenCalledTimes(5);
+    expect(f.provider.editor.generate).not.toHaveBeenCalled(); expect(f.provider.visual.generate).not.toHaveBeenCalled();
+    expect(f.ledger.snapshot().inFlight).toBe(0);
+  });
   it('holds an unresolved edit after exactly three calls and keeps the edited text plus original', async () => {
     const f = await setup(); vi.mocked(f.provider.editor.generate).mockImplementation(async call => {
       const output = fixtureEditorOutput(call); output.checks.causal_magic.outcome = 'needs_work';

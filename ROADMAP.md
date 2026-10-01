@@ -18,7 +18,10 @@ This roadmap records technical milestone state. Guy can change product priority 
   Final one-beat/one-spread mapping and stronger adventure/opening guidance are
   offline-tested successors, NOT creatively measured in that paid run.
 - Latest focused 360/360 + typecheck 0; full gate RED (missing fixtures, resource
-  timeouts/RPC errors). Independent Claude re-gate pending; no self-PASS.
+  timeouts/RPC errors). Claude technical PASS received for `2da203c2..5f3ba39c`;
+  separate availability PASS for `30961ca5..2da203c2`. Small P3 correction
+  (error accounting/diagnosis and regression guards) awaits independent re-gate;
+  focused 372/372, tsc 0. Receipt stripping remains a documented legacy trust limit.
 - Next: independent code/creative scrutiny of preserved before/after evidence,
   then a separately bounded text trial of the final successor. Do not pay for
   illustrations while story quality and the earlier storyboard failure are open.
@@ -32,8 +35,8 @@ This roadmap records technical milestone state. Guy can change product priority 
   Voice intake -> reviewed request -> full manuscript/storyboard/semantic diagnostic
   is connected locally on 3443 for an authenticated operator, existing bounded
   $1/eight-intake and $3/one-book allowances. No completed live book yet.
-  Availability/focus correction based on `30961ca5` is implemented, awaiting
-  independent re-gate: focused 467/467, tsc 0; full gate still RED (ten ordinary
+  Availability/focus correction `30961ca5..2da203c2` has Claude technical PASS:
+  focused 467/467 and 6/6 reviewer mutations, tsc 0; full gate still RED (ten ordinary
   failures and resource RPC errors). No provider call or spend in the correction.
   Missing-key reservation behavior and durable tab-independent recovery stay open.
 - **Historical implementation record, before current local activation:** reviewed-request text writer

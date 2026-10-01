@@ -100,7 +100,10 @@ export async function main(argv = process.argv.slice(2)) {
       console.log(JSON.stringify({ stage, status: row.status, usage: row.usage, knownUsageEstimateUsd: measured().knownUsageEstimateUsd }));
       return { ...answer, usage: row.usage };
     } catch (error) {
-      if (row.usage === null) { const usage = usageSchema.safeParse((error as { providerUsage?: unknown })?.providerUsage); row.usage = usage.success ? usage.data : null; }
+      if (row.usage === null) {
+        try { const usage = usageSchema.safeParse((error as { providerUsage?: unknown })?.providerUsage); row.usage = usage.success ? usage.data : null; }
+        catch { /* hostile accessors must not prevent failed/unknown accounting */ }
+      }
       row.status = 'failed'; row.failure = trialFailureDiagnostic(error); save(); throw Error('trial_provider_failed');
     }
   };

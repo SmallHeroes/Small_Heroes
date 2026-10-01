@@ -1,9 +1,45 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { existsSync } from 'node:fs';
+import fs, { existsSync, mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync } from 'node:fs';
+import path from 'node:path';
+import { tmpdir } from 'node:os';
 import { spawnSync } from 'node:child_process';
 import { main, trialFailureDiagnostic } from '../../../scripts/personal-story-editor-trial';
-afterEach(() => vi.restoreAllMocks());
+const sdk = vi.hoisted(() => ({ create: vi.fn() }));
+vi.mock('openai', () => ({ default: class { responses = { create: sdk.create }; } }));
+const tempRoots: string[] = [];
+afterEach(() => {
+  vi.restoreAllMocks(); sdk.create.mockReset();
+  for (const root of tempRoots.splice(0)) rmSync(root, { recursive: true, force: true });
+});
+function isolatedTrial(claimed = false) {
+  const temporary = mkdtempSync(path.join(tmpdir(), 'personal-editor-spec-')); tempRoots.push(temporary);
+  const outputs = path.join(temporary, 'outputs'); mkdirSync(outputs);
+  const root = path.join(outputs, 'personal-story-editor-trial-20261001'); if (claimed) mkdirSync(root);
+  const keyFile = path.join(temporary, 'fake-key.env');
+  writeFileSync(keyFile, 'OPENAI_API_KEY=FAKE_SPEC_KEY_NEVER_SENT\n', { flag: 'wx' });
+  const resolve = path.resolve.bind(path);
+  vi.spyOn(path, 'resolve').mockImplementation((...parts) => parts.length === 1 && parts[0] === 'outputs' ? outputs : resolve(...parts));
+  vi.spyOn(console, 'log').mockImplementation(() => {});
+  return { root, keyFile };
+}
 describe('synthetic story trial is one-shot and dry by default', () => {
+  it('refuses a claimed root before reading even a nonexistent key path or invoking a provider', async () => {
+    const f = isolatedTrial(true); const reads = vi.spyOn(fs, 'readFileSync');
+    const keyFile = f.keyFile + '.missing';
+    await expect(main(['--execute', '--env-file', keyFile])).rejects.toThrow('trial_already_claimed');
+    expect(reads.mock.calls.some(([file]) => String(file) === keyFile)).toBe(false);
+    expect(sdk.create).not.toHaveBeenCalled();
+  });
+  it.each(['providerUsage', 'status', 'message', 'code'] as const)('records failed/unknown despite a throwing %s accessor in a provider error', async getter => {
+    const f = isolatedTrial();
+    sdk.create.mockRejectedValue({ get [getter]() { throw Error('PRIVATE_GETTER_SENTINEL'); } });
+    await expect(main(['--execute', '--env-file', f.keyFile])).rejects.toThrow('story_provider_failed');
+    const raw = readFileSync(path.join(f.root, 'accounting.json'), 'utf8'); const ledger = JSON.parse(raw);
+    expect(ledger.providerAttempts).toBe(1); expect(ledger.estimatedUsd).toBeNull();
+    expect(ledger.rows).toEqual([{ stage: '1/plan', usage: null, status: 'failed', failure: { kind: 'unknown' } }]);
+    expect(raw).not.toMatch(/PRIVATE_GETTER_SENTINEL|FAKE_SPEC_KEY_NEVER_SENT/);
+    expect(sdk.create).toHaveBeenCalledTimes(1);
+  });
   it.each([400, 401, 429, 500])('retains only reported HTTP status %i, not private error contents', status => {
     const result = trialFailureDiagnostic({ status, message: 'SECRET_MESSAGE', body: { key: 'SECRET_KEY' } });
     expect(result).toEqual({ kind: 'reported_http_status', status }); expect(JSON.stringify(result)).not.toContain('SECRET');

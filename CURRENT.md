@@ -1,12 +1,54 @@
 # SmallHeroes — Current Technical State
 
+## Literary-editor QA received; bounded P3 correction (2026-10-01)
+
+Claude delivered technical PASS (P0/P1/P2 = 0, four non-blocking P3s) for exactly
+`2da203c2..5f3ba39c`, with a separate PASS for availability
+`30961ca5..2da203c2`. His Markdown-successor review of `8695d196` was consistent.
+This does not cover the earlier bridge, creative acceptance, visuals or release.
+Received report SHA256 `b5f1ea2010538a3d41ff59d039659945fda572856d5a0759551d1e6ad5026b8f`;
+source path and re-gate targets in the new corrective handoff below.
+
+Same chat/sole Codex writer, same `personal-story-product/Small_Heroes` worktree
+and `codex/personal-book-storyboard-bridge` branch, correction base `8695d196`.
+
+- Corrected hostile `providerUsage` getter handling in the trial ledger. Synthetic
+  mocked SDK probes now record failed/unknown, not started, for throwing usage,
+  code/status/message accessors. No historical accounting was edited or reconstructed.
+- Added internally typed editor failures and bounded runner classification:
+  `book_editor_input_limit` / `book_editor_source_binding`; unknown preflight
+  errors become `book_editor_invalid`, without private exception strings.
+  Actual oversized-input test proves two completed writer attempts, preserved
+  original prose, no editor/visual invocation and released user lock.
+- Added committed regression guards for editing receipt in source identity,
+  claimed-root refusal before key read, and fifth-attempt ceiling even if a faulty
+  subordinate writer tries a sixth dispatch. No production limits changed.
+- P3-3 remains an explicit compatibility/trust limitation: deliberate stripping
+  of the receipt plus accounting can masquerade as legacy offline data. A test
+  documents that fact. It still has runtimeEligible=false and cannot be a complete
+  v2 result. Hashing is not externally authenticated provenance; no false closure.
+- Focused 14 files 372/372, tsc 0, diff check clean. Five deliberate negative-control
+  changes were caught: four properties in one combined run (four failures), then
+  omitted preflight classification (four failures). All mutations restored.
+  No new full check in this small correction; Claude's independently measured
+  predecessor full gate remains RED (10 ordinary failures; resource 635/635 with
+  RPC errors). Non-reproduction of three timeouts does not prove machine-load cause.
+- Paid-trial six artifacts rehashed 6/6 unchanged. No paid calls, real key reads,
+  renders, server/budget reset, push or deployment. Old estimated $0.280328 and
+  unknown seventh-attempt usage remain unchanged.
+
+Independent corrective re-gate pending; no self-awarded closure/PASS. Handoff:
+`docs/ai-workflow/PERSONAL_STORY_EDITOR_P3_CORRECTION_20261001.md`.
+Next substantive product evidence is a separately bounded text trial of the final
+one-beat/one-spread writer, not more images or a claim of excellent stories from tests.
+
 ## Personal story editor + explicit GPT-6.1 Sol option (2026-10-01)
 
 Guy authorised the literary-engine improvement and GPT-6.1 if not materially
 more expensive. Sole Codex writer in `personal-story-product/Small_Heroes`,
 branch `codex/personal-book-storyboard-bridge`, base `2da203c2`, no upstream.
 Decision: `docs/ai-workflow/PERSONAL_STORY_EDITOR_DECISION_20261001.md`.
-Implementation commit: `5f3ba39c`; independent technical QA remains pending.
+Implementation commit: `5f3ba39c`; Claude technical PASS received for the exact range above.
 Copy-ready handoff: `docs/ai-workflow/PERSONAL_STORY_EDITOR_QA_20261001.md`.
 
 - Active book runner now has five bounded calls: whole-story plan -> draft ->
@@ -47,7 +89,8 @@ revisions, partial accounting, text reader), and
 `outputs/personal-story-editor-validation-20261001/` (both full/focused logs).
 Ignored, local-only, no verified off-machine backup. Historical failed usage is
 NOT reconstructed; future trial failures retain safe code/status diagnostics.
-Claude independent QA pending. Actual previous `book_storyboard_invalid` remains
+Claude's scoped technical QA is received; corrective successor remains pending.
+Actual previous `book_storyboard_invalid` remains
 undiagnosed; visual accuracy/continuity, creative acceptance, durable jobs and
 public activation remain open. No push/deploy/catalogue/recording change.
 

@@ -36,6 +36,25 @@ describe('whole-story editing without product or render authority', () => {
     expect(editorNeedsWork(edited)).toBe(true); expect(edited.accounting.estimatedUsd).toBeNull();
     expect(() => preparePersonalStoryboard(f.request, edited, options)).toThrow('editorial_held');
   });
+  it('includes the editing receipt in the visual source identity even when plan and prose are unchanged', async () => {
+    const f = await setup(); const changed = structuredClone(f.result);
+    changed.editing.checks.causal_magic.note += ' Another model observation, not an approval.';
+    assertStoryEditBinding(changed);
+    expect(changed.plan).toEqual(f.result.plan); expect(changed.manuscript).toEqual(f.result.manuscript);
+    const before = preparePersonalStoryboard(f.request, f.result, options);
+    const after = preparePersonalStoryboard(f.request, changed, options);
+    expect(after.sourceDigest).not.toBe(before.sourceDigest);
+  });
+  it('documents that deliberate removal of the receipt can impersonate legacy data, without runtime authority', async () => {
+    const f = await setup(); const held = structuredClone(f.result);
+    held.editing.checks.causal_magic.outcome = 'needs_work';
+    expect(() => preparePersonalStoryboard(f.request, held, options)).toThrow('editorial_held');
+    const { editing: _receipt, accounting, ...unedited } = held;
+    const legacy = { ...unedited, accounting: { ...accounting, providerCalls: 2, usage: accounting.usage.slice(0, 2) } };
+    const source = preparePersonalStoryboard(f.request, legacy, options);
+    expect(source.result.runtimeEligible).toBe(false);
+    expect(editedStoryResultSchema.safeParse(legacy).success).toBe(false);
+  });
   it.each(['request', 'draft', 'pages', 'numbering', 'beats', 'fact', 'interest', 'mode', 'moment', 'duplicate', 'dash', 'direction', 'checks', 'extra'])('rejects edited %s corruption', async kind => {
     const f = await setup(); const raw: any = f.output;
     if (kind === 'request') raw.requestId = 'foreign';

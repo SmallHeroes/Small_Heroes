@@ -6,7 +6,7 @@ import { STORY_PRICES, storyReservationUsd, personalStoryOutputLimits, generatio
 import { IntakeLedger } from './intake-ledger';
 import type { PersonalWizardOptions } from './options';
 import type { StoryUsage, PersonalStoryResult } from './story-contract';
-import { prepareStoryEdit, compileStoryEdit, editorNeedsWork, storyEditorOutputTokens, type StoryEditorProvider } from './story-editor';
+import { prepareStoryEdit, compileStoryEdit, editorNeedsWork, storyEditorOutputTokens, StoryEditorError, type StoryEditorCall, type StoryEditorProvider } from './story-editor';
 import type { EditedStoryResult } from './story-editor-contract';
 import { BOOK_LIMITS, assertPersonalBookSettings, personalBookOutputLimits, personalBookReservationUsd, type PersonalBookSettings } from './book-config';
 import { preparePersonalStoryboard, compilePersonalStoryboard, personalStoryboardReviewInput,
@@ -149,7 +149,16 @@ export async function generatePersonalBook(args: {
     }
     assertCurrent();
     completedManuscript = draftResult;
-    const editorCall = prepareStoryEdit(prepared, draftResult);
+    active = 'editor';
+    let editorCall: StoryEditorCall;
+    try { editorCall = prepareStoryEdit(prepared, draftResult); }
+    catch (error) {
+      // Only internally typed preflight failures become specific public codes.
+      // Unknown errors/messages never cross the diagnostic boundary.
+      if (error instanceof StoryEditorError && error.code === 'input_limit') fail('book_editor_input_limit');
+      if (error instanceof StoryEditorError && error.code === 'source_binding') fail('book_editor_source_binding');
+      return fail('book_editor_invalid');
+    }
     const rawEdited = await dispatch('editor', signal => provider.editor.generate(structuredClone(editorCall), signal));
     let writerResult: EditedStoryResult;
     try { writerResult = compileStoryEdit(prepared, draftResult, rawEdited, stages[stages.length - 1]!.usage); }

@@ -10,7 +10,10 @@ import { editedStoryResultSchema, storyEditorOutputSchema, type EditedStoryResul
 export type StoryEditorCall = { stage: 'editor'; instructions: string; input: string; maxOutputTokens: number };
 export type StoryEditorProvider = { generate(call: StoryEditorCall, signal: AbortSignal): Promise<{ output: unknown; usage: StoryUsage }> };
 const digest = (data: unknown) => createHash('sha256').update(canonicalJson(data)).digest('hex');
-const fail = (code: string): never => { throw Error(`story_editor_${code}`); };
+export class StoryEditorError extends Error {
+  constructor(readonly code: string) { super(`story_editor_${code}`); }
+}
+const fail = (code: string): never => { throw new StoryEditorError(code); };
 export const STORY_EDITOR_INSTRUCTIONS = `${STORY_INSTRUCTIONS}\n${RESILIENCE_INSTRUCTIONS}\n${NARRATIVE_CRAFT_INSTRUCTIONS}
 Act as a demanding Hebrew children's book editor, not as the author's congratulatory reviewer. Read the entire approved brief, outline and draft first.
 Return a COMPLETE revised manuscript AND a matching revised narrative plan, not suggestions or a quality score. Keep strong passages; remove mechanical filler. If the premise or solution does not make sense, simplify/rework it, not just add an explanation. Do not blindly preserve a weak outline. Never insert an example plot from these instructions.
