@@ -22,11 +22,23 @@ guard breakages detected and restored. Real React component with mocked transpor
 Next/auth/provider integration or live creative-quality result is claimed.
 First full check RED: 11 ordinary failures, 5517 passes, 73 skips; ten names match
 prior log, one additional terminal-resume EEXIST passes in isolation. Resource
-635/635 assertions with three RPC errors, native 1. Final restored-code full rerun
-is in progress and will be recorded before handoff; no stability closure.
+635/635 assertions with three RPC errors, native 1. Second full check also RED:
+ordinary 10 failed/5519 passed/73 skipped, resource 5 failed/630 passed plus four
+RPC errors, native 1. No fresh baseline or concurrency cause is proven.
 
-Claude has concurrent UI work in separate dirty `sh-claude-wizard-wow` and site
-worktrees. Codex does not edit/merge those. Reviewer `sh-qa-book-10f54930` stays
+Main implementation is committed at `8c7a408c`. A separate internal read-only
+advisory pass found that terminal-observer cancellation/source drift returned the
+correct error but left HOLD as the last telemetry event. The narrow successor
+records the final failure too; five existing race tests assert it. Final focused
+714/714 and standalone tsc 0 were repeated after this correction. The full rerun
+started before this telemetry delta, which was edited while resource tests were
+still running; no full-check result for the final delta or frozen whole-tree run
+is claimed. The focused run and standalone tsc also overlapped that resource phase.
+No independent technical PASS or repository-stability closure is claimed.
+
+Claude has concurrent UI work in separate `sh-claude-wizard-wow` and site
+worktrees; their HEADs moved during this milestone. Codex does not edit/merge those.
+Their final topology is recorded in the QA brief. Reviewer `sh-qa-book-10f54930` stays
 detached/clean at `719dcb7f`; protected `768ccb2f` and `63ccb484` unchanged.
 No independent PASS for either new milestone, no provider/key value/paid reset,
 image/audio call, push, deployment or public activation; $0. Success contracts,

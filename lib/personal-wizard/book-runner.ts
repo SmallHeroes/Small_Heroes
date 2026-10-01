@@ -215,7 +215,7 @@ export async function generatePersonalBook(args: {
       try { assertCurrent(); }
       catch (changed) {
         const terminal = changed instanceof PersonalBookError ? changed : new PersonalBookError('book_source_changed');
-        terminal.accounting = accounting(); throw terminal;
+        terminal.accounting = accounting(); emit(active, 'failed', terminal.code); throw terminal;
       }
     }
     throw failure;

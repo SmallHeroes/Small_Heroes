@@ -205,6 +205,7 @@ export async function writePersonalStory(args: {
     // Sanitised observer: never includes prompts, facts, prose or credentials. Telemetry cannot retry.
     try { args.record?.({ outcome, code, accounting: accounting() }); } catch { /* observer failure does not change provider outcome */ }
     if (outcome === 'held' && signal.aborted) {
+      try { args.record?.({ outcome: 'failed', code: 'story_cancelled', accounting: accounting() }); } catch { /* observer cannot conceal cancellation */ }
       const cancelled = new StoryWriterError('story_cancelled'); cancelled.accounting = accounting(); throw cancelled;
     }
   }

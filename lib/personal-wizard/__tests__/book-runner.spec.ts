@@ -71,7 +71,9 @@ describe('automatic personal manuscript -> full storyboard -> separate semantic 
     const f = await setup(); const output = { ...f.draftResult.plan, adventureSelection: structuredClone(f.draftResult.planning!.selection) };
     output.adventureSelection.outlineChecks.earned_payoff.outcome = 'needs_work';
     vi.mocked(f.provider.story.generate).mockResolvedValue({ output, usage: { inputTokens: 100, outputTokens: 200 } });
+    const events: { stage: string; outcome: string; code: string | null }[] = [];
     const failure = await errorOf(generatePersonalBook({ ...f.args, record: event => {
+      events.push(event);
       if (event.stage === 'plan' && event.outcome === (mode.endsWith('finished') ? 'finished' : 'held')) {
         if (mode.startsWith('source')) f.request.child.name = 'בר'; else f.controller.abort();
       }
@@ -80,6 +82,7 @@ describe('automatic personal manuscript -> full storyboard -> separate semantic 
     expect(failure).not.toHaveProperty('planningResult'); expect(failure.writerResult).toBeUndefined();
     expect(failure).not.toHaveProperty('framePackets'); expect(failure.accounting?.providerAttempts).toBe(1);
     expect(failure.accounting?.estimatedUsd).toBeCloseTo(.0022); expect(f.ledger.snapshot().inFlight).toBe(0);
+    expect(events[events.length - 1]).toMatchObject({ stage: 'plan', outcome: 'failed', code: failure.code });
     expect(f.provider.editor.generate).not.toHaveBeenCalled(); expect(f.provider.visual.generate).not.toHaveBeenCalled();
   });
   it('never treats a bare outline error code or invalid subordinate hold as validated evidence', async () => {

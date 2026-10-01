@@ -139,12 +139,14 @@ describe('current planner selection, distinct from literary acceptance', () => {
   it('suppresses an otherwise valid HOLD if the terminal observer cancels before delivery', async () => {
     const f = await setup(output => { output.adventureSelection.outlineChecks.earned_payoff.outcome = 'needs_work'; });
     const controller = new AbortController();
+    const events: { outcome: string; code: string | null }[] = [];
     const error = await writePersonalStory({ prepared: f.prepared, userId: 'synthetic', jobId: 's_latecancel001',
       settings: { model: 'gpt-6-sol', budgetUsd: 1, maxJobs: 1, operators: new Set() }, ledger: f.ledger,
-      signal: controller.signal, provider: () => f.p, record: () => controller.abort() }).catch(error => error);
+      signal: controller.signal, provider: () => f.p, record: event => { events.push(event); controller.abort(); } }).catch(error => error);
     expect(error.code).toBe('story_cancelled'); expect(error).not.toHaveProperty('planningResult');
     expect(error.accounting.providerCalls).toBe(1); expect(error.accounting.estimatedUsd).toBe(.0007);
     expect(f.ledger.snapshot().inFlight).toBe(0);
+    expect(events[events.length - 1]).toMatchObject({ outcome: 'failed', code: 'story_cancelled' });
   });
   it('does not promote a provider-thrown typed HOLD to an engine-validated planning observation', async () => {
     const f = await setup(output => { output.adventureSelection.outlineChecks.earned_payoff.outcome = 'needs_work'; });

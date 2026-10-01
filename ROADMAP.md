@@ -13,7 +13,10 @@ This roadmap records technical milestone state. Guy can change product priority 
 - At base `4de61548`, valid planner HOLD diagnostics are implemented through writer,
   runner, authenticated local routes and wizard; independent re-gate pending.
   Plan-only evidence/one attempt/no retry/no rendering authority. Focused 714/714,
-  tsc 0, browser 38/38 with mocked transport; full check RED, final rerun pending.
+  tsc 0, browser 38/38 with mocked transport. Main code `8c7a408c`; narrow successor
+  aligns terminal observer telemetry with cancellation/source drift. Final focused
+  714/714 + tsc 0 repeated. Two full runs RED; final delta was made during resource
+  phase and has no frozen full-check result. Stability remains open.
   Next quality step is a separately bounded creative comparison, not another
   declaration that structural tests establish literary quality.
 - Received independent PASS for `6de84b4f..43978d85` and separately
