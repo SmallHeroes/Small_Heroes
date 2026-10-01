@@ -19,7 +19,8 @@ This roadmap records technical milestone state. Guy can change product priority 
   native 1: ordinary ten failures, resource 635/635 plus three RPC timeouts. No
   fresh baseline-causality claim. No real microphone/provider
   rerun, independent PASS, push or public/QA deployment. Manual local pilot's
-  single intake/story limits remain unchanged. Immutable QA handoff follows.
+  single intake/story limits remain unchanged. Code `961fcd20..4eacbb96`; ready
+  independent handoff `PERSONAL_RECORDING_UI_INTEGRATION_QA_20261001.md`.
 
 - Guy's edited story-only reading path implemented from `b2552fc4`: existing
   runner/endpoint, three scoped calls, whole manuscript and editor display,

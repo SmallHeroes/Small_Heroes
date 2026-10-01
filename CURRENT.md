@@ -2,6 +2,9 @@
 
 ## Latest recording UI on the text engine 2026 10 01
 
+Committed integration `4eacbb96`, frozen code range `961fcd20..4eacbb96`, local
+and unpushed. Independent QA brief:
+`docs/ai-workflow/PERSONAL_RECORDING_UI_INTEGRATION_QA_20261001.md`.
 Guy correctly reported that 3443 still showed the previous recording UI. The
 engine branch had not imported Claude's isolated `719dcb7f..2194e9a8` work.
 Codex integrated that exact UI range onto `961fcd20`, in the same chat/worktree
@@ -36,7 +39,7 @@ audio/text processing or story-generation action invoked. Existing listener PID
 145892 remains loopback-only; no server restart or allowance reset. Ignored local
 logs/observation receipt: `outputs/personal-recording-ui-integration-20261001/`,
 no verified backup. Existing paid comparison claim SHA unchanged. Final committed
-QA handoff follows; Claude's UI implementation is not its own independent PASS.
+QA handoff is ready; Claude's UI implementation is not its own independent PASS.
 A proposed live-code mutation of the loss warning was declined by safety review
 before execution: no mutation/control run occurred. The ten policy cases and real
 write-view observation are positive evidence only, not a mutation-test claim.
