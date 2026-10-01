@@ -10,8 +10,9 @@ export const trialSlotReservation = (slot: TrialSlot) => (64_000 * 2 + slot.maxO
 export function safeUsage(raw: unknown): StoryUsage {
   try {
     const u = raw as { inputTokens?: unknown; outputTokens?: unknown };
-    return Number.isSafeInteger(u?.inputTokens) && Number.isSafeInteger(u?.outputTokens) && Number(u.inputTokens) >= 0 && Number(u.outputTokens) >= 0
-      ? { inputTokens: Number(u.inputTokens), outputTokens: Number(u.outputTokens) } : null;
+    const inputTokens = u?.inputTokens, outputTokens = u?.outputTokens;
+    return typeof inputTokens === 'number' && typeof outputTokens === 'number' && Number.isSafeInteger(inputTokens) && Number.isSafeInteger(outputTokens) && inputTokens >= 0 && outputTokens >= 0
+      ? { inputTokens, outputTokens } : null;
   } catch { return null; }
 }
 function realDirectory(dir: string) {
@@ -22,6 +23,7 @@ export class TrialFamilyGuard {
   readonly reservedUsd: number;
   private readonly rows: Row[] = [];
   private stopped = false;
+  private closed = false;
   private busy = false;
   private readonly journal: string;
   private constructor(claim: string, private readonly slots: TrialSlot[]) {
@@ -65,13 +67,16 @@ export class TrialFamilyGuard {
     this.rows.push(row); this.busy = true;
     try {
       this.persist({ event: 'dispatch_started', row }); // Durable BEFORE adapter dispatch.
-      const result = await run(); row.usage = safeUsage(result.usage); row.status = 'completed';
+      const result = await run();
+      if (this.closed) throw Error('trial_terminal');
+      row.usage = safeUsage(result.usage); row.status = 'completed';
       this.persist({ event: 'dispatch_completed', row });
       if (this.snapshot().knownUsageEstimateUsd > this.reservedUsd || (row.usage &&
         ((row.usage.inputTokens * 2 + row.usage.outputTokens * 10) / 1e6 > trialSlotReservation(slot)))) throw Error('trial_reservation_exceeded');
       if (!row.usage) throw Error('trial_usage_unknown');
       return { ...result, usage: row.usage };
     } catch (error) {
+      if (this.closed) throw error; // Late results cannot rewrite a sealed terminal receipt.
       if (!row.usage) { try { row.usage = safeUsage((error as { providerUsage?: unknown })?.providerUsage); } catch { /* untrusted errors */ } }
       row.status = 'failed'; this.stopped = true;
       this.persist({ event: 'dispatch_failed', row });
@@ -79,6 +84,7 @@ export class TrialFamilyGuard {
     } finally { this.busy = false; }
   }
   stop(reason: string) {
+    this.closed = true;
     this.stopped = true;
     this.persist({ event: 'terminal', reason: /^trial_[a-z_]+$/.test(reason) ? reason : 'trial_failed', accounting: this.snapshot() });
   }

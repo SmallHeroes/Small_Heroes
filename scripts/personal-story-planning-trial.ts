@@ -48,12 +48,12 @@ export async function executeCohort(args: { old: FrozenEngine; current: FrozenEn
     cases: profiles.map(profile => ({ id: profile.id, split: profile.split, registeredRequest: profile.request,
       baselineDraft: null as null | unknown, baselineEdited: null, improvedDraft: null as null | unknown, improvedEdited: null as null | unknown })) };
   const drafts = new Map<string, { prepared: PreparedStory; result: PersonalStoryResult }>();
-  const tracked = async (id: string, call: StoryCall | StoryEditorCall, generate: (s: AbortSignal) => Promise<{ output: unknown; usage: PersonalStoryResult['accounting']['usage'][number] }>) => {
-    if (signal.aborted) throw Error('trial_cancelled');
+  const tracked = async (id: string, call: StoryCall | StoryEditorCall, generate: (s: AbortSignal) => Promise<{ output: unknown; usage: PersonalStoryResult['accounting']['usage'][number] }>, stageSignal = signal) => {
+    if (stageSignal.aborted) throw Error('trial_cancelled');
     const filename = id.split('/').join('-');
     saveJson(root, `${filename}-call.json`, { kind: 'orchestrator_call_not_raw_sdk_response',
       call, instructionsSha256: hash(call.instructions), inputSha256: hash(call.input) });
-    const answer = await guard.dispatch(id, call.maxOutputTokens, () => withGenerationDeadline(call.maxOutputTokens, signal,
+    const answer = await guard.dispatch(id, call.maxOutputTokens, () => withGenerationDeadline(call.maxOutputTokens, stageSignal,
       () => Error('trial_deadline'), generate));
     saveJson(root, `${filename}-output.json`, { kind: 'adapter_normalized_output_not_raw_provider_response', ...answer });
     writeFileSync(path.join(root, 'accounting.json'), JSON.stringify(guard.snapshot(), null, 2));
@@ -72,7 +72,7 @@ export async function executeCohort(args: { old: FrozenEngine; current: FrozenEn
         try {
           const result = await engine.writePersonalStory({ prepared, userId: 'synthetic_matched_trial', jobId: `${profile.id}_${arm}`,
             ledger: new engine.IntakeLedger(), settings: { model: TRIAL_MODEL, budgetUsd: 5, maxJobs: 1, operators: new Set() }, signal,
-            provider: () => ({ generate: call => tracked(`${profile.id}/${arm}/${call.stage}`, call, s => provider.generate(call, s)) }) });
+            provider: () => ({ generate: (call, stageSignal) => tracked(`${profile.id}/${arm}/${call.stage}`, call, s => provider.generate(call, s), stageSignal) }) });
           const artifact = { sourceCommit: arm === 'baseline' ? TRIAL_BASELINE : TRIAL_CURRENT, reasoning: 'medium', request: profile.request, result };
           saveJson(root, `${profile.id}-${arm}-draft.json`, artifact);
           manifest.cases[index][arm === 'baseline' ? 'baselineDraft' : 'improvedDraft'] = artifact;

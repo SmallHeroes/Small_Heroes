@@ -10,6 +10,15 @@ This roadmap records technical milestone state. Guy can change product priority 
 
 ### P-personal literary quality milestone (2026-10-01)
 
+- Approved comparison family executed at `91efe289` and stopped after three
+  calls: estimate $0.123724, reservation $4.158 retained. Current plan failed
+  ending-reference binding; only one baseline first draft exists, no matched
+  quality comparison. Historical/new paid roots and consumed claim preserved.
+  Harness terminal/deadline corrections: focused 233/233, tsc 0; full check RED,
+  new inventory failure corrected without claiming a fresh full green. Guy's
+  next priority: edited story-only wizard, no storyboard/image/audio spend.
+  Reuse existing runner and operator gates; independent QA still required.
+
 - Guy approved the new bounded matched text trial. Experiment harness prepared
   at `a5d8d6bc`: actual Git-frozen old/current chains, registered development
   profiles 1/5/9, six drafts then three current edits, maximum fifteen calls,

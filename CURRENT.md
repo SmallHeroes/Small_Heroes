@@ -1,5 +1,40 @@
 # SmallHeroes — Current Technical State
 
+## Text comparison stopped; reading-only wizard requested 2026 10 01
+
+Harness commit `91efe289` ran the approved family exactly once. Three completed
+provider calls, known usage estimate $0.123724, retained reservation $4.158.
+Baseline profile 1 produced an eight-spread first draft. The current planner
+returned ending evidence [2,5,6] for an eight-spread plan and was rejected by
+`story_selection_outline_binding` before its manuscript. No matched comparison,
+edit, remaining profile, image or audio call occurred. The consumed common-Git
+claim and ignored paid root `outputs/personal-planning-comparison-20261001/`
+remain unchanged; `failure.json` historically reports `unknown` because that
+diagnostic allowlist omitted the structural code. Do not rewrite that receipt.
+
+Offline replay against the actual frozen current writer reproduces the structural
+failure with one mocked dispatch, no provider/key access. Headroom was not the
+failure: current plan output used 5189 of 12000 output tokens. No literary-quality
+conclusion follows. The provider schema does not constrain ending references to
+the final spread although server compilation requires it.
+
+Post-run harness correction forwards the subordinate writer deadline signal,
+seals terminal accounting against late completions, and reads usage properties
+once. These corrections were NOT in the paid run's frozen `91efe289` process.
+Focused 233/233 across seven specs (26 harness tests), tsc 0. Initial full check
+at `91efe289`: native exit 1; ordinary 11 failures/5543 passed/73 skipped,
+resource 635 assertions passed with three RPC errors. One ordinary failure was
+our new test inventory count: fixed separately, classifier now 7/7. The ten other
+failure names match recorded history, not a newly proven baseline cause. No
+post-correction full check or stability/release PASS is claimed.
+
+Guy now requests recording/reviewed facts through a complete story for reading,
+without rendering. Existing `/book` already calls no image/audio provider, but
+also pays for storyboard and semantic review. Next implementation will explicitly
+stop the existing runner after editing, with three-stage quotes and honest text
+display, preserving its default five-stage behavior and all operator gates.
+No reopening the stopped comparison; independent technical QA pending. No push.
+
 ## Approved matched text trial preparation 2026 10 01
 
 Guy approved proceeding with the new $5 text-only comparison and existing key.

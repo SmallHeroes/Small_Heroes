@@ -17,7 +17,7 @@ function temp() {
   return { root, common, output: path.join(outputs, TRIAL_FAMILY) };
 }
 afterEach(() => {
-  vi.unstubAllGlobals(); vi.restoreAllMocks();
+  vi.useRealTimers(); vi.unstubAllGlobals(); vi.restoreAllMocks();
   for (const root of temporaries.splice(0)) {
     if (!path.resolve(root).startsWith(path.resolve(tmpdir()) + path.sep) || !path.basename(root).startsWith('sh-planning-trial-')) throw Error('unsafe_test_cleanup');
     rmSync(root, { recursive: true, force: true });
@@ -94,6 +94,20 @@ describe('persistent aggregate family boundary', () => {
   it('hostile usage is unknown and Git overrides are removed', () => {
     expect(safeUsage({ get inputTokens() { throw Error('PRIVATE'); } })).toBeNull();
     expect(Object.keys(gitEnvironment()).some(key => key.toUpperCase().startsWith('GIT_'))).toBe(false);
+  });
+  it('changing usage getters are read once, not validated then re-read', () => {
+    let reads = 0;
+    expect(safeUsage({ get inputTokens() { return ++reads === 1 ? 100 : Infinity; }, outputTokens: 200 })).toEqual(usage);
+    expect(reads).toBe(1);
+  });
+  it.each(['success', 'failure'])('terminal close freezes late %s accounting', async outcome => {
+    const f = temp(); const guard = TrialFamilyGuard.claim(f.common, f.output, [{ id: 'one', maxOutputTokens: 100 }], {});
+    let finish!: () => void;
+    const dispatch = guard.dispatch('one', 100, () => new Promise((resolve, reject) => {
+      finish = () => outcome === 'success' ? resolve({ output: {}, usage }) : reject(Object.assign(Error('late'), { providerUsage: usage }));
+    }));
+    const rejected = expect(dispatch).rejects.toThrow(); guard.stop('trial_timeout'); const sealed = guard.snapshot(); finish(); await rejected;
+    expect(guard.snapshot()).toEqual(sealed); expect(sealed.estimatedUsd).toBeNull();
   });
 });
 
@@ -179,4 +193,16 @@ describe('frozen engines through real SDK adapters with mocked HTTP', () => {
     await expect(main(['--resume'])).rejects.toThrow('trial_arguments');
     await expect(main(['--execute', '--output-root', '/other'])).rejects.toThrow('trial_arguments');
   });
+  it('writer deadline propagates its stage signal without root cancellation', async () => {
+    const f = temp(); const plan = trialPlan(old.engine, current.engine); const guard = TrialFamilyGuard.claim(f.common, f.output, plan.slots, {});
+    let finish!: (response: Response) => void, started!: () => void, payload: any;
+    const began = new Promise<void>(resolve => { started = resolve; });
+    vi.stubGlobal('fetch', vi.fn(async (_url: unknown, init: any) => { payload = JSON.parse(init.body); started(); return new Promise<Response>(resolve => { finish = resolve; }); }));
+    vi.useFakeTimers(); const controller = new AbortController();
+    const execution = executeCohort({ old: old.engine, current: current.engine, guard, profiles: plan.profiles, root: f.output, key: 'FAKE_SPEC_KEY', signal: controller.signal });
+    const failed = expect(execution).rejects.toThrow(); await began; await vi.advanceTimersByTimeAsync(380_000); await failed;
+    expect(controller.signal.aborted).toBe(false); guard.stop('trial_timeout'); const sealed = guard.snapshot();
+    expect(sealed.rows[0].status).toBe('failed'); finish(mockResponse(payload)); await vi.advanceTimersByTimeAsync(10);
+    expect(guard.snapshot()).toEqual(sealed); expect(existsSync(path.join(f.output, 'synthetic_1-baseline-plan-output.json'))).toBe(false);
+  }, 30_000);
 });
