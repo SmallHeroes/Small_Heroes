@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { wholeBookDraftSchema } from '../local-book-planning';
 import { personalStoryboardReviewSchema, STORYBOARD_BOOK_CHECKS, STORYBOARD_FRAME_CHECKS } from './storyboard';
 import { createPersonalStoryProvider } from './story-openai';
+import { createStoryEditorProvider } from './story-editor-openai';
 import { generationTimeoutMs, type StoryModel } from './story-config';
 import { BOOK_LIMITS, personalBookOutputLimits } from './book-config';
 import type { BookVisualCall, PersonalBookProvider } from './book-runner';
@@ -58,7 +59,7 @@ export function decodePersonalBookProviderOutput(call: BookVisualCall, raw: unkn
 /** Caller must validate request/settings and reserve the entire job before constructing this. */
 export function createPersonalBookProvider(apiKey: string, model: StoryModel): PersonalBookProvider {
   const client = new OpenAI({ apiKey, maxRetries: 0 });
-  return { story: createPersonalStoryProvider(apiKey, model), visual: { async generate(call, signal) {
+  return { story: createPersonalStoryProvider(apiKey, model), editor: createStoryEditorProvider(apiKey, model), visual: { async generate(call, signal) {
     const schema = personalBookProviderSchema(call);
     const limits = personalBookOutputLimits(call.context.narrativeSpreads);
     const expectedTokens = call.stage === 'storyboard' ? limits.storyboardOutputTokens : limits.reviewOutputTokens;

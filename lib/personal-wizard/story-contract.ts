@@ -44,7 +44,7 @@ export type PersonalStoryPlan = z.infer<typeof personalStoryPlanSchema>;
 export type PersonalManuscript = z.infer<typeof personalManuscriptSchema>;
 export type StoryUsage = { inputTokens: number; outputTokens: number } | null;
 const usageSchema = z.object({ inputTokens: z.number().int().nonnegative(), outputTokens: z.number().int().nonnegative() }).strict().nullable();
-export const personalStoryResultSchema = z.object({
+export const personalStoryResultObjectSchema = z.object({
   status: z.literal('manuscript_preview'),
   requestId: z.string().min(1),
   manuscript: personalManuscriptSchema,
@@ -59,7 +59,8 @@ export const personalStoryResultSchema = z.object({
     reservedUsd: z.number().finite().nonnegative(), estimatedUsd: z.number().finite().nonnegative().nullable(),
     usage: z.array(usageSchema).max(2), kind: z.literal('usage_estimate_not_invoice'),
   }).strict(),
-}).strict().superRefine((result, ctx) => {
+}).strict();
+export const personalStoryResultSchema = personalStoryResultObjectSchema.superRefine((result, ctx) => {
   const count = result.displayPages / 2;
   if (result.plan.requestId !== result.requestId || result.manuscript.requestId !== result.requestId || result.manuscript.planDigest !== result.planDigest ||
       result.plan.beats.length !== count || result.manuscript.pages.length !== count ||

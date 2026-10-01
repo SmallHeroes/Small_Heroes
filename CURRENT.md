@@ -1,5 +1,54 @@
 # SmallHeroes — Current Technical State
 
+## Personal story editor + explicit GPT-6.1 Sol option (2026-10-01)
+
+Guy authorised the literary-engine improvement and GPT-6.1 if not materially
+more expensive. Sole Codex writer in `personal-story-product/Small_Heroes`,
+branch `codex/personal-book-storyboard-bridge`, base `2da203c2`, no upstream.
+Decision: `docs/ai-workflow/PERSONAL_STORY_EDITOR_DECISION_20261001.md`.
+
+- Active book runner now has five bounded calls: whole-story plan -> draft ->
+  literary editor -> storyboard -> semantic review. Editor returns complete
+  revised plan/prose and six model observations. Original draft is preserved;
+  hashes, numbering, approved fact IDs, exclusions and length binding are checked
+  in code. Any `needs_work` holds before both visual calls. No rewrite loop.
+- Complete browser envelope is diagnostic-v2 and requires an edited manuscript;
+  old two-call drafts remain partial/offline diagnostic data, never silently
+  promoted. No runtime/acceptance authority, image or public rollout added.
+- Exact `gpt-6.1-sol` is priced/allowed, no alias/fallback. Official base rates
+  verified $2/$10 per million input/output, same as GPT-6 Sol. New synthetic
+  experiment used 6.1 Medium; old 3443 process/allowances were not reset/restarted.
+  Full-job Sol reservations now $2.1186/$2.3496/$2.6356; Astra cannot fit the
+  existing $10 hard cap even at short length. Caps/budget were not lowered/raised.
+- Latest focused engine regression: 360/360, 14 files, native 0; tsc 0.
+  Two full checks remain RED. First: ordinary 11 failures (10 familiar missing
+  fixtures plus a newly required adapter-inventory update, since corrected),
+  resource 635/635 but three RPC errors. Second: ordinary 10 familiar failures,
+  5338 passed/73 skipped; resource 632 passed/3 timeouts plus three RPC errors.
+  Both native 1. Final prompt-mapping/failure-diagnostic follow-ups were validated
+  by focused tests/typecheck, not a third full check. No stability closure.
+- Real bounded text experiment: two completed draft+editor pairs (8/12 spreads),
+  then third profile's plan invocation failed without usage. 7 provider-method
+  invocations, six measured completions; known usage estimate $0.280328, total
+  unknown, $2.838 reserved (NOT charged). No retry, comparison call, 16-spread
+  result, image or narration. Do not claim a complete successful three-length trial.
+- In BOTH measured raw drafts, exact array length did not establish a finished
+  plot: prose split early beats and stopped mid-story. Both editor passes restored
+  endings. The final successor now supplies explicit one-beat/one-spread mapping
+  and final resolution; clearer adventure/opening guidance was also added. This
+  removes ambiguity, not proven causal cure: those final changes have no paid
+  replay. First revised story is still too stationary and 7/8 texts exceed the
+  writer's 65-word age-five target. Model `ready_for_reading` is not creative PASS.
+
+Evidence roots: `outputs/personal-story-editor-trial-20261001/` (originals,
+revisions, partial accounting, text reader), and
+`outputs/personal-story-editor-validation-20261001/` (both full/focused logs).
+Ignored, local-only, no verified off-machine backup. Historical failed usage is
+NOT reconstructed; future trial failures retain safe code/status diagnostics.
+Claude independent QA pending. Actual previous `book_storyboard_invalid` remains
+undiagnosed; visual accuracy/continuity, creative acceptance, durable jobs and
+public activation remain open. No push/deploy/catalogue/recording change.
+
 ## Personal live pilot — Claude PASS received, availability correction implemented (2026-09-30)
 
 Claude's received technical verdict is PASS, no P0/P1/P2, for exactly

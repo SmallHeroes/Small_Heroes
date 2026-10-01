@@ -40,8 +40,8 @@ describe('personal Wizard prototype boundaries', () => {
     }
   });
 
-  it('confines provider SDKs to the three isolated server adapters and key access to one module', () => {
-    const PROVIDER_SDK_ALLOWED = ['lib/personal-wizard/intake-openai.ts', 'lib/personal-wizard/story-openai.ts', 'lib/personal-wizard/book-openai.ts'];
+  it('confines provider SDKs to the four isolated server adapters and key access to one module', () => {
+    const PROVIDER_SDK_ALLOWED = ['lib/personal-wizard/intake-openai.ts', 'lib/personal-wizard/story-openai.ts', 'lib/personal-wizard/book-openai.ts', 'lib/personal-wizard/story-editor-openai.ts'];
     const KEY_READ_ALLOWED = 'lib/personal-wizard/intake-config.ts';
     for (const file of files) {
       const source = read(file);
@@ -60,7 +60,7 @@ describe('personal Wizard prototype boundaries', () => {
     const clientFiles = files.filter((file) => file.startsWith('app/dev/personal-wizard/') && file !== 'app/dev/personal-wizard/page.tsx');
     for (const file of clientFiles) {
       expect(read(file), file).not.toMatch(
-        /^import (?!type)[^;]*from '@\/lib\/personal-wizard\/(intake-openai|intake-service|intake-gate|intake-config|intake-ledger|audio-probe|story-openai|story-writer|story-access|story-config|storyboard|book-openai|book-runner|book-config)'/m,
+        /^import (?!type)[^;]*from '@\/lib\/personal-wizard\/(intake-openai|intake-service|intake-gate|intake-config|intake-ledger|audio-probe|story-openai|story-writer|story-access|story-config|storyboard|book-openai|book-runner|book-config|story-editor|story-editor-openai)'/m,
       );
     }
   });

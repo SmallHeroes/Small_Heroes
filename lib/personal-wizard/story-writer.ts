@@ -24,6 +24,17 @@ export const STORY_INSTRUCTIONS = `Write an original Hebrew children's adventure
 
 export const RESILIENCE_INSTRUCTIONS = `Resilience is a story principle, not a compulsory emotional worksheet. When a topic is deliberately chosen, make it affect events and the child's concrete choices: a boundary, requesting closeness/help, preparing for uncertainty or trying a different idea. Let the companion care and sometimes need the child's help too. End with a modest observable step, not a claim that fear vanished. In adventure_only mode, use uncertainty, flexibility and mutual help arising from fictional events without inventing a real difficulty for the child. Do not force the same coping sequence into every story. resilience.moments cite actual beats in this plan and what the child chooses/what helps there; this is proposed editorial evidence, not a diagnosis or benefit claim.`;
 
+export const NARRATIVE_CRAFT_INSTRUCTIONS = `Make a story a child wants to hear again, not a checklist of correct behaviour.
+Begin with a recognisable moment in this child's world, using the approved name and a useful interest/habit or supplied place. Let fantasy interrupt that moment rather than drop a generic hero into an unrelated magical game. A supplied residence may anchor the opening without inventing an exact house, local landmark, sibling or history. Do not cram every fact into a biography.
+childGoal must explain why THIS child cares about the fictional goal, not just name an object to retrieve. Use approved interests or a small personal habit causally; do not invent real history to manufacture a motive.
+Give the child a felt experience: anticipation, disappointment, hesitation, relief or delight shown in perception, bodily reaction, a thought or speech. An active hero can be frightened or unsure. Do not transfer the entire emotional arc to the companion. Do not force an emotion or a joke into every spread.
+The companion wants something too; its personality affects its choices and can complicate the adventure. It offers closeness and practical partnership, not a speech that fixes the child.
+comicPromise names a situation or behaviour that can develop and pay off. Prefer an attempted action, misread situation, revealing body language or surprising concrete detail over a generic witty catchphrase. Humour must be kind, not mocking the child's difficulty.
+Use curiosity and discovery that change what the child understands. Establish an important magical rule or mechanism before using it to solve a problem; a young listener should know what is stuck, why it matters and how the child's action changes it. Avoid piling unrelated obstacles or navigation stations onto a short story.
+Do not make the entire adventure a familiar hobby exercise with a magical scoreboard. Let something unexpected change what the child wants or understands and lead beyond the initial routine. Give discoveries and changes of situation room; a fixed location count is not the goal.
+Movement is caused by pursuit, discovery or changed stakes, not a location quota. Make each essential scene change the situation. Leave room for illustrated action and varied framing without writing camera instructions into the prose.
+End on the child's lived payoff and a small relational or comic echo, not an itinerary recap or a moral. A difficulty need not disappear. Plot objects, routes and magic must be original for this brief, not inherited from these instructions.`;
+
 function checkInput(call: StoryCall): void {
   // Leave room for the provider's structured-output schema; adapter checks the actual schema too.
   if (Buffer.byteLength(call.instructions + call.input, 'utf8') > STORY_LIMITS.inputBytesPerCall - 12_000) fail('story_input_limit');
@@ -60,7 +71,7 @@ export function preparePersonalStory(input: unknown, options: PersonalWizardOpti
     resilienceMode: intent?.kind === 'topic' ? 'chosen_topic' as const : 'adventure_only' as const,
   };
   const call: StoryCall = {
-    stage: 'plan', instructions: `${STORY_INSTRUCTIONS}\n${RESILIENCE_INSTRUCTIONS}`,
+    stage: 'plan', instructions: `${STORY_INSTRUCTIONS}\n${RESILIENCE_INSTRUCTIONS}\n${NARRATIVE_CRAFT_INSTRUCTIONS}`,
     input: canonicalJson({ brief, task: `Plan the entire adventure before prose. Produce EXACTLY ${brief.beats} beats in narrative order. The engine assigns page numbers from array order; do NOT include pageNumber in individual beats. Each beat is one narrative spread representing TWO display pages. resilience.moments refer to positions 1 through ${brief.beats} in that array. Give each move a cause, each child action a consequence, and track locations, recurring objects/custody and unfinished actions in continuity. factIds must refer only to approved facts, and at least one interest must influence action. Include the chosen companion throughout. The final beat pays off an earlier choice. Do not force four locations or a particular plot.` }),
     maxOutputTokens: personalStoryOutputLimits(brief.beats).planOutputTokens,
   };
@@ -109,8 +120,12 @@ export async function writePersonalStory(args: {
     if (!prepared.brief.facts.some((fact) => fact.kind === 'interest' && used.has(fact.id))) fail('story_personal_fact_missing');
     const planDigest = createHash('sha256').update(canonicalJson(plan)).digest('hex');
     const call: StoryCall = {
-      stage: 'manuscript', instructions: `${STORY_INSTRUCTIONS}\n${RESILIENCE_INSTRUCTIONS}`,
-      input: canonicalJson({ brief: prepared.brief, plan, planDigest, task: 'Write the complete Hebrew story following this whole-story plan, in the exact beat order/count. Do NOT include pageNumber in output pages; the engine assigns numbering from array order. Each spread gets 35 to 65 words for ages 3 to 5, or 45 to 85 words for ages 6 to 8. Keep a natural read-aloud voice and visible, causally clear action; no imageDirection markers, headings in prose or moral summary. Personal facts are permissions, not a requirement to repeat every detail. No new real-world biographical claims.' }),
+      stage: 'manuscript', instructions: `${STORY_INSTRUCTIONS}\n${RESILIENCE_INSTRUCTIONS}\n${NARRATIVE_CRAFT_INSTRUCTIONS}`,
+      input: canonicalJson({ brief: prepared.brief, plan, planDigest,
+        outputMapping: { unit: 'complete_narrative_spread_not_display_page',
+          items: plan.beats.map((beat, index) => ({ outputArrayIndex: index, planBeatNumber: beat.pageNumber })),
+          finalItem: { outputArrayIndex: prepared.brief.beats - 1, requiredResolution: plan.ending } },
+        task: 'Write the COMPLETE Hebrew story, from opening through resolution, in exactly one output text per mapped plan beat. A narrative spread has two visual display halves, but they are NOT two output items. Do not split one beat across two texts and consume the array before the ending. Cover the full action AND consequence of beats[i] in pages[i]. The final text completes the goal/resolution and lived payoff, never stops at an unresolved obstacle. Do NOT include pageNumber in output pages; the engine assigns numbering from array order. Each spread gets 35 to 65 words for ages 3 to 5, or 45 to 85 words for ages 6 to 8. Keep a natural read-aloud voice and visible, causally clear action; no imageDirection markers, headings in prose or moral summary. Personal facts are permissions, not a requirement to repeat every detail. No new real-world biographical claims.' }),
       maxOutputTokens: personalStoryOutputLimits(prepared.brief.beats).manuscriptOutputTokens,
     };
     checkInput(call);

@@ -3,6 +3,16 @@ import { IntakeLedger } from '../intake-ledger';
 import { resolvePersonalWizardOptions } from '../options';
 import { preparePersonalStoryboard, compilePersonalStoryboard, STORYBOARD_BOOK_CHECKS, STORYBOARD_FRAME_CHECKS } from '../storyboard';
 import type { ReviewedPersonalBookRequest } from '../contract';
+import { prepareStoryEdit, compileStoryEdit, type StoryEditorCall } from '../story-editor';
+import { STORY_EDITOR_CRITERIA, type StoryEditorOutput } from '../story-editor-contract';
+
+export function fixtureEditorOutput(call: StoryEditorCall): StoryEditorOutput {
+  const { brief, draft, draftDigest } = JSON.parse(call.input);
+  const { requestId: _planId, ...plan } = draft.plan;
+  const { requestId: _storyId, planDigest: _planDigest, ...manuscript } = draft.manuscript;
+  return { requestId: brief.requestId, draftDigest, plan, manuscript,
+    checks: Object.fromEntries(STORY_EDITOR_CRITERIA.map(key => [key, { outcome: 'ready_for_reading', note: 'synthetic editor fixture, NOT literary acceptance' }])) as StoryEditorOutput['checks'] };
+}
 
 const options = resolvePersonalWizardOptions();
 const prose = [
@@ -22,7 +32,8 @@ export async function personalStoryboardFixture(lengthId = 'short', companionId 
     storyPlace: { value: 'הגינה', source: 'typed' }, companion: { id: companionId }, intent: { kind: 'just_for_fun' }, avoid: [],
     appearance: { photo: 'none' }, bookOptions: { lengthId, voiceId: null },
   };
-  const result = await writePersonalStory({ prepared: preparePersonalStory(request, options), userId: 'synthetic', jobId: 's_storyboard0001',
+  const prepared = preparePersonalStory(request, options);
+  const draftResult = await writePersonalStory({ prepared, userId: 'synthetic', jobId: 's_storyboard0001',
     settings: { model: 'gpt-6-sol', budgetUsd: 1, maxJobs: 1, operators: new Set() }, ledger: new IntakeLedger(), signal: new AbortController().signal,
     provider: () => ({ generate: async (call: StoryCall) => {
       const { brief, planDigest } = JSON.parse(call.input);
@@ -36,6 +47,7 @@ export async function personalStoryboardFixture(lengthId = 'short', companionId 
       return { output, usage: { inputTokens: 1, outputTokens: 1 } };
     } }),
   });
+  const result = compileStoryEdit(prepared, draftResult, fixtureEditorOutput(prepareStoryEdit(prepared, draftResult)), { inputTokens: 1, outputTokens: 1 });
   const count = result.manuscript.pages.length;
   const location = (n: number) => n === 4 ? 'lane' : 'garden';
   const visible = (n: number) => n === 4 ? ['ribbon'] : n === 2 ? ['hut'] : ['hut', 'ribbon'];
@@ -81,5 +93,5 @@ export async function personalStoryboardFixture(lengthId = 'short', companionId 
     frames: Array.from({ length: count + 1 }, (_, pageNumber) => ({ pageNumber,
       checks: STORYBOARD_FRAME_CHECKS.map(category => ({ category, verdict: 'supported' as const, observation: 'synthetic observable binding' })) })),
   };
-  return { request, result, source, draft, book, review, current: { request, writerResult: result, options } };
+  return { request, result, draftResult, source, draft, book, review, current: { request, writerResult: result, options } };
 }

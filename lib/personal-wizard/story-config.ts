@@ -4,6 +4,9 @@ export const STORY_PRICES = {
   // Standard short-context prices, verified 2026-09-29 on the official model pages.
   // https://developers.openai.com/api/docs/models/compare?model=gpt-6-sol
   'gpt-6-sol': { input: 2, output: 10 },
+  // Standard short-context prices verified 2026-10-01; no automatic model fallback.
+  // https://developers.openai.com/api/docs/models/gpt-6.1-sol
+  'gpt-6.1-sol': { input: 2, output: 10 },
   'gpt-6-astra': { input: 10, output: 50 },
 } as const;
 export type StoryModel = keyof typeof STORY_PRICES;

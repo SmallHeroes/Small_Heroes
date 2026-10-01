@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
   if (!allowed.ok) return allowed.response;
   // Configuration is not a claim that the credential/provider is available.
   return storyResponse({ configured: true, liveAvailabilityUnverified: true, runtimeEligible: false,
-    model: allowed.settings.model, maxProviderAttempts: 4,
+    model: allowed.settings.model, maxProviderAttempts: 5,
     reservations: BOOK_SPREAD_COUNTS.map(narrativeSpreads => {
       const reservationUsd = personalBookReservationUsd(allowed.settings.model, narrativeSpreads);
       const lengthId = resolvePersonalWizardOptions().lengths.find(length => length.pages === narrativeSpreads * 2)?.id;

@@ -6,20 +6,22 @@ import { STORY_PRICES, storyReservationUsd, personalStoryOutputLimits, generatio
 import { IntakeLedger } from './intake-ledger';
 import type { PersonalWizardOptions } from './options';
 import type { StoryUsage, PersonalStoryResult } from './story-contract';
+import { prepareStoryEdit, compileStoryEdit, editorNeedsWork, storyEditorOutputTokens, type StoryEditorProvider } from './story-editor';
+import type { EditedStoryResult } from './story-editor-contract';
 import { BOOK_LIMITS, assertPersonalBookSettings, personalBookOutputLimits, personalBookReservationUsd, type PersonalBookSettings } from './book-config';
 import { preparePersonalStoryboard, compilePersonalStoryboard, personalStoryboardReviewInput,
   storyboardReviewDisposition, personalStoryboardFrame, PERSONAL_STORYBOARD_INSTRUCTION, type PersonalStoryboard } from './storyboard';
 
 export type BookVisualCall = { stage: 'storyboard' | 'review'; instructions: string; input: string; maxOutputTokens: number;
   context: { narrativeSpreads: number; sourceDigest: string; storyboardDigest?: string } };
-export type PersonalBookProvider = { story: StoryProvider;
+export type PersonalBookProvider = { story: StoryProvider; editor: StoryEditorProvider;
   visual: { generate(call: BookVisualCall, signal: AbortSignal): Promise<{ output: unknown; usage: StoryUsage }> } };
-export type BookStage = 'plan' | 'manuscript' | 'storyboard' | 'review';
+export type BookStage = 'plan' | 'manuscript' | 'editor' | 'storyboard' | 'review';
 export type BookAccounting = { model: PersonalBookSettings['model']; reservedUsd: number; estimatedUsd: number | null; knownUsageEstimateUsd: number;
   providerAttempts: number; stages: { stage: BookStage; usage: StoryUsage }[]; kind: 'usage_estimate_not_invoice' };
 export class PersonalBookError extends Error {
   accounting?: BookAccounting;
-  writerResult?: PersonalStoryResult;
+  writerResult?: PersonalStoryResult | EditedStoryResult;
   constructor(readonly code: string) { super(code); }
 }
 const usageSchema = z.object({ inputTokens: z.number().int().nonnegative(), outputTokens: z.number().int().nonnegative() }).strict();
@@ -41,7 +43,7 @@ Camera movement and cropped/hidden objects do not change physical state. Mark a 
 Observe concrete evidence or missing support; do not rewrite the story, lower thresholds, invent hashes, claim pixels were seen or author approvals.
 Return the requested fixed check groups, in cover then narrative order, with supported/contradiction/uncertain and concise observations.`;
 
-/** One operator diagnostic job, one reservation/lock, four stages at most. No route/render/storage side effect. */
+/** One operator diagnostic job, one reservation/lock, five stages at most. No retry/render/storage side effect. */
 export async function generatePersonalBook(args: {
   request: unknown; options: PersonalWizardOptions; userId: string; operatorEmail: string; jobId: string;
   settings: PersonalBookSettings; ledger: IntakeLedger; signal: AbortSignal; provider: () => PersonalBookProvider;
@@ -77,11 +79,11 @@ export async function generatePersonalBook(args: {
   const begin = args.ledger.begin(args.userId, args.jobId, reservedUsd, settings);
   if (!begin.ok) fail(`book_${begin.code}`);
   let active: BookStage = 'plan';
-  let completedManuscript: PersonalStoryResult | undefined;
+  let completedManuscript: PersonalStoryResult | EditedStoryResult | undefined;
   // Counts actual generate() invocations, NOT intended calls or acknowledged network dispatch.
   async function dispatch(stage: BookStage, call: (signal: AbortSignal) => Promise<{ output: unknown; usage: StoryUsage }>) {
     assertCurrent(); active = stage;
-    if (stages.length >= 4) fail('book_call_limit');
+    if (stages.length >= 5) fail('book_call_limit');
     const row: BookAccounting['stages'][number] = { stage, usage: null };
     const controller = new AbortController();
     let timedOut = false;
@@ -91,7 +93,7 @@ export async function generatePersonalBook(args: {
     args.signal.addEventListener('abort', cancel, { once: true });
     const storyLimits = personalStoryOutputLimits(narrativeSpreads);
     const cap = stage === 'plan' ? storyLimits.planOutputTokens : stage === 'manuscript' ? storyLimits.manuscriptOutputTokens :
-      stage === 'storyboard' ? outputLimits.storyboardOutputTokens : outputLimits.reviewOutputTokens;
+      stage === 'editor' ? storyEditorOutputTokens(narrativeSpreads) : stage === 'storyboard' ? outputLimits.storyboardOutputTokens : outputLimits.reviewOutputTokens;
     const timer = setTimeout(() => { timedOut = true; cancel(); }, generationTimeoutMs(cap));
     try {
       if (args.signal.aborted) cancel();
@@ -121,9 +123,9 @@ export async function generatePersonalBook(args: {
     const provider = args.provider();
     // Subordinate writer ledger is not another money authority: the outer reservation
     // already covers these two calls and holds the user lock through review.
-    let writerResult: PersonalStoryResult;
+    let draftResult: PersonalStoryResult;
     try {
-      writerResult = await writePersonalStory({ prepared, userId: args.userId, jobId: args.jobId,
+      draftResult = await writePersonalStory({ prepared, userId: args.userId, jobId: args.jobId,
         settings: { model: settings.model, budgetUsd: storyReservationUsd(settings.model, narrativeSpreads), maxJobs: 1, operators: settings.operators },
         ledger: new IntakeLedger(), signal: args.signal,
         provider: () => ({ generate: async call => {
@@ -146,7 +148,14 @@ export async function generatePersonalBook(args: {
       throw new PersonalBookError('book_story_invalid');
     }
     assertCurrent();
+    completedManuscript = draftResult;
+    const editorCall = prepareStoryEdit(prepared, draftResult);
+    const rawEdited = await dispatch('editor', signal => provider.editor.generate(structuredClone(editorCall), signal));
+    let writerResult: EditedStoryResult;
+    try { writerResult = compileStoryEdit(prepared, draftResult, rawEdited, stages[stages.length - 1]!.usage); }
+    catch { return fail('book_editor_invalid'); }
     completedManuscript = writerResult;
+    if (editorNeedsWork(writerResult)) fail('book_editorial_held');
     const source = preparePersonalStoryboard(args.request, writerResult, args.options);
     const visual = async (call: BookVisualCall) => {
       if (Buffer.byteLength(call.instructions + call.input, 'utf8') > BOOK_LIMITS.inputBytesPerCall - 24_000) fail('book_input_limit');
@@ -167,7 +176,7 @@ export async function generatePersonalBook(args: {
       personalStoryboardFrame(book, rawReview, pageNumber, { request: args.request, writerResult, options: args.options })) : [];
     args.ledger.finish(args.userId, args.jobId, 'done');
     emit('complete', packets.length ? 'finished' : 'held');
-    return { version: 'personal-book-runner/diagnostic-v1' as const, status: review.disposition, writerResult, storyboard: book,
+    return { version: 'personal-book-runner/diagnostic-v2' as const, status: review.disposition, writerResult, storyboard: book,
       review, framePackets: packets, runtimeEligible: false as const, accounting: accounting() };
   } catch (error) {
     args.ledger.finish(args.userId, args.jobId, 'failed');

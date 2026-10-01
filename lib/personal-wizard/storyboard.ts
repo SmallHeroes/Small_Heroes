@@ -6,7 +6,8 @@ import { compileWholeBookDraft, wholeBookDraftSchema, wholeBookPlanningInput, WH
 import { previewTextPages, previewStoryEvidence, previewSha, previewPagePrompt, selectedDraftQaContext } from '../local-story-preview';
 import { sequencePageState, sequenceRenderPrompt } from '../local-book-sequence';
 import { canonicalJson } from './request-acceptance';
-import { personalStoryResultSchema } from './story-contract';
+import { anyPersonalStoryResultSchema } from './story-editor-contract';
+import { assertStoryEditBinding, editorNeedsWork } from './story-editor';
 import { preparePersonalStory } from './story-writer';
 import type { PersonalWizardOptions } from './options';
 
@@ -31,10 +32,14 @@ const books = new WeakMap<PersonalStoryboard, { serialized: string; source: Sour
 /** Validate the CURRENT request and whole writer result before planning, not detached hashes. */
 export function preparePersonalStoryboard(request: unknown, writerResult: unknown, options: PersonalWizardOptions) {
   const prepared = preparePersonalStory(request, options);
-  const result = personalStoryResultSchema.parse(writerResult);
+  const result = anyPersonalStoryResultSchema.parse(writerResult);
   // Writer output was already normalised at its own boundary. Do not silently trim
   // a subsequently edited manuscript/plan and call it the same final source.
   if (canonicalJson(writerResult) !== canonicalJson(result)) fail('noncanonical_writer_result');
+  if ('editing' in result) {
+    assertStoryEditBinding(result);
+    if (editorNeedsWork(result)) fail('editorial_held');
+  }
   if (result.requestId !== prepared.accepted.requestId || result.displayPages !== prepared.brief.displayPages ||
       result.containsFixtureData !== prepared.accepted.containsFixtureData || digest(result.plan) !== result.planDigest) fail('source_binding');
   const knownFacts = new Set(prepared.brief.facts.map(fact => fact.id));
@@ -48,7 +53,8 @@ export function preparePersonalStoryboard(request: unknown, writerResult: unknow
   // Final prose is the visual source; outline continuity is only a review comparison.
   const story = previewTextPages({ title: result.manuscript.title, pages: result.manuscript.pages });
   const sourceDigest = digest({ version: PERSONAL_STORYBOARD_VERSION, optionsFingerprint: prepared.accepted.optionsFingerprint,
-    request: prepared.accepted.canonical, plan: result.plan, manuscript: result.manuscript, displayPages: result.displayPages });
+    request: prepared.accepted.canonical, plan: result.plan, manuscript: result.manuscript, displayPages: result.displayPages,
+    ...('editing' in result ? { editing: result.editing } : {}) });
   const source = {
     sourceDigest, request: prepared.accepted.canonical, result, story,
     brief: prepared.brief, companionDescription: companion.visualDescription,

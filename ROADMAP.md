@@ -8,6 +8,21 @@ This roadmap records technical milestone state. Guy can change product priority 
 
 ## Active
 
+### P-personal literary quality milestone (2026-10-01)
+
+- Implemented one complete whole-story editor before visual planning; original
+  draft preserved, editor holds fail closed, complete envelopes require editing.
+  Explicit 6.1 Sol option at unchanged base rates; existing live pilot not reset.
+- Two real synthetic stories were revised, not three: third plan call failed with
+  unknown usage; no retry or comparison. Known estimate $0.280328, total unknown.
+  Final one-beat/one-spread mapping and stronger adventure/opening guidance are
+  offline-tested successors, NOT creatively measured in that paid run.
+- Latest focused 360/360 + typecheck 0; full gate RED (missing fixtures, resource
+  timeouts/RPC errors). Independent Claude re-gate pending; no self-PASS.
+- Next: independent code/creative scrutiny of preserved before/after evidence,
+  then a separately bounded text trial of the final successor. Do not pay for
+  illustrations while story quality and the earlier storyboard failure are open.
+
 ### P-personal — voice-first personal adventure product pilot (2026-09-30)
 
 - **Product decision:** resilience/coping is central; difficulty selection remains

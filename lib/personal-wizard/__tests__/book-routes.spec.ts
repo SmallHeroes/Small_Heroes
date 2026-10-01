@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { personalStoryboardFixture } from './personal-storyboard-fixture';
+import { personalStoryboardFixture, fixtureEditorOutput } from './personal-storyboard-fixture';
 import type { PersonalBookProvider } from '../book-runner';
 import { personalBookOutputLimits, personalBookReservationUsd } from '../book-config';
 
@@ -25,7 +25,7 @@ const req = (body: unknown, override: Record<string, string> = {}, signal?: Abor
 });
 let fixture: Awaited<ReturnType<typeof personalStoryboardFixture>>;
 const job = (jobId = 'b_routejob0000001') => ({ jobId, request: fixture.request });
-const attempts = () => vi.mocked(deps.provider!.story.generate).mock.calls.length + vi.mocked(deps.provider!.visual.generate).mock.calls.length;
+const attempts = () => vi.mocked(deps.provider!.story.generate).mock.calls.length + vi.mocked(deps.provider!.editor.generate).mock.calls.length + vi.mocked(deps.provider!.visual.generate).mock.calls.length;
 beforeEach(async () => {
   Object.entries(env).forEach(([key, value]) => { saved.set(key, process.env[key]); process.env[key] = value; });
   deps.user = { id: 'operator', email: 'operator@example.com' }; deps.production = false; deps.sessionFails = false;
@@ -33,17 +33,18 @@ beforeEach(async () => {
   delete (globalThis as typeof globalThis & { __personalBookPilotLedger?: unknown }).__personalBookPilotLedger;
   fixture = await personalStoryboardFixture();
   deps.provider = { story: { generate: vi.fn(async call => ({ output: structuredClone(call.stage === 'plan' ? fixture.result.plan : fixture.result.manuscript), usage: { inputTokens: 100, outputTokens: 200 } })) },
+    editor: { generate: vi.fn(async call => ({ output: fixtureEditorOutput(call), usage: { inputTokens: 100, outputTokens: 200 } })) },
     visual: { generate: vi.fn(async call => ({ output: structuredClone(call.stage === 'storyboard' ? fixture.draft : fixture.review), usage: { inputTokens: 300, outputTokens: 400 } })) } };
   vi.spyOn(console, 'info').mockImplementation(() => {});
 });
 afterEach(() => { vi.restoreAllMocks(); for (const [key, value] of saved) { if (value === undefined) delete process.env[key]; else process.env[key] = value; } });
 
 describe('real local diagnostic book route', () => {
-  it('executes all four stages and returns same-context packets without render authority', async () => {
+  it('executes all five stages and returns same-context packets without render authority', async () => {
     const response = await POST(req(job())); const body = await response.json();
-    expect(response.status).toBe(200); expect(attempts()).toBe(4); expect(deps.keyReads).toBe(1); expect(deps.factory).toBe(1);
+    expect(response.status).toBe(200); expect(attempts()).toBe(5); expect(deps.keyReads).toBe(1); expect(deps.factory).toBe(1);
     expect(body.status).toBe('review_supported'); expect(body.runtimeEligible).toBe(false); expect(body.framePackets).toHaveLength(9);
-    expect(body.writerResult.manuscript.pages).toHaveLength(8); expect(body.accounting.providerAttempts).toBe(4);
+    expect(body.writerResult.manuscript.pages).toHaveLength(8); expect(body.accounting.providerAttempts).toBe(5);
     expect(body.framePackets[1].render.contextSha).toBe(body.framePackets[1].qa.contextSha);
     expect(response.headers.get('cache-control')).toBe('no-store'); expect(response.headers.get('x-robots-tag')).toBe('noindex, nofollow');
     expect(JSON.stringify(body)).not.toContain('private-key');
@@ -87,7 +88,7 @@ describe('real local diagnostic book route', () => {
     expect((await POST(req(job()))).status).toBe(409);
     expect((await POST(req(job('b_routejob0000002')))).status).toBe(200);
     expect((await POST(req(job('b_routejob0000003')))).status).toBe(409);
-    expect(deps.keyReads).toBe(2); expect(attempts()).toBe(8);
+    expect(deps.keyReads).toBe(2); expect(attempts()).toBe(10);
   });
   it('retains a failed paid reservation and does not leak provider messages', async () => {
     vi.mocked(deps.provider!.story.generate).mockRejectedValueOnce(Object.assign(Error('private-provider'), { providerUsage: { inputTokens: 100, outputTokens: 200 } }));
@@ -96,10 +97,10 @@ describe('real local diagnostic book route', () => {
     expect(JSON.stringify(body)).not.toContain('private-provider');
     expect((await POST(req(job()))).status).toBe(409); expect(deps.keyReads).toBe(1);
   });
-  it('returns held diagnostic data with no packets, no fifth call', async () => {
+  it('returns held diagnostic data with no packets, no sixth call', async () => {
     fixture.review.bookChecks[0].verdict = 'uncertain' as 'supported';
     const response = await POST(req(job())); const body = await response.json();
-    expect(response.status).toBe(200); expect(body.status).toBe('held_uncertain'); expect(body.framePackets).toEqual([]); expect(attempts()).toBe(4);
+    expect(response.status).toBe(200); expect(body.status).toBe('held_uncertain'); expect(body.framePackets).toEqual([]); expect(attempts()).toBe(5);
   });
   it('pre-cancelled request never reads a key', async () => {
     const controller = new AbortController(); controller.abort(); const response = await POST(req(job(), {}, controller.signal));
@@ -112,7 +113,7 @@ describe('real local diagnostic book route', () => {
   });
   it('GET is an operator configuration check, not key/provider availability attestation', async () => {
     const response = await GET(new NextRequest(url)); const body = await response.json();
-    expect(body.liveAvailabilityUnverified).toBe(true); expect(body.maxProviderAttempts).toBe(4); expect(body.runtimeEligible).toBe(false); expect(deps.keyReads).toBe(0);
+    expect(body.liveAvailabilityUnverified).toBe(true); expect(body.maxProviderAttempts).toBe(5); expect(body.runtimeEligible).toBe(false); expect(deps.keyReads).toBe(0);
     expect(body).not.toHaveProperty('reservationUsd');
     expect(body.reservations).toEqual([8, 12, 16].map((narrativeSpreads, index) => ({ lengthId: ['short', 'medium', 'long'][index], narrativeSpreads, displayPages: narrativeSpreads * 2,
       outputLimits: personalBookOutputLimits(narrativeSpreads), reservationUsd: personalBookReservationUsd('gpt-6-sol', narrativeSpreads), fitsConfiguredTotalBudget: true })));
@@ -131,14 +132,14 @@ describe('real local diagnostic book route', () => {
     expect(response.status).toBe(200); expect(body.accounting.reservedUsd).toBe(personalBookReservationUsd('gpt-6-sol', count));
     const calls = vi.mocked(deps.provider!.visual.generate).mock.calls.map(([call]) => call.maxOutputTokens);
     const limits = personalBookOutputLimits(count);
-    expect(calls).toEqual([limits.storyboardOutputTokens, limits.reviewOutputTokens]); expect(attempts()).toBe(4);
+    expect(calls).toEqual([limits.storyboardOutputTokens, limits.reviewOutputTokens]); expect(attempts()).toBe(5);
   });
   it('shows and enforces an unaffordable long Astra reservation without lowering caps or raising budget', async () => {
     fixture = await personalStoryboardFixture('long');
     process.env.PERSONAL_WIZARD_BOOK_MODEL = 'gpt-6-astra'; process.env.PERSONAL_WIZARD_BOOK_BUDGET_USD = '10';
     const status = await GET(new NextRequest(url)); const body = await status.json();
-    expect(body.reservations.map((row: { fitsConfiguredTotalBudget: boolean }) => row.fitsConfiguredTotalBudget)).toEqual([true, false, false]);
-    expect(body.reservations[2].reservationUsd).toBeCloseTo(11.374, 10);
+    expect(body.reservations.map((row: { fitsConfiguredTotalBudget: boolean }) => row.fitsConfiguredTotalBudget)).toEqual([false, false, false]);
+    expect(body.reservations[2].reservationUsd).toBeCloseTo(13.178, 10);
     expect(body.reservations[2].outputLimits).toEqual({ storyboardOutputTokens: 51_000, reviewOutputTokens: 55_000 });
     const response = await POST(req(job()));
     expect(response.status).toBe(409); expect((await response.json()).error).toBe('book_budget_exhausted');

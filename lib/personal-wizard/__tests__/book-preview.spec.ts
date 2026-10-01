@@ -6,9 +6,9 @@ import { personalStoryboardFixture } from './personal-storyboard-fixture';
 import { storyboardReviewDisposition } from '../storyboard';
 const output = async () => {
   const f = await personalStoryboardFixture();
-  return { version: 'personal-book-runner/diagnostic-v1', status: 'review_supported', writerResult: f.result,
+  return { version: 'personal-book-runner/diagnostic-v2', status: 'review_supported', writerResult: f.result,
     storyboard: f.book, review: storyboardReviewDisposition(f.book, f.review), runtimeEligible: false,
-    accounting: { reservedUsd: 2, estimatedUsd: .1, knownUsageEstimateUsd: .1, providerAttempts: 4, kind: 'usage_estimate_not_invoice' } };
+    accounting: { reservedUsd: 2.2, estimatedUsd: .1, knownUsageEstimateUsd: .1, providerAttempts: 5, kind: 'usage_estimate_not_invoice' } };
 };
 describe('browser book diagnostic boundary', () => {
   it('accepts the real compiled fixture with no server module import in the display contract', async () => {

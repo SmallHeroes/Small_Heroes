@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { personalStoryResultSchema } from './story-contract';
+import { editedStoryResultSchema, anyPersonalStoryResultSchema } from './story-editor-contract';
 import type { AvailabilityFetch } from './availability-client';
 
 // Browser display validation only. Never recreates server compilation/render authority.
@@ -8,11 +8,11 @@ const verdict = z.enum(['supported', 'contradiction', 'uncertain']);
 const check = z.object({ category: z.string(), verdict, observation: z.string() });
 const status = z.enum(['review_supported', 'held_contradiction', 'held_uncertain']);
 const accountingSchema = z.object({ reservedUsd: z.number().nonnegative(), estimatedUsd: z.number().nonnegative().nullable(),
-  knownUsageEstimateUsd: z.number().nonnegative(), providerAttempts: z.number().int().min(0).max(4),
+  knownUsageEstimateUsd: z.number().nonnegative(), providerAttempts: z.number().int().min(0).max(5),
   kind: z.literal('usage_estimate_not_invoice') });
 export const bookPreviewSchema = z.object({
-  version: z.literal('personal-book-runner/diagnostic-v1'), status,
-  writerResult: personalStoryResultSchema, runtimeEligible: z.literal(false),
+  version: z.literal('personal-book-runner/diagnostic-v2'), status,
+  writerResult: editedStoryResultSchema, runtimeEligible: z.literal(false),
   storyboard: z.object({ requestId: z.string(), sourceDigest: hash, storyboardDigest: hash,
     narrativeSpreads: z.number().int(), displayPages: z.number().int(), runtimeEligible: z.literal(false),
     plan: z.object({ pages: z.array(z.object({ pageNumber: z.number().int(), shot: z.string(), angle: z.string(),
@@ -23,7 +23,7 @@ export const bookPreviewSchema = z.object({
   accounting: accountingSchema,
 });
 export type BookPreview = z.infer<typeof bookPreviewSchema>;
-const failureSchema = z.object({ error: z.string(), writerResult: personalStoryResultSchema, accounting: accountingSchema });
+const failureSchema = z.object({ error: z.string(), writerResult: anyPersonalStoryResultSchema, accounting: accountingSchema });
 export type BookPartialPreview = z.infer<typeof failureSchema>;
 export function readBookPartialPreview(raw: unknown, requestId: string): BookPartialPreview | null {
   const parsed = failureSchema.safeParse(raw);
