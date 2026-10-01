@@ -6,6 +6,7 @@ import { z } from 'zod';
 import { personalStoryPlanSchema, personalManuscriptSchema } from './story-contract';
 import { STORY_LIMITS, personalStoryOutputLimits, generationTimeoutMs, type StoryModel } from './story-config';
 import { StoryWriterError, type StoryProvider } from './story-writer';
+import { adventureSelectionSchema } from './story-planning-contract';
 
 export function personalProviderSchema(stage: 'plan' | 'manuscript', context: { brief: { beats: number; requestId: string; resilienceMode: 'chosen_topic' | 'adventure_only' }; planDigest?: string }) {
   const { beats, requestId, resilienceMode } = context.brief;
@@ -15,7 +16,7 @@ export function personalProviderSchema(stage: 'plan' | 'manuscript', context: { 
   // not model-authored facts. The paid r2 evidence showed duplicate/missing numbers even
   // inside an exact-length constrained array; do not spend another call repairing numbering.
   return stage === 'plan'
-    ? personalStoryPlanSchema.extend({ requestId: z.literal(requestId),
+    ? personalStoryPlanSchema.extend({ requestId: z.literal(requestId), adventureSelection: adventureSelectionSchema,
       resilience: personalStoryPlanSchema.shape.resilience.extend({ mode: z.literal(resilienceMode), moments: z.array(personalStoryPlanSchema.shape.resilience.shape.moments.element.extend({ pageNumber: z.number().int().min(1).max(beats) })).min(1).max(4) }),
       beats: z.array(personalStoryPlanSchema.shape.beats.element.omit({ pageNumber: true })).length(beats) })
     : personalManuscriptSchema.extend({ requestId: z.literal(requestId), planDigest: z.literal(context.planDigest!), pages: z.array(personalManuscriptSchema.shape.pages.element.omit({ pageNumber: true })).length(beats) });

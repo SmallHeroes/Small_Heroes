@@ -10,7 +10,7 @@ const error = (reason: string) => Error(reason);
 describe('length-scaled generation deadlines', () => {
   it.each([8, 12, 16])('one policy binds both caps and reservation for %i', count => {
     const caps = personalStoryOutputLimits(count);
-    expect(caps).toEqual({ planOutputTokens: 4000 + 500 * count, manuscriptOutputTokens: 4000 + 500 * count });
+    expect(caps).toEqual({ planOutputTokens: 8000 + 500 * count, manuscriptOutputTokens: 4000 + 500 * count });
     expect(storyReservationUsd('gpt-6-sol', count)).toBeCloseTo((128000 * 2 + (caps.planOutputTokens + caps.manuscriptOutputTokens) * 10) / 1e6 * 1.1, 10);
     expect(generationTimeoutMs(caps.planOutputTokens)).toBeGreaterThan(180000);
   });
@@ -34,7 +34,7 @@ describe('length-scaled generation deadlines', () => {
     const f = await personalStoryboardFixture(); vi.useFakeTimers(); const prepared = preparePersonalStory(f.request, resolvePersonalWizardOptions());
     const stages: string[] = [];
     const provider = { generate: vi.fn((call: { stage: 'plan' | 'manuscript' }) => new Promise<{output: unknown; usage: null}>(resolve => {
-      stages.push(call.stage); setTimeout(() => resolve({ output: call.stage === 'plan' ? f.result.plan : f.result.manuscript, usage: null }), 179000);
+      stages.push(call.stage); setTimeout(() => resolve({ output: call.stage === 'plan' ? { ...f.result.plan, adventureSelection: f.draftResult.planning!.selection } : f.result.manuscript, usage: null }), 179000);
     })) };
     const result = writePersonalStory({ prepared, userId: 'u', jobId: 's_deadline0000001', settings: { model: 'gpt-6-sol', budgetUsd: 1, maxJobs: 1, operators: new Set(['op@example.com']) }, ledger: new IntakeLedger(), signal: new AbortController().signal, provider: () => provider });
     await vi.advanceTimersByTimeAsync(179001); expect(stages).toEqual(['plan', 'manuscript']);
@@ -43,7 +43,7 @@ describe('length-scaled generation deadlines', () => {
   it('reports story_timeout and unknown billed usage, not story_cancelled', async () => {
     const f = await personalStoryboardFixture(); vi.useFakeTimers(); const prepared = preparePersonalStory(f.request, resolvePersonalWizardOptions()); const ledger = new IntakeLedger();
     const result = writePersonalStory({ prepared, userId: 'u', jobId: 's_deadline0000002', settings: { model: 'gpt-6-sol', budgetUsd: 1, maxJobs: 1, operators: new Set(['op@example.com']) }, ledger, signal: new AbortController().signal, provider: () => ({ generate: () => new Promise(() => {}) }) }).catch(e => e as StoryWriterError);
-    await vi.advanceTimersByTimeAsync(generationTimeoutMs(8000) + 1); const failure = await result as StoryWriterError;
+    await vi.advanceTimersByTimeAsync(generationTimeoutMs(personalStoryOutputLimits(8).planOutputTokens) + 1); const failure = await result as StoryWriterError;
     expect(failure.code).toBe('story_timeout'); expect(failure.accounting?.estimatedUsd).toBeNull(); expect(ledger.snapshot().inFlight).toBe(0);
   });
 });

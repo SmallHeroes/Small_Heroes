@@ -10,6 +10,7 @@ import { comparableText } from './contract';
 import { personalStoryPlanSchema, personalManuscriptSchema, type PersonalStoryResult, type StoryUsage } from './story-contract';
 import { STORY_LIMITS, STORY_PRICES, personalStoryOutputLimits, storyReservationUsd, type StorySettings } from './story-config';
 import { withGenerationDeadline } from './generation-deadline';
+import { adventureSelectionSchema, adventureSelectionIssue } from './story-planning-contract';
 
 export class StoryWriterError extends Error {
   accounting?: PersonalStoryResult['accounting'];
@@ -34,6 +35,10 @@ Use curiosity and discovery that change what the child understands. Establish an
 Do not make the entire adventure a familiar hobby exercise with a magical scoreboard. Let something unexpected change what the child wants or understands and lead beyond the initial routine. Give discoveries and changes of situation room; a fixed location count is not the goal.
 Movement is caused by pursuit, discovery or changed stakes, not a location quota. Make each essential scene change the situation. Leave room for illustrated action and varied framing without writing camera instructions into the prose.
 End on the child's lived payoff and a small relational or comic echo, not an itinerary recap or a moral. A difficulty need not disappear. Plot objects, routes and magic must be original for this brief, not inherited from these instructions.`;
+
+export const ADVENTURE_SELECTION_INSTRUCTIONS = `Before committing to the whole-book outline, propose TWO concise substantially different adventures, A and B, inside this ONE plan response. Different scenery or a swapped prop is NOT a different adventure. Change the child's want, complication, discovery or consequential contribution. Each candidate has its own companion want, curiosity and satisfying payoff, and explicitly maps approved personal fact IDs to a causal contribution. Use at least one approved interest per candidate; do not invent biography or force every supplied fact.
+Record the dimensions that really differ, select A or B and briefly explain why it better suits this child's age, personality, curiosity, humour and comprehensible action. A plausible justification is not evidence that the choice is good; both alternatives stay available for later blind human review.
+Then plan ONLY the chosen adventure as the complete beat array. Test that outline for curiosity/stakes, causally consequential child choices and earned payoff, citing actual spread positions and concrete events, not flattering quality claims. The payoff check includes the final spread. Mark needs_work for a fundamental unresolved problem; do not assume prose/editor can rescue a weak premise. No replanning/retry loop is available. Do not reveal the entire route/solution early just to establish a useful ability. Quiet, wonder or comic spreads are allowed; a longer book needs development, not one movement split into filler beats.`;
 
 function checkInput(call: StoryCall): void {
   // Leave room for the provider's structured-output schema; adapter checks the actual schema too.
@@ -71,7 +76,7 @@ export function preparePersonalStory(input: unknown, options: PersonalWizardOpti
     resilienceMode: intent?.kind === 'topic' ? 'chosen_topic' as const : 'adventure_only' as const,
   };
   const call: StoryCall = {
-    stage: 'plan', instructions: `${STORY_INSTRUCTIONS}\n${RESILIENCE_INSTRUCTIONS}\n${NARRATIVE_CRAFT_INSTRUCTIONS}`,
+    stage: 'plan', instructions: `${STORY_INSTRUCTIONS}\n${RESILIENCE_INSTRUCTIONS}\n${NARRATIVE_CRAFT_INSTRUCTIONS}\n${ADVENTURE_SELECTION_INSTRUCTIONS}`,
     input: canonicalJson({ brief, task: `Plan the entire adventure before prose. Produce EXACTLY ${brief.beats} beats in narrative order. The engine assigns page numbers from array order; do NOT include pageNumber in individual beats. Each beat is one narrative spread representing TWO display pages. resilience.moments refer to positions 1 through ${brief.beats} in that array. Give each move a cause, each child action a consequence, and track locations, recurring objects/custody and unfinished actions in continuity. factIds must refer only to approved facts, and at least one interest must influence action. Include the chosen companion throughout. The final beat pays off an earlier choice. Do not force four locations or a particular plot.` }),
     maxOutputTokens: personalStoryOutputLimits(brief.beats).planOutputTokens,
   };
@@ -108,9 +113,9 @@ export async function writePersonalStory(args: {
     const planned = await generate(prepared.call);
     usage.push(planned.usage);
     if (signal.aborted) fail('story_cancelled');
-    const parsedPlan = personalStoryPlanSchema.safeParse(planned.output);
+    const parsedPlan = personalStoryPlanSchema.extend({ adventureSelection: adventureSelectionSchema }).safeParse(planned.output);
     if (!parsedPlan.success) fail('story_plan_invalid');
-    const plan = parsedPlan.data;
+    const { adventureSelection, ...plan } = parsedPlan.data;
     if (plan.requestId !== prepared.accepted.requestId) fail('story_identity_mismatch');
     coverage(plan.beats, prepared.brief.beats);
     if (plan.resilience.mode !== prepared.brief.resilienceMode || plan.resilience.moments.some((moment) => moment.pageNumber < 1 || moment.pageNumber > prepared.brief.beats) || new Set(plan.resilience.moments.map((moment) => moment.pageNumber)).size !== plan.resilience.moments.length) fail('story_resilience_binding');
@@ -118,6 +123,8 @@ export async function writePersonalStory(args: {
     if (plan.beats.some((beat) => beat.factIds.some((id) => !approved.has(id)))) fail('story_fact_mismatch');
     const used = new Set(plan.beats.flatMap((beat) => beat.factIds));
     if (!prepared.brief.facts.some((fact) => fact.kind === 'interest' && used.has(fact.id))) fail('story_personal_fact_missing');
+    const selectionIssue = adventureSelectionIssue(adventureSelection, prepared.brief.facts, prepared.brief.beats, [...used]);
+    if (selectionIssue) fail(selectionIssue);
     const planDigest = createHash('sha256').update(canonicalJson(plan)).digest('hex');
     const call: StoryCall = {
       stage: 'manuscript', instructions: `${STORY_INSTRUCTIONS}\n${RESILIENCE_INSTRUCTIONS}\n${NARRATIVE_CRAFT_INSTRUCTIONS}`,
@@ -152,6 +159,8 @@ export async function writePersonalStory(args: {
       manuscript, plan, planDigest, displayPages: prepared.brief.displayPages,
       containsFixtureData: prepared.accepted.containsFixtureData,
       editorialStatus: 'pending_product_review', runtimeEligible: false,
+      planning: { version: 'personal-adventure-selection/diagnostic-v1', kind: 'model_selection_not_literary_acceptance',
+        sourcePlanDigest: planDigest, selection: adventureSelection },
       accounting: accounting(),
     };
   } catch (error) {

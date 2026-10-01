@@ -19,7 +19,9 @@ export const STORY_LIMITS = {
 export function personalStoryOutputLimits(narrativeSpreads: number) {
   if (![8, 12, 16].includes(narrativeSpreads)) throw Error('story_length_invalid');
   const outputTokens = 4_000 + 500 * narrativeSpreads;
-  return { planOutputTokens: outputTokens, manuscriptOutputTokens: outputTokens };
+  // Two short alternatives + bounded outline observations, same single plan call.
+  // Reservation prices this extra headroom; not a measured completion guarantee.
+  return { planOutputTokens: outputTokens + 4_000, manuscriptOutputTokens: outputTokens };
 }
 /** Conservative local ceiling, not a throughput SLA or cloud duration promise. */
 export function generationTimeoutMs(outputTokens: number): number {

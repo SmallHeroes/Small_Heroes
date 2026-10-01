@@ -9,6 +9,7 @@ import { resolveStorySettings, storyReservationUsd, type StorySettings } from '.
 import type { ReviewedPersonalBookRequest } from '../contract';
 import { getPersonalLandingContent } from '@/content/personal-landing';
 import { getLandingContent } from '@/content/landing';
+import { fixtureAdventureSelection } from './story-planning-fixture';
 
 const options = resolvePersonalWizardOptions();
 const settings: StorySettings = { model: 'gpt-6-sol', budgetUsd: 1, maxJobs: 2, operators: new Set(['operator@example.com']) };
@@ -23,6 +24,7 @@ export function storyOutput(call: StoryCall) {
   const input = JSON.parse(call.input);
   const { brief } = input;
   if (call.stage === 'plan') return {
+    adventureSelection: fixtureAdventureSelection(brief.beats),
     requestId: brief.requestId, title: 'נועה והרוח הצוחקת', childGoal: 'להחזיר מכתב לענן', companionWant: 'לשלוח מכתב משלה', comicPromise: 'הרוח מתעטשת פתקים',
     resilience: { mode: brief.resilienceMode, moments: [{ pageNumber: 3, childChoice: 'לבקש מהחברה להחזיק את הדף', whatHelps: 'עובדות יחד ומנסות רעיון אחר' }] },
     beats: Array.from({ length: brief.beats }, (_, index) => ({ pageNumber: index + 1, location: index < 2 ? 'הגינה' : 'השביל', transitionReason: 'בעקבות המכתב המעופף', childAction: 'נועה מציעה לקפל את המכתב', companionAction: 'החברה מנסה לתפוס אותו', consequence: 'המכתב מגיע לשביל', factIds: ['f_interest0001'], continuity: 'המכתב בידי נועה, החבר לצדה' })), ending: 'נועה והחברה שולחות יחד את המכתב',

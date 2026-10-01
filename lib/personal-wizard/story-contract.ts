@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { storyPlanningReceiptSchema } from './story-planning-contract';
 
 // Whole-story planning data, NOT a render contract or approved story source.
 const line = z.string().trim().min(1).max(700);
@@ -54,6 +55,9 @@ export const personalStoryResultObjectSchema = z.object({
   containsFixtureData: z.boolean(),
   editorialStatus: z.literal('pending_product_review'),
   runtimeEligible: z.literal(false),
+  // Optional only for archived/offline compatibility. Current writer requires it.
+  // Bound to the ORIGINAL outline; an editor may legitimately change the final plot.
+  planning: storyPlanningReceiptSchema.optional(),
   accounting: z.object({
     model: z.string().min(1), providerCalls: z.number().int().min(0).max(2),
     reservedUsd: z.number().finite().nonnegative(), estimatedUsd: z.number().finite().nonnegative().nullable(),
@@ -66,6 +70,9 @@ export const personalStoryResultSchema = personalStoryResultObjectSchema.superRe
       result.plan.beats.length !== count || result.manuscript.pages.length !== count ||
       result.plan.beats.some((beat, i) => beat.pageNumber !== i + 1) || result.manuscript.pages.some((page, i) => page.pageNumber !== i + 1)) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'story_result_binding' });
+  }
+  if (result.planning && result.planning.sourcePlanDigest !== result.planDigest) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'story_planning_binding' });
   }
 });
 export type PersonalStoryResult = z.infer<typeof personalStoryResultSchema>;

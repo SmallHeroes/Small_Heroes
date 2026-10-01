@@ -9,6 +9,7 @@ import { canonicalJson } from './request-acceptance';
 import { anyPersonalStoryResultSchema } from './story-editor-contract';
 import { assertStoryEditBinding, editorNeedsWork } from './story-editor';
 import { preparePersonalStory } from './story-writer';
+import { adventureSelectionIssue } from './story-planning-contract';
 import type { PersonalWizardOptions } from './options';
 
 export const PERSONAL_STORYBOARD_VERSION = 'personal-book-storyboard/offline-v1';
@@ -42,6 +43,12 @@ export function preparePersonalStoryboard(request: unknown, writerResult: unknow
   }
   if (result.requestId !== prepared.accepted.requestId || result.displayPages !== prepared.brief.displayPages ||
       result.containsFixtureData !== prepared.accepted.containsFixtureData || digest(result.plan) !== result.planDigest) fail('source_binding');
+  if (result.planning) {
+    const originalPlan = 'editing' in result ? result.editing.original.plan : result.plan;
+    if (digest(originalPlan) !== result.planning.sourcePlanDigest ||
+      adventureSelectionIssue(result.planning.selection, prepared.brief.facts, prepared.brief.beats,
+        originalPlan.beats.flatMap(beat => beat.factIds))) fail('planning_binding');
+  }
   const knownFacts = new Set(prepared.brief.facts.map(fact => fact.id));
   if (result.plan.beats.some(beat => beat.factIds.some(id => !knownFacts.has(id)))) fail('unknown_fact');
   if (!prepared.brief.facts.some(fact => fact.kind === 'interest' && result.plan.beats.some(beat => beat.factIds.includes(fact.id)))) fail('personal_fact_missing');
@@ -54,7 +61,7 @@ export function preparePersonalStoryboard(request: unknown, writerResult: unknow
   const story = previewTextPages({ title: result.manuscript.title, pages: result.manuscript.pages });
   const sourceDigest = digest({ version: PERSONAL_STORYBOARD_VERSION, optionsFingerprint: prepared.accepted.optionsFingerprint,
     request: prepared.accepted.canonical, plan: result.plan, manuscript: result.manuscript, displayPages: result.displayPages,
-    ...('editing' in result ? { editing: result.editing } : {}) });
+    ...('editing' in result ? { editing: result.editing } : {}), ...(result.planning ? { planning: result.planning } : {}) });
   const source = {
     sourceDigest, request: prepared.accepted.canonical, result, story,
     brief: prepared.brief, companionDescription: companion.visualDescription,

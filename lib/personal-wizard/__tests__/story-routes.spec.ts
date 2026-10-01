@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { fixtureAdventureSelection } from './story-planning-fixture';
 
 const deps = vi.hoisted(() => ({ user: { id: 'operator', email: 'operator@example.com' } as { id: string; email: string } | null, production: false, calls: 0, keyReads: 0, mode: 'ok', factory: 0 }));
 vi.mock('@/lib/auth-session', () => ({ resolveUserFromRequest: async () => deps.user ? { user: deps.user } : null }));
@@ -13,6 +14,7 @@ vi.mock('@/lib/personal-wizard/story-openai', () => ({ createPersonalStoryProvid
     const input = JSON.parse(call.input); const brief = input.brief;
     const base = { requestId: brief.requestId, title: 'נועה והמכתב המעופף' };
     return { usage: { inputTokens: 100, outputTokens: 200 }, output: call.stage === 'plan' ? {
+      adventureSelection: fixtureAdventureSelection(brief.beats),
       ...base, childGoal: 'למצוא את המכתב', companionWant: 'לשלוח ציור', comicPromise: 'עלים שמדגדגים', ending: 'שלחו את הציור',
       resilience: { mode: brief.resilienceMode, moments: [{ pageNumber: 2, childChoice: 'להציע רעיון אחר', whatHelps: 'החברה מקשיבה' }] },
       beats: Array.from({ length: brief.beats }, (_, index) => ({ pageNumber: index + 1, location: 'הגינה', transitionReason: 'בעקבות המכתב', childAction: 'מחפשת', companionAction: 'מתבוננת', consequence: 'המכתב מתגלה', factIds: ['f_interest0001'], continuity: 'הציור בידי נועה' })),
@@ -69,10 +71,16 @@ describe('actual local manuscript route', () => {
     expect(deps.keyReads).toBe(1);
   });
   it('limits jobs/budget across requests, not separately per manuscript stage', async () => {
+    process.env.PERSONAL_WIZARD_STORY_BUDGET_USD = '1.1';
     expect((await POST(request(job()))).status).toBe(200);
     expect((await POST(request(job('s_routejob0000002')))).status).toBe(200);
     expect((await POST(request(job('s_routejob0000003')))).status).toBe(409); expect(deps.calls).toBe(4);
     expect(deps.keyReads).toBe(2);
+  });
+  it('prices added planning headroom and refuses a second job at the unchanged $1 allowance before key access', async () => {
+    expect((await POST(request(job()))).status).toBe(200);
+    expect((await POST(request(job('s_routejob0000002')))).status).toBe(409);
+    expect(deps.calls).toBe(2); expect(deps.keyReads).toBe(1);
   });
   it('status route also enforces signed-in operator authority', async () => {
     deps.user = null;

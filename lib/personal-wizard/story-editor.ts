@@ -6,6 +6,8 @@ import { personalStoryResultSchema, type PersonalStoryResult, type StoryUsage } 
 import { STORY_LIMITS, STORY_PRICES, type StoryModel } from './story-config';
 import { STORY_INSTRUCTIONS, RESILIENCE_INSTRUCTIONS, NARRATIVE_CRAFT_INSTRUCTIONS, type PreparedStory } from './story-writer';
 import { editedStoryResultSchema, storyEditorOutputSchema, type EditedStoryResult } from './story-editor-contract';
+import { adventureSelectionIssue } from './story-planning-contract';
+import { measureStoryText } from './story-text-metrics';
 
 export type StoryEditorCall = { stage: 'editor'; instructions: string; input: string; maxOutputTokens: number };
 export type StoryEditorProvider = { generate(call: StoryEditorCall, signal: AbortSignal): Promise<{ output: unknown; usage: StoryUsage }> };
@@ -35,9 +37,12 @@ export function prepareStoryEdit(prepared: PreparedStory, rawDraft: unknown): St
   if (canonicalJson(rawDraft) !== canonicalJson(draft) || draft.requestId !== prepared.accepted.requestId ||
     draft.displayPages !== prepared.brief.displayPages || draft.containsFixtureData !== prepared.accepted.containsFixtureData ||
     digest(draft.plan) !== draft.planDigest) fail('source_binding');
+  if (draft.planning && adventureSelectionIssue(draft.planning.selection, prepared.brief.facts, prepared.brief.beats,
+    draft.plan.beats.flatMap(beat => beat.factIds))) fail('source_binding');
   const original = { plan: draft.plan, manuscript: draft.manuscript };
   const call: StoryEditorCall = { stage: 'editor', instructions: STORY_EDITOR_INSTRUCTIONS,
     input: canonicalJson({ brief: prepared.brief, draft: original, draftDigest: digest(original),
+      draftTextMetrics: measureStoryText(draft.manuscript, prepared.brief.child.age),
       task: 'Edit the whole story for real read-aloud enjoyment. Return all spreads in order, not just changed passages. Checks concern the revised story, not the original.' }),
     maxOutputTokens: storyEditorOutputTokens(prepared.brief.beats) };
   if (Buffer.byteLength(call.instructions + call.input, 'utf8') > STORY_LIMITS.inputBytesPerCall - 12_000) fail('input_limit');
@@ -71,6 +76,7 @@ export function compileStoryEdit(prepared: PreparedStory, draft: PersonalStoryRe
   const price = STORY_PRICES[draft.accounting.model as StoryModel];
   if (!price) fail('model_unpriced');
   const result = editedStoryResultSchema.parse({ ...draft, plan, planDigest, manuscript,
+    ...(draft.planning ? { planning: structuredClone(draft.planning) } : {}),
     accounting: { ...draft.accounting, providerCalls: 3, usage: usages,
       reservedUsd: draft.accounting.reservedUsd + storyEditorReservationUsd(draft.accounting.model as StoryModel, count),
       estimatedUsd: usages.every(row => row !== null) ? usages.reduce((sum, row) => sum + (row!.inputTokens * price.input + row!.outputTokens * price.output) / 1e6, 0) : null },
@@ -81,6 +87,7 @@ export function compileStoryEdit(prepared: PreparedStory, draft: PersonalStoryRe
 export function assertStoryEditBinding(result: EditedStoryResult) {
   if (digest(result.plan) !== result.planDigest || digest(result.editing.original.plan) !== result.editing.original.manuscript.planDigest ||
     digest(result.editing.original) !== result.editing.draftDigest || digest({ plan: result.plan, manuscript: result.manuscript }) !== result.editing.finalDigest) fail('revision_binding');
+  if (result.planning && result.planning.sourcePlanDigest !== digest(result.editing.original.plan)) fail('revision_binding');
 }
 export function editorNeedsWork(result: EditedStoryResult): boolean {
   return Object.values(result.editing.checks).some(check => check.outcome === 'needs_work');

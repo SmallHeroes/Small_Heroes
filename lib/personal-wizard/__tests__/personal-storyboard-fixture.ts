@@ -5,6 +5,7 @@ import { preparePersonalStoryboard, compilePersonalStoryboard, STORYBOARD_BOOK_C
 import type { ReviewedPersonalBookRequest } from '../contract';
 import { prepareStoryEdit, compileStoryEdit, type StoryEditorCall } from '../story-editor';
 import { STORY_EDITOR_CRITERIA, type StoryEditorOutput } from '../story-editor-contract';
+import { fixtureAdventureSelection } from './story-planning-fixture';
 
 export function fixtureEditorOutput(call: StoryEditorCall): StoryEditorOutput {
   const { brief, draft, draftDigest } = JSON.parse(call.input);
@@ -38,6 +39,7 @@ export async function personalStoryboardFixture(lengthId = 'short', companionId 
     provider: () => ({ generate: async (call: StoryCall) => {
       const { brief, planDigest } = JSON.parse(call.input);
       const output = call.stage === 'plan' ? {
+        adventureSelection: fixtureAdventureSelection(brief.beats),
         requestId: brief.requestId, title: 'נועה והסרט האדום', childGoal: 'למצוא רעיון', companionWant: 'לעזור וגם לצייר', comicPromise: 'הסרט מדגדג',
         resilience: { mode: brief.resilienceMode, moments: [{ pageNumber: 2, childChoice: 'מציעה רעיון', whatHelps: 'החברה מקשיבה' }] },
         beats: Array.from({ length: brief.beats }, (_, i) => ({ pageNumber: i + 1, location: 'הגינה', transitionReason: 'מחפשות רעיון',

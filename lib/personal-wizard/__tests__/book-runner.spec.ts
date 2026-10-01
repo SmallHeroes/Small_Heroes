@@ -22,7 +22,7 @@ afterEach(() => vi.restoreAllMocks());
 async function setup(length = 'short', companion = 'dragon_dini') {
   const f = await personalStoryboardFixture(length, companion);
   const provider: PersonalBookProvider = {
-    story: { generate: vi.fn(async call => ({ output: structuredClone(call.stage === 'plan' ? f.result.plan : f.result.manuscript), usage: { inputTokens: 100, outputTokens: 200 } })) },
+    story: { generate: vi.fn(async call => ({ output: structuredClone(call.stage === 'plan' ? { ...f.result.plan, adventureSelection: f.draftResult.planning!.selection } : f.result.manuscript), usage: { inputTokens: 100, outputTokens: 200 } })) },
     editor: { generate: vi.fn(async call => ({ output: fixtureEditorOutput(call), usage: { inputTokens: 100, outputTokens: 200 } })) },
     visual: { generate: vi.fn(async call => ({ output: structuredClone(call.stage === 'storyboard' ? f.draft : f.review), usage: { inputTokens: 300, outputTokens: 400 } })) },
   };
@@ -36,11 +36,22 @@ const errorOf = async (promise: Promise<unknown>): Promise<PersonalBookError> =>
 };
 
 describe('automatic personal manuscript -> full storyboard -> separate semantic review', () => {
+  it('holds a malformed current adventure selection after one paid attempt before all later stages', async () => {
+    const f = await setup(); const output = { ...f.draftResult.plan, adventureSelection: structuredClone(f.draftResult.planning!.selection) };
+    output.adventureSelection.outlineChecks.earned_payoff.outcome = 'needs_work';
+    vi.mocked(f.provider.story.generate).mockResolvedValue({ output, usage: { inputTokens: 100, outputTokens: 200 } });
+    const failure = await errorOf(generatePersonalBook(f.args));
+    expect(failure.code).toBe('book_story_invalid'); expect(failure.accounting?.providerAttempts).toBe(1);
+    expect(failure.accounting?.estimatedUsd).toBeGreaterThan(0);
+    expect(f.provider.story.generate).toHaveBeenCalledTimes(1);
+    expect(f.provider.editor.generate).not.toHaveBeenCalled(); expect(f.provider.visual.generate).not.toHaveBeenCalled();
+    expect(failure).not.toHaveProperty('framePackets'); expect(f.ledger.snapshot().inFlight).toBe(0);
+  });
   it('diagnoses the real editor input limit after exactly two completed writer calls', async () => {
     const f = await setup('long'); const plan = structuredClone(f.draftResult.plan);
     for (const beat of plan.beats) for (const key of ['location', 'transitionReason', 'childAction', 'companionAction', 'consequence', 'continuity'] as const) beat[key] = 'x'.repeat(400);
     vi.mocked(f.provider.story.generate).mockImplementation(async call => ({
-      output: call.stage === 'plan' ? plan : { ...f.draftResult.manuscript, planDigest: JSON.parse(call.input).planDigest,
+      output: call.stage === 'plan' ? { ...plan, adventureSelection: f.draftResult.planning!.selection } : { ...f.draftResult.manuscript, planDigest: JSON.parse(call.input).planDigest,
         pages: f.draftResult.manuscript.pages.map(page => ({ ...page, text: 'x'.repeat(1500) })) },
       usage: { inputTokens: 100, outputTokens: 200 },
     }));
@@ -199,7 +210,7 @@ describe('automatic personal manuscript -> full storyboard -> separate semantic 
     const gate = new Promise<void>(resolve => { release = resolve; });
     vi.mocked(f.provider.story.generate).mockImplementation(async call => {
       if (call.stage === 'plan') await gate;
-      return { output: structuredClone(call.stage === 'plan' ? f.result.plan : f.result.manuscript), usage: null };
+      return { output: structuredClone(call.stage === 'plan' ? { ...f.result.plan, adventureSelection: f.draftResult.planning!.selection } : f.result.manuscript), usage: null };
     });
     const first = generatePersonalBook(f.args); await Promise.resolve(); await Promise.resolve();
     expect((await errorOf(generatePersonalBook({ ...f.args, jobId: 'book_job0002' }))).code).toBe('book_user_busy');
@@ -231,7 +242,7 @@ describe('automatic personal manuscript -> full storyboard -> separate semantic 
   });
   it.each([false, true])('stops a reported overrun even with earlier usage unknown=%s', async unknown => {
     const f = await setup();
-    vi.mocked(f.provider.story.generate).mockImplementation(async call => ({ output: call.stage === 'plan' ? f.result.plan : f.result.manuscript,
+    vi.mocked(f.provider.story.generate).mockImplementation(async call => ({ output: call.stage === 'plan' ? { ...f.result.plan, adventureSelection: f.draftResult.planning!.selection } : f.result.manuscript,
       usage: call.stage === 'plan' && unknown ? null : { inputTokens: 1, outputTokens: 1 } }));
     vi.mocked(f.provider.visual.generate).mockResolvedValue({ output: f.draft, usage: { inputTokens: 1_000_000, outputTokens: 1_000_000 } });
     const error = await errorOf(generatePersonalBook(f.args)); expect(error.code).toBe('book_reservation_exceeded');
@@ -322,7 +333,7 @@ function providerReview(f: Awaited<ReturnType<typeof setup>>) {
 }
 
 describe('actual OpenAI adapter, deterministic metadata and default-off configuration', () => {
-  it.each([[8, 32_000, 39_000, 2.1186], [12, 39_000, 47_000, 2.3496], [16, 51_000, 55_000, 2.6356]])(
+  it.each([[8, 32_000, 39_000, 2.1626], [12, 39_000, 47_000, 2.3936], [16, 51_000, 55_000, 2.6796]])(
     'sizes reasoning-inclusive caps and full reservations for %s spreads', (count, author, reviewer, solReservation) => {
       expect(personalBookOutputLimits(count)).toEqual({ storyboardOutputTokens: author, reviewOutputTokens: reviewer });
       const checkCount = STORYBOARD_BOOK_CHECKS.length + STORYBOARD_FRAME_CHECKS.length * (count + 1);
@@ -371,7 +382,7 @@ describe('actual OpenAI adapter, deterministic metadata and default-off configur
     const f = await setup(length); sdk.create.mockImplementation(async payload => {
       const name = payload.text.format.name;
       const strip = ({ pageNumber: _ignored, ...row }: { pageNumber: number }) => row;
-      const raw = name === 'personal_story_plan' ? { ...f.result.plan, beats: f.result.plan.beats.map(strip) }
+      const raw = name === 'personal_story_plan' ? { ...f.result.plan, adventureSelection: f.draftResult.planning!.selection, beats: f.result.plan.beats.map(strip) }
         : name === 'personal_story_manuscript' ? { ...f.result.manuscript, pages: f.result.manuscript.pages.map(strip) }
         : name === 'personal_story_editor' ? (() => { const edited = fixtureEditorOutput({ stage: 'editor', instructions: '', input: payload.input, maxOutputTokens: payload.max_output_tokens });
           return { ...edited, plan: { ...edited.plan, beats: edited.plan.beats.map(strip) }, manuscript: { ...edited.manuscript, pages: edited.manuscript.pages.map(strip) } }; })()

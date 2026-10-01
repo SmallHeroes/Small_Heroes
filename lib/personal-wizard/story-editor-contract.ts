@@ -34,6 +34,9 @@ export const editedStoryResultSchema = personalStoryResultObjectSchema.extend({
     result.manuscript.planDigest !== result.planDigest || result.accounting.usage.length !== 3) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'edited_story_result_binding' });
   }
+  if (result.planning && result.planning.sourcePlanDigest !== result.editing.original.manuscript.planDigest) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'edited_story_planning_binding' });
+  }
 });
 // Explicit archive/partial compatibility. Complete v2 book results require editedStoryResultSchema.
 export const anyPersonalStoryResultSchema = z.union([editedStoryResultSchema, personalStoryResultSchema]);

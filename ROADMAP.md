@@ -10,6 +10,14 @@ This roadmap records technical milestone state. Guy can change product priority 
 
 ### P-personal literary quality milestone (2026-10-01)
 
+- Bounded adventure-selection successor implemented at base `6de84b4f`: two
+  distinct concise proposals inside the existing plan call, retained original
+  selection receipt, deterministic soft word targets, offline phase-separated
+  blinded review. 12 synthetic profiles registered, not generated/evaluated.
+  Final focused 412/412 + tsc 0; independent QA pending. No creative-improvement
+  claim. Next: matched old/new FIRST drafts, separate draft/edit comparisons and
+  text-only final critique under a fresh bounded text-trial allowance. Do not
+  reuse the claimed paid root or distribute all review phases to one reviewer.
 - Implemented one complete whole-story editor before visual planning; original
   draft preserved, editor holds fail closed, complete envelopes require editing.
   Explicit 6.1 Sol option at unchanged base rates; existing live pilot not reset.

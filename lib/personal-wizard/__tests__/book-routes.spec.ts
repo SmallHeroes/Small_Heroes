@@ -32,7 +32,7 @@ beforeEach(async () => {
   deps.keyReads = 0; deps.factory = 0; deps.hasKey = true;
   delete (globalThis as typeof globalThis & { __personalBookPilotLedger?: unknown }).__personalBookPilotLedger;
   fixture = await personalStoryboardFixture();
-  deps.provider = { story: { generate: vi.fn(async call => ({ output: structuredClone(call.stage === 'plan' ? fixture.result.plan : fixture.result.manuscript), usage: { inputTokens: 100, outputTokens: 200 } })) },
+  deps.provider = { story: { generate: vi.fn(async call => ({ output: structuredClone(call.stage === 'plan' ? { ...fixture.result.plan, adventureSelection: fixture.draftResult.planning!.selection } : fixture.result.manuscript), usage: { inputTokens: 100, outputTokens: 200 } })) },
     editor: { generate: vi.fn(async call => ({ output: fixtureEditorOutput(call), usage: { inputTokens: 100, outputTokens: 200 } })) },
     visual: { generate: vi.fn(async call => ({ output: structuredClone(call.stage === 'storyboard' ? fixture.draft : fixture.review), usage: { inputTokens: 300, outputTokens: 400 } })) } };
   vi.spyOn(console, 'info').mockImplementation(() => {});
@@ -139,7 +139,7 @@ describe('real local diagnostic book route', () => {
     process.env.PERSONAL_WIZARD_BOOK_MODEL = 'gpt-6-astra'; process.env.PERSONAL_WIZARD_BOOK_BUDGET_USD = '10';
     const status = await GET(new NextRequest(url)); const body = await status.json();
     expect(body.reservations.map((row: { fitsConfiguredTotalBudget: boolean }) => row.fitsConfiguredTotalBudget)).toEqual([false, false, false]);
-    expect(body.reservations[2].reservationUsd).toBeCloseTo(13.178, 10);
+    expect(body.reservations[2].reservationUsd).toBeCloseTo(13.398, 10);
     expect(body.reservations[2].outputLimits).toEqual({ storyboardOutputTokens: 51_000, reviewOutputTokens: 55_000 });
     const response = await POST(req(job()));
     expect(response.status).toBe(409); expect((await response.json()).error).toBe('book_budget_exhausted');

@@ -81,6 +81,7 @@ describe('whole-story editing without product or render authority', () => {
     draft.requestId = draft.plan.requestId = draft.manuscript.requestId = prepared.accepted.requestId;
     const { createHash } = await import('crypto'); const { canonicalJson } = await import('../request-acceptance');
     draft.planDigest = draft.manuscript.planDigest = createHash('sha256').update(canonicalJson(draft.plan)).digest('hex');
+    draft.planning!.sourcePlanDigest = draft.planDigest;
     const raw = fixtureEditorOutput(prepareStoryEdit(prepared, draft)); raw.manuscript.pages[0].text += ' היו שם ציפורים.';
     expect(() => compileStoryEdit(prepared, draft, raw, null)).toThrow('excluded_subject');
   });

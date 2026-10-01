@@ -56,7 +56,8 @@ describe('synthetic story trial is one-shot and dry by default', () => {
     const result = JSON.parse(output.mock.calls[0][0]);
     expect(result).toMatchObject({ dryRun: true, model: 'gpt-6.1-sol', reasoning: 'medium', syntheticOnly: true,
       spreads: [8, 12, 16], providerAttempts: 0, keyReads: 0, writes: 0, maxProviderAttempts: 10, budgetUsd: 3 });
-    expect(result.reservedUsd).toBeCloseTo(2.838, 10);
+    // Current dry policy changed; historical claimed-root accounting remains untouched.
+    expect(result.reservedUsd).toBeCloseTo(2.97, 10);
     expect(existsSync('outputs/personal-story-editor-trial-20261001')).toBe(before);
   });
   it.each([{ argv: ['--execute'] }, { argv: ['--output', '../other-root'] }, { argv: ['--execute', '--key', 'SENTINEL'] }])('refuses ambiguous command $argv before any key read', async ({ argv }) => {

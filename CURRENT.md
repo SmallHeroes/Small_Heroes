@@ -1,5 +1,59 @@
 # SmallHeroes — Current Technical State
 
+## Adventure selection + phase-separated literary evidence (2026-10-01)
+
+Guy adopted the narrow current-planner improvement plus four refinements: genuinely
+different premises, preserve both/selection reason, measure structure independently,
+and separate planner contribution from editing. Same chat/sole Codex writer,
+`codex/personal-book-storyboard-bridge`, implementation worktree
+`C:/Users/guyna/.codex/worktrees/personal-story-product/Small_Heroes`, base `6de84b4f`.
+Decision: `docs/ai-workflow/PERSONAL_ADVENTURE_SELECTION_DECISION_20261001.md`.
+
+- Current planner now proposes two concise adventures INSIDE the existing single
+  plan call, then outlines only the selected one. Meaningful difference concerns
+  want/complication/discovery/child contribution, not scenery/prop substitution.
+  Code checks literal differences (including niqqud/bidi variants), approved facts,
+  selected fact references and outline positions; model needs_work holds before
+  manuscript. Paraphrasing and causal/literary truth remain semantic, not proven.
+- Original plan-bound selection receipt preserves both ideas and reason through
+  editing and enters storyboard source identity. Editor does not receive/rewrite
+  those rationalisations. Receipt-free archives remain diagnostic-compatible;
+  hashes do NOT authenticate history or prevent deliberate legacy masquerading.
+- Actual prose has deterministic lexical word measurements, separately reported
+  soft age targets, and original metrics supplied to the editor. A ready model
+  observation cannot override measurements; measurements cannot certify quality.
+- Offline comparison CLI validates same synthetic reviewed request/model/count,
+  separates old/new FIRST drafts from each draft/edit pair, retains missing slots,
+  and exports four separate reviewer folders with opaque labels. Final critique
+  receives actual edited prose only, no editor/selection assertions. Distribute
+  ONE phase per reviewer, never the root/private evidence or all phases together.
+  Declared commit/model provenance is not externally attested.
+- Registered 12 synthetic profiles (all six companions, all lengths, ages 3..8,
+  rich/sparse, topic/no-topic; three held out). NONE generated/evaluated this turn.
+  No claim of improved first drafts, excellent stories, or creative acceptance.
+- Plan-only headroom +4,000 tokens, priced +$0.044 Sol reservation per job;
+  manuscript/editor/visual caps and hard budgets unchanged. Two writer calls,
+  five full-book calls maximum, no retry. Sol book reservations now
+  $2.1626/$2.3936/$2.6796. Current three-profile dry trial reservation is $2.970,
+  NOT a charge; historical claimed root/accounting/allowance never reset.
+- Final focused 14 files 412/412, tsc 0, diff check clean. Four deliberate planner
+  guard breakages produced four failures; metadata/final-stage breakages produced
+  two failures; all mutations restored before the green run. Final full check
+  native 1: ordinary 381 files, 10 failed / 5426 passed / 73 skipped; resource
+  20 files, 635/635 tests passed BUT three onTaskUpdate RPC errors, gate failed.
+  Both typechecks passed. No fresh baseline run or stability/causality closure.
+- Paid trial six artifacts rehashed 6/6 unchanged. Historical age-five edited
+  story has 7/8 spreads above soft target; age-four edited story has 0/12. Neither
+  fact is a literary verdict or current-planner causal comparison. Zero live
+  calls, secret-value reads, dollars, renders, narration, push or deployment.
+
+Independent Claude re-gate pending for this exact successor; the preceding P3
+correction remains separately pending, not silently folded into any prior PASS.
+Next substantive evidence: matched blind first-draft comparison on the registered
+profiles, then distinct editing/final reviews. A fresh bounded text execution
+allowance is needed; do not reopen the old one-shot trial or pay for illustrations.
+Handoff: `docs/ai-workflow/PERSONAL_ADVENTURE_SELECTION_QA_20261001.md`.
+
 ## Literary-editor QA received; bounded P3 correction (2026-10-01)
 
 Claude delivered technical PASS (P0/P1/P2 = 0, four non-blocking P3s) for exactly
