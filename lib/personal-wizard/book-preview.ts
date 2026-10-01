@@ -24,6 +24,17 @@ export const bookPreviewSchema = z.object({
   accounting: accountingSchema,
 });
 export type BookPreview = z.infer<typeof bookPreviewSchema>;
+export const textBookPreviewSchema = z.object({
+  version: z.literal('personal-book-text/diagnostic-v1'), status: z.literal('story_ready_for_reading'),
+  writerResult: editedStoryResultSchema, runtimeEligible: z.literal(false),
+  accounting: accountingSchema.extend({ providerAttempts: z.literal(3) }),
+}).strict();
+export type TextBookPreview = z.infer<typeof textBookPreviewSchema>;
+export function readTextBookPreview(raw: unknown, requestId: string): TextBookPreview | null {
+  const parsed = textBookPreviewSchema.safeParse(raw);
+  return parsed.success && parsed.data.writerResult.requestId === requestId &&
+    Object.values(parsed.data.writerResult.editing.checks).every(check => check.outcome === 'ready_for_reading') ? parsed.data : null;
+}
 const failureSchema = z.object({ error: z.string(), writerResult: anyPersonalStoryResultSchema, accounting: accountingSchema });
 export type BookPartialPreview = z.infer<typeof failureSchema>;
 export function readBookPartialPreview(raw: unknown, requestId: string): BookPartialPreview | null {
@@ -58,6 +69,17 @@ export function readBookPreview(raw: unknown, requestId: string): BookPreview | 
 export const bookAvailabilitySchema = z.object({ configured: z.literal(true), model: z.string(),
   reservations: z.array(z.object({ lengthId: z.string(), reservationUsd: z.number().nonnegative(),
     fitsConfiguredTotalBudget: z.boolean() })) });
+export const textBookAvailabilitySchema = bookAvailabilitySchema.extend({ scope: z.literal('story_only'), maxProviderAttempts: z.literal(3) });
+
+export async function fetchTextBookAvailability(fetchImpl: AvailabilityFetch = fetch): Promise<z.infer<typeof textBookAvailabilitySchema> | null | undefined> {
+  try {
+    const response = await fetchImpl('/api/dev/personal-wizard/book?scope=story_only', { cache: 'no-store' });
+    if ([401, 403, 404].includes(response.status)) return null;
+    if (!response.ok) return undefined;
+    const parsed = textBookAvailabilitySchema.safeParse(await response.json());
+    return parsed.success ? parsed.data : undefined;
+  } catch { return undefined; }
+}
 
 /** null is an explicit access refusal; undefined is a transient/invalid read. */
 export async function fetchBookAvailability(fetchImpl: AvailabilityFetch = fetch): Promise<z.infer<typeof bookAvailabilitySchema> | null | undefined> {

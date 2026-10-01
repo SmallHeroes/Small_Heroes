@@ -8,7 +8,7 @@ import type { PersonalWizardOptions } from './options';
 import type { StoryUsage, PersonalStoryResult, StoryPlanningHold } from './story-contract';
 import { prepareStoryEdit, compileStoryEdit, editorNeedsWork, storyEditorOutputTokens, StoryEditorError, type StoryEditorCall, type StoryEditorProvider } from './story-editor';
 import type { EditedStoryResult } from './story-editor-contract';
-import { BOOK_LIMITS, assertPersonalBookSettings, personalBookOutputLimits, personalBookReservationUsd, type PersonalBookSettings } from './book-config';
+import { BOOK_LIMITS, assertPersonalBookSettings, personalBookOutputLimits, personalBookReservationUsd, type PersonalBookSettings, type PersonalBookScope } from './book-config';
 import { preparePersonalStoryboard, compilePersonalStoryboard, personalStoryboardReviewInput,
   storyboardReviewDisposition, personalStoryboardFrame, PERSONAL_STORYBOARD_INSTRUCTION, type PersonalStoryboard } from './storyboard';
 
@@ -47,13 +47,26 @@ Camera movement and cropped/hidden objects do not change physical state. Mark a 
 Observe concrete evidence or missing support; do not rewrite the story, lower thresholds, invent hashes, claim pixels were seen or author approvals.
 Return the requested fixed check groups, in cover then narrative order, with supported/contradiction/uncertain and concise observations.`;
 
-/** One operator diagnostic job, one reservation/lock, five stages at most. No retry/render/storage side effect. */
-export async function generatePersonalBook(args: {
+export type PersonalTextBookResult = { version: 'personal-book-text/diagnostic-v1'; status: 'story_ready_for_reading';
+  writerResult: EditedStoryResult; runtimeEligible: false; accounting: BookAccounting };
+export type PersonalVisualBookResult = { version: 'personal-book-runner/diagnostic-v2';
+  status: ReturnType<typeof storyboardReviewDisposition>['disposition']; writerResult: EditedStoryResult; storyboard: PersonalStoryboard;
+  review: ReturnType<typeof storyboardReviewDisposition>; framePackets: ReturnType<typeof personalStoryboardFrame>[];
+  runtimeEligible: false; accounting: BookAccounting };
+type PersonalBookArgs = {
   request: unknown; options: PersonalWizardOptions; userId: string; operatorEmail: string; jobId: string;
   settings: PersonalBookSettings; ledger: IntakeLedger; signal: AbortSignal; provider: () => PersonalBookProvider;
+  scope?: PersonalBookScope;
   record?: (event: { stage: BookStage | 'complete'; outcome: 'started' | 'finished' | 'held' | 'failed'; code: string | null; accounting: BookAccounting }) => void;
-}) {
+};
+export function generatePersonalBook(args: PersonalBookArgs & { scope: 'story_only' }): Promise<PersonalTextBookResult>;
+export function generatePersonalBook(args: PersonalBookArgs & { scope?: 'storyboard' }): Promise<PersonalVisualBookResult>;
+export function generatePersonalBook(args: PersonalBookArgs): Promise<PersonalTextBookResult | PersonalVisualBookResult>;
+/** One operator job/reservation/lock. Three text stages or five storyboard stages; no render/retry. */
+export async function generatePersonalBook(args: PersonalBookArgs): Promise<PersonalTextBookResult | PersonalVisualBookResult> {
   assertPersonalBookSettings(args.settings);
+  const scope = args.scope ?? 'storyboard';
+  if (scope !== 'story_only' && scope !== 'storyboard') fail('book_scope_invalid');
   if (!args.userId || !/^[a-zA-Z0-9_-]{4,100}$/.test(args.jobId) ||
       !args.settings.operators.has(args.operatorEmail.toLowerCase().trim())) fail('book_operator_required');
   if (args.signal.aborted) fail('book_cancelled');
@@ -62,7 +75,7 @@ export async function generatePersonalBook(args: {
   const originalRequestId = prepared.accepted.requestId;
   const narrativeSpreads = prepared.brief.beats;
   const outputLimits = personalBookOutputLimits(narrativeSpreads);
-  const reservedUsd = personalBookReservationUsd(settings.model, narrativeSpreads);
+  const reservedUsd = personalBookReservationUsd(settings.model, narrativeSpreads, scope);
   const stages: BookAccounting['stages'] = [];
   const accounting = (): BookAccounting => {
     const price = STORY_PRICES[settings.model];
@@ -85,30 +98,37 @@ export async function generatePersonalBook(args: {
   let active: BookStage = 'plan';
   let completedManuscript: PersonalStoryResult | EditedStoryResult | undefined;
   // Counts actual generate() invocations, NOT intended calls or acknowledged network dispatch.
-  async function dispatch(stage: BookStage, call: (signal: AbortSignal) => Promise<{ output: unknown; usage: StoryUsage }>) {
+  async function dispatch(stage: BookStage, call: (signal: AbortSignal) => Promise<{ output: unknown; usage: StoryUsage }>, stageSignal = args.signal) {
     assertCurrent(); active = stage;
-    if (stages.length >= 5) fail('book_call_limit');
+    if (stages.length >= (scope === 'story_only' ? 3 : 5)) fail('book_call_limit');
     const row: BookAccounting['stages'][number] = { stage, usage: null };
     const controller = new AbortController();
     let timedOut = false;
     let rejectAbort: (error: Error) => void = () => {};
     const cancelled = new Promise<never>((_, reject) => { rejectAbort = reject; });
     const cancel = () => { controller.abort(); rejectAbort(new PersonalBookError(timedOut ? 'book_timeout' : 'book_cancelled')); };
+    const stageCancel = () => { timedOut = !args.signal.aborted; cancel(); };
     args.signal.addEventListener('abort', cancel, { once: true });
+    if (stageSignal !== args.signal) stageSignal.addEventListener('abort', stageCancel, { once: true });
     const storyLimits = personalStoryOutputLimits(narrativeSpreads);
     const cap = stage === 'plan' ? storyLimits.planOutputTokens : stage === 'manuscript' ? storyLimits.manuscriptOutputTokens :
       stage === 'editor' ? storyEditorOutputTokens(narrativeSpreads) : stage === 'storyboard' ? outputLimits.storyboardOutputTokens : outputLimits.reviewOutputTokens;
     const timer = setTimeout(() => { timedOut = true; cancel(); }, generationTimeoutMs(cap));
     try {
       if (args.signal.aborted) cancel();
+      else if (stageSignal.aborted) stageCancel();
       const answer = await Promise.race([cancelled, Promise.resolve().then(() => {
         if (controller.signal.aborted) fail(timedOut ? 'book_timeout' : 'book_cancelled');
         assertCurrent();
+        // Recheck at the actual invocation boundary: faulty concurrent subordinate
+        // calls can otherwise all pass the earlier preflight before any row exists.
+        if (stages.length >= (scope === 'story_only' ? 3 : 5)) fail('book_call_limit');
         stages.push(row);
         const pending = call(controller.signal);
         emit(stage, 'started');
         return pending;
       })]);
+      if (controller.signal.aborted) fail(timedOut ? 'book_timeout' : 'book_cancelled');
       row.usage = safeUsage(answer.usage);
       assertCurrent();
       // Missing usage must not conceal a reservation overrun already proven by known usage.
@@ -120,7 +140,10 @@ export async function generatePersonalBook(args: {
       if (row.usage === null) { try { row.usage = safeUsage((error as { providerUsage?: unknown })?.providerUsage); } catch { /* unknown remains null */ } }
       if (error instanceof PersonalBookError && ['book_cancelled', 'book_timeout', 'book_source_changed', 'book_reservation_exceeded'].includes(error.code)) throw error;
       throw new PersonalBookError(args.signal.aborted ? 'book_cancelled' : timedOut ? 'book_timeout' : 'book_provider_failed');
-    } finally { clearTimeout(timer); args.signal.removeEventListener('abort', cancel); }
+    } finally {
+      clearTimeout(timer); args.signal.removeEventListener('abort', cancel);
+      if (stageSignal !== args.signal) stageSignal.removeEventListener('abort', stageCancel);
+    }
   }
   try {
     assertCurrent();
@@ -132,9 +155,9 @@ export async function generatePersonalBook(args: {
       draftResult = await writePersonalStory({ prepared, userId: args.userId, jobId: args.jobId,
         settings: { model: settings.model, budgetUsd: storyReservationUsd(settings.model, narrativeSpreads), maxJobs: 1, operators: settings.operators },
         ledger: new IntakeLedger(), signal: args.signal,
-        provider: () => ({ generate: async call => {
+        provider: () => ({ generate: async (call, stageSignal) => {
           try { return { output: await dispatch(call.stage,
-            localSignal => provider.story.generate(structuredClone(call), localSignal)), usage: stages[stages.length - 1]!.usage }; }
+            localSignal => provider.story.generate(structuredClone(call), localSignal), stageSignal), usage: stages[stages.length - 1]!.usage }; }
           catch (error) {
             if (error instanceof PersonalBookError) {
               const wrapped = new StoryWriterError(error.code); wrapped.providerUsage = stages[stages.length - 1]?.usage ?? null; throw wrapped;
@@ -177,6 +200,14 @@ export async function generatePersonalBook(args: {
     catch { return fail('book_editor_invalid'); }
     completedManuscript = writerResult;
     if (editorNeedsWork(writerResult)) fail('book_editorial_held');
+    if (scope === 'story_only') {
+      assertCurrent();
+      emit('complete', 'finished');
+      assertCurrent();
+      args.ledger.finish(args.userId, args.jobId, 'done');
+      return { version: 'personal-book-text/diagnostic-v1', status: 'story_ready_for_reading',
+        writerResult, runtimeEligible: false, accounting: accounting() };
+    }
     const source = preparePersonalStoryboard(args.request, writerResult, args.options);
     const visual = async (call: BookVisualCall) => {
       if (Buffer.byteLength(call.instructions + call.input, 'utf8') > BOOK_LIMITS.inputBytesPerCall - 24_000) fail('book_input_limit');
@@ -210,13 +241,14 @@ export async function generatePersonalBook(args: {
       } catch { /* No partial output for an invalid/changed request. */ }
     }
     failure.accounting = accounting(); emit(active, failure instanceof PersonalBookPlanningHeldError ? 'held' : 'failed', failure.code);
-    if (failure instanceof PersonalBookPlanningHeldError) {
-      // Observers run before delivery and may cancel or change the approved request.
-      try { assertCurrent(); }
-      catch (changed) {
-        const terminal = changed instanceof PersonalBookError ? changed : new PersonalBookError('book_source_changed');
-        terminal.accounting = accounting(); emit(active, 'failed', terminal.code); throw terminal;
-      }
+    // Observers run before delivery and may cancel/change any partial manuscript,
+    // not only a planner HOLD. Reclassify without prose after their final callback.
+    try { assertCurrent(); }
+    catch (changed) {
+      const terminal = changed instanceof PersonalBookError ? changed : new PersonalBookError('book_source_changed');
+      terminal.accounting = accounting();
+      if (terminal.code !== failure.code) emit(active, 'failed', terminal.code);
+      throw terminal;
     }
     throw failure;
   }

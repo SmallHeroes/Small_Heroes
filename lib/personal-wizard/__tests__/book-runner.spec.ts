@@ -39,6 +39,101 @@ const errorOf = async (promise: Promise<unknown>): Promise<PersonalBookError> =>
 };
 
 describe('automatic personal manuscript -> full storyboard -> separate semantic review', () => {
+  it.each(['short', 'medium', 'long'])('returns the complete edited %s story after only three stages', async length => {
+    const f = await setup(length);
+    const result = await generatePersonalBook({ ...f.args, scope: 'story_only' });
+    expect(result).toMatchObject({ version: 'personal-book-text/diagnostic-v1', status: 'story_ready_for_reading', runtimeEligible: false });
+    expect(result.writerResult.manuscript.pages).toHaveLength(f.result.manuscript.pages.length);
+    expect(result.writerResult.editing.original.manuscript).toEqual(f.draftResult.manuscript);
+    expect(result.accounting.stages.map(row => row.stage)).toEqual(['plan', 'manuscript', 'editor']);
+    expect(result.accounting).toMatchObject({ providerAttempts: 3, reservedUsd: personalBookReservationUsd(settings.model, f.book.narrativeSpreads, 'story_only') });
+    expect(f.provider.visual.generate).not.toHaveBeenCalled();
+    for (const key of ['storyboard', 'review', 'framePackets']) expect(result).not.toHaveProperty(key);
+    expect(f.ledger.snapshot()).toMatchObject({ jobs: 1, inFlight: 0, reservedTotalUsd: result.accounting.reservedUsd });
+    expect((await errorOf(generatePersonalBook({ ...f.args, scope: 'storyboard' }))).code).toBe('book_duplicate_job');
+    expect(f.provider.story.generate).toHaveBeenCalledTimes(2);
+  });
+  it('preserves an editorial HOLD in story-only mode without visual dispatch', async () => {
+    const f = await setup(); vi.mocked(f.provider.editor.generate).mockImplementation(async call => {
+      const output = fixtureEditorOutput(call); output.checks.causal_magic.outcome = 'needs_work';
+      return { output, usage: null };
+    });
+    const failure = await errorOf(generatePersonalBook({ ...f.args, scope: 'story_only' }));
+    expect(failure.code).toBe('book_editorial_held'); expect(failure.writerResult).toHaveProperty('editing.original');
+    expect(failure.accounting).toMatchObject({ providerAttempts: 3, estimatedUsd: null });
+    expect(f.provider.visual.generate).not.toHaveBeenCalled(); expect(f.ledger.snapshot().inFlight).toBe(0);
+  });
+  it('retains a one-call planner HOLD in story-only mode', async () => {
+    const f = await setup(); const output = { ...f.draftResult.plan, adventureSelection: structuredClone(f.draftResult.planning!.selection) };
+    output.adventureSelection.outlineChecks.earned_payoff.outcome = 'needs_work';
+    vi.mocked(f.provider.story.generate).mockResolvedValue({ output, usage: null });
+    const failure = await errorOf(generatePersonalBook({ ...f.args, scope: 'story_only' }));
+    expect(failure).toBeInstanceOf(PersonalBookPlanningHeldError); expect(failure.accounting?.providerAttempts).toBe(1);
+    expect(f.provider.editor.generate).not.toHaveBeenCalled(); expect(f.provider.visual.generate).not.toHaveBeenCalled();
+  });
+  it.each(['cancel', 'source'])('suppresses a text result when the completion observer triggers %s', async mode => {
+    const f = await setup(); const finish = vi.spyOn(f.ledger, 'finish');
+    const failure = await errorOf(generatePersonalBook({ ...f.args, scope: 'story_only', record: event => {
+      if (event.stage === 'complete') { if (mode === 'cancel') f.controller.abort(); else f.request.child.name = 'בר'; }
+    } }));
+    expect(failure.code).toBe(mode === 'cancel' ? 'book_cancelled' : 'book_source_changed');
+    expect(failure.writerResult).toBeUndefined(); expect(failure.accounting?.providerAttempts).toBe(3);
+    expect(finish.mock.calls.map(call => call[2])).toEqual(['failed']);
+  });
+  it('refuses an unknown scope before ledger or provider', async () => {
+    const f = await setup(); await expect(generatePersonalBook({ ...f.args, scope: 'unknown' as any })).rejects.toThrow('book_scope_invalid');
+    expect(f.factory).not.toHaveBeenCalled(); expect(f.ledger.snapshot().jobs).toBe(0);
+  });
+  it.each((['story_only', 'storyboard'] as const).flatMap(scope => (['cancel', 'source'] as const).map(mode => ({ scope, mode }))))(
+    'suppresses $scope editorial partial prose after a $mode failure observer', async ({ scope, mode }) => {
+    const f = await setup(); vi.mocked(f.provider.editor.generate).mockImplementation(async call => {
+      const output = fixtureEditorOutput(call); output.checks.causal_magic.outcome = 'needs_work';
+      return { output, usage: { inputTokens: 50, outputTokens: 60 } };
+    });
+    const failure = await errorOf(generatePersonalBook({ ...f.args, scope, record: event => {
+      if (event.code === 'book_editorial_held') {
+        if (mode === 'cancel') f.controller.abort(); else f.request.child.name = 'בר';
+      }
+    } }));
+    expect(failure.code).toBe(mode === 'cancel' ? 'book_cancelled' : 'book_source_changed');
+    expect(failure.writerResult).toBeUndefined(); expect(failure).not.toHaveProperty('planningResult');
+    expect(failure.accounting).toMatchObject({ providerAttempts: 3, estimatedUsd: .0051 });
+    expect(f.provider.visual.generate).not.toHaveBeenCalled(); expect(f.ledger.snapshot().inFlight).toBe(0);
+  });
+  it.each(['story_only', 'storyboard'] as const)('enforces the $scope call cap at concurrent invocation, not only preflight', async scope => {
+    const f = await setup(); const cap = scope === 'story_only' ? 3 : 5;
+    let settled: PromiseSettledResult<unknown>[] = [];
+    vi.spyOn(storyWriter, 'writePersonalStory').mockImplementationOnce(async args => {
+      const subordinate = args.provider();
+      settled = await Promise.allSettled(Array.from({ length: cap + 2 }, () => subordinate.generate(args.prepared.call, args.signal)));
+      return f.draftResult;
+    });
+    const failure = await errorOf(generatePersonalBook({ ...f.args, scope }));
+    expect(settled.filter(row => row.status === 'fulfilled')).toHaveLength(cap);
+    expect(settled.filter(row => row.status === 'rejected')).toHaveLength(2);
+    expect(f.provider.story.generate).toHaveBeenCalledTimes(cap);
+    expect(failure.accounting?.providerAttempts).toBe(cap);
+    expect(f.provider.editor.generate).not.toHaveBeenCalled(); expect(f.provider.visual.generate).not.toHaveBeenCalled();
+    expect(f.ledger.snapshot()).toMatchObject({ inFlight: 0, reservedTotalUsd: failure.accounting!.reservedUsd });
+  });
+  it('seals accounting after the earlier subordinate writer deadline, with the root still active', async () => {
+    const f = await setup(); let complete!: (answer: { output: unknown; usage: { inputTokens: number; outputTokens: number } }) => void;
+    let signal!: AbortSignal;
+    vi.mocked(f.provider.story.generate).mockImplementation((_call, observed) => { signal = observed; return new Promise(resolve => { complete = resolve; }); });
+    const events: unknown[] = []; vi.useFakeTimers();
+    try {
+      const pending = errorOf(generatePersonalBook({ ...f.args, scope: 'story_only', record: event => events.push(event) }));
+      await vi.advanceTimersByTimeAsync(generationTimeoutMs(personalStoryOutputLimits(8).planOutputTokens));
+      const failure = await pending;
+      expect(failure.code).toBe('book_timeout'); expect(signal.aborted).toBe(true); expect(f.controller.signal.aborted).toBe(false);
+      const before = structuredClone({ events, accounting: failure.accounting });
+      complete({ output: { ...f.draftResult.plan, adventureSelection: f.draftResult.planning!.selection }, usage: { inputTokens: 100, outputTokens: 200 } });
+      await vi.advanceTimersByTimeAsync(1);
+      expect({ events, accounting: failure.accounting }).toEqual(before);
+      expect(failure.accounting).toMatchObject({ providerAttempts: 1, estimatedUsd: null });
+      expect(f.provider.editor.generate).not.toHaveBeenCalled(); expect(f.ledger.snapshot().inFlight).toBe(0);
+    } finally { vi.useRealTimers(); }
+  });
   it('retains a validated plan-only HOLD after one paid attempt before all later stages', async () => {
     const f = await setup(); const output = { ...f.draftResult.plan, adventureSelection: structuredClone(f.draftResult.planning!.selection) };
     output.adventureSelection.outlineChecks.earned_payoff.outcome = 'needs_work';

@@ -16,10 +16,14 @@ export function personalBookOutputLimits(narrativeSpreads: number) {
     reviewOutputTokens: Math.ceil(Math.max(32_000, 16_000 + 512 * checks) / 1_000) * 1_000 };
 }
 export type PersonalBookSettings = { model: StoryModel; budgetUsd: number; maxJobs: number; operators: Set<string> };
-export function personalBookReservationUsd(model: StoryModel, narrativeSpreads: number) {
+export type PersonalBookScope = 'storyboard' | 'story_only';
+export function personalBookReservationUsd(model: StoryModel, narrativeSpreads: number, scope: PersonalBookScope = 'storyboard') {
   const price = STORY_PRICES[model];
   const limits = personalBookOutputLimits(narrativeSpreads);
-  return storyReservationUsd(model, narrativeSpreads) + storyEditorReservationUsd(model, narrativeSpreads) + (2 * BOOK_LIMITS.inputBytesPerCall * price.input +
+  if (scope !== 'storyboard' && scope !== 'story_only') throw Error('book_scope_invalid');
+  const textReservation = storyReservationUsd(model, narrativeSpreads) + storyEditorReservationUsd(model, narrativeSpreads);
+  if (scope === 'story_only') return textReservation;
+  return textReservation + (2 * BOOK_LIMITS.inputBytesPerCall * price.input +
     (limits.storyboardOutputTokens + limits.reviewOutputTokens) * price.output) / 1_000_000 * 1.1;
 }
 export function assertPersonalBookSettings(settings: PersonalBookSettings) {

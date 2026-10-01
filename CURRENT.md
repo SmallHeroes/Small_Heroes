@@ -1,5 +1,44 @@
 # SmallHeroes — Current Technical State
 
+## Edited personal story for reading, no render 2026 10 01
+
+Guy's requested local flow now uses explicit `story_only` scope on the existing
+`/book` runner: approved request -> whole-story plan/two ideas -> manuscript ->
+editor -> complete text for reading. Three attempts maximum, no storyboard,
+review packets, images or narration. The default five-stage API behavior remains
+compatible; public flow/site and Claude's separate UI branches are unchanged.
+Sole writer Codex in this chat, implementation base `b2552fc4`, branch
+`codex/personal-book-storyboard-bridge`, worktree `personal-story-product`.
+Decision: `docs/ai-workflow/PERSONAL_TEXT_READING_DECISION_20261001.md`.
+
+Provider ending evidence now binds exactly to final spread 8/12/16, matching
+existing server validation; no output is silently repaired and the stopped paid
+comparison remains closed. This is a structural contract fix, not semantic proof
+or evidence of improved stories. Forwarded stage cancellation, actual invocation
+cap recheck, final observer revalidation for all partial failures, and text ledger
+completion after terminal validation. Reservations/unknown usage/no retry remain.
+These boundary fixes received read-only subagent advice, not independent PASS.
+
+Focused final code: 406/406 in ten specs (runner 115, routes 41, preview 39,
+adapter 23, writer 38, editor 39, planning 60, trial 26, intake client 18,
+classifier 7). Real StoryPreview browser harness 49/49 with mocked transport:
+three-stage scope, full eight-spread fixture, editing/original display, HOLD,
+cancel/stale guards and 390/1024px container checks. Not a real voice/provider
+run or full mobile/Next validation. Full check is being measured separately;
+initial run found one stale source-wiring expectation (old fetch function name),
+now corrected without weakening its availability watcher guard. No green full
+gate, literary quality or release claim. Independent Claude QA still required.
+
+Manual local pilot preparation: one existing operator, one intake <=$0.10,
+one story <=$1, GPT-6.1 Sol medium; no automatic provider dispatch. Text reserves
+$0.8184/$0.8844/$0.9504 for 8/12/16 spreads, conservative bounds not bills. Legacy
+five-stage reservation cannot fit that $1 ceiling. Same local origin/auth/request
+and operator checks, staging auth database, no real storage key or payment path.
+Atomic common-Git launcher claim prevents restart/refill; single-process ledgers,
+not public deployment readiness. Ignored local evidence under
+`outputs/personal-text-reading-validation-20261001/`; launcher/readiness evidence
+will be recorded after activation. No new paid call or push for this milestone.
+
 ## Text comparison stopped; reading-only wizard requested 2026 10 01
 
 Harness commit `91efe289` ran the approved family exactly once. Three completed

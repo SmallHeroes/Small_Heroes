@@ -195,7 +195,7 @@ describe('shared availability focus lifecycle', () => {
     const wizard = readFileSync('app/dev/personal-wizard/PersonalWizard.tsx', 'utf8');
     const book = readFileSync('app/dev/personal-wizard/StoryPreview.tsx', 'utf8');
     expect(wizard).toContain('useEffect(() => watchAvailability(window, fetchLiveIntakeAvailability');
-    expect(book).toContain('useEffect(() => watchAvailability(window, fetchBookAvailability, setAvailability), [])');
+    expect(book).toContain('useEffect(() => watchAvailability(window, fetchTextBookAvailability, setAvailability), [])');
     // Retain withdrawal on a real revocation; do not "fix" availability by bypassing it.
     expect(wizard).toContain('!liveIntake && sendRequested');
     expect(wizard).toContain('withdrawSendRequest()');

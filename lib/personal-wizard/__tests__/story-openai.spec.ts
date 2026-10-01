@@ -19,6 +19,22 @@ const raw = (stage: 'plan' | 'manuscript', count = 8): any => stage === 'plan' ?
 
 beforeEach(() => { sdk.create.mockReset(); sdk.options = null; });
 describe('real adapter schema and deterministic metadata', () => {
+  it.each([8, 12, 16])('binds ending evidence to final spread %i in the actual strict SDK payload', async count => {
+    sdk.create.mockResolvedValue({ status: 'completed', output_text: JSON.stringify(raw('plan', count)), usage: null });
+    await createPersonalStoryProvider('fake-test-key', 'gpt-6.1-sol').generate({ stage: 'plan', input: JSON.stringify(context(count)), instructions: 'rules', maxOutputTokens: personalStoryOutputLimits(count).planOutputTokens }, new AbortController().signal);
+    const [payload] = sdk.create.mock.calls[0];
+    const check = payload.text.format.schema.properties.adventureSelection.properties.outlineChecks.properties.earned_payoff.properties.evidenceSpreads;
+    expect(check).toMatchObject({ minItems: 1, maxItems: 1 });
+    expect(check.items.enum ?? [check.items.const]).toEqual([count]);
+    for (const evidenceSpreads of [[2, 5, 6], [count - 1], [count, count], [count, 1]]) {
+      const input = raw('plan', count); input.adventureSelection.outlineChecks.earned_payoff.evidenceSpreads = evidenceSpreads;
+      const before = structuredClone(input);
+      expect(() => decodePersonalProviderOutput('plan', context(count), input)).toThrow('story_provider_schema');
+      expect(input).toEqual(before);
+    }
+    const held = raw('plan', count); held.adventureSelection.outlineChecks.earned_payoff.outcome = 'needs_work';
+    expect((decodePersonalProviderOutput('plan', context(count), held) as any).adventureSelection.outlineChecks.earned_payoff.outcome).toBe('needs_work');
+  });
   it.each([8, 12, 16])('assigns numbering without changing order or content for %i spreads', (count) => {
     for (const stage of ['plan', 'manuscript'] as const) {
       const input = raw(stage, count); const before = structuredClone(input);

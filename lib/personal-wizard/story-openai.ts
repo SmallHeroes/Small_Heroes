@@ -15,8 +15,18 @@ export function personalProviderSchema(stage: 'plan' | 'manuscript', context: { 
   // Array order is the narrative order. Page numbers are deterministic engine metadata,
   // not model-authored facts. The paid r2 evidence showed duplicate/missing numbers even
   // inside an exact-length constrained array; do not spend another call repairing numbering.
+  const check = adventureSelectionSchema.shape.outlineChecks.shape.causal_child_choices.extend({
+    evidenceSpreads: z.array(z.number().int().min(1).max(beats)).min(1).max(3),
+  });
+  // The ending check must cite the actual final spread, not only its setup.
+  // Single final anchor keeps the strict SDK schema simple; earlier support can
+  // remain in the note. This is reference binding, never literary acceptance.
+  const selection = adventureSelectionSchema.extend({ outlineChecks: z.object({
+    curiosity_and_stakes: check, causal_child_choices: check,
+    earned_payoff: check.extend({ evidenceSpreads: z.array(z.literal(beats)).length(1) }),
+  }).strict() });
   return stage === 'plan'
-    ? personalStoryPlanSchema.extend({ requestId: z.literal(requestId), adventureSelection: adventureSelectionSchema,
+    ? personalStoryPlanSchema.extend({ requestId: z.literal(requestId), adventureSelection: selection,
       resilience: personalStoryPlanSchema.shape.resilience.extend({ mode: z.literal(resilienceMode), moments: z.array(personalStoryPlanSchema.shape.resilience.shape.moments.element.extend({ pageNumber: z.number().int().min(1).max(beats) })).min(1).max(4) }),
       beats: z.array(personalStoryPlanSchema.shape.beats.element.omit({ pageNumber: true })).length(beats) })
     : personalManuscriptSchema.extend({ requestId: z.literal(requestId), planDigest: z.literal(context.planDigest!), pages: z.array(personalManuscriptSchema.shape.pages.element.omit({ pageNumber: true })).length(beats) });

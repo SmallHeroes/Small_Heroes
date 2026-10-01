@@ -2,17 +2,18 @@
 
 import { useEffect, useRef, useState } from 'react';
 import type { ReviewedPersonalBookRequest } from '@/lib/personal-wizard/contract';
-import { bookAvailabilitySchema, fetchBookAvailability, readBookPreview, readBookPartialPreview, readBookPlanningHoldPreview, type BookPreview, type BookPartialPreview, type BookPlanningHoldPreview } from '@/lib/personal-wizard/book-preview';
+import { editedStoryResultSchema } from '@/lib/personal-wizard/story-editor-contract';
+import { textBookAvailabilitySchema, fetchTextBookAvailability, readTextBookPreview, readBookPartialPreview, readBookPlanningHoldPreview, type TextBookPreview, type BookPartialPreview, type BookPlanningHoldPreview } from '@/lib/personal-wizard/book-preview';
 import { watchAvailability } from '@/lib/personal-wizard/availability-client';
 import styles from './personal-wizard.module.css';
 
 type Props = { request: ReviewedPersonalBookRequest; requestId: string; stale: boolean; onEdit: () => void };
 export function StoryPreview({ request, requestId, stale, onEdit }: Props) {
-  const [availability, setAvailability] = useState<ReturnType<typeof bookAvailabilitySchema.parse> | null>(null);
+  const [availability, setAvailability] = useState<ReturnType<typeof textBookAvailabilitySchema.parse> | null>(null);
   const quote = availability?.reservations.find(row => row.lengthId === request.bookOptions.lengthId);
   const available = quote?.fitsConfiguredTotalBudget === true;
   const [busy, setBusy] = useState(false);
-  const [result, setResult] = useState<BookPreview | null>(null);
+  const [result, setResult] = useState<TextBookPreview | null>(null);
   const [partial, setPartial] = useState<BookPartialPreview | null>(null);
   const [planningHold, setPlanningHold] = useState<BookPlanningHoldPreview | null>(null);
   const [notice, setNotice] = useState<{ requestId: string; text: string } | null>(null);
@@ -27,8 +28,9 @@ export function StoryPreview({ request, requestId, stale, onEdit }: Props) {
   const currentHold = planningHold?.planningResult.requestId === requestId ? planningHold : null;
   const attempted = attemptedRequest === requestId;
   const manuscriptResult = currentResult?.writerResult ?? currentPartial?.writerResult;
+  const edited = editedStoryResultSchema.safeParse(manuscriptResult);
   const accounting = currentResult?.accounting ?? currentPartial?.accounting ?? currentHold?.accounting;
-  useEffect(() => watchAvailability(window, fetchBookAvailability, setAvailability), []);
+  useEffect(() => watchAvailability(window, fetchTextBookAvailability, setAvailability), []);
   useEffect(() => {
     epoch.current += 1;
     active.current?.abort(); active.current = null;
@@ -48,7 +50,7 @@ export function StoryPreview({ request, requestId, stale, onEdit }: Props) {
     setBusy(true); setMessage(''); setResult(null); setPartial(null); setPlanningHold(null); setAttemptedRequest(requestId);
     const jobId = `b_${crypto.randomUUID().replace(/-/g, '')}`;
     try {
-      const response = await fetch('/api/dev/personal-wizard/book', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ jobId, request }), signal: controller.signal, cache: 'no-store' });
+      const response = await fetch('/api/dev/personal-wizard/book', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ jobId, request, scope: 'story_only' }), signal: controller.signal, cache: 'no-store' });
       const body = await response.json();
       if (token !== epoch.current || controller.signal.aborted) return;
       if (!response.ok) {
@@ -62,7 +64,7 @@ export function StoryPreview({ request, requestId, stale, onEdit }: Props) {
         const limit = ['book_budget_exhausted', 'book_job_limit', 'book_user_busy', 'book_duplicate_job'].includes(body.error);
         setMessage(limit ? 'הכתיבה אינה זמינה כרגע במסגרת הניסוי. הפרטים שלכם עדיין בחלון הזה.' : 'הטיוטה לא הושלמה. הפרטים שלכם עדיין כאן. ניסיון נוסף מתחיל עבודה חדשה ועלול להיות בתשלום.');
       } else {
-        const parsed = readBookPreview(body, requestId);
+        const parsed = readTextBookPreview(body, requestId);
         if (parsed) setResult(parsed);
         else setMessage('לא התקבלה טיוטה שתואמת לפרטים שאישרתם. לא נתקדם עם התוצאה הזו.');
       }
@@ -75,16 +77,16 @@ export function StoryPreview({ request, requestId, stale, onEdit }: Props) {
   if (stale) return <p className={styles.hint}>הפרטים השתנו. בדקו שוב את הבקשה לפני כתיבת טיוטה חדשה.</p>;
   return <section className={styles.card} aria-labelledby="personal-story-preview-title">
     <h2 id="personal-story-preview-title" className={styles.sectionTitle}>ההרפתקה של {request.child.name}</h2>
-    <p className={styles.summaryText}>מהפרטים שאישרתם נבנה את העלילה כולה, נכתוב את הסיפור לפי האורך שבחרתם, נתכנן את האיורים והרציפות ונבדוק את התכנון מול הטקסט. הרפתקה עם דמיון, הומור ובחירות של {request.child.name}. זה ניסוי בסיפור ובסטוריבורד, לפני איורים וקריינות.</p>
+    <p className={styles.summaryText}>מהפרטים שאישרתם נתכנן את העלילה כולה, נכתוב את הסיפור לפי האורך שבחרתם ונעביר אותו לעריכה. הרפתקה עם דמיון, הומור ובחירות של {request.child.name}. עכשיו בודקים רק את הסיפור: בלי סטוריבורד, איורים או קריינות.</p>
     {!available ? <p className={styles.hint}>הכתיבה החיה זמינה רק בניסוי מקומי למשתמש מורשה. {attempted ? 'לא ניתן להתחיל כעת ניסיון נוסף.' : 'לא נשלחה בקשה לכותב בבקשה הנוכחית.'}</p> : null}
     {available ? <p className={styles.hint}>כתיבה בניסוי צורכת תקציב API ועלולה להיות מחויבת גם אם הטיוטה לא תושלם. זו אינה רכישה של ספר.</p> : null}
     {quote ? <p className={styles.hint}>שמורת תקציב לניסיון: ${quote.reservationUsd.toFixed(4)}. זו תקרה שמרנית ולא העלות בפועל או יתרת התקציב. מודל: {availability?.model}.</p> : null}
     {!request.bookOptions.lengthId ? <p className={styles.warn}>בחרו אורך ספר לפני שמתחילים לכתוב.</p> : null}
     <div role="status" aria-live="polite">
-      {busy ? <p>המנוע עובד על ההרפתקה של {request.child.name}: תכנון עלילה, כתיבה, סטוריבורד ובדיקת רציפות. התהליך יכול לקחת כמה דקות. אין צורך ללחוץ שוב; השאירו את החלון פתוח.</p> : null}
+      {busy ? <p>המנוע עובד על ההרפתקה של {request.child.name}: בחירת רעיון, תכנון העלילה כולה, כתיבה ועריכה. התהליך יכול לקחת כמה דקות. אין צורך ללחוץ שוב; השאירו את החלון פתוח.</p> : null}
       {message ? <p className={styles.warn}>{message}</p> : null}
     </div>
-    {busy ? <button type="button" className={styles.btnBack} onClick={() => { cancel(); onEdit(); }}>לבטל ולחזור לפרטים</button> : <button type="button" className={styles.btnContinue} disabled={!available || !request.bookOptions.lengthId} onClick={() => void write()}>{attempted ? 'ליצור ניסיון חדש שעלול להיות בתשלום' : `ליצור סיפור וסטוריבורד עבור ${request.child.name}`}</button>}
+    {busy ? <button type="button" className={styles.btnBack} onClick={() => { cancel(); onEdit(); }}>לבטל ולחזור לפרטים</button> : <button type="button" className={styles.btnContinue} disabled={!available || !request.bookOptions.lengthId} onClick={() => void write()}>{attempted ? 'ליצור ניסיון חדש שעלול להיות בתשלום' : `לכתוב סיפור מלא עבור ${request.child.name}`}</button>}
     <button type="button" className={styles.linkButton} onClick={() => { cancel(); onEdit(); }}>לתקן את הפרטים</button>
     {currentHold ? <article className={styles.manuscript}>
       <h3>התכנון מוחזק לבדיקה</h3>
@@ -109,16 +111,13 @@ export function StoryPreview({ request, requestId, stale, onEdit }: Props) {
     </article> : null}
     {manuscriptResult && accounting ? <article className={styles.manuscript}>
       <p className={styles.hint}>סיפור ראשון לקריאה · לפני איורים וקריינות · ממתין לבדיקת תוכן</p>
-      <p className={currentResult?.status === 'review_supported' ? styles.hint : styles.warn}>{!currentResult ? 'הסיפור נכתב, אבל תכנון האיורים או בדיקתו לא הושלמו. הטקסט מוצג לקריאה בלבד ולא מאושר לרינדור.' : currentResult.status === 'review_supported' ? 'בדיקת התכנון לא סימנה סתירה. זו אינה קבלת איכות של הסיפור או אישור לרינדור.' : 'בדיקת התכנון מצאה סתירה או אי ודאות. אפשר לקרוא ולשפוט את הסיפור, אבל התכנון מוחזק ולא מאושר לרינדור.'}</p>
+      <p className={currentResult ? styles.hint : styles.warn}>{currentResult ? 'הכתיבה והעריכה הושלמו. עכשיו קוראים ונותנים דעה; הערכת העורך אינה אישור איכות עצמאי או אישור לרינדור.' : currentPartial?.error === 'book_editorial_held' ? 'העורך עדיין סימן נושאים שדורשים עבודה. הסיפור מוצג לבדיקה, לא כטקסט מאושר.' : 'הכתיבה או העריכה לא הושלמו. הטקסט שהתקבל מוצג לבדיקה בלבד.'}</p>
       <h3>{manuscriptResult.manuscript.title}</h3>
       {manuscriptResult.manuscript.pages.map((page) => <section key={page.pageNumber}><h4>כפולה {page.pageNumber}</h4><p>{page.text}</p></section>)}
-      {currentResult ? <details><summary>לראות את הסטוריבורד ובדיקת הרציפות</summary>
-        {currentResult.storyboard.plan.pages.map(page => <section key={page.pageNumber}>
-          <h4>{page.pageNumber === 0 ? 'כריכה' : `כפולה ${page.pageNumber}`}</h4>
-          <p>{page.scene}</p><p>{page.shot} · {page.angle} · {page.composition}</p>
-          <p>{page.childAction} · {page.companionAction}</p>
-        </section>)}
-        {[...currentResult.review.review.bookChecks, ...currentResult.review.review.frames.flatMap(frame => frame.checks.map(check => ({ ...check, category: `${frame.pageNumber}: ${check.category}` })))].filter(check => check.verdict !== 'supported').map(check => <p className={styles.warn} key={check.category}>{check.category}: {check.observation}</p>)}
+      {edited.success ? <details><summary>לראות את הערות העורך והטיוטה המקורית</summary>
+        {Object.entries(edited.data.editing.checks).map(([category, check]) => <p className={check.outcome === 'needs_work' ? styles.warn : styles.hint} key={category}>{check.note}</p>)}
+        <h4>לפני העריכה</h4>
+        {edited.data.editing.original.manuscript.pages.map(page => <section key={page.pageNumber}><h4>כפולה {page.pageNumber}</h4><p>{page.text}</p></section>)}
       </details> : null}
       <p className={styles.hint}>גרסה חדשה יכולה לשנות גם את העלילה. הטיוטה אינה מאושרת לרינדור.</p>
     </article> : null}

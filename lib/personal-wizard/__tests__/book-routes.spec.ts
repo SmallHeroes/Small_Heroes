@@ -19,6 +19,9 @@ const env = { PERSONAL_WIZARD_PREVIEW: 'true', PERSONAL_WIZARD_BOOK_RUNNER: 'tru
 const saved = new Map<string, string | undefined>();
 let index = 0;
 const url = 'http://127.0.0.1:3461/api/dev/personal-wizard/book';
+// Quotes have their own synthetic client identity, like POST; additions must not
+// accidentally exhaust the shared rate limiter for later independent tests.
+const quoteReq = (target = url) => new NextRequest(target, { headers: { 'x-forwarded-for': `10.97.0.${++index}` } });
 const req = (body: unknown, override: Record<string, string> = {}, signal?: AbortSignal, target = url) => new NextRequest(target, {
   method: 'POST', signal, headers: { host: new URL(target).host, origin: new URL(target).origin, 'content-type': 'application/json',
     'x-forwarded-for': `10.98.0.${++index}`, ...override }, body: JSON.stringify(body),
@@ -40,6 +43,35 @@ beforeEach(async () => {
 afterEach(() => { vi.restoreAllMocks(); for (const [key, value] of saved) { if (value === undefined) delete process.env[key]; else process.env[key] = value; } });
 
 describe('real local diagnostic book route', () => {
+  it.each(['short', 'medium', 'long'])('quotes and executes only three text stages for %s through the real route', async length => {
+    fixture = await personalStoryboardFixture(length);
+    const quoteResponse = await GET(quoteReq(url + '?scope=story_only'));
+    const quote = await quoteResponse.json();
+    expect(quote).toMatchObject({ scope: 'story_only', maxProviderAttempts: 3, liveAvailabilityUnverified: true });
+    expect(deps.keyReads).toBe(0); expect(quote.reservations.every((row: any) => !('outputLimits' in row))).toBe(true);
+    const count = fixture.result.manuscript.pages.length;
+    const reserve = personalBookReservationUsd('gpt-6-sol', count, 'story_only');
+    expect(quote.reservations.find((row: any) => row.lengthId === length).reservationUsd).toBe(reserve);
+    process.env.PERSONAL_WIZARD_BOOK_BUDGET_USD = String(reserve - .001);
+    const input = { ...job(), scope: 'story_only' };
+    expect((await POST(req(input))).status).toBe(409); expect(deps.keyReads).toBe(0);
+    process.env.PERSONAL_WIZARD_BOOK_BUDGET_USD = String(reserve);
+    const response = await POST(req(input)); const body = await response.json();
+    expect(response.status).toBe(200); expect(body).toMatchObject({ version: 'personal-book-text/diagnostic-v1', status: 'story_ready_for_reading', runtimeEligible: false,
+      accounting: { providerAttempts: 3, reservedUsd: reserve } });
+    expect(body.writerResult.manuscript.pages).toHaveLength(count); expect(body.writerResult.editing.original).toBeDefined();
+    expect(attempts()).toBe(3); expect(deps.provider!.visual.generate).not.toHaveBeenCalled(); expect(deps.keyReads).toBe(1);
+    for (const key of ['storyboard', 'review', 'framePackets']) expect(body).not.toHaveProperty(key);
+    expect((await POST(req(job()))).status).toBe(409); expect(deps.keyReads).toBe(1);
+  });
+  it.each(['unknown', '', 'Story_only'])('rejects invalid scope %s before any key access', async scope => {
+    expect((await POST(req({ ...job(), scope }))).status).toBe(422);
+    expect((await GET(quoteReq(url + '?scope=' + scope))).status).toBe(422);
+    expect(deps.keyReads).toBe(0); expect(attempts()).toBe(0);
+  });
+  it('rejects repeated scope quotes instead of choosing a different mode silently', async () => {
+    expect((await GET(quoteReq(url + '?scope=story_only&scope=storyboard'))).status).toBe(422); expect(deps.keyReads).toBe(0);
+  });
   it('returns a typed 422 plan-only HOLD with one accounted attempt, no manuscript, no follow-up or refund', async () => {
     fixture.draftResult.planning!.selection.outlineChecks.earned_payoff.outcome = 'needs_work';
     const response = await POST(req(job())); const body = await response.json();
@@ -134,12 +166,12 @@ describe('real local diagnostic book route', () => {
     expect(deps.factory).toBe(0); expect((await POST(req(job()))).status).toBe(409); expect(deps.keyReads).toBe(1);
   });
   it('GET is an operator configuration check, not key/provider availability attestation', async () => {
-    const response = await GET(new NextRequest(url)); const body = await response.json();
+    const response = await GET(quoteReq()); const body = await response.json();
     expect(body.liveAvailabilityUnverified).toBe(true); expect(body.maxProviderAttempts).toBe(5); expect(body.runtimeEligible).toBe(false); expect(deps.keyReads).toBe(0);
     expect(body).not.toHaveProperty('reservationUsd');
     expect(body.reservations).toEqual([8, 12, 16].map((narrativeSpreads, index) => ({ lengthId: ['short', 'medium', 'long'][index], narrativeSpreads, displayPages: narrativeSpreads * 2,
       outputLimits: personalBookOutputLimits(narrativeSpreads), reservationUsd: personalBookReservationUsd('gpt-6-sol', narrativeSpreads), fitsConfiguredTotalBudget: true })));
-    deps.user = null; expect((await GET(new NextRequest(url))).status).toBe(401);
+    deps.user = null; expect((await GET(quoteReq())).status).toBe(401);
   });
   it.each([['short', 8], ['medium', 12], ['long', 16]] as const)('uses the %s reservation and caps through the real HTTP consumer', async (length, count) => {
     fixture = await personalStoryboardFixture(length);
@@ -159,7 +191,7 @@ describe('real local diagnostic book route', () => {
   it('shows and enforces an unaffordable long Astra reservation without lowering caps or raising budget', async () => {
     fixture = await personalStoryboardFixture('long');
     process.env.PERSONAL_WIZARD_BOOK_MODEL = 'gpt-6-astra'; process.env.PERSONAL_WIZARD_BOOK_BUDGET_USD = '10';
-    const status = await GET(new NextRequest(url)); const body = await status.json();
+    const status = await GET(quoteReq()); const body = await status.json();
     expect(body.reservations.map((row: { fitsConfiguredTotalBudget: boolean }) => row.fitsConfiguredTotalBudget)).toEqual([false, false, false]);
     expect(body.reservations[2].reservationUsd).toBeCloseTo(13.398, 10);
     expect(body.reservations[2].outputLimits).toEqual({ storyboardOutputTokens: 51_000, reviewOutputTokens: 55_000 });

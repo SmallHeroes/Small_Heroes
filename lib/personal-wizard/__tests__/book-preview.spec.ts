@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { readFileSync } from 'fs';
-import { bookAvailabilitySchema, fetchBookAvailability, readBookPreview, readBookPartialPreview, readBookPlanningHoldPreview } from '../book-preview';
+import { bookAvailabilitySchema, fetchBookAvailability, fetchTextBookAvailability, readTextBookPreview, readBookPreview, readBookPartialPreview, readBookPlanningHoldPreview } from '../book-preview';
 import { watchAvailability, type AvailabilityFetch } from '../availability-client';
 import { personalStoryboardFixture } from './personal-storyboard-fixture';
 import { storyboardReviewDisposition } from '../storyboard';
@@ -19,6 +19,33 @@ const heldOutput = async () => {
     accounting: { reservedUsd: 2.2, estimatedUsd: .0022, knownUsageEstimateUsd: .0022, providerAttempts: 1, kind: 'usage_estimate_not_invoice' } };
 };
 describe('browser book diagnostic boundary', () => {
+  it('displays only a complete edited story-only result with exactly three calls', async () => {
+    const f = await personalStoryboardFixture();
+    const raw: any = { version: 'personal-book-text/diagnostic-v1', status: 'story_ready_for_reading', writerResult: f.result, runtimeEligible: false,
+      accounting: { reservedUsd: .8184, estimatedUsd: .02, knownUsageEstimateUsd: .02, providerAttempts: 3, kind: 'usage_estimate_not_invoice' } };
+    expect(readTextBookPreview(raw, f.result.requestId)?.writerResult.manuscript.pages).toHaveLength(8);
+    expect(readBookPreview(raw, f.result.requestId)).toBeNull(); expect(readTextBookPreview(raw, 'stale')).toBeNull();
+    for (const mutation of ['held', 'unavailable', 'five', 'draft', 'authority', 'storyboard', 'packets']) {
+      const changed = structuredClone(raw);
+      if (mutation === 'held') changed.writerResult.editing.checks.causal_magic.outcome = 'needs_work';
+      if (mutation === 'unavailable') changed.status = 'review_supported';
+      if (mutation === 'five') changed.accounting.providerAttempts = 5;
+      if (mutation === 'draft') changed.writerResult = f.draftResult;
+      if (mutation === 'authority') changed.runtimeEligible = true;
+      if (mutation === 'storyboard') changed.storyboard = f.book;
+      if (mutation === 'packets') changed.framePackets = [];
+      expect(readTextBookPreview(changed, f.result.requestId)).toBeNull();
+    }
+    const ui = readFileSync('app/dev/personal-wizard/StoryPreview.tsx', 'utf8');
+    expect(ui).toContain("scope: 'story_only'"); expect(ui).toContain('בחירת רעיון'); expect(ui).toContain('בלי סטוריבורד, איורים או קריינות');
+  });
+  it('requests explicit text-only quotes and rejects a storyboard quote', async () => {
+    const raw = { configured: true, scope: 'story_only', maxProviderAttempts: 3, model: 'synthetic', reservations: [{ lengthId: 'short', reservationUsd: .8184, fitsConfiguredTotalBudget: true }] };
+    const mock = vi.fn(async () => new Response(JSON.stringify(raw), { status: 200 }));
+    expect(await fetchTextBookAvailability(mock)).toEqual(raw);
+    expect(mock).toHaveBeenCalledWith('/api/dev/personal-wizard/book?scope=story_only', { cache: 'no-store' });
+    expect(await fetchTextBookAvailability(async () => new Response(JSON.stringify({ ...raw, scope: 'storyboard', maxProviderAttempts: 5 })))).toBeUndefined();
+  });
   it('admits only plan display, never a completed or partial manuscript, from a typed one-attempt HOLD', async () => {
     const raw = await heldOutput(), id = raw.planningResult.requestId;
     expect(readBookPlanningHoldPreview(raw, id)?.planningResult.planning.selection).toEqual(raw.planningResult.planning.selection);

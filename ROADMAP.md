@@ -10,6 +10,15 @@ This roadmap records technical milestone state. Guy can change product priority 
 
 ### P-personal literary quality milestone (2026-10-01)
 
+- Guy's edited story-only reading path implemented from `b2552fc4`: existing
+  runner/endpoint, three scoped calls, whole manuscript and editor display,
+  default five-stage compatibility, no storyboard/image/audio spend. Final-spread
+  provider schema fixes the observed structural failure, without literary proof.
+  Focused 406/406, mocked real-component browser 49/49. Independent Claude QA and
+  actual operator reading/quality judgment pending; no public release or push.
+  Manual local pilot: one intake <=$0.10, one story <=$1, no automatic call,
+  single-process/common-Git consumed-claim boundary. Full gate still unclosed.
+
 - Approved comparison family executed at `91efe289` and stopped after three
   calls: estimate $0.123724, reservation $4.158 retained. Current plan failed
   ending-reference binding; only one baseline first draft exists, no matched

@@ -12,7 +12,8 @@ import { preparePersonalStory, StoryWriterError } from '@/lib/personal-wizard/st
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
-const envelope = z.object({ jobId: z.string().regex(/^b_[a-z0-9]{12,40}$/), request: z.unknown() }).strict();
+const scopeSchema = z.enum(['storyboard', 'story_only']);
+const envelope = z.object({ jobId: z.string().regex(/^b_[a-z0-9]{12,40}$/), request: z.unknown(), scope: scopeSchema.optional() }).strict();
 function ledger(): IntakeLedger {
   const holder = globalThis as typeof globalThis & { __personalBookPilotLedger?: IntakeLedger };
   return (holder.__personalBookPilotLedger ??= new IntakeLedger());
@@ -22,13 +23,18 @@ const access = (req: NextRequest) => personalOperatorAccess(req, resolvePersonal
 export async function GET(req: NextRequest) {
   const allowed = await access(req);
   if (!allowed.ok) return allowed.response;
+  const values = req.nextUrl.searchParams.getAll('scope');
+  const parsedScope = scopeSchema.safeParse(values.length === 0 ? 'storyboard' : values.length === 1 ? values[0] : null);
+  if (!parsedScope.success) return storyResponse({ error: 'book_scope_invalid' }, 422);
+  const scope = parsedScope.data;
   // Configuration is not a claim that the credential/provider is available.
   return storyResponse({ configured: true, liveAvailabilityUnverified: true, runtimeEligible: false,
-    model: allowed.settings.model, maxProviderAttempts: 5,
+    model: allowed.settings.model, scope, maxProviderAttempts: scope === 'story_only' ? 3 : 5,
     reservations: BOOK_SPREAD_COUNTS.map(narrativeSpreads => {
-      const reservationUsd = personalBookReservationUsd(allowed.settings.model, narrativeSpreads);
+      const reservationUsd = personalBookReservationUsd(allowed.settings.model, narrativeSpreads, scope);
       const lengthId = resolvePersonalWizardOptions().lengths.find(length => length.pages === narrativeSpreads * 2)?.id;
-      return { lengthId, narrativeSpreads, displayPages: narrativeSpreads * 2, outputLimits: personalBookOutputLimits(narrativeSpreads),
+      return { lengthId, narrativeSpreads, displayPages: narrativeSpreads * 2,
+        ...(scope === 'storyboard' ? { outputLimits: personalBookOutputLimits(narrativeSpreads) } : {}),
         reservationUsd, fitsConfiguredTotalBudget: reservationUsd <= allowed.settings.budgetUsd };
     }) });
 }
@@ -50,6 +56,7 @@ export async function POST(req: NextRequest) {
   try {
     return storyResponse(await generatePersonalBook({ request: parsed.data.request, options,
       userId: allowed.userId, operatorEmail: allowed.operatorEmail, jobId: parsed.data.jobId,
+      scope: parsed.data.scope ?? 'storyboard',
       settings: allowed.settings, ledger: ledger(), signal: req.signal,
       provider: () => {
         // Auth, reviewed input, cancellation AND whole-job reservation precede key access.
