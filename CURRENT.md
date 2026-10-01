@@ -1,5 +1,26 @@
 # SmallHeroes — Current Technical State
 
+## Approved matched text trial preparation 2026 10 01
+
+Guy approved proceeding with the new $5 text-only comparison and existing key.
+Sole writer/same chat, `codex/personal-book-storyboard-bridge`, implementation
+base `a5d8d6bc`. Fixed Git-frozen baseline `6de84b4f` and current `a5d8d6bc`
+writer/schema/adapter/config, shared installed SDK, medium `gpt-6.1-sol`.
+Decision: `docs/ai-workflow/PERSONAL_PLANNING_TRIAL_DECISION_20261001.md`.
+New harness only: no production/prompt/UI changes or bridge execution.
+Development profiles 1/5/9, six drafts then three current edits, maximum fifteen
+attempts, $4.158 reservation. Atomic persistent common-Git-directory claim,
+no replay/refund/cwd allowance reset. Unknown usage/provider or structural
+failure stops the family; valid model HOLD remains separate and skips its
+downstream stage. Four blinded review phases, private labels kept apart.
+Offline verification: 222/222 across six specs, including 22 new tests, actual
+two-process claim race, real frozen adapters against mocked HTTP, late cancelled
+completion and no retry. Deliberately allowing a consumed claim makes its
+regression fail; guard restored. Initial standalone tsc 0; final check follows.
+No live call has occurred at this preparation point. Paid run/evidence will be
+recorded separately without rewriting the consumed historical trial. Technical
+independent QA pending; no literary/product/release PASS claimed. No push.
+
 ## Independent planner HOLD QA and binding regression 2026 10 01
 
 Received Claude Code technical PASS for exactly `719dcb7f..4de61548` (registry

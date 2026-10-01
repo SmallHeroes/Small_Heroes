@@ -10,6 +10,14 @@ This roadmap records technical milestone state. Guy can change product priority 
 
 ### P-personal literary quality milestone (2026-10-01)
 
+- Guy approved the new bounded matched text trial. Experiment harness prepared
+  at `a5d8d6bc`: actual Git-frozen old/current chains, registered development
+  profiles 1/5/9, six drafts then three current edits, maximum fifteen calls,
+  $4.158 reserved within $5. Persistent common-Git-directory claim with no resume,
+  separate blind phases, no public/production change. Focused 222/222, negative
+  control detects reopened claim. Paid measurement and independent QA pending;
+  no universal literary-quality or release claim. Historical trial untouched.
+
 - At base `4de61548`, valid planner HOLD diagnostics are implemented through writer,
   runner, authenticated local routes and wizard. Claude technical PASS received
   for exactly `4de61548..d553dd41`, P0/P1/P2 = 0, one non-blocking P3-E.
