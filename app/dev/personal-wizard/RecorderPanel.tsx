@@ -1,17 +1,22 @@
 'use client';
 
+import { useEffect, useRef, type CSSProperties } from 'react';
+
 import { COMMON, RECORDER, formatDuration } from '@/lib/personal-wizard/copy';
 import { LIMITS } from '@/lib/personal-wizard/contract';
 import type { MediaStreamLike, RecorderSnapshot, RecordingController } from '@/lib/personal-wizard/recorder';
 
+import { CueTags } from './CueTags';
 import { useLevelMeter, useObjectUrl } from './hooks';
 import styles from './personal-wizard.module.css';
 
 /**
- * start = the one big button (and a finished clip's controls); recording = the focused recording
- * screen with the must-have cues; card = a compact "add by voice" under the details card.
+ * stage = the start and recording screens as one composition: the microphone under an arc of the
+ * five things worth telling. Pressing it does not leave the screen; the same stage starts listening,
+ * and its halos follow the measured input level (never a decorative fake). card = a compact "add by
+ * voice" under the details card.
  */
-export type RecorderView = 'start' | 'recording' | 'card';
+export type RecorderView = 'stage' | 'card';
 
 type Props = {
   view: RecorderView;
@@ -22,8 +27,6 @@ type Props = {
   /** Live processing connected (P2). In P1 the recording never leaves the device. */
   liveIntake: boolean;
   voiceCta: string;
-  /** A suggested length, not a required minimum. */
-  hint: string;
   cuesTitle: string;
   cues: readonly string[];
   recordMoreLabel: string;
@@ -42,7 +45,6 @@ export function RecorderPanel({
   playback,
   liveIntake,
   voiceCta,
-  hint,
   cuesTitle,
   cues,
   recordMoreLabel,
@@ -52,6 +54,15 @@ export function RecorderPanel({
   const level = useLevelMeter(stream);
   const clipUrl = useObjectUrl(snapshot.clip?.blob ?? null);
   const { phase, clip, error } = snapshot;
+  const finishRef = useRef<HTMLButtonElement | null>(null);
+
+  // Pressing the microphone replaces it with the live orb. Keyboard focus would fall to the page;
+  // it moves to "finish" instead, unless the parent has already put it somewhere.
+  useEffect(() => {
+    if (view !== 'stage' || phase !== 'recording') return;
+    const active = document.activeElement;
+    if (!active || active === document.body) finishRef.current?.focus({ preventScroll: true });
+  }, [view, phase]);
 
   const start = () => {
     playback.stop();
@@ -77,63 +88,13 @@ export function RecorderPanel({
   // Under the card a sent clip needs no status: what came of it is the card itself.
   const shown = view === 'card' && phase === 'recorded' && clipSent ? '' : status;
   const liveText = phase === 'recording' ? (snapshot.warned ? RECORDER.warn : RECORDER.recording) : shown;
-  // Always mounted so state changes are announced; visually hidden while the recording screen
-  // already shows the same state, and when empty. The timer is not a live region.
+  // Always mounted so state changes are announced; visually hidden while the stage already shows the
+  // same state, and when empty. The timer is not a live region.
   const statusRegion = (
     <p className={isLive || !liveText ? 'sr-only' : styles.voiceStatus} role="status" aria-live="polite">
       {liveText}
     </p>
   );
-
-  if (view === 'recording') {
-    return (
-      <div className={styles.recordingPanel} data-phase={phase}>
-        <span className={styles.recordPulse} data-live={phase === 'recording' || undefined} aria-hidden="true">
-          <MicIcon />
-        </span>
-        <p className={styles.recState}>{phase === 'recording' ? RECORDER.recording : status}</p>
-        {phase === 'recording' || phase === 'stopping' ? (
-          <span className={styles.timer} role="timer" aria-label={RECORDER.timer(snapshot.elapsedMs, LIMITS.recordingMaxMs)}>
-            {RECORDER.timer(snapshot.elapsedMs, LIMITS.recordingMaxMs)}
-          </span>
-        ) : null}
-        {phase === 'recording' && level !== null ? (
-          <span className={styles.level} title={RECORDER.level}>
-            <span className="sr-only">{RECORDER.level}</span>
-            <span className={styles.levelFill} style={{ inlineSize: `${Math.round(level * 100)}%` }} aria-hidden="true" />
-          </span>
-        ) : null}
-        {statusRegion}
-        {phase === 'recording' && snapshot.warned ? <p className={styles.warn}>{RECORDER.warn}</p> : null}
-        <div className={styles.cues}>
-          <p className={styles.cuesTitle}>{cuesTitle}</p>
-          <ul className={styles.cueList}>
-            {cues.map((cue) => (
-              <li key={cue} className={styles.cue}>
-                {cue}
-              </li>
-            ))}
-          </ul>
-        </div>
-        {phase === 'requesting' || phase === 'recording' ? (
-          <div className={styles.recordingActions}>
-            {phase === 'recording' ? (
-              <button
-                type="button"
-                className={styles.btnPrimary}
-                onClick={() => (liveIntake ? controller()?.finish() : controller()?.stop('user_stop'))}
-              >
-                {liveIntake ? RECORDER.finishLive : RECORDER.finishLocal}
-              </button>
-            ) : null}
-            <button type="button" className={styles.linkButton} onClick={() => controller()?.cancel()}>
-              {COMMON.cancel}
-            </button>
-          </div>
-        ) : null}
-      </div>
-    );
-  }
 
   const clipControls =
     phase === 'recorded' && clip ? (
@@ -169,7 +130,8 @@ export function RecorderPanel({
             {RECORDER.deleteRecording}
           </button>
         </div>
-        <p className={styles.hint}>{RECORDER.deleteNote}</p>
+        {/* Only the card holds details a parent could think the deletion removes. */}
+        {view === 'card' ? <p className={styles.hint}>{RECORDER.deleteNote}</p> : null}
       </>
     ) : null;
 
@@ -187,18 +149,63 @@ export function RecorderPanel({
     );
   }
 
+  const canStart = phase === 'idle' || (phase === 'error' && error !== null && RETRYABLE.has(error));
+  const listening = phase === 'recording';
+  // The measured level, 0..1, drives the halos while listening. No stream, no movement.
+  const stageStyle = listening && level !== null ? ({ '--level': level.toFixed(3) } as CSSProperties) : undefined;
+
   return (
-    <div className={styles.startRecorder} data-phase={phase}>
-      {phase === 'idle' || (phase === 'error' && error && RETRYABLE.has(error)) ? (
-        <button type="button" className={styles.recordButton} onClick={start}>
-          <span className={styles.recordCircle} aria-hidden="true">
-            <MicIcon />
-          </span>
-          <span className={styles.recordLabel}>{phase === 'error' ? RECORDER.retry : voiceCta}</span>
-        </button>
-      ) : null}
+    <div className={styles.stage} data-phase={phase} style={stageStyle}>
+      <div className={styles.orbit}>
+        <span className={styles.arc} aria-hidden="true" />
+        <span className={styles.halo} data-halo="1" aria-hidden="true" />
+        <span className={styles.halo} data-halo="2" aria-hidden="true" />
+        <CueTags cues={cues} label={cuesTitle} layout="arc" />
+        {canStart ? (
+          <button type="button" className={styles.recordButton} onClick={start}>
+            <span className={styles.recordCircle} aria-hidden="true">
+              <MicIcon />
+              <Spark />
+            </span>
+            <span className={styles.recordLabel}>{phase === 'error' ? RECORDER.retry : voiceCta}</span>
+          </button>
+        ) : (
+          <div className={styles.orbLive}>
+            <span className={styles.recordCircle} data-state={phase === 'recorded' ? 'done' : 'live'} aria-hidden="true">
+              {phase === 'recorded' ? <CheckIcon /> : <MicIcon />}
+              <Spark />
+            </span>
+            {phase === 'recording' || phase === 'stopping' ? (
+              <span className={styles.clock} role="timer" aria-label={RECORDER.timer(snapshot.elapsedMs, LIMITS.recordingMaxMs)}>
+                <span className={styles.recDot} data-live={listening || undefined} aria-hidden="true" />
+                <span className={styles.clockNow}>{formatDuration(snapshot.elapsedMs)}</span>
+                <span className={styles.clockMax}>{RECORDER.timerMax(LIMITS.recordingMaxMs)}</span>
+              </span>
+            ) : phase === 'requesting' ? (
+              <span className={styles.orbNote}>{RECORDER.requesting}</span>
+            ) : null}
+          </div>
+        )}
+      </div>
       {statusRegion}
-      {phase === 'idle' ? <p className={styles.hint}>{hint}</p> : null}
+      {listening && snapshot.warned ? <p className={styles.warn}>{RECORDER.warn}</p> : null}
+      {phase === 'requesting' || listening ? (
+        <div className={styles.recordingActions}>
+          {listening ? (
+            <button
+              ref={finishRef}
+              type="button"
+              className={styles.btnPrimary}
+              onClick={() => (liveIntake ? controller()?.finish() : controller()?.stop('user_stop'))}
+            >
+              {liveIntake ? RECORDER.finishLive : RECORDER.finishLocal}
+            </button>
+          ) : null}
+          <button type="button" className={styles.linkButton} onClick={() => controller()?.cancel()}>
+            {COMMON.cancel}
+          </button>
+        </div>
+      ) : null}
       {clipControls}
     </div>
   );
@@ -211,6 +218,23 @@ function MicIcon({ small = false }: { small?: boolean }) {
         d="M12 14a3 3 0 0 0 3-3V5a3 3 0 1 0-6 0v6a3 3 0 0 0 3 3Zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2Z"
         fill="currentColor"
       />
+    </svg>
+  );
+}
+
+function CheckIcon() {
+  return (
+    <svg className={styles.micIcon} viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d="M5 12.5 10 17.5 19 7" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+/** The one yellow accent on the screen: a small spark on the microphone. */
+function Spark() {
+  return (
+    <svg className={styles.spark} viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d="M12 2.5c.6 4.6 2.9 6.9 7.5 7.5-4.6.6-6.9 2.9-7.5 7.5-.6-4.6-2.9-6.9-7.5-7.5 4.6-.6 6.9-2.9 7.5-7.5Z" fill="currentColor" />
     </svg>
   );
 }

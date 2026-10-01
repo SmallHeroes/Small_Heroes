@@ -10,6 +10,17 @@ This roadmap records technical milestone state. Guy can change product priority 
 
 ### P-personal literary quality milestone (2026-10-01)
 
+- Claude recording UI `2194e9a8` integrated onto current engine `961fcd20` locally
+  after Guy reported the old screen. Same sole writer/chat; voice stage/cue arc,
+  copy/CSS, no API/provider/budget change. Corrected unsent-text/retained-clip loss
+  disclosure and non-live mode note. Wizard 773/773, tsc 0; actual Chrome/IAB start,
+  write, example decoding/card, companion/length/summary and cancel checked.
+  360/390 viewport checks without horizontal overflow. Full gate remains RED;
+  native 1: ordinary ten failures, resource 635/635 plus three RPC timeouts. No
+  fresh baseline-causality claim. No real microphone/provider
+  rerun, independent PASS, push or public/QA deployment. Manual local pilot's
+  single intake/story limits remain unchanged. Immutable QA handoff follows.
+
 - Guy's edited story-only reading path implemented from `b2552fc4`: existing
   runner/endpoint, three scoped calls, whole manuscript and editor display,
   default five-stage compatibility, no storyboard/image/audio spend. Final-spread

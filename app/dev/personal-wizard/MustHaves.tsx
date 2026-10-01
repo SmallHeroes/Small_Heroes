@@ -88,7 +88,6 @@ function LovesBlock({ draft, update, copy, showIssue }: BlockProps) {
       {loves.length > 0 ? <FactsList draft={draft} update={update} copy={copy} groups={['loves']} showTitles={false} /> : null}
       {open ? (
         <>
-          {loves.length === 0 ? <p className={styles.label}>{copy.lovesQuestion}</p> : null}
           {chips.length > 0 ? (
             <div className={styles.chips}>
               {chips.map((chip) => (
@@ -175,12 +174,7 @@ function HardBlock({ draft, update, copy, showIssue, topics }: BlockProps & { to
       ) : null}
       {open ? (
         <>
-          {hard.length === 0 ? (
-            <>
-              <p className={styles.label}>{copy.hardQuestion}</p>
-              <p className={styles.hint}>{copy.hardHint}</p>
-            </>
-          ) : null}
+          {hard.length === 0 ? <p className={styles.hint}>{copy.hardHint}</p> : null}
           <div className={styles.chips}>
             {chips.map((topic) => (
               <button
@@ -353,7 +347,6 @@ function DirectionBlock({
           })
         : null}
       {current === null && draft.intentSuggestions.length > 1 ? <p className={styles.hint}>{copy.directionPickLater}</p> : null}
-      {rows.length > 0 ? <p className={styles.hint}>{copy.directionRemovedNote}</p> : null}
     </div>
   );
 }

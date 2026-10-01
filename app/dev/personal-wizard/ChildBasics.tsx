@@ -110,8 +110,8 @@ export function ChildBasics({ draft, update, issues, showErrors }: Props) {
       )}
 
       {showAgeField ? (
-        <fieldset ref={ageFieldRef} className={styles.fieldset} aria-describedby={ageIssue ? 'pw-age-error' : 'pw-age-hint'}>
-          <legend className={styles.label}>{HERO.ageLabel(draft.child.address)}</legend>
+        <fieldset ref={ageFieldRef} className={styles.fieldset} aria-describedby={ageIssue ? 'pw-age-error' : undefined}>
+          <legend className={styles.label}>{HERO.ageLabel}</legend>
           <div className={styles.segmented}>
             {PROTOTYPE_AGES.map((age) => (
               <label key={age} className={styles.segment} data-selected={draft.child.age === age || undefined}>
@@ -131,11 +131,7 @@ export function ChildBasics({ draft, update, issues, showErrors }: Props) {
             <p id="pw-age-error" className={styles.error}>
               {HERO.errors.child_age_missing}
             </p>
-          ) : (
-            <p id="pw-age-hint" className={styles.hint}>
-              {HERO.ageHint}
-            </p>
-          )}
+          ) : null}
         </fieldset>
       ) : (
         valueRow(HERO.ageRow(draft.child.age ?? 0), draft.child.ageSource, () => setEditingAge(true))
@@ -145,9 +141,9 @@ export function ChildBasics({ draft, update, issues, showErrors }: Props) {
         <fieldset
           ref={addressFieldRef}
           className={styles.fieldset}
-          aria-describedby={addressIssue ? 'pw-address-error' : 'pw-address-hint'}
+          aria-describedby={addressIssue ? 'pw-address-error' : undefined}
         >
-          <legend className={styles.label}>{HERO.addressLabel(name)}</legend>
+          <legend className={styles.label}>{HERO.addressLabel}</legend>
           <div className={styles.choiceRow}>
             {(
               [
@@ -172,11 +168,7 @@ export function ChildBasics({ draft, update, issues, showErrors }: Props) {
             <p id="pw-address-error" className={styles.error}>
               {HERO.errors.child_address_missing}
             </p>
-          ) : (
-            <p id="pw-address-hint" className={styles.hint}>
-              {HERO.addressHint}
-            </p>
-          )}
+          ) : null}
         </fieldset>
       ) : draft.child.address ? (
         valueRow(HERO.addressRow(draft.child.address), draft.child.addressSource, () => setEditingAddress(true))
@@ -185,7 +177,7 @@ export function ChildBasics({ draft, update, issues, showErrors }: Props) {
       {showResidenceField ? (
         <div className={styles.field}>
           <label className={styles.label} htmlFor="pw-residence">
-            {HERO.residenceLabel(name, draft.child.address)}
+            {HERO.residenceLabel}
           </label>
           <input
             id="pw-residence"

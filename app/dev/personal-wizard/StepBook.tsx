@@ -139,7 +139,7 @@ export function StepBook({ draft, update, options, titleRef, photoUrl, onPhoto, 
       </div>
 
       <div className={styles.card}>
-        <fieldset className={styles.fieldset} aria-describedby="pw-length-note">
+        <fieldset className={styles.fieldset}>
           <legend className={styles.sectionTitle}>{copy.lengthTitle}</legend>
           <div className={styles.optionGrid}>
             {options.lengths.map((length) => {
@@ -167,9 +167,6 @@ export function StepBook({ draft, update, options, titleRef, photoUrl, onPhoto, 
               {copy.clearChoice}
             </button>
           ) : null}
-          <p id="pw-length-note" className={styles.hint}>
-            {copy.lengthNote}
-          </p>
         </fieldset>
       </div>
     </section>

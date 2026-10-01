@@ -1,5 +1,46 @@
 # SmallHeroes — Current Technical State
 
+## Latest recording UI on the text engine 2026 10 01
+
+Guy correctly reported that 3443 still showed the previous recording UI. The
+engine branch had not imported Claude's isolated `719dcb7f..2194e9a8` work.
+Codex integrated that exact UI range onto `961fcd20`, in the same chat/worktree
+`personal-story-product`, branch `codex/personal-book-storyboard-bridge`, sole
+writer. Claude source remains unchanged and clean. Landing/QA/public deployment
+are excluded; no push. Decision: `PERSONAL_RECORDING_UI_INTEGRATION_DECISION_20261001.md`.
+
+Unified voice stage, static five-cue arc, real measured microphone halos, shorter
+copy and existing decoding/card remain. Corrected a disclosure regression: unsent
+text and a local recorded clip are outside draft revision, so the write view and
+retained-clip start now show an explicit refresh/close loss notice. This is not
+new persistence or unload protection. Existing tell-view selector has ten new
+display-policy cases; concise non-live disclosure restored without cluttering
+the live voice stage. Request contracts, recorder/hooks, API/auth/operator gates,
+writer/providers, text-only StoryPreview, budgets/claims and ledger are unchanged.
+
+Focused wizard suite 773/773 across 25 specs; standalone tsc 0. Initial type/full
+check found a missing localNote copy key in the correction, fixed before the
+final full run; its log is retained. Final full run native exit 1: ordinary ten
+failures, 5585 passed/73 skipped/382 files; resource 635/635 assertions pass in 20
+files but three `onTaskUpdate` RPC timeouts make that phase fail. Failure names
+match the prior recorded set, not a fresh baseline reconstruction. Stability RED.
+No independent technical PASS, product acceptance or real voice accuracy claim.
+
+Real 3443 Chrome checks: start and write-loss notice; marked example processing
+with only Cancel visible, card, all six companions, lengths and summary; removed
+bonus absent; second example cancelled, no late overwrite of original facts.
+390x844 and 360x740 viewport overrides: no horizontal overflow; restored normal
+viewport. Real IAB tab also shows the new start. Operator is currently signed out
+in the inspected tabs; truthful sign-in note appears. No microphone permission,
+audio/text processing or story-generation action invoked. Existing listener PID
+145892 remains loopback-only; no server restart or allowance reset. Ignored local
+logs/observation receipt: `outputs/personal-recording-ui-integration-20261001/`,
+no verified backup. Existing paid comparison claim SHA unchanged. Final committed
+QA handoff follows; Claude's UI implementation is not its own independent PASS.
+A proposed live-code mutation of the loss warning was declined by safety review
+before execution: no mutation/control run occurred. The ten policy cases and real
+write-view observation are positive evidence only, not a mutation-test claim.
+
 ## Edited personal story for reading, no render 2026 10 01
 
 Guy's requested local flow now uses explicit `story_only` scope on the existing

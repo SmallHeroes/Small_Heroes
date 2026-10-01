@@ -34,7 +34,7 @@ import styles from './personal-wizard.module.css';
 import { StepBook } from './StepBook';
 import { StepCompanion } from './StepCompanion';
 import { StepSummary, type Submission } from './StepSummary';
-import { switchTellMode, tellViewOf, type TellMode } from '@/lib/personal-wizard/tell-view';
+import { showDraftNotice, switchTellMode, tellViewOf, type TellMode } from '@/lib/personal-wizard/tell-view';
 
 import { StepTell, type IntakeNotice } from './StepTell';
 
@@ -400,13 +400,12 @@ export function PersonalWizard({ options }: Props) {
         <span className={styles.brand}>גיבורים קטנים</span>
         <span className={styles.prototypeBadge}>{COMMON.prototypeBadge}</span>
       </header>
-      <p className={styles.draftNotice} hidden={step === 1 && tellView === 'processing'}>
-        {COMMON.draftNotice}
-      </p>
 
+      {/* On the focused voice screens only the bar shows; the step name is still read out. */}
       <div className={styles.progress} hidden={step === 1 && tellView === 'processing'}>
-        <p className={styles.progressLabel}>
-          {COMMON.stepOf(step)}: {STEP_NAMES[step - 1]}
+        <p className={focusedTell ? 'sr-only' : styles.progressLabel}>
+          <span className="sr-only">{COMMON.stepOf(step)}: </span>
+          {STEP_NAMES[step - 1]}
         </p>
         <ol className={styles.pills} aria-hidden="true">
           {STEP_NAMES.map((stepName, index) => (
@@ -418,6 +417,10 @@ export function PersonalWizard({ options }: Props) {
           ))}
         </ol>
       </div>
+      {/* The voice/processing stage stays quiet; unsent text and a retained clip need a loss notice. */}
+      <p className={styles.draftNotice} hidden={!showDraftNotice(step, tellView, recorder.snapshot.clip !== null)}>
+        {COMMON.draftNotice}
+      </p>
 
       <main className={styles.main} data-focused={focusedTell || undefined}>
         {step === 1 ? (

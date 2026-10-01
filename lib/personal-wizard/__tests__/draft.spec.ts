@@ -45,7 +45,7 @@ import {
   toggleHardChip,
   type IdFactory,
 } from '../draft';
-import { switchTellMode, tellViewOf } from '../tell-view';
+import { showDraftNotice, switchTellMode, tellViewOf } from '../tell-view';
 import { buildFixtureResult } from '../intake-fixture';
 import { resolvePersonalWizardOptions } from '../options';
 import { acceptPersonalBookRequest } from '../request-acceptance';
@@ -57,6 +57,23 @@ function sequentialIds(): IdFactory {
     return `${prefix}_${String(counter).padStart(8, '0')}`;
   };
 }
+
+describe('memory-only recording UI disclosure', () => {
+  it.each([
+    [1, 'start', false, false],
+    [1, 'write', false, true],
+    [1, 'card', false, true],
+    [1, 'start', true, true],
+    [1, 'recording', false, false],
+    [1, 'recording', true, false],
+    [1, 'processing', true, false],
+    [2, 'start', false, true],
+    [3, 'start', false, true],
+    [4, 'start', false, true],
+  ] as const)('step %s, view %s, clip %s has notice %s', (step, view, clip, expected) => {
+    expect(showDraftNotice(step, view, clip)).toBe(expected);
+  });
+});
 
 const ALLOWED_TOPICS = new Set(['transitions', 'night', 'social']);
 
