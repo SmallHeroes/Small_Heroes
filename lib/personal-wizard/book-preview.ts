@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { editedStoryResultSchema, anyPersonalStoryResultSchema } from './story-editor-contract';
+import { storyPlanningHoldSchema } from './story-contract';
 import type { AvailabilityFetch } from './availability-client';
 
 // Browser display validation only. Never recreates server compilation/render authority.
@@ -27,7 +28,18 @@ const failureSchema = z.object({ error: z.string(), writerResult: anyPersonalSto
 export type BookPartialPreview = z.infer<typeof failureSchema>;
 export function readBookPartialPreview(raw: unknown, requestId: string): BookPartialPreview | null {
   const parsed = failureSchema.safeParse(raw);
-  return parsed.success && parsed.data.writerResult.requestId === requestId ? parsed.data : null;
+  return parsed.success && !['book_cancelled', 'book_source_changed', 'book_outline_held'].includes(parsed.data.error) &&
+    parsed.data.writerResult.requestId === requestId ? parsed.data : null;
+}
+export const bookPlanningHoldPreviewSchema = z.object({
+  version: z.literal('personal-book-planning-hold/diagnostic-v1'), status: z.literal('planning_held'),
+  error: z.literal('book_outline_held'), runtimeEligible: z.literal(false), planningResult: storyPlanningHoldSchema,
+  accounting: accountingSchema.extend({ providerAttempts: z.literal(1) }),
+}).strict();
+export type BookPlanningHoldPreview = z.infer<typeof bookPlanningHoldPreviewSchema>;
+export function readBookPlanningHoldPreview(raw: unknown, requestId: string): BookPlanningHoldPreview | null {
+  const parsed = bookPlanningHoldPreviewSchema.safeParse(raw);
+  return parsed.success && parsed.data.planningResult.requestId === requestId ? parsed.data : null;
 }
 export function readBookPreview(raw: unknown, requestId: string): BookPreview | null {
   const parsed = bookPreviewSchema.safeParse(raw);

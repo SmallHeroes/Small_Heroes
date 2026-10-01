@@ -3,11 +3,11 @@ import { zodTextFormat } from 'openai/helpers/zod';
 import { personalStoryboardFixture, fixtureEditorOutput } from './personal-storyboard-fixture';
 import { fixtureAdventureSelection } from './story-planning-fixture';
 import { adventureSelectionSchema, adventureSelectionIssue } from '../story-planning-contract';
-import { preparePersonalStory, writePersonalStory, ADVENTURE_SELECTION_INSTRUCTIONS, type StoryCall } from '../story-writer';
+import { preparePersonalStory, writePersonalStory, StoryPlanningHeldError, assertStoryPlanningHoldBinding, ADVENTURE_SELECTION_INSTRUCTIONS, type StoryCall } from '../story-writer';
 import { resolvePersonalWizardOptions } from '../options';
 import { IntakeLedger } from '../intake-ledger';
 import { prepareStoryEdit, compileStoryEdit, assertStoryEditBinding } from '../story-editor';
-import { personalStoryResultSchema } from '../story-contract';
+import { personalStoryResultSchema, storyPlanningHoldSchema } from '../story-contract';
 import { editedStoryResultSchema } from '../story-editor-contract';
 import { personalProviderSchema } from '../story-openai';
 import { storyEditorProviderSchema } from '../story-editor-openai';
@@ -101,6 +101,58 @@ describe('current planner selection, distinct from literary acceptance', () => {
     expect(error.code).toBe(code); expect(error.accounting.providerCalls).toBe(1);
     expect(error.accounting.estimatedUsd).toBe(0.0007);
     expect(f.p.generate).toHaveBeenCalledTimes(1); expect(f.ledger.snapshot().inFlight).toBe(0);
+    if (kind === 'held') {
+      expect(error).toBeInstanceOf(StoryPlanningHeldError);
+      expect(error.planningResult.planning.selection.outlineChecks.causal_child_choices.outcome).toBe('needs_work');
+    } else expect(error).not.toHaveProperty('planningResult');
+  });
+  it.each(['curiosity_and_stakes', 'causal_child_choices', 'earned_payoff'] as const)('retains either candidate and the exact %s HOLD reason but no manuscript authority', async check => {
+    const f = await setup(output => { output.adventureSelection.selectedId = 'B'; output.adventureSelection.outlineChecks[check].outcome = 'needs_work'; });
+    const error = await f.run().catch(error => error) as StoryPlanningHeldError;
+    expect(storyPlanningHoldSchema.safeParse(error.planningResult).success).toBe(true);
+    expect(assertStoryPlanningHoldBinding(f.prepared, error.planningResult)).toEqual(error.planningResult);
+    expect(error.planningResult.planning.selection.selectedId).toBe('B');
+    expect(error.planningResult.planning.selection.outlineChecks[check].outcome).toBe('needs_work');
+    expect(personalStoryResultSchema.safeParse(error.planningResult).success).toBe(false);
+    expect(() => prepareStoryEdit(f.prepared, error.planningResult as any)).toThrow();
+    expect(() => preparePersonalStoryboard(f.request, error.planningResult as any, options)).toThrow();
+  });
+  it.each(['digest', 'request', 'fact', 'resilience', 'fixture', 'length', 'all_supported', 'identical'])('server HOLD binding rejects forged %s even when the browser shape would be insufficient', async mode => {
+    const f = await setup(output => { output.adventureSelection.outlineChecks.earned_payoff.outcome = 'needs_work'; });
+    const error = await f.run().catch(error => error); const raw = structuredClone(error.planningResult);
+    if (mode === 'digest') raw.plan.childGoal += ' changed';
+    if (mode === 'request') raw.requestId = raw.plan.requestId = 'other_request';
+    if (mode === 'fact') raw.planning.selection.candidates[1].personalFactUses[0].factId = 'f_removed';
+    if (mode === 'resilience') raw.plan.resilience.mode = 'chosen_topic';
+    if (mode === 'fixture') raw.containsFixtureData = !raw.containsFixtureData;
+    if (mode === 'length') raw.displayPages = 24;
+    if (mode === 'all_supported') raw.planning.selection.outlineChecks.earned_payoff.outcome = 'supported';
+    if (mode === 'identical') raw.planning.selection.candidates[1] = { ...raw.planning.selection.candidates[0], id: 'B' };
+    expect(() => assertStoryPlanningHoldBinding(f.prepared, raw)).toThrow('story_plan_hold_binding');
+  });
+  it('invalid plan plus needs_work is technical failure, not a retained valid HOLD', async () => {
+    const f = await setup(output => { output.beats[0].factIds = ['f_removed']; output.adventureSelection.outlineChecks.earned_payoff.outcome = 'needs_work'; });
+    const error = await f.run().catch(error => error);
+    expect(error.code).toBe('story_fact_mismatch'); expect(error).not.toHaveProperty('planningResult');
+    expect(f.p.generate).toHaveBeenCalledTimes(1);
+  });
+  it('suppresses an otherwise valid HOLD if the terminal observer cancels before delivery', async () => {
+    const f = await setup(output => { output.adventureSelection.outlineChecks.earned_payoff.outcome = 'needs_work'; });
+    const controller = new AbortController();
+    const error = await writePersonalStory({ prepared: f.prepared, userId: 'synthetic', jobId: 's_latecancel001',
+      settings: { model: 'gpt-6-sol', budgetUsd: 1, maxJobs: 1, operators: new Set() }, ledger: f.ledger,
+      signal: controller.signal, provider: () => f.p, record: () => controller.abort() }).catch(error => error);
+    expect(error.code).toBe('story_cancelled'); expect(error).not.toHaveProperty('planningResult');
+    expect(error.accounting.providerCalls).toBe(1); expect(error.accounting.estimatedUsd).toBe(.0007);
+    expect(f.ledger.snapshot().inFlight).toBe(0);
+  });
+  it('does not promote a provider-thrown typed HOLD to an engine-validated planning observation', async () => {
+    const f = await setup(output => { output.adventureSelection.outlineChecks.earned_payoff.outcome = 'needs_work'; });
+    const genuine = await f.run().catch(error => error);
+    const other = await setup(); vi.mocked(other.p.generate).mockRejectedValue(genuine);
+    const failure = await other.run().catch(error => error);
+    expect(failure.code).toBe('story_provider_failed'); expect(failure).not.toHaveProperty('planningResult');
+    expect(other.p.generate).toHaveBeenCalledTimes(1);
   });
   it('requires the selected personal contribution to occur in original outline fact references', () => {
     const s = fixtureAdventureSelection();

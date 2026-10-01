@@ -10,6 +10,12 @@ This roadmap records technical milestone state. Guy can change product priority 
 
 ### P-personal literary quality milestone (2026-10-01)
 
+- At base `4de61548`, valid planner HOLD diagnostics are implemented through writer,
+  runner, authenticated local routes and wizard; independent re-gate pending.
+  Plan-only evidence/one attempt/no retry/no rendering authority. Focused 714/714,
+  tsc 0, browser 38/38 with mocked transport; full check RED, final rerun pending.
+  Next quality step is a separately bounded creative comparison, not another
+  declaration that structural tests establish literary quality.
 - Received independent PASS for `6de84b4f..43978d85` and separately
   `8695d196..6de84b4f`; correction `43978d85..9adf6555` also has independent
   PASS, P0/P1/P2 = 0. Follow-up exact synthetic-registry admission and post-strip

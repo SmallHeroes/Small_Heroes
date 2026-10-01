@@ -40,6 +40,28 @@ beforeEach(async () => {
 afterEach(() => { vi.restoreAllMocks(); for (const [key, value] of saved) { if (value === undefined) delete process.env[key]; else process.env[key] = value; } });
 
 describe('real local diagnostic book route', () => {
+  it('returns a typed 422 plan-only HOLD with one accounted attempt, no manuscript, no follow-up or refund', async () => {
+    fixture.draftResult.planning!.selection.outlineChecks.earned_payoff.outcome = 'needs_work';
+    const response = await POST(req(job())); const body = await response.json();
+    expect(response.status).toBe(422); expect(body).toMatchObject({
+      version: 'personal-book-planning-hold/diagnostic-v1', status: 'planning_held', error: 'book_outline_held', runtimeEligible: false,
+      accounting: { providerAttempts: 1, estimatedUsd: .0022 },
+    });
+    expect(body.planningResult.planning.selection).toEqual(fixture.draftResult.planning!.selection);
+    expect(body.planningResult.plan).toEqual(fixture.draftResult.plan);
+    for (const field of ['writerResult', 'manuscript', 'framePackets', 'storyboard', 'review']) expect(body).not.toHaveProperty(field);
+    expect(attempts()).toBe(1); expect(deps.keyReads).toBe(1); expect(deps.factory).toBe(1);
+    expect(response.headers.get('cache-control')).toBe('no-store'); expect(response.headers.get('x-robots-tag')).toBe('noindex, nofollow');
+    expect(JSON.stringify(vi.mocked(console.info).mock.calls)).not.toContain(fixture.draftResult.plan.title);
+    expect((await POST(req(job()))).status).toBe(409); expect(attempts()).toBe(1); expect(deps.keyReads).toBe(1);
+  });
+  it('malformed plan with a HOLD label remains a technical 502 without plan evidence', async () => {
+    fixture.draftResult.planning!.selection.candidates[1].id = 'A';
+    fixture.draftResult.planning!.selection.outlineChecks.earned_payoff.outcome = 'needs_work';
+    const response = await POST(req(job())); const body = await response.json();
+    expect(response.status).toBe(502); expect(body.error).toBe('book_story_invalid');
+    expect(body).not.toHaveProperty('planningResult'); expect(attempts()).toBe(1);
+  });
   it('executes all five stages and returns same-context packets without render authority', async () => {
     const response = await POST(req(job())); const body = await response.json();
     expect(response.status).toBe(200); expect(attempts()).toBe(5); expect(deps.keyReads).toBe(1); expect(deps.factory).toBe(1);

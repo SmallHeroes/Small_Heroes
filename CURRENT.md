@@ -1,5 +1,37 @@
 # SmallHeroes — Current Technical State
 
+## Valid planner HOLD retained through the local wizard 2026 10 01
+
+Codex implemented the next bounded milestone at base `4de61548` in
+`personal-story-product/Small_Heroes`, branch `codex/personal-book-storyboard-bridge`.
+Decision and read-only independent QA brief:
+`docs/ai-workflow/PERSONAL_PLANNER_HOLD_DECISION_20261001.md` and
+`docs/ai-workflow/PERSONAL_PLANNER_HOLD_QA_20261001.md`.
+
+A valid model `needs_work` result now preserves the plan, both proposals,
+selection/reason and observations in a separate typed 422 diagnostic. It cannot
+be a manuscript, edited story, storyboard or render input. One plan attempt only;
+no retry or downstream call, reservation consumed and lock released. Invalid
+plans, provider-thrown lookalike exceptions, cancellation and source drift keep
+technical failure semantics. Server rechecks approved request and canonical plan
+digest. Browser validation is for display, not authority or literary acceptance.
+
+Final focused suite 714/714 across 25 specs, standalone tsc 0, three deliberate
+guard breakages detected and restored. Real React component with mocked transport:
+38/38 browser checks; real 390/1024 viewports have no horizontal overflow. No
+Next/auth/provider integration or live creative-quality result is claimed.
+First full check RED: 11 ordinary failures, 5517 passes, 73 skips; ten names match
+prior log, one additional terminal-resume EEXIST passes in isolation. Resource
+635/635 assertions with three RPC errors, native 1. Final restored-code full rerun
+is in progress and will be recorded before handoff; no stability closure.
+
+Claude has concurrent UI work in separate dirty `sh-claude-wizard-wow` and site
+worktrees. Codex does not edit/merge those. Reviewer `sh-qa-book-10f54930` stays
+detached/clean at `719dcb7f`; protected `768ccb2f` and `63ccb484` unchanged.
+No independent PASS for either new milestone, no provider/key value/paid reset,
+image/audio call, push, deployment or public activation; $0. Success contracts,
+models, prompts, caps, budgets and resemblance threshold unchanged.
+
 ## Registry QA received; fixture-provenance regression guard (2026-10-01)
 
 Received independent Claude PASS for EXACTLY `9adf6555..719dcb7f`, P0/P1/P2 = 0.

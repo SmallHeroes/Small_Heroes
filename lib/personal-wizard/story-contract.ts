@@ -44,6 +44,31 @@ export const personalManuscriptSchema = z.object({
 export type PersonalStoryPlan = z.infer<typeof personalStoryPlanSchema>;
 export type PersonalManuscript = z.infer<typeof personalManuscriptSchema>;
 export type StoryUsage = { inputTokens: number; outputTokens: number } | null;
+// Plan-only model HOLD. Never admitted as a manuscript or render source.
+export const storyPlanningHoldSchema = z.object({
+  version: z.literal('personal-story-plan-hold/diagnostic-v1'), status: z.literal('planning_held'),
+  requestId: z.string().min(1), plan: personalStoryPlanSchema,
+  planDigest: z.string().regex(/^[a-f0-9]{64}$/),
+  displayPages: z.union([z.literal(16), z.literal(24), z.literal(32)]),
+  containsFixtureData: z.boolean(), planning: storyPlanningReceiptSchema, runtimeEligible: z.literal(false),
+}).strict().superRefine((result, ctx) => {
+  const count = result.displayPages / 2, selection = result.planning.selection;
+  const checks = Object.values(selection.outlineChecks);
+  const used = new Set(result.plan.beats.flatMap(beat => beat.factIds));
+  const selected = selection.candidates.find(candidate => candidate.id === selection.selectedId);
+  if (result.plan.requestId !== result.requestId || result.planning.sourcePlanDigest !== result.planDigest ||
+      result.plan.beats.length !== count || result.plan.beats.some((beat, i) => beat.pageNumber !== i + 1) ||
+      result.plan.resilience.moments.some(moment => moment.pageNumber < 1 || moment.pageNumber > count) ||
+      new Set(result.plan.resilience.moments.map(moment => moment.pageNumber)).size !== result.plan.resilience.moments.length ||
+      selection.candidates[0].id !== 'A' || selection.candidates[1].id !== 'B' || !selected ||
+      selected.personalFactUses.some(use => !used.has(use.factId)) ||
+      checks.some(check => check.evidenceSpreads.some(n => n > count) || new Set(check.evidenceSpreads).size !== check.evidenceSpreads.length) ||
+      !selection.outlineChecks.earned_payoff.evidenceSpreads.includes(count) ||
+      !checks.some(check => check.outcome === 'needs_work')) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'story_plan_hold_binding' });
+  }
+});
+export type StoryPlanningHold = z.infer<typeof storyPlanningHoldSchema>;
 const usageSchema = z.object({ inputTokens: z.number().int().nonnegative(), outputTokens: z.number().int().nonnegative() }).strict().nullable();
 export const personalStoryResultObjectSchema = z.object({
   status: z.literal('manuscript_preview'),

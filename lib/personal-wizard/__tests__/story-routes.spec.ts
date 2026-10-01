@@ -13,8 +13,10 @@ vi.mock('@/lib/personal-wizard/story-openai', () => ({ createPersonalStoryProvid
     if (deps.mode === 'fail') throw new Error('private-provider-sentinel');
     const input = JSON.parse(call.input); const brief = input.brief;
     const base = { requestId: brief.requestId, title: 'נועה והמכתב המעופף' };
+    const selection = fixtureAdventureSelection(brief.beats);
+    if (deps.mode === 'held') selection.outlineChecks.earned_payoff.outcome = 'needs_work';
     return { usage: { inputTokens: 100, outputTokens: 200 }, output: call.stage === 'plan' ? {
-      adventureSelection: fixtureAdventureSelection(brief.beats),
+      adventureSelection: selection,
       ...base, childGoal: 'למצוא את המכתב', companionWant: 'לשלוח ציור', comicPromise: 'עלים שמדגדגים', ending: 'שלחו את הציור',
       resilience: { mode: brief.resilienceMode, moments: [{ pageNumber: 2, childChoice: 'להציע רעיון אחר', whatHelps: 'החברה מקשיבה' }] },
       beats: Array.from({ length: brief.beats }, (_, index) => ({ pageNumber: index + 1, location: 'הגינה', transitionReason: 'בעקבות המכתב', childAction: 'מחפשת', companionAction: 'מתבוננת', consequence: 'המכתב מתגלה', factIds: ['f_interest0001'], continuity: 'הציור בידי נועה' })),
@@ -37,6 +39,16 @@ beforeEach(() => {
 afterEach(() => { for (const [key, value] of saved) { if (value === undefined) delete process.env[key]; else process.env[key] = value; } });
 
 describe('actual local manuscript route', () => {
+  it('returns plan-only evidence for a valid planner HOLD, preserving reservation and duplicate protection', async () => {
+    deps.mode = 'held'; const response = await POST(request(job())); const body = await response.json();
+    expect(response.status).toBe(422); expect(body.error).toBe('story_outline_held'); expect(body.status).toBe('planning_held');
+    expect(body.runtimeEligible).toBe(false); expect(body.planningResult.plan.beats).toHaveLength(8);
+    expect(body.planningResult.planning.selection.outlineChecks.earned_payoff.outcome).toBe('needs_work');
+    expect(body.accounting.providerCalls).toBe(1); expect(body.accounting.estimatedUsd).toBeCloseTo(.0022);
+    expect(body).not.toHaveProperty('manuscript'); expect(deps.calls).toBe(1);
+    expect(response.headers.get('cache-control')).toBe('no-store');
+    expect((await POST(request(job()))).status).toBe(409); expect(deps.keyReads).toBe(1); expect(deps.calls).toBe(1);
+  });
   it('executes the reviewed request through both stages with no render authority or public cache', async () => {
     const response = await POST(request(job())); const body = await response.json();
     expect(response.status).toBe(200); expect(deps.calls).toBe(2); expect(deps.factory).toBe(1);

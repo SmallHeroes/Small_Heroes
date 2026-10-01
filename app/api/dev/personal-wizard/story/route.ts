@@ -7,7 +7,7 @@ import { resolvePersonalWizardOptions } from '@/lib/personal-wizard/options';
 import { storyAccess, storyResponse } from '@/lib/personal-wizard/story-access';
 import { storyReservationUsd } from '@/lib/personal-wizard/story-config';
 import { createPersonalStoryProvider } from '@/lib/personal-wizard/story-openai';
-import { preparePersonalStory, writePersonalStory, StoryWriterError } from '@/lib/personal-wizard/story-writer';
+import { preparePersonalStory, writePersonalStory, StoryWriterError, StoryPlanningHeldError } from '@/lib/personal-wizard/story-writer';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -44,6 +44,10 @@ export async function POST(req: NextRequest) {
       return createPersonalStoryProvider(apiKey, access.settings.model);
     }, record: (receipt) => console.info(JSON.stringify({ event: 'personal_manuscript_pilot', ...receipt })) }));
   } catch (error) {
+    if (error instanceof StoryPlanningHeldError) return storyResponse({
+      version: 'personal-story-planning-hold/diagnostic-v1', status: 'planning_held', error: error.code,
+      planningResult: error.planningResult, accounting: error.accounting ?? null, runtimeEligible: false,
+    }, 422);
     const code = error instanceof StoryWriterError ? error.code : 'story_failed';
     return storyResponse({ error: code, accounting: error instanceof StoryWriterError ? error.accounting ?? null : null }, ['duplicate_job', 'user_busy', 'job_limit', 'budget_exhausted'].includes(code) ? 409 : ['story_cancelled', 'story_timeout'].includes(code) ? 408 : code === 'writer_unavailable' ? 503 : 502);
   }

@@ -1,11 +1,11 @@
 import 'server-only';
 import { z } from 'zod';
 import { canonicalJson } from './request-acceptance';
-import { preparePersonalStory, writePersonalStory, StoryWriterError, type StoryProvider } from './story-writer';
+import { preparePersonalStory, writePersonalStory, StoryWriterError, StoryPlanningHeldError, assertStoryPlanningHoldBinding, type StoryProvider } from './story-writer';
 import { STORY_PRICES, storyReservationUsd, personalStoryOutputLimits, generationTimeoutMs } from './story-config';
 import { IntakeLedger } from './intake-ledger';
 import type { PersonalWizardOptions } from './options';
-import type { StoryUsage, PersonalStoryResult } from './story-contract';
+import type { StoryUsage, PersonalStoryResult, StoryPlanningHold } from './story-contract';
 import { prepareStoryEdit, compileStoryEdit, editorNeedsWork, storyEditorOutputTokens, StoryEditorError, type StoryEditorCall, type StoryEditorProvider } from './story-editor';
 import type { EditedStoryResult } from './story-editor-contract';
 import { BOOK_LIMITS, assertPersonalBookSettings, personalBookOutputLimits, personalBookReservationUsd, type PersonalBookSettings } from './book-config';
@@ -23,6 +23,10 @@ export class PersonalBookError extends Error {
   accounting?: BookAccounting;
   writerResult?: PersonalStoryResult | EditedStoryResult;
   constructor(readonly code: string) { super(code); }
+}
+export class PersonalBookPlanningHeldError extends PersonalBookError {
+  readonly planningResult: StoryPlanningHold;
+  constructor(result: StoryPlanningHold) { super('book_outline_held'); this.planningResult = structuredClone(result); }
 }
 const usageSchema = z.object({ inputTokens: z.number().int().nonnegative(), outputTokens: z.number().int().nonnegative() }).strict();
 const safeUsage = (value: unknown): StoryUsage => { const parsed = usageSchema.safeParse(value); return parsed.success ? parsed.data : null; };
@@ -141,6 +145,14 @@ export async function generatePersonalBook(args: {
     } catch (error) {
       if (args.signal.aborted) fail('book_cancelled');
       if (error instanceof PersonalBookError) throw error;
+      if (error instanceof StoryPlanningHeldError) {
+        assertCurrent();
+        if (stages.length !== 1 || stages[0].stage !== 'plan') fail('book_story_invalid');
+        let held;
+        try { held = assertStoryPlanningHoldBinding(prepared, error.planningResult); }
+        catch { return fail('book_story_invalid'); }
+        throw new PersonalBookPlanningHeldError(held);
+      }
       // The legacy writer wraps provider errors; preserve only our known nested codes.
       const code = (error as { code?: string })?.code;
       if (code === 'story_timeout') fail('book_timeout');
@@ -197,6 +209,15 @@ export async function generatePersonalBook(args: {
         if (preparePersonalStory(args.request, args.options).accepted.requestId === originalRequestId) failure.writerResult = completedManuscript;
       } catch { /* No partial output for an invalid/changed request. */ }
     }
-    failure.accounting = accounting(); emit(active, 'failed', failure.code); throw failure;
+    failure.accounting = accounting(); emit(active, failure instanceof PersonalBookPlanningHeldError ? 'held' : 'failed', failure.code);
+    if (failure instanceof PersonalBookPlanningHeldError) {
+      // Observers run before delivery and may cancel or change the approved request.
+      try { assertCurrent(); }
+      catch (changed) {
+        const terminal = changed instanceof PersonalBookError ? changed : new PersonalBookError('book_source_changed');
+        terminal.accounting = accounting(); throw terminal;
+      }
+    }
+    throw failure;
   }
 }

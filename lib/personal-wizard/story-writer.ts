@@ -7,7 +7,7 @@ import type { PersonalWizardOptions } from './options';
 import { acceptPersonalBookRequest, canonicalJson } from './request-acceptance';
 import { IntakeLedger } from './intake-ledger';
 import { comparableText } from './contract';
-import { personalStoryPlanSchema, personalManuscriptSchema, type PersonalStoryResult, type StoryUsage } from './story-contract';
+import { personalStoryPlanSchema, personalManuscriptSchema, storyPlanningHoldSchema, type StoryPlanningHold, type PersonalStoryResult, type StoryUsage } from './story-contract';
 import { STORY_LIMITS, STORY_PRICES, personalStoryOutputLimits, storyReservationUsd, type StorySettings } from './story-config';
 import { withGenerationDeadline } from './generation-deadline';
 import { adventureSelectionSchema, adventureSelectionIssue } from './story-planning-contract';
@@ -16,6 +16,10 @@ export class StoryWriterError extends Error {
   accounting?: PersonalStoryResult['accounting'];
   providerUsage?: StoryUsage;
   constructor(readonly code: string) { super(code); }
+}
+export class StoryPlanningHeldError extends StoryWriterError {
+  readonly planningResult: StoryPlanningHold;
+  constructor(result: StoryPlanningHold) { super('story_outline_held'); this.planningResult = structuredClone(result); }
 }
 export type StoryCall = { stage: 'plan' | 'manuscript'; instructions: string; input: string; maxOutputTokens: number };
 export type StoryProvider = { generate(call: StoryCall, signal: AbortSignal): Promise<{ output: unknown; usage: StoryUsage }> };
@@ -85,10 +89,25 @@ export function preparePersonalStory(input: unknown, options: PersonalWizardOpti
 }
 export type PreparedStory = ReturnType<typeof preparePersonalStory>;
 
+/** Recheck typed diagnostic against the actual approved request; browser schema alone is not authority. */
+export function assertStoryPlanningHoldBinding(prepared: PreparedStory, raw: unknown): StoryPlanningHold {
+  const parsed = storyPlanningHoldSchema.safeParse(raw);
+  if (!parsed.success) fail('story_plan_hold_binding');
+  const result = parsed.data, plan = result.plan;
+  const approved = new Set(prepared.brief.facts.map(fact => fact.id));
+  const used = plan.beats.flatMap(beat => beat.factIds);
+  if (result.requestId !== prepared.accepted.requestId || result.displayPages !== prepared.brief.displayPages ||
+      result.containsFixtureData !== prepared.accepted.containsFixtureData || plan.resilience.mode !== prepared.brief.resilienceMode ||
+      result.planDigest !== createHash('sha256').update(canonicalJson(plan)).digest('hex') ||
+      used.some(id => !approved.has(id)) || !prepared.brief.facts.some(fact => fact.kind === 'interest' && used.includes(fact.id)) ||
+      adventureSelectionIssue(result.planning.selection, prepared.brief.facts, prepared.brief.beats, used) !== 'story_outline_held') fail('story_plan_hold_binding');
+  return result;
+}
+
 export async function writePersonalStory(args: {
   prepared: PreparedStory; userId: string; jobId: string; settings: StorySettings;
   ledger: IntakeLedger; provider: () => StoryProvider; signal: AbortSignal;
-  record?: (receipt: { outcome: 'done' | 'failed'; code: string | null; accounting: PersonalStoryResult['accounting'] }) => void;
+  record?: (receipt: { outcome: 'done' | 'held' | 'failed'; code: string | null; accounting: PersonalStoryResult['accounting'] }) => void;
 }): Promise<PersonalStoryResult> {
   const { prepared, userId, jobId, settings, ledger, signal } = args;
   if (signal.aborted) fail('story_cancelled');
@@ -97,8 +116,9 @@ export async function writePersonalStory(args: {
   if (!begin.ok) fail(begin.code);
   const usage: StoryUsage[] = [];
   let calls = 0;
-  let outcome: 'done' | 'failed' = 'failed';
+  let outcome: 'done' | 'held' | 'failed' = 'failed';
   let code: string | null = null;
+  let heldDiagnostic: StoryPlanningHeldError | null = null;
   const accounting = (): PersonalStoryResult['accounting'] => {
     const price = STORY_PRICES[settings.model];
     const measured = usage.length === calls && usage.every((entry) => entry && Number.isFinite(entry.inputTokens) && Number.isFinite(entry.outputTokens) && entry.inputTokens >= 0 && entry.outputTokens >= 0);
@@ -124,8 +144,17 @@ export async function writePersonalStory(args: {
     const used = new Set(plan.beats.flatMap((beat) => beat.factIds));
     if (!prepared.brief.facts.some((fact) => fact.kind === 'interest' && used.has(fact.id))) fail('story_personal_fact_missing');
     const selectionIssue = adventureSelectionIssue(adventureSelection, prepared.brief.facts, prepared.brief.beats, [...used]);
-    if (selectionIssue) fail(selectionIssue);
     const planDigest = createHash('sha256').update(canonicalJson(plan)).digest('hex');
+    if (selectionIssue === 'story_outline_held') {
+      heldDiagnostic = new StoryPlanningHeldError(assertStoryPlanningHoldBinding(prepared, {
+        version: 'personal-story-plan-hold/diagnostic-v1', status: 'planning_held', requestId: prepared.accepted.requestId,
+        plan, planDigest, displayPages: prepared.brief.displayPages, containsFixtureData: prepared.accepted.containsFixtureData,
+        planning: { version: 'personal-adventure-selection/diagnostic-v1', kind: 'model_selection_not_literary_acceptance',
+          sourcePlanDigest: planDigest, selection: adventureSelection }, runtimeEligible: false,
+      }));
+      throw heldDiagnostic;
+    }
+    if (selectionIssue) fail(selectionIssue);
     const call: StoryCall = {
       stage: 'manuscript', instructions: `${STORY_INSTRUCTIONS}\n${RESILIENCE_INSTRUCTIONS}\n${NARRATIVE_CRAFT_INSTRUCTIONS}`,
       input: canonicalJson({ brief: prepared.brief, plan, planDigest,
@@ -165,7 +194,9 @@ export async function writePersonalStory(args: {
     };
   } catch (error) {
     ledger.finish(userId, jobId, 'failed');
-    const failure = error instanceof StoryWriterError ? error : new StoryWriterError(signal.aborted ? 'story_cancelled' : 'story_provider_failed');
+    const failure = error instanceof StoryWriterError && (!(error instanceof StoryPlanningHeldError) || error === heldDiagnostic)
+      ? error : new StoryWriterError(signal.aborted ? 'story_cancelled' : 'story_provider_failed');
+    if (failure instanceof StoryPlanningHeldError) outcome = 'held';
     if (failure.providerUsage !== undefined && usage.length < calls) usage.push(failure.providerUsage);
     code = failure.code;
     failure.accounting = accounting();
@@ -173,5 +204,8 @@ export async function writePersonalStory(args: {
   } finally {
     // Sanitised observer: never includes prompts, facts, prose or credentials. Telemetry cannot retry.
     try { args.record?.({ outcome, code, accounting: accounting() }); } catch { /* observer failure does not change provider outcome */ }
+    if (outcome === 'held' && signal.aborted) {
+      const cancelled = new StoryWriterError('story_cancelled'); cancelled.accounting = accounting(); throw cancelled;
+    }
   }
 }

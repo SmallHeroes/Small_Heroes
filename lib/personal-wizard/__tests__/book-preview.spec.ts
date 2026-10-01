@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { readFileSync } from 'fs';
-import { bookAvailabilitySchema, fetchBookAvailability, readBookPreview, readBookPartialPreview } from '../book-preview';
+import { bookAvailabilitySchema, fetchBookAvailability, readBookPreview, readBookPartialPreview, readBookPlanningHoldPreview } from '../book-preview';
 import { watchAvailability, type AvailabilityFetch } from '../availability-client';
 import { personalStoryboardFixture } from './personal-storyboard-fixture';
 import { storyboardReviewDisposition } from '../storyboard';
@@ -10,7 +10,46 @@ const output = async () => {
     storyboard: f.book, review: storyboardReviewDisposition(f.book, f.review), runtimeEligible: false,
     accounting: { reservedUsd: 2.2, estimatedUsd: .1, knownUsageEstimateUsd: .1, providerAttempts: 5, kind: 'usage_estimate_not_invoice' } };
 };
+const heldOutput = async () => {
+  const f = await personalStoryboardFixture(); const { requestId, plan, planDigest, displayPages, containsFixtureData, planning } = f.draftResult;
+  const selection = structuredClone(planning!); selection.selection.outlineChecks.earned_payoff.outcome = 'needs_work';
+  return { version: 'personal-book-planning-hold/diagnostic-v1', status: 'planning_held', error: 'book_outline_held', runtimeEligible: false,
+    planningResult: { version: 'personal-story-plan-hold/diagnostic-v1', status: 'planning_held', requestId, plan, planDigest,
+      displayPages, containsFixtureData, planning: selection, runtimeEligible: false },
+    accounting: { reservedUsd: 2.2, estimatedUsd: .0022, knownUsageEstimateUsd: .0022, providerAttempts: 1, kind: 'usage_estimate_not_invoice' } };
+};
 describe('browser book diagnostic boundary', () => {
+  it('admits only plan display, never a completed or partial manuscript, from a typed one-attempt HOLD', async () => {
+    const raw = await heldOutput(), id = raw.planningResult.requestId;
+    expect(readBookPlanningHoldPreview(raw, id)?.planningResult.planning.selection).toEqual(raw.planningResult.planning.selection);
+    expect(readBookPreview(raw, id)).toBeNull(); expect(readBookPartialPreview(raw, id)).toBeNull();
+    expect(readBookPlanningHoldPreview(raw, 'stale')).toBeNull();
+    raw.accounting.estimatedUsd = null as any;
+    expect(readBookPlanningHoldPreview(raw, id)?.accounting.estimatedUsd).toBeNull();
+  });
+  it.each(['version', 'status', 'error', 'runtime', 'innerRuntime', 'identity', 'receipt', 'coverage', 'numbering',
+    'supported', 'ending', 'duplicate', 'attempts', 'writerResult', 'framePackets', 'storyboard', 'review', 'manuscript'])('rejects malformed or promoted HOLD %s', async mode => {
+    const raw: any = await heldOutput(), id = raw.planningResult.requestId;
+    if (mode === 'version') raw.version = 'personal-book-runner/diagnostic-v2';
+    if (mode === 'status') raw.status = 'review_supported';
+    if (mode === 'error') raw.error = 'book_cancelled';
+    if (mode === 'runtime') raw.runtimeEligible = true;
+    if (mode === 'innerRuntime') raw.planningResult.runtimeEligible = true;
+    if (mode === 'identity') raw.planningResult.plan.requestId = 'foreign';
+    if (mode === 'receipt') raw.planningResult.planning.sourcePlanDigest = 'a'.repeat(64);
+    if (mode === 'coverage') raw.planningResult.plan.beats.pop();
+    if (mode === 'numbering') raw.planningResult.plan.beats[1].pageNumber = 1;
+    if (mode === 'supported') raw.planningResult.planning.selection.outlineChecks.earned_payoff.outcome = 'supported';
+    if (mode === 'ending') raw.planningResult.planning.selection.outlineChecks.earned_payoff.evidenceSpreads = [1];
+    if (mode === 'duplicate') raw.planningResult.planning.selection.outlineChecks.earned_payoff.evidenceSpreads = [8, 8];
+    if (mode === 'attempts') raw.accounting.providerAttempts = 2;
+    if (['writerResult', 'framePackets', 'storyboard', 'review', 'manuscript'].includes(mode)) raw[mode] = {};
+    expect(readBookPlanningHoldPreview(raw, id)).toBeNull();
+  });
+  it.each(['book_cancelled', 'book_source_changed', 'book_outline_held'])('rejects a manufactured partial manuscript on %s', async error => {
+    const data = await output();
+    expect(readBookPartialPreview({ error, writerResult: data.writerResult, accounting: data.accounting }, data.writerResult.requestId)).toBeNull();
+  });
   it('accepts the real compiled fixture with no server module import in the display contract', async () => {
     const data = await output(); expect(readBookPreview(data, data.writerResult.requestId)?.writerResult.manuscript.pages).toHaveLength(8);
     expect(readFileSync('lib/personal-wizard/book-preview.ts', 'utf8')).not.toMatch(/from.*(?:storyboard|book-runner|book-config|story-writer)/);

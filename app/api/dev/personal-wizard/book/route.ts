@@ -6,7 +6,7 @@ import { readIntakeApiKey } from '@/lib/personal-wizard/intake-config';
 import { resolvePersonalWizardOptions } from '@/lib/personal-wizard/options';
 import { personalOperatorAccess, storyResponse } from '@/lib/personal-wizard/story-access';
 import { BOOK_SPREAD_COUNTS, resolvePersonalBookSettings, personalBookOutputLimits, personalBookReservationUsd } from '@/lib/personal-wizard/book-config';
-import { generatePersonalBook, PersonalBookError } from '@/lib/personal-wizard/book-runner';
+import { generatePersonalBook, PersonalBookError, PersonalBookPlanningHeldError } from '@/lib/personal-wizard/book-runner';
 import { createPersonalBookProvider } from '@/lib/personal-wizard/book-openai';
 import { preparePersonalStory, StoryWriterError } from '@/lib/personal-wizard/story-writer';
 
@@ -60,6 +60,10 @@ export async function POST(req: NextRequest) {
       record: event => console.info(JSON.stringify({ event: 'personal_book_diagnostic', ...event })),
     }));
   } catch (error) {
+    if (error instanceof PersonalBookPlanningHeldError) return storyResponse({
+      version: 'personal-book-planning-hold/diagnostic-v1', status: 'planning_held', error: error.code,
+      planningResult: error.planningResult, accounting: error.accounting ?? null, runtimeEligible: false,
+    }, 422);
     const code = error instanceof PersonalBookError ? error.code : 'book_failed';
     const status = ['book_duplicate_job', 'book_user_busy', 'book_job_limit', 'book_budget_exhausted'].includes(code) ? 409 :
       ['book_cancelled', 'book_timeout'].includes(code) ? 408 : code === 'book_unavailable' ? 503 : 502;

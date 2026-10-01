@@ -5,7 +5,7 @@ vi.mock('openai', () => ({ default: class {
 } }));
 import { personalStoryboardFixture, fixtureEditorOutput } from './personal-storyboard-fixture';
 import { storyEditorOutputTokens } from '../story-editor';
-import { generatePersonalBook, PersonalBookError, PERSONAL_BOOK_REVIEW_INSTRUCTION, type PersonalBookProvider, type BookVisualCall } from '../book-runner';
+import { generatePersonalBook, PersonalBookError, PersonalBookPlanningHeldError, PERSONAL_BOOK_REVIEW_INSTRUCTION, type PersonalBookProvider, type BookVisualCall } from '../book-runner';
 import { resolvePersonalWizardOptions, PROTOTYPE_COMPANION_ROSTER } from '../options';
 import { BOOK_LIMITS, personalBookOutputLimits, personalBookReservationUsd, resolvePersonalBookSettings, type PersonalBookSettings } from '../book-config';
 import { IntakeLedger } from '../intake-ledger';
@@ -36,16 +36,75 @@ const errorOf = async (promise: Promise<unknown>): Promise<PersonalBookError> =>
 };
 
 describe('automatic personal manuscript -> full storyboard -> separate semantic review', () => {
-  it('holds a valid needs_work selection with the current generic diagnosis after one paid attempt before all later stages', async () => {
+  it('retains a validated plan-only HOLD after one paid attempt before all later stages', async () => {
     const f = await setup(); const output = { ...f.draftResult.plan, adventureSelection: structuredClone(f.draftResult.planning!.selection) };
     output.adventureSelection.outlineChecks.earned_payoff.outcome = 'needs_work';
     vi.mocked(f.provider.story.generate).mockResolvedValue({ output, usage: { inputTokens: 100, outputTokens: 200 } });
-    const failure = await errorOf(generatePersonalBook(f.args));
-    expect(failure.code).toBe('book_story_invalid'); expect(failure.accounting?.providerAttempts).toBe(1);
+    const events: unknown[] = [];
+    const failure = await errorOf(generatePersonalBook({ ...f.args, record: event => events.push(event) }));
+    expect(failure).toBeInstanceOf(PersonalBookPlanningHeldError);
+    expect(failure.code).toBe('book_outline_held'); expect(failure.accounting?.providerAttempts).toBe(1);
+    const held = (failure as PersonalBookPlanningHeldError).planningResult;
+    expect(held.planning.selection).toEqual(output.adventureSelection);
+    expect(held.plan).toEqual(f.draftResult.plan); expect(held.runtimeEligible).toBe(false);
+    expect(events[events.length - 1]).toMatchObject({ stage: 'plan', outcome: 'held', code: 'book_outline_held' });
+    expect(JSON.stringify(events)).not.toContain(held.plan.title);
     expect(failure.accounting?.estimatedUsd).toBeGreaterThan(0);
     expect(f.provider.story.generate).toHaveBeenCalledTimes(1);
     expect(f.provider.editor.generate).not.toHaveBeenCalled(); expect(f.provider.visual.generate).not.toHaveBeenCalled();
-    expect(failure).not.toHaveProperty('framePackets'); expect(f.ledger.snapshot().inFlight).toBe(0);
+    expect(failure.writerResult).toBeUndefined(); expect(failure).not.toHaveProperty('framePackets'); expect(f.ledger.snapshot().inFlight).toBe(0);
+    expect((await errorOf(generatePersonalBook(f.args))).code).toBe('book_duplicate_job');
+    expect(f.provider.story.generate).toHaveBeenCalledTimes(1);
+  });
+  it.each(['short', 'medium', 'long'])('keeps unknown usage unknown for a %s plan HOLD without refund or retry', async length => {
+    const f = await setup(length); const output = { ...f.draftResult.plan, adventureSelection: structuredClone(f.draftResult.planning!.selection) };
+    output.adventureSelection.selectedId = 'B'; output.adventureSelection.outlineChecks.causal_child_choices.outcome = 'needs_work';
+    vi.mocked(f.provider.story.generate).mockResolvedValue({ output, usage: null });
+    const failure = await errorOf(generatePersonalBook(f.args)) as PersonalBookPlanningHeldError;
+    expect(failure.code).toBe('book_outline_held'); expect(failure.planningResult.planning.selection.selectedId).toBe('B');
+    expect(failure.planningResult.plan.beats).toHaveLength(length === 'short' ? 8 : length === 'medium' ? 12 : 16);
+    expect(failure.accounting).toMatchObject({ providerAttempts: 1, estimatedUsd: null, knownUsageEstimateUsd: 0 });
+    expect(f.ledger.snapshot()).toMatchObject({ inFlight: 0, reservedTotalUsd: failure.accounting!.reservedUsd });
+    expect(f.provider.editor.generate).not.toHaveBeenCalled(); expect(f.provider.visual.generate).not.toHaveBeenCalled();
+  });
+  it.each(['source_finished', 'cancel_finished', 'source_held', 'cancel_held'])('suppresses HOLD evidence when %s happens in an observer before delivery', async mode => {
+    const f = await setup(); const output = { ...f.draftResult.plan, adventureSelection: structuredClone(f.draftResult.planning!.selection) };
+    output.adventureSelection.outlineChecks.earned_payoff.outcome = 'needs_work';
+    vi.mocked(f.provider.story.generate).mockResolvedValue({ output, usage: { inputTokens: 100, outputTokens: 200 } });
+    const failure = await errorOf(generatePersonalBook({ ...f.args, record: event => {
+      if (event.stage === 'plan' && event.outcome === (mode.endsWith('finished') ? 'finished' : 'held')) {
+        if (mode.startsWith('source')) f.request.child.name = 'בר'; else f.controller.abort();
+      }
+    } }));
+    expect(failure.code).toBe(mode.startsWith('source') ? 'book_source_changed' : 'book_cancelled');
+    expect(failure).not.toHaveProperty('planningResult'); expect(failure.writerResult).toBeUndefined();
+    expect(failure).not.toHaveProperty('framePackets'); expect(failure.accounting?.providerAttempts).toBe(1);
+    expect(failure.accounting?.estimatedUsd).toBeCloseTo(.0022); expect(f.ledger.snapshot().inFlight).toBe(0);
+    expect(f.provider.editor.generate).not.toHaveBeenCalled(); expect(f.provider.visual.generate).not.toHaveBeenCalled();
+  });
+  it('never treats a bare outline error code or invalid subordinate hold as validated evidence', async () => {
+    for (const mode of ['code', 'forged']) {
+      const f = await setup();
+      vi.spyOn(storyWriter, 'writePersonalStory').mockRejectedValueOnce(mode === 'code'
+        ? new storyWriter.StoryWriterError('story_outline_held')
+        : new storyWriter.StoryPlanningHeldError({ ...f.draftResult, status: 'planning_held' } as any));
+      const failure = await errorOf(generatePersonalBook(f.args));
+      expect(failure.code).toBe('book_story_invalid'); expect(failure).not.toHaveProperty('planningResult');
+      expect(failure.accounting?.providerAttempts).toBe(0); expect(f.provider.editor.generate).not.toHaveBeenCalled();
+      expect(f.provider.visual.generate).not.toHaveBeenCalled();
+    }
+  });
+  it('rejects even structurally valid subordinate HOLD evidence without its one plan dispatch', async () => {
+    const f = await setup(); const selection = structuredClone(f.draftResult.planning!);
+    selection.selection.outlineChecks.earned_payoff.outcome = 'needs_work';
+    const { requestId, plan, planDigest, displayPages, containsFixtureData } = f.draftResult;
+    vi.spyOn(storyWriter, 'writePersonalStory').mockRejectedValueOnce(new storyWriter.StoryPlanningHeldError({
+      version: 'personal-story-plan-hold/diagnostic-v1', status: 'planning_held', requestId, plan, planDigest,
+      displayPages, containsFixtureData, planning: selection, runtimeEligible: false,
+    }));
+    const failure = await errorOf(generatePersonalBook(f.args));
+    expect(failure.code).toBe('book_story_invalid'); expect(failure).not.toHaveProperty('planningResult');
+    expect(failure.accounting?.providerAttempts).toBe(0); expect(f.provider.story.generate).not.toHaveBeenCalled();
   });
   it('diagnoses the real editor input limit after exactly two completed writer calls', async () => {
     const f = await setup('long'); const plan = structuredClone(f.draftResult.plan);
