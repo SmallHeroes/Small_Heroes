@@ -6,6 +6,8 @@ Guy authorised the literary-engine improvement and GPT-6.1 if not materially
 more expensive. Sole Codex writer in `personal-story-product/Small_Heroes`,
 branch `codex/personal-book-storyboard-bridge`, base `2da203c2`, no upstream.
 Decision: `docs/ai-workflow/PERSONAL_STORY_EDITOR_DECISION_20261001.md`.
+Implementation commit: `5f3ba39c`; independent technical QA remains pending.
+Copy-ready handoff: `docs/ai-workflow/PERSONAL_STORY_EDITOR_QA_20261001.md`.
 
 - Active book runner now has five bounded calls: whole-story plan -> draft ->
   literary editor -> storyboard -> semantic review. Editor returns complete
