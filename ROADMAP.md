@@ -11,12 +11,19 @@ This roadmap records technical milestone state. Guy can change product priority 
 ### P-personal literary quality milestone (2026-10-01)
 
 - At base `4de61548`, valid planner HOLD diagnostics are implemented through writer,
-  runner, authenticated local routes and wizard; independent re-gate pending.
+  runner, authenticated local routes and wizard. Claude technical PASS received
+  for exactly `4de61548..d553dd41`, P0/P1/P2 = 0, one non-blocking P3-E.
   Plan-only evidence/one attempt/no retry/no rendering authority. Focused 714/714,
   tsc 0, browser 38/38 with mocked transport. Main code `8c7a408c`; narrow successor
   aligns terminal observer telemetry with cancellation/source drift. Final focused
   714/714 + tsc 0 repeated. Two full runs RED; final delta was made during resource
-  phase and has no frozen full-check result. Stability remains open.
+  phase and has no Codex frozen full-check result. Claude's frozen full check at
+  `d553dd41` is RED: ten ordinary failures, resource 635/635 with three RPC errors;
+  those five timeouts did not reproduce, without proving their cause. Stability
+  remains open. Test-only P3-E successor at base `d553dd41` adds matching,
+  foreign-revision and stale-digest HOLD cases after one real mocked dispatch;
+  removal of rebinding fails both negatives. Focused 717/717 + tsc 0, no production
+  change and no fresh full/browser run; successor awaits independent re-gate.
   Next quality step is a separately bounded creative comparison, not another
   declaration that structural tests establish literary quality.
 - Received independent PASS for `6de84b4f..43978d85` and separately
@@ -29,7 +36,8 @@ This roadmap records technical milestone state. Guy can change product priority 
   HOLD evidence/classification/UX and repo stability remain open. Address the
   plan-only HOLD boundary before a trial that evaluates held proposals.
 - P3-D fixture-provenance invariant added at base `719dcb7f`, test-only successor
-  awaiting its own re-gate. Labels are not synthetic-origin authentication.
+  has Claude technical PASS for exactly `719dcb7f..4de61548`, no findings.
+  Labels are not synthetic-origin authentication.
   13-versus-19 admission-mutation count reconciled as targeted-versus-full spec.
 - Bounded adventure-selection successor implemented at base `6de84b4f`: two
   distinct concise proposals inside the existing plan call, retained original

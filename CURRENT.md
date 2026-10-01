@@ -1,5 +1,37 @@
 # SmallHeroes — Current Technical State
 
+## Independent planner HOLD QA and binding regression 2026 10 01
+
+Received Claude Code technical PASS for exactly `719dcb7f..4de61548` (registry
+provenance, no findings) and separately `4de61548..d553dd41` (planner HOLD,
+P0/P1/P2 = 0, one non-blocking P3-E). Report identity and corrective handoff:
+`docs/ai-workflow/PERSONAL_HOLD_BINDING_REGRESSION_QA_20261001.md`.
+His frozen full check at `d553dd41` remains RED: ordinary 10 failed/5519
+passed/73 skipped; resource 635/635 assertions with three RPC errors. Our earlier
+five resource timeouts did not reproduce there; no causal/stability closure.
+His focused 714/714, route matrix 18/18 and mocked browser scenarios 13/13 at
+desktop/390px are reviewer evidence, not new Codex reruns or literary acceptance.
+
+P3-E confirmed: forged subordinate HOLD tests stopped at zero attempts, never
+exercising the runner's request/digest rebinding after exactly one dispatch.
+Same chat/sole writer, branch `codex/personal-book-storyboard-bridge`, checkout
+`personal-story-product/Small_Heroes`, corrective base `d553dd41`. Added three
+test cases: valid matching HOLD, valid foreign-revision HOLD, and stale digest.
+All three use one actual runner dispatch to a mocked provider. They retain paid
+accounting, reservation, lock release, no later stages and duplicate-job checks.
+Removing only runner rebinding fails both negative cases; the matching control
+passes. Production bytes restored unchanged; final diff has no production paths.
+Focused 717/717 across 25 specs, standalone tsc 0. No new full check or browser run
+for this test-only successor. Independent re-gate for it is still pending.
+
+New ignored/unbacked evidence root `outputs/personal-hold-binding-validation-20261001/`;
+six historical paid artifacts rehashed 6/6 unchanged. No live provider, key use or
+disclosure, allowance reset, image/audio call, push/deploy or public activation;
+$0. Earlier bridge `45b9e754..07d3c8d3` and literary quality remain open.
+Next quality dependency is a separately bounded first-draft comparison and
+separate edit comparison across the registered synthetic profiles, not another
+inference that technical PASS establishes excellent stories.
+
 ## Valid planner HOLD retained through the local wizard 2026 10 01
 
 Codex implemented the next bounded milestone at base `4de61548` in

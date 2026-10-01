@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { createHash } from 'node:crypto';
 const sdk = vi.hoisted(() => ({ create: vi.fn(), options: [] as unknown[] }));
 vi.mock('openai', () => ({ default: class {
   responses = { create: sdk.create }; constructor(options: unknown) { sdk.options.push(options); }
@@ -14,6 +15,8 @@ import { createPersonalBookProvider, decodePersonalBookProviderOutput, personalB
 import { STORYBOARD_BOOK_CHECKS, STORYBOARD_FRAME_CHECKS } from '../storyboard';
 import * as storyWriter from '../story-writer';
 import * as storyEditor from '../story-editor';
+import { canonicalJson } from '../request-acceptance';
+import { storyPlanningHoldSchema } from '../story-contract';
 
 const options = resolvePersonalWizardOptions();
 const settings: PersonalBookSettings = { model: 'gpt-6-sol', budgetUsd: 5, maxJobs: 3, operators: new Set(['test@example.com']) };
@@ -108,6 +111,48 @@ describe('automatic personal manuscript -> full storyboard -> separate semantic 
     const failure = await errorOf(generatePersonalBook(f.args));
     expect(failure.code).toBe('book_story_invalid'); expect(failure).not.toHaveProperty('planningResult');
     expect(failure.accounting?.providerAttempts).toBe(0); expect(f.provider.story.generate).not.toHaveBeenCalled();
+  });
+  it.each(['matched', 'other_request', 'wrong_digest'] as const)('rebinds %s subordinate HOLD evidence after exactly one real runner dispatch', async mode => {
+    const f = await setup(); const planning = structuredClone(f.draftResult.planning!);
+    planning.selection.outlineChecks.earned_payoff.outcome = 'needs_work';
+    const { requestId, plan, planDigest, displayPages, containsFixtureData } = f.draftResult;
+    const held = storyPlanningHoldSchema.parse({
+      version: 'personal-story-plan-hold/diagnostic-v1', status: 'planning_held', requestId,
+      plan: structuredClone(plan), planDigest, displayPages, containsFixtureData, planning, runtimeEligible: false,
+    });
+    if (mode === 'other_request') {
+      const otherRequest = structuredClone(f.request); otherRequest.draftRevision += 1;
+      const otherPrepared = storyWriter.preparePersonalStory(otherRequest, options);
+      expect(otherPrepared.accepted.requestId).not.toBe(requestId);
+      held.requestId = held.plan.requestId = otherPrepared.accepted.requestId;
+      held.planDigest = createHash('sha256').update(canonicalJson(held.plan)).digest('hex');
+      held.planning.sourcePlanDigest = held.planDigest;
+      expect(storyWriter.assertStoryPlanningHoldBinding(otherPrepared, held)).toEqual(held);
+    } else if (mode === 'wrong_digest') {
+      held.plan.childGoal += ' changed after hashing';
+      expect(createHash('sha256').update(canonicalJson(held.plan)).digest('hex')).not.toBe(held.planDigest);
+    }
+    // All cases pass display validation; only the runner's approved-request binding distinguishes them.
+    expect(storyPlanningHoldSchema.safeParse(held).success).toBe(true);
+    vi.spyOn(storyWriter, 'writePersonalStory').mockImplementationOnce(async args => {
+      await args.provider().generate(args.prepared.call, args.signal);
+      throw new storyWriter.StoryPlanningHeldError(held);
+    });
+    const events: { stage: string; outcome: string; code: string | null }[] = [];
+    const failure = await errorOf(generatePersonalBook({ ...f.args, record: event => events.push(event) }));
+    const valid = mode === 'matched';
+    expect(failure.code).toBe(valid ? 'book_outline_held' : 'book_story_invalid');
+    if (valid) expect((failure as PersonalBookPlanningHeldError).planningResult).toEqual(held);
+    else { expect(failure).not.toBeInstanceOf(PersonalBookPlanningHeldError); expect(failure).not.toHaveProperty('planningResult'); }
+    expect(failure.writerResult).toBeUndefined(); expect(failure).not.toHaveProperty('framePackets');
+    expect(failure.accounting).toMatchObject({ providerAttempts: 1, stages: [{ stage: 'plan', usage: { inputTokens: 100, outputTokens: 200 } }] });
+    expect(failure.accounting?.estimatedUsd).toBeCloseTo(.0022);
+    expect(events[events.length - 1]).toMatchObject({ stage: 'plan', outcome: valid ? 'held' : 'failed', code: failure.code });
+    expect(f.ledger.snapshot()).toMatchObject({ inFlight: 0, reservedTotalUsd: failure.accounting!.reservedUsd });
+    expect(f.provider.story.generate).toHaveBeenCalledTimes(1);
+    expect(f.provider.editor.generate).not.toHaveBeenCalled(); expect(f.provider.visual.generate).not.toHaveBeenCalled();
+    expect((await errorOf(generatePersonalBook(f.args))).code).toBe('book_duplicate_job');
+    expect(f.provider.story.generate).toHaveBeenCalledTimes(1);
   });
   it('diagnoses the real editor input limit after exactly two completed writer calls', async () => {
     const f = await setup('long'); const plan = structuredClone(f.draftResult.plan);
