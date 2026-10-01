@@ -11,9 +11,12 @@ This roadmap records technical milestone state. Guy can change product priority 
 ### P-personal literary quality milestone (2026-10-01)
 
 - Received independent PASS for `6de84b4f..43978d85` and separately
-  `8695d196..6de84b4f`. Bounded Unicode/regression correction on `43978d85`
-  awaits its own re-gate: focused 430/430 + tsc 0; full gate RED (10 ordinary
-  failures, 635/635 resource tests with three RPC errors); no paid calls. Valid planner
+  `8695d196..6de84b4f`; correction `43978d85..9adf6555` also has independent
+  PASS, P0/P1/P2 = 0. Follow-up exact synthetic-registry admission and post-strip
+  NFC correction at base `9adf6555` awaits its own re-gate: focused 456/456 +
+  tsc 0, deliberate regression controls; $0. Current full gate RED: ten ordinary
+  failure names match prior run, 5470 ordinary passes, 635/635 resource assertions
+  with three RPC errors. Customer writing/prompt/model/budget unchanged. Valid planner
   HOLD evidence/classification/UX and repo stability remain open. Address the
   plan-only HOLD boundary before a trial that evaluates held proposals.
 - Bounded adventure-selection successor implemented at base `6de84b4f`: two

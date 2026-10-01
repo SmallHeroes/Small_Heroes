@@ -31,7 +31,7 @@ export function adventureSelectionIssue(selection: AdventureSelection, facts: re
   const [a, b] = selection.candidates;
   if (a.id !== 'A' || b.id !== 'B') return 'story_selection_identity';
   // Comparison only: CGJ/variation selectors are Mn, not Cf. Keep stored prose intact.
-  const normalize = (s: string) => comparableText(s.normalize('NFKC')).replace(/[\p{P}\p{Z}\p{Cf}\p{Default_Ignorable_Code_Point}\s]/gu, '');
+  const normalize = (s: string) => comparableText(s.normalize('NFKC')).replace(/[\p{P}\p{Z}\p{Cf}\p{Default_Ignorable_Code_Point}\s]/gu, '').normalize('NFC');
   if (new Set(selection.contrast.dimensions).size !== selection.contrast.dimensions.length ||
     selection.contrast.dimensions.some(key => normalize(a[key]) === normalize(b[key]))) return 'story_selection_not_distinct';
   const known = new Map(facts.map(fact => [fact.id, fact.kind]));

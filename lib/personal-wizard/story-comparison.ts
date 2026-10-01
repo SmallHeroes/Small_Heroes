@@ -8,6 +8,7 @@ import { canonicalJson } from './request-acceptance';
 import { adventureSelectionIssue } from './story-planning-contract';
 import { measureStoryText } from './story-text-metrics';
 import type { PersonalWizardOptions } from './options';
+import { personalStoryEvaluationProfiles } from './story-evaluation-profiles';
 
 const hash = (value: unknown) => createHash('sha256').update(canonicalJson(value)).digest('hex');
 const commit = z.string().regex(/^[a-f0-9]{40}$/);
@@ -26,6 +27,8 @@ type Result = z.infer<typeof anyPersonalStoryResultSchema>;
 /** Offline evidence packaging only: no SDK, secret, network, retry or generation. */
 export function buildStoryComparison(raw: unknown, options: PersonalWizardOptions) {
   const manifest = storyComparisonManifestSchema.parse(raw);
+  const profiles = personalStoryEvaluationProfiles();
+  const registry = new Map(profiles.map(profile => [profile.id, profile]));
   if (manifest.baselineCommit === manifest.improvedCommit || new Set(manifest.cases.map(row => row.id)).size !== manifest.cases.length) fail('identity');
   const blind = { kind: 'blind_human_review_not_literary_acceptance' as const,
     criteria: STORY_EDITOR_CRITERIA,
@@ -51,13 +54,12 @@ export function buildStoryComparison(raw: unknown, options: PersonalWizardOption
     privateLabels.push({ packet, caseId, phase, A: identities[swapped ? 1 : 0], B: identities[swapped ? 0 : 1] });
   };
   for (const row of manifest.cases) {
-    const prepared = preparePersonalStory(row.registeredRequest, options);
+    // Whole-request admission, including unlabelled avoid text. No caller trust flag/override.
+    const profile = registry.get(row.id);
+    if (!profile) return fail('unregistered_profile');
+    if (row.split !== profile.split || canonicalJson(row.registeredRequest) !== canonicalJson(profile.request)) return fail('unregistered_profile');
+    const prepared = preparePersonalStory(profile.request, options);
     const request = prepared.accepted.canonical;
-    // Registry/source labels are caller declarations, not authentication or proof of synthetic origin.
-    if (!prepared.accepted.containsFixtureData || request.child.nameSource !== 'fixture' || request.child.ageSource !== 'fixture' ||
-      request.child.addressSource !== 'fixture' || request.facts.some(fact => fact.source !== 'fixture') ||
-      (request.child.residence !== null && request.child.residenceSource !== 'fixture') ||
-      (request.storyPlace !== null && request.storyPlace.source !== 'fixture')) fail('synthetic_registry');
     const brief = { child: prepared.brief.child, facts: prepared.brief.facts.map(({ kind, value }) => ({ kind, value })),
       startingPlace: prepared.brief.startingPlace, companion: prepared.brief.companion, topic: prepared.brief.topic,
       excludedSubjects: prepared.brief.excludedSubjects, narrativeSpreads: prepared.brief.beats };
@@ -124,7 +126,7 @@ export function buildStoryComparison(raw: unknown, options: PersonalWizardOption
     collection.sort((a, b) => hash({ seed: manifest.seed, packet: (a as { packet: string }).packet }).localeCompare(hash({ seed: manifest.seed, packet: (b as { packet: string }).packet })));
   }
   return { blind, privateEvidence: { kind: 'private_label_key_and_measurements_not_distribution' as const,
-    manifestSha: hash(manifest), originalManifest: manifest,
+    manifestSha: hash(manifest), registrySha: hash(profiles), originalManifest: manifest,
     baselineCommit: manifest.baselineCommit, improvedCommit: manifest.improvedCommit,
     cases: privateRows, labels: privateLabels, declaredProvenanceNotAuthenticated: true,
     providerCalls: 0, keyReads: 0, costUsd: 0, noQualityVerdict: true } };

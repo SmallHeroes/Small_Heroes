@@ -18,26 +18,27 @@ const options = resolvePersonalWizardOptions(), oldCommit = 'a'.repeat(40), newC
 const digest = (value: unknown) => createHash('sha256').update(canonicalJson(value)).digest('hex');
 afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); });
 async function fixture() {
-  const f = await personalStoryboardFixture(); const request = structuredClone(f.request);
-  request.child.nameSource = request.child.ageSource = request.child.addressSource = request.child.residenceSource = 'fixture';
-  request.facts.forEach(fact => { fact.source = 'fixture'; }); request.storyPlace!.source = 'fixture';
+  const profile = personalStoryEvaluationProfiles()[0];
+  const f = await personalStoryboardFixture(); const request = structuredClone(profile.request);
   const prepared = preparePersonalStory(request, options);
   const improved = await writePersonalStory({ prepared, userId: 'synthetic', jobId: 's_comparison01', ledger: new IntakeLedger(),
     settings: { model: 'gpt-6-sol', budgetUsd: 1, maxJobs: 1, operators: new Set() }, signal: new AbortController().signal,
     provider: () => ({ generate: async call => ({ output: call.stage === 'plan'
       ? { ...f.draftResult.plan, requestId: prepared.accepted.requestId, adventureSelection: fixtureAdventureSelection() }
-      : { ...f.draftResult.manuscript, requestId: prepared.accepted.requestId, planDigest: JSON.parse(call.input).planDigest }, usage: null }) }) });
+      : { ...f.draftResult.manuscript, requestId: prepared.accepted.requestId, planDigest: JSON.parse(call.input).planDigest,
+        title: f.draftResult.manuscript.title.split('נועה').join(request.child.name!),
+        pages: f.draftResult.manuscript.pages.map(page => ({ ...page, text: page.text.split('נועה').join(request.child.name!) })) }, usage: null }) }) });
   improved.planning!.selection.reason = 'PRIVATE_SELECTION_SENTINEL, declared reason only';
   const { planning: _planning, ...baseline } = structuredClone(improved);
   const edit = (draft: typeof baseline) => {
     const call = prepareStoryEdit(prepared, draft); const output = fixtureEditorOutput(call);
-    output.manuscript.pages[0].text = Array(70).fill('נועה').join(' ');
+    output.manuscript.pages[0].text = Array(70).fill(request.child.name!).join(' ');
     output.checks.hebrew_and_age.note = 'PRIVATE_EDITOR_SENTINEL, model still says ready';
     return compileStoryEdit(prepared, draft, output, null);
   };
   const artifact = (result: unknown, sourceCommit: string) => ({ request, result, reasoning: 'medium' as const, sourceCommit });
   return { manifest: { version: 'personal-story-comparison/offline-v1', seed: 'PRIVATE_SEED_SENTINEL', baselineCommit: oldCommit, improvedCommit: newCommit,
-    cases: [{ id: 'synthetic_one', split: 'development', registeredRequest: request,
+    cases: [{ id: profile.id, split: profile.split, registeredRequest: request,
       baselineDraft: artifact(baseline, oldCommit), baselineEdited: artifact(edit(baseline), oldCommit),
       improvedDraft: artifact(improved, newCommit), improvedEdited: artifact(edit(improved), newCommit) }] }, f, prepared };
 }
@@ -177,10 +178,50 @@ describe('offline phase-separated blind evidence packaging', () => {
     if (kind === 'address') request.child.addressSource = 'typed';
     if (kind === 'residence') { expect(request.child.residence).not.toBeNull(); request.child.residenceSource = 'typed'; }
     if (kind === 'fact') { expect(request.facts.length).toBeGreaterThan(0); request.facts[0].source = 'typed'; }
-    if (kind === 'story_place') { expect(request.storyPlace).not.toBeNull(); request.storyPlace!.source = 'typed'; }
+    if (kind === 'story_place') request.storyPlace = { value: 'מקום אישי', source: 'typed' };
     expect(() => preparePersonalStory(request, options)).not.toThrow();
-    expect(() => buildStoryComparison(manifest, options)).toThrow('story_comparison_synthetic_registry');
+    expect(() => buildStoryComparison(manifest, options)).toThrow('story_comparison_unregistered_profile');
   });
+  it('admits all twelve exact registered profiles and subsets without fabricating supplied artifacts', async () => {
+    const { manifest } = await fixture();
+    manifest.cases = personalStoryEvaluationProfiles().map(profile => ({ id: profile.id, split: profile.split,
+      registeredRequest: profile.request, baselineDraft: null as any, baselineEdited: null as any,
+      improvedDraft: null as any, improvedEdited: null as any }));
+    const output = buildStoryComparison(manifest, options);
+    expect(output.privateEvidence.cases).toHaveLength(12);
+    expect(output.blind.firstDraftPairs).toEqual([]); expect(output.blind.finalTexts).toEqual([]);
+    for (const row of output.privateEvidence.cases as any[]) expect(row.missingSlots).toHaveLength(4);
+    expect(buildStoryComparison({ ...manifest, cases: manifest.cases.slice(7, 8) }, options).privateEvidence.cases)
+      .toMatchObject([{ caseId: 'synthetic_8', split: 'held_out' }]);
+  });
+  it('canonical object key order does not reject a trusted profile or change its registry fingerprint', async () => {
+    const { manifest } = await fixture(); const before = buildStoryComparison(manifest, options);
+    const reorder = (value: any): any => Array.isArray(value) ? value.map(reorder)
+      : value && typeof value === 'object' ? Object.fromEntries(Object.entries(value).reverse().map(([key, item]) => [key, reorder(item)])) : value;
+    const after = buildStoryComparison(reorder(manifest), options);
+    expect(after).toEqual(before);
+    expect(after.privateEvidence).toHaveProperty('registrySha', digest(personalStoryEvaluationProfiles()));
+    expect(JSON.stringify(after.blind)).not.toContain('registrySha');
+  });
+  it.each(['avoid', 'id', 'split', 'name', 'fact', 'residence', 'place', 'companion', 'topic', 'length', 'revision', 'appearance'])
+    ('rejects an unregistered %s even when all supplied artifacts are absent and sources say fixture', async kind => {
+      const { manifest } = await fixture(); const row = manifest.cases[0], request = row.registeredRequest;
+      row.baselineDraft = row.baselineEdited = row.improvedDraft = row.improvedEdited = null as any;
+      if (kind === 'avoid') request.avoid = ['PRIVATE_AVOID_SENTINEL'];
+      if (kind === 'id') row.id = 'synthetic_other';
+      if (kind === 'split') row.split = 'held_out';
+      if (kind === 'name') request.child.name = 'שם אחר';
+      if (kind === 'fact') request.facts[0].value = 'פרט אישי אחר';
+      if (kind === 'residence') request.child.residence = 'מקום מגורים אחר';
+      if (kind === 'place') request.storyPlace = { value: 'מקום אישי', source: 'fixture' };
+      if (kind === 'companion') request.companion.id = 'fox_uri';
+      if (kind === 'topic') request.intent = { kind: 'topic', topicId: 'confidence', suggestedBy: 'transcript' };
+      if (kind === 'length') request.bookOptions.lengthId = 'long';
+      if (kind === 'revision') request.draftRevision += 1;
+      if (kind === 'appearance') request.appearance.photo = 'local_preview_not_sent';
+      expect(() => preparePersonalStory(request, options)).not.toThrow();
+      expect(() => buildStoryComparison(manifest, options)).toThrow('story_comparison_unregistered_profile');
+    });
   it('is reproducible for a frozen seed and escapes story markup', async () => {
     const { manifest } = await fixture(); const result: any = manifest.cases[0].improvedDraft.result;
     result.manuscript.pages[0].text += ' <img src=x onerror=alert(1)>';
@@ -225,10 +266,14 @@ describe('offline phase-separated blind evidence packaging', () => {
       expect(() => packageMain(['--manifest', file, '--output-name', '../escape'])).toThrow('arguments');
     } finally { rmSync(temporary, { recursive: true, force: true }); }
   });
-  it.each(['binding', 'schema'])('actual offline command leaves no package behind after rejecting a %s-invalid manifest', async kind => {
+  it.each(['binding', 'schema', 'registry'])('actual offline command leaves no package behind after rejecting a %s-invalid manifest', async kind => {
     const { manifest } = await fixture();
     if (kind === 'binding') manifest.cases[0].improvedDraft.sourceCommit = oldCommit;
-    else manifest.version = 'unsupported-comparison-version';
+    else if (kind === 'schema') manifest.version = 'unsupported-comparison-version';
+    else {
+      const row = manifest.cases[0]; row.registeredRequest.avoid = ['PRIVATE_AVOID_SENTINEL'];
+      row.baselineDraft = row.baselineEdited = row.improvedDraft = row.improvedEdited = null as any;
+    }
     const temporary = mkdtempSync(path.join(tmpdir(), 'personal-comparison-rejected-spec-'));
     try {
       const outputs = path.join(temporary, 'outputs'); mkdirSync(outputs);
@@ -238,6 +283,7 @@ describe('offline phase-separated blind evidence packaging', () => {
       const before = readdirSync(outputs); const root = path.join(outputs, 'rejected-sample');
       const run = () => packageMain(['--manifest', file, '--output-name', 'rejected-sample']);
       if (kind === 'binding') expect(run).toThrow('story_comparison_request_or_commit');
+      else if (kind === 'registry') expect(run).toThrow('story_comparison_unregistered_profile');
       else expect(run).toThrow();
       expect(existsSync(root)).toBe(false); expect(readdirSync(outputs)).toEqual(before);
     } finally { rmSync(temporary, { recursive: true, force: true }); }

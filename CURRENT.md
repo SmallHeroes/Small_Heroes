@@ -1,5 +1,41 @@
 # SmallHeroes — Current Technical State
 
+## Offline comparison registry and Unicode correction (2026-10-01)
+
+Received independent Claude PASS for EXACTLY `43978d85..9adf6555`, P0/P1/P2 = 0,
+with non-blocking P3-A/B/C. Complete report identity and current corrective handoff:
+`docs/ai-workflow/PERSONAL_COMPARISON_REGISTRY_QA_20261001.md`.
+The received verdict does not cover the successor below or expand earlier scopes.
+Same chat/sole Codex writer, `codex/personal-book-storyboard-bridge`, worktree
+`personal-story-product/Small_Heroes`, corrective base `9adf6555`.
+
+- Offline packager now admits only an exact committed synthetic profile: case ID,
+  split and canonical whole raw request, BEFORE prepare/export. Prepared context
+  comes from the trusted profile. This covers unlabelled avoid text and replaces
+  caller source-label trust. No registry override; fingerprint is private only.
+  Intentional compatibility change: arbitrary fixture-labelled manifests reject.
+  All twelve profiles and registered subsets pass; customer writing is unchanged.
+- Candidate comparison adds NFC AFTER stripping invisible characters. Four accent
+  joiner cases fail on the reviewed base; visible accents remain distinguishable
+  and stored text unchanged. Additional tests cover NFKC compatibility and editor
+  selection preflight, without changing editor implementation.
+- Deliberate removal of registry admission fails 13 tests, including the real CLI
+  with no downstream artifacts. Removing NFKC fails the wide-alef guard (the shin
+  control still passes under NFC); removing editor selection preflight fails its
+  new test. All mutations restored. Focused 14 files 456/456, tsc 0.
+- Full check native 1: ordinary 381 files, 10 failed / 5470 passed / 73 skipped;
+  all ten failure names equal the prior recorded run. Resource 20 files, 635/635
+  assertions BUT three onTaskUpdate RPC errors, gate failed. Both typechecks
+  passed. No fresh baseline run or causal/stability closure.
+  Six historical paid artifacts rehashed 6/6 unchanged. No new provider call,
+  secret-value read, paid allowance reset, image/audio, UI activation, push or
+  deployment; $0. Input registry admission does NOT anonymize supplied prose.
+
+Successor awaits independent re-gate, not self-PASS. Valid planner HOLD evidence,
+classification/UX remains the next separate milestone BEFORE trials evaluating
+held proposals. Earlier bridge and stability remain open; no literary improvement
+or product acceptance claimed. Do not reopen the historical one-shot paid trial.
+
 ## Selection QA received; small regression correction (2026-10-01)
 
 Received Claude technical PASS for `6de84b4f..43978d85` (P0/P1/P2 = 0, four
@@ -33,7 +69,8 @@ worktree `personal-story-product/Small_Heroes`, corrective base `43978d85`.
   no thresholds, suppression or historical logs changed. Earlier bridge remains
   unreviewed. No current-planner literary improvement measured yet.
 
-Correction awaits independent re-gate, not self-PASS. No provider/key-value read,
+Independent re-gate subsequently received through `9adf6555`, exact scope above.
+No provider/key-value read,
 paid allowance reset, image/audio, public activation, push or deployment; $0.
 Next substantive path: preserve valid HOLD diagnostics, then matched blind FIRST
 draft comparison on registered profiles, separated from edit/final assessment,

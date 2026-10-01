@@ -48,6 +48,9 @@ describe('current planner selection, distinct from literary acceptance', () => {
     ['cgj', 'story_selection_not_distinct'], ['variation_text', 'story_selection_not_distinct'],
     ['variation_emoji', 'story_selection_not_distinct'], ['variation_supplement', 'story_selection_not_distinct'],
     ['variation_mongolian', 'story_selection_not_distinct'], ['variation_mongolian_four', 'story_selection_not_distinct'],
+    ['accent_cgj', 'story_selection_not_distinct'], ['accent_zwj', 'story_selection_not_distinct'],
+    ['accent_zwnj', 'story_selection_not_distinct'], ['accent_selector', 'story_selection_not_distinct'],
+    ['wide_alef', 'story_selection_not_distinct'], ['presentation_shin', 'story_selection_not_distinct'],
     ['removed_fact', 'story_selection_fact_mismatch'], ['duplicate_fact', 'story_selection_fact_mismatch'],
     ['no_interest', 'story_selection_personal_fact_missing'], ['early_end', 'story_selection_outline_binding'],
     ['foreign_spread', 'story_selection_outline_binding'], ['duplicate_spread', 'story_selection_outline_binding'],
@@ -71,6 +74,17 @@ describe('current planner selection, distinct from literary acceptance', () => {
       if (kind in invisible) {
         s.candidates[0].childWant = 'למצוא את המכתב';
         s.candidates[1].childWant = `למצוא${invisible[kind as keyof typeof invisible]} את המכתב`;
+        s.contrast.dimensions = ['childWant'];
+      }
+      const accentJoiners = { accent_cgj: '\u034f', accent_zwj: '\u200d', accent_zwnj: '\u200c', accent_selector: '\ufe0f' };
+      if (kind in accentJoiners) {
+        s.candidates[0].childWant = 'Find café';
+        s.candidates[1].childWant = `Find cafe${accentJoiners[kind as keyof typeof accentJoiners]}\u0301`;
+        s.contrast.dimensions = ['childWant'];
+      }
+      if (kind === 'wide_alef' || kind === 'presentation_shin') {
+        s.candidates[0].childWant = 'אבקש שי';
+        s.candidates[1].childWant = kind === 'wide_alef' ? '\ufb21בקש שי' : 'אבקש \ufb2aי';
         s.contrast.dimensions = ['childWant'];
       }
       if (kind === 'scenery_dimension') s.contrast.dimensions = ['location'];
@@ -112,6 +126,12 @@ describe('current planner selection, distinct from literary acceptance', () => {
     expect(adventureSelectionIssue(s, [{ id: 'f_interest0001', kind: 'interest' }], 8, ['f_interest0001'])).toBeNull();
     expect(s).toEqual(before);
   });
+  it.each([['café', 'cafe'], ['café', 'cafè'], ['über', 'uber'], ['élève', 'eleve']])('preserves visible accent difference %s / %s without mutating stored text', (a, b) => {
+    const s = fixtureAdventureSelection(); s.candidates[0].childWant = `Find ${a}`; s.candidates[1].childWant = `Find ${b}`;
+    s.contrast.dimensions = ['childWant']; const before = structuredClone(s);
+    expect(adventureSelectionIssue(s, [{ id: 'f_interest0001', kind: 'interest' }], 8, ['f_interest0001'])).toBeNull();
+    expect(s).toEqual(before);
+  });
   it.each([8, 12, 16])('strict SDK requires both ideas and still admits editor schema for %i spreads', async count => {
     const context = { brief: { beats: count, requestId: 'r_fixture', resilienceMode: 'adventure_only' as const } };
     const format = zodTextFormat(personalProviderSchema('plan', context), 'selection_test');
@@ -139,6 +159,13 @@ describe('current planner selection, distinct from literary acceptance', () => {
     draft.planning!.sourcePlanDigest = 'a'.repeat(64);
     expect(personalStoryResultSchema.safeParse(draft).success).toBe(false);
     expect(() => prepareStoryEdit(f.prepared, draft)).toThrow();
+  });
+  it('editor preflight rechecks a syntactically valid held selection before any editor call', async () => {
+    const f = await setup(); const draft = await f.run();
+    draft.planning!.selection.outlineChecks.causal_child_choices.outcome = 'needs_work';
+    expect(personalStoryResultSchema.safeParse(draft).success).toBe(true);
+    expect(() => prepareStoryEdit(f.prepared, draft)).toThrow('story_editor_source_binding');
+    expect(f.p.generate).toHaveBeenCalledTimes(2);
   });
   it('does not alias the original proposal receipt into the edited result', async () => {
     const f = await setup(); const draft = await f.run(); const original = structuredClone(draft.planning);
