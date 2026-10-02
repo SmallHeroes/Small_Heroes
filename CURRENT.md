@@ -4,14 +4,19 @@
 
 Claude Opus5.5 High gave bounded technical PASS ae2e73d7..dfc47ee3 with one
 Low: canonical rule objects were mutable at runtime despite TypeScript as const.
-It independently read all changed lines/call sites and recomputed paid17/17
-hashes; did NOT run tests/tsc/full. CLI usage estimate0.5835504USD, not invoice.
+It independently read all changed lines/call sites and recomputed17 manifest
+entries in the18-file paid root; did NOT run tests/tsc/full. CLI usage estimate
+0.5835504USD, not invoice.
 Valid finding now corrected separately: freeze all nested rule/role objects;
 recursive Reflect.set/delete/new-key probes assert mutation fails. Input clone
 stays mutable for existing source-mutation rejection. Physical-graph wording
 clarified without any new permission or validator threshold change.
 Final focused314/314 (54+33+71+127+22+7), standalone tsc0, diffcheck clean.
-Independent successor re-gate remains pending, no self-PASS.
+Exact independent successor re-gate PASS dfc47ee3..8015002d, Low closed, no new
+material findings. Own Git/read/hash checks; no tests/tsc/full/probe execution.
+CLI usage estimate0.347023USD, not invoice. It mistook compact d53b768ccb2f for
+a commit ID; Codex separately checked the real768ccb2f worktree clean, plus
+accepted-intent63ccb484/siteQA5fe73b3f clean. No wider acceptance or self-PASS.
 
 Full check completed on frozen dfc47ee3 BEFORE this narrow correction: native1.
 Ordinary385 files:10failed/5701passed/73skipped; resource20:635passed, but3
@@ -23,6 +28,12 @@ Actual paid draft replayed against frozen dfc47ee3, not just a synthetic case:
 continuity_wide_too_tight, original SHA b0942c7b... unchanged, zero provider/key/
 write/clamp. Immutable root and claim preserved; no new OpenAI charges.
 Handoff PERSONAL_STORYBOARD_AUTHORING_RULES_QA_20261002.md.
+Later comparison proposal PERSONAL_MODEL_COMPARISON_PLAN_20261002.md: two
+matched synthetic profiles, prior GPT case1 reuse conditional on exact bindings,
+9 new calls/reservation4.29USD, suggested additional cap4.50 NOT approved or
+executed. Product Anthropic API credential has not been established; CLI OAuth
+is not used as product auth. API/provenance/accounting implementation and the
+explicit additional spending decision remain prerequisites. No provider switch.
 
 ## Actual trial stop and shared storyboard-authoring correction, 2026 10 02
 

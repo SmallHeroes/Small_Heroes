@@ -12,8 +12,12 @@ This roadmap records technical milestone state. Guy can change product priority 
 
 - Independent authoring-contract PASS ae2e73d7..dfc47ee3, one valid Low now
   fixed with nested runtime Object.freeze and mutation probes;314focused/tsc0.
-  Exact successor re-gate next. Full dfc47ee3 remains RED: ordinary10 failures,
+  Exact successor re-gate PASS dfc47ee3..8015002d, Low closed. Full dfc47ee3
+  remains RED: ordinary10 failures,
   resource635passed plus3RPCerrors/exit1. No final full or stability acceptance.
+  Later two-profile model comparison proposal reserves4.29USD/9new calls;
+  additional4.50 cap and product Claude API connection not yet approved/established.
+  No automatic provider migration or consumed-family reset.
 
 - Actual frozen ae2e73d7 cohort stopped on first storyboard after4 paid calls,
   known usage estimate$0.295578, native2/book_storyboard_invalid. One original

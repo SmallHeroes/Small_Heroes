@@ -22,6 +22,22 @@ its exact committed HEAD before re-gate; reconcile if HEAD or branch differs.
 No extension of earlier verdicts, visual/semantic/literary/product acceptance
 or release/stability qualification.
 
+Completed re-gate range dfc47ee3a042b4159e73c88d1f92e23eed113e05..
+8015002dee528677fb808f3da011a1d98c3e06f9: one commit,7 paths,+175/-16.
+Exact independent Opus5.5 High PASS, Low closed, no new material finding.
+It read all freeze nesting/aliases, call sites and docs and recomputed17/17
+paid manifest entries, but ran no tests/tsc/replay/full. List usage estimate
+$0.347023, not invoice; result OS TEMP
+claude-storyboard-authoring-regate-8015002d-result-20261002.json.
+
+Two nonblocking nits: alias identity is not a separate test requirement; every
+reachable object's immutability is the contract, and is probed recursively.
+Ambiguous paid17/17 wording in CURRENT was clarified to18 files/17 entries.
+Reviewer interpreted d53b768ccb2f as a hash; the actual protected commit is
+768ccb2fe20edb1351cb4783796613cbf7a2993c, separately checked clean by Codex.
+Accepted-intent63ccb484 and siteQA5fe73b3f also remained clean. This docs-only
+closeout does not widen either independent range or the failed full gate.
+
 ## Root cause and unchanged behavior
 
 The actual four-call diagnostic created plan, manuscript, edited manuscript and
@@ -109,3 +125,18 @@ provider accounting have not been connected; Claude Code OAuth is not product
 API auth. No comparison model calls were made here. A successor trial requires
 separate cumulative bounds and must retain prior4calls/$0.295578 and the old
 reservation. First drafts and edit gains must be evaluated separately.
+
+## PowerShell inspection and optional publication
+
+All milestone files are already committed; there is nothing to stage. No
+upstream is configured. Push publishes the branch's whole history, not just
+these two independently reviewed commits. Guy must authorize that publication.
+
+```powershell
+Set-Location 'C:\Users\guyna\.codex\worktrees\personal-story-product\Small_Heroes'
+git status --short --branch
+git log -5 --oneline
+git diff --stat ae2e73d7..8015002d
+# Only after Guy explicitly authorizes publishing this branch:
+git push -u origin codex/personal-book-storyboard-bridge
+```
