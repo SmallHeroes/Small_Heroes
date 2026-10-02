@@ -1,5 +1,33 @@
 # SmallHeroes — Current Technical State
 
+## Isolated Opus editorial sample 2026 10 03
+
+Guy approved one fictional Neta draft/profile transfer to Anthropic through
+Claude Code, CLI budget setting1USD. Completed frozen08fe8d7c, requested
+claude-opus-5-5/medium, native0,96.164s, two CLI turns, reported usage estimate
+0.337968USD not invoice. Only Opus appears in CLI modelUsage, not endpoint
+attestation. No product API adapter/provider switch, image/audio/storyboard call,
+retry orchestration or consumed-family reset. All18 original archive files
+preserved SHA/size/mtime; tracked tree/HEAD unchanged during execution.
+Offline actual output schema/binding/coverage/fact-reference/prose checks pass;
+semantic truth and literary acceptance do not follow. No fake GPT-priced Opus
+result constructed. Exact input/instructions/schema retained, but CLI transport
+and output cap differ from product API; one invocation is not one API request.
+
+Original450 words, GPT revision437, Opus396 using existing lexical metric.
+Opus improves some sensory phrasing and closing humour, but retains the long
+folded-path middle and delays the picnic destination. An anonymous advisory
+agent preferred GPT overall for clarity/Neta ownership, Opus for local voice;
+no human/child validation or technical PASS. Both editors self-mark all6 ready.
+Provider replacement alone did not resolve this example's product concern.
+Next proposed milestone: backstage-state versus narrative-voice separation,
+concrete age craft, adjacent-spread development and dramatized payoff review;
+no location quota, guard loosening or implementation yet.
+Reader/evidence separate ignored outputs/personal-opus-editor-sample-20261003;
+no verified backup. Report PERSONAL_OPUS_EDITOR_SAMPLE_20261003.md.
+Last full gate remains RED; no new release/product or independent acceptance.
+Prior nine-call4.50USD comparison proposal remains unapproved/unexecuted.
+
 ## Independent authoring review and runtime immutability correction
 
 Claude Opus5.5 High gave bounded technical PASS ae2e73d7..dfc47ee3 with one

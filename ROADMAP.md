@@ -10,6 +10,14 @@ This roadmap records technical milestone state. Guy can change product priority 
 
 ### P-personal six-companion readiness (2026-10-02)
 
+- Isolated approved Opus5.5 editorial CLI sample completed2026-10-03 at08fe8d7c,
+  medium, estimated0.337968USD, no product migration/render. Actual schema and
+  bindings checked; original18 files preserved. Some local prose/humour gains,
+  no resolution of extended one-mechanism middle; anonymous advisory reading
+  preferred GPT overall. No literary winner or acceptance. Proposed next:
+  authoring guidance for age, narrative voice, meaningful development/payoff;
+  preserve structured continuity and avoid location quotas. Not implemented.
+
 - Independent authoring-contract PASS ae2e73d7..dfc47ee3, one valid Low now
   fixed with nested runtime Object.freeze and mutation probes;314focused/tsc0.
   Exact successor re-gate PASS dfc47ee3..8015002d, Low closed. Full dfc47ee3
