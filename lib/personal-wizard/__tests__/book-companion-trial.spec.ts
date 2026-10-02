@@ -166,4 +166,12 @@ describe('fresh six-book durable family', () => {
     expect(html).toContain('&lt;script&gt;'); expect(html).toContain('אין סיפור מלא'); expect(html).toContain('held_uncertain');
     guard.stop('book_trial_complete');
   });
+  it('shows later replay/finish failure ahead of a saved supported result, preserving its prose', () => {
+    const f = setup(), guard = f.claim();
+    writeFileSync(path.join(f.output, 'case1-result.json'), JSON.stringify({status:'review_supported',writerResult:{manuscript:{title:'Earlier retained story',pages:[{pageNumber:1,text:'Retained valid prose'}]}}}));
+    writeFileSync(path.join(f.output, 'case1-failed.json'), JSON.stringify({status:'technical_failure',writerResult:null}));
+    const html=renderBookTrial(f.output);
+    expect(html).toContain('technical_failure'); expect(html).not.toContain('review_supported'); expect(html).toContain('Retained valid prose');
+    guard.stop('book_trial_failed');
+  });
 });

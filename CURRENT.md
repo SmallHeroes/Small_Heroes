@@ -1,5 +1,25 @@
 # SmallHeroes — Current Technical State
 
+## Six-book guard independent review and display correction, 2026 10 02
+
+Exact Claude Opus5.5 High independently gave bounded technical PASS for
+c75e6807..b78264b7, two Low findings, no material money-safety defect.
+Own33/33 guard/fidelity and literal predecessor parity; other310/tsc/full/dry
+reported, not independently run. CLI list usage estimate $0.915676, not invoice.
+Reviewer used two OS-TEMP scratch files in existing /tmp then deleted; repo
+unchanged. No network/keys/providers by reviewer.
+
+Validated Low1: intermediate saved supported result can survive later replay
+failure; HTML formerly preferred it over failed.json. Small successor gives
+terminal failure precedence while retaining earlier valid prose for inspection.
+Regression directly reproduces both records. Low2 is scope documentation:
+one-use claim covers worktrees sharing THIS Git common dir, not separate clones
+or globally across all machines/accounts; not multi-tenant billing guarantee.
+No stronger claim or external/global lock added. No paid execution yet.
+Successor guard/fidelity/classifier focused tests 41/41 and tsc exit0.
+No full rerun for this display-only successor; prior full gate remains RED.
+Narrow independent re-gate required before live use.
+
 ## Fresh six-companion book diagnostic harness, 2026 10 02
 
 Sole-writer local successor to pure prerequisite 9a1ba1f2; no public route,

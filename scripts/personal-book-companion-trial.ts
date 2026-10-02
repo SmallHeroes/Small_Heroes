@@ -110,9 +110,11 @@ export async function executeBookTrial(args: { engine: FrozenBookEngine; plan: R
 
 export function renderBookTrial(root: string) {
   const bodies = companionTrialCohort().map(row => {
-    let result: any = null;
-    for (const suffix of ['result', 'held', 'failed']) { try { result = JSON.parse(readFileSync(path.join(root, `${row.id}-${suffix}.json`), 'utf8')); break; } catch { /* unavailable */ } }
-    const writer = result?.writerResult;
+    const records: Record<string, any> = {};
+    for (const suffix of ['failed', 'held', 'result']) { try { records[suffix] = JSON.parse(readFileSync(path.join(root, `${row.id}-${suffix}.json`), 'utf8')); } catch { /* unavailable */ } }
+    const result = records.failed ?? records.held ?? records.result;
+    // Terminal failure wins the label; earlier valid prose remains inspectable.
+    const writer = result?.writerResult ?? records.result?.writerResult;
     return `<section id="${row.id}"><h2>${escape(row.request.child.name)} · ${escape(row.request.companion.id)}</h2><p>${escape(result?.status ?? 'לא נוצר')}</p>` +
       (writer ? `<h3>${escape(writer.manuscript.title)}</h3>${writer.manuscript.pages.map((p: any) => `<article><h4>כפולה ${p.pageNumber}</h4><p>${escape(p.text)}</p></article>`).join('')}` : '<p>אין סיפור מלא. ראיות חלקיות נשמרו.</p>') + '</section>';
   }).join('');

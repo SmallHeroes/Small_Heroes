@@ -75,3 +75,22 @@ No repo scratch/checkout/instrumentation/rewrite/deletion. In-memory or newly
 generated OS-TEMP probes only; tests may own/clean their generated temp paths.
 Report exact range, own versus reported measurements, findings, technical
 PASS/HOLD only; literary quality remains unmeasured until paid cohort.
+
+## Independent review and small corrective successor
+
+Claude exact Opus5.5 High gave bounded technical PASS c75e6807..b78264b7,
+two Low findings. Independently33/33 two specs and direct literal parity;
+other focused/tsc/full/dry claims read/reported only. CLI list estimate0.915676USD,
+not invoice. TEMP scratch disclosed, no repo writes or paid OpenAI calls.
+
+Low1 accepted: supported result is saved before replay/finish, so a later failure
+can coexist with it. Renderer now uses failed > held > result label, retaining
+earlier valid prose. No mutation/deletion/upgrade of historical output. New actual
+dual-record regression must prove failed label and retained text. Low2 bounded:
+shared commonGit worktrees only, NOT separate clones/global/account-wide lock.
+Fixed family remains unconsumed. Re-gate only this narrow correction, unchanged
+guard/provider/source/replay/budget, and preserve prior PASS boundary.
+
+Corrective validation: guard22 + literal fidelity12 + classifier7 = 41/41,
+tsc exit0, diff check clean. No full check repeated for display-only correction;
+prior RED result retained. No paid book dispatch, key read or family claim.
