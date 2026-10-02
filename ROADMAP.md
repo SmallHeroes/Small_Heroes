@@ -8,6 +8,23 @@ This roadmap records technical milestone state. Guy can change product priority 
 
 ## Active
 
+### P-personal six-companion readiness (2026-10-02)
+
+- Guy authorized six distinctive personal characters and six varied synthetic
+  books through all five text/storyboard/review stages, no images. Milestone 1
+  adds personal-only complete profiles and real input wiring, preserving legacy
+  bank/profiles and current visual identity. Current authority joins storyboard
+  digest; no claim about old manuscripts' authoring profile. Focused 285/285,
+  final tsc 0; full check native 1: ordinary 11 failed/5616 passed, resource
+  3 failed/632 passed plus four RPC errors. Not ten-only parity or stability.
+  Exact Claude Opus 5.5 High became available after official CLI update. Its
+  independent committed-range review is next; no technical self-PASS.
+- Then: close valid findings, fresh one-use aggregate family <=$15/30 calls,
+  per-case source-derived reservations, six actual varied 8/12/16-spread outcomes,
+  preserve every partial/HOLD and unknown usage; independent creative review and
+  safe wizard preparation to pre-render boundary. Existing $1 pilot and consumed
+  comparison allowance are not reset. No images/audio/push/deploy/legacy routing.
+
 ### P-personal literary quality milestone (2026-10-01)
 
 - Claude recording UI `2194e9a8` integrated onto current engine `961fcd20` locally

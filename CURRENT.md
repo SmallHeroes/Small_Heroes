@@ -1,5 +1,53 @@
 # SmallHeroes — Current Technical State
 
+## Six personal companion characters, milestone 1, 2026 10 02
+
+Guy authorized distinctive offered companions and a six-case personal-engine
+experiment through edited story, whole-book storyboard and semantic review,
+stopping before images. Sole writer Codex in this chat/worktree
+`personal-story-product`, branch `codex/personal-book-storyboard-bridge`, base
+`be0646d74f686fc13d47552d3b10adac901445cd`. Decision and independent QA handoff:
+`PERSONAL_COMPANION_READINESS_DECISION_20261002.md` and
+`PERSONAL_COMPANION_CHARACTER_QA_20261002.md` under `docs/ai-workflow/`.
+
+New personal-only, versioned server character authority specifies all six current
+companions: motives, mistaken belief, pressure/relaxed behaviour, voice, comic
+mechanism, embodied abilities/limits, reciprocal partnership and causal swap test.
+Current registry still owns identity/visual description. No legacy category,
+coping lesson or plot is inherited; historical shared profiles are unchanged.
+Actual planner, manuscript writer, editor, storyboard and semantic review inputs
+carry the complete profile and canonical profile digest. Missing offered profile
+fails before provider construction; no tagline fallback. Storyboard source digest
+now also binds current companion authority. This is NOT proof that historical
+manuscripts were written against that current profile: archived writer envelopes
+do not contain an authoring profile digest. No historical output is upgraded.
+
+Final focused suite: 285/285 in five specs (character 33, writer 38, editor 39,
+storyboard 60, runner 115); standalone final tsc exited 0. Richer input moved a real editor-boundary
+fixture's first failure upstream; shortened its plan padding while preserving
+all original assertions and adding actual writer-input byte-cap verification.
+No production caps or QA thresholds changed. Mocked outputs and distinct strings
+are structural evidence, not literary quality or interchangeability proof.
+
+Full check exited 1 on the final production bytes. Ordinary: 11 failed/5616
+passed/73 skipped in 383 files. Resource: 3 failed/632 passed in 20 files plus
+four onTaskUpdate RPC errors; timeout failures in pre-live readiness (2) and
+live-execution supervisor (1). Both phase gates failed. Not the same ten-only
+result and not a green/stable repository claim. The extra ordinary failure is
+not attributed from truncated console output; no baseline causality is claimed.
+Two subsequent edits affect tests only (missing-profile case and formatting);
+this run is not claimed as a frozen full check of the final commit.
+
+Claude CLI updated through its official updater to 2.1.287 after exact-model
+availability failed on the old version. Exact `claude-opus-5-5`, high effort,
+availability request succeeded; CLI usage estimate $0.0315904, not an invoice.
+No OpenAI story, transcription, storyboard, image or audio provider invoked in
+this milestone. Independent Claude review remains pending, no self-PASS.
+Six genuine paid outcomes, bounded fresh family, terminal observer/packet checks
+and safe wizard pre-render integration remain required. Existing loopback pilot,
+consumed comparison claims, protected worktrees and old bank are untouched.
+No key copied/changed, push, deployment, migration, cleanup or image permission.
+
 ## Existing local voice-to-story pilot reconfirmed 2026 10 02
 
 Guy asked to connect live decoding and create a personal story from scratch.

@@ -251,12 +251,17 @@ describe('automatic personal manuscript -> full storyboard -> separate semantic 
   });
   it('diagnoses the real editor input limit after exactly two completed writer calls', async () => {
     const f = await setup('long'); const plan = structuredClone(f.draftResult.plan);
-    for (const beat of plan.beats) for (const key of ['location', 'transitionReason', 'childAction', 'companionAction', 'consequence', 'continuity'] as const) beat[key] = 'x'.repeat(400);
-    vi.mocked(f.provider.story.generate).mockImplementation(async call => ({
-      output: call.stage === 'plan' ? { ...plan, adventureSelection: f.draftResult.planning!.selection } : { ...f.draftResult.manuscript, planDigest: JSON.parse(call.input).planDigest,
-        pages: f.draftResult.manuscript.pages.map(page => ({ ...page, text: 'x'.repeat(1500) })) },
-      usage: { inputTokens: 100, outputTokens: 200 },
-    }));
+    // The richer brief must still fit writer preflight; the combined manuscript + plan
+    // must exceed editor preflight. Keep this a real boundary, not a mocked exception.
+    for (const beat of plan.beats) for (const key of ['location', 'transitionReason', 'childAction', 'companionAction', 'consequence', 'continuity'] as const) beat[key] = 'x'.repeat(300);
+    vi.mocked(f.provider.story.generate).mockImplementation(async call => {
+      expect(Buffer.byteLength(call.instructions + call.input, 'utf8')).toBeLessThanOrEqual(52_000);
+      return {
+        output: call.stage === 'plan' ? { ...plan, adventureSelection: f.draftResult.planning!.selection } : { ...f.draftResult.manuscript, planDigest: JSON.parse(call.input).planDigest,
+          pages: f.draftResult.manuscript.pages.map(page => ({ ...page, text: 'x'.repeat(1500) })) },
+        usage: { inputTokens: 100, outputTokens: 200 },
+      };
+    });
     const events: { stage: string; outcome: string; code: string | null }[] = [];
     const failure = await errorOf(generatePersonalBook({ ...f.args, record: event => events.push(event) }));
     expect(failure.code).toBe('book_editor_input_limit'); expect(failure.accounting?.providerAttempts).toBe(2);

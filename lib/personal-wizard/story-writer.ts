@@ -2,7 +2,7 @@ import 'server-only';
 
 import { createHash } from 'crypto';
 import { getCompanionById } from '@/lib/companions';
-import { DEEP_PROFILES } from '@/lib/companion-deep-profiles';
+import { CHARACTER_CAUSALITY_INSTRUCTIONS, resolvePersonalCompanionCharacter } from './companion-character';
 import type { PersonalWizardOptions } from './options';
 import { acceptPersonalBookRequest, canonicalJson } from './request-acceptance';
 import { IntakeLedger } from './intake-ledger';
@@ -29,7 +29,7 @@ export const STORY_INSTRUCTIONS = `Write an original Hebrew children's adventure
 
 export const RESILIENCE_INSTRUCTIONS = `Resilience is a story principle, not a compulsory emotional worksheet. When a topic is deliberately chosen, make it affect events and the child's concrete choices: a boundary, requesting closeness/help, preparing for uncertainty or trying a different idea. Let the companion care and sometimes need the child's help too. End with a modest observable step, not a claim that fear vanished. In adventure_only mode, use uncertainty, flexibility and mutual help arising from fictional events without inventing a real difficulty for the child. Do not force the same coping sequence into every story. resilience.moments cite actual beats in this plan and what the child chooses/what helps there; this is proposed editorial evidence, not a diagnosis or benefit claim.`;
 
-export const NARRATIVE_CRAFT_INSTRUCTIONS = `Make a story a child wants to hear again, not a checklist of correct behaviour.
+export const NARRATIVE_CRAFT_INSTRUCTIONS = `${CHARACTER_CAUSALITY_INSTRUCTIONS}\nMake a story a child wants to hear again, not a checklist of correct behaviour.
 Begin with a recognisable moment in this child's world, using the approved name and a useful interest/habit or supplied place. Let fantasy interrupt that moment rather than drop a generic hero into an unrelated magical game. A supplied residence may anchor the opening without inventing an exact house, local landmark, sibling or history. Do not cram every fact into a biography.
 childGoal must explain why THIS child cares about the fictional goal, not just name an object to retrieve. Use approved interests or a small personal habit causally; do not invent real history to manufacture a motive.
 Give the child a felt experience: anticipation, disappointment, hesitation, relief or delight shown in perception, bodily reaction, a thought or speech. An active hero can be frightened or unsure. Do not transfer the entire emotional arc to the companion. Do not force an emotion or a joke into every spread.
@@ -61,20 +61,22 @@ export function preparePersonalStory(input: unknown, options: PersonalWizardOpti
   if (!length || ![16, 24, 32].includes(length.pages)) fail('story_length_required');
   const companion = getCompanionById(request.companion.id);
   if (!companion) fail('story_companion_unavailable');
-  const profile = DEEP_PROFILES[companion.id];
+  const character = resolvePersonalCompanionCharacter(companion.id);
+  if (!character) fail('story_companion_character_required');
   const intent = request.intent;
   // Deliberately do not inherit category, allowedDirections, coping lesson or legacy plot role.
-  const personality = profile ? {
-    speech: profile.speechPattern, humour: profile.humorType,
-    relaxed: profile.bodyLanguageRelaxed, stressed: profile.bodyLanguageStressed,
-    signature: profile.signatureBehavior ?? null, flaw: profile.emotionalFlaw ?? null,
-  } : { temperament: companion.tagline };
+  const personality = {
+    speech: character.voice.rhythm, humour: character.humour.mechanism,
+    relaxed: character.relaxedBehavior, stressed: character.pressureResponse,
+    signature: character.essence, flaw: character.mistakenBelief,
+  };
   const brief = {
     version: 'reviewed-personal-adventure/v1', requestId: accepted.requestId,
     child: { name: request.child.name, age: request.child.age, address: request.child.address, residence: request.child.residence },
     facts: request.facts.map(({ id, kind, value }) => ({ id, kind, value })),
     noDifficulty: request.noDifficulty, startingPlace: request.storyPlace?.value ?? null,
-    companion: { id: companion.id, name: companion.name, personality },
+    companion: { id: companion.id, name: companion.name, visualIdentity: companion.visualDescription,
+      characterDigest: createHash('sha256').update(canonicalJson(character)).digest('hex'), personality, character },
     topic: intent?.kind === 'topic' ? options.topics.find((topic) => topic.id === intent.topicId)?.label : null,
     excludedSubjects: request.avoid, beats: length.pages / 2, displayPages: length.pages as 16 | 24 | 32,
     resilienceMode: intent?.kind === 'topic' ? 'chosen_topic' as const : 'adventure_only' as const,

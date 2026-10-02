@@ -60,7 +60,8 @@ export function preparePersonalStoryboard(request: unknown, writerResult: unknow
   // Final prose is the visual source; outline continuity is only a review comparison.
   const story = previewTextPages({ title: result.manuscript.title, pages: result.manuscript.pages });
   const sourceDigest = digest({ version: PERSONAL_STORYBOARD_VERSION, optionsFingerprint: prepared.accepted.optionsFingerprint,
-    request: prepared.accepted.canonical, plan: result.plan, manuscript: result.manuscript, displayPages: result.displayPages,
+    request: prepared.accepted.canonical, companionAuthority: prepared.brief.companion,
+    plan: result.plan, manuscript: result.manuscript, displayPages: result.displayPages,
     ...('editing' in result ? { editing: result.editing } : {}), ...(result.planning ? { planning: result.planning } : {}) });
   const source = {
     sourceDigest, request: prepared.accepted.canonical, result, story,
