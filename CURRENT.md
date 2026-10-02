@@ -1,5 +1,30 @@
 # SmallHeroes — Current Technical State
 
+## Character variety successor 2026 10 02
+
+Independent exact Claude 5.5 High gave bounded technical PASS for
+621f8c76..a1fbc8d5: P0/P1=0, creativeP2=1, sixP3. It reproduced tsc0 and443/443
+and direct exported receipt/prompt probes. No creative/product acceptance.
+Successful safe-mode CLI result lists $1.1625594 (its prose rounded $1.07).
+Aborted default-context attempt lists $3.7567964 and produced no verdict;
+automatic context exceeded216k tokens and the CLI cap was not a hard per-request
+ceiling. These are list usage estimates, not invoices or OpenAI story spend.
+
+Validated creative P2 correction: v3 data-only profiles now express reciprocal
+choices, not compulsory child correction. Dini no longer prepares too much;
+Leo's essence/voice concern hearing/responding, not rehearsal. Repeated humour
+anti-obligation template removed; one shared anti-formula instruction remains.
+One benign observer contradiction regression added. No runner/cap/registry,
+image/audio, key/provider, archive, QA deployment or budget change. Decision/
+handoff PERSONAL_CHARACTER_VARIETY_QA_20261002.md. Final tsc0, 444/444 in ten
+focused specs; capacity editor headroom8362-8932 bytes, diffcheck clean. Full
+check not repeated for profile data and one added test; last RED record stands,
+not frozen validation of this successor. Independent successor review pending.
+Draft character digest is an unhashed server label, not signed authorship:
+archive restamping can fabricate content consistency, even without draft rehash.
+No automatic restamping occurs. Editorv2 protects consistency, not origin proof.
+Six genuine varied books still required; wording/mock tests are not quality proof.
+
 ## Personal character correction, implementation 2026 10 02
 
 Exact Claude Opus 5.5 High independently reviewed `be0646d7..621f8c76`:

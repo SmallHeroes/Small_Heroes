@@ -101,13 +101,14 @@ describe('automatic personal manuscript -> full storyboard -> separate semantic 
       expect(finish.mock.calls.map(call => call[2])).toEqual(['failed']);
       expect(f.ledger.snapshot().inFlight).toBe(0);
     });
-  it.each(['supported', 'uncertain'] as const)('ignores throwing completion telemetry without corrupting $verdict accounting', async verdict => {
-    const f = await setup(); if (verdict === 'uncertain') f.review.bookChecks[0].verdict = 'uncertain' as any;
+  it.each(['supported', 'uncertain', 'contradiction'] as const)('ignores throwing completion telemetry without corrupting $verdict accounting', async verdict => {
+    const f = await setup();
+    if (verdict !== 'supported') (f.review.bookChecks[0] as { verdict: 'supported' | 'uncertain' | 'contradiction' }).verdict = verdict;
     const finish = vi.spyOn(f.ledger, 'finish');
     const result = await generatePersonalBook({ ...f.args, record: event => {
       if (event.stage === 'complete') { event.accounting.providerAttempts = 999; event.accounting.stages.pop(); throw Error('PRIVATE_OBSERVER'); }
     } });
-    expect(result.status).toBe(verdict === 'supported' ? 'review_supported' : 'held_uncertain');
+    expect(result.status).toBe(verdict === 'supported' ? 'review_supported' : `held_${verdict}`);
     expect(result.framePackets).toHaveLength(verdict === 'supported' ? 9 : 0);
     expect(result.accounting.providerAttempts).toBe(5); expect(result.accounting.stages).toHaveLength(5);
     expect(finish.mock.calls.map(call => call[2])).toEqual(['done']);
