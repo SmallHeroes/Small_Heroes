@@ -10,6 +10,14 @@ This roadmap records technical milestone state. Guy can change product priority 
 
 ### P-personal six-companion readiness (2026-10-02)
 
+- Exact Claude Opus5.5 High correction technical PASS621f8c76..a1fbc8d5,
+  then narrow character refinement PASS a1fbc8d5..c75e6807. No literary
+  acceptance. Pure prerequisite9a1ba1f2 isolates byte-identical prompt data
+  from image/storage graph. Fresh durable thirty-call six-book harness now
+  implemented locally, source-derived14.4716 reserve under15, no paid run yet.
+  Next frozen independent guard QA, actual dry then real cohort; never reset
+  old family/$1pilot or treat technical tests as six excellent books.
+
 - Independent exact Claude 5.5 High milestone-1 bounded technical PASS with
   three P2s, no creative acceptance. Corrective milestone at base621f8c76:
   single literary profile, archived/current authoring distinction, v2 receipt

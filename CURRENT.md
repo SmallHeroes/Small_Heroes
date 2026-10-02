@@ -1,5 +1,46 @@
 # SmallHeroes — Current Technical State
 
+## Fresh six-companion book diagnostic harness, 2026 10 02
+
+Sole-writer local successor to pure prerequisite 9a1ba1f2; no public route,
+site/wizard/caps/provider implementation change. Five REAL frozen book stages
+around six varied synthetic requests, all offered companions, 8/12/16 spreads.
+No catalogue story or fixture manuscript used during execution. This is an
+uncontrolled cohort, not causal companion/model comparison or literary proof.
+
+One fixed common-Git family, atomic/fsynced claim before key, 30 ordered slots,
+14.4716 USD conservative reservation under 15, source caps/reservation checked.
+No reuse/reset/refund/resume/retry/root/model override. Fixed model gpt-6.1-sol,
+medium. Unique authorized key line only; alternate endpoint refused. Guard wraps
+actual generate, not swallowed telemetry. Stage abort seals synchronously; late
+adapter answers cannot write files or change accounting. Unknown/billed usage,
+technical failure, cancellation stop; two creative HOLDs stop without forcing PASS.
+Last-two-HOLD terminal stays repeated_hold, not falsely complete.
+
+Normalized orchestrator inputs/adapter outputs, original/edited story, planning
+choice, full storyboard/review/replay/packets and cost receipts preserved. Not raw
+SDK request/response or provider model attestation. Journal fsynced; output files
+are exclusive-created but not power-loss durability guaranteed. Source immutable
+Git freeze, exact loaded source/bundle/import map, explicit harness-source map.
+Narrow external whitelist, final bundle import check before evaluation, no
+Supabase/Replicate/Sharp. Same-module raw replay, not JSON-cast authority.
+
+Final focused310/310 in ten files; newguard21, historicalplanning26/editor15/
+classifier7, pure/fidelity12, assembly1, composition8, sequence33, storyboard60,
+runner127. Final standalone tsc0 and diffcheck clean. Full check native1:
+ordinary10failed/5664passed/73skipped in385files, missing historical artifacts;
+resource1failed/634passed in20files plus3RPCerrors, 5000ms supervisor timeout.
+No new baseline causal claim or release/stability closure. Full log OS TEMP
+personal-six-book-full-check-final-20261002.log. Final installed-entry hash
+metadata and console terminal alignment were added after that phase started;
+not claimed as frozen full validation of final commit; final focused/tsc cover
+them. Earlier initial full attempt stopped at test-only tsc annotation, corrected.
+Independent exact Claude review pending. No live dispatch/key read for new family,
+no cost reset/push/deploy/image/audio. Existing $1 wizard pilot left untouched.
+Decision PERSONAL_SIX_BOOK_TRIAL_DECISION_20261002.md; independent handoff
+PERSONAL_SIX_BOOK_TRIAL_QA_20261002.md. Actual dry/paid artifacts will live in
+outputs/personal-six-companion-books-20261002 (ignored/local, no verified backup).
+
 ## Pure storyboard dependency prerequisite, 2026 10 02
 
 Exact Claude Opus 5.5 High independently gave bounded technical PASS for
