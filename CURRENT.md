@@ -1,5 +1,25 @@
 # SmallHeroes — Current Technical State
 
+## Pure storyboard dependency prerequisite, 2026 10 02
+
+Exact Claude Opus 5.5 High independently gave bounded technical PASS for
+a1fbc8d5..c75e6807, P0/P1/P2=0, creative correction valid as scoped, residual
+creative P3s to actual experiment. It independently ran 332/332 in seven specs
+and tsc0, not our exact 444 ten-file set. CLI list estimate $0.666939, not invoice.
+
+Next fresh six-book harness is being implemented separately, no paid dispatch.
+Frozen whole-book loader uncovered transitive image/storage imports through
+local-story-preview -> style01-gptimage. Merely permitting resolution and checking
+final bundle proved those side effects survived; that option was rejected.
+Prerequisite moves six pure prompt exports plus private age helpers verbatim into
+style01-prompt-core; production keeps local imports/backwards reexports; offline
+preview imports pure core directly. No changed prompt byte, threshold, provider,
+render/style behavior. Existing fidelity spec checks immutable predecessor values
+and 66 anatomical-lock inputs, plus reexport identity. Six-book decision lists
+all intended guard work; that uncommitted harness is not included in this
+prerequisite. No site/wizard/QA deployment, key, provider call, image or audio.
+Independent review is requested for the combined prerequisite/harness range.
+
 ## Character variety successor 2026 10 02
 
 Independent exact Claude 5.5 High gave bounded technical PASS for

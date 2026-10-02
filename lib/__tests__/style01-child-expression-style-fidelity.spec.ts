@@ -1,4 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
+import { execFileSync } from 'node:child_process';
+import { transformSync } from 'esbuild';
+import * as pureStyle from '../style01-prompt-core';
+import * as productionStyle from '../style01-gptimage';
 
 import { assembleStyle01Phase2Prompt } from '../style01-prompt-assembly';
 import {
@@ -15,6 +19,32 @@ import {
   STYLE01_ANCHOR_STYLE_QA_PROMPT,
 } from '../anchor-style-qa';
 import type { RuntimeBlueprintFrameProjection } from '../generation-pipeline/runtime-blueprint-projection';
+
+it('preserves all extracted pure prompt bytes against the immutable production predecessor', () => {
+  const source = execFileSync('git', ['show', 'c75e68077561ab35ed57b772ddc957264fa3b8a7:lib/style01-gptimage.ts'], { encoding: 'utf8' });
+  const pairs = [
+    ['export const STYLE_01_SHARED =', '/** Shared target'],
+    ['export const STYLE_01_FRAMING_RULE =', 'export const STYLE_01_REFERENCE_INSTRUCTION'],
+    ['/** When reference[0]', '/**\n * Scene-typed'],
+    ['function childAgeBandLabel(', 'export function buildStyle01CompanionTextLock'],
+  ];
+  const normalized = source.replace(/\r\n/g, '\n');
+  const isolated = pairs.map(([start, end]) => normalized.slice(normalized.indexOf(start), normalized.indexOf(end, normalized.indexOf(start)))).join('\n');
+  const holder = { exports: {} as typeof pureStyle };
+  new Function('module', 'exports', transformSync(isolated, { loader: 'ts', format: 'cjs' }).code)(holder, holder.exports);
+  for (const name of Object.keys(pureStyle) as (keyof typeof pureStyle)[]) {
+    expect(productionStyle[name]).toBe(pureStyle[name]);
+    if (name !== 'buildStyle01ChildAnatomicalLock') expect(pureStyle[name]).toBe(holder.exports[name]);
+  }
+  for (const childAge of [undefined, -1, 2, 3, 4, 5, 6, 8, 9, 12, 19]) {
+    for (const companionId of [undefined, 'dragon_dini', 'fox_uri']) {
+      for (const allowDistinctSupportingChildren of [false, true]) {
+        const input = { childAge, companionId, allowDistinctSupportingChildren };
+        expect(pureStyle.buildStyle01ChildAnatomicalLock(input)).toBe(holder.exports.buildStyle01ChildAnatomicalLock(input));
+      }
+    }
+  }
+});
 
 function frame(input?: {
   summary?: string;
