@@ -73,6 +73,7 @@ export async function generatePersonalBook(args: PersonalBookArgs): Promise<Pers
   const prepared = preparePersonalStory(args.request, args.options);
   const settings = { ...args.settings, operators: new Set(args.settings.operators) };
   const originalRequestId = prepared.accepted.requestId;
+  const originalCharacterDigest = prepared.brief.companion.characterDigest;
   const narrativeSpreads = prepared.brief.beats;
   const outputLimits = personalBookOutputLimits(narrativeSpreads);
   const reservedUsd = personalBookReservationUsd(settings.model, narrativeSpreads, scope);
@@ -90,7 +91,10 @@ export async function generatePersonalBook(args: PersonalBookArgs): Promise<Pers
   };
   const assertCurrent = () => {
     if (args.signal.aborted) fail('book_cancelled');
-    try { if (preparePersonalStory(args.request, args.options).accepted.requestId !== originalRequestId) fail('book_source_changed'); }
+    try {
+      const current = preparePersonalStory(args.request, args.options);
+      if (current.accepted.requestId !== originalRequestId || current.brief.companion.characterDigest !== originalCharacterDigest) fail('book_source_changed');
+    }
     catch (error) { if (error instanceof PersonalBookError) throw error; fail('book_source_changed'); }
   };
   const begin = args.ledger.begin(args.userId, args.jobId, reservedUsd, settings);
@@ -226,8 +230,9 @@ export async function generatePersonalBook(args: PersonalBookArgs): Promise<Pers
     assertCurrent();
     const packets = review.disposition === 'review_supported' ? Array.from({ length: book.narrativeSpreads + 1 }, (_, pageNumber) =>
       personalStoryboardFrame(book, rawReview, pageNumber, { request: args.request, writerResult, options: args.options })) : [];
-    args.ledger.finish(args.userId, args.jobId, 'done');
     emit('complete', packets.length ? 'finished' : 'held');
+    assertCurrent();
+    args.ledger.finish(args.userId, args.jobId, 'done');
     return { version: 'personal-book-runner/diagnostic-v2' as const, status: review.disposition, writerResult, storyboard: book,
       review, framePackets: packets, runtimeEligible: false as const, accounting: accounting() };
   } catch (error) {

@@ -26,6 +26,9 @@ describe('personal writer -> whole-book storyboard -> identical render/QA state'
       expect(frame.qa.context).toBe(frame.context);
       expect(frame.qa.contextSha).toBe(frame.render.contextSha);
       expect(frame.packetDigest).toBe(previewSha(canonicalJson(frame.context)));
+      expect(frame.render.promptSha).toBe(previewSha(frame.render.prompt));
+      expect(previewSha(frame.render.prompt + ' ')).not.toBe(frame.render.promptSha);
+      expect(frame.render.promptSha).not.toBe(frame.packetDigest);
       expect(frame.render.prompt).toContain(`CAMERA: ${f.draft.plan.pages[n].shot}, ${f.draft.plan.pages[n].angle}`);
       expect(frame.render.prompt).toContain(`EXPRESSION: feeling ${n}`);
     }
@@ -117,7 +120,7 @@ describe('personal writer -> whole-book storyboard -> identical render/QA state'
     expect(() => personalStoryboardFrame(f.book, f.review, 9, f.current)).toThrow('unknown_frame');
     const writerResult = structuredClone(f.result); writerResult.manuscript.pages[0].text += ' new text';
     expect(() => personalStoryboardFrame(f.book, f.review, 1, { ...f.current, writerResult })).toThrow('story_editor_revision_binding');
-    writerResult.editing.finalDigest = previewSha(canonicalJson({ plan: writerResult.plan, manuscript: writerResult.manuscript }));
+    writerResult.editing.finalDigest = previewSha(canonicalJson({ plan: writerResult.plan, manuscript: writerResult.manuscript, characterDigest: writerResult.characterDigest }));
     expect(() => personalStoryboardFrame(f.book, f.review, 1, { ...f.current, writerResult })).toThrow('stale_book');
   });
   it.each(['source', 'board', 'book_check', 'frame_check', 'frame_count', 'order'])('rejects incomplete/stale review %s', async kind => {

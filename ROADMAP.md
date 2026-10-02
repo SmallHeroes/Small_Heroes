@@ -10,6 +10,13 @@ This roadmap records technical milestone state. Guy can change product priority 
 
 ### P-personal six-companion readiness (2026-10-02)
 
+- Independent exact Claude 5.5 High milestone-1 bounded technical PASS with
+  three P2s, no creative acceptance. Corrective milestone at base621f8c76:
+  single literary profile, archived/current authoring distinction, v2 receipt
+  binding, nonmandatory corrective arc, terminal observer revalidation and
+  exact prompt byte digest. Independent corrective re-gate pending; no paid
+  six-case or image outcome yet. Extra ordinary full-check failure traced to
+  stale spec inventory count; ten missing-artifact failures remain separate.
 - Guy authorized six distinctive personal characters and six varied synthetic
   books through all five text/storyboard/review stages, no images. Milestone 1
   adds personal-only complete profiles and real input wiring, preserving legacy

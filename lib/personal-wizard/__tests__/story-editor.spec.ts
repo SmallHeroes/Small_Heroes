@@ -22,13 +22,33 @@ describe('whole-story editing without product or render authority', () => {
     f.output.plan.beats[0].childAction = 'נועה מציעה רעיון חדש';
     const result = compileStoryEdit(f.prepared, f.draftResult, f.output, { inputTokens: 100, outputTokens: 200 });
     assertStoryEditBinding(result);
-    expect(result.editing.original).toEqual({ plan: f.draftResult.plan, manuscript: f.draftResult.manuscript });
+    expect(result.editing.original).toEqual({ plan: f.draftResult.plan, manuscript: f.draftResult.manuscript, characterDigest: f.draftResult.characterDigest });
     expect(JSON.stringify(f.draftResult)).toBe(before); expect(result.manuscript.planDigest).toBe(result.planDigest);
     expect(result.planDigest).not.toBe(f.draftResult.planDigest); expect(result.editing.finalDigest).not.toBe(result.editing.draftDigest);
     expect(result.accounting.providerCalls).toBe(3); expect(result.accounting.usage).toHaveLength(3);
     expect(result.runtimeEligible).toBe(false); expect(result.editorialStatus).toBe('pending_product_review');
     expect(result.editing.kind).toBe('model_edit_not_product_acceptance');
     expect(preparePersonalStoryboard(f.request, result, options).story.pages).toEqual(result.manuscript.pages);
+  });
+  it.each(['outer', 'original'] as const)('detects altered %s character provenance in the editing receipt', async kind => {
+    const f = await setup(); const result = structuredClone(f.result);
+    if (kind === 'outer') result.characterDigest = 'f'.repeat(64);
+    else result.editing.original.characterDigest = 'f'.repeat(64);
+    expect(editedStoryResultSchema.safeParse(result).success).toBe(false);
+    expect(() => assertStoryEditBinding(result)).toThrow('revision_binding');
+  });
+  it('reads a self-consistent archived v1 receipt without upgrading its authoring character', async () => {
+    const f = await setup(); const legacy = structuredClone(f.result);
+    delete legacy.characterDigest; delete legacy.editing.original.characterDigest;
+    legacy.editing.version = 'personal-story-editor/diagnostic-v1';
+    const { createHash } = await import('node:crypto'); const { canonicalJson } = await import('../request-acceptance');
+    const digest = (data: unknown) => createHash('sha256').update(canonicalJson(data)).digest('hex');
+    legacy.editing.draftDigest = digest(legacy.editing.original);
+    legacy.editing.finalDigest = digest({ plan: legacy.plan, manuscript: legacy.manuscript });
+    expect(editedStoryResultSchema.safeParse(legacy).success).toBe(true);
+    expect(() => assertStoryEditBinding(legacy)).not.toThrow();
+    expect(() => preparePersonalStoryboard(f.request, legacy, options)).toThrow('character_binding');
+    expect(f.result.characterDigest).toBeDefined();
   });
   it.each(STORY_EDITOR_CRITERIA)('holds %s without changing any observation to ready', async category => {
     const f = await setup(); f.output.checks[category].outcome = 'needs_work';

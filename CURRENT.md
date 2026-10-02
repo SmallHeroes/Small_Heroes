@@ -1,5 +1,51 @@
 # SmallHeroes — Current Technical State
 
+## Personal character correction, implementation 2026 10 02
+
+Exact Claude Opus 5.5 High independently reviewed `be0646d7..621f8c76`:
+bounded technical PASS, P0/P1=0, three P2s, no creative acceptance. It reproduced
+285/285 and tsc 0. CLI usage estimate $1.2918856, not invoice; reviewer disclosed
+a temporary untracked repo scratch copy then deletion, tracked bytes unchanged.
+This is not represented as a strictly zero-filesystem-write review.
+
+Separate corrective milestone on the same sole-writer branch/worktree, base
+`621f8c76`: remove duplicate personality aliases and registry visual prose from
+literary brief; v2 distinct characters and nonmandatory flaw/correction arc;
+new writer character digest, editor v2 original/final binding; archive text and
+v1 receipts readable but not silently promotable. Blind old comparisons no longer
+carry today's full profile as historical authoring authority. These are content
+bindings, NOT signed authorship/provider attestation. Planning-only HOLD evidence
+does not gain a new profile binding.
+
+Real in-memory frozen-runner diagnostic reproduced storyboard completion callback
+cancel/source-change returning old packets. Correction mirrors the existing text
+path: emit, recheck cancel/request/current-character, then done/delivery, including
+semantic HOLD. Exact final UTF-8 render.promptSha is separate from contextSha;
+runtimeEligible remains false. No image/renderer connection or threshold change.
+
+Representative capacity tests: six long Hebrew requests, 18 facts, 16 spreads,
+66 synthetic prose words/spread. Existing planner/writer/editor preflights fit
+52 KB; final editor headroom 8419-8936 bytes, total editor bytes 43064-43581.
+This is not live/provider or max-schema adequacy proof. No caps increased.
+Final focused 443/443 in ten files, standalone tsc 0, diff check clean.
+Full run identified the extra ordinary failure: classifier hardcoded 402 specs,
+not 404 after character/capacity additions. Corrected inventory and explicitly
+included both new specs; not a production behavior or stability fix.
+Full check native 1: ordinary 11 failed/5640 passed/73 skipped (384 files),
+resource 18 failed/617 passed (20 files), four RPC errors. Ten ordinary failures
+reference missing artifacts; the eleventh was the now-target-tested classifier.
+Resource timeout/RPC causality is not proven. Full log in OS TEMP:
+personal-character-correction-full-check-20261002.log. Final wording and classifier
+edits occurred after their phase had run; this is NOT a frozen full check of the
+final commit and no ten-only parity/green/stability claim is made.
+
+Decision/handoff: `PERSONAL_COMPANION_CORRECTION_DECISION_20261002.md` and
+`PERSONAL_COMPANION_CORRECTION_QA_20261002.md`. Correction independently unreviewed.
+No OpenAI generation, key read, six paid books, creative acceptance, public QA,
+images/audio, allowance reset, artifact mutation, push or deployment. Next is
+independent re-gate, then fresh one-use <=$15/30-call cohort with source-derived
+per-book reservations, not reuse of the consumed comparison or $1 wizard pilot.
+
 ## Six personal companion characters, milestone 1, 2026 10 02
 
 Guy authorized distinctive offered companions and a six-case personal-engine

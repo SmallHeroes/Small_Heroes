@@ -80,6 +80,8 @@ export const personalStoryResultObjectSchema = z.object({
   containsFixtureData: z.boolean(),
   editorialStatus: z.literal('pending_product_review'),
   runtimeEligible: z.literal(false),
+  // Archive reading only may omit this. New editing/storyboard require exact current authority.
+  characterDigest: z.string().regex(/^[a-f0-9]{64}$/).optional(),
   // Optional only for archived/offline compatibility. Current writer requires it.
   // Bound to the ORIGINAL outline; an editor may legitimately change the final plot.
   planning: storyPlanningReceiptSchema.optional(),

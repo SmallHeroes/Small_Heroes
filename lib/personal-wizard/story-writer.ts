@@ -65,18 +65,13 @@ export function preparePersonalStory(input: unknown, options: PersonalWizardOpti
   if (!character) fail('story_companion_character_required');
   const intent = request.intent;
   // Deliberately do not inherit category, allowedDirections, coping lesson or legacy plot role.
-  const personality = {
-    speech: character.voice.rhythm, humour: character.humour.mechanism,
-    relaxed: character.relaxedBehavior, stressed: character.pressureResponse,
-    signature: character.essence, flaw: character.mistakenBelief,
-  };
   const brief = {
     version: 'reviewed-personal-adventure/v1', requestId: accepted.requestId,
     child: { name: request.child.name, age: request.child.age, address: request.child.address, residence: request.child.residence },
     facts: request.facts.map(({ id, kind, value }) => ({ id, kind, value })),
     noDifficulty: request.noDifficulty, startingPlace: request.storyPlace?.value ?? null,
-    companion: { id: companion.id, name: companion.name, visualIdentity: companion.visualDescription,
-      characterDigest: createHash('sha256').update(canonicalJson(character)).digest('hex'), personality, character },
+    companion: { id: companion.id, name: companion.name,
+      characterDigest: createHash('sha256').update(canonicalJson(character)).digest('hex'), character },
     topic: intent?.kind === 'topic' ? options.topics.find((topic) => topic.id === intent.topicId)?.label : null,
     excludedSubjects: request.avoid, beats: length.pages / 2, displayPages: length.pages as 16 | 24 | 32,
     resilienceMode: intent?.kind === 'topic' ? 'chosen_topic' as const : 'adventure_only' as const,
@@ -188,6 +183,7 @@ export async function writePersonalStory(args: {
     return {
       status: 'manuscript_preview', requestId: prepared.accepted.requestId,
       manuscript, plan, planDigest, displayPages: prepared.brief.displayPages,
+      characterDigest: prepared.brief.companion.characterDigest,
       containsFixtureData: prepared.accepted.containsFixtureData,
       editorialStatus: 'pending_product_review', runtimeEligible: false,
       planning: { version: 'personal-adventure-selection/diagnostic-v1', kind: 'model_selection_not_literary_acceptance',

@@ -6,6 +6,8 @@ import { PROTOTYPE_COMPANION_ROSTER, resolvePersonalWizardOptions } from '../opt
 import { preparePersonalStory, writePersonalStory } from '../story-writer';
 import { prepareStoryEdit, STORY_EDITOR_INSTRUCTIONS } from '../story-editor';
 import { personalStoryboardReviewInput } from '../storyboard';
+import { preparePersonalStoryboard, personalStoryboardFrame } from '../storyboard';
+import { personalStoryResultSchema } from '../story-contract';
 import { getCompanionById } from '../../companions';
 import { canonicalJson } from '../request-acceptance';
 import { IntakeLedger } from '../intake-ledger';
@@ -60,7 +62,8 @@ describe('six server-owned personal companion characters, not legacy plot roles'
     const companion = getCompanionById(id)!;
     const character = resolvePersonalCompanionCharacter(id)!;
     expect(prepared.brief.companion.name).toBe(companion.name);
-    expect(prepared.brief.companion.visualIdentity).toBe(companion.visualDescription);
+    expect(prepared.brief.companion).not.toHaveProperty('visualIdentity');
+    expect(prepared.brief.companion).not.toHaveProperty('personality');
     expect(prepared.brief.companion.character).toEqual(character);
     expect(prepared.brief.companion.characterDigest).toBe(createHash('sha256').update(canonicalJson(character)).digest('hex'));
     const calls: unknown[] = [];
@@ -74,9 +77,36 @@ describe('six server-owned personal companion characters, not legacy plot roles'
         return { output, usage: { inputTokens: 100, outputTokens: 100 } }; }) }) });
     const edit = prepareStoryEdit(prepared, result);
     expect(calls).toEqual([prepared.brief.companion, prepared.brief.companion]);
+    expect(result.characterDigest).toBe(prepared.brief.companion.characterDigest);
     expect(JSON.parse(edit.input).brief.companion).toEqual(prepared.brief.companion);
     expect(STORY_EDITOR_INSTRUCTIONS).toContain(CHARACTER_CAUSALITY_INSTRUCTIONS);
     expect(prepared.brief.topic).toBeNull(); expect(result.runtimeEligible).toBe(false);
+  });
+  it.each(['missing', 'foreign'] as const)('keeps %s profile evidence readable but refuses new editing/storyboarding', async kind => {
+    const f = await personalStoryboardFixture(); const draft = structuredClone(f.draftResult);
+    if (kind === 'missing') delete draft.characterDigest; else draft.characterDigest = 'f'.repeat(64);
+    expect(personalStoryResultSchema.safeParse(draft).success).toBe(true);
+    expect(() => prepareStoryEdit(preparePersonalStory(f.request, options), draft)).toThrow('story_editor_character_binding');
+    expect(() => preparePersonalStoryboard(f.request, draft, options)).toThrow('personal_storyboard_character_binding');
+  });
+  it('changes the profile digest and refuses the old book when server literary authority changes', async () => {
+    const f = await personalStoryboardFixture();
+    const before = preparePersonalStory(f.request, options);
+    const beforeSource = preparePersonalStoryboard(f.request, f.draftResult, options);
+    const changed = resolvePersonalCompanionCharacter(f.request.companion.id)!;
+    changed.mistakenBelief += ' This synthetic change is a different character authority.';
+    const resolver = vi.spyOn(characterAuthority, 'resolvePersonalCompanionCharacter').mockReturnValue(changed);
+    try {
+      const after = preparePersonalStory(f.request, options);
+      expect(after.brief.companion.characterDigest).not.toBe(before.brief.companion.characterDigest);
+      expect(() => personalStoryboardFrame(f.book, f.review, 1, f.current)).toThrow('character_binding');
+      const currentDraft = { ...f.draftResult, characterDigest: after.brief.companion.characterDigest };
+      const currentSource = preparePersonalStoryboard(f.request, currentDraft, options);
+      expect(currentSource.result.plan).toEqual(beforeSource.result.plan);
+      expect(currentSource.result.manuscript).toEqual(beforeSource.result.manuscript);
+      expect(currentSource.sourceDigest).not.toBe(beforeSource.sourceDigest);
+      // Synthetic content rebinding is NOT proof a provider authored against this profile.
+    } finally { resolver.mockRestore(); }
   });
   it.each(PROTOTYPE_COMPANION_ROSTER)('passes %s character to storyboard and semantic review without importing the bank', async id => {
     const f = await personalStoryboardFixture('short', id);

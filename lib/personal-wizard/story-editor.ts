@@ -34,12 +34,13 @@ export function storyEditorReservationUsd(model: StoryModel, count: number) {
 }
 export function prepareStoryEdit(prepared: PreparedStory, rawDraft: unknown): StoryEditorCall {
   const draft = personalStoryResultSchema.parse(rawDraft);
+  if (draft.characterDigest !== prepared.brief.companion.characterDigest) fail('character_binding');
   if (canonicalJson(rawDraft) !== canonicalJson(draft) || draft.requestId !== prepared.accepted.requestId ||
     draft.displayPages !== prepared.brief.displayPages || draft.containsFixtureData !== prepared.accepted.containsFixtureData ||
     digest(draft.plan) !== draft.planDigest) fail('source_binding');
   if (draft.planning && adventureSelectionIssue(draft.planning.selection, prepared.brief.facts, prepared.brief.beats,
     draft.plan.beats.flatMap(beat => beat.factIds))) fail('source_binding');
-  const original = { plan: draft.plan, manuscript: draft.manuscript };
+  const original = { plan: draft.plan, manuscript: draft.manuscript, characterDigest: draft.characterDigest };
   const call: StoryEditorCall = { stage: 'editor', instructions: STORY_EDITOR_INSTRUCTIONS,
     input: canonicalJson({ brief: prepared.brief, draft: original, draftDigest: digest(original),
       draftTextMetrics: measureStoryText(draft.manuscript, prepared.brief.child.age),
@@ -71,7 +72,7 @@ export function compileStoryEdit(prepared: PreparedStory, draft: PersonalStoryRe
   const plan = { ...output.plan, requestId: output.requestId };
   const planDigest = digest(plan);
   const manuscript = { ...output.manuscript, requestId: output.requestId, planDigest };
-  const original = structuredClone({ plan: draft.plan, manuscript: draft.manuscript });
+  const original = structuredClone({ plan: draft.plan, manuscript: draft.manuscript, characterDigest: draft.characterDigest });
   const usages = [...draft.accounting.usage, usage];
   const price = STORY_PRICES[draft.accounting.model as StoryModel];
   if (!price) fail('model_unpriced');
@@ -80,13 +81,17 @@ export function compileStoryEdit(prepared: PreparedStory, draft: PersonalStoryRe
     accounting: { ...draft.accounting, providerCalls: 3, usage: usages,
       reservedUsd: draft.accounting.reservedUsd + storyEditorReservationUsd(draft.accounting.model as StoryModel, count),
       estimatedUsd: usages.every(row => row !== null) ? usages.reduce((sum, row) => sum + (row!.inputTokens * price.input + row!.outputTokens * price.output) / 1e6, 0) : null },
-    editing: { version: 'personal-story-editor/diagnostic-v1', kind: 'model_edit_not_product_acceptance',
-      original, draftDigest: digest(original), finalDigest: digest({ plan, manuscript }), checks: output.checks } });
+    editing: { version: 'personal-story-editor/diagnostic-v2', kind: 'model_edit_not_product_acceptance',
+      original, draftDigest: digest(original), finalDigest: digest({ plan, manuscript, characterDigest: draft.characterDigest }), checks: output.checks } });
   return result;
 }
 export function assertStoryEditBinding(result: EditedStoryResult) {
+  const profile = result.editing.version === 'personal-story-editor/diagnostic-v2' ? { characterDigest: result.characterDigest } : {};
+  if (result.editing.version === 'personal-story-editor/diagnostic-v2'
+      ? !result.characterDigest || result.editing.original.characterDigest !== result.characterDigest
+      : result.characterDigest !== undefined || result.editing.original.characterDigest !== undefined) fail('revision_binding');
   if (digest(result.plan) !== result.planDigest || digest(result.editing.original.plan) !== result.editing.original.manuscript.planDigest ||
-    digest(result.editing.original) !== result.editing.draftDigest || digest({ plan: result.plan, manuscript: result.manuscript }) !== result.editing.finalDigest) fail('revision_binding');
+    digest(result.editing.original) !== result.editing.draftDigest || digest({ plan: result.plan, manuscript: result.manuscript, ...profile }) !== result.editing.finalDigest) fail('revision_binding');
   if (result.planning && result.planning.sourcePlanDigest !== digest(result.editing.original.plan)) fail('revision_binding');
 }
 export function editorNeedsWork(result: EditedStoryResult): boolean {

@@ -15,6 +15,7 @@ import { createPersonalBookProvider, decodePersonalBookProviderOutput, personalB
 import { STORYBOARD_BOOK_CHECKS, STORYBOARD_FRAME_CHECKS } from '../storyboard';
 import * as storyWriter from '../story-writer';
 import * as storyEditor from '../story-editor';
+import * as characterAuthority from '../companion-character';
 import { canonicalJson } from '../request-acceptance';
 import { storyPlanningHoldSchema } from '../story-contract';
 
@@ -79,6 +80,37 @@ describe('automatic personal manuscript -> full storyboard -> separate semantic 
     expect(failure.code).toBe(mode === 'cancel' ? 'book_cancelled' : 'book_source_changed');
     expect(failure.writerResult).toBeUndefined(); expect(failure.accounting?.providerAttempts).toBe(3);
     expect(finish.mock.calls.map(call => call[2])).toEqual(['failed']);
+  });
+  it.each((['supported', 'uncertain', 'contradiction'] as const).flatMap(verdict =>
+    (['cancel', 'source', 'character'] as const).map(mode => ({ verdict, mode }))))(
+    'suppresses full $verdict delivery after completion observer $mode', async ({ verdict, mode }) => {
+      const f = await setup(); const finish = vi.spyOn(f.ledger, 'finish');
+      if (verdict !== 'supported') f.review.bookChecks[0].verdict = verdict as any;
+      const changed = characterAuthority.resolvePersonalCompanionCharacter(f.request.companion.id)!;
+      changed.essence += ' A synthetic change in server character authority.';
+      const failure = await errorOf(generatePersonalBook({ ...f.args, record: event => {
+        if (event.stage === 'complete') {
+          if (mode === 'cancel') f.controller.abort();
+          else if (mode === 'source') f.request.child.name = 'בר';
+          else vi.spyOn(characterAuthority, 'resolvePersonalCompanionCharacter').mockReturnValue(changed);
+        }
+      } }));
+      expect(failure.code).toBe(mode === 'cancel' ? 'book_cancelled' : 'book_source_changed');
+      expect(failure.writerResult).toBeUndefined(); expect(failure).not.toHaveProperty('framePackets');
+      expect(failure.accounting).toMatchObject({ providerAttempts: 5, reservedUsd: personalBookReservationUsd(settings.model, 8) });
+      expect(finish.mock.calls.map(call => call[2])).toEqual(['failed']);
+      expect(f.ledger.snapshot().inFlight).toBe(0);
+    });
+  it.each(['supported', 'uncertain'] as const)('ignores throwing completion telemetry without corrupting $verdict accounting', async verdict => {
+    const f = await setup(); if (verdict === 'uncertain') f.review.bookChecks[0].verdict = 'uncertain' as any;
+    const finish = vi.spyOn(f.ledger, 'finish');
+    const result = await generatePersonalBook({ ...f.args, record: event => {
+      if (event.stage === 'complete') { event.accounting.providerAttempts = 999; event.accounting.stages.pop(); throw Error('PRIVATE_OBSERVER'); }
+    } });
+    expect(result.status).toBe(verdict === 'supported' ? 'review_supported' : 'held_uncertain');
+    expect(result.framePackets).toHaveLength(verdict === 'supported' ? 9 : 0);
+    expect(result.accounting.providerAttempts).toBe(5); expect(result.accounting.stages).toHaveLength(5);
+    expect(finish.mock.calls.map(call => call[2])).toEqual(['done']);
   });
   it('refuses an unknown scope before ledger or provider', async () => {
     const f = await setup(); await expect(generatePersonalBook({ ...f.args, scope: 'unknown' as any })).rejects.toThrow('book_scope_invalid');

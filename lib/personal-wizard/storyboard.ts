@@ -12,7 +12,7 @@ import { preparePersonalStory } from './story-writer';
 import { adventureSelectionIssue } from './story-planning-contract';
 import type { PersonalWizardOptions } from './options';
 
-export const PERSONAL_STORYBOARD_VERSION = 'personal-book-storyboard/offline-v1';
+export const PERSONAL_STORYBOARD_VERSION = 'personal-book-storyboard/offline-v2';
 const digest = (data: unknown) => previewSha(canonicalJson(data));
 const fail = (code: string): never => { throw Error(`personal_storyboard_${code}`); };
 type Source = ReturnType<typeof preparePersonalStoryboard>;
@@ -43,6 +43,7 @@ export function preparePersonalStoryboard(request: unknown, writerResult: unknow
   }
   if (result.requestId !== prepared.accepted.requestId || result.displayPages !== prepared.brief.displayPages ||
       result.containsFixtureData !== prepared.accepted.containsFixtureData || digest(result.plan) !== result.planDigest) fail('source_binding');
+  if (result.characterDigest !== prepared.brief.companion.characterDigest) fail('character_binding');
   if (result.planning) {
     const originalPlan = 'editing' in result ? result.editing.original.plan : result.plan;
     if (digest(originalPlan) !== result.planning.sourcePlanDigest ||
@@ -175,7 +176,7 @@ export function personalStoryboardFrame(book: PersonalStoryboard, rawReview: unk
   const base = previewPagePrompt(book.plan, pageNumber, text, source.brief.child.age, source.brief.child.address, source.companionDescription);
   // No prior pixels are being claimed reviewed or attached by this offline bridge.
   const prompt = sequence ? sequenceRenderPrompt(base, { ...sequence, predecessor: null }, null) : base;
-  return { packetDigest, context, render: { prompt, contextSha: packetDigest },
+  return { packetDigest, context, render: { prompt, promptSha: previewSha(prompt), contextSha: packetDigest },
     qa: { context, contextSha: packetDigest }, runtimeEligible: false as const };
 }
 

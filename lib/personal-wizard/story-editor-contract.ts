@@ -20,14 +20,20 @@ export const editedStoryResultSchema = personalStoryResultObjectSchema.extend({
     providerCalls: z.literal(3), usage: personalStoryResultObjectSchema.shape.accounting.shape.usage.max(3),
   }),
   editing: z.object({
-    version: z.literal('personal-story-editor/diagnostic-v1'),
+    version: z.enum(['personal-story-editor/diagnostic-v1', 'personal-story-editor/diagnostic-v2']),
     kind: z.literal('model_edit_not_product_acceptance'),
     draftDigest: hash, finalDigest: hash, checks: storyEditorChecksSchema,
-    original: z.object({ plan: personalStoryPlanSchema, manuscript: personalManuscriptSchema }).strict(),
+    original: z.object({ plan: personalStoryPlanSchema, manuscript: personalManuscriptSchema,
+      characterDigest: hash.optional() }).strict(),
   }).strict(),
 }).strict().superRefine((result, ctx) => {
   const count = result.displayPages / 2;
   const documents = [result, result.editing.original];
+  if (result.editing.version === 'personal-story-editor/diagnostic-v2'
+      ? !result.characterDigest || result.editing.original.characterDigest !== result.characterDigest
+      : result.characterDigest !== undefined || result.editing.original.characterDigest !== undefined) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'edited_story_character_binding' });
+  }
   if (documents.some(doc => doc.plan.requestId !== result.requestId || doc.manuscript.requestId !== result.requestId ||
     doc.plan.beats.length !== count || doc.manuscript.pages.length !== count ||
     doc.plan.beats.some((beat, i) => beat.pageNumber !== i + 1) || doc.manuscript.pages.some((page, i) => page.pageNumber !== i + 1)) ||

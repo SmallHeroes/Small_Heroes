@@ -61,7 +61,10 @@ export function buildStoryComparison(raw: unknown, options: PersonalWizardOption
     const prepared = preparePersonalStory(profile.request, options);
     const request = prepared.accepted.canonical;
     const brief = { child: prepared.brief.child, facts: prepared.brief.facts.map(({ kind, value }) => ({ kind, value })),
-      startingPlace: prepared.brief.startingPlace, companion: prepared.brief.companion, topic: prepared.brief.topic,
+      // Historical artifacts may predate current profiles. Never retrofit today's
+      // character beside blind baseline prose as its authoring authority.
+      startingPlace: prepared.brief.startingPlace,
+      companion: { id: prepared.brief.companion.id, name: prepared.brief.companion.name }, topic: prepared.brief.topic,
       excludedSubjects: prepared.brief.excludedSubjects, narrativeSpreads: prepared.brief.beats };
     const results: Partial<Record<'baselineDraft' | 'baselineEdited' | 'improvedDraft' | 'improvedEdited', Result>> = {};
     for (const slot of ['baselineDraft', 'baselineEdited', 'improvedDraft', 'improvedEdited'] as const) {
@@ -97,7 +100,8 @@ export function buildStoryComparison(raw: unknown, options: PersonalWizardOption
     for (const arm of ['baseline', 'improved'] as const) {
       const draft = results[`${arm}Draft`], edit = results[`${arm}Edited`];
       if (edit && 'editing' in edit && draft) {
-        if (canonicalJson(edit.editing.original) !== canonicalJson({ plan: draft.plan, manuscript: draft.manuscript }) ||
+        if (canonicalJson(edit.editing.original) !== canonicalJson({ plan: draft.plan, manuscript: draft.manuscript,
+          ...(draft.characterDigest ? { characterDigest: draft.characterDigest } : {}) }) ||
           canonicalJson(edit.planning ?? null) !== canonicalJson(draft.planning ?? null)) fail('unrelated_edit');
         pair(blind.editingPairs, row.id, `${arm}_editing`, brief, reviewText(draft), reviewText(edit), [`${arm}Draft`, `${arm}Edited`]);
       }
