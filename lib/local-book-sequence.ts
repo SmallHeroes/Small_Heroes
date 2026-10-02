@@ -6,6 +6,8 @@ import { visualPriorityForPage, type VisualPriorityPolicy } from './local-visual
 
 // Local diagnostic authority only. Does not mint a production contract or source approval.
 export const BOOK_SEQUENCE_VERSION = 'local-book-sequence/v1';
+/** Role IDs are not roster/child identity IDs and must not be renamed by the author. */
+export const BOOK_SEQUENCE_ROLES = { child: 'child', companion: 'companion' } as const;
 const id = z.string().regex(/^[a-z][a-z0-9_]{0,49}$/);
 const hash = z.string().regex(/^[a-f0-9]{64}$/);
 const sentence = z.string().trim().min(1).max(400);
@@ -42,10 +44,10 @@ export function validateBookSequence(raw: unknown, input: {
   const s = bookSequenceSchema.parse(raw), { plan } = input;
   if (s.sourceSha !== sourceSha || s.planSha !== input.planSha) fail('source_binding');
   if (!plan.continuity || texts.length !== plan.pages.length || s.pages.length !== texts.length - 1) fail('coverage');
-  const entities = ['child', 'companion', ...plan.continuity!.entities.map(e => e.id)];
+  const entities = [BOOK_SEQUENCE_ROLES.child, BOOK_SEQUENCE_ROLES.companion, ...plan.continuity!.entities.map(e => e.id)];
   const locations = plan.locations.map(l => l.id);
   if (!unique([...entities, ...locations])) fail('ambiguous_inventory');
-  const cast = ['child', 'companion', ...plan.continuity!.entities.filter(e => e.kind === 'supporting_character').map(e => e.id)];
+  const cast = [BOOK_SEQUENCE_ROLES.child, BOOK_SEQUENCE_ROLES.companion, ...plan.continuity!.entities.filter(e => e.kind === 'supporting_character').map(e => e.id)];
   const mutable = s.mutableAttributes.map(a => `${a.entityId}:${a.attribute}`);
   if (!unique(mutable) || s.mutableAttributes.some(a => !plan.continuity!.entities.some(e => e.id === a.entityId && e.invariants.some(i => i.attribute === a.attribute)))) fail('mutable_attribute');
   // Appearance is fixed by default. Existing source-evidenced changes must opt in explicitly.
@@ -55,9 +57,9 @@ export function validateBookSequence(raw: unknown, input: {
     const n = index + 1, prior = s.pages[index - 1], planned = plan.pages[n];
     if (page.pageNumber !== n || !planned || planned.pageNumber !== n) fail('coverage');
     if (!unique(page.states.map(x => x.entityId)) || !equal(page.states.map(x => x.entityId).sort(), [...entities].sort())) fail('state_inventory');
-    if (!unique(page.visibleCastIds) || page.visibleCastIds.some(x => !cast.includes(x)) || !page.visibleCastIds.includes('child')) fail('cast_inventory');
+    if (!unique(page.visibleCastIds) || page.visibleCastIds.some(x => !cast.includes(x)) || !page.visibleCastIds.includes(BOOK_SEQUENCE_ROLES.child)) fail('cast_inventory');
     const supporting = plan.continuity!.pages[n].visibleEntityIds.filter(x => cast.includes(x));
-    if (!equal([...supporting].sort(), page.visibleCastIds.filter(x => x !== 'child' && x !== 'companion').sort())) fail('cast_binding');
+    if (!equal([...supporting].sort(), page.visibleCastIds.filter(x => x !== BOOK_SEQUENCE_ROLES.child && x !== BOOK_SEQUENCE_ROLES.companion).sort())) fail('cast_binding');
     const visible = new Set([...plan.continuity!.pages[n].visibleEntityIds, ...page.visibleCastIds]);
     for (const item of page.states) {
       const v = item.value;

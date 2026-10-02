@@ -10,6 +10,16 @@ This roadmap records technical milestone state. Guy can change product priority 
 
 ### P-personal six-companion readiness (2026-10-02)
 
+- Actual frozen ae2e73d7 cohort stopped on first storyboard after4 paid calls,
+  known usage estimate$0.295578, native2/book_storyboard_invalid. One original
+  and edited manuscript preserved; no review/packets or other five books.
+  Existing consumed family remains sealed. General authoring-contract correction
+  exposes unchanged framing, reserved role IDs and attribute joins in actual
+  storyboard input; focused313/313 andtsc0. Next: frozen full gate and independent
+  correction re-gate, then separately bounded cumulative successor experiment.
+  Model hypothesis: small matched blind Opus5.5/GPT6.1 first-draft and edit
+  comparison later; no automatic provider switch or third provider.
+
 - Exact Claude Opus5.5 High correction technical PASS621f8c76..a1fbc8d5,
   then narrow character refinement PASS a1fbc8d5..c75e6807. No literary
   acceptance. Pure prerequisite9a1ba1f2 isolates byte-identical prompt data

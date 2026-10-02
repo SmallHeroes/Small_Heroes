@@ -16,6 +16,39 @@ function continuity(): PreviewContinuity {
       visibleEntityIds: ['cake', 'bridge'], changes: [], childHeightFraction: 0.3, environmentAreaFraction: 0.7 })) };
 }
 describe('preview continuity contract', () => {
+  it.each([0, 1].flatMap(page => [
+    { page, shot: 'wide', height: .35, environment: .5, valid: true },
+    { page, shot: 'wide', height: .350001, environment: .5, valid: false },
+    { page, shot: 'wide', height: .3, environment: .499999, valid: false },
+    { page, shot: 'medium', height: .5, environment: .5, valid: true },
+    { page, shot: 'medium', height: .500001, environment: .5, valid: false },
+    { page, shot: 'medium', height: .3, environment: .499999, valid: false },
+    { page, shot: 'close', height: .85, environment: .15, valid: true },
+    { page, shot: 'close', height: .850001, environment: .15, valid: false },
+    { page, shot: 'close', height: .05, environment: .95, valid: true },
+    { page, shot: 'close', height: .049999, environment: .95, valid: false },
+    { page, shot: 'close', height: .05, environment: .950001, valid: false },
+  ]))('retains literal framing boundary $shot/$page/$height/$environment', row => {
+    const c = continuity(), p = structuredClone(plan);
+    p.pages[row.page].shot = row.shot;
+    c.pages[row.page].childHeightFraction = row.height;
+    c.pages[row.page].environmentAreaFraction = row.environment;
+    const check = () => validatePreviewContinuity(c, p, ['cover', 'one', 'two']);
+    if (row.valid) expect(check).not.toThrow(); else expect(check).toThrow();
+  });
+  it.each([6, 8, 12, 16])('keeps body-only ceil/floor shot quota for %i spreads', count => {
+    const p = structuredClone(plan), c = continuity();
+    const minimumWide = Math.ceil(count / 3), maximumClose = Math.floor(count / 3);
+    const make = (wide: number, close: number) => {
+      p.pages = Array.from({ length: count + 1 }, (_, pageNumber) => ({ ...plan.pages[0], pageNumber,
+        shot: pageNumber === 0 || pageNumber <= wide ? 'wide' : pageNumber <= wide + close ? 'close' : 'medium' }));
+      c.pages = p.pages.map(page => ({ ...structuredClone(continuity().pages[0]), pageNumber: page.pageNumber }));
+      return () => validatePreviewContinuity(c, p, p.pages.map(() => 'source'));
+    };
+    expect(make(minimumWide, maximumClose)).not.toThrow();
+    expect(make(minimumWide - 1, maximumClose)).toThrow('continuity_book_framing_quota');
+    expect(make(minimumWide, maximumClose + 1)).toThrow('continuity_book_framing_quota');
+  });
   it('preserves a visible bridge after transition and applies source-backed state cumulatively', () => {
     const c = continuity(); c.pages[1].changes = [{ entityId: 'cake', attribute: 'state', value: 'sliced', storyEvidence: 'cut the cake' }];
     validatePreviewContinuity(c, plan, ['cover', 'They cut the cake.', 'At the slope.']);

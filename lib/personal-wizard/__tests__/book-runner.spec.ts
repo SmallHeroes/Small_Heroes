@@ -631,6 +631,13 @@ describe('actual OpenAI adapter, deterministic metadata and default-off configur
     });
     const result = await generatePersonalBook({ ...f.args, settings: { ...settings, model }, provider: () => createPersonalBookProvider('fake-test-key', model) });
     expect(result.framePackets).toHaveLength(f.book.narrativeSpreads + 1); expect(sdk.create).toHaveBeenCalledTimes(5);
+    const visualPayload = sdk.create.mock.calls.find(([payload]) => payload.text.format.name === 'personal_book_storyboard')![0];
+    const authoringInput = JSON.parse(visualPayload.input);
+    expect(authoringInput.authoringRules).toEqual(f.source.planningInput.authoringRules);
+    expect(authoringInput.authoringRules.framing.wide.childHeightFractionMax).toBe(.35);
+    expect(authoringInput.authoringRules.entityBinding.reservedCastRoles).toEqual({ child: 'child', companion: 'companion' });
+    expect(authoringInput.authoringRules.attributeBinding.changeAttributeMustExistInEntityInvariants).toBe(true);
+    expect(visualPayload.instructions).toContain('Every continuity change must join an existing entity invariant attribute');
     const limits = personalBookOutputLimits(f.book.narrativeSpreads);
     const storyLimits = personalStoryOutputLimits(f.book.narrativeSpreads);
     expect(sdk.create.mock.calls.map(([payload]) => payload.max_output_tokens)).toEqual([storyLimits.planOutputTokens, storyLimits.manuscriptOutputTokens, storyEditorOutputTokens(f.book.narrativeSpreads), limits.storyboardOutputTokens, limits.reviewOutputTokens]);

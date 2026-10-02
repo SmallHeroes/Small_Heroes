@@ -12,6 +12,18 @@ const text = z.string().trim().min(1).max(1800);
 const sha = z.string().regex(/^[a-f0-9]{64}$/);
 const digest = (value: unknown) => createHash('sha256').update(JSON.stringify(value)).digest('hex');
 
+/** Existing framing limits, shared with whole-book authoring; not pixel accuracy proof. */
+export const PREVIEW_FRAMING_RULES = {
+  version: 'preview-framing/v1',
+  frameScope: 'cover_and_body',
+  childHeightFraction: { min: 0.05, max: 0.85 },
+  environmentAreaFraction: { min: 0.15, max: 0.95 },
+  nonClose: { childHeightFractionMax: 0.5, environmentAreaFractionMin: 0.5 },
+  wide: { childHeightFractionMax: 0.35 },
+  bodyQuota: { excludeCover: true, appliesFromBodyCount: 6,
+    wideMinimum: { divisor: 3, rounding: 'ceil' }, closeMaximum: { divisor: 3, rounding: 'floor' } },
+} as const;
+
 // Identity and state are separate: a sliced cake is still the same cake.
 export const previewContinuitySchema = z.object({
   // A design measurement, not a QA tolerance. Fantasy companions may be much
@@ -27,8 +39,8 @@ export const previewContinuitySchema = z.object({
     visibleEntityIds: z.array(id).max(16),
     // Evidence must be an exact substring of this page's personalized prose.
     changes: z.array(z.object({ entityId: id, attribute: text, value: text, storyEvidence: text }).strict()).max(12),
-    childHeightFraction: z.number().min(0.05).max(0.85),
-    environmentAreaFraction: z.number().min(0.15).max(0.95),
+    childHeightFraction: z.number().min(PREVIEW_FRAMING_RULES.childHeightFraction.min).max(PREVIEW_FRAMING_RULES.childHeightFraction.max),
+    environmentAreaFraction: z.number().min(PREVIEW_FRAMING_RULES.environmentAreaFraction.min).max(PREVIEW_FRAMING_RULES.environmentAreaFraction.max),
   }).strict()).min(3).max(25),
 }).strict();
 export type PreviewContinuity = z.infer<typeof previewContinuitySchema>;
@@ -60,12 +72,14 @@ export function validatePreviewContinuity(value: unknown, plan: PlanLike, texts:
         !texts[i].includes(change.storyEvidence)) throw Error('unsupported_continuity_change');
       changed.add(key);
     }
-    if (page.shot !== 'close' && (p.childHeightFraction > 0.5 || p.environmentAreaFraction < 0.5)) throw Error('continuity_framing_too_tight');
-    if (page.shot === 'wide' && p.childHeightFraction > 0.35) throw Error('continuity_wide_too_tight');
+    if (page.shot !== 'close' && (p.childHeightFraction > PREVIEW_FRAMING_RULES.nonClose.childHeightFractionMax ||
+      p.environmentAreaFraction < PREVIEW_FRAMING_RULES.nonClose.environmentAreaFractionMin)) throw Error('continuity_framing_too_tight');
+    if (page.shot === 'wide' && p.childHeightFraction > PREVIEW_FRAMING_RULES.wide.childHeightFractionMax) throw Error('continuity_wide_too_tight');
   });
   const body = c.pages.slice(1);
-  if (body.length >= 6 && (plan.pages.slice(1).filter(p => p.shot === 'wide').length < Math.ceil(body.length / 3) ||
-    plan.pages.slice(1).filter(p => p.shot === 'close').length > Math.floor(body.length / 3))) throw Error('continuity_book_framing_quota');
+  if (body.length >= PREVIEW_FRAMING_RULES.bodyQuota.appliesFromBodyCount &&
+    (plan.pages.slice(1).filter(p => p.shot === 'wide').length < Math.ceil(body.length / PREVIEW_FRAMING_RULES.bodyQuota.wideMinimum.divisor) ||
+    plan.pages.slice(1).filter(p => p.shot === 'close').length > Math.floor(body.length / PREVIEW_FRAMING_RULES.bodyQuota.closeMaximum.divisor))) throw Error('continuity_book_framing_quota');
   return c;
 }
 

@@ -13,6 +13,52 @@ import { personalStoryboardFixture } from './personal-storyboard-fixture';
 const options = resolvePersonalWizardOptions();
 
 describe('personal writer -> whole-book storyboard -> identical render/QA state', () => {
+  it.each(['short', 'medium', 'long'])('supplies the actual cross-field authoring contract for %s', async length => {
+    const f = await personalStoryboardFixture(length);
+    const rules = f.source.planningInput.authoringRules;
+    expect(rules.version).toBe('local-whole-book-authoring-rules/v1');
+    expect(rules.framing).toEqual({ version: 'preview-framing/v1', frameScope: 'cover_and_body',
+      childHeightFraction: { min: .05, max: .85 }, environmentAreaFraction: { min: .15, max: .95 },
+      nonClose: { childHeightFractionMax: .5, environmentAreaFractionMin: .5 }, wide: { childHeightFractionMax: .35 },
+      bodyQuota: { excludeCover: true, appliesFromBodyCount: 6, wideMinimum: { divisor: 3, rounding: 'ceil' }, closeMaximum: { divisor: 3, rounding: 'floor' } } });
+    expect(rules.entityBinding.reservedCastRoles).toEqual({ child: 'child', companion: 'companion' });
+    expect(rules.entityBinding.reservedRolesAreNotContinuityEntities).toBe(true);
+    expect(rules.attributeBinding).toEqual({ changeAttributeMustExistInEntityInvariants: true,
+      changeAttributeMustBeDeclaredInMutableAttributes: true, mutableAttributeMustReferenceDeclaredEntityAndInvariant: true,
+      invariantsAreInitialAttributeValuesWithExplicitMutableExceptions: true, physicalRelationsUseInitialStatesAndTransitionsNotMutableAttributes: true });
+  });
+  it('a mutated rules packet is not authority and cannot poison another source', async () => {
+    const f = await personalStoryboardFixture();
+    (f.source.planningInput.authoringRules.framing.nonClose as any).childHeightFractionMax = .8;
+    expect(() => compilePersonalStoryboard(f.source, f.draft)).toThrow('unvalidated_or_changed_source');
+    const fresh = await personalStoryboardFixture();
+    expect(fresh.source.planningInput.authoringRules.framing.nonClose.childHeightFractionMax).toBe(.5);
+  });
+  it.each(['initial_role', 'visible_role', 'change_baseline', 'mutable_baseline', 'graph_permission'])('retains rejection of authoring join defect %s', async kind => {
+    const f = await personalStoryboardFixture(), draft = structuredClone(f.draft);
+    if (kind === 'initial_role') {
+      draft.sequence.initialStates.find(s => s.entityId === 'child')!.entityId = 'cast_child';
+      // Keep sparse expansion internally consistent so the reserved inventory check fires.
+      for (const page of draft.sequence.pages) for (const transition of page.transitions) {
+        if (transition.entityId === 'child') transition.entityId = 'cast_child';
+      }
+    }
+    if (kind === 'visible_role') draft.sequence.pages[0].visibleCastIds[0] = 'cast_child';
+    // These fixture arrays are inferred as never[]; deliberately inject invalid entries.
+    if (kind === 'change_baseline') draft.plan.continuity.pages[1].changes.push({ entityId: 'hut', attribute: 'door_opening', value: 'open', storyEvidence: f.result.manuscript.pages[0].text } as never);
+    if (kind === 'mutable_baseline') draft.sequence.mutableAttributes.push({ entityId: 'hut', attribute: 'door_opening' } as never);
+    if (kind === 'graph_permission') draft.sequence.mutableAttributes.push({ entityId: 'child', attribute: 'physical_relation' } as never);
+    const code = kind === 'initial_role' ? 'state_inventory' : kind === 'visible_role' ? 'cast_inventory'
+      : kind === 'change_baseline' ? 'unsupported_continuity_change' : 'mutable_attribute';
+    expect(() => compilePersonalStoryboard(f.source, draft)).toThrow(code);
+  });
+  it('retains the actual failed-cover wide framing constraint without clamping', async () => {
+    const f = await personalStoryboardFixture(), draft = structuredClone(f.draft);
+    draft.plan.pages[0].shot = 'wide'; draft.plan.continuity.pages[0].childHeightFraction = .45;
+    const before = structuredClone(draft);
+    expect(() => compilePersonalStoryboard(f.source, draft)).toThrow('continuity_wide_too_tight');
+    expect(draft).toEqual(before);
+  });
   it.each([['short', 8, 16], ['medium', 12, 24], ['long', 16, 32]])('binds all %s spreads and ending before extracting frames', async (length, count, display) => {
     const f = await personalStoryboardFixture(length as string);
     expect(f.book.narrativeSpreads).toBe(count); expect(f.book.displayPages).toBe(display);

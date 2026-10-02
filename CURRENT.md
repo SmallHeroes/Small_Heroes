@@ -1,5 +1,54 @@
 # SmallHeroes — Current Technical State
 
+## Actual trial stop and shared storyboard-authoring correction, 2026 10 02
+
+Latest state supersedes earlier pre-execution entries below. Exact Claude
+Opus5.5 High independently passed b78264b7..ae2e73d7, bounded technical review,
+no new material findings. It read Git/code/control flow, did NOT run our41 tests,
+tsc or full suite; those were reported evidence. CLI usage estimate0.1718768USD,
+not invoice. The paid experiment then ran frozen ae2e73d7 with requested
+gpt-6.1-sol/medium, existing authorized key, and stopped technically on case1
+after4 actual calls: plan/manuscript/editor/storyboard. Native exit2,
+book_storyboard_invalid; family sealed with book_trial_failed. No semantic
+review call, packets, images/audio or other five books. Estimated OpenAI usage
+0.295578USD, not invoice, known usage on all four completed adapter calls.
+Original and edited prose are readable in the diagnostic reader; no book PASS.
+
+Offline frozen replay reproduces continuity_wide_too_tight. An explicitly
+in-memory numeric counterfactual exposes unsupported_continuity_change; it
+does NOT repair, publish or accept anything. Saved authoring output also has
+cast-prefixed aliases instead of literal child/companion and undeclared
+baseline/mutable attributes. The model's actual input did not supply the
+validator's cross-field framing thresholds, reserved role literals or attribute
+joins. This is an authoring-contract gap, not measured proof of sole causality
+or guaranteed compliance after correction. Output token caps were not reached.
+
+Approved narrow correction in sole-writer codex/personal-book-storyboard-bridge,
+personal-story-product worktree, base ae2e73d7: share existing numeric rules and
+role IDs with their validators; include a cloned versioned authoringRules packet
+in actual storyboard input; clarify baseline/mutable versus physical graph joins.
+All previous limits/rejections remain; no clamps, aliases, retries or invalid
+output promotion. Cover obeys limits but never counts toward body shot quotas.
+313/313 in six focused specs (54+33+70+127+22+7); tsc0 and diffcheck clean.
+Frozen full check and independent exact-range correction review are next;
+prior full gate remains RED, not a release/stability or semantic acceptance.
+
+Paid local ignored root outputs/personal-six-companion-books-20261002 contains
+18 files, manifest lists17 others;17/17 sizes/SHA verified before correction.
+Manifest itself SHA b55979e561d7843964ee4ccdede4afe854750defad232779b1b5edf1d5f39892.
+No verified backup. Preserve all outputs and permanent common-Git claim;
+never reset/resume or silently replenish30 calls through another family.
+No new OpenAI call/key read for correction, no provider switch, old bank,
+site/wizard deployment, render/audio, push or protected-worktree edit.
+
+Guy accepts a later small blinded Opus5.5 versusGPT6.1 experiment, not an
+established literary winner. First drafts and edits must be judged separately
+on matched synthetic inputs. Claude Code OAuth/CLI is independent engineering
+QA, not a production Anthropic API integration. No third provider now.
+Any successor paid experiment needs a linked cumulative spend/attempt guard
+and explicit bounds; consumed prior family remains sealed. Decision:
+PERSONAL_STORYBOARD_AUTHORING_RULES_DECISION_20261002.md.
+
 ## Six-book guard independent review and display correction, 2026 10 02
 
 Exact Claude Opus5.5 High independently gave bounded technical PASS for

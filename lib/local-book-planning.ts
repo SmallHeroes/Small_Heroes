@@ -1,9 +1,29 @@
 import { z } from 'zod';
-import { BOOK_SEQUENCE_VERSION, bookSequenceSchema, validateBookSequence } from './local-book-sequence';
+import { BOOK_SEQUENCE_VERSION, BOOK_SEQUENCE_ROLES, bookSequenceSchema, validateBookSequence } from './local-book-sequence';
 import { previewPlanV2Schema, previewSha, previewStoryEvidence, validatePreviewPlan, type previewStory } from './local-story-preview';
-import { validatePreviewContinuity } from './local-preview-quality';
+import { PREVIEW_FRAMING_RULES, validatePreviewContinuity } from './local-preview-quality';
 
 export const WHOLE_BOOK_PLANNING_VERSION = 'local-whole-book-planning/v2';
+/** Author-facing joins that the existing compiler already requires. No new permission. */
+export const WHOLE_BOOK_AUTHORING_RULES = {
+  version: 'local-whole-book-authoring-rules/v1',
+  framing: PREVIEW_FRAMING_RULES,
+  entityBinding: {
+    reservedCastRoles: BOOK_SEQUENCE_ROLES,
+    reservedRolesAreNotContinuityEntities: true,
+    initialStateInventory: 'reserved cast roles plus every continuity entity, no location IDs',
+    visibleCastInventory: 'reserved cast roles plus supporting_character continuity entities; child is required',
+    supportingCastMustMatchVisibleContinuityEntities: true,
+    entityAndLocationIdsMustBeDistinct: true,
+  },
+  attributeBinding: {
+    changeAttributeMustExistInEntityInvariants: true,
+    changeAttributeMustBeDeclaredInMutableAttributes: true,
+    mutableAttributeMustReferenceDeclaredEntityAndInvariant: true,
+    invariantsAreInitialAttributeValuesWithExplicitMutableExceptions: true,
+    physicalRelationsUseInitialStatesAndTransitionsNotMutableAttributes: true,
+  },
+} as const;
 // The model authors facts, never their hashes. Sparse transitions avoid restating
 // every unchanged fact on every page. Expansion is deterministic before any image.
 const sequencePage = bookSequenceSchema.shape.pages.element;
@@ -22,6 +42,8 @@ Return one object with plan and sequence. Plan retains the existing visual-plan 
 Sequence is mandatory and covers ALL body pages, not the cover. State the book premise and choose one readable beat per page.
 Assign stable scene visit IDs: a scene continues until a source-supported time/place/situation cut. Camera/angle changes are NOT scene cuts.
 Entity IDs (including child and companion) and location IDs must be distinct across the entire book; use separate IDs for a place and its landmark.
+Read authoringRules before drafting. Use its reservedCastRoles values EXACTLY for the child and companion in initialStates, visibleCastIds and relation targets.
+Do not substitute names, roster IDs or cast-prefixed aliases. Do not add these two reserved roles to continuity.entities; that inventory is for other entities.
 Declare initialStates for child, companion and EVERY continuity entity (not location IDs). Use unestablished/null for not-yet-introduced entities.
 Track the principal physical relation per entity: at, inside, beside, on, held_by, attached_to, or unestablished.
 Targets are declared entity/location IDs, never invented names. held_by targets a cast member. Do not create containment/custody cycles.
@@ -32,13 +54,17 @@ For pages without changes, transitions is empty. Page1 has no transitions or sce
 Changes must be semantically supported, not merely accompanied by an unrelated matching quote. Do not use cuts to hide unexplained relocation.
 visibleCastIds controls the drawn cast; hidden entities retain their physical state without being forced into the image.
 Keep appearances, structure, scale and geography fixed. mutableAttributes lists only story-supported appearance/state attributes that may change.
+Every continuity change must join an existing entity invariant attribute AND a matching mutableAttributes entry.
+Declare its initial value in invariants before changing it. Physical relation transitions are a separate graph; do not add undeclared relation attributes to mutableAttributes.
 Separate WORLD STATE from PRESENTATION: vary camera, distance, angle, framing, expression and gaze without changing physical relationships.
+Follow authoringRules.framing cross-field limits for ALL frames, including cover0. Shot quotas count body pages only, excluding cover0.
 Do not duplicate compositions just to preserve continuity. Do not add an object before its reveal, and do not draw multiple sequential instants.
 Plan the ending too so later states do not contradict earlier setup. Never rewrite the approved story.`;
 
 export function wholeBookPlanningInput(story: ReturnType<typeof previewStory>, childAge: number, gender: string, companionDescription: string) {
   previewStoryEvidence(story);
-  return { planningVersion: WHOLE_BOOK_PLANNING_VERSION, story: structuredClone(story), childAge, gender, companionDescription };
+  return { planningVersion: WHOLE_BOOK_PLANNING_VERSION, authoringRules: structuredClone(WHOLE_BOOK_AUTHORING_RULES),
+    story: structuredClone(story), childAge, gender, companionDescription };
 }
 
 export function compileWholeBookDraft(raw: unknown, story: ReturnType<typeof previewStory>) {
