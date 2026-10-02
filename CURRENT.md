@@ -1,5 +1,29 @@
 # SmallHeroes — Current Technical State
 
+## Independent authoring review and runtime immutability correction
+
+Claude Opus5.5 High gave bounded technical PASS ae2e73d7..dfc47ee3 with one
+Low: canonical rule objects were mutable at runtime despite TypeScript as const.
+It independently read all changed lines/call sites and recomputed paid17/17
+hashes; did NOT run tests/tsc/full. CLI usage estimate0.5835504USD, not invoice.
+Valid finding now corrected separately: freeze all nested rule/role objects;
+recursive Reflect.set/delete/new-key probes assert mutation fails. Input clone
+stays mutable for existing source-mutation rejection. Physical-graph wording
+clarified without any new permission or validator threshold change.
+Final focused314/314 (54+33+71+127+22+7), standalone tsc0, diffcheck clean.
+Independent successor re-gate remains pending, no self-PASS.
+
+Full check completed on frozen dfc47ee3 BEFORE this narrow correction: native1.
+Ordinary385 files:10failed/5701passed/73skipped; resource20:635passed, but3
+onTaskUpdate RPC errors and phase native1. Both gates failed. Missing historical
+artifacts occur among ordinary failures; no new baseline-causality inference.
+No full rerun for nested Object.freeze successor; final focused/tsc are scoped
+evidence only. Log OS TEMP personal-storyboard-authoring-full-dfc47ee3-20261002.log.
+Actual paid draft replayed against frozen dfc47ee3, not just a synthetic case:
+continuity_wide_too_tight, original SHA b0942c7b... unchanged, zero provider/key/
+write/clamp. Immutable root and claim preserved; no new OpenAI charges.
+Handoff PERSONAL_STORYBOARD_AUTHORING_RULES_QA_20261002.md.
+
 ## Actual trial stop and shared storyboard-authoring correction, 2026 10 02
 
 Latest state supersedes earlier pre-execution entries below. Exact Claude

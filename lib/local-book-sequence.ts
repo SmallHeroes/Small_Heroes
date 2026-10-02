@@ -7,7 +7,7 @@ import { visualPriorityForPage, type VisualPriorityPolicy } from './local-visual
 // Local diagnostic authority only. Does not mint a production contract or source approval.
 export const BOOK_SEQUENCE_VERSION = 'local-book-sequence/v1';
 /** Role IDs are not roster/child identity IDs and must not be renamed by the author. */
-export const BOOK_SEQUENCE_ROLES = { child: 'child', companion: 'companion' } as const;
+export const BOOK_SEQUENCE_ROLES = Object.freeze({ child: 'child', companion: 'companion' } as const);
 const id = z.string().regex(/^[a-z][a-z0-9_]{0,49}$/);
 const hash = z.string().regex(/^[a-f0-9]{64}$/);
 const sentence = z.string().trim().min(1).max(400);

@@ -5,25 +5,25 @@ import { PREVIEW_FRAMING_RULES, validatePreviewContinuity } from './local-previe
 
 export const WHOLE_BOOK_PLANNING_VERSION = 'local-whole-book-planning/v2';
 /** Author-facing joins that the existing compiler already requires. No new permission. */
-export const WHOLE_BOOK_AUTHORING_RULES = {
+export const WHOLE_BOOK_AUTHORING_RULES = Object.freeze({
   version: 'local-whole-book-authoring-rules/v1',
   framing: PREVIEW_FRAMING_RULES,
-  entityBinding: {
+  entityBinding: Object.freeze({
     reservedCastRoles: BOOK_SEQUENCE_ROLES,
     reservedRolesAreNotContinuityEntities: true,
     initialStateInventory: 'reserved cast roles plus every continuity entity, no location IDs',
     visibleCastInventory: 'reserved cast roles plus supporting_character continuity entities; child is required',
     supportingCastMustMatchVisibleContinuityEntities: true,
     entityAndLocationIdsMustBeDistinct: true,
-  },
-  attributeBinding: {
+  }),
+  attributeBinding: Object.freeze({
     changeAttributeMustExistInEntityInvariants: true,
     changeAttributeMustBeDeclaredInMutableAttributes: true,
     mutableAttributeMustReferenceDeclaredEntityAndInvariant: true,
     invariantsAreInitialAttributeValuesWithExplicitMutableExceptions: true,
     physicalRelationsUseInitialStatesAndTransitionsNotMutableAttributes: true,
-  },
-} as const;
+  }),
+} as const);
 // The model authors facts, never their hashes. Sparse transitions avoid restating
 // every unchanged fact on every page. Expansion is deterministic before any image.
 const sequencePage = bookSequenceSchema.shape.pages.element;
@@ -55,7 +55,7 @@ Changes must be semantically supported, not merely accompanied by an unrelated m
 visibleCastIds controls the drawn cast; hidden entities retain their physical state without being forced into the image.
 Keep appearances, structure, scale and geography fixed. mutableAttributes lists only story-supported appearance/state attributes that may change.
 Every continuity change must join an existing entity invariant attribute AND a matching mutableAttributes entry.
-Declare its initial value in invariants before changing it. Physical relation transitions are a separate graph; do not add undeclared relation attributes to mutableAttributes.
+Declare its initial value in invariants before changing it. Record physical relations in initialStates and transitions, not mutableAttributes.
 Separate WORLD STATE from PRESENTATION: vary camera, distance, angle, framing, expression and gaze without changing physical relationships.
 Follow authoringRules.framing cross-field limits for ALL frames, including cover0. Shot quotas count body pages only, excluding cover0.
 Do not duplicate compositions just to preserve continuity. Do not add an object before its reveal, and do not draw multiple sequential instants.

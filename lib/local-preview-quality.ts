@@ -13,16 +13,17 @@ const sha = z.string().regex(/^[a-f0-9]{64}$/);
 const digest = (value: unknown) => createHash('sha256').update(JSON.stringify(value)).digest('hex');
 
 /** Existing framing limits, shared with whole-book authoring; not pixel accuracy proof. */
-export const PREVIEW_FRAMING_RULES = {
+export const PREVIEW_FRAMING_RULES = Object.freeze({
   version: 'preview-framing/v1',
   frameScope: 'cover_and_body',
-  childHeightFraction: { min: 0.05, max: 0.85 },
-  environmentAreaFraction: { min: 0.15, max: 0.95 },
-  nonClose: { childHeightFractionMax: 0.5, environmentAreaFractionMin: 0.5 },
-  wide: { childHeightFractionMax: 0.35 },
-  bodyQuota: { excludeCover: true, appliesFromBodyCount: 6,
-    wideMinimum: { divisor: 3, rounding: 'ceil' }, closeMaximum: { divisor: 3, rounding: 'floor' } },
-} as const;
+  childHeightFraction: Object.freeze({ min: 0.05, max: 0.85 }),
+  environmentAreaFraction: Object.freeze({ min: 0.15, max: 0.95 }),
+  nonClose: Object.freeze({ childHeightFractionMax: 0.5, environmentAreaFractionMin: 0.5 }),
+  wide: Object.freeze({ childHeightFractionMax: 0.35 }),
+  bodyQuota: Object.freeze({ excludeCover: true, appliesFromBodyCount: 6,
+    wideMinimum: Object.freeze({ divisor: 3, rounding: 'ceil' as const }),
+    closeMaximum: Object.freeze({ divisor: 3, rounding: 'floor' as const }) }),
+} as const);
 
 // Identity and state are separate: a sliced cake is still the same cake.
 export const previewContinuitySchema = z.object({

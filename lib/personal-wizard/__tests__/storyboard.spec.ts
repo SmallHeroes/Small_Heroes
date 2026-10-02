@@ -9,10 +9,28 @@ import { existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, rmSync, sy
 import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 import { personalStoryboardFixture } from './personal-storyboard-fixture';
+import { WHOLE_BOOK_AUTHORING_RULES } from '../../local-book-planning';
 
 const options = resolvePersonalWizardOptions();
 
 describe('personal writer -> whole-book storyboard -> identical render/QA state', () => {
+  it('keeps every canonical authoring rule object immutable at runtime', () => {
+    const before = canonicalJson(WHOLE_BOOK_AUTHORING_RULES);
+    const inspect = (value: unknown) => {
+      if (!value || typeof value !== 'object') return;
+      expect(Object.isFrozen(value)).toBe(true);
+      expect(Reflect.set(value, 'unexpectedRule', true)).toBe(false);
+      for (const [key, child] of Object.entries(value)) {
+        expect(Reflect.set(value, key, null)).toBe(false);
+        expect(Reflect.deleteProperty(value, key)).toBe(false);
+        inspect(child);
+      }
+    };
+    inspect(WHOLE_BOOK_AUTHORING_RULES);
+    expect(canonicalJson(WHOLE_BOOK_AUTHORING_RULES)).toBe(before);
+    expect(WHOLE_BOOK_AUTHORING_RULES.framing.wide.childHeightFractionMax).toBe(.35);
+    expect(WHOLE_BOOK_AUTHORING_RULES.entityBinding.reservedCastRoles).toEqual({ child: 'child', companion: 'companion' });
+  });
   it.each(['short', 'medium', 'long'])('supplies the actual cross-field authoring contract for %s', async length => {
     const f = await personalStoryboardFixture(length);
     const rules = f.source.planningInput.authoringRules;
