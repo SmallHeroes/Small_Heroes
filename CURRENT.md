@@ -1,5 +1,35 @@
 # SmallHeroes — Current Technical State
 
+## Existing local voice-to-story pilot reconfirmed 2026 10 02
+
+Guy asked to connect live decoding and create a personal story from scratch.
+Read-only investigation at `2ec333a3` found that no new API connection or budget
+is required for the first local test: the original loopback pilot remains alive
+on `127.0.0.1:3443`, listener PID 145892. An initial sandbox listener query did
+not return a listener; elevated OS inspection and HTTP corrected that observation.
+No process was restarted and no consumed claim, limit or ledger was reset.
+
+Actual HTTP: updated wizard and login both 200; unsigned intake status returns
+`live:false, reason:not_signed_in`; unsigned `book?scope=story_only` returns 401
+`not_signed_in`. Those responses are authentication evidence, not remaining-budget
+or provider-success proof. Existing operator must sign in in regular Chrome and
+return to the wizard; its focus availability refresh is already implemented.
+Live stages are audio transcription/extraction -> editable and removable facts ->
+companion/length -> reviewed request -> whole-story planning/manuscript/editor.
+`StoryPreview` requests `story_only`, at most three model attempts, no storyboard,
+image render, narration, order or payment. Existing one-intake <=$0.10 and one-book
+<=$1 limits remain; authoritative POST ledgers may refuse a consumed allowance.
+No new allowance or successful complete live book is asserted.
+
+Five current focused specs passed 190/190 with mocked providers: intake client,
+intake routes, book routes, book runner and prototype boundaries. No real provider
+call or cost was incurred. Standalone `npx tsc --noEmit` exited 0; no full
+check rerun or independent technical PASS is claimed. Browser automation timed
+out twice, so no new authenticated browser/microphone/decoding observation is
+claimed. QA cloud remains paid-off: it lacks the current text-book endpoint and
+durable cross-instance budget/jobs. No cloud guard relaxation, database migration,
+Vercel setting, public-site change or push occurred. Source code is unchanged.
+
 ## Latest recording UI on the text engine 2026 10 01
 
 Committed integration `4eacbb96`, frozen code range `961fcd20..4eacbb96`, local
