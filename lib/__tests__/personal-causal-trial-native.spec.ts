@@ -46,6 +46,10 @@ describe('pinned native transport with a fake process, never Claude invocation',
     expect(child.stdin()).toBe(h.call.input); expect(spawn).toHaveBeenCalledTimes(1);
     const [exe, args, options] = vi.mocked(spawn).mock.calls[0] as unknown as [string, string[], { env: Record<string, string>; windowsHide: boolean }];
     expect(exe).toBe(h.exe); expect(options.windowsHide).toBe(true);
+    expect(args.slice(0, 13)).toEqual(['-p', '--safe-mode', '--model', CAUSAL_MODELS.opus, '--effort', 'medium', '--tools', '',
+      '--no-session-persistence', '--output-format', 'json', '--max-budget-usd', '1']);
+    expect(args[13]).toBe('--system-prompt-file'); expect(args[14]).toBe(h.instructions); expect(args[15]).toBe('--json-schema');
+    expect(args).toHaveLength(17);
     expect(options.env.CLAUDE_CODE_MAX_OUTPUT_TOKENS).toBe('8000'); expect(options.env).not.toHaveProperty('ANTHROPIC_API_KEY');
     expect(process.env.CLAUDE_CODE_MAX_OUTPUT_TOKENS).toBe('999');
     expect(readFileSync(args[args.indexOf('--system-prompt-file') + 1], 'utf8')).toBe(h.call.instructions);

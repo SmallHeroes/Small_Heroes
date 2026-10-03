@@ -1,5 +1,43 @@
 # SmallHeroes — Current Technical State
 
+## Causal connection technical HOLD regression correction 2026 10 03
+
+Claude Code returned HOLD for 73ced594..8e49f05d: no production behavior bug,
+but missing isolated admission tests (P2-1) and exact safe-mode/tools argv
+assertions (P2-2). Codex added coverage in the two existing host/native specs
+only. Runtime, models, effort, caps, pricing authority, prompts, schemas and
+wizard/site are unchanged. Independent corrective re-gate remains required.
+
+Focused 16 specs: 666/666; standalone tsc: 0. Twenty-one targeted in-memory
+mutations are caught. Two negative controls load the old specs from Git into
+memory: deleting approval-cap binding or safe-mode still passes all old 52
+tests, but fails the new coverage. No claim to catch all reviewer mutations.
+Selected P3 coverage also pins receipts/accounting/sealing, completion audit,
+dispatch claims, junction components, review byte limit and Astra cap/wire.
+Private protocol backup guards (P3-4), early executable preflight (P3-5) and
+broad terminal diagnostic (P3-6) are not corrected by this test-only milestone.
+
+Full native npm check: exit 1. Ordinary 390 files: 10 missing-artifact failures,
+5898 passed / 73 skipped; both affected specs passed (58 + 14). Resource 20
+files: 20 failures / 615 passed of 635, plus 4 onTaskUpdate RPC errors. The gate
+remains RED; no fresh full baseline or claim of timeout cause/stability. After
+that run only a test-title claim was narrowed, without changing assertions;
+the final focused/type/mutation measurements were refreshed: 666/666, tsc 0,
+21 mutations caught and both old-test controls pass with guards deleted.
+Before/after preservation: 479/479 SHA, size and .NET ticks unchanged (451
+historical files plus 28 prior connection evidence files), with the older exact
+343 records also matching. It does not retroactively prove the added 108 hashes.
+Evidence is local/ignored
+in outputs/personal-causal-connection-qa-correction-20261003; no verified backup.
+
+Before any new paid family: verify current prices, then explicitly authorize
+minimal Astra response-identity/schema calibration and one fictional split-stage
+book with unchanged medium effort. Historical combined author usage is not a
+measurement of the new split calls; their caps and Astra response identity
+remain pre-live risks. No new live driver, allowance or key/provider/spend,
+model-generated book, render, push or deployment in this correction.
+See docs/ai-workflow/PERSONAL_CAUSAL_CONNECTION_QA_CORRECTION_20261003.md.
+
 ## Offline causal trial connection implementation 2026 10 03
 
 Guy approved the offline connection proposal from73ced594. Codex implemented

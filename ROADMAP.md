@@ -10,6 +10,21 @@ This roadmap records technical milestone state. Guy can change product priority 
 
 ### P-personal six-companion readiness (2026-10-02)
 
+- Claude's connection HOLD covers 73ced594..8e49f05d: two blocking coverage gaps,
+  not production behavior defects. Test-only corrective successor: isolated
+  admission clauses, exact fresh safe-mode/no-tools argv and selected receipt,
+  filesystem and Astra transport boundaries. Focused 666/666, tsc 0; 21 targeted
+  mutations caught and two old-test negative controls reproduce the gaps.
+  Independent re-gate pending. P3-4/5/6 remain. Full native gate stays RED:
+  ordinary 10 missing artifacts / 5898 passed / 73 skipped; resource 20 failures
+  / 615 passed plus 4 RPC errors. Both affected specs pass in the full gate.
+  No fresh full baseline or timeout causality claim. Before/after 479/479 files
+  unchanged; this new baseline does not extend older exact proof beyond 343.
+  Next after re-gate: current primary-source prices and explicitly priced small
+  response-identity/split-stage calibration before a six-book paid family.
+  No cap/model/effort change, production migration, live call, key/spend, render,
+  public wizard/site cutover, push or deployment.
+
 - Approved offline connection implemented from73ced594: diagnostic same-process
   host, durable common-Git one-use family journal and Opus/Astra adapters.
   Fresh author/editor and isolated original/final-before-comparison readings;

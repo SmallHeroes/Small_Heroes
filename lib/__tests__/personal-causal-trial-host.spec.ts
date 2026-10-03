@@ -1,12 +1,14 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { existsSync, linkSync, mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, linkSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, renameSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { spawn } from 'node:child_process';
+import { execFileSync, spawn } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { z } from 'zod';
+import { zodTextFormat } from 'openai/helpers/zod';
 import { causalTrialCohort } from '../../scripts/personal-causal-cohort';
 import { createCausalTrialHost, readCausalReviewFile, causalOutputCap, type CausalHostPolicy, type CausalHostTransport } from '../../scripts/personal-causal-trial-host';
-import { CausalFamilyJournal, exclusiveJson } from '../../scripts/personal-causal-trial-journal';
+import { CausalFamilyJournal, exclusiveJson, realDirectory } from '../../scripts/personal-causal-trial-journal';
 import { prepareCausalWire, CAUSAL_MODELS, CausalTransportError, createAstraCausalTransport, type WirePolicy } from '../../scripts/personal-causal-trial-adapters';
 import { BACKWARD_DEPENDENCIES, CAUSAL_EXPERIMENT_VERSION } from '../personal-wizard/story-causal-experiment';
 import type { CausalDispatch } from '../personal-wizard/story-causal-experiment-runner';
@@ -14,7 +16,7 @@ import { fixtureAdventureSelection } from '../personal-wizard/__tests__/story-pl
 import { fixtureEditorOutput } from '../personal-wizard/__tests__/personal-storyboard-fixture';
 
 const dirs: string[] = [];
-afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks(); for (const dir of dirs.splice(0)) rmSync(dir, { recursive: true, force: true }); });
+afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks(); vi.unstubAllGlobals(); for (const dir of dirs.splice(0)) rmSync(dir, { recursive: true, force: true }); });
 function temporary() { const d = mkdtempSync(path.join(tmpdir(), 'causal-host-test-')); dirs.push(d); return d; }
 function policy(root: string): CausalHostPolicy {
   return { version: 'causal-trial-host/v1', family: 'synthetic-offline-family', sourceHead: 'a'.repeat(40), maximumMicroUsd: 100_000_000,
@@ -62,6 +64,63 @@ const criticCall = (): CausalDispatch => ({ role: 'astra', stage: 'final_review'
   instructions: 'Synthetic critic instructions.', input: '{"synthetic":true}', schema: z.object({ value: z.string() }).strict(), maxOutputTokens: 12_000 });
 const wirePolicy = (root: string): WirePolicy => ({ ...policy(root), workspace: root, rates: policy(root).pricing.rates });
 
+// A real, clean TEMP Git source makes each removed admission clause observable:
+// a negative cannot pass just because it falls through to an unrelated source error.
+function constructionFixture() {
+  const root = temporary(), p = policy(root), key = vi.fn(() => 'SYNTHETIC UNUSED KEY');
+  writeFileSync(p.executable, 'SYNTHETIC NOT EXECUTABLE');
+  p.executableSha256 = createHash('sha256').update(readFileSync(p.executable)).digest('hex');
+  const env = Object.fromEntries(Object.entries(process.env).filter(([k]) => !/^GIT_/i.test(k))) as NodeJS.ProcessEnv;
+  const git = (...args: string[]) => execFileSync('git', args, { cwd: root, env, encoding: 'utf8', windowsHide: true }).trim();
+  git('init', '-q'); git('add', '--', path.basename(p.executable));
+  git('-c', 'user.name=Synthetic Fixture', '-c', 'user.email=fixture@example.invalid', 'commit', '-q', '-m', 'Synthetic clean source');
+  p.sourceHead = git('rev-parse', 'HEAD'); p.mode = 'live_explicit';
+  p.pricing.checkedAt = new Date().toISOString();
+  p.approval = { reference: 'Synthetic TEST approval, NOT Guy live consent.', maximumMicroUsd: p.maximumMicroUsd, acknowledgesCliEstimateLimits: true };
+  const transport = vi.fn<CausalHostTransport>(), assertSource = vi.fn();
+  const injected = { commonDir: root, transport, assertSource };
+  const args: Parameters<typeof createCausalTrialHost>[0] = { workspace: root, outputRoot: path.join(root, 'output'), policy: p,
+    cases: causalTrialCohort().slice(0, 1), signal: new AbortController().signal, existingOpenAIKey: key };
+  return { root, p, args, key, injected, transport };
+}
+
+describe('independent live admission clauses without providers', () => {
+  const cases: { name: string; code: string; mutate: (h: ReturnType<typeof constructionFixture>) => void }[] = [
+    { name: 'offline without injection or key', code: 'authorization', mutate: h => { h.p.mode = 'offline_injected'; h.p.approval = null; delete h.args.existingOpenAIKey; } },
+    { name: 'offline without injection but with key', code: 'authorization', mutate: h => { h.p.mode = 'offline_injected'; h.p.approval = null; } },
+    { name: 'offline with approval', code: 'authorization', mutate: h => { h.p.mode = 'offline_injected'; h.args.injected = h.injected; } },
+    { name: 'live with injection', code: 'authorization', mutate: h => { h.args.injected = h.injected; } },
+    { name: 'live without approval', code: 'authorization', mutate: h => { h.p.approval = null; } },
+    { name: 'live approved maximum differs from policy', code: 'authorization', mutate: h => { h.p.approval!.maximumMicroUsd -= 1; } },
+    { name: 'live without key callback', code: 'authorization', mutate: h => { delete h.args.existingOpenAIKey; } },
+    { name: 'stale pricing', code: 'pricing_stale', mutate: h => { h.p.pricing.checkedAt = new Date(Date.now() - 172_800_000).toISOString(); } },
+    { name: 'future pricing', code: 'pricing_stale', mutate: h => { h.p.pricing.checkedAt = new Date(Date.now() + 3_600_000).toISOString(); } },
+    { name: 'non-fictional child including story place', code: 'fictional_only', mutate: h => {
+      const request = h.args.cases[0].request as ReturnType<typeof causalTrialCohort>[number]['request'];
+      for (const field of ['nameSource', 'ageSource', 'addressSource', 'residenceSource'] as const) request.child[field] = 'typed';
+      for (const fact of request.facts) fact.source = 'typed';
+      if (request.storyPlace) request.storyPlace.source = 'typed';
+      if (request.intent?.kind === 'topic') delete request.intent.suggestedBy;
+    } },
+  ];
+  it.each(cases)('$name fails its own admission clause before key/transport and without new artifacts', ({ code, mutate }) => {
+    const h = constructionFixture(), inventory = readdirSync(h.root, { recursive: true });
+    const fetcher = vi.fn<typeof fetch>(() => { throw Error('Unexpected network'); }); vi.stubGlobal('fetch', fetcher);
+    mutate(h); expect(() => createCausalTrialHost(h.args)).toThrow(`causal_host_${code}`);
+    expect(h.key).not.toHaveBeenCalled(); expect(h.transport).not.toHaveBeenCalled();
+    expect(fetcher).not.toHaveBeenCalled();
+    expect(readdirSync(h.root, { recursive: true })).toEqual(inventory);
+    expect(existsSync(h.args.outputRoot)).toBe(false); expect(existsSync(path.join(h.root, 'codex-causal-text-trials'))).toBe(false);
+  }, 15_000);
+  it('otherwise valid live admission constructs without reserving or opening a client', () => {
+    const h = constructionFixture(), inventory = readdirSync(h.root, { recursive: true });
+    const host = createCausalTrialHost(h.args);
+    expect(host.snapshot().host.mode).toBe('live_explicit'); expect(host.snapshot().coordinator.phase).toBe('new');
+    expect(h.key).not.toHaveBeenCalled(); expect(h.transport).not.toHaveBeenCalled();
+    expect(readdirSync(h.root, { recursive: true })).toEqual(inventory); host.stop();
+  }, 15_000);
+});
+
 describe('one-shot causal trial connection (zero live providers)', () => {
   it('reserves all42slots and crosses the real coordinator in36isolated logical dispatches', async () => {
     const h = harness(6), bundle = await h.host.plan().catch(error => { throw new Error(`${error.message} host=${h.host.snapshot().host.failureCode}`); });
@@ -77,7 +136,18 @@ describe('one-shot causal trial connection (zero live providers)', () => {
     for (const [wire, call] of h.transport.mock.calls) {
       expect(wire.outputCap).toBe(call.maxOutputTokens); expect(wire.bytes).toBe(Buffer.byteLength(wire.json));
       expect(call.role === 'opus' ? wire.args?.includes('--no-session-persistence') : wire.payload.store === false).toBe(true);
+      const slot = call.conversationKey.split(':').slice(-2).join(':');
+      const receipt = JSON.parse(readFileSync(path.join(h.root, 'codex-causal-text-trials', h.p.family, `receipt-${slot.replace(':', '-')}.json`), 'utf8'));
+      expect(receipt).toMatchObject({ slot, attempted: true, receipt: { estimatedMicroUsd: 1, usage: { inputTokens: 1, outputTokens: 1 }, metadata: { synthetic: true } } });
+      expect(receipt.receipt.output).toEqual(output(call));
     }
+    const accounting = JSON.parse(readFileSync(path.join(h.args.outputRoot, 'host-accounting.json'), 'utf8'));
+    expect(accounting).toEqual({ reservedMicroUsd: manifest.reservedMicroUsd, logicalAttempts: 36, knownEstimateMicroUsd: 36,
+      unknownAttemptCosts: 0, kind: 'estimate_not_invoice', runtimeEligible: false });
+    const sealed = JSON.parse(readFileSync(path.join(h.root, 'codex-causal-text-trials', h.p.family, 'sealed.json'), 'utf8'));
+    expect(sealed.reason).toBe('completed_diagnostic'); expect(sealed.runtimeEligible).toBe(false);
+    expect(sealed.claims).toEqual(h.transport.mock.calls.map(([, c]) => c.conversationKey.split(':').slice(-2).join(':')));
+    expect(sealed.settled).toEqual(sealed.claims);
   // This performs36durable filesystem dispatches, not a production latency SLA.
   }, 30_000);
   it('has no key/transport access at construction and rejects implicit live mode and undersized budget', () => {
@@ -197,6 +267,33 @@ describe('one-shot causal trial connection (zero live providers)', () => {
     const h = harness(); h.assertSource.mockImplementation(() => { throw Error('private source detail'); });
     await expect(h.host.plan()).rejects.toThrow('causal_host_failed'); expect(h.transport).not.toHaveBeenCalled();
   });
+  it('completion audits earlier receipts after later stages, not only manifest authority', async () => {
+    const h = harness(), bundle = await h.host.plan();
+    writeFileSync(path.join(h.root, 'codex-causal-text-trials', h.p.family, 'receipt-case1-plan.json'), '{}');
+    await expect(h.host.write(h.review(bundle))).rejects.toThrow('record_changed');
+    expect(h.transport).toHaveBeenCalledTimes(6); expect(h.host.snapshot().host.closed).toBe(true);
+  });
+  it('dispatch rechecks the durable claim before creating dispatch evidence', () => {
+    const root = temporary(), family = 'direct-journal-family', digest = 'a'.repeat(64);
+    const journal = CausalFamilyJournal.reserve({ commonDir: root, outputRoot: path.join(root, 'output'), family, coordinatorDigest: digest,
+      maximumMicroUsd: 1, slots: [{ id: 'case1:plan', capMicroUsd: 1 }], manifest: { synthetic: true } });
+    journal.claim(family, digest, 'case1:plan'); writeFileSync(path.join(journal.directory, 'claim-case1-plan.json'), '{}');
+    expect(() => journal.dispatch('case1:plan', { synthetic: true })).toThrow('record_changed');
+    expect(existsSync(path.join(journal.directory, 'dispatch-case1-plan.json'))).toBe(false); journal.seal('test_stopped');
+  });
+  it('a junction parent cannot confer authority through an ordinary nested directory', () => {
+    const root = temporary(), target = path.join(root, 'target'), alias = path.join(root, 'alias');
+    mkdirSync(path.join(target, 'nested'), { recursive: true }); symlinkSync(target, alias, 'junction');
+    expect(() => realDirectory(path.join(alias, 'nested'))).toThrow('causal_host_directory');
+    expect(() => realDirectory(path.join(target, 'nested'))).not.toThrow();
+  });
+  it.each([10_000, 10_001])('review file boundary%d is tested with otherwise valid JSON', bytes => {
+    const root = temporary(), file = path.join(root, 'review.json');
+    const text = JSON.stringify({ sourceDigest: 'a'.repeat(64), decisions: [{ caseId: 'case1', decision: 'hold', reason: 'Synthetic explicit hold reason.' }] });
+    writeFileSync(file, text + ' '.repeat(bytes - Buffer.byteLength(text)));
+    if (bytes === 10_000) expect(readCausalReviewFile(file).decisions[0].decision).toBe('hold');
+    else expect(() => readCausalReviewFile(file)).toThrow('causal_host_review_file');
+  });
 });
 
 describe('actual outgoing SDK wire and diagnostic CLI arguments', () => {
@@ -235,12 +332,39 @@ describe('actual outgoing SDK wire and diagnostic CLI arguments', () => {
     expect(() => prepareCausalWire({ ...c, instructions: 'x'.repeat(104_000) }, p, 1_000_000)).toThrow('wire_limit');
     expect(() => prepareCausalWire({ ...c, role: 'opus' }, p, 1_000_000)).toThrow('wire_contract');
   });
+  it('Astra aggregate output above the cap preserves measured usage but rejects completion', async () => {
+    const root = temporary(), c = criticCall(), wire = prepareCausalWire(c, wirePolicy(root), 1_000_000);
+    const fetcher = vi.fn<typeof fetch>(async () => new Response(JSON.stringify({ object: 'response', id: 'resp_synthetic',
+      model: CAUSAL_MODELS.astra, status: 'completed', service_tier: 'default', usage: { input_tokens: 2, output_tokens: c.maxOutputTokens + 1 },
+      output: [{ type: 'message', role: 'assistant', content: [{ type: 'output_text', text: '{"value":"ok"}' }] }] }),
+      { status: 200, headers: { 'content-type': 'application/json' } }));
+    const run = createAstraCausalTransport({ key: () => 'fake', rates: wirePolicy(root).rates.astra, fetch: fetcher });
+    const error = await run(wire, c, new AbortController().signal).then(() => null, e => e);
+    expect(error).toBeInstanceOf(CausalTransportError); expect(error.code).toBe('usage');
+    expect(error.receipt.usage.outputTokens).toBe(c.maxOutputTokens + 1); expect(error.receipt.estimatedMicroUsd).toBe(c.maxOutputTokens + 3);
+    expect(fetcher).toHaveBeenCalledTimes(1);
+  });
+  it.each(['input', 'instructions', 'schema'] as const)('self-consistent Astra wire from another%s is refused before key/fetch', field => {
+    const root = temporary(), c = criticCall(), other = { ...c };
+    if (field === 'input') other.input = '{"synthetic":"different"}';
+    if (field === 'instructions') other.instructions += ' Different instructions.';
+    if (field === 'schema') other.schema = z.object({ other: z.string() }).strict();
+    const wire = prepareCausalWire(other, wirePolicy(root), 1_000_000), key = vi.fn(() => 'fake');
+    const fetcher = vi.fn<typeof fetch>(async () => new Response('{}'));
+    const run = createAstraCausalTransport({ key, rates: wirePolicy(root).rates.astra, fetch: fetcher });
+    return expect(run(wire, c, new AbortController().signal)).rejects.toThrow('wire_contract').then(() => {
+      expect(key).not.toHaveBeenCalled(); expect(fetcher).not.toHaveBeenCalled();
+    });
+  });
   it.each([8, 12, 16])('Opus%d stages use exact per-request cap, fresh CLI and no resume/fallback', spreads => {
     const root = temporary(), p = wirePolicy(root);
     for (const stage of ['plan', 'replan', 'author', 'editor'] as const) {
       const c = { ...criticCall(), stage, role: 'opus' as const, maxOutputTokens: causalOutputCap(spreads, stage) };
       const wire = prepareCausalWire(c, p, 1_000_000, path.join(root, `${stage}.txt`));
       expect(wire.stdin).toBe(c.input); expect(wire.args).toContain(CAUSAL_MODELS.opus);
+      expect(wire.args).toEqual(['-p', '--safe-mode', '--model', CAUSAL_MODELS.opus, '--effort', 'medium', '--tools', '',
+        '--no-session-persistence', '--output-format', 'json', '--max-budget-usd', '1', '--system-prompt-file', path.join(root, `${stage}.txt`),
+        '--json-schema', JSON.stringify(zodTextFormat(c.schema, `causal_${stage}`).schema)]);
       expect(wire.payload.environmentOverride).toEqual({ CLAUDE_CODE_MAX_OUTPUT_TOKENS: String(c.maxOutputTokens) });
       for (const forbidden of ['--bare', '--resume', '--continue', '--fallback-model', '--dangerously-skip-permissions']) expect(wire.args).not.toContain(forbidden);
     }
