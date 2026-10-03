@@ -40,3 +40,10 @@ export function prepareStoryTextReview(prepared: PreparedStory, rawOriginal: unk
     bindings: { originalDigest: digest(original), revisedDigest: digest(revised), providerCalls: 0, costUsd: 0,
       runtimeEligible: false as const, noQualityVerdict: true } };
 }
+
+/** Isolated original-only reading. Never includes the editor or a second version. */
+export function prepareOriginalStoryTextReview(prepared: PreparedStory, rawOriginal: unknown) {
+  const packet = prepareStoryTextReview(prepared, rawOriginal, rawOriginal).final;
+  return { ...packet, version: 'personal-story-text-review/original-v1',
+    instructions: packet.instructions.replace('FINAL complete', 'ORIGINAL complete') };
+}

@@ -1,5 +1,28 @@
 # SmallHeroes — Current Technical State
 
+## Causal planning experiment implementation 2026 10 03
+
+A committed71375d32, independent re-gate pending. Approved B is a separate
+diagnostic coordinator: Opus-role plan before prose, synopsis/backward dependencies,
+one reserved replan only after both rejected, ALL plans before cohort review,
+fresh editor diagnosis and0..3 evidence-backed strengths, independent original
+and final Astra-role readings frozen before comparison. No fixed story/location
+quota or global schema/provider migration. Six varied fictional profiles include
+sparse/no-topic/same-hobby distinct habits; consumed trial unchanged.
+The diagnostic profile also relaxes the legacy mandatory failed attempt in all
+three Opus-role stages without changing the current runtime instruction string.
+50 new tests, expanded582/582, tsc0, seven in-memory mutations caught. First B
+native stages RED: ordinary10missing-artifact failures; resource8timeouts+4RPC.
+Final-profile native capture also RED: both type checks0; ordinary388files,
+10missing-artifact failures/5814passed/73skipped; resource20files,
+1test timeout/634passed of635+3RPC errors. No full baseline or timeout causal
+attribution.272historical files exact-preserved;11A files currently inventoried.
+No provider/key/spend/render/push/deploy.
+Roles/context keys are requested contracts, not actual model attestation. Live
+adapter, durable family claims, priced new budget and paid measurement remain
+unimplemented/unapproved. runtimeEligible false throughout, no quality verdict.
+See docs/ai-workflow/PERSONAL_CAUSAL_EXPERIMENT_20261003.md and approved decision.
+
 ## Current edit admission implementation 2026 10 03
 
 Guy approved separate milestones A integrity and B causal planning experiment.

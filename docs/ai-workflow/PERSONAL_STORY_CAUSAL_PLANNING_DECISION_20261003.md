@@ -1,5 +1,14 @@
 # Personal story causal planning decision
 
+## Decision record
+
+Guy explicitly approved milestones A then B on 2026-10-03 after the revised
+proposal below. Approval is for implementation and offline tests, not another
+paid family, runtime rollout, push, deployment or render. Codex continues as sole
+writer in the current task/worktree. A is committed at 71375d32; B has its own
+successor range and independent Claude Code handoff. The proposal wording below
+records the pre-approval rationale; its pending-language does not undo this record.
+
 Recommendation for Guy: strengthen the existing planner and editor instead of
 adding another story engine. The six-book trial showed that exact citations and
 self-audits do not protect meaning: independent comparison found new causal damage

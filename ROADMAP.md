@@ -10,6 +10,17 @@ This roadmap records technical milestone state. Guy can change product priority 
 
 ### P-personal six-companion readiness (2026-10-02)
 
+- Approved B limited causal experiment implemented in isolated diagnostic modules:
+  split plan/prose, all synopses before cohort review, bounded rejection/replan,
+  editor diagnosis/strengths, original/final-before-comparison critic packets.
+  Experimental failed-attempt mandate relaxed, current prompt unchanged.
+  50 new tests, expanded582/582, tsc0, seven mutations caught. Current GPT runtime
+  and consumed native trial unchanged. No live adapter, durable claims or new
+  paid authorization; independent Claude re-gate then costed measurement needed.
+  First B native stages RED10ordinary/8resource failures+4RPC. Final-profile
+  capture RED10ordinary/1resource failure+3RPC, both type checks0.272historical
+  files exact-preserved; no visual/product/release acceptance or causal claim.
+
 - Guy approved A current admission and B limited causal planning experiment.
   A current receipt/server/frame/display guards implemented, archive preserved;
   322/322, four mutations caught, tsc0, 272 exact-preserved files. Full gate RED,
