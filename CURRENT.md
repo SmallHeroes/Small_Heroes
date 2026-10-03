@@ -1,5 +1,48 @@
 # SmallHeroes — Current Technical State
 
+## Approved Opus original plus editor plus Astra trial 2026 10 03
+
+Guy approved additional1.20USD for a FRESH one-use fictional Neta experiment.
+Completed on frozen clean1c6a0326: Opus5.5 original concept selection, whole
+plan/manuscript in one CLI invocation; separate fresh Opus5.5 editor; final-first
+gpt-6-astra named-model subagent literary advisory. No old GPT plot/draft sent
+to author. This is NOT the product runner or a production provider migration.
+
+Both CLI children native0/success, two reported turns each, only Opus5.5 in
+modelUsage. Author estimate0.2892632USD, editor0.324972USD; per-call rounded sum
+0.614235USD, prior two Opus experiments plus new total1.277727USD. Not invoice,
+not all-project total or exact internal API-call count. Each threshold0.60USD;
+Astra subscription usage separately unmeasured. No retry, render/audio/storyboard,
+product API/key extraction, push/deployment or changed wizard execution path.
+
+Editor self-HOLD remains in immutable receipt: hebrew_and_age needs_work.
+Structural admission succeeded; soft age-four target35..65 words exceeded by
+all8 original spreads698words, edited544words with6 spreads above target. These
+metrics are not literary verdicts. Astra, without self-ratings, found a good
+live adventure and editing gains, but two meaningful unresolved issues: ambiguous
+magic deadline and arbitrary feather-to-slide clue. No blocking literary finding
+reported; NOT excellent-story acceptance or technical/product PASS. Preserve
+the enacted child agency, practical companion support, humour and revised climax.
+No further paid revision automatically authorized by unused budget.
+
+Free preparation32/32 plus guard34/34; actual-output offline closeout151 checks,
+50 historical files SHA/size/mtime unchanged across3 old roots plus failed claim.
+New replay preflight actually rejected chain_already_consumed before dispatch.
+Original/final plan, manuscript and source bindings independently recomputed;
+exact argv retained. effectiveCodeSha256 hashes transformed BODY, not metadata
+header; materialized raw hash is separate in closeout-verification.json.
+
+Local reader and full Astra advisory saved under ignored
+outputs/personal-opus-author-approved-20261003, no verified backup. Raw receipt's
+qaStatus not_started is its earlier execution snapshot; additive trial-closeout.json
+records completed advisory without rewriting paid evidence. Reader static16article,
+UTF8/RTL/exact escaped-prose checks only; open-in-app queued, no browser-run claim.
+Standalone tsc0; no full rerun for docs-only closeout, last full gate remains RED.
+Report PERSONAL_OPUS_AUTHOR_APPROVED_OUTCOME_20261003.md includes technical QA
+handoff. Claude Code independent re-gate remains pending; no self awarded PASS.
+Next: Guy reads this original/edited pair; focused age/cause editing and product
+Opus adapter/wizard connection require separately scoped work, not a claimed cutover.
+
 ## Opus original authoring chain 2026 10 03
 
 Guy replaced the proposed GPT draft editing continuation before dispatch:

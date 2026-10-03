@@ -10,13 +10,24 @@ This roadmap records technical milestone state. Guy can change product priority 
 
 ### P-personal six-companion readiness (2026-10-02)
 
+- Fresh additional1.20USD approved2026-10-03; Opus5.5 original author and separate
+  Opus editor completed frozen1c6a0326, then final-first Astra subagent advisory.
+  Two CLI invocations native0; new estimate0.614235USD, prior+new1.277727USD,
+  not invoice; Astra subscription unmeasured. No product provider migration.
+  Edited544words versus original698,6/8 edited spreads above soft age-four target.
+  Editor self-HOLD retained; Astra finds good adventure, two meaningful issues
+  (magic deadline, arbitrary feather clue), not excellent-story acceptance.
+  Offline151 checks,50 preserved historical files; replay rejected before dispatch.
+  Reader/report in ignored personal-opus-author-approved-20261003, no verified
+  backup. Independent technical QA pending, last full gate RED, no auto revision.
+
 - Guy now requires Opus5.5 original authoring, separate Opus edit, Astra QA.
   One fictional combined author CLI experiment on832f97de HELD at0.30 budget:
   native1/error_max_budget_usd, estimate0.325524USD, no returned manuscript,
   editor or Astra dispatch. Prior+new Opus estimates0.663492USD, not invoice.
   Per-stage allocation was insufficient; no story-quality conclusion. Old
   family remains sealed;32 historical files preserved, no product migration.
-  Fresh two-slot0.60+0.60 CLI proposal needs additional1.20 allowance approval.
+  This was the earlier failed family; fresh proposal approval and outcome above.
   Astra subagent review would be separate unmeasured subscription usage, not
   an API invoice or independent technical PASS. Full gate remains RED.
 
