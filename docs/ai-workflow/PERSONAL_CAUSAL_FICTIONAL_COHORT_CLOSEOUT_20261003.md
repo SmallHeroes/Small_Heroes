@@ -44,8 +44,12 @@ valid six-child fictional cohort, positively constructs/stops an unreserved
 host, then makes just one later member non-fictional (indices 1 through 5).
 Child provenance, facts, story place and suggested-topic provenance are
 converted together so no remaining fixture flag masks the target clause.
-Each case demands `causal_host_fictional_only`, zero key/transport/fetch calls,
-unchanged filename inventory, and no output or common-family path. Filename
+Each case demands `causal_host_fictional_only`, zero real key-callback/fetch
+calls, unchanged filename inventory, and no output or common-family path.
+The fixture transport spy is not passed to live args; its zero-call assertion
+is not instrumentation of native transport. No native transport/client creation
+at admission is supported by source inspection of the lazy dispatch path.
+Filename
 inventory does not claim fixture-byte or Git-index timestamp preservation.
 This checks declared fixture provenance, not the truth of a child's identity.
 
@@ -93,7 +97,8 @@ Fresh priced Guy approval and driver validation precede any paid execution.
 
 ## Independent re-gate targets and rollback
 
-Freeze the committed successor to `57fe01cf`, check its exact parent and five
+Freeze the range from base `57fe01cf` to its committed successor, check the
+test commit's exact parent and five
 paths, and confirm production bytes match the base. Try first-child-only and
 last-child-only scans, remove the fixture-only guard, or weaken the exact
 error expectation. Verify each case is otherwise admissible and the old-spec
