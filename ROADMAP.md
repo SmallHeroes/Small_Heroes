@@ -10,6 +10,15 @@ This roadmap records technical milestone state. Guy can change product priority 
 
 ### P-personal fifteen-companion expansion (2026-10-03)
 
+- Guy now commissions Claude to freely re-profile all fifteen, existing six
+  included. Source roster is six active + seven candidates + two open land
+  choices; every friend needs identifiable humour and broad adventure/resilience
+  participation, not a topic/plot prescription. Full creative brief and local
+  current-source bundle saved; Claude not invoked by Codex. Guy reviews before
+  versioned engine/appearance admission. Forwarded technical PASS is exactly
+  d3ab01ce..926c28be, with three nonblocking P3 notes, not product/visual PASS.
+  No asset generation, runtime/site QA, carousel, provider/key use or push.
+
 - Owner-approved candidate follow-up: upright lion front/alternate and Momo,
   kangaroo Nula, dog Zohar alternates saved, five built-in calls, no retries/key.
   No active identity replacement. Offline 361 assertions, five negative controls,

@@ -1,5 +1,30 @@
 # SmallHeroes — Current Technical State
 
+## All companion creative profiling commissioned 2026 10 03
+
+Guy authorizes Claude to freely re-profile the full intended fifteen, including
+the existing six, with identifiable voices, independent wants, differentiated
+humour and broad adventure/resilience participation. Current inputs are six
+active plus seven candidates; two non-aquatic, non-insect, non-tiny choices are
+open for Claude's proposals. Creative freedom does not activate a profile,
+change an ID/appearance/ability silently, or impose a fixed therapeutic plot.
+
+Brief: docs/ai-workflow/PERSONAL_ALL_COMPANIONS_CREATIVE_BRIEF_20261003.md.
+Local source packet: outputs/personal-companion-creative-brief-20261003, exact
+source copies and hashed image references, no verified remote backup. Includes
+all current definitions, pending profiles/specs, latest posture/views and both
+Claude reports. Historical category hooks and superseded aquatic/insect concepts
+are explicitly non-authoritative. Claude's deliverable is a creative proposal,
+not an independent PASS on his own profiles; Guy accepts before Codex integration.
+
+Forwarded Claude technical PASS covers only d3ab01ce..926c28be, no blocking
+findings; three nonblocking P3 notes remain: eligibility on specs not bare
+profiles, lion's legacy/display/sheet split, and distinct historical Zohar ID.
+This does not close full stability, visual qualification or product acceptance.
+No production/site/QA/carousel change, render, provider/key call, push or deploy
+in the briefing milestone. Continue in this Lead task; no execution task opened.
+Claude has not been invoked by Codex; the saved brief is ready for Guy to forward.
+
 ## Upright lion and missing companion views saved 2026 10 03
 
 Guy requested a two-legged lion candidate, missing angles and Claude creative
