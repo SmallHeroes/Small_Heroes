@@ -10,6 +10,16 @@ This roadmap records technical milestone state. Guy can change product priority 
 
 ### P-personal six-companion readiness (2026-10-02)
 
+- Guy now requires Opus5.5 original authoring, separate Opus edit, Astra QA.
+  One fictional combined author CLI experiment on832f97de HELD at0.30 budget:
+  native1/error_max_budget_usd, estimate0.325524USD, no returned manuscript,
+  editor or Astra dispatch. Prior+new Opus estimates0.663492USD, not invoice.
+  Per-stage allocation was insufficient; no story-quality conclusion. Old
+  family remains sealed;32 historical files preserved, no product migration.
+  Fresh two-slot0.60+0.60 CLI proposal needs additional1.20 allowance approval.
+  Astra subagent review would be separate unmeasured subscription usage, not
+  an API invoice or independent technical PASS. Full gate remains RED.
+
 - Isolated approved Opus5.5 editorial CLI sample completed2026-10-03 at08fe8d7c,
   medium, estimated0.337968USD, no product migration/render. Actual schema and
   bindings checked; original18 files preserved. Some local prose/humour gains,

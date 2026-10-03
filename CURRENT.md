@@ -1,5 +1,37 @@
 # SmallHeroes — Current Technical State
 
+## Opus original authoring chain 2026 10 03
+
+Guy replaced the proposed GPT draft editing continuation before dispatch:
+Opus5.5 writes the original, a fresh Opus invocation edits, then GPT6Astra
+independently reviews prose. Cancelled continuation claim/output both absent;
+no charge. New experimental family frozen832f97de uses fictional Neta brief
+ONLY, with no prior GPT outline/manuscript sent to the author. Concepts,
+whole outline and manuscript are combined in one CLI invocation; this differs
+from production's split planner/writer. No product provider/accounting change.
+
+Run HELD on author budget: CLI native1/error_max_budget_usd, two reported
+turns, only Opus5.5 modelUsage, elapsed134.067s, estimate0.325524USD against
+configured0.30 threshold. No structured_output/result returned. No admitted
+draft, editor call or Astra review. Do not infer literary quality from this
+failure: Codex's per-stage allocation was insufficient. CLI budget is not a
+hard invoice cap. New+previous Opus CLI estimates total0.663492USD; unrelated
+earlier cohort/review costs excluded. Astra subscription cost not measured.
+
+Permanent common Git claim remains consumed, no retry/reset. Free preflight
+20/20 and guard34/34 probes; after failure32/32 historical files unchanged
+SHA/size/mtime, three exact script hashes retained, actual rerun rejected
+chain_already_consumed before dispatch. Structural checks did not run against
+a returned story, because none was returned. No self PASS, render, narration,
+storyboard, key extraction, push or deployment. Raw terminal receipt preserved.
+Ignored outputs/personal-opus-authored-astra-qa-20261003 has no verified backup.
+
+Next proposed fresh family: two CLI thresholds0.60USD each, additional1.20USD
+estimated allowance, then named Astra subagent literary QA. Explicit new spend
+approval requested, not assumed; old family never resumes. Product API Opus
+adapter, end-to-end wizard connection and literary acceptance still open.
+Report PERSONAL_OPUS_AUTHOR_CHAIN_20261003.md; last full gate remains RED.
+
 ## Isolated Opus editorial sample 2026 10 03
 
 Guy approved one fictional Neta draft/profile transfer to Anthropic through
