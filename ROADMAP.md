@@ -10,6 +10,16 @@ This roadmap records technical milestone state. Guy can change product priority 
 
 ### P-personal fifteen-companion expansion (2026-10-03)
 
+- Owner-approved candidate follow-up: upright lion front/alternate and Momo,
+  kangaroo Nula, dog Zohar alternates saved, five built-in calls, no retries/key.
+  No active identity replacement. Offline 361 assertions, five negative controls,
+  88 exact-preserved files; tsc 0 and existing character/canon 44/44. Shared
+  gallery and Claude creative/technical brief saved; independent review pending.
+  Unknown model/tier/cost; scale and full sheets still unqualified. Next review
+  must challenge personality overlaps and deliberate versioned admission,
+  especially lion's mixed front/sheets/legacy reference/idle seams. No push/site
+  QA/carousel/runtime change. Two new land companion concepts remain undefined.
+
 - Owner refinement supersedes the original animal list: no aquatic animals,
   insects or tiny companions. Six remaining/replacement candidate identities
   plus Momo are proposed; two additional replacements still need definition.

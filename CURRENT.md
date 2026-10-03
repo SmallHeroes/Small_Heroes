@@ -1,5 +1,38 @@
 # SmallHeroes — Current Technical State
 
+## Upright lion and missing companion views saved 2026 10 03
+
+Guy requested a two-legged lion candidate, missing angles and Claude creative
+opinion plus independent QA. Codex completed five built-in image calls: upright
+lion front and reference-bound alternate; Momo, kangaroo Nula and dog Zohar
+alternates bound to their own fronts. No retries, API-key access or text-budget
+use. Model, tier, usage and monetary charge are unknown. All candidates remain
+unqualified and runtime-ineligible; the existing lion still resolves unchanged.
+
+Packet: outputs/personal-companion-view-completion-20261003, local/ignored with
+no verified backup. Exact prompts, original/copy hashes, appearance proposal,
+shared-renderer gallery, pre-generation baseline and verifier saved. Offline
+check: 361 assertions, five negative controls caught, 88 prior files preserved
+with exact SHA/size/mtimeNs. tsc 0; existing character/lion canon tests 44/44.
+The first verifier failed on Date rounding, not file mutation; exact integer
+timestamp comparison resolved that measurement defect. Full gate not rerun;
+prior RED/open stability remains, not release acceptance.
+
+Lion body is four limbs: two supporting feet and two forepaw arms, no accessory.
+Alternate angles remain unmeasured; Momo/lion appear shallower than requested.
+Nula's alternate looks slightly warmer; Zohar retains the front's fluffy tail.
+Scale comparisons and side/back/expression sheets are still missing. Seven new
+identities remain proposals, not nine: two land-animal vacancies still open.
+
+Future promotion must reconcile front/multi-view references, spotlight/idle,
+literary body authority, appearance versions and stored anchors together. The
+legacy companion.image lion JPG contains forbidden accessories; this inherited
+seam is mapped, not changed or closed. No production, site QA, carousel, registry,
+book render, push or deployment. Gallery opening queued, not a viewport audit.
+Creative differentiation and technical admission review remain independent
+Claude/Guy gates. Exact immutable range and PowerShell commands are saved in
+the new packet's HANDOFF.md after the focused local documentation commit.
+
 ## Companion candidates expanded with land-only product refinement 2026 10 03
 
 Guy accepted Momo's appearance and requested the remaining friends. During the
