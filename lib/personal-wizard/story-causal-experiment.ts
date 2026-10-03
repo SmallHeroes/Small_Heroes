@@ -27,16 +27,22 @@ const backward = z.object({ changedState: dependency, childDiscovery: dependency
   companionContribution: dependency, earnedPayoff: dependency }).strict();
 const candidatePair = adventureSelectionSchema.pick({ candidates: true, contrast: true });
 // Explicit diagnostic instruction profile. Keep every other approved constraint,
-// but do not impose the legacy failed-attempt plot on every experimental book.
+// but do not impose the legacy failed-attempt plot or assume a deadline.
 const legacyAttemptClause = 'a failed attempt with consequences and ';
-if (STORY_INSTRUCTIONS.split(legacyAttemptClause).length !== 2 || !STORY_EDITOR_INSTRUCTIONS.startsWith(STORY_INSTRUCTIONS)) {
+const legacyDeadlineClause = 'when a deadline is reached, what happens if it is missed, and which earlier observation or ability enables the solution';
+const conditionalDeadlineClause = 'which earlier observation or ability enables the solution. If the selected adventure uses a deadline, state when it is reached and what happens if it is missed. Do not presume or add a deadline merely to satisfy this guidance';
+if (STORY_INSTRUCTIONS.split(legacyAttemptClause).length !== 2 || !STORY_EDITOR_INSTRUCTIONS.startsWith(STORY_INSTRUCTIONS) ||
+  NARRATIVE_CRAFT_INSTRUCTIONS.split(legacyDeadlineClause).length !== 2 ||
+  STORY_EDITOR_INSTRUCTIONS.split(NARRATIVE_CRAFT_INSTRUCTIONS).length !== 2) {
   throw new CausalExperimentError('instruction_profile_changed');
 }
 export const CAUSAL_STORY_INSTRUCTIONS = STORY_INSTRUCTIONS.replace(legacyAttemptClause, '') +
   '\nA failed attempt is optional. A boundary, negotiation, helping another character, changed goal or creative compromise can carry resilience. Do not require all these or impose the same sequence on every book.';
-const causalEditorInstructions = CAUSAL_STORY_INSTRUCTIONS + STORY_EDITOR_INSTRUCTIONS.slice(STORY_INSTRUCTIONS.length);
+export const CAUSAL_NARRATIVE_CRAFT_INSTRUCTIONS = NARRATIVE_CRAFT_INSTRUCTIONS.replace(legacyDeadlineClause, conditionalDeadlineClause);
+const causalEditorInstructions = CAUSAL_STORY_INSTRUCTIONS + STORY_EDITOR_INSTRUCTIONS.slice(STORY_INSTRUCTIONS.length)
+  .replace(NARRATIVE_CRAFT_INSTRUCTIONS, CAUSAL_NARRATIVE_CRAFT_INSTRUCTIONS);
 
-export const CAUSAL_PLAN_INSTRUCTIONS = `${CAUSAL_STORY_INSTRUCTIONS}\n${RESILIENCE_INSTRUCTIONS}\n${NARRATIVE_CRAFT_INSTRUCTIONS}
+export const CAUSAL_PLAN_INSTRUCTIONS = `${CAUSAL_STORY_INSTRUCTIONS}\n${RESILIENCE_INSTRUCTIONS}\n${CAUSAL_NARRATIVE_CRAFT_INSTRUCTIONS}
 This is PLANNING ONLY, no manuscript. Compare two genuinely different adventures A and B using curiosity, discovery, consequential child choices, companion want and earned payoff, with approved fact IDs. Scenery/prop substitutions are insufficient. Say why a child would want the next part and which surprising, funny or emotional ending is worth reaching. If BOTH ideas are weak, return both_rejected with the two ideas and reason, not a forced choice or plan. Only the host may permit one separately reserved planning reattempt.
 For a selected idea, first describe the entire adventure as a continuous synopsis, not a compliance list. Then produce exactly the chosen number of ordered beats. Work backwards from the climax: what changed, how the child noticed/tried/understood, the prepared ability/object/rule enabling action, why the companion matters, and the established desire/relationship paid off. Cite exact fields of actual planned beats. These are questions, NOT a plot formula. No mandatory timer, broken object, companion mistake, mechanical rescue or location quota. A special rule has explicit conditions and consequences; a climax cannot quietly change it. A fundamental unresolved outline problem must mark needs_work; prose is not a rescue for a weak premise. Do not number beat arrays; the engine numbers them. No other child's profile or prior story is available.`;
 
@@ -72,9 +78,9 @@ export function compileCausalPlan(prepared: PreparedStory, raw: unknown) {
     if (!plan.beats[ref.pageNumber - 1]?.[ref.field].includes(ref.quote)) causalFail('dependency_evidence');
   }
   // Exact references prove provenance, never causal entailment or literary merit.
-  const body = { ...data, plan, ...binding, planDigest: causalDigest(plan), runtimeEligible: false as const };
-  return { ...body, disposition: selectionIssue ? 'outline_held' as const : 'selected' as const,
-    planningDigest: causalDigest(body) };
+  const body = { ...data, disposition: selectionIssue ? 'outline_held' as const : 'selected' as const,
+    plan, ...binding, planDigest: causalDigest(plan), runtimeEligible: false as const };
+  return { ...body, planningDigest: causalDigest(body) };
 }
 export type CausalPlan = ReturnType<typeof compileCausalPlan>;
 export type SelectedCausalPlan = Extract<CausalPlan, { planningDigest: string }>;
@@ -103,8 +109,9 @@ export function causalAuthorSchema(prepared: PreparedStory, plan: SelectedCausal
 export function compileCausalOriginal(prepared: PreparedStory, plan: SelectedCausalPlan, raw: unknown): StoryReviewDocument {
   if (plan.disposition !== 'selected' || plan.requestDigest !== causalDigest(prepared.accepted.canonical) ||
     plan.briefDigest !== causalDigest(prepared.brief) || plan.planDigest !== causalDigest(plan.plan)) causalFail('plan_binding');
-  const { planningDigest, disposition, ...body } = plan;
-  if (causalDigest({ ...body, disposition: 'selected' }) !== planningDigest) causalFail('plan_binding');
+  const { planningDigest, ...body } = plan;
+  if (causalDigest(body) !== planningDigest || adventureSelectionIssue(plan.selection, prepared.brief.facts,
+    prepared.brief.beats, plan.plan.beats.flatMap(beat => beat.factIds))) causalFail('plan_binding');
   const parsed = causalAuthorSchema(prepared, plan).safeParse(raw);
   if (!parsed.success) return causalFail('author_schema');
   const doc = { plan: structuredClone(plan.plan), characterDigest: prepared.brief.companion.characterDigest,

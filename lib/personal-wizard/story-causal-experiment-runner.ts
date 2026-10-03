@@ -1,13 +1,13 @@
 import 'server-only';
 import type { ZodTypeAny } from 'zod';
 import { canonicalJson } from './request-acceptance';
-import { preparePersonalStory, RESILIENCE_INSTRUCTIONS, NARRATIVE_CRAFT_INSTRUCTIONS } from './story-writer';
+import { preparePersonalStory, RESILIENCE_INSTRUCTIONS } from './story-writer';
 import { personalStoryOutputLimits } from './story-config';
 import type { PersonalWizardOptions } from './options';
 import { withGenerationDeadline } from './generation-deadline';
 import { measureStoryText } from './story-text-metrics';
 import type { StoryReviewDocument } from './story-text-review';
-import { CAUSAL_EXPERIMENT_VERSION, CAUSAL_PLAN_INSTRUCTIONS, CAUSAL_STORY_INSTRUCTIONS, CausalExperimentError, causalDigest, causalFail,
+import { CAUSAL_EXPERIMENT_VERSION, CAUSAL_PLAN_INSTRUCTIONS, CAUSAL_STORY_INSTRUCTIONS, CAUSAL_NARRATIVE_CRAFT_INSTRUCTIONS, CausalExperimentError, causalDigest, causalFail,
   causalPlanSchema, compileCausalPlan, causalAuthorSchema, compileCausalOriginal, causalEditorCall, causalEditorSchema,
   compileCausalEdit, causalReviewPackets, causalCriticSchema, compileCausalReading, type CausalPlan } from './story-causal-experiment';
 
@@ -123,7 +123,7 @@ export function createCausalExperiment(args: {
         if (approved.decisions.find(d => d.caseId === c.id)?.decision !== 'write') continue;
         const chosen = last(plans.find(p => p.caseId === c.id)!.attempts)!;
         if (!('planningDigest' in chosen) || chosen.disposition !== 'selected') return causalFail('plan_binding');
-        const rawOriginal = await dispatch(c.id, 'author', { instructions: `${CAUSAL_STORY_INSTRUCTIONS}\n${RESILIENCE_INSTRUCTIONS}\n${NARRATIVE_CRAFT_INSTRUCTIONS}`,
+        const rawOriginal = await dispatch(c.id, 'author', { instructions: `${CAUSAL_STORY_INSTRUCTIONS}\n${RESILIENCE_INSTRUCTIONS}\n${CAUSAL_NARRATIVE_CRAFT_INSTRUCTIONS}`,
           input: canonicalJson({ brief: c.prepared.brief, plan: chosen.plan, planDigest: chosen.planDigest,
             synopsis: chosen.synopsis, backwardDependencies: chosen.backwardDependencies,
             task: 'Write the entire Hebrew adventure, one COMPLETE text per ordered beat through earned resolution. No pageNumber metadata. Age 3 to 5 target 35 to 65 words per spread; age 6 to 8 target 45 to 85. Targets are measured separately, not quality scores. No previous story or author conversation.' }),

@@ -10,6 +10,16 @@ This roadmap records technical milestone state. Guy can change product priority 
 
 ### P-personal six-companion readiness (2026-10-02)
 
+- Claude independently reviewed A and B through edfaec81: A PASS, B HOLD for
+  deadline presupposition. Corrective successor makes actual dispatched guidance
+  conditional, binds effective plan disposition and rechecks outline admission.
+  Candidate-pair and real current-wrapper wiring coverage added.594/594, tsc0,
+  base-control7failures,14 mutations caught;311files exact-preserved. Native npm
+  check RED:10ordinary missing-artifact failures/5826passed;8resource timeouts/
+  627passed+4RPC errors. No full baseline or timeout causal attribution. Existing
+  runtime/provider/trial unchanged. No paid run or visual/site integration;
+  corrective independent re-gate needed before the new costed trial milestone.
+
 - Approved B limited causal experiment implemented in isolated diagnostic modules:
   split plan/prose, all synopses before cohort review, bounded rejection/replan,
   editor diagnosis/strengths, original/final-before-comparison critic packets.

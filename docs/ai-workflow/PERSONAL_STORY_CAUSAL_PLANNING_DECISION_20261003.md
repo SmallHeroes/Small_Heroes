@@ -2,6 +2,13 @@
 
 ## Decision record
 
+Claude Code reviewed the separate A and B ranges through edfaec81: A PASS, B
+HOLD because the experimental guidance still presupposed a deadline. The
+corrective successor implements the already approved conditional-time-limit
+requirement, pins actual dispatches and closes direct held-plan relabelling.
+This is the valid-finding/re-gate workflow, not new paid or rollout authority.
+See PERSONAL_CAUSAL_QA_CORRECTION_20261003.md for exact evidence and boundaries.
+
 Guy explicitly approved milestones A then B on 2026-10-03 after the revised
 proposal below. Approval is for implementation and offline tests, not another
 paid family, runtime rollout, push, deployment or render. Codex continues as sole

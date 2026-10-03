@@ -1,5 +1,29 @@
 # SmallHeroes — Current Technical State
 
+## Causal experiment independent QA correction 2026 10 03
+
+Claude's forwarded review: A PASS for 4ab69eee..71375d32; B HOLD for
+71375d32..edfaec81 because inherited craft guidance presupposes a deadline.
+No causal proof that this wording produced earlier deadline plots. A production
+code remains unchanged; its offline CLI and future stored-receipt origin limits
+remain pre-visual/reload conditions, not new release or visual acceptance.
+
+Corrective successor from edfaec81: conditional deadline guidance in actual plan,
+replan, author and editor dispatches; effective outline disposition fingerprint;
+direct author admission also rechecks selection/HOLD. Candidate-pair guard and
+real runner current-wrapper wiring now pinned. No shared runtime prompt change,
+new provider/adapter, schema migration, paid family or consumed-trial mutation.
+Identical quotes can support different strengths; no semantic uniqueness claim.
+Expanded 594/594 in 14 specs, 61 causal +130 runner tests, standalone tsc0.
+Base-code in-memory control:7failed/184passed;14 isolated mutations caught,
+production source bytes unchanged by harnesses. Historical272 plus prior A/B
+evidence311 exact-preserved (SHA/size/ticks; zero differences). Native npm check1:
+ordinary388files,10missing-artifact failures/5826passed/73skipped; resource20files,
+8test timeouts/627passed of635+4onTaskUpdate RPC errors. Full gate RED; no full
+base rerun or causal attribution of resource failures. No stability/release claim.
+No provider/key/spend/render/push/deploy; independent corrective re-gate pending.
+See docs/ai-workflow/PERSONAL_CAUSAL_QA_CORRECTION_20261003.md.
+
 ## Causal planning experiment implementation 2026 10 03
 
 A committed71375d32, independent re-gate pending. Approved B is a separate

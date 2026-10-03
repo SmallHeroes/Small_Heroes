@@ -4,7 +4,8 @@ import { companionTrialCohort } from '../../../scripts/personal-book-companion-c
 import { fixtureAdventureSelection } from './story-planning-fixture';
 import { fixtureEditorOutput } from './personal-storyboard-fixture';
 import { resolvePersonalWizardOptions } from '../options';
-import { preparePersonalStory, STORY_INSTRUCTIONS } from '../story-writer';
+import { preparePersonalStory, STORY_INSTRUCTIONS, NARRATIVE_CRAFT_INSTRUCTIONS } from '../story-writer';
+import { STORY_EDITOR_INSTRUCTIONS } from '../story-editor';
 import { canonicalJson } from '../request-acceptance';
 import { createCausalExperiment, CAUSAL_STAGES, type CausalDispatch, type CausalExperimentPorts } from '../story-causal-experiment-runner';
 import { CAUSAL_EXPERIMENT_VERSION, CAUSAL_STORY_INSTRUCTIONS, CAUSAL_PLAN_INSTRUCTIONS, BACKWARD_DEPENDENCIES, causalDigest, compileCausalPlan, compileCausalOriginal,
@@ -76,6 +77,22 @@ describe('limited causal experiment, not live provider or quality certification'
     const call = vi.mocked(h.ports.generate).mock.calls.find(([c]) => c.stage === 'author')![0];
     expect(call.instructions).not.toContain(clause); expect(call.instructions).toContain('A failed attempt is optional');
   });
+  it.each(['plan', 'replan', 'author', 'editor'] as const)('actual %s dispatch keeps deadlines conditional and failed attempts optional', async stage => {
+    const h = harness(1, call => call.stage === 'plan' ? planned(JSON.parse(call.input).brief, true) : defaultOutput(call));
+    await h.runner.plan(); h.approve(); await h.runner.write();
+    const calls = vi.mocked(h.ports.generate).mock.calls.map(([call]) => call);
+    expect(calls.map(call => call.stage).slice(0, 4)).toEqual(['plan', 'replan', 'author', 'editor']);
+    const call = calls.find(row => row.stage === stage)!;
+    expect(call.instructions).not.toContain('a failed attempt with consequences and ');
+    expect(call.instructions).not.toContain('when a deadline is reached, what happens if it is missed, and which earlier observation or ability enables the solution');
+    expect(call.instructions).toContain('If the selected adventure uses a deadline');
+    expect(call.instructions).toContain('Do not presume or add a deadline');
+    expect(call.instructions).toContain('A failed attempt is optional');
+    // The legacy runtime remains outside this experiment's migration scope.
+    expect(STORY_INSTRUCTIONS).toContain('a failed attempt with consequences and ');
+    expect(NARRATIVE_CRAFT_INSTRUCTIONS).toContain('when a deadline is reached, what happens if it is missed');
+    expect(STORY_EDITOR_INSTRUCTIONS).toContain(NARRATIVE_CRAFT_INSTRUCTIONS);
+  });
   it('covers six companions, balanced lengths, sparse/no-topic and same-hobby distinct habits without altering consumed fixtures', () => {
     const before = canonicalJson(companionTrialCohort()), rows = causalTrialCohort();
     expect(new Set(rows.map(c => c.request.companion.id)).size).toBe(6);
@@ -130,6 +147,50 @@ describe('limited causal experiment, not live provider or quality certification'
       h.runner.reviewSynopses({ sourceDigest: b.sourceDigest, decisions: [{ caseId: 'case1', decision: 'hold', reason: 'The premise still requires an independent revision.' }] });
       expect((await h.runner.write()).books).toHaveLength(0);
     }
+  });
+  it('fingerprints the effective outline disposition, not the pre-HOLD selected label', () => {
+    const f = selectedFixture(); f.raw.selection.outlineChecks.earned_payoff.outcome = 'needs_work';
+    const held = compileCausalPlan(f.p, f.raw);
+    if (!('planningDigest' in held)) throw Error('fixture');
+    const { planningDigest, ...body } = held;
+    expect(held.disposition).toBe('outline_held');
+    expect(planningDigest).toBe(causalDigest(body));
+    expect(planningDigest).not.toBe(causalDigest({ ...body, disposition: 'selected' }));
+    const { planningDigest: selectedDigest, ...selectedBody } = f.plan;
+    expect(selectedDigest).toBe(causalDigest(selectedBody));
+  });
+  it.each(['unchanged', 'relabelled', 'rebound'] as const)('direct author admission refuses an %s outline HOLD', kind => {
+    const f = selectedFixture(); f.raw.selection.outlineChecks.earned_payoff.outcome = 'needs_work';
+    const held = compileCausalPlan(f.p, f.raw);
+    if (!('planningDigest' in held)) throw Error('fixture');
+    if (kind !== 'unchanged') held.disposition = 'selected';
+    if (kind === 'rebound') { const { planningDigest: _digest, ...body } = held; held.planningDigest = causalDigest(body); }
+    expect(() => compileCausalOriginal(f.p, held, author({ brief: f.p.brief, planDigest: held.planDigest }))).toThrow('plan_binding');
+    expect(compileCausalOriginal(f.p, f.plan, author({ brief: f.p.brief, planDigest: f.plan.planDigest }))).toEqual(f.original);
+  });
+  it.each([false, true])('pins candidate-pair guards with both_rejected=%s', rejected => {
+    const p = preparePersonalStory(causalTrialCohort()[0].request, options);
+    const cases = [
+      { name: 'identity', code: 'story_selection_identity', change: (pair: any) => { pair.candidates[0].id = 'B'; pair.candidates[1].id = 'A'; } },
+      { name: 'duplicate_dimension', code: 'story_selection_not_distinct', change: (pair: any) => { pair.contrast.dimensions = ['childWant', 'childWant']; } },
+      { name: 'not_distinct', code: 'story_selection_not_distinct', change: (pair: any) => { pair.contrast.dimensions = ['childWant']; pair.candidates[1].childWant = `  ${pair.candidates[0].childWant} !`; } },
+      { name: 'unknown_fact', code: 'story_selection_fact_mismatch', change: (pair: any) => { pair.candidates[0].personalFactUses[0].factId = 'unknown_fact'; } },
+      { name: 'duplicate_fact', code: 'story_selection_fact_mismatch', change: (pair: any) => { pair.candidates[0].personalFactUses.push(structuredClone(pair.candidates[0].personalFactUses[0])); } },
+      { name: 'non_interest', code: 'story_selection_personal_fact_missing', change: (pair: any) => { pair.candidates[0].personalFactUses[0].factId = p.brief.facts.find(f => f.kind === 'other')!.id; } },
+    ];
+    for (const row of cases) {
+      const raw = planned(p.brief, rejected); row.change(rejected ? raw : raw.selection);
+      expect(() => compileCausalPlan(p, raw), row.name).toThrow(row.code);
+    }
+    expect(compileCausalPlan(p, planned(p.brief, rejected)).disposition).toBe(rejected ? 'both_rejected' : 'selected');
+  });
+  it('invalid rejected candidate evidence stops the real runner after one dispatch, before replan', async () => {
+    const h = harness(1, call => { const raw = planned(JSON.parse(call.input).brief, true);
+      raw.candidates[0].personalFactUses[0].factId = 'unknown_fact'; return raw; });
+    await expect(h.runner.plan()).rejects.toThrow('story_selection_fact_mismatch');
+    expect(vi.mocked(h.ports.generate).mock.calls.map(([call]) => call.stage)).toEqual(['plan']);
+    expect(vi.mocked(h.ports.claim).mock.calls.map(call => call[2])).toEqual(['case1:plan']);
+    expect(h.runner.snapshot().phase).toBe('failed');
   });
   it.each(['malformed', 'transport', 'foreign', 'unknown_fact', 'false_reference'])('%s stops planning without replan or prose', async kind => {
     const h = harness(1, call => { if (kind === 'transport') throw Error('private provider detail');
@@ -209,7 +270,7 @@ describe('limited causal experiment, not live provider or quality certification'
   it.each([0, 3])('allows %s genuine strengths and coherent revisions, not immutable wording', count => {
     const f = selectedFixture(), quote = f.original.manuscript.pages[0].text.slice(0, 16);
     f.output.strengths = Array.from({ length: count }, (_, i) => ({ id: `strength${i + 1}`, original: { pageNumber: 1, quote },
-      narrativeFunction: 'The child proposes a consequential new action.', disposition: 'coherently_changed', revised: { pageNumber: 1, quote },
+      narrativeFunction: ['The child proposes a consequential new action.', 'A surprising phrase introduces a comic echo.', 'A concrete choice prepares the eventual payoff.'][i], disposition: 'coherently_changed', revised: { pageNumber: 1, quote },
       explanation: 'The same function survives a justified scene revision.' }));
     const edit = compileCausalEdit(f.p, f.original, f.output); expect(edit.strengths).toHaveLength(count); expect(edit.runtimeEligible).toBe(false);
   });

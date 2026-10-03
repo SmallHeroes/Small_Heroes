@@ -16,6 +16,7 @@ import { STORYBOARD_BOOK_CHECKS, STORYBOARD_FRAME_CHECKS } from '../storyboard';
 import * as storyWriter from '../story-writer';
 import * as storyEditor from '../story-editor';
 import * as characterAuthority from '../companion-character';
+import * as storyboardAuthority from '../storyboard';
 import { canonicalJson } from '../request-acceptance';
 import { storyPlanningHoldSchema } from '../story-contract';
 
@@ -40,6 +41,21 @@ const errorOf = async (promise: Promise<unknown>): Promise<PersonalBookError> =>
 };
 
 describe('automatic personal manuscript -> full storyboard -> separate semantic review', () => {
+  it('pins real runner preparation and every frame to the guarded current admission wrappers', async () => {
+    const f = await setup();
+    // Install after fixture setup; legitimate internal archive delegation is allowed.
+    const prepare = vi.spyOn(storyboardAuthority, 'prepareCurrentPersonalStoryboard');
+    const frame = vi.spyOn(storyboardAuthority, 'currentPersonalStoryboardFrame');
+    const result = await generatePersonalBook(f.args);
+    expect(prepare).toHaveBeenCalledExactlyOnceWith(f.request, result.writerResult, options);
+    expect(frame).toHaveBeenCalledTimes(result.storyboard.narrativeSpreads + 1);
+    expect(frame.mock.calls.map(call => call[2])).toEqual(Array.from({ length: result.storyboard.narrativeSpreads + 1 }, (_, i) => i));
+    for (const call of frame.mock.calls) {
+      expect(call[0]).toBe(result.storyboard); expect(call[1]).toEqual(f.review);
+      expect(call[3]).toEqual({ request: f.request, writerResult: result.writerResult, options });
+    }
+    expect(result.framePackets.every(packet => packet.runtimeEligible === false)).toBe(true);
+  });
   it.each(['short', 'medium', 'long'])('returns the complete edited %s story after only three stages', async length => {
     const f = await setup(length);
     const result = await generatePersonalBook({ ...f.args, scope: 'story_only' });
