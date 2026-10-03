@@ -8,6 +8,19 @@ This roadmap records technical milestone state. Guy can change product priority 
 
 ## Active
 
+### P-personal fifteen-companion expansion (2026-10-03)
+
+- Guy requests nine new friends, canonical character sheets/profiles and lively
+  carousel presentation. Decision Gate saved; no implementation or paid assets.
+- Connect personal roster, structured current-engine character authority and
+  personal landing independently of the old category matrix. Preserve the six
+  existing identities and archived request/evidence fingerprints.
+- Next owner decision: bounded Momo front / 3/4 pilot before any 54-sheet-image
+  batch. Proposed UX: automatic landing motion, stable wizard choices with idle
+  character gestures, pause/keyboard/reduced-motion and all-15 comparison.
+- Site QA writer is older than the current engine; port only an explicitly
+  reviewed seam, not the entire engine branch. No rollout, push or book render.
+
 ### P-personal six-companion readiness (2026-10-02)
 
 - Latest independent connection correction PASS: 8e49f05d..57fe01cf only;

@@ -1,5 +1,23 @@
 # SmallHeroes — Current Technical State
 
+## Fifteen-companion expansion planned, not implemented 2026 10 03
+
+Guy requested nine supplied companion concepts, an animated carousel and proper
+character sheets/profiles. Investigation confirms three separate boundaries:
+six-only personal options, mandatory structured engine personalities, and a
+personal landing still derived from the legacy six-category matrix. Site QA at
+5fe73b3f uses older deep-profile/tagline writing, not the engine personality seam.
+Adding cards alone would not connect the new companions to the current engine.
+
+Decision Gate: docs/ai-workflow/PERSONAL_FIFTEEN_COMPANIONS_DECISION_20261003.md.
+Plan preserves the existing six, separates identity sheets from marketing motion,
+and qualifies display/writing/render readiness independently. Proposed next step
+is Momo front plus reference-bound 3/4: at most two LOW images, no retries/video.
+Await bounded owner production decision; no paid pilot, runtime edit, catalogue
+activation, push or deployment. Complete nine packs would be 54 sheet images
+before retries; not authorised by this planning record. The $12 text-calibration
+proposal below remains a separate pending decision, not consumed or approved.
+
 ## Connection PASS recorded; later-member regression and priced next decision 2026 10 03
 
 Claude Code gave technical PASS for exactly 8e49f05d..57fe01cf, not the other
