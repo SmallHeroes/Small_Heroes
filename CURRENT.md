@@ -1,5 +1,33 @@
 # SmallHeroes — Current Technical State
 
+## Semantic audit technical regression correction 2026 10 03
+
+Claude reviewed exactly be1c73fa..83baf064 and issued HOLD, P0=0/P1=0/P2=1/P3=5.
+The P2 covers five NEW deterministic failures omitted from Codex's affected set,
+not inherited failures. Claude measured three specs31/31 at base and26/31 at head;
+Codex reproduced26/31 at b167786a. Documentation-only closeout scope was verified.
+
+Successor is tests/docs only: explicit pre-audit fixture projection for the fixed
+9a1ba1f2 historical runner, census407/387/20, and exact diagnostic model/file plus
+transport-literal scan exceptions without changing global production authority.
+Six previously unpinned guards now have isolated assertions; all six in-memory
+mutations are caught. Production/scripts/shared fixture/policy bytes unchanged.
+Expanded13specs520/520, standalone tsc0. Full check exit1: ordinary387files,
+10failed/5752passed/73skipped; resource20files,3timeouts/632passed of635 plus
+4onTaskUpdate errors. New five failures absent; full stability remains RED.
+No fresh full baseline run; do not attribute resource timeouts to this fix or
+claim they are conclusively inherited. All272 historical/current paid evidence
+and consumed-claim files preserve SHA/size/mtime. No provider/key/spend/push/deploy.
+
+Independent corrective re-gate remains pending; no self-awarded PASS. Confirmed
+archive v3-to-v2 self-HOLD bypass must be closed before current visual admission.
+Whitespace matching stays strict; new OpenAI SDK audit schema still has no live
+evidence. Literary holds remain. GPT causal planning/editor diagnosis proposal is
+saved but NOT implemented/authorized: Opus trial combined plan+prose; a real
+pre-prose boundary needs split calls and a separately approved new budget.
+See docs/ai-workflow/PERSONAL_SEMANTIC_REGRESSION_REGATE_20261003.md and
+PERSONAL_STORY_CAUSAL_PLANNING_DECISION_20261003.md. No QA-site cutover/render.
+
 ## Six Opus author editor Astra books completed 2026 10 03
 
 Paid diagnostic completed on frozen clean83baf064: six fictional seeded profiles,

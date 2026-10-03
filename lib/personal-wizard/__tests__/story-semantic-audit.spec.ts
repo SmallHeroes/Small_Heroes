@@ -42,6 +42,45 @@ describe('semantic edit accountability, not semantic truth', () => {
     expect(readTextBookPreview({ version: 'personal-book-text/diagnostic-v1', status: 'story_ready_for_reading', writerResult: result, runtimeEligible: false,
       accounting: { model: 'gpt-6.1-sol', reservedUsd: 1, estimatedUsd: null, knownUsageEstimateUsd: 0, providerAttempts: 3, stages: [], kind: 'usage_estimate_not_invoice' } }, p.brief.requestId)).toBeNull();
   });
+  it.each(['setup_payoff', 'child_agency', 'companion_contribution'] as const)('rejects empty not_applicable for required %s independently of citation rules', async category => {
+    const { f, p, output } = await setup();
+    output.semanticAudit[category] = { outcome: 'not_applicable', original: [], revised: [], explanation: 'No citations are supplied in this isolated applicability probe.' };
+    expect(() => assertSemanticEditEvidence(output.semanticAudit, f.draftResult.manuscript, output.manuscript)).toThrow('semantic_audit_applicability');
+    expect(() => compileStoryEdit(p, f.draftResult, output, null)).toThrow('semantic_audit_evidence');
+  });
+  it('allows genuinely absent world and threat rules without requiring fabricated citations', async () => {
+    const { f, p, output } = await setup();
+    for (const category of ['world_rules', 'threat_tone'] as const) {
+      output.semanticAudit[category] = { outcome: 'not_applicable', original: [], revised: [], explanation: 'The structural fixture has no applicable rule in this category.' };
+    }
+    expect(() => compileStoryEdit(p, f.draftResult, output, null)).not.toThrow();
+  });
+  it.each(['v3_no_audit', 'v3_no_digest', 'v2_with_audit'] as const)('rejects persisted %s specifically at the schema version coupling', async mode => {
+    const { f } = await setup(); const result = structuredClone(f.result);
+    expect(editedStoryResultSchema.safeParse(result).success).toBe(true);
+    if (mode === 'v3_no_audit') delete result.editing.semanticAudit;
+    if (mode === 'v3_no_digest') delete result.editing.auditDigest;
+    if (mode === 'v2_with_audit') result.editing.version = 'personal-story-editor/diagnostic-v2';
+    const parsed = editedStoryResultSchema.safeParse(result);
+    expect(parsed.success).toBe(false);
+    if (!parsed.success) expect(parsed.error.issues.map(issue => issue.message)).toContain('edited_story_semantic_audit_version');
+  });
+  it('rechecks persisted quotations even after a forged quote receives a matching audit digest', async () => {
+    const { f } = await setup(); const result = structuredClone(f.result);
+    result.editing.semanticAudit!.child_agency.revised[0].quote = 'FABRICATED_EXACT_QUOTATION';
+    result.editing.auditDigest = createHash('sha256').update(canonicalJson(result.editing.semanticAudit)).digest('hex');
+    expect(editedStoryResultSchema.safeParse(result).success).toBe(true);
+    expect(() => assertStoryEditBinding(result)).toThrow('semantic_audit_evidence');
+  });
+  it.each(['original', 'revised'] as const)('rejects an independently foreign %s companion digest before producing critic packets', async side => {
+    const { f, p } = await setup();
+    const original = structuredClone(f.result.editing.original);
+    const revised = { plan: f.result.plan, manuscript: f.result.manuscript, characterDigest: f.result.characterDigest };
+    expect(() => prepareStoryTextReview(p, original, revised)).not.toThrow();
+    if (side === 'original') original.characterDigest = 'f'.repeat(64);
+    else revised.characterDigest = 'f'.repeat(64);
+    expect(() => prepareStoryTextReview(p, original, revised)).toThrow('source_binding');
+  });
   it('retains archived v2 without inventing an audit', async () => {
     const { f } = await setup(); const archived = structuredClone(f.result);
     archived.editing.version = 'personal-story-editor/diagnostic-v2'; delete archived.editing.semanticAudit; delete archived.editing.auditDigest;

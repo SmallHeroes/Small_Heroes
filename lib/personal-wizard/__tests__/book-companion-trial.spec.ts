@@ -9,6 +9,14 @@ import { loadFrozenBookEngine, assertFrozenExecutionImports } from '../../../scr
 import { bookTrialPlan, executeBookTrial, renderBookTrial, bookTrialTerminal } from '../../../scripts/personal-book-companion-trial';
 import { personalStoryboardFixture, fixtureEditorOutput } from './personal-storyboard-fixture';
 import type { PersonalBookProvider } from '../book-runner';
+import { compileStoryEdit, type StoryEditorCall } from '../story-editor';
+
+// Only this historical harness uses the immutable pre-audit editor contract.
+// Do not make the current fixture or the frozen strict schema more permissive.
+function fixturePreAuditEditorOutput(call: StoryEditorCall) {
+  const { requestId, draftDigest, plan, manuscript, checks } = fixtureEditorOutput(call);
+  return { requestId, draftDigest, plan, manuscript, checks };
+}
 
 const roots: string[] = [];
 function setup() {
@@ -35,7 +43,7 @@ function fixtureProvider(holdAt?: number): PersonalBookProvider {
     if (c.stage === 'plan' && holdAt === 1) (output as any).adventureSelection.outlineChecks.earned_payoff.outcome = 'needs_work';
     return { output, usage: { inputTokens: 1, outputTokens: 1 } };
   } }, editor: { generate: async (c: any) => {
-    const output = fixtureEditorOutput(c); if (holdAt === 3) output.checks.causal_magic.outcome = 'needs_work';
+    const output = fixturePreAuditEditorOutput(c); if (holdAt === 3) output.checks.causal_magic.outcome = 'needs_work';
     return { output, usage: { inputTokens: 1, outputTokens: 1 } };
   } }, visual: { generate: async (c: any) => {
     const output = c.stage === 'storyboard' ? structuredClone(fixture.draft) : { ...structuredClone(fixture.review), sourceDigest: c.context.sourceDigest, storyboardDigest: c.context.storyboardDigest };
@@ -47,6 +55,21 @@ function oneCasePlan() { const plan = bookTrialPlan(frozen.engine, process.cwd()
 afterEach(() => { vi.restoreAllMocks(); roots.splice(0).forEach(root => rmSync(root, { recursive: true, force: true })); });
 
 describe('fresh six-book durable family', () => {
+  it('keeps current audited output separate from the immutable pre-audit v2 engine', () => {
+    const prepared = frozen.engine.preparePersonalStory(fixture.request, oneCasePlan().options);
+    const call = frozen.engine.prepareStoryEdit!(prepared, fixture.draftResult);
+    const current = fixtureEditorOutput(call), archived = fixturePreAuditEditorOutput(call);
+    expect(current).toHaveProperty('semanticAudit');
+    expect(Object.keys(archived)).toEqual(['requestId', 'draftDigest', 'plan', 'manuscript', 'checks']);
+    const { semanticAudit: _audit, ...expected } = current;
+    expect(archived).toEqual(expected);
+    expect(() => frozen.engine.compileStoryEdit!(prepared, fixture.draftResult, current, null)).toThrow('output_invalid');
+    const result = frozen.engine.compileStoryEdit!(prepared, fixture.draftResult, archived, null);
+    expect(result.editing.version).toBe('personal-story-editor/diagnostic-v2');
+    expect(result.editing).not.toHaveProperty('semanticAudit');
+    expect(result.editing).not.toHaveProperty('auditDigest');
+    expect(() => compileStoryEdit(prepared, fixture.draftResult, archived, null)).toThrow('output_invalid');
+  });
   it('rejects surviving image/storage imports before bundle evaluation', () => {
     for (const name of ['@supabase/supabase-js', 'replicate', 'sharp', 'fs/promises', 'os']) {
       expect(() => assertFrozenExecutionImports([{ path: name, external: true }])).toThrow('trial_execution_import');

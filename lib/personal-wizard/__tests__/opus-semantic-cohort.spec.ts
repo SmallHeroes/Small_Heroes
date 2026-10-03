@@ -65,6 +65,12 @@ describe('one-use six-book Opus diagnostic, no forged GPT accounting', () => {
     }
     expect(() => runner.assertSlot(state, cases[0], 'author')).toThrow('slot_authority');
   });
+  it('reserves the next entire slot against the running budget before dispatch', () => {
+    const cases = runner.buildCases(engine, 'a'.repeat(48)), row = cases[0];
+    const boundary = 12_000_000 - Math.round(row.capUsd * 1e6);
+    expect(() => runner.assertSlot({ manifest: { cases }, rows: [], microUsd: boundary }, row, 'author')).not.toThrow();
+    expect(() => runner.assertSlot({ manifest: { cases }, rows: [], microUsd: boundary + 1 }, row, 'author')).toThrow('slot_authority');
+  });
   it('admits matching documents without any production accounting envelope', async () => {
     const f = await personalStoryboardFixture(); const prepared = preparePersonalStory(f.request, resolvePersonalWizardOptions());
     const call = prepareStoryEdit(prepared, f.draftResult);
@@ -81,6 +87,11 @@ describe('one-use six-book Opus diagnostic, no forged GPT accounting', () => {
       if (change === 'mode') broken.plan.resilience.mode = 'chosen_topic';
       if (change === 'prose') broken.manuscript.pages[0].text += ' imageDirection: stale';
       expect(() => runner.normalize(broken, prepared.brief, engine)).toThrow();
+    }
+    for (const dash of ['-', '\u05be', '\u2013', '\u2014']) {
+      const broken = structuredClone(raw);
+      broken.manuscript.pages[0].text += ` ${dash} ordinary prose without a direction marker`;
+      expect(() => runner.normalize(broken, prepared.brief, engine)).toThrow('prose_exclusion');
     }
   });
 });

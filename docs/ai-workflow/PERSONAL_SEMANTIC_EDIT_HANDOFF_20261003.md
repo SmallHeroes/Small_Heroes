@@ -4,6 +4,18 @@ Guy requested a general repair for editorial meaning damage before six varied
 fictional Opus5.5 author and fresh editor books with Astra literary review. Review
 this code milestone read-only; do not turn structural checks into story acceptance.
 
+## Independent review received
+
+Claude reviewed the exact code range below and the separate docs closeout to
+b167786a: **HOLD, P0=0/P1=0/P2=1/P3=5**. Its base comparison identifies five
+new deterministic gate failures (three frozen book-companion-trial cases, census,
+and model scan), which Codex's focused set omitted. Codex reproduced26/31.
+Claude's full frozen run had ordinary15 failures and resource635/635 with three
+RPC errors. The older full-check observation below remains historical, but its
+unattributed RED wording must not suggest all failures were inherited.
+See PERSONAL_SEMANTIC_REGRESSION_REGATE_20261003.md for the test-only successor;
+its re-gate is separate and pending. This does not expand any earlier PASS.
+
 ## Review topology
 
 Branch codex/personal-book-storyboard-bridge, worktree

@@ -10,6 +10,18 @@ This roadmap records technical milestone state. Guy can change product priority 
 
 ### P-personal six-companion readiness (2026-10-02)
 
+- Claude independent review of be1c73fa..83baf064 returned HOLD with one P2
+  (five new deterministic test regressions) and five P3 observations. Successor
+  fixes the historical fixture/census/model-scan regressions, pins six guards,
+  expanded520/520 and tsc0, six mutations caught; tests/docs only. Full gate
+  remains RED: ordinary10 missing-asset failures, resource3 timeouts plus4RPC
+  errors.272 evidence/claim files preserved,0USD. Corrective re-gate pending.
+  Next product decision: versioned continuous synopsis/backward causality and
+  editor diagnosis/strength preservation within existing engine; split native
+  Opus planning from prose. Proposal saved, not implemented or paid-authorized.
+  Archive/current admission gap must close before visual integration. No QA
+  deployment or render; retain all six-book literary dispositions.
+
 - Completed2026-10-03 on83baf064: six Opus5.5 original author/fresh editor books,
   final-first then comparison Astra advisory. Twelve native0 invocations,
   CLI estimate5.719604USD (not invoice; Astra unmeasured), no retries/render.

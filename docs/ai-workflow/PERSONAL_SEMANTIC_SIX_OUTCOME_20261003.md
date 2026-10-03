@@ -17,8 +17,12 @@ C:/Users/guyna/.codex/worktrees/personal-story-product/Small_Heroes. Code range:
 The source stayed frozen and clean throughout all dispatches. Closeout changes
 documentation only. Protected d53b768ccb2f, accepted-intent63ccb484 and
 personal-site-qa5fe73b3f remain read-only. Branch has no upstream; no push.
-Claude Code independent technical review is pending. Advisory agents and Codex
-verification are not substitutes for its technical PASS.
+Claude Code independently reviewed be1c73fa..83baf064: HOLD, one P2 covering
+five new deterministic test failures and five P3 observations. Docs-only closeout
+scope was verified. Its evidence recomputation held up; this is not story or
+product acceptance. Test-only successor/re-gate is recorded separately in
+PERSONAL_SEMANTIC_REGRESSION_REGATE_20261003.md. The historical execution and
+literary results below remain unchanged.
 
 ## Actual experiment
 
