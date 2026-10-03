@@ -1,5 +1,33 @@
 # SmallHeroes — Current Technical State
 
+## Connection PASS recorded; later-member regression and priced next decision 2026 10 03
+
+Claude Code gave technical PASS for exactly 8e49f05d..57fe01cf, not the other
+47 unpublished ancestors. Reviewer: tsc 0, 666/666; 52 of 68 mutations caught,
+479 evidence files preserved. P2-1/2 and P3-1/2/3/7 closed; P3-4/5/6 remain.
+His full gate stayed RED: ordinary 10 missing-artifact failures / 5898 passed
+/ 73 skipped; resource 8 timeouts / 627 passed of 635 plus 4 RPC errors.
+Observed variation is not proven load causality or stability.
+
+New nonblocking P3-8 is an admission-test gap, not a production bug: scanning
+only the first child survives the one-child test. Codex adds five tests, one
+for each later position in an otherwise admissible six-child cohort. Runtime
+bytes unchanged. Focused 671/671, standalone tsc 0; all five catch that exact
+in-memory mutation, while the frozen old 72 tests still pass it. Full gate
+not repeated for this test/docs successor; independent re-gate remains pending.
+586 preservation records cover the older 479 plus 107 prior-correction files.
+
+Official prices checked, not provider availability. Proposed next gate is one
+Astra identity/schema probe plus one fictional eight-spread split-stage book:
+Opus author, fresh Opus editor, Astra original/final readings then comparison.
+Rounded allowances $0.25 + $11.34 = $11.59; ask Guy for up to $12 acknowledging
+CLI estimate-not-invoice limits. PL-1 cap/thinking and PL-2 reported identity
+remain open; executable fingerprint must be preflighted before family reserve.
+No live driver, family, key use, paid call, render, push or deployment here.
+See docs/ai-workflow/PERSONAL_CAUSAL_FICTIONAL_COHORT_CLOSEOUT_20261003.md and
+PERSONAL_CAUSAL_SMALL_CALIBRATION_DECISION_20261003.md. Await priced owner decision
+before the separately reviewed driver/calibration, not a six-book run.
+
 ## Causal connection technical HOLD regression correction 2026 10 03
 
 Claude Code returned HOLD for 73ced594..8e49f05d: no production behavior bug,

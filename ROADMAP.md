@@ -10,6 +10,18 @@ This roadmap records technical milestone state. Guy can change product priority 
 
 ### P-personal six-companion readiness (2026-10-02)
 
+- Latest independent connection correction PASS: 8e49f05d..57fe01cf only;
+  52/68 reviewer mutations caught, not all. P3-4/5/6 remain. Codex's test/docs
+  successor pins every later-member position against first-child-only admission:
+  five new tests, focused 671/671, tsc 0 and old-spec negative control; new
+  re-gate pending, no production change. Full gate remains RED; latest reviewer
+  resource observation 8 timeouts / 627 passed is not a Codex rerun/stability.
+  Preserve 586 files (older 479 plus prior correction 107). Next decision:
+  priced Astra probe plus one fictional eight-spread book before six-book work.
+  Proposed allowances $11.59, request up to $12 with CLI estimate limitations;
+  owner approval and separately reviewed driver required. PL-1/2 remain open.
+  No live call/key use, image, public rollout, push or deployment authorized.
+
 - Claude's connection HOLD covers 73ced594..8e49f05d: two blocking coverage gaps,
   not production behavior defects. Test-only corrective successor: isolated
   admission clauses, exact fresh safe-mode/no-tools argv and selected receipt,

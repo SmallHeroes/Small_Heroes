@@ -112,6 +112,25 @@ describe('independent live admission clauses without providers', () => {
     expect(readdirSync(h.root, { recursive: true })).toEqual(inventory);
     expect(existsSync(h.args.outputRoot)).toBe(false); expect(existsSync(path.join(h.root, 'codex-causal-text-trials'))).toBe(false);
   }, 15_000);
+  it.each([1, 2, 3, 4, 5])('non-fictional later cohort member at index %i fails before key/transport and without new artifacts', index => {
+    const h = constructionFixture(); h.args.cases = causalTrialCohort();
+    const inventory = readdirSync(h.root, { recursive: true });
+    const fetcher = vi.fn<typeof fetch>(() => { throw Error('Unexpected network'); }); vi.stubGlobal('fetch', fetcher);
+    expect(h.args.cases).toHaveLength(6);
+    // The all-fictional cohort is a positive control for all other admission clauses.
+    const admitted = createCausalTrialHost(h.args);
+    expect(admitted.snapshot().coordinator.phase).toBe('new'); admitted.stop();
+    const request = h.args.cases[index].request as ReturnType<typeof causalTrialCohort>[number]['request'];
+    for (const field of ['nameSource', 'ageSource', 'addressSource', 'residenceSource'] as const) request.child[field] = 'typed';
+    for (const fact of request.facts) fact.source = 'typed';
+    if (request.storyPlace) request.storyPlace.source = 'typed';
+    if (request.intent?.kind === 'topic') delete request.intent.suggestedBy;
+    expect(() => createCausalTrialHost(h.args)).toThrow('causal_host_fictional_only');
+    expect(h.key).not.toHaveBeenCalled(); expect(h.transport).not.toHaveBeenCalled();
+    expect(fetcher).not.toHaveBeenCalled();
+    expect(readdirSync(h.root, { recursive: true })).toEqual(inventory);
+    expect(existsSync(h.args.outputRoot)).toBe(false); expect(existsSync(path.join(h.root, 'codex-causal-text-trials'))).toBe(false);
+  }, 15_000);
   it('otherwise valid live admission constructs without reserving or opening a client', () => {
     const h = constructionFixture(), inventory = readdirSync(h.root, { recursive: true });
     const host = createCausalTrialHost(h.args);
