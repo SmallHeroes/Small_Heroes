@@ -1,5 +1,53 @@
 # SmallHeroes — Current Technical State
 
+## Companion literary correction and bounded integration 2026 10 04
+
+Guy authorizes the focused correction, a subsequent work-branch push and
+progress toward one complete book. Codex continues as sole writer on
+codex/personal-book-storyboard-bridge, base b60251b6. The corrected fifteen-
+profile proposal retains all thirty example scenes and attribution; Claude's
+original remains byte-identical. Absolutist activity/plot rules, unsupported
+knowledge and the proposed mole/kangaroo scale examples are corrected.
+
+Only six currently offered literary profiles change in runtime data. Their
+gender, embodiment and canon exclusions, options, registry and assets do not.
+Schema shape stays v3; each content revision has a new canonical characterDigest.
+Archived documents remain readable but real editor, source-QA and storyboard
+consumers reject rebinding an old digest to current authority. Nine new IDs
+remain rejected; this is not their visual or runtime activation.
+
+Type-check exits 0; twelve focused specs pass 487/487. Twenty copied source
+snapshots, twenty-two images and forty-one other original inputs are preserved;
+the forty-second original input is the intentionally updated live profile file.
+All fifteen profiles/thirty scenes remain. A memory-only base control catches
+all six unchanged-content assertions, not an independent mutation-testing PASS.
+The old packet verifier compares its frozen copy to live source and now fails
+that one intentional revision; its files and baseline are not rewritten.
+
+Full check exits 1: ordinary initially 12 failures (10 missing historic artifacts
+plus two test-fixture/count regressions), resource 3 timeouts/632 passed and four
+onTaskUpdate errors. Both new test defects are fixed without changing production
+guards; post-fix focused tests are green. Post-fix ordinary rerun: 10 missing-
+artifact failures, 5,926 passed/73 skipped, native 1. Resource was not rerun
+after the test-only corrections; no baseline full run is claimed. Stability RED.
+
+Independent Claude QA on this successor is pending. No self-awarded PASS,
+literary quality, visual qualification, site QA merge or deployment. Push is
+explicitly owner-authorized to the work branch only and carries fifty-five
+previously unpublished commits plus this milestone, not a full-branch acceptance.
+The ignored output packets are not backed up by Git push.
+
+Book readiness: native Claude is installed/authenticated, but the new causal
+host lacks a live driver; the public wizard still calls its earlier OpenAI
+path. Next is a separately reviewed one-book driver using the existing guarded
+host. A new $12 text allowance with CLI-estimate limits was requested and is
+not yet answered. No provider/key call, render or spend in this integration.
+Images require later accepted text/storyboard and separately bounded authority.
+
+Decision and QA handoff:
+docs/ai-workflow/PERSONAL_COMPANION_PROFILE_INTEGRATION_20261004.md and
+docs/ai-workflow/PERSONAL_COMPANION_PROFILE_QA_20261004.md.
+
 ## All companion creative profiling commissioned 2026 10 03
 
 Guy authorizes Claude to freely re-profile the full intended fifteen, including

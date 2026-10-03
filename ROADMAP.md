@@ -10,6 +10,16 @@ This roadmap records technical milestone state. Guy can change product priority 
 
 ### P-personal fifteen-companion expansion (2026-10-03)
 
+- 2026-10-04 owner-approved correction saved for all fifteen profiles/thirty
+  scenes, preserving Claude's original. Six active literary refinements only;
+  no gender/body/canon/registry/asset change or new ID admission. New content
+  digests fail old-book rebinding. tsc 0, twelve focused specs 487/487; historical
+  source copies/images preserved. Independent QA pending; full gate RED.
+  Work-branch push authorized, not site QA/release. Whole-book next dependency:
+  reviewed live driver and unanswered $12 text allowance, not the old consumed
+  family. Existing CLI login verified without a model call. New nine visual
+  profiles, scale/sheets and deliberate runtime promotion are still pending.
+
 - Guy now commissions Claude to freely re-profile all fifteen, existing six
   included. Source roster is six active + seven candidates + two open land
   choices; every friend needs identifiable humour and broad adventure/resilience

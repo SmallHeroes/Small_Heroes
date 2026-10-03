@@ -55,20 +55,27 @@ function oneCasePlan() { const plan = bookTrialPlan(frozen.engine, process.cwd()
 afterEach(() => { vi.restoreAllMocks(); roots.splice(0).forEach(root => rmSync(root, { recursive: true, force: true })); });
 
 describe('fresh six-book durable family', () => {
-  it('keeps current audited output separate from the immutable pre-audit v2 engine', () => {
+  it('keeps current audited output separate from the immutable pre-audit v2 engine', async () => {
     const prepared = frozen.engine.preparePersonalStory(fixture.request, oneCasePlan().options);
-    const call = frozen.engine.prepareStoryEdit!(prepared, fixture.draftResult);
+    // Produce this synthetic archive through its OWN frozen writer. Do not relabel
+    // a current manuscript's characterDigest to bypass versioned admission.
+    const archive = await frozen.engine.writePersonalStory({ prepared, userId: 'synthetic', jobId: 's_frozenrevision01',
+      settings: { model: 'gpt-6-sol', budgetUsd: 1, maxJobs: 1, operators: new Set() },
+      ledger: new frozen.engine.IntakeLedger(), signal: new AbortController().signal,
+      provider: () => fixtureProvider().story });
+    expect(archive.characterDigest).toBe(prepared.brief.companion.characterDigest);
+    const call = frozen.engine.prepareStoryEdit!(prepared, archive);
     const current = fixtureEditorOutput(call), archived = fixturePreAuditEditorOutput(call);
     expect(current).toHaveProperty('semanticAudit');
     expect(Object.keys(archived)).toEqual(['requestId', 'draftDigest', 'plan', 'manuscript', 'checks']);
     const { semanticAudit: _audit, ...expected } = current;
     expect(archived).toEqual(expected);
-    expect(() => frozen.engine.compileStoryEdit!(prepared, fixture.draftResult, current, null)).toThrow('output_invalid');
-    const result = frozen.engine.compileStoryEdit!(prepared, fixture.draftResult, archived, null);
+    expect(() => frozen.engine.compileStoryEdit!(prepared, archive, current, null)).toThrow('output_invalid');
+    const result = frozen.engine.compileStoryEdit!(prepared, archive, archived, null);
     expect(result.editing.version).toBe('personal-story-editor/diagnostic-v2');
     expect(result.editing).not.toHaveProperty('semanticAudit');
     expect(result.editing).not.toHaveProperty('auditDigest');
-    expect(() => compileStoryEdit(prepared, fixture.draftResult, archived, null)).toThrow('output_invalid');
+    expect(() => compileStoryEdit(prepared, archive, archived, null)).toThrow('output_invalid');
   });
   it('rejects surviving image/storage imports before bundle evaluation', () => {
     for (const name of ['@supabase/supabase-js', 'replicate', 'sharp', 'fs/promises', 'os']) {
