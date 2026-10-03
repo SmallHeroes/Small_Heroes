@@ -10,6 +10,18 @@ This roadmap records technical milestone state. Guy can change product priority 
 
 ### P-personal fifteen-companion expansion (2026-10-03)
 
+- 2026-10-04 companion correction pushed at 49e1fabb to the work branch only,
+  parity verified against the server. New thin one-book driver over existing
+  host/journal now implemented: synthetic Astra probe before Opus book, fresh
+  editor, three independent/comparison Astra readings; same-process reviewed
+  synopsis barrier and no replay across output roots/children. Whole-fixture
+  input only, eight spreads, no public wizard switch or images. tsc 0, focused
+  217/217 with 49 new cases; fresh full gate RED: ordinary 10 missing artifacts /
+  5,975 passed, resource 14 timeouts / 621 passed + four RPC errors. No baseline
+  causal reconstruction. Independent Claude QA and
+  explicit $12 answer still pending. Combined $11.59 allowances are estimates,
+  not invoice/hidden-call guarantees; no paid call or book produced yet.
+
 - 2026-10-04 owner-approved correction saved for all fifteen profiles/thirty
   scenes, preserving Claude's original. Six active literary refinements only;
   no gender/body/canon/registry/asset change or new ID admission. New content

@@ -1,0 +1,66 @@
+{
+  "version": "personal-single-book-driver-full-check-observation/v1",
+  "toolExitCode": 1,
+  "sourceBase": "49e1fabbea365f4442555e8d995f1e6d0ad73452",
+  "sourceStatus": "uncommitted final code, documents subsequently completed",
+  "command": "npm run check",
+  "ordinaryTests": {
+    "failed": 10,
+    "passed": 5975,
+    "skipped": 73
+  },
+  "resourceTests": {
+    "failed": 14,
+    "passed": 621,
+    "unhandledErrors": 4
+  },
+  "supervisor": {
+    "schemaVersion": "small-heroes-vitest-check-summary/v1",
+    "canonicalFileCount": 412,
+    "ordinaryFileCount": 392,
+    "resourceIntensiveFileCount": 20,
+    "phases": {
+      "ordinary": {
+        "schemaVersion": "small-heroes-vitest-phase-diagnostic/v1",
+        "phase": "ordinary",
+        "workerLimit": 4,
+        "fileCount": 392,
+        "elapsedMs": 149336,
+        "exitCode": 1,
+        "signal": null,
+        "launchErrorCode": null,
+        "diagnosticProtocolOk": true,
+        "diagnosticRecords": 1,
+        "diagnosticBytes": 240,
+        "classes": [
+          "signal_or_exit_failure"
+        ],
+        "gateStatus": "failed"
+      },
+      "resourceIntensive": {
+        "schemaVersion": "small-heroes-vitest-phase-diagnostic/v1",
+        "phase": "resource_intensive",
+        "workerLimit": 2,
+        "fileCount": 20,
+        "elapsedMs": 461331,
+        "exitCode": 1,
+        "signal": null,
+        "launchErrorCode": null,
+        "diagnosticProtocolOk": true,
+        "diagnosticRecords": 1,
+        "diagnosticBytes": 292,
+        "classes": [
+          "on_task_update_rpc_timeout",
+          "test_timeout",
+          "signal_or_exit_failure"
+        ],
+        "gateStatus": "failed"
+      },
+      "gateStatus": "failed"
+    },
+    "gateStatus": "failed"
+  },
+  "freshBaselineRun": false,
+  "providerCalls": 0,
+  "costUsd": 0
+}

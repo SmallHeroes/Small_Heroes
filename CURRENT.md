@@ -1,5 +1,48 @@
 # SmallHeroes — Current Technical State
 
+## One guarded fictional text-book driver 2026 10 04
+
+Companion correction 49e1fabbea365f4442555e8d995f1e6d0ad73452 is pushed and
+verified directly against origin/codex/personal-book-storyboard-bridge. No
+QA/main merge or deployment, and not a PASS on its fifty-five ancestors.
+Codex continues as sole writer here, connecting the existing causal host in
+a focused free implementation. Public recording wizard remains on its older
+OpenAI book route; the new driver is an explicit local text diagnostic only.
+
+The driver performs one synthetic Astra identity/schema probe before any book
+reservation, then an eight-spread all-fixture request with Opus planning and
+authoring, fresh-process Opus editing, isolated Astra original/final readings
+and comparison. A same-instance digest-bound synopsis review precedes prose.
+Default CLI is budget-only and does not read a key/reserve/dispatch. One stable
+approval-derived family excludes replay across roots or substituted children.
+Model/tier/schema/usage/cost failure stops before book; timeout/cancel is terminal.
+Timely probe evidence survives source/CLI drift that blocks later work.
+
+Viewer/CLI distinguish no-book synopsis HOLD, model-held text and text requiring
+human reading. Repaired original findings do not hold final text alone; no
+result grants runtime/product/image eligibility. Fixture labels and standard
+routing declarations are operator assertions, not external attestation.
+
+Type-check 0; six focused specs 217/217, including 49 new offline cases. One
+intermediate test used a nonexistent voice and failed at the earlier request
+guard; corrected to an offered voice, it now tests the intended clause.
+Fresh full npm run check tool exit 1: ordinary 10 missing-artifact failures,
+5,975 passed/73 skipped, 392 files; resource 14 timeouts, 621 passed, 20 files,
+plus four onTaskUpdate RPC errors. Supervisor captured native child exit 1 in
+both lanes. Resource failures are in unchanged files; no fresh baseline proves
+their cause or stability. This successor's full gate is RED, not release-ready.
+
+Combined allowances $11.59 inside requested $12, not an invoice guarantee or
+proof of native CLI internal calls/thinking capacity. Explicit $12 owner answer
+and independent Claude QA are pending. No fabricated consent/live config, new
+book, key lookup, provider call, image, storyboard, narration or spend. Existing
+key reuse is already authorized. Exact returned Astra identity/CLI calibration
+remain PL-1/2 empirical risks. Do not weaken guards to get a successful sample.
+
+Decision/QA briefs:
+docs/ai-workflow/PERSONAL_SINGLE_BOOK_DRIVER_DECISION_20261004.md and
+docs/ai-workflow/PERSONAL_SINGLE_BOOK_DRIVER_QA_20261004.md.
+
 ## Companion literary correction and bounded integration 2026 10 04
 
 Guy authorizes the focused correction, a subsequent work-branch push and
