@@ -1,5 +1,45 @@
 # SmallHeroes — Current Technical State
 
+## Six Opus author editor Astra books completed 2026 10 03
+
+Paid diagnostic completed on frozen clean83baf064: six fictional seeded profiles,
+six distinct companions, balanced8/12/16 narrative spreads. Twelve fresh Opus5.5
+CLI invocations, native0/schema admitted, original author receives brief only;
+editor receives complete original in a separate process. No retry/reset. CLI
+estimate5.719604USD within configured12USD, NOT invoice or exact internal call
+count; selected prior experiments plus new6.997331USD, not all-project cost.
+Astra named-model subagent subscription usage is separately unmeasured.
+
+All six final-only literary judgments were received before supplying their
+original/edit comparison packets. Additive attributed reports preserve those
+verdicts; raw paid receipt still says awaiting advisory as its execution snapshot.
+Outcome: Shira/Anat and Neta/Boni recommended for Guy product reading; Gil/Dini,
+Tom/Uri and Yoav/Leo held for focused causal/setup repair; Alma/Kim readable with
+meaningful caveats, not clean acceptance. Comparison found new causal damage in
+Tom and Yoav and a weakened companion layer in Alma. All editor self-HOLD flags
+were false: self-audit is not independent acceptance. Exact quotes do not prove
+entailment or audit completeness. No excellent-story or model-superiority claim.
+
+Cross-cohort advisory finds distinct contributions and humour but recurring
+rule/deadline structure in5/6 and mechanism-heavy middles in two. A read-only
+instruction audit identifies implied deadline pressure, not a schema requirement
+or proven cause. No speculative follow-up prompt change was mixed into this
+frozen paid experiment; next correction must preserve creative freedom.
+
+Offline actual-output verification211 checks,12 slots, original/final source and
+critic packets bound, historical SHA/size/mtime preserved. Frozen code focused
+rerun475/475 across10 specs. Reader144 articles, UTF8/RTL/escaped prose, static
+checks only. Browser file navigation was blocked; no workaround or browser-run
+claim. Outputs under personal-opus-semantic-six-v2-20261003 are ignored, no
+verified backup. Independent Claude Code technical QA remains pending.
+
+No production Opus adapter/migration or independent text-QA dispatch was added
+to product runtime. QA-site branch remains unchanged, no push/deployment,
+visual/audio or acceptance. Full check remains RED as recorded below, without
+base reproduction or stability closure. Current task completed the authorized
+six-book diagnostic, not production readiness. Outcome/handoff:
+docs/ai-workflow/PERSONAL_SEMANTIC_SIX_OUTCOME_20261003.md.
+
 ## Semantic editing correction and six book trial 2026 10 03
 
 Before spending, a read-only engineering advisory found mutable preparation could

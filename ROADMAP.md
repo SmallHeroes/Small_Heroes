@@ -10,6 +10,18 @@ This roadmap records technical milestone state. Guy can change product priority 
 
 ### P-personal six-companion readiness (2026-10-02)
 
+- Completed2026-10-03 on83baf064: six Opus5.5 original author/fresh editor books,
+  final-first then comparison Astra advisory. Twelve native0 invocations,
+  CLI estimate5.719604USD (not invoice; Astra unmeasured), no retries/render.
+  Two product-reading candidates, three focused revision holds, one reading
+  candidate with meaningful caveats. All editor self-HOLDs false despite new
+  causal damage found independently. Not excellent-story/production acceptance.
+  Actual-output211 checks; frozen475/475 focused, historical sources preserved.
+  Reader144 articles static only, no browser audit or verified outputs backup.
+  Next: independent Claude technical re-gate, then general causal-preservation
+  and variation correction based on evidence, not automatic per-story patches.
+  No QA-site cutover or visual dispatch until relevant gates/product acceptance.
+
 - Approved2026-10-03: general semantic-edit audit and versioned receipt, exact
   original/final citations with preserved unresolved HOLD, distinct final/comparison
   critic packets. Focused462/462 plus new trial guards11/11, tsc0. These do not prove

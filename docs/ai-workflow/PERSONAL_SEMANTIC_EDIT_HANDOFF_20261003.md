@@ -8,8 +8,10 @@ this code milestone read-only; do not turn structural checks into story acceptan
 
 Branch codex/personal-book-storyboard-bridge, worktree
 C:/Users/guyna/.codex/worktrees/personal-story-product/Small_Heroes. Base
-be1c73fa028f4c95b6bc4a22daf6570e1e93e2b7; freeze the successor commit containing
-this handoff before review and report its exact immutable SHA. Codex is sole writer.
+be1c73fa028f4c95b6bc4a22daf6570e1e93e2b7; code head is frozen
+83baf06499eb083b7ae9be2a90941bbfa7dd0512 (two commits). Review that exact code
+range. The subsequent closeout is documentation only and must not expand it.
+Codex is sole writer.
 Protected d53b768ccb2f, accepted-intent63ccb484 and personal-site-qa5fe73b3f are
 read-only. No push or runtime cutover authorized by the technical verdict.
 
@@ -62,13 +64,21 @@ opus-semantic-cohort11/11. No provider calls in these checks. Initial type-check
 and fixture/schema-path tests failed during implementation and were corrected;
 no production guard was relaxed to make them green.
 
-Full npm run check is still running at write time, already RED on absent historical
-outputs. It began before the new cohort script/spec existed, so it is a working-tree
-observation, not a frozen commit gate. Final disposition will be reported separately.
+The earlier statement that full check was pending described its write-time state.
+It completed RED as recorded above, with no base reproduction. After the paid trial,
+the exact ten-spec focused command reran on frozen83baf064:475/475, no provider
+calls. This supersedes the earlier pre-commit focused counts, not the full gate.
+
+The six-book trial completed with twelve native0/schema-admitted CLI invocations,
+estimate5.719604USD, not invoice; Astra subscription cost unmeasured. Actual-output
+verification211 checks and historical preservation succeeded. See
+PERSONAL_SEMANTIC_SIX_OUTCOME_20261003.md for literary findings, raw evidence roots,
+exact command and falsification targets. No independent technical PASS or
+excellent-story acceptance follows from the experiment.
 
 No independent technical PASS, product acceptance, excellent-story guarantee,
 stability closure, QA-site deployment, image/audio or production provider migration.
-The paid cohort remains a separate bounded diagnostic: maximum twelve slots with
+The paid cohort was a separate bounded diagnostic: maximum twelve slots with
 configured CLI estimate12USD, Astra subscription usage unmeasured, no retries.
 Paid ignored outputs have no verified backup. Conditional visual work does not
 authorize rendering a held manuscript.
