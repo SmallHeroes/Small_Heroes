@@ -1,5 +1,24 @@
 # SmallHeroes — Current Technical State
 
+## Momo two-image pilot saved as pending candidate 2026 10 03
+
+Guy approved the bounded pilot. Two built-in image calls produced Momo front and
+an alternate using that front as identity input. Existing API key unused; model,
+tier and charge not returned. Built-in LOW cannot be configured, disclosed before
+generation; do not attest LOW or report unknown cost as zero. No extra retry.
+
+Packet: outputs/personal-momo-companion-pilot-20261003, ignored/local with no
+verified remote backup. Pending literary profile, visual spec, prompts, receipt,
+preview and offline verifier saved. Twenty-eight assertions pass; tsc exits 0.
+Current engine rejects the new ID and resolver returns null, as intended.
+No runtime/roster/QA/site change, paid-key call, book/video, push or deployment.
+
+Appearance is recognisably consistent; alternate is too near-frontal to complete
+the three-quarter slot, and body reads warm gray rather than distinctly blue-gray.
+No resemblance score or independent Claude/product acceptance. Guy reviews the
+look before any separately bounded completion or wider batch. Separate $12 text
+trial remains pending. See docs/ai-workflow/PERSONAL_MOMO_VISUAL_PILOT_20261003.md.
+
 ## Fifteen-companion expansion planned, not implemented 2026 10 03
 
 Guy requested nine supplied companion concepts, an animated carousel and proper
@@ -13,10 +32,11 @@ Decision Gate: docs/ai-workflow/PERSONAL_FIFTEEN_COMPANIONS_DECISION_20261003.md
 Plan preserves the existing six, separates identity sheets from marketing motion,
 and qualifies display/writing/render readiness independently. Proposed next step
 is Momo front plus reference-bound 3/4: at most two LOW images, no retries/video.
-Await bounded owner production decision; no paid pilot, runtime edit, catalogue
-activation, push or deployment. Complete nine packs would be 54 sheet images
-before retries; not authorised by this planning record. The $12 text-calibration
-proposal below remains a separate pending decision, not consumed or approved.
+Bounded pilot decision now received; see the pending-candidate result above.
+Runtime/catalogue activation, push and deployment remain unapproved. Complete
+nine packs would be 54 sheet images before retries, not authorised by this
+planning record. The $12 text-calibration proposal below remains a separate
+pending decision, not consumed or approved.
 
 ## Connection PASS recorded; later-member regression and priced next decision 2026 10 03
 

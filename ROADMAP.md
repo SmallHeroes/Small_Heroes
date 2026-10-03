@@ -10,14 +10,21 @@ This roadmap records technical milestone state. Guy can change product priority 
 
 ### P-personal fifteen-companion expansion (2026-10-03)
 
+- Momo pilot approved and saved: two built-in tool images, pending profile/spec,
+  28 offline assertions and tsc 0. Existing key unused; model/tier/cost unknown.
+  LOW not configurable here, disclosed before generation. Alternate remains
+  near-front, not completed three-quarter; warmer-gray palette needs Guy review.
+  No character activation or independent QA. No extra render beyond two calls.
+
 - Guy requests nine new friends, canonical character sheets/profiles and lively
-  carousel presentation. Decision Gate saved; no implementation or paid assets.
+  carousel presentation. Decision Gate saved; runtime implementation not started.
 - Connect personal roster, structured current-engine character authority and
   personal landing independently of the old category matrix. Preserve the six
   existing identities and archived request/evidence fingerprints.
-- Next owner decision: bounded Momo front / 3/4 pilot before any 54-sheet-image
-  batch. Proposed UX: automatic landing motion, stable wizard choices with idle
-  character gestures, pause/keyboard/reduced-motion and all-15 comparison.
+- Next owner decision: Momo appearance acceptance before any separately bounded
+  clear 3/4 completion or 54-sheet-image batch. Proposed UX: automatic landing
+  motion, stable wizard choices with idle character gestures, pause/keyboard/
+  reduced-motion and all-15 comparison.
 - Site QA writer is older than the current engine; port only an explicitly
   reviewed seam, not the entire engine branch. No rollout, push or book render.
 
