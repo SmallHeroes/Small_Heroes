@@ -2,6 +2,18 @@
 
 ## Semantic editing correction and six book trial 2026 10 03
 
+Before spending, a read-only engineering advisory found mutable preparation could
+expand the described twelve slots. Successor rebuilds the exact fictional cohort
+from its seed, fixes guidance path, enforces ordered twelve slots and length caps
+before claiming/spawning, and stops after two consecutive editor self-HOLDs.
+Superseded preparation personal-opus-semantic-six-20261003 had ZERO dispatches and
+remains immutable; new one-use family is personal-opus-semantic-six-v2-20261003.
+13/13 free guard tests and tsc0. SDK reference wording now includes semantic quotes.
+This advisory is not Claude Code independent technical PASS.
+Full working-tree check completed exit1: ordinary386files exit1; resource20files
+exit1,632/635 with3 timeouts and4 onTaskUpdate errors. No base reproduction was
+performed; do not attribute causality or claim only inherited failures/full stability.
+
 Guy approved the general correction, then six varied fictional Opus5.5 original
 author, fresh Opus5.5 editor and Astra literary QA books. Codex is sole writer on
 codex/personal-book-storyboard-bridge in personal-story-product, base be1c73fa.

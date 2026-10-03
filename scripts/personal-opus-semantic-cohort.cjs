@@ -2,7 +2,7 @@
 // Bounded diagnostic only. Native CLI estimates are never GPT-priced product accounting.
 const fs = require('node:fs'), path = require('node:path'), crypto = require('node:crypto'), Module = require('node:module');
 const { spawn, execFileSync } = require('node:child_process');
-const FAMILY = 'personal-opus-semantic-six-20261003', MODEL = 'claude-opus-5-5', TOTAL_MICRO = 12000000;
+const FAMILY = 'personal-opus-semantic-six-v2-20261003', MODEL = 'claude-opus-5-5', TOTAL_MICRO = 12000000;
 const CLI = 'C:/Users/guyna/AppData/Roaming/npm/node_modules/@anthropic-ai/claude-code/bin/claude.exe';
 const CAPS = { 8: .8, 12: 1, 16: 1.2 }, TIMEOUTS = { 8: 300000, 12: 420000, 16: 540000 };
 const sha = bytes => crypto.createHash('sha256').update(bytes).digest('hex');
@@ -28,6 +28,17 @@ function buildCases(engine, seed) {
     if (!prepared.accepted.containsFixtureData) throw Error('cohort_not_fictional');
     return { id: row.id, request: row.request, brief: prepared.brief, capUsd: CAPS[prepared.brief.beats], timeoutMs: TIMEOUTS[prepared.brief.beats] };
   });
+}
+function assertManifest(manifest, engine) {
+  if (manifest.version !== 'personal-opus-six/diagnostic-v1' || manifest.family !== FAMILY || manifest.model !== MODEL ||
+    manifest.effort !== 'medium' || manifest.configuredCliEstimateUsd !== 12 || !/^[a-f0-9]{48}$/.test(manifest.seed) ||
+    engine.canonicalJson(manifest.cases) !== engine.canonicalJson(buildCases(engine, manifest.seed))) throw Error('cohort_manifest_authority');
+}
+function assertSlot(state, row, stage) {
+  const index = state.rows.length, expected = state.manifest.cases[Math.floor(index / 2)];
+  if (index >= 12 || !expected || expected.id !== row.id || stage !== (index % 2 === 0 ? 'author' : 'editor') ||
+    row.capUsd !== CAPS[row.brief.beats] || row.timeoutMs !== TIMEOUTS[row.brief.beats] ||
+    state.microUsd + Math.round(row.capUsd * 1e6) > TOTAL_MICRO) throw Error('cohort_slot_authority');
 }
 function validateCli(payload, termination, timedOut, raw, cap, previousMicro) {
   if (timedOut || termination.code !== 0 || termination.signal || payload.is_error !== false || payload.subtype !== 'success' || raw.includes('\ufffd')) throw Error('cli_incomplete');
@@ -92,7 +103,9 @@ function context(workspace) {
   const output = path.join(workspace, 'outputs', FAMILY), claim = path.join(common, 'codex-text-trials', FAMILY);
   const roots = ['personal-six-companion-books-20261002', 'personal-opus-editor-sample-20261003', 'personal-opus-authored-astra-qa-20261003', 'personal-opus-author-approved-20261003'].map(name => path.join(workspace, 'outputs', name));
   roots.push(path.join(common, 'codex-text-trials/personal-opus-authored-astra-qa-20261003'));
-  return { workspace, git, output, claim, roots };
+  const guidancePath = path.join(workspace, 'outputs/personal-opus-authored-astra-qa-20261003/personal-editor-craft-guidance-20261003.cjs');
+  roots.push(path.join(workspace, 'outputs/personal-opus-semantic-six-20261003')); // Superseded FREE preparation stays immutable.
+  return { workspace, git, output, claim, roots, guidancePath };
 }
 function prepare(workspace, expectedHead) {
   const c = context(workspace);
@@ -100,7 +113,7 @@ function prepare(workspace, expectedHead) {
   if (fs.existsSync(c.output) || fs.existsSync(c.claim)) throw Error('cohort_family_consumed');
   const engine = loadEngine(workspace), seed = crypto.randomBytes(24).toString('hex'), cases = buildCases(engine, seed);
   if (cases.reduce((n, c) => n + Math.round(c.capUsd * 2e6), 0) !== TOTAL_MICRO) throw Error('cohort_reservation');
-  const guidancePath = path.join(workspace, 'outputs/personal-opus-authored-astra-qa-20261003/personal-editor-craft-guidance-20261003.cjs');
+  const guidancePath = c.guidancePath;
   const manifest = { version: 'personal-opus-six/diagnostic-v1', family: FAMILY, sourceHead: expectedHead, sourceBranch: c.git('branch', '--show-current'),
     authorization: 'Guy approved general semantic correction followed by six varied fictional Opus author/fresh editor/Astra QA books on 2026-10-03. Configured CLI estimate ceiling USD12, twelve one-use slots. No retries, render or deployment.',
     seed, cases, model: MODEL, effort: 'medium', cliVersion: execFileSync(CLI, ['--version'], { windowsHide: true, encoding: 'utf8' }).trim(), cliSha256: sha(fs.readFileSync(CLI)),
@@ -113,6 +126,7 @@ function prepare(workspace, expectedHead) {
   return manifest;
 }
 async function dispatch(c, row, stage, input, instructions, schema, state, engine) {
+  assertSlot(state, row, stage);
   if (fs.existsSync(path.join(c.output, 'halt.json'))) throw Error('cohort_halted');
   if (c.git('rev-parse', 'HEAD') !== state.manifest.sourceHead || c.git('status', '--porcelain')) throw Error('cohort_source_changed');
   const schemaJson = engine.zodTextFormat(schema, 'personal_opus_' + stage).schema;
@@ -156,11 +170,13 @@ async function dispatch(c, row, stage, input, instructions, schema, state, engin
 async function run(workspace) {
   const c = context(workspace), manifest = read(path.join(c.output, 'manifest.json'));
   if (fs.existsSync(c.claim)) throw Error('cohort_family_consumed');
+  const engine = loadEngine(workspace);
+  assertManifest(manifest, engine);
   if (c.git('rev-parse', 'HEAD') !== manifest.sourceHead || c.git('status', '--porcelain') || manifest.runnerSha256 !== sha(fs.readFileSync(__filename)) ||
-    manifest.cliSha256 !== sha(fs.readFileSync(CLI)) || manifest.guidanceSha256 !== sha(fs.readFileSync(manifest.guidancePath)) ||
+    manifest.guidancePath !== c.guidancePath || manifest.cliSha256 !== sha(fs.readFileSync(CLI)) || manifest.guidanceSha256 !== sha(fs.readFileSync(c.guidancePath)) ||
     JSON.stringify(snapshots(c.roots)) !== JSON.stringify(manifest.before)) throw Error('cohort_preflight_mismatch');
   fs.mkdirSync(c.claim); save(path.join(c.claim, 'claim.json'), { manifestSha256: sha(fs.readFileSync(path.join(c.output, 'manifest.json'))), configuredCliEstimateUsd: 12, slots: 12 });
-  const state = { manifest, rows: [], microUsd: 0, cases: [], status: 'held' }, engine = loadEngine(workspace), guidance = require(manifest.guidancePath);
+  const state = { manifest, rows: [], microUsd: 0, cases: [], consecutiveEditorialHolds: 0, status: 'held' }, guidance = require(c.guidancePath);
   try {
     for (const row of manifest.cases) {
       const dir = path.join(c.output, row.id); fs.mkdirSync(dir); save(path.join(dir, 'request.json'), row.request); save(path.join(dir, 'brief.json'), row.brief);
@@ -197,6 +213,8 @@ async function run(workspace) {
         runtimeEligible: false, status: 'awaiting_independent_literary_advisory' };
       save(path.join(dir, 'admission.json'), disposition); state.cases.push(disposition);
       console.log(JSON.stringify({ bookReady: row.id, companion: disposition.companion, spreads: disposition.spreads, editorSelfHeld: disposition.editorSelfHeld }));
+      state.consecutiveEditorialHolds = disposition.editorSelfHeld ? state.consecutiveEditorialHolds + 1 : 0;
+      if (state.consecutiveEditorialHolds >= 2) throw Error('cohort_repeated_editorial_hold');
     }
     state.status = 'six_books_awaiting_literary_advisory';
   } catch (error) { state.failureCode = String(error.message).split('\n')[0].slice(0, 140); }
@@ -214,7 +232,7 @@ async function run(workspace) {
     if (receipt.status !== 'six_books_awaiting_literary_advisory') process.exitCode = 2;
   }
 }
-module.exports = { buildCases, shuffled, validateCli, normalize, prepare, run, FAMILY, TOTAL_MICRO, CAPS };
+module.exports = { buildCases, shuffled, validateCli, normalize, assertManifest, assertSlot, prepare, run, FAMILY, TOTAL_MICRO, CAPS };
 if (require.main === module) {
   const workspace = process.cwd();
   if (process.argv[2] === '--prepare') { try { const m = prepare(workspace, process.argv[3]); console.log(JSON.stringify({ family: m.family, cases: m.cases.map(c => ({ id: c.id, name: c.brief.child.name, companion: c.brief.companion.name, spreads: c.brief.beats })), providerDispatches: 0 })); } catch (e) { console.error(e.message); process.exitCode = 1; } }

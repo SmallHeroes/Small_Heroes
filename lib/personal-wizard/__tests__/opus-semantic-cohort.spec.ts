@@ -36,6 +36,35 @@ describe('one-use six-book Opus diagnostic, no forged GPT accounting', () => {
   it('keeps native cost exact in the receipt guard without converting tokens at GPT prices', () => {
     expect(runner.validateCli({ subtype: 'success', is_error: false, modelUsage: { 'claude-opus-5-5': {} }, total_cost_usd: .2892632 }, { code: 0, signal: null }, false, '{}', .8, 0)).toBe(289263);
   });
+  it('rebuilds the authorized six cases and rejects manifest expansion before claims', () => {
+    const seed = 'a'.repeat(48), cases = runner.buildCases(engine, seed);
+    const manifest = { version: 'personal-opus-six/diagnostic-v1', family: runner.FAMILY, model: 'claude-opus-5-5', effort: 'medium', configuredCliEstimateUsd: 12, seed, cases };
+    expect(() => runner.assertManifest(manifest, engine)).not.toThrow();
+    for (const mode of ['extra', 'missing', 'cap', 'timeout', 'brief', 'budget', 'model', 'seed']) {
+      const broken: any = structuredClone(manifest);
+      if (mode === 'extra') broken.cases.push(broken.cases[0]);
+      if (mode === 'missing') broken.cases.pop();
+      if (mode === 'cap') broken.cases[0].capUsd = 12;
+      if (mode === 'timeout') broken.cases[0].timeoutMs = 999999;
+      if (mode === 'brief') broken.cases[0].brief.child.name = 'Invented';
+      if (mode === 'budget') broken.configuredCliEstimateUsd = 20;
+      if (mode === 'model') broken.model = 'other';
+      if (mode === 'seed') broken.seed = 'foreign';
+      expect(() => runner.assertManifest(broken, engine)).toThrow('manifest_authority');
+    }
+  });
+  it('enforces ordered author then editor and hard twelve-slot boundary before dispatch', () => {
+    const cases = runner.buildCases(engine, 'a'.repeat(48));
+    const state: any = { manifest: { cases }, rows: [], microUsd: 0 };
+    for (let i = 0; i < 12; i++) {
+      const row = cases[Math.floor(i / 2)], stage = i % 2 ? 'editor' : 'author';
+      expect(() => runner.assertSlot(state, row, stage)).not.toThrow();
+      expect(() => runner.assertSlot(state, row, stage === 'author' ? 'editor' : 'author')).toThrow('slot_authority');
+      expect(() => runner.assertSlot(state, { ...row, capUsd: 12 }, stage)).toThrow('slot_authority');
+      state.rows.push({});
+    }
+    expect(() => runner.assertSlot(state, cases[0], 'author')).toThrow('slot_authority');
+  });
   it('admits matching documents without any production accounting envelope', async () => {
     const f = await personalStoryboardFixture(); const prepared = preparePersonalStory(f.request, resolvePersonalWizardOptions());
     const call = prepareStoryEdit(prepared, f.draftResult);

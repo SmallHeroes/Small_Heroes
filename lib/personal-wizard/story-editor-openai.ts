@@ -41,7 +41,7 @@ export function createStoryEditorProvider(apiKey: string, model: StoryModel): St
     const cap = storyEditorOutputTokens(JSON.parse(call.input).brief.beats);
     if (call.maxOutputTokens !== cap) throw new StoryEditorProviderError('story_editor_output_limit');
     const payload = { model, store: false, service_tier: 'default' as const, reasoning: { effort: 'medium' as const },
-      instructions: call.instructions + '\nOrdered beat/page arrays have NO pageNumber metadata; the engine assigns positions. Only resilience moment references use spread numbers.',
+      instructions: call.instructions + '\nOrdered beat/page arrays have NO pageNumber metadata; the engine assigns positions. Resilience moments and semanticAudit citations reference narrative spread numbers.',
       input: call.input, max_output_tokens: cap, text: { format: zodTextFormat(schema, 'personal_story_editor') } };
     if (Buffer.byteLength(JSON.stringify(payload), 'utf8') > STORY_LIMITS.inputBytesPerCall) throw new StoryEditorProviderError('story_editor_input_limit');
     const response = await client.responses.create(payload, { signal, timeout: generationTimeoutMs(cap) });

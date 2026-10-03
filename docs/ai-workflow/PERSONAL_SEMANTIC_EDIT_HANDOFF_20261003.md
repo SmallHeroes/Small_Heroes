@@ -43,6 +43,18 @@ from an immutable historical module and hash-pinned; no old plot is supplied.
 
 ## Validation and limits
 
+Pre-spend advisory on e60c723c found missing enforcement of manifest/slot authority.
+Successor recomputes cases from seed and checks equality, fixed guidance path,
+ordered author/editor slots and twelve total, fixed caps/timeouts, and two consecutive
+editor self-HOLD stop. Old free preparation has zero dispatches and is preserved;
+new family personal-opus-semantic-six-v2-20261003. Guard spec now13/13. This is not
+independent Claude Code PASS. Attack the correction through real execution where
+possible; helper tests alone do not establish every filesystem/process boundary.
+
+Full working-tree check completed exit1: ordinary386files exit1, resource20files
+exit1 with632/635, three timeouts and four onTaskUpdate unhandled errors. No base
+rerun or causality claim; it was not a frozen-HEAD observation. Stability remains RED.
+
 Standalone npx tsc --noEmit exit0. Nine affected specs462/462: story-semantic-audit19,
 story-editor42, story-editor-openai16, story-planning60, story-comparison48,
 storyboard71, book-runner129, book-preview39, story-writer38. Separate new
