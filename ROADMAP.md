@@ -10,15 +10,15 @@ This roadmap records technical milestone state. Guy can change product priority 
 
 ### P-personal six-companion readiness (2026-10-02)
 
-- Claude independently reviewed A and B through edfaec81: A PASS, B HOLD for
-  deadline presupposition. Corrective successor makes actual dispatched guidance
-  conditional, binds effective plan disposition and rechecks outline admission.
-  Candidate-pair and real current-wrapper wiring coverage added.594/594, tsc0,
-  base-control7failures,14 mutations caught;311files exact-preserved. Native npm
-  check RED:10ordinary missing-artifact failures/5826passed;8resource timeouts/
-  627passed+4RPC errors. No full baseline or timeout causal attribution. Existing
-  runtime/provider/trial unchanged. No paid run or visual/site integration;
-  corrective independent re-gate needed before the new costed trial milestone.
+- Claude's corrective PASS covers edfaec81..3e390baa and lifts B's HOLD. A's
+  separate PASS remains4ab69eee..71375d32. Claude reproduced594/594 and tsc0;
+  19mutation probes reported,one redundant cancellation mutation survived.
+  Reviewer full gate still RED:10missing artifacts,one timeout,three RPC errors.
+  These are attributed, not a new Codex full run or proof of timeout causality.
+  Current runtime/provider/paid trial remain unchanged. Next Decision Gate:
+  offline diagnostic host, durable family claims and actual role adapters, then
+  newly priced text-only cohort. No live caller exists yet; normal36/max42
+  logical dispatches for six cases, not native call counts or spending approval.
 
 - Approved B limited causal experiment implemented in isolated diagnostic modules:
   split plan/prose, all synopses before cohort review, bounded rejection/replan,
@@ -26,7 +26,8 @@ This roadmap records technical milestone state. Guy can change product priority 
   Experimental failed-attempt mandate relaxed, current prompt unchanged.
   50 new tests, expanded582/582, tsc0, seven mutations caught. Current GPT runtime
   and consumed native trial unchanged. No live adapter, durable claims or new
-  paid authorization; independent Claude re-gate then costed measurement needed.
+  paid authorization. Corrective independent re-gate is recorded above; costed
+  measurement still needs a host and a new explicit allowance.
   First B native stages RED10ordinary/8resource failures+4RPC. Final-profile
   capture RED10ordinary/1resource failure+3RPC, both type checks0.272historical
   files exact-preserved; no visual/product/release acceptance or causal claim.
@@ -35,7 +36,7 @@ This roadmap records technical milestone state. Guy can change product priority 
   A current receipt/server/frame/display guards implemented, archive preserved;
   322/322, four mutations caught, tsc0, 272 exact-preserved files. Full gate RED,
   ordinary-only rerun10missing-artifact failures; extra first-run failure did
-  not recur and remains unidentified. Independent re-gate pending.
+  not recur and remains unidentified. Independent A PASS is4ab69eee..71375d32.
   B is separate offline diagnostic implementation; new paid family and rollout
   require later decisions. No spend, push, deployment or visuals this milestone.
 

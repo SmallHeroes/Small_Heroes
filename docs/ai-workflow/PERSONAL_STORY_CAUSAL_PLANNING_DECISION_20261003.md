@@ -2,6 +2,12 @@
 
 ## Decision record
 
+Corrective independent re-gate PASSES edfaec81..3e390baa and lifts B's HOLD.
+This completes the approved offline A/B technical work, not a live run or story
+acceptance. The exact attributed verdict and boundaries are recorded in
+PERSONAL_CAUSAL_QA_CORRECTION_20261003.md. Next host/adapter/spend work has a
+separate pending Decision Gate; old paid claims and runtime remain unchanged.
+
 Claude Code reviewed the separate A and B ranges through edfaec81: A PASS, B
 HOLD because the experimental guidance still presupposed a deadline. The
 corrective successor implements the already approved conditional-time-limit

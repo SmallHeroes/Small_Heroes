@@ -1,5 +1,32 @@
 # SmallHeroes — Current Technical State
 
+## Causal experiment independent corrective PASS closeout 2026 10 03
+
+Guy forwarded Claude Code's PASS for edfaec81..3e390baa. The reviewer lifts
+B's HOLD and reports no new findings; A's separate PASS stays attached to
+4ab69eee..71375d32. Source report SHA8495be5cdca21f149da32ca34eac76164489424230a91f5c3ccc7344689cd81b.
+Claude reproduced tsc0 and594/594 in14specs.19 mutation probes reported;
+one redundant post-reply cancellation mutation survived because the earlier
+abort path already rejects. Do not report19/19 caught. Reviewer's full gate
+still RED:10missing-artifact failures,one test timeout,three RPC errors.
+These are attributed observations, not new Codex runs or a proven timeout cause.
+
+Documentation-only closeout in the same task/branch; no production/test/provider,
+wizard/site or prior evidence change. Before snapshot338files: prior311 plus
+27correction evidence files; after338/338 unchanged, zero drift, standalone tsc0.
+Evidence is separate in outputs/personal-causal-qa-closeout-20261003. No additional
+full-suite run is claimed for docs.
+
+The technically reviewed causal coordinator has NO live caller/adapter. A host
+must supply durable reserve/claim and authenticated role dispatch before any new
+cohort. Proposed next gate is offline connection work, then separate explicit
+spending authority. Six-case normal36/max42 logical dispatches are not provider
+internal call counts or a price. Opus author/fresh editor and isolated Astra
+readings/comparison remain the intended roles, not live model attestation.
+No paid family, product/story PASS, image/render, site cutover, push or deployment.
+See docs/ai-workflow/PERSONAL_CAUSAL_QA_CORRECTION_20261003.md and
+docs/ai-workflow/PERSONAL_CAUSAL_TRIAL_CONNECTION_DECISION_20261003.md.
+
 ## Causal experiment independent QA correction 2026 10 03
 
 Claude's forwarded review: A PASS for 4ab69eee..71375d32; B HOLD for

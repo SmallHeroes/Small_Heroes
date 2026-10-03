@@ -1,7 +1,11 @@
 # Causal experiment QA correction
 
-Claude Code's forwarded review covers A and B separately through edfaec81.
-A passes; B is held because the experimental guidance still assumes a deadline.
+Claude Code's corrective re-gate now PASSES edfaec81..3e390baa and lifts B's
+HOLD. This document retains the implementation evidence and the original review
+targets below; the PASS does not authorize a paid run or certify story quality.
+
+The preceding forwarded review covered A and B separately through edfaec81.
+A passed; B was held because the experimental guidance still assumed a deadline.
 Codex verified that contradiction against the approved decision and the actual
 instruction assembly. This successor repairs that requirement, not story quality.
 The reviewer suggests a cause for earlier deadline plots; no controlled experiment
@@ -69,7 +73,7 @@ receipt reload is added here. No self-awarded independent PASS or stability clai
 
 The correction is implemented and local validation is complete. The copy-ready
 handoff records the exact committed successor after this document is committed.
-Independent corrective re-gate remains pending; no technical PASS is self-awarded.
+Independent corrective PASS is now attributed below; no PASS is self-awarded.
 Claude's previous measurements are attributed reports, not reruns by Codex:
 A 322/322 and head 582/582 with tsc=0; ordinary 10 known missing-asset failures /
 5814 passed; resource 635/635 with three onTaskUpdate RPC errors, no test timeouts.
@@ -130,6 +134,38 @@ C:/Users/guyna/.codex/attachments/5741f7ac-dc23-4897-8440-0a1ac56dd616/Pasted te
 SHA256 4a3e9f3aeb1a918262b385386f8af80618b67a9ea22850c76d92cfc6e7a49e4d.
 This preserves attribution to the forwarded report; it does not invent reviewer
 P0/P1/P2 grades, a fetched remote state or access to the reviewer's scratchpad.
+
+## Independent corrective PASS
+
+Guy forwarded Claude Code's report for edfaec81..3e390baa at
+C:/Users/guyna/.codex/attachments/06c2e16f-40f1-43ac-a99c-217abd697eff/Pasted text.txt,
+SHA2568495be5cdca21f149da32ca34eac76164489424230a91f5c3ccc7344689cd81b.
+The reviewer gives PASS with no new findings and lifts B's HOLD. A's production
+bytes and its distinct PASS boundary remain unchanged. This records the supplied
+verdict; Codex did not access or reconstruct the reviewer's scratchpad report.
+
+Claude reports its own tsc0 and594/594 across14specs, and nineteen mutation
+probes covering all five requested targets. One redundant post-reply cancel
+check survives because the earlier abort path already rejects; the reviewer
+does not consider it a finding. Do not claim nineteen of nineteen caught.
+The reviewer's full gate remains RED:ten missing-artifact failures,one test
+timeout and three onTaskUpdate RPC errors. Exact full-suite pass counts are not
+supplied in this report. These observations neither replace Codex's saved run
+nor prove the cause or inheritance of timeouts.
+
+Closeout changes documentation only. It cannot confer a new code PASS or extend
+the range by declaration. A fresh local evidence root is
+outputs/personal-causal-qa-closeout-20261003, ignored and without verified backup.
+Before inventory covers338 files:the prior311 plus27 correction evidence files;
+all prior311 match the exact saved SHA/size/.NET ticks. After338/338 unchanged,
+zero differences; standalone tsc exits0. Results are recorded in that new root;
+no full check is
+rerun for docs and no provider/key/cost/render/push/deployment occurs.
+
+The next dependency is an actual diagnostic host with durable claims, authenticated
+Opus/Astra adapters and a newly priced allowance, not another rewrite of this
+already reviewed correction. See PERSONAL_CAUSAL_TRIAL_CONNECTION_DECISION_20261003.md.
+That Decision Gate is a proposal, not implementation or spending authorization.
 
 ## Claude Code re gate targets
 
