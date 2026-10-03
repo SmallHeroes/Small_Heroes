@@ -8,6 +8,7 @@ import { STORY_INSTRUCTIONS, RESILIENCE_INSTRUCTIONS, NARRATIVE_CRAFT_INSTRUCTIO
 import { editedStoryResultSchema, storyEditorOutputSchema, type EditedStoryResult } from './story-editor-contract';
 import { adventureSelectionIssue } from './story-planning-contract';
 import { measureStoryText } from './story-text-metrics';
+import { assertSemanticEditEvidence, semanticEditNeedsWork, SEMANTIC_EDIT_INSTRUCTIONS } from './story-semantic-audit';
 
 export type StoryEditorCall = { stage: 'editor'; instructions: string; input: string; maxOutputTokens: number };
 export type StoryEditorProvider = { generate(call: StoryEditorCall, signal: AbortSignal): Promise<{ output: unknown; usage: StoryUsage }> };
@@ -16,7 +17,7 @@ export class StoryEditorError extends Error {
   constructor(readonly code: string) { super(`story_editor_${code}`); }
 }
 const fail = (code: string): never => { throw new StoryEditorError(code); };
-export const STORY_EDITOR_INSTRUCTIONS = `${STORY_INSTRUCTIONS}\n${RESILIENCE_INSTRUCTIONS}\n${NARRATIVE_CRAFT_INSTRUCTIONS}
+export const STORY_EDITOR_INSTRUCTIONS = `${STORY_INSTRUCTIONS}\n${RESILIENCE_INSTRUCTIONS}\n${NARRATIVE_CRAFT_INSTRUCTIONS}\n${SEMANTIC_EDIT_INSTRUCTIONS}
 Act as a demanding Hebrew children's book editor, not as the author's congratulatory reviewer. Read the entire approved brief, outline and draft first.
 Return a COMPLETE revised manuscript AND a matching revised narrative plan, not suggestions or a quality score. Keep strong passages; remove mechanical filler. If the premise or solution does not make sense, simplify/rework it, not just add an explanation. Do not blindly preserve a weak outline. Never insert an example plot from these instructions.
 First check the ending against the beginning: having the right number of texts is not evidence that the story is complete. If the draft only covers early outline beats, compress/restructure to include the entire adventure and earned resolution. Each final spread corresponds to one COMPLETE revised beat, not half a beat. Do not approve an unresolved midpoint as an ending. If the draft stays a stationary hobby drill, revise its situation and discovery rather than merely expanding its sentences.
@@ -56,6 +57,8 @@ export function compileStoryEdit(prepared: PreparedStory, draft: PersonalStoryRe
   const parsed = storyEditorOutputSchema.safeParse(raw);
   if (!parsed.success) return fail('output_invalid');
   const output = parsed.data;
+  try { assertSemanticEditEvidence(output.semanticAudit, draft.manuscript, output.manuscript); }
+  catch { return fail('semantic_audit_evidence'); }
   if (output.requestId !== prepared.accepted.requestId || output.draftDigest !== JSON.parse(call.input).draftDigest) fail('source_binding');
   const count = prepared.brief.beats;
   if (output.plan.beats.length !== count || output.manuscript.pages.length !== count ||
@@ -81,19 +84,26 @@ export function compileStoryEdit(prepared: PreparedStory, draft: PersonalStoryRe
     accounting: { ...draft.accounting, providerCalls: 3, usage: usages,
       reservedUsd: draft.accounting.reservedUsd + storyEditorReservationUsd(draft.accounting.model as StoryModel, count),
       estimatedUsd: usages.every(row => row !== null) ? usages.reduce((sum, row) => sum + (row!.inputTokens * price.input + row!.outputTokens * price.output) / 1e6, 0) : null },
-    editing: { version: 'personal-story-editor/diagnostic-v2', kind: 'model_edit_not_product_acceptance',
-      original, draftDigest: digest(original), finalDigest: digest({ plan, manuscript, characterDigest: draft.characterDigest }), checks: output.checks } });
+    editing: { version: 'personal-story-editor/diagnostic-v3', kind: 'model_edit_not_product_acceptance',
+      original, draftDigest: digest(original), finalDigest: digest({ plan, manuscript, characterDigest: draft.characterDigest }), checks: output.checks,
+      semanticAudit: output.semanticAudit, auditDigest: digest(output.semanticAudit) } });
   return result;
 }
 export function assertStoryEditBinding(result: EditedStoryResult) {
-  const profile = result.editing.version === 'personal-story-editor/diagnostic-v2' ? { characterDigest: result.characterDigest } : {};
-  if (result.editing.version === 'personal-story-editor/diagnostic-v2'
+  const profile = result.editing.version !== 'personal-story-editor/diagnostic-v1' ? { characterDigest: result.characterDigest } : {};
+  if (result.editing.version !== 'personal-story-editor/diagnostic-v1'
       ? !result.characterDigest || result.editing.original.characterDigest !== result.characterDigest
       : result.characterDigest !== undefined || result.editing.original.characterDigest !== undefined) fail('revision_binding');
   if (digest(result.plan) !== result.planDigest || digest(result.editing.original.plan) !== result.editing.original.manuscript.planDigest ||
     digest(result.editing.original) !== result.editing.draftDigest || digest({ plan: result.plan, manuscript: result.manuscript, ...profile }) !== result.editing.finalDigest) fail('revision_binding');
   if (result.planning && result.planning.sourcePlanDigest !== digest(result.editing.original.plan)) fail('revision_binding');
+  if (result.editing.version === 'personal-story-editor/diagnostic-v3') {
+    if (!result.editing.semanticAudit || digest(result.editing.semanticAudit) !== result.editing.auditDigest) fail('revision_binding');
+    try { assertSemanticEditEvidence(result.editing.semanticAudit, result.editing.original.manuscript, result.manuscript); }
+    catch { return fail('semantic_audit_evidence'); }
+  }
 }
 export function editorNeedsWork(result: EditedStoryResult): boolean {
-  return Object.values(result.editing.checks).some(check => check.outcome === 'needs_work');
+  return Object.values(result.editing.checks).some(check => check.outcome === 'needs_work') ||
+    (result.editing.semanticAudit !== undefined && semanticEditNeedsWork(result.editing.semanticAudit));
 }

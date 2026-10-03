@@ -6,6 +6,7 @@ import { storyEditorOutputSchema } from './story-editor-contract';
 import { STORY_LIMITS, generationTimeoutMs, type StoryModel } from './story-config';
 import { storyEditorOutputTokens, type StoryEditorCall, type StoryEditorProvider } from './story-editor';
 import type { StoryUsage } from './story-contract';
+import { semanticEditAuditSchemaForSpreads } from './story-semantic-audit';
 
 export class StoryEditorProviderError extends Error {
   providerUsage?: StoryUsage;
@@ -18,6 +19,7 @@ export function storyEditorProviderSchema(call: StoryEditorCall) {
     !/^[a-f0-9]{64}$/.test(context.draftDigest) || !['chosen_topic', 'adventure_only'].includes(resilienceMode)) throw new StoryEditorProviderError('story_editor_provider_context');
   const plan = storyEditorOutputSchema.shape.plan;
   return storyEditorOutputSchema.extend({ requestId: z.literal(requestId), draftDigest: z.literal(context.draftDigest),
+    semanticAudit: semanticEditAuditSchemaForSpreads(beats),
     plan: plan.extend({ beats: z.array(plan.shape.beats.element.omit({ pageNumber: true })).length(beats),
       resilience: plan.shape.resilience.extend({ mode: z.literal(resilienceMode),
         moments: z.array(plan.shape.resilience.shape.moments.element.extend({ pageNumber: z.number().int().min(1).max(beats) })).min(1).max(4) }) }),

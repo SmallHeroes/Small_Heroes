@@ -1,0 +1,15 @@
+# Approved semantic editing milestone
+
+Guy approved the focused general correction, followed by six varied fictional books using original Opus5.5 authoring, a fresh Opus5.5 editor and Astra literary QA. Conditional QA-site integration and visual work follow results and independent technical review, not mere schema validity.
+
+Root remains sole writer in personal-story-product on codex/personal-book-storyboard-bridge, frozen base be1c73fa028f4c95b6bc4a22daf6570e1e93e2b7. Protected worktrees/site read-only. Continue current execution task. No overlapping write assignment.
+
+Observed: whole-book planning and saved original/final digests already exist. Editor checks only final-quality notes. Text-only returns before independent review. Visual review receives no original. Meaning preservation is not measured by those bindings. Rejected: another planner, a fixed plot/location count, freezing a weak fictional rule forever, treating a quote as proof of entailment, or automatic paid rewrite loops.
+
+Implement a bounded semantic audit in current editor output and v3 receipt; retain explicit v1/v2 archive reading without manufacturing audits. Categories: world rules, setup/payoff, threat/tone, child agency, companion contribution. Evidence has original/final spread and exact quote. Code proves coverage, source identity and quote presence ONLY. Intentional coherent plot changes remain permitted; unresolved semantic risk preserves HOLD. No claim of semantic truth from structural validation.
+
+Prepare source-bound final-only and original/final comparison packets without editor scores. Reuse current schemas/brief and comparisons. This code milestone does not silently add API calls to existing runner or migrate production to CLI; Astra dispatch is the bounded separate diagnostic trial. Product API adapter/accounting and independently-reviewed text QA runner integration remain separate before cutover. Extend current planning/craft instructions to make conditions/consequences explicit without pinning the duck story.
+
+Tests: schema/current SDK projection, evidence foreign/missing/duplicate/out-of-range/fabricated checks, request/draft/final tamper, archived versions, unresolved HOLD, valid intentional revision and reviewer packet separation. Run focused specs and tsc before local focused commit; full gate separately observe, do not promise stability. Rollback preserves old receipts and paid roots, and reverts the scoped code commit only by a separately authorized operation.
+
+After free checks use a NEW permanent trial family; seeded randomized assignment of all six companions with two each of8/12/16 spreads, ages/topics/address varied, brief-only author and fresh editor. Twelve one-use CLI slots; thresholds per author/editor0.80 short,1.00 medium,1.20 long, total configured estimate12USD. CLI threshold is not an invoice guarantee. Astra subagent usage is unmeasured. Retain all real outputs/costs/HOLDs and stop on systemic repeated failures, unknown cost, unexpected model or budget overrun; no retry/reset/rescue. No image/audio or site push in this phase. Technical QA first pass read-only; owner product acceptance remains separate.

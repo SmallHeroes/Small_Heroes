@@ -1,5 +1,35 @@
 # SmallHeroes — Current Technical State
 
+## Semantic editing correction and six book trial 2026 10 03
+
+Guy approved the general correction, then six varied fictional Opus5.5 original
+author, fresh Opus5.5 editor and Astra literary QA books. Codex is sole writer on
+codex/personal-book-storyboard-bridge in personal-story-product, base be1c73fa.
+Current editor output requires five semantic audit categories with original/final
+exact spread citations. Newly generated receipts are diagnostic-v3; v1/v2 archives
+remain explicit. Unresolved meaning holds editor, preview and storyboard paths.
+Quote coverage proves reference integrity, NOT entailment or excellent literature.
+Intentional coherent revisions remain allowed; no rigid plot or location quota.
+
+Separate source-bound final-only and draft/edit critic packets exclude author
+planning, model identity, editor ratings and audit. No independent text-QA dispatch
+was silently added to the product runner, and no production Opus migration is
+claimed. The bounded CLI trial uses native accounting, not a forged GPT result.
+Six seeded randomized fictional profiles preserve biography and distribute all six
+companions, two each of8/12/16 narrative spreads. Twelve one-use author/editor
+slots, configured estimates0.80/1.00/1.20USD per length/stage, aggregate12USD,
+not guaranteed invoice caps; Astra subscription usage separately unmeasured.
+Fresh processes, exclusive claims before dispatch, raw receipts and HOLDs retained.
+No retries, image/audio, QA deployment or push in this phase.
+
+Standalone tsc0; nine affected specs462/462 plus trial guards11/11, zero provider
+calls during these tests. Full npm check was started on the working tree and is
+still running; already RED on missing historical fixtures. It is not a frozen
+HEAD observation, and no stability closure is asserted. Earlier paid roots remain
+untouched. Trial has not started at this entry. Independent Claude Code first-pass
+review is pending; Codex does not self-award its technical PASS. Handoff:
+docs/ai-workflow/PERSONAL_SEMANTIC_EDIT_HANDOFF_20261003.md.
+
 ## Approved Opus original plus editor plus Astra trial 2026 10 03
 
 Guy approved additional1.20USD for a FRESH one-use fictional Neta experiment.

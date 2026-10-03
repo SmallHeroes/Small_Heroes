@@ -64,6 +64,17 @@ describe('automatic personal manuscript -> full storyboard -> separate semantic 
     expect(failure.accounting).toMatchObject({ providerAttempts: 3, estimatedUsd: null });
     expect(f.provider.visual.generate).not.toHaveBeenCalled(); expect(f.ledger.snapshot().inFlight).toBe(0);
   });
+  it.each(['story_only', 'storyboard'] as const)('holds unresolved semantic meaning in %s before visual dispatch', async scope => {
+    const f = await setup(); vi.mocked(f.provider.editor.generate).mockImplementation(async call => {
+      const output = fixtureEditorOutput(call); output.semanticAudit.setup_payoff.outcome = 'unresolved';
+      return { output, usage: null };
+    });
+    const failure = await errorOf(generatePersonalBook({ ...f.args, scope }));
+    expect(failure.code).toBe('book_editorial_held');
+    expect(failure.writerResult && 'editing' in failure.writerResult && failure.writerResult.editing.semanticAudit?.setup_payoff.outcome).toBe('unresolved');
+    expect(failure.accounting?.providerAttempts).toBe(3);
+    expect(f.provider.visual.generate).not.toHaveBeenCalled(); expect(f.ledger.snapshot().inFlight).toBe(0);
+  });
   it('retains a one-call planner HOLD in story-only mode', async () => {
     const f = await setup(); const output = { ...f.draftResult.plan, adventureSelection: structuredClone(f.draftResult.planning!.selection) };
     output.adventureSelection.outlineChecks.earned_payoff.outcome = 'needs_work';

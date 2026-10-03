@@ -10,6 +10,16 @@ This roadmap records technical milestone state. Guy can change product priority 
 
 ### P-personal six-companion readiness (2026-10-02)
 
+- Approved2026-10-03: general semantic-edit audit and versioned receipt, exact
+  original/final citations with preserved unresolved HOLD, distinct final/comparison
+  critic packets. Focused462/462 plus new trial guards11/11, tsc0. These do not prove
+  literature or semantic entailment. Independent technical QA pending; full gate
+  remains RED. Next execute NEW twelve-slot native Opus cohort, six fictional
+  randomized companions and balanced8/12/16 lengths, configured CLI estimate12USD,
+  fresh author/editor and final-first Astra. No auto rewrite or production cutover.
+  Only after results, independent technical review and product acceptance can
+  QA-site integration and visual preparation follow.
+
 - Fresh additional1.20USD approved2026-10-03; Opus5.5 original author and separate
   Opus editor completed frozen1c6a0326, then final-first Astra subagent advisory.
   Two CLI invocations native0; new estimate0.614235USD, prior+new1.277727USD,

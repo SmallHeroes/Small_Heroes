@@ -28,6 +28,13 @@ describe('strict SDK editorial adapter, no silent fallback or retry', () => {
     const [payload, request] = sdk.create.mock.calls[0];
     expect(payload).toMatchObject({ model: 'gpt-6.1-sol', store: false, service_tier: 'default', reasoning: { effort: 'medium' }, max_output_tokens: f.call.maxOutputTokens });
     expect(payload.text.format.strict).toBe(true); expect(payload.text.format.name).toBe('personal_story_editor');
+    const jsonSchema = payload.text.format.schema;
+    expect(jsonSchema.required).toContain('semanticAudit');
+    const audit = jsonSchema.properties.semanticAudit;
+    expect(audit.required).toEqual(['version', 'world_rules', 'setup_payoff', 'threat_tone', 'child_agency', 'companion_contribution']);
+    const resolve = (node: any): any => node.$ref ? resolve(node.$ref.slice(2).split('/').reduce((v: any, key: string) => v[key], jsonSchema)) : node;
+    const row = resolve(audit.properties.child_agency);
+    expect(resolve(resolve(resolve(row.properties.revised).items).properties.pageNumber).maximum).toBe(JSON.parse(f.call.input).brief.beats);
     expect(request.timeout).toBe(generationTimeoutMs(f.call.maxOutputTokens));
     expect(sdk.options).toEqual([{ apiKey: 'fake', maxRetries: 0 }]);
   });
@@ -42,13 +49,15 @@ describe('strict SDK editorial adapter, no silent fallback or retry', () => {
     const f = await setup(); await expect(createStoryEditorProvider('fake', 'gpt-6.1-sol').generate({ ...f.call, maxOutputTokens: f.call.maxOutputTokens + delta }, new AbortController().signal)).rejects.toThrow('output_limit');
     expect(sdk.create).not.toHaveBeenCalled();
   });
-  it.each(['count', 'number', 'digest', 'check', 'metadata'])('rejects provider %s corruption', async kind => {
+  it.each(['count', 'number', 'digest', 'check', 'metadata', 'audit', 'citation'])('rejects provider %s corruption', async kind => {
     const f = await setup(); const raw: any = f.providerOutput;
     if (kind === 'count') raw.manuscript.pages.pop();
     if (kind === 'number') raw.plan.beats[0].pageNumber = 17;
     if (kind === 'digest') raw.draftDigest = 'a'.repeat(64);
     if (kind === 'check') delete raw.checks.causal_magic;
     if (kind === 'metadata') raw.manuscript.planDigest = 'a'.repeat(64);
+    if (kind === 'audit') delete raw.semanticAudit;
+    if (kind === 'citation') raw.semanticAudit.child_agency.revised[0].pageNumber = 9;
     expect(() => decodeStoryEditorOutput(f.call, raw)).toThrow('provider_schema');
   });
   it('requires all fixed observations and refuses oversize input before SDK', async () => {

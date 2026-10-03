@@ -41,6 +41,7 @@ describe('whole-story editing without product or render authority', () => {
     const f = await setup(); const legacy = structuredClone(f.result);
     delete legacy.characterDigest; delete legacy.editing.original.characterDigest;
     legacy.editing.version = 'personal-story-editor/diagnostic-v1';
+    delete legacy.editing.semanticAudit; delete legacy.editing.auditDigest;
     const { createHash } = await import('node:crypto'); const { canonicalJson } = await import('../request-acceptance');
     const digest = (data: unknown) => createHash('sha256').update(canonicalJson(data)).digest('hex');
     legacy.editing.draftDigest = digest(legacy.editing.original);

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { semanticEditNeedsWork } from './story-semantic-audit';
 import { editedStoryResultSchema, anyPersonalStoryResultSchema } from './story-editor-contract';
 import { storyPlanningHoldSchema } from './story-contract';
 import type { AvailabilityFetch } from './availability-client';
@@ -33,7 +34,8 @@ export type TextBookPreview = z.infer<typeof textBookPreviewSchema>;
 export function readTextBookPreview(raw: unknown, requestId: string): TextBookPreview | null {
   const parsed = textBookPreviewSchema.safeParse(raw);
   return parsed.success && parsed.data.writerResult.requestId === requestId &&
-    Object.values(parsed.data.writerResult.editing.checks).every(check => check.outcome === 'ready_for_reading') ? parsed.data : null;
+    Object.values(parsed.data.writerResult.editing.checks).every(check => check.outcome === 'ready_for_reading') &&
+    (!parsed.data.writerResult.editing.semanticAudit || !semanticEditNeedsWork(parsed.data.writerResult.editing.semanticAudit)) ? parsed.data : null;
 }
 const failureSchema = z.object({ error: z.string(), writerResult: anyPersonalStoryResultSchema, accounting: accountingSchema });
 export type BookPartialPreview = z.infer<typeof failureSchema>;

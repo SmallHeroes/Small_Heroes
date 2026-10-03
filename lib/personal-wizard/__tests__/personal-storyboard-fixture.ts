@@ -6,12 +6,16 @@ import type { ReviewedPersonalBookRequest } from '../contract';
 import { prepareStoryEdit, compileStoryEdit, type StoryEditorCall } from '../story-editor';
 import { STORY_EDITOR_CRITERIA, type StoryEditorOutput } from '../story-editor-contract';
 import { fixtureAdventureSelection } from './story-planning-fixture';
+import { SEMANTIC_EDIT_CATEGORIES } from '../story-semantic-audit';
 
 export function fixtureEditorOutput(call: StoryEditorCall): StoryEditorOutput {
   const { brief, draft, draftDigest } = JSON.parse(call.input);
   const { requestId: _planId, ...plan } = draft.plan;
   const { requestId: _storyId, planDigest: _planDigest, ...manuscript } = draft.manuscript;
   return { requestId: brief.requestId, draftDigest, plan, manuscript,
+    semanticAudit: { version: 'personal-semantic-edit-audit/v1', ...Object.fromEntries(SEMANTIC_EDIT_CATEGORIES.map(category => [category, {
+      outcome: 'preserved', original: [{ pageNumber: 1, quote: draft.manuscript.pages[0].text.slice(0, 12) }],
+      revised: [{ pageNumber: 1, quote: manuscript.pages[0].text.slice(0, 12) }], explanation: 'Synthetic structural evidence, not literary correctness.' }])) } as StoryEditorOutput['semanticAudit'],
     checks: Object.fromEntries(STORY_EDITOR_CRITERIA.map(key => [key, { outcome: 'ready_for_reading', note: 'synthetic editor fixture, NOT literary acceptance' }])) as StoryEditorOutput['checks'] };
 }
 

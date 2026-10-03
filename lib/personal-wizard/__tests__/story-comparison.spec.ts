@@ -33,6 +33,9 @@ async function fixture() {
   const edit = (draft: typeof baseline) => {
     const call = prepareStoryEdit(prepared, draft); const output = fixtureEditorOutput(call);
     output.manuscript.pages[0].text = Array(70).fill(request.child.name!).join(' ');
+    for (const row of Object.values(output.semanticAudit)) {
+      if (typeof row !== 'string') row.revised = [{ pageNumber: 1, quote: output.manuscript.pages[0].text.slice(0, 12) }];
+    }
     output.checks.hebrew_and_age.note = 'PRIVATE_EDITOR_SENTINEL, model still says ready';
     return compileStoryEdit(prepared, draft, output, null);
   };
