@@ -10,6 +10,14 @@ This roadmap records technical milestone state. Guy can change product priority 
 
 ### P-personal six-companion readiness (2026-10-02)
 
+- Guy approved A current admission and B limited causal planning experiment.
+  A current receipt/server/frame/display guards implemented, archive preserved;
+  322/322, four mutations caught, tsc0, 272 exact-preserved files. Full gate RED,
+  ordinary-only rerun10missing-artifact failures; extra first-run failure did
+  not recur and remains unidentified. Independent re-gate pending.
+  B is separate offline diagnostic implementation; new paid family and rollout
+  require later decisions. No spend, push, deployment or visuals this milestone.
+
 - Claude independent review of be1c73fa..83baf064 returned HOLD with one P2
   (five new deterministic test regressions) and five P3 observations. Successor
   fixes the historical fixture/census/model-scan regressions, pins six guards,

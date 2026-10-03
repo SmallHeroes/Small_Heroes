@@ -7,7 +7,7 @@ import { previewTextPages, previewStoryEvidence, previewSha, previewPagePrompt, 
 import { sequencePageState, sequenceRenderPrompt } from '../local-book-sequence';
 import { canonicalJson } from './request-acceptance';
 import { anyPersonalStoryResultSchema } from './story-editor-contract';
-import { assertStoryEditBinding, editorNeedsWork } from './story-editor';
+import { admitCurrentStoryEdit, assertStoryEditBinding, editorNeedsWork } from './story-editor';
 import { preparePersonalStory } from './story-writer';
 import { adventureSelectionIssue } from './story-planning-contract';
 import type { PersonalWizardOptions } from './options';
@@ -30,7 +30,7 @@ export type PersonalStoryboard = BookData & { readonly [compiledBookOrigin]: tru
 const sources = new WeakMap<Source, string>();
 const books = new WeakMap<PersonalStoryboard, { serialized: string; source: Source }>();
 
-/** Validate the CURRENT request and whole writer result before planning, not detached hashes. */
+/** Offline/archive diagnostic bridge. Current operations use the strict wrapper below. */
 export function preparePersonalStoryboard(request: unknown, writerResult: unknown, options: PersonalWizardOptions) {
   const prepared = preparePersonalStory(request, options);
   const result = anyPersonalStoryResultSchema.parse(writerResult);
@@ -79,6 +79,11 @@ export function preparePersonalStoryboard(request: unknown, writerResult: unknow
   };
   sources.set(source, canonicalJson(source));
   return source;
+}
+
+/** New/current operation: an archive or stripped receipt is never current evidence. */
+export function prepareCurrentPersonalStoryboard(request: unknown, writerResult: unknown, options: PersonalWizardOptions) {
+  return preparePersonalStoryboard(request, admitCurrentStoryEdit(writerResult), options);
 }
 
 function assertSource(source: Source) {
@@ -178,6 +183,17 @@ export function personalStoryboardFrame(book: PersonalStoryboard, rawReview: unk
   const prompt = sequence ? sequenceRenderPrompt(base, { ...sequence, predecessor: null }, null) : base;
   return { packetDigest, context, render: { prompt, promptSha: previewSha(prompt), contextSha: packetDigest },
     qa: { context, contextSha: packetDigest }, runtimeEligible: false as const };
+}
+
+/** Current packet admission, still diagnostic and never permission to spend/render. */
+export function currentPersonalStoryboardFrame(book: PersonalStoryboard, rawReview: unknown, pageNumber: number,
+  current: { request: unknown; writerResult: unknown; options: PersonalWizardOptions }) {
+  const source = assertBook(book);
+  admitCurrentStoryEdit(source.result);
+  if (!current) return fail('current_source_required');
+  const admitted = prepareCurrentPersonalStoryboard(current.request, current.writerResult, current.options);
+  if (admitted.sourceDigest !== book.sourceDigest) fail('stale_book');
+  return personalStoryboardFrame(book, rawReview, pageNumber, current);
 }
 
 /** Injectable author seam only. No default SDK/key, pricing, retry or network path. */

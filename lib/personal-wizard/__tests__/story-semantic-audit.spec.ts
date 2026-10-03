@@ -4,17 +4,89 @@ import { canonicalJson } from '../request-acceptance';
 import { fixtureEditorOutput, personalStoryboardFixture } from './personal-storyboard-fixture';
 import { preparePersonalStory } from '../story-writer';
 import { resolvePersonalWizardOptions } from '../options';
-import { prepareStoryEdit, compileStoryEdit, editorNeedsWork, assertStoryEditBinding } from '../story-editor';
+import { prepareStoryEdit, compileStoryEdit, editorNeedsWork, assertStoryEditBinding, admitCurrentStoryEdit } from '../story-editor';
 import { editedStoryResultSchema } from '../story-editor-contract';
 import { assertSemanticEditEvidence, SEMANTIC_EDIT_CATEGORIES } from '../story-semantic-audit';
 import { prepareStoryTextReview } from '../story-text-review';
-import { readTextBookPreview } from '../book-preview';
+import { readTextBookPreview, readBookPreview, readBookPartialPreview } from '../book-preview';
+import { prepareCurrentPersonalStoryboard, preparePersonalStoryboard, compilePersonalStoryboard, currentPersonalStoryboardFrame, authorPersonalStoryboard } from '../storyboard';
 const options = resolvePersonalWizardOptions();
+const accounting = { reservedUsd: 1, estimatedUsd: null, knownUsageEstimateUsd: 0,
+  providerAttempts: 3, kind: 'usage_estimate_not_invoice' };
+function previews(f: Awaited<ReturnType<typeof personalStoryboardFixture>>, writerResult: unknown) {
+  return {
+    text: { version: 'personal-book-text/diagnostic-v1', status: 'story_ready_for_reading', writerResult, runtimeEligible: false, accounting },
+    book: { version: 'personal-book-runner/diagnostic-v2', status: 'review_supported', writerResult, storyboard: f.book,
+      review: { disposition: 'review_supported', runtimeEligible: false, review: f.review }, runtimeEligible: false, accounting },
+  };
+}
 async function setup(length = 'short') {
   const f = await personalStoryboardFixture(length); const p = preparePersonalStory(f.request, options);
   return { f, p, output: fixtureEditorOutput(prepareStoryEdit(p, f.draftResult)) };
 }
 describe('semantic edit accountability, not semantic truth', () => {
+  it.each(['short', 'medium', 'long'])('admits valid CURRENT %s while all capabilities stay diagnostic', async length => {
+    const { f } = await setup(length);
+    expect(admitCurrentStoryEdit(f.result)).toEqual(f.result);
+    expect(prepareCurrentPersonalStoryboard(f.request, f.result, options).sourceDigest).toBe(f.source.sourceDigest);
+    const packet = currentPersonalStoryboardFrame(f.book, f.review, 1, f.current);
+    expect(packet.runtimeEligible).toBe(false);
+    const view = previews(f, f.result);
+    expect(readTextBookPreview(view.text, f.result.requestId)).not.toBeNull();
+    expect(readBookPreview(view.book, f.result.requestId)).not.toBeNull();
+  });
+  it.each(SEMANTIC_EDIT_CATEGORIES)('blocks CURRENT %s HOLD and its v2 downgrade, preserving archival reads', async category => {
+    const { f, p, output } = await setup(); output.semanticAudit[category].outcome = 'unresolved';
+    const held = compileStoryEdit(p, f.draftResult, output, null);
+    expect(() => admitCurrentStoryEdit(held)).toThrow('editorial_held');
+    for (const raw of [held, (() => {
+      const archived = structuredClone(held); archived.editing.version = 'personal-story-editor/diagnostic-v2';
+      delete archived.editing.semanticAudit; delete archived.editing.auditDigest; return archived;
+    })()]) {
+      const view = previews(f, raw);
+      expect(readTextBookPreview(view.text, held.requestId)).toBeNull();
+      expect(readBookPreview(view.book, held.requestId)).toBeNull();
+      expect(() => prepareCurrentPersonalStoryboard(f.request, raw, options)).toThrow();
+      expect(() => currentPersonalStoryboardFrame(f.book, f.review, 1, { ...f.current, writerResult: raw })).toThrow();
+    }
+    const archived = structuredClone(held); archived.editing.version = 'personal-story-editor/diagnostic-v2';
+    delete archived.editing.semanticAudit; delete archived.editing.auditDigest;
+    expect(() => assertStoryEditBinding(archived)).not.toThrow();
+    expect(readBookPartialPreview({ error: 'book_editorial_held', writerResult: archived, accounting }, held.requestId)).not.toBeNull();
+    const archiveSource = preparePersonalStoryboard(f.request, archived, options);
+    const archiveBook = compilePersonalStoryboard(archiveSource, f.draft);
+    expect(() => currentPersonalStoryboardFrame(archiveBook, f.review, 1, { ...f.current, writerResult: archived })).toThrow('current_edit_required');
+  });
+  it('rejects stripping the entire receipt at CURRENT admission, not at archival draft reading', async () => {
+    const { f } = await setup();
+    expect(() => admitCurrentStoryEdit(f.draftResult)).toThrow('current_edit_required');
+    expect(() => prepareCurrentPersonalStoryboard(f.request, f.draftResult, options)).toThrow('current_edit_required');
+    expect(() => preparePersonalStoryboard(f.request, f.draftResult, options)).not.toThrow();
+    const view = previews(f, f.draftResult);
+    expect(readTextBookPreview(view.text, f.result.requestId)).toBeNull();
+    expect(readBookPreview(view.book, f.result.requestId)).toBeNull();
+    expect(readBookPartialPreview({ error: 'book_editor_invalid', writerResult: f.draftResult, accounting }, f.result.requestId)).not.toBeNull();
+  });
+  it('blocks ordinary editorial HOLD in the complete storyboard display too', async () => {
+    const { f } = await setup(); const held = structuredClone(f.result);
+    held.editing.checks.hebrew_and_age.outcome = 'needs_work';
+    expect(() => admitCurrentStoryEdit(held)).toThrow('editorial_held');
+    expect(readBookPreview(previews(f, held).book, f.result.requestId)).toBeNull();
+  });
+  it('refuses CURRENT downgrade before an injectable storyboard author can run', async () => {
+    const { f } = await setup(); const archived = structuredClone(f.result);
+    archived.editing.version = 'personal-story-editor/diagnostic-v2'; delete archived.editing.semanticAudit; delete archived.editing.auditDigest;
+    let calls = 0;
+    const invoke = async () => authorPersonalStoryboard(prepareCurrentPersonalStoryboard(f.request, archived, options),
+      async () => { calls++; return f.draft; }, new AbortController().signal);
+    await expect(invoke()).rejects.toThrow('current_edit_required'); expect(calls).toBe(0);
+  });
+  it('rechecks current source citations even when a forged audit digest is self-consistent', async () => {
+    const { f } = await setup(); const forged = structuredClone(f.result);
+    forged.editing.semanticAudit!.child_agency.revised[0].quote = 'NOT_IN_THE_MANUSCRIPT';
+    forged.editing.auditDigest = createHash('sha256').update(canonicalJson(forged.editing.semanticAudit)).digest('hex');
+    expect(() => admitCurrentStoryEdit(forged)).toThrow('semantic_audit_evidence');
+  });
   it.each(['short', 'medium', 'long'])('binds a current %s audit and separate private-free QA packets', async length => {
     const { f, p, output } = await setup(length); const result = compileStoryEdit(p, f.draftResult, output, null);
     expect(result.editing.version).toBe('personal-story-editor/diagnostic-v3'); assertStoryEditBinding(result);

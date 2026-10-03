@@ -1,5 +1,21 @@
 # SmallHeroes — Current Technical State
 
+## Current edit admission implementation 2026 10 03
+
+Guy approved separate milestones A integrity and B causal planning experiment.
+A now requires engine-owned current edit receipts at server preparation/frame
+issuance and complete display. v3 HOLD cannot acquire CURRENT authority by v2
+relabelling or receipt removal. Generic offline/archive and partial reads remain.
+Focused322/322, four in-memory mutations caught, tsc0. Full check stays RED:
+ordinary11failed/5763passed/73skipped; resource4timeouts/631passed of635+4RPC errors.
+Ordinary-only rerun10failed/5764passed/73skipped, all missing-artifact failures.
+The first run's extra failure did not recur; identity unmeasured, not closed.
+272 SHA/size/mtime preserved via exact tick correction after a JS rounding error.
+No provider/key/spend/push/deploy/render. Independent Claude re-gate pending.
+See docs/ai-workflow/PERSONAL_CURRENT_EDIT_ADMISSION_20261003.md.
+B implementation follows as a distinct diagnostic-only milestone, not runtime
+cutover or paid execution; old native twelve-slot family remains frozen.
+
 ## Semantic audit technical regression correction 2026 10 03
 
 Claude reviewed exactly be1c73fa..83baf064 and issued HOLD, P0=0/P1=0/P2=1/P3=5.

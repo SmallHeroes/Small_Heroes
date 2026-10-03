@@ -5,7 +5,7 @@ import { comparableText } from './contract';
 import { personalStoryResultSchema, type PersonalStoryResult, type StoryUsage } from './story-contract';
 import { STORY_LIMITS, STORY_PRICES, type StoryModel } from './story-config';
 import { STORY_INSTRUCTIONS, RESILIENCE_INSTRUCTIONS, NARRATIVE_CRAFT_INSTRUCTIONS, type PreparedStory } from './story-writer';
-import { editedStoryResultSchema, storyEditorOutputSchema, type EditedStoryResult } from './story-editor-contract';
+import { editedStoryResultSchema, currentEditedStoryResultSchema, storyEditorOutputSchema, type EditedStoryResult } from './story-editor-contract';
 import { adventureSelectionIssue } from './story-planning-contract';
 import { measureStoryText } from './story-text-metrics';
 import { assertSemanticEditEvidence, semanticEditNeedsWork, SEMANTIC_EDIT_INSTRUCTIONS } from './story-semantic-audit';
@@ -106,4 +106,15 @@ export function assertStoryEditBinding(result: EditedStoryResult) {
 export function editorNeedsWork(result: EditedStoryResult): boolean {
   return Object.values(result.editing.checks).some(check => check.outcome === 'needs_work') ||
     (result.editing.semanticAudit !== undefined && semanticEditNeedsWork(result.editing.semanticAudit));
+}
+
+/** Current operation admission; archive readability cannot grant this capability. */
+export function admitCurrentStoryEdit(raw: unknown): EditedStoryResult {
+  const parsed = currentEditedStoryResultSchema.safeParse(raw);
+  if (!parsed.success) return fail('current_edit_required');
+  const result = parsed.data;
+  if (canonicalJson(raw) !== canonicalJson(result)) fail('revision_binding');
+  assertStoryEditBinding(result);
+  if (editorNeedsWork(result)) fail('editorial_held');
+  return result;
 }

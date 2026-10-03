@@ -56,3 +56,12 @@ export const editedStoryResultSchema = personalStoryResultObjectSchema.extend({
 export const anyPersonalStoryResultSchema = z.union([editedStoryResultSchema, personalStoryResultSchema]);
 export type EditedStoryResult = z.infer<typeof editedStoryResultSchema>;
 export type StoryEditorOutput = z.infer<typeof storyEditorOutputSchema>;
+
+// Engine-owned admission policy, NOT a version selected by the supplied receipt.
+// Keep the archive schema above readable without inventing historical audits.
+export const CURRENT_STORY_EDIT_VERSION = 'personal-story-editor/diagnostic-v3';
+export const currentEditedStoryResultSchema = editedStoryResultSchema.superRefine((result, ctx) => {
+  if (result.editing.version !== CURRENT_STORY_EDIT_VERSION) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'current_story_edit_required' });
+  }
+});

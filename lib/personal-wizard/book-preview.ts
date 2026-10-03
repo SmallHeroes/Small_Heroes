@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { semanticEditNeedsWork } from './story-semantic-audit';
-import { editedStoryResultSchema, anyPersonalStoryResultSchema } from './story-editor-contract';
+import { currentEditedStoryResultSchema, anyPersonalStoryResultSchema } from './story-editor-contract';
 import { storyPlanningHoldSchema } from './story-contract';
 import type { AvailabilityFetch } from './availability-client';
 
@@ -14,7 +14,7 @@ const accountingSchema = z.object({ reservedUsd: z.number().nonnegative(), estim
   kind: z.literal('usage_estimate_not_invoice') });
 export const bookPreviewSchema = z.object({
   version: z.literal('personal-book-runner/diagnostic-v2'), status,
-  writerResult: editedStoryResultSchema, runtimeEligible: z.literal(false),
+  writerResult: currentEditedStoryResultSchema, runtimeEligible: z.literal(false),
   storyboard: z.object({ requestId: z.string(), sourceDigest: hash, storyboardDigest: hash,
     narrativeSpreads: z.number().int(), displayPages: z.number().int(), runtimeEligible: z.literal(false),
     plan: z.object({ pages: z.array(z.object({ pageNumber: z.number().int(), shot: z.string(), angle: z.string(),
@@ -27,15 +27,18 @@ export const bookPreviewSchema = z.object({
 export type BookPreview = z.infer<typeof bookPreviewSchema>;
 export const textBookPreviewSchema = z.object({
   version: z.literal('personal-book-text/diagnostic-v1'), status: z.literal('story_ready_for_reading'),
-  writerResult: editedStoryResultSchema, runtimeEligible: z.literal(false),
+  writerResult: currentEditedStoryResultSchema, runtimeEligible: z.literal(false),
   accounting: accountingSchema.extend({ providerAttempts: z.literal(3) }),
 }).strict();
 export type TextBookPreview = z.infer<typeof textBookPreviewSchema>;
+function editorialDisplayReady(result: TextBookPreview['writerResult']) {
+  return Object.values(result.editing.checks).every(check => check.outcome === 'ready_for_reading') &&
+    !!result.editing.semanticAudit && !semanticEditNeedsWork(result.editing.semanticAudit);
+}
 export function readTextBookPreview(raw: unknown, requestId: string): TextBookPreview | null {
   const parsed = textBookPreviewSchema.safeParse(raw);
   return parsed.success && parsed.data.writerResult.requestId === requestId &&
-    Object.values(parsed.data.writerResult.editing.checks).every(check => check.outcome === 'ready_for_reading') &&
-    (!parsed.data.writerResult.editing.semanticAudit || !semanticEditNeedsWork(parsed.data.writerResult.editing.semanticAudit)) ? parsed.data : null;
+    editorialDisplayReady(parsed.data.writerResult) ? parsed.data : null;
 }
 const failureSchema = z.object({ error: z.string(), writerResult: anyPersonalStoryResultSchema, accounting: accountingSchema });
 export type BookPartialPreview = z.infer<typeof failureSchema>;
@@ -58,6 +61,7 @@ export function readBookPreview(raw: unknown, requestId: string): BookPreview | 
   const parsed = bookPreviewSchema.safeParse(raw);
   if (!parsed.success) return null;
   const data = parsed.data, book = data.storyboard, review = data.review.review;
+  if (!editorialDisplayReady(data.writerResult)) return null;
   const checks = [...review.bookChecks, ...review.frames.flatMap(frame => frame.checks)];
   const disposition = checks.some(check => check.verdict === 'uncertain') ? 'held_uncertain' : checks.some(check => check.verdict === 'contradiction') ? 'held_contradiction' : 'review_supported';
   if (data.writerResult.requestId !== requestId || book.requestId !== requestId || data.status !== data.review.disposition ||

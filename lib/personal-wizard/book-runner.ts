@@ -9,8 +9,8 @@ import type { StoryUsage, PersonalStoryResult, StoryPlanningHold } from './story
 import { prepareStoryEdit, compileStoryEdit, editorNeedsWork, storyEditorOutputTokens, StoryEditorError, type StoryEditorCall, type StoryEditorProvider } from './story-editor';
 import type { EditedStoryResult } from './story-editor-contract';
 import { BOOK_LIMITS, assertPersonalBookSettings, personalBookOutputLimits, personalBookReservationUsd, type PersonalBookSettings, type PersonalBookScope } from './book-config';
-import { preparePersonalStoryboard, compilePersonalStoryboard, personalStoryboardReviewInput,
-  storyboardReviewDisposition, personalStoryboardFrame, PERSONAL_STORYBOARD_INSTRUCTION, type PersonalStoryboard } from './storyboard';
+import { prepareCurrentPersonalStoryboard, compilePersonalStoryboard, personalStoryboardReviewInput,
+  storyboardReviewDisposition, currentPersonalStoryboardFrame, PERSONAL_STORYBOARD_INSTRUCTION, type PersonalStoryboard } from './storyboard';
 
 export type BookVisualCall = { stage: 'storyboard' | 'review'; instructions: string; input: string; maxOutputTokens: number;
   context: { narrativeSpreads: number; sourceDigest: string; storyboardDigest?: string } };
@@ -51,7 +51,7 @@ export type PersonalTextBookResult = { version: 'personal-book-text/diagnostic-v
   writerResult: EditedStoryResult; runtimeEligible: false; accounting: BookAccounting };
 export type PersonalVisualBookResult = { version: 'personal-book-runner/diagnostic-v2';
   status: ReturnType<typeof storyboardReviewDisposition>['disposition']; writerResult: EditedStoryResult; storyboard: PersonalStoryboard;
-  review: ReturnType<typeof storyboardReviewDisposition>; framePackets: ReturnType<typeof personalStoryboardFrame>[];
+  review: ReturnType<typeof storyboardReviewDisposition>; framePackets: ReturnType<typeof currentPersonalStoryboardFrame>[];
   runtimeEligible: false; accounting: BookAccounting };
 type PersonalBookArgs = {
   request: unknown; options: PersonalWizardOptions; userId: string; operatorEmail: string; jobId: string;
@@ -212,7 +212,7 @@ export async function generatePersonalBook(args: PersonalBookArgs): Promise<Pers
       return { version: 'personal-book-text/diagnostic-v1', status: 'story_ready_for_reading',
         writerResult, runtimeEligible: false, accounting: accounting() };
     }
-    const source = preparePersonalStoryboard(args.request, writerResult, args.options);
+    const source = prepareCurrentPersonalStoryboard(args.request, writerResult, args.options);
     const visual = async (call: BookVisualCall) => {
       if (Buffer.byteLength(call.instructions + call.input, 'utf8') > BOOK_LIMITS.inputBytesPerCall - 24_000) fail('book_input_limit');
       return dispatch(call.stage, signal => provider.visual.generate(structuredClone(call), signal));
@@ -229,7 +229,7 @@ export async function generatePersonalBook(args: PersonalBookArgs): Promise<Pers
     try { review = storyboardReviewDisposition(book, rawReview); } catch { return fail('book_review_invalid'); }
     assertCurrent();
     const packets = review.disposition === 'review_supported' ? Array.from({ length: book.narrativeSpreads + 1 }, (_, pageNumber) =>
-      personalStoryboardFrame(book, rawReview, pageNumber, { request: args.request, writerResult, options: args.options })) : [];
+      currentPersonalStoryboardFrame(book, rawReview, pageNumber, { request: args.request, writerResult, options: args.options })) : [];
     emit('complete', packets.length ? 'finished' : 'held');
     assertCurrent();
     args.ledger.finish(args.userId, args.jobId, 'done');
