@@ -21,6 +21,10 @@ This roadmap records technical milestone state. Guy can change product priority 
   Opus planning from prose. Proposal saved, not implemented or paid-authorized.
   Archive/current admission gap must close before visual integration. No QA
   deployment or render; retain all six-book literary dispositions.
+  GPT feedback refines the pending decision: concept appeal/bounded rejection,
+  cohort synopses before prose,0..3 preserved strengths, independent original and
+  final readings, varied sparse/no-topic/same-hobby profiles. Separate integrity
+  fix from experimental literary change; neither is authorized by the feedback.
 
 - Completed2026-10-03 on83baf064: six Opus5.5 original author/fresh editor books,
   final-first then comparison Astra advisory. Twelve native0 invocations,

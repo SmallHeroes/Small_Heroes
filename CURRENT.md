@@ -28,6 +28,14 @@ pre-prose boundary needs split calls and a separately approved new budget.
 See docs/ai-workflow/PERSONAL_SEMANTIC_REGRESSION_REGATE_20261003.md and
 PERSONAL_STORY_CAUSAL_PLANNING_DECISION_20261003.md. No QA-site cutover/render.
 
+Pending plan refined after Guy forwarded GPT feedback: idea appeal before causal
+dependencies, explicit both-rejected plus at most one reserved planning reattempt,
+cohort synopses reviewed before prose,0..3 evidence-backed editor strengths, and
+isolated original/final Astra readings before comparison. Sparse/no-difficulty
+and same-hobby/different-character profiles included. Integrity downgrade fix and
+experimental literary change are separate proposed milestones; no runtime/code
+change or new approval/spend. Shared-provider migrations are not assumed necessary.
+
 ## Six Opus author editor Astra books completed 2026 10 03
 
 Paid diagnostic completed on frozen clean83baf064: six fictional seeded profiles,
