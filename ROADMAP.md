@@ -10,6 +10,15 @@ This roadmap records technical milestone state. Guy can change product priority 
 
 ### P-personal fifteen-companion expansion (2026-10-03)
 
+- Owner refinement supersedes the original animal list: no aquatic animals,
+  insects or tiny companions. Six remaining/replacement candidate identities
+  plus Momo are proposed; two additional replacements still need definition.
+  Sixteen built-in calls total, model/tier/cost unknown; no API key or retries.
+  Six literary profiles/specs and local gallery saved; 248 offline assertions,
+  tsc 0, existing character spec 36/36. All new IDs still fail admission.
+  Full sheets/scale, open design differences, independent QA and new appearance
+  acceptance remain pending. No runtime/carousel/site implementation or push.
+
 - Momo pilot approved and saved: two built-in tool images, pending profile/spec,
   28 offline assertions and tsc 0. Existing key unused; model/tier/cost unknown.
   LOW not configurable here, disclosed before generation. Alternate remains

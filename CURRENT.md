@@ -1,5 +1,37 @@
 # SmallHeroes — Current Technical State
 
+## Companion candidates expanded with land-only product refinement 2026 10 03
+
+Guy accepted Momo's appearance and requested the remaining friends. During the
+bounded execution he excluded aquatic animals, insects and tiny companions.
+Sixteen built-in image calls were used: fourteen original candidates plus two
+replacement fronts, no retries or API-key access. Model/tier/charge remain
+unknown. Penguin Pipa, octopus Nula, firefly Zohar and otter Yuli are archived,
+not proposed choices. New candidates are land tortoise Tuk, hedgehog Tuti, owl
+Shush, cloud Puf, kangaroo Nula and dog Zohar, alongside the unchanged Momo pilot.
+Two further replacement concepts remain open; the proposed roster is not 15 yet.
+
+Packet: outputs/personal-eight-companion-candidates-20261003, ignored/local,
+no verified remote backup. Six pending literary profiles and visual specs,
+16 PNGs, source copy, prompts, receipt, preservation baseline, gallery and
+offline verifier. Verifier passes 248 assertions, including SHA/size for 17
+preserved files, six candidate IDs rejected and existing six still resolving.
+Baseline was measured after generation, before packet closeout, not reconstructed
+as a pre-generation snapshot. tsc exits 0; existing character spec 36/36.
+
+Candidates remain unqualified. Tuk's bow is at his neck, Tuti's spine tips are
+pointed, and dog's tail is fluffier than requested. New Nula/Zohar have fronts
+only. Old octopus showed seven arm endpoints; old insect four wings; their
+alternates were stopped before exclusion. No numeric resemblance or child-scale
+proof. Shared-child scale comparison and full view sets are still required.
+
+No production/registry/site/QA/animation change, book render, key-based spend,
+push or deployment. Gallery opening was queued, not a browser/layout audit.
+Full repository gate not rerun, remains open/red. Independent Claude Code
+review and Guy's acceptance of the new designs remain pending. The separate
+$12 text trial is untouched. See the scoped decision and handoff:
+docs/ai-workflow/PERSONAL_EIGHT_COMPANION_VISUAL_EXPANSION_20261003.md.
+
 ## Momo two-image pilot saved as pending candidate 2026 10 03
 
 Guy approved the bounded pilot. Two built-in image calls produced Momo front and
