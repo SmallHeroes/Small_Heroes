@@ -3,8 +3,9 @@
 The offline causal experiment has independent technical PASS through 3e390baa,
 but no live caller exists. The next useful step is to connect this reviewed
 coordinator to real author/editor/critic transports and measure actual stories.
-This is a pending proposal. No implementation, new paid family, model call,
-wizard migration or site release is authorized by this document.
+Guy approved offline connection implementation on 2026-10-03 after this proposal.
+Implementation starts at frozen 73ced594 in the same engine task. No live family,
+model call, spending, wizard migration or site release is authorized.
 
 ## 1 Proposed change
 
@@ -113,7 +114,7 @@ unchanged, so this milestone requires no customer-data or production migration.
 
 ## 10 Decisions and independent review
 
-Guy must approve offline connection implementation first. Costed live execution
+Offline connection implementation is approved; injected tests cost $0. Costed live execution
 is a later explicit decision with verified models and a concrete USD ceiling.
 Claude Code must attack the real outgoing boundaries, budget/claim races and critic
 isolation, not only the coordinator. Product/literary acceptance remains Guy's;

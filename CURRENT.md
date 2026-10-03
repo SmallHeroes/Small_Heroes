@@ -1,5 +1,37 @@
 # SmallHeroes — Current Technical State
 
+## Offline causal trial connection implementation 2026 10 03
+
+Guy approved the offline connection proposal from73ced594. Codex implemented
+three diagnostic-only modules: same-instance host, common-Git one-shot family
+journal and actual Opus/Astra transports. No public caller or live driver added.
+Opus plans/authors and edits in fresh processes; isolated Astra original/final
+readings precede comparison. All synopses precede digest-bound cohort decisions.
+42potential slots reserved before planning; normal36logical dispatches. Future
+payloads are unknown: conservative full-wire ceilings plus exact per-call checks,
+not42preknown requests or guaranteed invoice caps. CLI internal calls unverified.
+Real Windows argv overflow found offline; pinned CLI supports exact UTF8
+system-prompt-file transport. No schema truncation, retry or model fallback.
+
+Expanded16specs646/646, standalone tsc0, eight in-memory mutations caught;
+sources unchanged by mutation harness. New52tests pass in the full gate too.
+First focused run645/1 own filesystem-test timeout preserved; scoped30000ms
+test budget added without changing assertions or production deadlines.
+Native npm check1: ordinary390files,10missing-artifact failures/5878passed/
+73skipped; resource20files,17test timeouts/618passed of635 plus4onTaskUpdate
+RPC errors. Full gate RED; no fresh full baseline or timeout causal attribution.
+Historical343files compared to prior baselines with zero SHA/size/tick drift.
+Evidence: outputs/personal-causal-trial-connection-20261003 (ignored/local,
+no verified backup). Independent Claude Code re-gate required; no self-PASS.
+
+No key read/provider call/spend/render, model-generated book, wizard/site,
+runtime/coordinator migration, push or deployment. Tests use injected data,
+fake SDK fetch and mocked native spawn, not live availability proof. Literary
+HOLD remains diagnostic data, never product or publication acceptance. Next:
+independent technical QA, then primary-source pricing and a separately approved
+new-family text-only execution driver. Prior consumed families remain frozen.
+See docs/ai-workflow/PERSONAL_CAUSAL_TRIAL_CONNECTION_IMPLEMENTATION_20261003.md.
+
 ## Causal experiment independent corrective PASS closeout 2026 10 03
 
 Guy forwarded Claude Code's PASS for edfaec81..3e390baa. The reviewer lifts

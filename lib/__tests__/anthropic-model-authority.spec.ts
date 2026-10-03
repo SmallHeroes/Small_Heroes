@@ -15,6 +15,7 @@ import {
 // migration. Keep exceptions local to exact token/file pairs, never runtime defaults.
 const diagnosticReferences: Record<string, readonly string[]> = {
   'scripts/personal-opus-semantic-cohort.cjs': ['claude-opus-5-5'],
+  'scripts/personal-causal-trial-adapters.ts': ['claude-opus-5-5'],
 };
 const diagnosticFile = 'scripts/personal-opus-semantic-cohort.cjs';
 const reviewedCliLiteral = "'C:/Users/guyna/AppData/Roaming/npm/node_modules/@anthropic-ai/claude-code/bin/claude.exe'";
@@ -59,6 +60,8 @@ describe('Anthropic hardcoded model authority', () => {
     for (const token of [...ANTHROPIC_RETIRED_MODEL_IDS, 'claude-unapproved', 'claude-code']) {
       expect(authorizedReference(token, diagnostic)).toBe(false);
     }
+    expect(authorizedReference('claude-opus-5-5', 'scripts/personal-causal-trial-adapters.ts')).toBe(true);
+    expect(authorizedReference('claude-opus-5-5', 'scripts/personal-causal-trial-host.ts')).toBe(false);
   });
   it('treats only the exact diagnostic executable literal as a non-model transport reference', () => {
     const source = fs.readFileSync(path.join(process.cwd(), diagnosticFile), 'utf8');

@@ -10,6 +10,18 @@ This roadmap records technical milestone state. Guy can change product priority 
 
 ### P-personal six-companion readiness (2026-10-02)
 
+- Approved offline connection implemented from73ced594: diagnostic same-process
+  host, durable common-Git one-use family journal and Opus/Astra adapters.
+  Fresh author/editor and isolated original/final-before-comparison readings;
+  all synopses before approval.42potential slots reserved, exact wire preflight
+  before each call. No public caller/live execution driver or new paid family.
+  Expanded646/646, tsc0, eight mutations caught,343historical files preserved.
+  Full gate RED: ordinary10missing artifacts, resource17timeouts plus4RPC errors;
+  new52tests pass there. No full baseline or stability/timeout causality claim.
+  Next independent Claude Code gate, then new verified pricing and explicit
+  spending approval for a bounded text-only cohort. No provider/key/spend,
+  model-generated books, site/wizard cutover, push/deploy or visual authorization.
+
 - Claude's corrective PASS covers edfaec81..3e390baa and lifts B's HOLD. A's
   separate PASS remains4ab69eee..71375d32. Claude reproduced594/594 and tsc0;
   19mutation probes reported,one redundant cancellation mutation survived.
