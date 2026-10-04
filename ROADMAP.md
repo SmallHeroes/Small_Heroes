@@ -10,6 +10,17 @@ This roadmap records technical milestone state. Guy can change product priority 
 
 ### P-personal fifteen-companion expansion (2026-10-03)
 
+- Direct automatic Claude Code re-gate: tested PASS P0/P1/P2/P3 zero for exact
+  223499b3..9aff7785, 448/448 and six discriminating reviewer-local controls.
+  First source-only procedural HOLD is retained, not relabelled as tested.
+  Historical 0b3e7ec2..5b9628ec and 5b9628ec..275c1834 also receive tested PASS
+  through combined head 275c1834: 314/314, tsc 0; A not run at its own head.
+  One pre-existing resilience-mode coverage gap is pinned by two additive cases;
+  450/450 and both guard-removal controls caught, direct re-gate pending. No
+  production change or repeated full gate. No new feature is needed for one local
+  readable fictional short book. Fresh spending/synopsis delegation is pending;
+  no paid book, seal reuse, public wizard integration, render, push or deploy.
+
 - Independent Claude Code A/B review received 2026-10-05: A exact b9995108..
   471890ad PASS with no findings; B exact 471890ad..223499b3 PASS with four P3
   coverage gaps in correct code. Test/docs-only successor adds nine cases;

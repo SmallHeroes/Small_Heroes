@@ -125,6 +125,16 @@ describe('limited causal experiment, not live provider or quality certification'
     }
     expect(compileCausalPlan(p, raw).disposition).toBe('selected');
   });
+  it.each([[0, 'chosen_topic'], [3, 'adventure_only']] as const)('causal plan preserves the approved resilience mode %s/%s', (index, mode) => {
+    const p = preparePersonalStory(causalTrialCohort()[index].request, options), raw = planned(p.brief);
+    expect(p.brief.resilienceMode).toBe(mode);
+    const accepted = compileCausalPlan(p, raw);
+    expect(accepted.disposition).toBe('selected');
+    raw.plan.resilience.mode = mode === 'chosen_topic' ? 'adventure_only' : 'chosen_topic';
+    expect(() => compileCausalPlan(p, raw)).toThrow('causal_experiment_plan_binding');
+    raw.plan.resilience.mode = mode;
+    expect(compileCausalPlan(p, raw)).toEqual(accepted);
+  });
   it.each(['selected', 'both_rejected'] as const)('unselected B without an interest stops %s after exactly one real dispatch', async disposition => {
     const h = harness(1, call => {
       const brief = JSON.parse(call.input).brief, raw = planned(brief, disposition === 'both_rejected');

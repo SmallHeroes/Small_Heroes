@@ -1,10 +1,58 @@
 # SmallHeroes — Current Technical State
 
+## Direct Claude tested correction re gate 2026 10 05
+
+Guy explicitly authorizes automatic Codex/Claude QA and consultation while away.
+Claude Opus 5.5 gives a tested technical PASS, P0/P1/P2/P3 zero, for exactly
+223499b3..9aff7785. All four B coverage findings are closed. The actual Claude
+tool log confirms standalone git/tsc, focused 448/448 and six reviewer-local
+in-memory controls with intended failures 2/1/1/1/2/2, then clean status.
+This does not extend PASS to a later closeout, the full gate or the whole branch.
+
+The first direct review was a procedural HOLD: a compound Bash command included
+an unallowed echo, so it performed only source reading. It remains in the Claude
+session history. The resumed review used standalone allowed read/test commands;
+no edit tool, bypass permission, trust-setting change or engine patch was needed.
+The tested JSON envelope/report are preserved under the visualization evidence
+root as CLAUDE_QA_9aff7785_TESTED_ENVELOPE_20261005.json and
+CLAUDE_QA_9aff7785_TESTED_REPORT_20261005.md. Session is
+1d9177e5-bad1-4a0a-93ba-4669250e9cb0. After the historical review below, the CLI
+cumulative list-price estimate is 2.3769376 USD, not a subscription invoice or
+story-trial charge; successive cumulative totals must not be added together.
+
+The same reviewer gives tested PASS to historical 0b3e7ec2..5b9628ec and
+5b9628ec..275c1834 through combined detached head 275c1834: tsc 0, 314/314,
+P0/P1/P2 zero. A was not run at its own head; no mutation, historical-file hash
+or full-gate rerun was performed by that reviewer for these two ranges. The
+original envelope/report are preserved as CLAUDE_QA_PROMPT_275c1834_TESTED_*
+under the same visualization root. These exact scopes do not approve the branch.
+
+One pre-existing P3 coverage gap remains: the causal resilience-mode binding
+guard was correct but unpinned. Root's test-only successor adds chosen_topic and
+adventure_only cases, each positive compile, schema-valid one-field mismatch,
+exact causal_experiment_plan_binding failure, and equal repaired result. Focused
+450/450, tsc 0; removing only the guard in memory fails exactly the two new tests.
+No production bytes changed. This successor awaits direct Claude re-gate.
+Root is the sole engine writer; protected/source/site trees and sealed book
+evidence stay untouched. The reviewer recommends keeping the five-call normal
+recipe and reducing repeated documentation/full-gate overhead before one book.
+No new paid book, key read, image, public wizard cutover, push or deployment.
+Direct npm run check remains RED as measured in the previous entry.
+
+One short normal-mode fictional book needs no further engine implementation.
+Fresh one-use spending consent and explicit synopsis-review authority remain
+pending; no old reference can be reused. The async question asks Guy for a new
+up-to-12-USD trial and delegation of synopsis review while away. Until answered,
+only free QA/preparation continues. No executable trial06 config or reservation
+was created. The normal book allowance is 9.248802 USD plus a 0.25 USD probe;
+these are not a predicted invoice. Public recording still uses its separate
+OpenAI story-only path; this local Opus proof is not that public integration.
+
 ## Independent A B review and test only correction 2026 10 05
 
 Claude Code's independent read-only review gives technical PASS to exactly
 b9995108..471890ad, P0/P1/P2/P3 zero, and 471890ad..223499b3, P0/P1/P2 zero,
-P3 four. His report reproduces tsc, focused 157/157 and 439/439, mutations 9/9
+P3 four. The report reproduces tsc, focused 157/157 and 439/439, mutations 9/9
 and 15/21, both full RED gates and all 70 preserved files. This is NOT approval
 for earlier commits, a paid run, story quality, public integration or push.
 The original reports remain unchanged; fingerprints are in the correction handoff.
