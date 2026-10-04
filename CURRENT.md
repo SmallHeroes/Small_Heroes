@@ -1,6 +1,14 @@
 # SmallHeroes — Current Technical State
 
-## Third text trial and Opus tool-envelope correction 2026 10 04
+## Opus tool-envelope correction independently reviewed 2026 10 04
+
+Claude's exact re-gate 36d9e85d..a56e1813 is technical PASS, P0/P1/P2/P3 zero.
+His 21-dispatch comparison expands every reference: six plan/replan domain
+schemas unchanged inside the new envelope; fifteen other wires byte-identical.
+tsc 0, focused 289/289, sixteen of sixteen deliberate mutations caught. The
+three prior P3-1 backup clauses are independently closed. This documentation
+closeout records that verdict only; it does not extend its range or create
+new execution authority. Full stability and literary/product acceptance open.
 
 Claude independently PASSed cdf2ded9..36d9e85d, P0/P1/P2 zero, with low P3-1
 backup-guard coverage. That exact technical PASS did not prove provider schema
@@ -24,7 +32,8 @@ strict transport envelope {result: originalSchema}. SDK refs are regenerated;
 the full envelope is validated before unwrapping. Both dispositions survive;
 plain-object/Astra wires and domain/prompt/model/cap/journal/public paths remain
 unchanged. Existing records are not migrated or re-decoded. New literal-exporter
-tests also pin the three old backup clauses; independent review is pending.
+tests also pin the three old backup clauses; Claude independently confirmed
+their coverage. Live nested-union acceptance remains unmeasured.
 
 Focused 289/289 across six specs, native 47 to 64 with none removed; previous
 adapter fails eighteen new wire/decode regressions; eleven memory-only broken
@@ -36,12 +45,18 @@ ordinary same ten named historical failures / 6,047 passed / 73 skipped;
 resource 635/635 plus three onTaskUpdate RPC errors. No ordinary timeout or
 baseline causal rerun claimed. Final separate tsc exits 0. Full gate stays RED.
 
-Next: Claude exact read-only re-gate, then Guy's explicit new one-use execution
-decision. No extra paid call, reset, push, render, narration or site cutover.
+Claude reproduced the same RED full gate: ordinary ten failures / 6,047 passed /
+73 skipped; resource 635/635 plus three RPC errors, valid protocols. He also
+recomputed all 42 paid files and baseline fingerprints, unchanged. No new gate
+run for this documentation-only closeout. Next: Guy's explicit fresh one-use
+execution decision, then login/TTY/fresh-pricing preflight at a frozen clean
+head. No extra paid call, reset, push, render, narration or site cutover.
 Author thinking capacity, story quality, six-book comparison and companion/
 carousel admission remain open. Decision and complete handoff:
 docs/ai-workflow/PERSONAL_OPUS_ENVELOPE_DECISION_20261004.md and
 docs/ai-workflow/PERSONAL_OPUS_ENVELOPE_QA_20261004.md.
+Exact closeout, cost caveats and next decision:
+docs/ai-workflow/PERSONAL_OPUS_ENVELOPE_CLOSEOUT_20261004.md.
 
 ## Claude planning schema correction awaiting independent QA 2026 10 04
 

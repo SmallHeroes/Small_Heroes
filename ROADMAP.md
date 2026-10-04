@@ -10,6 +10,15 @@ This roadmap records technical milestone state. Guy can change product priority 
 
 ### P-personal fifteen-companion expansion (2026-10-03)
 
+- Claude's 36d9e85d..a56e1813 exact technical re-gate PASS, P0/P1/P2/P3 zero.
+  He reproduced 289/289, caught 16/16 mutations, confirmed unchanged dereferenced
+  domain unions / fifteen other wires, and closed prior P3-1. All 42 paid files
+  unchanged. Same RED full gate reproduced. No requested implementation fix.
+  Documentation-only closeout, no wider PASS or new paid authorization. Next:
+  Guy's fresh single-book decision, then current login/TTY/pricing preflight;
+  nested union acceptance, thinking capacity and story quality remain empirical.
+  No provider, render, push, public cutover or release in this closeout.
+
 - 2026-10-04 exact root-type correction cdf2ded9..36d9e85d independently PASSed,
   not proof of live acceptance. Third approved one-use trial then hit API 400
   forbidding root anyOf, before synopsis; probe estimate USD 0.010875, cumulative
@@ -18,7 +27,8 @@ This roadmap records technical milestone state. Guy can change product priority 
   Free union-only strict Opus tool-envelope successor implemented: focused
   289/289, eighteen baseline regressions and eleven broken controls caught.
   Pinned CLI fake-key loopback request matches exact adapted schema, not provider
-  acceptance. Exact successor re-gate and NEW one-use approval precede any retry.
+  acceptance. Exact successor re-gate is closed above; NEW one-use approval
+  still precedes any paid attempt.
   Fresh full gate RED: ordinary same ten historical failures / 6,047 passed /
   73 skipped; resource 635/635 plus three RPC errors; valid diagnostic protocols,
   wrapper/native 1. Final separate tsc 0. No baseline cause proof, book, paid
