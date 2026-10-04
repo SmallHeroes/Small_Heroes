@@ -1,5 +1,38 @@
 # SmallHeroes — Current Technical State
 
+## Claude planning schema correction awaiting independent QA 2026 10 04
+
+Guy renewed Claude login and approved a fresh single text attempt at cdf2ded9.
+Auth no longer blocks that attempt: its Opus CLI now returns API 400,
+tools.1.custom.input_schema.type Field required, before synopsis. Astra probe
+again reports gpt-6-astra/default with 582 input/72 output, estimate USD 0.010875.
+Claude reports zero cost/tokens and no model usage. Both new one-use families
+are sealed. Two trials' captured estimates total USD 0.021750, not invoice proof.
+No book, editor, literary QA or image exists from either attempt.
+
+Root cause reproduced offline: actual plan/replan exports are object unions
+without root type; native tests previously used simple object fixtures. A
+focused free successor adds the redundant object root ONLY for Opus all-object
+unions, retaining every branch/ref and original decoding. Unsupported roots
+fail closed; Astra and existing object exports stay unchanged. No prompt,
+domain schema, model, rate, cap, key, lifecycle, public wizard or site mutation.
+
+Codex checks: tsc 0; focused 272/272 across six files; Git baseline and six
+memory-only broken variants caught. Full npm run check remains RED: ordinary
+IPC channel closed; resource native exit 3221226091; both diagnostic protocols
+invalid and no aggregate test totals. Cause not established; this is NOT an
+assertion that only the same ten old tests failed. No production/spec edit
+during that full run. All 28 paid-evidence files match their separate baselines.
+
+Independent Claude QA is pending for this successor over cdf2ded9. Live schema
+acceptance, PL-1 book capacity and literary quality are unmeasured. No extra
+paid retry or push. Next: exact re-gate, then an explicit new one-use trial
+decision; never clear seals or replay a consumed approval. Companion expansion
+and carousel status below remains unchanged.
+Decision, trial evidence and ready QA brief:
+docs/ai-workflow/PERSONAL_OPUS_OBJECT_SCHEMA_DECISION_20261004.md and
+docs/ai-workflow/PERSONAL_OPUS_OBJECT_SCHEMA_QA_20261004.md.
+
 ## Approved text trial blocked by expired Claude login 2026 10 04
 
 Claude's exact technical re-gate 329c857e..e4a01126 is PASS with no blocking

@@ -29,6 +29,15 @@ const isOpus = (stage: CausalDispatch['stage']) => ['plan', 'replan', 'author', 
 const astraPayload = (call: CausalDispatch) => ({ model: CAUSAL_MODELS.astra, store: false, service_tier: 'default', reasoning: { effort: 'medium' },
   instructions: call.instructions, input: call.input, max_output_tokens: call.maxOutputTokens,
   text: { format: zodTextFormat(call.schema, `causal_${call.stage}`) } });
+function opusInputSchema(schema: Record<string, unknown>): Record<string, unknown> {
+  if (schema.type === 'object') return schema;
+  // CLI structured output is a tool input: it needs an explicit object root.
+  // Both alternatives already require objects, so this does not narrow them.
+  // Preserve their strict properties/definitions; do not add empty root fields.
+  if (schema.type !== undefined || !Array.isArray(schema.anyOf) || schema.anyOf.length === 0 ||
+    schema.anyOf.some(branch => !branch || typeof branch !== 'object' || branch.type !== 'object')) hostFail('cli_schema');
+  return { ...schema, type: 'object' };
+}
 export function wireReservation(bytes: number, tokens: number, rate: Rates) {
   if (![bytes, tokens].every(n => Number.isSafeInteger(n) && n > 0) ||
     ![rate.inputMicroUsdPerToken, rate.outputMicroUsdPerToken].every(n => Number.isFinite(n) && n > 0)) hostFail('pricing');
@@ -49,7 +58,7 @@ export function prepareCausalWire(call: CausalDispatch, policy: WirePolicy, capM
     if (!instructionFile || !path.isAbsolute(instructionFile)) hostFail('instruction_file');
     args = ['-p', '--safe-mode', '--model', model, '--effort', 'medium', '--tools', '', '--no-session-persistence',
       '--output-format', 'json', '--max-budget-usd', String(capMicroUsd / 1e6), '--system-prompt-file', instructionFile,
-      '--json-schema', JSON.stringify(format.schema)];
+      '--json-schema', JSON.stringify(opusInputSchema(format.schema))];
     if (args.map(a => JSON.stringify(a)).join(' ').length + policy.executable.length > 31_000) hostFail('argv_limit');
     stdin = call.input;
     payload = { executable: policy.executable, executableSha256: policy.executableSha256, args, stdin, instructionFile, instructions: call.instructions,

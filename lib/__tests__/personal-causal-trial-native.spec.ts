@@ -7,21 +7,27 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
 import { z } from 'zod';
-import { createOpusCausalTransport, prepareCausalWire, CAUSAL_MODELS, type WirePolicy, CausalTransportError } from '../../scripts/personal-causal-trial-adapters';
+import { zodTextFormat } from 'openai/helpers/zod';
+import { createOpusCausalTransport, prepareCausalWire, wireReservation, CAUSAL_MODELS, type WirePolicy, CausalTransportError } from '../../scripts/personal-causal-trial-adapters';
 import { exclusiveText } from '../../scripts/personal-causal-trial-journal';
+import { causalTrialCohort } from '../../scripts/personal-causal-cohort';
+import { preparePersonalStory } from '../personal-wizard/story-writer';
+import { resolvePersonalWizardOptions } from '../personal-wizard/options';
+import { causalPlanSchema, compileCausalPlan, CAUSAL_EXPERIMENT_VERSION, BACKWARD_DEPENDENCIES } from '../personal-wizard/story-causal-experiment';
+import { fixtureAdventureSelection } from '../personal-wizard/__tests__/story-planning-fixture';
 import type { CausalDispatch } from '../personal-wizard/story-causal-experiment-runner';
 vi.mock('node:child_process', async original => ({ ...await original<typeof import('node:child_process')>(), spawn: vi.fn() }));
 const dirs: string[] = [];
 afterEach(() => { vi.useRealTimers(); vi.unstubAllEnvs(); for (const dir of dirs.splice(0)) rmSync(dir, { recursive: true, force: true }); });
 beforeEach(() => { vi.mocked(spawn).mockReset(); });
-function setup() {
+function setup(overrides: Partial<CausalDispatch> = {}) {
   const root = mkdtempSync(path.join(tmpdir(), 'causal-native-test-')); dirs.push(root);
   const exe = path.join(root, 'synthetic-not-executable.exe'), instructions = path.join(root, 'instructions.txt');
   writeFileSync(exe, 'SYNTHETIC NON EXECUTABLE'); exclusiveText(instructions, 'Exact instructions\n');
   const policy: WirePolicy = { workspace: root, executable: exe, executableSha256: createHash('sha256').update(readFileSync(exe)).digest('hex'),
     maxWireBytes: 104_000, rates: { opus: { inputMicroUsdPerToken: 1, outputMicroUsdPerToken: 1 }, astra: { inputMicroUsdPerToken: 1, outputMicroUsdPerToken: 1 } } };
   const call: CausalDispatch = { role: 'opus', stage: 'author', input: 'EXACT USER INPUT', instructions: 'Exact instructions\n',
-    conversationKey: 'synthetic:case1:author', maxOutputTokens: 8000, schema: z.object({ value: z.string() }).strict() };
+    conversationKey: 'synthetic:case1:author', maxOutputTokens: 8000, schema: z.object({ value: z.string() }).strict(), ...overrides };
   const wire = prepareCausalWire(call, policy, 1_000_000, instructions);
   return { root, exe, instructions, policy, call, wire, run: createOpusCausalTransport(policy) };
 }
@@ -36,6 +42,124 @@ function fakeChild(response: unknown, code: number | null = 0, autoClose = true)
 }
 const successful = () => ({ subtype: 'success', is_error: false, structured_output: { value: 'ok' }, total_cost_usd: 0.01, num_turns: 2,
   modelUsage: { [CAUSAL_MODELS.opus]: { inputTokens: 4, outputTokens: 5 } } });
+
+function planning(index: number, rejected = false) {
+  const prepared = preparePersonalStory(causalTrialCohort()[index].request, resolvePersonalWizardOptions()), brief = prepared.brief;
+  const interest = brief.facts.find(f => f.kind === 'interest')!.id;
+  const selection = fixtureAdventureSelection(brief.beats, interest);
+  const common = { version: CAUSAL_EXPERIMENT_VERSION, requestId: brief.requestId };
+  const raw = rejected ? { ...common, disposition: 'both_rejected', candidates: selection.candidates, contrast: selection.contrast,
+    reason: 'Both synthetic ideas lack a compelling child-led discovery.' } : {
+    ...common, disposition: 'selected', selection,
+    synopsis: 'Synthetic continuous adventure with discovery, consequential partnership and an earned payoff. Not literary evidence.',
+    backwardDependencies: Object.fromEntries(BACKWARD_DEPENDENCIES.map(key => [key, { claim: 'Synthetic causal claim, not entailment proof.',
+      evidence: [{ pageNumber: key === 'earnedPayoff' ? brief.beats : 1, field: 'childAction', quote: 'מציעה דרך אחרת' }] }])),
+    plan: { title: 'ההרפתקה החדשה', childGoal: 'למצוא דרך מעניינת', companionWant: 'לנסות וגם לעזור', comicPromise: 'הרעיון מסתבך באופן מצחיק',
+      resilience: { mode: brief.resilienceMode, moments: [{ pageNumber: 2, childChoice: 'בוחרת דרך אחרת', whatHelps: 'החבר מקשיב' }] },
+      beats: Array.from({ length: brief.beats }, () => ({ location: 'בגינה', transitionReason: 'הגילוי משנה את הדרך', childAction: 'מציעה דרך אחרת',
+        companionAction: 'מקשיב ומנסה', consequence: 'מגלים משהו חדש', factIds: [interest], continuity: 'החפץ בידי הילדה' })), ending: 'מוצאים יחד דרך חדשה' },
+  };
+  return { prepared, schema: causalPlanSchema(prepared), raw };
+}
+
+// Reproduces only the observed root-type requirement, not all provider rules.
+function objectRootCli(raw: unknown) {
+  const fake = fakeChild(null, 0, false); let schema: any;
+  vi.mocked(spawn).mockImplementation((_exe, args) => {
+    const argv = args as string[]; schema = JSON.parse(argv[argv.indexOf('--json-schema') + 1]);
+    return fake.child as unknown as ReturnType<typeof spawn>;
+  });
+  fake.child.stdin.on('finish', () => queueMicrotask(() => {
+    const accepted = schema?.type === 'object';
+    fake.child.stdout.write(JSON.stringify(accepted ? { ...successful(), structured_output: raw } : {
+      subtype: 'success', is_error: true, total_cost_usd: 0, modelUsage: {},
+      result: 'API Error: 400 tools.1.custom.input_schema.type: Field required',
+    }));
+    fake.child.emit('close', accepted ? 0 : 1, null);
+  }));
+}
+
+describe('real planner object-root compatibility, offline CLI model only', () => {
+  const lengths = [{ index: 0, spreads: 8 }, { index: 1, spreads: 12 }, { index: 2, spreads: 16 }];
+  const stages = ['plan', 'replan'] as const;
+  it.each(lengths.flatMap(row => stages.map(stage => ({ ...row, stage }))))('$stage $spreads retains both branches, every reference and byte accounting', ({ index, spreads, stage }) => {
+    const f = planning(index), exported = zodTextFormat(f.schema, `causal_${stage}`).schema;
+    const baseline = JSON.stringify(exported), h = setup({ stage, schema: f.schema });
+    const adapted = JSON.parse(h.wire.args![16]);
+    expect(f.prepared.brief.beats).toBe(spreads); expect(exported).not.toHaveProperty('type');
+    expect(adapted.type).toBe('object');
+    const { type: _type, ...rest } = adapted; expect(rest).toEqual(exported);
+    expect(adapted.anyOf.map((branch: any) => branch.properties.disposition.const)).toEqual(['selected', 'both_rejected']);
+    const checkRefs = (node: any): void => {
+      if (!node || typeof node !== 'object') return;
+      if ('$ref' in node) {
+        expect(node.$ref).toMatch(/^#\//);
+        let target: any = adapted;
+        for (const key of node.$ref.slice(2).split('/')) target = target?.[key.replace(/~1/g, '/').replace(/~0/g, '~')];
+        expect(target).toBeDefined();
+      }
+      Object.values(node).forEach(checkRefs);
+    };
+    checkRefs(adapted); expect(JSON.stringify(exported)).toBe(baseline);
+    expect(h.wire.json).toBe(JSON.stringify(h.wire.payload));
+    expect(h.wire.bytes).toBe(Buffer.byteLength(h.wire.json, 'utf8'));
+    expect(h.wire.digest).toBe(createHash('sha256').update(h.wire.json).digest('hex'));
+    expect(h.wire.reservedMicroUsd).toBe(wireReservation(h.wire.bytes, h.call.maxOutputTokens, h.policy.rates.opus));
+    expect(h.wire.args!.slice(0, 16)).toEqual(setup().wire.args!.slice(0, 14).concat(h.instructions, '--json-schema'));
+    expect(spawn).not.toHaveBeenCalled();
+  });
+  it.each(lengths.flatMap(row => stages.flatMap(stage => [false, true].map(rejected => ({ ...row, stage, rejected })))))('$stage $spreads rejected=$rejected reaches native decoding without changing the disposition', async ({ index, stage, rejected }) => {
+    const f = planning(index, rejected), h = setup({ stage, schema: f.schema }); objectRootCli(f.raw);
+    const reply = await h.run(h.wire, h.call, new AbortController().signal);
+    expect(reply.output).toEqual(f.raw); expect(compileCausalPlan(f.prepared, reply.output).disposition).toBe(rejected ? 'both_rejected' : 'selected');
+    expect(spawn).toHaveBeenCalledTimes(1);
+  });
+  it('the old no-type wire reproduces the captured 400 in the offline CLI model', async () => {
+    const f = planning(0), h = setup({ stage: 'plan', schema: f.schema }), wire = structuredClone(h.wire);
+    wire.args![16] = JSON.stringify(zodTextFormat(f.schema, 'causal_plan').schema);
+    wire.payload.args = wire.args; wire.json = JSON.stringify(wire.payload);
+    wire.bytes = Buffer.byteLength(wire.json); wire.digest = createHash('sha256').update(wire.json).digest('hex');
+    wire.reservedMicroUsd = wireReservation(wire.bytes, wire.outputCap, h.policy.rates.opus);
+    objectRootCli(f.raw);
+    await expect(h.run(wire, h.call, new AbortController().signal)).rejects.toMatchObject({ code: 'cli_termination',
+      receipt: { raw: { stdout: expect.stringContaining('input_schema.type: Field required') } } });
+    expect(spawn).toHaveBeenCalledTimes(1);
+  });
+  it.each(['disposition', 'request', 'extra', 'missing', 'wrong_branch'])('adaptation cannot admit %s in a returned plan', async kind => {
+    const f = planning(0), raw: any = structuredClone(f.raw), h = setup({ stage: 'plan', schema: f.schema });
+    if (kind === 'disposition') raw.disposition = 'forced'; if (kind === 'request') raw.requestId = 'wrong_request';
+    if (kind === 'extra') raw.unapproved = true; if (kind === 'missing') delete raw.selection;
+    if (kind === 'wrong_branch') raw.disposition = 'both_rejected';
+    objectRootCli(raw);
+    await expect(h.run(h.wire, h.call, new AbortController().signal)).rejects.toMatchObject({ code: 'provider_or_schema' });
+    expect(spawn).toHaveBeenCalledTimes(1);
+  });
+  it.each([
+    { name: 'scalar', schema: z.string() }, { name: 'array', schema: z.array(z.string()) },
+    { name: 'mixed union', schema: z.union([z.object({ value: z.string() }).strict(), z.string()]) },
+    { name: 'scalar union', schema: z.union([z.string(), z.number()]) },
+    { name: 'unconstrained any', schema: z.any() }, { name: 'unknown', schema: z.unknown() }, { name: 'never', schema: z.never() },
+  ])('unsupported $name is rejected before process invocation', ({ schema }) => {
+    expect(() => setup({ stage: 'plan', schema })).toThrow('causal_host_cli_schema'); expect(spawn).not.toHaveBeenCalled();
+  });
+  it('existing object and nested-union schemas retain byte-identical CLI exports; Astra stays unchanged', () => {
+    const schema = z.object({ value: z.union([z.string(), z.number()]) }).strict(), h = setup({ schema });
+    expect(h.wire.args![16]).toBe(JSON.stringify(zodTextFormat(schema, 'causal_author').schema));
+    const call = { ...h.call, stage: 'final_review' as const, role: 'astra' as const };
+    const wire = prepareCausalWire(call, h.policy, 1_000_000);
+    expect(wire.payload).toEqual({ model: CAUSAL_MODELS.astra, store: false, service_tier: 'default', reasoning: { effort: 'medium' },
+      instructions: call.instructions, input: call.input, max_output_tokens: call.maxOutputTokens,
+      text: { format: zodTextFormat(schema, 'causal_final_review') } });
+    expect(spawn).not.toHaveBeenCalled();
+  });
+  it('object-union normalization is Opus-only; even an Astra union export remains unmodified', () => {
+    const f = planning(0), h = setup(), call: CausalDispatch = { ...h.call, role: 'astra', stage: 'final_review', schema: f.schema };
+    const wire = prepareCausalWire(call, h.policy, 1_000_000);
+    expect(wire.payload.text).toEqual({ format: zodTextFormat(f.schema, 'causal_final_review') });
+    expect((wire.payload.text as any).format.schema).not.toHaveProperty('type');
+    expect(spawn).not.toHaveBeenCalled();
+  });
+});
 
 describe('pinned native transport with a fake process, never Claude invocation', () => {
   it('actual spawn reads exact UTF8 file/stdin/schema, fresh flags and child-only token override', async () => {

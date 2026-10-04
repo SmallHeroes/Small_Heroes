@@ -10,6 +10,16 @@ This roadmap records technical milestone state. Guy can change product priority 
 
 ### P-personal fifteen-companion expansion (2026-10-03)
 
+- 2026-10-04 second approved one-use text trial at cdf2ded9 got past auth but
+  failed Claude planning with API 400 missing input_schema.type, no synopsis.
+  Fresh Astra probe estimate USD 0.010875; both trials total USD 0.021750 captured
+  estimate, not invoice. New families sealed. Free Opus object-root wire fix
+  awaits independent QA: tsc 0, focused 272/272, baseline and six mutations caught.
+  Full check RED with IPC/process and diagnostic-protocol failures, aggregate
+  totals unavailable; cause unproven. No paid retry, book, image or public cutover.
+  New exact re-gate then explicit fresh one-use execution consent are next.
+  This supersedes the old login blocker below, not any previous PASS boundary.
+
 - 2026-10-04 exact operator-fix re-gate e4a01126 PASS reconciled and Guy's USD 12
   text allowance used for one attempt. Astra identity/schema probe passes;
   Opus plan fails with expired OAuth, before synopsis/book. Recorded conservative
