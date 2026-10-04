@@ -219,15 +219,41 @@ describe('pinned native transport with a fake process, never Claude invocation',
     expect(args).not.toContain('--system-prompt'); expect(JSON.parse(args[args.indexOf('--json-schema') + 1]).additionalProperties).toBe(false);
     expect(reply.metadata.invoiceCapGuaranteed).toBe(false);
   });
-  it.each(['model', 'extra_model', 'cost', 'usage', 'over_tokens', 'incomplete', 'schema', 'exit'])('%s remains a failed measured attempt, without fallback', async kind => {
+  it.each(['plan', 'replan', 'author', 'editor'] as const)('%s accepts valid cumulative usage above the configured per-request cap without changing that cap', async stage => {
+    const h = setup({ stage }), raw = successful(); raw.modelUsage[CAUSAL_MODELS.opus].outputTokens = 22_785;
+    fakeChild(raw);
+    const reply = await h.run(h.wire, h.call, new AbortController().signal);
+    expect(reply.output).toEqual({ value: 'ok' });
+    expect(reply.usage).toEqual({ inputTokens: 4, outputTokens: 22_785 });
+    expect(reply.estimatedMicroUsd).toBe(10_000);
+    expect(reply.metadata).toMatchObject({ usageScope: 'cli_cumulative', tokenCapScope: 'configured_per_request_not_cli_aggregate' });
+    expect(JSON.parse((reply.raw as any).stdout)).toEqual(raw);
+    expect((vi.mocked(spawn).mock.calls[0][2] as any).env.CLAUDE_CODE_MAX_OUTPUT_TOKENS).toBe('8000');
+    expect(h.wire.args![12]).toBe('1'); expect(spawn).toHaveBeenCalledTimes(1);
+  });
+  it.each(['model', 'extra_model', 'cost', 'usage', 'incomplete', 'schema', 'exit'])('%s remains a failed measured attempt, without fallback', async kind => {
     const h = setup(), raw: any = successful();
     if (kind === 'model') raw.modelUsage = { unknown: { inputTokens: 1, outputTokens: 1 } };
     if (kind === 'extra_model') raw.modelUsage.unknown = { inputTokens: 1, outputTokens: 1 };
     if (kind === 'cost') raw.total_cost_usd = null; if (kind === 'usage') raw.modelUsage[CAUSAL_MODELS.opus].outputTokens = -1;
-    if (kind === 'over_tokens') raw.modelUsage[CAUSAL_MODELS.opus].outputTokens = 8001;
     if (kind === 'incomplete') raw.subtype = 'error_max_turns'; if (kind === 'schema') raw.structured_output = {};
     fakeChild(raw, kind === 'exit' ? 2 : 0);
     await expect(h.run(h.wire, h.call, new AbortController().signal)).rejects.toBeInstanceOf(CausalTransportError);
+    expect(spawn).toHaveBeenCalledTimes(1);
+  });
+  it.each([null, -1, 0.5, NaN, Infinity, Number.MAX_SAFE_INTEGER + 1, '5'])('invalid cumulative token count %s still fails closed with a receipt', async tokens => {
+    const h = setup(), raw: any = successful(); raw.modelUsage[CAUSAL_MODELS.opus].outputTokens = tokens; fakeChild(raw);
+    const error = await h.run(h.wire, h.call, new AbortController().signal).then(() => null, e => e);
+    expect(error).toBeInstanceOf(CausalTransportError); expect(error.code).toBe('usage');
+    expect(error.receipt.usage).toBeNull(); expect(error.receipt.estimatedMicroUsd).toBe(10_000);
+    expect(spawn).toHaveBeenCalledTimes(1);
+  });
+  it.each([null, -1, NaN, Infinity, Number.MAX_SAFE_INTEGER, '0.01'])('invalid cost %s is not excused by valid above-cap usage', async cost => {
+    const h = setup(), raw: any = successful(); raw.total_cost_usd = cost;
+    raw.modelUsage[CAUSAL_MODELS.opus].outputTokens = 22_785; fakeChild(raw);
+    const error = await h.run(h.wire, h.call, new AbortController().signal).then(() => null, e => e);
+    expect(error).toBeInstanceOf(CausalTransportError); expect(error.code).toBe('usage');
+    expect(error.receipt.estimatedMicroUsd).toBeNull(); expect(error.receipt.usage.outputTokens).toBe(22_785);
     expect(spawn).toHaveBeenCalledTimes(1);
   });
   it('changed instructions or binary is refused before spawn', async () => {

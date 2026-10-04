@@ -1,5 +1,28 @@
 # SmallHeroes — Current Technical State
 
+## Approved text-path simplification: accounting milestone A 2026 10 04
+
+Guy approved two free milestones at b9995108. A removes only the Opus
+CLI-cumulative output versus per-request cap comparison; the child cap, USD
+allowances, host/coordinator cost checks and Astra single-response check stay.
+Receipts label usageScope cli_cumulative. Native 80/80 + host 77/77 = 157/157;
+npx tsc --noEmit exits 0. Reintroducing the old comparison fails all four new
+positive tests (plan/replan/author/editor); restored before validation.
+Exact host slot USD equality passes and +1 microUSD seals with the receipt before
+another case. The initial two new host fixture failures were Codex test setup
+errors (wrong request length property), repaired; no production broadening.
+
+Full check started on A: ordinary 11 failed, 6089 passed, 73 skipped. Ten names
+are the previously recorded missing-artifact failures; the extra EEXIST in
+story-commission-materializer is in unchanged source, not yet independently
+reproduced or explained. Resource lane still running at this entry. No full
+GREEN or stability claim. B contract/stage simplification remains to implement.
+70/70 historical evidence files in 20 roots preserved in a read-only engineering
+recomputation. No new provider, key creation, paid retry, site edit or push.
+Independent Claude Code QA for A is pending; handoff:
+docs/ai-workflow/PERSONAL_OPUS_USAGE_SCOPE_HANDOFF_20261004.md.
+
+
 ## Trial 05 stopped; text-path simplification proposed 2026 10 04
 
 Claude Code source-inspection re-gate for exactly 5b9628ec..275c1834 is technical

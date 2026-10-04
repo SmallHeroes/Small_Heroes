@@ -1,9 +1,10 @@
-# Decision proposal: simplify the text path, preserve meaningful QA
+# Approved decision: simplify the text path, preserve meaningful QA
 
-Status: investigation and proposal only. NOT implemented, independently gated,
-paid-run approval, product acceptance or a public-flow migration. Guy explicitly
-asks Codex to check unnecessary complexity before continuing. Paid trial 05 has
-terminated; do not launch a sixth trial while diagnosing it.
+Status: Guy approved the two free implementation milestones on 2026-10-04
+("כן מאשר"). Root Codex is the sole writer in the existing engine worktree,
+codex/personal-book-storyboard-bridge, starting from b9995108. Approval is not
+independent QA, paid-run consent, product acceptance or public-flow migration.
+Paid trial 05 remains terminated; do not launch a sixth trial during this work.
 
 ## 1. Proposed change
 
@@ -163,8 +164,8 @@ focused commits to roll back; preserve every historical output, seal and receipt
 
 ## 9. Review assignments and required owner decision
 
-Guy owns the simplification/quality tradeoff and must approve changed diagnostic
-obligations and accounting scope before implementation. Codex investigates/builds.
+Guy owns the simplification/quality tradeoff and approved these diagnostic
+obligations and accounting scope. Codex investigates/builds.
 Claude Code's first pass is adversarial/read-only against an immutable range:
 attack scope-aware usage, retained USD authority, stage/order/source isolation,
 named reading admission, archive compatibility and preservation. Codex cannot
@@ -174,10 +175,10 @@ correcting a measured accounting bug. Guy eyeballs the eventual story.
 
 ## 10. Stop-check and explicit exclusions
 
-This touches diagnostic prompts/QA/admission, so it is a Decision Gate proposal.
+This touches diagnostic prompts/QA/admission, so it is an approved Decision Gate.
 General system change; no special-case book; ordinary/public production unchanged;
 implementation free; offline smallest proof; the scope/quality decisions above
-are unresolved. No implementation starts under a claim that this plan is already
-accepted. No sixth paid attempt, reset/resume, key creation, image/storyboard/
+are approved for these two local milestones only. No sixth paid attempt,
+reset/resume, key creation, image/storyboard/
 narration, companion assets/carousel, six-book run, site QA switch, push, release
 or promise of a perfect failure-free model engine.

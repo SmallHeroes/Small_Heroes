@@ -152,10 +152,13 @@ export function createOpusCausalTransport(policy: WirePolicy) {
       const micro = typeof cost === 'number' && Number.isFinite(cost) && cost >= 0 && Number.isSafeInteger(Math.ceil(cost * 1e6)) ? Math.ceil(cost * 1e6) : null;
       receipt = knownReceipt(raw, { ...receipt.metadata, reportedModels: modelKeys.slice(0, 10).map(bounded),
         reportedTurns: Number.isSafeInteger(parsed.num_turns) && parsed.num_turns >= 0 ? parsed.num_turns : null,
-        tokenCapScope: 'configured_per_request_not_cli_aggregate', invoiceCapGuaranteed: false }, usage, micro);
+        tokenCapScope: 'configured_per_request_not_cli_aggregate', usageScope: 'cli_cumulative', invoiceCapGuaranteed: false }, usage, micro);
       if (stopped || signal.aborted || !killConfirmed || termination.code !== 0 || termination.signal || termination.spawnError) hostFail('cli_termination');
       if (modelKeys.length !== 1 || modelKeys[0] !== wire.model) hostFail('reported_model_or_tier');
-      if (!usage || micro === null || usage.outputTokens > wire.outputCap) hostFail('usage');
+      // modelUsage aggregates the CLI session, whereas the child env configures
+      // individual requests. Do not compare different scopes or infer internal
+      // request counts. The host still enforces the unchanged slot USD allowance.
+      if (!usage || micro === null) hostFail('usage');
       if (parsed.is_error !== false || parsed.subtype !== 'success' || !parsed.structured_output || raw.stdout.includes('\ufffd')) hostFail('incomplete');
       const output = opusOutputContract(call).decode(parsed.structured_output);
       return { ...receipt, output };

@@ -9,11 +9,13 @@ import { zodTextFormat } from 'openai/helpers/zod';
 import { causalTrialCohort } from '../../scripts/personal-causal-cohort';
 import { createCausalTrialHost, readCausalReviewFile, causalOutputCap, type CausalHostPolicy, type CausalHostTransport } from '../../scripts/personal-causal-trial-host';
 import { CausalFamilyJournal, exclusiveJson, realDirectory } from '../../scripts/personal-causal-trial-journal';
-import { prepareCausalWire, CAUSAL_MODELS, CausalTransportError, createAstraCausalTransport, type WirePolicy } from '../../scripts/personal-causal-trial-adapters';
+import { prepareCausalWire, wireReservation, CAUSAL_MODELS, CausalTransportError, createAstraCausalTransport, type WirePolicy } from '../../scripts/personal-causal-trial-adapters';
 import { BACKWARD_DEPENDENCIES, CAUSAL_EXPERIMENT_VERSION } from '../personal-wizard/story-causal-experiment';
 import type { CausalDispatch } from '../personal-wizard/story-causal-experiment-runner';
 import { fixtureAdventureSelection } from '../personal-wizard/__tests__/story-planning-fixture';
 import { fixtureEditorOutput } from '../personal-wizard/__tests__/personal-storyboard-fixture';
+import { preparePersonalStory } from '../personal-wizard/story-writer';
+import { resolvePersonalWizardOptions } from '../personal-wizard/options';
 
 const dirs: string[] = [];
 afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks(); vi.unstubAllGlobals(); for (const dir of dirs.splice(0)) rmSync(dir, { recursive: true, force: true }); });
@@ -225,6 +227,26 @@ describe('one-shot causal trial connection (zero live providers)', () => {
     const h = harness(2, async (_w, c) => ({ output: output(c), estimatedMicroUsd: cost, usage: null, raw: null, metadata: {} }));
     await expect(h.host.plan()).rejects.toThrow(); expect(h.transport).toHaveBeenCalledTimes(1); expect(h.host.snapshot().host.closed).toBe(true);
     await expect(h.host.plan()).rejects.toThrow('terminal');
+  });
+  it.each([0, 1])('cumulative Opus usage at the slot USD cap + %i keeps the monetary boundary and receipt', async extra => {
+    let planCost = 0;
+    const h = harness(2, async (_wire, call) => ({ output: output(call), estimatedMicroUsd: planCost + extra,
+      usage: { inputTokens: 4, outputTokens: call.maxOutputTokens + 1000 }, metadata: { usageScope: 'cli_cumulative' }, raw: { synthetic: true } }));
+    const spreads = h.cases.map(row => preparePersonalStory(row.request, resolvePersonalWizardOptions()).brief.beats);
+    planCost = wireReservation(h.p.maxWireBytes, Math.max(...spreads.map(count => causalOutputCap(count, 'plan'))), h.p.pricing.rates.opus);
+    if (extra === 0) {
+      expect((await h.host.plan()).plans).toHaveLength(2); expect(h.transport).toHaveBeenCalledTimes(2);
+      expect(h.host.snapshot().host.closed).toBe(false);
+    } else {
+      await expect(h.host.plan()).rejects.toThrow('provider_or_contract_failed');
+      expect(h.host.snapshot().host.failureCode).toBe('cost'); expect(h.host.snapshot().host.closed).toBe(true);
+      expect(h.transport).toHaveBeenCalledTimes(1);
+      await expect(h.host.plan()).rejects.toThrow('terminal');
+    }
+    const receipt = JSON.parse(readFileSync(path.join(h.root, 'codex-causal-text-trials', h.p.family, 'receipt-case1-plan.json'), 'utf8'));
+    expect(receipt.receipt.estimatedMicroUsd).toBe(planCost + extra);
+    expect(receipt.receipt.usage.outputTokens).toBeGreaterThan(causalOutputCap(spreads[0], 'plan'));
+    expect(receipt.receipt.metadata.usageScope).toBe('cli_cumulative');
   });
   it('billed transport failure preserves host usage even though coordinator failure cost stays unknown', async () => {
     const h = harness(1, async () => { throw new CausalTransportError('incomplete', { estimatedMicroUsd: 3,

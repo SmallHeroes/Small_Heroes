@@ -10,6 +10,12 @@ This roadmap records technical milestone state. Guy can change product priority 
 
 ### P-personal fifteen-companion expansion (2026-10-03)
 
+- Guy approved free text-path simplification A/B. A scope-aware Opus accounting
+  fix: focused 157/157, tsc 0, four old-comparison negative controls caught.
+  No monetary/token cap increase. Full ordinary remains RED (ten missing
+  artifacts plus an unchanged-source EEXIST); resource observation pending.
+  Independent QA pending; B remains local diagnostic-only, no public cutover.
+
 - Trial 05 at frozen 275c1834 stopped as requested, no sixth paid attempt. Claude
   source-inspection re-gate 5b9628ec..275c1834 PASS with no findings; not a test or
   preservation rerun. The new structured Opus plan passes the current compiler
