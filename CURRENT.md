@@ -1,5 +1,45 @@
 # SmallHeroes — Current Technical State
 
+## Approved text trial blocked by expired Claude login 2026 10 04
+
+Claude's exact technical re-gate 329c857e..e4a01126 is PASS with no blocking
+findings. His 239/239 focused checks and 38/40 caught mutations do not close
+the RED full gate or grant product/release approval. This entry supersedes the
+pending re-gate and priced-consent statements below, which are historical.
+
+Guy approved one fictional eight-spread text trial up to USD 12 with existing
+key reuse. One real-TTY execution at frozen e4a01126 received a valid synthetic
+Astra probe: reported gpt-6-astra/default, completed, 582 input/72 output tokens,
+conservative estimate USD 0.010875. This is a provider-reported observation,
+not independent model attestation or literary acceptance.
+
+Opus planning then failed before synopsis with native exit 1: "Failed to
+authenticate: OAuth session expired and could not be refreshed". Raw CLI cost
+is USD 0, no model usage; accepted plan usage is null. Launcher exit 1 reports
+provider_or_contract_failed. Both one-use families are sealed; two logical
+dispatch attempts mean one OpenAI response and one CLI invocation, not proof
+of two model inferences. No retry, synopsis, manuscript, editor, literary QA,
+viewer, image, storyboard, narration, site cutover, push or deployment occurred.
+
+Next requires renewed Claude subscription login and explicit authorization for
+a new one-use trial; do not clear seals/reuse the consumed reference. PL-2 is
+now observed for this synthetic probe only. PL-1 author thinking capacity and
+book quality remain unmeasured. Driver code, caps, rates and guards unchanged.
+
+Companion status checked in clean engine e4a01126, site QA 5fe73b3f and Claude
+site 87b0d196: all still show six companions. Fifteen-profile proposal exists;
+only existing-six literary refinements are active. Seven new visual candidates
+are preparatory, Tzuki/Mishi have no public assets, full sheet/scale/appearance
+admission remains pending. Homepage and wizard are still static grids, not a
+carousel. Six idle videos exist in the public spotlight only. This is repository
+state, not a fresh live deployment check. No homepage change was commissioned
+by the current status question.
+
+Execution evidence, auth recovery, companion dependencies and Claude read-only
+handoff: docs/ai-workflow/PERSONAL_SINGLE_BOOK_EXECUTION_CLOSEOUT_20261004.md.
+Ignored output/journal records are local only; their fourteen fingerprints are
+in the separate visualization runtime execution-closeout.json.
+
 ## Single-book operator correction and independent review intake 2026 10 04
 
 Claude independently PASSes b60251b6..49e1fabb (profile refinement) and

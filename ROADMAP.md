@@ -10,6 +10,18 @@ This roadmap records technical milestone state. Guy can change product priority 
 
 ### P-personal fifteen-companion expansion (2026-10-03)
 
+- 2026-10-04 exact operator-fix re-gate e4a01126 PASS reconciled and Guy's USD 12
+  text allowance used for one attempt. Astra identity/schema probe passes;
+  Opus plan fails with expired OAuth, before synopsis/book. Recorded conservative
+  estimate USD 0.010875; CLI reports USD 0. Families sealed, no retry or deployment.
+  Renew login and obtain a new one-use execution authorization before another
+  trial. Full stability RED; no literary/visual/product acceptance. Older pending
+  consent/re-gate statements below describe earlier states, not current blockers.
+  Fifteen profiles and visual candidates are preparation only: three inspected
+  branches remain six-only with static grids. Carousel, nine-ID admission,
+  finished sheets/scale and motion assets remain implementation dependencies.
+  Current request asks status, not authorization for paid assets/site mutation.
+
 - Claude independently PASSed b60251b6..49e1fabb and 49e1fabb..329c857e,
   exact technical ranges only, not literary/product/runtime acceptance. Codex's
   small free successor fixes before-live TTY and review BOM traps, adds missing
