@@ -1,5 +1,57 @@
 # SmallHeroes — Current Technical State
 
+## Trial 05 stopped; text-path simplification proposed 2026 10 04
+
+Claude Code source-inspection re-gate for exactly 5b9628ec..275c1834 is technical
+PASS, P0/P1/P2/P3 zero. The preceding 0b3e7ec2..5b9628ec PASS had two P3 notes,
+closed by that successor. These reviews analysed frozen source/evidence packets;
+they did not independently run tests or preservation hashes. Codex's successor
+checks remain tsc 0 and focused 314/314. No successor full-gate rerun; parent RED
+observation remains. The older pending-review statements below are historical.
+
+Guy's bounded continuation authorised one fresh fictional eight-spread trial at
+clean frozen 275c1834, not an unbounded loop. Trial 05 completed the Astra probe
+and Opus CLI planning (native 0, success, selected structured result). Our adapter
+then rejected cumulative CLI modelUsage.outputTokens 22,785 against the configured
+18,000 per-request setting, code usage; launcher native 1. A memory-only compiler
+probe of the returned plan passes all current domain guards. This is not accepted
+output or literary approval. No accepted synopsis, author, editor, literary Astra
+review or book viewer. Both families are sealed. No sixth attempt or salvage.
+
+Opus's captured estimate USD 0.617876 is below the actual-wire reservation
+USD 0.772280 and plan-slot allowance USD 1.311200. Trial incl. probe USD 0.628751;
+five captured trial estimates USD 1.232789. Two source-inspection review estimates
+USD 1.589984, recorded separately. Combined captured subset USD 2.822773, NOT an
+invoice or an inventory of every historical project cost. All seventy files in
+twenty evidence roots match SHA/size baselines, also independently recomputed by
+a read-only engineering subagent (not Claude QA). No verified backup is claimed.
+
+Paid execution stopped as Guy requested for repeated failures. Official Claude
+docs distinguish a request-level output setting from result cumulative usage;
+saved turns do not prove internal request counts or per-request compliance. The
+recommended free fix separates those scopes, preserves the existing monetary,
+model, schema, termination and cancellation guards, and leaves Astra's single-
+response limit intact. NOT implemented or independently gated yet.
+
+Guy also requests simplicity without losing story quality or independent QA.
+Audit distinguishes the heavy causal research path from the ordinary dev route:
+the research path has optional replan plus original/final/comparison readings;
+the existing story_only dev route has three OpenAI text calls and NO independent
+Astra literary review. It is NOT the requested Opus/Opus/Astra pipeline. Proposed
+product path: short plan, fresh Opus author, fresh Opus editor, isolated Astra
+final reading and focused edit-regression check; keep blind original/cohort
+comparisons for calibration, not every order. Derive IDs/hashes/quoted evidence
+in code where appropriate instead of making authors reproduce audit metadata.
+No schema removal or quality loss has been approved, implemented or proved.
+
+Evidence and exact read-only handoff:
+docs/ai-workflow/PERSONAL_TRIAL05_STOP_CLOSEOUT_20261004.md.
+Decision proposal (not implementation or paid authorisation):
+docs/ai-workflow/PERSONAL_TEXT_PATH_SIMPLIFICATION_DECISION_20261004.md.
+Next: decide the minimal contract/budget-scope correction, free implementation
+and adversarial re-gate BEFORE any new one-use text run. No image, narration,
+six-book scale-up, QA/public cutover, push or release in this closeout.
+
 ## Trial 04 and causal instruction alignment 2026 10 04
 
 Claude's source-inspection review of exactly 0b3e7ec2..5b9628ec is technical PASS

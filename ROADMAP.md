@@ -10,6 +10,20 @@ This roadmap records technical milestone state. Guy can change product priority 
 
 ### P-personal fifteen-companion expansion (2026-10-03)
 
+- Trial 05 at frozen 275c1834 stopped as requested, no sixth paid attempt. Claude
+  source-inspection re-gate 5b9628ec..275c1834 PASS with no findings; not a test or
+  preservation rerun. The new structured Opus plan passes the current compiler
+  in memory, but our adapter rejects cumulative CLI 22,785 outputs against an
+  18,000 per-request setting. No accepted synopsis/manuscript/book. Captured trial
+  estimate USD 0.628751; five trials USD 1.232789, not invoice. Seventy evidence
+  files/twenty roots independently SHA/size preserved. Full gate remains RED.
+  Guy asks for simplicity: separate ordinary text generation from research
+  original/final/comparison machinery; preserve independent final Astra and
+  targeted edit-regression review. Ordinary story_only is three OpenAI calls,
+  not the requested Opus/Opus/Astra path. Free scope-correct accounting repair
+  and minimal-contract proposal precede any new paid execution; no implementation
+  or quality proof is claimed by the proposal. Decision and closeout in CURRENT.
+
 - Trial 04 at 0b3e7ec2: live Opus transport/schema completed, but unselected B
   lacked interest binding; compiler rejected before prose. Literal quote gaps
   exposed next in memory-only probes. Trial estimate USD 0.571413; captured
