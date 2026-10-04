@@ -1,0 +1,42 @@
+{
+  "command": "npm run check",
+  "target": "Corrective working code over 329c857e, before the focused commit; no production or spec edits during this run",
+  "startedAt": "2026-10-04T04:51:16.702Z",
+  "completedAt": "2026-10-04T05:00:20.325Z",
+  "observedCmdWrapperExit": 1,
+  "signal": null,
+  "typeChecks": { "repository": "completed", "storyAutonomous": "completed", "separateFinalRepositoryTypeCheckExit": 0 },
+  "supervisor": {
+    "canonicalFileCount": 412,
+    "ordinaryFileCount": 392,
+    "resourceIntensiveFileCount": 20,
+    "ordinary": { "nativeChildExit": 1, "elapsedMs": 134203, "diagnosticProtocolOk": true, "gateStatus": "failed", "classes": ["signal_or_exit_failure"] },
+    "resourceIntensive": { "nativeChildExit": 1, "elapsedMs": 401902, "diagnosticProtocolOk": true, "gateStatus": "failed", "classes": ["on_task_update_rpc_timeout", "test_timeout", "signal_or_exit_failure"] },
+    "gateStatus": "failed"
+  },
+  "testCountsFromRawLog": {
+    "ordinary": { "failed": 10, "passed": 5997, "skipped": 73, "failedFiles": 6, "passedFiles": 369, "skippedFiles": 17 },
+    "resourceIntensive": { "failed": 16, "passed": 619, "skipped": 0, "failedFiles": 5, "passedFiles": 15, "rpcErrors": 4 }
+  },
+  "resourceTimeoutsByFile": {
+    "canonical-materialization-input.spec.ts": 1,
+    "canonical-pre-live-readiness.spec.ts": 4,
+    "live-execution-request-materialization.spec.ts": 5,
+    "live-execution-supervisor.spec.ts": 5,
+    "qa-wizard-candidate-bridge.spec.ts": 1
+  },
+  "changedSpecsInFullRun": {
+    "personal-single-book-calibration.spec.ts": { "passed": 59, "failed": 0 },
+    "personal-causal-trial-host.spec.ts": { "passed": 75, "failed": 0 }
+  },
+  "limitations": [
+    "Wrapper exit and supervisor-observed native lane exits are separate observations",
+    "No new baseline full run or timeout causality claim for this correction",
+    "Reviewer base/HEAD comparison remains attributed reviewer evidence, not this run",
+    "RED is not release readiness, paid execution or story/product acceptance"
+  ],
+  "rawEvidence": "outputs/personal-single-book-operator-fix-20261004/full-check.log",
+  "supervisorCapture": "outputs/personal-single-book-operator-fix-20261004/full-check-summary.json",
+  "rawEvidenceGitBackup": false,
+  "historicalFullCheckArtifactOverwritten": false
+}

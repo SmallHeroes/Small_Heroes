@@ -10,6 +10,18 @@ This roadmap records technical milestone state. Guy can change product priority 
 
 ### P-personal fifteen-companion expansion (2026-10-03)
 
+- Claude independently PASSed b60251b6..49e1fabb and 49e1fabb..329c857e,
+  exact technical ranges only, not literary/product/runtime acceptance. Codex's
+  small free successor fixes before-live TTY and review BOM traps, adds missing
+  probe/escaping/comparison pins: focused 239/239, tsc 0, ten memory-only variants
+  caught. Fresh full check RED: ordinary ten old artifact failures/5,997 passed;
+  resource sixteen timeouts/619 passed plus four RPC errors; both changed specs
+  pass. No fresh baseline/cause proof. Corrective re-gate pending. No changes
+  to model/caps/pricing/profile identity or public wizard. Existing key reuse
+  authorized, explicit priced $12 trial consent/reference pending; no retry
+  expansion. PL-1 current author thinking capacity and PL-2 returned identity
+  still empirical. No book/spend/images/push/deploy; stability remains RED.
+
 - 2026-10-04 companion correction pushed at 49e1fabb to the work branch only,
   parity verified against the server. New thin one-book driver over existing
   host/journal now implemented: synthetic Astra probe before Opus book, fresh

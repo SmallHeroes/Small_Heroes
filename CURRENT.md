@@ -1,5 +1,53 @@
 # SmallHeroes — Current Technical State
 
+## Single-book operator correction and independent review intake 2026 10 04
+
+Claude independently PASSes b60251b6..49e1fabb (profile refinement) and
+49e1fabb..329c857e (offline driver), P0/P1/P2 zero, exact ranges only. Literary
+opinion of Claude's own creative proposal is not independent. Earlier-profile
+books stay readable but cannot silently rebind to current editing/storyboard
+authority. No branch-wide, product, visual, paid-execution or release approval.
+
+His OP-1/2 are validated: EOF can waste approval after paid planning; one
+PowerShell review BOM rejects valid JSON. Codex's free local correction rejects
+non-TTY execute before construction/reservation/handlers/key, while help and
+budget preview stay available. Shared host removes exactly one leading U+FEFF
+after raw file checks; no rewrite or schema/digest/size/link relaxation. Model
+caps, prices, authority, public wizard, companions, assets and transport unchanged.
+
+Focused 239/239 across six specs, tsc 0. Driver 49 to 59, host 63 to 75, no spec
+inventory change. Ten memory-only negative controls caught, unmodified controls
+pass; production bytes unchanged during controls. New tests pin reachable
+comparison defect kinds, page/QA escaping and probe result/full-record audit/
+completed seal before book reservation. Fresh full check wrapper/native lanes
+exit 1: ordinary same ten missing-artifact failures, 5,997 passed/73 skipped;
+resource sixteen timeouts/619 passed plus four RPC errors, unchanged files.
+Both changed specs pass in full load. Final separate tsc 0. No fresh baseline
+or timeout-causality proof, no GREEN claim. This corrective successor needs
+Claude's separate re-gate; focused local commit, not an independent PASS.
+
+Reviewer baseline observations: same ten ordinary failures at 329 and b602;
+resource 635/635 at 329 versus 634/635 at base, each three RPC errors. Historical
+Codex 14 timeouts did not reproduce, not a stability/causality proof. Historical
+full-check artifact is preserved. Snapshot 20, image 22 and other original 41
+rows preserved; live profile matches 49e1fabb, Claude original unchanged.
+Protected and site worktrees are clean and untouched.
+
+No key/provider/spend/book/image/storyboard/narration, public cutover, QA merge,
+push or deployment in this milestone. Standing key reuse is already authorized.
+Priced live-run approval remains pending: proposed reference
+guy-text-calibration-20261004-01, one fictional eight-spread book after probe,
+up to $12 usage estimate, no automatic new-reference retries. PL-1 current split
+author thinking capacity and PL-2 returned Astra identity remain unmeasured;
+no-book cap evidence is a possible paid outcome. P3-4/6 remain separate.
+
+Decision and re-gate brief:
+docs/ai-workflow/PERSONAL_SINGLE_BOOK_OPERATOR_FIX_DECISION_20261004.md and
+docs/ai-workflow/PERSONAL_SINGLE_BOOK_OPERATOR_FIX_QA_20261004.md.
+Fresh evidence summary is the adjacent OPERATOR_FIX_FULL_CHECK JSON; raw log,
+mutation controls and exact post-commit handoff are in the ignored
+outputs/personal-single-book-operator-fix-20261004 folder, local only.
+
 ## One guarded fictional text-book driver 2026 10 04
 
 Companion correction 49e1fabbea365f4442555e8d995f1e6d0ad73452 is pushed and

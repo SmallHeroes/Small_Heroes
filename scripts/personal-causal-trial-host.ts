@@ -39,7 +39,10 @@ export function readCausalReviewFile(file: string) {
   try {
     const opened = fstatSync(fd);
     if (opened.dev !== st.dev || opened.ino !== st.ino || opened.nlink !== 1 || opened.size !== st.size) hostFail('review_file');
-    return reviewSchema.parse(JSON.parse(readFileSync(fd, 'utf8')));
+    const text = readFileSync(fd, 'utf8');
+    // PowerShell 5.1 UTF-8 files may have one leading BOM. File fences and the
+    // byte ceiling still apply to the original file; do not normalize more.
+    return reviewSchema.parse(JSON.parse(text.replace(/^\uFEFF/, '')));
   } catch { hostFail('review_file'); } finally { closeSync(fd); }
 }
 export function causalOutputCap(spreads: number, stage: CausalStage) {

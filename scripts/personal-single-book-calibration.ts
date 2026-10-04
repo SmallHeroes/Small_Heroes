@@ -246,6 +246,9 @@ export async function singleBookCalibrationCLI(argv: string[]) {
   if (config.policy.mode !== 'live_explicit' || !path.isAbsolute(config.existingKeyEnvFile)) hostFail('authorization');
   const spec = prepareSingleBookCalibration({ ...config, request: config.request });
   if (argv.length === 2) { console.log(JSON.stringify({ ...spec.preview, mode: 'budget_preview_only_no_reservation' })); return 0; }
+  // The paid plan pauses for a same-process human review. EOF/piped input must
+  // fail before any one-use allowance is acquired, not after that plan is paid.
+  if (process.stdin.isTTY !== true) hostFail('interactive_stdin_required');
   const controller = new AbortController(), cancel = () => controller.abort();
   process.once('SIGINT', cancel); process.once('SIGTERM', cancel);
   let trial: ReturnType<typeof createSingleBookCalibration> | null = null;

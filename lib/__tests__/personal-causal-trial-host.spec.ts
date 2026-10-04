@@ -252,6 +252,55 @@ describe('one-shot causal trial connection (zero live providers)', () => {
     const other = temporary(), original = path.join(other, 'review.json'); exclusiveJson(original, h.review(b));
     linkSync(original, path.join(other, 'alias.json')); expect(() => readCausalReviewFile(original)).toThrow('review_file');
   });
+  it.each(['', '\uFEFF'])('normal or single-BOM review %j parses without modifying its bytes', prefix => {
+    const root = temporary(), file = path.join(root, 'review.json');
+    const review = { sourceDigest: 'a'.repeat(64), decisions: [{ caseId: 'case1', decision: 'hold', reason: 'Synthetic explicit hold reason.' }] };
+    const bytes = Buffer.from(prefix + JSON.stringify(review)); writeFileSync(file, bytes);
+    expect(readCausalReviewFile(file)).toEqual(review); expect(readFileSync(file)).toEqual(bytes);
+  });
+  it.each(['double', 'space-before', 'inside-object', 'trailing'])('does not normalize %s BOM outside JSON strings', kind => {
+    const root = temporary(), file = path.join(root, 'review.json');
+    const text = JSON.stringify({ sourceDigest: 'a'.repeat(64), decisions: [{ caseId: 'case1', decision: 'hold', reason: 'Synthetic explicit hold reason.' }] });
+    const invalid = kind === 'double' ? '\uFEFF\uFEFF' + text : kind === 'space-before' ? ' \uFEFF' + text :
+      kind === 'inside-object' ? '{\uFEFF' + text.slice(1) : text + '\uFEFF';
+    writeFileSync(file, invalid); expect(() => readCausalReviewFile(file)).toThrow('causal_host_review_file');
+    expect(readFileSync(file, 'utf8')).toBe(invalid);
+  });
+  it('preserves a BOM inside a reason string instead of globally stripping it', () => {
+    const root = temporary(), file = path.join(root, 'review.json');
+    const reason = 'Synthetic explicit \uFEFF hold reason.';
+    writeFileSync(file, '\uFEFF' + JSON.stringify({ sourceDigest: 'a'.repeat(64), decisions: [{ caseId: 'case1', decision: 'hold', reason }] }));
+    expect(readCausalReviewFile(file).decisions[0].reason).toBe(reason);
+  });
+  it.each([10_000, 10_001])('single-BOM review byte limit %d includes the original three prefix bytes', bytes => {
+    const root = temporary(), file = path.join(root, 'review.json');
+    const text = '\uFEFF' + JSON.stringify({ sourceDigest: 'a'.repeat(64), decisions: [{ caseId: 'case1', decision: 'hold', reason: 'Synthetic explicit hold reason.' }] });
+    const padded = Buffer.from(text + ' '.repeat(bytes - Buffer.byteLength(text))); expect(padded.byteLength).toBe(bytes);
+    writeFileSync(file, padded);
+    if (bytes === 10_000) expect(readCausalReviewFile(file).decisions[0].decision).toBe('hold');
+    else expect(() => readCausalReviewFile(file)).toThrow('causal_host_review_file');
+    expect(readFileSync(file)).toEqual(padded);
+  });
+  it('single BOM cannot bypass the hardlink fence', () => {
+    const root = temporary(), file = path.join(root, 'review.json');
+    writeFileSync(file, '\uFEFF' + JSON.stringify({ sourceDigest: 'a'.repeat(64), decisions: [{ caseId: 'case1', decision: 'hold', reason: 'Synthetic explicit hold reason.' }] }));
+    linkSync(file, path.join(root, 'alias.json')); expect(() => readCausalReviewFile(file)).toThrow('causal_host_review_file');
+  });
+  it.each(['matching', 'stale'])('single-BOM %s decision crosses the real digest-bound host barrier', async kind => {
+    const h = harness(), bundle = await h.host.plan(), file = path.join(h.args.outputRoot, 'review.json');
+    const review = h.review(bundle, 'hold'); if (kind === 'stale') review.sourceDigest = 'f'.repeat(64);
+    const bytes = Buffer.from('\uFEFF' + JSON.stringify(review)); writeFileSync(file, bytes);
+    if (kind === 'matching') {
+      const result = await h.host.writeFromReviewFile(); expect(result.books).toHaveLength(0);
+      expect(JSON.parse(readFileSync(path.join(h.args.outputRoot, 'synopsis-review.json'), 'utf8'))).toEqual(review);
+    } else {
+      await expect(h.host.writeFromReviewFile()).rejects.toThrow('cohort_binding');
+      expect(existsSync(path.join(h.args.outputRoot, 'synopsis-review.json'))).toBe(false);
+      expect(existsSync(path.join(h.args.outputRoot, 'books.json'))).toBe(false);
+    }
+    expect(h.transport).toHaveBeenCalledTimes(1); expect(readFileSync(file)).toEqual(bytes);
+    expect(h.host.snapshot().host.closed).toBe(true);
+  });
   it('abort during transport seals before late output, which cannot settle or write a story', async () => {
     let release!: (value: any) => void;
     const h = harness(1, async () => new Promise(resolve => { release = resolve; }));

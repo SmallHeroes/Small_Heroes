@@ -3,7 +3,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, 
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { createSingleBookCalibration, prepareSingleBookCalibration, renderSingleBookText, singleBookOutcome, singleBookCalibrationCLI } from '../../scripts/personal-single-book-calibration';
 import { CausalFamilyJournal, CausalHostError } from '../../scripts/personal-causal-trial-journal';
 import { CausalTransportError, type TransportReply } from '../../scripts/personal-causal-trial-adapters';
@@ -18,6 +18,11 @@ import { resolvePersonalWizardOptions } from '../personal-wizard/options';
 const dirs: string[] = [];
 afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks(); vi.unstubAllGlobals(); for (const d of dirs.splice(0)) rmSync(d, { recursive: true, force: true }); });
 function temp() { const d = mkdtempSync(path.join(tmpdir(), 'single-book-offline-')); dirs.push(d); return d; }
+function mockStdinTTY(value: boolean | undefined) {
+  const original = Object.getOwnPropertyDescriptor(process.stdin, 'isTTY');
+  Object.defineProperty(process.stdin, 'isTTY', { configurable: true, value });
+  return () => { if (original) Object.defineProperty(process.stdin, 'isTTY', original); else Reflect.deleteProperty(process.stdin, 'isTTY'); };
+}
 const sha = (s: string) => createHash('sha256').update(s).digest('hex');
 function answer(call: CausalDispatch): unknown {
   const input = JSON.parse(call.input), brief = input.brief;
@@ -149,6 +154,40 @@ describe('one fictional book over the existing causal host, not public rollout',
     expect(reserves).toHaveBeenCalledTimes(2); expect(h.transport).toHaveBeenCalledTimes(2);
     expect(h.key).not.toHaveBeenCalled(); driver.stop();
   });
+  it('persists verified probe result and seals it before the book family is reserved', async () => {
+    const h = harness(), reserve = CausalFamilyJournal.reserve;
+    let boundaryObserved = false;
+    vi.spyOn(CausalFamilyJournal, 'reserve').mockImplementation(args => {
+      if (args.family === h.spec.bookFamily) {
+        boundaryObserved = true;
+        const family = path.join(h.root, 'codex-causal-text-trials', h.spec.probeFamily);
+        const probe = JSON.parse(readFileSync(path.join(h.spec.probeRoot, 'probe-result.json'), 'utf8'));
+        expect(probe).toEqual({ output: answer(h.spec.probeCall), receipt: reply(h.spec.probeCall),
+          providerReportedNotAttestation: true, runtimeEligible: false });
+        expect(JSON.parse(readFileSync(path.join(family, 'sealed.json'), 'utf8'))).toEqual({ reason: 'probe_completed',
+          claims: ['case1:final_review'], settled: ['case1:final_review'], runtimeEligible: false });
+        expect(existsSync(h.spec.bookRoot)).toBe(false);
+        expect(existsSync(path.join(h.root, 'codex-causal-text-trials', h.spec.bookFamily))).toBe(false);
+      }
+      return reserve(args);
+    });
+    const driver = createSingleBookCalibration(h.args);
+    try { await driver.plan(); expect(boundaryObserved).toBe(true); expect(h.transport).toHaveBeenCalledTimes(2); }
+    finally { driver.stop(); }
+  });
+  it('audits probe dispatch bytes at completion before any book reservation', async () => {
+    const h = harness(), reserve = vi.spyOn(CausalFamilyJournal, 'reserve');
+    h.transport.mockImplementation(async (_wire, call) => {
+      writeFileSync(path.join(h.root, 'codex-causal-text-trials', h.spec.probeFamily, 'dispatch-case1-final_review.json'), '{}');
+      return reply(call);
+    });
+    const driver = createSingleBookCalibration(h.args);
+    await expect(driver.plan()).rejects.toThrow('causal_host_record_changed');
+    expect(reserve).toHaveBeenCalledTimes(1); expect(h.transport).toHaveBeenCalledTimes(1);
+    expect(driver.snapshot().probe.receipt).toEqual(reply(h.spec.probeCall));
+    expect(existsSync(h.spec.bookRoot)).toBe(false);
+    expect(existsSync(path.join(h.root, 'codex-causal-text-trials', h.spec.bookFamily))).toBe(false);
+  });
   it.each(['digest', 'findings', 'model', 'tier', 'status', 'missing-usage', 'output-overrun', 'unknown-cost', 'cost-overrun', 'schema'])('preserves %s probe failure and never reserves a book', async kind => {
     const h = harness(), reserve = vi.spyOn(CausalFamilyJournal, 'reserve');
     h.transport.mockImplementation(async (_w, c) => {
@@ -277,15 +316,84 @@ describe('one fictional book over the existing causal host, not public rollout',
     expect(renderSingleBookText(hostile)).not.toContain('<script>'); expect(renderSingleBookText(hostile)).toContain('&lt;script&gt;');
     expect(h.key).not.toHaveBeenCalled();
   }, 15000);
+  it.each(['remaining_problem', 'new_regression', 'preference', 'improvement'] as const)('admitted comparison %s has the intended text outcome', async kind => {
+    const h = harness();
+    h.transport.mockImplementation(async (_wire, call) => {
+      const response = reply(call);
+      if (call.stage === 'comparison') {
+        const input = JSON.parse(call.input);
+        response.output = { packetDigest: input.packetDigest, summary: 'Synthetic comparison, not a literary verdict.', findings: [{
+          severity: 'blocking', kind, criterion: 'Synthetic comparison criterion',
+          original: [{ pageNumber: 1, quote: input.packet.original.pages[0].text }],
+          revised: [{ pageNumber: 1, quote: input.packet.revised.pages[0].text }],
+          explanation: 'Synthetic comparison evidence for the admitted category.' }] };
+      }
+      return response;
+    });
+    const driver = createSingleBookCalibration(h.args), bundle = await driver.plan(); h.review(bundle.sourceDigest);
+    const result = await driver.writeFromReviewFile();
+    expect(result.books[0].readings[2].findings[0].kind).toBe(kind);
+    expect(singleBookOutcome(result)).toBe(['remaining_problem', 'new_regression'].includes(kind)
+      ? 'text_held_by_model' : 'text_ready_for_human_review');
+    expect(h.transport).toHaveBeenCalledTimes(7); expect(h.key).not.toHaveBeenCalled();
+  }, 15000);
+  it('escapes original/revised page text and finding explanations in the diagnostic viewer', async () => {
+    const h = harness(), driver = createSingleBookCalibration(h.args), bundle = await driver.plan(); h.review(bundle.sourceDigest);
+    const result = await driver.writeFromReviewFile(), hostile = structuredClone(result);
+    const pageText = '<img src=x onerror="PAGE_INJECTION"> & \'page\'';
+    const explanation = '<script>QA_INJECTION</script> & "finding"';
+    hostile.books[0].original.manuscript.pages[0].text = pageText;
+    hostile.books[0].edit.revised.manuscript.pages[0].text = pageText;
+    hostile.books[0].readings[1].findings.push({ severity: 'polish', kind: 'preference', criterion: 'Synthetic viewer evidence',
+      original: [], revised: [{ pageNumber: 1, quote: pageText }], explanation });
+    const html = renderSingleBookText(hostile);
+    expect(html.split('<p>&lt;img src=x onerror=&quot;PAGE_INJECTION&quot;&gt; &amp; &#39;page&#39;</p>')).toHaveLength(3);
+    expect(html).not.toContain(pageText);
+    expect(html).toContain('&lt;script&gt;QA_INJECTION&lt;/script&gt; &amp; \\&quot;finding\\&quot;');
+    expect(html).not.toContain(explanation); expect(html).not.toContain('<script>QA_INJECTION');
+  }, 15000);
+  it.each([false, undefined])('non-interactive stdin %s fails before construction, handlers, reservation or credentials', async tty => {
+    const h = harness(); h.policy.mode = 'live_explicit'; const file = path.join(h.root, 'config.json');
+    writeFileSync(file, JSON.stringify({ workspace: h.root, outputParent: h.root, policy: h.policy,
+      request: h.args.request, existingKeyEnvFile: path.join(h.root, 'ABSENT-KEY.env') }));
+    const restore = mockStdinTTY(tty), reserve = vi.spyOn(CausalFamilyJournal, 'reserve');
+    const before = readdirSync(h.root, { recursive: true }), handlers = ['SIGINT', 'SIGTERM'].map(s => process.listeners(s));
+    const fetcher = vi.fn<typeof fetch>(() => { throw Error('Unexpected network'); }); vi.stubGlobal('fetch', fetcher);
+    try {
+      await expect(singleBookCalibrationCLI(['--config', file, '--execute'])).rejects.toThrow('causal_host_interactive_stdin_required');
+      expect(reserve).not.toHaveBeenCalled(); expect(h.key).not.toHaveBeenCalled(); expect(h.transport).not.toHaveBeenCalled();
+      expect(fetcher).not.toHaveBeenCalled(); expect(readdirSync(h.root, { recursive: true })).toEqual(before);
+      expect(['SIGINT', 'SIGTERM'].map(s => process.listeners(s))).toEqual(handlers);
+    } finally { restore(); }
+  });
   it('constructor failure removes the CLI cancellation handlers and never reads credentials', async () => {
     const h = harness(); h.policy.mode = 'live_explicit'; const file = path.join(h.root, 'config.json');
     writeFileSync(file, JSON.stringify({ workspace: h.root, outputParent: h.root, policy: h.policy,
       request: h.args.request, existingKeyEnvFile: path.join(h.root, 'ABSENT-KEY.env') }));
     const before = ['SIGINT', 'SIGTERM'].map(s => process.listenerCount(s));
-    await expect(singleBookCalibrationCLI(['--config', file, '--execute'])).rejects.toThrow('loaded_source_workspace');
-    expect(['SIGINT', 'SIGTERM'].map(s => process.listenerCount(s))).toEqual(before);
-    expect(existsSync(h.spec.probeRoot)).toBe(false);
+    const restore = mockStdinTTY(true);
+    try {
+      await expect(singleBookCalibrationCLI(['--config', file, '--execute'])).rejects.toThrow('loaded_source_workspace');
+      expect(['SIGINT', 'SIGTERM'].map(s => process.listenerCount(s))).toEqual(before);
+      expect(existsSync(h.spec.probeRoot)).toBe(false);
+    } finally { restore(); }
   });
+  it('real launcher rejects closed or pre-piped stdin while help remains non-interactive', () => {
+    const h = harness(); h.policy.mode = 'live_explicit'; const file = path.join(h.root, 'config.json');
+    writeFileSync(file, JSON.stringify({ workspace: h.root, outputParent: h.root, policy: h.policy,
+      request: h.args.request, existingKeyEnvFile: path.join(h.root, 'ABSENT-KEY.env') }));
+    const before = readdirSync(h.root, { recursive: true });
+    for (const input of ['', 'continue\n']) {
+      const run = spawnSync(process.execPath, ['scripts/personal-single-book-calibration.cjs', '--config', file, '--execute'],
+        { cwd: process.cwd(), input, windowsHide: true, encoding: 'utf8', timeout: 15000 });
+      expect(run.error).toBeUndefined(); expect(run.status).toBe(1); expect(run.stdout).toBe('');
+      expect(JSON.parse(run.stderr)).toEqual({ status: 'failed', code: 'interactive_stdin_required', runtimeEligible: false });
+      expect(readdirSync(h.root, { recursive: true })).toEqual(before);
+    }
+    const help = execFileSync(process.execPath, ['scripts/personal-single-book-calibration.cjs', '--help'],
+      { cwd: process.cwd(), windowsHide: true, encoding: 'utf8', timeout: 15000 });
+    expect(help).toContain('[--execute]'); expect(readdirSync(h.root, { recursive: true })).toEqual(before);
+  }, 50000);
   it('real launcher defaults to a data-only preview and never reads the missing credential file', () => {
     const h = harness(); h.policy.mode = 'live_explicit'; const file = path.join(h.root, 'config.json');
     writeFileSync(file, JSON.stringify({ workspace: h.root, outputParent: h.root, policy: h.policy,
