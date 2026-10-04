@@ -22,6 +22,11 @@ This roadmap records technical milestone state. Guy can change product priority 
   Guy directs bounded continuation to a readable text,
   stop/rethink repeated failures, never replay consumed approvals. No paid
   retries in this code milestone, images, public cutover, push or release.
+  Claude source-inspection PASS for 0b3e7ec2..5b9628ec supplies two valid P3
+  prompt-completeness/precision notes. Separate correction states remaining
+  selected-plan bindings and within-candidate uniqueness (A/B may share IDs),
+  adds sparse and violation/repair controls, keeps validators unchanged. Exact
+  successor re-gate pending; this is not independent test/preservation execution.
 
 - Claude's 36d9e85d..a56e1813 exact technical re-gate PASS, P0/P1/P2/P3 zero.
   He reproduced 289/289, caught 16/16 mutations, confirmed unchanged dereferenced

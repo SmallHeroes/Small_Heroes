@@ -2,6 +2,14 @@
 
 ## Trial 04 and causal instruction alignment 2026 10 04
 
+Claude's source-inspection review of exactly 0b3e7ec2..5b9628ec is technical PASS
+with two P3 notes, not independent test/preservation recomputation. Codex closes
+the valid notes in a separate prompt/spec successor: selected-fact beat coverage,
+last-spread payoff evidence, resilience mode/positions and within-candidate ID
+uniqueness now explicitly stated. A/B can share a sole interest. Existing guards
+remain unchanged; sparse and single-clause violation/repair tests added. Exact
+successor review pending; no paid retry before it. Full parent gate remains RED.
+
 At frozen 0b3e7ec2, Guy's fourth approved one-use fictional text trial completed
 the Astra identity/schema probe and Opus plan transport. Opus supplied a plan
 and synopsis; the compiler rejected unselected B's missing approved interest

@@ -75,7 +75,13 @@ describe('limited causal experiment, not live provider or quality certification'
     expect(ADVENTURE_SELECTION_INSTRUCTIONS).toContain(CANDIDATE_PERSONAL_FACT_INSTRUCTIONS);
     expect(call.instructions).toContain(CANDIDATE_PERSONAL_FACT_INSTRUCTIONS);
     expect(call.instructions).toContain('BOTH A and B, including the unselected candidate and both_rejected responses');
-    expect(call.instructions).toContain('unique IDs from brief.facts');
+    expect(call.instructions).toContain('only IDs from brief.facts, with no duplicate IDs within a candidate; A and B may share an interest');
+    expect(call.instructions).toContain('an approved fact with kind "interest"');
+    expect(call.instructions).toContain('every factId in the selected candidate\'s personalFactUses must occur in at least one plan beat\'s factIds');
+    expect(call.instructions).toContain('at least one approved interest must influence an action');
+    expect(call.instructions).toContain('Keep plan.resilience.mode equal to brief.resilienceMode');
+    expect(call.instructions).toContain('positions 1 through brief.beats, with no duplicate positions within each list');
+    expect(call.instructions).toContain('earned_payoff check must include the final spread (brief.beats) in evidenceSpreads');
     expect(call.instructions).toContain('a contiguous verbatim substring copied from the named field');
     expect(call.instructions).toContain('at that one-based pageNumber');
     expect(call.instructions).toContain('without rewording, name/pronoun substitutions or punctuation/whitespace changes');
@@ -91,6 +97,36 @@ describe('limited causal experiment, not live provider or quality certification'
       expect(() => compileCausalPlan(p, raw), `candidate ${index}`).toThrow('story_selection_personal_fact_missing');
     }
     expect(compileCausalPlan(p, planned(p.brief, rejected)).disposition).toBe(rejected ? 'both_rejected' : 'selected');
+  });
+  it.each([false, true])('a sparse one-interest brief may use the same ID in both candidates, both_rejected=%s', rejected => {
+    const p = preparePersonalStory(causalTrialCohort()[3].request, options), raw = planned(p.brief, rejected);
+    expect(p.brief.facts).toHaveLength(1);
+    const pair = rejected ? raw : raw.selection;
+    expect(pair.candidates[0].personalFactUses[0].factId).toBe(pair.candidates[1].personalFactUses[0].factId);
+    expect(compileCausalPlan(p, raw).disposition).toBe(rejected ? 'both_rejected' : 'selected');
+  });
+  it.each(['selected_fact', 'final_spread', 'moment_range', 'moment_duplicate'] as const)('selected-plan %s binding rejects its precise violation and accepts its repair', kind => {
+    const p = preparePersonalStory(causalTrialCohort()[0].request, options), raw = planned(p.brief);
+    expect(compileCausalPlan(p, raw).disposition).toBe('selected');
+    if (kind === 'selected_fact') {
+      const habit = p.brief.facts.find(f => f.kind === 'other')!.id;
+      raw.selection.candidates[0].personalFactUses.push({ factId: habit, contribution: 'A small approved habit contributes to the adventure.' });
+      expect(() => compileCausalPlan(p, raw)).toThrow('story_selection_plan_fact_missing');
+      raw.plan.beats[1].factIds.push(habit);
+    } else if (kind === 'final_spread') {
+      raw.selection.outlineChecks.earned_payoff.evidenceSpreads = [1];
+      expect(() => compileCausalPlan(p, raw)).toThrow('story_selection_outline_binding');
+      raw.selection.outlineChecks.earned_payoff.evidenceSpreads = [p.brief.beats];
+    } else if (kind === 'moment_range') {
+      raw.plan.resilience.moments[0].pageNumber = p.brief.beats + 1;
+      expect(() => compileCausalPlan(p, raw)).toThrow('plan_binding');
+      raw.plan.resilience.moments[0].pageNumber = 2;
+    } else {
+      raw.plan.resilience.moments.push(structuredClone(raw.plan.resilience.moments[0]));
+      expect(() => compileCausalPlan(p, raw)).toThrow('plan_binding');
+      raw.plan.resilience.moments.pop();
+    }
+    expect(compileCausalPlan(p, raw).disposition).toBe('selected');
   });
   it.each(['selected', 'both_rejected'] as const)('unselected B without an interest stops %s after exactly one real dispatch', async disposition => {
     const h = harness(1, call => {
@@ -151,6 +187,8 @@ describe('limited causal experiment, not live provider or quality certification'
   });
   it('revised beats cannot drop the last interest, but may use only a subset of approved facts', () => {
     const f = selectedFixture();
+    const used = new Set(f.output.revision.plan.beats.flatMap((beat: any) => beat.factIds));
+    expect(used.size).toBeLessThan(f.p.brief.facts.length);
     expect(compileCausalEdit(f.p, f.original, f.output).disposition).toBe('model_supported');
     const habit = f.p.brief.facts.find(fact => fact.kind === 'other')!.id;
     f.output.revision.plan.beats.forEach((beat: any) => { beat.factIds = [habit]; });
