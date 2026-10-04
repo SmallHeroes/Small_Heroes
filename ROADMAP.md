@@ -10,6 +10,19 @@ This roadmap records technical milestone state. Guy can change product priority 
 
 ### P-personal fifteen-companion expansion (2026-10-03)
 
+- Trial 04 at 0b3e7ec2: live Opus transport/schema completed, but unselected B
+  lacked interest binding; compiler rejected before prose. Literal quote gaps
+  exposed next in memory-only probes. Trial estimate USD 0.571413; captured
+  four-trial total USD 0.604038 (not invoice). No book; families sealed.
+  Free all-stage instruction alignment, validators unchanged: focused 308/308,
+  tsc 0, six baseline regressions and six instruction mutants caught. Ordinary
+  prompts byte-identical; editor/critics now state their existing bindings.
+  Exact Claude independent QA pending; full gate RED, same ten ordinary names
+  (6,066 pass/73 skip), resource 635 pass plus two RPC errors, valid protocols.
+  Guy directs bounded continuation to a readable text,
+  stop/rethink repeated failures, never replay consumed approvals. No paid
+  retries in this code milestone, images, public cutover, push or release.
+
 - Claude's 36d9e85d..a56e1813 exact technical re-gate PASS, P0/P1/P2/P3 zero.
   He reproduced 289/289, caught 16/16 mutations, confirmed unchanged dereferenced
   domain unions / fifteen other wires, and closed prior P3-1. All 42 paid files

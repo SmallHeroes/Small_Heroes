@@ -1,5 +1,41 @@
 # SmallHeroes — Current Technical State
 
+## Trial 04 and causal instruction alignment 2026 10 04
+
+At frozen 0b3e7ec2, Guy's fourth approved one-use fictional text trial completed
+the Astra identity/schema probe and Opus plan transport. Opus supplied a plan
+and synopsis; the compiler rejected unselected B's missing approved interest
+with story_selection_personal_fact_missing. Native CLI 0 is distinct from
+launcher native 1. A memory-only diagnostic adding that ID then exposed three
+nonliteral citations (dependency_evidence). No accepted synopses.json, author,
+editor, literary QA or book viewer. Both families sealed, no replay/repair.
+Reported trial estimate USD 0.571413; four captured attempts USD 0.604038 total,
+not invoice proof. All 42 prior files preserved, fourteen new files fingerprinted.
+
+Codex's free correction shares the existing interest-per-candidate instruction
+between ordinary and causal planning, explicitly covers A/B and rejected ideas,
+and clarifies literal citation copying. A downstream audit found analogous
+unstated editor retained-interest and isolated critic evidence-array bindings;
+these now match existing guards. Ordinary instruction runtime bytes remain
+identical; schemas, validators, models, caps, prices, journals, UI and site QA
+unchanged. Causal spec 61 to 80, focused 308/308; base fails six new prompt tests,
+six memory-only instruction mutants caught by their intended tests. Type check
+0. Fresh full gate wrapper/native lanes 1: ordinary same ten named previous
+failures, 6,066 passed/73 skipped; resource 635/635 with two onTaskUpdate RPC
+errors. Both diagnostic protocols valid, no overlapping run or production/spec
+edit during it. This is RED, not stability or a historical cause reconstruction.
+Full gate observation and exact independent handoff are recorded below; no
+independent PASS or live compliance claim is self-awarded.
+
+Guy now directs continuing to one readable story, with repeated failures
+triggering diagnosis. Never reset/reuse trial 04. A subsequent one-use attempt
+requires reviewed frozen source and fresh admission/preflight; bounded text only,
+not six-book scale-up, images, narration, public cutover, push or release.
+Full stability, downstream token capacity and story quality remain open.
+Decision and evidence:
+docs/ai-workflow/PERSONAL_CAUSAL_PROMPT_CONTRACT_DECISION_20261004.md and
+docs/ai-workflow/PERSONAL_CAUSAL_PROMPT_CONTRACT_QA_20261004.md.
+
 ## Opus tool-envelope correction independently reviewed 2026 10 04
 
 Claude's exact re-gate 36d9e85d..a56e1813 is technical PASS, P0/P1/P2/P3 zero.

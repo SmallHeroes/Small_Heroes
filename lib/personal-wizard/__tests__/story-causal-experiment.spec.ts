@@ -4,7 +4,7 @@ import { companionTrialCohort } from '../../../scripts/personal-book-companion-c
 import { fixtureAdventureSelection } from './story-planning-fixture';
 import { fixtureEditorOutput } from './personal-storyboard-fixture';
 import { resolvePersonalWizardOptions } from '../options';
-import { preparePersonalStory, STORY_INSTRUCTIONS, NARRATIVE_CRAFT_INSTRUCTIONS } from '../story-writer';
+import { preparePersonalStory, STORY_INSTRUCTIONS, NARRATIVE_CRAFT_INSTRUCTIONS, ADVENTURE_SELECTION_INSTRUCTIONS, CANDIDATE_PERSONAL_FACT_INSTRUCTIONS } from '../story-writer';
 import { STORY_EDITOR_INSTRUCTIONS } from '../story-editor';
 import { canonicalJson } from '../request-acceptance';
 import { createCausalExperiment, CAUSAL_STAGES, type CausalDispatch, type CausalExperimentPorts } from '../story-causal-experiment-runner';
@@ -67,6 +67,69 @@ function selectedFixture(index = 0) {
 }
 
 describe('limited causal experiment, not live provider or quality certification', () => {
+  it.each(['plan', 'replan'] as const)('actual %s instructions state the all-candidate and literal-citation contracts', async stage => {
+    const h = harness(1, call => call.stage === 'plan' ? planned(JSON.parse(call.input).brief, true) : defaultOutput(call));
+    await h.runner.plan();
+    const call = vi.mocked(h.ports.generate).mock.calls.map(([c]) => c).find(c => c.stage === stage)!;
+    expect(CANDIDATE_PERSONAL_FACT_INSTRUCTIONS).toBe('Use at least one approved interest per candidate; do not invent biography or force every supplied fact.');
+    expect(ADVENTURE_SELECTION_INSTRUCTIONS).toContain(CANDIDATE_PERSONAL_FACT_INSTRUCTIONS);
+    expect(call.instructions).toContain(CANDIDATE_PERSONAL_FACT_INSTRUCTIONS);
+    expect(call.instructions).toContain('BOTH A and B, including the unselected candidate and both_rejected responses');
+    expect(call.instructions).toContain('unique IDs from brief.facts');
+    expect(call.instructions).toContain('a contiguous verbatim substring copied from the named field');
+    expect(call.instructions).toContain('at that one-based pageNumber');
+    expect(call.instructions).toContain('without rewording, name/pronoun substitutions or punctuation/whitespace changes');
+    expect(call.instructions).toContain('provenance, not causal entailment');
+    expect(call.instructions).not.toContain('No replanning/retry loop is available');
+    expect(call.instructions).not.toContain('a failed attempt with consequences and ');
+  });
+  it.each([false, true])('requires an interest independently in each candidate, both_rejected=%s', rejected => {
+    const p = preparePersonalStory(causalTrialCohort()[0].request, options);
+    for (const index of [0, 1]) {
+      const raw = planned(p.brief, rejected), pair = rejected ? raw : raw.selection;
+      pair.candidates[index].personalFactUses[0].factId = p.brief.facts.find(f => f.kind === 'other')!.id;
+      expect(() => compileCausalPlan(p, raw), `candidate ${index}`).toThrow('story_selection_personal_fact_missing');
+    }
+    expect(compileCausalPlan(p, planned(p.brief, rejected)).disposition).toBe(rejected ? 'both_rejected' : 'selected');
+  });
+  it.each(['selected', 'both_rejected'] as const)('unselected B without an interest stops %s after exactly one real dispatch', async disposition => {
+    const h = harness(1, call => {
+      const brief = JSON.parse(call.input).brief, raw = planned(brief, disposition === 'both_rejected');
+      const pair = disposition === 'both_rejected' ? raw : raw.selection;
+      pair.candidates[1].personalFactUses[0].factId = brief.facts.find((f: any) => f.kind === 'other').id;
+      return raw;
+    });
+    await expect(h.runner.plan()).rejects.toThrow('story_selection_personal_fact_missing');
+    expect(vi.mocked(h.ports.generate).mock.calls.map(([call]) => call.stage)).toEqual(['plan']);
+    expect(vi.mocked(h.ports.claim).mock.calls.map(call => call[2])).toEqual(['case1:plan']);
+    expect(h.runner.snapshot().phase).toBe('failed');
+  });
+  it.each(['name', 'pronoun', 'punctuation', 'whitespace'] as const)('literal citations reject %s changes, while copied substrings pass', variant => {
+    const p = preparePersonalStory(causalTrialCohort()[0].request, options), raw = planned(p.brief);
+    raw.plan.beats[0].childAction = 'נטע מצביעה, והיא בוחרת בדרך.';
+    const ref = raw.backwardDependencies.childDiscovery.evidence[0];
+    ref.quote = 'נטע מצביעה, והיא בוחרת בדרך.';
+    for (const key of BACKWARD_DEPENDENCIES.filter(k => k !== 'childDiscovery')) {
+      raw.backwardDependencies[key].evidence[0].pageNumber = 2;
+    }
+    expect(compileCausalPlan(p, raw).disposition).toBe('selected');
+    ref.quote = { name: 'שירה מצביעה, והיא בוחרת בדרך.', pronoun: 'נטע מצביעה, והוא בוחר בדרך.',
+      punctuation: 'נטע מצביעה והיא בוחרת בדרך.', whitespace: 'נטע  מצביעה, והיא בוחרת בדרך.' }[variant];
+    expect(() => compileCausalPlan(p, raw)).toThrow('dependency_evidence');
+    ref.quote = 'והיא בוחרת בדרך';
+    expect(compileCausalPlan(p, raw).disposition).toBe('selected');
+  });
+  it('a paraphrased citation stops the real runner before replan, author or editor', async () => {
+    const h = harness(1, call => {
+      const raw = planned(JSON.parse(call.input).brief);
+      raw.backwardDependencies.childDiscovery.evidence[0].quote = 'היא מציעה דרך אחרת';
+      return raw;
+    });
+    await expect(h.runner.plan()).rejects.toThrow('dependency_evidence');
+    expect(vi.mocked(h.ports.generate).mock.calls.map(([call]) => call.stage)).toEqual(['plan']);
+    expect(vi.mocked(h.ports.claim).mock.calls.map(call => call[2])).toEqual(['case1:plan']);
+    expect(h.runner.snapshot().phase).toBe('failed');
+  });
   it('relaxes only the inherited mandatory failed attempt in all experimental stages, not the current runtime', async () => {
     const clause = 'a failed attempt with consequences and ';
     expect(STORY_INSTRUCTIONS).toContain(clause);
@@ -76,6 +139,59 @@ describe('limited causal experiment, not live provider or quality certification'
     const h = harness(); await h.runner.plan(); h.approve(); await h.runner.write();
     const call = vi.mocked(h.ports.generate).mock.calls.find(([c]) => c.stage === 'author')![0];
     expect(call.instructions).not.toContain(clause); expect(call.instructions).toContain('A failed attempt is optional');
+  });
+  it('actual editor dispatch states retained-interest binding and per-version literal evidence', async () => {
+    const h = harness(); await h.runner.plan(); h.approve(); await h.runner.write();
+    const call = vi.mocked(h.ports.generate).mock.calls.map(([c]) => c).find(c => c.stage === 'editor')!;
+    expect(call.instructions).toContain('All revised plan beat factIds must come from brief.facts');
+    expect(call.instructions).toContain('at least one approved fact of kind interest must remain used in the revised beats');
+    expect(call.instructions).toContain('contiguous verbatim substrings copied from the cited version\'s actual page text');
+    expect(call.instructions).toContain('Diagnosis evidence uses the original manuscript');
+    expect(call.instructions).toContain('strength.revised and semanticAudit.revised use revised pages');
+  });
+  it('revised beats cannot drop the last interest, but may use only a subset of approved facts', () => {
+    const f = selectedFixture();
+    expect(compileCausalEdit(f.p, f.original, f.output).disposition).toBe('model_supported');
+    const habit = f.p.brief.facts.find(fact => fact.kind === 'other')!.id;
+    f.output.revision.plan.beats.forEach((beat: any) => { beat.factIds = [habit]; });
+    expect(() => compileCausalEdit(f.p, f.original, f.output)).toThrow('plan_binding');
+  });
+  it.each(['original_review', 'final_review', 'comparison'] as const)('actual %s dispatch specifies exact evidence sides and no counterpart leak', async stage => {
+    const h = harness(); await h.runner.plan(); h.approve(); await h.runner.write();
+    const call = vi.mocked(h.ports.generate).mock.calls.map(([c]) => c).find(c => c.stage === stage)!;
+    expect(call.instructions).toContain('Return the supplied packetDigest exactly; do not recompute it');
+    const input = JSON.parse(call.input);
+    expect(input.packetDigest).toBe(causalDigest(input.packet));
+    expect(call.instructions).toContain('contiguous verbatim substring copied from the cited version\'s actual page text');
+    expect(call.instructions).toContain('A literal quote proves provenance, not the truth of your interpretation');
+    if (stage === 'comparison') {
+      expect(call.instructions).toContain('EVERY finding, including polish or preference');
+      expect(call.instructions).toContain('at least one original[] citation AND at least one revised[] citation');
+      expect(call.instructions).toContain('never issue');
+    } else {
+      const own = stage === 'original_review' ? 'original' : 'revised', other = own === 'original' ? 'revised' : 'original';
+      expect(call.instructions).toContain('Use only issue or preference');
+      expect(call.instructions).toContain(`at least one citation in ${own}[] and leave ${other}[] empty`);
+      expect(call.instructions).toContain('Do not invent evidence from the unavailable other version');
+    }
+  });
+  it.each(['original', 'final', 'comparison'] as const)('%s readings accept literal own-version evidence and reject empty/wrong/paraphrased sides', kind => {
+    const f = selectedFixture(), edit = compileCausalEdit(f.p, f.original, f.output), packet = causalReviewPackets(f.p, f.original, edit.revised)[kind];
+    const ref = { pageNumber: 1, quote: f.original.manuscript.pages[0].text.slice(0, 12) };
+    const raw: any = { packetDigest: causalDigest(packet), summary: 'Synthetic evidence mapping test, not a literary quality verdict.',
+      findings: [{ severity: 'polish', kind: 'preference', criterion: 'A read-aloud phrase could be smoother.',
+        original: kind === 'final' ? [] : [ref], revised: kind === 'original' ? [] : [ref], explanation: 'A bounded subjective reading with the correct source references.' }] };
+    expect(compileCausalReading(packet, raw).findings).toHaveLength(1);
+    const empty = structuredClone(raw); empty.findings[0].original = []; empty.findings[0].revised = [];
+    expect(() => compileCausalReading(packet, empty)).toThrow('critic_evidence');
+    const wrong = structuredClone(raw);
+    if (kind === 'original') { wrong.findings[0].original = []; wrong.findings[0].revised = [ref]; }
+    else if (kind === 'final') { wrong.findings[0].original = [ref]; wrong.findings[0].revised = []; }
+    else wrong.findings[0].original = [];
+    expect(() => compileCausalReading(packet, wrong)).toThrow('critic_evidence');
+    const paraphrase = structuredClone(raw), side = kind === 'final' ? 'revised' : 'original';
+    paraphrase.findings[0][side][0].quote = 'A paraphrase absent from the actual cited page';
+    expect(() => compileCausalReading(packet, paraphrase)).toThrow('critic_evidence');
   });
   it.each(['plan', 'replan', 'author', 'editor'] as const)('actual %s dispatch keeps deadlines conditional and failed attempts optional', async stage => {
     const h = harness(1, call => call.stage === 'plan' ? planned(JSON.parse(call.input).brief, true) : defaultOutput(call));
