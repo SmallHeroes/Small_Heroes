@@ -6,6 +6,11 @@ codex/personal-book-storyboard-bridge, starting from b9995108. Approval is not
 independent QA, paid-run consent, product acceptance or public-flow migration.
 Paid trial 05 remains terminated; do not launch a sixth trial during this work.
 
+Execution update: A is local 471890ad; B is the successor containing
+PERSONAL_TEXT_PATH_SIMPLIFICATION_HANDOFF_20261004.md. Focused checks pass, full
+repository gate remains RED and independent Claude Code review is pending. The
+implementation does not expand the approval to live execution or public rollout.
+
 ## 1. Proposed change
 
 Two separate milestones, not a new pipeline framework:

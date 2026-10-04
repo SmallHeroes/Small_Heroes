@@ -8,7 +8,7 @@ import { createSingleBookCalibration, prepareSingleBookCalibration, renderSingle
 import { CausalFamilyJournal, CausalHostError } from '../../scripts/personal-causal-trial-journal';
 import { CausalTransportError, type TransportReply } from '../../scripts/personal-causal-trial-adapters';
 import { causalTrialCohort } from '../../scripts/personal-causal-cohort';
-import { BACKWARD_DEPENDENCIES, CAUSAL_EXPERIMENT_VERSION } from '../personal-wizard/story-causal-experiment';
+import { CAUSAL_EXPERIMENT_VERSION } from '../personal-wizard/story-causal-experiment';
 import { type CausalDispatch } from '../personal-wizard/story-causal-experiment-runner';
 import { fixtureAdventureSelection } from '../personal-wizard/__tests__/story-planning-fixture';
 import { fixtureEditorOutput } from '../personal-wizard/__tests__/personal-storyboard-fixture';
@@ -31,8 +31,6 @@ function answer(call: CausalDispatch): unknown {
     return { version: CAUSAL_EXPERIMENT_VERSION, requestId: brief.requestId, disposition: 'selected',
       selection: fixtureAdventureSelection(brief.beats, interest),
       synopsis: 'Synthetic adventure through discovery and partnership to a prepared payoff. Not literary proof.',
-      backwardDependencies: Object.fromEntries(BACKWARD_DEPENDENCIES.map(key => [key, { claim: 'Synthetic claim, not an entailment proof.',
-        evidence: [{ pageNumber: key === 'earnedPayoff' ? brief.beats : 1, field: 'childAction', quote: 'מציעה דרך אחרת' }] }])),
       plan: { title: 'ההרפתקה החדשה', childGoal: 'למצוא דרך מעניינת', companionWant: 'לנסות וגם לעזור', comicPromise: 'הרעיון מסתבך באופן מצחיק',
         resilience: { mode: brief.resilienceMode, moments: [{ pageNumber: 2, childChoice: 'בוחרת דרך אחרת', whatHelps: 'החבר מקשיב' }] },
         beats: Array.from({ length: brief.beats }, () => ({ location: 'בגינה', transitionReason: 'הגילוי משנה את הדרך', childAction: 'מציעה דרך אחרת',
@@ -42,7 +40,7 @@ function answer(call: CausalDispatch): unknown {
     pages: Array.from({ length: brief.beats }, (_, i) => ({ text: `${brief.child.name} מציעה דרך חדשה והחבר מנסה איתה. הם מגלים משהו מצחיק ומשנים את התוכנית. פרט מקורי ${i + 1}` })) };
   if (call.stage === 'editor') {
     const revision = fixtureEditorOutput({ ...call, stage: 'editor' });
-    return { version: CAUSAL_EXPERIMENT_VERSION, diagnosis: [], strengths: [], revision: { ...revision,
+    return { version: CAUSAL_EXPERIMENT_VERSION, revision: { ...revision,
       plan: { ...revision.plan, beats: revision.plan.beats.map(({ pageNumber: _n, ...beat }) => beat) },
       manuscript: { ...revision.manuscript, pages: revision.manuscript.pages.map(({ pageNumber: _n, ...page }) => page) } } };
   }
@@ -52,10 +50,10 @@ function reply(call: CausalDispatch): TransportReply {
   return { output: answer(call), estimatedMicroUsd: 1, usage: { inputTokens: 1, outputTokens: 1 },
     metadata: { reportedModel: 'gpt-6-astra', serviceTier: 'default', status: 'completed', synthetic: true }, raw: { synthetic: true } };
 }
-function harness() {
+function harness(reviewMode: 'normal' | 'benchmark' = 'normal') {
   const root = temp(), controller = new AbortController(), executable = path.join(root, 'synthetic.exe');
   writeFileSync(executable, 'SYNTHETIC NOT EXECUTABLE');
-  const policy = { version: 'personal-single-book-calibration/v1' as const, sourceHead: 'a'.repeat(40), executable,
+  const policy = { version: 'personal-single-book-calibration/v2' as const, reviewMode, sourceHead: 'a'.repeat(40), executable,
     executableSha256: sha('SYNTHETIC NOT EXECUTABLE'), mode: 'offline_injected' as 'offline_injected' | 'live_explicit',
     pricing: { source: 'Synthetic test declaration using recipe rates, NOT current price evidence.', checkedAt: new Date().toISOString(),
       rates: { opus: { inputMicroUsdPerToken: 8, outputMicroUsdPerToken: 20 }, astra: { inputMicroUsdPerToken: 12.5, outputMicroUsdPerToken: 50 } } },
@@ -75,7 +73,7 @@ describe('one fictional book over the existing causal host, not public rollout',
     const h = harness(), before = readdirSync(h.root);
     const prepared = prepareSingleBookCalibration(h.args);
     expect(prepared.preview).toMatchObject({ spreads: 8, probeReservedMicroUsd: 225281,
-      bookReservedMicroUsd: 11338803, combinedAllowancesMicroUsd: 11590000, maximumLogicalAttempts: 8, providerCalls: 0, runtimeEligible: false });
+      reviewMode: 'normal', bookReservedMicroUsd: 9248802, combinedAllowancesMicroUsd: 9498802, maximumLogicalAttempts: 7, providerCalls: 0, runtimeEligible: false });
     expect(h.key).not.toHaveBeenCalled(); expect(h.transport).not.toHaveBeenCalled(); expect(readdirSync(h.root)).toEqual(before);
   });
   it('constructor is inert and fingerprints the executable before any family acquisition', () => {
@@ -284,13 +282,13 @@ describe('one fictional book over the existing causal host, not public rollout',
     expect(html).toContain('לא נכתבה פרוזה ולא נוצר ספר'); expect(html).not.toContain('Opus כתב מאפס');
     expect(driver.snapshot().phase).toBe('complete'); // completed diagnostic, not completed book
   });
-  it('uses fresh author/editor processes then isolated original/final/comparison Astra calls', async () => {
+  it('normal uses fresh author/editor then isolated final/comparison, without a hidden original review', async () => {
     const h = harness(), driver = createSingleBookCalibration(h.args), b = await driver.plan(); h.review(b.sourceDigest);
     const result = await driver.writeFromReviewFile(); expect(result.books).toHaveLength(1); expect(driver.snapshot().phase).toBe('complete');
     const calls = h.transport.mock.calls.map(([w, c]) => ({ w, c }));
-    expect(calls.map(({ c }) => c.stage)).toEqual(['final_review', 'plan', 'author', 'editor', 'original_review', 'final_review', 'comparison']);
-    expect(calls.map(({ c }) => c.role)).toEqual(['astra', 'opus', 'opus', 'opus', 'astra', 'astra', 'astra']);
-    expect(new Set(calls.map(({ c }) => c.conversationKey)).size).toBe(7);
+    expect(calls.map(({ c }) => c.stage)).toEqual(['final_review', 'plan', 'author', 'editor', 'final_review', 'comparison']);
+    expect(calls.map(({ c }) => c.role)).toEqual(['astra', 'opus', 'opus', 'opus', 'astra', 'astra']);
+    expect(new Set(calls.map(({ c }) => c.conversationKey)).size).toBe(6);
     for (const { w, c } of calls.filter(({ c }) => c.role === 'opus')) {
       expect(w.args).toContain('--no-session-persistence'); expect(w.args).toContain('--safe-mode');
       expect(w.payload.freshProcess).toBe(true); expect(w.outputCap).toBe(c.maxOutputTokens);
@@ -298,24 +296,66 @@ describe('one fictional book over the existing causal host, not public rollout',
     for (const { c } of calls.filter(({ c }) => c.stage === 'original_review' || c.stage === 'final_review')) {
       expect(c.input).not.toContain('diagnosis'); expect(c.input).not.toContain('checks');
     }
-    expect(driver.snapshot().allowanceMicroUsd).toBe(11590000); expect(driver.snapshot().knownEstimateMicroUsd).toBe(7);
+    expect(driver.snapshot().allowanceMicroUsd).toBe(9498802); expect(driver.snapshot().knownEstimateMicroUsd).toBe(6);
     expect(singleBookOutcome(result)).toBe('text_ready_for_human_review');
     const held = structuredClone(result); held.books[0].edit.disposition = 'held';
     expect(singleBookOutcome(held)).toBe('text_held_by_model');
-    const criticised = structuredClone(result); criticised.books[0].readings[1].findings.push({ severity: 'blocking', kind: 'issue',
+    const criticised = structuredClone(result); criticised.books[0].readings[0].findings.push({ severity: 'blocking', kind: 'issue',
       criterion: 'Synthetic story defect', original: [], revised: [{ pageNumber: 1, quote: 'Synthetic example' }], explanation: 'Synthetic defect for presentation test.' });
     expect(singleBookOutcome(criticised)).toBe('text_held_by_model');
-    criticised.books[0].readings[1].findings[0].kind = 'preference';
+    criticised.books[0].readings[0].findings[0].kind = 'preference';
     expect(singleBookOutcome(criticised)).toBe('text_ready_for_human_review');
-    const repaired = structuredClone(result); repaired.books[0].readings[0].findings = structuredClone(criticised.books[0].readings[1].findings);
-    repaired.books[0].readings[0].findings[0].kind = 'issue';
-    expect(singleBookOutcome(repaired)).toBe('text_ready_for_human_review');
+    criticised.books[0].readings.reverse(); // named admission is independent of array position
+    criticised.books[0].readings.find(row => row.stage === 'final_review')!.findings[0].kind = 'issue';
+    expect(singleBookOutcome(criticised)).toBe('text_held_by_model');
+    for (const stages of [['final_review'], ['comparison']]) {
+      const incomplete = structuredClone(result); incomplete.books[0].readings = incomplete.books[0].readings.filter(row => stages.includes(row.stage));
+      expect(singleBookOutcome(incomplete)).toBe('text_held_by_model');
+    }
     const html = readFileSync(path.join(h.spec.bookRoot, 'index.html'), 'utf8'); expect(html).toContain('לא נוצרו איורים');
     expect(html).toContain('הטיוטה המקורית'); expect(html).toContain('הסיפור הערוך');
     const hostile = structuredClone(result); hostile.books[0].original.manuscript.title = '<script>alert(1)</script>';
     expect(renderSingleBookText(hostile)).not.toContain('<script>'); expect(renderSingleBookText(hostile)).toContain('&lt;script&gt;');
     expect(h.key).not.toHaveBeenCalled();
   }, 15000);
+  it('benchmark is explicit, costs only its own extra slot and supports read-only v1 archive display', async () => {
+    const h = harness('benchmark'), normal = harness();
+    expect(h.spec.preview).toMatchObject({ reviewMode: 'benchmark', bookReservedMicroUsd: 11338803,
+      combinedAllowancesMicroUsd: 11588803, maximumLogicalAttempts: 8 });
+    expect(h.spec.bookReserved - normal.spec.bookReserved).toBe(2090001);
+    const driver = createSingleBookCalibration(h.args), b = await driver.plan(); h.review(b.sourceDigest);
+    const result = await driver.writeFromReviewFile();
+    expect(h.transport).toHaveBeenCalledTimes(7);
+    expect(result.books[0].readings.map(row => row.stage)).toEqual(['original_review', 'final_review', 'comparison']);
+    result.books[0].readings[0].findings.push({ severity: 'blocking', kind: 'issue', criterion: 'Repaired original defect',
+      original: [{ pageNumber: 1, quote: 'Synthetic original' }], revised: [], explanation: 'Synthetic repaired defect must not hold final prose.' });
+    expect(singleBookOutcome(result)).toBe('text_ready_for_human_review');
+    const legacy = { ...result, evidence: { ...result.evidence, manifest: { ...result.evidence.manifest, version: 'personal-causal-experiment/diagnostic-v1' } },
+      books: result.books.map(book => ({ ...book, readings: book.readings.map(({ stage: _stage, ...row }) => row) })) };
+    const before = JSON.stringify(legacy);
+    expect(singleBookOutcome(legacy)).toBe('text_ready_for_human_review');
+    expect(renderSingleBookText(legacy)).toContain('original_review'); expect(JSON.stringify(legacy)).toBe(before);
+    legacy.books[0].readings[1].findings = structuredClone(result.books[0].readings[0].findings);
+    expect(singleBookOutcome(legacy)).toBe('text_held_by_model');
+    legacy.evidence.manifest.version = CAUSAL_EXPERIMENT_VERSION;
+    expect(singleBookOutcome(legacy)).toBe('text_held_by_model'); // no positional fallback for current records
+  }, 15000);
+  it('captures the selected mode, derives mode-bound digests, and cannot reuse consent under another mode/root', async () => {
+    const h = harness(), driver = createSingleBookCalibration(h.args);
+    const normalDigest = prepareSingleBookCalibration(h.args).digest;
+    h.policy.reviewMode = 'benchmark'; const benchmark = prepareSingleBookCalibration(h.args);
+    expect(benchmark.digest).not.toBe(normalDigest); expect(benchmark.bookFamily).toBe(h.spec.bookFamily);
+    const b = await driver.plan(); h.review(b.sourceDigest); const result = await driver.writeFromReviewFile();
+    expect(result.evidence.manifest.reviewMode).toBe('normal'); expect(h.transport).toHaveBeenCalledTimes(6);
+    expect(() => createSingleBookCalibration({ ...h.args, outputParent: temp() })).toThrow('family_consumed');
+    expect(h.transport).toHaveBeenCalledTimes(6);
+  }, 15000);
+  it.each(['legacy', 'unknown_mode'])('%s calibration policy is rejected before reservation', kind => {
+    const h = harness(), invalid: any = structuredClone(h.policy);
+    if (kind === 'legacy') invalid.version = 'personal-single-book-calibration/v1'; else invalid.reviewMode = 'skip_qa';
+    expect(() => createSingleBookCalibration({ ...h.args, policy: invalid })).toThrow('calibration_policy');
+    expect(h.transport).not.toHaveBeenCalled(); expect(h.key).not.toHaveBeenCalled(); expect(existsSync(h.spec.bookRoot)).toBe(false);
+  });
   it.each(['remaining_problem', 'new_regression', 'preference', 'improvement'] as const)('admitted comparison %s has the intended text outcome', async kind => {
     const h = harness();
     h.transport.mockImplementation(async (_wire, call) => {
@@ -332,10 +372,25 @@ describe('one fictional book over the existing causal host, not public rollout',
     });
     const driver = createSingleBookCalibration(h.args), bundle = await driver.plan(); h.review(bundle.sourceDigest);
     const result = await driver.writeFromReviewFile();
-    expect(result.books[0].readings[2].findings[0].kind).toBe(kind);
+    expect(result.books[0].readings.find(row => row.stage === 'comparison')!.findings[0].kind).toBe(kind);
     expect(singleBookOutcome(result)).toBe(['remaining_problem', 'new_regression'].includes(kind)
       ? 'text_held_by_model' : 'text_ready_for_human_review');
-    expect(h.transport).toHaveBeenCalledTimes(7); expect(h.key).not.toHaveBeenCalled();
+    expect(h.transport).toHaveBeenCalledTimes(6); expect(h.key).not.toHaveBeenCalled();
+  }, 15000);
+  it('a real admitted blocking final reading holds even when it is the first record', async () => {
+    const h = harness(); h.transport.mockImplementation(async (_wire, call) => {
+      const response = reply(call), input = JSON.parse(call.input);
+      if (call.stage === 'final_review' && input.packet.manuscript) response.output = {
+        packetDigest: input.packetDigest, summary: 'Synthetic final-only finding, not literary approval.', findings: [{
+          severity: 'blocking', kind: 'issue', criterion: 'Unresolved world-rule contradiction', original: [],
+          revised: [{ pageNumber: 1, quote: input.packet.manuscript.pages[0].text }], explanation: 'A synthetic defect in final prose remains blocking.' }] };
+      return response;
+    });
+    const driver = createSingleBookCalibration(h.args), b = await driver.plan(); h.review(b.sourceDigest);
+    const result = await driver.writeFromReviewFile();
+    expect(result.books[0].readings[0].stage).toBe('final_review');
+    expect(singleBookOutcome(result)).toBe('text_held_by_model'); expect(h.transport).toHaveBeenCalledTimes(6);
+    expect(readFileSync(path.join(h.spec.bookRoot, 'index.html'), 'utf8')).toContain('text_held_by_model');
   }, 15000);
   it('escapes original/revised page text and finding explanations in the diagnostic viewer', async () => {
     const h = harness(), driver = createSingleBookCalibration(h.args), bundle = await driver.plan(); h.review(bundle.sourceDigest);
@@ -344,7 +399,7 @@ describe('one fictional book over the existing causal host, not public rollout',
     const explanation = '<script>QA_INJECTION</script> & "finding"';
     hostile.books[0].original.manuscript.pages[0].text = pageText;
     hostile.books[0].edit.revised.manuscript.pages[0].text = pageText;
-    hostile.books[0].readings[1].findings.push({ severity: 'polish', kind: 'preference', criterion: 'Synthetic viewer evidence',
+    hostile.books[0].readings[0].findings.push({ severity: 'polish', kind: 'preference', criterion: 'Synthetic viewer evidence',
       original: [], revised: [{ pageNumber: 1, quote: pageText }], explanation });
     const html = renderSingleBookText(hostile);
     expect(html.split('<p>&lt;img src=x onerror=&quot;PAGE_INJECTION&quot;&gt; &amp; &#39;page&#39;</p>')).toHaveLength(3);

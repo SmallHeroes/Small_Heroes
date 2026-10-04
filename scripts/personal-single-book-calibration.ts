@@ -5,8 +5,8 @@ import { parseEnv } from 'node:util';
 import path from 'node:path';
 import { createInterface } from 'node:readline';
 import { z } from 'zod';
-import { causalCriticSchema, causalDigest, CausalExperimentError } from '../lib/personal-wizard/story-causal-experiment';
-import { CAUSAL_STAGES, type CausalDispatch } from '../lib/personal-wizard/story-causal-experiment-runner';
+import { CAUSAL_EXPERIMENT_VERSION, causalCriticSchema, causalDigest, CausalExperimentError } from '../lib/personal-wizard/story-causal-experiment';
+import { causalStages, type CausalDispatch } from '../lib/personal-wizard/story-causal-experiment-runner';
 import { preparePersonalStory } from '../lib/personal-wizard/story-writer';
 import { resolvePersonalWizardOptions } from '../lib/personal-wizard/options';
 import { withGenerationDeadline } from '../lib/personal-wizard/generation-deadline';
@@ -21,7 +21,8 @@ const PROBE_BYTES = 8192, PROBE_TOKENS = 2048, BOOK_BYTES = 104000;
 const PROBE_ALLOWANCE = 250000, BOOK_ALLOWANCE = 11340000, TOTAL_ALLOWANCE = 12000000;
 const approvalSchema = z.object({ reference: z.string().trim().min(10).max(600),
   maximumMicroUsd: z.literal(TOTAL_ALLOWANCE), acknowledgesCliEstimateLimits: z.literal(true) }).strict();
-export const singleBookPolicySchema = z.object({ version: z.literal('personal-single-book-calibration/v1'),
+export const singleBookPolicySchema = z.object({ version: z.literal('personal-single-book-calibration/v2'),
+  reviewMode: z.enum(['normal', 'benchmark']).default('normal'),
   sourceHead: causalHostPolicySchema.shape.sourceHead, executable: z.string().min(1),
   executableSha256: causalHostPolicySchema.shape.executableSha256,
   pricing: causalHostPolicySchema.shape.pricing,
@@ -82,7 +83,8 @@ export function prepareSingleBookCalibration(args: { workspace: string; outputPa
   const probeFamily = `${family}-probe`, bookFamily = `${family}-book`;
   const probeRoot = path.join(args.outputParent, probeFamily), bookRoot = path.join(args.outputParent, bookFamily);
   const probeReserved = wireReservation(PROBE_BYTES, PROBE_TOKENS, policy.pricing.rates.astra);
-  const bookReserved = CAUSAL_STAGES.reduce((n, stage) => n + wireReservation(BOOK_BYTES,
+  const stages = causalStages(policy.reviewMode);
+  const bookReserved = stages.reduce((n, stage) => n + wireReservation(BOOK_BYTES,
     causalOutputCap(8, stage), policy.pricing.rates[['plan', 'replan', 'author', 'editor'].includes(stage) ? 'opus' : 'astra']), 0);
   if (probeReserved > PROBE_ALLOWANCE || bookReserved > BOOK_ALLOWANCE ||
     PROBE_ALLOWANCE + BOOK_ALLOWANCE > policy.approval.maximumMicroUsd) hostFail('budget');
@@ -98,10 +100,10 @@ export function prepareSingleBookCalibration(args: { workspace: string; outputPa
   const probeWire = prepareCausalWire(probeCall, wirePolicy, probeReserved);
   return { policy, prepared, digest, packetDigest, probeCall, probeWire, wirePolicy,
     probeFamily, bookFamily, probeRoot, bookRoot, probeReserved, bookReserved,
-    preview: { version: policy.version, sourceHead: policy.sourceHead, companionId: prepared.brief.companion.id,
+    preview: { version: policy.version, reviewMode: policy.reviewMode, sourceHead: policy.sourceHead, companionId: prepared.brief.companion.id,
       spreads: 8, models: CAUSAL_MODELS, probeFamily, bookFamily, probeRoot, bookRoot,
       probeReservedMicroUsd: probeReserved, bookReservedMicroUsd: bookReserved,
-      combinedAllowancesMicroUsd: PROBE_ALLOWANCE + BOOK_ALLOWANCE, maximumLogicalAttempts: 8,
+      combinedAllowancesMicroUsd: PROBE_ALLOWANCE + bookReserved, maximumLogicalAttempts: 1 + stages.length,
       runtimeEligible: false, invoiceCapGuaranteed: false, providerCalls: 0 } };
 }
 
@@ -178,10 +180,10 @@ export function createSingleBookCalibration(args: {
         journal.verifyRecords(); journal.seal('probe_completed');
         active(); phase = 'planning';
         host = createCausalTrialHost({ workspace: args.workspace, outputRoot: spec.bookRoot,
-          policy: { version: 'causal-trial-host/v1', family: spec.bookFamily, sourceHead: policy.sourceHead,
-            maximumMicroUsd: BOOK_ALLOWANCE, maxWireBytes: BOOK_BYTES, executable: policy.executable,
+          policy: { version: 'causal-trial-host/v2', reviewMode: policy.reviewMode, family: spec.bookFamily, sourceHead: policy.sourceHead,
+            maximumMicroUsd: spec.bookReserved, maxWireBytes: BOOK_BYTES, executable: policy.executable,
             executableSha256: policy.executableSha256, pricing: policy.pricing, mode: policy.mode,
-            approval: policy.mode === 'live_explicit' ? { ...policy.approval, maximumMicroUsd: BOOK_ALLOWANCE } : null },
+            approval: policy.mode === 'live_explicit' ? { ...policy.approval, maximumMicroUsd: spec.bookReserved } : null },
           cases: [{ id: 'case1', request: spec.prepared.accepted.canonical }], signal,
           existingOpenAIKey: args.existingOpenAIKey, injected: args.injected });
         const bundle = await host.plan(); active(); phase = 'planned'; return bundle;
@@ -203,7 +205,7 @@ export function createSingleBookCalibration(args: {
     },
     stop,
     snapshot() { return structuredClone({ phase, probe, host: host?.snapshot() ?? null,
-      allowanceMicroUsd: PROBE_ALLOWANCE + BOOK_ALLOWANCE,
+      allowanceMicroUsd: PROBE_ALLOWANCE + spec.bookReserved,
       knownEstimateMicroUsd: (probe.receipt?.estimatedMicroUsd ?? 0) +
         (host?.snapshot().host.rows.reduce((n, r) => n + (r.receipt?.estimatedMicroUsd ?? 0), 0) ?? 0),
       kind: 'estimate_not_invoice', runtimeEligible: false }); },
@@ -212,16 +214,36 @@ export function createSingleBookCalibration(args: {
 
 /** Presentation only; all provider/raw authority remains in immutable JSON records. */
 type BookResult = Awaited<ReturnType<ReturnType<typeof createCausalTrialHost>['write']>>;
-export function singleBookOutcome(result: BookResult) {
+type Reading = BookResult['books'][number]['readings'][number];
+// Read-only display of v1 archives is allowed; old policy/plan admission is not.
+type DisplayResult = { evidence: { manifest: { version: string } }; books: {
+  original: BookResult['books'][number]['original'];
+  edit: Pick<BookResult['books'][number]['edit'], 'disposition' | 'revised' | 'checks' | 'semanticAudit'>;
+  readings: (Omit<Reading, 'stage'> & { stage?: Reading['stage'] })[];
+}[] };
+function displayReadings(result: DisplayResult, book: DisplayResult['books'][number]) {
+  const legacy = result.evidence.manifest.version === 'personal-causal-experiment/diagnostic-v1' &&
+    book.readings.length === 3 && book.readings.every(row => row.stage === undefined);
+  const legacyStages = ['original_review', 'final_review', 'comparison'] as const;
+  return book.readings.map((row, index) => ({ ...row, stage: legacy ? legacyStages[index] : row.stage }));
+}
+export function singleBookOutcome(result: DisplayResult) {
   if (!result.books.length) return 'synopsis_held' as const;
-  const held = result.books.some(book => book.edit.disposition === 'held' ||
+  const held = result.books.some(book => {
+    const readings = displayReadings(result, book);
+    const complete = [CAUSAL_EXPERIMENT_VERSION, 'personal-causal-experiment/diagnostic-v1'].includes(result.evidence.manifest.version) &&
+      ['final_review', 'comparison'].every(stage => readings.filter(row => row.stage === stage).length === 1) &&
+      readings.filter(row => row.stage === 'original_review').length <= 1 &&
+      readings.every(row => row.stage !== undefined && ['original_review', 'final_review', 'comparison'].includes(row.stage));
+    return !complete || book.edit.disposition !== 'model_supported' ||
     // A blocking original defect may have been repaired. Only the final reading
     // and comparison, or editor HOLD, hold the resulting text here.
-    book.readings.slice(1).some(reading => reading.findings.some(f => f.severity === 'blocking' &&
-      ['issue', 'remaining_problem', 'new_regression'].includes(f.kind))));
+    readings.filter(row => row.stage !== 'original_review').some(reading => reading.findings.some(f => f.severity === 'blocking' &&
+      ['issue', 'remaining_problem', 'new_regression'].includes(f.kind)));
+  });
   return held ? 'text_held_by_model' as const : 'text_ready_for_human_review' as const;
 }
-export function renderSingleBookText(result: BookResult) {
+export function renderSingleBookText(result: DisplayResult) {
   const esc = (v: unknown) => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!));
   const outcome = singleBookOutcome(result), intro = outcome === 'synopsis_held'
     ? 'התקציר הוחזק לבדיקה. לא נכתבה פרוזה ולא נוצר ספר.'
@@ -231,7 +253,7 @@ export function renderSingleBookText(result: BookResult) {
     ([['original', 'הטיוטה המקורית', book.original], ['edited', 'הסיפור הערוך', book.edit.revised]] as const).map(([id, label, doc]) =>
       `<section id="${id}"><h2>${esc(label)}: ${esc(doc.manuscript.title)}</h2>` + doc.manuscript.pages.map(page =>
         `<article><h3>כפולה ${page.pageNumber}</h3><p>${esc(page.text)}</p></article>`).join('') + '</section>').join('') +
-    `<section id="qa"><h2>אבחון ו־QA</h2><p>סטטוס העריכה: ${esc(book.edit.disposition)}</p><pre>${esc(JSON.stringify({ diagnosis: book.edit.diagnosis, strengths: book.edit.strengths, readings: book.readings }, null, 2))}</pre></section>`).join('') + '</html>';
+    `<section id="qa"><h2>בדיקת הסיפור והעריכה</h2><p>סטטוס העריכה: ${esc(book.edit.disposition)}</p><pre>${esc(JSON.stringify({ checks: book.edit.checks, semanticAudit: book.edit.semanticAudit, readings: displayReadings(result, book) }, null, 2))}</pre></section>`).join('') + '</html>';
 }
 
 const cliConfigSchema = z.object({ workspace: z.string().min(1), outputParent: z.string().min(1),

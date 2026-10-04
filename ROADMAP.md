@@ -10,6 +10,18 @@ This roadmap records technical milestone state. Guy can change product priority 
 
 ### P-personal fifteen-companion expansion (2026-10-03)
 
+- Approved free A/B implemented locally: A 471890ad fixes cumulative CLI usage
+  scope; B removes only diagnostic self-citation/extra editor ledgers and makes
+  original scoring explicit benchmark overhead. Normal path keeps fresh Opus
+  author/editor and isolated final plus regression Astra. Focused 439/439, tsc 0;
+  full check RED (ordinary exit 1, resource 635 pass plus two RPC timeouts).
+  Separate ordinary replay: 10 known artifact failures/6096 pass/73 skip; the
+  A-run EEXIST did not recur, with no claimed explanation or stability closure.
+  Explicit v2 boundary; old archives display-only, no seal reuse. Independent
+  Claude review pending. No paid run, public wizard cutover, QA deployment or
+  push. Next: review both exact ranges, then request a fresh bounded fictional
+  short-book trial; assess original and edit separately before a six-book cohort.
+
 - Guy approved free text-path simplification A/B. A scope-aware Opus accounting
   fix: focused 157/157, tsc 0, four old-comparison negative controls caught.
   No monetary/token cap increase. Full ordinary remains RED (ten missing

@@ -13,7 +13,7 @@ import { exclusiveText } from '../../scripts/personal-causal-trial-journal';
 import { causalTrialCohort } from '../../scripts/personal-causal-cohort';
 import { preparePersonalStory } from '../personal-wizard/story-writer';
 import { resolvePersonalWizardOptions } from '../personal-wizard/options';
-import { causalPlanSchema, compileCausalPlan, CAUSAL_EXPERIMENT_VERSION, BACKWARD_DEPENDENCIES } from '../personal-wizard/story-causal-experiment';
+import { causalPlanSchema, compileCausalPlan, CAUSAL_EXPERIMENT_VERSION } from '../personal-wizard/story-causal-experiment';
 import { fixtureAdventureSelection } from '../personal-wizard/__tests__/story-planning-fixture';
 import type { CausalDispatch } from '../personal-wizard/story-causal-experiment-runner';
 vi.mock('node:child_process', async original => ({ ...await original<typeof import('node:child_process')>(), spawn: vi.fn() }));
@@ -56,8 +56,6 @@ function planning(index: number, rejected = false) {
     reason: 'Both synthetic ideas lack a compelling child-led discovery.' } : {
     ...common, disposition: 'selected', selection,
     synopsis: 'Synthetic continuous adventure with discovery, consequential partnership and an earned payoff. Not literary evidence.',
-    backwardDependencies: Object.fromEntries(BACKWARD_DEPENDENCIES.map(key => [key, { claim: 'Synthetic causal claim, not entailment proof.',
-      evidence: [{ pageNumber: key === 'earnedPayoff' ? brief.beats : 1, field: 'childAction', quote: 'מציעה דרך אחרת' }] }])),
     plan: { title: 'ההרפתקה החדשה', childGoal: 'למצוא דרך מעניינת', companionWant: 'לנסות וגם לעזור', comicPromise: 'הרעיון מסתבך באופן מצחיק',
       resilience: { mode: brief.resilienceMode, moments: [{ pageNumber: 2, childChoice: 'בוחרת דרך אחרת', whatHelps: 'החבר מקשיב' }] },
       beats: Array.from({ length: brief.beats }, () => ({ location: 'בגינה', transitionReason: 'הגילוי משנה את הדרך', childAction: 'מציעה דרך אחרת',

@@ -7,8 +7,8 @@ import { resolvePersonalWizardOptions } from '../options';
 import { preparePersonalStory, STORY_INSTRUCTIONS, NARRATIVE_CRAFT_INSTRUCTIONS, ADVENTURE_SELECTION_INSTRUCTIONS, CANDIDATE_PERSONAL_FACT_INSTRUCTIONS } from '../story-writer';
 import { STORY_EDITOR_INSTRUCTIONS } from '../story-editor';
 import { canonicalJson } from '../request-acceptance';
-import { createCausalExperiment, CAUSAL_STAGES, type CausalDispatch, type CausalExperimentPorts } from '../story-causal-experiment-runner';
-import { CAUSAL_EXPERIMENT_VERSION, CAUSAL_STORY_INSTRUCTIONS, CAUSAL_PLAN_INSTRUCTIONS, BACKWARD_DEPENDENCIES, causalDigest, compileCausalPlan, compileCausalOriginal,
+import { createCausalExperiment, causalStages, type CausalReviewMode, type CausalStage, type CausalDispatch, type CausalExperimentPorts } from '../story-causal-experiment-runner';
+import { CAUSAL_EXPERIMENT_VERSION, CAUSAL_STORY_INSTRUCTIONS, CAUSAL_PLAN_INSTRUCTIONS, causalDigest, compileCausalPlan, compileCausalOriginal,
   causalEditorCall, compileCausalEdit, causalReviewPackets, compileCausalReading } from '../story-causal-experiment';
 
 afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks(); });
@@ -20,8 +20,6 @@ function planned(brief: ReturnType<typeof preparePersonalStory>['brief'], reject
     candidates: selection.candidates, contrast: selection.contrast, reason: 'Both ideas lack a compelling child-led discovery.' };
   return { version: CAUSAL_EXPERIMENT_VERSION, requestId: brief.requestId, disposition: 'selected', selection,
     synopsis: 'Synthetic continuous adventure through discovery and consequential partnership to a prepared payoff. Not literary proof.',
-    backwardDependencies: Object.fromEntries(BACKWARD_DEPENDENCIES.map(key => [key, { claim: 'Synthetic causal claim, not an entailment proof.',
-      evidence: [{ pageNumber: key === 'earnedPayoff' ? brief.beats : 1, field: 'childAction', quote: 'מציעה דרך אחרת' }] }])),
     plan: { title: 'ההרפתקה החדשה', childGoal: 'למצוא דרך מעניינת', companionWant: 'לנסות וגם לעזור', comicPromise: 'הרעיון מסתבך באופן מצחיק',
       resilience: { mode: brief.resilienceMode, moments: [{ pageNumber: 2, childChoice: 'בוחרת דרך אחרת', whatHelps: 'החבר מקשיב' }] },
       beats: Array.from({ length: brief.beats }, () => ({ location: 'בגינה', transitionReason: 'הגילוי משנה את הדרך', childAction: 'מציעה דרך אחרת',
@@ -33,7 +31,7 @@ function author(input: any) {
 }
 function edited(call: CausalDispatch): any {
   const revision = fixtureEditorOutput({ stage: 'editor', instructions: call.instructions, input: call.input, maxOutputTokens: call.maxOutputTokens });
-  return { version: CAUSAL_EXPERIMENT_VERSION, diagnosis: [], strengths: [], revision: { ...revision,
+  return { version: CAUSAL_EXPERIMENT_VERSION, revision: { ...revision,
     plan: { ...revision.plan, beats: revision.plan.beats.map(({ pageNumber: _n, ...beat }) => beat) },
     manuscript: { ...revision.manuscript, pages: revision.manuscript.pages.map(({ pageNumber: _n, ...page }) => page) } } };
 }
@@ -44,13 +42,13 @@ function defaultOutput(call: CausalDispatch): unknown {
   if (call.stage === 'editor') return edited(call);
   return { packetDigest: input.packetDigest, summary: 'Synthetic critic reading, not product or literary approval.', findings: [] };
 }
-function harness(count = 1, change?: (call: CausalDispatch) => unknown | Promise<unknown>, controller = new AbortController()) {
+function harness(count = 1, change?: (call: CausalDispatch) => unknown | Promise<unknown>, controller = new AbortController(), reviewMode: CausalReviewMode = 'normal') {
   const cases = causalTrialCohort().slice(0, count);
   const ports: CausalExperimentPorts = { reserve: vi.fn(async () => true), claim: vi.fn(async () => true),
     generate: vi.fn(async call => ({ output: change ? await change(call) : defaultOutput(call), estimatedMicroUsd: 1 })) };
-  const args = { family: 'synthetic-causal-offline', cases, options,
-    capsMicroUsd: Object.fromEntries(CAUSAL_STAGES.map(s => [s, 10])) as Record<typeof CAUSAL_STAGES[number], number>,
-    maximumMicroUsd: count * 70, ports, signal: controller.signal };
+  const args = { family: 'synthetic-causal-offline', cases, options, reviewMode,
+    capsMicroUsd: Object.fromEntries(causalStages(reviewMode).map(s => [s, 10])) as Partial<Record<CausalStage, number>>,
+    maximumMicroUsd: count * causalStages(reviewMode).length * 10, ports, signal: controller.signal };
   const runner = createCausalExperiment(args);
   const approve = () => { const bundle = runner.readSynopses(); runner.reviewSynopses({ sourceDigest: bundle.sourceDigest,
     decisions: bundle.plans.map(p => ({ caseId: p.caseId, decision: 'write', reason: 'Synthetic test review only, not a quality verdict.' })) }); };
@@ -67,7 +65,7 @@ function selectedFixture(index = 0) {
 }
 
 describe('limited causal experiment, not live provider or quality certification', () => {
-  it.each(['plan', 'replan'] as const)('actual %s instructions state the all-candidate and literal-citation contracts', async stage => {
+  it.each(['plan', 'replan'] as const)('actual %s instructions retain factual contracts and causal questions without self-citation ledgers', async stage => {
     const h = harness(1, call => call.stage === 'plan' ? planned(JSON.parse(call.input).brief, true) : defaultOutput(call));
     await h.runner.plan();
     const call = vi.mocked(h.ports.generate).mock.calls.map(([c]) => c).find(c => c.stage === stage)!;
@@ -82,10 +80,9 @@ describe('limited causal experiment, not live provider or quality certification'
     expect(call.instructions).toContain('Keep plan.resilience.mode equal to brief.resilienceMode');
     expect(call.instructions).toContain('positions 1 through brief.beats, with no duplicate positions within each list');
     expect(call.instructions).toContain('earned_payoff check must include the final spread (brief.beats) in evidenceSpreads');
-    expect(call.instructions).toContain('a contiguous verbatim substring copied from the named field');
-    expect(call.instructions).toContain('at that one-based pageNumber');
-    expect(call.instructions).toContain('without rewording, name/pronoun substitutions or punctuation/whitespace changes');
-    expect(call.instructions).toContain('provenance, not causal entailment');
+    expect(call.instructions).toContain('Work backwards from the climax');
+    expect(call.instructions).toContain('Resolve missing causal links in the synopsis and beats');
+    expect(call.instructions).not.toContain('backwardDependencies');
     expect(call.instructions).not.toContain('No replanning/retry loop is available');
     expect(call.instructions).not.toContain('a failed attempt with consequences and ');
   });
@@ -140,30 +137,15 @@ describe('limited causal experiment, not live provider or quality certification'
     expect(vi.mocked(h.ports.claim).mock.calls.map(call => call[2])).toEqual(['case1:plan']);
     expect(h.runner.snapshot().phase).toBe('failed');
   });
-  it.each(['name', 'pronoun', 'punctuation', 'whitespace'] as const)('literal citations reject %s changes, while copied substrings pass', variant => {
-    const p = preparePersonalStory(causalTrialCohort()[0].request, options), raw = planned(p.brief);
-    raw.plan.beats[0].childAction = 'נטע מצביעה, והיא בוחרת בדרך.';
-    const ref = raw.backwardDependencies.childDiscovery.evidence[0];
-    ref.quote = 'נטע מצביעה, והיא בוחרת בדרך.';
-    for (const key of BACKWARD_DEPENDENCIES.filter(k => k !== 'childDiscovery')) {
-      raw.backwardDependencies[key].evidence[0].pageNumber = 2;
-    }
-    expect(compileCausalPlan(p, raw).disposition).toBe('selected');
-    ref.quote = { name: 'שירה מצביעה, והיא בוחרת בדרך.', pronoun: 'נטע מצביעה, והוא בוחר בדרך.',
-      punctuation: 'נטע מצביעה והיא בוחרת בדרך.', whitespace: 'נטע  מצביעה, והיא בוחרת בדרך.' }[variant];
-    expect(() => compileCausalPlan(p, raw)).toThrow('dependency_evidence');
-    ref.quote = 'והיא בוחרת בדרך';
-    expect(compileCausalPlan(p, raw).disposition).toBe('selected');
-  });
-  it('a paraphrased citation stops the real runner before replan, author or editor', async () => {
+  it.each(['old_version', 'removed_ledger'])('%s plan output is rejected at the explicit diagnostic boundary', async kind => {
     const h = harness(1, call => {
       const raw = planned(JSON.parse(call.input).brief);
-      raw.backwardDependencies.childDiscovery.evidence[0].quote = 'היא מציעה דרך אחרת';
+      if (kind === 'old_version') raw.version = 'personal-causal-experiment/diagnostic-v1';
+      else raw.backwardDependencies = {};
       return raw;
     });
-    await expect(h.runner.plan()).rejects.toThrow('dependency_evidence');
+    await expect(h.runner.plan()).rejects.toThrow('plan_schema');
     expect(vi.mocked(h.ports.generate).mock.calls.map(([call]) => call.stage)).toEqual(['plan']);
-    expect(vi.mocked(h.ports.claim).mock.calls.map(call => call[2])).toEqual(['case1:plan']);
     expect(h.runner.snapshot().phase).toBe('failed');
   });
   it('relaxes only the inherited mandatory failed attempt in all experimental stages, not the current runtime', async () => {
@@ -182,8 +164,9 @@ describe('limited causal experiment, not live provider or quality certification'
     expect(call.instructions).toContain('All revised plan beat factIds must come from brief.facts');
     expect(call.instructions).toContain('at least one approved fact of kind interest must remain used in the revised beats');
     expect(call.instructions).toContain('contiguous verbatim substrings copied from the cited version\'s actual page text');
-    expect(call.instructions).toContain('Diagnosis evidence uses the original manuscript');
-    expect(call.instructions).toContain('strength.revised and semanticAudit.revised use revised pages');
+    expect(call.instructions).toContain('Diagnose before revising');
+    expect(call.instructions).toContain('semanticAudit.original uses original pages');
+    expect(call.instructions).toContain('semanticAudit.revised uses revised pages');
   });
   it('revised beats cannot drop the last interest, but may use only a subset of approved facts', () => {
     const f = selectedFixture();
@@ -195,7 +178,8 @@ describe('limited causal experiment, not live provider or quality certification'
     expect(() => compileCausalEdit(f.p, f.original, f.output)).toThrow('plan_binding');
   });
   it.each(['original_review', 'final_review', 'comparison'] as const)('actual %s dispatch specifies exact evidence sides and no counterpart leak', async stage => {
-    const h = harness(); await h.runner.plan(); h.approve(); await h.runner.write();
+    const h = harness(1, undefined, new AbortController(), stage === 'original_review' ? 'benchmark' : 'normal');
+    await h.runner.plan(); h.approve(); await h.runner.write();
     const call = vi.mocked(h.ports.generate).mock.calls.map(([c]) => c).find(c => c.stage === stage)!;
     expect(call.instructions).toContain('Return the supplied packetDigest exactly; do not recompute it');
     const input = JSON.parse(call.input);
@@ -259,20 +243,27 @@ describe('limited causal experiment, not live provider or quality certification'
     expect(sparse.topic).toBeNull(); expect(sparse.facts).toHaveLength(1);
     expect(canonicalJson(companionTrialCohort())).toBe(before);
   });
-  it('reserves the whole 42-slot family before first dispatch and isolates all 36 normal conversations', async () => {
-    const h = harness(6); const bundle = await h.runner.plan();
-    expect(h.ports.reserve).toHaveBeenCalledWith(h.args.family, h.runner.snapshot().manifestDigest, 420, expect.arrayContaining([{ id: 'case6:comparison', capMicroUsd: 10 }]));
+  it.each(['normal', 'benchmark'] as const)('%s reserves only its active stages before dispatch, then isolates every conversation', async reviewMode => {
+    const h = harness(6, undefined, new AbortController(), reviewMode); const bundle = await h.runner.plan();
+    const stageCount = reviewMode === 'normal' ? 6 : 7, actualCount = reviewMode === 'normal' ? 30 : 36;
+    expect(h.ports.reserve).toHaveBeenCalledWith(h.args.family, h.runner.snapshot().manifestDigest, stageCount * 60, expect.arrayContaining([{ id: 'case6:comparison', capMicroUsd: 10 }]));
+    expect(h.runner.snapshot().manifest.reviewMode).toBe(reviewMode);
+    expect(h.runner.snapshot().manifest.slots).toHaveLength(stageCount * 6);
     expect(vi.mocked(h.ports.generate).mock.calls).toHaveLength(6);
     expect(vi.mocked(h.ports.generate).mock.calls.every(([c]) => c.stage === 'plan')).toBe(true);
     expect(bundle.plans).toHaveLength(6); await expect(h.runner.write()).rejects.toThrow('phase');
     h.approve(); const out = await h.runner.write();
     expect(out.books).toHaveLength(6); expect(out.runtimeEligible).toBe(false);
     const calls = vi.mocked(h.ports.generate).mock.calls.map(([c]) => c);
-    expect(new Set(calls.map(c => c.conversationKey)).size).toBe(36);
-    expect(calls.slice(6).map(c => c.stage)).toEqual(Array.from({ length: 6 }, () => ['author', 'editor', 'original_review', 'final_review', 'comparison']).flat());
+    expect(new Set(calls.map(c => c.conversationKey)).size).toBe(actualCount);
+    expect(calls.slice(6).map(c => c.stage)).toEqual(Array.from({ length: 6 }, () =>
+      ['author', 'editor', ...(reviewMode === 'benchmark' ? ['original_review'] : []), 'final_review', 'comparison']).flat());
     expect(calls.filter(c => c.stage === 'editor').every(c => c.role === 'opus')).toBe(true);
     expect(calls.filter(c => c.stage.endsWith('review') || c.stage === 'comparison').every(c => c.role === 'astra')).toBe(true);
-    expect(out.evidence.accounting.logicalAttempts).toBe(36);
+    expect(out.evidence.accounting.logicalAttempts).toBe(actualCount);
+    expect(out.books.every(book => book.readings.map(row => row.stage).join() ===
+      (reviewMode === 'normal' ? 'final_review,comparison' : 'original_review,final_review,comparison'))).toBe(true);
+    for (const call of calls.filter(c => c.stage === 'author')) expect(JSON.parse(call.input)).not.toHaveProperty('backwardDependencies');
     expect(out.books[0]).not.toHaveProperty('accounting.providerCalls');
     await expect(h.runner.plan()).rejects.toThrow('phase'); await expect(h.runner.write()).rejects.toThrow('phase');
   });
@@ -346,12 +337,12 @@ describe('limited causal experiment, not live provider or quality certification'
     expect(vi.mocked(h.ports.claim).mock.calls.map(call => call[2])).toEqual(['case1:plan']);
     expect(h.runner.snapshot().phase).toBe('failed');
   });
-  it.each(['malformed', 'transport', 'foreign', 'unknown_fact', 'false_reference'])('%s stops planning without replan or prose', async kind => {
+  it.each(['malformed', 'transport', 'foreign', 'unknown_fact', 'old_version'])('%s stops planning without replan or prose', async kind => {
     const h = harness(1, call => { if (kind === 'transport') throw Error('private provider detail');
       const p = planned(JSON.parse(call.input).brief); if (kind === 'malformed') return {};
       if (kind === 'foreign') p.requestId = 'foreign';
       if (kind === 'unknown_fact') p.plan.beats[0].factIds = ['foreign'];
-      if (kind === 'false_reference') p.backwardDependencies.enablingSetup.evidence[0].quote = 'never present'; return p; });
+      if (kind === 'old_version') p.version = 'personal-causal-experiment/diagnostic-v1'; return p; });
     await expect(h.runner.plan()).rejects.toThrow('causal_experiment_');
     expect(h.ports.generate).toHaveBeenCalledTimes(1); expect(h.runner.snapshot().phase).toBe('failed');
   });
@@ -367,7 +358,7 @@ describe('limited causal experiment, not live provider or quality certification'
   it.each([NaN, Infinity, -1, 0, 1.1])('refuses invalid/incomplete reservation %s before reserve or dispatch', cap => {
     const h = harness(); expect(() => createCausalExperiment({ ...h.args, capsMicroUsd: { ...h.args.capsMicroUsd, replan: cap } })).toThrow('reservation_invalid');
     expect(h.ports.reserve).not.toHaveBeenCalled(); expect(h.ports.generate).not.toHaveBeenCalled();
-    expect(() => createCausalExperiment({ ...h.args, maximumMicroUsd: 69 })).toThrow('reservation_invalid');
+    expect(() => createCausalExperiment({ ...h.args, maximumMicroUsd: 59 })).toThrow('reservation_invalid');
   });
   it.each(['reserve', 'claim'] as const)('denied %s makes no provider call', async boundary => {
     const h = harness(); vi.mocked(h.ports[boundary]).mockResolvedValue(false);
@@ -408,9 +399,10 @@ describe('limited causal experiment, not live provider or quality certification'
     const original = compileCausalOriginal(p, result, author({ brief: p.brief, planDigest: result.planDigest }));
     expect(original.manuscript.pages).toHaveLength(p.brief.beats); expect(original.characterDigest).toBe(p.brief.companion.characterDigest);
   });
-  it('accepts a false interpretation with exact evidence as provenance, not semantic truth', () => {
-    const f = selectedFixture(); f.raw.backwardDependencies.changedState.claim = 'Incorrect causal interpretation deliberately retained as structural evidence.';
-    expect(compileCausalPlan(f.p, f.raw).disposition).toBe('selected');
+  it('an old selected plan cannot be rebound and admitted directly by the new author', () => {
+    const f = selectedFixture(), old: any = structuredClone(f.plan); old.version = 'personal-causal-experiment/diagnostic-v1';
+    const { planningDigest: _digest, ...body } = old; old.planningDigest = causalDigest(body);
+    expect(() => compileCausalOriginal(f.p, old, author({ brief: f.p.brief, planDigest: old.planDigest }))).toThrow('plan_binding');
   });
   it.each(['request', 'plan', 'fingerprint', 'character'])('rejects forged %s binding without manufacturing GPT accounting', kind => {
     const f = selectedFixture();
@@ -421,49 +413,57 @@ describe('limited causal experiment, not live provider or quality certification'
     if (kind === 'character') expect(() => causalEditorCall(f.p, f.original)).toThrow('source_binding');
     else expect(() => compileCausalOriginal(f.p, f.plan, author({ brief: f.p.brief, planDigest: f.plan.planDigest }))).toThrow('plan_binding');
   });
-  it.each([0, 3])('allows %s genuine strengths and coherent revisions, not immutable wording', count => {
-    const f = selectedFixture(), quote = f.original.manuscript.pages[0].text.slice(0, 16);
-    f.output.strengths = Array.from({ length: count }, (_, i) => ({ id: `strength${i + 1}`, original: { pageNumber: 1, quote },
-      narrativeFunction: ['The child proposes a consequential new action.', 'A surprising phrase introduces a comic echo.', 'A concrete choice prepares the eventual payoff.'][i], disposition: 'coherently_changed', revised: { pageNumber: 1, quote },
-      explanation: 'The same function survives a justified scene revision.' }));
-    const edit = compileCausalEdit(f.p, f.original, f.output); expect(edit.strengths).toHaveLength(count); expect(edit.runtimeEligible).toBe(false);
-  });
-  it.each(['four', 'duplicate', 'false_original', 'false_revised', 'stale'])('rejects %s editor evidence', kind => {
-    const f = selectedFixture(), q = f.original.manuscript.pages[0].text.slice(0, 16);
-    const s = { id: 'strength1', original: { pageNumber: 1, quote: q }, narrativeFunction: 'A consequential child choice prepares the ending.',
-      disposition: 'preserved', revised: { pageNumber: 1, quote: q }, explanation: 'The revision retains the proposed story function.' };
-    f.output.strengths = kind === 'four' ? [s, s, s, s] : kind === 'duplicate' ? [s, s] : [s];
-    if (kind === 'false_original') s.original.quote = 'not in this original';
-    if (kind === 'false_revised') s.revised.quote = 'not in this revision';
-    if (kind === 'stale') f.output.revision.draftDigest = '0'.repeat(64);
+  it.each(['old_version', 'diagnosis', 'strengths', 'stale'])('rejects %s editor output without removing shared semantic guards', kind => {
+    const f = selectedFixture();
+    if (kind === 'old_version') f.output.version = 'personal-causal-experiment/diagnostic-v1';
+    else if (kind === 'stale') f.output.revision.draftDigest = '0'.repeat(64);
+    else f.output[kind] = [];
     expect(() => compileCausalEdit(f.p, f.original, f.output)).toThrow();
   });
-  it('binds diagnosis evidence and keeps unresolved strength or audit in HOLD', () => {
-    const f = selectedFixture(); f.output.diagnosis = [{ scope: 'structure', criterion: 'The ending lacks sufficient causal preparation.',
-      evidence: [{ pageNumber: 1, quote: 'never in original' }], problem: 'The rule changes without observable preparation.' }];
-    expect(() => compileCausalEdit(f.p, f.original, f.output)).toThrow('editor_evidence');
-    f.output.diagnosis = []; f.output.revision.semanticAudit.setup_payoff.outcome = 'unresolved';
+  it('still holds unresolved semantic audit and editor checks', () => {
+    const f = selectedFixture(); f.output.revision.semanticAudit.setup_payoff.outcome = 'unresolved';
     expect(compileCausalEdit(f.p, f.original, f.output).disposition).toBe('held');
+    const clean = selectedFixture(); Object.values(clean.output.revision.checks).forEach((c: any) => { c.outcome = 'needs_work'; });
+    expect(compileCausalEdit(clean.p, clean.original, clean.output).disposition).toBe('held');
   });
-  it('isolated critics see only approved brief and their own prose; comparison waits for both readings', async () => {
+  it.each(['normal', 'benchmark'] as const)('%s isolated critics see only approved brief and their own prose; comparison waits for final', async reviewMode => {
     const seen: CausalDispatch[] = []; const h = harness(1, call => { seen.push(call);
       const output: any = defaultOutput(call);
       if (call.stage === 'plan') { output.synopsis += ' PLANNING_SECRET'; output.selection.reason += ' REASON_SECRET'; }
       if (call.stage === 'editor') {
-        output.diagnosis = [{ scope: 'wording', criterion: 'DIAGNOSIS_SECRET phrase should be clearer.',
-          evidence: [{ pageNumber: 1, quote: JSON.parse(call.input).draft.manuscript.pages[0].text.slice(0, 12) }], problem: 'DIAGNOSIS_SECRET unclear phrase from the source.' }];
+        Object.values(output.revision.checks).forEach((row: any) => { row.note = 'EDITOR_CHECK_SECRET remains model-only evidence.'; });
         output.revision.manuscript.pages[0].text += ' FINAL_ONLY';
       }
-      return output; });
+      return output; }, new AbortController(), reviewMode);
     await h.runner.plan(); h.approve(); await h.runner.write();
     const original = seen.find(c => c.stage === 'original_review')!, final = seen.find(c => c.stage === 'final_review')!;
-    for (const c of [original, final]) expect(c.input).not.toMatch(/PLANNING_SECRET|REASON_SECRET|DIAGNOSIS_SECRET|semanticAudit|outlineChecks/);
-    expect(original.input).not.toContain('FINAL_ONLY'); expect(final.input).toContain('FINAL_ONLY');
-    expect(JSON.parse(original.input).packet.brief).toEqual(JSON.parse(final.input).packet.brief);
-    expect(seen.map(c => c.stage).slice(-3)).toEqual(['original_review', 'final_review', 'comparison']);
+    for (const c of [original, final].filter(Boolean)) expect(c.input).not.toMatch(/PLANNING_SECRET|REASON_SECRET|EDITOR_CHECK_SECRET|semanticAudit|outlineChecks/);
+    expect(final.input).toContain('FINAL_ONLY'); expect(JSON.parse(final.input).packet).not.toHaveProperty('original');
+    if (reviewMode === 'benchmark') {
+      expect(original.input).not.toContain('FINAL_ONLY');
+      expect(JSON.parse(original.input).packet.brief).toEqual(JSON.parse(final.input).packet.brief);
+      expect(seen.map(c => c.stage).slice(-3)).toEqual(['original_review', 'final_review', 'comparison']);
+    } else {
+      expect(original).toBeUndefined(); expect(seen.map(c => c.stage).slice(-2)).toEqual(['final_review', 'comparison']);
+    }
+  });
+  it('caller mutation cannot enable a benchmark or increase the already reserved normal recipe', async () => {
+    const h = harness(); h.args.reviewMode = 'benchmark'; h.args.capsMicroUsd.original_review = 10;
+    await h.runner.plan(); h.approve(); await h.runner.write();
+    expect(h.runner.snapshot().manifest.reviewMode).toBe('normal'); expect(h.runner.snapshot().manifest.slots).toHaveLength(6);
+    expect(h.ports.generate).toHaveBeenCalledTimes(5);
+    expect(vi.mocked(h.ports.generate).mock.calls.some(([call]) => call.stage === 'original_review')).toBe(false);
+  });
+  it('rejects missing/extra active reservations and unknown review modes before any port call', () => {
+    const h = harness(), missing = { ...h.args.capsMicroUsd }; delete missing.final_review;
+    expect(() => createCausalExperiment({ ...h.args, capsMicroUsd: missing })).toThrow('reservation_invalid');
+    expect(() => createCausalExperiment({ ...h.args, capsMicroUsd: { ...h.args.capsMicroUsd, original_review: 10 } })).toThrow('reservation_invalid');
+    expect(() => createCausalExperiment({ ...h.args, reviewMode: 'skip_qa' as any })).toThrow('review_mode');
+    expect(h.ports.reserve).not.toHaveBeenCalled(); expect(h.ports.generate).not.toHaveBeenCalled();
   });
   it.each(['original_review', 'final_review'])('bad %s reading suppresses comparison', async stage => {
-    const h = harness(1, c => c.stage === stage ? { packetDigest: '0'.repeat(64), summary: 'A stale independent reading for another text.', findings: [] } : defaultOutput(c));
+    const h = harness(1, c => c.stage === stage ? { packetDigest: '0'.repeat(64), summary: 'A stale independent reading for another text.', findings: [] } : defaultOutput(c),
+      new AbortController(), stage === 'original_review' ? 'benchmark' : 'normal');
     await h.runner.plan(); h.approve(); await expect(h.runner.write()).rejects.toThrow('critic_binding');
     expect(vi.mocked(h.ports.generate).mock.calls.some(([c]) => c.stage === 'comparison')).toBe(false);
   });

@@ -10,7 +10,7 @@ import { causalTrialCohort } from '../../scripts/personal-causal-cohort';
 import { createCausalTrialHost, readCausalReviewFile, causalOutputCap, type CausalHostPolicy, type CausalHostTransport } from '../../scripts/personal-causal-trial-host';
 import { CausalFamilyJournal, exclusiveJson, realDirectory } from '../../scripts/personal-causal-trial-journal';
 import { prepareCausalWire, wireReservation, CAUSAL_MODELS, CausalTransportError, createAstraCausalTransport, type WirePolicy } from '../../scripts/personal-causal-trial-adapters';
-import { BACKWARD_DEPENDENCIES, CAUSAL_EXPERIMENT_VERSION } from '../personal-wizard/story-causal-experiment';
+import { CAUSAL_EXPERIMENT_VERSION } from '../personal-wizard/story-causal-experiment';
 import type { CausalDispatch } from '../personal-wizard/story-causal-experiment-runner';
 import { fixtureAdventureSelection } from '../personal-wizard/__tests__/story-planning-fixture';
 import { fixtureEditorOutput } from '../personal-wizard/__tests__/personal-storyboard-fixture';
@@ -21,7 +21,7 @@ const dirs: string[] = [];
 afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks(); vi.unstubAllGlobals(); for (const dir of dirs.splice(0)) rmSync(dir, { recursive: true, force: true }); });
 function temporary() { const d = mkdtempSync(path.join(tmpdir(), 'causal-host-test-')); dirs.push(d); return d; }
 function policy(root: string): CausalHostPolicy {
-  return { version: 'causal-trial-host/v1', family: 'synthetic-offline-family', sourceHead: 'a'.repeat(40), maximumMicroUsd: 100_000_000,
+  return { version: 'causal-trial-host/v2', reviewMode: 'normal', family: 'synthetic-offline-family', sourceHead: 'a'.repeat(40), maximumMicroUsd: 100_000_000,
     maxWireBytes: 104_000, executable: path.join(root, 'unused.exe'), executableSha256: 'b'.repeat(64), mode: 'offline_injected', approval: null,
     pricing: { source: 'Synthetic test rates, NOT provider prices.', checkedAt: '2026-10-03T00:00:00Z',
       rates: { opus: { inputMicroUsdPerToken: 1, outputMicroUsdPerToken: 1 }, astra: { inputMicroUsdPerToken: 1, outputMicroUsdPerToken: 1 } } } };
@@ -33,8 +33,6 @@ function output(call: CausalDispatch): any {
     return { version: CAUSAL_EXPERIMENT_VERSION, requestId: brief.requestId, disposition: 'selected',
       selection: fixtureAdventureSelection(brief.beats, interest),
       synopsis: 'Synthetic adventure through discovery and partnership to a prepared payoff. Not literary proof.',
-      backwardDependencies: Object.fromEntries(BACKWARD_DEPENDENCIES.map(key => [key, { claim: 'Synthetic causal claim, not an entailment proof.',
-        evidence: [{ pageNumber: key === 'earnedPayoff' ? brief.beats : 1, field: 'childAction', quote: 'מציעה דרך אחרת' }] }])),
       plan: { title: 'ההרפתקה החדשה', childGoal: 'למצוא דרך מעניינת', companionWant: 'לנסות וגם לעזור', comicPromise: 'הרעיון מסתבך באופן מצחיק',
         resilience: { mode: brief.resilienceMode, moments: [{ pageNumber: 2, childChoice: 'בוחרת דרך אחרת', whatHelps: 'החבר מקשיב' }] },
         beats: Array.from({ length: brief.beats }, () => ({ location: 'בגינה', transitionReason: 'הגילוי משנה את הדרך', childAction: 'מציעה דרך אחרת',
@@ -44,14 +42,15 @@ function output(call: CausalDispatch): any {
     pages: Array.from({ length: brief.beats }, (_, i) => ({ text: `${brief.child.name} מציעה דרך חדשה והחבר מנסה איתה. הם מגלים משהו מצחיק ומשנים את התוכנית. פרט מקורי ${i + 1}` })) };
   if (call.stage === 'editor') {
     const revision = fixtureEditorOutput({ ...call, stage: 'editor' });
-    return { version: CAUSAL_EXPERIMENT_VERSION, diagnosis: [], strengths: [], revision: { ...revision,
+    return { version: CAUSAL_EXPERIMENT_VERSION, revision: { ...revision,
       plan: { ...revision.plan, beats: revision.plan.beats.map(({ pageNumber: _n, ...beat }) => beat) },
       manuscript: { ...revision.manuscript, pages: revision.manuscript.pages.map(({ pageNumber: _n, ...page }) => page) } } };
   }
   return { packetDigest: input.packetDigest, summary: 'Synthetic critic reading, not literary approval.', findings: [] };
 }
-function harness(count = 1, change?: CausalHostTransport) {
+function harness(count = 1, change?: CausalHostTransport, reviewMode: 'normal' | 'benchmark' = 'normal') {
   const root = temporary(), controller = new AbortController(), p = policy(root), cases = causalTrialCohort().slice(0, count);
+  p.reviewMode = reviewMode;
   const transport = vi.fn<CausalHostTransport>(change ?? (async (_wire, call) => ({ output: output(call), estimatedMicroUsd: 1,
     usage: { inputTokens: 1, outputTokens: 1 }, metadata: { synthetic: true }, raw: { synthetic: true } })));
   const assertSource = vi.fn();
@@ -143,15 +142,15 @@ describe('independent live admission clauses without providers', () => {
 });
 
 describe('one-shot causal trial connection (zero live providers)', () => {
-  it('reserves all42slots and crosses the real coordinator in36isolated logical dispatches', async () => {
+  it('reserves all36slots and crosses the real coordinator in30isolated logical dispatches', async () => {
     const h = harness(6), bundle = await h.host.plan().catch(error => { throw new Error(`${error.message} host=${h.host.snapshot().host.failureCode}`); });
     expect(h.transport).toHaveBeenCalledTimes(6);
     const manifest = JSON.parse(readFileSync(path.join(h.args.outputRoot, 'manifest.json'), 'utf8'));
-    expect(manifest.slots).toHaveLength(42); expect(manifest.runtimeEligible).toBe(false);
+    expect(manifest.slots).toHaveLength(36); expect(manifest.policy.reviewMode).toBe('normal'); expect(manifest.runtimeEligible).toBe(false);
     expect(existsSync(path.join(h.args.outputRoot, 'synopses.json'))).toBe(true);
     const result = await h.host.write(h.review(bundle));
-    expect(result.books).toHaveLength(6); expect(h.transport).toHaveBeenCalledTimes(36);
-    expect(new Set(h.transport.mock.calls.map(([, c]) => c.conversationKey)).size).toBe(36);
+    expect(result.books).toHaveLength(6); expect(h.transport).toHaveBeenCalledTimes(30);
+    expect(new Set(h.transport.mock.calls.map(([, c]) => c.conversationKey)).size).toBe(30);
     expect(result.runtimeEligible).toBe(false); expect(h.host.snapshot().host.closed).toBe(true);
     expect(h.transport.mock.calls.map(([, c]) => c.maxOutputTokens).slice(0, 6)).toEqual([18000, 20000, 22000, 18000, 20000, 22000]);
     for (const [wire, call] of h.transport.mock.calls) {
@@ -163,14 +162,36 @@ describe('one-shot causal trial connection (zero live providers)', () => {
       expect(receipt.receipt.output).toEqual(output(call));
     }
     const accounting = JSON.parse(readFileSync(path.join(h.args.outputRoot, 'host-accounting.json'), 'utf8'));
-    expect(accounting).toEqual({ reservedMicroUsd: manifest.reservedMicroUsd, logicalAttempts: 36, knownEstimateMicroUsd: 36,
+    expect(accounting).toEqual({ reservedMicroUsd: manifest.reservedMicroUsd, logicalAttempts: 30, knownEstimateMicroUsd: 30,
       unknownAttemptCosts: 0, kind: 'estimate_not_invoice', runtimeEligible: false });
     const sealed = JSON.parse(readFileSync(path.join(h.root, 'codex-causal-text-trials', h.p.family, 'sealed.json'), 'utf8'));
     expect(sealed.reason).toBe('completed_diagnostic'); expect(sealed.runtimeEligible).toBe(false);
     expect(sealed.claims).toEqual(h.transport.mock.calls.map(([, c]) => c.conversationKey.split(':').slice(-2).join(':')));
     expect(sealed.settled).toEqual(sealed.claims);
-  // This performs36durable filesystem dispatches, not a production latency SLA.
+  // This performs30durable filesystem dispatches, not a production latency SLA.
   }, 30_000);
+  it('explicit benchmark reserves the original review, cannot mutate a normal recipe or replay its family', async () => {
+    const normal = harness(), benchmark = harness(1, undefined, 'benchmark');
+    normal.p.reviewMode = 'benchmark'; // host captured the approved normal policy already
+    const n = await normal.host.plan(), b = await benchmark.host.plan();
+    const nr = await normal.host.write(normal.review(n)), br = await benchmark.host.write(benchmark.review(b));
+    expect(nr.evidence.manifest.reviewMode).toBe('normal'); expect(br.evidence.manifest.reviewMode).toBe('benchmark');
+    expect(nr.evidence.manifest.slots).toHaveLength(6); expect(br.evidence.manifest.slots).toHaveLength(7);
+    expect(nr.books[0].readings.map(row => row.stage)).toEqual(['final_review', 'comparison']);
+    expect(br.books[0].readings.map(row => row.stage)).toEqual(['original_review', 'final_review', 'comparison']);
+    expect(normal.transport).toHaveBeenCalledTimes(5); expect(benchmark.transport).toHaveBeenCalledTimes(6);
+    expect(br.evidence.accounting.maximumMicroUsd - nr.evidence.accounting.maximumMicroUsd).toBe(
+      wireReservation(normal.p.maxWireBytes, causalOutputCap(8, 'original_review'), normal.p.pricing.rates.astra));
+    const other = createCausalTrialHost({ ...normal.args, outputRoot: path.join(normal.root, 'other-root') });
+    await expect(other.plan()).rejects.toThrow('provider_or_contract_failed'); expect(other.snapshot().host.failureCode).toBe('family_consumed');
+    expect(normal.transport).toHaveBeenCalledTimes(5);
+  });
+  it.each(['legacy', 'unknown_mode'])('rejects %s policy before artifacts or transport', kind => {
+    const h = harness(), invalid: any = structuredClone(h.p);
+    if (kind === 'legacy') invalid.version = 'causal-trial-host/v1'; else invalid.reviewMode = 'skip_qa';
+    expect(() => createCausalTrialHost({ ...h.args, policy: invalid })).toThrow('policy');
+    expect(h.transport).not.toHaveBeenCalled(); expect(existsSync(h.args.outputRoot)).toBe(false);
+  });
   it('has no key/transport access at construction and rejects implicit live mode and undersized budget', () => {
     const h = harness(), key = vi.fn(() => 'fake');
     expect(h.transport).not.toHaveBeenCalled(); expect(existsSync(h.args.outputRoot)).toBe(false);
@@ -361,7 +382,7 @@ describe('one-shot causal trial connection (zero live providers)', () => {
     const h = harness(), bundle = await h.host.plan();
     writeFileSync(path.join(h.root, 'codex-causal-text-trials', h.p.family, 'receipt-case1-plan.json'), '{}');
     await expect(h.host.write(h.review(bundle))).rejects.toThrow('record_changed');
-    expect(h.transport).toHaveBeenCalledTimes(6); expect(h.host.snapshot().host.closed).toBe(true);
+    expect(h.transport).toHaveBeenCalledTimes(5); expect(h.host.snapshot().host.closed).toBe(true);
   });
   it('dispatch rechecks the durable claim before creating dispatch evidence', () => {
     const root = temporary(), family = 'direct-journal-family', digest = 'a'.repeat(64);

@@ -12,7 +12,7 @@ import { assertSemanticEditEvidence, semanticEditNeedsWork } from './story-seman
 import { measureStoryText } from './story-text-metrics';
 import { prepareOriginalStoryTextReview, prepareStoryTextReview, type StoryReviewDocument } from './story-text-review';
 
-export const CAUSAL_EXPERIMENT_VERSION = 'personal-causal-experiment/diagnostic-v1';
+export const CAUSAL_EXPERIMENT_VERSION = 'personal-causal-experiment/diagnostic-v2';
 export const causalDigest = (value: unknown) => createHash('sha256').update(canonicalJson(value)).digest('hex');
 export class CausalExperimentError extends Error {
   constructor(readonly code: string) { super(`causal_experiment_${code}`); }
@@ -20,11 +20,6 @@ export class CausalExperimentError extends Error {
 export const causalFail = (code: string): never => { throw new CausalExperimentError(code); };
 const note = z.string().trim().min(10).max(600);
 const proseReference = z.object({ pageNumber: z.number().int().min(1).max(16), quote: z.string().min(4).max(220) }).strict();
-const beatReference = proseReference.extend({ field: z.enum(['childAction', 'companionAction', 'consequence', 'continuity']) });
-export const BACKWARD_DEPENDENCIES = ['changedState', 'childDiscovery', 'enablingSetup', 'companionContribution', 'earnedPayoff'] as const;
-const dependency = z.object({ claim: note, evidence: z.array(beatReference).min(1).max(3) }).strict();
-const backward = z.object({ changedState: dependency, childDiscovery: dependency, enablingSetup: dependency,
-  companionContribution: dependency, earnedPayoff: dependency }).strict();
 const candidatePair = adventureSelectionSchema.pick({ candidates: true, contrast: true });
 // Explicit diagnostic instruction profile. Keep every other approved constraint,
 // but do not impose the legacy failed-attempt plot or assume a deadline.
@@ -46,7 +41,7 @@ export const CAUSAL_PLAN_INSTRUCTIONS = `${CAUSAL_STORY_INSTRUCTIONS}\n${RESILIE
 This is PLANNING ONLY, no manuscript. Compare two genuinely different adventures A and B using curiosity, discovery, consequential child choices, companion want and earned payoff, with approved fact IDs. Scenery/prop substitutions are insufficient. Say why a child would want the next part and which surprising, funny or emotional ending is worth reaching. If BOTH ideas are weak, return both_rejected with the two ideas and reason, not a forced choice or plan. Only the host may permit one separately reserved planning reattempt.
 ${CANDIDATE_PERSONAL_FACT_INSTRUCTIONS} This applies independently to BOTH A and B, including the unselected candidate and both_rejected responses. personalFactUses may use only IDs from brief.facts, with no duplicate IDs within a candidate; A and B may share an interest. Each candidate must use an approved fact with kind "interest"; a habit or difficulty alone does not satisfy that binding.
 In a selected plan, every factId in the selected candidate's personalFactUses must occur in at least one plan beat's factIds. Every beat factId must come from brief.facts, and at least one approved interest must influence an action. Keep plan.resilience.mode equal to brief.resilienceMode. resilience.moments.pageNumber and all outlineChecks.evidenceSpreads refer to positions 1 through brief.beats, with no duplicate positions within each list. The earned_payoff check must include the final spread (brief.beats) in evidenceSpreads. These are binding/coverage requirements, not a formula for the plot or proof of literary quality.
-For a selected idea, first describe the entire adventure as a continuous synopsis, not a compliance list. Then produce exactly the chosen number of ordered beats. Work backwards from the climax: what changed, how the child noticed/tried/understood, the prepared ability/object/rule enabling action, why the companion matters, and the established desire/relationship paid off. Cite exact fields of actual planned beats. Each backwardDependencies evidence quote must be a contiguous verbatim substring copied from the named field (childAction, companionAction, consequence or continuity) in the beat at that one-based pageNumber. Copy the actual field text without rewording, name/pronoun substitutions or punctuation/whitespace changes; a paraphrase is invalid even when its meaning is similar. Exact citation establishes provenance, not causal entailment. These are questions, NOT a plot formula. No mandatory timer, broken object, companion mistake, mechanical rescue or location quota. A special rule has explicit conditions and consequences; a climax cannot quietly change it. A fundamental unresolved outline problem must mark needs_work; prose is not a rescue for a weak premise. Do not number beat arrays; the engine numbers them. No other child's profile or prior story is available.`;
+For a selected idea, first describe the entire adventure as a continuous synopsis, not a compliance list. Then produce exactly the chosen number of ordered beats. Work backwards from the climax: what changed, how the child noticed/tried/understood, the prepared ability/object/rule enabling action, why the companion matters, and the established desire/relationship paid off. Resolve missing causal links in the synopsis and beats before writing prose; do not add a separate self-citation ledger. These are questions, NOT a plot formula. No mandatory timer, broken object, companion mistake, mechanical rescue or location quota. A special rule has explicit conditions and consequences; a climax cannot quietly change it. A fundamental unresolved outline problem must mark needs_work; prose is not a rescue for a weak premise. Do not number beat arrays; the engine numbers them. No other child's profile or prior story is available.`;
 
 export function causalPlanSchema(prepared: PreparedStory) {
   const count = prepared.brief.beats;
@@ -56,7 +51,7 @@ export function causalPlanSchema(prepared: PreparedStory) {
   return z.discriminatedUnion('disposition', [
     z.object({ version: z.literal(CAUSAL_EXPERIMENT_VERSION), requestId: z.literal(prepared.brief.requestId),
       disposition: z.literal('selected'), selection: adventureSelectionSchema,
-      synopsis: z.string().trim().min(40).max(2400), backwardDependencies: backward, plan }).strict(),
+      synopsis: z.string().trim().min(40).max(2400), plan }).strict(),
     z.object({ version: z.literal(CAUSAL_EXPERIMENT_VERSION), requestId: z.literal(prepared.brief.requestId),
       disposition: z.literal('both_rejected'), candidates: candidatePair.shape.candidates,
       contrast: candidatePair.shape.contrast, reason: note }).strict(),
@@ -76,10 +71,6 @@ export function compileCausalPlan(prepared: PreparedStory, raw: unknown) {
   assertPlan(prepared, plan);
   const selectionIssue = adventureSelectionIssue(data.selection, prepared.brief.facts, prepared.brief.beats, plan.beats.flatMap(b => b.factIds));
   if (selectionIssue && selectionIssue !== 'story_outline_held') return causalFail(selectionIssue);
-  for (const key of BACKWARD_DEPENDENCIES) for (const ref of data.backwardDependencies[key].evidence) {
-    if (!plan.beats[ref.pageNumber - 1]?.[ref.field].includes(ref.quote)) causalFail('dependency_evidence');
-  }
-  // Exact references prove provenance, never causal entailment or literary merit.
   const body = { ...data, disposition: selectionIssue ? 'outline_held' as const : 'selected' as const,
     plan, ...binding, planDigest: causalDigest(plan), runtimeEligible: false as const };
   return { ...body, planningDigest: causalDigest(body) };
@@ -109,7 +100,7 @@ export function causalAuthorSchema(prepared: PreparedStory, plan: SelectedCausal
     pages: z.array(personalManuscriptSchema.shape.pages.element.omit({ pageNumber: true })).length(prepared.brief.beats) });
 }
 export function compileCausalOriginal(prepared: PreparedStory, plan: SelectedCausalPlan, raw: unknown): StoryReviewDocument {
-  if (plan.disposition !== 'selected' || plan.requestDigest !== causalDigest(prepared.accepted.canonical) ||
+  if (plan.version !== CAUSAL_EXPERIMENT_VERSION || plan.disposition !== 'selected' || plan.requestDigest !== causalDigest(prepared.accepted.canonical) ||
     plan.briefDigest !== causalDigest(prepared.brief) || plan.planDigest !== causalDigest(plan.plan)) causalFail('plan_binding');
   const { planningDigest, ...body } = plan;
   if (causalDigest(body) !== planningDigest || adventureSelectionIssue(plan.selection, prepared.brief.facts,
@@ -122,22 +113,16 @@ export function compileCausalOriginal(prepared: PreparedStory, plan: SelectedCau
   return doc;
 }
 
-const diagnosis = z.object({ scope: z.enum(['wording', 'scene', 'structure']), criterion: note,
-  evidence: z.array(proseReference).min(1).max(2), problem: note }).strict();
-const strength = z.object({ id: z.string().regex(/^strength[1-3]$/), original: proseReference,
-  narrativeFunction: note, disposition: z.enum(['preserved', 'coherently_changed', 'unresolved']),
-  revised: proseReference, explanation: note }).strict();
 export function causalEditorCall(prepared: PreparedStory, original: StoryReviewDocument): StoryEditorCall {
   assertProse(prepared, original);
   return { stage: 'editor', instructions: `${causalEditorInstructions}
-In this one response, record original-text diagnosis with exact citations and repair scope, and ZERO to THREE genuine strengths with narrative functions before the revision. Do not invent faults or praise to fill a quota. Preserve functions, not necessarily literal wording. A justified scene/magic change must repair all dependent setup/consequences. For each retained strength record how its function survived or coherently changed, or mark unresolved. All revised plan beat factIds must come from brief.facts; at least one approved fact of kind interest must remain used in the revised beats. A habit/difficulty alone does not satisfy that binding; do not force every fact into the story. All diagnosis, strength and semanticAudit quotes must be contiguous verbatim substrings copied from the cited version's actual page text at that pageNumber, not paraphrases or quotes from the plan. Diagnosis evidence uses the original manuscript; strength.original and semanticAudit.original use original pages, while strength.revised and semanticAudit.revised use revised pages. This field order does not attest your internal thinking order. You have only this original, brief and authority, not the author conversation or critic verdict.`,
+Diagnose before revising: identify significant problems and any genuine strengths worth preserving. Do not invent faults or praise to fill a quota, and do not output an additional diagnosis or strengths ledger. Preserve functions, not necessarily literal wording. A justified scene/magic change must repair all dependent setup/consequences. Keep successful humour, child choices and companion personality where they work; shorten only when understanding, feeling and humour survive. All revised plan beat factIds must come from brief.facts; at least one approved fact of kind interest must remain used in the revised beats. A habit/difficulty alone does not satisfy that binding; do not force every fact into the story. All semanticAudit quotes must be contiguous verbatim substrings copied from the cited version's actual page text at that pageNumber, not paraphrases or quotes from the plan. semanticAudit.original uses original pages, while semanticAudit.revised uses revised pages. Guidance does not attest your internal thinking order. You have only this original, brief and authority, not the author conversation or critic verdict.`,
     input: canonicalJson({ brief: prepared.brief, draft: original, draftDigest: causalDigest(original),
       draftTextMetrics: measureStoryText(original.manuscript, prepared.brief.child.age) }),
     maxOutputTokens: storyEditorOutputTokens(prepared.brief.beats) + 4000 };
 }
 export function causalEditorSchema(call: StoryEditorCall) {
-  return z.object({ version: z.literal(CAUSAL_EXPERIMENT_VERSION),
-    diagnosis: z.array(diagnosis).max(6), strengths: z.array(strength).max(3), revision: storyEditorProviderSchema(call) }).strict();
+  return z.object({ version: z.literal(CAUSAL_EXPERIMENT_VERSION), revision: storyEditorProviderSchema(call) }).strict();
 }
 export function compileCausalEdit(prepared: PreparedStory, original: StoryReviewDocument, raw: unknown) {
   const call = causalEditorCall(prepared, original), parsed = causalEditorSchema(call).safeParse(raw);
@@ -147,16 +132,11 @@ export function compileCausalEdit(prepared: PreparedStory, original: StoryReview
   const revised: StoryReviewDocument = { plan, characterDigest: original.characterDigest,
     manuscript: { ...output.manuscript, requestId: prepared.brief.requestId, planDigest: causalDigest(plan) } };
   assertProse(prepared, revised);
-  const quoteExists = (ref: z.infer<typeof proseReference>, doc: StoryReviewDocument) => doc.manuscript.pages[ref.pageNumber - 1]?.text.includes(ref.quote);
-  if (data.diagnosis.some(d => d.evidence.some(r => !quoteExists(r, original))) ||
-    new Set(data.strengths.map(s => s.id)).size !== data.strengths.length ||
-    data.strengths.some(s => !quoteExists(s.original, original) || !quoteExists(s.revised, revised))) causalFail('editor_evidence');
   try { assertSemanticEditEvidence(output.semanticAudit, original.manuscript, revised.manuscript); }
   catch { return causalFail('semantic_evidence'); }
-  const held = semanticEditNeedsWork(output.semanticAudit) || Object.values(output.checks).some(c => c.outcome === 'needs_work') ||
-    data.strengths.some(s => s.disposition === 'unresolved');
+  const held = semanticEditNeedsWork(output.semanticAudit) || Object.values(output.checks).some(c => c.outcome === 'needs_work');
   return { version: CAUSAL_EXPERIMENT_VERSION, originalDigest: causalDigest(original), finalDigest: causalDigest(revised),
-    diagnosis: data.diagnosis, strengths: data.strengths, checks: output.checks, semanticAudit: output.semanticAudit,
+    checks: output.checks, semanticAudit: output.semanticAudit,
     revised, disposition: held ? 'held' as const : 'model_supported' as const, runtimeEligible: false as const };
 }
 
@@ -191,5 +171,6 @@ export function compileCausalReading(packet: CausalReviewPacket, raw: unknown) {
     }
     if ('original' in packet && (!row.original.length || !row.revised.length)) causalFail('critic_evidence');
   }
-  return { ...parsed.data, kind: 'model_literary_advisory_not_product_acceptance' as const, runtimeEligible: false as const };
+  const stage = 'original' in packet ? 'comparison' as const : packet.version.includes('/original-') ? 'original_review' as const : 'final_review' as const;
+  return { ...parsed.data, stage, kind: 'model_literary_advisory_not_product_acceptance' as const, runtimeEligible: false as const };
 }

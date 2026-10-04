@@ -2,7 +2,7 @@
 import { closeSync, fstatSync, lstatSync, openSync, readFileSync, realpathSync } from 'node:fs';
 import path from 'node:path';
 import { z } from 'zod';
-import { createCausalExperiment, CAUSAL_STAGES, type CausalDispatch, type CausalStage } from '../lib/personal-wizard/story-causal-experiment-runner';
+import { createCausalExperiment, causalStages, type CausalDispatch, type CausalStage } from '../lib/personal-wizard/story-causal-experiment-runner';
 import { causalDigest, CausalExperimentError } from '../lib/personal-wizard/story-causal-experiment';
 import { preparePersonalStory } from '../lib/personal-wizard/story-writer';
 import { personalStoryOutputLimits } from '../lib/personal-wizard/story-config';
@@ -15,7 +15,8 @@ import { gitAt } from './personal-story-frozen-engine';
 
 const rates = z.object({ inputMicroUsdPerToken: z.number().positive().finite(), outputMicroUsdPerToken: z.number().positive().finite() }).strict();
 export const causalHostPolicySchema = z.object({
-  version: z.literal('causal-trial-host/v1'), family: z.string().regex(/^[a-z0-9][a-z0-9_-]{2,100}$/),
+  version: z.literal('causal-trial-host/v2'), reviewMode: z.enum(['normal', 'benchmark']).default('normal'),
+  family: z.string().regex(/^[a-z0-9][a-z0-9_-]{2,100}$/),
   sourceHead: z.string().regex(/^[a-f0-9]{40}$/), maximumMicroUsd: z.number().int().positive().safe(),
   maxWireBytes: z.number().int().positive().max(104_000),
   executable: z.string().min(1), executableSha256: z.string().regex(/^[a-f0-9]{64}$/),
@@ -77,9 +78,10 @@ export function createCausalTrialHost(args: {
   const options = resolvePersonalWizardOptions();
   const prepared = args.cases.map(c => ({ id: c.id, prepared: preparePersonalStory(structuredClone(c.request), options) }));
   if (prepared.some(c => !c.prepared.accepted.containsFixtureData)) hostFail('fictional_only');
-  const caps = Object.fromEntries(CAUSAL_STAGES.map(stage => [stage, Math.max(...prepared.map(c => wireReservation(policy.maxWireBytes,
+  const stages = causalStages(policy.reviewMode);
+  const caps = Object.fromEntries(stages.map(stage => [stage, Math.max(...prepared.map(c => wireReservation(policy.maxWireBytes,
     causalOutputCap(c.prepared.brief.beats, stage), policy.pricing.rates[['plan', 'replan', 'author', 'editor'].includes(stage) ? 'opus' : 'astra'])))])) as Record<CausalStage, number>;
-  const expectedSlots = prepared.flatMap(c => CAUSAL_STAGES.map(stage => ({ id: `${c.id}:${stage}`, capMicroUsd: caps[stage],
+  const expectedSlots = prepared.flatMap(c => stages.map(stage => ({ id: `${c.id}:${stage}`, capMicroUsd: caps[stage],
     maxOutputTokens: causalOutputCap(c.prepared.brief.beats, stage), role: ['plan', 'replan', 'author', 'editor'].includes(stage) ? 'opus' as const : 'astra' as const })));
   const reserved = expectedSlots.reduce((n, s) => n + s.capMicroUsd, 0);
   if (!Number.isSafeInteger(reserved) || reserved > policy.maximumMicroUsd) hostFail('budget');
@@ -91,13 +93,13 @@ export function createCausalTrialHost(args: {
   const seal = (reason: string) => { closed = true; failureCode ??= reason; journal?.seal(reason); };
   const abort = () => seal('cancelled'); signal.addEventListener('abort', abort, { once: true });
   const active = () => { if (closed || signal.aborted) hostFail('terminal'); assertSource(); journal?.assertActive(); };
-  const coordinator = createCausalExperiment({ family: policy.family, cases: args.cases, options, capsMicroUsd: caps,
+  const coordinator = createCausalExperiment({ family: policy.family, cases: args.cases, options, capsMicroUsd: caps, reviewMode: policy.reviewMode,
     maximumMicroUsd: policy.maximumMicroUsd, signal, ports: {
       async reserve(family, coordinatorDigest, maximumMicroUsd, slots) {
         try {
         active(); if (journal || family !== policy.family || maximumMicroUsd !== reserved ||
           causalDigest(slots) !== causalDigest(expectedSlots.map(({ id, capMicroUsd }) => ({ id, capMicroUsd })))) hostFail('reservation');
-        const manifest = { version: 'causal-trial-host/v1', policy, coordinatorDigest, coordinator: coordinator.snapshot().manifest,
+        const manifest = { version: policy.version, policy, coordinatorDigest, coordinator: coordinator.snapshot().manifest,
           slots: expectedSlots, reservedMicroUsd: reserved, maxLogicalDispatches: expectedSlots.length,
           costKind: 'usage_estimate_not_invoice', invoiceCapGuaranteed: false, nativeInternalCallCount: 'unverified',
           wireReservation: 'future_full_wire_byte_ceilings_rechecked_exactly_per_dispatch', runtimeEligible: false };

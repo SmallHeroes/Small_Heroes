@@ -13,6 +13,12 @@ import { CAUSAL_EXPERIMENT_VERSION, CAUSAL_PLAN_INSTRUCTIONS, CAUSAL_STORY_INSTR
 
 export const CAUSAL_STAGES = ['plan', 'replan', 'author', 'editor', 'original_review', 'final_review', 'comparison'] as const;
 export type CausalStage = typeof CAUSAL_STAGES[number];
+export type CausalReviewMode = 'normal' | 'benchmark';
+/** One recipe owns reservation, dispatch and preview. Benchmark is explicit. */
+export function causalStages(reviewMode: CausalReviewMode = 'normal'): readonly CausalStage[] {
+  if (reviewMode !== 'normal' && reviewMode !== 'benchmark') return causalFail('review_mode');
+  return CAUSAL_STAGES.filter(stage => reviewMode === 'benchmark' || stage !== 'original_review');
+}
 export type CausalDispatch = { role: 'opus' | 'astra'; stage: CausalStage; conversationKey: string;
   input: string; instructions: string; schema: ZodTypeAny; maxOutputTokens: number };
 /** No default provider, key, CLI, network or implicit live authorization. */
@@ -28,20 +34,21 @@ type CohortReview = { sourceDigest: string; decisions: { caseId: string; decisio
 /** A single process-local diagnostic coordinator. Durable family/slot exclusion is the host port's obligation. */
 export function createCausalExperiment(args: {
   family: string; cases: { id: string; request: unknown }[]; options: PersonalWizardOptions;
-  capsMicroUsd: Record<CausalStage, number>; maximumMicroUsd: number; ports: CausalExperimentPorts; signal: AbortSignal;
+  reviewMode?: CausalReviewMode; capsMicroUsd: Partial<Record<CausalStage, number>>; maximumMicroUsd: number; ports: CausalExperimentPorts; signal: AbortSignal;
 }) {
+  const reviewMode = args.reviewMode ?? 'normal', stages = causalStages(reviewMode);
   const caps = structuredClone(args.capsMicroUsd), signal = args.signal;
   if (!/^[a-z0-9][a-z0-9_-]{2,100}$/.test(args.family) || !args.cases.length || args.cases.length > 6 ||
     new Set(args.cases.map(c => c.id)).size !== args.cases.length || args.cases.some(c => !/^case[1-6]$/.test(c.id)) ||
-    Object.keys(caps).sort().join() !== [...CAUSAL_STAGES].sort().join() ||
-    CAUSAL_STAGES.some(s => !Number.isSafeInteger(caps[s]) || caps[s] <= 0) ||
+    Object.keys(caps).sort().join() !== [...stages].sort().join() ||
+    stages.some(s => !Number.isSafeInteger(caps[s]) || caps[s]! <= 0) ||
     !Number.isSafeInteger(args.maximumMicroUsd) || args.maximumMicroUsd <= 0) causalFail('reservation_invalid');
   // Rebuild from accepted requests; never trust a supplied detached prepared brief.
   const cases = args.cases.map(c => ({ id: c.id, prepared: preparePersonalStory(structuredClone(c.request), args.options) }));
-  const slots = cases.flatMap(c => CAUSAL_STAGES.map(stage => ({ id: `${c.id}:${stage}`, capMicroUsd: caps[stage] })));
+  const slots = cases.flatMap(c => stages.map(stage => ({ id: `${c.id}:${stage}`, capMicroUsd: caps[stage]! })));
   const maximum = slots.reduce((n, s) => n + s.capMicroUsd, 0);
   if (!Number.isSafeInteger(maximum) || maximum > args.maximumMicroUsd) causalFail('reservation_invalid');
-  const manifest = { version: CAUSAL_EXPERIMENT_VERSION, family: args.family,
+  const manifest = { version: CAUSAL_EXPERIMENT_VERSION, family: args.family, reviewMode,
     cases: cases.map(c => ({ id: c.id, requestDigest: causalDigest(c.prepared.accepted.canonical), briefDigest: causalDigest(c.prepared.brief) })), slots };
   const manifestDigest = causalDigest(manifest), family = args.family, ports = args.ports;
   const receipts: Receipt[] = [], plans: { caseId: string; attempts: CausalPlan[] }[] = [];
@@ -57,11 +64,11 @@ export function createCausalExperiment(args: {
     current();
     if (Buffer.byteLength(call.input + call.instructions, 'utf8') > 104_000) causalFail('input_limit');
     const slot = `${caseId}:${stage}`;
-    if (receipts.some(r => r.slot === slot)) causalFail('slot_reused');
+    if (!stages.includes(stage) || receipts.some(r => r.slot === slot)) causalFail('slot_reused');
     if (!await ports.claim(family, manifestDigest, slot)) causalFail('slot_claim_denied');
     const role = ['plan', 'replan', 'author', 'editor'].includes(stage) ? 'opus' : 'astra';
     const receipt: Receipt = { slot, role, inputDigest: causalDigest({ stage, input: call.input, instructions: call.instructions }),
-      capMicroUsd: caps[stage], attempted: false, estimatedMicroUsd: null };
+      capMicroUsd: caps[stage]!, attempted: false, estimatedMicroUsd: null };
     receipts.push(receipt);
     current();
     const reply = await withGenerationDeadline(call.maxOutputTokens, signal,
@@ -125,7 +132,7 @@ export function createCausalExperiment(args: {
         if (!('planningDigest' in chosen) || chosen.disposition !== 'selected') return causalFail('plan_binding');
         const rawOriginal = await dispatch(c.id, 'author', { instructions: `${CAUSAL_STORY_INSTRUCTIONS}\n${RESILIENCE_INSTRUCTIONS}\n${CAUSAL_NARRATIVE_CRAFT_INSTRUCTIONS}`,
           input: canonicalJson({ brief: c.prepared.brief, plan: chosen.plan, planDigest: chosen.planDigest,
-            synopsis: chosen.synopsis, backwardDependencies: chosen.backwardDependencies,
+            synopsis: chosen.synopsis,
             task: 'Write the entire Hebrew adventure, one COMPLETE text per ordered beat through earned resolution. No pageNumber metadata. Age 3 to 5 target 35 to 65 words per spread; age 6 to 8 target 45 to 85. Targets are measured separately, not quality scores. No previous story or author conversation.' }),
           schema: causalAuthorSchema(c.prepared, chosen), maxOutputTokens: personalStoryOutputLimits(c.prepared.brief.beats).manuscriptOutputTokens });
         const original = compileCausalOriginal(c.prepared, chosen, rawOriginal);
@@ -135,8 +142,9 @@ export function createCausalExperiment(args: {
         const edit = compileCausalEdit(c.prepared, original, rawEdit);
         const packets = causalReviewPackets(c.prepared, original, edit.revised);
         const readings = [];
-        // Freeze both isolated readings before a comparison can be dispatched.
-        for (const stage of ['original_review', 'final_review', 'comparison'] as const) {
+        // Final-only reading is always isolated and precedes comparison. Original
+        // scoring is an explicitly reserved benchmark, not per-book overhead.
+        for (const stage of stages.filter(s => s === 'original_review' || s === 'final_review' || s === 'comparison')) {
           const key = stage === 'original_review' ? 'original' : stage === 'final_review' ? 'final' : 'comparison';
           const packet = packets[key];
           const raw = await dispatch(c.id, stage, { instructions: packet.instructions,

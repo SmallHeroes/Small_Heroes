@@ -1,5 +1,52 @@
 # SmallHeroes — Current Technical State
 
+## Approved text-path simplification: milestone B implemented 2026 10 04
+
+Guy approved free diagnostic milestones A/B, not another paid attempt. A is the
+local commit 471890ad (base b9995108). B is the focused successor containing
+this entry. Independent Claude Code review of both exact ranges is pending.
+
+The normal causal diagnostic now runs plan, fresh Opus author, fresh Opus editor,
+isolated final Astra, then original/final comparison Astra: five ordinary logical
+dispatches, plus one separately reserved optional replan. Original-only scoring
+requires explicit benchmark mode. One recipe derives active reservations,
+dispatches and preview counts. Mode is captured and digest-bound; switching mode
+or output root does not create a reusable family. No token cap/rate was raised.
+
+Removed only the causal planner's backwardDependencies self-citation ledger and
+the causal editor's extra diagnosis/strengths wrapper. Synopsis, two candidates,
+ordered beats, approved facts/interest, companion/count/source bindings, shared
+editor v3 checks and semantic edit audit remain. Creative causal questions and
+diagnosis-before-revision remain guidance, not a claim about internal thinking.
+Current diagnostic/host/calibration contracts explicitly advance to v2. Old
+contracts cannot be re-admitted; v1 archives remain displayable read-only.
+Named final/comparison admission replaces readings.slice(1), preventing a blocking
+final finding from being skipped when original-only review is absent.
+
+Focused 439/439 across seven specs; tsc 0 and diff --check clean. Two deliberate
+mutations fail their targeted tests: restoring positional slice(1), and removing
+the current-plan version check. Restored before final validation. Two initial
+fixture migration errors were repaired, not hidden as product failures.
+Full B check native 1: ordinary 392 files exit 1; resource 20 files/635 tests pass
+but two onTaskUpdate RPC timeouts make that lane exit 1. Full gate stays RED.
+Separate ordinary replay: 10 failed/6096 passed/73 skipped, the ten recorded
+missing-artifact names, no EEXIST this time. This does not replace the full run
+or prove the A-run EEXIST cause; see the handoff for precise observations.
+
+At the unchanged captured rate assumptions, eight-spread normal book reservation
+is 9,248,802 microUSD versus benchmark 11,338,803; savings 2,090,001 are not
+repurposed. Combined probe allowance plus book reservation is 9,498,802 normal,
+not an expected bill or newly verified provider price. Source-bound consent,
+USD/timeout/cancellation/unknown-cost/no-replay guards and ten old seals remain.
+Final read-only recomputation: 70/70 historical files in 20 roots unchanged,
+zero missing/additional files; both protected worktrees remain clean and pinned.
+
+No new providers, key creation, spend, paid retries, render, site/wizard change,
+QA deployment or push. The public/dev story_only provider remains OpenAI; do not
+claim this local diagnostic already runs behind the public recording wizard.
+No literary/product/release PASS, new completed book or verified backup.
+Claude handoff: docs/ai-workflow/PERSONAL_TEXT_PATH_SIMPLIFICATION_HANDOFF_20261004.md.
+
 ## Approved text-path simplification: accounting milestone A 2026 10 04
 
 Guy approved two free milestones at b9995108. A removes only the Opus
