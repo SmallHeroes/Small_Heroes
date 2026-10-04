@@ -17,8 +17,12 @@ import { causalPlanSchema, compileCausalPlan, CAUSAL_EXPERIMENT_VERSION, BACKWAR
 import { fixtureAdventureSelection } from '../personal-wizard/__tests__/story-planning-fixture';
 import type { CausalDispatch } from '../personal-wizard/story-causal-experiment-runner';
 vi.mock('node:child_process', async original => ({ ...await original<typeof import('node:child_process')>(), spawn: vi.fn() }));
+vi.mock('openai/helpers/zod', async original => {
+  const actual = await original<typeof import('openai/helpers/zod')>();
+  return { ...actual, zodTextFormat: vi.fn(actual.zodTextFormat) };
+});
 const dirs: string[] = [];
-afterEach(() => { vi.useRealTimers(); vi.unstubAllEnvs(); for (const dir of dirs.splice(0)) rmSync(dir, { recursive: true, force: true }); });
+afterEach(() => { vi.useRealTimers(); vi.unstubAllEnvs(); vi.restoreAllMocks(); for (const dir of dirs.splice(0)) rmSync(dir, { recursive: true, force: true }); });
 beforeEach(() => { vi.mocked(spawn).mockReset(); });
 function setup(overrides: Partial<CausalDispatch> = {}) {
   const root = mkdtempSync(path.join(tmpdir(), 'causal-native-test-')); dirs.push(root);
@@ -62,24 +66,27 @@ function planning(index: number, rejected = false) {
   return { prepared, schema: causalPlanSchema(prepared), raw };
 }
 
-// Reproduces only the observed root-type requirement, not all provider rules.
-function objectRootCli(raw: unknown) {
+// Models the two captured root rejections, not the complete provider validator.
+function objectRootCli(raw: unknown, literalOutput = false) {
   const fake = fakeChild(null, 0, false); let schema: any;
   vi.mocked(spawn).mockImplementation((_exe, args) => {
     const argv = args as string[]; schema = JSON.parse(argv[argv.indexOf('--json-schema') + 1]);
     return fake.child as unknown as ReturnType<typeof spawn>;
   });
   fake.child.stdin.on('finish', () => queueMicrotask(() => {
-    const accepted = schema?.type === 'object';
-    fake.child.stdout.write(JSON.stringify(accepted ? { ...successful(), structured_output: raw } : {
+    const hasCombinator = ['anyOf', 'oneOf', 'allOf'].some(key => key in schema);
+    const accepted = schema?.type === 'object' && !hasCombinator;
+    fake.child.stdout.write(JSON.stringify(accepted ? { ...successful(), structured_output:
+      !literalOutput && schema.properties?.result ? { result: raw } : raw } : {
       subtype: 'success', is_error: true, total_cost_usd: 0, modelUsage: {},
-      result: 'API Error: 400 tools.1.custom.input_schema.type: Field required',
+      result: schema?.type !== 'object' ? 'API Error: 400 tools.1.custom.input_schema.type: Field required' :
+        'API Error: 400 tools.1.custom.input_schema: input_schema does not support oneOf, allOf, or anyOf at the top level',
     }));
     fake.child.emit('close', accepted ? 0 : 1, null);
   }));
 }
 
-describe('real planner object-root compatibility, offline CLI model only', () => {
+describe('real planner tool-envelope compatibility, offline CLI model only', () => {
   const lengths = [{ index: 0, spreads: 8 }, { index: 1, spreads: 12 }, { index: 2, spreads: 16 }];
   const stages = ['plan', 'replan'] as const;
   it.each(lengths.flatMap(row => stages.map(stage => ({ ...row, stage }))))('$stage $spreads retains both branches, every reference and byte accounting', ({ index, spreads, stage }) => {
@@ -87,9 +94,11 @@ describe('real planner object-root compatibility, offline CLI model only', () =>
     const baseline = JSON.stringify(exported), h = setup({ stage, schema: f.schema });
     const adapted = JSON.parse(h.wire.args![16]);
     expect(f.prepared.brief.beats).toBe(spreads); expect(exported).not.toHaveProperty('type');
-    expect(adapted.type).toBe('object');
-    const { type: _type, ...rest } = adapted; expect(rest).toEqual(exported);
-    expect(adapted.anyOf.map((branch: any) => branch.properties.disposition.const)).toEqual(['selected', 'both_rejected']);
+    expect(adapted).toEqual(zodTextFormat(z.object({ result: f.schema }).strict(), `causal_${stage}`).schema);
+    expect(adapted.type).toBe('object'); expect(adapted.required).toEqual(['result']); expect(adapted.additionalProperties).toBe(false);
+    expect(Object.keys(adapted.properties)).toEqual(['result']);
+    for (const key of ['anyOf', 'oneOf', 'allOf']) expect(adapted).not.toHaveProperty(key);
+    expect(adapted.properties.result.anyOf.map((branch: any) => branch.properties.disposition.const)).toEqual(['selected', 'both_rejected']);
     const checkRefs = (node: any): void => {
       if (!node || typeof node !== 'object') return;
       if ('$ref' in node) {
@@ -114,15 +123,16 @@ describe('real planner object-root compatibility, offline CLI model only', () =>
     expect(reply.output).toEqual(f.raw); expect(compileCausalPlan(f.prepared, reply.output).disposition).toBe(rejected ? 'both_rejected' : 'selected');
     expect(spawn).toHaveBeenCalledTimes(1);
   });
-  it('the old no-type wire reproduces the captured 400 in the offline CLI model', async () => {
+  it.each([false, true])('the old wire with addedType=%s reproduces its captured 400 in the offline CLI model', async addedType => {
     const f = planning(0), h = setup({ stage: 'plan', schema: f.schema }), wire = structuredClone(h.wire);
-    wire.args![16] = JSON.stringify(zodTextFormat(f.schema, 'causal_plan').schema);
+    const exported = zodTextFormat(f.schema, 'causal_plan').schema;
+    wire.args![16] = JSON.stringify(addedType ? { ...exported, type: 'object' } : exported);
     wire.payload.args = wire.args; wire.json = JSON.stringify(wire.payload);
     wire.bytes = Buffer.byteLength(wire.json); wire.digest = createHash('sha256').update(wire.json).digest('hex');
     wire.reservedMicroUsd = wireReservation(wire.bytes, wire.outputCap, h.policy.rates.opus);
     objectRootCli(f.raw);
     await expect(h.run(wire, h.call, new AbortController().signal)).rejects.toMatchObject({ code: 'cli_termination',
-      receipt: { raw: { stdout: expect.stringContaining('input_schema.type: Field required') } } });
+      receipt: { raw: { stdout: expect.stringContaining(addedType ? 'anyOf at the top level' : 'input_schema.type: Field required') } } });
     expect(spawn).toHaveBeenCalledTimes(1);
   });
   it.each(['disposition', 'request', 'extra', 'missing', 'wrong_branch'])('adaptation cannot admit %s in a returned plan', async kind => {
@@ -133,6 +143,29 @@ describe('real planner object-root compatibility, offline CLI model only', () =>
     objectRootCli(raw);
     await expect(h.run(h.wire, h.call, new AbortController().signal)).rejects.toMatchObject({ code: 'provider_or_schema' });
     expect(spawn).toHaveBeenCalledTimes(1);
+  });
+  it.each(['unwrapped', 'missing', 'extra', 'null_result', 'double_wrapped'])('transport envelope rejects %s instead of falling back to domain parsing', async kind => {
+    const f = planning(0), h = setup({ stage: 'plan', schema: f.schema });
+    const outputs: Record<string, unknown> = { unwrapped: f.raw, missing: {}, extra: { result: f.raw, extra: true },
+      null_result: { result: null }, double_wrapped: { result: { result: f.raw } } };
+    objectRootCli(outputs[kind], true);
+    await expect(h.run(h.wire, h.call, new AbortController().signal)).rejects.toMatchObject({ code: 'provider_or_schema' });
+    expect(spawn).toHaveBeenCalledTimes(1);
+  });
+  it.each([
+    { name: 'typed union', literal: { type: 'object', anyOf: [{ type: 'object' }] } },
+    { name: 'typed scalar union', literal: { type: 'string', anyOf: [{ type: 'object' }] } },
+    { name: 'empty anyOf', literal: { anyOf: [] } },
+    { name: 'ref-only branch', literal: { anyOf: [{ $ref: '#/definitions/object' }] } },
+    { name: 'missing branch type', literal: { anyOf: [{ properties: {} }] } },
+    { name: 'null branch', literal: { anyOf: [null] } },
+    { name: 'typed oneOf', literal: { type: 'object', oneOf: [{ type: 'object' }] } },
+    { name: 'typed allOf', literal: { type: 'object', allOf: [{ type: 'object' }] } },
+    { name: 'anyOf with oneOf', literal: { anyOf: [{ type: 'object' }], oneOf: [{ type: 'object' }] } },
+    { name: 'anyOf with allOf', literal: { anyOf: [{ type: 'object' }], allOf: [{ type: 'object' }] } },
+  ])('literal exporter $name fails closed before spawn', ({ literal }) => {
+    vi.mocked(zodTextFormat).mockReturnValueOnce({ schema: literal } as unknown as ReturnType<typeof zodTextFormat>);
+    expect(() => setup()).toThrow('causal_host_cli_schema'); expect(spawn).not.toHaveBeenCalled();
   });
   it.each([
     { name: 'scalar', schema: z.string() }, { name: 'array', schema: z.array(z.string()) },
@@ -152,12 +185,18 @@ describe('real planner object-root compatibility, offline CLI model only', () =>
       text: { format: zodTextFormat(schema, 'causal_final_review') } });
     expect(spawn).not.toHaveBeenCalled();
   });
-  it('object-union normalization is Opus-only; even an Astra union export remains unmodified', () => {
+  it('object-union envelope is Opus-only; even an Astra union export remains unmodified', () => {
     const f = planning(0), h = setup(), call: CausalDispatch = { ...h.call, role: 'astra', stage: 'final_review', schema: f.schema };
     const wire = prepareCausalWire(call, h.policy, 1_000_000);
     expect(wire.payload.text).toEqual({ format: zodTextFormat(f.schema, 'causal_final_review') });
     expect((wire.payload.text as any).format.schema).not.toHaveProperty('type');
     expect(spawn).not.toHaveBeenCalled();
+  });
+  it('an ordinary object whose domain field is named result is never unwrapped', async () => {
+    const schema = z.object({ result: z.string() }).strict(), h = setup({ schema });
+    expect(h.wire.args![16]).toBe(JSON.stringify(zodTextFormat(schema, 'causal_author').schema));
+    fakeChild({ ...successful(), structured_output: { result: 'domain value' } });
+    expect((await h.run(h.wire, h.call, new AbortController().signal)).output).toEqual({ result: 'domain value' });
   });
 });
 

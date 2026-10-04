@@ -10,6 +10,21 @@ This roadmap records technical milestone state. Guy can change product priority 
 
 ### P-personal fifteen-companion expansion (2026-10-03)
 
+- 2026-10-04 exact root-type correction cdf2ded9..36d9e85d independently PASSed,
+  not proof of live acceptance. Third approved one-use trial then hit API 400
+  forbidding root anyOf, before synopsis; probe estimate USD 0.010875, cumulative
+  captured three-trial estimate USD 0.032625 (not invoice). Both families sealed,
+  all old 28 evidence files preserved and new fourteen fingerprints recorded.
+  Free union-only strict Opus tool-envelope successor implemented: focused
+  289/289, eighteen baseline regressions and eleven broken controls caught.
+  Pinned CLI fake-key loopback request matches exact adapted schema, not provider
+  acceptance. Exact successor re-gate and NEW one-use approval precede any retry.
+  Fresh full gate RED: ordinary same ten historical failures / 6,047 passed /
+  73 skipped; resource 635/635 plus three RPC errors; valid diagnostic protocols,
+  wrapper/native 1. Final separate tsc 0. No baseline cause proof, book, paid
+  retry, images, public cutover or push.
+  Older pending-QA/root-type statements below are historical, not current truth.
+
 - 2026-10-04 second approved one-use text trial at cdf2ded9 got past auth but
   failed Claude planning with API 400 missing input_schema.type, no synopsis.
   Fresh Astra probe estimate USD 0.010875; both trials total USD 0.021750 captured

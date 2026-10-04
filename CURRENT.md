@@ -1,5 +1,48 @@
 # SmallHeroes — Current Technical State
 
+## Third text trial and Opus tool-envelope correction 2026 10 04
+
+Claude independently PASSed cdf2ded9..36d9e85d, P0/P1/P2 zero, with low P3-1
+backup-guard coverage. That exact technical PASS did not prove provider schema
+acceptance. His valid-protocol full run: ordinary ten inherited missing-artifact
+failures / 6,030 passed / 73 skipped; resource 635/635 plus three RPC errors.
+Stability remains RED. Earlier Codex IPC-abort evidence is not overwritten.
+
+Guy approved a third one-use fictional eight-spread text attempt up to USD 12,
+reference guy-text-calibration-20261004-03, frozen 36d9e85d. Astra probe completed
+with reported gpt-6-astra/default, 582 input / 72 output, conservative estimate
+USD 0.010875. Opus planning then returned native 1 / API 400: tool input_schema
+does not support oneOf, allOf, or anyOf at the top level. Raw CLI cost/tokens
+zero, modelUsage empty, accepted usage null. No synopsis, manuscript, editor,
+literary QA or book viewer. Both families sealed; no retry. Captured estimates
+across three attempts total USD 0.032625, not invoice proof. All 28 old files
+match their baselines; a separate fourteen-file baseline covers this attempt.
+
+The former root-type-only fix is therefore insufficient for live compatibility.
+Codex's free successor regenerates only Opus all-object root unions inside a
+strict transport envelope {result: originalSchema}. SDK refs are regenerated;
+the full envelope is validated before unwrapping. Both dispositions survive;
+plain-object/Astra wires and domain/prompt/model/cap/journal/public paths remain
+unchanged. Existing records are not migrated or re-decoded. New literal-exporter
+tests also pin the three old backup clauses; independent review is pending.
+
+Focused 289/289 across six specs, native 47 to 64 with none removed; previous
+adapter fails eighteen new wire/decode regressions; eleven memory-only broken
+variants caught, source bytes unchanged during controls. Real pinned CLI against
+fake-key refusing loopback endpoint sent two identical corrected schemas, no
+provider model call or charge. This is NOT provider acceptance or book quality.
+Fresh npm run check wrapper/native lanes exit 1, both diagnostic protocols valid:
+ordinary same ten named historical failures / 6,047 passed / 73 skipped;
+resource 635/635 plus three onTaskUpdate RPC errors. No ordinary timeout or
+baseline causal rerun claimed. Final separate tsc exits 0. Full gate stays RED.
+
+Next: Claude exact read-only re-gate, then Guy's explicit new one-use execution
+decision. No extra paid call, reset, push, render, narration or site cutover.
+Author thinking capacity, story quality, six-book comparison and companion/
+carousel admission remain open. Decision and complete handoff:
+docs/ai-workflow/PERSONAL_OPUS_ENVELOPE_DECISION_20261004.md and
+docs/ai-workflow/PERSONAL_OPUS_ENVELOPE_QA_20261004.md.
+
 ## Claude planning schema correction awaiting independent QA 2026 10 04
 
 Guy renewed Claude login and approved a fresh single text attempt at cdf2ded9.

@@ -1,6 +1,7 @@
 /** Diagnostic transports only. No client, key read, spawn or network at import. */
 import OpenAI from 'openai';
 import { zodTextFormat } from 'openai/helpers/zod';
+import { z } from 'zod';
 import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
@@ -29,14 +30,18 @@ const isOpus = (stage: CausalDispatch['stage']) => ['plan', 'replan', 'author', 
 const astraPayload = (call: CausalDispatch) => ({ model: CAUSAL_MODELS.astra, store: false, service_tier: 'default', reasoning: { effort: 'medium' },
   instructions: call.instructions, input: call.input, max_output_tokens: call.maxOutputTokens,
   text: { format: zodTextFormat(call.schema, `causal_${call.stage}`) } });
-function opusInputSchema(schema: Record<string, unknown>): Record<string, unknown> {
-  if (schema.type === 'object') return schema;
-  // CLI structured output is a tool input: it needs an explicit object root.
-  // Both alternatives already require objects, so this does not narrow them.
-  // Preserve their strict properties/definitions; do not add empty root fields.
-  if (schema.type !== undefined || !Array.isArray(schema.anyOf) || schema.anyOf.length === 0 ||
+function opusOutputContract(call: CausalDispatch) {
+  const format = zodTextFormat(call.schema, `causal_${call.stage}`), schema = format.schema;
+  if (schema.type === 'object' && !['anyOf', 'oneOf', 'allOf'].some(key => key in schema)) {
+    return { schema, decode: (value: unknown) => call.schema.parse(value) };
+  }
+  // Tool input roots cannot carry combinators. Keep the union under a strict
+  // transport-only property, regenerating refs instead of relocating JSON by hand.
+  if (schema.type !== undefined || 'oneOf' in schema || 'allOf' in schema || !Array.isArray(schema.anyOf) || schema.anyOf.length === 0 ||
     schema.anyOf.some(branch => !branch || typeof branch !== 'object' || branch.type !== 'object')) hostFail('cli_schema');
-  return { ...schema, type: 'object' };
+  const envelope = z.object({ result: call.schema }).strict();
+  return { schema: zodTextFormat(envelope, `causal_${call.stage}`).schema,
+    decode: (value: unknown) => envelope.parse(value).result };
 }
 export function wireReservation(bytes: number, tokens: number, rate: Rates) {
   if (![bytes, tokens].every(n => Number.isSafeInteger(n) && n > 0) ||
@@ -50,7 +55,7 @@ export function prepareCausalWire(call: CausalDispatch, policy: WirePolicy, capM
   if (!(call.role in CAUSAL_MODELS) || isOpus(call.stage) !== (call.role === 'opus') ||
     !Number.isSafeInteger(call.maxOutputTokens) || call.maxOutputTokens < 1 || call.maxOutputTokens > 55_000 ||
     !Number.isSafeInteger(policy.maxWireBytes) || policy.maxWireBytes < 1 || policy.maxWireBytes > 104_000) hostFail('wire_contract');
-  const format = zodTextFormat(call.schema, `causal_${call.stage}`), model = CAUSAL_MODELS[call.role];
+  const model = CAUSAL_MODELS[call.role];
   let payload: Record<string, unknown>, args: string[] | null = null, stdin: string | null = null;
   if (call.role === 'astra') {
     payload = astraPayload(call);
@@ -58,7 +63,7 @@ export function prepareCausalWire(call: CausalDispatch, policy: WirePolicy, capM
     if (!instructionFile || !path.isAbsolute(instructionFile)) hostFail('instruction_file');
     args = ['-p', '--safe-mode', '--model', model, '--effort', 'medium', '--tools', '', '--no-session-persistence',
       '--output-format', 'json', '--max-budget-usd', String(capMicroUsd / 1e6), '--system-prompt-file', instructionFile,
-      '--json-schema', JSON.stringify(opusInputSchema(format.schema))];
+      '--json-schema', JSON.stringify(opusOutputContract(call).schema)];
     if (args.map(a => JSON.stringify(a)).join(' ').length + policy.executable.length > 31_000) hostFail('argv_limit');
     stdin = call.input;
     payload = { executable: policy.executable, executableSha256: policy.executableSha256, args, stdin, instructionFile, instructions: call.instructions,
@@ -152,7 +157,7 @@ export function createOpusCausalTransport(policy: WirePolicy) {
       if (modelKeys.length !== 1 || modelKeys[0] !== wire.model) hostFail('reported_model_or_tier');
       if (!usage || micro === null || usage.outputTokens > wire.outputCap) hostFail('usage');
       if (parsed.is_error !== false || parsed.subtype !== 'success' || !parsed.structured_output || raw.stdout.includes('\ufffd')) hostFail('incomplete');
-      const output = call.schema.parse(parsed.structured_output);
+      const output = opusOutputContract(call).decode(parsed.structured_output);
       return { ...receipt, output };
     } catch (error) {
       throw new CausalTransportError(error instanceof CausalHostError ? error.code : 'provider_or_schema', receipt);
