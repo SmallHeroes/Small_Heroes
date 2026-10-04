@@ -32,14 +32,21 @@ guard was correct but unpinned. Root's test-only successor adds chosen_topic and
 adventure_only cases, each positive compile, schema-valid one-field mismatch,
 exact causal_experiment_plan_binding failure, and equal repaired result. Focused
 450/450, tsc 0; removing only the guard in memory fails exactly the two new tests.
-No production bytes changed. This successor awaits direct Claude re-gate.
+No production bytes changed. Claude independently re-gates exact
+9aff7785..ce29abbb: PASS, P0/P1/P2/P3 zero, tsc 0, 450/450, and the same two
+discriminating failures with the guard removed in memory. The pre-existing P3
+is closed. Report: CLAUDE_QA_RESILIENCE_ce29abbb_REPORT_20261005.md in the
+visualization root. Its normalized CAPTURE records the CLI metadata plus the
+unchanged final text extracted from the session log, not byte-identical stdout.
+Latest cumulative QA list-price estimate is 2.8426302 USD, not an invoice.
 Root is the sole engine writer; protected/source/site trees and sealed book
 evidence stay untouched. The reviewer recommends keeping the five-call normal
 recipe and reducing repeated documentation/full-gate overhead before one book.
 No new paid book, key read, image, public wizard cutover, push or deployment.
 Direct npm run check remains RED as measured in the previous entry.
 
-One short normal-mode fictional book needs no further engine implementation.
+The existing local normal runner implements all required fictional-book stages;
+whether it completes a live book is still unproven, not certified by offline QA.
 Fresh one-use spending consent and explicit synopsis-review authority remain
 pending; no old reference can be reused. The async question asks Guy for a new
 up-to-12-USD trial and delegation of synopsis review while away. Until answered,
@@ -47,6 +54,13 @@ only free QA/preparation continues. No executable trial06 config or reservation
 was created. The normal book allowance is 9.248802 USD plus a 0.25 USD probe;
 these are not a predicted invoice. Public recording still uses its separate
 OpenAI story-only path; this local Opus proof is not that public integration.
+Read-only call-site audit confirms StepSummary -> StoryPreview -> dev book route
+-> generatePersonalBook -> OpenAI plan/manuscript/editor, then story_only returns
+after three calls without separate Astra final/comparison. No app route imports
+the causal host. A future browser bridge must explicitly resolve synopsis review,
+input admission and result shape; swapping a model name would not connect them.
+Do not change that public/operator path before the readable local proof and its
+owner acceptance. This entry records exact prior gates, not its own self-PASS.
 
 ## Independent A B review and test only correction 2026 10 05
 

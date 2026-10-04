@@ -16,9 +16,12 @@ This roadmap records technical milestone state. Guy can change product priority 
   Historical 0b3e7ec2..5b9628ec and 5b9628ec..275c1834 also receive tested PASS
   through combined head 275c1834: 314/314, tsc 0; A not run at its own head.
   One pre-existing resilience-mode coverage gap is pinned by two additive cases;
-  450/450 and both guard-removal controls caught, direct re-gate pending. No
-  production change or repeated full gate. No new feature is needed for one local
-  readable fictional short book. Fresh spending/synopsis delegation is pending;
+  Exact 9aff7785..ce29abbb receives tested PASS with P0/P1/P2/P3 zero: tsc 0,
+  450/450 and both guard-removal controls caught by Claude. No production change
+  or repeated full gate. Existing local stages are implemented, not live-proven.
+  Browser story_only still uses three OpenAI calls, not Opus plus Astra; future
+  integration needs synopsis interaction/admission/result contracts, not a model
+  name swap. Fresh spending/synopsis delegation is pending;
   no paid book, seal reuse, public wizard integration, render, push or deploy.
 
 - Independent Claude Code A/B review received 2026-10-05: A exact b9995108..
