@@ -1,5 +1,44 @@
 # SmallHeroes — Current Technical State
 
+## Independent A B review and test only correction 2026 10 05
+
+Claude Code's independent read-only review gives technical PASS to exactly
+b9995108..471890ad, P0/P1/P2/P3 zero, and 471890ad..223499b3, P0/P1/P2 zero,
+P3 four. His report reproduces tsc, focused 157/157 and 439/439, mutations 9/9
+and 15/21, both full RED gates and all 70 preserved files. This is NOT approval
+for earlier commits, a paid run, story quality, public integration or push.
+The original reports remain unchanged; fingerprints are in the correction handoff.
+
+Root Codex's successor adds nine regression cases in two specs only: duplicate
+final/comparison/original and unknown reading stages; clean stage-less v2 versus
+v1 display; actual normal/benchmark host-manifest maximum; false original/revised
+semantic quotes through compileCausalEdit. No production, prompt, threshold,
+budget, migration, API, public wizard or runtime contract changes. The P3 items
+are coverage gaps in correct code, with semantic-call coverage pre-existing.
+Their corrective independent re-gate is pending, not self-awarded closed.
+
+Focused 448/448 in seven specs (86+80+80+71+42+41+48), tsc 0, diff --check clean.
+Six in-memory Vite mutations each fail only their intended new cases (2/1/1/1/2/2
+failures); production files on disk never changed. Initial two-spec run 157/157.
+Direct full successor check exits 1: ordinary 10 known artifact failures,
+6105 pass/73 skip across 392 files; resource 635/635 across 20 files plus two
+onTaskUpdate RPC errors. Both phases exit 1; no GREEN or stability claim.
+The first shell summary-capture attempt returned 1 without phase evidence;
+it is NOT a measured full test result or evidence of a product failure.
+
+Seventy historical files/twenty roots, ten seals, five closeouts and earlier
+review records remain SHA/size-identical; protected trees are clean and pinned.
+No new provider, key creation, paid retry, render, deployment, site change or
+push. The normal local diagnostic is five calls, but it is not yet the public
+recording wizard and no new book was generated here. Handoff:
+docs/ai-workflow/PERSONAL_SIMPLIFICATION_COVERAGE_REGATE_20261005.md.
+
+Before push, do not conflate Codex-invoked Claude CLI source-only reviews of
+5b9628ec/275c1834 with this independent reviewer's tested A/B gates. That reviewer
+explicitly has not reviewed those older prompt-contract commits. Their limited
+source opinions and Codex's tests remain evidence, not branch-wide acceptance.
+All older pending-review/build entries below are historical point-in-time state.
+
 ## Approved text-path simplification: milestone B implemented 2026 10 04
 
 Guy approved free diagnostic milestones A/B, not another paid attempt. A is the
@@ -72,9 +111,9 @@ docs/ai-workflow/PERSONAL_OPUS_USAGE_SCOPE_HANDOFF_20261004.md.
 
 ## Trial 05 stopped; text-path simplification proposed 2026 10 04
 
-Claude Code source-inspection re-gate for exactly 5b9628ec..275c1834 is technical
-PASS, P0/P1/P2/P3 zero. The preceding 0b3e7ec2..5b9628ec PASS had two P3 notes,
-closed by that successor. These reviews analysed frozen source/evidence packets;
+Codex-invoked Claude CLI source inspection for exactly 5b9628ec..275c1834 reported
+PASS, P0/P1/P2/P3 zero. The preceding 0b3e7ec2..5b9628ec source opinion had two
+P3 notes addressed by that successor. These limited reviews analysed frozen source/evidence packets;
 they did not independently run tests or preservation hashes. Codex's successor
 checks remain tsc 0 and focused 314/314. No successor full-gate rerun; parent RED
 observation remains. The older pending-review statements below are historical.

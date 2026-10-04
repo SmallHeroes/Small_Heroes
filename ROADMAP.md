@@ -10,6 +10,17 @@ This roadmap records technical milestone state. Guy can change product priority 
 
 ### P-personal fifteen-companion expansion (2026-10-03)
 
+- Independent Claude Code A/B review received 2026-10-05: A exact b9995108..
+  471890ad PASS with no findings; B exact 471890ad..223499b3 PASS with four P3
+  coverage gaps in correct code. Test/docs-only successor adds nine cases;
+  focused 448/448, tsc 0, six in-memory negative controls caught. Re-gate pending;
+  full successor native 1: ordinary 10 known failures/6105 pass/73 skip;
+  resource 635/635 plus two RPC errors. Baseline RED not overridden. No provider,
+  book, site cutover, paid retry or push. Earlier 5b9628ec/275c1834 source-only
+  Claude CLI opinions are not this reviewer's tested independent gate; before
+  push, review their exact scope separately. Next: correction re-gate, then new
+  bounded consent for one fictional readable draft/edit, not six paid books.
+
 - Approved free A/B implemented locally: A 471890ad fixes cumulative CLI usage
   scope; B removes only diagnostic self-citation/extra editor ledgers and makes
   original scoring explicit benchmark overhead. Normal path keeps fresh Opus
@@ -29,7 +40,7 @@ This roadmap records technical milestone state. Guy can change product priority 
   Independent QA pending; B remains local diagnostic-only, no public cutover.
 
 - Trial 05 at frozen 275c1834 stopped as requested, no sixth paid attempt. Claude
-  source-inspection re-gate 5b9628ec..275c1834 PASS with no findings; not a test or
+  Codex-invoked Claude CLI source opinion 5b9628ec..275c1834 reports PASS; not a test or
   preservation rerun. The new structured Opus plan passes the current compiler
   in memory, but our adapter rejects cumulative CLI 22,785 outputs against an
   18,000 per-request setting. No accepted synopsis/manuscript/book. Captured trial

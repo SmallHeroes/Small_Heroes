@@ -76,6 +76,20 @@ describe('one fictional book over the existing causal host, not public rollout',
       reviewMode: 'normal', bookReservedMicroUsd: 9248802, combinedAllowancesMicroUsd: 9498802, maximumLogicalAttempts: 7, providerCalls: 0, runtimeEligible: false });
     expect(h.key).not.toHaveBeenCalled(); expect(h.transport).not.toHaveBeenCalled(); expect(readdirSync(h.root)).toEqual(before);
   });
+  it.each(['normal', 'benchmark'] as const)('%s actual book host ceiling equals its smaller active recipe reservation', async mode => {
+    const h = harness(mode), driver = createSingleBookCalibration(h.args);
+    try {
+      await driver.plan();
+      const manifest = JSON.parse(readFileSync(path.join(h.spec.bookRoot, 'manifest.json'), 'utf8'));
+      const expected = mode === 'normal' ? 9248802 : 11338803;
+      expect(manifest.policy.reviewMode).toBe(mode);
+      expect(manifest.policy.maximumMicroUsd).toBe(expected);
+      expect(manifest.policy.maximumMicroUsd).toBe(h.spec.bookReserved);
+      expect(manifest.reservedMicroUsd).toBe(expected);
+      expect(manifest.slots.reduce((sum: number, slot: { capMicroUsd: number }) => sum + slot.capMicroUsd, 0)).toBe(expected);
+      expect(h.transport).toHaveBeenCalledTimes(2); expect(h.key).not.toHaveBeenCalled();
+    } finally { driver.stop(); }
+  });
   it('constructor is inert and fingerprints the executable before any family acquisition', () => {
     const h = harness(), reserve = vi.spyOn(CausalFamilyJournal, 'reserve'), before = readdirSync(h.root);
     const driver = createSingleBookCalibration(h.args); expect(driver.snapshot().phase).toBe('ready'); driver.stop();
@@ -339,6 +353,36 @@ describe('one fictional book over the existing causal host, not public rollout',
     expect(singleBookOutcome(legacy)).toBe('text_held_by_model');
     legacy.evidence.manifest.version = CAUSAL_EXPERIMENT_VERSION;
     expect(singleBookOutcome(legacy)).toBe('text_held_by_model'); // no positional fallback for current records
+  }, 15000);
+  it.each(['final_review', 'comparison', 'original_review', 'unknown'] as const)('holds an otherwise clean completed book with duplicate or unknown %s reading', async kind => {
+    const h = harness('benchmark'), driver = createSingleBookCalibration(h.args), bundle = await driver.plan(); h.review(bundle.sourceDigest);
+    const result = await driver.writeFromReviewFile();
+    expect(result.books[0].edit.disposition).toBe('model_supported');
+    expect(result.books[0].readings.every(row => row.findings.length === 0)).toBe(true);
+    expect(singleBookOutcome(result)).toBe('text_ready_for_human_review');
+    const tampered = structuredClone(result), extra = structuredClone(result.books[0].readings.find(row =>
+      row.stage === (kind === 'unknown' ? 'final_review' : kind))!);
+    if (kind === 'unknown') extra.stage = 'future_review' as typeof extra.stage;
+    tampered.books[0].readings.push(extra); // Required final/comparison records remain present and nonblocking.
+    expect(singleBookOutcome(tampered)).toBe('text_held_by_model');
+    expect(singleBookOutcome(result)).toBe('text_ready_for_human_review');
+    expect(h.transport).toHaveBeenCalledTimes(7); expect(h.key).not.toHaveBeenCalled();
+  }, 15000);
+  it('current clean stage-less records cannot inherit the v1 positional display mapping', async () => {
+    const h = harness('benchmark'), driver = createSingleBookCalibration(h.args), bundle = await driver.plan(); h.review(bundle.sourceDigest);
+    const result = await driver.writeFromReviewFile();
+    expect(singleBookOutcome(result)).toBe('text_ready_for_human_review');
+    expect(result.books[0].readings.every(row => row.findings.length === 0)).toBe(true);
+    const stageLess = { ...result, books: result.books.map(book => ({ ...book,
+      readings: book.readings.map(({ stage: _stage, ...row }) => row) })) };
+    const before = JSON.stringify(stageLess);
+    expect(singleBookOutcome(stageLess)).toBe('text_held_by_model');
+    const legacy = { ...stageLess, evidence: { ...stageLess.evidence,
+      manifest: { ...stageLess.evidence.manifest, version: 'personal-causal-experiment/diagnostic-v1' } } };
+    expect(singleBookOutcome(legacy)).toBe('text_ready_for_human_review');
+    expect(renderSingleBookText(legacy)).toContain('original_review');
+    expect(JSON.stringify(stageLess)).toBe(before);
+    expect(h.transport).toHaveBeenCalledTimes(7); expect(h.key).not.toHaveBeenCalled();
   }, 15000);
   it('captures the selected mode, derives mode-bound digests, and cannot reuse consent under another mode/root', async () => {
     const h = harness(), driver = createSingleBookCalibration(h.args);

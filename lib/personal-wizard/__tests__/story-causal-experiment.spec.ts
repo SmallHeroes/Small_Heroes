@@ -426,6 +426,16 @@ describe('limited causal experiment, not live provider or quality certification'
     const clean = selectedFixture(); Object.values(clean.output.revision.checks).forEach((c: any) => { c.outcome = 'needs_work'; });
     expect(compileCausalEdit(clean.p, clean.original, clean.output).disposition).toBe('held');
   });
+  it.each(['original', 'revised'] as const)('causal editor rejects an absent %s semantic quote at the evidence assertion', side => {
+    const f = selectedFixture(), accepted = compileCausalEdit(f.p, f.original, f.output);
+    expect(accepted.disposition).toBe('model_supported');
+    const tampered = structuredClone(f.output), absent = 'Synthetic quotation absent from the actual manuscript.';
+    const prose = side === 'original' ? f.original.manuscript : accepted.revised.manuscript;
+    expect(prose.pages.some(page => page.text.includes(absent))).toBe(false);
+    tampered.revision.semanticAudit.setup_payoff[side][0].quote = absent;
+    expect(() => compileCausalEdit(f.p, f.original, tampered)).toThrow('causal_experiment_semantic_evidence');
+    expect(compileCausalEdit(f.p, f.original, f.output)).toEqual(accepted);
+  });
   it.each(['normal', 'benchmark'] as const)('%s isolated critics see only approved brief and their own prose; comparison waits for final', async reviewMode => {
     const seen: CausalDispatch[] = []; const h = harness(1, call => { seen.push(call);
       const output: any = defaultOutput(call);
