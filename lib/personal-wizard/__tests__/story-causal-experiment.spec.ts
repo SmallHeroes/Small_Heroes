@@ -409,6 +409,7 @@ describe('limited causal experiment, not live provider or quality certification'
     expect(call.instructions).toContain('Distinguish proven contradiction, ambiguity, literary weakness and stylistic preference');
     expect(call.instructions).toContain('Allocate narrative space for brief.child.age and brief.beats');
     expect(call.instructions).toContain('Preserve functions, not necessarily literal wording');
+    expect(call.instructions).toContain('Use the existing adventure_and_payoff check to assess whole-book development');
     expect(call.input).not.toMatch(/findings|packetDigest|authorConversation/);
   });
   it.each(['original_review', 'final_review', 'comparison'] as const)('actual %s asks for justified reader-impact findings rather than semantic attestation', async stage => {
@@ -479,6 +480,14 @@ describe('limited causal experiment, not live provider or quality certification'
     expect(call.maxOutputTokens).toBe(12000);
     const packet = JSON.parse(call.input).packet;
     expect(packet.instructions).toBe(call.instructions);
+    if (stage === 'comparison') {
+      expect(call.instructions).toContain('Assess whether revision improved the experience, merely shortened it, or lost its development');
+      expect(call.instructions).not.toContain('A substantial lack of development supported by actual prose and reader impact is kind issue');
+    } else {
+      expect(call.instructions).toContain('A substantial lack of development supported by actual prose and reader impact is kind issue with severity meaningful');
+      expect(call.instructions).toContain('a preference for a different pace or setting alone is kind preference');
+      expect(call.instructions).not.toContain('Assess whether revision improved the experience, merely shortened it, or lost its development');
+    }
     // Soft brevity guidance does not clamp or silently change the existing hard schema.
     const longest = { packetDigest: causalDigest(packet), summary: 's'.repeat(600), findings: [] };
     expect(compileCausalReading(packet, longest).summary).toHaveLength(600);
@@ -902,6 +911,7 @@ describe('opt-in draft critique before fresh editor, no literary certification',
     expect(input.draftCritique.projectionDigest).toBe(transfer.context.projectionDigest);
     expect(calls[3].instructions).toContain('fallible reader claims');
     expect(calls[3].instructions).toContain('Develop the adventure as a changing journey');
+    expect(calls[3].instructions).toContain('Use the existing adventure_and_payoff check to assess whole-book development');
     expect(calls[3].instructions).toContain('clue distinguishes the reasonable alternatives in that actual scene');
     expect(calls[3].instructions).not.toContain('not the author conversation or critic verdict.');
     expect(out.books[0].edit.draftCritiqueResponse!.responses[0].decision).toBe('kept');

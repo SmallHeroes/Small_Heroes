@@ -15,7 +15,10 @@ This roadmap records technical milestone state. Guy can change product priority 
   readers. No new stage/schema/model/cap/public path or location quota.
   Initial583/583,tsc0,nine public call comparisons,four in-memory controls and
   245preserved files/42roots; fullRED:6233ordinarypass/10historicalfails/73skip,
-  resource635/635 withtwoRPCerrors. Final583/583,tsc0; independentClaudeQA pending.
+  resource635/635 withtwoRPCerrors. ActualClaudePASS0155ec94..1239549b verifies
+  583/583,tsc0,parity/hashes/controls itself. Low-mediumclassificationrisk receives
+  explicit issue/meaningful versus taste guidance; comparison-only wording and
+  editorcriterion corrected. Separate successorre-gate pending, no expandedPASS.
   One fresh approved text book only after review; no literary/release
   acceptance or paid dispatch yet.
 

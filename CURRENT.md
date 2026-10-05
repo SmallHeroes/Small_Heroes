@@ -11,8 +11,12 @@ tsc0, focused583/583, nine frozen public call comparisons, four in-memory
 instruction-removal controls and245files/42roots preserved. These are routing
 and preservation evidence, not improved literature. Full check exits1: ordinary
 6233pass/10historicalfails/73skip; resource635/635 plus twoonTaskUpdateRPCerrors.
-Final focused rerun583/583 andtsc0 pass; actual Claude Code QA is pending.
-No full green claim. After independent
+Actual Claude Code PASS covers0155ec94..1239549b: its own583/583,tsc0,
+publicparity9,245hashes andfourcontrols,clean exacttrees. Maxlistestimate1.1954766USD
+is separate,notinvoice. Accepted low-mediumfinding gets a corrective successor:
+materialunderdevelopment is issue/meaningful, taste remains preference; comparison
+wording stays comparison-only and existing editorcriterion is named. New re-gate
+pending; no code/product/release acceptance is expanded. No full green claim. After independent
 review, one fresh approved fictional book precedes any cohort/visual work.
 No provider call, push or deploy. See
 docs/ai-workflow/PERSONAL_DYNAMIC_ADVENTURE_20261005.md.

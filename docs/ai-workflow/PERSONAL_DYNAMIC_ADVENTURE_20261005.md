@@ -103,3 +103,27 @@ from literary issue to literary weakness during the resource lane to avoid
 suggesting the wrong comparison finding kind. Final tsc and the entire focused
 command pass again on that final wording before commit: tsc0, 583/583. No full-gate green or
 immutable final-source full-run claim. Raw full-check.json/log are external.
+
+## First independent review and corrective successor
+
+Actual native Claude Code PASS covers 0155ec94..1239549b for routing/preservation
+only. It independently executes tsc0, 583/583, the nine public comparisons, all
+245 archival hashes and four in-memory controls, and checks both clean frozen
+trees. Its Max list estimate is $1.1954766, separate from book usage and not an
+invoice. It reads the full RED result; it does not close trial10 evidence HOLD.
+
+Codex accepts its low-medium classification risk: a materially underdeveloped
+adventure labelled preference would be excluded by the existing critique filter.
+The successor explicitly distinguishes supported substantial underdevelopment
+as issue/meaningful from taste-only preference for isolated readings. It moves
+comparison wording to the comparison-only branch and names the existing editor
+adventure_and_payoff criterion. No severity/kind/filter/schema/gate change.
+Real caller tests cover both classification guidance and isolated input wording.
+The slight critique input-space cost and possible travel bias remain risks, not
+closed by mocks. A new independent re-gate is required before book dispatch.
+
+The prepared one-book operator material additionally forwards the actual
+synopsis reviewInstructions and permits a material-underdevelopment HOLD in its
+existing native review. Earlier trial10 operator/paid records stay untouched.
+These external recipe files are audited separately; the code PASS does not
+claim they were part of its six-file commit.
