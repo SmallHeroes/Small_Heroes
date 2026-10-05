@@ -3,7 +3,8 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { PERSONAL_COMPANION_CAROUSEL } from '@/content/personal-landing';
 
-export type PersonalFriendCard = { id: string; name: string; line: string; image: string };
+/** `paper` is the colour the card art is painted on; the picture well takes it so the art has no side bands. */
+export type PersonalFriendCard = { id: string; name: string; line: string; image: string; paper?: string };
 
 /**
  * The friends row on the personal landing (Guy 2026-10-05: show them all). Every companion the wizard offers
@@ -39,7 +40,7 @@ export function PersonalCompanionCarousel({ friends, startHref }: { friends: Per
         data-event={copy === 'main' ? 'landing_companion_start' : undefined}
         data-companion={friend.id}
       >
-        <div className="mvp-challenge-card-img-wrap">
+        <div className="mvp-challenge-card-img-wrap" style={friend.paper ? ({ '--pcc-paper': friend.paper } as CSSProperties) : undefined}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img className="mvp-challenge-card-img" src={friend.image} alt="" loading="lazy" decoding="async" />
         </div>

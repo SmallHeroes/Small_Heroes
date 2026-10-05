@@ -111,7 +111,8 @@
 
 .pp-grid {
   display: grid;
-  grid-template-columns: minmax(0, 0.92fr) minmax(0, 1.08fr);
+  /* the parent's words, then the open book, which gets the room two equal pages need */
+  grid-template-columns: minmax(0, 0.84fr) minmax(0, 1.16fr);
   gap: clamp(24px, 4vw, 56px);
   align-items: center;
   max-width: 1120px;
@@ -163,7 +164,8 @@
 
 .pp-links li {
   display: flex;
-  flex-wrap: wrap;
+  /* sticker, arrow and story stay on one row; a long story line wraps beside its arrow, never under it */
+  flex-wrap: nowrap;
   align-items: center;
   gap: 8px 12px;
   font-size: 17px;
@@ -186,47 +188,89 @@
 }
 
 .pp-links li:nth-child(even) .pp-tag { rotate: 2deg; }
-.pp-into { display: inline-grid; color: var(--purple-400); }
+.pp-into { display: inline-grid; flex: none; color: var(--purple-400); }
 .pp-into svg { width: 20px; height: 20px; }
-.pp-became { font-weight: 600; }
+.pp-tag { flex: none; }
+.pp-became { flex: 1 1 auto; min-width: 0; font-weight: 600; }
 
-/* the story: a book page with its picture, the words on the reading side */
-.pp-page {
-  display: grid;
-  grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
-  overflow: hidden;
-  margin: 0;
-  border-radius: 24px;
-  background: #fffdf8;
-  box-shadow: 0 18px 44px rgba(40, 33, 74, 0.14), 0 0 0 1px rgba(40, 33, 74, 0.05);
-}
-
-.pp-text {
-  order: 1;
+/* ── The story as an open book (Guy 2026-10-05: "two sides the same size, it
+   should look like an open book, not UI") ─────────────────────────────────
+   A warm cover shows around the pages; two cream leaves of one size sit on
+   it, each shading softly into the binding, with the fold between them and
+   the stack of pages under them along the bottom. The words are on the
+   reading-side page and Yuval's picture faces them. */
+.pp-book {
   position: relative;
-  padding: clamp(22px, 2.6vw, 34px);
-  /* the fold of the book, where the text page meets the picture */
-  background: linear-gradient(to left, rgba(40, 33, 74, 0) 88%, rgba(40, 33, 74, 0.07) 100%);
+  margin: 0;
+  padding: 9px 11px 13px;
+  border-radius: 12px 12px 16px 16px;
+  background: linear-gradient(180deg, #d8a76e 0%, #c9925a 100%);
+  box-shadow: 0 28px 54px rgba(40, 33, 74, 0.2), 0 8px 16px rgba(40, 33, 74, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.35);
 }
 
-.pp-text p {
+.pp-spread {
+  --pp-paper: #fffaf0;
+  --pp-binding: #eadcc3;
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr)); /* both pages the same size */
+  border-radius: 4px 4px 6px 6px;
+  background: var(--pp-paper);
+  /* the closed pages under the open ones */
+  box-shadow: 0 2px 0 -1px #f4ead8, 0 4px 0 -2px #e3d2b4, 0 6px 0 -3px #f4ead8, 0 8px 0 -4px #dcc8a6;
+}
+
+/* the binding: a soft valley down the middle */
+.pp-spread::after {
+  content: '';
+  position: absolute;
+  inset-block: 0;
+  left: 50%;
+  width: 28px;
+  transform: translateX(-50%);
+  background: linear-gradient(90deg, rgba(120, 88, 48, 0) 0%, rgba(120, 88, 48, 0.14) 46%, rgba(80, 58, 30, 0.22) 50%, rgba(120, 88, 48, 0.14) 54%, rgba(120, 88, 48, 0) 100%);
+  pointer-events: none;
+}
+
+.pp-leaf {
+  position: relative;
+  min-width: 0;
+  padding: clamp(20px, 2.4vw, 32px) clamp(18px, 2.2vw, 30px);
+}
+
+/* each leaf darkens a little toward the binding, the way a page curves into it */
+.pp-leaf--words { background: linear-gradient(to left, var(--pp-paper) 0%, var(--pp-paper) 78%, var(--pp-binding) 100%); }
+.pp-leaf--art { display: flex; background: linear-gradient(to right, var(--pp-paper) 0%, var(--pp-paper) 78%, var(--pp-binding) 100%); }
+
+/* the book's running head: quiet, in the page's ink, not a UI label */
+.pp-running {
+  margin: 0 0 12px;
+  font-family: var(--fd);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: #9a8463;
+}
+
+.pp-leaf--words p {
   margin: 0;
-  font-size: clamp(17px, 1.45vw, 19px);
-  line-height: 1.75;
-  color: var(--n-900);
+  font-size: clamp(16px, 1.3vw, 18px);
+  line-height: 1.72;
+  color: #2f2a24;
   text-wrap: pretty;
 }
 
-.pp-text p + p { margin-top: 0.5em; }
+.pp-leaf--words p + p { margin-top: 0.45em; }
 
 .pp-art {
-  order: 2;
   display: block;
   width: 100%;
   height: 100%;
-  min-height: 100%;
+  min-height: 0;
   object-fit: cover;
   object-position: 42% 40%;
+  border-radius: 10px;
+  box-shadow: 0 0 0 1px rgba(80, 58, 30, 0.08);
 }
 
 .pp-note {
@@ -258,9 +302,22 @@
 
 @media (max-width: 860px) {
   .pp-grid { grid-template-columns: minmax(0, 1fr); }
-  .pp-page { grid-template-columns: minmax(0, 1fr); }
-  .pp-art { order: 0; height: auto; aspect-ratio: 4 / 3; }
-  .pp-text { background: none; }
+}
+
+/* on a phone the two leaves stack, still one size, with the binding running across between them */
+@media (max-width: 600px) {
+  .pp-spread { grid-template-columns: minmax(0, 1fr); grid-auto-rows: 1fr; }
+  .pp-leaf--art { order: -1; min-height: 300px; background: linear-gradient(to bottom, var(--pp-paper) 0%, var(--pp-paper) 80%, var(--pp-binding) 100%); }
+  .pp-leaf--words { background: linear-gradient(to top, var(--pp-paper) 0%, var(--pp-paper) 80%, var(--pp-binding) 100%); }
+  .pp-spread::after {
+    inset-block: auto;
+    top: 50%;
+    left: 0;
+    width: 100%;
+    height: 26px;
+    transform: translateY(-50%);
+    background: linear-gradient(180deg, rgba(120, 88, 48, 0) 0%, rgba(120, 88, 48, 0.14) 46%, rgba(80, 58, 30, 0.22) 50%, rgba(120, 88, 48, 0.14) 54%, rgba(120, 88, 48, 0) 100%);
+  }
 }
 
 /* on a phone each detail sits on its own line above what it became, so no arrow points at a wrapped line */
@@ -890,7 +947,11 @@
   cursor: pointer;
 }
 
-.pcc-card .mvp-challenge-card-img-wrap { height: var(--pcc-art); }
+/* the picture well is the art's own paper, so its sides never show a second tone (Guy 2026-10-05) */
+.pcc-card .mvp-challenge-card-img-wrap {
+  height: var(--pcc-art);
+  background: var(--pcc-paper, #fdf7e9);
+}
 
 .pcc-card:focus-visible {
   outline: 3px solid var(--brand-purple, var(--purple-500));

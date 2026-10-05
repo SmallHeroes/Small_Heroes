@@ -174,6 +174,11 @@ describe('writer switches and product copy', () => {
     const personal = getPersonalLandingContent();
     expect(personal.pricing.cards.map((card) => card.price)).toEqual(['', '', '']);
     expect(personal.pricing.cards.map((card) => card.pages)).toEqual(['16 עמודים', '24 עמודים', '32 עמודים']);
+    // Lengths in a parent's words (Guy 2026-10-05): no "wizard", "spread" or "prototype" jargon on the cards.
+    expect(JSON.stringify(personal.pricing)).not.toMatch(/אשף|כפול|אבטיפוס/);
+    expect(new Set(personal.pricing.cards.map((card) => card.cta)).size).toBe(3);
+    // The roster is no longer six; the FAQ does not count the friends.
+    expect(JSON.stringify(personal.faq)).not.toMatch(/ששת/);
     expect(personal.helps.closing).not.toContain('לכל נושא');
     // The hero names the product and the coping purpose, and stays honest that it is still being built.
     expect(`${personal.hero.h1Line1} ${personal.hero.h1Line2}`).toContain('שנכתב במיוחד לילד שלכם');
@@ -191,19 +196,18 @@ describe('writer switches and product copy', () => {
     expect(talk.title).toContain('חצי דקה עד דקה');
     expect(LIMITS.recordingMaxMs).toBe(90_000);
     expect(talk.body).toContain('עד דקה וחצי');
-    // Writing and ready answers stay alternatives; the recording is never the narration.
-    expect(recording.notes.join(' ')).toMatch(/לכתוב.*לבחור/);
+    // The trail ends in the one action (Guy 2026-10-05: no notes around the button). The recording is never
+    // the narration, and the FAQ repeats the wizard's privacy line word for word, then the local-only case.
+    expect(Object.keys(recording)).not.toContain('notes');
+    expect(Object.keys(recording)).not.toContain('previewNote');
     expect(bookCopy('בר').voiceNote).toBe('ההקלטה שלכם לא משמשת לקול הספר.');
-    expect(recording.notes.join(' ')).toContain('לא משמשת לקריינות');
-    // The FAQ repeats the wizard's privacy line word for word, then the preview's local-only case.
-    const faq = getPersonalLandingContent().faq.items.find((item) => item.q === 'מה קורה להקלטה?');
+    const faqItems = getPersonalLandingContent().faq.items;
+    const faq = faqItems.find((item) => item.q === 'מה קורה להקלטה?');
     expect(faq?.a.startsWith(RECORDER.privacyLive)).toBe(true);
-    expect(recording.previewNote).toContain('בודקים מורשים');
-    expect(recording.previewNote).toContain('באתר ה־QA הפענוח החי כבוי');
-    expect(recording.previewNote).toContain('ניסויים מקומיים נפרדים');
-    // The friend is chosen freely, not by topic, and the merged section keeps the development status honest.
+    expect(faqItems.find((item) => item.q === 'ההקלטה תהיה הקריינות?')?.a.startsWith('לא.')).toBe(true);
+    // The friend is chosen freely, not by topic; the FAQ keeps the development status honest.
     expect(friend.body).toContain('בלי קשר לנושא');
-    expect(recording.previewNote).toContain('כתיבת הספר המלא עדיין בפיתוח');
+    expect(faqItems[0]?.a).toContain('עדיין בפיתוח');
     expect(JSON.stringify(recording)).not.toMatch(/מבטיחים|מובטח/);
     expect(JSON.stringify(getLandingContent([]))).not.toContain('הקלט');
   });
@@ -228,6 +232,12 @@ describe('writer switches and product copy', () => {
     // The child acts in the story, and the fear is not promised away.
     expect(PERSONAL_PROOF.story.join(' ')).toContain('אני מחזיקה לך את הכפה');
     expect(PERSONAL_PROOF.story.join(' ')).toContain('הלב שלה עוד דפק מהר');
+    // A detail changes what happens, it does not pick the friend (Guy 2026-10-05): no family "loves" the
+    // animal its pictured companion is, and her sensitivity shows in the story as noticing Buni's fear.
+    const stickers = PERSONAL_VOICE_STORIES.stories.flatMap((story) => story.lines.flat().map((segment) => ('sticker' in segment ? segment.sticker : '')));
+    expect([...stickers, ...PERSONAL_PROOF.links.map((link) => link.detail)].join(' ')).not.toMatch(/ארנב|שועל|פנד/);
+    expect(PERSONAL_PROOF.links.map((link) => link.detail)).toContain('רגישה מאוד');
+    expect(PERSONAL_PROOF.story.join(' ')).toContain('שגם לו קצת מפחיד');
   });
   it('gives every offered friend a line of character, never a difficulty to be "for"', () => {
     for (const id of PERSONAL_COMPANION_IDS) expect(PERSONAL_COMPANION_LINES[id], id).toBeTruthy();

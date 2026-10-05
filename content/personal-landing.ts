@@ -10,16 +10,19 @@ export const PERSONAL_PRODUCT_METADATA = {
  * excerpt"): what a parent said, and what it changed in the story. Yuval is the hero's first family and
  * the picture is her approved hero art; the excerpt is hand-written and labelled as such, never presented
  * as engine output. Buni behaves as his canonical card does: a brave announcement, ears that tell the truth.
+ * Every detail changes what happens, not which friend comes (Guy 2026-10-05: "loves rabbits" next to a bunny
+ * friend read as the interest choosing the companion). Her sensitivity is what lets her see that Buni is
+ * scared too, and the hand she wanted held becomes the paw she holds.
  */
 export const PERSONAL_PROOF = {
   kicker: 'דוגמה',
   title: 'איך פרט קטן הופך להרפתקה',
   lede: 'מה שתספרו על הילד משנה את מה שקורה בסיפור, לא רק את השם שעל הכריכה.',
   toldLabel: 'ההורה סיפר',
-  told: ['זאת יובל, היא בת שש. בשבוע הבא יש לה חיסון, והיא ממש מפחדת.', 'היא אוהבת ארנבים, ורוצה שמישהו יחזיק לה את היד.', 'הכי הייתי רוצה שתצא משם גאה בעצמה.'],
+  told: ['זאת יובל, היא בת שש. בשבוע הבא יש לה חיסון, והיא ממש מפחדת.', 'היא רגישה מאוד, ורוצה שמישהו יחזיק לה את היד.', 'הכי הייתי רוצה שתצא משם גאה בעצמה.'],
   linksLabel: 'מה זה שינה בסיפור',
   links: [
-    { detail: 'אוהבת ארנבים', story: 'בוני הארנבון יוצא איתה לדרך' },
+    { detail: 'רגישה מאוד', story: 'שמה לב שגם בוני מפחד' },
     { detail: 'רוצה שיחזיקו לה את היד', story: 'דווקא היא מחזיקה את הכפה שלו' },
     { detail: 'יוצאת גאה', story: 'נכנסת בעצמה, והלב עוד דופק מהר' },
   ],
@@ -28,7 +31,7 @@ export const PERSONAL_PROOF = {
   imageAlt: 'יובל כורעת מול בוני הארנבון',
   story: [
     'בוני הודיע שהוא בכלל לא מפחד. האוזניים שלו נצמדו לגב.',
-    'יובל הסתכלה על הדלת הכחולה, ואחר כך על הכפה הקטנה שלו.',
+    'יובל ראתה את האוזניים, והבינה שגם לו קצת מפחיד.',
     '״בוא נעשה ככה,״ אמרה. ״אני מחזיקה לך את הכפה, ואתה סופר איתי עד שלוש.״',
     '״אחת,״ לחש בוני. ״שתיים…״',
     'בשלוש היא כבר הייתה בפנים. הלב שלה עוד דפק מהר, והסנטר היה מורם.',
@@ -71,6 +74,27 @@ export const PERSONAL_COMPANION_ART: Record<string, string> = {
   bunny_ometz: '/Images/Categories/StartBuny.webp',
 };
 
+/**
+ * The paper each friend's card art is painted on, measured from the art itself (median of the frame's edge).
+ * The card's picture well takes this colour, so the art's sides meet its own paper, not a band of another
+ * tone (Guy 2026-10-05).
+ */
+export const PERSONAL_COMPANION_PAPER: Record<string, string> = {
+  dragon_dini: '#fdf6e9',
+  panda_anat: '#fef9ed',
+  fox_uri: '#fefaef',
+  chameleon_koko: '#fef5d7',
+  lion_shaket: '#fbf0d9',
+  bunny_ometz: '#fdf4e2',
+  elephant_momo: '#fef8e9',
+  turtle_tuk: '#fdf7e8',
+  hedgehog_tuti: '#fef9e9',
+  owl_shush: '#fefaea',
+  cloud_puf: '#fef8e8',
+  kangaroo_nula: '#fef9eb',
+  dog_zohar: '#fef9ea',
+};
+
 /** The friends row on the personal landing: it drifts slowly, pauses for the parent, and stops on request. */
 export const PERSONAL_COMPANION_CAROUSEL = {
   label: 'החברים להרפתקה',
@@ -107,7 +131,7 @@ export const PERSONAL_VOICE_STORIES = {
         ],
         [
           { text: 'היא ' },
-          { text: 'אוהבת ארנבים', sticker: 'אוהבת ארנבים' },
+          { text: 'רגישה מאוד', sticker: 'רגישה מאוד' },
           { text: ', ורוצה שמישהו יחזיק לה את היד.' },
         ],
         [
@@ -129,7 +153,7 @@ export const PERSONAL_VOICE_STORIES = {
         ],
         [
           { text: 'הוא הכי ' },
-          { text: 'אוהב שועלים ופנסים.', sticker: 'אוהב שועלים ופנסים' },
+          { text: 'אוהב לחקור ולשאול שאלות.', sticker: 'אוהב לחקור' },
         ],
         [
           { text: 'הייתי רוצה שיגלה ש' },
@@ -149,7 +173,7 @@ export const PERSONAL_VOICE_STORIES = {
         ],
         [
           { text: 'בבקרים קשה לה להיפרד, והיא ' },
-          { text: 'אוהבת פנדות.', sticker: 'אוהבת פנדות' },
+          { text: 'אוהבת לצייר.', sticker: 'אוהבת לצייר' },
         ],
         [
           { text: 'הייתי רוצה ש' },
@@ -174,9 +198,7 @@ export const PERSONAL_HOW_IT_WORKS = {
     { title: 'בודקים ומשלימים', body: 'הפרטים מסודרים בכרטיס אחד. מתקנים או מסירים כל פרט, ועונים רק על מה שחסר. גם ״אין משהו מיוחד״ היא תשובה מלאה.' },
     { title: 'בוחרים חבר למסע', body: 'חבר או חברה עם אופי משלו יוצאים עם הילד להרפתקה. הבחירה פתוחה, בלי קשר לנושא.' },
   ],
-  notes: ['המיקרופון נפתח רק כשלוחצים להקליט', 'לא נוח לדבר? אפשר לכתוב או לבחור מתשובות מוכנות', 'ההקלטה לא נשמרת אצלנו ולא משמשת לקריינות'],
   cta: PERSONAL_START_LABEL,
-  previewNote: 'באתר ה־QA הפענוח החי כבוי ויש דוגמה מוכנה. ניסויים מקומיים נפרדים פתוחים לבודקים מורשים בלבד. כתיבת הספר המלא עדיין בפיתוח.',
 };
 /** Preview copy inside the approved design; no public rollout authority. */
 export function getPersonalLandingContent(): LandingContent {
@@ -198,24 +220,26 @@ export function getPersonalLandingContent(): LandingContent {
     // No `how` override: the preview renders PERSONAL_HOW_IT_WORKS right after the hero instead of the shared section.
     // Resilience stays central (spec), shown as moments a child acts in rather than described in the abstract.
     why: { ...LANDING_COPY.why, h2: 'גם למה שקשה יש מקום בסיפור', lede: 'אפשר לשלב נושא שתרצו לחזק. בתוך ההרפתקה הילד בוחר, מבקש עזרה ומוצא דרכים להמשיך.', sub: 'הסיפור נותן לכם רגע משותף שאפשר לדבר ממנו גם על מה שקורה בחיים. רגעים כאלה, למשל:', cards: [
-      { title: 'לומר מה צריך', body: '״תישאר לידי, אבל תן לי לנסות לבד.״' },
-      { title: 'לנסות דרך אחרת', body: 'הגשר רועד? אפשר לעבור על האבנים, אחת אחרי השנייה.' },
-      { title: 'לעזור וגם להיעזר', body: 'דווקא כשהחבר נבהל, הילד יודע מה לעשות.' },
-      { title: 'צעד קטן ומשמעותי', body: 'הלב עוד דופק מהר, והוא נכנס בכל זאת. החשש יכול להישאר.' },
+      // A moment from a story, then what the child does in it (Guy 2026-10-05: the cards were too empty).
+      { title: 'לומר מה צריך', body: '״תישאר לידי, אבל תן לי לנסות לבד.״ הילד אומר בדיוק מה עוזר לו, והחבר מקשיב.' },
+      { title: 'לנסות דרך אחרת', body: 'הגשר רועד? אפשר לעבור על האבנים, אחת אחרי השנייה. כשרעיון אחד לא מצליח, ממציאים יחד רעיון חדש.' },
+      { title: 'לעזור וגם להיעזר', body: 'דווקא כשהחבר נבהל, הילד יודע מה לעשות. ברגע אחר הוא זה שמבקש עזרה, וגם זה בסדר.' },
+      { title: 'צעד קטן ומשמעותי', body: 'הלב עוד דופק מהר, והוא נכנס בכל זאת. החשש יכול להישאר, ובכל זאת יש במה להתגאות.' },
     ] },
     trust: { ...LANDING_COPY.trust, h2: 'הפרטים שלכם, הדמיון שלנו', lede: 'אתם קובעים מה נכון על הילד. אנחנו ממציאים את ההרפתקה שסביבו.', sub: 'ספר ילדים, לא טיפול ולא כלי אבחוני.', pillars: [
       { icon: '✓', title: 'פרטים שאתם מאשרים', body: 'מה שסיפרתם מוצג לבדיקה לפני שהוא נכנס לבקשה.' },
       { icon: '✓', title: 'חופש להמציא עולם', body: 'מקומות קסומים ואירועים הם בדיה. פרטים אמיתיים על המשפחה מגיעים מכם.' },
       { icon: '✓', title: 'טיוטה שאפשר לקרוא', body: 'רואים את הסיפור הכתוב לפני שמתקדמים לאיורים ולהפקת הספר.' },
     ] },
-    earlyStage: { ...LANDING_COPY.earlyStage, line: 'תצוגת פיתוח. אפשר להתנסות בכרטיס הפרטים; חיבור הכתיבה בבדיקה. איורים, קריינות ורכישה עדיין אינם מחוברים למסלול האישי.' },
-    pricing: { kicker: 'אורך ההרפתקה', h2: 'כמה מקום לתת להרפתקה?', sub: 'בכל אורך: הרפתקה עם דמיון, הומור וחבר לדרך.', note: 'אלה אפשרויות אורך באבטיפוס. המחיר והזמינות יפורסמו בהמשך. כל כפולה היא יחידת סיפור אחת.', cards: LANDING_COPY.pricing.cards.map((card, index) => ({ ...card, kicker: ['קצר', 'בינוני', 'ארוך'][index], name: ['הרפתקה ממוקדת', 'עוד מקום לגלות', 'מסע רחב יותר'][index], price: '', desc: ['מטרה ברורה ומעט תחנות בדרך.', 'עוד מקום להסתבכויות, להומור ולחברות.', 'יותר תחנות וקשרים בין תחילת הדרך לסופה.'][index], features: ['הרפתקה ופנטזיה', `${[8, 12, 16][index]} כפולות סיפור`], cta: 'לבחור אורך באשף' })) },
+    // The preview shows no development band (Guy 2026-10-05); the FAQ's first answer keeps the status honest.
+    // Lengths in a parent's words: what the extra pages give the story, and a button that says where it goes.
+    pricing: { kicker: 'אורך הספר', h2: 'כמה מקום לתת להרפתקה?', sub: 'בכל אורך: הרפתקה עם דמיון, הומור וחבר לדרך.', note: 'המחיר יפורסם בהמשך. את האורך אפשר לשנות גם במהלך ההיכרות.', cards: LANDING_COPY.pricing.cards.map((card, index) => ({ ...card, kicker: ['קצר', 'בינוני', 'ארוך'][index], name: ['הרפתקה קצרה', 'הרפתקה מלאה', 'מסע גדול'][index], price: '', desc: ['סיפור שלם עם התחלה, הפתעה וסוף שמחכים לו.', 'יותר מקום להפתעות, לבדיחות ולרגעים עם החבר.', 'עלילה עשירה, עם יותר מקומות ומפגשים בדרך.'][index], features: [['מסע אחד ממוקד', 'נקרא בישיבה אחת'], ['כמה עצירות בדרך', 'מקום גם לרגעים שקטים'], ['הרפתקה שמתפתחת לאט', 'אפשר לקרוא בהמשכים']][index], cta: ['יוצאים להרפתקה קצרה', 'יוצאים להרפתקה מלאה', 'יוצאים למסע גדול'][index] })) },
     faq: { h2: 'שאלות שהורים באמת רוצים לדעת', sub: 'תשובות ישרות, בלי הבטחות מיותרות.', items: [
       { q: 'מה מקבלים היום?', a: 'הספר עדיין בפיתוח. היום אפשר להתנסות בהיכרות ובכרטיס הפרטים, וכתיבת הסיפור נבדקת עם בודקים מורשים. איורים, קריינות ורכישה עוד לא מחוברים למסלול האישי, והמחיר יפורסם בהמשך.' },
       { q: 'לאיזה גיל זה מתאים?', a: 'האבטיפוס בנוי לילדים בגילאי 3 עד 8.' },
       { q: 'עד כמה הסיפור אישי?', a: 'הכוונה היא שהפרטים שתאשרו ישפיעו על המטרה, הרעיונות והבחירות בתוך הרפתקה חדשה. חיבור הכתיבה עדיין בבדיקה, ולא כל פרט צריך להופיע במפורש.' },
       { q: 'צריך לבחור קושי?', a: 'לא. אפשר להמשיך בלי קושי מסוים. חברות, גמישות ועזרה יכולות לצמוח מתוך ההרפתקה בלי להמציא לילד בעיה.' },
-      { q: 'מי בוחר את החבר?', a: 'אתם בוחרים אחד מששת החברים, בלי קשר לקושי או לכיוון הסיפור.' },
+      { q: 'מי בוחר את החבר?', a: 'אתם בוחרים את החבר, בלי קשר לקושי או לכיוון הסיפור. לכל חבר אופי משלו.' },
       { q: 'מה קורה אם הפענוח טועה?', a: 'בודקים את מה שהבנו. אפשר לתקן או להסיר כל פרט לפני שממשיכים.' },
       { q: 'מה בסיפור אמיתי ומה דמיוני?', a: 'הפרטים על הילד והמשפחה מגיעים מכם. העלילה, העולם והאירועים הקסומים הם המצאה ספרותית.' },
       { q: 'אפשר בלי תמונה?', a: 'כן. התמונה אינה דרושה לכתיבת הסיפור. באבטיפוס היא מוצגת במכשיר בלבד.' },

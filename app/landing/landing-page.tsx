@@ -334,7 +334,6 @@ export default function LandingPage({ content: L, startHref, matrixCategories, p
                     alt="המחשה - דוגמה לספר מותאם אישית"
                     loading="lazy"
                   />
-                  {personalPreview ? <figcaption>המחשת עיצוב בלבד, לא ספר אישי שהושלם</figcaption> : null}
                 </figure>
               </div>
             </div>
@@ -474,11 +473,14 @@ export default function LandingPage({ content: L, startHref, matrixCategories, p
           {/* מי מאחורי זה + הגישה שלנו — אחרי אמון-המוצר, לפני המחירים */}
           <AboutSection about={L.about} />
 
+          {/* the personal preview drops the development band (Guy 2026-10-05); its FAQ keeps the status */}
+          {!personalPreview ? (
           <section className="early-stage-band" aria-label="הודעת השקה">
             <div className="wrap early-stage-band__inner">
               <p className="early-stage-band__line" data-reveal="fade">{L.earlyStage.line}</p>
             </div>
           </section>
+          ) : null}
 
           <section className="section pricing-section" id="pricing">
             <div className="wrap">

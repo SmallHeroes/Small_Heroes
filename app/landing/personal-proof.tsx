@@ -2,7 +2,7 @@ import { PERSONAL_PROOF as P } from '@/content/personal-landing';
 
 /**
  * The preview's proof, straight after the hero (site audit 2026-10-01): what a parent told us, and what it
- * changed in the story. The parent's words keep the hero's hand and its stickers; the story is a book page
+ * changed in the story. The parent's words keep the hero's hand and its stickers; the story is an open book
  * with Yuval's approved picture. Labelled as a hand-written example, not engine output.
  */
 export function PersonalProof() {
@@ -39,13 +39,19 @@ export function PersonalProof() {
             </ul>
           </div>
 
-          <article className="pp-page" data-reveal="up" data-reveal-delay="200" aria-labelledby="personal-proof-story">
-            <img className="pp-art" src={P.image} alt={P.imageAlt} width={610} height={910} loading="lazy" decoding="async" />
-            <div className="pp-text">
-              <h3 id="personal-proof-story" className="pp-label">{P.storyLabel}</h3>
-              {P.story.map((line) => (
-                <p key={line}>{line}</p>
-              ))}
+          {/* an open book (Guy 2026-10-05): two pages of one size, the words on the reading-side page and
+              Yuval's picture facing them, in a cover with the binding's shadow between them */}
+          <article className="pp-book" data-reveal="up" data-reveal-delay="200" aria-labelledby="personal-proof-story">
+            <div className="pp-spread">
+              <div className="pp-leaf pp-leaf--words">
+                <h3 id="personal-proof-story" className="pp-running">{P.storyLabel}</h3>
+                {P.story.map((line) => (
+                  <p key={line}>{line}</p>
+                ))}
+              </div>
+              <div className="pp-leaf pp-leaf--art">
+                <img className="pp-art" src={P.image} alt={P.imageAlt} width={610} height={910} loading="lazy" decoding="async" />
+              </div>
             </div>
           </article>
         </div>

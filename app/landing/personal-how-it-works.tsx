@@ -37,27 +37,12 @@ const STEP_ICONS = [
   ),
 ];
 
-/* Order matches H.notes: the microphone · writing instead · where the recording goes */
-const NOTE_ICONS = [
-  MIC,
-  (
-    <LineIcon>
-      <path d="M4 20l4.2-1L19 8.2 15.8 5 5 15.8z" />
-      <path d="M14 6.8l3.2 3.2" />
-    </LineIcon>
-  ),
-  (
-    <LineIcon>
-      <path d="M12 3l7 3v5c0 4.5-3 7.6-7 9-4-1.4-7-4.5-7-9V6l7-3z" />
-      <path d="M8.8 12.2l2.1 2.1 4.3-4.3" />
-    </LineIcon>
-  ),
-];
-
 /**
  * The preview's "how it works", right after the hero, as a trail with three stops: tell us by voice,
  * check and complete, choose a friend. The trail draws itself as it comes into view (the page's own
- * reveal system; everything simply shows under reduced motion).
+ * reveal system; everything simply shows under reduced motion). The trail ends in the one action: the
+ * recording's privacy and alternatives are told where they matter, in the FAQ and in the wizard itself
+ * (Guy 2026-10-05: the notes around the button only added words).
  */
 export function PersonalHowItWorks({ startHref }: { startHref: string }) {
   return (
@@ -87,19 +72,10 @@ export function PersonalHowItWorks({ startHref }: { startHref: string }) {
             ))}
           </ol>
         </div>
-        <ul className="personal-how-notes">
-          {H.notes.map((note, index) => (
-            <li key={note}>
-              {NOTE_ICONS[index]}
-              {note}
-            </li>
-          ))}
-        </ul>
         <div className="personal-how-foot">
           <a href={startHref} className="btn-primary" data-event="landing_start_click">
             {H.cta}
           </a>
-          <p className="personal-how-preview">{H.previewNote}</p>
         </div>
       </div>
     </section>
