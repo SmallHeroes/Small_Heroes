@@ -10,6 +10,16 @@ This roadmap records technical milestone state. Guy can change product priority 
 
 ### P-personal fifteen-companion expansion (2026-10-03)
 
+- Approved fixed-reader calibration precedes further book sampling: three
+  existing full stories, six baseline/candidate Astra requests, 6 USD aggregate
+  ceiling. Only the existing diagnostic probe/spec change; default complete
+  probe parity holds, normal engine/public paths unchanged. Root tsc0,
+  focused597/597,292historicalfiles/46roots preserved, source/label freeze and
+  one memory control. Derived reservations5.903442USD, not expected usage.
+  Full gate exits1:ordinary6247pass/same10historicalfails/73skip;resource635/635
+  withthreeRPCtimeouts. Actual Claude review is pending; no paid calls yet,
+  no quality claim or automatic prompt promotion. Six varied books stay separate.
+
 - Dynamicrefinement and correction have actualClaudePASS for exact0155ec94..
   1239549b and1239549b..90a10242, itsown583/583,tsc0,publicparity/hashcontrols.
   Onefreshfictionalbook completesafter rootHOLD overrides firstnativeWRITE and

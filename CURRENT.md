@@ -1,5 +1,28 @@
 # SmallHeroes — Current Technical State
 
+## Fixed reader calibration in technical validation 2026 10 05
+
+Guy approves six Astra readings of three existing full stories, baseline versus
+an opt-in solution-reasoning profile, before any new varied-book cohort.
+Only the existing diagnostic probe and its spec change; normal/public engine,
+writer/editor, critic schema, models, reasoning and caps stay unchanged. One
+approval-derived family has six 1 USD slots under 6 USD aggregate authority;
+every wire is prepared before reservation/key/network and any failure stops.
+Labels distinguish supported ambiguity, disputed literary targets and narrow
+false-positive controls. No prescribed finding count or automatic promotion.
+
+Root tsc0, focused597/597 across9files, complete default probe parity for all
+three actual sources, ten normal engine/transport files unchanged, one memory
+mutation control and292files/46roots preserved. The first offline candidate
+wire exceeded1USD by547microUSD; redundant wording was shortened without
+changing caps or source, final totalreservation5.903442USD. No providers/keys
+or live family reservation yet. Full check exits1:ordinary6247pass,the same10
+historical missing-artifact fails,73skip;resource635/635 withthreeRPCtimeouts.
+Full gate staysRED. Independent native Claude review and paid run remain next.
+These tests do not prove literary gain.
+No new book,render,public cutover,push/deploy. See
+docs/ai-workflow/PERSONAL_FIXED_READER_CALIBRATION_20261005.md.
+
 ## Dynamic adventure trial completed after one planning repair 2026 10 05
 
 Actual nativeClaude technicalPASS covers0155ec94..1239549b and corrective
