@@ -432,8 +432,43 @@ describe('limited causal experiment, not live provider or quality certification'
       expect(text).not.toContain("Choose the reader's experience alongside emotional fit");
       expect(text).not.toContain('Allocate narrative space for brief.child.age and brief.beats');
       expect(text).not.toContain('Protect relational commitments, personal comic echoes and emotional closure');
+      expect(text).not.toContain('distinguishes the reasonable alternatives');
+      expect(text).not.toContain('what desire remains unresolved after earlier successes');
     }
     expect(CAUSAL_PLAN_INSTRUCTIONS).toContain('adventure_only must remain a full adventure without inventing a real difficulty');
+  });
+  it.each(['plan', 'replan', 'author', 'editor'] as const)('actual %s receives conditional scene reasoning without a plot formula', async stage => {
+    const h = harness(1, call => call.stage === 'plan' ? planned(JSON.parse(call.input).brief, true) : defaultOutput(call));
+    await h.runner.plan(); h.approve(); await h.runner.write();
+    const call = vi.mocked(h.ports.generate).mock.calls.map(([c]) => c).find(c => c.stage === stage)!;
+    expect(call.instructions).toContain('clue distinguishes the reasonable alternatives in that actual scene');
+    expect(call.instructions).toContain('Important new information should affect');
+    expect(call.instructions).toContain('what desire remains unresolved after earlier successes');
+    expect(call.instructions).toContain('not mandatory real-world physics');
+    expect(call.instructions).toContain('belief and fear need not change instantly');
+    expect(call.instructions).toContain('not required mysteries, clues, instant emotional cures or evidence for every comic guess');
+    expect(vi.mocked(h.ports.generate).mock.calls.map(([c]) => c.stage)).toEqual(['plan', 'replan', 'author', 'editor', 'final_review', 'comparison']);
+  });
+  it.each(['original_review', 'final_review', 'comparison'] as const)('actual %s requests a complete concise object and scene-level evidence', async stage => {
+    const h = harness(1, undefined, new AbortController(), 'benchmark');
+    await h.runner.plan(); h.approve(); await h.runner.write();
+    const call = vi.mocked(h.ports.generate).mock.calls.map(([c]) => c).find(c => c.stage === stage)!;
+    expect(call.instructions).toContain('one complete JSON object matching the supplied schema');
+    expect(call.instructions).toContain('Do not pad a string to its maximum or stop after the summary');
+    expect(call.instructions).toContain('brevity targets, not minimums');
+    expect(call.instructions).toContain('do not omit a material problem merely to shorten the response');
+    expect(call.instructions).toContain('distinguish the reasonable alternatives in this scene');
+    expect(call.instructions).toContain('important information already discovered');
+    expect(call.instructions).toContain('What unresolved desire does the ending address');
+    expect(call.instructions).toContain('Report a material ambiguity as ambiguity');
+    expect(call.instructions).toContain('neither instant belief updates nor proof for every joke is required');
+    expect(call.maxOutputTokens).toBe(12000);
+    const packet = JSON.parse(call.input).packet;
+    // Soft brevity guidance does not clamp or silently change the existing hard schema.
+    const longest = { packetDigest: causalDigest(packet), summary: 's'.repeat(600), findings: [] };
+    expect(compileCausalReading(packet, longest).summary).toHaveLength(600);
+    expect(() => compileCausalReading(packet, { ...longest, summary: 's'.repeat(601) })).toThrow('critic_binding');
+    expect(call.schema.parse(longest)).toEqual(longest);
   });
   it('actual no-difficulty diagnostic keeps a sparse adventure-only brief through every stage', async () => {
     const h = harness(); h.args.cases = [causalTrialCohort()[3]];
@@ -833,6 +868,7 @@ describe('opt-in draft critique before fresh editor, no literary certification',
     expect(input.draftCritique.findings[0].id).toBe('draft-finding-01');
     expect(input.draftCritique.projectionDigest).toBe(transfer.context.projectionDigest);
     expect(calls[3].instructions).toContain('fallible reader claims');
+    expect(calls[3].instructions).toContain('clue distinguishes the reasonable alternatives in that actual scene');
     expect(calls[3].instructions).not.toContain('not the author conversation or critic verdict.');
     expect(out.books[0].edit.draftCritiqueResponse!.responses[0].decision).toBe('kept');
     const recordOrder = vi.mocked(h.ports.recordDraftCritique!).mock.invocationCallOrder[0];
