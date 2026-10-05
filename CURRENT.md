@@ -1,6 +1,6 @@
 # SmallHeroes — Current Technical State
 
-## Fixed reader calibration in technical validation 2026 10 05
+## Fixed reader calibration completed without observed gain 2026 10 05
 
 Guy approves six Astra readings of three existing full stories, baseline versus
 an opt-in solution-reasoning profile, before any new varied-book cohort.
@@ -11,15 +11,22 @@ every wire is prepared before reservation/key/network and any failure stops.
 Labels distinguish supported ambiguity, disputed literary targets and narrow
 false-positive controls. No prescribed finding count or automatic promotion.
 
-Root tsc0, focused597/597 across9files, complete default probe parity for all
-three actual sources, ten normal engine/transport files unchanged, one memory
-mutation control and292files/46roots preserved. The first offline candidate
-wire exceeded1USD by547microUSD; redundant wording was shortened without
-changing caps or source, final totalreservation5.903442USD. No providers/keys
-or live family reservation yet. Full check exits1:ordinary6247pass,the same10
-historical missing-artifact fails,73skip;resource635/635 withthreeRPCtimeouts.
-Full gate staysRED. Independent native Claude review and paid run remain next.
-These tests do not prove literary gain.
+Actual Claude technicalPASS covers24263c4c..bc31adf7 and reviewed externalrecipe:
+itsown tsc0,182/182,parity/hash/preflight. One Medium design finding and fiveLow
+groups remain; no zero-findings claim. Root focused597/597, complete default
+parity for3sources,ten normal engine/transport files unchanged and292oldfiles.
+One approved family completes6readings atbc31adf7, sealedcompleted_diagnostic.
+Baseline/candidatefindings are semantically the same:roof andbench/recognition
+issues inboth, none ondisputedbush concern, no prohibitednegativeallegations.
+No observedgain; candidate notpromoted, no seventhcall or retuning.
+Estimate0.659490USD versus5.903442reserved/6USDceiling; separateMaxQA listestimate
+1.5382524USD, neitherinvoice. Root recompiles all6/rawquotes/bindings/costs/seal
+andhashes34new+292old files,326files/48rootsretained. No independent paid-evidence
+PASS or remotebackup. Toolreports exit0, not separatelycapturedNodechildexit.
+Full gate staysRED:ordinary6247pass/same10historicalfails/73skip;
+resource635/635 withthreeRPCtimeouts. CodePASS doesnotcoverthisdocs successor
+orprior31commits. Guycanread externalreader-calibration-20261005/RESULTS_HE.md;
+new variedstories are separate, not another known-set prompt loop.
 No new book,render,public cutover,push/deploy. See
 docs/ai-workflow/PERSONAL_FIXED_READER_CALIBRATION_20261005.md.
 

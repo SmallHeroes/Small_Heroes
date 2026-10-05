@@ -16,9 +16,14 @@ This roadmap records technical milestone state. Guy can change product priority 
   probe parity holds, normal engine/public paths unchanged. Root tsc0,
   focused597/597,292historicalfiles/46roots preserved, source/label freeze and
   one memory control. Derived reservations5.903442USD, not expected usage.
-  Full gate exits1:ordinary6247pass/same10historicalfails/73skip;resource635/635
-  withthreeRPCtimeouts. Actual Claude review is pending; no paid calls yet,
-  no quality claim or automatic prompt promotion. Six varied books stay separate.
+  ActualClaudePASS24263c4c..bc31adf7 includesreviewedrecipe,182/182,tsc0,
+  parity/hash/preflight,oneMedium/fiveLowgroupsremain. Six authorisedreadings
+  completeatbc31adf7 for0.659490USDestimate; semanticallysamefindings, no gain.
+  Candidate staysopt-in only, no seventhcall/retuning. Root verifies6rawresults,
+  34new+292oldfiles,326/48rootsretained; no independentpaid-evidencePASS.
+  SeparateMaxQA listestimate1.5382524USD,notinvoice. Full gate staysRED:
+  ordinary6247pass/same10historicalfails/73skip;resource635/635+threeRPCtimeouts.
+  Thisdocs successor/earlier31commits notcovered. Six varied books stay separate.
 
 - Dynamicrefinement and correction have actualClaudePASS for exact0155ec94..
   1239549b and1239549b..90a10242, itsown583/583,tsc0,publicparity/hashcontrols.
