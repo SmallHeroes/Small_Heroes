@@ -361,6 +361,16 @@ describe('limited causal experiment, not live provider or quality certification'
     expect(JSON.parse(call.input).brief.resilienceMode).toBe('chosen_topic');
     expect(vi.mocked(h.ports.generate).mock.calls.map(([c]) => c.stage)).toEqual(['plan', 'replan']);
   });
+  it('external synopsis repair delivers reader-experience guidance without proposed reviewer solutions', async () => {
+    const h = harness(1, undefined, new AbortController(), 'normal', true);
+    await h.runner.plan(); await h.runner.repair(repairRequest(h));
+    const call = vi.mocked(h.ports.generate).mock.calls.map(([c]) => c).find(c => c.stage === 'replan')!;
+    expect(call.instructions).toContain("Choose the reader's experience alongside emotional fit");
+    expect(call.instructions).toContain('Allocate narrative space for brief.child.age and brief.beats, not only word length');
+    expect(call.instructions).toContain('This is an explicitly requested repair of the held priorPlan');
+    expect(call.input).not.toContain('SUGGESTED_SOLUTION_MUST_NOT_REACH_PLANNER');
+    expect(vi.mocked(h.ports.generate).mock.calls.map(([c]) => c.stage)).toEqual(['plan', 'replan']);
+  });
   it.each([[3, 'short', 8], [5, 'medium', 12], [8, 'long', 16]] as const)('author enacts promises for age%s at %s length', async (age, length, spreads) => {
     const h = harness(); h.args.cases[0].request.child.age = age;
     h.args.cases[0].request.bookOptions.lengthId = length;
@@ -400,6 +410,8 @@ describe('limited causal experiment, not live provider or quality certification'
     expect(call.instructions).toContain('Distinguish proven contradiction, ambiguity, literary weakness and stylistic preference');
     expect(call.instructions).toContain('A request or intention is not a narrated completed event');
     expect(call.instructions).toContain('if evidence only supports ambiguity, say so');
+    expect(call.instructions).toContain('A short encounter can work; extra travel, another adventure and a separate companion arc are not mandatory');
+    expect(call.instructions).toContain('Do not invent missing events or demand a particular plot');
     expect(input.packet.brief.child.age).toBe(4); expect(input.packet.brief.narrativeSpreads).toBe(8);
     expect(input.packetDigest).toBe(causalDigest(input.packet));
     expect(call.input).not.toMatch(/semanticAudit|outlineChecks|draftTextMetrics/);

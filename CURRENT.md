@@ -2,6 +2,25 @@
 
 ## Literary experience refinement implemented 2026 10 05
 
+Actual Claude gives tested technical PASS to exact3367328e..f335ffa2:tsc0,
+518/518,all seven in-memory controls,public parity and both preservation helpers.
+Original envelope/report are saved as CLAUDE_QA_LITERARY_EXPERIENCE_f335ffa2_*.
+List estimate1.1338532USD via native Max QA, not invoice/book charge. A harmless
+summary-command denial is disclosed; reviewer uses Read instead, no bypass.
+Two low coverage points get a test-only successor:critic freedom wording is now
+asserted in all critic modes, and external HOLD repair has a dedicated real
+dispatch check. Adventure-only guidance also gains a removal control. Production
+bytes remain exactly f335ffa2. New twelve-case controls catch ten removals with
+3/4/3/1/3/1/3/3/4/1failures; tests measure delivery, not semantic success.
+Original seven-control script/result remain retained; corrective script uses a
+distinct MUTATIONS_COVERAGE name. Same original feature-base label3367328e is
+provenance, not a claim that current production differs from f335ffa2.
+Corrective focused519/519 and tsc0; no full rerun for test/docs-only work.
+Corrective independent re-gate remains pending. Root's wire max45421 and QA's
+45427 differ by the longer QA worktree path, not an asserted semantic difference.
+Reviewer report's production diff count is imprecise; actual Git is8added/5removed
+lines across the two production files. No broader code/literary/stability PASS.
+
 Guy asks for a general upgrade from the revised GPT trial07 feedback, not manual
 story repair. At base3367328e the plan mostly reaches prose, Uri genuinely helps,
 and the concern is how important moments use scarce narrative space. The false
@@ -31,7 +50,7 @@ No push/deploy/public wizard cutover or product acceptance. A separately approve
 blind experiment must assess originals and edits independently before literary
 improvement is claimed. No fresh spending reference/config is prepared here.
 Decision and frozen-QA handoff:docs/ai-workflow/PERSONAL_LITERARY_EXPERIENCE_*
-20261005.md. Next:focused local commit and actual independent Claude re-gate.
+20261005.md. Next:test-only local successor and same-session Claude re-gate.
 
 ## Trial07 readable fictional book completed 2026 10 05
 

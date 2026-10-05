@@ -109,3 +109,39 @@ https://developers.openai.com/api/docs/guides/evaluation-best-practices
 Guy owns literary/product acceptance. No fresh paid family/book/config is created.
 No public wizard integration, visual work, deployment, push or launch is implied.
 This record claims no independent technical PASS; reviewer supplies exact scope.
+
+## Actual review and test only corrective handoff
+
+Actual Claude's tested PASS covers3367328e..f335ffa2 only. It independently runs
+tsc,seven specs518/518,the seven mutation controls,public parity and both archives.
+Original final envelope/report are retained in visualization root as
+CLAUDE_QA_LITERARY_EXPERIENCE_f335ffa2_*; native Max list estimate1.1338532USD,
+not invoice or a story charge. The reviewer discloses a denied node-e summarizer
+and uses Read instead. No bypass,install,key/story-provider or source write claimed.
+
+Two low coverage findings are valid:critic non-formula text was not asserted;
+the external synopsis-repair replan relied only on constant reuse. Corrective
+commit adds two assertions to the existing three critic cases and one dedicated
+real external-repair dispatch test. Info adventure_only gets its own removal
+control. Production,prompts,schemas,gates,caps and every paid artifact remain
+byte-identical to f335ffa2. Re-gate must verify no production path changed.
+
+New distinct helper PERSONAL_LITERARY_EXPERIENCE_MUTATIONS_COVERAGE_20261005.cjs
+retains the original script/result separately. It runs the actual twelve new/
+extended cases; ten one-at-a-time removals cause3/4/3/1/3/1/3/3/4/1 intended
+failures,positive12pass,no import/unhandled error. One removal drops the planning
+constant specifically from external repair, not ordinary replan. No extra story
+stage or semantic checker. The helper base label3367328e remains the original
+feature provenance; actual production source for this fix is f335ffa2.
+
+Root wire45421 vs reviewer45427 is explained by its longer managed path in three
+wire fields. Neither is worst-case headroom. Actual production Git numstat is
+8add/5remove across two files; reviewer's per-file count is imprecise and is not
+adopted as a new measurement. Original report remains unchanged.
+
+Correction basef335ffa2; exact frozen successor HEAD is supplied at invocation.
+Final precommit type-check0 and sequential seven specs519/519 (core127) pass.
+No repeated full gate for test/docs-only work; the measured RED record remains.
+Claude should re-run core127 and the corrected ten controls after source-scope
+inspection,then check preservation and clean status. The correction has no
+independent PASS until this re-gate. Guy still owns literary/product acceptance.

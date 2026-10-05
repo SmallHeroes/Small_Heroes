@@ -17,6 +17,9 @@ This roadmap records technical milestone state. Guy can change product priority 
  Full RED remains; no book quality/production claim. Independent Claude re-gate
  precedes a separately approved blinded original-versus-edit experiment. No new
  stage/schema/cap/model,paid book,public flow,render,push or deployment.
+ Actual tested Claude PASS covers3367328e..f335ffa2; two low coverage points
+ receive a test-only successor with no production change, then independent
+ re-gate. This technical result does not validate literary improvement.
 
 - Exact5acdde05..58d161e8 receives actual tested Claude PASS:507/507,tsc0,
  8parity/5controls/91preserved files. Fresh authorized trial07 completes one
