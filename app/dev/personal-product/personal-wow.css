@@ -897,7 +897,8 @@
    card plus its share of the gap), which keeps both copies the same width.
    Across the page the friends move toward the reading side, so they arrive in
    reading order. A mouse over the row holds it, keyboard focus or the button
-   stops it, and it rests while off screen. The row runs from screen edge to
+   stops it, and it rests while off screen. Both copies are working links; the
+   second is only hidden from assistive tech and the tab order. The row runs from screen edge to
    screen edge with no fade (Guy: without the fade it is more wow); the section
    clips sideways so the full-width row never adds a page scroll. */
 .personal-product .helps-section { overflow-x: clip; }
@@ -927,6 +928,19 @@
 
 /* it moves only while on screen, not stopped and not under the mouse */
 .pcc[data-onscreen]:not([data-paused]) .pcc-viewport:not(:hover) .pcc-track { animation-play-state: running; }
+
+/* stopped (the button or keyboard focus): the same cards as a still row that scrolls by hand, opened exactly
+   where the drift stood (the component sets the scroll before paint). Focus keeps its friend in view, with
+   room for the focus ring at either edge. */
+.pcc[data-paused] .pcc-track { animation: none; }
+
+.pcc[data-paused] .pcc-viewport {
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-padding-inline: 28px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--purple-200, #d9cffc) transparent;
+}
 
 @keyframes pcc-drift {
   from { transform: translate3d(0, 0, 0); }
@@ -1014,6 +1028,7 @@
   .pcc-viewport {
     overflow-x: auto;
     scroll-snap-type: x proximity;
+    scroll-padding-inline: 28px;
   }
   .pcc-item { scroll-snap-align: start; }
   .pcc-item[aria-hidden='true'],
