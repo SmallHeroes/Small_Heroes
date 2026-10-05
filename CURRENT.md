@@ -1,5 +1,52 @@
 # SmallHeroes — Current Technical State
 
+## Trial07 readable fictional book completed 2026 10 05
+
+Actual Claude tested technical PASS covers exact5acdde05..58d161e8, both repair
+commits:507/507,tsc0,8default-parity cases,5negative controls and91archive files.
+Initial source-only procedural HOLD remains separate, including unintended npx
+cache download. Final review uses local packages/no download, clean managed
+checkout58d161e8. Original tested envelope/report are in visualization root as
+CLAUDE_QA_SYNOPSIS_REPAIR_TESTED_*; cumulative same-session list estimate2.0983542
+USD, not invoice and not summed with earlier1.684488. Full gate stays RED.
+
+Under Guy's fresh approval, trial07 executes frozen58d161e8, unused reference
+guy-20261005-trial07-single-synopsis-repair-new-book-and-fresh-review-approval.
+Real probe reports Astra/default/completed; native Opus5.5 produces plan, entire
+original and fresh-process edit; isolated Astra final/comparison both complete.
+Codex and fresh Claude whole-plan review permit WRITE with4advisory findings.
+First plan passed, so no paid repair or second synopsis review was exercised.
+That is not proof that the new repair path improves literary quality.
+
+Book: "נטע והסנאי שהתחבא בשלט", fictional Neta4/Uri,8spreads. One full original
+and edited manuscript; status text_ready_for_human_review, editor model_supported.
+Astra final:2polish findings; comparison:3meaningful improvements plus1polish
+regression (lost explicit promise to play on future visits), zero blockers.
+Original449words and revised464words;8/8spreads within the soft35..65target in
+both. Targets/model assessments are not product acceptance. Narrative prose
+has no hyphens/dashes; no images/narration generated.
+
+Six logical attempts, no unknown costs. Trial estimate1157881microUSD; plus fresh
+synopsis review0.1929078USD gives1350789microUSD (~1.35USD), not invoice. Technical
+QA's separate cumulative estimate above is not a book charge. Approval ceiling
+12USD unchanged; native internal request count/provider routing unverified.
+Both new families are sealed/consumed.35new files/four roots hash-bound; all91old
+files/24roots unchanged. Tool exit0 captured; native CLI exit not separately
+measured. Real TTY first review/WRITE/prose flow completes; mocked two-window
+tests remain the only repair/second-window proof. No retries or seal reuse.
+
+Viewer: outputs/personal-calibration-347c698a3b551e4174e315400f68f31a-book/index.html.
+It shows original/edit/Astra findings/planning evidence. Sent to Codex panel
+(queued), not claimed browser-verified. Evidence root:
+C:/Users/guyna/.codex/visualizations/2026/09/04/01a06c5c-a233-76c0-ac8e-618c02ce6246/
+single-book-calibration-20261005-approved-07. execution-closeout.json is immutable;
+verify-closeout.cjs returns0,35/35files preserved, no providers/keys/writes.
+Source/protected/site/human-review trees were clean/unchanged at execution end.
+No public wizard cutover: it still uses the separate OpenAI story_only flow.
+No push/deploy/source promotion/release or Guy product acceptance. Next meaningful
+dependency is Guy's actual reading, not another paid roll. Closeout handoff:
+docs/ai-workflow/PERSONAL_TRIAL07_READABLE_BOOK_20261005.md.
+
 ## Synopsis repair QA follow-up 2026 10 05
 
 04fdaba2 is the clean local repair milestone, unpushed. Actual Claude Code reads
