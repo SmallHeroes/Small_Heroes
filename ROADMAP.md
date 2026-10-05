@@ -10,10 +10,13 @@ This roadmap records technical milestone state. Guy can change product priority 
 
 ### P-personal fifteen-companion expansion (2026-10-03)
 
-- Narrow approved scene-reasoning/complete-reader refinement is in progress
-  from8fcb03b7. Root575/575,tsc0; independent QA and full gate pending.
-  One saved-original Astra probe up1USD is approved after technical QA;
-  no new book or public-wizard/visual cutover is included.
+- Narrow scene-reasoning/complete-reader code8fcb03b7..883ad02d has actual Claude
+  technicalPASS,582/582,tsc0 and threeLow findings. One approved saved-original
+  Astra reading completed on883ad02d, oneHTTP,0.116513USD usageestimate under1USD.
+  Two meaningful source-bound weaknesses remain; no new draft/edit/book or
+  literary improvement is measured. Original trial09 stays failed and unchanged.
+  Public-wizard/visual cutover is excluded; full gate and wrapper in-flight
+  cancellation coverage stay open. Documentation closeout does not widen PASS.
 - Actual Claude technical PASS covers3f4b929d..3cb604ba (558/558,tsc0,nine
   controls,default parity,172 preserved files). The one authorized fresh trial09
   writes an Opus eight-spread original but FAILS before editor:strict Astra

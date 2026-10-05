@@ -32,12 +32,37 @@ Root final `npx --no-install tsc --noEmit` exits0. The focused eight-file comman
 
 `npm run check` exits1. Ordinary:6231pass,11fail,73skip. Ten failure names match the prior missing-artifact list; the new eleventh was the classifier's hard-coded inventory count. Adding one spec requires413total and393ordinary; this test-only expectation is now corrected and explicitly checks the new spec's ordinary classification. Its7/7 rerun passes, but no second full run is claimed. Resource:635/635tests pass with four `onTaskUpdate` RPC errors; that phase remains RED. There is no stability or release acceptance.
 
-Preflight on trial09's saved original serializes20661UTF8bytes and reserves944089microUSD ($0.944089) with the unchanged12000output ceiling. The approval-derived family is `reader-e931313e961c00a5364fe1d0a1a76266`; it has not been reserved or run. Existing source original digest is `13ce9fbbd28d81903f8fdcfba8cb5fbf7aacc3ced9b4642bb55dfce8ccfc8f88`; new packet digest is `10199ab62fd54f25baf51ed2385ceb14e3a822c2393f28da17c273840b5b0f18`. Packet instruction changes necessarily change future diagnostic packet digests, including when draftCritique is off. Old packets remain valid with their own saved instructions; public prompt bytes are unchanged.
+Preflight on trial09's saved original serializes20661UTF8bytes and reserves944089microUSD ($0.944089) with the unchanged12000output ceiling. The approval-derived family `reader-e931313e961c00a5364fe1d0a1a76266` is now consumed and sealed. Existing source original digest is `13ce9fbbd28d81903f8fdcfba8cb5fbf7aacc3ced9b4642bb55dfce8ccfc8f88`; new packet digest is `10199ab62fd54f25baf51ed2385ceb14e3a822c2393f28da17c273840b5b0f18`. Packet instruction changes necessarily change future diagnostic packet digests, including when draftCritique is off. Old packets remain valid with their own saved instructions; public prompt bytes are unchanged. Old readings cannot be re-projected against new instructions; no resume or historical evidence rewrite is promised.
 
-Evidence helpers, raw full-check log and the one-off live recipe are under `C:/Users/guyna/.codex/visualizations/2026/09/04/01a06c5c-a233-76c0-ac8e-618c02ce6246/scene-reasoning-reader-probe-20261005/`. The recipe is trusted local operator tooling, not a public entitlement API. It pins the new executing HEAD separately from the historical author HEAD, fixed source/request hashes, fresh pricing attestation, actual QA admission and one HTTP attempt. It is never executed by the reviewer. Independent technical PASS is pending; this document does not award one.
+Evidence helpers, raw full-check log and the one-off live recipe are under `C:/Users/guyna/.codex/visualizations/2026/09/04/01a06c5c-a233-76c0-ac8e-618c02ce6246/scene-reasoning-reader-probe-20261005/`. The recipe is trusted local operator tooling, not a public entitlement API. It pins the new executing HEAD separately from the historical author HEAD, fixed source/request hashes, fresh pricing attestation, actual QA admission and one HTTP attempt. It was never executed by the reviewer. Actual independent PASS and the subsequent root-only live result are recorded below.
 
 ## Independent QA handoff
 
 Review the base-to-successor range on `codex/personal-book-storyboard-bridge` in the owned detached automatic QA worktree at the same successor HEAD. Root is sole implementer; first pass is read-only. Changed files: diagnostic craft/critic source, its spec, new original-reader probe source/spec, classifier spec, CURRENT, ROADMAP and this Decision Gate. No other public flow or provider adapter changes.
 
 Try to falsify prompt routing and blind reader isolation; conditional fantasy/humour guidance; unchanged schema/caps and exact source quotes; same-reference one-use authority across roots; full-wire budget before key/transport; receipt-before-compiler/cost checks; cancellation, late-response and failure sealing. The ten reader mock tests use the real SDK and synthetic memory fetch, not a live provider. Read the verifier before running it; read the live recipe without executing it. Root575/575 plus7/7,tsc0 and full RED are claims to independently verify. Prompt tests do not establish literary judgment; a successful one-reader probe would not prove that authored or edited books improved.
+
+## Actual independent verdict and live outcome
+
+Native Claude Code reports technical PASS for exactly `8fcb03b7465f61394b26b7ef2357d39000d1c40a..883ad02d701b4e544e3c08cdfec2dfea2794d528`, no Critical/High/Medium, threeLow. It independently runs582/582 acrossninefiles,tsc0 and the read-only preservation/mutation verifier. It reads, rather than reruns, the full RED capture. Its QA worktree remains clean; engine Git commands were denied, so root's separate clean engine checks remain root evidence. The raw report/envelope/outcome are `CLAUDE_QA_883ad02d_*`. Native Max list estimate1.5303038USD is separate from the API probe, not an invoice.
+
+L1 pricing is addressed by a recorded operator attestation, not a new code enforcement claim: official standard Astra pricing reopened at2026-10-05T14:28:29Z is input10/cache-write12.5/output50 USD per million short-context tokens, within the conservative helper constants12.5/50microUSD per token. L2 is addressed by executing exactly the reviewed clean883ad02d, before this docs successor. L3 remains open: this wrapper's in-flight cancel/timeout/late response is supported by code reading, not its own regression tests. No zero-finding verdict or widened PASS is claimed.
+
+The one approved reader completes at2026-10-05T14:33:57Z: exactlyoneHTTP/keyread, reportedgpt-6-astra/default/completed, input4157 (cache-write4154), output1291 (reasoning804), summary277characters, visibleJSON1856characters, trailingwhitespace0. Conservative usageestimate116513microUSD ($0.116513), under944089reserved and1USDapproved. Raw receipt is retained, recompiled reading matches it, one claim/settlement is sealed `completed_diagnostic`. Nine new artifacts are enumerated in the two new output/journal roots by the root collector;197oldfiles/36roots still match. An initial collector assertion mistakenly expected10files; it failed before writing any closeout, root enumerated4output+5journal, corrected9, then collected offline without another provider call.
+
+Astra's two source-bound meaningful findings identify the underdetermined bench clue and the underdeveloped recognition payoff. It expressly allows fantasy and lingering doubt; it does not call either a proved contradiction. Root checks the explanations against the actual prose and concurs at that level. The original is unedited; trial09's historical failure remains sealed. There is no new author, editor, final book, critique-transfer experiment or product acceptance.
+
+This one successful reading does not prove decoder cause, lasting output reliability, prompt causality or literary author/edit improvement. Both semantic and output instructions changed together. Use it as evidence that the current reader can deliver a complete, useful critique, not that all future stories are complete or excellent. `story-and-reading.txt` contains the complete unchanged original, exact critic findings and separate root interpretation. Public rollout and visual work remain excluded.
+
+## Local Git handoff
+
+Code is committed at883ad02d and independently reviewed; the documentation-only successor records its result without extending that PASS. No push was performed. Inspect the actual branch before deciding to publish all local commits:
+
+```powershell
+Set-Location 'C:/Users/guyna/.codex/worktrees/personal-story-product/Small_Heroes'
+git status --short --branch
+git log -3 --oneline
+git diff --check
+# Only if Guy chooses to push the complete local branch:
+git push origin codex/personal-book-storyboard-bridge
+```

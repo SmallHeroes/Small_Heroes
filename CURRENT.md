@@ -1,6 +1,6 @@
 # SmallHeroes — Current Technical State
 
-## Scene reasoning and reader completion in progress 2026 10 05
+## Scene reasoning verified and one reader probe completed 2026 10 05
 
 Guy approved a narrow diagnostic refinement at base8fcb03b7: scene-local clue
 discrimination, important information affecting reactions and unresolved-desire
@@ -10,17 +10,33 @@ No output clamp, schema/model/cap/stage migration or public-wizard change.
 The new original-only probe reuses the journal and Astra transport with one
 approval-derived atomic family/slot and a hard1USD reservation ceiling before
 key/network. Actual trial09 wire20661bytes reserves0.944089USD at12000output.
-The reader's old source remains unchanged. No paid call has run in this milestone.
+The reader's old source remains unchanged. One approved reader call is completed below.
 
-Root final tsc0,575/575 across8specs plus classifier7/7; two in-memory guard
-removal controls and197paid files/36roots preserved. Full check exits1:
+Code883ad02d has actual Claude Code technicalPASS for exact8fcb03b7..883ad02d:
+independenttsc0,582/582 across9specs,197archived files/36roots preserved and two
+in-memory guard-removal controls. ThreeLow findings, not zero: current price
+and exact reviewed HEAD are addressed by recorded operator attestations; the
+wrapper's in-flight abort/timeout/late-response tests remain a gap. No widening
+to previous25commits or this documentation successor. Full check exits1:
 ordinary6231pass/11fail/73skip, including the10 historical missing-artifact
 failures plus a new fixed-count classifier expectation caused by the added spec.
 That expectation was corrected to413total/393ordinary and separately passes7/7;
 the full suite was not rerun after this test-only correction. Resource635/635
-tests pass but4onTaskUpdateRPCerrors keep its gateRED. Independent QA is pending.
-Only after its PASS: ONE saved-original reader call up1USD, no new
-book/editor/render/push/deploy. This does not establish literary improvement.
+tests pass but4onTaskUpdateRPCerrors keep its gateRED.
+
+The approved ONE original-only probe ran at exactly reviewed883ad02d:
+providerreportscompleted/default/gpt-6-astra; oneHTTP/keyread,4157input/1291output
+(804reasoning),277charactersummary and no trailingwhitespace. Conservative
+usageestimate0.116513USD versus0.944089reserved/1USDceiling, notinvoice.
+Astra independently returns two meaningful issues (scene-local clue and
+recognition-payoff), with valid exact sourcequotes. Root reads both as supported
+material ambiguities/underdevelopment, not proven contradictions. Original
+trial09 remains failed and unedited; no editor or new book was run. This one
+completion neither proves decoder cause/reliability nor author/edit improvement.
+Nine new evidencefiles/tworoots are retained, and all197oldfiles remain unchanged.
+Actual MaxQA listestimate1.5303038USD is separate, not an API invoice.
+Readable original+critique: scene-reasoning-reader-probe-20261005/story-and-reading.txt
+under the recorded visualization root. No render/push/deploy/public-wizard change.
 Decision and QA targets: docs/ai-workflow/PERSONAL_SCENE_REASONING_READER_PROBE_20261005.md.
 
 ## Early critique tested PASS, trial09 reader failure 2026 10 05
