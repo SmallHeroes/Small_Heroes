@@ -232,7 +232,7 @@ describe('sticker flights: held, settled and dropped with the stage', () => {
 
 // The actual component, transpiled from the branch and run with modelled hooks, timers and Web
 // Animations. This checks control flow only: no browser, layout, CSS or hydration.
-describe('VoiceStoryStage (real TSX): the dots, pause and reduced motion govern every change', () => {
+describe('VoiceStoryStage (real TSX): pause and reduced motion govern every change', () => {
   const compiled = ts.transpileModule(readFileSync(join(process.cwd(), 'app/landing/personal-wow/VoiceStoryStage.tsx'), 'utf8'), {
     fileName: 'VoiceStoryStage.tsx',
     compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX, target: ts.ScriptTarget.ES2020 },
@@ -353,7 +353,8 @@ describe('VoiceStoryStage (real TSX): the dots, pause and reduced motion govern 
       visit(tree, (element) => { if (match(element)) found.push(element); });
       return found;
     };
-    const current = () => String(all((e) => e.type === 'button' && e.props['aria-current'] === 'true')[0]?.props['aria-label']).replace('show ', '');
+    // The family on stage, read from its picture (each synthetic family's one moment is `/<name>.png`).
+    const current = () => String(all((e) => e.type === 'img' && e.props.className === 'vs-color')[0]?.props.src).replace(/^\//, '').replace(/\.png$/, '');
     // Every family that reached the stage, in order, so a wrong family shown in between is caught too.
     const history: string[] = [];
     const render = () => {
@@ -382,7 +383,7 @@ describe('VoiceStoryStage (real TSX): the dots, pause and reduced motion govern 
       mark: () => history.length,
       stage: () => all((e) => e.type === 'figure')[0].props,
       tagLanded: () => all((e) => e.props.className === 'vs-tag').map((e) => e.props['data-landed']),
-      choose: (name: string) => press(all((e) => e.props['aria-label'] === `show ${name}`)[0]),
+      byClass: (name: string) => all((e) => e.props.className === name),
       togglePause: () => press(all((e) => e.props.className === 'vs-toggle')[0]),
       reducedMotion: (on: boolean) => { media.matches = on; media.listeners.forEach((run) => run()); render(); },
       onScreen: (visible: boolean) => { intersect?.([{ isIntersecting: visible }]); render(); },
@@ -394,46 +395,45 @@ describe('VoiceStoryStage (real TSX): the dots, pause and reduced motion govern 
     };
   }
 
-  it('Bar then Yuval before the fade ends: Yuval is shown, and Bar never reaches the stage', () => {
+  it('nothing sits under the stage: no family dots, the illustration note for screen readers only', () => {
+    const stage = mount();
+    expect(stage.byClass('vs-dot')).toHaveLength(0);
+    expect(stage.byClass('vs-label')).toHaveLength(0);
+    expect(stage.byClass('vs-sr').map((e) => e.props.children)).toContain('synthetic');
+    // the pause control moving content must keep is still rendered (shown on keyboard focus by CSS)
+    expect(stage.byClass('vs-toggle')).toHaveLength(1);
+  });
+
+  it('the families follow one another on their own: Yuval, then Bar, then Aviv', () => {
     const stage = mount();
     const mark = stage.mark();
-    stage.choose('Bar');
-    expect(stage.stage()['data-leaving']).toBe('true');
-    stage.choose('Yuval');
-    stage.advance(FADE + 2);
-    expect(stage.current()).toBe('Yuval');
-    expect(stage.shownSince(mark)).not.toContain('Bar');
-    expect(stage.stage()['data-leaving']).toBe('false');
-  });
-
-  it('Bar, then reduced motion, then Aviv: Aviv stays, and nothing is left scheduled', () => {
-    const stage = mount();
-    stage.choose('Bar');
-    stage.reducedMotion(true);
-    expect(stage.current()).toBe('Bar');
-    expect(stage.stage()['data-leaving']).toBe('false');
-    stage.choose('Aviv');
-    expect(stage.current()).toBe('Aviv');
-    stage.advance(FADE + 2);
-    expect(stage.current()).toBe('Aviv');
-    expect(stage.pending()).toBe(0);
-  });
-
-  it('a press during the automatic end-of-story fade wins over the next family', () => {
-    const stage = mount();
     stage.advance(STORY_END + 1);
     expect(stage.stage()['data-leaving']).toBe('true');
     expect(stage.current()).toBe('Yuval');
-    const mark = stage.mark();
-    stage.choose('Aviv');
     stage.advance(FADE + 2);
+    expect(stage.current()).toBe('Bar');
+    expect(stage.stage()['data-leaving']).toBe('false');
+    stage.advance(STORY_END + FADE + 2);
     expect(stage.current()).toBe('Aviv');
-    expect(stage.shownSince(mark)).toEqual(['Aviv']);
+    // after Yuval (on stage when marked): Bar, then Aviv, and no other family in between
+    expect(stage.shownSince(mark)).toEqual(['Bar', 'Aviv']);
+  });
+
+  it('reduced motion during the automatic fade settles at once, and nothing is left scheduled', () => {
+    const stage = mount();
+    stage.advance(STORY_END + 1);
+    expect(stage.stage()['data-leaving']).toBe('true');
+    stage.reducedMotion(true);
+    expect(stage.stage()['data-leaving']).toBe('false');
+    stage.advance(FADE * 2);
+    expect(stage.pending()).toBe(0);
+    // a still stage offers no pause control: there is nothing to pause
+    expect(stage.byClass('vs-toggle')).toHaveLength(0);
   });
 
   it.each([['during the fade', 0], ['between the swap and the fade-in', FAMILY_FADE_MS + 1]])('unmount %s leaves no timer and no late update', (_, wait) => {
     const stage = mount();
-    stage.choose('Bar');
+    stage.advance(STORY_END + 1);
     stage.advance(wait);
     stage.unmount();
     expect(stage.pending()).toBe(0);
@@ -467,15 +467,13 @@ describe('VoiceStoryStage (real TSX): the dots, pause and reduced motion govern 
     expect(stage.tagLanded()).toEqual(['true']);
   });
 
-  it('a family change mid-flight drops the flight, and its late finish never lands the next family\'s sticker', () => {
+  it('the next family starts with its stickers unlanded, whatever the last one left', () => {
     const stage = mount();
     stage.advance(FLIGHT_AT + 1);
     const [flight] = stage.flights;
     const lateFinish = flight.onfinish;
-    stage.choose('Bar');
-    stage.advance(FADE + 2);
+    stage.advance(STORY_END + FADE + 2);
     expect(stage.current()).toBe('Bar');
-    expect(flight.playState).toBe('idle');
     lateFinish?.();
     stage.flush();
     expect(stage.tagLanded()).toEqual(['false']);

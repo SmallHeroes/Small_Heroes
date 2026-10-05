@@ -115,10 +115,12 @@ const browserScheduler: StageScheduler = {
 };
 
 /**
- * The hero's living stories. Runs only while on screen, in a visible tab and with motion allowed; the
- * pause control holds it (stickers in flight too) and the dots choose a family, the latest press
- * winning. Under reduced motion a finished story is shown (its opening line in the bubble, every
- * moment in colour and tagged) and the dots switch families instantly.
+ * The hero's living stories. Runs only while on screen, in a visible tab and with motion allowed, and the
+ * families follow one another on their own. Nothing sits under the stage (Guy 2026-10-05: no caption, no
+ * dots): the illustration note is for screen readers only, and the pause control, which moving content must
+ * keep (WCAG 2.2.2), appears only when it receives keyboard focus. It holds the stage, stickers in flight
+ * too. Under reduced motion a finished story is shown (its opening line in the bubble, every moment in
+ * colour and tagged).
  */
 export function VoiceStoryStage({ demo }: { demo: VoiceStories }) {
   const total = demo.stories.length;
@@ -273,8 +275,6 @@ export function VoiceStoryStage({ demo }: { demo: VoiceStories }) {
     return () => window.clearTimeout(timer);
   }, [warm, running]);
 
-  const choose = (next: number) => transition.current?.request(next, motionAllowed);
-
   // Still (reduced motion): the opening line only; the tags on the pictures carry the rest.
   const bubbleLines = complete ? [0] : view.line >= 0 ? [view.line] : [];
 
@@ -396,18 +396,8 @@ export function VoiceStoryStage({ demo }: { demo: VoiceStories }) {
               <span className="vs-sr">{paused ? demo.play : demo.pause}</span>
             </button>
           ) : null}
-          {demo.stories.map((item, storyIndex) => (
-            <button
-              key={item.name}
-              type="button"
-              className="vs-dot"
-              aria-label={`${demo.show} ${item.name}`}
-              aria-current={storyIndex === index ? 'true' : undefined}
-              onClick={() => choose(storyIndex)}
-            />
-          ))}
         </span>
-        <span className="vs-label">{demo.label}</span>
+        <span className="vs-sr">{demo.label}</span>
       </figcaption>
     </figure>
   );

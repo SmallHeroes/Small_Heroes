@@ -254,7 +254,7 @@
 
 .pp-leaf--words p {
   margin: 0;
-  font-size: clamp(16px, 1.3vw, 18px);
+  font-size: 16px; /* Guy 2026-10-05: the book's text at 16px */
   line-height: 1.72;
   color: #2f2a24;
   text-wrap: pretty;
@@ -683,16 +683,23 @@
 .vs-warm { position: absolute; width: 1px; height: 1px; overflow: hidden; opacity: 0; pointer-events: none; }
 .vs-warm img { width: 1px; height: 1px; }
 
-.vs-foot {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-top: 10px;
-  padding-inline: 2%;
-}
+/* Nothing under the stage (Guy 2026-10-05: no caption, no dots). The pause control that moving content
+   must keep (WCAG 2.2.2) shows only when it has keyboard focus, floating at the stage's corner, so the
+   row takes no space and nothing shifts when it appears. */
+.vs-foot { position: relative; height: 0; margin: 0; padding: 0; }
 
-.vs-controls { display: inline-flex; align-items: center; gap: 8px; order: 2; }
+.vs-controls { position: absolute; inset-block-start: 10px; inset-inline-end: 2%; z-index: 2; }
+
+.vs-toggle:not(:focus-visible) {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
 
 .vs-toggle {
   display: inline-grid;
@@ -708,21 +715,7 @@
 
 .vs-toggle svg { width: 16px; height: 16px; }
 
-.vs-dot {
-  width: 12px;
-  height: 12px;
-  padding: 0;
-  border-radius: 999px;
-  border: 0;
-  background: var(--purple-200);
-  cursor: pointer;
-  transition: width 0.3s var(--pw-ease), background 0.3s ease;
-}
-
-.vs-dot[aria-current='true'] { width: 28px; background: var(--purple-500); }
-.vs-toggle:focus-visible,
-.vs-dot:focus-visible { outline: 3px solid var(--purple-400); outline-offset: 3px; }
-.vs-label { font-size: 13px; color: var(--n-600); }
+.vs-toggle:focus-visible { outline: 3px solid var(--purple-400); outline-offset: 3px; }
 
 .vs-sr {
   position: absolute;
