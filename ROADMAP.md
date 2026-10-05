@@ -10,6 +10,17 @@ This roadmap records technical milestone state. Guy can change product priority 
 
 ### P-personal fifteen-companion expansion (2026-10-03)
 
+- Dynamicrefinement and correction have actualClaudePASS for exact0155ec94..
+  1239549b and1239549b..90a10242, itsown583/583,tsc0,publicparity/hashcontrols.
+  Onefreshfictionalbook completesafter rootHOLD overrides firstnativeWRITE and
+  one defects-onlyreplan; freshreview precedes Opusauthor/originalAstra/freshOpus
+  editor/blindfinal/comparison. Morephysicalplay; meaningfullampnote is forwarded
+  and revised, finalno findings,comparisonminorwarmthlossretained. Original448/
+  edit462words,p5soft66overshoot. Eightcalls+twosynopsis estimates2.408907USD,
+  notinvoice. Root335checks,47new+245oldfiles preserved,allsealed. Autonomous
+  adventurejudgement/repeatability unproved; Guyreadsnext. FullRED,no public,
+  render,cohort,push/deploy; docs-onlycloseoutnotindependentlyregated.
+
 - Guy's trial10 objection pauses cohort expansion: strengthen whole-book
   enacted development in existing diagnostic craft, selection, synopsis and
   readers. No new stage/schema/model/cap/public path or location quota.

@@ -1,5 +1,33 @@
 # SmallHeroes — Current Technical State
 
+## Dynamic adventure trial completed after one planning repair 2026 10 05
+
+Actual nativeClaude technicalPASS covers0155ec94..1239549b and corrective
+1239549b..90a10242, routing/preservation only: independent583/583,tsc0,parity9,
+245archivalhashes/42roots andfourin-memorycontrols. Native QA list estimates
+1.1954766+0.8722592USD are separate,notinvoices. Low gaps/fullRED remain.
+
+One approved fictionalNeta4/Uri/8spread book runs exactly90a10242. Firstnative
+synopsisWRITE is overridden by rootHOLD for insufficient adventure; one bound
+defects-only replan and a fresh secondWRITE introduce sliding pursuit,sandsearch
+and a swing encounter. This reveals remaining autonomous judgement weakness,
+not a prompt-only success. Opus authors, originalAstra finds one meaningfullamp
+identity-power mismatch, freshOpus edits, blindfinalAstra findsnone; comparison
+reports meaningfulimprovement and two polishnotes including lost relationalwarmth.
+Title "נטע והזחל שגלש מהציור", original448words/edit462, eightspreads. One
+softlength overshoot:p5=66 versus65. Textreadyforhumanreview,notproductaccepted.
+Eight logicalcalls,2.045624USDpipeline +0.363283native synopsis estimates equals
+2.408907USD; allowance11.588803 under12USD,notinvoice. Childexit0, bothfamilies
+sealed,runtimeEligiblefalse. Root335offlinechecks recompile/hash47new+245old,
+no independentClaude experiment-evidencePASS or remotebackup claimed.
+
+Exact TXToriginal/edit are in single-book-calibration-20261005-approved-11 under
+the established visualization root; editedTXTqueued in filepanel, no browser
+preview success. CodePASS does not expand to earlier28commits or docscloseout.
+Full gate remainsRED; no publiccutover,render,narration,six-bookrun,push/deploy.
+NextGuyreads, then separatelybudgetedvariedcohort and futurevisualqualification.
+See docs/ai-workflow/PERSONAL_DYNAMIC_ADVENTURE_20261005.md.
+
 ## Dynamic adventure refinement in technical validation 2026 10 05
 
 Guy rejects trial10's insufficiently developed adventure despite coherent
