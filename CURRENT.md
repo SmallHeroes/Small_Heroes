@@ -1,5 +1,41 @@
 # SmallHeroes — Current Technical State
 
+## One new authored and edited text book completed 2026 10 05
+
+Guy asked to continue after the reader closeout. One fresh fictional Neta age
+four and Uri book ran on frozen b559bdb8 through the existing diagnostic route:
+Opus 5.5 plan and author, original-only Astra, fresh Opus editor, blind final
+Astra and isolated comparison. No engine code, models, caps or public flow changed.
+The new book is "החילזון שיצא מהציור", eight spreads and 444 lexical words.
+The process exited 0 with text_ready_for_human_review, runtimeEligible false.
+
+Seven logical calls, no replan, all known estimates: $1.326915 for the pipeline
+plus $0.152848 native synopsis review, $1.479763 combined estimates, not invoices.
+The original reading found one polish preference and zero eligible material
+issues; the exact empty projection reached the editor. The editor independently
+changed only the final two sentences. Final Astra found no issues; comparison
+reported one meaningful improvement. This does NOT test material-defect repair,
+repeatability, or a causal quality gain from the prompt changes.
+
+Root's offline verifier passed 287 checks, verified 39 new evidence files and
+all 206 old files across 38 roots unchanged. Both new families are sealed.
+Actual native Claude evidence QA read the records and found no contradicted
+claim, but its verdict is HOLD because Bash permissions denied its hash/compiler
+helper and final Git checks. No bypass or false PASS. Its separate Max list
+estimate is $0.7877762, not an API invoice. Existing code PASS remains bounded
+to 8fcb03b7..883ad02d; the forwarded independent docs review of b559bdb8 is
+accepted as evidence-only and does not extend literary/product acceptance.
+
+Readable original and edit are in the external
+single-book-calibration-20261005-approved-10 folder; the ignored book viewer is
+outputs/personal-calibration-4de8598e7ee4caec5fbd20cff7390845-book/index.html.
+Embedded browser policy blocked file URLs; the TXT copy is available and was
+queued in the Codex file panel. No browser preview success is claimed.
+Next: Guy reads the edited story. A six-profile run, public wizard integration,
+visual work and release remain separate. Full gate stays RED; no push/deploy,
+images, narration or manual story edit. Closeout:
+docs/ai-workflow/PERSONAL_SCENE_REASONING_TRIAL10_CLOSEOUT_20261005.md.
+
 ## Scene reasoning verified and one reader probe completed 2026 10 05
 
 Guy approved a narrow diagnostic refinement at base8fcb03b7: scene-local clue

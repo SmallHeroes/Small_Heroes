@@ -10,6 +10,15 @@ This roadmap records technical milestone state. Guy can change product priority 
 
 ### P-personal fifteen-companion expansion (2026-10-03)
 
+- One approved fresh text book completed on b559bdb8: Opus author/fresh editor,
+  original/final/comparison Astra; eight spreads, 444 words, no replan. Seven
+  pipeline calls cost $1.326915 estimated, plus $0.152848 synopsis review.
+  Zero eligible material draft findings means repair efficacy remains untested.
+  Final-only Astra reports zero issues; this is human-reading readiness only.
+  Root verifies 287 checks and 206 old files unchanged. Native evidence QA is
+  HOLD for denied hash/compiler/Git execution, not a contradicted claim; its
+  separate Max list estimate is $0.7877762. No public/visual/release acceptance
+  or push. Guy's story reading and subsequent varied cohort remain next.
 - Narrow scene-reasoning/complete-reader code8fcb03b7..883ad02d has actual Claude
   technicalPASS,582/582,tsc0 and threeLow findings. One approved saved-original
   Astra reading completed on883ad02d, oneHTTP,0.116513USD usageestimate under1USD.
