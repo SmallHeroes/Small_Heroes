@@ -40,7 +40,7 @@ Astra final-only reading precedes independent original-vs-edit comparison.
 
 Continuous plan: "נטע והסנאי שהתחבא בשלט". Codex and fresh Claude session
 df3b32fa-3c78-4767-b3e4-0e860efc4921 read the whole adventure, not only checks,
-and allow WRITE. Four advisory concerns retained: ambiguous entry wording,
+and allow WRITE. Claude retains four advisory concerns: ambiguous entry wording,
 sign/swing viewpoint, repetitive wrong Uri guesses and water restoration wording.
 No blocking plan defect. Therefore shared replan slot stays unused: paid repair
 and fresh second reviewer are NOT runtime-proven here. Prospective projection
@@ -113,5 +113,19 @@ git diff --check '58d161e8..HEAD'
 git push origin HEAD:refs/heads/codex/personal-book-storyboard-bridge
 ```
 
-No push performed. Closeout independent re-gate pending when committed; no
-product/release/visual acceptance is asserted here.
+No push performed. Actual Claude Code docs closeout PASS covers exactly
+58d161e881a67e3da154b1b3afb5326a01928b06..c88a45819ca3e559ea14f48974ccf5cda62b9435.
+Claude reads the changed documents and raw receipts/verdicts and reruns the two
+read-only verifiers:35new files/four roots and91old files/24roots, all unchanged.
+The original final report and recovered transcript record are preserved in the
+visualization root as CLAUDE_QA_TRIAL07_CLOSEOUT_*; no full CLI stdout envelope or
+native exit is reconstructed. No extra paid call was made to recover that output.
+
+Claude supplies two low wording nits, corrected by this result-recording successor:
+the four synopsis advisories are Claude's, while Codex additionally flags the
+middle-sign clustering; no-blocker findings are Astra's assessment, not literary
+acceptance. This successor has no independent re-gate of its own. The actual code
+PASS stays5acdde05..58d161e8; no product/release/visual acceptance is asserted.
+Claude did not independently inspect preflight, protected-tree state, TTY runtime,
+projection-helper tests or viewer layout. Those remain root evidence/limits,
+not expanded independent-review claims. No repeated full gate or new book run.

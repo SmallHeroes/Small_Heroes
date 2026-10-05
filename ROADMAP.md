@@ -13,11 +13,13 @@ This roadmap records technical milestone state. Guy can change product priority 
 - Exact5acdde05..58d161e8 receives actual tested Claude PASS:507/507,tsc0,
  8parity/5controls/91preserved files. Fresh authorized trial07 completes one
  fictional8spread Neta/Uri book: real Opus plan/author/fresh edit, Astra final and
- comparison, zero blocking literary findings. First synopsis WRITE means no paid
+ comparison, which report no blocking findings. First synopsis WRITE means no paid
  repair/second review was exercised. Model-ready for Guy's reading, not product
  acceptance or repeatability. Trial+synopsis estimate~1.35USD, not invoice;
  35new files/four roots preserved, all old91unchanged, seals consumed. No images,
  public wizard cutover, push/deploy or stability acceptance. Guy reading is next.
+ Actual Claude docs PASS covers58d161e8..c88a4581; this docs-only result record
+ clarifies two low wording nits without extending code/literary acceptance.
 
 - 04fdaba2 repair is committed locally. Actual Claude review is procedural HOLD
   because automatic checkout lacked packages; initial report preserved, including

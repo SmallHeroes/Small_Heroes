@@ -14,7 +14,8 @@ Under Guy's fresh approval, trial07 executes frozen58d161e8, unused reference
 guy-20261005-trial07-single-synopsis-repair-new-book-and-fresh-review-approval.
 Real probe reports Astra/default/completed; native Opus5.5 produces plan, entire
 original and fresh-process edit; isolated Astra final/comparison both complete.
-Codex and fresh Claude whole-plan review permit WRITE with4advisory findings.
+Codex and fresh Claude whole-plan review permit WRITE. Claude records four
+advisory findings; Codex additionally flags middle beats clustered around the sign.
 First plan passed, so no paid repair or second synopsis review was exercised.
 That is not proof that the new repair path improves literary quality.
 
@@ -46,6 +47,17 @@ No public wizard cutover: it still uses the separate OpenAI story_only flow.
 No push/deploy/source promotion/release or Guy product acceptance. Next meaningful
 dependency is Guy's actual reading, not another paid roll. Closeout handoff:
 docs/ai-workflow/PERSONAL_TRIAL07_READABLE_BOOK_20261005.md.
+
+Actual Claude docs closeout PASS covers exact58d161e8..c88a4581 only. It reads
+the changed Markdown against the real receipts/verdicts, runs both read-only
+verifiers, and confirms35new/91old files unchanged. Original final message is
+preserved as CLAUDE_QA_TRIAL07_CLOSEOUT_REPORT_20261005.md plus a transcript
+record in visualization root; the full CLI stdout envelope/exit are not recovered.
+Two low wording nits are corrected in this docs-only successor: Claude's four
+advisories are distinguished from Codex's concern, and Astra's no-blocker result
+is not called literary acceptance. This result-recording successor has no new
+independent re-gate and does not extend the prior code PASS. No extra paid call,
+focused/full test rerun, book mutation, push or deploy; Guy's reading is next.
 
 ## Synopsis repair QA follow-up 2026 10 05
 
