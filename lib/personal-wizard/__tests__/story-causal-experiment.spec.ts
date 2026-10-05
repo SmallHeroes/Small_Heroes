@@ -87,6 +87,16 @@ describe('limited causal experiment, not live provider or quality certification'
     expect(() => createCausalExperiment({ ...multi.args, cases: multi.args.cases.slice(0, 1), synopsisRepair: true,
       ports: { ...multi.ports, recordSynopsisRepair: undefined } })).toThrow('repair_policy');
   });
+  it('disabled repair cannot alter a concurrently planning legacy run', async () => {
+    let release!: () => void; const gate = new Promise<void>(resolve => { release = resolve; });
+    const h = harness(1, async call => { await gate; return defaultOutput(call); });
+    const pending = h.runner.plan(); await vi.waitFor(() => expect(h.ports.generate).toHaveBeenCalledOnce());
+    const before = h.runner.snapshot(); await expect(h.runner.repair({})).rejects.toThrow('repair_policy');
+    expect(h.runner.snapshot()).toEqual(before); release(); await pending;
+    expect(h.runner.snapshot().phase).toBe('planned'); h.approve(); expect((await h.runner.write()).books).toHaveLength(1);
+    expect(h.ports.recordSynopsisRepair).not.toHaveBeenCalled();
+    expect(vi.mocked(h.ports.generate).mock.calls.map(([c]) => c.stage)).toEqual(['plan', 'author', 'editor', 'final_review', 'comparison']);
+  });
   it('repairs once with defects only, keeps both attempts, and authors only the freshly reviewed plan', async () => {
     const h = harness(1, call => {
       const out: any = defaultOutput(call);

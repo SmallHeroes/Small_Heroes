@@ -169,6 +169,21 @@ describe('two same-process review windows through the CLI (zero providers)', () 
       expect(h.transport.mock.calls.map(([, c]) => c.stage)).toEqual(['final_review', 'plan', 'replan']);
     } finally { h.reader.close(); h.cleanup(); }
   }, 15_000);
+  it('EOF during authoring cancels the opted-in run and a late reply cannot continue to editing', async () => {
+    const h = cliHarness();
+    try {
+      const first = await h.status('synopsis_review_required');
+      h.transport.mockImplementation(async (_wire, call, signal) => {
+        if (call.stage === 'author') { h.reader.close(); expect(signal.aborted).toBe(true); }
+        return reply(call);
+      });
+      writeFileSync(path.join(h.spec.bookRoot, 'review.json'), JSON.stringify({ sourceDigest: first.sourceDigest,
+        decisions: [{ caseId: 'case1', decision: 'write', reason: 'Synthetic current full-plan decision, not literary approval.' }] }), { flag: 'wx' });
+      h.reader.emit('line', 'continue'); expect(await h.outcome).toMatchObject({ error: { code: expect.any(String) } });
+      expect(h.transport.mock.calls.map(([, c]) => c.stage)).toEqual(['final_review', 'plan', 'author']);
+      expect(existsSync(path.join(h.spec.bookRoot, 'index.html'))).toBe(false);
+    } finally { h.reader.close(); h.cleanup(); }
+  }, 15_000);
 });
 
 describe('one fictional book over the existing causal host, not public rollout', () => {

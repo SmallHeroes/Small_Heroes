@@ -10,6 +10,14 @@ This roadmap records technical milestone state. Guy can change product priority 
 
 ### P-personal fifteen-companion expansion (2026-10-03)
 
+- 04fdaba2 repair is committed locally. Actual Claude review is procedural HOLD
+  because automatic checkout lacked packages; initial report preserved, including
+  its unintended npx network fallback. Root reuses tested local dependencies via
+  ignored junction. Two low findings get a narrow successor: disabled concurrent
+  repair leaves ordinary state intact, plus EOF-authoring regression coverage.
+  Whole-surface tested re-gate precedes prepared, unused fresh trial07. No book,
+  push, site change, old-family reuse or stability acceptance yet.
+
 - Guy approves the bounded one-time external synopsis repair and one fresh
   fictional8spread trial up to12USD after technical QA. Root implements opt-in,
   single-case repair over the existing replan slot, defects only, preserved plans

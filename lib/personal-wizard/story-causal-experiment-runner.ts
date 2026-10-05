@@ -143,9 +143,11 @@ export function createCausalExperiment(args: {
     review = structuredClone(value); phase = 'reviewed';
   }
   async function repair(raw: unknown) {
+    // A disabled optional operation must not poison or revive the legacy flow.
+    if (!repairEnabled) return causalFail('repair_policy');
     try {
       current();
-      if (!repairEnabled || phase !== 'planned') causalFail('repair_policy');
+      if (phase !== 'planned') causalFail('repair_policy');
       const parsed = causalSynopsisRepairSchema.safeParse(raw);
       if (!parsed.success) return causalFail('repair_request');
       const request = structuredClone(parsed.data);

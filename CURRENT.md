@@ -1,5 +1,33 @@
 # SmallHeroes — Current Technical State
 
+## Synopsis repair QA follow-up 2026 10 05
+
+04fdaba2 is the clean local repair milestone, unpushed. Actual Claude Code reads
+exact5acdde05..04fdaba2 and returns procedural HOLD, not tested PASS: automatic
+checkout lacked node_modules. Its npx fallback fetched vitest5.0.3 into npm cache
+despite the no-network brief, then failed; no source changed. Original envelope
+and report remain preserved as CLAUDE_QA_04fdaba2_INITIAL_* in visualization root.
+Archive helper independently passes91files/24roots. Root provisions only an
+ignored junction to the already-tested local dependency set, without install,
+engine/protected-tree edits or Git trust change. Human reviewer stays untouched.
+
+Claude's two valid low findings are addressed: a disabled repair now rejects
+outside the terminal catch without mutating an ongoing ordinary plan, and an
+additive real-CLI mocked-TTY test pins EOF during authoring/late output/no editor.
+No new phase/stage/schema/prompt/cap or dependency. Other notes are disclosures,
+not correctness findings: driver relies on coordinator/host for concurrent calls;
+repair bundle retains first critique for audit, so the actual fresh second
+literary reviewer will receive a separate latest-plan-only projection (no prior
+critique/solution) while its decision still binds the full source digest.
+
+Final focused507/507 and tsc0. Eight default-parity cases and five in-memory
+negative controls still pass; archive91files preserved. Next a local focused
+successor and same-session independent re-gate of the whole repair surface.
+Full RED remains the recorded pre-final run; no full rerun or paid book yet.
+Fresh trial07 reference is prepared, unused, at<=12USD; execute only after tested
+PASS, without reopening trials01–06. Fix handoff:
+docs/ai-workflow/PERSONAL_SYNOPSIS_REPAIR_REGATE_20261005.md.
+
 ## Approved one-time synopsis repair implemented 2026 10 05
 
 Guy approves Claude's five design conditions and one fresh fictional eight-spread
