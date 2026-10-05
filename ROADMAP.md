@@ -10,6 +10,14 @@ This roadmap records technical milestone state. Guy can change product priority 
 
 ### P-personal fifteen-companion expansion (2026-10-03)
 
+- Guy's general trial07 feedback yields a narrow diagnostic-only literary
+ instruction refinement:experience selection,age/length allocation,enacted
+ promises,function-preserving edit and justified criticism. Focused518/518;
+ seven in-memory controls and public parity pass,all126evidence files preserved.
+ Full RED remains; no book quality/production claim. Independent Claude re-gate
+ precedes a separately approved blinded original-versus-edit experiment. No new
+ stage/schema/cap/model,paid book,public flow,render,push or deployment.
+
 - Exact5acdde05..58d161e8 receives actual tested Claude PASS:507/507,tsc0,
  8parity/5controls/91preserved files. Fresh authorized trial07 completes one
  fictional8spread Neta/Uri book: real Opus plan/author/fresh edit, Astra final and

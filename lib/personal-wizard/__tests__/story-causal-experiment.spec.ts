@@ -347,6 +347,91 @@ describe('limited causal experiment, not live provider or quality certification'
     expect(call.instructions).toContain('semanticAudit.original uses original pages');
     expect(call.instructions).toContain('semanticAudit.revised uses revised pages');
   });
+  it.each(['plan', 'replan'] as const)('actual %s balances reader experience with topic fit and narrative scope', async stage => {
+    const h = harness(1, call => call.stage === 'plan' ? planned(JSON.parse(call.input).brief, true) : defaultOutput(call));
+    await h.runner.plan();
+    const call = vi.mocked(h.ports.generate).mock.calls.map(([c]) => c).find(c => c.stage === stage)!;
+    expect(call.instructions).toContain("Choose the reader's experience alongside emotional fit");
+    expect(call.instructions).toContain('Do not choose an idea solely because a magical rule forces the selected coping skill');
+    expect(call.instructions).toContain('Keep the chosen topic consequential');
+    expect(call.instructions).toContain('If BOTH ideas are weak, return both_rejected');
+    expect(call.instructions).toContain('Allocate narrative space for brief.child.age and brief.beats, not only word length');
+    expect(call.instructions).toContain('There is no fixed count of rules, characters, places or action beats');
+    expect(call.instructions).toContain('adventure_only must remain a full adventure without inventing a real difficulty');
+    expect(JSON.parse(call.input).brief.resilienceMode).toBe('chosen_topic');
+    expect(vi.mocked(h.ports.generate).mock.calls.map(([c]) => c.stage)).toEqual(['plan', 'replan']);
+  });
+  it.each([[3, 'short', 8], [5, 'medium', 12], [8, 'long', 16]] as const)('author enacts promises for age%s at %s length', async (age, length, spreads) => {
+    const h = harness(); h.args.cases[0].request.child.age = age;
+    h.args.cases[0].request.bookOptions.lengthId = length;
+    const runner = createCausalExperiment(h.args), b = await runner.plan();
+    runner.reviewSynopses({ sourceDigest: b.sourceDigest, decisions: [{ caseId: 'case1', decision: 'write', reason: 'Synthetic test only, not a literary approval.' }] });
+    const result = await runner.write(), calls = vi.mocked(h.ports.generate).mock.calls.map(([c]) => c);
+    const call = calls.find(c => c.stage === 'author')!, input = JSON.parse(call.input);
+    expect(input.task).toContain(`child aged ${age}, in ${spreads} narrative spreads (${spreads * 2} display pages)`);
+    expect(input.task).toContain('planned personal choices, companion contribution and key experiences, where present, are actually enacted');
+    expect(input.task).toContain('No mandatory extra adventure or separate companion arc');
+    expect(call.instructions).toContain('A brief satisfying encounter is valid');
+    expect(call.instructions).toContain('develop a longer adventure rather than stretching one event');
+    expect(call.instructions).toContain('a repeated gesture or request should add something, not fill a coping quota');
+    expect(result.books[0].original.manuscript.pages).toHaveLength(spreads);
+    expect(calls.map(c => c.stage)).toEqual(['plan', 'author', 'editor', 'final_review', 'comparison']);
+    expect(calls.every(c => Buffer.byteLength(c.instructions + c.input, 'utf8') <= 104_000)).toBe(true);
+  });
+  it('actual editor protects relational payoff without inventing events or freezing a weak scene', async () => {
+    const h = harness(); await h.runner.plan(); h.approve(); await h.runner.write();
+    const call = vi.mocked(h.ports.generate).mock.calls.map(([c]) => c).find(c => c.stage === 'editor')!;
+    expect(call.instructions).toContain('Protect relational commitments, personal comic echoes and emotional closure');
+    expect(call.instructions).toContain('A justified replacement may improve them');
+    expect(call.instructions).toContain('wording, scene or structural repair to match the actual weakness');
+    expect(call.instructions).toContain('A request or intention is not a narrated completed event');
+    expect(call.instructions).toContain("a character's guess is not an established fact");
+    expect(call.instructions).toContain('Distinguish proven contradiction, ambiguity, literary weakness and stylistic preference');
+    expect(call.instructions).toContain('Allocate narrative space for brief.child.age and brief.beats');
+    expect(call.instructions).toContain('Preserve functions, not necessarily literal wording');
+    expect(call.input).not.toMatch(/findings|packetDigest|authorConversation/);
+  });
+  it.each(['original_review', 'final_review', 'comparison'] as const)('actual %s asks for justified reader-impact findings rather than semantic attestation', async stage => {
+    const h = harness(1, undefined, new AbortController(), stage === 'original_review' ? 'benchmark' : 'normal');
+    await h.runner.plan(); h.approve(); await h.runner.write();
+    const call = vi.mocked(h.ports.generate).mock.calls.map(([c]) => c).find(c => c.stage === stage)!;
+    const input = JSON.parse(call.input);
+    expect(call.instructions).toContain('Assess the enacted experience and allocation of narrative space');
+    expect(call.instructions).toContain('Distinguish proven contradiction, ambiguity, literary weakness and stylistic preference');
+    expect(call.instructions).toContain('A request or intention is not a narrated completed event');
+    expect(call.instructions).toContain('if evidence only supports ambiguity, say so');
+    expect(input.packet.brief.child.age).toBe(4); expect(input.packet.brief.narrativeSpreads).toBe(8);
+    expect(input.packetDigest).toBe(causalDigest(input.packet));
+    expect(call.input).not.toMatch(/semanticAudit|outlineChecks|draftTextMetrics/);
+    if (stage === 'comparison') expect(call.instructions).toContain('Compare relational commitments, personal comic echoes and emotional closure');
+    else expect(input.packet).not.toHaveProperty('original');
+  });
+  it('diagnostic experience wording does not leak into the shared public planner or editor', () => {
+    const prepared = preparePersonalStory(causalTrialCohort()[3].request, options);
+    expect(prepared.brief.resilienceMode).toBe('adventure_only');
+    for (const text of [prepared.call.instructions, STORY_EDITOR_INSTRUCTIONS]) {
+      expect(text).not.toContain("Choose the reader's experience alongside emotional fit");
+      expect(text).not.toContain('Allocate narrative space for brief.child.age and brief.beats');
+      expect(text).not.toContain('Protect relational commitments, personal comic echoes and emotional closure');
+    }
+    expect(CAUSAL_PLAN_INSTRUCTIONS).toContain('adventure_only must remain a full adventure without inventing a real difficulty');
+  });
+  it('actual no-difficulty diagnostic keeps a sparse adventure-only brief through every stage', async () => {
+    const h = harness(); h.args.cases = [causalTrialCohort()[3]];
+    const runner = createCausalExperiment(h.args), b = await runner.plan();
+    runner.reviewSynopses({ sourceDigest: b.sourceDigest, decisions: [{ caseId: 'case4', decision: 'write', reason: 'Synthetic sparse adventure test, not product acceptance.' }] });
+    const result = await runner.write(), calls = vi.mocked(h.ports.generate).mock.calls.map(([c]) => c);
+    expect(calls.map(c => c.stage)).toEqual(['plan', 'author', 'editor', 'final_review', 'comparison']);
+    for (const call of calls) {
+      const input = JSON.parse(call.input), brief = input.packet?.brief ?? input.brief;
+      expect(brief.resilienceMode).toBe('adventure_only'); expect(brief.topic).toBeNull();
+      expect(brief.facts).toHaveLength(1); expect(brief.facts[0].kind).toBe('interest');
+      expect(brief.companion.id).toBe('chameleon_koko');
+    }
+    expect(calls[0].instructions).toContain('adventure_only must remain a full adventure without inventing a real difficulty');
+    expect(result.books[0].edit.revised.plan.resilience.mode).toBe('adventure_only');
+    expect(h.ports.generate).toHaveBeenCalledTimes(5);
+  });
   it('revised beats cannot drop the last interest, but may use only a subset of approved facts', () => {
     const f = selectedFixture();
     const used = new Set(f.output.revision.plan.beats.flatMap((beat: any) => beat.factIds));

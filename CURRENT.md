@@ -1,5 +1,38 @@
 # SmallHeroes — Current Technical State
 
+## Literary experience refinement implemented 2026 10 05
+
+Guy asks for a general upgrade from the revised GPT trial07 feedback, not manual
+story repair. At base3367328e the plan mostly reaches prose, Uri genuinely helps,
+and the concern is how important moments use scarce narrative space. The false
+two-water-return claim is Opus editor's audit, not Astra; Astra already reports
+the removed future-relationship promise. n=1 does not prove a systemic frequency.
+
+Root is sole writer on codex/personal-book-storyboard-bridge. Two diagnostic
+production files refine experience-versus-topic selection, age/length allocation,
+enacted promises, relational/comic/ending preservation and requested-versus-narrated
+events. No new stage/schema/model/cap/gate or shared public prompt. Quiet/brief
+encounters remain valid; no mandatory extra adventure, separate friend arc,
+location count, failed attempt or coping quota. Same five normal book stages;
+one replan/HOLD/privacy/fact/character constraints unchanged. No story API/key/book/render.
+
+Core126 (115+11) and sequential focused518/518, seven specs. Default-worker attempt
+had517pass/1existing repair-WRITE timeout; isolated WRITE/HOLD2/2 pass. Seven
+in-memory Vite mutations fail intended new tests2/3/3/1/3/1/3, positive11/11.
+These tests prove instruction delivery, not stronger stories or semantic truth.
+Six frozen public prepared-call/brief comparisons and public editor bytes match
+3367328e.30synthetic full SDK wires fit, max45421bytes/104000; not worst-case input.
+All35trial07 and91older files remain unchanged. Old families remain sealed.
+
+Actual full check child1:ordinary11failed/6174pass/73skip,392files (10missing
+artifacts plus unchanged blueprint-adapter timeout);resource635/635pass,20files,
+3onTaskUpdateRPCerrors and phase1. Gate RED; no causation/stability claim.
+No push/deploy/public wizard cutover or product acceptance. A separately approved
+blind experiment must assess originals and edits independently before literary
+improvement is claimed. No fresh spending reference/config is prepared here.
+Decision and frozen-QA handoff:docs/ai-workflow/PERSONAL_LITERARY_EXPERIENCE_*
+20261005.md. Next:focused local commit and actual independent Claude re-gate.
+
 ## Trial07 readable fictional book completed 2026 10 05
 
 Actual Claude tested technical PASS covers exact5acdde05..58d161e8, both repair

@@ -186,7 +186,7 @@ export function createCausalExperiment(args: {
         const rawOriginal = await dispatch(c.id, 'author', { instructions: `${CAUSAL_STORY_INSTRUCTIONS}\n${RESILIENCE_INSTRUCTIONS}\n${CAUSAL_NARRATIVE_CRAFT_INSTRUCTIONS}`,
           input: canonicalJson({ brief: c.prepared.brief, plan: chosen.plan, planDigest: chosen.planDigest,
             synopsis: chosen.synopsis,
-            task: 'Write the entire Hebrew adventure, one COMPLETE text per ordered beat through earned resolution. No pageNumber metadata. Age 3 to 5 target 35 to 65 words per spread; age 6 to 8 target 45 to 85. Targets are measured separately, not quality scores. No previous story or author conversation.' }),
+            task: `Write for a child aged ${c.prepared.brief.child.age}, in ${c.prepared.brief.beats} narrative spreads (${c.prepared.brief.displayPages} display pages). Write the entire Hebrew adventure, one COMPLETE text per ordered beat through earned resolution. Give the key experiences room for concrete action and response, not just explanation. Check that planned personal choices, companion contribution and key experiences, where present, are actually enacted; their mention alone is insufficient. No mandatory extra adventure or separate companion arc. No pageNumber metadata. Age 3 to 5 target 35 to 65 words per spread; age 6 to 8 target 45 to 85. Targets are measured separately, not quality scores. No previous story or author conversation.` }),
           schema: causalAuthorSchema(c.prepared, chosen), maxOutputTokens: personalStoryOutputLimits(c.prepared.brief.beats).manuscriptOutputTokens });
         const original = compileCausalOriginal(c.prepared, chosen, rawOriginal);
         const editor = causalEditorCall(c.prepared, original);
