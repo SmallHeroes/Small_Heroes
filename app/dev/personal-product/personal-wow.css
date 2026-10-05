@@ -834,6 +834,108 @@
   .ph-badge svg { width: 38px; height: 38px; }
 }
 
+/* ── The friends row: every companion, drifting by (Guy 2026-10-05) ──────
+   The row is rendered twice and the track travels exactly one copy (50% of
+   its own width), so the loop never jumps. Every item is one equal unit (the
+   card plus its share of the gap), which keeps both copies the same width.
+   Across the page the friends move toward the reading side, so they arrive in
+   reading order. A mouse over the row holds it, keyboard focus or the button
+   stops it, and it rests while off screen. The row runs from screen edge to
+   screen edge with no fade (Guy: without the fade it is more wow); the section
+   clips sideways so the full-width row never adds a page scroll. */
+.personal-product .helps-section { overflow-x: clip; }
+
+.pcc {
+  --pcc-card: 216px;
+  --pcc-gap: 20px;
+  --pcc-art: 252px;
+  margin-top: 28px;
+}
+
+.pcc-viewport {
+  margin-inline: calc(50% - 50vw);
+  overflow-x: clip;
+  padding-block: 18px 30px; /* room for a card's lift and its shadow */
+}
+
+.pcc-track {
+  display: flex;
+  width: max-content;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  animation: pcc-drift calc(var(--pcc-count, 13) * 6.5s) linear infinite;
+  animation-play-state: paused;
+}
+
+/* it moves only while on screen, not stopped and not under the mouse */
+.pcc[data-onscreen]:not([data-paused]) .pcc-viewport:not(:hover) .pcc-track { animation-play-state: running; }
+
+@keyframes pcc-drift {
+  from { transform: translate3d(0, 0, 0); }
+  to { transform: translate3d(50%, 0, 0); }
+}
+
+.pcc-item {
+  display: flex;
+  flex: 0 0 auto;
+  width: calc(var(--pcc-card) + var(--pcc-gap));
+  padding-inline: calc(var(--pcc-gap) / 2);
+}
+
+.pcc-card {
+  width: 100%;
+  min-height: 0;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.pcc-card .mvp-challenge-card-img-wrap { height: var(--pcc-art); }
+
+.pcc-card:focus-visible {
+  outline: 3px solid var(--brand-purple, var(--purple-500));
+  outline-offset: 3px;
+}
+
+/* the stop control: a quiet pill under the row */
+.pcc-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: fit-content;
+  min-height: 40px;
+  margin: 0 auto;
+  padding: 8px 18px;
+  border: 1px solid var(--border-soft, #efecf8);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.86);
+  color: var(--purple-600);
+  font: inherit;
+  font-size: 14.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 160ms ease, border-color 160ms ease;
+}
+
+.pcc-toggle:hover {
+  background: #fff;
+  border-color: var(--border-strong, #d8cdfd);
+}
+
+.pcc-toggle:focus-visible {
+  outline: 3px solid var(--brand-purple, var(--purple-500));
+  outline-offset: 3px;
+}
+
+.pcc-toggle-icon {
+  font-size: 11px;
+  letter-spacing: -1px;
+}
+
+@media (max-width: 640px) {
+  .pcc { --pcc-card: 184px; --pcc-gap: 14px; --pcc-art: 214px; }
+}
+
 /* ── Stillness wins (keep LAST) ──────────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
   .pw-hero *,
@@ -846,4 +948,13 @@
     transition: none !important;
   }
   .ph-trail-line { clip-path: none !important; }
+  /* the friends hold still in one row that scrolls by hand; the loop copy and its button go */
+  .pcc-track { animation: none !important; transform: none !important; }
+  .pcc-viewport {
+    overflow-x: auto;
+    scroll-snap-type: x proximity;
+  }
+  .pcc-item { scroll-snap-align: start; }
+  .pcc-item[aria-hidden='true'],
+  .pcc-toggle { display: none; }
 }

@@ -3,7 +3,8 @@ import { createHash } from 'crypto';
 import { preparePersonalStory, writePersonalStory, STORY_INSTRUCTIONS, StoryWriterError, type StoryCall, type StoryProvider } from '../story-writer';
 import { personalStoryResultSchema } from '../story-contract';
 import { IntakeLedger } from '../intake-ledger';
-import { resolvePersonalWizardOptions, PROTOTYPE_COMPANION_ROSTER } from '../options';
+import { resolvePersonalWizardOptions, PERSONAL_COMPANION_IDS } from '../options';
+import { getPersonalAddedCompanion } from '../personal-companions';
 import { canonicalJson } from '../request-acceptance';
 import { resolveStorySettings, storyReservationUsd, type StorySettings } from '../story-config';
 import type { ReviewedPersonalBookRequest } from '../contract';
@@ -37,11 +38,17 @@ const provider = (mutate?: (output: any, call: StoryCall) => unknown): StoryProv
 const run = (input = storyRequest(), p = provider(), ledger = new IntakeLedger(), config = settings, jobId = 's_storytest00001', signal = new AbortController().signal) => writePersonalStory({ prepared: preparePersonalStory(input, options), userId: 'operator', jobId, settings: config, ledger, provider: () => p, signal });
 
 describe('personal manuscript writer at the reviewed request boundary', () => {
-  it.each(PROTOTYPE_COMPANION_ROSTER)('supports %s independently of a topic', async (id) => {
+  it.each(PERSONAL_COMPANION_IDS)('supports %s independently of a topic', async (id) => {
     const result = await run(storyRequest('short', id));
     expect(result.runtimeEligible).toBe(false);
     expect(result.editorialStatus).toBe('pending_product_review');
     expect(result.accounting.providerCalls).toBe(2);
+  });
+  it('writes an added friend as itself: its own name and temperament, no registry stand-in', () => {
+    const tuti = getPersonalAddedCompanion('hedgehog_tuti')!;
+    const prepared = preparePersonalStory(storyRequest('short', 'hedgehog_tuti'), options);
+    expect(prepared.brief.companion).toEqual({ id: 'hedgehog_tuti', name: tuti.name, personality: { temperament: tuti.temperament } });
+    expect(prepared.call.input).toContain(tuti.temperament);
   });
   it.each([['short', 8, 16], ['medium', 12, 24], ['long', 16, 32]] as const)('maps %s to narrative beats and display pages', async (id, beats, display) => {
     const result = await run(storyRequest(id));
@@ -223,7 +230,7 @@ describe('writer switches and product copy', () => {
     expect(PERSONAL_PROOF.story.join(' ')).toContain('הלב שלה עוד דפק מהר');
   });
   it('gives every offered friend a line of character, never a difficulty to be "for"', () => {
-    for (const id of PROTOTYPE_COMPANION_ROSTER) expect(PERSONAL_COMPANION_LINES[id], id).toBeTruthy();
+    for (const id of PERSONAL_COMPANION_IDS) expect(PERSONAL_COMPANION_LINES[id], id).toBeTruthy();
     for (const line of Object.values(PERSONAL_COMPANION_LINES)) expect(line).not.toMatch(/פחד|פוחד|כעס|חושך|אח חדש|אחות חדשה|ביישנ|חיסון|לילדים ש/);
   });
   it('states only the wizard\'s facts beside the hero\'s one action', () => {

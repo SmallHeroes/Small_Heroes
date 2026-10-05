@@ -4,7 +4,7 @@ import { notFound } from 'next/navigation';
 import { isDevEnvironment } from '@/lib/dev-only-guard';
 import { isPersonalWizardPreviewEnabled } from '@/lib/personal-wizard/flags';
 import { buildMvpMatrixResponse } from '@/lib/web/mvp-matrix-response';
-import { getPersonalLandingContent, PERSONAL_PRODUCT_METADATA } from '@/content/personal-landing';
+import { getPersonalLandingContent, PERSONAL_COMPANION_ART, PERSONAL_COMPANION_LINES, PERSONAL_PRODUCT_METADATA } from '@/content/personal-landing';
 import { resolvePersonalWizardOptions } from '@/lib/personal-wizard/options';
 import LandingPage from '@/app/landing/landing-page';
 import '@/app/landing/main.css';
@@ -26,12 +26,15 @@ export const metadata: Metadata = { ...PERSONAL_PRODUCT_METADATA, title: 'הכי
 export default function PersonalProductPage() {
   if (!isDevEnvironment() || !isPersonalWizardPreviewEnabled()) notFound();
   const { categories } = buildMvpMatrixResponse();
-  const offered = new Set(resolvePersonalWizardOptions().companions.map((companion) => companion.id));
+  const roster = resolvePersonalWizardOptions().companions;
+  const offered = new Set(roster.map((companion) => companion.id));
   // Personal preview eligibility is asset-backed roster availability, not legacy topic sellability.
   const companions = categories.filter((slot) => offered.has(slot.companion.id)).map((slot) => ({ ...slot, publicVisible: true }));
+  // The friends row shows every companion the wizard offers, by companion and in the wizard's order.
+  const friends = roster.map(({ id, name, image }) => ({ id, name, line: PERSONAL_COMPANION_LINES[id] ?? '', image: PERSONAL_COMPANION_ART[id] ?? image }));
   return (
     <div className={`${fredoka.variable} ${playpen.variable}`}>
-      <LandingPage content={getPersonalLandingContent()} startHref="/dev/personal-wizard" matrixCategories={companions} personalPreview />
+      <LandingPage content={getPersonalLandingContent()} startHref="/dev/personal-wizard" matrixCategories={companions} personalCompanions={friends} personalPreview />
     </div>
   );
 }

@@ -19,6 +19,7 @@ import { PersonalHowItWorks } from './personal-how-it-works';
 import { PersonalProof } from './personal-proof';
 import { PERSONAL_COMPANION_LINES } from '@/content/personal-landing';
 import { PersonalWowHero } from './personal-wow/PersonalWowHero';
+import { PersonalCompanionCarousel, type PersonalFriendCard } from './personal-companion-carousel';
 import childHandoff from '@/public/JS/hero-child-handoff';
 import { CompanionSpotlight } from '@/app/components/CompanionSpotlight';
 import { warmCompanionIdleVideos } from '@/lib/web/companion-idle-video';
@@ -85,9 +86,11 @@ type LandingPageProps = {
   startHref: string;
   matrixCategories: MvpMatrixCategoryPayload[];
   personalPreview?: boolean;
+  /** Personal preview only: every friend the wizard offers, for the drifting friends row. */
+  personalCompanions?: PersonalFriendCard[];
 };
 
-export default function LandingPage({ content: L, startHref, matrixCategories, personalPreview = false }: LandingPageProps) {
+export default function LandingPage({ content: L, startHref, matrixCategories, personalPreview = false, personalCompanions }: LandingPageProps) {
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(null);
 
   /* Optional same-tab prefill, expiring after 30 minutes. Browser access stays
@@ -259,6 +262,12 @@ export default function LandingPage({ content: L, startHref, matrixCategories, p
             <div className="wrap">
               <h2 className="section-h2" data-reveal="up">{L.helps.h2}</h2>
               <p className="section-lede" data-reveal="up" data-reveal-delay="50">{L.helps.lede}</p>
+              {/* the personal preview shows every friend the wizard offers as a drifting row (Guy 2026-10-05) */}
+              {personalPreview && personalCompanions ? (
+                <div data-reveal="up" data-reveal-delay="80">
+                  <PersonalCompanionCarousel friends={personalCompanions} startHref={startHref} />
+                </div>
+              ) : (
               <div className="mvp-challenge-grid mvp-challenge-grid--landing">
                 {matrixCategories.map((slot, index) => {
                   {/* Landing-side marketing copy per category; the wizard keeps
@@ -290,6 +299,7 @@ export default function LandingPage({ content: L, startHref, matrixCategories, p
                   );
                 })}
               </div>
+              )}
               <p className="helps-closing" data-reveal="fade" data-reveal-delay="380">{L.helps.closing}</p>
             </div>
           </section>

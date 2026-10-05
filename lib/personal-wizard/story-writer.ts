@@ -4,6 +4,7 @@ import { createHash } from 'crypto';
 import { getCompanionById } from '@/lib/companions';
 import { DEEP_PROFILES } from '@/lib/companion-deep-profiles';
 import type { PersonalWizardOptions } from './options';
+import { getPersonalAddedCompanion } from './personal-companions';
 import { acceptPersonalBookRequest, canonicalJson } from './request-acceptance';
 import { IntakeLedger } from './intake-ledger';
 import { comparableText } from './contract';
@@ -38,7 +39,9 @@ export function preparePersonalStory(input: unknown, options: PersonalWizardOpti
   const request = accepted.canonical;
   const length = options.lengths.find((candidate) => candidate.id === request.bookOptions.lengthId);
   if (!length || ![16, 24, 32].includes(length.pages)) fail('story_length_required');
-  const companion = getCompanionById(request.companion.id);
+  // A registry companion, or one of the added personal companions with its own temperament (never an alias).
+  const added = getPersonalAddedCompanion(request.companion.id);
+  const companion = getCompanionById(request.companion.id) ?? (added && { id: added.id, name: added.name, tagline: added.temperament });
   if (!companion) fail('story_companion_unavailable');
   const profile = DEEP_PROFILES[companion.id];
   const intent = request.intent;

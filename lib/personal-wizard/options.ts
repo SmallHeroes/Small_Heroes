@@ -7,6 +7,7 @@ import { join } from 'path';
 import { DIRECTION_PAGE_MAP, TOPICS, displayPagesForBeats } from '@/backend/config/wizard';
 import { VOICES } from '@/backend/config/voices';
 import { getCompanionById } from '@/lib/companions';
+import { PERSONAL_ADDED_COMPANIONS } from './personal-companions';
 
 /**
  * Prototype roster: a configured list, not a hardcoded story companion. All six companions with
@@ -20,6 +21,12 @@ export const PROTOTYPE_COMPANION_ROSTER: readonly string[] = [
   'chameleon_koko',
   'lion_shaket',
   'bunny_ometz',
+];
+
+/** Everything the wizard may offer, in display order: the six registry companions, then the added ones. */
+export const PERSONAL_COMPANION_IDS: readonly string[] = [
+  ...PROTOTYPE_COMPANION_ROSTER,
+  ...PERSONAL_ADDED_COMPANIONS.map((companion) => companion.id),
 ];
 
 /**
@@ -81,6 +88,15 @@ export function resolvePersonalWizardOptions(root: string = process.cwd()): Pers
       continue;
     }
     companions.push({ id: companion.id, name: companion.name, image });
+  }
+  for (const companion of PERSONAL_ADDED_COMPANIONS) {
+    // A personal companion is a new identity: it may never shadow (alias) a registry companion.
+    if (getCompanionById(companion.id)) throw new Error(`personal_wizard_companion_alias:${companion.id}`);
+    if (!publicAssetExists(companion.image, root)) {
+      unavailableCompanionIds.push(companion.id);
+      continue;
+    }
+    companions.push({ id: companion.id, name: companion.name, image: companion.image });
   }
 
   const topics = PROTOTYPE_TOPIC_IDS.map((id) => {

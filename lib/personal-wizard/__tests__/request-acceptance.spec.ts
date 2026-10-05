@@ -1,12 +1,13 @@
-import { mkdtempSync, rmSync } from 'fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync, statSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
 
 import { NextRequest } from 'next/server';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { POST } from '@/app/api/dev/personal-wizard/request/route';
 import { VOICES } from '@/backend/config/voices';
+import { getCompanionById } from '@/lib/companions';
 
 import type { ReviewedPersonalBookRequest } from '../contract';
 import {
@@ -24,7 +25,8 @@ import {
   setNoDifficulty,
   setVoice,
 } from '../draft';
-import { PROTOTYPE_COMPANION_ROSTER, resolvePersonalWizardOptions } from '../options';
+import { PERSONAL_COMPANION_IDS, PROTOTYPE_COMPANION_ROSTER, resolvePersonalWizardOptions } from '../options';
+import { PERSONAL_ADDED_COMPANIONS } from '../personal-companions';
 import { acceptPersonalBookRequest, canonicalJson } from '../request-acceptance';
 
 const options = resolvePersonalWizardOptions();
@@ -45,14 +47,15 @@ function validRequest(): ReviewedPersonalBookRequest {
 }
 
 describe('resolvePersonalWizardOptions', () => {
-  it('offers all six companions with on-disk card art by name, the voices, and three length tiers', () => {
-    expect(options.companions.map((companion) => companion.id)).toEqual([...PROTOTYPE_COMPANION_ROSTER]);
-    expect(options.companions).toHaveLength(6);
+  it('offers all thirteen companions with on-disk card art by name, the voices, and three length tiers', () => {
+    // The six registry companions first, then the seven added personal friends (Guy 2026-10-05).
+    expect(options.companions.map((companion) => companion.id)).toEqual([...PERSONAL_COMPANION_IDS]);
+    expect(options.companions).toHaveLength(13);
     expect(options.unavailableCompanionIds).toEqual([]);
     for (const companion of options.companions) {
       expect(Object.keys(companion).sort()).toEqual(['id', 'image', 'name']);
       expect(companion.name.length).toBeGreaterThan(0);
-      expect(companion.image).toMatch(/^\/companions\//);
+      expect(companion.image).toMatch(PROTOTYPE_COMPANION_ROSTER.includes(companion.id) ? /^\/companions\// : /^\/Images\/personal-companions\/[a-z_]+\.webp$/);
     }
     expect(options.voices.map((voice) => voice.id)).toEqual(VOICES.map((voice) => voice.id));
     expect(options.voices.find((voice) => voice.id === 'dad_v2')?.sampleUrl).toBeNull();
@@ -72,11 +75,59 @@ describe('resolvePersonalWizardOptions', () => {
     try {
       const bare = resolvePersonalWizardOptions(emptyRoot);
       expect(bare.companions).toEqual([]);
-      expect(bare.unavailableCompanionIds).toEqual([...PROTOTYPE_COMPANION_ROSTER]);
+      expect(bare.unavailableCompanionIds).toEqual([...PERSONAL_COMPANION_IDS]);
       expect(bare.voices.every((voice) => voice.sampleUrl === null)).toBe(true);
       expect(bare.fingerprint).not.toBe(options.fingerprint);
     } finally {
       rmSync(emptyRoot, { recursive: true, force: true });
+    }
+  });
+});
+
+describe('the added personal friends (Guy 2026-10-05)', () => {
+  it('are new identities with a name, a gender, a temperament and their own light card art', () => {
+    const ids = PERSONAL_ADDED_COMPANIONS.map((companion) => companion.id);
+    expect(ids).toEqual(['elephant_momo', 'turtle_tuk', 'hedgehog_tuti', 'owl_shush', 'cloud_puf', 'kangaroo_nula', 'dog_zohar']);
+    for (const added of PERSONAL_ADDED_COMPANIONS) {
+      // never an alias of a registry companion (e.g. the legacy butterfly_zohar or turtle_beiti)
+      expect(getCompanionById(added.id), added.id).toBeFalsy();
+      expect(['male', 'female']).toContain(added.gender);
+      expect(added.temperament.length, added.id).toBeGreaterThan(40);
+      const file = join(process.cwd(), 'public', added.image);
+      expect(existsSync(file), added.image).toBe(true);
+      const head = readFileSync(file).subarray(0, 12);
+      expect(head.subarray(0, 4).toString('ascii') + head.subarray(8, 12).toString('ascii'), added.image).toBe('RIFFWEBP');
+      expect(statSync(file).size, added.image).toBeLessThan(150_000);
+    }
+    const names = options.companions.map((companion) => companion.name);
+    expect(new Set(names).size).toBe(names.length);
+  });
+
+  it('accepts a request for an added friend only while that friend is offered', () => {
+    const request = { ...validRequest(), companion: { id: 'hedgehog_tuti' } };
+    expect(acceptPersonalBookRequest(request, options).ok).toBe(true);
+    const emptyRoot = mkdtempSync(join(tmpdir(), 'pw-options-'));
+    try {
+      const withoutArt = acceptPersonalBookRequest(request, resolvePersonalWizardOptions(emptyRoot));
+      expect(withoutArt.ok).toBe(false);
+      if (!withoutArt.ok) expect(withoutArt.issues).toContainEqual({ path: 'companion.id', code: 'companion_not_offered' });
+    } finally {
+      rmSync(emptyRoot, { recursive: true, force: true });
+    }
+  });
+
+  it('refuses an added friend that would shadow a registry companion', async () => {
+    vi.resetModules();
+    vi.doMock('../personal-companions', () => ({
+      PERSONAL_ADDED_COMPANIONS: [{ ...PERSONAL_ADDED_COMPANIONS[0], id: 'fox_uri' }],
+      getPersonalAddedCompanion: () => undefined,
+    }));
+    try {
+      const fresh = await import('../options');
+      expect(() => fresh.resolvePersonalWizardOptions()).toThrow('personal_wizard_companion_alias:fox_uri');
+    } finally {
+      vi.doUnmock('../personal-companions');
+      vi.resetModules();
     }
   });
 });

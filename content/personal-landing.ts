@@ -39,7 +39,8 @@ export const PERSONAL_PROOF = {
 /**
  * One line of character per companion card (site audit: a name and a look are not enough to choose a
  * friend). Paraphrased from the canonical material the personal writer uses (deep profiles; the authoring
- * cards for Leo and Buni), and never the old topic-bound arc: no friend is "for" one difficulty.
+ * cards for Leo and Buni; for the added friends, their candidate character profiles), and never the old
+ * topic-bound arc: no friend is "for" one difficulty.
  */
 export const PERSONAL_COMPANION_LINES: Record<string, string> = {
   dragon_dini: 'חמה ומעשית. מציבה כללים קטנים ורציניים, והזנב שלה לא תמיד מקשיב להם.',
@@ -48,7 +49,35 @@ export const PERSONAL_COMPANION_LINES: Record<string, string> = {
   chameleon_koko: 'סקרנית וזריזה, עם צבע לכל מצב רוח ומשחק מילים לכל מקום חדש.',
   lion_shaket: 'ישיר, חם ומלא אנרגיה. הרעמה שלו רועדת עוד לפני שהוא אומר מה מטריד אותו.',
   bunny_ometz: 'מכריז בהתלהבות על תוכניות גדולות. האוזניים שלו מספרות את האמת לפני שהוא מודה בה.',
+  elephant_momo: 'חזק ועדין, ומתייחס ברצינות גמורה לכל פירור וכפתור. רוצה להפתיע במשהו יפה, לא רק לסחוב.',
+  turtle_tuk: 'הרפתקן נלהב. הראש שלו כבר במקום הבא, והשריון עוד בדרך.',
+  hedgehog_tuti: 'חמה, עצמאית וישירה. אומרת בדיוק מה לא מתאים לה, ואז מפנה לך מקום לידה.',
+  owl_shush: 'סקרנית עם דמיון נועז. יש לה הסבר מלהיב כמעט לכל דבר, והיא שמחה עוד יותר כשהמציאות מפתיעה אותה.',
+  cloud_puf: 'אוהב לצאת לדרך ונקשר לכל פינה ולכל מזכרת. מכריז שהוא נשאר פה, ורגע אחר כך ״פה״ כבר זז.',
+  kangaroo_nula: 'יצירתית וממציאה. רואה שלושה שימושים בכל חפץ, ומחליפה רעיון עוד לפני שסיפרה לך על הקודם.',
+  dog_zohar: 'נמרצת ואוהבת להמציא משחקים. רוצה שיראו את הרעיון שלה, אבל הזנב שלה מתחיל לפניה.',
 };
+
+/**
+ * Landing card art for the six registry companions, keyed by companion (not by legacy category): the warm
+ * full-figure "Start" art the page already shows. Added companions use their own card art from the roster.
+ */
+export const PERSONAL_COMPANION_ART: Record<string, string> = {
+  dragon_dini: '/Images/Categories/StartDuni.webp',
+  panda_anat: '/Images/Categories/StartAnat.webp',
+  fox_uri: '/Images/Categories/StartUri.webp',
+  chameleon_koko: '/Images/Categories/StartKim.webp',
+  lion_shaket: '/Images/Categories/StartLeo.webp',
+  bunny_ometz: '/Images/Categories/StartBuny.webp',
+};
+
+/** The friends row on the personal landing: it drifts slowly, pauses for the parent, and stops on request. */
+export const PERSONAL_COMPANION_CAROUSEL = {
+  label: 'החברים להרפתקה',
+  pause: 'עצירת התנועה',
+  play: 'המשך התנועה',
+  choose: 'לבחור את',
+} as const;
 
 /** The one action this preview offers, named for what happens next (site audit). */
 export const PERSONAL_START_LABEL = 'מספרים לנו על הילד';
