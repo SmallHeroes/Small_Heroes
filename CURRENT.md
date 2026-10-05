@@ -1,5 +1,55 @@
 # SmallHeroes — Current Technical State
 
+## Early critique tested PASS, trial09 reader failure 2026 10 05
+
+Actual native Claude Code gives tested technical PASS for exact3f4b929d..3cb604ba:
+tsc0,558/558, nine in-memory controls, frozen default parity and172 preserved
+files. Raw envelope/report remain in draft-critique-editor-20261005. Native Max
+list estimate1.5756076USD is separate from the book and not an invoice. Three
+low defence/observability/coverage findings remain non-blocking, not fixed.
+
+The explicitly approved ONE fresh book then runs at clean frozen3cb604ba,
+benchmark draftCritique:true/synopsisRepair:true under a new single-use reference.
+Fresh whole-plan Claude review says WRITE; root reads/concurred with explicit
+advisories. No external fixes or previous story/roof finding enter writing.
+Opus5.5 writes all eight original spreads of נטע והזיקית שברחה מהשלט.
+
+Trial09 FAILS at original_review, before critique transfer or editor claim.
+Astra reports strict-json-schema incomplete/max_output_tokens:12000 output,
+516 reasoning. Its summary is exactly600characters (the schema maximum), then
+59388 trailing whitespace characters;60091 visible characters total, no valid
+JSON/findings. The received error is not authentication, network or rate-limit
+evidence. Raw receipt/status/usage and all paid artifacts remain untouched.
+No editor/final/comparison book call, no recovery of partial JSON, no fallback,
+no family reopening and no second book. Node child exit1 is directly captured.
+
+Four logical attempts including the probe,0unknown cost. Book/probe usage and
+Max list estimate1.317313USD; with synopsis review1.476833USD. Separate readonly
+Claude design consultation0.22866USD; book+synopsis+consultation1.705493USD.
+Technical QA is separate above. All are estimates, not invoices/guaranteed caps.
+The12USD allowance is consumed as authority, not permission to spend its balance.
+
+Offline actual-response replay reproduces incomplete with one mocked fetch and
+no real key/API. Enumerated197files/36roots (172old+25new) match size/hash/inventory.
+Original copy lives outside paid roots in single-book-calibration-20261005-
+approved-09/story-original-for-reading.txt; it is labelled unedited/unreviewed,
+not a finished accepted book. App open is queued,not verified browser success.
+
+Actual Claude consultation suggests testing explicit short complete reader
+summaries under the existing bound. Root mechanically measures six recent
+readings:four hit600 (three complete,one fails); two complete below600 (470,593).
+This supports investigating the boundary but does NOT prove decoder causality.
+The consultant's universal-H1 formulation is narrowed:earlier shorter successes
+do not logically falsify a boundary-triggered failure in this request. Official
+JSON-mode whitespace advice does not diagnose this strict-schema response.
+
+No cap/schema/model/prompt or code change follows this failed trial. Next decision:
+a small bounded reader-output remediation/probe, not another blind full book.
+New spending/major prompt changes require Guy's decision. Full gate remains RED;
+public wizard remains separate OpenAI story_only, no integration/render/push/deploy.
+Closeout/Claude adversarial handoff:PERSONAL_DRAFT_CRITIQUE_TRIAL09_CLOSEOUT_20261005.md.
+This docs-only successor records evidence; its independent re-gate is pending.
+
 ## Early draft critique implementation 2026 10 05
 
 Guy approves the bounded benchmark-only change, actual independent Claude QA,

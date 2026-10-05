@@ -10,6 +10,18 @@ This roadmap records technical milestone state. Guy can change product priority 
 
 ### P-personal fifteen-companion expansion (2026-10-03)
 
+- Actual Claude technical PASS covers3f4b929d..3cb604ba (558/558,tsc0,nine
+  controls,default parity,172 preserved files). The one authorized fresh trial09
+  writes an Opus eight-spread original but FAILS before editor:strict Astra
+  original reading hits12000 output tokens,516 thinking,then malformed JSON
+  with59388 trailing whitespace after a600-character summary. No transfer or
+  editor/final/comparison call, no quiet recovery or fresh retry. Four attempts,
+  estimate1.317313USD; with synopsis1.476833,plus separate design consultation
+ 0.22866USD.197files/36roots preserved. Hypothesis:explicit compact reader output
+  under existing bounds,not blind cap increase. New decision required for prompt
+  remediation/probe. Text copy is original only; quality/efficacy remain untested.
+  Global RED,public wizard separate,no visual work,push or deployment.
+
 - Approved early draft feedback is implemented as benchmark-only opt-in over
   existing slots: original Astra reading before fresh Opus edit, bounded whole
   source-bound material findings, durable exact transfer before editor claim,
