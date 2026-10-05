@@ -10,6 +10,15 @@ This roadmap records technical milestone state. Guy can change product priority 
 
 ### P-personal fifteen-companion expansion (2026-10-03)
 
+- Guy's trial10 objection pauses cohort expansion: strengthen whole-book
+  enacted development in existing diagnostic craft, selection, synopsis and
+  readers. No new stage/schema/model/cap/public path or location quota.
+  Initial583/583,tsc0,nine public call comparisons,four in-memory controls and
+  245preserved files/42roots; fullRED:6233ordinarypass/10historicalfails/73skip,
+  resource635/635 withtwoRPCerrors. Final583/583,tsc0; independentClaudeQA pending.
+  One fresh approved text book only after review; no literary/release
+  acceptance or paid dispatch yet.
+
 - One approved fresh text book completed on b559bdb8: Opus author/fresh editor,
   original/final/comparison Astra; eight spreads, 444 words, no replan. Seven
   pipeline calls cost $1.326915 estimated, plus $0.152848 synopsis review.

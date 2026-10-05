@@ -1,5 +1,22 @@
 # SmallHeroes — Current Technical State
 
+## Dynamic adventure refinement in technical validation 2026 10 05
+
+Guy rejects trial10's insufficiently developed adventure despite coherent
+causality. Approved narrow diagnostic craft/selection/synopsis/critic wording
+now evaluates changing enacted situations and proportionate narrative space,
+without location/action quotas or mandatory cast/chase. Quiet and one-setting
+development remain valid. No stage/schema/model/cap/budget or public path changes.
+tsc0, focused583/583, nine frozen public call comparisons, four in-memory
+instruction-removal controls and245files/42roots preserved. These are routing
+and preservation evidence, not improved literature. Full check exits1: ordinary
+6233pass/10historicalfails/73skip; resource635/635 plus twoonTaskUpdateRPCerrors.
+Final focused rerun583/583 andtsc0 pass; actual Claude Code QA is pending.
+No full green claim. After independent
+review, one fresh approved fictional book precedes any cohort/visual work.
+No provider call, push or deploy. See
+docs/ai-workflow/PERSONAL_DYNAMIC_ADVENTURE_20261005.md.
+
 ## One new authored and edited text book completed 2026 10 05
 
 Guy asked to continue after the reader closeout. One fresh fictional Neta age

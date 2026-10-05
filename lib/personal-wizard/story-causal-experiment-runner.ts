@@ -119,7 +119,7 @@ export function createCausalExperiment(args: {
   const bundle = () => ({ manifestDigest, plans: plans.map(row => ({ caseId: row.caseId, attempts: row.attempts })),
     ...(repairEnabled ? { repairReviews } : {}) });
   const readSynopses = () => structuredClone({ ...bundle(), sourceDigest: causalDigest(bundle()),
-    instructions: 'Read ALL proposed synopses together before prose. Compare wants, complications, discoveries and solutions for weak or repetitive ideas; changing scenery is not variation. Hold weak/repetitive proposals, not a quota of locations or emotions. This is diagnostic editorial review, not product acceptance.' });
+    instructions: 'Read ALL proposed synopses together before prose. Compare wants, complications, discoveries and solutions for weak or repetitive ideas; changing scenery is not variation. Judge development across the whole outline: what different situations the child and companion experience, what they do together, and how places, encounters or play affect the next situation. A coherent solution is insufficient if repeated clues or small adjustments take disproportionate space without an unfolding adventure. Travel alone is not development; quiet scenes and one-setting adventures can develop through choices, relationships or play. Hold a substantially underdeveloped proposal with its concrete beat range and reader impact, not a quota of locations, actions or emotions. This is diagnostic editorial review, not product acceptance.' });
   async function plan() {
     if (phase !== 'new') causalFail('phase');
     phase = 'planning';

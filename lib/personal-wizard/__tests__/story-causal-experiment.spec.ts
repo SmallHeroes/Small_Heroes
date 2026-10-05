@@ -359,6 +359,7 @@ describe('limited causal experiment, not live provider or quality certification'
     await h.runner.plan();
     const call = vi.mocked(h.ports.generate).mock.calls.map(([c]) => c).find(c => c.stage === stage)!;
     expect(call.instructions).toContain("Choose the reader's experience alongside emotional fit");
+    expect(call.instructions).toContain('Use the existing curiosity_and_stakes check for development across the whole outline');
     expect(call.instructions).toContain('Do not choose an idea solely because a magical rule forces the selected coping skill');
     expect(call.instructions).toContain('Keep the chosen topic consequential');
     expect(call.instructions).toContain('If BOTH ideas are weak, return both_rejected');
@@ -374,6 +375,7 @@ describe('limited causal experiment, not live provider or quality certification'
     const call = vi.mocked(h.ports.generate).mock.calls.map(([c]) => c).find(c => c.stage === 'replan')!;
     expect(call.instructions).toContain("Choose the reader's experience alongside emotional fit");
     expect(call.instructions).toContain('Allocate narrative space for brief.child.age and brief.beats, not only word length');
+    expect(call.instructions).toContain('Develop the adventure as a changing journey');
     expect(call.instructions).toContain('This is an explicitly requested repair of the held priorPlan');
     expect(call.input).not.toContain('SUGGESTED_SOLUTION_MUST_NOT_REACH_PLANNER');
     expect(vi.mocked(h.ports.generate).mock.calls.map(([c]) => c.stage)).toEqual(['plan', 'replan']);
@@ -391,6 +393,7 @@ describe('limited causal experiment, not live provider or quality certification'
     expect(call.instructions).toContain('A brief satisfying encounter is valid');
     expect(call.instructions).toContain('develop a longer adventure rather than stretching one event');
     expect(call.instructions).toContain('a repeated gesture or request should add something, not fill a coping quota');
+    expect(call.instructions).toContain('places affect actions, not merely host another clue or explanation');
     expect(result.books[0].original.manuscript.pages).toHaveLength(spreads);
     expect(calls.map(c => c.stage)).toEqual(['plan', 'author', 'editor', 'final_review', 'comparison']);
     expect(calls.every(c => Buffer.byteLength(c.instructions + c.input, 'utf8') <= 104_000)).toBe(true);
@@ -434,6 +437,8 @@ describe('limited causal experiment, not live provider or quality certification'
       expect(text).not.toContain('Protect relational commitments, personal comic echoes and emotional closure');
       expect(text).not.toContain('distinguishes the reasonable alternatives');
       expect(text).not.toContain('what desire remains unresolved after earlier successes');
+      expect(text).not.toContain('Develop the adventure as a changing journey');
+      expect(text).not.toContain('Judge development across the whole book');
     }
     expect(CAUSAL_PLAN_INSTRUCTIONS).toContain('adventure_only must remain a full adventure without inventing a real difficulty');
   });
@@ -447,6 +452,12 @@ describe('limited causal experiment, not live provider or quality certification'
     expect(call.instructions).toContain('not mandatory real-world physics');
     expect(call.instructions).toContain('belief and fear need not change instantly');
     expect(call.instructions).toContain('not required mysteries, clues, instant emotional cures or evidence for every comic guess');
+    expect(call.instructions).toContain('Develop the adventure as a changing journey');
+    expect(call.instructions).toContain('Search, encounters, play and surprises are possibilities, not a checklist or prescribed route');
+    expect(call.instructions).toContain('An observation-based interest need not confine the child to looking, pointing and explaining');
+    expect(call.instructions).toContain('repeated adjustments to one small mechanism need enough unfolding experience');
+    expect(call.instructions).toContain('Quiet scenes or a shared setting can develop through changed relationships, choices or play');
+    expect(call.instructions).toContain('travel alone is not development');
     expect(vi.mocked(h.ports.generate).mock.calls.map(([c]) => c.stage)).toEqual(['plan', 'replan', 'author', 'editor', 'final_review', 'comparison']);
   });
   it.each(['original_review', 'final_review', 'comparison'] as const)('actual %s requests a complete concise object and scene-level evidence', async stage => {
@@ -462,13 +473,35 @@ describe('limited causal experiment, not live provider or quality certification'
     expect(call.instructions).toContain('What unresolved desire does the ending address');
     expect(call.instructions).toContain('Report a material ambiguity as ambiguity');
     expect(call.instructions).toContain('neither instant belief updates nor proof for every joke is required');
+    expect(call.instructions).toContain('Judge development across the whole book, not a count of locations or action verbs');
+    expect(call.instructions).toContain('reporting it as a meaningful literary weakness rather than automatically a contradiction or a polish preference');
+    expect(call.instructions).toContain('Do not demand a chase, extra cast or action in every spread');
     expect(call.maxOutputTokens).toBe(12000);
     const packet = JSON.parse(call.input).packet;
+    expect(packet.instructions).toBe(call.instructions);
     // Soft brevity guidance does not clamp or silently change the existing hard schema.
     const longest = { packetDigest: causalDigest(packet), summary: 's'.repeat(600), findings: [] };
     expect(compileCausalReading(packet, longest).summary).toHaveLength(600);
     expect(() => compileCausalReading(packet, { ...longest, summary: 's'.repeat(601) })).toThrow('critic_binding');
     expect(call.schema.parse(longest)).toEqual(longest);
+  });
+  it('synopsis review assesses unfolding experience without converting stillness into an admission gate', async () => {
+    const h = harness(1, undefined, new AbortController(), 'normal', true);
+    const first = await h.runner.plan(), read = h.runner.readSynopses();
+    expect(read).toEqual(first);
+    expect(first.instructions).toContain('Judge development across the whole outline');
+    expect(first.instructions).toContain('A coherent solution is insufficient if repeated clues or small adjustments take disproportionate space');
+    expect(first.instructions).toContain('quiet scenes and one-setting adventures can develop through choices, relationships or play');
+    expect(first.instructions).toContain('its concrete beat range and reader impact');
+    const chosen = first.plans[0].attempts[0];
+    expect(chosen.disposition).toBe('selected');
+    if (!('planningDigest' in chosen)) throw Error('selected fixture required');
+    // The structural contract admits one setting; this is not a quality verdict.
+    expect(new Set(chosen.plan.beats.map(b => b.location)).size).toBe(1);
+    const repaired = await h.runner.repair(repairRequest(h));
+    expect(repaired.instructions).toBe(first.instructions);
+    expect(repaired.plans[0].attempts[0]).toEqual(chosen);
+    expect(vi.mocked(h.ports.generate).mock.calls.map(([c]) => c.stage)).toEqual(['plan', 'replan']);
   });
   it('actual no-difficulty diagnostic keeps a sparse adventure-only brief through every stage', async () => {
     const h = harness(); h.args.cases = [causalTrialCohort()[3]];
@@ -868,6 +901,7 @@ describe('opt-in draft critique before fresh editor, no literary certification',
     expect(input.draftCritique.findings[0].id).toBe('draft-finding-01');
     expect(input.draftCritique.projectionDigest).toBe(transfer.context.projectionDigest);
     expect(calls[3].instructions).toContain('fallible reader claims');
+    expect(calls[3].instructions).toContain('Develop the adventure as a changing journey');
     expect(calls[3].instructions).toContain('clue distinguishes the reasonable alternatives in that actual scene');
     expect(calls[3].instructions).not.toContain('not the author conversation or critic verdict.');
     expect(out.books[0].edit.draftCritiqueResponse!.responses[0].decision).toBe('kept');
