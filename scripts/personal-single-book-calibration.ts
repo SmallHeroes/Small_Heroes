@@ -6,7 +6,7 @@ import path from 'node:path';
 import { createInterface } from 'node:readline';
 import { z } from 'zod';
 import { CAUSAL_EXPERIMENT_VERSION, causalCriticSchema, causalDigest, CausalExperimentError } from '../lib/personal-wizard/story-causal-experiment';
-import { causalStages, type CausalDispatch } from '../lib/personal-wizard/story-causal-experiment-runner';
+import { causalStages, type CausalDispatch, type CausalSynopsisRepair } from '../lib/personal-wizard/story-causal-experiment-runner';
 import { preparePersonalStory } from '../lib/personal-wizard/story-writer';
 import { resolvePersonalWizardOptions } from '../lib/personal-wizard/options';
 import { withGenerationDeadline } from '../lib/personal-wizard/generation-deadline';
@@ -23,6 +23,7 @@ const approvalSchema = z.object({ reference: z.string().trim().min(10).max(600),
   maximumMicroUsd: z.literal(TOTAL_ALLOWANCE), acknowledgesCliEstimateLimits: z.literal(true) }).strict();
 export const singleBookPolicySchema = z.object({ version: z.literal('personal-single-book-calibration/v2'),
   reviewMode: z.enum(['normal', 'benchmark']).default('normal'),
+  synopsisRepair: z.literal(true).optional(),
   sourceHead: causalHostPolicySchema.shape.sourceHead, executable: z.string().min(1),
   executableSha256: causalHostPolicySchema.shape.executableSha256,
   pricing: causalHostPolicySchema.shape.pricing,
@@ -100,7 +101,9 @@ export function prepareSingleBookCalibration(args: { workspace: string; outputPa
   const probeWire = prepareCausalWire(probeCall, wirePolicy, probeReserved);
   return { policy, prepared, digest, packetDigest, probeCall, probeWire, wirePolicy,
     probeFamily, bookFamily, probeRoot, bookRoot, probeReserved, bookReserved,
-    preview: { version: policy.version, reviewMode: policy.reviewMode, sourceHead: policy.sourceHead, companionId: prepared.brief.companion.id,
+    preview: { version: policy.version, reviewMode: policy.reviewMode,
+      ...(policy.synopsisRepair ? { synopsisRepair: true as const } : {}),
+      sourceHead: policy.sourceHead, companionId: prepared.brief.companion.id,
       spreads: 8, models: CAUSAL_MODELS, probeFamily, bookFamily, probeRoot, bookRoot,
       probeReservedMicroUsd: probeReserved, bookReservedMicroUsd: bookReserved,
       combinedAllowancesMicroUsd: PROBE_ALLOWANCE + bookReserved, maximumLogicalAttempts: 1 + stages.length,
@@ -181,6 +184,7 @@ export function createSingleBookCalibration(args: {
         active(); phase = 'planning';
         host = createCausalTrialHost({ workspace: args.workspace, outputRoot: spec.bookRoot,
           policy: { version: 'causal-trial-host/v2', reviewMode: policy.reviewMode, family: spec.bookFamily, sourceHead: policy.sourceHead,
+            ...(policy.synopsisRepair ? { synopsisRepair: true as const } : {}),
             maximumMicroUsd: spec.bookReserved, maxWireBytes: BOOK_BYTES, executable: policy.executable,
             executableSha256: policy.executableSha256, pricing: policy.pricing, mode: policy.mode,
             approval: policy.mode === 'live_explicit' ? { ...policy.approval, maximumMicroUsd: spec.bookReserved } : null },
@@ -194,6 +198,11 @@ export function createSingleBookCalibration(args: {
         }
         return fail(error);
       }
+    },
+    async repairFromRequestFile() {
+      if (phase !== 'planned' || !host) hostFail('phase');
+      try { active(); const bundle = await host.repairFromRequestFile(); active(); return bundle; }
+      catch (error) { return fail(error); }
     },
     async writeFromReviewFile() {
       if (phase !== 'planned' || !host) hostFail('phase');
@@ -216,7 +225,8 @@ export function createSingleBookCalibration(args: {
 type BookResult = Awaited<ReturnType<ReturnType<typeof createCausalTrialHost>['write']>>;
 type Reading = BookResult['books'][number]['readings'][number];
 // Read-only display of v1 archives is allowed; old policy/plan admission is not.
-type DisplayResult = { evidence: { manifest: { version: string } }; books: {
+type DisplayResult = { evidence: { manifest: { version: string }; plans?: { caseId: string; attempts: unknown[] }[];
+  repairReviews?: CausalSynopsisRepair[]; review?: CausalSynopsisRepair['review'] | null }; books: {
   original: BookResult['books'][number]['original'];
   edit: Pick<BookResult['books'][number]['edit'], 'disposition' | 'revised' | 'checks' | 'semanticAudit'>;
   readings: (Omit<Reading, 'stage'> & { stage?: Reading['stage'] })[];
@@ -248,7 +258,9 @@ export function renderSingleBookText(result: DisplayResult) {
   const outcome = singleBookOutcome(result), intro = outcome === 'synopsis_held'
     ? 'התקציר הוחזק לבדיקה. לא נכתבה פרוזה ולא נוצר ספר.'
     : 'Opus כתב מאפס וערך בשיחה חדשה; Astra בדק. הסיפור עדיין דורש קריאה ואישור אנושי.';
-  return `<!doctype html><html lang="he" dir="rtl"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>ספר ניסיון אישי</title><style>body{max-width:850px;margin:auto;padding:24px;background:#faf7f2;color:#24342d;font:20px/1.8 system-ui}article{background:white;padding:24px;margin:20px 0;border-radius:12px}pre{white-space:pre-wrap;overflow-wrap:anywhere;font:14px/1.6 system-ui}a{color:#17674b}p{white-space:pre-wrap}</style><h1>ספר ניסיון: מקור ועריכה</h1><p>${intro} טקסט בלבד. אלה הערכות מודל, לא אישור מוצר או הוכחת איכות. לא נוצרו איורים.</p><p>תוצאת הניסוי: ${esc(outcome)}</p>` + result.books.map(book =>
+  const planning = result.evidence.repairReviews ? `<section id="planning"><h2>המתווים והביקורות לפני הכתיבה</h2><p>נשמרו כל הניסיונות והחלטות הביקורת. זה אינו אישור מוצר.</p><pre>${esc(JSON.stringify({ plans: result.evidence.plans,
+    initialReviews: result.evidence.repairReviews.map(r => ({ review: r.review, defects: r.defects })), finalReview: result.evidence.review }, null, 2))}</pre></section>` : '';
+  return `<!doctype html><html lang="he" dir="rtl"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>ספר ניסיון אישי</title><style>body{max-width:850px;margin:auto;padding:24px;background:#faf7f2;color:#24342d;font:20px/1.8 system-ui}article{background:white;padding:24px;margin:20px 0;border-radius:12px}pre{white-space:pre-wrap;overflow-wrap:anywhere;font:14px/1.6 system-ui}a{color:#17674b}p{white-space:pre-wrap}</style><h1>ספר ניסיון: מקור ועריכה</h1><p>${intro} טקסט בלבד. אלה הערכות מודל, לא אישור מוצר או הוכחת איכות. לא נוצרו איורים.</p><p>תוצאת הניסוי: ${esc(outcome)}</p>` + planning + result.books.map(book =>
     `<nav><a href="#original">הטיוטה</a> · <a href="#edited">העריכה</a> · <a href="#qa">הביקורת</a></nav>` +
     ([['original', 'הטיוטה המקורית', book.original], ['edited', 'הסיפור הערוך', book.edit.revised]] as const).map(([id, label, doc]) =>
       `<section id="${id}"><h2>${esc(label)}: ${esc(doc.manuscript.title)}</h2>` + doc.manuscript.pages.map(page =>
@@ -258,6 +270,16 @@ export function renderSingleBookText(result: DisplayResult) {
 
 const cliConfigSchema = z.object({ workspace: z.string().min(1), outputParent: z.string().min(1),
   policy: singleBookPolicySchema, request: z.unknown(), existingKeyEnvFile: z.string().min(1) }).strict();
+function waitForSynopsisDecision(reader: ReturnType<typeof createInterface>, signal: AbortSignal) {
+  return new Promise<string>(resolve => {
+    const finish = (value: string) => { clearTimeout(timer); reader.removeListener('line', line);
+      reader.removeListener('close', close); signal.removeEventListener('abort', abort); resolve(value); };
+    const line = (value: string) => finish(value.trim()), close = () => finish('stop'), abort = () => finish('stop');
+    const timer = setTimeout(close, 1200000);
+    reader.once('line', line); reader.once('close', close); signal.addEventListener('abort', abort, { once: true });
+    if (signal.aborted) abort();
+  });
+}
 export async function singleBookCalibrationCLI(argv: string[]) {
   if (argv.length === 1 && argv[0] === '--help') {
     console.log('node scripts/personal-single-book-calibration.cjs --config <absolute.json> [--execute]'); return 0;
@@ -284,14 +306,20 @@ export async function singleBookCalibrationCLI(argv: string[]) {
     console.log(JSON.stringify({ status: 'starting_identity_probe', ...spec.preview }));
     const synopsis = await trial.plan();
     console.log(JSON.stringify({ status: 'synopsis_review_required', sourceDigest: synopsis.sourceDigest,
-      bookRoot: spec.bookRoot, instruction: 'Read synopses.json; write digest-bound review.json. Enter continue, or stop. Same process only.' }));
+      bookRoot: spec.bookRoot, instruction: spec.policy.synopsisRepair
+        ? 'Read synopses.json; write review.json for continue, or digest-bound HOLD/defects in repair-request.json for repair. Enter continue, repair, or stop. Same process only.'
+        : 'Read synopses.json; write digest-bound review.json. Enter continue, or stop. Same process only.' }));
     reader = createInterface({ input: process.stdin, output: process.stdout });
-    const decision = await new Promise<string>(resolve => {
-      const timer = setTimeout(() => resolve('stop'), 1200000);
-      reader!.once('line', line => { clearTimeout(timer); resolve(line.trim()); });
-      reader!.once('close', () => { clearTimeout(timer); resolve('stop'); });
-      controller.signal.addEventListener('abort', () => { clearTimeout(timer); resolve('stop'); }, { once: true });
-    });
+    // EOF can arrive between the two review windows, while the paid repair runs.
+    // Keep cancellation attached for the interface's whole lifetime, not only a wait.
+    if (spec.policy.synopsisRepair) reader.once('close', cancel);
+    let decision = await waitForSynopsisDecision(reader, controller.signal);
+    if (decision === 'repair' && spec.policy.synopsisRepair && !controller.signal.aborted) {
+      const repaired = await trial.repairFromRequestFile();
+      console.log(JSON.stringify({ status: 'repaired_synopsis_review_required', sourceDigest: repaired.sourceDigest,
+        bookRoot: spec.bookRoot, instruction: 'Read synopses-repaired.json; write NEW digest-bound review-repaired.json. Enter continue, or stop. No second repair. Same process only.' }));
+      decision = await waitForSynopsisDecision(reader, controller.signal);
+    }
     if (decision !== 'continue' || controller.signal.aborted) { trial.stop(); return 2; }
     const result = await trial.writeFromReviewFile();
     const snapshot = trial.snapshot();
@@ -303,6 +331,7 @@ export async function singleBookCalibrationCLI(argv: string[]) {
           (snapshot.host?.host.rows.filter(r => r.attempted && r.receipt?.estimatedMicroUsd == null).length ?? 0) },
       runtimeEligible: false })); return 0;
   } finally {
-    trial?.stop(); reader?.close(); process.removeListener('SIGINT', cancel); process.removeListener('SIGTERM', cancel);
+    trial?.stop(); reader?.removeListener('close', cancel); reader?.close();
+    process.removeListener('SIGINT', cancel); process.removeListener('SIGTERM', cancel);
   }
 }

@@ -42,11 +42,13 @@ function defaultOutput(call: CausalDispatch): unknown {
   if (call.stage === 'editor') return edited(call);
   return { packetDigest: input.packetDigest, summary: 'Synthetic critic reading, not product or literary approval.', findings: [] };
 }
-function harness(count = 1, change?: (call: CausalDispatch) => unknown | Promise<unknown>, controller = new AbortController(), reviewMode: CausalReviewMode = 'normal') {
+function harness(count = 1, change?: (call: CausalDispatch) => unknown | Promise<unknown>, controller = new AbortController(), reviewMode: CausalReviewMode = 'normal', synopsisRepair = false) {
   const cases = causalTrialCohort().slice(0, count);
   const ports: CausalExperimentPorts = { reserve: vi.fn(async () => true), claim: vi.fn(async () => true),
-    generate: vi.fn(async call => ({ output: change ? await change(call) : defaultOutput(call), estimatedMicroUsd: 1 })) };
+    generate: vi.fn(async call => ({ output: change ? await change(call) : defaultOutput(call), estimatedMicroUsd: 1 })),
+    recordSynopsisRepair: vi.fn(async () => {}) };
   const args = { family: 'synthetic-causal-offline', cases, options, reviewMode,
+    ...(synopsisRepair ? { synopsisRepair: true as const } : {}),
     capsMicroUsd: Object.fromEntries(causalStages(reviewMode).map(s => [s, 10])) as Partial<Record<CausalStage, number>>,
     maximumMicroUsd: count * causalStages(reviewMode).length * 10, ports, signal: controller.signal };
   const runner = createCausalExperiment(args);
@@ -65,6 +67,163 @@ function selectedFixture(index = 0) {
 }
 
 describe('limited causal experiment, not live provider or quality certification', () => {
+  function repairRequest(h: ReturnType<typeof harness>) {
+    const b = h.runner.readSynopses(), attempts = b.plans[0].attempts, chosen = attempts[attempts.length - 1];
+    if (!('planningDigest' in chosen)) throw Error('selected fixture required');
+    return { review: { sourceDigest: b.sourceDigest, decisions: [{ caseId: 'case1', decision: 'hold' as const,
+      reason: 'SUGGESTED_SOLUTION_MUST_NOT_REACH_PLANNER in the full retained review.' }] },
+      caseId: 'case1', planningDigest: chosen.planningDigest,
+      defects: ['The decisive observation does not distinguish the two available choices.'] };
+  }
+  it('external repair is disabled by default and enabled cohorts are refused before reserve', async () => {
+    const h = harness(); await h.runner.plan();
+    expect(h.runner.snapshot().manifest).not.toHaveProperty('synopsisRepair');
+    expect(h.runner.snapshot()).not.toHaveProperty('repairReviews');
+    await expect(h.runner.repair(repairRequest(h))).rejects.toThrow('repair_policy');
+    expect(h.ports.generate).toHaveBeenCalledTimes(1); expect(h.ports.recordSynopsisRepair).not.toHaveBeenCalled();
+    const multi = harness(2);
+    expect(() => createCausalExperiment({ ...multi.args, synopsisRepair: true })).toThrow('repair_policy');
+    expect(multi.ports.reserve).not.toHaveBeenCalled();
+    expect(() => createCausalExperiment({ ...multi.args, cases: multi.args.cases.slice(0, 1), synopsisRepair: true,
+      ports: { ...multi.ports, recordSynopsisRepair: undefined } })).toThrow('repair_policy');
+  });
+  it('repairs once with defects only, keeps both attempts, and authors only the freshly reviewed plan', async () => {
+    const h = harness(1, call => {
+      const out: any = defaultOutput(call);
+      if (call.stage === 'replan') { out.plan.ending = 'סיום מתוקן ומוכן מתוך הפעולות הקודמות'; out.synopsis += ' Repaired causal link.'; }
+      return out;
+    }, new AbortController(), 'normal', true);
+    const first = await h.runner.plan(), request = repairRequest(h);
+    const repaired = await h.runner.repair(request);
+    expect(repaired.sourceDigest).not.toBe(first.sourceDigest);
+    expect(repaired.plans[0].attempts).toHaveLength(2);
+    expect(repaired.plans[0].attempts[0]).toEqual(first.plans[0].attempts[0]);
+    expect(h.ports.recordSynopsisRepair).toHaveBeenCalledWith(request);
+    const call = vi.mocked(h.ports.generate).mock.calls[1][0], input = JSON.parse(call.input);
+    expect(call.stage).toBe('replan'); expect(Object.keys(input).sort()).toEqual(['brief', 'defects', 'priorPlan']);
+    expect(input.defects).toEqual(request.defects); expect(input.priorPlan).toEqual(first.plans[0].attempts[0]);
+    expect(call.input).not.toContain('SUGGESTED_SOLUTION_MUST_NOT_REACH_PLANNER');
+    expect(call.instructions).toContain('explicitly requested repair');
+    expect(vi.mocked(h.ports.recordSynopsisRepair!).mock.invocationCallOrder[0]).toBeLessThan(vi.mocked(h.ports.claim).mock.invocationCallOrder[1]);
+    expect(() => h.runner.reviewSynopses({ ...request.review, decisions: [{ ...request.review.decisions[0], decision: 'write' }] })).toThrow('cohort_binding');
+    await expect(h.runner.write()).rejects.toThrow('phase');
+    expect(h.ports.generate).toHaveBeenCalledTimes(2);
+    h.approve(); const result = await h.runner.write();
+    expect(result.books).toHaveLength(1);
+    const author = vi.mocked(h.ports.generate).mock.calls.find(([c]) => c.stage === 'author')![0];
+    expect(JSON.parse(author.input).planDigest).toBe((repaired.plans[0].attempts[1] as any).planDigest);
+  });
+  it('captures opt-in and recording function at construction, and caller mutations cannot broaden it', async () => {
+    const h = harness(1, undefined, new AbortController(), 'normal', true);
+    await h.runner.plan(); const request = repairRequest(h), recorded = h.ports.recordSynopsisRepair;
+    delete h.args.synopsisRepair; h.ports.recordSynopsisRepair = undefined;
+    await h.runner.repair(request); expect(recorded).toHaveBeenCalledOnce();
+    expect(h.runner.snapshot().manifest.synopsisRepair).toBe(true);
+  });
+  it.each(['case', 'plan', 'source', 'write', 'extra', 'empty', 'oversize'] as const)('rejects %s repair request before recording, claim or transport', async kind => {
+    const h = harness(1, undefined, new AbortController(), 'normal', true); await h.runner.plan();
+    const request: any = repairRequest(h);
+    if (kind === 'case') request.caseId = 'case2';
+    if (kind === 'plan') request.planningDigest = 'a'.repeat(64);
+    if (kind === 'source') request.review.sourceDigest = 'a'.repeat(64);
+    if (kind === 'write') request.review.decisions[0].decision = 'write';
+    if (kind === 'extra') request.solutions = ['A prescribed plot fix'];
+    if (kind === 'empty') request.defects = [];
+    if (kind === 'oversize') request.defects = ['x'.repeat(1100), 'y'.repeat(901)];
+    await expect(h.runner.repair(request)).rejects.toThrow(/repair_binding|repair_request|cohort_binding/);
+    expect(h.ports.recordSynopsisRepair).not.toHaveBeenCalled(); expect(h.ports.claim).toHaveBeenCalledTimes(1);
+    expect(h.ports.generate).toHaveBeenCalledTimes(1); expect(h.runner.snapshot().phase).toBe('failed');
+  });
+  it.each(['selected', 'outline_held', 'both_rejected'] as const)('a repaired %s outcome is retained and a second HOLD cannot replan again', async outcome => {
+    const h = harness(1, call => {
+      const out: any = call.stage === 'replan' && outcome === 'both_rejected' ? planned(JSON.parse(call.input).brief, true) : defaultOutput(call);
+      if (call.stage === 'replan' && outcome === 'outline_held') out.selection.outlineChecks.earned_payoff.outcome = 'needs_work';
+      return out;
+    }, new AbortController(), 'normal', true);
+    await h.runner.plan(); const request = repairRequest(h), next = await h.runner.repair(request);
+    expect(next.plans[0].attempts[1].disposition).toBe(outcome);
+    if (outcome !== 'selected') expect(() => h.runner.reviewSynopses({ sourceDigest: next.sourceDigest,
+      decisions: [{ caseId: 'case1', decision: 'write', reason: 'Synthetic attempted author admission, not product acceptance.' }] })).toThrow('cohort_binding');
+    h.runner.reviewSynopses({ sourceDigest: next.sourceDigest, decisions: [{ caseId: 'case1', decision: 'hold', reason: 'Synthetic second full review still holds the adventure.' }] });
+    expect((await h.runner.write()).books).toHaveLength(0);
+    await expect(h.runner.repair(request)).rejects.toThrow('repair_policy');
+    expect(h.ports.generate).toHaveBeenCalledTimes(2);
+  });
+  it('a planner replan already consumed after both_rejected cannot be reused externally', async () => {
+    const h = harness(1, call => call.stage === 'plan' ? planned(JSON.parse(call.input).brief, true) : defaultOutput(call), new AbortController(), 'normal', true);
+    await h.runner.plan(); await expect(h.runner.repair(repairRequest(h))).rejects.toThrow('repair_binding');
+    expect(h.ports.generate).toHaveBeenCalledTimes(2); expect(h.ports.recordSynopsisRepair).not.toHaveBeenCalled();
+  });
+  it('an initially outline-held plan can use the same one repair and still needs fresh WRITE', async () => {
+    const h = harness(1, call => {
+      const out: any = defaultOutput(call);
+      if (call.stage === 'plan') out.selection.outlineChecks.earned_payoff.outcome = 'needs_work';
+      return out;
+    }, new AbortController(), 'normal', true);
+    const first = await h.runner.plan(); expect(first.plans[0].attempts[0].disposition).toBe('outline_held');
+    const repaired = await h.runner.repair(repairRequest(h));
+    expect(repaired.plans[0].attempts[1].disposition).toBe('selected');
+    expect(vi.mocked(h.ports.generate).mock.calls.map(([c]) => c.stage)).toEqual(['plan', 'replan']);
+    await expect(h.runner.write()).rejects.toThrow('phase'); h.approve();
+    expect((await h.runner.write()).books).toHaveLength(1);
+  });
+  it('a second repair in the new planned phase cannot acquire the same slot again', async () => {
+    const h = harness(1, undefined, new AbortController(), 'normal', true); await h.runner.plan();
+    await h.runner.repair(repairRequest(h));
+    await expect(h.runner.repair(repairRequest(h))).rejects.toThrow('repair_binding');
+    expect(h.ports.claim).toHaveBeenCalledTimes(2); expect(h.ports.recordSynopsisRepair).toHaveBeenCalledOnce();
+    expect(h.runner.snapshot().phase).toBe('failed');
+  });
+  it('failure to preserve the critique prevents claiming or dispatching repair', async () => {
+    const h = harness(1, undefined, new AbortController(), 'normal', true); await h.runner.plan();
+    vi.mocked(h.ports.recordSynopsisRepair!).mockRejectedValueOnce(Error('synthetic journal failure'));
+    await expect(h.runner.repair(repairRequest(h))).rejects.toThrow('provider_or_contract_failed');
+    expect(h.ports.claim).toHaveBeenCalledTimes(1); expect(h.ports.generate).toHaveBeenCalledTimes(1);
+    expect(h.runner.snapshot().phase).toBe('failed');
+  });
+  it.each(['record', 'claim', 'generate'] as const)('a duplicate during %s cannot revive a terminal repair at an await boundary', async boundary => {
+    const h = harness(1, undefined, new AbortController(), 'normal', true); await h.runner.plan();
+    const req = repairRequest(h); let release!: () => void;
+    const gate = new Promise<void>(resolve => { release = resolve; });
+    if (boundary === 'record') vi.mocked(h.ports.recordSynopsisRepair!).mockImplementationOnce(() => gate);
+    if (boundary === 'claim') vi.mocked(h.ports.claim).mockImplementationOnce(async () => { await gate; return true; });
+    if (boundary === 'generate') vi.mocked(h.ports.generate).mockImplementationOnce(async call => {
+      await gate; return { output: defaultOutput(call), estimatedMicroUsd: 1 };
+    });
+    const pending = h.runner.repair(req);
+    const observed = pending.then(() => 'unexpected success', error => error.message);
+    await vi.waitFor(() => boundary === 'record' ? expect(h.ports.recordSynopsisRepair).toHaveBeenCalledOnce()
+      : boundary === 'claim' ? expect(h.ports.claim).toHaveBeenCalledTimes(2) : expect(h.ports.generate).toHaveBeenCalledTimes(2));
+    await expect(h.runner.repair(req)).rejects.toThrow('repair_policy');
+    expect(h.runner.snapshot().phase).toBe('failed'); release(); expect(await observed).toMatch(/phase|repair_policy/);
+    expect(h.runner.snapshot().phase).toBe('failed'); expect(h.runner.snapshot().plans[0].attempts).toHaveLength(1);
+    expect(vi.mocked(h.ports.generate).mock.calls.map(([c]) => c.stage)).toEqual(boundary === 'generate' ? ['plan', 'replan'] : ['plan']);
+    await expect(h.runner.write()).rejects.toThrow('phase');
+  });
+  it('a repair deadline is terminal and a late successful reply cannot revive it', async () => {
+    const h = harness(1, undefined, new AbortController(), 'normal', true); await h.runner.plan();
+    vi.useFakeTimers(); let release!: (value: { output: unknown; estimatedMicroUsd: number }) => void;
+    vi.mocked(h.ports.generate).mockImplementationOnce(() => new Promise(resolve => { release = resolve; }));
+    const pending = h.runner.repair(repairRequest(h)), observed = pending.then(() => 'unexpected success', error => error.message);
+    await vi.advanceTimersByTimeAsync(1_200_000); expect(await observed).toContain('timeout');
+    expect(h.runner.snapshot().phase).toBe('failed');
+    release({ output: defaultOutput(vi.mocked(h.ports.generate).mock.calls[1][0]), estimatedMicroUsd: 1 });
+    await Promise.resolve(); expect(h.runner.snapshot().phase).toBe('failed'); expect(h.runner.snapshot().plans[0].attempts).toHaveLength(1);
+  });
+  it.each(['malformed', 'transport', 'unknown', 'overrun', 'cancel'] as const)('repair %s failure is terminal and never dispatches author', async kind => {
+    const h = harness(1, call => {
+      if (call.stage === 'replan' && kind === 'transport') throw Error('private transport detail');
+      if (call.stage === 'replan' && kind === 'malformed') return {};
+      if (call.stage === 'replan' && kind === 'cancel') h.controller.abort();
+      return defaultOutput(call);
+    }, new AbortController(), 'normal', true);
+    await h.runner.plan(); const req = repairRequest(h);
+    if (kind === 'unknown' || kind === 'overrun') vi.mocked(h.ports.generate).mockImplementationOnce(async c => ({ output: defaultOutput(c), estimatedMicroUsd: kind === 'unknown' ? null : 11 }));
+    await expect(h.runner.repair(req)).rejects.toThrow();
+    expect(h.runner.snapshot().phase).toBe('failed');
+    await expect(h.runner.repair(req)).rejects.toThrow();
+    expect(vi.mocked(h.ports.generate).mock.calls.map(([c]) => c.stage)).toEqual(['plan', 'replan']);
+  });
   it.each(['plan', 'replan'] as const)('actual %s instructions retain factual contracts and causal questions without self-citation ledgers', async stage => {
     const h = harness(1, call => call.stage === 'plan' ? planned(JSON.parse(call.input).brief, true) : defaultOutput(call));
     await h.runner.plan();

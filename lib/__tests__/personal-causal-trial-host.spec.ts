@@ -48,9 +48,10 @@ function output(call: CausalDispatch): any {
   }
   return { packetDigest: input.packetDigest, summary: 'Synthetic critic reading, not literary approval.', findings: [] };
 }
-function harness(count = 1, change?: CausalHostTransport, reviewMode: 'normal' | 'benchmark' = 'normal') {
+function harness(count = 1, change?: CausalHostTransport, reviewMode: 'normal' | 'benchmark' = 'normal', synopsisRepair = false) {
   const root = temporary(), controller = new AbortController(), p = policy(root), cases = causalTrialCohort().slice(0, count);
   p.reviewMode = reviewMode;
+  if (synopsisRepair) p.synopsisRepair = true;
   const transport = vi.fn<CausalHostTransport>(change ?? (async (_wire, call) => ({ output: output(call), estimatedMicroUsd: 1,
     usage: { inputTokens: 1, outputTokens: 1 }, metadata: { synthetic: true }, raw: { synthetic: true } })));
   const assertSource = vi.fn();
@@ -64,6 +65,71 @@ function harness(count = 1, change?: CausalHostTransport, reviewMode: 'normal' |
 const criticCall = (): CausalDispatch => ({ role: 'astra', stage: 'final_review', conversationKey: 'synthetic:case1:final_review',
   instructions: 'Synthetic critic instructions.', input: '{"synthetic":true}', schema: z.object({ value: z.string() }).strict(), maxOutputTokens: 12_000 });
 const wirePolicy = (root: string): WirePolicy => ({ ...policy(root), workspace: root, rates: policy(root).pricing.rates });
+
+describe('single-book synopsis repair at the durable host boundary (no providers)', () => {
+  const repairRequest = (h: ReturnType<typeof harness>, bundle: Awaited<ReturnType<typeof h.host.plan>>) => {
+    const chosen = bundle.plans[0].attempts[0];
+    if (!('planningDigest' in chosen)) throw Error('selected fixture required');
+    return { review: h.review(bundle, 'hold'), caseId: 'case1', planningDigest: chosen.planningDigest,
+      defects: ['The payoff contradicts the earlier condition in this synthetic plan.'] };
+  };
+  it('rejects enabled multi-case admission without a reservation or transport', () => {
+    const root = temporary(), p = policy(root); p.synopsisRepair = true;
+    const transport = vi.fn<CausalHostTransport>();
+    expect(() => createCausalTrialHost({ workspace: root, outputRoot: path.join(root, 'output'), policy: p,
+      cases: causalTrialCohort().slice(0, 2), signal: new AbortController().signal,
+      injected: { commonDir: root, assertSource: vi.fn(), transport } })).toThrow('repair_single_case');
+    expect(transport).not.toHaveBeenCalled(); expect(readdirSync(root)).toEqual([]);
+  });
+  it('uses the existing cap and journals the defects before the one replan dispatch', async () => {
+    const h = harness(1, undefined, 'normal', true), first = await h.host.plan();
+    const request = repairRequest(h, first);
+    h.transport.mockImplementation(async (wire, call) => {
+      expect(call.stage).toBe('replan');
+      expect(JSON.parse(readFileSync(path.join(h.args.outputRoot, 'synopsis-repair-request.json'), 'utf8'))).toEqual(request);
+      const manifest = JSON.parse(readFileSync(path.join(h.args.outputRoot, 'manifest.json'), 'utf8'));
+      const slot = manifest.slots.find((s: any) => s.id === 'case1:replan');
+      expect(call.maxOutputTokens).toBe(slot.maxOutputTokens); expect(wire.reservedMicroUsd).toBeLessThanOrEqual(slot.capMicroUsd);
+      return { output: output(call), estimatedMicroUsd: 1, usage: null, metadata: {}, raw: {} };
+    });
+    const repaired = await h.host.repair(request);
+    expect(repaired.sourceDigest).not.toBe(first.sourceDigest); expect(h.transport).toHaveBeenCalledTimes(2);
+    expect(h.host.snapshot().coordinator.plans[0].attempts).toHaveLength(2);
+    const result = await h.host.write(h.review(repaired, 'hold'));
+    expect(result.books).toEqual([]); expect(h.transport).toHaveBeenCalledTimes(2);
+    expect(h.host.snapshot().host.closed).toBe(true);
+  });
+  it.each(['junction', 'hard', 'over-limit', 'invalid-json', 'extra-field'])(
+    'rejects a %s repair file before replan', async mode => {
+      const h = harness(1, undefined, 'normal', true), first = await h.host.plan();
+      const file = path.join(h.args.outputRoot, 'repair-request.json'), request = repairRequest(h, first);
+      if (mode === 'junction') {
+        const other = path.join(h.root, 'other-directory'); mkdirSync(other); symlinkSync(other, file, 'junction');
+      } else if (mode === 'hard') {
+        const other = path.join(h.root, 'other.json'); writeFileSync(other, JSON.stringify(request));
+        linkSync(other, file);
+      } else writeFileSync(file, mode === 'over-limit' ? ' '.repeat(10_001) : mode === 'invalid-json' ? '{' : JSON.stringify({ ...request, solutions: ['prescribed fix'] }));
+      await expect(h.host.repairFromRequestFile()).rejects.toThrow('review_file');
+      expect(h.transport).toHaveBeenCalledTimes(1); expect(h.host.snapshot().host.closed).toBe(true);
+      expect(existsSync(path.join(h.args.outputRoot, 'synopsis-repair-request.json'))).toBe(false);
+    });
+  it('accepts exactly one leading BOM on an otherwise valid repair file', async () => {
+    const h = harness(1, undefined, 'normal', true), first = await h.host.plan();
+    writeFileSync(path.join(h.args.outputRoot, 'repair-request.json'), '\uFEFF' + JSON.stringify(repairRequest(h, first)));
+    const repaired = await h.host.repairFromRequestFile();
+    expect(repaired.plans[0].attempts).toHaveLength(2); expect(h.transport).toHaveBeenCalledTimes(2); h.host.stop();
+  });
+  it('the unchanged wire preparer rejects over-limit prior-plan plus defects input', async () => {
+    const h = harness(1, undefined, 'normal', true), first = await h.host.plan();
+    const request = repairRequest(h, first);
+    // Direct wire-fence probe; host terminal behavior is covered by the injected driver failure tests.
+    const call: CausalDispatch = { role: 'opus', stage: 'replan', conversationKey: 'synthetic:case1:replan',
+      instructions: 'Synthetic repair instructions.', input: JSON.stringify({ priorPlan: first.plans[0], defects: request.defects }),
+      schema: z.object({ value: z.string() }).strict(), maxOutputTokens: causalOutputCap(8, 'replan') };
+    expect(() => prepareCausalWire(call, { ...wirePolicy(h.root), maxWireBytes: 100 }, 100_000_000, path.join(h.root, 'instructions.txt'))).toThrow();
+    expect(h.transport).toHaveBeenCalledTimes(1); h.host.stop();
+  });
+});
 
 // A real, clean TEMP Git source makes each removed admission clause observable:
 // a negative cannot pass just because it falls through to an unrelated source error.

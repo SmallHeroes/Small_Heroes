@@ -2,7 +2,7 @@
 import { closeSync, fstatSync, lstatSync, openSync, readFileSync, realpathSync } from 'node:fs';
 import path from 'node:path';
 import { z } from 'zod';
-import { createCausalExperiment, causalStages, type CausalDispatch, type CausalStage } from '../lib/personal-wizard/story-causal-experiment-runner';
+import { createCausalExperiment, causalStages, causalSynopsisReviewSchema, causalSynopsisRepairSchema, type CausalDispatch, type CausalStage } from '../lib/personal-wizard/story-causal-experiment-runner';
 import { causalDigest, CausalExperimentError } from '../lib/personal-wizard/story-causal-experiment';
 import { preparePersonalStory } from '../lib/personal-wizard/story-writer';
 import { personalStoryOutputLimits } from '../lib/personal-wizard/story-config';
@@ -16,6 +16,7 @@ import { gitAt } from './personal-story-frozen-engine';
 const rates = z.object({ inputMicroUsdPerToken: z.number().positive().finite(), outputMicroUsdPerToken: z.number().positive().finite() }).strict();
 export const causalHostPolicySchema = z.object({
   version: z.literal('causal-trial-host/v2'), reviewMode: z.enum(['normal', 'benchmark']).default('normal'),
+  synopsisRepair: z.literal(true).optional(),
   family: z.string().regex(/^[a-z0-9][a-z0-9_-]{2,100}$/),
   sourceHead: z.string().regex(/^[a-f0-9]{40}$/), maximumMicroUsd: z.number().int().positive().safe(),
   maxWireBytes: z.number().int().positive().max(104_000),
@@ -28,10 +29,8 @@ export const causalHostPolicySchema = z.object({
 }).strict();
 export type CausalHostPolicy = z.infer<typeof causalHostPolicySchema>;
 export type CausalHostTransport = (wire: CausalWire, call: CausalDispatch, signal: AbortSignal) => Promise<TransportReply>;
-const reviewSchema = z.object({ sourceDigest: z.string().regex(/^[a-f0-9]{64}$/), decisions: z.array(z.object({
-  caseId: z.string().regex(/^case[1-6]$/), decision: z.enum(['write', 'hold']), reason: z.string().trim().min(10).max(600),
-}).strict()).min(1).max(6) }).strict();
-export function readCausalReviewFile(file: string) {
+const reviewSchema = causalSynopsisReviewSchema;
+function readCausalReviewData<T>(file: string, schema: { parse(raw: unknown): T }): T {
   realDirectory(path.dirname(file));
   const st = lstatSync(file);
   if (!st.isFile() || st.isSymbolicLink() || st.nlink !== 1 || st.size > 10_000 ||
@@ -43,9 +42,11 @@ export function readCausalReviewFile(file: string) {
     const text = readFileSync(fd, 'utf8');
     // PowerShell 5.1 UTF-8 files may have one leading BOM. File fences and the
     // byte ceiling still apply to the original file; do not normalize more.
-    return reviewSchema.parse(JSON.parse(text.replace(/^\uFEFF/, '')));
+    return schema.parse(JSON.parse(text.replace(/^\uFEFF/, '')));
   } catch { hostFail('review_file'); } finally { closeSync(fd); }
 }
+export const readCausalReviewFile = (file: string) => readCausalReviewData(file, reviewSchema);
+const readCausalRepairFile = (file: string) => readCausalReviewData(file, causalSynopsisRepairSchema);
 export function causalOutputCap(spreads: number, stage: CausalStage) {
   const limits = personalStoryOutputLimits(spreads);
   if (stage === 'plan' || stage === 'replan') return limits.planOutputTokens + 6000;
@@ -63,6 +64,7 @@ export function createCausalTrialHost(args: {
   const parsed = causalHostPolicySchema.safeParse(args.policy);
   if (!parsed.success) hostFail('policy');
   const policy = structuredClone(parsed.data);
+  if (policy.synopsisRepair && args.cases.length !== 1) hostFail('repair_single_case');
   if ((policy.mode === 'offline_injected') !== Boolean(args.injected) ||
     policy.mode === 'offline_injected' && policy.approval !== null ||
     policy.mode === 'live_explicit' && (!policy.approval || policy.approval.maximumMicroUsd !== policy.maximumMicroUsd || !args.existingOpenAIKey)) hostFail('authorization');
@@ -88,13 +90,20 @@ export function createCausalTrialHost(args: {
   const wirePolicy: WirePolicy = { ...policy, workspace, rates: policy.pricing.rates };
   let journal: CausalFamilyJournal | null = null, pending: string | null = null, closed = false, busy = false, failureCode: string | null = null;
   let transport: CausalHostTransport | null = args.injected?.transport ?? null;
+  let repaired = false;
   const rows: { slot: string; attempted: boolean; receipt: TransportReply | null }[] = [];
   const safeError = (error: unknown) => error instanceof CausalHostError || error instanceof CausalExperimentError ? error : new CausalHostError('failed');
   const seal = (reason: string) => { closed = true; failureCode ??= reason; journal?.seal(reason); };
   const abort = () => seal('cancelled'); signal.addEventListener('abort', abort, { once: true });
-  const active = () => { if (closed || signal.aborted) hostFail('terminal'); assertSource(); journal?.assertActive(); };
+  const active = () => { if (closed || signal.aborted) hostFail('terminal'); assertSource(); journal?.assertActive();
+    if (policy.synopsisRepair) journal?.verifyRecords(); };
   const coordinator = createCausalExperiment({ family: policy.family, cases: args.cases, options, capsMicroUsd: caps, reviewMode: policy.reviewMode,
+    ...(policy.synopsisRepair ? { synopsisRepair: true as const } : {}),
     maximumMicroUsd: policy.maximumMicroUsd, signal, ports: {
+      async recordSynopsisRepair(request) {
+        active(); if (!journal || !policy.synopsisRepair) hostFail('repair_policy');
+        journal.save('synopsis-repair-request', request);
+      },
       async reserve(family, coordinatorDigest, maximumMicroUsd, slots) {
         try {
         active(); if (journal || family !== policy.family || maximumMicroUsd !== reserved ||
@@ -157,9 +166,19 @@ export function createCausalTrialHost(args: {
       journal!.save('review-template', { sourceDigest: bundle.sourceDigest, decisions: prepared.map(c => ({ caseId: c.id, decision: 'PENDING', reason: '' })) });
       return bundle;
     }); },
+    async repair(request: unknown) { return step(async () => {
+      const bundle = await coordinator.repair(request);
+      journal!.save('synopses-repaired', bundle);
+      journal!.save('review-template-repaired', { sourceDigest: bundle.sourceDigest,
+        decisions: prepared.map(c => ({ caseId: c.id, decision: 'PENDING', reason: '' })) });
+      repaired = true; return bundle;
+    }); },
+    async repairFromRequestFile() { return step(async () => {
+      return this.repair(readCausalRepairFile(path.join(outputRoot, 'repair-request.json')));
+    }); },
     async write(review: unknown) { return step(async () => {
       const decisions = reviewSchema.parse(review); coordinator.reviewSynopses(decisions);
-      journal!.save('synopsis-review', decisions);
+      journal!.save(repaired ? 'synopsis-review-repaired' : 'synopsis-review', decisions);
       const result = await coordinator.write(); journal!.save('books', result);
       journal!.save('host-accounting', { reservedMicroUsd: reserved, logicalAttempts: rows.filter(r => r.attempted).length,
         knownEstimateMicroUsd: rows.reduce((n, r) => n + (r.receipt?.estimatedMicroUsd ?? 0), 0),
@@ -170,7 +189,7 @@ export function createCausalTrialHost(args: {
     }); },
     async writeFromReviewFile() { return step(async () => {
       // Same process/instance only; no saved-state reconstruction or paid polling.
-      const review = readCausalReviewFile(path.join(outputRoot, 'review.json'));
+      const review = readCausalReviewFile(path.join(outputRoot, repaired ? 'review-repaired.json' : 'review.json'));
       return this.write(review);
     }); },
     stop() { seal('operator_stopped'); signal.removeEventListener('abort', abort); },

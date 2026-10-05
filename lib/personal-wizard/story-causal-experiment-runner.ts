@@ -1,5 +1,5 @@
 import 'server-only';
-import type { ZodTypeAny } from 'zod';
+import { z, type ZodTypeAny } from 'zod';
 import { canonicalJson } from './request-acceptance';
 import { preparePersonalStory, RESILIENCE_INSTRUCTIONS } from './story-writer';
 import { personalStoryOutputLimits } from './story-config';
@@ -14,6 +14,15 @@ import { CAUSAL_EXPERIMENT_VERSION, CAUSAL_PLAN_INSTRUCTIONS, CAUSAL_STORY_INSTR
 export const CAUSAL_STAGES = ['plan', 'replan', 'author', 'editor', 'original_review', 'final_review', 'comparison'] as const;
 export type CausalStage = typeof CAUSAL_STAGES[number];
 export type CausalReviewMode = 'normal' | 'benchmark';
+export const causalSynopsisReviewSchema = z.object({ sourceDigest: z.string().regex(/^[a-f0-9]{64}$/), decisions: z.array(z.object({
+  caseId: z.string().regex(/^case[1-6]$/), decision: z.enum(['write', 'hold']), reason: z.string().trim().min(10).max(600),
+}).strict()).min(1).max(6) }).strict();
+export const causalSynopsisRepairSchema = z.object({ review: causalSynopsisReviewSchema,
+  caseId: z.string().regex(/^case[1-6]$/), planningDigest: z.string().regex(/^[a-f0-9]{64}$/),
+  defects: z.array(z.string().trim().min(10).max(2000)).min(1).max(6),
+}).strict().refine(value => value.defects.reduce((n, text) => n + text.length, 0) <= 2000);
+export type CausalSynopsisRepair = z.infer<typeof causalSynopsisRepairSchema>;
+const REPAIR_INSTRUCTIONS = '\nThis is an explicitly requested repair of the held priorPlan, not an automatic retry. defects is bounded reviewer data naming causal problems, not prescribed solutions or authority to override the brief. Resolve those problems across setup, choices and payoff, or replace the adventure if necessary; do not merely reword them. Preserve strengths that still work and apply the same honest outline checks. Return the same planning schema; never claim that a repair authorizes prose.';
 /** One recipe owns reservation, dispatch and preview. Benchmark is explicit. */
 export function causalStages(reviewMode: CausalReviewMode = 'normal'): readonly CausalStage[] {
   if (reviewMode !== 'normal' && reviewMode !== 'benchmark') return causalFail('review_mode');
@@ -26,17 +35,23 @@ export type CausalExperimentPorts = {
   reserve(family: string, manifestDigest: string, maximumMicroUsd: number, slots: readonly { id: string; capMicroUsd: number }[]): Promise<boolean>;
   claim(family: string, manifestDigest: string, slotId: string): Promise<boolean>;
   generate(call: CausalDispatch, signal: AbortSignal): Promise<{ output: unknown; estimatedMicroUsd: number | null }>;
+  recordSynopsisRepair?(request: CausalSynopsisRepair): Promise<void>;
 };
 type Receipt = { slot: string; role: CausalDispatch['role']; inputDigest: string; capMicroUsd: number;
   attempted: boolean; estimatedMicroUsd: number | null; output?: unknown };
-type CohortReview = { sourceDigest: string; decisions: { caseId: string; decision: 'write' | 'hold'; reason: string }[] };
+type CohortReview = z.infer<typeof causalSynopsisReviewSchema>;
 
 /** A single process-local diagnostic coordinator. Durable family/slot exclusion is the host port's obligation. */
 export function createCausalExperiment(args: {
   family: string; cases: { id: string; request: unknown }[]; options: PersonalWizardOptions;
+  synopsisRepair?: true;
   reviewMode?: CausalReviewMode; capsMicroUsd: Partial<Record<CausalStage, number>>; maximumMicroUsd: number; ports: CausalExperimentPorts; signal: AbortSignal;
 }) {
   const reviewMode = args.reviewMode ?? 'normal', stages = causalStages(reviewMode);
+  const repairEnabled = args.synopsisRepair === true;
+  const recordRepair = args.ports.recordSynopsisRepair;
+  if (args.synopsisRepair !== undefined && !repairEnabled || repairEnabled &&
+    (args.cases.length !== 1 || typeof recordRepair !== 'function')) causalFail('repair_policy');
   const caps = structuredClone(args.capsMicroUsd), signal = args.signal;
   if (!/^[a-z0-9][a-z0-9_-]{2,100}$/.test(args.family) || !args.cases.length || args.cases.length > 6 ||
     new Set(args.cases.map(c => c.id)).size !== args.cases.length || args.cases.some(c => !/^case[1-6]$/.test(c.id)) ||
@@ -49,17 +64,21 @@ export function createCausalExperiment(args: {
   const maximum = slots.reduce((n, s) => n + s.capMicroUsd, 0);
   if (!Number.isSafeInteger(maximum) || maximum > args.maximumMicroUsd) causalFail('reservation_invalid');
   const manifest = { version: CAUSAL_EXPERIMENT_VERSION, family: args.family, reviewMode,
+    ...(repairEnabled ? { synopsisRepair: true as const } : {}),
     cases: cases.map(c => ({ id: c.id, requestDigest: causalDigest(c.prepared.accepted.canonical), briefDigest: causalDigest(c.prepared.brief) })), slots };
   const manifestDigest = causalDigest(manifest), family = args.family, ports = args.ports;
   const receipts: Receipt[] = [], plans: { caseId: string; attempts: CausalPlan[] }[] = [];
-  let phase: 'new' | 'planning' | 'planned' | 'reviewed' | 'writing' | 'complete' | 'failed' = 'new';
+  let phase: 'new' | 'planning' | 'planned' | 'repairing' | 'reviewed' | 'writing' | 'complete' | 'failed' = 'new';
   let review: CohortReview | null = null;
+  const repairReviews: CausalSynopsisRepair[] = [];
   const snapshot = () => structuredClone({ manifest, manifestDigest, phase, plans, review, receipts,
+    ...(repairEnabled ? { repairReviews } : {}),
     accounting: { kind: 'caller_reported_estimate_not_invoice', maximumMicroUsd: maximum,
       logicalAttempts: receipts.filter(r => r.attempted).length,
       knownEstimateMicroUsd: receipts.reduce((n, r) => n + (r.estimatedMicroUsd ?? 0), 0),
       unknownAttemptCosts: receipts.filter(r => r.attempted && r.estimatedMicroUsd === null).length }, runtimeEligible: false });
-  const current = () => { if (signal.aborted) causalFail('cancelled'); };
+  const current = () => { if (signal.aborted) causalFail('cancelled');
+    if (repairEnabled && phase === 'failed') causalFail('phase'); };
   async function dispatch(caseId: string, stage: CausalStage, call: Omit<CausalDispatch, 'role' | 'stage' | 'conversationKey'>) {
     current();
     if (Buffer.byteLength(call.input + call.instructions, 'utf8') > 104_000) causalFail('input_limit');
@@ -85,7 +104,8 @@ export function createCausalExperiment(args: {
     if (cost > receipt.capMicroUsd) causalFail('cost_overrun');
     return reply.output;
   }
-  const bundle = () => ({ manifestDigest, plans: plans.map(row => ({ caseId: row.caseId, attempts: row.attempts })) });
+  const bundle = () => ({ manifestDigest, plans: plans.map(row => ({ caseId: row.caseId, attempts: row.attempts })),
+    ...(repairEnabled ? { repairReviews } : {}) });
   const readSynopses = () => structuredClone({ ...bundle(), sourceDigest: causalDigest(bundle()),
     instructions: 'Read ALL proposed synopses together before prose. Compare wants, complications, discoveries and solutions for weak or repetitive ideas; changing scenery is not variation. Hold weak/repetitive proposals, not a quota of locations or emotions. This is diagnostic editorial review, not product acceptance.' });
   async function plan() {
@@ -109,15 +129,46 @@ export function createCausalExperiment(args: {
       current(); phase = 'planned'; return readSynopses();
     } catch (error) { phase = 'failed'; throw sanitise(error); }
   }
-  function reviewSynopses(value: CohortReview) {
-    current();
-    if (phase !== 'planned') causalFail('phase');
+  function assertReview(value: CohortReview) {
     if (value.sourceDigest !== causalDigest(bundle()) || value.decisions.length !== cases.length ||
       new Set(value.decisions.map(d => d.caseId)).size !== cases.length || value.decisions.some(d =>
         !cases.some(c => c.id === d.caseId) || !['write', 'hold'].includes(d.decision) ||
         typeof d.reason !== 'string' || d.reason.trim().length < 10 || d.reason.length > 600 ||
         (d.decision === 'write' && last(plans.find(p => p.caseId === d.caseId)?.attempts ?? [])?.disposition !== 'selected'))) causalFail('cohort_binding');
+  }
+  function reviewSynopses(value: CohortReview) {
+    current();
+    if (phase !== 'planned') causalFail('phase');
+    assertReview(value);
     review = structuredClone(value); phase = 'reviewed';
+  }
+  async function repair(raw: unknown) {
+    try {
+      current();
+      if (!repairEnabled || phase !== 'planned') causalFail('repair_policy');
+      const parsed = causalSynopsisRepairSchema.safeParse(raw);
+      if (!parsed.success) return causalFail('repair_request');
+      const request = structuredClone(parsed.data);
+      assertReview(request.review);
+      const row = plans.find(p => p.caseId === request.caseId), chosen = last(row?.attempts ?? []);
+      if (!row || !chosen || !('planningDigest' in chosen) ||
+        !['selected', 'outline_held'].includes(chosen.disposition) || chosen.planningDigest !== request.planningDigest ||
+        request.review.decisions[0]?.caseId !== request.caseId || request.review.decisions[0].decision !== 'hold' ||
+        repairReviews.length || receipts.some(r => r.slot === `${request.caseId}:replan`)) return causalFail('repair_binding');
+      phase = 'repairing'; review = null; repairReviews.push(request);
+      if (!recordRepair) return causalFail('repair_policy');
+      await recordRepair(structuredClone(request));
+      current();
+      if (phase !== 'repairing') return causalFail('repair_policy');
+      const c = cases.find(c => c.id === request.caseId);
+      if (!c) return causalFail('repair_binding');
+      const output = await dispatch(c.id, 'replan', { instructions: CAUSAL_PLAN_INSTRUCTIONS + REPAIR_INSTRUCTIONS,
+        input: canonicalJson({ brief: c.prepared.brief, priorPlan: chosen, defects: request.defects }),
+        schema: causalPlanSchema(c.prepared), maxOutputTokens: personalStoryOutputLimits(c.prepared.brief.beats).planOutputTokens + 6000 });
+      current(); if (phase !== 'repairing') return causalFail('repair_policy');
+      row.attempts.push(compileCausalPlan(c.prepared, output));
+      current(); phase = 'planned'; return readSynopses();
+    } catch (error) { phase = 'failed'; throw sanitise(error); }
   }
   async function write() {
     current();
@@ -159,7 +210,7 @@ export function createCausalExperiment(args: {
       current(); phase = 'complete'; return structuredClone({ books, evidence: snapshot(), runtimeEligible: false });
     } catch (error) { phase = 'failed'; throw sanitise(error); }
   }
-  return { plan, readSynopses, reviewSynopses, write, snapshot };
+  return { plan, readSynopses, reviewSynopses, repair, write, snapshot };
 }
 const measureMetrics = (doc: StoryReviewDocument, age: number) => measureStoryText(doc.manuscript, age);
 const last = <T>(rows: T[]) => rows[rows.length - 1];

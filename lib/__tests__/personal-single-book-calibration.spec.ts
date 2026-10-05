@@ -4,6 +4,10 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { execFileSync, spawnSync } from 'node:child_process';
+import { EventEmitter } from 'node:events';
+import * as readline from 'node:readline';
+import * as adapters from '../../scripts/personal-causal-trial-adapters';
+import * as frozen from '../../scripts/personal-story-frozen-engine';
 import { createSingleBookCalibration, prepareSingleBookCalibration, renderSingleBookText, singleBookOutcome, singleBookCalibrationCLI } from '../../scripts/personal-single-book-calibration';
 import { CausalFamilyJournal, CausalHostError } from '../../scripts/personal-causal-trial-journal';
 import { CausalTransportError, type TransportReply } from '../../scripts/personal-causal-trial-adapters';
@@ -14,6 +18,10 @@ import { fixtureAdventureSelection } from '../personal-wizard/__tests__/story-pl
 import { fixtureEditorOutput } from '../personal-wizard/__tests__/personal-storyboard-fixture';
 import { type CausalHostTransport } from '../../scripts/personal-causal-trial-host';
 import { resolvePersonalWizardOptions } from '../personal-wizard/options';
+
+vi.mock('node:readline', async importOriginal => ({
+  ...await importOriginal<typeof import('node:readline')>(), createInterface: vi.fn(),
+}));
 
 const dirs: string[] = [];
 afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks(); vi.unstubAllGlobals(); for (const d of dirs.splice(0)) rmSync(d, { recursive: true, force: true }); });
@@ -50,10 +58,11 @@ function reply(call: CausalDispatch): TransportReply {
   return { output: answer(call), estimatedMicroUsd: 1, usage: { inputTokens: 1, outputTokens: 1 },
     metadata: { reportedModel: 'gpt-6-astra', serviceTier: 'default', status: 'completed', synthetic: true }, raw: { synthetic: true } };
 }
-function harness(reviewMode: 'normal' | 'benchmark' = 'normal') {
+function harness(reviewMode: 'normal' | 'benchmark' = 'normal', synopsisRepair = false) {
   const root = temp(), controller = new AbortController(), executable = path.join(root, 'synthetic.exe');
   writeFileSync(executable, 'SYNTHETIC NOT EXECUTABLE');
   const policy = { version: 'personal-single-book-calibration/v2' as const, reviewMode, sourceHead: 'a'.repeat(40), executable,
+    ...(synopsisRepair ? { synopsisRepair: true as const } : {}),
     executableSha256: sha('SYNTHETIC NOT EXECUTABLE'), mode: 'offline_injected' as 'offline_injected' | 'live_explicit',
     pricing: { source: 'Synthetic test declaration using recipe rates, NOT current price evidence.', checkedAt: new Date().toISOString(),
       rates: { opus: { inputMicroUsdPerToken: 8, outputMicroUsdPerToken: 20 }, astra: { inputMicroUsdPerToken: 12.5, outputMicroUsdPerToken: 50 } } },
@@ -68,7 +77,194 @@ function harness(reviewMode: 'normal' | 'benchmark' = 'normal') {
   return { root, controller, policy, args, spec, transport, key, review };
 }
 
+// This exercises the real CLI/driver/host/journal with a mocked TTY and native
+// transports. It is not an OS-PTY or provider test. Existing subprocess tests
+// below independently exercise real piped/closed-stdin admission.
+describe('two same-process review windows through the CLI (zero providers)', () => {
+  function cliHarness() {
+    const h = harness('normal', true), common = temp(), restoreTTY = mockStdinTTY(true);
+    const events = new EventEmitter(); let closed = false;
+    const reader = Object.assign(events, { close: vi.fn(() => { if (!closed) { closed = true; events.emit('close'); } }) });
+    vi.spyOn(readline, 'createInterface').mockReturnValue(reader as unknown as ReturnType<typeof readline.createInterface>);
+    vi.spyOn(frozen, 'gitAt').mockImplementation((_repo, args) => {
+      if (args.join(' ') === 'rev-parse HEAD') return Buffer.from('a'.repeat(40));
+      if (args.join(' ') === 'status --porcelain') return Buffer.from('');
+      if (args.join(' ') === 'rev-parse --path-format=absolute --git-common-dir') return Buffer.from(common);
+      throw Error('Unexpected synthetic Git command');
+    });
+    const transport = vi.fn<CausalHostTransport>(async (_wire, call) => reply(call));
+    vi.spyOn(adapters, 'createOpusCausalTransport').mockReturnValue(transport);
+    vi.spyOn(adapters, 'createAstraCausalTransport').mockReturnValue(transport);
+    const network = vi.fn<typeof fetch>(() => { throw Error('No network permitted'); }); vi.stubGlobal('fetch', network);
+    const messages: any[] = [];
+    vi.spyOn(console, 'log').mockImplementation(value => { messages.push(JSON.parse(String(value))); });
+    const timerSpy = vi.spyOn(globalThis, 'setTimeout');
+    const livePolicy = { ...h.policy, mode: 'live_explicit' as const };
+    const config = { workspace: process.cwd(), outputParent: h.root, policy: livePolicy, request: h.args.request,
+      existingKeyEnvFile: path.join(h.root, 'deliberately-missing-key.env') };
+    const file = path.join(h.root, 'cli-config.json'); writeFileSync(file, JSON.stringify(config));
+    const spec = prepareSingleBookCalibration(config);
+    const task = singleBookCalibrationCLI(['--config', file, '--execute']);
+    // Attach rejection observation immediately; tests also assert the exact outcome.
+    const outcome = task.then(code => ({ code }), error => ({ error }));
+    const status = async (name: string) => { await vi.waitFor(() => expect(messages.some(m => m.status === name)).toBe(true));
+      await vi.waitFor(() => expect(reader.listenerCount('line')).toBe(1)); return messages.find(m => m.status === name); };
+    const requestRepair = (digest: string) => {
+      const bundle = JSON.parse(readFileSync(path.join(spec.bookRoot, 'synopses.json'), 'utf8'));
+      writeFileSync(path.join(spec.bookRoot, 'repair-request.json'), JSON.stringify({
+        review: { sourceDigest: digest, decisions: [{ caseId: 'case1', decision: 'hold', reason: 'Synthetic HOLD naming a causal contradiction.' }] },
+        caseId: 'case1', planningDigest: bundle.plans[0].attempts[0].planningDigest,
+        defects: ['The resolution is unsupported by the earlier observation.'],
+      }), { flag: 'wx' });
+      reader.emit('line', 'repair');
+    };
+    const cleanup = () => { restoreTTY(); expect(network).not.toHaveBeenCalled();
+      expect(reader.listenerCount('line')).toBe(0); expect(reader.listenerCount('close')).toBe(0); };
+    return { h, spec, reader, transport, messages, timerSpy, outcome, status, requestRepair, cleanup };
+  }
+  it.each(['write', 'hold'] as const)('requires a fresh explicit second %s and opens a new 20-minute window', async decision => {
+    const h = cliHarness();
+    try {
+      const first = await h.status('synopsis_review_required'); h.requestRepair(first.sourceDigest);
+      const second = await h.status('repaired_synopsis_review_required');
+      expect(second.sourceDigest).not.toBe(first.sourceDigest);
+      expect(h.transport.mock.calls.map(([, c]) => c.stage)).toEqual(['final_review', 'plan', 'replan']);
+      const reviewTimers = h.timerSpy.mock.calls.filter(([, delay]) => delay === 1200000);
+      expect(reviewTimers).toHaveLength(2);
+      writeFileSync(path.join(h.spec.bookRoot, 'review-repaired.json'), JSON.stringify({ sourceDigest: second.sourceDigest,
+        decisions: [{ caseId: 'case1', decision, reason: 'Synthetic fresh whole-plan review, not product acceptance.' }] }), { flag: 'wx' });
+      h.reader.emit('line', 'continue'); expect(await h.outcome).toEqual({ code: 0 });
+      expect(h.transport.mock.calls.map(([, c]) => c.stage)).toEqual(decision === 'write'
+        ? ['final_review', 'plan', 'replan', 'author', 'editor', 'final_review', 'comparison']
+        : ['final_review', 'plan', 'replan']);
+      expect(existsSync(path.join(h.spec.bookRoot, 'index.html'))).toBe(true);
+    } finally { h.reader.close(); h.cleanup(); }
+  }, 15_000);
+  it.each([
+    [1, 'stop'], [1, 'eof'], [1, 'signal'], [2, 'stop'], [2, 'eof'], [2, 'signal'], [2, 'repair'],
+  ] as const)('window %i with %s terminates without an author or extra repair', async (window, command) => {
+    const h = cliHarness();
+    try {
+      const first = await h.status('synopsis_review_required');
+      if (window === 2) { h.requestRepair(first.sourceDigest); await h.status('repaired_synopsis_review_required'); }
+      if (command === 'eof') h.reader.close(); else if (command === 'signal') process.emit('SIGINT'); else h.reader.emit('line', command);
+      expect(await h.outcome).toEqual({ code: 2 });
+      expect(h.transport.mock.calls.map(([, c]) => c.stage)).toEqual(window === 1 ? ['final_review', 'plan'] : ['final_review', 'plan', 'replan']);
+      expect(existsSync(path.join(h.spec.bookRoot, 'index.html'))).toBe(false);
+    } finally { h.reader.close(); h.cleanup(); }
+  }, 15_000);
+  it('EOF during the paid repair cancels immediately instead of losing close and waiting again', async () => {
+    const h = cliHarness();
+    try {
+      const first = await h.status('synopsis_review_required');
+      h.transport.mockImplementation(async (_wire, call, signal) => {
+        if (call.stage !== 'replan') return reply(call);
+        h.reader.close(); expect(signal.aborted).toBe(true);
+        return reply(call); // Timely-looking late reply cannot revive authority.
+      });
+      h.requestRepair(first.sourceDigest);
+      expect(await h.outcome).toMatchObject({ error: { code: expect.any(String) } });
+      expect(h.messages.some(m => m.status === 'repaired_synopsis_review_required')).toBe(false);
+      expect(h.timerSpy.mock.calls.filter(([, delay]) => delay === 1200000)).toHaveLength(1);
+      expect(h.transport.mock.calls.map(([, c]) => c.stage)).toEqual(['final_review', 'plan', 'replan']);
+    } finally { h.reader.close(); h.cleanup(); }
+  }, 15_000);
+});
+
 describe('one fictional book over the existing causal host, not public rollout', () => {
+  function repairFile(h: ReturnType<typeof harness>, bundle: Awaited<ReturnType<ReturnType<typeof createSingleBookCalibration>['plan']>>) {
+    const attempts = bundle.plans[0].attempts, chosen = attempts[attempts.length - 1];
+    if (!('planningDigest' in chosen)) throw Error('selected fixture required');
+    const request = { review: { sourceDigest: bundle.sourceDigest, decisions: [{ caseId: 'case1', decision: 'hold' as const,
+      reason: 'INITIAL_HOLD: SUGGESTED_FIX_MUST_NOT_BE_IN_WIRE.' }] }, caseId: 'case1', planningDigest: chosen.planningDigest,
+      defects: ['The observation does not explain the decisive choice in the adventure.'] };
+    writeFileSync(path.join(h.spec.bookRoot, 'repair-request.json'), JSON.stringify(request), { flag: 'wx' });
+    return request;
+  }
+  function repairedReview(h: ReturnType<typeof harness>, digest: string, decision: 'write' | 'hold' = 'write') {
+    writeFileSync(path.join(h.spec.bookRoot, 'review-repaired.json'), JSON.stringify({ sourceDigest: digest,
+      decisions: [{ caseId: 'case1', decision, reason: 'FINAL_REVIEW of the whole new plan, synthetic and not product acceptance.' }] }), { flag: 'wx' });
+  }
+  it('positive repair opt-in changes binding only when present, not reservation or consumed family identity', () => {
+    const h = harness(), base = prepareSingleBookCalibration(h.args);
+    expect(base.policy).not.toHaveProperty('synopsisRepair'); expect(base.preview).not.toHaveProperty('synopsisRepair');
+    h.policy.synopsisRepair = true; const enabled = prepareSingleBookCalibration(h.args);
+    expect(enabled.digest).not.toBe(base.digest); expect(enabled.bookFamily).toBe(base.bookFamily);
+    expect(enabled.bookReserved).toBe(base.bookReserved); expect(enabled.preview.maximumLogicalAttempts).toBe(7);
+    expect(enabled.preview.synopsisRepair).toBe(true);
+    (h.policy as any).synopsisRepair = false;
+    expect(() => prepareSingleBookCalibration(h.args)).toThrow('calibration_policy');
+  });
+  it.each(['write', 'hold'] as const)('real injected driver preserves both plans/reviews and fresh %s after one repair', async decision => {
+    const h = harness('normal', true), driver = createSingleBookCalibration(h.args), first = await driver.plan();
+    const originalBytes = readFileSync(path.join(h.spec.bookRoot, 'synopses.json'));
+    const request = repairFile(h, first);
+    h.transport.mockImplementation(async (wire, call) => {
+      if (call.stage === 'replan') {
+        expect(JSON.parse(readFileSync(path.join(h.spec.bookRoot, 'synopsis-repair-request.json'), 'utf8'))).toEqual(request);
+        expect(wire.json).not.toContain('SUGGESTED_FIX_MUST_NOT_BE_IN_WIRE');
+        const r = reply(call), out: any = r.output;
+        out.plan.ending = 'סיום אחר מוכן מתוך הבחירות שכבר התרחשו'; out.synopsis += ' REPAIRED_PLAN_MARKER';
+        return r;
+      }
+      return reply(call);
+    });
+    delete h.policy.synopsisRepair; // captured by driver; caller cannot disable/broaden it after admission
+    const repaired = await driver.repairFromRequestFile();
+    expect(repaired.sourceDigest).not.toBe(first.sourceDigest);
+    expect(h.transport.mock.calls.map(([, c]) => c.stage)).toEqual(['final_review', 'plan', 'replan']);
+    expect(readFileSync(path.join(h.spec.bookRoot, 'synopses.json'))).toEqual(originalBytes);
+    expect(JSON.parse(readFileSync(path.join(h.spec.bookRoot, 'synopses-repaired.json'), 'utf8'))).toEqual(repaired);
+    expect(existsSync(path.join(h.spec.bookRoot, 'review-template-repaired.json'))).toBe(true);
+    repairedReview(h, repaired.sourceDigest, decision);
+    const result = await driver.writeFromReviewFile();
+    expect(result.books).toHaveLength(decision === 'write' ? 1 : 0);
+    const expected = decision === 'write' ? ['final_review', 'plan', 'replan', 'author', 'editor', 'final_review', 'comparison'] : ['final_review', 'plan', 'replan'];
+    expect(h.transport.mock.calls.map(([, c]) => c.stage)).toEqual(expected);
+    const snapshot = driver.snapshot(); expect(snapshot.phase).toBe('complete'); expect(snapshot.host!.host.reservedMicroUsd).toBe(9248802);
+    const html = readFileSync(path.join(h.spec.bookRoot, 'index.html'), 'utf8');
+    expect(html).toContain('המתווים והביקורות לפני הכתיבה'); expect(html).toContain('INITIAL_HOLD'); expect(html).toContain('FINAL_REVIEW');
+    expect(html).toContain('REPAIRED_PLAN_MARKER'); expect(html).toContain('Synthetic adventure through discovery');
+    expect(snapshot.host!.coordinator.plans[0].attempts).toHaveLength(2);
+    if (decision === 'hold') expect(html).toContain('לא נכתבה פרוזה ולא נוצר ספר');
+    if (decision === 'write') {
+      const author = h.transport.mock.calls.find(([, c]) => c.stage === 'author')![1];
+      expect(JSON.parse(author.input).planDigest).toBe((repaired.plans[0].attempts[1] as any).planDigest);
+    }
+    expect(h.key).not.toHaveBeenCalled();
+  });
+  it('first WRITE in enabled mode skips repair and leaves the five-book-call recipe', async () => {
+    const h = harness('normal', true), driver = createSingleBookCalibration(h.args), first = await driver.plan(); h.review(first.sourceDigest);
+    expect((await driver.writeFromReviewFile()).books).toHaveLength(1);
+    expect(h.transport.mock.calls.map(([, c]) => c.stage)).toEqual(['final_review', 'plan', 'author', 'editor', 'final_review', 'comparison']);
+    expect(existsSync(path.join(h.spec.bookRoot, 'synopsis-repair-request.json'))).toBe(false);
+  });
+  it('a fresh second-review filename does not make an old digest valid', async () => {
+    const h = harness('normal', true), driver = createSingleBookCalibration(h.args), first = await driver.plan(); repairFile(h, first);
+    await driver.repairFromRequestFile(); repairedReview(h, first.sourceDigest);
+    await expect(driver.writeFromReviewFile()).rejects.toThrow('cohort_binding');
+    expect(h.transport).toHaveBeenCalledTimes(3); expect(driver.snapshot().phase).toBe('failed');
+  });
+  it.each(['synopses.json', 'synopses-repaired.json', 'synopsis-repair-request.json'] as const)('tampered immutable %s stops before authoring', async file => {
+    const h = harness('normal', true), driver = createSingleBookCalibration(h.args), first = await driver.plan(); repairFile(h, first);
+    const repaired = await driver.repairFromRequestFile(); repairedReview(h, repaired.sourceDigest);
+    writeFileSync(path.join(h.spec.bookRoot, file), 'tampered synthetic evidence');
+    await expect(driver.writeFromReviewFile()).rejects.toThrow('record_changed');
+    expect(h.transport).toHaveBeenCalledTimes(3); expect(driver.snapshot().phase).toBe('failed');
+  });
+  it('tampering with the first synopsis stops before the repair model call', async () => {
+    const h = harness('normal', true), driver = createSingleBookCalibration(h.args), first = await driver.plan(); repairFile(h, first);
+    writeFileSync(path.join(h.spec.bookRoot, 'synopses.json'), 'tampered synthetic plan');
+    await expect(driver.repairFromRequestFile()).rejects.toThrow('record_changed'); expect(h.transport).toHaveBeenCalledTimes(2);
+  });
+  it('defect and plan strings are escaped in the zero-book held viewer', async () => {
+    const h = harness('normal', true), driver = createSingleBookCalibration(h.args), first = await driver.plan();
+    const req = repairFile(h, first); req.defects = ['<script>synthetic malicious narrative text</script>'];
+    writeFileSync(path.join(h.spec.bookRoot, 'repair-request.json'), JSON.stringify(req));
+    const repaired = await driver.repairFromRequestFile(); repairedReview(h, repaired.sourceDigest, 'hold');
+    await driver.writeFromReviewFile(); const html = readFileSync(path.join(h.spec.bookRoot, 'index.html'), 'utf8');
+    expect(html).not.toContain('<script>'); expect(html).toContain('&lt;script&gt;');
+  });
   it('budget preview performs no reservation/key call and pins the complete recipe', () => {
     const h = harness(), before = readdirSync(h.root);
     const prepared = prepareSingleBookCalibration(h.args);

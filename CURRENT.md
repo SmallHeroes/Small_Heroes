@@ -1,5 +1,49 @@
 # SmallHeroes — Current Technical State
 
+## Approved one-time synopsis repair implemented 2026 10 05
+
+Guy approves Claude's five design conditions and one fresh fictional eight-spread
+trial up to12USD after technical QA. Root Codex implements the general repair in
+personal-story-product on codex/personal-book-storyboard-bridge, base5acdde05.
+Positive immutable opt-in, single-case only; absent opt-in preserves policy,
+manifest, binding, actual outgoing wire and viewer bytes. No new stage, cap,
+provider router or public wizard change. Reuse the existing replan slot at most
+once, shared with planner both_rejected. Reserved is not prepaid or invoice cap.
+
+External HOLD/current source/latest planning digest are checked before recording
+bounded defects, claiming or dispatching. Full review reasons and suggested-fix
+fields never enter the repair call; defects' semantics still require reviewer
+discipline. Preserve both attempts and HOLD before the call, demand new whole-plan
+review, and author only its selected latest plan after explicit WRITE. Second HOLD
+completes with zero books. Invalid/duplicate/cancel/late responses are terminal;
+opt-in host verifies all journal records before each next dispatch. CLI gives two
+separate20minute windows, distinct files and lifetime EOF cancellation. Viewer
+shows both plans/reviews even with zero prose, escaped as untrusted text.
+
+Final focused505/505 across7specs: core114, host89, native80, driver/CLI91,
+editor42, audit41, comparison48. Final tsc0 before commit. Mocked-TTY tests keep actual driver/host/journal;
+they are not real OS-PTY/provider proof. Existing real pipe/closed-stdin tests pass.
+Internal audit caught two race defects during development; both fixed and pinned:
+terminal revival during pending repair and EOF lost between review windows.
+Five in-memory guard-removal controls are caught. Eight same-input default-path
+comparisons against Git base5acdde05 are byte-equal (normal/benchmark,1/6cases,
+selected or initial rejection), including wires/bundles/results/snapshots/viewer;
+policy/preview/probe wire/digest/reservations also equal. All91 historical files
+across24roots match SHA/size, zero missing/extra/modified. Independent Claude QA
+of this implementation is still pending; internal evidence is not technical PASS.
+
+Full check native1: ordinary same10 missing-artifact failures,6161passed/73skipped;
+resource15timeouts/620passed plus4RPCerrors,20files. Baseline RED and known
+load-sensitive files do not prove these15 failures' cause. That full run preceded
+the final restriction of the EOF listener to opt-in and one additive outline-HOLD
+test; final focused/tsc checks pass without a second full rerun. No paid book calls/keys/images/push.
+Decision: docs/ai-workflow/PERSONAL_SYNOPSIS_REPAIR_DECISION_20261005.md.
+Handoff: docs/ai-workflow/PERSONAL_SYNOPSIS_REPAIR_QA_20261005.md.
+Next: frozen local commit, actual Claude read-only re-gate in
+personal-trial06-auto-qa, then fresh trial07 only after PASS. Trials01–06 sealed;
+human Claude checkout and protected/site branches unchanged. No recovery/retry
+of an old family, product acceptance, public rollout, render or deploy is implied.
+
 ## Approved trial06 held before prose 2026 10 05
 
 Guy explicitly approves one fresh up-to-12-USD fictional eight-spread normal
@@ -26,7 +70,7 @@ Existing replan is available only after planner both_rejected, not external HOLD
 A bounded feedback-driven repair using the already reserved slot is proposed,
 NOT implemented: explicit opt-in, current digest binding, preserved attempts,
 fresh full-synopsis review before WRITE, one replan total, no terminal recovery.
-Guy's new async decision on this change and a future fresh trial is pending.
+Historical decision was pending; the approved implementation is recorded above.
 No gate weakening or story-specific repair. Full gate remains historical RED.
 Handoff: docs/ai-workflow/PERSONAL_TRIAL06_SYNOPSIS_HOLD_20261005.md.
 

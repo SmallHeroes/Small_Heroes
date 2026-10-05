@@ -10,14 +10,24 @@ This roadmap records technical milestone state. Guy can change product priority 
 
 ### P-personal fifteen-companion expansion (2026-10-03)
 
+- Guy approves the bounded one-time external synopsis repair and one fresh
+  fictional8spread trial up to12USD after technical QA. Root implements opt-in,
+  single-case repair over the existing replan slot, defects only, preserved plans
+  and mandatory fresh whole-plan review. Second HOLD stays terminal/no prose;
+  default wires/digests/viewer match frozen base. Final focused505/505, tsc0; independent
+  Claude re-gate pending. Public wizard, images and site branches untouched.
+  Trials01–06 remain sealed; no old approval family is reopened. See approved
+  PERSONAL_SYNOPSIS_REPAIR_DECISION_20261005 and QA handoff in docs/ai-workflow.
+
 - Approved trial06 executed at frozen ccf5f706: real probe plus Opus plan,
   external synopsis HOLD for two central causal gaps, zero books/prose calls.
   Known trial estimate 0.476506 USD; separate review/consultation cumulative
   list estimate 0.5793392 USD, not invoices. Dedicated auto-QA worktree replaces
   shared human-review checkout use. Fresh reference consumed and sealed.
   Next proposal: opt-in one-time external-feedback repair in existing replan
-  allowance, then mandatory new synopsis review. Not implemented; owner decision
-  and future trial approval pending. No image, public integration, push or deploy.
+  allowance, then mandatory new synopsis review. This historical pending proposal
+  is now approved and implemented above; technical QA precedes trial07. No image,
+  public integration, push or deploy.
   Exact ccf5f706..c005ed64 receives direct docs PASS with runtime artifact
   spot-checks, not book acceptance. Combined captured estimates about1.37 USD.
 
