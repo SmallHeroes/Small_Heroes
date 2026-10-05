@@ -1,5 +1,35 @@
 # SmallHeroes — Current Technical State
 
+## Approved trial06 held before prose 2026 10 05
+
+Guy explicitly approves one fresh up-to-12-USD fictional eight-spread normal
+trial and delegates synopsis review to Codex/Claude. Executed unchanged source
+ccf5f706 in this root task. A new managed automatic-review worktree at
+personal-trial06-auto-qa is detached at ccf5f706; the human Claude checkout
+sh-qa-book-10f54930 was not moved or used. Preflight: fresh reference/families,
+frozen source/binary, native first-party Max login, zero constructor key reads
+or reservations; previous 70 files/twenty roots match their baselines.
+
+The real Astra probe reports gpt-6-astra/default/completed. Opus's selected plan
+compiles, but Codex and separate Claude review HOLD it for two unsupported causal
+links: pose/gap payoff geometry and dot-size/route choice. All self-reported
+outline checks said supported; structural coverage is not semantic entailment.
+The digest-bound HOLD completes the existing diagnostic with zero books and
+no author/editor/final/comparison dispatch. Tool exit 0; known trial estimate
+476506 microUSD (probe 10925 plus plan 465581), two logical attempts, no unknown
+costs. Consultant conversation cumulative list estimate 0.5793392 USD includes
+both synopsis review and design consultation, not two additive totals or invoice.
+Four new evidence roots contain 21 fingerprinted files. Both families are sealed
+and consumed; no salvage, retry, render, narration, push or deployment occurred.
+
+Existing replan is available only after planner both_rejected, not external HOLD.
+A bounded feedback-driven repair using the already reserved slot is proposed,
+NOT implemented: explicit opt-in, current digest binding, preserved attempts,
+fresh full-synopsis review before WRITE, one replan total, no terminal recovery.
+Guy's new async decision on this change and a future fresh trial is pending.
+No gate weakening or story-specific repair. Full gate remains historical RED.
+Handoff: docs/ai-workflow/PERSONAL_TRIAL06_SYNOPSIS_HOLD_20261005.md.
+
 ## Direct Claude tested correction re gate 2026 10 05
 
 Guy explicitly authorizes automatic Codex/Claude QA and consultation while away.

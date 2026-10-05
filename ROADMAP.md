@@ -10,6 +10,15 @@ This roadmap records technical milestone state. Guy can change product priority 
 
 ### P-personal fifteen-companion expansion (2026-10-03)
 
+- Approved trial06 executed at frozen ccf5f706: real probe plus Opus plan,
+  external synopsis HOLD for two central causal gaps, zero books/prose calls.
+  Known trial estimate 0.476506 USD; separate review/consultation cumulative
+  list estimate 0.5793392 USD, not invoices. Dedicated auto-QA worktree replaces
+  shared human-review checkout use. Fresh reference consumed and sealed.
+  Next proposal: opt-in one-time external-feedback repair in existing replan
+  allowance, then mandatory new synopsis review. Not implemented; owner decision
+  and future trial approval pending. No image, public integration, push or deploy.
+
 - Direct automatic Claude Code re-gate: tested PASS P0/P1/P2/P3 zero for exact
   223499b3..9aff7785, 448/448 and six discriminating reviewer-local controls.
   First source-only procedural HOLD is retained, not relabelled as tested.
