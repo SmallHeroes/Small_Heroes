@@ -1,18 +1,40 @@
 # SmallHeroes — Current Technical State
 
-## Six varied fictional books approved and preparing 2026 10 05
+## Varied-book trial stopped on critic quote evidence 2026 10 05
 
-Guy approves75USD pipeline allowance plus5USD separate Claude Max estimates.
-Six fresh fictional profiles cover six companions, ages3–8 and8/12/16spreads;
-one sparse/no-difficulty profile and a same-interest/different-personality pair.
-Existing generic causal host is reused; no production code or prompt changes.
-External same-process adapter is reviewed explicitly by hash before spending.
-Plan allsix, native fresh synopsis review plus root reading, then Opus author,
-originalAstra, freshOpus editor, blindfinalAstra andcomparison forWRITE cases.
-42reservedslots/74.104806USD, notexpectedcharge orinvoicecap. No6case repair,
-retry/resume, render, publiccutover, push/deploy. FullRED remains; no independent
-PASS or paid result claimed yet. See
-docs/ai-workflow/PERSONAL_VARIED_COHORT_20261005.md.
+One approved family runs at frozen d50eaa36 using the existing causal host.
+Actual native Claude technical PASS covers9973fb94..d50eaa36 and the external
+adapter by hash, with six Low groups retained: own tsc0,355/355,21 real-host
+checks. It does not cover prior33commits, later offline export scripts or this
+docs-only closeout. No production code, prompt, model or public flow changed.
+
+All six fictional plans complete. Fresh native Claude allows allsix; root
+overrides cases4/6 with HOLD for a conflicting cube constraint and an
+underprepared path-shape climax. Four cases are admitted, without repair.
+Case1 completes Opus author, originalAstra, freshOpus editor, blindfinalAstra
+andcomparison: "מסלול העננים של עידו",8spreads,468→480words. One ribbon
+continuity polish issue remains; one softlength overshoot is70 versus65words.
+Case2 writes "רוני והגן שמתקפל",12spreads, but originalAstra adds ` אלה` to
+a quoted passage. compileCausalReading rejects critic_evidence. No case2
+editor or case3/5 author dispatch occurs; no retry, resume or replacement run.
+The family is sealed coordinator_failed; full six-book validation is NOT done.
+
+13 logical attempts have known estimates totaling4.846886USD: Opus Max list
+estimate4.372710 and Astra token estimate0.474176. Separate Max QA/synopsis
+estimates total1.863664USD. Reservation74.104806 is not a charge or invoice cap.
+125 offline assertions recompile the retained complete case1 path, reproduce
+case2's exact bad-quote rejection, and verify models/bindings/costs/exports.
+56 paid evidence files inventoried;326older+4prep files preserve SHA/size/mtime.
+Readable copies are generated offline without story edits or resurrecting the
+failed family; aggregate books.json was never saved. Not an independent
+paid-evidence PASS. Local evidence has no verified remote backup.
+
+Guy can read visualization/varied-story-cohort-20261005/case1-edited.md and
+case2-original.md (draft only). Full gate remains RED; no product acceptance,
+autonomous-quality claim, images, public wizard cutover, push or deployment.
+Further paid cohorts should wait for a scoped decision on reliable source-bound
+critic citations, not quote truncation, weakened provenance or silent fallback.
+See docs/ai-workflow/PERSONAL_VARIED_COHORT_20261005.md.
 
 ## Fixed reader calibration completed without observed gain 2026 10 05
 

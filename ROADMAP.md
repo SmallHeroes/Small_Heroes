@@ -10,12 +10,19 @@ This roadmap records technical milestone state. Guy can change product priority 
 
 ### P-personal fifteen-companion expansion (2026-10-03)
 
-- Guy approves sixnewfictionalbooks,75USDpipeline plus5USDseparateMaxestimates.
-  Genericexistinghost, externalthinadapter; noengine/prompt/publicflowchanges.
-  FreezeandnativeClaudeQA precede oneboundedrun, allsixplansreviewedtogether.
-  Benchmarkoriginal/final/comparison andfreshOpuseditor stayenabled. Noimages,
-  retry/resume,6case repair,push/deploy. ResultsandtechnicalQA pending;
-  fullRED remains. See PERSONAL_VARIED_COHORT_20261005.md.
+- The six-profile diagnostic runs once atd50eaa36 after actual native Claude
+  technical PASS of docs/adapter (six Low groups,355/355,21checks,tsc0).
+  Allsix plans complete; native WRITE forallsix, root HOLD4/6, no repairs.
+  One8spread text completes author/originalAstra/freshOpusedit/final/comparison.
+  A12spread draft stops at invalid original-reader quote: critic_evidence.
+  No16spread prose, sparse/no-difficulty completed control or six-book coverage.
+  Family sealedfailed; no resume/retry.13attempts estimate4.846886USD plus
+  separateMax1.863664USD, not invoices;125offlineassertions,56newpaid files,
+  326historical+4prep preserved. Readable case1edit/case2draft are offline copies,
+  not a revived completion. No engine/public/prompt changes,images,push/deploy.
+  FullRED and autonomous citation/semantic-review reliability remain open.
+  Next decision: reliable bound critic evidence before more paid cohort runs.
+  See PERSONAL_VARIED_COHORT_20261005.md; no self-awarded paid-evidence PASS.
 
 - Approved fixed-reader calibration precedes further book sampling: three
   existing full stories, six baseline/candidate Astra requests, 6 USD aggregate
