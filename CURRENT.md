@@ -1,5 +1,19 @@
 # SmallHeroes — Current Technical State
 
+## Six varied fictional books approved and preparing 2026 10 05
+
+Guy approves75USD pipeline allowance plus5USD separate Claude Max estimates.
+Six fresh fictional profiles cover six companions, ages3–8 and8/12/16spreads;
+one sparse/no-difficulty profile and a same-interest/different-personality pair.
+Existing generic causal host is reused; no production code or prompt changes.
+External same-process adapter is reviewed explicitly by hash before spending.
+Plan allsix, native fresh synopsis review plus root reading, then Opus author,
+originalAstra, freshOpus editor, blindfinalAstra andcomparison forWRITE cases.
+42reservedslots/74.104806USD, notexpectedcharge orinvoicecap. No6case repair,
+retry/resume, render, publiccutover, push/deploy. FullRED remains; no independent
+PASS or paid result claimed yet. See
+docs/ai-workflow/PERSONAL_VARIED_COHORT_20261005.md.
+
 ## Fixed reader calibration completed without observed gain 2026 10 05
 
 Guy approves six Astra readings of three existing full stories, baseline versus

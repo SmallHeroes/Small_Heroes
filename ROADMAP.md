@@ -10,6 +10,13 @@ This roadmap records technical milestone state. Guy can change product priority 
 
 ### P-personal fifteen-companion expansion (2026-10-03)
 
+- Guy approves sixnewfictionalbooks,75USDpipeline plus5USDseparateMaxestimates.
+  Genericexistinghost, externalthinadapter; noengine/prompt/publicflowchanges.
+  FreezeandnativeClaudeQA precede oneboundedrun, allsixplansreviewedtogether.
+  Benchmarkoriginal/final/comparison andfreshOpuseditor stayenabled. Noimages,
+  retry/resume,6case repair,push/deploy. ResultsandtechnicalQA pending;
+  fullRED remains. See PERSONAL_VARIED_COHORT_20261005.md.
+
 - Approved fixed-reader calibration precedes further book sampling: three
   existing full stories, six baseline/candidate Astra requests, 6 USD aggregate
   ceiling. Only the existing diagnostic probe/spec change; default complete
