@@ -1,5 +1,61 @@
 # SmallHeroes — Current Technical State
 
+## Trial08 literary refinement book completed 2026 10 05
+
+Actual Claude tested re-gate PASS closes both low coverage findings in exact
+f335ffa2..944738fa:core127/127,tsc0,ten controls caught,archives unchanged.
+Production matches f335ffa2. Same-session cumulative native Max QA list estimate
+1.4823156USD includes the first1.1338532, not an additional sum or invoice.
+Independent code PASS remains3367328e..f335ffa2; no literary/stability expansion.
+
+Guy explicitly authorizes a fresh book when ready, without another approval.
+One-use trial08 executes at frozen clean944738fa,benchmark mode,same fictional
+Neta4/Uri/8spread profile as trial07 except draft ID. Previous book/critique/
+ratings never reach its planner/author/editor. Combined reserved allowance
+11.588803USD is below the carried-forward12USD guard, NOT expected cost/invoice.
+The first inert pricing preview had a mistyped future timestamp and failed
+before reservation/key/provider; corrected preview uses actual clock.
+
+Fresh complete-plan Claude/root review holds the initial climax:the search
+does not change an already-known spoken answer. One existing reserved repair
+receives defects only, not reviewer solutions. A separate fresh Claude session
+reads the whole repaired outline and root concurs WRITE:only the empty painted
+shape moves, changing the answer. Both plans/HOLD/WRITE and new fingerprints
+remain visible. No manual plot/text repair or old-family reuse.
+
+Opus5.5 plans,repairs,writes and edits in a fresh process. Three isolated Astra
+readings cover original-only,final-only and comparison. Real receipts report
+Opus5.5 and Astra/default/completed; provider-reported,not model attestation.
+Eight logical attempts including probe and repair,0unknown cost. Book/probe
+usage estimate1.758419USD; with two external synopsis Max list estimates
+2.185228USD rounded,not invoices. Separate technical QA estimate is above.
+
+Readable output is text_ready_for_human_review:one book titled
+הקיפודה והחור שברח,eight complete spreads. No blocking model finding,but both
+original/final retain one meaningful weakness:Uri's roof guess is ungrounded
+plot contrivance. Comparison reports two polish improvements and one polish
+loss of Haifa; editor explains residence/story-place separation. Neither
+opinion is asserted as proved custody failure. Original497words,edit495;
+two soft target overruns each,no narrative dashes. Root reads both full texts
+and all audits,does not silently patch the story or claim it is perfect.
+
+New46files/four output+journal roots and old126/28roots verify unchanged:
+172files/32roots,0missing/extra/modified. Families consumed/sealed. Local
+evidence package is single-book-calibration-20261005-approved-08 under the
+known visualization root; paid viewer is outputs/personal-calibration-
+1cb384d41218248c573aa61ce0881c18-book/index.html. Ignored roots lack verified
+backup. Second external review is normalized returned-field capture,not raw
+stdout byte identity. Original/comparison Astra note tails are incomplete
+wording under the existing600char limit; compiler does not slice them.
+
+Full gate remains measured RED; no rerun for this docs-only closeout. Existing
+wizard remains separate OpenAI story_only path,not this Opus/Astra chain.
+No images,narration,photo,real child,public integration,push,deploy or product
+acceptance. Viewer-open request queued,not browser verification. Next:Guy's
+reading and a bounded multi-profile literary comparison,not customer promotion.
+Closeout and adversarial brief:docs/ai-workflow/PERSONAL_LITERARY_EXPERIENCE_
+TRIAL08_CLOSEOUT_20261005.md. This successor records evidence only; no self-PASS.
+
 ## Literary experience refinement implemented 2026 10 05
 
 Actual Claude gives tested technical PASS to exact3367328e..f335ffa2:tsc0,
@@ -16,7 +72,8 @@ Original seven-control script/result remain retained; corrective script uses a
 distinct MUTATIONS_COVERAGE name. Same original feature-base label3367328e is
 provenance, not a claim that current production differs from f335ffa2.
 Corrective focused519/519 and tsc0; no full rerun for test/docs-only work.
-Corrective independent re-gate remains pending. Root's wire max45421 and QA's
+At this implementation record the re-gate was pending; it is closed above.
+Root's wire max45421 and QA's
 45427 differ by the longer QA worktree path, not an asserted semantic difference.
 Reviewer report's production diff count is imprecise; actual Git is8added/5removed
 lines across the two production files. No broader code/literary/stability PASS.

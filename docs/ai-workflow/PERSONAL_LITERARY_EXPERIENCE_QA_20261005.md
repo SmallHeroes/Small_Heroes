@@ -106,7 +106,8 @@ Astra; quote provenance is not entailment. Official methodology supports this
 boundary, not this engine's effectiveness:
 https://developers.openai.com/api/docs/guides/evaluation-best-practices
 
-Guy owns literary/product acceptance. No fresh paid family/book/config is created.
+Guy owns literary/product acceptance. During the implementation milestone no
+fresh paid family/book/config was created; the subsequent approved trial is below.
 No public wizard integration, visual work, deployment, push or launch is implied.
 This record claims no independent technical PASS; reviewer supplies exact scope.
 
@@ -145,3 +146,26 @@ No repeated full gate for test/docs-only work; the measured RED record remains.
 Claude should re-run core127 and the corrected ten controls after source-scope
 inspection,then check preservation and clean status. The correction has no
 independent PASS until this re-gate. Guy still owns literary/product acceptance.
+
+## Actual corrective re-gate and trial08
+
+Actual Claude completes tested technical PASS for exactf335ffa2..944738fa:
+core127/127,tsc0,ten one-at-a-time controls and both preservation checks.
+The two low findings are closed. Production bytes match f335ffa2; other six
+specs/full gate are not repeated by this reviewer. Same-session cumulative
+list estimate1.4823156USD includes initial1.1338532,not a second charge to add.
+Original reports/envelopes are preserved in the visualization root as
+CLAUDE_QA_LITERARY_EXPERIENCE_944738fa_REGATE_*. Root's summary outcome is
+explicitly a record of actual Claude decisions,not self-awarded PASS.
+
+Guy then explicitly approves one fresh text-book trial without awaiting him.
+Trial08 is benchmark mode under a new single-use reference,source frozen944.
+It is a matched-profile stochastic sample,NOT the blind multi-profile causal
+comparison proposed above. One complete-plan HOLD,one reserved defects-only
+repair and fresh whole-plan WRITE lead to original/edit/three isolated Astra
+readings. Text is ready for HUMAN reading with a meaningful plot-contrivance
+issue still present,no model blocking finding. No literary/product/stability
+or public-flow acceptance is inferred from the technical PASS.
+
+Full evidence and docs-only adversarial handoff:
+PERSONAL_LITERARY_EXPERIENCE_TRIAL08_CLOSEOUT_20261005.md.

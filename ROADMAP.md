@@ -10,6 +10,17 @@ This roadmap records technical milestone state. Guy can change product priority 
 
 ### P-personal fifteen-companion expansion (2026-10-03)
 
+- Actual re-gate f335ffa2..944738fa PASS closes the two low coverage gaps;
+ production unchanged,core127/127,tsc0,ten controls. Fresh authorized trial08
+ runs one matched fictionalNeta4/Uri/8spread book in benchmark mode. First
+ whole-plan HOLD uses one reserved defects-only repair; fresh second whole-plan
+ WRITE precedes Opus author/fresh edit and isolated Astra original/final/
+ comparison. Readable text,not perfect/product accepted:one meaningful arbitrary
+ roof-guess issue remains in both readings; comparison flags polish loss of
+ locality. Estimate1.758419USD book/probe,2.185228 with synopsis reviews,not
+ invoice.46new files+126old preserved,32roots,all sealed. Full RED and separate
+ browser OpenAI path remain. No public cutover,visuals,deploy or push.
+
 - Guy's general trial07 feedback yields a narrow diagnostic-only literary
  instruction refinement:experience selection,age/length allocation,enacted
  promises,function-preserving edit and justified criticism. Focused518/518;
