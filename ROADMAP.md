@@ -18,6 +18,8 @@ This roadmap records technical milestone state. Guy can change product priority 
   Next proposal: opt-in one-time external-feedback repair in existing replan
   allowance, then mandatory new synopsis review. Not implemented; owner decision
   and future trial approval pending. No image, public integration, push or deploy.
+  Exact ccf5f706..c005ed64 receives direct docs PASS with runtime artifact
+  spot-checks, not book acceptance. Combined captured estimates about1.37 USD.
 
 - Direct automatic Claude Code re-gate: tested PASS P0/P1/P2/P3 zero for exact
   223499b3..9aff7785, 448/448 and six discriminating reviewer-local controls.

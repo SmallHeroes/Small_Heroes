@@ -5,7 +5,7 @@
 Guy explicitly approves one fresh up-to-12-USD fictional eight-spread normal
 trial and delegates synopsis review to Codex/Claude. Executed unchanged source
 ccf5f706 in this root task. A new managed automatic-review worktree at
-personal-trial06-auto-qa is detached at ccf5f706; the human Claude checkout
+personal-trial06-auto-qa was detached at ccf5f706 during execution; the human Claude checkout
 sh-qa-book-10f54930 was not moved or used. Preflight: fresh reference/families,
 frozen source/binary, native first-party Max login, zero constructor key reads
 or reservations; previous 70 files/twenty roots match their baselines.
@@ -29,6 +29,14 @@ fresh full-synopsis review before WRITE, one replan total, no terminal recovery.
 Guy's new async decision on this change and a future fresh trial is pending.
 No gate weakening or story-specific repair. Full gate remains historical RED.
 Handoff: docs/ai-workflow/PERSONAL_TRIAL06_SYNOPSIS_HOLD_20261005.md.
+
+Claude gives docs PASS to exact ccf5f706..c005ed64 after standalone git checks
+and held-artifact reads; no source/tests/full gate or hash rerun by that reviewer.
+Initial compound-command procedural HOLD remains preserved separately. Final
+reports are in the trial06 root. Docs QA cumulative list estimate 0.312964 USD;
+total captured trial plus consultation plus docs review about1.37 USD, not invoice.
+Automatic reviewer now at detached c005ed64; human reviewer unchanged at ccf5f706.
+This later record does not extend that PASS to its own documentation successor.
 
 ## Direct Claude tested correction re gate 2026 10 05
 
