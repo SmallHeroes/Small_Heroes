@@ -15,7 +15,9 @@ observed native exit0. This is actual Claude QA, not a Codex subagent/self-PASS.
 Three low findings are explicitly non-blocking and remain open: host receipt
 content binding relies on the trusted coordinator, critique-port durable failure
 reasons remain generic, and host negative tests lack guard-removal controls.
-Informational viewer partial-list wording and active-history audit limits remain.
+Reviewer informational viewer partial-list wording remains. The selective
+active-history audit boundary is root's disclosed implementation limitation,
+not a separately named informational finding in Claude's report.
 Claude does not rerun the full gate and does not prove exact precommit full-gate
 bytes:the run preceded the last test-only case. Full gate stays measured RED.
 
@@ -23,8 +25,9 @@ bytes:the run preceded the last test-only case. Full gate stays measured RED.
 
 Guy approves one fresh fictional text book after code review, no extra approval
 wait. Codex root is sole writer on codex/personal-book-storyboard-bridge in the
-personal-story-product engine checkout. Source stays clean3cb604ba throughout
-execution. Protected d53b768ccb2f, accepted-intent63ccb484, human QA ccf5f706,
+personal-story-product engine checkout. Source3cb604ba is checked at admission,
+before/after dispatch and clean closeout; no continuous watcher is claimed.
+Protected d53b768ccb2f, accepted-intent63ccb484, human QA ccf5f706,
 site QA5fe73b3f and Claude site87b0d196 remain untouched.
 
 Trial09 uses new reference
@@ -56,6 +59,9 @@ rejects status incomplete before JSON/schema/quote compilation and retains the
 raw response and known usage. Sealed reason is incomplete. CLI prints the safe
 generic provider_or_contract_failed; independently observed Node child exit1,
 signal null. These are distinct layers, not a fabricated exit explanation.
+The actually returned terminal prefix is retained in TOOL_FAILURE_LINE_CAPTURE.json
+as normalized transcription from exec session9850/chunkc90e31, not independently
+captured historical CLI stdout bytes. No provider measurement is reconstructed.
 
 No editor claim/transport, critique-transfer file, final book reading, comparison,
 books.json or finished viewer is produced. The probe's final_review slot is only
@@ -76,6 +82,10 @@ completed summaries have470/593characters. The failure stalls just after the
 closed summary. This is consistent with a boundary/generation issue, NOT causal
 proof. Shorter historical successes do not logically falsify a boundary-triggered
 failure in this request; the consultant's universal-H1 formulation is too strong.
+The literal H1 is falsified by470, so its stated stop rule is triggered. Root
+explicitly rejects that universal premise as a necessary condition and proposes
+a narrower new hypothesis; this overrides the consultation's stop rule, not an
+H1 PASS. No H2, paid probe or prompt change is executed or authorized.
 No provider-side decoder mechanism is observed, and an isolated anomaly remains
 possible. No schema/model/instruction/cap change is implemented after this trial.
 
@@ -102,6 +112,9 @@ No paid root is changed after capture. Read-only verify-closeout.cjs checks all
 adapter using one MOCK fetch and a synthetic in-memory key callback. Zero live
 provider calls, real key reads or writes. It reproduces code incomplete and
 the same known usage/estimate. No forged valid review or fake findings are created.
+The strengthened readonly verifier recomputes600/60091/612/59388 from raw saved
+text and checks complete exported-copy equality, not just page inclusion. All
+paid roots and earlier write-once collector/measurement results stay unchanged.
 
 Raw original is schema/source-bound compiled offline, eight complete spreads.
 Its exact text is exported outside paid roots to

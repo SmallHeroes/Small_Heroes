@@ -8,7 +8,8 @@ files. Raw envelope/report remain in draft-critique-editor-20261005. Native Max
 list estimate1.5756076USD is separate from the book and not an invoice. Three
 low defence/observability/coverage findings remain non-blocking, not fixed.
 
-The explicitly approved ONE fresh book then runs at clean frozen3cb604ba,
+The approved ONE fresh book pins3cb604ba at admission/dispatch and clean closeout;
+no continuous source watcher is claimed. It runs in
 benchmark draftCritique:true/synopsisRepair:true under a new single-use reference.
 Fresh whole-plan Claude review says WRITE; root reads/concurred with explicit
 advisories. No external fixes or previous story/roof finding enter writing.
@@ -39,8 +40,10 @@ Actual Claude consultation suggests testing explicit short complete reader
 summaries under the existing bound. Root mechanically measures six recent
 readings:four hit600 (three complete,one fails); two complete below600 (470,593).
 This supports investigating the boundary but does NOT prove decoder causality.
-The consultant's universal-H1 formulation is narrowed:earlier shorter successes
-do not logically falsify a boundary-triggered failure in this request. Official
+The consultant's literal universal-H1 stop rule is triggered by the470reading.
+Root explicitly rejects that universal premise and proposes a narrower question,
+not an executed H2:earlier shorter successes do not logically falsify a boundary
+trigger in this request. No new paid test is authorized. Official
 JSON-mode whitespace advice does not diagnose this strict-schema response.
 
 No cap/schema/model/prompt or code change follows this failed trial. Next decision:
@@ -48,7 +51,11 @@ a small bounded reader-output remediation/probe, not another blind full book.
 New spending/major prompt changes require Guy's decision. Full gate remains RED;
 public wizard remains separate OpenAI story_only, no integration/render/push/deploy.
 Closeout/Claude adversarial handoff:PERSONAL_DRAFT_CRITIQUE_TRIAL09_CLOSEOUT_20261005.md.
-This docs-only successor records evidence; its independent re-gate is pending.
+Actual Claude gives docs-only PASS to3cb604ba..5f11ac7f,with two low wording/
+retention findings. A narrow docs-only correction makes the H1 override explicit,
+retains the actual tool-returned error prefix as normalized capture (not raw CLI
+stdout),and strengthens the readonly verifier to exact copy/surface equality.
+Code and all197paid artifacts remain unchanged. Corrective re-gate follows.
 
 ## Early draft critique implementation 2026 10 05
 
