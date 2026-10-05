@@ -10,6 +10,16 @@ This roadmap records technical milestone state. Guy can change product priority 
 
 ### P-personal fifteen-companion expansion (2026-10-03)
 
+- Approved early draft feedback is implemented as benchmark-only opt-in over
+  existing slots: original Astra reading before fresh Opus edit, bounded whole
+  source-bound material findings, durable exact transfer before editor claim,
+  complete revised/kept responses, and isolated final/comparison. Default parity
+  holds in ten frozen fixture paths and four preflights; final focused 558/558
+  in one command, nine mutation controls, 172 preserved files. Full gate stays RED
+  (10 ordinary missing-artifact failures, one resource supervisor failure and
+  three RPC timeouts). Actual Claude QA precedes one authorized fresh fictional
+  text book up to12USD. No public integration, render, push or deployment.
+
 - Actual re-gate f335ffa2..944738fa PASS closes the two low coverage gaps;
  production unchanged,core127/127,tsc0,ten controls. Fresh authorized trial08
  runs one matched fictionalNeta4/Uri/8spread book in benchmark mode. First

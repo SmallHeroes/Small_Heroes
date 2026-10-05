@@ -24,6 +24,7 @@ const approvalSchema = z.object({ reference: z.string().trim().min(10).max(600),
 export const singleBookPolicySchema = z.object({ version: z.literal('personal-single-book-calibration/v2'),
   reviewMode: z.enum(['normal', 'benchmark']).default('normal'),
   synopsisRepair: z.literal(true).optional(),
+  draftCritique: z.literal(true).optional(),
   sourceHead: causalHostPolicySchema.shape.sourceHead, executable: z.string().min(1),
   executableSha256: causalHostPolicySchema.shape.executableSha256,
   pricing: causalHostPolicySchema.shape.pricing,
@@ -57,6 +58,7 @@ function parsePolicy(raw: unknown): SinglePolicy {
   const result = singleBookPolicySchema.safeParse(raw);
   if (!result.success) hostFail('calibration_policy');
   const policy = structuredClone(result.data), age = Date.now() - Date.parse(policy.pricing.checkedAt);
+  if (policy.draftCritique && policy.reviewMode !== 'benchmark') hostFail('draft_critique_policy');
   if (policy.mode === 'live_explicit' && (age < 0 || age > 86400000)) hostFail('pricing_stale');
   // This is the reviewed small-calibration recipe. A price change needs repricing,
   // not silently spending the unused $0.41 margin or shrinking output caps.
@@ -103,6 +105,7 @@ export function prepareSingleBookCalibration(args: { workspace: string; outputPa
     probeFamily, bookFamily, probeRoot, bookRoot, probeReserved, bookReserved,
     preview: { version: policy.version, reviewMode: policy.reviewMode,
       ...(policy.synopsisRepair ? { synopsisRepair: true as const } : {}),
+      ...(policy.draftCritique ? { draftCritique: true as const } : {}),
       sourceHead: policy.sourceHead, companionId: prepared.brief.companion.id,
       spreads: 8, models: CAUSAL_MODELS, probeFamily, bookFamily, probeRoot, bookRoot,
       probeReservedMicroUsd: probeReserved, bookReservedMicroUsd: bookReserved,
@@ -185,6 +188,7 @@ export function createSingleBookCalibration(args: {
         host = createCausalTrialHost({ workspace: args.workspace, outputRoot: spec.bookRoot,
           policy: { version: 'causal-trial-host/v2', reviewMode: policy.reviewMode, family: spec.bookFamily, sourceHead: policy.sourceHead,
             ...(policy.synopsisRepair ? { synopsisRepair: true as const } : {}),
+            ...(policy.draftCritique ? { draftCritique: true as const } : {}),
             maximumMicroUsd: spec.bookReserved, maxWireBytes: BOOK_BYTES, executable: policy.executable,
             executableSha256: policy.executableSha256, pricing: policy.pricing, mode: policy.mode,
             approval: policy.mode === 'live_explicit' ? { ...policy.approval, maximumMicroUsd: spec.bookReserved } : null },
@@ -228,7 +232,8 @@ type Reading = BookResult['books'][number]['readings'][number];
 type DisplayResult = { evidence: { manifest: { version: string }; plans?: { caseId: string; attempts: unknown[] }[];
   repairReviews?: CausalSynopsisRepair[]; review?: CausalSynopsisRepair['review'] | null }; books: {
   original: BookResult['books'][number]['original'];
-  edit: Pick<BookResult['books'][number]['edit'], 'disposition' | 'revised' | 'checks' | 'semanticAudit'>;
+  edit: Pick<BookResult['books'][number]['edit'], 'disposition' | 'revised' | 'checks' | 'semanticAudit' | 'draftCritiqueResponse'>;
+  draftCritique?: BookResult['books'][number]['draftCritique'];
   readings: (Omit<Reading, 'stage'> & { stage?: Reading['stage'] })[];
 }[] };
 function displayReadings(result: DisplayResult, book: DisplayResult['books'][number]) {
@@ -264,7 +269,12 @@ export function renderSingleBookText(result: DisplayResult) {
     `<nav><a href="#original">הטיוטה</a> · <a href="#edited">העריכה</a> · <a href="#qa">הביקורת</a></nav>` +
     ([['original', 'הטיוטה המקורית', book.original], ['edited', 'הסיפור הערוך', book.edit.revised]] as const).map(([id, label, doc]) =>
       `<section id="${id}"><h2>${esc(label)}: ${esc(doc.manuscript.title)}</h2>` + doc.manuscript.pages.map(page =>
-        `<article><h3>כפולה ${page.pageNumber}</h3><p>${esc(page.text)}</p></article>`).join('') + '</section>').join('') +
+        `<article><h3>כפולה ${page.pageNumber}</h3><p>${esc(page.text)}</p></article>`).join('') + '</section>' +
+        (id === 'original' && book.draftCritique ? `<section id="draft-critique"><h2>הביקורת שהועברה לעורך והתייחסותו</h2><p>${book.draftCritique.context.projection.findings.length
+          ? 'אלה טענות קורא שנבדקו מול המקור. תגובת העורך אינה הוכחה שהתיקון הצליח; הקריאה הסופית לא ראתה אותן.'
+          : 'לא נמצאו ממצאים מהותיים להעברה. המסלול פעל, אך יכולת תיקון בעיה לא נבחנה.'}</p><pre>${esc(JSON.stringify({
+            critique: book.draftCritique.context.projection, projectionDigest: book.draftCritique.context.projectionDigest,
+            responses: book.edit.draftCritiqueResponse }, null, 2))}</pre></section>` : '')).join('') +
     `<section id="qa"><h2>בדיקת הסיפור והעריכה</h2><p>סטטוס העריכה: ${esc(book.edit.disposition)}</p><pre>${esc(JSON.stringify({ checks: book.edit.checks, semanticAudit: book.edit.semanticAudit, readings: displayReadings(result, book) }, null, 2))}</pre></section>`).join('') + '</html>';
 }
 

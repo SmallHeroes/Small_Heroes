@@ -1,5 +1,52 @@
 # SmallHeroes — Current Technical State
 
+## Early draft critique implementation 2026 10 05
+
+Guy approves the bounded benchmark-only change, actual independent Claude QA,
+then one fresh fictional text book under the existing 12USD guard. Root is sole
+writer on codex/personal-book-storyboard-bridge, base 3f4b929d. No public cutover,
+site change, image, narration, push, deploy or six-book spending is authorized.
+
+Opt-in draftCritique moves the already-reserved original Astra reading before
+the fresh Opus editor. Whole source-checked blocking/meaningful issues only are
+forwarded: at most six, blocking first, bounded canonical bytes and exact full
+editor-wire preparation against the old slot. Lower-priority whole cards may be
+omitted with explicit counts. Material issues with none fitting stop before the
+editor claim; truly empty input is allowed but cannot demonstrate repair benefit.
+
+The durable transfer records the full reading, source-bound projection, exact
+forwarded JSON and editor wire digest before the editor slot is claimed. Each
+forwarded ID requires one digest-bound revised/kept response with a reason. Notes
+are fallible observations, not mandatory fixes. Final/comparison remain isolated;
+the author's draft and prior packets are unchanged. No new call, budget slot,
+model, output ceiling, shared editor schema or automatic retry is introduced.
+
+Feedback-only active checks verify the original receipt and transfer records;
+completion retains the full journal audit. This replaces the new mode's growing
+history rescan, which made a new six-case test take about 44 seconds. The same
+test now takes about nine seconds and alone has a documented 15-second allowance;
+no existing/global/runtime timeout was relaxed. First host failures included
+incorrect synthetic capacity/error expectations and are disclosed in the handoff.
+
+Final focused results are 558/558 across seven specs in one sequential command;
+the additional receipt-tampering test fails before transfer recording/claim.
+Nine in-memory mutations fail the intended new tests, with no import errors.
+Frozen default parity matches ten normal/benchmark one/six-case paths and four
+inert preflights, including serialized wires and viewer bytes; it is fixture
+parity, not a semantic or worst-input proof. Old 172 files/32 roots remain intact.
+
+The measured full npm run check stays RED: ordinary 392 files, 6214 passed,
+10 missing-artifact failures, 73 skipped; resource 20 files, 634 passed, one
+unchanged supervisor-case failure plus three onTaskUpdate RPC timeouts. Both
+lanes exit 1. This full observation precedes the final test-only receipt case;
+production is identical. No baseline causation or release/stability is inferred.
+Raw evidence is draft-critique-editor-20261005 under the known visualization root.
+
+Decision: docs/ai-workflow/PERSONAL_DRAFT_CRITIQUE_DECISION_20261005.md.
+Adversarial handoff: PERSONAL_DRAFT_CRITIQUE_QA_20261005.md. Exact committed
+successor is supplied to the reviewer after the final type check. Independent
+QA and the fresh authorized book remain pending; this entry awards no PASS.
+
 ## Trial08 literary refinement book completed 2026 10 05
 
 Actual Claude tested re-gate PASS closes both low coverage findings in exact

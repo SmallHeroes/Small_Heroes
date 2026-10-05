@@ -6,11 +6,13 @@ import { execFileSync, spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { z } from 'zod';
 import { zodTextFormat } from 'openai/helpers/zod';
+import * as adapters from '../../scripts/personal-causal-trial-adapters';
 import { causalTrialCohort } from '../../scripts/personal-causal-cohort';
 import { createCausalTrialHost, readCausalReviewFile, causalOutputCap, type CausalHostPolicy, type CausalHostTransport } from '../../scripts/personal-causal-trial-host';
-import { CausalFamilyJournal, exclusiveJson, realDirectory } from '../../scripts/personal-causal-trial-journal';
+import { CausalFamilyJournal, CausalHostError, exclusiveJson, realDirectory } from '../../scripts/personal-causal-trial-journal';
 import { prepareCausalWire, wireReservation, CAUSAL_MODELS, CausalTransportError, createAstraCausalTransport, type WirePolicy } from '../../scripts/personal-causal-trial-adapters';
 import { CAUSAL_EXPERIMENT_VERSION } from '../personal-wizard/story-causal-experiment';
+import { canonicalJson } from '../personal-wizard/request-acceptance';
 import type { CausalDispatch } from '../personal-wizard/story-causal-experiment-runner';
 import { fixtureAdventureSelection } from '../personal-wizard/__tests__/story-planning-fixture';
 import { fixtureEditorOutput } from '../personal-wizard/__tests__/personal-storyboard-fixture';
@@ -42,16 +44,22 @@ function output(call: CausalDispatch): any {
     pages: Array.from({ length: brief.beats }, (_, i) => ({ text: `${brief.child.name} מציעה דרך חדשה והחבר מנסה איתה. הם מגלים משהו מצחיק ומשנים את התוכנית. פרט מקורי ${i + 1}` })) };
   if (call.stage === 'editor') {
     const revision = fixtureEditorOutput({ ...call, stage: 'editor' });
-    return { version: CAUSAL_EXPERIMENT_VERSION, revision: { ...revision,
+    const feedback = input.draftCritique;
+    return { version: CAUSAL_EXPERIMENT_VERSION,
+      ...(feedback ? { draftCritiqueResponse: { projectionDigest: feedback.projectionDigest,
+        responses: feedback.findings.map((f: any) => ({ findingId: f.id, decision: 'kept', reason: 'Synthetic unchanged passage supports keeping this choice.' })) } } : {}),
+      revision: { ...revision,
       plan: { ...revision.plan, beats: revision.plan.beats.map(({ pageNumber: _n, ...beat }) => beat) },
       manuscript: { ...revision.manuscript, pages: revision.manuscript.pages.map(({ pageNumber: _n, ...page }) => page) } } };
   }
   return { packetDigest: input.packetDigest, summary: 'Synthetic critic reading, not literary approval.', findings: [] };
 }
-function harness(count = 1, change?: CausalHostTransport, reviewMode: 'normal' | 'benchmark' = 'normal', synopsisRepair = false) {
+function harness(count = 1, change?: CausalHostTransport, reviewMode: 'normal' | 'benchmark' = 'normal', synopsisRepair = false, draftCritique = false, maxWireBytes = 104_000) {
   const root = temporary(), controller = new AbortController(), p = policy(root), cases = causalTrialCohort().slice(0, count);
   p.reviewMode = reviewMode;
   if (synopsisRepair) p.synopsisRepair = true;
+  if (draftCritique) p.draftCritique = true;
+  p.maxWireBytes = maxWireBytes;
   const transport = vi.fn<CausalHostTransport>(change ?? (async (_wire, call) => ({ output: output(call), estimatedMicroUsd: 1,
     usage: { inputTokens: 1, outputTokens: 1 }, metadata: { synthetic: true }, raw: { synthetic: true } })));
   const assertSource = vi.fn();
@@ -545,5 +553,157 @@ describe('actual outgoing SDK wire and diagnostic CLI arguments', () => {
       expect(wire.payload.environmentOverride).toEqual({ CLAUDE_CODE_MAX_OUTPUT_TOKENS: String(c.maxOutputTokens) });
       for (const forbidden of ['--bare', '--resume', '--continue', '--fallback-model', '--dangerously-skip-permissions']) expect(wire.args).not.toContain(forbidden);
     }
+  });
+});
+
+describe('draft critique at actual durable host and full serialized wire boundary', () => {
+  function findings(call: CausalDispatch, count = 1) {
+    const input = JSON.parse(call.input);
+    return Array.from({ length: count }, (_, i) => ({ severity: i === 0 ? 'blocking' : 'meaningful', kind: 'issue',
+      criterion: ('א"\u0000\\').repeat(150),
+      original: count === 20 ? [
+        { pageNumber: 1, quote: input.packet.manuscript.pages[0].text.slice(0, 220) },
+        { pageNumber: 1, quote: input.packet.manuscript.pages[0].text.slice(1, 221) },
+      ] : [{ pageNumber: 1, quote: input.packet.manuscript.pages[0].text.slice(0, 35) }],
+      revised: [], explanation: ('א"\u0000\\').repeat(150) }));
+  }
+  function materialTransport(count = 1): CausalHostTransport {
+    return async (_wire, call) => {
+      const out = output(call);
+      if (count === 20 && call.stage === 'author') out.pages[0].text += ' טקסט סינתטי לבדיקת מקור הציטוט בלבד'.repeat(20);
+      if (call.stage === 'original_review') out.findings = findings(call, count);
+      return { output: out, estimatedMicroUsd: 1, usage: null, metadata: {}, raw: {} };
+    };
+  }
+  async function run(h: ReturnType<typeof harness>) { const b = await h.host.plan(); return h.host.write(h.review(b)); }
+  it('rejects outside-benchmark/false opt-in before reservation, files or transport', () => {
+    const root = temporary(), p = policy(root), transport = vi.fn<CausalHostTransport>();
+    expect(() => createCausalTrialHost({ workspace: root, outputRoot: path.join(root, 'output'), cases: causalTrialCohort().slice(0, 1),
+      policy: { ...p, draftCritique: true }, signal: new AbortController().signal,
+      injected: { commonDir: root, assertSource: vi.fn(), transport } })).toThrow('draft_critique_policy');
+    expect(() => createCausalTrialHost({ workspace: root, outputRoot: path.join(root, 'output'), cases: causalTrialCohort().slice(0, 1),
+      policy: { ...p, reviewMode: 'benchmark', draftCritique: false }, signal: new AbortController().signal,
+      injected: { commonDir: root, assertSource: vi.fn(), transport } })).toThrow('policy');
+    expect(transport).not.toHaveBeenCalled(); expect(readdirSync(root)).toEqual([]);
+  });
+  it('pins and journals exact transfer before editor claim, without increasing slots or caps', async () => {
+    const h = harness(1, materialTransport(), 'benchmark', false, true);
+    h.p.draftCritique = undefined; // caller cannot turn off the captured manifest
+    h.transport.mockImplementation(async (wire, call) => {
+      if (call.stage === 'editor') {
+        const file = path.join(h.args.outputRoot, 'draft-critique-case1.json');
+        expect(existsSync(file)).toBe(true);
+        const record = JSON.parse(readFileSync(file, 'utf8'));
+        expect(record.editorWireDigest).toBe(wire.digest);
+        expect(record.forwardedJson).toBe(canonicalJson(JSON.parse(call.input).draftCritique));
+        expect(call.input).toContain(record.forwardedJson);
+        expect(JSON.parse(call.input).draftCritique.projectionDigest).toBe(record.context.projectionDigest);
+        const manifest = JSON.parse(readFileSync(path.join(h.args.outputRoot, 'manifest.json'), 'utf8'));
+        expect(manifest.slots).toHaveLength(7);
+        expect(manifest.policy.draftCritique).toBe(true);
+        expect(wire.reservedMicroUsd).toBeLessThanOrEqual(manifest.slots.find((s: any) => s.id === 'case1:editor').capMicroUsd);
+      }
+      return materialTransport()(wire, call, new AbortController().signal);
+    });
+    const out = await run(h);
+    expect(h.transport.mock.calls.map(([, c]) => c.stage)).toEqual(['plan', 'author', 'original_review', 'editor', 'final_review', 'comparison']);
+    expect(out.books[0].draftCritique!.context.projection.findings).toHaveLength(1);
+    expect(out.books[0].edit.draftCritiqueResponse!.responses).toHaveLength(1);
+    expect(h.host.snapshot().host.closed).toBe(true);
+  });
+  it('maximum escaped critique fits the exact full wire via complete-note omissions', async () => {
+    const h = harness(1, materialTransport(20), 'benchmark', false, true), out = await run(h);
+    const editor = h.transport.mock.calls.find(([, c]) => c.stage === 'editor')!;
+    expect(editor[0].bytes).toBeLessThanOrEqual(104000);
+    expect(editor[0].reservedMicroUsd).toBeLessThanOrEqual(h.host.snapshot().host.reservedMicroUsd);
+    const p = out.books[0].draftCritique!.context.projection;
+    expect(p.findings.length).toBeGreaterThan(0); expect(p.findings.length).toBeLessThan(6);
+    expect(p.omitted.capacity).toBeGreaterThan(0); expect(p.omitted.findingLimit).toBe(14);
+    expect(p.findings[0].explanation).toBe(('א"\u0000\\').repeat(150));
+  });
+  it('actual serialized wire shortage omits full notes, not just a character-count heuristic', async () => {
+    const base = harness(1, materialTransport(20), 'benchmark', false, true), broad = await run(base);
+    const baseWire = base.transport.mock.calls.find(([, c]) => c.stage === 'editor')![0];
+    const h = harness(1, materialTransport(20), 'benchmark', false, true, baseWire.bytes - 1000);
+    const out = await run(h), wire = h.transport.mock.calls.find(([, c]) => c.stage === 'editor')![0];
+    expect(wire.bytes).toBeLessThanOrEqual(h.p.maxWireBytes);
+    expect(out.books[0].draftCritique!.context.projection.findings.length).toBeLessThan(broad.books[0].draftCritique!.context.projection.findings.length);
+    expect(out.books[0].draftCritique!.context.projection.omitted.capacity).toBeGreaterThan(0);
+  });
+  it('eligible notes with no full-wire capacity seal before an editor transport', async () => {
+    const base = harness(1, undefined, 'benchmark', false, true); await run(base);
+    const baseWire = base.transport.mock.calls.find(([, c]) => c.stage === 'editor')![0];
+    const h = harness(1, materialTransport(), 'benchmark', false, true, baseWire.bytes + 50);
+    await expect(run(h)).rejects.toThrow('draft_critique_editor_capacity');
+    expect(h.transport.mock.calls.some(([, c]) => c.stage === 'editor')).toBe(false);
+    expect(h.host.snapshot().host.closed).toBe(true);
+    expect(existsSync(path.join(h.args.outputRoot, 'draft-critique-case1.json'))).toBe(false);
+  });
+  it('projection recording failure ends run before editor claim', async () => {
+    const h = harness(1, materialTransport(), 'benchmark', false, true), save = CausalFamilyJournal.prototype.save;
+    vi.spyOn(CausalFamilyJournal.prototype, 'save').mockImplementation(function(this: CausalFamilyJournal, name, data) {
+      if (name === 'draft-critique-case1') throw Error('Private disk-failure text');
+      return save.call(this, name, data);
+    });
+    await expect(run(h)).rejects.toThrow('provider_or_contract_failed');
+    expect(h.transport).toHaveBeenCalledTimes(3);
+    const journal = path.join(h.root, 'codex-causal-text-trials', h.p.family);
+    expect(existsSync(path.join(journal, 'claim-case1-editor.json'))).toBe(false);
+  });
+  it('saved transfer tampering is detected even without synopsisRepair, before editor claim', async () => {
+    const h = harness(1, materialTransport(), 'benchmark', false, true), save = CausalFamilyJournal.prototype.save;
+    vi.spyOn(CausalFamilyJournal.prototype, 'save').mockImplementation(function(this: CausalFamilyJournal, name, data) {
+      save.call(this, name, data);
+      if (name === 'draft-critique-case1') writeFileSync(path.join(this.outputRoot, name + '.json'), '{"tampered":true}');
+    });
+    await expect(run(h)).rejects.toThrow('provider_or_contract_failed');
+    expect(h.transport).toHaveBeenCalledTimes(3);
+    expect(existsSync(path.join(h.root, 'codex-causal-text-trials', h.p.family, 'claim-case1-editor.json'))).toBe(false);
+  });
+  it('original reader receipt tampering fails before projection recording or editor claim', async () => {
+    const h = harness(1, materialTransport(), 'benchmark', false, true), settle = CausalFamilyJournal.prototype.settle;
+    vi.spyOn(CausalFamilyJournal.prototype, 'settle').mockImplementation(function(this: CausalFamilyJournal, id, receipt) {
+      settle.call(this, id, receipt);
+      if (id === 'case1:original_review') writeFileSync(path.join(this.directory, 'receipt-case1-original_review.json'), '{"tampered":true}');
+    });
+    await expect(run(h)).rejects.toThrow('provider_or_contract_failed');
+    expect(h.transport).toHaveBeenCalledTimes(3);
+    expect(existsSync(path.join(h.args.outputRoot, 'draft-critique-case1.json'))).toBe(false);
+    expect(existsSync(path.join(h.root, 'codex-causal-text-trials', h.p.family, 'claim-case1-editor.json'))).toBe(false);
+    expect(h.host.snapshot().host.closed).toBe(true);
+  });
+  it('unexpected fit errors are terminal, not mistaken for capacity or critique-free fallback', async () => {
+    const h = harness(1, materialTransport(), 'benchmark', false, true), prepare = adapters.prepareCausalWire;
+    vi.spyOn(adapters, 'prepareCausalWire').mockImplementation((call, ...rest) => {
+      if (call.stage === 'editor') throw new CausalHostError('argv_limit');
+      return prepare(call, ...rest);
+    });
+    await expect(run(h)).rejects.toThrow('provider_or_contract_failed');
+    expect(h.transport).toHaveBeenCalledTimes(3); expect(h.host.snapshot().host.closed).toBe(true);
+  });
+  it('case-specific records support six fictional books without cross-case response leakage', async () => {
+    const h = harness(6, materialTransport(), 'benchmark', false, true), out = await run(h);
+    expect(out.books).toHaveLength(6);
+    for (let i = 0; i < 6; i++) {
+      expect(existsSync(path.join(h.args.outputRoot, 'draft-critique-case' + (i + 1) + '.json'))).toBe(true);
+      expect(out.books[i].draftCritique!.caseId).toBe('case' + (i + 1));
+      expect(out.books[i].draftCritique!.context.projection.originalDigest).not.toBe(out.books[(i + 1) % 6].draftCritique!.context.projection.originalDigest);
+    }
+    expect(h.transport).toHaveBeenCalledTimes(36);
+  // Thirty-six real durable fake dispatches include fsync. This NEW integration
+  // case gets a bounded budget; no existing/global/runtime timeout is changed.
+  }, 15_000);
+  it('full wire change after recording is rejected before native transport', async () => {
+    const h = harness(1, materialTransport(), 'benchmark', false, true), prepare = adapters.prepareCausalWire;
+    vi.spyOn(adapters, 'prepareCausalWire').mockImplementation((call, ...rest) => {
+      if (call.stage === 'editor' && h.host.snapshot().host.rows.some(r => r.slot === 'case1:editor')) {
+        call = { ...call, instructions: call.instructions + '\nMUTATED_AFTER_DURABLE_RECORD' };
+      }
+      return prepare(call, ...rest);
+    });
+    await expect(run(h)).rejects.toThrow('provider_or_contract_failed');
+    expect(h.transport).toHaveBeenCalledTimes(3);
+    expect(h.host.snapshot().host.failureCode).toBe('draft_critique_binding');
+    expect(h.host.snapshot().host.rows.find(r => r.slot === 'case1:editor')!.attempted).toBe(false);
   });
 });

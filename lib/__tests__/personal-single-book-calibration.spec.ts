@@ -48,7 +48,11 @@ function answer(call: CausalDispatch): unknown {
     pages: Array.from({ length: brief.beats }, (_, i) => ({ text: `${brief.child.name} מציעה דרך חדשה והחבר מנסה איתה. הם מגלים משהו מצחיק ומשנים את התוכנית. פרט מקורי ${i + 1}` })) };
   if (call.stage === 'editor') {
     const revision = fixtureEditorOutput({ ...call, stage: 'editor' });
-    return { version: CAUSAL_EXPERIMENT_VERSION, revision: { ...revision,
+    const feedback = input.draftCritique;
+    return { version: CAUSAL_EXPERIMENT_VERSION,
+      ...(feedback ? { draftCritiqueResponse: { projectionDigest: feedback.projectionDigest,
+        responses: feedback.findings.map((f: any) => ({ findingId: f.id, decision: 'kept', reason: 'Synthetic passage-based reason, not product acceptance.' })) } } : {}),
+      revision: { ...revision,
       plan: { ...revision.plan, beats: revision.plan.beats.map(({ pageNumber: _n, ...beat }) => beat) },
       manuscript: { ...revision.manuscript, pages: revision.manuscript.pages.map(({ pageNumber: _n, ...page }) => page) } } };
   }
@@ -58,11 +62,12 @@ function reply(call: CausalDispatch): TransportReply {
   return { output: answer(call), estimatedMicroUsd: 1, usage: { inputTokens: 1, outputTokens: 1 },
     metadata: { reportedModel: 'gpt-6-astra', serviceTier: 'default', status: 'completed', synthetic: true }, raw: { synthetic: true } };
 }
-function harness(reviewMode: 'normal' | 'benchmark' = 'normal', synopsisRepair = false) {
+function harness(reviewMode: 'normal' | 'benchmark' = 'normal', synopsisRepair = false, draftCritique = false) {
   const root = temp(), controller = new AbortController(), executable = path.join(root, 'synthetic.exe');
   writeFileSync(executable, 'SYNTHETIC NOT EXECUTABLE');
   const policy = { version: 'personal-single-book-calibration/v2' as const, reviewMode, sourceHead: 'a'.repeat(40), executable,
     ...(synopsisRepair ? { synopsisRepair: true as const } : {}),
+    ...(draftCritique ? { draftCritique: true as const } : {}),
     executableSha256: sha('SYNTHETIC NOT EXECUTABLE'), mode: 'offline_injected' as 'offline_injected' | 'live_explicit',
     pricing: { source: 'Synthetic test declaration using recipe rates, NOT current price evidence.', checkedAt: new Date().toISOString(),
       rates: { opus: { inputMicroUsdPerToken: 8, outputMicroUsdPerToken: 20 }, astra: { inputMicroUsdPerToken: 12.5, outputMicroUsdPerToken: 50 } } },
@@ -714,4 +719,67 @@ describe('one fictional book over the existing causal host, not public rollout',
     expect(existsSync(h.spec.probeRoot)).toBe(false); expect(existsSync(h.spec.bookRoot)).toBe(false);
     expect(existsSync(path.join(h.root, 'codex-causal-text-trials'))).toBe(false);
   }, 20000);
+});
+
+describe('explicit single-book draft critique admission and evidence viewer', () => {
+  async function completed(h: ReturnType<typeof harness>) {
+    const driver = createSingleBookCalibration(h.args), b = await driver.plan();
+    h.review(b.sourceDigest); return { driver, result: await driver.writeFromReviewFile() };
+  }
+  it('true-only benchmark admission occurs before probe reservation/key reads', () => {
+    const h = harness(), reserve = vi.spyOn(CausalFamilyJournal, 'reserve');
+    expect(() => prepareSingleBookCalibration({ ...h.args, policy: { ...h.policy, draftCritique: true } })).toThrow('draft_critique_policy');
+    expect(() => createSingleBookCalibration({ ...h.args, policy: { ...h.policy, reviewMode: 'benchmark', draftCritique: false } })).toThrow('calibration_policy');
+    expect(reserve).not.toHaveBeenCalled(); expect(h.key).not.toHaveBeenCalled(); expect(h.transport).not.toHaveBeenCalled();
+  });
+  it('opt-in is digest-bound without a new slot, reservation, model or cap', () => {
+    const h = harness('benchmark'), base = prepareSingleBookCalibration(h.args);
+    const yes = prepareSingleBookCalibration({ ...h.args, policy: { ...h.policy, draftCritique: true } });
+    expect(base.preview).not.toHaveProperty('draftCritique');
+    expect(yes.preview.draftCritique).toBe(true); expect(yes.digest).not.toBe(base.digest);
+    expect(yes.bookReserved).toBe(base.bookReserved); expect(yes.bookReserved).toBe(11338803);
+    expect(yes.preview.maximumLogicalAttempts).toBe(base.preview.maximumLogicalAttempts);
+    expect(yes.preview.combinedAllowancesMicroUsd).toBe(11588803);
+    expect(yes.preview.models).toEqual(base.preview.models);
+  });
+  it('real driver captures the policy and empty-feedback trial explicitly does not prove repair', async () => {
+    const h = harness('benchmark', false, true), driver = createSingleBookCalibration(h.args);
+    delete h.policy.draftCritique;
+    const b = await driver.plan(); h.review(b.sourceDigest); const result = await driver.writeFromReviewFile();
+    expect(result.evidence.manifest.draftCritique).toBe(true);
+    expect(h.transport.mock.calls.map(([, c]) => c.stage)).toEqual(['final_review', 'plan', 'author', 'original_review', 'editor', 'final_review', 'comparison']);
+    expect(result.books[0].draftCritique!.context.projection.eligibleFindings).toBe(0);
+    const html = renderSingleBookText(result);
+    expect(html).toContain('יכולת תיקון בעיה לא נבחנה');
+    expect(html.indexOf('id="original"')).toBeLessThan(html.indexOf('id="draft-critique"'));
+    expect(html.indexOf('id="draft-critique"')).toBeLessThan(html.indexOf('id="edited"'));
+    expect(singleBookOutcome(result)).toBe('text_ready_for_human_review');
+    expect(h.key).not.toHaveBeenCalled();
+  });
+  it('viewer escapes critique and response metadata and never changes held result classification', async () => {
+    const h = harness('benchmark', false, true), { result } = await completed(h);
+    const hostile = structuredClone(result);
+    hostile.books[0].draftCritique!.context.projection.findings.push({ id: 'draft-finding-01', severity: 'meaningful',
+      criterion: '<script>hostile</script>', original: [{ pageNumber: 1, quote: '<script>quote</script>' }], explanation: '<script>explain</script>' });
+    hostile.books[0].edit.draftCritiqueResponse!.responses.push({ findingId: 'draft-finding-01', decision: 'kept', reason: '<script>response</script>' });
+    const final = hostile.books[0].readings.find(r => r.stage === 'final_review')!;
+    final.findings.push({ severity: 'blocking', kind: 'issue', criterion: 'Synthetic final blocker',
+      original: [], revised: [{ pageNumber: 1, quote: 'Synthetic' }], explanation: 'A final blocker remains despite editor assertions.' });
+    const html = renderSingleBookText(hostile);
+    expect(html).not.toContain('<script>'); expect(html).toContain('&lt;script&gt;response');
+    expect(singleBookOutcome(hostile)).toBe('text_held_by_model');
+  });
+  it('original-reader failure is sealed before the actual editor or any silent fallback', async () => {
+    const h = harness('benchmark', false, true);
+    h.transport.mockImplementation(async (_w, c) => {
+      const r = reply(c);
+      if (c.stage === 'original_review') r.output = { packetDigest: 'f'.repeat(64), summary: 'Synthetic wrong bound packet.', findings: [] };
+      return r;
+    });
+    const driver = createSingleBookCalibration(h.args), b = await driver.plan(); h.review(b.sourceDigest);
+    await expect(driver.writeFromReviewFile()).rejects.toThrow('critic_binding');
+    expect(h.transport.mock.calls.map(([, c]) => c.stage)).toEqual(['final_review', 'plan', 'author', 'original_review']);
+    expect(driver.snapshot().phase).toBe('failed'); expect(existsSync(path.join(h.spec.bookRoot, 'index.html'))).toBe(false);
+    expect(h.key).not.toHaveBeenCalled();
+  });
 });

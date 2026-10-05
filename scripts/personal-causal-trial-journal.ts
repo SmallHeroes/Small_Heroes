@@ -92,7 +92,17 @@ export class CausalFamilyJournal {
     for (const [file, expected] of this.records) if (['reservation.json', 'manifest.json'].includes(path.basename(file))) this.verify(file, expected);
   }
   private verify(file: string, expected: string) { if (createHash('sha256').update(fencedText(file, 4_000_000)).digest('hex') !== expected) hostFail('record_changed'); }
-  verifyRecords() { this.assertActive(); for (const [file, expected] of this.records) this.verify(file, expected); }
+  verifyRecords(only?: readonly { name: string; scope: 'journal' | 'output' }[]) {
+    this.assertActive();
+    if (!only) { for (const [file, expected] of this.records) this.verify(file, expected); return; }
+    for (const row of only) {
+      if (!/^[a-z0-9_-]+$/.test(row.name) || !['journal', 'output'].includes(row.scope)) hostFail('record');
+      const file = path.join(row.scope === 'journal' ? this.directory : this.outputRoot, row.name + '.json');
+      const expected = this.records.get(file);
+      if (!expected) hostFail('record');
+      this.verify(file, expected);
+    }
+  }
   private remember(file: string) { this.records.set(file, createHash('sha256').update(fencedText(file, 4_000_000)).digest('hex')); }
   record(name: string, data: unknown) {
     if (!/^[a-z0-9_-]+$/.test(name)) hostFail('record');

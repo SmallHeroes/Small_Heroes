@@ -4,6 +4,7 @@ import path from 'node:path';
 import { z } from 'zod';
 import { createCausalExperiment, causalStages, causalSynopsisReviewSchema, causalSynopsisRepairSchema, type CausalDispatch, type CausalStage } from '../lib/personal-wizard/story-causal-experiment-runner';
 import { causalDigest, CausalExperimentError } from '../lib/personal-wizard/story-causal-experiment';
+import { canonicalJson } from '../lib/personal-wizard/request-acceptance';
 import { preparePersonalStory } from '../lib/personal-wizard/story-writer';
 import { personalStoryOutputLimits } from '../lib/personal-wizard/story-config';
 import { storyEditorOutputTokens } from '../lib/personal-wizard/story-editor';
@@ -17,6 +18,7 @@ const rates = z.object({ inputMicroUsdPerToken: z.number().positive().finite(), 
 export const causalHostPolicySchema = z.object({
   version: z.literal('causal-trial-host/v2'), reviewMode: z.enum(['normal', 'benchmark']).default('normal'),
   synopsisRepair: z.literal(true).optional(),
+  draftCritique: z.literal(true).optional(),
   family: z.string().regex(/^[a-z0-9][a-z0-9_-]{2,100}$/),
   sourceHead: z.string().regex(/^[a-f0-9]{40}$/), maximumMicroUsd: z.number().int().positive().safe(),
   maxWireBytes: z.number().int().positive().max(104_000),
@@ -64,6 +66,7 @@ export function createCausalTrialHost(args: {
   const parsed = causalHostPolicySchema.safeParse(args.policy);
   if (!parsed.success) hostFail('policy');
   const policy = structuredClone(parsed.data);
+  if (policy.draftCritique && policy.reviewMode !== 'benchmark') hostFail('draft_critique_policy');
   if (policy.synopsisRepair && args.cases.length !== 1) hostFail('repair_single_case');
   if ((policy.mode === 'offline_injected') !== Boolean(args.injected) ||
     policy.mode === 'offline_injected' && policy.approval !== null ||
@@ -92,17 +95,50 @@ export function createCausalTrialHost(args: {
   let transport: CausalHostTransport | null = args.injected?.transport ?? null;
   let repaired = false;
   const rows: { slot: string; attempted: boolean; receipt: TransportReply | null }[] = [];
+  const critiqueEditorWires = new Map<string, string>();
   const safeError = (error: unknown) => error instanceof CausalHostError || error instanceof CausalExperimentError ? error : new CausalHostError('failed');
   const seal = (reason: string) => { closed = true; failureCode ??= reason; journal?.seal(reason); };
   const abort = () => seal('cancelled'); signal.addEventListener('abort', abort, { once: true });
   const active = () => { if (closed || signal.aborted) hostFail('terminal'); assertSource(); journal?.assertActive();
-    if (policy.synopsisRepair) journal?.verifyRecords(); };
+    if (policy.synopsisRepair) journal?.verifyRecords();
+    else if (policy.draftCritique) journal?.verifyRecords([...critiqueEditorWires.keys()].flatMap(slot => {
+      const caseId = slot.split(':')[0];
+      return [{ name: 'draft-critique-' + caseId, scope: 'output' as const },
+        { name: 'receipt-' + caseId + '-original_review', scope: 'journal' as const }];
+    }));
+  };
+  const prepareCritiqueEditor = (call: CausalDispatch) => {
+    active();
+    const slot = expectedSlots.find(s => policy.family + ':' + s.id === call.conversationKey);
+    if (!policy.draftCritique || !journal || busy || pending || call.stage !== 'editor' || call.role !== 'opus' ||
+      !slot || slot.maxOutputTokens !== call.maxOutputTokens || !slot.id.endsWith(':editor')) hostFail('draft_critique_binding');
+    journal.verifyRecords([{ name: 'receipt-' + slot.id.split(':')[0] + '-original_review', scope: 'journal' }]);
+    return prepareCausalWire(call, wirePolicy, slot.capMicroUsd, journal.instructionPath(slot.id));
+  };
   const coordinator = createCausalExperiment({ family: policy.family, cases: args.cases, options, capsMicroUsd: caps, reviewMode: policy.reviewMode,
     ...(policy.synopsisRepair ? { synopsisRepair: true as const } : {}),
+    ...(policy.draftCritique ? { draftCritique: true as const } : {}),
     maximumMicroUsd: policy.maximumMicroUsd, signal, ports: {
       async recordSynopsisRepair(request) {
         active(); if (!journal || !policy.synopsisRepair) hostFail('repair_policy');
         journal.save('synopsis-repair-request', request);
+      },
+      canFitCritiqueEditor(call) {
+        try { prepareCritiqueEditor(call); return true; }
+        catch (error) {
+          if (error instanceof CausalHostError && ['wire_limit', 'wire_budget'].includes(error.code)) return false;
+          throw error;
+        }
+      },
+      async recordDraftCritique(transfer, call) {
+        const wire = prepareCritiqueEditor(call);
+        const input = JSON.parse(call.input), slot = transfer.caseId + ':editor';
+        if (!journal || critiqueEditorWires.has(slot) || call.conversationKey !== policy.family + ':' + slot ||
+          transfer.editorCallDigest !== causalDigest({ input: call.input, instructions: call.instructions, maxOutputTokens: call.maxOutputTokens }) ||
+          causalDigest(input.draftCritique) !== causalDigest({ ...transfer.context.projection, projectionDigest: transfer.context.projectionDigest })) hostFail('draft_critique_binding');
+        journal.save('draft-critique-' + transfer.caseId, { ...transfer,
+          forwardedJson: canonicalJson(input.draftCritique), editorWireDigest: wire.digest });
+        critiqueEditorWires.set(slot, wire.digest);
       },
       async reserve(family, coordinatorDigest, maximumMicroUsd, slots) {
         try {
@@ -118,6 +154,7 @@ export function createCausalTrialHost(args: {
       },
       async claim(family, digest, slot) {
         active(); if (!journal || pending || busy) hostFail('claim');
+        if (policy.draftCritique && slot.endsWith(':editor') && !critiqueEditorWires.has(slot)) hostFail('draft_critique_binding');
         journal.claim(family, digest, slot); pending = slot; return true;
       },
       async generate(call, stageSignal) {
@@ -130,6 +167,7 @@ export function createCausalTrialHost(args: {
         const stageAbort = () => seal('cancelled'); stageSignal.addEventListener('abort', stageAbort, { once: true });
         try {
           const wire = prepareCausalWire(call, wirePolicy, slot.capMicroUsd, journal.instructionPath(slot.id));
+          if (policy.draftCritique && slot.id.endsWith(':editor') && critiqueEditorWires.get(slot.id) !== wire.digest) hostFail('draft_critique_binding');
           active(); if (stageSignal.aborted) hostFail('terminal');
           if (call.role === 'opus') journal.instructions(slot.id, call.instructions);
           journal.dispatch(slot.id, { wire, sourceHead: policy.sourceHead, conversationKey: call.conversationKey });

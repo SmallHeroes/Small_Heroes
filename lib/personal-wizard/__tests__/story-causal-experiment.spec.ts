@@ -9,7 +9,8 @@ import { STORY_EDITOR_INSTRUCTIONS } from '../story-editor';
 import { canonicalJson } from '../request-acceptance';
 import { createCausalExperiment, causalStages, type CausalReviewMode, type CausalStage, type CausalDispatch, type CausalExperimentPorts } from '../story-causal-experiment-runner';
 import { CAUSAL_EXPERIMENT_VERSION, CAUSAL_STORY_INSTRUCTIONS, CAUSAL_PLAN_INSTRUCTIONS, causalDigest, compileCausalPlan, compileCausalOriginal,
-  causalEditorCall, compileCausalEdit, causalReviewPackets, compileCausalReading } from '../story-causal-experiment';
+  causalEditorCall, causalEditorSchema, compileCausalEdit, causalReviewPackets, causalOriginalReviewPacket,
+  compileCausalReading, causalDraftCritiqueContext, DRAFT_CRITIQUE_MAX_BYTES } from '../story-causal-experiment';
 
 afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks(); });
 const options = resolvePersonalWizardOptions();
@@ -31,7 +32,11 @@ function author(input: any) {
 }
 function edited(call: CausalDispatch): any {
   const revision = fixtureEditorOutput({ stage: 'editor', instructions: call.instructions, input: call.input, maxOutputTokens: call.maxOutputTokens });
-  return { version: CAUSAL_EXPERIMENT_VERSION, revision: { ...revision,
+  const feedback = JSON.parse(call.input).draftCritique;
+  return { version: CAUSAL_EXPERIMENT_VERSION,
+    ...(feedback ? { draftCritiqueResponse: { projectionDigest: feedback.projectionDigest,
+      responses: feedback.findings.map((f: any) => ({ findingId: f.id, decision: 'kept', reason: 'Synthetic reason grounded in the unchanged test passage.' })) } } : {}),
+    revision: { ...revision,
     plan: { ...revision.plan, beats: revision.plan.beats.map(({ pageNumber: _n, ...beat }) => beat) },
     manuscript: { ...revision.manuscript, pages: revision.manuscript.pages.map(({ pageNumber: _n, ...page }) => page) } } };
 }
@@ -42,13 +47,15 @@ function defaultOutput(call: CausalDispatch): unknown {
   if (call.stage === 'editor') return edited(call);
   return { packetDigest: input.packetDigest, summary: 'Synthetic critic reading, not product or literary approval.', findings: [] };
 }
-function harness(count = 1, change?: (call: CausalDispatch) => unknown | Promise<unknown>, controller = new AbortController(), reviewMode: CausalReviewMode = 'normal', synopsisRepair = false) {
+function harness(count = 1, change?: (call: CausalDispatch) => unknown | Promise<unknown>, controller = new AbortController(), reviewMode: CausalReviewMode = 'normal', synopsisRepair = false, draftCritique = false) {
   const cases = causalTrialCohort().slice(0, count);
   const ports: CausalExperimentPorts = { reserve: vi.fn(async () => true), claim: vi.fn(async () => true),
     generate: vi.fn(async call => ({ output: change ? await change(call) : defaultOutput(call), estimatedMicroUsd: 1 })),
-    recordSynopsisRepair: vi.fn(async () => {}) };
+    recordSynopsisRepair: vi.fn(async () => {}),
+    canFitCritiqueEditor: vi.fn(() => true), recordDraftCritique: vi.fn(async () => {}) };
   const args = { family: 'synthetic-causal-offline', cases, options, reviewMode,
     ...(synopsisRepair ? { synopsisRepair: true as const } : {}),
+    ...(draftCritique ? { draftCritique: true as const } : {}),
     capsMicroUsd: Object.fromEntries(causalStages(reviewMode).map(s => [s, 10])) as Partial<Record<CausalStage, number>>,
     maximumMicroUsd: count * causalStages(reviewMode).length * 10, ports, signal: controller.signal };
   const runner = createCausalExperiment(args);
@@ -780,5 +787,179 @@ describe('limited causal experiment, not live provider or quality certification'
     const h = harness(); const results = await Promise.allSettled([h.runner.plan(), h.runner.plan()]);
     expect(results.filter(r => r.status === 'fulfilled')).toHaveLength(1);
     expect(h.ports.reserve).toHaveBeenCalledTimes(1); expect(h.ports.generate).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('opt-in draft critique before fresh editor, no literary certification', () => {
+  function noteFor(call: CausalDispatch, severity = 'meaningful', kind = 'issue', marker = 'A material reader observation, not a prescribed solution.') {
+    const input = JSON.parse(call.input);
+    return { severity, kind, criterion: 'Synthetic causal clarity criterion', original: [{
+      pageNumber: 1, quote: input.packet.manuscript.pages[0].text.slice(0, 30),
+    }], revised: [], explanation: marker };
+  }
+  function feedbackHarness(change?: (call: CausalDispatch) => unknown | Promise<unknown>) {
+    return harness(1, call => {
+      if (change) return change(call);
+      const out: any = defaultOutput(call);
+      if (call.stage === 'original_review') out.findings = [noteFor(call)];
+      return out;
+    }, new AbortController(), 'benchmark', false, true);
+  }
+  async function run(h: ReturnType<typeof harness>) { await h.runner.plan(); h.approve(); return h.runner.write(); }
+
+  it('off by default; invalid/normal flags and missing fit/record ports fail before reserve', () => {
+    const h = harness();
+    expect(h.runner.snapshot().manifest).not.toHaveProperty('draftCritique');
+    expect(h.runner.snapshot()).not.toHaveProperty('draftCritiques');
+    expect(() => createCausalExperiment({ ...h.args, draftCritique: true })).toThrow('draft_critique_policy');
+    expect(() => createCausalExperiment({ ...h.args, draftCritique: false as any })).toThrow('draft_critique_policy');
+    const b = harness(1, undefined, new AbortController(), 'benchmark');
+    expect(() => createCausalExperiment({ ...b.args, draftCritique: true,
+      ports: { ...b.ports, canFitCritiqueEditor: undefined } })).toThrow('draft_critique_policy');
+    expect(() => createCausalExperiment({ ...b.args, draftCritique: true,
+      ports: { ...b.ports, recordDraftCritique: undefined } })).toThrow('draft_critique_policy');
+    expect(h.ports.reserve).not.toHaveBeenCalled(); expect(b.ports.reserve).not.toHaveBeenCalled();
+  });
+  it('moves exactly one reserved reading, records before editor claim, and leaves later readers blind', async () => {
+    const h = feedbackHarness(), out = await run(h), calls = vi.mocked(h.ports.generate).mock.calls.map(([c]) => c);
+    expect(calls.map(c => c.stage)).toEqual(['plan', 'author', 'original_review', 'editor', 'final_review', 'comparison']);
+    expect(h.runner.snapshot().manifest.slots).toHaveLength(7);
+    expect(h.runner.snapshot().manifest.draftCritique).toBe(true);
+    const original = out.books[0].original, prepared = preparePersonalStory(h.args.cases[0].request, options);
+    expect(JSON.parse(calls[2].input).packet).toEqual(causalReviewPackets(prepared, original, out.books[0].edit.revised).original);
+    expect(causalOriginalReviewPacket(prepared, original)).toEqual(JSON.parse(calls[2].input).packet);
+    const input = JSON.parse(calls[3].input), transfer = out.books[0].draftCritique!;
+    expect(input.draftCritique.findings).toHaveLength(1);
+    expect(input.draftCritique.findings[0].id).toBe('draft-finding-01');
+    expect(input.draftCritique.projectionDigest).toBe(transfer.context.projectionDigest);
+    expect(calls[3].instructions).toContain('fallible reader claims');
+    expect(calls[3].instructions).not.toContain('not the author conversation or critic verdict.');
+    expect(out.books[0].edit.draftCritiqueResponse!.responses[0].decision).toBe('kept');
+    const recordOrder = vi.mocked(h.ports.recordDraftCritique!).mock.invocationCallOrder[0];
+    expect(recordOrder).toBeLessThan(vi.mocked(h.ports.claim).mock.invocationCallOrder[3]);
+    expect(h.ports.recordDraftCritique).toHaveBeenCalledOnce();
+    expect(calls[2].instructions).not.toContain('steer an editor');
+    for (const c of calls.slice(4)) {
+      expect(c.input).not.toContain('A material reader observation');
+      expect(c.input).not.toContain('draft-finding-01');
+      expect(c.input).not.toContain('Synthetic reason grounded');
+    }
+    expect(out.books[0].readings.map(r => r.stage)).toEqual(['original_review', 'final_review', 'comparison']);
+  });
+  it('filters style/summary/polish, keeps whole source notes and blocking-first source order', async () => {
+    const h = feedbackHarness(call => {
+      const out: any = defaultOutput(call);
+      if (call.stage === 'original_review') {
+        out.summary = 'SUMMARY_MUST_NOT_REACH_EDITOR long enough.';
+        out.findings = [noteFor(call, 'meaningful', 'issue', 'WHOLE_MEANINGFUL_NOTE including important context.'),
+          noteFor(call, 'blocking', 'issue', 'WHOLE_BLOCKING_NOTE with complete causal context.'),
+          noteFor(call, 'blocking', 'preference', 'STYLE_MUST_NOT_REACH_EDITOR preference context.'),
+          noteFor(call, 'polish', 'issue', 'POLISH_MUST_NOT_REACH_EDITOR minor wording.')];
+      }
+      return out;
+    });
+    const out = await run(h), input = JSON.parse(vi.mocked(h.ports.generate).mock.calls[3][0].input);
+    expect(input.draftCritique.findings.map((f: any) => f.id)).toEqual(['draft-finding-02', 'draft-finding-01']);
+    expect(input.draftCritique.findings[0].explanation).toBe('WHOLE_BLOCKING_NOTE with complete causal context.');
+    expect(input.draftCritique.findings[1].explanation).toBe('WHOLE_MEANINGFUL_NOTE including important context.');
+    expect(input.draftCritique.omitted).toEqual({ nonMaterial: 2, findingLimit: 0, capacity: 0, blocking: 0, meaningful: 0 });
+    for (const mark of ['SUMMARY_MUST_NOT_REACH_EDITOR', 'STYLE_MUST_NOT_REACH_EDITOR', 'POLISH_MUST_NOT_REACH_EDITOR']) {
+      expect(vi.mocked(h.ports.generate).mock.calls[3][0].input).not.toContain(mark);
+    }
+    expect(out.evidence.draftCritiques![0].context.reading.findings).toHaveLength(4);
+  });
+  it('whole-note capacity drops lower-priority tails and declares omissions, never truncates strings', async () => {
+    const h = feedbackHarness(call => {
+      const out: any = defaultOutput(call);
+      if (call.stage === 'original_review') out.findings = Array.from({ length: 10 }, (_, i) =>
+        noteFor(call, i === 2 ? 'blocking' : 'meaningful', 'issue', 'Complete indivisible observation number ' + i));
+      return out;
+    });
+    vi.mocked(h.ports.canFitCritiqueEditor!).mockImplementation(call => JSON.parse(call.input).draftCritique.findings.length <= 2);
+    const out = await run(h), p = out.books[0].draftCritique!.context.projection;
+    expect(p.findings.map(f => f.id)).toEqual(['draft-finding-03', 'draft-finding-01']);
+    expect(p.omitted).toEqual({ nonMaterial: 0, findingLimit: 4, capacity: 4, blocking: 0, meaningful: 8 });
+    expect(p.findings[0].explanation).toBe('Complete indivisible observation number 2');
+    expect(Buffer.byteLength(canonicalJson(p), 'utf8')).toBeLessThanOrEqual(DRAFT_CRITIQUE_MAX_BYTES);
+  });
+  it('schema-maximum escaping remains bounded without slicing cards', async () => {
+    const h = feedbackHarness(call => {
+      const out: any = defaultOutput(call);
+      if (call.stage === 'original_review') out.findings = Array.from({ length: 20 }, () => ({
+        ...noteFor(call), criterion: ('א"\u0000\\').repeat(150), explanation: ('ב"\u0000\\').repeat(150) }));
+      return out;
+    });
+    const out = await run(h), p = out.books[0].draftCritique!.context.projection;
+    expect(p.findings.length).toBeGreaterThan(0); expect(p.findings.length).toBeLessThan(6);
+    expect(p.eligibleFindings).toBe(20);
+    expect(Buffer.byteLength(canonicalJson(p), 'utf8')).toBeLessThanOrEqual(DRAFT_CRITIQUE_MAX_BYTES);
+    expect(p.findings[0].criterion).toBe(('א"\u0000\\').repeat(150));
+    expect(p.findings[0].explanation).toBe(('ב"\u0000\\').repeat(150));
+  });
+  it.each(['baseline', 'no-note-fits', 'fit-throws', 'record-throws'])('terminal %s never claims an editor or falls back', async mode => {
+    const h = feedbackHarness();
+    if (mode === 'baseline') vi.mocked(h.ports.canFitCritiqueEditor!).mockReturnValue(false);
+    if (mode === 'no-note-fits') vi.mocked(h.ports.canFitCritiqueEditor!).mockImplementation(c => !JSON.parse(c.input).draftCritique.findings.length);
+    if (mode === 'fit-throws') vi.mocked(h.ports.canFitCritiqueEditor!).mockImplementation(() => { throw Error('Private transport text'); });
+    if (mode === 'record-throws') vi.mocked(h.ports.recordDraftCritique!).mockRejectedValue(Error('Private recording text'));
+    await expect(run(h)).rejects.toThrow();
+    expect(vi.mocked(h.ports.claim).mock.calls.map(c => c[2])).toEqual(['case1:plan', 'case1:author', 'case1:original_review']);
+    expect(h.runner.snapshot().phase).toBe('failed');
+    await expect(h.runner.write()).rejects.toThrow('phase');
+    expect(h.ports.generate).toHaveBeenCalledTimes(3);
+  });
+  it.each(['schema', 'digest', 'quote', 'transport', 'cost', 'cancel'])('original reader %s failure stops before editor', async mode => {
+    const h = feedbackHarness();
+    vi.mocked(h.ports.generate).mockImplementation(async call => {
+      if (call.stage !== 'original_review') return { output: defaultOutput(call), estimatedMicroUsd: 1 };
+      if (mode === 'transport') throw Error('Private failure must not leak');
+      const input = JSON.parse(call.input);
+      const out: any = { packetDigest: input.packetDigest, summary: 'Synthetic material-reader context.', findings: [noteFor(call)] };
+      if (mode === 'schema') delete out.summary;
+      if (mode === 'digest') out.packetDigest = 'f'.repeat(64);
+      if (mode === 'quote') out.findings[0].original[0].quote = 'VERBATIM_QUOTE_NOT_IN_THIS_STORY';
+      if (mode === 'cancel') h.controller.abort();
+      return { output: out, estimatedMicroUsd: mode === 'cost' ? null : 1 };
+    });
+    await expect(run(h)).rejects.toThrow();
+    expect(vi.mocked(h.ports.claim).mock.calls.some(c => c[2].endsWith(':editor'))).toBe(false);
+    expect(h.ports.generate).toHaveBeenCalledTimes(3);
+  });
+  it('empty/only-style findings are explicitly untested, not hidden material omission', async () => {
+    const h = feedbackHarness(call => defaultOutput(call)), out = await run(h);
+    expect(out.books[0].draftCritique!.context.projection.eligibleFindings).toBe(0);
+    expect(out.books[0].draftCritique!.context.projection.findings).toEqual([]);
+    expect(out.books[0].edit.draftCritiqueResponse!.responses).toEqual([]);
+    expect(h.ports.generate).toHaveBeenCalledTimes(6);
+  });
+  it.each(['missing', 'duplicate', 'foreign', 'digest', 'extra', 'blank-reason'])('rejects %s editor response before final reader', async mode => {
+    const h = feedbackHarness(call => {
+      const out: any = defaultOutput(call);
+      if (call.stage === 'original_review') out.findings = [noteFor(call), noteFor(call)];
+      if (call.stage === 'editor') {
+        const r = out.draftCritiqueResponse;
+        if (mode === 'missing') r.responses.pop();
+        if (mode === 'duplicate') r.responses[1].findingId = r.responses[0].findingId;
+        if (mode === 'foreign') r.responses[0].findingId = 'draft-finding-20';
+        if (mode === 'digest') r.projectionDigest = 'f'.repeat(64);
+        if (mode === 'extra') r.extra = 'not allowed';
+        if (mode === 'blank-reason') r.responses[0].reason = ' ';
+      }
+      return out;
+    });
+    await expect(run(h)).rejects.toThrow();
+    expect(vi.mocked(h.ports.generate).mock.calls.map(([c]) => c.stage)).toEqual(['plan', 'author', 'original_review', 'editor']);
+  });
+  it('source-bound context rejects other packet, altered quote, omission or source before schema/dispatch', () => {
+    const f = selectedFixture(), packet = causalOriginalReviewPacket(f.p, f.original);
+    const reading = compileCausalReading(packet, { packetDigest: causalDigest(packet), summary: 'Synthetic full original-reader verdict.', findings: [] });
+    const context = causalDraftCritiqueContext(f.p, f.original, reading);
+    const forged = structuredClone(context); forged.projection.omitted.nonMaterial = 1;
+    expect(() => causalEditorCall(f.p, f.original, forged)).toThrow('draft_critique_binding');
+    const stale = structuredClone(context); stale.reading.packetDigest = 'f'.repeat(64);
+    expect(() => causalEditorCall(f.p, f.original, stale)).toThrow('critic_binding');
+    const changed = structuredClone(f.original); changed.manuscript.pages[0].text += ' שינוי אחר';
+    expect(() => causalEditorCall(f.p, changed, context)).toThrow('critic_binding');
+    expect(causalEditorSchema(f.call).safeParse(f.output).success).toBe(true);
   });
 });
