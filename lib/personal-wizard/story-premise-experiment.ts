@@ -3,7 +3,7 @@ import 'server-only';
 import { z } from 'zod';
 import { randomInt } from 'node:crypto';
 import { canonicalJson } from './request-acceptance';
-import { RESILIENCE_INSTRUCTIONS, type PreparedStory } from './story-writer';
+import { RESILIENCE_INSTRUCTIONS, CANDIDATE_PERSONAL_FACT_INSTRUCTIONS, type PreparedStory } from './story-writer';
 import { personalStoryOutputLimits } from './story-config';
 import { adventureSelectionSchema, adventureCandidatesIssue, ADVENTURE_DIFFERENCE_DIMENSIONS } from './story-planning-contract';
 import { CAUSAL_STORY_INSTRUCTIONS, CAUSAL_NARRATIVE_CRAFT_INSTRUCTIONS, CAUSAL_PLAN_INSTRUCTIONS,
@@ -20,6 +20,7 @@ const digestSchema = z.string().regex(/^[a-f0-9]{64}$/);
 
 export const PREMISE_ONLY_INSTRUCTIONS = `${CAUSAL_STORY_INSTRUCTIONS}\n${RESILIENCE_INSTRUCTIONS}\n${CAUSAL_NARRATIVE_CRAFT_INSTRUCTIONS}
 This diagnostic call produces ONLY two short adventure premises A and B in the supplied candidate fields. Do not select, rank, write a synopsis, expand into beats, or supply self-checks. Narrative fields mentioned above are guidance, not additional response keys. Use the same approved brief; no prior story or example is available.
+${CANDIDATE_PERSONAL_FACT_INSTRUCTIONS}
 Each premise uses an approved interest fact ID, without inventing real competence or history. An interest can influence motive, attention, play, choice or action; it need not supply a magical mechanism. Describe why the adventure is interesting, not merely how it demonstrates coping. Different scenery or wording alone does not establish a different adventure; goals, complications, partnership, discoveries or resolutions may genuinely differ. These are comparison dimensions, not a mandatory plot recipe. Do not manufacture a weak alternative to justify a favourite. A reviewer will separately assess both; your response is not approval.`;
 
 export function premisePairSchema(prepared: PreparedStory) {

@@ -109,3 +109,33 @@ Fresh official price check: Opus5.5 base4USD/20USD per million input/output;
 Astra10USD/50USD. Bind checkedAt/rates before dispatch; recheck if stale.
 No push by implication. Six-case/multi-profile prose and visual trials are
 not authorized by this allowance.
+
+## Source review and pre-spend correction
+
+Native Claude5.5high returned static/source-capsule PASS for57f26d2a..e7603bc4
+and supplied artifact drivers. Its one Git tool request was denied. It ran
+no tests, hash/topology check or provider; those checks remain root evidence.
+Reported Max list-equivalent0.7883874USD is admitted within the first1USD slot.
+
+Root accepts the cheap L1-L3 hardening: reconstruct and bind the reader's
+review against the active prepared request BEFORE reservation/dispatch/key;
+pin10/50Astra and4/20Opus pricing; admit only a first-line PASS. These are
+artifact-driver changes, not a claim of new production guards. Root also
+aligns the exact shared interest-fact instruction in the new premise prompt
+and adds a source regression check. A second native review is required before
+spending; no third review or trial retry is authorized.
+
+M1 is retained, not hidden: projectJointPremises validates the full old plan.
+A structurally invalid joint reply stops the whole experiment while its raw
+receipt is retained. Consequently all12cards are promised only on successful
+completion, and this arm has more attrition opportunities than premise-only.
+Joint creative HOLD/both_rejected remain admitted when structurally valid.
+This is a comparison of bounded pipeline tasks, not proof that syntax or
+prompt wording alone caused any creative difference. No survivor filtering.
+
+Provider-free reader preflight uses12occurrences projected from the existing
+candidate fields:31589wire bytes and787480microUSD reservation under1USD.
+Maximum-length candidate fields for this actual brief would fail wire_budget;
+actual new packet must pass BEFORE key/dispatch. No silent truncation, extra
+reading or budget extension. Eight-thousand output tokens include reasoning;
+incomplete output is a retained stop, not authorization to retry.

@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { causalTrialCohort } from '../../../scripts/personal-causal-cohort';
 import { resolvePersonalWizardOptions } from '../options';
-import { preparePersonalStory } from '../story-writer';
+import { preparePersonalStory, CANDIDATE_PERSONAL_FACT_INSTRUCTIONS } from '../story-writer';
 import { fixtureAdventureSelection } from './story-planning-fixture';
-import { CAUSAL_EXPERIMENT_VERSION, causalDigest, compileCausalPlan } from '../story-causal-experiment';
+import { CAUSAL_EXPERIMENT_VERSION, CAUSAL_PLAN_INSTRUCTIONS, causalDigest, compileCausalPlan } from '../story-causal-experiment';
 import { PREMISE_EXPERIMENT_VERSION, PREMISE_ONLY_INSTRUCTIONS, compilePremises, projectJointPremises,
   preparePremiseCall, prepareBlindPremiseReview, compilePremiseDecision, preparePremiseExpansion,
   compilePremiseExpansion } from '../story-premise-experiment';
@@ -37,6 +37,10 @@ function setup(index = 0) {
 const fails = (run: () => unknown, code: string) => expect(run).toThrow(`causal_experiment_${code}`);
 
 describe('premise-only generation and honest admission', () => {
+  it('shares the exact approved-interest instruction with the joint arm', () => {
+    expect(PREMISE_ONLY_INSTRUCTIONS).toContain(CANDIDATE_PERSONAL_FACT_INSTRUCTIONS);
+    expect(CAUSAL_PLAN_INSTRUCTIONS).toContain(CANDIDATE_PERSONAL_FACT_INSTRUCTIONS);
+  });
   it('prepares only Opus planning input, same brief/cap, no previous output and no transport', () => {
     const h = setup(), call = preparePremiseCall(h.prepared, 'offline:premises');
     expect(call).toMatchObject({ role: 'opus', stage: 'plan', conversationKey: 'offline:premises', instructions: PREMISE_ONLY_INSTRUCTIONS });

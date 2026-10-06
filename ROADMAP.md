@@ -2,6 +2,11 @@
 
 ## Premise generation and choice diagnosis (2026-10-06)
 
+- Native Claude SOURCE-CAPSULE-only PASS57f26d2a..e7603bc4; no own Git/tests.
+  Nonblocking pre-spend hardening corrected; shared interest instruction
+  aligned. Corrective re-gate/live PENDING. Invalid joint reply attrition and
+  maximum-length reader wire-budget stop are disclosed, not retried/filtered.
+  Correction tsc0/568focused and3driver clauses with6negative controls.
 - Guy approves bounded experimental boundary and separately12USD for6Opus
   planning sessions, at most2Claude reviews and1blind Astra reading. No prose,
   editor, proposal3 expansion, image, push or site rollout.
@@ -13,7 +18,7 @@
   10matching missing-artifact failures/6486pass/73skip; resource631pass/
   4supervisor timeouts/2RPCerrors. Isolated45/46 with the known Windows process
   assertion failure; no claimed fix, stability waiver or blanket load cause.
-- Independent technical QA and live comparison PENDING. Quality/diversity
+- Corrective independent re-gate and live comparison PENDING. Quality/diversity
   benefit unproved; first measure3joint versus3premise-only on the same brief.
   Multi-profile validation and complete books remain later decisions.
   See docs/ai-workflow/PERSONAL_PREMISE_BOUNDARY_DECISION_20261006.md.

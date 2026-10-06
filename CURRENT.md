@@ -2,6 +2,26 @@
 
 ## Premise boundary and six-call diagnostic comparison (2026-10-06)
 
+Native Claude read-only SOURCE-CAPSULE review of57f26d2a..e7603bc4 returned
+PASS with nonblocking M1/L1-L3,0.7883874USD Max list-equivalent. Its Git tool
+was denied; it ran no tests or independent topology checks. Root verifies
+topology/hashes separately. Corrective successor adds the exact shared
+interest-fact instruction to the premise arm and a regression assertion.
+Artifact drivers now pre-bind the Astra request/review before reserve/key,
+assert fixed official rates, and admit only a first-line PASS. Re-gate and
+the live six-call experiment remain PENDING; no planning/Astra spend yet.
+Correction tsc0/568of568 across8actual focused files;3driver clauses exercised
+in memory with3valid/6negative controls,0provider/key. New fullcheck in flight.
+
+M1 remains a disclosed diagnostic limitation: invalid joint plans fail the
+whole run before the remaining slots/blind packet. Raw receipts survive,
+but all12candidate occurrences reach blind assessment ONLY after six valid
+replies. The joint arm has more structural failure opportunities; do not
+report stopped runs as complete, retry them, or compare survivor-only rates.
+The repeated-input reader preflight fits31589bytes/0.787480USD reservation;
+maximum-length schema-valid candidates would stop on wire_budget. Actual
+wire must fit before Astra dispatch; no shortening or extra call is allowed.
+
 Guy approves diagnosis-led experimental construction, then explicitly grants
 a NEW12USD allowance: six fresh Opus planning sessions (three joint, three
 premise-only), at most two native Claude reviews and one blind Astra reading.
@@ -33,9 +53,9 @@ supervisor45/46, with the previously recorded Windows argv/process assertion
 failing (not a timeout); source bytes untouched. No stability waiver or
 claim that every resource failure is caused by load.
 
-Independent Claude QA and the six live calls are PENDING this construction.
-Cost so far0; no key read/provider/book/image/site effect. Native technical
-QA uses the first1USD slot only after local commit; no self-awarded PASS.
+At the initial e7603bc4 construction snapshot, independent Claude QA and six
+live calls were PENDING and spend0. First native source review is recorded
+above; no planning/Astra/key/book/image/site effect yet. No self-awarded PASS.
 Decision: docs/ai-workflow/PERSONAL_PREMISE_BOUNDARY_DECISION_20261006.md.
 Artifacts: premise-boundary-mutations-final-20261006.json,
 premise-six-focused-20261006.log, premise-six-full-check-20261006.log under
