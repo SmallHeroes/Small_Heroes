@@ -1,7 +1,6 @@
 import 'server-only';
 
 import { createHash } from 'crypto';
-import { getCompanionById } from '@/lib/companions';
 import { CHARACTER_CAUSALITY_INSTRUCTIONS, resolvePersonalCompanionCharacter } from './companion-character';
 import type { PersonalWizardOptions } from './options';
 import { acceptPersonalBookRequest, canonicalJson } from './request-acceptance';
@@ -62,9 +61,7 @@ export function preparePersonalStory(input: unknown, options: PersonalWizardOpti
   const request = accepted.canonical;
   const length = options.lengths.find((candidate) => candidate.id === request.bookOptions.lengthId);
   if (!length || ![16, 24, 32].includes(length.pages)) fail('story_length_required');
-  const companion = getCompanionById(request.companion.id);
-  if (!companion) fail('story_companion_unavailable');
-  const character = resolvePersonalCompanionCharacter(companion.id);
+  const character = resolvePersonalCompanionCharacter(request.companion.id);
   if (!character) fail('story_companion_character_required');
   const intent = request.intent;
   // Deliberately do not inherit category, allowedDirections, coping lesson or legacy plot role.
@@ -73,7 +70,7 @@ export function preparePersonalStory(input: unknown, options: PersonalWizardOpti
     child: { name: request.child.name, age: request.child.age, address: request.child.address, residence: request.child.residence },
     facts: request.facts.map(({ id, kind, value }) => ({ id, kind, value })),
     noDifficulty: request.noDifficulty, startingPlace: request.storyPlace?.value ?? null,
-    companion: { id: companion.id, name: companion.name,
+    companion: { id: character.companionId, name: character.name,
       characterDigest: createHash('sha256').update(canonicalJson(character)).digest('hex'), character },
     topic: intent?.kind === 'topic' ? options.topics.find((topic) => topic.id === intent.topicId)?.label : null,
     excludedSubjects: request.avoid, beats: length.pages / 2, displayPages: length.pages as 16 | 24 | 32,

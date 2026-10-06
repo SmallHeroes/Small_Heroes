@@ -1,5 +1,16 @@
 # SmallHeroes — Roadmap
 
+## Experience first and light fifteen-character literary canon (2026-10-06)
+
+- Guy approves all15 light/story-open profiles and ONE fresh short text trial
+  up to12USD after technical QA. No fixed dialogue or behavioral plot scripts.
+- Original six physical data unchanged; all15 text identities defined, but
+  default choices6/sitecards13 remain distinct from full15 selection/visual
+  readiness. No image/sheet/scale acceptance, UI rollout or render authority.
+- No new model stage/budget/retry. Validate canonical source binding and old
+  evidence, commit, obtain Claude technical review, then compare draft/edit.
+  Literary quality and diversity remain unproved; full release gate stays RED.
+
 ## Local native wizard text connection (2026-10-06)
 
 - One authenticated actual-wizard8-spread fictional book completed at7f676644:

@@ -6,6 +6,7 @@ import { fixtureEditorOutput } from './personal-storyboard-fixture';
 import { resolvePersonalWizardOptions } from '../options';
 import { preparePersonalStory, STORY_INSTRUCTIONS, NARRATIVE_CRAFT_INSTRUCTIONS, ADVENTURE_SELECTION_INSTRUCTIONS, CANDIDATE_PERSONAL_FACT_INSTRUCTIONS } from '../story-writer';
 import { STORY_EDITOR_INSTRUCTIONS } from '../story-editor';
+import { personalCharacterSchema, PERSONAL_CHARACTER_IDS, resolvePersonalCompanionCharacter } from '../companion-character';
 import { canonicalJson } from '../request-acceptance';
 import { createCausalExperiment, causalStages, type CausalReviewMode, type CausalStage, type CausalDispatch, type CausalExperimentPorts } from '../story-causal-experiment-runner';
 import { CAUSAL_EXPERIMENT_VERSION, CAUSAL_STORY_INSTRUCTIONS, CAUSAL_PLAN_INSTRUCTIONS, causalDigest, compileCausalPlan, compileCausalOriginal,
@@ -75,7 +76,112 @@ function selectedFixture(index = 0) {
   return { p, raw, plan, original, call, output };
 }
 
+function expectCreativeBrief(actual: unknown, canonical: ReturnType<typeof preparePersonalStory>['brief']) {
+  expect(actual).toEqual(canonical);
+  expect(canonical.companion.character.version).toBe('personal-companion-character/v4');
+  expect(canonical.companion.character.voice).not.toHaveProperty('examples');
+  for (const field of ['motives', 'mistakenBelief', 'pressureResponse', 'relaxedBehavior', 'partnership', 'movement', 'swapTest']) {
+    expect(canonical.companion.character).not.toHaveProperty(field);
+  }
+}
+function freezeDeep<T>(value: T): T {
+  if (value && typeof value === 'object') {
+    Object.freeze(value); for (const child of Object.values(value)) freezeDeep(child);
+  }
+  return value;
+}
+
 describe('limited causal experiment, not live provider or quality certification', () => {
+  it.each(PERSONAL_CHARACTER_IDS)('supports admitted %s text in the actual coordinator without a legacy topic role', async id => {
+    const h = harness(), request = structuredClone(h.args.cases[0].request);
+    request.companion = { id };
+    const character = resolvePersonalCompanionCharacter(id)!;
+    // Explicit synthetic server options, NOT live/default card or image admission.
+    const textOptions = { ...options, companions: [{ id, name: character.name, image: '/synthetic-unused.png' }], fingerprint: 'f'.repeat(64) };
+    const runner = createCausalExperiment({ ...h.args, cases: [{ id: 'case1', request }], options: textOptions });
+    const bundle = await runner.plan();
+    runner.reviewSynopses({ sourceDigest: bundle.sourceDigest, decisions: [{ caseId: 'case1', decision: 'write', reason: 'Synthetic text-only test, not product or image acceptance.' }] });
+    const out = await runner.write();
+    expect(out.books).toHaveLength(1);
+    const canonical = preparePersonalStory(request, textOptions).brief;
+    for (const [call] of vi.mocked(h.ports.generate).mock.calls) {
+      const input = JSON.parse(call.input), brief = input.packet?.brief ?? input.brief;
+      expect(brief.companion).toEqual(canonical.companion);
+      expect(brief.companion.character.voice).not.toHaveProperty('examples');
+    }
+    expect(out.runtimeEligible).toBe(false);
+    expect(h.ports.generate).toHaveBeenCalledTimes(5);
+  });
+  it.each(companionTrialCohort().map(c => [c.id, c.request] as const))('light %s authority has no fixed dialogue or behavioral script', (_id, request) => {
+    const p = preparePersonalStory(request, options), before = canonicalJson(p.brief);
+    freezeDeep(p.brief);
+    expectCreativeBrief(JSON.parse(p.call.input).brief, p.brief);
+    expect(p.brief.companion.characterDigest).toBe(causalDigest(p.brief.companion.character));
+    expect(personalCharacterSchema.parse(p.brief.companion.character)).toEqual(p.brief.companion.character);
+    expect(canonicalJson(p.brief)).toBe(before);
+    expect(JSON.parse(p.call.input).brief).toEqual(p.brief); // public preparation stays complete
+  });
+  it('serialized creative input is detached and a foreign character hash cannot replace authority', () => {
+    const f = selectedFixture(), before = canonicalJson(f.p.brief), view = JSON.parse(causalEditorCall(f.p, f.original).input).brief;
+    view.companion.character.voice.rhythm = 'Changed projected rhythm, not canon.';
+    view.companion.character.essence = 'Changed detached personality, not canon.';
+    view.companion.character.embodiment.affordances[0] = 'Changed projected ability, not canon.';
+    view.facts[0].value = 'Changed projected fact, not canonical input.';
+    expect(canonicalJson(f.p.brief)).toBe(before);
+    expectCreativeBrief(JSON.parse(causalEditorCall(f.p, f.original).input).brief, f.p.brief);
+    const wrong = structuredClone(f.original);
+    wrong.characterDigest = causalDigest({ ...f.p.brief.companion.character, voice: { ...f.p.brief.companion.character.voice, examples: ['A different legacy source.'] } });
+    expect(wrong.characterDigest).not.toBe(f.original.characterDigest);
+    expect(() => causalOriginalReviewPacket(f.p, wrong)).toThrow('story_text_review_source_binding');
+  });
+  it.each([['normal', false], ['benchmark', false], ['benchmark', true]] as const)('actual six-character %s/critique%s calls use exact light authority without new stages', async (mode, critique) => {
+    const h = harness(6, undefined, new AbortController(), mode, false, critique);
+    const canonical = new Map(h.args.cases.map(c => [c.id, preparePersonalStory(c.request, options).brief]));
+    await h.runner.plan(); h.approve(); const result = await h.runner.write();
+    const calls = vi.mocked(h.ports.generate).mock.calls.map(([call]) => call);
+    expect(result.books).toHaveLength(6);
+    expect(calls).toHaveLength(6 * (mode === 'benchmark' ? 6 : 5));
+    for (const call of calls) {
+      const brief = canonical.get(call.conversationKey.split(':')[1])!;
+      const input = JSON.parse(call.input);
+      if (call.role === 'opus') expectCreativeBrief(input.brief, brief);
+      else {
+        expect(input.packet.brief.companion).toEqual(brief.companion);
+        expect(input.packet.brief.companion.character.voice).not.toHaveProperty('examples');
+        expect(input.packet.brief).not.toHaveProperty('creativeProjection');
+        expect(input.packetDigest).toBe(causalDigest(input.packet));
+      }
+    }
+    for (const row of h.runner.snapshot().manifest.cases) expect(row.briefDigest).toBe(causalDigest(canonical.get(row.id)));
+    for (const book of result.books) expect(book.original.characterDigest).toBe(canonical.get(book.caseId)!.companion.characterDigest);
+    expect(h.ports.reserve).toHaveBeenCalledOnce();
+    expect(h.runner.snapshot().manifest.slots).toHaveLength(6 * (mode === 'benchmark' ? 7 : 6));
+  });
+  it('automatic rejection replan retains the same light authority and rejection evidence', async () => {
+    const h = harness(1, call => call.stage === 'plan' ? planned(JSON.parse(call.input).brief, true) : defaultOutput(call));
+    const before = preparePersonalStory(h.args.cases[0].request, options).brief;
+    const bundle = await h.runner.plan(), calls = vi.mocked(h.ports.generate).mock.calls.map(([c]) => c);
+    expect(calls.map(c => c.stage)).toEqual(['plan', 'replan']);
+    for (const call of calls) expectCreativeBrief(JSON.parse(call.input).brief, before);
+    expect(JSON.parse(calls[1].input).priorRejection).toEqual(bundle.plans[0].attempts[0]);
+    expect(bundle.plans[0].attempts.every(p => p.briefDigest === causalDigest(before))).toBe(true);
+  });
+  it.each(['plan', 'replan', 'author', 'editor'] as const)('actual %s prioritizes lived experience without requiring a magic mechanism', async stage => {
+    const h = harness(1, call => call.stage === 'plan' ? planned(JSON.parse(call.input).brief, true) : defaultOutput(call));
+    await h.runner.plan(); h.approve(); await h.runner.write();
+    const call = vi.mocked(h.ports.generate).mock.calls.map(([c]) => c).find(c => c.stage === stage)!;
+    expect(call.instructions).toContain('If the adventure relies on a magical rule or mechanism');
+    expect(call.instructions).toContain('Do not invent a mechanism merely to fill the outline');
+    expect(call.instructions).toContain('without a puzzle or repeated coping ritual');
+    expect(call.instructions).toContain('Keep operational explanation brief so the central experience can unfold');
+    expect(call.instructions).toContain('Quiet scenes or a shared setting can develop');
+    expect(call.instructions).not.toContain('Establish an important magical rule or mechanism before using it');
+    if (stage === 'plan' || stage === 'replan') {
+      expect(call.instructions).toContain("Choose the reader's experience first");
+      expect(call.instructions).toContain('without becoming a magical law');
+      expect(call.instructions).toContain('A clear mechanism or coping demonstration alone is not a strong adventure');
+    }
+  });
   it('child-native register reaches every actual diagnostic stage without altering public guidance', async () => {
     const h = harness(1, undefined, new AbortController(), 'benchmark', false, true);
     await h.runner.plan(); h.approve(); await h.runner.write();
@@ -92,7 +198,7 @@ describe('limited causal experiment, not live provider or quality certification'
     expect(CAUSAL_CHILD_LANGUAGE_INSTRUCTIONS).toContain('same word or Hebrew root');
     expect(CAUSAL_CHILD_LANGUAGE_INSTRUCTIONS).toContain('preserve its function, not the rare word');
     expect(CAUSAL_CHILD_LANGUAGE_INSTRUCTIONS).toContain('purposeful comic refrains in familiar wording');
-    expect(CAUSAL_CHILD_LANGUAGE_INSTRUCTIONS).toContain('not lines to copy verbatim');
+    expect(CAUSAL_CHILD_LANGUAGE_INSTRUCTIONS).not.toContain('Voice examples');
     expect(CAUSAL_CHILD_LANGUAGE_REVIEW_INSTRUCTIONS).toContain('Assess whether');
     expect(CAUSAL_CHILD_LANGUAGE_REVIEW_INSTRUCTIONS).toContain('Do not rewrite passages');
     expect(CAUSAL_CHILD_LANGUAGE_REVIEW_INSTRUCTIONS).toContain('same word or Hebrew root');
@@ -149,6 +255,7 @@ describe('limited causal experiment, not live provider or quality certification'
     expect(repaired.plans[0].attempts[0]).toEqual(first.plans[0].attempts[0]);
     expect(h.ports.recordSynopsisRepair).toHaveBeenCalledWith(request);
     const call = vi.mocked(h.ports.generate).mock.calls[1][0], input = JSON.parse(call.input);
+    expectCreativeBrief(input.brief, preparePersonalStory(h.args.cases[0].request, options).brief);
     expect(call.stage).toBe('replan'); expect(Object.keys(input).sort()).toEqual(['brief', 'defects', 'priorPlan']);
     expect(input.defects).toEqual(request.defects); expect(input.priorPlan).toEqual(first.plans[0].attempts[0]);
     expect(call.input).not.toContain('SUGGESTED_SOLUTION_MUST_NOT_REACH_PLANNER');
@@ -390,7 +497,7 @@ describe('limited causal experiment, not live provider or quality certification'
     const h = harness(1, call => call.stage === 'plan' ? planned(JSON.parse(call.input).brief, true) : defaultOutput(call));
     await h.runner.plan();
     const call = vi.mocked(h.ports.generate).mock.calls.map(([c]) => c).find(c => c.stage === stage)!;
-    expect(call.instructions).toContain("Choose the reader's experience alongside emotional fit");
+    expect(call.instructions).toContain("Choose the reader's experience first");
     expect(call.instructions).toContain('Use the existing curiosity_and_stakes check for development across the whole outline');
     expect(call.instructions).toContain('Do not choose an idea solely because a magical rule forces the selected coping skill');
     expect(call.instructions).toContain('Keep the chosen topic consequential');
@@ -405,7 +512,7 @@ describe('limited causal experiment, not live provider or quality certification'
     const h = harness(1, undefined, new AbortController(), 'normal', true);
     await h.runner.plan(); await h.runner.repair(repairRequest(h));
     const call = vi.mocked(h.ports.generate).mock.calls.map(([c]) => c).find(c => c.stage === 'replan')!;
-    expect(call.instructions).toContain("Choose the reader's experience alongside emotional fit");
+    expect(call.instructions).toContain("Choose the reader's experience first");
     expect(call.instructions).toContain('Allocate narrative space for brief.child.age and brief.beats, not only word length');
     expect(call.instructions).toContain('Develop the adventure as a changing journey');
     expect(call.instructions).toContain('This is an explicitly requested repair of the held priorPlan');
@@ -465,7 +572,8 @@ describe('limited causal experiment, not live provider or quality certification'
     const prepared = preparePersonalStory(causalTrialCohort()[3].request, options);
     expect(prepared.brief.resilienceMode).toBe('adventure_only');
     for (const text of [prepared.call.instructions, STORY_EDITOR_INSTRUCTIONS]) {
-      expect(text).not.toContain("Choose the reader's experience alongside emotional fit");
+      expect(text).not.toContain("Choose the reader's experience first");
+      expect(text).toContain('Establish an important magical rule or mechanism before using it');
       expect(text).not.toContain('Allocate narrative space for brief.child.age and brief.beats');
       expect(text).not.toContain('Protect relational commitments, personal comic echoes and emotional closure');
       expect(text).not.toContain('distinguishes the reasonable alternatives');
@@ -919,6 +1027,27 @@ describe('opt-in draft critique before fresh editor, no literary certification',
     }, new AbortController(), 'benchmark', false, true);
   }
   async function run(h: ReturnType<typeof harness>) { await h.runner.plan(); h.approve(); return h.runner.write(); }
+
+  it('light authority preserves existing prose and forwarded source quotes containing a legacy voice example', async () => {
+    const canonical = preparePersonalStory(causalTrialCohort()[0].request, options).brief;
+    const example = 'הכנתי הפתעה קטנה. אולי הכנפיים שלי הגזימו קצת.';
+    const h = feedbackHarness(call => {
+      const out: any = defaultOutput(call);
+      if (call.stage === 'author') out.pages[0].text = example + ' ' + out.pages[0].text;
+      if (call.stage === 'original_review') out.findings = [noteFor(call)];
+      return out;
+    });
+    const result = await run(h), calls = vi.mocked(h.ports.generate).mock.calls.map(([c]) => c);
+    const reader = JSON.parse(calls.find(c => c.stage === 'original_review')!.input);
+    const editor = JSON.parse(calls.find(c => c.stage === 'editor')!.input);
+    expectCreativeBrief(editor.brief, canonical);
+    expect(reader.packet.brief.companion.character).toEqual(canonical.companion.character);
+    expect(editor.draft.manuscript.pages[0].text).toBe(result.books[0].original.manuscript.pages[0].text);
+    expect(editor.draft.manuscript.pages[0].text).toContain(example);
+    expect(editor.draftCritique.findings[0].original[0].quote).toBe(reader.packet.manuscript.pages[0].units[0].text);
+    expect(editor.draftCritique.findings[0].original[0].quote).not.toHaveLength(0);
+    expect(result.books[0].draftCritique!.context.projection.findings).toHaveLength(1);
+  });
 
   it('off by default; invalid/normal flags and missing fit/record ports fail before reserve', () => {
     const h = harness();

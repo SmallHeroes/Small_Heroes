@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import baseline from './companion-character-base-b60251b6.json';
+import previousV3 from './companion-character-base-91f16ac5.json';
 import { personalStoryboardFixture } from './personal-storyboard-fixture';
 import { personalCharacterSchema, resolvePersonalCompanionCharacter } from '../companion-character';
 import { PROTOTYPE_COMPANION_ROSTER, resolvePersonalWizardOptions } from '../options';
@@ -17,7 +18,7 @@ const hash = (v: unknown) => createHash('sha256').update(canonicalJson(v)).diges
 const candidates = ['elephant_momo', 'turtle_tuk', 'hedgehog_tuti', 'owl_shush',
   'kangaroo_nula', 'dog_zohar', 'cloud_puf', 'ibex_tzuki', 'mole_mishi'];
 
-describe('bounded literary revision without new physical canon or candidate admission', () => {
+describe('light v4 literary revision without new physical canon or candidate admission', () => {
   it('preserves the exact six offered identities, not fifteen prematurely enabled cards', () => {
     expect(PROTOTYPE_COMPANION_ROSTER).toEqual(Object.keys(baseline.characters));
     expect(options.companions.map(c => c.id)).toEqual(PROTOTYPE_COMPANION_ROSTER);
@@ -30,7 +31,8 @@ describe('bounded literary revision without new physical canon or candidate admi
     expect(personalCharacterSchema.parse(character)).toEqual(character);
     expect(character.gender).toBe(previous.gender);
     expect(character.embodiment).toEqual(previous.embodiment);
-    expect(character.doNotWrite).toEqual(previous.doNotWrite);
+    expect(character.version).toBe('personal-companion-character/v4');
+    expect(character.voice).not.toHaveProperty('examples');
     expect(hash(character)).not.toBe(previous.characterDigest);
   });
 
@@ -46,8 +48,8 @@ describe('bounded literary revision without new physical canon or candidate admi
     expect(() => prepareStoryTextReview(prepared, document, document)).toThrow('story_text_review_source_binding');
   });
 
-  it.each(candidates)('rejects %s in both profile and actual reviewed request', async id => {
-    expect(resolvePersonalCompanionCharacter(id)).toBeNull();
+  it.each(candidates)('has a light %s profile but does not invent default visual/choice admission', async id => {
+    expect(resolvePersonalCompanionCharacter(id)?.companionId).toBe(id);
     const fixture = await personalStoryboardFixture();
     const request = { ...fixture.request, companion: { id } };
     const result = acceptPersonalBookRequest(request, options);
@@ -56,11 +58,19 @@ describe('bounded literary revision without new physical canon or candidate admi
     expect(() => preparePersonalStory(request, options)).toThrow();
   });
 
-  it('retains optional independent wants and age-readable humour, not compulsory example plots', () => {
-    expect(resolvePersonalCompanionCharacter('dragon_dini')!.motives.join(' ')).toContain('זו שמפתיעים אותה');
-    expect(resolvePersonalCompanionCharacter('fox_uri')!.voice.rhythm).toContain('אינו חייב לטעות');
-    expect(resolvePersonalCompanionCharacter('chameleon_koko')!.humour.boundary).toContain('בלי הכרות מוקדמת');
-    expect(resolvePersonalCompanionCharacter('lion_shaket')!.motives.join(' ')).toContain('לא מסע קבוע');
-    expect(resolvePersonalCompanionCharacter('bunny_ometz')!.motives.join(' ')).toContain('בלי שהדרך השלישית תהיה פתרון חובה');
+  it.each(PROTOTYPE_COMPANION_ROSTER)('removes fixed wants, responses and quoted examples for %s while retaining style', id => {
+    const character = resolvePersonalCompanionCharacter(id)!;
+    for (const field of ['motives', 'mistakenBelief', 'pressureResponse', 'relaxedBehavior', 'partnership', 'movement', 'swapTest']) {
+      expect(character).not.toHaveProperty(field);
+    }
+    expect(Object.keys(character.voice)).toEqual(['rhythm']);
+    expect(Object.keys(character.humour).sort()).toEqual(['boundary', 'mechanism']);
+    const previous = previousV3.characters[id as keyof typeof previousV3.characters];
+    expect(character.embodiment).toEqual(previous.embodiment);
+    expect(character.gender).toBe(previous.gender);
+    expect(hash(character)).not.toBe(previous.characterDigest);
+    for (const example of previous.voice.examples) expect(JSON.stringify(character)).not.toContain(example);
+    expect(character.essence.length).toBeGreaterThan(30);
+    expect(character.voice.rhythm.length).toBeGreaterThan(30);
   });
 });

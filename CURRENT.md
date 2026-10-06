@@ -1,5 +1,31 @@
 # SmallHeroes — Current Technical State
 
+## Experience-first story and light fifteen-character canon (2026-10-06)
+
+Guy approves a lighter/open literary profile for ALL15, not six, and one fresh
+short text book up to12USD after correction and independent Claude QA. Root is
+sole writer from91f16ac5 on codex/personal-book-storyboard-bridge. v4 replaces
+fixed wants/flaws/responses/child jobs/movement/quoted examples with essence,
+voice, humour and physical limits; six original bodies/genders stay exact.
+All15 text identities are defined. Default wizard choices remain six and site
+cards13: this is NOT completed15-choice UI, visual/sheet or scale acceptance.
+
+Experience-first diagnostic selection and conditional magic-mechanism guidance
+replace existing text; no extra stage, projection helper, new cap, retry, image,
+website, order, rollout or push. Personal writer resolves its own literary
+identity; no legacy-topic or tagline fallback. Historical hashes/evidence are
+never rebound to v4. Citation/readback boundaries remain source-bound.
+
+Root tsc0 and874/874 across13 focused files. Offline prior-authority replay
+reproduces all3 Bar readings and exact reader wire bytes; six old physical
+envelopes/genders stay exact. Dini4832->1610serialized bytes; plan instructions
+13545->12919bytes. All650 historical files preserve SHA/size/mtime; latest Bar
+books/synopses match recorded hashes. Fullcheck and independent review are still
+in progress, not a self-PASS. No new paid story yet. Full gate previously RED.
+Decision: docs/ai-workflow/PERSONAL_EXPERIENCE_FIRST_DECISION_20261006.md.
+Next: validate and commit, Claude adversarial review, then fresh approved text
+book with Opus from scratch/fresh editor and Astra readings; Guy judges it.
+
 ## Local wizard produced an Opus authored and edited text book (2026-10-06)
 
 Guy's approved one-book local trial completed at7f676644. Fictional Bar5/Odem/
