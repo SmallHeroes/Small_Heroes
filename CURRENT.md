@@ -17,6 +17,19 @@ implementation commit. Prior full gate remains RED; new gate will run on the
 frozen commit. No literary/consistency/release claim.
 Decision: docs/ai-workflow/PERSONAL_PLAN_COMPARISON_DECISION_20261006.md.
 
+Native Claude static-only technical PASS for21403084..0da0930f, no concrete
+dispatch/budget blocker; it ran no Git/tests (Bash denied). Operator conditions:
+pin/review the live driver, original request source and identity/reference;
+keep operator records outside worktree and anonymous viewer separate; rehash
+executable before run. Cost0.679756USD Max list-equivalent from <=$1 QA slot.
+Initial fullcheck at0da0930f found two new ordinary regressions: fixed inventory
+counts lacked the new spec; manifest duplicated a hardcoded model literal.
+Correction updates only inventory count/explicit spec membership and uses the
+existing CAUSAL_MODELS.opus authority. No whitelist waiver or changed model.
+Initial ordinary6434pass/12fail/73skip; resource634pass/1failed process probe
+and1RPC error. This is not the unchanged10-failure baseline until corrected.
+No plan yet. Correction/driver independent re-gate and fresh gate pending.
+
 ## Choice led resilience framing correction (2026-10-06)
 
 Guy approves the corrected Claude consultation direction. Root sole writer on

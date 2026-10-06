@@ -9,7 +9,7 @@ import { causalDigest, CAUSAL_PLAN_INSTRUCTIONS, causalPlanSchema, compileCausal
 import { personalStoryOutputLimits } from '../lib/personal-wizard/story-config';
 import type { CausalDispatch } from '../lib/personal-wizard/story-causal-experiment-runner';
 import { CausalFamilyJournal, CausalHostError, hostFail, realDirectory } from './personal-causal-trial-journal';
-import { CausalTransportError, createOpusCausalTransport, prepareCausalWire, type CausalWire, type TransportReply, type WirePolicy } from './personal-causal-trial-adapters';
+import { CAUSAL_MODELS, CausalTransportError, createOpusCausalTransport, prepareCausalWire, type CausalWire, type TransportReply, type WirePolicy } from './personal-causal-trial-adapters';
 import { gitAt } from './personal-source-git';
 
 export const PLAN_COMPARISON_BASE = '5f54af936c9b23326f01e4c7c45e0ce7d0dbc940';
@@ -84,7 +84,7 @@ export function createPlanComparison(args: { workspace: string; outputRoot: stri
   });
   const manifest = { policy, family, baselineHead: PLAN_COMPARISON_BASE, slots, inputDigest: causalDigest(calls[0].call.input),
     instructions: { old: causalDigest(instructions.old), current: causalDigest(instructions.current) },
-    model: 'claude-opus-5-5', effort: 'medium', maximumLogicalDispatches: 4, reservedMicroUsd: 6_000_000,
+    model: CAUSAL_MODELS.opus, effort: 'medium', maximumLogicalDispatches: 4, reservedMicroUsd: 6_000_000,
     totalApprovedMicroUsd: 8_000_000, separateIndependentReviewAllowanceMicroUsd: 2_000_000,
     freshProcessPerPlan: true, retry: false, runtimeEligible: false,
     accounting: 'cli_reported_estimate_not_invoice', invoiceCapGuaranteed: false, nativeInternalCallCount: 'unverified' };

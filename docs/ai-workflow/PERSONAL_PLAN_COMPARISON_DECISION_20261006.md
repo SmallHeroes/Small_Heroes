@@ -82,3 +82,21 @@ behavior change; explicit user scope/budget approved; smallest comparison four
 plans; old artifacts untouched; no additional creative decision needed. Rollback
 is to leave the unimported script unused or revert its focused commit. Preserve
 all consumed families, output and evidence; no cleanup authorized.
+
+## First review and correction
+
+Native Claude gives static-only technical PASS for21403084..0da0930f. It did
+not execute Git/tests; Bash was denied. Root satisfies its operator conditions
+with a pinned one-shot driver, explicit original request/digests/reference,
+an executable rehash and output outside the worktree. Anonymous reading files
+are separate from the manifest mapping. This also avoids reliance on an ignored
+outputRoot making the worktree clean after reservation. Review estimate0.679756
+USD from the first $1 slot; the remaining $1 re-gates correction and driver.
+
+Fullcheck at0da0930f exposed two new ordinary failures, not inherited: repository
+spec inventory was still416, and the new manifest duplicated the model literal.
+Correct them by count417/ordinary397 and explicit new-spec membership, and by
+referencing CAUSAL_MODELS.opus. Do not weaken the model allowlist. Initial gate:
+ordinary6434pass/12fail/73skip; resource634pass/1process assertion and1RPC error.
+Fresh type/focused/full checks and independent re-gate precede plans. No literary
+instruction, native argument, slot cap or approved request changes in correction.
