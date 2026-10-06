@@ -243,6 +243,17 @@ export const DRAFT_CRITIQUE_MAX_BYTES = 12_288;
 /** Complete source-bound cards; no summaries, style preferences, string slicing or model scores. */
 export function causalDraftCritiqueContext(prepared: PreparedStory, original: StoryReviewDocument,
   reading: CausalReading, forwardedCount?: number) {
+  if (!('sourceEvidence' in reading)) return causalFail('draft_critique_binding');
+  return draftCritiqueContext(prepared, original, reading, forwardedCount, false);
+}
+/** Explicit offline compatibility for historical v1 contexts, never a dispatch fallback. */
+export function causalArchivalDraftCritiqueContext(prepared: PreparedStory, original: StoryReviewDocument,
+  reading: CausalReading, forwardedCount?: number) {
+  if ('sourceEvidence' in reading) return causalFail('draft_critique_binding');
+  return draftCritiqueContext(prepared, original, reading, forwardedCount, true);
+}
+function draftCritiqueContext(prepared: PreparedStory, original: StoryReviewDocument,
+  reading: CausalReading, forwardedCount: number | undefined, archival: boolean) {
   assertProse(prepared, original);
   const packet = causalOriginalReviewPacket(prepared, original);
   const checked = 'sourceEvidence' in reading ? compileCausalSourceReading(packet, reading.sourceEvidence.output) :
@@ -257,7 +268,7 @@ export function causalDraftCritiqueContext(prepared: PreparedStory, original: St
   const considered = Math.min(eligible.length, DRAFT_CRITIQUE_MAX_FINDINGS), count = forwardedCount ?? considered;
   if (!Number.isSafeInteger(count) || count < 0 || count > considered) causalFail('draft_critique_projection');
   const omitted = eligible.slice(count);
-  const projection = { version: 'source-bound-draft-critique/v1' as const,
+  const projection = { version: archival ? 'source-bound-draft-critique/v1' as const : 'source-bound-draft-critique/v2' as const,
     requestDigest: causalDigest(prepared.accepted.canonical), briefDigest: causalDigest(prepared.brief),
     originalDigest: causalDigest(original), packetDigest: causalDigest(packet), readingDigest: causalDigest(checked),
     totalFindings: checked.findings.length, eligibleFindings: eligible.length, findings: eligible.slice(0, count),
@@ -269,7 +280,9 @@ export function causalDraftCritiqueContext(prepared: PreparedStory, original: St
 }
 export type CausalDraftCritiqueContext = ReturnType<typeof causalDraftCritiqueContext>;
 export function assertCausalDraftCritiqueContext(prepared: PreparedStory, original: StoryReviewDocument, context: CausalDraftCritiqueContext) {
-  const expected = causalDraftCritiqueContext(prepared, original, context.reading, context.projection.findings.length);
+  const expected = context.projection.version === 'source-bound-draft-critique/v1' ?
+    causalArchivalDraftCritiqueContext(prepared, original, context.reading, context.projection.findings.length) :
+    causalDraftCritiqueContext(prepared, original, context.reading, context.projection.findings.length);
   if (causalDigest(context) !== causalDigest(expected)) causalFail('draft_critique_binding');
   if (Buffer.byteLength(canonicalJson(context.projection), 'utf8') > DRAFT_CRITIQUE_MAX_BYTES) causalFail('draft_critique_projection');
 }

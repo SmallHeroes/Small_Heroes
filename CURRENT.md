@@ -11,7 +11,9 @@ fail closed, never discard findings or fall back to model-written quotes.
 Instructions are sent once and digest-bound. Legacy packet/quotation behaviour
 and public writer/editor/review files remain unchanged. Probe manifests arev2.
 
-Local tsc0,613/613 focused plus7/7 census tests; six in-memory guard controls.
+Local tsc0,622/622 in10focused files after a corrective readback boundary;
+seven in-memory guard controls. Default modern context requires sourceEvidence;
+archivalv1 construction is explicit and refused by the new host before editor.
 22archived readings/79valid quotes map, one historical bad quote still rejects;
 425historical/evidence files unchanged. Six calibration wires fit existing1USD
 slots; no guarantee for all maximum manuscripts or semantic correctness of IDs.

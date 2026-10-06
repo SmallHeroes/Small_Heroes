@@ -129,3 +129,23 @@ calls/0renders/0USD; no push, deployment, new book, repaired artifact or family
 resume. Evidence is local without verified remote backup. See the external
 source-citations-20261006 replay/check/mutation records and the post-commit handoff.
 Official schema constraints consulted: https://developers.openai.com/api/docs/guides/structured-outputs#supported-schemas.
+
+### Corrective readback boundary
+
+An internal read-only inspection of d7aa966c found that stripping sourceEvidence
+could make the default context constructor infer the archival format. This was
+not a native model-wire bypass, but was a real constructor/readback weakness.
+The correction requires sourceEvidence in the default constructor, stamps new
+projectionsv2, and offers causalArchivalDraftCritiqueContext explicitly for oldv1
+records. Savedv1 contexts can still be validated for offline compilation. A new
+host refuses archival projection/source-evidence absence before saving a critique
+or claiming its editor. No paid dispatch can use that compatibility entry.
+
+Two regressions show that stripped data is genuinely valid under the old quote
+schema but fails the new constructor/readback, and that a valid archival context
+cannot enter a new real offline host. The latter preserves the existing outer
+provider_or_contract_failed/coordinator_failed sanitisation, rather than inventing
+a different observed error code. An in-memory removal of the default guard admits
+the stripped control again. Correction: tsc0 and622/622 across10focused files.
+These are internal checks, not independent Claude QA. Immutable full-check results
+will be recorded after the corrective commit; no provider or render allowance.

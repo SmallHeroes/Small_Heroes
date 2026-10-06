@@ -12,6 +12,7 @@ import { createCausalTrialHost, readCausalReviewFile, causalOutputCap, type Caus
 import { CausalFamilyJournal, CausalHostError, exclusiveJson, realDirectory } from '../../scripts/personal-causal-trial-journal';
 import { prepareCausalWire, wireReservation, CAUSAL_MODELS, CausalTransportError, createAstraCausalTransport, type WirePolicy } from '../../scripts/personal-causal-trial-adapters';
 import { CAUSAL_EXPERIMENT_VERSION } from '../personal-wizard/story-causal-experiment';
+import * as causal from '../personal-wizard/story-causal-experiment';
 import { canonicalJson } from '../personal-wizard/request-acceptance';
 import type { CausalDispatch } from '../personal-wizard/story-causal-experiment-runner';
 import { fixtureAdventureSelection } from '../personal-wizard/__tests__/story-planning-fixture';
@@ -558,6 +559,22 @@ describe('actual outgoing SDK wire and diagnostic CLI arguments', () => {
 });
 
 describe('draft critique at actual durable host and full serialized wire boundary', () => {
+  it('an explicitly archival projection cannot be admitted to a new host editor dispatch', async () => {
+    const create = causal.causalDraftCritiqueContext;
+    vi.spyOn(causal, 'causalDraftCritiqueContext').mockImplementation((prepared, original, reading, count) => {
+      const current = create(prepared, original, reading, count);
+      const { sourceEvidence: _source, ...legacy } = current.reading as ReturnType<typeof causal.compileCausalSourceReading>;
+      const archival = causal.causalArchivalDraftCritiqueContext(prepared, original, legacy, count);
+      expect(causal.causalEditorCall(prepared, original, archival).input).toContain('source-bound-draft-critique/v1');
+      return archival;
+    });
+    const h = harness(1, undefined, 'benchmark', false, true), bundle = await h.host.plan();
+    // Host callback failures retain the existing coordinator sanitisation layer.
+    await expect(h.host.write(h.review(bundle))).rejects.toThrow('provider_or_contract_failed');
+    expect(h.transport.mock.calls.map(([, call]) => call.stage)).toEqual(['plan', 'author', 'original_review']);
+    expect(existsSync(path.join(h.args.outputRoot, 'draft-critique-case1.json'))).toBe(false);
+    expect(h.host.snapshot().host.closed).toBe(true);
+  });
   function findings(call: CausalDispatch, count = 1) {
     const input = JSON.parse(call.input);
     const units = input.packet.manuscript.pages[0].units;

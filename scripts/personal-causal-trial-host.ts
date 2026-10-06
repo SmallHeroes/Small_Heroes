@@ -131,6 +131,8 @@ export function createCausalTrialHost(args: {
         }
       },
       async recordDraftCritique(transfer, call) {
+        if (transfer.context.projection.version !== 'source-bound-draft-critique/v2' ||
+          !('sourceEvidence' in transfer.context.reading)) hostFail('draft_critique_binding');
         const wire = prepareCritiqueEditor(call);
         const input = JSON.parse(call.input), slot = transfer.caseId + ':editor';
         if (!journal || critiqueEditorWires.has(slot) || call.conversationKey !== policy.family + ':' + slot ||

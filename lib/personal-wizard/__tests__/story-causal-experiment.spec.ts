@@ -11,7 +11,7 @@ import { createCausalExperiment, causalStages, type CausalReviewMode, type Causa
 import { CAUSAL_EXPERIMENT_VERSION, CAUSAL_STORY_INSTRUCTIONS, CAUSAL_PLAN_INSTRUCTIONS, causalDigest, compileCausalPlan, compileCausalOriginal,
   causalEditorCall, causalEditorSchema, compileCausalEdit, causalReviewPackets, causalOriginalReviewPacket,
   compileCausalReading, causalDraftCritiqueContext, DRAFT_CRITIQUE_MAX_BYTES, causalSourceReviewPacket,
-  compileCausalSourceReading, CAUSAL_CHILD_LANGUAGE_INSTRUCTIONS } from '../story-causal-experiment';
+  compileCausalSourceReading, CAUSAL_CHILD_LANGUAGE_INSTRUCTIONS, causalArchivalDraftCritiqueContext } from '../story-causal-experiment';
 import { citationTokens } from '../story-source-citations';
 
 afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks(); });
@@ -1074,7 +1074,7 @@ describe('opt-in draft critique before fresh editor, no literary certification',
   it('source-bound context rejects other packet, altered quote, omission or source before schema/dispatch', () => {
     const f = selectedFixture(), packet = causalOriginalReviewPacket(f.p, f.original);
     const reading = compileCausalReading(packet, { packetDigest: causalDigest(packet), summary: 'Synthetic full original-reader verdict.', findings: [] });
-    const context = causalDraftCritiqueContext(f.p, f.original, reading);
+    const context = causalArchivalDraftCritiqueContext(f.p, f.original, reading);
     const forged = structuredClone(context); forged.projection.omitted.nonMaterial = 1;
     expect(() => causalEditorCall(f.p, f.original, forged)).toThrow('draft_critique_binding');
     const stale = structuredClone(context); stale.reading.packetDigest = 'f'.repeat(64);

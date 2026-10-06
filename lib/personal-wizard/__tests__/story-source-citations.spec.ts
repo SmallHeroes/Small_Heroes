@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { causalDigest, causalSourceReviewPacket, compileCausalSourceReading, compileCausalReading,
-  causalDraftCritiqueContext, causalEditorCall, causalOriginalReviewPacket, causalReviewPackets } from '../story-causal-experiment';
+  causalDraftCritiqueContext, causalArchivalDraftCritiqueContext, causalEditorCall, causalOriginalReviewPacket, causalReviewPackets } from '../story-causal-experiment';
 import { sourceUnits, citationTokens, locateLegacyCitation, compileSourceCitationReview, SOURCE_UNIT_CHARS } from '../story-source-citations';
 import { personalStoryboardFixture } from './personal-storyboard-fixture';
 import { preparePersonalStory } from '../story-writer';
@@ -57,6 +57,19 @@ describe('code-derived source citations, no providers', () => {
     expect(causalEditorCall(f.prepared, f.doc, context).input).toContain(f.review.catalogue[0].text.replace(/"/g, '\\"'));
     const tampered = structuredClone(context); tampered.reading.findings[0].original[0].quote += ' אלה';
     expect(() => causalEditorCall(f.prepared, f.doc, tampered)).toThrow('draft_critique_binding');
+  });
+  it('stripped new evidence cannot silently downgrade into the archival context constructor', async () => {
+    const f = await fixture(), checked = compileCausalSourceReading(f.packet, reading(f.review));
+    const { sourceEvidence: _evidence, ...stripped } = checked;
+    // Demonstrate this really is valid old quotation data, not an earlier schema failure.
+    expect(compileCausalReading(f.packet, { packetDigest: stripped.packetDigest, summary: stripped.summary, findings: stripped.findings }).findings).toHaveLength(1);
+    expect(() => causalDraftCritiqueContext(f.prepared, f.doc, stripped)).toThrow('draft_critique_binding');
+    const context = causalDraftCritiqueContext(f.prepared, f.doc, checked);
+    expect(context.projection.version).toBe('source-bound-draft-critique/v2');
+    context.reading = stripped;
+    expect(() => causalEditorCall(f.prepared, f.doc, context)).toThrow('draft_critique_binding');
+    const archival = causalArchivalDraftCritiqueContext(f.prepared, f.doc, stripped);
+    expect(archival.projection.version).toBe('source-bound-draft-critique/v1');
   });
   it.each(['unknown', 'wrong-page', 'wrong-version', 'anchor', 'reversed', 'range', 'cross-page', 'extra-quote', 'digest', 'empty', 'kind'])('rejects %s without silently dropping a finding', async mode => {
     const f = await fixture(), raw: any = reading(f.review), citation = raw.findings[0].original[0];

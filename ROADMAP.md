@@ -18,7 +18,10 @@ This roadmap records technical milestone state. Guy can change product priority 
 - Root tsc0,613focused+7census tests;22archived readings/79valid quotes mapped,
   one bad historical quote rejected,425files preserved and six guard controls.
   Census414/394 fixes the added-spec count; public prompts/models/caps unchanged.
-  Independent Claude review and committed full-check recording pending.
+  A corrective constructor/readback boundary requires new provenance, keeps
+  explicit archivalv1 handling offline and blocks it at the new host. Root
+  tsc0/622focused and a seventh in-memory control; independent Claude review and
+  committed full-check recording pending.
 - Before paid sampling: independent re-gate, then separately approved budget.
   Minor-note transfer, case isolation and editor-audit citations are separate.
   No paid run, render, public deployment or autonomous-quality claim.
