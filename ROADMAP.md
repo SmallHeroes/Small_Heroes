@@ -1,5 +1,19 @@
 # SmallHeroes — Roadmap
 
+## Four outline experiment completed (2026-10-06)
+
+Guard and corrective driver receive native Claude static-only technical PASS;
+four approved fresh Opus plans complete at b354a6e3 with zero retry/unknown
+cost. Total planning plus QA $2.398239 Max list-equivalent, not API invoice.
+No manuscript, Astra, audio or image. All four selected outlines repeat the
+lost-cloud/jumping/noise/counting/closeness/reunion pattern; this fixed-profile
+sample does not establish greater adventure diversity. One mostly-English
+plan prevents fair read-aloud Hebrew comparison. Guy's blind preference pending.
+Next: investigate concept generation/selection, not more unapproved book runs
+or motif bans. Full gate RED: ordinary10same names/resource process assertion
+andRPC error. Site/QA/protected worktrees untouched; no push or deployment.
+See docs/ai-workflow/PERSONAL_PLAN_COMPARISON_CLOSEOUT_20261006.md.
+
 ## Choice led resilience framing correction (2026-10-06)
 
 - Guy approves removal of the coping menu and compulsory emotional-ending
@@ -14,8 +28,9 @@
   1process-probe failure AND1RPCerror. Isolated assertion/direct local probe
   also fail (child134); parent bytes unchanged, root cause/base run unproved.
 - No SDK/schema/model/stage/cap/retry change, new book, image, push or rollout.
-  Next separately bounded/approved plan-only comparison; creative benefit and
-  diversity unproved. Docs-only closeout itself not independently re-gated.
+  Its separately approved plan-only comparison is now completed as recorded
+  above; creative benefit/diversity remain unproved. Docs-only closeout itself
+  not independently re-gated.
 
 ## Experience first and light fifteen-character literary canon (2026-10-06)
 

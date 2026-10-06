@@ -2,33 +2,43 @@
 
 ## Approved four outline comparison (2026-10-06)
 
-Guy approves four fresh Opus plans only, two old and two current resilience
-instructions with the exact same approved Bar/Dini short request. No prose,
-editor, Astra/OpenAI key, audio, image, website, push or deployment. Separate
-diagnostic script reuses the real planner schema/compiler, native wire and
-one-use journal, not the full-book reservation or its authority. $8 total Max
-list-equivalent ceiling: four $1.50 plan slots ($6) plus at most $2 independent
-QA/re-gate. No invoice guarantee. Root sole writer, base21403084/ahead52.
-Root tsc0;409/409 across four focused files, including31new guard cases.
-Four in-memory deliberate mutants are detected (cost, request binding, phase,
-saved-plan verification); zero provider.650historical files and14last-book
-files preserved. Independent review and paid plans are still pending at this
-implementation commit. Prior full gate remains RED; new gate will run on the
-frozen commit. No literary/consistency/release claim.
-Decision: docs/ai-workflow/PERSONAL_PLAN_COMPARISON_DECISION_20261006.md.
+Completed diagnostic at frozen b354a6e3: exactly four fresh Opus 5.5 medium
+planning sessions, two archived and two current instructions, same approved
+Bar/Dini/short request. No manuscript/editor/Astra/OpenAI key/audio/image.
+Native Claude static-only PASS for guard and corrective re-gate plus exact
+driver/export; no independent Git/tests (Bash denied). Root tsc0;409/409
+focused initial checks and42/42 corrective checks. Two new full-gate regressions
+were fixed, not disguised as inherited. Corrected fullcheck remains RED:
+ordinary6436pass/10same failure names/73skip; resource634pass/1same Windows
+process assertion and1RPC error. No new gate waiver or stability/release claim.
 
-Native Claude static-only technical PASS for21403084..0da0930f, no concrete
-dispatch/budget blocker; it ran no Git/tests (Bash denied). Operator conditions:
-pin/review the live driver, original request source and identity/reference;
-keep operator records outside worktree and anonymous viewer separate; rehash
-executable before run. Cost0.679756USD Max list-equivalent from <=$1 QA slot.
-Initial fullcheck at0da0930f found two new ordinary regressions: fixed inventory
-counts lacked the new spec; manifest duplicated a hardcoded model literal.
-Correction updates only inventory count/explicit spec membership and uses the
-existing CAUSAL_MODELS.opus authority. No whitelist waiver or changed model.
-Initial ordinary6434pass/12fail/73skip; resource634pass/1failed process probe
-and1RPC error. This is not the unchanged10-failure baseline until corrected.
-No plan yet. Correction/driver independent re-gate and fresh gate pending.
+Planning estimates $1.113507; independent QA estimates $1.284732; total
+$2.398239 Max list-equivalent, below $8 approval. Not an API invoice or
+invoice-cap guarantee. Four logical dispatches, zero unknown costs, no retries;
+CLI internal provider-call count remains unverified. One-use family sealed
+completed_diagnostic.650 historical and14 prior-book files unchanged.
+
+Creative result is limited: all four selected outlines repeat lost-cloud /
+jumping / loud-sound / counting / companion-closeness / reunion patterns.
+Routes and comic beats differ, but this sample does not establish better
+adventure diversity from removing the two clauses. One outline is mostly
+English metadata; preserve it, don't silently translate or treat it as Hebrew
+manuscript quality. Root recommends diagnosing concept generation/selection
+before spending on full prose, not banning clouds/counting or adding quotas.
+Both candidate ideas and selection reasons are retained for that investigation.
+No further prompt edit, book run, spending or push approved by this closeout.
+
+Anonymous readable MD/HTML live under the artifact root as
+plan-comparison-blind-20261006.*; operator key/receipts are in the separate
+plan-comparison-operator-evidence-20261006 folder.25 new evidence files hashed,
+compiled outcomes match blind exports, input/schema/settings match across arms.
+Closeout: docs/ai-workflow/PERSONAL_PLAN_COMPARISON_CLOSEOUT_20261006.md.
+This docs-only closeout has no independent re-gate of its own.
+
+Decision: docs/ai-workflow/PERSONAL_PLAN_COMPARISON_DECISION_20261006.md.
+Initial construction/review/gate records are historical; current result above
+supersedes their pending-review and pending-run state. No reservation or
+allowance is restored by this closeout.
 
 ## Choice led resilience framing correction (2026-10-06)
 
