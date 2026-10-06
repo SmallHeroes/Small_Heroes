@@ -1,5 +1,34 @@
 # SmallHeroes — Current Technical State
 
+## Native wizard bridge independent code PASS; nonempty-reading test successor
+
+Actual native Claude Code independently PASSes EXACTLY c9c3ef6b..ffc7c5ed,
+not the43 older commits. Own tsc0,690/690 across13 focused files,650 preserved
+evidence files and frozen clean HEAD. Five Low groups are retained in the raw
+report; no blocking/spend-safety findings, no literary/product/release PASS.
+The reviewer did not run fullcheck/browser/live or independently establish the
+inherited-failure classification. Max reported list equivalent0.7954586USD is
+development QA usage, separate from the still-unused12USD text-book allowance.
+
+Low2's nonempty-findings coverage is added in a TEST ONLY successor: valid
+source-derived quotes flow original->editor->final->comparison->view; a remaining
+meaningful issue remains visible and a blocking comparison regression displays
+HELD. Both cases reach all7 logical injected calls, not an earlier rejection.
+Root34/34 across the two new bridge specs. Production bytes remain identical
+to ffc7c5ed. Independent re-gate of this test/docs successor is pending.
+
+Other Low groups stay open/acknowledged: completed-engine/display-write failure
+can show a failed/partial view; queue write interruption consumes the local
+approval without spending; nonoperator native UI deliberately has no legacy
+fallback. Reviewed text deliberately allows approved avoids and selected
+photo/voice METADATA, unlike fixture-only defaults; no photo/audio is uploaded
+or generated. No unreviewed claim of restoring the full wizard after refresh.
+
+Browser smoke: local page loads200 after first font/compile navigation timeout;
+no browser errors, manual form/chip edits visible. Full authenticated native
+UI/live run still pending Guy's login email/session. No paid book, images,
+transcription, database write, push or deployment has occurred in this milestone.
+
 ## Local native wizard text connection — implementation awaiting QA, 2026-10-06
 
 Guy explicitly approves the local connection and ONE short text book up to $12

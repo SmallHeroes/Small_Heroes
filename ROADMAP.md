@@ -2,6 +2,13 @@
 
 ## Local native wizard text connection (2026-10-06)
 
+- Independent native Claude technical PASS c9c3ef6b..ffc7c5ed; own690/690 and
+  tsc0,650evidence files preserved. Five Low notes, no blocking findings. Not
+  product/release/live acceptance or approval of the43 older pending commits.
+- Test-only successor covers nonempty source-bound findings through editor,
+  all three readings and complete/HELD display. Root34/34; production unchanged;
+  re-gate pending. No paid book yet; authenticated trial needs Guy's email/login.
+
 - Guy approves a local-only bridge and one short text trial up to12USD; no
   images, paid transcription, push/deploy or public/QA activation.
 - Implemented: authenticated reviewed-request one-approval queue, explicit

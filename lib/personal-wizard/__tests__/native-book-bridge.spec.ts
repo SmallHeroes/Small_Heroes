@@ -20,6 +20,7 @@ import { fixtureAdventureSelection } from './story-planning-fixture';
 import { fixtureEditorOutput } from './personal-storyboard-fixture';
 import { CAUSAL_EXPERIMENT_VERSION } from '../story-causal-experiment';
 import type { CausalDispatch } from '../story-causal-experiment-runner';
+import { citationTokens } from '../story-source-citations';
 
 vi.mock('node:readline', async original => ({ ...await original<typeof import('node:readline')>(), createInterface: vi.fn() }));
 const roots: string[] = [];
@@ -69,20 +70,31 @@ function syntheticAnswer(call: CausalDispatch) {
     pages: Array.from({ length: 8 }, (_, i) => ({ text: `${brief.child.name} מציעה דרך חדשה והחבר מנסה איתה. הם מגלים משהו מצחיק ומשנים את התוכנית. פרט בדיקה ${i + 1}` })) };
   if (call.stage === 'editor') {
     const revision = fixtureEditorOutput({ ...call, stage: 'editor' });
-    return { version: CAUSAL_EXPERIMENT_VERSION, draftCritiqueResponse: { projectionDigest: input.draftCritique.projectionDigest, responses: [] },
+    return { version: CAUSAL_EXPERIMENT_VERSION, draftCritiqueResponse: { projectionDigest: input.draftCritique.projectionDigest,
+      responses: input.draftCritique.findings.map((f: any) => ({ findingId: f.id, decision: 'kept', reason: 'Synthetic text-based reason; not proof of a literary repair.' })) },
       revision: { ...revision, plan: { ...revision.plan, beats: revision.plan.beats.map(({ pageNumber: _n, ...b }) => b) },
         manuscript: { ...revision.manuscript, pages: revision.manuscript.pages.map(({ pageNumber: _n, ...p }) => p) } } };
   }
   return { packetDigest: input.packetDigest, summary: 'Synthetic model reading, never literary approval.', findings: [] };
 }
-async function execute(h: ReturnType<typeof setup>, malformed = false) {
+async function execute(h: ReturnType<typeof setup>, mode: false | true | 'findings' | 'blocking' = false) {
   const calls: CausalDispatch[] = [], events = new EventEmitter();
   vi.spyOn(readline, 'createInterface').mockReturnValue(Object.assign(events, { close: () => events.emit('close') }) as any);
   const transport = vi.fn(async (_wire, call: CausalDispatch) => {
-    calls.push(call); let output: any = syntheticAnswer(call);
-    if (malformed && call.stage === 'original_review') {
+    calls.push(call); const input = JSON.parse(call.input); let output: any = syntheticAnswer(call);
+    if (mode === true && call.stage === 'original_review') {
       output.findings = [{ severity: 'meaningful', kind: 'issue', criterion: 'Synthetic criterion with a bad citation.', explanation: 'Synthetic test defect, not a real reading.',
         original: [{ startId: 'o-p1-u1', endId: 'o-p1-u1', anchor: 'five invalid words not matching' }], revised: [] }];
+    }
+    if ((mode === 'findings' || mode === 'blocking') && input.packet?.citationVersion) {
+      const ref = (unit: { id: string; text: string }) => ({ startId: unit.id, endId: unit.id, anchor: citationTokens(unit.text).slice(0, 2).join(' ') });
+      const comparison = call.stage === 'comparison', original = call.stage === 'original_review';
+      output.findings = [{ severity: mode === 'blocking' && comparison ? 'blocking' : 'meaningful',
+        kind: comparison ? mode === 'blocking' ? 'new_regression' : 'remaining_problem' : 'issue',
+        criterion: 'Synthetic source-supported scene note; not literary acceptance.',
+        explanation: 'Synthetic retained finding must remain visible to the parent.',
+        original: original || comparison ? [ref((comparison ? input.packet.original : input.packet.manuscript).pages[0].units[0])] : [],
+        revised: !original ? [ref((comparison ? input.packet.revised : input.packet.manuscript).pages[0].units[0])] : [] }];
     }
     return { output, estimatedMicroUsd: 1, usage: { inputTokens: 1, outputTokens: 1 },
       metadata: { reportedModel: 'gpt-6-astra', serviceTier: 'default', status: 'completed', synthetic: true }, raw: { synthetic: true } };
@@ -179,5 +191,21 @@ describe('one-approval local native wizard connector', () => {
       accounting: { logicalAttempts: 4, knownEstimateMicroUsd: 4 } });
     expect(view.original?.pages).toHaveLength(8); expect(enqueueNativeBook(h.config, h.input)).toEqual(view);
     expect(() => claimNativeWorker(h.config)).toThrow(); expect(result.calls).toHaveLength(4);
+  });
+  it.each(['findings', 'blocking'] as const)('nonempty source-bound notes survive the real editor/three-reading view (%s)', async mode => {
+    const h = setup(); enqueueNativeBook(h.config, h.input); const result = await execute(h, mode);
+    expect(result.error, JSON.stringify(result.calls.map(c => c.stage))).toBeUndefined(); expect(result.code).toBe(0); expect(result.calls).toHaveLength(7);
+    const view = readNativeStatus(h.config, h.input.userId, h.input.requestId);
+    expect(view.phase).toBe(mode === 'blocking' ? 'held' : 'complete');
+    expect(view.readings.map(r => r.findings.length)).toEqual([1, 1, 1]);
+    for (const reading of view.readings) for (const finding of reading.findings) {
+      expect(finding.explanation).toContain('must remain visible');
+      for (const q of finding.original) expect(view.original!.pages[q.pageNumber - 1].text).toContain(q.quote);
+      for (const q of finding.revised) expect(view.edited!.pages[q.pageNumber - 1].text).toContain(q.quote);
+    }
+    const editor = JSON.parse(result.calls.find(c => c.stage === 'editor')!.input);
+    expect(editor.draftCritique.findings).toHaveLength(1);
+    if (mode === 'blocking') expect(view.readings[2].findings[0]).toMatchObject({ kind: 'new_regression', severity: 'blocking' });
+    expect(view.runtimeEligible).toBe(false); expect(view.error).toBeNull();
   });
 });
