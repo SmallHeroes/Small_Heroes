@@ -6,7 +6,7 @@ import { personalStoryResultSchema } from '../story-contract';
 import { preparePersonalStory } from '../story-writer';
 import { preparePersonalStoryboard } from '../storyboard';
 import { SIMPLE_STORY_SHAPES, SIMPLE_AUTHOR_INSTRUCTIONS, SIMPLE_EDITOR_INSTRUCTIONS, SimpleStoryError, checkSimpleStory, editorFindings, nameVariants,
-  normalizeStoryTypography, pagesMentioning, pickStoryShape, prepareSimpleStory, simpleAuthorCall, simpleStoryDraftSchema, simpleStoryEditSchema,
+  normalizeStoryTypography, pagesMentioning, pickStoryShape, prepareSimpleStory, simpleAuthorCall, simpleStoryDraftSchema, simpleStoryEditSchema, simpleStoryOutputTokens,
   writeSimpleStory, type PreparedSimpleStory, type SimpleStoryCall } from '../simple-story-engine';
 import { textCanonOptions } from '../../../scripts/personal-simple-story';
 
@@ -51,6 +51,13 @@ describe('simple story engine', () => {
     const p = prepareSimpleStory(request({ bookOptions: { lengthId: ({ 8: 'short', 12: 'medium', 16: 'long' } as const)[pages as 8 | 12 | 16], voiceId: null } }), options, 's');
     expect(simpleStoryDraftSchema(pages).safeParse(story(p)).success).toBe(true);
     expect(simpleStoryDraftSchema(pages).safeParse(story(p, s => ({ ...s, pages: s.pages.slice(1) }))).success).toBe(false);
+  });
+
+  it('sizes output caps above the measured maximum and inside the wire limit', () => {
+    expect([8, 12, 16].map(simpleStoryOutputTokens)).toEqual([28_000, 34_000, 40_000]);
+    expect(simpleStoryOutputTokens(16)).toBeGreaterThan(24_154 * 1.5);
+    expect(simpleStoryOutputTokens(16)).toBeLessThanOrEqual(55_000);
+    expect(() => simpleStoryOutputTokens(10)).toThrow('simple_story_length_invalid');
   });
 
   it('keeps the instructions short and positive, without the old mechanism-first craft rules', () => {
@@ -149,6 +156,13 @@ describe('simple story engine', () => {
     const failure = await writeSimpleStory(p, generate, { model: 'claude-opus-5-5', reservedUsd: 2 }).catch(e => e);
     expect(failure).toBeInstanceOf(SimpleStoryError); expect(failure.code).toBe('simple_story_excluded_subject');
     expect(generate).toHaveBeenCalledTimes(2);
+    expect((failure.evidence.accounting as any).providerCalls).toBe(2);
+  });
+
+  it('reports a coded failure when the edit cannot compile into the trimming contract', async () => {
+    const p = prepareSimpleStory(request(), options, 'x');
+    const failure = await writeSimpleStory(p, generator(p, s => s, s => ({ ...s, ending: '   ' })), { model: 'claude-opus-5-5', reservedUsd: 2 }).catch(e => e);
+    expect(failure).toBeInstanceOf(SimpleStoryError); expect(failure.code).toBe('simple_story_compile_invalid');
     expect((failure.evidence.accounting as any).providerCalls).toBe(2);
   });
 

@@ -112,10 +112,14 @@ export const simpleStoryEditSchema = (pages: number) => z.object({ ...storyField
   editorChanges: z.array(z.string().min(1).max(400)).max(12).describe('Your main changes, briefly.') }).strict();
 export type SimpleStoryDraft = z.infer<ReturnType<typeof simpleStoryDraftSchema>>;
 
-/** Prose plus a page map sized for reasoning-inclusive Opus output, not a completion guarantee. */
+/**
+ * Prose plus a page map sized for reasoning-inclusive Opus output, not a completion guarantee.
+ * Measured round-1 authors used up to 24,154 (16 pages) and 20,736 (12 pages) output tokens, about
+ * 80% of the first caps, so the cap keeps roughly 1.6x headroom over the observed maximum.
+ */
 export function simpleStoryOutputTokens(pages: number): number {
   if (![8, 12, 16].includes(pages)) throw Error('simple_story_length_invalid');
-  return 14_000 + 1_000 * pages;
+  return 16_000 + 1_500 * pages;
 }
 export const simpleStoryWordTarget = (age: number) => age <= 5 ? { min: 35, max: 65 } : { min: 45, max: 85 };
 
@@ -307,5 +311,9 @@ export async function writeSimpleStory(prepared: PreparedSimpleStory, generate: 
   const evidence = { shape: prepared.shape.id, seed: prepared.seed, draft: draft.story, draftCheck, draftDashes: draft.dashes, findings,
     edited: edited.story, editorChanges, finalCheck, finalDashes: edited.dashes, calls: { author: digest({ i: author.instructions, x: author.input }), editor: digest({ i: editor.instructions, x: editor.input }) } };
   if (finalCheck.hard.length) fail(`simple_story_${finalCheck.hard[0]}`, { ...evidence, accounting: accounting() });
-  return { result: compileSimpleStory(prepared, edited.story, accounting()), evidence };
+  let result: PersonalStoryResult;
+  // The existing contract trims; a whitespace-only field passes the model schema but not the contract.
+  try { result = compileSimpleStory(prepared, edited.story, accounting()); }
+  catch { fail('simple_story_compile_invalid', { ...evidence, accounting: accounting() }); }
+  return { result, evidence };
 }
