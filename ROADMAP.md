@@ -10,6 +10,16 @@ This roadmap records technical milestone state. Guy can change product priority 
 
 ### P-personal source-derived citations and everyday Hebrew (2026-10-06)
 
+- Independent Claude HOLD on code `7e94cf98..8935beb0`, docs through `06ac5d8f`:
+  one P2 anchor word-count mismatch and three P3 groups. The focused correction
+  normalizes in-word geresh/format marks only for anchors, pins M03/M07/M13 with
+  dedicated tests, separates reader language criteria and documents digest domains.
+  Root tsc 0, 641/641 focused; old tokenizer fails 13 positive cases, each guard
+  mutation fails its intended test. Replay 22/79/1 and 425 historical files plus
+  62 prior milestone/Claude files preserved. Existing six $1 slots still fit.
+  Immutable full check and independent corrective re-gate pending; no self-PASS,
+  provider, paid book, image, site cutover, push or deployment.
+
 - Approved milestone1 implements source-unit references with code-derived exact
   quotes and one-copy instructions in diagnostic critics only. Legacy evidence
   remains valid; invalid IDs/anchors fail closed without omission or retries.

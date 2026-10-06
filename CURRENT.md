@@ -1,5 +1,34 @@
 # SmallHeroes — Current Technical State
 
+## Citation anchor correction after independent HOLD 2026 10 06
+
+Claude Code's independent review covers code `7e94cf98..8935beb0` and docs
+`8935beb0..06ac5d8f`: HOLD, P0=0/P1=0/P2=1/P3=3. Its own tsc and 622 tests
+pass, but in-word geresh/apostrophe and invisible marks can reject a compliant
+anchor. Its three surviving guard mutations expose test gaps, not code bypasses.
+
+The corrective milestone is based on clean `06ac5d8f` in the same engine branch.
+Anchor-only normalization now joins in-word quote marks and strips Hebrew and
+formatting marks; source quotations never change. Added compile-path cases retain
+strict letters, order, negation and count. Three specific regressions now catch
+the exact M03/M07/M13 guard removals. Reader language guidance evaluates the prose
+without writer imperatives; writer guidance is identical. Digest pairing is
+documented without renaming contracts or changing legacy packet builders.
+
+Local tsc exits 0; 641/641 focused tests in 10 files pass. The old tokenizer
+fails all 13 new positive cases; the fixed citation spec passes 48/48. The three
+temporary guard mutations each fail their intended test and are fully restored.
+Offline replay retains 22 readings, 79 valid quotes, one invalid rejection and
+425 historical files; 62 earlier milestone/Claude files retain SHA/size/mtime.
+Six measured calibration reservations remain below their existing $1 slots.
+Literal full check on the immutable corrective commit is pending. Independent
+Claude re-gate is pending; no claim of P2 closure or improved literature yet.
+
+No paid call, key write, render, public wizard/site change, push or deployment.
+No retries, case isolation, polish transfer or editor-audit migration. See the
+corrective section in PERSONAL_SOURCE_CITATIONS_20261006.md and the external
+source-citations-correction-20261006 evidence directory.
+
 ## Source-derived critic citations and child-native language 2026 10 06
 
 Guy approves milestone1 at base7e94cf98, adding everyday child-readable Hebrew

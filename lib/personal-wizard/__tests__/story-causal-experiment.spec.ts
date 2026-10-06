@@ -11,7 +11,7 @@ import { createCausalExperiment, causalStages, type CausalReviewMode, type Causa
 import { CAUSAL_EXPERIMENT_VERSION, CAUSAL_STORY_INSTRUCTIONS, CAUSAL_PLAN_INSTRUCTIONS, causalDigest, compileCausalPlan, compileCausalOriginal,
   causalEditorCall, causalEditorSchema, compileCausalEdit, causalReviewPackets, causalOriginalReviewPacket,
   compileCausalReading, causalDraftCritiqueContext, DRAFT_CRITIQUE_MAX_BYTES, causalSourceReviewPacket,
-  compileCausalSourceReading, CAUSAL_CHILD_LANGUAGE_INSTRUCTIONS, causalArchivalDraftCritiqueContext } from '../story-causal-experiment';
+  compileCausalSourceReading, CAUSAL_CHILD_LANGUAGE_INSTRUCTIONS, CAUSAL_CHILD_LANGUAGE_REVIEW_INSTRUCTIONS, causalArchivalDraftCritiqueContext } from '../story-causal-experiment';
 import { citationTokens } from '../story-source-citations';
 
 afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks(); });
@@ -81,14 +81,28 @@ describe('limited causal experiment, not live provider or quality certification'
     await h.runner.plan(); h.approve(); await h.runner.write();
     const calls = vi.mocked(h.ports.generate).mock.calls.map(([call]) => call);
     expect(calls.map(call => call.stage)).toEqual(['plan', 'author', 'original_review', 'editor', 'final_review', 'comparison']);
-    for (const call of calls) expect(call.instructions).toContain(CAUSAL_CHILD_LANGUAGE_INSTRUCTIONS);
+    for (const call of calls) {
+      const reader = ['original_review', 'final_review', 'comparison'].includes(call.stage);
+      const own = reader ? CAUSAL_CHILD_LANGUAGE_REVIEW_INSTRUCTIONS : CAUSAL_CHILD_LANGUAGE_INSTRUCTIONS;
+      const other = reader ? CAUSAL_CHILD_LANGUAGE_INSTRUCTIONS : CAUSAL_CHILD_LANGUAGE_REVIEW_INSTRUCTIONS;
+      expect(call.instructions.split(own)).toHaveLength(2);
+      expect(call.instructions).not.toContain(other);
+    }
     expect(CAUSAL_CHILD_LANGUAGE_INSTRUCTIONS).toContain('Do not use rare, technical, archaic or ornate vocabulary');
     expect(CAUSAL_CHILD_LANGUAGE_INSTRUCTIONS).toContain('same word or Hebrew root');
     expect(CAUSAL_CHILD_LANGUAGE_INSTRUCTIONS).toContain('preserve its function, not the rare word');
     expect(CAUSAL_CHILD_LANGUAGE_INSTRUCTIONS).toContain('purposeful comic refrains in familiar wording');
     expect(CAUSAL_CHILD_LANGUAGE_INSTRUCTIONS).toContain('not lines to copy verbatim');
-    for (const text of [STORY_INSTRUCTIONS, NARRATIVE_CRAFT_INSTRUCTIONS, STORY_EDITOR_INSTRUCTIONS])
+    expect(CAUSAL_CHILD_LANGUAGE_REVIEW_INSTRUCTIONS).toContain('Assess whether');
+    expect(CAUSAL_CHILD_LANGUAGE_REVIEW_INSTRUCTIONS).toContain('Do not rewrite passages');
+    expect(CAUSAL_CHILD_LANGUAGE_REVIEW_INSTRUCTIONS).toContain('same word or Hebrew root');
+    expect(CAUSAL_CHILD_LANGUAGE_REVIEW_INSTRUCTIONS).toContain('purposeful comic refrains in familiar wording');
+    expect(CAUSAL_CHILD_LANGUAGE_REVIEW_INSTRUCTIONS).not.toContain('Use familiar');
+    expect(CAUSAL_CHILD_LANGUAGE_REVIEW_INSTRUCTIONS).not.toContain('replace it consistently');
+    for (const text of [STORY_INSTRUCTIONS, NARRATIVE_CRAFT_INSTRUCTIONS, STORY_EDITOR_INSTRUCTIONS]) {
       expect(text).not.toContain(CAUSAL_CHILD_LANGUAGE_INSTRUCTIONS);
+      expect(text).not.toContain(CAUSAL_CHILD_LANGUAGE_REVIEW_INSTRUCTIONS);
+    }
     const book = (await Promise.resolve(h.runner.snapshot())).draftCritiques![0];
     expect(book.context.projection.findings).toEqual([]);
   });

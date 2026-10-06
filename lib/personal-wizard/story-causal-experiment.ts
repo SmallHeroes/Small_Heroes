@@ -35,6 +35,7 @@ if (STORY_INSTRUCTIONS.split(legacyAttemptClause).length !== 2 || !STORY_EDITOR_
 export const CAUSAL_STORY_INSTRUCTIONS = STORY_INSTRUCTIONS.replace(legacyAttemptClause, '') +
   '\nA failed attempt is optional. A boundary, negotiation, helping another character, changed goal or creative compromise can carry resilience. Do not require all these or impose the same sequence on every book.';
 export const CAUSAL_CHILD_LANGUAGE_INSTRUCTIONS = '\nUse familiar everyday Hebrew suited to the supplied child age in narration, dialogue and planned spoken phrases. Do not use rare, technical, archaic or ornate vocabulary when a familiar concrete expression communicates the action. Avoid dense inflections and accidental repetition of the same word or Hebrew root in nearby sentences; do not swap in obscure synonyms. If an unfamiliar term carries a repeated action or world rule, replace it consistently with a familiar description; preserve its function, not the rare word. Preserve essential names, clear referents, rhythmic counting and purposeful comic refrains in familiar wording. Simplify difficult wording while preserving the refrain\'s timing and function. Voice examples demonstrate personality, not lines to copy verbatim. Judge actual comprehension and read-aloud flow, not a fixed vocabulary or repetition quota.';
+export const CAUSAL_CHILD_LANGUAGE_REVIEW_INSTRUCTIONS = '\nAssess whether the supplied prose uses familiar everyday Hebrew suited to the child age. Ground concerns about rare, technical, archaic or ornate words, dense inflections, or accidental repetition of the same word or Hebrew root in the actual text and its effect on comprehension and read-aloud flow. Distinguish purposeful comic refrains in familiar wording, rhythmic counting, essential names and clear referents from accidental repetition. Before recommending simplification, identify whether the wording carries a clue, world rule, character voice or comic timing; judge how its function could survive simpler language, not whether it should be deleted. Voice examples demonstrate personality, not lines to copy verbatim. Do not rewrite passages, require obscure synonyms or impose a fixed vocabulary or repetition quota. Classify stylistic preferences separately from supported reading problems.';
 export const CAUSAL_NARRATIVE_CRAFT_INSTRUCTIONS = NARRATIVE_CRAFT_INSTRUCTIONS.replace(legacyDeadlineClause, conditionalDeadlineClause) +
   CAUSAL_CHILD_LANGUAGE_INSTRUCTIONS +
   '\nAllocate narrative space for brief.child.age and brief.beats, not only word length. Balance essential rules, secondary characters and transitions against room to experience important discoveries, encounters and choices. Simplify a short young-child book before crowding its central moment; develop a longer adventure rather than stretching one event. There is no fixed count of rules, characters, places or action beats. Quiet, playful and wondering moments may matter.' +
@@ -223,8 +224,10 @@ function assertCausalReadingEvidence(packet: CausalReviewPacket,
 }
 /** New model-wire contract. Legacy quote compiler above is archival/readback only. */
 export function causalSourceReviewPacket(packet: CausalReviewPacket) {
-  return prepareSourceCitationReview(packet, CAUSAL_CHILD_LANGUAGE_INSTRUCTIONS);
+  return prepareSourceCitationReview(packet, CAUSAL_CHILD_LANGUAGE_REVIEW_INSTRUCTIONS);
 }
+/** packetDigest binds the legacy source packet (manifest.sourcePacketDigest).
+ * sourceEvidence.output.packetDigest binds the numbered wire body (manifest.packetDigest). */
 export function compileCausalSourceReading(packet: CausalReviewPacket, raw: unknown) {
   try {
     const resolved = compileSourceCitationReview(causalSourceReviewPacket(packet), raw);

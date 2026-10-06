@@ -45,7 +45,9 @@ export function sourceUnits(text: string, pageNumber: number, side: Unit['side']
 }
 /** Normalize this secondary check only. Never normalize the quotation itself. */
 export function citationTokens(text: string): string[] {
-  return text.normalize('NFC').replace(/[\u0591-\u05BD\u05BF-\u05C2\u05C4-\u05C5\u05C7]/gu, '')
+  return text.normalize('NFC').replace(/\p{Cf}/gu, '')
+    .replace(/[\u0591-\u05BD\u05BF-\u05C2\u05C4-\u05C5\u05C7]/gu, '')
+    .replace(/(\p{L})['’"׳״](?=\p{L})/gu, '$1')
     .match(/[\p{L}\p{N}]+/gu) ?? [];
 }
 
@@ -62,7 +64,7 @@ export function prepareSourceCitationReview(packet: Packet, languageInstructions
   const oldQuote = 'Every finding quote must be a contiguous verbatim substring copied from the cited version\'s actual page text at that pageNumber, not a paraphrase or a quote from the brief/title/plan. A literal quote proves provenance, not the truth of your interpretation.';
   if (packet.instructions.split(oldQuote).length !== 2) fail('critic_binding');
   const instructions = packet.instructions.replace(oldQuote,
-    'For every citation return startId and endId from the supplied source units, on the same page and version, in order, spanning at most four units. Do not return a quotation or calculate character offsets. Include a contiguous 2 to 4 word anchor copied from that range (one word only if the range has only one word). Punctuation and Hebrew nikud are ignored only in this anchor check. Preserve letters, word order and negation. IDs and anchors establish location, not support for your interpretation. Do not cite brief, title, plan or the unavailable version.') + languageInstructions;
+    'For every citation return startId and endId from the supplied source units, on the same page and version, in order, spanning at most four units. Do not return a quotation or calculate character offsets. Include a contiguous 2 to 4 word anchor copied from that range (one word only if the range has only one word). Ignore Hebrew nikud, invisible formatting marks and in-word geresh/apostrophe marks in this anchor check only; other punctuation separates words. Preserve letters, word order and negation. IDs and anchors establish location, not support for your interpretation. Do not cite brief, title, plan or the unavailable version.') + languageInstructions;
   const { instructions: _instructions, manuscript: _manuscript, original: _original, revised: _revised, ...metadata } = packet;
   const body = { ...metadata, citationVersion: SOURCE_CITATION_VERSION, sourcePacketDigest: digest(packet),
     instructionsDigest: digest(instructions),

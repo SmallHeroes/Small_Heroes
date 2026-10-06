@@ -78,8 +78,10 @@ citation selects up to four whole units (at most 640 code units), never slices o
 normalizes its quotation. This derived-span bound is explicitly different from
 the preserved legacy model-written quotation limit of 220 characters. Existing
 six-card/12,288-byte editorial and full-wire limits still apply and may omit whole
-cards with recorded reasons. Citation tokens ignore Hebrew marks/punctuation,
-not letters, token order or negation. A one-word source supports a one-word anchor.
+cards with recorded reasons. Citation tokens ignore Hebrew marks and invisible
+formatting and join in-word apostrophe/geresh forms; other punctuation separates
+words. They preserve letters, token order and negation. A one-word source supports
+a one-word anchor.
 Anchors may collide; a negative control demonstrates that provenance is not truth.
 
 Canonical v1 packet builders and their digests are preserved. New serialized
@@ -88,6 +90,18 @@ source digests, disjoint IDs and citationVersion. Probe/comparison manifests are
 v2. New compiled readings retain sourceEvidence, which is recompiled against the
 exact source during editorial-context validation. There is no legacy fallback on
 a modern model response. Empty identity/schema probes remain separate.
+
+Digest domains for verification (the existing field names are not renamed):
+
+| Value | Pair it with | Meaning |
+| --- | --- | --- |
+| compiled reading.packetDigest | manifest.sourcePacketDigest and wire packet.sourcePacketDigest | Digest of the unchanged legacy canonical packet |
+| sourceEvidence.output.packetDigest | manifest.packetDigest and prepared review.packetDigest | Digest of the numbered wire body |
+| wire packet.instructionsDigest | digest of separately delivered review instructions | Binds the instructions sent exactly once |
+
+A new reader instruction changes the wire body's digest, not the legacy source
+packet digest. Evidence produced under other instructions must not be re-sealed
+or silently reused. The actual new paid corpus is empty at this correction.
 
 Local validation before the code commit: tsc0; 613/613 across nine focused files
 plus 7/7 workload-classifier tests. The first focused run exposed a test-fixture
@@ -171,3 +185,81 @@ family state is changed. Final successor records only these three Markdown docs.
 No independent PASS, literary gain, public integration or release readiness is
 claimed. External CLAUDE_HANDOFF.md names exact code/document review ranges and
 contains copy-ready inspection/push commands; push remains unauthorized here.
+
+### Independent HOLD and corrective scope (2026-10-06)
+
+Claude Code independently reviews code7e94cf98..8935beb0 and docs8935beb0..
+06ac5d8f: HOLD, P0=0/P1=0/P2=1/P3=3. Its own tsc0/622tests,41attacks,
+15of18caught mutations,22readings/79validquotes/oneinvalid/425preserved files
+support the earlier claims without awarding literary or release acceptance.
+The full gate was inspected from our log, not independently rerun. Report:
+scratchpad/qa-cite/CLAUDE-QA-CITATIONS-8935beb0.md in the retained Claude session.
+
+Observed defect: an in-word geresh/apostrophe splits a familiar word or child
+name into two tokens. A compliant four-word anchor can therefore fail the whole
+diagnostic run. Invisible formatting marks can cause the same mismatch.
+Expected: these marks do not alter anchor word identity/count; letters, order,
+negation, side/page/range and every exact source quotation remain authoritative.
+Root cause is the normalization order before letter/number token extraction,
+not the catalogue or model schema. The old replay corpus barely exercised it.
+
+Corrective milestone stays in this task/worktree on the same branch, based on
+clean06ac5d8f (38ahead of cached origin). Codex is sole writer; Claude's detached
+8935beb0 reviewer and other protected/site trees stay read-only and untouched.
+Order: pin the geresh/format defect with compile-path regressions; strip Hebrew
+marks and invisible formatting, join only in-word apostrophe/geresh forms; pin
+the three surviving guards individually; use reader-facing language criteria;
+document the two packet digest domains without renaming public fields; verify,
+commit explicit paths and supply the independent re-gate brief.
+
+Acceptance: exact/dropped/alternate in-word marks accept 2-4word anchors; changed
+letters, ordering, missing negation and five words reject. Exactly four same-page
+units pass and five fail that bound; one word fails on a multiword range; archival
+construction rejects an otherwise valid modern reading. Each new guard test must
+fail if only its targeted clause is weakened. Reader guidance evaluates rather
+than rewrites; writer guidance stays byte-identical. Existing archive replay and
+wire/capacity checks must remain valid. Source-derived modern digests intentionally
+change with the clarified instructions; there are no saved paid modern readings
+to migrate. Historical legacy packets remain unchanged and explicitly readable.
+
+Stop-check: general correction within Guy's approved milestone, not a new stage,
+literary rule, tokenizer/NLP subsystem, provider, fallback or product decision.
+No fuzzy letters, name special cases, automatic retries or failure isolation.
+0provider calls/0renders/0USD; no push/deploy/key write. No paid run is implied.
+Rollback is a focused revert after review, never a worktree reset. Full check is
+still required, but any inherited RED gate remains a release blocker. Independent
+Claude must falsify normalization strictness, guard-specific tests, provenance,
+digest pairing, instruction roles, compatibility and evidence preservation.
+
+### Corrective verification before commit
+
+The source citation spec grows from 29 to 48 tests, without deleting a test.
+Against the pre-fix tokenizer it reports 13 failures, all new positive mark cases;
+with the correction it passes 48/48. The full focused set passes 641/641 across
+10 files; tsc exits 0. Actual production clauses are temporarily weakened one at
+a time: M07 changes the four-unit boundary, M13 removes the one-word restriction,
+M03 removes the archival refusal. Each dedicated spec fails only its intended
+case; source SHA fingerprints confirm full restoration afterward. These are
+root's regression controls, not a fresh independent review or an 18-mutation run.
+
+Reader wording now assesses language and forbids rewriting. The writer block
+and all three legacy packet builders compare identically against `06ac5d8f`.
+Actual runner tests check the appropriate block exactly once and absence of the
+other block. Only the new wire instructions/digest change. Public writer/editor,
+semantic audit, text review, runner/host/probe/adapters and package.json are
+unchanged in this corrective diff. No new library or SDK migration is needed.
+
+Replay again maps 79 quotes in 22 readings, rejects the one fabricated old quote,
+skips 12 unusable receipts and preserves all 425 historical files. An additional
+62 prior milestone and Claude scratch files retain SHA/size/mtime. The six known
+calibration reservations are 952078,964879,965759,952958,946413,959214 microUSD,
+each below its existing 1 USD slot. These bounds use recorded rates, not a fresh
+price check or real charge. A first audit-helper run used an incorrect family
+prefix and stopped before saving its report; the exact recorded family fixes
+that helper selection, not production code or evidence.
+
+No paid new source-contract reading exists to migrate. The original independent
+HOLD is not overwritten: a corrective Claude re-gate is still required. The
+literal full gate will be run at the immutable code commit and recorded with
+native status and unchanged source fingerprints. $0, no provider, render, push
+or deployment.

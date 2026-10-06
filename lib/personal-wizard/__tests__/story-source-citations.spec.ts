@@ -71,6 +71,54 @@ describe('code-derived source citations, no providers', () => {
     const archival = causalArchivalDraftCritiqueContext(f.prepared, f.doc, stripped);
     expect(archival.projection.version).toBe('source-bound-draft-critique/v1');
   });
+  it('archival construction refuses an otherwise valid modern reading', async () => {
+    const f = await fixture(), modern = compileCausalSourceReading(f.packet, reading(f.review));
+    expect(causalDraftCritiqueContext(f.prepared, f.doc, modern).projection.version).toBe('source-bound-draft-critique/v2');
+    expect(() => causalArchivalDraftCritiqueContext(f.prepared, f.doc, modern)).toThrow('draft_critique_binding');
+  });
+  it.each([
+    ['ג׳וי מצביעה על הפרח.', 'ג׳וי מצביעה על הפרח'],
+    ['ג׳וי מצביעה על הפרח.', 'גוי מצביעה על הפרח'],
+    ['ג׳וי מצביעה על הפרח.', "ג'וי מצביעה על הפרח"],
+    ['ג׳וי מצביעה על הפרח.', 'ג’וי מצביעה על הפרח'],
+    ['גֶ׳וי מצביעה על הפרח.', 'גוי מצביעה על הפרח'],
+    ['צ׳יפס עם ג׳ירפה.', "צ'יפס עם ג'ירפה"],
+    ['צ׳יפס עם ג׳ירפה.', 'ציפס עם גירפה'],
+    ['ד״ר לוי מגיע עכשיו.', 'דר לוי מגיע עכשיו'],
+    ['ד"ר לוי מגיע עכשיו.', 'ד״ר לוי מגיע עכשיו'],
+    ["אפצ'י! הוא מנגב את האף.", "אפצ'י הוא מנגב את"],
+    ['נטע אומרת של\u200fום עכשיו.', 'נטע אומרת שלום עכשיו'],
+    ['נטע אומרת שלום עכשיו.', 'נטע אומרת של\u200fום עכשיו'],
+    ['\u202aג׳וי מצביעה על הפרח.\u202c', 'גוי מצביעה על הפרח'],
+  ])('normalizes anchor marks without changing the source quote: %s / %s', async (text, anchor) => {
+    const f = await fixture(), packet = structuredClone(f.packet);
+    packet.manuscript.pages[0].text = text;
+    const review = causalSourceReviewPacket(packet), raw = reading(review);
+    raw.findings[0].original[0].anchor = anchor;
+    expect(compileCausalSourceReading(packet, raw).findings[0].original[0].quote).toBe(text);
+    expect(raw.findings[0].original[0].anchor).toBe(anchor);
+  });
+  it.each([
+    ['ג׳וי מצביעה על הפרח עכשיו.', 'גוי מצביעה על הפרח עכשיו'],
+    ['ג׳וי מצביעה על הפרח.', 'גאי מצביעה על הפרח'],
+    ['ג׳וי מצביעה על הפרח.', 'מצביעה גוי על הפרח'],
+    ['ג׳וי לא מצביעה על הפרח.', 'גוי מצביעה על הפרח'],
+  ])('anchor normalization never relaxes count, letters, order or negation: %s / %s', async (text, anchor) => {
+    const f = await fixture(), packet = structuredClone(f.packet);
+    packet.manuscript.pages[0].text = text;
+    const review = causalSourceReviewPacket(packet), raw = reading(review);
+    expect(compileCausalSourceReading(packet, raw).findings).toHaveLength(1);
+    raw.findings[0].original[0].anchor = anchor;
+    expect(() => compileCausalSourceReading(packet, raw)).toThrow('critic_evidence');
+  });
+  it('a one-word anchor cannot select a multiword range', async () => {
+    const f = await fixture(), packet = structuredClone(f.packet);
+    packet.manuscript.pages[0].text = 'נטע לא מוותרת.';
+    const review = causalSourceReviewPacket(packet), raw = reading(review);
+    expect(compileCausalSourceReading(packet, raw).findings).toHaveLength(1);
+    raw.findings[0].original[0].anchor = 'נטע';
+    expect(() => compileCausalSourceReading(packet, raw)).toThrow('critic_evidence');
+  });
   it.each(['unknown', 'wrong-page', 'wrong-version', 'anchor', 'reversed', 'range', 'cross-page', 'extra-quote', 'digest', 'empty', 'kind'])('rejects %s without silently dropping a finding', async mode => {
     const f = await fixture(), raw: any = reading(f.review), citation = raw.findings[0].original[0];
     if (mode === 'unknown') citation.startId = citation.endId = 'o-p1-u999';
@@ -141,10 +189,11 @@ describe('code-derived source citations, no providers', () => {
     const f = await fixture(), packet = structuredClone(f.packet); packet.manuscript.pages[0].text = 'כן';
     const r = causalSourceReviewPacket(packet), raw = reading(r);
     expect(compileSourceCitationReview(r, raw).findings[0].original[0].quote).toBe('כן');
-    packet.manuscript.pages[0].text = 'נטע לא מוותרת. '.repeat(40);
+    packet.manuscript.pages[0].text = 'נטע לא מוותרת. '.repeat(70);
     const long = causalSourceReviewPacket(packet), range = reading(long);
-    range.findings[0].original[0].endId = long.catalogue[2].id;
-    expect(compileCausalSourceReading(packet, range).findings[0].original[0].quote).toBe(long.catalogue.slice(0, 3).map(u => u.text).join(''));
+    expect(long.catalogue.slice(0, 5).every(u => u.pageNumber === 1 && u.side === 'original')).toBe(true);
+    range.findings[0].original[0].endId = long.catalogue[3].id;
+    expect(compileCausalSourceReading(packet, range).findings[0].original[0].quote).toBe(long.catalogue.slice(0, 4).map(u => u.text).join(''));
     range.findings[0].original[0].endId = long.catalogue[4].id;
     expect(() => compileCausalSourceReading(packet, range)).toThrow('critic_evidence');
   });
