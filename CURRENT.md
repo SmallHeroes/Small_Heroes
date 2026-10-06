@@ -1,5 +1,45 @@
 # SmallHeroes — Current Technical State
 
+## New text book after citation PASS completed 2026 10 06
+
+Guy approves one fresh text-only sample. The unchanged single-book driver runs
+once at frozen `e42d6a13`, using the previously reviewed code plus its docs-only
+successor, fresh approval-derived family
+`personal-calibration-fd1eaaba4a36ccf2f07f9152918170f5-book`. Fictional Tamar5,
+Boni, 8 spreads, no selected emotional difficulty. No images/audio/UI/push.
+Codex reads the complete plan and admits it without an additional paid synopsis
+opinion. No replan, provider retry, family resume or manual story edit occurs.
+
+Opus5.5 plans/authors, Astra reads the original, fresh Opus5.5 edits, blind Astra
+reads the final and compares. All seven logical dispatches complete; native
+Node child exits 0. Title: "קפטן גרב והענן שצחק", 466 original/480 edited words.
+New source-ID/anchor citations compile in all three live readings. Both families
+seal normally; runtimeEligible remains false. Root's 1642 offline assertions
+include 512 old-file SHA/size/mtime checks, exact source recompilation and cost,
+session, citation and export checks; these are not independent QA or unit tests.
+39 paid evidence files are inventoried and unchanged readable copies exported.
+
+Known estimate totals 1.399261 USD: Opus Max list equivalent 1.065697 plus Astra
+0.333564 at conservative recorded rates. Reservation/allowance 11.588803 is not
+spend or a guaranteed invoice cap. Unknown attempt costs: 0. No separately paid
+synopsis call. Fresh official price check supports the unchanged conservative
+ceilings; no model, prompt, cap or source change was needed for this trial.
+
+The editor clarifies cloud/boat wetness and route staging. Original and final
+Astra each retain the same polish-level naming syntax issue on spread8; it was
+not forwarded under current material-only filtering. Comparison reports one
+meaningful and one polish improvement, plus one preference about threat tone,
+not a blocking regression. Age/register improvement is not proved; root separately
+notes possible unfamiliar wording. One edited spread has 66 words versus the
+soft65 target, not a binding failure. No product/literary acceptance is claimed.
+
+Guy can read STORY_EDITED_HE.md and STORY_ORIGINAL_HE.md in visualization folder
+single-book-calibration-20261006-approved-12, or the engine's saved HTML viewer.
+The next useful decision is genuine minor-note transfer to the editor; no
+additional paid book is started here. Full release gate remains RED, six-book/long
+coverage remains incomplete, and public wizard/QA rollout is unchanged. See
+docs/ai-workflow/PERSONAL_SOURCE_CITATION_LIVE_BOOK_20261006.md.
+
 ## Source citation milestone independently passed 2026 10 06
 
 Claude Code independently re-gates `06ac5d8f..3a271d97` and the docs successor

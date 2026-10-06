@@ -10,6 +10,18 @@ This roadmap records technical milestone state. Guy can change product priority 
 
 ### P-personal source-derived citations and everyday Hebrew (2026-10-06)
 
+- One approved fresh 8-spread Tamar5/Boni text book completes at `e42d6a13` with
+  no chosen emotional difficulty. Opus plan/author/fresh editor and Astra
+  original/final/comparison, seven logical calls, no repair/retry/resume. Native
+  child exit0; original466/edit480 words; source-bound modern critics complete.
+  Estimate1.399261USD (Max list1.065697 + API0.333564), not invoice; allowance
+  11.588803 not spend. Root1642 offline assertions,512 old files preserved and
+  39 new paid artifacts inventoried; no independent paid-evidence PASS.
+  Editor improves two ambiguities but a genuine polish syntax note still never
+  reaches it and remains in the final. Minor-note transfer is the next scoped
+  fix, not manual book editing. Human reading next; fullRED/public/visual and
+  six-book quality gates stay open. No push, deployment or added provider loop.
+
 - Claude Code's independent re-gate passes `06ac5d8f..3a271d97` and docs through
   `4d0ece24`. Combined technical PASS covers exactly `7e94cf98..4d0ece24`; the
   original P2 and three P3 groups close. Optional P3-A/M24 (reader instruction
