@@ -4,7 +4,7 @@ import path from 'node:path';
 import { z } from 'zod';
 import { singleBookPolicySchema } from '../../scripts/personal-single-book-calibration';
 import { exclusiveJson, fencedText, realDirectory } from '../../scripts/personal-causal-trial-journal';
-import { gitAt } from '../../scripts/personal-story-frozen-engine';
+import { gitAt } from '../../scripts/personal-source-git';
 import { preparePersonalStory } from './story-writer';
 import { resolvePersonalWizardOptions } from './options';
 import { reviewedTextAuthorizationSchema, reviewedTextDigest, assertReviewedTextAuthorization } from './reviewed-text-authorization';

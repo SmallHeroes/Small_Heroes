@@ -1,5 +1,37 @@
 # SmallHeroes — Current Technical State
 
+## Native wizard actual-route compiler boundary correction (2026-10-06)
+
+Browser activation on e5c27398 exposed a real GET500: native route imports
+the offline frozen-source compiler through three Git-helper edges, making Next
+attempt to parse esbuild's .d.ts file. No book provider call or queue claim ran.
+Root fixes the dependency, not authentication or Next's build-error settings:
+gitAt/gitEnvironment move unchanged into a Git-only core; the offline compiler
+re-exports them for existing CLI callers, while bridge/calibration/host import
+the core directly. An offline API bundle regression forbids reaching the source
+compiler or esbuild runtime. No model, prompt, limits, approval or gate changes.
+
+Independent Claude re-gate ffc7c5ed..e5c27398 PASSes the test-only successor and
+closes initial Low2; three weaker-test notes and doc omissions remain Low,
+nonblocking. Its own code/Git inspection is distinct from root's tsc0/34 tests
+and 650 preservation checks. An earlier Claude response ended with a waiting
+message and is NOT a verdict. All raw review attempts are retained.
+
+Local auth now uses the independently pinned staging session pooler, not the
+main production .env. Two read-only checks found a working DB and Guy's existing
+account; normal dev OTP login completed in staging. The server holds no real
+provider/storage credential; only the explicit worker reads the authorized
+existing OpenAI key. Images, paid intake and legacy writers remain off. Edited
+manual/chip input validated through the real request route. Still no paid book.
+
+Correction validation: tsc exits 0; 233/233 across native bridge/routes,
+single-book calibration and causal host; 49/49 across both historical frozen
+trial specs. Actual authenticated Next UI now reports native availability,
+where the same route returned500 before the import separation. No paid POST or
+worker claim yet. Historical companion-trial harness inventory additionally
+includes the extracted core. Independent review of this correction pending;
+full check will be recorded separately, not inferred from these focused tests.
+
 ## Native wizard bridge independent code PASS; nonempty-reading test successor
 
 Actual native Claude Code independently PASSes EXACTLY c9c3ef6b..ffc7c5ed,

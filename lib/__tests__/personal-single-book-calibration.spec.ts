@@ -8,7 +8,7 @@ import { execFileSync, spawnSync } from 'node:child_process';
 import { EventEmitter } from 'node:events';
 import * as readline from 'node:readline';
 import * as adapters from '../../scripts/personal-causal-trial-adapters';
-import * as frozen from '../../scripts/personal-story-frozen-engine';
+import * as frozen from '../../scripts/personal-source-git';
 import { createSingleBookCalibration, prepareSingleBookCalibration, renderSingleBookText, singleBookOutcome, singleBookCalibrationCLI } from '../../scripts/personal-single-book-calibration';
 import { CausalFamilyJournal, CausalHostError } from '../../scripts/personal-causal-trial-journal';
 import { CausalTransportError, type TransportReply } from '../../scripts/personal-causal-trial-adapters';

@@ -14,7 +14,7 @@ import { createCausalTrialHost, causalHostPolicySchema, causalOutputCap, type Ca
 import { CausalFamilyJournal, CausalHostError, exclusiveText, fencedText, hostFail, realDirectory } from './personal-causal-trial-journal';
 import { CAUSAL_MODELS, createAstraCausalTransport, CausalTransportError, prepareCausalWire, wireReservation,
   type TransportReply, type WirePolicy } from './personal-causal-trial-adapters';
-import { gitAt } from './personal-story-frozen-engine';
+import { gitAt } from './personal-source-git';
 import { assertReviewedTextAuthorization, type ReviewedTextAuthorization } from '../lib/personal-wizard/reviewed-text-authorization';
 
 const sha = (b: string | Buffer) => createHash('sha256').update(b).digest('hex');

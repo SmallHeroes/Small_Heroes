@@ -2,6 +2,13 @@
 
 ## Local native wizard text connection (2026-10-06)
 
+- Actual authenticated browser route revealed GET500 from the offline esbuild
+  compiler dependency. Correcting all three Git-helper import paths via a
+  Git-only core, preserving old exports; new API bundle regression. Paid worker
+  remains unstarted until this corrective successor is committed/reviewed.
+- Test/docs re-gate ffc7c5ed..e5c27398 technical PASS, initial Low2 closed.
+  Read-only reviewer inspection distinct from root's 34 tests/tsc/preservation.
+
 - Independent native Claude technical PASS c9c3ef6b..ffc7c5ed; own690/690 and
   tsc0,650evidence files preserved. Five Low notes, no blocking findings. Not
   product/release/live acceptance or approval of the43 older pending commits.

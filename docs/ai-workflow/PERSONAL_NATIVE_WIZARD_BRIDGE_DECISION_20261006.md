@@ -1,5 +1,22 @@
 # Local wizard to native text engine — approved decision, 2026-10-06
 
+## Runtime corrective milestone within the approved scope
+
+On clean e5c27398 the authenticated real native GET failed with Next trying to
+parse esbuild/lib/main.d.ts. The root cause is three static imports of Git-only
+helpers from the offline source compiler. Correct all three edges using a
+one-way Git-only core; re-export old helper names for historical callers. Do not
+change Next external-package policy, ignore errors, weaken auth/source checks,
+or use the legacy author as a workaround. Same task/branch, sole Codex writer.
+
+Acceptance: the real Next native endpoint compiles and reports availability for
+the staging-authenticated operator, quote/owner/source/admission tests remain
+green, and an offline actual-API bundle regression excludes both the compiler
+and esbuild. Typecheck and focused tests before local commit, independent Claude
+review before the same one-book worker. Existing full repository RED remains a
+separate release blocker. No paid attempt has yet started; same $12 maximum.
+Rollback is the default-off native flag. Earlier paid evidence stays intact.
+
 ## Requirement and approval
 
 Guy explicitly approves the proposed local connection and ONE short text-book

@@ -3,7 +3,7 @@ import { NextRequest } from 'next/server';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import * as frozen from '../../../scripts/personal-story-frozen-engine';
+import * as frozen from '../../../scripts/personal-source-git';
 import * as journal from '../../../scripts/personal-causal-trial-journal';
 import * as adapters from '../../../scripts/personal-causal-trial-adapters';
 import { GET, POST } from '@/app/api/dev/personal-wizard/native-book/route';

@@ -5,7 +5,8 @@ import { tmpdir } from 'node:os';
 import { createHash } from 'node:crypto';
 import { EventEmitter } from 'node:events';
 import * as readline from 'node:readline';
-import * as frozen from '../../../scripts/personal-story-frozen-engine';
+import * as frozen from '../../../scripts/personal-source-git';
+import { build } from 'esbuild';
 import * as adapters from '../../../scripts/personal-causal-trial-adapters';
 import { causalTrialCohort } from '../../../scripts/personal-causal-cohort';
 import { nativeBridgeConfig, enqueueNativeBook, nativeQueueDirectory, readNativeStatus, queuedNativeRequest, claimNativeWorker, emptyNativeView,
@@ -118,6 +119,12 @@ async function execute(h: ReturnType<typeof setup>, mode: false | true | 'findin
   finally { if (old) Object.defineProperty(process.stdin, 'isTTY', old); else Reflect.deleteProperty(process.stdin, 'isTTY'); }
 }
 describe('one-approval local native wizard connector', () => {
+  it('the actual API bundle excludes the offline source compiler and esbuild runtime', async () => {
+    const bundled = await build({ entryPoints: [path.resolve('app/api/dev/personal-wizard/native-book/route.ts')],
+      bundle: true, platform: 'node', packages: 'external', write: false, metafile: true });
+    expect(Object.keys(bundled.metafile!.inputs).some(p => p.endsWith('personal-story-frozen-engine.ts'))).toBe(false);
+    expect(Object.values(bundled.metafile!.outputs).flatMap(o => o.imports).some(i => i.path === 'esbuild')).toBe(false);
+  });
   it('is default off and never lets a browser configure a key/model/worker', () => {
     expect(resolveNativeBookSettings({})).toBeNull();
     expect(resolveNativeBookSettings({ PERSONAL_WIZARD_PREVIEW: 'true', PERSONAL_WIZARD_NATIVE_BOOK_RUNNER: 'true' })).toBeNull();

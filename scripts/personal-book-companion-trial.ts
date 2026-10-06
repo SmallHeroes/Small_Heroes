@@ -138,7 +138,7 @@ export async function main(argv = process.argv.slice(2)) {
   const provenance = { engine: loaded.evidence, modelRequested: BOOK_TRIAL_MODEL, reasoning: 'medium',
     cases: plan.cases, slots: plan.slots, harnessSourceSha256: Object.fromEntries([
       'scripts/personal-book-companion-trial.ts', 'scripts/personal-book-companion-trial-guard.ts',
-      'scripts/personal-book-companion-cohort.ts', 'scripts/personal-story-frozen-engine.ts', 'scripts/personal-story-trial-guard.ts',
+      'scripts/personal-book-companion-cohort.ts', 'scripts/personal-story-frozen-engine.ts', 'scripts/personal-source-git.ts', 'scripts/personal-story-trial-guard.ts',
     ].map(file => [file, hash(gitAt(repo, ['show', `${commit}:${file}`]))])), noImagesOrAudio: true };
   if (!argv.length) { console.log(JSON.stringify({ dryRun: true, commit, root, cases: plan.cases.map(row => row.id),
     reserveUsd: 14.4716, budgetUsd: 15, maxProviderAttempts: 30, keyReads: 0, writes: 0, providerCalls: 0 })); return; }

@@ -12,7 +12,7 @@ import { resolvePersonalWizardOptions } from '../lib/personal-wizard/options';
 import { CausalFamilyJournal, CausalHostError, hostFail, realDirectory } from './personal-causal-trial-journal';
 import { CAUSAL_MODELS, CausalTransportError, createAstraCausalTransport, createOpusCausalTransport,
   prepareCausalWire, wireReservation, type CausalWire, type TransportReply, type WirePolicy } from './personal-causal-trial-adapters';
-import { gitAt } from './personal-story-frozen-engine';
+import { gitAt } from './personal-source-git';
 import { assertReviewedTextAuthorization, type ReviewedTextAuthorization } from '../lib/personal-wizard/reviewed-text-authorization';
 
 const rates = z.object({ inputMicroUsdPerToken: z.number().positive().finite(), outputMicroUsdPerToken: z.number().positive().finite() }).strict();
