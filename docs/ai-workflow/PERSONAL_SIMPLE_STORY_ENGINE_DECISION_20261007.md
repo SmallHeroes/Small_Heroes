@@ -99,12 +99,20 @@ seeds give structurally different books for the same child.
 
 ## 7. Validation
 
-- Unit tests (28) for: spine determinism and variety; prose-first exact page
-  schema with no candidate or gate slots; instruction size; acceptance parity
-  with the current writer; text-only options for all 15 companions; dash
-  normaliser; name variants (unpointed, plene, prefixed); hard and soft checks;
-  exactly two calls; editor findings; no third call or fallback; storyboard
-  compatibility.
+- Unit tests (30) for:
+  - spine determinism and variety;
+  - prose-first exact page schema with no candidate or gate slots;
+  - instruction size;
+  - output caps above measured use;
+  - acceptance parity with the current writer;
+  - text-only options for all 15 companions;
+  - the dash normaliser, including all dash forms;
+  - name variants (unpointed, plene, prefixed);
+  - hard and soft checks, including assumed parents and pointed sound words;
+  - exactly two calls and the editor findings;
+  - no third call or fallback;
+  - the coded compile failure;
+  - storyboard compatibility.
 - Live text-only trials with fictional profiles only, read critically by Claude
   and then by Guy. See the closeout for results and cost.
 

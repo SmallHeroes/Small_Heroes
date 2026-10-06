@@ -96,6 +96,10 @@ describe('simple story engine', () => {
     expect(normalizeStoryTypography('— שלום לך').text).toBe('שלום לך');
     expect(normalizeStoryTypography('הוא חיכה –').text).toBe('הוא חיכה');
     expect(normalizeStoryTypography('בלי מקפים כאן.')).toEqual({ text: 'בלי מקפים כאן.', dashes: 0 });
+    // Forms the current writer's four-character class misses, seen in model output.
+    for (const dash of ['‐', '‑', '‒', '―', '−', '­', '﹣', '－']) {
+      expect(normalizeStoryTypography(`בית${dash}ספר`)).toEqual({ text: 'בית ספר', dashes: 1 });
+    }
   });
 
   it('accepts unpointed, plene and prefixed names', () => {
@@ -113,6 +117,7 @@ describe('simple story engine', () => {
     expect(checkSimpleStory(p, story(p)).hard).toEqual([]);
     const cases: [(s: any) => any, string][] = [
       [s => ({ ...s, title: 'בר — ודיני' }), 'dash_in_prose'],
+      [s => ({ ...s, title: 'בר‑דיני' }), 'dash_in_prose'],
       [s => ({ ...s, pages: s.pages.map((pg: any, i: number) => i === 2 ? { text: pg.text + ' בלי מלחמה' } : pg) }), 'excluded_subject'],
       [s => ({ ...s, pages: s.pages.map((pg: any) => ({ text: pg.text.replaceAll('בר', 'הילד') })) }), 'child_name_missing'],
       [s => ({ ...s, pages: s.pages.map((pg: any) => ({ text: pg.text.replaceAll('דיני', 'הדרקונית') })) }), 'companion_name_missing'],

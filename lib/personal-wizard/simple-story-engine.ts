@@ -160,14 +160,19 @@ export function pagesMentioning(pages: readonly { text: string }[], variants: re
   return pages.filter(page => re.test(stripMarks(page.text))).length;
 }
 
-const DASH = /[-־–—]/u;
+/**
+ * Every hyphen and dash form, not only the four the current writer checks: the models also emit
+ * U+2010-U+2015 (for example a non-breaking hyphen), minus signs, soft hyphens and full-width forms.
+ */
+const DASH_CHARS = '\\-\\u00AD\\u05BE\\u2010-\\u2015\\u2212\\uFE58\\uFE63\\uFF0D';
+const DASH = new RegExp(`[${DASH_CHARS}]`, 'u');
 /** Typography only: compound joins become spaces, other dashes commas. Counted, never silent. */
 export function normalizeStoryTypography(text: string): { text: string; dashes: number } {
-  const dashes = (text.match(/[-־–—]/gu) ?? []).length;
+  const dashes = (text.match(new RegExp(`[${DASH_CHARS}]`, 'gu')) ?? []).length;
   if (!dashes) return { text, dashes };
   const out = text
-    .replace(/(?<=\p{L})[־-](?=\p{L})/gu, ' ')
-    .replace(/[ \t]*[-־–—]+[ \t]*/gu, ', ')
+    .replace(new RegExp(`(?<=\\p{L})[${DASH_CHARS}](?=\\p{L})`, 'gu'), ' ')
+    .replace(new RegExp(`[ \\t]*[${DASH_CHARS}]+[ \\t]*`, 'gu'), ', ')
     .replace(/(^|\n)[ \t]*,[ \t]*/gu, '$1')
     .replace(/([.!?:;,…]["״”'׳]?)[ \t]*,[ \t]*/gu, '$1 ')
     .replace(/,[ \t]*(?=["״”'׳]?[ \t]*(?:$|\n))/gu, '')

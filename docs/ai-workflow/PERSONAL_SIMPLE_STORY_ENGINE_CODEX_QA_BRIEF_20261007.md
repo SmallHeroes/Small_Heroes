@@ -28,7 +28,14 @@ Guy.
   - all 15 canon companions only through the explicit synthetic
     `textCanonOptions`.
 - **New** `lib/personal-wizard/__tests__/simple-story-engine.spec.ts`
-  (28 tests).
+  (30 tests). The full `lib/personal-wizard` folder is green at the closeout
+  commit: 37 files, 1,337 tests (1,335 at `7c71ff71`). `tsc` is clean.
+  `npm run check` was not run here; it was already red before this change.
+- **Commits:**
+  - `7c71ff71`: engine, runner, tests, decision and brief;
+  - `1aa67f42`: output headroom from measured usage, plus a coded compile
+    failure;
+  - the closeout commit: dash-class widening, closeout and doc updates.
 - **New** docs: the decision gate, this brief, and the closeout with the trial
   evidence.
 - No existing source file is modified.
@@ -59,9 +66,13 @@ injected, that the findings are deterministic, and that they derive only from
 
 ### 3. Hygiene parity with the current writer
 
-- The dash regex `/[-\u05be\u2013\u2014]/u`, the `imageDirection` marker and
-  the excluded-subject exact-phrase guard through `comparableText` should match
-  `story-writer.ts:178-182`.
+- The `imageDirection` marker and the excluded-subject exact-phrase guard
+  through `comparableText` should match `story-writer.ts:179-182`.
+- The dash class is deliberately a superset of `story-writer.ts:178`
+  (`[-\u05be\u2013\u2014]`). It also covers U+2010\u2013U+2015, U+2212, the soft
+  hyphen and full-width forms, after a model emitted U+2011.
+- **Separate finding for the current writer (not changed here):** its
+  four-character class lets those forms through Guy's no-dash rule.
 - Attack the new name check:
   - prefixed forms (ו, ה, ב, כ, ל, מ, ש);
   - plene and unpointed variants;
@@ -84,6 +95,17 @@ injected, that the findings are deterministic, and that they derive only from
   worker views for any assumption of `planning` or of a causal receipt.
 - `planning` is deliberately omitted (optional in the contract).
 - `accounting.providerCalls` is 2.
+
+**Reproduction trap.** `resolvePersonalWizardOptions()` resolves card art and
+voice samples relative to `process.cwd()`, and the options fingerprint is
+part of the request ID.
+
+- Run any replay of the trial results from the checkout root. From another
+  tree every result fails `source_binding`, which is a harness error, not an
+  engine one.
+- Results for the nine newer companions fail storyboard preparation with
+  `companion_unavailable`, because the legacy visual registry has no entry for
+  them. This is pre-existing and not caused by this change.
 
 ### 5. No public or production path change
 
