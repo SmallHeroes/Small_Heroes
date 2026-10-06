@@ -1,5 +1,22 @@
 # SmallHeroes — Current Technical State
 
+## Approved four outline comparison (2026-10-06)
+
+Guy approves four fresh Opus plans only, two old and two current resilience
+instructions with the exact same approved Bar/Dini short request. No prose,
+editor, Astra/OpenAI key, audio, image, website, push or deployment. Separate
+diagnostic script reuses the real planner schema/compiler, native wire and
+one-use journal, not the full-book reservation or its authority. $8 total Max
+list-equivalent ceiling: four $1.50 plan slots ($6) plus at most $2 independent
+QA/re-gate. No invoice guarantee. Root sole writer, base21403084/ahead52.
+Root tsc0;409/409 across four focused files, including31new guard cases.
+Four in-memory deliberate mutants are detected (cost, request binding, phase,
+saved-plan verification); zero provider.650historical files and14last-book
+files preserved. Independent review and paid plans are still pending at this
+implementation commit. Prior full gate remains RED; new gate will run on the
+frozen commit. No literary/consistency/release claim.
+Decision: docs/ai-workflow/PERSONAL_PLAN_COMPARISON_DECISION_20261006.md.
+
 ## Choice led resilience framing correction (2026-10-06)
 
 Guy approves the corrected Claude consultation direction. Root sole writer on
