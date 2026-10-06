@@ -1,5 +1,18 @@
 # SmallHeroes — Roadmap
 
+## Choice led resilience framing correction (2026-10-06)
+
+- Guy approves removal of the coping menu and compulsory emotional-ending
+  demonstration, preserving topic influence and no cure. ONLY one runtime
+  constant changes across shared personal and diagnostic creative callers.
+- Root939/939 across14actual files,tsc0;7new tests. Five frozen-base creative
+  calls fail the new assertions; reader wire,15characters and1..4schema stay
+  unchanged.650historical and14fresh output files preserved,0provider calls.
+- Fullcheck running; previous full gate RED and independent Claude QA pending.
+  No SDK/schema/model/stage/cap/retry change, new book, image, push or rollout.
+  Next bounded read-only review and separately approved plan-only comparison;
+  creative benefit/diversity remains unproved.
+
 ## Experience first and light fifteen-character literary canon (2026-10-06)
 
 - Guy approves all15 light/story-open profiles and ONE fresh short text trial

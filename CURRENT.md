@@ -1,5 +1,34 @@
 # SmallHeroes — Current Technical State
 
+## Choice led resilience framing correction (2026-10-06)
+
+Guy approves the corrected Claude consultation direction. Root sole writer on
+codex/personal-book-storyboard-bridge, clean base5f54af93/ahead50 before edits.
+ONLY runtime change: two clauses in shared RESILIENCE_INSTRUCTIONS. Remove the
+coping menu and compulsory modest-emotional-step ending; retain consequential
+chosen-topic choices, no fear cure, adventure_only without invented difficulty,
+mutual care and editorial evidence. No new plot instruction or motif blacklist.
+Public PERSONAL preview plan/manuscript/editor and diagnostic Opus calls share
+this constant; old catalogue/order flow and all switches remain unchanged.
+
+Root tsc0;939/939 across14 actual relevant files (281/281 targeted subset),
+including both replan paths. Seven new tests; no previous test removed. One
+earlier14-filter command matched only10existing files/655tests; corrected actual
+paths then ran14/939, not claimed as14in the earlier command.
+Read-only in-memory frozen-base negative control rejects5old actual creative
+call instructions and passes5new calls; exact source change is only the approved
+two-clause replacement. All3 reader wire/readings reproduce identically,15v4
+identities and moment admission0/1/4/5 remain unchanged.650historical SHA/size/
+mtime files and14fresh book SHA/size records preserved. No provider in these tests.
+
+Full npm run check is running; prior full gate remains RED, no new stability
+claim. Independent Claude technical QA pending. No new synopsis/book, API call,
+render, audio, SDK/package, schema/quota, model, caps, retry, website, push or
+deployment. Literary benefit is a hypothesis, not proved by text assertions.
+Decision: docs/ai-workflow/PERSONAL_CHOICE_LED_RESILIENCE_DECISION_20261006.md.
+Next: committed successor to Claude read-only review, then a separately bounded
+and approved plan-only comparison. Prior one-book spending permission consumed.
+
 ## Experience-first story and light fifteen-character canon (2026-10-06)
 
 Native Claude independently technical-PASSes91f16ac5..a9bb7567 and corrective

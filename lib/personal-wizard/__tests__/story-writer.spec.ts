@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createHash } from 'crypto';
-import { preparePersonalStory, writePersonalStory, STORY_INSTRUCTIONS, StoryWriterError, type StoryCall, type StoryProvider } from '../story-writer';
+import { preparePersonalStory, writePersonalStory, STORY_INSTRUCTIONS, RESILIENCE_INSTRUCTIONS, StoryWriterError, type StoryCall, type StoryProvider } from '../story-writer';
 import { personalStoryResultSchema } from '../story-contract';
 import { IntakeLedger } from '../intake-ledger';
 import { resolvePersonalWizardOptions, PROTOTYPE_COMPANION_ROSTER } from '../options';
@@ -35,6 +35,33 @@ const provider = (mutate?: (output: any, call: StoryCall) => unknown): StoryProv
 const run = (input = storyRequest(), p = provider(), ledger = new IntakeLedger(), config = settings, jobId = 's_storytest00001', signal = new AbortController().signal) => writePersonalStory({ prepared: preparePersonalStory(input, options), userId: 'operator', jobId, settings: config, ledger, provider: () => p, signal });
 
 describe('personal manuscript writer at the reviewed request boundary', () => {
+  it('removes exactly the coping menu and emotional ending imperative, preserving the remaining obligations', () => {
+    const before = `Resilience is a story principle, not a compulsory emotional worksheet. When a topic is deliberately chosen, make it affect events and the child's concrete choices: a boundary, requesting closeness/help, preparing for uncertainty or trying a different idea. Let the companion care and sometimes need the child's help too. End with a modest observable step, not a claim that fear vanished. In adventure_only mode, use uncertainty, flexibility and mutual help arising from fictional events without inventing a real difficulty for the child. Do not force the same coping sequence into every story. resilience.moments cite actual beats in this plan and what the child chooses/what helps there; this is proposed editorial evidence, not a diagnosis or benefit claim.`;
+    expect(RESILIENCE_INSTRUCTIONS).toBe(before
+      .replace(': a boundary, requesting closeness/help, preparing for uncertainty or trying a different idea', '')
+      .replace('End with a modest observable step, not a claim that fear vanished.', 'Do not claim that fear vanished.'));
+  });
+  it.each(['chosen_topic', 'adventure_only'] as const)('actual public %s plan and manuscript keep topic influence without the coping menu', async mode => {
+    const request = storyRequest();
+    if (mode === 'chosen_topic') {
+      request.noDifficulty = false;
+      request.facts.push({ id: 'f_hard00000001', kind: 'difficulty', value: 'רעשים חזקים', source: 'typed' });
+      request.intent = { kind: 'topic', topicId: options.topics[0].id };
+    }
+    const p = provider();
+    await run(request, p);
+    const calls = vi.mocked(p.generate).mock.calls.map(([call]) => call);
+    expect(calls.map(call => call.stage)).toEqual(['plan', 'manuscript']);
+    for (const call of calls) {
+      expect(call.instructions.split(RESILIENCE_INSTRUCTIONS)).toHaveLength(2);
+      expect(call.instructions).not.toContain('a boundary, requesting closeness/help');
+      expect(call.instructions).not.toContain('End with a modest observable step');
+      expect(call.instructions).toContain("When a topic is deliberately chosen, make it affect events and the child's concrete choices.");
+      expect(call.instructions).toContain('Do not claim that fear vanished.');
+      expect(call.instructions).toContain('without inventing a real difficulty for the child');
+      expect(JSON.parse(call.input).brief.resilienceMode).toBe(mode);
+    }
+  });
   it.each(PROTOTYPE_COMPANION_ROSTER)('supports %s independently of a topic', async (id) => {
     const result = await run(storyRequest('short', id));
     expect(result.runtimeEligible).toBe(false);

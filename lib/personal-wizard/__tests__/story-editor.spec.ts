@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { personalStoryboardFixture, fixtureEditorOutput } from './personal-storyboard-fixture';
-import { preparePersonalStory } from '../story-writer';
+import { preparePersonalStory, RESILIENCE_INSTRUCTIONS } from '../story-writer';
 import { resolvePersonalWizardOptions } from '../options';
 import { prepareStoryEdit, compileStoryEdit, assertStoryEditBinding, editorNeedsWork, storyEditorOutputTokens, storyEditorReservationUsd, STORY_EDITOR_INSTRUCTIONS } from '../story-editor';
 import { editedStoryResultSchema, STORY_EDITOR_CRITERIA } from '../story-editor-contract';
@@ -16,6 +16,17 @@ async function setup(length = 'short') {
   return { ...f, prepared, call, output: fixtureEditorOutput(call) };
 }
 describe('whole-story editing without product or render authority', () => {
+  it('the actual prepared public editor keeps topic/safety without prescribing an emotional ending', async () => {
+    const f = await setup();
+    expect(f.call.instructions.split(RESILIENCE_INSTRUCTIONS)).toHaveLength(2);
+    expect(f.call.instructions).not.toContain('a boundary, requesting closeness/help');
+    expect(f.call.instructions).not.toContain('End with a modest observable step');
+    expect(f.call.instructions).toContain("make it affect events and the child's concrete choices.");
+    expect(f.call.instructions).toContain('Do not claim that fear vanished.');
+    expect(f.call.instructions).toContain('without inventing a real difficulty for the child');
+    expect(STORY_EDITOR_CRITERIA).toContain('character_humour');
+    expect(STORY_EDITOR_CRITERIA).toContain('adventure_and_payoff');
+  });
   it.each(['short', 'medium', 'long'])('binds a complete edited %s manuscript and preserves original bytes', async length => {
     const f = await setup(length); const before = JSON.stringify(f.draftResult);
     f.output.manuscript.pages[0].text += ' נועה חייכה והציעה רעיון חדש.';

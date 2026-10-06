@@ -4,7 +4,7 @@ import { companionTrialCohort } from '../../../scripts/personal-book-companion-c
 import { fixtureAdventureSelection } from './story-planning-fixture';
 import { fixtureEditorOutput } from './personal-storyboard-fixture';
 import { resolvePersonalWizardOptions } from '../options';
-import { preparePersonalStory, STORY_INSTRUCTIONS, NARRATIVE_CRAFT_INSTRUCTIONS, ADVENTURE_SELECTION_INSTRUCTIONS, CANDIDATE_PERSONAL_FACT_INSTRUCTIONS } from '../story-writer';
+import { preparePersonalStory, STORY_INSTRUCTIONS, RESILIENCE_INSTRUCTIONS, NARRATIVE_CRAFT_INSTRUCTIONS, ADVENTURE_SELECTION_INSTRUCTIONS, CANDIDATE_PERSONAL_FACT_INSTRUCTIONS } from '../story-writer';
 import { STORY_EDITOR_INSTRUCTIONS } from '../story-editor';
 import { personalCharacterSchema, PERSONAL_CHARACTER_IDS, resolvePersonalCompanionCharacter } from '../companion-character';
 import { canonicalJson } from '../request-acceptance';
@@ -92,6 +92,33 @@ function freezeDeep<T>(value: T): T {
 }
 
 describe('limited causal experiment, not live provider or quality certification', () => {
+  it.each(['normal', 'benchmark'] as const)('actual %s creative calls retain choice-led resilience through automatic replan', async mode => {
+    const h = harness(1, call => call.stage === 'plan' ? planned(JSON.parse(call.input).brief, true) : defaultOutput(call),
+      new AbortController(), mode, false, mode === 'benchmark');
+    await h.runner.plan(); h.approve(); await h.runner.write();
+    const calls = vi.mocked(h.ports.generate).mock.calls.map(([call]) => call).filter(call => call.role === 'opus');
+    expect(calls.map(call => call.stage)).toEqual(['plan', 'replan', 'author', 'editor']);
+    for (const call of calls) {
+      expect(call.instructions.split(RESILIENCE_INSTRUCTIONS)).toHaveLength(2);
+      expect(call.instructions).not.toContain('a boundary, requesting closeness/help');
+      expect(call.instructions).not.toContain('End with a modest observable step');
+      expect(call.instructions).toContain("make it affect events and the child's concrete choices.");
+      expect(call.instructions).toContain('Do not claim that fear vanished.');
+      expect(call.instructions).toContain('without inventing a real difficulty for the child');
+    }
+  });
+  it('the digest-bound synopsis repair also receives the same relaxed guidance', async () => {
+    const h = harness(1, undefined, new AbortController(), 'normal', true);
+    await h.runner.plan(); await h.runner.repair(repairRequest(h)); h.approve(); await h.runner.write();
+    const calls = vi.mocked(h.ports.generate).mock.calls.map(([call]) => call).filter(call => call.role === 'opus');
+    expect(calls.map(call => call.stage)).toEqual(['plan', 'replan', 'author', 'editor']);
+    for (const call of calls) {
+      expect(call.instructions.split(RESILIENCE_INSTRUCTIONS)).toHaveLength(2);
+      expect(call.instructions).not.toContain('a boundary, requesting closeness/help');
+      expect(call.instructions).not.toContain('End with a modest observable step');
+    }
+    expect(h.ports.recordSynopsisRepair).toHaveBeenCalledOnce();
+  });
   it.each(PERSONAL_CHARACTER_IDS)('supports admitted %s text in the actual coordinator without a legacy topic role', async id => {
     const h = harness(), request = structuredClone(h.args.cases[0].request);
     request.companion = { id };
