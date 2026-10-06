@@ -2,6 +2,18 @@
 
 ## Local native wizard text connection (2026-10-06)
 
+- One authenticated actual-wizard8-spread fictional book completed at7f676644:
+  Opus5.5 plan/author/fresh editor, Astra original/final/comparison+probe;7calls,
+  1.477164USD known estimate,0unknown costs. Human-reading status only, no images.
+- Exact implementation/test/runtime successors independently technical-PASSed;
+  Low notes retained. Actual fullcheckRED:6336 ordinary passes/10prior matching
+  failures/73skip; resource635passes/3RPC errors. Not release/stability approval.
+- Saved source/revision/readings/HTML and exact story.md; actual wizard displays
+  completed text. One-use approval consumed; no new book/push/deploy authorized.
+  Next human reading, then separate native-source storyboard/visual continuity
+  adapter before an explicitly approved image sample.43older commits not gated
+  by the three successor reviews. Docs-only closeout itself not re-gated.
+
 - Actual authenticated browser route revealed GET500 from the offline esbuild
   compiler dependency. Correcting all three Git-helper import paths via a
   Git-only core, preserving old exports; new API bundle regression. Paid worker

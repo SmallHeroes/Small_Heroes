@@ -1,5 +1,41 @@
 # SmallHeroes — Current Technical State
 
+## Local wizard produced an Opus authored and edited text book (2026-10-06)
+
+Guy's approved one-book local trial completed at7f676644. Fictional Bar5/Odem/
+trampoline/noises/Dini/short/avoidwar entered through actual manual/chip UI,
+edited/deleted input retained truthful provenance; normal staging dev OTP auth.
+No real microphone decoding in this trial. Native Opus5.5 plan/author and fresh
+Opus editor; Astra original/final/comparison plus identity probe. Full synopsis
+read before authoring, no repair;7 logical calls,0 unknown costs. Book status
+text_ready_for_human_review; runtimeEligible:false, no literary/product/release
+acceptance or images, narration, order, public/QA activation, push or deployment.
+
+Book known estimate1.466289USD plus probe0.010875 =1.477164USD (API/Max estimate,
+not invoice); under12USD approved maximum. Saved native JSON/original/revision/
+readings/HTML, plus exactly verified8-page-body reading copy story.md in
+outputs/personal-calibration-acf5360c4d012b9d60a2ea3963b11bf2-book. Wizard displayed
+the completed revision and accounting. Original449words, revision463; original
+reading1 polish preference, final0 findings, comparison2 improvements/1preference.
+No material note was forwarded, so this live trial does not prove defect repair.
+All10 quote references verified;650 older SHA/size/mtime baselines unchanged.
+
+Native Claude independently technical-PASSes e5c27398..7f676644 (code/Git review,
+root282tests/tsc/runtime evidence not re-run). Initial and test-only ranges also
+passed; recorded Low notes remain. Fresh fullcheck at7f676644 stays RED/native1:
+ordinary6336pass/10matching prior failure names/73skip; resource635pass/3RPC errors.
+No release/stability acceptance. The43 earlier commits are not covered by these
+three successors' reviews. Code review Max list estimates are development usage
+separate from book allowance; one waiting-only response was not counted as PASS.
+
+The local loopback server remains open for Guy's existing account to view this
+result; it has no real provider/storage key. Approval is consumed, no second
+book or automatic replay. Input is memory-only; saved story.md/HTML survive it.
+Next: Guy reads; native-to-storyboard source binding/continuity remains separate,
+then an explicitly scoped image sample. No legacy-render receipt is fabricated.
+Detailed closeout: docs/ai-workflow/PERSONAL_NATIVE_WIZARD_TEXT_CLOSEOUT_20261006.md.
+This docs-only closeout has no independent re-gate of its own.
+
 ## Native wizard actual-route compiler boundary correction (2026-10-06)
 
 Browser activation on e5c27398 exposed a real GET500: native route imports
