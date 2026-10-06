@@ -10,6 +10,23 @@ This roadmap records technical milestone state. Guy can change product priority 
 
 ### P-personal source-derived citations and everyday Hebrew (2026-10-06)
 
+- The newly approved unchanged-engine3book experiment at0f13e967 stops on its
+  second case's invalid Astra anchor. Eitan7/Boni completes with one plan repair,
+ 612→623words and a retained meaningful final character note. Yael3/Anat has a
+ 450word draft only:5word/nonmatching anchor, critic_evidence, no editor. Mika5/
+ Dini never starts. ONE of THREE complete, no retry/family resume/manual fix.
+ Pipeline12logical attempts estimate3.275612USD plus separate native Claude
+ evidenceQA list equivalent0.760091USD, combinedabout4.035703, not invoice.
+ Approved aggregate36USD; book planned allowances34.766409 are not spend.
+ Claude evidence/diagnosis PASS has fourLow precision groups and limited reads:
+ own1938assertions,569historical/72paid files, finalblindness, actual seals/exits.
+ Root clarifies independent anchor causes and rejects a factual same-digest note
+ with full-bundle eecaf3d0→fc21c42a proof; addendum/docs not re-gated. No literary/
+ product/release/prior42commit PASS. tsc0,145/145 unchanged focused; fullRED stays.
+ Next scoped decision: malformed critic handling without evidence weakening or
+ hidden omissions/retries. No engine/site/visual/push/deploy changes. See
+ PERSONAL_UNCHANGED_THREE_BOOKS_20261006.md; partial original/edit copies retained.
+
 - One approved fresh 8-spread Tamar5/Boni text book completes at `e42d6a13` with
   no chosen emotional difficulty. Opus plan/author/fresh editor and Astra
   original/final/comparison, seven logical calls, no repair/retry/resume. Native

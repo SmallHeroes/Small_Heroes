@@ -1,5 +1,54 @@
 # SmallHeroes — Current Technical State
 
+## Unchanged engine three book experiment stopped safely 2026 10 06
+
+Guy approves three additional fictional text books under a new36USD estimate
+ceiling. The same engine runs at frozen0f13e967, with8spreads and unchanged
+models/prompts/caps/projection. Existing key/Max login are reused; no images,
+audio, public wizard/site change, push or deployment. All569 historical baseline
+files preserve SHA/size/mtime. The outcome is ONE of THREE complete, not three
+successful books or consistent-quality proof.
+
+Eitan7/Boni completes after one defects-only reserved plan repair and a fresh
+source-bound WRITE. Original612/edit623words;8logical attempts including probe,
+2.410958USD estimate. Opus plans/authors/fresh-edits; Astra original/final/
+comparison use source-derived citations. Original reader has zero findings;
+final reader retains one meaningful characterization note; comparison has two
+polish improvements. The note's all-traits interpretation is disputed, not
+silently removed or called fixed. Root reads original before edit/model verdicts.
+
+Yael3/Anat writes450words after WRITE, then original Astra fails critic_evidence.
+Its anchor "נשמור אותו לצעד האחרון מתנ" has5tokens and fails source matching.
+Family seals coordinator_failed, child exits1; no editor/final/comparison.
+4logical attempts including probe,0.864654USD estimate. The guard rejects an
+actually invalid model anchor, not the earlier tokenizer false rejection.
+Offline4word control and two separate length/mismatch controls never modify the
+raw response or resume the family. Mika5/Dini is not started; no replacement run.
+
+Pipeline total12logical attempts/3.275612USD known estimate,unknown costs0.
+Separate automatic native Claude Code evidence QA is capped at1USD inside the
+approved36USD aggregate; reported Max list equivalent0.760091USD. Combined
+reported estimate is about4.035703USD, NOT cash/invoice. Reservations are not
+spend. Native internal HTTP/turn counts and provider routing remain unverified.
+
+Claude PASS covers execution evidence/diagnosis at0f13e967 only: own1938
+read-only assertions,569historical/72paid files, actual model stage/exit/seal
+checks and explicit final-review blindness inspection. Four Low precision groups
+remain in the immutable report, with scope/read limitations. Root clarifies
+the two anchor failures, checks eight native/probe cost records and disproves
+its same-plan/replan-sourceDigest wording: eecaf3d0 becomes fc21c42a, both digest
+the full bundle. No separate planningDigest is in the review, but the changed
+full-bundle binding is real. This root precision addendum/docs successor has no
+independent re-gate; QA is not literary/product/release PASS or prior42commit QA.
+
+Text copies: visualization/unchanged-engine-three-books-20261006/case1/
+STORY_EDITED_HE.md and case2/STORY_ORIGINAL_HE.md (draft only). The release gate
+remains RED; tsc0 and unchanged focused145/145 are recorded, no full rerun.
+Next decision: bounded handling of malformed critic evidence, without dropping
+findings, weakening provenance, manual story fixes or restarting consumed families.
+No further paid book starts from this closeout. See
+docs/ai-workflow/PERSONAL_UNCHANGED_THREE_BOOKS_20261006.md.
+
 ## New text book after citation PASS completed 2026 10 06
 
 Guy approves one fresh text-only sample. The unchanged single-book driver runs
