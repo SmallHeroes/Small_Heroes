@@ -20,18 +20,18 @@ export const SIMPLE_STORY_ENGINE_VERSION = 'personal-simple-story/v1' as const;
 
 export const SIMPLE_STORY_SHAPES = [
   { id: 'big_day_sideways', spine: 'The big day that goes sideways. Something the child has been looking forward to begins, then one small thing goes wrong, then a bigger and sillier one. The child and the companion improvise, and the day ends better than planned in a way nobody expected.' },
-  { id: 'great_mixup', spine: 'The great mix-up. A small misunderstanding (a word taken literally, a swapped parcel, a message that arrives wrong) snowballs into bigger and funnier trouble until the child untangles it.' },
+  { id: 'great_mixup', spine: 'The great mix-up. A small misunderstanding snowballs into bigger and funnier trouble until the child untangles it.' },
   { id: 'strange_visitor', spine: 'The strange visitor. Someone unusual turns up in the child\'s ordinary world with an odd wish or habit. Having this guest around causes comic chaos, and the child finds out what the guest really needs. The visitor is not lost and is not looking for its family.' },
   { id: 'there_and_back', spine: 'There and back. A small errand turns into a journey through two or three surprising places, each with its own funny inhabitants and customs. The way home is different from the way out.' },
   { id: 'in_charge', spine: 'In charge for a day. The child is unexpectedly put in charge of something big and important in a magical world while its usual keeper takes a break. Everything that can go wrong does, comically, and the child finds their own way of doing the job.' },
   { id: 'making_together', spine: 'Making something together. The child and the companion set out to make or build something special. The attempts go wrong in escalating, funny ways, and the final creation is imperfect and wonderful.' },
   { id: 'secret_world', spine: 'The secret world. The child discovers a hidden world in an ordinary place, with its own funny customs. The child accidentally stirs up trouble there, or is asked for help, and has to set things right.' },
   { id: 'wrong_size', spine: 'Everything is the wrong size. The child visits a place where everything is far too big or far too small, so ordinary things become adventures.' },
-  { id: 'silly_contest', spine: 'The silly contest. The child takes part in a contest with odd rules (the slowest race, the loudest whisper, the tallest sandwich), every round gets funnier, and it ends in a surprise.' },
+  { id: 'silly_contest', spine: 'The silly contest. The child takes part in a contest with odd rules that you invent, every round gets funnier, and it ends in a surprise.' },
   { id: 'something_missing', spine: 'Something has gone missing. Something important to a whole place disappears, and the child and the companion follow funny clues to find it. Whoever took it had an unexpected, understandable reason.' },
-  { id: 'just_this_once', spine: 'Just this once. Something extraordinary happens for one night or one day only (snow falls upward, the trees go for a walk, the town\'s toys hold a parade) and the child gets to be part of it.' },
+  { id: 'just_this_once', spine: 'Just this once. Something extraordinary happens for one night or one day only, and the child gets to be part of it.' },
   { id: 'learning_something', spine: 'Learning something new. The child or the companion is determined to learn something hard and new, fails in funnier and funnier ways, and finally succeeds in an unexpected way.' },
-  { id: 'the_chase', spine: 'The chase. Something runs away (a drawing that came alive, a runaway pancake, a hat with ideas of its own) and the child and the companion chase it from one funny place to the next until the chase turns around.' },
+  { id: 'the_chase', spine: 'The chase. Something runs away and the child and the companion chase it from one funny place to the next until the chase turns around.' },
   { id: 'one_more', spine: 'One more! A cumulative tale: one guest arrives, then another, then another, each funnier than the last, until everything tips over in one big comic moment and the child finds a way to make it work.' },
 ] as const;
 export type SimpleStoryShape = (typeof SIMPLE_STORY_SHAPES)[number];

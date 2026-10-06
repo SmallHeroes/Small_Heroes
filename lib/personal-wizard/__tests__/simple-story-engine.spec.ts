@@ -40,6 +40,11 @@ describe('simple story engine', () => {
     expect(seen.size).toBeGreaterThanOrEqual(10);
   });
 
+  it('keeps spines free of example lists, which trials showed get copied as plots', () => {
+    // 5 of 6 trial books whose spine listed examples used one of them (swapped parcel, slowest race, drawing come alive).
+    for (const shape of SIMPLE_STORY_SHAPES) expect(shape.spine).not.toMatch(/[()]|for example|such as/i);
+  });
+
   it.each([8, 12, 16])('has a prose-first %i-page contract without candidate, discovery or outline-gate slots', pages => {
     for (const schema of [simpleStoryDraftSchema(pages), simpleStoryEditSchema(pages)]) {
       const json = zodTextFormat(schema, 'simple').schema as any;
