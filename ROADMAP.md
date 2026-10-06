@@ -10,6 +10,16 @@ This roadmap records technical milestone state. Guy can change product priority 
 
 ### P-personal source-derived citations and everyday Hebrew (2026-10-06)
 
+- Claude Code's independent re-gate passes `06ac5d8f..3a271d97` and docs through
+  `4d0ece24`. Combined technical PASS covers exactly `7e94cf98..4d0ece24`; the
+  original P2 and three P3 groups close. Optional P3-A/M24 (reader instruction
+  assertion) remains non-blocking. Claude's own tsc 0, 641/641, 25/26 mutation
+  variants caught, 236 natural anchors with zero rejection, 425+62 files preserved.
+  Full gate is read from the retained log, not rerun by Claude, and remains RED.
+  No literary/live/product acceptance or extension to 35 earlier commits.
+  This faithful docs closeout is outside the reviewed range. Next paid text sample
+  needs separate budget approval; no push, render or site/QA rollout is implied.
+
 - Independent Claude HOLD on code `7e94cf98..8935beb0`, docs through `06ac5d8f`:
   one P2 anchor word-count mismatch and three P3 groups. The focused correction
   normalizes in-word geresh/format marks only for anchors, pins M03/M07/M13 with
@@ -20,7 +30,7 @@ This roadmap records technical milestone state. Guy can change product priority 
   Clean `3a271d97` repeats 641/641; literal full check exits 1: 6301 ordinary
   pass, same ten failure names, 73 skipped; 635 resource pass with two RPC
   timeouts/supervisor RED. Source fingerprints and HEAD unchanged through both.
-  Docs-only successor records the results; independent corrective re-gate pending.
+  Docs-only successor records the results; subsequent independent PASS is above.
   No self-PASS, provider, paid book, image, site cutover, push or deployment.
 
 - Approved milestone1 implements source-unit references with code-derived exact
@@ -35,8 +45,8 @@ This roadmap records technical milestone state. Guy can change product priority 
   explicit archivalv1 handling offline and blocks it at the new host. Root
   tsc0/622focused and a seventh in-memory control. Literal fullcheck8935beb0
   exits1:6282ordinarypass/same ten historical failures/73skip;635resourcepass
-  with supervisorRPCtimeout. Source/head remain unchanged. Claude review pending.
-- Before paid sampling: independent re-gate, then separately approved budget.
+  with supervisorRPCtimeout. Source/head remain unchanged. Combined PASS is above.
+- Before paid sampling: technical re-gate is complete; approve a separate budget.
   Minor-note transfer, case isolation and editor-audit citations are separate.
   No paid run, render, public deployment or autonomous-quality claim.
 

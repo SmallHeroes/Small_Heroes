@@ -1,5 +1,29 @@
 # SmallHeroes — Current Technical State
 
+## Source citation milestone independently passed 2026 10 06
+
+Claude Code independently re-gates `06ac5d8f..3a271d97` and the docs successor
+`3a271d97..4d0ece24`: technical PASS. Together with its first review, the explicit
+combined PASS is `7e94cf98..4d0ece24`. The original P2 and three P3 groups are
+closed; one new optional P3-A/M24 remains: pin the clarified anchor instruction
+on an actual reader call. It is a test gap, not a blocking code defect.
+
+Claude's own tsc passes; 641/641 focused tests in 10 files pass at `3a271d97`.
+It catches 25 of 26 mutation/control variants, including the three former
+survivors. Its corpus check rejects none of 236 natural anchors from 79 valid
+historical quotes. It independently preserves 425 historical and 62 earlier
+milestone/scratch files. Its full-gate assessment uses our committed log, not a
+fresh full run: same ten inherited failures, 6301 ordinary passes, 73 skipped;
+635 resource tests pass with two RPC errors, so the release gate remains RED.
+
+This closeout changes only CURRENT, ROADMAP and the milestone document. It does
+not extend PASS to itself or the 35 earlier commits. No literary/product/live
+reliability acceptance, paid call, key change, render, site/QA rollout, push or
+deployment. No further blocking citation fix is requested. Next: a separately
+approved text-only sample to assess the actual prose; minor-note transfer, case
+isolation and editor-audit migration remain separate. Report:
+CLAUDE-REGATE-CITATIONS-3a271d97.md in the retained Claude qa-cite2 scratch folder.
+
 ## Citation anchor correction after independent HOLD 2026 10 06
 
 Claude Code's independent review covers code `7e94cf98..8935beb0` and docs
@@ -26,8 +50,8 @@ On clean `3a271d97`, committed focused tests again pass 641/641. Literal
 failures by exact name, 73 skipped; 635/635 resource tests pass with two unhandled
 onTaskUpdate RPC timeouts, so that supervisor also remains RED. Both verification
 runs preserve source fingerprints and HEAD. The docs-only successor records this
-immutable evidence. Independent Claude re-gate is pending; no claim of P2 closure
-or improved literature yet.
+immutable evidence. Claude's later re-gate closes the original P2/P3s as recorded
+above; no improved-literature claim follows from that technical PASS.
 
 No paid call, key write, render, public wizard/site change, push or deployment.
 No retries, case isolation, polish transfer or editor-audit migration. See the
@@ -55,7 +79,8 @@ Literal npm run check at clean8935beb0 exits1:6282ordinarypass, the same ten
 historical failures by exact name,73skipped;635/635resource tests pass while the
 supervisor still fails on_task_update_rpc_timeout. Census414/394 passes. Source
 fingerprints/head are unchanged through the committed focused and full runs.
-Language delivery is proven, improved prose is not. Independent Claude QA pending.
+Language delivery is proven, improved prose is not. The later corrective re-gate
+and combined technical PASS are recorded above.
 
 Polish filtering, per-book isolation/retry and editor-audit quote migration stay
 separate. No provider call, charge, image, public cutover, push or deployment.

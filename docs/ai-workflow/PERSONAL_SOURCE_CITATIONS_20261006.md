@@ -284,3 +284,37 @@ copy-ready PowerShell commands. Independent corrective QA has not run; the old
 HOLD is not marked closed. All evidence is local without verified remote backup.
 
 No provider, paid book, render, site/QA rollout, key write, push or deployment.
+
+### Independent corrective PASS and milestone closeout
+
+Claude Code's independent report, CLAUDE-REGATE-CITATIONS-3a271d97.md in the
+retained qa-cite2 scratch folder, issues technical PASS for `06ac5d8f..3a271d97`
+and `3a271d97..4d0ece24`. Read with its first review, it explicitly awards the
+combined citation milestone `7e94cf98..4d0ece24` technical PASS. P0=0/P1=0/P2=0;
+the original three P3 groups are closed. One new optional P3-A/M24 remains:
+reverting the anchor instruction wording survives the suite. The suggested
+actual-call assertion is deferred here, not implemented or claimed closed.
+
+Its own immutable checkout at `3a271d97` passes tsc and 641/641 in 10 files.
+Its 26 mutation/control variants catch 25, including all 18 originals; the old
+tokenizer reproduces 13 failures/35 passes. Its corpus maps 79 valid quotes,
+rejects one invalid quote, skips 12 unusable receipts and checks 236 natural
+anchors with zero rejection. It independently preserves 425 historical files
+and all 62 prior milestone/Claude scratch records. Six reservations reproduce
+our figures under their existing $1 slots. It reads our full-check log rather
+than rerunning the full gate: 6301 ordinary pass, same ten failures, 73 skipped;
+635 resource tests pass with two RPC errors. Full release gate remains RED.
+
+The report's uncommon Unicode quote/fused-word edges are informational, not
+findings; there are zero such occurrences in its 85-page corpus. No production
+hardening, new rule, prompt tuning, quote repair or repeated test loop is added.
+Repeated anchors still do not prove entailment; invalid anchors still fail the
+run. Those accepted limitations and the separate isolation milestone remain.
+
+This closeout changes only CURRENT, ROADMAP and this Markdown document. It
+records an external verdict, not a self-awarded PASS or an extension to the
+closeout or 35 earlier commits. It grants no live citation reliability, literary
+or product acceptance, push, release or visual qualification. No paid run, key
+change, render, site/QA rollout or deployment. Next step is a separately approved
+text sample to judge actual story quality, with source and edit retained; the
+minor-note transfer and editor-audit work remain separate.
