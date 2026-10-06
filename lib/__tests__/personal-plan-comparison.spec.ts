@@ -2,7 +2,9 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { mkdtempSync, rmSync, readFileSync, existsSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { createPlanComparison, planComparisonInstructions, type PlanComparisonPolicy } from '../../scripts/personal-plan-comparison';
+import { createPlanComparison, planComparisonInstructions, premiseComparisonInstructions, PREMISE_COMPARISON_FORMAT,
+  type PlanComparisonPolicy, type PremiseComparisonPolicy } from '../../scripts/personal-plan-comparison';
+import { PREMISE_EXPERIMENT_VERSION, PREMISE_ONLY_INSTRUCTIONS } from '../personal-wizard/story-premise-experiment';
 import { causalTrialCohort } from '../../scripts/personal-causal-cohort';
 import { preparePersonalStory, RESILIENCE_INSTRUCTIONS } from '../personal-wizard/story-writer';
 import { resolvePersonalWizardOptions } from '../personal-wizard/options';
@@ -154,5 +156,81 @@ describe('four fresh plan-only comparison guard', () => {
       return { output: output(call), estimatedMicroUsd: 1, usage: { inputTokens: 1, outputTokens: 1 }, metadata: {}, raw: {} };
     });
     await createPlanComparison(h.args).run(); expect(h.transport).toHaveBeenCalledTimes(4);
+  });
+});
+
+function premiseSetup() {
+  const h = setup();
+  const policy: PremiseComparisonPolicy = { ...h.policy, version: 'six-premise-comparison/v1',
+    approval: { ...h.policy.approval, reference: 'Synthetic separate six-premise allowance, not live permission.',
+      maximumMicroUsd: 12_000_000, consent: 'six_fresh_plans_and_premises_no_book' } };
+  h.transport.mockImplementation(async (_wire, call) => {
+    const joint = output(call);
+    return { output: call.schema.safeParse(joint).success ? joint : { version: PREMISE_EXPERIMENT_VERSION,
+      requestId: joint.requestId, candidates: joint.selection.candidates }, estimatedMicroUsd: 1,
+      usage: { inputTokens: 1, outputTokens: 1 }, metadata: { synthetic: true }, raw: { synthetic: true } };
+  });
+  const args = { ...h.args, policy, injected: { ...h.args.injected, instructions: premiseComparisonInstructions() } };
+  return { ...h, policy, args };
+}
+describe('explicit six-call premise-only comparison', () => {
+  it('reserves six fresh calls, three each, one brief/cap, distinct output tasks and no seventh/replay', async () => {
+    const h = premiseSetup(), trial = createPlanComparison(h.args), plans = await trial.run();
+    expect(plans).toHaveLength(6); expect(h.transport).toHaveBeenCalledTimes(6);
+    const calls = h.transport.mock.calls.map(([, call]) => call), instructions = premiseComparisonInstructions();
+    expect(calls.filter(c => c.instructions === instructions.old)).toHaveLength(3);
+    expect(calls.filter(c => c.instructions === instructions.current)).toHaveLength(3);
+    expect(new Set(calls.map(c => c.input)).size).toBe(1); expect(new Set(calls.map(c => c.maxOutputTokens)).size).toBe(1);
+    expect(new Set(calls.map(c => c.conversationKey)).size).toBe(6);
+    expect(instructions.old).toBe(CAUSAL_PLAN_INSTRUCTIONS + PREMISE_COMPARISON_FORMAT);
+    expect(instructions.current).toBe(PREMISE_ONLY_INSTRUCTIONS + PREMISE_COMPARISON_FORMAT);
+    const manifest = JSON.parse(readFileSync(path.join(h.root, 'output/manifest.json'), 'utf8'));
+    expect(manifest).toMatchObject({ maximumLogicalDispatches: 6, reservedMicroUsd: 9_000_000,
+      totalApprovedMicroUsd: 12_000_000, separateIndependentReviewAllowanceMicroUsd: 3_000_000,
+      expansionAllowed: false, proseAllowed: false, retry: false });
+    expect(manifest.family).toMatch(/^premise-ab-/);
+    await expect(trial.run()).rejects.toMatchObject({ code: 'phase' });
+    await expect(createPlanComparison({ ...h.args, outputRoot: path.join(h.root, 'other-output') }).run()).rejects.toMatchObject({ code: 'family_consumed' });
+    expect(h.transport).toHaveBeenCalledTimes(6);
+  });
+  it('exports all twelve cards including repeated results, with no origin/choice/reason in the reader packet', async () => {
+    const h = premiseSetup(); await createPlanComparison(h.args).run();
+    const packet = JSON.parse(readFileSync(path.join(h.root, 'output/blind-premises.json'), 'utf8'));
+    const operator = JSON.parse(readFileSync(path.join(h.root, 'output/premise-operator-binding.json'), 'utf8'));
+    expect(packet.cards).toHaveLength(12); expect(new Set(packet.cards.map((c: any) => c.cardId)).size).toBe(12);
+    expect(packet.cards.filter((c: any) => c.curiosity === fixtureAdventureSelection().candidates[0].curiosity)).toHaveLength(6);
+    expect(operator.pairs).toHaveLength(6); expect(packet).not.toHaveProperty('pairs'); expect(packet).not.toHaveProperty('order');
+    for (const card of packet.cards) for (const key of ['id', 'origin', 'selectedId', 'reason', 'contrast', 'arm']) expect(card).not.toHaveProperty(key);
+    expect(existsSync(path.join(h.root, 'output/blind-plans.json'))).toBe(false);
+  });
+  it.each(['budget', 'consent'])('refuses reuse of the four-plan %s authorization before source/dispatch', field => {
+    const h = premiseSetup(), policy: any = structuredClone(h.policy);
+    if (field === 'budget') policy.approval.maximumMicroUsd = 8_000_000;
+    else policy.approval.consent = 'four_fresh_plans_opus_only';
+    expect(() => createPlanComparison({ ...h.args, policy })).toThrow('policy'); expect(h.transport).not.toHaveBeenCalled();
+    expect(h.assertSource).not.toHaveBeenCalled();
+  });
+  it('retains joint outline HOLD/rejection rather than discarding a creative failure', async () => {
+    const h = premiseSetup(); let joint = 0;
+    h.transport.mockImplementation(async (_wire, call) => {
+      const raw = output(call);
+      if (!call.schema.safeParse(raw).success) return { output: { version: PREMISE_EXPERIMENT_VERSION,
+        requestId: raw.requestId, candidates: raw.selection.candidates }, estimatedMicroUsd: 1, usage: null, metadata: {}, raw: {} };
+      if (joint++ === 0) raw.selection.outlineChecks.causal_child_choices.outcome = 'needs_work';
+      else if (joint === 2) return { output: { version: raw.version, requestId: raw.requestId, disposition: 'both_rejected',
+        candidates: raw.selection.candidates, contrast: raw.selection.contrast, reason: 'Synthetic creative rejection retained for comparison.' },
+        estimatedMicroUsd: 1, usage: null, metadata: {}, raw: {} };
+      return { output: raw, estimatedMicroUsd: 1, usage: null, metadata: {}, raw: {} };
+    });
+    await createPlanComparison(h.args).run(); expect(h.transport).toHaveBeenCalledTimes(6);
+    const packet = JSON.parse(readFileSync(path.join(h.root, 'output/blind-premises.json'), 'utf8'));
+    expect(packet.cards).toHaveLength(12);
+  });
+  it('persists an unknown-cost failed receipt and stops without retry or partial quality approval', async () => {
+    const h = premiseSetup(); h.transport.mockImplementation(async () => ({ output: null, estimatedMicroUsd: null, usage: null, metadata: {}, raw: {} }));
+    const trial = createPlanComparison(h.args); await expect(trial.run()).rejects.toMatchObject({ code: 'cost' });
+    expect(h.transport).toHaveBeenCalledTimes(1); expect(trial.snapshot().accounting.unknownAttemptCosts).toBe(1);
+    expect(existsSync(path.join(h.root, 'output/blind-premises.json'))).toBe(false);
+    await expect(trial.run()).rejects.toMatchObject({ code: 'phase' });
   });
 });

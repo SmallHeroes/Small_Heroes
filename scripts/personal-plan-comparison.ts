@@ -1,4 +1,4 @@
-/** Four fresh, plan-only diagnostic calls. No customer route, prose, repair or resume. */
+/** Explicit four-plan or six-premise diagnostic comparison. No customer route, prose, repair or resume. */
 import { z } from 'zod';
 import path from 'node:path';
 import { randomInt } from 'node:crypto';
@@ -6,6 +6,7 @@ import { preparePersonalStory, RESILIENCE_INSTRUCTIONS } from '../lib/personal-w
 import { resolvePersonalWizardOptions } from '../lib/personal-wizard/options';
 import { canonicalJson } from '../lib/personal-wizard/request-acceptance';
 import { causalDigest, CAUSAL_PLAN_INSTRUCTIONS, causalPlanSchema, compileCausalPlan } from '../lib/personal-wizard/story-causal-experiment';
+import { PREMISE_ONLY_INSTRUCTIONS, preparePremiseCall, compilePremises, projectJointPremises, prepareBlindPremiseReview, type PremisePair } from '../lib/personal-wizard/story-premise-experiment';
 import { personalStoryOutputLimits } from '../lib/personal-wizard/story-config';
 import type { CausalDispatch } from '../lib/personal-wizard/story-causal-experiment-runner';
 import { CausalFamilyJournal, CausalHostError, hostFail, realDirectory } from './personal-causal-trial-journal';
@@ -25,6 +26,17 @@ export const planComparisonPolicySchema = z.object({
     consent: z.literal('four_fresh_plans_opus_only'), acknowledgesCliEstimateLimits: z.literal(true) }).strict(),
 }).strict();
 export type PlanComparisonPolicy = z.infer<typeof planComparisonPolicySchema>;
+/** Separate consent/family: the historical four-plan approval cannot fund this experiment. */
+export const premiseComparisonPolicySchema = planComparisonPolicySchema.extend({
+  version: z.literal('six-premise-comparison/v1'),
+  approval: planComparisonPolicySchema.shape.approval.extend({ maximumMicroUsd: z.literal(12_000_000),
+    consent: z.literal('six_fresh_plans_and_premises_no_book') }).strict(),
+}).strict();
+export type PremiseComparisonPolicy = z.infer<typeof premiseComparisonPolicySchema>;
+const comparisonPolicySchema = z.discriminatedUnion('version', [planComparisonPolicySchema, premiseComparisonPolicySchema]);
+export const PREMISE_COMPARISON_FORMAT = '\nIn this comparison use Hebrew for all creative candidate fields in BOTH conditions. Keep the exact approved name and fact IDs. Do not translate supplied facts, invent profile data, or return an explanation outside the supplied schema.';
+export const premiseComparisonInstructions = () => ({ old: CAUSAL_PLAN_INSTRUCTIONS + PREMISE_COMPARISON_FORMAT,
+  current: PREMISE_ONLY_INSTRUCTIONS + PREMISE_COMPARISON_FORMAT });
 type Transport = (wire: CausalWire, call: CausalDispatch, signal: AbortSignal) => Promise<TransportReply>;
 const knownCost = (cost: number | null | undefined) => typeof cost === 'number' && Number.isSafeInteger(cost) && cost >= 0;
 
@@ -46,9 +58,10 @@ export function createPlanComparison(args: { workspace: string; outputRoot: stri
   policy: unknown; signal: AbortSignal;
   injected?: { commonDir: string; assertSource(): void; transport: Transport; instructions: { old: string; current: string } };
 }) {
-  const parsed = planComparisonPolicySchema.safeParse(args.policy);
+  const parsed = comparisonPolicySchema.safeParse(args.policy);
   if (!parsed.success) hostFail('policy');
   const policy = structuredClone(parsed.data), signal = args.signal;
+  const premiseExperiment = policy.version === 'six-premise-comparison/v1';
   if ((policy.mode === 'offline_injected') !== Boolean(args.injected)) hostFail('authorization');
   if (policy.mode === 'live_explicit' && (Date.now() - Date.parse(policy.pricing.checkedAt) > 86_400_000 ||
     Date.parse(policy.pricing.checkedAt) > Date.now())) hostFail('pricing_stale');
@@ -64,10 +77,12 @@ export function createPlanComparison(args: { workspace: string; outputRoot: stri
   if (prepared.brief.beats !== 8 || policy.approval.requestId !== prepared.accepted.requestId ||
     policy.approval.requestDigest !== causalDigest(prepared.accepted.canonical) ||
     policy.approval.optionsFingerprint !== prepared.accepted.optionsFingerprint) hostFail('request_binding');
-  const instructions = args.injected?.instructions ?? planComparisonInstructions(args.workspace);
+  const instructions = args.injected?.instructions ?? (premiseExperiment
+    ? premiseComparisonInstructions()
+    : planComparisonInstructions(args.workspace));
   // Reference-bound family is not caller-selectable. Replaying the same approval consumes no further allowance.
-  const family = `plan-ab-${causalDigest(policy.approval).slice(0, 32)}`;
-  const arms = ['old', 'old', 'current', 'current'] as const;
+  const family = `${premiseExperiment ? 'premise-ab' : 'plan-ab'}-${causalDigest(policy.approval).slice(0, 32)}`;
+  const arms = premiseExperiment ? ['old', 'old', 'old', 'current', 'current', 'current'] as const : ['old', 'old', 'current', 'current'] as const;
   const order: Array<typeof arms[number]> = [...arms];
   for (let i = order.length - 1; i > 0; i--) { const j = randomInt(i + 1); [order[i], order[j]] = [order[j], order[i]]; }
   const slots = order.map((arm, i) => ({ id: `case${i + 1}:plan`, arm, capMicroUsd: 1_500_000 }));
@@ -76,23 +91,28 @@ export function createPlanComparison(args: { workspace: string; outputRoot: stri
   const wirePolicy: WirePolicy = { workspace: args.workspace, executable: policy.executable, executableSha256: policy.executableSha256,
     maxWireBytes: 104_000, rates: { opus: rate, astra: rate } };
   const calls = slots.map(slot => {
-    const call: CausalDispatch = { role: 'opus', stage: 'plan', conversationKey: `${family}:${slot.id}`,
+    const call: CausalDispatch = premiseExperiment && slot.arm === 'current'
+      ? { ...preparePremiseCall(prepared, `${family}:${slot.id}`), instructions: instructions.current }
+      : { role: 'opus', stage: 'plan', conversationKey: `${family}:${slot.id}`,
       input: canonicalJson({ brief: prepared.brief, priorRejection: null }), instructions: instructions[slot.arm],
       schema: causalPlanSchema(prepared), maxOutputTokens: personalStoryOutputLimits(prepared.brief.beats).planOutputTokens + 6000 };
     const instructionFile = path.join(commonDir, 'codex-causal-text-trials', family, `instructions-${slot.id.replace(':', '-')}.txt`);
     return { slot, call, wire: prepareCausalWire(call, wirePolicy, slot.capMicroUsd, instructionFile) };
   });
-  const manifest = { policy, family, baselineHead: PLAN_COMPARISON_BASE, slots, inputDigest: causalDigest(calls[0].call.input),
+  const reservedMicroUsd = slots.length * 1_500_000;
+  const manifest = { policy, family, baselineHead: premiseExperiment ? policy.sourceHead : PLAN_COMPARISON_BASE, slots, inputDigest: causalDigest(calls[0].call.input),
     instructions: { old: causalDigest(instructions.old), current: causalDigest(instructions.current) },
-    model: CAUSAL_MODELS.opus, effort: 'medium', maximumLogicalDispatches: 4, reservedMicroUsd: 6_000_000,
-    totalApprovedMicroUsd: 8_000_000, separateIndependentReviewAllowanceMicroUsd: 2_000_000,
+    model: CAUSAL_MODELS.opus, effort: 'medium', maximumLogicalDispatches: slots.length, reservedMicroUsd,
+    totalApprovedMicroUsd: policy.approval.maximumMicroUsd, separateIndependentReviewAllowanceMicroUsd: premiseExperiment ? 3_000_000 : 2_000_000,
+    ...(premiseExperiment ? { armMeanings: { old: 'joint_plan', current: 'premises_only' },
+      sharedFormatDigest: causalDigest(PREMISE_COMPARISON_FORMAT), expansionAllowed: false, proseAllowed: false } : {}),
     freshProcessPerPlan: true, retry: false, runtimeEligible: false,
     accounting: 'cli_reported_estimate_not_invoice', invoiceCapGuaranteed: false, nativeInternalCallCount: 'unverified' };
   const digest = causalDigest(manifest), rows: Array<{ slot: string; attempted: boolean; receipt: TransportReply | null }> = [];
   let phase: 'ready' | 'running' | 'complete' | 'failed' = 'ready';
   let journal: CausalFamilyJournal | null = null, reason: string | null = null;
   const snapshot = () => structuredClone({ family, phase, reason, rows, runtimeEligible: false,
-    accounting: { kind: 'cli_reported_estimate_not_invoice', reservedMicroUsd: 6_000_000,
+    accounting: { kind: 'cli_reported_estimate_not_invoice', reservedMicroUsd,
       logicalAttempts: rows.filter(r => r.attempted).length,
       knownEstimateMicroUsd: rows.reduce((n, r) => n + (knownCost(r.receipt?.estimatedMicroUsd) ? r.receipt!.estimatedMicroUsd! : 0), 0),
       unknownAttemptCosts: rows.filter(r => r.attempted && !knownCost(r.receipt?.estimatedMicroUsd)).length } });
@@ -104,10 +124,10 @@ export function createPlanComparison(args: { workspace: string; outputRoot: stri
       try {
         active();
         journal = CausalFamilyJournal.reserve({ commonDir, outputRoot: args.outputRoot, family, coordinatorDigest: digest,
-          maximumMicroUsd: 6_000_000, slots, manifest });
-        // Only construct the Opus transport after the immutable four-slot reservation.
+          maximumMicroUsd: reservedMicroUsd, slots, manifest });
+        // Only construct the Opus transport after the immutable declared-slot reservation.
         const transport = args.injected?.transport ?? createOpusCausalTransport(wirePolicy);
-        const plans: Array<{ label: number; plan: ReturnType<typeof compileCausalPlan> }> = [];
+        const plans: Array<{ label: number; plan: ReturnType<typeof compileCausalPlan> | PremisePair }> = [];
         for (let i = 0; i < calls.length; i++) {
           active(); journal.verifyRecords();
           const { slot, call, wire } = calls[i];
@@ -124,11 +144,17 @@ export function createPlanComparison(args: { workspace: string; outputRoot: stri
           const cost = row.receipt.estimatedMicroUsd;
           if (cost === null || !Number.isSafeInteger(cost) || cost < 0 || cost > slot.capMicroUsd) hostFail('cost');
           active();
-          const plan = compileCausalPlan(prepared, row.receipt.output);
+          const plan = premiseExperiment
+            ? (slot.arm === 'current' ? compilePremises(prepared, row.receipt.output) : projectJointPremises(prepared, row.receipt.output))
+            : compileCausalPlan(prepared, row.receipt.output);
           journal.save(`plan-${i + 1}`, plan); plans.push({ label: i + 1, plan });
-          if (plan.disposition !== 'selected') hostFail('plan_not_selected');
+          if (!premiseExperiment && (!('disposition' in plan) || plan.disposition !== 'selected')) hostFail('plan_not_selected');
         }
-        active(); journal.save('blind-plans', { instruction: 'Four outlines, not manuscripts or proof of consistent quality.', plans });
+        active();
+        if (premiseExperiment) {
+          const review = prepareBlindPremiseReview(prepared, plans.map(row => row.plan as PremisePair));
+          journal.save('blind-premises', review.packet); journal.save('premise-operator-binding', review);
+        } else journal.save('blind-plans', { instruction: 'Four outlines, not manuscripts or proof of consistent quality.', plans });
         journal.save('accounting', snapshot().accounting); journal.verifyRecords();
         journal.seal('completed_diagnostic'); phase = 'complete'; return plans;
       } catch (error) {

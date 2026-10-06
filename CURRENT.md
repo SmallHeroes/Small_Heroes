@@ -1,5 +1,47 @@
 # SmallHeroes — Current Technical State
 
+## Premise boundary and six-call diagnostic comparison (2026-10-06)
+
+Guy approves diagnosis-led experimental construction, then explicitly grants
+a NEW12USD allowance: six fresh Opus planning sessions (three joint, three
+premise-only), at most two native Claude reviews and one blind Astra reading.
+No prose/editor/proposal3 expansion/images/push/rollout. Previous approval
+remains consumed. Root sole writer here on codex/personal-book-storyboard-bridge
+from57f26d2a, cached ahead55 before work; protected trees unchanged.
+
+Pure new boundary reuses candidate fields and the existing plan compiler;
+source-bound blind assessment/choice precedes prepared expansion. Matching
+IDs/digests do NOT prove semantic adherence, quality or reviewer independence.
+Identical outputs stay as measured data; an identical pair cannot bridge the
+legacy contrast contract, so expansion preflight explicitly holds rather than
+inventing differences. This diagnostic does not expand any candidate.
+Existing comparison guard gains separately consented six-mode/family with
+3+3 calls,9USD reservation,3USD external-review allocation; old four-mode
+remains supported. No new SDK, model, retry, customer route or default live.
+Both new arms share one Hebrew-format note, but output task/schema differs.
+Joint HOLD/rejection and all candidate occurrences remain in the sample.
+
+Root tsc0 and567/567 focused across8 actual files (44new boundary tests and
+6new six-policy tests; previous tests retained). Seven in-memory guard
+deletions each admit a targeted bad case that the intact code rejects; these
+are direct negative controls, NOT a Vitest mutation-suite execution.
+One introduced full-gate inventory-count failure was found and corrected
+417→418/397→398 with an explicit new-spec partition assertion, not called old.
+Fresh fullcheck remains RED: ordinary6486pass/10same missing-artifact failure
+names/73skip; resource631pass/4supervisor timeouts/2RPCerrors. Isolated
+supervisor45/46, with the previously recorded Windows argv/process assertion
+failing (not a timeout); source bytes untouched. No stability waiver or
+claim that every resource failure is caused by load.
+
+Independent Claude QA and the six live calls are PENDING this construction.
+Cost so far0; no key read/provider/book/image/site effect. Native technical
+QA uses the first1USD slot only after local commit; no self-awarded PASS.
+Decision: docs/ai-workflow/PERSONAL_PREMISE_BOUNDARY_DECISION_20261006.md.
+Artifacts: premise-boundary-mutations-final-20261006.json,
+premise-six-focused-20261006.log, premise-six-full-check-20261006.log under
+the task artifact root. The original25 comparison files are rechecked by the
+provider-free eight-card export before and after generation.
+
 ## Approved four outline comparison (2026-10-06)
 
 Completed diagnostic at frozen b354a6e3: exactly four fresh Opus 5.5 medium

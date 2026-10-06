@@ -1,5 +1,23 @@
 # SmallHeroes — Roadmap
 
+## Premise generation and choice diagnosis (2026-10-06)
+
+- Guy approves bounded experimental boundary and separately12USD for6Opus
+  planning sessions, at most2Claude reviews and1blind Astra reading. No prose,
+  editor, proposal3 expansion, image, push or site rollout.
+- Existing candidate fields are separated from choice/outline generation.
+  Blind packets hide author choice/reason and source arm. Repeated ideas are
+  retained; source/decision binding is not semantic quality proof.
+- Root567/567 focused/8files andtsc0;7in-memory binding negative controls.
+  New inventory-count regression fixed explicitly. FullcheckRED: ordinary
+  10matching missing-artifact failures/6486pass/73skip; resource631pass/
+  4supervisor timeouts/2RPCerrors. Isolated45/46 with the known Windows process
+  assertion failure; no claimed fix, stability waiver or blanket load cause.
+- Independent technical QA and live comparison PENDING. Quality/diversity
+  benefit unproved; first measure3joint versus3premise-only on the same brief.
+  Multi-profile validation and complete books remain later decisions.
+  See docs/ai-workflow/PERSONAL_PREMISE_BOUNDARY_DECISION_20261006.md.
+
 ## Four outline experiment completed (2026-10-06)
 
 Guard and corrective driver receive native Claude static-only technical PASS;
