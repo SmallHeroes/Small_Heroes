@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { citationTokens } from '../personal-wizard/story-source-citations';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -24,6 +25,8 @@ vi.mock('node:readline', async importOriginal => ({
 }));
 
 const dirs: string[] = [];
+const unitReference = (unit: { id: string; text: string }) => ({ startId: unit.id, endId: unit.id,
+  anchor: citationTokens(unit.text).slice(0, 2).join(' ') });
 afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks(); vi.unstubAllGlobals(); for (const d of dirs.splice(0)) rmSync(d, { recursive: true, force: true }); });
 function temp() { const d = mkdtempSync(path.join(tmpdir(), 'single-book-offline-')); dirs.push(d); return d; }
 function mockStdinTTY(value: boolean | undefined) {
@@ -624,8 +627,8 @@ describe('one fictional book over the existing causal host, not public rollout',
         const input = JSON.parse(call.input);
         response.output = { packetDigest: input.packetDigest, summary: 'Synthetic comparison, not a literary verdict.', findings: [{
           severity: 'blocking', kind, criterion: 'Synthetic comparison criterion',
-          original: [{ pageNumber: 1, quote: input.packet.original.pages[0].text }],
-          revised: [{ pageNumber: 1, quote: input.packet.revised.pages[0].text }],
+          original: [unitReference(input.packet.original.pages[0].units[0])],
+          revised: [unitReference(input.packet.revised.pages[0].units[0])],
           explanation: 'Synthetic comparison evidence for the admitted category.' }] };
       }
       return response;
@@ -643,7 +646,7 @@ describe('one fictional book over the existing causal host, not public rollout',
       if (call.stage === 'final_review' && input.packet.manuscript) response.output = {
         packetDigest: input.packetDigest, summary: 'Synthetic final-only finding, not literary approval.', findings: [{
           severity: 'blocking', kind: 'issue', criterion: 'Unresolved world-rule contradiction', original: [],
-          revised: [{ pageNumber: 1, quote: input.packet.manuscript.pages[0].text }], explanation: 'A synthetic defect in final prose remains blocking.' }] };
+          revised: [unitReference(input.packet.manuscript.pages[0].units[0])], explanation: 'A synthetic defect in final prose remains blocking.' }] };
       return response;
     });
     const driver = createSingleBookCalibration(h.args), b = await driver.plan(); h.review(b.sourceDigest);

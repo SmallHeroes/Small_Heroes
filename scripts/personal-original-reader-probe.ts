@@ -1,6 +1,6 @@
 /** One original-only diagnostic reading. Reuses the production wire and one-use journal. */
 import path from 'node:path';
-import { causalDigest, causalOriginalReviewPacket, causalCriticSchema, compileCausalReading } from '../lib/personal-wizard/story-causal-experiment';
+import { causalDigest, causalOriginalReviewPacket, causalSourceReviewPacket, compileCausalSourceReading } from '../lib/personal-wizard/story-causal-experiment';
 import { canonicalJson } from '../lib/personal-wizard/request-acceptance';
 import type { PreparedStory } from '../lib/personal-wizard/story-writer';
 import type { StoryReviewDocument } from '../lib/personal-wizard/story-text-review';
@@ -23,16 +23,18 @@ export function prepareOriginalReaderProbe(source: Source, approvalReference: st
   // Immutable source snapshot; no previous review, editor claim or expected finding is supplied.
   const packet = causalOriginalReviewPacket(structuredClone(source.prepared), structuredClone(source.original));
   if (source.readingProfile === 'solution_reasoning') packet.instructions += SOLUTION_REASONING_READER_INSTRUCTIONS;
+  const citation = causalSourceReviewPacket(packet);
   const family = 'reader-' + causalDigest({ approvalReference }).slice(0, 32);
   const call: CausalDispatch = { role: 'astra', stage: 'original_review',
-    conversationKey: family + ':case1:original_review', instructions: packet.instructions,
-    input: canonicalJson({ packet, packetDigest: causalDigest(packet) }), schema: causalCriticSchema,
+    conversationKey: family + ':case1:original_review', instructions: citation.instructions,
+    input: canonicalJson({ packet: citation.packet, packetDigest: citation.packetDigest }), schema: citation.schema,
     maxOutputTokens: 8000 + source.prepared.brief.beats * 500 };
   const wire = prepareCausalWire(call, { executable: '', executableSha256: '', workspace: '',
     maxWireBytes: 104_000, rates: { opus: rates, astra: rates } }, READER_PROBE_MAX_MICRO_USD);
-  const manifest = { version: 'original-reader-probe/v1', family, approvalReference,
+  const manifest = { version: 'original-reader-probe/v2', family, approvalReference,
     originalDigest: source.expectedOriginalDigest, requestDigest: causalDigest(source.prepared.accepted.canonical),
-    packetDigest: causalDigest(packet), wireDigest: wire.digest, wireBytes: wire.bytes,
+    packetDigest: citation.packetDigest, sourcePacketDigest: causalDigest(packet), citationVersion: citation.packet.citationVersion,
+    wireDigest: wire.digest, wireBytes: wire.bytes,
     model: wire.model, maxOutputTokens: call.maxOutputTokens, maximumMicroUsd: READER_PROBE_MAX_MICRO_USD,
     reservedMicroUsd: wire.reservedMicroUsd, rates, runtimeEligible: false,
     ...(source.readingProfile ? { readingProfile: source.readingProfile } : {}) };
@@ -52,7 +54,7 @@ export function prepareOriginalReaderComparison(sources: readonly Source[], appr
     call: { ...probe.call, conversationKey: `${probe.family}:case${index + 1}:original_review` } }));
   const family = calls[0].family;
   const slots = calls.map(row => ({ id: row.id, capMicroUsd: READER_PROBE_MAX_MICRO_USD }));
-  const manifest = { version: 'original-reader-comparison/v1', family, approvalReference,
+  const manifest = { version: 'original-reader-comparison/v2', family, approvalReference,
     maximumMicroUsd: READER_COMPARISON_MAX_MICRO_USD, reservedMicroUsd: calls.reduce((sum, row) => sum + row.wire.reservedMicroUsd, 0),
     slots, calls: calls.map(row => ({ id: row.id, sourceIndex: row.sourceIndex, profile: row.profile,
       originalDigest: row.manifest.originalDigest, requestDigest: row.manifest.requestDigest,
@@ -71,7 +73,7 @@ export async function runOriginalReaderComparison(args: { sources: readonly Sour
   const journal = CausalFamilyJournal.reserve({ commonDir: args.commonDir, outputRoot, family: prepared.family,
     coordinatorDigest: digest, maximumMicroUsd: READER_COMPARISON_MAX_MICRO_USD,
     slots: prepared.slots, manifest: prepared.manifest });
-  const readings: ReturnType<typeof compileCausalReading>[] = [], receipts: TransportReceipt[] = [];
+  const readings: ReturnType<typeof compileCausalSourceReading>[] = [], receipts: TransportReceipt[] = [];
   const transport = createAstraCausalTransport({ key: args.key, rates, fetch: args.fetch });
   let active: typeof prepared.calls[number] | null = null, attempted = false, receipt: TransportReceipt | null = null;
   try {
@@ -91,7 +93,7 @@ export async function runOriginalReaderComparison(args: { sources: readonly Sour
       if (args.signal.aborted) hostFail('cancelled');
       if (reply.estimatedMicroUsd === null || !Number.isSafeInteger(reply.estimatedMicroUsd) ||
         reply.estimatedMicroUsd < 0 || reply.estimatedMicroUsd > row.wire.reservedMicroUsd) hostFail('usage');
-      const reading = compileCausalReading(row.packet, reply.output);
+      const reading = compileCausalSourceReading(row.packet, reply.output);
       journal.save('reading-' + row.id.replace(':', '-'), reading);
       readings.push(reading); receipts.push(reply);
     }
@@ -140,7 +142,7 @@ export async function runOriginalReaderProbe(args: Source & { approvalReference:
     if (args.signal.aborted) hostFail('cancelled');
     if (reply.estimatedMicroUsd === null || !Number.isSafeInteger(reply.estimatedMicroUsd) ||
       reply.estimatedMicroUsd < 0 || reply.estimatedMicroUsd > probe.wire.reservedMicroUsd) hostFail('usage');
-    const reading = compileCausalReading(probe.packet, reply.output);
+    const reading = compileCausalSourceReading(probe.packet, reply.output);
     journal.save('reading', reading);
     journal.save('accounting', { attempted, estimatedMicroUsd: reply.estimatedMicroUsd,
       unknownAttemptCosts: Number(reply.estimatedMicroUsd === null), kind: 'estimate_not_invoice', runtimeEligible: false });

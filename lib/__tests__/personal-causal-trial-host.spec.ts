@@ -18,6 +18,7 @@ import { fixtureAdventureSelection } from '../personal-wizard/__tests__/story-pl
 import { fixtureEditorOutput } from '../personal-wizard/__tests__/personal-storyboard-fixture';
 import { preparePersonalStory } from '../personal-wizard/story-writer';
 import { resolvePersonalWizardOptions } from '../personal-wizard/options';
+import { citationTokens } from '../personal-wizard/story-source-citations';
 
 const dirs: string[] = [];
 afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks(); vi.unstubAllGlobals(); for (const dir of dirs.splice(0)) rmSync(dir, { recursive: true, force: true }); });
@@ -559,12 +560,14 @@ describe('actual outgoing SDK wire and diagnostic CLI arguments', () => {
 describe('draft critique at actual durable host and full serialized wire boundary', () => {
   function findings(call: CausalDispatch, count = 1) {
     const input = JSON.parse(call.input);
+    const units = input.packet.manuscript.pages[0].units;
+    const ref = (first: number, last: number) => ({ startId: units[first].id, endId: units[last].id,
+      anchor: citationTokens(units[first].text).slice(0, 2).join(' ') });
     return Array.from({ length: count }, (_, i) => ({ severity: i === 0 ? 'blocking' : 'meaningful', kind: 'issue',
       criterion: ('א"\u0000\\').repeat(150),
       original: count === 20 ? [
-        { pageNumber: 1, quote: input.packet.manuscript.pages[0].text.slice(0, 220) },
-        { pageNumber: 1, quote: input.packet.manuscript.pages[0].text.slice(1, 221) },
-      ] : [{ pageNumber: 1, quote: input.packet.manuscript.pages[0].text.slice(0, 35) }],
+        ref(0, 1), ref(1, 2),
+      ] : [ref(0, 0)],
       revised: [], explanation: ('א"\u0000\\').repeat(150) }));
   }
   function materialTransport(count = 1): CausalHostTransport {

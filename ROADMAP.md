@@ -8,6 +8,21 @@ This roadmap records technical milestone state. Guy can change product priority 
 
 ## Active
 
+### P-personal source-derived citations and everyday Hebrew (2026-10-06)
+
+- Approved milestone1 implements source-unit references with code-derived exact
+  quotes and one-copy instructions in diagnostic critics only. Legacy evidence
+  remains valid; invalid IDs/anchors fail closed without omission or retries.
+  Shared diagnostic language guidance requires familiar age-suited Hebrew and
+  avoids accidental word/root repetition while protecting purposeful refrains.
+- Root tsc0,613focused+7census tests;22archived readings/79valid quotes mapped,
+  one bad historical quote rejected,425files preserved and six guard controls.
+  Census414/394 fixes the added-spec count; public prompts/models/caps unchanged.
+  Independent Claude review and committed full-check recording pending.
+- Before paid sampling: independent re-gate, then separately approved budget.
+  Minor-note transfer, case isolation and editor-audit citations are separate.
+  No paid run, render, public deployment or autonomous-quality claim.
+
 ### P-personal fifteen-companion expansion (2026-10-03)
 
 - The six-profile diagnostic runs once atd50eaa36 after actual native Claude

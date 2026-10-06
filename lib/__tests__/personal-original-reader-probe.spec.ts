@@ -5,7 +5,7 @@ import path from 'node:path';
 import { personalStoryboardFixture } from '../personal-wizard/__tests__/personal-storyboard-fixture';
 import { preparePersonalStory } from '../personal-wizard/story-writer';
 import { resolvePersonalWizardOptions } from '../personal-wizard/options';
-import { causalDigest } from '../personal-wizard/story-causal-experiment';
+import { causalDigest, causalSourceReviewPacket } from '../personal-wizard/story-causal-experiment';
 import { prepareOriginalReaderProbe, runOriginalReaderProbe, prepareOriginalReaderComparison, runOriginalReaderComparison,
   SOLUTION_REASONING_READER_INSTRUCTIONS } from '../../scripts/personal-original-reader-probe';
 import { generationTimeoutMs } from '../personal-wizard/story-config';
@@ -20,7 +20,7 @@ async function setup() {
   const args = { prepared, original, expectedOriginalDigest: causalDigest(original), approvalReference: 'synthetic-reader-probe-approval',
     commonDir: root, outputParent: root, key: vi.fn(() => 'synthetic-no-real-key'), signal: new AbortController().signal };
   const probe = prepareOriginalReaderProbe(args, args.approvalReference);
-  const output = { packetDigest: causalDigest(probe.packet), summary: 'Synthetic original reading, not product acceptance.', findings: [] };
+  const output = { packetDigest: probe.manifest.packetDigest, summary: 'Synthetic original reading, not product acceptance.', findings: [] };
   const fetch = vi.fn(async () => new Response(JSON.stringify({ id: 'resp_synthetic', object: 'response', status: 'completed',
     model: 'gpt-6-astra', service_tier: 'default', usage: { input_tokens: 10, output_tokens: 20 },
     output: [{ type: 'message', role: 'assistant', content: [{ type: 'output_text', text: JSON.stringify(output), annotations: [] }] }] }),
@@ -37,14 +37,14 @@ describe('one original-only source-bound probe, no live provider', () => {
     expect(candidate.manifest.readingProfile).toBe('solution_reasoning');
     expect(h.probe.manifest).not.toHaveProperty('readingProfile');
     expect(candidate.packet.instructions).toBe(h.probe.packet.instructions + SOLUTION_REASONING_READER_INSTRUCTIONS);
-    expect(candidate.call.instructions).toBe(candidate.packet.instructions);
+    expect(candidate.call.instructions).toBe(causalSourceReviewPacket(candidate.packet).instructions);
     expect(candidate.packet.manuscript).toEqual(h.probe.packet.manuscript);
     expect(candidate.packet.brief).toEqual(h.probe.packet.brief);
     expect(candidate.call.schema).toBe(h.probe.call.schema);
     expect(candidate.call.maxOutputTokens).toBe(h.probe.call.maxOutputTokens);
     expect(candidate.manifest.packetDigest).not.toBe(h.probe.manifest.packetDigest);
     expect(candidate.wire.digest).not.toBe(h.probe.wire.digest);
-    expect(candidate.wire.payload.instructions).toBe(candidate.packet.instructions);
+    expect(candidate.wire.payload.instructions).toBe(candidate.call.instructions);
     expect(h.args.original).toEqual(before);
   });
   it.each(['other', null, 'baseline'])('invalid profile %s fails before reservation or provider', async readingProfile => {

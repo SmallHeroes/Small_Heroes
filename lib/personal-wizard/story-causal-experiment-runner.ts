@@ -9,7 +9,7 @@ import { measureStoryText } from './story-text-metrics';
 import type { StoryReviewDocument } from './story-text-review';
 import { CAUSAL_EXPERIMENT_VERSION, CAUSAL_PLAN_INSTRUCTIONS, CAUSAL_STORY_INSTRUCTIONS, CAUSAL_NARRATIVE_CRAFT_INSTRUCTIONS, CausalExperimentError, causalDigest, causalFail,
   causalPlanSchema, compileCausalPlan, causalAuthorSchema, compileCausalOriginal, causalEditorCall, causalEditorSchema,
-  compileCausalEdit, causalReviewPackets, causalOriginalReviewPacket, causalCriticSchema, compileCausalReading,
+  compileCausalEdit, causalReviewPackets, causalOriginalReviewPacket, causalSourceReviewPacket, compileCausalSourceReading,
   causalDraftCritiqueContext, DRAFT_CRITIQUE_MAX_BYTES, type CausalReading, type CausalDraftCritiqueContext, type CausalPlan } from './story-causal-experiment';
 
 export const CAUSAL_STAGES = ['plan', 'replan', 'author', 'editor', 'original_review', 'final_review', 'comparison'] as const;
@@ -210,10 +210,11 @@ export function createCausalExperiment(args: {
         };
         if (critiqueEnabled) {
           const packet = causalOriginalReviewPacket(c.prepared, original);
-          const raw = await dispatch(c.id, 'original_review', { instructions: packet.instructions,
-            input: canonicalJson({ packet, packetDigest: causalDigest(packet) }), schema: causalCriticSchema,
+          const source = causalSourceReviewPacket(packet);
+          const raw = await dispatch(c.id, 'original_review', { instructions: source.instructions,
+            input: canonicalJson({ packet: source.packet, packetDigest: source.packetDigest }), schema: source.schema,
             maxOutputTokens: 8000 + c.prepared.brief.beats * 500 });
-          const reading = compileCausalReading(packet, raw); readings.push(reading);
+          const reading = compileCausalSourceReading(packet, raw); readings.push(reading);
           if (!canFitEditor || !recordCritique) return causalFail('draft_critique_policy');
           const empty = causalDraftCritiqueContext(c.prepared, original, reading, 0);
           if (!canFitEditor({ ...editorCall(empty) })) causalFail('draft_critique_editor_capacity');
@@ -243,10 +244,11 @@ export function createCausalExperiment(args: {
           !(critiqueEnabled && s === 'original_review'))) {
           const key = stage === 'original_review' ? 'original' : stage === 'final_review' ? 'final' : 'comparison';
           const packet = packets[key];
-          const raw = await dispatch(c.id, stage, { instructions: packet.instructions,
-            input: canonicalJson({ packet, packetDigest: causalDigest(packet) }), schema: causalCriticSchema,
+          const source = causalSourceReviewPacket(packet);
+          const raw = await dispatch(c.id, stage, { instructions: source.instructions,
+            input: canonicalJson({ packet: source.packet, packetDigest: source.packetDigest }), schema: source.schema,
             maxOutputTokens: 8000 + c.prepared.brief.beats * 500 });
-          readings.push(compileCausalReading(packet, raw));
+          readings.push(compileCausalSourceReading(packet, raw));
         }
         books.push({ caseId: c.id, planning: structuredClone(chosen), original, edit, readings,
           ...(transfer ? { draftCritique: structuredClone(transfer) } : {}),

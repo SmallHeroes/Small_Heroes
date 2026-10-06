@@ -1,5 +1,30 @@
 # SmallHeroes — Current Technical State
 
+## Source-derived critic citations and child-native language 2026 10 06
+
+Guy approves milestone1 at base7e94cf98, adding everyday child-readable Hebrew
+and avoiding excessive inflections/root repetition. Only diagnostic critic wire,
+runner/probe and craft guidance change. IDs/anchors select bounded exact source
+spans; code derives quotations, validates the catalogue and rechecks saved
+editorial context. Unknown/stale/cross-version references and anchor mismatch
+fail closed, never discard findings or fall back to model-written quotes.
+Instructions are sent once and digest-bound. Legacy packet/quotation behaviour
+and public writer/editor/review files remain unchanged. Probe manifests arev2.
+
+Local tsc0,613/613 focused plus7/7 census tests; six in-memory guard controls.
+22archived readings/79valid quotes map, one historical bad quote still rejects;
+425historical/evidence files unchanged. Six calibration wires fit existing1USD
+slots; no guarantee for all maximum manuscripts or semantic correctness of IDs.
+Initial full contract RED:6279ordinarypass/ten historical fails plus the new
+census expectation fixed to414/394;635resourcepass with supervisorRPCtimeout.
+Literal full check at the immutable code commit is pending separate recording.
+Language delivery is proven, improved prose is not. Independent Claude QA pending.
+
+Polish filtering, per-book isolation/retry and editor-audit quote migration stay
+separate. No provider call, charge, image, public cutover, push or deployment.
+Old failed families/artifacts are not repaired or resumed. See
+docs/ai-workflow/PERSONAL_SOURCE_CITATIONS_20261006.md.
+
 ## Varied-book trial stopped on critic quote evidence 2026 10 05
 
 One approved family runs at frozen d50eaa36 using the existing causal host.

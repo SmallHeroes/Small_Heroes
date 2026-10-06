@@ -11,6 +11,7 @@ import { storyEditorProviderSchema, decodeStoryEditorOutput } from './story-edit
 import { assertSemanticEditEvidence, semanticEditNeedsWork } from './story-semantic-audit';
 import { measureStoryText } from './story-text-metrics';
 import { prepareOriginalStoryTextReview, prepareStoryTextReview, type StoryReviewDocument } from './story-text-review';
+import { prepareSourceCitationReview, compileSourceCitationReview, SourceCitationError, SOURCE_CITATION_VERSION } from './story-source-citations';
 
 export const CAUSAL_EXPERIMENT_VERSION = 'personal-causal-experiment/diagnostic-v2';
 export const causalDigest = (value: unknown) => createHash('sha256').update(canonicalJson(value)).digest('hex');
@@ -33,7 +34,9 @@ if (STORY_INSTRUCTIONS.split(legacyAttemptClause).length !== 2 || !STORY_EDITOR_
 }
 export const CAUSAL_STORY_INSTRUCTIONS = STORY_INSTRUCTIONS.replace(legacyAttemptClause, '') +
   '\nA failed attempt is optional. A boundary, negotiation, helping another character, changed goal or creative compromise can carry resilience. Do not require all these or impose the same sequence on every book.';
+export const CAUSAL_CHILD_LANGUAGE_INSTRUCTIONS = '\nUse familiar everyday Hebrew suited to the supplied child age in narration, dialogue and planned spoken phrases. Do not use rare, technical, archaic or ornate vocabulary when a familiar concrete expression communicates the action. Avoid dense inflections and accidental repetition of the same word or Hebrew root in nearby sentences; do not swap in obscure synonyms. If an unfamiliar term carries a repeated action or world rule, replace it consistently with a familiar description; preserve its function, not the rare word. Preserve essential names, clear referents, rhythmic counting and purposeful comic refrains in familiar wording. Simplify difficult wording while preserving the refrain\'s timing and function. Voice examples demonstrate personality, not lines to copy verbatim. Judge actual comprehension and read-aloud flow, not a fixed vocabulary or repetition quota.';
 export const CAUSAL_NARRATIVE_CRAFT_INSTRUCTIONS = NARRATIVE_CRAFT_INSTRUCTIONS.replace(legacyDeadlineClause, conditionalDeadlineClause) +
+  CAUSAL_CHILD_LANGUAGE_INSTRUCTIONS +
   '\nAllocate narrative space for brief.child.age and brief.beats, not only word length. Balance essential rules, secondary characters and transitions against room to experience important discoveries, encounters and choices. Simplify a short young-child book before crowding its central moment; develop a longer adventure rather than stretching one event. There is no fixed count of rules, characters, places or action beats. Quiet, playful and wondering moments may matter.' +
   '\nDevelop the adventure as a changing journey the child and companion actually experience. Pursuit or discovery should open different situations and things to do together; places affect actions, not merely host another clue or explanation. Search, encounters, play and surprises are possibilities, not a checklist or prescribed route. An observation-based interest need not confine the child to looking, pointing and explaining. Judge development across the whole book: repeated adjustments to one small mechanism need enough unfolding experience to justify their narrative space. Quiet scenes or a shared setting can develop through changed relationships, choices or play; travel alone is not development. Let resilience arise during the adventure rather than routinely stopping it for a lesson or audience.' +
   '\nA prominently prepared experience should receive proportionate action, perception or response, not only an announcement or explanation. The world and the characters should affect what happens. A brief satisfying encounter is valid; do not invent a second adventure to satisfy this instruction, but a coherent local solution alone does not establish a developed adventure. Emotional choices should arise naturally from events; a repeated gesture or request should add something, not fill a coping quota.' +
@@ -199,8 +202,13 @@ export const causalCriticSchema = z.object({ packetDigest: z.string().regex(/^[a
 export function compileCausalReading(packet: CausalReviewPacket, raw: unknown) {
   const parsed = causalCriticSchema.safeParse(raw);
   if (!parsed.success || parsed.data.packetDigest !== causalDigest(packet)) return causalFail('critic_binding');
+  const stage = assertCausalReadingEvidence(packet, parsed.data.findings);
+  return { ...parsed.data, stage, kind: 'model_literary_advisory_not_product_acceptance' as const, runtimeEligible: false as const };
+}
+function assertCausalReadingEvidence(packet: CausalReviewPacket,
+  findings: { kind: string; original: { pageNumber: number; quote: string }[]; revised: { pageNumber: number; quote: string }[] }[]) {
   const doc = 'manuscript' in packet ? packet.manuscript : null;
-  for (const row of parsed.data.findings) {
+  for (const row of findings) {
     if (doc && !['issue', 'preference'].includes(row.kind)) causalFail('critic_comparison_leak');
     if (!doc && row.kind === 'issue') causalFail('critic_comparison_kind');
     const original = 'original' in packet ? packet.original : packet.version.includes('/original-') ? doc : null;
@@ -211,11 +219,25 @@ export function compileCausalReading(packet: CausalReviewPacket, raw: unknown) {
     }
     if ('original' in packet && (!row.original.length || !row.revised.length)) causalFail('critic_evidence');
   }
-  const stage = 'original' in packet ? 'comparison' as const : packet.version.includes('/original-') ? 'original_review' as const : 'final_review' as const;
-  return { ...parsed.data, stage, kind: 'model_literary_advisory_not_product_acceptance' as const, runtimeEligible: false as const };
+  return 'original' in packet ? 'comparison' as const : packet.version.includes('/original-') ? 'original_review' as const : 'final_review' as const;
 }
-
-export type CausalReading = ReturnType<typeof compileCausalReading>;
+/** New model-wire contract. Legacy quote compiler above is archival/readback only. */
+export function causalSourceReviewPacket(packet: CausalReviewPacket) {
+  return prepareSourceCitationReview(packet, CAUSAL_CHILD_LANGUAGE_INSTRUCTIONS);
+}
+export function compileCausalSourceReading(packet: CausalReviewPacket, raw: unknown) {
+  try {
+    const resolved = compileSourceCitationReview(causalSourceReviewPacket(packet), raw);
+    const stage = assertCausalReadingEvidence(packet, resolved.findings);
+    return { packetDigest: causalDigest(packet), summary: resolved.summary, findings: resolved.findings, stage,
+      kind: 'model_literary_advisory_not_product_acceptance' as const, runtimeEligible: false as const,
+      sourceEvidence: { version: SOURCE_CITATION_VERSION, output: resolved.raw } };
+  } catch (error) {
+    if (error instanceof SourceCitationError) return causalFail(error.code);
+    throw error;
+  }
+}
+export type CausalReading = ReturnType<typeof compileCausalReading> | ReturnType<typeof compileCausalSourceReading>;
 export const DRAFT_CRITIQUE_MAX_FINDINGS = 6;
 export const DRAFT_CRITIQUE_MAX_BYTES = 12_288;
 /** Complete source-bound cards; no summaries, style preferences, string slicing or model scores. */
@@ -223,7 +245,8 @@ export function causalDraftCritiqueContext(prepared: PreparedStory, original: St
   reading: CausalReading, forwardedCount?: number) {
   assertProse(prepared, original);
   const packet = causalOriginalReviewPacket(prepared, original);
-  const checked = compileCausalReading(packet, { packetDigest: reading.packetDigest, summary: reading.summary, findings: reading.findings });
+  const checked = 'sourceEvidence' in reading ? compileCausalSourceReading(packet, reading.sourceEvidence.output) :
+    compileCausalReading(packet, { packetDigest: reading.packetDigest, summary: reading.summary, findings: reading.findings });
   if (checked.stage !== 'original_review' || causalDigest(checked) !== causalDigest(reading)) causalFail('draft_critique_binding');
   const eligible = checked.findings.flatMap((f, index) => f.kind === 'issue' &&
     (f.severity === 'blocking' || f.severity === 'meaningful') ? [{

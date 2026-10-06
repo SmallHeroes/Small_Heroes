@@ -10,7 +10,9 @@ import { canonicalJson } from '../request-acceptance';
 import { createCausalExperiment, causalStages, type CausalReviewMode, type CausalStage, type CausalDispatch, type CausalExperimentPorts } from '../story-causal-experiment-runner';
 import { CAUSAL_EXPERIMENT_VERSION, CAUSAL_STORY_INSTRUCTIONS, CAUSAL_PLAN_INSTRUCTIONS, causalDigest, compileCausalPlan, compileCausalOriginal,
   causalEditorCall, causalEditorSchema, compileCausalEdit, causalReviewPackets, causalOriginalReviewPacket,
-  compileCausalReading, causalDraftCritiqueContext, DRAFT_CRITIQUE_MAX_BYTES } from '../story-causal-experiment';
+  compileCausalReading, causalDraftCritiqueContext, DRAFT_CRITIQUE_MAX_BYTES, causalSourceReviewPacket,
+  compileCausalSourceReading, CAUSAL_CHILD_LANGUAGE_INSTRUCTIONS } from '../story-causal-experiment';
+import { citationTokens } from '../story-source-citations';
 
 afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks(); });
 const options = resolvePersonalWizardOptions();
@@ -74,6 +76,22 @@ function selectedFixture(index = 0) {
 }
 
 describe('limited causal experiment, not live provider or quality certification', () => {
+  it('child-native register reaches every actual diagnostic stage without altering public guidance', async () => {
+    const h = harness(1, undefined, new AbortController(), 'benchmark', false, true);
+    await h.runner.plan(); h.approve(); await h.runner.write();
+    const calls = vi.mocked(h.ports.generate).mock.calls.map(([call]) => call);
+    expect(calls.map(call => call.stage)).toEqual(['plan', 'author', 'original_review', 'editor', 'final_review', 'comparison']);
+    for (const call of calls) expect(call.instructions).toContain(CAUSAL_CHILD_LANGUAGE_INSTRUCTIONS);
+    expect(CAUSAL_CHILD_LANGUAGE_INSTRUCTIONS).toContain('Do not use rare, technical, archaic or ornate vocabulary');
+    expect(CAUSAL_CHILD_LANGUAGE_INSTRUCTIONS).toContain('same word or Hebrew root');
+    expect(CAUSAL_CHILD_LANGUAGE_INSTRUCTIONS).toContain('preserve its function, not the rare word');
+    expect(CAUSAL_CHILD_LANGUAGE_INSTRUCTIONS).toContain('purposeful comic refrains in familiar wording');
+    expect(CAUSAL_CHILD_LANGUAGE_INSTRUCTIONS).toContain('not lines to copy verbatim');
+    for (const text of [STORY_INSTRUCTIONS, NARRATIVE_CRAFT_INSTRUCTIONS, STORY_EDITOR_INSTRUCTIONS])
+      expect(text).not.toContain(CAUSAL_CHILD_LANGUAGE_INSTRUCTIONS);
+    const book = (await Promise.resolve(h.runner.snapshot())).draftCritiques![0];
+    expect(book.context.projection.findings).toEqual([]);
+  });
   function repairRequest(h: ReturnType<typeof harness>) {
     const b = h.runner.readSynopses(), attempts = b.plans[0].attempts, chosen = attempts[attempts.length - 1];
     if (!('planningDigest' in chosen)) throw Error('selected fixture required');
@@ -463,7 +481,7 @@ describe('limited causal experiment, not live provider or quality certification'
   });
   it.each(['original_review', 'final_review', 'comparison'] as const)('actual %s requests a complete concise object and scene-level evidence', async stage => {
     const h = harness(1, undefined, new AbortController(), 'benchmark');
-    await h.runner.plan(); h.approve(); await h.runner.write();
+    await h.runner.plan(); h.approve(); const result = await h.runner.write();
     const call = vi.mocked(h.ports.generate).mock.calls.map(([c]) => c).find(c => c.stage === stage)!;
     expect(call.instructions).toContain('one complete JSON object matching the supplied schema');
     expect(call.instructions).toContain('Do not pad a string to its maximum or stop after the summary');
@@ -479,7 +497,8 @@ describe('limited causal experiment, not live provider or quality certification'
     expect(call.instructions).toContain('Do not demand a chase, extra cast or action in every spread');
     expect(call.maxOutputTokens).toBe(12000);
     const packet = JSON.parse(call.input).packet;
-    expect(packet.instructions).toBe(call.instructions);
+    expect(packet).not.toHaveProperty('instructions');
+    expect(packet.instructionsDigest).toBe(causalDigest(call.instructions));
     if (stage === 'comparison') {
       expect(call.instructions).toContain('Assess whether revision improved the experience, merely shortened it, or lost its development');
       expect(call.instructions).not.toContain('A substantial lack of development supported by actual prose and reader impact is kind issue');
@@ -490,8 +509,10 @@ describe('limited causal experiment, not live provider or quality certification'
     }
     // Soft brevity guidance does not clamp or silently change the existing hard schema.
     const longest = { packetDigest: causalDigest(packet), summary: 's'.repeat(600), findings: [] };
-    expect(compileCausalReading(packet, longest).summary).toHaveLength(600);
-    expect(() => compileCausalReading(packet, { ...longest, summary: 's'.repeat(601) })).toThrow('critic_binding');
+    const book = result.books[0], prepared = preparePersonalStory(h.args.cases[0].request, options);
+    const canonical = causalReviewPackets(prepared, book.original, book.edit.revised)[stage === 'original_review' ? 'original' : stage === 'final_review' ? 'final' : 'comparison'];
+    expect(compileCausalSourceReading(canonical, longest).summary).toHaveLength(600);
+    expect(() => compileCausalSourceReading(canonical, { ...longest, summary: 's'.repeat(601) })).toThrow('critic_binding');
     expect(call.schema.parse(longest)).toEqual(longest);
   });
   it('synopsis review assesses unfolding experience without converting stillness into an admission gate', async () => {
@@ -544,8 +565,8 @@ describe('limited causal experiment, not live provider or quality certification'
     expect(call.instructions).toContain('Return the supplied packetDigest exactly; do not recompute it');
     const input = JSON.parse(call.input);
     expect(input.packetDigest).toBe(causalDigest(input.packet));
-    expect(call.instructions).toContain('contiguous verbatim substring copied from the cited version\'s actual page text');
-    expect(call.instructions).toContain('A literal quote proves provenance, not the truth of your interpretation');
+    expect(call.instructions).toContain('return startId and endId from the supplied source units');
+    expect(call.instructions).toContain('IDs and anchors establish location, not support for your interpretation');
     if (stage === 'comparison') {
       expect(call.instructions).toContain('EVERY finding, including polish or preference');
       expect(call.instructions).toContain('at least one original[] citation AND at least one revised[] citation');
@@ -870,8 +891,9 @@ describe('limited causal experiment, not live provider or quality certification'
 describe('opt-in draft critique before fresh editor, no literary certification', () => {
   function noteFor(call: CausalDispatch, severity = 'meaningful', kind = 'issue', marker = 'A material reader observation, not a prescribed solution.') {
     const input = JSON.parse(call.input);
+    const unit = input.packet.manuscript.pages[0].units[0];
     return { severity, kind, criterion: 'Synthetic causal clarity criterion', original: [{
-      pageNumber: 1, quote: input.packet.manuscript.pages[0].text.slice(0, 30),
+      startId: unit.id, endId: unit.id, anchor: citationTokens(unit.text).slice(0, 2).join(' '),
     }], revised: [], explanation: marker };
   }
   function feedbackHarness(change?: (call: CausalDispatch) => unknown | Promise<unknown>) {
@@ -903,8 +925,8 @@ describe('opt-in draft critique before fresh editor, no literary certification',
     expect(h.runner.snapshot().manifest.slots).toHaveLength(7);
     expect(h.runner.snapshot().manifest.draftCritique).toBe(true);
     const original = out.books[0].original, prepared = preparePersonalStory(h.args.cases[0].request, options);
-    expect(JSON.parse(calls[2].input).packet).toEqual(causalReviewPackets(prepared, original, out.books[0].edit.revised).original);
-    expect(causalOriginalReviewPacket(prepared, original)).toEqual(JSON.parse(calls[2].input).packet);
+    expect(JSON.parse(calls[2].input).packet).toEqual(causalSourceReviewPacket(causalReviewPackets(prepared, original, out.books[0].edit.revised).original).packet);
+    expect(causalSourceReviewPacket(causalOriginalReviewPacket(prepared, original)).packet).toEqual(JSON.parse(calls[2].input).packet);
     const input = JSON.parse(calls[3].input), transfer = out.books[0].draftCritique!;
     expect(input.draftCritique.findings).toHaveLength(1);
     expect(input.draftCritique.findings[0].id).toBe('draft-finding-01');
@@ -997,13 +1019,32 @@ describe('opt-in draft critique before fresh editor, no literary certification',
       const out: any = { packetDigest: input.packetDigest, summary: 'Synthetic material-reader context.', findings: [noteFor(call)] };
       if (mode === 'schema') delete out.summary;
       if (mode === 'digest') out.packetDigest = 'f'.repeat(64);
-      if (mode === 'quote') out.findings[0].original[0].quote = 'VERBATIM_QUOTE_NOT_IN_THIS_STORY';
+      if (mode === 'quote') out.findings[0].original[0].anchor = 'VERBATIM_QUOTE_NOT_IN_THIS_STORY';
       if (mode === 'cancel') h.controller.abort();
       return { output: out, estimatedMicroUsd: mode === 'cost' ? null : 1 };
     });
     await expect(run(h)).rejects.toThrow();
     expect(vi.mocked(h.ports.claim).mock.calls.some(c => c[2].endsWith(':editor'))).toBe(false);
     expect(h.ports.generate).toHaveBeenCalledTimes(3);
+  });
+  it.each(['id', 'anchor', 'version', 'page'])('source %s rejection reaches evidence validation after exactly three dispatches', async mode => {
+    const h = feedbackHarness(call => {
+      const out: any = defaultOutput(call);
+      if (call.stage === 'original_review') {
+        out.findings = [noteFor(call)]; const citation = out.findings[0].original[0];
+        if (mode === 'id') citation.startId = citation.endId = 'o-p1-u999';
+        if (mode === 'anchor') citation.anchor = 'מילים שאינן במקור';
+        if (mode === 'version') citation.startId = citation.endId = 'r-p1-u1';
+        if (mode === 'page') citation.startId = citation.endId = 'o-p16-u1';
+        expect(call.schema.safeParse(out).success).toBe(true);
+      }
+      return out;
+    });
+    await expect(run(h)).rejects.toThrow('critic_evidence');
+    expect(vi.mocked(h.ports.generate).mock.calls.map(([c]) => c.stage)).toEqual(['plan', 'author', 'original_review']);
+    expect(h.runner.snapshot().phase).toBe('failed');
+    expect(h.runner.snapshot().receipts[2].output).toBeTruthy();
+    await expect(h.runner.write()).rejects.toThrow('phase');
   });
   it('empty/only-style findings are explicitly untested, not hidden material omission', async () => {
     const h = feedbackHarness(call => defaultOutput(call)), out = await run(h);
