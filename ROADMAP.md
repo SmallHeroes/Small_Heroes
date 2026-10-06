@@ -20,8 +20,9 @@ This roadmap records technical milestone state. Guy can change product priority 
   Census414/394 fixes the added-spec count; public prompts/models/caps unchanged.
   A corrective constructor/readback boundary requires new provenance, keeps
   explicit archivalv1 handling offline and blocks it at the new host. Root
-  tsc0/622focused and a seventh in-memory control; independent Claude review and
-  committed full-check recording pending.
+  tsc0/622focused and a seventh in-memory control. Literal fullcheck8935beb0
+  exits1:6282ordinarypass/same ten historical failures/73skip;635resourcepass
+  with supervisorRPCtimeout. Source/head remain unchanged. Claude review pending.
 - Before paid sampling: independent re-gate, then separately approved budget.
   Minor-note transfer, case isolation and editor-audit citations are separate.
   No paid run, render, public deployment or autonomous-quality claim.

@@ -149,3 +149,25 @@ a different observed error code. An in-memory removal of the default guard admit
 the stripped control again. Correction: tsc0 and622/622 across10focused files.
 These are internal checks, not independent Claude QA. Immutable full-check results
 will be recorded after the corrective commit; no provider or render allowance.
+
+### Immutable validation closeout
+
+Actual code range is7e94cf982a94c07464b6862cb9f0e1e1d2bdece3..
+8935beb088037e24bee2743ad9437bc059c56ba0, with code commitsd7aa966c and8935beb0.
+On clean8935beb0:622/622 focused in10files, nativeexit0. Literal npm run check
+exits1: ordinary6282passed/10failed/73skipped; resource635/635tests pass but the
+supervisor remains RED with on_task_update_rpc_timeout. All ten failure names
+match the previous fixed-reader full-check record exactly. The first attempt at
+the literal check failed in a Windows wrapper before tests started; its separate
+record is retained, not represented as a repository result. The subsequent
+successful launch's complete gate output is retained even though the gate is RED.
+
+Both committed verification runs record unchanged source fingerprints and HEAD
+across execution. Offline closeout audit confirms these, unchanged public/shared
+modules, and clean protected/reviewer worktrees. Post-correction replay again
+checks425files/22readings/79validquotes/one invalid quote. No story/evidence text,
+key configuration, model, pricing, caps, provider, rendered image, site or paid
+family state is changed. Final successor records only these three Markdown docs.
+No independent PASS, literary gain, public integration or release readiness is
+claimed. External CLAUDE_HANDOFF.md names exact code/document review ranges and
+contains copy-ready inspection/push commands; push remains unauthorized here.

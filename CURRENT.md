@@ -17,9 +17,10 @@ archivalv1 construction is explicit and refused by the new host before editor.
 22archived readings/79valid quotes map, one historical bad quote still rejects;
 425historical/evidence files unchanged. Six calibration wires fit existing1USD
 slots; no guarantee for all maximum manuscripts or semantic correctness of IDs.
-Initial full contract RED:6279ordinarypass/ten historical fails plus the new
-census expectation fixed to414/394;635resourcepass with supervisorRPCtimeout.
-Literal full check at the immutable code commit is pending separate recording.
+Literal npm run check at clean8935beb0 exits1:6282ordinarypass, the same ten
+historical failures by exact name,73skipped;635/635resource tests pass while the
+supervisor still fails on_task_update_rpc_timeout. Census414/394 passes. Source
+fingerprints/head are unchanged through the committed focused and full runs.
 Language delivery is proven, improved prose is not. Independent Claude QA pending.
 
 Polish filtering, per-book isolation/retry and editor-audit quote migration stay
