@@ -1,5 +1,20 @@
 # SmallHeroes — Roadmap
 
+## Local native wizard text connection (2026-10-06)
+
+- Guy approves a local-only bridge and one short text trial up to12USD; no
+  images, paid transcription, push/deploy or public/QA activation.
+- Implemented: authenticated reviewed-request one-approval queue, explicit
+  native operator worker, preserved data provenance and bound authorization,
+  existing Opus author/fresh editor + Astra readings, diagnostic progress/text
+  view with stale/late-response and honest partial-failure handling.
+- Default fixture recipe, creative instructions/models/caps, website, payments
+  and visual gates unchanged. No fake legacy editor metadata or quiet fallback.
+- Independent Claude QA and actual browser/live evidence pending; no product/
+  release PASS. Next: review successor, validate wizard input/result in browser,
+  run ONE new approved book. Storyboard adapter and small image sample follow
+  only after story acceptance and separate render approval.
+
 **Last verified:** 2026-07-22
 **Product priority owner:** Guy
 **Technical sequencing owner:** Codex

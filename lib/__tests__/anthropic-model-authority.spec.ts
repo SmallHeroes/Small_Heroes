@@ -16,6 +16,8 @@ import {
 const diagnosticReferences: Record<string, readonly string[]> = {
   'scripts/personal-opus-semantic-cohort.cjs': ['claude-opus-5-5'],
   'scripts/personal-causal-trial-adapters.ts': ['claude-opus-5-5'],
+  // Approved local wizard diagnostic display, NOT an API/default model migration.
+  'lib/personal-wizard/native-book-preview.ts': ['claude-opus-5-5'],
 };
 const diagnosticFile = 'scripts/personal-opus-semantic-cohort.cjs';
 const reviewedCliLiteral = "'C:/Users/guyna/AppData/Roaming/npm/node_modules/@anthropic-ai/claude-code/bin/claude.exe'";
@@ -62,6 +64,8 @@ describe('Anthropic hardcoded model authority', () => {
     }
     expect(authorizedReference('claude-opus-5-5', 'scripts/personal-causal-trial-adapters.ts')).toBe(true);
     expect(authorizedReference('claude-opus-5-5', 'scripts/personal-causal-trial-host.ts')).toBe(false);
+    expect(authorizedReference('claude-opus-5-5', 'lib/personal-wizard/native-book-preview.ts')).toBe(true);
+    expect(authorizedReference('claude-opus-5-5', 'lib/personal-wizard/native-book-bridge.ts')).toBe(false);
   });
   it('treats only the exact diagnostic executable literal as a non-model transport reference', () => {
     const source = fs.readFileSync(path.join(process.cwd(), diagnosticFile), 'utf8');

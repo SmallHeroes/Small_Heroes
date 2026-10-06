@@ -56,9 +56,10 @@ const FIXTURE_DELAY_MS = 6000;
 
 type Props = {
   options: WizardOptionsView;
+  nativeBookPreview?: boolean;
 };
 
-export function PersonalWizard({ options }: Props) {
+export function PersonalWizard({ options, nativeBookPreview = false }: Props) {
   const { draft, update, read } = useDraftStore();
   // Optional, non-authoritative product-preview choices. Unknown/legacy direction hints are ignored.
   const prefilled = useRef(false);
@@ -486,6 +487,7 @@ export function PersonalWizard({ options }: Props) {
             photoUrl={photoUrl}
             submission={submission}
             onEdit={onEdit}
+            nativeBookPreview={nativeBookPreview}
           />
         ) : null}
       </main>

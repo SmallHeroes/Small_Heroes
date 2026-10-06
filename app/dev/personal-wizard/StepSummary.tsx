@@ -18,6 +18,7 @@ import { buildReviewedRequest, summarizeRequest } from '@/lib/personal-wizard/dr
 import type { WizardOptionsView } from './PersonalWizard';
 import styles from './personal-wizard.module.css';
 import { StoryPreview } from './StoryPreview';
+import { NativeBookPreview } from './NativeBookPreview';
 
 export type Submission =
   | { state: 'idle' }
@@ -39,9 +40,10 @@ type Props = {
   photoUrl: string | null;
   submission: Submission;
   onEdit: (step: 1 | 2 | 3) => void;
+  nativeBookPreview?: boolean;
 };
 
-export function StepSummary({ draft, options, titleRef, photoUrl, submission, onEdit }: Props) {
+export function StepSummary({ draft, options, titleRef, photoUrl, submission, onEdit, nativeBookPreview = false }: Props) {
   const name = normalizeText(draft.child.name);
   const copy = summaryCopy(name, draft.child.address);
   const tell = tellCopy(name, draft.child.address);
@@ -253,7 +255,9 @@ export function StepSummary({ draft, options, titleRef, photoUrl, submission, on
           </details>
         ) : null}
       </div>
-      {submission.state === 'accepted' ? <StoryPreview request={submission.canonical} requestId={submission.requestId} stale={stale} onEdit={() => onEdit(1)} /> : null}
+      {submission.state === 'accepted' ? nativeBookPreview
+        ? <NativeBookPreview request={submission.canonical} requestId={submission.requestId} stale={stale} onEdit={() => onEdit(1)} />
+        : <StoryPreview request={submission.canonical} requestId={submission.requestId} stale={stale} onEdit={() => onEdit(1)} /> : null}
     </section>
   );
 }

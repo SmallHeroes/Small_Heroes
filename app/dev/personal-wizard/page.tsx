@@ -29,5 +29,6 @@ export const viewport: Viewport = {
 export default function PersonalWizardPage() {
   if (!isDevEnvironment() || !isPersonalWizardPreviewEnabled()) notFound();
   const { companions, topics, voices, lengths } = resolvePersonalWizardOptions();
-  return <PersonalWizard options={{ companions, topics, voices, lengths }} />;
+  return <PersonalWizard options={{ companions, topics, voices, lengths }}
+    nativeBookPreview={process.env.PERSONAL_WIZARD_NATIVE_BOOK_RUNNER === 'true'} />;
 }

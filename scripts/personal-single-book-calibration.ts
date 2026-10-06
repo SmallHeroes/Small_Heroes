@@ -15,6 +15,7 @@ import { CausalFamilyJournal, CausalHostError, exclusiveText, fencedText, hostFa
 import { CAUSAL_MODELS, createAstraCausalTransport, CausalTransportError, prepareCausalWire, wireReservation,
   type TransportReply, type WirePolicy } from './personal-causal-trial-adapters';
 import { gitAt } from './personal-story-frozen-engine';
+import { assertReviewedTextAuthorization, type ReviewedTextAuthorization } from '../lib/personal-wizard/reviewed-text-authorization';
 
 const sha = (b: string | Buffer) => createHash('sha256').update(b).digest('hex');
 const PROBE_BYTES = 8192, PROBE_TOKENS = 2048, BOOK_BYTES = 104000;
@@ -67,19 +68,24 @@ function parsePolicy(raw: unknown): SinglePolicy {
     r.astra.inputMicroUsdPerToken !== 12.5 || r.astra.outputMicroUsdPerToken !== 50) hostFail('calibration_rates');
   return policy;
 }
-export function prepareSingleBookCalibration(args: { workspace: string; outputParent: string; policy: unknown; request: unknown }) {
+export function prepareSingleBookCalibration(args: { workspace: string; outputParent: string; policy: unknown; request: unknown;
+  reviewedTextAuthorization?: ReviewedTextAuthorization }) {
   const policy = parsePolicy(args.policy);
   if (![args.workspace, args.outputParent].every(path.isAbsolute)) hostFail('directory');
   const prepared = preparePersonalStory(structuredClone(args.request), resolvePersonalWizardOptions());
-  if (!prepared.accepted.containsFixtureData || prepared.brief.beats !== 8) hostFail('fictional_eight_spreads');
+  let reviewedTextAuthorization: ReviewedTextAuthorization | undefined;
+  if (args.reviewedTextAuthorization !== undefined) {
+    try { reviewedTextAuthorization = assertReviewedTextAuthorization(args.reviewedTextAuthorization, prepared, policy.approval.reference, policy.sourceHead); }
+    catch { hostFail('reviewed_text_authorization'); }
+  } else if (!prepared.accepted.containsFixtureData || prepared.brief.beats !== 8) hostFail('fictional_eight_spreads');
   const request = prepared.accepted.canonical;
   // "Contains fixture data" alone means ANY field, not a wholly fictional input.
   // This diagnostic accepts only an entirely example-labelled request. Labels
   // remain operator provenance, not proof that its contents describe no real child.
-  if ([request.child.nameSource, request.child.ageSource, request.child.addressSource, request.child.residenceSource].some(s => s !== 'fixture') ||
+  if (!reviewedTextAuthorization && ([request.child.nameSource, request.child.ageSource, request.child.addressSource, request.child.residenceSource].some(s => s !== 'fixture') ||
     request.facts.some(f => f.source !== 'fixture') || request.storyPlace && request.storyPlace.source !== 'fixture' ||
     request.intent?.kind === 'topic' && request.intent.suggestedBy !== 'fixture' || request.avoid.length ||
-    request.appearance.photo !== 'none' || request.bookOptions.voiceId !== null) hostFail('fixture_only');
+    request.appearance.photo !== 'none' || request.bookOptions.voiceId !== null)) hostFail('fixture_only');
   // Binding to the approval reference, not output root/request, prevents a second
   // spend by moving files or substituting a different child under that allowance.
   const family = `personal-calibration-${causalDigest(policy.approval.reference).slice(0, 32)}`;
@@ -92,6 +98,7 @@ export function prepareSingleBookCalibration(args: { workspace: string; outputPa
   if (probeReserved > PROBE_ALLOWANCE || bookReserved > BOOK_ALLOWANCE ||
     PROBE_ALLOWANCE + BOOK_ALLOWANCE > policy.approval.maximumMicroUsd) hostFail('budget');
   const digest = causalDigest({ policy, request: prepared.accepted.canonical,
+    ...(reviewedTextAuthorization ? { reviewedTextAuthorization } : {}),
     probeFamily, bookFamily, probeReserved, bookReserved });
   const probePacket = { version: 'synthetic-identity-schema-probe/v1', text: 'A fictional child opens a garden gate. No literary verdict is requested.' };
   const packetDigest = causalDigest(probePacket);
@@ -101,7 +108,7 @@ export function prepareSingleBookCalibration(args: { workspace: string; outputPa
   const wirePolicy: WirePolicy = { executable: policy.executable, executableSha256: policy.executableSha256,
     workspace: args.workspace, maxWireBytes: PROBE_BYTES, rates: policy.pricing.rates };
   const probeWire = prepareCausalWire(probeCall, wirePolicy, probeReserved);
-  return { policy, prepared, digest, packetDigest, probeCall, probeWire, wirePolicy,
+  return { policy, prepared, digest, packetDigest, probeCall, probeWire, wirePolicy, reviewedTextAuthorization,
     probeFamily, bookFamily, probeRoot, bookRoot, probeReserved, bookReserved,
     preview: { version: policy.version, reviewMode: policy.reviewMode,
       ...(policy.synopsisRepair ? { synopsisRepair: true as const } : {}),
@@ -117,6 +124,7 @@ export function createSingleBookCalibration(args: {
   workspace: string; outputParent: string; policy: unknown; request: unknown; signal: AbortSignal;
   existingOpenAIKey?: () => string;
   injected?: { commonDir: string; assertSource: () => void; transport: CausalHostTransport };
+  reviewedTextAuthorization?: ReviewedTextAuthorization;
 }) {
   const spec = prepareSingleBookCalibration(args), { policy } = spec, signal = args.signal;
   if ((policy.mode === 'offline_injected') !== Boolean(args.injected) ||
@@ -193,6 +201,7 @@ export function createSingleBookCalibration(args: {
             executableSha256: policy.executableSha256, pricing: policy.pricing, mode: policy.mode,
             approval: policy.mode === 'live_explicit' ? { ...policy.approval, maximumMicroUsd: spec.bookReserved } : null },
           cases: [{ id: 'case1', request: spec.prepared.accepted.canonical }], signal,
+          ...(spec.reviewedTextAuthorization ? { reviewedTextAuthorization: spec.reviewedTextAuthorization } : {}),
           existingOpenAIKey: args.existingOpenAIKey, injected: args.injected });
         const bundle = await host.plan(); active(); phase = 'planned'; return bundle;
       } catch (error) {
@@ -290,7 +299,11 @@ function waitForSynopsisDecision(reader: ReturnType<typeof createInterface>, sig
     if (signal.aborted) abort();
   });
 }
-export async function singleBookCalibrationCLI(argv: string[]) {
+export type SingleBookUpdate = { phase: 'planning' | 'synopsis_review' | 'repairing' | 'writing' | 'complete' | 'failed';
+  snapshot: ReturnType<ReturnType<typeof createSingleBookCalibration>['snapshot']>; result?: BookResult; error?: string };
+export async function singleBookCalibrationCLI(argv: string[], operator?: {
+  reviewedTextAuthorization: ReviewedTextAuthorization; onUpdate: (event: SingleBookUpdate) => void;
+}) {
   if (argv.length === 1 && argv[0] === '--help') {
     console.log('node scripts/personal-single-book-calibration.cjs --config <absolute.json> [--execute]'); return 0;
   }
@@ -298,7 +311,8 @@ export async function singleBookCalibrationCLI(argv: string[]) {
     argv.length === 3 && argv[2] !== '--execute') hostFail('arguments');
   const config = cliConfigSchema.parse(JSON.parse(fencedText(argv[1], 64000)));
   if (config.policy.mode !== 'live_explicit' || !path.isAbsolute(config.existingKeyEnvFile)) hostFail('authorization');
-  const spec = prepareSingleBookCalibration({ ...config, request: config.request });
+  const spec = prepareSingleBookCalibration({ ...config, request: config.request,
+    ...(operator ? { reviewedTextAuthorization: operator.reviewedTextAuthorization } : {}) });
   if (argv.length === 2) { console.log(JSON.stringify({ ...spec.preview, mode: 'budget_preview_only_no_reservation' })); return 0; }
   // The paid plan pauses for a same-process human review. EOF/piped input must
   // fail before any one-use allowance is acquired, not after that plan is paid.
@@ -308,13 +322,16 @@ export async function singleBookCalibrationCLI(argv: string[]) {
   let trial: ReturnType<typeof createSingleBookCalibration> | null = null;
   let reader: ReturnType<typeof createInterface> | null = null;
   try {
-    trial = createSingleBookCalibration({ ...config, request: config.request, signal: controller.signal, existingOpenAIKey: () => {
+    trial = createSingleBookCalibration({ ...config, request: config.request, signal: controller.signal,
+      ...(operator ? { reviewedTextAuthorization: operator.reviewedTextAuthorization } : {}), existingOpenAIKey: () => {
       const text = fencedText(config.existingKeyEnvFile, 256000), lines = text.split(/\r?\n/).filter(l => /^\s*OPENAI_API_KEY\s*=/.test(l));
       const key = lines.length === 1 ? parseEnv(lines[0]).OPENAI_API_KEY : null;
       if (!key || !/^sk-[A-Za-z0-9_-]{20,}$/.test(key)) hostFail('key_unavailable'); return key;
     } });
     console.log(JSON.stringify({ status: 'starting_identity_probe', ...spec.preview }));
+    operator?.onUpdate({ phase: 'planning', snapshot: trial.snapshot() });
     const synopsis = await trial.plan();
+    operator?.onUpdate({ phase: 'synopsis_review', snapshot: trial.snapshot() });
     console.log(JSON.stringify({ status: 'synopsis_review_required', sourceDigest: synopsis.sourceDigest,
       bookRoot: spec.bookRoot, instruction: spec.policy.synopsisRepair
         ? 'Read synopses.json; write review.json for continue, or digest-bound HOLD/defects in repair-request.json for repair. Enter continue, repair, or stop. Same process only.'
@@ -325,13 +342,19 @@ export async function singleBookCalibrationCLI(argv: string[]) {
     if (spec.policy.synopsisRepair) reader.once('close', cancel);
     let decision = await waitForSynopsisDecision(reader, controller.signal);
     if (decision === 'repair' && spec.policy.synopsisRepair && !controller.signal.aborted) {
+      operator?.onUpdate({ phase: 'repairing', snapshot: trial.snapshot() });
       const repaired = await trial.repairFromRequestFile();
+      operator?.onUpdate({ phase: 'synopsis_review', snapshot: trial.snapshot() });
       console.log(JSON.stringify({ status: 'repaired_synopsis_review_required', sourceDigest: repaired.sourceDigest,
         bookRoot: spec.bookRoot, instruction: 'Read synopses-repaired.json; write NEW digest-bound review-repaired.json. Enter continue, or stop. No second repair. Same process only.' }));
       decision = await waitForSynopsisDecision(reader, controller.signal);
     }
-    if (decision !== 'continue' || controller.signal.aborted) { trial.stop(); return 2; }
+    if (decision !== 'continue' || controller.signal.aborted) {
+      trial.stop(); operator?.onUpdate({ phase: 'failed', error: 'operator_stopped', snapshot: trial.snapshot() }); return 2;
+    }
+    operator?.onUpdate({ phase: 'writing', snapshot: trial.snapshot() });
     const result = await trial.writeFromReviewFile();
+    operator?.onUpdate({ phase: 'complete', snapshot: trial.snapshot(), result });
     const snapshot = trial.snapshot();
     console.log(JSON.stringify({ status: singleBookOutcome(result), viewer: path.join(spec.bookRoot, 'index.html'),
       accounting: { kind: snapshot.kind, allowanceMicroUsd: snapshot.allowanceMicroUsd,
@@ -340,6 +363,11 @@ export async function singleBookCalibrationCLI(argv: string[]) {
         unknownAttemptCosts: Number(snapshot.probe.attempted && snapshot.probe.receipt?.estimatedMicroUsd == null) +
           (snapshot.host?.host.rows.filter(r => r.attempted && r.receipt?.estimatedMicroUsd == null).length ?? 0) },
       runtimeEligible: false })); return 0;
+  } catch (error) {
+    trial?.stop();
+    if (trial) operator?.onUpdate({ phase: 'failed', snapshot: trial.snapshot(),
+      error: error instanceof CausalHostError || error instanceof CausalExperimentError ? error.code : 'driver_failed' });
+    throw error;
   } finally {
     trial?.stop(); reader?.removeListener('close', cancel); reader?.close();
     process.removeListener('SIGINT', cancel); process.removeListener('SIGTERM', cancel);

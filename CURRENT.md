@@ -1,5 +1,42 @@
 # SmallHeroes — Current Technical State
 
+## Local native wizard text connection — implementation awaiting QA, 2026-10-06
+
+Guy explicitly approves the local connection and ONE short text book up to $12
+for writing/readings, without images, paid transcription, deployment or push.
+Sole writer Codex continues codex/personal-book-storyboard-bridge from clean
+c9c3ef6b (ahead43); protected review/site worktrees are not changed.
+
+The new default-off native-book connector admits an authenticated loopback
+operator's server-reviewed canonical request to one immutable approval queue.
+An explicitly launched native worker reuses the existing single-book driver,
+Opus author/fresh editor and source-bound Astra original/final/comparison.
+Typed/transcript/chip provenance is preserved through request/options/source/
+approval-bound authorization at both driver and host. Fixture-only defaults
+stay closed; no marker injection, prompt/model/cap change or legacy fallback.
+Current native output is displayed honestly, not forged into the old three-call
+editor receipt. Storyboard/render conversion remains a separate milestone.
+
+Same-process operator synopsis review and one reserved plan repair remain.
+GET/refresh never spend. Duplicate POST/worker and cross-root/request reuse are
+fenced; stale/late browser views cannot replace current/newer results. Failed
+citations stop before the editor and retain a source-recompiled DRAFT ONLY.
+The browser does not cancel a worker; copy says so. No automatic worker/resume/
+retry, public order, audio/photo upload, product acceptance or render authority.
+
+Root focused678/678 before the final small registry/census/display amendments;
+the final amended four-file set43/43, plus the full ordinary lane6333 passed with the
+same10 documented missing-artifact failures and73 skipped. Typecheck0; resource
+635/635 passes with3 on_task_update RPC errors; native fullcheck exits1/RED.
+The first sandboxed full command
+stops on tsbuildinfo EPERM; owner-native logs are retained separately. A proposed
+temporary guard-removal mutation was refused by auto-review and NOT applied;
+actual malformed/request-substitution injections reject through unchanged guards.
+650 historical evidence files preserve SHA/size/mtime. No technical self-PASS,
+live provider dispatch, paid book, push or deployment yet. Claude Code must
+review this exact committed successor before the fresh trial. See
+docs/ai-workflow/PERSONAL_NATIVE_WIZARD_BRIDGE_DECISION_20261006.md.
+
 ## Unchanged engine three book experiment stopped safely 2026 10 06
 
 Guy approves three additional fictional text books under a new36USD estimate

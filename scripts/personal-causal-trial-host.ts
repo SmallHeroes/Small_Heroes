@@ -13,6 +13,7 @@ import { CausalFamilyJournal, CausalHostError, hostFail, realDirectory } from '.
 import { CAUSAL_MODELS, CausalTransportError, createAstraCausalTransport, createOpusCausalTransport,
   prepareCausalWire, wireReservation, type CausalWire, type TransportReply, type WirePolicy } from './personal-causal-trial-adapters';
 import { gitAt } from './personal-story-frozen-engine';
+import { assertReviewedTextAuthorization, type ReviewedTextAuthorization } from '../lib/personal-wizard/reviewed-text-authorization';
 
 const rates = z.object({ inputMicroUsdPerToken: z.number().positive().finite(), outputMicroUsdPerToken: z.number().positive().finite() }).strict();
 export const causalHostPolicySchema = z.object({
@@ -62,6 +63,7 @@ export function createCausalTrialHost(args: {
   // Only available in offline_injected mode. Real transports are constructed lazily below.
   injected?: { commonDir: string; assertSource: () => void; transport: CausalHostTransport };
   existingOpenAIKey?: () => string;
+  reviewedTextAuthorization?: ReviewedTextAuthorization;
 }) {
   const parsed = causalHostPolicySchema.safeParse(args.policy);
   if (!parsed.success) hostFail('policy');
@@ -82,7 +84,17 @@ export function createCausalTrialHost(args: {
   realDirectory(commonDir); realDirectory(workspace); realDirectory(path.dirname(outputRoot));
   const options = resolvePersonalWizardOptions();
   const prepared = args.cases.map(c => ({ id: c.id, prepared: preparePersonalStory(structuredClone(c.request), options) }));
-  if (prepared.some(c => !c.prepared.accepted.containsFixtureData)) hostFail('fictional_only');
+  let reviewedTextAuthorization: ReviewedTextAuthorization | undefined;
+  if (args.reviewedTextAuthorization !== undefined) {
+    if (prepared.length !== 1 || policy.mode === 'live_explicit' && !policy.approval) hostFail('reviewed_text_authorization');
+    try { reviewedTextAuthorization = assertReviewedTextAuthorization(args.reviewedTextAuthorization, prepared[0].prepared,
+      policy.approval?.reference ?? args.reviewedTextAuthorization.approvalReference, policy.sourceHead); }
+    catch { hostFail('reviewed_text_authorization'); }
+    if (policy.family !== `personal-calibration-${causalDigest(reviewedTextAuthorization.approvalReference).slice(0, 32)}-book` ||
+        policy.maximumMicroUsd > 12000000 || policy.reviewMode !== 'benchmark' || !policy.draftCritique || !policy.synopsisRepair) {
+      hostFail('reviewed_text_authorization');
+    }
+  } else if (prepared.some(c => !c.prepared.accepted.containsFixtureData)) hostFail('fictional_only');
   const stages = causalStages(policy.reviewMode);
   const caps = Object.fromEntries(stages.map(stage => [stage, Math.max(...prepared.map(c => wireReservation(policy.maxWireBytes,
     causalOutputCap(c.prepared.brief.beats, stage), policy.pricing.rates[['plan', 'replan', 'author', 'editor'].includes(stage) ? 'opus' : 'astra'])))])) as Record<CausalStage, number>;
@@ -147,6 +159,7 @@ export function createCausalTrialHost(args: {
         active(); if (journal || family !== policy.family || maximumMicroUsd !== reserved ||
           causalDigest(slots) !== causalDigest(expectedSlots.map(({ id, capMicroUsd }) => ({ id, capMicroUsd })))) hostFail('reservation');
         const manifest = { version: policy.version, policy, coordinatorDigest, coordinator: coordinator.snapshot().manifest,
+          ...(reviewedTextAuthorization ? { reviewedTextAuthorization } : {}),
           slots: expectedSlots, reservedMicroUsd: reserved, maxLogicalDispatches: expectedSlots.length,
           costKind: 'usage_estimate_not_invoice', invoiceCapGuaranteed: false, nativeInternalCallCount: 'unverified',
           wireReservation: 'future_full_wire_byte_ceilings_rechecked_exactly_per_dispatch', runtimeEligible: false };

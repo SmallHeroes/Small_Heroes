@@ -11,7 +11,7 @@ export const storyResponse = (body: unknown, status = 200) => NextResponse.json(
 
 /** Local single-process pilot only; enabling this on multi-instance hosting is NOT supported. */
 export async function personalOperatorAccess<Settings extends StorySettings>(req: NextRequest,
-  resolveSettings: () => Settings | null, namespace: 'personal-story-pilot' | 'personal-book-pilot',
+  resolveSettings: () => Settings | null, namespace: 'personal-story-pilot' | 'personal-book-pilot' | 'personal-native-book-pilot',
 ): Promise<{ ok: true; userId: string; operatorEmail: string; settings: Settings } | { ok: false; response: NextResponse }> {
   const settings = resolveSettings();
   if (!isDevEnvironment() || !settings || !['127.0.0.1', 'localhost', '[::1]'].includes(req.nextUrl.hostname)) {
@@ -26,7 +26,8 @@ export async function personalOperatorAccess<Settings extends StorySettings>(req
     actualOrigin = actual.origin;
   } catch { return { ok: false, response: storyResponse({ error: 'invalid_host' }, 403) }; }
   if (req.method === 'POST' && req.headers.get('origin') !== actualOrigin) return { ok: false, response: storyResponse({ error: 'invalid_origin' }, 403) };
-  const limit = enforceRateLimit(req, { namespace, limit: 8, windowMs: 60_000 });
+  const limit = enforceRateLimit(req, { namespace: namespace === 'personal-native-book-pilot' ? `${namespace}:${req.method}` : namespace,
+    limit: namespace === 'personal-native-book-pilot' && req.method === 'GET' ? 30 : 8, windowMs: 60_000 });
   if (limit) {
     Object.entries(STORY_NO_STORE).forEach(([key, value]) => limit.headers.set(key, value));
     return { ok: false, response: limit };
