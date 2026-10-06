@@ -2,16 +2,16 @@
 
 ## Experience-first story and light fifteen-character canon (2026-10-06)
 
-Native Claude independently technical-PASSes91f16ac5..a9bb7567 by static/Git
-review; its test commands were denied, so874/tsc/replays are root evidence only.
-Five nonblocking notes: offered-name drift risk (Medium for later), archival
-reviewer wording, removed general safety/visual reminders, name comment and
-fullcheck snapshot. Corrective successor checks offered/canonical names for
-ALL15 before a provider and preserves universal appearance/real-safety guidance
-without restoring character plot scripts; reviewer phrase remains for immutable
-v3 readback intentionally. Root correction tests/tsc and re-gate pending.
-Actual fullcheckRED/native1:6382ordinary passes/10same prior named failures/
-73skip;635resource passes/1RPC timeout. No stability or literary acceptance.
+Native Claude independently technical-PASSes91f16ac5..a9bb7567 and corrective
+a9bb7567..2bb0f65b by static/Git review. Its test commands were denied: root's
+874/874 across13 initial focused files and357/357 across6 corrective files,
+tsc0 and offline replays are NOT the reviewer's own executions. Offered-name
+drift is now rejected before a provider for ALL15, universal appearance and
+real-safety guidance restored without fixed plots, and ownership comment fixed.
+Archival reviewer wording remains intentionally for exact v3 source readback.
+Fullcheck at the first milestone stays RED/native1:6382ordinary passes/10names
+matching the preceding recorded run/73skip;635resource passes/1RPC timeout.
+No fresh untouched-base causality proof or fullcheck rerun after the correction.
 
 Guy approves a lighter/open literary profile for ALL15, not six, and one fresh
 short text book up to12USD after correction and independent Claude QA. Root is
@@ -27,15 +27,34 @@ website, order, rollout or push. Personal writer resolves its own literary
 identity; no legacy-topic or tagline fallback. Historical hashes/evidence are
 never rebound to v4. Citation/readback boundaries remain source-bound.
 
-Root tsc0 and874/874 across13 focused files. Offline prior-authority replay
-reproduces all3 Bar readings and exact reader wire bytes; six old physical
-envelopes/genders stay exact. Dini4832->1610serialized bytes; plan instructions
-13545->12919bytes. All650 historical files preserve SHA/size/mtime; latest Bar
-books/synopses match recorded hashes. Fullcheck and independent review are still
-in progress, not a self-PASS. No new paid story yet. Full gate previously RED.
+Offline prior-authority replay reproduces all3 old Bar readings and exact reader
+wire bytes; six old physical envelopes/genders stay exact. Dini4832->1610bytes.
+Initial plan instructions13545->12919bytes; final live plan instructions13156
+after universal safety correction. All650 historical files preserve SHA/size/
+mtime; latest old Bar books/synopses match recorded hashes.
+
+One approved fresh short text book completed at frozen2bb0f65b: Bar/Dini,
+"בר והתוף שנפל מהשמיים",457original/470revised lexical words,8spreads.
+The exact previously authenticated reviewed request was re-enqueued by the
+authorized local operator; this was NOT a new browser or microphone run.
+First synopsis HELD locally for repetitive experience; one reserved defects-only
+Opus replan, fresh digest-bound local review, then Opus from-scratch author and
+fresh editor, Astra original/final/comparison. Both plans and decisions kept.
+Original/final readings each retain1polish issue; comparison5improvements.
+No material draft note was forwarded, so defect-repair transfer is not proved.
+Root still sees substantial counting/boom repetition; no claim of literary
+quality, originality or diversity acceptance follows from the model readings.
+
+Status text_ready_for_human_review/runtimeEligible:false. Book2.009348USD plus
+probe0.010875 =2.020223USD known estimate,8logical attempts,0unknown costs,
+under12USD approval. Opus Max list equivalent is NOT an extra API invoice.
+Exact story.md8page bodies verified; all3 readings recompiled and29literal
+references checked. No image/render/audio/order/public activation/push/deploy.
 Decision: docs/ai-workflow/PERSONAL_EXPERIENCE_FIRST_DECISION_20261006.md.
-Next: validate and commit, Claude adversarial review, then fresh approved text
-book with Opus from scratch/fresh editor and Astra readings; Guy judges it.
+Closeout: docs/ai-workflow/PERSONAL_EXPERIENCE_FIRST_CLOSEOUT_20261006.md.
+Next: Guy reads the actual result. Further book spending,15-choice UI integration
+and source-bound storyboard/visual continuity are separate milestones. This
+docs-only closeout has no independent documentation re-gate of its own.
 
 ## Local wizard produced an Opus authored and edited text book (2026-10-06)
 

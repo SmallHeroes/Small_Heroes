@@ -7,9 +7,18 @@
 - Original six physical data unchanged; all15 text identities defined, but
   default choices6/sitecards13 remain distinct from full15 selection/visual
   readiness. No image/sheet/scale acceptance, UI rollout or render authority.
-- No new model stage/budget/retry. Validate canonical source binding and old
-  evidence, commit, obtain Claude technical review, then compare draft/edit.
-  Literary quality and diversity remain unproved; full release gate stays RED.
+- Native Claude technical-PASSes91f16ac5..a9bb7567 and a9bb7567..2bb0f65b
+  by static/Git review, not own test execution. Root874initial/357corrective
+  focused checks andtsc0; no new model stage/budget/retry or weaker gate.
+- Approved one-book run completed at2bb0f65b: same reviewed Bar request,
+  not fresh voice/browser input. First synopsis locally HELD, one reserved
+  defects-only replan, Opus author/fresh editor and Astra three readings.
+  2.020223USD known estimate including probe,8logical attempts,0unknown costs.
+- Exact eight-page reading copy retained. Original/final each1polish issue,
+  comparison5improvements; root still flags repetitive counting/booms for Guy's
+  judgement. No product/literary/diversity acceptance, image, push or deployment.
+  Full gate RED as recorded at parent; not rerun after corrective successor.
+  Next Guy reads; full15-choice/visual readiness and storyboard remain separate.
 
 ## Local native wizard text connection (2026-10-06)
 
