@@ -17,8 +17,11 @@ This roadmap records technical milestone state. Guy can change product priority 
   Root tsc 0, 641/641 focused; old tokenizer fails 13 positive cases, each guard
   mutation fails its intended test. Replay 22/79/1 and 425 historical files plus
   62 prior milestone/Claude files preserved. Existing six $1 slots still fit.
-  Immutable full check and independent corrective re-gate pending; no self-PASS,
-  provider, paid book, image, site cutover, push or deployment.
+  Clean `3a271d97` repeats 641/641; literal full check exits 1: 6301 ordinary
+  pass, same ten failure names, 73 skipped; 635 resource pass with two RPC
+  timeouts/supervisor RED. Source fingerprints and HEAD unchanged through both.
+  Docs-only successor records the results; independent corrective re-gate pending.
+  No self-PASS, provider, paid book, image, site cutover, push or deployment.
 
 - Approved milestone1 implements source-unit references with code-derived exact
   quotes and one-copy instructions in diagnostic critics only. Legacy evidence

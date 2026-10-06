@@ -21,8 +21,13 @@ temporary guard mutations each fail their intended test and are fully restored.
 Offline replay retains 22 readings, 79 valid quotes, one invalid rejection and
 425 historical files; 62 earlier milestone/Claude files retain SHA/size/mtime.
 Six measured calibration reservations remain below their existing $1 slots.
-Literal full check on the immutable corrective commit is pending. Independent
-Claude re-gate is pending; no claim of P2 closure or improved literature yet.
+On clean `3a271d97`, committed focused tests again pass 641/641. Literal
+`npm run check` exits 1 (signal null): 6301 ordinary pass, the same ten inherited
+failures by exact name, 73 skipped; 635/635 resource tests pass with two unhandled
+onTaskUpdate RPC timeouts, so that supervisor also remains RED. Both verification
+runs preserve source fingerprints and HEAD. The docs-only successor records this
+immutable evidence. Independent Claude re-gate is pending; no claim of P2 closure
+or improved literature yet.
 
 No paid call, key write, render, public wizard/site change, push or deployment.
 No retries, case isolation, polish transfer or editor-audit migration. See the

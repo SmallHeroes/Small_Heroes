@@ -263,3 +263,24 @@ HOLD is not overwritten: a corrective Claude re-gate is still required. The
 literal full gate will be run at the immutable code commit and recorded with
 native status and unchanged source fingerprints. $0, no provider, render, push
 or deployment.
+
+### Corrective immutable check results
+
+Code range is `06ac5d8f476618c2553644d3098d8f7b163c15da..`
+`3a271d977dd25ef512972adfbb9290bc61bf1bd9`, a single corrective commit with
+exact parent, seven paths, +210/-11. On this clean commit the focused set repeats
+641/641 across 10 files, native exit 0. Literal `npm run check` completes with
+native exit 1 and signal null: 6301 ordinary pass, ten inherited failures whose
+names match the prior run exactly, 73 skipped. The resource phase reports 635/635
+passing tests but two unhandled onTaskUpdate RPC timeouts, and its supervisor
+exits 1. Both layers remain RED; passing test counts are not a stable full gate.
+
+Source fingerprints and HEAD remain unchanged throughout both committed runs.
+The subsequent docs-only commit changes CURRENT, ROADMAP and this document only.
+Final preservation/audit rechecks the 425 historical files, 62 prior milestone
+and Claude files, exact legacy packet outputs, unchanged writer guidance and
+the digest pairing. The external CLAUDE_HANDOFF.md names code/docs ranges and
+copy-ready PowerShell commands. Independent corrective QA has not run; the old
+HOLD is not marked closed. All evidence is local without verified remote backup.
+
+No provider, paid book, render, site/QA rollout, key write, push or deployment.
