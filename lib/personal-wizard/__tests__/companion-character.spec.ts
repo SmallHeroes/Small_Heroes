@@ -28,6 +28,20 @@ describe('fifteen light personal characters, with separate offered/visual readin
     }
     expect(PERSONAL_CHARACTER_IDS).not.toEqual(expect.arrayContaining(['octopus_nula', 'firefly_zohar', 'penguin_pipa', 'otter_yuli']));
   });
+  it.each(PERSONAL_CHARACTER_IDS)('rejects a mismatched offered %s name at preparation, before a provider', async id => {
+    const f = await personalStoryboardFixture();
+    const request = { ...f.request, companion: { id } };
+    const character = resolvePersonalCompanionCharacter(id)!;
+    const exact = { ...options, companions: [{ id, name: character.name, image: '/synthetic-unused.png' }] };
+    expect(preparePersonalStory(request, exact).brief.companion.name).toBe(character.name);
+    expect(() => preparePersonalStory(request, { ...exact, companions: [{ ...exact.companions[0], name: 'שם של חבר אחר' }] }))
+      .toThrow('story_companion_name_mismatch');
+  });
+  it('retains generic appearance and real-safety boundaries without a fixed emotional arc', () => {
+    expect(CHARACTER_CAUSALITY_INSTRUCTIONS).toContain('Do not invent a changed appearance or accessory');
+    expect(CHARACTER_CAUSALITY_INSTRUCTIONS).toContain('does not prove that every real unfamiliar noise or shadow is safe');
+    expect(CHARACTER_CAUSALITY_INSTRUCTIONS).toContain('not obligatory scenes or repeated lines');
+  });
   it.each(PROTOTYPE_COMPANION_ROSTER.map((id, i) => [id, genders[i]]))('fully specifies %s and its fixed gender', (id, gender) => {
     const character = resolvePersonalCompanionCharacter(id)!;
     expect(personalCharacterSchema.parse(character)).toEqual(character);

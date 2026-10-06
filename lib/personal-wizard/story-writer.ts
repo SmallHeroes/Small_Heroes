@@ -63,6 +63,8 @@ export function preparePersonalStory(input: unknown, options: PersonalWizardOpti
   if (!length || ![16, 24, 32].includes(length.pages)) fail('story_length_required');
   const character = resolvePersonalCompanionCharacter(request.companion.id);
   if (!character) fail('story_companion_character_required');
+  const offered = options.companions.find(candidate => candidate.id === request.companion.id);
+  if (!offered || offered.name !== character.name) fail('story_companion_name_mismatch');
   const intent = request.intent;
   // Deliberately do not inherit category, allowedDirections, coping lesson or legacy plot role.
   const brief = {

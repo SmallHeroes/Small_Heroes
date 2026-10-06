@@ -2,7 +2,8 @@ import 'server-only';
 import { z } from 'zod';
 
 /** Light literary authority for the personal engine, not a predefined plot.
- * Registry remains authoritative for name/visual identity; existing physical
+ * This literary registry owns the approved name; legacy registry owns visuals.
+ * Existing physical
  * affordances/limits stay intact. A new digest never rebinds historical books. */
 export const PERSONAL_CHARACTER_VERSION = 'personal-companion-character/v4' as const;
 export const PERSONAL_CHARACTER_IDS = ["dragon_dini","panda_anat","fox_uri","chameleon_koko","lion_shaket","bunny_ometz","elephant_momo","turtle_tuk","hedgehog_tuti","owl_shush","kangaroo_nula","dog_zohar","cloud_puf","ibex_tzuki","mole_mishi"] as const;
@@ -154,5 +155,6 @@ export function resolvePersonalCompanionCharacter(id: string): PersonalCompanion
 
 export const CHARACTER_CAUSALITY_INSTRUCTIONS = `Treat companion.character as a light starting point, not a script. Its essence, voice and humour describe tendencies, not obligatory scenes or repeated lines. Choose the companion's current want, reactions and contribution from THIS adventure; it may share a goal, play, discover, disagree, help or need help without repeating a fixed flaw/correction arc.
 Use the approved companion name and gender and respect established physical abilities and limits. Do not forget flight, invent a restriction to manufacture a problem or introduce a surprise power that supplies the ending.
+Do not invent a changed appearance or accessory for an established companion. A friendly fictional encounter does not prove that every real unfamiliar noise or shadow is safe; do not override ordinary safety or promise universal safety.
 Let personality affect concrete action or interaction; distinctive does not mean the same joke or plot every time. The child has a meaningful motive and makes decisions that change what follows. The companion is a partner, not a therapist, all-knowing guide or substitute protagonist. Mutual care does not make the child responsible for curing the companion or an adult.
 Humour can grow from the situation, play or relationship; no catchphrase, error, audience, apology or bodily gag is compulsory. Quiet participation can matter. In editing and character_humour observations, ground a claim in a concrete choice and its effect in the FINAL text, not merely the presence of a trait or a prescribed character lesson. This is model evidence, not independent literary acceptance.`;

@@ -2,6 +2,17 @@
 
 ## Experience-first story and light fifteen-character canon (2026-10-06)
 
+Native Claude independently technical-PASSes91f16ac5..a9bb7567 by static/Git
+review; its test commands were denied, so874/tsc/replays are root evidence only.
+Five nonblocking notes: offered-name drift risk (Medium for later), archival
+reviewer wording, removed general safety/visual reminders, name comment and
+fullcheck snapshot. Corrective successor checks offered/canonical names for
+ALL15 before a provider and preserves universal appearance/real-safety guidance
+without restoring character plot scripts; reviewer phrase remains for immutable
+v3 readback intentionally. Root correction tests/tsc and re-gate pending.
+Actual fullcheckRED/native1:6382ordinary passes/10same prior named failures/
+73skip;635resource passes/1RPC timeout. No stability or literary acceptance.
+
 Guy approves a lighter/open literary profile for ALL15, not six, and one fresh
 short text book up to12USD after correction and independent Claude QA. Root is
 sole writer from91f16ac5 on codex/personal-book-storyboard-bridge. v4 replaces
