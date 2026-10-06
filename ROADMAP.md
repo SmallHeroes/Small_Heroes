@@ -8,10 +8,14 @@
 - Root939/939 across14actual files,tsc0;7new tests. Five frozen-base creative
   calls fail the new assertions; reader wire,15characters and1..4schema stay
   unchanged.650historical and14fresh output files preserved,0provider calls.
-- Fullcheck running; previous full gate RED and independent Claude QA pending.
-  No SDK/schema/model/stage/cap/retry change, new book, image, push or rollout.
-  Next bounded read-only review and separately approved plan-only comparison;
-  creative benefit/diversity remains unproved.
+- Claude static/Git technical PASS5f54af93..f803564b, not own939/tsc/proof run.
+  Low notes retained; no literary or release acceptance. Fresh fullcheckRED:
+  ordinary6405passes/10matching prior failure names/73skip; resource634pass/
+  1process-probe failure AND1RPCerror. Isolated assertion/direct local probe
+  also fail (child134); parent bytes unchanged, root cause/base run unproved.
+- No SDK/schema/model/stage/cap/retry change, new book, image, push or rollout.
+  Next separately bounded/approved plan-only comparison; creative benefit and
+  diversity unproved. Docs-only closeout itself not independently re-gated.
 
 ## Experience first and light fifteen-character literary canon (2026-10-06)
 

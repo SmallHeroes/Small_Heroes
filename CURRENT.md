@@ -21,13 +21,28 @@ two-clause replacement. All3 reader wire/readings reproduce identically,15v4
 identities and moment admission0/1/4/5 remain unchanged.650historical SHA/size/
 mtime files and14fresh book SHA/size records preserved. No provider in these tests.
 
-Full npm run check is running; prior full gate remains RED, no new stability
-claim. Independent Claude technical QA pending. No new synopsis/book, API call,
-render, audio, SDK/package, schema/quota, model, caps, retry, website, push or
-deployment. Literary benefit is a hypothesis, not proved by text assertions.
+Native Claude independently technical-PASSes5f54af93..f803564b by static/Git
+review. It did NOT execute root's tests,tsc or VM proof. Three Low/nit notes:
+imported-constant split assertion alone is not wording-sensitive (neighbours
+are), VM negative control does not cover replan, committed pending-doc wording.
+Full-gate concern is Medium/outside this change; no product or release PASS.
+
+Fresh fullcheck on the runtime bytes committed asf803564b exits1/RED: ordinary6405passes/10failure
+names identical to preceding recorded run/73skip; resource634passes/1failed
+Windows-safe process probe AND1onTaskUpdateRPC error. Those two are separate.
+The process assertion also fails alone; direct fixed local probe exits134 with
+probe_nonzero_exit. Supervisor/test/child bytes match parent, but no fresh base
+execution was performed and no runtime/environment cause is proved. Do not call
+this only a load timeout or silently remove it from the gate. No unrelated fix.
+
+No new synopsis/book/OpenAI call, render, audio, SDK/package, schema/quota, model,
+caps, retry, website, push or deployment. Native Claude review used0.6461078USD
+Max list-equivalent estimate, not a new API invoice or book. Literary benefit
+is a hypothesis, not proved by text assertions. Full stability remains open.
 Decision: docs/ai-workflow/PERSONAL_CHOICE_LED_RESILIENCE_DECISION_20261006.md.
-Next: committed successor to Claude read-only review, then a separately bounded
-and approved plan-only comparison. Prior one-book spending permission consumed.
+Closeout: docs/ai-workflow/PERSONAL_CHOICE_LED_RESILIENCE_CLOSEOUT_20261006.md.
+Next: separately bounded and approved plan-only comparison. Prior one-book
+spending permission consumed. This docs-only closeout is not independently re-gated.
 
 ## Experience-first story and light fifteen-character canon (2026-10-06)
 
