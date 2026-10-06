@@ -1,6 +1,63 @@
 # SmallHeroes — Current Technical State
 
-## Premise boundary and six-call diagnostic comparison (2026-10-06)
+## Six-premise experiment complete; product adoption not established (2026-10-06)
+
+Frozen experiment head b5afd7b01e62220ed67d1979d2fbfe0c8119f689 on
+codex/personal-book-storyboard-bridge. Native Claude independently gives
+technical PASS for57f26d2a..b5afd7b0 and supplied drivers. First review was
+source-capsule-only; corrective review also verified Git HEAD/clean tree/log.
+No own tests/evidence hashing by Claude. Root tsc0/568focused across8files;
+source/driver negative controls retained. No self-awarded product PASS.
+
+Exactly6fresh Opus5.5medium planning sessions complete,3joint/3premise-only,
+same approved Bar/Dini/8spread brief and cap;12candidate occurrences preserved.
+One separate Astra reading saw randomized common fields with no source arm,
+author choice or reason. Both families sealed completed_diagnostic;0unknown
+attempt costs,0retries. Driver logged1key read/1fetch for Astra; native internal
+provider-call count is unverified. Source was frozen/clean during dispatches.
+Root cross-checked all6pairs against saved plans AND raw receipts before
+reader spending, closing the operational L-a gap for this run only; no new
+general cross-process production guard is claimed.
+
+Mixed creative evidence, NOT acceptance: Astra groups3families in joint and
+5in short, but mean causality falls2.67→2.17 and child agency3→2.83; other
+scores differ.3recommendations per arm. All12topic coverage is partial.
+Every A concerns a cloud (5reunion/rescue,1play); all3joint author choices
+are A/reunion. B alternatives differ. Choice can amplify convergence; this
+does not prove positional bias, a prompt cause, or every choice wrong.
+Best blind recommendation P10 is NOT expanded or written. No rollout: the
+predeclared non-regression criterion is not met clearly in this n3/arm,
+single-profile, single-judge premise sample. No good-book/consistency claim.
+
+Reader quality limitation: P4/P7/P10/family4 and summary have visibly unfinished
+endings near240char schema cap. Supplier status completed,4851output tokens
+under8000cap; compiler has max(240), not truncation. Preserve raw response;
+do not treat syntactic success as complete judgement or silently repair it.
+At240chars alone clipping is not proven. Need explanation-contract validation
+before automatic use; no extra reading or instruction change after this trial.
+
+Estimates: planning1.471230USD Max list-equivalent +2native QA1.5986134USD
+same basis +Astra0.321800USD from7925input/4851output =3.3916434USD of12USD.
+Not an API invoice or guaranteed invoice cap. Remaining allowance does NOT
+authorize more calls/book/expansion. Planning-stage mean host interval33s
+short/171s joint; smaller output is not proof whole-book cost/time savings.
+
+Fresh fullcheck RED: ordinary6487pass/10failure names identical to earlier
+baseline/73skip; resource635pass/0assertion failures BUT2onTaskUpdateRPC errors.
+No stability fix/waiver.25comparison/14previous-book/650historical evidence
+files preserved in their baselines. d53b768ccb2f/accepted-intent63ccb484/
+site32872660 remain clean and unchanged. No public flow/canon/site change,
+prose/editor/storyboard/image/render/push/deployment. Local docs-only closeout
+does not extend the reviewed runtime range; older55commits not covered here.
+
+Next: preserve the diagnostic boundary, validate complete reader explanations
+on saved material and isolate selection from generation before any separately
+approved multi-profile/prose trial. No extra review dispatch beyond2authorized.
+Details: docs/ai-workflow/PERSONAL_PREMISE_COMPARISON_CLOSEOUT_20261006.md.
+Readable artifact: premise-six-engine-conclusions-he-20261006.md and
+premise-six-results-20261006/index.html under the task artifact root.
+
+## Premise boundary construction snapshot (superseded by outcome above)
 
 Native Claude read-only SOURCE-CAPSULE review of57f26d2a..e7603bc4 returned
 PASS with nonblocking M1/L1-L3,0.7883874USD Max list-equivalent. Its Git tool

@@ -1,6 +1,24 @@
 # SmallHeroes — Roadmap
 
-## Premise generation and choice diagnosis (2026-10-06)
+## Premise diagnostic completed; quality gate remains open (2026-10-06)
+
+- Native Claude technical PASS57f26d2a..b5afd7b0/drivers; corrective review
+  verifies Git but not tests/evidence hashes. Root tsc0/568focused.
+- Approved6planning sessions +1blind Astra reading complete without retry,
+  12ideas retained,3.3916434USD combined estimates of12USD; Max is not invoice.
+- Mixed:5versus3Astra premise families, but lower short-arm causality/agency.
+  AllAare clouds;3joint selections choose reunion A; B alternatives vary.
+  All12topic coverage partial. Not literary/product/consistent-book evidence.
+- Some reader explanations are unfinished despite schema success; originals
+  preserved. No auto expansion of P10, new calls, public rollout or images.
+- Next decision: validate explanation completeness and independently test
+  selection on retained ideas, then separately authorize diverse-profile work.
+  Do not edit a specific story or add a cloud ban/plot quota.
+- Latest fullcheck RED:6487ordinary pass/10same named failures/73skip;
+  635resource pass plus2RPCerrors. Protected worktrees/evidence unchanged.
+  See docs/ai-workflow/PERSONAL_PREMISE_COMPARISON_CLOSEOUT_20261006.md.
+
+## Premise construction snapshot (superseded by outcome above)
 
 - Native Claude SOURCE-CAPSULE-only PASS57f26d2a..e7603bc4; no own Git/tests.
   Nonblocking pre-spend hardening corrected; shared interest instruction
