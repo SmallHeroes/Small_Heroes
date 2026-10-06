@@ -215,6 +215,84 @@ across all 19.
   check, and pinned by tests.
 - **In the current writer:** reported to Codex, not changed here.
 
+### Found in round 3 and fixed in `eea87d28`: spine examples become plots
+
+Round 3 ran `e098a9a9` on four new requests with the default empty seed, as
+production would. The default seed gave the Bar request the "silly contest"
+spine, the same spine as round 2's Bar (c). The two books are structurally
+near-identical:
+
+- Dini "never won anything";
+- round one is "the slowest jump";
+- a round of carrying a bowl or cup without spilling;
+- a "quietest landing" finale.
+
+The cause is the parenthetical examples in four spine texts, which models
+copy:
+
+| Spine | Book | Example used |
+|---|---|---|
+| mix-up | Bar (a) | swapped parcel |
+| mix-up | Tom | message that arrives wrong |
+| contest | Bar (c) | slowest race |
+| contest | Bar default | slowest race |
+| chase | Itai | drawing that came alive |
+| just this once | Yoav | none |
+
+Five of the six books whose spine had examples used one of them.
+
+`eea87d28` removes every example list from the spines, and a test pins it.
+Round 3's fourth book, Dana on "just this once" with the old examples, adds a
+seventh data point: it became a once-a-century parade of Tiberias's cooking
+pots, close to the "toys hold a parade" example. That makes 6 of 7.
+
+### Rounds 3 and 4: smoke and diversity checks
+
+**Round 3** ran on `e098a9a9` with default seeds, the way production draws
+them: 4 new requests, 4/4 complete, USD 2.209.
+
+- Gal, 7, sirens, Sderot, avoid "war" and "missiles", 16 pages, Uri: the most
+  sensitive case.
+  - The siren in the story is an ambulance "hurrying to help someone".
+  - The grown-ups are near, and the child holds a paw and names the sound.
+  - Coping is shown as anticipation ("someone who hears the noise before
+    you") and as making the noise on purpose.
+  - It contains no war or missile words and no false safety claim.
+- Ron, 4, anger, Shush:
+  - real frustration (he raises the ring to throw it), a funny outlet, then
+    his own idea;
+  - a playful "long walrus breath" on the last page sits near the
+    breathing-ritual line; watch item.
+- Dana, 8, just for fun, Kim: see above.
+- Bar default: see the spine-example finding.
+
+**Round 4** ran on `eea87d28` with the same requests and seeds: 3/3 complete,
+USD 1.363.
+
+- **Tom (mix-up):** a completely different plot. A misheard roar becomes a
+  seagull meal call, and the lifeguard announces a "real dinosaur". Nothing
+  from the old examples.
+- **Itai (chase):** a runaway sesame bagel through Jerusalem, a classic chase
+  shape rather than the old "drawing came alive" example.
+- **Bar (contest), the same spine for the same child again:** new rounds, but
+  a similar macro structure (a contest, Dini wanting to win, noise from the
+  judge's instrument).
+
+**Conclusion.** Removing the examples fixes example copying. Same child plus
+same spine still gives a similar book. That happens about once in 14 when two
+books are drawn for one child; avoiding a child's previous spines needs order
+history and is an integration item.
+
+### Night totals
+
+- 26/26 books, 0 hard failures, **USD 14.082** (CLI list-price estimate).
+- Result contract 26/26; existing editor preparation 26/26; storyboard 15/15
+  for offered companions. The 11 books with the newer companions stop at the
+  known visual-registry gap.
+- Hygiene across rounds 2 to 4: 0/18 books with the stock tummy phrase, 0/18
+  with assumed parents, 0/26 with dashes, and no excluded subject in any final
+  text.
+
 ### Watch items (not defects)
 
 - **Theme devices repeat across books.** Asking a crowd to "cheer without

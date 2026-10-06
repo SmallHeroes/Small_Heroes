@@ -28,14 +28,20 @@ Guy.
   - all 15 canon companions only through the explicit synthetic
     `textCanonOptions`.
 - **New** `lib/personal-wizard/__tests__/simple-story-engine.spec.ts`
-  (30 tests). The full `lib/personal-wizard` folder is green at the closeout
-  commit: 37 files, 1,337 tests (1,335 at `7c71ff71`). `tsc` is clean.
-  `npm run check` was not run here; it was already red before this change.
+  (31 tests). The full `lib/personal-wizard` folder is green: 37 files,
+  1,338 tests at HEAD. `tsc` is clean. `npm run check` was not run here; it
+  was already red before this change.
 - **Commits:**
-  - `7c71ff71`: engine, runner, tests, decision and brief;
+  - `7c71ff71`: engine, runner, tests, decision and brief (round-2 code);
   - `1aa67f42`: output headroom from measured usage, plus a coded compile
     failure;
-  - the closeout commit: dash-class widening, closeout and doc updates.
+  - `e098a9a9`: dash-class widening and the closeout (round-3 code);
+  - `eea87d28`: spine example lists removed after trials showed copying
+    (round-4 code);
+  - final docs commit: rounds 3 and 4 and the night totals.
+
+  Round 1 ran on uncommitted first prompts, preserved verbatim in its
+  instruction files.
 - **New** docs: the decision gate, this brief, and the closeout with the trial
   evidence.
 - No existing source file is modified.
