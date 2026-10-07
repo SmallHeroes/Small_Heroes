@@ -1,5 +1,16 @@
 # SmallHeroes — Roadmap
 
+## Reviewer authority HOLD correction before source adapter (2026-10-07)
+
+- Claude separately passed `2b4035d8..119ac518` and docs-only `dad37132..87b93c93`; storyboard binding remains HOLD
+  for R2-1 until re-gate. Full repo gate remains RED; no product, visual or release PASS is inferred.
+- Focused successor from `87b93c93`: physical-only boundary in actual semantic-review instruction/call, nested
+  snapshot test and unresolved embodiment pin, accurate mutation timing. No source contract/provider/stage change.
+- Next: local checks, focused commit and Claude re-gate; then one shared simple-source current-admission seam at
+  preparation and frames, author/editor evidence in source identity, writing/storyboard appearance equality and early
+  unresolved rejection. Reuse existing compiler/reviewer/frame functions from a small diagnostic, not a copied runner.
+- No new book, storyboard, images, key/provider use, budget, wizard port, push or deployment.
+
 ## Corrective ranges ready for Claude and simple source adapter next (2026-10-07)
 
 - Frozen code: `2b4035d8..119ac518` literary/physical authority correction; `119ac518..dad37132` storyboard visual source

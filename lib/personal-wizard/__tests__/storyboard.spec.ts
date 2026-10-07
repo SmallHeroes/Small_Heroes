@@ -43,6 +43,8 @@ describe('personal writer -> whole-book storyboard -> identical render/QA state'
     expect(f.source.companionVisualAuthority).toEqual({ id: record.id, description: record.visualDescription,
       appearanceStateAuthority: record.appearanceStateAuthority });
     expect(f.source.companionVisualAuthority.appearanceStateAuthority).not.toBe(record.appearanceStateAuthority);
+    expect(f.source.companionVisualAuthority.appearanceStateAuthority!.states).not.toBe(record.appearanceStateAuthority!.states);
+    expect(f.source.companionVisualAuthority.appearanceStateAuthority!.states[0]).not.toBe(record.appearanceStateAuthority!.states[0]);
     expect(f.source.planningInput.companionVisualAuthority).toEqual(f.source.companionVisualAuthority);
     expect(f.source.planningInput.companionDescription).toBe(f.source.companionVisualAuthority.description);
     expect(personalStoryboardReviewInput(f.book).companionVisualAuthority).toEqual(f.source.companionVisualAuthority);

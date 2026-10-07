@@ -1,14 +1,36 @@
 # SmallHeroes — Current Technical State
 
+## Claude verdicts and focused reviewer correction (2026-10-07)
+
+Claude independently returned PASS for `2b4035d8..119ac518` (V1/A1/A2 and successor S1 closed), HOLD for
+`119ac518..dad37132` (R2-1 P2), and PASS for docs-only `dad37132..87b93c93`. This does not extend to earlier
+ancestry, product/visual/release acceptance or repo stability. Its own focused 441/441 and semantic 41/41 passed;
+it verified committed inventories against Git blobs and relied on the two full RED logs rather than rerunning them.
+
+- Codex verified R2-1: legacy visual text reaches the actual reviewer without the planner's physical-only boundary.
+  This successor adds that boundary and actual-call tests, without changing raw evidence, source identity or stage count.
+- Nested snapshot tests now pin states and their objects (R2-2). Existing unresolved-embodiment wording is pinned for
+  all 15 author/editor packets (P3-1). Earlier mutation timing is clarified below (D-1).
+- R2-3 optional version bump is deferred to the adapter identity change; current source/frame/review binding stays
+  fail-closed. P3-2 historic generalized editor gender wording is not claimed fixed or a V1 regression.
+- Local type-check exits 0; nine focused specs pass 486/486 (book runner 130 -> 134, all existing tests retained).
+  Committed negative controls and one hashed full gate will follow the focused code commit.
+- Sole writer: this chat, `codex/simple-story-voice-20261007`, from clean `87b93c93`. Independent re-gate pending;
+  no new independent PASS. Full gate remains RED. No key/provider, Max call, story/storyboard/image, render, wizard
+  integration, push, merge or deployment. Prior paid allowances are closed.
+- Next: Claude re-gates the whole storyboard-binding surface plus this correction, then the small explicit source
+  adapter. Plan unchanged except for Claude's validated admission/evidence/appearance equality conditions.
+- Decision: `docs/ai-workflow/PERSONAL_STORYBOARD_REVIEW_AUTHORITY_CORRECTION_20261007.md`.
+
 ## Voice and storyboard corrective code frozen for independent review (2026-10-07)
 
 Code commits are `119ac518` (V1/A1/A2 correction) and `dad37132` (visual source binding), on
 `codex/simple-story-voice-20261007`. This closeout changes documentation only. No independent PASS is claimed.
 
-- At clean `119ac518`: tsc 0; committed focused 275/275; seven virtual mutants caught. Full check exit 1, ordinary
+- At clean `119ac518`: tsc 0; committed focused 275/275. Seven virtual mutants were caught before commit. Full check exit 1, ordinary
   6573 pass / 10 inherited fail / 73 skip; resource 634 pass / one base-reproduced Windows probe fail / three RPC errors.
   All 3370 tracked file hashes stayed identical before/after both committed runs.
-- At clean `dad37132`: tsc 0; committed focused 441/441 across eight specs; five virtual mutants caught, 74/74 control.
+- At clean `dad37132`: tsc 0; committed focused 441/441 across eight specs. Five pre-commit mutants were caught, 74/74 control.
   Full check exit 1, ordinary 6576 pass / the same 10 fail / 73 skip; resource 634 pass / same probe fail / three RPC errors.
   All 3371 tracked file hashes stayed identical before/after. No new failing assertion is in the changed code/specs.
 - These are completed host runs with known termination, not killed background tasks. Full gate remains RED and the

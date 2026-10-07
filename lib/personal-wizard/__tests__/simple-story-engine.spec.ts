@@ -225,6 +225,7 @@ describe('simple story engine', () => {
         expect(packet.task).not.toContain('conflicting draft descriptions');
       } else expect(packet.task).toContain('Check and correct conflicting draft descriptions');
       expect(packet.task).toContain('not permission to invent them');
+      expect(packet.task).toContain('use the supplied character embodiment');
     }
   });
 
