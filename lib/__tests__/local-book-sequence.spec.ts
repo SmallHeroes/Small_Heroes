@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { bookSequenceSchema, validateBookSequence, validateSequenceSelection, sequencePredecessor, sequencePagePacket, sequenceRenderPrompt } from '../local-book-sequence';
-import { QUALITY_CATEGORIES } from '../local-preview-quality';
+import { bookSequenceSchema, validateBookSequence, validateSequenceSelection, sequencePredecessor, sequencePageState, sequencePagePacket, sequenceRenderPrompt } from '../local-book-sequence';
+import { QUALITY_CATEGORIES, previewContinuityContext } from '../local-preview-quality';
 import { previewStory, type PreviewPlan } from '../local-story-preview';
 import { compileVisualPriorityPolicy, visualPriorityForPage, visualPriorityDigest } from '../local-visual-priority';
 
@@ -105,6 +105,11 @@ describe('whole-book local sequence state', () => {
     expect(s.pages[1].states[2].value.relation).toBe('inside');
     expect(sequencePagePacket(s, input.plan, 2, [previous()]).relations.some(x => x.entityId === 'driver')).toBe(false);
     expect(s.pages[2].states[2].value.relation).toBe('inside');
+    const returned = sequencePageState(s, input.plan, 3);
+    expect(returned.visibleCastIds).toContain('driver');
+    expect(returned.relations).toContainEqual({ entityId: 'driver', value: { relation: 'inside', targetId: 'hut' } });
+    expect(previewContinuityContext(input.plan.continuity!, 3).entities.find(entity => entity.id === 'driver')).toEqual({
+      id: 'driver', kind: 'supporting_character', invariants: [{ attribute: 'design', value: 'girl' }], currentState: { design: 'girl' } });
   });
   it.each(['missing', 'duplicate', 'unknown', 'self', 'cycle', 'visible_future', 'custody', 'unestablished_target'])('rejects invalid relation inventory: %s', kind => {
     const { sequence, input } = fixture(); const p = sequence.pages[0];

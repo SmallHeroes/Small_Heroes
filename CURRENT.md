@@ -1,5 +1,36 @@
 # SmallHeroes — Current Technical State
 
+## Spatial continuity coverage for current storyboard packets (2026-10-08)
+
+Guy asked to preserve placement and recognizable places, props and all characters across frames. Repository
+inspection confirms the existing whole-book planner, sparse physical-state ledger, canonical designs/invariants,
+full-book reviewer and current render/QA projections already represent this. No production defect or missing
+runtime schema was observed. The gap is direct regression coverage of spatial data in the actual render prompt.
+
+- Codex is sole writer in the same `codex/simple-story-voice-20261007` worktree, from clean `02274852`; six protected
+  trees remain at their clean baselines. This approved continuation is tests/docs only, no additional writer/session.
+- Three new 8/12/16-spread cases trace world-local placement, structure, wardrobe, companion declaration/scale and
+  custody through the current simple-source driver, full reviewer input and literal render/QA packets. Changing
+  camera does not change state; leaving/returning keeps canonical set IDs/designs; invisible is not removed/drawn.
+- Two joined-ID refusal cases pin wrong-page movement evidence and undeclared material change at the exact existing
+  checks after one planner callback, before reviewer/frames. An existing supporting-character case now verifies
+  unchanged design and physical relation on reappearance. No source prose, fictional book or canon is repaired.
+- Local literal npx type-check exits 0; diagnostic 49/49 plus sequence 33/33 pass (82/82). Seven virtual mutants lose geometry/state/prompt data,
+  expose offscreen entities or weaken the two refusal checks; each fails its intended selected cases, six-case control
+  passes, with no timeouts/loader errors. Local tracked bytes and 86 historical + 83 age evidence stay unchanged;
+  six protected trees remain clean. Fresh committed type-check/fifteen-file focus and independent QA follow.
+- Five cases added, none removed: original focused count expected 689 -> 694. Spec inventory stays 421/401/20;
+  no new spec or policy change. Only two specs, CURRENT, ROADMAP and the new spatial decision record may change.
+- World position is relative topology/physical relations, not fixed screen-left/right or a new pixel-coordinate map.
+  Design/attribute strings are authored data; tests prove their preservation/dispatch, not that a real planner always
+  supplies enough detail or that matching evidence entails a move. Semantic review and actual pixel proof remain.
+- No runtime/prompt/provider/schema/SDK/source/canon/asset/route/gate change; no key, API/Max, book/storyboard model
+  call, image/render, renewed allowance, wizard port, push/merge/deploy. Existing driver/P3-1 independent PASSs remain
+  narrow; this coverage milestone is not independently passed. Full gate stays RED as previously recorded, not rerun
+  for this test/docs-only delta; F2, remaining F3/F4 and real long-book headroom remain open.
+- Decision: `docs/ai-workflow/PERSONAL_STORYBOARD_SPATIAL_CONTINUITY_20261008.md`; evidence beside prior chat reports
+  in `storyboard-spatial-evidence-20261008/`. Next substantial work still needs the live credential/priced budget decision.
+
 ## Offline driver and abort regression independently passed (2026-10-07)
 
 Claude independently passed driver `624a7025..862944e3` and separately docs-only `862944e3..1efc908f`.

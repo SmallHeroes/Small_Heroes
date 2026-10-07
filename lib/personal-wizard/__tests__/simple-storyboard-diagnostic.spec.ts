@@ -100,6 +100,76 @@ describe('simple storyboard diagnostic over existing current seams', () => {
     }
     expect(f.writerResult).toEqual(before);
   });
+  it.each(['short', 'medium', 'long'])('preserves world placement, appearance and custody in actual render/QA packets through a %s return visit', async length => {
+    const f = await fixture(length), draft = structuredClone(f.draft), before = structuredClone(f.writerResult);
+    // Synthetic set details exercise existing fields, not a new location schema or a real model's accuracy.
+    const setDesign = 'One wooden hut beside the oak, doorway facing the stone lane; these are world-local relationships, not screen-left/right.';
+    const hutAttributes = [{ attribute: 'material', value: 'wood' }, { attribute: 'silhouette', value: 'one triangular roof, two round windows' },
+      { attribute: 'placement', value: 'beside the oak, doorway facing the stone lane' }];
+    draft.plan.locations[0].design = setDesign;
+    draft.plan.continuity.entities.find(entity => entity.id === 'hut')!.invariants = hutAttributes;
+    const source = prepareCurrentPersonalStoryboard(f.request, f.writerResult, options), bound = compilePersonalStoryboard(source, draft);
+    const review = { ...f.review, sourceDigest: bound.sourceDigest, storyboardDigest: bound.storyboardDigest };
+    const generate = vi.fn(async (call: SimpleStoryboardDiagnosticCall, _signal: AbortSignal) =>
+      structuredClone(call.stage === 'storyboard' ? draft : review));
+    const result = await runSimpleStoryboardDiagnostic({ ...f.args, generate });
+    const ledger = (page: number, entityId: string) => result.storyboard.sequence.pages[page - 1].states.find(state => state.entityId === entityId)!.value;
+    const frame = (page: number) => result.framePackets[page];
+    expect(generate).toHaveBeenCalledTimes(2); expect(result.status).toBe('review_supported');
+    expect(result.framePackets).toHaveLength(result.storyboard.narrativeSpreads + 1);
+    const [planner, reader] = generate.mock.calls.map(([call]) => call);
+    expect(planner.instructions).toContain('read ALL pages');
+    expect(planner.instructions).toContain('Every page inherits ALL prior state, including offscreen objects and people');
+    expect(planner.instructions).toContain('same canonical location and landmark IDs on a return visit');
+    expect(reader.instructions).toContain('return visits, identity, scale, geography, custody, inside/outside, offscreen state');
+    const reviewInput = JSON.parse(reader.input);
+    expect(reviewInput.plan.locations[0]).toEqual({ id: 'garden', design: setDesign });
+    expect(reviewInput.sequence).toEqual(result.storyboard.sequence);
+    for (const packet of result.framePackets) {
+      const page = packet.context.pageNumber, visual = packet.context.visual;
+      expect(packet.qa.context).toBe(packet.context); expect(packet.qa.contextSha).toBe(packet.render.contextSha);
+      expect(packet.runtimeEligible).toBe(false); expect(visual.wardrobe).toBe(draft.plan.wardrobe);
+      expect(visual.locations).toEqual([draft.plan.locations[page === 4 ? 1 : 0]]);
+      expect(packet.context.companion).toEqual({ id: f.request.companion.id, description: source.companionVisualAuthority.description });
+      expect(visual.continuity.companionStandingHeightInChildHeights).toBe(.75);
+      expect(packet.render.prompt).toContain(`LOCATION LOCK: ${visual.locations[0].design}`);
+      expect(packet.render.prompt).toContain(`BOOK WARDROBE LOCK: ${visual.wardrobe}`);
+      expect(packet.render.prompt).toContain(`COMPANION: ${source.companionVisualAuthority.description}`);
+      expect(packet.render.prompt).toContain(`STRUCTURED CONTINUITY (same identity; only source-supported state changes): ${JSON.stringify(visual.continuity)}`);
+      if (page > 0) {
+        expect(ledger(page, 'hut')).toEqual({ relation: 'at', targetId: 'garden' });
+        expect(ledger(page, 'ribbon')).toEqual({ relation: 'held_by', targetId: 'child' });
+        expect(packet.render.prompt).toContain(`BOOK SEQUENCE STATE: ${JSON.stringify({ ...packet.context.sequence, predecessor: null })}`);
+      }
+    }
+    // A new camera is not a move. A new visit is not a rebuilt set. Invisible is not removed or forced visible.
+    expect(frame(1).context.visual.page.shot).not.toBe(frame(2).context.visual.page.shot);
+    expect(ledger(2, 'child')).toEqual(ledger(1, 'child')); expect(ledger(2, 'companion')).toEqual(ledger(1, 'companion'));
+    expect(frame(2).context.sequence!.visibleCastIds).toEqual(['child']);
+    expect(frame(2).context.sequence!.relations.some(state => state.entityId === 'companion' || state.entityId === 'ribbon')).toBe(false);
+    expect(frame(4).context.visual.continuity.entities.some(entity => entity.id === 'hut')).toBe(false);
+    expect(frame(5).context.sequence!.sceneId).not.toBe(frame(1).context.sequence!.sceneId);
+    expect(frame(5).context.visual.locations).toEqual(frame(1).context.visual.locations);
+    const firstHut = frame(1).context.visual.continuity.entities.find(entity => entity.id === 'hut');
+    expect(firstHut).toEqual({ id: 'hut', kind: 'landmark', invariants: hutAttributes,
+      currentState: { material: 'wood', silhouette: 'one triangular roof, two round windows', placement: 'beside the oak, doorway facing the stone lane' } });
+    expect(frame(5).context.visual.continuity.entities.find(entity => entity.id === 'hut')).toEqual(firstHut);
+    expect(frame(5).context.sequence!.relations).toContainEqual({ entityId: 'hut', value: ledger(1, 'hut') });
+    expect(frame(5).context.visual.recurringProps).toEqual(frame(1).context.visual.recurringProps);
+    expect(f.writerResult).toEqual(before);
+  });
+  it.each(['placement', 'appearance'])('refuses unsupported %s changes before review or frame extraction', async kind => {
+    const f = await fixture(), draft = structuredClone(f.draft);
+    if (kind === 'placement') draft.sequence.pages[4].transitions.push({ entityId: 'hut',
+      from: { relation: 'at', targetId: 'garden' }, to: { relation: 'at', targetId: 'lane' },
+      evidence: f.writerResult.manuscript.pages[3].text }); // Wrong page, while IDs and from/to still join.
+    else draft.plan.continuity.pages[5].changes.push({ entityId: 'hut', attribute: 'material', value: 'stone',
+      storyEvidence: f.writerResult.manuscript.pages[4].text } as never); // Valid quote, no mutable permission.
+    const generate = vi.fn(async (_call: SimpleStoryboardDiagnosticCall, _signal: AbortSignal) => draft);
+    await expect(runSimpleStoryboardDiagnostic({ ...f.args, generate })).rejects.toThrow(kind === 'placement'
+      ? 'book_sequence_transition_evidence' : 'book_sequence_immutable_attribute_change');
+    expect(generate).toHaveBeenCalledTimes(1);
+  });
   it.each(['uncertain', 'contradiction'] as const)('keeps a %s whole-book review with zero packets', async verdict => {
     const f = await fixture(); f.review.frames[3].checks[2].verdict = verdict as 'supported';
     const result = await runSimpleStoryboardDiagnostic(f.args);

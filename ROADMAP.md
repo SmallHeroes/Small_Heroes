@@ -1,5 +1,18 @@
 # SmallHeroes — Roadmap
 
+## Current storyboard spatial continuity regression coverage (2026-10-08)
+
+- Guy's continuation verifies existing world placement/appearance and character continuity, not a new spatial engine.
+  From clean `02274852`, same sole-writer task/worktree; only two existing specs and three docs change.
+- Three lengths trace world-local topology, custody, canonical return IDs/designs, wardrobe, companion scale and
+  literal render/QA data. Offscreen state persists without forced visibility; supporting characters keep their design.
+- Five new cases and a strengthened supporting-character case cover the two exact pre-review refusals: diagnostic 49 and sequence 33
+  pass locally, seven virtual mutants caught with a six-case control. Five tests added, none removed; 421/401/20
+  inventory unchanged. Fresh clean-commit type-check/fifteen-file focus and independent Claude review are next.
+- No production/prompt/schema/provider/canon/source/asset change, key/API/Max, new book/storyboard/image/render,
+  spending renewal, wizard port or push. Full gate remains RED; real authored detail, capacity and pixels unproven.
+  Keep the later bounded live proof and qualified LOW audition separately credential/spending approved.
+
 ## Offline driver and cancellation regression technical PASS (2026-10-07)
 
 - Claude independently passed `624a7025..862944e3` and docs-only `862944e3..1efc908f`, with 689/689 focused tests.
