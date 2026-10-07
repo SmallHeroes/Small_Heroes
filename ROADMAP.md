@@ -1,5 +1,14 @@
 # SmallHeroes — Roadmap
 
+## Simple story engine: technical PASS at `fd4ce96d`, milestone closed (2026-10-07)
+
+- Done: Codex gave an independent technical PASS with no blocking findings for `ebd6cb03..0a845285`, `0a845285..fd4ce96d` and
+  `0e8dfd5f..fd4ce96d`. This is not a literary-quality or release PASS.
+- Repo gate is still RED: full check exit 1, with 3 unhandled resource-lane `onTaskUpdate` timeouts. All assertions pass and the cause is not established.
+- No new task is authorized. Still blocked: integration and current storyboard, product acceptance, push, merge, deployment and new
+  books. The four-book comparison in the report is only a priced proposal and needs a separate decision.
+- See `docs/ai-workflow/PERSONAL_SIMPLE_STORY_F7_L1_CORRECTION_20261007.md`.
+
 ## Simple story engine: F7/L1 correction pending re-QA (2026-10-07)
 
 - Done locally: all-fixture trial admission (F7) and no-theme reaction wording (L1), code `39601440`.

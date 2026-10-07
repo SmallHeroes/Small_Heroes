@@ -1,5 +1,26 @@
 # SmallHeroes — Current Technical State
 
+## Simple story engine: independent Codex technical PASS at `fd4ce96d`, docs closeout (2026-10-07)
+
+Local only, not pushed. Codex reviewed independently and did not edit source. Claude remains the sole writer. Report:
+`C:/Users/guyna/.codex/visualizations/2026/09/04/01a06c5c-a233-76c0-ac8e-618c02ce6246/CODEX-QA-SIMPLE-LITERARY-REGATE-fd4ce96d-20261007.md`.
+
+- Technical PASS with no blocking findings, for three separately reviewed ranges: `ebd6cb03..0a845285` corrections,
+  `0a845285..fd4ce96d` literary instructions, and `0e8dfd5f..fd4ce96d` F7/L1 successor. This is not a literary-quality, repo-stability
+  or release PASS.
+- Codex results: `tsc` exit 0; focused 62/62 (engine 55, inventory 7); 21/21 in-memory mutants caught; 16 mixed-provenance
+  boundary variants rejected before output or dispatch; real CLI mixed case exits 3; earlier stop, name, minus and current-storyboard
+  probes pass.
+- Full check finished at 06:53:26 UTC with exit 1 (RED). Ordinary lane: 6542 pass, 10 known fail, 73 skip. Resource lane: 635/635
+  assertions pass, but 3 unhandled `onTaskUpdate` timeouts made it exit 1. The cause is not established. No changed test has a new
+  failing assertion.
+- Evidence preserved: 314 Claude evidence files and 650 historical entries. All six relevant worktrees are clean.
+- Still blocked: integration and current storyboard, product acceptance, push, merge, deployment and any new book run. The report's
+  four-book comparison is only a separately priced proposal and was not run.
+- Cost: the three engineering receipts total $3.4774496 of the original $4 Max list-equivalent allowance. The last call cost
+  $1.5188062, not the earlier estimate of about $1.3. This docs call's usage is pending its receipt. None of this is an API
+  invoice guarantee.
+
 ## Simple story engine: F7/L1 correction after Codex QA, pending re-QA (2026-10-07)
 
 Local only, same branch/worktree as below, not pushed. Code commit `39601440` on top of `0e8dfd5f`.

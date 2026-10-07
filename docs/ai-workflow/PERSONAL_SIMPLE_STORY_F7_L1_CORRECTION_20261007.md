@@ -106,3 +106,24 @@ checks the distinction in both prompts and that the old blanket-ban phrasing is 
 3. Do the negative tests still pass if one of their clauses is removed?
 4. Does the no-theme text still force or forbid a reaction, or imply a coping beat?
 5. Is any change present outside the two source files, the spec and these docs?
+
+## Closeout: independent Codex technical PASS at `fd4ce96d` (2026-10-07)
+
+The sections above are kept as written at the time. Codex reviewed independently and did not edit source. Report:
+`C:/Users/guyna/.codex/visualizations/2026/09/04/01a06c5c-a233-76c0-ac8e-618c02ce6246/CODEX-QA-SIMPLE-LITERARY-REGATE-fd4ce96d-20261007.md`.
+
+- Verdict: technical PASS with no blocking findings, for `ebd6cb03..0a845285` corrections, the `0a845285..fd4ce96d` literary
+  milestone and the `0e8dfd5f..fd4ce96d` F7/L1 successor. This is not a literary-quality, repo-stability or release PASS.
+- Falsification results: `tsc` exit 0; focused 62/62 (55 engine, 7 inventory); 21/21 in-memory mutants caught; 16
+  mixed-provenance boundary variants rejected before output or dispatch; real CLI mixed case exits 3; earlier stop, name, minus and
+  current-storyboard probes pass.
+- Full check finished at 06:53:26 UTC with exit 1 (RED). Ordinary lane: 6542 pass, 10 known fail, 73 skip. Resource lane: 635/635
+  assertions pass, but 3 unhandled `onTaskUpdate` timeouts made it exit 1. The cause is not established. No changed test has a new
+  failing assertion.
+- Preserved: 314 Claude evidence files and 650 historical entries. All six relevant worktrees are clean.
+- Still blocked: integration and current storyboard, product acceptance, push, merge, deployment and new books. The four-book
+  comparison is only a separately priced proposal and was not run.
+- Cost correction: the earlier "about $1.3" was an estimate. The actual receipt was $1.5188062. The three engineering receipts total
+  $3.4774496 of the original $4 Max list-equivalent allowance. This docs call's usage is pending its receipt. None of this is an
+  API invoice guarantee.
+- This docs commit changes only CURRENT.md, ROADMAP.md and this file. Source is unchanged, so the full suite was not rerun.
