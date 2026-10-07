@@ -19,7 +19,7 @@ import { enqueueSimpleBook, simpleBookQueueDirectory, claimSimpleBookWorker, sim
 import * as frozen from '../../../scripts/personal-source-git';
 import * as journal from '../../../scripts/personal-causal-trial-journal';
 import { GET, POST } from '@/app/api/dev/personal-wizard/simple-book/route';
-import { simpleWizardReadingPayload, simpleWizardVisualPayload, simpleWizardWorkerCLI } from '../../../scripts/personal-simple-wizard-worker';
+import { simpleWizardVisualPayload, simpleWizardWorkerCLI } from '../../../scripts/personal-simple-wizard-worker';
 import * as adapters from '../../../scripts/personal-causal-trial-adapters';
 import { personalBookProviderPayload } from '../book-openai';
 import { citationTokens } from '../story-source-citations';
@@ -38,11 +38,18 @@ beforeEach(() => {
   sdk.create.mockReset(); sdk.options = [];
   deps.production = false; deps.user = { id: 'owner', email: 'owner@example.com' };
   root = mkdtempSync(path.join(tmpdir(), 'sh_simple_book_test_')); roots.push(root);
+  const engineeringReceipts = [1, 2].map(n => {
+    const file = path.join(root, `SYNTHETIC-engineering-${n}.json`);
+    writeFileSync(file, JSON.stringify({ terminationConfirmed: true, stopped: false, code: 0, signal: null,
+      reportedCostUsd: 0, isError: false, resultSubtype: 'success', synthetic: true }));
+    return { file, sha256: sha(readFileSync(file)) };
+  });
   config = { version: 'local-simple-wizard-config/v1', workspace: process.cwd(), outputParent: root, sourceHead: 'a'.repeat(40),
     approvalReference: 'SYNTHETIC offline allowance, not real paid authorization.', maximumMicroUsd: 12000000, fictionalProfile: true,
-    seed: 'test-book-seed', executable: path.join(root, 'NEVER.exe'), executableSha256: 'b'.repeat(64), existingKeyEnvFile: path.join(root, 'NEVER.env'), engineeringReceipts: [] };
+    seed: 'test-book-seed', executable: path.join(root, 'NEVER.exe'), executableSha256: 'b'.repeat(64), existingKeyEnvFile: path.join(root, 'NEVER.env'), engineeringReceipts };
   file = path.join(root, 'config.json'); writeFileSync(file, JSON.stringify(config));
-  vi.spyOn(frozen, 'gitAt').mockImplementation((_repo, args) => Buffer.from(args.join(' ') === 'rev-parse HEAD' ? 'a'.repeat(40) : ''));
+  vi.spyOn(frozen, 'gitAt').mockImplementation((_repo, args) => Buffer.from(args.join(' ') === 'rev-parse HEAD' ? 'a'.repeat(40)
+    : args.join(' ') === 'status --porcelain' ? '' : root));
   vi.stubEnv('PERSONAL_WIZARD_PREVIEW', 'true'); vi.stubEnv('PERSONAL_WIZARD_SIMPLE_BOOK_RUNNER', 'true');
   vi.stubEnv('PERSONAL_WIZARD_SIMPLE_BOOK_CONFIG', file); vi.stubEnv('PERSONAL_WIZARD_SIMPLE_BOOK_OPERATORS', 'owner@example.com');
 });
@@ -113,13 +120,16 @@ describe('actual simple writer to current whole-book driver, with no image autho
     await expect(runSimpleWizardBook(f.args)).rejects.toThrow(); expect(f.args.reader).not.toHaveBeenCalled(); expect(f.args.visual).not.toHaveBeenCalled();
     if (kind !== 'reused_session') expect(f.args.opus).toHaveBeenCalledTimes(1);
   });
-  it('holds a source-bound meaningful final finding before storyboard money', async () => {
+  it.each(['meaningful_issue', 'blocking_preference', 'blocking_improvement'])('holds a source-bound %s final finding before storyboard money', async mode => {
     const f = await fixture();
     f.args.reader.mockImplementation(async (call, _signal) => {
-      const input = JSON.parse(call.input), final = call.stage === 'final_review', unit = input.packet.manuscript?.pages[0].units[0];
-      return { packetDigest: input.packetDigest, summary: 'Synthetic material issue only.', findings: final ? [{ severity: 'meaningful', kind: 'issue',
-        criterion: 'Synthetic readable issue criterion.', explanation: 'Synthetic meaningful reader impact.', original: [],
-        revised: [{ startId: unit.id, endId: unit.id, anchor: citationTokens(unit.text).slice(0, 2).join(' ') }] }] : [] } as any;
+      const input = JSON.parse(call.input), final = call.stage === 'final_review';
+      const unit = final ? input.packet.manuscript.pages[0].units[0] : input.packet.revised.pages[0].units[0];
+      const ref = (u: any) => ({ startId: u.id, endId: u.id, anchor: citationTokens(u.text).slice(0, 2).join(' ') });
+      return { packetDigest: input.packetDigest, summary: 'Synthetic material issue only.', findings: (mode === 'blocking_improvement' ? !final : final) ? [{ severity: mode.startsWith('blocking') ? 'blocking' : 'meaningful',
+        kind: mode === 'blocking_preference' ? 'preference' : mode === 'blocking_improvement' ? 'improvement' : 'issue',
+        criterion: 'Synthetic readable issue criterion.', explanation: 'Synthetic meaningful reader impact.',
+        original: final ? [] : [ref(input.packet.original.pages[0].units[0])], revised: [ref(unit)] }] : [] } as any;
     });
     const result = await runSimpleWizardBook(f.args); expect(result.status).toBe('story_held');
     expect(f.args.visual).not.toHaveBeenCalled(); expect(f.args.publish.mock.calls[f.args.publish.mock.calls.length - 1]?.[0].phase).toBe('held');
@@ -131,12 +141,10 @@ describe('actual simple writer to current whole-book driver, with no image autho
   it('uses the literal existing SDK visual payload, unchanged caps, and model-specific ordered decoding', async () => {
     const f = await fixture(); await runSimpleWizardBook(f.args);
     for (const [call] of f.args.visual.mock.calls) {
-      const model = call.stage === 'storyboard' ? 'gpt-6-sol' : 'gpt-6-astra';
+      const model = adapters.CAUSAL_MODELS.astra;
       expect(simpleWizardVisualPayload(call)).toEqual(personalBookProviderPayload(call, model));
       expect(call.maxOutputTokens).toBe(call.stage === 'storyboard' ? 32000 : 39000);
     }
-    const payload = simpleWizardReadingPayload(f.args.reader.mock.calls[0][0]);
-    expect(payload.model).toBe('gpt-6-astra'); expect(payload.store).toBe(false); expect(payload.max_output_tokens).toBe(16000);
   });
 });
 
@@ -206,7 +214,8 @@ describe('real authenticated local simple-book route and one-use queue', () => {
   it.each(['source', 'dirty', 'request_id', 'consent', 'browser_budget'])('refuses %s without acquiring approval', async kind => {
     const f = await fixture(), input: any = { request: f.request, requestId: prepareSimpleStory(f.request, options).accepted.requestId, consent: 'reviewed_text_to_simple_book_diagnostic' };
     if (kind === 'source') config.sourceHead = 'b'.repeat(40);
-    if (kind === 'dirty') vi.mocked(frozen.gitAt).mockImplementation((_repo, args) => Buffer.from(args.join(' ') === 'rev-parse HEAD' ? 'a'.repeat(40) : ' M tracked.ts'));
+    if (kind === 'dirty') vi.mocked(frozen.gitAt).mockImplementation((_repo, args) => Buffer.from(args.join(' ') === 'rev-parse HEAD' ? 'a'.repeat(40)
+      : args.join(' ') === 'status --porcelain' ? ' M tracked.ts' : root));
     if (kind === 'request_id') input.requestId = 'c'.repeat(64);
     if (kind === 'consent') input.consent = 'reviewed_text_to_opus_and_astra';
     if (kind === 'browser_budget') input.budget = 100;
@@ -217,6 +226,24 @@ describe('real authenticated local simple-book route and one-use queue', () => {
     expect(simpleBookConfig(file)).toEqual(config);
     for (const query of ['bad', '../config.json', `${'a'.repeat(64)}&requestId=${'a'.repeat(64)}`]) expect((await GET(req('GET', undefined, `${url}?requestId=${query}`))).status).toBe(422);
     writeFileSync(file, JSON.stringify({ ...config, maximumMicroUsd: 25000000 })); expect(() => simpleBookConfig(file)).toThrow();
+  });
+  it('a renamed reference/output parent cannot mint another allowance or worker in the same repository', async () => {
+    const f = await fixture(), requestId = prepareSimpleStory(f.request, options).accepted.requestId;
+    enqueueSimpleBook(config, { request: f.request, requestId, userId: 'owner' });
+    const initial = simpleBookQueueDirectory(config), another = path.join(root, 'different-output'); mkdirSync(another);
+    const changed = { ...config, outputParent: another, approvalReference: config.approvalReference + ' renamed' };
+    expect(simpleBookQueueDirectory(changed)).toBe(initial);
+    expect(() => enqueueSimpleBook(changed, { request: f.request, requestId, userId: 'owner' })).toThrow('simple_request_binding');
+    expect(() => claimSimpleBookWorker(changed)).toThrow('simple_request_binding');
+    expect(existsSync(path.join(another, 'worker-claimed.json'))).toBe(false);
+  });
+  it('requires explicit engineering receipts, and a missing listed receipt blocks the worker before claim or paid call', async () => {
+    writeFileSync(file, JSON.stringify({ ...config, engineeringReceipts: [] })); expect(() => simpleBookConfig(file)).toThrow();
+    writeFileSync(file, JSON.stringify({ ...config, engineeringReceipts: [{ file: path.join(root, 'missing.json'), sha256: 'a'.repeat(64) }, ...config.engineeringReceipts] }));
+    writeFileSync(config.executable, 'SYNTHETIC'); config.executableSha256 = sha(readFileSync(config.executable));
+    const parsed = JSON.parse(readFileSync(file, 'utf8')); parsed.executableSha256 = config.executableSha256; writeFileSync(file, JSON.stringify(parsed));
+    await expect(simpleWizardWorkerCLI(['--config', file, '--execute'])).rejects.toThrow(); expect(sdk.create).not.toHaveBeenCalled();
+    expect(existsSync(path.join(simpleBookQueueDirectory(config), 'worker-claimed.json'))).toBe(false);
   });
   it('cannot describe a references-only result as complete, and delayed acknowledgements cannot replace a newer view', () => {
     const v = emptySimpleBookView('a'.repeat(64)); expect(readSimpleBookView({ ...v, phase: 'complete' }, v.requestId)).toBeNull();
@@ -255,6 +282,9 @@ describe('explicit native worker boundary with fake transports only', () => {
     expect(sdk.create).not.toHaveBeenCalled(); expect(f.args.opus).not.toHaveBeenCalled();
     expect(await simpleWizardWorkerCLI(['--config', file, '--execute'])).toBe(0);
     expect(sdk.create).toHaveBeenCalledTimes(4); expect(f.args.opus).toHaveBeenCalledTimes(2);
+    const readingWire = JSON.parse(readFileSync(path.join(f.directory, 'paid-stages/final_review.wire.json'), 'utf8'));
+    expect(readingWire.payload.model).toBe(adapters.CAUSAL_MODELS.astra); expect(readingWire.payload.store).toBe(false);
+    expect(readingWire.payload.max_output_tokens).toBe(16000);
     expect(sdk.options.every(o => o.maxRetries === 0 && o.baseURL === 'https://api.openai.com/v1')).toBe(true);
     expect(JSON.parse(readFileSync(path.join(f.directory, 'sealed.json'), 'utf8'))).toMatchObject({ status: 'review_supported', imageCalls: 0, runtimeEligible: false });
     const result = JSON.parse(readFileSync(path.join(f.directory, 'simple-book-result.json'), 'utf8'));
@@ -266,7 +296,8 @@ describe('explicit native worker boundary with fake transports only', () => {
       usage: { input_tokens: 100, output_tokens: 100 } });
     expect(await simpleWizardWorkerCLI(['--config', file, '--execute'])).toBe(1); expect(sdk.create).toHaveBeenCalledTimes(1);
     const seal = JSON.parse(readFileSync(path.join(f.directory, 'sealed.json'), 'utf8'));
-    expect(seal.status).toBe('failed'); expect(seal.snapshot.stopped).toBe(true); expect(seal.snapshot.unknownAttemptCosts).toBe(0);
+    expect(seal.status).toBe('failed'); expect(seal.code).toBe('incomplete');
+    expect(seal.snapshot.stopped).toBe(true); expect(seal.snapshot.unknownAttemptCosts).toBe(0);
     expect(existsSync(path.join(f.directory, 'paid-stages/final_review.failure.json'))).toBe(true);
   });
   it('runs the real CJS/tsx/server-only bootstrap with invalid arguments and no provider/key', () => {

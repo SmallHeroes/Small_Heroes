@@ -8,13 +8,14 @@ import { prepareSimpleStory } from './simple-story-engine';
 import { resolvePersonalWizardOptions } from './options';
 import { reviewedTextDigest } from './reviewed-text-authorization';
 import { emptySimpleBookView, simpleBookViewSchema, type SimpleBookView } from './simple-book-view';
+import { CAUSAL_MODELS } from '../../scripts/personal-causal-trial-adapters';
 
 const hash = z.string().regex(/^[a-f0-9]{64}$/);
 export const simpleBookConfigSchema = z.object({ version: z.literal('local-simple-wizard-config/v1'), workspace: z.string().min(1),
   outputParent: z.string().min(1), sourceHead: z.string().regex(/^[a-f0-9]{40}$/), approvalReference: z.string().min(20).max(2000),
   maximumMicroUsd: z.literal(12000000), fictionalProfile: z.literal(true), seed: z.string().min(1).max(120),
   executable: z.string().min(1), executableSha256: hash, existingKeyEnvFile: z.string().min(1),
-  engineeringReceipts: z.array(z.object({ file: z.string().min(1), sha256: hash }).strict()).max(4),
+  engineeringReceipts: z.array(z.object({ file: z.string().min(1), sha256: hash }).strict()).min(2).max(8),
 }).strict();
 export type SimpleBookConfig = z.infer<typeof simpleBookConfigSchema>;
 const queuedSchema = z.object({ version: z.literal('local-simple-wizard-request/v1'), configDigest: hash,
@@ -37,7 +38,7 @@ export function resolveSimpleBookSettings(env: Readonly<Record<string, string | 
       !env.PERSONAL_WIZARD_SIMPLE_BOOK_CONFIG || !path.isAbsolute(env.PERSONAL_WIZARD_SIMPLE_BOOK_CONFIG)) return null;
   const operators = new Set((env.PERSONAL_WIZARD_SIMPLE_BOOK_OPERATORS ?? '').split(',').map(s => s.trim().toLowerCase()).filter(Boolean));
   if (!operators.size || [...operators].some(s => !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(s))) return null;
-  return { model: 'gpt-6-astra' as const, budgetUsd: 12, maxJobs: 1, operators, configFile: env.PERSONAL_WIZARD_SIMPLE_BOOK_CONFIG };
+  return { model: CAUSAL_MODELS.astra, budgetUsd: 12, maxJobs: 1, operators, configFile: env.PERSONAL_WIZARD_SIMPLE_BOOK_CONFIG };
 }
 export function assertSimpleBookSource(config: SimpleBookConfig) {
   if (path.resolve(config.workspace).toLowerCase() !== path.resolve(process.cwd()).toLowerCase() ||
@@ -45,8 +46,11 @@ export function assertSimpleBookSource(config: SimpleBookConfig) {
       gitAt(config.workspace, ['status', '--porcelain']).toString().trim()) fail('simple_source_changed');
 }
 export function simpleBookQueueDirectory(config: SimpleBookConfig) {
-  realDirectory(config.outputParent);
-  return path.join(config.outputParent, `simple-book-${reviewedTextDigest(config.approvalReference)}`);
+  const common = gitAt(config.workspace, ['rev-parse', '--path-format=absolute', '--git-common-dir']).toString().trim();
+  realDirectory(common);
+  // One approved pilot for this repository, not a new allowance from renamed configuration.
+  // A new paid book needs a new explicit decision, not another outputParent/reference.
+  return path.join(common, 'codex-simple-wizard-book', 'one-approved-book-20261008');
 }
 function prepareRequest(request: unknown, config: SimpleBookConfig) {
   const options = resolvePersonalWizardOptions(config.workspace), prepared = prepareSimpleStory(request, options, config.seed);
@@ -67,6 +71,9 @@ export function enqueueSimpleBook(config: SimpleBookConfig, input: { request: un
   const { prepared } = prepareRequest(input.request, config);
   if (input.requestId !== prepared.accepted.requestId) fail('simple_request_binding');
   const directory = simpleBookQueueDirectory(config);
+  const parent = path.dirname(directory);
+  if (!existsSync(parent)) { try { mkdirSync(parent); } catch { if (!existsSync(parent)) fail('simple_queue'); } }
+  realDirectory(parent);
   const request = queuedSchema.parse({ version: 'local-simple-wizard-request/v1', configDigest: reviewedTextDigest(config),
     userId: input.userId, requestId: input.requestId, optionsFingerprint: prepared.accepted.optionsFingerprint,
     consent: 'reviewed_text_to_simple_book_diagnostic', request: prepared.accepted.canonical });

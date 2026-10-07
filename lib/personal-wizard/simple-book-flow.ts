@@ -61,7 +61,8 @@ export async function runSimpleWizardBook(args: {
     view.readings = readings.map(r => ({ stage: r.stage as 'final_review' | 'comparison', summary: r.summary, findings: r.findings }));
     publish('story_review');
   }
-  const material = readings.some(r => r.findings.some(f => f.kind !== 'preference' && f.kind !== 'improvement' && f.severity !== 'polish'));
+  const material = readings.some(r => r.findings.some(f => f.severity === 'blocking' ||
+    f.kind !== 'preference' && f.kind !== 'improvement' && f.severity !== 'polish'));
   if (material) { publish('held'); return { status: 'story_held' as const, source, generated, readings, storyboard: null, runtimeEligible: false as const }; }
   publish('storyboard');
   const storyboard = await runSimpleStoryboardDiagnostic({ request: args.request, writerResult: source,

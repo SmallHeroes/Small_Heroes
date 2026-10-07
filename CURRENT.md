@@ -2,6 +2,18 @@
 
 ## Simple wizard book connection for one approved audition (2026-10-08)
 
+First independent review of `a4bfeb2a..0f8096c2` is HOLD, not PASS. Codex is implementing a separate targeted
+correction: shared existing Astra authority for both storyboard stages, a fixed common-Git one-use pilot slot
+independent of mutable output/reference, mandatory engineering-receipt declarations, typed failure reasons,
+hard blocking-label protection and reuse of the existing reader transport. Four new regression cases are added;
+first35 and corrected39 are distinct inventories. This is still before any paid book or image call.
+The full gate at `0f8096c2` finished RED, ordinary 6725/10/73, resource 634/1 plus three RPC errors; old failure
+names are retained, and no new stability PASS is claimed. Engineering Max estimates total $1.237114, not API invoice.
+Local correction type-check exits 0, focus passes 768/768 in 18 files, and the new suite is 39/39. Fixed pilot
+namespace and missing engineering receipt tests are added; blocking preference and comparison-improvement cases
+reach the hold. The writer CLI workspace is empty/outside the repo to avoid importing repository story examples.
+The correction will get its own frozen commit and re-gate; no independent PASS is claimed yet.
+
 Guy approved a new fictional eight-page book plus cover via the actual wizard/engine, existing OpenAI key,
 and a fresh USD12 total including separately reported Claude Max estimates. He additionally explicitly approved
 one non-commercial visual audition without production approval. This is not a new G7/Set Identity Board grant

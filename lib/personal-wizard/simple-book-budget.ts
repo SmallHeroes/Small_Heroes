@@ -11,11 +11,13 @@ const hash = z.string().regex(/^[a-f0-9]{64}$/);
 const claimSchema = z.object({ step: z.string(), wireDigest: hash, maximumMicroUsd: micro.positive() }).strict();
 const resultSchema = z.object({ wireDigest: hash, estimatedMicroUsd: micro.nullable(), completed: z.boolean() }).strict();
 const sha = (value: string | Buffer) => createHash('sha256').update(value).digest('hex');
+export class SimpleBookBudgetError extends Error { constructor(readonly code: string) { super(code); } }
+function fail(code: string): never { throw new SimpleBookBudgetError(code); }
 /** One process owns a previously claimed job. A pending/failed claim is never a free retry. */
 export class SimpleBookBudget {
   readonly root: string;
   constructor(root: string, readonly externalMicroUsd: number, readonly maximumMicroUsd = 12000000) {
-    if (maximumMicroUsd !== 12000000 || !Number.isSafeInteger(externalMicroUsd) || externalMicroUsd < 0 || externalMicroUsd > maximumMicroUsd) throw Error('simple_budget_policy');
+    if (maximumMicroUsd !== 12000000 || !Number.isSafeInteger(externalMicroUsd) || externalMicroUsd < 0 || externalMicroUsd > maximumMicroUsd) fail('simple_budget_policy');
     if (!existsSync(root)) mkdirSync(root); realDirectory(root); this.root = root;
   }
   snapshot() {
@@ -23,7 +25,7 @@ export class SimpleBookBudget {
     for (const name of readdirSync(this.root).filter(n => /^[a-z_]+\.claim\.json$/.test(n))) {
       const claim = claimSchema.parse(JSON.parse(readFileSync(path.join(this.root, name), 'utf8'))), file = path.join(this.root, name.replace('.claim.', '.result.'));
       const result = existsSync(file) ? resultSchema.parse(JSON.parse(readFileSync(file, 'utf8'))) : null;
-      if (result && result.wireDigest !== claim.wireDigest) throw Error('simple_budget_binding');
+      if (result && result.wireDigest !== claim.wireDigest) fail('simple_budget_binding');
       logicalAttempts++;
       const known = result?.estimatedMicroUsd;
       if (known == null) { accountedMicroUsd += claim.maximumMicroUsd; unknownAttemptCosts++; }
@@ -34,26 +36,29 @@ export class SimpleBookBudget {
   }
   async run<T>(step: string, wire: unknown, maximumMicroUsd: number,
     dispatch: () => Promise<{ value: T; estimatedMicroUsd: number | null; receipt: unknown }>) {
-    if (!/^[a-z_]+$/.test(step) || !Number.isSafeInteger(maximumMicroUsd) || maximumMicroUsd < 1) throw Error('simple_budget_policy');
+    if (!/^[a-z_]+$/.test(step) || !Number.isSafeInteger(maximumMicroUsd) || maximumMicroUsd < 1) fail('simple_budget_policy');
     const state = this.snapshot();
-    if (state.stopped) throw Error('simple_paid_outcome_unknown_or_failed');
-    if (state.accountedMicroUsd + maximumMicroUsd > this.maximumMicroUsd) throw Error('simple_budget_exhausted');
+    if (state.stopped) fail('simple_paid_outcome_unknown_or_failed');
+    if (state.accountedMicroUsd + maximumMicroUsd > this.maximumMicroUsd) fail('simple_budget_exhausted');
     const wireDigest = sha(canonicalJson(wire));
     exclusiveJson(path.join(this.root, `${step}.wire.json`), wire);
     exclusiveJson(path.join(this.root, `${step}.claim.json`), { step, wireDigest, maximumMicroUsd });
     try {
       const made = await dispatch();
-      if (made.estimatedMicroUsd !== null && (!Number.isSafeInteger(made.estimatedMicroUsd) || made.estimatedMicroUsd < 0)) throw Error('simple_cost_invalid');
+      if (made.estimatedMicroUsd !== null && (!Number.isSafeInteger(made.estimatedMicroUsd) || made.estimatedMicroUsd < 0)) fail('simple_cost_invalid');
       exclusiveJson(path.join(this.root, `${step}.receipt.json`), made.receipt);
       exclusiveJson(path.join(this.root, `${step}.result.json`), { wireDigest, estimatedMicroUsd: made.estimatedMicroUsd, completed: true });
-      if (made.estimatedMicroUsd === null || made.estimatedMicroUsd > maximumMicroUsd || this.snapshot().accountedMicroUsd > this.maximumMicroUsd) throw Error('simple_cost_unknown_or_exceeded');
+      if (made.estimatedMicroUsd === null) fail('simple_cost_unknown');
+      if (made.estimatedMicroUsd > maximumMicroUsd || this.snapshot().accountedMicroUsd > this.maximumMicroUsd) fail('simple_cost_exceeded');
       return made.value;
     } catch (error) {
       if (!existsSync(path.join(this.root, `${step}.result.json`))) {
         const receipt = error && typeof error === 'object' && 'receipt' in error ? error.receipt : null;
         const cost = receipt && typeof receipt === 'object' && 'estimatedMicroUsd' in receipt
           ? micro.safeParse(receipt.estimatedMicroUsd) : null;
-        exclusiveJson(path.join(this.root, `${step}.failure.json`), { code: 'simple_stage_failed',
+        const code = error instanceof SimpleBookBudgetError ? error.code : error && typeof error === 'object' && 'code' in error &&
+          typeof error.code === 'string' && /^[a-z0-9_]+$/.test(error.code) ? error.code : 'simple_stage_failed';
+        exclusiveJson(path.join(this.root, `${step}.failure.json`), { code,
           receipt });
         exclusiveJson(path.join(this.root, `${step}.result.json`), { wireDigest,
           estimatedMicroUsd: cost?.success ? cost.data : null, completed: false });

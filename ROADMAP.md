@@ -2,6 +2,11 @@
 
 ## One new illustrated wizard audition approved (2026-10-08)
 
+- Claude's first connection review `a4bfeb2a..0f8096c2` is HOLD. Correct model/allowance/error handling in a separate
+  commit before book spend. Fixed repository-common one-use pilot, mandatory Max receipts, shared Astra transport
+  and hard blocking protection. Complete gate remains RED at 0f8096c2 with the inherited ten ordinary assertions,
+  Windows process probe and three RPC errors. No paid book/image yet; direct engineering estimates count toward USD12.
+
 - Scope: new fictional profile, eight narrative frames plus cover, current prose-first Opus author/fresh editor,
   independent Astra and whole-book continuity. Existing key reuse and new USD12 total approved, including Max.
 - Guy explicitly approved a one-book non-commercial visual audition, not production qualification or public rollout.

@@ -39,4 +39,12 @@ Unset the new preview flag to restore the unchanged existing native/text-only pa
 
 ## Stop check
 
-General integration, not a child-specific repair. Production behavior stays off/unchanged. Spend is permitted only after technical review within the new USD12 journal. The smallest proof is injected offline flow, then one real eight-page source. A pending product decision concerns only the visual audition authority. Claude should falsify owner/config/source/cost/termination/session bindings, absence of archive fallback, stale status handling and the no-images hold. Existing 0.70 threshold remains unchanged. No public release or automatic visual acceptance is granted.
+General integration, not a child-specific repair. Production behavior stays off/unchanged. Spend is permitted only after technical review within the new USD12 journal. The smallest proof is injected offline flow, then one real eight-page source. Guy approved the narrow visual audition exception; it is not production qualification. Claude should falsify owner/config/source/cost/termination/session bindings, absence of archive fallback, stale status handling and the no-images hold of this first milestone. Existing 0.70 threshold remains unchanged. No public release or automatic visual acceptance is granted.
+
+## Independent HOLD and focused correction
+
+Claude reviewed a4bfeb2a..0f8096c2 as HOLD. Its first pass was read-only and ran no tests while the full gate was active. Valid corrections are a single repository-common pilot slot independent of mutable output parent/reference, required engineering-receipt declarations, shared existing Astra model authority for both visual stages, and typed paid failure reasons. A contradictory blocking preference/improvement now also holds. The reader reuses the existing Astra transport rather than a second adapter. No authority is widened to approve a future book.
+
+The fixed namespace is one-approved-book-20261008 in codex-simple-wizard-book under the repository common Git directory. This is operational one-use authorization, not a story/child-specific creative rule. A new paid book requires a new explicit decision; changing a config cannot create another slot. All completed design/QA Max receipts must be included and hash-bound in the final operator configuration. Missing or unknown listed costs block before the worker claim.
+
+The complete gate at 0f8096c2 finished RED: ordinary 6725 passed, ten failures, 73 skipped; resource 634 passed, the same Windows process-probe failure and three on_task_update RPC errors. None of those files are changed here. The initial duplicate-model RED and this complete RED remain preserved. No green stability claim or automatic waiver follows from focused success.
