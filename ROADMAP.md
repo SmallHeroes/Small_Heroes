@@ -1,5 +1,18 @@
 # SmallHeroes — Roadmap
 
+## Simple story appearance input ready for independent review (2026-10-07)
+
+- Implemented locally after Guy's separate scope approval: one detached appearance snapshot reaches both simple-story
+  roles, with explicit unresolved status for the nine additions. All 15 literary identities remain text-admissible.
+  No visual proposal, asset, character profile or current storyboard admission was activated or changed.
+- `tsc` clean; focused 274/274; all 10 virtual mutants caught. Full gate remains RED: 10 inherited ordinary failures,
+  one Windows process-probe failure already reproduced on the unchanged base and 3 resource-lane RPC errors.
+- Next: independent Claude review of voice and appearance as separate ranges once the new resource allowance is approved.
+  No model calls here. Any valid finding returns as a focused successor; no self-awarded technical PASS.
+- The old Dini-green source remains incompatible with its declared/reference appearance. Do not proceed with its visual
+  pilot or hand-fix/re-label the evidence. A compatible fresh text and review are dependencies.
+- Keep the diagnostic out of the wizard/current production flow. No render, push, merge or deployment permission.
+
 ## Simple story reading voice continuation pending independent QA (2026-10-07)
 
 - Implemented locally: selective pronunciation cues and age/profile-sensitive dialogue/choices in existing author/editor

@@ -8,6 +8,7 @@ import { resolvePersonalWizardOptions } from '../options';
 import { PERSONAL_CHARACTER_IDS } from '../companion-character';
 import { personalStoryResultSchema } from '../story-contract';
 import { preparePersonalStory } from '../story-writer';
+import * as companionRegistry from '../../companions';
 import { prepareCurrentPersonalStoryboard, preparePersonalStoryboard } from '../storyboard';
 import type { CausalDispatch } from '../story-causal-experiment-runner';
 import { SIMPLE_STORY_SHAPES, SIMPLE_AUTHOR_INSTRUCTIONS, SIMPLE_EDITOR_INSTRUCTIONS, SimpleStoryError, checkSimpleStory, editorFindings, nameVariants,
@@ -15,7 +16,7 @@ import { SIMPLE_STORY_SHAPES, SIMPLE_AUTHOR_INSTRUCTIONS, SIMPLE_EDITOR_INSTRUCT
   unprotectedDashes, writeSimpleStory, type PreparedSimpleStory, type SimpleStoryCall } from '../simple-story-engine';
 import { SIMPLE_RATES, TRIAL_EXIT_CODES, containedTransportFailure, main, runSimpleStoryTrial, textCanonOptions,
   type TrialTransport } from '../../../scripts/personal-simple-story';
-import { CausalTransportError, type TransportReply, type WirePolicy } from '../../../scripts/personal-causal-trial-adapters';
+import { CausalTransportError, prepareCausalWire, wireReservation, type TransportReply, type WirePolicy } from '../../../scripts/personal-causal-trial-adapters';
 
 const options = resolvePersonalWizardOptions();
 const cp = (...points: number[]) => String.fromCodePoint(...points);
@@ -178,7 +179,7 @@ describe('simple story engine', () => {
   it('prepares through the current writer acceptance and companion authority, offered roster by default', () => {
     const p = prepareSimpleStory(request(), options, 'x');
     expect(p.brief).toEqual(preparePersonalStory(request(), options).brief);
-    expect(p.book.companion).toEqual({ shortName: 'דיני', character: p.brief.companion.character });
+    expect(p.book.companion).toEqual({ shortName: 'דיני', character: p.brief.companion.character, appearance: p.book.companion.appearance });
     expect(p.book.theme).toBe('רעשים ואזעקות');
     const input = JSON.parse(simpleAuthorCall(p).input);
     expect(input.book.pages).toBe(8); expect(input.book.storyShape).toBe(p.shape.spine);
@@ -192,6 +193,106 @@ describe('simple story engine', () => {
     const p = prepareSimpleStory(request({ companion: { id } }), text, 'x');
     expect(p.brief.companion.id).toBe(id);
     expect(nameVariants(p.brief.companion.character.name, 'last')).toContain(p.book.companion.shortName);
+  });
+
+  it.each(PERSONAL_CHARACTER_IDS)('sends the same honest appearance snapshot for %s to both roles without shrinking the text roster', id => {
+    const p = prepareSimpleStory(request({ companion: { id } }), textCanonOptions(options), 'appearance');
+    const appearance = p.book.companion.appearance;
+    const known = ['dragon_dini', 'panda_anat', 'fox_uri', 'chameleon_koko', 'lion_shaket', 'bunny_ometz'].includes(id);
+    expect(appearance).toMatchObject({ version: 'personal-simple-companion-appearance/v1', companionId: id,
+      status: known ? 'registry_declared' : 'unresolved', source: known ? 'lib/companions.ts' : null, renderQualified: false });
+    expect(appearance.description).toBe(known ? companionRegistry.getCompanionById(id)!.visualDescription : null);
+    if (!known) expect(appearance.stateAuthority).toBeNull();
+    const { digest: fingerprint, ...snapshot } = appearance;
+    // canonical JSON recursively sorts keys, including the nested state vocabulary.
+    const canonical = (v: any): any => Array.isArray(v) ? v.map(canonical) : v && typeof v === 'object'
+      ? Object.fromEntries(Object.keys(v).sort().map(k => [k, canonical(v[k])])) : v;
+    expect(fingerprint).toBe(createHash('sha256').update(JSON.stringify(canonical(snapshot))).digest('hex'));
+    for (const call of [simpleAuthorCall(p), simpleEditorCall(p, story(p), [])]) {
+      const packet = JSON.parse(call.input);
+      expect(packet.book.companion.appearance).toEqual(appearance);
+      expect(packet.book.companion.character).toEqual(p.brief.companion.character);
+      expect(packet.task).toContain('not a plot or a prose checklist');
+      expect(packet.task).toContain('Check and correct conflicting draft descriptions');
+      expect(packet.task).toContain('not permission to invent them');
+    }
+  });
+
+  it('supplies the actual Dini copper declaration, not a colour guessed from the draft', async () => {
+    const p = prepareSimpleStory(request(), options, 'appearance');
+    expect(p.book.companion.appearance.description).toContain('COPPER-ORANGE');
+    expect(p.book.companion.appearance.description).toContain('NOT green');
+    const green = (s: any) => ({ ...s, pages: s.pages.map((pg: any) => ({ text: pg.text + ' דיני ירוקה.' })) });
+    const generate = generator(p, green);
+    const { evidence, result } = await write(p, generate);
+    const editor = JSON.parse(generate.mock.calls[1][0].input);
+    expect(editor.draft.pages[0].text).toContain('דיני ירוקה');
+    expect(editor.book.companion.appearance).toEqual(p.book.companion.appearance);
+    expect(evidence.appearance).toEqual(p.book.companion.appearance);
+    expect(generate).toHaveBeenCalledTimes(2);
+    expect(result.runtimeEligible).toBe(false);
+    expect(result).not.toHaveProperty('editing');
+    // The engine does not itself recolour text or claim a semantic colour verdict.
+    expect(evidence.draft.pages[0].text).toContain('דיני ירוקה');
+    expect(() => prepareCurrentPersonalStoryboard(request(), result, options)).toThrow('current_edit_required');
+  });
+
+  it('retains Kim state authority as detached optional data, not a mandatory story progression', () => {
+    const id = 'chameleon_koko', p = prepareSimpleStory(request({ companion: { id } }), options, 'appearance');
+    const source = companionRegistry.getCompanionById(id)!.appearanceStateAuthority!;
+    expect(p.book.companion.appearance.stateAuthority).toEqual(source);
+    expect(p.book.companion.appearance.stateAuthority).not.toBe(source);
+    expect(p.book.companion.appearance.stateAuthority!.states).not.toBe(source.states);
+    const packet = JSON.parse(simpleEditorCall(p, story(p), []).input);
+    expect(packet.book.companion.appearance.stateAuthority.states.map((s: any) => s.id)).toEqual(source.states.map(s => s.id));
+    expect(packet.task).toContain('an allowed appearance state needs support in this story');
+  });
+
+  it.each(['missing', 'placeholder', 'other_identity'])('does not substitute a visual record that is %s', variant => {
+    const id = 'elephant_momo', original = companionRegistry.getCompanionById('dragon_dini')!;
+    const spy = vi.spyOn(companionRegistry, 'getCompanionById').mockReturnValue(variant === 'missing' ? null
+      : { ...original, id: variant === 'other_identity' ? 'baby_elephant' : id,
+        visualDescription: variant === 'placeholder' ? 'PLACEHOLDER — pending' : original.visualDescription });
+    try {
+      const p = prepareSimpleStory(request({ companion: { id } }), textCanonOptions(options), 'appearance');
+      expect(p.book.companion.appearance).toMatchObject({ companionId: id, status: 'unresolved', source: null,
+        description: null, stateAuthority: null, renderQualified: false });
+    } finally { spy.mockRestore(); }
+  });
+
+  it('snapshots once, with changed input digests on a later registry revision, without rebinding an existing book', () => {
+    const original = companionRegistry.getCompanionById('dragon_dini')!;
+    const p = prepareSimpleStory(request(), options, 'appearance'), author = simpleAuthorCall(p);
+    const spy = vi.spyOn(companionRegistry, 'getCompanionById').mockReturnValue({ ...original, visualDescription: original.visualDescription + ' Test-only revision.' });
+    try {
+      const next = prepareSimpleStory(request(), options, 'appearance');
+      expect(next.book.companion.appearance.digest).not.toBe(p.book.companion.appearance.digest);
+      expect(next.accepted.requestId).toBe(p.accepted.requestId);
+      expect(next.shape).toEqual(p.shape);
+      expect(JSON.parse(simpleEditorCall(p, story(p), []).input).book.companion.appearance)
+        .toEqual(JSON.parse(author.input).book.companion.appearance);
+    } finally { spy.mockRestore(); }
+  });
+
+  it('refuses a declared state belonging to another companion before any call', () => {
+    const id = 'chameleon_koko', original = companionRegistry.getCompanionById(id)!;
+    const spy = vi.spyOn(companionRegistry, 'getCompanionById').mockReturnValue({ ...original,
+      appearanceStateAuthority: { ...original.appearanceStateAuthority!, companionId: 'fox_uri' } });
+    try { expect(() => prepareSimpleStory(request({ companion: { id } }), options, 'appearance')).toThrow('simple_story_companion_appearance_invalid'); }
+    finally { spy.mockRestore(); }
+  });
+
+  it.each(['short', 'medium', 'long'])('keeps representative %s appearance packets inside the existing real wire and reservation bounds', lengthId => {
+    const p = prepareSimpleStory(request({ companion: { id: 'chameleon_koko' }, bookOptions: { lengthId, voiceId: null } }), options, 'appearance');
+    const draft = story(p, s => ({ ...s, pages: s.pages.map((pg: any) => ({ text: pg.text + 'ק'.repeat(1200) })) }));
+    const policy: WirePolicy = { executable: 'C:/test/native.exe', executableSha256: 'a'.repeat(64), workspace: 'C:/test/work', maxWireBytes: 104_000, rates: SIMPLE_RATES };
+    for (const call of [simpleAuthorCall(p), simpleEditorCall(p, draft, [])]) {
+      const cap = wireReservation(104_000, call.maxOutputTokens, SIMPLE_RATES.opus);
+      const wire = prepareCausalWire({ ...call, role: 'opus', conversationKey: 'test:appearance' }, policy, cap, 'C:/test/instructions.txt');
+      expect(wire.bytes).toBeLessThan(104_000);
+      expect(wire.reservedMicroUsd).toBeLessThanOrEqual(cap);
+      expect(JSON.parse(wire.stdin!).book.companion.appearance).toEqual(p.book.companion.appearance);
+    }
   });
 
   it('accepts unpointed, plene and prefixed names', () => {

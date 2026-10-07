@@ -1,5 +1,36 @@
 # SmallHeroes — Current Technical State
 
+## Simple story companion appearance input implemented pending independent QA (2026-10-07)
+
+Guy explicitly approved this separate canon-input milestone. Codex is the sole writer in this chat on
+`codex/simple-story-voice-20261007`, worktree `C:/Users/guyna/.codex/worktrees/simple-story-voice-followup/Small_Heroes`,
+from the clean voice commit `e6bfa777`.
+
+- Both author and fresh editor now receive the same detached registry appearance snapshot, with version, selected ID,
+  availability, source and code-generated content digest. The optional existing state vocabulary is validated and copied.
+  The snapshot is stored in diagnostic evidence; its digest is not a correctness or render approval.
+- All 15 literary IDs remain text-admissible in explicit diagnostic options. Six have registry declarations; nine remain
+  explicitly unresolved. No new visual identity, legacy alias, appearance change or candidate promotion was invented.
+- `tsc` exits 0. Focused 274/274 across 6 specs pass (85 simple engine). All 10 virtual mutants fail, control 85/85.
+  Pure adapter measurements for 45 companion/length combinations fit the unchanged wire ceiling: max author 18673 bytes,
+  editor 40715, appearance 4501. This uses saved/repeated prose, not a worst-case schema capacity proof or a live call.
+- Full `npm run check` exits 1: ordinary 6572 pass / the same 10 missing-artifact failures / 73 skipped; resource 634 pass /
+  the same Windows process-probe assertion failure / 3 unhandled onTaskUpdate RPC errors. The probe already reproduced on
+  unchanged `c8d51bb0`; its cause remains unestablished. The full gate is RED and not waived.
+- Preservation: 86 historical evidence hashes still match the earlier pre-trial manifest; 91 tracked companion assets
+  match the frozen Git base. Six protected worktrees are clean at their expected HEADs. The current age folder has an
+  83-file snapshot for future verification, not a reconstructed pre-milestone baseline. The first preservation helper hit
+  its default output buffer on an existing large image; it was corrected without source/asset writes and then passed.
+- Existing registry, character profiles, options, production writer, storyboard/result contracts, trial runner, adapter,
+  package files and images are unchanged. No stage, retry, price/cap, new SDK or current-editor receipt was added.
+- The saved green-Dini story is not retroactively fixed. The visual pilot stays blocked for that source; a compatible
+  fresh edit/book and review are required before using it. The current-storyboard gate still rejects simple outputs.
+- Next: Claude reviews voice `c8d51bb0..e6bfa777` and appearance `e6bfa777..` this focused successor separately. No independent
+  PASS yet. The fresh $10 provider/engineering allowance question is pending; no new model call, key, render, wizard edit,
+  push, merge or deployment has occurred. The previous experiment is closed and its remainder is not reused.
+- Decision: `docs/ai-workflow/PERSONAL_SIMPLE_STORY_APPEARANCE_INPUT_DECISION_20261007.md`.
+  Evidence: `C:/Users/guyna/.codex/visualizations/2026/09/04/01a06c5c-a233-76c0-ac8e-618c02ce6246/simple-story-canon-evidence-20261007`.
+
 ## Simple story pronunciation cues and age voice implemented locally pending independent QA (2026-10-07)
 
 Codex implements only in `codex/simple-story-voice-20261007`, worktree

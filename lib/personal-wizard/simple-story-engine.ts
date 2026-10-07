@@ -8,6 +8,8 @@ import { comparableText } from './contract';
 import { preparePersonalStory } from './story-writer';
 import { personalStoryPlanSchema, personalManuscriptSchema, personalStoryResultSchema, type PersonalStoryResult, type StoryUsage } from './story-contract';
 import { measureStoryText } from './story-text-metrics';
+import { getCompanionById } from '../companions';
+import { companionAppearanceStateAuthorityIssues } from '../companion-appearance-state';
 
 /**
  * Simple story engine: one Opus author call writes the whole book prose-first,
@@ -194,6 +196,24 @@ export function unprotectedDashes(text: string, names: readonly string[]) {
   return { count: at.length, snippets: at.slice(0, 3).map(i => text.slice(Math.max(0, i - 12), i + 13).replace(/\s+/gu, ' ').trim()) };
 }
 
+/** Declared input, not visual qualification. Never substitute a legacy animal for a new identity. */
+function companionAppearance(id: string) {
+  const companion = getCompanionById(id);
+  const description = companion?.visualDescription.trim() ?? '';
+  const declared = companion?.id === id && !!description && !/placeholder/i.test(description);
+  const stateAuthority = declared ? structuredClone(companion.appearanceStateAuthority ?? null) : null;
+  if (stateAuthority && companionAppearanceStateAuthorityIssues(stateAuthority, id).length) fail('simple_story_companion_appearance_invalid');
+  const snapshot = {
+    version: 'personal-simple-companion-appearance/v1' as const, companionId: id,
+    status: declared ? 'registry_declared' as const : 'unresolved' as const,
+    source: declared ? 'lib/companions.ts' as const : null,
+    description: declared ? description : null, stateAuthority, renderQualified: false as const,
+  };
+  return { ...snapshot, digest: digest(snapshot) };
+}
+
+const APPEARANCE_TASK = 'Use book.companion.appearance as declared identity, not a plot or a prose checklist. Keep its appearance and accessories; an allowed appearance state needs support in this story. Check and correct conflicting draft descriptions. Unresolved means no declared colour, exact scale or permanent accessory, not permission to invent them; use the supplied character embodiment.';
+
 export function prepareSimpleStory(input: unknown, options: PersonalWizardOptions, seed = '') {
   // Same acceptance, identity, companion authority and brief as the current writer.
   const { accepted, brief } = preparePersonalStory(input, options);
@@ -202,7 +222,7 @@ export function prepareSimpleStory(input: unknown, options: PersonalWizardOption
   const book = {
     child: { name: brief.child.name, age: brief.child.age, address: brief.child.address, homeTown: brief.child.residence },
     aboutTheChild: brief.facts, storyMayStartAt: brief.startingPlace,
-    companion: { shortName: companionShortName(character.name), character },
+    companion: { shortName: companionShortName(character.name), character, appearance: companionAppearance(character.companionId) },
     theme: brief.topic ?? null, avoidSubjects: brief.excludedSubjects,
     storyShape: shape.spine, pages: brief.beats, wordsPerPage: simpleStoryWordTarget(brief.child.age),
   };
@@ -215,14 +235,14 @@ export function simpleAuthorCall(prepared: PreparedSimpleStory): SimpleStoryCall
   const { pages, wordsPerPage: w } = prepared.book;
   return { stage: 'author', instructions: SIMPLE_AUTHOR_INSTRUCTIONS, schema: simpleStoryDraftSchema(pages), maxOutputTokens: simpleStoryOutputTokens(pages),
     input: canonicalJson({ book: prepared.book,
-      task: `Write the whole story now: exactly ${pages} pages of about ${w.min} to ${w.max} words each, then the remaining fields, with exactly ${pages} pageMap rows.` }) };
+      task: `Write the whole story now: exactly ${pages} pages of about ${w.min} to ${w.max} words each, then the remaining fields, with exactly ${pages} pageMap rows. ${APPEARANCE_TASK}` }) };
 }
 export function simpleEditorCall(prepared: PreparedSimpleStory, draft: SimpleStoryDraft, findings: readonly string[]): SimpleStoryCall {
   const { pages, wordsPerPage: w } = prepared.book;
   return { stage: 'editor', instructions: SIMPLE_EDITOR_INSTRUCTIONS, schema: simpleStoryEditSchema(pages), maxOutputTokens: simpleStoryOutputTokens(pages),
     input: canonicalJson({ book: prepared.book, draft: { ...draft, pages: draft.pages.map((p, i) => ({ page: i + 1, text: p.text })) },
       mechanicalFindings: [...findings],
-      task: `Edit the draft. Return exactly ${pages} pages of about ${w.min} to ${w.max} words each, exactly ${pages} pageMap rows, and your main changes.` }) };
+      task: `Edit the draft. Return exactly ${pages} pages of about ${w.min} to ${w.max} words each, exactly ${pages} pageMap rows, and your main changes. ${APPEARANCE_TASK}` }) };
 }
 
 /** Approved names the prose must keep exactly; their own dashes are part of the identity, not style. */
@@ -328,7 +348,8 @@ export async function writeSimpleStory(prepared: PreparedSimpleStory, generate: 
   const editor = simpleEditorCall(prepared, draft, findings);
   const { editorChanges = [], ...edited } = await call(editor);
   const finalCheck = checkSimpleStory(prepared, edited);
-  const evidence = { shape: prepared.shape.id, seed: prepared.seed, draft, draftCheck, findings, edited, editorChanges, finalCheck,
+  const evidence = { shape: prepared.shape.id, seed: prepared.seed, appearance: prepared.book.companion.appearance,
+    draft, draftCheck, findings, edited, editorChanges, finalCheck,
     calls: { author: digest({ i: author.instructions, x: author.input }), editor: digest({ i: editor.instructions, x: editor.input }) } };
   if (finalCheck.hard.length) fail(`simple_story_${finalCheck.hard[0]}`, { ...evidence, accounting: accounting() });
   let result: PersonalStoryResult;
