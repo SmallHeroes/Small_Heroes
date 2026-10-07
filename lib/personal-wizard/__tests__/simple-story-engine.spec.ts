@@ -112,6 +112,24 @@ describe('simple story engine', () => {
     expect(SIMPLE_EDITOR_INSTRUCTIONS).toContain('names from the brief stay exactly as given, even with a hyphen');
   });
 
+  it('leaves room for varied agency, no invented fear and open endings, without word bans', () => {
+    // Contract text only; whether stories improve needs new outputs read by people.
+    expect(SIMPLE_AUTHOR_INSTRUCTIONS).not.toMatch(/noticing what the grown-ups or creatures miss|moment of hesitation|final smile that echoes|with a twist at the end/);
+    expect(SIMPLE_AUTHOR_INSTRUCTIONS).toContain('Spotting a clue is only one of them');
+    expect(SIMPLE_AUTHOR_INSTRUCTIONS).toContain('do not invent a fear, a shyness or a hesitation');
+    expect(SIMPLE_AUTHOR_INSTRUCTIONS).toContain('never the child\'s biography');
+    expect(SIMPLE_AUTHOR_INSTRUCTIONS).toContain('not every scene is another test');
+    expect(SIMPLE_AUTHOR_INSTRUCTIONS).toContain('may echo something from earlier or close on something new');
+    expect(SIMPLE_EDITOR_INSTRUCTIONS).toContain('A thread that matters');
+    expect(SIMPLE_EDITOR_INSTRUCTIONS).toContain('Remove any habit, weakness or history the brief does not give the child');
+    expect(SIMPLE_EDITOR_INSTRUCTIONS).toContain('With no theme, do not add a fear or hesitation');
+    expect(SIMPLE_EDITOR_INSTRUCTIONS).not.toContain('a tummy that tightens');
+    // The resilience contract keeps its shape (min 1) for the existing plan schema; only the descriptions loosen.
+    const moments = (zodTextFormat(simpleStoryDraftSchema(8), 'simple').schema as any).properties.resilienceMoments;
+    expect(moments.minItems).toBe(1);
+    expect(moments.description).not.toMatch(/hesitation/);
+  });
+
   it('prepares through the current writer acceptance and companion authority, offered roster by default', () => {
     const p = prepareSimpleStory(request(), options, 'x');
     expect(p.brief).toEqual(preparePersonalStory(request(), options).brief);
