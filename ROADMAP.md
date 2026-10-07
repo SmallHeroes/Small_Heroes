@@ -1230,3 +1230,6 @@ These entries mean “present in Git,” not automatic runtime or product accept
 ## Out of scope for roadmap changes by Codex alone
 
 Codex does not choose story quality, business priority, customer promise, pricing, launch timing, visual direction, or whether a feature is worth building. These require Guy's decision; Codex supplies feasibility, risk, sequencing, and implementation options.
+# 2026-10-08 — one-book audition milestone
+
+Local wizard → fresh Opus author/editor → Astra readings → current whole-book storyboard → opt-in audited references/9 illustrations → private reader is implemented locally. 816 focused tests and tsc pass; independent QA and actual one-book evidence are still pending. The first attempt is confined to a fictional new profile under the single $12 repository allowance. A successful illustrated audition remains permanently runtime-ineligible and does not complete production rollout or public qualification. No push/deployment authorized.

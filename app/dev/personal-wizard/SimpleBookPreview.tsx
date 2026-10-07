@@ -10,25 +10,29 @@ const phases: Record<SimpleBookView['phase'], string> = {
   editor: 'Opus עורך את הטיוטה בשיחה חדשה.', story_review: 'Astra קורא את הסיפור ובודק גם מה השתנה בעריכה.',
   storyboard: 'מתכננים את הכריכה ואת כל הסצנות יחד.', storyboard_review: 'בודקים את המיקומים, הדמויות והחפצים לאורך הספר.',
   references_required: 'הסיפור והסטוריבורד מוכנים לבחינת רפרנסים. איורי הספר עדיין לא נוצרו.',
+  references: 'יוצרים ובודקים רפרנסים קבועים לדמויות, לחפצים ולמקומות.',
+  illustrating: 'מאיירים את הספר ובודקים כל עמוד מול זהות הדמויות והמשכיות הסצנות.',
+  illustrated_audition: 'ספר הניסוי המאויר מוכן לקריאה. זו אינה הרשאת ייצור או פרסום.',
   held: 'הניסוי נעצר לבחינה. זו אינה תוצאה מאושרת לאיור.', failed: 'הניסוי נעצר בגלל כשל. לא מתחילים מחדש אוטומטית.',
 };
 export function SimpleBookPreview({ request, requestId, stale, onEdit }: {
   request: ReviewedPersonalBookRequest; requestId: string; stale: boolean; onEdit: () => void;
 }) {
   const [available, setAvailable] = useState(false), [view, setView] = useState<SimpleBookView | null>(null);
+  const [imagesEnabled, setImagesEnabled] = useState(false);
   const [busy, setBusy] = useState(false), [error, setError] = useState<string | null>(null);
   const identity = useRef({ requestId, stale }); identity.current = { requestId, stale };
   const current = view?.requestId === requestId ? view : null;
   useEffect(() => {
-    const controller = new AbortController(); setAvailable(false); setError(null);
+    const controller = new AbortController(); setAvailable(false); setImagesEnabled(false); setError(null);
     fetch(endpoint, { cache: 'no-store', signal: controller.signal }).then(async response => {
       if (!response.ok) return; const data = await response.json();
-      if (!controller.signal.aborted) setAvailable(data.configured === true && data.engine === 'simple-opus-fresh-editor-astra');
+      if (!controller.signal.aborted) { setAvailable(data.configured === true && data.engine === 'simple-opus-fresh-editor-astra'); setImagesEnabled(data.imagesAvailable === true); }
     }).catch(() => {});
     return () => controller.abort();
   }, [requestId]);
   useEffect(() => {
-    if (!available || stale || current && ['references_required', 'held', 'failed'].includes(current.phase)) return;
+    if (!available || stale || current && (['illustrated_audition', 'held', 'failed'].includes(current.phase) || current.phase === 'references_required' && !imagesEnabled)) return;
     const controller = new AbortController();
     const poll = async () => {
       try {
@@ -44,7 +48,7 @@ export function SimpleBookPreview({ request, requestId, stale, onEdit }: {
     };
     void poll(); const timer = setInterval(() => void poll(), 10000);
     return () => { controller.abort(); clearInterval(timer); };
-  }, [available, requestId, stale, current?.phase]);
+  }, [available, imagesEnabled, requestId, stale, current?.phase]);
   async function start() {
     if (!available || stale || busy || current) return;
     setBusy(true); setError(null);
@@ -60,7 +64,7 @@ export function SimpleBookPreview({ request, requestId, stale, onEdit }: {
   return <section className={styles.card} aria-labelledby="simple-book-title">
     <h2 id="simple-book-title">ניסוי המנוע החדש</h2>
     <p>סיפור חדש ש־Opus כותב ועורך בשיחות נפרדות, ביקורת Astra וסטוריבורד מלא. ניסוי מקומי לחשבון מורשה בלבד.</p>
-    <p className={styles.hint}>8 עמודי סיפור ועוד כריכה. ללא חיוב לקוח. איורים עדיין ממתינים לאישור הרפרנסים.</p>
+    <p className={styles.hint}>8 עמודי סיפור ועוד כריכה. ללא חיוב לקוח. {imagesEnabled ? 'איורי ניסוי בלבד, לאחר בדיקת הרפרנסים וההמשכיות.' : 'איורים עדיין ממתינים לאישור הרפרנסים.'}</p>
     {stale ? <p>הפרטים השתנו. צריך לאשר שוב את הבקשה.</p> : null}
     {!available ? <p className={styles.hint}>הניסוי אינו מופעל לחשבון הזה כרגע.</p> : null}
     <button type="button" className={styles.primaryButton} disabled={!available || stale || busy || !!current || request.bookOptions.lengthId !== 'short'} onClick={() => void start()}>
@@ -71,8 +75,11 @@ export function SimpleBookPreview({ request, requestId, stale, onEdit }: {
     {error ? <p className={styles.error}>לא ניתן להתחיל: {error}</p> : null}
     {current ? <p className={styles.hint}>אומדן שימוש כולל: ${(current.accounting.knownEstimateMicroUsd / 1e6).toFixed(4)} מתוך $12.
       {current.accounting.unknownAttemptCosts ? ' יש ניסיון שעלותו אינה ידועה. לא ממשיכים בתשלום.' : ''}</p> : null}
-    {current?.edited ? <article dir="rtl"><h3>{current.edited.title}</h3>{current.edited.pages.map(page =>
-      <section key={page.pageNumber}><h4>עמוד {page.pageNumber}</h4><p style={{ whiteSpace: 'pre-line', lineHeight: 1.8 }}>{page.text}</p></section>)}</article> : null}
+    {current?.edited ? <article dir="rtl"><h3>{current.edited.title}</h3>
+      {current.phase === 'illustrated_audition' ? <img src={`${endpoint}?requestId=${requestId}&page=0`} alt={`כריכת ${current.edited.title}`} style={{ width: '100%', height: 'auto', borderRadius: 16 }} /> : null}
+      {current.edited.pages.map(page => <section key={page.pageNumber}><h4>עמוד {page.pageNumber}</h4>
+        {current.phase === 'illustrated_audition' ? <img src={`${endpoint}?requestId=${requestId}&page=${page.pageNumber}`} alt={`איור לעמוד ${page.pageNumber}`} loading="lazy" style={{ width: '100%', height: 'auto', borderRadius: 16 }} /> : null}
+        <p style={{ whiteSpace: 'pre-line', lineHeight: 1.8 }}>{page.text}</p></section>)}</article> : null}
     {current?.original ? <details><summary>הטיוטה המקורית לפני העריכה</summary>{current.original.pages.map(page => <p key={page.pageNumber}>{page.text}</p>)}</details> : null}
     {current?.readings.map(reading => <details key={reading.stage}><summary>{reading.stage === 'final_review' ? 'קריאת הסיפור הסופי' : 'השוואת העריכה למקור'}</summary>
       <p>{reading.summary}</p>{reading.findings.map((finding, i) => <div key={i}><p>{finding.severity}: {finding.explanation}</p>

@@ -240,7 +240,9 @@ export type GPTImageReferenceMode =
   /** Companion sheet: angle/expression variant from approved Style 01 front sheet view. */
   | 'anchor_companion_from_sheet_view'
   /** Zone object anchor: closer crop derived from approved zone set sheet — same assets/mood. */
-  | 'zone_set_derived_object';
+  | 'zone_set_derived_object'
+  /** Explicit personal-book roles; never infer a particular companion from reference count. */
+  | 'book_identity';
 
 /** Default cap (gpt-image-1). Override via GPT_IMAGE_EDIT_MAX_REFERENCES for gpt-image-2 probes. */
 export const GPT_IMAGE_EDIT_MAX_REFERENCES = 4;
@@ -252,6 +254,12 @@ export function resolveGPTImageEditMaxReferences(): number {
 }
 
 export interface GenerateGPTImageInput {
+  /** Explicit worker credential; default legacy environment behavior is unchanged. Never persist this field. */
+  apiKey?: string;
+  /** Durable accounting observer, invoked before decoding image bytes. No credentials in the response. */
+  observeProviderResponse?: (response: unknown) => void;
+  /** Audited exact reference bytes; optional, defaults still use the legacy normalization/cache. */
+  exactReferenceBytes?: Buffer[];
   finalPrompt: string;
   negativePrompt?: string;
   size?: '1024x1024' | '1024x1536' | '1536x1536';
@@ -482,6 +490,7 @@ function resolveReferencePrefix(
   if (mode === 'anchor_companion_from_jpg') return STYLE01_ANCHOR_COMPANION_FROM_JPG_PREFIX;
   if (mode === 'anchor_companion_from_sheet_view') return STYLE01_ANCHOR_COMPANION_FROM_SHEET_PREFIX;
   if (mode === 'zone_set_derived_object') return STYLE01_ZONE_SET_DERIVED_OBJECT_PREFIX;
+  if (mode === 'book_identity') return '[PERSONAL BOOK REFERENCE ROLES]\nImage 1: exact fictional child identity and watercolor technique. Image 2: exact selected companion identity, colors, anatomy and accessories. Image 3: canonical recurring props and supporting cast design atlas. Image 4: canonical locations and landmark topology atlas. Use only the relevant designs, never their pose, background, layout, labels or panels. Follow current scene state and camera. Never replace these with another companion.\n';
   if (mode === 'style02_book') return STYLE02_BOOK_REFERENCE_PREFIX;
   if (mode === 'style') return STYLE_REFERENCE_PREFIX;
   if (mode === 'companion_dual' || referenceCount >= 2) return DUAL_REFERENCE_PREFIX;
@@ -701,10 +710,10 @@ async function referenceToOpenAIFile(
  * features and re-imagine everything else. ChatGPT uses this same pattern.
  */
 export async function generateGPTImage(input: GenerateGPTImageInput): Promise<GenerateGPTImageResult> {
-  const apiKey = process.env.OPENAI_API_KEY;
+  const apiKey = input.apiKey ?? process.env.OPENAI_API_KEY;
   if (!apiKey) throw new Error('Missing OPENAI_API_KEY for GPT Image generation');
 
-  const openai = new OpenAI({ apiKey });
+  const openai = new OpenAI({ apiKey, ...(input.apiKey ? { baseURL: 'https://api.openai.com/v1', maxRetries: 0, logLevel: 'off' as const } : {}) });
   const plan = planGPTImageRequest(input, {
     defaultQuality: resolveEnvGPTQuality(),
     defaultModel: process.env.GPT_IMAGE_MODEL ?? 'gpt-image-1',
@@ -721,6 +730,9 @@ export async function generateGPTImage(input: GenerateGPTImageInput): Promise<Ge
     size,
   } = plan;
   const hasReference = apiMode === 'images.edit';
+  if (input.exactReferenceBytes && (input.exactReferenceBytes.length !== refsForApi.length ||
+      referenceCountRequested !== refsForApi.length || input.exactReferenceBytes.some(b => !Buffer.isBuffer(b) || b.length === 0)))
+    throw new Error('Exact reference bytes must match every ordered, untruncated reference.');
 
   if (input.requireReferenceEdit && referenceCountRequested > 0 && !hasReference) {
     throw new Error('Reference images were required but none could be loaded for images.edit.');
@@ -747,7 +759,9 @@ export async function generateGPTImage(input: GenerateGPTImageInput): Promise<Ge
   let responseMeta: Record<string, unknown> | undefined;
   try {
     if (hasReference) {
-      const files = await Promise.all(refsForApi.map((u, i) => referenceToOpenAIFile(u, i)));
+      const files = await Promise.all(refsForApi.map((u, i) => input.exactReferenceBytes
+        ? toFile(input.exactReferenceBytes[i], `reference-${i}.png`, { type: 'image/png' })
+        : referenceToOpenAIFile(u, i)));
       const imageArg = files.length === 1 ? files[0] : files;
       const response = await openai.images.edit(
         {
@@ -760,6 +774,7 @@ export async function generateGPTImage(input: GenerateGPTImageInput): Promise<Ge
         // retries — the visible MAX_PAGE_ATTEMPTS loop owns retries, not openai@6's default maxRetries:2.
         plan.requestOptions,
       );
+      input.observeProviderResponse?.(response);
       b64 = response.data?.[0]?.b64_json ?? undefined;
       usage = (response as { usage?: Record<string, unknown> }).usage;
       const first = response.data?.[0] as Record<string, unknown> | undefined;
@@ -781,6 +796,7 @@ export async function generateGPTImage(input: GenerateGPTImageInput): Promise<Ge
         // (render-loop Phase 1, 3a) Same: real cancellation + explicit per-request deadline + no hidden SDK retries.
         plan.requestOptions,
       );
+      input.observeProviderResponse?.(response);
       b64 = response.data?.[0]?.b64_json ?? undefined;
       usage = (response as { usage?: Record<string, unknown> }).usage;
       const first = response.data?.[0] as Record<string, unknown> | undefined;

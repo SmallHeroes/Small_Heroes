@@ -23,6 +23,12 @@ import { simpleWizardVisualPayload, simpleWizardWorkerCLI } from '../../../scrip
 import * as adapters from '../../../scripts/personal-causal-trial-adapters';
 import { personalBookProviderPayload } from '../book-openai';
 import { citationTokens } from '../story-source-citations';
+import { illustrateSimpleBook, illustratedBookHTML, illustratedAuditionApprovalSchema } from '../simple-book-illustrations';
+import { auditionUsageCost, readAuditionImage } from '../../../scripts/personal-simple-book-illustrator';
+import * as images from '../../generate-image';
+import { QUALITY_CATEGORIES } from '../../local-preview-quality';
+import sharp from 'sharp';
+import type { PageChildResemblanceVisionResult } from '../../generation-pipeline/page-child-resemblance-vision';
 
 const deps = vi.hoisted(() => ({ production: false, user: { id: 'owner', email: 'owner@example.com' } as { id: string; email: string } | null }));
 vi.mock('@/lib/auth-session', () => ({ resolveUserFromRequest: async () => deps.user ? { user: deps.user } : null }));
@@ -55,7 +61,7 @@ beforeEach(() => {
   vi.stubEnv('PERSONAL_WIZARD_SIMPLE_BOOK_CONFIG', file); vi.stubEnv('PERSONAL_WIZARD_SIMPLE_BOOK_OPERATORS', 'owner@example.com');
 });
 afterEach(() => {
-  vi.restoreAllMocks(); vi.unstubAllEnvs();
+  vi.restoreAllMocks(); vi.unstubAllEnvs(); vi.unstubAllGlobals();
   for (const directory of roots.splice(0)) {
     if (path.dirname(directory) !== tmpdir() || !path.basename(directory).startsWith('sh_simple_book_test_')) throw Error('cleanup_boundary');
     rmSync(directory, { recursive: true, force: true });
@@ -244,11 +250,12 @@ describe('real authenticated local simple-book route and one-use queue', () => {
   });
   it('requires explicit engineering receipts, and a missing listed receipt blocks the worker before claim or paid call', async () => {
     const f = await fixture();
-    enqueueSimpleBook(config, { request: f.request, requestId: prepareSimpleStory(f.request, options).accepted.requestId, userId: 'owner' });
     writeFileSync(file, JSON.stringify({ ...config, engineeringReceipts: [] })); expect(() => simpleBookConfig(file)).toThrow();
     writeFileSync(file, JSON.stringify({ ...config, engineeringReceipts: [{ file: path.join(root, 'missing.json'), sha256: 'a'.repeat(64) }, ...config.engineeringReceipts] }));
     writeFileSync(config.executable, 'SYNTHETIC'); config.executableSha256 = sha(readFileSync(config.executable));
     const parsed = JSON.parse(readFileSync(file, 'utf8')); parsed.executableSha256 = config.executableSha256; writeFileSync(file, JSON.stringify(parsed));
+    config = simpleBookConfig(file);
+    enqueueSimpleBook(config, { request: f.request, requestId: prepareSimpleStory(f.request, options).accepted.requestId, userId: 'owner' });
     await expect(simpleWizardWorkerCLI(['--config', file, '--execute'])).rejects.toThrow('ENOENT'); expect(sdk.create).not.toHaveBeenCalled();
     expect(existsSync(path.join(simpleBookQueueDirectory(config), 'worker-claimed.json'))).toBe(false);
   });
@@ -318,10 +325,142 @@ describe('explicit native worker boundary with fake transports only', () => {
     expect(seal.snapshot.stopped).toBe(true); expect(seal.snapshot.unknownAttemptCosts).toBe(0);
     expect(existsSync(path.join(f.directory, 'paid-stages/final_review.failure.json'))).toBe(true);
   });
+  it('runs the actual opt-in worker adapter through 3 references, 9 images, pixel QA, numeric identity and owned private serving with synthetic transports', async () => {
+    const f = await workerFixture(), approvalFile = path.join(root, 'visual-approval.json');
+    writeFileSync(approvalFile, JSON.stringify(syntheticVisualApproval()));
+    config.illustratedAudition = { approvalFile, approvalSha256: sha(readFileSync(approvalFile)), childDesign: 'A fictional child with short brown hair and brown eyes.' };
+    // Queue binding is strict: use a separate fresh test repository namespace, not a replay of an old real slot.
+    const oldCommon = path.join(root, 'git-common'), newCommon = path.join(root, 'illustrated-common'); mkdirSync(newCommon);
+    vi.mocked(frozen.gitAt).mockImplementation((_repo, args) => Buffer.from(args.join(' ') === 'rev-parse HEAD' ? config.sourceHead
+      : args.join(' ') === 'status --porcelain' ? '' : newCommon));
+    writeFileSync(file, JSON.stringify(config));
+    const requestId = prepareSimpleStory(f.request, options).accepted.requestId;
+    enqueueSimpleBook(config, { request: f.request, requestId, userId: 'owner' });
+    const directory = simpleBookQueueDirectory(config), priorSDK = sdk.create.getMockImplementation()!;
+    sdk.create.mockImplementation(async payload => {
+      if (!Array.isArray(payload.input)) return priorSDK(payload);
+      const context = JSON.parse(payload.input[0].content[0].text);
+      return { model: payload.model, service_tier: 'default', status: 'completed', output_text: JSON.stringify(cleanPixelReview(context.candidateSha, context.contextSha)),
+        usage: { input_tokens: 100, output_tokens: 100 } };
+    });
+    let generated = 0;
+    const render = vi.spyOn(images, 'generateGPTImage').mockImplementation(async input => {
+      const buffer = await sharp({ create: { width: 64, height: 64, channels: 3, background: { r: ++generated, g: 60, b: 90 } } }).png().toBuffer();
+      const usage = { input_tokens: 100, output_tokens: 100 }, raw = { data: [{ b64_json: buffer.toString('base64') }], usage };
+      input.observeProviderResponse?.(raw);
+      return { buffer, usage, model: 'gpt-image-2', finalPrompt: input.finalPrompt, hasReferencePhoto: !!input.referenceImages?.length,
+        apiMode: input.referenceImages?.length ? 'images.edit' : 'images.generate', referenceCountRequested: input.referenceImages?.length ?? 0,
+        referenceCountPassed: input.referenceImages?.length ?? 0, durationMs: 1, fallbackUsed: false };
+    });
+    const fetch = vi.fn(async () => new Response(JSON.stringify({ model: 'gpt-4o-2024-08-06', usage: { prompt_tokens: 100, completion_tokens: 100 },
+      choices: [{ message: { content: JSON.stringify({ referenceChildVisible: true, candidateChildVisible: true, candidateChildCount: 1, comparisonUsable: true,
+        sameChildDecision: 'same', faceStructure: 'match', eyesBrows: 'match', noseMouth: 'match', hairIdentity: 'match', distinctiveFeatures: 'match' }) } }] }), { status: 200 }));
+    vi.stubGlobal('fetch', fetch);
+    expect(await simpleWizardWorkerCLI(['--config', file, '--execute'])).toBe(0);
+    expect(render).toHaveBeenCalledTimes(12); expect(fetch).toHaveBeenCalledTimes(9); expect(sdk.create).toHaveBeenCalledTimes(16);
+    for (const [input] of render.mock.calls.slice(3)) {
+      expect(input.referenceMode).toBe('book_identity'); expect(input.referenceImages).toHaveLength(4); expect(input.exactReferenceBytes).toHaveLength(4);
+      expect(input.modelOverride).toBe('gpt-image-2'); expect(input.quality).toBe('low'); expect(input.signal).toBeDefined();
+    }
+    const status = await GET(req('GET', undefined, `${url}?requestId=${requestId}`)), view = await status.json();
+    expect(view.phase).toBe('illustrated_audition'); expect(view.images).toHaveLength(9); expect(view.runtimeEligible).toBe(false);
+    expect(view.accounting.logicalAttempts).toBe(39); expect(view.accounting.unknownAttemptCosts).toBe(0);
+    expect(JSON.parse(readFileSync(path.join(directory, 'sealed.json'), 'utf8'))).toMatchObject({ status: 'illustrated_audition', imageCalls: 12, runtimeEligible: false });
+    const page = await GET(req('GET', undefined, `${url}?requestId=${requestId}&page=3`));
+    expect(page.status).toBe(200); expect(page.headers.get('content-type')).toBe('image/png');
+    expect(sha(Buffer.from(await page.arrayBuffer()))).toBe(view.images[3].imageSha);
+    expect(readFileSync(path.join(directory, 'book.html'), 'utf8')).toContain('לא אישור לייצור');
+    expect((await GET(req('GET', undefined, `${url}?requestId=${requestId}&page=3&page=4`))).status).toBe(404);
+    deps.user = { id: 'intruder', email: 'owner@example.com' }; expect((await GET(req('GET', undefined, `${url}?requestId=${requestId}&page=3`))).status).toBe(403);
+    deps.user = { id: 'owner', email: 'owner@example.com' };
+    writeFileSync(path.join(directory, 'illustrations', view.images[3].imageName), 'corrupted');
+    expect((await GET(req('GET', undefined, `${url}?requestId=${requestId}&page=3`))).status).toBe(503);
+    expect(existsSync(path.join(oldCommon, 'codex-simple-wizard-book/one-approved-book-20261008/worker-claimed.json'))).toBe(false);
+  }, 30000); // 39 durable, fsynced synthetic stages + PNG crops; not a transport timeout increase.
   it('runs the real CJS/tsx/server-only bootstrap with invalid arguments and no provider/key', () => {
     const result = spawnSync(process.execPath, ['scripts/personal-simple-wizard-worker.cjs', '--invalid'], {
       cwd: process.cwd(), encoding: 'utf8', timeout: 20000, windowsHide: true,
       env: { ...process.env, OPENAI_API_KEY: undefined, PERSONAL_WIZARD_SIMPLE_BOOK_RUNNER: 'false' } });
     expect(result.status).toBe(1); expect(result.stderr).toContain('simple_worker_setup_failed'); expect(result.stdout).toBe('');
+  });
+});
+
+function syntheticVisualApproval() { return { version: 'local-book-night-approval/v1', maximumMicroUsd: 12000000, bookCount: 1, narrativePages: 8, cover: true,
+  publicRelease: false, customerCharge: false, gateChanges: false, oneBookDiagnosticVisualException: { approved: true, permanentlyRuntimeIneligible: true, identityThreshold: .7 } }; }
+function cleanPixelReview(candidateSha: string, contextSha: string) { return { candidateSha, contextSha,
+  checks: QUALITY_CATEGORIES.map(category => ({ category, verdict: 'pass', observation: 'Synthetic test verdict, no visual acceptance.', correction: '' })) }; }
+function syntheticIdentity(): PageChildResemblanceVisionResult { return { evaluatorVersion: 'page-child-resemblance-vision/v1', status: 'passed', threshold: .7,
+  resemblanceScore: 1, subjectVisible: true, sameChild: true, reasonCode: 'same_child', attempts: 1, model: 'gpt-4o',
+  featureAssessments: { faceStructure: 'match', eyesBrows: 'match', noseMouth: 'match', hairIdentity: 'match', distinctiveFeatures: 'match' } }; }
+
+describe('injected illustrated audition admission, failure boundaries and state continuity', () => {
+  async function illustrationFixture() {
+    const f = await fixture(), result = await runSimpleWizardBook(f.args); let made = 0;
+    const args = { result, request: f.args.request, options: f.args.options, seed: f.args.seed,
+      approval: syntheticVisualApproval(), childDesign: 'Synthetic fictional identity only, never a real person.', companion: { imageSha: 'c'.repeat(64), imageName: 'companion.png' },
+      signal: f.args.signal, render: vi.fn(async (step: string) => ({ imageName: `${step}.png`, imageSha: sha(String(++made)) })),
+      judge: vi.fn(async (_step: string, candidate: { imageSha: string }, _context: unknown, contextSha: string) => cleanPixelReview(candidate.imageSha, contextSha)),
+      identity: vi.fn(async () => syntheticIdentity()), save: vi.fn(), progress: vi.fn() };
+    return { ...f, args };
+  }
+  it('uses identical canonical references on all frames, passes current-world-state to QA and exports only exact escaped prose', async () => {
+    const f = await illustrationFixture(), result = await illustrateSimpleBook(f.args);
+    expect(result.pages).toHaveLength(9); expect(result.runtimeEligible).toBe(false); expect(result.productionQualified).toBe(false);
+    expect(f.args.render).toHaveBeenCalledTimes(12); expect(f.args.identity).toHaveBeenCalledTimes(9);
+    const firstRefs = (f.args.render.mock.calls[3] as any)[2];
+    for (const row of f.args.render.mock.calls.slice(3) as any[]) expect(row[2]).toEqual(firstRefs);
+    for (const [, , context] of f.args.judge.mock.calls.slice(3)) expect(context).toHaveProperty('packet.sequence');
+    const html = illustratedBookHTML(result, () => 'data:image/png;base64,TESTONLY');
+    expect(html.match(/<img /g)).toHaveLength(9); expect(html).not.toContain('<script'); expect(result.manuscript).toEqual(f.args.result.source.manuscript);
+    expect(() => illustratedBookHTML({ ...result, pages: result.pages.slice(1) }, () => '')).toThrow('simple_book_incomplete');
+  });
+  it.each(['approval', 'production', 'threshold', 'cancel', 'unreviewed'])('rejects %s before any reference dispatch', async kind => {
+    const f = await illustrationFixture();
+    if (kind === 'approval') f.args.approval.oneBookDiagnosticVisualException.approved = false;
+    if (kind === 'production') f.args.approval.oneBookDiagnosticVisualException.permanentlyRuntimeIneligible = false;
+    if (kind === 'threshold') f.args.approval.oneBookDiagnosticVisualException.identityThreshold = .69;
+    if (kind === 'cancel') { const c = new AbortController(); c.abort(); f.args.signal = c.signal; }
+    if (kind === 'unreviewed') (f.args.result as any).status = 'story_held';
+    await expect(illustrateSimpleBook(f.args)).rejects.toThrow(); expect(f.args.render).not.toHaveBeenCalled();
+  });
+  it.each(['uncertain', 'wrong_binding', 'missing_category'])('holds %s reference QA with no scene spending', async mode => {
+    const f = await illustrationFixture(); f.args.judge.mockImplementation(async (_s, c, _ctx, hash) => {
+      const r: any = cleanPixelReview(c.imageSha, hash); if (mode === 'uncertain') r.checks[0].verdict = 'uncertain';
+      if (mode === 'wrong_binding') r.candidateSha = '0'.repeat(64); if (mode === 'missing_category') r.checks.pop(); return r;
+    });
+    await expect(illustrateSimpleBook(f.args)).rejects.toThrow(); expect(f.args.render).toHaveBeenCalledTimes(1); expect(f.args.identity).not.toHaveBeenCalled();
+  });
+  it.each(['uncertain', 'two_defects', 'identity_unknown', 'identity_below', 'source_changed'])('stops %s without a new book or a later frame', async mode => {
+    const f = await illustrationFixture();
+    if (mode.startsWith('identity')) f.args.identity.mockResolvedValue({ ...syntheticIdentity(), status: mode === 'identity_unknown' ? 'evidence_unknown' : 'failed', resemblanceScore: mode === 'identity_below' ? .69 : null });
+    const normal = f.args.judge.getMockImplementation()!;
+    f.args.judge.mockImplementation(async (step, candidate, context, hash) => {
+      const r = await normal(step, candidate, context, hash);
+      if (step.startsWith('page_0') && ['uncertain', 'two_defects'].includes(mode)) {
+        (r.checks[0] as any).verdict = mode === 'uncertain' ? 'uncertain' : 'defect'; r.checks[0].correction = 'Synthetic evidenced defect correction.';
+      }
+      if (step.startsWith('page_0') && mode === 'source_changed') f.args.request.child.name = 'changed';
+      return r;
+    });
+    await expect(illustrateSimpleBook(f.args)).rejects.toThrow();
+    expect(f.args.render.mock.calls.map(row => row[0])).not.toContain('page_1_0');
+    expect(f.args.render).toHaveBeenCalledTimes(mode === 'two_defects' ? 5 : 4);
+  });
+  it('counts digit-bearing scene claims in the same budget and halts unknown/overslot costs', async () => {
+    const budget = new SimpleBookBudget(path.join(root, 'numbered'), 10);
+    await budget.run('page_0_0', {}, 100, async () => ({ value: 'synthetic', estimatedMicroUsd: 20, receipt: {} }));
+    expect(budget.snapshot()).toMatchObject({ knownEstimateMicroUsd: 30, logicalAttempts: 1 });
+    await expect(budget.run('page_1_0', {}, 100, async () => ({ value: 1, estimatedMicroUsd: null, receipt: {} }))).rejects.toThrow('simple_cost_unknown');
+    expect(budget.snapshot()).toMatchObject({ unknownAttemptCosts: 1, logicalAttempts: 2, stopped: true });
+  });
+  it.each([null, {}, { input_tokens: -1, output_tokens: 1 }, { input_tokens: 1, output_tokens: null }, { input_tokens: 0, output_tokens: 0 }])('never treats unavailable/invalid usage as zero', value => {
+    expect(auditionUsageCost(value, 'image')).toBeNull(); expect(auditionUsageCost(value, 'astra')).toBeNull();
+  });
+  it('prices known image usage conservatively and never infers visual authority from cost', () => {
+    expect(auditionUsageCost({ input_tokens: 100, output_tokens: 100 }, 'image')).toBe(3800);
+    expect(auditionUsageCost({ input_tokens: 100, output_tokens: 100 }, 'astra')).toBe(6000);
+    expect(() => illustratedAuditionApprovalSchema.parse({ ...syntheticVisualApproval(), customerCharge: true })).toThrow();
+    expect(() => readAuditionImage(root, { imageName: '../file.png', imageSha: 'a'.repeat(64) })).toThrow('simple_image_path');
+    expect(readSimpleBookView({ ...emptySimpleBookView('a'.repeat(64)), phase: 'illustrated_audition' }, 'a'.repeat(64))).toBeNull();
   });
 });

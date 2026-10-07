@@ -22,7 +22,7 @@ export class SimpleBookBudget {
   }
   snapshot() {
     let accountedMicroUsd = this.externalMicroUsd, knownEstimateMicroUsd = this.externalMicroUsd, unknownAttemptCosts = 0, logicalAttempts = 0, stopped = false;
-    for (const name of readdirSync(this.root).filter(n => /^[a-z_]+\.claim\.json$/.test(n))) {
+    for (const name of readdirSync(this.root).filter(n => /^[a-z][a-z0-9_]{0,79}\.claim\.json$/.test(n))) {
       const claim = claimSchema.parse(JSON.parse(readFileSync(path.join(this.root, name), 'utf8'))), file = path.join(this.root, name.replace('.claim.', '.result.'));
       const result = existsSync(file) ? resultSchema.parse(JSON.parse(readFileSync(file, 'utf8'))) : null;
       if (result && result.wireDigest !== claim.wireDigest) fail('simple_budget_binding');
@@ -36,7 +36,7 @@ export class SimpleBookBudget {
   }
   async run<T>(step: string, wire: unknown, maximumMicroUsd: number,
     dispatch: () => Promise<{ value: T; estimatedMicroUsd: number | null; receipt: unknown }>) {
-    if (!/^[a-z_]+$/.test(step) || !Number.isSafeInteger(maximumMicroUsd) || maximumMicroUsd < 1) fail('simple_budget_policy');
+    if (!/^[a-z][a-z0-9_]{0,79}$/.test(step) || !Number.isSafeInteger(maximumMicroUsd) || maximumMicroUsd < 1 || this.snapshot().logicalAttempts >= 80) fail('simple_budget_policy');
     const state = this.snapshot();
     if (state.stopped) fail('simple_paid_outcome_unknown_or_failed');
     if (state.accountedMicroUsd + maximumMicroUsd > this.maximumMicroUsd) fail('simple_budget_exhausted');

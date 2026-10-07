@@ -16,6 +16,8 @@ export const simpleBookConfigSchema = z.object({ version: z.literal('local-simpl
   maximumMicroUsd: z.literal(12000000), fictionalProfile: z.literal(true), seed: z.string().min(1).max(120),
   executable: z.string().min(1), executableSha256: hash, existingKeyEnvFile: z.string().min(1),
   engineeringReceipts: z.array(z.object({ file: z.string().min(1), sha256: hash }).strict()).min(2).max(8),
+  illustratedAudition: z.object({ approvalFile: z.string().min(1), approvalSha256: hash,
+    childDesign: z.string().trim().min(20).max(1500) }).strict().optional(),
 }).strict();
 export type SimpleBookConfig = z.infer<typeof simpleBookConfigSchema>;
 const queuedSchema = z.object({ version: z.literal('local-simple-wizard-request/v1'), configDigest: hash,
@@ -33,7 +35,8 @@ export function simpleBookConfig(file: string): SimpleBookConfig {
     const relative = path.relative(protectedRoot, config.outputParent);
     if (!relative || !relative.startsWith(`..${path.sep}`) && relative !== '..' && !path.isAbsolute(relative)) fail('simple_cli_workspace_inside_source');
   }
-  for (const file of [config.executable, config.existingKeyEnvFile, ...config.engineeringReceipts.map(r => r.file)]) {
+  for (const file of [config.executable, config.existingKeyEnvFile, ...config.engineeringReceipts.map(r => r.file),
+    ...(config.illustratedAudition ? [config.illustratedAudition.approvalFile] : [])]) {
     if (!path.isAbsolute(file)) fail('simple_config');
   }
   return config;
@@ -109,7 +112,7 @@ export function claimSimpleBookWorker(config: SimpleBookConfig) {
   let sequence = readdirSync(job.directory).filter(n => /^view-\d{4}\.json$/.test(n)).length;
   return { ...job, publish(view: SimpleBookView) {
     const parsed = simpleBookViewSchema.parse(view);
-    if (parsed.requestId !== job.queued.requestId || sequence >= 30) fail('simple_view_binding');
+    if (parsed.requestId !== job.queued.requestId || sequence >= 80) fail('simple_view_binding');
     exclusiveJson(path.join(job.directory, `view-${String(++sequence).padStart(4, '0')}.json`), {
       requestDigest: reviewedTextDigest(job.queued), view: { ...parsed, revision: sequence } });
   } };

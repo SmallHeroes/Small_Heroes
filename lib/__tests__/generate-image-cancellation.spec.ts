@@ -26,6 +26,8 @@ import {
   GPTImagePromptTooLongError,
   planGPTImageRequest,
 } from '@/lib/generate-image';
+import { toFile } from 'openai';
+import { normalizeReferenceImageBuffer } from '@/lib/child-photo-normalize';
 
 const OK_RESPONSE = { data: [{ b64_json: Buffer.from('fake-png-bytes').toString('base64') }] };
 const hasOwn = (value: object, property: PropertyKey): boolean =>
@@ -35,6 +37,7 @@ describe('generateGPTImage (3a) — real cancellation + no hidden SDK retries', 
   beforeEach(() => {
     generateSpy.mockReset();
     editSpy.mockReset();
+    vi.mocked(toFile).mockClear(); vi.mocked(normalizeReferenceImageBuffer).mockClear();
     process.env.OPENAI_API_KEY = 'test-key';
     delete process.env.GPT_IMAGE_EDIT_MAX_REFERENCES;
   });
@@ -73,6 +76,31 @@ describe('generateGPTImage (3a) — real cancellation + no hidden SDK retries', 
     expect(opts.maxRetries).toBe(0);
     expect(opts.timeout).toBe(654321);
     expect(opts.signal).toBe(controller.signal);
+  });
+  it('book_identity replaces the companion-count heuristic ONLY when explicitly requested', () => {
+    const input = { finalPrompt: 'specific selected companion', referenceImages: ['child.png', 'dragon.png'] };
+    const defaults = { defaultModel: 'gpt-image-2', defaultQuality: 'low' as const, maxReferences: 4 };
+    expect(planGPTImageRequest(input, defaults).finalPrompt).toContain('Bolly');
+    const book = planGPTImageRequest({ ...input, referenceMode: 'book_identity' }, defaults);
+    expect(book.finalPrompt).toContain('[PERSONAL BOOK REFERENCE ROLES]'); expect(book.finalPrompt).not.toContain('Bolly');
+    expect(book.bodyWithoutBinaryImage).toMatchObject({ model: 'gpt-image-2', quality: 'low', n: 1 });
+  });
+  it('uses every exact reference byte without normalization and observes raw usage before image decode', async () => {
+    const raw = { data: [], usage: { input_tokens: 12, output_tokens: 8 } }, observer = vi.fn();
+    editSpy.mockResolvedValue(raw);
+    const refs = [Buffer.from('exact-child'), Buffer.from('exact-companion')];
+    await expect(generateGPTImage({ finalPrompt: 'test only', referenceImages: ['unused1.png', 'unused2.png'], referenceMode: 'book_identity',
+      exactReferenceBytes: refs, observeProviderResponse: observer, apiKey: 'test-explicit-never-network' })).rejects.toThrow('no image data');
+    expect(normalizeReferenceImageBuffer).not.toHaveBeenCalled();
+    expect(toFile).toHaveBeenNthCalledWith(1, refs[0], 'reference-0.png', { type: 'image/png' });
+    expect(toFile).toHaveBeenNthCalledWith(2, refs[1], 'reference-1.png', { type: 'image/png' });
+    expect(observer).toHaveBeenCalledExactlyOnceWith(raw); expect(editSpy).toHaveBeenCalledTimes(1);
+  });
+  it('rejects exact-reference mismatches and cap truncation before provider dispatch', async () => {
+    for (const refs of [[Buffer.from('one')], Array.from({ length: 5 }, () => Buffer.from('one'))]) {
+      await expect(generateGPTImage({ finalPrompt: 'test', referenceImages: refs.length === 5 ? ['a.png', 'b.png', 'c.png', 'd.png', 'e.png'] : ['a.png', 'b.png'], exactReferenceBytes: refs })).rejects.toThrow('Exact reference');
+    }
+    expect(editSpy).not.toHaveBeenCalled();
   });
 
   it('omits absent signal/timeout properties while keeping maxRetries:0 mandatory', () => {

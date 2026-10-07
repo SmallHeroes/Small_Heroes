@@ -1,6 +1,6 @@
 /** Explicit local worker; never launched by a page, import, queue request or polling. */
 import path from 'node:path';
-import { mkdirSync, readFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, readdirSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { parseEnv } from 'node:util';
 import OpenAI from 'openai';
@@ -14,6 +14,7 @@ import { generationTimeoutMs } from '../lib/personal-wizard/story-config';
 import { CAUSAL_MODELS, createAstraCausalTransport, createOpusCausalTransport, prepareCausalWire, wireReservation, type WirePolicy } from './personal-causal-trial-adapters';
 import { exclusiveJson, exclusiveText, fencedText } from './personal-causal-trial-journal';
 import { safeUsage } from './personal-story-trial-guard';
+import { readAuditionApproval, runSimpleBookIllustrator } from './personal-simple-book-illustrator';
 
 const sha = (v: Buffer | string) => createHash('sha256').update(v).digest('hex');
 const rates = { opus: { inputMicroUsdPerToken: 4, outputMicroUsdPerToken: 20 }, astra: { inputMicroUsdPerToken: 10, outputMicroUsdPerToken: 50 } };
@@ -33,11 +34,12 @@ export async function simpleWizardWorkerCLI(argv: string[]) {
   const config = simpleBookConfig(argv[1]); assertSimpleBookSource(config);
   if (sha(readFileSync(config.executable)) !== config.executableSha256) throw Error('simple_executable_changed');
   const externalMicroUsd = simpleBookExternalCosts(config.engineeringReceipts);
+  readAuditionApproval(config);
   const queued = queuedSimpleBook(config);
   if (argv.length === 2) {
     console.log(JSON.stringify({ status: 'simple_worker_preview', requestId: queued.queued.requestId,
       sourceHead: config.sourceHead, pages: 8, cover: true, externalMicroUsd, maximumMicroUsd: 12000000,
-      stageCount: 6, providerCalls: 0, imagesAvailable: false, runtimeEligible: false })); return 0;
+      stageCount: 6, providerCalls: 0, imagesAvailable: !!config.illustratedAudition, runtimeEligible: false })); return 0;
   }
   // Empty workspace outside the repository: no project story examples/history for either fresh session.
   const cliWorkspace = path.join(config.outputParent, 'simple-book-cli-workspace'); mkdirSync(cliWorkspace);
@@ -47,6 +49,7 @@ export async function simpleWizardWorkerCLI(argv: string[]) {
   const opus = createOpusCausalTransport(policy);
   const astra = createAstraCausalTransport({ key: () => existingKey(config), rates: rates.astra });
   const budget = new SimpleBookBudget(path.join(worker.directory, 'paid-stages'), externalMicroUsd);
+  const imageCalls = () => readdirSync(budget.root).filter(n => /^(?:reference_(?:child|entities|locations)|page_[0-8]_[01])\.claim\.json$/.test(n)).length;
   let failedStageCode: string | null = null;
   let last = emptySimpleBookView(worker.queued.requestId);
   const publish = (view: SimpleBookView) => {
@@ -75,7 +78,8 @@ export async function simpleWizardWorkerCLI(argv: string[]) {
       const client = new OpenAI({ apiKey: existingKey(config), baseURL: 'https://api.openai.com/v1', maxRetries: 0, logLevel: 'off' });
       const response = await client.responses.create(payload, { signal, timeout: generationTimeoutMs(call.maxOutputTokens) });
       const usage = safeUsage(response.usage ? { inputTokens: response.usage.input_tokens, outputTokens: response.usage.output_tokens } : null);
-      const estimatedMicroUsd = usage ? Math.ceil(usage.inputTokens * rate.inputMicroUsdPerToken + usage.outputTokens * rate.outputMicroUsdPerToken) : null;
+      const estimatedMicroUsd = usage && response.model === payload.model && response.service_tier === 'default'
+        ? Math.ceil(usage.inputTokens * rate.inputMicroUsdPerToken + usage.outputTokens * rate.outputMicroUsdPerToken) : null;
       const receipt = { raw: response, usage, estimatedMicroUsd, model: response.model, stage: step };
       // Keep the actual response even if status, schema, tier or output is rejected.
       exclusiveJson(path.join(worker.directory, `${step}-provider-response.json`), receipt);
@@ -130,14 +134,23 @@ export async function simpleWizardWorkerCLI(argv: string[]) {
     exclusiveJson(path.join(worker.directory, 'simple-book-result.json'), result);
     exclusiveText(path.join(worker.directory, 'story.md'), `# ${result.source.manuscript.title}\n\n` +
       result.source.manuscript.pages.map(p => `## עמוד ${p.pageNumber}\n\n${p.text}`).join('\n\n') + '\n');
-    exclusiveJson(path.join(worker.directory, 'sealed.json'), { status: result.status, snapshot: budget.snapshot(),
-      imageCalls: 0, runtimeEligible: false, visualQualification: 'not_granted' });
+    let illustrated = false;
+    if (config.illustratedAudition && result.status === 'review_supported') {
+      const manifest = await runSimpleBookIllustrator({ config, directory: worker.directory, budget, key: () => existingKey(config),
+        assertCurrent, signal: controller.signal, result, request: worker.queued.request, options: worker.options,
+        progress: (phase, images) => publish({ ...last, phase, images }) });
+      assertCurrent();
+      publish({ ...last, phase: 'illustrated_audition', images: manifest.pages.map(p => ({ pageNumber: p.pageNumber, ...p.candidate })) });
+      illustrated = true;
+    }
+    exclusiveJson(path.join(worker.directory, 'sealed.json'), { status: illustrated ? 'illustrated_audition' : result.status, snapshot: budget.snapshot(),
+      imageCalls: imageCalls(), illustrated, runtimeEligible: false, visualQualification: 'not_granted' });
     return result.status === 'review_supported' ? 0 : 2;
   } catch (error) {
     const code = failedStageCode ?? (error && typeof error === 'object' && 'code' in error && typeof error.code === 'string' && /^[a-z0-9_]+$/.test(error.code)
       ? error.code : 'simple_worker_failed');
     controller.abort(); publish({ ...last, phase: 'failed', error: code });
-    exclusiveJson(path.join(worker.directory, 'sealed.json'), { status: 'failed', code, snapshot: budget.snapshot(), imageCalls: 0, runtimeEligible: false });
+    exclusiveJson(path.join(worker.directory, 'sealed.json'), { status: 'failed', code, snapshot: budget.snapshot(), imageCalls: imageCalls(), runtimeEligible: false });
     return 1;
   } finally { process.off('SIGINT', interrupt); }
 }
