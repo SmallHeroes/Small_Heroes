@@ -1,6 +1,6 @@
 import { afterAll, describe, expect, it, vi } from 'vitest';
 import { createHash } from 'node:crypto';
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { zodTextFormat } from 'openai/helpers/zod';
@@ -57,12 +57,14 @@ function storyForInput(input: string, stage: string) {
 }
 const temps: string[] = [];
 afterAll(() => { for (const dir of temps) rmSync(dir, { recursive: true, force: true }); });
+// The runner admits only requests whose every supplied value came from the labelled example, the topic included.
+const fixtureRequest = (over: Record<string, unknown> = {}) => request({ intent: { kind: 'topic', topicId: 'sirens', suggestedBy: 'fixture' }, ...over });
 function trial(ids: string[]) {
   const tmp = mkdtempSync(path.join(tmpdir(), 'simple-trial-')); temps.push(tmp);
   const out = path.join(tmp, 'run');
   const policy: WirePolicy = { executable: path.join(tmp, 'cli.exe'), executableSha256: 'a'.repeat(64), workspace: path.join(out, '_cli-workspace'),
     maxWireBytes: 104_000, rates: SIMPLE_RATES };
-  return { tmp, out, policy, cases: ids.map(id => ({ id, seed: id, request: request() })) };
+  return { tmp, out, policy, cases: ids.map(id => ({ id, seed: id, request: fixtureRequest() as unknown })) };
 }
 const goodTransport = (): TrialTransport => async (_wire, call) => reply(storyForInput(call.input, call.stage));
 
@@ -116,18 +118,28 @@ describe('simple story engine', () => {
     // Contract text only; whether stories improve needs new outputs read by people.
     expect(SIMPLE_AUTHOR_INSTRUCTIONS).not.toMatch(/noticing what the grown-ups or creatures miss|moment of hesitation|final smile that echoes|with a twist at the end/);
     expect(SIMPLE_AUTHOR_INSTRUCTIONS).toContain('Spotting a clue is only one of them');
-    expect(SIMPLE_AUTHOR_INSTRUCTIONS).toContain('do not invent a fear, a shyness or a hesitation');
     expect(SIMPLE_AUTHOR_INSTRUCTIONS).toContain('never the child\'s biography');
     expect(SIMPLE_AUTHOR_INSTRUCTIONS).toContain('not every scene is another test');
     expect(SIMPLE_AUTHOR_INSTRUCTIONS).toContain('may echo something from earlier or close on something new');
     expect(SIMPLE_EDITOR_INSTRUCTIONS).toContain('A thread that matters');
     expect(SIMPLE_EDITOR_INSTRUCTIONS).toContain('Remove any habit, weakness or history the brief does not give the child');
-    expect(SIMPLE_EDITOR_INSTRUCTIONS).toContain('With no theme, do not add a fear or hesitation');
     expect(SIMPLE_EDITOR_INSTRUCTIONS).not.toContain('a tummy that tightens');
     // The resilience contract keeps its shape (min 1) for the existing plan schema; only the descriptions loosen.
     const moments = (zodTextFormat(simpleStoryDraftSchema(8), 'simple').schema as any).properties.resilienceMoments;
     expect(moments.minItems).toBe(1);
     expect(moments.description).not.toMatch(/hesitation/);
+  });
+
+  it('with no theme bans an invented personal difficulty and a coping beat, not a reaction the adventure causes', () => {
+    // Contract text only. Both prompts draw the same line; neither forbids nor demands an in-scene reaction.
+    const noTheme = (text: string) => text.slice(text.indexOf('no theme'));
+    expect(noTheme(SIMPLE_AUTHOR_INSTRUCTIONS)).toContain('do not give the child a fear, shyness or difficulty of their own, one they bring from life or carry through the book');
+    expect(noTheme(SIMPLE_AUTHOR_INSTRUCTIONS)).toContain('No scene has to be about getting over a feeling');
+    expect(noTheme(SIMPLE_AUTHOR_INSTRUCTIONS)).toContain('A short, natural reaction that the adventure itself causes');
+    expect(noTheme(SIMPLE_AUTHOR_INSTRUCTIONS)).toContain('may happen, but it is never required');
+    expect(SIMPLE_EDITOR_INSTRUCTIONS).toContain('With no theme, remove a fear or difficulty given to the child as their own or carried through the book, and any scene of getting over a feeling');
+    expect(SIMPLE_EDITOR_INSTRUCTIONS).toContain('a short reaction the adventure itself causes may stay, and none needs to be added');
+    for (const text of [SIMPLE_AUTHOR_INSTRUCTIONS, SIMPLE_EDITOR_INSTRUCTIONS]) expect(text).not.toMatch(/do not (invent|add) a fear(, a shyness)? or (a )?hesitation/);
   });
 
   it('prepares through the current writer acceptance and companion authority, offered roster by default', () => {
@@ -374,10 +386,58 @@ describe('simple story trial runner boundary', () => {
     for (const [name, make] of Object.entries(transports)) {
       const tmp = mkdtempSync(path.join(tmpdir(), 'simple-cli-')); temps.push(tmp);
       const exe = path.join(tmp, 'cli.exe'); writeFileSync(exe, 'fake native executable');
-      const cases = path.join(tmp, 'cases.json'); writeFileSync(cases, JSON.stringify([{ id: 'case-a', seed: 'x', request: request() }]));
+      const cases = path.join(tmp, 'cases.json'); writeFileSync(cases, JSON.stringify([{ id: 'case-a', seed: 'x', request: fixtureRequest() }]));
       codes[name] = await main(['--cases', cases, '--out', path.join(tmp, 'run'), '--budget-usd', '5', '--concurrency', '1', '--live',
         '--executable', exe, '--executable-sha256', createHash('sha256').update('fake native executable').digest('hex')], { createTransport: make, log: () => {} });
     }
     expect(codes).toEqual({ complete: 0, contained: 1, stopped: 2 });
+  });
+
+  // Each variant is all-fixture except one supplied value, so removing its clause from the predicate breaks exactly that case.
+  const child = fixtureRequest().child;
+  const mixed: Record<string, Record<string, unknown>> = {
+    name: { child: { ...child, nameSource: 'typed' } },
+    age: { child: { ...child, ageSource: 'transcript' } },
+    address: { child: { ...child, addressSource: 'typed' } },
+    residence: { child: { ...child, residenceSource: 'typed' } },
+    fact: { facts: [...fixtureRequest().facts, { id: 'f_testtypedfac1', kind: 'interest', value: 'לבנות מגדלים', source: 'typed' }] },
+    storyPlace: { storyPlace: { value: 'חוף הים', source: 'typed' } },
+    parentTopic: { intent: { kind: 'topic', topicId: 'sirens' } },
+    transcriptTopic: { intent: { kind: 'topic', topicId: 'sirens', suggestedBy: 'transcript' } },
+  };
+
+  it('admits an all-fixture cohort, place and topic included (positive control)', async () => {
+    const t = trial(['case-a', 'case-b']);
+    t.cases[1].request = fixtureRequest({ storyPlace: { value: 'חוף הים', source: 'fixture' } });
+    const transport = vi.fn<TrialTransport>(goodTransport());
+    const run = await runSimpleStoryTrial({ cases: t.cases, options, out: t.out, budgetMicroUsd: 20e6, concurrency: 1, policy: t.policy, transport });
+    expect([run.status, transport.mock.calls.length]).toEqual(['complete', 4]);
+  });
+
+  it.each(Object.keys(mixed))('rejects a cohort whose later case has a non-fixture %s before output, reservation or transport', async (key) => {
+    const t = trial(['case-a', 'case-b']);
+    t.cases[1].request = fixtureRequest(mixed[key]);
+    // The shared ANY-fixture flag would have admitted it; the trial predicate does not.
+    expect(prepareSimpleStory(t.cases[1].request, options, 'x').accepted.containsFixtureData).toBe(true);
+    const transport = vi.fn<TrialTransport>(goodTransport());
+    await expect(runSimpleStoryTrial({ cases: t.cases, options, out: t.out, budgetMicroUsd: 20e6, concurrency: 1, policy: t.policy, transport }))
+      .rejects.toThrow('trial_fixture_only');
+    expect(transport).not.toHaveBeenCalled();
+    expect(existsSync(t.out)).toBe(false);
+  });
+
+  it('labels the dry preview by the same predicate and refuses a live mixed cohort before creating a transport', async () => {
+    const tmp = mkdtempSync(path.join(tmpdir(), 'simple-cli-')); temps.push(tmp);
+    const exe = path.join(tmp, 'cli.exe'); writeFileSync(exe, 'fake native executable');
+    const cases = path.join(tmp, 'cases.json');
+    writeFileSync(cases, JSON.stringify([{ id: 'case-a', seed: 'x', request: fixtureRequest() }, { id: 'case-b', seed: 'y', request: fixtureRequest(mixed.parentTopic) }]));
+    const out = path.join(tmp, 'run'), base = ['--cases', cases, '--out', out, '--budget-usd', '5', '--concurrency', '1'];
+    const lines: string[] = [], createTransport = vi.fn(goodTransport);
+    expect(await main(base, { createTransport, log: line => lines.push(line) })).toBe(0);
+    expect(JSON.parse(lines[0]).cases.map((c: any) => [c.id, c.allFixture])).toEqual([['case-a', true], ['case-b', false]]);
+    await expect(main([...base, '--live', '--executable', exe, '--executable-sha256', createHash('sha256').update('fake native executable').digest('hex')],
+      { createTransport, log: () => {} })).rejects.toThrow('trial_fixture_only');
+    expect(createTransport).not.toHaveBeenCalled();
+    expect(existsSync(out)).toBe(false);
   });
 });

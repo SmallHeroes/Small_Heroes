@@ -14,6 +14,7 @@ import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { z } from 'zod';
+import type { ReviewedPersonalBookRequest } from '../lib/personal-wizard/contract';
 import { resolvePersonalWizardOptions, type PersonalWizardOptions } from '../lib/personal-wizard/options';
 import { PERSONAL_CHARACTER_IDS, resolvePersonalCompanionCharacter } from '../lib/personal-wizard/companion-character';
 import { prepareSimpleStory, simpleAuthorCall, writeSimpleStory, SimpleStoryError, SIMPLE_STORY_ENGINE_VERSION,
@@ -33,6 +34,17 @@ export function textCanonOptions(base: PersonalWizardOptions): PersonalWizardOpt
   const companions = PERSONAL_CHARACTER_IDS.map(id => ({ id, name: resolvePersonalCompanionCharacter(id)!.name, image: '/text-only-trial-unused.png' }));
   return { ...base, companions, unavailableCompanionIds: [],
     fingerprint: sha(JSON.stringify({ schema: 'personal-text-canon-options/v1', base: base.fingerprint, companions })) };
+}
+/**
+ * Trial-only admission: every supplied core value, fact, story place and topic choice came from the labelled
+ * example. Stricter than draft.ts `requestContainsFixtureData` (ANY fixture value). A provenance policy
+ * boundary, not independent proof that the child is fictional.
+ */
+export function requestIsAllFixture(request: ReviewedPersonalBookRequest): boolean {
+  const { child, storyPlace, intent } = request;
+  return child.nameSource === 'fixture' && child.ageSource === 'fixture' && child.addressSource === 'fixture' &&
+    (!child.residence.trim() || child.residenceSource === 'fixture') && request.facts.every(fact => fact.source === 'fixture') &&
+    (!storyPlace || storyPlace.source === 'fixture') && (intent?.kind !== 'topic' || intent.suggestedBy === 'fixture');
 }
 const casesSchema = z.array(z.object({ id: z.string().regex(/^[a-z0-9][a-z0-9_-]{1,60}$/), seed: z.string().max(80), request: z.unknown() }).strict()).min(1).max(40);
 export type TrialCase = z.infer<typeof casesSchema>[number];
@@ -80,12 +92,13 @@ export function containedTransportFailure(error: unknown): boolean {
 }
 class TrialHalt extends Error { constructor(readonly code: string) { super(code); } }
 
-/** Runs prepared fictional cases with an injected transport. Never retries; stops admission on any uncertainty. */
+/** Runs prepared all-fixture cases with an injected transport. Never retries; stops admission on any uncertainty. */
 export async function runSimpleStoryTrial(args: { cases: TrialCase[]; options: PersonalWizardOptions; out: string;
   budgetMicroUsd: number; concurrency: number; policy: WirePolicy; transport: TrialTransport; signal?: AbortSignal }) {
   if (new Set(args.cases.map(c => c.id)).size !== args.cases.length) throw Error('trial_duplicate_case');
   const prepared = args.cases.map(c => ({ c, p: prepareSimpleStory(structuredClone(c.request), args.options, c.seed) }));
-  if (prepared.some(({ p }) => !p.accepted.containsFixtureData)) throw Error('trial_fictional_only');
+  // Every case is checked before any output, reservation or transport; one mixed case rejects the whole cohort.
+  if (prepared.some(({ p }) => !requestIsAllFixture(p.accepted.canonical))) throw Error('trial_fixture_only');
   if (args.policy.workspace !== path.join(args.out, '_cli-workspace')) throw Error('trial_workspace');
   if (existsSync(args.out)) throw Error('trial_output_exists');
   mkdirSync(args.out); mkdirSync(args.policy.workspace);
@@ -176,9 +189,10 @@ export async function main(argv: string[], deps: { createTransport?: (policy: Wi
   const options = textCanonOptions(resolvePersonalWizardOptions());
   const plan = cases.map(c => { const p = prepareSimpleStory(structuredClone(c.request), options, c.seed);
     return { id: c.id, seed: c.seed, shape: p.shape.id, child: p.brief.child.name, age: p.brief.child.age, companion: p.book.companion.shortName,
-      pages: p.book.pages, theme: p.brief.topic ?? null, fictional: p.accepted.containsFixtureData, capPerCallUsd: capFor(simpleAuthorCall(p)) / 1e6 }; });
+      pages: p.book.pages, theme: p.brief.topic ?? null, allFixture: requestIsAllFixture(p.accepted.canonical), capPerCallUsd: capFor(simpleAuthorCall(p)) / 1e6 }; });
   log(JSON.stringify({ engine: SIMPLE_STORY_ENGINE_VERSION, live: a.live, cases: plan, worstCaseUsd: plan.reduce((n, row) => n + 2 * row.capPerCallUsd, 0), budgetUsd: a.budgetMicroUsd / 1e6 }, null, 2));
   if (!a.live) return TRIAL_EXIT_CODES.complete;
+  if (plan.some(row => !row.allFixture)) throw Error('trial_fixture_only');
   const policy: WirePolicy = { executable: a.executable, executableSha256: a.executableSha256, workspace: path.join(a.out, '_cli-workspace'),
     maxWireBytes: MAX_WIRE_BYTES, rates: SIMPLE_RATES };
   if (sha(readFileSync(policy.executable)) !== policy.executableSha256) throw Error('trial_executable_hash');
