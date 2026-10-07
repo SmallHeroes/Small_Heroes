@@ -38,6 +38,7 @@ beforeEach(() => {
   sdk.create.mockReset(); sdk.options = [];
   deps.production = false; deps.user = { id: 'owner', email: 'owner@example.com' };
   root = mkdtempSync(path.join(tmpdir(), 'sh_simple_book_test_')); roots.push(root);
+  mkdirSync(path.join(root, 'git-common'));
   const engineeringReceipts = [1, 2].map(n => {
     const file = path.join(root, `SYNTHETIC-engineering-${n}.json`);
     writeFileSync(file, JSON.stringify({ terminationConfirmed: true, stopped: false, code: 0, signal: null,
@@ -49,7 +50,7 @@ beforeEach(() => {
     seed: 'test-book-seed', executable: path.join(root, 'NEVER.exe'), executableSha256: 'b'.repeat(64), existingKeyEnvFile: path.join(root, 'NEVER.env'), engineeringReceipts };
   file = path.join(root, 'config.json'); writeFileSync(file, JSON.stringify(config));
   vi.spyOn(frozen, 'gitAt').mockImplementation((_repo, args) => Buffer.from(args.join(' ') === 'rev-parse HEAD' ? 'a'.repeat(40)
-    : args.join(' ') === 'status --porcelain' ? '' : root));
+    : args.join(' ') === 'status --porcelain' ? '' : path.join(root, 'git-common')));
   vi.stubEnv('PERSONAL_WIZARD_PREVIEW', 'true'); vi.stubEnv('PERSONAL_WIZARD_SIMPLE_BOOK_RUNNER', 'true');
   vi.stubEnv('PERSONAL_WIZARD_SIMPLE_BOOK_CONFIG', file); vi.stubEnv('PERSONAL_WIZARD_SIMPLE_BOOK_OPERATORS', 'owner@example.com');
 });
@@ -173,12 +174,16 @@ describe('one USD12 journal across engine stages and engineering Max', () => {
     await expect(budget.run('author', {}, 2, dispatch)).rejects.toThrow('simple_budget_exhausted'); expect(dispatch).not.toHaveBeenCalled();
     expect(existsSync(path.join(root, 'stages/author.claim.json'))).toBe(false);
   });
-  it('counts only hash-bound completed engineering receipts and refuses unknown or changed ones', () => {
+  it('counts known terminated billed engineering failures as well as success; refuses unknown or changed receipts', () => {
     const receiptFile = path.join(root, 'engineering.json'), receipt = { terminationConfirmed: true, stopped: false, code: 0, signal: null,
       reportedCostUsd: .3229724, isError: false, resultSubtype: 'success' };
     writeFileSync(receiptFile, JSON.stringify(receipt)); const bound = { file: receiptFile, sha256: sha(readFileSync(receiptFile)) };
     expect(simpleBookExternalCosts([bound])).toBe(322973);
     expect(() => simpleBookExternalCosts([bound, bound])).toThrow('duplicate');
+    writeFileSync(receiptFile, JSON.stringify({ ...receipt, code: 1, isError: true, stopped: true, resultSubtype: 'error' }));
+    expect(simpleBookExternalCosts([{ file: receiptFile, sha256: sha(readFileSync(receiptFile)) }])).toBe(322973);
+    writeFileSync(receiptFile, JSON.stringify({ ...receipt, terminationConfirmed: false }));
+    expect(() => simpleBookExternalCosts([{ file: receiptFile, sha256: sha(readFileSync(receiptFile)) }])).toThrow();
     writeFileSync(receiptFile, JSON.stringify({ ...receipt, reportedCostUsd: null }));
     expect(() => simpleBookExternalCosts([bound])).toThrow('changed');
     expect(() => simpleBookExternalCosts([{ file: receiptFile, sha256: sha(readFileSync(receiptFile)) }])).toThrow();
@@ -238,11 +243,13 @@ describe('real authenticated local simple-book route and one-use queue', () => {
     expect(existsSync(path.join(another, 'worker-claimed.json'))).toBe(false);
   });
   it('requires explicit engineering receipts, and a missing listed receipt blocks the worker before claim or paid call', async () => {
+    const f = await fixture();
+    enqueueSimpleBook(config, { request: f.request, requestId: prepareSimpleStory(f.request, options).accepted.requestId, userId: 'owner' });
     writeFileSync(file, JSON.stringify({ ...config, engineeringReceipts: [] })); expect(() => simpleBookConfig(file)).toThrow();
     writeFileSync(file, JSON.stringify({ ...config, engineeringReceipts: [{ file: path.join(root, 'missing.json'), sha256: 'a'.repeat(64) }, ...config.engineeringReceipts] }));
     writeFileSync(config.executable, 'SYNTHETIC'); config.executableSha256 = sha(readFileSync(config.executable));
     const parsed = JSON.parse(readFileSync(file, 'utf8')); parsed.executableSha256 = config.executableSha256; writeFileSync(file, JSON.stringify(parsed));
-    await expect(simpleWizardWorkerCLI(['--config', file, '--execute'])).rejects.toThrow(); expect(sdk.create).not.toHaveBeenCalled();
+    await expect(simpleWizardWorkerCLI(['--config', file, '--execute'])).rejects.toThrow('ENOENT'); expect(sdk.create).not.toHaveBeenCalled();
     expect(existsSync(path.join(simpleBookQueueDirectory(config), 'worker-claimed.json'))).toBe(false);
   });
   it('cannot describe a references-only result as complete, and delayed acknowledgements cannot replace a newer view', () => {
@@ -290,6 +297,17 @@ describe('explicit native worker boundary with fake transports only', () => {
     const result = JSON.parse(readFileSync(path.join(f.directory, 'simple-book-result.json'), 'utf8'));
     expect(result.storyboard.framePackets).toHaveLength(9); expect(result.storyboard.framePackets.every((p: any) => p.runtimeEligible === false)).toBe(true);
     await expect(simpleWizardWorkerCLI(['--config', file, '--execute'])).rejects.toThrow(); expect(sdk.create).toHaveBeenCalledTimes(4);
+  });
+  it('refuses source/common-directory output locations and an occupied CLI workspace before claiming the only slot', async () => {
+    const f = await workerFixture();
+    for (const outputParent of [config.workspace, path.join(root, 'git-common')]) {
+      writeFileSync(file, JSON.stringify({ ...config, outputParent }));
+      expect(() => simpleBookConfig(file)).toThrow('simple_cli_workspace_inside_source');
+    }
+    writeFileSync(file, JSON.stringify(config)); mkdirSync(path.join(config.outputParent, 'simple-book-cli-workspace'));
+    await expect(simpleWizardWorkerCLI(['--config', file, '--execute'])).rejects.toThrow('EEXIST');
+    expect(existsSync(path.join(f.directory, 'worker-claimed.json'))).toBe(false);
+    expect(sdk.create).not.toHaveBeenCalled(); expect(f.args.opus).not.toHaveBeenCalled();
   });
   it('records and stops an incomplete paid reader before comparison, planner or replay', async () => {
     const f = await workerFixture(); sdk.create.mockResolvedValue({ model: 'gpt-6-astra', service_tier: 'default', status: 'incomplete', output_text: '',

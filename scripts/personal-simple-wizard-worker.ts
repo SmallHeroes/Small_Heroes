@@ -39,9 +39,9 @@ export async function simpleWizardWorkerCLI(argv: string[]) {
       sourceHead: config.sourceHead, pages: 8, cover: true, externalMicroUsd, maximumMicroUsd: 12000000,
       stageCount: 6, providerCalls: 0, imagesAvailable: false, runtimeEligible: false })); return 0;
   }
-  const worker = claimSimpleBookWorker(config), controller = new AbortController();
   // Empty workspace outside the repository: no project story examples/history for either fresh session.
   const cliWorkspace = path.join(config.outputParent, 'simple-book-cli-workspace'); mkdirSync(cliWorkspace);
+  const worker = claimSimpleBookWorker(config), controller = new AbortController();
   const policy: WirePolicy = { executable: config.executable, executableSha256: config.executableSha256,
     workspace: cliWorkspace, maxWireBytes: 104000, rates };
   const opus = createOpusCausalTransport(policy);

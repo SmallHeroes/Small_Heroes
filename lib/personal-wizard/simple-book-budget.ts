@@ -68,14 +68,14 @@ export class SimpleBookBudget {
   }
 }
 
-/** Hash-bound completed engineering sessions count against the same new approval. */
+/** A known billed, terminated engineering session counts even when its work failed. */
 export function simpleBookExternalCosts(records: readonly { file: string; sha256: string }[]) {
   if (new Set(records.map(r => path.resolve(r.file).toLowerCase())).size !== records.length) throw Error('simple_external_cost_duplicate');
   return records.reduce((sum, r) => {
     if (!path.isAbsolute(r.file)) throw Error('simple_external_cost');
     const bytes = readFileSync(r.file); if (sha(bytes) !== r.sha256) throw Error('simple_external_cost_changed');
-    const receipt = z.object({ terminationConfirmed: z.literal(true), stopped: z.literal(false), code: z.literal(0), signal: z.null(),
-      reportedCostUsd: z.number().finite().nonnegative(), isError: z.literal(false), resultSubtype: z.literal('success') }).passthrough().parse(JSON.parse(bytes.toString('utf8')));
+    const receipt = z.object({ terminationConfirmed: z.literal(true),
+      reportedCostUsd: z.number().finite().nonnegative() }).passthrough().parse(JSON.parse(bytes.toString('utf8')));
     const cost = Math.ceil(receipt.reportedCostUsd * 1e6); if (!Number.isSafeInteger(cost)) throw Error('simple_external_cost');
     return sum + cost;
   }, 0);

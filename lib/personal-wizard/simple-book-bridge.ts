@@ -28,6 +28,11 @@ export function simpleBookConfig(file: string): SimpleBookConfig {
   if (!path.isAbsolute(file)) fail('simple_config');
   const config = simpleBookConfigSchema.parse(JSON.parse(fencedText(file, 32000)));
   for (const directory of [config.workspace, config.outputParent]) realDirectory(directory);
+  const common = gitAt(config.workspace, ['rev-parse', '--path-format=absolute', '--git-common-dir']).toString().trim();
+  for (const protectedRoot of [config.workspace, common]) {
+    const relative = path.relative(protectedRoot, config.outputParent);
+    if (!relative || !relative.startsWith(`..${path.sep}`) && relative !== '..' && !path.isAbsolute(relative)) fail('simple_cli_workspace_inside_source');
+  }
   for (const file of [config.executable, config.existingKeyEnvFile, ...config.engineeringReceipts.map(r => r.file)]) {
     if (!path.isAbsolute(file)) fail('simple_config');
   }
