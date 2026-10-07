@@ -26,4 +26,14 @@ R2-3's optional version bump is deliberately deferred to the adapter's next iden
 
 ## Evidence
 
-Local type-check exits 0; nine focused specs pass 486/486. The book runner grows 130 -> 134 tests; no existing test is removed. Source production change is the single review-authority sentence. Committed negative controls and one hashed full gate follow the focused commit. Their receipts and exact re-gate range will be recorded before handoff; no self-awarded independent PASS.
+Code commit: `3981e22f7505782271bb507eaf7a0f5a1e803b11` (parent `87b93c93`). Local and clean-commit focused checks pass 486/486 across nine files; type-check exits 0. Book runner grows 130 -> 134 tests, none removed. Production changes one review-authority sentence.
+
+Nine virtual mutants at the committed code are caught by intended assertions (selected control 20/20): six four-companion review-call failures, two nested-snapshot failures, one 15-companion embodiment failure. HEAD/tree, source hashes, operator/config hashes and actual exit codes are recorded; no source is mutated. This is a regression-contract check, not a model-quality comparison.
+
+One serial full `npm run check` completed at clean `3981e22f`, exit 1: ordinary 6580 passed / 10 same missing-artifact failures / 73 skipped; resource 634 passed / same Windows probe assertion / three onTaskUpdate RPC errors. All 11 assertion names match `dad37132`. No new assertion failure occurs in the changed files; the full gate remains RED and the probe's cause remains unestablished.
+
+Focused/full receipts inventory all 3372 tracked files, equal before/after digests, exact HEAD/tree, operator hash, command and confirmed termination. This excludes ignored/external fixtures/dependencies. Preservation independently checks 86 historical and 83 age evidence hashes and six protected clean baseline trees. Earlier receipts/reports/stories remain intact.
+
+Re-gate target: the whole held binding surface `119ac518..3981e22f`, plus this subsequent docs-only closeout. Evidence is in `simple-story-review-authority-evidence-20261007` beside the handoff `CLAUDE-STORYBOARD-REVIEW-AUTHORITY-REGATE-20261007.md`. No independent PASS is claimed; no provider/key/generation/push occurred.
+
+Instruction versus input authority is also consistent with [official OpenAI prompt guidance](https://developers.openai.com/api/docs/guides/prompt-engineering#message-roles-and-instruction-following): per-call instructions guide interpretation of supplied context. That guidance does not prove literary judgement or model compliance; actual model/pixel quality remains unmeasured in this correction.

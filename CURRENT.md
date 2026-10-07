@@ -1,5 +1,29 @@
 # SmallHeroes — Current Technical State
 
+## Reviewer correction committed and ready for independent re-gate (2026-10-07)
+
+Focused code is `3981e22f7505782271bb507eaf7a0f5a1e803b11`, parent `87b93c93`, on
+`codex/simple-story-voice-20261007`. This closeout changes only CURRENT, ROADMAP and the corrective decision record.
+
+- At clean committed `3981e22f`: type-check 0, focused 486/486 across nine files; book-runner tests 130 -> 134,
+  none removed. Nine virtual negative controls caught their intended assertions, 20/20 selected control. Unlike the
+  earlier Codex mutants, these ran after commit and record HEAD/tree, source and operator/config hashes.
+- One serial full gate completed at that same clean code: exit 1. Ordinary 6580 pass / the same 10 failures /
+  73 skip; resource 634 pass / the same Windows process-probe failure / three onTaskUpdate RPC errors. All 11
+  assertion failure names match `dad37132` exactly. The probe cause remains unestablished; full gate remains RED.
+- All 3372 tracked file hashes stayed equal across each committed focused/full run; actual termination is confirmed.
+  Scope excludes ignored/external dependencies/fixtures. Earlier evidence is not overwritten or retroactively amended.
+- Final preservation checked 86 historical and 83 age evidence hashes, plus six protected trees' clean baseline HEADs.
+  Registry/assets, source snapshot/digest/version, financial policy, schemas/providers, current/archive gates, production
+  routes and renderer remain unchanged. No new key/model/Max call, book, storyboard, image/render, push or deployment.
+- Claude's earlier range-1 and docs-only PASS stand as recorded; storyboard binding plus this successor still needs
+  independent re-gate. P3-1/R2-2 have targeted local test corrections, D-1 timing is clarified; P3-2 and optional R2-3
+  are explicitly not claimed fixed. No literary or pixel-quality improvement is inferred from these tests.
+- Next: Claude reviews `119ac518..3981e22f` and this docs-only closeout, then Codex builds the shared typed simple-source
+  adapter under the five validated conditions in the next-step plan. New paid execution needs a fresh priced allowance.
+- Evidence/brief: `simple-story-review-authority-evidence-20261007` and
+  `CLAUDE-STORYBOARD-REVIEW-AUTHORITY-REGATE-20261007.md` beside this chat's previous handoff.
+
 ## Claude verdicts and focused reviewer correction (2026-10-07)
 
 Claude independently returned PASS for `2b4035d8..119ac518` (V1/A1/A2 and successor S1 closed), HOLD for

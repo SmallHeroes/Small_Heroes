@@ -1,5 +1,17 @@
 # SmallHeroes — Roadmap
 
+## Reviewer correction ready for re-gate and adapter next (2026-10-07)
+
+- Code frozen at `3981e22f`, with one review-authority instruction sentence and targeted tests. Committed focused
+  486/486, nine virtual mutants caught; exact old assertion failure names reproduced in one full RED gate.
+- Independent re-gate is for the held `119ac518..dad37132` surface plus this correction. Earlier separate PASSs
+  remain narrow; technical/product/visual approval is not self-awarded. No new generation or paid allowance.
+- Then implement the shared simple-source current admission at both preparation and frames; bind actual author/editor
+  evidence, validate writing/storyboard visual equality and reject unresolved appearance early; reuse existing whole-book
+  compiler, reviewer and frames. No parallel old runner, fake receipt, wizard port, gate relaxation or public rollout.
+- Full stability stays open: 10 missing-artifact failures, base-reproduced Windows probe and RPC timeouts. Prior budgets
+  are closed; price one bounded source/planning/reference/LOW-image proof only after the adapter's independent review.
+
 ## Reviewer authority HOLD correction before source adapter (2026-10-07)
 
 - Claude separately passed `2b4035d8..119ac518` and docs-only `dad37132..87b93c93`; storyboard binding remains HOLD
