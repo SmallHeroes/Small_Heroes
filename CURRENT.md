@@ -1,5 +1,33 @@
 # SmallHeroes — Current Technical State
 
+## Independent simple-source PASS and local diagnostic driver started (2026-10-07)
+
+Claude independently passed `990f86e0..04eec8cb` and separately docs-only `04eec8cb..624a7025`, closing F1 and
+the table-prefix portion of F3. It explicitly lifts the earlier adapter HOLD for `d33de249..c7aa9c3b` plus the test
+successor; this is technical only. Its own type-check and fourteen specs passed 645/645, source 61/61; thirteen
+virtual mutants and a two-process prompt-drift probe confirmed each role's independent freshness guard. Full gate
+stays RED at `c7aa9c3b`, not rerun; F2, remaining F3 and F4 remain nonblocking, not silently closed.
+
+- Codex remains sole writer in this chat, same `codex/simple-story-voice-20261007` worktree, from clean `624a7025`.
+  Six protected worktrees are at their clean baselines; no additional writer or execution chat is opened.
+- Next approved local continuation is an offline diagnostic driver, not a paid runner, writer change or wizard port.
+  Reuse current admission, whole-book author/compiler, existing review instruction/disposition and current frames.
+  CLI uses writing textCanonOptions and completed raw/wire/instruction source files, with no live switch/provider factory.
+- Test the actual CJS tsx + server-only shim bootstrap, supported and held review paths, abort/source drift, input
+  headroom and filesystem/no-overwrite boundaries. Synthetic long-book capacity is not real long-book measurement.
+- No API key is read or provisioned, SDK/provider migration, new budget, Max call, book/image/render, push/merge/deploy.
+  Future live transport integration and real capacity/pricing remain separate and require the credential/spending decision.
+- Decision and stop-check: `docs/ai-workflow/PERSONAL_SIMPLE_STORYBOARD_DIAGNOSTIC_20261007.md`.
+- Implementation now comprises one injected orchestration module plus an offline replay CLI, 44 new tests and a
+  precise 421/401/20 inventory pin. Local type-check passes and the 15 relevant specs passed 689/689 before final
+  assertion tightening; real same-process CJS shim/tsx bootstrap passed. Commit and clean-commit focus/full/mutations
+  follow. The library/CLI preserve current source authority and never fabricate a v3 editing receipt.
+- CLI copies all eleven supplied source/planner/reviewer files as original bytes, records exact call instruction/input,
+  distinguishes two replay callbacks from zero provider calls and scopes zero cost to this replay only. Held reviews
+  emit zero packets; bad inputs/live flags/escaping, reserved or existing output paths fail without input/output overwrite.
+- Content headroom is full instruction+input UTF-8 only, not schema/wire bytes, tokens or live output adequacy.
+  No real long-book measurement or new source is claimed. F2's existing five-second timeout/import note remains open.
+
 ## Simple-source freshness correction ready for independent re-gate (2026-10-07)
 
 Claude independently reviewed `d33de249..c7aa9c3b` as HOLD for F1 (P2), while docs-only

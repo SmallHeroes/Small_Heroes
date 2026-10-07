@@ -115,3 +115,15 @@ the tracked tree and listed evidence, not all ignored artifacts, dependencies or
 Re-gate requested for `990f86e0..04eec8cb`; this final docs-only closeout is reviewed separately. F1 is addressed by
 implementation evidence but stays pending Claude's independent verdict. F2 and remaining F3/F4 limits remain as
 listed above, with no weakened timeout or policy. No new book, actual storyboard, image, budget, Max/API, push or deployment.
+
+## Independent re gate PASS
+
+Claude's read-only `CLAUDE-QA-FRESHNESS-REGATE-624a7025.md` passes correction `990f86e0..04eec8cb` and separately
+docs-only `04eec8cb..624a7025`. F1 and the table-prefix weakness of F3 are closed. Claude explicitly lifts its
+adapter HOLD for `d33de249..c7aa9c3b` together with the test successor, without extending it to unrelated ancestry.
+
+Its own type-check and fourteen focused specs pass 645/645 (source 61/61); thirteen mutations pin exact failure
+sets and a two-process saved-envelope probe demonstrates real prompt drift rejected only by the correct role's
+comparison. It verifies all three inventories and the partial-run disclosure. This is independent technical PASS,
+not product, visual, full-repo or release acceptance. Full gate remains RED and was not repeated. F2, remaining
+F3 and F4 are still open. The next local driver is a separate reviewed milestone, not implicit paid authorization.
