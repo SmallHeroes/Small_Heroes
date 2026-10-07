@@ -1,5 +1,14 @@
 # SmallHeroes — Roadmap
 
+## Simple story engine: F7/L1 correction pending re-QA (2026-10-07)
+
+- Done locally: all-fixture trial admission (F7) and no-theme reaction wording (L1), code `39601440`.
+- Next:
+  1. Codex independent re-QA of `0e8dfd5f..HEAD`.
+  2. One successor full gate on the frozen source. The prior gate is RED.
+- Still blocked: any paid comparison run (needs a separate decision), and wizard or production integration.
+- See `docs/ai-workflow/PERSONAL_SIMPLE_STORY_F7_L1_CORRECTION_20261007.md`.
+
 ## Simple story engine: literary follow-up pending QA (2026-10-07)
 
 - Local prompt milestone on `codex/claude-simple-story-literary-20261007` (`0a845285..HEAD`): more varied agency, no invented fear

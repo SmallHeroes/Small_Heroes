@@ -1,5 +1,20 @@
 # SmallHeroes — Current Technical State
 
+## Simple story engine: F7/L1 correction after Codex QA, pending re-QA (2026-10-07)
+
+Local only, same branch/worktree as below, not pushed. Code commit `39601440` on top of `0e8dfd5f`.
+
+- F7: the trial runner and live CLI now admit only all-fixture requests (new trial-only `requestIsAllFixture`). Before, they used
+  the shared ANY-fixture flag. A mixed case anywhere in the cohort is rejected before output, reservation or transport. The dry
+  preview label is `allFixture`. `draft.ts` is unchanged. Fixture provenance is a policy boundary, not proof that a child is
+  fictional.
+- L1: with no theme, author and editor ban an invented persistent difficulty or biography and a compulsory coping beat. A short
+  reaction caused by the adventure is allowed but never required. Schema, minItems, safety, freedom and canon are unchanged.
+- Local results: `tsc` exit 0; focused 62/62 (engine 55, classifier 7).
+- Prior full gate RED (Codex host at `15fa48e6`). Successor full gate pending. No PASS.
+- The Codex QA report file was not reachable in this session; the work followed the relayed F7/L1 brief.
+- See `docs/ai-workflow/PERSONAL_SIMPLE_STORY_F7_L1_CORRECTION_20261007.md`.
+
 ## Simple story engine: literary follow-up committed locally, pending QA (2026-10-07)
 
 Local prototype only. Branch `codex/claude-simple-story-literary-20261007`, worktree `.codex/worktrees/simple-story-literary-followup`,
