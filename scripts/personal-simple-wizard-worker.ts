@@ -109,7 +109,9 @@ export async function simpleWizardWorkerCLI(argv: string[]) {
         const instructionFile = path.join(worker.directory, `${call.stage}-instructions.txt`); exclusiveText(instructionFile, call.instructions);
         const dispatch = { ...call, role: 'opus' as const, conversationKey: `wizard:${worker.queued.requestId}:${call.stage}` };
         const wire = prepareCausalWire(dispatch, policy, 2000000, instructionFile);
-        return budget.run(call.stage, { ...wire, payload: wire.payload }, wire.reservedMicroUsd, async () => {
+        // CLI cost is cumulative across internal turns; its existing --max-budget-usd is $2.
+        // Visible-wire/token estimates are NOT a bound on that aggregate. Reserve the declared slot.
+        return budget.run(call.stage, { ...wire, payload: wire.payload }, 2000000, async () => {
           const reply = await opus(wire, dispatch, signal);
           return { value: reply, estimatedMicroUsd: reply.estimatedMicroUsd, receipt: reply };
         }).catch(error => {

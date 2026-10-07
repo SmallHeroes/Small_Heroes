@@ -325,6 +325,22 @@ describe('explicit native worker boundary with fake transports only', () => {
     expect(seal.snapshot.stopped).toBe(true); expect(seal.snapshot.unknownAttemptCosts).toBe(0);
     expect(existsSync(path.join(f.directory, 'paid-stages/final_review.failure.json'))).toBe(true);
   });
+  it('reserves each existing USD2 CLI slot, not a per-request token estimate, for cumulative reported Opus cost', async () => {
+    const f = await workerFixture(), normal = f.args.opus.getMockImplementation()!;
+    f.args.opus.mockImplementation(async (call, signal) => {
+      const r = await normal(call, signal), native = JSON.parse(r.raw.stdout);
+      native.total_cost_usd = 1.1; r.raw.stdout = JSON.stringify(native); r.estimatedMicroUsd = 1100000;
+      return r;
+    });
+    expect(await simpleWizardWorkerCLI(['--config', file, '--execute'])).toBe(0);
+    for (const stage of ['author', 'editor']) {
+      const claim = JSON.parse(readFileSync(path.join(f.directory, `paid-stages/${stage}.claim.json`), 'utf8'));
+      const wire = JSON.parse(readFileSync(path.join(f.directory, `paid-stages/${stage}.wire.json`), 'utf8'));
+      expect(claim.maximumMicroUsd).toBe(2000000); expect(wire.reservedMicroUsd).toBeLessThan(1100000);
+      expect(wire.args[wire.args.indexOf('--max-budget-usd') + 1]).toBe('2');
+    }
+    expect(JSON.parse(readFileSync(path.join(f.directory, 'sealed.json'), 'utf8')).snapshot.knownEstimateMicroUsd).toBeGreaterThan(2200000);
+  });
   it('runs the actual opt-in worker adapter through 3 references, 9 images, pixel QA, numeric identity and owned private serving with synthetic transports', async () => {
     const f = await workerFixture(), approvalFile = path.join(root, 'visual-approval.json');
     writeFileSync(approvalFile, JSON.stringify(syntheticVisualApproval()));
