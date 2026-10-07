@@ -1,5 +1,17 @@
 # SmallHeroes — Roadmap
 
+## Simple story reading voice continuation pending independent QA (2026-10-07)
+
+- Implemented locally: selective pronunciation cues and age/profile-sensitive dialogue/choices in existing author/editor
+  prompts, no new stage or schema. `tsc` clean; focused 150/150; all 6 virtual mutants caught. Full gate RED with 10 known
+  ordinary failures, 3 RPC errors and one process-probe failure reproduced on the unchanged base.
+- Next: Claude independent QA after the separate engineering/diagnostic allowance is approved. No model call yet.
+- Diversity drafts remain a separate controlled test on the frozen original, not a mixed prompt comparison.
+- Guy approved a separate canon-input milestone after the Dini color conflict was verified. The offline storyboard pilot
+  waits for its implementation and QA. Preserve the existing current-editor admission; no current-flow, render or wizard claim.
+- Previous age/editor experiment cost $3.090419 and is closed. Guy likes the stories; production/release are not approved.
+- Source branch `codex/simple-story-voice-20261007`; decision and evidence are linked at the top of CURRENT.
+
 ## Simple story engine: matched four-book trial done, adoption not established (2026-10-07)
 
 - Done: four matched fictional books (base `0a845285` versus follow-up `caf1db00`), 8 stages successful and closed, conservative

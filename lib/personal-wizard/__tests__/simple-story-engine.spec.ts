@@ -11,7 +11,7 @@ import { preparePersonalStory } from '../story-writer';
 import { prepareCurrentPersonalStoryboard, preparePersonalStoryboard } from '../storyboard';
 import type { CausalDispatch } from '../story-causal-experiment-runner';
 import { SIMPLE_STORY_SHAPES, SIMPLE_AUTHOR_INSTRUCTIONS, SIMPLE_EDITOR_INSTRUCTIONS, SimpleStoryError, checkSimpleStory, editorFindings, nameVariants,
-  pagesMentioning, pickStoryShape, prepareSimpleStory, simpleAuthorCall, simpleStoryDraftSchema, simpleStoryEditSchema, simpleStoryOutputTokens,
+  pagesMentioning, pickStoryShape, prepareSimpleStory, simpleAuthorCall, simpleEditorCall, simpleStoryDraftSchema, simpleStoryEditSchema, simpleStoryOutputTokens,
   unprotectedDashes, writeSimpleStory, type PreparedSimpleStory, type SimpleStoryCall } from '../simple-story-engine';
 import { SIMPLE_RATES, TRIAL_EXIT_CODES, containedTransportFailure, main, runSimpleStoryTrial, textCanonOptions,
   type TrialTransport } from '../../../scripts/personal-simple-story';
@@ -128,6 +128,39 @@ describe('simple story engine', () => {
     const moments = (zodTextFormat(simpleStoryDraftSchema(8), 'simple').schema as any).properties.resilienceMoments;
     expect(moments.minItems).toBe(1);
     expect(moments.description).not.toMatch(/hesitation/);
+  });
+
+  it.each([4, 8])('carries age %i and pronunciation guidance in actual author/editor calls, without new targets or slots', age => {
+    const p = prepareSimpleStory(request({ child: { ...request().child, age } }), options, 'voice');
+    const author = simpleAuthorCall(p), editor = simpleEditorCall(p, story(p), []);
+    for (const call of [author, editor]) {
+      const input = JSON.parse(call.input);
+      expect(input.book.child.age).toBe(age);
+      expect(input.book.wordsPerPage).toEqual(age === 4 ? { min: 35, max: 65 } : { min: 45, max: 85 });
+      expect(call.instructions).toContain('minimal niqqud essential to a pronunciation-dependent joke or genuine reading ambiguity');
+      expect(call.instructions).toContain('approved profile');
+      expect(call.instructions).toMatch(/dialogue, choices|dialogue and choices/);
+      expect(call.instructions).not.toMatch(/No niqqud in ordinary words|no niqqud in ordinary words|Short and medium sentences/);
+      expect(call.instructions).not.toMatch(/must (hide|mask) (their|the) fear|at least \d+ (long sentences|metaphors)/);
+    }
+    expect(author.instructions).toContain('Direct speech can still fit');
+    expect(editor.instructions).toContain('Direct speech can fit');
+    expect(editor.instructions).toContain('preserve that cue');
+    expect(Object.keys(JSON.parse(author.input)).sort()).toEqual(['book', 'task']);
+    expect(Object.keys(JSON.parse(editor.input)).sort()).toEqual(['book', 'draft', 'mechanicalFindings', 'task']);
+  });
+
+  it.each(['בִּצָּה', 'סֵפֶר', 'בּוּם'])('keeps %s unchanged with an advisory niqqud report, not a hard failure or blanket stripping instruction', cue => {
+    const p = prepareSimpleStory(request(), options, 'voice');
+    const s = story(p);
+    s.pages[0].text += ` ${cue}`;
+    const before = structuredClone(s), check = checkSimpleStory(p, s);
+    expect(check.hard).toEqual([]);
+    expect(check.soft).toContain('niqqud_in_prose');
+    expect(s).toEqual(before);
+    expect(editorFindings(p, check).join(' ')).not.toMatch(/niqqud|ניקוד|strip|unpoint|remove marks/i);
+    const input = JSON.parse(simpleEditorCall(p, s, editorFindings(p, check)).input);
+    expect(input.draft.pages[0].text).toBe(s.pages[0].text);
   });
 
   it('with no theme bans an invented personal difficulty and a coping beat, not a reaction the adventure causes', () => {

@@ -1,5 +1,36 @@
 # SmallHeroes — Current Technical State
 
+## Simple story pronunciation cues and age voice implemented locally pending independent QA (2026-10-07)
+
+Codex implements only in `codex/simple-story-voice-20261007`, worktree
+`C:/Users/guyna/.codex/worktrees/simple-story-voice-followup/Small_Heroes`, from `c8d51bb0`.
+Guy approved this continuation after praising the saved age-trial stories. This is not release acceptance.
+
+- Changed only author/editor prompt guidance and the advisory comment: minimal pronunciation-dependent niqqud is allowed;
+  dialogue, choices and emotional expression fit age plus approved profile without stereotypes or a sentence quota.
+  No schema, call count, targets, money, retries, biography rules, canon or current-storyboard gate changed.
+- `tsc --noEmit` exit 0. Focused 150/150 pass (simple engine 60, metrics 19, storyboard 71). Six virtual mutants all fail;
+  control 60/60. These are technical instruction/transport checks, not proof of better prose.
+- Full `npm run check` exit 1: ordinary 6547 pass / 10 known missing-artifact failures / 73 skip; resource 634 pass / 1 Windows
+  process-probe failure / 3 onTaskUpdate RPC errors. The process-probe failure also reproduces on the unchanged `c8d51bb0` base
+  in isolation. Cause remains unestablished; full gate is RED, not waived. No changed assertion fails.
+- The initial local test run exposed a missing test import, fixed before the final tsc/focused/full runs. The first mutation
+  helper stopped at its selector setup before any tests; the corrected in-memory run is in `mutations-v2`.
+- The previous age/editor trial is sealed: 10 book stages + one static operator QA; $3.090419 conservative Max list equivalent
+  of its separate $12 allowance. Outputs and original source worktrees remain unchanged. No model call in this new milestone.
+- Found visual mismatch before the proposed pilot: the saved Dini stories name green, but both `getCompanionById`'s visual
+  description and `public/companions/dragon_dini/style01-sheets/front.png` specify copper/orange. The simple author packet has
+  literary character data but no visual description. Canon-input integration needs a separately approved milestone; do not
+  patch one story or change canon silently. Guy approved the separate canon-input milestone in this chat; it is not
+  implemented here. The pilot waits for that milestone and its QA.
+- Current storyboard still requires a current editor receipt; simple-engine outputs are rejected. The archive diagnostic
+  bridge is not current admission or permission to render. No gate relaxation or pilot call has occurred.
+- Next: independent Claude technical QA of the focused local commit once its new allowance is approved. Separate numeric
+  budget question ($10) is pending; the separate canon scope is approved. No reuse of the closed trial's remainder. No images, API keys,
+  render, wizard integration, push, merge or deployment.
+- Decision: `docs/ai-workflow/PERSONAL_SIMPLE_STORY_READING_VOICE_DECISION_20261007.md`.
+  Evidence: `C:/Users/guyna/.codex/visualizations/2026/09/04/01a06c5c-a233-76c0-ac8e-618c02ce6246/simple-story-voice-evidence-20261007`.
+
 ## Simple story engine: matched four-book trial complete, no literary improvement proven (2026-10-07)
 
 Docs-only closeout by Claude Code at clean `caf1db00`; no independent PASS claimed. Report:
