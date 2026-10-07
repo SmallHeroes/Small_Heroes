@@ -1,6 +1,6 @@
 # SmallHeroes — Current Technical State
 
-## Independent simple-source PASS and local diagnostic driver started (2026-10-07)
+## Independent adapter PASS and offline driver ready for first QA (2026-10-07)
 
 Claude independently passed `990f86e0..04eec8cb` and separately docs-only `04eec8cb..624a7025`, closing F1 and
 the table-prefix portion of F3. It explicitly lifts the earlier adapter HOLD for `d33de249..c7aa9c3b` plus the test
@@ -18,15 +18,25 @@ stays RED at `c7aa9c3b`, not rerun; F2, remaining F3 and F4 remain nonblocking, 
 - No API key is read or provisioned, SDK/provider migration, new budget, Max call, book/image/render, push/merge/deploy.
   Future live transport integration and real capacity/pricing remain separate and require the credential/spending decision.
 - Decision and stop-check: `docs/ai-workflow/PERSONAL_SIMPLE_STORYBOARD_DIAGNOSTIC_20261007.md`.
-- Implementation now comprises one injected orchestration module plus an offline replay CLI, 44 new tests and a
-  precise 421/401/20 inventory pin. Local type-check passes and the 15 relevant specs passed 689/689 before final
-  assertion tightening; real same-process CJS shim/tsx bootstrap passed. Commit and clean-commit focus/full/mutations
-  follow. The library/CLI preserve current source authority and never fabricate a v3 editing receipt.
+- Driver is committed as `862944e319821ab735ad893d3ddc87f9f22d6b8d`, directly on independently reviewed `624a7025`:
+  one 84-line injected orchestration plus 104-line offline CLI, 44 new tests and exact 421/401/20 inventory pin.
+  Local literal npx type-check passes; final local diagnostic/classifier passes 51/51. Clean committed focus passes
+  689/689 across fifteen specs, including the real one-process CJS shim/tsx bootstrap. Eleven virtual weakened-check
+  controls are caught at intended assertions, with 44/44 control; no production file is mutated or old test removed.
 - CLI copies all eleven supplied source/planner/reviewer files as original bytes, records exact call instruction/input,
   distinguishes two replay callbacks from zero provider calls and scopes zero cost to this replay only. Held reviews
   emit zero packets; bad inputs/live flags/escaping, reserved or existing output paths fail without input/output overwrite.
 - Content headroom is full instruction+input UTF-8 only, not schema/wire bytes, tokens or live output adequacy.
   No real long-book measurement or new source is claimed. F2's existing five-second timeout/import note remains open.
+- One clean-commit full gate completed exit 1: ordinary 6685 pass / 10 exact old failures / 73 skip; resource 634 pass /
+  same Windows probe failure / three on_task_update RPC errors. All eleven assertion names equal `c7aa9c3b` exactly.
+  The +46 ordinary passes reflect two prior F1 tests plus 44 driver cases. Full gate remains RED, not waived.
+- Focus/full/mutation receipts bind exact clean HEAD/tree, operator/config hashes, confirmed termination and 3380
+  tracked hashes unchanged before/after. Preservation verifies 86 historical + 83 age files, six clean protected
+  baselines and an empty diff outside the eight declared paths; source/engine/storyboard/policies/assets/routes stay intact.
+- Handoff `CLAUDE-SIMPLE-STORYBOARD-DIAGNOSTIC-QA-20261007.md` and evidence directory
+  `simple-storyboard-diagnostic-evidence-20261007/` beside prior chat reports. This docs-only closeout records readiness,
+  not independent driver PASS. Paid wrapper/credentials/budget, real long-book headroom and qualified images stay separate.
 
 ## Simple-source freshness correction ready for independent re-gate (2026-10-07)
 

@@ -1,6 +1,6 @@
 # SmallHeroes — Roadmap
 
-## Adapter technical PASS and offline driver implementation (2026-10-07)
+## Adapter technical PASS and offline driver ready for independent QA (2026-10-07)
 
 - Claude passed freshness `990f86e0..04eec8cb` and docs-only `04eec8cb..624a7025`; it lifts the adapter HOLD.
   Its own 645/645 and prompt-drift/mutation checks close F1 and table-prefix F3. No product/visual/release PASS.
@@ -9,6 +9,11 @@
   No live CLI/provider/key/budget/wizard change. Claude first-pass QA before any paid use.
 - F2 load cost/timeout, remaining F3, F4 provenance limits and full RED gate remain open. Real long-book headroom,
   live transport budget/credential approval and render qualification are later, separately priced gates.
+- Driver `862944e3` from `624a7025`: clean committed focus 689/689, 44 new cases, eleven virtual mutants caught,
+  actual CJS/shim bootstrap. Exact 421/401/20 inventory; no policy or engine change. One full gate completed RED
+  with identical eleven old assertion names: ordinary 6685/10/73, resource 634/1 plus three RPC errors.
+- 3380 tracked bytes unchanged per gate, 86/83 old evidence and six protected clean baselines verified. Independent
+  first QA of driver and separate docs suffix next; no provider, new real book/storyboard, image or renewed allowance.
 
 ## Simple-source freshness test correction ready for re-gate (2026-10-07)
 

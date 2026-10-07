@@ -79,3 +79,28 @@ assertion-only tightening. Clean-commit verification, full gate and virtual weak
 Real CLI bootstrap is `node --require ./scripts/shims/register-server-only.cjs --require tsx/cjs
 ./scripts/personal-simple-storyboard.ts ...` in one process. This new entry is proved, not a global fix or promotion
 of the earlier failed wrapper attempts. Real long-book input headroom and provider/token adequacy remain pending.
+
+## Clean commit verification and first QA handoff
+
+Driver code `862944e319821ab735ad893d3ddc87f9f22d6b8d` is directly on `624a7025`. After the last assertion-only
+tightening, literal npx type-check passed and diagnostic/classifier passed 51/51. Clean committed focus passed
+689/689 across fifteen files, including real CLI bootstrap. Eleven in-memory mutations were caught at intended
+tests, with 44/44 control: source-only gate, review instruction, content limit, cancellation/source rechecks, held
+packet branch, writing configuration, saved wire input/instructions, existing output and file limits. Other defensive
+layers may also reject a mutant; the report claims intended failures, not universal exclusive-clause isolation.
+
+One full npm run check completed exit 1. Ordinary: 6685 pass, exactly the ten old failures, 73 skip. Resource:
+634 pass, the same Windows process-probe failure and three RPC errors. All eleven assertion names match the
+previous full gate at `c7aa9c3b`. Passing ordinary count grows by 46: two F1 tests since that gate plus 44 new
+driver tests. Windows probe cause is not established; full gate remains RED and is not a release waiver.
+
+Each clean-commit focus/full/mutation receipt records exact HEAD/tree, operator/config hashes, actual completion
+and 3380 tracked content hashes equal before/after. Preservation verifies 86 historical and 83 age files, six clean
+protected worktrees and no diff outside eight declared paths from `624a7025`. This does not certify all ignored
+dependencies/host files. Root story/source/compiler/reviewer, canon, assets, old CLI, model/classifier policy,
+financial and public/customer flows stay unchanged. Initial test .at() compiler correction is disclosed above.
+
+This docs-only closeout and `CLAUDE-SIMPLE-STORYBOARD-DIAGNOSTIC-QA-20261007.md` request first read-only
+independent QA. No independent driver PASS is claimed. Offline replay is not provider-backed generation, output
+adequacy, real long-book capacity, render qualification or product acceptance. A future paid wrapper needs explicit
+credential/spending approval, bounded existing transport and raw receipts/wires. No budget was renewed or key read.
