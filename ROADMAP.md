@@ -1,5 +1,16 @@
 # SmallHeroes — Roadmap
 
+## Simple-source freshness test correction before re-gate (2026-10-07)
+
+- Claude: adapter code `d33de249..c7aa9c3b` HOLD on F1 regression coverage; docs-only `c7aa9c3b..990f86e0` PASS.
+- Focused test-only successor from `990f86e0`: isolate current author/editor input recomputation with matching stale
+  receipt/evidence digests, exact errors at preparation/frame/archive; tighten both existing negative tables. Local tsc 0,
+  source tests 61/61. Verify clean commit, baseline-versus-new virtual mutants and fourteen focused specs; then re-gate.
+- Do not widen scope to literary edits, model migration or wizard rollout. F2 import cost/CLI timeout and other F3 gaps
+  remain open; F4 consistency-only boundary is explicit. A later driver must use writing textCanonOptions, dispatch the
+  real review instruction through the proper loader and retain native records/wire files. No renewed paid allowance.
+- Full gate remains RED on the previously verified code; no new full-suite claim for this test/docs-only correction.
+
 ## Simple source admission ready for independent QA (2026-10-07)
 
 - Review `d33de249..c7aa9c3b`: main adapter `390bf42b` plus two verified integration corrections. Final committed

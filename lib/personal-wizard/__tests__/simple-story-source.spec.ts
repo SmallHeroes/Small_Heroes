@@ -4,7 +4,7 @@ import { personalStoryboardFixture } from './personal-storyboard-fixture';
 import { resolvePersonalWizardOptions, PROTOTYPE_COMPANION_ROSTER } from '../options';
 import { canonicalJson } from '../request-acceptance';
 import { prepareSimpleStory, writeSimpleStory, type SimpleStoryCall, type SimpleStoryDraft } from '../simple-story-engine';
-import { createCurrentSimpleStorySource, admitCurrentSimpleStorySource, projectSimpleCliReceipt, simpleStoryboardSourceEvidence } from '../simple-story-source';
+import { createCurrentSimpleStorySource, admitCurrentSimpleStorySource, projectSimpleCliReceipt, simpleStoryboardSourceEvidence, SimpleStorySourceError } from '../simple-story-source';
 import { prepareCurrentPersonalStoryboard, preparePersonalStoryboard, authorPersonalStoryboard, compilePersonalStoryboard,
   currentPersonalStoryboardFrame, personalStoryboardReviewInput, storyboardReviewDisposition, PERSONAL_STORYBOARD_VERSION } from '../storyboard';
 import { PERSONAL_STORYBOARD_INSTRUCTION } from '../storyboard';
@@ -17,6 +17,16 @@ import * as admission from '../storyboard-source-admission';
 const options = resolvePersonalWizardOptions();
 const sha = (x: unknown) => createHash('sha256').update(canonicalJson(x)).digest('hex');
 afterEach(() => vi.restoreAllMocks());
+
+function expectSourceError(action: () => unknown, code: string) {
+  try { action(); } catch (error) {
+    expect(error).toBeInstanceOf(SimpleStorySourceError);
+    expect((error as SimpleStorySourceError).code).toBe(code);
+    expect((error as SimpleStorySourceError).message).toBe(`simple_story_source_${code}`);
+    return;
+  }
+  expect.fail(`Expected the source to reject with ${code}`);
+}
 
 async function fixture(length = 'short', companion = 'dragon_dini', activeOptions = options) {
   const f = await personalStoryboardFixture(length, companion), p = prepareSimpleStory(f.request, activeOptions, 'simple-source-fixture');
@@ -86,9 +96,19 @@ describe('simple final source -> existing current whole-book storyboard', () => 
     expect(f.generated).toEqual(before);
   });
 
-  it.each(['writing_request', 'options', 'book', 'shape', 'checks', 'findings', 'author_call', 'editor_call', 'author_output',
-    'editor_output', 'author_stage', 'editor_stage', 'same_session', 'unknown_cost', 'wrong_model', 'accounting', 'final_text', 'missing_evidence', 'wrong_version'])(
-    'rejects %s evidence before planning and at frame extraction without downgrading', async kind => {
+  it.each([
+    { kind: 'writing_request', code: 'writing_binding' }, { kind: 'options', code: 'writing_binding' },
+    { kind: 'book', code: 'writing_binding' }, { kind: 'shape', code: 'writing_binding' },
+    { kind: 'checks', code: 'checks_binding' }, { kind: 'findings', code: 'checks_binding' },
+    { kind: 'author_call', code: 'call_binding' }, { kind: 'editor_call', code: 'call_binding' },
+    { kind: 'author_output', code: 'output_binding' }, { kind: 'editor_output', code: 'output_binding' },
+    { kind: 'author_stage', code: 'call_binding' }, { kind: 'editor_stage', code: 'call_binding' },
+    { kind: 'same_session', code: 'call_binding' }, { kind: 'unknown_cost', code: 'invalid' },
+    { kind: 'wrong_model', code: 'invalid' }, { kind: 'accounting', code: 'accounting_binding' },
+    { kind: 'final_text', code: 'final_binding' }, { kind: 'missing_evidence', code: 'invalid' },
+    { kind: 'wrong_version', code: 'invalid' },
+  ])(
+    'rejects $kind evidence with $code before planning and at frame extraction without downgrading', async ({ kind, code }) => {
       const f = await fixture(), raw: any = structuredClone(f.qualified);
       const source = prepareCurrentPersonalStoryboard(f.request, f.qualified, options), book = compilePersonalStoryboard(source, f.draft), review = reviewFor(f, book);
       const proof = raw.simpleSource, evidence = proof.evidence;
@@ -112,12 +132,31 @@ describe('simple final source -> existing current whole-book storyboard', () => 
       if (kind === 'final_text') raw.manuscript.pages[0].text += ' Unapproved prose.';
       if (kind === 'missing_evidence') delete proof.evidence;
       if (kind === 'wrong_version') proof.version = 'old-version';
-      expect(() => prepareCurrentPersonalStoryboard(f.request, raw, options)).toThrow('simple_story_source_');
-      expect(() => currentPersonalStoryboardFrame(book, review, 1, { request: f.request, writerResult: raw, options })).toThrow('simple_story_source_');
+      expectSourceError(() => prepareCurrentPersonalStoryboard(f.request, raw, options), code);
+      expectSourceError(() => currentPersonalStoryboardFrame(book, review, 1, { request: f.request, writerResult: raw, options }), code);
     });
 
-  it.each(['unknown_exit', 'nonzero', 'unknown_kill', 'stopped', 'unknown_cost', 'cost_mismatch', 'unknown_usage', 'cost_kind', 'model', 'error_reply', 'subtype', 'output'])(
-    'rejects native receipt %s rather than manufacture a completed projection', async kind => {
+  it.each(['author', 'editor'] as const)('pins current %s input recomputation when the receipt and evidence agree on a stale digest', async role => {
+    const f = await fixture(), raw: any = structuredClone(f.qualified);
+    const source = prepareCurrentPersonalStoryboard(f.request, f.qualified, options);
+    const book = compilePersonalStoryboard(source, f.draft), review = reviewFor(f, book);
+    const currentDigest = sha({ i: f.calls[role === 'author' ? 0 : 1].instructions, x: f.calls[role === 'author' ? 0 : 1].input });
+    expect(raw.simpleSource.evidence.calls[role]).toBe(currentDigest);
+    expect(raw.simpleSource[role].callDigest).toBe(currentDigest);
+    expect(currentPersonalStoryboardFrame(book, review, 1, { request: f.request, writerResult: f.qualified, options }).runtimeEligible).toBe(false);
+    // The saved evidence and projected receipt agree. Only recomputing the current call exposes staleness.
+    const staleDigest = 'a'.repeat(64);
+    expect(staleDigest).not.toBe(currentDigest);
+    raw.simpleSource.evidence.calls[role] = staleDigest;
+    raw.simpleSource[role].callDigest = staleDigest;
+    expectSourceError(() => prepareCurrentPersonalStoryboard(f.request, raw, options), 'call_binding');
+    expectSourceError(() => currentPersonalStoryboardFrame(book, review, 1, { request: f.request, writerResult: raw, options }), 'call_binding');
+    expectSourceError(() => preparePersonalStoryboard(f.request, raw, options), 'call_binding');
+  });
+
+  it.each(['unknown_exit', 'nonzero', 'unknown_kill', 'stopped', 'unknown_cost', 'cost_mismatch', 'unknown_usage', 'cost_kind', 'model', 'error_reply', 'subtype', 'output'].map(
+    kind => ({ kind, code: kind === 'output' ? 'receipt_output' : 'receipt_invalid' })))(
+    'rejects native receipt $kind with $code rather than manufacture a completed projection', async ({ kind, code }) => {
       const f = await fixture(), record = structuredClone(f.records.editor), native = JSON.parse(record.raw.stdout);
       if (kind === 'unknown_exit') record.raw.termination.code = null;
       if (kind === 'nonzero') record.raw.termination.code = 1;
@@ -133,7 +172,7 @@ describe('simple final source -> existing current whole-book storyboard', () => 
       if (kind === 'subtype') native.subtype = 'incomplete';
       if (kind === 'output') native.structured_output.pages[0].text += ' Wrong output.';
       record.raw.stdout = JSON.stringify(native);
-      expect(() => projectSimpleCliReceipt(f.calls[1], record)).toThrow('simple_story_source_receipt_');
+      expectSourceError(() => projectSimpleCliReceipt(f.calls[1], record), code);
     });
 
   it('does not normalize an already compiled result or change any supplied raw record', async () => {

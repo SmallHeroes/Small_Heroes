@@ -52,3 +52,38 @@ Final code: `c7aa9c3baa6a08d2e654c48d9ae44b885a0fb53d` (main `390bf42b`, base `d
 Final focused/full receipts inventory 3376 tracked files, equal before/after hashes, exact clean HEAD/tree, command/operator hash and confirmed termination. Initial failed full run remains untouched. Fourteen virtual mutants are tied to `390bf42b` only; final production delta does not change their guard bodies. Preservation verifies 86 historical and 83 age files plus six protected clean baseline worktrees, and unchanged canon/assets/routes/policies/shared schemas.
 
 First independent QA target is the combined `d33de249..c7aa9c3b` plus this docs-only successor. No self-awarded PASS, real book/storyboard, provider/key/Max use, image/render, new budget, wizard port, push or deployment. Actual paid execution is a later priced and approved diagnostic, not an implication of passing these tests.
+
+## Independent QA and freshness correction
+
+Claude's read-only first pass gives the adapter code `d33de249..c7aa9c3b` HOLD for F1 (P2), and docs-only
+`c7aa9c3b..990f86e0` PASS. Its own type-check passed. Fourteen focused specs ran three times: 642/643 with a
+five-second CLI timeout, then 643/643 twice. Its 17 scored mutants were killed; 13 informational mutants survived,
+including separate deletion of the author and editor current-input recomputation clauses. The behaviour is correct
+today, but the acceptance requirement for changed inputs was not isolated by existing tests.
+
+Codex's successor from `990f86e0` changes only the source spec and these three docs. Two new cases alter both the
+writing evidence and projected receipt call digests for one role, preserving their mutual equality. They require exact
+`call_binding` rejection at current preparation, frame extraction and archive preparation. They check the valid
+original source first. The original 19 evidence and 12 projection cases now assert the specific error class, code and
+message. No negative case or positive control is removed; 59 -> 61 tests. Local type-check and 61/61 source tests pass.
+
+Acceptance is proof that each new case fails when only its own current-input comparison is deleted, while the other
+role still passes; the old 59-case spec should continue to miss each deletion. Also show that a changed error code
+and removed archive admission are now caught. Mutations are in memory, never saved into production files. Commit,
+clean-commit fourteen-spec checks, preservation and Claude re-gate follow. Full stability remains RED; the final full
+gate at `c7aa9c3b` is prior-code evidence, not a new run on this successor. Production bytes must match `990f86e0`.
+
+Nonblocking notes remain visible rather than being silently converted to PASS:
+
+- F2: importing CAUSAL_MODELS loads the trial transport and OpenAI SDK. Claude measured 51 versus 279 modules and
+  approximately 120 versus 520 ms in fresh imports, with no import-time spawn, writes or secret-like reads. Its CLI
+  timeout was load-sensitive. No timeout, allowlist or transport change belongs to this test-only correction.
+- F3: exact codes in the two negative tables are strengthened; remaining unpinned small clauses are not all closed.
+- F4: projected `callDigest` is an expected input hash supplied by the caller, not read from the native CLI result.
+  Native record-format projection cannot attest actual prompts, conversation freshness, internal request count or
+  invoices. The writing-time evidence and current-input recomputation are separate checks. A later driver must keep
+  raw native results plus the exact dispatched instructions/input files alongside the envelope.
+
+No prose, identity, visual rule, stage, model, route, paid guard, spending allowance or current-frame authority changes.
+After independent re-gate, the small driver still needs its own implementation/review and any live proof a fresh,
+priced approval; no provider, book or render is authorized by this local correction.

@@ -1,5 +1,27 @@
 # SmallHeroes — Current Technical State
 
+## Simple-source QA HOLD and focused freshness regression correction (2026-10-07)
+
+Claude independently reviewed `d33de249..c7aa9c3b` as HOLD for F1 (P2), while docs-only
+`c7aa9c3b..990f86e0` passed. The adapter correctly rejects all probed cases; the missing protection is a test
+isolating recomputation of current author/editor inputs. Do not interpret the docs PASS as an adapter PASS.
+
+- Codex is sole writer in this chat, same clean-base `990f86e0` branch/worktree `codex/simple-story-voice-20261007` /
+  `C:/Users/guyna/.codex/worktrees/simple-story-voice-followup/Small_Heroes`; six protected worktrees retain clean baselines.
+- Test-only correction: two stale-call cases change evidence and projected receipt digests together, require exact
+  `SimpleStorySourceError.code = call_binding` at preparation, frame extraction and archive preparation. Positive
+  controls first prove the original source and current frame valid. Existing 19 evidence and 12 receipt cases now
+  assert the exact class, code and message, rather than prefixes. Source spec grows 59 -> 61; no test is removed.
+- Local `npx.cmd --no-install tsc --noEmit --incremental false` exits 0 and source spec passes 61/61. Clean-commit
+  fourteen-spec validation and before/after virtual mutations are next; no independent re-gate is claimed yet.
+- F2 remains open: Claude measured 51 -> 279 modules and roughly 120 -> 520 ms per storyboard import, with one
+  load-sensitive five-second CLI timeout in three focused runs. No import-time side effects were found. F3's table
+  error-code weakness is targeted, not its remaining unpinned clauses. F4's projected callDigest is the caller's
+  expected digest, not a prompt attestation from the native record; the later driver must retain original wire/instruction files.
+- No production/prompt/schema/model-policy/classifier/canon/asset changes, provider/key/Max use, book/storyboard/image/
+  render, budget renewal, wizard migration, push/merge/deployment. Full repo gate stays RED as recorded at `c7aa9c3b`;
+  this test/docs-only successor does not claim a fresh full-suite run. Next is Claude re-gate, then a separately scoped driver.
+
 ## Simple-source adapter frozen for first independent QA (2026-10-07)
 
 Main adapter `390bf42b` plus integration correction `c7aa9c3baa6a08d2e654c48d9ae44b885a0fb53d`, from
