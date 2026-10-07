@@ -60,7 +60,7 @@ When there is no theme (a book just for fun): no difficulty and no lesson. Still
 
 Freshness: these ideas have been overused in this series, so avoid them: a lost little creature (a cloud, a star, a drop) returned to its family; a world made of clouds; a puzzle solved by discovering a hidden magic rule; the child's hobby turning out to be the magic key; counting or breathing rituals; a list of instructions for being brave; a moral spoken at the end; it was all a dream.
 
-Language: rich, warm, literary Hebrew in everyday words, made for reading aloud. Short and medium sentences with rhythm, some playful repetition, vivid verbs and real dialogue. Show feelings through a fresh, specific image or action rather than a stock phrase. Narrate in the third person. Use the correct grammatical gender for the child (address) and for the companion (gender). Call the companion by its short name and use the child's name. No niqqud in ordinary words; you may point an invented sound word when that helps the parent read it aloud. Never use hyphens, maqaf, en dashes or em dashes anywhere: rewrite the sentence or use a comma. No headings, labels, emojis, page numbers or picture directions inside the text.
+Language: rich, warm, literary Hebrew in everyday words, made for reading aloud. Short and medium sentences with rhythm, some playful repetition, vivid verbs and real dialogue. Show feelings through a fresh, specific image or action rather than a stock phrase. Narrate in the third person. Use the correct grammatical gender for the child (address) and for the companion (gender). Call the companion by its short name and use the child's name. No niqqud in ordinary words; you may point an invented sound word when that helps the parent read it aloud. Never use hyphens, maqaf, en dashes or em dashes anywhere: rewrite the sentence or use a comma. The one exception is a name from the brief that contains a hyphen: always write names exactly as given. No headings, labels, emojis, page numbers or picture directions inside the text.
 
 Pages: write exactly the number of pages in the brief. Each page is one double spread of the printed book: a complete little scene that can be illustrated, with about the number of words given. Page 1 opens in the child's world and hooks the listener quickly. The last page lands the ending warmly, with a final smile that echoes something from earlier.
 
@@ -77,7 +77,7 @@ Look for:
 - The hero. The child's own idea or choice drives the big moment. The companion is a partner with its own voice and wish, never a teacher, therapist or rescuer.
 - The theme, if there is one. The child's moment with it is honest, small and real, and it matters to the story. Remove lessons, explanations, techniques and speeches about feelings, and any claim that the fear is gone forever.
 - Family. Families differ: unless the brief names them, remove any assumed parent of the child ("mom and dad", "dad", "mom") and say "the grown-ups" or keep them off the page. Invented story characters may have any family.
-- Language. Beautiful everyday Hebrew with rhythm, feelings shown through fresh, specific images instead of stock phrases (such as a tummy that tightens), correct grammatical gender for the child and the companion, no niqqud in ordinary words (a pointed sound word is fine), no hyphens, maqaf or dashes of any kind, no headings or picture directions.
+- Language. Beautiful everyday Hebrew with rhythm, feelings shown through fresh, specific images instead of stock phrases (such as a tummy that tightens), correct grammatical gender for the child and the companion, no niqqud in ordinary words (a pointed sound word is fine), no hyphens, maqaf or dashes of any kind (names from the brief stay exactly as given, even with a hyphen), no headings or picture directions.
 - Length. Keep exactly the same number of pages, each a complete scene for one illustration, with about the number of words in the brief.
 - The mechanical findings, if any: fix every one of them.
 
@@ -128,8 +128,10 @@ export class SimpleStoryError extends Error {
 }
 function fail(code: string, evidence?: Record<string, unknown>): never { throw new SimpleStoryError(code, evidence); }
 
-const MARK = /[֑-ׇ]/u;
-const stripMarks = (s: string) => s.normalize('NFC').replace(/[֑-ׇ]/gu, '');
+/** Hebrew combining marks (niqqud, cantillation) only; the maqaf, paseq and sof pasuq in the same block are punctuation. */
+const MARK_CLASS = '[\\u{591}-\\u{5bd}\\u{5bf}\\u{5c1}\\u{5c2}\\u{5c4}\\u{5c5}\\u{5c7}]';
+const MARK = new RegExp(MARK_CLASS, 'u');
+const stripMarks = (s: string) => s.normalize('NFC').replace(new RegExp(MARK_CLASS, 'gu'), '');
 const lastWord = (name: string) => name.trim().split(/\s+/u).pop() ?? name;
 /** Canonical companion short name: last word of the approved name ("הדרקונית דיני" -> דיני), unpointed. */
 export const companionShortName = (name: string) => stripMarks(lastWord(name));
@@ -153,32 +155,42 @@ export function nameVariants(name: string, word: 'first' | 'last'): string[] {
   const chosen = word === 'last' ? lastWord(name) : name.trim().split(/\s+/u)[0];
   return [...new Set([stripMarks(chosen), plene(chosen)])].filter(Boolean);
 }
-/** A name counts with up to two Hebrew prefix letters (ו, ה, ב, כ, ל, מ, ש) attached. */
+const cp = (...points: number[]) => String.fromCodePoint(...points);
+/**
+ * Every hyphen and dash form, not only the four the current writer checks: models also emit U+2010-U+2015
+ * (a non-breaking hyphen was seen), minus signs, soft hyphens and small or full-width forms.
+ */
+const DASH_CHARS = cp(0x2d, 0xad, 0x5be, 0x2010, 0x2011, 0x2012, 0x2013, 0x2014, 0x2015, 0x2212, 0xfe58, 0xfe63, 0xff0d);
+const DASH_CLASS = `[${[...DASH_CHARS].map(c => `\\u{${c.codePointAt(0)!.toString(16)}}`).join('')}]`;
+const DASH = new RegExp(DASH_CLASS, 'u');
+const escapeRegex = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+/**
+ * An approved name as it may appear in prose: its own letters (pointed or not), with any dash form exactly
+ * where the approved name has one. A space or a missing dash is a different spelling and does not count.
+ */
+const namePattern = (name: string) =>
+  [...name].map(c => DASH.test(c) ? DASH_CLASS : `${escapeRegex(c)}${MARK_CLASS}*`).join('');
+/**
+ * One rule for a name in prose, shared by the name gate and the dash exemption: a word boundary, up to two
+ * Hebrew prefix letters (ו, ה, ב, כ, ל, מ, ש), the name, and no letter continuing after it.
+ */
+const nameInProse = (names: readonly string[]) =>
+  `(?<=(?:^|[^\\p{L}\\p{M}])(?:[והבכלמש]${MARK_CLASS}*){0,2})(?:${names.map(namePattern).join('|')})(?=$|[^\\p{L}])`;
 export function pagesMentioning(pages: readonly { text: string }[], variants: readonly string[]): number {
-  const escaped = variants.map(v => v.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
-  const re = new RegExp(`(?:^|[^\\p{L}])[והבכלמש]{0,2}(?:${escaped.join('|')})(?=$|[^\\p{L}])`, 'u');
+  const re = new RegExp(nameInProse(variants), 'u');
   return pages.filter(page => re.test(stripMarks(page.text))).length;
 }
-
 /**
- * Every hyphen and dash form, not only the four the current writer checks: the models also emit
- * U+2010-U+2015 (for example a non-breaking hyphen), minus signs, soft hyphens and full-width forms.
+ * Dashes outside approved names, with short snippets for the editor. Nothing is rewritten here or anywhere
+ * else in the engine: a dash is either fixed by the editor on request or holds the book.
  */
-const DASH_CHARS = '\\-\\u00AD\\u05BE\\u2010-\\u2015\\u2212\\uFE58\\uFE63\\uFF0D';
-const DASH = new RegExp(`[${DASH_CHARS}]`, 'u');
-/** Typography only: compound joins become spaces, other dashes commas. Counted, never silent. */
-export function normalizeStoryTypography(text: string): { text: string; dashes: number } {
-  const dashes = (text.match(new RegExp(`[${DASH_CHARS}]`, 'gu')) ?? []).length;
-  if (!dashes) return { text, dashes };
-  const out = text
-    .replace(new RegExp(`(?<=\\p{L})[${DASH_CHARS}](?=\\p{L})`, 'gu'), ' ')
-    .replace(new RegExp(`[ \\t]*[${DASH_CHARS}]+[ \\t]*`, 'gu'), ', ')
-    .replace(/(^|\n)[ \t]*,[ \t]*/gu, '$1')
-    .replace(/([.!?:;,…]["״”'׳]?)[ \t]*,[ \t]*/gu, '$1 ')
-    .replace(/,[ \t]*(?=["״”'׳]?[ \t]*(?:$|\n))/gu, '')
-    .replace(/[ \t]{2,}/gu, ' ')
-    .replace(/[ \t]+([.!?:;,])/gu, '$1');
-  return { text: out.trim(), dashes };
+export function unprotectedDashes(text: string, names: readonly string[]) {
+  const dashed = [...new Set(names)].filter(name => DASH.test(name)).sort((a, b) => b.length - a.length);
+  // Same-length masking keeps positions aligned with the original text for the snippets.
+  const scan = dashed.length ? text.replace(new RegExp(nameInProse(dashed), 'gu'),
+    m => m.replace(new RegExp(DASH_CLASS, 'gu'), cp(0xe000))) : text;
+  const at = [...scan.matchAll(new RegExp(DASH_CLASS, 'gu'))].map(m => m.index!);
+  return { count: at.length, snippets: at.slice(0, 3).map(i => text.slice(Math.max(0, i - 12), i + 13).replace(/\s+/gu, ' ').trim()) };
 }
 
 export function prepareSimpleStory(input: unknown, options: PersonalWizardOptions, seed = '') {
@@ -212,13 +224,20 @@ export function simpleEditorCall(prepared: PreparedSimpleStory, draft: SimpleSto
       task: `Edit the draft. Return exactly ${pages} pages of about ${w.min} to ${w.max} words each, exactly ${pages} pageMap rows, and your main changes.` }) };
 }
 
-/** Deterministic hygiene and contract checks. hard blocks a book; soft is reported for review. */
+/** Approved names the prose must keep exactly; their own dashes are part of the identity, not style. */
+export function approvedNames(prepared: PreparedSimpleStory): string[] {
+  const child = prepared.brief.child.name.trim();
+  return [...new Set([child, child.split(/\s+/u)[0], prepared.brief.companion.character.name, prepared.book.companion.shortName])];
+}
+
+/** Deterministic hygiene and contract checks. hard blocks a book; soft is reported for review. Nothing is rewritten. */
 export function checkSimpleStory(prepared: PreparedSimpleStory, story: SimpleStoryDraft) {
   const { brief } = prepared, count = brief.beats, hard: string[] = [], soft: string[] = [];
   if (story.pages.length !== count) hard.push('page_count');
   if (story.pageMap.length !== count) hard.push('page_map_count');
   const prose = [story.title, ...story.pages.map(page => page.text)].join('\n');
-  if (DASH.test(prose)) hard.push('dash_in_prose');
+  const dashes = unprotectedDashes(prose, approvedNames(prepared));
+  if (dashes.count) hard.push('dash_in_prose');
   if (/imageDirection\s*:/iu.test(prose)) hard.push('direction_in_prose');
   // Exact phrase guard, as in the current writer; not semantic acceptance of exclusions.
   const comparable = comparableText(prose);
@@ -240,17 +259,18 @@ export function checkSimpleStory(prepared: PreparedSimpleStory, story: SimpleSto
     pages: story.pages.map((page, i) => ({ pageNumber: i + 1, text: page.text })) }, brief.child.age);
   if (metrics.belowTarget.length) soft.push(`short_pages:${metrics.belowTarget.join(',')}`);
   if (metrics.aboveTarget.length) soft.push(`long_pages:${metrics.aboveTarget.join(',')}`);
-  return { hard, soft, words: { target: metrics.target, perPage: metrics.pages.map(page => page.words), total: metrics.totalWords } };
+  return { hard, soft, dashSnippets: dashes.snippets,
+    words: { target: metrics.target, perPage: metrics.pages.map(page => page.words), total: metrics.totalWords } };
 }
 
 /** Human-readable findings handed to the editor, never hidden prompt edits. */
 export function editorFindings(prepared: PreparedSimpleStory, check: ReturnType<typeof checkSimpleStory>): string[] {
   const { brief } = prepared, w = prepared.book.wordsPerPage, out: string[] = [];
   const say: Record<string, string> = {
-    dash_in_prose: 'The draft uses hyphens, maqaf or dashes; remove every one.',
+    dash_in_prose: `The draft uses a hyphen, maqaf, dash or minus sign here: ${check.dashSnippets.map(s => `"${s}"`).join(', ')}. Rewrite each of these places without it (numbers and ranges in words if needed). Names from the brief stay exactly as given.`,
     direction_in_prose: 'The draft contains picture directions inside the text; remove them.',
     excluded_subject: `The draft mentions a subject the parent asked to avoid (${brief.excludedSubjects.join(', ')}); remove it completely.`,
-    child_name_missing: `Use the child's name (${brief.child.name}) on more pages.`,
+    child_name_missing: `Use the child's name exactly as given (${brief.child.name}) on more pages.`,
     companion_name_missing: `Call the companion by its name (${prepared.book.companion.shortName}) on more pages.`,
     moment_pages: 'resilienceMoments must point to distinct existing pages.',
     unknown_fact: 'pageMap factIds may contain only the IDs given in aboutTheChild.',
@@ -267,11 +287,6 @@ export function editorFindings(prepared: PreparedSimpleStory, check: ReturnType<
 }
 
 const digest = (value: unknown) => createHash('sha256').update(canonicalJson(value)).digest('hex');
-function normalizeStory(story: SimpleStoryDraft) {
-  let dashes = 0;
-  const fix = (s: string) => { const r = normalizeStoryTypography(s); dashes += r.dashes; return r.text; };
-  return { story: { ...story, title: fix(story.title), pages: story.pages.map(page => ({ text: fix(page.text) })) }, dashes };
-}
 
 /** Into the existing writer result contract; the page map becomes the descriptive plan. */
 export function compileSimpleStory(prepared: PreparedSimpleStory, story: SimpleStoryDraft, accounting: PersonalStoryResult['accounting']): PersonalStoryResult {
@@ -290,8 +305,9 @@ export function compileSimpleStory(prepared: PreparedSimpleStory, story: SimpleS
 
 export type SimpleStoryGenerate = (call: SimpleStoryCall) => Promise<{ output: unknown; usage: StoryUsage; estimatedUsd: number | null }>;
 /**
- * Exactly two provider calls: author, then a fresh editor. No retries, no fallback to
- * the draft: a book whose edited text fails a hard check is not produced.
+ * Exactly two provider calls: author, then a fresh editor. No retries, no fallback to the draft and
+ * no deterministic rewriting: the manuscript is the editor's text (trimmed by the existing contract),
+ * and a book whose edited text fails a hard check is not produced.
  */
 export async function writeSimpleStory(prepared: PreparedSimpleStory, generate: SimpleStoryGenerate, args: { model: string; reservedUsd: number }) {
   const usage: StoryUsage[] = [], costs: (number | null)[] = [];
@@ -305,20 +321,18 @@ export async function writeSimpleStory(prepared: PreparedSimpleStory, generate: 
     return parsed.data as SimpleStoryDraft & { editorChanges?: string[] };
   };
   const author = simpleAuthorCall(prepared);
-  const rawDraft = await call(author);
-  const draft = normalizeStory(rawDraft);
-  const draftCheck = checkSimpleStory(prepared, draft.story);
+  const draft = await call(author);
+  const draftCheck = checkSimpleStory(prepared, draft);
   const findings = editorFindings(prepared, draftCheck);
-  const editor = simpleEditorCall(prepared, draft.story, findings);
-  const { editorChanges = [], ...rawEdited } = await call(editor);
-  const edited = normalizeStory(rawEdited);
-  const finalCheck = checkSimpleStory(prepared, edited.story);
-  const evidence = { shape: prepared.shape.id, seed: prepared.seed, draft: draft.story, draftCheck, draftDashes: draft.dashes, findings,
-    edited: edited.story, editorChanges, finalCheck, finalDashes: edited.dashes, calls: { author: digest({ i: author.instructions, x: author.input }), editor: digest({ i: editor.instructions, x: editor.input }) } };
+  const editor = simpleEditorCall(prepared, draft, findings);
+  const { editorChanges = [], ...edited } = await call(editor);
+  const finalCheck = checkSimpleStory(prepared, edited);
+  const evidence = { shape: prepared.shape.id, seed: prepared.seed, draft, draftCheck, findings, edited, editorChanges, finalCheck,
+    calls: { author: digest({ i: author.instructions, x: author.input }), editor: digest({ i: editor.instructions, x: editor.input }) } };
   if (finalCheck.hard.length) fail(`simple_story_${finalCheck.hard[0]}`, { ...evidence, accounting: accounting() });
   let result: PersonalStoryResult;
   // The existing contract trims; a whitespace-only field passes the model schema but not the contract.
-  try { result = compileSimpleStory(prepared, edited.story, accounting()); }
+  try { result = compileSimpleStory(prepared, edited, accounting()); }
   catch { fail('simple_story_compile_invalid', { ...evidence, accounting: accounting() }); }
   return { result, evidence };
 }

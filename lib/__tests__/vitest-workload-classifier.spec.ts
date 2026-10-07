@@ -55,9 +55,11 @@ describe('Vitest workload classifier', () => {
     );
     const partition = classifyVitestWorkloads(inventory, policy);
 
-    expect(partition.inventory).toHaveLength(418);
+    expect(partition.inventory).toHaveLength(419);
     expect(partition.resourceIntensive).toHaveLength(20);
-    expect(partition.ordinary).toHaveLength(398);
+    expect(partition.ordinary).toHaveLength(399);
+    expect(partition.ordinary).toContain('lib/personal-wizard/__tests__/simple-story-engine.spec.ts');
+    expect(partition.resourceIntensive).not.toContain('lib/personal-wizard/__tests__/simple-story-engine.spec.ts');
     expect(partition.ordinary).toContain('lib/personal-wizard/__tests__/story-premise-experiment.spec.ts');
     expect(partition.ordinary).toContain('lib/__tests__/personal-plan-comparison.spec.ts');
     expect(partition.ordinary).toContain('lib/personal-wizard/__tests__/native-book-bridge.spec.ts');
