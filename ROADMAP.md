@@ -9,6 +9,9 @@
   routes, prompts, pricing and renderer stay unchanged. No fake v3 receipt, archive downgrade or copied generation runner.
 - Local injected tests/commit/evidence and Claude independent QA next; real long-book headroom, qualified references,
   compatible fresh source and a priced allowance precede the later small LOW sample. No generation or public integration yet.
+- First full gate at `390bf42b` found two new integration failures. A focused successor reuses the existing approved
+  diagnostic model authority and pins the new 420/400/20 inventory without changing either policy. Local tsc 0,
+  fourteen specs 643/643. Original RED evidence stays intact; final clean-commit verification precedes handoff.
 
 ## Reviewer correction ready for re-gate and adapter next (2026-10-07)
 

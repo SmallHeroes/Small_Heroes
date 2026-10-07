@@ -6,9 +6,10 @@ import { canonicalJson } from './request-acceptance';
 import { personalStoryResultObjectSchema, personalStoryResultSchema } from './story-contract';
 import { SIMPLE_STORY_ENGINE_VERSION, prepareSimpleStory, simpleAuthorCall, simpleEditorCall, simpleStoryDraftSchema,
   checkSimpleStory, editorFindings, compileSimpleStory, type SimpleStoryCall } from './simple-story-engine';
+import { CAUSAL_MODELS } from '../../scripts/personal-causal-trial-adapters';
 
 export const CURRENT_SIMPLE_SOURCE_VERSION = 'personal-simple-story-source/diagnostic-v1' as const;
-const MODEL = 'claude-opus-5-5'; // Existing approved writer identity, not a new provider default.
+const MODEL = CAUSAL_MODELS.opus; // Existing approved diagnostic authority, not a production default.
 const hash = z.string().regex(/^[a-f0-9]{64}$/);
 const micro = z.number().finite().int().nonnegative().max(Number.MAX_SAFE_INTEGER);
 const usage = z.object({ inputTokens: micro, outputTokens: micro }).strict();
@@ -33,7 +34,7 @@ const callDigest = (call: SimpleStoryCall) => digest({ i: call.instructions, x: 
 export class SimpleStorySourceError extends Error { constructor(readonly code: string) { super(`simple_story_source_${code}`); } }
 const fail = (code: string): never => { throw new SimpleStorySourceError(code); };
 
-/** Pure consistency check of a supplied native record; no SDK, filesystem, credentials or dispatch. */
+/** Pure supplied-record consistency; no client construction, file access, credential read or dispatch. */
 export function projectSimpleCliReceipt(call: SimpleStoryCall, raw: unknown): z.infer<typeof receipt> {
   try {
     const saved = z.object({ estimatedMicroUsd: micro, usage, output: z.unknown(), metadata: z.record(z.unknown()),

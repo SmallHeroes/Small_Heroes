@@ -20,7 +20,14 @@ are nonblocking, not claimed fixed. It verified the inventories and relied on th
 - Local type-check exits 0; twelve focused specs pass 632/632, with 59 new source tests and no existing tests removed.
   A shared-dispatcher spy pins preparation and both frozen/current frame checks. Synthetic six-companion/three-length
   full instruction+input sizes stay below 104000 bytes; this is not real-book or worst-case capacity proof.
-- Clean-commit negative controls, full gate and handoff follow. No new book/actual storyboard/image, key/provider/Max session, new budget,
+- At clean `390bf42b`, committed focused 632/632 and 14 virtual mutants are caught (59/59 control), with content hashes.
+  The first full gate genuinely exposes two new integration failures: the duplicated diagnostic model literal and a
+  419-file inventory pin after adding one spec. Ordinary 6637 pass / 12 fail / 73 skip; resource 634 pass / old Windows
+  probe fail / three RPC errors. This is RED, not the old failure set alone. Its receipt is preserved without correction.
+- Focused integration correction now reuses existing CAUSAL_MODELS.opus (no global model promotion) and updates the exact
+  total/ordinary inventory 420/400 while keeping 20 resource specs and explicit disjoint/default-ordinary assertions.
+  Local tsc exits 0 and 643/643 pass across fourteen specs, including both integration gates. The corrective successor
+  is committed separately; its clean-commit verification and independent handoff follow. No new book/actual storyboard/image, key/provider/Max session, new budget,
   wizard/production route, push/merge/deployment. Saved stories/evidence/canon are not edited. Full repo gate remains RED.
 - Next: Claude first-pass QA of the adapter; then a separately priced compatible-source/planning/reference/LOW sample.
 - Decision: `docs/ai-workflow/PERSONAL_SIMPLE_STORY_SOURCE_ADAPTER_20261007.md`.
