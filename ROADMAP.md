@@ -1,5 +1,16 @@
 # SmallHeroes — Roadmap
 
+## Simple source admission ready for independent QA (2026-10-07)
+
+- Review `d33de249..c7aa9c3b`: main adapter `390bf42b` plus two verified integration corrections. Final committed
+  focused 643/643; full gate RED with exact baseline assertions (ordinary 6639/10/73; resource 634/1 plus three RPC errors).
+- Initial full run and its two new failures remain preserved. Fourteen committed-main virtual mutants caught; genuine
+  saved-receipt projection works without promoting old sources. No independent adapter PASS or real new generation yet.
+- Claude first-pass QA next. After PASS, a small driver of existing author/reviewer/frames with the writing configuration,
+  not a copied runner or default-options downgrade. Then fresh priced source/full-storyboard/qualified LOW sample approval.
+- Keep visual qualification, source/reference approval and 0.70, and separate this proof from wizard/public rollout.
+  No new paid use, full render, pushes or deployments. Canon/old evidence/protected worktrees remain unchanged.
+
 ## Simple-source adapter before paid storyboard proof (2026-10-07)
 
 - Claude passed `119ac518..3981e22f` and docs-only `3981e22f..d33de249`; four corrective findings closed. Full gate remains RED.

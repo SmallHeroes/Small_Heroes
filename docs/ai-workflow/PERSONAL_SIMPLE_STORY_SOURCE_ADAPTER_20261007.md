@@ -44,3 +44,11 @@ The first clean-commit full gate at `390bf42b` is RED with two actual integratio
 A bounded replay projects all eight genuine saved age-trial receipts and refuses all four old sources under their valid original requests. Two standalone tsx wrapper attempts failed before validation at server-only import; the existing Vitest alias runtime then passed the replay. This proves record-format compatibility only, not a new production CLI or historical source promotion. Old artifacts are unchanged.
 
 Integration correction's local type-check exits 0 and fourteen specs pass 643/643, including unchanged model-authority tests and the updated exact inventory test. No allowlist, production model default, classifier policy, stage, transport or provider is changed. Referencing existing diagnostic model data loads its side-effect-free transport module but does not create a client/read a key/spawn at import. Clean-commit evidence is recorded separately from the first failed full gate.
+
+## Frozen closeout
+
+Final code: `c7aa9c3baa6a08d2e654c48d9ae44b885a0fb53d` (main `390bf42b`, base `d33de249`). At clean final code, committed fourteen-spec focus passes 643/643 and the completed full check exits 1: ordinary 6639 pass / 10 exact baseline failures / 73 skip, resource 634 pass / same Windows probe failure / three RPC errors. Failure-name comparison against pre-adapter `3981e22f` is identical. Probe cause is unestablished; full gate stays RED.
+
+Final focused/full receipts inventory 3376 tracked files, equal before/after hashes, exact clean HEAD/tree, command/operator hash and confirmed termination. Initial failed full run remains untouched. Fourteen virtual mutants are tied to `390bf42b` only; final production delta does not change their guard bodies. Preservation verifies 86 historical and 83 age files plus six protected clean baseline worktrees, and unchanged canon/assets/routes/policies/shared schemas.
+
+First independent QA target is the combined `d33de249..c7aa9c3b` plus this docs-only successor. No self-awarded PASS, real book/storyboard, provider/key/Max use, image/render, new budget, wizard port, push or deployment. Actual paid execution is a later priced and approved diagnostic, not an implication of passing these tests.

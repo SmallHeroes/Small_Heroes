@@ -1,5 +1,30 @@
 # SmallHeroes — Current Technical State
 
+## Simple-source adapter frozen for first independent QA (2026-10-07)
+
+Main adapter `390bf42b` plus integration correction `c7aa9c3baa6a08d2e654c48d9ae44b885a0fb53d`, from
+`d33de249`, on `codex/simple-story-voice-20261007`. This closeout is docs-only. No independent PASS for the adapter.
+
+- Final clean `c7aa9c3b`: tsc 0, fourteen focused specs 643/643. One serial full check completed exit 1: ordinary
+  6639 pass / exact baseline 10 failures / 73 skip, resource 634 pass / same Windows probe failure / three RPC errors.
+  All 11 assertion names match the pre-adapter `3981e22f` set. Both new integration failures are corrected, not waived.
+  Full gate remains RED and the probe's cause remains unestablished.
+- All 3376 tracked file hashes stayed equal before/after each committed final gate, with confirmed termination.
+  Initial `390bf42b` full evidence remains RED with its two additional failures, unchanged in a separate folder.
+- Fourteen virtual mutants were caught at committed `390bf42b`, 59/59 control. They were not reattributed to `c7aa9c3b`;
+  its production delta is model-authority reuse only. Eight genuine saved receipts project and all four old sources reject
+  under valid original requests. Two failed standalone replay-loader attempts and the successful Vitest alias replay
+  are documented; no claim of new paid-run CLI bootstrap, provider authenticity or complete context-history proof.
+- Preservation: 86 historical + 83 age evidence hashes match; six protected checkouts retain clean baseline HEADs.
+  Shared schemas, old preview/comparison, canon/assets, customer routes, model-authority/classifier policies, financial
+  policy, renderer, visual qualification and 0.70 threshold stay unchanged. Source snapshots/whole-book state are reused.
+- Only deterministic source admission has been built/tested. No real new book/storyboard, image/render, key/provider/
+  Max call, paid allowance, wizard migration, push/merge/deployment. Fifteen text identities are not fifteen visual approvals.
+- Next: Claude first-pass read-only QA of `d33de249..c7aa9c3b` and this docs-only closeout. Then a small diagnostic driver
+  using the exact writing options and existing seams; actual source/planning/reference/LOW sample needs fresh priced approval.
+- Handoff/evidence: `CLAUDE-SIMPLE-SOURCE-ADAPTER-QA-20261007.md` and `simple-source-adapter-evidence-20261007/final/`
+  beside this chat's prior reports. Tests do not prove better literature, correct pixels or product/release readiness.
+
 ## Independent reviewer correction PASS and simple-source adapter under validation (2026-10-07)
 
 Claude independently passed the held surface `119ac518..3981e22f` and docs-only `3981e22f..d33de249`.
