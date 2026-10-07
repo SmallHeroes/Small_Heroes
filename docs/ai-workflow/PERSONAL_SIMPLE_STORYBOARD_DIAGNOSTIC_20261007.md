@@ -127,13 +127,21 @@ five selected cases. The fresh-signal substitution passes all five with the comm
 five with the updated spec. Neither production files nor past evidence are changed by these runs. Tracked
 content stays equal within each gate; preservation verifies 86 historical + 83 age files and six protected trees.
 
-Clean-commit verification and Claude re-gate are next. The successor does not self-close P3-1 or widen the driver
-PASS. Full check is not rerun for this test/docs-only delta; production is byte-identical to the reviewed code and
+Clean committed `1e75197b` passed type-check and 689/689. Claude's independent re-gate of `1efc908f..1e75197b`
+also passes, closes P3-1 and finds nothing new. Its own type-check and fifteen specs pass 689/689; the eight-run
+signal matrix catches fresh signals for either/both stages and linked-but-distinct signals through identity
+assertions, with no timeouts or loader errors. Both old-spec controls pass 43/43 with real bootstrap deliberately
+excluded, while the normal 44-case suite includes it. It verifies the old-spec blob, Codex's five-case controls,
+the 3380-file inventory against the commit and preservation. No verdict is widened to other ancestry.
+
+Record this verdict in a three-doc-only successor from clean `1e75197b` in the same task/worktree; no further
+driver implementation is requested. Full check is not rerun for either docs closeout; production is byte-identical and
 the full gate remains RED. F2 import/timeout, remaining F3 and F4 local-provenance limits remain open. Revert only
 the focused spec/docs commit to roll back, leaving the independently passed driver intact.
 
 Evidence is in `storyboard-abort-regression-evidence-20261007/` beside this chat's prior reports. The independent
-driver report is Claude scratchpad `qa-driver-1efc908f/CLAUDE-QA-STORYBOARD-DRIVER-1efc908f.md`. Any future live
+driver report is Claude scratchpad `qa-driver-1efc908f/CLAUDE-QA-STORYBOARD-DRIVER-1efc908f.md`; the closing
+re-gate is `qa-abort-1e75197b/CLAUDE-QA-ABORT-REGATE-1e75197b.md`. Any future live
 proof still needs explicit credentials and a newly priced allowance, bounded transport, deadline/abort and original
 receipts/wires. Measure real long-book headroom before dispatch. No live transport is built or authorized here;
 no key, provider/Max call, new book/storyboard/image/render, wizard migration, push/merge/deploy or budget renewal.

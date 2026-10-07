@@ -1,12 +1,15 @@
 # SmallHeroes — Roadmap
 
-## Offline driver technical PASS and cancellation regression (2026-10-07)
+## Offline driver and cancellation regression technical PASS (2026-10-07)
 
 - Claude independently passed `624a7025..862944e3` and docs-only `862944e3..1efc908f`, with 689/689 focused tests.
   No blocking finding, no live/provider/image/release approval. Earlier adapter verdict remains narrow.
 - P3-1 test-only successor pins the same AbortSignal at both callbacks and its aborted state after cancellation.
   Local tsc 0, diagnostic 44/44; fresh-signal mutant survives the five old cases and fails the five updated cases.
-  Production, test counts/inventory and historical evidence unchanged. Clean-commit proof and independent re-gate next.
+  Clean committed type-check and 689/689 pass; Claude's separate `1efc908f..1e75197b` re-gate passes and closes P3-1.
+  Its matrix also catches linked-but-distinct signals. Production, test counts/inventory and historical evidence unchanged.
+- Record this verdict in a docs-only successor from clean `1e75197b`; no further driver change requested by QA.
+  Earlier verdicts remain scoped, and this closeout is not a new independent PASS for other branch ancestry.
 - Full repo gate stays RED; F2, remaining F3 and F4 are not closed. A future live proof needs a new priced credential/
   spending decision, bounded transport/receipts/deadline and real long-book capacity measurement before images.
   No renewed allowance, wizard/production change, new generated book/storyboard, render or push in this milestone.
