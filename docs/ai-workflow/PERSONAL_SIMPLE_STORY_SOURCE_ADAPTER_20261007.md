@@ -87,3 +87,31 @@ Nonblocking notes remain visible rather than being silently converted to PASS:
 No prose, identity, visual rule, stage, model, route, paid guard, spending allowance or current-frame authority changes.
 After independent re-gate, the small driver still needs its own implementation/review and any live proof a fresh,
 priced approval; no provider, book or render is authorized by this local correction.
+
+## Freshness correction verification
+
+Test/docs correction `04eec8cbd771b266d2352687f7ef53f1835447cb` is directly on `990f86e0`. At the clean commit,
+type-check exits 0 and fourteen focused specs pass 645/645; source inventory is 61 cases. The full repository gate
+was not repeated: all production/policy bytes match the previously fully checked code. Its prior RED status remains.
+
+The completed ten-run in-memory matrix compares the actual `990f86e0` spec with the new spec against unchanged
+production. Both controls pass. With old tests, all four weakened versions pass 59/59. With new tests:
+
+- Removing only current author input recomputation fails only the author regression (60 pass / 1 fail).
+- Removing only current editor input recomputation fails only the editor regression (60 pass / 1 fail).
+- Replacing output_binding with invalid fails the author_output and editor_output exact-code assertions (59 / 2).
+- Removing archive simple-source admission fails the two new archive checks (59 / 2).
+
+The first matrix operator stopped after its third current mutant because its assertion-label parser did not account
+for Vitest quoting interpolated fields. Its logs/operator are preserved and marked partial, not a complete gate.
+The v2 operator changes that parser only, uses a new output directory and completes all ten runs. No source writes,
+provider or model use occurred. The committed focus evidence is unchanged and remains tied to the first operator hash.
+
+Each complete focus/matrix/preservation receipt confirms exact clean HEAD/tree, 3376 tracked file hashes unchanged,
+operator/config hashes and confirmed process completion. Preservation rechecks 86 historical and 83 age files plus
+six protected clean baseline worktrees; no changed file lies outside the one source spec and three docs. Scope is
+the tracked tree and listed evidence, not all ignored artifacts, dependencies or other host processes.
+
+Re-gate requested for `990f86e0..04eec8cb`; this final docs-only closeout is reviewed separately. F1 is addressed by
+implementation evidence but stays pending Claude's independent verdict. F2 and remaining F3/F4 limits remain as
+listed above, with no weakened timeout or policy. No new book, actual storyboard, image, budget, Max/API, push or deployment.

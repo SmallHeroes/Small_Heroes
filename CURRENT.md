@@ -1,6 +1,6 @@
 # SmallHeroes — Current Technical State
 
-## Simple-source QA HOLD and focused freshness regression correction (2026-10-07)
+## Simple-source freshness correction ready for independent re-gate (2026-10-07)
 
 Claude independently reviewed `d33de249..c7aa9c3b` as HOLD for F1 (P2), while docs-only
 `c7aa9c3b..990f86e0` passed. The adapter correctly rejects all probed cases; the missing protection is a test
@@ -12,8 +12,16 @@ isolating recomputation of current author/editor inputs. Do not interpret the do
   `SimpleStorySourceError.code = call_binding` at preparation, frame extraction and archive preparation. Positive
   controls first prove the original source and current frame valid. Existing 19 evidence and 12 receipt cases now
   assert the exact class, code and message, rather than prefixes. Source spec grows 59 -> 61; no test is removed.
-- Local `npx.cmd --no-install tsc --noEmit --incremental false` exits 0 and source spec passes 61/61. Clean-commit
-  fourteen-spec validation and before/after virtual mutations are next; no independent re-gate is claimed yet.
+- Correction is committed as `04eec8cbd771b266d2352687f7ef53f1835447cb`. Local literal npx type-check exits 0 and
+  source spec passes 61/61; at the clean commit, type-check exits 0 and fourteen focused specs pass 645/645.
+  The ten-run virtual matrix proves the old 59-case spec misses all four mutants and the new 61-case spec catches
+  all four. Author/editor comparison deletions fail only their respective new case; wrong output code fails the two
+  matching table cases; removed archive admission fails both new archive checks. Controls pass 59/59 and 61/61.
+  No source bytes are changed by mutations. All 3376 tracked hashes stay equal during each complete gate.
+- Preservation verifies 86 historical + 83 age evidence hashes, six clean protected baselines and an empty diff
+  outside the one spec and three docs relative to `990f86e0`. The first mutation operator stopped on a quoted Vitest
+  label parser, not a source assertion or timeout; its partial logs remain. A new v2 operator/output folder completes
+  the full matrix and preservation. No partial run is promoted to a completed gate or hidden by overwriting evidence.
 - F2 remains open: Claude measured 51 -> 279 modules and roughly 120 -> 520 ms per storyboard import, with one
   load-sensitive five-second CLI timeout in three focused runs. No import-time side effects were found. F3's table
   error-code weakness is targeted, not its remaining unpinned clauses. F4's projected callDigest is the caller's
@@ -21,6 +29,9 @@ isolating recomputation of current author/editor inputs. Do not interpret the do
 - No production/prompt/schema/model-policy/classifier/canon/asset changes, provider/key/Max use, book/storyboard/image/
   render, budget renewal, wizard migration, push/merge/deployment. Full repo gate stays RED as recorded at `c7aa9c3b`;
   this test/docs-only successor does not claim a fresh full-suite run. Next is Claude re-gate, then a separately scoped driver.
+- Handoff: `CLAUDE-SIMPLE-SOURCE-FRESHNESS-REGATE-20261007.md` beside the prior chat reports. Evidence is in
+  `simple-source-freshness-regate-evidence-20261007/` (committed focus/partial matrix) and its `-v2/` sibling
+  (completed matrix/preservation). This docs-only closeout does not self-award an adapter PASS.
 
 ## Simple-source adapter frozen for first independent QA (2026-10-07)
 
