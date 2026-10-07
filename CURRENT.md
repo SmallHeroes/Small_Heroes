@@ -1,5 +1,30 @@
 # SmallHeroes — Current Technical State
 
+## Independent reviewer correction PASS and simple-source adapter under validation (2026-10-07)
+
+Claude independently passed the held surface `119ac518..3981e22f` and docs-only `3981e22f..d33de249`.
+R2-1/R2-2/P3-1/D-1 are closed; its own tsc and 486/486 passed, 16 scored mutants caught. Notes N-1/N-2/N-3
+are nonblocking, not claimed fixed. It verified the inventories and relied on the full RED logs; no product/visual/release PASS.
+
+- Codex is sole writer in this chat on `codex/simple-story-voice-20261007`, from clean `d33de249`. Guy's approved
+  storyboard continuation is implemented as a pure source adapter, not a provider runner or wizard migration.
+- New writing-time source binding and a distinct simple-source envelope check projected native completion/cost/model/
+  sessions, request/options/character/book, author/editor inputs/outputs, exact mechanical checks and final recompilation.
+  This is local record consistency, not cryptographic provider attestation or internal-call-count proof.
+- Both current storyboard preparation and frames use one typed dispatcher; bare simple and archive-only results still
+  reject. The local storyboard union alone is extended; shared preview/comparison/old-editor schemas stay unchanged.
+- Complete evidence participates in source identity via a compact digest. Planner/reviewer receive only compact provenance,
+  not original prose or editor ratings. Visual declaration/state must equal writing-time evidence; unresolved and drift reject.
+- Storyboard identity moves to offline-v3; old derived digests/reviews are not silently rebound. Whole-book compiler,
+  ledger/state/camera rules, renderer/QA context, threshold and visual qualification remain intact and runtimeEligible false.
+- Local type-check exits 0; twelve focused specs pass 632/632, with 59 new source tests and no existing tests removed.
+  A shared-dispatcher spy pins preparation and both frozen/current frame checks. Synthetic six-companion/three-length
+  full instruction+input sizes stay below 104000 bytes; this is not real-book or worst-case capacity proof.
+- Clean-commit negative controls, full gate and handoff follow. No new book/actual storyboard/image, key/provider/Max session, new budget,
+  wizard/production route, push/merge/deployment. Saved stories/evidence/canon are not edited. Full repo gate remains RED.
+- Next: Claude first-pass QA of the adapter; then a separately priced compatible-source/planning/reference/LOW sample.
+- Decision: `docs/ai-workflow/PERSONAL_SIMPLE_STORY_SOURCE_ADAPTER_20261007.md`.
+
 ## Reviewer correction committed and ready for independent re-gate (2026-10-07)
 
 Focused code is `3981e22f7505782271bb507eaf7a0f5a1e803b11`, parent `87b93c93`, on

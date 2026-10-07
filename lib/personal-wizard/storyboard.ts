@@ -7,14 +7,17 @@ import { previewTextPages, previewStoryEvidence, previewSha, previewPagePrompt, 
 import { sequencePageState, sequenceRenderPrompt } from '../local-book-sequence';
 import { canonicalJson } from './request-acceptance';
 import { anyPersonalStoryResultSchema } from './story-editor-contract';
-import { admitCurrentStoryEdit, assertStoryEditBinding, editorNeedsWork } from './story-editor';
+import { assertStoryEditBinding, editorNeedsWork } from './story-editor';
+import { admitCurrentStoryboardStory } from './storyboard-source-admission';
+import { currentSimpleStoryResultSchema, admitCurrentSimpleStorySource, assertSimpleStoryVisualBinding, simpleStoryboardSourceEvidence } from './simple-story-source';
 import { preparePersonalStory } from './story-writer';
 import { adventureSelectionIssue } from './story-planning-contract';
 import type { PersonalWizardOptions } from './options';
 
-export const PERSONAL_STORYBOARD_VERSION = 'personal-book-storyboard/offline-v2';
+export const PERSONAL_STORYBOARD_VERSION = 'personal-book-storyboard/offline-v3';
 const digest = (data: unknown) => previewSha(canonicalJson(data));
 const fail = (code: string): never => { throw Error(`personal_storyboard_${code}`); };
+const storyboardWriterResultSchema = z.union([anyPersonalStoryResultSchema, currentSimpleStoryResultSchema]);
 type Source = ReturnType<typeof preparePersonalStoryboard>;
 type Compiled = ReturnType<typeof compileWholeBookDraft>;
 type BookData = {
@@ -33,10 +36,11 @@ const books = new WeakMap<PersonalStoryboard, { serialized: string; source: Sour
 /** Offline/archive diagnostic bridge. Current operations use the strict wrapper below. */
 export function preparePersonalStoryboard(request: unknown, writerResult: unknown, options: PersonalWizardOptions) {
   const prepared = preparePersonalStory(request, options);
-  const result = anyPersonalStoryResultSchema.parse(writerResult);
+  const result = storyboardWriterResultSchema.parse(writerResult);
   // Writer output was already normalised at its own boundary. Do not silently trim
   // a subsequently edited manuscript/plan and call it the same final source.
   if (canonicalJson(writerResult) !== canonicalJson(result)) fail('noncanonical_writer_result');
+  if ('simpleSource' in result) admitCurrentSimpleStorySource(request, result, options);
   if ('editing' in result) {
     assertStoryEditBinding(result);
     if (editorNeedsWork(result)) fail('editorial_held');
@@ -64,18 +68,21 @@ export function preparePersonalStoryboard(request: unknown, writerResult: unknow
     id: companion.id, description: companion.visualDescription,
     appearanceStateAuthority: structuredClone(companion.appearanceStateAuthority ?? null),
   };
+  if ('simpleSource' in result) assertSimpleStoryVisualBinding(result, companionVisualAuthority);
   // Final prose is the visual source; outline continuity is only a review comparison.
   const story = previewTextPages({ title: result.manuscript.title, pages: result.manuscript.pages });
   const sourceDigest = digest({ version: PERSONAL_STORYBOARD_VERSION, optionsFingerprint: prepared.accepted.optionsFingerprint,
     request: prepared.accepted.canonical, companionAuthority: prepared.brief.companion, companionVisualAuthority,
     plan: result.plan, manuscript: result.manuscript, displayPages: result.displayPages,
-    ...('editing' in result ? { editing: result.editing } : {}), ...(result.planning ? { planning: result.planning } : {}) });
+    ...('editing' in result ? { editing: result.editing } : {}), ...(result.planning ? { planning: result.planning } : {}),
+    ...('simpleSource' in result ? { simpleSourceEvidence: simpleStoryboardSourceEvidence(result) } : {}) });
   const source = {
     sourceDigest, request: prepared.accepted.canonical, result, story,
     brief: prepared.brief, companionVisualAuthority, companionDescription: companionVisualAuthority.description,
     planningInput: {
       ...wholeBookPlanningInput(story, prepared.brief.child.age, prepared.brief.child.address, companionVisualAuthority.description),
       companionVisualAuthority,
+      ...('simpleSource' in result ? { simpleSourceEvidence: simpleStoryboardSourceEvidence(result) } : {}),
       personalSourceDigest: sourceDigest, requestId: result.requestId,
       approvedFacts: prepared.brief.facts, child: prepared.brief.child,
       companion: prepared.brief.companion, selectedTopic: prepared.brief.topic,
@@ -90,7 +97,7 @@ export function preparePersonalStoryboard(request: unknown, writerResult: unknow
 
 /** New/current operation: an archive or stripped receipt is never current evidence. */
 export function prepareCurrentPersonalStoryboard(request: unknown, writerResult: unknown, options: PersonalWizardOptions) {
-  return preparePersonalStoryboard(request, admitCurrentStoryEdit(writerResult), options);
+  return preparePersonalStoryboard(request, admitCurrentStoryboardStory(request, writerResult, options), options);
 }
 
 function assertSource(source: Source) {
@@ -148,6 +155,7 @@ export function personalStoryboardReviewInput(book: PersonalStoryboard) {
   return { scope: 'semantic_diagnostic_not_product_acceptance', sourceDigest: book.sourceDigest,
     storyboardDigest: book.storyboardDigest, approvedBrief: source.brief, manuscript: source.result.manuscript,
     companionVisualAuthority: source.companionVisualAuthority,
+    ...('simpleSource' in source.result ? { simpleSourceEvidence: simpleStoryboardSourceEvidence(source.result) } : {}),
     narrativePlan: source.result.plan, plan: book.plan, sequence: book.sequence };
 }
 
@@ -198,8 +206,8 @@ export function personalStoryboardFrame(book: PersonalStoryboard, rawReview: unk
 export function currentPersonalStoryboardFrame(book: PersonalStoryboard, rawReview: unknown, pageNumber: number,
   current: { request: unknown; writerResult: unknown; options: PersonalWizardOptions }) {
   const source = assertBook(book);
-  admitCurrentStoryEdit(source.result);
   if (!current) return fail('current_source_required');
+  admitCurrentStoryboardStory(source.request, source.result, current.options);
   const admitted = prepareCurrentPersonalStoryboard(current.request, current.writerResult, current.options);
   if (admitted.sourceDigest !== book.sourceDigest) fail('stale_book');
   return personalStoryboardFrame(book, rawReview, pageNumber, current);

@@ -331,6 +331,9 @@ export type SimpleStoryGenerate = (call: SimpleStoryCall) => Promise<{ output: u
  * and a book whose edited text fails a hard check is not produced.
  */
 export async function writeSimpleStory(prepared: PreparedSimpleStory, generate: SimpleStoryGenerate, args: { model: string; reservedUsd: number }) {
+  const source = { version: 'personal-simple-writing-source/v1' as const, engineVersion: SIMPLE_STORY_ENGINE_VERSION,
+    requestId: prepared.accepted.requestId, optionsFingerprint: prepared.accepted.optionsFingerprint,
+    characterDigest: prepared.brief.companion.characterDigest, bookDigest: digest(prepared.book) };
   const usage: StoryUsage[] = [], costs: (number | null)[] = [];
   const known = () => costs.length > 0 && costs.every((c): c is number => c !== null);
   const accounting = (): PersonalStoryResult['accounting'] => ({ model: args.model, providerCalls: usage.length, reservedUsd: args.reservedUsd,
@@ -348,7 +351,7 @@ export async function writeSimpleStory(prepared: PreparedSimpleStory, generate: 
   const editor = simpleEditorCall(prepared, draft, findings);
   const { editorChanges = [], ...edited } = await call(editor);
   const finalCheck = checkSimpleStory(prepared, edited);
-  const evidence = { shape: prepared.shape.id, seed: prepared.seed, appearance: prepared.book.companion.appearance,
+  const evidence = { source, shape: prepared.shape.id, seed: prepared.seed, appearance: prepared.book.companion.appearance,
     draft, draftCheck, findings, edited, editorChanges, finalCheck,
     calls: { author: digest({ i: author.instructions, x: author.input }), editor: digest({ i: editor.instructions, x: editor.input }) } };
   if (finalCheck.hard.length) fail(`simple_story_${finalCheck.hard[0]}`, { ...evidence, accounting: accounting() });

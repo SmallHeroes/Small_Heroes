@@ -1,5 +1,15 @@
 # SmallHeroes — Roadmap
 
+## Simple-source adapter before paid storyboard proof (2026-10-07)
+
+- Claude passed `119ac518..3981e22f` and docs-only `3981e22f..d33de249`; four corrective findings closed. Full gate remains RED.
+- Approved local adapter: source metadata before writing, explicit simple envelope/receipt projection, shared admission at
+  preparation and frames, exact recompile/evidence binding, declared visual equality and early unresolved rejection.
+- Reuse full-book compiler, semantic reviewer and frame functions; offline-v3 marks the new identity. Shared old schemas,
+  routes, prompts, pricing and renderer stay unchanged. No fake v3 receipt, archive downgrade or copied generation runner.
+- Local injected tests/commit/evidence and Claude independent QA next; real long-book headroom, qualified references,
+  compatible fresh source and a priced allowance precede the later small LOW sample. No generation or public integration yet.
+
 ## Reviewer correction ready for re-gate and adapter next (2026-10-07)
 
 - Code frozen at `3981e22f`, with one review-authority instruction sentence and targeted tests. Committed focused
