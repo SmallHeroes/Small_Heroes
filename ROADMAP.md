@@ -1,5 +1,16 @@
 # SmallHeroes — Roadmap
 
+## Simple story engine: matched four-book trial done, adoption not established (2026-10-07)
+
+- Done: four matched fictional books (base `0a845285` versus follow-up `caf1db00`), 8 stages successful and closed, conservative
+  $2.7812586 inside Guy's new $10 cap (not an invoice). Docs call usage pending receipt.
+- Result: no proven literary improvement. Base B is preferred for its journey but invents history and is not product-ready;
+  follow-up C invents less but has a weaker journey. Momo premises converge. Keep the factual discipline; no rollback, no hand fixes.
+- Gate still RED (10 known failures, 3 RPC timeouts), not rerun.
+- Next: Guy reads the books and decides. Any focused follow-up experiment needs a new approval. Still blocked: integration,
+  storyboard, rendering, push, merge, deployment.
+- See `docs/ai-workflow/PERSONAL_SIMPLE_STORY_MATCHED_FOUR_20261007.md`.
+
 ## Simple story engine: technical PASS at `fd4ce96d`, milestone closed (2026-10-07)
 
 - Done: Codex gave an independent technical PASS with no blocking findings for `ebd6cb03..0a845285`, `0a845285..fd4ce96d` and

@@ -1,5 +1,28 @@
 # SmallHeroes — Current Technical State
 
+## Simple story engine: matched four-book trial complete, no literary improvement proven (2026-10-07)
+
+Docs-only closeout by Claude Code at clean `caf1db00`; no independent PASS claimed. Report:
+`C:/Users/guyna/.codex/visualizations/2026/09/04/01a06c5c-a233-76c0-ac8e-618c02ce6246/simple-story-matched-four-20261007/COMPARISON_REPORT_HE.md`.
+
+- Four fictional books, two matched pairs (Tom 4/Momo 8 spreads no theme; Itai 8/Leo 12 spreads confidence), base `0a845285` versus
+  follow-up `caf1db00`. 8 author/editor stages all succeeded, known cost, confirmed closed, no retry, reported Opus 5.5 with fresh
+  editors. Internal provider request count unverified.
+- Label-blind reading (sealed before the key): A and C are follow-up, B and D base. Root preferred D's Momo wordplay and B's Leo
+  journey, but B invents unapproved never/always history and is not product-ready. C has less categorical history but a weaker
+  journey and cause.
+- No proven overall literary improvement, no production adoption. Do not roll back the factual discipline or hand-fix books. Most
+  quality is in the drafts; editors improve locally. Both Momo premises converge (beach, sand dinosaur, misunderstanding, sea crowd).
+  One sample per profile cannot attribute effects.
+- C writes Leo four-legged (known visual-canon issue). No storyboard or render approval.
+- Cost (Max list-equivalent, not an API invoice): stages $2.142246; preflight $0.277259 (hit 0.2 sub-cap, no verdict) plus
+  $0.3617536 completion, counted as both = $0.6390126; conservative total $2.7812586 inside Guy's new $10 cap. Old $4 cap not
+  renewed. This docs call (cap $0.5 inside the $10) is pending its receipt.
+- Gate still RED (10 known failures, 3 RPC timeouts), not rerun since code is unchanged. 314 Claude / 650 historical files and
+  protected worktrees preserved. Browser blocked `file:`; Markdown is the local alternative; panel opening queued, not confirmed.
+- Pending: Guy's reading and product decision. No new paid experiment authorized.
+- See `docs/ai-workflow/PERSONAL_SIMPLE_STORY_MATCHED_FOUR_20261007.md`.
+
 ## Simple story engine: independent Codex technical PASS at `fd4ce96d`, docs closeout (2026-10-07)
 
 Local only, not pushed. Codex reviewed independently and did not edit source. Claude remains the sole writer. Report:
