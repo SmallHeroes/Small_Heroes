@@ -1,5 +1,28 @@
 # SmallHeroes — Current Technical State
 
+## Storyboard visual source binding corrected locally pending independent QA (2026-10-07)
+
+Codex is sole writer in this chat on `codex/simple-story-voice-20261007`, from `119ac518`. Guy's current request approves
+progress toward storyboard and a bounded render while preserving continuity. No render/source approval is inferred here.
+
+- A pure injected fixture proved that registry description drift changed the visual input but not sourceDigest, admitting
+  an old archive frame. Source identity now includes one detached selected visual description/state snapshot. Planner and
+  semantic reviewer receive it; frame context uses the same description. Legacy appearance prose is physical-only, not a plot.
+- Three new actual-path tests cover description/state drift, old frame/review rejection, detachment and shared input.
+  Local tsc exits 0; targeted engine/book-runner/storyboard/sequence tests pass 323/323. Five virtual mutants are caught,
+  control 74/74. No code or tests removed; no current-editor/continuity/render gate relaxed.
+- Next: focused code commit, clean-commit hashed full gate and independent Claude review of this separate range. These
+  checks do not prove pixel consistency or qualify assets. Simple results still lack current-editor admission.
+- Old artifacts remain unchanged; old digests/reviews are not silently re-bound to new visual authority. Registry, assets,
+  profiles, compiler/state schemas, thresholds, financial policy, production writer, route and renderer are unchanged.
+- HOLD correction `119ac518` has tsc 0, committed focused 275/275, seven virtual mutants caught. Its full gate ran at clean
+  `119ac518` with all 3370 tracked file hashes unchanged before/after: exit 1, ordinary 6573 pass / 10 inherited failures /
+  73 skip; resource 634 pass / 1 base-reproduced process-probe failure / 3 RPC errors. The gate is RED; no technical PASS.
+- No model, key, book, image, render, wizard mutation, push, merge or deployment. Paid next steps need a bounded allowance
+  and technical/visual readiness; the previous trial is closed. The saved green-Dini source stays incompatible.
+- Decision: `docs/ai-workflow/PERSONAL_STORYBOARD_VISUAL_SOURCE_BINDING_20261007.md`.
+  Evidence: the `simple-story-storyboard-binding-evidence-20261007` folder beside this chat's QA handoff.
+
 ## Independent HOLD corrections implemented locally and storyboard readiness under investigation (2026-10-07)
 
 Claude's report gives separate HOLD for voice `c8d51bb0..e6bfa777` (V1 P2) and appearance `e6bfa777..2b4035d8`
@@ -13,7 +36,7 @@ Sole writer remains this chat on `codex/simple-story-voice-20261007`, from clean
   characters and state vocabulary are unchanged. This mitigates an input risk, not a measured story failure.
 - Final pre-commit type check exits 0; focused tests pass 275/275 across six specs (86 simple-engine tests). Seven virtual
   mutants fail their intended guards, control 86/86. Next is one canonical full gate at the clean committed code HEAD with
-  tracked-content hashes at start/end.
+  tracked-content hashes at start/end. That committed gate has now completed; see the newer entry above for its RED outcome.
   Earlier gate logs remain unchanged, with their pre-commit binding limitation; the existing full gate is still RED.
 - Guy explicitly authorizes progressing toward storyboard and then a bounded render if readiness is demonstrated. This does
   not authorize dropping source/editor/continuity/visual-contract gates, a full-book image batch, a production rollout or push.

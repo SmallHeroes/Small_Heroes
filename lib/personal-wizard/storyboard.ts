@@ -58,17 +58,24 @@ export function preparePersonalStoryboard(request: unknown, writerResult: unknow
       result.plan.resilience.moments.some(moment => moment.pageNumber < 1 || moment.pageNumber > prepared.brief.beats)) fail('resilience_binding');
   const companion = getCompanionById(prepared.accepted.canonical.companion.id);
   if (!companion) return fail('companion_unavailable');
+  // Appearance is separate from literary character authority. Freeze and bind
+  // both: a current lookup must not admit a storyboard made for older visuals.
+  const companionVisualAuthority = {
+    id: companion.id, description: companion.visualDescription,
+    appearanceStateAuthority: structuredClone(companion.appearanceStateAuthority ?? null),
+  };
   // Final prose is the visual source; outline continuity is only a review comparison.
   const story = previewTextPages({ title: result.manuscript.title, pages: result.manuscript.pages });
   const sourceDigest = digest({ version: PERSONAL_STORYBOARD_VERSION, optionsFingerprint: prepared.accepted.optionsFingerprint,
-    request: prepared.accepted.canonical, companionAuthority: prepared.brief.companion,
+    request: prepared.accepted.canonical, companionAuthority: prepared.brief.companion, companionVisualAuthority,
     plan: result.plan, manuscript: result.manuscript, displayPages: result.displayPages,
     ...('editing' in result ? { editing: result.editing } : {}), ...(result.planning ? { planning: result.planning } : {}) });
   const source = {
     sourceDigest, request: prepared.accepted.canonical, result, story,
-    brief: prepared.brief, companionDescription: companion.visualDescription,
+    brief: prepared.brief, companionVisualAuthority, companionDescription: companionVisualAuthority.description,
     planningInput: {
-      ...wholeBookPlanningInput(story, prepared.brief.child.age, prepared.brief.child.address, companion.visualDescription),
+      ...wholeBookPlanningInput(story, prepared.brief.child.age, prepared.brief.child.address, companionVisualAuthority.description),
+      companionVisualAuthority,
       personalSourceDigest: sourceDigest, requestId: result.requestId,
       approvedFacts: prepared.brief.facts, child: prepared.brief.child,
       companion: prepared.brief.companion, selectedTopic: prepared.brief.topic,
@@ -94,6 +101,7 @@ function assertSource(source: Source) {
 export const PERSONAL_STORYBOARD_INSTRUCTION = `${WHOLE_BOOK_PLANNING_INSTRUCTION}
 This is a personal-manuscript diagnostic, not a catalogue source or approval.
 The supplied FINAL manuscript overrides earlier narrative-plan hints; never rewrite prose to fix a visual conflict.
+Use companionVisualAuthority for physical appearance/state only, not personality, feelings or plot motifs from legacy descriptions. Do not force its optional states into an emotional arc.
 Plan every narrative spread, plus cover0, before choosing a render sample. Display pages are not extra story beats.
 Use only approved REAL child/family facts. The selected companion identity/personality comes from server data,
 not its old topic association. The child leads consequential decisions; the companion participates, may need help,
@@ -139,6 +147,7 @@ export function personalStoryboardReviewInput(book: PersonalStoryboard) {
   const source = assertBook(book);
   return { scope: 'semantic_diagnostic_not_product_acceptance', sourceDigest: book.sourceDigest,
     storyboardDigest: book.storyboardDigest, approvedBrief: source.brief, manuscript: source.result.manuscript,
+    companionVisualAuthority: source.companionVisualAuthority,
     narrativePlan: source.result.plan, plan: book.plan, sequence: book.sequence };
 }
 

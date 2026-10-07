@@ -1,5 +1,15 @@
 # SmallHeroes — Roadmap
 
+## Storyboard visual declaration binding before the pilot (2026-10-07)
+
+- Corrected a reproduced diagnostic gap: visual description/state now participates in source identity and reaches planner,
+  reviewer and frame context. Old frames/reviews reject after drift; core continuity and current-editor gates remain intact.
+- Local tsc 0; targeted 323/323; five virtual mutants caught. Next: clean-commit gate and independent review, not a render.
+- The separate HOLD correction at `119ac518` has committed focused 275/275; its fully hashed gate is RED with the same
+  10 ordinary failures, base-reproduced Windows probe and three RPC errors. No self-awarded PASS.
+- Next build is a bounded adapter for the simple final text, not resurrection of the old writing pipeline or an archive
+  bypass. Then qualify fixed character/location/prop references and inspect a small LOW sample. No rollout or full-book batch.
+
 ## Voice and appearance HOLD correction before storyboard (2026-10-07)
 
 - Claude returned separate HOLDs V1/A1 plus A2/S1. Codex restores the lost literary guards, limits legacy appearance input

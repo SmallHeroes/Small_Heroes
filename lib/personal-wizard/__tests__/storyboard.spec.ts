@@ -10,10 +10,54 @@ import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 import { personalStoryboardFixture } from './personal-storyboard-fixture';
 import { WHOLE_BOOK_AUTHORING_RULES } from '../../local-book-planning';
+import * as companionRegistry from '../../companions';
 
 const options = resolvePersonalWizardOptions();
 
 describe('personal writer -> whole-book storyboard -> identical render/QA state', () => {
+  it.each(['description', 'state'])('rejects an old frame and review after declared visual %s drift, without changing prose or literary identity', async kind => {
+    const id = kind === 'state' ? 'chameleon_koko' : 'dragon_dini';
+    const f = await personalStoryboardFixture('short', id);
+    const original = companionRegistry.getCompanionById(id)!;
+    const changed = structuredClone(original);
+    if (kind === 'description') changed.visualDescription += ' Test-only physical revision.';
+    else changed.appearanceStateAuthority!.states[0].hue += ' Test-only hue revision.';
+    const before = personalStoryboardFrame(f.book, f.review, 1, f.current);
+    expect(before.runtimeEligible).toBe(false);
+    const spy = vi.spyOn(companionRegistry, 'getCompanionById').mockReturnValue(changed);
+    try {
+      const source = preparePersonalStoryboard(f.request, f.result, options);
+      expect(source.result.manuscript).toEqual(f.source.result.manuscript);
+      expect(source.brief.companion.characterDigest).toBe(f.source.brief.companion.characterDigest);
+      expect(source.sourceDigest).not.toBe(f.source.sourceDigest);
+      expect(() => personalStoryboardFrame(f.book, f.review, 1, f.current)).toThrow('stale_book');
+      const book = compilePersonalStoryboard(source, f.draft);
+      expect(() => storyboardReviewDisposition(book, f.review)).toThrow('review_binding');
+    } finally { spy.mockRestore(); }
+    expect(personalStoryboardFrame(f.book, f.review, 1, f.current)).toEqual(before);
+  });
+
+  it('copies the full selected visual declaration once and gives the planner and frame its same description', async () => {
+    const f = await personalStoryboardFixture('short', 'chameleon_koko');
+    const record = companionRegistry.getCompanionById('chameleon_koko')!;
+    expect(f.source.companionVisualAuthority).toEqual({ id: record.id, description: record.visualDescription,
+      appearanceStateAuthority: record.appearanceStateAuthority });
+    expect(f.source.companionVisualAuthority.appearanceStateAuthority).not.toBe(record.appearanceStateAuthority);
+    expect(f.source.planningInput.companionVisualAuthority).toEqual(f.source.companionVisualAuthority);
+    expect(f.source.planningInput.companionDescription).toBe(f.source.companionVisualAuthority.description);
+    expect(personalStoryboardReviewInput(f.book).companionVisualAuthority).toEqual(f.source.companionVisualAuthority);
+    const author = vi.fn(async (call: Parameters<Parameters<typeof authorPersonalStoryboard>[1]>[0]) => {
+      expect(call.input.companionVisualAuthority).toEqual(f.source.companionVisualAuthority);
+      expect(call.instructions).toContain('for physical appearance/state only, not personality, feelings or plot motifs');
+      expect(call.instructions).toContain('Do not force its optional states into an emotional arc');
+      return structuredClone(f.draft);
+    });
+    await authorPersonalStoryboard(f.source, author, new AbortController().signal);
+    expect(author).toHaveBeenCalledTimes(1);
+    expect(personalStoryboardFrame(f.book, f.review, 1, f.current).context.companion.description)
+      .toBe(f.source.companionVisualAuthority.description);
+  });
+
   it('keeps every canonical authoring rule object immutable at runtime', () => {
     const before = canonicalJson(WHOLE_BOOK_AUTHORING_RULES);
     const inspect = (value: unknown) => {
