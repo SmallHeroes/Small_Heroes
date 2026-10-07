@@ -1,5 +1,30 @@
 # SmallHeroes — Current Technical State
 
+## Offline driver independent PASS and abort regression ready for re-gate (2026-10-07)
+
+Claude independently passed driver `624a7025..862944e3` and separately docs-only `862944e3..1efc908f`.
+Its own type-check exits 0 and fifteen focused specs pass 689/689. It caught all 21 scored mutants, verified
+the committed inventories against 3380 blobs and confirmed preservation. Its mutation control uses 43 cases
+because it deliberately excludes the real subprocess bootstrap test; the normal diagnostic suite has 44.
+This is technical PASS only, not live generation, visual/product acceptance or release approval.
+
+- Codex continues as sole writer in the same clean-base `1efc908f` worktree/branch; all six protected trees remain clean.
+- P3-1 is valid regression-coverage feedback, not a production defect: both callbacks already receive the caller's
+  AbortSignal. The test-only successor asserts object identity for planner/reviewer at all three lengths and identity
+  plus aborted state after planner/reviewer cancellation. No test is removed or added; counts/inventory stay unchanged.
+- Local literal npx type-check exits 0, diagnostic 44/44. A virtual fresh-signal substitution passes all five selected
+  old assertions but fails all five updated cases; the updated unmutated control passes. No production file is modified.
+  Local tracked bytes stay unchanged during checks; 86 historical + 83 age files and six protected trees are preserved.
+- Clean-commit verification and a focused Claude re-gate of this test/docs-only successor follow. P3-1 is implemented,
+  not independently closed yet. The driver PASS is not expanded to the successor or other unreviewed ancestry.
+- Full check is not rerun for this test/docs-only change. Its last complete run stays RED: ordinary 6685/10/73,
+  resource 634/1 plus three RPC errors, with the exact eleven baseline assertion names. F2, remaining F3 and F4 stay open.
+- Next substantial gate is a separately priced, credential-approved live proof with bounded existing transport,
+  deadline/abort and original receipts/wires; measure real long-book headroom first. No provider/key/Max use,
+  new book/model-authored storyboard/image/render, renewed budget, wizard migration, push/merge/deploy in this closeout.
+- Evidence: `storyboard-abort-regression-evidence-20261007/` beside this chat's prior reports. Original QA report:
+  Claude scratchpad `qa-driver-1efc908f/CLAUDE-QA-STORYBOARD-DRIVER-1efc908f.md`.
+
 ## Independent adapter PASS and offline driver ready for first QA (2026-10-07)
 
 Claude independently passed `990f86e0..04eec8cb` and separately docs-only `04eec8cb..624a7025`, closing F1 and

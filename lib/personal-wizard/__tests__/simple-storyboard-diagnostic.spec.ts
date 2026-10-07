@@ -51,7 +51,7 @@ async function fixture(length = 'short') {
   const writerResult = createCurrentSimpleStorySource(f.request, generated, records as { author: unknown; editor: unknown }, options);
   const source = prepareCurrentPersonalStoryboard(f.request, writerResult, options), book = compilePersonalStoryboard(source, f.draft);
   const review = { ...structuredClone(f.review), sourceDigest: book.sourceDigest, storyboardDigest: book.storyboardDigest };
-  const generate = vi.fn(async (call: SimpleStoryboardDiagnosticCall) => structuredClone(call.stage === 'storyboard' ? f.draft : review));
+  const generate = vi.fn(async (call: SimpleStoryboardDiagnosticCall, _signal: AbortSignal) => structuredClone(call.stage === 'storyboard' ? f.draft : review));
   return { ...f, generated, writerCalls, records, writerResult, review, generate,
     args: { request: f.request, writerResult, options, signal: new AbortController().signal, generate } };
 }
@@ -76,6 +76,9 @@ describe('simple storyboard diagnostic over existing current seams', () => {
   it.each(['short', 'medium', 'long'])('drives one complete %s book, exact instructions and final-text packets without render authority', async length => {
     const f = await fixture(length), before = structuredClone(f.writerResult), result = await runSimpleStoryboardDiagnostic(f.args);
     expect(f.generate).toHaveBeenCalledTimes(2); expect(result.calls.map(call => call.stage)).toEqual(['storyboard', 'review']);
+    for (const [, signal] of f.generate.mock.calls) {
+      expect(signal).toBe(f.args.signal); expect(signal.aborted).toBe(false);
+    }
     const [planner, reader] = f.generate.mock.calls.map(([call]) => call);
     expect(planner.instructions).toBe(PERSONAL_STORYBOARD_INSTRUCTION);
     expect(reader.instructions).toBe(PERSONAL_BOOK_REVIEW_INSTRUCTION); expect(reader.schema).toBe(personalStoryboardReviewSchema);
@@ -122,12 +125,15 @@ describe('simple storyboard diagnostic over existing current seams', () => {
   it.each(['before', 'after_planner', 'after_review'])('cancels %s without a subsequent callback or packets', async when => {
     const f = await fixture(), controller = new AbortController();
     if (when === 'before') controller.abort();
-    const generate = vi.fn(async (call: SimpleStoryboardDiagnosticCall) => {
+    const generate = vi.fn(async (call: SimpleStoryboardDiagnosticCall, _signal: AbortSignal) => {
       if ((when === 'after_planner' && call.stage === 'storyboard') || (when === 'after_review' && call.stage === 'review')) controller.abort();
       return structuredClone(call.stage === 'storyboard' ? f.draft : f.review);
     });
     await expect(runSimpleStoryboardDiagnostic({ ...f.args, signal: controller.signal, generate })).rejects.toThrow('cancelled');
     expect(generate).toHaveBeenCalledTimes(when === 'before' ? 0 : when === 'after_planner' ? 1 : 2);
+    for (const [, signal] of generate.mock.calls) {
+      expect(signal).toBe(controller.signal); expect(signal.aborted).toBe(true);
+    }
   });
   it.each(['storyboard', 'review'])('contains a %s callback failure without retry or private output', async stage => {
     const f = await fixture(), generate = vi.fn(async (call: SimpleStoryboardDiagnosticCall) => {

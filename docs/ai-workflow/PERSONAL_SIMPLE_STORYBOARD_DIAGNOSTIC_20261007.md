@@ -104,3 +104,36 @@ This docs-only closeout and `CLAUDE-SIMPLE-STORYBOARD-DIAGNOSTIC-QA-20261007.md`
 independent QA. No independent driver PASS is claimed. Offline replay is not provider-backed generation, output
 adequacy, real long-book capacity, render qualification or product acceptance. A future paid wrapper needs explicit
 credential/spending approval, bounded existing transport and raw receipts/wires. No budget was renewed or key read.
+
+## Independent driver verdict and abort regression
+
+Claude Code independently passed `624a7025..862944e3` and separately the docs suffix `862944e3..1efc908f`.
+Its own type-check exits 0, fifteen specs pass 689/689, and all 21 scored virtual mutants are caught at the intended
+checks. It verified the three inventories against 3380 committed blobs and the eleven full-gate baseline assertion
+names. Its mutation control deliberately excludes the subprocess bootstrap and has 43 cases; its normal suite
+has 44. This verdict covers the offline driver only, with no live, literary, visual, customer or release acceptance.
+
+The one nonblocking P3-1 is genuine missing coverage: replacing the caller's AbortSignal with a fresh signal
+survives the old spec, although production passes the right object. Continue the existing approved technical
+loop in the same task/branch, as sole writer, from clean `1efc908f`; do not refactor transport or cancellation.
+
+The focused correction changes only this spec and documentation. Existing three-length positive cases assert
+the same signal at both callbacks and its non-aborted state. Existing after-planner/after-review cancellation
+cases assert the same signal and its aborted state. This is a same-object guarantee, not proof that a provider
+actually stops work. Counts remain 44 diagnostic, 689 focused and 421/401/20 inventory; no case is removed.
+
+Local literal npx type-check exits 0 and the full diagnostic spec passes 44/44. The virtual control passes all
+five selected cases. The fresh-signal substitution passes all five with the committed old spec, then fails all
+five with the updated spec. Neither production files nor past evidence are changed by these runs. Tracked
+content stays equal within each gate; preservation verifies 86 historical + 83 age files and six protected trees.
+
+Clean-commit verification and Claude re-gate are next. The successor does not self-close P3-1 or widen the driver
+PASS. Full check is not rerun for this test/docs-only delta; production is byte-identical to the reviewed code and
+the full gate remains RED. F2 import/timeout, remaining F3 and F4 local-provenance limits remain open. Revert only
+the focused spec/docs commit to roll back, leaving the independently passed driver intact.
+
+Evidence is in `storyboard-abort-regression-evidence-20261007/` beside this chat's prior reports. The independent
+driver report is Claude scratchpad `qa-driver-1efc908f/CLAUDE-QA-STORYBOARD-DRIVER-1efc908f.md`. Any future live
+proof still needs explicit credentials and a newly priced allowance, bounded transport, deadline/abort and original
+receipts/wires. Measure real long-book headroom before dispatch. No live transport is built or authorized here;
+no key, provider/Max call, new book/storyboard/image/render, wizard migration, push/merge/deploy or budget renewal.
