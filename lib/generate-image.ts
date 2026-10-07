@@ -817,7 +817,7 @@ export async function generateGPTImage(input: GenerateGPTImageInput): Promise<Ge
     const aborted = (err as { name?: string })?.name === 'AbortError' || input.signal?.aborted === true;
     console.error(
       `[GPTImage] API call ${aborted ? 'ABORTED' : 'failed'} after ${failMs}ms ` +
-        `(mode=${hasReference ? 'images.edit' : 'images.generate'}): ${err instanceof Error ? err.message : String(err)}`
+        `(mode=${hasReference ? 'images.edit' : 'images.generate'}): ${input.apiKey ? 'explicit_worker_provider_error' : err instanceof Error ? err.message : String(err)}`
     );
     throw err;
   }
