@@ -1,5 +1,30 @@
 # SmallHeroes — Current Technical State
 
+## Independent HOLD corrections implemented locally and storyboard readiness under investigation (2026-10-07)
+
+Claude's report gives separate HOLD for voice `c8d51bb0..e6bfa777` (V1 P2) and appearance `e6bfa777..2b4035d8`
+(A1 P2, A2 P3), plus S1 P3 for pre-commit full-gate evidence without tested-content hashes. Codex validated the findings.
+Sole writer remains this chat on `codex/simple-story-voice-20261007`, from clean `2b4035d8`.
+
+- Restored explicit age fitting of situations, stock-body-image replacement and all-dash wording. Pronunciation exceptions,
+  direct speech, approved names and age/profile flexibility remain intact.
+- Appearance task now explicitly limits legacy text to physical appearance. Personality/feelings/plot motifs are not literary
+  authority; character v4 and this adventure supply that. Author and editor get role-specific actions. Registry, snapshot,
+  characters and state vocabulary are unchanged. This mitigates an input risk, not a measured story failure.
+- Final pre-commit type check exits 0; focused tests pass 275/275 across six specs (86 simple-engine tests). Seven virtual
+  mutants fail their intended guards, control 86/86. Next is one canonical full gate at the clean committed code HEAD with
+  tracked-content hashes at start/end.
+  Earlier gate logs remain unchanged, with their pre-commit binding limitation; the existing full gate is still RED.
+- Guy explicitly authorizes progressing toward storyboard and then a bounded render if readiness is demonstrated. This does
+  not authorize dropping source/editor/continuity/visual-contract gates, a full-book image batch, a production rollout or push.
+  Old monetary allowances remain closed; fresh bounded model/image use is still pending a priced allowance.
+- Actual storyboard already reads all spreads and cover, has stable entity/location identities, persistent offscreen state,
+  quote-backed transitions, appearance invariants, scale and shared renderer/judge context. These protections stay.
+  Simple results still lack the current editor receipt and the archive bridge is not render permission. The saved Dini-green
+  text remains incompatible. Bridge/source binding and current visual qualification require their own reviewed milestone.
+- No book, model, key, image, render, wizard edit, push, merge or deployment in this correction. Protected roots stay read-only.
+- Decision: `docs/ai-workflow/PERSONAL_SIMPLE_STORY_VOICE_APPEARANCE_CORRECTION_20261007.md`.
+
 ## Simple story companion appearance input implemented pending independent QA (2026-10-07)
 
 Guy explicitly approved this separate canon-input milestone. Codex is the sole writer in this chat on

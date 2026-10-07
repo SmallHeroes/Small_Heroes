@@ -48,7 +48,7 @@ export const SIMPLE_AUTHOR_INSTRUCTIONS = `You are a wonderful Hebrew picture-bo
 
 What matters, in this order:
 1. Fun. The child and the parent should laugh out loud several times. Use real comic craft: things going wrong in escalating ways, surprise, a running gag or refrain that returns with a twist, the companion's comic personality in action, funny sounds and words that are a joy to say aloud. For ages 3 to 5 lean on physical comedy, silly sounds and repetition; for ages 6 to 8 add misunderstandings, comic logic and wordplay. Humour is always kind: never laugh at the child's difficulty, fear or body.
-2. A clear, lively story that a child of this age can follow: something the child wants, things getting in the way, a big moment, a warm ending. Every page moves the story forward, and the listener always knows what is happening and why. Fit voice, humour, complexity, dialogue and choices to age and the approved profile, not just word count. Where feelings arise, fit their expression too; do not simply put the parent's difficulty label into the child's mouth. Direct speech can still fit. Age is a guide, not a fixed personality.
+2. A clear, lively story that a child of this age can follow: something the child wants, things getting in the way, a big moment, a warm ending. Every page moves the story forward, and the listener always knows what is happening and why. Fit voice, humour, complexity, situations, dialogue and choices to age and the approved profile, not just word count. Where feelings arise, fit their expression too; do not simply put the parent's difficulty label into the child's mouth. Direct speech can still fit. Age is a guide, not a fixed personality.
 3. The child is the hero. The child's own ideas, choices and actions change what happens, above all at the big moment. That influence can take many forms: starting something, improvising, persuading someone, teaming up, changing the plan or even the goal. Spotting a clue is only one of them, and the story never needs to announce that the child saw what nobody else saw. The companion is a lovable partner with a personality, a voice and a wish of its own; it can be funny, wrong, brave or in need of help, but it is never a teacher or a therapist, never solves the big moment for the child and does not keep offering to do the child's part.
 4. Wonder. A fresh fantasy idea, specific and surprising details, places and creatures a child would want to draw.
 
@@ -80,7 +80,7 @@ Look for:
 - The child's facts. Remove any habit, weakness or history the brief does not give the child, such as a claim about what the child always or never does; a reaction inside a scene is fine.
 - The theme, if there is one. The child's moment with it is honest, small and real, and it matters to the story; not every scene is another test. Remove lessons, explanations, techniques and speeches about feelings, and any claim that the fear is gone forever. With no theme, remove a fear or difficulty given to the child as their own or carried through the book, and any scene of getting over a feeling; a short reaction the adventure itself causes may stay, and none needs to be added.
 - Family. Families differ: unless the brief names them, remove any assumed parent of the child ("mom and dad", "dad", "mom") and say "the grown-ups" or keep them off the page. Invented story characters may have any family.
-- Language. Beautiful everyday Hebrew with rhythm; fit dialogue, choices and any emotional expression to age and the approved profile, not a stereotyped personality or a mechanically voiced parent's label. Direct speech can fit. Show feelings mostly through action and speech; keep only fresh comparisons that belong to this story. Use correct grammatical gender. Leave ordinary words unpointed, except for minimal niqqud essential to a pronunciation-dependent joke or genuine reading ambiguity; preserve that cue. Pointed sound words are fine, not fully pointed prose. No hyphens, maqaf or dashes (names from the brief stay exactly as given, even with a hyphen), headings or picture directions.
+- Language. Beautiful everyday Hebrew with rhythm; fit dialogue, choices and any emotional expression to age and the approved profile, not a stereotyped personality or a mechanically voiced parent's label. Direct speech can fit. Show feelings mostly through action and speech; replace stock body images, and keep only fresh comparisons that belong to this story. Use correct grammatical gender. Leave ordinary words unpointed, except for minimal niqqud essential to a pronunciation-dependent joke or genuine reading ambiguity; preserve that cue. Pointed sound words are fine, not fully pointed prose. No hyphens, maqaf or dashes of any kind (names from the brief stay exactly as given, even with a hyphen), headings or picture directions.
 - Length. Keep exactly the same number of pages, each a complete scene for one illustration, with about the number of words in the brief.
 - The mechanical findings, if any: fix every one of them.
 
@@ -212,7 +212,7 @@ function companionAppearance(id: string) {
   return { ...snapshot, digest: digest(snapshot) };
 }
 
-const APPEARANCE_TASK = 'Use book.companion.appearance as declared identity, not a plot or a prose checklist. Keep its appearance and accessories; an allowed appearance state needs support in this story. Check and correct conflicting draft descriptions. Unresolved means no declared colour, exact scale or permanent accessory, not permission to invent them; use the supplied character embodiment.';
+const APPEARANCE_TASK = 'Take only physical appearance (body, anatomy, colours, markings, scale and accessories) from book.companion.appearance. Personality, feelings and plot motifs in this legacy visual text are not authority; literary tendencies come from book.companion.character, and the current role comes from this adventure. Physical details are constraints, not a plot or a prose checklist; an allowed appearance state needs support in this story. Unresolved means no declared colour, exact scale or permanent accessory, not permission to invent them; use the supplied character embodiment.';
 
 export function prepareSimpleStory(input: unknown, options: PersonalWizardOptions, seed = '') {
   // Same acceptance, identity, companion authority and brief as the current writer.
@@ -235,14 +235,14 @@ export function simpleAuthorCall(prepared: PreparedSimpleStory): SimpleStoryCall
   const { pages, wordsPerPage: w } = prepared.book;
   return { stage: 'author', instructions: SIMPLE_AUTHOR_INSTRUCTIONS, schema: simpleStoryDraftSchema(pages), maxOutputTokens: simpleStoryOutputTokens(pages),
     input: canonicalJson({ book: prepared.book,
-      task: `Write the whole story now: exactly ${pages} pages of about ${w.min} to ${w.max} words each, then the remaining fields, with exactly ${pages} pageMap rows. ${APPEARANCE_TASK}` }) };
+      task: `Write the whole story now: exactly ${pages} pages of about ${w.min} to ${w.max} words each, then the remaining fields, with exactly ${pages} pageMap rows. ${APPEARANCE_TASK} Keep companion descriptions consistent with that physical appearance.` }) };
 }
 export function simpleEditorCall(prepared: PreparedSimpleStory, draft: SimpleStoryDraft, findings: readonly string[]): SimpleStoryCall {
   const { pages, wordsPerPage: w } = prepared.book;
   return { stage: 'editor', instructions: SIMPLE_EDITOR_INSTRUCTIONS, schema: simpleStoryEditSchema(pages), maxOutputTokens: simpleStoryOutputTokens(pages),
     input: canonicalJson({ book: prepared.book, draft: { ...draft, pages: draft.pages.map((p, i) => ({ page: i + 1, text: p.text })) },
       mechanicalFindings: [...findings],
-      task: `Edit the draft. Return exactly ${pages} pages of about ${w.min} to ${w.max} words each, exactly ${pages} pageMap rows, and your main changes. ${APPEARANCE_TASK}` }) };
+      task: `Edit the draft. Return exactly ${pages} pages of about ${w.min} to ${w.max} words each, exactly ${pages} pageMap rows, and your main changes. ${APPEARANCE_TASK} Check and correct conflicting draft descriptions.` }) };
 }
 
 /** Approved names the prose must keep exactly; their own dashes are part of the identity, not style. */

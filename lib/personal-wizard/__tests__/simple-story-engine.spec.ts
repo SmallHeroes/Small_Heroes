@@ -147,6 +147,9 @@ describe('simple story engine', () => {
     expect(author.instructions).toContain('Direct speech can still fit');
     expect(editor.instructions).toContain('Direct speech can fit');
     expect(editor.instructions).toContain('preserve that cue');
+    expect(author.instructions).toContain('Fit voice, humour, complexity, situations, dialogue and choices to age and the approved profile');
+    expect(editor.instructions).toContain('replace stock body images');
+    expect(editor.instructions).toContain('dashes of any kind');
     expect(Object.keys(JSON.parse(author.input)).sort()).toEqual(['book', 'task']);
     expect(Object.keys(JSON.parse(editor.input)).sort()).toEqual(['book', 'draft', 'mechanicalFindings', 'task']);
   });
@@ -213,7 +216,14 @@ describe('simple story engine', () => {
       expect(packet.book.companion.appearance).toEqual(appearance);
       expect(packet.book.companion.character).toEqual(p.brief.companion.character);
       expect(packet.task).toContain('not a plot or a prose checklist');
-      expect(packet.task).toContain('Check and correct conflicting draft descriptions');
+      expect(packet.task).toContain('Take only physical appearance (body, anatomy, colours, markings, scale and accessories)');
+      expect(packet.task).toContain('Personality, feelings and plot motifs in this legacy visual text are not authority');
+      expect(packet.task).toContain('literary tendencies come from book.companion.character');
+      expect(packet.task).toContain('the current role comes from this adventure');
+      if (call.stage === 'author') {
+        expect(packet.task).toContain('Keep companion descriptions consistent with that physical appearance');
+        expect(packet.task).not.toContain('conflicting draft descriptions');
+      } else expect(packet.task).toContain('Check and correct conflicting draft descriptions');
       expect(packet.task).toContain('not permission to invent them');
     }
   });
@@ -246,6 +256,18 @@ describe('simple story engine', () => {
     const packet = JSON.parse(simpleEditorCall(p, story(p), []).input);
     expect(packet.book.companion.appearance.stateAuthority.states.map((s: any) => s.id)).toEqual(source.states.map(s => s.id));
     expect(packet.task).toContain('an allowed appearance state needs support in this story');
+  });
+
+  it('keeps legacy appearance text as evidence without elevating its quoted motif into literary authority', () => {
+    const p = prepareSimpleStory(request({ companion: { id: 'chameleon_koko' } }), options, 'appearance');
+    for (const call of [simpleAuthorCall(p), simpleEditorCall(p, story(p), [])]) {
+      const packet = JSON.parse(call.input);
+      expect(packet.book.companion.appearance.description).toContain('a piece of home travels with her');
+      expect(packet.book.companion.appearance.description).toBe(companionRegistry.getCompanionById('chameleon_koko')!.visualDescription);
+      expect(packet.book.companion.character).toEqual(p.brief.companion.character);
+      expect(packet.task).toContain('Personality, feelings and plot motifs in this legacy visual text are not authority');
+      expect(packet.task).not.toContain('as declared identity');
+    }
   });
 
   it.each(['missing', 'placeholder', 'other_identity'])('does not substitute a visual record that is %s', variant => {

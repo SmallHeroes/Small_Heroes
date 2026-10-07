@@ -1,5 +1,16 @@
 # SmallHeroes — Roadmap
 
+## Voice and appearance HOLD correction before storyboard (2026-10-07)
+
+- Claude returned separate HOLDs V1/A1 plus A2/S1. Codex restores the lost literary guards, limits legacy appearance input
+  to physical facts and separates role wording. Source profiles, canon, stages and current admission remain unchanged.
+- Next: final local checks, focused corrective commit, clean-commit full gate with content hashes, and Claude re-gate.
+  No technical PASS or literary/visual improvement claim yet. Old full-gate evidence remains RED and pre-commit-bound only.
+- Guy approves progress toward storyboard then bounded render. Investigate a proper simple-output/editor/source boundary,
+  freeze continuity and visual references, then inspect a small image sample. Do not remove the strict current-storyboard gate.
+- The green-Dini source and missing current edit receipt are actual dependencies. No hand repair, fake receipt or archive
+  promotion. New model/image use still needs a bounded priced allowance; no provider calls have occurred here.
+
 ## Simple story appearance input ready for independent review (2026-10-07)
 
 - Implemented locally after Guy's separate scope approval: one detached appearance snapshot reaches both simple-story
