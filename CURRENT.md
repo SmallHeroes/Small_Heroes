@@ -1,5 +1,32 @@
 # SmallHeroes — Current Technical State
 
+## Simple story engine: literary follow-up committed locally, pending QA (2026-10-07)
+
+Local prototype only. Branch `codex/claude-simple-story-literary-20261007`, worktree `.codex/worktrees/simple-story-literary-followup`,
+not pushed. Claude Code implemented it at Guy's direction; Codex runs independent QA. Technical base `ebd6cb03..0a845285` (HOLD fixes)
+is still pending Codex PASS. The literary range is `0a845285..HEAD`.
+
+- Author and editor prompt text changed, plus two `resilienceMoments` field descriptions. No logic, schema-shape, runner or version
+  change.
+- Removed: the "child notices what others miss" device, the required hesitation in no-theme books, and the fixed echo ending.
+- Added:
+  - several forms of child agency;
+  - no invented fear without a theme;
+  - not every scene a theme test;
+  - no invented biography (an in-scene reaction is fine);
+  - age fit beyond length;
+  - feelings mostly through action;
+  - editor checks for causality, time/place, consistency and closing threads that matter.
+- Codex host run at `15fa48e6`: `tsc` exit 0; focused command 51/51 (simple-story-engine 44, workload classifier 7).
+  `npm run check` exit 1, gate RED: ordinary lane 6,531 passed / 10 failed / 73 skipped in 399 files, all ten failure names
+  identical to the 2026-10-06 baseline; resource lane 635/635 in 20 files but exit 1 with three `onTaskUpdate` RPC timeouts
+  (baseline had two). No reliability waiver.
+- No new books were made, so no literary improvement is claimed. A comparison is proposed but not run or priced.
+- Pending Codex QA, no PASS: technical `ebd6cb03..0a845285` and literary `0a845285..` docs closeout HEAD, reviewed separately.
+- Wizard and production integration stay blocked. Old evidence, blockers and saved books are unchanged.
+- Visual notes for later: Leo is written four-legged against the bipedal direction, and Momo carries a child at an unapproved scale.
+- See `docs/ai-workflow/PERSONAL_SIMPLE_STORY_LITERARY_FOLLOWUP_{DECISION,CLOSEOUT}_20261007.md`.
+
 ## Six-premise experiment complete; product adoption not established (2026-10-06)
 
 Frozen experiment head b5afd7b01e62220ed67d1979d2fbfe0c8119f689 on

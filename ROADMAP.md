@@ -1,5 +1,17 @@
 # SmallHeroes — Roadmap
 
+## Simple story engine: literary follow-up pending QA (2026-10-07)
+
+- Local prompt milestone on `codex/claude-simple-story-literary-20261007` (`0a845285..HEAD`): more varied agency, no invented fear
+  or biography, freer endings, and an editor that preserves meaning. Not pushed, no PASS.
+- `npm run check` at `15fa48e6` is RED: the same ten ordinary failures as the baseline, plus three resource-lane `onTaskUpdate`
+  RPC timeouts. No reliability waiver.
+- Next steps:
+  1. Codex QA, as two separate ranges: technical `ebd6cb03..0a845285` and literary `0a845285..` docs closeout HEAD.
+  2. A priced, separately approved comparison: same briefs and seeds, more than one profile, at least one no-theme book, draft and
+     edit read separately.
+- Wizard and production integration are blocked until that comparison and product acceptance. Earlier blockers are unchanged.
+
 ## Premise diagnostic completed; quality gate remains open (2026-10-06)
 
 - Native Claude technical PASS57f26d2a..b5afd7b0/drivers; corrective review
