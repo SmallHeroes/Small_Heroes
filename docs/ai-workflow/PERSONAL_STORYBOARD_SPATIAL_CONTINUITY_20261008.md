@@ -92,9 +92,33 @@ its respective exact-code refusal case only. This pins failures at the intended 
 
 The local gate verifies unchanged tracked bytes, 86 historical + 83 age files and six protected clean baselines.
 New ignored documentation is not covered by the local tracked inventory; it will be included in the committed one.
-Fresh committed type-check/focus and Claude review remain next. No independent PASS is self-awarded.
+Clean committed `43a05a3e` passed type-check and the fifteen-file focused set 694/694. The committed inventory
+includes the new doc (3381 files); bytes stay unchanged during the complete gate. Independent results follow below.
 
 Spatial descriptions and invariant values are authored strings, while the ledger stores one principal physical
 relation per entity. These tests preserve declared world relationships; they do not infer a full metric map,
 prove completeness/semantic entailment or guarantee pixels. Approved visual references, a genuine whole-book
 review and a later qualified LOW sample remain necessary before any visual/product claim.
+
+## Independent verdict and closeout
+
+Claude Code independently passed A, docs-only `1e75197b..02274852`, and B, continuity tests/docs
+`02274852..43a05a3e`, with no findings. Its own type-check exits 0 and focused specs pass 694/694, including real
+bootstrap. Its twelve-mutant matrix has eleven scored cases, all caught by intended tests with no timeouts or
+loader errors. Prompt-only data loss fails even with QA data/hashes unchanged; widening only QA locations also
+fails. Removing each refusal clause permits compilation and reaches review parsing, proving no earlier rejection
+masks the targeted check. Control is 81/81 with the subprocess bootstrap deliberately excluded; normal suite is 82.
+
+It verifies the committed inventory against 3381 blobs and that local precommit spec bytes equal the committed
+ones. Six protected trees, its 314 trial files and earlier evidence stay unchanged. This records its two verdicts,
+not independent PASS for other ancestry or any live/pixel/product/release claim.
+
+Completeness limits remain explicit. These three length fixtures contain no attribute changes; accumulation of
+source-backed changes is tested in existing local-preview-quality coverage. Camera assertions compare authored
+fixture states; rejecting an unexplained model-authored move is the existing validator's responsibility. ROADMAP
+now explicitly distinguishes the three positive length cases from the two refusal cases. No production fix is
+requested. Full check remains RED and is not rerun for this three-doc-only closeout from clean `43a05a3e`.
+
+Report: Claude scratchpad `qa-spatial-43a05a3e/CLAUDE-QA-SPATIAL-CONTINUITY-43a05a3e.md`.
+Next remains a separately credential/spending-approved bounded live proof, real long-book headroom, raw receipts/
+wires and deadline/abort, followed later by qualified references and a small LOW sample. No allowance is renewed.

@@ -1,14 +1,17 @@
 # SmallHeroes — Roadmap
 
-## Current storyboard spatial continuity regression coverage (2026-10-08)
+## Current storyboard spatial continuity technical PASS (2026-10-08)
 
 - Guy's continuation verifies existing world placement/appearance and character continuity, not a new spatial engine.
-  From clean `02274852`, same sole-writer task/worktree; only two existing specs and three docs change.
+  `02274852..43a05a3e` changes only two specs/three docs; Claude independently passed it with no findings, and
+  separately passed docs-only `1e75197b..02274852`. Same sole-writer task/worktree, docs closeout from clean `43a05a3e`.
 - Three lengths trace world-local topology, custody, canonical return IDs/designs, wardrobe, companion scale and
   literal render/QA data. Offscreen state persists without forced visibility; supporting characters keep their design.
-- Five new cases and a strengthened supporting-character case cover the two exact pre-review refusals: diagnostic 49 and sequence 33
-  pass locally, seven virtual mutants caught with a six-case control. Five tests added, none removed; 421/401/20
-  inventory unchanged. Fresh clean-commit type-check/fifteen-file focus and independent Claude review are next.
+- Five new cases are three positive length cases plus two exact pre-review refusals; an existing supporting-character
+  case is strengthened. Diagnostic 49 and sequence 33 pass; clean committed and independent type-check/694 focused
+  tests pass. Codex's seven local mutants and Claude's eleven scored mutants are caught. Inventory stays 421/401/20.
+- Record verdict and clarify these proof boundaries in three docs only. Existing tests cover change accumulation
+  and unexplained moves; the new unchanged-attribute/camera fixture assertions do not replace them. No driver fix needed.
 - No production/prompt/schema/provider/canon/source/asset change, key/API/Max, new book/storyboard/image/render,
   spending renewal, wizard port or push. Full gate remains RED; real authored detail, capacity and pixels unproven.
   Keep the later bounded live proof and qualified LOW audition separately credential/spending approved.

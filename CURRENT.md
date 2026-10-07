@@ -1,14 +1,18 @@
 # SmallHeroes — Current Technical State
 
-## Spatial continuity coverage for current storyboard packets (2026-10-08)
+## Spatial continuity coverage independently passed (2026-10-08)
 
 Guy asked to preserve placement and recognizable places, props and all characters across frames. Repository
 inspection confirms the existing whole-book planner, sparse physical-state ledger, canonical designs/invariants,
 full-book reviewer and current render/QA projections already represent this. No production defect or missing
 runtime schema was observed. The gap is direct regression coverage of spatial data in the actual render prompt.
 
-- Codex is sole writer in the same `codex/simple-story-voice-20261007` worktree, from clean `02274852`; six protected
-  trees remain at their clean baselines. This approved continuation is tests/docs only, no additional writer/session.
+Claude independently passed A, docs-only `1e75197b..02274852`, and B, continuity tests/docs
+`02274852..43a05a3e`, with no findings. Its own type-check exits 0 and fifteen focused specs pass 694/694,
+including real bootstrap. Eleven scored virtual mutants fail the intended checks with no timeouts/loader errors.
+
+- Codex is sole writer in the same `codex/simple-story-voice-20261007` worktree, from clean `43a05a3e`, for docs-only
+  closeout; six protected trees remain at their clean baselines. No additional implementation/reviewer session starts.
 - Three new 8/12/16-spread cases trace world-local placement, structure, wardrobe, companion declaration/scale and
   custody through the current simple-source driver, full reviewer input and literal render/QA packets. Changing
   camera does not change state; leaving/returning keeps canonical set IDs/designs; invisible is not removed/drawn.
@@ -18,18 +22,22 @@ runtime schema was observed. The gap is direct regression coverage of spatial da
 - Local literal npx type-check exits 0; diagnostic 49/49 plus sequence 33/33 pass (82/82). Seven virtual mutants lose geometry/state/prompt data,
   expose offscreen entities or weaken the two refusal checks; each fails its intended selected cases, six-case control
   passes, with no timeouts/loader errors. Local tracked bytes and 86 historical + 83 age evidence stay unchanged;
-  six protected trees remain clean. Fresh committed type-check/fifteen-file focus and independent QA follow.
-- Five cases added, none removed: original focused count expected 689 -> 694. Spec inventory stays 421/401/20;
-  no new spec or policy change. Only two specs, CURRENT, ROADMAP and the new spatial decision record may change.
+  six protected trees remain clean. Clean committed type-check and 694/694 passed; Claude separately reproduced both.
+- Five cases added, none removed: three positive length cases and two exact refusals; focus 689 -> 694. Inventory
+  stays 421/401/20. Claude verified the 3381-file inventory against blobs and the local matrix's exact committed
+  spec bytes; its six protected trees/314 files and earlier evidence stayed unchanged. This successor is three docs only.
 - World position is relative topology/physical relations, not fixed screen-left/right or a new pixel-coordinate map.
   Design/attribute strings are authored data; tests prove their preservation/dispatch, not that a real planner always
   supplies enough detail or that matching evidence entails a move. Semantic review and actual pixel proof remain.
 - No runtime/prompt/provider/schema/SDK/source/canon/asset/route/gate change; no key, API/Max, book/storyboard model
   call, image/render, renewed allowance, wizard port, push/merge/deploy. Existing driver/P3-1 independent PASSs remain
-  narrow; this coverage milestone is not independently passed. Full gate stays RED as previously recorded, not rerun
+  narrow; the two new verdicts do not widen other ancestry or grant live/pixel/product/release approval. Full gate stays RED, not rerun
   for this test/docs-only delta; F2, remaining F3/F4 and real long-book headroom remain open.
 - Decision: `docs/ai-workflow/PERSONAL_STORYBOARD_SPATIAL_CONTINUITY_20261008.md`; evidence beside prior chat reports
   in `storyboard-spatial-evidence-20261008/`. Next substantial work still needs the live credential/priced budget decision.
+- Review: Claude scratchpad `qa-spatial-43a05a3e/CLAUDE-QA-SPATIAL-CONTINUITY-43a05a3e.md`. Attribute-change accumulation
+  and rejection of an unexplained model-authored move are covered by existing validators/tests, not newly proved
+  by unchanged fixture values or camera assertions. No new runtime change is requested by this PASS.
 
 ## Offline driver and abort regression independently passed (2026-10-07)
 
