@@ -1,0 +1,42 @@
+# Personal wizard simple book connection
+
+## Decision and current boundary
+
+Guy approved a new fictional eight-page book plus cover, through the actual wizard and engine, reusing the existing OpenAI key, with a fresh total USD12 cap including separately reported Claude Max estimates. Opus writes from scratch and edits in a fresh process; Astra reviews. No purchase, public rollout, push, deployment, hand-edited prose or relaxed identity gate is authorized.
+
+Inspection found the wizard's native worker still delegates to the old causal calibration pipeline. The independently reviewed simple engine and current-source storyboard driver are not connected to it. Existing personal storyboard packets deliberately lack production visual qualification. Claude's read-only consultation confirmed that G7 additionally requires a template and approved set boards. Guy subsequently explicitly approved a one-book non-commercial audition exception: "מאשר ספר ניסוי בלבד, ללא אישור לייצור". This does not create an approved Set Identity Board, change G7 for another book, or grant production qualification. Images remain a separate phase; this first milestone emits zero image calls.
+
+## Implementation scope
+
+Codex continues as sole writer in C:/Users/guyna/.codex/worktrees/simple-story-voice-followup/Small_Heroes, branch codex/simple-story-voice-20261007, clean base a4bfeb2af510fe5551f44d3dc3137bfc1d04d8af. Other checkouts, earlier evidence and native v1 are protected.
+
+Add a default-off loopback/operator-only simple-book queue and display beside the old native flow. Reuse server request acceptance and option identity, the actual simple writer, real CLI receipt projection, source-bound Astra citations, existing whole-book planner/compiler/reviewer and immutable frame packets. The worker is explicit, never spawned from an HTTP request. It ends at references_required rather than inventing an illustrated completion. No catalogue source, VisualPackage, set approval, render qualification or source-specific patch is minted.
+
+## Order and risks
+
+1. Add a strict local configuration, one-use owner-bound queue and small isomorphic status contract. Preserve native v1 defaults and public paths.
+2. Add injected orchestration of the reviewed engine. Validate real author/editor receipts and distinct sessions, run final-only Astra before the separate comparison, and hold material issues before storyboard spending.
+3. Add one bounded operator worker using existing Opus transport and OpenAI schemas. Persist each exact wire and claim before dispatch, then raw receipt; one global journal includes engineering Max receipts. Unknown costs, unknown termination, source drift and budget excess stop the run without retries.
+4. Connect the preview wizard to that queue, retain all runtimeEligible flags false, and show real progress and paid findings. No invented percentage, complete state or image availability.
+5. Test boundaries offline, run TypeScript/focused/full gates, commit explicit files, obtain independent Claude QA, then use the real browser/manual-input wizard for a new fictional profile.
+
+Book planner/reviewer output caps remain 32k/39k for eight pages, including reasoning. The driver retains its 104KB content limit; the actual SDK wire is separately measured. Actual paid spend is admitted step by step, never by lowering output caps or retrying a failed book. External engineering receipts are bound by hash and count toward USD12. Estimates are not invoices; Max is not free and its CLI cap is not a hard invoice guarantee.
+
+## Acceptance and falsification
+
+- Missing flags/config, nonlocal requests, unauthenticated or nonoperator access cannot enqueue work.
+- Same owner/request is idempotent; changed request/owner cannot consume the one approval again. No fixture or local child photo is silently forwarded.
+- Dirty/changed source or modified configuration blocks the worker before dispatch. Opus author and editor are distinct actual sessions.
+- Literal final prose and physical canon enter the existing current-source admission and whole-book state ledger, not an archive downgrade.
+- Final reading is blind to draft/editor claims; comparison is separate. Citation failures or material findings cannot turn into a ready result.
+- Planner/reviewer receive the actual caller signal. Holds, cancellation and unknown outcome produce no image calls or completed-book claim.
+- Budget is shared across all six model stages and engineering consultation/QA, and unknown outcomes prohibit later dispatch. Never silently renew the USD12 allowance.
+- Source, wardrobe, stable places/landmarks/props/supporting cast and state are preserved in the already-reviewed storyboard contract. This does not prove pixel compliance.
+
+## Rollback and exclusions
+
+Unset the new preview flag to restore the unchanged existing native/text-only paths. Revert the focused commit if needed; no DB schema migration, production source promotion or deletion. The full gate is already RED for inherited missing artifacts/resource issues; report actual outcomes, not a green claim. Technical QA is not literary, visual, product or release approval. Guy must judge the eventual story and illustrated candidate. A full image path remains a separate bounded phase after the visual authority decision.
+
+## Stop check
+
+General integration, not a child-specific repair. Production behavior stays off/unchanged. Spend is permitted only after technical review within the new USD12 journal. The smallest proof is injected offline flow, then one real eight-page source. A pending product decision concerns only the visual audition authority. Claude should falsify owner/config/source/cost/termination/session bindings, absence of archive fallback, stale status handling and the no-images hold. Existing 0.70 threshold remains unchanged. No public release or automatic visual acceptance is granted.

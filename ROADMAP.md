@@ -1,5 +1,18 @@
 # SmallHeroes — Roadmap
 
+## One new illustrated wizard audition approved (2026-10-08)
+
+- Scope: new fictional profile, eight narrative frames plus cover, current prose-first Opus author/fresh editor,
+  independent Astra and whole-book continuity. Existing key reuse and new USD12 total approved, including Max.
+- Guy explicitly approved a one-book non-commercial visual audition, not production qualification or public rollout.
+  Do not promote an audition reference to an approved set board or lower the 0.70 identity threshold.
+- First local milestone connects the actual reviewed wizard request to the simple writer and storyboard, preserving
+  old native/public defaults. Explicit worker only, owner/one-use approval/source binding and global paid journal.
+- Local tsc 0, new suite 35/35; focused 764/764 after one central-model-authority correction; all five virtual guard
+  removals caught with intended assertions. First RED focus preserved. Independent Claude QA and full gate next.
+- Then implement and review the bounded reference/illustration/reader phase, and execute one new book through the
+  real wizard. No text hand-edit, parallel writer, API retry after unknown spend, order/payment, push or deployment.
+
 ## Current storyboard spatial continuity technical PASS (2026-10-08)
 
 - Guy's continuation verifies existing world placement/appearance and character continuity, not a new spatial engine.

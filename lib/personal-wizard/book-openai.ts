@@ -56,10 +56,8 @@ export function decodePersonalBookProviderOutput(call: BookVisualCall, raw: unkn
       checks: STORYBOARD_FRAME_CHECKS.map(category => ({ category, ...frame[category] })) })) };
 }
 
-/** Caller must validate request/settings and reserve the entire job before constructing this. */
-export function createPersonalBookProvider(apiKey: string, model: StoryModel): PersonalBookProvider {
-  const client = new OpenAI({ apiKey, maxRetries: 0 });
-  return { story: createPersonalStoryProvider(apiKey, model), editor: createStoryEditorProvider(apiKey, model), visual: { async generate(call, signal) {
+/** Exact existing SDK wire, shared with the explicit local receipt-recording caller. */
+export function personalBookProviderPayload(call: BookVisualCall, model: StoryModel) {
     const schema = personalBookProviderSchema(call);
     const limits = personalBookOutputLimits(call.context.narrativeSpreads);
     const expectedTokens = call.stage === 'storyboard' ? limits.storyboardOutputTokens : limits.reviewOutputTokens;
@@ -68,6 +66,14 @@ export function createPersonalBookProvider(apiKey: string, model: StoryModel): P
       instructions: call.instructions + '\nProvider output: ordered arrays have NO pageNumber; book/continuity start with cover. Review fixed groups have NO category/hash/pageNumber metadata.',
       input: call.input, max_output_tokens: call.maxOutputTokens, text: { format: zodTextFormat(schema, `personal_book_${call.stage}`) } };
     if (Buffer.byteLength(JSON.stringify(payload), 'utf8') > BOOK_LIMITS.inputBytesPerCall) throw new BookProviderError('book_provider_input_limit');
+    return payload;
+}
+
+/** Caller must validate request/settings and reserve the entire job before constructing this. */
+export function createPersonalBookProvider(apiKey: string, model: StoryModel): PersonalBookProvider {
+  const client = new OpenAI({ apiKey, maxRetries: 0 });
+  return { story: createPersonalStoryProvider(apiKey, model), editor: createStoryEditorProvider(apiKey, model), visual: { async generate(call, signal) {
+    const payload = personalBookProviderPayload(call, model);
     const response = await client.responses.create(payload, { signal, timeout: generationTimeoutMs(call.maxOutputTokens) });
     const usage = response.usage ? { inputTokens: response.usage.input_tokens, outputTokens: response.usage.output_tokens } : null;
     try {

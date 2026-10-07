@@ -1,5 +1,33 @@
 # SmallHeroes — Current Technical State
 
+## Simple wizard book connection for one approved audition (2026-10-08)
+
+Guy approved a new fictional eight-page book plus cover via the actual wizard/engine, existing OpenAI key,
+and a fresh USD12 total including separately reported Claude Max estimates. He additionally explicitly approved
+one non-commercial visual audition without production approval. This is not a new G7/Set Identity Board grant
+or a customer/public rollout. Codex remains sole writer in `codex/simple-story-voice-20261007`, from `a4bfeb2a`.
+
+- The old native wizard still invokes the causal calibration text-only worker. Add a separate default-off,
+  loopback/operator-only simple-book queue/display and explicit worker using the current simple engine.
+- Exactly two real Opus sessions, source/appearance/receipt admission, final-only Astra then separate comparison,
+  existing whole-book planning/review with intact 32k/39k caps and all nine current-source frame packets.
+- One USD12 journal binds engineering receipts plus model claims/wires before dispatch. Unknown cost/termination,
+  failed or oversized slot, changed source/config/request and cancellation stop without automatic retry.
+- This first connection milestone ends at `references_required`, never completed/production qualified. Zero image
+  calls in this code; reference/render/reader work is the next bounded phase under Guy's explicit audition exception.
+- Local type-check exits 0. New provider-free suite passes 35/35 including actual native worker with fake SDK,
+  original CJS/tsx/shim bootstrap, API/owner/one-use queue and journal. Corrected focus passes 764/764 in 18 files.
+  The first focus found one new unauthorized duplicate model literal; replacing it with existing `CAUSAL_MODELS`
+  fixed it without widening the model policy. That initial RED evidence is preserved.
+- Five virtual guard removals each fail their intended new assertions; 35-case control passes. No production file
+  is mutated. Inventory 422/402/20, up by one ordinary spec, with no resource/timeout policy change.
+- Six protected trees unchanged; no old evidence, canon, public path, payment or customer release changed.
+  No book generation/key read by this implementation yet. Claude read-only design consultation used $0.3229724
+  reported Max estimate, not API invoice; it counts toward the new USD12 approval. Independent technical QA next.
+- Decision: `docs/ai-workflow/PERSONAL_SIMPLE_WIZARD_BOOK_20261008.md`. Evidence is beside chat reports in
+  `overnight-book-evidence-20261008/`. Full gate remains previously RED until the new complete run reports;
+  no new stability, literary, visual, product or release PASS is awarded here.
+
 ## Spatial continuity coverage independently passed (2026-10-08)
 
 Guy asked to preserve placement and recognizable places, props and all characters across frames. Repository

@@ -30,5 +30,6 @@ export default function PersonalWizardPage() {
   if (!isDevEnvironment() || !isPersonalWizardPreviewEnabled()) notFound();
   const { companions, topics, voices, lengths } = resolvePersonalWizardOptions();
   return <PersonalWizard options={{ companions, topics, voices, lengths }}
-    nativeBookPreview={process.env.PERSONAL_WIZARD_NATIVE_BOOK_RUNNER === 'true'} />;
+    nativeBookPreview={process.env.PERSONAL_WIZARD_NATIVE_BOOK_RUNNER === 'true'}
+    simpleBookPreview={process.env.PERSONAL_WIZARD_SIMPLE_BOOK_RUNNER === 'true'} />;
 }
