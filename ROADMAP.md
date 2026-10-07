@@ -1,5 +1,16 @@
 # SmallHeroes — Roadmap
 
+## Corrective ranges ready for Claude and simple source adapter next (2026-10-07)
+
+- Frozen code: `2b4035d8..119ac518` literary/physical authority correction; `119ac518..dad37132` storyboard visual source
+  binding. Both await independent review. No technical or product PASS is self-awarded.
+- Exact clean-commit checks: 275/275 at `119ac518`, 441/441 at `dad37132`; tracked bytes unchanged during their full gates.
+  Full gate remains RED with the 10 known ordinary failures, the base-reproduced Windows probe and three RPC errors.
+- Next: an explicit simple final-source adapter into reused full-book continuity/qualification, with a compatible source
+  and fixed visual references. No archive bypass, fake receipt, return to the old writing pipeline or customer rollout.
+- Then price one bounded diagnostic and small LOW sample, including necessary references/boards. Guy approved progress
+  conditionally, not an unbounded batch, changed canon, lowered gate or production launch. No generation has occurred yet.
+
 ## Storyboard visual declaration binding before the pilot (2026-10-07)
 
 - Corrected a reproduced diagnostic gap: visual description/state now participates in source identity and reaches planner,

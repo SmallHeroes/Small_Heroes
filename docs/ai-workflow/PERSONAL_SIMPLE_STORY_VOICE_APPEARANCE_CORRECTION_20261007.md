@@ -24,6 +24,8 @@ Actual author/editor packets contain the restored guards, the physical-only auth
 
 Pre-commit validation: tsc exits 0; six focused specs pass 275/275, including 86 simple-engine tests. The existing age and all-ID packet cases now pin the corrected guidance, and one new test preserves the raw legacy motif as evidence while excluding it from literary authority. Seven virtual breakages are caught by those targeted checks, control 86/86. No source mutation or provider dispatch. The committed full gate is pending; the former gate remains RED.
 
+Committed evidence at clean `119ac518df1738fe1385ba83573f5a8965d33061`: focused 275/275; full check exit 1 with ordinary 6573 pass, ten inherited failures and 73 skips, resource 634 pass, the base-reproduced Windows process-probe failure and three unhandled RPC errors. Both receipts include the clean HEAD/tree, operator hash and all 3370 tracked file hashes unchanged at start/end. External fixtures/dependencies are outside that inventory. Earlier pre-commit receipts remain unchanged and retain their limitation. Independent re-gate remains pending, not a PASS.
+
 ## Storyboard boundary and stop check
 
 The request authorizes progress toward storyboard and render, not removal of editorial, source, continuity, visual-contract or release safeguards. Investigate their actual consumers separately; do not mix a bridge migration into this correction. The saved green-Dini prose remains unchanged and incompatible with her declared appearance. No paid pilot uses it as if fixed.

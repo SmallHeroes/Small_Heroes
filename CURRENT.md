@@ -1,5 +1,28 @@
 # SmallHeroes — Current Technical State
 
+## Voice and storyboard corrective code frozen for independent review (2026-10-07)
+
+Code commits are `119ac518` (V1/A1/A2 correction) and `dad37132` (visual source binding), on
+`codex/simple-story-voice-20261007`. This closeout changes documentation only. No independent PASS is claimed.
+
+- At clean `119ac518`: tsc 0; committed focused 275/275; seven virtual mutants caught. Full check exit 1, ordinary
+  6573 pass / 10 inherited fail / 73 skip; resource 634 pass / one base-reproduced Windows probe fail / three RPC errors.
+  All 3370 tracked file hashes stayed identical before/after both committed runs.
+- At clean `dad37132`: tsc 0; committed focused 441/441 across eight specs; five virtual mutants caught, 74/74 control.
+  Full check exit 1, ordinary 6576 pass / the same 10 fail / 73 skip; resource 634 pass / same probe fail / three RPC errors.
+  All 3371 tracked file hashes stayed identical before/after. No new failing assertion is in the changed code/specs.
+- These are completed host runs with known termination, not killed background tasks. Full gate remains RED and the
+  process-probe cause remains unestablished. Earlier pre-commit evidence was not rewritten or retroactively strengthened.
+- Six protected worktrees remain clean at their expected HEADs. No character, asset, schema, price, stage, threshold,
+  provider, current-editor gate, production route or renderer changed. All 15 diagnostic text identities stay available.
+- No new story or storyboard was generated, and no image/render/key/provider/push/merge/deployment occurred. Current
+  wizard still uses the earlier writer/book runner, not the simple engine. The remaining work is an explicit reviewed
+  simple-final-source adapter, compatible source, qualified visual references/boards and a bounded small LOW sample.
+- Guy approves that direction conditionally. Fresh paid execution still needs a priced bounded allowance; older trials
+  are closed. The green-Dini manuscript is not hand-fixed or promoted. See the next-step plan in this chat's artifacts.
+- Next: Claude independently re-gates the corrective ranges and docs closeout; then build the scoped source adapter.
+  Instruction/binding tests are not evidence of better literature, correct pixels or production readiness.
+
 ## Storyboard visual source binding corrected locally pending independent QA (2026-10-07)
 
 Codex is sole writer in this chat on `codex/simple-story-voice-20261007`, from `119ac518`. Guy's current request approves
@@ -12,7 +35,8 @@ progress toward storyboard and a bounded render while preserving continuity. No 
   Local tsc exits 0; targeted engine/book-runner/storyboard/sequence tests pass 323/323. Five virtual mutants are caught,
   control 74/74. No code or tests removed; no current-editor/continuity/render gate relaxed.
 - Next: focused code commit, clean-commit hashed full gate and independent Claude review of this separate range. These
-  checks do not prove pixel consistency or qualify assets. Simple results still lack current-editor admission.
+  checks do not prove pixel consistency or qualify assets. Simple results still lack current-editor admission. The committed
+  gate has completed at `dad37132`; see the latest entry for its RED outcome.
 - Old artifacts remain unchanged; old digests/reviews are not silently re-bound to new visual authority. Registry, assets,
   profiles, compiler/state schemas, thresholds, financial policy, production writer, route and renderer are unchanged.
 - HOLD correction `119ac518` has tsc 0, committed focused 275/275, seven virtual mutants caught. Its full gate ran at clean

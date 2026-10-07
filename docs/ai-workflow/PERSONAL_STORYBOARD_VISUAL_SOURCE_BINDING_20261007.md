@@ -25,3 +25,5 @@ The major-action stop applies to source/identity binding. The user's current req
 ## Local validation before commit
 
 tsc exits 0; four targeted specs pass 323/323 (storyboard 74, book runner 130, simple engine 86, sequence 33). Three tests were added, none removed. Five virtual breakages fail, control 74/74: missing hash input, missing nested state, shared mutable state, missing reviewer input and missing physical-only instruction. No provider dispatch or source mutation. A clean committed full gate is next; the prior correction's full gate remains RED and is not claimed for this successor.
+
+At clean `dad371325ef970f13173fa664f8151d4409ee1f3`, committed focused validation passes 441/441 across eight specs. The canonical full check exits 1: ordinary 6576 pass, the same ten missing-artifact failures and 73 skips; resource 634 pass, the same base-reproduced Windows process-probe failure and three RPC errors. All 3371 tracked file hashes, HEAD and operator hash are unchanged before/after both runs. The gate is RED; no new changed assertion fails and no independent PASS is claimed. The subsequent closeout changes only documentation, not the tested code.
