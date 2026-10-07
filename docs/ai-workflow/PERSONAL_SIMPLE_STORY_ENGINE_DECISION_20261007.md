@@ -7,6 +7,15 @@ task; Codex reviews; Guy gives product acceptance). Branch
 `C:/GNart/Work/sh-qa-cite-8935beb0`. Local only: no push, deployment, images,
 rendering or change to existing evidence.
 
+> **Corrected after Codex QA (HOLD, 2026-10-07).** See
+> `PERSONAL_SIMPLE_STORY_ENGINE_REGATE_20261007.md`. In short:
+> - The dash normaliser is removed: nothing in the engine rewrites text.
+> - Storyboard compatibility is generic-contract and archive only. The current
+>   storyboard admission rejects these results (`current_edit_required`), so
+>   current-flow integration is a separate owner decision.
+> - The diagnosis below is narrowed: what is observed, what is an engine
+>   feature, and what is hypothesis.
+
 ## 1. Proposed change
 
 Add a second, much simpler personal story engine next to the existing ones,
@@ -32,13 +41,25 @@ without changing any default path:
    also receives the deterministic findings from the draft as plain-language
    notes, keeps the page count, and returns the full story, an updated map and
    its changes.
-5. **Checks and compile.** Typographic dash normalisation, counted and
-   recorded. Hard checks: page count, map count, dashes, picture directions,
-   excluded subjects (the same exact-phrase guard as the current writer),
-   child and companion names on at least 2 pages, moment pages, approved fact
-   IDs, and one mapped interest (a downstream storyboard requirement). Soft
-   checks: words per page and niqqud. The result compiles into the existing
-   `personalStoryResultSchema`; the storyboard accepts it unchanged.
+5. **Checks and compile.**
+   - **No deterministic rewriting.** The manuscript is the editor's text,
+     trimmed by the existing contract.
+   - **Hard checks:**
+     - page count and map count;
+     - dashes outside approved names, reported with snippets;
+     - picture directions;
+     - excluded subjects (the same exact-phrase guard as the current writer);
+     - child and companion names on at least 2 pages (approved names match in
+       any dash form, never with a space);
+     - moment pages;
+     - approved fact IDs;
+     - one mapped interest (a downstream storyboard requirement).
+   - **Soft checks:** words per page, niqqud and assumed parents.
+   - **Compile:** the result compiles into the existing generic
+     `personalStoryResultSchema`, and the archive storyboard
+     (`preparePersonalStoryboard`) reads it. The current storyboard
+     (`prepareCurrentPersonalStoryboard`) requires a current semantic-edit
+     receipt that this engine does not produce, so it rejects these results.
 
 No retries, no fallback to the draft, no Astra reader in the loop.
 
@@ -47,22 +68,33 @@ No retries, no fallback to the draft, no Astra reader in the loop.
 Diagnosis from the real inputs (premise six, plan comparison and the trial
 books):
 
-- **Proven:** structural convergence across profiles. Interest as the
-  mechanism, difficulty as the climax obstacle and a discovered rule or clue
-  show up in 12/12 Bar ideas, 4/4 blind outlines, Ido/Bar/Tamar/Neta/Roni.
-  Surface attractor: a lost cloud or creature reunited with its family.
-- **Engine facts that encode that template:**
-  - candidate slots (`discovery`, `childContribution`, `personalFactUses`
-    requiring an interest);
-  - validators that fail without a load-bearing interest;
-  - resilience moments that must change events;
-  - craft rules ("establish rule before using it", "clue", "deadline",
-    "prepared ability");
+- **Observed:** a convergence pattern across the saved profiles. This is
+  Claude's reading, not an independent count. The interest often works as the
+  mechanism, the difficulty as the climax obstacle, and a discovered rule or
+  clue drives the plot. It shows up across Bar ideas and outlines and in
+  Ido/Bar/Tamar/Neta/Roni. Surface attractor: a lost cloud or creature
+  reunited with its family. Codex agrees there is a convergence concern, but
+  not that all old ideas were identical or puzzle-based.
+- **Engine features that can push toward it (pressure, not proven
+  mandatory):**
+  - candidate slots (`discovery`, `childContribution`, `personalFactUses`);
+  - the selected-plan validator requires an approved interest ID to be mapped.
+    That is coverage; it does not require the interest to be a magic key or to
+    solve the climax. Some prompt wording asks an interest to influence an
+    action.
+  - chosen-topic instructions ask the topic to affect events;
+  - the shared narrative-craft text includes rule, clue and condition guidance.
+    The active causal craft instructions make failed attempts optional and
+    deadlines and mechanisms conditional, and allow relationship-led
+    adventures.
   - a 13K-character, negation-heavy plan prompt on two-fact briefs.
-- **Hypothesis:** selecting better among template candidates cannot fix a
-  generator that only produces template candidates. The Astra rubric (interest,
-  causality, agency, reciprocity, consistency) rewards puzzle structure and
-  does not measure fun.
+- **Hypotheses, untested:**
+  - Selecting among candidates cannot fix a generator that tends to produce
+    template candidates.
+  - The Astra rubric (interest, causality, agency, reciprocity, consistency)
+    rewards puzzle structure and does not measure fun. Independent runs
+    without an Astra reader had already converged, so the reader is not shown
+    to be a cause.
 - **Literary preference (Claude's, labelled as such):** strong picture books
   are driven by a simple want, comic escalation, refrains and warmth, not rule
   puzzles.
@@ -93,26 +125,39 @@ No existing file changes.
 ## 6. Expected behaviour
 
 Given a reviewed request, the engine returns a manuscript in the existing
-contract. The book is funny and clear, the child drives the big moment, the
-companion is a partner, and an honest theme moment changes the story. Different
-seeds give structurally different books for the same child.
+generic contract. The book is funny and clear, the child drives the big
+moment, the companion is a partner, and an honest theme moment changes the
+story.
+
+Different spines give structurally different books. The same accepted
+request and seed always get the same spine, and the default seed is empty. In
+the trials, the same child with the same spine gave a similar book. Variety
+across a family's orders therefore depends on a caller seed policy, which the
+integration must define and persist. It is not guaranteed by this engine.
 
 ## 7. Validation
 
-- Unit tests (30) for:
-  - spine determinism and variety;
+- Unit tests (43 after the QA corrections) for:
+  - spine determinism, variety and spines without example lists;
   - prose-first exact page schema with no candidate or gate slots;
-  - instruction size;
+  - instruction size and the explicit name exception;
   - output caps above measured use;
   - acceptance parity with the current writer;
   - text-only options for all 15 companions;
-  - the dash normaliser, including all dash forms;
+  - every dash form reported, never rewritten, and meaning-bearing signs
+    held;
+  - approved hyphenated names through the write boundary;
   - name variants (unpointed, plene, prefixed);
-  - hard and soft checks, including assumed parents and pointed sound words;
+  - each hard check one clause at a time, plus the soft checks;
   - exactly two calls and the editor findings;
   - no third call or fallback;
   - the coded compile failure;
-  - storyboard compatibility.
+  - generic contract and archive storyboard, with the current storyboard
+    rejection pinned;
+  - the runner boundary: uncertain termination at concurrency one and two, a
+    sibling finishing after the stop, contained failures, the budget stop,
+    and CLI exit codes.
+- Mutation check of the corrected guards: 29/29 caught (see the re-gate doc).
 - Live text-only trials with fictional profiles only, read critically by Claude
   and then by Guy. See the closeout for results and cost.
 

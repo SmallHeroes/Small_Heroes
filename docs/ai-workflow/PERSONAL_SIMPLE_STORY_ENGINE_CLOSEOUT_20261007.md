@@ -18,6 +18,16 @@ Profiles are fictional (`*Source: 'fixture'`). No images, audio, push or
 deployment. Costs are CLI-reported list-price estimates (Claude Max
 list-equivalent), not invoices.
 
+> **Corrected after Codex QA (HOLD, 2026-10-07).** See
+> `PERSONAL_SIMPLE_STORY_ENGINE_REGATE_20261007.md`.
+> - Compatibility below is generic-contract and archive only. The current
+>   storyboard admission rejects these results (0/26, `current_edit_required`).
+> - The dash normaliser recorded zero changes in every stage of all 26 books
+>   and has since been removed.
+> - Literary judgements here are Claude's own reading, not an independent or
+>   blind evaluation. The 26 books span four prompt versions, and only the
+>   three round-4 books use the final spines.
+
 ## Round 1: first prompt version, before any commit
 
 This version is preserved verbatim in `run-r1/*/author-instructions.txt` and
@@ -84,8 +94,10 @@ This is literary judgement, not product acceptance.
   - a payoff that was never set up (now planted on page 1);
   - an explanatory feelings sentence (replaced by a concrete half-smile).
 
-  It also strengthened callbacks. This is why the Astra reader is not needed
-  in the loop for quality.
+  It also strengthened callbacks. This is the implementer's own reading. It
+  makes the two-call route worth testing; it does not show that the Astra
+  reader is unnecessary for quality. That stays an owner decision after a
+  calibrated evaluation.
 
 **Defects found and fixed for round 2** (prompt and hygiene only, general and
 not story-specific):
@@ -195,13 +207,18 @@ No failure condition was met:
 
 These checks run from the checkout root (see the QA brief's reproduction trap):
 
-- `personalStoryResultSchema`: 19/19.
-- Existing editor `prepareStoryEdit`: 19/19.
-- `preparePersonalStoryboard`: 10/10 for books whose companion is offered in
-  the wizard. The 9 books with the newer companions fail with
+- `personalStoryResultSchema` (the generic contract): 19/19.
+- Existing editor `prepareStoryEdit` input preparation: 19/19. This builds an
+  editor input; it does not prove a completed current edit.
+- Archive `preparePersonalStoryboard`: 10/10 for books whose companion is
+  offered in the wizard. The 9 books with the newer companions fail with
   `companion_unavailable`, because the legacy visual registry has no entry for
   them. This is pre-existing, and it blocks images for those companions, not
   text.
+- Current `prepareCurrentPersonalStoryboard` (corrected after QA): 0/19. It
+  requires a current semantic-edit receipt, which this engine does not
+  produce. The current flow cannot consume these results without a new,
+  separately reviewed admission design; no gate bypass is proposed.
 
 ### Found after round 2 and fixed in code
 
@@ -211,8 +228,10 @@ editor emitted U+2011, a non-breaking hyphen, in its notes), U+2212, the soft
 hyphen and full-width forms. No final text contains any of them; scanned
 across all 19.
 
-- **In this engine:** the class is widened in both the normaliser and the
-  check, and pinned by tests.
+- **In this engine:** the class is widened in the check and pinned by tests.
+  The normaliser was later removed after QA (F4): it would have rewritten
+  minus signs and numeric ranges. Dashes now go back to the editor as quoted
+  findings, or hold the book.
 - **In the current writer:** reported to Codex, not changed here.
 
 ### Found in round 3 and fixed in `eea87d28`: spine examples become plots
@@ -278,17 +297,22 @@ USD 1.363.
   a similar macro structure (a contest, Dini wanting to win, noise from the
   judge's instrument).
 
-**Conclusion.** Removing the examples fixes example copying. Same child plus
-same spine still gives a similar book. That happens about once in 14 when two
-books are drawn for one child; avoiding a child's previous spines needs order
-history and is an integration item.
+**Conclusion.** Removing the examples fixed example copying in these three
+re-runs. Same child plus same spine still gives a similar book. The same
+accepted request and seed always get the same spine, and the default seed is
+empty, so repeat odds depend entirely on the caller's seed policy. No "1 in
+14" guarantee exists without a defined, persisted seed per order.
+
+Avoiding a child's previous spines would additionally need order history. Both
+are integration decisions.
 
 ### Night totals
 
 - 26/26 books, 0 hard failures, **USD 14.082** (CLI list-price estimate).
-- Result contract 26/26; existing editor preparation 26/26; storyboard 15/15
-  for offered companions. The 11 books with the newer companions stop at the
-  known visual-registry gap.
+- Generic result contract 26/26; existing editor input preparation 26/26;
+  archive storyboard 15/15 for offered companions (the 11 books with the newer
+  companions stop at the known visual-registry gap). Current storyboard
+  admission 0/26, which Codex also measured independently.
 - Hygiene across rounds 2 to 4: 0/18 books with the stock tummy phrase, 0/18
   with assumed parents, 0/26 with dashes, and no excluded subject in any final
   text.
@@ -301,9 +325,9 @@ history and is an integration item.
   comes from that spine.
 - **Pointed sound words** now appear in every round-2 book. Check that the
   reader and TTS show and pronounce them well, and that Guy likes the look.
-- **Spines are drawn uniformly,** so a family ordering several books can get a
-  repeat. A later option is to avoid a child's previous spines, which needs
-  history.
+- **Spine choice is deterministic** from the request and seed. Repeats across
+  a family's orders depend on the caller's seed policy (see the conclusion
+  above).
 - **Time per book** is 2.4 to 5.3 minutes (author plus editor, sequential).
 - **Cost figures** are CLI list-price estimates. Actual subscription billing
   may differ.
@@ -312,10 +336,10 @@ history and is an integration item.
 
 1. **Patch the causal pipeline** (plan, replan, author, editor, Astra
    readers): remove the candidate slots and the rule and clue craft text, and
-   keep the stages. Rejected as the first move. The template lives in the plan
-   schema, the validators and the reader rubric together, so patching one
-   leaves the others pulling the same way. It costs about 3 to 5 times more per
-   book and is much harder to reason about.
+   keep the stages. Not chosen as the first move. The pressures sit in several
+   places at once (plan slots, interest coverage, craft text, reader rubric),
+   and the pipeline has more stages to reason about and to pay for. This is a
+   judgement; no matched comparison isolated which part causes convergence.
 2. **Simple engine (built):** an author and a fresh editor on a seed-picked
    spine, prose first.
 3. **Much simpler: author only, no editor.** Cheapest, about half the cost.
@@ -330,23 +354,34 @@ history and is an integration item.
 
 ## Recommendation
 
-- **Change:** make the simple engine the personal-wizard text engine, behind a
-  flag, after Codex's technical PASS and Guy's product acceptance.
-- **Remove from the personal text path:**
-  - adventure candidate selection and outline checks;
-  - synopsis review and repair;
-  - the Astra reader in the generation loop;
-  - interest-must-drive and rule/clue requirements.
+Narrowed after QA.
+
+- **Next:** a matched, blind comparison before any path decision. Use the same
+  profiles and output level for the current engine and this one, including
+  repeated requests and seeds. Score these separately:
+  - narrative enjoyment;
+  - causality;
+  - child agency;
+  - reciprocal partnership;
+  - coherence;
+  - diversity.
+
+  Keep drafts and edits so the author and editor contributions can be judged
+  apart. Calibrate any model judge against human readings.
+- **Proposed if that comparison favours it:** make the simple engine the
+  personal-wizard text engine behind a flag. This requires a new
+  current-admission design (see the compatibility section), Codex's technical
+  PASS and Guy's product acceptance.
+- **Owner decisions, not technical conclusions:** whether to drop candidate
+  selection, synopsis repair and the Astra reader from a customer path.
 - **Keep:**
   - request acceptance and identity;
   - companion canon v4 (all 15);
-  - the result, storyboard and editor contracts;
+  - the generic result contract;
   - the fresh-session editor;
   - the hygiene checks;
   - the pinned-CLI transport and the receipts.
-- **Optional later:** a blind "fun reader" used only as an evaluation tool,
-  never as a gate. It would record laugh points, confusion points and age fit
-  across a fixed profile set, to compare engine versions.
+- **Do not** add more plot bans just to force numerical variety.
 
 ## Integration plan (not implemented)
 
@@ -359,10 +394,31 @@ ceiling). A small change would add an explicit `--engine simple` that:
    `scripts/personal-simple-story.ts`;
 3. publishes `NativeBookView` updates for writing, editing, complete and
    failed;
-4. stores the result in the existing contract, which the storyboard already
-   accepts.
+4. stores the result in the existing generic contract.
 
-The expected ceiling is about USD 1.5 per book instead of 12.
+The archive storyboard reads it, but the current storyboard admission does
+not. A new current-admission design is required first; it needs its own owner
+decision and review, and must not bypass or fake the semantic-edit receipt.
+
+**Cost, corrected.** Reservation ceilings at the current output caps and the
+maximum wire size, for author plus editor, are:
+
+| Pages | Reservation ceiling per book |
+|---|---|
+| 8 | USD 2.15 |
+| 12 | USD 2.41 |
+| 16 | USD 2.68 |
+
+The actual CLI-reported estimates in the trials were lower:
+
+| Pages | Trial estimate per book |
+|---|---|
+| 8 | USD 0.37–0.73 |
+| 12 | USD 0.56–1.03 |
+| 16 | USD 0.66–1.16 |
+
+Neither is an invoice guarantee. The earlier "about USD 1.5 ceiling" was
+wrong for 16-page books, which need USD 1.76 for output alone.
 
 This changes the production generation flow, so it needs Guy's go, a Decision
 Gate update and Codex QA first.

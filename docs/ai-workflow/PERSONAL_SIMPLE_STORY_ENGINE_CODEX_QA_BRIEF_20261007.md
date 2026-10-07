@@ -1,5 +1,10 @@
 # Codex QA brief: simple story engine
 
+> **Superseded for the re-gate.** Codex returned HOLD on
+> `fe196139..ebd6cb03`. The corrections and the re-gate brief are in
+> `PERSONAL_SIMPLE_STORY_ENGINE_REGATE_20261007.md`. This first-round brief is
+> kept as history; its "storyboard compatibility" means the archive path only.
+
 Date: 2026-10-07. Implementer: Claude Code (Guy assigned diagnosis, planning
 and execution of the story-engine fix). Reviewer: Codex. Product acceptance:
 Guy.
