@@ -1,5 +1,49 @@
 # M10 Decision Gate - approved reference transport correction
 
+## M11 narrow Decision Gate - explicit accumulatedUSD20 (2026-10-08)
+
+Guy explicitly answered: 'מאשר עד $20 מצטברים לאותו ספר'. This supersedes
+the16m spending stop below, NOT any quality or production boundary. Sole writer
+continues in the same task/voice-followup branch from17ae937c. Goal: finish the
+same existing wizard book, eight narrative illustrations plus cover; no rewrite.
+
+1. Change: optional hashed20m grant in existing privatev3 transport continuation.
+2. Cause: known accumulated15714738micro leaves285262under16m, less than the
+   existing600000pixel reservation. Previous Claude delivered an assessment but
+   exited1/error_max_budget_usd: still NOT completed PASS. No lost costs/fallback.
+3. Scope: private diagnostic financial binding only; same fresh one-use sibling.
+4. No story-specific content fix or new lineage framework. No public default.
+5. Files: recovery admission, view schema, existing flow tests, canonical docs.
+6. Expected: original14and16grants remain bound, previous failed current-session
+   cost retained once in a successful resumed cumulative receipt.20requires exact
+   same-book grant + known-before amount + ended failed receipt; no blind reset.
+7. Validation: two new fixture tests (nine mocked frames and13tampered grants),
+   request transport regressions, literaltsc, focused suite, local commit, narrow
+   read-only Claude re-gate of actual newHEAD. Live renderer only after validQA.
+8. Spend: at most accumulated20m, including ALL earlier Max list/API estimates.
+   Remaining before newQA4285262micro. Resume prior native engineering session;
+   per-launch CLI limit is soft and excludes restored prior totals. Track both.
+9. Rollback: leave new grant unused/revert focused code; never erase sealed runs.
+10. Review: Claude falsifies omitted/double-counted failed fee, successful verdict
+    from failed process, wrong request/cap/scope/session or rebound grant accepted.
+    Existing M10 source review is historical only; new terminal success required.
+11. Forbidden: key/provider before claim, new author/editor/storyboard, manual
+    pixels/text, gate weakening, public/production qualification, push/deployment.
+
+Stop-check: touches private allowance/view, not image prompt/actors/production.
+Spending and full-book scope have explicit owner approval. Smallest offline
+proof above; same child/entity/location/frame QA remains unchanged. Guy should
+eyeball the actual finished trial, not accept mocked completion as a book.
+Local implementation verified: literaltsc0, focused451/451 across six suites,
+two additions/no removal;13tampered grants rejected before key/claim. Initial
+fixture typing and meter-cap omissions were caught/fixed and logs preserved.
+Virtual in-memory removal of cumulative-fee guard produces one intended failed
+rejection assertion, no loader/timeout; production untouched. Focused commit
+and independent native re-gate still pending.
+No live book claim, key or render has occurred in M11 at this entry.
+
+---
+
 Guy answered 'יש אישור' on2026-10-08 to the exact transport-fix/ClaudeQA/same-book continuation question. Same accumulated16m; no additional allowance.
 Implementation begins in current sole Codex task/branch from08a51c91. New mode uses typed per-image roles, never free-form positional inference.
 

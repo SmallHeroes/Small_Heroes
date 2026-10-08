@@ -1,5 +1,26 @@
 # SmallHeroes — Current Technical State
 
+## M11 explicit accumulatedUSD20; narrow implementation active (2026-10-08)
+
+Guy explicitly approves20m accumulated for SAME existing wizard book, eight
+narrative pages plus cover. Continues sole Codex writer in voice-followup from
+17ae937c. Previous15714738micro retained;4285262left before newQA; unknown0.
+Optional hashed20m grant binds original16ceiling, ended M9config, actual failed
+M10receipt and known-before amount. Successful resumed current-session receipt
+must include previous known failed cost cumulatively ONCE; failure is not PASS.
+20view permitted only private reference_transport_continuation. Old scopes and
+budgets unchanged. No new author/editor/storyboard, canon, gate or public path.
+Literal npx tsc --noEmit0; six focused local suites451/451, two new tests and no
+removal. Nine mocked gated frames/private serving and13rehashed invalid grants
+verified. Initial tsc found a fixture-only wrong parent property; corrected.
+Initial new test caught omitted20m meter allow-list; fixed, default12unchanged.
+These first failures remain in ART logs, not concealed. Virtual in-memory
+removal of the cumulative-fee guard causes exactly the new rejection test to
+fail by accepting the downgraded fee; no loader/timeout. Production untouched.
+Focused commit, native narrow re-gate then same-book live render pending.
+Full repository gate remains RED as recorded below, not newly certified green.
+Previous16m stop is historical, superseded by direct owner20approval only.
+
 ## M10 source review delivery failed;16m stops paid continuation (2026-10-08)
 
 Code milestone:c72ece29e46994b032cdf998227408a6a84a057c, clean before fresh

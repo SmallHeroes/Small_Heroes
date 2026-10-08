@@ -1,5 +1,18 @@
 # SmallHeroes — Roadmap
 
+## M11 explicitly approved20m same-book continuation (2026-10-08)
+
+- Direct Guy approval accumulatedUSD20, same existing8narrative images+cover;
+  all prior failed/list/API costs retained. Supersedes16m stop, not visual gates.
+- Optional grant in existing privatev3; failed currentQA fee retained once in
+  successful same-session cumulative receipt. Old14/16grants and seals unchanged.
+- Literaltsc0; six focused suites451/451; two new tests/no removal. Virtual guard
+  mutation and focused local commit, then narrow independent Claude re-gate.
+- Once validQA exists: original unclaimed transport sibling, actual existing
+  renderer only; no new text/plan/manual pixels. Complete reader still absent.
+- Full repo remains RED from previous recorded inherited failures; no fresh
+  full-green/product/production claim. No push, merge or deployment.
+
 ## M10 paid book blocked by failed review delivery and remaining allowance (2026-10-08)
 
 - c72ece29local scope green; complete independent assessment found no blocker,

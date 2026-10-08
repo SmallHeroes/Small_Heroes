@@ -13,7 +13,7 @@ import { personalStoryboardFixture } from './personal-storyboard-fixture';
 import { resolvePersonalWizardOptions } from '../options';
 import { prepareSimpleStory, writeSimpleStory, type SimpleStoryDraft, type SimpleStoryCall } from '../simple-story-engine';
 import { runSimpleWizardBook } from '../simple-book-flow';
-import { emptySimpleBookView, readSimpleBookView, newerSimpleBookView } from '../simple-book-view';
+import { emptySimpleBookView, readSimpleBookView, newerSimpleBookView, simpleBookViewSchema } from '../simple-book-view';
 import { SimpleBookBudget, simpleBookExternalCosts } from '../simple-book-budget';
 import { enqueueSimpleBook, simpleBookQueueDirectory, claimSimpleBookWorker, simpleBookConfig, type SimpleBookConfig } from '../simple-book-bridge';
 import * as frozen from '../../../scripts/personal-source-git';
@@ -956,6 +956,75 @@ describe('explicit same-book continuation, no provider in fixtures', () => {
     expect(existsSync(path.join(dir, 'paid-stages/reference_child.claim.json'))).toBe(false);
     await expect(prepareSimpleBookReferenceRecovery(x.recoveryFile).then(r => r.claim())).rejects.toThrow();
   }, 180000);
+  async function transportTwentyFixture() {
+    const x = await transportContinuationFixture(), technicalFile = x.data.technicalReviewReceipt.file;
+    const t = JSON.parse(readFileSync(technicalFile, 'utf8'));
+    const failedFile = path.join(root, 'SYNTHETIC-transport-budget-error.json');
+    writeFileSync(failedFile, JSON.stringify({ ...t, code: 1, isError: true, resultSubtype: 'error_max_budget_usd',
+      qaVerdict: null, sourceBundleUnchanged: true }));
+    writeFileSync(technicalFile, JSON.stringify({ ...t, reportedCostUsd: .008,
+      previousCumulativeReportedCostUsd: .005, includesPreviousKnownFailedCalls: true,
+      costKind: 'cumulative_same_cli_session_list_estimate_not_invoice' }));
+    const g = { version: 'local-simple-book-transport-allowance/v1', requestId: x.extension.requestId,
+      priorCeilingExtensionSha256: x.data.ceilingExtension.sha256, endedTransportConfigSha256: x.data.transportContinuation.config.sha256,
+      previousMaximumMicroUsd: 16000000, maximumMicroUsd: 20000000,
+      knownBeforeAdditionalReviewMicroUsd: x.priorSeal.snapshot.knownEstimateMicroUsd + 5000, failedReviewReceipt: x.ref(failedFile),
+      ownerApprovalReference: 'SYNTHETIC explicit owner approval accumulatedUSD20 for this same book only.',
+      sameBookOnly: true, publicRelease: false, customerCharge: false, gateChanges: false };
+    const grantFile = path.join(root, 'SYNTHETIC-transport-twenty-grant.json'); writeFileSync(grantFile, JSON.stringify(g));
+    x.data.maximumMicroUsd = 20000000; x.data.transportAllowanceExtension = x.ref(grantFile);
+    x.data.technicalReviewReceipt = x.ref(technicalFile); x.data.extraEngineeringReceipts[4] = x.data.technicalReviewReceipt;
+    writeFileSync(x.recoveryFile, JSON.stringify(x.data));
+    return { ...x, grantFile, twentyGrant: g, transportFailedFile: failedFile };
+  }
+  it('transport twenty counts resumed QA cumulatively once and completes all9 private frames under the explicit same-book grant', async () => {
+    const x = await transportTwentyFixture(), ready = await prepareSimpleBookReferenceRecovery(x.recoveryFile);
+    expect(ready.externalMicroUsd).toBe(x.priorSeal.snapshot.knownEstimateMicroUsd + 8000);
+    expect(ready.extra).toBe(58000); expect(ready.config.maximumMicroUsd).toBe(20000000);
+    expect(await simpleBookReferenceRecoveryCLI(['--config', x.recoveryFile, '--execute'])).toBe(0);
+    const dir = path.join(x.old.directory, 'reference-transport-continuation-20261008');
+    expect(JSON.parse(readFileSync(path.join(dir, 'claim.json'), 'utf8')).transportAllowanceExtension).toEqual(x.ref(x.grantFile));
+    expect(JSON.parse(readFileSync(path.join(dir, 'sealed.json'), 'utf8'))).toMatchObject({ status: 'illustrated_audition',
+      snapshot: { unknownAttemptCosts: 0 } });
+    expect(x.render).toHaveBeenCalledTimes(10); expect(x.fetcher).toHaveBeenCalledTimes(9); expect(x.editor).not.toHaveBeenCalled();
+    expect(await (await GET(req('GET', undefined, `${url}?requestId=${ready.parent.job.queued.requestId}`))).json()).toMatchObject({
+      imageScope: 'reference_transport_continuation', phase: 'illustrated_audition', accounting: { allowanceMicroUsd: 20000000 } });
+    for (const [n, h] of x.priorHashes) expect(sha(readFileSync(path.join(x.priorDir, n)))).toBe(h);
+  }, 180000);
+  it('transport twenty rejects missing, rebound, downgraded or double-counted resumed QA evidence before money and claim', async () => {
+    const x = await transportTwentyFixture(), baseline = readFileSync(x.recoveryFile);
+    const grantBytes = readFileSync(x.grantFile), technicalBytes = readFileSync(x.data.technicalReviewReceipt.file), failedBytes = readFileSync(x.transportFailedFile);
+    const disk = vi.spyOn(journal, 'fencedText'); disk.mockClear();
+    for (const kind of ['missing', 'wrong_scope', 'request', 'prior_ceiling', 'ended_config', 'prior_cost', 'gate',
+      'failed_was_success', 'lost_previous_fee', 'lost_cumulative_flag', 'wrong_session', 'current_failed', 'duplicate_failed_fee']) {
+      const d = JSON.parse(baseline.toString()), g = JSON.parse(grantBytes.toString()), t = JSON.parse(technicalBytes.toString()), f = JSON.parse(failedBytes.toString());
+      if (kind === 'missing') delete d.transportAllowanceExtension;
+      if (kind === 'wrong_scope') d.maximumMicroUsd = 16000000;
+      if (kind === 'request') g.requestId = 'b'.repeat(64);
+      if (kind === 'prior_ceiling') g.priorCeilingExtensionSha256 = 'b'.repeat(64);
+      if (kind === 'ended_config') g.endedTransportConfigSha256 = 'b'.repeat(64);
+      if (kind === 'prior_cost') g.knownBeforeAdditionalReviewMicroUsd--;
+      if (kind === 'gate') g.gateChanges = true;
+      if (kind === 'failed_was_success') { f.code = 0; f.isError = false; f.resultSubtype = 'success'; }
+      if (kind === 'lost_previous_fee') t.reportedCostUsd = .002;
+      if (kind === 'lost_cumulative_flag') t.includesPreviousKnownFailedCalls = false;
+      if (kind === 'wrong_session') t.sessionId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+      if (kind === 'current_failed') { t.code = 1; t.isError = true; t.resultSubtype = 'error_max_budget_usd'; }
+      writeFileSync(x.transportFailedFile, JSON.stringify(f)); g.failedReviewReceipt = x.ref(x.transportFailedFile);
+      writeFileSync(x.grantFile, JSON.stringify(g)); if (kind !== 'missing') d.transportAllowanceExtension = x.ref(x.grantFile);
+      writeFileSync(d.technicalReviewReceipt.file, JSON.stringify(t)); d.technicalReviewReceipt = x.ref(d.technicalReviewReceipt.file); d.extraEngineeringReceipts[4] = d.technicalReviewReceipt;
+      if (kind === 'duplicate_failed_fee') d.extraEngineeringReceipts.push(g.failedReviewReceipt);
+      writeFileSync(x.recoveryFile, JSON.stringify(d));
+      await expect(prepareSimpleBookReferenceRecovery(x.recoveryFile), kind).rejects.toThrow();
+      expect(sdk.create).not.toHaveBeenCalled(); expect(x.render).not.toHaveBeenCalled(); expect(x.editor).not.toHaveBeenCalled();
+      expect(disk.mock.calls.some(([p]) => p === config.existingKeyEnvFile)).toBe(false);
+      expect(existsSync(path.join(x.old.directory, 'reference-transport-continuation-20261008'))).toBe(false);
+    }
+    const v = { ...emptySimpleBookView(x.twentyGrant.requestId), accounting: { ...emptySimpleBookView(x.twentyGrant.requestId).accounting, allowanceMicroUsd: 20000000 } };
+    expect(simpleBookViewSchema.safeParse(v).success).toBe(false);
+    expect(simpleBookViewSchema.safeParse({ ...v, imageScope: 'role_scoped_reference_continuation' }).success).toBe(false);
+    expect(simpleBookViewSchema.safeParse({ ...v, imageScope: 'reference_transport_continuation' }).success).toBe(true);
+  }, 90000);
   it('transport continuation rejects altered outcomes, old charges and mapping evidence before claim, key or dispatch', async () => {
     const x = await transportContinuationFixture(), baseline = readFileSync(x.recoveryFile), terminal = readFileSync(x.terminal);
     const priorConfig = readFileSync(x.priorFile), tech = readFileSync(x.data.technicalReviewReceipt.file);

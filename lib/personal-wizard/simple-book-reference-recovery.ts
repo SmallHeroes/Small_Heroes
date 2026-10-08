@@ -34,7 +34,8 @@ const referenceRecoveryV1 = z.object({ version: z.literal('controlled-simple-ref
 const referenceRecoveryV2 = referenceRecoveryV1.extend({ version: z.literal('controlled-simple-reference-recovery/v2'), maximumMicroUsd: z.literal(14000000), allowanceGrant: file });
 export const referenceRecoveryConfigSchema = z.discriminatedUnion('version', [referenceRecoveryV1,
   referenceRecoveryV2, referenceRecoveryV2.extend({ version: z.literal('controlled-simple-reference-recovery/v3'),
-    maximumMicroUsd: z.union([z.literal(14000000), z.literal(16000000)]), ceilingExtension: file.optional(),
+    maximumMicroUsd: z.union([z.literal(14000000), z.literal(16000000), z.literal(20000000)]), ceilingExtension: file.optional(),
+    transportAllowanceExtension: file.optional(),
     extraEngineeringReceipts: z.array(file).min(3).max(5), checkpoint: z.object({ config: file, terminationReceipt: file,
       artifacts: referenceRecoveryV1.shape.artifacts }).strict(), transportContinuation: z.object({ config: file, terminationReceipt: file,
       artifacts: referenceRecoveryV1.shape.artifacts, knownBeforeCurrentReviewMicroUsd: z.number().int().nonnegative(),
@@ -44,6 +45,13 @@ export const referenceCeilingExtensionSchema = z.object({ version: z.literal('lo
   requestId: hash, priorAllowanceGrantSha256: hash, checkpointConfigSha256: hash,
   previousMaximumMicroUsd: z.literal(14000000), maximumMicroUsd: z.literal(16000000),
   knownBeforeFreshReviewMicroUsd: z.number().int().nonnegative(), failedReviewReceipt: file,
+  ownerApprovalReference: z.string().min(30).max(2000), sameBookOnly: z.literal(true),
+  publicRelease: z.literal(false), customerCharge: z.literal(false), gateChanges: z.literal(false),
+}).strict();
+export const referenceTransportAllowanceExtensionSchema = z.object({ version: z.literal('local-simple-book-transport-allowance/v1'),
+  requestId: hash, priorCeilingExtensionSha256: hash, endedTransportConfigSha256: hash,
+  previousMaximumMicroUsd: z.literal(16000000), maximumMicroUsd: z.literal(20000000),
+  knownBeforeAdditionalReviewMicroUsd: z.number().int().nonnegative(), failedReviewReceipt: file,
   ownerApprovalReference: z.string().min(30).max(2000), sameBookOnly: z.literal(true),
   publicRelease: z.literal(false), customerCharge: z.literal(false), gateChanges: z.literal(false),
 }).strict();
@@ -83,7 +91,7 @@ export async function prepareSimpleBookReferenceRecovery(configFile: string) {
   const checkCeilingExtension = () => {
     if (config.version !== 'controlled-simple-reference-recovery/v3') return null;
     if (config.maximumMicroUsd === 14000000) {
-      if (config.ceilingExtension || config.transportContinuation || config.extraEngineeringReceipts.length !== 3) fail('reference_recovery_ceiling');
+      if (config.ceilingExtension || config.transportContinuation || config.transportAllowanceExtension || config.extraEngineeringReceipts.length !== 3) fail('reference_recovery_ceiling');
       return null;
     }
     if (!config.ceilingExtension || config.extraEngineeringReceipts.length !== (transportConfig ? 5 : 4)) fail('reference_recovery_ceiling');
@@ -132,6 +140,32 @@ export async function prepareSimpleBookReferenceRecovery(configFile: string) {
     return g;
   };
   const grant = checkGrant(), ceilingExtension = checkCeilingExtension();
+  const checkTransportAllowance = () => {
+    if (config.version !== 'controlled-simple-reference-recovery/v3') return null;
+    if (config.maximumMicroUsd !== 20000000) {
+      if (config.transportAllowanceExtension) fail('reference_transport_allowance');
+      return null;
+    }
+    if (!transportConfig || !config.ceilingExtension || !config.transportAllowanceExtension) fail('reference_transport_allowance');
+    checked(config.transportAllowanceExtension!);
+    const g = referenceTransportAllowanceExtensionSchema.parse(read(config.transportAllowanceExtension!.file));
+    checked(g.failedReviewReceipt); const failed = read(g.failedReviewReceipt.file);
+    const failedCost = simpleBookExternalCosts([g.failedReviewReceipt]);
+    if (g.requestId !== parent.job.queued.requestId || g.priorCeilingExtensionSha256 !== config.ceilingExtension!.sha256 ||
+      g.endedTransportConfigSha256 !== transportConfig!.config.sha256 ||
+      failed.code !== 1 || failed.signal !== null || !failed.terminationConfirmed || failed.stopped || failed.status !== '' ||
+      failed.isError !== true || failed.resultSubtype !== 'error_max_budget_usd' || failed.sourceBundleUnchanged !== true ||
+      !/^[a-f0-9]{40}$/.test(failed.head ?? '') || !z.string().uuid().safeParse(failed.sessionId).success ||
+      canonicalJson(failed.models) !== canonicalJson([CAUSAL_MODELS.opus]) || failed.sessionId !== technical.sessionId ||
+      failed.qaVerdict !== null || config.extraEngineeringReceipts.some(f => canonicalJson(f) === canonicalJson(g.failedReviewReceipt)) ||
+      technical.costKind !== 'cumulative_same_cli_session_list_estimate_not_invoice' || technical.includesPreviousKnownFailedCalls !== true ||
+      technical.previousCumulativeReportedCostUsd !== failed.reportedCostUsd || technical.reportedCostUsd <= failed.reportedCostUsd ||
+      g.knownBeforeAdditionalReviewMicroUsd !== transportConfig!.knownBeforeCurrentReviewMicroUsd + failedCost)
+      fail('reference_transport_allowance');
+    gitAt(parent.current.workspace, ['merge-base', '--is-ancestor', failed.head, config.sourceHead]);
+    return g;
+  };
+  const transportAllowanceExtension = checkTransportAllowance();
   if (technical.head !== config.sourceHead || technical.status !== '' || technical.code !== 0 || technical.signal !== null ||
     !technical.terminationConfirmed || technical.stopped || technical.isError !== false || technical.resultSubtype !== 'success' ||
     canonicalJson(technical.models) !== canonicalJson([CAUSAL_MODELS.opus]) || !Number.isSafeInteger(technical.maximumMicroUsd) ||
@@ -148,7 +182,7 @@ export async function prepareSimpleBookReferenceRecovery(configFile: string) {
       if (!stat.isFile() || stat.isSymbolicLink() || stat.nlink !== 1 || stat.size > 32000000 || previewSha(readFileSync(full)) !== digest) fail('reference_recovery_evidence_changed');
     }
     if (visualEvidenceFiles(parent.directory).some(n => !inventory.has(`controlled-visual-continuation-20261008/${n}`))) fail('reference_recovery_inventory');
-    simpleBookExternalCosts(allEngineering); checkGrant(); checkCeilingExtension();
+    simpleBookExternalCosts(allEngineering); checkGrant(); checkCeilingExtension(); checkTransportAllowance();
     if (checkpointConfig) {
       checked(checkpointConfig.config); checked(checkpointConfig.terminationReceipt);
       if (checkpointInventory.size !== checkpointConfig.artifacts.length ||
@@ -398,6 +432,7 @@ export async function prepareSimpleBookReferenceRecovery(configFile: string) {
         requestDigest: claim.requestDigest, inherited, extra, referenceCorrectionLimit: 1, runtimeEligible: false,
         ...(extended ? { maximumMicroUsd: config.maximumMicroUsd, allowanceGrant: config.allowanceGrant } : {}),
         ...(config.version === 'controlled-simple-reference-recovery/v3' && config.ceilingExtension ? { ceilingExtension: config.ceilingExtension } : {}),
+        ...(transportAllowanceExtension && config.version === 'controlled-simple-reference-recovery/v3' ? { transportAllowanceExtension: config.transportAllowanceExtension } : {}),
         ...(checkpointConfig ? { checkpoint: checkpointConfig, checkpointPaidMicroUsd, inheritedLogicalAttempts: transportConfig ? 24 : 21 } : {}),
         ...(transportConfig ? { transportContinuation: transportConfig, transportPaidMicroUsd } : {}) });
       const budget = new SimpleBookBudget(path.join(directory, 'paid-stages'), externalMicroUsd, config.maximumMicroUsd);
