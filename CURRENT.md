@@ -1,5 +1,28 @@
 # SmallHeroes — Current Technical State
 
+## M12 bounded fresh entity reference strategy active (2026-10-08)
+
+M11 independent nativeQA is valid completedPASS08a51c91..d2b77a6e, source-only,
+no blocker; code0/success. Cumulative same-session3110604micro retains failed
+1912085once; incremental1198519. Actual same-book transport run then stopped
+on real visual defects/uncertainty, NOT budget, after3paid stages109166micro.
+Known17022423of20m;2977577remaining; unknown0. No cover/location/page/bookHTML.
+All216historical book files and6protected trees now frozen. Old claimed sibling
+remains failed and sealed. Repeated wrong bench/unreadable wing/patch survived
+correctly mapped edit. Do not edit that atlas again or call it canonical.
+Sole Codex continues fromd2b77a6e within approved same-book20goal: ONE fresh atlas
+from unchanged structured designs + accepted child/Dini, no bad atlas input.
+Flag off keeps behavior unchanged; any fresh defect/uncertain still holds.
+Existing privatev3 binds old ended3stages, old5fees + distinct fresh exactHEADQA,
+new one-use rebuild sibling. No new budget/story/canon/gate/production scope.
+Literaltsc0 and focused454/454 across six suites;3new tests/no removal. Complete
+9mocked frames pin actual2actor-only request;10rehashed failures before key/claim;
+new-reference defect stops after2paid fixture stages, no retry/child/pages. First
+type check needed explicit nullable prior-v3 narrowing; fixed and log preserved.
+Virtual in-memory seed regression wrongly re-adopts old atlas: exactly the new
+positive test fails11vs10render calls, no loader/timeout. Source untouched.
+Local commit and narrow ClaudeQA precede payment.
+
 ## M11 explicit accumulatedUSD20; narrow implementation active (2026-10-08)
 
 Guy explicitly approves20m accumulated for SAME existing wizard book, eight

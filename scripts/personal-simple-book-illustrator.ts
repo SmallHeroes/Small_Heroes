@@ -92,6 +92,7 @@ export async function runSimpleBookIllustrator(args: {
   referenceRecovery?: { name: 'child' | 'entities' | 'locations'; bytes: Buffer; imageSha: string; context: unknown; review: unknown };
   referenceCheckpoint?: { child: { bytes: Buffer; imageSha: string; context: unknown; review: unknown }; entities: { bytes: Buffer; imageSha: string } };
   explicitReferenceTransport?: true;
+  rebuildEntitiesFromDesign?: true;
 }) {
   const approval = readAuditionApproval(args.config); if (!approval) fail('simple_visual_approval_missing');
   const directory = path.join(args.directory, 'illustrations'); mkdirSync(directory); realDirectory(directory);
@@ -118,7 +119,7 @@ export async function runSimpleBookIllustrator(args: {
   const referenceCheckpoint = checkpoint ? {
     child: { name: 'child' as const, context: checkpoint.child.context, review: checkpoint.child.review,
       candidate: await writeImage('reference_child_checkpoint.png', checkpoint.child.bytes) },
-    entities: await writeImage('reference_entities_checkpoint.png', checkpoint.entities.bytes),
+    entities: await writeImage(args.rebuildEntitiesFromDesign ? 'reference_entities_discarded.png' : 'reference_entities_checkpoint.png', checkpoint.entities.bytes),
   } : undefined;
   const data = (image: AuditionImage) => `data:image/png;base64,${readAuditionImage(directory, image).toString('base64')}`;
   const save = (name: string, value: unknown) => exclusiveJson(path.join(args.directory, `${name}.json`), value);
@@ -191,6 +192,7 @@ export async function runSimpleBookIllustrator(args: {
     referenceRecovery,
     ...(referenceCheckpoint ? { roleScopedReferences: true as const, referenceCheckpoint } : {}),
     ...(args.explicitReferenceTransport ? { explicitReferenceTransport: true as const } : {}),
+    ...(args.rebuildEntitiesFromDesign ? { rebuildEntitiesFromDesign: true as const } : {}),
     render, judge, identity, save, progress: args.progress });
   exclusiveText(path.join(args.directory, 'book.html'), illustratedBookHTML(manifest, (imageName, imageSha) => data({ imageName, imageSha })));
   return manifest;

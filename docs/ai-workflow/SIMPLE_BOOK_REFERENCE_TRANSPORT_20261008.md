@@ -1,5 +1,52 @@
 # M10 Decision Gate - approved reference transport correction
 
+## M12 Decision Gate - rebuild design instead of repeatedly editing a failed atlas
+
+Same owner goal and explicit accumulatedUSD20; sole Codex writer continues from
+d2b77a6e in voice-followup. No new book, manuscript or production authority.
+Observed M11 run ended code1/simple_reference_held after3known paid stages:
+109166micro; aggregate17022423of20m, unknown0. Recheck found actual slat/wing/
+shadow/patch issues; correctly role-labeled edit still retained wrong bench and
+unreadable wings/patch. Fresh reviewer held it. M10 transport contradiction was
+fixed; its contribution to pixels was only a hypothesis, not proven cure.
+
+1. Change: explicitly opted-in ONE fresh entity-atlas generation from unchanged
+   structured designs, accepted child and companion. Old bad atlas is history,
+   never input authority. Not a blind second edit, automatic fallback or retry.
+2. Why: repeated edits retained defects; new generation removes bad-image anchor.
+   Whether that improves pixels is a new bounded empirical proof, not a claim.
+3. Scope: existing illustrator flag + private fresh same-book sibling/admission.
+4. No story/child/slat-specific postprocessing, canon rewrite or relaxed counts.
+5. Files: existing illustrations/renderer/recovery/view/route, focused flow spec.
+6. Expected: child pixels reused, ONE new entity reference, unchanged whole-sheet
+   judge; locations/pages start only if it passes. Any uncertain/defect stops.
+7. Tests: all9mocked frames, rehashed terminated/cost/inventory failures before
+   claim/key; old routes unchanged; tsc, focus, mutation, local commit, ClaudeQA.
+8. Money: original20grant unchanged, priorM11cumulativeQA counted once + ended
+   M11three paid stages + distinct newQA. Remaining2977577 before newQA. Native
+   narrow review uses a fresh minimal engineering context, no tools/API keys.
+9. Rollback: leave new opt-in unused/revert focused code, never reopen old seal.
+10. QA: falsify acceptance of failed old/currentQA, omitted/doubled charges,
+    invalid reference becoming canonical, child/new writer/gate/public drift.
+11. Do not do: no author/editor/storyboard, pixel/prose patch, extra atlas repair,
+    production template qualification, payments, push, merge or deployment.
+
+Stop-check: touches reference generation strategy/private admission. Human's
+approved SAME complete book and20cap cover this bounded repair toward that goal.
+No extra spending approval is inferred beyond20. Smallest proof is one fresh
+reference before any page. Existing identity>=.70 and eight categories remain.
+Guy's visual/product acceptance remains separate; no mock is a delivered book.
+Local proof: literaltsc0; six focused suites454/454, three new tests/no removal.
+Actual prepared-wire fixture sends exactly two accepted actor PNGs and no failed
+atlas. All9mocked frames/private serving complete;10rehashed historical/cost/QA
+failures reject before key/claim. A fresh defect stops after2stages, no repair.
+Initial nullable prior-v3 typing fixed with explicit discrimination. No provider
+calls during implementation. Virtual seed regression re-adopts failed atlas and
+fails exactly the new positive11vs10render assertion; no loader/timeout. Source
+unchanged. Local commit/nativeQA precede any new paid reference attempt.
+
+---
+
 ## M11 narrow Decision Gate - explicit accumulatedUSD20 (2026-10-08)
 
 Guy explicitly answered: 'מאשר עד $20 מצטברים לאותו ספר'. This supersedes

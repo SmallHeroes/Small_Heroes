@@ -1,5 +1,18 @@
 # SmallHeroes — Roadmap
 
+## M12 fresh entity reference, no repeated failed edit (2026-10-08)
+
+- M11 nativeQA validPASS08a51c91..d2b77a6e/code0. Same-book real run then held
+  on wrong bench/unreadable wing/patch after3known stages109166micro. Not budget.
+- Known17022423of20m,unknown0.216old files/six protected trees preserved. No
+  location/page/cover/reader. Existing consumed transport claim stays sealed.
+- Explicit ONE fresh atlas from unchanged designs + supported child/companion;
+  failed atlas discarded as history, never generator/canonical input. Flag off
+  unchanged, fresh defect/uncertain stops. No new budget/story/canon/gates.
+- Literaltsc0, six focused suites454/454,3additions/no removal; next virtual
+  regression/local commit/narrow independent ClaudeQA then bounded real proof.
+- Full repo remainsRED as previously classified; no product/production/push.
+
 ## M11 explicitly approved20m same-book continuation (2026-10-08)
 
 - Direct Guy approval accumulatedUSD20, same existing8narrative images+cover;

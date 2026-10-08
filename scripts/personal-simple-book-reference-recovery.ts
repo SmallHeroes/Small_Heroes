@@ -29,7 +29,7 @@ export async function simpleBookReferenceRecoveryCLI(argv: string[]) {
     return fail('reference_recovery_key');
   };
   const save = (name: string, value: unknown) => exclusiveJson(path.join(ready.directory, `${name}.json`), value);
-  let view: SimpleBookView = { ...ready.view, imageScope: ready.explicitReferenceTransport ? 'reference_transport_continuation' : ready.checkpoint ? 'role_scoped_reference_continuation' : 'owned_reference_recovery', error: null, images: [] };
+  let view: SimpleBookView = { ...ready.view, imageScope: ready.rebuildEntitiesFromDesign ? 'reference_rebuild_continuation' : ready.explicitReferenceTransport ? 'reference_transport_continuation' : ready.checkpoint ? 'role_scoped_reference_continuation' : 'owned_reference_recovery', error: null, images: [] };
   const update = (phase: SimpleBookView['phase'], images = view.images) => {
     const snapshot = budget.snapshot(); view = { ...view, phase, images, accounting: { ...view.accounting,
       knownEstimateMicroUsd: snapshot.knownEstimateMicroUsd, unknownAttemptCosts: snapshot.unknownAttemptCosts,
@@ -42,6 +42,7 @@ export async function simpleBookReferenceRecoveryCLI(argv: string[]) {
     const manifest = await runSimpleBookIllustrator({ config: ready.current, directory: ready.directory, budget, key, assertCurrent: check,
       signal: controller.signal, result: ready.result, request: ready.parent.job.queued.request, options: ready.parent.job.options,
       referenceRecovery: ready.seed, referenceCheckpoint: ready.checkpoint, explicitReferenceTransport: ready.explicitReferenceTransport,
+      rebuildEntitiesFromDesign: ready.rebuildEntitiesFromDesign,
       progress: (phase, images) => update(phase, images) });
     check(); update('illustrated_audition', manifest.pages.map(p => ({ pageNumber: p.pageNumber, ...p.candidate })));
     save('sealed', { status: 'illustrated_audition', sourceHead: ready.config.sourceHead, snapshot: budget.snapshot(), inheritedLogicalAttempts: ready.inheritedLogicalAttempts,

@@ -1025,6 +1025,107 @@ describe('explicit same-book continuation, no provider in fixtures', () => {
     expect(simpleBookViewSchema.safeParse({ ...v, imageScope: 'role_scoped_reference_continuation' }).success).toBe(false);
     expect(simpleBookViewSchema.safeParse({ ...v, imageScope: 'reference_transport_continuation' }).success).toBe(true);
   }, 90000);
+  async function referenceRebuildFixture() {
+    const x = await transportTwentyFixture();
+    sdk.create.mockImplementation(async p => {
+      const raw = await x.normal(p), d = JSON.parse(p.input[0].content[0].text);
+      if (d.context.role === 'entities') { const out = JSON.parse(raw.output_text); out.checks[4].verdict = 'defect';
+        out.checks[4].correction = 'Synthetic edit retained a real design defect.'; raw.output_text = JSON.stringify(out); }
+      return raw;
+    });
+    expect(await simpleBookReferenceRecoveryCLI(['--config', x.recoveryFile, '--execute'])).toBe(1);
+    const endedDir = path.join(x.old.directory, 'reference-transport-continuation-20261008');
+    const endedFile = path.join(root, 'SYNTHETIC-ended-explicit-transport.json'); writeFileSync(endedFile, readFileSync(x.recoveryFile));
+    const endedSeal = JSON.parse(readFileSync(path.join(endedDir, 'sealed.json'), 'utf8')); expect(endedSeal.snapshot.logicalAttempts).toBe(3);
+    const terminal = path.join(root, 'SYNTHETIC-ended-explicit-transport-terminal.json');
+    writeFileSync(terminal, JSON.stringify({ head: config.sourceHead, status: '', code: 1, signal: null, terminationConfirmed: true,
+      referenceCap: 4, sealSha256: sha(readFileSync(path.join(endedDir, 'sealed.json'))) }));
+    const technical = path.join(root, 'SYNTHETIC-new-rebuild-QA.json');
+    writeFileSync(technical, JSON.stringify({ head: config.sourceHead, status: '', code: 0, signal: null, terminationConfirmed: true,
+      isError: false, resultSubtype: 'success', maximumMicroUsd: 20000, reportedCostUsd: .004, models: [adapters.CAUSAL_MODELS.opus],
+      sessionId: '66666666-6666-4666-8666-666666666666', qaVerdict: 'PASS', qaReviewHead: config.sourceHead, qaBase: config.sourceHead, qaMode: 'read_only_code' }));
+    const names = visualEvidenceFiles(endedDir);
+    x.data.extraEngineeringReceipts.push(x.ref(technical)); x.data.technicalReviewReceipt = x.ref(technical);
+    x.data.rebuildContinuation = { config: x.ref(endedFile), terminationReceipt: x.ref(terminal),
+      artifacts: names.map(relative => ({ relative, sha256: sha(readFileSync(path.join(endedDir, relative))) })),
+      ownerApprovalReference: 'SYNTHETIC approved one same-book fresh entity atlas within unchanged20m.',
+      sameBookOnly: true, publicRelease: false, customerCharge: false, gateChanges: false };
+    writeFileSync(x.recoveryFile, JSON.stringify(x.data));
+    sdk.create.mockImplementation(x.normal); sdk.create.mockClear(); x.render.mockClear(); x.editor.mockClear(); x.fetcher.mockClear();
+    return { ...x, endedDir, endedFile, endedSeal, endedTerminal: terminal, endedNames: names,
+      endedHashes: names.map(n => [n, sha(readFileSync(path.join(endedDir, n)))]) as [string, string][] };
+  }
+  it('reference design rebuild preserves all ended costs and uses only approved actor authorities for ONE fresh atlas and9 private frames', async () => {
+    const x = await referenceRebuildFixture(), ready = await prepareSimpleBookReferenceRecovery(x.recoveryFile);
+    expect(ready.externalMicroUsd).toBe(x.endedSeal.snapshot.knownEstimateMicroUsd + 4000);
+    expect(ready.rebuildEntitiesFromDesign).toBe(true); expect(ready.inheritedLogicalAttempts).toBe(27);
+    expect(await simpleBookReferenceRecoveryCLI(['--config', x.recoveryFile])).toBe(0);
+    expect(x.render).not.toHaveBeenCalled(); expect(sdk.create).not.toHaveBeenCalled();
+    expect(await simpleBookReferenceRecoveryCLI(['--config', x.recoveryFile, '--execute'])).toBe(0);
+    const dir = path.join(x.old.directory, 'reference-design-rebuild-continuation-20261008');
+    expect(x.render).toHaveBeenCalledTimes(11); expect(x.fetcher).toHaveBeenCalledTimes(9); expect(x.editor).not.toHaveBeenCalled();
+    const first = x.render.mock.calls[0][0], discarded = ready.checkpoint!.entities.imageSha;
+    expect(first.referenceMode).toBe('book_design'); expect(first.referenceRoles).toEqual(['child_design_authority', 'companion_design_authority']);
+    expect(first.exactReferenceBytes).toHaveLength(2); expect(first.exactReferenceBytes!.map(b => sha(b))).not.toContain(discarded);
+    expect(sha(first.exactReferenceBytes![0])).toBe(ready.checkpoint!.child.imageSha);
+    expect(first.finalPrompt).not.toContain('TARGETED CORRECTIONS');
+    expect(JSON.parse(readFileSync(path.join(dir, 'discarded_entity_reference.json'), 'utf8'))).toMatchObject({ authority: 'failed_history_only_not_generation_input_or_canonical' });
+    const wire = JSON.parse(readFileSync(path.join(dir, 'paid-stages/reference_entities.wire.json'), 'utf8'));
+    expect(wire.references).toHaveLength(2); expect(wire.referenceRoles).toEqual(first.referenceRoles);
+    expect(wire.body).toEqual(images.planGPTImageRequest(first, { defaultModel: 'gpt-image-2', defaultQuality: 'low', maxReferences: 4 }).bodyWithoutBinaryImage);
+    expect(existsSync(path.join(dir, 'paid-stages/reference_entities_repair.claim.json'))).toBe(false);
+    expect(existsSync(path.join(dir, 'paid-stages/reference_child.claim.json'))).toBe(false);
+    expect(JSON.parse(readFileSync(path.join(dir, 'sealed.json'), 'utf8'))).toMatchObject({ status: 'illustrated_audition', bookPages: 9, inheritedLogicalAttempts: 27 });
+    const id = ready.parent.job.queued.requestId;
+    expect(await (await GET(req('GET', undefined, `${url}?requestId=${id}`))).json()).toMatchObject({ imageScope: 'reference_rebuild_continuation', accounting: { allowanceMicroUsd: 20000000 } });
+    const p = await GET(req('GET', undefined, `${url}?requestId=${id}&page=8`)); expect(p.status).toBe(200); expect(p.headers.get('cache-control')).toBe('private, no-store');
+    const manifest = JSON.parse(readFileSync(path.join(dir, 'illustrated_book.json'), 'utf8')); expect(sha(Buffer.from(await p.arrayBuffer()))).toBe(manifest.pages[8].candidate.imageSha);
+    deps.user = { id: 'other', email: 'owner@example.com' }; expect((await GET(req('GET', undefined, `${url}?requestId=${id}&page=8`))).status).toBe(403);
+    for (const [n, h] of x.endedHashes) expect(sha(readFileSync(path.join(x.endedDir, n)))).toBe(h);
+    await expect(prepareSimpleBookReferenceRecovery(x.recoveryFile).then(r => r.claim())).rejects.toThrow();
+  }, 180000);
+  it('reference design rebuild rejects rebound evidence, omitted costs, old or failed QA before key and fresh claim', async () => {
+    const x = await referenceRebuildFixture(), baseline = readFileSync(x.recoveryFile), terminal = readFileSync(x.endedTerminal);
+    const prior = readFileSync(x.endedFile), tech = readFileSync(x.data.technicalReviewReceipt.file);
+    const originals = x.endedNames.map(n => [n, readFileSync(path.join(x.endedDir, n))] as const);
+    const disk = vi.spyOn(journal, 'fencedText'); disk.mockClear();
+    for (const kind of ['inventory', 'termination', 'parent_fee', 'current_failed', 'old_qa', 'unknown', 'role_order', 'gate', 'wrong_seal', 'missing_paid_root']) {
+      originals.forEach(([n, b]) => writeFileSync(path.join(x.endedDir, n), b)); writeFileSync(x.endedTerminal, terminal); writeFileSync(x.endedFile, prior); writeFileSync(x.data.technicalReviewReceipt.file, tech);
+      const d = JSON.parse(baseline.toString()), c = d.rebuildContinuation;
+      const change = (n: string, f: (v: any) => void) => { const p = path.join(x.endedDir, n), v = JSON.parse(readFileSync(p, 'utf8')); f(v); writeFileSync(p, JSON.stringify(v)); };
+      if (kind === 'inventory') c.artifacts.pop();
+      if (kind === 'termination') { const h = JSON.parse(terminal.toString()); h.terminationConfirmed = false; writeFileSync(x.endedTerminal, JSON.stringify(h)); }
+      if (kind === 'parent_fee') { const p = JSON.parse(prior.toString()); p.extraEngineeringReceipts.pop(); writeFileSync(x.endedFile, JSON.stringify(p)); }
+      if (kind === 'current_failed') { const t = JSON.parse(tech.toString()); t.code = 1; t.isError = true; t.resultSubtype = 'error_max_budget_usd'; writeFileSync(d.technicalReviewReceipt.file, JSON.stringify(t)); }
+      if (kind === 'old_qa') d.technicalReviewReceipt = d.extraEngineeringReceipts[4];
+      if (kind === 'unknown') change('paid-stages/reference_entities_repair_qa.result.json', v => { v.estimatedMicroUsd = null; });
+      if (kind === 'role_order') { change('paid-stages/reference_entities_repair.wire.json', v => { v.referenceRoles.reverse(); });
+        const w = JSON.parse(readFileSync(path.join(x.endedDir, 'paid-stages/reference_entities_repair.wire.json'), 'utf8')), digest = sha(canonicalJson(w));
+        change('paid-stages/reference_entities_repair.claim.json', v => { v.wireDigest = digest; }); change('paid-stages/reference_entities_repair.result.json', v => { v.wireDigest = digest; }); }
+      if (kind === 'gate') c.gateChanges = true;
+      if (kind === 'wrong_seal') change('sealed.json', v => { v.status = 'illustrated_audition'; });
+      if (kind === 'missing_paid_root') { const paid = path.join(x.endedDir, 'paid-stages'); if (!x.endedDir.startsWith(root + path.sep)) throw Error('fixture_boundary');
+        renameSync(paid, path.join(root, 'SYNTHETIC-rebuild-paid-away')); c.artifacts = c.artifacts.filter((f: any) => !f.relative.startsWith('paid-stages/')); }
+      c.config = x.ref(x.endedFile); c.terminationReceipt = x.ref(x.endedTerminal);
+      c.artifacts = c.artifacts.map((f: any) => ({ ...f, sha256: sha(readFileSync(path.join(x.endedDir, f.relative))) }));
+      d.technicalReviewReceipt = x.ref(d.technicalReviewReceipt.file); d.extraEngineeringReceipts[5] = d.technicalReviewReceipt;
+      writeFileSync(x.recoveryFile, JSON.stringify(d)); await expect(prepareSimpleBookReferenceRecovery(x.recoveryFile), kind).rejects.toThrow();
+      expect(sdk.create).not.toHaveBeenCalled(); expect(x.render).not.toHaveBeenCalled(); expect(x.editor).not.toHaveBeenCalled();
+      expect(disk.mock.calls.some(([p]) => p === config.existingKeyEnvFile)).toBe(false); expect(existsSync(path.join(x.old.directory, 'reference-design-rebuild-continuation-20261008'))).toBe(false);
+      if (kind === 'missing_paid_root') { expect(existsSync(path.join(x.endedDir, 'paid-stages'))).toBe(false); renameSync(path.join(root, 'SYNTHETIC-rebuild-paid-away'), path.join(x.endedDir, 'paid-stages')); }
+    }
+  }, 180000);
+  it('reference design rebuild stops a failed fresh sheet without editing it, regenerating child, locations or pages', async () => {
+    const x = await referenceRebuildFixture();
+    sdk.create.mockImplementation(async p => { const raw = await x.normal(p), d = JSON.parse(p.input[0].content[0].text);
+      if (d.context.role === 'entities') { const out = JSON.parse(raw.output_text); out.checks[4].verdict = 'defect'; out.checks[4].correction = 'Synthetic fresh design defect.'; raw.output_text = JSON.stringify(out); } return raw; });
+    expect(await simpleBookReferenceRecoveryCLI(['--config', x.recoveryFile, '--execute'])).toBe(1);
+    expect(x.render).toHaveBeenCalledTimes(1); expect(x.fetcher).not.toHaveBeenCalled(); expect(x.editor).not.toHaveBeenCalled();
+    const dir = path.join(x.old.directory, 'reference-design-rebuild-continuation-20261008');
+    expect(JSON.parse(readFileSync(path.join(dir, 'sealed.json'), 'utf8'))).toMatchObject({ status: 'failed', code: 'simple_reference_held', snapshot: { logicalAttempts: 2 } });
+    expect(existsSync(path.join(dir, 'paid-stages/reference_entities_repair.claim.json'))).toBe(false);
+    expect(existsSync(path.join(dir, 'paid-stages/reference_child.claim.json'))).toBe(false); expect(existsSync(path.join(dir, 'book.html'))).toBe(false);
+  }, 180000);
   it('transport continuation rejects altered outcomes, old charges and mapping evidence before claim, key or dispatch', async () => {
     const x = await transportContinuationFixture(), baseline = readFileSync(x.recoveryFile), terminal = readFileSync(x.terminal);
     const priorConfig = readFileSync(x.priorFile), tech = readFileSync(x.data.technicalReviewReceipt.file);

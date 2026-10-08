@@ -57,6 +57,7 @@ export async function illustrateSimpleBook(args: {
   referenceRecovery?: ReferenceRecovery;
   roleScopedReferences?: true;
   explicitReferenceTransport?: true;
+  rebuildEntitiesFromDesign?: true;
   referenceCheckpoint?: ReferenceCheckpoint;
   render: (step: string, prompt: string, refs: AuditionImage[], mode: 'book_identity' | 'identity' | 'book_design', roles?: readonly BookDesignReferenceRole[]) => Promise<AuditionImage>;
   judge: (step: string, candidate: AuditionImage, context: unknown, contextSha: string, refs: AuditionImage[], predecessor: AuditionImage | null) => Promise<unknown>;
@@ -70,6 +71,7 @@ export async function illustrateSimpleBook(args: {
   if (args.actorOwnedAppearance && !book.plan.actorAppearance) fail('simple_visual_ownership_required');
   if (args.referenceCheckpoint && (!args.roleScopedReferences || args.referenceRecovery)) fail('simple_reference_checkpoint_scope');
   if (args.explicitReferenceTransport && (!args.roleScopedReferences || !args.referenceCheckpoint)) fail('simple_reference_transport_scope');
+  if (args.rebuildEntitiesFromDesign && !args.explicitReferenceTransport) fail('simple_reference_rebuild_scope');
   const current = { request: args.request, writerResult: result.source, options: args.options };
   const prepared = prepareSimpleStory(args.request, args.options, args.seed);
   if (prepared.book.pages !== 8 || prepared.accepted.containsFixtureData || prepared.accepted.canonical.appearance.photo !== 'none') fail('simple_illustration_admission');
@@ -78,6 +80,7 @@ export async function illustrateSimpleBook(args: {
     ...(args.referenceRecovery ? { referenceRecovery: args.referenceRecovery } : {}),
     ...(args.roleScopedReferences ? { roleScopedReferences: true } : {}),
     ...(args.explicitReferenceTransport ? { explicitReferenceTransport: true } : {}),
+    ...(args.rebuildEntitiesFromDesign ? { rebuildEntitiesFromDesign: true } : {}),
     ...(args.referenceCheckpoint ? { referenceCheckpoint: args.referenceCheckpoint } : {}) });
   const binding = previewSha(canonicalJson(bindingValue()));
   const check = () => {
@@ -126,7 +129,7 @@ export async function illustrateSimpleBook(args: {
       ? [refs[0], args.companion, ...(spec.name === 'locations' ? [refs[1]] : [])] : [];
     const prompt = spec.prompt + (args.roleScopedReferences && spec.name !== 'child'
       ? '\nReference images are design authorities, not actors to add to this sheet. Image 1 is the accepted child and owned clothing; Image 2 is the companion design. For locations Image 3 is the accepted object atlas. Do not draw these primary actors. Each isolated tile has its own magnification; global placement is established on locations and scenes, not object-tile positions. Keep every fixed design/count/material; no story-state progression on design sheets.' : '');
-    if (spec.name === 'entities' && args.referenceCheckpoint) {
+    if (spec.name === 'entities' && args.referenceCheckpoint && !args.rebuildEntitiesFromDesign) {
       let candidate = args.referenceCheckpoint.entities;
       const recheck = qualityDisposition(await args.judge('reference_entities_recheck', candidate, context, contextSha, authorities, null), candidate.imageSha, contextSha);
       check(); args.save('reference_entities_recheck_review', recheck);
@@ -146,6 +149,8 @@ export async function illustrateSimpleBook(args: {
       } else args.save('reference_entities_review', recheck);
       refs.push(candidate); continue;
     }
+    if (spec.name === 'entities' && args.rebuildEntitiesFromDesign) args.save('discarded_entity_reference', {
+      candidate: args.referenceCheckpoint!.entities, authority: 'failed_history_only_not_generation_input_or_canonical' });
     const seed = args.referenceRecovery?.name === spec.name ? args.referenceRecovery : null;
     let candidate: AuditionImage;
     if (seed) {
