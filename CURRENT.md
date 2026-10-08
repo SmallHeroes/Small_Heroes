@@ -1,5 +1,34 @@
 # SmallHeroes — Current Technical State
 
+## Same-book repair passed story/board; first reference stopped correctly (2026-10-08)
+
+Code dcbcb3aa (ccd8..dcb,16files) received native Claude bounded engineeringPASS, actual206/206, no proven
+defect in range. Review explicitly did NOT run tsc/full/read new test bodies/verify real preview; those Codex
+checks remain separately attributed. Codex tsc0,874/874/19files, six virtual guard mutants caught. Complete
+committed checkRED exit1:6813pass/10oldfail/73skip ordinary;634pass/1oldprobe fail resource PLUS3RPC errors.
+All11 actual failing names equal18ba; full stability is not green. Native review cost581907; total before6842090.
+
+One admitted fixed same-book repair executed at clean dcb: fresh Opus editor263768, blind Astra final76650,
+comparison102020. No material story issue/regression, one polish preference; comparison recognizes clarified
+shade rules and a comic tradeoff, not a proven original contradiction. Original author/prior editor/native
+evidence preserved, no manual prose. Current whole-book board561040 +QA281240, review_supported,9valid frames.
+No new author, source downgrade, revised book profile or allowance.
+
+First actual child reference7960 +pixelQA87990 correctly held a concrete identity defect: Dini's terracotta
+sash was drawn on Goni. Existing global plan.wardrobe includes BOTH actors, and is passed to child-only reference
+input and CHILD frame wardrobe lock. Mixed visual ownership/routing is a plausible evidence-backed cause, not
+a proved counterfactual model cause. No weakening or retry. Zero book/cover illustrations, one rejected anchor.
+Worker sealed failed/simple_reference_held, hostcode1/signalnull/confirmed, all seven new costs known; ledger
+stopped=false describes known financial outcomes, NOT resume authority. All previous artifact hashes preserved.
+
+Total8222758micro, unknown0, remaining3777242 in ORIGINAL12m: Max6067898 list value (engineering+writing),
+OpenAIAPI2154860 conservative usage estimates. No invoice/production/customer price claim. Engineering5277341,
+partial book production2945417 (not a full illustrated-book cost). Goal incomplete; further paid work STOPPED.
+Planning-only next gate: PERSONAL_SIMPLE_BOOK_REFERENCE_ROLE_ISOLATION_DECISION_20261008.md, Guy decision needed.
+Readable exact repaired story exported in chat artifact OVERNIGHT-BOOK-REPAIRED-STORY-20261008.md. Native's Low
+unconfirmed visual-file collision concern: actual preclaim host checked no visual output existed; general shared
+visual paths remain unchanged. No push/deploy, no broader literary/product/visual PASS.
+
 ## Bounded same-book editor repair implemented locally; independent QA pending (2026-10-08)
 
 Guy approved continuation after explicit reconciliation of the known Max internal slot overrun. The full

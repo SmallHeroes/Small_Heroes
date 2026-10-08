@@ -1,5 +1,16 @@
 # SmallHeroes — Roadmap
 
+## Text and nine-frame storyboard supported; visual ownership gate next (2026-10-08)
+
+- Exact dcb repair code bounded engineeringPASS; native206/206, Codex874/874+tsc0. Full RED with11old test
+  failures and3RPC errors explicitly retained. Scoped code review does not approve literary/visual/product release.
+- Same book repaired by a fresh native Opus editor, fresh final/comparison Astra no material issue/regression.
+  Current whole-book board and QA supported all9frames. No manual text/new author, prior evidence preserved.
+- First generated child anchor held for Dini's sash incorrectly transferred to Goni. Shared wardrobe text flows
+  into child-only design and render locks. Fix general actor-owned visual routing; do not patch one bitmap or canon.
+- Paid work stopped at8222758/12m, unknown0, remaining3777242; zero book illustrations. Future same-book
+  visual-only continuation needs explicit scoped approval and priced admission after independent technical QA.
+
 ## One bounded same-book editor repair implemented; technical review before paid work (2026-10-08)
 
 - Guy reconciled the known failed Max consultation with its full cost retained; original12m unchanged.
