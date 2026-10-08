@@ -72,3 +72,22 @@ Both additional ordinary temp-file failures pass2/2 isolated,31inventory/29skip,
 unchanged source. Full gate remainsRED at precedingeca3, not current-head green.
 No second heavy full run for the financial/view-only delta; focused tests cover
 it explicitly. Source/protected trees/prior162book files preserved.
+
+## Independent code reading and same-book run closed
+
+Combined337971e0..a760869d native code reading: supplied bytes PASS, code0/success,
+843539micro over2CLI inference turns. Original stdout contains two contiguous
+text fragments; result field carries only the last fragment. Exact concatenation
+produces the original valid JSON, without content repair; derived receipt binds
+raw/primary receipt/report hashes. Six negative controls reject failed process,
+budget-error status, omitted/duplicated fragments and wrong head. No new spend
+or original receipt overwrite. Failed665419 remains cost only, not QA authority.
+
+Pure actual admission13693239before16m passed. Actual3stage reference continuation
+added109414, endedfailed/simple_reference_held after single edit remained defective.
+Known13802653,2197347left, unknown0; no book illustrations yet. Exact raw wire
+reveals new integrationP2 under M9 authority wiring: identity mode injects shared
+legacy REAL-child/BOLLY semantics into atlas/Goni/Dini inputs. Source-bundle QA
+did not review that dependency and cannot establish integration/visual PASS.
+See CURRENT and SIMPLE_BOOK_REFERENCE_ROLES for the bounded next-scope proposal.
+Owner approval pending; no further paid call, retry or old claim reopening.

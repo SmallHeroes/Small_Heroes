@@ -90,7 +90,7 @@ Implementation and independent QA: not yet complete.
 ## Implemented/local evidence (not independent or pixel acceptance)
 
 Privatev3 same existing CLI/helper. It binds priorv2 config/terminated host/full
-31-file checkpoint, original four complete usage-bound stage journals and raw
+29-file directory checkpoint plus2root views (31new files), original four complete usage-bound stage journals and raw
 candidate pixels/current context/review. Supported child is adopted only against
 exact original context; held entity bytes are fresh-review inputs, not authority.
 All old fees plus new independent native fee and four-call M8 expense retained.
@@ -116,3 +116,23 @@ assertion; remove uncertain stop => run incorrectly completes and expectedexit1
 assertion fails. No mutation was on disk and neither failure is timeout/loader.
 Raw receipts under task ART/reference-roles-evidence-20261008. Full gate and
 fresh independent source-bundle Claude reading remain pending before live.
+
+## Actual bounded review and live outcome (supersedes pending status above)
+
+Combined337971e0..a760869d supplied-source Claude reading deliveredcode0/success;
+no blockers in reviewed bytes, not SDK/test/pixel/product/stability/release PASS.
+Two raw text blocks form the exact complete JSON; separate assembly receipt,
+original receipt/raw untouched, six negative controls. Fee843539micro across2CLI
+inference turns, prior failed665419 retained, no extra assembly call.
+
+Actual continuation endedfailed/simple_reference_held after3paid stages. Role
+scope N/A eliminated false missing-actor/scale uncertainty; real repair defects
+persisted after the one allowed edit. Codex inspected pixels; no locations or
+book pages/HTML. Actual API request also exposes a P2 integration conflict:
+referenceMode identity with3refs invokes shared REAL-child/BOLLY header, contrary
+to the actual atlas/Goni/Dini order and correct roles in the later prompt. That
+dependency was outside the limited native bundle. The contradiction is proven;
+its contribution to poor images is still a hypothesis. Needs explicit transport
+mode + exact final-wire tests, independent re-gate and owner scope approval.
+No silent retry or reopening this consumed sibling. Known13802653/16m,2197347left;
+addedAPI109414 independently recomputed.162old files/protected6 unchanged.

@@ -1,5 +1,44 @@
 # SmallHeroes — Current Technical State
 
+## M9/M9b bounded code QA recorded; live reference HOLD and wire-role P2 open (2026-10-08)
+
+Combined independent source-bundle Claude review337971e0..a760869d: no code
+blockers in supplied bytes. Processcode0/success, fee843539micro (2CLI inference
+turns). Its text arrived in two chunks; exact concatenation parses the full
+original verdict. Original raw/receipt preserved; separate derived receipt plus
+six negative controls. Failed prior665419 still counted and NOT QA authority.
+No independent tests/pixels/product/stability/release PASS. quality/SDK dependency
+sources not included in that limited reviewer bundle; do not widen its verdict.
+
+Pure actual admission passed; same-book private run at cleana760869d endedcode1,
+terminated/no signal, failed/simple_reference_held after3complete paid stages.
+Child bytes reused unchanged. Fresh role review correctly eliminated out-of-scope
+actor/scale uncertainties and found4real defect categories. Its single edit fixed
+some props but retained bench2vs3backslats, one-readable-wing Dini silhouette and
+spiky Goni silhouette. Fresh Sol rejected3categories; Codex inspected actual PNG.
+No location atlas, cover/page images, manifest or book.html; no illustrated book.
+No retry/reopen of consumed role-scoped-reference-continuation-20261008.
+
+New P2 integration defect FOUND IN ACTUAL WIRE: the illustrator passes3refs in
+identity mode, and generate-image.ts resolveReferencePrefix prepends legacy
+REAL-child/Image1 + BOLLY-armadillo/Image2 semantics. Actual Image1 is the rejected
+atlas and Image2 is Goni; correct roles later in the prompt contradict the prefix.
+This is a confirmed instruction conflict, not proof it alone caused every defect.
+M9 added references to this path; unchanged shared code does not make it harmless.
+Proposed neutral explicit-design mode + real-wire tests, legacy/page modes intact.
+New scoped owner approval and independent re-gate needed; no new renderer, story,
+canon, 0.70/eight-check change or silent slot retry. Owner question pending.
+
+Known13802653/16000000,2197347left, unknown0. APIadded109414 independently
+recomputed from3raw usage receipts. Max11334427 + API2468226; estimates not bills.
+Engineering10543870, partialbook3258783; not a finished-book unit cost.
+Original162files and protected6 unchanged. M8 checkpoint has29directory files
+plus2root-view files =31new files (earlier shorthand31-file-directory was wrong).
+Detailed offline proof: task ART/reference-role-live-outcome-20261008.json;
+QA assembly proof: reference-ceiling-qa-assembly-proof-20261008.json.
+Paid process closed; source documentation closeout only. Full gate stillRED as
+below. No manual story/image correction, automatic retry, push/merge/deploy.
+
 ## M9b owner-approved accumulated16; formal M9 QA delivery still pending (2026-10-08)
 
 M9 committedeca3ba39; its independent model assessment found no code blocker,

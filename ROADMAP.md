@@ -1,5 +1,18 @@
 # SmallHeroes — Roadmap
 
+## Actual wire role conflict blocks book illustrations; scoped transport fix pending (2026-10-08)
+
+- Limited independent source-bundle code verdict337971e0..a760869d recorded;
+  code0/success,843539micro across2CLI inference turns, exact text assembly only.
+  Prior failed665419 retained. No full SDK/pixel/product/release verdict.
+- Live same-book reference run ended3calls/109414micro with repeat real defects,
+  no pages/locations/bookHTML. Role N/A contract works; generation still fails.
+- Actual wireP2: legacy REAL-child/BOLLY prefix conflicts with atlas/Goni roles.
+  Propose explicit design-reference transport mode and exact-wire controls;
+  no changed story/canon/page gates or new renderer. Owner scope decision pending.
+- Total13802653of16m,2197347remaining; no more paid activity.162prior artifacts
+  and6protected trees preserved. New continuation may not reopen sealed claims.
+
 ## M9b same-book16 approved; finish valid QA then actual nine-image book (2026-10-08)
 
 - M9 sourceeca3 local checks held, but formal nativecode1 budget-error delivery is
