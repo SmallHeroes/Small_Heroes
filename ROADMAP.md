@@ -1,5 +1,17 @@
 # SmallHeroes — Roadmap
 
+## Approved14m SAME-book allowance, minimal v2 extension (2026-10-08)
+
+- Owner granted accumulatedUSD14 (not14extra); M8 fromb973b17f implemented.
+  Version1/default12m unchanged; v2 requires bound grant, preserves all costs.
+- Literaltsc0 and3selected tests pass (incl16negative variants and9-frame mock
+  completion). New full gate/native independentQA pending; no M8 PASS claimed.
+- Known prior11024855micro,2975145available within14before new nativeQA.
+  Fresh native session/directJSON delivery, no resume/schema-tool loop.
+- After technical/full classification: pure real admission, one reference edit
+  and fresh pixels,2atlases+9frames/continuity/0.70; unchanged source/canon/story.
+  Stop any failed/unknown outcome. No new book queue or production/push authority.
+
 ## Reference-recovery code checked; owner budget decision blocks live book (2026-10-08)
 
 - Exact d9ae20dc..f8b759ca bounded independent codePASS, threeLOW/no blocking

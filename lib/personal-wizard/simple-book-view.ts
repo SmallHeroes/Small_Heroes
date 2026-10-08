@@ -20,9 +20,10 @@ export const simpleBookViewSchema = z.object({
     }).strict()).max(20) }).strict()).max(2),
   error: z.string().regex(/^[a-z0-9_]+$/).nullable(), runtimeEligible: z.literal(false),
   accounting: z.object({ knownEstimateMicroUsd: z.number().int().nonnegative(), unknownAttemptCosts: z.number().int().nonnegative(),
-    logicalAttempts: z.number().int().min(0).max(80), allowanceMicroUsd: z.literal(12000000), kind: z.literal('estimate_not_invoice') }).strict(),
+    logicalAttempts: z.number().int().min(0).max(80), allowanceMicroUsd: z.union([z.literal(12000000), z.literal(14000000)]), kind: z.literal('estimate_not_invoice') }).strict(),
 }).strict().superRefine((v, ctx) => {
-  if ((v.phase === 'references_required' && (!v.original || !v.edited || v.readings.length !== 2 ||
+  if ((v.accounting.allowanceMicroUsd === 14000000 && v.imageScope !== 'owned_reference_recovery') ||
+      (v.phase === 'references_required' && (!v.original || !v.edited || v.readings.length !== 2 ||
       new Set(v.readings.map(r => r.stage)).size !== 2)) ||
       (v.phase === 'queued' && (v.original || v.edited)) ||
       v.images.some((p, i) => p.pageNumber !== i) ||

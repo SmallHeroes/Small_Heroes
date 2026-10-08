@@ -17,7 +17,9 @@ function fail(code: string): never { throw new SimpleBookBudgetError(code); }
 export class SimpleBookBudget {
   readonly root: string;
   constructor(root: string, readonly externalMicroUsd: number, readonly maximumMicroUsd = 12000000) {
-    if (maximumMicroUsd !== 12000000 || !Number.isSafeInteger(externalMicroUsd) || externalMicroUsd < 0 || externalMicroUsd > maximumMicroUsd) fail('simple_budget_policy');
+    // This is the meter, not an authorization endpoint. Only the separately
+    // bound v2 same-book grant caller can select14m; all legacy callers default12m.
+    if (![12000000, 14000000].includes(maximumMicroUsd) || !Number.isSafeInteger(externalMicroUsd) || externalMicroUsd < 0 || externalMicroUsd > maximumMicroUsd) fail('simple_budget_policy');
     if (!existsSync(root)) mkdirSync(root); realDirectory(root); this.root = root;
   }
   snapshot() {

@@ -1,5 +1,27 @@
 # SmallHeroes — Current Technical State
 
+## M8 owner-approved accumulatedUSD14 implemented; QA/full/live pending (2026-10-08)
+
+Guy approved the requested SAME-book accumulated14m allowance and known Max-cost
+reconciliation. Base b973b17f; sole Codex writer on simple-story-voice-followup,
+codex/simple-story-voice-20261007, same task. Version1/default queue remains12m;
+version2 recovery requires hashed owner grant for exactrequest/parentconfig/costs.
+All cumulative prior native receipts are checked, latest counted once; new QA
+must be a distinct successfully terminated exact-range read-only PASS session.
+Known completed native soft-slot overshoot is separated from owner cap ONLY in
+v2; failed/HOLD/unknown native outcomes still block, API per-call stops unchanged.
+Meter accepts12/14 explicitly;14view only for fixed private recovery scope.
+Original visual exception still1book/8pages+cover/0.70/noncommercial, no new story.
+
+Literaltsc0. Three selected tests passed, including real shared mocked9-image
+completion at14, default12 meter/overcap stop, and16tampered grant variants.
+Simple-book spec now145 (+3; no removal). Full focused previous433 was atM7, not
+a freshM8 claim; new full check and FIRST read-only independentQA are pending.
+No new book call/claim/key/image yet. Prior131files and6protected trees preserved.
+Known before newQA11024855micro, current approved ceiling14000000,2975145left.
+Brief: docs/ai-workflow/SIMPLE_BOOK_ALLOWANCE_EXTENSION_20261008.md.
+No threshold/render/model/canon change, push/merge/deploy/customer release.
+
 ## M7 code PASS; live reference edit NOT run; spending decision pending (2026-10-08)
 
 Frozen reviewed code f8b759ca308b118541ce6b2e9850b1afc88b2040,

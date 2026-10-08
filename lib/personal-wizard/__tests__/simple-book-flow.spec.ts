@@ -37,7 +37,7 @@ import { prepareSimpleBookRepair } from '../simple-book-repair';
 import { simpleBookRepairCLI } from '../../../scripts/personal-simple-book-repair';
 import { prepareSimpleBookVisualContinuation, visualEvidenceFiles } from '../simple-book-visual-continuation';
 import { simpleBookVisualContinuationCLI } from '../../../scripts/personal-simple-book-visual-continuation';
-import { prepareSimpleBookReferenceRecovery } from '../simple-book-reference-recovery';
+import { prepareSimpleBookReferenceRecovery, referenceRecoveryConfigSchema } from '../simple-book-reference-recovery';
 import { simpleBookReferenceRecoveryCLI } from '../../../scripts/personal-simple-book-reference-recovery';
 import { simpleStoryReadingPackets } from '../simple-story-source';
 
@@ -167,6 +167,14 @@ describe('actual simple writer to current whole-book driver, with no image autho
 });
 
 describe('one USD12 journal across engine stages and engineering Max', () => {
+  it('keeps default12m, explicitly meters14m, rejects other ceilings and stops14m before an over-budget claim', async () => {
+    expect(new SimpleBookBudget(path.join(root, 'default'), 0).maximumMicroUsd).toBe(12000000);
+    for (const maximum of [0, 13000000, 14000001, 25000000]) expect(() => new SimpleBookBudget(path.join(root, 'invalid'), 0, maximum)).toThrow('simple_budget_policy');
+    const budget = new SimpleBookBudget(path.join(root, 'extended'), 13999999, 14000000), dispatch = vi.fn();
+    await expect(budget.run('page_8_0', {}, 2, dispatch)).rejects.toThrow('simple_budget_exhausted');
+    expect(dispatch).not.toHaveBeenCalled(); expect(existsSync(path.join(root, 'extended/page_8_0.claim.json'))).toBe(false);
+    expect(readSimpleBookView({ ...emptySimpleBookView('a'.repeat(64)), accounting: { ...emptySimpleBookView('a'.repeat(64)).accounting, allowanceMicroUsd: 14000000 } }, 'a'.repeat(64))).toBeNull();
+  });
   it('durably claims the exact wire before dispatch and counts engineering plus settled costs', async () => {
     const budget = new SimpleBookBudget(path.join(root, 'stages'), 322973);
     const result = await budget.run('author', { payload: 'one' }, 1000000, async () => {
@@ -776,6 +784,79 @@ describe('explicit same-book continuation, no provider in fixtures', () => {
     sdk.create.mockImplementation(normal); sdk.create.mockClear(); x.render.mockClear(); x.editor.mockClear(); x.fetcher.mockClear();
     return { ...x, visualDir, recoveryData, recoveryFile, heldHashes: names.map(n => [n, sha(readFileSync(path.join(x.old.directory, n)))]) as [string, string][] };
   }
+  async function extendedRecoveryFixture() {
+    const x = await referenceRecoveryFixture(), ref = (file: string) => ({ file, sha256: sha(readFileSync(file)) });
+    const prior = { head: config.sourceHead, status: '', signal: null, terminationConfirmed: true, stopped: false,
+      sessionId: '44444444-4444-4444-8444-444444444444', models: [adapters.CAUSAL_MODELS.opus] };
+    const costs = [.01, .03, .041];
+    const lineage = costs.map((reportedCostUsd, i) => { const f = path.join(root, `SYNTHETIC-prior-session-${i}.json`);
+      writeFileSync(f, JSON.stringify({ ...prior, reportedCostUsd, maximumMicroUsd: 40000,
+        ...(i < 2 ? { code: 1, isError: true, resultSubtype: 'error_max_budget_usd' } : { code: 0, isError: false, resultSubtype: 'success',
+          qaVerdict: 'PASS', qaReviewHead: config.sourceHead, qaBase: 'd9ae20dc29195004f1fed6d246daefbe42610953', qaMode: 'read_only_code',
+          previousCumulativeReportedCostUsd: .03, includesPreviousKnownFailedCalls: true, costKind: 'cumulative_same_cli_session_list_estimate_not_invoice' }) })); return ref(f); });
+    const p = x.recoveryData.technicalReviewReceipt.file, technical = JSON.parse(readFileSync(p, 'utf8'));
+    Object.assign(technical, { qaBase: 'b973b17fba433c4dc70df18ff847a7e7f7e33d94', sessionId: '55555555-5555-4555-8555-555555555555',
+      reportedCostUsd: .002, maximumMicroUsd: 1000 }); // known completed native soft-slot overshoot, not failed QA
+    writeFileSync(p, JSON.stringify(technical));
+    const seal = JSON.parse(readFileSync(path.join(x.visualDir, 'sealed.json'), 'utf8'));
+    const grantFile = path.join(root, 'SYNTHETIC-allowance.json'), grant = { version: 'local-simple-book-allowance-extension/v1',
+      requestId: x.old.queued.requestId, parentVisualConfigSha256: x.recoveryData.visualConfig.sha256, inheritedKnownMicroUsd: seal.snapshot.knownEstimateMicroUsd,
+      previousMaximumMicroUsd: 12000000, maximumMicroUsd: 14000000, ownerApprovalReference: 'SYNTHETIC same-book14 allowance, not live authorization.',
+      sameBookOnly: true, publicRelease: false, customerCharge: false, gateChanges: false, acceptKnownCompletedNativeSoftCapOvershoot: true,
+      reconciledSessionReceipts: lineage, reconciledMicroUsd: 41000 };
+    writeFileSync(grantFile, JSON.stringify(grant));
+    const data: any = { ...x.recoveryData, version: 'controlled-simple-reference-recovery/v2', maximumMicroUsd: 14000000,
+      allowanceGrant: ref(grantFile), extraEngineeringReceipts: [lineage[2], ref(p)], technicalReviewReceipt: ref(p) };
+    writeFileSync(x.recoveryFile, JSON.stringify(data));
+    return { ...x, data, grant, grantFile, lineage, ref };
+  }
+  it('v2 same-book grant counts the cumulative native session once, publishes14 and completes9 without a new writer', async () => {
+    const x = await extendedRecoveryFixture(), ready = await prepareSimpleBookReferenceRecovery(x.recoveryFile);
+    expect(ready.extra).toBe(43000); expect(ready.externalMicroUsd).toBe(ready.inherited.knownEstimateMicroUsd + 43000);
+    expect(ready.config.maximumMicroUsd).toBe(14000000); expect(sdk.create).not.toHaveBeenCalled();
+    const receiptBefore = readFileSync(x.data.technicalReviewReceipt.file), grantBefore = readFileSync(x.grantFile);
+    expect(await simpleBookReferenceRecoveryCLI(['--config', x.recoveryFile, '--execute'])).toBe(0);
+    expect(x.editor).not.toHaveBeenCalled(); expect(x.render).toHaveBeenCalledTimes(12); expect(x.fetcher).toHaveBeenCalledTimes(9);
+    const dir = path.join(x.old.directory, 'controlled-reference-recovery-20261008');
+    expect(JSON.parse(readFileSync(path.join(dir, 'claim.json'), 'utf8'))).toMatchObject({ maximumMicroUsd: 14000000, extra: 43000, referenceCorrectionLimit: 1 });
+    const requestId = ready.parent.job.queued.requestId, response = await GET(req('GET', undefined, `${url}?requestId=${requestId}`));
+    expect(await response.json()).toMatchObject({ phase: 'illustrated_audition', accounting: { allowanceMicroUsd: 14000000, unknownAttemptCosts: 0 } });
+    expect(readFileSync(x.data.technicalReviewReceipt.file)).toEqual(receiptBefore); expect(readFileSync(x.grantFile)).toEqual(grantBefore);
+    for (const [n, hash] of x.heldHashes) expect(sha(readFileSync(path.join(x.old.directory, n)))).toBe(hash);
+  }, 180000);
+  it('v2 refuses every stale/foreign/missing/cost-confused grant before claim/key/dispatch; v1 never grants14', async () => {
+    const x = await extendedRecoveryFixture(), disk = vi.spyOn(journal, 'fencedText');
+    const baseline = readFileSync(x.recoveryFile), baselineGrant = readFileSync(x.grantFile), paths = [...x.lineage, x.data.technicalReviewReceipt].map(f => f.file);
+    const priorBytes = paths.map(p => readFileSync(p));
+    const sync = () => { x.data.allowanceGrant = x.ref(x.grantFile); x.data.technicalReviewReceipt = x.ref(paths[3]);
+      x.data.extraEngineeringReceipts = [x.ref(paths[2]), x.data.technicalReviewReceipt]; writeFileSync(x.recoveryFile, JSON.stringify(x.data)); };
+    for (const kind of ['request', 'parent', 'inherited', 'grant_cost', 'missing_lineage', 'foreign_session', 'unknown_cost', 'unterminated',
+      'failed_final', 'qa_hold', 'wrong_base', 'same_session', 'duplicate_cumulative', 'wrong_ceiling', 'missing_grant', 'v1_14']) {
+      x.data = JSON.parse(baseline.toString()); const g = JSON.parse(baselineGrant.toString()); paths.forEach((p, i) => writeFileSync(p, priorBytes[i]));
+      if (kind === 'request') g.requestId = 'b'.repeat(64); if (kind === 'parent') g.parentVisualConfigSha256 = 'b'.repeat(64);
+      if (kind === 'inherited') g.inheritedKnownMicroUsd++; if (kind === 'grant_cost') g.reconciledMicroUsd++;
+      if (kind === 'missing_lineage') g.reconciledSessionReceipts.pop();
+      if (['foreign_session', 'unknown_cost', 'unterminated', 'failed_final'].includes(kind)) {
+        const r = JSON.parse(priorBytes[2].toString()); if (kind === 'foreign_session') r.sessionId = '66666666-6666-4666-8666-666666666666';
+        if (kind === 'unknown_cost') r.reportedCostUsd = null; if (kind === 'unterminated') r.terminationConfirmed = false; if (kind === 'failed_final') r.code = 1;
+        writeFileSync(paths[2], JSON.stringify(r)); g.reconciledSessionReceipts[2] = x.ref(paths[2]);
+      }
+      if (['qa_hold', 'wrong_base', 'same_session'].includes(kind)) { const r = JSON.parse(priorBytes[3].toString());
+        if (kind === 'qa_hold') r.qaVerdict = 'HOLD'; if (kind === 'wrong_base') r.qaBase = 'b'.repeat(40); if (kind === 'same_session') r.sessionId = JSON.parse(priorBytes[2].toString()).sessionId;
+        writeFileSync(paths[3], JSON.stringify(r)); }
+      writeFileSync(x.grantFile, JSON.stringify(g)); sync();
+      if (kind === 'duplicate_cumulative') x.data.extraEngineeringReceipts = [x.ref(paths[0]), x.ref(paths[2]), x.data.technicalReviewReceipt];
+      if (kind === 'wrong_ceiling') x.data.maximumMicroUsd = 25000000;
+      if (kind === 'missing_grant') delete x.data.allowanceGrant;
+      if (kind === 'v1_14') { x.data.version = 'controlled-simple-reference-recovery/v1'; delete x.data.allowanceGrant; }
+      writeFileSync(x.recoveryFile, JSON.stringify(x.data));
+      await expect(prepareSimpleBookReferenceRecovery(x.recoveryFile), kind).rejects.toThrow();
+      expect(existsSync(path.join(x.old.directory, 'controlled-reference-recovery-20261008')), kind).toBe(false);
+    }
+    expect(sdk.create).not.toHaveBeenCalled(); expect(x.render).not.toHaveBeenCalled(); expect(x.editor).not.toHaveBeenCalled();
+    expect(disk.mock.calls.some(([p]) => p === config.existingKeyEnvFile)).toBe(false);
+    expect(referenceRecoveryConfigSchema.safeParse({ ...x.recoveryData, maximumMicroUsd: 14000000 }).success).toBe(false);
+  }, 180000);
   it('reference recovery previews without keys and performs exactly one edit then the same9 private frames, no planning/writing', async () => {
     const x = await referenceRecoveryFixture(), disk = vi.spyOn(journal, 'fencedText');
     expect(await simpleBookReferenceRecoveryCLI(['--config', x.recoveryFile])).toBe(0);

@@ -19,15 +19,25 @@ import { CAUSAL_MODELS } from '../../scripts/personal-causal-trial-adapters';
 import { appearancePlanningSchema, APPEARANCE_INSTRUCTION } from '../../scripts/personal-simple-book-visual-continuation';
 import { auditionUsageCost, readAuditionImage } from '../../scripts/personal-simple-book-illustrator';
 import { simpleReferenceDesignContext } from './simple-book-illustrations';
+import { gitAt } from '../../scripts/personal-source-git';
 
 const hash = z.string().regex(/^[a-f0-9]{64}$/);
 const file = z.object({ file: z.string().min(1), sha256: hash }).strict();
-export const referenceRecoveryConfigSchema = z.object({ version: z.literal('controlled-simple-reference-recovery/v1'),
+const referenceRecoveryV1 = z.object({ version: z.literal('controlled-simple-reference-recovery/v1'),
   visualConfig: file, terminationReceipt: file, sourceHead: z.string().regex(/^[a-f0-9]{40}$/),
   approvalReference: z.string().min(30).max(2000), maximumMicroUsd: z.literal(12000000),
   artifacts: z.array(z.object({ relative: z.string().regex(/^(?:[a-z0-9_-]+\/)*[a-z0-9_.-]+\.(?:json|txt|md|png)$/)
     .refine(s => !s.split('/').includes('..')), sha256: hash }).strict()).min(10).max(256),
   extraEngineeringReceipts: z.array(file).min(1).max(2), technicalReviewReceipt: file,
+}).strict();
+export const referenceRecoveryConfigSchema = z.discriminatedUnion('version', [referenceRecoveryV1,
+  referenceRecoveryV1.extend({ version: z.literal('controlled-simple-reference-recovery/v2'), maximumMicroUsd: z.literal(14000000), allowanceGrant: file })]);
+export const sameBookAllowanceGrantSchema = z.object({ version: z.literal('local-simple-book-allowance-extension/v1'),
+  requestId: hash, parentVisualConfigSha256: hash, inheritedKnownMicroUsd: z.number().int().nonnegative(),
+  previousMaximumMicroUsd: z.literal(12000000), maximumMicroUsd: z.literal(14000000),
+  ownerApprovalReference: z.string().min(30).max(2000), sameBookOnly: z.literal(true), publicRelease: z.literal(false),
+  customerCharge: z.literal(false), gateChanges: z.literal(false), acceptKnownCompletedNativeSoftCapOvershoot: z.literal(true),
+  reconciledSessionReceipts: z.array(file).min(2).max(3), reconciledMicroUsd: z.number().int().positive(),
 }).strict();
 const fail = (code: string): never => { throw Object.assign(new Error(code), { code }); };
 const read = (name: string) => JSON.parse(fencedText(name, 32000000));
@@ -48,11 +58,44 @@ export async function prepareSimpleBookReferenceRecovery(configFile: string) {
   simpleBookExternalCosts(allEngineering);
   if (!config.extraEngineeringReceipts.some(f => canonicalJson(f) === canonicalJson(config.technicalReviewReceipt))) fail('reference_recovery_technical');
   const technical = read(config.technicalReviewReceipt.file);
+  const extended = config.version === 'controlled-simple-reference-recovery/v2';
+  const checkGrant = () => {
+    if (config.version !== 'controlled-simple-reference-recovery/v2') return null;
+    checked(config.allowanceGrant); const g = sameBookAllowanceGrantSchema.parse(read(config.allowanceGrant.file));
+    if (g.requestId !== parent.job.queued.requestId || g.parentVisualConfigSha256 !== config.visualConfig.sha256 ||
+      g.maximumMicroUsd !== config.maximumMicroUsd || config.extraEngineeringReceipts.length !== 2) fail('reference_recovery_allowance');
+    const records = g.reconciledSessionReceipts.map(f => { checked(f); return read(f.file); });
+    const last = records[records.length - 1], latestRef = g.reconciledSessionReceipts[g.reconciledSessionReceipts.length - 1];
+    if (!z.string().uuid().safeParse(last.sessionId).success || !/^[a-f0-9]{40}$/.test(last.head ?? '') ||
+      last.sessionId === technical.sessionId || last.code !== 0 || last.signal !== null ||
+      !last.terminationConfirmed || last.stopped || last.status !== '' || last.isError !== false || last.resultSubtype !== 'success' ||
+      last.qaVerdict !== 'PASS' || last.qaMode !== 'read_only_code' || last.head !== last.qaReviewHead ||
+      last.qaBase !== 'd9ae20dc29195004f1fed6d246daefbe42610953' ||
+      canonicalJson(last.models) !== canonicalJson([CAUSAL_MODELS.opus]) ||
+      last.costKind !== 'cumulative_same_cli_session_list_estimate_not_invoice' || last.includesPreviousKnownFailedCalls !== true ||
+      Math.ceil(last.reportedCostUsd * 1e6) !== g.reconciledMicroUsd ||
+      !config.extraEngineeringReceipts.some(f => canonicalJson(f) === canonicalJson(latestRef)) ||
+      canonicalJson(latestRef) === canonicalJson(config.technicalReviewReceipt)) fail('reference_recovery_reconciliation');
+    // All earlier calls belong to the same known terminated session. Only its
+    // latest cumulative amount is added, never the intermediate amounts again.
+    simpleBookExternalCosts(g.reconciledSessionReceipts);
+    records.forEach((r, i) => {
+      if (r.sessionId !== last.sessionId || r.head !== last.head || r.status !== '' || !r.terminationConfirmed || r.signal !== null || r.stopped ||
+        canonicalJson(r.models) !== canonicalJson(last.models) || i > 0 && r.reportedCostUsd <= records[i - 1].reportedCostUsd ||
+        i < records.length - 1 && (r.code !== 1 || r.isError !== true || r.resultSubtype !== 'error_max_budget_usd')) fail('reference_recovery_reconciliation');
+    });
+    if (last.previousCumulativeReportedCostUsd !== records[records.length - 2].reportedCostUsd) fail('reference_recovery_reconciliation');
+    gitAt(parent.current.workspace, ['merge-base', '--is-ancestor', last.head, config.sourceHead]);
+    return g;
+  };
+  const grant = checkGrant();
   if (technical.head !== config.sourceHead || technical.status !== '' || technical.code !== 0 || technical.signal !== null ||
     !technical.terminationConfirmed || technical.stopped || technical.isError !== false || technical.resultSubtype !== 'success' ||
     canonicalJson(technical.models) !== canonicalJson([CAUSAL_MODELS.opus]) || !Number.isSafeInteger(technical.maximumMicroUsd) ||
-    Math.ceil(technical.reportedCostUsd * 1e6) > technical.maximumMicroUsd || technical.qaVerdict !== 'PASS' ||
-    technical.qaReviewHead !== config.sourceHead || technical.qaBase !== 'd9ae20dc29195004f1fed6d246daefbe42610953' ||
+    technical.maximumMicroUsd <= 0 || technical.maximumMicroUsd > config.maximumMicroUsd ||
+    !extended && Math.ceil(technical.reportedCostUsd * 1e6) > technical.maximumMicroUsd || technical.qaVerdict !== 'PASS' ||
+    technical.qaReviewHead !== config.sourceHead || technical.qaBase !== (extended ? 'b973b17fba433c4dc70df18ff847a7e7f7e33d94' : 'd9ae20dc29195004f1fed6d246daefbe42610953') ||
+    extended && !z.string().uuid().safeParse(technical.sessionId).success ||
     technical.qaMode !== 'read_only_code') fail('reference_recovery_technical');
   const verify = () => {
     if (fencedText(configFile, 64000) !== bytes) fail('reference_recovery_config_changed');
@@ -62,7 +105,7 @@ export async function prepareSimpleBookReferenceRecovery(configFile: string) {
       if (!stat.isFile() || stat.isSymbolicLink() || stat.nlink !== 1 || stat.size > 32000000 || previewSha(readFileSync(full)) !== digest) fail('reference_recovery_evidence_changed');
     }
     if (visualEvidenceFiles(parent.directory).some(n => !inventory.has(`controlled-visual-continuation-20261008/${n}`))) fail('reference_recovery_inventory');
-    simpleBookExternalCosts(allEngineering);
+    simpleBookExternalCosts(allEngineering); checkGrant();
   };
   verify();
   const host = read(config.terminationReceipt.file), claim = read(path.join(parent.directory, 'claim.json'));
@@ -139,14 +182,16 @@ export async function prepareSimpleBookReferenceRecovery(configFile: string) {
     record.requestDigest !== claim.requestDigest || view.requestId !== parent.job.queued.requestId || canonicalJson(view.edited) !== canonicalJson(parent.view.edited) ||
     view.accounting.knownEstimateMicroUsd !== inherited.knownEstimateMicroUsd || view.accounting.unknownAttemptCosts) fail('reference_recovery_view');
   const extra = simpleBookExternalCosts(config.extraEngineeringReceipts), externalMicroUsd = inherited.accountedMicroUsd + extra;
-  if (externalMicroUsd + 600000 > 12000000) fail('reference_recovery_budget');
+  if (grant && grant.inheritedKnownMicroUsd !== inherited.knownEstimateMicroUsd) fail('reference_recovery_allowance');
+  if (externalMicroUsd + 600000 > config.maximumMicroUsd) fail('reference_recovery_budget');
   const directory = path.join(parent.job.directory, 'controlled-reference-recovery-20261008');
   const current = { ...parent.current, sourceHead: config.sourceHead };
   return { config, parent, result, view, inherited, extra, externalMicroUsd, directory, current, verify,
     seed: { name: 'child' as const, bytes: imageBytes, imageSha: candidate.imageSha, context: expectedContext, review: held.review }, claim() {
       verify(); mkdirSync(directory); exclusiveJson(path.join(directory, 'claim.json'), { configSha256: previewSha(bytes), sourceHead: config.sourceHead,
-        requestDigest: claim.requestDigest, inherited, extra, referenceCorrectionLimit: 1, runtimeEligible: false });
-      const budget = new SimpleBookBudget(path.join(directory, 'paid-stages'), externalMicroUsd);
+        requestDigest: claim.requestDigest, inherited, extra, referenceCorrectionLimit: 1, runtimeEligible: false,
+        ...(extended ? { maximumMicroUsd: config.maximumMicroUsd, allowanceGrant: config.allowanceGrant } : {}) });
+      const budget = new SimpleBookBudget(path.join(directory, 'paid-stages'), externalMicroUsd, config.maximumMicroUsd);
       let sequence = readdirSync(parent.job.directory).filter(n => /^view-\d{4}\.json$/.test(n)).length;
       const publish = (next: SimpleBookView) => {
         if (next.phase !== 'failed') verify(); const parsed = simpleBookViewSchema.parse(next);

@@ -16,7 +16,7 @@ export async function simpleBookReferenceRecoveryCLI(argv: string[]) {
   if (argv.length === 2) {
     console.log(JSON.stringify({ status: 'controlled_reference_recovery_preview', requestId: ready.parent.job.queued.requestId,
       inherited: ready.inherited, extraEngineeringMicroUsd: ready.extra, totalBeforeMicroUsd: ready.externalMicroUsd,
-      sourceHead: ready.config.sourceHead, maximumMicroUsd: 12000000, newWriters: 0, newPlanners: 0, providerCalls: 0, keyReads: 0,
+      sourceHead: ready.config.sourceHead, maximumMicroUsd: ready.config.maximumMicroUsd, newWriters: 0, newPlanners: 0, providerCalls: 0, keyReads: 0,
       referenceCorrectionLimit: 1, runtimeEligible: false })); return 0;
   }
   if (process.env.GPT_IMAGE_EDIT_MAX_REFERENCES !== '4') fail('reference_recovery_reference_limit');
@@ -32,7 +32,8 @@ export async function simpleBookReferenceRecoveryCLI(argv: string[]) {
   let view: SimpleBookView = { ...ready.view, imageScope: 'owned_reference_recovery', error: null, images: [] };
   const update = (phase: SimpleBookView['phase'], images = view.images) => {
     const snapshot = budget.snapshot(); view = { ...view, phase, images, accounting: { ...view.accounting,
-      knownEstimateMicroUsd: snapshot.knownEstimateMicroUsd, unknownAttemptCosts: snapshot.unknownAttemptCosts, logicalAttempts: 17 + snapshot.logicalAttempts } };
+      knownEstimateMicroUsd: snapshot.knownEstimateMicroUsd, unknownAttemptCosts: snapshot.unknownAttemptCosts,
+      allowanceMicroUsd: ready.config.maximumMicroUsd, logicalAttempts: 17 + snapshot.logicalAttempts } };
     publish(view); console.log(JSON.stringify({ phase, ...snapshot, inheritedLogicalAttempts: 17, runtimeEligible: false }));
   };
   const interrupt = () => controller.abort(); process.on('SIGINT', interrupt);
