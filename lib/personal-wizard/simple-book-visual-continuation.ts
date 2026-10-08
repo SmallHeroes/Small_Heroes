@@ -9,7 +9,7 @@ import { compileCausalSourceReading, causalSourceReviewPacket } from './story-ca
 import { canonicalJson } from './request-acceptance';
 import { prepareCurrentPersonalStoryboard, compilePersonalStoryboard, storyboardReviewDisposition, currentPersonalStoryboardFrame } from './storyboard';
 import { decodePersonalBookProviderOutput, personalBookProviderPayload } from './book-openai';
-import { prepareCausalWire } from '../../scripts/personal-causal-trial-adapters';
+import { CAUSAL_MODELS, prepareCausalWire } from '../../scripts/personal-causal-trial-adapters';
 import { auditionUsageCost, readAuditionImage } from '../../scripts/personal-simple-book-illustrator';
 import { exclusiveJson, fencedText, realDirectory } from '../../scripts/personal-causal-trial-journal';
 import { previewSha } from '../local-story-preview';
@@ -55,7 +55,7 @@ export async function prepareSimpleBookVisualContinuation(configFile: string) {
   const technical = read(config.technicalReviewReceipt.file);
   if (technical.head !== config.sourceHead || technical.status !== '' || technical.code !== 0 || technical.signal !== null ||
       !technical.terminationConfirmed || technical.stopped || technical.isError !== false || technical.resultSubtype !== 'success' ||
-      canonicalJson(technical.models) !== canonicalJson(['claude-opus-5-5']) || !Number.isSafeInteger(technical.maximumMicroUsd) ||
+      canonicalJson(technical.models) !== canonicalJson([CAUSAL_MODELS.opus]) || !Number.isSafeInteger(technical.maximumMicroUsd) ||
       Math.ceil(technical.reportedCostUsd * 1e6) > technical.maximumMicroUsd || technical.qaVerdict !== 'PASS' ||
       technical.qaReviewHead !== config.sourceHead || technical.qaBase !== '7fece1230a0a9c523d53e3decbe7357f12ed576d' ||
       technical.qaMode !== 'read_only_code') fail('visual_technical_review');

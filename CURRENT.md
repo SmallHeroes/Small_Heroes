@@ -1,5 +1,20 @@
 # SmallHeroes — Current Technical State
 
+## M6 full gate exposed one new model-authority failure; narrow correction (2026-10-08)
+
+Native293f0a00 bounded READ-ONLY codePASS for7fe..5e681441; no tests, compile internals, real pixels, prices,
+literary/product/release review by native. Actual529487micro retained. Known9352016/original12m, remaining
+2647984, unknown0 (Max7197156 list value, API2154860 conservative estimates). Actual pure same-book admission
+passed with92unchanged evidence files,0providers/keys/new writers. Config is prepared, NO --execute or new image.
+
+Committed full5e RED:6851ordinary pass/11fail/73skip;634resource pass/1oldWindows probe fail PLUS3RPC errors.
+TEN ordinary failures are inherited; ONE NEW failure is anthropic-model-authority scanning the literal Opus ID
+in the new admission helper. Native codePASS did not cover that full gate. Paid work remains stopped.
+Fix only the import/comparison to use the existing approved diagnostic CAUSAL_MODELS.opus constant. No model
+change, authority allowlist expansion, test edit, default migration or weaker guard. Type check+registry and
+admission/positive/cancel/bootstrap checks, separate local corrective commit, full check and native re-gate
+precede any paid run. Earlier5e configuration/evidence remain immutable; fresh head-bound config only after QA.
+
 ## Same-book visual-only continuation implemented; frozen gates before paid proof (2026-10-08)
 
 Codex sole writer in voice checkout/branch, M6 base7fece123. M5 native Claude edb7ec4a issued bounded read-only

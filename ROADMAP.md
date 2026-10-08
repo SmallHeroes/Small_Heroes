@@ -1,5 +1,14 @@
 # SmallHeroes — Roadmap
 
+## M6 model-authority correction before the live visual proof (2026-10-08)
+
+- Native bounded codePASS7fe..5e, but separate fullRED has one NEW registry-literal failure plus11inherited
+  assertion failures across both lanes and3RPC errors. Do not call it unchanged or green. No paid book call.
+- Two-line import/reference fix reuses existing CAUSAL_MODELS.opus; no allowlist/test/default/provider change.
+  Local checks, focused successor, full gate and bounded native re-gate before new head-bound config/--execute.
+- M6 engineering529487 retained:9352016/original12m, unknown0. Actual92-file provider-free admission passed.
+  Same text/locations/props/8body+cover, Sol QA and all earlier gates remain; no spending renewal or push.
+
 ## Same completed story -> one owned visual proof; technical gates next (2026-10-08)
 
 - M5 bounded native codePASS; committed full stillRED11old failures+3RPC errors, not release/product PASS.

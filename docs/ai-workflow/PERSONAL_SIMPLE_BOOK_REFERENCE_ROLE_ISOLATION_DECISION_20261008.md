@@ -154,3 +154,16 @@ Final M6 safeguards: overall40-minute AbortController deadline in addition to pe
 cancelled terminal code and no automatic retry. New owned-board result records ONLY its fresh source-bound
 review call (with104KB content measurement); old Astra call records remain in immutable M4 evidence, never
 presented as new calls. Real CJS bootstrap argument rejection and signal cancellation are checked offline.
+
+## 14. Full-gate model-authority correction (same approved scope)
+
+M6 native first bounded codePASS7fe..5e681441; actual529487micro, total9352016/original12m. Native did not
+run tests or cover the pending full gate. Actual pure admission passed92evidence files with0key/provider/writer.
+Separate full5e RED:6851ordinary pass/11fail/73skip,634resource pass/1fail +3RPC errors. One ordinary failure
+is new: direct Opus literal in the admission helper violates the exact source-file model-authority scan.
+
+Codex narrow successor: import and compare existing CAUSAL_MODELS.opus rather than the same hardcoded ID.
+Do not expand the allowlist, edit/disable the test, change the native/provider model or alter any flow/guard.
+Local tsc/authority/admission checks, focused commit, full check and native corrective read-only re-gate.
+Old config and all evidence unchanged; source-bound successor config must include both actual engineering
+sessions in the ORIGINAL12m and a fresh technical receipt before live work. No allowance renewal/push.
