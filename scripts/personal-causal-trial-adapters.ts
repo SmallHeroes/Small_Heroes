@@ -34,7 +34,7 @@ const astraPayload = (call: CausalDispatch, inline = false) => {
     instructions: call.instructions, input: call.input, max_output_tokens: call.maxOutputTokens,
     text: { format: inline ? { ...format, schema: inlineLocalJsonSchemaReferences(format.schema) } : format } };
 };
-function opusOutputContract(call: CausalDispatch) {
+export function opusOutputContract(call: Pick<CausalDispatch, 'stage' | 'schema'>) {
   const format = zodTextFormat(call.schema, `causal_${call.stage}`), schema = format.schema;
   if (schema.type === 'object' && !['anyOf', 'oneOf', 'allOf'].some(key => key in schema)) {
     return { schema, decode: (value: unknown) => call.schema.parse(value) };

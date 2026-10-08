@@ -60,3 +60,17 @@ gateway migration, key creation, new story, canon/power/accessory change, manual
 lower0.70, automatic retry, swallowed finding, push/merge/deploy. No fixture is used as paid story evidence.
 Additional literary repair, if a valid reader actually finds a material issue, must use a fresh general editor and
 preserve full provenance; it is not silently simulated by this milestone.
+
+## First independent review and targeted correction
+
+Native Claude session66cfc305-545e-40aa-b064-e676f7fb2603 read18ba3a0c and returnedHOLD, notPASS: all Bash
+commands were denied, so topology/tests were not independently run. No proven financial/gate bypass was found.
+Known reportedMax0.7116592 adds711660micro conservatively to original4526884. Two Low observations are corrected:
+exact saved current Opus JSON-schema argument binding, using the same output-contract builder; and continuation
+prefix on new storyboard provider-response evidence. Other Low notes (trusted hash-bound host receipt, safe
+overcount on copied receipt, new-attempt cap/crash fails closed) are disclosed, not falsely declared fixed.
+The completed18ba full gate isRED with6773/10/73skip ordinary and634/1 resource; all11 failure names are inherited.
+Independent re-gate must use literal allowed read-only commands, no -C/variables or unsupported command approval.
+Correction verification: literal TypeScript0; complete serial two-file106/106 (81+25). Initial105/1 inherited
+bootstrap timeout retained, isolated1/1 in1109ms and then106/106 complete. No timeout change or weakened assertion.
+Full gate not rerun for this small correction: the last completed18ba RED is not represented as current green.

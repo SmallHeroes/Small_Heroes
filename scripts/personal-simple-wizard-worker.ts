@@ -102,7 +102,7 @@ export async function runSimpleBookWorkerPipeline(args: {
         ? Math.ceil(usage.inputTokens * rate.inputMicroUsdPerToken + usage.outputTokens * rate.outputMicroUsdPerToken) : null;
       const receipt = { raw: response, usage, estimatedMicroUsd, model: response.model, stage: step };
       // Keep the actual response even if status, schema, tier or output is rejected.
-      exclusiveJson(path.join(worker.directory, `${step}-provider-response.json`), receipt);
+      exclusiveJson(path.join(worker.directory, artifact(`${step}-provider-response.json`)), receipt);
       if (signal.aborted || response.model !== payload.model || response.service_tier !== 'default' ||
           response.status !== 'completed' || !response.output_text || !usage || usage.outputTokens > call.maxOutputTokens) {
         throw Object.assign(new SimpleBookFlowError('simple_provider_invalid'), { receipt });

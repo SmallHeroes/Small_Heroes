@@ -564,6 +564,7 @@ describe('explicit same-book continuation, no provider in fixtures', () => {
       expect(await ready.reuseWriting(calls[i])).toEqual(await x.f.args.opus.mock.results[i].value);
       await expect(ready.reuseWriting({ ...calls[i], input: calls[i].input + ' changed' })).rejects.toThrow('continuation_writer_binding');
       await expect(ready.reuseWriting({ ...calls[i], instructions: calls[i].instructions + ' changed' })).rejects.toThrow('continuation_writer_binding');
+      await expect(ready.reuseWriting({ ...calls[i], schema: calls[i].schema.describe('SYNTHETIC changed schema; same output still parses') })).rejects.toThrow('continuation_writer_binding');
     }
     expect(() => prepareSimpleBookContinuation(x.recoveryFile).claim()).toThrow();
     for (const [n, digest] of x.originalHashes) expect(sha(readFileSync(path.join(x.old.directory, n)))).toBe(digest);
@@ -614,6 +615,23 @@ describe('explicit same-book continuation, no provider in fixtures', () => {
     expect(forbiddenWriter).not.toHaveBeenCalled(); expect(sdk.create).toHaveBeenCalledTimes(2);
     expect(claimed.budget.snapshot()).toMatchObject({ knownEstimateMicroUsd: 418000, logicalAttempts: 2, stopped: false });
     expect(JSON.parse(readFileSync(path.join(x.old.directory, 'continuation-sealed.json'), 'utf8'))).toMatchObject({ status: 'story_held', imageCalls: 0 });
+    for (const [n, digest] of x.originalHashes) expect(sha(readFileSync(path.join(x.old.directory, n)))).toBe(digest);
+  });
+  it('names new visual provider evidence as continuation without changing the original failed evidence', async () => {
+    const x = await failedOriginal(), ready = prepareSimpleBookContinuation(x.recoveryFile), claimed = ready.claim();
+    const forbiddenWriter = vi.fn(); vi.spyOn(adapters, 'createOpusCausalTransport').mockReturnValue(forbiddenWriter);
+    sdk.create.mockImplementation(async (payload: any) => {
+      if (sdk.create.mock.calls.length > 2) return { model: 'SYNTHETIC_WRONG_MODEL', service_tier: 'default', status: 'completed',
+        usage: { input_tokens: 100, output_tokens: 100 }, output_text: '{}' };
+      const packet = JSON.parse(payload.input);
+      return { model: adapters.CAUSAL_MODELS.astra, service_tier: 'default', status: 'completed', usage: { input_tokens: 100, output_tokens: 100 },
+        output_text: JSON.stringify({ packetDigest: packet.packetDigest, summary: 'SYNTHETIC source-bound reading, no literary claim.', findings: [] }) };
+    });
+    expect(await runSimpleBookWorkerPipeline({ config: ready.original, configFile: x.recoveryFile, cliWorkspace: path.join(root, 'simple-book-cli-workspace'),
+      worker: claimed.worker, continuation: { budget: claimed.budget, inheritedAttempts: 3, assertCurrent: ready.verify, reuseWriting: ready.reuseWriting } })).toBe(1);
+    expect(forbiddenWriter).not.toHaveBeenCalled(); expect(sdk.create).toHaveBeenCalledTimes(3);
+    const responses = require('node:fs').readdirSync(x.old.directory).filter((n: string) => n.endsWith('-provider-response.json'));
+    expect(responses).toHaveLength(1); expect(responses[0]).toMatch(/^continuation-/);
     for (const [n, digest] of x.originalHashes) expect(sha(readFileSync(path.join(x.old.directory, n)))).toBe(digest);
   });
 });

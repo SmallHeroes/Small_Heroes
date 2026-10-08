@@ -8,7 +8,7 @@ import { simpleBookExternalCosts, SimpleBookBudget } from './simple-book-budget'
 import { simpleBookViewSchema, type SimpleBookView } from './simple-book-view';
 import { canonicalJson } from './request-acceptance';
 import { exclusiveJson, fencedText } from '../../scripts/personal-causal-trial-journal';
-import { CAUSAL_MODELS, type TransportReply } from '../../scripts/personal-causal-trial-adapters';
+import { CAUSAL_MODELS, opusOutputContract, type TransportReply } from '../../scripts/personal-causal-trial-adapters';
 import type { SimpleStoryCall } from './simple-story-engine';
 
 const hash = z.string().regex(/^[a-f0-9]{64}$/);
@@ -78,10 +78,12 @@ export function prepareSimpleBookContinuation(configFile: string) {
   const reuseWriting = async (call: SimpleStoryCall) => {
     verify();
     const wire = read(path.join(priorBudget.root, `${call.stage}.wire.json`)), claim = read(path.join(priorBudget.root, `${call.stage}.claim.json`));
+    const schemaIndex = Array.isArray(wire.payload?.args) ? wire.payload.args.indexOf('--json-schema') : -1;
     if (wire.role !== 'opus' || wire.model !== CAUSAL_MODELS.opus || wire.stage !== call.stage || wire.outputCap !== call.maxOutputTokens ||
         wire.payload.instructions !== call.instructions || wire.payload.stdin !== call.input ||
         JSON.stringify(wire.payload) !== wire.json || sha(wire.json) !== wire.digest || sha(canonicalJson(wire)) !== claim.wireDigest ||
-        !wire.payload.freshProcess || !wire.payload.args.includes('--no-session-persistence')) fail('continuation_writer_binding');
+        !wire.payload.freshProcess || !wire.payload.args.includes('--no-session-persistence') || schemaIndex < 0 ||
+        wire.payload.args[schemaIndex + 1] !== JSON.stringify(opusOutputContract(call).schema)) fail('continuation_writer_binding');
     call.schema.parse(records[call.stage].output);
     return records[call.stage]; // Historical paid records; the existing current-source factory verifies them again.
   };

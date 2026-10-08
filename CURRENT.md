@@ -1,5 +1,21 @@
 # SmallHeroes — Current Technical State
 
+## Controlled continuation first independent review: HOLD, narrow correction (2026-10-08)
+
+Native Claude read18ba3a0c, found no proven spend/hold bypass, but withheld PASS because its Bash commands were denied.
+No independent test result is claimed. Reported Max0.7116592 rounds conservatively to711660micro; same-book known
+total5238544micro, no new API/image call. Original failed book/evidence remain immutable. Codex corrects two Low
+items: compare the saved actual Opus --json-schema argument with the current shared output contract, and prefix new
+visual provider response files as continuation. No prose/canon/prompt/price/model/gate change. One new provider-free
+case and stronger assertions in the existing provenance case. Local checks then a fresh bounded read-only re-gate.
+Correction literal npx tsc --noEmit0, complete serial focused106/106 (81flow+25image). Earlier correction run had
+105pass/one inherited bootstrap timeout; isolated1/1 in1109ms, then full106pass. No timeout or test removed/relaxed.
+The previous full18ba remainsRED; no full-repository rerun for this two-guard correction, no broader green claim.
+Full check at18ba finishedRED:6773pass/10oldfail/73skip ordinary,634pass/1oldWindows probe failure resource.
+All11 exact failing names equal the earlier completed gate; source and six protected trees unchanged.
+User's already-open wizard needed an edit/revalidation during UI inspection; its draftRevision changed and therefore
+its content-bound request ID changed. No new book was queued or dispatched. Original requestda350 remains fixed.
+
 ## Same-book continuation explicitly approved, implementation in progress (2026-10-08)
 
 Guy approved the controlled continuation after the book review. Codex is sole writer in the existing
