@@ -1,5 +1,18 @@
 # SmallHeroes — Roadmap
 
+## M10 paid book blocked by failed review delivery and remaining allowance (2026-10-08)
+
+- c72ece29local scope green; complete independent assessment found no blocker,
+  but nativeCLI endederror_max_budget_usd/code1. NOT formal completedPASS.
+- Actual fee1912085micro despite1msoftslot;2inferences/19837thinking tokens.
+  Total15714738of16m;remaining285262below unchanged600Kpixel reservation.
+- No book API/key/claim/new images this milestone. Same189artifacts/six trees.
+- Small valid sparse-role guard and non-tautological test response fixed locally;
+ 28/28request tests,tsc0,1virtual assertion failure. Re-gate still pending.
+- Stop paid retries. Next: provider-free reviewer-invocation simplification and
+  verified inference admission; THEN owner-priced financial decision for any
+  engineering re-gate and original8pages+cover. No budget reset/gate change.
+
 ## M10 transport correction approved and in implementation (2026-10-08)
 
 - Explicit indexed reference roles in the real shared planner/caller, opt-in only.

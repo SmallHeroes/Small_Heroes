@@ -538,7 +538,7 @@ export function planGPTImageRequest(
   const roles = input.referenceRoles;
   if (referenceMode === 'book_design' ? (!Array.isArray(roles) || roles.length !== referenceCountRequested ||
       roles.length === 0 || referenceCountRequested !== orderedReferenceSources.length ||
-      new Set(roles).size !== roles.length || roles.some(r => !Object.prototype.hasOwnProperty.call(BOOK_DESIGN_ROLES, r))) : roles !== undefined) {
+      new Set(roles).size !== roles.length || Array.from(roles).some(r => !Object.prototype.hasOwnProperty.call(BOOK_DESIGN_ROLES, r))) : roles !== undefined) {
     throw new Error('Invalid explicit book design reference roles.');
   }
   const apiMode = orderedReferenceSources.length > 0 ? 'images.edit' : 'images.generate';

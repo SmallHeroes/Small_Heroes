@@ -110,7 +110,8 @@ describe('generateGPTImage (3a) — real cancellation + no hidden SDK retries', 
     for (const referenceMode of ['identity', 'style', 'book_identity'] as const) {
       const legacy = planGPTImageRequest({ finalPrompt: input.finalPrompt, referenceImages: references, referenceMode }, defaults);
       expect(legacy.referenceRoles).toBeUndefined(); expect(legacy.finalPrompt).not.toContain('[BOOK DESIGN REFERENCES');
-      expect(legacy.finalPrompt).toBe(planGPTImageRequest({ finalPrompt: input.finalPrompt, referenceImages: references, referenceMode }, defaults).finalPrompt);
+      const header = { identity: '[REFERENCE IMAGES - CRITICAL]', style: '[STYLE REFERENCES', book_identity: '[PERSONAL BOOK REFERENCE ROLES]' }[referenceMode];
+      expect(legacy.finalPrompt).toContain(header); expect(legacy.requestOptions).toEqual({ maxRetries: 0 });
     }
   });
   it('book_design supports canonical entity and location authorities without inventing an edit target', () => {
@@ -126,10 +127,11 @@ describe('generateGPTImage (3a) — real cancellation + no hidden SDK retries', 
   });
   it('book_design refuses absent, invalid, aliased or truncated role mappings before I/O', async () => {
     const roles = ['child_design_authority', 'companion_design_authority'];
+    const sparse = new Array(2); sparse[1] = roles[1];
     const base = { finalPrompt: 'x', referenceMode: 'book_design', referenceImages: ['missing-a.png', 'missing-b.png'],
       apiKey: 'test-explicit-never-network' };
     for (const change of [{}, { referenceRoles: [] }, { referenceRoles: [roles[0]] },
-      { referenceRoles: [roles[0], roles[0]] }, { referenceRoles: ['invented', roles[1]] },
+      { referenceRoles: [roles[0], roles[0]] }, { referenceRoles: ['invented', roles[1]] }, { referenceRoles: sparse },
       { referenceRoles: roles, referenceImages: [] }, { referenceRoles: roles, referenceMode: 'identity' },
       { referenceRoles: roles, referenceMode: 'book_identity' },
       { referenceRoles: [...roles, 'entity_design_authority', 'rejected_edit_target', 'child_design_authority'],

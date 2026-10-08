@@ -1,5 +1,42 @@
 # SmallHeroes — Current Technical State
 
+## M10 source review delivery failed;16m stops paid continuation (2026-10-08)
+
+Code milestone:c72ece29e46994b032cdf998227408a6a84a057c, clean before fresh
+native independent review of08a51c91..c72ece29. Sessionb2f31e8b-6393-4cc8-857c-1aa31ab4d2a5
+returned a complete no-code-blocker assessment, BUT processcode1/isError=true/
+error_max_budget_usd. This is NOT a valid completed PASS/admission receipt.
+Raw receipt, stream and assessment preserved; no content or verdict upgraded.
+Known reported-list fee1.9120844USD =1912085micro, vs soft per-session1m.
+Two internal inferences:182556cache-created input tokens,22561output including
+19837thinking. CLI budget checked too late to serve as a per-call reservation;
+its exact internal continuation cause is not independently traced. Do not retry
+or enlarge the cap automatically. A future bounded reviewer must use a smaller
+explicit packet/system context and an independently verified inference limit;
+`--version`/help is NOT proof of --max-turns support (invalid-flag control also
+exits0). No paid calibration approved or performed.
+
+Aggregate known15714738of16m;285262left,unknown0. Max reported-list13246512,
+OpenAI conservative API2468226UNCHANGED. Engineering12455955;partialbook3258783.
+Every past failed fee retained once. Unchanged pixel reservation600000 alone
+exceeds remaining funds. No new paid book claim, key read, atlas or page render.
+Old189book files and6protected trees unchanged; illustrated book still absent.
+
+Free QA response: sparse JS role arrays could skip Array.some/map entries.
+Normalize validation with Array.from, so every position must be a known role.
+Corrected the tautological legacy self-comparison to explicit header/retry checks;
+actual prior-wire replay remains the stronger byte-compatibility proof. Canonical
+Dini current public PNG equals M9 authority byte-for-byte(ea452225...). Both
+changes are within approved transport scope, not a new visual or money path.
+Final28/28request tests and literaltsc0. Sparse-guard virtual rollback yields
+1intended assertion failure before provider; no loader/timeout.449focused/full
+numbers below belong to precedingc72code, not a rerun at this narrow successor.
+Independent re-gate is still pending; no paid book continuation authorized by
+the failed delivery. Owner decision/new scoped financial gate required to spend
+more. Do not reopen claims, reset cost or loosen gates to use the tiny balance.
+Evidence: reference-transport-review-failed-delivery-outcome-20261008.json and
+reference-transport-claude-qa-20261008/FAILED-DELIVERY-ASSESSMENT.json in taskART.
+
 ## M10 approved explicit reference transport implementation; QA/live proof pending (2026-10-08)
 
 Guy's direct 'יש אישור' approves the focused transport fix, local tests,

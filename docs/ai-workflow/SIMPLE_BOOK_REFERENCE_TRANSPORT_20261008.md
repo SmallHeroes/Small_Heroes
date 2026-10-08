@@ -146,3 +146,44 @@ Implementation details: explicit book_design request mode requires a known, uniq
   pixels, product, production or general repository stability.
 - Any new QA fee counts once within16m, then exact pure admission before API.
   Guy's product acceptance is after actual delivery; no extra book or cap reset.
+
+## Actual independent review outcome and narrow free QA response
+
+Frozen range08a51c91..c72ece29, native sessionb2f31e8b-6393-4cc8-857c-1aa31ab4d2a5.
+Full text says PASS/no reachable code blockers in supplied sources, with six
+non-blocking observations and explicit dependency/test/pixel limitations.
+However native process endedcode1,error_max_budget_usd,isError=true. This is NOT
+successful independent delivery and cannot authorize the paid book. Original
+receipt has qaVerdict:null. Exact assessment saved separately as failed-delivery
+evidence, not an assembled PASS. Assembly rejects the real failed result before
+writing any authority. No fresh reviewer/book API or key call followed.
+
+Actual fee1912085micro, not softslot1m. Model reports2inferences,182556cache-created
+input,22561output,19837thinking. All fee counted once. Total15714738/16m,
+remaining285262,unknown0. Max list-estimate13246512 vs API2468226unchanged.
+No invoice claim. The unchanged600000pixel admission alone cannot fit. Both
+original parent allowances and all sealed claims remain untouched. No render.
+
+Valid small feedback corrected without paid calls: JS sparse role arrays could
+pass Array.some because holes are skipped. Array.from now validates holes as
+unknown roles before IO. Added a sparse input to the existing rejection test.
+Changed an old self-comparison assertion to explicit mode-header and maxRetries
+checks; it is not a byte-compatibility proof. Actual saved-wire replay is that
+proof. The current public dragon_dinifront and old M9companion PNG have identical
+ea452225967aa864ff50d78ebdae21f029cef13bc86145990102d9825a08e1fbSHA256.
+Other observations are non-blocking or fail-closed. No canon/creative change.
+
+Narrow successor checks:28/28request specs, literaltsc0, virtual rollback of only
+sparse validation fails the intended assertion (wrong URL error replaces required
+role-validation error), no loader/timeout. No test removed. Earlier449/fullRED
+results apply to c72's code, not a newly claimed full check after this one-line
+hardening. Independent re-gate is pending and has no spending authority yet.
+
+Stop/rethink: do NOT rerun the big high-effort review with another soft slot.
+InstalledCLIhelp documents --system-prompt but not --max-turns. A --version
+experiment exits0 for both max-turns and a deliberately invalid flag, so it
+establishes no enforcement. Future offline invocation work must distinguish a
+single inference reservation from CLI-level budget/automatic continuation, reduce
+redundant context, and preserve independent scrutiny. Any further paid review,
+added financial receipt/grant or book spend requires explicit owner decision.
+All189book files and six protected trees remain unchanged. No illustrated book.
