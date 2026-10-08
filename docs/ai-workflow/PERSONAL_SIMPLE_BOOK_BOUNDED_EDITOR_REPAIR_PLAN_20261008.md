@@ -1,8 +1,11 @@
 # Decision Gate: one bounded editor repair
 
-STATUS: PLANNING ONLY. No implementation, repair call, storyboard or images. OriginalUSD12 unchanged.
-Valid literary findings were already routed toward a fresh general editor in the direction Guy approved.
-Paid work is now stopped pending explicit reconciliation of the known Max internal over-slot event below.
+STATUS: IMPLEMENTATION APPROVED by Guy's 2026-10-08 "אוקיי תמשיך בעבודה", following the explicit
+notice that the known Max internal over-slot event is reconciled without renewing OriginalUSD12.
+Codex sole writer, current task, codex/simple-story-voice-20261007 at base ccd8c6d03374ceba68ef01ca3e19eef88c72b105.
+No new paid call until local validation and Claude's independent frozen-range technical review.
+Local implementation complete: literal tsc0, serial874/874 in19files, six virtual source-guard mutants caught
+with control20/20. Full committed check and independent review pending; no repair/board/image dispatched.
 
 ## 1. Proposed change / 2. Observed cause
 
@@ -51,20 +54,20 @@ key; second HOLD never reaches images. Representative guard mutants, literal tsc
 Claude read-only exact-range QA. Real native reuse/wire/headroom proof BEFORE claim, as learned fromB-1.
 Full stability remainsRED until actually rerun/green; instruction tests are not literary-quality proof.
 
-## 8. Money / unresolved authority
+## 8. Money / approved authority
 
 Known5910550micro through the held book. Later design consultation claimed300000micro, reported349633,
 terminated code1/error_max_budget_usd. Known total6260183micro, remaining5739817 within ORIGINAL12000000.
 Max reports list value, not free or hard invoice protection. No unknown cost or renewal. Its partial advice
-is retained as partial, notPASS. Stop further paid calls pending Guy's explicit reconciliation. Fresh editor
+is retained as partial, notPASS. Guy's continuation reconciles this known event; its full cost stays counted. Fresh editor
 keeps its existing2m CLI aggregate slot/current28k cap; every engineering/API/image reservation counted before
 dispatch. Check full downstream headroom; if original12 cannot admit it, stop for a separate money decision.
 
 ## 9. Rollback / 10. Owners
 
 Opt-in absent keeps defaults. Preserve all original/failed/HOLD/new evidence; never delete claims/seals.
-Codex sole writer current voice worktree; Claude first code review read-only immutable range. Guy resolves
-internal over-slot authority and later product/visual acceptance. No parallel writer/implementation yet.
+Codex sole writer current voice worktree; Claude first code review read-only immutable range. Guy retains
+later product/visual acceptance. No parallel writer, new task or new allowance.
 
 ## 11. Stop check / exclusions
 

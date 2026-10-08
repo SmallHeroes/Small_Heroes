@@ -54,18 +54,21 @@ export async function runSimpleBookWorkerPipeline(args: {
   config: SimpleBookConfig; configFile: string; cliWorkspace: string; worker: ReturnType<typeof claimSimpleBookWorker>;
   continuation?: { budget: SimpleBookBudget; inheritedAttempts: number; assertCurrent: () => void;
     reuseWriting: (call: SimpleStoryCall) => Promise<TransportReply> };
+  repair?: { budget: SimpleBookBudget; inheritedAttempts: number; assertCurrent: () => void; prior: unknown; readings: unknown[] };
 }) {
   const { config, worker, cliWorkspace } = args;
+  if (args.continuation && args.repair) throw new SimpleBookFlowError('simple_resumption_conflict');
+  const resumed = args.repair ?? args.continuation;
   const externalMicroUsd = simpleBookExternalCosts(config.engineeringReceipts);
   const controller = new AbortController();
   const policy: WirePolicy = { executable: config.executable, executableSha256: config.executableSha256,
     workspace: cliWorkspace, maxWireBytes: 104000, rates,
-    ...(args.continuation ? { astraInlineReferences: true as const } : {}) };
+    ...(resumed ? { astraInlineReferences: true as const } : {}) };
   const opus = createOpusCausalTransport(policy);
   const astra = createAstraCausalTransport({ key: () => existingKey(config), rates: rates.astra,
-    ...(args.continuation ? { inlineReferences: true as const } : {}) });
-  const budget = args.continuation?.budget ?? new SimpleBookBudget(path.join(worker.directory, 'paid-stages'), externalMicroUsd);
-  const artifact = (name: string) => args.continuation ? `continuation-${name}` : name;
+    ...(resumed ? { inlineReferences: true as const } : {}) });
+  const budget = resumed?.budget ?? new SimpleBookBudget(path.join(worker.directory, 'paid-stages'), externalMicroUsd);
+  const artifact = (name: string) => args.repair ? `repair-${name}` : args.continuation ? `continuation-${name}` : name;
   const imageCalls = () => readdirSync(budget.root).filter(n => /^(?:reference_(?:child|entities|locations)|page_[0-8]_[01])\.claim\.json$/.test(n)).length;
   let failedStageCode: string | null = null;
   let last = emptySimpleBookView(worker.queued.requestId);
@@ -73,13 +76,13 @@ export async function runSimpleBookWorkerPipeline(args: {
     if (args.continuation && ['author', 'editor'].includes(view.phase)) return; // Paid historical evidence, not new calls.
     const snapshot = budget.snapshot();
     last = { ...view, accounting: { ...view.accounting, knownEstimateMicroUsd: snapshot.knownEstimateMicroUsd,
-      unknownAttemptCosts: snapshot.unknownAttemptCosts, logicalAttempts: snapshot.logicalAttempts + (args.continuation?.inheritedAttempts ?? 0) } };
+      unknownAttemptCosts: snapshot.unknownAttemptCosts, logicalAttempts: snapshot.logicalAttempts + (resumed?.inheritedAttempts ?? 0) } };
     worker.publish(last); console.log(JSON.stringify({ phase: view.phase, ...snapshot,
-      ...(args.continuation ? { inheritedLogicalAttempts: args.continuation.inheritedAttempts } : {}), runtimeEligible: false }));
+      ...(resumed ? { inheritedLogicalAttempts: resumed.inheritedAttempts } : {}), runtimeEligible: false }));
   };
   const assertCurrent = () => {
     if (controller.signal.aborted) throw new SimpleBookFlowError('simple_book_cancelled');
-    if (args.continuation) { args.continuation.assertCurrent(); return; }
+    if (resumed) { resumed.assertCurrent(); return; }
     assertSimpleBookSource(config);
     const current = simpleBookConfig(args.configFile);
     if (JSON.stringify(current) !== JSON.stringify(config)) throw new SimpleBookFlowError('simple_config_changed');
@@ -123,11 +126,13 @@ export async function runSimpleBookWorkerPipeline(args: {
   try {
     publish(last);
     const result = await runSimpleWizardBook({ request: worker.queued.request, options: worker.options, seed: config.seed,
-      signal: controller.signal, reservedWritingUsd: 4, publish,
+      signal: controller.signal, reservedWritingUsd: args.repair ? 2 : 4, publish,
+      ...(args.repair ? { repair: { prior: args.repair.prior, readings: args.repair.readings } } : {}),
       opus: async (call, signal) => {
         assertCurrent(); if (signal !== controller.signal) throw new SimpleBookFlowError('simple_signal_binding');
         if (args.continuation) return args.continuation.reuseWriting(call);
-        const instructionFile = path.join(worker.directory, `${call.stage}-instructions.txt`); exclusiveText(instructionFile, call.instructions);
+        if (args.repair && call.stage !== 'editor') throw new SimpleBookFlowError('simple_repair_author_prohibited');
+        const instructionFile = path.join(worker.directory, artifact(`${call.stage}-instructions.txt`)); exclusiveText(instructionFile, call.instructions);
         const dispatch = { ...call, role: 'opus' as const, conversationKey: `wizard:${worker.queued.requestId}:${call.stage}` };
         const wire = prepareCausalWire(dispatch, policy, 2000000, instructionFile);
         // CLI cost is cumulative across internal turns; its existing --max-budget-usd is $2.
@@ -167,7 +172,7 @@ export async function runSimpleBookWorkerPipeline(args: {
       illustrated = true;
     }
     exclusiveJson(path.join(worker.directory, artifact('sealed.json')), { status: illustrated ? 'illustrated_audition' : result.status, snapshot: budget.snapshot(),
-      ...(args.continuation ? { inheritedLogicalAttempts: args.continuation.inheritedAttempts } : {}),
+      ...(resumed ? { inheritedLogicalAttempts: resumed.inheritedAttempts } : {}),
       imageCalls: imageCalls(), illustrated, runtimeEligible: false, visualQualification: 'not_granted' });
     return result.status === 'review_supported' ? 0 : 2;
   } catch (error) {
@@ -175,7 +180,7 @@ export async function runSimpleBookWorkerPipeline(args: {
       ? error.code : 'simple_worker_failed');
     controller.abort(); publish({ ...last, phase: 'failed', error: code });
     exclusiveJson(path.join(worker.directory, artifact('sealed.json')), { status: 'failed', code, snapshot: budget.snapshot(),
-      ...(args.continuation ? { inheritedLogicalAttempts: args.continuation.inheritedAttempts } : {}), imageCalls: imageCalls(), runtimeEligible: false });
+      ...(resumed ? { inheritedLogicalAttempts: resumed.inheritedAttempts } : {}), imageCalls: imageCalls(), runtimeEligible: false });
     return 1;
   } finally { process.off('SIGINT', interrupt); }
 }

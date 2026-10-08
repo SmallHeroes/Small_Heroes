@@ -11,6 +11,7 @@ export const simpleBookViewSchema = z.object({
   images: z.array(z.object({ pageNumber: z.number().int().min(0).max(8), imageSha: hash,
     imageName: z.string().regex(/^[a-z0-9_]+\.png$/) }).strict()).max(9).default([]),
   original: manuscript.nullable(), edited: manuscript.nullable(),
+  baseline: z.literal('previous_edit').optional(),
   readings: z.array(z.object({ stage: z.enum(['final_review', 'comparison']), summary: z.string().max(2400),
     findings: z.array(z.object({ severity: z.enum(['blocking', 'meaningful', 'polish']), kind: z.string().max(40),
       criterion: z.string().max(2400), explanation: z.string().max(2400), original: z.array(quote).max(8), revised: z.array(quote).max(8),

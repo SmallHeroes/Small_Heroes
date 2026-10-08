@@ -1,5 +1,15 @@
 # SmallHeroes — Roadmap
 
+## One bounded same-book editor repair implemented; technical review before paid work (2026-10-08)
+
+- Guy reconciled the known failed Max consultation with its full cost retained; original12m unchanged.
+- Local milestone fromccd8: optional verified observations to a fresh editor, explicit three-session source,
+  prior-edit comparison, fixed sibling repair admission/CLI using the existing worker and illustrator.
+- tsc0,874/874 in19files, six targeted virtual mutants caught; no old test removed or timeout relaxed.
+  Full committed check and independent Claude review next. No book/board/image call yet; no production PASS.
+- If technically admitted, one paid repair and fresh Astra; only supported story/board advances to the
+  approved noncommercial LOW8pages+cover, with existing continuity/identity gates. Second HOLD/failure stops.
+
 ## Same-book continuation evaluated; bounded editor repair next, not built (2026-10-08)
 
 - Independent scopedPASS A5448a01a..18ba/B18ba..1cf; native106/106+tsc0; real schema preclaim proof passed.

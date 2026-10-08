@@ -1,5 +1,25 @@
 # SmallHeroes — Current Technical State
 
+## Bounded same-book editor repair implemented locally; independent QA pending (2026-10-08)
+
+Guy approved continuation after explicit reconciliation of the known Max internal slot overrun. The full
+349633micro receipt remains counted: aggregate6260183, unknown0, original12m unchanged. Codex sole writer
+in the voice worktree, current task, base ccd8c6d0. Implemented one opt-in fresh Opus edit of the existing
+edited manuscript with verified bounded reader observations, explicit three-session source lineage, then
+fresh blind Astra and unchanged downstream gates. Default two-call pipeline stays unchanged. No manual
+prose/new author/book, repair chain, weakened HOLD/citations/0.70, production/push/deploy. Local tests and
+independent Claude read-only QA precede the one paid repair. Literal npx tsc --noEmit0; broad serial19files,
+874/874; six virtual source-guard mutants caught by intended assertions, control20/20. No live call added.
+Existing ordinary/archive schemas still reject a bare three-call result. Only the explicit repaired-source
+variant admits original author/prior editor/new editor with all three costs and distinct sessions. Maximum
+six claims/12000 UTF8 bytes, no hidden omissions; blocking preferences/improvements stay HOLD but are not
+laundered into repair guidance. Final-only reading stays blind; comparison uses the prior edit, labeled as
+such in the dev viewer. Existing defaults unchanged. CLI preview/provider-free; fixed same-book sibling
+slot, confirmed terminal parents and old native reader/writer wire checks before claim; no author dispatch.
+New CLI bootstrap case has its own20s test/15s child deadline, without changing any existing timeout.
+Full check scheduled at the frozen code commit; previous full18ba remainsRED, not a claim for this head.
+Decision: PERSONAL_SIMPLE_BOOK_BOUNDED_EDITOR_REPAIR_PLAN_20261008.md. No independent PASS self-awarded.
+
 ## Same-book readings completed; literary HOLD; repair planned only (2026-10-08)
 
 Native Claude independentlyPASS A5448a01a..18ba and B18ba..1cf12417, verifying clean topology/diff,tsc0

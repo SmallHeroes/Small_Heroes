@@ -25,14 +25,14 @@ const fail = (code: string): never => { throw Object.assign(new Error(code), { c
 const read = (name: string) => JSON.parse(fencedText(name, 4000000));
 
 /** Explicit one-use continuation, not a restart or an archival source downgrade. No keys/providers. */
-export function prepareSimpleBookContinuation(configFile: string) {
+export function readSimpleBookContinuationEvidence(configFile: string, activeSourceHead?: string) {
   if (!path.isAbsolute(configFile)) fail('continuation_config');
   const configBytes = fencedText(configFile, 32000), config = simpleBookContinuationConfigSchema.parse(JSON.parse(configBytes));
   const checked = (f: z.infer<typeof file>) => {
     if (!path.isAbsolute(f.file) || sha(fencedText(f.file, 4000000)) !== f.sha256) fail('continuation_evidence_changed');
   };
   checked(config.originalConfig); checked(config.terminationReceipt);
-  const original = simpleBookConfig(config.originalConfig.file), current = { ...original, sourceHead: config.sourceHead };
+  const original = simpleBookConfig(config.originalConfig.file), current = { ...original, sourceHead: activeSourceHead ?? config.sourceHead };
   assertSimpleBookSource(current);
   const job = queuedSimpleBook(original);
   const inventory = new Map(config.artifacts.map(f => [f.relative, f.sha256]));
@@ -92,8 +92,13 @@ export function prepareSimpleBookContinuation(configFile: string) {
   const extra = simpleBookExternalCosts(config.extraEngineeringReceipts), externalMicroUsd = inherited.accountedMicroUsd + extra;
   if (externalMicroUsd >= 12000000) fail('continuation_budget');
   const directory = path.join(job.directory, 'controlled-continuation-20261008');
-  return { config, current, original, job, terminal, inherited, extra, externalMicroUsd, directory, verify, reuseWriting,
-    claim() {
+  return { config, configBytes, current, original, job, terminal, inherited, extra, externalMicroUsd, directory, verify, reuseWriting, oldClaim, records };
+}
+/** Paid authority remains the original fixed one-use continuation, at its own configured head. */
+export function prepareSimpleBookContinuation(configFile: string) {
+  const ready = readSimpleBookContinuationEvidence(configFile);
+  const { config, configBytes, original, job, inherited, extra, externalMicroUsd, directory, verify, oldClaim, records } = ready;
+  return { ...ready, claim() {
       verify(); mkdirSync(directory); // Fixed repository-owned slot; changing config/output cannot create another continuation.
       exclusiveJson(path.join(directory, 'claim.json'), { requestDigest: oldClaim.requestDigest, sourceHead: config.sourceHead,
         originalSourceHead: original.sourceHead, configSha256: sha(configBytes), inherited, extra, runtimeEligible: false });

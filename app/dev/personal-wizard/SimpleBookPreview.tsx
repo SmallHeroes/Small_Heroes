@@ -87,8 +87,8 @@ export function SimpleBookPreview({ request, requestId, stale, onEdit }: {
       {current.edited.pages.map(page => <section key={page.pageNumber}><h4>עמוד {page.pageNumber}</h4>
         {current.phase === 'illustrated_audition' ? <img src={`${endpoint}?requestId=${requestId}&page=${page.pageNumber}`} alt={`איור לעמוד ${page.pageNumber}`} loading="lazy" style={{ width: '100%', height: 'auto', borderRadius: 16 }} /> : null}
         <p style={{ whiteSpace: 'pre-line', lineHeight: 1.8 }}>{page.text}</p></section>)}</article> : null}
-    {current?.original ? <details><summary>הטיוטה המקורית לפני העריכה</summary>{current.original.pages.map(page => <p key={page.pageNumber}>{page.text}</p>)}</details> : null}
-    {current?.readings.map(reading => <details key={reading.stage}><summary>{reading.stage === 'final_review' ? 'קריאת הסיפור הסופי' : 'השוואת העריכה למקור'}</summary>
+    {current?.original ? <details><summary>{current.baseline === 'previous_edit' ? 'הגרסה הקודמת לפני התיקון' : 'הטיוטה המקורית לפני העריכה'}</summary>{current.original.pages.map(page => <p key={page.pageNumber}>{page.text}</p>)}</details> : null}
+    {current?.readings.map(reading => <details key={reading.stage}><summary>{reading.stage === 'final_review' ? 'קריאת הסיפור הסופי' : current.baseline === 'previous_edit' ? 'השוואת התיקון לגרסה הקודמת' : 'השוואת העריכה למקור'}</summary>
       <p>{reading.summary}</p>{reading.findings.map((finding, i) => <div key={i}><p>{finding.severity}: {finding.explanation}</p>
         {[...finding.original, ...finding.revised].map((quote, n) => <blockquote key={n}>עמוד {quote.pageNumber}: {quote.quote}</blockquote>)}</div>)}</details>)}
   </section>;

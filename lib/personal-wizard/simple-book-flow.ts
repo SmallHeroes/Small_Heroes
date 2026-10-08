@@ -1,7 +1,8 @@
 import 'server-only';
 import type { PersonalWizardOptions } from './options';
 import { prepareSimpleStory, writeSimpleStory, compileSimpleStory, type SimpleStoryCall } from './simple-story-engine';
-import { createCurrentSimpleStorySource } from './simple-story-source';
+import { createCurrentSimpleStorySource, createRepairedSimpleStorySource, prepareSimpleStoryRepair,
+  simpleStoryFindingIsMaterial, type CurrentSimpleStoryResult } from './simple-story-source';
 import { causalReviewPackets, causalSourceReviewPacket, compileCausalSourceReading, type CausalReading } from './story-causal-experiment';
 import { preparePersonalStory } from './story-writer';
 import { canonicalJson } from './request-acceptance';
@@ -20,19 +21,33 @@ export async function runSimpleWizardBook(args: {
   reader: (call: SimpleBookReadingCall, signal: AbortSignal) => Promise<unknown>;
   visual: (call: SimpleStoryboardDiagnosticCall, signal: AbortSignal) => Promise<unknown>;
   publish: (view: SimpleBookView) => void; reservedWritingUsd: number;
+  repair?: { prior: unknown; readings: unknown[] };
 }) {
   const prepared = prepareSimpleStory(args.request, args.options, args.seed);
   if (prepared.book.pages !== 8 || prepared.accepted.containsFixtureData || prepared.accepted.canonical.appearance.photo !== 'none') fail('simple_book_request');
   const records: Partial<Record<'author' | 'editor', TransportReply>> = {};
   const view = emptySimpleBookView(prepared.accepted.requestId);
-  const binding = canonicalJson({ request: args.request, options: args.options, seed: args.seed });
+  const repair = args.repair ? prepareSimpleStoryRepair(args.request, args.repair.prior, args.repair.readings, args.options) : null;
+  if (repair && repair.prepared.seed !== args.seed) fail('simple_book_repair_seed');
+  const bindingValue = () => ({ request: args.request, options: args.options, seed: args.seed, ...(args.repair ? { repair: args.repair } : {}) });
+  const binding = canonicalJson(bindingValue());
   const check = () => {
     if (args.signal.aborted) fail('simple_book_cancelled');
-    if (canonicalJson({ request: args.request, options: args.options, seed: args.seed }) !== binding) fail('simple_book_source_changed');
+    if (canonicalJson(bindingValue()) !== binding) fail('simple_book_source_changed');
   };
   const publish = (phase: SimpleBookView['phase']) => { check(); view.phase = phase; args.publish(structuredClone(view)); };
   check();
-  const generated = await writeSimpleStory(prepared, async call => {
+  let generated: Awaited<ReturnType<typeof writeSimpleStory>>, source: CurrentSimpleStoryResult;
+  if (repair) {
+    view.baseline = 'previous_edit';
+    view.original = { title: repair.prior.manuscript.title, pages: repair.prior.manuscript.pages };
+    publish('editor');
+    const receipt = await args.opus(repair.call, args.signal); check();
+    if (receipt.estimatedMicroUsd === null || !receipt.usage) return fail('simple_book_writing_cost_unknown');
+    ({ source, generated } = createRepairedSimpleStorySource(args.request, repair.prior, repair.readings, receipt,
+      args.options, args.reservedWritingUsd));
+  } else {
+  generated = await writeSimpleStory(prepared, async call => {
     publish(call.stage);
     const receipt = await args.opus(call, args.signal); check(); records[call.stage] = receipt;
     if (receipt.estimatedMicroUsd === null || !receipt.usage) return fail('simple_book_writing_cost_unknown');
@@ -43,10 +58,11 @@ export async function runSimpleWizardBook(args: {
     return { output: receipt.output, usage: receipt.usage, estimatedUsd: receipt.estimatedMicroUsd / 1e6 };
   }, { model: CAUSAL_MODELS.opus, reservedUsd: args.reservedWritingUsd });
   check();
-  const source = createCurrentSimpleStorySource(args.request, generated, records as Record<'author' | 'editor', TransportReply>, args.options);
+  source = createCurrentSimpleStorySource(args.request, generated, records as Record<'author' | 'editor', TransportReply>, args.options);
+  }
   view.edited = { title: source.manuscript.title, pages: source.manuscript.pages };
   publish('story_review');
-  const original = compileSimpleStory(prepared, generated.evidence.draft, source.accounting);
+  const original = compileSimpleStory(prepared, repair?.priorEvidence.edited ?? generated.evidence.draft, source.accounting, !!repair);
   const document = (result: typeof original) => ({ plan: result.plan, manuscript: result.manuscript,
     characterDigest: prepared.brief.companion.characterDigest });
   const packets = causalReviewPackets(preparePersonalStory(args.request, args.options), document(original), document(source));
@@ -61,8 +77,7 @@ export async function runSimpleWizardBook(args: {
     view.readings = readings.map(r => ({ stage: r.stage as 'final_review' | 'comparison', summary: r.summary, findings: r.findings }));
     publish('story_review');
   }
-  const material = readings.some(r => r.findings.some(f => f.severity === 'blocking' ||
-    f.kind !== 'preference' && f.kind !== 'improvement' && f.severity !== 'polish'));
+  const material = readings.some(r => r.findings.some(simpleStoryFindingIsMaterial));
   if (material) { publish('held'); return { status: 'story_held' as const, source, generated, readings, storyboard: null, runtimeEligible: false as const }; }
   publish('storyboard');
   const storyboard = await runSimpleStoryboardDiagnostic({ request: args.request, writerResult: source,

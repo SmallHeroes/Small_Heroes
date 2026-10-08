@@ -91,7 +91,7 @@ export const personalStoryResultObjectSchema = z.object({
     usage: z.array(usageSchema).max(2), kind: z.literal('usage_estimate_not_invoice'),
   }).strict(),
 }).strict();
-export const personalStoryResultSchema = personalStoryResultObjectSchema.superRefine((result, ctx) => {
+function assertStoryResultBinding(result: z.infer<typeof personalStoryResultObjectSchema>, ctx: z.RefinementCtx) {
   const count = result.displayPages / 2;
   if (result.plan.requestId !== result.requestId || result.manuscript.requestId !== result.requestId || result.manuscript.planDigest !== result.planDigest ||
       result.plan.beats.length !== count || result.manuscript.pages.length !== count ||
@@ -101,5 +101,12 @@ export const personalStoryResultSchema = personalStoryResultObjectSchema.superRe
   if (result.planning && result.planning.sourcePlanDigest !== result.planDigest) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'story_planning_binding' });
   }
+}
+export const personalStoryResultSchema = personalStoryResultObjectSchema.superRefine(assertStoryResultBinding);
+/** Explicit same-book diagnostic only. The ordinary two-call and archive schemas are not widened. */
+export const personalSimpleRepairResultObjectSchema = personalStoryResultObjectSchema.extend({
+  accounting: personalStoryResultObjectSchema.shape.accounting.extend({ providerCalls: z.literal(3),
+    usage: personalStoryResultObjectSchema.shape.accounting.shape.usage.max(3).length(3) }),
 });
+export const personalSimpleRepairResultSchema = personalSimpleRepairResultObjectSchema.superRefine(assertStoryResultBinding);
 export type PersonalStoryResult = z.infer<typeof personalStoryResultSchema>;

@@ -33,6 +33,8 @@ import { inlineLocalJsonSchemaReferences } from '../../../scripts/personal-inlin
 import { prepareSimpleBookContinuation } from '../simple-book-continuation';
 import { simpleBookContinuationCLI } from '../../../scripts/personal-simple-book-continuation';
 import { runSimpleBookWorkerPipeline } from '../../../scripts/personal-simple-wizard-worker';
+import { prepareSimpleBookRepair } from '../simple-book-repair';
+import { simpleBookRepairCLI } from '../../../scripts/personal-simple-book-repair';
 
 const deps = vi.hoisted(() => ({ production: false, user: { id: 'owner', email: 'owner@example.com' } as { id: string; email: string } | null }));
 vi.mock('@/lib/auth-session', () => ({ resolveUserFromRequest: async () => deps.user ? { user: deps.user } : null }));
@@ -524,6 +526,133 @@ describe('explicit same-book continuation, no provider in fixtures', () => {
     const recoveryFile = path.join(root, 'continuation.json'); writeFileSync(recoveryFile, JSON.stringify(data));
     return { f, old, budget, paid, data, recoveryFile, originalHashes: names.map(n => [n, sha(readFileSync(path.join(old.directory, n)))]) };
   }
+  async function heldContinuation() {
+    const x = await failedOriginal(), parent = prepareSimpleBookContinuation(x.recoveryFile), claimed = parent.claim();
+    const nativeWriter = vi.fn(); vi.spyOn(adapters, 'createOpusCausalTransport').mockReturnValue(nativeWriter);
+    sdk.create.mockImplementation(async (payload: any) => {
+      const packet = JSON.parse(payload.input), unit = packet.packet.manuscript?.pages[0].units[0];
+      return { model: adapters.CAUSAL_MODELS.astra, service_tier: 'default', status: 'completed', usage: { input_tokens: 100, output_tokens: 100 },
+        output_text: JSON.stringify({ packetDigest: packet.packetDigest, summary: 'SYNTHETIC complete boundary review.', findings: unit ? [{ severity: 'meaningful', kind: 'issue',
+          criterion: 'SYNTHETIC material issue', original: [], revised: [{ startId: unit.id, endId: unit.id, anchor: citationTokens(unit.text).slice(0, 2).join(' ') }],
+          explanation: 'SYNTHETIC source-bound hold; no literary judgement.' }] : [] }) };
+    });
+    expect(await runSimpleBookWorkerPipeline({ config: parent.original, configFile: x.recoveryFile, cliWorkspace: path.join(root, 'simple-book-cli-workspace'),
+      worker: claimed.worker, continuation: { budget: claimed.budget, inheritedAttempts: 3, assertCurrent: parent.verify, reuseWriting: parent.reuseWriting } })).toBe(2);
+    expect(nativeWriter).not.toHaveBeenCalled(); sdk.create.mockClear();
+    const terminal = path.join(root, 'SYNTHETIC-held-terminal.json'); writeFileSync(terminal, JSON.stringify({ code: 2, signal: null, terminationConfirmed: true }));
+    const extra = path.join(root, 'SYNTHETIC-reconciled-max.json'); writeFileSync(extra, JSON.stringify({ terminationConfirmed: true,
+      reportedCostUsd: .05, maximumMicroUsd: 40000, code: 1, resultSubtype: 'error_max_budget_usd', isError: true }));
+    const names = ['continuation-simple-book-result.json', 'continuation-sealed.json', 'continuation-story.md',
+      ...require('node:fs').readdirSync(x.old.directory).filter((n: string) => /^view-\d{4}\.json$/.test(n)),
+      ...require('node:fs').readdirSync(parent.directory).flatMap((n: string) => n === 'paid-stages'
+        ? require('node:fs').readdirSync(path.join(parent.directory, n)).map((f: string) => `controlled-continuation-20261008/${n}/${f}`)
+        : [`controlled-continuation-20261008/${n}`])];
+    const record = { file: extra, sha256: sha(readFileSync(extra)) };
+    const data = { version: 'controlled-simple-book-editor-repair/v1', continuationConfig: { file: x.recoveryFile, sha256: sha(readFileSync(x.recoveryFile)) },
+      terminationReceipt: { file: terminal, sha256: sha(readFileSync(terminal)) }, sourceHead: config.sourceHead, maximumMicroUsd: 12000000,
+      approvalReference: 'SYNTHETIC explicit one repair and known internal cost reconciliation, NOT paid authority.',
+      artifacts: names.map(relative => ({ relative, sha256: sha(readFileSync(path.join(x.old.directory, relative))) })),
+      extraEngineeringReceipts: [record], reconciledEngineeringReceipt: record };
+    const repairFile = path.join(root, 'repair.json'); writeFileSync(repairFile, JSON.stringify(data));
+    return { ...x, parent, data, repairFile, heldHashes: names.map(n => [n, sha(readFileSync(path.join(x.old.directory, n)))]) };
+  }
+  it('previews one editor repair without keys, keeps the known failed Max cost and claims only one sibling slot', async () => {
+    const x = await heldContinuation(), disk = vi.spyOn(journal, 'fencedText');
+    expect(await simpleBookRepairCLI(['--config', x.repairFile])).toBe(0);
+    expect(disk.mock.calls.some(([p]) => p === config.existingKeyEnvFile)).toBe(false); expect(sdk.create).not.toHaveBeenCalled();
+    const ready = await prepareSimpleBookRepair(x.repairFile), claimed = ready.claim();
+    expect(ready.externalMicroUsd).toBe(468000);
+    expect(claimed.budget.snapshot()).toMatchObject({ knownEstimateMicroUsd: 468000, logicalAttempts: 0, stopped: false });
+    expect(() => ready.claim()).toThrow();
+    expect(JSON.parse(readFileSync(path.join(ready.directory, 'editor-guidance.json'), 'utf8')).guidance.findings).toHaveLength(1);
+    for (const [n, digest] of [...x.originalHashes, ...x.heldHashes]) expect(sha(readFileSync(path.join(x.old.directory, n)))).toBe(digest);
+  });
+  it('successful repair uses one new editor, blind final then prior-edit comparison, and the same nine current frame packets', async () => {
+    const x = await heldContinuation(), ready = await prepareSimpleBookRepair(x.repairFile);
+    const editor = vi.fn(async (call: SimpleStoryCall, signal: AbortSignal) => {
+      expect(call.stage).toBe('editor'); expect(signal).toBe(x.f.args.signal);
+      const receipt = await x.f.args.opus(call, signal), native = JSON.parse(receipt.raw.stdout);
+      receipt.output = { ...structuredClone(ready.repair.priorEvidence.edited), editorChanges: ready.repair.guidance.findings.map(f => `${f.id} kept: Synthetic reader judgement follows.`) };
+      native.session_id = '33333333-3333-4333-8333-333333333333'; native.structured_output = receipt.output;
+      receipt.raw.stdout = JSON.stringify(native); return receipt;
+    });
+    x.f.args.reader.mockClear(); x.f.args.visual.mockClear();
+    const result = await runSimpleWizardBook({ ...x.f.args, seed: config.seed, opus: editor,
+      repair: { prior: ready.repair.prior, readings: ready.repair.readings } });
+    expect(result.status).toBe('review_supported'); expect(result.source.accounting.providerCalls).toBe(3);
+    expect(editor).toHaveBeenCalledTimes(1); expect(result.storyboard?.framePackets).toHaveLength(9);
+    expect(x.f.args.reader.mock.calls.map(([c]) => c.stage)).toEqual(['final_review', 'comparison']);
+    const final = JSON.parse(x.f.args.reader.mock.calls[0][0].input), comparison = JSON.parse(x.f.args.reader.mock.calls[1][0].input);
+    expect(JSON.stringify(final)).not.toContain('readerObservations'); expect(JSON.stringify(final)).not.toContain('editorChanges');
+    expect(final.packet.original).toBeUndefined();
+    expect(comparison.packet.original.pages.map((p: any) => p.units.map((u: any) => u.text).join(''))).toEqual(ready.repair.prior.manuscript.pages.map(p => p.text));
+    const last = x.f.args.publish.mock.calls[x.f.args.publish.mock.calls.length - 1][0]; expect(last.baseline).toBe('previous_edit');
+    expect(last.original).toEqual({ title: ready.repair.prior.manuscript.title, pages: ready.repair.prior.manuscript.pages });
+  });
+  it('rejects invalid repair CLI arguments at the real bootstrap without opening any book or credential', () => {
+    const result = spawnSync(process.execPath, ['scripts/personal-simple-book-repair.cjs', '--execute'],
+      { cwd: process.cwd(), encoding: 'utf8', timeout: 15000, windowsHide: true });
+    expect(result.status).toBe(1); expect(result.signal).toBeNull(); expect(result.error).toBeUndefined();
+    expect(result.stderr.trim()).toBe(JSON.stringify({ error: 'repair_failed', runtimeEligible: false }));
+    expect(result.stdout).toBe('');
+  }, 20000);
+  it.each(['source', 'hash', 'inventory', 'termination', 'duplicate_cost', 'reconciliation', 'unknown', 'stopped', 'reading', 'parent_claim', 'budget'])(
+    'refuses repair %s before allocating a slot or reading credentials', async kind => {
+      const x = await heldContinuation(), disk = vi.spyOn(journal, 'fencedText');
+      const rewrite = (relative: string, change: (v: any) => void) => {
+        const file = path.join(x.old.directory, relative), value = JSON.parse(readFileSync(file, 'utf8')); change(value);
+        writeFileSync(file, JSON.stringify(value)); x.data.artifacts.find(f => f.relative === relative)!.sha256 = sha(readFileSync(file));
+      };
+      if (kind === 'source') x.data.sourceHead = 'b'.repeat(40);
+      if (kind === 'hash') x.data.artifacts[0].sha256 = 'b'.repeat(64);
+      if (kind === 'inventory') x.data.artifacts = x.data.artifacts.filter(f => f.relative !== 'controlled-continuation-20261008/writing-reuse.json');
+      if (kind === 'termination') { writeFileSync(x.data.terminationReceipt.file, JSON.stringify({ code: 2, signal: null, terminationConfirmed: false })); x.data.terminationReceipt.sha256 = sha(readFileSync(x.data.terminationReceipt.file)); }
+      if (kind === 'duplicate_cost') x.data.extraEngineeringReceipts.push(config.engineeringReceipts[0]);
+      if (kind === 'reconciliation') x.data.reconciledEngineeringReceipt = config.engineeringReceipts[0];
+      if (kind === 'parent_claim') rewrite('controlled-continuation-20261008/claim.json', v => { v.sourceHead = 'b'.repeat(40); });
+      if (kind === 'reading') rewrite('continuation-simple-book-result.json', v => { v.readings[0].findings[0].revised[0].quote += ' forgery'; });
+      if (kind === 'budget') x.data.maximumMicroUsd = 25000000;
+      if (kind === 'unknown' || kind === 'stopped') {
+        rewrite('controlled-continuation-20261008/paid-stages/final_review.result.json', v => {
+          if (kind === 'unknown') v.estimatedMicroUsd = null; else v.completed = false;
+        });
+        rewrite('continuation-sealed.json', v => { v.snapshot = new SimpleBookBudget(path.join(x.parent.directory, 'paid-stages'), x.parent.externalMicroUsd).snapshot(); });
+      }
+      writeFileSync(x.repairFile, JSON.stringify(x.data));
+      await expect(prepareSimpleBookRepair(x.repairFile)).rejects.toThrow();
+      expect(existsSync(path.join(x.old.directory, 'controlled-editor-repair-20261008'))).toBe(false);
+      expect(sdk.create).not.toHaveBeenCalled(); expect(disk.mock.calls.some(([p]) => p === config.existingKeyEnvFile)).toBe(false);
+    });
+  it.each(['held_again', 'invalid_reading', 'unknown_editor_cost', 'cancelled', 'source_drift'])(
+    'one actual fresh editor then %s stops without a second repair, author or image', async kind => {
+      const x = await heldContinuation(), ready = await prepareSimpleBookRepair(x.repairFile), claimed = ready.claim();
+      const author = vi.fn();
+      const editor = vi.fn(async (_wire: any, call: any, signal: AbortSignal) => {
+        if (call.stage === 'author') { author(); throw Error('No new author allowed.'); }
+        expect(signal.aborted).toBe(false);
+        const receipt = await x.f.args.opus(call, signal), native = JSON.parse(receipt.raw.stdout);
+        receipt.output = { ...structuredClone(ready.repair.priorEvidence.edited), editorChanges: ready.repair.guidance.findings.map(f => `${f.id} kept: Synthetic reason, reviewer will judge.`) };
+        native.session_id = '33333333-3333-4333-8333-333333333333'; native.structured_output = receipt.output;
+        receipt.raw.stdout = JSON.stringify(native);
+        if (kind === 'unknown_editor_cost') receipt.estimatedMicroUsd = null as any;
+        if (kind === 'cancelled') process.emit('SIGINT');
+        if (kind === 'source_drift') writeFileSync(x.repairFile, readFileSync(x.repairFile, 'utf8') + ' ');
+        return receipt;
+      });
+      vi.mocked(adapters.createOpusCausalTransport).mockReturnValue(editor);
+      if (kind === 'invalid_reading') sdk.create.mockImplementation(async () => ({ model: adapters.CAUSAL_MODELS.astra, service_tier: 'default', status: 'completed',
+        usage: { input_tokens: 100, output_tokens: 100 }, output_text: JSON.stringify({ packetDigest: '0'.repeat(64), summary: 'SYNTHETIC stale packet', findings: [] }) }));
+      const code = await runSimpleBookWorkerPipeline({ config: ready.parent.original, configFile: x.repairFile,
+        cliWorkspace: path.join(root, 'simple-book-cli-workspace'), worker: claimed.worker,
+        repair: { budget: claimed.budget, inheritedAttempts: 5, assertCurrent: ready.verify, prior: ready.repair.prior, readings: ready.repair.readings } });
+      expect(code).toBe(kind === 'held_again' ? 2 : 1); expect(editor).toHaveBeenCalledTimes(1); expect(author).not.toHaveBeenCalled();
+      expect(sdk.create).toHaveBeenCalledTimes(kind === 'held_again' ? 2 : kind === 'invalid_reading' ? 1 : 0);
+      const seal = JSON.parse(readFileSync(path.join(x.old.directory, 'repair-sealed.json'), 'utf8'));
+      expect(seal.imageCalls).toBe(0); expect(seal.inheritedLogicalAttempts).toBe(5);
+      expect(claimed.budget.snapshot().logicalAttempts).toBe(kind === 'held_again' ? 3 : kind === 'invalid_reading' ? 2 : 1);
+      if (kind === 'unknown_editor_cost') expect(claimed.budget.snapshot()).toMatchObject({ unknownAttemptCosts: 1, stopped: true });
+      for (const [n, digest] of [...x.originalHashes, ...x.heldHashes]) expect(sha(readFileSync(path.join(x.old.directory, n)))).toBe(digest);
+    });
   it('expands references without losing constraints or legitimate properties named definitions', () => {
     const item = { type: 'object', additionalProperties: false, required: ['id'], properties: { id: { type: 'string', pattern: '^r-', maxLength: 100 } } };
     const schema = { type: 'object', additionalProperties: false, required: ['original', 'revised', 'definitions'],

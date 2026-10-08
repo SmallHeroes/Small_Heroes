@@ -4,7 +4,11 @@ import { personalStoryboardFixture } from './personal-storyboard-fixture';
 import { resolvePersonalWizardOptions, PROTOTYPE_COMPANION_ROSTER } from '../options';
 import { canonicalJson } from '../request-acceptance';
 import { prepareSimpleStory, writeSimpleStory, type SimpleStoryCall, type SimpleStoryDraft } from '../simple-story-engine';
-import { createCurrentSimpleStorySource, admitCurrentSimpleStorySource, projectSimpleCliReceipt, simpleStoryboardSourceEvidence, SimpleStorySourceError } from '../simple-story-source';
+import { createCurrentSimpleStorySource, admitCurrentSimpleStorySource, projectSimpleCliReceipt, simpleStoryboardSourceEvidence, SimpleStorySourceError,
+  prepareSimpleStoryRepair, createRepairedSimpleStorySource, simpleStoryReadingPackets, REPAIRED_SIMPLE_SOURCE_VERSION } from '../simple-story-source';
+import { simpleEditorCall } from '../simple-story-engine';
+import { causalSourceReviewPacket, compileCausalSourceReading } from '../story-causal-experiment';
+import { citationTokens } from '../story-source-citations';
 import { prepareCurrentPersonalStoryboard, preparePersonalStoryboard, authorPersonalStoryboard, compilePersonalStoryboard,
   currentPersonalStoryboardFrame, personalStoryboardReviewInput, storyboardReviewDisposition, PERSONAL_STORYBOARD_VERSION } from '../storyboard';
 import { PERSONAL_STORYBOARD_INSTRUCTION } from '../storyboard';
@@ -53,6 +57,92 @@ async function fixture(length = 'short', companion = 'dragon_dini', activeOption
 }
 const reviewFor = (f: Awaited<ReturnType<typeof fixture>>, book: ReturnType<typeof compilePersonalStoryboard>) =>
   ({ ...structuredClone(f.review), sourceDigest: book.sourceDigest, storyboardDigest: book.storyboardDigest });
+
+function repairReadings(f: Awaited<ReturnType<typeof fixture>>, mode = 'issue', count = 1) {
+  const packets = simpleStoryReadingPackets(f.request, f.qualified, options);
+  return [packets.final, packets.comparison].map((packet, ri) => {
+    const numbered = causalSourceReviewPacket(packet), wire: any = numbered.packet;
+    const unit = ri === 0 ? wire.manuscript.pages[0].units[0] : wire.revised.pages[0].units[0];
+    return compileCausalSourceReading(packet, { packetDigest: numbered.packetDigest, summary: 'Synthetic reading only, not literary approval.',
+      findings: ri ? [] : Array.from({ length: count }, () => ({ severity: mode === 'blocking_preference' ? 'blocking' : 'meaningful',
+        kind: mode === 'blocking_preference' ? 'preference' : 'issue', original: [],
+        revised: [{ startId: unit.id, endId: unit.id, anchor: citationTokens(unit.text).slice(0, 2).join(' ') }],
+        criterion: mode === 'bytes' ? 'א'.repeat(600) : 'Synthetic material causal ambiguity.',
+        explanation: mode === 'bytes' ? 'ב'.repeat(600) : 'Synthetic reader impact, not a proposed solution.' })) });
+  });
+}
+function repairReceipt(f: Awaited<ReturnType<typeof fixture>>, ready: ReturnType<typeof prepareSimpleStoryRepair>) {
+  const record = structuredClone(f.records.editor), output = { ...structuredClone(ready.priorEvidence.edited),
+    editorChanges: ready.guidance.findings.map(f => `${f.id} changed: Synthetic evidence-based repair, not literary approval.`) };
+  output.pages[0].text += ' נועה ודיני ממשיכות במשחק.';
+  const native = JSON.parse(record.raw.stdout);
+  native.session_id = '33333333-3333-4333-8333-333333333333'; native.structured_output = output;
+  record.output = output; record.raw.stdout = JSON.stringify(native);
+  return record;
+}
+
+describe('one source-bound fresh editor repair, no repair chain or production default', () => {
+  it('keeps the default editor call byte-identical and the original source unchanged', async () => {
+    const f = await fixture(), before = canonicalJson(f.qualified), readings = repairReadings(f);
+    const ready = prepareSimpleStoryRepair(f.request, f.qualified, readings, options);
+    expect(simpleEditorCall(f.p, f.generated.evidence.draft, f.generated.evidence.findings).input).toBe(f.calls[1].input);
+    expect(ready.call.instructions).toBe(f.calls[1].instructions);
+    expect(ready.call.maxOutputTokens).toBe(f.calls[1].maxOutputTokens);
+    const input = JSON.parse(ready.call.input);
+    expect(input.readerObservations.findings).toHaveLength(1); expect(input.readerObservations).not.toHaveProperty('summary');
+    expect(input.task).toContain('fallible claims'); expect(input.task).toContain(' kept:');
+    const repaired = createRepairedSimpleStorySource(f.request, f.qualified, readings, repairReceipt(f, ready), options, 2);
+    expect(repaired.source.simpleSource.version).toBe(REPAIRED_SIMPLE_SOURCE_VERSION);
+    expect(repaired.source.accounting.providerCalls).toBe(3);
+    expect(repaired.source.accounting.estimatedUsd).toBe(.3);
+    expect(repaired.source.accounting.usage).toHaveLength(3);
+    const { simpleSource: _proof, ...bare } = repaired.source;
+    expect(anyPersonalStoryResultSchema.safeParse(bare).success).toBe(false);
+    expect(repaired.source.simpleSource.author).toEqual(f.qualified.simpleSource.author);
+    expect(repaired.generated.evidence.draft).toEqual(f.generated.evidence.draft);
+    expect(canonicalJson(f.qualified)).toBe(before);
+    expect(prepareCurrentPersonalStoryboard(f.request, repaired.source, options).planningInput.simpleSourceEvidence)
+      .toEqual(simpleStoryboardSourceEvidence(repaired.source));
+    expectSourceError(() => prepareSimpleStoryRepair(f.request, repaired.source, readings, options), 'repair_invalid');
+  });
+  it.each(['wrong_reading_digest', 'changed_quote', 'old_quote_contract', 'no_hold', 'limit', 'bytes', 'blocking_preference'])(
+    'refuses %s instead of laundering, omitting or inventing guidance', async kind => {
+      const f = await fixture(), readings: any[] = repairReadings(f, kind === 'bytes' || kind === 'blocking_preference' ? kind : 'issue',
+        kind === 'limit' ? 7 : kind === 'bytes' ? 6 : kind === 'no_hold' ? 0 : 1);
+      if (kind === 'wrong_reading_digest') readings[0].packetDigest = '0'.repeat(64);
+      if (kind === 'changed_quote') readings[0].findings[0].revised[0].quote += ' forged';
+      if (kind === 'old_quote_contract') delete readings[0].sourceEvidence;
+      expectSourceError(() => prepareSimpleStoryRepair(f.request, f.qualified, readings, options),
+        ['wrong_reading_digest', 'changed_quote', 'old_quote_contract'].includes(kind) ? 'repair_reading_binding' :
+          kind === 'bytes' ? 'repair_guidance_limit' : kind === 'blocking_preference' ? 'repair_unactionable_hold' : 'repair_finding_limit');
+    });
+  it.each(['same_author_session', 'same_prior_editor_session', 'unknown_cost', 'missing_disposition', 'duplicate_disposition'])(
+    'refuses fresh-editor %s with no reused receipt or automatic fallback', async kind => {
+      const f = await fixture(), readings = repairReadings(f), ready = prepareSimpleStoryRepair(f.request, f.qualified, readings, options);
+      const record = repairReceipt(f, ready), native = JSON.parse(record.raw.stdout);
+      if (kind === 'same_author_session') native.session_id = f.qualified.simpleSource.author.sessionId;
+      if (kind === 'same_prior_editor_session') native.session_id = f.qualified.simpleSource.editor.sessionId;
+      if (kind === 'unknown_cost') record.estimatedMicroUsd = null;
+      if (kind === 'missing_disposition') record.output.editorChanges = ['Synthetic edit with no observation disposition.'];
+      if (kind === 'duplicate_disposition') record.output.editorChanges.push(record.output.editorChanges[0]);
+      native.structured_output = record.output; record.raw.stdout = JSON.stringify(native);
+      expectSourceError(() => createRepairedSimpleStorySource(f.request, f.qualified, readings, record, options, 2),
+        kind === 'same_author_session' ? 'call_binding' : kind === 'same_prior_editor_session' ? 'repair_lineage' : kind === 'unknown_cost' ? 'receipt_invalid' : 'repair_disposition');
+    });
+  it.each(['guidance', 'prior_text', 'prior_cost', 'dropped_prior_cost', 'lost_prior_amount', 'retag', 'prior_session'])(
+    'rejects repaired-source %s at the actual storyboard admission boundary', async kind => {
+      const f = await fixture(), readings = repairReadings(f), ready = prepareSimpleStoryRepair(f.request, f.qualified, readings, options);
+      const raw: any = createRepairedSimpleStorySource(f.request, f.qualified, readings, repairReceipt(f, ready), options, 2).source;
+      if (kind === 'guidance') raw.simpleSource.repair.guidance.findings[0].explanation = 'Different unsupported instruction.';
+      if (kind === 'prior_text') raw.simpleSource.repair.prior.manuscript.pages[0].text += ' Forged';
+      if (kind === 'prior_cost') raw.simpleSource.repair.prior.simpleSource.editor.estimatedMicroUsd += 1;
+      if (kind === 'dropped_prior_cost') { raw.accounting.providerCalls = 2; raw.accounting.estimatedUsd = .2; raw.accounting.usage.pop(); }
+      if (kind === 'lost_prior_amount') raw.accounting.estimatedUsd = .2; // Three calls/usages stay valid; this targets the amount alone.
+      if (kind === 'retag') { raw.simpleSource.version = f.qualified.simpleSource.version; delete raw.simpleSource.repair; }
+      if (kind === 'prior_session') raw.simpleSource.editor.sessionId = f.qualified.simpleSource.editor.sessionId;
+      expect(() => prepareCurrentPersonalStoryboard(f.request, raw, options)).toThrow(SimpleStorySourceError);
+    });
+});
 
 describe('simple final source -> existing current whole-book storyboard', () => {
   it('pins the shared dispatcher at preparation and at both frozen/current frame checks', async () => {

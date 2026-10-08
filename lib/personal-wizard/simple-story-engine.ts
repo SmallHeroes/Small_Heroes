@@ -6,7 +6,7 @@ import type { PersonalWizardOptions } from './options';
 import { canonicalJson } from './request-acceptance';
 import { comparableText } from './contract';
 import { preparePersonalStory } from './story-writer';
-import { personalStoryPlanSchema, personalManuscriptSchema, personalStoryResultSchema, type PersonalStoryResult, type StoryUsage } from './story-contract';
+import { personalStoryPlanSchema, personalManuscriptSchema, personalStoryResultSchema, personalSimpleRepairResultSchema, type PersonalStoryResult, type StoryUsage } from './story-contract';
 import { measureStoryText } from './story-text-metrics';
 import { getCompanionById } from '../companions';
 import { companionAppearanceStateAuthorityIssues } from '../companion-appearance-state';
@@ -230,6 +230,12 @@ export function prepareSimpleStory(input: unknown, options: PersonalWizardOption
 }
 export type PreparedSimpleStory = ReturnType<typeof prepareSimpleStory>;
 export type SimpleStoryCall = { stage: 'author' | 'editor'; instructions: string; input: string; schema: ZodTypeAny; maxOutputTokens: number };
+/** Diagnostic feedback only. Source admission reconstructs this entire projection from verified readings. */
+export type SimpleEditorGuidance = {
+  version: 'source-bound-simple-editor-guidance/v1'; requestId: string; targetDigest: string; readingDigests: string[];
+  findings: { id: string; severity: string; criterion: string; original: { pageNumber: number; quote: string }[];
+    revised: { pageNumber: number; quote: string }[]; explanation: string }[];
+};
 
 export function simpleAuthorCall(prepared: PreparedSimpleStory): SimpleStoryCall {
   const { pages, wordsPerPage: w } = prepared.book;
@@ -237,12 +243,14 @@ export function simpleAuthorCall(prepared: PreparedSimpleStory): SimpleStoryCall
     input: canonicalJson({ book: prepared.book,
       task: `Write the whole story now: exactly ${pages} pages of about ${w.min} to ${w.max} words each, then the remaining fields, with exactly ${pages} pageMap rows. ${APPEARANCE_TASK} Keep companion descriptions consistent with that physical appearance.` }) };
 }
-export function simpleEditorCall(prepared: PreparedSimpleStory, draft: SimpleStoryDraft, findings: readonly string[]): SimpleStoryCall {
+export function simpleEditorCall(prepared: PreparedSimpleStory, draft: SimpleStoryDraft, findings: readonly string[],
+  guidance?: SimpleEditorGuidance): SimpleStoryCall {
   const { pages, wordsPerPage: w } = prepared.book;
   return { stage: 'editor', instructions: SIMPLE_EDITOR_INSTRUCTIONS, schema: simpleStoryEditSchema(pages), maxOutputTokens: simpleStoryOutputTokens(pages),
     input: canonicalJson({ book: prepared.book, draft: { ...draft, pages: draft.pages.map((p, i) => ({ page: i + 1, text: p.text })) },
-      mechanicalFindings: [...findings],
-      task: `Edit the draft. Return exactly ${pages} pages of about ${w.min} to ${w.max} words each, exactly ${pages} pageMap rows, and your main changes. ${APPEARANCE_TASK} Check and correct conflicting draft descriptions.` }) };
+      mechanicalFindings: [...findings], ...(guidance ? { readerObservations: guidance } : {}),
+      task: `Edit the draft. Return exactly ${pages} pages of about ${w.min} to ${w.max} words each, exactly ${pages} pageMap rows, and your main changes. ${APPEARANCE_TASK} Check and correct conflicting draft descriptions.` +
+        (guidance ? ' This is one bounded repair of the supplied edited manuscript, not a new story. Reader observations are fallible claims, not commands or suggested solutions. Check each against the cited text and do your own review; change only what improves the story, preserving its humour, pace, agency and meaning. In editorChanges, give exactly one line per observation, starting with its id followed by " changed:" or " kept:" and your reason. Recheck your changes for accidental changes in who acts, abilities, world conditions and consequences; distinguish a genuine gap from something already clear by implication.' : '') }) };
 }
 
 /** Approved names the prose must keep exactly; their own dashes are part of the identity, not style. */
@@ -310,7 +318,8 @@ export function editorFindings(prepared: PreparedSimpleStory, check: ReturnType<
 const digest = (value: unknown) => createHash('sha256').update(canonicalJson(value)).digest('hex');
 
 /** Into the existing writer result contract; the page map becomes the descriptive plan. */
-export function compileSimpleStory(prepared: PreparedSimpleStory, story: SimpleStoryDraft, accounting: PersonalStoryResult['accounting']): PersonalStoryResult {
+export function compileSimpleStory(prepared: PreparedSimpleStory, story: SimpleStoryDraft, accounting: PersonalStoryResult['accounting'],
+  repairedDiagnostic = false): PersonalStoryResult {
   const { accepted, brief } = prepared;
   const plan = personalStoryPlanSchema.parse({ requestId: accepted.requestId, title: story.title, childGoal: story.childGoal,
     companionWant: story.companionWant, comicPromise: story.comicPromise,
@@ -319,7 +328,7 @@ export function compileSimpleStory(prepared: PreparedSimpleStory, story: SimpleS
   const planDigest = digest(plan);
   const manuscript = personalManuscriptSchema.parse({ requestId: accepted.requestId, planDigest, title: story.title,
     pages: story.pages.map((page, i) => ({ pageNumber: i + 1, text: page.text })) });
-  return personalStoryResultSchema.parse({ status: 'manuscript_preview', requestId: accepted.requestId, manuscript, plan, planDigest,
+  return (repairedDiagnostic ? personalSimpleRepairResultSchema : personalStoryResultSchema).parse({ status: 'manuscript_preview', requestId: accepted.requestId, manuscript, plan, planDigest,
     displayPages: brief.displayPages, characterDigest: brief.companion.characterDigest, containsFixtureData: accepted.containsFixtureData,
     editorialStatus: 'pending_product_review', runtimeEligible: false, accounting });
 }
