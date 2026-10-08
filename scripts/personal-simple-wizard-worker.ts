@@ -58,6 +58,7 @@ export async function runSimpleBookWorkerPipeline(args: {
 }) {
   const { config, worker, cliWorkspace } = args;
   if (args.continuation && args.repair) throw new SimpleBookFlowError('simple_resumption_conflict');
+  if ((args.continuation || args.repair) && (config.reviewModel || config.actorOwnedAppearance)) throw new SimpleBookFlowError('simple_historical_resumption_policy');
   const resumed = args.repair ?? args.continuation;
   const externalMicroUsd = simpleBookExternalCosts(config.engineeringReceipts);
   const controller = new AbortController();

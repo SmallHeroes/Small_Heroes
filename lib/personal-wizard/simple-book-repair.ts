@@ -27,14 +27,14 @@ const fail = (code: string): never => { throw Object.assign(new Error(code), { c
 const read = (name: string) => JSON.parse(fencedText(name, 4000000));
 
 /** One fixed sibling slot in the original book. Pure preparation; no key, author, claim or provider. */
-export async function prepareSimpleBookRepair(configFile: string) {
+export async function readSimpleBookRepairEvidence(configFile: string, activeSourceHead?: string) {
   if (!path.isAbsolute(configFile)) fail('repair_config');
   const bytes = fencedText(configFile, 48000), config = simpleBookRepairConfigSchema.parse(JSON.parse(bytes));
   const checked = (f: z.infer<typeof file>) => {
     if (!path.isAbsolute(f.file) || sha(fencedText(f.file, 4000000)) !== f.sha256) fail('repair_evidence_changed');
   };
   checked(config.continuationConfig); checked(config.terminationReceipt);
-  const parent = readSimpleBookContinuationEvidence(config.continuationConfig.file, config.sourceHead);
+  const parent = readSimpleBookContinuationEvidence(config.continuationConfig.file, activeSourceHead ?? config.sourceHead);
   const inventory = new Map(config.artifacts.map(f => [f.relative, f.sha256]));
   if (inventory.size !== config.artifacts.length) fail('repair_inventory');
   realDirectory(parent.directory);
@@ -42,7 +42,8 @@ export async function prepareSimpleBookRepair(configFile: string) {
     ? readdirSync(path.join(parent.directory, n)).map(f => `controlled-continuation-20261008/${n}/${f}`)
     : [`controlled-continuation-20261008/${n}`]);
   const required = ['continuation-simple-book-result.json', 'continuation-sealed.json', 'continuation-story.md', ...childFiles(),
-    ...readdirSync(parent.job.directory).filter(n => /^view-\d{4}\.json$/.test(n))];
+    ...(activeSourceHead ? config.artifacts.map(f => f.relative).filter(n => /^view-\d{4}\.json$/.test(n))
+      : readdirSync(parent.job.directory).filter(n => /^view-\d{4}\.json$/.test(n)))];
   if (required.some(n => !inventory.has(n))) fail('repair_inventory');
   const allEngineering = [...parent.original.engineeringReceipts, ...parent.config.extraEngineeringReceipts, ...config.extraEngineeringReceipts];
   // Duplicate paths, unknown termination and changed receipts are checked before any book claim.
@@ -103,9 +104,16 @@ export async function prepareSimpleBookRepair(configFile: string) {
         canonicalJson(receipt.output) !== canonicalJson(repair.readings[index].sourceEvidence.output)) fail('repair_reader_binding');
   }
   const extra = simpleBookExternalCosts(config.extraEngineeringReceipts), externalMicroUsd = inherited.accountedMicroUsd + extra;
-  if (externalMicroUsd + 2000000 > 12000000) fail('repair_budget');
   const directory = path.join(parent.job.directory, 'controlled-editor-repair-20261008');
-  return { config, parent, current: parent.current, repair, inherited, extra, externalMicroUsd, directory, verify, claim() {
+  return { config, parent, current: parent.current, repair, inherited, extra, externalMicroUsd, directory, verify, allEngineering };
+}
+/** The original paid repair remains its fixed one-use slot at its own head. */
+export async function prepareSimpleBookRepair(configFile: string) {
+  const ready = await readSimpleBookRepairEvidence(configFile);
+  const { config, parent, repair, inherited, extra, externalMicroUsd, directory, verify } = ready;
+  const bytes = fencedText(configFile, 48000);
+  if (externalMicroUsd + 2000000 > 12000000) fail('repair_budget');
+  return { ...ready, claim() {
     verify(); mkdirSync(directory);
     exclusiveJson(path.join(directory, 'claim.json'), { requestDigest: parent.oldClaim.requestDigest, sourceHead: config.sourceHead,
       configSha256: sha(bytes), inherited, extra, runtimeEligible: false });

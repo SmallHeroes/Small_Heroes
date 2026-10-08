@@ -1,5 +1,18 @@
 # SmallHeroes — Roadmap
 
+## Same completed story -> one owned visual proof; technical gates next (2026-10-08)
+
+- M5 bounded native codePASS; committed full stillRED11old failures+3RPC errors, not release/product PASS.
+  Native599771 accounted:8822529/original12m, unknown0. No real book/cover illustration or spending renewal.
+- M6 pure same-book evidence reconstruction +one-use visual sibling; appearance-only planner, unchanged
+  geography/props/pages/sequence, fresh owned digest and Sol whole-board QA. No author/editor/manual rewrite.
+- Exact rejected anchor blind Sol control required, then fresh owner-specific refs and8body+cover through
+  existing four-ref/0.70/pixel/continuity/complete-HTML gates. Fixed private serving namespace, no public rollout.
+- 467focused/6files;8selected controls and6virtual mutants caught. Final current TypeScript/smoke,
+  focused local commit, fullRED classification and independent exact-range first review before any paid work.
+- Owned-only LOW1024 reserve8192 output; legacy unchanged, exact request/returned identity+dimensions checked.
+  Global40-minute abort/no fallback; cost/failure/uncertainty stops. Next only within the same remaining12m.
+
 ## Owned visual inputs and cheapest requested QA model: local code ready for gates (2026-10-08)
 
 - Guy approved same-book progress and selected cheapest of Sol6.1/Astra/Opus5.5. Official base prices favor

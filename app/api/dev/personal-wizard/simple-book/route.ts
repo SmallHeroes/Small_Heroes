@@ -32,7 +32,8 @@ export async function GET(req: NextRequest) {
       if (pages.length !== 1 || !/^[0-8]$/.test(pages[0]) || view.phase !== 'illustrated_audition') return storyResponse({ error: 'simple_image_unavailable' }, 404);
       const image = view.images.find(p => p.pageNumber === Number(pages[0]));
       if (!image) return storyResponse({ error: 'simple_image_unavailable' }, 404);
-      const bytes = readAuditionImage(path.join(queuedSimpleBook(config).directory, 'illustrations'), image);
+      const job = queuedSimpleBook(config).directory;
+      const bytes = readAuditionImage(path.join(job, ...(view.imageScope ? ['controlled-visual-continuation-20261008'] : []), 'illustrations'), image);
       return new Response(new Uint8Array(bytes), { headers: { 'Content-Type': 'image/png', 'Cache-Control': 'private, no-store',
         'X-Content-Type-Options': 'nosniff', 'Content-Security-Policy': "default-src 'none'" } });
     }

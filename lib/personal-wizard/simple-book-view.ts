@@ -12,6 +12,8 @@ export const simpleBookViewSchema = z.object({
     imageName: z.string().regex(/^[a-z0-9_]+\.png$/) }).strict()).max(9).default([]),
   original: manuscript.nullable(), edited: manuscript.nullable(),
   baseline: z.literal('previous_edit').optional(),
+  visualReviewModel: z.literal('gpt-6.1-sol').optional(),
+  imageScope: z.literal('owned_visual_continuation').optional(),
   readings: z.array(z.object({ stage: z.enum(['final_review', 'comparison']), summary: z.string().max(2400),
     findings: z.array(z.object({ severity: z.enum(['blocking', 'meaningful', 'polish']), kind: z.string().max(40),
       criterion: z.string().max(2400), explanation: z.string().max(2400), original: z.array(quote).max(8), revised: z.array(quote).max(8),

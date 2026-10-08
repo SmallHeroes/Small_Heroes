@@ -35,6 +35,9 @@ import { simpleBookContinuationCLI } from '../../../scripts/personal-simple-book
 import { runSimpleBookWorkerPipeline } from '../../../scripts/personal-simple-wizard-worker';
 import { prepareSimpleBookRepair } from '../simple-book-repair';
 import { simpleBookRepairCLI } from '../../../scripts/personal-simple-book-repair';
+import { prepareSimpleBookVisualContinuation, visualEvidenceFiles } from '../simple-book-visual-continuation';
+import { simpleBookVisualContinuationCLI } from '../../../scripts/personal-simple-book-visual-continuation';
+import { simpleStoryReadingPackets } from '../simple-story-source';
 
 const deps = vi.hoisted(() => ({ production: false, user: { id: 'owner', email: 'owner@example.com' } as { id: string; email: string } | null }));
 vi.mock('@/lib/auth-session', () => ({ resolveUserFromRequest: async () => deps.user ? { user: deps.user } : null }));
@@ -392,7 +395,7 @@ describe('explicit native worker boundary with fake transports only', () => {
     });
     let generated = 0;
     const render = vi.spyOn(images, 'generateGPTImage').mockImplementation(async input => {
-      const buffer = await sharp({ create: { width: 64, height: 64, channels: 3, background: { r: ++generated, g: 60, b: 90 } } }).png().toBuffer();
+      const buffer = await sharp({ create: { width: reviewer ? 1024 : 64, height: reviewer ? 1024 : 64, channels: 3, background: { r: ++generated, g: 60, b: 90 } } }).png().toBuffer();
       const usage = { input_tokens: 100, output_tokens: 100 }, raw = { data: [{ b64_json: buffer.toString('base64') }], usage };
       input.observeProviderResponse?.(raw);
       return { buffer, usage, model: 'gpt-image-2', finalPrompt: input.finalPrompt, hasReferencePhoto: !!input.referenceImages?.length,
@@ -530,8 +533,12 @@ describe('injected illustrated audition admission, failure boundaries and state 
 });
 
 describe('explicit same-book continuation, no provider in fixtures', () => {
-  async function failedOriginal() {
+  async function failedOriginal(illustrated = false) {
     const f = await fixture();
+    if (illustrated) {
+      const approvalFile = path.join(root, 'visual-approval.json'); writeFileSync(approvalFile, JSON.stringify(syntheticVisualApproval()));
+      config.illustratedAudition = { approvalFile, approvalSha256: sha(readFileSync(approvalFile)), childDesign: 'Synthetic fictional child, short brown hair, brown eyes.' };
+    }
     writeFileSync(config.executable, 'SYNTHETIC executable bytes, never run'); config.executableSha256 = sha(readFileSync(config.executable));
     writeFileSync(file, JSON.stringify(config));
     writeFileSync(config.existingKeyEnvFile, 'OPENAI_API_KEY=sk-SYNTHETIC_ONLY_NEVER_A_REAL_CREDENTIAL_123456789');
@@ -568,8 +575,8 @@ describe('explicit same-book continuation, no provider in fixtures', () => {
     const recoveryFile = path.join(root, 'continuation.json'); writeFileSync(recoveryFile, JSON.stringify(data));
     return { f, old, budget, paid, data, recoveryFile, originalHashes: names.map(n => [n, sha(readFileSync(path.join(old.directory, n)))]) };
   }
-  async function heldContinuation() {
-    const x = await failedOriginal(), parent = prepareSimpleBookContinuation(x.recoveryFile), claimed = parent.claim();
+  async function heldContinuation(illustrated = false) {
+    const x = await failedOriginal(illustrated), parent = prepareSimpleBookContinuation(x.recoveryFile), claimed = parent.claim();
     const nativeWriter = vi.fn(); vi.spyOn(adapters, 'createOpusCausalTransport').mockReturnValue(nativeWriter);
     sdk.create.mockImplementation(async (payload: any) => {
       const packet = JSON.parse(payload.input), unit = packet.packet.manuscript?.pages[0].units[0];
@@ -630,6 +637,185 @@ describe('explicit same-book continuation, no provider in fixtures', () => {
     expect(comparison.packet.original.pages.map((p: any) => p.units.map((u: any) => u.text).join(''))).toEqual(ready.repair.prior.manuscript.pages.map(p => p.text));
     const last = x.f.args.publish.mock.calls[x.f.args.publish.mock.calls.length - 1][0]; expect(last.baseline).toBe('previous_edit');
     expect(last.original).toEqual({ title: ready.repair.prior.manuscript.title, pages: ready.repair.prior.manuscript.pages });
+    const projected = simpleStoryReadingPackets(x.f.request, result.source, options);
+    expect(projected.comparison.original!.pages.map(p => p.text)).toEqual(ready.repair.prior.manuscript.pages.map(p => p.text));
+  });
+  async function failedVisualParent() {
+    const x = await heldContinuation(true), ready = await prepareSimpleBookRepair(x.repairFile), claimed = ready.claim();
+    const editor = vi.fn(async (_wire: any, call: any, signal: AbortSignal) => {
+      const r = await x.f.args.opus(call, signal), native = JSON.parse(r.raw.stdout);
+      r.output = { ...structuredClone(ready.repair.priorEvidence.edited), editorChanges: ready.repair.guidance.findings.map(f => `${f.id} kept: Synthetic fixture, not literary judgment.`) };
+      native.session_id = '33333333-3333-4333-8333-333333333333'; native.structured_output = r.output; r.raw.stdout = JSON.stringify(native); return r;
+    });
+    vi.mocked(adapters.createOpusCausalTransport).mockReturnValue(editor);
+    const strip = ({ pageNumber: _n, ...row }: any) => row, d = structuredClone(x.f.storyboardDraft);
+    const draft = { ...d, plan: { ...d.plan, pages: d.plan.pages.map(strip), continuity: { ...d.plan.continuity, pages: d.plan.continuity.pages.map(strip) } }, sequence: { ...d.sequence, pages: d.sequence.pages.map(strip) } };
+    const group = (checks: any[]) => Object.fromEntries(checks.map(({ category, ...row }) => [category, row]));
+    const review = { bookChecks: group(x.f.review.bookChecks), frames: x.f.review.frames.map(f => group(f.checks)) };
+    sdk.create.mockImplementation(async p => {
+      if (Array.isArray(p.input)) {
+        const c = JSON.parse(p.input[0].content[0].text), r = cleanPixelReview(c.candidateSha, c.contextSha);
+        r.checks.find(c => c.category === 'identity')!.verdict = 'defect' as any;
+        r.checks.find(c => c.category === 'identity')!.correction = 'SYNTHETIC identity defect; fixture not an actual artwork diagnosis.';
+        return { model: p.model, service_tier: 'default', status: 'completed', usage: { input_tokens: 100, output_tokens: 100 }, output_text: JSON.stringify(r) };
+      }
+      const name = p.text.format.name, output = name === 'personal_book_storyboard' ? draft : name === 'personal_book_review' ? review
+        : { packetDigest: JSON.parse(p.input).packetDigest, summary: 'Synthetic complete reading, no literary acceptance.', findings: [] };
+      return { model: p.model, service_tier: 'default', status: 'completed', usage: { input_tokens: 100, output_tokens: 100 }, output_text: JSON.stringify(output) };
+    });
+    let imagesMade = 0;
+    const render = vi.spyOn(images, 'generateGPTImage').mockImplementation(async input => {
+      const buffer = await sharp({ create: { width: 1024, height: 1024, channels: 3, background: { r: ++imagesMade, g: 60, b: 90 } } }).png().toBuffer();
+      const usage = { input_tokens: 100, output_tokens: 100 }, raw = { data: [{ b64_json: buffer.toString('base64') }], usage };
+      input.observeProviderResponse?.(raw);
+      return { buffer, usage, model: 'gpt-image-2', finalPrompt: input.finalPrompt, hasReferencePhoto: !!input.referenceImages?.length,
+        apiMode: input.referenceImages?.length ? 'images.edit' : 'images.generate', referenceCountRequested: input.referenceImages?.length ?? 0,
+        referenceCountPassed: input.referenceImages?.length ?? 0, durationMs: 1, fallbackUsed: false };
+    });
+    expect(await runSimpleBookWorkerPipeline({ config: ready.parent.original, configFile: x.repairFile,
+      cliWorkspace: path.join(root, 'simple-book-cli-workspace'), worker: claimed.worker,
+      repair: { budget: claimed.budget, inheritedAttempts: 5, assertCurrent: ready.verify, prior: ready.repair.prior, readings: ready.repair.readings } })).toBe(1);
+    expect(editor).toHaveBeenCalledTimes(1); expect(render).toHaveBeenCalledTimes(1);
+    const terminal = path.join(root, 'SYNTHETIC-visual-parent-terminal.json');
+    writeFileSync(terminal, JSON.stringify({ head: config.sourceHead, status: '', code: 1, signal: null, terminationConfirmed: true, stopped: false, referenceCap: 4 }));
+    const technical = path.join(root, 'SYNTHETIC-visual-technical-qa.json');
+    writeFileSync(technical, JSON.stringify({ head: config.sourceHead, status: '', code: 0, signal: null, terminationConfirmed: true, stopped: false,
+      isError: false, resultSubtype: 'success', maximumMicroUsd: 900000, reportedCostUsd: .001, models: ['claude-opus-5-5'],
+      qaVerdict: 'PASS', qaReviewHead: config.sourceHead, qaBase: '7fece1230a0a9c523d53e3decbe7357f12ed576d', qaMode: 'read_only_code' }));
+    const names = ['repair-simple-book-result.json', 'repair-sealed.json', 'repair-story.md',
+      ...visualEvidenceFiles(ready.directory).map(n => `controlled-editor-repair-20261008/${n}`),
+      ...visualEvidenceFiles(path.join(x.old.directory, 'illustrations')).map(n => `illustrations/${n}`),
+      ...require('node:fs').readdirSync(x.old.directory).filter((n: string) => /^view-\d{4}\.json$/.test(n) || /^(?:reference_|page_|audition_|illustrated_)/.test(n))];
+    const technicalRef = { file: technical, sha256: sha(readFileSync(technical)) };
+    const visualData = { version: 'controlled-simple-book-visual-continuation/v1', repairConfig: { file: x.repairFile, sha256: sha(readFileSync(x.repairFile)) },
+      terminationReceipt: { file: terminal, sha256: sha(readFileSync(terminal)) }, sourceHead: config.sourceHead, approvalReference: 'SYNTHETIC scoped visual continuation, NOT live approval.',
+      maximumMicroUsd: 12000000, reviewModel: 'gpt-6.1-sol', actorOwnedAppearance: true,
+      artifacts: names.map(relative => ({ relative, sha256: sha(readFileSync(path.join(x.old.directory, relative))) })), extraEngineeringReceipts: [technicalRef], technicalReviewReceipt: technicalRef };
+    const visualFile = path.join(root, 'visual.json'); writeFileSync(visualFile, JSON.stringify(visualData));
+    sdk.create.mockClear(); editor.mockClear(); render.mockClear();
+    return { ...x, ready, visualData, visualFile, names, oldHashes: names.map(n => [n, sha(readFileSync(path.join(x.old.directory, n)))]) as [string, string][], render, editor, review };
+  }
+  it('previews a visual-only continuation without keys or model calls and admits exactly one fixed sibling', async () => {
+    const x = await failedVisualParent(), disk = vi.spyOn(journal, 'fencedText');
+    expect(await simpleBookVisualContinuationCLI(['--config', x.visualFile])).toBe(0);
+    expect(sdk.create).not.toHaveBeenCalled(); expect(x.editor).not.toHaveBeenCalled(); expect(x.render).not.toHaveBeenCalled();
+    expect(disk.mock.calls.some(([p]) => p === config.existingKeyEnvFile)).toBe(false);
+    const ready = await prepareSimpleBookVisualContinuation(x.visualFile), claimed = ready.claim();
+    expect(claimed.budget.snapshot()).toMatchObject({ unknownAttemptCosts: 0, logicalAttempts: 0 });
+    expect(() => ready.claim()).toThrow();
+    for (const [n, hash] of x.oldHashes) expect(sha(readFileSync(path.join(x.old.directory, n)))).toBe(hash);
+  }, 30000);
+  it.each(['source', 'artifact', 'inventory', 'termination', 'technical_head', 'technical_hold', 'unknown', 'wrong_reader_model', 'different_reference_hold'])(
+    'refuses visual %s before any claim, key or provider', async kind => {
+      const x = await failedVisualParent();
+      const change = (relative: string, action: (v: any) => void) => {
+        const p = path.join(x.old.directory, relative), value = JSON.parse(readFileSync(p, 'utf8')); action(value); writeFileSync(p, JSON.stringify(value));
+        x.visualData.artifacts.find(f => f.relative === relative)!.sha256 = sha(readFileSync(p));
+      };
+      if (kind === 'source') x.visualData.sourceHead = 'b'.repeat(40);
+      if (kind === 'artifact') x.visualData.artifacts[0].sha256 = 'b'.repeat(64);
+      if (kind === 'inventory') x.visualData.artifacts = x.visualData.artifacts.filter(f => f.relative !== 'controlled-editor-repair-20261008/paid-stages/reference_child_qa.wire.json');
+      if (kind === 'termination') { writeFileSync(x.visualData.terminationReceipt.file, JSON.stringify({ code: 1, signal: null, terminationConfirmed: false })); x.visualData.terminationReceipt.sha256 = sha(readFileSync(x.visualData.terminationReceipt.file)); }
+      if (kind === 'technical_head' || kind === 'technical_hold') { const p = x.visualData.technicalReviewReceipt.file, v = JSON.parse(readFileSync(p, 'utf8'));
+        if (kind === 'technical_head') v.head = 'b'.repeat(40); else v.qaVerdict = 'HOLD';
+        writeFileSync(p, JSON.stringify(v)); x.visualData.technicalReviewReceipt.sha256 = sha(readFileSync(p)); x.visualData.extraEngineeringReceipts[0] = x.visualData.technicalReviewReceipt; }
+      if (kind === 'unknown') change('controlled-editor-repair-20261008/paid-stages/reference_child_qa.result.json', v => { v.estimatedMicroUsd = null; });
+      if (kind === 'wrong_reader_model') change('controlled-editor-repair-20261008/paid-stages/final_review.receipt.json', v => { v.raw.model = 'wrong'; });
+      if (kind === 'different_reference_hold') change('repair-sealed.json', v => { v.code = 'different_hold'; });
+      writeFileSync(x.visualFile, JSON.stringify(x.visualData));
+      await expect(prepareSimpleBookVisualContinuation(x.visualFile)).rejects.toThrow();
+      expect(existsSync(path.join(x.old.directory, 'controlled-visual-continuation-20261008'))).toBe(false);
+      expect(sdk.create).not.toHaveBeenCalled(); expect(x.editor).not.toHaveBeenCalled(); expect(x.render).not.toHaveBeenCalled();
+    }, 30000);
+  async function visualTransportFixture() {
+    const x = await failedVisualParent(), bad = JSON.parse(readFileSync(path.join(x.old.directory, 'controlled-editor-repair-20261008/paid-stages/reference_child.receipt.json'), 'utf8')).candidate;
+    const ownership = { child: { role: 'child', clothing: ['red shirt', 'blue shorts', 'teal shoes'] }, companion: { role: 'companion', authority: 'companionVisualAuthority' } };
+    sdk.create.mockImplementation(async p => {
+      let out: any;
+      if (Array.isArray(p.input)) {
+        const c = JSON.parse(p.input[0].content[0].text); out = cleanPixelReview(c.candidateSha, c.contextSha);
+        if (c.candidateSha === bad.imageSha) { out.checks[1].verdict = 'defect'; out.checks[1].correction = 'SYNTHETIC known old identity defect; not a real artwork claim.'; }
+      } else if (p.text.format.name === 'owned_actor_appearance') out = { disposition: 'owned', actorAppearance: ownership, observation: 'Synthetic owner assignment only.' };
+      else out = x.review;
+      return { model: p.model, service_tier: 'default', status: 'completed', usage: { input_tokens: 100, output_tokens: 100 }, output_text: JSON.stringify(out) };
+    });
+    const fetcher = vi.fn(async () => new Response(JSON.stringify({ model: 'gpt-4o-2024-08-06', usage: { prompt_tokens: 100, completion_tokens: 100 },
+      choices: [{ message: { content: JSON.stringify({ referenceChildVisible: true, candidateChildVisible: true, candidateChildCount: 1, comparisonUsable: true,
+        sameChildDecision: 'same', faceStructure: 'match', eyesBrows: 'match', noseMouth: 'match', hairIdentity: 'match', distinctiveFeatures: 'match' }) } }] }), { status: 200 }));
+    vi.stubGlobal('fetch', fetcher); vi.stubEnv('GPT_IMAGE_EDIT_MAX_REFERENCES', '4');
+    return { ...x, fetcher, bad, ownership };
+  }
+  it('runs the actual visual-only path through Sol control and all9 images without a writer, preserving geometry/evidence and private serving', async () => {
+    const x = await visualTransportFixture();
+    expect(await simpleBookVisualContinuationCLI(['--config', x.visualFile, '--execute'])).toBe(0);
+    expect(x.editor).not.toHaveBeenCalled(); expect(x.render).toHaveBeenCalledTimes(12); expect(x.fetcher).toHaveBeenCalledTimes(9);
+    expect(sdk.create).toHaveBeenCalledTimes(15); // appearance +whole-board review +control +12 reference/page pixel calls
+    expect(sdk.create.mock.calls[0][0].model).toBe('gpt-6-astra');
+    expect(sdk.create.mock.calls.slice(1).every(([p]) => p.model === 'gpt-6.1-sol')).toBe(true);
+    const dir = path.join(x.old.directory, 'controlled-visual-continuation-20261008');
+    const oldResult = JSON.parse(readFileSync(path.join(x.old.directory, 'repair-simple-book-result.json'), 'utf8'));
+    const next = JSON.parse(readFileSync(path.join(dir, 'visual_simple_book_result.json'), 'utf8'));
+    expect(next.source).toEqual(oldResult.source); expect(next.readings).toEqual(oldResult.readings);
+    expect(next.storyboard.storyboard.sourceDigest).not.toBe(oldResult.storyboard.storyboard.sourceDigest);
+    for (const field of ['locations', 'recurringProps', 'pages', 'continuity']) expect(next.storyboard.storyboard.plan[field]).toEqual(oldResult.storyboard.storyboard.plan[field]);
+    expect(next.storyboard.storyboard.sequence.pages).toEqual(oldResult.storyboard.storyboard.sequence.pages);
+    expect(next.storyboard.storyboard.plan.actorAppearance).toEqual(x.ownership);
+    expect(next.storyboard.calls).toHaveLength(1);
+    expect(next.storyboard.calls[0]).toMatchObject({ stage: 'review', input: sdk.create.mock.calls[1][0].input,
+      context: { sourceDigest: next.storyboard.sourceDigest, storyboardDigest: next.storyboard.storyboardDigest, actorOwnedAppearance: true } });
+    expect(JSON.parse(readFileSync(path.join(dir, 'sealed.json'), 'utf8'))).toMatchObject({ status: 'illustrated_audition', bookPages: 9, inheritedLogicalAttempts: 12, runtimeEligible: false });
+    const imageWire = JSON.parse(readFileSync(path.join(dir, 'paid-stages/page_8_0.wire.json'), 'utf8'));
+    expect(imageWire).toMatchObject({ outputReservationTokens: 8192, body: { model: 'gpt-image-2', quality: 'low', size: '1024x1024', n: 1 } });
+    expect(JSON.parse(readFileSync(path.join(dir, 'paid-stages/page_8_0.claim.json'), 'utf8')).maximumMicroUsd)
+      .toBe(Buffer.byteLength(imageWire.body.prompt, 'utf8') * 8 + imageWire.references.length * 8192 * 8 + 8192 * 30);
+    expect(readFileSync(path.join(dir, 'book.html'), 'utf8').match(/<img /g)).toHaveLength(9);
+    const requestId = oldResult.source.requestId, view = await GET(req('GET', undefined, `${url}?requestId=${requestId}`));
+    expect(view.status).toBe(200); expect(await view.json()).toMatchObject({ phase: 'illustrated_audition', imageScope: 'owned_visual_continuation', visualReviewModel: 'gpt-6.1-sol' });
+    const image = await GET(req('GET', undefined, `${url}?requestId=${requestId}&page=8`)); expect(image.status).toBe(200); expect(image.headers.get('content-type')).toBe('image/png');
+    await expect(simpleBookVisualContinuationCLI(['--config', x.visualFile, '--execute'])).rejects.toThrow();
+    for (const [n, hash] of x.oldHashes) expect(sha(readFileSync(path.join(x.old.directory, n)))).toBe(hash);
+  }, 60000);
+  it.each(['uncertain_appearance', 'board_hold', 'control_miss', 'unknown_cost', 'wrong_model', 'cancelled'])(
+    'visual-only %s stops before new images, never falls back or rewrites source', async kind => {
+      const x = await visualTransportFixture(), normal = sdk.create.getMockImplementation()!;
+      sdk.create.mockImplementation(async p => {
+        const raw = await normal(p), out = JSON.parse(raw.output_text);
+        if (kind === 'uncertain_appearance' && p.text.format.name === 'owned_actor_appearance') { out.disposition = 'uncertain'; out.actorAppearance = null; }
+        if (kind === 'board_hold' && p.text.format.name === 'personal_book_review') out.bookChecks.approved_facts.verdict = 'uncertain';
+        if (kind === 'control_miss' && Array.isArray(p.input)) out.checks[1] = { ...out.checks[1], verdict: 'pass', correction: '' };
+        if (kind === 'unknown_cost') delete (raw as any).usage;
+        if (kind === 'wrong_model') raw.model = 'gpt-6-astra-unapproved';
+        if (kind === 'cancelled') process.emit('SIGINT');
+        return { ...raw, output_text: JSON.stringify(out) };
+      });
+      expect(await simpleBookVisualContinuationCLI(['--config', x.visualFile, '--execute'])).toBe(1);
+      expect(x.editor).not.toHaveBeenCalled(); expect(x.render).not.toHaveBeenCalled(); expect(x.fetcher).not.toHaveBeenCalled();
+      const seal = JSON.parse(readFileSync(path.join(x.old.directory, 'controlled-visual-continuation-20261008/sealed.json'), 'utf8'));
+      expect(seal.status).toBe('failed'); if (kind === 'unknown_cost' || kind === 'wrong_model') expect(seal.snapshot).toMatchObject({ unknownAttemptCosts: 1, stopped: true });
+      if (kind === 'cancelled') expect(seal.code).toBe('visual_cancelled');
+      for (const [n, hash] of x.oldHashes) expect(sha(readFileSync(path.join(x.old.directory, n)))).toBe(hash);
+    }, 60000);
+  it.each(['dimensions', 'model'])('an unexpected owned image %s is not adopted and prevents later frames', async kind => {
+    const x = await visualTransportFixture(), normal = x.render.getMockImplementation()!;
+    x.render.mockImplementation(async input => {
+      const out = await normal(input);
+      if (kind === 'model') return { ...out, model: 'gpt-image-1', fallbackUsed: true };
+      return { ...out, buffer: await sharp({ create: { width: 64, height: 64, channels: 3, background: 'white' } }).png().toBuffer() };
+    });
+    expect(await simpleBookVisualContinuationCLI(['--config', x.visualFile, '--execute'])).toBe(1);
+    expect(x.editor).not.toHaveBeenCalled(); expect(x.render).toHaveBeenCalledTimes(1); expect(x.fetcher).not.toHaveBeenCalled();
+    const dir = path.join(x.old.directory, 'controlled-visual-continuation-20261008');
+    expect(existsSync(path.join(dir, 'illustrations/reference_child.png'))).toBe(false);
+    expect(existsSync(path.join(dir, 'book.html'))).toBe(false);
+    const seal = JSON.parse(readFileSync(path.join(dir, 'sealed.json'), 'utf8'));
+    expect(seal.snapshot.stopped).toBe(true); expect(seal.snapshot.unknownAttemptCosts).toBe(kind === 'model' ? 1 : 0);
+  }, 60000);
+  it.each(['continuation', 'repair'] as const)('does not change QA policy through historical %s worker entry', async kind => {
+    const x = await fixture(), forbidden = vi.fn();
+    await expect(runSimpleBookWorkerPipeline({ config: { ...config, reviewModel: 'gpt-6.1-sol' }, configFile: file, cliWorkspace: root,
+      worker: {} as any, [kind]: { budget: {} as any, inheritedAttempts: 0, assertCurrent: forbidden, reuseWriting: forbidden, prior: {}, readings: [] } } as any))
+      .rejects.toThrow('simple_historical_resumption_policy');
+    expect(forbidden).not.toHaveBeenCalled(); expect(x.args.opus).not.toHaveBeenCalled(); expect(sdk.create).not.toHaveBeenCalled();
   });
   it('rejects invalid repair CLI arguments at the real bootstrap without opening any book or credential', () => {
     const result = spawnSync(process.execPath, ['scripts/personal-simple-book-repair.cjs', '--execute'],
@@ -637,6 +823,13 @@ describe('explicit same-book continuation, no provider in fixtures', () => {
     expect(result.status).toBe(1); expect(result.signal).toBeNull(); expect(result.error).toBeUndefined();
     expect(result.stderr.trim()).toBe(JSON.stringify({ error: 'repair_failed', runtimeEligible: false }));
     expect(result.stdout).toBe('');
+  }, 20000);
+  it('rejects invalid visual CLI arguments at its real bootstrap without a book, key or provider', () => {
+    const result = spawnSync(process.execPath, ['scripts/personal-simple-book-visual-continuation.cjs', '--execute'],
+      { cwd: process.cwd(), encoding: 'utf8', timeout: 15000, windowsHide: true });
+    expect(result.status).toBe(1); expect(result.signal).toBeNull(); expect(result.error).toBeUndefined();
+    expect(result.stderr.trim()).toBe(JSON.stringify({ error: 'visual_arguments', runtimeEligible: false }));
+    expect(result.stdout).toBe(''); expect(sdk.create).not.toHaveBeenCalled();
   }, 20000);
   it.each(['source', 'hash', 'inventory', 'termination', 'duplicate_cost', 'reconciliation', 'unknown', 'stopped', 'reading', 'parent_claim', 'budget'])(
     'refuses repair %s before allocating a slot or reading credentials', async kind => {

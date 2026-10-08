@@ -53,7 +53,10 @@ export function simpleStoryReadingPackets(request: unknown, result: CurrentSimpl
   const candidate = z.object({ seed: z.string() }).passthrough().parse(result.simpleSource.evidence);
   const prepared = prepareSimpleStory(request, options, candidate.seed);
   const evidence = evidenceSchema(prepared.book.pages).parse(result.simpleSource.evidence);
-  const original = compileSimpleStory(prepared, evidence.draft, result.accounting, result.simpleSource.version === REPAIRED_SIMPLE_SOURCE_VERSION);
+  const repaired = result.simpleSource.version === REPAIRED_SIMPLE_SOURCE_VERSION;
+  const baseline = result.simpleSource.version === REPAIRED_SIMPLE_SOURCE_VERSION
+    ? evidenceSchema(prepared.book.pages).parse(originalSimpleStoryResultSchema.parse(result.simpleSource.repair.prior).simpleSource.evidence).edited : evidence.draft;
+  const original = compileSimpleStory(prepared, baseline, result.accounting, repaired);
   const document = (r: typeof original) => ({ plan: r.plan, manuscript: r.manuscript,
     characterDigest: prepared.brief.companion.characterDigest });
   return causalReviewPackets(preparePersonalStory(request, options), document(original), document(result));

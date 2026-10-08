@@ -106,3 +106,51 @@ live proof is a newly generated child reference judged on its pixels; a defect/u
 frames. Existing originalUSD12 and8body+cover remain. No new product/canon decision is inferred. Codex sole
 writer in the existing task/voice checkout, base c54c1ddf. Native Claude first QA read-only and exact range.
 Guy ultimately accepts the nine actual illustrations, not just schemas/test or automated reviews.
+
+## 13. M6 — approved visual-only continuation after bounded M5 review
+
+M5 local7fece123, native Claude edb7ec4a bounded READ-ONLY codePASS; no independent tests or literary/visual
+acceptance claimed. Codex887/19 +15controls/8mutants; committed fullRED:6830ordinary pass/10oldfail/73skip,
+634resource pass/1oldprobe fail PLUS3RPC errors. Exact11 failing names equaldcb. Native cost599771micro,
+known8822529, remaining3177471/original12m, unknown0. Low notes: prohibit review-model changes in old
+resume/repair entry; new pixel bounds should not change legacy mode; cite actual official long-context rates.
+Ownership decoder's only non-test caller parses the policy-selected strict schema first (verified rg).
+
+M6 stays in the current task/sole voice writer, base7fece123. Reconstruct the completed repaired source from
+the original native receipts/verified prior findings. Re-admit the previously supported raw storyboard,
+then request ONLY actor-owned clothing in a bounded appearance-planning call (planner Astra), not a new
+adventure or new geometry. Preserve every old location/prop/page/transition byte in the deterministic merge.
+Compile the owned draft under the new source policy, then a fresh whole-book Sol review; old approval does
+not transfer to a new digest. A fresh full planner is rejected as unnecessary cost/risk to stable geography.
+
+Use one fixed visual-continuation sibling under the SAME repository-owned book, no configurable book path.
+Pure preview before claim; original configuration/hosts/claims, all7 M4 paid wires/receipts/outcomes, source,
+two readings, old board/QA and rejected PNG must bind. Unknown cost/termination, source/canon/model drift,
+extra/missing evidence, a different failed stage or forged held-reference finding reject before key/spawn.
+Inherit all original and engineering cost, preserve all files/seals and refuse a second claim. No writers,
+editors or fresh literary readings: successful earlier readings retain actual Astra attribution.
+
+First run one Sol pixel control on the exact rejected candidate and old review context, using the SAME real
+pixel adapter as the book. Require source-bound identity defect (not a supplied correction); a miss, uncertainty
+or malformed output stops. Never make this rejected image canonical. Then generate a new owned child anchor;
+only its pixel PASS allows atlases and9 frames. Existing pixel defect-only one repair/page, four refs,
+0.70 numeric identity/LOW1024 and strict final HTML completeness remain. The private wizard view serves the
+new fixed image namespace only after all9 pass; old view/image serving stays compatible. No production change.
+
+Pricing: conservative600000micro for each Sol pixel slot (actual usage enforced); appearance planner slot is
+bounded8000 output tokens at Astra10/50; whole-board QA Sol unchanged cap. No silent budget reset. A reservation
+can exhaust remaining allowance even if expected actual cost is lower; then stop for Guy's priced decision.
+No expenditure before local tests/frozen local commit and native independent first read-only re-gate.
+
+Owned-only reservation correction (same approved LOW1024 lane): measured first reference196 output tokens;
+official image output table LOW1024$0.006 and even HIGH1024$0.211 (~7033 tokens at$30/M). Reserve8192 output
+tokens instead of the legacy text-like32768, ONLY after checking the exact one-image/model/LOW1024 request.
+Input allowance remains8192/ref plus prompt bytes at conservative$8/M. Actual usage/cost overrun still stops;
+no refund/reset, weaker USD12 ceiling, output quality/cap alteration or legacy reservation reinterpretation.
+Unexpected model/fallback or returned dimensions reject. This is a scoped estimate, not an invoice hard cap.
+Source: https://developers.openai.com/api/docs/guides/image-generation#calculating-costs, checked2026-10-08.
+
+Final M6 safeguards: overall40-minute AbortController deadline in addition to per-call deadlines, explicit
+cancelled terminal code and no automatic retry. New owned-board result records ONLY its fresh source-bound
+review call (with104KB content measurement); old Astra call records remain in immutable M4 evidence, never
+presented as new calls. Real CJS bootstrap argument rejection and signal cancellation are checked offline.

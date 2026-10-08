@@ -25,6 +25,8 @@ export function auditionUsageCost(raw: unknown, kind: 'image' | 'astra' | 'sol' 
   if (!u.success || u.data.input_tokens + u.data.output_tokens === 0) return null;
   // Image input is conservatively ALL priced at $8/M; no cache or lower text-input discount.
   const longSol = kind === 'sol' && u.data.input_tokens > 272000;
+  // Official gpt-6.1-sol Pricing notes: >272K input =>2x input,1.5x output.
+  // https://developers.openai.com/api/docs/models/gpt-6.1-sol
   return Math.ceil(u.data.input_tokens * (kind === 'image' ? 8 : kind === 'astra' ? 10 : kind === 'sol' ? longSol ? 4 : 2 : 2.5) +
     u.data.output_tokens * (kind === 'image' ? 30 : kind === 'astra' ? 50 : longSol ? 15 : 10));
 }
@@ -40,13 +42,52 @@ export function readAuditionImage(directory: string, image: AuditionImage) {
   if (!stat.isFile() || stat.isSymbolicLink() || stat.nlink !== 1 || stat.size > 20000000) fail('simple_image_file');
   const bytes = readFileSync(file); if (previewSha(bytes) !== image.imageSha) fail('simple_image_changed'); return bytes;
 }
+/** Same source-bound real-pixel adapter for book pages and the explicit diagnostic control. */
+export function createSimpleBookPixelJudge(args: {
+  config: Pick<SimpleBookConfig, 'reviewModel'>; directory: string; budget: SimpleBookBudget; key: () => string;
+  assertCurrent: () => void; signal: AbortSignal; save: (name: string, value: unknown) => void;
+}): Parameters<typeof illustrateSimpleBook>[0]['judge'] {
+  const reviewPolicy = simpleBookReviewPolicy(args.config), selectedModel = args.config.reviewModel;
+  const check = () => { if (args.signal.aborted) fail('simple_illustration_cancelled');
+    if (args.config.reviewModel !== selectedModel) fail('simple_review_model_changed'); args.assertCurrent(); };
+  const data = (image: AuditionImage) => `data:image/png;base64,${readAuditionImage(args.directory, image).toString('base64')}`;
+  return async (step, candidate, context, contextSha, refs, predecessor) => {
+    check(); const buffer = readAuditionImage(args.directory, candidate), meta = await sharp(buffer).metadata();
+    const width = meta.width!, height = meta.height!, cw = Math.ceil(width * .7), ch = Math.ceil(height * .7);
+    const crops = await Promise.all([[0, 0], [width - cw, 0], [0, height - ch], [width - cw, height - ch]].map(async ([left, top]) =>
+      `data:image/png;base64,${(await sharp(buffer).extract({ left, top, width: cw, height: ch }).png().toBuffer()).toString('base64')}`));
+    const imageURLs = [data(candidate), ...crops, ...refs.map(data), ...(predecessor ? [data(predecessor)] : [])];
+    const text = JSON.stringify({ candidateSha: candidate.imageSha, contextSha, context,
+      imageRoles: ['candidate_complete', 'candidate_crop_top_left', 'candidate_crop_top_right', 'candidate_crop_bottom_left', 'candidate_crop_bottom_right',
+        ...refs.map((_, i) => `canonical_${['child', 'companion', 'entities', 'locations'][i]}`), ...(predecessor ? ['prior_same_scene_comparison_not_authority'] : [])] });
+    const payload = { model: reviewPolicy.model, store: false, service_tier: 'default' as const, reasoning: { effort: 'medium' as const },
+      instructions: PREVIEW_JUDGE_INSTRUCTION,
+      input: [{ role: 'user' as const, content: [{ type: 'input_text' as const, text },
+        ...imageURLs.map(image_url => ({ type: 'input_image' as const, image_url, detail: 'high' as const }))] }],
+      max_output_tokens: 12000, text: { format: zodTextFormat(previewQualityReviewSchema, 'personal_audition_pixels') } };
+    if (selectedModel && (imageURLs.length > 10 || Buffer.byteLength(text + PREVIEW_JUDGE_INSTRUCTION, 'utf8') > 104000)) fail('simple_pixel_input_limit');
+    // Official Sol calculator does not yet give a multiplier. An explicit conservative
+    // USD0.60 admission slot, not an invented tokenizer bound or invoice hard cap.
+    const maximumMicroUsd = selectedModel ? 600000
+      : (Buffer.byteLength(text + PREVIEW_JUDGE_INSTRUCTION, 'utf8') + imageURLs.length * 3001) * 10 + 12000 * 50;
+    return args.budget.run(step, payload, maximumMicroUsd, async () => {
+      check(); const client = new OpenAI({ apiKey: args.key(), baseURL: 'https://api.openai.com/v1', maxRetries: 0, logLevel: 'off' });
+      const raw = await client.responses.create(payload, { signal: args.signal, timeout: 300000 });
+      const estimatedMicroUsd = raw.model === reviewPolicy.model && raw.service_tier === 'default' ? auditionUsageCost(raw.usage, selectedModel ? 'sol' : 'astra') : null;
+      const receipt = { raw, estimatedMicroUsd }; args.save(`${step}_provider`, receipt);
+      if (raw.status !== 'completed' || raw.model !== reviewPolicy.model || raw.service_tier !== 'default' || !raw.output_text || !raw.usage || raw.usage.output_tokens > 12000)
+        throw Object.assign(new SimpleIllustrationError('simple_pixel_provider_invalid'), { receipt });
+      try { const value = previewQualityReviewSchema.parse(JSON.parse(raw.output_text)); check(); return { value, estimatedMicroUsd, receipt }; }
+      catch { throw Object.assign(new SimpleIllustrationError('simple_pixel_schema'), { receipt }); }
+    });
+  };
+}
 export async function runSimpleBookIllustrator(args: {
   config: SimpleBookConfig; directory: string; budget: SimpleBookBudget; key: () => string; assertCurrent: () => void;
   signal: AbortSignal; result: Awaited<ReturnType<typeof runSimpleWizardBook>>; request: unknown; options: PersonalWizardOptions;
   progress: Parameters<typeof illustrateSimpleBook>[0]['progress'];
 }) {
   const approval = readAuditionApproval(args.config); if (!approval) fail('simple_visual_approval_missing');
-  const reviewPolicy = simpleBookReviewPolicy(args.config);
   const directory = path.join(args.directory, 'illustrations'); mkdirSync(directory); realDirectory(directory);
   const check = () => { if (args.signal.aborted) fail('simple_illustration_cancelled'); args.assertCurrent(); readAuditionApproval(args.config); };
   const writeImage = async (name: string, bytes: Buffer) => {
@@ -70,59 +111,39 @@ export async function runSimpleBookIllustrator(args: {
       signal: args.signal, requestTimeoutMs: 180000 };
     const plan = planGPTImageRequest(input, { defaultQuality: 'low', defaultModel: 'gpt-image-2', maxReferences: 4 });
     if (plan.referenceCountPassed !== refs.length) fail('simple_reference_truncated');
+    const owned = args.config.actorOwnedAppearance === true;
+    if (owned && (plan.bodyWithoutBinaryImage.model !== 'gpt-image-2' || plan.bodyWithoutBinaryImage.quality !== 'low' ||
+        plan.bodyWithoutBinaryImage.size !== '1024x1024' || plan.bodyWithoutBinaryImage.n !== 1)) fail('simple_image_price_contract');
     const wire = { body: plan.bodyWithoutBinaryImage, mode: plan.apiMode, references: refs,
-      retries: 0, deadlineMs: 180000, pricing: 'image_input_8_output_30_conservative_no_cache' };
-    // Conservative admission: prompt bytes + 8192 input tokens/reference + 32768 output tokens.
-    const maximumMicroUsd = Buffer.byteLength(plan.finalPrompt, 'utf8') * 8 + refs.length * 8192 * 8 + 32768 * 30;
+      retries: 0, deadlineMs: 180000, pricing: 'image_input_8_output_30_conservative_no_cache',
+      ...(owned ? { outputReservationTokens: 8192, policy: 'one_low_1024_owned_audition' } : {}) };
+    // Legacy reservation unchanged. For the explicitly owned ONE LOW1024 image:
+    // official output costs LOW$0.006, even HIGH$0.211 (=~7033 tokens at$30/M).
+    // Reserve8192 output tokens, retaining the conservative8192 input/reference.
+    // Real usage is still enforced; no model/quality/output/USD12 ceiling change.
+    // https://developers.openai.com/api/docs/guides/image-generation#calculating-costs
+    const maximumMicroUsd = Buffer.byteLength(plan.finalPrompt, 'utf8') * 8 + refs.length * 8192 * 8 + (owned ? 8192 : 32768) * 30;
     return args.budget.run(step, wire, maximumMicroUsd, async () => {
       let raw: unknown = null;
       try {
         const image = await generateGPTImage({ ...input, apiKey: args.key(), exactReferenceBytes: bytes,
           observeProviderResponse: response => { raw = response; save(`${step}_provider`, response); } });
         const cost = auditionUsageCost(image.usage, 'image');
+        if (owned && (image.model !== 'gpt-image-2' || image.fallbackUsed)) throw Object.assign(new SimpleIllustrationError('simple_image_model'), { receipt: { raw, estimatedMicroUsd: null } });
+        if (owned) { const metadata = await sharp(image.buffer).metadata();
+          if (metadata.width !== 1024 || metadata.height !== 1024) throw Object.assign(new SimpleIllustrationError('simple_image_dimensions'), { receipt: { raw, estimatedMicroUsd: cost } }); }
         const candidate = await writeImage(`${step}.png`, image.buffer); check();
         return { value: candidate, estimatedMicroUsd: cost,
           receipt: { raw, estimatedMicroUsd: cost, model: image.model, refsRequested: image.referenceCountRequested, refsPassed: image.referenceCountPassed, candidate } };
       } catch (error) {
         const usage = raw && typeof raw === 'object' && 'usage' in raw ? raw.usage : null;
         throw Object.assign(new SimpleIllustrationError('simple_image_provider_failed'), {
-          receipt: { raw, estimatedMicroUsd: auditionUsageCost(usage, 'image') } });
+          receipt: error && typeof error === 'object' && 'receipt' in error ? error.receipt : { raw, estimatedMicroUsd: auditionUsageCost(usage, 'image') } });
       }
     });
   };
-  const judge: Parameters<typeof illustrateSimpleBook>[0]['judge'] = async (step, candidate, context, contextSha, refs, predecessor) => {
-    check(); const buffer = readAuditionImage(directory, candidate), meta = await sharp(buffer).metadata();
-    const width = meta.width!, height = meta.height!, cw = Math.ceil(width * .7), ch = Math.ceil(height * .7);
-    const crops = await Promise.all([[0, 0], [width - cw, 0], [0, height - ch], [width - cw, height - ch]].map(async ([left, top]) =>
-      `data:image/png;base64,${(await sharp(buffer).extract({ left, top, width: cw, height: ch }).png().toBuffer()).toString('base64')}`));
-    const imageURLs = [data(candidate), ...crops, ...refs.map(data), ...(predecessor ? [data(predecessor)] : [])];
-    const text = JSON.stringify({ candidateSha: candidate.imageSha, contextSha, context,
-      imageRoles: ['candidate_complete', 'candidate_crop_top_left', 'candidate_crop_top_right', 'candidate_crop_bottom_left', 'candidate_crop_bottom_right',
-        ...refs.map((_, i) => `canonical_${['child', 'companion', 'entities', 'locations'][i]}`), ...(predecessor ? ['prior_same_scene_comparison_not_authority'] : [])] });
-    const payload = { model: reviewPolicy.model, store: false, service_tier: 'default' as const, reasoning: { effort: 'medium' as const },
-      instructions: PREVIEW_JUDGE_INSTRUCTION,
-      input: [{ role: 'user' as const, content: [{ type: 'input_text' as const, text },
-        ...imageURLs.map(image_url => ({ type: 'input_image' as const, image_url, detail: 'high' as const }))] }],
-      max_output_tokens: 12000, text: { format: zodTextFormat(previewQualityReviewSchema, 'personal_audition_pixels') } };
-    // All inputs <=1536². Astra high: <=2500 patches *1.2; 3001 tokens/image is conservative.
-    if (imageURLs.length > 10 || Buffer.byteLength(text + PREVIEW_JUDGE_INSTRUCTION, 'utf8') > 104000) fail('simple_pixel_input_limit');
-    // Astra's established image estimate is unchanged. Sol's official model page
-    // confirms vision but the shared token calculator has not listed its multiplier.
-    // Use an explicit conservative USD0.60 slot, NOT an invented tokenizer formula.
-    // Real usage/cost is recorded and enforced; this is not an invoice hard cap.
-    const maximumMicroUsd = args.config.reviewModel ? 600000
-      : (Buffer.byteLength(text + PREVIEW_JUDGE_INSTRUCTION, 'utf8') + imageURLs.length * 3001) * 10 + 12000 * 50;
-    return args.budget.run(step, payload, maximumMicroUsd, async () => {
-      const client = new OpenAI({ apiKey: args.key(), baseURL: 'https://api.openai.com/v1', maxRetries: 0, logLevel: 'off' });
-      const raw = await client.responses.create(payload, { signal: args.signal, timeout: 300000 });
-      const estimatedMicroUsd = raw.model === reviewPolicy.model && raw.service_tier === 'default' ? auditionUsageCost(raw.usage, args.config.reviewModel ? 'sol' : 'astra') : null, receipt = { raw, estimatedMicroUsd }; save(`${step}_provider`, receipt);
-      if (raw.status !== 'completed' || raw.model !== reviewPolicy.model || raw.service_tier !== 'default' || !raw.output_text ||
-          !raw.usage || raw.usage.output_tokens > 12000)
-        throw Object.assign(new SimpleIllustrationError('simple_pixel_provider_invalid'), { receipt });
-      try { const value = previewQualityReviewSchema.parse(JSON.parse(raw.output_text)); check(); return { value, estimatedMicroUsd, receipt }; }
-      catch { throw Object.assign(new SimpleIllustrationError('simple_pixel_schema'), { receipt }); }
-    });
-  };
+  const judge = createSimpleBookPixelJudge({ config: args.config, directory, budget: args.budget, key: args.key,
+    assertCurrent: check, signal: args.signal, save });
   const identity: Parameters<typeof illustrateSimpleBook>[0]['identity'] = async (step, child, candidate) => {
     check();
     let transportError: unknown = null;

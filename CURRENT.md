@@ -1,5 +1,42 @@
 # SmallHeroes — Current Technical State
 
+## Same-book visual-only continuation implemented; frozen gates before paid proof (2026-10-08)
+
+Codex sole writer in voice checkout/branch, M6 base7fece123. M5 native Claude edb7ec4a issued bounded read-only
+codePASS; no independent tests/literary/visual acceptance. M5 committed fullRED:6830ordinary pass/10oldfail/73skip,
+634resource pass/1oldprobe fail PLUS3RPC errors;11names matchdcb. Actual new engineering cost599771micro,
+known8822529/original12m, remaining3177471, unknown0. Max6667669 list value vs API2154860 conservative estimates.
+No book/cover image yet; one rejected child anchor preserved. No allowance renewal or relabel of old Astra QA.
+
+New pure M6 admission reconstructs paid source/three Opus-session lineage, prior-edit reading packets, all7
+M4 wire/claim/results/costs, old supported board/review and9 frame packets; rejected PNG/provider/pixel context,
+failed-reference seal, confirmed host and actual structured technical PASS bind. Full evidence inventory,
+known costs and changed heads/termination/model reject before key/claim. One fixed SAME-book sibling;
+no new writer/editor/text or manual board/image. Only actor-owned appearance is planned (Astra), deterministically
+merged into unchanged location/prop/page/sequence geometry, then freshly reviewed by Sol with a new source digest.
+New current call records name the new review; old receipts remain in the preserved parent, not copied as new calls.
+
+Exact old bad pixels/context run blind through the same Sol full+four-crop judge. Identity defect required before
+new owned child anchor/atlases/9 frames; no supplying the defect, canonical adoption or retry. Existing four refs,
+numeric0.70, defect-only bounded page repair and final completeness gates remain. Original resume/repair entry
+rejects a new model/owner policy; default/archive behavior otherwise preserved. New private wizard image namespace
+is fixed and readable only after all9 succeed. Overall40-minute abort plus per-call deadlines; unknown/failure stops.
+
+Owned-only oneLOW1024 image reservation8192 output tokens (official LOW$0.006; evenHIGH$0.211 =~7033tokens),
+retaining8192 conservative input/reference +prompt bytes and actual usage enforcement. Legacy32768 unchanged;
+exact model/quality/n1/size preflight and returned model/fallback/dimension gates prevent repricing another request.
+Sol fixed600000micro pixel slot is conservative admission, not a measured image multiplier or invoice hard cap.
+
+Provider-free463/6 then467/6 focused checks passed with source unchanged. Eight selected controls passed; all6
+virtual broken guards caught by assertion failures (technicalHOLD, pixel control, image model/dimensions,
+actual reservation arithmetic, historic policy). No source mutated or old tests removed/timeouts raised. Final
+TypeScript/changed-boundary smoke, local focused commit, committed full gate and native first read-only review
+follow; independent PASS pending for M6, not self-awarded. Historical reader evidence stays actual Astra.
+No new paid book call/key read. Goal incomplete until9 actual illustrations and their gates succeed.
+
+Decision: PERSONAL_SIMPLE_BOOK_REFERENCE_ROLE_ISOLATION_DECISION_20261008.md section13. No production/default
+rollout, canon/ability/accessory change, weaker QA, push/merge/deploy/customer charge. Preserve originalUSD12.
+
 ## Approved owner-scoped diagnostic visuals and Sol6.1 QA implemented locally (2026-10-08)
 
 Guy approved continuing the same book, then corrected the model decision: use the cheapest of Sol6.1,
