@@ -15,6 +15,12 @@ or enlarge the cap automatically. A future bounded reviewer must use a smaller
 explicit packet/system context and an independently verified inference limit;
 `--version`/help is NOT proof of --max-turns support (invalid-flag control also
 exits0). No paid calibration approved or performed.
+Follow-up actual installedCLIloopback probe, fake API key/--bare/noOAuth and
+synthetic SSE only: first max_tokens reply triggers TWO messages requests even
+with --max-turns1; control without flag also makes2. Both processes terminate.
+This verifies that the proposed flag is not a per-inference boundary for this
+case. It is API-auth simulation, NOT a live Max price/quality calibration. Zero
+real provider/key/book calls. Do not use that flag alone as the spending guard.
 
 Aggregate known15714738of16m;285262left,unknown0. Max reported-list13246512,
 OpenAI conservative API2468226UNCHANGED. Engineering12455955;partialbook3258783.

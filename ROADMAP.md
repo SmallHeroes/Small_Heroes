@@ -12,6 +12,9 @@
 - Stop paid retries. Next: provider-free reviewer-invocation simplification and
   verified inference admission; THEN owner-priced financial decision for any
   engineering re-gate and original8pages+cover. No budget reset/gate change.
+- Real installedCLIagainst a loopback mock makes2requests after max_tokens both
+  with max-turns1 and without. Flag alone cannot bound native continuation.
+  No real inference/OAuth/key/book activity; API-auth-only synthetic proof.
 
 ## M10 transport correction approved and in implementation (2026-10-08)
 

@@ -187,3 +187,15 @@ single inference reservation from CLI-level budget/automatic continuation, reduc
 redundant context, and preserve independent scrutiny. Any further paid review,
 added financial receipt/grant or book spend requires explicit owner decision.
 All189book files and six protected trees remain unchanged. No illustrated book.
+
+Additional provider-free native protocol proof: the installedCLI2.1.287 ran
+against a127.0.0.1mock Messages/SSE endpoint with an explicit FAKE key and --bare
+(noOAuth/keychain). First response intentionally has stop_reason:max_tokens,
+second is complete. With --max-turns1 it still issues2Messages requests; the
+control without that flag also issues2. Both children and loopback servers
+terminated. No real inference, real credential or book call. This is API-auth
+simulation only, not proof of Max pricing or exhaustive CLI behavior. It directly
+falsifies treating that flag as a per-inference boundary in this truncation case.
+Evidence: claude-local-turn-probe-20261008/{bounded,control}/receipt.json.
+Future spending control must account for/stop internal truncation continuation,
+not just rename a CLI agent-turn limit. No paid retry authorized by this probe.
