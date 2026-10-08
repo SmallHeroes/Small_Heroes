@@ -1,5 +1,15 @@
 # SmallHeroes — Roadmap
 
+## Same-input MEDIUM component control fails conformance too (2026-10-08)
+
+- Exact previous body/actors/context, only LOW->MEDIUM. Two completed known
+  stages116284micro; code0 diagnostic completion, NOT referencePASS. StillHOLD.
+- No source implementation or book claim; original237files unchanged. New proof
+  stays separate/unsupported. Quality increase not shown to solve the problem.
+- Known17956672of20m,unknown0;remaining2043328. All past expense retained once.
+- No cover/body/reader. Owner diagnostic exception choice pending, not assumed.
+  No more blind repeats, budget reset, qualification change or push.
+
 ## M12 paid proof ends at refHOLD; owner diagnostic choice pending (2026-10-08)
 
 - Valid source-only nativePASSd2b77a6e..ca5b6fe6, fee749305micro; no pixel/product

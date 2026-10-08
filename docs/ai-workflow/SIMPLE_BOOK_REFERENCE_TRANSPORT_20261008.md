@@ -1,5 +1,22 @@
 # M10 Decision Gate - approved reference transport correction
 
+## One-variable quality control — no pixel qualification (2026-10-08)
+
+No production change: existing generator/pixeljudge/budget source unchanged from
+reviewedca5 at docHEADa0ac394b. Scoped ONE image component probe inside original
+same-book20cap. Dry-run exactbody proof: onlyquality low->medium; all other body
+fields/prompt/PNG order/context/judge unchanged. No old book slot reopened.
+Two known paid stages116284micro. Native operator process0 means completed probe,
+notPASS; actual candidate3bd403ca... remainsheld_uncertain. Two-slat bench persists,
+and recognizable shadow identity worsens. Not a demonstrated quality-only cure.
+Known17956672of20m,unknown0;2043328remaining. API2762336,Maxlist15194336; engineering
+14403779/bookdiagnostics3552893. Old237book files untouched, new proof under taskART
+reference-medium-control-20261008 must be imported as debt if work resumes.
+No cover/body/reader, canonical adoption, hidden retry or qualification override.
+Owner diagnostic book exception asked separately, still unapproved at this entry.
+
+---
+
 ## M12 closeout — technical sourcePASS, real pixelHOLD (2026-10-08)
 
 Codeca5b6fe6 at clean tree. Native independent source-only review of exact

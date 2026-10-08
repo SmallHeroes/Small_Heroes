@@ -1,5 +1,21 @@
 # SmallHeroes — Current Technical State
 
+## Exact LOW/MEDIUM component control alsoHOLD (2026-10-08)
+
+One deliberate comparative component test, not another book claim. Existing
+reviewed generator/budget/pixeljudge at production bytesca5; docs-onlya0ac394b.
+Dry run reproduced actual previous body exactly exceptquality low->medium;
+same2accepted PNGs/order,1024size/prompt/context/judge. No prose/model/gate change.
+Exactly2known settled stages116284micro, process0/diagnosticcompleted but pixel
+dispositionheld_uncertain. Candidate3bd403ca... still2backslats, new shadow identity
+ambiguity; some other detail improved. Quality alone is NOT a demonstrated cure.
+Not adopted as canonical; no cover/body/bookHTML. Prior237book files unchanged.
+Global known17956672of20m,remaining2043328,unknown0. API2762336/Maxlist15194336;
+engineering14403779/bookdiagnostics3552893. Component evidence kept separately
+in taskART/reference-medium-control-20261008; future admission MUST retain it once.
+No active provider. Owner diagnostic-stop-rule choice still unapproved; no mode
+implemented or inferred. Goal NOT complete. Do not repeat random atlas attempts.
+
 ## M12 actual fresh reference HOLD; complete book still absent (2026-10-08)
 
 Independent native source-consistency PASSd2b77a6e..ca5b6fe6, code0/success,
