@@ -1,16 +1,22 @@
 # SmallHeroes — Roadmap
 
-## Approved14m SAME-book allowance, minimal v2 extension (2026-10-08)
+## M8 code gate passed; reference integration HOLD before book images (2026-10-08)
 
-- Owner granted accumulatedUSD14 (not14extra); M8 fromb973b17f implemented.
-  Version1/default12m unchanged; v2 requires bound grant, preserves all costs.
-- Literaltsc0 and3selected tests pass (incl16negative variants and9-frame mock
-  completion). New full gate/native independentQA pending; no M8 PASS claimed.
-- Known prior11024855micro,2975145available within14before new nativeQA.
-  Fresh native session/directJSON delivery, no resume/schema-tool loop.
-- After technical/full classification: pure real admission, one reference edit
-  and fresh pixels,2atlases+9frames/continuity/0.70; unchanged source/canon/story.
-  Stop any failed/unknown outcome. No new book queue or production/push authority.
+- Independent bounded read-only PASS b973b17f..68cebebe, not visual or stability
+  approval. Native1084566micro cumulative includes failed initial772760delivery.
+- Literaltsc0;3selected cases pass; actual full includes436/436 relevant tests.
+  FullRED:6871ordinarypass/10inheritedfail/73skip;633resourcepass/2fail+3RPCerrors.
+  Unchanged materialization assertion passed1/1isolated; full is not green.
+- SAME-book14m live recovery endedfailed/simple_reference_held. Child repair and
+  fresh Sol pixels passed; entity atlas held with mixed out-of-scope uncertainty
+  and real defects. No location atlas or9story/coverimages/bookHTML. No retry.
+- Known12184281micro,1815719left within14;4new API stages74860micro, unknown0.
+  All131old files and6protected trees preserved. Source/text/board/canon unchanged.
+- Proposed next scope: role-scoped reference contracts, approved-reference input
+  wiring, real atlas defect repair and exact-cost verified-stage continuation.
+  Needs owner Decision Gate plus independent QA; do not weaken pixel/0.70 gates,
+  reopen sealed claims, change canon/manual story, renew money or start a new book.
+  No implementation or additional paid call authorized by this closeout.
 
 ## Reference-recovery code checked; owner budget decision blocks live book (2026-10-08)
 

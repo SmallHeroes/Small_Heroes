@@ -1,26 +1,46 @@
 # SmallHeroes — Current Technical State
 
-## M8 owner-approved accumulatedUSD14 implemented; QA/full/live pending (2026-10-08)
+## M8 code PASS; live SAME-book recovery held at entity atlas (2026-10-08)
 
-Guy approved the requested SAME-book accumulated14m allowance and known Max-cost
-reconciliation. Base b973b17f; sole Codex writer on simple-story-voice-followup,
-codex/simple-story-voice-20261007, same task. Version1/default queue remains12m;
-version2 recovery requires hashed owner grant for exactrequest/parentconfig/costs.
-All cumulative prior native receipts are checked, latest counted once; new QA
-must be a distinct successfully terminated exact-range read-only PASS session.
-Known completed native soft-slot overshoot is separated from owner cap ONLY in
-v2; failed/HOLD/unknown native outcomes still block, API per-call stops unchanged.
-Meter accepts12/14 explicitly;14view only for fixed private recovery scope.
-Original visual exception still1book/8pages+cover/0.70/noncommercial, no new story.
+Exact independent first read-only Claude range b973b17f..68cebebe passed, no
+blocking code findings. Native did NOT run tests or inspect live artifacts; no
+pixel/literary/product/stability/release PASS. Version1/default queue remains12m;
+version2 recovery requires the hashed SAME-book accumulated14m owner grant.
+Prior cumulative native fees are retained/count latest once, not summed. New
+session's reported1084566micro includes its failed first772760micro delivery.
 
-Literaltsc0. Three selected tests passed, including real shared mocked9-image
-completion at14, default12 meter/overcap stop, and16tampered grant variants.
-Simple-book spec now145 (+3; no removal). Full focused previous433 was atM7, not
-a freshM8 claim; new full check and FIRST read-only independentQA are pending.
-No new book call/claim/key/image yet. Prior131files and6protected trees preserved.
-Known before newQA11024855micro, current approved ceiling14000000,2975145left.
-Brief: docs/ai-workflow/SIMPLE_BOOK_ALLOWANCE_EXTENSION_20261008.md.
-No threshold/render/model/canon change, push/merge/deploy/customer release.
+Literaltsc0; three selected tests pass including16tampered grant variants. Six
+relevant suites pass436/436 in actual M8 full check; simple-book145, none removed.
+Full gate remainsRED exit1:6871ordinarypass/10inheritedfail/73skip;633resourcepass/
+2fail plus3RPC errors. Unchanged materialization test failed an assertion under
+full load (not a timeout this run), passed1/1isolated in5035ms. Old Windows probe
+persists. No full-green claim or new stability qualification.
+
+Pure admission used the real M6 regate config pinned by its original host claim.
+Earlier wrong historical-config preview failed before claim/key/provider; not
+used live. Approved14m live recovery ran on clean68cebebe and closedcode1, no
+signal, terminationconfirmed. One child edit passed fresh Sol pixel review;
+Codex independently inspected its anatomicalRIGHT pocket. Entity atlas then
+returned3uncertain and2defect categories: held_uncertain/simple_reference_held.
+No location atlas, cover/page images, illustrated manifest or book.html exists.
+Do not reopen the consumed recovery claim or treat financialstoppedfalse as
+retry permission. Text/board/canon/0.70 unchanged; no new writer/editor/planner.
+
+Four real API stages cost74860micro, independently recomputed from raw usage.
+Known cumulative12184281micro of14000000;1815719remaining, unknown0. Max reported
+list9825469 and OpenAI conservative2358812; estimates, not invoices/unit price.
+All131old book files and6protected checkouts remain byte/HEAD/status unchanged.
+Live proof: allowance-extension-live-outcome-20261008.json in the task ART root.
+Brief/closeout: docs/ai-workflow/SIMPLE_BOOK_ALLOWANCE_EXTENSION_20261008.md.
+
+Observed integration gap predates M8 money-only change: an isolated entity atlas
+is judged with full-scene identity/scale obligations and receives no already
+approved child/companion image references. It also has real defects (two bench
+back slats vs requiredthree) and an olive shorts fragment vs child ochre wardrobe.
+This is not a reason to suppress findings or change canon. Narrow role-scoped
+reference obligations, authoritative input wiring and verified-stage continuation
+are proposed, not implemented/approved here. Owner scope decision requested.
+No new paid process active; no push/merge/deploy/customer/production release.
 
 ## M7 code PASS; live reference edit NOT run; spending decision pending (2026-10-08)
 
