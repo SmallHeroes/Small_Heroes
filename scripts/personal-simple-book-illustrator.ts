@@ -10,7 +10,7 @@ import { getCompanionById } from '../lib/companions';
 import { PREVIEW_JUDGE_INSTRUCTION, previewQualityReviewSchema } from '../lib/local-preview-quality';
 import { previewSha } from '../lib/local-story-preview';
 import { evaluatePageChildResemblanceVision } from '../lib/generation-pipeline/page-child-resemblance-vision';
-import { illustrateSimpleBook, illustratedBookHTML, illustratedAuditionApprovalSchema, type AuditionImage, SimpleIllustrationError } from '../lib/personal-wizard/simple-book-illustrations';
+import { illustrateSimpleBook, illustratedBookHTML, illustratedAuditionApprovalSchema, referenceRoleContextSchema, REFERENCE_DESIGN_JUDGE_INSTRUCTION, type AuditionImage, SimpleIllustrationError } from '../lib/personal-wizard/simple-book-illustrations';
 import { SimpleBookBudget } from '../lib/personal-wizard/simple-book-budget';
 import { simpleBookReviewPolicy, type SimpleBookConfig } from '../lib/personal-wizard/simple-book-bridge';
 import type { runSimpleWizardBook } from '../lib/personal-wizard/simple-book-flow';
@@ -60,16 +60,19 @@ export function createSimpleBookPixelJudge(args: {
     const text = JSON.stringify({ candidateSha: candidate.imageSha, contextSha, context,
       imageRoles: ['candidate_complete', 'candidate_crop_top_left', 'candidate_crop_top_right', 'candidate_crop_bottom_left', 'candidate_crop_bottom_right',
         ...refs.map((_, i) => `canonical_${['child', 'companion', 'entities', 'locations'][i]}`), ...(predecessor ? ['prior_same_scene_comparison_not_authority'] : [])] });
+    const roleScoped = context && typeof context === 'object' && 'version' in context && context.version === 'simple-reference-role-context/v1';
+    if (roleScoped) referenceRoleContextSchema.parse(context);
+    const instructions = roleScoped ? REFERENCE_DESIGN_JUDGE_INSTRUCTION : PREVIEW_JUDGE_INSTRUCTION;
     const payload = { model: reviewPolicy.model, store: false, service_tier: 'default' as const, reasoning: { effort: 'medium' as const },
-      instructions: PREVIEW_JUDGE_INSTRUCTION,
+      instructions,
       input: [{ role: 'user' as const, content: [{ type: 'input_text' as const, text },
         ...imageURLs.map(image_url => ({ type: 'input_image' as const, image_url, detail: 'high' as const }))] }],
       max_output_tokens: 12000, text: { format: zodTextFormat(previewQualityReviewSchema, 'personal_audition_pixels') } };
-    if (selectedModel && (imageURLs.length > 10 || Buffer.byteLength(text + PREVIEW_JUDGE_INSTRUCTION, 'utf8') > 104000)) fail('simple_pixel_input_limit');
+    if (selectedModel && (imageURLs.length > 10 || Buffer.byteLength(text + instructions, 'utf8') > 104000)) fail('simple_pixel_input_limit');
     // Official Sol calculator does not yet give a multiplier. An explicit conservative
     // USD0.60 admission slot, not an invented tokenizer bound or invoice hard cap.
     const maximumMicroUsd = selectedModel ? 600000
-      : (Buffer.byteLength(text + PREVIEW_JUDGE_INSTRUCTION, 'utf8') + imageURLs.length * 3001) * 10 + 12000 * 50;
+      : (Buffer.byteLength(text + instructions, 'utf8') + imageURLs.length * 3001) * 10 + 12000 * 50;
     return args.budget.run(step, payload, maximumMicroUsd, async () => {
       check(); const client = new OpenAI({ apiKey: args.key(), baseURL: 'https://api.openai.com/v1', maxRetries: 0, logLevel: 'off' });
       const raw = await client.responses.create(payload, { signal: args.signal, timeout: 300000 });
@@ -87,6 +90,7 @@ export async function runSimpleBookIllustrator(args: {
   signal: AbortSignal; result: Awaited<ReturnType<typeof runSimpleWizardBook>>; request: unknown; options: PersonalWizardOptions;
   progress: Parameters<typeof illustrateSimpleBook>[0]['progress'];
   referenceRecovery?: { name: 'child' | 'entities' | 'locations'; bytes: Buffer; imageSha: string; context: unknown; review: unknown };
+  referenceCheckpoint?: { child: { bytes: Buffer; imageSha: string; context: unknown; review: unknown }; entities: { bytes: Buffer; imageSha: string } };
 }) {
   const approval = readAuditionApproval(args.config); if (!approval) fail('simple_visual_approval_missing');
   const directory = path.join(args.directory, 'illustrations'); mkdirSync(directory); realDirectory(directory);
@@ -107,6 +111,14 @@ export async function runSimpleBookIllustrator(args: {
   if (seed && previewSha(seed.bytes) !== seed.imageSha) fail('simple_reference_recovery_image');
   const referenceRecovery = seed ? { name: seed.name, context: seed.context, review: seed.review,
     candidate: await writeImage('rejected_edit_input.png', seed.bytes) } : undefined;
+  const checkpoint = args.referenceCheckpoint;
+  if (checkpoint && (previewSha(checkpoint.child.bytes) !== checkpoint.child.imageSha || previewSha(checkpoint.entities.bytes) !== checkpoint.entities.imageSha))
+    fail('simple_reference_checkpoint_image');
+  const referenceCheckpoint = checkpoint ? {
+    child: { name: 'child' as const, context: checkpoint.child.context, review: checkpoint.child.review,
+      candidate: await writeImage('reference_child_checkpoint.png', checkpoint.child.bytes) },
+    entities: await writeImage('reference_entities_checkpoint.png', checkpoint.entities.bytes),
+  } : undefined;
   const data = (image: AuditionImage) => `data:image/png;base64,${readAuditionImage(directory, image).toString('base64')}`;
   const save = (name: string, value: unknown) => exclusiveJson(path.join(args.directory, `${name}.json`), value);
   const render: Parameters<typeof illustrateSimpleBook>[0]['render'] = async (step, prompt, refs, mode) => {
@@ -174,6 +186,7 @@ export async function runSimpleBookIllustrator(args: {
     approval, childDesign: args.config.illustratedAudition!.childDesign, companion: companionImage, signal: args.signal,
     actorOwnedAppearance: args.config.actorOwnedAppearance,
     referenceRecovery,
+    ...(referenceCheckpoint ? { roleScopedReferences: true as const, referenceCheckpoint } : {}),
     render, judge, identity, save, progress: args.progress });
   exclusiveText(path.join(args.directory, 'book.html'), illustratedBookHTML(manifest, (imageName, imageSha) => data({ imageName, imageSha })));
   return manifest;

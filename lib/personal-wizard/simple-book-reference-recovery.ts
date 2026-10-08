@@ -13,6 +13,7 @@ import { PERSONAL_BOOK_REVIEW_INSTRUCTION } from './book-runner';
 import { personalBookOutputLimits } from './book-config';
 import { decodePersonalBookProviderOutput, personalBookProviderPayload } from './book-openai';
 import { qualityDisposition } from '../local-preview-quality';
+import { PREVIEW_JUDGE_INSTRUCTION } from '../local-preview-quality';
 import { simpleBookViewSchema, type SimpleBookView } from './simple-book-view';
 import { exclusiveJson, fencedText, realDirectory } from '../../scripts/personal-causal-trial-journal';
 import { CAUSAL_MODELS } from '../../scripts/personal-causal-trial-adapters';
@@ -30,8 +31,11 @@ const referenceRecoveryV1 = z.object({ version: z.literal('controlled-simple-ref
     .refine(s => !s.split('/').includes('..')), sha256: hash }).strict()).min(10).max(256),
   extraEngineeringReceipts: z.array(file).min(1).max(2), technicalReviewReceipt: file,
 }).strict();
+const referenceRecoveryV2 = referenceRecoveryV1.extend({ version: z.literal('controlled-simple-reference-recovery/v2'), maximumMicroUsd: z.literal(14000000), allowanceGrant: file });
 export const referenceRecoveryConfigSchema = z.discriminatedUnion('version', [referenceRecoveryV1,
-  referenceRecoveryV1.extend({ version: z.literal('controlled-simple-reference-recovery/v2'), maximumMicroUsd: z.literal(14000000), allowanceGrant: file })]);
+  referenceRecoveryV2, referenceRecoveryV2.extend({ version: z.literal('controlled-simple-reference-recovery/v3'),
+    extraEngineeringReceipts: z.array(file).length(3), checkpoint: z.object({ config: file, terminationReceipt: file,
+      artifacts: referenceRecoveryV1.shape.artifacts }).strict() })]);
 export const sameBookAllowanceGrantSchema = z.object({ version: z.literal('local-simple-book-allowance-extension/v1'),
   requestId: hash, parentVisualConfigSha256: hash, inheritedKnownMicroUsd: z.number().int().nonnegative(),
   previousMaximumMicroUsd: z.literal(12000000), maximumMicroUsd: z.literal(14000000),
@@ -58,12 +62,15 @@ export async function prepareSimpleBookReferenceRecovery(configFile: string) {
   simpleBookExternalCosts(allEngineering);
   if (!config.extraEngineeringReceipts.some(f => canonicalJson(f) === canonicalJson(config.technicalReviewReceipt))) fail('reference_recovery_technical');
   const technical = read(config.technicalReviewReceipt.file);
-  const extended = config.version === 'controlled-simple-reference-recovery/v2';
+  const extended = config.version !== 'controlled-simple-reference-recovery/v1';
+  const checkpointConfig = config.version === 'controlled-simple-reference-recovery/v3' ? config.checkpoint : null;
+  const checkpointDirectory = path.join(parent.job.directory, 'controlled-reference-recovery-20261008');
+  const checkpointInventory = new Map(checkpointConfig?.artifacts.map(a => [a.relative, a.sha256]));
   const checkGrant = () => {
-    if (config.version !== 'controlled-simple-reference-recovery/v2') return null;
+    if (config.version === 'controlled-simple-reference-recovery/v1') return null;
     checked(config.allowanceGrant); const g = sameBookAllowanceGrantSchema.parse(read(config.allowanceGrant.file));
     if (g.requestId !== parent.job.queued.requestId || g.parentVisualConfigSha256 !== config.visualConfig.sha256 ||
-      g.maximumMicroUsd !== config.maximumMicroUsd || config.extraEngineeringReceipts.length !== 2) fail('reference_recovery_allowance');
+      g.maximumMicroUsd !== config.maximumMicroUsd || config.extraEngineeringReceipts.length !== (checkpointConfig ? 3 : 2)) fail('reference_recovery_allowance');
     const records = g.reconciledSessionReceipts.map(f => { checked(f); return read(f.file); });
     const last = records[records.length - 1], latestRef = g.reconciledSessionReceipts[g.reconciledSessionReceipts.length - 1];
     if (!z.string().uuid().safeParse(last.sessionId).success || !/^[a-f0-9]{40}$/.test(last.head ?? '') ||
@@ -94,7 +101,7 @@ export async function prepareSimpleBookReferenceRecovery(configFile: string) {
     canonicalJson(technical.models) !== canonicalJson([CAUSAL_MODELS.opus]) || !Number.isSafeInteger(technical.maximumMicroUsd) ||
     technical.maximumMicroUsd <= 0 || technical.maximumMicroUsd > config.maximumMicroUsd ||
     !extended && Math.ceil(technical.reportedCostUsd * 1e6) > technical.maximumMicroUsd || technical.qaVerdict !== 'PASS' ||
-    technical.qaReviewHead !== config.sourceHead || technical.qaBase !== (extended ? 'b973b17fba433c4dc70df18ff847a7e7f7e33d94' : 'd9ae20dc29195004f1fed6d246daefbe42610953') ||
+    technical.qaReviewHead !== config.sourceHead || technical.qaBase !== (checkpointConfig ? '337971e0f767e2bbdf964bdf5700ad12b1698354' : extended ? 'b973b17fba433c4dc70df18ff847a7e7f7e33d94' : 'd9ae20dc29195004f1fed6d246daefbe42610953') ||
     extended && !z.string().uuid().safeParse(technical.sessionId).success ||
     technical.qaMode !== 'read_only_code') fail('reference_recovery_technical');
   const verify = () => {
@@ -106,6 +113,15 @@ export async function prepareSimpleBookReferenceRecovery(configFile: string) {
     }
     if (visualEvidenceFiles(parent.directory).some(n => !inventory.has(`controlled-visual-continuation-20261008/${n}`))) fail('reference_recovery_inventory');
     simpleBookExternalCosts(allEngineering); checkGrant();
+    if (checkpointConfig) {
+      checked(checkpointConfig.config); checked(checkpointConfig.terminationReceipt);
+      if (checkpointInventory.size !== checkpointConfig.artifacts.length ||
+        canonicalJson([...checkpointInventory.keys()].sort()) !== canonicalJson(visualEvidenceFiles(checkpointDirectory).sort())) fail('reference_checkpoint_inventory');
+      for (const [n, digest] of checkpointInventory) {
+        const full = path.join(checkpointDirectory, n); realDirectory(path.dirname(full)); const stat = lstatSync(full);
+        if (!stat.isFile() || stat.isSymbolicLink() || stat.nlink !== 1 || stat.size > 32000000 || previewSha(readFileSync(full)) !== digest) fail('reference_checkpoint_changed');
+      }
+    }
   };
   verify();
   const host = read(config.terminationReceipt.file), claim = read(path.join(parent.directory, 'claim.json'));
@@ -181,16 +197,80 @@ export async function prepareSimpleBookReferenceRecovery(configFile: string) {
   if (view.phase !== 'failed' || view.error !== 'simple_reference_held' || view.imageScope !== 'owned_visual_continuation' || view.images.length ||
     record.requestDigest !== claim.requestDigest || view.requestId !== parent.job.queued.requestId || canonicalJson(view.edited) !== canonicalJson(parent.view.edited) ||
     view.accounting.knownEstimateMicroUsd !== inherited.knownEstimateMicroUsd || view.accounting.unknownAttemptCosts) fail('reference_recovery_view');
-  const extra = simpleBookExternalCosts(config.extraEngineeringReceipts), externalMicroUsd = inherited.accountedMicroUsd + extra;
+  const extra = simpleBookExternalCosts(config.extraEngineeringReceipts);
+  let checkpoint: { child: { bytes: Buffer; imageSha: string; context: unknown; review: unknown }; entities: { bytes: Buffer; imageSha: string } } | undefined;
+  let checkpointPaidMicroUsd = 0;
+  if (checkpointConfig) {
+    const prior = referenceRecoveryV2.parse(read(checkpointConfig.config.file));
+    if (prior.version !== 'controlled-simple-reference-recovery/v2' || canonicalJson(prior.visualConfig) !== canonicalJson(config.visualConfig) ||
+      canonicalJson(prior.terminationReceipt) !== canonicalJson(config.terminationReceipt) || canonicalJson(prior.artifacts) !== canonicalJson(config.artifacts) ||
+      canonicalJson(prior.allowanceGrant) !== canonicalJson(config.version === 'controlled-simple-reference-recovery/v3' ? config.allowanceGrant : null) ||
+      canonicalJson(prior.extraEngineeringReceipts) !== canonicalJson(config.extraEngineeringReceipts.slice(0, 2)) ||
+      !prior.extraEngineeringReceipts.some(f => canonicalJson(f) === canonicalJson(prior.technicalReviewReceipt))) fail('reference_checkpoint_config');
+    gitAt(parent.current.workspace, ['merge-base', '--is-ancestor', prior.sourceHead, config.sourceHead]);
+    const oldTechnical = read(prior.technicalReviewReceipt.file);
+    if (oldTechnical.head !== prior.sourceHead || oldTechnical.qaReviewHead !== prior.sourceHead || oldTechnical.qaBase !== 'b973b17fba433c4dc70df18ff847a7e7f7e33d94' ||
+      oldTechnical.qaMode !== 'read_only_code' || oldTechnical.qaVerdict !== 'PASS' || oldTechnical.isError !== false || oldTechnical.resultSubtype !== 'success' ||
+      oldTechnical.code !== 0 || oldTechnical.signal !== null || !oldTechnical.terminationConfirmed || oldTechnical.status !== '' || oldTechnical.stopped ||
+      !z.string().uuid().safeParse(oldTechnical.sessionId).success || oldTechnical.sessionId === technical.sessionId ||
+      canonicalJson(oldTechnical.models) !== canonicalJson([CAUSAL_MODELS.opus])) fail('reference_checkpoint_technical');
+    const host = read(checkpointConfig.terminationReceipt.file), claim = read(path.join(checkpointDirectory, 'claim.json'));
+    if (host.head !== prior.sourceHead || host.status !== '' || host.code !== 1 || host.signal !== null || !host.terminationConfirmed || host.stopped || host.referenceCap !== 4 ||
+      claim.sourceHead !== prior.sourceHead || claim.configSha256 !== checkpointConfig.config.sha256 || claim.requestDigest !== parent.repair.parent.oldClaim.requestDigest ||
+      canonicalJson(claim.inherited) !== canonicalJson(inherited) || claim.extra !== simpleBookExternalCosts(prior.extraEngineeringReceipts) ||
+      claim.maximumMicroUsd !== 14000000 || canonicalJson(claim.allowanceGrant) !== canonicalJson(prior.allowanceGrant)) fail('reference_checkpoint_termination');
+    realDirectory(path.join(checkpointDirectory, 'paid-stages')); // admission must not create a missing historical journal
+    const priorBudget = new SimpleBookBudget(path.join(checkpointDirectory, 'paid-stages'), inherited.accountedMicroUsd + claim.extra, 14000000);
+    const snapshot = priorBudget.snapshot(), seal = read(path.join(checkpointDirectory, 'sealed.json'));
+    if (seal.status !== 'failed' || seal.code !== 'simple_reference_held' || seal.sourceHead !== prior.sourceHead || seal.runtimeEligible !== false || seal.inheritedLogicalAttempts !== 17 ||
+      canonicalJson(seal.snapshot) !== canonicalJson(snapshot) || host.sealSha256 !== previewSha(fencedText(path.join(checkpointDirectory, 'sealed.json'), 64000)) ||
+      snapshot.logicalAttempts !== 4 || snapshot.stopped || snapshot.unknownAttemptCosts || snapshot.accountedMicroUsd !== snapshot.knownEstimateMicroUsd)
+      fail('reference_checkpoint_outcome');
+    const names = ['reference_child_repair', 'reference_child_qa', 'reference_entities', 'reference_entities_qa'];
+    const stages = names.map(name => {
+      const wire = read(path.join(priorBudget.root, `${name}.wire.json`)), receipt = read(path.join(priorBudget.root, `${name}.receipt.json`));
+      const claim = read(path.join(priorBudget.root, `${name}.claim.json`)), outcome = read(path.join(priorBudget.root, `${name}.result.json`));
+      const pixel = name.endsWith('_qa'), expected = auditionUsageCost(receipt.raw?.usage, pixel ? 'sol' : 'image');
+      if (claim.step !== name || claim.wireDigest !== previewSha(canonicalJson(wire)) || outcome.wireDigest !== claim.wireDigest || !outcome.completed ||
+        expected === null || expected !== outcome.estimatedMicroUsd || expected !== receipt.estimatedMicroUsd || expected > claim.maximumMicroUsd ||
+        pixel && (wire.model !== 'gpt-6.1-sol' || wire.instructions !== PREVIEW_JUDGE_INSTRUCTION || wire.store !== false ||
+          wire.max_output_tokens !== 12000 || receipt.raw.model !== wire.model || receipt.raw.status !== 'completed' || receipt.raw.service_tier !== 'default' ||
+          !receipt.raw.output_text || receipt.raw.usage.output_tokens > wire.max_output_tokens) ||
+        !pixel && (receipt.model !== 'gpt-image-2' || wire.body.model !== 'gpt-image-2' || wire.body.quality !== 'low' || wire.body.size !== '1024x1024' || wire.body.n !== 1))
+        fail('reference_checkpoint_paid_binding');
+      return { wire, receipt };
+    });
+    const expectedEntities = simpleReferenceDesignContext({ props: book.plan.recurringProps, entities: book.plan.continuity!.entities });
+    const checkedPair = (image: typeof stages[number], pixel: typeof stages[number], context: unknown, name: string) => {
+      const c = image.receipt.candidate, bytes = readAuditionImage(path.join(checkpointDirectory, 'illustrations'), c);
+      const data = JSON.parse(pixel.wire.input[0].content[0].text), review = qualityDisposition(JSON.parse(pixel.receipt.raw.output_text), c.imageSha, previewSha(JSON.stringify(context)));
+      if (previewSha(Buffer.from(image.receipt.raw.data?.[0]?.b64_json ?? '', 'base64')) !== c.imageSha || data.candidateSha !== c.imageSha ||
+        data.contextSha !== review.review.contextSha || canonicalJson(data.context) !== canonicalJson(context) ||
+        canonicalJson(data.imageRoles) !== canonicalJson(['candidate_complete', 'candidate_crop_top_left', 'candidate_crop_top_right', 'candidate_crop_bottom_left', 'candidate_crop_bottom_right']) ||
+        pixel.wire.input[0].content.length !== 6 || previewSha(Buffer.from(pixel.wire.input[0].content[1].image_url.split(',')[1], 'base64')) !== c.imageSha ||
+        canonicalJson(review) !== canonicalJson(read(path.join(checkpointDirectory, name)))) fail('reference_checkpoint_pixels');
+      return { bytes, imageSha: c.imageSha, context, review: review.review, disposition: review.disposition };
+    };
+    const child = checkedPair(stages[0], stages[1], expectedContext, 'reference_child_review.json');
+    const entities = checkedPair(stages[2], stages[3], expectedEntities, 'reference_entities_review.json');
+    if (child.disposition !== 'passed' || entities.disposition !== 'held_uncertain' || stages[0].wire.references.length !== 1 ||
+      stages[0].wire.references[0].imageSha !== candidate.imageSha || stages[2].wire.references.length !== 0 ||
+      visualEvidenceFiles(priorBudget.root).filter(n => n.endsWith('.claim.json')).length !== 4 ||
+      visualEvidenceFiles(checkpointDirectory).some(n => /^(?:audition_references|illustrated_book|book\.html|page_)/.test(n))) fail('reference_checkpoint_scope');
+    checkpoint = { child, entities }; checkpointPaidMicroUsd = snapshot.knownEstimateMicroUsd - priorBudget.externalMicroUsd;
+  }
+  const externalMicroUsd = inherited.accountedMicroUsd + extra + checkpointPaidMicroUsd;
   if (grant && grant.inheritedKnownMicroUsd !== inherited.knownEstimateMicroUsd) fail('reference_recovery_allowance');
   if (externalMicroUsd + 600000 > config.maximumMicroUsd) fail('reference_recovery_budget');
-  const directory = path.join(parent.job.directory, 'controlled-reference-recovery-20261008');
+  const directory = path.join(parent.job.directory, checkpoint ? 'role-scoped-reference-continuation-20261008' : 'controlled-reference-recovery-20261008');
   const current = { ...parent.current, sourceHead: config.sourceHead };
-  return { config, parent, result, view, inherited, extra, externalMicroUsd, directory, current, verify,
-    seed: { name: 'child' as const, bytes: imageBytes, imageSha: candidate.imageSha, context: expectedContext, review: held.review }, claim() {
+  return { config, parent, result, view, inherited, extra, externalMicroUsd, directory, current, verify, checkpoint,
+    inheritedLogicalAttempts: checkpoint ? 21 : 17,
+    seed: checkpoint ? undefined : { name: 'child' as const, bytes: imageBytes, imageSha: candidate.imageSha, context: expectedContext, review: held.review }, claim() {
       verify(); mkdirSync(directory); exclusiveJson(path.join(directory, 'claim.json'), { configSha256: previewSha(bytes), sourceHead: config.sourceHead,
         requestDigest: claim.requestDigest, inherited, extra, referenceCorrectionLimit: 1, runtimeEligible: false,
-        ...(extended ? { maximumMicroUsd: config.maximumMicroUsd, allowanceGrant: config.allowanceGrant } : {}) });
+        ...(extended ? { maximumMicroUsd: config.maximumMicroUsd, allowanceGrant: config.allowanceGrant } : {}),
+        ...(checkpointConfig ? { checkpoint: checkpointConfig, checkpointPaidMicroUsd, inheritedLogicalAttempts: 21 } : {}) });
       const budget = new SimpleBookBudget(path.join(directory, 'paid-stages'), externalMicroUsd, config.maximumMicroUsd);
       let sequence = readdirSync(parent.job.directory).filter(n => /^view-\d{4}\.json$/.test(n)).length;
       const publish = (next: SimpleBookView) => {

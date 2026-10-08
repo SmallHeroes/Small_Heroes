@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { NextRequest } from 'next/server';
 import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { tmpdir } from 'node:os';
 import { spawnSync } from 'node:child_process';
@@ -23,10 +23,10 @@ import { simpleWizardVisualPayload, simpleWizardWorkerCLI } from '../../../scrip
 import * as adapters from '../../../scripts/personal-causal-trial-adapters';
 import { personalBookProviderPayload } from '../book-openai';
 import { citationTokens } from '../story-source-citations';
-import { illustrateSimpleBook, illustratedBookHTML, illustratedAuditionApprovalSchema } from '../simple-book-illustrations';
+import { illustrateSimpleBook, illustratedBookHTML, illustratedAuditionApprovalSchema, REFERENCE_DESIGN_JUDGE_INSTRUCTION, referenceRoleContextSchema } from '../simple-book-illustrations';
 import { auditionUsageCost, readAuditionImage } from '../../../scripts/personal-simple-book-illustrator';
 import * as images from '../../generate-image';
-import { QUALITY_CATEGORIES } from '../../local-preview-quality';
+import { QUALITY_CATEGORIES, PREVIEW_JUDGE_INSTRUCTION } from '../../local-preview-quality';
 import sharp from 'sharp';
 import type { PageChildResemblanceVisionResult } from '../../generation-pipeline/page-child-resemblance-vision';
 import { inlineLocalJsonSchemaReferences } from '../../../scripts/personal-inline-json-schema';
@@ -810,6 +810,147 @@ describe('explicit same-book continuation, no provider in fixtures', () => {
     writeFileSync(x.recoveryFile, JSON.stringify(data));
     return { ...x, data, grant, grantFile, lineage, ref };
   }
+  async function roleCheckpointFixture() {
+    const x = await extendedRecoveryFixture(), normal = sdk.create.getMockImplementation()!;
+    sdk.create.mockImplementation(async p => {
+      const raw = await normal(p);
+      if (Array.isArray(p.input)) {
+        const data = JSON.parse(p.input[0].content[0].text);
+        if (data.context.design?.entities) {
+          const out = JSON.parse(raw.output_text);
+          out.checks[0].verdict = 'uncertain'; out.checks[0].correction = 'Synthetic out-of-scope absent actor; not a real pixel verdict.';
+          out.checks[3].verdict = 'defect'; out.checks[3].correction = 'Synthetic missing required slat.';
+          raw.output_text = JSON.stringify(out);
+        }
+      }
+      return raw;
+    });
+    expect(await simpleBookReferenceRecoveryCLI(['--config', x.recoveryFile, '--execute'])).toBe(1);
+    const checkpointDir = path.join(x.old.directory, 'controlled-reference-recovery-20261008');
+    const priorConfig = path.join(root, 'SYNTHETIC-checkpoint-config.json'); writeFileSync(priorConfig, readFileSync(x.recoveryFile));
+    const seal = path.join(checkpointDir, 'sealed.json'), termination = path.join(root, 'SYNTHETIC-checkpoint-terminal.json');
+    writeFileSync(termination, JSON.stringify({ head: config.sourceHead, status: '', code: 1, signal: null, terminationConfirmed: true,
+      referenceCap: 4, sealSha256: sha(readFileSync(seal)) }));
+    const technical = path.join(root, 'SYNTHETIC-role-technical.json');
+    writeFileSync(technical, JSON.stringify({ head: config.sourceHead, status: '', code: 0, signal: null, terminationConfirmed: true,
+      isError: false, resultSubtype: 'success', maximumMicroUsd: 20000, reportedCostUsd: .003, models: [adapters.CAUSAL_MODELS.opus],
+      sessionId: '77777777-7777-4777-8777-777777777777', qaVerdict: 'PASS', qaReviewHead: config.sourceHead,
+      qaBase: '337971e0f767e2bbdf964bdf5700ad12b1698354', qaMode: 'read_only_code' }));
+    const checkpointNames = visualEvidenceFiles(checkpointDir);
+    const data: any = { ...x.data, version: 'controlled-simple-reference-recovery/v3', approvalReference: 'SYNTHETIC explicit role fix and same-book checkpoint, not live permission.',
+      extraEngineeringReceipts: [...x.data.extraEngineeringReceipts, x.ref(technical)], technicalReviewReceipt: x.ref(technical),
+      checkpoint: { config: x.ref(priorConfig), terminationReceipt: x.ref(termination),
+        artifacts: checkpointNames.map(relative => ({ relative, sha256: sha(readFileSync(path.join(checkpointDir, relative))) })) } };
+    writeFileSync(x.recoveryFile, JSON.stringify(data));
+    const atlasSha = JSON.parse(readFileSync(path.join(checkpointDir, 'reference_entities_review.json'), 'utf8')).review.candidateSha;
+    sdk.create.mockImplementation(normal); sdk.create.mockClear(); x.render.mockClear(); x.editor.mockClear(); x.fetcher.mockClear();
+    return { ...x, data, checkpointDir, checkpointNames, normal, atlasSha,
+      checkpointHashes: checkpointNames.map(n => [n, sha(readFileSync(path.join(checkpointDir, n)))]) as [string, string][] };
+  }
+  it('role checkpoint reuses supported child, rechecks real atlas evidence, makes one edit and the same9 gated frames', async () => {
+    const x = await roleCheckpointFixture(), ready = await prepareSimpleBookReferenceRecovery(x.recoveryFile);
+    expect(ready.checkpoint).toBeDefined(); expect(ready.seed).toBeUndefined(); expect(ready.inheritedLogicalAttempts).toBe(21);
+    const priorSnapshot = JSON.parse(readFileSync(path.join(x.checkpointDir, 'sealed.json'), 'utf8')).snapshot;
+    expect(ready.externalMicroUsd).toBe(priorSnapshot.accountedMicroUsd + 3000);
+    expect(await simpleBookReferenceRecoveryCLI(['--config', x.recoveryFile])).toBe(0);
+    expect(sdk.create).not.toHaveBeenCalled(); expect(x.render).not.toHaveBeenCalled();
+    sdk.create.mockImplementation(async p => {
+      const raw = await x.normal(p), d = JSON.parse(p.input[0].content[0].text);
+      if (d.context.role === 'entities' && d.candidateSha === x.atlasSha) {
+        const out = JSON.parse(raw.output_text); out.checks[4].verdict = 'defect'; out.checks[4].correction = 'Synthetic missing required slat.';
+        raw.output_text = JSON.stringify(out);
+      }
+      return raw;
+    });
+    expect(await simpleBookReferenceRecoveryCLI(['--config', x.recoveryFile, '--execute'])).toBe(0);
+    expect(x.editor).not.toHaveBeenCalled(); expect(x.render).toHaveBeenCalledTimes(11); expect(x.fetcher).toHaveBeenCalledTimes(9);
+    expect(x.render.mock.calls[0][0].referenceImages).toHaveLength(3);
+    const calls = sdk.create.mock.calls.map(([p]) => p), contexts = calls.map(p => JSON.parse(p.input[0].content[0].text));
+    expect(contexts.slice(0, 3).map(c => c.context.role)).toEqual(['entities', 'entities', 'locations']);
+    expect(calls.slice(0, 3).every(p => p.instructions === REFERENCE_DESIGN_JUDGE_INSTRUCTION)).toBe(true);
+    expect(calls.slice(3).every(p => p.instructions === PREVIEW_JUDGE_INSTRUCTION)).toBe(true);
+    expect(contexts[0].imageRoles.slice(5)).toEqual(['canonical_child', 'canonical_companion']);
+    expect(contexts[2].context.design.landmarks).toBeDefined();
+    expect(referenceRoleContextSchema.safeParse({ ...contexts[0].context, role: 'skip_everything' }).success).toBe(false);
+    const dir = path.join(x.old.directory, 'role-scoped-reference-continuation-20261008');
+    expect(JSON.parse(readFileSync(path.join(dir, 'sealed.json'), 'utf8'))).toMatchObject({ status: 'illustrated_audition', inheritedLogicalAttempts: 21, bookPages: 9 });
+    expect(existsSync(path.join(dir, 'paid-stages/reference_child.claim.json'))).toBe(false);
+    expect(existsSync(path.join(dir, 'paid-stages/reference_child_repair.claim.json'))).toBe(false);
+    expect(readFileSync(path.join(dir, 'book.html'), 'utf8').match(/<img /g)).toHaveLength(9);
+    const requestId = ready.parent.job.queued.requestId;
+    expect(await (await GET(req('GET', undefined, `${url}?requestId=${requestId}`))).json()).toMatchObject({ phase: 'illustrated_audition', imageScope: 'role_scoped_reference_continuation' });
+    const response = await GET(req('GET', undefined, `${url}?requestId=${requestId}&page=8`));
+    const manifest = JSON.parse(readFileSync(path.join(dir, 'illustrated_book.json'), 'utf8'));
+    expect(response.status).toBe(200); expect(response.headers.get('cache-control')).toBe('private, no-store');
+    expect(sha(Buffer.from(await response.arrayBuffer()))).toBe(manifest.pages[8].candidate.imageSha);
+    deps.user = { id: 'another-owner', email: 'owner@example.com' };
+    expect((await GET(req('GET', undefined, `${url}?requestId=${requestId}&page=8`))).status).toBe(403);
+    deps.user = { id: 'owner', email: 'owner@example.com' };
+    for (const [n, h] of x.checkpointHashes) expect(sha(readFileSync(path.join(x.checkpointDir, n)))).toBe(h);
+    for (const [n, h] of x.heldHashes) expect(sha(readFileSync(path.join(x.old.directory, n)))).toBe(h);
+    await expect(prepareSimpleBookReferenceRecovery(x.recoveryFile).then(r => r.claim())).rejects.toThrow();
+  }, 180000);
+  it.each(['uncertain', 'repeated_defect', 'cancel_after_recheck', 'cancel_after_edit'])(
+    'role checkpoint stops %s without another child, unbounded edits or book pages', async kind => {
+      const x = await roleCheckpointFixture(); let queries = 0;
+      sdk.create.mockImplementation(async p => {
+        const raw = await x.normal(p), d = JSON.parse(p.input[0].content[0].text);
+        if (d.context.role === 'entities') {
+          queries++; const out = JSON.parse(raw.output_text); out.checks[3].verdict = kind === 'uncertain' ? 'uncertain' : 'defect';
+          out.checks[3].correction = 'Synthetic required prop flaw.'; raw.output_text = JSON.stringify(out);
+          if (kind === 'cancel_after_recheck') process.emit('SIGINT');
+        }
+        return raw;
+      });
+      if (kind === 'cancel_after_edit') { const normal = x.render.getMockImplementation()!; x.render.mockImplementation(async p => {
+        const result = await normal(p); process.emit('SIGINT'); return result;
+      }); }
+      expect(await simpleBookReferenceRecoveryCLI(['--config', x.recoveryFile, '--execute'])).toBe(1);
+      expect(x.editor).not.toHaveBeenCalled(); expect(x.fetcher).not.toHaveBeenCalled();
+      expect(x.render).toHaveBeenCalledTimes(kind === 'uncertain' || kind === 'cancel_after_recheck' ? 0 : 1);
+      expect(queries).toBe(kind === 'repeated_defect' ? 2 : 1);
+      const dir = path.join(x.old.directory, 'role-scoped-reference-continuation-20261008');
+      expect(existsSync(path.join(dir, 'book.html'))).toBe(false); expect(existsSync(path.join(dir, 'audition_references.json'))).toBe(false);
+      expect(JSON.parse(readFileSync(path.join(dir, 'sealed.json'), 'utf8')).status).toBe('failed');
+      for (const [n, h] of x.checkpointHashes) expect(sha(readFileSync(path.join(x.checkpointDir, n)))).toBe(h);
+    }, 90000);
+  it('role checkpoint rejects tampered pixels, journals, cost, inventory or permission before claim/key/provider', async () => {
+    const x = await roleCheckpointFixture(), disk = vi.spyOn(journal, 'fencedText');
+    const originals = x.checkpointNames.map(n => [n, readFileSync(path.join(x.checkpointDir, n))] as const);
+    const baseline = readFileSync(x.recoveryFile), prior = readFileSync(x.data.checkpoint.config.file), terminal = readFileSync(x.data.checkpoint.terminationReceipt.file);
+    const tech = readFileSync(x.data.technicalReviewReceipt.file);
+    for (const kind of ['inventory', 'pixel', 'journal', 'unknown_cost', 'seal', 'termination', 'same_session', 'qa_base', 'parent', 'duplicate_fee', 'ceiling', 'missing_paid_root']) {
+      originals.forEach(([n, b]) => writeFileSync(path.join(x.checkpointDir, n), b));
+      writeFileSync(x.data.checkpoint.config.file, prior); writeFileSync(x.data.checkpoint.terminationReceipt.file, terminal); writeFileSync(x.data.technicalReviewReceipt.file, tech);
+      const d = JSON.parse(baseline.toString()), change = (n: string, f: (v: any) => void) => { const p = path.join(x.checkpointDir, n), v = JSON.parse(readFileSync(p, 'utf8')); f(v); writeFileSync(p, JSON.stringify(v)); };
+      if (kind === 'inventory') d.checkpoint.artifacts.pop();
+      if (kind === 'pixel') writeFileSync(path.join(x.checkpointDir, 'illustrations/reference_child_repair.png'), 'SYNTHETIC invalid pixels');
+      if (kind === 'journal') change('paid-stages/reference_child_qa.claim.json', v => { v.step = 'other'; });
+      if (kind === 'unknown_cost') change('paid-stages/reference_entities_qa.result.json', v => { v.estimatedMicroUsd = null; });
+      if (kind === 'seal') change('sealed.json', v => { v.code = 'other'; });
+      if (kind === 'termination') { const v = JSON.parse(terminal.toString()); v.terminationConfirmed = false; writeFileSync(d.checkpoint.terminationReceipt.file, JSON.stringify(v)); }
+      if (kind === 'same_session' || kind === 'qa_base') { const v = JSON.parse(tech.toString());
+        if (kind === 'same_session') v.sessionId = '55555555-5555-4555-8555-555555555555'; else v.qaBase = 'b'.repeat(40); writeFileSync(d.technicalReviewReceipt.file, JSON.stringify(v)); }
+      if (kind === 'parent') { const v = JSON.parse(prior.toString()); v.sourceHead = 'b'.repeat(40); writeFileSync(d.checkpoint.config.file, JSON.stringify(v)); }
+      if (kind === 'duplicate_fee') d.extraEngineeringReceipts[1] = d.extraEngineeringReceipts[0];
+      if (kind === 'ceiling') d.maximumMicroUsd = 15000000;
+      if (kind === 'missing_paid_root') {
+        const paidRoot = path.join(x.checkpointDir, 'paid-stages');
+        if (!x.checkpointDir.startsWith(root + path.sep)) throw Error('fixture_boundary');
+        renameSync(paidRoot, path.join(root, 'SYNTHETIC-moved-paid-journal'));
+        d.checkpoint.artifacts = d.checkpoint.artifacts.filter((f: any) => !f.relative.startsWith('paid-stages/'));
+      }
+      d.checkpoint.artifacts = d.checkpoint.artifacts.map((f: any) => ({ ...f, sha256: sha(readFileSync(path.join(x.checkpointDir, f.relative))) }));
+      d.checkpoint.config = x.ref(d.checkpoint.config.file); d.checkpoint.terminationReceipt = x.ref(d.checkpoint.terminationReceipt.file);
+      d.technicalReviewReceipt = x.ref(d.technicalReviewReceipt.file); d.extraEngineeringReceipts[2] = d.technicalReviewReceipt;
+      writeFileSync(x.recoveryFile, JSON.stringify(d));
+      await expect(prepareSimpleBookReferenceRecovery(x.recoveryFile), kind).rejects.toThrow();
+      expect(sdk.create).not.toHaveBeenCalled(); expect(x.render).not.toHaveBeenCalled(); expect(x.editor).not.toHaveBeenCalled();
+      expect(disk.mock.calls.some(([p]) => p === config.existingKeyEnvFile)).toBe(false);
+      expect(existsSync(path.join(x.old.directory, 'role-scoped-reference-continuation-20261008'))).toBe(false);
+      if (kind === 'missing_paid_root') expect(existsSync(path.join(x.checkpointDir, 'paid-stages'))).toBe(false);
+    }
+  }, 90000);
   it('v2 same-book grant counts the cumulative native session once, publishes14 and completes9 without a new writer', async () => {
     const x = await extendedRecoveryFixture(), ready = await prepareSimpleBookReferenceRecovery(x.recoveryFile);
     expect(ready.extra).toBe(43000); expect(ready.externalMicroUsd).toBe(ready.inherited.knownEstimateMicroUsd + 43000);
@@ -868,13 +1009,13 @@ describe('explicit same-book continuation, no provider in fixtures', () => {
     expect(x.editor).not.toHaveBeenCalled(); expect(x.render).toHaveBeenCalledTimes(12); expect(x.fetcher).toHaveBeenCalledTimes(9);
     expect(sdk.create).toHaveBeenCalledTimes(12); expect(sdk.create.mock.calls.every(([p]) => p.model === 'gpt-6.1-sol' && Array.isArray(p.input))).toBe(true);
     const first = x.render.mock.calls[0][0]; expect(first.requireReferenceEdit).toBe(true); expect(first.exactReferenceBytes).toHaveLength(1);
-    expect(sha(first.exactReferenceBytes![0])).toBe(ready.seed.imageSha); expect(first.finalPrompt).toContain('REJECTED edit target');
+    expect(sha(first.exactReferenceBytes![0])).toBe(ready.seed!.imageSha); expect(first.finalPrompt).toContain('REJECTED edit target');
     expect(first.finalPrompt).toContain('Do not mirror');
     const dir = path.join(x.old.directory, 'controlled-reference-recovery-20261008'), manifest = JSON.parse(readFileSync(path.join(dir, 'illustrated_book.json'), 'utf8'));
     expect(manifest.manuscript).toEqual(ready.result.source.manuscript);
     const refs = JSON.parse(readFileSync(path.join(dir, 'audition_references.json'), 'utf8')).canonical;
-    expect(refs[0].imageName).toBe('reference_child_repair.png'); expect(refs[0].imageSha).not.toBe(ready.seed.imageSha);
-    expect(refs.some((r: any) => r.imageSha === ready.seed.imageSha)).toBe(false);
+    expect(refs[0].imageName).toBe('reference_child_repair.png'); expect(refs[0].imageSha).not.toBe(ready.seed!.imageSha);
+    expect(refs.some((r: any) => r.imageSha === ready.seed!.imageSha)).toBe(false);
     expect(readFileSync(path.join(dir, 'book.html'), 'utf8').match(/<img /g)).toHaveLength(9);
     const requestId = ready.parent.job.queued.requestId;
     expect(await (await GET(req('GET', undefined, `${url}?requestId=${requestId}`))).json()).toMatchObject({ phase: 'illustrated_audition', imageScope: 'owned_reference_recovery' });
@@ -913,8 +1054,8 @@ describe('explicit same-book continuation, no provider in fixtures', () => {
         if (kind === 'unknown') delete (r as any).usage; if (kind === 'cancelled') process.emit('SIGINT');
         return { ...r, output_text: JSON.stringify(v) }; });
       if (kind === 'unchanged') x.render.mockImplementation(async input => { const ready = await prepareSimpleBookReferenceRecovery(x.recoveryFile);
-        const usage = { input_tokens: 100, output_tokens: 100 }, raw = { data: [{ b64_json: ready.seed.bytes.toString('base64') }], usage }; input.observeProviderResponse?.(raw);
-        return { buffer: ready.seed.bytes, usage, model: 'gpt-image-2', finalPrompt: input.finalPrompt, hasReferencePhoto: true,
+        const usage = { input_tokens: 100, output_tokens: 100 }, raw = { data: [{ b64_json: ready.seed!.bytes.toString('base64') }], usage }; input.observeProviderResponse?.(raw);
+        return { buffer: ready.seed!.bytes, usage, model: 'gpt-image-2', finalPrompt: input.finalPrompt, hasReferencePhoto: true,
           apiMode: 'images.edit', referenceCountRequested: 1, referenceCountPassed: 1, durationMs: 1, fallbackUsed: false }; });
       expect(await simpleBookReferenceRecoveryCLI(['--config', x.recoveryFile, '--execute'])).toBe(1);
       expect(x.render).toHaveBeenCalledTimes(1); expect(x.fetcher).not.toHaveBeenCalled(); expect(x.editor).not.toHaveBeenCalled();

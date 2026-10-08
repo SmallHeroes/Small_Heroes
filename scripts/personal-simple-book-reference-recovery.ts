@@ -29,27 +29,27 @@ export async function simpleBookReferenceRecoveryCLI(argv: string[]) {
     return fail('reference_recovery_key');
   };
   const save = (name: string, value: unknown) => exclusiveJson(path.join(ready.directory, `${name}.json`), value);
-  let view: SimpleBookView = { ...ready.view, imageScope: 'owned_reference_recovery', error: null, images: [] };
+  let view: SimpleBookView = { ...ready.view, imageScope: ready.checkpoint ? 'role_scoped_reference_continuation' : 'owned_reference_recovery', error: null, images: [] };
   const update = (phase: SimpleBookView['phase'], images = view.images) => {
     const snapshot = budget.snapshot(); view = { ...view, phase, images, accounting: { ...view.accounting,
       knownEstimateMicroUsd: snapshot.knownEstimateMicroUsd, unknownAttemptCosts: snapshot.unknownAttemptCosts,
-      allowanceMicroUsd: ready.config.maximumMicroUsd, logicalAttempts: 17 + snapshot.logicalAttempts } };
-    publish(view); console.log(JSON.stringify({ phase, ...snapshot, inheritedLogicalAttempts: 17, runtimeEligible: false }));
+      allowanceMicroUsd: ready.config.maximumMicroUsd, logicalAttempts: ready.inheritedLogicalAttempts + snapshot.logicalAttempts } };
+    publish(view); console.log(JSON.stringify({ phase, ...snapshot, inheritedLogicalAttempts: ready.inheritedLogicalAttempts, runtimeEligible: false }));
   };
   const interrupt = () => controller.abort(); process.on('SIGINT', interrupt);
   const deadline = setTimeout(interrupt, 40 * 60 * 1000);
   try {
     const manifest = await runSimpleBookIllustrator({ config: ready.current, directory: ready.directory, budget, key, assertCurrent: check,
       signal: controller.signal, result: ready.result, request: ready.parent.job.queued.request, options: ready.parent.job.options,
-      referenceRecovery: ready.seed, progress: (phase, images) => update(phase, images) });
+      referenceRecovery: ready.seed, referenceCheckpoint: ready.checkpoint, progress: (phase, images) => update(phase, images) });
     check(); update('illustrated_audition', manifest.pages.map(p => ({ pageNumber: p.pageNumber, ...p.candidate })));
-    save('sealed', { status: 'illustrated_audition', sourceHead: ready.config.sourceHead, snapshot: budget.snapshot(), inheritedLogicalAttempts: 17,
+    save('sealed', { status: 'illustrated_audition', sourceHead: ready.config.sourceHead, snapshot: budget.snapshot(), inheritedLogicalAttempts: ready.inheritedLogicalAttempts,
       bookPages: 9, runtimeEligible: false, productionQualified: false }); return 0;
   } catch (error) {
     const cancelled = controller.signal.aborted; controller.abort();
     view.error = cancelled ? 'reference_recovery_cancelled' : error && typeof error === 'object' && 'code' in error && typeof error.code === 'string' &&
       /^[a-z0-9_]{1,80}$/.test(error.code) ? error.code : 'reference_recovery_failed';
     update('failed'); save('sealed', { status: 'failed', code: view.error, sourceHead: ready.config.sourceHead, snapshot: budget.snapshot(),
-      inheritedLogicalAttempts: 17, runtimeEligible: false }); return 1;
+      inheritedLogicalAttempts: ready.inheritedLogicalAttempts, runtimeEligible: false }); return 1;
   } finally { clearTimeout(deadline); process.off('SIGINT', interrupt); }
 }

@@ -1,5 +1,22 @@
 # SmallHeroes — Roadmap
 
+## M9 approved role-scoped references, same-book checkpoint (2026-10-08)
+
+- Implemented from337971e0 in existing private recovery CLI, not another writer,
+  renderer or customer queue. Reuse proven child; fresh held-atlas recheck before
+  one verified-defect edit; stop uncertainty/repeated failure/cancel/unknown cost.
+- Legacy/page gates unchanged; approved actor refs and wardrobe feed dependent
+  sheets, location landmark/topology retained; private image scope serves new
+  sibling with existing auth/owner/hash/no-store safeguards.
+- Selected6/6,438regression in5files +4authority separately; final admission batch
+  and private-image/full-chain1/1 each. Two assertion-level virtual mutants caught.
+  Independent codeQA/full gate pending; tests are not pixel/product acceptance.
+- Known12184281micro of14m,1815719left; no new book/provider/key call yet. Count
+  upcoming native Max actual fee once before live, never renew or omit costs.
+- After clean committed source + independentQA + full failure classification:
+  pure real admission, then bounded same-book continuation/9actual image gates.
+  No new prose/canon/public release/push or automatic retry.
+
 ## M8 code gate passed; reference integration HOLD before book images (2026-10-08)
 
 - Independent bounded read-only PASS b973b17f..68cebebe, not visual or stability

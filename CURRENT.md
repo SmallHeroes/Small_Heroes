@@ -1,5 +1,31 @@
 # SmallHeroes — Current Technical State
 
+## M9 approved reference-role/checkpoint fix implemented; independent QA pending (2026-10-08)
+
+Guy approved narrow SAME-book correction within existing14m, not a renewed cap.
+Base337971e0, sole Codex writer/current task, simple-story-voice-followup branch
+codex/simple-story-voice-20261007. Prior162artifacts/protected6 recorded unchanged.
+Privatev3 extends the existing recovery CLI: hash-bound endedv2 checkpoint,
+four complete usage/pixel-bound stages, original-context supported child adoption,
+fresh typed-role atlas recheck, at most one defect-only edit and unchanged9frames.
+Uncertain/repeated defect/cancel still stop. Legacy contexts/v1/v2 and page8-category
+instruction/0.70 remain unchanged. Child/companion/owned clothing feed dependent
+sheets; locations retain landmark/topology authority. No new writer/editor/plan.
+
+New private image scope maps exactly to new one-use sibling in existing GET route;
+auth/owner/hash/no-store/9-image serving retained. No public/customer flow change.
+Local selected6/6; broad regression438/438 in5files then authority4/4 separately
+(earlier command had wrong authority path). Final12case admission batch1/1 and
+final full-chain+private-image/bad-owner test1/1 pass after last boundary changes.
+151simple-book inventory (+6/no removal), oldseed tests only need non-null type
+annotations. Two in-memory mutants caught on actual assertions, no timeout/loader
+failure. Literalnpx tsc0 on final code; local commit/full/fresh independentQA follow.
+Known12184281/14000000,1815719remaining, unknown0; no M9 paid book/model/key call.
+Native independent code bundle reading proposed soft450000micro within14m; Max
+is reported list value, not invoice/hard-cap. Actual cost must be included before
+any live book admission. Decision: docs/ai-workflow/SIMPLE_BOOK_REFERENCE_ROLES_20261008.md.
+No text/canon/gate weakening, old seal reopen, allowance reset, push/merge/deploy.
+
 ## M8 code PASS; live SAME-book recovery held at entity atlas (2026-10-08)
 
 Exact independent first read-only Claude range b973b17f..68cebebe passed, no
