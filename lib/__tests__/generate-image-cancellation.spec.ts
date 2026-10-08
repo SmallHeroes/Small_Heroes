@@ -85,6 +85,60 @@ describe('generateGPTImage (3a) — real cancellation + no hidden SDK retries', 
     expect(book.finalPrompt).toContain('[PERSONAL BOOK REFERENCE ROLES]'); expect(book.finalPrompt).not.toContain('Bolly');
     expect(book.bodyWithoutBinaryImage).toMatchObject({ model: 'gpt-image-2', quality: 'low', n: 1 });
   });
+  it('book_design assigns explicit ordered roles without changing legacy or frame transport', async () => {
+    const references = ['rejected.png', 'child.png', 'selected-companion.png'];
+    const roles = ['rejected_edit_target', 'child_design_authority', 'companion_design_authority'] as const;
+    const input = { finalPrompt: 'Correct only the named design defects.', referenceImages: references,
+      referenceMode: 'book_design' as const, referenceRoles: roles, modelOverride: 'gpt-image-2', quality: 'low' as const, size: '1024x1024' as const };
+    const defaults = { defaultModel: 'gpt-image-2', defaultQuality: 'low' as const, maxReferences: 4 };
+    const controller = new AbortController();
+    const plan = planGPTImageRequest({ ...input, signal: controller.signal, requestTimeoutMs: 30000 }, defaults);
+    expect(plan.referenceRoles).toEqual(roles); expect(plan.orderedReferenceSources).toEqual(references);
+    expect(plan.finalPrompt).toContain('[BOOK DESIGN REFERENCES - EXPLICIT ROLES]');
+    expect(plan.finalPrompt).toMatch(/Image 1.*rejected/i); expect(plan.finalPrompt).toMatch(/Image 2.*child/i);
+    expect(plan.finalPrompt).toMatch(/Image 3.*companion/i);
+    expect(plan.finalPrompt).not.toMatch(/Bolly|REAL child|FIRST image.*child/i);
+    expect(plan.bodyWithoutBinaryImage.prompt).toBe(plan.finalPrompt);
+    const bytes = references.map(s => Buffer.from(s)); editSpy.mockResolvedValue(OK_RESPONSE);
+    await generateGPTImage({ ...input, apiKey: 'test-explicit-never-network', exactReferenceBytes: bytes,
+      signal: controller.signal, requestTimeoutMs: 30000 });
+    const { image: binary, ...body } = editSpy.mock.calls[0][0];
+    expect(body).toEqual(plan.bodyWithoutBinaryImage); expect(binary).toHaveLength(3);
+    bytes.forEach((buffer, i) => expect(toFile).toHaveBeenNthCalledWith(i + 1, buffer, `reference-${i}.png`, { type: 'image/png' }));
+    expect(normalizeReferenceImageBuffer).not.toHaveBeenCalled(); expect(generateSpy).not.toHaveBeenCalled();
+    expect(editSpy.mock.calls[0][1]).toEqual({ maxRetries: 0, timeout: 30000, signal: controller.signal });
+    for (const referenceMode of ['identity', 'style', 'book_identity'] as const) {
+      const legacy = planGPTImageRequest({ finalPrompt: input.finalPrompt, referenceImages: references, referenceMode }, defaults);
+      expect(legacy.referenceRoles).toBeUndefined(); expect(legacy.finalPrompt).not.toContain('[BOOK DESIGN REFERENCES');
+      expect(legacy.finalPrompt).toBe(planGPTImageRequest({ finalPrompt: input.finalPrompt, referenceImages: references, referenceMode }, defaults).finalPrompt);
+    }
+  });
+  it('book_design supports canonical entity and location authorities without inventing an edit target', () => {
+    const defaults = { defaultModel: 'gpt-image-2', defaultQuality: 'low' as const, maxReferences: 4 };
+    for (const roles of [['child_design_authority', 'companion_design_authority'],
+      ['child_design_authority', 'companion_design_authority', 'entity_design_authority']] as const) {
+      const plan = planGPTImageRequest({ finalPrompt: 'Design the requested reference.', referenceMode: 'book_design',
+        referenceImages: roles.map((_, i) => `${i}.png`), referenceRoles: roles }, defaults);
+      expect(plan.referenceCountPassed).toBe(roles.length); expect(plan.referenceRoles).toEqual(roles);
+      expect(plan.finalPrompt).not.toMatch(/Bolly|rejected|REAL child/i);
+      if (roles.length === 3) expect(plan.finalPrompt).toMatch(/Image 3.*object\/supporting-cast/i);
+    }
+  });
+  it('book_design refuses absent, invalid, aliased or truncated role mappings before I/O', async () => {
+    const roles = ['child_design_authority', 'companion_design_authority'];
+    const base = { finalPrompt: 'x', referenceMode: 'book_design', referenceImages: ['missing-a.png', 'missing-b.png'],
+      apiKey: 'test-explicit-never-network' };
+    for (const change of [{}, { referenceRoles: [] }, { referenceRoles: [roles[0]] },
+      { referenceRoles: [roles[0], roles[0]] }, { referenceRoles: ['invented', roles[1]] },
+      { referenceRoles: roles, referenceImages: [] }, { referenceRoles: roles, referenceMode: 'identity' },
+      { referenceRoles: roles, referenceMode: 'book_identity' },
+      { referenceRoles: [...roles, 'entity_design_authority', 'rejected_edit_target', 'child_design_authority'],
+        referenceImages: ['a', 'b', 'c', 'd', 'e'] }]) {
+      await expect(generateGPTImage({ ...base, ...change } as any)).rejects.toThrow(/reference roles/i);
+    }
+    expect(generateSpy).not.toHaveBeenCalled(); expect(editSpy).not.toHaveBeenCalled();
+    expect(toFile).not.toHaveBeenCalled(); expect(normalizeReferenceImageBuffer).not.toHaveBeenCalled();
+  });
   it('uses every exact reference byte without normalization and observes raw usage before image decode', async () => {
     const raw = { data: [], usage: { input_tokens: 12, output_tokens: 8 } }, observer = vi.fn();
     editSpy.mockResolvedValue(raw);

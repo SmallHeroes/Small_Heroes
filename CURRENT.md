@@ -1,5 +1,34 @@
 # SmallHeroes — Current Technical State
 
+## M10 approved explicit reference transport implementation; QA/live proof pending (2026-10-08)
+
+Guy's direct 'יש אישור' approves the focused transport fix, local tests,
+independent Claude QA and ONE new same-book continuation within accumulatedUSD16.
+Sole Codex writer: codex/simple-story-voice-20261007, voice-followup worktree,
+base08a51c91. No new story/editor/plan, canon change, gate weakening or production.
+New book_design mode binds one typed role per ordered image before loading or
+dispatch. Legacy identity/style and book_identity full-frame transport unchanged.
+Existing privatev3 gains an explicit ended-M9 evidence link and fixed fresh
+reference-transport-continuation-20261008 sibling; consumed M9 stays closed.
+All prior fees and all3 ended paid stages retained once, no allowance reset.
+Known13802653micro of16m;2197347 remains BEFORE new independent QA/live costs.
+Literal npx tsc --noEmit passes after initial local type corrections. Final six
+focused suites449/449, five added tests and no removal. Real saved old request
+still byte-identical in legacy mode; new roles alter only the header, preserving
+reference byte/order and all other body fields. Fake SDK proves actual dispatch.
+Virtual legacy-header regression caught by2assertions; missing role validation
+caught by1assertion. New9-frame mock flow, private serving and17tampered evidence
+variants pass. Initial selected run's default-model test mismatch corrected only
+in test input; retained logs. No paid activity or illustrated-book claim.
+Full check CLOSED RED: ordinary6884pass/10inherited failures/73skip;
+resource634pass/1existing Windows process-probe failure plus3onTaskUpdate RPC
+errors. Every named failure matches prior eca3 gate; the2old materializer temp
+failures did not recur. Full tracked bytes unchanged during gate,6protected
+trees and189oldbook artifacts preserved. No claim of overall stability/PASS.
+Next: focused local commit, fresh independent exact-range Claude source review
+including shared SDK/prefix dependency, then pure admission and one live proof.
+Decision/acceptance: docs/ai-workflow/SIMPLE_BOOK_REFERENCE_TRANSPORT_20261008.md.
+
 ## M9/M9b bounded code QA recorded; live reference HOLD and wire-role P2 open (2026-10-08)
 
 Combined independent source-bundle Claude review337971e0..a760869d: no code

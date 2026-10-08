@@ -91,6 +91,7 @@ export async function runSimpleBookIllustrator(args: {
   progress: Parameters<typeof illustrateSimpleBook>[0]['progress'];
   referenceRecovery?: { name: 'child' | 'entities' | 'locations'; bytes: Buffer; imageSha: string; context: unknown; review: unknown };
   referenceCheckpoint?: { child: { bytes: Buffer; imageSha: string; context: unknown; review: unknown }; entities: { bytes: Buffer; imageSha: string } };
+  explicitReferenceTransport?: true;
 }) {
   const approval = readAuditionApproval(args.config); if (!approval) fail('simple_visual_approval_missing');
   const directory = path.join(args.directory, 'illustrations'); mkdirSync(directory); realDirectory(directory);
@@ -121,9 +122,10 @@ export async function runSimpleBookIllustrator(args: {
   } : undefined;
   const data = (image: AuditionImage) => `data:image/png;base64,${readAuditionImage(directory, image).toString('base64')}`;
   const save = (name: string, value: unknown) => exclusiveJson(path.join(args.directory, `${name}.json`), value);
-  const render: Parameters<typeof illustrateSimpleBook>[0]['render'] = async (step, prompt, refs, mode) => {
+  const render: Parameters<typeof illustrateSimpleBook>[0]['render'] = async (step, prompt, refs, mode, roles) => {
     check(); const bytes = refs.map(r => readAuditionImage(directory, r));
     const input = { finalPrompt: prompt, referenceImages: refs.map(r => path.join(directory, r.imageName)), referenceMode: mode,
+      ...(roles ? { referenceRoles: roles } : {}),
       requireReferenceEdit: refs.length > 0, quality: 'low' as const, size: '1024x1024' as const, modelOverride: 'gpt-image-2',
       signal: args.signal, requestTimeoutMs: 180000 };
     const plan = planGPTImageRequest(input, { defaultQuality: 'low', defaultModel: 'gpt-image-2', maxReferences: 4 });
@@ -132,6 +134,7 @@ export async function runSimpleBookIllustrator(args: {
     if (owned && (plan.bodyWithoutBinaryImage.model !== 'gpt-image-2' || plan.bodyWithoutBinaryImage.quality !== 'low' ||
         plan.bodyWithoutBinaryImage.size !== '1024x1024' || plan.bodyWithoutBinaryImage.n !== 1)) fail('simple_image_price_contract');
     const wire = { body: plan.bodyWithoutBinaryImage, mode: plan.apiMode, references: refs,
+      ...(plan.referenceRoles ? { referenceRoles: plan.referenceRoles } : {}),
       retries: 0, deadlineMs: 180000, pricing: 'image_input_8_output_30_conservative_no_cache',
       ...(owned ? { outputReservationTokens: 8192, policy: 'one_low_1024_owned_audition' } : {}) };
     // Legacy reservation unchanged. For the explicitly owned ONE LOW1024 image:
@@ -187,6 +190,7 @@ export async function runSimpleBookIllustrator(args: {
     actorOwnedAppearance: args.config.actorOwnedAppearance,
     referenceRecovery,
     ...(referenceCheckpoint ? { roleScopedReferences: true as const, referenceCheckpoint } : {}),
+    ...(args.explicitReferenceTransport ? { explicitReferenceTransport: true as const } : {}),
     render, judge, identity, save, progress: args.progress });
   exclusiveText(path.join(args.directory, 'book.html'), illustratedBookHTML(manifest, (imageName, imageSha) => data({ imageName, imageSha })));
   return manifest;

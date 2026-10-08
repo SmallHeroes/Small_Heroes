@@ -10,6 +10,7 @@ import { qualityDisposition, runPreviewQualityLoop, type PreviewQualityReview } 
 import type { runSimpleWizardBook } from './simple-book-flow';
 import type { PersonalWizardOptions } from './options';
 import type { PageChildResemblanceVisionResult } from '../generation-pipeline/page-child-resemblance-vision';
+import type { BookDesignReferenceRole } from '../generate-image';
 
 export const illustratedAuditionApprovalSchema = z.object({ version: z.literal('local-book-night-approval/v1'),
   maximumMicroUsd: z.literal(12000000), bookCount: z.literal(1), narrativePages: z.literal(8), cover: z.literal(true),
@@ -55,8 +56,9 @@ export async function illustrateSimpleBook(args: {
   actorOwnedAppearance?: true;
   referenceRecovery?: ReferenceRecovery;
   roleScopedReferences?: true;
+  explicitReferenceTransport?: true;
   referenceCheckpoint?: ReferenceCheckpoint;
-  render: (step: string, prompt: string, refs: AuditionImage[], mode: 'book_identity' | 'identity') => Promise<AuditionImage>;
+  render: (step: string, prompt: string, refs: AuditionImage[], mode: 'book_identity' | 'identity' | 'book_design', roles?: readonly BookDesignReferenceRole[]) => Promise<AuditionImage>;
   judge: (step: string, candidate: AuditionImage, context: unknown, contextSha: string, refs: AuditionImage[], predecessor: AuditionImage | null) => Promise<unknown>;
   identity: (step: string, child: AuditionImage, candidate: AuditionImage) => Promise<PageChildResemblanceVisionResult>;
   save: (name: string, value: unknown) => void;
@@ -67,6 +69,7 @@ export async function illustrateSimpleBook(args: {
   const result = args.result, diagnostic = result.storyboard!, book = diagnostic.storyboard;
   if (args.actorOwnedAppearance && !book.plan.actorAppearance) fail('simple_visual_ownership_required');
   if (args.referenceCheckpoint && (!args.roleScopedReferences || args.referenceRecovery)) fail('simple_reference_checkpoint_scope');
+  if (args.explicitReferenceTransport && (!args.roleScopedReferences || !args.referenceCheckpoint)) fail('simple_reference_transport_scope');
   const current = { request: args.request, writerResult: result.source, options: args.options };
   const prepared = prepareSimpleStory(args.request, args.options, args.seed);
   if (prepared.book.pages !== 8 || prepared.accepted.containsFixtureData || prepared.accepted.canonical.appearance.photo !== 'none') fail('simple_illustration_admission');
@@ -74,6 +77,7 @@ export async function illustrateSimpleBook(args: {
     ...(args.actorOwnedAppearance ? { actorOwnedAppearance: true } : {}),
     ...(args.referenceRecovery ? { referenceRecovery: args.referenceRecovery } : {}),
     ...(args.roleScopedReferences ? { roleScopedReferences: true } : {}),
+    ...(args.explicitReferenceTransport ? { explicitReferenceTransport: true } : {}),
     ...(args.referenceCheckpoint ? { referenceCheckpoint: args.referenceCheckpoint } : {}) });
   const binding = previewSha(canonicalJson(bindingValue()));
   const check = () => {
@@ -132,7 +136,8 @@ export async function illustrateSimpleBook(args: {
         args.save('reference_entities_repair_input', { candidate, context, review: recheck.review, authority: 'rejected_edit_input_only_not_canonical' });
         const repaired = await args.render('reference_entities_repair', spec.prompt +
           '\nImage 1 is the REJECTED edit target, not canonical. Image 2 is the accepted child/clothing authority; Image 3 is the companion authority. Correct only named defects, preserve all other design details; do not add primary actors. Independent tiles are not a common-scale scene.\nTARGETED CORRECTIONS:\n' + corrections,
-          [candidate, ...authorities], 'identity');
+          [candidate, ...authorities], args.explicitReferenceTransport ? 'book_design' : 'identity',
+          args.explicitReferenceTransport ? ['rejected_edit_target', 'child_design_authority', 'companion_design_authority'] : undefined);
         check(); if (repaired.imageSha === candidate.imageSha) fail('simple_reference_recovery_unchanged');
         candidate = repaired;
         const review = qualityDisposition(await args.judge('reference_entities_repair_qa', candidate, context, contextSha, authorities, null), candidate.imageSha, contextSha);
@@ -152,7 +157,10 @@ export async function illustrateSimpleBook(args: {
       candidate = await args.render(`reference_${spec.name}_repair`, spec.prompt +
         '\nImage 1 is the REJECTED edit target, not an approved canonical reference. Make only the named correction. Preserve identity, face, anatomy, pose, palette, style and every other design detail. Anatomical left/right belong to the subject: for a front-facing figure, its right is image-left. Do not mirror the whole image.\nTARGETED CORRECTIONS:\n' + corrections, [seed.candidate], 'identity');
       if (candidate.imageSha === seed.candidate.imageSha) fail('simple_reference_recovery_unchanged');
-    } else candidate = await args.render(`reference_${spec.name}`, prompt, authorities, 'identity');
+    } else candidate = await args.render(`reference_${spec.name}`, prompt, authorities,
+      args.explicitReferenceTransport && authorities.length ? 'book_design' : 'identity',
+      args.explicitReferenceTransport && authorities.length ? ['child_design_authority', 'companion_design_authority',
+        ...(spec.name === 'locations' ? ['entity_design_authority' as const] : [])] : undefined);
     check();
     const raw = await args.judge(`reference_${spec.name}_qa`, candidate, context, contextSha, authorities, null); check();
     const review = qualityDisposition(raw, candidate.imageSha, contextSha);

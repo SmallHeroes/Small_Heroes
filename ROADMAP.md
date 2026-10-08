@@ -1,5 +1,19 @@
 # SmallHeroes — Roadmap
 
+## M10 transport correction approved and in implementation (2026-10-08)
+
+- Explicit indexed reference roles in the real shared planner/caller, opt-in only.
+- Fresh private same-book sibling binds sealed M9 outcome and every prior cost;
+  original16ceiling unchanged, no reopen or recursive retry framework.
+- Local exact-wire/fake-SDK/one-use financial tests, then independent exact-range
+  Claude review before one live continuation. No images generated during build.
+- Local validations closed: tsc0,449/449focused;2+1assertion-level mutants caught.
+  Full RED6884ordinarypass/10oldfail,634resourcepass/1oldWindowsfail+3RPCerrors.
+  Source unchanged during gate; no new named failures and no overall green claim.
+- Total13802653of16m before new QA; aim same8pages pluscover, not new prose.
+- No technical/pixel/product PASS until relevant evidence exists; full gate's
+  inherited RED and integration risks remain explicitly visible.
+
 ## Actual wire role conflict blocks book illustrations; scoped transport fix pending (2026-10-08)
 
 - Limited independent source-bundle code verdict337971e0..a760869d recorded;

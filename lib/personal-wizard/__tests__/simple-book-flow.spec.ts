@@ -40,6 +40,7 @@ import { simpleBookVisualContinuationCLI } from '../../../scripts/personal-simpl
 import { prepareSimpleBookReferenceRecovery, referenceRecoveryConfigSchema } from '../simple-book-reference-recovery';
 import { simpleBookReferenceRecoveryCLI } from '../../../scripts/personal-simple-book-reference-recovery';
 import { simpleStoryReadingPackets } from '../simple-story-source';
+import { canonicalJson } from '../request-acceptance';
 
 const deps = vi.hoisted(() => ({ production: false, user: { id: 'owner', email: 'owner@example.com' } as { id: string; email: string } | null }));
 vi.mock('@/lib/auth-session', () => ({ resolveUserFromRequest: async () => deps.user ? { user: deps.user } : null }));
@@ -869,6 +870,145 @@ describe('explicit same-book continuation, no provider in fixtures', () => {
     writeFileSync(x.recoveryFile, JSON.stringify(x.data));
     return { ...x, extension, extensionFile, failedFile, failed };
   }
+  async function transportContinuationFixture() {
+    const x = await roleSixteenFixture();
+    sdk.create.mockImplementation(async p => {
+      const raw = await x.normal(p), d = JSON.parse(p.input[0].content[0].text);
+      if (d.context.role === 'entities') {
+        const out = JSON.parse(raw.output_text); out.checks[4].verdict = 'defect';
+        out.checks[4].correction = 'Synthetic remaining required geometry defect.'; raw.output_text = JSON.stringify(out);
+      }
+      return raw;
+    });
+    expect(await simpleBookReferenceRecoveryCLI(['--config', x.recoveryFile, '--execute'])).toBe(1);
+    const priorDir = path.join(x.old.directory, 'role-scoped-reference-continuation-20261008');
+    const priorFile = path.join(root, 'SYNTHETIC-ended-role-config.json'); writeFileSync(priorFile, readFileSync(x.recoveryFile));
+    const priorSeal = JSON.parse(readFileSync(path.join(priorDir, 'sealed.json'), 'utf8'));
+    expect(priorSeal.snapshot.logicalAttempts).toBe(3);
+    const terminal = path.join(root, 'SYNTHETIC-ended-role-terminal.json');
+    writeFileSync(terminal, JSON.stringify({ head: config.sourceHead, status: '', code: 1, signal: null,
+      terminationConfirmed: true, referenceCap: 4, sealSha256: sha(readFileSync(path.join(priorDir, 'sealed.json'))) }));
+    const technical = path.join(root, 'SYNTHETIC-transport-technical.json');
+    writeFileSync(technical, JSON.stringify({ head: config.sourceHead, status: '', code: 0, signal: null, terminationConfirmed: true,
+      isError: false, resultSubtype: 'success', maximumMicroUsd: 20000, reportedCostUsd: .005, models: [adapters.CAUSAL_MODELS.opus],
+      sessionId: '99999999-9999-4999-8999-999999999999', qaVerdict: 'PASS', qaReviewHead: config.sourceHead,
+      qaBase: '08a51c91fb02d57547bc52ef9682e3b223d5d7fa', qaMode: 'read_only_code' }));
+    const names = visualEvidenceFiles(priorDir);
+    x.data.extraEngineeringReceipts.push(x.ref(technical)); x.data.technicalReviewReceipt = x.ref(technical);
+    x.data.transportContinuation = { config: x.ref(priorFile), terminationReceipt: x.ref(terminal),
+      artifacts: names.map(relative => ({ relative, sha256: sha(readFileSync(path.join(priorDir, relative))) })),
+      knownBeforeCurrentReviewMicroUsd: priorSeal.snapshot.knownEstimateMicroUsd,
+      ownerApprovalReference: 'SYNTHETIC approved same-book explicit transport continuation only.',
+      sameBookOnly: true, publicRelease: false, customerCharge: false, gateChanges: false };
+    writeFileSync(x.recoveryFile, JSON.stringify(x.data));
+    sdk.create.mockImplementation(x.normal); sdk.create.mockClear(); x.render.mockClear(); x.editor.mockClear(); x.fetcher.mockClear();
+    const repairedSha = JSON.parse(readFileSync(path.join(priorDir, 'reference_entities_review.json'), 'utf8')).review.candidateSha;
+    return { ...x, priorDir, priorFile, priorSeal, terminal, names, repairedSha,
+      priorHashes: names.map(n => [n, sha(readFileSync(path.join(priorDir, n)))]) as [string, string][] };
+  }
+  it('transport continuation binds every ended expense and sends exact roles through the real prepared wire to all9 frames', async () => {
+    const x = await transportContinuationFixture(), ready = await prepareSimpleBookReferenceRecovery(x.recoveryFile);
+    expect(ready.externalMicroUsd).toBe(x.priorSeal.snapshot.knownEstimateMicroUsd + 5000);
+    expect(ready.extra).toBe(55000); expect(ready.inheritedLogicalAttempts).toBe(24); expect(ready.explicitReferenceTransport).toBe(true);
+    expect(ready.checkpoint!.entities.imageSha).toBe(x.repairedSha);
+    expect(await simpleBookReferenceRecoveryCLI(['--config', x.recoveryFile])).toBe(0);
+    expect(sdk.create).not.toHaveBeenCalled(); expect(x.render).not.toHaveBeenCalled();
+    sdk.create.mockImplementation(async p => {
+      const raw = await x.normal(p), d = JSON.parse(p.input[0].content[0].text);
+      if (d.context.role === 'entities' && d.candidateSha === x.repairedSha) {
+        const out = JSON.parse(raw.output_text); out.checks[4].verdict = 'defect'; out.checks[4].correction = 'Synthetic needed repair.';
+        raw.output_text = JSON.stringify(out);
+      }
+      return raw;
+    });
+    expect(await simpleBookReferenceRecoveryCLI(['--config', x.recoveryFile, '--execute'])).toBe(0);
+    const dir = path.join(x.old.directory, 'reference-transport-continuation-20261008');
+    expect(x.render).toHaveBeenCalledTimes(11); expect(x.fetcher).toHaveBeenCalledTimes(9); expect(x.editor).not.toHaveBeenCalled();
+    const roleLists = [['rejected_edit_target', 'child_design_authority', 'companion_design_authority'],
+      ['child_design_authority', 'companion_design_authority', 'entity_design_authority']];
+    ['reference_entities_repair', 'reference_locations'].forEach((stage, i) => {
+      const wire = JSON.parse(readFileSync(path.join(dir, `paid-stages/${stage}.wire.json`), 'utf8'));
+      expect(wire.referenceRoles).toEqual(roleLists[i]); expect(x.render.mock.calls[i][0].referenceRoles).toEqual(roleLists[i]);
+      expect(x.render.mock.calls[i][0].referenceMode).toBe('book_design');
+      expect(wire.body.prompt).toContain('[BOOK DESIGN REFERENCES - EXPLICIT ROLES]');
+      expect(wire.body.prompt).not.toMatch(/Bolly|REAL child|FIRST image.*child/i);
+      expect(wire.references.map((r: any) => r.imageSha)).toEqual(x.render.mock.calls[i][0].exactReferenceBytes!.map(b => sha(b)));
+      expect(wire.body).toEqual(images.planGPTImageRequest(x.render.mock.calls[i][0],
+        { defaultModel: 'gpt-image-2', defaultQuality: 'low', maxReferences: 4 }).bodyWithoutBinaryImage);
+    });
+    for (const [input] of x.render.mock.calls.slice(2)) {
+      expect(input.referenceMode).toBe('book_identity'); expect(input.referenceRoles).toBeUndefined();
+    }
+    expect(JSON.parse(readFileSync(path.join(dir, 'sealed.json'), 'utf8'))).toMatchObject({ status: 'illustrated_audition', bookPages: 9,
+      inheritedLogicalAttempts: 24, snapshot: { unknownAttemptCosts: 0 } });
+    expect(readFileSync(path.join(dir, 'book.html'), 'utf8').match(/<img /g)).toHaveLength(9);
+    const requestId = ready.parent.job.queued.requestId;
+    expect(await (await GET(req('GET', undefined, `${url}?requestId=${requestId}`))).json()).toMatchObject({ imageScope: 'reference_transport_continuation',
+      phase: 'illustrated_audition', accounting: { allowanceMicroUsd: 16000000 } });
+    const page = await GET(req('GET', undefined, `${url}?requestId=${requestId}&page=8`));
+    const manifest = JSON.parse(readFileSync(path.join(dir, 'illustrated_book.json'), 'utf8'));
+    expect(page.status).toBe(200); expect(page.headers.get('cache-control')).toBe('private, no-store');
+    expect(sha(Buffer.from(await page.arrayBuffer()))).toBe(manifest.pages[8].candidate.imageSha);
+    deps.user = { id: 'other', email: 'owner@example.com' };
+    expect((await GET(req('GET', undefined, `${url}?requestId=${requestId}&page=8`))).status).toBe(403);
+    for (const [n, h] of x.priorHashes) expect(sha(readFileSync(path.join(x.priorDir, n)))).toBe(h);
+    for (const [n, h] of x.checkpointHashes) expect(sha(readFileSync(path.join(x.checkpointDir, n)))).toBe(h);
+    expect(existsSync(path.join(dir, 'paid-stages/reference_child.claim.json'))).toBe(false);
+    await expect(prepareSimpleBookReferenceRecovery(x.recoveryFile).then(r => r.claim())).rejects.toThrow();
+  }, 180000);
+  it('transport continuation rejects altered outcomes, old charges and mapping evidence before claim, key or dispatch', async () => {
+    const x = await transportContinuationFixture(), baseline = readFileSync(x.recoveryFile), terminal = readFileSync(x.terminal);
+    const priorConfig = readFileSync(x.priorFile), tech = readFileSync(x.data.technicalReviewReceipt.file);
+    const originals = x.names.map(n => [n, readFileSync(path.join(x.priorDir, n))] as const);
+    const disk = vi.spyOn(journal, 'fencedText'); disk.mockClear();
+    await expect(prepareSimpleBookReferenceRecovery(x.recoveryFile)).resolves.toMatchObject({ explicitReferenceTransport: true });
+    for (const kind of ['inventory', 'parent', 'prior_fee', 'technical_base', 'session_alias', 'termination', 'cost', 'gate', 'unknown',
+      'journal', 'replaced_child', 'wrong_roles', 'altered_reference', 'wrong_pixel_verdict', 'output_pages', 'seal', 'missing_paid_root']) {
+      originals.forEach(([n, b]) => writeFileSync(path.join(x.priorDir, n), b));
+      writeFileSync(x.terminal, terminal); writeFileSync(x.priorFile, priorConfig); writeFileSync(x.data.technicalReviewReceipt.file, tech);
+      const d = JSON.parse(baseline.toString()), tc = d.transportContinuation;
+      const change = (n: string, f: (v: any) => void) => { const p = path.join(x.priorDir, n), v = JSON.parse(readFileSync(p, 'utf8')); f(v); writeFileSync(p, JSON.stringify(v)); };
+      if (kind === 'inventory') tc.artifacts.pop();
+      if (kind === 'parent' || kind === 'prior_fee') { const p = JSON.parse(priorConfig.toString());
+        if (kind === 'parent') p.checkpoint.config.sha256 = 'b'.repeat(64); else p.extraEngineeringReceipts.pop(); writeFileSync(x.priorFile, JSON.stringify(p)); }
+      if (kind === 'technical_base' || kind === 'session_alias') { const t = JSON.parse(tech.toString());
+        if (kind === 'technical_base') t.qaBase = 'b'.repeat(40); else t.sessionId = '77777777-7777-4777-8777-777777777777'; writeFileSync(d.technicalReviewReceipt.file, JSON.stringify(t)); }
+      if (kind === 'termination') { const h = JSON.parse(terminal.toString()); h.terminationConfirmed = false; writeFileSync(x.terminal, JSON.stringify(h)); }
+      if (kind === 'cost') tc.knownBeforeCurrentReviewMicroUsd--;
+      if (kind === 'gate') tc.gateChanges = true;
+      if (kind === 'unknown') change('paid-stages/reference_entities_repair_qa.result.json', v => { v.estimatedMicroUsd = null; });
+      if (kind === 'journal') change('paid-stages/reference_entities_recheck.claim.json', v => { v.step = 'other'; });
+      if (kind === 'replaced_child') change('reference_child_adoption.json', v => { v.candidate.imageSha = 'b'.repeat(64); });
+      if (kind === 'wrong_roles') change('paid-stages/reference_entities_recheck.wire.json', v => { const t = JSON.parse(v.input[0].content[0].text); t.imageRoles[5] = 'candidate_complete'; v.input[0].content[0].text = JSON.stringify(t); });
+      if (kind === 'altered_reference') change('paid-stages/reference_entities_repair.wire.json', v => { v.references[1].imageSha = 'b'.repeat(64); });
+      // Rebind the altered wire so rejection cannot hide behind a stale digest.
+      if (kind === 'wrong_roles' || kind === 'altered_reference') {
+        const name = kind === 'wrong_roles' ? 'reference_entities_recheck' : 'reference_entities_repair';
+        const wire = JSON.parse(readFileSync(path.join(x.priorDir, `paid-stages/${name}.wire.json`), 'utf8'));
+        const bound = sha(canonicalJson(wire));
+        change(`paid-stages/${name}.claim.json`, v => { v.wireDigest = bound; });
+        change(`paid-stages/${name}.result.json`, v => { v.wireDigest = bound; });
+      }
+      if (kind === 'wrong_pixel_verdict') change('reference_entities_review.json', v => { v.disposition = 'passed'; });
+      if (kind === 'output_pages') writeFileSync(path.join(x.priorDir, 'book.html.json'), '{}');
+      if (kind === 'seal') change('sealed.json', v => { v.status = 'illustrated_audition'; });
+      if (kind === 'missing_paid_root') {
+        const paid = path.join(x.priorDir, 'paid-stages'); if (!x.priorDir.startsWith(root + path.sep)) throw Error('fixture_boundary');
+        renameSync(paid, path.join(root, 'SYNTHETIC-ended-paid-moved')); tc.artifacts = tc.artifacts.filter((f: any) => !f.relative.startsWith('paid-stages/'));
+      }
+      tc.config = x.ref(x.priorFile); tc.terminationReceipt = x.ref(x.terminal);
+      tc.artifacts = tc.artifacts.map((f: any) => ({ ...f, sha256: sha(readFileSync(path.join(x.priorDir, f.relative))) }));
+      if (kind === 'output_pages') tc.artifacts.push({ relative: 'book.html.json', sha256: sha(readFileSync(path.join(x.priorDir, 'book.html.json'))) });
+      d.technicalReviewReceipt = x.ref(d.technicalReviewReceipt.file); d.extraEngineeringReceipts[4] = d.technicalReviewReceipt;
+      writeFileSync(x.recoveryFile, JSON.stringify(d));
+      await expect(prepareSimpleBookReferenceRecovery(x.recoveryFile), kind).rejects.toThrow();
+      expect(sdk.create).not.toHaveBeenCalled(); expect(x.render).not.toHaveBeenCalled(); expect(x.editor).not.toHaveBeenCalled();
+      expect(disk.mock.calls.some(([p]) => p === config.existingKeyEnvFile)).toBe(false);
+      expect(existsSync(path.join(x.old.directory, 'reference-transport-continuation-20261008'))).toBe(false);
+      if (kind === 'output_pages') { const p = path.join(x.priorDir, 'book.html.json'); if (!p.startsWith(root + path.sep)) throw Error('fixture_boundary'); rmSync(p); }
+      if (kind === 'missing_paid_root') expect(existsSync(path.join(x.priorDir, 'paid-stages'))).toBe(false);
+    }
+  }, 90000);
   it('role sixteen grant retains failed review cost once and completes the same private9 images without a new writer', async () => {
     const x = await roleSixteenFixture(), ready = await prepareSimpleBookReferenceRecovery(x.recoveryFile);
     expect(ready.externalMicroUsd).toBe(x.extension.knownBeforeFreshReviewMicroUsd + 3000);

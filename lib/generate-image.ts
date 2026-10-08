@@ -242,7 +242,18 @@ export type GPTImageReferenceMode =
   /** Zone object anchor: closer crop derived from approved zone set sheet — same assets/mood. */
   | 'zone_set_derived_object'
   /** Explicit personal-book roles; never infer a particular companion from reference count. */
-  | 'book_identity';
+  | 'book_identity'
+  /** Explicit, individually bound reference-sheet/edit roles, not full-page positions. */
+  | 'book_design';
+
+export type BookDesignReferenceRole = 'rejected_edit_target' | 'child_design_authority' |
+  'companion_design_authority' | 'entity_design_authority';
+const BOOK_DESIGN_ROLES: Record<BookDesignReferenceRole, string> = {
+  rejected_edit_target: 'REJECTED reference sheet to edit, never canonical authority. Preserve its layout and unaffected designs; change only the named defects.',
+  child_design_authority: 'Accepted child design and owned clothing authority. Preserve specified identity, anatomy, hair, colors and clothing; not a real-child photo and not an actor to add to this sheet.',
+  companion_design_authority: 'Accepted selected companion design authority. Preserve its actual species, anatomy, silhouette, colors and accessories; never substitute another companion or add its body unless requested.',
+  entity_design_authority: 'Accepted object/supporting-cast design atlas authority. Preserve the relevant materials, counts, silhouettes and structural details, not tile layout or labels.',
+};
 
 /** Default cap (gpt-image-1). Override via GPT_IMAGE_EDIT_MAX_REFERENCES for gpt-image-2 probes. */
 export const GPT_IMAGE_EDIT_MAX_REFERENCES = 4;
@@ -270,6 +281,8 @@ export interface GenerateGPTImageInput {
   referenceImages?: string[];
   /** How reference images are interpreted when using images.edit. Default: identity. */
   referenceMode?: GPTImageReferenceMode;
+  /** Mandatory exactly once per image in book_design; forbidden in legacy/page modes. */
+  referenceRoles?: readonly BookDesignReferenceRole[];
   /** Fail if referenceImages were requested but images.edit cannot run. */
   requireReferenceEdit?: boolean;
   /** Override GPT_IMAGE_MODEL for this call (e.g. gpt-image-2). */
@@ -308,6 +321,7 @@ export interface GPTImageRequestPlan {
   referenceCountPassed: number;
   referenceCountCap: number;
   orderedReferenceSources: string[];
+  referenceRoles?: BookDesignReferenceRole[];
   bodyWithoutBinaryImage: {
     model: string;
     prompt: string;
@@ -479,8 +493,12 @@ export const STYLE01_ZONE_SET_DERIVED_OBJECT_PREFIX = (
 
 function resolveReferencePrefix(
   mode: GPTImageReferenceMode,
-  referenceCount: number
+  referenceCount: number,
+  roles?: readonly BookDesignReferenceRole[]
 ): string {
+  if (mode === 'book_design') return '[BOOK DESIGN REFERENCES - EXPLICIT ROLES]\n' +
+    roles!.map((role, i) => `Image ${i + 1}: ${BOOK_DESIGN_ROLES[role]}`).join('\n') +
+    '\nThese are the individual image roles. Follow the reference-design task below, not a photo/companion-count heuristic or a finished story scene. Do not add unrequested actors.\n[REFERENCE DESIGN TASK]\n';
   if (mode === 'anchor_template') return STYLE01_ANCHOR_TEMPLATE_BASE_PREFIX;
   if (mode === 'anchor_template_photo_last') return STYLE01_ANCHOR_TEMPLATE_PHOTO_LAST_PREFIX;
   if (mode === 'anchor_photo_template_middle') return STYLE01_ANCHOR_PHOTO_TEMPLATE_MIDDLE_PREFIX;
@@ -517,6 +535,12 @@ export function planGPTImageRequest(
   const referenceMode: GPTImageReferenceMode = input.referenceMode ?? 'identity';
   const referenceCountCap = resolved.maxReferences;
   const orderedReferenceSources = references.slice(0, referenceCountCap);
+  const roles = input.referenceRoles;
+  if (referenceMode === 'book_design' ? (!Array.isArray(roles) || roles.length !== referenceCountRequested ||
+      roles.length === 0 || referenceCountRequested !== orderedReferenceSources.length ||
+      new Set(roles).size !== roles.length || roles.some(r => !Object.prototype.hasOwnProperty.call(BOOK_DESIGN_ROLES, r))) : roles !== undefined) {
+    throw new Error('Invalid explicit book design reference roles.');
+  }
   const apiMode = orderedReferenceSources.length > 0 ? 'images.edit' : 'images.generate';
   if (
     input.requireReferenceEdit &&
@@ -529,7 +553,7 @@ export function planGPTImageRequest(
   let finalPrompt = input.finalPrompt;
   if (orderedReferenceSources.length > 0) {
     finalPrompt =
-      resolveReferencePrefix(referenceMode, orderedReferenceSources.length) +
+      resolveReferencePrefix(referenceMode, orderedReferenceSources.length, roles) +
       finalPrompt;
   }
   if (input.negativePrompt) {
@@ -592,6 +616,7 @@ export function planGPTImageRequest(
     referenceCountPassed: orderedReferenceSources.length,
     referenceCountCap,
     orderedReferenceSources,
+    ...(referenceMode === 'book_design' ? { referenceRoles: [...roles!] } : {}),
     bodyWithoutBinaryImage: {
       model,
       prompt: finalPrompt,
