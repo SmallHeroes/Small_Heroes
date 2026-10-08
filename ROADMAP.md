@@ -1,5 +1,17 @@
 # SmallHeroes — Roadmap
 
+## Approved one-reference recovery toward SAME illustrated audition (2026-10-08)
+
+- M7 implemented from d9ae20dc; literaltsc0,433/433 focused tests. Independent QA and
+  full gate pending, not a technical/pixel/product/stability/release PASS.
+- One exact rejected reference becomes an edit input only; one changed candidate
+  needs fresh unchanged Sol pixel PASS before adoption. No second reference repair.
+- Reuse supported M6 owner-typed storyboard, no new author/editor/planner/readings.
+  OriginalUSD12 only:9778887micro known,2221113remaining before native QA fees.
+- After read-only Claude review and inherited-failure full-gate reconciliation:
+  one explicit sealed sibling, then existing atlas/9-frame/continuity/0.70 gates.
+  All131old book files protected; no push or customer/production approval.
+
 ## Sol actual vision works; bounded reference recovery is the next decision (2026-10-08)
 
 - Combined bounded codePASS7fe..bc plus actual fullRED baseline reconciliation:6852ordinary pass/10oldfail,

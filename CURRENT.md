@@ -1,5 +1,29 @@
 # SmallHeroes — Current Technical State
 
+## M7 reference recovery implemented; independent QA/live outcome pending (2026-10-08)
+
+Guy approved ONE targeted held-reference correction, fresh unchanged Sol pixel QA,
+then the SAME8-page-plus-cover noncommercial audition today, within originalUSD12.
+Codex sole writer on simple-story-voice-followup/codex/simple-story-voice-20261007,
+base d9ae20dc. No writer/editor/appearance planner/board-review re-dispatch.
+General opt-in reference seed binds exact rejected PNG/design/eight-category review;
+edit input is never canonical, unchanged bytes rejected, one fresh inspection must
+pass. Other references still stop on HOLD; existing page repairs/0.70 gate unchanged.
+Explicit one-use sibling reconstructs all5known M6 receipts and owner-typed board,
+preserves source/geometry/readings/history and carries all original costs forward.
+Private serving uses a new fixed enum/directory, unchanged owner/dev gates.
+
+Local literal npx tsc0;433/433 focused tests in6files, including142 simple-book specs
+(+16, none removed). First selected run:15pass and one60-second integration timeout;
+the full historical+9-frame disk fixture now has180sec, no provider/deadline changes.
+Final focused run passed in418sec; source hashes unchanged during checks.
+Evidence: reference-recovery-evidence-20261008/final-focused-v2 in task ART.
+Full repo gate and FIRST read-only native Claude QA pending; no self-awarded PASS.
+Pre-M7 snapshot:131book files and6protected trees unchanged. Known original9778887micro,
+remaining2221113micro before new bounded native engineering fees. ZERO book images yet.
+Decision/limits: docs/ai-workflow/SIMPLE_BOOK_REFERENCE_RECOVERY_20261008.md.
+No key/provider/book execution in M7 yet. No push/merge/deploy/production qualification.
+
 ## Live Sol visual proof supported the board; new child reference HELD (2026-10-08)
 
 Code bc83f34c remains the exact reviewed head. Native4a688b4f returned combined bounded codePASS7fe..bc,

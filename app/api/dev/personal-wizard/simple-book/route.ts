@@ -33,7 +33,9 @@ export async function GET(req: NextRequest) {
       const image = view.images.find(p => p.pageNumber === Number(pages[0]));
       if (!image) return storyResponse({ error: 'simple_image_unavailable' }, 404);
       const job = queuedSimpleBook(config).directory;
-      const bytes = readAuditionImage(path.join(job, ...(view.imageScope ? ['controlled-visual-continuation-20261008'] : []), 'illustrations'), image);
+      const scope = view.imageScope === 'owned_reference_recovery' ? ['controlled-reference-recovery-20261008'] :
+        view.imageScope === 'owned_visual_continuation' ? ['controlled-visual-continuation-20261008'] : [];
+      const bytes = readAuditionImage(path.join(job, ...scope, 'illustrations'), image);
       return new Response(new Uint8Array(bytes), { headers: { 'Content-Type': 'image/png', 'Cache-Control': 'private, no-store',
         'X-Content-Type-Options': 'nosniff', 'Content-Security-Policy': "default-src 'none'" } });
     }

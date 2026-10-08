@@ -18,15 +18,20 @@ export const illustratedAuditionApprovalSchema = z.object({ version: z.literal('
     identityThreshold: z.literal(0.7) }).passthrough(),
 }).passthrough();
 export type AuditionImage = { imageSha: string; imageName: string };
+export type ReferenceRecovery = { name: 'child' | 'entities' | 'locations'; candidate: AuditionImage;
+  context: unknown; review: unknown };
 type WizardResult = Awaited<ReturnType<typeof runSimpleWizardBook>>;
 export class SimpleIllustrationError extends Error { constructor(readonly code: string) { super(code); } }
 const fail = (code: string): never => { throw new SimpleIllustrationError(code); };
+export const simpleReferenceDesignContext = (design: unknown) => ({ scope: 'noncommercial_reference_design_only', design,
+  inspection: 'Check every listed design against actual pixels, age/anatomy/wardrobe for child, all entities and stable topology for atlases. Mark unrelated scene/framing categories pass with N/A evidence; uncertainty or omitted required design is not pass. This does not grant production qualification.' });
 
 /** Injected audition only. No SDK, keys, auto-retry, production package or publication authority. */
 export async function illustrateSimpleBook(args: {
   result: WizardResult; request: unknown; options: PersonalWizardOptions; seed: string;
   approval: unknown; childDesign: string; companion: AuditionImage; signal: AbortSignal;
   actorOwnedAppearance?: true;
+  referenceRecovery?: ReferenceRecovery;
   render: (step: string, prompt: string, refs: AuditionImage[], mode: 'book_identity' | 'identity') => Promise<AuditionImage>;
   judge: (step: string, candidate: AuditionImage, context: unknown, contextSha: string, refs: AuditionImage[], predecessor: AuditionImage | null) => Promise<unknown>;
   identity: (step: string, child: AuditionImage, candidate: AuditionImage) => Promise<PageChildResemblanceVisionResult>;
@@ -41,7 +46,8 @@ export async function illustrateSimpleBook(args: {
   const prepared = prepareSimpleStory(args.request, args.options, args.seed);
   if (prepared.book.pages !== 8 || prepared.accepted.containsFixtureData || prepared.accepted.canonical.appearance.photo !== 'none') fail('simple_illustration_admission');
   const bindingValue = () => ({ request: args.request, source: result.source, approval: args.approval, childDesign: args.childDesign,
-    ...(args.actorOwnedAppearance ? { actorOwnedAppearance: true } : {}) });
+    ...(args.actorOwnedAppearance ? { actorOwnedAppearance: true } : {}),
+    ...(args.referenceRecovery ? { referenceRecovery: args.referenceRecovery } : {}) });
   const binding = previewSha(canonicalJson(bindingValue()));
   const check = () => {
     if (args.signal.aborted) fail('simple_illustration_cancelled');
@@ -64,12 +70,30 @@ export async function illustrateSimpleBook(args: {
     { name: 'locations', design: designs.locations,
       prompt: `${STYLE_01_SHARED}\nCanonical LOCATION design atlas for a single book. One roomy establishing view per location with short Latin ID label. Clearly preserve materials, landmark shapes, relative geography and stable topology in each view. No child or companion. AUTHORITATIVE DESIGN DATA: ${canonicalJson(designs.locations)}` },
   ];
+  if (args.referenceRecovery) {
+    const seed = args.referenceRecovery, spec = refSpecs.find(s => s.name === seed.name) ?? fail('simple_reference_recovery_admission');
+    const context = simpleReferenceDesignContext(spec.design);
+    if (canonicalJson(seed.context) !== canonicalJson(context)) fail('simple_reference_recovery_context');
+    if (qualityDisposition(seed.review, seed.candidate.imageSha, previewSha(JSON.stringify(context))).disposition !== 'repair') fail('simple_reference_recovery_admission');
+  }
   const refs: AuditionImage[] = [];
   for (const spec of refSpecs) {
-    check(); const candidate = await args.render(`reference_${spec.name}`, spec.prompt, [], 'identity'); check();
-    const context = { scope: 'noncommercial_reference_design_only', design: spec.design,
-      inspection: 'Check every listed design against actual pixels, age/anatomy/wardrobe for child, all entities and stable topology for atlases. Mark unrelated scene/framing categories pass with N/A evidence; uncertainty or omitted required design is not pass. This does not grant production qualification.' };
+    check();
+    const context = simpleReferenceDesignContext(spec.design);
     const contextSha = previewSha(JSON.stringify(context));
+    const seed = args.referenceRecovery?.name === spec.name ? args.referenceRecovery : null;
+    let candidate: AuditionImage;
+    if (seed) {
+      if (canonicalJson(seed.context) !== canonicalJson(context)) fail('simple_reference_recovery_context');
+      const prior = qualityDisposition(seed.review, seed.candidate.imageSha, contextSha);
+      if (prior.disposition !== 'repair') fail('simple_reference_recovery_admission');
+      const corrections = prior.review.checks.filter(c => c.verdict === 'defect').map(c => `${c.category}: ${c.correction}`).join('\n');
+      args.save('reference_recovery_input', { ...seed, authority: 'rejected_edit_input_only_not_canonical', corrections });
+      candidate = await args.render(`reference_${spec.name}_repair`, spec.prompt +
+        '\nImage 1 is the REJECTED edit target, not an approved canonical reference. Make only the named correction. Preserve identity, face, anatomy, pose, palette, style and every other design detail. Anatomical left/right belong to the subject: for a front-facing figure, its right is image-left. Do not mirror the whole image.\nTARGETED CORRECTIONS:\n' + corrections, [seed.candidate], 'identity');
+      if (candidate.imageSha === seed.candidate.imageSha) fail('simple_reference_recovery_unchanged');
+    } else candidate = await args.render(`reference_${spec.name}`, spec.prompt, [], 'identity');
+    check();
     const raw = await args.judge(`reference_${spec.name}_qa`, candidate, context, contextSha, [], null); check();
     const review = qualityDisposition(raw, candidate.imageSha, contextSha);
     args.save(`reference_${spec.name}_review`, review);

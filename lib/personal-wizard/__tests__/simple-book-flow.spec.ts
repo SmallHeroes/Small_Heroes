@@ -37,6 +37,8 @@ import { prepareSimpleBookRepair } from '../simple-book-repair';
 import { simpleBookRepairCLI } from '../../../scripts/personal-simple-book-repair';
 import { prepareSimpleBookVisualContinuation, visualEvidenceFiles } from '../simple-book-visual-continuation';
 import { simpleBookVisualContinuationCLI } from '../../../scripts/personal-simple-book-visual-continuation';
+import { prepareSimpleBookReferenceRecovery } from '../simple-book-reference-recovery';
+import { simpleBookReferenceRecoveryCLI } from '../../../scripts/personal-simple-book-reference-recovery';
 import { simpleStoryReadingPackets } from '../simple-story-source';
 
 const deps = vi.hoisted(() => ({ production: false, user: { id: 'owner', email: 'owner@example.com' } as { id: string; email: string } | null }));
@@ -745,6 +747,105 @@ describe('explicit same-book continuation, no provider in fixtures', () => {
     vi.stubGlobal('fetch', fetcher); vi.stubEnv('GPT_IMAGE_EDIT_MAX_REFERENCES', '4');
     return { ...x, fetcher, bad, ownership };
   }
+  async function referenceRecoveryFixture() {
+    const x = await visualTransportFixture(), normal = sdk.create.getMockImplementation()!;
+    sdk.create.mockImplementation(async p => {
+      const r = await normal(p);
+      if (Array.isArray(p.input)) { const c = JSON.parse(p.input[0].content[0].text), out = JSON.parse(r.output_text);
+        if (c.candidateSha !== x.bad.imageSha) { out.checks[1].verdict = 'defect'; out.checks[1].correction = 'Synthetic target correction; not an artwork verdict.'; }
+        r.output_text = JSON.stringify(out);
+      }
+      return r;
+    });
+    expect(await simpleBookVisualContinuationCLI(['--config', x.visualFile, '--execute'])).toBe(1);
+    const visualDir = path.join(x.old.directory, 'controlled-visual-continuation-20261008');
+    const terminal = path.join(root, 'SYNTHETIC-reference-parent-terminal.json');
+    writeFileSync(terminal, JSON.stringify({ head: config.sourceHead, status: '', code: 1, signal: null, terminationConfirmed: true, stopped: false, referenceCap: 4 }));
+    const technical = path.join(root, 'SYNTHETIC-reference-technical.json');
+    writeFileSync(technical, JSON.stringify({ head: config.sourceHead, status: '', code: 0, signal: null, terminationConfirmed: true, stopped: false,
+      isError: false, resultSubtype: 'success', maximumMicroUsd: 300000, reportedCostUsd: .001, models: [adapters.CAUSAL_MODELS.opus],
+      qaVerdict: 'PASS', qaReviewHead: config.sourceHead, qaBase: 'd9ae20dc29195004f1fed6d246daefbe42610953', qaMode: 'read_only_code' }));
+    const ref = (file: string) => ({ file, sha256: sha(readFileSync(file)) });
+    const names = [...visualEvidenceFiles(visualDir).map(n => `controlled-visual-continuation-20261008/${n}`),
+      ...require('node:fs').readdirSync(x.old.directory).filter((n: string) => /^view-\d{4}\.json$/.test(n))];
+    const recoveryData = { version: 'controlled-simple-reference-recovery/v1', visualConfig: ref(x.visualFile), terminationReceipt: ref(terminal),
+      sourceHead: config.sourceHead, approvalReference: 'SYNTHETIC one reference correction, NOT live permission.', maximumMicroUsd: 12000000,
+      artifacts: names.map(relative => ({ relative, sha256: sha(readFileSync(path.join(x.old.directory, relative))) })),
+      extraEngineeringReceipts: [ref(technical)], technicalReviewReceipt: ref(technical) };
+    const recoveryFile = path.join(root, 'reference-recovery.json'); writeFileSync(recoveryFile, JSON.stringify(recoveryData));
+    sdk.create.mockImplementation(normal); sdk.create.mockClear(); x.render.mockClear(); x.editor.mockClear(); x.fetcher.mockClear();
+    return { ...x, visualDir, recoveryData, recoveryFile, heldHashes: names.map(n => [n, sha(readFileSync(path.join(x.old.directory, n)))]) as [string, string][] };
+  }
+  it('reference recovery previews without keys and performs exactly one edit then the same9 private frames, no planning/writing', async () => {
+    const x = await referenceRecoveryFixture(), disk = vi.spyOn(journal, 'fencedText');
+    expect(await simpleBookReferenceRecoveryCLI(['--config', x.recoveryFile])).toBe(0);
+    expect(sdk.create).not.toHaveBeenCalled(); expect(x.render).not.toHaveBeenCalled();
+    expect(disk.mock.calls.some(([p]) => p === config.existingKeyEnvFile)).toBe(false);
+    const ready = await prepareSimpleBookReferenceRecovery(x.recoveryFile);
+    expect(ready.inherited.logicalAttempts).toBe(5); expect(ready.externalMicroUsd).toBe(ready.inherited.knownEstimateMicroUsd + 1000);
+    expect(await simpleBookReferenceRecoveryCLI(['--config', x.recoveryFile, '--execute'])).toBe(0);
+    expect(x.editor).not.toHaveBeenCalled(); expect(x.render).toHaveBeenCalledTimes(12); expect(x.fetcher).toHaveBeenCalledTimes(9);
+    expect(sdk.create).toHaveBeenCalledTimes(12); expect(sdk.create.mock.calls.every(([p]) => p.model === 'gpt-6.1-sol' && Array.isArray(p.input))).toBe(true);
+    const first = x.render.mock.calls[0][0]; expect(first.requireReferenceEdit).toBe(true); expect(first.exactReferenceBytes).toHaveLength(1);
+    expect(sha(first.exactReferenceBytes![0])).toBe(ready.seed.imageSha); expect(first.finalPrompt).toContain('REJECTED edit target');
+    expect(first.finalPrompt).toContain('Do not mirror');
+    const dir = path.join(x.old.directory, 'controlled-reference-recovery-20261008'), manifest = JSON.parse(readFileSync(path.join(dir, 'illustrated_book.json'), 'utf8'));
+    expect(manifest.manuscript).toEqual(ready.result.source.manuscript);
+    const refs = JSON.parse(readFileSync(path.join(dir, 'audition_references.json'), 'utf8')).canonical;
+    expect(refs[0].imageName).toBe('reference_child_repair.png'); expect(refs[0].imageSha).not.toBe(ready.seed.imageSha);
+    expect(refs.some((r: any) => r.imageSha === ready.seed.imageSha)).toBe(false);
+    expect(readFileSync(path.join(dir, 'book.html'), 'utf8').match(/<img /g)).toHaveLength(9);
+    const requestId = ready.parent.job.queued.requestId;
+    expect(await (await GET(req('GET', undefined, `${url}?requestId=${requestId}`))).json()).toMatchObject({ phase: 'illustrated_audition', imageScope: 'owned_reference_recovery' });
+    const img = await GET(req('GET', undefined, `${url}?requestId=${requestId}&page=8`)); expect(img.status).toBe(200);
+    expect(sha(Buffer.from(await img.arrayBuffer()))).toBe(manifest.pages[8].candidate.imageSha);
+    await expect(simpleBookReferenceRecoveryCLI(['--config', x.recoveryFile, '--execute'])).rejects.toThrow();
+    for (const [n, hash] of [...x.oldHashes, ...x.heldHashes]) expect(sha(readFileSync(path.join(x.old.directory, n)))).toBe(hash);
+  }, 180000); // Two durable historical fixtures plus all nine PNG/QA/identity stages; no network.
+  it.each(['source', 'hash', 'inventory', 'termination', 'technical_hold', 'unknown', 'false_hold', 'seed', 'board', 'budget'])(
+    'reference recovery refuses %s before a claim, key or paid call', async kind => {
+      const x = await referenceRecoveryFixture(), disk = vi.spyOn(journal, 'fencedText');
+      const rewrite = (relative: string, change: (v: any) => void) => { const p = path.join(x.old.directory, relative), v = JSON.parse(readFileSync(p, 'utf8'));
+        change(v); writeFileSync(p, JSON.stringify(v)); x.recoveryData.artifacts.find(a => a.relative === relative)!.sha256 = sha(readFileSync(p)); };
+      if (kind === 'source') x.recoveryData.sourceHead = 'b'.repeat(40);
+      if (kind === 'hash') x.recoveryData.artifacts[0].sha256 = 'b'.repeat(64);
+      if (kind === 'inventory') x.recoveryData.artifacts = x.recoveryData.artifacts.filter(a => !a.relative.endsWith('reference_child_qa.wire.json'));
+      if (kind === 'termination') { const p = x.recoveryData.terminationReceipt.file; writeFileSync(p, JSON.stringify({ terminationConfirmed: false })); x.recoveryData.terminationReceipt.sha256 = sha(readFileSync(p)); }
+      if (kind === 'technical_hold') { const p = x.recoveryData.technicalReviewReceipt.file, v = JSON.parse(readFileSync(p, 'utf8')); v.qaVerdict = 'HOLD'; writeFileSync(p, JSON.stringify(v));
+        x.recoveryData.technicalReviewReceipt.sha256 = sha(readFileSync(p)); x.recoveryData.extraEngineeringReceipts[0] = x.recoveryData.technicalReviewReceipt; }
+      if (kind === 'unknown') rewrite('controlled-visual-continuation-20261008/paid-stages/reference_child_qa.result.json', v => { v.estimatedMicroUsd = null; });
+      if (kind === 'false_hold') rewrite('controlled-visual-continuation-20261008/sealed.json', v => { v.code = 'wrong_hold'; });
+      if (kind === 'seed') rewrite('controlled-visual-continuation-20261008/reference_child_review.json', v => { v.review.candidateSha = 'b'.repeat(64); });
+      if (kind === 'board') rewrite('controlled-visual-continuation-20261008/visual_simple_book_result.json', v => { v.source.manuscript.pages[0].text += ' forgery'; });
+      if (kind === 'budget') x.recoveryData.maximumMicroUsd = 25000000;
+      writeFileSync(x.recoveryFile, JSON.stringify(x.recoveryData));
+      await expect(prepareSimpleBookReferenceRecovery(x.recoveryFile)).rejects.toThrow();
+      expect(existsSync(path.join(x.old.directory, 'controlled-reference-recovery-20261008'))).toBe(false);
+      expect(sdk.create).not.toHaveBeenCalled(); expect(x.render).not.toHaveBeenCalled(); expect(x.editor).not.toHaveBeenCalled();
+      expect(disk.mock.calls.some(([p]) => p === config.existingKeyEnvFile)).toBe(false);
+    }, 60000);
+  it.each(['repeat_defect', 'uncertain', 'unknown', 'cancelled', 'unchanged'])(
+    'one reference edit then %s stops, with no second edit, atlas or page', async kind => {
+      const x = await referenceRecoveryFixture(), normal = sdk.create.getMockImplementation()!;
+      sdk.create.mockImplementation(async p => { const r = await normal(p), v = JSON.parse(r.output_text);
+        if (kind === 'repeat_defect' || kind === 'uncertain') { v.checks[1].verdict = kind === 'uncertain' ? 'uncertain' : 'defect'; v.checks[1].correction = 'Synthetic repeated finding.'; }
+        if (kind === 'unknown') delete (r as any).usage; if (kind === 'cancelled') process.emit('SIGINT');
+        return { ...r, output_text: JSON.stringify(v) }; });
+      if (kind === 'unchanged') x.render.mockImplementation(async input => { const ready = await prepareSimpleBookReferenceRecovery(x.recoveryFile);
+        const usage = { input_tokens: 100, output_tokens: 100 }, raw = { data: [{ b64_json: ready.seed.bytes.toString('base64') }], usage }; input.observeProviderResponse?.(raw);
+        return { buffer: ready.seed.bytes, usage, model: 'gpt-image-2', finalPrompt: input.finalPrompt, hasReferencePhoto: true,
+          apiMode: 'images.edit', referenceCountRequested: 1, referenceCountPassed: 1, durationMs: 1, fallbackUsed: false }; });
+      expect(await simpleBookReferenceRecoveryCLI(['--config', x.recoveryFile, '--execute'])).toBe(1);
+      expect(x.render).toHaveBeenCalledTimes(1); expect(x.fetcher).not.toHaveBeenCalled(); expect(x.editor).not.toHaveBeenCalled();
+      expect(sdk.create).toHaveBeenCalledTimes(kind === 'unchanged' ? 0 : 1);
+      const dir = path.join(x.old.directory, 'controlled-reference-recovery-20261008'); expect(existsSync(path.join(dir, 'book.html'))).toBe(false);
+      expect(existsSync(path.join(dir, 'audition_references.json'))).toBe(false);
+      const seal = JSON.parse(readFileSync(path.join(dir, 'sealed.json'), 'utf8')); expect(seal.status).toBe('failed');
+      if (kind === 'unknown') expect(seal.snapshot).toMatchObject({ unknownAttemptCosts: 1, stopped: true });
+      if (kind === 'cancelled') expect(seal.code).toBe('reference_recovery_cancelled');
+      if (kind === 'unchanged') expect(seal.code).toBe('simple_reference_recovery_unchanged');
+      for (const [n, hash] of x.heldHashes) expect(sha(readFileSync(path.join(x.old.directory, n)))).toBe(hash);
+    }, 60000);
   it('runs the actual visual-only path through Sol control and all9 images without a writer, preserving geometry/evidence and private serving', async () => {
     const x = await visualTransportFixture();
     expect(await simpleBookVisualContinuationCLI(['--config', x.visualFile, '--execute'])).toBe(0);

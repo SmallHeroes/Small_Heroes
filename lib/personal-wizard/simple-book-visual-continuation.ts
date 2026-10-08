@@ -36,18 +36,18 @@ export function visualEvidenceFiles(directory: string, prefix = ''): string[] {
   });
 }
 /** Pure admission: one SAME-book visual sibling, no writer/key/claim/provider on preparation. */
-export async function prepareSimpleBookVisualContinuation(configFile: string) {
+export async function readSimpleBookVisualContinuationEvidence(configFile: string, activeSourceHead?: string) {
   if (!path.isAbsolute(configFile)) fail('visual_config');
   const bytes = fencedText(configFile, 64000), config = visualContinuationConfigSchema.parse(JSON.parse(bytes));
   const checked = (f: z.infer<typeof file>) => { if (!path.isAbsolute(f.file) || previewSha(fencedText(f.file, 32000000)) !== f.sha256) fail('visual_evidence_changed'); };
   checked(config.repairConfig); checked(config.terminationReceipt); checked(config.technicalReviewReceipt);
-  const repair = await readSimpleBookRepairEvidence(config.repairConfig.file, config.sourceHead), job = repair.parent.job;
+  const repair = await readSimpleBookRepairEvidence(config.repairConfig.file, activeSourceHead ?? config.sourceHead), job = repair.parent.job;
   const inventory = new Map(config.artifacts.map(a => [a.relative, a.sha256]));
   if (inventory.size !== config.artifacts.length) fail('visual_inventory');
   const required = ['repair-simple-book-result.json', 'repair-sealed.json', 'repair-story.md',
     ...visualEvidenceFiles(repair.directory).map(n => `controlled-editor-repair-20261008/${n}`),
     ...visualEvidenceFiles(path.join(job.directory, 'illustrations')).map(n => `illustrations/${n}`),
-    ...readdirSync(job.directory).filter(n => /^view-\d{4}\.json$/.test(n) || /^(?:reference_|page_|audition_|illustrated_)/.test(n))];
+    ...(activeSourceHead ? [...inventory.keys()] : readdirSync(job.directory)).filter(n => /^view-\d{4}\.json$/.test(n) || /^(?:reference_|page_|audition_|illustrated_)/.test(n))];
   if (required.some(n => !inventory.has(n))) fail('visual_inventory');
   const allEngineering = [...repair.allEngineering, ...config.extraEngineeringReceipts];
   simpleBookExternalCosts(allEngineering);
@@ -147,8 +147,13 @@ export async function prepareSimpleBookVisualContinuation(configFile: string) {
   const directory = path.join(job.directory, 'controlled-visual-continuation-20261008');
   const current = { ...repair.parent.original, sourceHead: config.sourceHead, reviewModel: config.reviewModel, actorOwnedAppearance: true as const };
   return { config, repair, job, current, result, rebuilt, rawDraft, oldSource, oldImage, oldImageBytes, control, inherited, view,
-    inheritedAttempts: 12, extra, externalMicroUsd, directory, verify, claim() {
-      verify(); mkdirSync(directory); exclusiveJson(path.join(directory, 'claim.json'), { configSha256: previewSha(bytes), sourceHead: config.sourceHead,
+    inheritedAttempts: 12, extra, externalMicroUsd, directory, verify, configSha256: previewSha(bytes) };
+}
+export async function prepareSimpleBookVisualContinuation(configFile: string) {
+  const ready = await readSimpleBookVisualContinuationEvidence(configFile);
+  const { config, job, repair, inherited, extra, externalMicroUsd, directory, verify } = ready;
+  return { ...ready, claim() {
+      verify(); mkdirSync(directory); exclusiveJson(path.join(directory, 'claim.json'), { configSha256: ready.configSha256, sourceHead: config.sourceHead,
         requestDigest: repair.parent.oldClaim.requestDigest, inherited, extra, runtimeEligible: false });
       const budget = new SimpleBookBudget(path.join(directory, 'paid-stages'), externalMicroUsd);
       let sequence = readdirSync(job.directory).filter(n => /^view-\d{4}\.json$/.test(n)).length;

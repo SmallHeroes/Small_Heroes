@@ -86,6 +86,7 @@ export async function runSimpleBookIllustrator(args: {
   config: SimpleBookConfig; directory: string; budget: SimpleBookBudget; key: () => string; assertCurrent: () => void;
   signal: AbortSignal; result: Awaited<ReturnType<typeof runSimpleWizardBook>>; request: unknown; options: PersonalWizardOptions;
   progress: Parameters<typeof illustrateSimpleBook>[0]['progress'];
+  referenceRecovery?: { name: 'child' | 'entities' | 'locations'; bytes: Buffer; imageSha: string; context: unknown; review: unknown };
 }) {
   const approval = readAuditionApproval(args.config); if (!approval) fail('simple_visual_approval_missing');
   const directory = path.join(args.directory, 'illustrations'); mkdirSync(directory); realDirectory(directory);
@@ -102,6 +103,10 @@ export async function runSimpleBookIllustrator(args: {
   const cardImage = companion?.cardImage;
   if (!cardImage || !/^\/companions\/[a-z0-9_]+\/style01-sheets\/front\.png$/.test(cardImage)) return fail('simple_companion_reference');
   const companionImage = await writeImage('companion_reference.png', readFileSync(path.join(args.config.workspace, 'public', cardImage.slice(1))));
+  const seed = args.referenceRecovery;
+  if (seed && previewSha(seed.bytes) !== seed.imageSha) fail('simple_reference_recovery_image');
+  const referenceRecovery = seed ? { name: seed.name, context: seed.context, review: seed.review,
+    candidate: await writeImage('rejected_edit_input.png', seed.bytes) } : undefined;
   const data = (image: AuditionImage) => `data:image/png;base64,${readAuditionImage(directory, image).toString('base64')}`;
   const save = (name: string, value: unknown) => exclusiveJson(path.join(args.directory, `${name}.json`), value);
   const render: Parameters<typeof illustrateSimpleBook>[0]['render'] = async (step, prompt, refs, mode) => {
@@ -168,6 +173,7 @@ export async function runSimpleBookIllustrator(args: {
   const manifest = await illustrateSimpleBook({ result: args.result, request: args.request, options: args.options, seed: args.config.seed,
     approval, childDesign: args.config.illustratedAudition!.childDesign, companion: companionImage, signal: args.signal,
     actorOwnedAppearance: args.config.actorOwnedAppearance,
+    referenceRecovery,
     render, judge, identity, save, progress: args.progress });
   exclusiveText(path.join(args.directory, 'book.html'), illustratedBookHTML(manifest, (imageName, imageSha) => data({ imageName, imageSha })));
   return manifest;
