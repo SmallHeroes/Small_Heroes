@@ -1,6 +1,21 @@
 # SmallHeroes — Roadmap
 
-## One new illustrated wizard audition approved (2026-10-08)
+## One actual wizard book failed before storyboard and illustrations (2026-10-08)
+
+- Source `7d5484fe` ran once through the real owner-bound staging/local wizard. New fictional Goni/Dini book:
+  eight-page Opus author and fresh-session editor completed; first Astra final reading failed with truncated
+  JSON and runaway whitespace at the output cap. The fixed slot is failed/consumed, not silently resumable.
+- No storyboard, reference or image calls. Exact original/edit and failed native reply are preserved; no
+  illustrated-book, story-QA, pixel, product or production PASS is claimed.
+- All known estimates total USD4.526884, separately accounting for API and Max; USD7.473116 remains within
+  the original USD12 cap. No renewal, customer charge, push, merge or deployment.
+- Engineering A/B and the final cumulative-CLI correction have independent narrow Claude PASS. Latest full
+  repository gate remains RED with the same inherited assertion names and RPC errors, not waived.
+- Pending decision: a separately reviewed one-use continuation for THIS book only, preserving failed history,
+  all existing holds and the unchanged allowance. No more paid calls until Guy answers the pending question.
+  A valid material story finding may still hold the book; malformed critic output is never approval.
+
+## Historical initial approval and first connection checkpoint (2026-10-08)
 
 - Claude's first connection review `a4bfeb2a..0f8096c2` is HOLD. Correct model/allowance/error handling in a separate
   commit before book spend. Fixed repository-common one-use pilot, mandatory Max receipts, shared Astra transport

@@ -1,6 +1,40 @@
 # SmallHeroes — Current Technical State
 
-## Simple wizard book connection for one approved audition (2026-10-08)
+## Actual eight-page wizard audition stopped before images (2026-10-08)
+
+The first paid book at frozen source `7d5484fe6512746075626bd5f8352318d8c407ac` FAILED; it is not a
+finished or approved book. Normal staging sign-in and the actual loopback wizard submitted a new fictional
+profile, request `da35061ca55c166a12fc78a3222a9c420544c8bbebe1855dee19545154f3df4c`.
+Opus authored eight pages and edited them in a distinct fresh session. The first Astra final-only reading then
+returned `incomplete/max_output_tokens`. It generated only 653 nontrailing characters of truncated JSON followed
+by 54,596 whitespace characters; output tokens were 16,000, including only 635 reasoning tokens. This is a
+provider-output failure, not evidence of an auth/network problem or exhausted reasoning allowance.
+
+- The worker terminated exit 1, signal null, with the fixed one-use book slot sealed failed. Three logical
+  paid stages, zero image calls and zero unknown costs. Do not replay the worker, delete claims/seals, mint
+  another family, salvage the partial critic text, or call the saved prose QA-approved.
+- Known usage estimates total USD4.526884: engineering Max3.159055, author Max0.229717, editor Max0.297072,
+  Astra API0.841040. USD7.473116 remains under the original USD12 approval; this is not an invoice or a new
+  allowance. No customer purchase/charge, push, merge, deployment or production visual qualification occurred.
+- Claude independently passed A `a4bfeb2a..9acf746d` and B `9acf746d..df7bd763` with the four-reference host
+  condition, then separately passed the cumulative-CLI reservation fix `df7bd763..7d5484fe`. The actual host
+  pinned four references. These scoped technical verdicts do not prove live, literary or visual success.
+- Last focused check at `7d5484fe`: TypeScript 0 and 88/88 in two files. Prior broad check 816/816 in 19.
+  Latest full gate at `df7bd763` remains RED: ordinary6755/10/73skip, resource634/1 plus three RPC errors;
+  the eleven assertion names match the earlier complete run. No full-green claim or new full rerun here.
+- All nine local JSON Schema references resolve; the wire is strict `json_schema` and already explicitly asks
+  for complete JSON without padding. The official Structured Outputs guide supports references. An output-format
+  compatibility fault is a hypothesis, not a proved root cause; increasing the cap alone is not justified.
+- Original and edited prose are preserved byte-faithfully in `overnight-book-text-held-20261008/` beside this
+  chat's reports, clearly marked unapproved/no illustrations. The actual wizard also shows the failure and text.
+  Diagnosis: `OVERNIGHT-BOOK-FAILURE-DIAGNOSIS-20261008.md`; native wires/receipts and failed seal remain under
+  the common Git `codex-simple-wizard-book/one-approved-book-20261008` namespace.
+- Next: await Guy's pending explicit decision on one controlled continuation of this same book under the
+  unchanged USD12 cap. Before any further paid call, design and independently verify bounded recovery that
+  preserves the failed history, source/request/receipt identity and all story/visual holds. No automatic retry,
+  new book, hand-edited text, weaker critic, lower 0.70 identity threshold or production rollout is authorized.
+
+## Historical first connection checkpoint for the same audition (2026-10-08)
 
 First independent review of `a4bfeb2a..0f8096c2` is HOLD, not PASS. Codex is implementing a separate targeted
 correction: shared existing Astra authority for both storyboard stages, a fixed common-Git one-use pilot slot

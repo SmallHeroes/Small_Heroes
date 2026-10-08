@@ -1,5 +1,34 @@
 # Personal wizard simple book connection
 
+## Actual runtime closeout — failed, not an illustrated book
+
+Frozen execution source: `7d5484fe6512746075626bd5f8352318d8c407ac`. Actual reviewed wizard request:
+`da35061ca55c166a12fc78a3222a9c420544c8bbebe1855dee19545154f3df4c`. The new fictional Goni profile was
+submitted through normal staging sign-in and the actual loopback wizard, not a fixture or standalone generator.
+Opus author and fresh-session editor succeeded. The first final-only Astra response failed `incomplete` with
+native reason `max_output_tokens`: 4104 input /16000 output /635 reasoning tokens; 653-character partial JSON
+followed by 54596 trailing whitespace characters. No comparison, storyboard, references or image calls ran.
+The host terminated code1/signalnull and the original one-use namespace is sealed failed, runtimeEligible false.
+
+Known estimates, conservatively rounded per receipt: engineering MaxUSD3.159055, author Max0.229717,
+editor Max0.297072, Astra API0.841040; totalUSD4.526884, unknown0, remainingUSD7.473116 under the unchanged12.
+No invoice claim, customer purchase, new allowance, automatic retry, key rotation, push or deployment.
+Independent Claude A/B and cumulative-CLI correction PASSs stay scoped to their reviewed ranges; the four-ref
+host condition was pinned. The full gate remains RED atdf7bd763; latest focused7d5484fe is88/88 and tsc0.
+
+All nine local schema references resolve, and strict json_schema already receives an explicit complete-JSON
+instruction. OpenAI's Structured Outputs guide supports references and requires handling incomplete replies:
+https://developers.openai.com/api/docs/guides/structured-outputs . References/decoder interaction remains a
+hypothesis, not a proved cause. Neither a larger output cap nor a salvaged prefix is justified as a fix.
+The partial critic text suggests a world-rule ambiguity but is not a valid compiled finding or a story PASS.
+
+Exact manuscripts, failure diagnosis, host records and raw receipts are preserved. Reader export beside the
+chat reports: overnight-book-text-held-20261008/index.html (and original.md/edited.md), unapproved/no images.
+The live wizard visibly reports the failure. Recovery question is pending: explicit bounded continuation of
+THIS book, with failed evidence intact and original USD12 accounting. No further paid dispatch until that
+decision and independent review; never remove claims/seals, renew authority by another folder, hand-edit prose,
+drop findings, downgrade the judge or alter0.70. Current source/canon/public behavior is unchanged by this docs closeout.
+
 ## Decision and current boundary
 
 Guy approved a new fictional eight-page book plus cover, through the actual wizard and engine, reusing the existing OpenAI key, with a fresh total USD12 cap including separately reported Claude Max estimates. Opus writes from scratch and edits in a fresh process; Astra reviews. No purchase, public rollout, push, deployment, hand-edited prose or relaxed identity gate is authorized.
