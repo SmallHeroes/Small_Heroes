@@ -9,7 +9,11 @@ import { resolvePersonalWizardOptions } from '../options';
 import { canonicalJson } from '../request-acceptance';
 import { prepareSimpleStory, writeSimpleStory, type SimpleStoryCall, type SimpleStoryDraft } from '../simple-story-engine';
 import { createCurrentSimpleStorySource } from '../simple-story-source';
-import { prepareCurrentPersonalStoryboard, compilePersonalStoryboard, PERSONAL_STORYBOARD_INSTRUCTION, personalStoryboardReviewSchema } from '../storyboard';
+import { prepareCurrentPersonalStoryboard, compilePersonalStoryboard, PERSONAL_STORYBOARD_INSTRUCTION, OWNED_STORYBOARD_INSTRUCTION, personalStoryboardReviewSchema, currentPersonalStoryboardFrame } from '../storyboard';
+import { validatePreviewPlan } from '../../local-story-preview';
+import { ownedWholeBookDraftSchema } from '../../local-book-planning';
+import { simpleWizardVisualPayload } from '../../../scripts/personal-simple-wizard-worker';
+import { decodePersonalBookProviderOutput } from '../book-openai';
 import { PERSONAL_BOOK_REVIEW_INSTRUCTION } from '../book-runner';
 import { personalBookOutputLimits } from '../book-config';
 import { runSimpleStoryboardDiagnostic, SIMPLE_STORYBOARD_INPUT_LIMIT, type SimpleStoryboardDiagnosticCall } from '../simple-storyboard-diagnostic';
@@ -73,6 +77,60 @@ async function files(length = 'short') {
 }
 
 describe('simple storyboard diagnostic over existing current seams', () => {
+  it.each(['short', 'medium', 'long'])('binds actor-owned appearance separately from unchanged canon for %s, across every actual frame', async length => {
+    const f = await fixture(length), old = structuredClone(f.draft), draft: any = structuredClone(f.draft);
+    delete draft.plan.wardrobe;
+    draft.plan.actorAppearance = { child: { role: 'child', clothing: ['turquoise cotton shirt', 'ochre shorts', 'purple sneakers'] },
+      companion: { role: 'companion', authority: 'companionVisualAuthority' } };
+    const source = prepareCurrentPersonalStoryboard(f.request, f.writerResult, options, true), book = compilePersonalStoryboard(source, draft);
+    const review = { ...f.review, sourceDigest: book.sourceDigest, storyboardDigest: book.storyboardDigest };
+    const generate = vi.fn(async (call: SimpleStoryboardDiagnosticCall) => structuredClone(call.stage === 'storyboard' ? draft : review));
+    const result = await runSimpleStoryboardDiagnostic({ ...f.args, actorOwnedAppearance: true, generate });
+    expect(source.sourceDigest).not.toBe(prepareCurrentPersonalStoryboard(f.request, f.writerResult, options).sourceDigest);
+    expect(result.status).toBe('review_supported'); expect(generate).toHaveBeenCalledTimes(2);
+    const planner = generate.mock.calls[0][0]; expect(planner.schema).toBe(ownedWholeBookDraftSchema);
+    expect(planner.instructions).toBe(OWNED_STORYBOARD_INSTRUCTION); expect(planner.context.actorOwnedAppearance).toBe(true);
+    const sdk = simpleWizardVisualPayload(planner, 'gpt-6.1-sol'); expect(sdk.model).toBe('gpt-6-astra'); // author, not QA
+    expect((sdk.text.format.schema as any).properties.plan.properties).not.toHaveProperty('wardrobe');
+    const strip = ({ pageNumber: _n, ...row }: any) => row;
+    const raw = { ...draft, plan: { ...draft.plan, pages: draft.plan.pages.map(strip), continuity: { ...draft.plan.continuity, pages: draft.plan.continuity.pages.map(strip) } },
+      sequence: { ...draft.sequence, pages: draft.sequence.pages.map(strip) } };
+    expect(decodePersonalBookProviderOutput(planner, raw)).toEqual(draft);
+    for (const frame of result.framePackets) {
+      expect(frame.context.visual.actorAppearance).toEqual(draft.plan.actorAppearance);
+      expect(frame.context.visual.wardrobe).toBe('turquoise cotton shirt; ochre shorts; purple sneakers');
+      const childLine = frame.render.prompt.split('\n').find(line => line.startsWith('CHILD:'))!;
+      expect(childLine).toContain('CHILD-OWNED CLOTHING ONLY'); expect(childLine).not.toContain(source.companionDescription);
+      expect(frame.context.companion.description).toBe(source.companionDescription);
+      expect(frame.render.prompt).toContain(`COMPANION: ${source.companionDescription}`);
+      expect(frame.render.contextSha).toBe(frame.qa.contextSha);
+    }
+    expect(() => currentPersonalStoryboardFrame(book, f.review, 0, { request: f.request, writerResult: f.writerResult, options })).toThrow('review_binding');
+    expect(f.draft).toEqual(old); expect(result.writerResult).toEqual(f.writerResult);
+    const corrupt = structuredClone(result.storyboard.plan); corrupt.wardrobe += '; borrowed companion accessory';
+    expect(() => validatePreviewPlan(corrupt, result.storyboard.narrativeSpreads)).toThrow('visual_wardrobe_owner_binding');
+  });
+  it.each(['legacy_mixed_wardrobe', 'swapped_roles', 'invented_companion_authority', 'empty_clothing', 'extra_mixed_field'])('rejects %s without a review or render fallback', async kind => {
+    const f = await fixture(), draft: any = structuredClone(f.draft);
+    if (kind !== 'legacy_mixed_wardrobe') {
+      delete draft.plan.wardrobe;
+      draft.plan.actorAppearance = { child: { role: 'child', clothing: ['child shirt'] }, companion: { role: 'companion', authority: 'companionVisualAuthority' } };
+      if (kind === 'swapped_roles') { draft.plan.actorAppearance.child.role = 'companion'; draft.plan.actorAppearance.companion.role = 'child'; }
+      if (kind === 'invented_companion_authority') draft.plan.actorAppearance.companion.authority = 'author_invented_costume';
+      if (kind === 'empty_clothing') draft.plan.actorAppearance.child.clothing = [];
+      if (kind === 'extra_mixed_field') draft.plan.wardrobe = 'child shirt and a companion sash';
+    }
+    const generate = vi.fn(async () => draft);
+    await expect(runSimpleStoryboardDiagnostic({ ...f.args, actorOwnedAppearance: true, generate })).rejects.toThrow();
+    expect(generate).toHaveBeenCalledTimes(1);
+  });
+  it('does not silently admit a new owned draft through the old/default contract', async () => {
+    const f = await fixture(), draft: any = structuredClone(f.draft);
+    delete draft.plan.wardrobe;
+    draft.plan.actorAppearance = { child: { role: 'child', clothing: ['child shirt'] }, companion: { role: 'companion', authority: 'companionVisualAuthority' } };
+    expect(() => compilePersonalStoryboard(prepareCurrentPersonalStoryboard(f.request, f.writerResult, options), draft)).toThrow();
+    expect(() => prepareCurrentPersonalStoryboard(f.request, f.writerResult, options, false as any)).toThrow('appearance_policy');
+  });
   it.each(['short', 'medium', 'long'])('drives one complete %s book, exact instructions and final-text packets without render authority', async length => {
     const f = await fixture(length), before = structuredClone(f.writerResult), result = await runSimpleStoryboardDiagnostic(f.args);
     expect(f.generate).toHaveBeenCalledTimes(2); expect(result.calls.map(call => call.stage)).toEqual(['storyboard', 'review']);

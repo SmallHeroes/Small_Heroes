@@ -16,7 +16,7 @@ export const CAUSAL_MODELS = { opus: 'claude-opus-5-5', astra: 'gpt-6-astra' } a
 export type Role = keyof typeof CAUSAL_MODELS;
 export type Rates = { inputMicroUsdPerToken: number; outputMicroUsdPerToken: number };
 export type WirePolicy = { executable: string; executableSha256: string; workspace: string; maxWireBytes: number;
-  rates: Record<Role, Rates>; astraInlineReferences?: true };
+  rates: Record<Role, Rates>; astraInlineReferences?: true; openAIReviewModel?: 'gpt-6.1-sol' };
 export type CausalWire = { role: Role; stage: CausalDispatch['stage']; model: string; outputCap: number;
   json: string; bytes: number; digest: string; reservedMicroUsd: number;
   payload: Record<string, unknown>; stdin: string | null; args: string[] | null };
@@ -28,9 +28,9 @@ export class CausalTransportError extends CausalHostError {
 }
 const sha = (s: string | Buffer) => createHash('sha256').update(s).digest('hex');
 const isOpus = (stage: CausalDispatch['stage']) => ['plan', 'replan', 'author', 'editor'].includes(stage);
-const astraPayload = (call: CausalDispatch, inline = false) => {
+const astraPayload = (call: CausalDispatch, inline = false, model: string = CAUSAL_MODELS.astra) => {
   const format = zodTextFormat(call.schema, `causal_${call.stage}`);
-  return { model: CAUSAL_MODELS.astra, store: false, service_tier: 'default', reasoning: { effort: 'medium' },
+  return { model, store: false, service_tier: 'default', reasoning: { effort: 'medium' },
     instructions: call.instructions, input: call.input, max_output_tokens: call.maxOutputTokens,
     text: { format: inline ? { ...format, schema: inlineLocalJsonSchemaReferences(format.schema) } : format } };
 };
@@ -59,10 +59,13 @@ export function prepareCausalWire(call: CausalDispatch, policy: WirePolicy, capM
   if (!(call.role in CAUSAL_MODELS) || isOpus(call.stage) !== (call.role === 'opus') ||
     !Number.isSafeInteger(call.maxOutputTokens) || call.maxOutputTokens < 1 || call.maxOutputTokens > 55_000 ||
     !Number.isSafeInteger(policy.maxWireBytes) || policy.maxWireBytes < 1 || policy.maxWireBytes > 104_000) hostFail('wire_contract');
-  const model = CAUSAL_MODELS[call.role];
+  if (policy.openAIReviewModel !== undefined && policy.openAIReviewModel !== 'gpt-6.1-sol') hostFail('wire_contract');
+  if (policy.openAIReviewModel && (policy.rates.astra.inputMicroUsdPerToken !== 2 || policy.rates.astra.outputMicroUsdPerToken !== 10)) hostFail('pricing');
+  // role='astra' is the legacy OpenAI-review transport role, NOT a reported model.
+  const model = call.role === 'astra' ? policy.openAIReviewModel ?? CAUSAL_MODELS.astra : CAUSAL_MODELS.opus;
   let payload: Record<string, unknown>, args: string[] | null = null, stdin: string | null = null;
   if (call.role === 'astra') {
-    payload = astraPayload(call, policy.astraInlineReferences);
+    payload = astraPayload(call, policy.astraInlineReferences, model);
   } else {
     if (!instructionFile || !path.isAbsolute(instructionFile)) hostFail('instruction_file');
     args = ['-p', '--safe-mode', '--model', model, '--effort', 'medium', '--tools', '', '--no-session-persistence',
@@ -85,11 +88,14 @@ function knownReceipt(raw: unknown, metadata: Record<string, unknown>, usage: un
 }
 const bounded = (s: unknown) => typeof s === 'string' && /^[a-zA-Z0-9._:/-]{1,180}$/.test(s) ? s : null;
 
-export function createAstraCausalTransport(args: { key: () => string; rates: Rates; fetch?: typeof fetch; inlineReferences?: true }) {
+export function createAstraCausalTransport(args: { key: () => string; rates: Rates; fetch?: typeof fetch; inlineReferences?: true; model?: 'gpt-6.1-sol' }) {
+  if (args.model !== undefined && args.model !== 'gpt-6.1-sol') hostFail('wire_contract');
+  if (args.model && (args.rates.inputMicroUsdPerToken !== 2 || args.rates.outputMicroUsdPerToken !== 10)) hostFail('pricing');
+  const model = args.model ?? CAUSAL_MODELS.astra;
   return async (wire: CausalWire, call: CausalDispatch, signal: AbortSignal): Promise<TransportReply> => {
     if (signal.aborted || wire.role !== 'astra' || call.role !== 'astra' || isOpus(call.stage) || wire.stage !== call.stage ||
-      wire.outputCap !== call.maxOutputTokens || wire.model !== CAUSAL_MODELS.astra || wire.digest !== sha(wire.json) ||
-      JSON.stringify(wire.payload) !== wire.json || JSON.stringify(astraPayload(call, args.inlineReferences)) !== wire.json) hostFail('wire_contract');
+      wire.outputCap !== call.maxOutputTokens || wire.model !== model || wire.digest !== sha(wire.json) ||
+      JSON.stringify(wire.payload) !== wire.json || JSON.stringify(astraPayload(call, args.inlineReferences, model)) !== wire.json) hostFail('wire_contract');
     let receipt = knownReceipt(null, {}, null, null);
     try {
       const key = args.key(); if (!key) hostFail('key_unavailable');
@@ -97,7 +103,8 @@ export function createAstraCausalTransport(args: { key: () => string; rates: Rat
       const response = await client.responses.create(wire.payload as unknown as OpenAI.Responses.ResponseCreateParamsNonStreaming,
         { signal, timeout: generationTimeoutMs(wire.outputCap) });
       const usage = safeUsage(response.usage ? { inputTokens: response.usage.input_tokens, outputTokens: response.usage.output_tokens } : null);
-      const micro = usage ? Math.ceil(usage.inputTokens * args.rates.inputMicroUsdPerToken + usage.outputTokens * args.rates.outputMicroUsdPerToken) : null;
+      const knownPricing = !args.model || response.model === wire.model && response.service_tier === 'default';
+      const micro = usage && knownPricing ? Math.ceil(usage.inputTokens * args.rates.inputMicroUsdPerToken + usage.outputTokens * args.rates.outputMicroUsdPerToken) : null;
       receipt = knownReceipt(response, { reportedModel: bounded(response.model), responseId: bounded(response.id), status: bounded(response.status),
         serviceTier: bounded(response.service_tier), kind: 'provider_reported_not_independent_attestation' }, usage, micro);
       if (signal.aborted) hostFail('cancelled');

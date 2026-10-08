@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
     const config = simpleBookConfig(allowed.settings.configFile);
     readAuditionApproval(config);
     const values = req.nextUrl.searchParams.getAll('requestId');
-    if (!values.length) return storyResponse({ configured: true, engine: 'simple-opus-fresh-editor-astra',
+    if (!values.length) return storyResponse({ configured: true, engine: config.reviewModel ? 'simple-opus-fresh-editor-sol61' : 'simple-opus-fresh-editor-astra',
       shortOnly: true, maximumUsd: 12, operatorWorkerRequired: true, imagesAvailable: !!config.illustratedAudition, runtimeEligible: false });
     if (values.length !== 1 || !hash.safeParse(values[0]).success) return storyResponse({ error: 'simple_request_binding' }, 422);
     const view = readSimpleBookStatus(config, allowed.userId, values[0]);

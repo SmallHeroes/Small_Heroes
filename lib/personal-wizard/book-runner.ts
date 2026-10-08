@@ -13,7 +13,7 @@ import { prepareCurrentPersonalStoryboard, compilePersonalStoryboard, personalSt
   storyboardReviewDisposition, currentPersonalStoryboardFrame, PERSONAL_STORYBOARD_INSTRUCTION, type PersonalStoryboard } from './storyboard';
 
 export type BookVisualCall = { stage: 'storyboard' | 'review'; instructions: string; input: string; maxOutputTokens: number;
-  context: { narrativeSpreads: number; sourceDigest: string; storyboardDigest?: string } };
+  context: { narrativeSpreads: number; sourceDigest: string; storyboardDigest?: string; actorOwnedAppearance?: true } };
 export type PersonalBookProvider = { story: StoryProvider; editor: StoryEditorProvider;
   visual: { generate(call: BookVisualCall, signal: AbortSignal): Promise<{ output: unknown; usage: StoryUsage }> } };
 export type BookStage = 'plan' | 'manuscript' | 'editor' | 'storyboard' | 'review';

@@ -484,6 +484,31 @@ describe('one-shot causal trial connection (zero live providers)', () => {
 });
 
 describe('actual outgoing SDK wire and diagnostic CLI arguments', () => {
+  it.each(['original_review', 'final_review', 'comparison'] as const)('the explicitly selected Sol %s preserves the exact source/schema wire and records its own price', async stage => {
+    const root = temporary(), call = { ...criticCall(), stage }, rates = { inputMicroUsdPerToken: 2, outputMicroUsdPerToken: 10 };
+    const p = { ...wirePolicy(root), openAIReviewModel: 'gpt-6.1-sol' as const, rates: { ...wirePolicy(root).rates, astra: rates } };
+    const wire = prepareCausalWire(call, p, 1000000), key = vi.fn(() => 'fake');
+    const fetcher = vi.fn<typeof fetch>(async (_url, init) => {
+      expect(String(init?.body)).toBe(wire.json);
+      return new Response(JSON.stringify({ object: 'response', id: 'resp_synthetic', model: 'gpt-6.1-sol', status: 'completed', service_tier: 'default',
+        usage: { input_tokens: 2, output_tokens: 3 }, output: [{ type: 'message', role: 'assistant', content: [{ type: 'output_text', text: '{"value":"ok"}' }] }] }),
+      { status: 200, headers: { 'content-type': 'application/json' } });
+    });
+    const reply = await createAstraCausalTransport({ key, rates, model: 'gpt-6.1-sol', fetch: fetcher })(wire, call, new AbortController().signal);
+    expect(reply.estimatedMicroUsd).toBe(34); expect(reply.metadata.reportedModel).toBe('gpt-6.1-sol');
+    expect(wire.payload).toMatchObject({ model: 'gpt-6.1-sol', store: false, service_tier: 'default', reasoning: { effort: 'medium' } });
+    for (const key of ['previous_response_id', 'conversation', 'tools']) expect(wire.payload).not.toHaveProperty(key);
+    expect(fetcher).toHaveBeenCalledTimes(1); expect(key).toHaveBeenCalledTimes(1);
+    const legacy = prepareCausalWire(call, wirePolicy(root), 1000000); expect(legacy.model).toBe('gpt-6-astra');
+  });
+  it('rejects Sol model/rate drift and a self-consistent legacy wire before credential access', async () => {
+    const root = temporary(), call = criticCall(), p = wirePolicy(root), key = vi.fn(() => 'fake'), fetcher = vi.fn<typeof fetch>();
+    expect(() => prepareCausalWire(call, { ...p, openAIReviewModel: 'gpt-6.1-sol' }, 1000000)).toThrow('pricing');
+    expect(() => createAstraCausalTransport({ key, rates: p.rates.astra, model: 'gpt-6.1-sol', fetch: fetcher })).toThrow('pricing');
+    const run = createAstraCausalTransport({ key, rates: { inputMicroUsdPerToken: 2, outputMicroUsdPerToken: 10 }, model: 'gpt-6.1-sol', fetch: fetcher });
+    await expect(run(prepareCausalWire(call, p, 1000000), call, new AbortController().signal)).rejects.toThrow('wire_contract');
+    expect(key).not.toHaveBeenCalled(); expect(fetcher).not.toHaveBeenCalled();
+  });
   it.each(['original_review', 'final_review', 'comparison'] as const)('Astra %s HTTP body is byte-identical to preflight, no history/tools/retry', async stage => {
     const root = temporary(), c = { ...criticCall(), stage }, wire = prepareCausalWire(c, wirePolicy(root), 1_000_000), bodies: string[] = [];
     const fetcher = vi.fn<typeof fetch>(async (_url, init) => { bodies.push(String(init?.body)); return new Response(JSON.stringify({ object: 'response', id: 'resp_synthetic',

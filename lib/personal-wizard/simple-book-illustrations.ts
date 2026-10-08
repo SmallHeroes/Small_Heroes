@@ -26,6 +26,7 @@ const fail = (code: string): never => { throw new SimpleIllustrationError(code);
 export async function illustrateSimpleBook(args: {
   result: WizardResult; request: unknown; options: PersonalWizardOptions; seed: string;
   approval: unknown; childDesign: string; companion: AuditionImage; signal: AbortSignal;
+  actorOwnedAppearance?: true;
   render: (step: string, prompt: string, refs: AuditionImage[], mode: 'book_identity' | 'identity') => Promise<AuditionImage>;
   judge: (step: string, candidate: AuditionImage, context: unknown, contextSha: string, refs: AuditionImage[], predecessor: AuditionImage | null) => Promise<unknown>;
   identity: (step: string, child: AuditionImage, candidate: AuditionImage) => Promise<PageChildResemblanceVisionResult>;
@@ -35,13 +36,17 @@ export async function illustrateSimpleBook(args: {
   illustratedAuditionApprovalSchema.parse(args.approval);
   if (args.result.status !== 'review_supported' || !args.result.storyboard || args.childDesign.trim().length < 20 || args.childDesign.length > 1500) fail('simple_illustration_admission');
   const result = args.result, diagnostic = result.storyboard!, book = diagnostic.storyboard;
+  if (args.actorOwnedAppearance && !book.plan.actorAppearance) fail('simple_visual_ownership_required');
   const current = { request: args.request, writerResult: result.source, options: args.options };
   const prepared = prepareSimpleStory(args.request, args.options, args.seed);
   if (prepared.book.pages !== 8 || prepared.accepted.containsFixtureData || prepared.accepted.canonical.appearance.photo !== 'none') fail('simple_illustration_admission');
-  const binding = previewSha(canonicalJson({ request: args.request, source: result.source, approval: args.approval, childDesign: args.childDesign }));
+  const bindingValue = () => ({ request: args.request, source: result.source, approval: args.approval, childDesign: args.childDesign,
+    ...(args.actorOwnedAppearance ? { actorOwnedAppearance: true } : {}) });
+  const binding = previewSha(canonicalJson(bindingValue()));
   const check = () => {
     if (args.signal.aborted) fail('simple_illustration_cancelled');
-    if (previewSha(canonicalJson({ request: args.request, source: result.source, approval: args.approval, childDesign: args.childDesign })) !== binding) fail('simple_illustration_source_changed');
+    if (previewSha(canonicalJson(bindingValue())) !== binding) fail('simple_illustration_source_changed');
+    if (args.actorOwnedAppearance && !book.plan.actorAppearance) fail('simple_visual_ownership_required');
     // Branded current source and whole-book review admission, not a JSON restoration shortcut.
     currentPersonalStoryboardFrame(book, diagnostic.rawReview, 0, current);
   };
@@ -51,7 +56,8 @@ export async function illustrateSimpleBook(args: {
     locations: { locations: book.plan.locations, geography: book.sequence.premise },
   };
   const refSpecs = [
-    { name: 'child', design: { age: prepared.brief.child.age, address: prepared.brief.child.address, fictionalDesign: args.childDesign, wardrobe: book.plan.wardrobe },
+    { name: 'child', design: { age: prepared.brief.child.age, address: prepared.brief.child.address, fictionalDesign: args.childDesign, wardrobe: book.plan.wardrobe,
+      ...(book.plan.actorAppearance ? { role: 'child', clothing: book.plan.actorAppearance.child.clothing } : {}) },
       prompt: `${STYLE_01_SHARED}\nOne NEW fictional child character anchor, not a real photograph. ${prepared.brief.child.age} year old ${prepared.brief.child.address}. ${args.childDesign}. Exact wardrobe: ${book.plan.wardrobe}. One child only, full natural body, readable front three-quarter face, arms and hands visible, ordinary relaxed standing pose, warm cream near-empty background. No props, companion, words, panels or lettering.` },
     { name: 'entities', design: designs.entities,
       prompt: `${STYLE_01_SHARED}\nCanonical PROP AND SUPPORTING CAST design atlas for a single book. Isolated clear designs with short Latin ID labels, one tile per listed ID. Include EVERY ID exactly once, preserve all invariants. Do not invent extra characters, child or companion. Not a story scene. AUTHORITATIVE DESIGN DATA: ${canonicalJson(designs.entities)}` },

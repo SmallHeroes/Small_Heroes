@@ -274,7 +274,8 @@ describe('real authenticated local simple-book route and one-use queue', () => {
 });
 
 describe('explicit native worker boundary with fake transports only', () => {
-  async function workerFixture() {
+  async function workerFixture(reviewModel?: 'gpt-6.1-sol') {
+    if (reviewModel) { config.reviewModel = reviewModel; config.actorOwnedAppearance = true; }
     const f = await fixture(); writeFileSync(config.executable, 'SYNTHETIC NEVER EXECUTED'); config.executableSha256 = sha(readFileSync(config.executable));
     writeFileSync(config.existingKeyEnvFile, 'OPENAI_API_KEY=sk-synthetic-test-only-not-a-provider-key');
     writeFileSync(file, JSON.stringify(config));
@@ -285,6 +286,10 @@ describe('explicit native worker boundary with fake transports only', () => {
     const { pages: pp, ...plan } = f.storyboardDraft.plan, { pages: sp, ...sequence } = f.storyboardDraft.sequence;
     const strip = ({ pageNumber: _n, ...row }: any) => row;
     const draft = { plan: { ...plan, pages: pp.map(strip), continuity: { ...continuity, pages: cp.map(strip) } }, sequence: { ...sequence, pages: sp.map(strip) } };
+    if (reviewModel) {
+      delete (draft.plan as any).wardrobe;
+      (draft.plan as any).actorAppearance = { child: { role: 'child', clothing: ['red shirt', 'blue shorts', 'teal shoes'] }, companion: { role: 'companion', authority: 'companionVisualAuthority' } };
+    }
     const group = (rows: any[]) => Object.fromEntries(rows.map(({ category, ...row }) => [category, row]));
     const review = { bookChecks: group(f.review.bookChecks), frames: f.review.frames.map(frame => group(frame.checks)) };
     sdk.create.mockImplementation(async payload => {
@@ -310,6 +315,26 @@ describe('explicit native worker boundary with fake transports only', () => {
     const result = JSON.parse(readFileSync(path.join(f.directory, 'simple-book-result.json'), 'utf8'));
     expect(result.storyboard.framePackets).toHaveLength(9); expect(result.storyboard.framePackets.every((p: any) => p.runtimeEligible === false)).toBe(true);
     await expect(simpleWizardWorkerCLI(['--config', file, '--execute'])).rejects.toThrow(); expect(sdk.create).toHaveBeenCalledTimes(4);
+  });
+  it('routes all three future text/board reviews to exact Sol, retains Opus writing and Astra planning, and prices actual receipts', async () => {
+    const f = await workerFixture('gpt-6.1-sol');
+    expect(await simpleWizardWorkerCLI(['--config', file, '--execute'])).toBe(0);
+    expect(sdk.create.mock.calls.map(([p]) => p.model)).toEqual(['gpt-6.1-sol', 'gpt-6.1-sol', 'gpt-6-astra', 'gpt-6.1-sol']);
+    expect(f.args.opus.mock.calls.map(([call]) => call.stage)).toEqual(['author', 'editor']);
+    for (const step of ['final_review', 'comparison', 'storyboard_review']) {
+      const result = JSON.parse(readFileSync(path.join(f.directory, `paid-stages/${step}.result.json`), 'utf8'));
+      expect(result.estimatedMicroUsd).toBe(1200); expect(result.completed).toBe(true);
+    }
+    const result = JSON.parse(readFileSync(path.join(f.directory, 'simple-book-result.json'), 'utf8'));
+    expect(result.storyboard.storyboard.plan.actorAppearance.child.role).toBe('child');
+  });
+  it('a different reported reviewer model holds with unknown pricing instead of a silent Astra fallback', async () => {
+    const f = await workerFixture('gpt-6.1-sol'), normal = sdk.create.getMockImplementation()!;
+    sdk.create.mockImplementation(async p => ({ ...await normal(p), model: 'gpt-6-astra' }));
+    expect(await simpleWizardWorkerCLI(['--config', file, '--execute'])).toBe(1);
+    expect(sdk.create).toHaveBeenCalledTimes(1);
+    const sealed = JSON.parse(readFileSync(path.join(f.directory, 'sealed.json'), 'utf8'));
+    expect(sealed.snapshot).toMatchObject({ stopped: true, unknownAttemptCosts: 1 });
   });
   it('refuses source/common-directory output locations and an occupied CLI workspace before claiming the only slot', async () => {
     const f = await workerFixture();
@@ -347,8 +372,8 @@ describe('explicit native worker boundary with fake transports only', () => {
     }
     expect(JSON.parse(readFileSync(path.join(f.directory, 'sealed.json'), 'utf8')).snapshot.knownEstimateMicroUsd).toBeGreaterThan(2200000);
   });
-  it('runs the actual opt-in worker adapter through 3 references, 9 images, pixel QA, numeric identity and owned private serving with synthetic transports', async () => {
-    const f = await workerFixture(), approvalFile = path.join(root, 'visual-approval.json');
+  it.each([undefined, 'gpt-6.1-sol'] as const)('runs the actual %s opt-in worker through 3 references, 9 images, pixel QA, numeric identity and owned private serving with synthetic transports', async reviewer => {
+    const f = await workerFixture(reviewer), approvalFile = path.join(root, 'visual-approval.json');
     writeFileSync(approvalFile, JSON.stringify(syntheticVisualApproval()));
     config.illustratedAudition = { approvalFile, approvalSha256: sha(readFileSync(approvalFile)), childDesign: 'A fictional child with short brown hair and brown eyes.' };
     // Queue binding is strict: use a separate fresh test repository namespace, not a replay of an old real slot.
@@ -380,6 +405,16 @@ describe('explicit native worker boundary with fake transports only', () => {
     vi.stubGlobal('fetch', fetch);
     expect(await simpleWizardWorkerCLI(['--config', file, '--execute'])).toBe(0);
     expect(render).toHaveBeenCalledTimes(12); expect(fetch).toHaveBeenCalledTimes(9); expect(sdk.create).toHaveBeenCalledTimes(16);
+    if (reviewer) {
+      const pixelCalls = sdk.create.mock.calls.filter(([p]) => Array.isArray(p.input));
+      expect(pixelCalls).toHaveLength(12);
+      for (const [p] of pixelCalls) {
+        expect(p.model).toBe('gpt-6.1-sol'); expect(p.reasoning.effort).toBe('medium'); expect(p.max_output_tokens).toBe(12000);
+        expect(p.input[0].content.slice(1).every((image: any) => image.type === 'input_image' && image.image_url.startsWith('data:image/png;base64,'))).toBe(true);
+      }
+      expect(JSON.parse(readFileSync(path.join(directory, 'paid-stages/reference_child_qa.result.json'), 'utf8')).estimatedMicroUsd).toBe(1200);
+      expect(JSON.parse(readFileSync(path.join(directory, 'paid-stages/reference_child_qa.claim.json'), 'utf8')).maximumMicroUsd).toBe(600000);
+    }
     for (const [input] of render.mock.calls.slice(3)) {
       expect(input.referenceMode).toBe('book_identity'); expect(input.referenceImages).toHaveLength(4); expect(input.exactReferenceBytes).toHaveLength(4);
       expect(input.modelOverride).toBe('gpt-image-2'); expect(input.quality).toBe('low'); expect(input.signal).toBeDefined();
@@ -436,6 +471,11 @@ describe('injected illustrated audition admission, failure boundaries and state 
     expect(html.match(/<img /g)).toHaveLength(9); expect(html).not.toContain('<script'); expect(result.manuscript).toEqual(f.args.result.source.manuscript);
     expect(() => illustratedBookHTML({ ...result, pages: result.pages.slice(1) }, () => '')).toThrow('simple_book_incomplete');
   });
+  it('requires an owned storyboard before a child reference is generated when the new policy is selected', async () => {
+    const f = await illustrationFixture();
+    await expect(illustrateSimpleBook({ ...f.args, actorOwnedAppearance: true })).rejects.toThrow('simple_visual_ownership_required');
+    expect(f.args.render).not.toHaveBeenCalled(); expect(f.args.judge).not.toHaveBeenCalled();
+  });
   it.each(['approval', 'production', 'threshold', 'cancel', 'unreviewed'])('rejects %s before any reference dispatch', async kind => {
     const f = await illustrationFixture();
     if (kind === 'approval') f.args.approval.oneBookDiagnosticVisualException.approved = false;
@@ -481,6 +521,8 @@ describe('injected illustrated audition admission, failure boundaries and state 
   it('prices known image usage conservatively and never infers visual authority from cost', () => {
     expect(auditionUsageCost({ input_tokens: 100, output_tokens: 100 }, 'image')).toBe(3800);
     expect(auditionUsageCost({ input_tokens: 100, output_tokens: 100 }, 'astra')).toBe(6000);
+    expect(auditionUsageCost({ input_tokens: 100, output_tokens: 100 }, 'sol')).toBe(1200);
+    expect(auditionUsageCost({ input_tokens: 272001, output_tokens: 100 }, 'sol')).toBe(272001 * 4 + 1500);
     expect(() => illustratedAuditionApprovalSchema.parse({ ...syntheticVisualApproval(), customerCharge: true })).toThrow();
     expect(() => readAuditionImage(root, { imageName: '../file.png', imageSha: 'a'.repeat(64) })).toThrow('simple_image_path');
     expect(readSimpleBookView({ ...emptySimpleBookView('a'.repeat(64)), phase: 'illustrated_audition' }, 'a'.repeat(64))).toBeNull();

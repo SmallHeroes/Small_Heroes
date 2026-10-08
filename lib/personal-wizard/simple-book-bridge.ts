@@ -15,11 +15,19 @@ export const simpleBookConfigSchema = z.object({ version: z.literal('local-simpl
   outputParent: z.string().min(1), sourceHead: z.string().regex(/^[a-f0-9]{40}$/), approvalReference: z.string().min(20).max(2000),
   maximumMicroUsd: z.literal(12000000), fictionalProfile: z.literal(true), seed: z.string().min(1).max(120),
   executable: z.string().min(1), executableSha256: hash, existingKeyEnvFile: z.string().min(1),
+  // Missing means the historical Astra diagnostic. New active configurations select
+  // the explicitly requested Sol reviewer; never reinterpret old wires/receipts.
+  reviewModel: z.literal('gpt-6.1-sol').optional(), actorOwnedAppearance: z.literal(true).optional(),
   engineeringReceipts: z.array(z.object({ file: z.string().min(1), sha256: hash }).strict()).min(2).max(8),
   illustratedAudition: z.object({ approvalFile: z.string().min(1), approvalSha256: hash,
     childDesign: z.string().trim().min(20).max(1500) }).strict().optional(),
 }).strict();
 export type SimpleBookConfig = z.infer<typeof simpleBookConfigSchema>;
+export function simpleBookReviewPolicy(config: Pick<SimpleBookConfig, 'reviewModel'>) {
+  if (config.reviewModel !== undefined && config.reviewModel !== 'gpt-6.1-sol') throw Error('simple_review_model');
+  return config.reviewModel ? { model: config.reviewModel, inputMicroUsdPerToken: 2, outputMicroUsdPerToken: 10 }
+    : { model: CAUSAL_MODELS.astra, inputMicroUsdPerToken: 10, outputMicroUsdPerToken: 50 };
+}
 const queuedSchema = z.object({ version: z.literal('local-simple-wizard-request/v1'), configDigest: hash,
   userId: z.string().min(1).max(200), requestId: hash, optionsFingerprint: hash,
   consent: z.literal('reviewed_text_to_simple_book_diagnostic'), request: z.unknown() }).strict();

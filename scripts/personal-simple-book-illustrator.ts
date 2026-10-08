@@ -12,7 +12,7 @@ import { previewSha } from '../lib/local-story-preview';
 import { evaluatePageChildResemblanceVision } from '../lib/generation-pipeline/page-child-resemblance-vision';
 import { illustrateSimpleBook, illustratedBookHTML, illustratedAuditionApprovalSchema, type AuditionImage, SimpleIllustrationError } from '../lib/personal-wizard/simple-book-illustrations';
 import { SimpleBookBudget } from '../lib/personal-wizard/simple-book-budget';
-import type { SimpleBookConfig } from '../lib/personal-wizard/simple-book-bridge';
+import { simpleBookReviewPolicy, type SimpleBookConfig } from '../lib/personal-wizard/simple-book-bridge';
 import type { runSimpleWizardBook } from '../lib/personal-wizard/simple-book-flow';
 import type { PersonalWizardOptions } from '../lib/personal-wizard/options';
 import { exclusiveJson, exclusiveText, fencedText, realDirectory } from './personal-causal-trial-journal';
@@ -20,12 +20,13 @@ import { CAUSAL_MODELS } from './personal-causal-trial-adapters';
 
 const fail = (code: string): never => { throw new SimpleIllustrationError(code); };
 const tokens = z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER);
-export function auditionUsageCost(raw: unknown, kind: 'image' | 'astra' | 'identity'): number | null {
+export function auditionUsageCost(raw: unknown, kind: 'image' | 'astra' | 'sol' | 'identity'): number | null {
   const u = z.object({ input_tokens: tokens, output_tokens: tokens }).passthrough().safeParse(raw);
   if (!u.success || u.data.input_tokens + u.data.output_tokens === 0) return null;
   // Image input is conservatively ALL priced at $8/M; no cache or lower text-input discount.
-  return Math.ceil(u.data.input_tokens * (kind === 'image' ? 8 : kind === 'astra' ? 10 : 2.5) +
-    u.data.output_tokens * (kind === 'image' ? 30 : kind === 'astra' ? 50 : 10));
+  const longSol = kind === 'sol' && u.data.input_tokens > 272000;
+  return Math.ceil(u.data.input_tokens * (kind === 'image' ? 8 : kind === 'astra' ? 10 : kind === 'sol' ? longSol ? 4 : 2 : 2.5) +
+    u.data.output_tokens * (kind === 'image' ? 30 : kind === 'astra' ? 50 : longSol ? 15 : 10));
 }
 export function readAuditionApproval(config: SimpleBookConfig) {
   if (!config.illustratedAudition) return null;
@@ -45,6 +46,7 @@ export async function runSimpleBookIllustrator(args: {
   progress: Parameters<typeof illustrateSimpleBook>[0]['progress'];
 }) {
   const approval = readAuditionApproval(args.config); if (!approval) fail('simple_visual_approval_missing');
+  const reviewPolicy = simpleBookReviewPolicy(args.config);
   const directory = path.join(args.directory, 'illustrations'); mkdirSync(directory); realDirectory(directory);
   const check = () => { if (args.signal.aborted) fail('simple_illustration_cancelled'); args.assertCurrent(); readAuditionApproval(args.config); };
   const writeImage = async (name: string, bytes: Buffer) => {
@@ -97,18 +99,24 @@ export async function runSimpleBookIllustrator(args: {
     const text = JSON.stringify({ candidateSha: candidate.imageSha, contextSha, context,
       imageRoles: ['candidate_complete', 'candidate_crop_top_left', 'candidate_crop_top_right', 'candidate_crop_bottom_left', 'candidate_crop_bottom_right',
         ...refs.map((_, i) => `canonical_${['child', 'companion', 'entities', 'locations'][i]}`), ...(predecessor ? ['prior_same_scene_comparison_not_authority'] : [])] });
-    const payload = { model: CAUSAL_MODELS.astra, store: false, service_tier: 'default' as const, reasoning: { effort: 'medium' as const },
+    const payload = { model: reviewPolicy.model, store: false, service_tier: 'default' as const, reasoning: { effort: 'medium' as const },
       instructions: PREVIEW_JUDGE_INSTRUCTION,
       input: [{ role: 'user' as const, content: [{ type: 'input_text' as const, text },
         ...imageURLs.map(image_url => ({ type: 'input_image' as const, image_url, detail: 'high' as const }))] }],
       max_output_tokens: 12000, text: { format: zodTextFormat(previewQualityReviewSchema, 'personal_audition_pixels') } };
     // All inputs <=1536². Astra high: <=2500 patches *1.2; 3001 tokens/image is conservative.
-    const maximumMicroUsd = (Buffer.byteLength(text + PREVIEW_JUDGE_INSTRUCTION, 'utf8') + imageURLs.length * 3001) * 10 + 12000 * 50;
+    if (imageURLs.length > 10 || Buffer.byteLength(text + PREVIEW_JUDGE_INSTRUCTION, 'utf8') > 104000) fail('simple_pixel_input_limit');
+    // Astra's established image estimate is unchanged. Sol's official model page
+    // confirms vision but the shared token calculator has not listed its multiplier.
+    // Use an explicit conservative USD0.60 slot, NOT an invented tokenizer formula.
+    // Real usage/cost is recorded and enforced; this is not an invoice hard cap.
+    const maximumMicroUsd = args.config.reviewModel ? 600000
+      : (Buffer.byteLength(text + PREVIEW_JUDGE_INSTRUCTION, 'utf8') + imageURLs.length * 3001) * 10 + 12000 * 50;
     return args.budget.run(step, payload, maximumMicroUsd, async () => {
       const client = new OpenAI({ apiKey: args.key(), baseURL: 'https://api.openai.com/v1', maxRetries: 0, logLevel: 'off' });
       const raw = await client.responses.create(payload, { signal: args.signal, timeout: 300000 });
-      const estimatedMicroUsd = raw.model === CAUSAL_MODELS.astra && raw.service_tier === 'default' ? auditionUsageCost(raw.usage, 'astra') : null, receipt = { raw, estimatedMicroUsd }; save(`${step}_provider`, receipt);
-      if (raw.status !== 'completed' || raw.model !== CAUSAL_MODELS.astra || raw.service_tier !== 'default' || !raw.output_text ||
+      const estimatedMicroUsd = raw.model === reviewPolicy.model && raw.service_tier === 'default' ? auditionUsageCost(raw.usage, args.config.reviewModel ? 'sol' : 'astra') : null, receipt = { raw, estimatedMicroUsd }; save(`${step}_provider`, receipt);
+      if (raw.status !== 'completed' || raw.model !== reviewPolicy.model || raw.service_tier !== 'default' || !raw.output_text ||
           !raw.usage || raw.usage.output_tokens > 12000)
         throw Object.assign(new SimpleIllustrationError('simple_pixel_provider_invalid'), { receipt });
       try { const value = previewQualityReviewSchema.parse(JSON.parse(raw.output_text)); check(); return { value, estimatedMicroUsd, receipt }; }
@@ -138,6 +146,7 @@ export async function runSimpleBookIllustrator(args: {
   };
   const manifest = await illustrateSimpleBook({ result: args.result, request: args.request, options: args.options, seed: args.config.seed,
     approval, childDesign: args.config.illustratedAudition!.childDesign, companion: companionImage, signal: args.signal,
+    actorOwnedAppearance: args.config.actorOwnedAppearance,
     render, judge, identity, save, progress: args.progress });
   exclusiveText(path.join(args.directory, 'book.html'), illustratedBookHTML(manifest, (imageName, imageSha) => data({ imageName, imageSha })));
   return manifest;

@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { BOOK_SEQUENCE_VERSION, BOOK_SEQUENCE_ROLES, bookSequenceSchema, validateBookSequence } from './local-book-sequence';
-import { previewPlanV2Schema, previewSha, previewStoryEvidence, validatePreviewPlan, type previewStory } from './local-story-preview';
+import { previewPlanV2Schema, ownedPreviewPlanSchema, previewSha, previewStoryEvidence, validatePreviewPlan, type previewStory } from './local-story-preview';
 import { PREVIEW_FRAMING_RULES, validatePreviewContinuity } from './local-preview-quality';
 
 export const WHOLE_BOOK_PLANNING_VERSION = 'local-whole-book-planning/v2';
@@ -36,6 +36,7 @@ export const wholeBookDraftSchema = z.object({
     pages: z.array(sequencePage.omit({ states: true })).min(2).max(24),
   }).strict(),
 }).strict();
+export const ownedWholeBookDraftSchema = wholeBookDraftSchema.extend({ plan: ownedPreviewPlanSchema });
 
 export const WHOLE_BOOK_PLANNING_INSTRUCTION = `Before planning any individual illustration, read ALL pages and determine the complete causal journey.
 Return one object with plan and sequence. Plan retains the existing visual-plan schema, including cover0 and all body pages.
@@ -67,9 +68,11 @@ export function wholeBookPlanningInput(story: ReturnType<typeof previewStory>, c
     story: structuredClone(story), childAge, gender, companionDescription };
 }
 
-export function compileWholeBookDraft(raw: unknown, story: ReturnType<typeof previewStory>) {
+export function compileWholeBookDraft(raw: unknown, story: ReturnType<typeof previewStory>, actorOwnedAppearance = false) {
   const { sourceSha, texts } = previewStoryEvidence(story);
-  const draft = wholeBookDraftSchema.parse(raw);
+  const authored = actorOwnedAppearance ? ownedWholeBookDraftSchema.parse(raw) : wholeBookDraftSchema.parse(raw);
+  const draft = 'actorAppearance' in authored.plan
+    ? { ...authored, plan: { ...authored.plan, wardrobe: authored.plan.actorAppearance.child.clothing.join('; ') } } : authored;
   const plan = validatePreviewPlan(draft.plan, texts.length - 1);
   plan.continuity = validatePreviewContinuity(plan.continuity, plan, texts);
   const planBytes = JSON.stringify(plan, null, 2) + '\n';

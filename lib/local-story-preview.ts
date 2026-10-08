@@ -28,7 +28,14 @@ export const previewPlanSchema = z.object({
 }).strict();
 // New paid runs require structured continuity; old saved plans remain readable.
 export const previewPlanV2Schema = previewPlanSchema.extend({ continuity: previewContinuitySchema });
-export type PreviewPlan = z.infer<typeof previewPlanSchema>;
+// Diagnostic owner-scoped contract. No mixed book-wide wardrobe prose is authored
+// in this schema. The companion's physical design remains server-owned canon.
+export const actorAppearanceSchema = z.object({
+  child: z.object({ role: z.literal('child'), clothing: z.array(z.string().trim().min(1).max(300)).min(1).max(12) }).strict(),
+  companion: z.object({ role: z.literal('companion'), authority: z.literal('companionVisualAuthority') }).strict(),
+}).strict();
+export const ownedPreviewPlanSchema = previewPlanV2Schema.omit({ wardrobe: true }).extend({ actorAppearance: actorAppearanceSchema });
+export type PreviewPlan = z.infer<typeof previewPlanSchema> & { actorAppearance?: z.infer<typeof actorAppearanceSchema> };
 
 declare const parsedStoryOrigin: unique symbol;
 export type PreviewStory = { title: string; pages: { pageNumber: number; text: string }[]; sourceSha: string;
@@ -78,7 +85,9 @@ export function previewStory(raw: string, childName: string, gender: 'boy' | 'gi
 }
 
 export function validatePreviewPlan(value: unknown, pageCount: number): PreviewPlan {
-  const plan = previewPlanSchema.parse(value);
+  const owned = !!value && typeof value === 'object' && 'actorAppearance' in value;
+  const plan: PreviewPlan = (owned ? previewPlanSchema.extend({ actorAppearance: actorAppearanceSchema }) : previewPlanSchema).parse(value);
+  if (plan.actorAppearance && plan.wardrobe !== plan.actorAppearance.child.clothing.join('; ')) throw Error('visual_wardrobe_owner_binding');
   const nonempty = (s: string) => s.trim().length > 0 && s.length <= 1800;
   if (!nonempty(plan.wardrobe) || !nonempty(plan.visualLanguage)) throw Error('empty_visual_lock');
   if (plan.recurringProps.length > 8 || plan.locations.length < 1 || plan.locations.length > 16) throw Error('invalid_lock_inventory');
@@ -103,8 +112,9 @@ export function previewPagePrompt(plan: PreviewPlan, pageNumber: number, text: s
     buildStyle01ChildAnatomicalLock({ childAge, allowDistinctSupportingChildren: true }), buildStyle01AnatomyIntegrityLock(),
     p.shot === 'close' ? STYLE_01_FRAMING_RULE_CLOSE_UP : STYLE_01_FRAMING_RULE,
     'Reference roles: image 1 = exact child identity and watercolor technique ONLY; image 2 = exact companion design ONLY; image 3, when attached = recurring PROP design board ONLY. Never copy their pose, expression, composition or blank backdrop. No panels, collage, captions, words or typography.',
-    `CHILD: ${childAge}-year-old ${gender}; same face/hair/skin identity. BOOK WARDROBE LOCK: ${plan.wardrobe}`,
+    `CHILD: ${childAge}-year-old ${gender}; same face/hair/skin identity. ${plan.actorAppearance ? 'CHILD-OWNED CLOTHING ONLY' : 'BOOK WARDROBE LOCK'}: ${plan.wardrobe}`,
     `COMPANION: ${companionDescription}`,
+    ...(plan.actorAppearance ? ['Actor-owned appearance: child clothing belongs ONLY to the child. The companion keeps ONLY its registered design/accessories and companion reference. Never transfer clothing, colours, anatomy or accessories between these roles.'] : []),
     `VISUAL LANGUAGE: ${plan.visualLanguage}`,
     `LOCATION LOCK: ${plan.locations.find(l => l.id === p.locationId)!.design}`,
     ...(plan.continuity ? [
@@ -129,6 +139,7 @@ export function selectedDraftQaContext(plan: PreviewPlan, pageNumber: number) {
   const page = plan.pages[pageNumber];
   const continuity = previewContinuityContext(plan.continuity!, pageNumber);
   return { scope: 'current_page_effective_state_only', wardrobe: plan.wardrobe, visualLanguage: plan.visualLanguage,
+    ...(plan.actorAppearance ? { actorAppearance: plan.actorAppearance } : {}),
     page, recurringProps: plan.recurringProps.filter(p => page.props.some(active => active.id === p.id)),
     locations: plan.locations.filter(l => continuity.page.visibleLocationIds.includes(l.id)), continuity };
 }

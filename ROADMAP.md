@@ -1,5 +1,17 @@
 # SmallHeroes — Roadmap
 
+## Owned visual inputs and cheapest requested QA model: local code ready for gates (2026-10-08)
+
+- Guy approved same-book progress and selected cheapest of Sol6.1/Astra/Opus5.5. Official base prices favor
+  exactSol6.1 2/10; new config selects it for text/board/pixel QA. Author/editor remain Opus, planner Astra.
+- General diagnostic owner schema/source binding/child-only reference+frame projection; no one-outfit patch.
+  Companion keeps registered visual canon; all existing continuity/0.70/four refs/LOW gates remain.
+- First887focused+tsc0;15selected controls and8virtual guard mutants caught. Final local checks, committed
+  full gate and native independent exact-range review precede paid work. No independent PASS yet.
+- Next: explicit one-use visual-only continuation over the same completed text, preserving all old evidence
+  and known8222758/original12m. Never reuse the consumed repair claim or rejected child reference as authority.
+  No book illustration yet; no production/default changes, push or deployment.
+
 ## Text and nine-frame storyboard supported; visual ownership gate next (2026-10-08)
 
 - Exact dcb repair code bounded engineeringPASS; native206/206, Codex874/874+tsc0. Full RED with11old test

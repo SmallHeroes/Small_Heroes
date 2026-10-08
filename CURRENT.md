@@ -1,5 +1,37 @@
 # SmallHeroes — Current Technical State
 
+## Approved owner-scoped diagnostic visuals and Sol6.1 QA implemented locally (2026-10-08)
+
+Guy approved continuing the same book, then corrected the model decision: use the cheapest of Sol6.1,
+Astra and Opus5.5 for future QA. Official base Standard USD/M input/output: Sol2/10, Opus4/20, Astra10/50.
+Exact gpt-6.1-sol supports Responses, images and structured output. No Opus-QA transport was built. Writing/
+editing stay fresh Opus; planner stays Astra; independent engineering review stays native Claude. Different
+model families do not establish literary/product accuracy. No production/default/archive provider changed.
+
+Codex sole writer in voice checkout/branch, base c54c1ddf. Opt-in owned visual draft removes mixed wardrobe
+prose from author schema. Child clothing has its explicit role; companion delegates to registered visual
+authority. Compiler derives child-only legacy wardrobe projection, includes owned mode in source binding,
+and sends identical owner data to frame/QA. Default schemas/prompt bytes remain as before. Role mismatches,
+old draft/owned-policy mixing and post-compile wardrobe drift reject. Semantic assignment still requires
+whole-book/pixel review; a role label is not proof that a model never misassigns an accessory.
+
+Explicit reviewModel config routes future final/comparison/board-review/pixel-review to Sol, with no silent
+Astra fallback or historical relabel. Same caps/medium effort/schema/citation coverage and actual full/four
+crops/canonical/prior pixels remain. Numeric gpt-4o0.70 gate and LOW1024/four refs unchanged. Sol pixel input
+multiplier is not yet in official calculator: conservative600000micro slot, actual known usage enforced, not
+an invented token formula/hard invoice cap. Wrong reported model/tier on the new route has unknown cost;
+reserve and stop, not price an unexpected model at Sol rates. Legacy evidence/defaults remain preserved.
+
+Provider-free validation: first tsc0 and887/887/19files. Then15/15 selected control tests and all8 virtual
+mutants caught by assertion failures (role/schema/source/wardrobe/model/pricing/unknown-cost), no source
+rewrites. Final focused/committed full gate and exact-range independent Claude review follow; no independent
+PASS self-awarded. No new API/key read/image/book call. Known cost still8222758, remaining3777242/original12m,
+unknown0; old failed seals and rejected anchor untouched. A separately admitted one-use visual-only continuation
+must validate them before paid work. The consumed editor-repair slot is never reopened. Goal incomplete.
+
+Decision: PERSONAL_SIMPLE_BOOK_REFERENCE_ROLE_ISOLATION_DECISION_20261008.md. No manual prose/image/board,
+new author/book, canonical accessory/ability changes, threshold/QA weakening, push/merge/deploy/customer charge.
+
 ## Same-book repair passed story/board; first reference stopped correctly (2026-10-08)
 
 Code dcbcb3aa (ccd8..dcb,16files) received native Claude bounded engineeringPASS, actual206/206, no proven

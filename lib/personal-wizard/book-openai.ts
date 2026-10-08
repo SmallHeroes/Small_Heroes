@@ -2,7 +2,7 @@ import 'server-only';
 import OpenAI from 'openai';
 import { zodTextFormat } from 'openai/helpers/zod';
 import { z } from 'zod';
-import { wholeBookDraftSchema } from '../local-book-planning';
+import { wholeBookDraftSchema, ownedWholeBookDraftSchema } from '../local-book-planning';
 import { personalStoryboardReviewSchema, STORYBOARD_BOOK_CHECKS, STORYBOARD_FRAME_CHECKS } from './storyboard';
 import { createPersonalStoryProvider } from './story-openai';
 import { createStoryEditorProvider } from './story-editor-openai';
@@ -17,19 +17,21 @@ export class BookProviderError extends Error {
 }
 const hash = /^[a-f0-9]{64}$/;
 export function personalBookProviderSchema(call: BookVisualCall) {
+  if (call.context.actorOwnedAppearance !== undefined && call.context.actorOwnedAppearance !== true) throw new BookProviderError('book_provider_context');
   const { narrativeSpreads: count, sourceDigest, storyboardDigest } = call.context;
   if (![8, 12, 16].includes(count) || !hash.test(sourceDigest) ||
       (call.stage === 'review' && !hash.test(storyboardDigest ?? '')) || !['storyboard', 'review'].includes(call.stage)) throw new BookProviderError('book_provider_context');
   if (call.stage === 'storyboard') {
-    return wholeBookDraftSchema.extend({
-      plan: wholeBookDraftSchema.shape.plan.extend({
-        pages: z.array(wholeBookDraftSchema.shape.plan.shape.pages.element.omit({ pageNumber: true })).length(count + 1),
-        continuity: wholeBookDraftSchema.shape.plan.shape.continuity.extend({
-          pages: z.array(wholeBookDraftSchema.shape.plan.shape.continuity.shape.pages.element.omit({ pageNumber: true })).length(count + 1),
+    const draft = call.context.actorOwnedAppearance ? ownedWholeBookDraftSchema : wholeBookDraftSchema;
+    return draft.extend({
+      plan: draft.shape.plan.extend({
+        pages: z.array(draft.shape.plan.shape.pages.element.omit({ pageNumber: true })).length(count + 1),
+        continuity: draft.shape.plan.shape.continuity.extend({
+          pages: z.array(draft.shape.plan.shape.continuity.shape.pages.element.omit({ pageNumber: true })).length(count + 1),
         }),
       }),
-      sequence: wholeBookDraftSchema.shape.sequence.extend({
-        pages: z.array(wholeBookDraftSchema.shape.sequence.shape.pages.element.omit({ pageNumber: true })).length(count),
+      sequence: draft.shape.sequence.extend({
+        pages: z.array(draft.shape.sequence.shape.pages.element.omit({ pageNumber: true })).length(count),
       }),
     });
   }

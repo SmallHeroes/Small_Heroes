@@ -1,6 +1,9 @@
 # Decision Gate — actor-owned visual inputs after first real reference HOLD
 
-STATUS: PLANNING ONLY. No implementation or further paid call. Guy decision required after the new visual failure.
+STATUS: APPROVED FOR IMPLEMENTATION. Guy asked to continue toward the same book, then explicitly approved
+future QA on the cheapest of exact Sol6.1, Astra and Opus5.5. Official prices checked2026-10-08:
+Sol6.1 2/10, Opus4/20 and Astra10/50 USD/M
+base input/output tokens. Independent engineering QA precedes the next same-book paid visual claim.
 Same approved book, current voice worktree, code dcbcb3aaf2249362904d3ff2d7ddaa716aa3e5c4. OriginalUSD12 unchanged.
 
 ## 1. Proposed change
@@ -9,7 +12,7 @@ Separate actor-owned appearance/clothing in current diagnostic reference and fra
 structured appearance/ownership authority where adequate; if insufficient, add the smallest explicit child/
 companion ownership contract rather than lexical removal of one character's accessory. Before paid continuation,
 design a bounded visual-only resume that preserves all previous costs/source/receipts and rejected evidence.
-Do not implement a resume or infer permission from a ledger's stopped=false.
+One explicit visual-only continuation may follow independent QA; never infer permission from stopped=false.
 
 ## 2. Why now?
 
@@ -71,7 +74,7 @@ No reset/delete/overwriting claims/seals or adopting the rejected child image as
 
 ## 10. Review assignment
 
-Guy decides whether to authorize this new milestone and a separately priced same-book visual continuation.
+Guy authorized this milestone and the same-book visual continuation within the original remaining allowance.
 Codex sole implementation owner. Claude independent first review read-only: falsify ownership routing,
 source/current plan binding, default behavior, no canonical laundering, failure/cost isolation, four refs,
 0.70 and stop-before-spend. Creative consultant optional only if owner-scope design needs product judgement.
@@ -79,5 +82,27 @@ source/current plan binding, default behavior, no canonical laundering, failure/
 ## 11. Do not do
 
 No further paid run under the consumed repair claim, new book/story, manual prose/image/board patch, gate
-relaxation, invented child/Dini canon or accessory, model/SDK migration, unsupported archive downgrade,
+relaxation, invented child/Dini canon or accessory, unrelated model/SDK migration, unsupported archive downgrade,
 production qualification/customer charge, push/merge/deploy. Goal still incomplete: zero book illustrations.
+
+## 12. Approved QA-provider amendment and stop-check
+
+Guy corrected the initial two-model question: choose the cheapest of Sol6.1, Astra and Opus5.5. Replace future
+diagnostic text, storyboard-review and pixel-review calls with exact gpt-6.1-sol in independent Responses
+calls. Existing author/editor, completed Astra receipts, original/source binding and the cheap
+numeric gpt-4o0.70 resemblance gate remain unchanged. The planner is not QA and remains Astra. No Anthropic
+API credential or SDK/Gateway migration. No automatic Astra fallback. Different-family review is not itself
+literary/product proof; independent code review remains separately attributed.
+
+Vision must send actual PNG bytes, full image/four crops/authority refs/prior comparison, not filenames or
+text pretending to be images. Existing Responses image inputs and structured output remain. Bound text, image
+count/bytes/dimensions and cost separately; do not price base64 bytes as text tokens or enlarge the old text
+wire limit. Claim before process/key, keep raw cost/termination/model/schema evidence, stop on unknown/failure.
+Claude Max writing/engineering consumes resources; report its list-price estimate separately from API QA.
+
+Stop-check answers: general owner-scoped routing, not an outfit patch; diagnostic opt-in/new contract with
+archive/default compatibility; no production route change. Money only after frozen code review. Smallest
+live proof is a newly generated child reference judged on its pixels; a defect/uncertainty stops before book
+frames. Existing originalUSD12 and8body+cover remain. No new product/canon decision is inferred. Codex sole
+writer in the existing task/voice checkout, base c54c1ddf. Native Claude first QA read-only and exact range.
+Guy ultimately accepts the nine actual illustrations, not just schemas/test or automated reviews.

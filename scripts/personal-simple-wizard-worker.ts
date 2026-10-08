@@ -4,7 +4,7 @@ import { mkdirSync, readFileSync, readdirSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { parseEnv } from 'node:util';
 import OpenAI from 'openai';
-import { simpleBookConfig, assertSimpleBookSource, queuedSimpleBook, claimSimpleBookWorker, type SimpleBookConfig } from '../lib/personal-wizard/simple-book-bridge';
+import { simpleBookConfig, assertSimpleBookSource, queuedSimpleBook, claimSimpleBookWorker, simpleBookReviewPolicy, type SimpleBookConfig } from '../lib/personal-wizard/simple-book-bridge';
 import { SimpleBookBudget, simpleBookExternalCosts } from '../lib/personal-wizard/simple-book-budget';
 import { runSimpleWizardBook, SimpleBookFlowError, type SimpleBookReadingCall } from '../lib/personal-wizard/simple-book-flow';
 import { emptySimpleBookView, type SimpleBookView } from '../lib/personal-wizard/simple-book-view';
@@ -21,8 +21,8 @@ import type { SimpleStoryCall } from '../lib/personal-wizard/simple-story-engine
 const sha = (v: Buffer | string) => createHash('sha256').update(v).digest('hex');
 const rates = { opus: { inputMicroUsdPerToken: 4, outputMicroUsdPerToken: 20 }, astra: { inputMicroUsdPerToken: 10, outputMicroUsdPerToken: 50 } };
 /** Reuses the existing strict real SDK storyboard wire and decoder. */
-export function simpleWizardVisualPayload(call: SimpleStoryboardDiagnosticCall) {
-  return personalBookProviderPayload(call, CAUSAL_MODELS.astra);
+export function simpleWizardVisualPayload(call: SimpleStoryboardDiagnosticCall, reviewModel: 'gpt-6.1-sol' | 'gpt-6-astra' = CAUSAL_MODELS.astra) {
+  return personalBookProviderPayload(call, call.stage === 'review' ? reviewModel : CAUSAL_MODELS.astra);
 }
 function existingKey(config: SimpleBookConfig) {
   const lines = fencedText(config.existingKeyEnvFile, 256000).split(/\r?\n/).filter(l => /^\s*OPENAI_API_KEY\s*=/.test(l));
@@ -61,11 +61,14 @@ export async function runSimpleBookWorkerPipeline(args: {
   const resumed = args.repair ?? args.continuation;
   const externalMicroUsd = simpleBookExternalCosts(config.engineeringReceipts);
   const controller = new AbortController();
+  const reviewPolicy = simpleBookReviewPolicy(config);
   const policy: WirePolicy = { executable: config.executable, executableSha256: config.executableSha256,
-    workspace: cliWorkspace, maxWireBytes: 104000, rates,
+    workspace: cliWorkspace, maxWireBytes: 104000, rates: { ...rates, astra: reviewPolicy },
+    ...(config.reviewModel ? { openAIReviewModel: config.reviewModel } : {}),
     ...(resumed ? { astraInlineReferences: true as const } : {}) };
   const opus = createOpusCausalTransport(policy);
-  const astra = createAstraCausalTransport({ key: () => existingKey(config), rates: rates.astra,
+  const astra = createAstraCausalTransport({ key: () => existingKey(config), rates: reviewPolicy,
+    ...(config.reviewModel ? { model: config.reviewModel } : {}),
     ...(resumed ? { inlineReferences: true as const } : {}) });
   const budget = resumed?.budget ?? new SimpleBookBudget(path.join(worker.directory, 'paid-stages'), externalMicroUsd);
   const artifact = (name: string) => args.repair ? `repair-${name}` : args.continuation ? `continuation-${name}` : name;
@@ -91,9 +94,9 @@ export async function runSimpleBookWorkerPipeline(args: {
   async function openAIStage(call: SimpleStoryboardDiagnosticCall, signal: AbortSignal) {
     assertCurrent();
     if (signal !== controller.signal) throw new SimpleBookFlowError('simple_signal_binding');
-    const payload = simpleWizardVisualPayload(call);
+    const payload = simpleWizardVisualPayload(call, reviewPolicy.model);
     const wireBytes = Buffer.byteLength(JSON.stringify(payload), 'utf8'); if (wireBytes > 128000) throw new SimpleBookFlowError('simple_wire_limit');
-    const rate = rates.astra;
+    const rate = call.stage === 'review' ? reviewPolicy : rates.astra;
     const maximumMicroUsd = wireReservation(wireBytes, call.maxOutputTokens, rate);
     const step = call.stage === 'review' ? 'storyboard_review' : call.stage;
     return budget.run(step, payload, maximumMicroUsd, async () => {
@@ -126,7 +129,7 @@ export async function runSimpleBookWorkerPipeline(args: {
   try {
     publish(last);
     const result = await runSimpleWizardBook({ request: worker.queued.request, options: worker.options, seed: config.seed,
-      signal: controller.signal, reservedWritingUsd: args.repair ? 2 : 4, publish,
+      signal: controller.signal, reservedWritingUsd: args.repair ? 2 : 4, publish, actorOwnedAppearance: config.actorOwnedAppearance,
       ...(args.repair ? { repair: { prior: args.repair.prior, readings: args.repair.readings } } : {}),
       opus: async (call, signal) => {
         assertCurrent(); if (signal !== controller.signal) throw new SimpleBookFlowError('simple_signal_binding');
