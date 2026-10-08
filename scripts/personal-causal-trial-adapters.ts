@@ -10,12 +10,13 @@ import type { CausalDispatch } from '../lib/personal-wizard/story-causal-experim
 import { generationTimeoutMs } from '../lib/personal-wizard/story-config';
 import { safeUsage } from './personal-story-trial-guard';
 import { CausalHostError, fencedText, hostFail } from './personal-causal-trial-journal';
+import { inlineLocalJsonSchemaReferences } from './personal-inline-json-schema';
 
 export const CAUSAL_MODELS = { opus: 'claude-opus-5-5', astra: 'gpt-6-astra' } as const;
 export type Role = keyof typeof CAUSAL_MODELS;
 export type Rates = { inputMicroUsdPerToken: number; outputMicroUsdPerToken: number };
 export type WirePolicy = { executable: string; executableSha256: string; workspace: string; maxWireBytes: number;
-  rates: Record<Role, Rates> };
+  rates: Record<Role, Rates>; astraInlineReferences?: true };
 export type CausalWire = { role: Role; stage: CausalDispatch['stage']; model: string; outputCap: number;
   json: string; bytes: number; digest: string; reservedMicroUsd: number;
   payload: Record<string, unknown>; stdin: string | null; args: string[] | null };
@@ -27,9 +28,12 @@ export class CausalTransportError extends CausalHostError {
 }
 const sha = (s: string | Buffer) => createHash('sha256').update(s).digest('hex');
 const isOpus = (stage: CausalDispatch['stage']) => ['plan', 'replan', 'author', 'editor'].includes(stage);
-const astraPayload = (call: CausalDispatch) => ({ model: CAUSAL_MODELS.astra, store: false, service_tier: 'default', reasoning: { effort: 'medium' },
-  instructions: call.instructions, input: call.input, max_output_tokens: call.maxOutputTokens,
-  text: { format: zodTextFormat(call.schema, `causal_${call.stage}`) } });
+const astraPayload = (call: CausalDispatch, inline = false) => {
+  const format = zodTextFormat(call.schema, `causal_${call.stage}`);
+  return { model: CAUSAL_MODELS.astra, store: false, service_tier: 'default', reasoning: { effort: 'medium' },
+    instructions: call.instructions, input: call.input, max_output_tokens: call.maxOutputTokens,
+    text: { format: inline ? { ...format, schema: inlineLocalJsonSchemaReferences(format.schema) } : format } };
+};
 function opusOutputContract(call: CausalDispatch) {
   const format = zodTextFormat(call.schema, `causal_${call.stage}`), schema = format.schema;
   if (schema.type === 'object' && !['anyOf', 'oneOf', 'allOf'].some(key => key in schema)) {
@@ -58,7 +62,7 @@ export function prepareCausalWire(call: CausalDispatch, policy: WirePolicy, capM
   const model = CAUSAL_MODELS[call.role];
   let payload: Record<string, unknown>, args: string[] | null = null, stdin: string | null = null;
   if (call.role === 'astra') {
-    payload = astraPayload(call);
+    payload = astraPayload(call, policy.astraInlineReferences);
   } else {
     if (!instructionFile || !path.isAbsolute(instructionFile)) hostFail('instruction_file');
     args = ['-p', '--safe-mode', '--model', model, '--effort', 'medium', '--tools', '', '--no-session-persistence',
@@ -81,11 +85,11 @@ function knownReceipt(raw: unknown, metadata: Record<string, unknown>, usage: un
 }
 const bounded = (s: unknown) => typeof s === 'string' && /^[a-zA-Z0-9._:/-]{1,180}$/.test(s) ? s : null;
 
-export function createAstraCausalTransport(args: { key: () => string; rates: Rates; fetch?: typeof fetch }) {
+export function createAstraCausalTransport(args: { key: () => string; rates: Rates; fetch?: typeof fetch; inlineReferences?: true }) {
   return async (wire: CausalWire, call: CausalDispatch, signal: AbortSignal): Promise<TransportReply> => {
     if (signal.aborted || wire.role !== 'astra' || call.role !== 'astra' || isOpus(call.stage) || wire.stage !== call.stage ||
       wire.outputCap !== call.maxOutputTokens || wire.model !== CAUSAL_MODELS.astra || wire.digest !== sha(wire.json) ||
-      JSON.stringify(wire.payload) !== wire.json || JSON.stringify(astraPayload(call)) !== wire.json) hostFail('wire_contract');
+      JSON.stringify(wire.payload) !== wire.json || JSON.stringify(astraPayload(call, args.inlineReferences)) !== wire.json) hostFail('wire_contract');
     let receipt = knownReceipt(null, {}, null, null);
     try {
       const key = args.key(); if (!key) hostFail('key_unavailable');
@@ -99,7 +103,13 @@ export function createAstraCausalTransport(args: { key: () => string; rates: Rat
       if (signal.aborted) hostFail('cancelled');
       if (response.model !== wire.model || response.service_tier !== 'default') hostFail('reported_model_or_tier');
       if (!usage || usage.outputTokens > wire.outputCap) hostFail('usage');
-      if (response.status !== 'completed' || !response.output_text) hostFail('incomplete');
+      if (response.status !== 'completed' || !response.output_text) {
+        if (args.inlineReferences && response.status === 'incomplete' && response.incomplete_details?.reason === 'max_output_tokens') {
+          const output = response.output_text || '';
+          hostFail(output.length - output.trimEnd().length >= 256 ? 'astra_output_limit_whitespace' : 'astra_output_limit');
+        }
+        hostFail('incomplete');
+      }
       const output = call.schema.parse(JSON.parse(response.output_text));
       return { ...receipt, output };
     } catch (error) {

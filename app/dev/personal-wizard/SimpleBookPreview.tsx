@@ -21,6 +21,7 @@ export function SimpleBookPreview({ request, requestId, stale, onEdit }: {
   const [available, setAvailable] = useState(false), [view, setView] = useState<SimpleBookView | null>(null);
   const [imagesEnabled, setImagesEnabled] = useState(false);
   const [busy, setBusy] = useState(false), [error, setError] = useState<string | null>(null);
+  const [statusRevision, setStatusRevision] = useState(0), refreshRequested = useRef(false);
   const identity = useRef({ requestId, stale }); identity.current = { requestId, stale };
   const current = view?.requestId === requestId ? view : null;
   useEffect(() => {
@@ -32,7 +33,9 @@ export function SimpleBookPreview({ request, requestId, stale, onEdit }: {
     return () => controller.abort();
   }, [requestId]);
   useEffect(() => {
-    if (!available || stale || current && (['illustrated_audition', 'held', 'failed'].includes(current.phase) || current.phase === 'references_required' && !imagesEnabled)) return;
+    const terminal = !!current && (['illustrated_audition', 'held', 'failed'].includes(current.phase) || current.phase === 'references_required' && !imagesEnabled);
+    if (!available || stale || terminal && !refreshRequested.current) return;
+    refreshRequested.current = false;
     const controller = new AbortController();
     const poll = async () => {
       try {
@@ -46,9 +49,11 @@ export function SimpleBookPreview({ request, requestId, stale, onEdit }: {
         if (next && !controller.signal.aborted) setView(previous => newerSimpleBookView(previous, next));
       } catch { /* No implicit replay or fallback on a poll failure. */ }
     };
-    void poll(); const timer = setInterval(() => void poll(), 10000);
+    void poll();
+    if (terminal) return () => controller.abort(); // Manual GET only; never restarts a paid worker.
+    const timer = setInterval(() => void poll(), 10000);
     return () => { controller.abort(); clearInterval(timer); };
-  }, [available, imagesEnabled, requestId, stale, current?.phase]);
+  }, [available, imagesEnabled, requestId, stale, current?.phase, statusRevision]);
   async function start() {
     if (!available || stale || busy || current) return;
     setBusy(true); setError(null);
@@ -71,6 +76,8 @@ export function SimpleBookPreview({ request, requestId, stale, onEdit }: {
       {busy ? 'שומרים בקשה…' : 'להפעיל את ניסוי הספר החדש'}
     </button>
     <button type="button" className={styles.linkButton} onClick={onEdit}>לערוך את הפרטים</button>
+    {current ? <button type="button" className={styles.linkButton} disabled={!available || stale || busy}
+      onClick={() => { refreshRequested.current = true; setStatusRevision(v => v + 1); }}>רענון מצב הספר</button> : null}
     <div role="status" aria-live="polite">{current ? <p>{phases[current.phase]}</p> : null}</div>
     {error ? <p className={styles.error}>לא ניתן להתחיל: {error}</p> : null}
     {current ? <p className={styles.hint}>אומדן שימוש כולל: ${(current.accounting.knownEstimateMicroUsd / 1e6).toFixed(4)} מתוך $12.

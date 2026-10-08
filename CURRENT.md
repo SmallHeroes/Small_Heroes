@@ -1,5 +1,38 @@
 # SmallHeroes — Current Technical State
 
+## Same-book continuation explicitly approved, implementation in progress (2026-10-08)
+
+Guy approved the controlled continuation after the book review. Codex is sole writer in the existing
+simple-story-voice-followup / codex/simple-story-voice-20261007, from clean5448a01a. The six protected trees remain
+unchanged. Existing key reuse, same eight-page book+cover and originalUSD12 remain; no new book or allowance.
+The book objective is still incomplete. No additional live call has been made during this implementation.
+
+- Keep original failed slot/seal, exact author/edit records, manuscripts and financial evidence immutable.
+  Explicit fixed continuation within that same repository-owned book slot carries ALL old costs plus new Max.
+  Reuse real paid writing records, validating saved native wires against current calls/current-source admission;
+  never re-dispatch authors or pretend a fresh writing call occurred. The same shared pipeline owns subsequent stages.
+- Opt-in acyclic local schema-ref expansion preserves strict constraints and server-side citation/Zod checks;
+  default payloads, models,16k reader caps/medium reasoning remain. It is a controlled compatibility experiment,
+  not a proved diagnosis of the provider failure. Typed whitespace/output-limit failure retains the whole receipt.
+- No writer/editor instruction, source schema, canon, whole-book storyboard, image helper/identity threshold,
+  public route/default, payment, SDK/gateway migration, push/merge/deploy. Any new failure or material HOLD stops.
+- Initial TypeScript0; all15 new synthetic cases passed. First78-case run had77pass/one existing native bootstrap
+  five-second timeout. Its isolated rerun passed1/1 in741ms; no timeout was changed. Final full focus is pending.
+- Final current server-side focus:834/834 in19files, TypeScript0;17 new cases, none removed. Five virtual mutants
+  lose inherited costs, writer-input binding, native reviewer model, wire mode or array constraints; all are caught
+  by selected assertions, five-case control passes. One small preview-only manual status-refresh button then added:
+  it performs the existing authenticated GET, never POST or a paid worker restart. Final UI-inclusive literal
+  npx tsc --noEmit exits0; correct two-file suite105/105 (80 flow +25 image helper), with no heavy overlap.
+  Ready to freeze locally; independent PASS and actual paid output are still unproved.
+- Real saved Opus records reached current-source admission offline, without a key/model call; exact final-reader
+  instructions/input are unchanged. Inline wire16941bytes/reservation1066351micro, below the existing2m admission.
+  This proves compatibility/provenance, NOT live output quality. The earlier two-path focus label matched only
+  one actual file (79/79); no104-case claim is made from that run. Later19-file evidence is the actual834-case run.
+- There was brief overlap between local broad focus and the virtual mutation processes; both completed with
+  source unchanged. Do not call that run isolated. The complete gate and independent QA will run separately.
+- Technical independent review before paid continuation; new engineering use counts against original12.
+  Decision: docs/ai-workflow/PERSONAL_SIMPLE_BOOK_CONTROLLED_CONTINUATION_20261008.md.
+
 ## Actual eight-page wizard audition stopped before images (2026-10-08)
 
 The first paid book at frozen source `7d5484fe6512746075626bd5f8352318d8c407ac` FAILED; it is not a

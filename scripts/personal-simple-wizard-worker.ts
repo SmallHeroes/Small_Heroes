@@ -15,6 +15,8 @@ import { CAUSAL_MODELS, createAstraCausalTransport, createOpusCausalTransport, p
 import { exclusiveJson, exclusiveText, fencedText } from './personal-causal-trial-journal';
 import { safeUsage } from './personal-story-trial-guard';
 import { readAuditionApproval, runSimpleBookIllustrator } from './personal-simple-book-illustrator';
+import type { TransportReply } from './personal-causal-trial-adapters';
+import type { SimpleStoryCall } from '../lib/personal-wizard/simple-story-engine';
 
 const sha = (v: Buffer | string) => createHash('sha256').update(v).digest('hex');
 const rates = { opus: { inputMicroUsdPerToken: 4, outputMicroUsdPerToken: 20 }, astra: { inputMicroUsdPerToken: 10, outputMicroUsdPerToken: 50 } };
@@ -43,25 +45,43 @@ export async function simpleWizardWorkerCLI(argv: string[]) {
   }
   // Empty workspace outside the repository: no project story examples/history for either fresh session.
   const cliWorkspace = path.join(config.outputParent, 'simple-book-cli-workspace'); mkdirSync(cliWorkspace);
-  const worker = claimSimpleBookWorker(config), controller = new AbortController();
+  const worker = claimSimpleBookWorker(config);
+  return runSimpleBookWorkerPipeline({ config, configFile: argv[1], cliWorkspace, worker });
+}
+
+/** Same pipeline for an explicitly admitted continuation; never an HTTP-dispatched worker. */
+export async function runSimpleBookWorkerPipeline(args: {
+  config: SimpleBookConfig; configFile: string; cliWorkspace: string; worker: ReturnType<typeof claimSimpleBookWorker>;
+  continuation?: { budget: SimpleBookBudget; inheritedAttempts: number; assertCurrent: () => void;
+    reuseWriting: (call: SimpleStoryCall) => Promise<TransportReply> };
+}) {
+  const { config, worker, cliWorkspace } = args;
+  const externalMicroUsd = simpleBookExternalCosts(config.engineeringReceipts);
+  const controller = new AbortController();
   const policy: WirePolicy = { executable: config.executable, executableSha256: config.executableSha256,
-    workspace: cliWorkspace, maxWireBytes: 104000, rates };
+    workspace: cliWorkspace, maxWireBytes: 104000, rates,
+    ...(args.continuation ? { astraInlineReferences: true as const } : {}) };
   const opus = createOpusCausalTransport(policy);
-  const astra = createAstraCausalTransport({ key: () => existingKey(config), rates: rates.astra });
-  const budget = new SimpleBookBudget(path.join(worker.directory, 'paid-stages'), externalMicroUsd);
+  const astra = createAstraCausalTransport({ key: () => existingKey(config), rates: rates.astra,
+    ...(args.continuation ? { inlineReferences: true as const } : {}) });
+  const budget = args.continuation?.budget ?? new SimpleBookBudget(path.join(worker.directory, 'paid-stages'), externalMicroUsd);
+  const artifact = (name: string) => args.continuation ? `continuation-${name}` : name;
   const imageCalls = () => readdirSync(budget.root).filter(n => /^(?:reference_(?:child|entities|locations)|page_[0-8]_[01])\.claim\.json$/.test(n)).length;
   let failedStageCode: string | null = null;
   let last = emptySimpleBookView(worker.queued.requestId);
   const publish = (view: SimpleBookView) => {
+    if (args.continuation && ['author', 'editor'].includes(view.phase)) return; // Paid historical evidence, not new calls.
     const snapshot = budget.snapshot();
     last = { ...view, accounting: { ...view.accounting, knownEstimateMicroUsd: snapshot.knownEstimateMicroUsd,
-      unknownAttemptCosts: snapshot.unknownAttemptCosts, logicalAttempts: snapshot.logicalAttempts } };
-    worker.publish(last); console.log(JSON.stringify({ phase: view.phase, ...snapshot, runtimeEligible: false }));
+      unknownAttemptCosts: snapshot.unknownAttemptCosts, logicalAttempts: snapshot.logicalAttempts + (args.continuation?.inheritedAttempts ?? 0) } };
+    worker.publish(last); console.log(JSON.stringify({ phase: view.phase, ...snapshot,
+      ...(args.continuation ? { inheritedLogicalAttempts: args.continuation.inheritedAttempts } : {}), runtimeEligible: false }));
   };
   const assertCurrent = () => {
     if (controller.signal.aborted) throw new SimpleBookFlowError('simple_book_cancelled');
+    if (args.continuation) { args.continuation.assertCurrent(); return; }
     assertSimpleBookSource(config);
-    const current = simpleBookConfig(argv[1]);
+    const current = simpleBookConfig(args.configFile);
     if (JSON.stringify(current) !== JSON.stringify(config)) throw new SimpleBookFlowError('simple_config_changed');
     simpleBookExternalCosts(config.engineeringReceipts);
   };
@@ -106,6 +126,7 @@ export async function simpleWizardWorkerCLI(argv: string[]) {
       signal: controller.signal, reservedWritingUsd: 4, publish,
       opus: async (call, signal) => {
         assertCurrent(); if (signal !== controller.signal) throw new SimpleBookFlowError('simple_signal_binding');
+        if (args.continuation) return args.continuation.reuseWriting(call);
         const instructionFile = path.join(worker.directory, `${call.stage}-instructions.txt`); exclusiveText(instructionFile, call.instructions);
         const dispatch = { ...call, role: 'opus' as const, conversationKey: `wizard:${worker.queued.requestId}:${call.stage}` };
         const wire = prepareCausalWire(dispatch, policy, 2000000, instructionFile);
@@ -133,8 +154,8 @@ export async function simpleWizardWorkerCLI(argv: string[]) {
         });
       }, visual: openAIStage });
     assertCurrent();
-    exclusiveJson(path.join(worker.directory, 'simple-book-result.json'), result);
-    exclusiveText(path.join(worker.directory, 'story.md'), `# ${result.source.manuscript.title}\n\n` +
+    exclusiveJson(path.join(worker.directory, artifact('simple-book-result.json')), result);
+    exclusiveText(path.join(worker.directory, artifact('story.md')), `# ${result.source.manuscript.title}\n\n` +
       result.source.manuscript.pages.map(p => `## עמוד ${p.pageNumber}\n\n${p.text}`).join('\n\n') + '\n');
     let illustrated = false;
     if (config.illustratedAudition && result.status === 'review_supported') {
@@ -145,14 +166,16 @@ export async function simpleWizardWorkerCLI(argv: string[]) {
       publish({ ...last, phase: 'illustrated_audition', images: manifest.pages.map(p => ({ pageNumber: p.pageNumber, ...p.candidate })) });
       illustrated = true;
     }
-    exclusiveJson(path.join(worker.directory, 'sealed.json'), { status: illustrated ? 'illustrated_audition' : result.status, snapshot: budget.snapshot(),
+    exclusiveJson(path.join(worker.directory, artifact('sealed.json')), { status: illustrated ? 'illustrated_audition' : result.status, snapshot: budget.snapshot(),
+      ...(args.continuation ? { inheritedLogicalAttempts: args.continuation.inheritedAttempts } : {}),
       imageCalls: imageCalls(), illustrated, runtimeEligible: false, visualQualification: 'not_granted' });
     return result.status === 'review_supported' ? 0 : 2;
   } catch (error) {
     const code = failedStageCode ?? (error && typeof error === 'object' && 'code' in error && typeof error.code === 'string' && /^[a-z0-9_]+$/.test(error.code)
       ? error.code : 'simple_worker_failed');
     controller.abort(); publish({ ...last, phase: 'failed', error: code });
-    exclusiveJson(path.join(worker.directory, 'sealed.json'), { status: 'failed', code, snapshot: budget.snapshot(), imageCalls: imageCalls(), runtimeEligible: false });
+    exclusiveJson(path.join(worker.directory, artifact('sealed.json')), { status: 'failed', code, snapshot: budget.snapshot(),
+      ...(args.continuation ? { inheritedLogicalAttempts: args.continuation.inheritedAttempts } : {}), imageCalls: imageCalls(), runtimeEligible: false });
     return 1;
   } finally { process.off('SIGINT', interrupt); }
 }

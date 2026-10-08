@@ -11,7 +11,7 @@ vi.mock('openai', () => ({ default: class {
 } }));
 import { personalStoryboardFixture } from './personal-storyboard-fixture';
 import { resolvePersonalWizardOptions } from '../options';
-import { prepareSimpleStory, type SimpleStoryDraft, type SimpleStoryCall } from '../simple-story-engine';
+import { prepareSimpleStory, writeSimpleStory, type SimpleStoryDraft, type SimpleStoryCall } from '../simple-story-engine';
 import { runSimpleWizardBook } from '../simple-book-flow';
 import { emptySimpleBookView, readSimpleBookView, newerSimpleBookView } from '../simple-book-view';
 import { SimpleBookBudget, simpleBookExternalCosts } from '../simple-book-budget';
@@ -29,6 +29,10 @@ import * as images from '../../generate-image';
 import { QUALITY_CATEGORIES } from '../../local-preview-quality';
 import sharp from 'sharp';
 import type { PageChildResemblanceVisionResult } from '../../generation-pipeline/page-child-resemblance-vision';
+import { inlineLocalJsonSchemaReferences } from '../../../scripts/personal-inline-json-schema';
+import { prepareSimpleBookContinuation } from '../simple-book-continuation';
+import { simpleBookContinuationCLI } from '../../../scripts/personal-simple-book-continuation';
+import { runSimpleBookWorkerPipeline } from '../../../scripts/personal-simple-wizard-worker';
 
 const deps = vi.hoisted(() => ({ production: false, user: { id: 'owner', email: 'owner@example.com' } as { id: string; email: string } | null }));
 vi.mock('@/lib/auth-session', () => ({ resolveUserFromRequest: async () => deps.user ? { user: deps.user } : null }));
@@ -478,5 +482,138 @@ describe('injected illustrated audition admission, failure boundaries and state 
     expect(() => illustratedAuditionApprovalSchema.parse({ ...syntheticVisualApproval(), customerCharge: true })).toThrow();
     expect(() => readAuditionImage(root, { imageName: '../file.png', imageSha: 'a'.repeat(64) })).toThrow('simple_image_path');
     expect(readSimpleBookView({ ...emptySimpleBookView('a'.repeat(64)), phase: 'illustrated_audition' }, 'a'.repeat(64))).toBeNull();
+  });
+});
+
+describe('explicit same-book continuation, no provider in fixtures', () => {
+  async function failedOriginal() {
+    const f = await fixture();
+    writeFileSync(config.executable, 'SYNTHETIC executable bytes, never run'); config.executableSha256 = sha(readFileSync(config.executable));
+    writeFileSync(file, JSON.stringify(config));
+    writeFileSync(config.existingKeyEnvFile, 'OPENAI_API_KEY=sk-SYNTHETIC_ONLY_NEVER_A_REAL_CREDENTIAL_123456789');
+    mkdirSync(path.join(config.outputParent, 'simple-book-cli-workspace'));
+    enqueueSimpleBook(config, { request: f.request, requestId: prepareSimpleStory(f.request, options, config.seed).accepted.requestId, userId: 'owner' });
+    const old = claimSimpleBookWorker(config), paid = path.join(old.directory, 'paid-stages');
+    const budget = new SimpleBookBudget(paid, 0);
+    const policy = { executable: config.executable, executableSha256: config.executableSha256, workspace: root, maxWireBytes: 104000,
+      rates: { opus: { inputMicroUsdPerToken: 4, outputMicroUsdPerToken: 20 }, astra: { inputMicroUsdPerToken: 10, outputMicroUsdPerToken: 50 } } };
+    await writeSimpleStory(prepareSimpleStory(f.request, options, config.seed), async call => {
+      const instructions = path.join(old.directory, `${call.stage}-instructions.txt`); writeFileSync(instructions, call.instructions);
+      const dispatch = { ...call, role: 'opus' as const, conversationKey: `test:${call.stage}` };
+      const wire = adapters.prepareCausalWire(dispatch, policy, 2000000, instructions);
+      return budget.run(call.stage, wire, 2000000, async () => {
+        const reply = await f.args.opus(call, f.args.signal);
+        return { value: { output: reply.output, usage: reply.usage, estimatedUsd: reply.estimatedMicroUsd / 1e6 }, estimatedMicroUsd: reply.estimatedMicroUsd, receipt: reply };
+      });
+    }, { model: adapters.CAUSAL_MODELS.opus, reservedUsd: 4 });
+    const failure = { raw: { status: 'incomplete', incomplete_details: { reason: 'max_output_tokens' }, model: adapters.CAUSAL_MODELS.astra,
+      service_tier: 'default', usage: { input_tokens: 100, output_tokens: 100 } }, usage: { inputTokens: 100, outputTokens: 100 }, estimatedMicroUsd: 6000 };
+    await expect(budget.run('final_review', { synthetic: true }, 10000, async () => {
+      throw Object.assign(Error('incomplete'), { code: 'incomplete', receipt: failure });
+    })).rejects.toThrow('incomplete');
+    writeFileSync(path.join(old.directory, 'sealed.json'), JSON.stringify({ status: 'failed', code: 'incomplete', snapshot: budget.snapshot(), imageCalls: 0, runtimeEligible: false }));
+    const terminal = path.join(root, 'SYNTHETIC-termination.json'); writeFileSync(terminal, JSON.stringify({ code: 1, signal: null, terminationConfirmed: true }));
+    const extra = path.join(root, 'SYNTHETIC-extra-engineering.json'); writeFileSync(extra, JSON.stringify({ terminationConfirmed: true, reportedCostUsd: .2 }));
+    const names = ['request.json', 'worker-claimed.json', 'sealed.json', 'author-instructions.txt', 'editor-instructions.txt',
+      ...require('node:fs').readdirSync(paid).map((n: string) => `paid-stages/${n}`)];
+    const data = { version: 'controlled-simple-book-continuation/v1', originalConfig: { file, sha256: sha(readFileSync(file)) },
+      sourceHead: config.sourceHead, approvalReference: 'SYNTHETIC explicit same-book continuation; NOT live authority.', maximumMicroUsd: 12000000,
+      terminationReceipt: { file: terminal, sha256: sha(readFileSync(terminal)) },
+      artifacts: names.map(relative => ({ relative, sha256: sha(readFileSync(path.join(old.directory, relative))) })),
+      extraEngineeringReceipts: [{ file: extra, sha256: sha(readFileSync(extra)) }] };
+    const recoveryFile = path.join(root, 'continuation.json'); writeFileSync(recoveryFile, JSON.stringify(data));
+    return { f, old, budget, paid, data, recoveryFile, originalHashes: names.map(n => [n, sha(readFileSync(path.join(old.directory, n)))]) };
+  }
+  it('expands references without losing constraints or legitimate properties named definitions', () => {
+    const item = { type: 'object', additionalProperties: false, required: ['id'], properties: { id: { type: 'string', pattern: '^r-', maxLength: 100 } } };
+    const schema = { type: 'object', additionalProperties: false, required: ['original', 'revised', 'definitions'],
+      properties: { original: { type: 'array', maxItems: 2, items: { $ref: '#/definitions/citation' } },
+        revised: { type: 'array', minItems: 0, maxItems: 2, items: { $ref: '#/definitions/citation' } }, definitions: { type: 'string' } }, definitions: { citation: item } };
+    expect(inlineLocalJsonSchemaReferences(schema)).toEqual({ ...schema, definitions: undefined,
+      properties: { ...schema.properties, original: { type: 'array', maxItems: 2, items: item }, revised: { type: 'array', minItems: 0, maxItems: 2, items: item } } });
+    expect(schema.properties.original.items).toEqual({ $ref: '#/definitions/citation' });
+  });
+  it.each(['missing', 'external', 'cycle', 'siblings'])('rejects %s references instead of silently weakening a schema', kind => {
+    const schema: any = { type: 'object', properties: { x: { $ref: kind === 'external' ? 'https://invalid.test/schema' : '#/definitions/x' } },
+      definitions: kind === 'missing' ? {} : { x: kind === 'cycle' ? { $ref: '#/definitions/x' } : { type: 'string' } } };
+    if (kind === 'siblings') schema.properties.x.maxLength = 1;
+    expect(() => inlineLocalJsonSchemaReferences(schema)).toThrow('inline_schema_invalid');
+  });
+  it('leaves default wires unchanged, binds the opt-in before key read and types a whitespace limit failure', async () => {
+    const f = await fixture(); await runSimpleWizardBook(f.args);
+    const call = { ...f.args.reader.mock.calls[0][0], role: 'astra' as const, conversationKey: 'synthetic:reader' };
+    const policy = { executable: config.executable, executableSha256: config.executableSha256, workspace: root, maxWireBytes: 104000,
+      rates: { opus: { inputMicroUsdPerToken: 4, outputMicroUsdPerToken: 20 }, astra: { inputMicroUsdPerToken: 10, outputMicroUsdPerToken: 50 } } };
+    const old = adapters.prepareCausalWire(call, policy, 2000000), wire = adapters.prepareCausalWire(call, { ...policy, astraInlineReferences: true }, 2000000);
+    expect(old.json).toContain('$ref'); expect(wire.json).not.toContain('$ref');
+    expect(wire.payload).toMatchObject({ model: adapters.CAUSAL_MODELS.astra, max_output_tokens: 16000, reasoning: { effort: 'medium' } });
+    const key = vi.fn(() => 'SYNTHETIC_ONLY'), transport = adapters.createAstraCausalTransport({ key, rates: policy.rates.astra, inlineReferences: true });
+    await expect(transport(old, call, f.args.signal)).rejects.toThrow('wire_contract'); expect(key).not.toHaveBeenCalled(); expect(sdk.create).not.toHaveBeenCalled();
+    sdk.create.mockResolvedValue({ model: adapters.CAUSAL_MODELS.astra, service_tier: 'default', status: 'incomplete', incomplete_details: { reason: 'max_output_tokens' },
+      output_text: '{"incomplete":' + ' '.repeat(300), usage: { input_tokens: 100, output_tokens: 100 } });
+    await expect(transport(wire, call, f.args.signal)).rejects.toMatchObject({ code: 'astra_output_limit_whitespace', receipt: { estimatedMicroUsd: 6000 } });
+  });
+  it('previews without keys, imports two bound native records and cannot claim a second continuation', async () => {
+    const x = await failedOriginal(), disk = vi.spyOn(journal, 'fencedText');
+    expect(await simpleBookContinuationCLI(['--config', x.recoveryFile])).toBe(0);
+    expect(disk.mock.calls.some(([p]) => p === config.existingKeyEnvFile)).toBe(false); expect(sdk.create).not.toHaveBeenCalled();
+    const ready = prepareSimpleBookContinuation(x.recoveryFile), claimed = ready.claim();
+    expect(claimed.budget.snapshot()).toMatchObject({ knownEstimateMicroUsd: 406000, logicalAttempts: 0, stopped: false });
+    const calls = x.f.args.opus.mock.calls.map(([call]) => call);
+    for (let i = 0; i < calls.length; i++) {
+      expect(await ready.reuseWriting(calls[i])).toEqual(await x.f.args.opus.mock.results[i].value);
+      await expect(ready.reuseWriting({ ...calls[i], input: calls[i].input + ' changed' })).rejects.toThrow('continuation_writer_binding');
+      await expect(ready.reuseWriting({ ...calls[i], instructions: calls[i].instructions + ' changed' })).rejects.toThrow('continuation_writer_binding');
+    }
+    expect(() => prepareSimpleBookContinuation(x.recoveryFile).claim()).toThrow();
+    for (const [n, digest] of x.originalHashes) expect(sha(readFileSync(path.join(x.old.directory, n)))).toBe(digest);
+    expect(x.budget.snapshot()).toMatchObject({ knownEstimateMicroUsd: 206000, stopped: true });
+  });
+  it.each(['source', 'hash', 'inventory', 'unknown', 'overslot', 'reviewer_model', 'termination', 'duplicate', 'budget'])('refuses %s before continuation claim or provider work', async kind => {
+    const x = await failedOriginal();
+    if (kind === 'source') x.data.sourceHead = 'b'.repeat(40);
+    if (kind === 'hash') x.data.artifacts[0].sha256 = 'c'.repeat(64);
+    if (kind === 'inventory') x.data.artifacts = x.data.artifacts.filter(a => a.relative !== 'paid-stages/final_review.failure.json');
+    if (kind === 'unknown') {
+      const target = path.join(x.paid, 'final_review.result.json'), changed = { ...JSON.parse(readFileSync(target, 'utf8')), estimatedMicroUsd: null };
+      writeFileSync(target, JSON.stringify(changed)); x.data.artifacts.find(a => a.relative === 'paid-stages/final_review.result.json')!.sha256 = sha(readFileSync(target));
+      const sealedFile = path.join(x.old.directory, 'sealed.json'), sealed = JSON.parse(readFileSync(sealedFile, 'utf8'));
+      sealed.snapshot = x.budget.snapshot(); writeFileSync(sealedFile, JSON.stringify(sealed));
+      x.data.artifacts.find(a => a.relative === 'sealed.json')!.sha256 = sha(readFileSync(sealedFile));
+    }
+    if (kind === 'overslot') {
+      const target = path.join(x.paid, 'author.claim.json'), changed = { ...JSON.parse(readFileSync(target, 'utf8')), maximumMicroUsd: 99999 };
+      writeFileSync(target, JSON.stringify(changed)); x.data.artifacts.find(a => a.relative === 'paid-stages/author.claim.json')!.sha256 = sha(readFileSync(target));
+      const sealedFile = path.join(x.old.directory, 'sealed.json'), sealed = JSON.parse(readFileSync(sealedFile, 'utf8'));
+      sealed.snapshot = x.budget.snapshot(); writeFileSync(sealedFile, JSON.stringify(sealed));
+      x.data.artifacts.find(a => a.relative === 'sealed.json')!.sha256 = sha(readFileSync(sealedFile));
+    }
+    if (kind === 'reviewer_model') {
+      const target = path.join(x.paid, 'final_review.failure.json'), changed = JSON.parse(readFileSync(target, 'utf8'));
+      changed.receipt.raw.model = 'SYNTHETIC_WRONG_MODEL'; writeFileSync(target, JSON.stringify(changed));
+      x.data.artifacts.find(a => a.relative === 'paid-stages/final_review.failure.json')!.sha256 = sha(readFileSync(target));
+    }
+    if (kind === 'termination') { writeFileSync(x.data.terminationReceipt.file, JSON.stringify({ code: 1, signal: null, terminationConfirmed: false })); x.data.terminationReceipt.sha256 = sha(readFileSync(x.data.terminationReceipt.file)); }
+    if (kind === 'duplicate') x.data.extraEngineeringReceipts = [config.engineeringReceipts[0]];
+    if (kind === 'budget') x.data.maximumMicroUsd = 25000000;
+    writeFileSync(x.recoveryFile, JSON.stringify(x.data)); expect(() => prepareSimpleBookContinuation(x.recoveryFile)).toThrow();
+    expect(sdk.create).not.toHaveBeenCalled(); expect(existsSync(path.join(x.old.directory, 'controlled-continuation-20261008'))).toBe(false);
+  });
+  it('uses the shared pipeline with zero new writers and stops at a valid story HOLD, preserving the failed seal', async () => {
+    const x = await failedOriginal(), ready = prepareSimpleBookContinuation(x.recoveryFile), claimed = ready.claim();
+    const forbiddenWriter = vi.fn(); vi.spyOn(adapters, 'createOpusCausalTransport').mockReturnValue(forbiddenWriter);
+    sdk.create.mockImplementation(async (payload: any) => {
+      const packet = JSON.parse(payload.input), unit = packet.packet.manuscript?.pages[0].units[0];
+      return { model: adapters.CAUSAL_MODELS.astra, service_tier: 'default', status: 'completed', usage: { input_tokens: 100, output_tokens: 100 },
+        output_text: JSON.stringify({ packetDigest: packet.packetDigest, summary: 'SYNTHETIC complete boundary review.', findings: unit ? [{ severity: 'meaningful', kind: 'issue',
+          criterion: 'SYNTHETIC material issue', original: [], revised: [{ startId: unit.id, endId: unit.id, anchor: citationTokens(unit.text).slice(0, 2).join(' ') }],
+          explanation: 'SYNTHETIC source-bound hold; no literary judgement.' }] : [] }) };
+    });
+    expect(await runSimpleBookWorkerPipeline({ config: ready.original, configFile: x.recoveryFile, cliWorkspace: path.join(root, 'simple-book-cli-workspace'),
+      worker: claimed.worker, continuation: { budget: claimed.budget, inheritedAttempts: 3, assertCurrent: ready.verify, reuseWriting: ready.reuseWriting } })).toBe(2);
+    expect(forbiddenWriter).not.toHaveBeenCalled(); expect(sdk.create).toHaveBeenCalledTimes(2);
+    expect(claimed.budget.snapshot()).toMatchObject({ knownEstimateMicroUsd: 418000, logicalAttempts: 2, stopped: false });
+    expect(JSON.parse(readFileSync(path.join(x.old.directory, 'continuation-sealed.json'), 'utf8'))).toMatchObject({ status: 'story_held', imageCalls: 0 });
+    for (const [n, digest] of x.originalHashes) expect(sha(readFileSync(path.join(x.old.directory, n)))).toBe(digest);
   });
 });

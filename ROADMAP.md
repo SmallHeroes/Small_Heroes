@@ -1,5 +1,17 @@
 # SmallHeroes — Roadmap
 
+## Controlled continuation of the same book approved (2026-10-08)
+
+- Guy approved proceeding after the reviews. Preserve same book, original12, failed history and paid Opus sessions.
+  No new author, manual edit, model swap or automatic retry. Codex sole writer from5448a01a; Claude independent QA.
+- Implement opt-in strict ref expansion and a one-use same-slot continuation with inherited accounting,
+  exact saved-call/source verification and shared existing pipeline. Any malformed/unknown/new failure stops.
+- Local offline checks/TypeScript, committed range and independent Claude review before the one paid continuation.
+  Story and storyboard must actually pass before references/images; no production qualification granted.
+- Initial15 new tests passed; an old bootstrap timed out once then passed isolated without deadline changes.
+  Final broad834/834 in19files; UI-inclusive tsc0 and105/105 in the correct two files. Five virtual mutants
+  caught. Independent review and full actual counts pending; stability gate never presumed green.
+
 ## One actual wizard book failed before storyboard and illustrations (2026-10-08)
 
 - Source `7d5484fe` ran once through the real owner-bound staging/local wizard. New fictional Goni/Dini book:
