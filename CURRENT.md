@@ -1,5 +1,28 @@
 # SmallHeroes — Current Technical State
 
+## M9b owner-approved accumulated16; formal M9 QA delivery still pending (2026-10-08)
+
+M9 committedeca3ba39; its independent model assessment found no code blocker,
+but native endedcode1/error_max_budget_usd, actual665419micro vs soft450000.
+Do not promote/rewrite this failed receipt as a completed technical PASS.
+Guy now approves SAME book accumulated16, not new story or reset. All old spend
+retained:12849700 known/16000000,3150300 remaining BEFORE freshQA, unknown0.
+Privatev3 financial extension only; v1/v2/default12 and image/story/gates unchanged.
+Fresh distinct completed QA of337971e0..newHEAD required before live, measured
+soft1.10 within16; no second old-session completion. Decision/validation scope:
+docs/ai-workflow/SIMPLE_BOOK_REFERENCE_CEILING_20261008.md.
+
+M9b final local checks444/444 across6 specs; new2/2 including18bad grants and real
+mocked9frame/GET flow.153simple-book specs (+2/no removal), default12/old14 intact.
+Two initial test-only spy/ancestry-harness failures corrected; logs retained.
+Frozeneca3 full gate closedRED:6875ordinarypass/12fail/73skip;634resourcepass/1fail
+plus3RPC errors. Ten ordinary are old missing artifacts; two additional temp-file
+EEXIST/EPERM failures pass2/2 isolated unchanged. Old Windows process probe persists.
+Full gate was at precedingeca3; financial-only delta verified by focused suite,
+not another heavy full run or new-current-head full-green claim.
+No full-green/stability claim. No M9 book/API/key call;162old files/protected6 kept.
+No text/canon/manual-image/gate weakening, old claim reopen, push/merge/deploy.
+
 ## M9 approved reference-role/checkpoint fix implemented; independent QA pending (2026-10-08)
 
 Guy approved narrow SAME-book correction within existing14m, not a renewed cap.

@@ -173,6 +173,9 @@ describe('one USD12 journal across engine stages and engineering Max', () => {
     const budget = new SimpleBookBudget(path.join(root, 'extended'), 13999999, 14000000), dispatch = vi.fn();
     await expect(budget.run('page_8_0', {}, 2, dispatch)).rejects.toThrow('simple_budget_exhausted');
     expect(dispatch).not.toHaveBeenCalled(); expect(existsSync(path.join(root, 'extended/page_8_0.claim.json'))).toBe(false);
+    const sixteen = new SimpleBookBudget(path.join(root, 'sixteen'), 15999999, 16000000);
+    await expect(sixteen.run('page_8_0', {}, 2, dispatch)).rejects.toThrow('simple_budget_exhausted');
+    expect(dispatch).not.toHaveBeenCalled(); expect(existsSync(path.join(root, 'sixteen/page_8_0.claim.json'))).toBe(false);
     expect(readSimpleBookView({ ...emptySimpleBookView('a'.repeat(64)), accounting: { ...emptySimpleBookView('a'.repeat(64)).accounting, allowanceMicroUsd: 14000000 } }, 'a'.repeat(64))).toBeNull();
   });
   it('durably claims the exact wire before dispatch and counts engineering plus settled costs', async () => {
@@ -847,6 +850,84 @@ describe('explicit same-book continuation, no provider in fixtures', () => {
     return { ...x, data, checkpointDir, checkpointNames, normal, atlasSha,
       checkpointHashes: checkpointNames.map(n => [n, sha(readFileSync(path.join(checkpointDir, n)))]) as [string, string][] };
   }
+  async function roleSixteenFixture() {
+    const x = await roleCheckpointFixture(), failedFile = path.join(root, 'SYNTHETIC-failed-role-review.json');
+    const failed = { ...JSON.parse(readFileSync(x.data.technicalReviewReceipt.file, 'utf8')),
+      sessionId: '88888888-8888-4888-8888-888888888888', code: 1, isError: true, resultSubtype: 'error_max_budget_usd',
+      sourceBundleUnchanged: true, reportedCostUsd: .004, maximumMicroUsd: 2000 };
+    writeFileSync(failedFile, JSON.stringify(failed));
+    const extensionFile = path.join(root, 'SYNTHETIC-sixteen.json');
+    const extension = { version: 'local-simple-book-reference-ceiling/v1', requestId: x.old.queued.requestId,
+      priorAllowanceGrantSha256: x.data.allowanceGrant.sha256, checkpointConfigSha256: x.data.checkpoint.config.sha256,
+      previousMaximumMicroUsd: 14000000, maximumMicroUsd: 16000000,
+      knownBeforeFreshReviewMicroUsd: JSON.parse(readFileSync(path.join(x.checkpointDir, 'sealed.json'), 'utf8')).snapshot.accountedMicroUsd + 4000,
+      failedReviewReceipt: x.ref(failedFile), ownerApprovalReference: 'SYNTHETIC owner16 accumulated same book only, not real permission.',
+      sameBookOnly: true, publicRelease: false, customerCharge: false, gateChanges: false };
+    writeFileSync(extensionFile, JSON.stringify(extension));
+    x.data.maximumMicroUsd = 16000000; x.data.ceilingExtension = x.ref(extensionFile);
+    x.data.extraEngineeringReceipts = [...x.data.extraEngineeringReceipts.slice(0, 2), x.ref(failedFile), x.data.technicalReviewReceipt];
+    writeFileSync(x.recoveryFile, JSON.stringify(x.data));
+    return { ...x, extension, extensionFile, failedFile, failed };
+  }
+  it('role sixteen grant retains failed review cost once and completes the same private9 images without a new writer', async () => {
+    const x = await roleSixteenFixture(), ready = await prepareSimpleBookReferenceRecovery(x.recoveryFile);
+    expect(ready.externalMicroUsd).toBe(x.extension.knownBeforeFreshReviewMicroUsd + 3000);
+    expect(ready.extra).toBe(50000); expect(ready.config.maximumMicroUsd).toBe(16000000);
+    expect(sdk.create).not.toHaveBeenCalled(); expect(x.render).not.toHaveBeenCalled();
+    const failedBefore = readFileSync(x.failedFile), originalGrantBefore = readFileSync(x.grantFile);
+    expect(await simpleBookReferenceRecoveryCLI(['--config', x.recoveryFile, '--execute'])).toBe(0);
+    expect(x.editor).not.toHaveBeenCalled(); expect(x.render).toHaveBeenCalledTimes(10); expect(x.fetcher).toHaveBeenCalledTimes(9);
+    const dir = path.join(x.old.directory, 'role-scoped-reference-continuation-20261008');
+    expect(JSON.parse(readFileSync(path.join(dir, 'claim.json'), 'utf8'))).toMatchObject({ maximumMicroUsd: 16000000, extra: 50000, ceilingExtension: x.data.ceilingExtension });
+    const response = await GET(req('GET', undefined, `${url}?requestId=${ready.parent.job.queued.requestId}`));
+    expect(await response.json()).toMatchObject({ phase: 'illustrated_audition', imageScope: 'role_scoped_reference_continuation', accounting: { allowanceMicroUsd: 16000000, unknownAttemptCosts: 0 } });
+    expect(readFileSync(x.failedFile)).toEqual(failedBefore); expect(readFileSync(x.grantFile)).toEqual(originalGrantBefore);
+    for (const [n, h] of x.checkpointHashes) expect(sha(readFileSync(path.join(x.checkpointDir, n)))).toBe(h);
+    const base = emptySimpleBookView('a'.repeat(64));
+    expect(readSimpleBookView({ ...base, imageScope: 'owned_reference_recovery', accounting: { ...base.accounting, allowanceMicroUsd: 16000000 } }, base.requestId)).toBeNull();
+  }, 180000);
+  it('role sixteen rejects missing, foreign, stale, duplicate or falsely successful fee grants before claim/key/provider', async () => {
+    const x = await roleSixteenFixture(), baseline = readFileSync(x.recoveryFile), technical = readFileSync(x.data.technicalReviewReceipt.file);
+    const disk = vi.spyOn(journal, 'fencedText'); disk.mockClear();
+    const git = vi.mocked(frozen.gitAt), normalGit = git.getMockImplementation()!;
+    for (const kind of ['missing', 'hash', 'request', 'previous', 'maximum', 'prior_grant', 'checkpoint', 'known_cost', 'unknown_fee', 'failed_not_terminated',
+      'failed_success', 'failed_source_dirty', 'failed_session_alias', 'failed_foreign_head', 'duplicate_fee', 'failed_as_technical', 'fourteen_with_extension', 'v2_sixteen']) {
+      const d = JSON.parse(baseline.toString()), g = structuredClone(x.extension), failed: any = structuredClone(x.failed);
+      git.mockImplementation(normalGit);
+      writeFileSync(d.technicalReviewReceipt.file, technical);
+      if (kind === 'missing') delete d.ceilingExtension;
+      if (kind === 'request') g.requestId = 'b'.repeat(64);
+      if (kind === 'previous') g.previousMaximumMicroUsd = 12000000;
+      if (kind === 'maximum') g.maximumMicroUsd = 18000000;
+      if (kind === 'prior_grant') g.priorAllowanceGrantSha256 = 'b'.repeat(64);
+      if (kind === 'checkpoint') g.checkpointConfigSha256 = 'b'.repeat(64);
+      if (kind === 'known_cost') g.knownBeforeFreshReviewMicroUsd--;
+      if (kind === 'unknown_fee') failed.reportedCostUsd = null;
+      if (kind === 'failed_not_terminated') failed.terminationConfirmed = false;
+      if (kind === 'failed_success') { failed.code = 0; failed.isError = false; failed.resultSubtype = 'success'; }
+      if (kind === 'failed_source_dirty') failed.sourceBundleUnchanged = false;
+      if (kind === 'failed_session_alias') failed.sessionId = JSON.parse(technical.toString()).sessionId;
+      if (kind === 'failed_foreign_head') {
+        failed.head = 'b'.repeat(40);
+        git.mockImplementation((repo, args) => {
+          if (args[0] === 'merge-base' && args[2] === failed.head) throw Error('SYNTHETIC no ancestor');
+          return normalGit(repo, args);
+        });
+      }
+      writeFileSync(x.failedFile, JSON.stringify(failed)); g.failedReviewReceipt = x.ref(x.failedFile); d.extraEngineeringReceipts[2] = g.failedReviewReceipt;
+      writeFileSync(x.extensionFile, JSON.stringify(g)); if (d.ceilingExtension) d.ceilingExtension = x.ref(x.extensionFile);
+      if (kind === 'hash') d.ceilingExtension.sha256 = 'b'.repeat(64);
+      if (kind === 'duplicate_fee') d.extraEngineeringReceipts[3] = d.extraEngineeringReceipts[2];
+      if (kind === 'failed_as_technical') d.technicalReviewReceipt = d.extraEngineeringReceipts[2];
+      if (kind === 'fourteen_with_extension') d.maximumMicroUsd = 14000000;
+      if (kind === 'v2_sixteen') d.version = 'controlled-simple-reference-recovery/v2';
+      writeFileSync(x.recoveryFile, JSON.stringify(d));
+      await expect(prepareSimpleBookReferenceRecovery(x.recoveryFile), kind).rejects.toThrow();
+      expect(sdk.create).not.toHaveBeenCalled(); expect(x.render).not.toHaveBeenCalled(); expect(x.editor).not.toHaveBeenCalled();
+      expect(disk.mock.calls.some(([p]) => p === config.existingKeyEnvFile)).toBe(false);
+      expect(existsSync(path.join(x.old.directory, 'role-scoped-reference-continuation-20261008'))).toBe(false);
+    }
+  }, 90000);
   it('role checkpoint reuses supported child, rechecks real atlas evidence, makes one edit and the same9 gated frames', async () => {
     const x = await roleCheckpointFixture(), ready = await prepareSimpleBookReferenceRecovery(x.recoveryFile);
     expect(ready.checkpoint).toBeDefined(); expect(ready.seed).toBeUndefined(); expect(ready.inheritedLogicalAttempts).toBe(21);

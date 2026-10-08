@@ -1,5 +1,20 @@
 # SmallHeroes — Roadmap
 
+## M9b same-book16 approved; finish valid QA then actual nine-image book (2026-10-08)
+
+- M9 sourceeca3 local checks held, but formal nativecode1 budget-error delivery is
+  NOT PASS admission despite a complete no-blocker assessment. Actual665419 retained.
+- Owner explicitly allows accumulated16 for SAME book,12849700 already known,
+ 3150300 left before fresh independent review. No reset/new author/editor/plan.
+- Minimal existingprivatev3 hashed ceiling extension; failed fee counted once,
+  distinct successful current QA required. Legacy12/14 remain; page8checks/0.70
+  and canon untouched. Local controls + new whole337971e0..HEAD QA before live.
+- Full gateeca3 remainsRED:6875/12ordinary,634/1resource+3RPC; isolate extra temp
+  errors, never call all12 inherited or full green. No book images created inM9 yet.
+- Financial delta444/444 in6specs, new2/2+18bad grants;153inventory/no removal.
+  Two extra ordinary temp failures pass2/2 isolated unchanged; no new full-green
+  claim. Fresh combined independent QA is next before the actual book continuation.
+
 ## M9 approved role-scoped references, same-book checkpoint (2026-10-08)
 
 - Implemented from337971e0 in existing private recovery CLI, not another writer,

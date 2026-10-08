@@ -34,8 +34,16 @@ const referenceRecoveryV1 = z.object({ version: z.literal('controlled-simple-ref
 const referenceRecoveryV2 = referenceRecoveryV1.extend({ version: z.literal('controlled-simple-reference-recovery/v2'), maximumMicroUsd: z.literal(14000000), allowanceGrant: file });
 export const referenceRecoveryConfigSchema = z.discriminatedUnion('version', [referenceRecoveryV1,
   referenceRecoveryV2, referenceRecoveryV2.extend({ version: z.literal('controlled-simple-reference-recovery/v3'),
-    extraEngineeringReceipts: z.array(file).length(3), checkpoint: z.object({ config: file, terminationReceipt: file,
+    maximumMicroUsd: z.union([z.literal(14000000), z.literal(16000000)]), ceilingExtension: file.optional(),
+    extraEngineeringReceipts: z.array(file).min(3).max(4), checkpoint: z.object({ config: file, terminationReceipt: file,
       artifacts: referenceRecoveryV1.shape.artifacts }).strict() })]);
+export const referenceCeilingExtensionSchema = z.object({ version: z.literal('local-simple-book-reference-ceiling/v1'),
+  requestId: hash, priorAllowanceGrantSha256: hash, checkpointConfigSha256: hash,
+  previousMaximumMicroUsd: z.literal(14000000), maximumMicroUsd: z.literal(16000000),
+  knownBeforeFreshReviewMicroUsd: z.number().int().nonnegative(), failedReviewReceipt: file,
+  ownerApprovalReference: z.string().min(30).max(2000), sameBookOnly: z.literal(true),
+  publicRelease: z.literal(false), customerCharge: z.literal(false), gateChanges: z.literal(false),
+}).strict();
 export const sameBookAllowanceGrantSchema = z.object({ version: z.literal('local-simple-book-allowance-extension/v1'),
   requestId: hash, parentVisualConfigSha256: hash, inheritedKnownMicroUsd: z.number().int().nonnegative(),
   previousMaximumMicroUsd: z.literal(12000000), maximumMicroUsd: z.literal(14000000),
@@ -66,11 +74,33 @@ export async function prepareSimpleBookReferenceRecovery(configFile: string) {
   const checkpointConfig = config.version === 'controlled-simple-reference-recovery/v3' ? config.checkpoint : null;
   const checkpointDirectory = path.join(parent.job.directory, 'controlled-reference-recovery-20261008');
   const checkpointInventory = new Map(checkpointConfig?.artifacts.map(a => [a.relative, a.sha256]));
+  const checkCeilingExtension = () => {
+    if (config.version !== 'controlled-simple-reference-recovery/v3') return null;
+    if (config.maximumMicroUsd === 14000000) {
+      if (config.ceilingExtension || config.extraEngineeringReceipts.length !== 3) fail('reference_recovery_ceiling');
+      return null;
+    }
+    if (!config.ceilingExtension || config.extraEngineeringReceipts.length !== 4) fail('reference_recovery_ceiling');
+    checked(config.ceilingExtension!);
+    const g = referenceCeilingExtensionSchema.parse(read(config.ceilingExtension!.file)); checked(g.failedReviewReceipt);
+    const failed = read(g.failedReviewReceipt.file);
+    if (g.requestId !== parent.job.queued.requestId || g.priorAllowanceGrantSha256 !== config.allowanceGrant.sha256 ||
+      g.checkpointConfigSha256 !== config.checkpoint.config.sha256 ||
+      canonicalJson(g.failedReviewReceipt) !== canonicalJson(config.extraEngineeringReceipts[2]) ||
+      canonicalJson(config.technicalReviewReceipt) !== canonicalJson(config.extraEngineeringReceipts[3]) ||
+      failed.code !== 1 || failed.signal !== null || !failed.terminationConfirmed || failed.stopped || failed.status !== '' ||
+      failed.isError !== true || failed.resultSubtype !== 'error_max_budget_usd' || failed.sourceBundleUnchanged !== true ||
+      !/^[a-f0-9]{40}$/.test(failed.head ?? '') || !z.string().uuid().safeParse(failed.sessionId).success ||
+      failed.sessionId === technical.sessionId || canonicalJson(failed.models) !== canonicalJson([CAUSAL_MODELS.opus]) ||
+      config.extraEngineeringReceipts.some((f, i) => i !== 2 && read(f.file).sessionId === failed.sessionId)) fail('reference_recovery_ceiling');
+    gitAt(parent.current.workspace, ['merge-base', '--is-ancestor', failed.head, config.sourceHead]);
+    return g;
+  };
   const checkGrant = () => {
     if (config.version === 'controlled-simple-reference-recovery/v1') return null;
     checked(config.allowanceGrant); const g = sameBookAllowanceGrantSchema.parse(read(config.allowanceGrant.file));
     if (g.requestId !== parent.job.queued.requestId || g.parentVisualConfigSha256 !== config.visualConfig.sha256 ||
-      g.maximumMicroUsd !== config.maximumMicroUsd || config.extraEngineeringReceipts.length !== (checkpointConfig ? 3 : 2)) fail('reference_recovery_allowance');
+      g.maximumMicroUsd !== 14000000 || config.extraEngineeringReceipts.length !== (checkpointConfig ? config.maximumMicroUsd === 16000000 ? 4 : 3 : 2)) fail('reference_recovery_allowance');
     const records = g.reconciledSessionReceipts.map(f => { checked(f); return read(f.file); });
     const last = records[records.length - 1], latestRef = g.reconciledSessionReceipts[g.reconciledSessionReceipts.length - 1];
     if (!z.string().uuid().safeParse(last.sessionId).success || !/^[a-f0-9]{40}$/.test(last.head ?? '') ||
@@ -95,7 +125,7 @@ export async function prepareSimpleBookReferenceRecovery(configFile: string) {
     gitAt(parent.current.workspace, ['merge-base', '--is-ancestor', last.head, config.sourceHead]);
     return g;
   };
-  const grant = checkGrant();
+  const grant = checkGrant(), ceilingExtension = checkCeilingExtension();
   if (technical.head !== config.sourceHead || technical.status !== '' || technical.code !== 0 || technical.signal !== null ||
     !technical.terminationConfirmed || technical.stopped || technical.isError !== false || technical.resultSubtype !== 'success' ||
     canonicalJson(technical.models) !== canonicalJson([CAUSAL_MODELS.opus]) || !Number.isSafeInteger(technical.maximumMicroUsd) ||
@@ -112,7 +142,7 @@ export async function prepareSimpleBookReferenceRecovery(configFile: string) {
       if (!stat.isFile() || stat.isSymbolicLink() || stat.nlink !== 1 || stat.size > 32000000 || previewSha(readFileSync(full)) !== digest) fail('reference_recovery_evidence_changed');
     }
     if (visualEvidenceFiles(parent.directory).some(n => !inventory.has(`controlled-visual-continuation-20261008/${n}`))) fail('reference_recovery_inventory');
-    simpleBookExternalCosts(allEngineering); checkGrant();
+    simpleBookExternalCosts(allEngineering); checkGrant(); checkCeilingExtension();
     if (checkpointConfig) {
       checked(checkpointConfig.config); checked(checkpointConfig.terminationReceipt);
       if (checkpointInventory.size !== checkpointConfig.artifacts.length ||
@@ -260,6 +290,7 @@ export async function prepareSimpleBookReferenceRecovery(configFile: string) {
     checkpoint = { child, entities }; checkpointPaidMicroUsd = snapshot.knownEstimateMicroUsd - priorBudget.externalMicroUsd;
   }
   const externalMicroUsd = inherited.accountedMicroUsd + extra + checkpointPaidMicroUsd;
+  if (ceilingExtension && ceilingExtension.knownBeforeFreshReviewMicroUsd !== externalMicroUsd - simpleBookExternalCosts([config.technicalReviewReceipt])) fail('reference_recovery_ceiling');
   if (grant && grant.inheritedKnownMicroUsd !== inherited.knownEstimateMicroUsd) fail('reference_recovery_allowance');
   if (externalMicroUsd + 600000 > config.maximumMicroUsd) fail('reference_recovery_budget');
   const directory = path.join(parent.job.directory, checkpoint ? 'role-scoped-reference-continuation-20261008' : 'controlled-reference-recovery-20261008');
@@ -270,6 +301,7 @@ export async function prepareSimpleBookReferenceRecovery(configFile: string) {
       verify(); mkdirSync(directory); exclusiveJson(path.join(directory, 'claim.json'), { configSha256: previewSha(bytes), sourceHead: config.sourceHead,
         requestDigest: claim.requestDigest, inherited, extra, referenceCorrectionLimit: 1, runtimeEligible: false,
         ...(extended ? { maximumMicroUsd: config.maximumMicroUsd, allowanceGrant: config.allowanceGrant } : {}),
+        ...(config.version === 'controlled-simple-reference-recovery/v3' && config.ceilingExtension ? { ceilingExtension: config.ceilingExtension } : {}),
         ...(checkpointConfig ? { checkpoint: checkpointConfig, checkpointPaidMicroUsd, inheritedLogicalAttempts: 21 } : {}) });
       const budget = new SimpleBookBudget(path.join(directory, 'paid-stages'), externalMicroUsd, config.maximumMicroUsd);
       let sequence = readdirSync(parent.job.directory).filter(n => /^view-\d{4}\.json$/.test(n)).length;
