@@ -1,5 +1,20 @@
 # SmallHeroes — Roadmap
 
+## Reference-recovery code checked; owner budget decision blocks live book (2026-10-08)
+
+- Exact d9ae20dc..f8b759ca bounded independent codePASS, threeLOW/no blocking
+  code finding; no pixel/literary/product/stability/release acceptance.
+- FullRED:6868ordinarypass/10oldfail/73skip;633resourcepass/2fail+4RPC errors.
+  Additional unchanged5000ms resource timeout rechecked1/1pass alone; not fullgreen.
+- Known global11024855micro of original12000000,975145remaining. Native QA
+  same-session cumulative1245968 includes all three delivery calls; do not sum
+  cumulative receipts. Known95968internal Max slot overshoot still blocks admission.
+- No new book provider/key/reference claim; zero story illustrations. Keep text,
+  source/board/canon/gates and131evidence files unchanged. Native code review is done.
+- Await Guy's accumulatedUSD14 decision and explicit known-Max-cost reconciliation
+  before any budget change or rendering; relevant new code needs independent QA.
+  No push/merge/deploy/production qualification or automatic retry/allowance renewal.
+
 ## Approved one-reference recovery toward SAME illustrated audition (2026-10-08)
 
 - M7 implemented from d9ae20dc; literaltsc0,433/433 focused tests. Independent QA and

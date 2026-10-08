@@ -57,3 +57,21 @@ timeout60sec; historical fixtures plus full9-frame replay now180sec. Final focus
 418sec, all source hashes unchanged. No transport deadline/output/cost cap changed.
 Evidence in task ART/reference-recovery-evidence-20261008/final-focused-v2.
 Before snapshot131book artifacts/6protected checkouts; no provider spent in M7 yet.
+
+Closeout: native75f37c5d completed bounded read-only codePASS for exactly
+d9ae20dc..f8b759ca, three nonblockingLOW (historical extra job-root enumeration,
+duplicate validation, missing non-child/well-formed-different seed-context tests).
+It independently read13-file diff/M6helper, not tests/live evidence/budget internals.
+Full remainsRED:6868ordinarypass/10oldfail/73skip,633resourcepass/2fail+4RPC errors.
+The additional unchanged materialization timeout passed alone with original5000ms
+limit; old Windows probe persists. No new structural failure proven, no fullgreen.
+
+QA delivery costs are cumulative for the SAME native session:475941,868433,
+1245968micro; deltas475941+392492+377535. First two failed print deliveries were
+not counted as completed PASS. Last delivery code0/success/isErrorfalse/PASS;
+its known estimate overshot1150000 internal slot by95968. All raw receipts stay
+unaltered; technical success does not authorize bypassing the budget admission.
+Global11024855 of original12000000;975145remaining, unknown0. No M7 image/key/book
+provider call or claim. Await owner decision on accumulatedUSD14 and known-soft-
+cap reconciliation. No source/story/canon/gate/ceiling/push change by implication.
+131old book files/6protected trees preserved; artifacts and full receipts in ART.

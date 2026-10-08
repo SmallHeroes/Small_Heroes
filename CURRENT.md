@@ -1,5 +1,42 @@
 # SmallHeroes — Current Technical State
 
+## M7 code PASS; live reference edit NOT run; spending decision pending (2026-10-08)
+
+Frozen reviewed code f8b759ca308b118541ce6b2e9850b1afc88b2040,
+exact independent range d9ae20dc..f8b759ca. Native Claude session75f37c5d delivered
+code0/success/isErrorfalse/read_only_code/PASS after reviewing the13-file diff and
+M6 evidence reader. Three LOW notes, no blocking code findings. It did NOT run
+tests/tsc, open local focused evidence, prove live M6 artifacts, or grant pixel,
+literary/product/stability/release acceptance. Do not expand this PASS to docs.
+
+Final fullRED exit1: ordinary6868pass/10same inheritedfail/73skip in402files;
+resource633pass/2fail in20files plus4RPC errors. One is the old Windows probe;
+the other is an unchanged materialization test's5000ms timeout, independently
+rechecked alone1/1pass in4632ms with unchanged timeout/source. No new structural
+failure established; full gate is NOT green. Focus433/433, literaltsc0 retained.
+All131previous book files and6protected trees byte/HEAD/status preserved.
+
+Engineering delivery defect: first native print stopped at0.45 internal window,
+same-session completion wrongly used an additional0.30 rather than a cumulative
+cap. Both CLI results were error_max_budget_usd, NOT completed PASS. A final
+plain-JSON delivery completed the existing review, without new tools/review.
+Reported cumulative Max list cost1245968micro includes the prior475941 and868433;
+incremental costs475941+392492+377535, NOT summing cumulative receipts. This known
+cost exceeds the final1150000 internal soft slot by95968; originalUSD12 is intact.
+The current live admission rejects this internal overslot receipt. No bypass or
+receipt rewriting. A follow-up must reconcile known soft Max caps and original
+owner authorization explicitly, keep all costs, and be reviewed if code changes.
+
+Current cumulative estimate11024855micro;975145remaining of original12000000;
+unknown0. Native Max list8740903, OpenAI conservative2283952. This is NOT a bill
+or per-book unit price. M7 new book/key/provider calls0, reference claimNOTcreated,
+real book images0. The text and supported M6 board are unchanged, not re-written.
+Owner was asked whether to approve accumulatedUSD14 for this SAME book only,
+including budget reconciliation and relevant QA; no answer yet. Stop new paid
+work until that decision; no automatic ceiling renewal, push, merge or deployment.
+Task ART: reference-recovery-closeout-proof-20261008.json and native report in
+reference-recovery-claude-qa-final-delivery-20261008/REPORT.md. All hosts terminated.
+
 ## M7 reference recovery implemented; independent QA/live outcome pending (2026-10-08)
 
 Guy approved ONE targeted held-reference correction, fresh unchanged Sol pixel QA,
