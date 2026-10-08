@@ -1,5 +1,19 @@
 # SmallHeroes — Roadmap
 
+## Sol actual vision works; bounded reference recovery is the next decision (2026-10-08)
+
+- Combined bounded codePASS7fe..bc plus actual fullRED baseline reconciliation:6852ordinary pass/10oldfail,
+  634resource pass/1oldfail +3RPC errors. New authority-literal failure closed; not a release/stability PASS.
+- Same book's appearance-only planning +fresh whole-board Sol supported9unchanged frames. Sol blind old-pixel
+  control correctly found Dini's sash. New child anchor removed it, but Sol AND Codex observed pocket-side
+  mismatch. Reference held before any book/cover/atlas image; no provider crash or manual picture/source change.
+- Five real stages cost129092API; total9778887/original12m, unknown0, remaining2221113. No new authors/editors.
+  Both native engineering sessions retained (529487+297779); Max list value is not an API invoice.
+- Proposed next: ONE defect-only reference correction+same pixel QA, actor/image side clarity, immutable known
+  failed history and original ceiling. Needs Guy's decision then narrow implementation/Claude codeQA before
+  any continuation. No automatic replay, rejected-reference adoption, story/canon change or gate weakening.
+- Book goal remains incomplete: zero body/cover illustrations. No push/merge/deploy or commercial approval.
+
 ## M6 model-authority correction before the live visual proof (2026-10-08)
 
 - Native bounded codePASS7fe..5e, but separate fullRED has one NEW registry-literal failure plus11inherited

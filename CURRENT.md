@@ -1,5 +1,41 @@
 # SmallHeroes — Current Technical State
 
+## Live Sol visual proof supported the board; new child reference HELD (2026-10-08)
+
+Code bc83f34c remains the exact reviewed head. Native4a688b4f returned combined bounded codePASS7fe..bc,
+based on preceding scoped review plus its own two-line authority correction review. It ran no tests/tsc or
+actual pixel/literary/product/release review. Actual297779micro retained, within300000; no renewal. Codex
+verified3407precommit working-file hashes at cleanbc, authority spec/backend/adapter blob IDs unchanged,
+92old book artifacts and6protected trees preserved. Corrected fullRED:6852ordinarypass/10oldfail/73skip,
+634resourcepass/1oldWindowsprobe fail PLUS3RPC errors. All11 failing names match7fe; new authority failure closed.
+
+Actual immutable92-file admission at cleanbc passed with0provider/key/writer calls; extra engineering1427037
+made total-before9649795/original12m. One fixed same-book visual continuation executed. No author/editor/prose
+change: Astra appearance-only29000; Sol whole-book review55130 supported same9frames and unchanged locations,
+props/pages/transitions. Sol on EXACT old bad PNG/context18468 correctly identified Dini's sash on Goni.
+One newLOW1024 child reference7776 omitted the sash and matched age/other clothes, then Sol pixels18718 held
+its single pocket: image-right/anatomicalLEFT rather than the current planned anatomicalRIGHT. Codex viewed
+the real PNG and corroborated that specific side mismatch. No whole-image flip, manual image edit, source
+redesign or adoption of a held image. Which side is chosen has no special narrative necessity; inconsistency
+between the declared design and resulting anchor is the problem. Never reinterpret that as a bad story.
+
+All5paid provider stages completed, known costs and model/default tier recorded. Financial ledger stopped=false
+means outcomes/costs are known, NOT resume authority. Worker sealed failed/simple_reference_held; hostcode1,
+signalnull, termination confirmed. ZERO book/cover frames or completeHTML; no atlases or numeric identity calls.
+Original failed seals, prior successful text/readings/board and both rejected anchors remain. The goal is NOT done.
+
+This live continuation129092micro API; total9778887/original12000000, unknown0, remaining2221113. Separately:
+ClaudeMax7494935 reported list value; OpenAIAPI2283952 conservative estimates. Engineering6704378 vs partial
+book production3074509 (NOT complete-book/unit/customer cost). No key exposure, customer charge/push/deploy.
+
+Next PROPOSAL, not implemented/approved: reuse existing bounded defect-only page quality loop for canonical
+references (maxONE targeted correction, fresh full-pixel QA, no repair on uncertainty/provider/unknown cost),
+explicit actor-vs-image side convention and source-bound immutable repair history. No model/threshold/canon
+weakening or story rewrite. Guy asked via asynchronous question whether to approve this system change and
+same-book continuation ONLY within the original2221113remaining. Pending decision; no new paid run/claimed slot.
+Evidence: chat artifact visual-continuation-outcome-proof-20261008.json and native reports. Documentation
+closeout alone does not extend the codePASS range or the visual/release verdict.
+
 ## M6 full gate exposed one new model-authority failure; narrow correction (2026-10-08)
 
 Native293f0a00 bounded READ-ONLY codePASS for7fe..5e681441; no tests, compile internals, real pixels, prices,

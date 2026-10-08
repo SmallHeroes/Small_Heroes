@@ -167,3 +167,36 @@ Do not expand the allowlist, edit/disable the test, change the native/provider m
 Local tsc/authority/admission checks, focused commit, full check and native corrective read-only re-gate.
 Old config and all evidence unchanged; source-bound successor config must include both actual engineering
 sessions in the ORIGINAL12m and a fresh technical receipt before live work. No allowance renewal/push.
+
+## 15. Exact code closeout and one live visual proof — incomplete book
+
+Native4a688b4f combined bounded READ-ONLY codePASS7fe..bc83f34c, using preceding review plus its own narrow
+delta review. Actual297779micro, under300000; no independent test/pixel/literary/release execution. Codex
+checked3407precommit hashes against clean committed working files, exact authority spec/backend/adapter
+blob equality; no claim of raw Git-blob/EOL identity. Fullbc RED:6852ordinarypass/10oldfail/73skip;634resource
+pass/1oldWindowsprobe fail +3RPC errors. Exact11failure names match7fe; the new literal failure is closed.
+
+Real pure admission revalidated92old artifacts, saved source/readings/board and costs at cleanbc, before keys.
+One fixed controlled-visual-continuation-20261008 slot executed under original12m, total-before9649795.
+New costs: appearanceAstra29000, whole-boardSol55130, exact-old-pixelSol18468, newchildLOWimage7776,
+newchildSol18718 =129092. Both Sol calls supplied actual PNG/four crops, not filenames pretending to be pixels.
+Board supported all9current packets. Geometry/props/pages/sequence unchanged. No writer/editor/manual prose.
+
+Old-pixel control found the exact sash ownership problem; new PNG omitted it. New reference held for its
+single pocket on anatomicalLEFT/image-right rather than plannedRIGHT. Codex viewed the pixels and agrees
+with that concrete finding. No narrative necessity for right rather than left; this is an inconsistency with
+the current visual design, not literary failure. Do not fix by flipping pixels, relabeling the held candidate,
+post-hoc changing the plan, ignoring QA or silently retrying a consumed slot.
+
+Hostcode1/signalnull/confirmed; sealed failed/simple_reference_held. All5provider receipts completed and known;
+financial stopped=false is NOT permission. No atlas/book/cover image, complete bookHTML or numeric identity
+score. Total9778887/original12m, unknown0, remaining2221113; Max7494935 list value vs API2283952 conservative.
+Engineering6704378; partialbook3074509 is not a finished-book/unit cost. Old92files and6trees preserved.
+
+Next proposed Decision Gate: bounded reference quality recovery using the existing defect-only quality loop,
+maxONE targeted reference edit and identical fresh pixel QA, default/archive unchanged. Actor-relative side
+vs image-side mapping explicit for reference pose. Source/context/candidate/receipt/version/hash/cost binding,
+one fixed fresh claim after known previous termination, all original cost retained, no authors/editors/new
+book, no weaker0.70/fourrefs/model/canon/pixel/continuity gates. Uncertainty/provider/unknown/cancel or second
+HOLD stops. Price native engineering and remaining refs/9images before execution. Guy decision PENDING;
+no new implementation, paid call or budget renewal under this proposal.
