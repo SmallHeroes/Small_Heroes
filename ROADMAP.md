@@ -1,5 +1,15 @@
 # SmallHeroes — Roadmap
 
+## Same-book continuation evaluated; bounded editor repair next, not built (2026-10-08)
+
+- Independent scopedPASS A5448a01a..18ba/B18ba..1cf; native106/106+tsc0; real schema preclaim proof passed.
+- Two real Astra readings completed, same cap/model/citation gates; one meaningful final ambiguity holds book.
+  Original Opus records/text unchanged, no board/references/images. Engineering PASS is not story/visual PASS.
+- Total6260183micro includes incomplete Max consultation349633 vs300000internal slot. Original12 remains,
+  unknown0. Paid work stopped pending Guy reconciliation; no renewal. Generic bounded repair PLANNED only.
+- One fresh editor, explicit3receipt lineage/guidance/version, then fresh blind Astra and existing downstream
+  gates if passed. No second repair, hand edit/new book, weak gate, public rollout/push/deploy. Goal not complete.
+
 ## Controlled continuation of the same book approved (2026-10-08)
 
 - Guy approved proceeding after the reviews. Preserve same book, original12, failed history and paid Opus sessions.

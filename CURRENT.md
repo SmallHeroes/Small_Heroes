@@ -1,5 +1,23 @@
 # SmallHeroes — Current Technical State
 
+## Same-book readings completed; literary HOLD; repair planned only (2026-10-08)
+
+Native Claude independentlyPASS A5448a01a..18ba and B18ba..1cf12417, verifying clean topology/diff,tsc0
+and106/106 at committed1cf. B-1 cleared BEFORE claim against both real saved native schemas/current source,
+zero provider/key/slot. One fixed continuation then reused authors and completed both Astra readings with
+valid JSON/source citations at unchanged16k/medium/model. Costs76500+120420micro; total5910550, unknown0.
+Final reading praised the story but held ONE meaningful shade-world ambiguity; comparison4improvements,
+no material regression. Host terminated code2/signalnull/confirmedtrue, sealstory_held,imageCalls0,runtimefalse.
+Original22 authority/manuscript/paid-evidence files unchanged. No storyboard/reference/image, hand edit/new
+book/allowance/customer charge/push/deploy. Successful flat-schema pair is not proof of earlier failure cause.
+
+Later design consultation NOT complete: nativeMax349633micro against300000local slot, code1/error_max_budget_usd.
+Known aggregate6260183 (<original12m), remaining5739817, unknown0. Paid work STOPPED pending Guy's explicit
+reconciliation; no quiet retry/cap renewal. Partial advice retained as partial, notPASS. No repair/source-format
+implementation. Proposed generic one-editor guidance/explicit repaired-source lineage, fresh blind Astra then
+same downstream gates. Decision: docs/ai-workflow/PERSONAL_SIMPLE_BOOK_BOUNDED_EDITOR_REPAIR_PLAN_20261008.md.
+Outcome: chat artifact SAME-BOOK-CONTINUATION-OUTCOME-20261008.md. Original/continuation seals intact. Goal INCOMPLETE.
+
 ## Controlled continuation first independent review: HOLD, narrow correction (2026-10-08)
 
 Native Claude read18ba3a0c, found no proven spend/hold bypass, but withheld PASS because its Bash commands were denied.
