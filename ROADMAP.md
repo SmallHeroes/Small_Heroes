@@ -1,5 +1,18 @@
 # SmallHeroes — Roadmap
 
+## M12 paid proof ends at refHOLD; owner diagnostic choice pending (2026-10-08)
+
+- Valid source-only nativePASSd2b77a6e..ca5b6fe6, fee749305micro; no pixel/product
+  approval. Actual2stage fresh atlas proof68660micro endsHOLD, not budget failure.
+- Same story/approved child kept. Atlas improves bob/two wings but genuine bench
+  mismatch remains. Potential critic overreach is not a reason to erase defects.
+- Known17840388of20m, unknown0;237evidence files/six protected trees preserved.
+  No cover, narrative images or finished reader. Original book goal NOT achieved.
+- One explicit owner question: permit complete UNAPPROVED diagnostic book with
+  all QC findings and childidentity.70 still required, or keep strict ref stop.
+  Current code has no such diagnostic exception. No new paid call authorized by
+  this status; no budget reset/production/push claim. Last full gate remainsRED.
+
 ## M12 fresh entity reference, no repeated failed edit (2026-10-08)
 
 - M11 nativeQA validPASS08a51c91..d2b77a6e/code0. Same-book real run then held

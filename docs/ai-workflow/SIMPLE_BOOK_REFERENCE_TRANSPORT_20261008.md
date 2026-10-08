@@ -1,5 +1,27 @@
 # M10 Decision Gate - approved reference transport correction
 
+## M12 closeout — technical sourcePASS, real pixelHOLD (2026-10-08)
+
+Codeca5b6fe6 at clean tree. Native independent source-only review of exact
+d2b77a6e..ca5b6fe6 ends0/success/PASS, fee749305micro. No own tests/images/
+product/stability reviewed. Local454/454 and literaltsc0 as below.
+Actual approved same-book proof: fresh entity PNGa482c919...; exactly2settled
+stages36896+31764=68660micro, hostsignal=null/code1/simple_reference_held.
+No locations, cover/pages or reader. Old bad image never passed to generation.
+Bob/two-wing silhouette improves; bench still2rather than3source slats, with
+other arrangement/detail/palette holds. No quiet retry, changed verdict or refund.
+Actual request and judge both contain3slats; no conflicting2instruction found.
+Silhouette strap/full-route demands may overreach the reference role; investigate,
+not hand-edit or declare every critic claim valid. Source ledger explicitly
+changes configurations7/8, so initial/final states alone are not contradiction.
+Aggregate17840388of20m,unknown0. API2646052,Maxlist15194336; engineering14403779,
+bookdiagnostics3436609. All237book files/six protected trees preserved.
+Owner diagnostic-stop-rule exception asked, NOT assumed or implemented. Existing
+strict criteria unchanged until a separate explicit choice. No push/production.
+Detailed report/continuation state in taskART. This is not book completion.
+
+---
+
 ## M12 Decision Gate - rebuild design instead of repeatedly editing a failed atlas
 
 Same owner goal and explicit accumulatedUSD20; sole Codex writer continues from

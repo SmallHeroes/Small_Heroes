@@ -1,5 +1,28 @@
 # SmallHeroes — Current Technical State
 
+## M12 actual fresh reference HOLD; complete book still absent (2026-10-08)
+
+Independent native source-consistency PASSd2b77a6e..ca5b6fe6, code0/success,
+session9c1c8b7c-f13a-4b09-a081-5f1f2ca47111. Fee749305micro conservative ceil.
+Source-only, no own tests/pixels/product/stability qualification. Actual one-shot
+fresh entities generation36896 + QA31764 =68660micro endedcode1/referenceHOLD.
+Bob/two wings improved, but bench still2vs3source slats; cardboard/palette/details
+also held. Do not adopt this failed PNG or generate pages under an implied PASS.
+Exact actual prompt and QA agree on3slats; no hidden2slat instruction found.
+Some silhouette/accessory/whole-route demands need scope/observability analysis,
+but real bench mismatch remains. Supported configuration changes are declared
+in source ledger; do not falsely diagnose initial/final forms as contradiction.
+Known17840388of20m;2159612remaining;unknown0. API2646052, Max reported-list15194336.
+Engineering14403779;allbookdiagnostics3436609. Failed costs retained once.
+No cover/body image/reader;0of9.237book files now preserved,6protected trees clean.
+Both new consumed attempts remain failed/sealed, no active provider. No push.
+Async owner choice requested: explicit complete-but-UNAPPROVED diagnostic book
+despite refHOLD, with all findings and mandatorychildidentity.70 retained, vs
+strict current stop until all references pass. NOT implemented/authorized yet.
+No new spending beyond20or diagnostic gate exception inferred. Detailed status:
+taskART/CODEX-BOOK-VISUAL-STATE-20261008.txt; local continuation state JSON avoids
+repeating heavy tests or paid calls without a material change. Goal not complete.
+
 ## M12 bounded fresh entity reference strategy active (2026-10-08)
 
 M11 independent nativeQA is valid completedPASS08a51c91..d2b77a6e, source-only,
