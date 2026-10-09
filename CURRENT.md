@@ -1,5 +1,37 @@
 # SmallHeroes — Current Technical State
 
+## M17 source PASS; actual one correction still HOLD (2026-10-09)
+
+Reviewed code421ffd4b, exacted1dfd05..421ffd4b, delivered Claude native0/success/
+PASS (source only, unsupplied callees assumed; no own tests/pixels/stability).
+First freshQA native1/error_max_budget_usd cost751061 is NOT formalPASS;
+same-session completion100797 yields whole fresh851858, appended once. No reset.
+Actual admission preview0/0key/0provider, then ONE targeted repair in realengine.
+105.530s, image54792 + SolQA34948 =89740micro; both replies complete/known,
+sealednative1/simple_reference_held with5pass/3defect. One edit consumed.
+Drag line and footprints, rectangular seat outline, single carton-sheet count,
+and caption space improve. Dini's restored shadow still has one readable wing
+and detached fragments/generic head. Pocket lacks the flap visible in approved
+child anchor: independently confirmed mismatch, previously missed by QA.
+Closed-box dark-interior observation is an inspectability issue, not proof of
+the capability's absence. Babies' exact hue remains a judgment. No gate bypass.
+No locations/body/cover/reader, no paid automatic second correction.
+
+Known23112292/25m, unknown0, remaining1887708; API3387694+Maxlist19724598.
+Engineering18934041+bookdiagnostic4178251. Estimates, not invoices or production
+book unit price.349read-only checks pass: raw wires/usage/hashes/oneedit/trueHOLD,
+all329oldfiles preserved,352total/sixprotectedtrees unchanged. Still clean code.
+Fullrepo stability incomplete/historicalRED. No story/canon/.70/push change.
+No further implementation or paid run currently approved after consumed oneedit.
+Next proposed: isolated readable-scale proof of the difficult actor-derived
+component using existing component-control path; retain every fact/source form
+and distinguish capability inspection from visible shape. Earlier MEDIUM full
+atlas also held; previous isolated bench control passed, not whole-atlas proof.
+New whole-book minimum is49inherited+31new=80of80 BEFORE any outside control:
+no repair headroom. Do not silently reset/raise attemptcap. Need explicit next
+scope/guard decision before more paid work, not an identical atlas retry.
+Task ART report: M17-REFERENCE-ROLE-REPAIR-OUTCOME-20261009.txt.
+
 ## M17 one targeted split-reference repair approved; implementation (2026-10-09)
 
 Guy directly approved the additional one-target correction, same book and SAME

@@ -60,3 +60,36 @@ Shared ownership judge addition remains byte-exact for historical inspection.
 Fullrepositorycheck notrerun: incomplete/historicalRED, never claimedgreen.
 All329bookfiles/six protected trees preserved; known22170694/25m unchanged.
 Clean local code commit then fresh small independent QA are next, no paid edit.
+
+## Independent source verdict and real outcome
+
+Delivered native0/success/PASS exacted1dfd058f6cc53fea74c018112cb5a60b90901b..
+421ffd4b2dff078cc92b8afc99c907955e52710f. The first process ended native1 with
+error_max_budget_usd: known751061, completion100797, whole freshsession851858. All costs retained
+once; first raw PASS is not a completed verdict. Freshsession whole fee appended
+to sealed M16known22170694 =>23022552 before actualrender. No spending reset.
+Source-only limits: no own tests/pixels/runtime/stability, unchanged upstream
+callees assumed. Low disclosures: captions also constrain future freshsplit
+prompts; repair omits independent-tile paragraph likelegacy; uncertain-only
+parent cannot qualify for a paidedit. None modifies scope or image acceptance.
+
+Actual CLI preview0 with0key/0provider/0claim, then ONE project-engine targeted
+repair105.530s,54792image +34948SolQC =89740micro. Native1, completeknown2stages,
+sealed simple_reference_held,5QCpass/3defect. CorrectedPNG
+462ee0c5ed93f257bfb222cc55b2ab2481406ad2d7d5f4f9482cc0101949a41d,
+same context149a8ac432046151a090739fe8b5dfdd9a40e24a26ecb2c664987fc8e95df972.
+All8IDspresent. Dragline/prints, seat outline, base-sheet count and caption-space
+improve. Restored Dini outline still onlyone connectedwing, detachedfragments,
+generichead. Approved child anchor has pocketflap; entityatlas lacks it. Real
+mismatch, previously missed. Closed cartons do not visibly prove their interior
+capability; this is not evidence they cannot provide darkshade. Color judgment
+needs calibration. Nevertheless real identity/shape defects already hold.
+No locations,cover/bodyimages/reader or secondedit. No manual pixels/story/canon.
+
+Known23112292/25m, unknown0; API3387694+Maxlist19724598, not invoice.349read-only
+checks pass (hash/wire/tokenmath, oneedit, semanticHOLD,329oldfiles/six trees),
+352totalbookfiles. Earlier MEDIUM fullatlas control alsoheld; isolatedbench
+passed but is not whole-atlas approval. Next isolated actor-derived component
+proof at readable scale is PROPOSED only, not implemented/authorized. Another
+full path has49inherited+31new minimum80of80, no repairheadroom; do not hide
+past attempts or liftcap. Newscope/guard decision needed; no identical paidretry.

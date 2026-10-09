@@ -1,5 +1,18 @@
 # SmallHeroes — Roadmap
 
+## M17 completed source milestone; visual proof still blocked (2026-10-09)
+
+- Independent source-onlyPASS exacted1dfd05..421ffd4b. Finaltargeted19/19,
+  typecheck0; source instruction mutant caught. Fullrepository gate NOT green.
+- Actual ONEedit+fresh fullQC ends5pass/3defect/89740micro, no locations/pages.
+  Dini shadow identity/anatomy and pocket remain real defects. No silent retry.
+- Known23.112292of25, unknown0;329oldfiles/352total/sixprotectedtrees preserved.
+- Next proposed controlled component proof at readable scale, not another full
+  atlas roll or canon/gate relaxation. MEDIUM full-atlas control already held.
+  Isolated bench oncepassed is partial evidence only. Need nextscope decision.
+-49inheritedcalls; another full correction+locations+9frames has minimum80of80,
+  so attempt headroom is now exhausted. Do not raise/reset it without approval.
+
 ## M17 approved one correction; preserve all authority and cost (2026-10-09)
 
 - Reuse existing repair, strict M16 parent; exactly one edit and fresh full QC.
