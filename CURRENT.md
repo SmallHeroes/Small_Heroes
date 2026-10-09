@@ -1,5 +1,22 @@
 # SmallHeroes — Current Technical State
 
+## Provider-free reference-state boundary diagnosis (2026-10-09)
+
+Actual source restoration and illustrateSimpleBook assembly prove metadata loss:
+the validated source declares2mutable configuration attributes, but reference
+generator/judge receive their initial invariants without those declarations.
+Existing previewContinuityContext correctly resolves the approved page7carton
+palace and page8separatedshadows. This confirms the missing metadata, not that
+it caused every remaining pixel defect. Dini identity/rigid shadow still matter.
+No new planner/schema/provider is necessary to represent this distinction.
+
+Probe observed1render and1judge callback, neither a provider call; no claim/key/
+image/book writes. All283evidence files preserved, source f14e9f40 unchanged
+during the probe. Known20041052/22m unchanged, no current live render. Receipt:
+task ART/reference-state-readonly-audit-20261009/receipt.json; refined scope:
+REFERENCE-STATE-BOUNDARY-DIAGNOSIS-20261009.txt. No engine implementation yet;
+the next-scope owner decision remains pending. Book goal remains incomplete.
+
 ## M14 sourcePASS; the single approved paid correction stillHOLD (2026-10-09)
 
 Delivered nativecode0/success source-consistencyPASS for exact a354f0fa..b96a1dda,

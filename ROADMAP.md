@@ -1,5 +1,16 @@
 # SmallHeroes — Roadmap
 
+## Existing state mechanism permits a narrower reference fix (2026-10-09)
+
+- Provider-free actual-path probe proves2declared mutable attributes lose
+  their declarations in reference assembly; existing page resolver is correct.
+- Reuse validated mutableAttributes/source changes, not a new planner/schema.
+  Preserve every fixed fact and known variant; no silent attribute filtering.
+- Actor-derived identity and sheet-density hypotheses remain separate; this
+  proof does not approve the failed atlas or explain every rendering defect.
+- No supplier/claim/key/image call;283old files unchanged;20.041052of22m.
+  Next-scope approval still required, no new implementation or paid retry.
+
 ## M14 one correction consumed; reference production still the blocker (2026-10-09)
 
 - Exact a354f0fa..b96a1dda receives delivered native source-onlyPASS; local
