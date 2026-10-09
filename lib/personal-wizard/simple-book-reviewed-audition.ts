@@ -190,7 +190,11 @@ export const identityPassed = (identity: PageChildResemblanceVisionResult | null
   identity.threshold === REVIEWED_AUDITION_POLICY.identityThreshold && identity.resemblanceScore !== null &&
   identity.resemblanceScore >= REVIEWED_AUDITION_POLICY.identityThreshold;
 
-export type AttemptStatus = 'unavailable' | 'review_unusable' | 'ineligible_safety' | 'review_invalid' | 'held' | 'qa_supported';
+/** A measurement (passed or failed, incl. missing/multiple child) is evidence; evidence_unknown or a thrown call is not a visual defect. */
+export const identityUsable = (identity: PageChildResemblanceVisionResult | null | undefined) =>
+  !!identity && (identity.status === 'passed' || identity.status === 'failed');
+
+export type AttemptStatus = 'unavailable' | 'review_unusable' | 'identity_unusable' | 'ineligible_safety' | 'review_invalid' | 'held' | 'qa_supported';
 export type AuditionAttempt = { attempt: number; candidate: AuditionImage | null; review: AuditionReview | null;
   assessment: AuditionAssessment | null; status: AttemptStatus; error?: string; identity?: PageChildResemblanceVisionResult | null };
 type Chosen = AuditionAttempt & { candidate: AuditionImage; review: AuditionReview; assessment: AuditionAssessment };
@@ -278,7 +282,7 @@ function pageChecksPrompt(checks: ReturnType<typeof auditionPageChecks>, referen
 // ---------------------------------------------------------------------------------------------------------------
 /** Spending, cancellation and admission failures end the run; one provider glitch only costs its attempt. */
 export const FATAL_AUDITION_CODES = new Set(['audition_cancelled', 'audition_budget_exhausted', 'audition_call_limit', 'audition_meter_policy',
-  'audition_key_missing', 'audition_unknown_cost', 'audition_repeated_failure', 'audition_review_unusable']);
+  'audition_key_missing', 'audition_unknown_cost', 'audition_repeated_failure', 'audition_review_unusable', 'audition_identity_unusable']);
 /** A review that arrived but cannot be used is not a visual finding, so it is never a reason to draw another image. */
 export const UNUSABLE_REVIEW_CODES = new Set(['audition_pixel_schema', 'audition_pixel_provider_invalid']);
 const errorCode = (error: unknown) => error && typeof error === 'object' && 'code' in error && typeof error.code === 'string' ? error.code : 'audition_attempt_failed';
@@ -340,7 +344,10 @@ export async function illustrateReviewedAudition(args: {
     const attempts = prior.attempts.map(a => a.candidate && a.review ? { ...a,
       assessment: assessAuditionReview(a.review, a.candidate.imageSha, contextSha, requirementIds).assessment } : a);
     const again = selectAuditionAttempt(phase, attempts);
-    if (prior.contextSha !== contextSha || canonicalJson(prior.requirementIds) !== canonicalJson(requirementIds) || !again ||
+    // A measured page attempt without usable identity evidence would have halted the run; it is never trusted from a save.
+    const unknownIdentity = phase === 'page' && attempts.some(a => a.status === 'identity_unusable' ||
+      (a.candidate && a.assessment && !a.assessment.safetyBlocked && !a.assessment.invalidCitations && !identityUsable(a.identity)));
+    if (unknownIdentity || prior.contextSha !== contextSha || canonicalJson(prior.requirementIds) !== canonicalJson(requirementIds) || !again ||
       canonicalJson(again) !== canonicalJson(prior.chosen) || attemptStatus(phase, again) !== prior.status) fail('audition_resume_binding');
     return prior;
   };
@@ -363,13 +370,18 @@ export async function illustrateReviewedAudition(args: {
     if (phase === 'sheet' || assessment.safetyBlocked || assessment.invalidCitations) return { attempt, candidate, review, assessment, status: attemptStatus(phase, { candidate, assessment }) };
     const measured = await attemptStep(args.check, () => args.identity(`${step}_identity`, args.child, candidate));
     const identity = 'error' in measured ? null : measured.value;
-    return { attempt, candidate, review, assessment, identity, status: attemptStatus(phase, { candidate, assessment, identity }),
-      ...('error' in measured ? { error: measured.error } : {}) };
+    // Unknown identity evidence is never a reason to draw again: keep the candidate and the original result, then halt.
+    if (!identityUsable(identity)) return { attempt, candidate, review, assessment, identity, status: 'identity_unusable',
+      error: 'error' in measured ? measured.error : `identity_${measured.value.status}_${measured.value.reasonCode}` };
+    return { attempt, candidate, review, assessment, identity, status: attemptStatus(phase, { candidate, assessment, identity }) };
   };
   /** True when no further attempt may be drawn. An unusable review ends the run; its candidate and attempts stay saved (receipts in the meter). */
   const finish = (phase: 'sheet' | 'page', name: string, attempts: AuditionAttempt[]) => {
     const last = attempts[attempts.length - 1];
-    if (last.status === 'review_unusable') { args.save(`halted_${prefix}${phase}_${name}`, { phase, name, attempts, error: last.error }); fail('audition_review_unusable'); }
+    if (last.status === 'review_unusable' || last.status === 'identity_unusable') {
+      args.save(`halted_${prefix}${phase}_${name}`, { phase, name, attempts, error: last.error });
+      fail(last.status === 'review_unusable' ? 'audition_review_unusable' : 'audition_identity_unusable');
+    }
     // An invalid review stays held as is: a citation error is no reason to draw again.
     return last.status === 'qa_supported' || last.status === 'review_invalid';
   };

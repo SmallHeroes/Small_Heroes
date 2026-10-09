@@ -290,6 +290,38 @@ describe('orchestration (mocked reviews prove flow and selection, not model perc
     }
   });
 
+  it('unknown identity evidence (evidence_unknown or a thrown call) halts before any next render; a measured 0.69 still retries', async () => {
+    const unknown = { ...identity(.5), status: 'evidence_unknown' as const, reasonCode: 'malformed' as const, resemblanceScore: null, subjectVisible: null, sameChild: null };
+    for (const fault of ['evidence_unknown', 'thrown'] as const) {
+      const h = harness();
+      const measure = h.args.identity.getMockImplementation()!;
+      h.args.identity.mockImplementation(async (...a: Parameters<typeof measure>) => {
+        if (a[0] !== 'page_1_0_identity') return measure(...a);
+        if (fault === 'thrown') throw new Error('socket');
+        return unknown;
+      });
+      await expect(illustrateReviewedAudition(h.args)).rejects.toThrow('audition_identity_unusable');
+      expect(h.args.render.mock.calls.map(c => String(c[0])).filter(s => s.startsWith('page_1_') || s.startsWith('page_2_'))).toEqual(['page_1_0']);
+      expect(h.args.judge.mock.calls.some(c => String(c[0]).startsWith('page_1_1') || String(c[0]).startsWith('page_2_'))).toBe(false);
+      expect(h.args.identity.mock.calls.map(c => String(c[0])).filter(s => !s.startsWith('page_0_'))).toEqual(['page_1_0_identity']);
+      // The candidate and the original result are kept; a null measurement is never a score of 0.
+      expect(h.saved.get('halted_page_1')).toMatchObject({ error: fault === 'thrown' ? 'audition_attempt_failed' : 'identity_evidence_unknown_malformed',
+        attempts: [expect.objectContaining({ status: 'identity_unusable', candidate: image('page_1_0'), identity: fault === 'thrown' ? null : unknown })] });
+      expect(h.saved.has('page_1')).toBe(false);
+    }
+    // A valid measured 0.69 is a visual finding: the bounded correction draws again and a measured 0.82 is supported.
+    const low = harness({ score: step => step === 'page_1_0_identity' ? .69 : .82 });
+    const m = await illustrateReviewedAudition(low.args);
+    expect(m.pages[1]).toMatchObject({ status: 'qa_supported', chosenAttempt: 1, identityScore: .82 });
+    expect(low.prompts.get('page_1_1')).toContain('cast:child');
+    // A saved page whose measured attempt carries unknown identity evidence is never trusted on resume.
+    const designs = low.saved.get('audition_sheet_designs'), sheets = { entities: low.saved.get('sheet_entities') as any, locations: low.saved.get('sheet_locations') as any };
+    const pages = Object.fromEntries([0, 1, 2, 3, 4, 5, 6, 7, 8].map(n => [n, low.saved.get(`page_${n}`) as any]));
+    expect((await illustrateReviewedAudition({ ...harness().args, resume: { designs, sheets, pages, stepPrefix: 'r1_' } })).pages[1]).toMatchObject({ status: 'qa_supported' });
+    const forged = structuredClone(pages); forged[1].attempts[0].identity = unknown;
+    await expect(illustrateReviewedAudition({ ...harness().args, resume: { designs, sheets, pages: forged, stepPrefix: 'r1_' } })).rejects.toThrow('audition_resume_binding');
+  });
+
   it('an unusable review (malformed even at a known cost, or misbound) halts the run: no further render, review or identity call', async () => {
     const root = path.join(mkdtempSync(path.join(tmpdir(), 'audition-unusable-')), 'paid');
     const meter = new AuditionMeter(root, 9000000, AUDITION_WORST_CASE_CALLS, 1000000);
