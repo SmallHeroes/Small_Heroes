@@ -247,12 +247,13 @@ export type GPTImageReferenceMode =
   | 'book_design';
 
 export type BookDesignReferenceRole = 'rejected_edit_target' | 'child_design_authority' |
-  'companion_design_authority' | 'entity_design_authority';
+  'companion_design_authority' | 'entity_design_authority' | 'landmark_subset_design_authority';
 const BOOK_DESIGN_ROLES: Record<BookDesignReferenceRole, string> = {
   rejected_edit_target: 'REJECTED reference sheet to edit, never canonical authority. Preserve its layout and unaffected designs; change only the named defects.',
   child_design_authority: 'Accepted child design and owned clothing authority. Preserve specified identity, anatomy, hair, colors and clothing; not a real-child photo and not an actor to add to this sheet.',
   companion_design_authority: 'Accepted selected companion design authority. Preserve its actual species, anatomy, silhouette, colors and accessories; never substitute another companion or add its body unless requested.',
   entity_design_authority: 'Accepted object/supporting-cast design atlas authority. Preserve the relevant materials, counts, silhouettes and structural details, not tile layout or labels.',
+  landmark_subset_design_authority: 'Independently supported source-bound landmark SUBSET ONLY, not an approved complete location atlas. Preserve only its named landmark designs and counted parts; the full current location/topology design remains mandatory. Do not copy its isolated tile background or replace unrelated locations.',
 };
 
 /** Default cap (gpt-image-1). Override via GPT_IMAGE_EDIT_MAX_REFERENCES for gpt-image-2 probes. */

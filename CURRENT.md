@@ -1,5 +1,28 @@
 # SmallHeroes — Current Technical State
 
+## M16 disjoint reference roles locally verified; independent QA next (2026-10-09)
+
+Guy explicitly approved the proposed scope and ONE same-book proof inside SAME
+USD25. Sole Codex writer continues voice-followup/codex/simple-story-voice-20261007,
+base eaf9825a; no new implementation task/second writer. New opt-in partitions by
+validated kind, preserving every source ID/fixed fact/state. The two existing
+atlases remain; partial landmark benchmark routes only to locations, with honest
+typed generation and bound QA image roles, never complete-location approval.
+Default contexts and page resolver/four references/eightQC/.70 remain unchanged.
+
+New continuation requires exactly the ended M15 failure, raw pixels/crops/roles/
+wire/source context, termination and full inventory before claim/key. It accounts
+for the outside-seal94105micro consultation and new same-session technical fee
+exactly once. No old claim/seal reopening or reference retry chain. Known21041593
+of25m/unknown0 remains unchanged during provider-free work;306bookfiles/six trees
+preserved. Focused CLI/admission/stop/legacy/transport16/16 pass,197skipped of213;
+final pure/transport recheck13/13. Inventory207to213, no test removed. Two virtual
+mutants each fail exactly1intended assertion (9pass/1fail), no loader/timeout.
+First typecheck found test-only Array.at compatibility; corrected, literal
+typecheck0. Assertions and live deadlines unchanged. No paid proof yet, no
+independentPASS/pixel/product/stability claim. Full gate remains incomplete.
+Decision Gate: docs/ai-workflow/PERSONAL_REFERENCE_ROLE_SPLIT_20261009.md.
+
 ## M15 sourcePASS, actual atlas HOLD; simpler ownership scope proposed (2026-10-09)
 
 Source fe00b1b9 on voice-followup/codex/simple-story-voice-20261007, exact QA

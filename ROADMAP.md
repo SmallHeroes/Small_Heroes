@@ -1,5 +1,17 @@
 # SmallHeroes — Roadmap
 
+## M16 explicit scope approved, lossless two-atlas ownership (2026-10-09)
+
+- Guy approved general kind-based split and ONE same-book proof in SAME25m.
+  Two existing atlas stages; all source IDs/facts/state retained, no name patches.
+- Partial benchmark has its owning role, no false whole-location authority.
+  Old defaults, four page refs, eight pixel categories and child0.70 unchanged.
+- Bind ended M15/full raw evidence/fees before claim/key; keep306files/six trees.
+  Include outside-seal consultation and cumulative QA increment once; no retry.
+- Local tests/typecheck then focused commit and Claude independent source QA;
+  real dry admission then one paid proof,9images only if all gates pass.
+- No new story/canon/production path, budget reset, push/deploy or acceptance.
+
 ## M15 source-data repair verified, reference production still HOLD (2026-10-09)
 
 - Exact837605ed..fe00b1b9 receives delivered source-onlyPASS, not pixels/stability.

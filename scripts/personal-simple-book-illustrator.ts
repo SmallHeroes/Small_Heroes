@@ -17,7 +17,7 @@ import type { runSimpleWizardBook } from '../lib/personal-wizard/simple-book-flo
 import type { PersonalWizardOptions } from '../lib/personal-wizard/options';
 import { exclusiveJson, exclusiveText, fencedText, realDirectory } from './personal-causal-trial-journal';
 import { CAUSAL_MODELS } from './personal-causal-trial-adapters';
-import { REFERENCE_STATE_JUDGE_ADDITION, simpleReferenceStateSchema } from '../lib/personal-wizard/simple-reference-designs';
+import { REFERENCE_STATE_JUDGE_ADDITION, simpleReferenceStateSchema, assertReferenceRoleOwnership, REFERENCE_OWNERSHIP_INSTRUCTION } from '../lib/personal-wizard/simple-reference-designs';
 
 const fail = (code: string): never => { throw new SimpleIllustrationError(code); };
 const tokens = z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER);
@@ -58,18 +58,26 @@ export function createSimpleBookPixelJudge(args: {
     const crops = await Promise.all([[0, 0], [width - cw, 0], [0, height - ch], [width - cw, height - ch]].map(async ([left, top]) =>
       `data:image/png;base64,${(await sharp(buffer).extract({ left, top, width: cw, height: ch }).png().toBuffer()).toString('base64')}`));
     const imageURLs = [data(candidate), ...crops, ...refs.map(data), ...(predecessor ? [data(predecessor)] : [])];
+    const roleScoped = context && typeof context === 'object' && 'version' in context && context.version === 'simple-reference-role-context/v1';
+    const roleContext = roleScoped ? referenceRoleContextSchema.parse(context) : null;
+    if (roleContext) assertReferenceRoleOwnership(roleContext.role, roleContext.design);
+    const split = !!roleContext && !!roleContext.design && typeof roleContext.design === 'object' && 'referenceOwnership' in roleContext.design;
+    if (roleContext?.inspectionReferenceRoles && (!split || predecessor || roleContext.inspectionReferenceRoles.length !== refs.length ||
+        JSON.stringify(roleContext.inspectionReferenceRoles) !== JSON.stringify(['canonical_child', 'canonical_companion',
+          ...(roleContext.role === 'locations' ? ['canonical_entities'] : []),
+          ...(roleContext.role === 'locations' && refs.length === 4 ? ['supported_landmark_subset_not_complete_locations'] : [])]))) fail('simple_reference_inspection_roles');
+    if (split && !roleContext?.inspectionReferenceRoles) fail('simple_reference_inspection_roles');
     const text = JSON.stringify({ candidateSha: candidate.imageSha, contextSha, context,
       imageRoles: ['candidate_complete', 'candidate_crop_top_left', 'candidate_crop_top_right', 'candidate_crop_bottom_left', 'candidate_crop_bottom_right',
-        ...refs.map((_, i) => `canonical_${['child', 'companion', 'entities', 'locations'][i]}`), ...(predecessor ? ['prior_same_scene_comparison_not_authority'] : [])] });
-    const roleScoped = context && typeof context === 'object' && 'version' in context && context.version === 'simple-reference-role-context/v1';
-    if (roleScoped) referenceRoleContextSchema.parse(context);
+        ...(roleContext?.inspectionReferenceRoles ?? refs.map((_, i) => `canonical_${['child', 'companion', 'entities', 'locations'][i]}`)), ...(predecessor ? ['prior_same_scene_comparison_not_authority'] : [])] });
     const stateAware = roleScoped && 'design' in context && context.design && typeof context.design === 'object' &&
       'referenceState' in context.design;
     if (stateAware) {
-      if (!('role' in context) || context.role !== 'entities') fail('simple_reference_state_scope');
+      if (!('role' in context) || context.role !== 'entities' && !(split && context.role === 'locations')) fail('simple_reference_state_scope');
       simpleReferenceStateSchema.parse((context.design as { referenceState: unknown }).referenceState);
     }
-    const instructions = roleScoped ? REFERENCE_DESIGN_JUDGE_INSTRUCTION + (stateAware ? '\n' + REFERENCE_STATE_JUDGE_ADDITION : '') : PREVIEW_JUDGE_INSTRUCTION;
+    const instructions = roleScoped ? REFERENCE_DESIGN_JUDGE_INSTRUCTION + (stateAware ? '\n' + REFERENCE_STATE_JUDGE_ADDITION : '') +
+      (split ? '\n' + REFERENCE_OWNERSHIP_INSTRUCTION + '\nAn image labeled supported_landmark_subset_not_complete_locations proves only its source-bound subset, not full location approval. Inspect all current location requirements in the candidate.' : '') : PREVIEW_JUDGE_INSTRUCTION;
     const payload = { model: reviewPolicy.model, store: false, service_tier: 'default' as const, reasoning: { effort: 'medium' as const },
       instructions,
       input: [{ role: 'user' as const, content: [{ type: 'input_text' as const, text },
@@ -103,6 +111,7 @@ export async function runSimpleBookIllustrator(args: {
   entityDesignAuthority?: { bytes: Buffer; imageSha: string; context: unknown; review: unknown };
   entityRepairReview?: unknown;
   stateAwareReferences?: true;
+  splitReferenceRoles?: true;
 }) {
   const approval = readAuditionApproval(args.config); if (!approval) fail('simple_visual_approval_missing');
   const directory = path.join(args.directory, 'illustrations'); mkdirSync(directory); realDirectory(directory);
@@ -210,6 +219,7 @@ export async function runSimpleBookIllustrator(args: {
     ...(entityDesignAuthority ? { entityDesignAuthority } : {}),
     ...(args.entityRepairReview ? { entityRepairReview: args.entityRepairReview } : {}),
     ...(args.stateAwareReferences ? { stateAwareReferences: true } : {}),
+    ...(args.splitReferenceRoles ? { splitReferenceRoles: true } : {}),
     render, judge, identity, save, progress: args.progress });
   exclusiveText(path.join(args.directory, 'book.html'), illustratedBookHTML(manifest, (imageName, imageSha) => data({ imageName, imageSha })));
   return manifest;

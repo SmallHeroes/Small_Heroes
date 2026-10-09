@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { simpleReferenceEntityDesign, simpleReferenceStateSchema } from '../simple-reference-designs';
+import { simpleReferenceEntityDesign, simpleReferenceStateSchema, simpleReferenceDesigns, assertReferenceRoleOwnership } from '../simple-reference-designs';
 import type { PersonalStoryboard } from '../storyboard';
 
 // Only data-projection input, not a reviewed storyboard or pixel authority.
@@ -62,5 +62,54 @@ describe('source-bound reference design projection', () => {
     expect(simpleReferenceStateSchema.safeParse({ ...d.referenceState, mutableAttributes: [{
       entityId: 'paper_boat', attribute: 'crease', initialValue: 'flat', knownValues: [{ value: 'new', pageNumber: 2, evidence: null }],
     }] }).success).toBe(false);
+  });
+  it('reference ownership partitions by kind with exact full facts and source-backed state in both owning roles', () => {
+    const b = fixture(); b.plan.continuity!.entities.push({ id: 'oak', kind: 'landmark',
+      invariants: [{ attribute: 'height', value: 'low' }, { attribute: 'material', value: 'wood' }] } as any);
+    b.plan.recurringProps.push({ id: 'oak', appearance: 'wood' } as any);
+    b.sequence.mutableAttributes.push({ entityId: 'oak', attribute: 'height' });
+    b.plan.continuity!.pages[2].changes.push({ entityId: 'oak', attribute: 'height', value: 'tall', storyEvidence: texts[1] });
+    const d = simpleReferenceDesigns(b, true, true, texts, true), e = d.entities as any, l = d.locations as any;
+    expect([...e.entities, ...l.landmarks]).toEqual(b.plan.continuity!.entities);
+    expect(e.entities.map((v: any) => v.id)).toEqual(['paper_boat', 'ribbon']); expect(l.landmarks.map((v: any) => v.id)).toEqual(['oak']);
+    expect([...e.props, ...l.props]).toEqual(b.plan.recurringProps);
+    expect(e.referenceState.mutableAttributes.map((v: any) => v.entityId)).toEqual(['paper_boat']);
+    expect(l.referenceState.mutableAttributes).toEqual([{ entityId: 'oak', attribute: 'height', initialValue: 'low', knownValues: [
+      { value: 'low', pageNumber: 0, evidence: null }, { value: 'tall', pageNumber: 2, evidence: texts[1] },
+    ] }]);
+    expect(l.referenceOwnership).toEqual(e.referenceOwnership);
+    expect(() => assertReferenceRoleOwnership('entities', e)).not.toThrow(); expect(() => assertReferenceRoleOwnership('locations', l)).not.toThrow();
+    expect(() => simpleReferenceDesigns(b, true, undefined, texts, true)).toThrow('simple_reference_ownership_scope');
+  });
+  it('reference ownership leaves old serialized defaults and state-only shapes exact', () => {
+    const b = fixture();
+    for (const [role, state] of [[undefined, undefined], [true, undefined], [true, true]] as const) {
+      expect(JSON.stringify(simpleReferenceDesigns(b, role, state, texts))).toBe(JSON.stringify({
+        entities: simpleReferenceEntityDesign(b, role, state, texts), locations: { locations: b.plan.locations, geography: b.sequence.premise,
+          ...(role ? { landmarks: b.plan.continuity!.entities.filter(e => e.kind === 'landmark') } : {}) },
+      }));
+    }
+  });
+  it('reference ownership rejects duplicate or misassigned IDs and orphan props, not merely shape-valid packets', () => {
+    const b = fixture(); b.plan.continuity!.entities.push(structuredClone(b.plan.continuity!.entities[0]));
+    expect(() => simpleReferenceDesigns(b, true, true, texts, true)).toThrow(); b.plan.continuity!.entities.pop();
+    b.plan.recurringProps.push({ id: 'missing', appearance: 'new' } as any);
+    expect(() => simpleReferenceDesigns(b, true, true, texts, true)).toThrow('simple_reference_ownership_prop'); b.plan.recurringProps.pop();
+    const d = simpleReferenceDesigns(b, true, true, texts, true).entities as any;
+    d.referenceOwnership.assignments[0].role = 'locations';
+    expect(() => assertReferenceRoleOwnership('entities', d)).toThrow();
+  });
+  it('reference ownership rejects lost data/IDs or state assigned to the wrong real inspection role', () => {
+    const b = fixture(); b.plan.continuity!.entities.push({ id: 'rabbit', kind: 'supporting_character',
+      invariants: [{ attribute: 'fur', value: 'white' }] } as any);
+    const baseline = simpleReferenceDesigns(b, true, true, texts, true).entities as any;
+    for (const kind of ['missing', 'duplicate', 'kind', 'props', 'state']) {
+      const d = structuredClone(baseline);
+      if (kind === 'missing') d.entities.pop(); if (kind === 'duplicate') d.entities[1] = d.entities[0];
+      if (kind === 'kind') d.entities[0].kind = 'landmark'; if (kind === 'props') d.props[0].id = 'wrong';
+      if (kind === 'state') d.referenceState.mutableAttributes[0].entityId = 'wrong';
+      expect(() => assertReferenceRoleOwnership('entities', d), kind).toThrow('simple_reference_ownership_binding');
+    }
+    expect(() => assertReferenceRoleOwnership('child', baseline)).toThrow('simple_reference_ownership_scope');
   });
 });

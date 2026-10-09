@@ -45,6 +45,59 @@ export function simpleReferenceEntityDesign(book: Pick<PersonalStoryboard, 'plan
     presentation: 'one_known_source_form_per_design_view', mutableAttributes, stableAttachments }) };
 }
 
+export const referenceOwnershipSchema = z.object({ version: z.literal('disjoint-reference-ownership/v1'),
+  assignments: z.array(z.object({ entityId: id, kind: z.enum(['prop', 'landmark', 'supporting_character']),
+    role: z.enum(['entities', 'locations']) }).strict()).min(1).max(26),
+}).strict().superRefine((p, ctx) => {
+  const seen = new Set<string>();
+  for (const a of p.assignments) {
+    if (seen.has(a.entityId) || a.role !== (a.kind === 'landmark' ? 'locations' : 'entities'))
+      ctx.addIssue({ code: 'custom', message: 'simple_reference_ownership' });
+    seen.add(a.entityId);
+  }
+});
+
+/** The two existing sheets, with lossless opt-in ownership. Defaults are byte-exact. */
+export function simpleReferenceDesigns(book: Pick<PersonalStoryboard, 'plan' | 'sequence'>, roleScoped?: true,
+  stateAware?: true, texts: readonly string[] = [], splitRoles?: true) {
+  const full = simpleReferenceEntityDesign(book, roleScoped, stateAware, texts);
+  const locations = { locations: book.plan.locations, geography: book.sequence.premise,
+    ...(roleScoped ? { landmarks: full.entities.filter(e => e.kind === 'landmark') } : {}) };
+  if (!splitRoles) return { entities: full, locations };
+  if (!roleScoped || !stateAware || !('referenceState' in full)) throw Error('simple_reference_ownership_scope');
+  const ownership = referenceOwnershipSchema.parse({ version: 'disjoint-reference-ownership/v1',
+    assignments: full.entities.map(e => ({ entityId: e.id, kind: e.kind, role: e.kind === 'landmark' ? 'locations' : 'entities' })) });
+  const selected = (role: 'entities' | 'locations') => new Set(ownership.assignments.filter(a => a.role === role).map(a => a.entityId));
+  const state = (ids: Set<string>) => ({ ...full.referenceState,
+    mutableAttributes: full.referenceState.mutableAttributes.filter(a => ids.has(a.entityId)),
+    stableAttachments: full.referenceState.stableAttachments.filter(a => ids.has(a.entityId)) });
+  const entityIds = selected('entities'), locationIds = selected('locations');
+  // A recurring prop with no source entity must not disappear during partitioning.
+  if (full.props.some(p => !entityIds.has(p.id) && !locationIds.has(p.id))) throw Error('simple_reference_ownership_prop');
+  return { entities: { ...full, entities: full.entities.filter(e => entityIds.has(e.id)),
+      props: full.props.filter(p => entityIds.has(p.id)), referenceState: state(entityIds), referenceOwnership: ownership },
+    locations: { ...locations, props: full.props.filter(p => locationIds.has(p.id)),
+      referenceState: state(locationIds), referenceOwnership: ownership } };
+}
+
+/** Used at the real pixel boundary, not merely by tests. */
+export function assertReferenceRoleOwnership(role: 'child' | 'entities' | 'locations', design: unknown) {
+  if (!design || typeof design !== 'object' || !('referenceOwnership' in design)) return;
+  if (role === 'child') throw Error('simple_reference_ownership_scope');
+  const d = design as { referenceOwnership: unknown; entities?: { id: string; kind: string }[];
+    landmarks?: { id: string; kind: string }[]; props?: { id: string }[]; referenceState?: unknown };
+  const ownership = referenceOwnershipSchema.parse(d.referenceOwnership), entries = role === 'entities' ? d.entities : d.landmarks;
+  const assigned = ownership.assignments.filter(a => a.role === role);
+  if (!Array.isArray(entries) || entries.length !== assigned.length || new Set(entries.map(e => e.id)).size !== entries.length ||
+      entries.some(e => !assigned.some(a => a.entityId === e.id && a.kind === e.kind))) throw Error('simple_reference_ownership_binding');
+  const ids = new Set(entries.map(e => e.id)), state = simpleReferenceStateSchema.parse(d.referenceState);
+  if (!Array.isArray(d.props) || d.props.some(p => !ids.has(p.id)) ||
+      state.mutableAttributes.some(a => !ids.has(a.entityId)) || state.stableAttachments.some(a => !ids.has(a.entityId)))
+    throw Error('simple_reference_ownership_binding');
+}
+
+export const REFERENCE_OWNERSHIP_INSTRUCTION = `DISJOINT REFERENCE OWNERSHIP: all source IDs remain mandatory in exactly their assigned role. This sheet proves only its assigned IDs; the other sheet proves the complementary set. Never omit a listed ID or fixed attribute, duplicate it as a new design, or treat a partial benchmark as whole-sheet approval. In the locations sheet expose every landmark's required counted parts/materials in a readable establishing view or a clearly associated detail inset, while preserving the same topology. State exceptions remain only those explicitly source-bound below.`;
+
 export const REFERENCE_STATE_RENDER_INSTRUCTION = `REFERENCE STATE POLICY: original invariants contain initial values. Only attributes explicitly listed in referenceState.mutableAttributes may use another exact source-supported knownValue. All other identity, color, material, structure and counted parts remain fixed.
 Show one coherent known source form per design view; do not try to depict mutually exclusive chronological states simultaneously. If a detail view is needed, identify it within the same ID tile and preserve all fixed features. These are design references, not a timeline or permission to change a page state.
 Do not introduce live primary actors. Required actor-derived shapes (such as a silhouette) ARE part of their listed prop: retain the exact characteristic head, features, proportions and appendages of the accepted actor reference, not a generic animal or person.

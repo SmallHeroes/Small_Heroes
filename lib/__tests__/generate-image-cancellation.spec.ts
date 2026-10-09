@@ -117,12 +117,14 @@ describe('generateGPTImage (3a) — real cancellation + no hidden SDK retries', 
   it('book_design supports canonical entity and location authorities without inventing an edit target', () => {
     const defaults = { defaultModel: 'gpt-image-2', defaultQuality: 'low' as const, maxReferences: 4 };
     for (const roles of [['child_design_authority', 'companion_design_authority'],
-      ['child_design_authority', 'companion_design_authority', 'entity_design_authority']] as const) {
+      ['child_design_authority', 'companion_design_authority', 'entity_design_authority'],
+      ['child_design_authority', 'companion_design_authority', 'entity_design_authority', 'landmark_subset_design_authority']] as const) {
       const plan = planGPTImageRequest({ finalPrompt: 'Design the requested reference.', referenceMode: 'book_design',
         referenceImages: roles.map((_, i) => `${i}.png`), referenceRoles: roles }, defaults);
       expect(plan.referenceCountPassed).toBe(roles.length); expect(plan.referenceRoles).toEqual(roles);
       expect(plan.finalPrompt).not.toMatch(/Bolly|rejected|REAL child/i);
       if (roles.length === 3) expect(plan.finalPrompt).toMatch(/Image 3.*object\/supporting-cast/i);
+      if (roles.length === 4) { expect(plan.finalPrompt).toMatch(/Image 4.*SUBSET ONLY/); expect(plan.finalPrompt).toContain('not an approved complete location atlas'); }
     }
   });
   it('book_design refuses absent, invalid, aliased or truncated role mappings before I/O', async () => {

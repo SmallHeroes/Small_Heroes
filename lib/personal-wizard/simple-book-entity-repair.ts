@@ -15,7 +15,7 @@ import { auditionUsageCost, readAuditionImage } from '../../scripts/personal-sim
 import { fencedText, realDirectory, exclusiveJson } from '../../scripts/personal-causal-trial-journal';
 import { gitAt } from '../../scripts/personal-source-git';
 import { CAUSAL_MODELS } from '../../scripts/personal-causal-trial-adapters';
-import { simpleReferenceEntityDesign } from './simple-reference-designs';
+import { simpleReferenceEntityDesign, simpleReferenceDesigns, REFERENCE_STATE_JUDGE_ADDITION } from './simple-reference-designs';
 
 const hash = z.string().regex(/^[a-f0-9]{64}$/), file = z.object({ file: z.string().min(1), sha256: hash }).strict();
 export const entityRepairContinuationSchema = z.object({ version: z.literal('controlled-simple-entity-repair/v1'),
@@ -34,6 +34,10 @@ export const referenceStateCeilingSchema = z.object({ version: z.literal('local-
   requestId: hash, parentConfigSha256: hash, previousMaximumMicroUsd: z.literal(22000000), maximumMicroUsd: z.literal(25000000),
   knownBeforeContinuationMicroUsd: z.number().int().nonnegative(), ownerApprovalReference: z.string().min(30).max(2000),
   sameBookOnly: z.literal(true), publicRelease: z.literal(false), customerCharge: z.literal(false), gateChanges: z.literal(false),
+}).strict();
+export const referenceRoleContinuationSchema = referenceStateContinuationSchema.omit({ version: true, maximumMicroUsd: true, ceilingExtension: true }).extend({
+  version: z.literal('controlled-simple-reference-roles/v1'), maximumMicroUsd: z.literal(25000000),
+  splitReferenceRoles: z.literal(true), consultationReceipt: file,
 }).strict();
 const fail = (code: string): never => { throw Object.assign(new Error(code), { code }); };
 const read = (p: string) => JSON.parse(fencedText(p, 32000000));
@@ -101,7 +105,7 @@ type AtlasParent = Pick<Awaited<ReturnType<typeof prepareEntityAuthorityContinua
   'directory' | 'externalMicroUsd' | 'parent' | 'result' | 'inheritedLogicalAttempts' | 'checkpoint' | 'entityDesignAuthority' | 'current' | 'config'>;
 /** Both legacy and state continuation bind the actual ended pixels; neither reopens a seal. */
 async function readEndedEntityAtlas(prior: Omit<AtlasParent, 'config'> & { config: { maximumMicroUsd: number } },
-  config: Pick<z.infer<typeof entityRepairContinuationSchema>, 'parentTermination' | 'parentConfig'>, repaired = false) {
+  config: Pick<z.infer<typeof entityRepairContinuationSchema>, 'parentTermination' | 'parentConfig'>, repaired = false, stateAware = false) {
   // Admission must not recreate a missing historical journal through the meter.
   realDirectory(path.join(prior.directory, 'paid-stages'));
   const oldBudget = new SimpleBookBudget(path.join(prior.directory, 'paid-stages'), prior.externalMicroUsd, prior.config.maximumMicroUsd);
@@ -122,7 +126,7 @@ async function readEndedEntityAtlas(prior: Omit<AtlasParent, 'config'> & { confi
     if (c.step !== step || c.wireDigest !== previewSha(canonicalJson(wire)) || outcome.wireDigest !== c.wireDigest || !outcome.completed ||
         expected === null || outcome.estimatedMicroUsd !== expected || receipt.estimatedMicroUsd !== expected || expected > c.maximumMicroUsd ||
         i === 0 && (receipt.model !== 'gpt-image-2' || wire.body.model !== 'gpt-image-2' || wire.body.quality !== 'low' || wire.body.size !== '1024x1024' || wire.body.n !== 1) ||
-        i === 1 && (wire.model !== 'gpt-6.1-sol' || wire.instructions !== REFERENCE_DESIGN_JUDGE_INSTRUCTION || wire.store !== false || wire.max_output_tokens !== 12000 ||
+        i === 1 && (wire.model !== 'gpt-6.1-sol' || wire.instructions !== REFERENCE_DESIGN_JUDGE_INSTRUCTION + (stateAware ? '\n' + REFERENCE_STATE_JUDGE_ADDITION : '') || wire.store !== false || wire.max_output_tokens !== 12000 ||
           receipt.raw.model !== wire.model || receipt.raw.status !== 'completed' || receipt.raw.service_tier !== 'default' || !receipt.raw.output_text || receipt.raw.usage.output_tokens > wire.max_output_tokens)) fail('entity_repair_paid_binding');
     return { wire, receipt, expected: expected! };
   });
@@ -130,7 +134,8 @@ async function readEndedEntityAtlas(prior: Omit<AtlasParent, 'config'> & { confi
   const candidate = stages[0].receipt.candidate, pixels = readAuditionImage(path.join(prior.directory, 'illustrations'), candidate);
   if (previewSha(Buffer.from(stages[0].receipt.raw.data?.[0]?.b64_json ?? '', 'base64')) !== candidate.imageSha) fail('entity_repair_pixels');
   const content = stages[1].wire.input[0].content, data = JSON.parse(content[0].text), book = prior.result.storyboard!.storyboard;
-  const context = referenceRoleContext('entities', simpleReferenceEntityDesign(book, true));
+  const context = referenceRoleContext('entities', simpleReferenceEntityDesign(book, true, stateAware ? true : undefined,
+    stateAware ? prior.result.source.manuscript.pages.map((p: { text: string }) => p.text) : []));
   const contextSha = previewSha(JSON.stringify(context));
   if (data.candidateSha !== candidate.imageSha || data.contextSha !== contextSha || canonicalJson(data.context) !== canonicalJson(context)) fail('entity_repair_context');
   const review = qualityDisposition(JSON.parse(stages[1].receipt.raw.output_text), candidate.imageSha, contextSha);
@@ -152,7 +157,7 @@ async function readEndedEntityAtlas(prior: Omit<AtlasParent, 'config'> & { confi
 }
 
 /** ONE explicitly approved data-corrected reference proof, after a consumed repair. */
-export async function prepareReferenceStateContinuation(configFile: string) {
+export async function prepareReferenceStateContinuation(configFile: string, activeSourceHead?: string) {
   if (!path.isAbsolute(configFile)) fail('reference_state_config');
   const bytes = fencedText(configFile, 64000), config = referenceStateContinuationSchema.parse(JSON.parse(bytes));
   const checked = (f: z.infer<typeof file>) => {
@@ -161,7 +166,9 @@ export async function prepareReferenceStateContinuation(configFile: string) {
   [config.parentConfig, config.parentTermination, config.technicalReviewReceipt].forEach(checked);
   // Strict M14 parent prevents chaining another M15 generation or reopening it.
   entityRepairContinuationSchema.parse(read(config.parentConfig.file));
-  const prior = await prepareEntityRepairContinuation(config.parentConfig.file, config.sourceHead);
+  const frozenHead = activeSourceHead ?? config.sourceHead;
+  const prior = await prepareEntityRepairContinuation(config.parentConfig.file, frozenHead);
+  gitAt(prior.current.workspace, ['merge-base', '--is-ancestor', config.sourceHead, frozenHead]);
   gitAt(prior.current.workspace, ['merge-base', '--is-ancestor', prior.config.sourceHead, config.sourceBase]);
   gitAt(prior.current.workspace, ['merge-base', '--is-ancestor', config.sourceBase, config.sourceHead]);
   const extension = config.maximumMicroUsd === 25000000 ? (() => {
@@ -173,7 +180,7 @@ export async function prepareReferenceStateContinuation(configFile: string) {
   })() : null;
   if (!extension && config.ceilingExtension) fail('reference_state_ceiling');
   const verify = () => {
-    if (fencedText(configFile, 64000) !== bytes || gitAt(prior.current.workspace, ['rev-parse', 'HEAD']).toString().trim() !== config.sourceHead ||
+    if (fencedText(configFile, 64000) !== bytes || gitAt(prior.current.workspace, ['rev-parse', 'HEAD']).toString().trim() !== frozenHead ||
         gitAt(prior.current.workspace, ['status', '--porcelain']).toString().trim()) fail('reference_state_source_changed');
     [config.parentConfig, config.parentTermination, config.technicalReviewReceipt].forEach(checked);
     if (config.ceilingExtension) checked(config.ceilingExtension);
@@ -211,6 +218,75 @@ export async function prepareReferenceStateContinuation(configFile: string) {
       let sequence = readdirSync(prior.parent.job.directory).filter(n => /^view-\d{4}\.json$/.test(n)).length;
       const publish = (next: SimpleBookView) => { if (next.phase !== 'failed') verify(); const view = simpleBookViewSchema.parse(next);
         if (view.requestId !== prior.parent.job.queued.requestId || sequence >= 80) fail('reference_state_view');
+        exclusiveJson(path.join(prior.parent.job.directory, `view-${String(++sequence).padStart(4, '0')}.json`),
+          { requestDigest: ended.requestDigest, view: { ...view, revision: sequence } }); };
+      return { budget, publish }; },
+  };
+}
+
+/** ONE approved disjoint-role proof. Exact sealed state-aware parent; no retry chain. */
+export async function prepareReferenceRoleContinuation(configFile: string) {
+  if (!path.isAbsolute(configFile)) fail('reference_roles_config');
+  const bytes = fencedText(configFile, 64000), config = referenceRoleContinuationSchema.parse(JSON.parse(bytes));
+  const checked = (f: z.infer<typeof file>) => {
+    if (!path.isAbsolute(f.file) || previewSha(fencedText(f.file, 32000000)) !== f.sha256) fail('reference_roles_file');
+  };
+  [config.parentConfig, config.parentTermination, config.technicalReviewReceipt, config.consultationReceipt].forEach(checked);
+  referenceStateContinuationSchema.parse(read(config.parentConfig.file));
+  const prior = await prepareReferenceStateContinuation(config.parentConfig.file, config.sourceHead);
+  if (prior.config.maximumMicroUsd !== config.maximumMicroUsd) fail('reference_roles_ceiling');
+  gitAt(prior.current.workspace, ['merge-base', '--is-ancestor', prior.config.sourceHead, config.sourceBase]);
+  gitAt(prior.current.workspace, ['merge-base', '--is-ancestor', config.sourceBase, config.sourceHead]);
+  const verify = () => {
+    if (fencedText(configFile, 64000) !== bytes || gitAt(prior.current.workspace, ['rev-parse', 'HEAD']).toString().trim() !== config.sourceHead ||
+        gitAt(prior.current.workspace, ['status', '--porcelain']).toString().trim()) fail('reference_roles_source_changed');
+    [config.parentConfig, config.parentTermination, config.technicalReviewReceipt, config.consultationReceipt].forEach(checked);
+    prior.verify(); assertAtlasInventory(prior.directory, config.parentArtifacts);
+  };
+  verify();
+  const ended = await readEndedEntityAtlas(prior, config, false, true), oldQA = read(prior.config.technicalReviewReceipt.file),
+    consult = read(config.consultationReceipt.file), technical = read(config.technicalReviewReceipt.file);
+  const previousFee = simpleBookExternalCosts([prior.config.technicalReviewReceipt]),
+    consultFee = simpleBookExternalCosts([config.consultationReceipt]), fee = simpleBookExternalCosts([config.technicalReviewReceipt]);
+  if (consult.head !== prior.config.sourceHead || consult.status !== '' || consult.code !== 0 || consult.signal !== null ||
+      !consult.terminationConfirmed || consult.stopped || consult.isError !== false || consult.resultSubtype !== 'success' ||
+      consult.sourceUnchanged !== true || consult.validConsultation !== true || consult.notTechnicalPASS !== true ||
+      consult.costKind !== 'cumulative_same_cli_session_list_estimate_not_invoice' || consult.sessionId !== oldQA.sessionId ||
+      canonicalJson(consult.models) !== canonicalJson([CAUSAL_MODELS.opus]) ||
+      canonicalJson(consult.previousReceipt) !== canonicalJson(prior.config.technicalReviewReceipt) ||
+      consult.previousCumulativeReportedCostUsd !== oldQA.reportedCostUsd || consultFee < previousFee ||
+      consult.incrementalKnownMicroUsd !== consultFee - previousFee || consult.knownBeforeMicroUsd !== ended.snapshot.knownEstimateMicroUsd ||
+      consult.knownAfterMicroUsd !== ended.snapshot.knownEstimateMicroUsd + consultFee - previousFee ||
+      !Number.isSafeInteger(consult.maximumNewMicroUsd) || consult.maximumNewMicroUsd <= 0 || consultFee - previousFee > consult.maximumNewMicroUsd)
+    fail('reference_roles_consultation');
+  if (technical.head !== config.sourceHead || technical.qaReviewHead !== config.sourceHead || technical.qaBase !== config.sourceBase ||
+      technical.code !== 0 || technical.signal !== null || !technical.terminationConfirmed || technical.stopped || technical.status !== '' ||
+      technical.isError !== false || technical.resultSubtype !== 'success' || technical.sourceBundleUnchanged !== true || technical.qaVerdict !== 'PASS' ||
+      technical.qaMode !== 'read_only_code' || technical.costKind !== 'cumulative_same_cli_session_list_estimate_not_invoice' ||
+      technical.sessionId !== oldQA.sessionId || technical.previousCumulativeReportedCostUsd !== consult.reportedCostUsd ||
+      canonicalJson(technical.previousReceipt) !== canonicalJson(config.consultationReceipt) ||
+      canonicalJson(technical.models) !== canonicalJson([CAUSAL_MODELS.opus]) || fee <= consultFee ||
+      technical.knownBeforeMicroUsd !== consult.knownAfterMicroUsd || !Number.isSafeInteger(technical.maximumMicroUsd) ||
+      technical.maximumMicroUsd <= 0 || fee > technical.maximumMicroUsd) fail('reference_roles_technical');
+  const externalMicroUsd = ended.snapshot.knownEstimateMicroUsd + fee - previousFee;
+  if (externalMicroUsd + 600000 > config.maximumMicroUsd) fail('reference_roles_budget');
+  const inheritedLogicalAttempts = prior.inheritedLogicalAttempts + ended.snapshot.logicalAttempts;
+  if (inheritedLogicalAttempts >= 80) fail('reference_roles_attempts');
+  const designs = simpleReferenceDesigns(prior.result.storyboard!.storyboard, true, true,
+    prior.result.source.manuscript.pages.map((p: { text: string }) => p.text), true);
+  const referenceDesignSha256 = previewSha(canonicalJson(designs));
+  const directory = path.join(prior.parent.job.directory, 'reference-role-split-continuation-20261009');
+  return { ...prior, config, directory, current: { ...prior.current, sourceHead: config.sourceHead }, verify,
+    inherited: ended.snapshot, extra: fee - previousFee, externalMicroUsd, inheritedLogicalAttempts, splitReferenceRoles: true as const,
+    engineeringReceipts: prior.engineeringReceipts.map(f => canonicalJson(f) === canonicalJson(prior.config.technicalReviewReceipt) ? config.technicalReviewReceipt : f),
+    checkpoint: { child: prior.checkpoint.child, entities: { bytes: ended.pixels, imageSha: ended.candidate.imageSha } },
+    claim() { verify(); mkdirSync(directory); exclusiveJson(path.join(directory, 'claim.json'), { sourceHead: config.sourceHead,
+      configSha256: previewSha(bytes), requestDigest: ended.requestDigest, inherited: ended.snapshot, externalMicroUsd,
+      inheritedLogicalAttempts, generationCount: 1, referenceDesignSha256, runtimeEligible: false });
+      const budget = new SimpleBookBudget(path.join(directory, 'paid-stages'), externalMicroUsd, config.maximumMicroUsd, inheritedLogicalAttempts);
+      let sequence = readdirSync(prior.parent.job.directory).filter(n => /^view-\d{4}\.json$/.test(n)).length;
+      const publish = (next: SimpleBookView) => { if (next.phase !== 'failed') verify(); const view = simpleBookViewSchema.parse(next);
+        if (view.requestId !== prior.parent.job.queued.requestId || sequence >= 80) fail('reference_roles_view');
         exclusiveJson(path.join(prior.parent.job.directory, `view-${String(++sequence).padStart(4, '0')}.json`),
           { requestDigest: ended.requestDigest, view: { ...view, revision: sequence } }); };
       return { budget, publish }; },
