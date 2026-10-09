@@ -60,6 +60,7 @@ export async function illustrateSimpleBook(args: {
   explicitReferenceTransport?: true;
   rebuildEntitiesFromDesign?: true;
   entityDesignAuthority?: EntityDesignAuthority;
+  entityRepairReview?: unknown;
   referenceCheckpoint?: ReferenceCheckpoint;
   render: (step: string, prompt: string, refs: AuditionImage[], mode: 'book_identity' | 'identity' | 'book_design', roles?: readonly BookDesignReferenceRole[]) => Promise<AuditionImage>;
   judge: (step: string, candidate: AuditionImage, context: unknown, contextSha: string, refs: AuditionImage[], predecessor: AuditionImage | null) => Promise<unknown>;
@@ -75,6 +76,7 @@ export async function illustrateSimpleBook(args: {
   if (args.explicitReferenceTransport && (!args.roleScopedReferences || !args.referenceCheckpoint)) fail('simple_reference_transport_scope');
   if (args.rebuildEntitiesFromDesign && !args.explicitReferenceTransport) fail('simple_reference_rebuild_scope');
   if (args.entityDesignAuthority && !args.rebuildEntitiesFromDesign) fail('simple_entity_authority_scope');
+  if (args.entityRepairReview && (!args.rebuildEntitiesFromDesign || !args.referenceCheckpoint || !args.roleScopedReferences)) fail('simple_entity_repair_scope');
   const current = { request: args.request, writerResult: result.source, options: args.options };
   const prepared = prepareSimpleStory(args.request, args.options, args.seed);
   if (prepared.book.pages !== 8 || prepared.accepted.containsFixtureData || prepared.accepted.canonical.appearance.photo !== 'none') fail('simple_illustration_admission');
@@ -85,6 +87,7 @@ export async function illustrateSimpleBook(args: {
     ...(args.explicitReferenceTransport ? { explicitReferenceTransport: true } : {}),
     ...(args.rebuildEntitiesFromDesign ? { rebuildEntitiesFromDesign: true } : {}),
     ...(args.entityDesignAuthority ? { entityDesignAuthority: args.entityDesignAuthority } : {}),
+    ...(args.entityRepairReview ? { entityRepairReview: args.entityRepairReview } : {}),
     ...(args.referenceCheckpoint ? { referenceCheckpoint: args.referenceCheckpoint } : {}) });
   const binding = previewSha(canonicalJson(bindingValue()));
   const check = () => {
@@ -133,6 +136,11 @@ export async function illustrateSimpleBook(args: {
     check();
     const context = args.roleScopedReferences ? referenceRoleContext(spec.name, spec.design) : simpleReferenceDesignContext(spec.design);
     const contextSha = previewSha(JSON.stringify(context));
+    if (spec.name === 'entities' && args.entityRepairReview) {
+      const rejected = args.referenceCheckpoint!.entities;
+      const prior = qualityDisposition(args.entityRepairReview, rejected.imageSha, contextSha);
+      if (prior.disposition === 'passed' || !prior.review.checks.some(c => c.verdict === 'defect')) fail('simple_entity_repair_review');
+    }
     if (spec.name === 'child' && args.referenceCheckpoint) {
       const child = args.referenceCheckpoint.child, originalContext = simpleReferenceDesignContext(spec.design);
       if (child.name !== 'child' || canonicalJson(child.context) !== canonicalJson(originalContext) ||
@@ -148,6 +156,23 @@ export async function illustrateSimpleBook(args: {
       ? '\nReference images are design authorities, not actors to add to this sheet. Image 1 is the accepted child and owned clothing; Image 2 is the companion design. For locations Image 3 is the accepted object atlas. Do not draw these primary actors. Each isolated tile has its own magnification; global placement is established on locations and scenes, not object-tile positions. Keep every fixed design/count/material; no story-state progression on design sheets.' : '') +
       (spec.name === 'entities' && args.entityDesignAuthority
         ? '\nImage 3 is an independently reviewed source-bound SUBSET of entity designs. Match its listed IDs exactly; unlisted IDs remain required by the complete authoritative data. This input does NOT approve the new full atlas. Choose a view that exposes specified counted parts and structural attachments. Avoid redundant views with contradictory structure. Captions are not evidence of pixel compliance.' : '');
+    if (spec.name === 'entities' && args.entityRepairReview) {
+      const rejected = args.referenceCheckpoint!.entities;
+      const prior = qualityDisposition(args.entityRepairReview, rejected.imageSha, contextSha);
+      const corrections = prior.review.checks.filter(c => c.verdict !== 'pass').map(c => `${c.category}: ${c.observation}\nCorrection to verify: ${c.correction}`).join('\n');
+      args.save('reference_entities_repair_input', { candidate: rejected, context, review: prior.review, authority: 'rejected_edit_input_only_not_canonical' });
+      const candidate = await args.render('reference_entities_repair', spec.prompt +
+        '\nImage1 is the REJECTED edit target, not an approved reference. Image2 is the accepted child/clothing; Image3 is the companion design.' +
+        (args.entityDesignAuthority ? ' Image4 is the independently supported SUBSET, not whole-atlas approval.' : '') +
+        ' Correct evidenced design gaps only; preserve already-correct details and every authoritative invariant. Reader observations can be wrong: resolve them against design data and accepted authorities. Each ID stays one tile; within a tile, an unfolded/detail view may expose fixed structure hidden by a fold or attachment, without inventing a new story state. Do not add primary actors or rewrite designs.\nTARGETED CORRECTIONS:\n' + corrections,
+        [rejected, ...authorities], 'book_design', ['rejected_edit_target', 'child_design_authority', 'companion_design_authority',
+          ...(args.entityDesignAuthority ? ['entity_design_authority' as const] : [])]);
+      check(); if (candidate.imageSha === rejected.imageSha) fail('simple_reference_recovery_unchanged');
+      const raw = await args.judge('reference_entities_repair_qa', candidate, context, contextSha, authorities.slice(0, 2), null); check();
+      const review = qualityDisposition(raw, candidate.imageSha, contextSha); args.save('reference_entities_review', review);
+      if (review.disposition !== 'passed') fail('simple_reference_held');
+      refs.push(candidate); continue;
+    }
     if (spec.name === 'entities' && args.referenceCheckpoint && !args.rebuildEntitiesFromDesign) {
       let candidate = args.referenceCheckpoint.entities;
       const recheck = qualityDisposition(await args.judge('reference_entities_recheck', candidate, context, contextSha, authorities, null), candidate.imageSha, contextSha);

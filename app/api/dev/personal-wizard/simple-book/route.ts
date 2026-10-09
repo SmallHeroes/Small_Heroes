@@ -33,7 +33,8 @@ export async function GET(req: NextRequest) {
       const image = view.images.find(p => p.pageNumber === Number(pages[0]));
       if (!image) return storyResponse({ error: 'simple_image_unavailable' }, 404);
       const job = queuedSimpleBook(config).directory;
-      const scope = view.imageScope === 'reference_entity_authority_continuation' ? ['reference-entity-authority-continuation-20261008'] :
+      const scope = view.imageScope === 'reference_entity_repair_continuation' ? ['reference-entity-repair-continuation-20261009'] :
+        view.imageScope === 'reference_entity_authority_continuation' ? ['reference-entity-authority-continuation-20261008'] :
         view.imageScope === 'reference_rebuild_continuation' ? ['reference-design-rebuild-continuation-20261008'] :
         view.imageScope === 'reference_transport_continuation' ? ['reference-transport-continuation-20261008'] :
         view.imageScope === 'role_scoped_reference_continuation' ? ['role-scoped-reference-continuation-20261008'] :

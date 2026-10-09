@@ -94,6 +94,7 @@ export async function runSimpleBookIllustrator(args: {
   explicitReferenceTransport?: true;
   rebuildEntitiesFromDesign?: true;
   entityDesignAuthority?: { bytes: Buffer; imageSha: string; context: unknown; review: unknown };
+  entityRepairReview?: unknown;
 }) {
   const approval = readAuditionApproval(args.config); if (!approval) fail('simple_visual_approval_missing');
   const directory = path.join(args.directory, 'illustrations'); mkdirSync(directory); realDirectory(directory);
@@ -120,7 +121,7 @@ export async function runSimpleBookIllustrator(args: {
   const referenceCheckpoint = checkpoint ? {
     child: { name: 'child' as const, context: checkpoint.child.context, review: checkpoint.child.review,
       candidate: await writeImage('reference_child_checkpoint.png', checkpoint.child.bytes) },
-    entities: await writeImage(args.rebuildEntitiesFromDesign ? 'reference_entities_discarded.png' : 'reference_entities_checkpoint.png', checkpoint.entities.bytes),
+    entities: await writeImage(args.entityRepairReview ? 'reference_entities_rejected.png' : args.rebuildEntitiesFromDesign ? 'reference_entities_discarded.png' : 'reference_entities_checkpoint.png', checkpoint.entities.bytes),
   } : undefined;
   const subset = args.entityDesignAuthority;
   if (subset && previewSha(subset.bytes) !== subset.imageSha) fail('simple_entity_authority_image');
@@ -199,6 +200,7 @@ export async function runSimpleBookIllustrator(args: {
     ...(args.explicitReferenceTransport ? { explicitReferenceTransport: true as const } : {}),
     ...(args.rebuildEntitiesFromDesign ? { rebuildEntitiesFromDesign: true as const } : {}),
     ...(entityDesignAuthority ? { entityDesignAuthority } : {}),
+    ...(args.entityRepairReview ? { entityRepairReview: args.entityRepairReview } : {}),
     render, judge, identity, save, progress: args.progress });
   exclusiveText(path.join(args.directory, 'book.html'), illustratedBookHTML(manifest, (imageName, imageSha) => data({ imageName, imageSha })));
   return manifest;

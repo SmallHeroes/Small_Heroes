@@ -190,3 +190,27 @@ reject before claim/key, repaired referenceHOLD stops after2calls, no second
 repair, opt-in/default compatibility. Focused clean commit, same reviewer delta
 re-gate, dry real-evidence admission, then one paid repair and downstream only
 if supported. Full stability remains separately incomplete, no release claim.
+
+## M14 local implementation evidence (2026-10-09)
+
+The approved opt-in is implemented generically, with no named object/child fix.
+New admission requires a complete known-cost failed M13 predecessor, including
+at least one concrete defect. It binds raw PNG/model/usage/wire digests, exact
+full context, four derived crops, actor references and terminated seal before
+claim/key. A passed/foreign/invalid/unknown-cost parent is not repair authority.
+Same-session engineering costs add ONLY the cumulative delta to the settled
+snapshot; inherited attempts remain inside80. New fixed sibling/private owner
+scope only. Old reader's default exact-source requirement remains unchanged.
+
+One target edit receives rejected input and three correctly typed authorities.
+The full judge receives candidate+fourcrops+child/companion, no subset as whole
+approval. A detail/unfolded view can expose hidden fixed structure in an ID tile;
+this does not mutate canon or impose a new story state. The current final judge,
+all eight categories and identity0.70 unchanged. Failed/uncertain still stops.
+
+Literaltsc0. Provider-free focused9passes,188skipped of197.3newtests/no removal:
+real mock CLI9gatedprivateframes/4renderroles/8QCcontent;10rehashed negatives
+before key/claim; failed correction stops after2stages/no second attempt. Old
+six targetedcases still pass. Evidence entity-repair-final/receipt.json. Current
+full gate incomplete, not a regression-free/production claim. Independent
+source QA must follow a frozen clean local commit before actual provider use.

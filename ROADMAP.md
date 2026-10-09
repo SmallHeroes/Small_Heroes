@@ -1,5 +1,16 @@
 # SmallHeroes — Roadmap
 
+## M14 one targeted reference correction locally verified (2026-10-09)
+
+- Explicit owner scope within SAME22m, not a ceiling reset. Fresh one-use
+  correction of sealed known-cost M13 failure, followed by unchanged fullQC.
+- Three new tests; selected9pass/0fail/188skipped of197, literaltsc0. Full
+  gate remains incomplete. No provider or manual story/pixel call in validation.
+- Exact raw/crop/actor/context/receipt binding, cumulative engineering delta,
+  inherited41attempt floor, private owner scope; defaults and0.70 unchanged.
+- Focused commit then independent delta QA, real dry admission, ONE paid
+  correction. Failed/uncertain reference still stops, never an automatic retry.
+
 ## M13 source reviewed; paid full reference still held (2026-10-09)
 
 - Exact c106ba9e..c107e7a1 receives delivered Claude source-onlyPASS, not visual

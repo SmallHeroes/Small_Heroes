@@ -39,6 +39,7 @@ import { prepareSimpleBookVisualContinuation, visualEvidenceFiles } from '../sim
 import { simpleBookVisualContinuationCLI } from '../../../scripts/personal-simple-book-visual-continuation';
 import { prepareSimpleBookReferenceRecovery, referenceRecoveryConfigSchema } from '../simple-book-reference-recovery';
 import { prepareEntityAuthorityContinuation } from '../simple-book-entity-authority';
+import { prepareEntityRepairContinuation } from '../simple-book-entity-repair';
 import { simpleBookReferenceRecoveryCLI } from '../../../scripts/personal-simple-book-reference-recovery';
 import { simpleStoryReadingPackets } from '../simple-story-source';
 import { canonicalJson } from '../request-acceptance';
@@ -1267,6 +1268,100 @@ describe('explicit same-book continuation, no provider in fixtures', () => {
       writeFileSync(x.authorityFile, JSON.stringify(d)); await expect(prepareEntityAuthorityContinuation(x.authorityFile), kind).rejects.toThrow();
       expect(sdk.create).not.toHaveBeenCalled(); expect(x.render).not.toHaveBeenCalled(); expect(x.fetcher).not.toHaveBeenCalled();
     }
+  }, 180000);
+  async function entityRepairFixture() {
+    const x = await entityAuthorityFixture(), oldQA = JSON.parse(readFileSync(x.qaFile, 'utf8'));
+    const failedFile = path.join(root, 'SYNTHETIC-failed-repair-parent-QA.json');
+    writeFileSync(failedFile, JSON.stringify({ ...oldQA, code: 1, isError: true, resultSubtype: 'error_max_budget_usd', qaVerdict: null, maximumMicroUsd: 2000 }));
+    const grantFile = path.join(root, 'SYNTHETIC-repair-parent22.json');
+    writeFileSync(grantFile, JSON.stringify({ version: 'local-simple-entity-authority-ceiling/v1', requestId: x.old.queued.requestId,
+      parentConfigSha256: x.data.parentConfig.sha256, previousMaximumMicroUsd: 20000000, maximumMicroUsd: 22000000,
+      failedReviewReceipt: x.ref(failedFile), knownBeforeContinuationMicroUsd: oldQA.knownBeforeMicroUsd + 3000,
+      ownerApprovalReference: 'SYNTHETIC approved22 same-book, never real authority.', sameBookOnly: true, publicRelease: false, customerCharge: false, gateChanges: false }));
+    const cumulative = { ...oldQA, reportedCostUsd: .005, includesPreviousKnownFailedCalls: true, previousCumulativeReportedCostUsd: .003,
+      costKind: 'cumulative_same_cli_session_list_estimate_not_invoice' };
+    writeFileSync(x.qaFile, JSON.stringify(cumulative)); x.data.maximumMicroUsd = 22000000; x.data.ceilingExtension = x.ref(grantFile);
+    x.data.technicalReviewReceipt = x.ref(x.qaFile); x.data.extraEngineeringReceipts[1] = x.data.technicalReviewReceipt; writeFileSync(x.authorityFile, JSON.stringify(x.data));
+    sdk.create.mockImplementation(async p => { const raw = await x.normal(p), d = JSON.parse(p.input[0].content[0].text);
+      if (d.context.role === 'entities') { const q = JSON.parse(raw.output_text); q.checks[0].verdict = 'uncertain'; q.checks[0].correction = 'Synthetic unreadable silhouette.';
+        q.checks[3].verdict = 'defect'; q.checks[3].correction = 'Synthetic wrong fixed design.'; raw.output_text = JSON.stringify(q); } return raw; });
+    expect(await simpleBookReferenceRecoveryCLI(['--config', x.authorityFile, '--execute'])).toBe(1);
+    const parent = await prepareEntityAuthorityContinuation(x.authorityFile), seal = JSON.parse(readFileSync(path.join(parent.directory, 'sealed.json'), 'utf8'));
+    const hostFile = path.join(root, 'SYNTHETIC-ended-entity-authority-host.json');
+    writeFileSync(hostFile, JSON.stringify({ head: config.sourceHead, status: '', code: 1, signal: null, terminationConfirmed: true, referenceCap: 4,
+      sealSha256: sha(readFileSync(path.join(parent.directory, 'sealed.json'))) }));
+    const qaFile = path.join(root, 'SYNTHETIC-entity-repair-QA.json');
+    writeFileSync(qaFile, JSON.stringify({ ...cumulative, reportedCostUsd: .007, previousCumulativeReportedCostUsd: .005,
+      knownBeforeMicroUsd: seal.snapshot.knownEstimateMicroUsd }));
+    const data = { version: 'controlled-simple-entity-repair/v1', sourceHead: config.sourceHead, sourceBase: config.sourceHead,
+      parentConfig: x.ref(x.authorityFile), parentTermination: x.ref(hostFile), parentArtifacts: visualEvidenceFiles(parent.directory).map(relative => ({ relative, sha256: sha(readFileSync(path.join(parent.directory, relative))) })),
+      technicalReviewReceipt: x.ref(qaFile), maximumMicroUsd: 22000000, correctionCount: 1,
+      ownerApprovalReference: 'SYNTHETIC approved one same-book atlas correction; never real spending permission.', sameBookOnly: true, publicRelease: false, customerCharge: false, gateChanges: false };
+    const repairFile = path.join(root, 'SYNTHETIC-entity-repair-config.json'); writeFileSync(repairFile, JSON.stringify(data));
+    const originals = [...x.originals.map(([p]) => p), failedFile, grantFile, x.authorityFile, hostFile, ...visualEvidenceFiles(parent.directory).map(n => path.join(parent.directory, n))].map(p => [p, readFileSync(p)] as const);
+    sdk.create.mockImplementation(x.normal); sdk.create.mockClear(); x.render.mockClear(); x.fetcher.mockClear(); x.editor.mockClear();
+    return { ...x, repairFile, repairData: data, parent, parentSeal: seal, repairQA: qaFile, repairOriginals: originals };
+  }
+  it('entity repair uses ONE rejected target with three typed authorities, a fresh full review and9 gated private frames while keeping cumulative fees once', async () => {
+    const x = await entityRepairFixture(), ready = await prepareEntityRepairContinuation(x.repairFile);
+    expect(ready.externalMicroUsd).toBe(x.parentSeal.snapshot.knownEstimateMicroUsd + 2000);
+    expect(ready.inheritedLogicalAttempts).toBe(x.parent.inheritedLogicalAttempts + 2);
+    expect(await simpleBookReferenceRecoveryCLI(['--config', x.repairFile])).toBe(0); expect(x.render).not.toHaveBeenCalled();
+    expect(await simpleBookReferenceRecoveryCLI(['--config', x.repairFile, '--execute'])).toBe(0);
+    const first = x.render.mock.calls[0][0]; expect(first.referenceRoles).toEqual(['rejected_edit_target', 'child_design_authority', 'companion_design_authority', 'entity_design_authority']);
+    expect(first.exactReferenceBytes!.map(b => sha(b))).toEqual([ready.checkpoint.entities.imageSha, ready.checkpoint.child.imageSha,
+      sha(readFileSync(path.join(x.parent.directory, 'illustrations/companion_reference.png'))), ready.entityDesignAuthority.imageSha]);
+    expect(first.finalPrompt).toContain('Synthetic wrong fixed design'); expect(first.finalPrompt).toContain('Synthetic unreadable silhouette');
+    expect(x.render).toHaveBeenCalledTimes(11); expect(x.fetcher).toHaveBeenCalledTimes(9); expect(x.editor).not.toHaveBeenCalled();
+    const wire = JSON.parse(readFileSync(path.join(ready.directory, 'paid-stages/reference_entities_repair_qa.wire.json'), 'utf8')), data = JSON.parse(wire.input[0].content[0].text);
+    expect(data.imageRoles).toEqual(['candidate_complete', 'candidate_crop_top_left', 'candidate_crop_top_right', 'candidate_crop_bottom_left', 'candidate_crop_bottom_right', 'canonical_child', 'canonical_companion']);
+    expect(wire.input[0].content).toHaveLength(8); expect(data.context.design.entities).toEqual(ready.result.storyboard!.storyboard.plan.continuity!.entities);
+    const manifest = JSON.parse(readFileSync(path.join(ready.directory, 'illustrated_book.json'), 'utf8')); expect(manifest.pages).toHaveLength(9);
+    expect(manifest.pages.every((p: any) => p.status === 'passed' && p.identity.threshold === .7 && p.identity.status === 'passed')).toBe(true);
+    const served = await GET(req('GET', undefined, `${url}?requestId=${ready.parent.job.queued.requestId}&page=8`)); expect(served.status).toBe(200);
+    expect(served.headers.get('cache-control')).toBe('private, no-store');
+    deps.user = { id: 'other', email: 'owner@example.com' }; expect((await GET(req('GET', undefined, `${url}?requestId=${ready.parent.job.queued.requestId}&page=8`))).status).toBe(403);
+    for (const [p, b] of x.repairOriginals) expect(readFileSync(p).equals(b)).toBe(true);
+    await expect(prepareEntityRepairContinuation(x.repairFile).then(r => r.claim())).rejects.toThrow();
+  }, 180000);
+  it('entity repair rejects rehashed failed-parent, raw pixel/crop/context, cumulative fee and current-QA tampering before claim or key', async () => {
+    const x = await entityRepairFixture(), baseline = readFileSync(x.repairFile), technicalBytes = readFileSync(x.repairQA);
+    const disk = vi.spyOn(journal, 'fencedText');
+    for (const kind of ['termination', 'unknown', 'passed', 'context', 'actor', 'crop', 'lost_fee', 'wrong_session', 'wrong_qa_head', 'second_correction']) {
+      x.repairOriginals.forEach(([p, b]) => writeFileSync(p, b)); writeFileSync(x.repairQA, technicalBytes); const d = JSON.parse(baseline.toString()); disk.mockClear();
+      const change = (p: string, fn: (v: any) => void) => { const v = JSON.parse(readFileSync(p, 'utf8')); fn(v); writeFileSync(p, JSON.stringify(v)); };
+      if (kind === 'termination') change(d.parentTermination.file, v => { v.terminationConfirmed = false; });
+      if (kind === 'unknown') change(path.join(x.parent.directory, 'paid-stages/reference_entities.result.json'), v => { v.estimatedMicroUsd = null; });
+      if (kind === 'passed') { change(path.join(x.parent.directory, 'paid-stages/reference_entities_qa.receipt.json'), r => { const q = JSON.parse(r.raw.output_text); q.checks.forEach((c: any) => { c.verdict = 'pass'; }); r.raw.output_text = JSON.stringify(q); });
+        change(path.join(x.parent.directory, 'reference_entities_review.json'), r => { r.review.checks.forEach((c: any) => { c.verdict = 'pass'; }); r.disposition = 'passed'; }); }
+      if (['context', 'actor', 'crop'].includes(kind)) {
+        const wireFile = path.join(x.parent.directory, 'paid-stages/reference_entities_qa.wire.json');
+        change(wireFile, w => { if (kind === 'actor') w.input[0].content[6].image_url = w.input[0].content[7].image_url;
+          if (kind === 'crop') w.input[0].content[2].image_url = w.input[0].content[1].image_url;
+          if (kind === 'context') { const q = JSON.parse(w.input[0].content[0].text); q.context.design.entities[0].invariants[0].value += ' WRONG'; q.contextSha = sha(JSON.stringify(q.context)); w.input[0].content[0].text = JSON.stringify(q); } });
+        const digest = sha(canonicalJson(JSON.parse(readFileSync(wireFile, 'utf8'))));
+        for (const n of ['claim', 'result']) change(path.join(x.parent.directory, `paid-stages/reference_entities_qa.${n}.json`), v => { v.wireDigest = digest; });
+      }
+      if (kind === 'lost_fee') change(x.repairQA, v => { v.reportedCostUsd = .004; });
+      if (kind === 'wrong_session') change(x.repairQA, v => { v.sessionId = 'ab123456-1234-4234-8234-123456789012'; });
+      if (kind === 'wrong_qa_head') change(x.repairQA, v => { v.qaReviewHead = 'b'.repeat(40); });
+      if (kind === 'second_correction') d.correctionCount = 2;
+      d.parentTermination = x.ref(d.parentTermination.file); d.technicalReviewReceipt = x.ref(d.technicalReviewReceipt.file);
+      d.parentArtifacts = visualEvidenceFiles(x.parent.directory).map(relative => ({ relative, sha256: sha(readFileSync(path.join(x.parent.directory, relative))) }));
+      writeFileSync(x.repairFile, JSON.stringify(d)); await expect(prepareEntityRepairContinuation(x.repairFile), kind).rejects.toThrow();
+      expect(x.render).not.toHaveBeenCalled(); expect(sdk.create).not.toHaveBeenCalled(); expect(x.fetcher).not.toHaveBeenCalled();
+      expect(disk.mock.calls.some(([p]) => p === config.existingKeyEnvFile)).toBe(false);
+      expect(existsSync(path.join(x.old.directory, 'reference-entity-repair-continuation-20261009'))).toBe(false);
+    }
+  }, 180000);
+  it('entity repair still holds after ONE corrected atlas fails fresh QC, without a second correction or downstream spending', async () => {
+    const x = await entityRepairFixture(); sdk.create.mockImplementation(async p => { const raw = await x.normal(p), d = JSON.parse(p.input[0].content[0].text);
+      if (d.context.role === 'entities') { const q = JSON.parse(raw.output_text); q.checks[3].verdict = 'uncertain'; raw.output_text = JSON.stringify(q); } return raw; });
+    expect(await simpleBookReferenceRecoveryCLI(['--config', x.repairFile, '--execute'])).toBe(1); expect(x.render).toHaveBeenCalledTimes(1);
+    expect(x.fetcher).not.toHaveBeenCalled(); expect(x.editor).not.toHaveBeenCalled();
+    const dir = path.join(x.old.directory, 'reference-entity-repair-continuation-20261009');
+    expect(JSON.parse(readFileSync(path.join(dir, 'sealed.json'), 'utf8'))).toMatchObject({ status: 'failed', code: 'simple_reference_held', snapshot: { logicalAttempts: 2 } });
+    expect(existsSync(path.join(dir, 'book.html'))).toBe(false); expect(existsSync(path.join(dir, 'paid-stages/reference_entities_repair_2.claim.json'))).toBe(false);
   }, 180000);
   it('reference design rebuild rejects rebound evidence, omitted costs, old or failed QA before key and fresh claim', async () => {
     const x = await referenceRebuildFixture(), baseline = readFileSync(x.recoveryFile), terminal = readFileSync(x.endedTerminal);

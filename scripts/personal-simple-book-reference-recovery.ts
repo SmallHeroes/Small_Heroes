@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import { parseEnv } from 'node:util';
 import { prepareSimpleBookReferenceRecovery } from '../lib/personal-wizard/simple-book-reference-recovery';
 import { prepareEntityAuthorityContinuation } from '../lib/personal-wizard/simple-book-entity-authority';
+import { prepareEntityRepairContinuation } from '../lib/personal-wizard/simple-book-entity-repair';
 import { previewSha } from '../lib/local-story-preview';
 import { exclusiveJson, fencedText } from './personal-causal-trial-journal';
 import { readAuditionApproval, runSimpleBookIllustrator } from './personal-simple-book-illustrator';
@@ -12,9 +13,10 @@ const fail = (code: string): never => { throw Object.assign(new Error(code), { c
 export async function simpleBookReferenceRecoveryCLI(argv: string[]) {
   if (argv.length < 2 || argv.length > 3 || argv[0] !== '--config' || !path.isAbsolute(argv[1]) || argv.length === 3 && argv[2] !== '--execute') fail('reference_recovery_arguments');
   const version = JSON.parse(fencedText(argv[1], 64000)).version;
-  const ready = version === 'controlled-simple-entity-authority/v1'
+  const ready = version === 'controlled-simple-entity-repair/v1' ? await prepareEntityRepairContinuation(argv[1]) : version === 'controlled-simple-entity-authority/v1'
     ? await prepareEntityAuthorityContinuation(argv[1]) : await prepareSimpleBookReferenceRecovery(argv[1]);
   const entityDesignAuthority = 'entityDesignAuthority' in ready ? ready.entityDesignAuthority : undefined;
+  const entityRepairReview = 'entityRepairReview' in ready ? ready.entityRepairReview : undefined;
   readAuditionApproval(ready.current);
   if (previewSha(readFileSync(ready.current.executable)) !== ready.current.executableSha256) fail('reference_recovery_executable');
   if (argv.length === 2) {
@@ -33,7 +35,7 @@ export async function simpleBookReferenceRecoveryCLI(argv: string[]) {
     return fail('reference_recovery_key');
   };
   const save = (name: string, value: unknown) => exclusiveJson(path.join(ready.directory, `${name}.json`), value);
-  let view: SimpleBookView = { ...ready.view, imageScope: entityDesignAuthority ? 'reference_entity_authority_continuation' : ready.rebuildEntitiesFromDesign ? 'reference_rebuild_continuation' : ready.explicitReferenceTransport ? 'reference_transport_continuation' : ready.checkpoint ? 'role_scoped_reference_continuation' : 'owned_reference_recovery', error: null, images: [] };
+  let view: SimpleBookView = { ...ready.view, imageScope: entityRepairReview ? 'reference_entity_repair_continuation' : entityDesignAuthority ? 'reference_entity_authority_continuation' : ready.rebuildEntitiesFromDesign ? 'reference_rebuild_continuation' : ready.explicitReferenceTransport ? 'reference_transport_continuation' : ready.checkpoint ? 'role_scoped_reference_continuation' : 'owned_reference_recovery', error: null, images: [] };
   const update = (phase: SimpleBookView['phase'], images = view.images) => {
     const snapshot = budget.snapshot(); view = { ...view, phase, images, accounting: { ...view.accounting,
       knownEstimateMicroUsd: snapshot.knownEstimateMicroUsd, unknownAttemptCosts: snapshot.unknownAttemptCosts,
@@ -48,6 +50,7 @@ export async function simpleBookReferenceRecoveryCLI(argv: string[]) {
       referenceRecovery: ready.seed, referenceCheckpoint: ready.checkpoint, explicitReferenceTransport: ready.explicitReferenceTransport,
       rebuildEntitiesFromDesign: ready.rebuildEntitiesFromDesign,
       ...(entityDesignAuthority ? { entityDesignAuthority } : {}),
+      ...(entityRepairReview ? { entityRepairReview } : {}),
       progress: (phase, images) => update(phase, images) });
     check(); update('illustrated_audition', manifest.pages.map(p => ({ pageNumber: p.pageNumber, ...p.candidate })));
     save('sealed', { status: 'illustrated_audition', sourceHead: ready.config.sourceHead, snapshot: budget.snapshot(), inheritedLogicalAttempts: ready.inheritedLogicalAttempts,

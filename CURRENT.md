@@ -1,5 +1,30 @@
 # SmallHeroes — Current Technical State
 
+## M14 approved one-atlas correction: local green, independent QA next (2026-10-09)
+
+Sole Codex writer, same voice-followup branch/task. Guy explicitly approved one
+targeted reference correction inside SAME accumulated22m. New opt-in config
+binds M13's terminated/known two-stage failure, raw image/model/usage/candidate,
+complete context, four real crops and actor roles before claim/key. Current
+same-session engineering receipt must be cumulative; only its increase over
+the previous1.271666USD is added to the existing19632982micro snapshot.
+
+One rejected full atlas plus accepted child/Dini/subset goes to the renderer as
+four explicit roles. New full-QA candidate/crops/actors+all source IDs unchanged;
+failed/uncertain still stops, no second correction. Existing manuscript/author/
+editor/storyboard, canon and0.70 unchanged. Old configs keep default behavior;
+new owner-only private image scope and fixed one-use sibling, inherited41floor.
+No old claim or seal reopened, no automated invalid-provider/schema retry.
+
+Literaltsc0. Focused9/9passes,0failed,188skipped of197 (not197passes), no supplier;
+three new cases added/no removal. Real mock CLI completes9gatedprivateframes,
+10rehashed admission negatives dispatch nothing/read no key, repaired-QAHOLD
+ends after2calls/no second correction. All260oldbookfiles/six trees preserved.
+The current full gate remains incomplete, no stability/production PASS claimed.
+Next: focused local commit, same-session delta source re-gate, pure real-evidence
+admission, then one approved correction and downstream only if fully supported.
+Paid book calls have not resumed. Known19632982/22m, unknown0, no book images.
+
 ## M13 independent sourcePASS, paid atlasHOLD; no finished book (2026-10-09)
 
 Claude's same-session delta re-gate deliveredcode0/success/PASS for exact

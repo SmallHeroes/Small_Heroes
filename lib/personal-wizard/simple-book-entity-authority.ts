@@ -37,14 +37,16 @@ const fail = (code: string): never => { throw Object.assign(new Error(code), { c
 const read = (p: string) => JSON.parse(fencedText(p, 32000000));
 
 /** Fresh SAME-book sibling. Old successful source and ended failures stay immutable. */
-export async function prepareEntityAuthorityContinuation(configFile: string) {
+export async function prepareEntityAuthorityContinuation(configFile: string, activeSourceHead?: string) {
   const bytes = fencedText(configFile, 64000), config = entityAuthorityContinuationSchema.parse(JSON.parse(bytes));
   if (!path.isAbsolute(configFile)) fail('entity_authority_config');
   const checked = (f: z.infer<typeof file>) => {
     if (!path.isAbsolute(f.file) || previewSha(fencedText(f.file, 32000000)) !== f.sha256) fail('entity_authority_file');
   };
   checked(config.parentConfig); checked(config.parentTermination); checked(config.technicalReviewReceipt);
-  const prior = await prepareSimpleBookReferenceRecovery(config.parentConfig.file, config.sourceHead);
+  const frozenHead = activeSourceHead ?? config.sourceHead;
+  const prior = await prepareSimpleBookReferenceRecovery(config.parentConfig.file, frozenHead);
+  gitAt(prior.current.workspace, ['merge-base', '--is-ancestor', config.sourceHead, frozenHead]);
   if (prior.config.version !== 'controlled-simple-reference-recovery/v3' || !prior.config.rebuildContinuation ||
       prior.config.maximumMicroUsd !== 20000000 || !prior.checkpoint || !prior.rebuildEntitiesFromDesign)
     fail('entity_authority_parent_scope');
@@ -90,7 +92,7 @@ export async function prepareEntityAuthorityContinuation(configFile: string) {
   const sessions = allEngineering.map(f => read(f.file).sessionId).filter(s => typeof s === 'string');
   if (new Set(sessions).size !== sessions.length) fail('entity_authority_duplicate_session');
   const verify = () => {
-    if (fencedText(configFile, 64000) !== bytes || gitAt(prior.current.workspace, ['rev-parse', 'HEAD']).toString().trim() !== config.sourceHead ||
+    if (fencedText(configFile, 64000) !== bytes || gitAt(prior.current.workspace, ['rev-parse', 'HEAD']).toString().trim() !== frozenHead ||
         gitAt(prior.current.workspace, ['status', '--porcelain']).toString().trim()) fail('entity_authority_source_changed');
     checked(config.parentConfig); checked(config.parentTermination); checked(config.technicalReviewReceipt); prior.verify();
     if (config.ceilingExtension) checked(config.ceilingExtension);
