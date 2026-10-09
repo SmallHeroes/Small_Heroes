@@ -1,5 +1,39 @@
 # SmallHeroes — Current Technical State
 
+## M13 independent sourcePASS, paid atlasHOLD; no finished book (2026-10-09)
+
+Claude's same-session delta re-gate deliveredcode0/success/PASS for exact
+c106ba9e..c107e7a1. Scope: supplied source consistency only, not pixel/product/
+stability acceptance. Cumulative session1.271666USD includes the earlier failed
+0.956508USD once; new segment315158micro. Frozen source clean,6targetedpasses,
+188skipped and literaltsc0. Full gate remains incomplete, not a current PASS.
+
+Pure real-evidence CLI admission passed: no key/claim/provider. Actual same-book
+continuation then ran77s and endedcode1/simple_reference_held with a closed seal.
+Image45904micro + SolpixelQA32032micro =77936micro, both known/completed; no retries.
+Bench now visibly has3seat/3backslats and2supports. Full atlas still has genuine
+defects: unreadable constituent shadow silhouettes/two-winged Dini, inadequate
+charcoal trail, dimensional swing shadow, carton patch/configuration, brown vs
+warm-gray trunk. Some observations (pocket attachment/dark interior) also require
+scope scrutiny; none justify converting a failed full review into a PASS.
+
+Accumulated19632982micro of22m, remaining2367018; unknown0. API3043186 vs
+Maxreportedlist16589796 (not invoice); engineering15799239 vs bookdiagnostic3833743.
+No locations atlas, body images, cover or complete reader. Original237files and
+six protected trees unchanged; total book evidence260. Text/storyboard/canon/
+identity0.70 unchanged, no push or deployment. This is not a budget stop.
+
+Guy explicitly approved ONE defect-driven full-atlas correction within the SAME
+22m on2026-10-09. Next: a fresh
+independent full review, then existing locations/9frames only if passed. No
+reopening this sealed run, automatic rerolls or weakening acceptance. The current
+fresh-atlas path has no repair branch; implementation of that continuation is
+started only after this approval: one admitted correction, local tests and
+independent source re-gate before paid use. No renewed spending ceiling.
+Evidence: task ART/entity-authority-claude-regate-22-20261009/receipt.json and
+overnight-book-entity-authority-host-20261009/host-receipt.json; book sibling
+reference-entity-authority-continuation-20261008/reference_entities_review.json.
+
 ## M13 narrow corrective milestone and ownerUSD22 approval (2026-10-09)
 
 Frozen first range c106ba9e..bb63bc9e, clean source, four targeted passes and

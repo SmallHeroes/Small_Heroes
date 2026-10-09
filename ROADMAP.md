@@ -1,5 +1,17 @@
 # SmallHeroes — Roadmap
 
+## M13 source reviewed; paid full reference still held (2026-10-09)
+
+- Exact c106ba9e..c107e7a1 receives delivered Claude source-onlyPASS, not visual
+  acceptance. Delta315158micro, old failed review retained cumulatively once.
+- Real admission passes; paid image+Solreview77936micro endssealedHOLD. Bench
+  fixed, other visible prop/shadow/material defects remain; no locations/pages.
+- Known19632982of22m,unknown0,remaining2367018. No budget renewal, public/push,
+  production/identity/canon/story change. All237old files/six trees preserved.
+- Owner approved one explicit targeted atlas correction within the SAME22m,
+  with unchanged full re-QA. Implement/test/source-review before paid use;
+  no automatic recovery or rerolls.
+
 ## M13 correction and explicit22m, not a renewed allowance (2026-10-09)
 
 - First native QA delivery failed with known956508micro; raw HOLD finding is

@@ -133,3 +133,60 @@ The broad check onbb63 was cancelled for correction; its partial logs,
 no completed current full-gate verdict or current stability acceptance.
 Next is a compact delta-only re-gate in the same Claude session, then pure
 actual-evidence admission, before any book provider call. No push authorized.
+
+## Actual frozen proof and bounded next decision (2026-10-09)
+
+The same Claude session delivered nativecode0/success/PASS on source consistency
+for c106ba9e..c107e7a1. Raw cumulative cost1.271666USD includes failed0.956508USD
+once; the incremental delta315158micro. Real dry admission then passed with no
+claims/keys/providers. Actual source-bound full-atlas generation and Solreview
+cost45904+32032=77936micro and ended77s latercode1/simple_reference_held. The fixed
+sibling stays sealed; no unknown cost, late process or automatic retry.
+
+The bench is correct now. The complete atlas is NOT approved: generic folded
+blanket fails readable constituent identities/two-wing silhouette, the trail
+lacks a distinct charcoal line, the swing shadow reads as wood, cartons lack
+the required corner/configuration, and trunk material/color differs. Review
+claims about an isolated pocket's attachment and a future dark interior also
+need role-scope analysis; their possible overreach does not erase other defects.
+
+Known19632982micro of22m, unknown0;237old files preserved/six trees clean;260total
+book files. No location atlas, cover, body images or reader. Same actual wizard
+typed/chips request, original Opus manuscript/edit/storyboard and all design
+data unchanged. Do not call this full recording E2E or production acceptance.
+
+Proposed next scope, NOT implemented: ONE explicitly admitted correction of the
+rejected full atlas using only evidenced design gaps, then a fresh full review
+under the same eight-category gate. It must preserve the accepted child/Dini,
+supported bench and complete source data, settle every old/new fee, use a new
+one-use directory, keep the old seal, and stop if the corrected reference is
+still defective/uncertain. No automatic retry of an invalid provider/schema/
+unknown-cost result, no story/canon/pixel edits, no unchecked partial reference
+as whole approval. Existing0.70/frame repair limits stay unchanged. Human scope
+question answered2026-10-09: "מאשר תיקון ממוקד אחד בתוך $22". Same22m budget
+only; no reset. A technical review must precede paid use.
+
+## M14 approved small one-reference correction plan (2026-10-09)
+
+Observed fault: fresh-atlas failure exits without a defect-driven correction
+path. The failed evidence is complete and known-cost, unlike a provider/schema
+failure. Reusing the same fresh prompt would ignore the named defects.
+Implement one opt-in sealed-predecessor correction, not an automatic retry.
+Reuse accepted actor/subset authorities, complete source and the unchanged
+pixel judge. A repaired candidate must differ and pass all eight categories;
+otherwise stop. No softening of held/uncertain, no per-story/named-object code.
+
+Admission reuses the prior M13 config reader with an internal frozen-successor
+head parameter; old default behavior stays exact. New strict local config binds
+the terminated two-stage parent, every hash/crop/role/raw usage and same-session
+cumulative engineering delta. One new fixed sibling, inherited41attempt floor,
+22m same-book, no lost/double cost. Old claims/seals untouched. Private owner
+image scope only; no public production path. Rollback: omit this explicit config.
+
+Likely files: small repair admission module, illustrator/factory opt-in, current
+CLI dispatch, private view/image scope, targeted fixtures/spec and state docs.
+Validation: literaltsc, real mock CLI9frames, invalid parent/pixel/context/cost
+reject before claim/key, repaired referenceHOLD stops after2calls, no second
+repair, opt-in/default compatibility. Focused clean commit, same reviewer delta
+re-gate, dry real-evidence admission, then one paid repair and downstream only
+if supported. Full stability remains separately incomplete, no release claim.
