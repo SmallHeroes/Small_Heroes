@@ -1,5 +1,12 @@
 # SmallHeroes — Roadmap
 
+## Reviewed audition v3 F1/F2 round1 delivered for QA (2026-10-09)
+
+- F1 unbound critical citation -> review_invalid; F2 unusable review halts,
+  stage repeat failures not reset by success. Policy v3.
+- Focused29/29, tsc0 only; mocks, no pixels/providers. Full gate RED/not run.
+  Independent Codex QA next; no new design/repair round, no paid render.
+
 ## M17 completed source milestone; visual proof still blocked (2026-10-09)
 
 - Independent source-onlyPASS exacted1dfd05..421ffd4b. Finaltargeted19/19,

@@ -110,6 +110,9 @@ export function readAuditionGrant(file: string, book: { requestId: string; story
 // ---------------------------------------------------------------------------------------------------------------
 // Meter: cumulative, fail-closed.
 // ---------------------------------------------------------------------------------------------------------------
+/** Logical stage of a paid step: image render, pixel review or child identity measurement. */
+export const auditionStage = (step: string) => /_qa$|^rejudge_/.test(step) ? 'review' : /_identity$/.test(step) ? 'identity' : 'render';
+
 /**
  * Journals every paid call before dispatch. Prior spend is an explicit input. An unknown cost or an unknown outcome
  * (a claim without a result) stops further paid calls instead of hiding behind a reservation; two consecutive failed
@@ -123,21 +126,24 @@ export class AuditionMeter {
   }
   snapshot() {
     let newKnownApiMicroUsd = 0, reservedUnsettledMicroUsd = 0, calls = 0, failed = 0, unknownCost = 0, unknownOutcome = 0;
-    const settled: { seq: number; completed: boolean }[] = [];
+    const settled: { seq: number; stage: string; completed: boolean }[] = [];
     for (const name of readdirSync(this.root).filter(n => n.endsWith('.claim.json'))) {
       const claim = JSON.parse(readFileSync(path.join(this.root, name), 'utf8')), file = path.join(this.root, name.replace('.claim.', '.result.'));
       const result = existsSync(file) ? JSON.parse(readFileSync(file, 'utf8')) : null; calls++;
       if (!result) { unknownOutcome++; reservedUnsettledMicroUsd += claim.maximumMicroUsd; continue; }
-      settled.push({ seq: claim.seq, completed: result.completed === true });
+      settled.push({ seq: claim.seq, stage: auditionStage(claim.step), completed: result.completed === true });
       if (!result.completed) failed++;
       if (typeof result.estimatedMicroUsd === 'number') newKnownApiMicroUsd += result.estimatedMicroUsd;
       else { unknownCost++; reservedUnsettledMicroUsd += claim.maximumMicroUsd; }
     }
-    const lastTwo = settled.sort((a, b) => a.seq - b.seq).slice(-2);
+    // Two consecutive failures overall, or in one logical stage even when calls of another stage succeeded in between.
+    const lastTwo = (list: typeof settled) => { const two = list.slice(-2); return two.length === 2 && two.every(s => !s.completed); };
+    const ordered = settled.sort((a, b) => a.seq - b.seq);
+    const repeatedFailure = lastTwo(ordered) || [...new Set(ordered.map(s => s.stage))].some(stage => lastTwo(ordered.filter(s => s.stage === stage)));
     return { priorKnownApiMicroUsd: this.priorKnownApiMicroUsd, newKnownApiMicroUsd, reservedUnsettledMicroUsd,
       cumulativeAccountedMicroUsd: this.priorKnownApiMicroUsd + newKnownApiMicroUsd + reservedUnsettledMicroUsd,
       capMicroUsd: this.capMicroUsd, calls, maxCalls: this.maxCalls, failed, unknownCost, unknownOutcome,
-      repeatedFailure: lastTwo.length === 2 && lastTwo.every(s => !s.completed),
+      repeatedFailure,
       claudeMax: 'separate: not an API invoice, not $0 and not included' as const };
   }
   async run<T>(step: string, wire: unknown, maximumMicroUsd: number,

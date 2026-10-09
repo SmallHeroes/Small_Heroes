@@ -18,14 +18,18 @@ import type { PersonalWizardOptions } from './options';
  * v2: findings carry an IMPACT (safety > story > identity > continuity > detail) and the requirement they violate.
  * Selection prefers the fewest story findings, never "newest"; an image is qa_supported only without safety, story,
  * identity or continuity findings and (pages) with a measured child identity >= 0.70. Anything else is HELD.
+ * v3: a story/identity/continuity finding citing an unknown requirement stays critical and marks the review invalid
+ * (held, no further render for that image); an unusable (malformed or misbound) review halts the run.
  * qa_supported is not product approval and not production qualification. Diagnostic and runtime-ineligible.
  */
-export const REVIEWED_AUDITION_POLICY = Object.freeze({ version: 'reviewed-audition-policy/v2',
+export const REVIEWED_AUDITION_POLICY = Object.freeze({ version: 'reviewed-audition-policy/v3',
   sheetAttempts: 2, pageAttempts: 3, identityThreshold: 0.7,
   impactOrder: ['safety', 'story', 'identity', 'continuity', 'detail'] as const,
   selection: 'eligible_then_fewest_story_identity_continuity_detail_then_earliest' as const,
   safety: 'any safety defect or uncertain makes a candidate ineligible' as const,
-  status: 'qa_supported requires no safety/story/identity/continuity finding and a measured child identity >= 0.70' as const });
+  status: 'qa_supported requires no safety/story/identity/continuity finding and a measured child identity >= 0.70' as const,
+  citation: 'a critical finding with an unknown requirement stays critical: review_invalid, held, never repaired or redrawn' as const,
+  unusableReview: 'a malformed or misbound review halts the run: no further render, review or identity call' as const });
 /** Paid calls one complete run can make: each sheet attempt renders + judges, each page attempt renders + judges + measures identity. */
 export const AUDITION_WORST_CASE_CALLS = 2 * REVIEWED_AUDITION_POLICY.sheetAttempts * 2 + 9 * REVIEWED_AUDITION_POLICY.pageAttempts * 3;
 export const AUDITION_IMPACTS = REVIEWED_AUDITION_POLICY.impactOrder;
@@ -162,7 +166,7 @@ export const auditionReviewSchema = z.object({ candidateSha: sha, contextSha: sh
     issues: z.array(auditionIssueSchema).max(4) }).strict()).length(QUALITY_CATEGORIES.length) }).strict();
 export type AuditionReview = z.infer<typeof auditionReviewSchema>;
 export type AuditionFinding = { category: string; verdict: 'defect' | 'uncertain'; impact: Impact; requirement: string; note: string; bound: boolean };
-export type AuditionAssessment = { findings: AuditionFinding[]; counts: Record<Impact, number>; safetyBlocked: boolean };
+export type AuditionAssessment = { findings: AuditionFinding[]; counts: Record<Impact, number>; safetyBlocked: boolean; invalidCitations: number };
 
 /** Binding, coverage and correction rules of the existing judge, plus impact/requirement checks. */
 export function assessAuditionReview(raw: unknown, candidateSha: string, contextSha: string, requirementIds: readonly string[]) {
@@ -173,10 +177,12 @@ export function assessAuditionReview(raw: unknown, candidateSha: string, context
   const findings: AuditionFinding[] = review.checks.flatMap(c => c.issues.map(i => ({ category: c.category, verdict: c.verdict as 'defect' | 'uncertain',
     impact: i.impact, requirement: i.requirement, note: i.note, bound: known.has(i.requirement) })));
   const counts = Object.fromEntries(AUDITION_IMPACTS.map(i => [i, 0])) as Record<Impact, number>;
-  // An issue that cites no known requirement cannot make a page story-critical; it stays visible as detail.
-  for (const f of findings) counts[f.bound || f.impact === 'safety' ? f.impact : 'detail']++;
+  // A citation error never downgrades a defect: a miscited critical issue keeps its impact and makes the review invalid,
+  // so it is neither supported nor forwarded as a repair instruction.
+  for (const f of findings) counts[f.impact]++;
+  const invalidCitations = findings.filter(f => !f.bound && f.impact !== 'detail' && f.impact !== 'safety').length;
   const safetyBlocked = counts.safety > 0 || review.checks.some(c => c.category === 'safety' && c.verdict !== 'pass');
-  return { review, assessment: { findings, counts, safetyBlocked } satisfies AuditionAssessment };
+  return { review, assessment: { findings, counts, safetyBlocked, invalidCitations } satisfies AuditionAssessment };
 }
 
 export const identityPassed = (identity: PageChildResemblanceVisionResult | null | undefined) => !!identity && identity.status === 'passed' &&
@@ -184,7 +190,7 @@ export const identityPassed = (identity: PageChildResemblanceVisionResult | null
   identity.threshold === REVIEWED_AUDITION_POLICY.identityThreshold && identity.resemblanceScore !== null &&
   identity.resemblanceScore >= REVIEWED_AUDITION_POLICY.identityThreshold;
 
-export type AttemptStatus = 'unavailable' | 'ineligible_safety' | 'held' | 'qa_supported';
+export type AttemptStatus = 'unavailable' | 'review_unusable' | 'ineligible_safety' | 'review_invalid' | 'held' | 'qa_supported';
 export type AuditionAttempt = { attempt: number; candidate: AuditionImage | null; review: AuditionReview | null;
   assessment: AuditionAssessment | null; status: AttemptStatus; error?: string; identity?: PageChildResemblanceVisionResult | null };
 type Chosen = AuditionAttempt & { candidate: AuditionImage; review: AuditionReview; assessment: AuditionAssessment };
@@ -193,6 +199,7 @@ const critical = (a: AuditionAssessment) => a.counts.story + a.counts.identity +
 export function attemptStatus(phase: 'sheet' | 'page', a: Pick<AuditionAttempt, 'candidate' | 'assessment' | 'identity'>): AttemptStatus {
   if (!a.candidate || !a.assessment) return 'unavailable';
   if (a.assessment.safetyBlocked) return 'ineligible_safety';
+  if (a.assessment.invalidCitations) return 'review_invalid';
   return critical(a.assessment) === 0 && (phase === 'sheet' || identityPassed(a.identity)) ? 'qa_supported' : 'held';
 }
 
@@ -271,7 +278,9 @@ function pageChecksPrompt(checks: ReturnType<typeof auditionPageChecks>, referen
 // ---------------------------------------------------------------------------------------------------------------
 /** Spending, cancellation and admission failures end the run; one provider glitch only costs its attempt. */
 export const FATAL_AUDITION_CODES = new Set(['audition_cancelled', 'audition_budget_exhausted', 'audition_call_limit', 'audition_meter_policy',
-  'audition_key_missing', 'audition_unknown_cost', 'audition_repeated_failure']);
+  'audition_key_missing', 'audition_unknown_cost', 'audition_repeated_failure', 'audition_review_unusable']);
+/** A review that arrived but cannot be used is not a visual finding, so it is never a reason to draw another image. */
+export const UNUSABLE_REVIEW_CODES = new Set(['audition_pixel_schema', 'audition_pixel_provider_invalid']);
 const errorCode = (error: unknown) => error && typeof error === 'object' && 'code' in error && typeof error.code === 'string' ? error.code : 'audition_attempt_failed';
 async function attemptStep<T>(check: () => void, work: () => Promise<T>): Promise<{ value: T } | { error: string }> {
   try { const value = await work(); check(); return { value }; }
@@ -288,7 +297,7 @@ type Render = (step: string, prompt: string, refs: AuditionImage[], mode: 'book_
 export function referenceStatus(sheets: Record<'entities' | 'locations', Pick<SavedSheet, 'chosen' | 'status'>>): ReferenceStatus {
   const one = (s: Pick<SavedSheet, 'chosen' | 'status'>) => ({ image: s.chosen.candidate,
     status: s.status === 'qa_supported' ? 'approved_reference' as const : 'diagnostic_candidate' as const,
-    knownFlaws: s.chosen.assessment.findings.filter(f => f.impact !== 'detail' && f.bound) });
+    knownFlaws: s.chosen.assessment.findings.filter(f => f.impact !== 'detail') });
   return { entities: one(sheets.entities), locations: one(sheets.locations) };
 }
 
@@ -343,15 +352,26 @@ export async function illustrateReviewedAudition(args: {
     const rendered = await attemptStep(args.check, () => args.render(step, prompt, refs, mode, roles));
     if ('error' in rendered) return { attempt, candidate: null, review: null, assessment: null, status: 'unavailable', error: rendered.error };
     const candidate = rendered.value;
-    const judged = await attemptStep(args.check, async () => assessAuditionReview(
-      await args.judge(`${step}_qa`, candidate, context, contextSha, judgeRefs, predecessor, phase), candidate.imageSha, contextSha, requirementIds));
-    if ('error' in judged) return { attempt, candidate, review: null, assessment: null, status: 'unavailable', error: judged.error };
-    const { review, assessment } = judged.value;
-    if (phase === 'sheet' || assessment.safetyBlocked) return { attempt, candidate, review, assessment, status: attemptStatus(phase, { candidate, assessment }) };
+    const raw = await attemptStep(args.check, () => args.judge(`${step}_qa`, candidate, context, contextSha, judgeRefs, predecessor, phase));
+    if ('error' in raw) return { attempt, candidate, review: null, assessment: null,
+      status: UNUSABLE_REVIEW_CODES.has(raw.error) ? 'review_unusable' : 'unavailable', error: raw.error };
+    let judged: ReturnType<typeof assessAuditionReview>;
+    try { judged = assessAuditionReview(raw.value, candidate.imageSha, contextSha, requirementIds); }
+    catch (error) { return { attempt, candidate, review: null, assessment: null, status: 'review_unusable', error: errorCode(error) }; }
+    const { review, assessment } = judged;
+    // No identity spend on an image already held for safety or for an invalid review.
+    if (phase === 'sheet' || assessment.safetyBlocked || assessment.invalidCitations) return { attempt, candidate, review, assessment, status: attemptStatus(phase, { candidate, assessment }) };
     const measured = await attemptStep(args.check, () => args.identity(`${step}_identity`, args.child, candidate));
     const identity = 'error' in measured ? null : measured.value;
     return { attempt, candidate, review, assessment, identity, status: attemptStatus(phase, { candidate, assessment, identity }),
       ...('error' in measured ? { error: measured.error } : {}) };
+  };
+  /** True when no further attempt may be drawn. An unusable review ends the run; its candidate and attempts stay saved (receipts in the meter). */
+  const finish = (phase: 'sheet' | 'page', name: string, attempts: AuditionAttempt[]) => {
+    const last = attempts[attempts.length - 1];
+    if (last.status === 'review_unusable') { args.save(`halted_${prefix}${phase}_${name}`, { phase, name, attempts, error: last.error }); fail('audition_review_unusable'); }
+    // An invalid review stays held as is: a citation error is no reason to draw again.
+    return last.status === 'qa_supported' || last.status === 'review_invalid';
   };
   const report = (phase: 'sheet' | 'page', name: string, a: AuditionAttempt) => args.progress?.({ phase, name, attempt: a.attempt, status: a.status,
     counts: a.assessment?.counts ?? null, ...(phase === 'page' ? { identity: a.identity?.resemblanceScore ?? null } : {}), ...(a.error ? { error: a.error } : {}) });
@@ -375,7 +395,7 @@ export async function illustrateReviewedAudition(args: {
         : await attemptOnce('sheet', role, attempt, auditionSheetPrompt(role, designs[role]), styleRefs, 'book_design', styleRoles,
           judgeContext, contextSha, requirementIds, styleRefs, null);
       attempts.push(result); report('sheet', role, result);
-      if (result.status === 'qa_supported') break;
+      if (finish('sheet', role, attempts)) break;
     }
     const chosen = selectAuditionAttempt('sheet', attempts) ?? fail(`audition_sheet_${role}_unavailable`);
     sheets[role] = { context: judgeContext, contextSha, requirementIds, attempts, chosen, status: attemptStatus('sheet', chosen) };
@@ -399,7 +419,7 @@ export async function illustrateReviewedAudition(args: {
       const result = await attemptOnce('page', String(pageNumber), attempt, base + auditionCorrections(attempts[attempts.length - 1], 'page'), canonical,
         'book_identity', undefined, context, contextSha, checks.requirementIds, canonical, predecessor);
       attempts.push(result); report('page', String(pageNumber), result);
-      if (result.status === 'qa_supported') break;
+      if (finish('page', String(pageNumber), attempts)) break;
     }
     const chosen = selectAuditionAttempt('page', attempts) ?? fail(`audition_page_${pageNumber}_unavailable`);
     pages.push({ pageNumber, contextSha, requirementIds: checks.requirementIds, attempts, chosen, status: attemptStatus('page', chosen) });
@@ -454,7 +474,8 @@ export const AUDITION_JUDGE_INSTRUCTIONS = Object.freeze({ sheet: AUDITION_SHEET
   page: `${PREVIEW_JUDGE_INSTRUCTION}\n${AUDITION_PAGE_JUDGE_ADDENDUM}` });
 
 const IMPACT_HE: Record<Impact, string> = { safety: 'בטיחות', story: 'פגיעה בסיפור', identity: 'זהות דמות', continuity: 'המשכיות', detail: 'פרט' };
-const STATUS_HE: Record<string, string> = { qa_supported: 'נתמך בבדיקה האוטומטית (לא אישור מוצר)', held: 'מוחזק — יש ממצאים', ineligible_safety: 'נפסל — בטיחות', unavailable: 'לא זמין' };
+const STATUS_HE: Record<string, string> = { qa_supported: 'נתמך בבדיקה האוטומטית (לא אישור מוצר)', held: 'מוחזק — יש ממצאים', ineligible_safety: 'נפסל — בטיחות',
+  review_invalid: 'מוחזק — ביקורת לא תקינה (ממצא קריטי בלי דרישה מוכרת)', review_unusable: 'ביקורת לא שמישה', unavailable: 'לא זמין' };
 export function reviewedAuditionHTML(manifest: Awaited<ReturnType<typeof illustrateReviewedAudition>>, story: { title: string; pages: { text: string }[] },
   imageData: (image: AuditionImage, size: 'full' | 'thumb') => string) {
   const esc = (s: string) => s.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!));

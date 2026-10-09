@@ -10,7 +10,7 @@ vi.mock('../storyboard', () => ({
 import { QUALITY_CATEGORIES } from '../../local-preview-quality';
 import type { PageChildResemblanceVisionResult } from '../../generation-pipeline/page-child-resemblance-vision';
 import type { PersonalStoryboard } from '../storyboard';
-import { auditionSheetDesigns, auditionSheetPrompt, illustrateReviewedAudition, assessAuditionReview, attemptStatus, selectAuditionAttempt,
+import { auditionSheetDesigns, auditionSheetPrompt, illustrateReviewedAudition, rejudgeAudition, assessAuditionReview, attemptStatus, selectAuditionAttempt,
   auditionPageChecks, reviewedAuditionHTML, AUDITION_WORST_CASE_CALLS, ReviewedAuditionError, type AuditionAttempt } from '../simple-book-reviewed-audition';
 import { AuditionMeter, readAuditionGrant } from '../../../scripts/personal-simple-book-reviewed-audition';
 
@@ -104,10 +104,18 @@ describe('findings: impact, requirement binding and status', () => {
     expect(() => assessAuditionReview(review(sha('c'), sha('x'), { props: { issues: [] } }), sha('c'), sha('x'), ids)).toThrow('audition_review_issue_coverage');
     expect(() => assessAuditionReview(ok, sha('other'), sha('x'), ids)).toThrow('quality_evidence_binding');
   });
-  it('counts an unbound citation as detail, and any unreadable safety as blocking', () => {
-    const a = assessAuditionReview(review(sha('c'), sha('x'), { props: { issues: [issue('story', 'made_up_requirement')] } }), sha('c'), sha('x'), ids).assessment;
-    expect(a.counts).toMatchObject({ story: 0, detail: 1 });
-    expect(a.findings[0]).toMatchObject({ bound: false });
+  it('a miscited critical finding stays critical and invalidates the review; a miscited detail stays detail; unreadable safety blocks', () => {
+    for (const impact of ['story', 'identity', 'continuity'])
+      for (const requirement of ['made_up_requirement', 'cast:dinI', 'cast:Companion']) {
+        const a = assessAuditionReview(review(sha('c'), sha('x'), { identity: { issues: [issue(impact, requirement)] } }), sha('c'), sha('x'), ids).assessment;
+        expect(a).toMatchObject({ counts: { [impact]: 1, detail: 0 }, invalidCitations: 1, findings: [expect.objectContaining({ bound: false })] });
+        expect(attemptStatus('page', { candidate: image('x'), assessment: a, identity: identity(.82) })).toBe('review_invalid');
+        expect(attemptStatus('sheet', { candidate: image('x'), assessment: a })).toBe('review_invalid');
+      }
+    const d = assessAuditionReview(review(sha('c'), sha('x'), { framing: { issues: [issue('detail', 'made_up_requirement')] } }), sha('c'), sha('x'), ids).assessment;
+    expect(d).toMatchObject({ counts: { detail: 1 }, invalidCitations: 0 });
+    expect(attemptStatus('page', { candidate: image('x'), assessment: d, identity: identity(.82) })).toBe('qa_supported');
+    expect(attemptStatus('page', { candidate: image('x'), assessment: d, identity: identity(.69) })).toBe('held');
     const s = assessAuditionReview(review(sha('c'), sha('x'), { safety: { verdict: 'uncertain', issues: [issue('detail', 'safety')] } }), sha('c'), sha('x'), ids).assessment;
     expect(s.safetyBlocked).toBe(true);
   });
@@ -194,6 +202,42 @@ describe('orchestration (mocked reviews prove flow and selection, not model perc
     expect(m.pages[7]).toMatchObject({ status: 'qa_supported', chosenAttempt: 1 });
   });
 
+  it('control pair: the same identity defect is held whether its citation is known or not; a miscited one is never redrawn or approved', async () => {
+    const nose = (requirement: string) => ({ identity: { issues: [issue('identity', requirement, 'dark button nose like the hedgehog')] } });
+    const known = harness({ judge: step => step.startsWith('page_7_') ? nose('cast:companion') : {} }), miscited = harness({ judge: step => step.startsWith('page_7_') ? nose('cast:dinI') : {} });
+    const k = await illustrateReviewedAudition(known.args), m = await illustrateReviewedAudition(miscited.args);
+    expect(k.pages[7]).toMatchObject({ status: 'held' });
+    expect(m.pages[7]).toMatchObject({ status: 'review_invalid', chosenAttempt: 0, alternatives: [], findings: [expect.objectContaining({ impact: 'identity', bound: false })] });
+    // A citation error is no reason to pay for another image or an identity measurement.
+    expect(miscited.args.render.mock.calls.filter(c => String(c[0]).startsWith('page_7_'))).toHaveLength(1);
+    expect(miscited.args.identity.mock.calls.some(c => String(c[0]).startsWith('page_7_'))).toBe(false);
+    expect(m.status).toBe('held_audition_with_findings');
+    // Resume re-derives the invalid review from its raw text; rewriting the citation to a known id does not re-bind.
+    const designs = miscited.saved.get('audition_sheet_designs'), sheets = { entities: miscited.saved.get('sheet_entities') as any, locations: miscited.saved.get('sheet_locations') as any };
+    const pages = Object.fromEntries([0, 1, 2, 3, 4, 5, 6, 7].map(n => [n, miscited.saved.get(`page_${n}`) as any]));
+    const again = harness({ judge: step => step.startsWith('r1_page_7_') ? nose('cast:dinI') : {} });
+    expect((await illustrateReviewedAudition({ ...again.args, resume: { designs, sheets, pages, stepPrefix: 'r1_' } })).pages[7]).toMatchObject({ status: 'review_invalid' });
+    expect(again.args.render.mock.calls.map(c => c[0])).toEqual(['r1_page_8_0']);
+    const edited = structuredClone(pages); edited[7].chosen.review.checks.find((c: any) => c.category === 'identity').issues[0].requirement = 'cast:companion';
+    await expect(illustrateReviewedAudition({ ...harness().args, resume: { designs, sheets, pages: edited, stepPrefix: 'r1_' } })).rejects.toThrow('audition_resume_binding');
+    // Re-judge of a saved image: the same miscited defect is review_invalid, not supported.
+    const canonical = [image('child'), image('companion'), image('sheet_entities_0'), image('sheet_locations_0')];
+    const refs = { entities: { image: canonical[2], status: 'approved_reference' as const, knownFlaws: [] }, locations: { image: canonical[3], status: 'approved_reference' as const, knownFlaws: [] } };
+    const rj = harness({ judge: () => nose('cast:dinI') });
+    const [r] = await rejudgeAudition({ book: fixture(), rawReview: {}, current: rj.args.current, companionDescription: 'x', canonical, references: refs,
+      frames: [{ pageNumber: 7, candidate: image('page_7_0'), predecessor: null, label: 'saved p7' }], judge: rj.args.judge, check: vi.fn(), save: vi.fn() });
+    expect(r).toMatchObject({ status: 'review_invalid', assessment: { counts: { identity: 1, detail: 0 }, invalidCitations: 1 } });
+    // Sheets: a miscited continuity defect is a diagnostic candidate that keeps the flaw visible to every page.
+    const sheet = harness({ judge: step => step.startsWith('sheet_locations_') ? { environment: { issues: [issue('continuity', 'landmark_unique:rock', 'two burrow rocks')] } } : {} });
+    const s = await illustrateReviewedAudition(sheet.args);
+    expect(s.sheets.locations).toMatchObject({ status: 'review_invalid', referenceStatus: 'diagnostic_candidate', chosenAttempt: 0 });
+    expect(sheet.args.render.mock.calls.filter(c => String(c[0]).startsWith('sheet_locations_'))).toHaveLength(1);
+    expect(sheet.contexts.get('page_2_0_qa').referenceStatus.locations).toMatchObject({ status: 'diagnostic_candidate',
+      knownFlaws: [expect.objectContaining({ note: 'two burrow rocks', bound: false })] });
+    expect(sheet.prompts.get('page_2_0')).toContain('Image 4 is a DIAGNOSTIC candidate with known flaws');
+    expect(s.status).toBe('held_audition_with_findings');
+  });
+
   it('a story finding outranks continuity and detail; complete ties keep the earliest attempt', async () => {
     const h = harness({ judge: step => step.startsWith('page_1_0') || step.startsWith('page_1_2') ? { scene: { issues: [issue('story', 'page_text', 'the clue is missing')] }, framing: { issues: [issue('detail', 'framing', 'tiny ratio note')] } }
       : step.startsWith('page_1_1') ? { environment: { issues: [issue('continuity', 'landmark_unique:stone')] }, framing: { issues: [issue('detail', 'framing'), issue('detail', 'framing')] } }
@@ -244,6 +288,37 @@ describe('orchestration (mocked reviews prove flow and selection, not model perc
       const h = harness({ renderFail: step => step === 'page_2_0' ? new ReviewedAuditionError(code) : null });
       await expect(illustrateReviewedAudition(h.args)).rejects.toThrow(code);
     }
+  });
+
+  it('an unusable review (malformed even at a known cost, or misbound) halts the run: no further render, review or identity call', async () => {
+    const root = path.join(mkdtempSync(path.join(tmpdir(), 'audition-unusable-')), 'paid');
+    const meter = new AuditionMeter(root, 9000000, AUDITION_WORST_CASE_CALLS, 1000000);
+    const wrap = <T>(step: string, work: () => Promise<T>) => meter.run(step, { step }, 1000, async () => {
+      if (step.startsWith('page_1_') && step.endsWith('_qa')) throw Object.assign(new ReviewedAuditionError('audition_pixel_schema'), { receipt: { estimatedMicroUsd: 7 } });
+      return { value: await work(), estimatedMicroUsd: 10, receipt: {} };
+    });
+    const h = harness({ wrap });
+    await expect(illustrateReviewedAudition(h.args)).rejects.toThrow('audition_review_unusable');
+    const page1 = h.args.render.mock.calls.map(c => String(c[0])).filter(s => s.startsWith('page_1_'));
+    expect(page1).toEqual(['page_1_0']);
+    expect(h.args.render.mock.calls.some(c => String(c[0]).startsWith('page_2_'))).toBe(false);
+    expect(h.args.identity.mock.calls.some(c => String(c[0]).startsWith('page_1_'))).toBe(false);
+    // The paid receipt and the candidate are kept; the failed call stays counted.
+    expect(readdirSync(root).filter(n => n.startsWith('page_1_0_qa.')).sort()).toEqual(['page_1_0_qa.claim.json', 'page_1_0_qa.failure.json', 'page_1_0_qa.result.json', 'page_1_0_qa.wire.json']);
+    expect(meter.snapshot()).toMatchObject({ failed: 1, newKnownApiMicroUsd: 7 + 10 * (2 * 2 + 3 + 1) });
+    expect(h.saved.get('halted_page_1')).toMatchObject({ error: 'audition_pixel_schema', attempts: [expect.objectContaining({ status: 'review_unusable', candidate: image('page_1_0') })] });
+    expect(h.saved.has('page_1')).toBe(false);
+    // A misbound review (wrong candidate) or an incomplete issue list is equally unusable, on sheets too.
+    const misbound = harness();
+    misbound.args.judge.mockImplementation(async (step: string, _c: unknown, _ctx: unknown, contextSha: string) => review(sha('other'), contextSha, {}));
+    await expect(illustrateReviewedAudition(misbound.args)).rejects.toThrow('audition_review_unusable');
+    expect(misbound.args.render.mock.calls.map(c => c[0])).toEqual(['sheet_entities_0']);
+    // Valid critical findings still drive the bounded correction (see the transferred-feature test); a judge transport glitch only costs its attempt.
+    const glitch = harness();
+    const judge = glitch.args.judge.getMockImplementation()!;
+    glitch.args.judge.mockImplementation(async (...a: Parameters<typeof judge>) => { if (a[0] === 'page_2_0_qa') throw new Error('socket'); return judge(...a); });
+    const g = await illustrateReviewedAudition(glitch.args);
+    expect(g.pages[2]).toMatchObject({ chosenAttempt: 1, alternatives: [expect.objectContaining({ status: 'unavailable', error: 'audition_attempt_failed' })] });
   });
 
   it('fits the worst case (every candidate uses every attempt) inside the meter envelope, and resumes without paying again', async () => {
@@ -313,6 +388,16 @@ describe('cumulative, fail-closed meter and spend grant', () => {
     await expect(meter.run('e', {}, 1000, dispatch)).rejects.toThrow('audition_repeated_failure');
     expect(dispatch).not.toHaveBeenCalled();
     expect(readdirSync(meter.root).filter(n => n.startsWith('e.'))).toEqual([]);
+  });
+  it('two failures of one stage stop the run even when another stage succeeded in between', async () => {
+    const meter = meterIn(), boom = async () => { throw Object.assign(new Error('x'), { receipt: { estimatedMicroUsd: 5 } }); };
+    const ok = async () => ({ value: 1, estimatedMicroUsd: 5, receipt: {} });
+    await expect(meter.run('page_1_0_qa', {}, 1000, boom)).rejects.toThrow('x');
+    await meter.run('page_1_1', {}, 1000, ok);
+    expect(meter.snapshot().repeatedFailure).toBe(false);
+    await expect(meter.run('page_1_1_qa', {}, 1000, boom)).rejects.toThrow('x');
+    expect(meter.snapshot()).toMatchObject({ repeatedFailure: true, failed: 2, newKnownApiMicroUsd: 15 });
+    await expect(meter.run('page_1_2', {}, 1000, ok)).rejects.toThrow('audition_repeated_failure');
   });
   it('binds a grant to the book, its evidence hashes and a bounded cumulative cap', () => {
     const dir = mkdtempSync(path.join(tmpdir(), 'audition-grant-')), evidence = path.join(dir, 'spend.json');

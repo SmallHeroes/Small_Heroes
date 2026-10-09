@@ -1,5 +1,16 @@
 # SmallHeroes — Current Technical State
 
+## Reviewed audition policy v3 F1/F2 corrections; focused-only (2026-10-09)
+
+Parent3be66331, sole Claude branch claude/book-render-20261009, round1 only.
+F1: unbound critical citation is review_invalid (not detail/qa_supported); no
+next render/identity for it; diagnostic reference keeps the flaw.
+F2: malformed/misbound pixel review halts with saved halt record; stage-specific
+repeat failures are not reset by an intervening successful render.
+Focused audition+storyboard specs29/29, tsc0, diff-check clean. Mocks only: no
+perception/quality proof. No provider/render/book. Full repo gate RED/not run.
+No self-PASS; awaits independent Codex QA.
+
 ## M17 source PASS; actual one correction still HOLD (2026-10-09)
 
 Reviewed code421ffd4b, exacted1dfd05..421ffd4b, delivered Claude native0/success/
