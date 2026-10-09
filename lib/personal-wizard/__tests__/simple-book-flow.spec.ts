@@ -499,6 +499,22 @@ describe('injected illustrated audition admission, failure boundaries and state 
     expect(html.match(/<img /g)).toHaveLength(9); expect(html).not.toContain('<script'); expect(result.manuscript).toEqual(f.args.result.source.manuscript);
     expect(() => illustratedBookHTML({ ...result, pages: result.pages.slice(1) }, () => '')).toThrow('simple_book_incomplete');
   });
+  it('reference prompt ownership excludes complementary IDs only when the role split is enabled', async () => {
+    const f = await illustrationFixture();
+    await illustrateSimpleBook(f.args);
+    const renderCalls = () => f.args.render.mock.calls as unknown as [string, string][];
+    expect(renderCalls()[1][1]).toContain('Include EVERY ID exactly once, preserve all invariants');
+    const childCall = f.args.judge.mock.calls[0];
+    const childReview = await f.args.judge.mock.results[0].value;
+    const child = await f.args.render.mock.results[0].value;
+    const entities = await f.args.render.mock.results[1].value;
+    f.args.render.mockClear(); f.args.judge.mockClear();
+    await illustrateSimpleBook({ ...f.args, roleScopedReferences: true, explicitReferenceTransport: true,
+      rebuildEntitiesFromDesign: true, stateAwareReferences: true, splitReferenceRoles: true,
+      referenceCheckpoint: { child: { name: 'child', candidate: child, context: childCall[2], review: childReview }, entities } });
+    expect(renderCalls()[0][0]).toBe('reference_entities');
+    expect(renderCalls()[0][1]).toContain('Include EVERY ID assigned to this entities role (design.entities and design.props), not IDs owned by locations exactly once');
+  });
   it('requires an owned storyboard before a child reference is generated when the new policy is selected', async () => {
     const f = await illustrationFixture();
     await expect(illustrateSimpleBook({ ...f.args, actorOwnedAppearance: true })).rejects.toThrow('simple_visual_ownership_required');

@@ -1,5 +1,21 @@
 # SmallHeroes — Current Technical State
 
+## M16 first reviewer delivery invalid; opt-in wording clarified (2026-10-09)
+
+Frozen4807f864 receives a full raw source assessment PASS with3Low, but native
+code1/error_max_budget_usd is NOT a delivered independentPASS. Same-session
+cumulative1808905micro; increase893844, known21935437of25m/unknown0. No book call.
+One general opt-in wording clarification follows the reviewer: entities atlas
+means every ID assigned to entities/props, not the complementary landmark IDs
+also listed in ownership metadata. Defaults stay exact. No canon/QC/.70 change.
+Complete the independent delivery in the same session on this narrow successor,
+retaining the failed review's whole cost. Not a fresh full source review/reset.
+Other Low notes: mixed-kind subset rejects after claim but before provider;
+current actual subset is one landmark. Attempt80 leaves limited repair headroom;
+do not silently raise it. Source-only review cannot approve pixels or product.
+Provider-free narrow recheck:14pass/0fail/200skipped,214inventory. One added actual
+illustrator test pins the unchanged legacy phrase and opt-in assigned-ID phrase.
+
 ## M16 disjoint reference roles locally verified; independent QA next (2026-10-09)
 
 Guy explicitly approved the proposed scope and ONE same-book proof inside SAME

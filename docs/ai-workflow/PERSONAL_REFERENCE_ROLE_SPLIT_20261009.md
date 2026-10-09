@@ -58,4 +58,15 @@ literal tsc exits0. Test logs in task ART/reference-role-checks-* and mutations.
 All306oldbookfiles/sixprotectedtrees unchanged; no provider/key/claim in this work.
 Independent source QA and actual outcome remain pending; source-only PASS is not
 an image acceptance or proof that density caused M15's defects.
+
+First source review of eaf9825a..4807f864: full raw assessment PASS,3Low, but
+native1/error_max_budget_usd invalid terminal delivery. It consumed893844micro
+(cumulative1808905 versus previous915061), including all usage, not an invoice.
+Known21935437/25m. No paid book proof dispatched. A single opt-in wording change
+removes the ambiguous "every ID" when ownership also lists complementary IDs.
+No default change, new data, scope, stage, canon or weaker check. Other Low notes
+remain disclosed: mixed-kind subset fails after claim (actual subset one landmark),
+and limited attempt headroom. A same-session narrow completion/re-gate is next.
+Prompt-only recheck14/14; inventory214(200skipped). One new injected illustrator
+case verifies both legacy literal wording and opt-in complementary-ID exclusion.
 Full repository stability remains incomplete/RED historically; no green claim.
