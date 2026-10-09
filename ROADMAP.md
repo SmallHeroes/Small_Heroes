@@ -1,5 +1,18 @@
 # SmallHeroes — Roadmap
 
+## M14 one correction consumed; reference production still the blocker (2026-10-09)
+
+- Exact a354f0fa..b96a1dda receives delivered native source-onlyPASS; local
+  9/9targeted/188skipped, literaltsc0. Current full gate incomplete, not green.
+- Real known two-stage correction91942micro improves anatomy/trail/tree but
+  endssealedHOLD on remaining identity/prop defects. No second repair authorized.
+- Known20041052of22m, unknown0, remaining1958948. All260oldfiles/six trees
+  preserved;283total. No location/cover/body images or complete reader.
+- Next decision: repair the reference-design/state/derived-form proof boundary,
+  not another unchanged rendering loop. Evidence suggests a packed13-IDsheet
+  and mixed state demands; causal diagnosis/owner scope before implementation.
+- No manual story/canon/pixels, gate weakening, reset, production or push.
+
 ## M14 one targeted reference correction locally verified (2026-10-09)
 
 - Explicit owner scope within SAME22m, not a ceiling reset. Fresh one-use

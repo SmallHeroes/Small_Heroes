@@ -214,3 +214,31 @@ before key/claim; failed correction stops after2stages/no second attempt. Old
 six targetedcases still pass. Evidence entity-repair-final/receipt.json. Current
 full gate incomplete, not a regression-free/production claim. Independent
 source QA must follow a frozen clean local commit before actual provider use.
+
+## M14 actual paid outcome: approved correction consumed (2026-10-09)
+
+Claude delivered source-onlyPASS on a354f0fa..b96a1dda, native0/success, exact
+frozen supplied delta. Current cumulative session1.587794USD adds316128micro,
+no previous amount lost or doubled. Real pure admission passed; current Dini
+asset matched the old accepted copy. Actual two-stage correction then cost
+58832image +33110SolQA =91942micro,81s, and endedsealedcode1/simple_reference_held.
+No unended/unknown call or later location/frame call. No writer/editor/plan run.
+
+Anatomy, environment and scene now pass; exact two wings, trail, trunk and bench
+are supported. Identity/props still fail on Dini's pointed shadow head/horns,
+baby spine palette, rigid-looking swing shadow, unreadable rolled blanket
+corners/carton patch. The pocket attachment observation needs scope scrutiny;
+it does not erase independent other defects. One permitted correction used.
+
+Known20041052/22m, remaining1958948, unknown0. API3135128 / Maxlist16905924 (not
+invoice). Engineering16115367 / bookdiagnostic3925685. All260old files unchanged,
+six trees clean;283total. No location atlas, body/cover or completed reader.
+
+Free diagnostic observations: the actual generator wire requires13IDs on one
+1024sheet; it mixes initially/ultimately prop configurations with fixed design,
+and prohibits drawing primary actors while requiring their recognizable shadow
+forms. None alone proves the model failure's cause. Future narrow scope should
+make fixed/attached/derived design proof explicit and keep scene state on page
+contracts, preserving all canon/final QC/0.70. Do not silently filter findings,
+change color/design, approve a held reference, retry the sealed book, or infer a
+diagnostic-stop exception. A new scope choice is required, not a higher budget.

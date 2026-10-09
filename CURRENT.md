@@ -1,5 +1,39 @@
 # SmallHeroes — Current Technical State
 
+## M14 sourcePASS; the single approved paid correction stillHOLD (2026-10-09)
+
+Delivered nativecode0/success source-consistencyPASS for exact a354f0fa..b96a1dda,
+not independent pixels/product/stability. Same-session cumulative1.587794USD
+keeps prior1.271666 once; added316128micro. Real dry admission passed without
+key/claim/providers. Current Dini source bytes independently matched the prior
+accepted companion. No writer/editor/storyboard/canon change.
+
+The ONE explicit correction then ran81s and endedcode1/simple_reference_held,
+two complete known stages (image58832 + SolQA33110 =91942micro). Anatomy now
+passes with exactly two readable dragon wings; trail, gray trunk and bench pass.
+Full reference is still NOT approved: Dini shadow head/horns differ from canon,
+baby spines differ in color, swing shadow still reads rigid, blanket rolled
+corners and carton corner patch are not readable. Isolated pocket attachment
+is also raised again and warrants scope analysis, but other defects remain.
+No further correction is authorized by the one-correction approval. Seal closed.
+
+Known20041052micro of22m, remaining1958948; unknown0. API3135128 / Maxreportedlist
+16905924 (not invoice); engineering16115367 / bookdiagnostic3925685. All260prior
+book files byte-identical and six trees preserved; total283. No locations atlas,
+cover, body illustrations or completed reader; goal not achieved. No live
+provider left, no paid retry, public change, customer charge, push or deployment.
+
+Observed source issue to diagnose before another paid book call: one1024sheet
+must prove13IDs; props include initially/finally forms alongside immutable
+design/configuration, while the generation prompt forbids primary actors and
+the sheet must also contain derived actor silhouettes. These are actual packet
+facts, not proof of which caused the defects. Proposed next scope must separate
+fixed design proof, attached/derived forms and per-page state without erasing
+continuity or reducing final quality/identity requirements. No new repair loop,
+manual book edit or broader architecture implemented by inference. Owner scope
+decision needed; budget alone is not the blocker. Full gate remains incomplete.
+Detailed report: task ART/M14-REFERENCE-REPAIR-OUTCOME-20261009.txt.
+
 ## M14 approved one-atlas correction: local green, independent QA next (2026-10-09)
 
 Sole Codex writer, same voice-followup branch/task. Guy explicitly approved one
