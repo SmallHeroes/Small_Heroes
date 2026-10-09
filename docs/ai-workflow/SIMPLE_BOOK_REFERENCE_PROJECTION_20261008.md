@@ -1,5 +1,27 @@
 # Decision Gate: inspectable reference projection, same approved book
 
+## M15 actual closeout (2026-10-09)
+
+Exact837605ed..fe00b1b9 source review ends formalnative0/success/PASS. First
+native1/max-budget778738micro retained; cumulative820956includes it once,
+delta42218. Source-only, no reviewer tests/pixel/product/stability PASS.
+Corrected real assembler probe confirms2states delivered, legacycontext24e827...
+unchanged/new944137..., initialinvariants preserved/page7/8 unchanged.
+
+Actual fresh full atlas104s,49928image+35552SolQA, endssealedHOLD4pass/4defect,
+not budget failure. Dini wing/head, carton state/patch, trail color and bench
+back count remain wrong. Pocket attachment/state scope now supported. M15one
+proof consumed; no locations, cover/body images, completed reader or silent retry.
+
+Same-session read-only design consult adds94105micro, NOT anotherQA/visualPASS.
+Current21.041593of25m/unknown0; API3.220608/Maxlist17.820985, not invoice.
+All283old files rehashedunchanged;306total, six protectedcheckouts clean.
+Claude recommends M16disjoint roles in the existing2atlases (8props/cast +
+5landmarks) with exact full union/no lost facts, not13calls or new framework.
+This density intervention is unproved; it cannot waive silhouette/identity
+requirements. Owner async scope question sent; no M16implementation begun.
+Detailed report and next Decision Gate live in taskART. Old seals unchanged.
+
 ## M15 Decision Gate: source-bound reference states (2026-10-09)
 
 1. Change: opt-in shared projection of the existing validated mutable attributes,

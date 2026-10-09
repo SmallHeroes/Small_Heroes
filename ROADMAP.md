@@ -1,5 +1,17 @@
 # SmallHeroes — Roadmap
 
+## M15 source-data repair verified, reference production still HOLD (2026-10-09)
+
+- Exact837605ed..fe00b1b9 receives delivered source-onlyPASS, not pixels/stability.
+  Real metadata probe confirms2states conveyed; original invariants/page states kept.
+- Actual104s reference proof85480micro ends4pass/4defect, no location/pages/reader.
+  ONE M15proof consumed. No identical retry or interpretation as book acceptance.
+- Claude supports testing disjoint roles in existing2atlases, all13IDs/facts
+  mandatory. No extra stages;8props/cast+5landmarks. Hypothesis/proposal ONLY.
+  M16owner question pending; no new code/render authority inferred from budget.
+- Known21.041593of25, unknown0, remaining3.958407. All283oldfiles/six trees kept.
+  No canon/story/pixel edits, gate change, public release, push or deployment.
+
 ## M15 approved source-state boundary repair, then real book proof (2026-10-09)
 
 - Reuse existing validated state data in shared opt-in references; preserve

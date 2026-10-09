@@ -1,5 +1,36 @@
 # SmallHeroes — Current Technical State
 
+## M15 sourcePASS, actual atlas HOLD; simpler ownership scope proposed (2026-10-09)
+
+Source fe00b1b9 on voice-followup/codex/simple-story-voice-20261007, exact QA
+837605ed..fe00b1b9. First native1/max-budget778738micro is not formalPASS.
+Same unchanged-source session completion native0/success/PASS cumulative820956
+includes that fee once, delta42218. Supplied-source consistency only, no own
+tests/pixels/product/stability/release. Full repo gate remains incomplete.
+
+Free real assembler proves the2declared mutable states now reach generator
+and judge with every original invariant kept; oldcontext24e827... stays exact,
+new944137... bound. Page7/8 resolution unchanged; no supplier/key/claim in probe.
+Actual fresh-atlas proof then ran104s, image49928+SolQA35552=85480micro, ended
+sealednative1/simple_reference_held with4pass/4defect. Missing Dini-shadow wing,
+generic head, wrong carton configuration/patch/trail color and bench back count.
+Pocket/role-state scope improved. Do not reinterpret data repair as pixelPASS.
+No location atlas, cover/body images or completed reader; ONE M15proof consumed.
+
+Read-only Claude design consult native0 adds94105micro; it recommends explicit
+disjoint ownership across the existing two atlases:8props/cast in entities,
+5landmarks in locations, union every13ID/allfacts. This is a hypothesis, not a
+visual cure or implementation. Same two atlas calls/four page refs/eightQC/.70.
+Human scope question sent; M16 remains PROPOSED pending explicit answer.
+
+Known21041593/25m, unknown0, remaining3958407. API3220608 / Maxlist17820985,
+not invoice. Engineering17030428 / bookdiagnostic4011165. Old book seal20947488
+is not rewritten to include the later consult. All283prior files unchanged,
+306total/six protectedtrees clean. No current provider, pixel/story/canon edits,
+silent retry, push, merge, deployment or customer charge. Task ART report:
+M15-REFERENCE-STATE-OUTCOME-20261009.txt; preservation/cost independently rehashed
+atM15-PRESERVATION-COST-20261009.json; M16proposal in ART, not started.
+
 ## M15 source-state boundary locally verified; independent QA next (2026-10-09)
 
 Sole Codex writer, voice-followup/codex/simple-story-voice-20261007, base837605ed.
