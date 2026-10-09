@@ -1,5 +1,33 @@
 # SmallHeroes — Current Technical State
 
+## Reviewed audition F1/F2/F3: narrow code PASS; full RED; visual HOLD (2026-10-10)
+
+Docs-only closeout for HEAD88f6b272 (parent754913ea), sole Claude branch
+claude/book-render-20261009, worktree sh-book-render-20261009, clean, unpushed.
+Independent Codex QA (CODEX-QA-ILLUSTRATION-ENGINE-CLOSEOUT-88f6b272-20261009):
+A c834516b..3d9f1e51 historical HOLD; B 3d9f1e51..17a27e7e narrow PASS (call cap
++ resume only); C 17a27e7e..3be66331 original HOLD (F1/F2; moments stays opt-in,
+not wired into the existing loader); D 3be66331..754913ea narrow PASS (F1/F2);
+E 754913ea..88f6b272 narrow PASS (F3: unusable/unknown child-identity evidence
+halts with audition_identity_unusable before any next render; resume refuses).
+Codex ran at88f6b272: tsc --noEmit --incremental false exit0; two focused specs
+30/30 exit0; real identity evaluator + synthetic HTTP: malformed -> 1 image,
+1 review, 1 identity, 0 further callbacks; known-cost identity throw and
+uncertain evidence halt and stay accounted; measured0.69->0.82 and missing-child
+controls still retry; honest resume 0 callbacks, unknown identity refuses.
+Preserved: 412 audition files (199,426,228 bytes), 352 prior evidence hashes,
+6 protected trees, 90 wire digests. Mocks prove flow/halting/selection only.
+The round-2 engineering invocation ended error_max_budget_usd/exit1 after commit
+and tests, before docs: not a successful invocation; this entry is its docs.
+Full gate RED: broad1841/1843, Vitest exit1 (stale 25M-ceiling test, failing
+since c834516b; one load timeout); npm run check not run. No green claim.
+Visual HOLD: owner audition with findings; p4 duplicated landmark and p7
+companion nose open; checker detection unproven; 0.70 measures the child only.
+Spend: audition API estimate $3.484122 (90 claims incl. orphan page_7_0
+$0.072832). Prior same-book account $23.112292 (other categories) not merged.
+Engineering coordination: Claude Max list value $1.9938746, separate, no invoice.
+No paid sample authorized; moments is a separate later milestone.
+
 ## Reviewed audition policy v3 F1/F2 corrections; focused-only (2026-10-09)
 
 Parent3be66331, sole Claude branch claude/book-render-20261009, round1 only.

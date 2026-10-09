@@ -1,5 +1,20 @@
 # SmallHeroes — Roadmap
 
+## Reviewed audition F1/F2/F3 closed at88f6b272; next is a Guy decision (2026-10-10)
+
+- Narrow code PASS for D/E (independent Codex QA); full gate RED; visual HOLD.
+  No third correction loop; this docs-only entry completes the handoff.
+- Proposed (Codex, NOT approved): 5 rejudges of saved images only, no render,
+  no identity, no retries: page_4_2 vs page_4_1 (unique landmark), r1_page_7_1
+  vs page_6_2 (companion snout), cover (clue leak). Controls are not blanket
+  visual PASS. Admission guard <= $3.00 new API estimate (5 x $0.60
+  reservations), not an invoice. Needs a fresh explicit approval, a correct
+  cumulative API ledger, exact images/predecessors/reference status; Max apart.
+- Only if the checker catches both defects without rejecting valid angles or
+  occlusion: decide a targeted illustration fix. No full re-render next.
+- Drawn-moment storyboards are a separate milestone with new binding and review;
+  the loader still binds the existing approved storyboard.
+
 ## Reviewed audition v3 F1/F2 round1 delivered for QA (2026-10-09)
 
 - F1 unbound critical citation -> review_invalid; F2 unusable review halts,
