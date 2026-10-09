@@ -1,7 +1,7 @@
 /**
  * Reviewed LOW audition of the ONE already-reviewed simple book. Dry run by default: no key, no provider.
  *   node --require ./scripts/shims/register-server-only.cjs --import tsx scripts/personal-simple-book-reviewed-audition.ts \
- *     --book-dir <one-approved-book-20261008> --out <new empty directory> [--execute --key-env-file <file> --max-usd 6]
+ *     --book-dir <one-approved-book-20261008> --out <new empty directory> [--execute --key-env-file <file> --max-usd 6 [--resume]]
  * Not production, customer or release authority. Every paid call is journaled before dispatch.
  */
 import path from 'node:path';
@@ -22,7 +22,7 @@ import { prepareCurrentPersonalStoryboard, compilePersonalStoryboard, storyboard
   currentPersonalStoryboardFrame } from '../lib/personal-wizard/storyboard';
 import { simpleReferenceDesignContext, type AuditionImage } from '../lib/personal-wizard/simple-book-illustrations';
 import { illustrateReviewedAudition, reviewedAuditionHTML, auditionSheetDesigns, auditionSheetPrompt, AUDITION_SHEET_JUDGE_INSTRUCTION,
-  REVIEWED_AUDITION_POLICY, ReviewedAuditionError } from '../lib/personal-wizard/simple-book-reviewed-audition';
+  REVIEWED_AUDITION_POLICY, AUDITION_WORST_CASE_CALLS, ReviewedAuditionError } from '../lib/personal-wizard/simple-book-reviewed-audition';
 import { auditionUsageCost } from './personal-simple-book-illustrator';
 import { exclusiveJson, exclusiveText, fencedText, realDirectory } from './personal-causal-trial-journal';
 
@@ -70,7 +70,8 @@ export function loadReviewedBook(bookDir: string, workspace = process.cwd()) {
 
 /** Journals every paid call before dispatch; a failed call costs its known amount (or its full reservation) but does not end the book. */
 export class AuditionMeter {
-  constructor(readonly root: string, readonly capMicroUsd: number, readonly maxCalls = 72) {
+  // A full run plus one interrupted page redone once on resume.
+  constructor(readonly root: string, readonly capMicroUsd: number, readonly maxCalls = AUDITION_WORST_CASE_CALLS + REVIEWED_AUDITION_POLICY.pageAttempts * 3) {
     if (!Number.isSafeInteger(capMicroUsd) || capMicroUsd < 1 || capMicroUsd > 8000000) fail('audition_meter_policy');
     if (!existsSync(root)) mkdirSync(root); realDirectory(root);
   }
@@ -126,11 +127,11 @@ const digestImages = (value: unknown): unknown => JSON.parse(JSON.stringify(valu
   typeof v === 'string' && v.startsWith('data:image/png;base64,') ? `sha256:${previewSha(Buffer.from(v.slice(22), 'base64'))}` : v));
 
 export async function runReviewedAudition(args: { bookDir: string; out: string; keyFile: string; maxMicroUsd: number; signal: AbortSignal;
-  log: (line: string) => void }) {
+  log: (line: string) => void; resume?: true }) {
   const loaded = loadReviewedBook(args.bookDir);
-  if (existsSync(args.out)) fail('audition_out_exists');
-  mkdirSync(args.out); realDirectory(args.out);
-  const directory = path.join(args.out, 'illustrations'); mkdirSync(directory);
+  if (existsSync(args.out) !== !!args.resume) fail(args.resume ? 'audition_resume_missing' : 'audition_out_exists');
+  if (!args.resume) mkdirSync(args.out); realDirectory(args.out);
+  const directory = path.join(args.out, 'illustrations'); if (!args.resume) mkdirSync(directory); realDirectory(directory);
   const meter = new AuditionMeter(path.join(args.out, 'paid-stages'), args.maxMicroUsd), key = keyReader(args.keyFile);
   const save = (name: string, value: unknown) => exclusiveJson(path.join(args.out, `${name}.json`), value);
   const check = () => { if (args.signal.aborted) fail('audition_cancelled'); };
@@ -147,11 +148,29 @@ export async function runReviewedAudition(args: { bookDir: string; out: string; 
     if (!stat.isFile() || stat.isSymbolicLink() || stat.size > 20000000) fail('audition_image_file');
     const bytes = readFileSync(file); if (previewSha(bytes) !== image.imageSha) fail('audition_image_changed'); return bytes;
   };
-  const child = await writeImage('reference_child.png', loaded.childBytes);
-  const companion = await writeImage('reference_companion.png', loaded.companionBytes);
-  save('admission', { version: 'reviewed-simple-book-audition-admission/v1', requestId: loaded.queued.requestId,
+  const admissionFor = (child: AuditionImage, companion: AuditionImage) => ({ version: 'reviewed-simple-book-audition-admission/v1', requestId: loaded.queued.requestId,
     sourceDigest: loaded.book.sourceDigest, storyboardDigest: loaded.book.storyboardDigest, child, companion, policy: REVIEWED_AUDITION_POLICY,
     capMicroUsd: args.maxMicroUsd, imageModel: 'gpt-image-2', imageQuality: 'low', reviewModel: REVIEW_MODEL, identityModel: 'gpt-4o' });
+  let child: AuditionImage, companion: AuditionImage, resume: Parameters<typeof illustrateReviewedAudition>[0]['resume'];
+  if (args.resume) {
+    // Same book, same accepted references, same policy and cap; completed work is re-bound, never trusted blindly.
+    const prior = read(path.join(args.out, 'admission.json'));
+    child = { imageName: 'reference_child.png', imageSha: previewSha(loaded.childBytes) };
+    companion = { imageName: 'reference_companion.png', imageSha: previewSha(loaded.companionBytes) };
+    bytesOf(child); bytesOf(companion);
+    if (canonicalJson(prior) !== canonicalJson(JSON.parse(JSON.stringify(admissionFor(child, companion))))) fail('audition_resume_admission');
+    const optional = (name: string) => existsSync(path.join(args.out, `${name}.json`)) ? read(path.join(args.out, `${name}.json`)) : undefined;
+    const pages = []; for (let n = 0; n <= 8 && optional(`page_${n}`); n++) pages.push(optional(`page_${n}`));
+    const markers = readdirSync(args.out).filter(n => /^resume-[0-9]+\.json$/.test(n)).length + 1;
+    resume = { designs: read(path.join(args.out, 'audition_sheet_designs.json')), sheets: { entities: optional('sheet_entities'), locations: optional('sheet_locations') },
+      pages, stepPrefix: `r${markers}_` };
+    save(`resume-${markers}`, { resumedPages: pages.length, spendBefore: meter.snapshot(), at: new Date().toISOString() });
+    args.log(`resume ${markers}: reusing ${pages.length} completed pages, spent so far ${(meter.snapshot().accountedMicroUsd / 1e6).toFixed(3)}`);
+  } else {
+    child = await writeImage('reference_child.png', loaded.childBytes);
+    companion = await writeImage('reference_companion.png', loaded.companionBytes);
+    save('admission', admissionFor(child, companion));
+  }
 
   const render = async (step: string, prompt: string, refs: AuditionImage[], mode: 'book_identity' | 'book_design', roles?: readonly BookDesignReferenceRole[]) => {
     check(); const bytes = refs.map(bytesOf);
@@ -235,7 +254,7 @@ export async function runReviewedAudition(args: { bookDir: string; out: string; 
   };
 
   const manifest = await illustrateReviewedAudition({ book: loaded.book, rawReview: loaded.rawReview, texts: loaded.texts, current: loaded.current,
-    child, companion, render, judge, identity, check, save,
+    child, companion, render, judge, identity, check, save, ...(resume ? { resume } : {}),
     progress: e => args.log(`${e.phase} ${e.name} attempt ${e.attempt}: ${e.disposition} penalty=${e.penalty}${e.identity === undefined ? '' : ` identity=${e.identity ?? 'n/a'}`} · spent≈$${(meter.snapshot().accountedMicroUsd / 1e6).toFixed(3)}`) });
   const html = reviewedAuditionHTML(manifest, { title: loaded.title, pages: loaded.pages }, image => dataUrl(bytesOf(image)));
   exclusiveText(path.join(args.out, 'book.html'), html);
@@ -267,7 +286,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(__filename
     process.env.GPT_IMAGE_EDIT_MAX_REFERENCES ??= '4';
     const controller = new AbortController(); process.once('SIGINT', () => controller.abort());
     const started = Date.now();
-    runReviewedAudition({ bookDir: bookDir!, out: out!, keyFile: keyFile!, maxMicroUsd: Math.round(maxUsd * 1e6), signal: controller.signal,
+    runReviewedAudition({ bookDir: bookDir!, out: out!, keyFile: keyFile!, maxMicroUsd: Math.round(maxUsd * 1e6), signal: controller.signal, ...(process.argv.includes('--resume') ? { resume: true as const } : {}),
       log: line => console.log(`[${((Date.now() - started) / 60000).toFixed(1)}m] ${line}`) })
       .then(({ manifest, spend }) => console.log(JSON.stringify({ status: 'complete', spend, pages: manifest.pages.map(p => ({ page: p.pageNumber, attempts: p.attempts, flags: p.flags, identity: p.identityScore })) }, null, 2)))
       .catch(error => { console.error('FAILED', error?.code ?? error?.message ?? error); process.exitCode = 1; });

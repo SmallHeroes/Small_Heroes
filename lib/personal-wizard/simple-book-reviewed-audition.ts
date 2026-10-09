@@ -22,6 +22,8 @@ import type { PersonalWizardOptions } from './options';
 export const REVIEWED_AUDITION_POLICY = Object.freeze({ version: 'reviewed-audition-policy/v1',
   sheetAttempts: 2, pageAttempts: 3, identityThreshold: 0.7, blocking: ['safety'] as const,
   selection: 'identity_pass_then_lowest_judge_penalty_then_latest' as const });
+/** Paid calls one complete run can make: each sheet attempt renders + judges, each page attempt renders + judges + measures identity. */
+export const AUDITION_WORST_CASE_CALLS = 2 * REVIEWED_AUDITION_POLICY.sheetAttempts * 2 + 9 * REVIEWED_AUDITION_POLICY.pageAttempts * 3;
 
 export class ReviewedAuditionError extends Error { constructor(readonly code: string) { super(code); } }
 const fail = (code: string): never => { throw new ReviewedAuditionError(code); };
@@ -122,6 +124,8 @@ export type AuditionAttempt = { attempt: number; candidate: AuditionImage | null
   disposition: 'held_uncertain' | 'repair' | 'passed' | 'unavailable'; penalty: number; error?: string;
   identity?: PageChildResemblanceVisionResult | null };
 type Chosen = AuditionAttempt & { candidate: AuditionImage; review: PreviewQualityReview };
+export type SavedSheet = { context: unknown; contextSha: string; attempts: AuditionAttempt[]; chosen: Chosen };
+export type SavedPage = { pageNumber: number; contextSha: string; attempts: AuditionAttempt[]; chosen: Chosen; flags: string[] };
 
 /** Only judged, safety-clean candidates are eligible. Identity-passing first, then the lowest judge penalty, then the latest. */
 export function selectAuditionAttempt(attempts: readonly AuditionAttempt[], identityAware: boolean): Chosen | null {
@@ -157,15 +161,27 @@ export async function illustrateReviewedAudition(args: {
   identity: (step: string, child: AuditionImage, candidate: AuditionImage) => Promise<PageChildResemblanceVisionResult>;
   check: () => void; save: (name: string, value: unknown) => void;
   progress?: (event: { phase: 'sheet' | 'page'; name: string; attempt: number; disposition: string; penalty: number; identity?: number | null; error?: string }) => void;
+  /** Completed sheets/pages of an interrupted run. Reused only when their recomputed context and chosen review still bind. */
+  resume?: { designs: unknown; sheets: Partial<Record<'entities' | 'locations', SavedSheet>>; pages: SavedPage[]; stepPrefix: string };
 }) {
-  const policy = REVIEWED_AUDITION_POLICY, designs = auditionSheetDesigns(args.book, args.texts);
-  args.save('audition_sheet_designs', { policy, designs });
+  const policy = REVIEWED_AUDITION_POLICY, designs = auditionSheetDesigns(args.book, args.texts), prefix = args.resume?.stepPrefix ?? '';
+  if (args.resume) {
+    if (!/^r[0-9]{1,2}_$/.test(prefix) || canonicalJson(args.resume.designs) !== canonicalJson({ policy, designs }) ||
+      args.resume.pages.some((p, i) => p.pageNumber !== i) || args.resume.pages.length && !args.resume.sheets.locations) fail('audition_resume_binding');
+  } else args.save('audition_sheet_designs', { policy, designs });
+  const resumed = <T extends SavedSheet | SavedPage>(prior: T | undefined, contextSha: string, identityAware: boolean): T | null => {
+    if (!prior) return null;
+    const again = selectAuditionAttempt(prior.attempts, identityAware);
+    if (prior.contextSha !== contextSha || !again || again.attempt !== prior.chosen.attempt || canonicalJson(again.candidate) !== canonicalJson(prior.chosen.candidate) ||
+      qualityDisposition(prior.chosen.review, prior.chosen.candidate.imageSha, contextSha).disposition !== prior.chosen.disposition) fail('audition_resume_binding');
+    return prior;
+  };
   // One bounded attempt: render, judge, then (pages only) identity. Never a hidden retry.
   const attemptOnce = async (phase: 'sheet' | 'page', name: string, attempt: number, prompt: string, refs: AuditionImage[],
     mode: 'book_identity' | 'book_design', roles: readonly BookDesignReferenceRole[] | undefined, context: unknown, contextSha: string,
     judgeRefs: AuditionImage[], predecessor: AuditionImage | null): Promise<AuditionAttempt> => {
     args.check();
-    const step = `${phase}_${name}_${attempt}`;
+    const step = `${prefix}${phase}_${name}_${attempt}`;
     const rendered = await attemptStep(args.check, () => args.render(step, prompt, refs, mode, roles));
     if ('error' in rendered) return { attempt, candidate: null, review: null, disposition: 'unavailable', penalty: Number.POSITIVE_INFINITY, error: rendered.error };
     const candidate = rendered.value;
@@ -179,12 +195,14 @@ export async function illustrateReviewedAudition(args: {
   const report = (phase: 'sheet' | 'page', name: string, a: AuditionAttempt) => args.progress?.({ phase, name, attempt: a.attempt,
     disposition: a.disposition, penalty: a.penalty, ...(phase === 'page' ? { identity: a.identity?.resemblanceScore ?? null } : {}), ...(a.error ? { error: a.error } : {}) });
 
-  const sheets = {} as Record<'entities' | 'locations', { context: unknown; contextSha: string; attempts: AuditionAttempt[]; chosen: Chosen }>;
+  const sheets = {} as Record<'entities' | 'locations', SavedSheet>;
   for (const role of ['entities', 'locations'] as const) {
     const authorities = role === 'entities' ? [args.child, args.companion] : [args.child, args.companion, sheets.entities.chosen.candidate];
     const roles: BookDesignReferenceRole[] = ['child_design_authority', 'companion_design_authority', ...(role === 'locations' ? ['entity_design_authority' as const] : [])];
     const context = { version: 'audition-sheet-context/v1', role, design: designs[role] };
     const contextSha = previewSha(JSON.stringify(context)), attempts: AuditionAttempt[] = [];
+    const prior = resumed(args.resume?.sheets[role], contextSha, false);
+    if (prior) { sheets[role] = prior; continue; }
     for (let attempt = 0; attempt < policy.sheetAttempts; attempt++) {
       const notes = auditionCorrections(attempts[attempts.length - 1]?.review ?? null);
       const result = await attemptOnce('sheet', role, attempt, auditionSheetPrompt(role, designs[role]) + notes, authorities, 'book_design', roles,
@@ -197,7 +215,7 @@ export async function illustrateReviewedAudition(args: {
     args.save(`sheet_${role}`, sheets[role]);
   }
   const canonical = [args.child, args.companion, sheets.entities.chosen.candidate, sheets.locations.chosen.candidate];
-  const pages: { pageNumber: number; contextSha: string; attempts: AuditionAttempt[]; chosen: Chosen; flags: string[] }[] = [];
+  const pages: SavedPage[] = [];
   for (let pageNumber = 0; pageNumber <= 8; pageNumber++) {
     args.check();
     const packet = currentPersonalStoryboardFrame(args.book, args.rawReview, pageNumber, args.current);
@@ -207,6 +225,8 @@ export async function illustrateReviewedAudition(args: {
     const context = { packet: packet.context, references: canonical,
       predecessor: predecessor ? { pageNumber: pageNumber - 1, ...predecessor, authority: 'comparison_only_not_canonical' } : null };
     const contextSha = previewQualityContextSha(context), attempts: AuditionAttempt[] = [];
+    const prior = resumed(args.resume?.pages[pageNumber], contextSha, true);
+    if (prior) { pages.push(prior); continue; }
     for (let attempt = 0; attempt < policy.pageAttempts; attempt++) {
       const notes = auditionCorrections(attempts[attempts.length - 1]?.review ?? null);
       const result = await attemptOnce('page', String(pageNumber), attempt, packet.render.prompt + AUDITION_PAGE_SUFFIX + notes, canonical,

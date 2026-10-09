@@ -11,7 +11,7 @@ import { QUALITY_CATEGORIES } from '../../local-preview-quality';
 import type { PageChildResemblanceVisionResult } from '../../generation-pipeline/page-child-resemblance-vision';
 import type { PersonalStoryboard } from '../storyboard';
 import { auditionSheetDesigns, illustrateReviewedAudition, reviewPenalty, selectAuditionAttempt, reviewedAuditionHTML,
-  AUDITION_SHEET_JUDGE_INSTRUCTION, ReviewedAuditionError, type AuditionAttempt } from '../simple-book-reviewed-audition';
+  AUDITION_SHEET_JUDGE_INSTRUCTION, AUDITION_WORST_CASE_CALLS, ReviewedAuditionError, type AuditionAttempt } from '../simple-book-reviewed-audition';
 import { AuditionMeter } from '../../../scripts/personal-simple-book-reviewed-audition';
 
 const sha = (s: string) => createHash('sha256').update(s).digest('hex');
@@ -156,6 +156,39 @@ describe('reviewed audition orchestration', () => {
     expect(html).toContain('props · defect');
     expect(html).toContain('data:page_8_0.png');
     expect(html).toContain('לא אישור לייצור');
+  });
+});
+
+describe('reviewed audition resume', () => {
+  const firstRun = async () => {
+    const h = harness({ judge: step => step.startsWith('page_2_0') ? { props: 'defect' } : {} });
+    await illustrateReviewedAudition(h.args);
+    const json = (name: string) => JSON.parse(JSON.stringify(h.saved.get(name)));
+    return { designs: json('audition_sheet_designs'), sheets: { entities: json('sheet_entities'), locations: json('sheet_locations') },
+      pages: [0, 1, 2, 3].map(n => json(`page_${n}`)) };
+  };
+  it('budgets every paid call of a complete run', () => {
+    expect(AUDITION_WORST_CASE_CALLS).toBe(2 * 2 * 2 + 9 * 3 * 3);
+  });
+  it('reuses only re-bound completed work and continues the remaining pages under a new step prefix', async () => {
+    const saved = await firstRun(), h = harness();
+    const manifest = await illustrateReviewedAudition({ ...h.args, resume: { ...saved, stepPrefix: 'r1_' } });
+    expect(h.args.render.mock.calls.map(c => c[0])).toEqual([4, 5, 6, 7, 8].map(n => `r1_page_${n}_0`));
+    expect(h.saved.has('audition_sheet_designs')).toBe(false);
+    expect(manifest.pages.map(p => p.candidate.imageName)).toEqual([...[0, 1, 2, 3].map(n => `page_${n}_${n === 2 ? 1 : 0}.png`),
+      ...[4, 5, 6, 7, 8].map(n => `r1_page_${n}_0.png`)]);
+    // Page 5 is in page 4's scene: its predecessor is the resumed page 4 image, and page 4 itself starts a new scene.
+    expect(h.args.judge.mock.calls.map(c => c[5]?.imageName ?? null)).toEqual([null, 'r1_page_4_0.png', 'r1_page_5_0.png', 'r1_page_6_0.png', 'r1_page_7_0.png']);
+  });
+  it('refuses a tampered or rebound saved page instead of trusting it', async () => {
+    const saved = await firstRun();
+    const swapped = JSON.parse(JSON.stringify(saved)); swapped.pages[2].chosen = swapped.pages[2].attempts[0];
+    await expect(illustrateReviewedAudition({ ...harness().args, resume: { ...swapped, stepPrefix: 'r1_' } })).rejects.toThrow('audition_resume_binding');
+    const other = JSON.parse(JSON.stringify(saved)); other.pages[1].contextSha = sha('other');
+    await expect(illustrateReviewedAudition({ ...harness().args, resume: { ...other, stepPrefix: 'r1_' } })).rejects.toThrow('audition_resume_binding');
+    const gap = JSON.parse(JSON.stringify(saved)); gap.pages.splice(1, 1);
+    await expect(illustrateReviewedAudition({ ...harness().args, resume: { ...gap, stepPrefix: 'r1_' } })).rejects.toThrow('audition_resume_binding');
+    await expect(illustrateReviewedAudition({ ...harness().args, resume: { ...saved, stepPrefix: 'page_' } })).rejects.toThrow('audition_resume_binding');
   });
 });
 
