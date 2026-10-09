@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createHash } from 'node:crypto';
-import { mkdtempSync, readdirSync } from 'node:fs';
+import { mkdtempSync, readdirSync, writeFileSync, unlinkSync } from 'node:fs';
 import path from 'node:path';
 import { tmpdir } from 'node:os';
 vi.mock('../storyboard', () => ({
@@ -10,200 +10,323 @@ vi.mock('../storyboard', () => ({
 import { QUALITY_CATEGORIES } from '../../local-preview-quality';
 import type { PageChildResemblanceVisionResult } from '../../generation-pipeline/page-child-resemblance-vision';
 import type { PersonalStoryboard } from '../storyboard';
-import { auditionSheetDesigns, illustrateReviewedAudition, reviewPenalty, selectAuditionAttempt, reviewedAuditionHTML,
-  AUDITION_SHEET_JUDGE_INSTRUCTION, AUDITION_WORST_CASE_CALLS, ReviewedAuditionError, type AuditionAttempt } from '../simple-book-reviewed-audition';
-import { AuditionMeter } from '../../../scripts/personal-simple-book-reviewed-audition';
+import { auditionSheetDesigns, auditionSheetPrompt, illustrateReviewedAudition, assessAuditionReview, attemptStatus, selectAuditionAttempt,
+  auditionPageChecks, reviewedAuditionHTML, AUDITION_WORST_CASE_CALLS, ReviewedAuditionError, type AuditionAttempt } from '../simple-book-reviewed-audition';
+import { AuditionMeter, readAuditionGrant } from '../../../scripts/personal-simple-book-reviewed-audition';
 
 const sha = (s: string) => createHash('sha256').update(s).digest('hex');
-const texts = ['She takes the paper.', 'She folds it into a boat.', 'p3', 'p4', 'p5', 'p6', 'p7', 'p8'];
-// Data projection input only: one actor-attached item, one prop with a later source state, one landmark.
-const fixture = () => ({
-  plan: { recurringProps: [{ id: 'paper_boat', appearance: 'red folded paper' }, { id: 'ribbon', appearance: 'gold ribbon' }],
-    wardrobe: 'teal shirt', locations: [{ id: 'garden', design: 'garden' }],
+const texts = ['She takes the paper.', 'She folds it into a boat. A thin trail appears.', 'A cat watches.', 'A big stone.', 'p5', 'p6', 'p7', 'p8'];
+const ENTITIES = ['child', 'companion', 'paper_boat', 'ribbon', 'old_tree', 'stone', 'cat', 'trail'];
+const state = (n: number) => ENTITIES.map(entityId => ({ entityId, value:
+  entityId === 'ribbon' ? { relation: 'attached_to', targetId: 'child' } : entityId === 'paper_boat' ? { relation: 'held_by', targetId: 'child' }
+    : entityId === 'stone' && n < 4 || entityId === 'cat' && n < 3 || entityId === 'trail' && n < 2 ? { relation: 'unestablished', targetId: null }
+      : { relation: 'at', targetId: 'garden' } }));
+const visible = (n: number) => ['old_tree', 'paper_boat', 'ribbon', ...(n >= 2 ? ['trail'] : []), ...(n >= 3 ? ['cat'] : []), ...(n >= 4 ? ['stone'] : [])];
+// Data projection input only: an actor attachment, a prop with a later state, landmarks, a late supporting character and a clue.
+const fixture = (moments?: unknown) => ({
+  narrativeSpreads: 8, sourceDigest: sha('source'), storyboardDigest: sha('board'),
+  plan: { recurringProps: [{ id: 'paper_boat', design: 'red folded paper' }, { id: 'ribbon', design: 'gold ribbon' }, { id: 'trail', design: 'thin trail' }],
+    wardrobe: 'teal shirt', locations: [{ id: 'garden', design: 'garden with an old tree on the left and a big stone at the back' }],
     actorAppearance: { child: { clothing: ['teal shirt with a gold ribbon'] } },
     continuity: { entities: [
-      { id: 'paper_boat', kind: 'prop', invariants: [{ attribute: 'crease', value: 'flat' }, { attribute: 'color', value: 'red' }] },
+      { id: 'paper_boat', kind: 'prop', invariants: [{ attribute: 'crease', value: 'flat' }, { attribute: 'size', value: 'about 0.3 child heights' }] },
       { id: 'ribbon', kind: 'prop', invariants: [{ attribute: 'color', value: 'gold' }] },
+      { id: 'trail', kind: 'prop', invariants: [{ attribute: 'design', value: 'thin dark trail with tiny prints' }] },
       { id: 'old_tree', kind: 'landmark', invariants: [{ attribute: 'design', value: 'forked trunk' }] },
-    ], pages: [{ pageNumber: 0, changes: [] }, { pageNumber: 1, changes: [] },
-      { pageNumber: 2, changes: [{ entityId: 'paper_boat', attribute: 'crease', value: 'folded boat', storyEvidence: texts[1] }] }] } },
-  sequence: { premise: 'one garden', mutableAttributes: [{ entityId: 'paper_boat', attribute: 'crease' }],
-    pages: Array.from({ length: 8 }, (_, i) => ({ pageNumber: i + 1, sceneId: i < 3 ? 'scene_a' : 'scene_b',
-      states: [{ entityId: 'ribbon', value: { relation: 'attached_to', targetId: 'child' } }] })) },
+      { id: 'stone', kind: 'landmark', invariants: [{ attribute: 'design', value: 'one big pale stone' }] },
+      { id: 'cat', kind: 'supporting_character', invariants: [{ attribute: 'appearance', value: 'ginger cat with a pink nose' }] },
+    ], pages: Array.from({ length: 9 }, (_, n) => ({ pageNumber: n, visibleLocationIds: ['garden'], visibleEntityIds: visible(n),
+      changes: n === 2 ? [{ entityId: 'paper_boat', attribute: 'crease', value: 'folded boat', storyEvidence: texts[1] }] : [] })) } },
+  sequence: { premise: 'a child follows a trail to a stone', mutableAttributes: [{ entityId: 'paper_boat', attribute: 'crease' }],
+    pages: Array.from({ length: 8 }, (_, i) => ({ pageNumber: i + 1, sceneId: i < 3 ? 'scene_a' : 'scene_b', states: state(i + 1),
+      visibleCastIds: ['child', 'companion', ...(i + 1 >= 3 ? ['cat'] : [])] })) },
+  ...(moments ? { moments } : {}),
 }) as unknown as PersonalStoryboard;
 
-type Verdict = 'pass' | 'defect' | 'uncertain';
-const review = (candidateSha: string, contextSha: string, verdicts: Partial<Record<typeof QUALITY_CATEGORIES[number], Verdict>> = {}) => ({
-  candidateSha, contextSha, checks: QUALITY_CATEGORIES.map(category => ({ category, verdict: verdicts[category] ?? 'pass',
-    observation: `${category} observed`, correction: verdicts[category] === 'defect' ? `fix ${category}` : '' })) });
+type Spec = Partial<Record<typeof QUALITY_CATEGORIES[number], { verdict?: 'defect' | 'uncertain'; issues: { impact: string; requirement: string; note: string }[] }>>;
+const review = (candidateSha: string, contextSha: string, spec: Spec = {}) => ({ candidateSha, contextSha,
+  checks: QUALITY_CATEGORIES.map(category => { const x = spec[category]; return x
+    ? { category, verdict: x.verdict ?? 'defect', observation: `${category} observed`, correction: (x.verdict ?? 'defect') === 'defect' ? `fix ${category}` : '', issues: x.issues }
+    : { category, verdict: 'pass', observation: `${category} ok`, correction: '', issues: [] }; }) });
+const issue = (impact: string, requirement: string, note = `${impact} note`) => ({ impact, requirement, note });
 const identity = (score: number): PageChildResemblanceVisionResult => ({ status: score >= .7 ? 'passed' : 'failed', resemblanceScore: score,
   threshold: .7, subjectVisible: true, sameChild: score >= .7, reasonCode: score >= .7 ? 'same_child' : 'different_child', attempts: 1, model: 'gpt-4o' } as never);
 const image = (name: string) => ({ imageName: `${name}.png`, imageSha: sha(name) });
 
-function harness(opts: { judge?: (step: string) => Partial<Record<typeof QUALITY_CATEGORIES[number], Verdict>>;
-  score?: (step: string) => number; renderFail?: (step: string) => Error | null } = {}) {
-  const prompts = new Map<string, string>(), judged: string[] = [], saved = new Map<string, unknown>();
+function harness(opts: { judge?: (step: string) => Spec; score?: (step: string) => number; renderFail?: (step: string) => Error | null;
+  book?: PersonalStoryboard; pages?: number[]; wrap?: <T>(step: string, work: () => Promise<T>) => Promise<T> } = {}) {
+  const prompts = new Map<string, string>(), saved = new Map<string, unknown>(), contexts = new Map<string, any>();
+  const wrap = opts.wrap ?? (<T>(_step: string, work: () => Promise<T>) => work());
   const args = {
-    book: fixture(), rawReview: {}, texts, current: { request: {}, writerResult: {}, options: {} as never },
-    child: image('child'), companion: image('companion'),
-    render: vi.fn(async (step: string, prompt: string, _refs?: unknown, _mode?: unknown, _roles?: unknown) => {
+    book: opts.book ?? fixture(), rawReview: {}, texts, current: { request: {}, writerResult: {}, options: {} as never },
+    child: image('child'), companion: image('companion'), companionDescription: 'copper dragon with a short rounded snout and two wings',
+    ...(opts.pages ? { pages: opts.pages } : {}),
+    render: vi.fn((step: string, prompt: string, _refs?: unknown, _mode?: unknown, _roles?: unknown) => wrap(step, async () => {
       const error = opts.renderFail?.(step); if (error) throw error;
       prompts.set(step, prompt); return image(step);
-    }),
-    judge: vi.fn(async (step: string, candidate: { imageSha: string }, _context: unknown, contextSha: string, _refs?: unknown, _predecessor?: { imageName: string } | null) => {
-      judged.push(step); return review(candidate.imageSha, contextSha, opts.judge?.(step) ?? {});
-    }),
-    identity: vi.fn(async (step: string) => identity(opts.score?.(step) ?? .82)),
-    check: vi.fn(), save: (name: string, value: unknown) => { saved.set(name, value); },
+    })),
+    judge: vi.fn((step: string, candidate: { imageSha: string }, context: unknown, contextSha: string, _refs?: unknown, _predecessor?: { imageName: string } | null) => wrap(step, async () => {
+      contexts.set(step, context); return review(candidate.imageSha, contextSha, opts.judge?.(step) ?? {});
+    })),
+    identity: vi.fn((step: string) => wrap(step, async () => identity(opts.score?.(step) ?? .82))),
+    check: vi.fn(), save: (name: string, value: unknown) => { saved.set(name, JSON.parse(JSON.stringify(value))); },
   };
-  return { args, prompts, judged, saved };
+  return { args, prompts, saved, contexts };
 }
 
-describe('reviewed audition sheet scope', () => {
-  it('keeps only initial forms, excludes actor-owned items and clothing, and keeps every other fixed fact', () => {
+describe('reference sheets: explicit, source-linked deferral', () => {
+  it('defers only structured requirements and keeps every other fixed fact, including text that mentions the child', () => {
     const d = auditionSheetDesigns(fixture(), texts);
-    expect(d.actorOwnedIds).toEqual(['ribbon']);
-    expect(d.entities.entities.map((e: { id: string }) => e.id)).toEqual(['paper_boat']);
-    expect(d.entities.props.map((e: { id: string }) => e.id)).toEqual(['paper_boat']);
+    expect(d.pageDeferred).toEqual([
+      expect.objectContaining({ entityId: 'ribbon', reason: 'attached_to_actor', source: { entityId: 'ribbon', relation: 'attached_to', targetId: 'child' } }),
+      expect.objectContaining({ entityId: 'child', reason: 'actor_owned_clothing' }),
+      expect.objectContaining({ entityId: 'paper_boat', reason: 'later_state', source: { attribute: 'crease', pageNumber: 2, evidence: texts[1] }, verifiedOn: 'page_2' }),
+    ]);
+    expect(d.entities.entities.map(e => e.id)).toEqual(['paper_boat', 'trail', 'cat']);
+    expect(d.entities.entities[0].invariants).toEqual([{ attribute: 'crease', value: 'flat' }, { attribute: 'size', value: 'about 0.3 child heights' }]);
+    expect(d.entities.referenceState.mutableAttributes[0].knownValues).toEqual([{ value: 'flat', pageNumber: 0, evidence: null }]);
     expect('childClothingAuthority' in d.entities).toBe(false);
-    expect(d.entities.entities[0].invariants).toHaveLength(2);
-    expect(d.entities.referenceState.mutableAttributes).toEqual([expect.objectContaining({ entityId: 'paper_boat',
-      knownValues: [{ value: 'flat', pageNumber: 0, evidence: null }] })]);
-    expect(d.entities.referenceState.stableAttachments).toEqual([]);
-    expect(d.entities.referenceOwnership.assignments.map((a: { entityId: string }) => a.entityId)).toEqual(['paper_boat', 'old_tree']);
-    expect(d.locations.landmarks.map((e: { id: string }) => e.id)).toEqual(['old_tree']);
-    expect(d.entities.sheetScope).toMatchObject({ depiction: 'initial_form_only', actorOwnedIds: ['ribbon'] });
-    expect(AUDITION_SHEET_JUDGE_INSTRUCTION).toMatch(/Safety reports concrete visible issues/);
+    expect(d.locations.landmarks.map(l => l.id)).toEqual(['old_tree', 'stone']);
+    expect('geography' in d.locations).toBe(false);
+    expect(d.locations.sheetScope.excluded).toEqual([expect.objectContaining({ field: 'geography' })]);
+    const locations = auditionSheetPrompt('locations', d.locations);
+    expect(locations).toContain('FIXED GEOGRAPHY ONLY');
+    expect(locations).not.toContain('follows a trail');
+    expect(auditionSheetPrompt('entities', d.entities)).toContain('keeps the actor reference\'s characteristic outline');
   });
 });
 
-describe('reviewed audition selection', () => {
-  const attempt = (n: number, verdicts: Partial<Record<typeof QUALITY_CATEGORIES[number], Verdict>>, score?: number): AuditionAttempt => {
-    const r = review(sha(`c${n}`), sha('ctx'), verdicts) as never;
-    return { attempt: n, candidate: image(`c${n}`), review: r, disposition: 'repair', penalty: reviewPenalty(r), ...(score === undefined ? {} : { identity: identity(score) }) };
+describe('findings: impact, requirement binding and status', () => {
+  const ids = ['page_text', 'cast:companion', 'landmark_unique:stone', 'safety'];
+  it('enforces issue coverage and the existing review binding', () => {
+    const ok = review(sha('c'), sha('x'));
+    expect(() => assessAuditionReview({ ...ok, checks: ok.checks.map(c => c.category === 'props' ? { ...c, issues: [issue('detail', 'page_text')] } : c) }, sha('c'), sha('x'), ids)).toThrow('audition_review_issue_coverage');
+    expect(() => assessAuditionReview(review(sha('c'), sha('x'), { props: { issues: [] } }), sha('c'), sha('x'), ids)).toThrow('audition_review_issue_coverage');
+    expect(() => assessAuditionReview(ok, sha('other'), sha('x'), ids)).toThrow('quality_evidence_binding');
+  });
+  it('counts an unbound citation as detail, and any unreadable safety as blocking', () => {
+    const a = assessAuditionReview(review(sha('c'), sha('x'), { props: { issues: [issue('story', 'made_up_requirement')] } }), sha('c'), sha('x'), ids).assessment;
+    expect(a.counts).toMatchObject({ story: 0, detail: 1 });
+    expect(a.findings[0]).toMatchObject({ bound: false });
+    const s = assessAuditionReview(review(sha('c'), sha('x'), { safety: { verdict: 'uncertain', issues: [issue('detail', 'safety')] } }), sha('c'), sha('x'), ids).assessment;
+    expect(s.safetyBlocked).toBe(true);
+  });
+  const attempt = (n: number, spec: Spec, score = .9): AuditionAttempt => {
+    const { review: r, assessment } = assessAuditionReview(review(sha(`c${n}`), sha('x'), spec), sha(`c${n}`), sha('x'), ids);
+    const candidate = image(`c${n}`), id = identity(score);
+    return { attempt: n, candidate, review: r, assessment, identity: id, status: attemptStatus('page', { candidate, assessment, identity: id }) };
   };
-  it('makes a safety defect blocking and penalises uncertainty more than a minor defect', () => {
-    expect(reviewPenalty(review('a'.repeat(64), 'b'.repeat(64), { safety: 'defect' }))).toBe(Number.POSITIVE_INFINITY);
-    expect(reviewPenalty(review('a'.repeat(64), 'b'.repeat(64), { safety: 'uncertain' }))).toBe(10);
-    expect(reviewPenalty(review('a'.repeat(64), 'b'.repeat(64), { anatomy: 'defect', framing: 'uncertain' }))).toBe(6);
-    expect(selectAuditionAttempt([attempt(0, { safety: 'defect' })], false)).toBeNull();
+  it('holds anything with story, identity or continuity findings or a missing/low child measurement; detail alone is supported', () => {
+    expect(attempt(0, { framing: { issues: [issue('detail', 'page_text')] } }).status).toBe('qa_supported');
+    expect(attempt(0, { scene: { issues: [issue('story', 'page_text')] } }).status).toBe('held');
+    expect(attempt(0, {}, .5).status).toBe('held');
+    expect(attemptStatus('page', { candidate: image('x'), assessment: attempt(0, {}).assessment, identity: null })).toBe('held');
+    expect(attemptStatus('sheet', { candidate: image('x'), assessment: attempt(0, {}).assessment })).toBe('qa_supported');
+    expect(attempt(0, { safety: { verdict: 'uncertain', issues: [issue('safety', 'safety')] } }).status).toBe('ineligible_safety');
   });
-  it('prefers an identity pass, then the lowest penalty, then the latest attempt', () => {
-    expect(selectAuditionAttempt([attempt(0, {}, .5), attempt(1, { props: 'defect' }, .8)], true)!.attempt).toBe(1);
-    expect(selectAuditionAttempt([attempt(0, { props: 'defect' }, .8), attempt(1, { anatomy: 'defect' }, .8)], true)!.attempt).toBe(0);
-    expect(selectAuditionAttempt([attempt(0, { props: 'defect' }, .8), attempt(1, { framing: 'defect' }, .8)], true)!.attempt).toBe(1);
+  it('prefers fewer story findings over fewer details, never the newest by default, and never a safety-blocked image', () => {
+    const story = attempt(0, { scene: { issues: [issue('story', 'page_text')] } });
+    const details = attempt(1, { framing: { issues: [issue('detail', 'page_text'), issue('detail', 'page_text')] }, props: { issues: [issue('continuity', 'landmark_unique:stone')] } });
+    expect(selectAuditionAttempt('page', [story, details])!.attempt).toBe(1);
+    const tieA = attempt(0, { props: { issues: [issue('continuity', 'landmark_unique:stone')] } }), tieB = attempt(1, { props: { issues: [issue('continuity', 'landmark_unique:stone')] } });
+    expect(selectAuditionAttempt('page', [tieA, tieB])!.attempt).toBe(0);
+    const unsafe = attempt(2, { safety: { issues: [issue('safety', 'safety')] } });
+    expect(selectAuditionAttempt('page', [unsafe])).toBeNull();
+    // A good face does not outrank a broken story.
+    const faceGoodStoryBroken = attempt(0, { scene: { issues: [issue('story', 'page_text')] } }, .95), faceLowStoryOk = attempt(1, {}, .6);
+    expect(selectAuditionAttempt('page', [faceGoodStoryBroken, faceLowStoryOk])!.attempt).toBe(1);
   });
 });
 
-describe('reviewed audition orchestration', () => {
-  it('renders two sheets and nine pages, stopping each at the first fully passing attempt', async () => {
+describe('page checks derived from the storyboard', () => {
+  it('lists unrevealed story objects (not landmarks), unique landmarks and each visible cast member with its own design', () => {
+    const book = fixture(), cover = auditionPageChecks(book, 0, 'dragon with a snout');
+    expect(cover.notYetRevealed.map(n => n.id)).toEqual(['cat', 'trail']);
+    expect(cover.uniqueLandmarks.map(l => l.id)).toEqual(['old_tree', 'stone']);
+    expect(auditionPageChecks(book, 2, 'x').notYetRevealed.map(n => n.id)).toEqual(['cat']);
+    const p3 = auditionPageChecks(book, 3, 'dragon with a snout');
+    expect(p3.notYetRevealed).toEqual([]);
+    expect(p3.castIdentity).toEqual([expect.objectContaining({ id: 'child' }), { id: 'companion', reference: 'canonical_companion', design: 'dragon with a snout' },
+      { id: 'cat', reference: 'canonical_entities tile cat', design: 'appearance: ginger cat with a pink nose' }]);
+    expect(p3.requirementIds).toEqual(expect.arrayContaining(['cast:cat', 'landmark_unique:stone', 'entity:trail', 'location:garden']));
+  });
+  it('uses the drawn instant when moments declare one', () => {
+    const frames = Array.from({ length: 9 }, () => ({ requirements: [], depicted: null })) as any[];
+    frames[4] = { requirements: [{ kind: 'avoid', subject: 'x', evidence: 'A big stone.' }],
+      depicted: { evidence: 'A big stone.', relations: [{ entityId: 'trail', value: { relation: 'unestablished', targetId: null }, evidence: 'A big stone.' }], attributes: [] } };
+    const checks = auditionPageChecks(fixture({ version: 'storyboard-moments/v1', frames }), 4, 'x');
+    expect(checks.notYetRevealed.map(n => n.id)).toEqual(['trail']);
+    expect(checks.requirementIds).toEqual(expect.arrayContaining(['drawn_instant', 'moment_requirement:0']));
+  });
+});
+
+describe('orchestration (mocked reviews prove flow and selection, not model perception)', () => {
+  it('renders two sheets and nine pages, stopping at the first qa_supported attempt, with approved references', async () => {
     const h = harness(), manifest = await illustrateReviewedAudition(h.args);
-    expect(h.args.render.mock.calls.map(c => c[0])).toEqual(['sheet_entities_0', 'sheet_locations_0',
-      ...Array.from({ length: 9 }, (_, n) => `page_${n}_0`)]);
-    expect(manifest.pages.map(p => p.flags)).toEqual(Array(9).fill([]));
-    expect(manifest).toMatchObject({ runtimeEligible: false, productionQualified: false, ownerReviewRequired: true });
-    // Locations sheet gets the chosen entities sheet as its third authority; pages get all four.
-    expect(h.args.render.mock.calls[1][2]).toEqual([image('child'), image('companion'), image('sheet_entities_0')]);
-    expect(h.args.render.mock.calls[1][4]).toEqual(['child_design_authority', 'companion_design_authority', 'entity_design_authority']);
+    expect(h.args.render.mock.calls.map(c => c[0])).toEqual(['sheet_entities_0', 'sheet_locations_0', ...Array.from({ length: 9 }, (_, n) => `page_${n}_0`)]);
+    expect(manifest).toMatchObject({ status: 'qa_supported_audition', scope: { complete: true },
+      sheets: { entities: { referenceStatus: 'approved_reference' }, locations: { referenceStatus: 'approved_reference' } },
+      approval: expect.stringContaining('not product acceptance'), runtimeEligible: false, productionQualified: false });
+    // The location sheet sees only the style references, never the object sheet.
+    expect(h.args.render.mock.calls[1][2]).toEqual([image('child'), image('companion')]);
     expect(h.args.render.mock.calls[2][2]).toEqual([image('child'), image('companion'), image('sheet_entities_0'), image('sheet_locations_0')]);
-    // Same-scene predecessor (pages 2, 3 and 5..8), compared only; pages 1 and 4 start new scenes.
-    const predecessors = h.args.judge.mock.calls.filter(c => c[0].startsWith('page_')).map(c => c[5]?.imageName ?? null);
-    expect(predecessors).toEqual([null, null, 'page_1_0.png', 'page_2_0.png', null, 'page_4_0.png', 'page_5_0.png', 'page_6_0.png', 'page_7_0.png']);
+    expect(h.prompts.get('page_0_0')).toContain('NOT YET IN THE STORY (must not appear, not even as tracks or marks): cat, trail');
+    expect(h.contexts.get('page_3_0_qa').checks.castIdentity.map((c: any) => c.id)).toEqual(['child', 'companion', 'cat']);
   });
 
-  it('keeps going after defects, feeds the last notes forward and publishes the best candidate with its flags', async () => {
-    const h = harness({ judge: step => step.startsWith('page_3_0') ? { props: 'defect', anatomy: 'defect' }
-      : step.startsWith('page_3_1') ? { framing: 'uncertain' } : step.startsWith('page_3_2') ? { anatomy: 'defect', scene: 'defect' } : {} });
-    const manifest = await illustrateReviewedAudition(h.args);
-    expect(h.prompts.get('page_3_1')).toContain('- props (defect): fix props');
-    expect(h.prompts.get('page_3_1')).toContain('They can be wrong');
-    expect(h.prompts.get('page_3_2')).toContain('- framing (uncertain): framing observed');
-    const page = manifest.pages[3];
-    expect(page).toMatchObject({ attempts: 3, flags: ['judge_notes'], candidate: image('page_3_1') });
-    expect(page.notes).toEqual([{ category: 'framing', verdict: 'uncertain', observation: 'framing observed' }]);
+  it('a duplicated unique landmark keeps the page held; a different angle without it is supported (control)', async () => {
+    const dup = harness({ judge: step => step.startsWith('page_4_') ? { environment: { issues: [issue('continuity', 'landmark_unique:stone', 'second stone behind the first')] } } : {} });
+    const m = await illustrateReviewedAudition(dup.args);
+    expect(m.pages[4]).toMatchObject({ status: 'held', chosenAttempt: 0, alternatives: [expect.objectContaining({ attempt: 1 }), expect.objectContaining({ attempt: 2 })] });
+    expect(m.pages[4].findings).toEqual([expect.objectContaining({ impact: 'continuity', requirement: 'landmark_unique:stone' })]);
+    expect(dup.prompts.get('page_4_1')).toContain('- [continuity] landmark_unique:stone: second stone behind the first');
+    expect(m.status).toBe('held_audition_with_findings');
+    const angle = harness({ judge: step => step.startsWith('page_4_') ? { framing: { issues: [issue('detail', 'framing', 'low angle hides the swing seat')] } } : {} });
+    const control = await illustrateReviewedAudition(angle.args);
+    expect(control.pages[4]).toMatchObject({ status: 'qa_supported', chosenAttempt: 0 });
+    expect(angle.args.render.mock.calls.filter(c => String(c[0]).startsWith('page_4_'))).toHaveLength(1);
   });
 
-  it('flags a page below the identity threshold instead of hiding it, preferring any identity-passing attempt', async () => {
-    const low = harness({ score: step => step.startsWith('page_5') ? .55 : .8 });
-    const m1 = await illustrateReviewedAudition(low.args);
-    expect(m1.pages[5]).toMatchObject({ attempts: 3, flags: ['identity_below_threshold'], identityScore: .55, identityPassed: false });
-    const mixed = harness({ score: step => step === 'page_5_1_identity' ? .75 : step.startsWith('page_5') ? .6 : .8,
-      judge: step => step.startsWith('page_5_1') ? { props: 'defect' } : {} });
-    const m2 = await illustrateReviewedAudition(mixed.args);
-    expect(m2.pages[5]).toMatchObject({ candidate: image('page_5_1'), flags: ['judge_notes'], identityPassed: true });
+  it('a feature transferred between characters is forwarded and the clean attempt wins', async () => {
+    const h = harness({ judge: step => step === 'page_7_0_qa' ? { identity: { issues: [issue('identity', 'cast:companion', 'dark button nose like the hedgehog')] } } : {} });
+    const m = await illustrateReviewedAudition(h.args);
+    expect(h.prompts.get('page_7_1')).toContain('- [identity] cast:companion: dark button nose like the hedgehog');
+    expect(m.pages[7]).toMatchObject({ status: 'qa_supported', chosenAttempt: 1 });
   });
 
-  it('treats one provider failure as one lost attempt, but ends the run on spending or cancellation errors', async () => {
+  it('a story finding outranks continuity and detail; complete ties keep the earliest attempt', async () => {
+    const h = harness({ judge: step => step.startsWith('page_1_0') || step.startsWith('page_1_2') ? { scene: { issues: [issue('story', 'page_text', 'the clue is missing')] }, framing: { issues: [issue('detail', 'framing', 'tiny ratio note')] } }
+      : step.startsWith('page_1_1') ? { environment: { issues: [issue('continuity', 'landmark_unique:stone')] }, framing: { issues: [issue('detail', 'framing'), issue('detail', 'framing')] } }
+        : step.startsWith('page_5_') ? { environment: { issues: [issue('continuity', 'landmark_unique:old_tree')] } } : {} });
+    const m = await illustrateReviewedAudition(h.args);
+    expect(m.pages[1]).toMatchObject({ chosenAttempt: 1, status: 'held' });
+    expect(m.pages[5]).toMatchObject({ chosenAttempt: 0, status: 'held' });
+    expect(h.prompts.get('page_1_1')).toContain('- [story] page_text: the clue is missing');
+    expect(h.prompts.get('page_1_1')).not.toContain('tiny ratio note');
+  });
+
+  it('never selects a safety-uncertain image: no eligible attempt stops the run before identity is measured', async () => {
+    const h = harness({ judge: step => step.startsWith('page_3_') ? { safety: { verdict: 'uncertain', issues: [issue('safety', 'safety')] } } : {} });
+    await expect(illustrateReviewedAudition(h.args)).rejects.toThrow('audition_page_3_unavailable');
+    expect(h.args.identity.mock.calls.some(c => String(c[0]).startsWith('page_3'))).toBe(false);
+  });
+
+  it('repairs a flawed sheet in place, and a still-flawed sheet is labelled a diagnostic candidate for every page', async () => {
+    const h = harness({ judge: step => step === 'sheet_entities_0_qa' ? { props: { issues: [issue('continuity', 'design:trail', 'trail drawn as pebbles')] } }
+      : step.startsWith('sheet_locations_') ? { environment: { issues: [issue('continuity', 'landmark_unique:stone', 'bench has two slats')] } } : {} });
+    const m = await illustrateReviewedAudition(h.args);
+    const repair = h.args.render.mock.calls.find(c => c[0] === 'sheet_entities_1')!;
+    expect(repair[2]).toEqual([image('sheet_entities_0'), image('child'), image('companion')]);
+    expect(repair[4]).toEqual(['rejected_edit_target', 'child_design_authority', 'companion_design_authority']);
+    expect(repair[1]).toContain('- [continuity] design:trail: trail drawn as pebbles');
+    expect(m.sheets.entities).toMatchObject({ referenceStatus: 'approved_reference', chosenAttempt: 1 });
+    expect(m.sheets.locations).toMatchObject({ referenceStatus: 'diagnostic_candidate', status: 'held' });
+    expect(h.prompts.get('page_2_0')).toContain('Image 4 is a DIAGNOSTIC candidate with known flaws');
+    expect(h.contexts.get('page_2_0_qa').referenceStatus.locations).toMatchObject({ status: 'diagnostic_candidate', knownFlaws: [expect.objectContaining({ note: 'bench has two slats' })] });
+    expect(m.pages.every(p => p.status === 'qa_supported')).toBe(true);
+    expect(m.status).toBe('held_audition_with_findings');
+  });
+
+  it('renders a bounded sample and compares only with a predecessor rendered in the same run', async () => {
+    const h = harness({ pages: [0, 1, 3, 6, 5] }), m = await illustrateReviewedAudition(h.args);
+    expect(m.pages.map(p => p.pageNumber)).toEqual([0, 1, 3, 5, 6]);
+    expect(m).toMatchObject({ status: 'qa_supported_sample', scope: { frames: [0, 1, 3, 5, 6], complete: false } });
+    const predecessors = h.args.judge.mock.calls.filter(c => String(c[0]).startsWith('page_')).map(c => c[5]?.imageName ?? null);
+    expect(predecessors).toEqual([null, null, null, null, 'page_5_0.png']);
+    await expect(illustrateReviewedAudition(harness({ pages: [9] }).args)).rejects.toThrow('audition_page_scope');
+  });
+
+  it('a provider glitch loses one attempt; spending, unknown cost, repeated failure and cancellation end the run', async () => {
     const glitch = harness({ renderFail: step => step === 'page_2_0' ? Object.assign(new Error('x'), { code: 'audition_image_provider_failed' }) : null });
     const m = await illustrateReviewedAudition(glitch.args);
-    expect(m.pages[2]).toMatchObject({ attempts: 2, candidate: image('page_2_1'), flags: [] });
-    const broke = harness({ renderFail: step => step === 'page_2_0' ? new ReviewedAuditionError('audition_budget_exhausted') : null });
-    await expect(illustrateReviewedAudition(broke.args)).rejects.toThrow('audition_budget_exhausted');
-    expect(broke.args.render.mock.calls[broke.args.render.mock.calls.length - 1][0]).toBe('page_2_0');
+    expect(m.pages[2]).toMatchObject({ chosenAttempt: 1, alternatives: [expect.objectContaining({ status: 'unavailable', error: 'audition_image_provider_failed' })] });
+    for (const code of ['audition_budget_exhausted', 'audition_unknown_cost', 'audition_repeated_failure', 'audition_cancelled']) {
+      const h = harness({ renderFail: step => step === 'page_2_0' ? new ReviewedAuditionError(code) : null });
+      await expect(illustrateReviewedAudition(h.args)).rejects.toThrow(code);
+    }
   });
 
-  it('never publishes a safety defect: no eligible attempt stops the book', async () => {
-    const h = harness({ judge: step => step.startsWith('page_4') ? { safety: 'defect' } : {} });
-    await expect(illustrateReviewedAudition(h.args)).rejects.toThrow('audition_page_4_unavailable');
-    expect(h.args.identity.mock.calls.some(c => String(c[0]).startsWith('page_4'))).toBe(false);
-  });
+  it('fits the worst case (every candidate uses every attempt) inside the meter envelope, and resumes without paying again', async () => {
+    const root = path.join(mkdtempSync(path.join(tmpdir(), 'audition-envelope-')), 'paid');
+    const meter = new AuditionMeter(root, 9000000, AUDITION_WORST_CASE_CALLS, 1000000);
+    const wrap = <T>(step: string, work: () => Promise<T>) => meter.run(step, { step }, 1000, async () => ({ value: await work(), estimatedMicroUsd: 10, receipt: {} }));
+    const always = (step: string): Spec => step.startsWith('sheet_') ? { props: { issues: [issue('continuity', 'sheet_scope')] } } : { environment: { issues: [issue('continuity', 'landmark_unique:stone')] } };
+    const h = harness({ wrap, judge: always }), m = await illustrateReviewedAudition(h.args);
+    expect(meter.snapshot()).toMatchObject({ calls: AUDITION_WORST_CASE_CALLS, newKnownApiMicroUsd: 10 * AUDITION_WORST_CASE_CALLS, unknownCost: 0, failed: 0 });
+    expect(m.pages.every(p => p.status === 'held')).toBe(true);
+    // Resume: every saved page re-binds from its raw reviews; only missing pages are paid for.
+    const designs = h.saved.get('audition_sheet_designs'), sheets = { entities: h.saved.get('sheet_entities') as any, locations: h.saved.get('sheet_locations') as any };
+    const pages = Object.fromEntries([0, 1, 2, 3, 4, 5, 6].map(n => [n, h.saved.get(`page_${n}`) as any]));
+    const again = harness({ judge: always });
+    const resumed = await illustrateReviewedAudition({ ...again.args, resume: { designs, sheets, pages, stepPrefix: 'r1_' } });
+    expect(again.args.render.mock.calls.map(c => c[0])).toEqual(['r1_page_7_0', 'r1_page_7_1', 'r1_page_7_2', 'r1_page_8_0', 'r1_page_8_1', 'r1_page_8_2']);
+    expect(resumed.pages.map(p => p.pageNumber)).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8]);
+    const tampered = structuredClone(pages); tampered[4].chosen.review.checks.find((c: any) => c.category === 'environment').issues[0].impact = 'detail';
+    await expect(illustrateReviewedAudition({ ...harness({ judge: always }).args, resume: { designs, sheets, pages: tampered, stepPrefix: 'r1_' } })).rejects.toThrow('audition_resume_binding');
+    const edited = structuredClone(pages); edited[2].attempts[1].review.checks.find((c: any) => c.category === 'environment').issues[0].impact = 'detail';
+    await expect(illustrateReviewedAudition({ ...harness({ judge: always }).args, resume: { designs, sheets, pages: edited, stepPrefix: 'r1_' } })).rejects.toThrow('audition_resume_binding');
+    await expect(illustrateReviewedAudition({ ...harness({ judge: always }).args, resume: { designs, sheets, pages, stepPrefix: 'page_' } })).rejects.toThrow('audition_resume_binding');
+  }, 30000);
 
-  it('renders an escaped owner-review HTML with per-page QA notes', async () => {
-    const h = harness({ judge: step => step.startsWith('page_1') ? { props: 'defect' } : {} });
-    const manifest = await illustrateReviewedAudition(h.args);
-    const html = reviewedAuditionHTML(manifest, { title: 'A <b> title', pages: texts.map(text => ({ text })) }, i => `data:${i.imageName}`);
+  it('publishes statuses, impact-labelled findings and rejected alternatives in the owner HTML', async () => {
+    const h = harness({ judge: step => step.startsWith('page_1_') ? { scene: { issues: [issue('story', 'page_text', 'clue <b> shown early')] } } : {} });
+    const m = await illustrateReviewedAudition(h.args);
+    const html = reviewedAuditionHTML(m, { title: 'A <b> title', pages: texts.map(text => ({ text })) }, (i, size) => `data:${size}:${i.imageName}`);
     expect(html).toContain('A &lt;b&gt; title');
-    expect(html).toContain('props · defect');
-    expect(html).toContain('data:page_8_0.png');
-    expect(html).toContain('לא אישור לייצור');
+    expect(html).toContain('פגיעה בסיפור');
+    expect(html).toContain('clue &lt;b&gt; shown early');
+    expect(html).toContain('data:thumb:page_1_1.png');
+    expect(html).toContain('לא אישור מוצר');
   });
 });
 
-describe('reviewed audition resume', () => {
-  const firstRun = async () => {
-    const h = harness({ judge: step => step.startsWith('page_2_0') ? { props: 'defect' } : {} });
-    await illustrateReviewedAudition(h.args);
-    const json = (name: string) => JSON.parse(JSON.stringify(h.saved.get(name)));
-    return { designs: json('audition_sheet_designs'), sheets: { entities: json('sheet_entities'), locations: json('sheet_locations') },
-      pages: [0, 1, 2, 3].map(n => json(`page_${n}`)) };
-  };
-  it('budgets every paid call of a complete run', () => {
-    expect(AUDITION_WORST_CASE_CALLS).toBe(2 * 2 * 2 + 9 * 3 * 3);
-  });
-  it('reuses only re-bound completed work and continues the remaining pages under a new step prefix', async () => {
-    const saved = await firstRun(), h = harness();
-    const manifest = await illustrateReviewedAudition({ ...h.args, resume: { ...saved, stepPrefix: 'r1_' } });
-    expect(h.args.render.mock.calls.map(c => c[0])).toEqual([4, 5, 6, 7, 8].map(n => `r1_page_${n}_0`));
-    expect(h.saved.has('audition_sheet_designs')).toBe(false);
-    expect(manifest.pages.map(p => p.candidate.imageName)).toEqual([...[0, 1, 2, 3].map(n => `page_${n}_${n === 2 ? 1 : 0}.png`),
-      ...[4, 5, 6, 7, 8].map(n => `r1_page_${n}_0.png`)]);
-    // Page 5 is in page 4's scene: its predecessor is the resumed page 4 image, and page 4 itself starts a new scene.
-    expect(h.args.judge.mock.calls.map(c => c[5]?.imageName ?? null)).toEqual([null, 'r1_page_4_0.png', 'r1_page_5_0.png', 'r1_page_6_0.png', 'r1_page_7_0.png']);
-  });
-  it('refuses a tampered or rebound saved page instead of trusting it', async () => {
-    const saved = await firstRun();
-    const swapped = JSON.parse(JSON.stringify(saved)); swapped.pages[2].chosen = swapped.pages[2].attempts[0];
-    await expect(illustrateReviewedAudition({ ...harness().args, resume: { ...swapped, stepPrefix: 'r1_' } })).rejects.toThrow('audition_resume_binding');
-    const other = JSON.parse(JSON.stringify(saved)); other.pages[1].contextSha = sha('other');
-    await expect(illustrateReviewedAudition({ ...harness().args, resume: { ...other, stepPrefix: 'r1_' } })).rejects.toThrow('audition_resume_binding');
-    const gap = JSON.parse(JSON.stringify(saved)); gap.pages.splice(1, 1);
-    await expect(illustrateReviewedAudition({ ...harness().args, resume: { ...gap, stepPrefix: 'r1_' } })).rejects.toThrow('audition_resume_binding');
-    await expect(illustrateReviewedAudition({ ...harness().args, resume: { ...saved, stepPrefix: 'page_' } })).rejects.toThrow('audition_resume_binding');
-  });
-});
-
-describe('audition meter', () => {
-  it('journals before dispatch, counts a failed unknown-cost call at its reservation and keeps admitting within the cap', async () => {
-    const root = path.join(mkdtempSync(path.join(tmpdir(), 'audition-meter-')), 'paid');
-    const meter = new AuditionMeter(root, 1000000);
-    await expect(meter.run('first', { a: 1 }, 400000, async () => { throw new Error('boom'); })).rejects.toThrow('boom');
-    expect(meter.snapshot()).toMatchObject({ accountedMicroUsd: 400000, calls: 1, failed: 1, unknown: 1 });
-    expect(await meter.run('second', { a: 2 }, 500000, async () => ({ value: 7, estimatedMicroUsd: 30000, receipt: {} }))).toBe(7);
-    expect(meter.snapshot()).toMatchObject({ accountedMicroUsd: 430000, knownMicroUsd: 30000, calls: 2 });
+describe('cumulative, fail-closed meter and spend grant', () => {
+  const meterIn = (cap = 4000000, prior = 3400000, maxCalls = 10) =>
+    new AuditionMeter(path.join(mkdtempSync(path.join(tmpdir(), 'audition-meter-')), 'paid'), cap, maxCalls, prior);
+  it('counts the inherited ledger and refuses a reservation that would cross the cumulative cap', async () => {
+    const meter = meterIn();
+    expect(await meter.run('a', { a: 1 }, 500000, async () => ({ value: 1, estimatedMicroUsd: 40000, receipt: {} }))).toBe(1);
+    expect(meter.snapshot()).toMatchObject({ priorKnownApiMicroUsd: 3400000, newKnownApiMicroUsd: 40000, cumulativeAccountedMicroUsd: 3440000 });
     const dispatch = vi.fn();
-    await expect(meter.run('third', { a: 3 }, 600000, dispatch)).rejects.toThrow('audition_budget_exhausted');
+    await expect(meter.run('b', { b: 1 }, 600000, dispatch)).rejects.toThrow('audition_budget_exhausted');
     expect(dispatch).not.toHaveBeenCalled();
-    expect(readdirSync(root).filter(n => n.startsWith('third'))).toEqual([]);
-    expect(() => new AuditionMeter(root, 9000000)).toThrow('audition_meter_policy');
+    expect(() => meterIn(12000000, 3000000)).toThrow('audition_meter_policy');
+    expect(() => meterIn(3000000, 3000000)).toThrow('audition_meter_policy');
+  });
+  it('stops after an unknown cost or an unknown outcome instead of hiding it behind a reservation', async () => {
+    const meter = meterIn();
+    await expect(meter.run('a', {}, 1000, async () => ({ value: 1, estimatedMicroUsd: null, receipt: {} }))).rejects.toThrow('audition_unknown_cost');
+    await expect(meter.run('b', {}, 1000, async () => ({ value: 1, estimatedMicroUsd: 1, receipt: {} }))).rejects.toThrow('audition_unknown_cost');
+    const pending = meterIn();
+    await pending.run('a', {}, 1000, async () => ({ value: 1, estimatedMicroUsd: 1, receipt: {} }));
+    unlinkSync(path.join(pending.root, 'a.result.json'));
+    expect(pending.snapshot()).toMatchObject({ unknownOutcome: 1 });
+    await expect(pending.run('b', {}, 1000, async () => ({ value: 1, estimatedMicroUsd: 1, receipt: {} }))).rejects.toThrow('audition_unknown_cost');
+  });
+  it('allows one failed call but stops after two consecutive failures', async () => {
+    const meter = meterIn(), boom = async () => { throw Object.assign(new Error('x'), { receipt: { estimatedMicroUsd: 5 } }); };
+    await expect(meter.run('a', {}, 1000, boom)).rejects.toThrow('x');
+    await meter.run('b', {}, 1000, async () => ({ value: 1, estimatedMicroUsd: 5, receipt: {} }));
+    await expect(meter.run('c', {}, 1000, boom)).rejects.toThrow('x');
+    await expect(meter.run('d', {}, 1000, boom)).rejects.toThrow('x');
+    const dispatch = vi.fn();
+    await expect(meter.run('e', {}, 1000, dispatch)).rejects.toThrow('audition_repeated_failure');
+    expect(dispatch).not.toHaveBeenCalled();
+    expect(readdirSync(meter.root).filter(n => n.startsWith('e.'))).toEqual([]);
+  });
+  it('binds a grant to the book, its evidence hashes and a bounded cumulative cap', () => {
+    const dir = mkdtempSync(path.join(tmpdir(), 'audition-grant-')), evidence = path.join(dir, 'spend.json');
+    writeFileSync(evidence, '{"newKnownApiMicroUsd":3484122}');
+    const book = { requestId: sha('r'), storyboardDigest: sha('b') };
+    const grant = { version: 'audition-spend-grant/v1', approvalReference: 'Guy approved a priced four-frame LOW sample on 2026-10-10 (example)',
+      book, ledger: { priorKnownApiMicroUsd: 3484122, evidence: [{ file: evidence, sha256: sha('{"newKnownApiMicroUsd":3484122}') }], note: 'first audition run API estimate' },
+      capMicroUsd: 5000000, maxCalls: 40, scope: { mode: 'render', pages: [0, 1, 3, 6] },
+      claudeMax: 'Claude Max usage is separate: not an API invoice, not $0 and not included in this ledger' };
+    const file = path.join(dir, 'grant.json'), write = (g: unknown) => { writeFileSync(file, JSON.stringify(g)); return file; };
+    expect(readAuditionGrant(write(grant), book).grant.capMicroUsd).toBe(5000000);
+    expect(() => readAuditionGrant(write(grant), { ...book, storyboardDigest: sha('other') })).toThrow('audition_grant_book');
+    expect(() => readAuditionGrant(write({ ...grant, ledger: { ...grant.ledger, evidence: [{ file: evidence, sha256: sha('x') }] } }), book)).toThrow('audition_grant_evidence');
+    expect(() => readAuditionGrant(write({ ...grant, capMicroUsd: 3000000 }), book)).toThrow('audition_grant_cap');
+    expect(() => readAuditionGrant(write({ ...grant, claudeMax: 'free' }), book)).toThrow();
   });
 });
