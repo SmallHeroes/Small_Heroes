@@ -21,13 +21,18 @@ const inventory = z.array(z.object({ relative: z.string().regex(/^(?:[a-z0-9_-]+
   .refine(s => !s.split('/').includes('..')), sha256: hash }).strict()).min(10).max(256);
 export const entityAuthorityContinuationSchema = z.object({ version: z.literal('controlled-simple-entity-authority/v1'),
   sourceHead: z.string().regex(/^[a-f0-9]{40}$/), sourceBase: z.string().regex(/^[a-f0-9]{40}$/),
-  parentConfig: file, parentTermination: file, parentArtifacts: inventory, maximumMicroUsd: z.literal(20000000),
+  parentConfig: file, parentTermination: file, parentArtifacts: inventory, maximumMicroUsd: z.union([z.literal(20000000), z.literal(22000000)]), ceilingExtension: file.optional(),
   ownerApprovalReference: z.string().min(30).max(2000), sameBookOnly: z.literal(true), publicRelease: z.literal(false),
   customerCharge: z.literal(false), gateChanges: z.literal(false),
   extraEngineeringReceipts: z.array(file).length(2), technicalReviewReceipt: file,
   settledControls: z.array(z.object({ directory: z.string().min(1), artifacts: inventory }).strict()).min(1).max(6),
   authorityControlIndex: z.number().int().nonnegative().max(5),
 }).strict();
+export const entityAuthorityCeilingSchema = z.object({ version: z.literal('local-simple-entity-authority-ceiling/v1'), requestId: hash,
+  parentConfigSha256: hash, previousMaximumMicroUsd: z.literal(20000000), maximumMicroUsd: z.literal(22000000),
+  failedReviewReceipt: file, knownBeforeContinuationMicroUsd: z.number().int().nonnegative(),
+  ownerApprovalReference: z.string().min(30).max(2000), sameBookOnly: z.literal(true), publicRelease: z.literal(false),
+  customerCharge: z.literal(false), gateChanges: z.literal(false) }).strict();
 const fail = (code: string): never => { throw Object.assign(new Error(code), { code }); };
 const read = (p: string) => JSON.parse(fencedText(p, 32000000));
 
@@ -41,7 +46,7 @@ export async function prepareEntityAuthorityContinuation(configFile: string) {
   checked(config.parentConfig); checked(config.parentTermination); checked(config.technicalReviewReceipt);
   const prior = await prepareSimpleBookReferenceRecovery(config.parentConfig.file, config.sourceHead);
   if (prior.config.version !== 'controlled-simple-reference-recovery/v3' || !prior.config.rebuildContinuation ||
-      prior.config.maximumMicroUsd !== config.maximumMicroUsd || !prior.checkpoint || !prior.rebuildEntitiesFromDesign)
+      prior.config.maximumMicroUsd !== 20000000 || !prior.checkpoint || !prior.rebuildEntitiesFromDesign)
     fail('entity_authority_parent_scope');
   gitAt(prior.current.workspace, ['merge-base', '--is-ancestor', prior.config.sourceHead, config.sourceBase]);
   gitAt(prior.current.workspace, ['merge-base', '--is-ancestor', config.sourceBase, config.sourceHead]);
@@ -53,6 +58,24 @@ export async function prepareEntityAuthorityContinuation(configFile: string) {
       if (!s.isFile() || s.isSymbolicLink() || s.nlink !== 1 || s.size > 32000000 || previewSha(readFileSync(p)) !== r.sha256) fail('entity_authority_inventory'); }
   };
   const technical = read(config.technicalReviewReceipt.file);
+  const extension = config.maximumMicroUsd === 22000000 ? (() => {
+    if (!config.ceilingExtension) fail('entity_authority_ceiling'); checked(config.ceilingExtension!);
+    const grant = entityAuthorityCeilingSchema.parse(read(config.ceilingExtension!.file)); checked(grant.failedReviewReceipt);
+    const failed = read(grant.failedReviewReceipt.file), fee = simpleBookExternalCosts([grant.failedReviewReceipt]);
+    if (grant.requestId !== prior.parent.job.queued.requestId || grant.parentConfigSha256 !== config.parentConfig.sha256 ||
+        failed.code !== 1 || failed.signal !== null || !failed.terminationConfirmed || failed.stopped || failed.isError !== true ||
+        failed.resultSubtype !== 'error_max_budget_usd' || failed.qaVerdict !== null || failed.sourceBundleUnchanged !== true ||
+        failed.status !== '' || !Number.isSafeInteger(failed.maximumMicroUsd) || failed.maximumMicroUsd <= 0 || fee <= failed.maximumMicroUsd || canonicalJson(failed.models) !== canonicalJson([CAUSAL_MODELS.opus]) ||
+        failed.sessionId !== technical.sessionId || !z.string().uuid().safeParse(failed.sessionId).success ||
+        technical.costKind !== 'cumulative_same_cli_session_list_estimate_not_invoice' || technical.includesPreviousKnownFailedCalls !== true ||
+        technical.previousCumulativeReportedCostUsd !== failed.reportedCostUsd || technical.reportedCostUsd <= failed.reportedCostUsd ||
+        grant.knownBeforeContinuationMicroUsd !== failed.knownBeforeMicroUsd + fee ||
+        config.extraEngineeringReceipts.some(f => canonicalJson(f) === canonicalJson(grant.failedReviewReceipt))) fail('entity_authority_ceiling');
+    gitAt(prior.current.workspace, ['merge-base', '--is-ancestor', config.sourceBase, failed.head]);
+    gitAt(prior.current.workspace, ['merge-base', '--is-ancestor', failed.head, config.sourceHead]);
+    return { grant, failed };
+  })() : null;
+  if (!extension && config.ceilingExtension) fail('entity_authority_ceiling');
   if (canonicalJson(config.technicalReviewReceipt) !== canonicalJson(config.extraEngineeringReceipts[1]) ||
       technical.head !== config.sourceHead || technical.qaReviewHead !== config.sourceHead || technical.qaBase !== config.sourceBase ||
       technical.code !== 0 || technical.signal !== null || !technical.terminationConfirmed || technical.stopped || technical.status !== '' ||
@@ -70,6 +93,8 @@ export async function prepareEntityAuthorityContinuation(configFile: string) {
     if (fencedText(configFile, 64000) !== bytes || gitAt(prior.current.workspace, ['rev-parse', 'HEAD']).toString().trim() !== config.sourceHead ||
         gitAt(prior.current.workspace, ['status', '--porcelain']).toString().trim()) fail('entity_authority_source_changed');
     checked(config.parentConfig); checked(config.parentTermination); checked(config.technicalReviewReceipt); prior.verify();
+    if (config.ceilingExtension) checked(config.ceilingExtension);
+    if (extension) checked(extension.grant.failedReviewReceipt);
     simpleBookExternalCosts(config.extraEngineeringReceipts); checkInventory(prior.directory, config.parentArtifacts);
     config.settledControls.forEach(c => checkInventory(c.directory, c.artifacts));
   };
@@ -115,7 +140,7 @@ export async function prepareEntityAuthorityContinuation(configFile: string) {
   const controls = config.settledControls.map(c => {
     const r = read(path.join(c.directory, 'receipt.json'));
     if (r.code !== 0 || r.signal !== null || !r.terminationConfirmed || !r.sourceUnchanged || r.completeBook !== false || r.productionQualified !== false ||
-        r.maximumMicroUsd !== config.maximumMicroUsd || !Number.isSafeInteger(r.knownBeforeMicroUsd)) fail('entity_authority_control_outcome');
+        r.maximumMicroUsd !== prior.config.maximumMicroUsd || !Number.isSafeInteger(r.knownBeforeMicroUsd) || r.snapshot?.knownEstimateMicroUsd > prior.config.maximumMicroUsd) fail('entity_authority_control_outcome');
     const s = stages(c.directory, r.knownBeforeMicroUsd, 'medium_entities', 'medium_entities_qa');
     if (canonicalJson(s.snapshot) !== canonicalJson(r.snapshot) || r.incrementalKnownMicroUsd !== s.snapshot.knownEstimateMicroUsd - r.knownBeforeMicroUsd || r.disposition !== s.review.disposition ||
         canonicalJson(s.review) !== canonicalJson(read(path.join(c.directory, 'reference_review.json')))) fail('entity_authority_control_binding');
@@ -133,13 +158,14 @@ export async function prepareEntityAuthorityContinuation(configFile: string) {
   }
   if (!consultInserted && consult.knownBeforeMicroUsd === known) { known += consultCost; consultInserted = true; }
   if (!consultInserted || technical.knownBeforeMicroUsd !== known) fail('entity_authority_missing_cost');
+  if (extension && extension.failed.knownBeforeMicroUsd !== known) fail('entity_authority_ceiling');
   const externalMicroUsd = known + simpleBookExternalCosts([config.technicalReviewReceipt]);
   if (externalMicroUsd + 600000 > config.maximumMicroUsd) fail('entity_authority_budget');
   const authority = controls[config.authorityControlIndex]; if (!authority || authority.review.disposition !== 'passed') fail('entity_authority_not_passed');
   const subset = authority.data.context?.design, ids = new Set<string>(subset?.entities?.map((e: { id: string }) => e.id));
   if (!ids.size || ids.size !== subset.entities.length || canonicalJson(authority.data.context) !== canonicalJson(referenceRoleContext('entities', {
       ...fullDesign, entities: fullDesign.entities.filter((e: { id: string }) => ids.has(e.id)), props: fullDesign.props.filter((e: { id: string }) => ids.has(e.id)),
-    }))) fail('entity_authority_wrong_source');
+    })) || authority.data.contextSha !== previewSha(JSON.stringify(referenceRoleContext('entities', subset)))) fail('entity_authority_wrong_source');
   const content = authority.entries[1].wire.input[0].content, child = prior.checkpoint!.child;
   const companionSha = previewSha(readFileSync(path.join(prior.directory, 'illustrations/companion_reference.png')));
   const imageSha = (n: number) => previewSha(Buffer.from(content[n].image_url.split(',')[1], 'base64'));
@@ -162,7 +188,7 @@ export async function prepareEntityAuthorityContinuation(configFile: string) {
       verify(); mkdirSync(directory); exclusiveJson(path.join(directory, 'claim.json'), { sourceHead: config.sourceHead, configSha256: previewSha(bytes),
         requestDigest, inherited: ended.snapshot, extraEngineeringMicroUsd: newEngineering,
         externalMicroUsd, inheritedLogicalAttempts, runtimeEligible: false });
-      const budget = new SimpleBookBudget(path.join(directory, 'paid-stages'), externalMicroUsd, config.maximumMicroUsd);
+      const budget = new SimpleBookBudget(path.join(directory, 'paid-stages'), externalMicroUsd, config.maximumMicroUsd, inheritedLogicalAttempts);
       let sequence = readdirSync(prior.parent.job.directory).filter(n => /^view-\d{4}\.json$/.test(n)).length;
       const publish = (next: SimpleBookView) => { if (next.phase !== 'failed') verify(); const view = simpleBookViewSchema.parse(next);
         if (view.requestId !== prior.parent.job.queued.requestId || sequence >= 80) fail('entity_authority_view');

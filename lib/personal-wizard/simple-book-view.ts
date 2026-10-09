@@ -20,11 +20,12 @@ export const simpleBookViewSchema = z.object({
     }).strict()).max(20) }).strict()).max(2),
   error: z.string().regex(/^[a-z0-9_]+$/).nullable(), runtimeEligible: z.literal(false),
   accounting: z.object({ knownEstimateMicroUsd: z.number().int().nonnegative(), unknownAttemptCosts: z.number().int().nonnegative(),
-    logicalAttempts: z.number().int().min(0).max(80), allowanceMicroUsd: z.union([z.literal(12000000), z.literal(14000000), z.literal(16000000), z.literal(20000000)]), kind: z.literal('estimate_not_invoice') }).strict(),
+    logicalAttempts: z.number().int().min(0).max(80), allowanceMicroUsd: z.union([z.literal(12000000), z.literal(14000000), z.literal(16000000), z.literal(20000000), z.literal(22000000)]), kind: z.literal('estimate_not_invoice') }).strict(),
 }).strict().superRefine((v, ctx) => {
   if ((v.accounting.allowanceMicroUsd === 14000000 && !['owned_reference_recovery', 'role_scoped_reference_continuation'].includes(v.imageScope ?? '')) ||
       (v.accounting.allowanceMicroUsd === 16000000 && !['role_scoped_reference_continuation', 'reference_transport_continuation'].includes(v.imageScope ?? '')) ||
       (v.accounting.allowanceMicroUsd === 20000000 && !['reference_transport_continuation', 'reference_rebuild_continuation', 'reference_entity_authority_continuation'].includes(v.imageScope ?? '')) ||
+      (v.accounting.allowanceMicroUsd === 22000000 && v.imageScope !== 'reference_entity_authority_continuation') ||
       (v.phase === 'references_required' && (!v.original || !v.edited || v.readings.length !== 2 ||
       new Set(v.readings.map(r => r.stage)).size !== 2)) ||
       (v.phase === 'queued' && (v.original || v.edited)) ||

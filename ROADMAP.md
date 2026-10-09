@@ -1,5 +1,19 @@
 # SmallHeroes — Roadmap
 
+## M13 correction and explicit22m, not a renewed allowance (2026-10-09)
+
+- First native QA delivery failed with known956508micro; raw HOLD finding is
+  validated, but no successful technical PASS inferred from the assistant text.
+- Generation may use a supported subset; whole-atlas QA does not see it typed
+  as whole canonical approval. Fullsource/crops/actors and0.70 remain mandatory.
+- Meter enforces inherited+current80 before claim; default0/old scopes unchanged.
+- Direct owner22approval:+2 for SAME book. Hashed grant binds prior20, failed
+  fee and latest cumulative same-session receipt, no cost reset/double count.
+- Local six-test selection passes6/6 (188skipped), literaltsc0. Next narrow
+  same-session re-gate; no new paid book
+  run before valid QA and pure admission. Full checkcancelled, not complete.
+- Known19239888of22m,unknown0; no cover/body/reader/production/push.
+
 ## M13 reuse a verified source subset; no camera-only cure inferred (2026-10-09)
 
 - Two camera controls give1pass/1defect, not the required2/2. Trial closed;

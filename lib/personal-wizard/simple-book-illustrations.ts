@@ -186,7 +186,9 @@ export async function illustrateSimpleBook(args: {
       args.explicitReferenceTransport && authorities.length ? ['child_design_authority', 'companion_design_authority',
         ...(spec.name === 'locations' || spec.name === 'entities' && args.entityDesignAuthority ? ['entity_design_authority' as const] : [])] : undefined);
     check();
-    const raw = await args.judge(`reference_${spec.name}_qa`, candidate, context, contextSha, authorities, null); check();
+    // A reviewed subset may guide generation, but is not the full atlas authority.
+    const inspectionAuthorities = spec.name === 'entities' && args.entityDesignAuthority ? authorities.slice(0, 2) : authorities;
+    const raw = await args.judge(`reference_${spec.name}_qa`, candidate, context, contextSha, inspectionAuthorities, null); check();
     const review = qualityDisposition(raw, candidate.imageSha, contextSha);
     args.save(`reference_${spec.name}_review`, review);
     if (review.disposition !== 'passed') fail('simple_reference_held');

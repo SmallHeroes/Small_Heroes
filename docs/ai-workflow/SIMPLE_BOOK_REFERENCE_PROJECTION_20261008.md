@@ -105,3 +105,31 @@ Current full repository gate is separate. Representative virtual guard removal
 causes exactly the failed-authority admission test to fail by accepting a held
 subset; no loader/timeout and no source bytes changed. No actual new book
 providers were called. Independent first review remains pending.
+
+## M13 corrective re-gate and explicit accumulatedUSD22 (2026-10-09)
+
+First frozen source range c106ba9e..bb63bc9e received a raw HOLD assessment,
+but the native CLI endedcode1/error_max_budget_usd, so it is not a valid
+delivered PASS. Its actual reported-list956508micro remains counted once.
+The blocking role finding was validated: a supported subset guides generation
+only; the full-atlas pixel judge receives the full source/candidate/crops and
+accepted child/companion, never a partial subset typed as a complete authority.
+The aggregate80attempt bound is enforced before claim/dispatch through an
+optional prior-attempt floor; defaults and the existing view bound stay intact.
+Source-context ordering is checked before claiming the fixed sibling.
+
+Guy explicitly approvedUSD22 accumulated for the SAME book (+2only). The new
+private continuation requires a hashed same-book grant binding original20,
+the exact failed source-review receipt and known19239888micro. The resumed
+current-session review must report cumulative usage including that failed
+amount exactly once. Old configs, controls and seals retain their original20.
+This changes no story, canon, resemblance0.70, public scope or production status.
+
+Literaltsc exits0; final targeted selection6pass/0fail,188skipped of194, no
+provider calls. It adds the79+1attempt boundary and eight rehashed22grant
+rejections to the existing real CLI mock/9frames and full-QA-role coverage.
+The broad check onbb63 was cancelled for correction; its partial logs,
+4294967295 termination and source_changed_during_gate are preserved. There is
+no completed current full-gate verdict or current stability acceptance.
+Next is a compact delta-only re-gate in the same Claude session, then pure
+actual-evidence admission, before any book provider call. No push authorized.

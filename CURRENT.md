@@ -1,5 +1,42 @@
 # SmallHeroes — Current Technical State
 
+## M13 narrow corrective milestone and ownerUSD22 approval (2026-10-09)
+
+Frozen first range c106ba9e..bb63bc9e, clean source, four targeted passes and
+intended virtual guard failure. Native read-only source review endedcode1/
+error_max_budget_usd: raw assistant HOLD, NOT a valid delivered PASS. Its
+956508micro actual reported-list fee remains counted once. Native records show
+87850 cache-created input and12685 output/11230thinking; do not diagnose this
+as image spending or infer undocumented retries from two stream messages.
+
+Validated finding: renderer's supported subset was mislabeledcanonical_entities
+in the full-atlas judge. Corrected by using it for generation ONLY; full-atlas
+QA receives complete source data/candidate/crops plus accepted child/companion.
+Nine-frame test now asserts exact pixel-image roles and full entity coverage.
+Accounting risk corrected without widening80: optional previous-attempt floor
+in the meter (default0) stops before a new claim/dispatch when aggregate reaches
+80, so failure publication/sealing remains within the unchanged view bound.
+Context-order ambiguity now rejects before claiming the fixed sibling.
+
+Guy directly approvedUSD22 accumulated for SAME book, +2 only. Optional hashed
+22grant binds same request, M12parent, exact failed review, known-before amount
+and same-session cumulative successor fee. Original20 and all old seals unchanged.
+No failed receipt added twice or omitted;22view limited to private entity scope.
+Known19239888 of22m, unknown0; API2965250 / Maxlist16274638. No cover/body/reader.
+Corrected four-test run passes. Final six-test selection passes6/6,0failed,
+188skipped of194 (not a194-test PASS), with termination confirmed and no
+provider calls. Literal `npx tsc --noEmit` exits0 after the80boundary/22grant
+changes. Evidence: authority-selected-final22/receipt.json. No new book/API
+or resumed native reviewer call yet.
+
+Broad full check onbb63 was cancelled after valid findings required correction;
+partial output/code4294967295 and final source_changed_during_gate are retained.
+It is NOT a completed full gate or inherited-failure comparison. Prior complete
+full gate remains RED as historically recorded; current stability unproven.
+Next: focused local commit, short delta re-gate in SAME reviewer session, pure
+real-evidence admission, then existing actual renderer only if every guard passes.
+No new story/canon/qualification/public/push scope; goal still incomplete.
+
 ## M13 source-bound supported entity subset: local validation (2026-10-09)
 
 Sole Codex writer on codex/simple-story-voice-20261007, voice-followup checkout,

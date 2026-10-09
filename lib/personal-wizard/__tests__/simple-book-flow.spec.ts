@@ -169,6 +169,14 @@ describe('actual simple writer to current whole-book driver, with no image autho
 });
 
 describe('one USD12 journal across engine stages and engineering Max', () => {
+  it('keeps inherited plus current attempts within80 before a new claim or dispatch', async () => {
+    const budget = new SimpleBookBudget(path.join(root, 'attempt-floor'), 0, 20000000, 79), dispatch = vi.fn(async () => ({ value: true, estimatedMicroUsd: 1, receipt: {} }));
+    expect(await budget.run('last_allowed', {}, 1, dispatch)).toBe(true);
+    expect(budget.previousLogicalAttempts + budget.snapshot().logicalAttempts).toBe(80);
+    await expect(budget.run('over_limit', {}, 1, dispatch)).rejects.toThrow('simple_budget_policy');
+    expect(dispatch).toHaveBeenCalledTimes(1); expect(existsSync(path.join(budget.root, 'over_limit.claim.json'))).toBe(false);
+    for (const previous of [-1, 80, NaN, 1.5]) expect(() => new SimpleBookBudget(path.join(root, 'bad-floor'), 0, 20000000, previous)).toThrow('simple_budget_policy');
+  });
   it('keeps default12m, explicitly meters14m, rejects other ceilings and stops14m before an over-budget claim', async () => {
     expect(new SimpleBookBudget(path.join(root, 'default'), 0).maximumMicroUsd).toBe(12000000);
     for (const maximum of [0, 13000000, 14000001, 25000000]) expect(() => new SimpleBookBudget(path.join(root, 'invalid'), 0, maximum)).toThrow('simple_budget_policy');
@@ -1159,6 +1167,11 @@ describe('explicit same-book continuation, no provider in fixtures', () => {
     expect(first.exactReferenceBytes!.map(b => sha(b))).toEqual([ready.checkpoint.child.imageSha, sha(readFileSync(path.join(x.dir, 'illustrations/companion_reference.png'))), ready.entityDesignAuthority.imageSha]);
     expect(x.render).toHaveBeenCalledTimes(11); expect(x.fetcher).toHaveBeenCalledTimes(9); expect(x.editor).not.toHaveBeenCalled();
     expect(first.finalPrompt).toContain('SUBSET'); expect(first.finalPrompt).not.toContain('TARGETED CORRECTIONS');
+    const pixelsWire = JSON.parse(readFileSync(path.join(ready.directory, 'paid-stages/reference_entities_qa.wire.json'), 'utf8'));
+    const inspected = JSON.parse(pixelsWire.input[0].content[0].text);
+    expect(inspected.imageRoles).toEqual(['candidate_complete', 'candidate_crop_top_left', 'candidate_crop_top_right', 'candidate_crop_bottom_left', 'candidate_crop_bottom_right', 'canonical_child', 'canonical_companion']);
+    expect(pixelsWire.input[0].content).toHaveLength(8);
+    expect(inspected.context.design.entities).toEqual(ready.result.storyboard!.storyboard.plan.continuity!.entities);
     for (const call of x.render.mock.calls.slice(2)) expect(call[0].referenceMode).toBe('book_identity');
     const manifest = JSON.parse(readFileSync(path.join(ready.directory, 'illustrated_book.json'), 'utf8'));
     expect(manifest.pages).toHaveLength(9); expect(manifest.pages.every((p: any) => p.identity.threshold === .7 && p.identity.status === 'passed')).toBe(true);
@@ -1215,6 +1228,45 @@ describe('explicit same-book continuation, no provider in fixtures', () => {
     const dir = path.join(x.old.directory, 'reference-entity-authority-continuation-20261008');
     expect(JSON.parse(readFileSync(path.join(dir, 'sealed.json'), 'utf8'))).toMatchObject({ status: 'failed', code: 'simple_reference_held', snapshot: { logicalAttempts: 2 } });
     expect(existsSync(path.join(dir, 'book.html'))).toBe(false); expect(existsSync(path.join(dir, 'paid-stages/reference_child.claim.json'))).toBe(false);
+  }, 180000);
+  it('entity authority22 requires the explicit same-book grant and cumulative failed-QA fee exactly once, only in its private scope', async () => {
+    const x = await entityAuthorityFixture(), oldQA = JSON.parse(readFileSync(x.qaFile, 'utf8'));
+    const failedFile = path.join(root, 'SYNTHETIC-failed-authority-code-QA.json');
+    const failed = { ...oldQA, code: 1, isError: true, resultSubtype: 'error_max_budget_usd', qaVerdict: null, maximumMicroUsd: 2000 };
+    writeFileSync(failedFile, JSON.stringify(failed));
+    const grantFile = path.join(root, 'SYNTHETIC-authority22-grant.json'), grant = { version: 'local-simple-entity-authority-ceiling/v1',
+      requestId: x.old.queued.requestId, parentConfigSha256: x.data.parentConfig.sha256, previousMaximumMicroUsd: 20000000, maximumMicroUsd: 22000000,
+      failedReviewReceipt: x.ref(failedFile), knownBeforeContinuationMicroUsd: failed.knownBeforeMicroUsd + 3000,
+      ownerApprovalReference: 'SYNTHETIC explicit22 accumulated same book, not real spending permission.', sameBookOnly: true, publicRelease: false, customerCharge: false, gateChanges: false };
+    writeFileSync(grantFile, JSON.stringify(grant));
+    const cumulative = { ...oldQA, reportedCostUsd: .005, includesPreviousKnownFailedCalls: true, previousCumulativeReportedCostUsd: .003,
+      costKind: 'cumulative_same_cli_session_list_estimate_not_invoice' };
+    writeFileSync(x.qaFile, JSON.stringify(cumulative)); x.data.maximumMicroUsd = 22000000; x.data.ceilingExtension = x.ref(grantFile);
+    x.data.technicalReviewReceipt = x.ref(x.qaFile); x.data.extraEngineeringReceipts[1] = x.data.technicalReviewReceipt;
+    writeFileSync(x.authorityFile, JSON.stringify(x.data));
+    const ready = await prepareEntityAuthorityContinuation(x.authorityFile); expect(ready.externalMicroUsd).toBe(x.seal.snapshot.knownEstimateMicroUsd + 8000);
+    expect(ready.claim().budget.maximumMicroUsd).toBe(22000000);
+    const view = { ...emptySimpleBookView(x.old.queued.requestId), accounting: { ...emptySimpleBookView(x.old.queued.requestId).accounting, allowanceMicroUsd: 22000000 } };
+    expect(simpleBookViewSchema.safeParse(view).success).toBe(false);
+    expect(simpleBookViewSchema.safeParse({ ...view, imageScope: 'reference_entity_authority_continuation' }).success).toBe(true);
+    for (const scope of ['reference_rebuild_continuation', 'reference_transport_continuation', 'role_scoped_reference_continuation'])
+      expect(simpleBookViewSchema.safeParse({ ...view, imageScope: scope }).success).toBe(false);
+    const baseline = readFileSync(x.authorityFile);
+    for (const kind of ['missing', 'wrong_request', 'foreign_parent', 'amount', 'gate', 'lost_failed_fee', 'duplicate_failed_fee', 'wrong_session']) {
+      writeFileSync(x.qaFile, JSON.stringify(cumulative)); const d = JSON.parse(baseline.toString()), g = structuredClone(grant);
+      if (kind === 'missing') delete d.ceilingExtension;
+      if (kind === 'wrong_request') g.requestId = 'b'.repeat(64);
+      if (kind === 'foreign_parent') g.parentConfigSha256 = 'b'.repeat(64);
+      if (kind === 'amount') g.knownBeforeContinuationMicroUsd++;
+      if (kind === 'gate') g.gateChanges = true;
+      if (kind === 'duplicate_failed_fee') d.extraEngineeringReceipts.push(x.ref(failedFile));
+      if (kind === 'lost_failed_fee') writeFileSync(x.qaFile, JSON.stringify({ ...cumulative, reportedCostUsd: .002 }));
+      if (kind === 'wrong_session') writeFileSync(x.qaFile, JSON.stringify({ ...cumulative, sessionId: 'ab123456-1234-4234-8234-123456789012' }));
+      writeFileSync(grantFile, JSON.stringify(g)); if (kind !== 'missing') d.ceilingExtension = x.ref(grantFile);
+      d.technicalReviewReceipt = x.ref(x.qaFile); d.extraEngineeringReceipts[1] = d.technicalReviewReceipt;
+      writeFileSync(x.authorityFile, JSON.stringify(d)); await expect(prepareEntityAuthorityContinuation(x.authorityFile), kind).rejects.toThrow();
+      expect(sdk.create).not.toHaveBeenCalled(); expect(x.render).not.toHaveBeenCalled(); expect(x.fetcher).not.toHaveBeenCalled();
+    }
   }, 180000);
   it('reference design rebuild rejects rebound evidence, omitted costs, old or failed QA before key and fresh claim', async () => {
     const x = await referenceRebuildFixture(), baseline = readFileSync(x.recoveryFile), terminal = readFileSync(x.endedTerminal);

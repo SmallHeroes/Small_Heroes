@@ -16,10 +16,10 @@ function fail(code: string): never { throw new SimpleBookBudgetError(code); }
 /** One process owns a previously claimed job. A pending/failed claim is never a free retry. */
 export class SimpleBookBudget {
   readonly root: string;
-  constructor(root: string, readonly externalMicroUsd: number, readonly maximumMicroUsd = 12000000) {
+  constructor(root: string, readonly externalMicroUsd: number, readonly maximumMicroUsd = 12000000, readonly previousLogicalAttempts = 0) {
     // This is the meter, not an authorization endpoint. Only the separately
     // bound private same-book grant caller can select14m/16m/20m; legacy defaults12m.
-    if (![12000000, 14000000, 16000000, 20000000].includes(maximumMicroUsd) || !Number.isSafeInteger(externalMicroUsd) || externalMicroUsd < 0 || externalMicroUsd > maximumMicroUsd) fail('simple_budget_policy');
+    if (![12000000, 14000000, 16000000, 20000000, 22000000].includes(maximumMicroUsd) || !Number.isSafeInteger(externalMicroUsd) || externalMicroUsd < 0 || externalMicroUsd > maximumMicroUsd || !Number.isSafeInteger(previousLogicalAttempts) || previousLogicalAttempts < 0 || previousLogicalAttempts >= 80) fail('simple_budget_policy');
     if (!existsSync(root)) mkdirSync(root); realDirectory(root); this.root = root;
   }
   snapshot() {
@@ -38,7 +38,7 @@ export class SimpleBookBudget {
   }
   async run<T>(step: string, wire: unknown, maximumMicroUsd: number,
     dispatch: () => Promise<{ value: T; estimatedMicroUsd: number | null; receipt: unknown }>) {
-    if (!/^[a-z][a-z0-9_]{0,79}$/.test(step) || !Number.isSafeInteger(maximumMicroUsd) || maximumMicroUsd < 1 || this.snapshot().logicalAttempts >= 80) fail('simple_budget_policy');
+    if (!/^[a-z][a-z0-9_]{0,79}$/.test(step) || !Number.isSafeInteger(maximumMicroUsd) || maximumMicroUsd < 1 || this.previousLogicalAttempts + this.snapshot().logicalAttempts >= 80) fail('simple_budget_policy');
     const state = this.snapshot();
     if (state.stopped) fail('simple_paid_outcome_unknown_or_failed');
     if (state.accountedMicroUsd + maximumMicroUsd > this.maximumMicroUsd) fail('simple_budget_exhausted');
