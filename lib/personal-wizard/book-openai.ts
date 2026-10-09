@@ -4,6 +4,7 @@ import { zodTextFormat } from 'openai/helpers/zod';
 import { z } from 'zod';
 import { wholeBookDraftSchema, ownedWholeBookDraftSchema } from '../local-book-planning';
 import { personalStoryboardReviewSchema, STORYBOARD_BOOK_CHECKS, STORYBOARD_FRAME_CHECKS } from './storyboard';
+import { momentWholeBookDraftSchema, ownedMomentWholeBookDraftSchema, storyboardMomentsSchema } from './storyboard-moments';
 import { createPersonalStoryProvider } from './story-openai';
 import { createStoryEditorProvider } from './story-editor-openai';
 import { generationTimeoutMs, type StoryModel } from './story-config';
@@ -18,9 +19,26 @@ export class BookProviderError extends Error {
 const hash = /^[a-f0-9]{64}$/;
 export function personalBookProviderSchema(call: BookVisualCall) {
   if (call.context.actorOwnedAppearance !== undefined && call.context.actorOwnedAppearance !== true) throw new BookProviderError('book_provider_context');
+  if (call.context.momentContract !== undefined && call.context.momentContract !== true) throw new BookProviderError('book_provider_context');
   const { narrativeSpreads: count, sourceDigest, storyboardDigest } = call.context;
   if (![8, 12, 16].includes(count) || !hash.test(sourceDigest) ||
       (call.stage === 'review' && !hash.test(storyboardDigest ?? '')) || !['storyboard', 'review'].includes(call.stage)) throw new BookProviderError('book_provider_context');
+  if (call.stage === 'storyboard' && call.context.momentContract) {
+    // Opt-in moments contract: same page-order metadata removal, plus one moments frame per page (cover first).
+    const draft = call.context.actorOwnedAppearance ? ownedMomentWholeBookDraftSchema : momentWholeBookDraftSchema;
+    return draft.extend({
+      plan: draft.shape.plan.extend({
+        pages: z.array(draft.shape.plan.shape.pages.element.omit({ pageNumber: true })).length(count + 1),
+        continuity: draft.shape.plan.shape.continuity.extend({
+          pages: z.array(draft.shape.plan.shape.continuity.shape.pages.element.omit({ pageNumber: true })).length(count + 1),
+        }),
+      }),
+      sequence: draft.shape.sequence.extend({
+        pages: z.array(draft.shape.sequence.shape.pages.element.omit({ pageNumber: true })).length(count),
+      }),
+      moments: storyboardMomentsSchema.extend({ frames: z.array(storyboardMomentsSchema.shape.frames.element).length(count + 1) }),
+    });
+  }
   if (call.stage === 'storyboard') {
     const draft = call.context.actorOwnedAppearance ? ownedWholeBookDraftSchema : wholeBookDraftSchema;
     return draft.extend({

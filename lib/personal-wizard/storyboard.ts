@@ -13,6 +13,8 @@ import { currentSimpleStoryResultSchema, admitCurrentSimpleStorySource, assertSi
 import { preparePersonalStory } from './story-writer';
 import { adventureSelectionIssue } from './story-planning-contract';
 import type { PersonalWizardOptions } from './options';
+import { validateStoryboardMoments, drawnStates, planAtDrawnInstant, momentRenderSection, MOMENT_STORYBOARD_ADDENDUM,
+  STORYBOARD_MOMENTS_VERSION, momentWholeBookDraftSchema, ownedMomentWholeBookDraftSchema, type StoryboardMoments } from './storyboard-moments';
 
 export const PERSONAL_STORYBOARD_VERSION = 'personal-book-storyboard/offline-v3';
 const digest = (data: unknown) => previewSha(canonicalJson(data));
@@ -26,6 +28,8 @@ type BookData = {
   narrativeSpreads: number; displayPages: 16 | 24 | 32;
   status: 'pending_semantic_review'; runtimeEligible: false;
   plan: Compiled['plan']; sequence: Compiled['sequence'];
+  /** Present only for opt-in moments storyboards; absent keeps every older digest/packet unchanged. */
+  moments?: StoryboardMoments;
 };
 declare const compiledBookOrigin: unique symbol;
 export type PersonalStoryboard = BookData & { readonly [compiledBookOrigin]: true };
@@ -34,8 +38,9 @@ const sources = new WeakMap<Source, string>();
 const books = new WeakMap<PersonalStoryboard, { serialized: string; source: Source }>();
 
 /** Offline/archive diagnostic bridge. Current operations use the strict wrapper below. */
-export function preparePersonalStoryboard(request: unknown, writerResult: unknown, options: PersonalWizardOptions, actorOwnedAppearance?: true) {
+export function preparePersonalStoryboard(request: unknown, writerResult: unknown, options: PersonalWizardOptions, actorOwnedAppearance?: true, momentContract?: true) {
   if (actorOwnedAppearance !== undefined && actorOwnedAppearance !== true) fail('appearance_policy');
+  if (momentContract !== undefined && momentContract !== true) fail('moment_policy');
   const prepared = preparePersonalStory(request, options);
   const result = storyboardWriterResultSchema.parse(writerResult);
   // Writer output was already normalised at its own boundary. Do not silently trim
@@ -76,11 +81,13 @@ export function preparePersonalStoryboard(request: unknown, writerResult: unknow
     request: prepared.accepted.canonical, companionAuthority: prepared.brief.companion, companionVisualAuthority,
     plan: result.plan, manuscript: result.manuscript, displayPages: result.displayPages,
     ...(actorOwnedAppearance ? { actorOwnedAppearance: true } : {}),
+    ...(momentContract ? { momentContract: STORYBOARD_MOMENTS_VERSION } : {}),
     ...('editing' in result ? { editing: result.editing } : {}), ...(result.planning ? { planning: result.planning } : {}),
     ...('simpleSource' in result ? { simpleSourceEvidence: simpleStoryboardSourceEvidence(result) } : {}) });
   const source = {
     sourceDigest, request: prepared.accepted.canonical, result, story,
     ...(actorOwnedAppearance ? { actorOwnedAppearance: true as const } : {}),
+    ...(momentContract ? { momentContract: true as const } : {}),
     brief: prepared.brief, companionVisualAuthority, companionDescription: companionVisualAuthority.description,
     planningInput: {
       ...wholeBookPlanningInput(story, prepared.brief.child.age, prepared.brief.child.address, companionVisualAuthority.description),
@@ -99,8 +106,8 @@ export function preparePersonalStoryboard(request: unknown, writerResult: unknow
 }
 
 /** New/current operation: an archive or stripped receipt is never current evidence. */
-export function prepareCurrentPersonalStoryboard(request: unknown, writerResult: unknown, options: PersonalWizardOptions, actorOwnedAppearance?: true) {
-  return preparePersonalStoryboard(request, admitCurrentStoryboardStory(request, writerResult, options), options, actorOwnedAppearance);
+export function prepareCurrentPersonalStoryboard(request: unknown, writerResult: unknown, options: PersonalWizardOptions, actorOwnedAppearance?: true, momentContract?: true) {
+  return preparePersonalStoryboard(request, admitCurrentStoryboardStory(request, writerResult, options), options, actorOwnedAppearance, momentContract);
 }
 
 function assertSource(source: Source) {
@@ -130,12 +137,19 @@ These roles are distinct from supporting cast and scene props. Preserve the supp
 /** Existing diagnostic compiler, including cover, framing variety and inherited state. */
 export function compilePersonalStoryboard(source: Source, rawDraft: unknown): PersonalStoryboard {
   assertSource(source);
-  const compiled = compileWholeBookDraft(rawDraft, source.story, source.actorOwnedAppearance === true);
-  const storyboardDigest = digest({ version: PERSONAL_STORYBOARD_VERSION, sourceDigest: source.sourceDigest, ...compiled });
+  const object = rawDraft && typeof rawDraft === 'object' ? rawDraft as Record<string, unknown> : null;
+  if (!source.momentContract && object && 'moments' in object) fail('moments_not_enabled');
+  if (source.momentContract && !(object && 'moments' in object)) fail('moments_required');
+  // Moments are split off before the unchanged plan/sequence compiler, then validated against its output.
+  const { moments: rawMoments, ...draft } = source.momentContract ? object! : { moments: undefined };
+  const compiled = compileWholeBookDraft(source.momentContract ? draft : rawDraft, source.story, source.actorOwnedAppearance === true);
+  const moments = source.momentContract
+    ? validateStoryboardMoments(rawMoments, compiled.plan, compiled.sequence, previewStoryEvidence(source.story).texts) : undefined;
+  const storyboardDigest = digest({ version: PERSONAL_STORYBOARD_VERSION, sourceDigest: source.sourceDigest, ...compiled, ...(moments ? { moments } : {}) });
   const book = { version: PERSONAL_STORYBOARD_VERSION, sourceDigest: source.sourceDigest,
     storyboardDigest, requestId: source.result.requestId, narrativeSpreads: source.story.pages.length,
     displayPages: source.result.displayPages, status: 'pending_semantic_review', runtimeEligible: false,
-    ...compiled } as PersonalStoryboard;
+    ...compiled, ...(moments ? { moments } : {}) } as PersonalStoryboard;
   books.set(book, { serialized: canonicalJson(book), source });
   return book;
 }
@@ -164,7 +178,7 @@ export function personalStoryboardReviewInput(book: PersonalStoryboard) {
     storyboardDigest: book.storyboardDigest, approvedBrief: source.brief, manuscript: source.result.manuscript,
     companionVisualAuthority: source.companionVisualAuthority,
     ...('simpleSource' in source.result ? { simpleSourceEvidence: simpleStoryboardSourceEvidence(source.result) } : {}),
-    narrativePlan: source.result.plan, plan: book.plan, sequence: book.sequence };
+    narrativePlan: source.result.plan, plan: book.plan, sequence: book.sequence, ...(book.moments ? { moments: book.moments } : {}) };
 }
 
 export function storyboardReviewDisposition(book: PersonalStoryboard, raw: unknown) {
@@ -190,22 +204,29 @@ export function personalStoryboardFrame(book: PersonalStoryboard, rawReview: unk
   current: { request: unknown; writerResult: unknown; options: PersonalWizardOptions }) {
   const source = assertBook(book);
   if (!current) return fail('current_source_required');
-  const currentSource = preparePersonalStoryboard(current.request, current.writerResult, current.options, source.actorOwnedAppearance);
+  const currentSource = preparePersonalStoryboard(current.request, current.writerResult, current.options, source.actorOwnedAppearance, source.momentContract);
   if (currentSource.sourceDigest !== book.sourceDigest) fail('stale_book');
   const decision = storyboardReviewDisposition(book, rawReview);
   if (decision.disposition !== 'review_supported') fail(decision.disposition);
   if (!Number.isInteger(pageNumber) || pageNumber < 0 || pageNumber > book.narrativeSpreads) fail('unknown_frame');
   const text = pageNumber === 0 ? source.story.title : source.story.pages[pageNumber - 1].text;
-  const sequence = pageNumber === 0 ? null : sequencePageState(book.sequence, book.plan, pageNumber);
+  const ledger = pageNumber === 0 ? null : sequencePageState(book.sequence, book.plan, pageNumber);
+  // Moments: the picture's own instant replaces the end-of-page relations for THIS frame only.
+  const depicted = book.moments?.frames[pageNumber].depicted ?? null;
+  const sequence = ledger && depicted ? drawnSequenceState(book, pageNumber, ledger, depicted) : ledger;
+  const plan = book.moments ? planAtDrawnInstant(book.plan, book.moments, pageNumber) : book.plan;
   const context = { version: PERSONAL_STORYBOARD_VERSION, sourceDigest: book.sourceDigest,
     storyboardDigest: book.storyboardDigest, reviewDigest: decision.reviewDigest,
     requestId: book.requestId, pageNumber, text,
     companion: { id: source.request.companion.id, description: source.companionDescription },
-    visual: selectedDraftQaContext(book.plan, pageNumber), sequence };
+    visual: selectedDraftQaContext(plan, pageNumber), sequence,
+    ...(book.moments ? { moment: { version: book.moments.version, ...book.moments.frames[pageNumber] } } : {}) };
   const packetDigest = digest(context);
-  const base = previewPagePrompt(book.plan, pageNumber, text, source.brief.child.age, source.brief.child.address, source.companionDescription);
+  const base = previewPagePrompt(plan, pageNumber, text, source.brief.child.age, source.brief.child.address, source.companionDescription);
   // No prior pixels are being claimed reviewed or attached by this offline bridge.
-  const prompt = sequence ? sequenceRenderPrompt(base, { ...sequence, predecessor: null }, null) : base;
+  const sequenced = sequence ? sequenceRenderPrompt(base, { ...sequence, predecessor: null }, null) : base;
+  const section = book.moments ? momentRenderSection(book.moments, pageNumber) : '';
+  const prompt = section ? `${sequenced}\n\n${section}` : sequenced;
   return { packetDigest, context, render: { prompt, promptSha: previewSha(prompt), contextSha: packetDigest },
     qa: { context, contextSha: packetDigest }, runtimeEligible: false as const };
 }
@@ -216,21 +237,38 @@ export function currentPersonalStoryboardFrame(book: PersonalStoryboard, rawRevi
   const source = assertBook(book);
   if (!current) return fail('current_source_required');
   admitCurrentStoryboardStory(source.request, source.result, current.options);
-  const admitted = prepareCurrentPersonalStoryboard(current.request, current.writerResult, current.options, source.actorOwnedAppearance);
+  const admitted = prepareCurrentPersonalStoryboard(current.request, current.writerResult, current.options, source.actorOwnedAppearance, source.momentContract);
   if (admitted.sourceDigest !== book.sourceDigest) fail('stale_book');
   return personalStoryboardFrame(book, rawReview, pageNumber, current);
 }
 
+/** Opt-in moments contract adds its addendum and schema; otherwise the exact existing instruction/schema. */
+export const storyboardInstructions = (source: { actorOwnedAppearance?: true; momentContract?: true }) =>
+  (source.actorOwnedAppearance ? OWNED_STORYBOARD_INSTRUCTION : PERSONAL_STORYBOARD_INSTRUCTION) + (source.momentContract ? '\n' + MOMENT_STORYBOARD_ADDENDUM : '');
+export const storyboardDraftSchema = (source: { actorOwnedAppearance?: true; momentContract?: true }) => source.momentContract
+  ? (source.actorOwnedAppearance ? ownedMomentWholeBookDraftSchema : momentWholeBookDraftSchema)
+  : (source.actorOwnedAppearance ? ownedWholeBookDraftSchema : wholeBookDraftSchema);
+
+function drawnSequenceState(book: PersonalStoryboard, pageNumber: number, ledger: ReturnType<typeof sequencePageState>,
+  depicted: NonNullable<StoryboardMoments['frames'][number]['depicted']>) {
+  const page = book.sequence.pages[pageNumber - 1];
+  const visible = new Set([...page.visibleCastIds, ...book.plan.continuity!.pages[pageNumber].visibleEntityIds]);
+  const overridden = new Set(depicted.relations.map(o => o.entityId));
+  return { ...ledger, relations: drawnStates(page.states, depicted).filter(s => visible.has(s.entityId)),
+    drawnInstant: { evidence: depicted.evidence, overrides: depicted.relations, attributes: depicted.attributes },
+    endOfPageLedger: page.states.filter(s => overridden.has(s.entityId)) };
+}
+
 /** Injectable author seam only. No default SDK/key, pricing, retry or network path. */
 export async function authorPersonalStoryboard(source: Source, author: (call: {
-  instructions: string; input: Source['planningInput']; schema: typeof wholeBookDraftSchema | typeof ownedWholeBookDraftSchema; signal: AbortSignal;
+  instructions: string; input: Source['planningInput'];
+  schema: ReturnType<typeof storyboardDraftSchema>; signal: AbortSignal;
 }) => Promise<unknown>, signal: AbortSignal) {
   assertSource(source);
   if (signal.aborted) fail('cancelled');
   let raw: unknown;
   try {
-    raw = await author({ instructions: source.actorOwnedAppearance ? OWNED_STORYBOARD_INSTRUCTION : PERSONAL_STORYBOARD_INSTRUCTION,
-      input: structuredClone(source.planningInput), schema: source.actorOwnedAppearance ? ownedWholeBookDraftSchema : wholeBookDraftSchema, signal });
+    raw = await author({ instructions: storyboardInstructions(source), input: structuredClone(source.planningInput), schema: storyboardDraftSchema(source), signal });
   } catch {
     return fail(signal.aborted ? 'cancelled' : 'author_failed');
   }

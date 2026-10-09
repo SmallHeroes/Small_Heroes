@@ -1,16 +1,16 @@
 import 'server-only';
 import { canonicalJson } from './request-acceptance';
 import type { PersonalWizardOptions } from './options';
-import { prepareCurrentPersonalStoryboard, authorPersonalStoryboard, PERSONAL_STORYBOARD_INSTRUCTION, personalStoryboardReviewInput,
-  personalStoryboardReviewSchema, storyboardReviewDisposition, currentPersonalStoryboardFrame, OWNED_STORYBOARD_INSTRUCTION } from './storyboard';
+import { prepareCurrentPersonalStoryboard, authorPersonalStoryboard, personalStoryboardReviewInput,
+  personalStoryboardReviewSchema, storyboardReviewDisposition, currentPersonalStoryboardFrame, storyboardInstructions, storyboardDraftSchema } from './storyboard';
+import { MOMENT_REVIEW_ADDENDUM } from './storyboard-moments';
 import { PERSONAL_BOOK_REVIEW_INSTRUCTION, type BookVisualCall } from './book-runner';
 import { personalBookOutputLimits } from './book-config';
-import type { wholeBookDraftSchema, ownedWholeBookDraftSchema } from '../local-book-planning';
 
 export const SIMPLE_STORYBOARD_DIAGNOSTIC_VERSION = 'personal-simple-storyboard-diagnostic/offline-v1' as const;
 export const SIMPLE_STORYBOARD_INPUT_LIMIT = 104_000;
 export type SimpleStoryboardDiagnosticCall = BookVisualCall & {
-  schema: typeof wholeBookDraftSchema | typeof ownedWholeBookDraftSchema | typeof personalStoryboardReviewSchema;
+  schema: ReturnType<typeof storyboardDraftSchema> | typeof personalStoryboardReviewSchema;
 };
 export class SimpleStoryboardDiagnosticError extends Error {
   constructor(readonly code: string) { super(`simple_storyboard_diagnostic_${code}`); }
@@ -26,20 +26,22 @@ export async function runSimpleStoryboardDiagnostic(args: {
   generate: (call: SimpleStoryboardDiagnosticCall, signal: AbortSignal) => Promise<unknown>;
   inputByteLimit?: number;
   actorOwnedAppearance?: true;
+  /** Opt-in drawn-instant/page-meaning contract; absent keeps the exact existing calls. */
+  momentContract?: true;
 }) {
   const limit = args.inputByteLimit ?? SIMPLE_STORYBOARD_INPUT_LIMIT;
   if (!Number.isInteger(limit) || limit < 1 || limit > SIMPLE_STORYBOARD_INPUT_LIMIT) fail('input_policy');
   if (args.signal.aborted) fail('cancelled');
   // This driver is for the explicit simple envelope only, never archive/v3 substitution.
   if (!args.writerResult || typeof args.writerResult !== 'object' || !('simpleSource' in args.writerResult)) fail('simple_source_required');
-  const source = prepareCurrentPersonalStoryboard(args.request, args.writerResult, args.options, args.actorOwnedAppearance);
-  const instructions = args.actorOwnedAppearance ? OWNED_STORYBOARD_INSTRUCTION : PERSONAL_STORYBOARD_INSTRUCTION;
+  const source = prepareCurrentPersonalStoryboard(args.request, args.writerResult, args.options, args.actorOwnedAppearance, args.momentContract);
+  const instructions = storyboardInstructions(source);
   const caps = personalBookOutputLimits(source.story.pages.length);
   const calls: (BookVisualCall & { contentBytes: number; contentByteLimit: number; headroomBytes: number })[] = [];
   const assertCurrent = () => {
     if (args.signal.aborted) fail('cancelled');
     try {
-      if (prepareCurrentPersonalStoryboard(args.request, args.writerResult, args.options, args.actorOwnedAppearance).sourceDigest !== source.sourceDigest) fail('source_changed');
+      if (prepareCurrentPersonalStoryboard(args.request, args.writerResult, args.options, args.actorOwnedAppearance, args.momentContract).sourceDigest !== source.sourceDigest) fail('source_changed');
     } catch (error) {
       if (error instanceof SimpleStoryboardDiagnosticError) throw error;
       fail('source_changed');
@@ -67,9 +69,11 @@ export async function runSimpleStoryboardDiagnostic(args: {
     instructions: call.instructions, input: canonicalJson(call.input), schema: call.schema,
     maxOutputTokens: caps.storyboardOutputTokens,
     context: { narrativeSpreads: source.story.pages.length, sourceDigest: source.sourceDigest,
-      ...(args.actorOwnedAppearance ? { actorOwnedAppearance: true as const } : {}) } }), args.signal);
+      ...(args.actorOwnedAppearance ? { actorOwnedAppearance: true as const } : {}),
+      ...(args.momentContract ? { momentContract: true as const } : {}) } }), args.signal);
   assertCurrent();
-  const rawReview = await dispatch({ stage: 'review', instructions: PERSONAL_BOOK_REVIEW_INSTRUCTION,
+  // A changed instant/state is a new storyboard: it gets its own review under the contract, never the old approval.
+  const rawReview = await dispatch({ stage: 'review', instructions: PERSONAL_BOOK_REVIEW_INSTRUCTION + (args.momentContract ? '\n' + MOMENT_REVIEW_ADDENDUM : ''),
     input: canonicalJson(personalStoryboardReviewInput(storyboard)), schema: personalStoryboardReviewSchema,
     maxOutputTokens: caps.reviewOutputTokens,
     context: { narrativeSpreads: storyboard.narrativeSpreads, sourceDigest: storyboard.sourceDigest, storyboardDigest: storyboard.storyboardDigest,
