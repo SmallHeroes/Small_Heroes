@@ -1,5 +1,36 @@
 # SmallHeroes — Current Technical State
 
+## M16 source PASS; one actual proof held before locations/pages (2026-10-09)
+
+Sole Codex branch voice-followup/codex/simple-story-voice-20261007. Delivered
+Claude native0/success/PASS for exact eaf9825a..fcc7b6e9, supplied-source only.
+4807f864 first native1 is not PASS; its893844micro remain in cumulative cost.
+Completion adds157911micro, full session1966816; no fee dropped or doubled.
+Literal typecheck0. Heavy focused16/16; final narrow14/14,200skipped/214inventory.
+Two guard mutants fail their intended assertion. Full repo gate NOT green.
+
+Actual engine admission preview0 with no key/provider/claim, then ONE approved
+M16 paid proof atfcc7b6e9:100.271s; gpt-image-2 LOW41944micro + SolQA35402micro
+=77346. Both provider replies complete/known; endednative1/simple_reference_held.
+All8assigned IDs are present,5pass/2defect/1uncertain. Missing continuous drag
+line/distinct footprints and curved rather than rectangular swing-seat shadow
+are visible defects. Actor-derived shadows do not sufficiently retain identities;
+wing-root readability is uncertain. Carton-sheet count/palette observations
+need judgment, not automatic truth. Reference shrink is not a proven cure.
+The model added descriptive captions despite short-ID-label instructions;
+these visibly consume design area. Contribution to errors remains a hypothesis.
+
+No locations, body/cover images or reader. One fresh-generation allowance used,
+no silent retry or held-reference adoption. Known22170694/25m, unknown0:
+API3297954 + Maxlist18872740 (estimates, not invoices); remaining2829306.
+All306prior book files unchanged,329total; six protected worktrees unchanged.
+No story/canon/.70 change, manual pixel editing, push, merge or deployment.
+Next PROPOSED only: reuse the existing one-target repair pattern for these
+source-bound split/state-aware references, one edit/fresh full QC; reduce
+unnecessary captions, keep all source facts and actor authorities. User scope
+question pending; this is not permission to run another atlas from scratch.
+Outcome/evidence and next-step brief in task ART/M16-REFERENCE-ROLE-OUTCOME-20261009.txt.
+
 ## M16 first reviewer delivery invalid; opt-in wording clarified (2026-10-09)
 
 Frozen4807f864 receives a full raw source assessment PASS with3Low, but native

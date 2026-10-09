@@ -70,3 +70,32 @@ and limited attempt headroom. A same-session narrow completion/re-gate is next.
 Prompt-only recheck14/14; inventory214(200skipped). One new injected illustrator
 case verifies both legacy literal wording and opt-in complementary-ID exclusion.
 Full repository stability remains incomplete/RED historically; no green claim.
+
+## Final independent source verdict and actual proof
+
+Delivered source-onlyPASS eaf9825ad2a44f4d348618ff0f3d687c634c3bb3..
+fcc7b6e9f64ff0da59431a44b3aae60da3763476. Native0/success; cumulative same-session
+1966816micro includes the failed delivery. Completion increment157911;
+M16 technical period1051755 above consultation915061; consult94105 counted
+outside old M15seal exactly once. Source limitations/2Low remain in report.
+
+Actual CLI admission0, no execution/key/provider, then ONE real project-engine
+proof100.271s atfcc7b6e9. LOW image41944 + gpt-6.1-sol QA35402 =77346micro.
+Actualcontext149a8ac432046151a090739fe8b5dfdd9a40e24a26ecb2c664987fc8e95df972;
+PNG59d5ad2fb1eb389b90406ca81a3354fcec0824e0d0c1b1eeb68de3c1605f18bd.
+Fivepass/twodefect/oneuncertain; held_uncertain, native1/simple_reference_held.
+Both SDK replies completed, unknown0; not a timeout/budget/literary failure.
+No location/reference retry/scene/cover/reader. Eight assigned IDs present;
+fixed shapes/actor-derived identity still fail. A smaller atlas did not suffice;
+this does not prove density irrelevant or establish another causal explanation.
+The image contains substantial unrequested descriptive captions; apparent
+space loss is a candidate rendering issue, not a measured causal guarantee.
+
+Known22170694/25m, API3297954 + Maxlist18872740, remaining2829306. All306old
+book files byte-preserved;329total/six protectedtrees unchanged. Same source,
+storyboard, child/companion, QC/.70, no pixel/story manual change or push.
+Native host/raw/crops/wires/receipts/seal saved in original M16 sibling and
+task ART/overnight-book-reference-roles-host-20261009. Scope consumed, not reset.
+Next proposal: one bounded targeted repair using existing pattern, generalized
+to source-bound split/state data and proper typed actor authorities. It needs
+the human scope answer and independent QA before execution; no silent retry.

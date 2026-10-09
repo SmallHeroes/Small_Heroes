@@ -1,5 +1,17 @@
 # SmallHeroes — Roadmap
 
+## M16 code reviewed; actual reference still held (2026-10-09)
+
+- Exacteaf9825a..fcc7b6e9 has delivered Claude supplied-sourcePASS. First failed
+  delivery cost retained; source PASS is not pixel/product/stability acceptance.
+- Real ONE proof ended after2known calls/77346micro:8IDs present,5QC pass,
+  2defect/1uncertain. No locations,8body images,cover or completed reader.
+- Known22.170694of25/unknown0, remaining2.829306.306oldfiles/six trees preserved.
+- Next proposed scope is one bounded correction of this actual atlas, using
+  the existing repair pattern with source-bound role/state data. No new story,
+  weakened QA/.70, free budget, automatic retry or from-scratch atlas loop.
+  Await human scope answer, not a new budget approval. No implementation yet.
+
 ## M16 explicit scope approved, lossless two-atlas ownership (2026-10-09)
 
 - Guy approved general kind-based split and ONE same-book proof in SAME25m.
