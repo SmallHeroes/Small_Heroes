@@ -17,6 +17,7 @@ import type { runSimpleWizardBook } from '../lib/personal-wizard/simple-book-flo
 import type { PersonalWizardOptions } from '../lib/personal-wizard/options';
 import { exclusiveJson, exclusiveText, fencedText, realDirectory } from './personal-causal-trial-journal';
 import { CAUSAL_MODELS } from './personal-causal-trial-adapters';
+import { REFERENCE_STATE_JUDGE_ADDITION, simpleReferenceStateSchema } from '../lib/personal-wizard/simple-reference-designs';
 
 const fail = (code: string): never => { throw new SimpleIllustrationError(code); };
 const tokens = z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER);
@@ -62,7 +63,13 @@ export function createSimpleBookPixelJudge(args: {
         ...refs.map((_, i) => `canonical_${['child', 'companion', 'entities', 'locations'][i]}`), ...(predecessor ? ['prior_same_scene_comparison_not_authority'] : [])] });
     const roleScoped = context && typeof context === 'object' && 'version' in context && context.version === 'simple-reference-role-context/v1';
     if (roleScoped) referenceRoleContextSchema.parse(context);
-    const instructions = roleScoped ? REFERENCE_DESIGN_JUDGE_INSTRUCTION : PREVIEW_JUDGE_INSTRUCTION;
+    const stateAware = roleScoped && 'design' in context && context.design && typeof context.design === 'object' &&
+      'referenceState' in context.design;
+    if (stateAware) {
+      if (!('role' in context) || context.role !== 'entities') fail('simple_reference_state_scope');
+      simpleReferenceStateSchema.parse((context.design as { referenceState: unknown }).referenceState);
+    }
+    const instructions = roleScoped ? REFERENCE_DESIGN_JUDGE_INSTRUCTION + (stateAware ? '\n' + REFERENCE_STATE_JUDGE_ADDITION : '') : PREVIEW_JUDGE_INSTRUCTION;
     const payload = { model: reviewPolicy.model, store: false, service_tier: 'default' as const, reasoning: { effort: 'medium' as const },
       instructions,
       input: [{ role: 'user' as const, content: [{ type: 'input_text' as const, text },
@@ -95,6 +102,7 @@ export async function runSimpleBookIllustrator(args: {
   rebuildEntitiesFromDesign?: true;
   entityDesignAuthority?: { bytes: Buffer; imageSha: string; context: unknown; review: unknown };
   entityRepairReview?: unknown;
+  stateAwareReferences?: true;
 }) {
   const approval = readAuditionApproval(args.config); if (!approval) fail('simple_visual_approval_missing');
   const directory = path.join(args.directory, 'illustrations'); mkdirSync(directory); realDirectory(directory);
@@ -201,6 +209,7 @@ export async function runSimpleBookIllustrator(args: {
     ...(args.rebuildEntitiesFromDesign ? { rebuildEntitiesFromDesign: true as const } : {}),
     ...(entityDesignAuthority ? { entityDesignAuthority } : {}),
     ...(args.entityRepairReview ? { entityRepairReview: args.entityRepairReview } : {}),
+    ...(args.stateAwareReferences ? { stateAwareReferences: true } : {}),
     render, judge, identity, save, progress: args.progress });
   exclusiveText(path.join(args.directory, 'book.html'), illustratedBookHTML(manifest, (imageName, imageSha) => data({ imageName, imageSha })));
   return manifest;

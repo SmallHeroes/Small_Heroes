@@ -18,8 +18,9 @@ export class SimpleBookBudget {
   readonly root: string;
   constructor(root: string, readonly externalMicroUsd: number, readonly maximumMicroUsd = 12000000, readonly previousLogicalAttempts = 0) {
     // This is the meter, not an authorization endpoint. Only the separately
-    // bound private same-book grant caller can select14m/16m/20m; legacy defaults12m.
-    if (![12000000, 14000000, 16000000, 20000000, 22000000].includes(maximumMicroUsd) || !Number.isSafeInteger(externalMicroUsd) || externalMicroUsd < 0 || externalMicroUsd > maximumMicroUsd || !Number.isSafeInteger(previousLogicalAttempts) || previousLogicalAttempts < 0 || previousLogicalAttempts >= 80) fail('simple_budget_policy');
+    // bound private same-book grant caller selects extensions (including M15's25m);
+    // legacy defaults12m. This constructor never grants paid-run authority.
+    if (![12000000, 14000000, 16000000, 20000000, 22000000, 25000000].includes(maximumMicroUsd) || !Number.isSafeInteger(externalMicroUsd) || externalMicroUsd < 0 || externalMicroUsd > maximumMicroUsd || !Number.isSafeInteger(previousLogicalAttempts) || previousLogicalAttempts < 0 || previousLogicalAttempts >= 80) fail('simple_budget_policy');
     if (!existsSync(root)) mkdirSync(root); realDirectory(root); this.root = root;
   }
   snapshot() {

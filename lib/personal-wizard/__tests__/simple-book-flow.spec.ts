@@ -39,7 +39,8 @@ import { prepareSimpleBookVisualContinuation, visualEvidenceFiles } from '../sim
 import { simpleBookVisualContinuationCLI } from '../../../scripts/personal-simple-book-visual-continuation';
 import { prepareSimpleBookReferenceRecovery, referenceRecoveryConfigSchema } from '../simple-book-reference-recovery';
 import { prepareEntityAuthorityContinuation } from '../simple-book-entity-authority';
-import { prepareEntityRepairContinuation } from '../simple-book-entity-repair';
+import { prepareEntityRepairContinuation, prepareReferenceStateContinuation } from '../simple-book-entity-repair';
+import { simpleReferenceEntityDesign, REFERENCE_STATE_JUDGE_ADDITION } from '../simple-reference-designs';
 import { simpleBookReferenceRecoveryCLI } from '../../../scripts/personal-simple-book-reference-recovery';
 import { simpleStoryReadingPackets } from '../simple-story-source';
 import { canonicalJson } from '../request-acceptance';
@@ -1302,6 +1303,140 @@ describe('explicit same-book continuation, no provider in fixtures', () => {
     sdk.create.mockImplementation(x.normal); sdk.create.mockClear(); x.render.mockClear(); x.fetcher.mockClear(); x.editor.mockClear();
     return { ...x, repairFile, repairData: data, parent, parentSeal: seal, repairQA: qaFile, repairOriginals: originals };
   }
+  async function referenceStateFixture(twentyFive = false) {
+    const x = await entityRepairFixture();
+    sdk.create.mockImplementation(async p => { const raw = await x.normal(p), d = JSON.parse(p.input[0].content[0].text);
+      if (d.context.role === 'entities') { const q = JSON.parse(raw.output_text); q.checks[3].verdict = 'defect';
+        q.checks[3].correction = 'Synthetic fixed design still defective after consumed repair.'; raw.output_text = JSON.stringify(q); } return raw; });
+    expect(await simpleBookReferenceRecoveryCLI(['--config', x.repairFile, '--execute'])).toBe(1);
+    const parent = await prepareEntityRepairContinuation(x.repairFile), seal = JSON.parse(readFileSync(path.join(parent.directory, 'sealed.json'), 'utf8'));
+    const host = path.join(root, 'SYNTHETIC-ended-repair-host.json');
+    writeFileSync(host, JSON.stringify({ head: config.sourceHead, status: '', code: 1, signal: null, terminationConfirmed: true, referenceCap: 4,
+      sealSha256: sha(readFileSync(path.join(parent.directory, 'sealed.json'))) }));
+    const qa = path.join(root, 'SYNTHETIC-state-code-QA.json');
+    writeFileSync(qa, JSON.stringify({ ...JSON.parse(readFileSync(x.repairQA, 'utf8')), reportedCostUsd: .002,
+      costKind: 'cli_reported_list_estimate_not_invoice', sessionId: '012345ab-6789-4234-9123-abcdef012345',
+      knownBeforeMicroUsd: seal.snapshot.knownEstimateMicroUsd }));
+    const data: any = { version: 'controlled-simple-reference-state/v1', sourceHead: config.sourceHead, sourceBase: config.sourceHead,
+      parentConfig: x.ref(x.repairFile), parentTermination: x.ref(host),
+      parentArtifacts: visualEvidenceFiles(parent.directory).map(relative => ({ relative, sha256: sha(readFileSync(path.join(parent.directory, relative))) })),
+      technicalReviewReceipt: x.ref(qa), maximumMicroUsd: 22000000, generationCount: 1, stateAwareReferences: true,
+      ownerApprovalReference: 'SYNTHETIC approved one data-corrected same-book proof, never real spending authority.',
+      sameBookOnly: true, publicRelease: false, customerCharge: false, gateChanges: false };
+    const grant = path.join(root, 'SYNTHETIC-state25-grant.json');
+    if (twentyFive) {
+      writeFileSync(grant, JSON.stringify({ version: 'local-simple-reference-state-ceiling/v1', requestId: x.old.queued.requestId,
+        parentConfigSha256: data.parentConfig.sha256, previousMaximumMicroUsd: 22000000, maximumMicroUsd: 25000000,
+        knownBeforeContinuationMicroUsd: seal.snapshot.knownEstimateMicroUsd,
+        ownerApprovalReference: 'SYNTHETIC direct up to3more, same25 total; never real spending authority.',
+        sameBookOnly: true, publicRelease: false, customerCharge: false, gateChanges: false }));
+      data.maximumMicroUsd = 25000000; data.ceilingExtension = x.ref(grant);
+    }
+    const stateFile = path.join(root, 'SYNTHETIC-reference-state-config.json'); writeFileSync(stateFile, JSON.stringify(data));
+    const originals = [...x.repairOriginals.map(([p]) => p), x.repairFile, x.repairQA, host, qa, ...(twentyFive ? [grant] : []),
+      ...visualEvidenceFiles(parent.directory).map(n => path.join(parent.directory, n))].map(p => [p, readFileSync(p)] as const);
+    sdk.create.mockImplementation(x.normal); sdk.create.mockClear(); x.render.mockClear(); x.fetcher.mockClear(); x.editor.mockClear();
+    return { ...x, stateFile, stateData: data, stateQA: qa, stateParent: parent, stateSeal: seal, stateOriginals: originals };
+  }
+  it('reference state shares source-bound metadata with generator, full judge and admission, then produces9 private gated frames with all old fees once', async () => {
+    const x = await referenceStateFixture(true), ready = await prepareReferenceStateContinuation(x.stateFile);
+    expect(ready.externalMicroUsd).toBe(x.stateSeal.snapshot.knownEstimateMicroUsd + 2000);
+    expect(ready.inheritedLogicalAttempts).toBe(x.stateParent.inheritedLogicalAttempts + 2);
+    expect(ready.config.maximumMicroUsd).toBe(25000000);
+    expect(ready.entityRepairReview).toBeUndefined(); expect(ready.stateAwareReferences).toBe(true);
+    expect(await simpleBookReferenceRecoveryCLI(['--config', x.stateFile])).toBe(0); expect(x.render).not.toHaveBeenCalled();
+    expect(await simpleBookReferenceRecoveryCLI(['--config', x.stateFile, '--execute'])).toBe(0);
+    const first = x.render.mock.calls[0][0], wire = JSON.parse(readFileSync(path.join(ready.directory, 'paid-stages/reference_entities_qa.wire.json'), 'utf8'));
+    const data = JSON.parse(wire.input[0].content[0].text), expected = simpleReferenceEntityDesign(ready.result.storyboard!.storyboard, true, true,
+      ready.result.source.manuscript.pages.map((p: { text: string }) => p.text));
+    expect(data.context.design).toEqual(expected);
+    expect(first.finalPrompt).toContain(canonicalJson(expected)); expect(first.finalPrompt).not.toContain('preserve all invariants');
+    expect(first.finalPrompt).not.toContain('TARGETED CORRECTIONS');
+    expect(first.referenceRoles).toEqual(['child_design_authority', 'companion_design_authority', 'entity_design_authority']);
+    expect(wire.instructions).toBe(REFERENCE_DESIGN_JUDGE_INSTRUCTION + '\n' + REFERENCE_STATE_JUDGE_ADDITION);
+    expect(wire.input[0].content).toHaveLength(8);
+    const claim = JSON.parse(readFileSync(path.join(ready.directory, 'claim.json'), 'utf8'));
+    expect(claim.referenceContextSha256).toBe(data.contextSha); expect(claim.generationCount).toBe(1);
+    for (const call of x.render.mock.calls.slice(2)) {
+      expect(call[0].referenceMode).toBe('book_identity'); expect(call[0].exactReferenceBytes).toHaveLength(4);
+    }
+    expect(x.render).toHaveBeenCalledTimes(11); expect(x.fetcher).toHaveBeenCalledTimes(9); expect(x.editor).not.toHaveBeenCalled();
+    const manifest = JSON.parse(readFileSync(path.join(ready.directory, 'illustrated_book.json'), 'utf8'));
+    expect(manifest.pages).toHaveLength(9); expect(manifest.pages.every((p: any) => p.status === 'passed' && p.identity.threshold === .7 && p.identity.status === 'passed')).toBe(true);
+    const page = await GET(req('GET', undefined, `${url}?requestId=${ready.parent.job.queued.requestId}&page=8`));
+    expect(page.status).toBe(200); expect(sha(Buffer.from(await page.arrayBuffer()))).toBe(manifest.pages[8].candidate.imageSha);
+    deps.user = { id: 'other', email: 'owner@example.com' }; expect((await GET(req('GET', undefined, `${url}?requestId=${ready.parent.job.queued.requestId}&page=8`))).status).toBe(403);
+    for (const [p, b] of x.stateOriginals) expect(readFileSync(p).equals(b)).toBe(true);
+    await expect(prepareReferenceStateContinuation(x.stateFile).then(r => r.claim())).rejects.toThrow();
+  // Deep historical admission +9 real mock frame checks can exceed3min on Windows.
+  // Harness only; no production deadline, assertion or QC gate is changed.
+  }, 420000);
+  it('reference state rejects rehashed wrong-parent, old-session, failed QA, raw evidence and policy tampering before claim or key', async () => {
+    const x = await referenceStateFixture(true), baseline = readFileSync(x.stateFile), disk = vi.spyOn(journal, 'fencedText');
+    for (const kind of ['termination', 'unknown', 'passed', 'actor', 'crop', 'context', 'old_session', 'old_qa', 'cost', 'failed_qa', 'two_generations', 'disabled',
+      'missing_grant', 'wrong_request', 'wrong_parent', 'lost_grant_cost']) {
+      x.stateOriginals.forEach(([p, b]) => writeFileSync(p, b)); const d = JSON.parse(baseline.toString()); disk.mockClear();
+      const change = (p: string, fn: (v: any) => void) => { const v = JSON.parse(readFileSync(p, 'utf8')); fn(v); writeFileSync(p, JSON.stringify(v)); };
+      if (kind === 'termination') change(d.parentTermination.file, v => { v.terminationConfirmed = false; });
+      if (kind === 'unknown') change(path.join(x.stateParent.directory, 'paid-stages/reference_entities_repair.result.json'), v => { v.estimatedMicroUsd = null; });
+      if (kind === 'passed') {
+        change(path.join(x.stateParent.directory, 'paid-stages/reference_entities_repair_qa.receipt.json'), r => { const q = JSON.parse(r.raw.output_text); q.checks.forEach((c: any) => { c.verdict = 'pass'; }); r.raw.output_text = JSON.stringify(q); });
+        change(path.join(x.stateParent.directory, 'reference_entities_review.json'), r => { r.review.checks.forEach((c: any) => { c.verdict = 'pass'; }); r.disposition = 'passed'; });
+      }
+      if (['actor', 'crop', 'context'].includes(kind)) {
+        const wf = path.join(x.stateParent.directory, 'paid-stages/reference_entities_repair_qa.wire.json');
+        change(wf, w => { if (kind === 'actor') w.input[0].content[6].image_url = w.input[0].content[7].image_url;
+          if (kind === 'crop') w.input[0].content[2].image_url = w.input[0].content[1].image_url;
+          if (kind === 'context') { const q = JSON.parse(w.input[0].content[0].text); q.context.design.entities[0].invariants[0].value += ' WRONG'; q.contextSha = sha(JSON.stringify(q.context)); w.input[0].content[0].text = JSON.stringify(q); } });
+        const digest = sha(canonicalJson(JSON.parse(readFileSync(wf, 'utf8'))));
+        for (const n of ['claim', 'result']) change(path.join(x.stateParent.directory, `paid-stages/reference_entities_repair_qa.${n}.json`), v => { v.wireDigest = digest; });
+      }
+      if (kind === 'old_session') change(x.stateQA, v => { v.sessionId = JSON.parse(readFileSync(x.repairQA, 'utf8')).sessionId; });
+      if (kind === 'old_qa') change(x.stateQA, v => { v.qaReviewHead = 'b'.repeat(40); });
+      if (kind === 'cost') change(x.stateQA, v => { v.knownBeforeMicroUsd--; });
+      if (kind === 'failed_qa') change(x.stateQA, v => { v.code = 1; v.qaVerdict = null; });
+      if (kind === 'two_generations') d.generationCount = 2;
+      if (kind === 'disabled') d.stateAwareReferences = false;
+      if (kind === 'missing_grant') delete d.ceilingExtension;
+      if (kind === 'wrong_request') change(d.ceilingExtension.file, v => { v.requestId = 'b'.repeat(64); });
+      if (kind === 'wrong_parent') change(d.ceilingExtension.file, v => { v.parentConfigSha256 = 'b'.repeat(64); });
+      if (kind === 'lost_grant_cost') change(d.ceilingExtension.file, v => { v.knownBeforeContinuationMicroUsd--; });
+      d.parentTermination = x.ref(d.parentTermination.file); d.technicalReviewReceipt = x.ref(x.stateQA);
+      if (d.ceilingExtension) d.ceilingExtension = x.ref(d.ceilingExtension.file);
+      d.parentArtifacts = visualEvidenceFiles(x.stateParent.directory).map(relative => ({ relative, sha256: sha(readFileSync(path.join(x.stateParent.directory, relative))) }));
+      writeFileSync(x.stateFile, JSON.stringify(d)); await expect(prepareReferenceStateContinuation(x.stateFile), kind).rejects.toThrow();
+      expect(x.render).not.toHaveBeenCalled(); expect(sdk.create).not.toHaveBeenCalled(); expect(x.fetcher).not.toHaveBeenCalled(); expect(x.editor).not.toHaveBeenCalled();
+      expect(disk.mock.calls.some(([p]) => p === config.existingKeyEnvFile)).toBe(false);
+      expect(existsSync(path.join(x.old.directory, 'reference-source-state-continuation-20261009'))).toBe(false);
+    }
+  }, 360000);
+  it('reference state stops a defective fresh atlas after2 paid slots, with no second generation or location/page spending', async () => {
+    const x = await referenceStateFixture(true); sdk.create.mockImplementation(async p => { const raw = await x.normal(p), d = JSON.parse(p.input[0].content[0].text);
+      if (d.context.role === 'entities') { const q = JSON.parse(raw.output_text); q.checks[3].verdict = 'uncertain'; raw.output_text = JSON.stringify(q); } return raw; });
+    expect(await simpleBookReferenceRecoveryCLI(['--config', x.stateFile, '--execute'])).toBe(1);
+    expect(x.render).toHaveBeenCalledTimes(1); expect(x.fetcher).not.toHaveBeenCalled(); expect(x.editor).not.toHaveBeenCalled();
+    const dir = path.join(x.old.directory, 'reference-source-state-continuation-20261009');
+    expect(JSON.parse(readFileSync(path.join(dir, 'sealed.json'), 'utf8'))).toMatchObject({ status: 'failed', code: 'simple_reference_held', snapshot: { logicalAttempts: 2 } });
+    expect(existsSync(path.join(dir, 'book.html'))).toBe(false); expect(existsSync(path.join(dir, 'paid-stages/reference_entities_repair.claim.json'))).toBe(false);
+  }, 180000);
+  it('reference state refuses a missing historical paid journal without recreating it or reading a key', async () => {
+    const x = await referenceStateFixture(true), paid = path.join(x.stateParent.directory, 'paid-stages'),
+      moved = path.join(root, 'SYNTHETIC-state-paid-away'), unexpected = path.join(root, 'SYNTHETIC-unexpected-recreated-paid');
+    for (const p of [paid, moved, unexpected]) if (!path.resolve(p).startsWith(path.resolve(root) + path.sep)) throw Error('fixture_boundary');
+    renameSync(paid, moved);
+    const d = JSON.parse(readFileSync(x.stateFile, 'utf8'));
+    d.parentArtifacts = visualEvidenceFiles(x.stateParent.directory).map(relative => ({ relative, sha256: sha(readFileSync(path.join(x.stateParent.directory, relative))) }));
+    writeFileSync(x.stateFile, JSON.stringify(d)); const disk = vi.spyOn(journal, 'fencedText'); disk.mockClear();
+    try {
+      await expect(prepareReferenceStateContinuation(x.stateFile)).rejects.toThrow();
+      expect(existsSync(paid)).toBe(false); expect(sdk.create).not.toHaveBeenCalled(); expect(x.render).not.toHaveBeenCalled();
+      expect(disk.mock.calls.some(([p]) => p === config.existingKeyEnvFile)).toBe(false);
+      expect(existsSync(path.join(x.old.directory, 'reference-source-state-continuation-20261009'))).toBe(false);
+    } finally {
+      if (existsSync(paid)) renameSync(paid, unexpected); // Preserve even a mutant's empty directory until fixture cleanup.
+      renameSync(moved, paid);
+    }
+  }, 180000);
   it('entity repair uses ONE rejected target with three typed authorities, a fresh full review and9 gated private frames while keeping cumulative fees once', async () => {
     const x = await entityRepairFixture(), ready = await prepareEntityRepairContinuation(x.repairFile);
     expect(ready.externalMicroUsd).toBe(x.parentSeal.snapshot.knownEstimateMicroUsd + 2000);
@@ -1323,7 +1458,7 @@ describe('explicit same-book continuation, no provider in fixtures', () => {
     deps.user = { id: 'other', email: 'owner@example.com' }; expect((await GET(req('GET', undefined, `${url}?requestId=${ready.parent.job.queued.requestId}&page=8`))).status).toBe(403);
     for (const [p, b] of x.repairOriginals) expect(readFileSync(p).equals(b)).toBe(true);
     await expect(prepareEntityRepairContinuation(x.repairFile).then(r => r.claim())).rejects.toThrow();
-  }, 180000);
+  }, 420000);
   it('entity repair rejects rehashed failed-parent, raw pixel/crop/context, cumulative fee and current-QA tampering before claim or key', async () => {
     const x = await entityRepairFixture(), baseline = readFileSync(x.repairFile), technicalBytes = readFileSync(x.repairQA);
     const disk = vi.spyOn(journal, 'fencedText');

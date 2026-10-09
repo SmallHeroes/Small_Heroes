@@ -1,5 +1,17 @@
 # SmallHeroes — Roadmap
 
+## M15 approved source-state boundary repair, then real book proof (2026-10-09)
+
+- Reuse existing validated state data in shared opt-in references; preserve
+  fixed canon and explicit known variants. No planner/story rewrite.
+- One source-bound fresh sibling after consumed M14; old283files/seals preserved.
+  Failed/uncertain reference still blocks locations/pages. All frame QC/.70 kept.
+- Human now permits1-3USDoverrun; bounded SAME25m via M15-only hashed grant,
+  no expense reset. Known20.041052 unchanged, no new provider work yet.
+- First10pass/2harness timeouts retained; final10/10plusjournal1/1, literaltsc0.
+  Both source-data guard mutants are caught. Assertions/real deadlines kept.
+  Independent source QA next. Full stability incomplete; no rollout or push.
+
 ## Existing state mechanism permits a narrower reference fix (2026-10-09)
 
 - Provider-free actual-path probe proves2declared mutable attributes lose

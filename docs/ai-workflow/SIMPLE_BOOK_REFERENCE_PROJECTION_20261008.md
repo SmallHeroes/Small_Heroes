@@ -1,5 +1,63 @@
 # Decision Gate: inspectable reference projection, same approved book
 
+## M15 Decision Gate: source-bound reference states (2026-10-09)
+
+1. Change: opt-in shared projection of the existing validated mutable attributes,
+   exact source-evidenced values and stable attachment ledger into reference
+   generation, inspection and admission. No new planner schema or provider.
+2. Why now: the free actual-path probe proves reference assembly loses mutable
+   declarations while page-state resolution retains them. This is metadata loss,
+   not proof that it explains every image defect; fixed identity still matters.
+3. Scope: general data-boundary fix and ONE fresh same-book diagnostic sibling,
+   after the consumed M14 correction. Not a second automatic repair of M14.
+4. Hardcoding: no named child/companion/entity or attribute-name special cases.
+   Every original invariant stays; only explicitly declared, source-supported
+   variants may be presented. One known form per design view is predefined.
+5. Files: shared projection, existing repair admission/CLI, renderer/pixel judge,
+   private view/image scope, focused tests and these state documents.
+6. Expected: reference design differentiates fixed features from allowed states;
+   actor-derived forms retain canonical identity. Stable attachments may be
+   verified in their accepted owner reference, not invented from isolated tiles.
+   Unreadable fixed proof remains uncertain; all eight QC categories stay.
+7. Validation: default context compatibility, synthetic differently named
+   mutable attribute, exact-source rejection, shared generator/judge context,
+   old M14 regression, real mock CLI/private9frames, malformed parent/cost/QA
+   rejection before claim/key, and failed fresh QC stops without retry. Literal
+   tsc and a clean focused commit precede independent Claude Code review.
+8. Cost: Guy's direct "מאשר" approves this scope inside SAME accumulated22m.
+   Known20041052micro, remaining1958948, unknown0; preserve every prior cost.
+   One concise engineering QA and one state-aware LOW reference proof, then
+   locations/cover/8pages only if all existing gates and admission slots fit.
+   Max usage is reported list value, not an API invoice. No reset/new allowance.
+9. Rollback: omit the new explicit config; historical defaults, calls and seals
+   remain unchanged. Preserve all283current book files and six protected trees.
+10. Review: Claude independently tries to falsify state/source/role binding,
+    parent termination/accounting and legacy defaults. Source PASS cannot prove
+    pixel or product quality. Guy eyeballs the completed diagnostic book if made.
+11. Do not: alter story/canon/actor references/.70, waive a defect, manually edit
+    pixels, add a planner/writer, reopen old seals, retry invalid/unknown calls,
+    use a side generator, push/deploy or award production acceptance.
+
+Stop-check completed: opt-in general fix, no public production behavior; paid
+use remains bounded by the existing same-book22m meter. Owner scope explicit.
+No unresolved product choice is inferred from the earlier consumed repair.
+
+Owner addition during implementation: "גם אם יש חריגה בתקציב של דולר שניים שלוש,
+זה בסדר. אל תעצור, תמשיך." Codex visibly bounds this to3USDmore: SAME25m total,
+not unlimited permission. New M15-only hashed grant binds the22m predecessor,
+same request and exact settled cost. Old allowances/configs remain unchanged.
+No quality, identity or unknown-cost exception follows from budget approval.
+
+M15 local evidence: source-state-first retains10pass/2actual180s harness timeouts,
+not a green gate. Explicit full9frame harness allowances increased, with every
+assertion and production40min deadline unchanged. source-state-twenty-five then
+passes10/10 (6pure,3new CLI tests and old M14positive); source-state-journal1/1
+proves a removed historical paid directory rejects without being recreated.
+The other2M14negative/stopcases passed the first run. Total inventory197to207,
+no removals. Source metadata omission fails3puretests; quote guard deletion
+fails exactly its intended1test. Literalnpx tsc0. No key/provider/book call.
+No new full stability verdict. Fresh source-only Claude QA must precede real use.
+
 ## Proposed change and observed cause
 
 No production edit yet. Two controlled fresh LOW1024 reference tests change only

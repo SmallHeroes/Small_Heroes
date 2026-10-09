@@ -11,6 +11,7 @@ import type { runSimpleWizardBook } from './simple-book-flow';
 import type { PersonalWizardOptions } from './options';
 import type { PageChildResemblanceVisionResult } from '../generation-pipeline/page-child-resemblance-vision';
 import type { BookDesignReferenceRole } from '../generate-image';
+import { simpleReferenceEntityDesign, REFERENCE_STATE_RENDER_INSTRUCTION } from './simple-reference-designs';
 
 export const illustratedAuditionApprovalSchema = z.object({ version: z.literal('local-book-night-approval/v1'),
   maximumMicroUsd: z.literal(12000000), bookCount: z.literal(1), narrativePages: z.literal(8), cover: z.literal(true),
@@ -61,6 +62,7 @@ export async function illustrateSimpleBook(args: {
   rebuildEntitiesFromDesign?: true;
   entityDesignAuthority?: EntityDesignAuthority;
   entityRepairReview?: unknown;
+  stateAwareReferences?: true;
   referenceCheckpoint?: ReferenceCheckpoint;
   render: (step: string, prompt: string, refs: AuditionImage[], mode: 'book_identity' | 'identity' | 'book_design', roles?: readonly BookDesignReferenceRole[]) => Promise<AuditionImage>;
   judge: (step: string, candidate: AuditionImage, context: unknown, contextSha: string, refs: AuditionImage[], predecessor: AuditionImage | null) => Promise<unknown>;
@@ -77,6 +79,7 @@ export async function illustrateSimpleBook(args: {
   if (args.rebuildEntitiesFromDesign && !args.explicitReferenceTransport) fail('simple_reference_rebuild_scope');
   if (args.entityDesignAuthority && !args.rebuildEntitiesFromDesign) fail('simple_entity_authority_scope');
   if (args.entityRepairReview && (!args.rebuildEntitiesFromDesign || !args.referenceCheckpoint || !args.roleScopedReferences)) fail('simple_entity_repair_scope');
+  if (args.stateAwareReferences && (!args.rebuildEntitiesFromDesign || !args.roleScopedReferences || args.entityRepairReview)) fail('simple_reference_state_scope');
   const current = { request: args.request, writerResult: result.source, options: args.options };
   const prepared = prepareSimpleStory(args.request, args.options, args.seed);
   if (prepared.book.pages !== 8 || prepared.accepted.containsFixtureData || prepared.accepted.canonical.appearance.photo !== 'none') fail('simple_illustration_admission');
@@ -88,6 +91,7 @@ export async function illustrateSimpleBook(args: {
     ...(args.rebuildEntitiesFromDesign ? { rebuildEntitiesFromDesign: true } : {}),
     ...(args.entityDesignAuthority ? { entityDesignAuthority: args.entityDesignAuthority } : {}),
     ...(args.entityRepairReview ? { entityRepairReview: args.entityRepairReview } : {}),
+    ...(args.stateAwareReferences ? { stateAwareReferences: true } : {}),
     ...(args.referenceCheckpoint ? { referenceCheckpoint: args.referenceCheckpoint } : {}) });
   const binding = previewSha(canonicalJson(bindingValue()));
   const check = () => {
@@ -99,8 +103,7 @@ export async function illustrateSimpleBook(args: {
   };
   check(); args.progress('references', []);
   const designs = {
-    entities: { props: book.plan.recurringProps, entities: book.plan.continuity!.entities,
-      ...(args.roleScopedReferences ? { childClothingAuthority: book.plan.actorAppearance?.child.clothing ?? book.plan.wardrobe } : {}) },
+    entities: simpleReferenceEntityDesign(book, args.roleScopedReferences, args.stateAwareReferences, result.source.manuscript.pages.map(p => p.text)),
     locations: { locations: book.plan.locations, geography: book.sequence.premise,
       ...(args.roleScopedReferences ? { landmarks: book.plan.continuity!.entities.filter(e => e.kind === 'landmark') } : {}) },
   };
@@ -109,7 +112,7 @@ export async function illustrateSimpleBook(args: {
       ...(book.plan.actorAppearance ? { role: 'child', clothing: book.plan.actorAppearance.child.clothing } : {}) },
       prompt: `${STYLE_01_SHARED}\nOne NEW fictional child character anchor, not a real photograph. ${prepared.brief.child.age} year old ${prepared.brief.child.address}. ${args.childDesign}. Exact wardrobe: ${book.plan.wardrobe}. One child only, full natural body, readable front three-quarter face, arms and hands visible, ordinary relaxed standing pose, warm cream near-empty background. No props, companion, words, panels or lettering.` },
     { name: 'entities' as const, design: designs.entities,
-      prompt: `${STYLE_01_SHARED}\nCanonical PROP AND SUPPORTING CAST design atlas for a single book. Isolated clear designs with short Latin ID labels, one tile per listed ID. Include EVERY ID exactly once, preserve all invariants. Do not invent extra characters, child or companion. Not a story scene. AUTHORITATIVE DESIGN DATA: ${canonicalJson(designs.entities)}` },
+      prompt: `${STYLE_01_SHARED}\nCanonical PROP AND SUPPORTING CAST design atlas for a single book. Isolated clear designs with short Latin ID labels, one tile per listed ID. Include EVERY ID exactly once, ${args.stateAwareReferences ? 'preserve every fixed invariant; select only source-supported forms for the explicitly declared mutable attributes' : 'preserve all invariants'}. Do not invent extra characters, child or companion. Not a story scene. AUTHORITATIVE DESIGN DATA: ${canonicalJson(designs.entities)}` },
     { name: 'locations' as const, design: designs.locations,
       prompt: `${STYLE_01_SHARED}\nCanonical LOCATION design atlas for a single book. One roomy establishing view per location with short Latin ID label. Clearly preserve materials, landmark shapes, relative geography and stable topology in each view. No child or companion. AUTHORITATIVE DESIGN DATA: ${canonicalJson(designs.locations)}` },
   ];
@@ -119,8 +122,9 @@ export async function illustrateSimpleBook(args: {
     if (context.role !== 'entities' || !Array.isArray(subset?.entities) || !subset.entities.length ||
         new Set(subset.entities.map(e => e.id)).size !== subset.entities.length) fail('simple_entity_authority_source');
     const ids = new Set(subset.entities.map(e => e.id));
-    const expected = { ...designs.entities, entities: designs.entities.entities.filter(e => ids.has(e.id)),
-      props: designs.entities.props.filter(e => ids.has(e.id)) };
+    // Historical supported subset is bound to unchanged source data, not a new state-policy approval.
+    const fullBase = simpleReferenceEntityDesign(book, args.roleScopedReferences);
+    const expected = { ...fullBase, entities: fullBase.entities.filter(e => ids.has(e.id)), props: fullBase.props.filter(e => ids.has(e.id)) };
     if (canonicalJson(subset) !== canonicalJson(expected) || qualityDisposition(supplied.review,
       supplied.candidate.imageSha, previewSha(JSON.stringify(context))).disposition !== 'passed') fail('simple_entity_authority_source');
     args.save('entity_design_authority_adoption', { ...supplied, ids: [...ids], authority: 'source_bound_subset_only_not_whole_atlas_approval' });
@@ -152,7 +156,7 @@ export async function illustrateSimpleBook(args: {
     const authorities = args.roleScopedReferences && spec.name !== 'child'
       ? [refs[0], args.companion, ...(spec.name === 'locations' ? [refs[1]] :
         spec.name === 'entities' && args.entityDesignAuthority ? [args.entityDesignAuthority.candidate] : [])] : [];
-    const prompt = spec.prompt + (args.roleScopedReferences && spec.name !== 'child'
+    const prompt = spec.prompt + (args.stateAwareReferences && spec.name === 'entities' ? '\n' + REFERENCE_STATE_RENDER_INSTRUCTION : '') + (args.roleScopedReferences && spec.name !== 'child'
       ? '\nReference images are design authorities, not actors to add to this sheet. Image 1 is the accepted child and owned clothing; Image 2 is the companion design. For locations Image 3 is the accepted object atlas. Do not draw these primary actors. Each isolated tile has its own magnification; global placement is established on locations and scenes, not object-tile positions. Keep every fixed design/count/material; no story-state progression on design sheets.' : '') +
       (spec.name === 'entities' && args.entityDesignAuthority
         ? '\nImage 3 is an independently reviewed source-bound SUBSET of entity designs. Match its listed IDs exactly; unlisted IDs remain required by the complete authoritative data. This input does NOT approve the new full atlas. Choose a view that exposes specified counted parts and structural attachments. Avoid redundant views with contradictory structure. Captions are not evidence of pixel compliance.' : '');

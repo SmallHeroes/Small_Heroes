@@ -182,7 +182,7 @@ export async function prepareEntityAuthorityContinuation(configFile: string, act
   }
   const directory = path.join(prior.parent.job.directory, 'reference-entity-authority-continuation-20261008');
   const inheritedLogicalAttempts = prior.inheritedLogicalAttempts + ended.snapshot.logicalAttempts + controls.reduce((s, c) => s + c.snapshot.logicalAttempts, 0);
-  return { ...prior, config: { ...config, technicalReviewReceipt: config.technicalReviewReceipt }, directory, verify,
+  return { ...prior, config: { ...config, technicalReviewReceipt: config.technicalReviewReceipt }, directory, verify, engineeringReceipts: allEngineering,
     current: { ...prior.current, sourceHead: config.sourceHead }, inherited: ended.snapshot, extra: newEngineering,
     externalMicroUsd, inheritedLogicalAttempts, entityDesignAuthority: { bytes: authority.pixels, imageSha: authority.candidate.imageSha,
       context: authority.data.context, review: authority.review.review },

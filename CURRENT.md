@@ -1,5 +1,32 @@
 # SmallHeroes — Current Technical State
 
+## M15 source-state boundary locally verified; independent QA next (2026-10-09)
+
+Sole Codex writer, voice-followup/codex/simple-story-voice-20261007, base837605ed.
+Guy approved the focused source-data repair; then explicitly permits1-3USDmore.
+Visibly bounded toSAME25m accumulated, not unlimited/reset. The M15-only hashed
+grant binds22m predecessor, same request/config and exact settled cost.
+Known20041052micro/unknown0 unchanged;283existing book files and six trees stay.
+
+Shared opt-in projection retains all invariants and exposes declared mutable
+attributes, exact final-text-supported values and stable all-page attachments.
+One known form per design view; fixed identity/color/material/count unchanged.
+Renderer, full pixel judge and admission share the context. Defaults/old seals,
+page resolver/full-frame refs/eightcategories/.70 unchanged. No story editing,
+new writer/planner, production path, key/provider or image call in this work yet.
+
+Literaltsc0. First focused run10pass/2timeouts (180s full9frame positive fixtures),
+not a PASS. Every assertion kept; harness-only allowances raised; live40min
+deadline unchanged. Final recheck10/10; additional journal no-recreation1/1.
+Source metadata omission breaks3/6puretests; source-quote guard removal breaks
+exactly its1test. Two earlier M14negative/stopcases passed the first run. Inventory
+grows197to207, no removal. All provider-free; full repo gate incomplete, not green.
+Evidence: reference-transport-evidence-20261008/source-state-twenty-five and
+source-state-journal; initial RED retained atsource-state-first. Fresh concise
+Claude independent source review pending, inside same25m reported-list allowance.
+Next: final local checks/clean commit, independent QA, pure real admission,
+then ONE state-aware full-reference proof; downstream images only if fullQCpass.
+
 ## Provider-free reference-state boundary diagnosis (2026-10-09)
 
 Actual source restoration and illustrateSimpleBook assembly prove metadata loss:
