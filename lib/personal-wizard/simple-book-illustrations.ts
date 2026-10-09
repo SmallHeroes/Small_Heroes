@@ -22,6 +22,7 @@ export type AuditionImage = { imageSha: string; imageName: string };
 export type ReferenceRecovery = { name: 'child' | 'entities' | 'locations'; candidate: AuditionImage;
   context: unknown; review: unknown };
 export type ReferenceCheckpoint = { child: ReferenceRecovery; entities: AuditionImage };
+export type EntityDesignAuthority = { candidate: AuditionImage; context: unknown; review: unknown };
 export const referenceRoleContextSchema = z.object({ version: z.literal('simple-reference-role-context/v1'),
   scope: z.literal('noncommercial_reference_design_only'), role: z.enum(['child', 'entities', 'locations']), design: z.unknown() }).strict();
 export const referenceRoleContext = (role: 'child' | 'entities' | 'locations', design: unknown) =>
@@ -58,6 +59,7 @@ export async function illustrateSimpleBook(args: {
   roleScopedReferences?: true;
   explicitReferenceTransport?: true;
   rebuildEntitiesFromDesign?: true;
+  entityDesignAuthority?: EntityDesignAuthority;
   referenceCheckpoint?: ReferenceCheckpoint;
   render: (step: string, prompt: string, refs: AuditionImage[], mode: 'book_identity' | 'identity' | 'book_design', roles?: readonly BookDesignReferenceRole[]) => Promise<AuditionImage>;
   judge: (step: string, candidate: AuditionImage, context: unknown, contextSha: string, refs: AuditionImage[], predecessor: AuditionImage | null) => Promise<unknown>;
@@ -72,6 +74,7 @@ export async function illustrateSimpleBook(args: {
   if (args.referenceCheckpoint && (!args.roleScopedReferences || args.referenceRecovery)) fail('simple_reference_checkpoint_scope');
   if (args.explicitReferenceTransport && (!args.roleScopedReferences || !args.referenceCheckpoint)) fail('simple_reference_transport_scope');
   if (args.rebuildEntitiesFromDesign && !args.explicitReferenceTransport) fail('simple_reference_rebuild_scope');
+  if (args.entityDesignAuthority && !args.rebuildEntitiesFromDesign) fail('simple_entity_authority_scope');
   const current = { request: args.request, writerResult: result.source, options: args.options };
   const prepared = prepareSimpleStory(args.request, args.options, args.seed);
   if (prepared.book.pages !== 8 || prepared.accepted.containsFixtureData || prepared.accepted.canonical.appearance.photo !== 'none') fail('simple_illustration_admission');
@@ -81,6 +84,7 @@ export async function illustrateSimpleBook(args: {
     ...(args.roleScopedReferences ? { roleScopedReferences: true } : {}),
     ...(args.explicitReferenceTransport ? { explicitReferenceTransport: true } : {}),
     ...(args.rebuildEntitiesFromDesign ? { rebuildEntitiesFromDesign: true } : {}),
+    ...(args.entityDesignAuthority ? { entityDesignAuthority: args.entityDesignAuthority } : {}),
     ...(args.referenceCheckpoint ? { referenceCheckpoint: args.referenceCheckpoint } : {}) });
   const binding = previewSha(canonicalJson(bindingValue()));
   const check = () => {
@@ -106,6 +110,18 @@ export async function illustrateSimpleBook(args: {
     { name: 'locations' as const, design: designs.locations,
       prompt: `${STYLE_01_SHARED}\nCanonical LOCATION design atlas for a single book. One roomy establishing view per location with short Latin ID label. Clearly preserve materials, landmark shapes, relative geography and stable topology in each view. No child or companion. AUTHORITATIVE DESIGN DATA: ${canonicalJson(designs.locations)}` },
   ];
+  if (args.entityDesignAuthority) {
+    const supplied = args.entityDesignAuthority, context = referenceRoleContextSchema.parse(supplied.context);
+    const subset = context.design as typeof designs.entities;
+    if (context.role !== 'entities' || !Array.isArray(subset?.entities) || !subset.entities.length ||
+        new Set(subset.entities.map(e => e.id)).size !== subset.entities.length) fail('simple_entity_authority_source');
+    const ids = new Set(subset.entities.map(e => e.id));
+    const expected = { ...designs.entities, entities: designs.entities.entities.filter(e => ids.has(e.id)),
+      props: designs.entities.props.filter(e => ids.has(e.id)) };
+    if (canonicalJson(subset) !== canonicalJson(expected) || qualityDisposition(supplied.review,
+      supplied.candidate.imageSha, previewSha(JSON.stringify(context))).disposition !== 'passed') fail('simple_entity_authority_source');
+    args.save('entity_design_authority_adoption', { ...supplied, ids: [...ids], authority: 'source_bound_subset_only_not_whole_atlas_approval' });
+  }
   if (args.referenceRecovery) {
     const seed = args.referenceRecovery, spec = refSpecs.find(s => s.name === seed.name) ?? fail('simple_reference_recovery_admission');
     const context = simpleReferenceDesignContext(spec.design);
@@ -126,9 +142,12 @@ export async function illustrateSimpleBook(args: {
       refs.push(child.candidate); continue;
     }
     const authorities = args.roleScopedReferences && spec.name !== 'child'
-      ? [refs[0], args.companion, ...(spec.name === 'locations' ? [refs[1]] : [])] : [];
+      ? [refs[0], args.companion, ...(spec.name === 'locations' ? [refs[1]] :
+        spec.name === 'entities' && args.entityDesignAuthority ? [args.entityDesignAuthority.candidate] : [])] : [];
     const prompt = spec.prompt + (args.roleScopedReferences && spec.name !== 'child'
-      ? '\nReference images are design authorities, not actors to add to this sheet. Image 1 is the accepted child and owned clothing; Image 2 is the companion design. For locations Image 3 is the accepted object atlas. Do not draw these primary actors. Each isolated tile has its own magnification; global placement is established on locations and scenes, not object-tile positions. Keep every fixed design/count/material; no story-state progression on design sheets.' : '');
+      ? '\nReference images are design authorities, not actors to add to this sheet. Image 1 is the accepted child and owned clothing; Image 2 is the companion design. For locations Image 3 is the accepted object atlas. Do not draw these primary actors. Each isolated tile has its own magnification; global placement is established on locations and scenes, not object-tile positions. Keep every fixed design/count/material; no story-state progression on design sheets.' : '') +
+      (spec.name === 'entities' && args.entityDesignAuthority
+        ? '\nImage 3 is an independently reviewed source-bound SUBSET of entity designs. Match its listed IDs exactly; unlisted IDs remain required by the complete authoritative data. This input does NOT approve the new full atlas. Choose a view that exposes specified counted parts and structural attachments. Avoid redundant views with contradictory structure. Captions are not evidence of pixel compliance.' : '');
     if (spec.name === 'entities' && args.referenceCheckpoint && !args.rebuildEntitiesFromDesign) {
       let candidate = args.referenceCheckpoint.entities;
       const recheck = qualityDisposition(await args.judge('reference_entities_recheck', candidate, context, contextSha, authorities, null), candidate.imageSha, contextSha);
@@ -165,7 +184,7 @@ export async function illustrateSimpleBook(args: {
     } else candidate = await args.render(`reference_${spec.name}`, prompt, authorities,
       args.explicitReferenceTransport && authorities.length ? 'book_design' : 'identity',
       args.explicitReferenceTransport && authorities.length ? ['child_design_authority', 'companion_design_authority',
-        ...(spec.name === 'locations' ? ['entity_design_authority' as const] : [])] : undefined);
+        ...(spec.name === 'locations' || spec.name === 'entities' && args.entityDesignAuthority ? ['entity_design_authority' as const] : [])] : undefined);
     check();
     const raw = await args.judge(`reference_${spec.name}_qa`, candidate, context, contextSha, authorities, null); check();
     const review = qualityDisposition(raw, candidate.imageSha, contextSha);

@@ -1,5 +1,17 @@
 # SmallHeroes — Roadmap
 
+## M13 reuse a verified source subset; no camera-only cure inferred (2026-10-09)
+
+- Two camera controls give1pass/1defect, not the required2/2. Trial closed;
+  no more blind rerolls and no visual/engine consistency PASS inferred.
+- Reuse only the supported actual subset as an optional fresh-atlas authority;
+  all other source IDs and whole-atlas QA remain mandatory. No13-call loop.
+- New fixed same-book sibling preserves every previous fee, actor/crop/source
+  binding, raw evidence and old claim. Private serving and9frame identity0.70
+  unchanged. Local tests then independent first code review before paid use.
+- Known18283380of20m, unknown0, no cover/body/reader. No new writer/editor/
+  storyboard, public path, production acceptance, budget reset or push.
+
 ## Same-input MEDIUM component control fails conformance too (2026-10-08)
 
 - Exact previous body/actors/context, only LOW->MEDIUM. Two completed known

@@ -38,6 +38,7 @@ import { simpleBookRepairCLI } from '../../../scripts/personal-simple-book-repai
 import { prepareSimpleBookVisualContinuation, visualEvidenceFiles } from '../simple-book-visual-continuation';
 import { simpleBookVisualContinuationCLI } from '../../../scripts/personal-simple-book-visual-continuation';
 import { prepareSimpleBookReferenceRecovery, referenceRecoveryConfigSchema } from '../simple-book-reference-recovery';
+import { prepareEntityAuthorityContinuation } from '../simple-book-entity-authority';
 import { simpleBookReferenceRecoveryCLI } from '../../../scripts/personal-simple-book-reference-recovery';
 import { simpleStoryReadingPackets } from '../simple-story-source';
 import { canonicalJson } from '../request-acceptance';
@@ -491,6 +492,12 @@ describe('injected illustrated audition admission, failure boundaries and state 
   it('requires an owned storyboard before a child reference is generated when the new policy is selected', async () => {
     const f = await illustrationFixture();
     await expect(illustrateSimpleBook({ ...f.args, actorOwnedAppearance: true })).rejects.toThrow('simple_visual_ownership_required');
+    expect(f.args.render).not.toHaveBeenCalled(); expect(f.args.judge).not.toHaveBeenCalled();
+  });
+  it('requires an explicit fresh rebuild before a subset can influence generation', async () => {
+    const f = await illustrationFixture();
+    await expect(illustrateSimpleBook({ ...f.args, entityDesignAuthority: { candidate: f.args.companion, context: {}, review: {} } }))
+      .rejects.toThrow('simple_entity_authority_scope');
     expect(f.args.render).not.toHaveBeenCalled(); expect(f.args.judge).not.toHaveBeenCalled();
   });
   it.each(['approval', 'production', 'threshold', 'cancel', 'unreviewed'])('rejects %s before any reference dispatch', async kind => {
@@ -1083,6 +1090,131 @@ describe('explicit same-book continuation, no provider in fixtures', () => {
     deps.user = { id: 'other', email: 'owner@example.com' }; expect((await GET(req('GET', undefined, `${url}?requestId=${id}&page=8`))).status).toBe(403);
     for (const [n, h] of x.endedHashes) expect(sha(readFileSync(path.join(x.endedDir, n)))).toBe(h);
     await expect(prepareSimpleBookReferenceRecovery(x.recoveryFile).then(r => r.claim())).rejects.toThrow();
+  }, 180000);
+  async function entityAuthorityFixture() {
+    const x = await referenceRebuildFixture();
+    sdk.create.mockImplementation(async p => { const raw = await x.normal(p), d = JSON.parse(p.input[0].content[0].text);
+      if (d.context.role === 'entities') { const out = JSON.parse(raw.output_text); out.checks[3].verdict = 'defect'; out.checks[3].correction = 'Synthetic full-atlas defect.'; raw.output_text = JSON.stringify(out); } return raw; });
+    expect(await simpleBookReferenceRecoveryCLI(['--config', x.recoveryFile, '--execute'])).toBe(1);
+    const priorFile = path.join(root, 'SYNTHETIC-ended-rebuild-config.json'); writeFileSync(priorFile, readFileSync(x.recoveryFile));
+    const ready = await prepareSimpleBookReferenceRecovery(priorFile), dir = ready.directory;
+    const seal = JSON.parse(readFileSync(path.join(dir, 'sealed.json'), 'utf8'));
+    const terminal = path.join(root, 'SYNTHETIC-ended-rebuild-host.json');
+    writeFileSync(terminal, JSON.stringify({ head: config.sourceHead, status: '', code: 1, signal: null, terminationConfirmed: true, referenceCap: 4,
+      sealSha256: sha(readFileSync(path.join(dir, 'sealed.json'))) }));
+    const book = ready.result.storyboard!.storyboard, full = { props: book.plan.recurringProps, entities: book.plan.continuity!.entities,
+      childClothingAuthority: book.plan.actorAppearance?.child.clothing ?? book.plan.wardrobe };
+    const selected = full.entities[0], design = { ...full, entities: [selected], props: full.props.filter((p: { id: string }) => p.id === selected.id) };
+    const context = { version: 'simple-reference-role-context/v1', scope: 'noncommercial_reference_design_only', role: 'entities', design };
+    const contextSha = sha(JSON.stringify(context));
+    const consultFile = path.join(root, 'SYNTHETIC-projection-consultation.json'), qaFile = path.join(root, 'SYNTHETIC-authority-code-QA.json');
+    const control = async (name: string, before: number, passed: boolean) => {
+      const directory = path.join(root, name); mkdirSync(directory); const images = path.join(directory, 'illustrations'); mkdirSync(images);
+      const pixels = await sharp({ create: { width: 32, height: 32, channels: 3, background: passed ? '#abcdef' : '#fedcba' } }).png().toBuffer();
+      const candidate = { imageName: 'medium_entities.png', imageSha: sha(pixels) }; writeFileSync(path.join(images, candidate.imageName), pixels);
+      const budget = new SimpleBookBudget(path.join(directory, 'paid-stages'), before, 20000000);
+      await budget.run('medium_entities', { body: { model: 'gpt-image-2', quality: 'low', size: '1024x1024', n: 1 } }, 100000, async () => ({ value: candidate, estimatedMicroUsd: 380,
+        receipt: { candidate, model: 'gpt-image-2', estimatedMicroUsd: 380, raw: { usage: { input_tokens: 10, output_tokens: 10 }, data: [{ b64_json: pixels.toString('base64') }] } } }));
+      const data = { candidateSha: candidate.imageSha, contextSha, context, imageRoles: ['candidate_complete', 'candidate_crop_top_left', 'candidate_crop_top_right',
+        'candidate_crop_bottom_left', 'candidate_crop_bottom_right', 'canonical_child', 'canonical_companion'] };
+      const cropBytes = await Promise.all([[0, 0], [9, 0], [0, 9], [9, 9]].map(([left, top]) => sharp(pixels).extract({ left, top, width: 23, height: 23 }).png().toBuffer()));
+      const child = readFileSync(path.join(dir, 'illustrations/reference_child_checkpoint.png')), companion = readFileSync(path.join(dir, 'illustrations/companion_reference.png'));
+      const quality = cleanPixelReview(candidate.imageSha, contextSha); if (!passed) { (quality.checks[3] as any).verdict = 'defect'; quality.checks[3].correction = 'Synthetic contradictory second view.'; }
+      const wire = { model: 'gpt-6.1-sol', store: false, instructions: REFERENCE_DESIGN_JUDGE_INSTRUCTION, max_output_tokens: 12000,
+        input: [{ content: [{ type: 'input_text', text: JSON.stringify(data) }, ...[pixels, ...cropBytes, child, companion].map(b => ({ type: 'input_image', image_url: `data:image/png;base64,${b.toString('base64')}` }))] }] };
+      await budget.run('medium_entities_qa', wire, 100000, async () => ({ value: quality, estimatedMicroUsd: 120,
+        receipt: { estimatedMicroUsd: 120, raw: { model: 'gpt-6.1-sol', status: 'completed', service_tier: 'default', output_text: JSON.stringify(quality), usage: { input_tokens: 10, output_tokens: 10 } } } }));
+      const review = { review: quality, disposition: passed ? 'passed' : 'repair' };
+      writeFileSync(path.join(directory, 'reference_review.json'), JSON.stringify(review));
+      writeFileSync(path.join(directory, 'receipt.json'), JSON.stringify({ code: 0, signal: null, terminationConfirmed: true, sourceUnchanged: true,
+        completeBook: false, productionQualified: false, maximumMicroUsd: 20000000, knownBeforeMicroUsd: before, snapshot: budget.snapshot(), incrementalKnownMicroUsd: 500, disposition: review.disposition }));
+      return { directory, artifacts: visualEvidenceFiles(directory).map(relative => ({ relative, sha256: sha(readFileSync(path.join(directory, relative))) })) };
+    };
+    const first = await control('SYNTHETIC-supported-subset', seal.snapshot.knownEstimateMicroUsd, true);
+    const consultBefore = seal.snapshot.knownEstimateMicroUsd + 500;
+    writeFileSync(consultFile, JSON.stringify({ head: config.sourceHead, models: [adapters.CAUSAL_MODELS.opus], code: 0, signal: null, terminationConfirmed: true, stopped: false, isError: false, resultSubtype: 'success',
+      reportedCostUsd: .002, sessionId: 'abcdef01-2345-4678-9234-0123456789ab', validConsultation: true, notTechnicalPASS: true, sourceUnchanged: true,
+      unknownAttemptCosts: 0, knownBeforeMicroUsd: consultBefore, knownAfterMicroUsd: consultBefore + 2000 }));
+    const second = await control('SYNTHETIC-unsupported-subset', consultBefore + 2000, false);
+    writeFileSync(qaFile, JSON.stringify({ head: config.sourceHead, status: '', code: 0, signal: null, terminationConfirmed: true, stopped: false, isError: false,
+      resultSubtype: 'success', sourceBundleUnchanged: true, reportedCostUsd: .003, maximumMicroUsd: 20000, models: [adapters.CAUSAL_MODELS.opus], sessionId: 'fedcba10-4321-4768-9234-0123456789ab',
+      qaVerdict: 'PASS', qaReviewHead: config.sourceHead, qaBase: config.sourceHead, qaMode: 'read_only_code', knownBeforeMicroUsd: consultBefore + 2500 }));
+    const data: any = { version: 'controlled-simple-entity-authority/v1', sourceHead: config.sourceHead, sourceBase: config.sourceHead,
+      parentConfig: x.ref(priorFile), parentTermination: x.ref(terminal), parentArtifacts: visualEvidenceFiles(dir).map(relative => ({ relative, sha256: sha(readFileSync(path.join(dir, relative))) })),
+      maximumMicroUsd: 20000000, ownerApprovalReference: 'SYNTHETIC same-book supported subset, no real spending permission.', sameBookOnly: true, publicRelease: false, customerCharge: false, gateChanges: false,
+      extraEngineeringReceipts: [x.ref(consultFile), x.ref(qaFile)], technicalReviewReceipt: x.ref(qaFile), settledControls: [first, second], authorityControlIndex: 0 };
+    const authorityFile = path.join(root, 'SYNTHETIC-entity-authority-config.json'); writeFileSync(authorityFile, JSON.stringify(data));
+    const originalFiles = [...visualEvidenceFiles(dir).map(n => path.join(dir, n)), ...[first, second].flatMap(c => visualEvidenceFiles(c.directory).map(n => path.join(c.directory, n))), consultFile, qaFile, terminal, priorFile];
+    const originals = originalFiles.map(p => [p, readFileSync(p)] as const);
+    sdk.create.mockImplementation(x.normal); sdk.create.mockClear(); x.render.mockClear(); x.fetcher.mockClear(); x.editor.mockClear();
+    return { ...x, data, authorityFile, dir, seal, originals, consultFile, qaFile, first, second };
+  }
+  it('entity authority retains every failed-control cost, seeds only a supported exact subset and produces9 gated private frames', async () => {
+    const x = await entityAuthorityFixture(), ready = await prepareEntityAuthorityContinuation(x.authorityFile);
+    expect(ready.externalMicroUsd).toBe(x.seal.snapshot.knownEstimateMicroUsd + 6000);
+    expect(ready.inheritedLogicalAttempts).toBe(33);
+    expect(await simpleBookReferenceRecoveryCLI(['--config', x.authorityFile])).toBe(0); expect(x.render).not.toHaveBeenCalled();
+    expect(await simpleBookReferenceRecoveryCLI(['--config', x.authorityFile, '--execute'])).toBe(0);
+    const first = x.render.mock.calls[0][0]; expect(first.referenceRoles).toEqual(['child_design_authority', 'companion_design_authority', 'entity_design_authority']);
+    expect(first.exactReferenceBytes!.map(b => sha(b))).toEqual([ready.checkpoint.child.imageSha, sha(readFileSync(path.join(x.dir, 'illustrations/companion_reference.png'))), ready.entityDesignAuthority.imageSha]);
+    expect(x.render).toHaveBeenCalledTimes(11); expect(x.fetcher).toHaveBeenCalledTimes(9); expect(x.editor).not.toHaveBeenCalled();
+    expect(first.finalPrompt).toContain('SUBSET'); expect(first.finalPrompt).not.toContain('TARGETED CORRECTIONS');
+    for (const call of x.render.mock.calls.slice(2)) expect(call[0].referenceMode).toBe('book_identity');
+    const manifest = JSON.parse(readFileSync(path.join(ready.directory, 'illustrated_book.json'), 'utf8'));
+    expect(manifest.pages).toHaveLength(9); expect(manifest.pages.every((p: any) => p.identity.threshold === .7 && p.identity.status === 'passed')).toBe(true);
+    const page = await GET(req('GET', undefined, `${url}?requestId=${ready.parent.job.queued.requestId}&page=8`));
+    expect(page.status).toBe(200); expect(page.headers.get('cache-control')).toBe('private, no-store'); expect(sha(Buffer.from(await page.arrayBuffer()))).toBe(manifest.pages[8].candidate.imageSha);
+    deps.user = { id: 'other', email: 'owner@example.com' }; expect((await GET(req('GET', undefined, `${url}?requestId=${ready.parent.job.queued.requestId}&page=8`))).status).toBe(403);
+    for (const [p, b] of x.originals) expect(readFileSync(p).equals(b)).toBe(true);
+    await expect(prepareEntityAuthorityContinuation(x.authorityFile).then(r => r.claim())).rejects.toThrow();
+  }, 180000);
+  it('entity authority rejects rehashed source, cost, pixel, termination and review failures before any key or fresh claim', async () => {
+    const x = await entityAuthorityFixture(), original = readFileSync(x.authorityFile);
+    await expect(prepareEntityAuthorityContinuation(x.authorityFile)).resolves.toHaveProperty('entityDesignAuthority');
+    const disk = vi.spyOn(journal, 'fencedText');
+    for (const kind of ['failed_authority', 'missing_control', 'duplicate_control', 'unknown', 'changed_source', 'wrong_actor', 'wrong_crop', 'failed_qa', 'old_qa', 'termination', 'missing_paid_root']) {
+      x.originals.forEach(([p, b]) => writeFileSync(p, b)); const d = JSON.parse(original.toString()); disk.mockClear();
+      const change = (p: string, fn: (v: any) => void) => { const v = JSON.parse(readFileSync(p, 'utf8')); fn(v); writeFileSync(p, JSON.stringify(v)); };
+      const dir = x.first.directory;
+      if (kind === 'failed_authority') d.authorityControlIndex = 1;
+      if (kind === 'missing_control') d.settledControls.pop();
+      if (kind === 'duplicate_control') d.settledControls.push(d.settledControls[0]);
+      if (kind === 'unknown') change(path.join(dir, 'paid-stages/medium_entities.result.json'), v => { v.estimatedMicroUsd = null; });
+      if (['changed_source', 'wrong_actor', 'wrong_crop'].includes(kind)) {
+        change(path.join(dir, 'paid-stages/medium_entities_qa.wire.json'), w => {
+          if (kind === 'wrong_actor') w.input[0].content[6].image_url = w.input[0].content[7].image_url;
+          if (kind === 'wrong_crop') w.input[0].content[2].image_url = w.input[0].content[1].image_url;
+          if (kind === 'changed_source') { const c = JSON.parse(w.input[0].content[0].text); c.context.design.entities[0].invariants[0].value += ' CHANGED'; c.contextSha = sha(JSON.stringify(c.context));
+            w.input[0].content[0].text = JSON.stringify(c);
+            change(path.join(dir, 'paid-stages/medium_entities_qa.receipt.json'), r => { const q = JSON.parse(r.raw.output_text); q.contextSha = c.contextSha; r.raw.output_text = JSON.stringify(q); });
+            change(path.join(dir, 'reference_review.json'), r => { r.review.contextSha = c.contextSha; }); }
+        });
+        const digest = sha(canonicalJson(JSON.parse(readFileSync(path.join(dir, 'paid-stages/medium_entities_qa.wire.json'), 'utf8'))));
+        for (const n of ['claim', 'result']) change(path.join(dir, `paid-stages/medium_entities_qa.${n}.json`), v => { v.wireDigest = digest; });
+      }
+      if (kind === 'failed_qa') change(x.qaFile, v => { v.code = 1; v.isError = true; });
+      if (kind === 'old_qa') d.technicalReviewReceipt = JSON.parse(readFileSync(d.parentConfig.file, 'utf8')).technicalReviewReceipt;
+      if (kind === 'termination') change(d.parentTermination.file, v => { v.terminationConfirmed = false; });
+      if (kind === 'missing_paid_root') renameSync(path.join(dir, 'paid-stages'), path.join(root, 'SYNTHETIC-authority-paid-away'));
+      d.parentTermination = x.ref(d.parentTermination.file); d.technicalReviewReceipt = x.ref(d.technicalReviewReceipt.file); d.extraEngineeringReceipts[1] = d.technicalReviewReceipt;
+      d.settledControls = d.settledControls.map((c: any) => ({ ...c, artifacts: visualEvidenceFiles(c.directory).map(relative => ({ relative, sha256: sha(readFileSync(path.join(c.directory, relative))) })) }));
+      writeFileSync(x.authorityFile, JSON.stringify(d)); await expect(prepareEntityAuthorityContinuation(x.authorityFile), kind).rejects.toThrow(
+        kind === 'failed_authority' ? 'entity_authority_not_passed' : kind === 'changed_source' ? 'entity_authority_wrong_source' :
+        kind === 'wrong_actor' ? 'entity_authority_actor_binding' : kind === 'wrong_crop' ? 'entity_authority_crop_binding' : undefined);
+      expect(x.render).not.toHaveBeenCalled(); expect(sdk.create).not.toHaveBeenCalled(); expect(x.editor).not.toHaveBeenCalled();
+      expect(disk.mock.calls.some(([p]) => p === config.existingKeyEnvFile)).toBe(false);
+      expect(existsSync(path.join(x.old.directory, 'reference-entity-authority-continuation-20261008'))).toBe(false);
+      if (kind === 'missing_paid_root') { expect(existsSync(path.join(dir, 'paid-stages'))).toBe(false); renameSync(path.join(root, 'SYNTHETIC-authority-paid-away'), path.join(dir, 'paid-stages')); }
+    }
+  }, 180000);
+  it('entity authority stops at a full-atlas defect despite a passed subset, with no retry or later scene spending', async () => {
+    const x = await entityAuthorityFixture(); sdk.create.mockImplementation(async p => { const raw = await x.normal(p), d = JSON.parse(p.input[0].content[0].text);
+      if (d.context.role === 'entities') { const out = JSON.parse(raw.output_text); out.checks[3].verdict = 'uncertain'; out.checks[3].correction = 'Synthetic unreadable full atlas.'; raw.output_text = JSON.stringify(out); } return raw; });
+    expect(await simpleBookReferenceRecoveryCLI(['--config', x.authorityFile, '--execute'])).toBe(1);
+    expect(x.render).toHaveBeenCalledTimes(1); expect(x.fetcher).not.toHaveBeenCalled(); expect(x.editor).not.toHaveBeenCalled();
+    const dir = path.join(x.old.directory, 'reference-entity-authority-continuation-20261008');
+    expect(JSON.parse(readFileSync(path.join(dir, 'sealed.json'), 'utf8'))).toMatchObject({ status: 'failed', code: 'simple_reference_held', snapshot: { logicalAttempts: 2 } });
+    expect(existsSync(path.join(dir, 'book.html'))).toBe(false); expect(existsSync(path.join(dir, 'paid-stages/reference_child.claim.json'))).toBe(false);
   }, 180000);
   it('reference design rebuild rejects rebound evidence, omitted costs, old or failed QA before key and fresh claim', async () => {
     const x = await referenceRebuildFixture(), baseline = readFileSync(x.recoveryFile), terminal = readFileSync(x.endedTerminal);

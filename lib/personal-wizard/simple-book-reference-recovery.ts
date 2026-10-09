@@ -69,14 +69,14 @@ const fail = (code: string): never => { throw Object.assign(new Error(code), { c
 const read = (name: string) => JSON.parse(fencedText(name, 32000000));
 
 /** Read-only admission of ONE known held reference. No key, network, writer or slot. */
-export async function prepareSimpleBookReferenceRecovery(configFile: string) {
+export async function prepareSimpleBookReferenceRecovery(configFile: string, activeSourceHead?: string) {
   if (!path.isAbsolute(configFile)) fail('reference_recovery_config');
   const bytes = fencedText(configFile, 64000), config = referenceRecoveryConfigSchema.parse(JSON.parse(bytes));
   const checked = (f: z.infer<typeof file>) => {
     if (!path.isAbsolute(f.file) || previewSha(fencedText(f.file, 32000000)) !== f.sha256) fail('reference_recovery_evidence_changed');
   };
   checked(config.visualConfig); checked(config.terminationReceipt); checked(config.technicalReviewReceipt);
-  const parent = await readSimpleBookVisualContinuationEvidence(config.visualConfig.file, config.sourceHead);
+  const parent = await readSimpleBookVisualContinuationEvidence(config.visualConfig.file, activeSourceHead ?? config.sourceHead);
   const inventory = new Map(config.artifacts.map(a => [a.relative, a.sha256]));
   if (inventory.size !== config.artifacts.length || visualEvidenceFiles(parent.directory).some(n =>
     !inventory.has(`controlled-visual-continuation-20261008/${n}`))) fail('reference_recovery_inventory');

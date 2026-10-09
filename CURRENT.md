@@ -1,5 +1,43 @@
 # SmallHeroes — Current Technical State
 
+## M13 source-bound supported entity subset: local validation (2026-10-09)
+
+Sole Codex writer on codex/simple-story-voice-20261007, voice-followup checkout,
+base c106ba9e. Same approved wizard request, original text/editor/storyboard,
+accumulated USD20. No new budget, canon change or diagnostic-stop exception.
+After MEDIUM failed, a single-entity LOW control and one verified repair both
+still had two seat slats. Completed read-only Claude image consultation costs
+123794micro and identifies projection as a hypothesis, not a technical PASS.
+Two fresh camera controls: first passes all eight checks; second has two back
+slats in its secondary view. The predefined2/2 recipe criterion is NOT met.
+The first actual PNG alone is a supported source-bound subset, not a whole atlas.
+
+M13 adds one optional source-checked entity authority for fresh atlas generation.
+Only an exact current subset with passing raw pixel evidence can be adopted.
+The new full atlas remains subject to all eight existing checks; failure still
+stops before locations/pages. Frame references remain the four full authorities
+and identity0.70. No named bench/child/companion hardcoding or13-call asset loop.
+Existing v3 reader is reused for old lineage; a bounded same-book sibling audits
+M12's two stages, five completed controls, consultation and distinct current QA.
+Sequential known-before accounting prevents omission of any failed/control fee.
+Candidate/source/actors/all four crops are bound before claim/key; old seals stay
+closed. Default paths unchanged; new images remain private to the queued owner.
+
+Known18283380micro of20m, remaining1716620; unknown0. API2965250 vs Max list15318130
+(not invoice); engineering14527573 vs bookdiagnostics3755807. No cover/narrative
+image/reader yet. All237 book files and six protected trees preserved. Local
+TypeScript is clean. First broad run was cancelled after fixture corrections;
+its partial log and exit4294967295 are retained, NOT a suite PASS. Current four
+M13-focused tests pass4/4 (188 skipped, not a192-test PASS), including actual CLI/
+SDK mocks,9private frames and11rehashed rejections. Full gate remains separate.
+The first targeted run failed3new cases due requestID/queuedDigest confusion;
+fixed admission, claim and view publication consistently and reran4/4 clean.
+One virtual passed-authority guard removal causes exactly the intended negative
+test to fail (resolved instead of rejected), no timeout/loader. Source untouched.
+Initial typing failures are retained in tool evidence. No new book provider call
+or independent technical PASS claimed. Complete-book goal remains active.
+Decision Gate: docs/ai-workflow/SIMPLE_BOOK_REFERENCE_PROJECTION_20261008.md.
+
 ## Exact LOW/MEDIUM component control alsoHOLD (2026-10-08)
 
 One deliberate comparative component test, not another book claim. Existing

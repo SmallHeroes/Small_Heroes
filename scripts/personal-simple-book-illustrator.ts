@@ -93,6 +93,7 @@ export async function runSimpleBookIllustrator(args: {
   referenceCheckpoint?: { child: { bytes: Buffer; imageSha: string; context: unknown; review: unknown }; entities: { bytes: Buffer; imageSha: string } };
   explicitReferenceTransport?: true;
   rebuildEntitiesFromDesign?: true;
+  entityDesignAuthority?: { bytes: Buffer; imageSha: string; context: unknown; review: unknown };
 }) {
   const approval = readAuditionApproval(args.config); if (!approval) fail('simple_visual_approval_missing');
   const directory = path.join(args.directory, 'illustrations'); mkdirSync(directory); realDirectory(directory);
@@ -121,6 +122,10 @@ export async function runSimpleBookIllustrator(args: {
       candidate: await writeImage('reference_child_checkpoint.png', checkpoint.child.bytes) },
     entities: await writeImage(args.rebuildEntitiesFromDesign ? 'reference_entities_discarded.png' : 'reference_entities_checkpoint.png', checkpoint.entities.bytes),
   } : undefined;
+  const subset = args.entityDesignAuthority;
+  if (subset && previewSha(subset.bytes) !== subset.imageSha) fail('simple_entity_authority_image');
+  const entityDesignAuthority = subset ? { context: subset.context, review: subset.review,
+    candidate: await writeImage('reference_entity_authority.png', subset.bytes) } : undefined;
   const data = (image: AuditionImage) => `data:image/png;base64,${readAuditionImage(directory, image).toString('base64')}`;
   const save = (name: string, value: unknown) => exclusiveJson(path.join(args.directory, `${name}.json`), value);
   const render: Parameters<typeof illustrateSimpleBook>[0]['render'] = async (step, prompt, refs, mode, roles) => {
@@ -193,6 +198,7 @@ export async function runSimpleBookIllustrator(args: {
     ...(referenceCheckpoint ? { roleScopedReferences: true as const, referenceCheckpoint } : {}),
     ...(args.explicitReferenceTransport ? { explicitReferenceTransport: true as const } : {}),
     ...(args.rebuildEntitiesFromDesign ? { rebuildEntitiesFromDesign: true as const } : {}),
+    ...(entityDesignAuthority ? { entityDesignAuthority } : {}),
     render, judge, identity, save, progress: args.progress });
   exclusiveText(path.join(args.directory, 'book.html'), illustratedBookHTML(manifest, (imageName, imageSha) => data({ imageName, imageSha })));
   return manifest;
