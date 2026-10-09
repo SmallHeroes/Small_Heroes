@@ -15,7 +15,7 @@ export async function simpleBookReferenceRecoveryCLI(argv: string[]) {
   const version = JSON.parse(fencedText(argv[1], 64000)).version;
   const ready = version === 'controlled-simple-reference-roles/v1' ? await prepareReferenceRoleContinuation(argv[1]) :
     version === 'controlled-simple-reference-state/v1' ? await prepareReferenceStateContinuation(argv[1]) :
-    version === 'controlled-simple-entity-repair/v1' ? await prepareEntityRepairContinuation(argv[1]) : version === 'controlled-simple-entity-authority/v1'
+    ['controlled-simple-entity-repair/v1', 'controlled-simple-reference-role-repair/v1'].includes(version) ? await prepareEntityRepairContinuation(argv[1]) : version === 'controlled-simple-entity-authority/v1'
     ? await prepareEntityAuthorityContinuation(argv[1]) : await prepareSimpleBookReferenceRecovery(argv[1]);
   const entityDesignAuthority = 'entityDesignAuthority' in ready ? ready.entityDesignAuthority : undefined;
   const entityRepairReview = 'entityRepairReview' in ready ? ready.entityRepairReview : undefined;
@@ -39,7 +39,7 @@ export async function simpleBookReferenceRecoveryCLI(argv: string[]) {
     return fail('reference_recovery_key');
   };
   const save = (name: string, value: unknown) => exclusiveJson(path.join(ready.directory, `${name}.json`), value);
-  let view: SimpleBookView = { ...ready.view, imageScope: splitReferenceRoles ? 'reference_role_split_continuation' : stateAwareReferences ? 'reference_state_continuation' : entityRepairReview ? 'reference_entity_repair_continuation' : entityDesignAuthority ? 'reference_entity_authority_continuation' : ready.rebuildEntitiesFromDesign ? 'reference_rebuild_continuation' : ready.explicitReferenceTransport ? 'reference_transport_continuation' : ready.checkpoint ? 'role_scoped_reference_continuation' : 'owned_reference_recovery', error: null, images: [] };
+  let view: SimpleBookView = { ...ready.view, imageScope: splitReferenceRoles && entityRepairReview ? 'reference_role_repair_continuation' : splitReferenceRoles ? 'reference_role_split_continuation' : stateAwareReferences ? 'reference_state_continuation' : entityRepairReview ? 'reference_entity_repair_continuation' : entityDesignAuthority ? 'reference_entity_authority_continuation' : ready.rebuildEntitiesFromDesign ? 'reference_rebuild_continuation' : ready.explicitReferenceTransport ? 'reference_transport_continuation' : ready.checkpoint ? 'role_scoped_reference_continuation' : 'owned_reference_recovery', error: null, images: [] };
   const update = (phase: SimpleBookView['phase'], images = view.images) => {
     const snapshot = budget.snapshot(); view = { ...view, phase, images, accounting: { ...view.accounting,
       knownEstimateMicroUsd: snapshot.knownEstimateMicroUsd, unknownAttemptCosts: snapshot.unknownAttemptCosts,

@@ -84,7 +84,7 @@ export async function illustrateSimpleBook(args: {
   if (args.rebuildEntitiesFromDesign && !args.explicitReferenceTransport) fail('simple_reference_rebuild_scope');
   if (args.entityDesignAuthority && !args.rebuildEntitiesFromDesign) fail('simple_entity_authority_scope');
   if (args.entityRepairReview && (!args.rebuildEntitiesFromDesign || !args.referenceCheckpoint || !args.roleScopedReferences)) fail('simple_entity_repair_scope');
-  if (args.stateAwareReferences && (!args.rebuildEntitiesFromDesign || !args.roleScopedReferences || args.entityRepairReview)) fail('simple_reference_state_scope');
+  if (args.stateAwareReferences && (!args.rebuildEntitiesFromDesign || !args.roleScopedReferences || args.entityRepairReview && !args.splitReferenceRoles)) fail('simple_reference_state_scope');
   if (args.splitReferenceRoles && !args.stateAwareReferences) fail('simple_reference_ownership_scope');
   const current = { request: args.request, writerResult: result.source, options: args.options };
   const prepared = prepareSimpleStory(args.request, args.options, args.seed);
@@ -174,7 +174,7 @@ export async function illustrateSimpleBook(args: {
       refs.push(child.candidate); continue;
     }
     const prompt = spec.prompt + (args.stateAwareReferences && (spec.name === 'entities' || args.splitReferenceRoles && spec.name === 'locations') ? '\n' + REFERENCE_STATE_RENDER_INSTRUCTION : '') +
-      (args.splitReferenceRoles && spec.name !== 'child' ? '\n' + REFERENCE_OWNERSHIP_INSTRUCTION : '') + (args.roleScopedReferences && spec.name !== 'child'
+      (args.splitReferenceRoles && spec.name !== 'child' ? '\n' + REFERENCE_OWNERSHIP_INSTRUCTION + '\nOnly short Latin ID labels; no descriptive paragraphs or captions. Use the available area for clearly readable designs.' : '') + (args.roleScopedReferences && spec.name !== 'child'
       ? '\nReference images are design authorities, not actors to add to this sheet. Image 1 is the accepted child and owned clothing; Image 2 is the companion design. For locations Image 3 is the accepted object atlas. Do not draw these primary actors. Each isolated tile has its own magnification; global placement is established on locations and scenes, not object-tile positions. Keep every fixed design/count/material; no story-state progression on design sheets.' : '') +
       (useSubset ? `\nImage ${spec.name === 'locations' ? 4 : 3} is an independently reviewed source-bound SUBSET of ${spec.name === 'locations' ? 'landmark' : 'entity'} designs. Match its listed IDs exactly; unlisted IDs remain required by the complete authoritative data. This input does NOT approve the new full atlas. Choose a view that exposes specified counted parts and structural attachments. Avoid redundant views with contradictory structure. Captions are not evidence of pixel compliance.` : '');
     if (spec.name === 'entities' && args.entityRepairReview) {
@@ -183,11 +183,13 @@ export async function illustrateSimpleBook(args: {
       const corrections = prior.review.checks.filter(c => c.verdict !== 'pass').map(c => `${c.category}: ${c.observation}\nCorrection to verify: ${c.correction}`).join('\n');
       args.save('reference_entities_repair_input', { candidate: rejected, context, review: prior.review, authority: 'rejected_edit_input_only_not_canonical' });
       const candidate = await args.render('reference_entities_repair', spec.prompt +
+        (args.splitReferenceRoles ? '\n' + REFERENCE_STATE_RENDER_INSTRUCTION + '\n' + REFERENCE_OWNERSHIP_INSTRUCTION +
+          '\nOnly short Latin ID labels; remove descriptive paragraphs/captions and use the available area for readable designs, without dropping any required ID or fixed fact.' : '') +
         '\nImage1 is the REJECTED edit target, not an approved reference. Image2 is the accepted child/clothing; Image3 is the companion design.' +
-        (args.entityDesignAuthority ? ' Image4 is the independently supported SUBSET, not whole-atlas approval.' : '') +
+        (useSubset ? ' Image4 is the independently supported SUBSET, not whole-atlas approval.' : '') +
         ' Correct evidenced design gaps only; preserve already-correct details and every authoritative invariant. Reader observations can be wrong: resolve them against design data and accepted authorities. Each ID stays one tile; within a tile, an unfolded/detail view may expose fixed structure hidden by a fold or attachment, without inventing a new story state. Do not add primary actors or rewrite designs.\nTARGETED CORRECTIONS:\n' + corrections,
         [rejected, ...authorities], 'book_design', ['rejected_edit_target', 'child_design_authority', 'companion_design_authority',
-          ...(args.entityDesignAuthority ? ['entity_design_authority' as const] : [])]);
+          ...(useSubset ? ['entity_design_authority' as const] : [])]);
       check(); if (candidate.imageSha === rejected.imageSha) fail('simple_reference_recovery_unchanged');
       const raw = await args.judge('reference_entities_repair_qa', candidate, context, contextSha, authorities.slice(0, 2), null); check();
       const review = qualityDisposition(raw, candidate.imageSha, contextSha); args.save('reference_entities_review', review);

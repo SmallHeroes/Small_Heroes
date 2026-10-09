@@ -13,7 +13,7 @@ export const simpleBookViewSchema = z.object({
   original: manuscript.nullable(), edited: manuscript.nullable(),
   baseline: z.literal('previous_edit').optional(),
   visualReviewModel: z.literal('gpt-6.1-sol').optional(),
-  imageScope: z.enum(['owned_visual_continuation', 'owned_reference_recovery', 'role_scoped_reference_continuation', 'reference_transport_continuation', 'reference_rebuild_continuation', 'reference_entity_authority_continuation', 'reference_entity_repair_continuation', 'reference_state_continuation', 'reference_role_split_continuation']).optional(),
+  imageScope: z.enum(['owned_visual_continuation', 'owned_reference_recovery', 'role_scoped_reference_continuation', 'reference_transport_continuation', 'reference_rebuild_continuation', 'reference_entity_authority_continuation', 'reference_entity_repair_continuation', 'reference_state_continuation', 'reference_role_split_continuation', 'reference_role_repair_continuation']).optional(),
   readings: z.array(z.object({ stage: z.enum(['final_review', 'comparison']), summary: z.string().max(2400),
     findings: z.array(z.object({ severity: z.enum(['blocking', 'meaningful', 'polish']), kind: z.string().max(40),
       criterion: z.string().max(2400), explanation: z.string().max(2400), original: z.array(quote).max(8), revised: z.array(quote).max(8),
@@ -26,7 +26,7 @@ export const simpleBookViewSchema = z.object({
       (v.accounting.allowanceMicroUsd === 16000000 && !['role_scoped_reference_continuation', 'reference_transport_continuation'].includes(v.imageScope ?? '')) ||
       (v.accounting.allowanceMicroUsd === 20000000 && !['reference_transport_continuation', 'reference_rebuild_continuation', 'reference_entity_authority_continuation'].includes(v.imageScope ?? '')) ||
       (v.accounting.allowanceMicroUsd === 22000000 && !['reference_entity_authority_continuation', 'reference_entity_repair_continuation', 'reference_state_continuation'].includes(v.imageScope ?? '')) ||
-      (v.accounting.allowanceMicroUsd === 25000000 && !['reference_state_continuation', 'reference_role_split_continuation'].includes(v.imageScope ?? '')) ||
+      (v.accounting.allowanceMicroUsd === 25000000 && !['reference_state_continuation', 'reference_role_split_continuation', 'reference_role_repair_continuation'].includes(v.imageScope ?? '')) ||
       (v.phase === 'references_required' && (!v.original || !v.edited || v.readings.length !== 2 ||
       new Set(v.readings.map(r => r.stage)).size !== 2)) ||
       (v.phase === 'queued' && (v.original || v.edited)) ||

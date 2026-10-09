@@ -1,5 +1,16 @@
 # SmallHeroes — Roadmap
 
+## M17 approved one correction; preserve all authority and cost (2026-10-09)
+
+- Reuse existing repair, strict M16 parent; exactly one edit and fresh full QC.
+  Preserve split ownership/source state/actor refs, defaults and .70/page checks.
+- Fresh independent small source QA, whole fee once inside SAME25; all old
+  cumulative costs/evidence remain. No new story, silent retry or push.
+- Provider-free finaltargeted19pass/219inventory/typecheck0; both legacy paths
+  passed before a test-only no-op correction. State-policy mutant caught.
+  Only after clean commit/independent QA/real dry admission: paid correction,
+  then locations and8body+cover if all gates pass. Still no actual book images.
+
 ## M16 code reviewed; actual reference still held (2026-10-09)
 
 - Exacteaf9825a..fcc7b6e9 has delivered Claude supplied-sourcePASS. First failed

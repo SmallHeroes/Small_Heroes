@@ -17,7 +17,7 @@ import type { runSimpleWizardBook } from '../lib/personal-wizard/simple-book-flo
 import type { PersonalWizardOptions } from '../lib/personal-wizard/options';
 import { exclusiveJson, exclusiveText, fencedText, realDirectory } from './personal-causal-trial-journal';
 import { CAUSAL_MODELS } from './personal-causal-trial-adapters';
-import { REFERENCE_STATE_JUDGE_ADDITION, simpleReferenceStateSchema, assertReferenceRoleOwnership, REFERENCE_OWNERSHIP_INSTRUCTION } from '../lib/personal-wizard/simple-reference-designs';
+import { REFERENCE_STATE_JUDGE_ADDITION, simpleReferenceStateSchema, assertReferenceRoleOwnership, REFERENCE_OWNERSHIP_JUDGE_ADDITION } from '../lib/personal-wizard/simple-reference-designs';
 
 const fail = (code: string): never => { throw new SimpleIllustrationError(code); };
 const tokens = z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER);
@@ -77,7 +77,7 @@ export function createSimpleBookPixelJudge(args: {
       simpleReferenceStateSchema.parse((context.design as { referenceState: unknown }).referenceState);
     }
     const instructions = roleScoped ? REFERENCE_DESIGN_JUDGE_INSTRUCTION + (stateAware ? '\n' + REFERENCE_STATE_JUDGE_ADDITION : '') +
-      (split ? '\n' + REFERENCE_OWNERSHIP_INSTRUCTION + '\nAn image labeled supported_landmark_subset_not_complete_locations proves only its source-bound subset, not full location approval. Inspect all current location requirements in the candidate.' : '') : PREVIEW_JUDGE_INSTRUCTION;
+      (split ? '\n' + REFERENCE_OWNERSHIP_JUDGE_ADDITION : '') : PREVIEW_JUDGE_INSTRUCTION;
     const payload = { model: reviewPolicy.model, store: false, service_tier: 'default' as const, reasoning: { effort: 'medium' as const },
       instructions,
       input: [{ role: 'user' as const, content: [{ type: 'input_text' as const, text },

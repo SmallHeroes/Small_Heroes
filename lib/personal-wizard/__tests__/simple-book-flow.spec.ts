@@ -23,7 +23,7 @@ import { simpleWizardVisualPayload, simpleWizardWorkerCLI } from '../../../scrip
 import * as adapters from '../../../scripts/personal-causal-trial-adapters';
 import { personalBookProviderPayload } from '../book-openai';
 import { citationTokens } from '../story-source-citations';
-import { illustrateSimpleBook, illustratedBookHTML, illustratedAuditionApprovalSchema, REFERENCE_DESIGN_JUDGE_INSTRUCTION, referenceRoleContextSchema } from '../simple-book-illustrations';
+import { illustrateSimpleBook, illustratedBookHTML, illustratedAuditionApprovalSchema, REFERENCE_DESIGN_JUDGE_INSTRUCTION, referenceRoleContextSchema, referenceRoleContext } from '../simple-book-illustrations';
 import { auditionUsageCost, readAuditionImage } from '../../../scripts/personal-simple-book-illustrator';
 import * as images from '../../generate-image';
 import { QUALITY_CATEGORIES, PREVIEW_JUDGE_INSTRUCTION } from '../../local-preview-quality';
@@ -514,6 +514,39 @@ describe('injected illustrated audition admission, failure boundaries and state 
       referenceCheckpoint: { child: { name: 'child', candidate: child, context: childCall[2], review: childReview }, entities } });
     expect(renderCalls()[0][0]).toBe('reference_entities');
     expect(renderCalls()[0][1]).toContain('Include EVERY ID assigned to this entities role (design.entities and design.props), not IDs owned by locations exactly once');
+  });
+  it.each(['pass', 'uncertain', 'unchanged', 'bad_binding'] as const)('split role repair retains source policy and typed authorities: %s', async mode => {
+    const f = await illustrationFixture(); await illustrateSimpleBook(f.args);
+    const child = await f.args.render.mock.results[0].value, entities = await f.args.render.mock.results[1].value,
+      childContext = f.args.judge.mock.calls[0][2], childReview = await f.args.judge.mock.results[0].value,
+      designs = simpleReferenceDesigns(f.args.result.storyboard!.storyboard, true, true, f.args.result.source.manuscript.pages.map(p => p.text), true),
+      context = referenceRoleContext('entities', designs.entities, ['canonical_child', 'canonical_companion']),
+      review = cleanPixelReview(entities.imageSha, sha(JSON.stringify(context)));
+    review.checks[3].verdict = 'defect'; review.checks[3].correction = 'Synthetic only: preserve the required silhouette.';
+    const args = { ...f.args, roleScopedReferences: true as const, explicitReferenceTransport: true as const, rebuildEntitiesFromDesign: true as const,
+      stateAwareReferences: true as const, splitReferenceRoles: true as const, entityRepairReview: review,
+      referenceCheckpoint: { child: { name: 'child' as const, candidate: child, context: childContext, review: childReview }, entities } };
+    f.args.render.mockClear(); f.args.judge.mockClear(); f.args.identity.mockClear();
+    if (mode === 'uncertain') f.args.judge.mockImplementation(async (_s, c, _ctx, hash) => {
+      const q = cleanPixelReview(c.imageSha, hash); q.checks[0].verdict = 'uncertain'; return q; });
+    if (mode === 'unchanged') f.args.render.mockResolvedValue(entities);
+    if (mode === 'bad_binding') review.contextSha = '0'.repeat(64);
+    if (mode !== 'pass') {
+      await expect(illustrateSimpleBook(args)).rejects.toThrow();
+      expect(f.args.render.mock.calls.length).toBe(mode === 'bad_binding' ? 0 : 1);
+      expect(f.args.identity).not.toHaveBeenCalled(); return;
+    }
+    const result = await illustrateSimpleBook(args), calls = f.args.render.mock.calls as unknown as [string, string, unknown[], string, string[]][];
+    expect(result.pages).toHaveLength(9); expect(calls[0][0]).toBe('reference_entities_repair');
+    expect(calls[0][2]).toEqual([entities, child, f.args.companion]);
+    expect(calls[0][4]).toEqual(['rejected_edit_target', 'child_design_authority', 'companion_design_authority']);
+    expect(calls[0][1]).toContain('REFERENCE STATE POLICY'); expect(calls[0][1]).toContain('DISJOINT REFERENCE OWNERSHIP');
+    expect(calls[0][1]).toContain('remove descriptive paragraphs/captions'); expect(calls[0][1]).not.toContain('Image4 is');
+    expect(calls[1][1]).toContain('Only short Latin ID labels');
+    const judgeCalls = f.args.judge.mock.calls as unknown as [string, unknown, unknown, string, unknown[]][];
+    expect(judgeCalls[0][2]).toEqual(context); expect(judgeCalls[0][4]).toEqual([child, f.args.companion]);
+    expect(calls.filter(c => c[0] === 'reference_entities_repair')).toHaveLength(1);
+    expect(calls.filter(c => c[0] === 'reference_entities')).toHaveLength(0); expect(f.args.identity).toHaveBeenCalledTimes(9);
   });
   it('requires an owned storyboard before a child reference is generated when the new policy is selected', async () => {
     const f = await illustrationFixture();
@@ -1559,6 +1592,82 @@ describe('explicit same-book continuation, no provider in fixtures', () => {
     expect(JSON.parse(readFileSync(path.join(dir, 'sealed.json'), 'utf8'))).toMatchObject({ status: 'failed', code: 'simple_reference_held', snapshot: { logicalAttempts: 2 } });
     expect(existsSync(path.join(dir, 'book.html'))).toBe(false); expect(existsSync(path.join(dir, 'paid-stages/reference_entities_repair.claim.json'))).toBe(false);
   }, 240000);
+  it('role repair admits only a bound failed split parent and fresh fee once, then ONE edit and9 private gated frames', async () => {
+    const x = await referenceRolesFixture();
+    sdk.create.mockImplementation(async p => { const raw = await x.normal(p), d = JSON.parse(p.input[0].content[0].text);
+      if (d.context.role === 'entities') { const q = JSON.parse(raw.output_text); q.checks[3].verdict = 'defect';
+        q.checks[3].correction = 'Synthetic split atlas needs correction.'; raw.output_text = JSON.stringify(q); } return raw; });
+    expect(await simpleBookReferenceRecoveryCLI(['--config', x.rolesFile, '--execute'])).toBe(1);
+    const parent = await prepareReferenceRoleContinuation(x.rolesFile), seal = JSON.parse(readFileSync(path.join(parent.directory, 'sealed.json'), 'utf8')),
+      host = path.join(root, 'SYNTHETIC-ended-role-host.json'), qa = path.join(root, 'SYNTHETIC-role-repair-QA.json');
+    writeFileSync(host, JSON.stringify({ head: config.sourceHead, status: '', code: 1, signal: null, terminationConfirmed: true, referenceCap: 4,
+      sealSha256: sha(readFileSync(path.join(parent.directory, 'sealed.json'))) }));
+    writeFileSync(qa, JSON.stringify({ ...JSON.parse(readFileSync(x.rolesQA, 'utf8')), sessionId: 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
+      costKind: 'cli_reported_list_estimate_not_invoice', reportedCostUsd: .002, knownBeforeMicroUsd: seal.snapshot.knownEstimateMicroUsd,
+      previousReceipt: x.ref(x.rolesQA) }));
+    const data: any = { ...x.rolesData, version: 'controlled-simple-reference-role-repair/v1', correctionCount: 1,
+      parentConfig: x.ref(x.rolesFile), parentTermination: x.ref(host), technicalReviewReceipt: x.ref(qa),
+      parentArtifacts: visualEvidenceFiles(parent.directory).map(relative => ({ relative, sha256: sha(readFileSync(path.join(parent.directory, relative))) })) };
+    delete data.generationCount; delete data.consultationReceipt;
+    const repairFile = path.join(root, 'SYNTHETIC-role-repair-config.json'); writeFileSync(repairFile, JSON.stringify(data));
+    const originals = [...x.rolesOriginals.map(([p]) => p), x.rolesFile, host, qa, ...visualEvidenceFiles(parent.directory).map(n => path.join(parent.directory, n))]
+      .map(p => [p, readFileSync(p)] as const), baseline = readFileSync(repairFile);
+    sdk.create.mockImplementation(x.normal); sdk.create.mockClear(); x.render.mockClear(); x.fetcher.mockClear(); x.editor.mockClear();
+    const disk = vi.spyOn(journal, 'fencedText');
+    for (const kind of ['unknown', 'termination', 'context', 'actor', 'crop', 'wrong_parent', 'previous_receipt', 'cost', 'reused_session', 'failed_qa', 'second_correction']) {
+      originals.forEach(([p, b]) => writeFileSync(p, b)); const d = JSON.parse(baseline.toString()); disk.mockClear();
+      const change = (p: string, fn: (v: any) => void) => { const v = JSON.parse(readFileSync(p, 'utf8')); fn(v); writeFileSync(p, JSON.stringify(v)); };
+      if (kind === 'unknown') change(path.join(parent.directory, 'paid-stages/reference_entities.result.json'), v => { v.estimatedMicroUsd = null; });
+      if (kind === 'termination') change(host, v => { v.terminationConfirmed = false; });
+      if (['context', 'actor', 'crop'].includes(kind)) {
+        const wf = path.join(parent.directory, 'paid-stages/reference_entities_qa.wire.json');
+        change(wf, w => { if (kind === 'actor') w.input[0].content[6].image_url = w.input[0].content[7].image_url;
+          if (kind === 'crop') w.input[0].content[2].image_url = w.input[0].content[1].image_url;
+          if (kind === 'context') { const c = JSON.parse(w.input[0].content[0].text); const first = c.context.design.referenceOwnership.assignments[0];
+            first.role = first.role === 'locations' ? 'entities' : 'locations';
+            c.contextSha = sha(JSON.stringify(c.context)); w.input[0].content[0].text = JSON.stringify(c); } });
+        const digest = sha(canonicalJson(JSON.parse(readFileSync(wf, 'utf8'))));
+        for (const n of ['claim', 'result']) change(path.join(parent.directory, `paid-stages/reference_entities_qa.${n}.json`), v => { v.wireDigest = digest; });
+      }
+      if (kind === 'wrong_parent') d.parentConfig = x.ref(x.stateFile);
+      if (kind === 'previous_receipt') change(qa, v => { v.previousReceipt = x.ref(x.stateQA); });
+      if (kind === 'cost') change(qa, v => { v.knownBeforeMicroUsd--; });
+      if (kind === 'reused_session') change(qa, v => { v.sessionId = JSON.parse(readFileSync(x.rolesQA, 'utf8')).sessionId; });
+      if (kind === 'failed_qa') change(qa, v => { v.code = 1; v.qaVerdict = null; });
+      if (kind === 'second_correction') d.correctionCount = 2;
+      d.parentTermination = x.ref(host); d.technicalReviewReceipt = x.ref(qa);
+      d.parentArtifacts = visualEvidenceFiles(parent.directory).map(relative => ({ relative, sha256: sha(readFileSync(path.join(parent.directory, relative))) }));
+      writeFileSync(repairFile, JSON.stringify(d)); await expect(prepareEntityRepairContinuation(repairFile), kind).rejects.toThrow();
+      expect(x.render).not.toHaveBeenCalled(); expect(sdk.create).not.toHaveBeenCalled(); expect(x.fetcher).not.toHaveBeenCalled();
+      expect(disk.mock.calls.some(([p]) => p === config.existingKeyEnvFile)).toBe(false);
+      expect(existsSync(path.join(x.old.directory, 'reference-role-repair-continuation-20261009'))).toBe(false);
+    }
+    originals.forEach(([p, b]) => writeFileSync(p, b)); writeFileSync(repairFile, baseline);
+    const ready = await prepareEntityRepairContinuation(repairFile);
+    expect(ready.externalMicroUsd).toBe(seal.snapshot.knownEstimateMicroUsd + 2000);
+    expect(ready.engineeringReceipts.filter(f => f.file === qa)).toHaveLength(1);
+    expect(ready.engineeringReceipts.filter(f => f.file === x.rolesQA)).toHaveLength(1);
+    expect(ready.inheritedLogicalAttempts).toBe(parent.inheritedLogicalAttempts + 2);
+    expect(await simpleBookReferenceRecoveryCLI(['--config', repairFile])).toBe(0); expect(x.render).not.toHaveBeenCalled();
+    expect(await simpleBookReferenceRecoveryCLI(['--config', repairFile, '--execute'])).toBe(0);
+    const first = x.render.mock.calls[0][0];
+    expect(first.referenceRoles).toEqual(['rejected_edit_target', 'child_design_authority', 'companion_design_authority']);
+    expect(first.exactReferenceBytes!.map(b => sha(b))).toEqual([ready.checkpoint.entities.imageSha, ready.checkpoint.child.imageSha,
+      sha(readFileSync(path.join(parent.directory, 'illustrations/companion_reference.png')))]);
+    expect(first.finalPrompt).toContain('REFERENCE STATE POLICY'); expect(first.finalPrompt).toContain('DISJOINT REFERENCE OWNERSHIP');
+    expect(first.finalPrompt).toContain('remove descriptive paragraphs/captions'); expect(first.finalPrompt).not.toContain('Image4 is');
+    const wire = JSON.parse(readFileSync(path.join(ready.directory, 'paid-stages/reference_entities_repair_qa.wire.json'), 'utf8')),
+      c = JSON.parse(wire.input[0].content[0].text);
+    expect(c.context.design).toEqual(simpleReferenceDesigns(ready.result.storyboard!.storyboard, true, true, ready.result.source.manuscript.pages.map((p: { text: string }) => p.text), true).entities);
+    expect(c.context.inspectionReferenceRoles).toEqual(['canonical_child', 'canonical_companion']);
+    expect(x.render).toHaveBeenCalledTimes(11); expect(x.fetcher).toHaveBeenCalledTimes(9); expect(x.editor).not.toHaveBeenCalled();
+    const manifest = JSON.parse(readFileSync(path.join(ready.directory, 'illustrated_book.json'), 'utf8'));
+    expect(manifest.pages).toHaveLength(9); expect(manifest.pages.every((p: any) => p.status === 'passed' && p.identity.threshold === .7 && p.identity.status === 'passed')).toBe(true);
+    expect((await GET(req('GET', undefined, `${url}?requestId=${ready.parent.job.queued.requestId}&page=8`))).status).toBe(200);
+    deps.user = { id: 'intruder', email: 'owner@example.com' }; expect((await GET(req('GET', undefined, `${url}?requestId=${ready.parent.job.queued.requestId}&page=8`))).status).toBe(403);
+    for (const [p, b] of originals) expect(readFileSync(p).equals(b)).toBe(true);
+    await expect(prepareEntityRepairContinuation(repairFile).then(r => r.claim())).rejects.toThrow();
+  }, 600000);
   it('entity repair uses ONE rejected target with three typed authorities, a fresh full review and9 gated private frames while keeping cumulative fees once', async () => {
     const x = await entityRepairFixture(), ready = await prepareEntityRepairContinuation(x.repairFile);
     expect(ready.externalMicroUsd).toBe(x.parentSeal.snapshot.knownEstimateMicroUsd + 2000);

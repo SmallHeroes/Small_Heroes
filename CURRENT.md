@@ -1,5 +1,30 @@
 # SmallHeroes — Current Technical State
 
+## M17 one targeted split-reference repair approved; implementation (2026-10-09)
+
+Guy directly approved the additional one-target correction, same book and SAME
+USD25, then8body+cover only if gates pass. Same sole Codex task/voice-followup
+branch, baseed1dfd05 clean. No writer/storyboard/canon/.70 changes or push.
+Existing repair now has one strict split/state opt-in, exact sealed M16 parent,
+original pixels/crops/typed actor wire/context/inventory/known-cost binding before
+claim/key. No repair-of-repair or fresh-generation loop. One rejected target plus
+child/companion authorities; landmark subset still locations-only. Full blindQC
+must pass; held/uncertain/unchanged/unknown stops. Short labels, not paragraphs.
+Legacy contexts/wires retained; shared ownership-judge addition is byte-identical.
+One small FRESH engineering-QA session will append its whole fee once, keeping
+all old cumulative sessions/consults. No price/budget reset. Known22170694/25m,
+unknown0, unchanged during provider-free work.329bookfiles/six trees preserved.
+Fast19pass/0fail/200skipped/219inventory;5new cases/no removal. Literal tsc0.
+First combined run20pass/1fail: new negative changed a field to its existing
+value, a test-only no-op. Corrected to invert the role; no production change.
+Finaltargeted19/19 includes11rehashed rejection cases and actualmockCLI through
+ONE edit/fresh fullQC/9private .70frames; no secondclaim, oldbytes preserved.
+Both legacy positive paths passed the first combined run; their production
+bytes unchanged. A memory-only missing-state-instruction mutant fails exactly
+the intended pass-path assertion (3pass/1fail), not a loader/timeout failure.
+Independent source QA next; no paid proof yet, no stability/product PASS.
+Decision Gate: docs/ai-workflow/PERSONAL_REFERENCE_ROLE_REPAIR_20261009.md.
+
 ## M16 source PASS; one actual proof held before locations/pages (2026-10-09)
 
 Sole Codex branch voice-followup/codex/simple-story-voice-20261007. Delivered
