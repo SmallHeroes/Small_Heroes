@@ -254,7 +254,7 @@ function adapters(args: { directory: string; meter: AuditionMeter; key: () => st
     const payload = { model: REVIEW_MODEL, store: false, service_tier: 'default' as const, reasoning: { effort: 'medium' as const }, instructions,
       input: [{ role: 'user' as const, content: [{ type: 'input_text' as const, text },
         ...imageURLs.map(image_url => ({ type: 'input_image' as const, image_url, detail: 'high' as const }))] }],
-      max_output_tokens: 12000, text: { format: kind === 'page' ? zodTextFormat(auditionPageReviewSchema, 'personal_audition_pixels_v3')
+      max_output_tokens: 12000, text: { format: kind === 'page' ? zodTextFormat(auditionPageReviewSchema, 'personal_audition_pixels_v4')
         : zodTextFormat(auditionReviewSchema, 'personal_audition_pixels_v2') } };
     return args.meter.run(step, digestImages(payload), 600000, async () => {
       check(); const client = new OpenAI({ apiKey: args.key(), baseURL: 'https://api.openai.com/v1', maxRetries: 0, logLevel: 'off' });
@@ -375,7 +375,10 @@ export function dryRun(bookDir: string) {
     const c = auditionPageChecks(loaded.book, n, loaded.companionDescription);
     return { page: n, notYetRevealed: c.notYetRevealed.map(x => x.id), cast: c.castIdentity.map(x => x.id), requirementIds: c.requirementIds.length };
   });
-  return { requestId: loaded.queued.requestId, storyboardDigest: loaded.book.storyboardDigest, title: loaded.title,
+  // The landmark comparison catalogue is per book (identical on every page): shown here so it can be reviewed before any paid call.
+  const landmarkCatalogue = auditionPageChecks(loaded.book, 0, loaded.companionDescription).uniqueLandmarks
+    .map(l => ({ id: l.id, features: l.features.map(f => `${f.id} ${f.aspect}: ${f.text}`) }));
+  return { requestId: loaded.queued.requestId, storyboardDigest: loaded.book.storyboardDigest, title: loaded.title, landmarkCatalogue,
     pageDeferred: designs.pageDeferred.map(d => `${d.entityId}:${d.requirement} (${d.reason} -> ${d.verifiedOn})`),
     entitiesSheet: ids(designs.entities as never), locationsSheet: ids(designs.locations as never), checks,
     promptBytes: { entities: Buffer.byteLength(auditionSheetPrompt('entities', designs.entities)), locations: Buffer.byteLength(auditionSheetPrompt('locations', designs.locations)) } };

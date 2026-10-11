@@ -12,7 +12,7 @@ import type { PageChildResemblanceVisionResult } from '../../generation-pipeline
 import type { PersonalStoryboard } from '../storyboard';
 import { auditionSheetDesigns, auditionSheetPrompt, illustrateReviewedAudition, rejudgeAudition, assessAuditionReview, attemptStatus, selectAuditionAttempt,
   auditionPageChecks, reviewedAuditionHTML, AUDITION_WORST_CASE_CALLS, AUDITION_JUDGE_INSTRUCTIONS, ReviewedAuditionError, auditionPageReviewSchema,
-  auditionCorrections, type AuditionAttempt } from '../simple-book-reviewed-audition';
+  auditionCorrections, landmarkFeatureCatalogue, type AuditionAttempt, type AuditionLandmark, type LandmarkAspect } from '../simple-book-reviewed-audition';
 import { AuditionMeter, readAuditionGrant } from '../../../scripts/personal-simple-book-reviewed-audition';
 
 const sha = (s: string) => createHash('sha256').update(s).digest('hex');
@@ -54,10 +54,13 @@ const identity = (score: number): PageChildResemblanceVisionResult => ({ status:
   threshold: .7, subjectVisible: true, sameChild: score >= .7, reasonCode: score >= .7 ? 'same_child' : 'different_child', attempts: 1, model: 'gpt-4o' } as never);
 const image = (name: string) => ({ imageName: `${name}.png`, imageSha: sha(name) });
 
-// Default page inventory: one matching object per listed landmark (a clean single instance).
-const singleInventory = (context: any) => (context?.checks?.uniqueLandmarks ?? []).map((l: { id: string }) => ({ landmarkId: l.id,
-  designFeatures: [{ feature: `${l.id} shape`, aspect: 'shape' }], candidates: [{ region: 'its usual place',
-    featureChecks: [{ feature: `${l.id} shape`, observed: 'matches' }], association: 'this_landmark', evidence: 'one instance' }] }));
+// Default page inventory: one matching object per listed landmark (a clean single instance), checked on its own catalogue.
+const singleInventory = (context: any) => {
+  const landmarks: AuditionLandmark[] = context?.checks?.uniqueLandmarks ?? [];
+  return { objects: landmarks.map((l, i) => ({ objectId: `o${i + 1}`, region: `${l.id} in its usual place`, description: `the ${l.id}` })),
+    landmarks: landmarks.map((l, i) => ({ landmarkId: l.id, candidates: [{ objectId: `o${i + 1}`, association: 'this_landmark', evidence: 'one instance',
+      featureChecks: l.features.map(f => ({ featureId: f.id, observed: 'matches' })) }] })) };
+};
 function harness(opts: { judge?: (step: string) => Spec; score?: (step: string) => number; renderFail?: (step: string) => Error | null;
   book?: PersonalStoryboard; pages?: number[]; wrap?: <T>(step: string, work: () => Promise<T>) => Promise<T>;
   inventory?: (step: string, context: any) => unknown } = {}) {
@@ -155,62 +158,86 @@ describe('findings: impact, requirement binding and status', () => {
   });
 });
 
-describe('landmark instances: code counts from a written-design inventory', () => {
-  const landmarks = [{ id: 'old_tree' }, { id: 'stone' }];
-  const ids = ['page_text', 'safety', 'landmark_unique:old_tree', 'landmark_unique:stone'];
-  const stoneFeatures = [{ feature: 'big', aspect: 'size' }, { feature: 'pale', aspect: 'colour' }, { feature: 'rounded', aspect: 'shape' },
-    { feature: 'opening beneath its front', aspect: 'part' }, { feature: 'rear right', aspect: 'placement' }];
-  const cand = (region: string, observed: Record<string, 'matches' | 'contradicted' | 'not_visible'>, association: string) => ({ region, association, evidence: `${region} evidence`,
-    featureChecks: stoneFeatures.map(f => ({ feature: f.feature, observed: observed[f.feature] ?? 'matches' })) });
-  const tree = { landmarkId: 'old_tree', designFeatures: [{ feature: 'forked trunk', aspect: 'shape' }], candidates: [] };
-  const assess = (stoneCandidates: unknown[], spec: Spec = {}, extra: unknown[] = []) => assessAuditionReview({ ...review(sha('c'), sha('x'), spec),
-    landmarkInventory: [tree, { landmarkId: 'stone', designFeatures: stoneFeatures, candidates: stoneCandidates }, ...extra] }, sha('c'), sha('x'), ids, landmarks).assessment;
-  const main = cand('front centre, with the opening', {}, 'this_landmark');
+describe('landmark instances: code counts on a source-bound catalogue; one observed object, one id', () => {
+  const F = (id: string, aspect: LandmarkAspect, text: string) => ({ id, aspect, text, clause: text });
+  const tree: AuditionLandmark = { id: 'old_tree', features: [F('f1', 'shape', 'forked')] };
+  const stone: AuditionLandmark = { id: 'stone', features: [F('f1', 'size', 'big'), F('f2', 'colour', 'pale'), F('f3', 'shape', 'rounded')] };
+  type Seen = Record<string, 'matches' | 'contradicted' | 'not_visible'>;
+  const cand = (objectId: string, association: string, seen: Seen = {}, l: AuditionLandmark = stone) => ({ objectId, association, evidence: `${objectId} evidence`,
+    featureChecks: l.features.map(f => ({ featureId: f.id, observed: seen[f.text] ?? 'matches' })) });
+  const obj = (objectId: string, region: string) => ({ objectId, region, description: `object at ${region}` });
+  const assessWith = (ls: AuditionLandmark[], objects: unknown[], entries: Record<string, unknown[]>, spec: Spec = {}) => assessAuditionReview(
+    { ...review(sha('c'), sha('x'), spec), landmarkInventory: { objects, landmarks: ls.map(l => ({ landmarkId: l.id, candidates: entries[l.id] ?? [] })) } },
+    sha('c'), sha('x'), ['page_text', 'safety', ...ls.map(l => `landmark_unique:${l.id}`)], ls).assessment;
+  const assess = (objects: unknown[], stoneCandidates: unknown[], spec: Spec = {}) => assessWith([tree, stone], objects, { stone: stoneCandidates }, spec);
+  const of = (a: ReturnType<typeof assess>, id = 'stone') => a.landmarks!.find(l => l.landmarkId === id)!;
+  const main = obj('o1', 'front centre, with the opening'), behind = obj('o2', 'behind it, upper left'), mainC = cand('o1', 'this_landmark');
+  const held = (a: ReturnType<typeof assess>) => attemptStatus('page', { candidate: image('c'), assessment: a, identity: identity(.9) });
+
+  it('builds one comparison catalogue per landmark from its written design: words only from the source, the same on every page', () => {
+    const cases: [{ attribute: string; value: string }[], string[]][] = [
+      [[{ attribute: 'design', value: 'Large pale-gray rounded rock with one diagonal ochre seam and a low burrow opening beneath its front lip; rear right of garden.' }],
+        ['size:large', 'colour:pale-gray', 'shape:rounded', 'colour:ochre', 'size:low']],
+      [[{ attribute: 'design', value: 'Three wooden seat slats, three back slats and two dark iron supports; behind the tree.' }], ['material:wooden', 'colour:dark', 'material:iron']],
+      // Structured invariants: an attribute named after an aspect keeps its value; other attributes are read word by word.
+      [[{ attribute: 'structure', value: 'one large rectangular woven rug' }, { attribute: 'count', value: '1' }, { attribute: 'material', value: 'braided cotton' },
+        { attribute: 'color', value: 'sand beige with muted border' }], ['size:large', 'shape:rectangular', 'material:braided cotton', 'colour:sand beige', 'colour:muted border']],
+      // A run of colour words is one cue; a tone word before a non-colour is not a colour; unknown words never become features.
+      [[{ attribute: 'design', value: 'soft gray-brown spines and a warm brown cap, light wooden frame' }], ['colour:soft gray-brown', 'colour:warm brown', 'material:wooden']],
+      [[{ attribute: 'structure', value: 'one bedroom doorway with simple frame' }], []],
+    ];
+    for (const [invariants, expected] of cases) {
+      const catalogue = landmarkFeatureCatalogue(invariants);
+      expect(catalogue.map(f => `${f.aspect}:${f.text}`)).toEqual(expected);
+      expect(catalogue.map(f => f.id)).toEqual(expected.map((_, i) => `f${i + 1}`));
+      const source = invariants.map(i => i.value).join(' ').toLowerCase();
+      for (const f of catalogue) { expect(source).toContain(f.text); expect(source).toContain(f.clause.toLowerCase()); }
+    }
+    expect(() => landmarkFeatureCatalogue([{ attribute: 'design', value: Array.from({ length: 17 }, (_, i) => `${i} red`).join(', ') }])).toThrow('audition_landmark_catalogue');
+    const book = fixture();
+    expect(auditionPageChecks(book, 0, 'x').uniqueLandmarks.map(l => l.features)).toEqual(auditionPageChecks(book, 6, 'y').uniqueLandmarks.map(l => l.features));
+  });
   it('counts a near-copy that the model called different only for a missing part or another placement', () => {
-    const a = assess([main, cand('behind it, upper left', { 'opening beneath its front': 'contradicted', 'rear right': 'contradicted' }, 'different_object')]);
-    expect(a.landmarks!.find(l => l.landmarkId === 'stone')).toMatchObject({ instances: 2, strong: 2, reclassified: 1 });
+    const a = assess([main, behind], [mainC, cand('o2', 'different_object')]);
+    expect(of(a)).toMatchObject({ instances: 2, strong: 2, reclassified: 1 });
     expect(a.findings).toEqual([expect.objectContaining({ requirement: 'landmark_unique:stone', impact: 'continuity', verdict: 'defect', bound: true, derived: true })]);
-    expect(attemptStatus('page', { candidate: image('c'), assessment: a, identity: identity(.9) })).toBe('held');
+    expect(held(a)).toBe('held');
   });
   it('keeps a genuinely different object out (contradicted size or colour), and does not fail a valid occlusion or a different angle', () => {
-    const pebble = cand('small grey pebble on the path', { big: 'contradicted', pale: 'contradicted' }, 'different_object');
-    expect(assess([main, pebble]).findings).toEqual([]);
-    const occluded = cand('partly hidden behind the bush', { big: 'not_visible', rounded: 'not_visible', 'opening beneath its front': 'not_visible' }, 'this_landmark');
-    expect(assess([occluded]).findings).toEqual([]);
-    expect(assess([cand('seen from a low angle, left of frame', { 'rear right': 'not_visible' }, 'this_landmark')]).findings).toEqual([]);
-    expect(attemptStatus('page', { candidate: image('c'), assessment: assess([main, pebble]), identity: identity(.9) })).toBe('qa_supported');
+    const pebble = [obj('o2', 'small grey pebble on the path')], pebbleC = cand('o2', 'different_object', { big: 'contradicted', pale: 'contradicted' });
+    expect(assess([main, ...pebble], [mainC, pebbleC]).findings).toEqual([]);
+    expect(assess([obj('o1', 'partly hidden behind the bush')], [cand('o1', 'this_landmark', { big: 'not_visible', rounded: 'not_visible' })]).findings).toEqual([]);
+    expect(assess([obj('o1', 'seen from a low angle, left of frame')], [mainC]).findings).toEqual([]);
+    expect(held(assess([main, ...pebble], [mainC, pebbleC]))).toBe('qa_supported');
   });
   it('reports an ambiguous second object as uncertain, never as an invented count', () => {
-    const vague = cand('distant shape in haze', { big: 'not_visible', pale: 'not_visible', rounded: 'not_visible' }, 'possible_copy');
-    const a = assess([main, vague]);
-    expect(a.landmarks!.find(l => l.landmarkId === 'stone')).toMatchObject({ instances: 2, strong: 1 });
+    const a = assess([main, obj('o2', 'distant shape in haze')], [mainC, cand('o2', 'possible_copy', { big: 'not_visible', pale: 'not_visible', rounded: 'not_visible' })]);
+    expect(of(a)).toMatchObject({ instances: 2, strong: 1 });
     expect(a.findings).toEqual([expect.objectContaining({ requirement: 'landmark_unique:stone', verdict: 'uncertain', impact: 'continuity' })]);
-
-    // Hidden is never a contradiction: dismissing an object whose core features are only not visible does not remove it.
-    const hidden = cand('half behind the tree', { big: 'not_visible', pale: 'not_visible', rounded: 'not_visible' }, 'different_object');
-    expect(assess([main, hidden]).landmarks!.find(l => l.landmarkId === 'stone')).toMatchObject({ instances: 2, strong: 1, reclassified: 1 });
-    // One shared core feature is not enough for a strong copy.
-    const oneFeature = cand('another rounded thing', { big: 'not_visible', pale: 'not_visible' }, 'possible_copy');
-    expect(assess([main, oneFeature]).findings).toEqual([expect.objectContaining({ verdict: 'uncertain' })]);
+    // Hidden is never a contradiction: dismissing an object whose features are only not visible does not remove it.
+    const hidden = assess([main, obj('o2', 'half behind the tree')], [mainC, cand('o2', 'different_object', { big: 'not_visible', pale: 'not_visible', rounded: 'not_visible' })]);
+    expect(of(hidden)).toMatchObject({ instances: 2, strong: 1, reclassified: 1 });
+    // One shared feature is not enough for a strong copy.
+    expect(assess([main, obj('o2', 'another rounded thing')], [mainC, cand('o2', 'possible_copy', { big: 'not_visible', pale: 'not_visible' })]).findings)
+      .toEqual([expect.objectContaining({ verdict: 'uncertain' })]);
   });
   it('does not double count when the model already cited the landmark itself', () => {
-    const a = assess([main, cand('behind it', {}, 'this_landmark')], { environment: { issues: [issue('continuity', 'landmark_unique:stone', 'two stones')] } });
+    const a = assess([main, behind], [mainC, cand('o2', 'this_landmark')], { environment: { issues: [issue('continuity', 'landmark_unique:stone', 'two stones')] } });
     // Both observations stay listed (the model's and the inventory's); the requirement is penalised once.
     expect(a.findings.filter(f => f.requirement === 'landmark_unique:stone').map(f => f.note.startsWith('landmark inventory') ? 'derived' : f.note)).toEqual(['two stones', 'derived']);
     expect(a.counts.continuity).toBe(1);
-    expect(attemptStatus('page', { candidate: image('c'), assessment: a, identity: identity(.9) })).toBe('held');
+    expect(held(a)).toBe('held');
   });
   it('keeps the derived duplicate when the model raised a lesser issue on the same landmark (QA P1)', () => {
-    const a = assess([main, cand('behind it, upper left', {}, 'this_landmark')],
-      { environment: { issues: [issue('detail', 'landmark_unique:stone', 'a minor surface marking differs')] } });
+    const a = assess([main, behind], [mainC, cand('o2', 'this_landmark')], { environment: { issues: [issue('detail', 'landmark_unique:stone', 'a minor surface marking differs')] } });
     expect(a.findings).toEqual(expect.arrayContaining([
       expect.objectContaining({ requirement: 'landmark_unique:stone', verdict: 'defect', impact: 'continuity', derived: true }),
       expect.objectContaining({ requirement: 'landmark_unique:stone', note: 'a minor surface marking differs' })]));
     expect(a.counts).toMatchObject({ continuity: 1, detail: 0 });
-    expect(attemptStatus('page', { candidate: image('c'), assessment: a, identity: identity(.9) })).toBe('held');
+    expect(held(a)).toBe('held');
   });
   it('keeps the duplicate observation beside an unrelated critical issue on the same landmark, without a double penalty (QA P1)', () => {
-    const a = assess([main, cand('behind it, upper left', {}, 'this_landmark')],
+    const a = assess([main, behind], [mainC, cand('o2', 'this_landmark')],
       { environment: { issues: [issue('continuity', 'landmark_unique:stone', 'a surface marking differs from the written design')] } });
     expect(a.findings.filter(f => f.requirement === 'landmark_unique:stone').map(f => f.derived ?? false)).toEqual([false, true]);
     expect(a.counts.continuity).toBe(1);
@@ -218,52 +245,106 @@ describe('landmark instances: code counts from a written-design inventory', () =
     expect(forwarded).toContain('landmark inventory: 2 objects match stone');
     expect(forwarded).toContain('a surface marking differs from the written design');
   });
-  it('does not turn a repeated record into a second object (QA P2)', () => {
-    const front = cand('front centre, with the opening', {}, 'this_landmark');
-    expect(() => assess([front, { ...front }])).toThrow('audition_review_landmark_inventory');
-    const sameSpot = { ...front, region: '  Front centre,  with the opening ', evidence: 'the same object described again' };
-    const a = assess([front, sameSpot]);
-    expect(a.landmarks!.find(l => l.landmarkId === 'stone')).toMatchObject({ instances: 1 });
+  it('does not turn a repeated record into a second object; unknown or repeated ids are unusable (QA P2)', () => {
+    expect(() => assess([main], [mainC, { ...mainC }])).toThrow('audition_review_landmark_inventory');
+    expect(() => assess([main, { ...main }], [mainC])).toThrow('audition_review_landmark_inventory');
+    expect(() => assess([main], [mainC, cand('o7', 'possible_copy')])).toThrow('audition_review_landmark_inventory');
+    // Two ids naming the same place are one object.
+    const a = assess([main, obj('o2', '  Front centre,  with the opening ')], [mainC, cand('o2', 'this_landmark')]);
+    expect(of(a)).toMatchObject({ instances: 1 });
     expect(a.findings).toEqual([]);
     // Two distinct places stay two objects.
-    expect(assess([front, cand('behind it, upper left', {}, 'this_landmark')]).landmarks!.find(l => l.landmarkId === 'stone')).toMatchObject({ instances: 2, strong: 2 });
+    expect(of(assess([main, behind], [mainC, cand('o2', 'this_landmark')]))).toMatchObject({ instances: 2, strong: 2 });
     // Two records of ONE place that disagree on strength stay one ambiguous object, not a confirmed copy.
-    const strongBehind = cand('behind it', { 'opening beneath its front': 'not_visible' }, 'possible_copy');
-    const weakBehind = { ...cand('behind it', { big: 'not_visible', rounded: 'not_visible' }, 'possible_copy'), evidence: 'only its colour is readable' };
-    const mixed = assess([front, strongBehind, weakBehind]);
-    expect(mixed.landmarks!.find(l => l.landmarkId === 'stone')).toMatchObject({ instances: 2, strong: 1 });
+    const mixed = assess([main, obj('o2', 'behind it'), obj('o3', ' Behind  it')],
+      [mainC, cand('o2', 'possible_copy'), cand('o3', 'possible_copy', { big: 'not_visible', rounded: 'not_visible' })]);
+    expect(of(mixed)).toMatchObject({ instances: 2, strong: 1 });
     expect(mixed.findings).toEqual([expect.objectContaining({ requirement: 'landmark_unique:stone', verdict: 'uncertain' })]);
   });
   it('one cue split into two words is not two independent supports (QA P2)', () => {
-    const colourFeatures = [{ feature: 'pale', aspect: 'colour' }, { feature: 'grey', aspect: 'colour' }, { feature: 'rounded', aspect: 'shape' }];
-    const record = (region: string, association: string) => ({ region, association, evidence: 'only colour is readable; shape is hidden',
-      featureChecks: [{ feature: 'pale', observed: 'matches' }, { feature: 'grey', observed: 'matches' }, { feature: 'rounded', observed: 'not_visible' }] });
-    const a = assessAuditionReview({ ...review(sha('c'), sha('x')), landmarkInventory: [tree,
-      { landmarkId: 'stone', designFeatures: colourFeatures, candidates: [record('main', 'this_landmark'), record('distant', 'possible_copy')] }] },
-      sha('c'), sha('x'), ids, landmarks).assessment;
-    expect(a.landmarks!.find(l => l.landmarkId === 'stone')).toMatchObject({ instances: 2, strong: 1 });
+    const twoColours: AuditionLandmark = { id: 'stone', features: [F('f1', 'colour', 'pale'), F('f2', 'colour', 'grey'), F('f3', 'shape', 'rounded')] };
+    const a = assessWith([tree, twoColours], [obj('o1', 'main'), obj('o2', 'distant')],
+      { stone: [cand('o1', 'this_landmark', {}, twoColours), cand('o2', 'possible_copy', { rounded: 'not_visible' }, twoColours)] });
+    expect(of(a)).toMatchObject({ instances: 2, strong: 1 });
     expect(a.findings).toEqual([expect.objectContaining({ requirement: 'landmark_unique:stone', verdict: 'uncertain' })]);
   });
+
+  // Synthetic cases shaped from the two saved page-4 reviews (2026-10-11); the raw outputs themselves stay unchanged evidence.
+  const rock: AuditionLandmark = { id: 'stone', features: landmarkFeatureCatalogue([{ attribute: 'design',
+    value: 'Large pale-gray rounded rock with one diagonal ochre seam and a low burrow opening beneath its front lip; rear right of garden.' }]) };
+  const bench: AuditionLandmark = { id: 'bench', features: landmarkFeatureCatalogue([{ attribute: 'design', value: 'Three wooden seat slats, three back slats and two dark iron supports; behind the tree.' }]) };
+  const swing: AuditionLandmark = { id: 'swing', features: landmarkFeatureCatalogue([{ attribute: 'design',
+    value: 'Single rectangular wooden seat on two cream ropes, supported by a separate wooden frame on the right lawn.' }]) };
+  const garden = [rock, bench, swing];
+  const gardenObjects = [obj('o1', 'upper-left background behind the tree'), obj('o2', 'right edge, cropped seat, ropes and frame'), obj('o3', 'upper-right large rock')];
+  const benchSeesSwing = cand('o2', 'possible_copy', { dark: 'not_visible', iron: 'not_visible' }, bench);
+  it('a swing identified as the swing is not also a bench copy because both are wooden (saved control shape)', () => {
+    const a = assessWith(garden, gardenObjects, { bench: [cand('o1', 'this_landmark', {}, bench), benchSeesSwing],
+      swing: [cand('o2', 'this_landmark', { rectangular: 'not_visible' }, swing)], stone: [cand('o3', 'this_landmark', {}, rock)] });
+    expect(of(a, 'bench')).toMatchObject({ instances: 1, excluded: 1 });
+    expect(of(a, 'bench').candidates[1]).toMatchObject({ objectId: 'o2', identifiedAs: 'swing', excluded: true, counted: false });
+    expect(a.findings).toEqual([]);
+    expect(held(a)).toBe('qa_supported');
+    // Without the shared id the code cannot know it is the same object: the ambiguity is reported, not guessed away from region wording.
+    const unlinked = assessWith(garden, [...gardenObjects, obj('o4', 'right edge seat')], { bench: [cand('o1', 'this_landmark', {}, bench),
+      { ...benchSeesSwing, objectId: 'o4' }], swing: [cand('o2', 'this_landmark', {}, swing)], stone: [cand('o3', 'this_landmark', {}, rock)] });
+    expect(unlinked.findings).toEqual([expect.objectContaining({ requirement: 'landmark_unique:bench', verdict: 'uncertain', derived: true })]);
+  });
+  it('a second rock matching the separate size, colour and shape features is a strong copy without the model\'s own finding (saved duplicate shape)', () => {
+    const a = assessWith([rock], [obj('o1', 'large right-hand rock around the opening'), obj('o2', 'behind and left of the entrance rock')],
+      { stone: [cand('o1', 'this_landmark', {}, rock), cand('o2', 'possible_copy', { low: 'not_visible' }, rock)] });
+    expect(of(a)).toMatchObject({ instances: 2, strong: 2 });
+    expect(a.findings).toEqual([expect.objectContaining({ requirement: 'landmark_unique:stone', verdict: 'defect', derived: true })]);
+    // The same observation against one bundled feature (the earlier per-picture decomposition) is a single support: only uncertain.
+    const bundled: AuditionLandmark = { id: 'stone', features: [F('f1', 'shape', 'large pale-gray rounded rock')] };
+    const b = assessWith([bundled], [obj('o1', 'main'), obj('o2', 'behind')], { stone: [cand('o1', 'this_landmark', {}, bundled), cand('o2', 'possible_copy', {}, bundled)] });
+    expect(b.findings).toEqual([expect.objectContaining({ verdict: 'uncertain' })]);
+  });
+  it('a different object identified as another landmark never excuses a real copy (peer binding is per observed object)', () => {
+    const objects = [...gardenObjects, obj('o4', 'second bench by the gate')];
+    const entries = (seen: Seen) => ({ bench: [cand('o1', 'this_landmark', {}, bench), cand('o4', 'possible_copy', seen, bench)],
+      swing: [cand('o2', 'this_landmark', {}, swing)], stone: [cand('o3', 'this_landmark', {}, rock)] });
+    expect(assessWith(garden, objects, entries({})).findings).toEqual([expect.objectContaining({ requirement: 'landmark_unique:bench', verdict: 'defect' })]);
+    expect(assessWith(garden, objects, entries({ dark: 'not_visible', iron: 'not_visible' })).findings)
+      .toEqual([expect.objectContaining({ requirement: 'landmark_unique:bench', verdict: 'uncertain' })]);
+  });
+  it('conflicting or unsupported identities stay counted (uncertain); one object claimed by two landmarks is unusable', () => {
+    // Strongly supported as a bench copy while claimed as the swing: counted, not strong, never dismissed.
+    const strongBoth = assessWith(garden, gardenObjects, { bench: [cand('o1', 'this_landmark', {}, bench), cand('o2', 'possible_copy', {}, bench)],
+      swing: [cand('o2', 'this_landmark', {}, swing)], stone: [cand('o3', 'this_landmark', {}, rock)] });
+    expect(of(strongBoth, 'bench')).toMatchObject({ instances: 2, strong: 1 });
+    expect(of(strongBoth, 'bench').candidates[1]).toMatchObject({ conflict: true, counted: true, strong: false });
+    expect(strongBoth.findings).toEqual([expect.objectContaining({ requirement: 'landmark_unique:bench', verdict: 'uncertain' })]);
+    // A claim the claiming landmark's own checks contradict confirms nothing: the object still counts here.
+    const selfContradicted = assessWith(garden, gardenObjects, { bench: [cand('o1', 'this_landmark', {}, bench), benchSeesSwing],
+      swing: [cand('o2', 'this_landmark', { rectangular: 'contradicted' }, swing)], stone: [cand('o3', 'this_landmark', {}, rock)] });
+    expect(of(selfContradicted, 'bench')).toMatchObject({ instances: 2, excluded: 0 });
+    expect(selfContradicted.findings).toEqual([expect.objectContaining({ requirement: 'landmark_unique:bench', verdict: 'uncertain' })]);
+    expect(() => assessWith(garden, gardenObjects, { bench: [cand('o2', 'this_landmark', {}, bench)], swing: [cand('o2', 'this_landmark', {}, swing)],
+      stone: [cand('o3', 'this_landmark', {}, rock)] })).toThrow('audition_review_landmark_inventory');
+  });
   it('rejects an inventory that skips, invents or under-checks a landmark', () => {
-    expect(() => assessAuditionReview({ ...review(sha('c'), sha('x')), landmarkInventory: [tree] }, sha('c'), sha('x'), ids, landmarks)).toThrow('audition_review_landmark_inventory');
-    expect(() => assess([main], {}, [{ landmarkId: 'ghost', designFeatures: [{ feature: 'x', aspect: 'shape' }], candidates: [] }])).toThrow('audition_review_landmark_inventory');
-    const partial = { ...main, featureChecks: main.featureChecks.slice(1) };
-    expect(() => assess([partial])).toThrow('audition_review_landmark_inventory');
-    const unknown = { ...main, featureChecks: [...main.featureChecks.slice(1), { feature: 'glows', observed: 'matches' }] };
-    expect(() => assess([unknown])).toThrow('audition_review_landmark_inventory');
-    expect(() => assessAuditionReview(review(sha('c'), sha('x')), sha('c'), sha('x'), ids, landmarks)).toThrow();
+    const inventory = (landmarks: unknown[]) => ({ ...review(sha('c'), sha('x')), landmarkInventory: { objects: [main], landmarks } });
+    const ids = ['page_text', 'safety', 'landmark_unique:old_tree', 'landmark_unique:stone'];
+    expect(() => assessAuditionReview(inventory([{ landmarkId: 'old_tree', candidates: [] }]), sha('c'), sha('x'), ids, [tree, stone])).toThrow('audition_review_landmark_inventory');
+    expect(() => assessAuditionReview(inventory([{ landmarkId: 'old_tree', candidates: [] }, { landmarkId: 'stone', candidates: [mainC] }, { landmarkId: 'ghost', candidates: [] }]),
+      sha('c'), sha('x'), ids, [tree, stone])).toThrow('audition_review_landmark_inventory');
+    expect(() => assess([main], [{ ...mainC, featureChecks: mainC.featureChecks.slice(1) }])).toThrow('audition_review_landmark_inventory');
+    expect(() => assess([main], [{ ...mainC, featureChecks: [...mainC.featureChecks.slice(1), { featureId: 'f9', observed: 'matches' }] }])).toThrow('audition_review_landmark_inventory');
+    expect(() => assessAuditionReview(review(sha('c'), sha('x')), sha('c'), sha('x'), ids, [tree, stone])).toThrow();
     // Sheets keep the existing schema: an inventory is not accepted there.
-    expect(() => assessAuditionReview({ ...review(sha('c'), sha('x')), landmarkInventory: [] }, sha('c'), sha('x'), ids)).toThrow();
+    expect(() => assessAuditionReview({ ...review(sha('c'), sha('x')), landmarkInventory: { objects: [], landmarks: [] } }, sha('c'), sha('x'), ids)).toThrow();
   });
   it('states the inventory rule generically: no object type from a book under test', () => {
     const page = AUDITION_JUDGE_INSTRUCTIONS.page;
     expect(page).toContain('different_object needs a visibly contradicted');
     expect(page).toContain('Hidden by angle, crop or occlusion is not_visible, never contradicted.');
-    for (const word of [/\brocks?\b/i, /boulder/i, /burrow/i, /swing/i, /button nose/i]) expect(page).not.toMatch(word);
-    expect(auditionPageReviewSchema.shape.landmarkInventory).toBeDefined();
+    expect(page).toContain('use the SAME objectId in that entry');
+    for (const word of [/\brocks?\b/i, /boulder/i, /burrow/i, /swing/i, /\bbench/i, /button nose/i]) expect(page).not.toMatch(word);
+    expect(Object.keys(auditionPageReviewSchema.shape.landmarkInventory.shape)).toEqual(['objects', 'landmarks']);
   });
   it('an unusable inventory halts the run like any unusable review: no further render, review or identity', async () => {
-    const h = harness({ inventory: (step, context) => step === 'page_3_0_qa' ? [] : singleInventory(context) });
+    const h = harness({ inventory: (step, context) => step === 'page_3_0_qa' ? { objects: [], landmarks: [] } : singleInventory(context) });
     await expect(illustrateReviewedAudition(h.args)).rejects.toThrow('audition_review_unusable');
     const pageRenders = h.args.render.mock.calls.map(c => String(c[0])).filter(s => s.startsWith('page_'));
     expect(pageRenders[pageRenders.length - 1]).toBe('page_3_0');
@@ -271,10 +352,14 @@ describe('landmark instances: code counts from a written-design inventory', () =
     expect(h.saved.has('halted_page_3')).toBe(true);
   });
   it('a page inventory with two strong matches holds that page through the real orchestration', async () => {
-    const h = harness({ inventory: (step, context) => step.startsWith('page_4_') ? singleInventory(context).map((e: any) => e.landmarkId !== 'stone' ? e
-      : { ...e, designFeatures: [...e.designFeatures, { feature: 'pale', aspect: 'colour' }],
-        candidates: [{ ...e.candidates[0], featureChecks: [...e.candidates[0].featureChecks, { feature: 'pale', observed: 'matches' }] },
-          { ...e.candidates[0], region: 'behind it', association: 'different_object', featureChecks: [...e.candidates[0].featureChecks, { feature: 'pale', observed: 'matches' }] }] }) : singleInventory(context) });
+    const h = harness({ inventory: (step, context) => {
+      const inv = singleInventory(context);
+      if (!step.startsWith('page_4_')) return inv;
+      const features = (context.checks.uniqueLandmarks as AuditionLandmark[]).find(l => l.id === 'stone')!.features, id = `o${inv.objects.length + 1}`;
+      return { objects: [...inv.objects, { objectId: id, region: 'behind it', description: 'a second big pale stone' }],
+        landmarks: inv.landmarks.map(e => e.landmarkId !== 'stone' ? e : { ...e, candidates: [...e.candidates,
+          { objectId: id, association: 'different_object', evidence: 'no opening', featureChecks: features.map(f => ({ featureId: f.id, observed: 'matches' })) }] }) };
+    } });
     const m = await illustrateReviewedAudition(h.args);
     expect(m.pages[4]).toMatchObject({ status: 'held', findings: [expect.objectContaining({ requirement: 'landmark_unique:stone', verdict: 'defect', derived: true })] });
     expect(h.prompts.get('page_4_1')).toContain('- [continuity] landmark_unique:stone: landmark inventory: 2 objects match stone');
@@ -292,6 +377,7 @@ describe('page checks derived from the storyboard', () => {
     const book = fixture(), cover = auditionPageChecks(book, 0, 'dragon with a snout');
     expect(cover.notYetRevealed.map(n => n.id)).toEqual(['cat', 'trail']);
     expect(cover.uniqueLandmarks.map(l => l.id)).toEqual(['old_tree', 'stone']);
+    expect(cover.uniqueLandmarks.map(l => l.features.map(f => `${f.id} ${f.aspect}:${f.text}`))).toEqual([['f1 shape:forked'], ['f1 size:big', 'f2 colour:pale', 'f3 material:stone']]);
     expect(auditionPageChecks(book, 2, 'x').notYetRevealed.map(n => n.id)).toEqual(['cat']);
     const p3 = auditionPageChecks(book, 3, 'dragon with a snout');
     expect(p3.notYetRevealed).toEqual([]);
