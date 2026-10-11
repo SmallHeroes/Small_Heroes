@@ -147,8 +147,8 @@ export const AUDITION_PAGE_JUDGE_ADDENDUM = `AUDITION CHECKS (context.checks, de
   placement relative to the other landmarks must hold in the world; a changed camera may change overlap and order on the page, not the world.
   Ordinary rocks, plants and fixtures not in this list are not landmarks.
 - castIdentity: compare EACH visible cast member only with ITS OWN reference and design: face (nose or snout, eyes, mouth), head features
-  (ears, horns), colours, body, appendage counts and accessories. A feature that belongs to another cast member (for example a dark button nose
-  on a character whose design has a snout) is an identity issue. Do not demand parts hidden by the angle or by natural occlusion.
+  (ears, horns), colours, body, appendage counts and accessories. A feature that belongs to another cast member is an identity issue.
+  Do not demand parts hidden by the angle or by natural occlusion.
 - referenceStatus: a reference marked diagnostic_candidate has known flaws; where it conflicts with the written design data, the written data
   wins. Copying a listed flaw is still an issue against the written requirement.
 - moment (when present): the drawn instant and the source-quoted page-meaning requirements are story requirements.

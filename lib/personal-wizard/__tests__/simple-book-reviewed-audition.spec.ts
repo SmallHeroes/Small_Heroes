@@ -11,7 +11,7 @@ import { QUALITY_CATEGORIES } from '../../local-preview-quality';
 import type { PageChildResemblanceVisionResult } from '../../generation-pipeline/page-child-resemblance-vision';
 import type { PersonalStoryboard } from '../storyboard';
 import { auditionSheetDesigns, auditionSheetPrompt, illustrateReviewedAudition, rejudgeAudition, assessAuditionReview, attemptStatus, selectAuditionAttempt,
-  auditionPageChecks, reviewedAuditionHTML, AUDITION_WORST_CASE_CALLS, ReviewedAuditionError, type AuditionAttempt } from '../simple-book-reviewed-audition';
+  auditionPageChecks, reviewedAuditionHTML, AUDITION_WORST_CASE_CALLS, AUDITION_JUDGE_INSTRUCTIONS, ReviewedAuditionError, type AuditionAttempt } from '../simple-book-reviewed-audition';
 import { AuditionMeter, readAuditionGrant } from '../../../scripts/personal-simple-book-reviewed-audition';
 
 const sha = (s: string) => createHash('sha256').update(s).digest('hex');
@@ -147,6 +147,12 @@ describe('findings: impact, requirement binding and status', () => {
 });
 
 describe('page checks derived from the storyboard', () => {
+  it('states the cross-character rule without an example taken from a book under test', () => {
+    // An example copied from a known defect would hand the checker the expected answer of a validation run.
+    expect(AUDITION_JUDGE_INSTRUCTIONS.page).toContain('A feature that belongs to another cast member is an identity issue.');
+    expect(AUDITION_JUDGE_INSTRUCTIONS.page).not.toMatch(/button nose/i);
+    expect(AUDITION_JUDGE_INSTRUCTIONS.page).toContain('compare EACH visible cast member only with ITS OWN reference and design');
+  });
   it('lists unrevealed story objects (not landmarks), unique landmarks and each visible cast member with its own design', () => {
     const book = fixture(), cover = auditionPageChecks(book, 0, 'dragon with a snout');
     expect(cover.notYetRevealed.map(n => n.id)).toEqual(['cat', 'trail']);
