@@ -1,5 +1,23 @@
 # SmallHeroes — Current Technical State
 
+## Landmark-instance inventory built; two-image rejudge prepared, not run (2026-10-11)
+
+e2c9712c (parent f3f9cf22): page reviews return landmarkInventory (written-design
+features with aspect; every sharing object with region, matches/contradicted/
+not_visible per feature, association, evidence). Code counts: dismissal needs a
+contradicted material/colour/shape/size; missing part, other placement or hidden
+feature -> possible copy; two strong -> continuity defect on landmark_unique;
+weaker second -> uncertain (no invented count); no double count; bad inventory
+-> unusable review (halt). "Ordinary rocks" clause replaced by a generic rule.
+Policy v4, page schema personal_audition_pixels_v3 (strict, no anyOf).
+tsc0; focused 97/97; 13/13 in-memory mutants. Mocks prove counting/flow only,
+not model perception; the old clause as sole cause remains an untested hypothesis.
+Prepared (scratchpad rejudge-2): freeze (same contexts 017a1642.., instruction
+8cca2cb2..), preregistered expectations, mocked-network rehearsal (2 calls, v3,
+derived defect path, missing-inventory stop after 1, low cap 0, draft refused).
+Grant is a DRAFT: needs Guy's approval (2 x $0.60 = $1.20 over $6.801844).
+Awaiting independent Codex code QA. Visual HOLD; full gate RED/not rerun.
+
 ## Five-image checker rejudge: 4/5 expectations; landmark copy HOLD (2026-10-11)
 
 Code d03fd65c..99425143 (removed a book-specific nose example from the page

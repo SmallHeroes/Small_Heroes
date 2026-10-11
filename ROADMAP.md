@@ -1,5 +1,12 @@
 # SmallHeroes — Roadmap
 
+## Landmark criterion built (e2c9712c); next: Codex QA, then Guy on two-image rejudge (2026-10-11)
+
+- Independent code QA of f3f9cf22..e2c9712c (criterion, controls, schema).
+- Then, only with Guy's fresh approval: rejudge page_4_2 + page_4_1 under the
+  prepared freeze/expectations/rehearsal (admission $1.20; one pair is not a
+  reliability rate). Redraw stays deferred until the landmark check is shown.
+
 ## Landmark-copy classification next; redraw deferred (2026-10-11)
 
 - Five-image rejudge done (4/5 expectations, $0.249226). Landmark duplicate is
