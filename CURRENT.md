@@ -1,5 +1,23 @@
 # SmallHeroes — Current Technical State
 
+## Cross-landmark binding + source-bound catalogue 329445d8 (offline; 2026-10-11)
+
+Guy approved the offline milestone after Codex's QA of c731ff82 (rock pair
+PASS; criterion HOLD on the bench/swing false positive and unstable rock
+decomposition). Policy v5, page schema personal_audition_pixels_v4:
+- Each observed object is listed once (objectId) and every landmark entry
+  references it; an object that is another landmark's confirmed own instance
+  is not a copy here unless strongly supported here (then uncertain). Binding
+  is per SAME object; double claims, unknown/repeated ids: unusable.
+- Each landmark's comparison features come from its written invariants via a
+  general lexical tagger (size/colour/shape/material), identical on every
+  page; lexical, not semantic (can be incomplete, never invented).
+tsc0; focused 106/106; mutants 29/29 + render/rejudge path. New spec cannot
+load on the old code (format change); the behavioural reproduction is the
+saved real assessments of the old code (Codex-replayed). Residual: object
+lists can exceed caps on busy pictures (unusable, halts). No paid call; any
+saved-pixel validation needs a fresh freeze and Guy's approval. Visual HOLD.
+
 ## Two-image landmark rejudge ran: duplicate caught, rock control clear, bench false positive (2026-10-11)
 
 Guy approved <= $1.20 for exactly two saved-image checks (after Codex's narrow

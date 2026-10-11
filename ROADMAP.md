@@ -1,5 +1,12 @@
 # SmallHeroes — Roadmap
 
+## Cross-landmark fix built offline (329445d8); next: Codex re-gate, then Guy on a saved-pixel validation (2026-10-11)
+
+- Codex re-gates c731ff82..(this docs commit).
+- Then, only with Guy's fresh approval: re-freeze (v4 schema, new instruction
+  and context hashes) and re-check the SAME two saved page-4 images (expected
+  ~$0.15, proposed cap +$1.20 over 6.943778). Redraws stay deferred.
+
 ## Two-image rejudge done (2026-10-11); next: Codex QA of results, then a general fix for cross-landmark false positives
 
 - Codex independently QAs the frozen results (goni-shadows-rejudge2-20261011).
