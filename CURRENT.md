@@ -1,5 +1,23 @@
 # SmallHeroes — Current Technical State
 
+## Landmark criterion QA corrections 29ca028b; rejudge re-frozen, still not run (2026-10-11)
+
+Codex HOLD of e2c9712c (P1 + 2 P2) reproduced by regression tests that fail on
+the frozen code, then fixed in 29ca028b (module + spec only):
+P1: the inventory's duplicate is always kept; a landmark requirement carrying it
+is penalised once at its most severe impact (no erase/downgrade by a shared-id
+model issue; genuine duplicate still not double penalised).
+P2: exact repeated candidate records -> unusable inventory; records naming the
+same (normalised) place are one object, strong only if every record is.
+P2: a possible copy needs matches in two DISTINCT core aspects (two colour words
+are one support). Controls retained. tsc0; focused 101/101; mutants 8/8 on the
+fixes + 11/11 earlier runnable. Mocks prove counting only.
+Re-frozen in scratchpad rejudge-2-r2 (old rejudge-2 kept as history): textFormat
+now personal_audition_pixels_v3 with strict schema sha 8aea4351..; instruction
+8cca2cb2.. and texts unchanged; provider-free rehearsal passes incl. schema
+binding. Grant remains a DRAFT ($1.20 proposed, not approved). Awaiting
+independent re-gate. Visual HOLD; full gate RED/not rerun.
+
 ## Landmark-instance inventory built; two-image rejudge prepared, not run (2026-10-11)
 
 e2c9712c (parent f3f9cf22): page reviews return landmarkInventory (written-design

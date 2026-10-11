@@ -1,5 +1,11 @@
 # SmallHeroes — Roadmap
 
+## Landmark criterion corrected (29ca028b); next: Codex re-gate, then Guy on two-image rejudge (2026-10-11)
+
+- Re-gate 7c7a5148..(this docs commit): P1/P2 corrections, re-freeze binding.
+- The two-image rejudge runs only after the re-gate and Guy's fresh approval,
+  from rejudge-2-r2 (not from the stale e2c9712c freeze).
+
 ## Landmark criterion built (e2c9712c); next: Codex QA, then Guy on two-image rejudge (2026-10-11)
 
 - Independent code QA of f3f9cf22..e2c9712c (criterion, controls, schema).
