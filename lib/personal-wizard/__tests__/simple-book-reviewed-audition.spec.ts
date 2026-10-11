@@ -12,7 +12,7 @@ import type { PageChildResemblanceVisionResult } from '../../generation-pipeline
 import type { PersonalStoryboard } from '../storyboard';
 import { auditionSheetDesigns, auditionSheetPrompt, illustrateReviewedAudition, rejudgeAudition, assessAuditionReview, attemptStatus, selectAuditionAttempt,
   auditionPageChecks, reviewedAuditionHTML, AUDITION_WORST_CASE_CALLS, AUDITION_JUDGE_INSTRUCTIONS, ReviewedAuditionError, auditionPageReviewSchema,
-  type AuditionAttempt } from '../simple-book-reviewed-audition';
+  auditionCorrections, type AuditionAttempt } from '../simple-book-reviewed-audition';
 import { AuditionMeter, readAuditionGrant } from '../../../scripts/personal-simple-book-reviewed-audition';
 
 const sha = (s: string) => createHash('sha256').update(s).digest('hex');
@@ -195,8 +195,54 @@ describe('landmark instances: code counts from a written-design inventory', () =
   });
   it('does not double count when the model already cited the landmark itself', () => {
     const a = assess([main, cand('behind it', {}, 'this_landmark')], { environment: { issues: [issue('continuity', 'landmark_unique:stone', 'two stones')] } });
-    expect(a.findings).toEqual([expect.objectContaining({ requirement: 'landmark_unique:stone', note: 'two stones' })]);
+    // Both observations stay listed (the model's and the inventory's); the requirement is penalised once.
+    expect(a.findings.filter(f => f.requirement === 'landmark_unique:stone').map(f => f.note.startsWith('landmark inventory') ? 'derived' : f.note)).toEqual(['two stones', 'derived']);
     expect(a.counts.continuity).toBe(1);
+    expect(attemptStatus('page', { candidate: image('c'), assessment: a, identity: identity(.9) })).toBe('held');
+  });
+  it('keeps the derived duplicate when the model raised a lesser issue on the same landmark (QA P1)', () => {
+    const a = assess([main, cand('behind it, upper left', {}, 'this_landmark')],
+      { environment: { issues: [issue('detail', 'landmark_unique:stone', 'a minor surface marking differs')] } });
+    expect(a.findings).toEqual(expect.arrayContaining([
+      expect.objectContaining({ requirement: 'landmark_unique:stone', verdict: 'defect', impact: 'continuity', derived: true }),
+      expect.objectContaining({ requirement: 'landmark_unique:stone', note: 'a minor surface marking differs' })]));
+    expect(a.counts).toMatchObject({ continuity: 1, detail: 0 });
+    expect(attemptStatus('page', { candidate: image('c'), assessment: a, identity: identity(.9) })).toBe('held');
+  });
+  it('keeps the duplicate observation beside an unrelated critical issue on the same landmark, without a double penalty (QA P1)', () => {
+    const a = assess([main, cand('behind it, upper left', {}, 'this_landmark')],
+      { environment: { issues: [issue('continuity', 'landmark_unique:stone', 'a surface marking differs from the written design')] } });
+    expect(a.findings.filter(f => f.requirement === 'landmark_unique:stone').map(f => f.derived ?? false)).toEqual([false, true]);
+    expect(a.counts.continuity).toBe(1);
+    const forwarded = auditionCorrections({ attempt: 0, candidate: image('c'), review: null, assessment: a, status: 'held', identity: identity(.9) }, 'page');
+    expect(forwarded).toContain('landmark inventory: 2 objects match stone');
+    expect(forwarded).toContain('a surface marking differs from the written design');
+  });
+  it('does not turn a repeated record into a second object (QA P2)', () => {
+    const front = cand('front centre, with the opening', {}, 'this_landmark');
+    expect(() => assess([front, { ...front }])).toThrow('audition_review_landmark_inventory');
+    const sameSpot = { ...front, region: '  Front centre,  with the opening ', evidence: 'the same object described again' };
+    const a = assess([front, sameSpot]);
+    expect(a.landmarks!.find(l => l.landmarkId === 'stone')).toMatchObject({ instances: 1 });
+    expect(a.findings).toEqual([]);
+    // Two distinct places stay two objects.
+    expect(assess([front, cand('behind it, upper left', {}, 'this_landmark')]).landmarks!.find(l => l.landmarkId === 'stone')).toMatchObject({ instances: 2, strong: 2 });
+    // Two records of ONE place that disagree on strength stay one ambiguous object, not a confirmed copy.
+    const strongBehind = cand('behind it', { 'opening beneath its front': 'not_visible' }, 'possible_copy');
+    const weakBehind = { ...cand('behind it', { big: 'not_visible', rounded: 'not_visible' }, 'possible_copy'), evidence: 'only its colour is readable' };
+    const mixed = assess([front, strongBehind, weakBehind]);
+    expect(mixed.landmarks!.find(l => l.landmarkId === 'stone')).toMatchObject({ instances: 2, strong: 1 });
+    expect(mixed.findings).toEqual([expect.objectContaining({ requirement: 'landmark_unique:stone', verdict: 'uncertain' })]);
+  });
+  it('one cue split into two words is not two independent supports (QA P2)', () => {
+    const colourFeatures = [{ feature: 'pale', aspect: 'colour' }, { feature: 'grey', aspect: 'colour' }, { feature: 'rounded', aspect: 'shape' }];
+    const record = (region: string, association: string) => ({ region, association, evidence: 'only colour is readable; shape is hidden',
+      featureChecks: [{ feature: 'pale', observed: 'matches' }, { feature: 'grey', observed: 'matches' }, { feature: 'rounded', observed: 'not_visible' }] });
+    const a = assessAuditionReview({ ...review(sha('c'), sha('x')), landmarkInventory: [tree,
+      { landmarkId: 'stone', designFeatures: colourFeatures, candidates: [record('main', 'this_landmark'), record('distant', 'possible_copy')] }] },
+      sha('c'), sha('x'), ids, landmarks).assessment;
+    expect(a.landmarks!.find(l => l.landmarkId === 'stone')).toMatchObject({ instances: 2, strong: 1 });
+    expect(a.findings).toEqual([expect.objectContaining({ requirement: 'landmark_unique:stone', verdict: 'uncertain' })]);
   });
   it('rejects an inventory that skips, invents or under-checks a landmark', () => {
     expect(() => assessAuditionReview({ ...review(sha('c'), sha('x')), landmarkInventory: [tree] }, sha('c'), sha('x'), ids, landmarks)).toThrow('audition_review_landmark_inventory');

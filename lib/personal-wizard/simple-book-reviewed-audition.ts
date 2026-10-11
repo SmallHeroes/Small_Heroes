@@ -187,13 +187,16 @@ export const auditionPageReviewSchema = auditionReviewSchema.extend({ landmarkIn
 export type AuditionReview = z.infer<typeof auditionReviewSchema> & { landmarkInventory?: z.infer<typeof landmarkInventorySchema> };
 export type AuditionFinding = { category: string; verdict: 'defect' | 'uncertain'; impact: Impact; requirement: string; note: string; bound: boolean; derived?: true };
 export type LandmarkAssessment = { landmarkId: string; instances: number; strong: number; reclassified: number;
-  candidates: { region: string; association: string; counted: boolean; strong: boolean; reclassified: boolean; contradictedCore: string[]; matchedCore: string[]; evidence: string }[] };
+  candidates: { region: string; object: number; association: string; counted: boolean; strong: boolean; reclassified: boolean;
+    contradictedCore: string[]; matchedCore: string[]; matchedCoreAspects: string[]; evidence: string }[] };
 export type AuditionAssessment = { findings: AuditionFinding[]; counts: Record<Impact, number>; safetyBlocked: boolean; invalidCitations: number; landmarks?: LandmarkAssessment[] };
 
 /**
  * Deterministic instance count. An object is dismissed only with a visibly contradicted material/colour/shape/size feature; a missing
  * functional part, a different placement or a hidden feature never dismisses it (that one is reclassified as a possible copy). Two strong
  * instances are a continuity defect; a weaker second one is an uncertain finding: ambiguity is reported, never turned into a count.
+ * A repeated record is not a second object: exact repeats make the inventory unusable, and records naming the same place are one object.
+ * A possible copy is strong only with matches in two DISTINCT core aspects; two words for one cue (two colours) are one support.
  */
 export function assessLandmarkInventory(inventory: z.infer<typeof landmarkInventorySchema>, landmarkIds: readonly string[]) {
   const ids = inventory.map(e => e.landmarkId);
@@ -201,18 +204,26 @@ export function assessLandmarkInventory(inventory: z.infer<typeof landmarkInvent
   return inventory.map(entry => {
     const aspect = new Map(entry.designFeatures.map(f => [f.feature, f.aspect]));
     if (aspect.size !== entry.designFeatures.length) fail('audition_review_landmark_inventory');
+    const records = entry.candidates.map(c => canonicalJson(c));
+    if (new Set(records).size !== records.length) fail('audition_review_landmark_inventory');
+    const place = (region: string) => region.trim().toLowerCase().replace(/\s+/g, ' ');
+    const places = [...new Set(entry.candidates.map(c => place(c.region)))];
     const candidates = entry.candidates.map(c => {
       const checked = c.featureChecks.map(f => f.feature);
       if (new Set(checked).size !== checked.length || checked.length !== aspect.size || checked.some(f => !aspect.has(f))) fail('audition_review_landmark_inventory');
       const core = (observed: string) => c.featureChecks.filter(f => f.observed === observed && CORE_LANDMARK_ASPECTS.has(aspect.get(f.feature)!)).map(f => f.feature);
       const contradictedCore = core('contradicted'), matchedCore = core('matches');
+      const matchedCoreAspects = [...new Set(matchedCore.map(feature => aspect.get(feature)!))].sort();
       const reclassified = c.association === 'different_object' && !contradictedCore.length;
       const association = reclassified ? 'possible_copy' : c.association;
       const counted = association !== 'different_object';
-      const strong = association === 'this_landmark' || (counted && !contradictedCore.length && matchedCore.length >= 2);
-      return { region: c.region, association, counted, strong, reclassified, contradictedCore, matchedCore, evidence: c.evidence };
+      const strong = association === 'this_landmark' || (counted && !contradictedCore.length && matchedCoreAspects.length >= 2);
+      return { region: c.region, object: places.indexOf(place(c.region)), association, counted, strong, reclassified, contradictedCore, matchedCore,
+        matchedCoreAspects, evidence: c.evidence };
     });
-    return { landmarkId: entry.landmarkId, instances: candidates.filter(c => c.counted).length, strong: candidates.filter(c => c.strong).length,
+    // One object per place: it counts if any record counts it, and is strong only if every counting record is strong.
+    const objects = places.map((_, i) => candidates.filter(c => c.object === i && c.counted)).filter(list => list.length);
+    return { landmarkId: entry.landmarkId, instances: objects.length, strong: objects.filter(list => list.every(c => c.strong)).length,
       reclassified: candidates.filter(c => c.reclassified).length, candidates } satisfies LandmarkAssessment;
   });
 }
@@ -229,15 +240,23 @@ export function assessAuditionReview(raw: unknown, candidateSha: string, context
   const landmarkAssessment = landmarks ? assessLandmarkInventory(review.landmarkInventory!, landmarks.map(l => l.id)) : undefined;
   for (const l of landmarkAssessment ?? []) {
     const requirement = `landmark_unique:${l.landmarkId}`;
-    // The model's own issue on the same requirement already counts; the inventory never double counts it.
-    if (l.instances < 2 || findings.some(f => f.requirement === requirement)) continue;
+    // The inventory's fact is always kept: a model issue that merely shares this requirement can neither erase nor downgrade it.
+    if (l.instances < 2) continue;
     findings.push({ category: 'environment', verdict: l.strong >= 2 ? 'defect' : 'uncertain', impact: 'continuity', requirement, bound: known.has(requirement), derived: true,
       note: `landmark inventory: ${l.instances} objects match ${l.landmarkId} (${l.candidates.filter(c => c.counted).map(c => c.region).join('; ')})${l.reclassified ? `; ${l.reclassified} dismissed without a contradicted material/colour/shape/size feature` : ''}`.slice(0, 600) });
   }
   const counts = Object.fromEntries(AUDITION_IMPACTS.map(i => [i, 0])) as Record<Impact, number>;
   // A citation error never downgrades a defect: a miscited critical issue keeps its impact and makes the review invalid,
   // so it is neither supported nor forwarded as a repair instruction.
-  for (const f of findings) counts[f.impact]++;
+  // A landmark requirement that carries an inventory-derived duplicate is penalised once, at the most severe impact any finding gives
+  // it: every observation stays listed, a genuine duplicate reported by both the model and the inventory is not penalised twice.
+  const derivedRequirements = new Set(findings.filter(f => f.derived).map(f => f.requirement)), severest = new Map<string, Impact>();
+  for (const f of findings) {
+    if (!derivedRequirements.has(f.requirement)) { counts[f.impact]++; continue; }
+    const previous = severest.get(f.requirement);
+    if (!previous || AUDITION_IMPACTS.indexOf(f.impact) < AUDITION_IMPACTS.indexOf(previous)) severest.set(f.requirement, f.impact);
+  }
+  for (const impact of severest.values()) counts[impact]++;
   const invalidCitations = findings.filter(f => !f.bound && f.impact !== 'detail' && f.impact !== 'safety').length;
   const safetyBlocked = counts.safety > 0 || review.checks.some(c => c.category === 'safety' && c.verdict !== 'pass');
   return { review, assessment: { findings, counts, safetyBlocked, invalidCitations, ...(landmarkAssessment ? { landmarks: landmarkAssessment } : {}) } satisfies AuditionAssessment };
