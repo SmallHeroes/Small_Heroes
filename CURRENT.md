@@ -1,5 +1,29 @@
 # SmallHeroes — Current Technical State
 
+## Two-image landmark rejudge ran: duplicate caught, rock control clear, bench false positive (2026-10-11)
+
+Guy approved <= $1.20 for exactly two saved-image checks (after Codex's narrow
+PASS of 7c7a5148..91ac5f72). Zero-provider pre-flight passed (HEAD 91ac5f72
+clean, code == 29ca028b, live schema/instruction hashes == FREEZE cfe0684f, all
+ledger pins and image bytes); grant 7a6a3ffe = the draft with only version and
+approval text changed. Run 10:48-10:50Z: 2 calls, 0 failed, $0.141934;
+cumulative OpenAI API 6.801844 -> 6.943778 (cap 8.001844). Claude Max separate.
+Every wire request re-bound to the freeze; no expectation text in model input.
+Pre-registered score: R1 page_4_2 CAUGHT (model's own continuity defect on
+landmark_unique:rock_landmark; the inventory counted 2 rocks, 1 strong ->
+derived uncertain; one penalty). R2 page_4_1 CLEAR on the rock (1 instance,
+5 small stones dismissed by contradicted size).
+Not registered, reported: R2's only critical finding is a DERIVED uncertain
+bench_landmark duplicate: the swing seat matched "wooden" (the bench design's
+only core aspect) and visibly contradicted slats, iron supports and placement,
+which the core-only dismissal rule cannot use. Also the judge bundled
+size/colour/shape into one "shape" feature, so the true rock copy was only
+uncertain in code. Page statuses are held by construction (no identity in
+rejudge). One pair; not a reliability rate. Evidence:
+book-renders/goni-shadows-rejudge2-20261011 (+ .grant/.log/.index-receipt,
+index be283936). Next: Codex QA of these frozen results; the bench false
+positive needs a general fix proposal before any redraw. Visual HOLD.
+
 ## Landmark criterion QA corrections 29ca028b; rejudge re-frozen, still not run (2026-10-11)
 
 Codex HOLD of e2c9712c (P1 + 2 P2) reproduced by regression tests that fail on

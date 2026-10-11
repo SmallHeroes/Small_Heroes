@@ -1,5 +1,13 @@
 # SmallHeroes — Roadmap
 
+## Two-image rejudge done (2026-10-11); next: Codex QA of results, then a general fix for cross-landmark false positives
+
+- Codex independently QAs the frozen results (goni-shadows-rejudge2-20261011).
+- Proposal only, needs scope agreement: an object identified as another listed
+  landmark is not a copy of this one; one aspect per design feature. Offline
+  tests on the observed R2 bench/swing and R1 rock shapes first.
+- Redraws stay deferred until the landmark check is clean on controls.
+
 ## Landmark criterion corrected (29ca028b); next: Codex re-gate, then Guy on two-image rejudge (2026-10-11)
 
 - Re-gate 7c7a5148..(this docs commit): P1/P2 corrections, re-freeze binding.
