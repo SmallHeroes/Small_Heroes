@@ -11,7 +11,8 @@ import { QUALITY_CATEGORIES } from '../../local-preview-quality';
 import type { PageChildResemblanceVisionResult } from '../../generation-pipeline/page-child-resemblance-vision';
 import type { PersonalStoryboard } from '../storyboard';
 import { auditionSheetDesigns, auditionSheetPrompt, illustrateReviewedAudition, rejudgeAudition, assessAuditionReview, attemptStatus, selectAuditionAttempt,
-  auditionPageChecks, reviewedAuditionHTML, AUDITION_WORST_CASE_CALLS, AUDITION_JUDGE_INSTRUCTIONS, ReviewedAuditionError, type AuditionAttempt } from '../simple-book-reviewed-audition';
+  auditionPageChecks, reviewedAuditionHTML, AUDITION_WORST_CASE_CALLS, AUDITION_JUDGE_INSTRUCTIONS, ReviewedAuditionError, auditionPageReviewSchema,
+  type AuditionAttempt } from '../simple-book-reviewed-audition';
 import { AuditionMeter, readAuditionGrant } from '../../../scripts/personal-simple-book-reviewed-audition';
 
 const sha = (s: string) => createHash('sha256').update(s).digest('hex');
@@ -53,8 +54,13 @@ const identity = (score: number): PageChildResemblanceVisionResult => ({ status:
   threshold: .7, subjectVisible: true, sameChild: score >= .7, reasonCode: score >= .7 ? 'same_child' : 'different_child', attempts: 1, model: 'gpt-4o' } as never);
 const image = (name: string) => ({ imageName: `${name}.png`, imageSha: sha(name) });
 
+// Default page inventory: one matching object per listed landmark (a clean single instance).
+const singleInventory = (context: any) => (context?.checks?.uniqueLandmarks ?? []).map((l: { id: string }) => ({ landmarkId: l.id,
+  designFeatures: [{ feature: `${l.id} shape`, aspect: 'shape' }], candidates: [{ region: 'its usual place',
+    featureChecks: [{ feature: `${l.id} shape`, observed: 'matches' }], association: 'this_landmark', evidence: 'one instance' }] }));
 function harness(opts: { judge?: (step: string) => Spec; score?: (step: string) => number; renderFail?: (step: string) => Error | null;
-  book?: PersonalStoryboard; pages?: number[]; wrap?: <T>(step: string, work: () => Promise<T>) => Promise<T> } = {}) {
+  book?: PersonalStoryboard; pages?: number[]; wrap?: <T>(step: string, work: () => Promise<T>) => Promise<T>;
+  inventory?: (step: string, context: any) => unknown } = {}) {
   const prompts = new Map<string, string>(), saved = new Map<string, unknown>(), contexts = new Map<string, any>();
   const wrap = opts.wrap ?? (<T>(_step: string, work: () => Promise<T>) => work());
   const args = {
@@ -65,8 +71,11 @@ function harness(opts: { judge?: (step: string) => Spec; score?: (step: string) 
       const error = opts.renderFail?.(step); if (error) throw error;
       prompts.set(step, prompt); return image(step);
     })),
-    judge: vi.fn((step: string, candidate: { imageSha: string }, context: unknown, contextSha: string, _refs?: unknown, _predecessor?: { imageName: string } | null) => wrap(step, async () => {
-      contexts.set(step, context); return review(candidate.imageSha, contextSha, opts.judge?.(step) ?? {});
+    judge: vi.fn((step: string, candidate: { imageSha: string }, context: unknown, contextSha: string, _refs?: unknown, _predecessor?: { imageName: string } | null,
+      kind?: 'sheet' | 'page') => wrap(step, async () => {
+      contexts.set(step, context);
+      return { ...review(candidate.imageSha, contextSha, opts.judge?.(step) ?? {}),
+        ...(kind === 'page' ? { landmarkInventory: opts.inventory?.(step, context) ?? singleInventory(context) } : {}) };
     })),
     identity: vi.fn((step: string) => wrap(step, async () => identity(opts.score?.(step) ?? .82))),
     check: vi.fn(), save: (name: string, value: unknown) => { saved.set(name, JSON.parse(JSON.stringify(value))); },
@@ -143,6 +152,86 @@ describe('findings: impact, requirement binding and status', () => {
     // A good face does not outrank a broken story.
     const faceGoodStoryBroken = attempt(0, { scene: { issues: [issue('story', 'page_text')] } }, .95), faceLowStoryOk = attempt(1, {}, .6);
     expect(selectAuditionAttempt('page', [faceGoodStoryBroken, faceLowStoryOk])!.attempt).toBe(1);
+  });
+});
+
+describe('landmark instances: code counts from a written-design inventory', () => {
+  const landmarks = [{ id: 'old_tree' }, { id: 'stone' }];
+  const ids = ['page_text', 'safety', 'landmark_unique:old_tree', 'landmark_unique:stone'];
+  const stoneFeatures = [{ feature: 'big', aspect: 'size' }, { feature: 'pale', aspect: 'colour' }, { feature: 'rounded', aspect: 'shape' },
+    { feature: 'opening beneath its front', aspect: 'part' }, { feature: 'rear right', aspect: 'placement' }];
+  const cand = (region: string, observed: Record<string, 'matches' | 'contradicted' | 'not_visible'>, association: string) => ({ region, association, evidence: `${region} evidence`,
+    featureChecks: stoneFeatures.map(f => ({ feature: f.feature, observed: observed[f.feature] ?? 'matches' })) });
+  const tree = { landmarkId: 'old_tree', designFeatures: [{ feature: 'forked trunk', aspect: 'shape' }], candidates: [] };
+  const assess = (stoneCandidates: unknown[], spec: Spec = {}, extra: unknown[] = []) => assessAuditionReview({ ...review(sha('c'), sha('x'), spec),
+    landmarkInventory: [tree, { landmarkId: 'stone', designFeatures: stoneFeatures, candidates: stoneCandidates }, ...extra] }, sha('c'), sha('x'), ids, landmarks).assessment;
+  const main = cand('front centre, with the opening', {}, 'this_landmark');
+  it('counts a near-copy that the model called different only for a missing part or another placement', () => {
+    const a = assess([main, cand('behind it, upper left', { 'opening beneath its front': 'contradicted', 'rear right': 'contradicted' }, 'different_object')]);
+    expect(a.landmarks!.find(l => l.landmarkId === 'stone')).toMatchObject({ instances: 2, strong: 2, reclassified: 1 });
+    expect(a.findings).toEqual([expect.objectContaining({ requirement: 'landmark_unique:stone', impact: 'continuity', verdict: 'defect', bound: true, derived: true })]);
+    expect(attemptStatus('page', { candidate: image('c'), assessment: a, identity: identity(.9) })).toBe('held');
+  });
+  it('keeps a genuinely different object out (contradicted size or colour), and does not fail a valid occlusion or a different angle', () => {
+    const pebble = cand('small grey pebble on the path', { big: 'contradicted', pale: 'contradicted' }, 'different_object');
+    expect(assess([main, pebble]).findings).toEqual([]);
+    const occluded = cand('partly hidden behind the bush', { big: 'not_visible', rounded: 'not_visible', 'opening beneath its front': 'not_visible' }, 'this_landmark');
+    expect(assess([occluded]).findings).toEqual([]);
+    expect(assess([cand('seen from a low angle, left of frame', { 'rear right': 'not_visible' }, 'this_landmark')]).findings).toEqual([]);
+    expect(attemptStatus('page', { candidate: image('c'), assessment: assess([main, pebble]), identity: identity(.9) })).toBe('qa_supported');
+  });
+  it('reports an ambiguous second object as uncertain, never as an invented count', () => {
+    const vague = cand('distant shape in haze', { big: 'not_visible', pale: 'not_visible', rounded: 'not_visible' }, 'possible_copy');
+    const a = assess([main, vague]);
+    expect(a.landmarks!.find(l => l.landmarkId === 'stone')).toMatchObject({ instances: 2, strong: 1 });
+    expect(a.findings).toEqual([expect.objectContaining({ requirement: 'landmark_unique:stone', verdict: 'uncertain', impact: 'continuity' })]);
+
+    // Hidden is never a contradiction: dismissing an object whose core features are only not visible does not remove it.
+    const hidden = cand('half behind the tree', { big: 'not_visible', pale: 'not_visible', rounded: 'not_visible' }, 'different_object');
+    expect(assess([main, hidden]).landmarks!.find(l => l.landmarkId === 'stone')).toMatchObject({ instances: 2, strong: 1, reclassified: 1 });
+    // One shared core feature is not enough for a strong copy.
+    const oneFeature = cand('another rounded thing', { big: 'not_visible', pale: 'not_visible' }, 'possible_copy');
+    expect(assess([main, oneFeature]).findings).toEqual([expect.objectContaining({ verdict: 'uncertain' })]);
+  });
+  it('does not double count when the model already cited the landmark itself', () => {
+    const a = assess([main, cand('behind it', {}, 'this_landmark')], { environment: { issues: [issue('continuity', 'landmark_unique:stone', 'two stones')] } });
+    expect(a.findings).toEqual([expect.objectContaining({ requirement: 'landmark_unique:stone', note: 'two stones' })]);
+    expect(a.counts.continuity).toBe(1);
+  });
+  it('rejects an inventory that skips, invents or under-checks a landmark', () => {
+    expect(() => assessAuditionReview({ ...review(sha('c'), sha('x')), landmarkInventory: [tree] }, sha('c'), sha('x'), ids, landmarks)).toThrow('audition_review_landmark_inventory');
+    expect(() => assess([main], {}, [{ landmarkId: 'ghost', designFeatures: [{ feature: 'x', aspect: 'shape' }], candidates: [] }])).toThrow('audition_review_landmark_inventory');
+    const partial = { ...main, featureChecks: main.featureChecks.slice(1) };
+    expect(() => assess([partial])).toThrow('audition_review_landmark_inventory');
+    const unknown = { ...main, featureChecks: [...main.featureChecks.slice(1), { feature: 'glows', observed: 'matches' }] };
+    expect(() => assess([unknown])).toThrow('audition_review_landmark_inventory');
+    expect(() => assessAuditionReview(review(sha('c'), sha('x')), sha('c'), sha('x'), ids, landmarks)).toThrow();
+    // Sheets keep the existing schema: an inventory is not accepted there.
+    expect(() => assessAuditionReview({ ...review(sha('c'), sha('x')), landmarkInventory: [] }, sha('c'), sha('x'), ids)).toThrow();
+  });
+  it('states the inventory rule generically: no object type from a book under test', () => {
+    const page = AUDITION_JUDGE_INSTRUCTIONS.page;
+    expect(page).toContain('different_object needs a visibly contradicted');
+    expect(page).toContain('Hidden by angle, crop or occlusion is not_visible, never contradicted.');
+    for (const word of [/\brocks?\b/i, /boulder/i, /burrow/i, /swing/i, /button nose/i]) expect(page).not.toMatch(word);
+    expect(auditionPageReviewSchema.shape.landmarkInventory).toBeDefined();
+  });
+  it('an unusable inventory halts the run like any unusable review: no further render, review or identity', async () => {
+    const h = harness({ inventory: (step, context) => step === 'page_3_0_qa' ? [] : singleInventory(context) });
+    await expect(illustrateReviewedAudition(h.args)).rejects.toThrow('audition_review_unusable');
+    const pageRenders = h.args.render.mock.calls.map(c => String(c[0])).filter(s => s.startsWith('page_'));
+    expect(pageRenders[pageRenders.length - 1]).toBe('page_3_0');
+    expect(h.args.identity.mock.calls.some(c => String(c[0]).startsWith('page_3'))).toBe(false);
+    expect(h.saved.has('halted_page_3')).toBe(true);
+  });
+  it('a page inventory with two strong matches holds that page through the real orchestration', async () => {
+    const h = harness({ inventory: (step, context) => step.startsWith('page_4_') ? singleInventory(context).map((e: any) => e.landmarkId !== 'stone' ? e
+      : { ...e, designFeatures: [...e.designFeatures, { feature: 'pale', aspect: 'colour' }],
+        candidates: [{ ...e.candidates[0], featureChecks: [...e.candidates[0].featureChecks, { feature: 'pale', observed: 'matches' }] },
+          { ...e.candidates[0], region: 'behind it', association: 'different_object', featureChecks: [...e.candidates[0].featureChecks, { feature: 'pale', observed: 'matches' }] }] }) : singleInventory(context) });
+    const m = await illustrateReviewedAudition(h.args);
+    expect(m.pages[4]).toMatchObject({ status: 'held', findings: [expect.objectContaining({ requirement: 'landmark_unique:stone', verdict: 'defect', derived: true })] });
+    expect(h.prompts.get('page_4_1')).toContain('- [continuity] landmark_unique:stone: landmark inventory: 2 objects match stone');
   });
 });
 

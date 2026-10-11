@@ -23,7 +23,7 @@ import { prepareCurrentPersonalStoryboard, compilePersonalStoryboard, storyboard
   currentPersonalStoryboardFrame } from '../lib/personal-wizard/storyboard';
 import { simpleReferenceDesignContext, type AuditionImage } from '../lib/personal-wizard/simple-book-illustrations';
 import { illustrateReviewedAudition, rejudgeAudition, reviewedAuditionHTML, auditionSheetDesigns, auditionSheetPrompt, auditionPageChecks,
-  auditionReviewSchema, AUDITION_JUDGE_INSTRUCTIONS, AUDITION_IMPACTS, REVIEWED_AUDITION_POLICY, AUDITION_WORST_CASE_CALLS,
+  auditionReviewSchema, auditionPageReviewSchema, AUDITION_JUDGE_INSTRUCTIONS, AUDITION_IMPACTS, REVIEWED_AUDITION_POLICY, AUDITION_WORST_CASE_CALLS,
   ReviewedAuditionError, type ReferenceStatus } from '../lib/personal-wizard/simple-book-reviewed-audition';
 import { auditionUsageCost } from './personal-simple-book-illustrator';
 import { exclusiveJson, exclusiveText, fencedText, realDirectory } from './personal-causal-trial-journal';
@@ -254,7 +254,8 @@ function adapters(args: { directory: string; meter: AuditionMeter; key: () => st
     const payload = { model: REVIEW_MODEL, store: false, service_tier: 'default' as const, reasoning: { effort: 'medium' as const }, instructions,
       input: [{ role: 'user' as const, content: [{ type: 'input_text' as const, text },
         ...imageURLs.map(image_url => ({ type: 'input_image' as const, image_url, detail: 'high' as const }))] }],
-      max_output_tokens: 12000, text: { format: zodTextFormat(auditionReviewSchema, 'personal_audition_pixels_v2') } };
+      max_output_tokens: 12000, text: { format: kind === 'page' ? zodTextFormat(auditionPageReviewSchema, 'personal_audition_pixels_v3')
+        : zodTextFormat(auditionReviewSchema, 'personal_audition_pixels_v2') } };
     return args.meter.run(step, digestImages(payload), 600000, async () => {
       check(); const client = new OpenAI({ apiKey: args.key(), baseURL: 'https://api.openai.com/v1', maxRetries: 0, logLevel: 'off' });
       const raw = await client.responses.create(payload, { signal: args.signal, timeout: 300000 });
@@ -262,7 +263,7 @@ function adapters(args: { directory: string; meter: AuditionMeter; key: () => st
       const receipt = { raw, estimatedMicroUsd };
       if (raw.status !== 'completed' || raw.model !== REVIEW_MODEL || !raw.output_text || !raw.usage || raw.usage.output_tokens > 12000)
         throw Object.assign(new ReviewedAuditionError('audition_pixel_provider_invalid'), { receipt });
-      try { return { value: auditionReviewSchema.parse(JSON.parse(raw.output_text)), estimatedMicroUsd, receipt }; }
+      try { return { value: (kind === 'page' ? auditionPageReviewSchema : auditionReviewSchema).parse(JSON.parse(raw.output_text)), estimatedMicroUsd, receipt }; }
       catch { throw Object.assign(new ReviewedAuditionError('audition_pixel_schema'), { receipt }); }
     });
   };
