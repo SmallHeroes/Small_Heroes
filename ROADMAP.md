@@ -1,5 +1,19 @@
 # SmallHeroes — Roadmap
 
+## Landmark-copy classification next; redraw deferred (2026-10-11)
+
+- Five-image rejudge done (4/5 expectations, $0.249226). Landmark duplicate is
+  the open checker weakness; nose and cover-clue checks worked on this sample.
+- Next: a general, focused landmark-instance criterion (observed region,
+  matched/contradicted written-design features, identity association,
+  uncertainty) with offline controls for valid angle/occlusion and genuinely
+  different objects; independent code QA.
+- Then, only with a fresh scoped approval: rejudge page_4_2 and page_4_1 only
+  (proposed admission 2 x $0.60 = $1.20 over the cumulative API ledger).
+- Redraw (cover / page 7) deferred: any reference repair is a NEW derived
+  version (old bytes kept, fresh QA, consumers rebound); its worst-case
+  reservation envelope must be computed before any request.
+
 ## Reviewed audition F1/F2/F3 closed at88f6b272; next is a Guy decision (2026-10-10)
 
 - Narrow code PASS for D/E (independent Codex QA); full gate RED; visual HOLD.

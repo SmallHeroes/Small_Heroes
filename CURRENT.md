@@ -1,5 +1,25 @@
 # SmallHeroes — Current Technical State
 
+## Five-image checker rejudge: 4/5 expectations; landmark copy HOLD (2026-10-11)
+
+Code d03fd65c..99425143 (removed a book-specific nose example from the page
+checker rule; general per-character rule kept): Codex narrow source PASS, its
+tsc0 + chosen specs84/84. Paid run under Guy's <= $3 approval: 5 rejudges only,
+no render/identity/retry, gpt-6.1-sol medium, 12000 out, high detail; inputs and
+preregistered expectations frozen; mocked-network rehearsal first.
+Result (Codex-confirmed): r1_page_7_1 Dini nose CAUGHT; cover premature trail
+CAUGHT; page_4_1 and page_6_2 targeted controls clear; page_4_2 duplicated rock
+MISSED (seen as "a separate rear boulder", not classified as the landmark).
+4/5 expectations, not a reliability rate. Cause of the miss is classification;
+the "ordinary rocks" clause as sole cause is an untested hypothesis.
+Spend: $0.249226 new OpenAI API (5 x 43464..53920, recomputed from usage);
+cumulative OpenAI API $6.801844 (Codex chain 3.068496 + audition 3.484122 +
+rejudge 0.249226). Earlier $23.112292 reconciles to 3.068496 API + 0.790557
+Claude CLI + 19.253239 engineering; Claude Max values separate, not $0.
+Evidence: book-renders/goni-shadows-rejudge-20261011 (+ .grant/.log/.index-receipt;
+index v2 has 57 rows, no self entry, sha 970bb842...; QA P2 fixed). Old 412
+audition files unchanged. Visual HOLD; full gate RED/not rerun; redraw deferred.
+
 ## Reviewed audition F1/F2/F3: narrow code PASS; full RED; visual HOLD (2026-10-10)
 
 Docs-only closeout for HEAD88f6b272 (parent754913ea), sole Claude branch
