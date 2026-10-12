@@ -24,7 +24,7 @@ import type { PersonalWizardOptions } from './options';
  * each observed object is listed once with an id that every landmark entry shares, so one object is never two landmarks at once.
  * qa_supported is not product approval and not production qualification. Diagnostic and runtime-ineligible.
  */
-export const REVIEWED_AUDITION_POLICY = Object.freeze({ version: 'reviewed-audition-policy/v6',
+export const REVIEWED_AUDITION_POLICY = Object.freeze({ version: 'reviewed-audition-policy/v7',
   sheetAttempts: 2, pageAttempts: 3, identityThreshold: 0.7,
   impactOrder: ['safety', 'story', 'identity', 'continuity', 'detail'] as const,
   selection: 'eligible_then_fewest_story_identity_continuity_detail_then_earliest' as const,
@@ -32,7 +32,7 @@ export const REVIEWED_AUDITION_POLICY = Object.freeze({ version: 'reviewed-audit
   status: 'qa_supported requires no safety/story/identity/continuity finding and a measured child identity >= 0.70' as const,
   citation: 'a critical finding with an unknown requirement stays critical: review_invalid, held, never repaired or redrawn' as const,
   unusableReview: 'a malformed or misbound review halts the run: no further render, review or identity call' as const,
-  landmarks: 'page reviews list each observed object once (objectId) and check it against every unique landmark\'s source-bound feature catalogue (identical on every page); only whole-object cues of the written design decide (strength and dismissal); part, nearby-object and later-clause cues are checked but never decide; negated statements yield no cue; two strong matches are a continuity defect, an ambiguous second match is uncertain; the same object counts as another landmark\'s own instance only with positive, distinguishing support there, otherwise it stays counted here' as const });
+  landmarks: 'page reviews list each observed object once (objectId) and check it against every unique landmark\'s source-bound feature catalogue (identical on every page); only whole-object cues of the written design decide (strength and dismissal); part, nearby-object and later-clause cues are checked but never decide; negated statements yield no cue; two strong matches are a continuity defect, an ambiguous second match is uncertain; the same object counts as another landmark\'s own instance only with positive, distinguishing support there from its whole-object or connected-part cues (a nearby object\'s cues never identify it), otherwise it stays counted here' as const });
 /** Paid calls one complete run can make: each sheet attempt renders + judges, each page attempt renders + judges + measures identity. */
 export const AUDITION_WORST_CASE_CALLS = 2 * REVIEWED_AUDITION_POLICY.sheetAttempts * 2 + 9 * REVIEWED_AUDITION_POLICY.pageAttempts * 3;
 export const AUDITION_IMPACTS = REVIEWED_AUDITION_POLICY.impactOrder;
@@ -183,10 +183,13 @@ export const auditionReviewSchema = z.object({ candidateSha: sha, contextSha: sh
  * at most two noun words ("large pale-gray rounded rock"). Decisive cues alone confirm strength or dismiss an object; every other cue (a
  * part, a nearby or contained object, a later clause) is listed and checked but never decides. A catalogue can therefore be incomplete
  * (fewer decisive supports, more uncertain results); a component or negated word never becomes a whole-object reason.
+ * A later clause is a connected PART only when its connector is not a proximity word and it names a counted or possessed component
+ * ("on two cream ropes", "with one ochre seam", "beneath its lip"); anything else ("beside a blue sign", "the right lawn") is CONTEXT.
+ * Parts may help identify the object as this landmark; context never does. Conservative: an unnumbered part ("forked trunk") is context.
  * Known lexical limit: a design whose first clause names a part ("three wooden seat slats") is read as describing the whole object.
  */
 export type LandmarkAspect = 'material' | 'colour' | 'shape' | 'size';
-export type LandmarkFeature = { id: string; aspect: LandmarkAspect; text: string; clause: string; decisive: boolean };
+export type LandmarkFeature = { id: string; aspect: LandmarkAspect; text: string; clause: string; decisive: boolean; part: boolean };
 export type AuditionLandmark = { id: string; features: readonly LandmarkFeature[] };
 const words = (...list: string[]): ReadonlySet<string> => new Set(list);
 const LANDMARK_LEXICON: Record<LandmarkAspect, ReadonlySet<string>> = {
@@ -209,7 +212,12 @@ const ASPECT_ATTRIBUTES: Readonly<Record<string, LandmarkAspect>> = { material: 
 const NEGATIONS = words('no', 'not', 'never', 'none', 'nor', 'neither', 'non');
 const DETERMINERS = words('a', 'an', 'the', 'one', 'two', 'three', 'four', 'five', 'six', 'single', 'its', 'their', 'his', 'her', 'some',
   'each', 'this', 'that', 'very');
-const CLAUSE_BREAK = /[;,]|\s+(?:with|and|on|in|under|beneath|below|behind|beside|before|after|near|at|by|above|over|inside|around|against|along|across|between|of|from|to|into|onto)\s+/i;
+const CLAUSE_CONNECTOR = /([;,])|\s+(with|and|on|in|under|beneath|below|behind|beside|before|after|near|at|by|above|over|inside|around|against|along|across|between|of|from|to|into|onto)\s+/gi;
+/** Connectors that place a clause NEXT TO the object, never on it: what follows them is context, whatever it says. */
+const PROXIMITY_CONNECTORS = words('behind', 'beside', 'before', 'after', 'near', 'at', 'around', 'against', 'along', 'across', 'between', 'from',
+  'to', 'into', 'onto');
+/** A counted or possessed component ("two ropes", "its lip") names a part of the object; "a"/"the"/nothing does not. */
+const PART_LEADS = words('one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'both', 'its', 'their', 'his', 'her');
 const LANDMARK_FEATURE_LIMIT = 16;
 const landmarkAspectOf = (word: string): LandmarkAspect | null => {
   if (/-sized?$/.test(word)) return 'size';
@@ -231,20 +239,28 @@ export function landmarkFeatureCatalogue(invariants: readonly { attribute: strin
   };
   for (const { attribute, value } of invariants) {
     const named = ASPECT_ATTRIBUTES[attribute.trim().toLowerCase()];
-    const clauses = value.replace(/\bwithout\b/gi, ', no').split(CLAUSE_BREAK).map(s => s.trim().replace(/\.+$/, '')).filter(Boolean);
-    clauses.forEach((clause, index) => {
+    const text = value.replace(/\bwithout\b/gi, ', no'), pieces: { connector: string | null; clause: string }[] = [];
+    let last = 0, connector: string | null = null;
+    for (const m of text.matchAll(CLAUSE_CONNECTOR)) {
+      pieces.push({ connector, clause: text.slice(last, m.index) });
+      connector = (m[1] ?? m[2]).toLowerCase(); last = m.index! + m[0].length;
+    }
+    pieces.push({ connector, clause: text.slice(last) });
+    const clauses = pieces.map(p => ({ ...p, clause: p.clause.trim().replace(/\.+$/, '') })).filter(p => p.clause);
+    clauses.forEach(({ connector: joinedBy, clause }, index) => {
       const tokens = clause.split(/\s+/).map(t => t.toLowerCase().replace(/^[^a-z]+|[^a-z]+$/g, ''));
       // A negated statement asserts nothing the picture must show: it yields no cue in either direction.
       if (tokens.some(t => NEGATIONS.has(t))) return;
       const decisive = index === 0 && (!!named || wholeObject(tokens));
-      if (named) { add({ aspect: named, text: clause, clause, decisive }); return; }
+      const part = index > 0 && !!joinedBy && !PROXIMITY_CONNECTORS.has(joinedBy) && (PART_LEADS.has(tokens[0]) || /^\d+$/.test(clause.split(/\s+/)[0]));
+      if (named) { add({ aspect: named, text: clause, clause, decisive, part }); return; }
       for (let i = 0; i < tokens.length; i++) {
         const aspect = colourAt(tokens, i) ? 'colour' : landmarkAspectOf(tokens[i]);
         if (!aspect) continue;
         // A run of colour words is ONE cue ("pale gray", "soft gray-brown"), never several supports.
         let end = i + 1;
         if (aspect === 'colour') while (end < tokens.length && colourAt(tokens, end)) end++;
-        add({ aspect, text: tokens.slice(i, end).join(' '), clause, decisive });
+        add({ aspect, text: tokens.slice(i, end).join(' '), clause, decisive, part });
         i = end - 1;
       }
     });
@@ -286,10 +302,11 @@ export type AuditionAssessment = { findings: AuditionFinding[]; counts: Record<I
  * (two colours) are one support. Only DECISIVE catalogue features (whole-object cues) count as "core": they alone give strength or dismiss.
  * One physical object is at most one landmark's own instance (two claims: unusable). An object claimed as ANOTHER landmark's own instance is
  * confirmed as that landmark only with positive, distinguishing support in that landmark's own checks: nothing of it contradicted, matches
- * in two distinct aspects, and at least one matched cue sharing no word with this landmark's catalogue. A bare label, hidden features, an
- * empty catalogue or a shared cue alone confirm nothing. A confirmed object is not counted as a copy here unless its support here is strong
- * (then the conflict stays an uncertain count); an unconfirmed claim leaves it counted (uncertain), never dismissed. The link is the shared
- * objectId of the SAME observed object; a different object identified as that landmark never excuses this one.
+ * in two distinct aspects, and at least one matched cue sharing no word with this landmark's catalogue, counting only that landmark's
+ * whole-object and connected-part cues (a nearby object's cues describe the neighbour, not the owner). A bare label, hidden features, an
+ * empty catalogue, a shared cue or a neighbour's cues alone confirm nothing. A confirmed object is not counted as a copy here unless its
+ * support here is strong (then the conflict stays an uncertain count); an unconfirmed claim leaves it counted (uncertain), never dismissed.
+ * The link is the shared objectId of the SAME observed object; a different object identified as that landmark never excuses this one.
  */
 export function assessLandmarkInventory(inventory: z.infer<typeof landmarkInventorySchema>, landmarks: readonly AuditionLandmark[]) {
   const bad = (): never => fail('audition_review_landmark_inventory');
@@ -319,7 +336,7 @@ export function assessLandmarkInventory(inventory: z.infer<typeof landmarkInvent
   const identityConfirmed = (ownerId: string, objectId: string, hereId: string) => {
     const checks = evaluated.get(ownerId)!.get(objectId)!.c.featureChecks, ownFeatures = catalogue.get(ownerId)!;
     if (checks.some(f => f.observed === 'contradicted')) return false;
-    const matched = checks.filter(f => f.observed === 'matches').map(f => ownFeatures.find(x => x.id === f.featureId)!);
+    const matched = checks.filter(f => f.observed === 'matches').map(f => ownFeatures.find(x => x.id === f.featureId)!).filter(f => f.decisive || f.part);
     const here = new Set(catalogue.get(hereId)!.flatMap(f => wordsOf(f.text)));
     return new Set(matched.map(f => f.aspect)).size >= 2 && matched.some(f => wordsOf(f.text).every(w => !here.has(w)));
   };

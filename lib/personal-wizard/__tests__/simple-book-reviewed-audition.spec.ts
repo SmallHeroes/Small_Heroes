@@ -159,7 +159,7 @@ describe('findings: impact, requirement binding and status', () => {
 });
 
 describe('landmark instances: code counts on a source-bound catalogue; one observed object, one id', () => {
-  const F = (id: string, aspect: LandmarkAspect, text: string, decisive = true) => ({ id, aspect, text, clause: text, decisive });
+  const F = (id: string, aspect: LandmarkAspect, text: string, decisive = true, part = false) => ({ id, aspect, text, clause: text, decisive, part });
   const tree: AuditionLandmark = { id: 'old_tree', features: [F('f1', 'shape', 'forked')] };
   const stone: AuditionLandmark = { id: 'stone', features: [F('f1', 'size', 'big'), F('f2', 'colour', 'pale'), F('f3', 'shape', 'rounded')] };
   type Seen = Record<string, 'matches' | 'contradicted' | 'not_visible'>;
@@ -175,11 +175,12 @@ describe('landmark instances: code counts on a source-bound catalogue; one obser
   const held = (a: ReturnType<typeof assess>) => attemptStatus('page', { candidate: image('c'), assessment: a, identity: identity(.9) });
 
   it('builds one comparison catalogue per landmark from its written design: words only from the source, the same on every page', () => {
-    // "+" = decisive (whole-object cue: decides strength and dismissal); "~" = listed and checked, never decides.
+    // "+" = decisive (whole-object cue: decides strength and dismissal); "*" = connected part (never decides; may help identify the
+    // object as this landmark); "~" = context (a nearby object, an unnumbered or later clause: never decides, never identifies).
     const cases: [{ attribute: string; value: string }[], string[]][] = [
       [[{ attribute: 'design', value: 'Large pale-gray rounded rock with one diagonal ochre seam and a low burrow opening beneath its front lip; rear right of garden.' }],
-        ['+size:large', '+colour:pale-gray', '+shape:rounded', '~colour:ochre', '~size:low']],
-      [[{ attribute: 'design', value: 'Three wooden seat slats, three back slats and two dark iron supports; behind the tree.' }], ['+material:wooden', '~colour:dark', '~material:iron']],
+        ['+size:large', '+colour:pale-gray', '+shape:rounded', '*colour:ochre', '~size:low']],
+      [[{ attribute: 'design', value: 'Three wooden seat slats, three back slats and two dark iron supports; behind the tree.' }], ['+material:wooden', '*colour:dark', '*material:iron']],
       // Structured invariants: an attribute named after an aspect keeps its value (its first clause decides); other attributes are read word by word.
       [[{ attribute: 'structure', value: 'one large rectangular woven rug' }, { attribute: 'count', value: '1' }, { attribute: 'material', value: 'braided cotton' },
         { attribute: 'color', value: 'sand beige with muted border' }], ['+size:large', '+shape:rectangular', '+material:braided cotton', '+colour:sand beige', '~colour:muted border']],
@@ -195,10 +196,16 @@ describe('landmark instances: code counts on a source-bound catalogue; one obser
       [[{ attribute: 'design', value: 'Wooden crate full of red apples' }], ['+material:wooden', '~colour:red']],
       [[{ attribute: 'design', value: 'basket holding green eggs' }], ['~colour:green']],
       [[{ attribute: 'design', value: 'kettle black with a lid' }], ['~colour:black']],
+      // Part or context: a counted or possessed component joined to the object is a part; anything placed NEXT TO it is context.
+      [[{ attribute: 'design', value: 'Arched portal beside a blue square sign' }], ['+shape:arched', '~colour:blue', '~shape:square']],
+      [[{ attribute: 'design', value: 'Arched portal beside two blue square signs' }], ['+shape:arched', '~colour:blue', '~shape:square']],
+      [[{ attribute: 'design', value: 'Arched portal with two blue square panels' }], ['+shape:arched', '*colour:blue', '*shape:square']],
+      [[{ attribute: 'design', value: 'Single rectangular wooden seat on two cream ropes, supported by a separate wooden frame on the right lawn.' }],
+        ['+shape:rectangular', '+material:wooden', '*colour:cream', '~material:wooden']],
     ];
     for (const [invariants, expected] of cases) {
       const catalogue = landmarkFeatureCatalogue(invariants);
-      expect(catalogue.map(f => `${f.decisive ? '+' : '~'}${f.aspect}:${f.text}`)).toEqual(expected);
+      expect(catalogue.map(f => `${f.decisive ? '+' : f.part ? '*' : '~'}${f.aspect}:${f.text}`)).toEqual(expected);
       expect(catalogue.map(f => f.id)).toEqual(expected.map((_, i) => `f${i + 1}`));
       const source = invariants.map(i => i.value).join(' ').toLowerCase();
       for (const f of catalogue) { expect(source).toContain(f.text); expect(source).toContain(f.clause.toLowerCase()); }
@@ -385,6 +392,33 @@ describe('landmark instances: code counts on a source-bound catalogue; one obser
     });
     it('control: a contradicted whole-object size still dismisses (the small foreground stones of the saved control)', () => {
       expect(copyOf(rock, { large: 'contradicted' }).findings).toEqual([]);
+    });
+  });
+  describe('a neighbouring object never identifies an unseen owner (QA owner-evidence residual)', () => {
+    const markerA: AuditionLandmark = { id: 'marker_a', features: [F('f1', 'material', 'wooden')] };
+    const portal = (design: string): AuditionLandmark => ({ id: 'marker_b', features: landmarkFeatureCatalogue([{ attribute: 'design', value: design }]) });
+    const objects = [obj('o1', 'left foreground'), obj('o2', 'separate object in the right foreground')];
+    const sign = obj('o3', 'separate sign beside the claimed portal');
+    // o2 is a possible copy of marker_a and is claimed as marker_b's own instance; marker_b's own shape is hidden.
+    const run = (b: AuditionLandmark, withSign: boolean) => assessWith([markerA, b], withSign ? [...objects, sign] : objects, {
+      marker_a: [cand('o1', 'this_landmark', {}, markerA), cand('o2', 'possible_copy', {}, markerA)],
+      marker_b: [cand('o2', 'this_landmark', { arched: 'not_visible' }, b), ...(withSign ? [cand('o3', 'different_object', { arched: 'contradicted' }, b)] : [])] });
+    const unresolved = (a: ReturnType<typeof run>) => {
+      expect(of(a, 'marker_a')).toMatchObject({ instances: 2, excluded: 0 });
+      expect(a.findings).toEqual([expect.objectContaining({ requirement: 'landmark_unique:marker_a', verdict: 'uncertain' })]);
+      expect(held(a)).toBe('held');
+    };
+    it('a sign beside the portal, listed as its own object, does not identify the hidden portal', () => unresolved(run(portal('Arched portal beside a blue square sign'), true)));
+    it('the same without the sign listed', () => unresolved(run(portal('Arched portal beside a blue square sign'), false)));
+    it('a counted neighbour is still a neighbour', () => unresolved(run(portal('Arched portal beside two blue square signs'), true)));
+    it('an uncounted thing joined by "with" is context, not a part (conservative: lexical, it may be attached or not)', () =>
+      unresolved(run(portal('Arched portal with a blue square sign'), true)));
+    it('hand-built neighbour cues that are not marked as parts identify nothing', () =>
+      unresolved(run({ id: 'marker_b', features: [F('f1', 'shape', 'arched'), F('f2', 'colour', 'blue', false), F('f3', 'shape', 'square', false)] }, true)));
+    it('control: the portal\'s own counted panels identify it even with its arch hidden (connected parts, like a swing\'s ropes)', () => {
+      const a = run(portal('Arched portal with two blue square panels'), false);
+      expect(of(a, 'marker_a')).toMatchObject({ instances: 1, excluded: 1 });
+      expect(held(a)).toBe('qa_supported');
     });
   });
   it('rejects an inventory that skips, invents or under-checks a landmark', () => {
