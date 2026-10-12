@@ -1,5 +1,18 @@
 # SmallHeroes — Current Technical State
 
+## Owner-evidence correction 8e22dcf6: a neighbour's cues never identify an unseen owner (offline; 2026-10-12)
+
+Codex HOLD of d6127fb9..7eeace2e: original F1/F2 closed, one P1 left in their
+combination (owner confirmation counted a nearby sign's colour/shape as the
+hidden portal's identity, erased a copy, qa_supported). The catalogue now
+marks connected PART cues (non-proximity connector + counted/possessed lead:
+"on two cream ropes", "beneath its lip"); everything else is CONTEXT. Owner
+identification counts only whole-object and part cues. Cropped-swing and
+counted-panel controls still identify. Lexical and conservative (unnumbered
+parts are context). Policy v7; instruction/schema unchanged. tsc0; focused
+122/122; frozen 7eeace2e check 6 failing (5 behavioural, 1 field); mutants
+46/46. Per Codex: if this ambiguity survives, stop for design diagnosis.
+
 ## Cross-landmark correction 2c0de372: owner identity needs positive support; only whole-object cues decide (offline; 2026-10-12)
 
 Codex HOLD of c731ff82..d6127fb9 (F1 P1, F2 P2), reproduced by regressions

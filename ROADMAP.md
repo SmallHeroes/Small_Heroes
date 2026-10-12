@@ -1,5 +1,11 @@
 # SmallHeroes — Roadmap
 
+## Owner-evidence correction (8e22dcf6); next: Codex re-gate of 7eeace2e..(this docs commit) (2026-10-12)
+
+- If the same ownership ambiguity remains: stop for a bounded design
+  diagnosis (no further correction loop); a schema/storyboard change is Guy's.
+- Paid two-image validation still unapproved.
+
 ## Cross-landmark correction (2c0de372); next: Codex re-gate of d6127fb9..(this docs commit) (2026-10-12)
 
 - Then, only with Guy's fresh approval: fresh freeze (v4 schema, policy v6,
