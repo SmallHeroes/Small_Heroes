@@ -1,5 +1,11 @@
 # SmallHeroes — Roadmap
 
+## Phase 1 PASS (narrow); next: the approved saved two-image check under policy v8 (2026-10-12)
+
+- Fresh v8 freeze + pre-registered criteria + provider-free rehearsal + preflight,
+  then exactly two calls; results to Codex for independent QA.
+- Phase 2 (kind contract) offline build only after Guy's separate decision.
+
 ## Phase 1 containment (c53f04fd); next: Codex re-gate of 6ee16411..(this docs commit) (2026-10-12)
 
 - Phase 2 (opt-in, source-bound landmark kind contract): corrected plan only;

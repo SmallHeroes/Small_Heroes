@@ -1,5 +1,20 @@
 # SmallHeroes — Current Technical State
 
+## Phase 1 re-gate = Codex narrow technical PASS (6ee16411..3c6b25a8); saved-pair check approved (2026-10-12)
+
+Codex: tsc0, focused 126/126, 27/27 independent actual-function assertions
+(prior 6ee16411 counterexamples reproduced and closed), v7 resume refused
+before any provider call, schema v4 and page instruction unchanged, 32 prior
+paid-pair evidence rows preserved. Narrow: parts-only recognition stays HELD
+(accepted cost, tests kept), full repo RED/not rerun, visual/book HOLD (page 4
+rock, page 7 nose unchanged), no production approval. Phase 2 (kind contract)
+plan accepted as direction only, not implemented.
+Guy then approved exactly two saved-image checks (page_4_2, page_4_1), API cap
++$1.20 (6.943778 -> 8.143778), no new images, no new story, no automatic
+retry. Objectives pre-registered before any call: inventory-derived rock
+defect on page_4_2, clean rock control on page_4_1, valid output and objectId
+consistency; swing/bench reported separately, not scored.
+
 ## Phase 1 containment c53f04fd: only whole-object cues identify an owner (offline; 2026-10-12)
 
 Codex HOLD of 7eeace2e..6ee16411 (nested/coordinated neighbour ownership)
