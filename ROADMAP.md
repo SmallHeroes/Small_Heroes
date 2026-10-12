@@ -1,5 +1,13 @@
 # SmallHeroes — Roadmap
 
+## Paid re-plan done: COMPARABLE, $0.665304 (2026-10-12); next: Codex QA of the run, then Guy on the pixel proof
+
+- Codex QAs goni-shadows-replan-20261012 and this docs commit.
+- Guy: the saved-pair pixel proof (+$1.20, 2 Sol calls) needs approval plus the
+  object-list target-binding protocol; the declared thorn kind is the generic
+  "bush" (may not discriminate the hedge) - weigh before spending.
+- Page 4/7 repair plan stays separate. Book remains visual HOLD.
+
 ## Re-plan HOLD corrected (b3166be8); next: Codex re-gate, then Guy on the paid re-plan (2026-10-12)
 
 - 1) Codex re-gate of 59e98148..(this docs commit); 2) paid re-plan, exactly 2

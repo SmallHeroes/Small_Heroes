@@ -1,5 +1,26 @@
 # SmallHeroes — Current Technical State
 
+## Paid re-plan RAN: review_supported and COMPARABLE, $0.665304 (2026-10-12)
+
+Guy's approval ("Paid re-plan after PASS", "Keep both calls"; exactly Astra
+storyboard + Sol review, cap +$3.54) took effect at Codex's narrow re-gate PASS
+of 59e98148..0b56c507. Final grant goni-shadows-replan-20261012.grant.json
+(786ca886, validated offline before the run). Run 17:10:01-17:12:34Z, process
+exit 0, 2 calls, 0 failed, no retry. Storyboard (gpt-6-astra): 14,831 input
+(14,828 cache-write, 3 ordinary), 8,359 output (51 reasoning) = $0.603330
+(reserved 2,757,838). Review (gpt-6.1-sol): 14,582 input (14,579 cache-write),
+2,552 output = $0.061974 (wire 66,729 B; reserved 781,000). New API $0.665304;
+cumulative recorded 7.100254 -> 7.765558 (cap 10.640254, headroom 2.874696).
+Claude Max separate. Result: storyboard 8ff91156, review supported (no held
+check), COMPARABLE with zero drift and no viewpoint change; kinds tree, bench,
+swing, bush (thorn landmark: the planner chose the generic "bush"), rock.
+Admitted by the real loader (producer grant 786ca886, index fd45f02a, 14
+files, pages [4]); protected parent and prior evidence unchanged. Evidence:
+book-renders/goni-shadows-replan-20261012 (+ .log, .grant.json,
+.index-receipt.json). Next is a separate decision: the saved-pair pixel proof
+(+$1.20) with the object-list target binding; note the generic "bush" kind may
+not separate the hedge. Visual HOLD.
+
 ## Re-plan HOLD F1-F4 corrected (b3166be8); next: Codex re-gate of 59e98148..(this docs commit) (2026-10-12)
 
 Codex HOLD on 59e98148 (4 reproduced gaps; plumbing, preservation and cache
