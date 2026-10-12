@@ -1,5 +1,14 @@
 # SmallHeroes — Roadmap
 
+## New-book experiment built (d7743bdf); next: Codex QA, then the staged paid run (2026-10-12)
+
+- Codex QAs the offline build (range in the handoff) before ANY paid stage.
+- Then, under Guy's approved $7 API cap: text -> child -> grant -> reviewed
+  audition with the early sample; each stage stops on its own gate; Guy judges
+  the finished book (and the story) himself.
+- Open product points: the story itself; whether the moments contract becomes
+  the default for new storyboards (this experiment only for now).
+
 ## Step A closed (Codex PASS cb32f9c7); next: Guy decides a staged NEW-book experiment (2026-10-12)
 
 - Guy asked for a new book from scratch to test the engine. Codex: ready for

@@ -1,5 +1,29 @@
 # SmallHeroes — Current Technical State
 
+## New-book experiment built offline (d7743bdf): a fresh book from scratch, staged, awaiting Codex QA (2026-10-12)
+
+Guy chose (Decision Gate docs/ai-workflow/DECISION_NEW_BOOK_EXPERIMENT_20261012.md):
+experimental CLI path; $7 API cap, staged, effective only after Codex QA of this
+build; auto-continue when the 2 sample pages pass; Claude picks a fictional
+child and a non-Dini companion. Built (no spend): scripts/personal-new-book-
+experiment.ts, one hard-coded single-use slot new-book-20261012 with stages
+plan / text (Opus author + fresh editor journaled as Claude Max; Sol readers,
+Astra storyboard + Sol review under owned-appearance + moments + landmark-kind
+contracts; API meter capped at $7) / child (fictional child from its written
+design, LOW render + Sol reference judge, one targeted edit only for an
+evidenced defect) / grant (verified text+child ledgers as prior, pages 0-8,
+early sample = earliest same-scene pair). The reviewed-audition loader takes an
+optional --layout (routing only; seed now bound to the saved story's own seed;
+moments marker read from the saved book); the old book uses LEGACY_BOOK_LAYOUT
+and its loader/dry-run fingerprints are identical with and without its re-plan.
+Opt-in grant scope.sample: sample pages first, the rest only if every sample
+page is qa_supported, else held_sample (one run, same sheets). Offline
+rehearsal through the real CLI, meters and the real audition runner (synthetic
+providers): supported sample -> all 9 frames; held sample -> stops after 2
+pages. Tests: new spec 22/22, audition spec 82/82; focused 10 files 330/330; simple-book-flow 180/181 (only the pre-existing 12m/14m budget test, identical at base);
+mutants 56/56 (+1 equivalent); tsc0. Real config validated provider-free (fictional boy, 5,
+fox Uri, 8 pages). Not run; not wizard/production; book unchanged.
+
 ## Codex re-gate: Step A F1/F2 correction = narrow technical PASS (ccfc9f06..cb32f9c7) (2026-10-12)
 
 Codex independently passed ccfc9f06..cb32f9c7 (code 69b703ee, docs
