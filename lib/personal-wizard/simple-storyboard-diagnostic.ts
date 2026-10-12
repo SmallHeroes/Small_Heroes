@@ -5,6 +5,7 @@ import { prepareCurrentPersonalStoryboard, authorPersonalStoryboard, personalSto
   personalStoryboardReviewSchema, storyboardReviewDisposition, currentPersonalStoryboardFrame, storyboardInstructions, storyboardDraftSchema } from './storyboard';
 import { MOMENT_REVIEW_ADDENDUM } from './storyboard-moments';
 import { KIND_REVIEW_ADDENDUM } from './storyboard-landmark-kind';
+import type { StoryboardPreservation } from './storyboard-preservation';
 import { PERSONAL_BOOK_REVIEW_INSTRUCTION, type BookVisualCall } from './book-runner';
 import { personalBookOutputLimits } from './book-config';
 
@@ -31,20 +32,24 @@ export async function runSimpleStoryboardDiagnostic(args: {
   momentContract?: true;
   /** Opt-in landmark-kind contract; absent keeps the exact existing calls. */
   landmarkKindContract?: true;
+  /** Opt-in re-plan of an approved parent (needs the kind contract); absent keeps the exact existing calls. */
+  preservation?: StoryboardPreservation;
 }) {
   const limit = args.inputByteLimit ?? SIMPLE_STORYBOARD_INPUT_LIMIT;
   if (!Number.isInteger(limit) || limit < 1 || limit > SIMPLE_STORYBOARD_INPUT_LIMIT) fail('input_policy');
   if (args.signal.aborted) fail('cancelled');
   // This driver is for the explicit simple envelope only, never archive/v3 substitution.
   if (!args.writerResult || typeof args.writerResult !== 'object' || !('simpleSource' in args.writerResult)) fail('simple_source_required');
-  const source = prepareCurrentPersonalStoryboard(args.request, args.writerResult, args.options, args.actorOwnedAppearance, args.momentContract, args.landmarkKindContract);
+  const source = prepareCurrentPersonalStoryboard(args.request, args.writerResult, args.options, args.actorOwnedAppearance, args.momentContract, args.landmarkKindContract,
+    args.preservation);
   const instructions = storyboardInstructions(source);
   const caps = personalBookOutputLimits(source.story.pages.length);
   const calls: (BookVisualCall & { contentBytes: number; contentByteLimit: number; headroomBytes: number })[] = [];
   const assertCurrent = () => {
     if (args.signal.aborted) fail('cancelled');
     try {
-      if (prepareCurrentPersonalStoryboard(args.request, args.writerResult, args.options, args.actorOwnedAppearance, args.momentContract, args.landmarkKindContract).sourceDigest !== source.sourceDigest) fail('source_changed');
+      if (prepareCurrentPersonalStoryboard(args.request, args.writerResult, args.options, args.actorOwnedAppearance, args.momentContract, args.landmarkKindContract,
+        args.preservation).sourceDigest !== source.sourceDigest) fail('source_changed');
     } catch (error) {
       if (error instanceof SimpleStoryboardDiagnosticError) throw error;
       fail('source_changed');

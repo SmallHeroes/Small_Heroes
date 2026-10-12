@@ -6,7 +6,7 @@
  * never resets spending. Not production, customer or release authority. Every paid call is journaled before dispatch.
  */
 import path from 'node:path';
-import { existsSync, mkdirSync, readdirSync, readFileSync, lstatSync, openSync, writeFileSync, fsyncSync, closeSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, lstatSync, openSync, writeFileSync, fsyncSync, closeSync, realpathSync } from 'node:fs';
 import sharp from 'sharp';
 import OpenAI from 'openai';
 import { zodTextFormat } from 'openai/helpers/zod';
@@ -17,12 +17,13 @@ import { qualityDisposition } from '../lib/local-preview-quality';
 import { previewSha } from '../lib/local-story-preview';
 import { evaluatePageChildResemblanceVision } from '../lib/generation-pipeline/page-child-resemblance-vision';
 import { canonicalJson } from '../lib/personal-wizard/request-acceptance';
-import { resolvePersonalWizardOptions } from '../lib/personal-wizard/options';
+import { resolvePersonalWizardOptions, type PersonalWizardOptions } from '../lib/personal-wizard/options';
 import { prepareSimpleStory } from '../lib/personal-wizard/simple-story-engine';
 import { prepareCurrentPersonalStoryboard, compilePersonalStoryboard, storyboardReviewDisposition,
-  currentPersonalStoryboardFrame } from '../lib/personal-wizard/storyboard';
+  currentPersonalStoryboardFrame, type PersonalStoryboard } from '../lib/personal-wizard/storyboard';
 import { simpleReferenceDesignContext, type AuditionImage } from '../lib/personal-wizard/simple-book-illustrations';
 import { LANDMARK_KIND_CONTRACT_VERSION } from '../lib/personal-wizard/storyboard-landmark-kind';
+import { STORYBOARD_PRESERVATION_VERSION, storyboardPreservationDiff } from '../lib/personal-wizard/storyboard-preservation';
 import { illustrateReviewedAudition, rejudgeAudition, reviewedAuditionHTML, auditionSheetDesigns, auditionSheetPrompt, auditionPageChecks,
   auditionReviewSchema, auditionPageReviewSchema, AUDITION_JUDGE_INSTRUCTIONS, AUDITION_IMPACTS, REVIEWED_AUDITION_POLICY, AUDITION_WORST_CASE_CALLS,
   ReviewedAuditionError, type ReferenceStatus } from '../lib/personal-wizard/simple-book-reviewed-audition';
@@ -45,29 +46,112 @@ export function savedLandmarkKindContract(savedBook: { landmarkKind?: unknown } 
   return marker === LANDMARK_KIND_CONTRACT_VERSION ? true : fail('audition_board_binding');
 }
 
-export function loadReviewedBook(bookDir: string, workspace = process.cwd()) {
+// ---------------------------------------------------------------------------------------------------------------
+// Optional re-plan folder: the SAME saved source with a new kind-enabled storyboard, bound to the reviewed parent. Never written
+// inside the protected parent folder; every file sha-indexed (immutable); admitted only when comparable with the parent's images.
+// ---------------------------------------------------------------------------------------------------------------
+export const PARENT_STORYBOARD_DIR = 'controlled-visual-continuation-20261008';
+export const REPLAN_RESULT_VERSION = 'storyboard-replan-result/v1' as const;
+export const REPLAN_INDEX_VERSION = 'storyboard-replan-index/v1' as const;
+export const REPLAN_INDEX_FILE = 'replan-index.json';
+const indexedPath = /^[A-Za-z0-9_.-]+(?:\/[A-Za-z0-9_.-]+)?$/;
+
+/** Every regular file below `dir` (one sub-folder level), as forward-slash relative paths. A link or deeper nesting is refused. */
+export function replanFiles(dir: string) {
+  const out: string[] = [];
+  for (const name of readdirSync(dir)) {
+    const st = lstatSync(path.join(dir, name));
+    if (st.isSymbolicLink()) fail('audition_replan_index');
+    if (st.isFile()) { out.push(name); continue; }
+    if (!st.isDirectory()) fail('audition_replan_index');
+    for (const inner of readdirSync(path.join(dir, name))) {
+      const s2 = lstatSync(path.join(dir, name, inner));
+      if (!s2.isFile() || s2.isSymbolicLink()) fail('audition_replan_index');
+      out.push(`${name}/${inner}`);
+    }
+  }
+  return out.sort();
+}
+
+/** The folder is exactly its index: same file set, same bytes. A changed, added or removed file refuses the whole folder. */
+export function verifyReplanIndex(dir: string) {
+  const index = z.object({ version: z.literal(REPLAN_INDEX_VERSION),
+    files: z.array(z.object({ path: z.string().regex(indexedPath), sha256: hash, bytes: z.number().int().nonnegative() }).strict()).min(1).max(64) }).strict()
+    .safeParse(read(path.join(dir, REPLAN_INDEX_FILE)));
+  if (!index.success) return fail('audition_replan_index');
+  const listed = index.data.files.map(f => f.path).sort();
+  if (new Set(listed).size !== listed.length || canonicalJson(listed) !== canonicalJson(replanFiles(dir).filter(f => f !== REPLAN_INDEX_FILE))) fail('audition_replan_index');
+  for (const f of index.data.files) {
+    const bytes = readFileSync(path.join(dir, ...f.path.split('/')));
+    if (bytes.length !== f.bytes || previewSha(bytes) !== f.sha256) fail('audition_replan_index');
+  }
+  return { ...index.data, sha256: previewSha(readFileSync(path.join(dir, REPLAN_INDEX_FILE))) };
+}
+
+type ReplanParentBook = { bookDir: string; request: unknown; options: PersonalWizardOptions; source: unknown; book: PersonalStoryboard; draft: unknown };
+/** Re-admits a re-plan against its reviewed parent: same source, preservation bound to the parent, new review and packets, comparable design. */
+export function admitReplanStoryboard(parent: ReplanParentBook, replanDir: string) {
+  if (!path.isAbsolute(replanDir)) fail('audition_replan_fence');
+  realDirectory(replanDir);
+  const real = realpathSync.native(replanDir).toLowerCase(), protectedRoot = realpathSync.native(parent.bookDir).toLowerCase();
+  if (real === protectedRoot || real.startsWith(protectedRoot + path.sep)) fail('audition_replan_fence');
+  const index = verifyReplanIndex(replanDir);
+  if (!existsSync(path.join(replanDir, 'visual_simple_book_result.json'))) fail('audition_replan_status');
+  const result = read(path.join(replanDir, 'visual_simple_book_result.json'));
+  if (result.version !== REPLAN_RESULT_VERSION || result.status !== 'review_supported' || result.runtimeEligible !== false ||
+      result.storyboard?.status !== 'review_supported') fail('audition_replan_status');
+  if (result.parent?.storyboardDigest !== parent.book.storyboardDigest || result.parent?.sourceDigest !== parent.book.sourceDigest ||
+      result.parent?.requestId !== parent.book.requestId || canonicalJson(result.source) !== canonicalJson(parent.source) ||
+      result.replan?.preservation !== STORYBOARD_PRESERVATION_VERSION) fail('audition_replan_parent');
+  const pairPages = z.array(z.number().int().min(0).max(parent.book.narrativeSpreads)).min(1).max(4).safeParse(result.replan?.pairPages);
+  if (!pairPages.success) return fail('audition_replan_parent');
+  // The kind marker comes only from the saved, digest-bound book; a re-plan exists to add it.
+  if (savedLandmarkKindContract(result.storyboard?.storyboard) !== true) fail('audition_replan_kind');
+  const source = prepareCurrentPersonalStoryboard(parent.request, result.source, parent.options, true, undefined, true,
+    { parentStoryboardDigest: parent.book.storyboardDigest, draft: parent.draft });
+  const draft = read(path.join(replanDir, 'owned_storyboard_draft.json'));
+  const book = compilePersonalStoryboard(source, draft);
+  const rawReview = result.storyboard.rawReview;
+  if (canonicalJson(book) !== canonicalJson(result.storyboard.storyboard) || !book.plan.actorAppearance ||
+      storyboardReviewDisposition(book, rawReview).disposition !== 'review_supported' || result.storyboard.framePackets?.length !== book.narrativeSpreads + 1) fail('audition_board_binding');
+  const current = { request: parent.request, writerResult: result.source, options: parent.options };
+  for (let n = 0; n <= book.narrativeSpreads; n++)
+    if (canonicalJson(currentPersonalStoryboardFrame(book, rawReview, n, current)) !== canonicalJson(result.storyboard.framePackets[n])) fail('audition_frame_binding');
+  // Recomputed here (the saved report is evidence only): any drift beyond the added kinds refuses the saved images as fair controls.
+  const comparability = storyboardPreservationDiff(parent.draft, draft, pairPages.data);
+  if (comparability.verdict !== 'COMPARABLE') fail('audition_replan_not_comparable');
+  return { dir: replanDir, indexSha256: index.sha256, result, book, rawReview, current, comparability, pairPages: pairPages.data,
+    companionDescription: source.companionDescription };
+}
+
+export function loadReviewedBook(bookDir: string, workspace = process.cwd(), replanDir?: string) {
   realDirectory(bookDir);
   const queued = z.object({ version: z.literal('local-simple-wizard-request/v1'), requestId: z.string(), optionsFingerprint: z.string(),
     request: z.unknown() }).passthrough().parse(read(path.join(bookDir, 'request.json')));
   const options = resolvePersonalWizardOptions(workspace), prepared = prepareSimpleStory(queued.request, options, SEED);
   if (prepared.accepted.requestId !== queued.requestId || prepared.accepted.optionsFingerprint !== queued.optionsFingerprint ||
       prepared.book.pages !== 8 || prepared.accepted.containsFixtureData || prepared.accepted.canonical.appearance.photo !== 'none') fail('audition_request_binding');
-  const visual = path.join(bookDir, 'controlled-visual-continuation-20261008');
+  const visual = path.join(bookDir, PARENT_STORYBOARD_DIR);
   const result = read(path.join(visual, 'visual_simple_book_result.json'));
   if (result.status !== 'review_supported' || result.runtimeEligible !== false || result.storyboard?.status !== 'review_supported') fail('audition_result_status');
   // The rebuilt source must reproduce the saved marker exactly: a stripped or added marker changes the digests and fails the board binding.
   const source = prepareCurrentPersonalStoryboard(queued.request, result.source, options, true, undefined, savedLandmarkKindContract(result.storyboard?.storyboard));
-  const book = compilePersonalStoryboard(source, read(path.join(visual, 'owned_storyboard_draft.json')));
+  const parentDraft = read(path.join(visual, 'owned_storyboard_draft.json'));
+  const book = compilePersonalStoryboard(source, parentDraft);
   const rawReview = result.storyboard.rawReview;
   if (canonicalJson(book) !== canonicalJson(result.storyboard.storyboard) || !book.plan.actorAppearance ||
       storyboardReviewDisposition(book, rawReview).disposition !== 'review_supported' || result.storyboard.framePackets.length !== 9) fail('audition_board_binding');
   const current = { request: queued.request, writerResult: result.source, options };
   for (let n = 0; n <= 8; n++) if (canonicalJson(currentPersonalStoryboardFrame(book, rawReview, n, current)) !== canonicalJson(result.storyboard.framePackets[n])) fail('audition_frame_binding');
+  // Optional re-plan (never the default): the child and companion references below are then checked against ITS storyboard.
+  const replan = replanDir === undefined ? undefined
+    : admitReplanStoryboard({ bookDir, request: queued.request, options, source: result.source, book, draft: parentDraft }, replanDir);
+  const active = replan ?? { result, book, rawReview, current, companionDescription: source.companionDescription };
   // Child: the reviewed, passed reference adopted by the last continuation, bound to its recomputed original context.
   const m17 = path.join(bookDir, 'reference-role-repair-continuation-20261009');
   const adoption = read(path.join(m17, 'reference_child_adoption.json'));
   const childDesign = { age: prepared.brief.child.age, address: prepared.brief.child.address, fictionalDesign: CHILD_DESIGN,
-    wardrobe: book.plan.wardrobe, role: 'child', clothing: book.plan.actorAppearance!.child.clothing };
+    wardrobe: active.book.plan.wardrobe, role: 'child', clothing: active.book.plan.actorAppearance!.child.clothing };
   const childContext = simpleReferenceDesignContext(childDesign);
   const childBytes = readFileSync(path.join(m17, 'illustrations', 'reference_child_checkpoint.png'));
   if (adoption.name !== 'child' || canonicalJson(adoption.context) !== canonicalJson(childContext) || previewSha(childBytes) !== adoption.candidate.imageSha ||
@@ -76,9 +160,11 @@ export function loadReviewedBook(bookDir: string, workspace = process.cwd()) {
   if (!card || !/^\/companions\/[a-z0-9_]+\/style01-sheets\/front\.png$/.test(card)) return fail('audition_companion_reference');
   const companionBytes = readFileSync(path.join(workspace, 'public', card.slice(1)));
   if (previewSha(companionBytes) !== previewSha(readFileSync(path.join(m17, 'illustrations', 'companion_reference.png')))) fail('audition_companion_reference');
-  return { queued, options, prepared, result, book, rawReview, current, childBytes, companionBytes, companionDescription: source.companionDescription,
+  return { queued, options, prepared, result: active.result, book: active.book, rawReview: active.rawReview, current: active.current, childBytes, companionBytes,
+    companionDescription: active.companionDescription,
     texts: (result.source.manuscript.pages as { text: string }[]).map(p => p.text), title: result.source.manuscript.title as string,
-    pages: result.source.manuscript.pages as { text: string }[] };
+    pages: result.source.manuscript.pages as { text: string }[],
+    ...(replan ? { replan: { dir: replan.dir, indexSha256: replan.indexSha256, pairPages: replan.pairPages, comparability: replan.comparability } } : {}) };
 }
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -303,9 +389,11 @@ function adapters(args: { directory: string; meter: AuditionMeter; key: () => st
 // Runner.
 // ---------------------------------------------------------------------------------------------------------------
 export async function runReviewedAudition(args: { bookDir: string; out: string; keyFile: string; grantFile: string; signal: AbortSignal;
-  log: (line: string) => void; resume?: true }) {
-  const loaded = loadReviewedBook(args.bookDir);
+  log: (line: string) => void; resume?: true; storyboardDir?: string }) {
+  const loaded = loadReviewedBook(args.bookDir, process.cwd(), args.storyboardDir);
   const { grant, sha256: grantSha256 } = readAuditionGrant(args.grantFile, { requestId: loaded.queued.requestId, storyboardDigest: loaded.book.storyboardDigest });
+  if (loaded.replan && (grant.scope.mode !== 'rejudge' || args.resume || grant.scope.frames.some(f => !loaded.replan!.pairPages.includes(f.pageNumber))))
+    fail('audition_replan_scope');
   if (existsSync(args.out) !== !!args.resume) fail(args.resume ? 'audition_resume_missing' : 'audition_out_exists');
   if (!args.resume) mkdirSync(args.out); realDirectory(args.out);
   const directory = path.join(args.out, 'illustrations'); if (!args.resume) mkdirSync(directory); realDirectory(directory);
@@ -315,7 +403,8 @@ export async function runReviewedAudition(args: { bookDir: string; out: string; 
   const admission = (child: AuditionImage, companion: AuditionImage) => JSON.parse(JSON.stringify({ version: 'reviewed-simple-book-audition-admission/v2',
     requestId: loaded.queued.requestId, sourceDigest: loaded.book.sourceDigest, storyboardDigest: loaded.book.storyboardDigest, child, companion,
     policy: REVIEWED_AUDITION_POLICY, grant: { file: args.grantFile, sha256: grantSha256 }, imageModel: 'gpt-image-2', imageQuality: 'low',
-    reviewModel: REVIEW_MODEL, identityModel: 'gpt-4o' }));
+    reviewModel: REVIEW_MODEL, identityModel: 'gpt-4o',
+    ...(loaded.replan ? { replan: { dir: loaded.replan.dir, indexSha256: loaded.replan.indexSha256, pairPages: loaded.replan.pairPages } } : {}) }));
   let child: AuditionImage, companion: AuditionImage;
   let resume: Parameters<typeof illustrateReviewedAudition>[0]['resume'];
   if (args.resume) {
@@ -376,8 +465,8 @@ export async function runReviewedAudition(args: { bookDir: string; out: string; 
 }
 
 /** Zero-provider admission, checks and prompt preview. */
-export function dryRun(bookDir: string) {
-  const loaded = loadReviewedBook(bookDir), designs = auditionSheetDesigns(loaded.book, loaded.texts);
+export function dryRun(bookDir: string, storyboardDir?: string) {
+  const loaded = loadReviewedBook(bookDir, process.cwd(), storyboardDir), designs = auditionSheetDesigns(loaded.book, loaded.texts);
   const ids = (d: { entities?: { id: string }[]; props?: { id: string }[]; locations?: { id: string }[]; landmarks?: { id: string }[] }) =>
     ({ entities: d.entities?.map(e => e.id), props: d.props?.map(e => e.id), locations: d.locations?.map(e => e.id), landmarks: d.landmarks?.map(e => e.id) });
   const checks = [0, 1, 2, 3, 4, 5, 6, 7, 8].map(n => {
@@ -388,6 +477,7 @@ export function dryRun(bookDir: string) {
   const landmarkCatalogue = auditionPageChecks(loaded.book, 0, loaded.companionDescription).uniqueLandmarks
     .map(l => ({ id: l.id, features: l.features.map(f => `${f.id} ${f.decisive ? "decisive" : "listed"} ${f.aspect}: ${f.text}`) }));
   return { requestId: loaded.queued.requestId, storyboardDigest: loaded.book.storyboardDigest, title: loaded.title, landmarkCatalogue,
+    ...(loaded.replan ? { replan: loaded.replan } : {}),
     pageDeferred: designs.pageDeferred.map(d => `${d.entityId}:${d.requirement} (${d.reason} -> ${d.verifiedOn})`),
     entitiesSheet: ids(designs.entities as never), locationsSheet: ids(designs.locations as never), checks,
     promptBytes: { entities: Buffer.byteLength(auditionSheetPrompt('entities', designs.entities)), locations: Buffer.byteLength(auditionSheetPrompt('locations', designs.locations)) } };
@@ -395,8 +485,9 @@ export function dryRun(bookDir: string) {
 
 function argValue(name: string) { const i = process.argv.indexOf(name); return i > 0 ? process.argv[i + 1] : undefined; }
 if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(__filename)) {
-  const bookDir = argValue('--book-dir') ?? fail('audition_args');
-  if (!process.argv.includes('--execute')) { console.log(JSON.stringify(dryRun(bookDir!), null, 2)); }
+  const bookDir = argValue('--book-dir') ?? fail('audition_args'), storyboardDir = argValue('--storyboard-dir');
+  if (storyboardDir !== undefined && !path.isAbsolute(storyboardDir)) fail('audition_args');
+  if (!process.argv.includes('--execute')) { console.log(JSON.stringify(dryRun(bookDir!, storyboardDir), null, 2)); }
   else {
     const out = argValue('--out') ?? fail('audition_args'), keyFile = argValue('--key-env-file') ?? fail('audition_args'), grantFile = argValue('--grant') ?? fail('audition_grant_required');
     if (![out!, keyFile!, grantFile!].every(p => path.isAbsolute(p))) fail('audition_args');
@@ -404,7 +495,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(__filename
     const controller = new AbortController(); process.once('SIGINT', () => controller.abort());
     const started = Date.now();
     runReviewedAudition({ bookDir: bookDir!, out: out!, keyFile: keyFile!, grantFile: grantFile!, signal: controller.signal,
-      ...(process.argv.includes('--resume') ? { resume: true as const } : {}),
+      ...(process.argv.includes('--resume') ? { resume: true as const } : {}), ...(storyboardDir ? { storyboardDir } : {}),
       log: line => console.log(`[${((Date.now() - started) / 60000).toFixed(1)}m] ${line}`) })
       .then(result => console.log(JSON.stringify({ status: 'complete', mode: result.mode, spend: result.spend }, null, 2)))
       .catch(error => { console.error('FAILED', error?.code ?? error?.message ?? error); process.exitCode = 1; });
