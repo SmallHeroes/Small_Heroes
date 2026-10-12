@@ -1,5 +1,12 @@
 # SmallHeroes — Roadmap
 
+## Saved-pair check done (2026-10-12); next: Codex QA of the results, then Guy on Phase 2 and redraws
+
+- Codex independently QAs goni-shadows-rejudge3-20261012.
+- The thorn/hedge false positive argues for Phase 2 (a declared kind would let
+  "a tall hedge is not a thorn bush" dismiss it); decision is Guy's.
+- Redraw of page 4 (and page 7's nose) only after a separately priced plan.
+
 ## Phase 1 PASS (narrow); next: the approved saved two-image check under policy v8 (2026-10-12)
 
 - Fresh v8 freeze + pre-registered criteria + provider-free rehearsal + preflight,

@@ -1,5 +1,26 @@
 # SmallHeroes — Current Technical State
 
+## Saved-pair check under policy v8 ran: rock duplicate caught by the code's own count, control clean (2026-10-12)
+
+Guy-approved (exactly two calls, +$1.20 cap). Fresh freeze rejudge-3
+(23df067b, v4 schema, policy v8, instruction 2c24fd08), pre-registered
+criteria, provider-free rehearsal, 31-check preflight, grant 805683da. Run
+10:28-10:31Z: 2 calls, 0 failed, $0.156476; cumulative OpenAI API
+6.943778 -> 7.100254 (cap 8.143778). Claude Max separate. Wire re-bound.
+Pre-registered: page_4_2 INVENTORY_DEFECT (derived rock defect from the
+inventory: rear boulder matched large/pale-gray/rounded; the checker's own
+rock note was about the seam only); page_4_1 CLEAR (one rock; four small
+stones and a stone wall dismissed; no critical finding on the page at all).
+Reported: outputs valid (7 and 11 objects, within caps); objectIds reused
+across landmark entries. Swing/bench: page_4_2 seat hidden behind the rock
+(raw: rectangular and wooden not_visible) -> bench and swing uncertain = the
+accepted Phase 1 cost; page_4_1 seat visible -> identified, no finding.
+NOT registered, a false positive: a "thorn duplicate" defect on page_4_2 (the
+tall background hedge was marked low + dusty-green; the thorn's distinctive
+forked twig is a listed cue, so it cannot dismiss). page_4_1 rejected the
+same hedge. One pair, not a reliability rate. Evidence:
+book-renders/goni-shadows-rejudge3-20261012 (index bdb2c9b1). Visual HOLD.
+
 ## Phase 1 re-gate = Codex narrow technical PASS (6ee16411..3c6b25a8); saved-pair check approved (2026-10-12)
 
 Codex: tsc0, focused 126/126, 27/27 independent actual-function assertions
