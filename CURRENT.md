@@ -1,5 +1,27 @@
 # SmallHeroes — Current Technical State
 
+## Step A re-selection built offline (08533b10): page 4 re-selected page_4_1 from evidence already paid for (2026-10-12)
+
+Guy approved Codex's revised offline Step A (no API, key, image or repair loop).
+scripts/personal-audition-reselect.ts admits only CURRENT, fully bound page
+reviews (verified run index, admission policy/authority/anchor, grant,
+recomputed context with the original run's chosen sheets and predecessor,
+current judge wire, raw output under today's schema: an older format is
+stale, a refused one unusable) and reuses a child identity only through its
+original wire/claim/result/receipt chain at the unchanged 0.70 gate (score
+recomputed from the raw answer); selection is the EXISTING attemptStatus +
+selectAuditionAttempt. Unreviewed attempts are excluded and named (no
+best-of-all claim); invalid/safety candidates cannot win; a changed choice
+marks the next page's saved transition review stale (from the actual wires).
+Shared grantReferenceStatus (runner unchanged). Real data, provider-free:
+page 4 -> page_4_1 qa_supported (one bench detail; identity 0.99999 bound),
+page_4_0 excluded (no current review), page_4_2 held; transition 4->5 stale
+(all three page-5 reviews compared against page_4_2); page 7 no current
+candidate (its 3 attempts await current reviews). Manifest
+book-renders/goni-shadows-reselect-20261012 (receipt 8f553c89). tsc0; 9
+focused files 288/288; mutants 29/29; all prior evidence intact. Diagnostic
+and owner-review-only; mixed per-page authority; no book approval.
+
 ## Saved-pair check under the re-planned storyboard RAN: CONFIRMED (pre-registered), $0.161302 (2026-10-12)
 
 Guy approved exactly 2 Sol reviews of the saved page_4_2 (duplicate rock) and

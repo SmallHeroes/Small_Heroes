@@ -1,5 +1,14 @@
 # SmallHeroes — Roadmap
 
+## Step A built (08533b10); next: Codex QA, then Guy on 3 page-7 reviews (2026-10-12)
+
+- Codex QAs 6ef80484..(this docs commit) and the diagnostic manifest.
+- Then a separate decision: 3 current reviews of r1_page_7_0/1/2 under the
+  parent storyboard (one shared cumulative cap over $7.926860); then re-run
+  the re-selection with that run admitted.
+- Guy eyeballs page_4_1 (pocket, swing/burrow geography, single rock) and the
+  4->5 transition; Step B and reference-sheet repair stay later decisions.
+
 ## Saved-pair check CONFIRMED under the re-plan (2026-10-12); next: Codex QA, then Guy on page 4/7
 
 - Codex QAs goni-shadows-rejudge4-20261012 and this docs commit.
