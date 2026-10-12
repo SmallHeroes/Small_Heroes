@@ -24,7 +24,7 @@ import type { PersonalWizardOptions } from './options';
  * each observed object is listed once with an id that every landmark entry shares, so one object is never two landmarks at once.
  * qa_supported is not product approval and not production qualification. Diagnostic and runtime-ineligible.
  */
-export const REVIEWED_AUDITION_POLICY = Object.freeze({ version: 'reviewed-audition-policy/v5',
+export const REVIEWED_AUDITION_POLICY = Object.freeze({ version: 'reviewed-audition-policy/v6',
   sheetAttempts: 2, pageAttempts: 3, identityThreshold: 0.7,
   impactOrder: ['safety', 'story', 'identity', 'continuity', 'detail'] as const,
   selection: 'eligible_then_fewest_story_identity_continuity_detail_then_earliest' as const,
@@ -32,7 +32,7 @@ export const REVIEWED_AUDITION_POLICY = Object.freeze({ version: 'reviewed-audit
   status: 'qa_supported requires no safety/story/identity/continuity finding and a measured child identity >= 0.70' as const,
   citation: 'a critical finding with an unknown requirement stays critical: review_invalid, held, never repaired or redrawn' as const,
   unusableReview: 'a malformed or misbound review halts the run: no further render, review or identity call' as const,
-  landmarks: 'page reviews list each observed object once (objectId) and check it against every unique landmark\'s source-bound feature catalogue (the material, colour, shape and size words of its written design, identical on every page); code counts instances: two strong matches are a continuity defect, an ambiguous second match is uncertain; dismissal needs a visibly contradicted feature; the same object identified as another landmark\'s own instance is that landmark unless strongly supported here (then uncertain)' as const });
+  landmarks: 'page reviews list each observed object once (objectId) and check it against every unique landmark\'s source-bound feature catalogue (identical on every page); only whole-object cues of the written design decide (strength and dismissal); part, nearby-object and later-clause cues are checked but never decide; negated statements yield no cue; two strong matches are a continuity defect, an ambiguous second match is uncertain; the same object counts as another landmark\'s own instance only with positive, distinguishing support there, otherwise it stays counted here' as const });
 /** Paid calls one complete run can make: each sheet attempt renders + judges, each page attempt renders + judges + measures identity. */
 export const AUDITION_WORST_CASE_CALLS = 2 * REVIEWED_AUDITION_POLICY.sheetAttempts * 2 + 9 * REVIEWED_AUDITION_POLICY.pageAttempts * 3;
 export const AUDITION_IMPACTS = REVIEWED_AUDITION_POLICY.impactOrder;
@@ -154,8 +154,8 @@ export const AUDITION_PAGE_JUDGE_ADDENDUM = `AUDITION CHECKS (context.checks, de
   id of that landmark (matches / contradicted / not_visible) and give an association. An object that IS a landmark is this_landmark in
   that landmark's entry only; where the same object also shares features with another landmark, use the SAME objectId in that entry.
   Hidden by angle, crop or occlusion is not_visible, never contradicted. A missing functional part or a different placement does not make
-  an object different: different_object needs a visibly contradicted listed feature. If unsure, use possible_copy. Objects sharing no
-  listed feature need no entry. The code counts instances from this inventory; do not settle the count in prose.
+  an object different: different_object needs a visibly contradicted decisive feature (one that describes the whole object). If unsure,
+  use possible_copy. Objects sharing no listed feature need no entry. The code counts instances from this inventory; do not settle the count in prose.
 - castIdentity: compare EACH visible cast member only with ITS OWN reference and design: face (nose or snout, eyes, mouth), head features
   (ears, horns), colours, body, appendage counts and accessories. A feature that belongs to another cast member is an identity issue.
   Do not demand parts hidden by the angle or by natural occlusion.
@@ -177,12 +177,16 @@ export const auditionReviewSchema = z.object({ candidateSha: sha, contextSha: sh
 /**
  * Source-bound comparison features of a unique landmark, built ONCE from its written invariants, so every page and attempt is checked
  * against the same list. Lexical, not semantic: a fixed general vocabulary tags size, colour, shape and material words of the written
- * design, and an attribute named after one of those aspects keeps its whole value. Words outside the vocabulary never become a feature,
- * so a catalogue can be incomplete (fewer supports, so more uncertain results) but never holds a word the design does not contain.
- * Parts and placement stay in the written design the checker reads; they neither dismiss nor confirm a copy.
+ * design, and an attribute named after one of those aspects keeps its whole value. Scope and polarity are kept conservatively, not
+ * understood: clauses split at punctuation, "with", "and" and prepositions; a negated clause ("no red markings", "without moss") yields
+ * no feature at all; only the FIRST clause of an attribute can be DECISIVE, and in free text only when it reads as descriptors followed by
+ * at most two noun words ("large pale-gray rounded rock"). Decisive cues alone confirm strength or dismiss an object; every other cue (a
+ * part, a nearby or contained object, a later clause) is listed and checked but never decides. A catalogue can therefore be incomplete
+ * (fewer decisive supports, more uncertain results); a component or negated word never becomes a whole-object reason.
+ * Known lexical limit: a design whose first clause names a part ("three wooden seat slats") is read as describing the whole object.
  */
 export type LandmarkAspect = 'material' | 'colour' | 'shape' | 'size';
-export type LandmarkFeature = { id: string; aspect: LandmarkAspect; text: string; clause: string };
+export type LandmarkFeature = { id: string; aspect: LandmarkAspect; text: string; clause: string; decisive: boolean };
 export type AuditionLandmark = { id: string; features: readonly LandmarkFeature[] };
 const words = (...list: string[]): ReadonlySet<string> => new Set(list);
 const LANDMARK_LEXICON: Record<LandmarkAspect, ReadonlySet<string>> = {
@@ -202,6 +206,10 @@ const LANDMARK_LEXICON: Record<LandmarkAspect, ReadonlySet<string>> = {
 const COLOUR_MODIFIERS = words('light', 'deep', 'bright', 'muted', 'warm', 'cool', 'dusty', 'soft', 'faded', 'dull');
 const ASPECT_ATTRIBUTES: Readonly<Record<string, LandmarkAspect>> = { material: 'material', materials: 'material', colour: 'colour',
   color: 'colour', colours: 'colour', colors: 'colour', size: 'size', shape: 'shape' };
+const NEGATIONS = words('no', 'not', 'never', 'none', 'nor', 'neither', 'non');
+const DETERMINERS = words('a', 'an', 'the', 'one', 'two', 'three', 'four', 'five', 'six', 'single', 'its', 'their', 'his', 'her', 'some',
+  'each', 'this', 'that', 'very');
+const CLAUSE_BREAK = /[;,]|\s+(?:with|and|on|in|under|beneath|below|behind|beside|before|after|near|at|by|above|over|inside|around|against|along|across|between|of|from|to|into|onto)\s+/i;
 const LANDMARK_FEATURE_LIMIT = 16;
 const landmarkAspectOf = (word: string): LandmarkAspect | null => {
   if (/-sized?$/.test(word)) return 'size';
@@ -215,21 +223,31 @@ export function landmarkFeatureCatalogue(invariants: readonly { attribute: strin
   const add = (f: Omit<LandmarkFeature, 'id'>) => { if (!out.some(o => o.aspect === f.aspect && o.text === f.text && o.clause === f.clause)) out.push(f); };
   const colourAt = (tokens: string[], i: number) => landmarkAspectOf(tokens[i] ?? '') === 'colour'
     || (COLOUR_MODIFIERS.has(tokens[i] ?? '') && landmarkAspectOf(tokens[i + 1] ?? '') === 'colour');
+  const descriptor = (t: string) => !!landmarkAspectOf(t) || COLOUR_MODIFIERS.has(t);
+  // Free text describes the whole object only as "descriptors... noun" with at most two trailing noun words and no descriptor after them.
+  const wholeObject = (tokens: string[]) => {
+    const content = tokens.filter(t => t && !DETERMINERS.has(t)), head = content.findIndex(t => !descriptor(t));
+    return head < 0 || (content.length - head <= 2 && !content.slice(head).some(descriptor));
+  };
   for (const { attribute, value } of invariants) {
     const named = ASPECT_ATTRIBUTES[attribute.trim().toLowerCase()];
-    for (const clause of value.split(/[;,]|\s+(?:with|and)\s+/i).map(s => s.trim().replace(/\.+$/, '')).filter(Boolean)) {
-      if (named) { add({ aspect: named, text: clause, clause }); continue; }
+    const clauses = value.replace(/\bwithout\b/gi, ', no').split(CLAUSE_BREAK).map(s => s.trim().replace(/\.+$/, '')).filter(Boolean);
+    clauses.forEach((clause, index) => {
       const tokens = clause.split(/\s+/).map(t => t.toLowerCase().replace(/^[^a-z]+|[^a-z]+$/g, ''));
+      // A negated statement asserts nothing the picture must show: it yields no cue in either direction.
+      if (tokens.some(t => NEGATIONS.has(t))) return;
+      const decisive = index === 0 && (!!named || wholeObject(tokens));
+      if (named) { add({ aspect: named, text: clause, clause, decisive }); return; }
       for (let i = 0; i < tokens.length; i++) {
         const aspect = colourAt(tokens, i) ? 'colour' : landmarkAspectOf(tokens[i]);
         if (!aspect) continue;
         // A run of colour words is ONE cue ("pale gray", "soft gray-brown"), never several supports.
         let end = i + 1;
         if (aspect === 'colour') while (end < tokens.length && colourAt(tokens, end)) end++;
-        add({ aspect, text: tokens.slice(i, end).join(' '), clause });
+        add({ aspect, text: tokens.slice(i, end).join(' '), clause, decisive });
         i = end - 1;
       }
-    }
+    });
   }
   if (out.length > LANDMARK_FEATURE_LIMIT) fail('audition_landmark_catalogue');
   return out.map((f, i) => ({ id: `f${i + 1}`, ...f }));
@@ -255,8 +273,8 @@ export type AuditionReview = z.infer<typeof auditionReviewSchema> & { landmarkIn
 export type AuditionFinding = { category: string; verdict: 'defect' | 'uncertain'; impact: Impact; requirement: string; note: string; bound: boolean; derived?: true };
 export type LandmarkAssessment = { landmarkId: string; instances: number; strong: number; reclassified: number; excluded: number;
   candidates: { objectId: string; region: string; object: number; association: string; counted: boolean; strong: boolean; reclassified: boolean;
-    identifiedAs: string | null; excluded: boolean; conflict: boolean; contradictedCore: string[]; matchedCore: string[]; matchedCoreAspects: string[];
-    evidence: string }[] };
+    identifiedAs: string | null; identityConfirmed: boolean; excluded: boolean; conflict: boolean; contradictedCore: string[]; matchedCore: string[];
+    matchedCoreAspects: string[]; evidence: string }[] };
 export type AuditionAssessment = { findings: AuditionFinding[]; counts: Record<Impact, number>; safetyBlocked: boolean; invalidCitations: number; landmarks?: LandmarkAssessment[] };
 
 /**
@@ -265,11 +283,13 @@ export type AuditionAssessment = { findings: AuditionFinding[]; counts: Record<I
  * instances are a continuity defect; a weaker second one is an uncertain finding: ambiguity is reported, never turned into a count.
  * A repeated record is not a second object: an object listed twice (or twice in one landmark entry) makes the inventory unusable, and
  * objects naming the same place are one object. A possible copy is strong only with matches in two DISTINCT aspects; two words for one cue
- * (two colours) are one support. Every catalogue feature is a core aspect (material, colour, shape or size).
- * One physical object is at most one landmark's own instance (two claims: unusable). An object this review identifies as ANOTHER landmark's
- * own instance, with no contradicted feature of that landmark, is that landmark: it is not counted as a copy here unless its support here is
- * strong, and then the conflict stays an uncertain count (never dismissed, never a confirmed copy). The link is the shared objectId of the
- * SAME observed object; a different object identified as that landmark never excuses this one.
+ * (two colours) are one support. Only DECISIVE catalogue features (whole-object cues) count as "core": they alone give strength or dismiss.
+ * One physical object is at most one landmark's own instance (two claims: unusable). An object claimed as ANOTHER landmark's own instance is
+ * confirmed as that landmark only with positive, distinguishing support in that landmark's own checks: nothing of it contradicted, matches
+ * in two distinct aspects, and at least one matched cue sharing no word with this landmark's catalogue. A bare label, hidden features, an
+ * empty catalogue or a shared cue alone confirm nothing. A confirmed object is not counted as a copy here unless its support here is strong
+ * (then the conflict stays an uncertain count); an unconfirmed claim leaves it counted (uncertain), never dismissed. The link is the shared
+ * objectId of the SAME observed object; a different object identified as that landmark never excuses this one.
  */
 export function assessLandmarkInventory(inventory: z.infer<typeof landmarkInventorySchema>, landmarks: readonly AuditionLandmark[]) {
   const bad = (): never => fail('audition_review_landmark_inventory');
@@ -281,18 +301,28 @@ export function assessLandmarkInventory(inventory: z.infer<typeof landmarkInvent
   const places = [...new Set(inventory.objects.map(o => place(o.region)))];
   // Per landmark and object: every catalogue feature checked exactly once; each object at most once per landmark.
   const evaluated = new Map(inventory.landmarks.map(entry => {
-    const aspect = new Map(catalogue.get(entry.landmarkId)!.map(f => [f.id, f.aspect]));
+    const features = catalogue.get(entry.landmarkId)!, aspect = new Map(features.map(f => [f.id, f.aspect]));
+    const decisive = new Set(features.filter(f => f.decisive).map(f => f.id));
     const seen = entry.candidates.map(c => c.objectId);
     if (new Set(seen).size !== seen.length || seen.some(id => !objects.has(id))) bad();
     return [entry.landmarkId, new Map(entry.candidates.map(c => {
       const checked = c.featureChecks.map(f => f.featureId);
       if (new Set(checked).size !== checked.length || checked.length !== aspect.size || checked.some(f => !aspect.has(f))) bad();
-      const observed = (o: string) => c.featureChecks.filter(f => f.observed === o).map(f => f.featureId);
+      const observed = (o: string) => c.featureChecks.filter(f => f.observed === o && decisive.has(f.featureId)).map(f => f.featureId);
       const contradictedCore = observed('contradicted'), matchedCore = observed('matches');
       return [c.objectId, { c, contradictedCore, matchedCore, matchedCoreAspects: [...new Set(matchedCore.map(f => aspect.get(f)!))].sort() }];
     }))] as const;
   }));
   const owner = new Map<string, string>();
+  const wordsOf = (text: string) => text.toLowerCase().split(/[\s-]+/).filter(Boolean);
+  // Positive, distinguishing identification of an object as landmark `ownerId`, judged against landmark `hereId`'s catalogue.
+  const identityConfirmed = (ownerId: string, objectId: string, hereId: string) => {
+    const checks = evaluated.get(ownerId)!.get(objectId)!.c.featureChecks, ownFeatures = catalogue.get(ownerId)!;
+    if (checks.some(f => f.observed === 'contradicted')) return false;
+    const matched = checks.filter(f => f.observed === 'matches').map(f => ownFeatures.find(x => x.id === f.featureId)!);
+    const here = new Set(catalogue.get(hereId)!.flatMap(f => wordsOf(f.text)));
+    return new Set(matched.map(f => f.aspect)).size >= 2 && matched.some(f => wordsOf(f.text).every(w => !here.has(w)));
+  };
   for (const [landmarkId, entries] of evaluated) for (const [objectId, e] of entries)
     if (e.c.association === 'this_landmark') { if (owner.has(objectId)) bad(); owner.set(objectId, landmarkId); }
   return inventory.landmarks.map(entry => {
@@ -301,14 +331,14 @@ export function assessLandmarkInventory(inventory: z.infer<typeof landmarkInvent
       const association = reclassified ? 'possible_copy' : c.association;
       const supported = !contradictedCore.length && matchedCoreAspects.length >= 2;
       const claimedBy = owner.get(c.objectId), identifiedAs = claimedBy && claimedBy !== entry.landmarkId ? claimedBy : null;
-      const confirmed = identifiedAs !== null && !evaluated.get(identifiedAs)!.get(c.objectId)!.contradictedCore.length;
+      const confirmed = identifiedAs !== null && identityConfirmed(identifiedAs, c.objectId, entry.landmarkId);
       const excluded = association === 'possible_copy' && confirmed && !supported;
       const conflict = association === 'possible_copy' && identifiedAs !== null && !excluded;
       const counted = association !== 'different_object' && !excluded;
       const strong = association === 'this_landmark' || (counted && supported && !conflict);
       const region = objects.get(c.objectId)!.region;
-      return { objectId: c.objectId, region, object: places.indexOf(place(region)), association, counted, strong, reclassified, identifiedAs, excluded,
-        conflict, contradictedCore, matchedCore, matchedCoreAspects, evidence: c.evidence };
+      return { objectId: c.objectId, region, object: places.indexOf(place(region)), association, counted, strong, reclassified, identifiedAs,
+        identityConfirmed: confirmed, excluded, conflict, contradictedCore, matchedCore, matchedCoreAspects, evidence: c.evidence };
     });
     // One object per place: it counts if any record counts it, and is strong only if every counting record is strong.
     const groups = places.map((_, i) => candidates.filter(c => c.object === i && c.counted)).filter(list => list.length);

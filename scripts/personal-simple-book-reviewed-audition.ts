@@ -377,7 +377,7 @@ export function dryRun(bookDir: string) {
   });
   // The landmark comparison catalogue is per book (identical on every page): shown here so it can be reviewed before any paid call.
   const landmarkCatalogue = auditionPageChecks(loaded.book, 0, loaded.companionDescription).uniqueLandmarks
-    .map(l => ({ id: l.id, features: l.features.map(f => `${f.id} ${f.aspect}: ${f.text}`) }));
+    .map(l => ({ id: l.id, features: l.features.map(f => `${f.id} ${f.decisive ? "decisive" : "listed"} ${f.aspect}: ${f.text}`) }));
   return { requestId: loaded.queued.requestId, storyboardDigest: loaded.book.storyboardDigest, title: loaded.title, landmarkCatalogue,
     pageDeferred: designs.pageDeferred.map(d => `${d.entityId}:${d.requirement} (${d.reason} -> ${d.verifiedOn})`),
     entitiesSheet: ids(designs.entities as never), locationsSheet: ids(designs.locations as never), checks,
