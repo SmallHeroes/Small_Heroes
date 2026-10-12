@@ -1,5 +1,13 @@
 # SmallHeroes — Roadmap
 
+## Phase 1 containment (c53f04fd); next: Codex re-gate of 6ee16411..(this docs commit) (2026-10-12)
+
+- Phase 2 (opt-in, source-bound landmark kind contract): corrected plan only;
+  implementation needs Guy's decision and Codex's plan review.
+- Explicit parts deferred; parts-only holds stay visible, not "solved".
+- Paid two-image check: define what it can prove under the chosen contract
+  before any approval request.
+
 ## Owner-evidence correction (8e22dcf6); next: Codex re-gate of 7eeace2e..(this docs commit) (2026-10-12)
 
 - If the same ownership ambiguity remains: stop for a bounded design

@@ -1,5 +1,20 @@
 # SmallHeroes — Current Technical State
 
+## Phase 1 containment c53f04fd: only whole-object cues identify an owner (offline; 2026-10-12)
+
+Codex HOLD of 7eeace2e..6ee16411 (nested/coordinated neighbour ownership)
+triggered the stop rule; the read-only diagnosis showed wording cannot tell
+whose parts a clause names. Guy approved Phase 1 with its cost: owner
+identification uses only decisive whole-object cues; listed cues (parts,
+neighbours, later clauses) never identify; the lexical part rule is removed.
+ACCEPTED COST (kept as tests): an object recognisable only by its parts (a
+swing with its seat cropped, a portal by its own panels) stays uncertain and
+held, never approved. Policy v8; schema/instruction unchanged. tsc0; focused
+126/126; frozen 6ee16411 check 5 behavioural failures (3 P1, 2 accepted
+holds); mutants 43/43. Phase 2 (declared landmark kind) is a plan only,
+awaiting Guy; the parked two-image check needs a defined proof objective
+first (it would only rediscover the accepted swing hold).
+
 ## Owner-evidence correction 8e22dcf6: a neighbour's cues never identify an unseen owner (offline; 2026-10-12)
 
 Codex HOLD of d6127fb9..7eeace2e: original F1/F2 closed, one P1 left in their
