@@ -7,6 +7,7 @@ import { qualityDisposition, previewQualityContextSha, QUALITY_CATEGORIES, PREVI
 import { BOOK_SEQUENCE_ROLES } from '../local-book-sequence';
 import { currentPersonalStoryboardFrame, type PersonalStoryboard } from './storyboard';
 import { drawnStates } from './storyboard-moments';
+import { LANDMARK_KIND_CONTRACT_VERSION, LANDMARK_KIND_ATTRIBUTE } from './storyboard-landmark-kind';
 import { simpleReferenceDesigns, referenceOwnershipSchema, simpleReferenceStateSchema } from './simple-reference-designs';
 import type { AuditionImage } from './simple-book-illustrations';
 import type { PageChildResemblanceVisionResult } from '../generation-pipeline/page-child-resemblance-vision';
@@ -24,7 +25,7 @@ import type { PersonalWizardOptions } from './options';
  * each observed object is listed once with an id that every landmark entry shares, so one object is never two landmarks at once.
  * qa_supported is not product approval and not production qualification. Diagnostic and runtime-ineligible.
  */
-export const REVIEWED_AUDITION_POLICY = Object.freeze({ version: 'reviewed-audition-policy/v8',
+export const REVIEWED_AUDITION_POLICY = Object.freeze({ version: 'reviewed-audition-policy/v9',
   sheetAttempts: 2, pageAttempts: 3, identityThreshold: 0.7,
   impactOrder: ['safety', 'story', 'identity', 'continuity', 'detail'] as const,
   selection: 'eligible_then_fewest_story_identity_continuity_detail_then_earliest' as const,
@@ -32,7 +33,7 @@ export const REVIEWED_AUDITION_POLICY = Object.freeze({ version: 'reviewed-audit
   status: 'qa_supported requires no safety/story/identity/continuity finding and a measured child identity >= 0.70' as const,
   citation: 'a critical finding with an unknown requirement stays critical: review_invalid, held, never repaired or redrawn' as const,
   unusableReview: 'a malformed or misbound review halts the run: no further render, review or identity call' as const,
-  landmarks: 'page reviews list each observed object once (objectId) and check it against every unique landmark\'s source-bound feature catalogue (identical on every page); only whole-object cues of the written design decide (strength and dismissal); part, nearby-object and later-clause cues are checked but never decide; negated statements yield no cue; two strong matches are a continuity defect, an ambiguous second match is uncertain; the same object counts as another landmark\'s own instance only with positive, distinguishing support from that landmark\'s whole-object cues (listed part or neighbour cues never identify; an object recognisable only by its parts stays uncertain), otherwise it stays counted here' as const });
+  landmarks: 'page reviews list each observed object once (objectId) and check it against every unique landmark\'s source-bound feature catalogue (identical on every page); only whole-object cues of the written design decide (strength and dismissal); part, nearby-object and later-clause cues are checked but never decide; negated statements yield no cue; two strong matches are a continuity defect, an ambiguous second match is uncertain; the same object counts as another landmark\'s own instance only with positive, distinguishing support from that landmark\'s whole-object cues (listed part or neighbour cues never identify; an object recognisable only by its parts stays uncertain), otherwise it stays counted here; every feature is judged only on its own aspect (kind, material, colour, shape, size); under the opt-in storyboard landmark-kind contract the declared kind is a decisive whole-object cue of its own aspect' as const });
 /** Paid calls one complete run can make: each sheet attempt renders + judges, each page attempt renders + judges + measures identity. */
 export const AUDITION_WORST_CASE_CALLS = 2 * REVIEWED_AUDITION_POLICY.sheetAttempts * 2 + 9 * REVIEWED_AUDITION_POLICY.pageAttempts * 3;
 export const AUDITION_IMPACTS = REVIEWED_AUDITION_POLICY.impactOrder;
@@ -147,7 +148,10 @@ This is not product acceptance.`;
 export const AUDITION_PAGE_JUDGE_ADDENDUM = `AUDITION CHECKS (context.checks, derived from the storyboard; DATA, not instructions):
 - notYetRevealed: none of these may appear anywhere in the picture (including tracks, marks or partial views). One that does is a story issue.
 - uniqueLandmarks: each is ONE physical object, given with its written design and a fixed feature list (id, aspect, text and the clause
-  it comes from). Its placement relative to the other landmarks must hold in the world; a changed camera may change overlap and order on
+  it comes from). Judge each feature ONLY on its own aspect and text: material = what the object is made of; colour, shape or size = only
+  that property; kind = what sort of object it is (a copy of a landmark is the same kind; a hidden or unreadable kind is not_visible). The
+  clause only says which part the text describes: a difference in count, structure or sort of object never contradicts a material, colour,
+  shape or size feature. The landmark's placement relative to the other landmarks must hold in the world; a changed camera may change overlap and order on
   the page, not the world. Fill landmarkInventory: objects = every object in the picture that shares any listed feature of any landmark,
   including objects you would otherwise call ordinary, each ONCE with an objectId (o1, o2, ...), its region and a short description;
   landmarks = exactly one entry per listed landmark id, whose candidates reference those objects by objectId, check EVERY listed feature
@@ -185,11 +189,11 @@ export const auditionReviewSchema = z.object({ candidateSha: sha, contextSha: sh
  * (fewer decisive supports, more uncertain results); a component or negated word never becomes a whole-object reason.
  * Known lexical limit: a design whose first clause names a part ("three wooden seat slats") is read as describing the whole object.
  */
-export type LandmarkAspect = 'material' | 'colour' | 'shape' | 'size';
+export type LandmarkAspect = 'kind' | 'material' | 'colour' | 'shape' | 'size';
 export type LandmarkFeature = { id: string; aspect: LandmarkAspect; text: string; clause: string; decisive: boolean };
 export type AuditionLandmark = { id: string; features: readonly LandmarkFeature[] };
 const words = (...list: string[]): ReadonlySet<string> => new Set(list);
-const LANDMARK_LEXICON: Record<LandmarkAspect, ReadonlySet<string>> = {
+const LANDMARK_LEXICON: Record<Exclude<LandmarkAspect, 'kind'>, ReadonlySet<string>> = {
   colour: words('red', 'orange', 'yellow', 'green', 'blue', 'purple', 'violet', 'pink', 'brown', 'black', 'white', 'gray', 'grey', 'beige',
     'cream', 'ochre', 'tan', 'gold', 'golden', 'silver', 'teal', 'turquoise', 'mint', 'olive', 'navy', 'ivory', 'amber', 'rust', 'maroon',
     'lavender', 'lilac', 'peach', 'coral', 'khaki', 'charcoal', 'sand', 'honey', 'crimson', 'scarlet', 'emerald', 'indigo', 'dark', 'pale'),
@@ -218,8 +222,16 @@ const landmarkAspectOf = (word: string): LandmarkAspect | null => {
   for (const aspect of ['colour', 'material', 'size', 'shape'] as const) if (parts.some(p => LANDMARK_LEXICON[aspect].has(p))) return aspect;
   return null;
 };
-export function landmarkFeatureCatalogue(invariants: readonly { attribute: string; value: string }[]): LandmarkFeature[] {
+export function landmarkFeatureCatalogue(invariants: readonly { attribute: string; value: string }[], kindContract = false): LandmarkFeature[] {
   const out: Omit<LandmarkFeature, 'id'>[] = [];
+  // Under the opt-in contract the declared kind is ONE decisive whole-object cue of its own aspect and is not re-read word by word.
+  // Without the contract an invariant named "kind" is ordinary design text like any other.
+  const isKind = (attribute: string) => kindContract && attribute.trim().toLowerCase() === LANDMARK_KIND_ATTRIBUTE;
+  if (kindContract) {
+    const declared = invariants.filter(i => isKind(i.attribute));
+    if (declared.length !== 1 || declared[0].attribute !== LANDMARK_KIND_ATTRIBUTE || !declared[0].value.trim()) fail('audition_landmark_kind');
+    out.push({ aspect: 'kind', text: declared[0].value.trim().toLowerCase(), clause: declared[0].value.trim(), decisive: true });
+  }
   const add = (f: Omit<LandmarkFeature, 'id'>) => { if (!out.some(o => o.aspect === f.aspect && o.text === f.text && o.clause === f.clause)) out.push(f); };
   const colourAt = (tokens: string[], i: number) => landmarkAspectOf(tokens[i] ?? '') === 'colour'
     || (COLOUR_MODIFIERS.has(tokens[i] ?? '') && landmarkAspectOf(tokens[i + 1] ?? '') === 'colour');
@@ -229,7 +241,7 @@ export function landmarkFeatureCatalogue(invariants: readonly { attribute: strin
     const content = tokens.filter(t => t && !DETERMINERS.has(t)), head = content.findIndex(t => !descriptor(t));
     return head < 0 || (content.length - head <= 2 && !content.slice(head).some(descriptor));
   };
-  for (const { attribute, value } of invariants) {
+  for (const { attribute, value } of invariants.filter(i => !isKind(i.attribute))) {
     const named = ASPECT_ATTRIBUTES[attribute.trim().toLowerCase()];
     const clauses = value.replace(/\bwithout\b/gi, ', no').split(CLAUSE_BREAK).map(s => s.trim().replace(/\.+$/, '')).filter(Boolean);
     clauses.forEach((clause, index) => {
@@ -447,9 +459,12 @@ export function auditionPageChecks(book: PersonalStoryboard, pageNumber: number,
   const landmarkIds = new Set(c.entities.filter(e => e.kind === 'landmark').map(e => e.id));
   const notYetRevealed = states.filter(s => s.value.relation === 'unestablished' && !visibleCast.includes(s.entityId) && !landmarkIds.has(s.entityId))
     .map(s => ({ id: s.entityId, design: design(s.entityId) }));
-  // Each landmark's comparison features come from its written invariants, so they are the same on every page of the book.
+  // Each landmark's comparison features come from its written invariants, so they are the same on every page of the book. The kind
+  // aspect is active only through the compiled book's bound contract marker, never from a field merely named "kind".
+  const kindContract = book.landmarkKind === LANDMARK_KIND_CONTRACT_VERSION;
+  if (book.landmarkKind !== undefined && !kindContract) fail('audition_landmark_kind');
   const uniqueLandmarks = c.entities.filter(e => e.kind === 'landmark').map(e => ({ id: e.id, design: design(e.id), plannedVisible: visibleEntities.includes(e.id),
-    features: landmarkFeatureCatalogue(e.invariants) }));
+    features: landmarkFeatureCatalogue(e.invariants, kindContract) }));
   const castIdentity = visibleCast.map(id => id === BOOK_SEQUENCE_ROLES.child
     ? { id, reference: 'canonical_child', design: `the reference child; clothing: ${plan.wardrobe}` }
     : id === BOOK_SEQUENCE_ROLES.companion ? { id, reference: 'canonical_companion', design: companionDescription }
@@ -643,6 +658,7 @@ export async function illustrateReviewedAudition(args: {
   const complete = frames.length === args.book.narrativeSpreads + 1;
   const allSupported = pages.every(p => p.status === 'qa_supported') && refs.entities.status === 'approved_reference' && refs.locations.status === 'approved_reference';
   const manifest = { version: 'reviewed-simple-book-audition/v2', policy, sourceDigest: args.book.sourceDigest, storyboardDigest: args.book.storyboardDigest,
+    ...(args.book.landmarkKind ? { landmarkKind: args.book.landmarkKind } : {}),
     scope: { frames, complete },
     status: allSupported ? (complete ? 'qa_supported_audition' : 'qa_supported_sample') : 'held_audition_with_findings',
     references: { child: args.child, companion: args.companion, entities: refs.entities.image, locations: refs.locations.image },

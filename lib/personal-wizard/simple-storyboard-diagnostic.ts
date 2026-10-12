@@ -4,6 +4,7 @@ import type { PersonalWizardOptions } from './options';
 import { prepareCurrentPersonalStoryboard, authorPersonalStoryboard, personalStoryboardReviewInput,
   personalStoryboardReviewSchema, storyboardReviewDisposition, currentPersonalStoryboardFrame, storyboardInstructions, storyboardDraftSchema } from './storyboard';
 import { MOMENT_REVIEW_ADDENDUM } from './storyboard-moments';
+import { KIND_REVIEW_ADDENDUM } from './storyboard-landmark-kind';
 import { PERSONAL_BOOK_REVIEW_INSTRUCTION, type BookVisualCall } from './book-runner';
 import { personalBookOutputLimits } from './book-config';
 
@@ -28,20 +29,22 @@ export async function runSimpleStoryboardDiagnostic(args: {
   actorOwnedAppearance?: true;
   /** Opt-in drawn-instant/page-meaning contract; absent keeps the exact existing calls. */
   momentContract?: true;
+  /** Opt-in landmark-kind contract; absent keeps the exact existing calls. */
+  landmarkKindContract?: true;
 }) {
   const limit = args.inputByteLimit ?? SIMPLE_STORYBOARD_INPUT_LIMIT;
   if (!Number.isInteger(limit) || limit < 1 || limit > SIMPLE_STORYBOARD_INPUT_LIMIT) fail('input_policy');
   if (args.signal.aborted) fail('cancelled');
   // This driver is for the explicit simple envelope only, never archive/v3 substitution.
   if (!args.writerResult || typeof args.writerResult !== 'object' || !('simpleSource' in args.writerResult)) fail('simple_source_required');
-  const source = prepareCurrentPersonalStoryboard(args.request, args.writerResult, args.options, args.actorOwnedAppearance, args.momentContract);
+  const source = prepareCurrentPersonalStoryboard(args.request, args.writerResult, args.options, args.actorOwnedAppearance, args.momentContract, args.landmarkKindContract);
   const instructions = storyboardInstructions(source);
   const caps = personalBookOutputLimits(source.story.pages.length);
   const calls: (BookVisualCall & { contentBytes: number; contentByteLimit: number; headroomBytes: number })[] = [];
   const assertCurrent = () => {
     if (args.signal.aborted) fail('cancelled');
     try {
-      if (prepareCurrentPersonalStoryboard(args.request, args.writerResult, args.options, args.actorOwnedAppearance, args.momentContract).sourceDigest !== source.sourceDigest) fail('source_changed');
+      if (prepareCurrentPersonalStoryboard(args.request, args.writerResult, args.options, args.actorOwnedAppearance, args.momentContract, args.landmarkKindContract).sourceDigest !== source.sourceDigest) fail('source_changed');
     } catch (error) {
       if (error instanceof SimpleStoryboardDiagnosticError) throw error;
       fail('source_changed');
@@ -70,14 +73,17 @@ export async function runSimpleStoryboardDiagnostic(args: {
     maxOutputTokens: caps.storyboardOutputTokens,
     context: { narrativeSpreads: source.story.pages.length, sourceDigest: source.sourceDigest,
       ...(args.actorOwnedAppearance ? { actorOwnedAppearance: true as const } : {}),
-      ...(args.momentContract ? { momentContract: true as const } : {}) } }), args.signal);
+      ...(args.momentContract ? { momentContract: true as const } : {}),
+      ...(args.landmarkKindContract ? { landmarkKindContract: true as const } : {}) } }), args.signal);
   assertCurrent();
   // A changed instant/state is a new storyboard: it gets its own review under the contract, never the old approval.
-  const rawReview = await dispatch({ stage: 'review', instructions: PERSONAL_BOOK_REVIEW_INSTRUCTION + (args.momentContract ? '\n' + MOMENT_REVIEW_ADDENDUM : ''),
+  const rawReview = await dispatch({ stage: 'review', instructions: PERSONAL_BOOK_REVIEW_INSTRUCTION + (args.momentContract ? '\n' + MOMENT_REVIEW_ADDENDUM : '')
+      + (args.landmarkKindContract ? '\n' + KIND_REVIEW_ADDENDUM : ''),
     input: canonicalJson(personalStoryboardReviewInput(storyboard)), schema: personalStoryboardReviewSchema,
     maxOutputTokens: caps.reviewOutputTokens,
     context: { narrativeSpreads: storyboard.narrativeSpreads, sourceDigest: storyboard.sourceDigest, storyboardDigest: storyboard.storyboardDigest,
-      ...(args.actorOwnedAppearance ? { actorOwnedAppearance: true as const } : {}) } });
+      ...(args.actorOwnedAppearance ? { actorOwnedAppearance: true as const } : {}),
+      ...(args.landmarkKindContract ? { landmarkKindContract: true as const } : {}) } });
   const review = storyboardReviewDisposition(storyboard, rawReview);
   assertCurrent();
   const framePackets = review.disposition === 'review_supported'

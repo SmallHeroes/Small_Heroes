@@ -20,6 +20,7 @@ const hash = /^[a-f0-9]{64}$/;
 export function personalBookProviderSchema(call: BookVisualCall) {
   if (call.context.actorOwnedAppearance !== undefined && call.context.actorOwnedAppearance !== true) throw new BookProviderError('book_provider_context');
   if (call.context.momentContract !== undefined && call.context.momentContract !== true) throw new BookProviderError('book_provider_context');
+  if (call.context.landmarkKindContract !== undefined && call.context.landmarkKindContract !== true) throw new BookProviderError('book_provider_context');
   const { narrativeSpreads: count, sourceDigest, storyboardDigest } = call.context;
   if (![8, 12, 16].includes(count) || !hash.test(sourceDigest) ||
       (call.stage === 'review' && !hash.test(storyboardDigest ?? '')) || !['storyboard', 'review'].includes(call.stage)) throw new BookProviderError('book_provider_context');

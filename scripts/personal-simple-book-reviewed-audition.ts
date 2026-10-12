@@ -22,6 +22,7 @@ import { prepareSimpleStory } from '../lib/personal-wizard/simple-story-engine';
 import { prepareCurrentPersonalStoryboard, compilePersonalStoryboard, storyboardReviewDisposition,
   currentPersonalStoryboardFrame } from '../lib/personal-wizard/storyboard';
 import { simpleReferenceDesignContext, type AuditionImage } from '../lib/personal-wizard/simple-book-illustrations';
+import { LANDMARK_KIND_CONTRACT_VERSION } from '../lib/personal-wizard/storyboard-landmark-kind';
 import { illustrateReviewedAudition, rejudgeAudition, reviewedAuditionHTML, auditionSheetDesigns, auditionSheetPrompt, auditionPageChecks,
   auditionReviewSchema, auditionPageReviewSchema, AUDITION_JUDGE_INSTRUCTIONS, AUDITION_IMPACTS, REVIEWED_AUDITION_POLICY, AUDITION_WORST_CASE_CALLS,
   ReviewedAuditionError, type ReferenceStatus } from '../lib/personal-wizard/simple-book-reviewed-audition';
@@ -37,6 +38,13 @@ const hash = z.string().regex(/^[a-f0-9]{64}$/);
 const image = z.object({ imageName: z.string().regex(/^[a-z0-9_]+\.png$/), imageSha: hash }).strict();
 
 /** Strict read-only admission of the reviewed storyboard and the accepted child/companion references. */
+/** The landmark-kind contract flag comes only from the saved, digest-bound book (never a CLI argument); an unknown marker is refused. */
+export function savedLandmarkKindContract(savedBook: { landmarkKind?: unknown } | undefined): true | undefined {
+  const marker = savedBook?.landmarkKind;
+  if (marker === undefined) return undefined;
+  return marker === LANDMARK_KIND_CONTRACT_VERSION ? true : fail('audition_board_binding');
+}
+
 export function loadReviewedBook(bookDir: string, workspace = process.cwd()) {
   realDirectory(bookDir);
   const queued = z.object({ version: z.literal('local-simple-wizard-request/v1'), requestId: z.string(), optionsFingerprint: z.string(),
@@ -47,7 +55,8 @@ export function loadReviewedBook(bookDir: string, workspace = process.cwd()) {
   const visual = path.join(bookDir, 'controlled-visual-continuation-20261008');
   const result = read(path.join(visual, 'visual_simple_book_result.json'));
   if (result.status !== 'review_supported' || result.runtimeEligible !== false || result.storyboard?.status !== 'review_supported') fail('audition_result_status');
-  const source = prepareCurrentPersonalStoryboard(queued.request, result.source, options, true);
+  // The rebuilt source must reproduce the saved marker exactly: a stripped or added marker changes the digests and fails the board binding.
+  const source = prepareCurrentPersonalStoryboard(queued.request, result.source, options, true, undefined, savedLandmarkKindContract(result.storyboard?.storyboard));
   const book = compilePersonalStoryboard(source, read(path.join(visual, 'owned_storyboard_draft.json')));
   const rawReview = result.storyboard.rawReview;
   if (canonicalJson(book) !== canonicalJson(result.storyboard.storyboard) || !book.plan.actorAppearance ||

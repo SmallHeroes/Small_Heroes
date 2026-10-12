@@ -14,6 +14,7 @@ import { auditionSheetDesigns, auditionSheetPrompt, illustrateReviewedAudition, 
   auditionPageChecks, reviewedAuditionHTML, AUDITION_WORST_CASE_CALLS, AUDITION_JUDGE_INSTRUCTIONS, ReviewedAuditionError, auditionPageReviewSchema,
   auditionCorrections, landmarkFeatureCatalogue, type AuditionAttempt, type AuditionLandmark, type LandmarkAspect } from '../simple-book-reviewed-audition';
 import { AuditionMeter, readAuditionGrant } from '../../../scripts/personal-simple-book-reviewed-audition';
+import { LANDMARK_KIND_CONTRACT_VERSION } from '../storyboard-landmark-kind';
 
 const sha = (s: string) => createHash('sha256').update(s).digest('hex');
 const texts = ['She takes the paper.', 'She folds it into a boat. A thin trail appears.', 'A cat watches.', 'A big stone.', 'p5', 'p6', 'p7', 'p8'];
@@ -445,6 +446,84 @@ describe('landmark instances: code counts on a source-bound catalogue; one obser
       expect(held(a)).toBe('qa_supported');
     });
   });
+  describe('declared landmark kind (opt-in storyboard contract): a decisive whole-object cue of its own aspect (Phase 2)', () => {
+    const k = (id: string, kind: string, design: string): AuditionLandmark =>
+      ({ id, features: landmarkFeatureCatalogue([{ attribute: 'kind', value: kind }, { attribute: 'design', value: design }], true) });
+    const thorn = k('thorn', 'thorn bush', 'Low dusty-green thorn bush beside the path before the rock, with a forked outward-facing twig.');
+    const benchK = k('bench', 'bench', 'Three wooden seat slats, three back slats and two dark iron supports; behind the tree.');
+    const swingK = k('swing', 'swing', 'Single rectangular wooden seat on two cream ropes, supported by a separate wooden frame on the right lawn.');
+    const rockK = k('stone', 'rock', 'Large pale-gray rounded rock with one diagonal ochre seam and a low burrow opening beneath its front lip; rear right of garden.');
+    const pair = [obj('o1', 'lower-right foreground'), obj('o2', 'background across the upper middle')];
+    it('builds the kind cue only under the contract, as one phrase; without it a "kind" field is ordinary text', () => {
+      expect(thorn.features.map(x => `${x.decisive ? '+' : '~'}${x.aspect}:${x.text}`)).toEqual(['+kind:thorn bush', '+size:low', '+colour:dusty-green', '~shape:forked']);
+      expect(landmarkFeatureCatalogue([{ attribute: 'kind', value: 'thorn bush' }, { attribute: 'design', value: 'Low dusty-green thorn bush' }]).some(x => x.aspect === 'kind')).toBe(false);
+      expect(() => landmarkFeatureCatalogue([{ attribute: 'design', value: 'Low dusty-green thorn bush' }], true)).toThrow('audition_landmark_kind');
+      expect(() => landmarkFeatureCatalogue([{ attribute: 'Kind', value: 'thorn bush' }], true)).toThrow('audition_landmark_kind');
+      expect(() => landmarkFeatureCatalogue([{ attribute: 'kind', value: 'bush' }, { attribute: 'kind', value: 'hedge' }], true)).toThrow('audition_landmark_kind');
+      // The declared kind is one cue: a vocabulary word inside it ("stone") never becomes a second, material cue.
+      expect(landmarkFeatureCatalogue([{ attribute: 'kind', value: 'stone wall' }, { attribute: 'design', value: 'Long low wall' }], true)
+        .map(x => `${x.decisive ? '+' : '~'}${x.aspect}:${x.text}`)).toEqual(['+kind:stone wall', '+size:long', '+size:low']);
+    });
+    it('a background hedge whose kind is contradicted is dismissed although it is also low and green (the rejudge-3 false positive shape)', () => {
+      const a = assessWith([thorn], pair, { thorn: [cand('o1', 'this_landmark', {}, thorn), cand('o2', 'different_object', { 'thorn bush': 'contradicted', forked: 'not_visible' }, thorn)] });
+      expect(of(a, 'thorn')).toMatchObject({ instances: 1 });
+      expect(a.findings).toEqual([]);
+      expect(held(a)).toBe('qa_supported');
+    });
+    it('a kind contradiction never quietly erases a possible copy, and a hidden kind never dismisses', () => {
+      const possible = assessWith([thorn], pair, { thorn: [cand('o1', 'this_landmark', {}, thorn), cand('o2', 'possible_copy', { 'thorn bush': 'contradicted', forked: 'not_visible' }, thorn)] });
+      expect(possible.findings).toEqual([expect.objectContaining({ requirement: 'landmark_unique:thorn', verdict: 'uncertain' })]);
+      const hidden = assessWith([thorn], pair, { thorn: [cand('o1', 'this_landmark', {}, thorn), cand('o2', 'different_object', { 'thorn bush': 'not_visible', forked: 'not_visible' }, thorn)] });
+      expect(of(hidden, 'thorn')).toMatchObject({ instances: 2, reclassified: 1 });
+      expect(hidden.findings).toEqual([expect.objectContaining({ requirement: 'landmark_unique:thorn', verdict: 'defect' })]);
+    });
+    it('a real duplicate of the same kind stays a defect', () => {
+      const a = assessWith([rockK], pair, { stone: [cand('o1', 'this_landmark', {}, rockK), cand('o2', 'possible_copy', { low: 'not_visible' }, rockK)] });
+      expect(of(a)).toMatchObject({ instances: 2, strong: 2 });
+      expect(a.findings).toEqual([expect.objectContaining({ requirement: 'landmark_unique:stone', verdict: 'defect' })]);
+    });
+    it('material is judged as material: the wooden swing seat is dismissed from the bench by its kind, not by "not wooden"', () => {
+      const objects = [obj('o1', 'bench behind the tree'), obj('o2', 'right edge seat and ropes')];
+      const a = assessWith([benchK, swingK], objects, { bench: [cand('o1', 'this_landmark', {}, benchK), cand('o2', 'different_object', { bench: 'contradicted' }, benchK)],
+        swing: [cand('o2', 'this_landmark', {}, swingK), cand('o1', 'different_object', { swing: 'contradicted' }, swingK)] });
+      expect(of(a, 'bench').candidates[1]).toMatchObject({ objectId: 'o2', counted: false, contradictedCore: ['f1'] });
+      expect(of(a, 'bench').candidates[1].matchedCore).toContain('f2');
+      expect(a.findings).toEqual([]);
+    });
+    it('a cropped swing (seat hidden) is resolved through kind: no bench or swing ambiguity remains', () => {
+      const objects = [obj('o1', 'bench behind the tree'), obj('o2', 'frame and ropes behind the rock')];
+      const seatHidden = { rectangular: 'not_visible', wooden: 'not_visible' } as Seen;
+      const a = assessWith([benchK, swingK], objects, { bench: [cand('o1', 'this_landmark', {}, benchK), cand('o2', 'different_object', { bench: 'contradicted', wooden: 'not_visible' }, benchK)],
+        swing: [cand('o2', 'this_landmark', seatHidden, swingK), cand('o1', 'different_object', { swing: 'contradicted' }, swingK)] });
+      expect(a.findings).toEqual([]);
+      expect(held(a)).toBe('qa_supported');
+      // If the checker leaves the bench's kind open for that object, the ambiguity stays: kind alone (one aspect) does not confirm the owner.
+      const open = assessWith([benchK, swingK], objects, { bench: [cand('o1', 'this_landmark', {}, benchK), cand('o2', 'possible_copy', { bench: 'not_visible', wooden: 'not_visible' }, benchK)],
+        swing: [cand('o2', 'this_landmark', seatHidden, swingK)] });
+      expect(of(open, 'bench').candidates[1]).toMatchObject({ identityConfirmed: false, counted: true });
+      expect(open.findings).toEqual([expect.objectContaining({ requirement: 'landmark_unique:bench', verdict: 'uncertain' })]);
+    });
+    it('a shared kind alone cannot exclude; a genuinely distinguishing whole-object cue can', () => {
+      const a1 = k('bench_a', 'bench', 'Long brown wooden bench'), b1 = k('bench_b', 'bench', 'Long brown wooden bench');
+      const objects = [obj('o1', 'left'), obj('o2', 'right')];
+      const shared = assessWith([a1, b1], objects, { bench_a: [cand('o1', 'this_landmark', {}, a1), cand('o2', 'possible_copy', { long: 'not_visible', brown: 'not_visible', wooden: 'not_visible' }, a1)],
+        bench_b: [cand('o2', 'this_landmark', {}, b1)] });
+      expect(of(shared, 'bench_a')).toMatchObject({ instances: 2, excluded: 0 });
+      expect(of(shared, 'bench_a').candidates[1]).toMatchObject({ identityConfirmed: false });
+      const b2 = k('bench_b', 'bench', 'Short green metal bench');
+      const distinct = assessWith([a1, b2], objects, { bench_a: [cand('o1', 'this_landmark', {}, a1), cand('o2', 'possible_copy', { long: 'not_visible', brown: 'not_visible', wooden: 'not_visible' }, a1)],
+        bench_b: [cand('o2', 'this_landmark', {}, b2)] });
+      expect(of(distinct, 'bench_a')).toMatchObject({ instances: 1, excluded: 1 });
+    });
+    it('kind on the claimed owner: hidden is no evidence, contradicted blocks the claim', () => {
+      const objects = [obj('o1', 'bench behind the tree'), obj('o2', 'right edge seat')];
+      const run = (swingSeen: Seen) => assessWith([benchK, swingK], objects, { bench: [cand('o1', 'this_landmark', {}, benchK),
+        cand('o2', 'possible_copy', { bench: 'not_visible', dark: 'not_visible', iron: 'not_visible' }, benchK)], swing: [cand('o2', 'this_landmark', swingSeen, swingK)] });
+      expect(of(run({ swing: 'not_visible', rectangular: 'not_visible' }), 'bench').candidates[1]).toMatchObject({ identityConfirmed: false });
+      expect(of(run({ swing: 'contradicted' }), 'bench').candidates[1]).toMatchObject({ identityConfirmed: false });
+      expect(of(run({}), 'bench').candidates[1]).toMatchObject({ identityConfirmed: true, excluded: true });
+    });
+  });
   it('rejects an inventory that skips, invents or under-checks a landmark', () => {
     const inventory = (landmarks: unknown[]) => ({ ...review(sha('c'), sha('x')), landmarkInventory: { objects: [main], landmarks } });
     const ids = ['page_text', 'safety', 'landmark_unique:old_tree', 'landmark_unique:stone'];
@@ -462,6 +541,9 @@ describe('landmark instances: code counts on a source-bound catalogue; one obser
     expect(page).toContain('different_object needs a visibly contradicted');
     expect(page).toContain('Hidden by angle, crop or occlusion is not_visible, never contradicted.');
     expect(page).toContain('use the SAME objectId in that entry');
+    expect(page).toContain('Judge each feature ONLY on its own aspect and text');
+    expect(page).toContain('a difference in count, structure or sort of object never contradicts a material, colour,');
+    expect(page).toContain('kind = what sort of object it is (a copy of a landmark is the same kind; a hidden or unreadable kind is not_visible)');
     for (const word of [/\brocks?\b/i, /boulder/i, /burrow/i, /swing/i, /\bbench/i, /button nose/i]) expect(page).not.toMatch(word);
     expect(Object.keys(auditionPageReviewSchema.shape.landmarkInventory.shape)).toEqual(['objects', 'landmarks']);
   });
@@ -472,6 +554,23 @@ describe('landmark instances: code counts on a source-bound catalogue; one obser
     expect(pageRenders[pageRenders.length - 1]).toBe('page_3_0');
     expect(h.args.identity.mock.calls.some(c => String(c[0]).startsWith('page_3'))).toBe(false);
     expect(h.saved.has('halted_page_3')).toBe(true);
+  });
+  it('a book compiled under the landmark-kind contract carries its kind cues to every page check and records the contract in the manifest', async () => {
+    const kindBook = fixture() as any;
+    for (const e of kindBook.plan.continuity.entities.filter((x: any) => x.kind === 'landmark')) e.invariants.push({ attribute: 'kind', value: e.id === 'stone' ? 'rock' : 'tree' });
+    kindBook.landmarkKind = LANDMARK_KIND_CONTRACT_VERSION;
+    const h = harness({ book: kindBook, pages: [4] });
+    const m = await illustrateReviewedAudition(h.args);
+    expect(m).toMatchObject({ landmarkKind: LANDMARK_KIND_CONTRACT_VERSION });
+    const stoneFeatures = h.contexts.get('page_4_0_qa').checks.uniqueLandmarks.find((l: AuditionLandmark) => l.id === 'stone').features;
+    expect(stoneFeatures[0]).toMatchObject({ aspect: 'kind', text: 'rock', decisive: true });
+    // Without the marker the same invariants are ordinary design data and no manifest field appears.
+    const plain = fixture() as any;
+    for (const e of plain.plan.continuity.entities.filter((x: any) => x.kind === 'landmark')) e.invariants.push({ attribute: 'kind', value: 'rock' });
+    const p = harness({ book: plain, pages: [4] });
+    const mp = await illustrateReviewedAudition(p.args);
+    expect('landmarkKind' in mp).toBe(false);
+    expect(p.contexts.get('page_4_0_qa').checks.uniqueLandmarks.flatMap((l: AuditionLandmark) => l.features).some((x: any) => x.aspect === 'kind')).toBe(false);
   });
   it('a page inventory with two strong matches holds that page through the real orchestration', async () => {
     const h = harness({ inventory: (step, context) => {

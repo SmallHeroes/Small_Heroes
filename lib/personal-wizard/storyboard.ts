@@ -15,6 +15,7 @@ import { adventureSelectionIssue } from './story-planning-contract';
 import type { PersonalWizardOptions } from './options';
 import { validateStoryboardMoments, drawnStates, planAtDrawnInstant, momentRenderSection, MOMENT_STORYBOARD_ADDENDUM,
   STORYBOARD_MOMENTS_VERSION, momentWholeBookDraftSchema, ownedMomentWholeBookDraftSchema, type StoryboardMoments } from './storyboard-moments';
+import { LANDMARK_KIND_CONTRACT_VERSION, KIND_STORYBOARD_ADDENDUM, landmarkKinds } from './storyboard-landmark-kind';
 
 export const PERSONAL_STORYBOARD_VERSION = 'personal-book-storyboard/offline-v3';
 const digest = (data: unknown) => previewSha(canonicalJson(data));
@@ -30,6 +31,8 @@ type BookData = {
   plan: Compiled['plan']; sequence: Compiled['sequence'];
   /** Present only for opt-in moments storyboards; absent keeps every older digest/packet unchanged. */
   moments?: StoryboardMoments;
+  /** Present only for opt-in landmark-kind storyboards; absent keeps every older digest/packet unchanged. */
+  landmarkKind?: typeof LANDMARK_KIND_CONTRACT_VERSION;
 };
 declare const compiledBookOrigin: unique symbol;
 export type PersonalStoryboard = BookData & { readonly [compiledBookOrigin]: true };
@@ -38,9 +41,11 @@ const sources = new WeakMap<Source, string>();
 const books = new WeakMap<PersonalStoryboard, { serialized: string; source: Source }>();
 
 /** Offline/archive diagnostic bridge. Current operations use the strict wrapper below. */
-export function preparePersonalStoryboard(request: unknown, writerResult: unknown, options: PersonalWizardOptions, actorOwnedAppearance?: true, momentContract?: true) {
+export function preparePersonalStoryboard(request: unknown, writerResult: unknown, options: PersonalWizardOptions, actorOwnedAppearance?: true, momentContract?: true,
+  landmarkKindContract?: true) {
   if (actorOwnedAppearance !== undefined && actorOwnedAppearance !== true) fail('appearance_policy');
   if (momentContract !== undefined && momentContract !== true) fail('moment_policy');
+  if (landmarkKindContract !== undefined && landmarkKindContract !== true) fail('landmark_kind_policy');
   const prepared = preparePersonalStory(request, options);
   const result = storyboardWriterResultSchema.parse(writerResult);
   // Writer output was already normalised at its own boundary. Do not silently trim
@@ -82,12 +87,14 @@ export function preparePersonalStoryboard(request: unknown, writerResult: unknow
     plan: result.plan, manuscript: result.manuscript, displayPages: result.displayPages,
     ...(actorOwnedAppearance ? { actorOwnedAppearance: true } : {}),
     ...(momentContract ? { momentContract: STORYBOARD_MOMENTS_VERSION } : {}),
+    ...(landmarkKindContract ? { landmarkKindContract: LANDMARK_KIND_CONTRACT_VERSION } : {}),
     ...('editing' in result ? { editing: result.editing } : {}), ...(result.planning ? { planning: result.planning } : {}),
     ...('simpleSource' in result ? { simpleSourceEvidence: simpleStoryboardSourceEvidence(result) } : {}) });
   const source = {
     sourceDigest, request: prepared.accepted.canonical, result, story,
     ...(actorOwnedAppearance ? { actorOwnedAppearance: true as const } : {}),
     ...(momentContract ? { momentContract: true as const } : {}),
+    ...(landmarkKindContract ? { landmarkKindContract: true as const } : {}),
     brief: prepared.brief, companionVisualAuthority, companionDescription: companionVisualAuthority.description,
     planningInput: {
       ...wholeBookPlanningInput(story, prepared.brief.child.age, prepared.brief.child.address, companionVisualAuthority.description),
@@ -106,8 +113,10 @@ export function preparePersonalStoryboard(request: unknown, writerResult: unknow
 }
 
 /** New/current operation: an archive or stripped receipt is never current evidence. */
-export function prepareCurrentPersonalStoryboard(request: unknown, writerResult: unknown, options: PersonalWizardOptions, actorOwnedAppearance?: true, momentContract?: true) {
-  return preparePersonalStoryboard(request, admitCurrentStoryboardStory(request, writerResult, options), options, actorOwnedAppearance, momentContract);
+export function prepareCurrentPersonalStoryboard(request: unknown, writerResult: unknown, options: PersonalWizardOptions, actorOwnedAppearance?: true,
+  momentContract?: true, landmarkKindContract?: true) {
+  return preparePersonalStoryboard(request, admitCurrentStoryboardStory(request, writerResult, options), options, actorOwnedAppearance, momentContract,
+    landmarkKindContract);
 }
 
 function assertSource(source: Source) {
@@ -145,11 +154,15 @@ export function compilePersonalStoryboard(source: Source, rawDraft: unknown): Pe
   const compiled = compileWholeBookDraft(source.momentContract ? draft : rawDraft, source.story, source.actorOwnedAppearance === true);
   const moments = source.momentContract
     ? validateStoryboardMoments(rawMoments, compiled.plan, compiled.sequence, previewStoryEvidence(source.story).texts) : undefined;
-  const storyboardDigest = digest({ version: PERSONAL_STORYBOARD_VERSION, sourceDigest: source.sourceDigest, ...compiled, ...(moments ? { moments } : {}) });
+  // Landmark kinds: syntax checked here; their meaning is the semantic review's (KIND_REVIEW_ADDENDUM).
+  if (source.landmarkKindContract) landmarkKinds(compiled.plan.continuity!, compiled.sequence.mutableAttributes);
+  const landmarkKind = source.landmarkKindContract ? LANDMARK_KIND_CONTRACT_VERSION : undefined;
+  const storyboardDigest = digest({ version: PERSONAL_STORYBOARD_VERSION, sourceDigest: source.sourceDigest, ...compiled, ...(moments ? { moments } : {}),
+    ...(landmarkKind ? { landmarkKind } : {}) });
   const book = { version: PERSONAL_STORYBOARD_VERSION, sourceDigest: source.sourceDigest,
     storyboardDigest, requestId: source.result.requestId, narrativeSpreads: source.story.pages.length,
     displayPages: source.result.displayPages, status: 'pending_semantic_review', runtimeEligible: false,
-    ...compiled, ...(moments ? { moments } : {}) } as PersonalStoryboard;
+    ...compiled, ...(moments ? { moments } : {}), ...(landmarkKind ? { landmarkKind } : {}) } as PersonalStoryboard;
   books.set(book, { serialized: canonicalJson(book), source });
   return book;
 }
@@ -178,7 +191,8 @@ export function personalStoryboardReviewInput(book: PersonalStoryboard) {
     storyboardDigest: book.storyboardDigest, approvedBrief: source.brief, manuscript: source.result.manuscript,
     companionVisualAuthority: source.companionVisualAuthority,
     ...('simpleSource' in source.result ? { simpleSourceEvidence: simpleStoryboardSourceEvidence(source.result) } : {}),
-    narrativePlan: source.result.plan, plan: book.plan, sequence: book.sequence, ...(book.moments ? { moments: book.moments } : {}) };
+    narrativePlan: source.result.plan, plan: book.plan, sequence: book.sequence, ...(book.moments ? { moments: book.moments } : {}),
+    ...(book.landmarkKind ? { landmarkKindContract: { version: book.landmarkKind, landmarks: landmarkKinds(book.plan.continuity!, book.sequence.mutableAttributes) } } : {}) };
 }
 
 export function storyboardReviewDisposition(book: PersonalStoryboard, raw: unknown) {
@@ -204,7 +218,8 @@ export function personalStoryboardFrame(book: PersonalStoryboard, rawReview: unk
   current: { request: unknown; writerResult: unknown; options: PersonalWizardOptions }) {
   const source = assertBook(book);
   if (!current) return fail('current_source_required');
-  const currentSource = preparePersonalStoryboard(current.request, current.writerResult, current.options, source.actorOwnedAppearance, source.momentContract);
+  const currentSource = preparePersonalStoryboard(current.request, current.writerResult, current.options, source.actorOwnedAppearance, source.momentContract,
+    source.landmarkKindContract);
   if (currentSource.sourceDigest !== book.sourceDigest) fail('stale_book');
   const decision = storyboardReviewDisposition(book, rawReview);
   if (decision.disposition !== 'review_supported') fail(decision.disposition);
@@ -220,7 +235,8 @@ export function personalStoryboardFrame(book: PersonalStoryboard, rawReview: unk
     requestId: book.requestId, pageNumber, text,
     companion: { id: source.request.companion.id, description: source.companionDescription },
     visual: selectedDraftQaContext(plan, pageNumber), sequence,
-    ...(book.moments ? { moment: { version: book.moments.version, ...book.moments.frames[pageNumber] } } : {}) };
+    ...(book.moments ? { moment: { version: book.moments.version, ...book.moments.frames[pageNumber] } } : {}),
+    ...(book.landmarkKind ? { landmarkKind: book.landmarkKind } : {}) };
   const packetDigest = digest(context);
   const base = previewPagePrompt(plan, pageNumber, text, source.brief.child.age, source.brief.child.address, source.companionDescription);
   // No prior pixels are being claimed reviewed or attached by this offline bridge.
@@ -237,15 +253,18 @@ export function currentPersonalStoryboardFrame(book: PersonalStoryboard, rawRevi
   const source = assertBook(book);
   if (!current) return fail('current_source_required');
   admitCurrentStoryboardStory(source.request, source.result, current.options);
-  const admitted = prepareCurrentPersonalStoryboard(current.request, current.writerResult, current.options, source.actorOwnedAppearance, source.momentContract);
+  const admitted = prepareCurrentPersonalStoryboard(current.request, current.writerResult, current.options, source.actorOwnedAppearance, source.momentContract,
+    source.landmarkKindContract);
   if (admitted.sourceDigest !== book.sourceDigest) fail('stale_book');
   return personalStoryboardFrame(book, rawReview, pageNumber, current);
 }
 
 /** Opt-in moments contract adds its addendum and schema; otherwise the exact existing instruction/schema. */
-export const storyboardInstructions = (source: { actorOwnedAppearance?: true; momentContract?: true }) =>
-  (source.actorOwnedAppearance ? OWNED_STORYBOARD_INSTRUCTION : PERSONAL_STORYBOARD_INSTRUCTION) + (source.momentContract ? '\n' + MOMENT_STORYBOARD_ADDENDUM : '');
-export const storyboardDraftSchema = (source: { actorOwnedAppearance?: true; momentContract?: true }) => source.momentContract
+export const storyboardInstructions = (source: { actorOwnedAppearance?: true; momentContract?: true; landmarkKindContract?: true }) =>
+  (source.actorOwnedAppearance ? OWNED_STORYBOARD_INSTRUCTION : PERSONAL_STORYBOARD_INSTRUCTION) + (source.momentContract ? '\n' + MOMENT_STORYBOARD_ADDENDUM : '')
+  + (source.landmarkKindContract ? '\n' + KIND_STORYBOARD_ADDENDUM : '');
+// The landmark-kind contract adds no schema: its kind is an ordinary invariant, given meaning only by the bound book marker.
+export const storyboardDraftSchema = (source: { actorOwnedAppearance?: true; momentContract?: true; landmarkKindContract?: true }) => source.momentContract
   ? (source.actorOwnedAppearance ? ownedMomentWholeBookDraftSchema : momentWholeBookDraftSchema)
   : (source.actorOwnedAppearance ? ownedWholeBookDraftSchema : wholeBookDraftSchema);
 
