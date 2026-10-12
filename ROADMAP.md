@@ -1,5 +1,11 @@
 # SmallHeroes — Roadmap
 
+## Cross-landmark correction (2c0de372); next: Codex re-gate of d6127fb9..(this docs commit) (2026-10-12)
+
+- Then, only with Guy's fresh approval: fresh freeze (v4 schema, policy v6,
+  new instruction/context hashes) and a two-image check of the saved page-4
+  pair. Redraws stay deferred.
+
 ## Cross-landmark fix built offline (329445d8); next: Codex re-gate, then Guy on a saved-pixel validation (2026-10-11)
 
 - Codex re-gates c731ff82..(this docs commit).

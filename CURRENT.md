@@ -1,5 +1,19 @@
 # SmallHeroes — Current Technical State
 
+## Cross-landmark correction 2c0de372: owner identity needs positive support; only whole-object cues decide (offline; 2026-10-12)
+
+Codex HOLD of c731ff82..d6127fb9 (F1 P1, F2 P2), reproduced by regressions
+that fail on the frozen d6127fb9 module (8 behavioural, 4 new-field only).
+F1: a claimed foreign identity is confirmed only with positive, distinguishing
+support (no contradiction there, two matched aspects, one matched cue sharing
+no word with this landmark); hidden, empty or shared-cue-only claims leave
+the object counted (uncertain). F2: clauses split at prepositions; negated
+clauses (incl. "without") yield no cue; only the first clause can be decisive
+(free text: "descriptors... noun"); only decisive cues give strength or
+dismiss. Lexical, not semantic; part-first designs read as whole-object.
+Policy v6. tsc0; focused 116/116; mutants 42/42 + render/rejudge path.
+No paid call; the proposed two-image validation stays unauthorised.
+
 ## Cross-landmark binding + source-bound catalogue 329445d8 (offline; 2026-10-11)
 
 Guy approved the offline milestone after Codex's QA of c731ff82 (rock pair
