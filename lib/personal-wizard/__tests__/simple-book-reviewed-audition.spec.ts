@@ -893,5 +893,44 @@ describe('cumulative, fail-closed meter and spend grant', () => {
     expect(() => readAuditionGrant(write({ ...grant, ledger: { ...grant.ledger, evidence: [{ file: evidence, sha256: sha('x') }] } }), book)).toThrow('audition_grant_evidence');
     expect(() => readAuditionGrant(write({ ...grant, capMicroUsd: 3000000 }), book)).toThrow('audition_grant_cap');
     expect(() => readAuditionGrant(write({ ...grant, claudeMax: 'free' }), book)).toThrow();
+    // An early sample must name granted narrative pages, ascending, at most two.
+    expect(readAuditionGrant(write({ ...grant, scope: { mode: 'render', pages: [0, 1, 3, 6], sample: [1, 3] } }), book).grant.scope).toMatchObject({ sample: [1, 3] });
+    for (const sample of [[2], [3, 1], [1, 1], [0], [1, 3, 6], []])
+      expect(() => readAuditionGrant(write({ ...grant, scope: { mode: 'render', pages: [0, 1, 3, 6], sample } }), book), JSON.stringify(sample)).toThrow();
+  });
+});
+
+describe('early sample: drawn first, the rest only when every sample page is supported', () => {
+  const pageSteps = (h: ReturnType<typeof harness>) => h.args.render.mock.calls.map(c => String(c[0])).filter(s => s.startsWith('page_'));
+  it('supported sample: the sample pages first (same scene, compared in order), then every other frame in book order', async () => {
+    const h = harness(), m = await illustrateReviewedAudition({ ...h.args, sample: [1, 2] });
+    expect(pageSteps(h)).toEqual(['page_1_0', 'page_2_0', 'page_0_0', ...[3, 4, 5, 6, 7, 8].map(n => `page_${n}_0`)]);
+    expect(h.args.judge.mock.calls.find(c => c[0] === 'page_2_0_qa')![5]).toEqual(image('page_1_0'));
+    expect(m).toMatchObject({ status: 'qa_supported_audition', scope: { frames: [0, 1, 2, 3, 4, 5, 6, 7, 8], complete: true, sample: [1, 2] } });
+    expect(m.scope).not.toHaveProperty('stoppedAfterSample');
+  });
+  it('a held sample page stops the run before any other frame is drawn', async () => {
+    const h = harness({ judge: step => step.startsWith('page_2_') ? { environment: { issues: [issue('continuity', 'landmark_unique:stone', 'a second stone')] } } : {} });
+    const m = await illustrateReviewedAudition({ ...h.args, sample: [1, 2] });
+    expect(pageSteps(h)).toEqual(['page_1_0', 'page_2_0', 'page_2_1', 'page_2_2']);
+    expect(m).toMatchObject({ status: 'held_sample', scope: { frames: [1, 2], complete: false, sample: [1, 2], requestedFrames: [0, 1, 2, 3, 4, 5, 6, 7, 8],
+      stoppedAfterSample: true } });
+    expect(m.pages.map(p => [p.pageNumber, p.status])).toEqual([[1, 'qa_supported'], [2, 'held']]);
+    expect(h.saved.get('reviewed_audition_manifest')).toMatchObject({ status: 'held_sample' });
+  });
+  it('a sample that is the whole scope still reports held_sample when held, and never draws an unrequested frame', async () => {
+    const h = harness({ score: step => step.startsWith('page_4_') ? .4 : .82 });
+    const m = await illustrateReviewedAudition({ ...h.args, pages: [4, 5], sample: [4, 5] });
+    expect(m).toMatchObject({ status: 'held_sample', scope: { frames: [4, 5], complete: false } });
+    expect(pageSteps(h).every(s => /^page_[45]_/.test(s))).toBe(true);
+  });
+  it.each([[[0]], [[2, 1]], [[1, 1]], [[1, 2, 3]], [[]], [[9]]])('refuses sample %j', async sample => {
+    const h = harness();
+    await expect(illustrateReviewedAudition({ ...h.args, sample })).rejects.toThrow('audition_sample_scope');
+    expect(h.args.render).not.toHaveBeenCalled();
+  });
+  it('refuses a sample page outside the requested frames', async () => {
+    const h = harness();
+    await expect(illustrateReviewedAudition({ ...h.args, pages: [0, 1, 2], sample: [3] })).rejects.toThrow('audition_sample_scope');
   });
 });

@@ -23,6 +23,8 @@ export async function runSimpleWizardBook(args: {
   publish: (view: SimpleBookView) => void; reservedWritingUsd: number;
   repair?: { prior: unknown; readings: unknown[] };
   actorOwnedAppearance?: true;
+  /** Opt-in storyboard contracts (drawn instant, declared landmark kinds); absent keeps the exact existing calls. */
+  momentContract?: true; landmarkKindContract?: true;
 }) {
   const prepared = prepareSimpleStory(args.request, args.options, args.seed);
   if (prepared.book.pages !== 8 || prepared.accepted.containsFixtureData || prepared.accepted.canonical.appearance.photo !== 'none') fail('simple_book_request');
@@ -82,7 +84,9 @@ export async function runSimpleWizardBook(args: {
   if (material) { publish('held'); return { status: 'story_held' as const, source, generated, readings, storyboard: null, runtimeEligible: false as const }; }
   publish('storyboard');
   const storyboard = await runSimpleStoryboardDiagnostic({ request: args.request, writerResult: source,
-    options: args.options, signal: args.signal, actorOwnedAppearance: args.actorOwnedAppearance, generate: async (call, signal) => {
+    options: args.options, signal: args.signal, actorOwnedAppearance: args.actorOwnedAppearance,
+    ...(args.momentContract ? { momentContract: true as const } : {}), ...(args.landmarkKindContract ? { landmarkKindContract: true as const } : {}),
+    generate: async (call, signal) => {
       publish(call.stage === 'storyboard' ? 'storyboard' : 'storyboard_review');
       const raw = await args.visual(call, signal); check(); return raw;
     } });

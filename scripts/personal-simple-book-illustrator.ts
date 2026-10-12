@@ -45,7 +45,7 @@ export function readAuditionImage(directory: string, image: AuditionImage) {
 }
 /** Same source-bound real-pixel adapter for book pages and the explicit diagnostic control. */
 export function createSimpleBookPixelJudge(args: {
-  config: Pick<SimpleBookConfig, 'reviewModel'>; directory: string; budget: SimpleBookBudget; key: () => string;
+  config: Pick<SimpleBookConfig, 'reviewModel'>; directory: string; budget: Pick<SimpleBookBudget, 'run'>; key: () => string;
   assertCurrent: () => void; signal: AbortSignal; save: (name: string, value: unknown) => void;
 }): Parameters<typeof illustrateSimpleBook>[0]['judge'] {
   const reviewPolicy = simpleBookReviewPolicy(args.config), selectedModel = args.config.reviewModel;

@@ -52,6 +52,11 @@ Safety reports concrete visible issues only. Name location and correction for ev
 type WizardResult = Awaited<ReturnType<typeof runSimpleWizardBook>>;
 export class SimpleIllustrationError extends Error { constructor(readonly code: string) { super(code); } }
 const fail = (code: string): never => { throw new SimpleIllustrationError(code); };
+/** The fictional child anchor prompt (no references): one NEW character from its written design and the plan's wardrobe. */
+export const simpleChildReferencePrompt = (age: number, address: string, childDesign: string, wardrobe: string) =>
+  `${STYLE_01_SHARED}\nOne NEW fictional child character anchor, not a real photograph. ${age} year old ${address}. ${childDesign}. Exact wardrobe: ${wardrobe}. One child only, full natural body, readable front three-quarter face, arms and hands visible, ordinary relaxed standing pose, warm cream near-empty background. No props, companion, words, panels or lettering.`;
+/** A targeted reference edit: image 1 is the rejected candidate; only the named corrections change. */
+export const REFERENCE_REPAIR_EDIT_INSTRUCTION = 'Image 1 is the REJECTED edit target, not an approved canonical reference. Make only the named correction. Preserve identity, face, anatomy, pose, palette, style and every other design detail. Anatomical left/right belong to the subject: for a front-facing figure, its right is image-left. Do not mirror the whole image.';
 export const simpleReferenceDesignContext = (design: unknown) => ({ scope: 'noncommercial_reference_design_only', design,
   inspection: 'Check every listed design against actual pixels, age/anatomy/wardrobe for child, all entities and stable topology for atlases. Mark unrelated scene/framing categories pass with N/A evidence; uncertainty or omitted required design is not pass. This does not grant production qualification.' });
 
@@ -114,7 +119,7 @@ export async function illustrateSimpleBook(args: {
   const refSpecs = [
     { name: 'child' as const, design: { age: prepared.brief.child.age, address: prepared.brief.child.address, fictionalDesign: args.childDesign, wardrobe: book.plan.wardrobe,
       ...(book.plan.actorAppearance ? { role: 'child', clothing: book.plan.actorAppearance.child.clothing } : {}) },
-      prompt: `${STYLE_01_SHARED}\nOne NEW fictional child character anchor, not a real photograph. ${prepared.brief.child.age} year old ${prepared.brief.child.address}. ${args.childDesign}. Exact wardrobe: ${book.plan.wardrobe}. One child only, full natural body, readable front three-quarter face, arms and hands visible, ordinary relaxed standing pose, warm cream near-empty background. No props, companion, words, panels or lettering.` },
+      prompt: simpleChildReferencePrompt(prepared.brief.child.age, prepared.brief.child.address, args.childDesign, book.plan.wardrobe) },
     { name: 'entities' as const, design: designs.entities,
       prompt: `${STYLE_01_SHARED}\nCanonical PROP AND SUPPORTING CAST design atlas for a single book. Isolated clear designs with short Latin ID labels, one tile per listed ID. Include EVERY ${args.splitReferenceRoles ? 'ID assigned to this entities role (design.entities and design.props), not IDs owned by locations' : 'ID'} exactly once, ${args.stateAwareReferences ? 'preserve every fixed invariant; select only source-supported forms for the explicitly declared mutable attributes' : 'preserve all invariants'}. Do not invent extra characters, child or companion. Not a story scene. AUTHORITATIVE DESIGN DATA: ${canonicalJson(designs.entities)}` },
     { name: 'locations' as const, design: designs.locations,
@@ -227,7 +232,7 @@ export async function illustrateSimpleBook(args: {
       const corrections = prior.review.checks.filter(c => c.verdict === 'defect').map(c => `${c.category}: ${c.correction}`).join('\n');
       args.save('reference_recovery_input', { ...seed, authority: 'rejected_edit_input_only_not_canonical', corrections });
       candidate = await args.render(`reference_${spec.name}_repair`, spec.prompt +
-        '\nImage 1 is the REJECTED edit target, not an approved canonical reference. Make only the named correction. Preserve identity, face, anatomy, pose, palette, style and every other design detail. Anatomical left/right belong to the subject: for a front-facing figure, its right is image-left. Do not mirror the whole image.\nTARGETED CORRECTIONS:\n' + corrections, [seed.candidate], 'identity');
+        '\n' + REFERENCE_REPAIR_EDIT_INSTRUCTION + '\nTARGETED CORRECTIONS:\n' + corrections, [seed.candidate], 'identity');
       if (candidate.imageSha === seed.candidate.imageSha) fail('simple_reference_recovery_unchanged');
     } else candidate = await args.render(`reference_${spec.name}`, prompt, authorities,
       args.explicitReferenceTransport && authorities.length ? 'book_design' : 'identity',

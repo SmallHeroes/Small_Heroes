@@ -542,6 +542,11 @@ export async function illustrateReviewedAudition(args: {
   check: () => void; save: (name: string, value: unknown) => void;
   /** Frames to render (cover = 0). Default: all nine. Sheets are always produced first. */
   pages?: readonly number[];
+  /**
+   * Opt-in early sample (narrative pages within `pages`): drawn first, in order, then every other frame in book order, but ONLY when
+   * each sample page is qa_supported; otherwise the run stops with held_sample. Absent keeps the exact existing order and behaviour.
+   */
+  sample?: readonly number[];
   progress?: (event: { phase: 'sheet' | 'page'; name: string; attempt: number; status: AttemptStatus; counts: Record<Impact, number> | null;
     identity?: number | null; error?: string }) => void;
   /** Completed sheets/pages of an interrupted run. Reused only when their recomputed context, selection and status still bind. */
@@ -550,6 +555,10 @@ export async function illustrateReviewedAudition(args: {
   const policy = REVIEWED_AUDITION_POLICY, designs = auditionSheetDesigns(args.book, args.texts), prefix = args.resume?.stepPrefix ?? '';
   const frames = [...new Set(args.pages ?? [0, 1, 2, 3, 4, 5, 6, 7, 8])].sort((a, b) => a - b);
   if (!frames.length || frames.some(n => !Number.isInteger(n) || n < 0 || n > args.book.narrativeSpreads)) fail('audition_page_scope');
+  const sample = args.sample ? [...args.sample] : null;
+  if (sample && (!sample.length || sample.length > 2 || new Set(sample).size !== sample.length || sample.some(n => n < 1 || !frames.includes(n)) ||
+      sample.some((n, i) => i > 0 && n <= sample[i - 1]))) fail('audition_sample_scope');
+  const order = sample ? [...sample, ...frames.filter(n => !sample.includes(n))] : frames;
   if (args.resume) {
     if (!/^r[0-9]{1,2}_$/.test(prefix) || canonicalJson(args.resume.designs) !== canonicalJson({ policy, designs }) ||
       Object.entries(args.resume.pages).some(([n, p]) => !p || p.pageNumber !== Number(n) || !frames.includes(p.pageNumber))) fail('audition_resume_binding');
@@ -633,7 +642,10 @@ export async function illustrateReviewedAudition(args: {
   const refs = referenceStatus(sheets);
   const canonical = [args.child, args.companion, refs.entities.image, refs.locations.image];
   const pages: SavedPage[] = [];
-  for (const pageNumber of frames) {
+  let heldSample = false;
+  for (const pageNumber of order) {
+    // The early sample gates the rest: continue only when every sample page is qa_supported.
+    if (sample && pages.length === sample.length && pages.some(p => p.status !== 'qa_supported')) { heldSample = true; break; }
     args.check();
     const packet = currentPersonalStoryboardFrame(args.book, args.rawReview, pageNumber, args.current);
     // Same-scene rule as sequencePredecessor; only a frame rendered in THIS run can be compared, never as authority.
@@ -655,12 +667,14 @@ export async function illustrateReviewedAudition(args: {
     args.save(`page_${pageNumber}`, pages[pages.length - 1]);
   }
   args.check();
-  const complete = frames.length === args.book.narrativeSpreads + 1;
+  if (sample && pages.length === sample.length && pages.some(p => p.status !== 'qa_supported')) heldSample = true;
+  const complete = !heldSample && frames.length === args.book.narrativeSpreads + 1;
   const allSupported = pages.every(p => p.status === 'qa_supported') && refs.entities.status === 'approved_reference' && refs.locations.status === 'approved_reference';
   const manifest = { version: 'reviewed-simple-book-audition/v2', policy, sourceDigest: args.book.sourceDigest, storyboardDigest: args.book.storyboardDigest,
     ...(args.book.landmarkKind ? { landmarkKind: args.book.landmarkKind } : {}),
-    scope: { frames, complete },
-    status: allSupported ? (complete ? 'qa_supported_audition' : 'qa_supported_sample') : 'held_audition_with_findings',
+    scope: { frames: heldSample ? pages.map(p => p.pageNumber) : frames, complete,
+      ...(sample ? { sample, ...(heldSample ? { requestedFrames: frames, stoppedAfterSample: true as const } : {}) } : {}) },
+    status: heldSample ? 'held_sample' : allSupported ? (complete ? 'qa_supported_audition' : 'qa_supported_sample') : 'held_audition_with_findings',
     references: { child: args.child, companion: args.companion, entities: refs.entities.image, locations: refs.locations.image },
     sheets: { entities: summary('sheet', sheets.entities, refs.entities.status), locations: summary('sheet', sheets.locations, refs.locations.status) },
     pageDeferred: designs.pageDeferred,

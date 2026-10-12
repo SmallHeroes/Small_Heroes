@@ -2,6 +2,7 @@
  * Reviewed LOW audition of the ONE already-reviewed simple book. Dry run by default: no key, no provider.
  *   node --require ./scripts/shims/register-server-only.cjs --import tsx scripts/personal-simple-book-reviewed-audition.ts \
  *     --book-dir <one-approved-book-20261008> [--execute --grant <grant.json> --key-env-file <file> --out <dir> [--resume]]
+ *   A new reviewed book adds --layout <book-layout.json> (its folders, seed and written child design; see reviewedBookLayoutSchema).
  * A paid run needs a spend grant: an explicit approval with a cumulative ledger, a cap and a scope. A new output folder
  * never resets spending. Not production, customer or release authority. Every paid call is journaled before dispatch.
  */
@@ -23,6 +24,7 @@ import { prepareCurrentPersonalStoryboard, compilePersonalStoryboard, storyboard
   currentPersonalStoryboardFrame, type PersonalStoryboard } from '../lib/personal-wizard/storyboard';
 import { simpleReferenceDesignContext, type AuditionImage } from '../lib/personal-wizard/simple-book-illustrations';
 import { LANDMARK_KIND_CONTRACT_VERSION } from '../lib/personal-wizard/storyboard-landmark-kind';
+import { STORYBOARD_MOMENTS_VERSION } from '../lib/personal-wizard/storyboard-moments';
 import { STORYBOARD_PRESERVATION_VERSION, storyboardPreservationDiff } from '../lib/personal-wizard/storyboard-preservation';
 import { PARENT_STORYBOARD_DIR, replanGrantSchema } from './personal-storyboard-replan-grant';
 import { illustrateReviewedAudition, rejudgeAudition, reviewedAuditionHTML, auditionSheetDesigns, auditionSheetPrompt, auditionPageChecks,
@@ -38,6 +40,32 @@ const CHILD_DESIGN = 'A new fictional six-year-old girl with short softly wavy c
 const REVIEW_MODEL = 'gpt-6.1-sol';
 const hash = z.string().regex(/^[a-f0-9]{64}$/);
 const image = z.object({ imageName: z.string().regex(/^[a-z0-9_]+\.png$/), imageSha: hash }).strict();
+
+/**
+ * Where a reviewed book keeps its parts, and the two inputs its request cannot carry (seed, written child design). Routing only: the loader
+ * recomputes every binding (request id, storyboard, frames, child context and review) from these, so another layout cannot borrow evidence.
+ */
+const folder = z.string().regex(/^[A-Za-z0-9_.-]{1,80}$/).refine(s => s !== '.' && s !== '..');
+export const reviewedBookLayoutSchema = z.object({ version: z.literal('reviewed-book-layout/v1'), seed: z.string().min(1).max(120),
+  childDesign: z.string().trim().min(20).max(1500), storyboardDir: folder, childDir: folder, childImage: z.string().regex(/^[a-z0-9_]+\.png$/),
+  /** The companion copy a historical run saved beside its child; null: the registry card alone is the reference. */
+  savedCompanion: z.string().regex(/^[A-Za-z0-9_.-]{1,80}\/illustrations\/[a-z0-9_]+\.png$/).refine(s => folder.safeParse(s.split('/')[0]).success).nullable() }).strict();
+export type ReviewedBookLayout = z.infer<typeof reviewedBookLayoutSchema>;
+/** The ONE already-reviewed book (2026-10-08): its historical folders and constants, unchanged. */
+export const LEGACY_BOOK_LAYOUT: ReviewedBookLayout = Object.freeze({ version: 'reviewed-book-layout/v1', seed: SEED, childDesign: CHILD_DESIGN,
+  storyboardDir: PARENT_STORYBOARD_DIR, childDir: 'reference-role-repair-continuation-20261009', childImage: 'reference_child_checkpoint.png',
+  savedCompanion: 'reference-role-repair-continuation-20261009/illustrations/companion_reference.png' });
+export function readReviewedBookLayout(file: string): ReviewedBookLayout {
+  if (!path.isAbsolute(file)) fail('audition_layout');
+  const parsed = reviewedBookLayoutSchema.safeParse(read(file));
+  return parsed.success ? parsed.data : fail('audition_layout');
+}
+
+/** The moments contract flag comes only from the saved, digest-bound book (never a CLI argument); an unknown marker is refused. */
+export function savedMomentContract(savedBook: { moments?: { version?: unknown } } | undefined): true | undefined {
+  if (savedBook?.moments === undefined) return undefined;
+  return savedBook.moments?.version === STORYBOARD_MOMENTS_VERSION ? true : fail('audition_board_binding');
+}
 
 /** Strict read-only admission of the reviewed storyboard and the accepted child/companion references. */
 /** The landmark-kind contract flag comes only from the saved, digest-bound book (never a CLI argument); an unknown marker is refused. */
@@ -144,18 +172,22 @@ export function admitReplanStoryboard(parent: ReplanParentBook, replanDir: strin
     companionDescription: source.companionDescription };
 }
 
-export function loadReviewedBook(bookDir: string, workspace = process.cwd(), replanDir?: string) {
+/** The reviewed request and storyboard of a book (no references yet): every saved part recompiled and bound. */
+export function loadReviewedStoryboard(bookDir: string, workspace = process.cwd(), layout: ReviewedBookLayout = LEGACY_BOOK_LAYOUT) {
   realDirectory(bookDir);
   const queued = z.object({ version: z.literal('local-simple-wizard-request/v1'), requestId: z.string(), optionsFingerprint: z.string(),
     request: z.unknown() }).passthrough().parse(read(path.join(bookDir, 'request.json')));
-  const options = resolvePersonalWizardOptions(workspace), prepared = prepareSimpleStory(queued.request, options, SEED);
+  const options = resolvePersonalWizardOptions(workspace), prepared = prepareSimpleStory(queued.request, options, layout.seed);
   if (prepared.accepted.requestId !== queued.requestId || prepared.accepted.optionsFingerprint !== queued.optionsFingerprint ||
       prepared.book.pages !== 8 || prepared.accepted.containsFixtureData || prepared.accepted.canonical.appearance.photo !== 'none') fail('audition_request_binding');
-  const visual = path.join(bookDir, PARENT_STORYBOARD_DIR);
+  const visual = path.join(bookDir, layout.storyboardDir);
   const result = read(path.join(visual, 'visual_simple_book_result.json'));
   if (result.status !== 'review_supported' || result.runtimeEligible !== false || result.storyboard?.status !== 'review_supported') fail('audition_result_status');
-  // The rebuilt source must reproduce the saved marker exactly: a stripped or added marker changes the digests and fails the board binding.
-  const source = prepareCurrentPersonalStoryboard(queued.request, result.source, options, true, undefined, savedLandmarkKindContract(result.storyboard?.storyboard));
+  // The story was written under this book's seed (it picked the story shape): another layout seed is another book.
+  if (result.source?.simpleSource?.evidence?.seed !== prepared.seed) fail('audition_request_binding');
+  // The rebuilt source must reproduce the saved markers exactly: a stripped or added marker changes the digests and fails the board binding.
+  const saved = result.storyboard?.storyboard;
+  const source = prepareCurrentPersonalStoryboard(queued.request, result.source, options, true, savedMomentContract(saved), savedLandmarkKindContract(saved));
   const parentDraft = read(path.join(visual, 'owned_storyboard_draft.json'));
   const book = compilePersonalStoryboard(source, parentDraft);
   const rawReview = result.storyboard.rawReview;
@@ -163,23 +195,31 @@ export function loadReviewedBook(bookDir: string, workspace = process.cwd(), rep
       storyboardReviewDisposition(book, rawReview).disposition !== 'review_supported' || result.storyboard.framePackets.length !== 9) fail('audition_board_binding');
   const current = { request: queued.request, writerResult: result.source, options };
   for (let n = 0; n <= 8; n++) if (canonicalJson(currentPersonalStoryboardFrame(book, rawReview, n, current)) !== canonicalJson(result.storyboard.framePackets[n])) fail('audition_frame_binding');
+  return { queued, options, prepared, result, source, parentDraft, book, rawReview, current };
+}
+
+/** The written child design a reference must show, under the active storyboard's wardrobe and owned clothing. */
+export const reviewedChildDesign = (prepared: { brief: { child: { age: number; address: string } } }, book: PersonalStoryboard, layout: ReviewedBookLayout) =>
+  ({ age: prepared.brief.child.age, address: prepared.brief.child.address, fictionalDesign: layout.childDesign,
+    wardrobe: book.plan.wardrobe, role: 'child', clothing: book.plan.actorAppearance!.child.clothing });
+
+export function loadReviewedBook(bookDir: string, workspace = process.cwd(), replanDir?: string, layout: ReviewedBookLayout = LEGACY_BOOK_LAYOUT) {
+  const { queued, options, prepared, result, source, parentDraft, book, rawReview, current } = loadReviewedStoryboard(bookDir, workspace, layout);
   // Optional re-plan (never the default): the child and companion references below are then checked against ITS storyboard.
   const replan = replanDir === undefined ? undefined
     : admitReplanStoryboard({ bookDir, request: queued.request, options, source: result.source, book, rawReview, draft: parentDraft }, replanDir);
   const active = replan ?? { result, book, rawReview, current, companionDescription: source.companionDescription };
-  // Child: the reviewed, passed reference adopted by the last continuation, bound to its recomputed original context.
-  const m17 = path.join(bookDir, 'reference-role-repair-continuation-20261009');
-  const adoption = read(path.join(m17, 'reference_child_adoption.json'));
-  const childDesign = { age: prepared.brief.child.age, address: prepared.brief.child.address, fictionalDesign: CHILD_DESIGN,
-    wardrobe: active.book.plan.wardrobe, role: 'child', clothing: active.book.plan.actorAppearance!.child.clothing };
-  const childContext = simpleReferenceDesignContext(childDesign);
-  const childBytes = readFileSync(path.join(m17, 'illustrations', 'reference_child_checkpoint.png'));
+  // Child: the reviewed, passed reference adopted for this book, bound to its recomputed original context.
+  const childDir = path.join(bookDir, layout.childDir);
+  const adoption = read(path.join(childDir, 'reference_child_adoption.json'));
+  const childContext = simpleReferenceDesignContext(reviewedChildDesign(prepared, active.book, layout));
+  const childBytes = readFileSync(path.join(childDir, 'illustrations', layout.childImage));
   if (adoption.name !== 'child' || canonicalJson(adoption.context) !== canonicalJson(childContext) || previewSha(childBytes) !== adoption.candidate.imageSha ||
       qualityDisposition(adoption.review, adoption.candidate.imageSha, previewSha(JSON.stringify(childContext))).disposition !== 'passed') fail('audition_child_reference');
   const card = getCompanionById((queued.request as { companion: { id: string } }).companion.id)?.cardImage;
   if (!card || !/^\/companions\/[a-z0-9_]+\/style01-sheets\/front\.png$/.test(card)) return fail('audition_companion_reference');
   const companionBytes = readFileSync(path.join(workspace, 'public', card.slice(1)));
-  if (previewSha(companionBytes) !== previewSha(readFileSync(path.join(m17, 'illustrations', 'companion_reference.png')))) fail('audition_companion_reference');
+  if (layout.savedCompanion !== null && previewSha(companionBytes) !== previewSha(readFileSync(path.join(bookDir, ...layout.savedCompanion.split('/'))))) fail('audition_companion_reference');
   return { queued, options, prepared, result: active.result, book: active.book, rawReview: active.rawReview, current: active.current, childBytes, companionBytes,
     companionDescription: active.companionDescription,
     texts: (result.source.manuscript.pages as { text: string }[]).map(p => p.text), title: result.source.manuscript.title as string,
@@ -202,7 +242,9 @@ export const auditionGrantSchema = z.object({
     note: z.string().min(10).max(1000) }).strict(),
   capMicroUsd: z.number().int().positive(), maxCalls: z.number().int().positive().max(AUDITION_WORST_CASE_CALLS + REVIEWED_AUDITION_POLICY.pageAttempts * 3),
   scope: z.discriminatedUnion('mode', [
-    z.object({ mode: z.literal('render'), pages: z.array(z.number().int().min(0).max(8)).min(1).max(9) }).strict(),
+    z.object({ mode: z.literal('render'), pages: z.array(z.number().int().min(0).max(8)).min(1).max(9),
+      /** Optional early sample: drawn first; the other pages follow only if every sample page is qa_supported. Absent on every legacy grant. */
+      sample: z.array(z.number().int().min(1).max(8)).min(1).max(2).optional() }).strict(),
     z.object({ mode: z.literal('rejudge'), sourceDirectory: z.string().min(1),
       references: z.object({ entities: referenceSchema, locations: referenceSchema }).strict(),
       frames: z.array(z.object({ label: z.string().min(1).max(80), pageNumber: z.number().int().min(0).max(8), image,
@@ -215,6 +257,11 @@ export const auditionGrantSchema = z.object({
   // A grant can only extend the ledger it names, by at most USD 8 of new API estimate.
   if (g.capMicroUsd <= g.ledger.priorKnownApiMicroUsd || g.capMicroUsd - g.ledger.priorKnownApiMicroUsd > 8000000)
     ctx.addIssue({ code: 'custom', message: 'audition_grant_cap' });
+  if (g.scope.mode === 'render' && g.scope.sample) {
+    const { pages, sample } = g.scope;
+    if (new Set(sample).size !== sample.length || sample.some((n, i) => !pages.includes(n) || i > 0 && n <= sample[i - 1]))
+      ctx.addIssue({ code: 'custom', message: 'audition_grant_sample' });
+  }
 });
 export type AuditionGrant = z.infer<typeof auditionGrantSchema>;
 
@@ -343,7 +390,8 @@ export async function auditionJudgePayload(args: { candidate: AuditionImage; can
       : zodTextFormat(auditionReviewSchema, 'personal_audition_pixels_v2') } };
 }
 
-function adapters(args: { directory: string; meter: AuditionMeter; key: () => string; signal: AbortSignal }) {
+/** The paid adapters (render, judge, identity) over one illustrations folder and one meter. Shared with the new-book experiment. */
+export function auditionAdapters(args: { directory: string; meter: AuditionMeter; key: () => string; signal: AbortSignal }) {
   const check = () => { if (args.signal.aborted) fail('audition_cancelled'); };
   const writeImage = async (name: string, bytes: Buffer) => {
     if (!/^[a-z0-9_]+\.png$/.test(name)) fail('audition_image_path');
@@ -358,7 +406,8 @@ function adapters(args: { directory: string; meter: AuditionMeter; key: () => st
     if (!stat.isFile() || stat.isSymbolicLink() || stat.size > 20000000) fail('audition_image_file');
     const bytes = readFileSync(file); if (previewSha(bytes) !== img.imageSha) fail('audition_image_changed'); return bytes;
   };
-  const render = async (step: string, prompt: string, refs: AuditionImage[], mode: 'book_identity' | 'book_design', roles?: readonly BookDesignReferenceRole[]) => {
+  // 'identity' is the plain reference mode of a fictional child anchor (none or one rejected edit target); sheets and pages are unchanged.
+  const render = async (step: string, prompt: string, refs: AuditionImage[], mode: 'book_identity' | 'book_design' | 'identity', roles?: readonly BookDesignReferenceRole[]) => {
     check(); const bytes = refs.map(bytesOf);
     const input = { finalPrompt: prompt, referenceImages: refs.map(r => path.join(args.directory, r.imageName)), referenceMode: mode,
       ...(roles ? { referenceRoles: roles } : {}), requireReferenceEdit: refs.length > 0, quality: 'low' as const, size: '1024x1024' as const,
@@ -443,15 +492,15 @@ export function assertReplanAuditionScope(scope: AuditionGrant['scope'],
 }
 
 export async function runReviewedAudition(args: { bookDir: string; out: string; keyFile: string; grantFile: string; signal: AbortSignal;
-  log: (line: string) => void; resume?: true; storyboardDir?: string }) {
-  const loaded = loadReviewedBook(args.bookDir, process.cwd(), args.storyboardDir);
+  log: (line: string) => void; resume?: true; storyboardDir?: string; layout?: ReviewedBookLayout }) {
+  const loaded = loadReviewedBook(args.bookDir, process.cwd(), args.storyboardDir, args.layout);
   const { grant, sha256: grantSha256 } = readAuditionGrant(args.grantFile, { requestId: loaded.queued.requestId, storyboardDigest: loaded.book.storyboardDigest });
   assertReplanAuditionScope(grant.scope, loaded.replan, args.resume === true);
   if (existsSync(args.out) !== !!args.resume) fail(args.resume ? 'audition_resume_missing' : 'audition_out_exists');
   if (!args.resume) mkdirSync(args.out); realDirectory(args.out);
   const directory = path.join(args.out, 'illustrations'); if (!args.resume) mkdirSync(directory); realDirectory(directory);
   const meter = new AuditionMeter(path.join(args.out, 'paid-stages'), grant.capMicroUsd, grant.maxCalls, grant.ledger.priorKnownApiMicroUsd);
-  const io = adapters({ directory, meter, key: keyReader(args.keyFile), signal: args.signal });
+  const io = auditionAdapters({ directory, meter, key: keyReader(args.keyFile), signal: args.signal });
   const save = (name: string, value: unknown) => exclusiveJson(path.join(args.out, `${name}.json`), value);
   const admission = (child: AuditionImage, companion: AuditionImage) => JSON.parse(JSON.stringify({ version: 'reviewed-simple-book-audition-admission/v2',
     requestId: loaded.queued.requestId, sourceDigest: loaded.book.sourceDigest, storyboardDigest: loaded.book.storyboardDigest, child, companion,
@@ -500,6 +549,7 @@ export async function runReviewedAudition(args: { bookDir: string; out: string; 
   }
   const manifest = await illustrateReviewedAudition({ book: loaded.book, rawReview: loaded.rawReview, texts: loaded.texts, current: loaded.current,
     child, companion, companionDescription: loaded.companionDescription, pages: grant.scope.pages,
+    ...(grant.scope.sample ? { sample: grant.scope.sample } : {}),
     render: io.render, judge: io.judge, identity: io.identity, check: io.check, save, ...(resume ? { resume } : {}),
     progress: e => log(`${e.phase} ${e.name} attempt ${e.attempt}: ${e.status}${e.counts ? ' ' + JSON.stringify(e.counts) : ''}${e.identity === undefined ? '' : ` identity=${e.identity ?? 'n/a'}`}${e.error ? ` error=${e.error}` : ''}`) });
   const images = new Map<string, string>();
@@ -517,8 +567,8 @@ export async function runReviewedAudition(args: { bookDir: string; out: string; 
 }
 
 /** Zero-provider admission, checks and prompt preview. */
-export function dryRun(bookDir: string, storyboardDir?: string) {
-  const loaded = loadReviewedBook(bookDir, process.cwd(), storyboardDir), designs = auditionSheetDesigns(loaded.book, loaded.texts);
+export function dryRun(bookDir: string, storyboardDir?: string, layout?: ReviewedBookLayout) {
+  const loaded = loadReviewedBook(bookDir, process.cwd(), storyboardDir, layout), designs = auditionSheetDesigns(loaded.book, loaded.texts);
   const ids = (d: { entities?: { id: string }[]; props?: { id: string }[]; locations?: { id: string }[]; landmarks?: { id: string }[] }) =>
     ({ entities: d.entities?.map(e => e.id), props: d.props?.map(e => e.id), locations: d.locations?.map(e => e.id), landmarks: d.landmarks?.map(e => e.id) });
   const checks = [0, 1, 2, 3, 4, 5, 6, 7, 8].map(n => {
@@ -537,16 +587,19 @@ export function dryRun(bookDir: string, storyboardDir?: string) {
 
 function argValue(name: string) { const i = process.argv.indexOf(name); return i > 0 ? process.argv[i + 1] : undefined; }
 if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(__filename)) {
-  const bookDir = argValue('--book-dir') ?? fail('audition_args'), storyboardDir = argValue('--storyboard-dir');
+  const bookDir = argValue('--book-dir') ?? fail('audition_args'), storyboardDir = argValue('--storyboard-dir'), layoutFile = argValue('--layout');
+  // Absent: the one historical book's layout. A new book names its own layout file (routing only; every binding is recomputed).
+  const layout = layoutFile === undefined ? undefined : readReviewedBookLayout(layoutFile);
+  if (layout && storyboardDir !== undefined) fail('audition_args');
   if (storyboardDir !== undefined && !path.isAbsolute(storyboardDir)) fail('audition_args');
-  if (!process.argv.includes('--execute')) { console.log(JSON.stringify(dryRun(bookDir!, storyboardDir), null, 2)); }
+  if (!process.argv.includes('--execute')) { console.log(JSON.stringify(dryRun(bookDir!, storyboardDir, layout), null, 2)); }
   else {
     const out = argValue('--out') ?? fail('audition_args'), keyFile = argValue('--key-env-file') ?? fail('audition_args'), grantFile = argValue('--grant') ?? fail('audition_grant_required');
     if (![out!, keyFile!, grantFile!].every(p => path.isAbsolute(p))) fail('audition_args');
     process.env.GPT_IMAGE_EDIT_MAX_REFERENCES ??= '4';
     const controller = new AbortController(); process.once('SIGINT', () => controller.abort());
     const started = Date.now();
-    runReviewedAudition({ bookDir: bookDir!, out: out!, keyFile: keyFile!, grantFile: grantFile!, signal: controller.signal,
+    runReviewedAudition({ bookDir: bookDir!, out: out!, keyFile: keyFile!, grantFile: grantFile!, signal: controller.signal, ...(layout ? { layout } : {}),
       ...(process.argv.includes('--resume') ? { resume: true as const } : {}), ...(storyboardDir ? { storyboardDir } : {}),
       log: line => console.log(`[${((Date.now() - started) / 60000).toFixed(1)}m] ${line}`) })
       .then(result => console.log(JSON.stringify({ status: 'complete', mode: result.mode, spend: result.spend }, null, 2)))
