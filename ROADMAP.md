@@ -1,5 +1,12 @@
 # SmallHeroes — Roadmap
 
+## Re-plan HOLD corrected (b3166be8); next: Codex re-gate, then Guy on the paid re-plan (2026-10-12)
+
+- 1) Codex re-gate of 59e98148..(this docs commit); 2) paid re-plan, exactly 2
+  calls, +$3.54 proposal (snapshot-bound prior $7.100254 recorded); 3) free
+  comparability report; 4) the pixel proof also needs the target-binding
+  protocol accepted (adjudicator sees only the object list); 5) page 4/7 plan.
+
 ## Offline re-plan milestone built (5129c342); next: Codex QA, then Guy on the paid re-plan (2026-10-12)
 
 - 1) Codex QA of 7a998761..(this docs commit); 2) paid re-plan, exactly 2 calls,

@@ -1,5 +1,31 @@
 # SmallHeroes — Current Technical State
 
+## Re-plan HOLD F1-F4 corrected (b3166be8); next: Codex re-gate of 59e98148..(this docs commit) (2026-10-12)
+
+Codex HOLD on 59e98148 (4 reproduced gaps; plumbing, preservation and cache
+arithmetic confirmed). All four reproduced on frozen code first, then fixed
+(offline, within Guy's approved milestone; no API, key or image):
+F1 the shrub outcome is judged only on an explicitly bound target object
+(shared objectId; listed, not a landmark's own instance, examined in the
+shrub entry); dismissing another object proves nothing; unbound/claimed/
+unexamined = inconclusive (PARTIAL), never CONFIRMED; the target is never
+inferred (binding protocol for the later paid proof: an adjudicator sees only
+the object list, frozen before scoring). F2 exact mandatory binding checklist
+(10 fields) and the engine's own review policy (invalid citation or safety
+block = UNUSABLE). F3 the grant's prior must equal a typed, settled meter
+snapshot (sha-pinned spend.json) plus explicit owner-approved increases;
+lowered or unexplained priors refused before any folder/key/call. F4 compared
+pages come from the saved producer grant (typed, sha-bound to result and
+admission, bound to the parent and the recomputed re-plan source); a re-plan
+rejudge needs an audition grant naming the exact producer grant and index.
+Grant schema shared (scripts/personal-storyboard-replan-grant.ts); pairPages
+generic. EOF blank line removed. tsc0 (--incremental false); 8 focused files
+272/272; new tests on frozen code fail for the intended reasons; mutants
+31/31 on the committed code (first pass 29/31: two ledger checks were masked in the tests, closed by isolating each); real-book rehearsal COMPARABLE and admitted; draft grant
+regenerated with the snapshot pin (still a proposal: +$3.54). Proposal only:
+skip the review of a NOT_COMPARABLE storyboard (boundary change = Guy).
+No paid call. Visual HOLD.
+
 ## Offline re-plan milestone built (5129c342); next: Codex QA of 7a998761..(this docs commit) (2026-10-12)
 
 Guy approved the corrected OFFLINE milestone (no API calls, no images). Built:
