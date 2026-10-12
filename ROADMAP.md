@@ -1,5 +1,12 @@
 # SmallHeroes — Roadmap
 
+## Phase 2 PASS (narrow); next: Guy on the re-plan preflight (2026-10-12)
+
+- 1) offline build: storyboard-only re-plan runner + loader storyboard-dir option
+  + rehearsal (no spend); 2) paid re-plan, 2 calls, cap +$2.95 (cumulative
+  $10.050254); 3) free comparability report; 4) if comparable, the saved-pair
+  proof (+$1.20), else a separately priced render-based proof; 5) page 4/7 plan.
+
 ## Phase 2 built offline (9dc20423); next: Codex re-gate of 22616c00..(this docs commit) (2026-10-12)
 
 - Then a separately priced live proof. Applying the contract to the same

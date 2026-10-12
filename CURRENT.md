@@ -1,5 +1,20 @@
 # SmallHeroes — Current Technical State
 
+## Phase 2 = Codex narrow technical PASS (22616c00..fec07a9e); re-plan preflight prepared (2026-10-12)
+
+Codex: tsc0, 558/558 affected suites, 28/28 independent probes (incl. the real
+saved-book loader with in-memory synthetic kind inputs and six tamper/stale
+variants), old-code control 13 assertion failures with the legacy pin passing,
+an extra loader mutant caught, all prior evidence indexes intact. Compatibility
+/ binding / guard PASS only: no real-model kind behaviour, no pixel, book or
+production PASS; the page-judge instruction changes by design (policy v9).
+Next (planning only, nothing run): a kind-enabled re-plan of the SAME Goni
+manuscript needs a small offline build first (no live storyboard-only caller
+exists; the loader reads only the protected continuation folder). Measured:
+storyboard payload 43,219/128,000 bytes, reservations $2.946009 for 2 calls,
+expected ~$1.0-1.6; comparability baseline recorded (a full re-plan may change
+wardrobe/designs and invalidate the saved images as controls). Visual HOLD.
+
 ## Phase 2 9dc20423: opt-in landmark-kind contract; features judged on their own aspect (offline; 2026-10-12)
 
 Codex QA of the v8 saved pair (22616c00): PASS for both pre-registered rock
