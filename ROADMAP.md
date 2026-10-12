@@ -1,5 +1,16 @@
 # SmallHeroes — Roadmap
 
+## Step A closed (Codex PASS cb32f9c7); next: Guy decides a staged NEW-book experiment (2026-10-12)
+
+- Guy asked for a new book from scratch to test the engine. Codex: ready for
+  a bounded, staged experimental book; no unattended-production claim; no
+  model training happened (instructions, evidence, gates only).
+- Next: one Decision Gate for the new-book experiment (fresh brief, CLI path
+  vs wizard named explicitly, fresh grant/ledger, reviewed text/storyboard and
+  references first, then a small continuity sample, stop on repeat failure).
+  Nothing paid runs before Guy approves scope and spending.
+- The 3 page-7 reviews of the old book stay a separate optional decision.
+
 ## Step A F1/F2 corrected (69b703ee); next: Codex re-gate, then Guy on 3 page-7 reviews (2026-10-12)
 
 - Codex re-gates ccfc9f06..(this docs commit) and the r2 manifest

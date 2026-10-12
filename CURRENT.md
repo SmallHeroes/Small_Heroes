@@ -1,5 +1,20 @@
 # SmallHeroes — Current Technical State
 
+## Codex re-gate: Step A F1/F2 correction = narrow technical PASS (ccfc9f06..cb32f9c7) (2026-10-12)
+
+Codex independently passed ccfc9f06..cb32f9c7 (code 69b703ee, docs
+cb32f9c7): all 9 original counterexamples and both wrong-reference controls
+refused; the old inline judge assembler (from the ccfc9f06 blob) and the
+shared builder produce canonical-equal requests in 12 cases; real rejudge-4
+and the page-4 identities still admitted; r2 page decisions equal the held
+manifest (page 4 -> page_4_1, 4->5 stale, page 7 no current reviews);
+original 412 files and prior indexes intact; tsc0; 9 files 298/298; 24 Codex
+controls. Not a full-repository, whole-branch, pixel-reliability, book,
+product or production PASS. Book stays visual HOLD; page 7 still has no
+current reviews; held and r2 manifests kept as history. The reviewed
+audition / re-selection path remains an experimental CLI with no wizard
+route call site.
+
 ## Step A HOLD F1/F2 corrected offline (69b703ee): saved evidence must equal the complete request the engine would send (2026-10-12)
 
 Codex HOLD on 08533b10 reproduced 9 admitted counterexamples: F1 the judge
