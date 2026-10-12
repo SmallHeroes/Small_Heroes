@@ -1,5 +1,14 @@
 # SmallHeroes — Roadmap
 
+## Saved-pair check CONFIRMED under the re-plan (2026-10-12); next: Codex QA, then Guy on page 4/7
+
+- Codex QAs goni-shadows-rejudge4-20261012 and this docs commit.
+- Finding: discrimination came from the size cue, not the generic "bush" kind;
+  kind specificity (e.g. "thorn bush") is a general contract question, not a
+  hand edit. One pair only.
+- Next decisions (Guy): a targeted page-4 (duplicate rock) and page-7 (nose)
+  repair plan; no full redraw. Book remains visual HOLD.
+
 ## Paid re-plan done: COMPARABLE, $0.665304 (2026-10-12); next: Codex QA of the run, then Guy on the pixel proof
 
 - Codex QAs goni-shadows-replan-20261012 and this docs commit.

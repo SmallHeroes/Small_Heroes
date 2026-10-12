@@ -1,5 +1,27 @@
 # SmallHeroes — Current Technical State
 
+## Saved-pair check under the re-planned storyboard RAN: CONFIRMED (pre-registered), $0.161302 (2026-10-12)
+
+Guy approved exactly 2 Sol reviews of the saved page_4_2 (duplicate rock) and
+page_4_1 (control) under storyboard 8ff91156, cap +$1.20 (cumulative
+$8.965558), with the object-list target protocol. Freeze rejudge-4 (fa64201b;
+no leak), expectations pre-registered (criteria replan-pixel-criteria/v1 at
+b3166be8), real-runner rehearsal, 28-check preflight, grant df1c78b7 anchored
+to the re-plan (producer 786ca886, index fd45f02a). Run 17:36:27-17:39:37Z,
+exit 0, 2 calls, 0 failed. Target bound blind before scoring by a separate
+subagent seeing only object lists (A: o7, B: o6; receipt 87ac4886).
+Pre-registered verdict CONFIRMED: R1 ROCK_DETECTED (derived, 2 strong rocks),
+R2 ROCK_CLEAR; the hedge dismissed in BOTH images on the decisive "low" size
+(kind "bush" was judged MATCHING: kindDiscriminationConfirmed = false);
+R2 MATERIAL_OK (the swing's wood matches in the bench entry, dismissed on kind
+"bench": the earlier material/count confusion did not recur); R1 material
+inconclusive (seat hidden). All 10 binding checks true. Recorded cost
+$0.161302 (cache-aware recomputation $0.173291, reported only); cumulative
+recorded API 7.765558 -> 7.926860 (cap 8.965558). One pair, not a reliability
+rate; the false thorn duplicate did not recur, but the generic kind did not do
+the discriminating. Page-7 nose outside this pair. Visual HOLD. Evidence:
+book-renders/goni-shadows-rejudge4-20261012 (+ .grant/.log/.index-receipt).
+
 ## Paid re-plan RAN: review_supported and COMPARABLE, $0.665304 (2026-10-12)
 
 Guy's approval ("Paid re-plan after PASS", "Keep both calls"; exactly Astra
