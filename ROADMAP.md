@@ -1,10 +1,18 @@
 # SmallHeroes — Roadmap
 
+## Phase 2 built offline (9dc20423); next: Codex re-gate of 22616c00..(this docs commit) (2026-10-12)
+
+- Then a separately priced live proof. Applying the contract to the same
+  manuscript needs a newly planned, bound and reviewed storyboard through the
+  engine (never a hand-written kind in the saved book).
+- Then a targeted page-4/page-7 render plan if warranted. Book stays visual HOLD.
+
 ## Saved-pair check done (2026-10-12); next: Codex QA of the results, then Guy on Phase 2 and redraws
 
 - Codex independently QAs goni-shadows-rejudge3-20261012.
-- The thorn/hedge false positive argues for Phase 2 (a declared kind would let
-  "a tall hedge is not a thorn bush" dismiss it); decision is Guy's.
+- The thorn/hedge false positive suggests Phase 2 could help (a declared kind
+  gives the checker a whole-object cue to contradict); a hypothesis, not a
+  proven remedy. Decision is Guy's.
 - Redraw of page 4 (and page 7's nose) only after a separately priced plan.
 
 ## Phase 1 PASS (narrow); next: the approved saved two-image check under policy v8 (2026-10-12)

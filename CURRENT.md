@@ -1,5 +1,30 @@
 # SmallHeroes — Current Technical State
 
+## Phase 2 9dc20423: opt-in landmark-kind contract; features judged on their own aspect (offline; 2026-10-12)
+
+Codex QA of the v8 saved pair (22616c00): PASS for both pre-registered rock
+outcomes and the run's evidence and accounting (22/22 independent assertions;
+raw outputs replayed exactly). Two qualifications recorded: (A) the hedge/thorn
+duplicate is an object-identity false positive (generic low/green cues; the
+two pages are different renderings); (B) on page_4_1 the checker marked the
+bench's material cue "wooden" contradicted for the swing seat while writing
+"Although wooden, this is a single suspended swing seat..." - count/type used
+against material. Codex's one-value offline ablation leaves every finding
+unchanged, so the primary result stands; the saved response is not edited.
+Guy approved Phase 2 offline. Built: storyboard opt-in landmarkKindContract
+(moments pattern: marker in sourceDigest and the compiled book only when on;
+flag-absent identities pinned byte-identical; a legacy "kind" field stays
+ordinary data; syntax-only kind validation; meaning checked by the existing
+storyboard review addendum, no new paid stage; marker threaded through review
+input, frames, current-frame admission, diagnostic driver, provider context
+and the audition loader, which reads it only from the saved bound book).
+Audition policy v9: a decisive "kind" aspect only under the bound marker;
+instruction judges each feature only on its own aspect (count/structure/sort
+never contradict material/colour/shape/size). tsc0; affected suites 558/558;
+new specs on frozen 22616c00 13 behavioural failures, legacy pins pass on
+both; mutants 24/25 (1 equivalent). Kind may reduce false alarms like (A),
+unproven on real pixels. Explicit parts deferred. No paid call. Visual HOLD.
+
 ## Saved-pair check under policy v8 ran: rock duplicate caught by the code's own count, control clean (2026-10-12)
 
 Guy-approved (exactly two calls, +$1.20 cap). Fresh freeze rejudge-3
@@ -17,8 +42,10 @@ across landmark entries. Swing/bench: page_4_2 seat hidden behind the rock
 accepted Phase 1 cost; page_4_1 seat visible -> identified, no finding.
 NOT registered, a false positive: a "thorn duplicate" defect on page_4_2 (the
 tall background hedge was marked low + dusty-green; the thorn's distinctive
-forked twig is a listed cue, so it cannot dismiss). page_4_1 rejected the
-same hedge. One pair, not a reliability rate. Evidence:
+forked twig is a listed cue, so it cannot dismiss). The page_4_1 review
+rejected its own background hedge; the two pages are DIFFERENT renderings,
+so this is not repeated judgement of identical pixels (corrected per Codex
+QA). One pair, not a reliability rate. Evidence:
 book-renders/goni-shadows-rejudge3-20261012 (index bdb2c9b1). Visual HOLD.
 
 ## Phase 1 re-gate = Codex narrow technical PASS (6ee16411..3c6b25a8); saved-pair check approved (2026-10-12)
