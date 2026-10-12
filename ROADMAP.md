@@ -1,5 +1,13 @@
 # SmallHeroes — Roadmap
 
+## Step A F1/F2 corrected (69b703ee); next: Codex re-gate, then Guy on 3 page-7 reviews (2026-10-12)
+
+- Codex re-gates ccfc9f06..(this docs commit) and the r2 manifest
+  (goni-shadows-reselect-20261012-r2); no page-7 spending before that.
+- Then, unchanged: a separate decision on 3 current reviews of
+  r1_page_7_0/1/2 (one shared cumulative cap over $7.926860); Guy eyeballs
+  page_4_1 and the 4->5 transition; Step B and sheet repair stay later.
+
 ## Step A built (08533b10); next: Codex QA, then Guy on 3 page-7 reviews (2026-10-12)
 
 - Codex QAs 6ef80484..(this docs commit) and the diagnostic manifest.

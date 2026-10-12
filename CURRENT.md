@@ -1,5 +1,32 @@
 # SmallHeroes — Current Technical State
 
+## Step A HOLD F1/F2 corrected offline (69b703ee): saved evidence must equal the complete request the engine would send (2026-10-12)
+
+Codex HOLD on 08533b10 reproduced 9 admitted counterexamples: F1 the judge
+wire was checked field by field (a wrong or swapped crop, a wrong role map,
+an extra instruction-bearing input and low detail were admitted); F2 the
+identity wire was read selectively and the receipt's HTTP success never
+checked (another prompt, an extra message, low detail and an HTTP-500
+receipt were admitted). Fix: the judge request is one exported builder
+(auditionJudgePayload) shared by the paid runner (pure extraction; it
+rebuilds the paid rejudge-4 wires exactly) and admission, which rebuilds the
+complete request from the original run's exact candidate, sheet and
+predecessor bytes (four crops derived from the candidate) and requires
+canonical equality with the saved wire (reselect_wire). A saved identity is
+reused only behind a successful receipt (HTTP 2xx, known gpt-4o, usage within
+180 output tokens) and only if the REAL evaluator, replayed through a local
+stub (no network, no key), issues exactly the saved request (identity_wire)
+and reproduces exactly the saved result (identity_result), passed at the
+unchanged 0.70. Real data: all 9 counterexamples refused, both wrong-reference
+controls refused, rejudge-4 and the page_4_1 identity still admitted; new
+manifest goni-shadows-reselect-20261012-r2 (receipt 2a6a463a), pages
+byte-identical to the held one (page 4 -> page_4_1; 4->5 stale; page 7 no
+current candidate). Tests 26/26 on real PNGs (crops recomputed
+independently); each counterexample fails at the frozen ccfc9f06 code
+(negative control); mutants 41/41 (+1 equivalent); tsc0; 9 focused files 298/298; prior
+evidence intact. No paid call, key, image, threshold or policy change.
+Awaiting Codex re-gate; diagnostic, owner review only; book stays visual HOLD.
+
 ## Step A re-selection built offline (08533b10): page 4 re-selected page_4_1 from evidence already paid for (2026-10-12)
 
 Guy approved Codex's revised offline Step A (no API, key, image or repair loop).
