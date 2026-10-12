@@ -312,12 +312,37 @@ export function keyReader(file: string) {
 }
 
 const dataUrl = (bytes: Buffer) => `data:image/png;base64,${bytes.toString('base64')}`;
-const digestImages = (value: unknown): unknown => JSON.parse(JSON.stringify(value, (_k, v) =>
+export const digestImages = (value: unknown): unknown => JSON.parse(JSON.stringify(value, (_k, v) =>
   typeof v === 'string' && v.startsWith('data:image/png;base64,') ? `sha256:${previewSha(Buffer.from(v.slice(22), 'base64'))}` : v));
 
 // ---------------------------------------------------------------------------------------------------------------
 // Provider adapters.
 // ---------------------------------------------------------------------------------------------------------------
+/**
+ * The exact judge request for one candidate: the complete image, its four 70% corner crops (derived from the same bytes), the canonical
+ * references and an optional same-scene predecessor, each at high detail with its role, plus today's instruction and strict schema.
+ * Shared by the paid judge and by saved-evidence admission, which rebuilds it from the actual bytes and requires exact equality.
+ */
+export async function auditionJudgePayload(args: { candidate: AuditionImage; candidateBytes: Buffer; context: unknown; contextSha: string;
+  refs: readonly Buffer[]; predecessor: Buffer | null; kind: 'sheet' | 'page' }) {
+  const buffer = args.candidateBytes, meta = await sharp(buffer).metadata();
+  const width = meta.width!, height = meta.height!, cw = Math.ceil(width * .7), ch = Math.ceil(height * .7);
+  const crops = await Promise.all([[0, 0], [width - cw, 0], [0, height - ch], [width - cw, height - ch]].map(async ([left, top]) =>
+    dataUrl(await sharp(buffer).extract({ left, top, width: cw, height: ch }).png().toBuffer())));
+  const imageURLs = [dataUrl(buffer), ...crops, ...args.refs.map(dataUrl), ...(args.predecessor ? [dataUrl(args.predecessor)] : [])];
+  const refRoles = ['canonical_child', 'canonical_companion', 'canonical_entities', 'canonical_locations'].slice(0, args.refs.length);
+  const text = JSON.stringify({ candidateSha: args.candidate.imageSha, contextSha: args.contextSha, context: args.context,
+    imageRoles: ['candidate_complete', 'candidate_crop_top_left', 'candidate_crop_top_right', 'candidate_crop_bottom_left', 'candidate_crop_bottom_right',
+      ...refRoles, ...(args.predecessor ? ['prior_same_scene_comparison_not_authority'] : [])] });
+  const instructions = AUDITION_JUDGE_INSTRUCTIONS[args.kind];
+  if (imageURLs.length > 10 || Buffer.byteLength(text + instructions, 'utf8') > 104000) fail('audition_pixel_input_limit');
+  return { model: REVIEW_MODEL, store: false, service_tier: 'default' as const, reasoning: { effort: 'medium' as const }, instructions,
+    input: [{ role: 'user' as const, content: [{ type: 'input_text' as const, text },
+      ...imageURLs.map(image_url => ({ type: 'input_image' as const, image_url, detail: 'high' as const }))] }],
+    max_output_tokens: 12000, text: { format: args.kind === 'page' ? zodTextFormat(auditionPageReviewSchema, 'personal_audition_pixels_v4')
+      : zodTextFormat(auditionReviewSchema, 'personal_audition_pixels_v2') } };
+}
+
 function adapters(args: { directory: string; meter: AuditionMeter; key: () => string; signal: AbortSignal }) {
   const check = () => { if (args.signal.aborted) fail('audition_cancelled'); };
   const writeImage = async (name: string, bytes: Buffer) => {
@@ -365,22 +390,9 @@ function adapters(args: { directory: string; meter: AuditionMeter; key: () => st
   };
   const judge = async (step: string, candidate: AuditionImage, context: unknown, contextSha: string, refs: AuditionImage[],
     predecessor: AuditionImage | null, kind: 'sheet' | 'page') => {
-    check(); const buffer = bytesOf(candidate), meta = await sharp(buffer).metadata();
-    const width = meta.width!, height = meta.height!, cw = Math.ceil(width * .7), ch = Math.ceil(height * .7);
-    const crops = await Promise.all([[0, 0], [width - cw, 0], [0, height - ch], [width - cw, height - ch]].map(async ([left, top]) =>
-      dataUrl(await sharp(buffer).extract({ left, top, width: cw, height: ch }).png().toBuffer())));
-    const imageURLs = [dataUrl(buffer), ...crops, ...refs.map(r => dataUrl(bytesOf(r))), ...(predecessor ? [dataUrl(bytesOf(predecessor))] : [])];
-    const refRoles = ['canonical_child', 'canonical_companion', 'canonical_entities', 'canonical_locations'].slice(0, refs.length);
-    const text = JSON.stringify({ candidateSha: candidate.imageSha, contextSha, context,
-      imageRoles: ['candidate_complete', 'candidate_crop_top_left', 'candidate_crop_top_right', 'candidate_crop_bottom_left', 'candidate_crop_bottom_right',
-        ...refRoles, ...(predecessor ? ['prior_same_scene_comparison_not_authority'] : [])] });
-    const instructions = AUDITION_JUDGE_INSTRUCTIONS[kind];
-    if (imageURLs.length > 10 || Buffer.byteLength(text + instructions, 'utf8') > 104000) fail('audition_pixel_input_limit');
-    const payload = { model: REVIEW_MODEL, store: false, service_tier: 'default' as const, reasoning: { effort: 'medium' as const }, instructions,
-      input: [{ role: 'user' as const, content: [{ type: 'input_text' as const, text },
-        ...imageURLs.map(image_url => ({ type: 'input_image' as const, image_url, detail: 'high' as const }))] }],
-      max_output_tokens: 12000, text: { format: kind === 'page' ? zodTextFormat(auditionPageReviewSchema, 'personal_audition_pixels_v4')
-        : zodTextFormat(auditionReviewSchema, 'personal_audition_pixels_v2') } };
+    check();
+    const payload = await auditionJudgePayload({ candidate, candidateBytes: bytesOf(candidate), context, contextSha, refs: refs.map(r => bytesOf(r)),
+      predecessor: predecessor ? bytesOf(predecessor) : null, kind });
     return args.meter.run(step, digestImages(payload), 600000, async () => {
       check(); const client = new OpenAI({ apiKey: args.key(), baseURL: 'https://api.openai.com/v1', maxRetries: 0, logLevel: 'off' });
       const raw = await client.responses.create(payload, { signal: args.signal, timeout: 300000 });

@@ -8,12 +8,13 @@
  * Admission (fail-closed, per page):
  * - CURRENT reviews only: a rejudge run whose evidence index verifies, whose admission names the current review policy, the page's
  *   storyboard authority (and, for a re-plan, its producer-grant/index anchor) and the same child/companion references; each review's
- *   wire matches today's judge (model, instruction, strict schema), its claim/result digests match the wire, its context is RECOMPUTED
- *   from the authority, the reference sheets the original run chose and the predecessor the original run chose, and its raw provider
- *   output parses under today's schema. A stale (old-schema) review never enters the pool.
- * - Child identity is reused only through its original wire/claim/result/receipt chain: the exact reference and candidate image hashes,
- *   the gpt-4o evaluator settings, the unchanged 0.70 gate and a score recomputed from the raw answer. A score or boolean alone is not
- *   evidence.
+ *   claim/result digests match its wire, and that wire must EQUAL the complete request rebuilt by the shared judge builder from the actual
+ *   bytes (candidate, its four derived crops, the canonical references and sheets the original run chose, the predecessor the original run
+ *   chose), the context RECOMPUTED from the authority, today's instruction, roles, detail and strict schema. Any other request (an extra
+ *   message, another crop, a role or detail change) is refused, never trimmed. The raw output must parse under today's schema.
+ * - Child identity is reused only through its original chain: a successful receipt (HTTP 2xx, gpt-4o family, usage within the evaluator's
+ *   output bound), a wire that EQUALS the complete request the real evaluator builds for this exact reference and candidate, and a result
+ *   that EQUALS the real evaluator's replay of the saved raw answer at the unchanged 0.70 gate. A score or boolean alone is not evidence.
  * - Invalid-citation and safety-blocked candidates are listed but cannot win; an unadmitted attempt is listed as excluded, so a choice
  *   among some attempts is never presented as the best of all of them.
  * - A changed choice marks the next page's saved review (which compared against the old image) as stale: it needs revalidation, nothing
@@ -21,25 +22,33 @@
  */
 import path from 'node:path';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { zodTextFormat } from 'openai/helpers/zod';
 import { previewSha } from '../lib/local-story-preview';
 import { canonicalJson } from '../lib/personal-wizard/request-acceptance';
 import { currentPersonalStoryboardFrame, type PersonalStoryboard } from '../lib/personal-wizard/storyboard';
 import type { PersonalWizardOptions } from '../lib/personal-wizard/options';
-import { AUDITION_JUDGE_INSTRUCTIONS, REVIEWED_AUDITION_POLICY, assessAuditionReview, attemptStatus, auditionPageContext, auditionPageReviewSchema,
-  selectAuditionAttempt, type AuditionAttempt } from '../lib/personal-wizard/simple-book-reviewed-audition';
+import { REVIEWED_AUDITION_POLICY, assessAuditionReview, attemptStatus, auditionPageContext, selectAuditionAttempt,
+  type AuditionAttempt } from '../lib/personal-wizard/simple-book-reviewed-audition';
 import type { AuditionImage } from '../lib/personal-wizard/simple-book-illustrations';
-import { PAGE_CHILD_RESEMBLANCE_MIN_THRESHOLD, PAGE_CHILD_RESEMBLANCE_VISION_VERSION, parsePageChildResemblanceVisionResponse,
-  scoreIdentityFeatures, type PageChildResemblanceVisionResult } from '../lib/generation-pipeline/page-child-resemblance-vision';
-import { auditionGrantSchema, grantReferenceStatus, loadReviewedBook } from './personal-simple-book-reviewed-audition';
+import { PAGE_CHILD_RESEMBLANCE_MIN_THRESHOLD, evaluatePageChildResemblanceVision,
+  type PageChildResemblanceVisionResult } from '../lib/generation-pipeline/page-child-resemblance-vision';
+import { auditionGrantSchema, auditionJudgePayload, digestImages, grantReferenceStatus, loadReviewedBook } from './personal-simple-book-reviewed-audition';
 
 export const RESELECT_VERSION = 'audition-reselect/v1' as const;
 export class ReselectError extends Error { constructor(readonly code: string) { super(code); } }
 const fail = (code: string): never => { throw new ReselectError(code); };
 const read = (file: string) => JSON.parse(readFileSync(file, 'utf8'));
 const fileSha = (file: string) => previewSha(readFileSync(file));
-const JUDGE = { model: 'gpt-6.1-sol', reasoning: 'medium', maxOutputTokens: 12000, format: 'personal_audition_pixels_v4' } as const;
+const JUDGE_MODEL = 'gpt-6.1-sol';
+// The identity dispatch's own acceptance (the reviewed runner's identity adapter): a known gpt-4o model and usage within 180 output tokens.
 const IDENTITY_MODELS = ['gpt-4o', 'gpt-4o-2024-08-06', 'gpt-4o-2024-11-20'];
+const IDENTITY_MAX_COMPLETION_TOKENS = 180;
+/** The original run's saved image bytes, bound to the hash the evidence names. */
+const originalBytes = (originalDir: string, img: AuditionImage) => {
+  const file = path.join(originalDir, 'illustrations', img.imageName);
+  if (!/^[a-z0-9_]+\.png$/.test(img.imageName) || !existsSync(file)) return null;
+  const bytes = readFileSync(file);
+  return previewSha(bytes) === img.imageSha ? bytes : null;
+};
 
 /** The storyboard authority a page is judged under (the re-planned book with its anchor, or the approved parent). */
 export type PageAuthority = { kind: 'replan' | 'parent'; book: PersonalStoryboard; rawReview: unknown;
@@ -79,7 +88,7 @@ export type AdmittedReview = { candidate: AuditionImage; rawReview: unknown; ass
   provenance: { run: string; step: string; wireDigest: string; receiptSha256: string; contextSha: string; storyboardDigest: string; authority: 'replan' | 'parent' } };
 
 /** Admits the CURRENT reviews of one page from one rejudge run. Any unbound piece refuses the whole run for that page. */
-export function admitCurrentReviews(runDir: string, page: number, authority: PageAuthority, originalDir: string) {
+export async function admitCurrentReviews(runDir: string, page: number, authority: PageAuthority, originalDir: string) {
   const index = verifyRunIndex(runDir);
   const indexed = (file: string) => { if (!index.files.has(path.resolve(file).toLowerCase())) fail('reselect_run_index'); return file; };
   const admission = read(indexed(path.join(runDir, 'admission.json')));
@@ -99,31 +108,25 @@ export function admitCurrentReviews(runDir: string, page: number, authority: Pag
   for (const role of ['entities', 'locations'] as const)
     if (canonicalJson(references[role].image) !== canonicalJson(chosenSheet(originalDir, role))) fail('reselect_reference');
   const canonical = [authority.child, authority.companion, references.entities.image, references.locations.image];
+  const canonicalBytes = canonical.map(img => originalBytes(originalDir, img) ?? fail('reselect_reference'));
   const predecessor = originalPredecessor(originalDir, authority.book, page);
-  const schemaSha = previewSha(JSON.stringify(zodTextFormat(auditionPageReviewSchema, JUDGE.format).schema));
+  const predecessorBytes = predecessor ? originalBytes(originalDir, predecessor) ?? fail('reselect_predecessor') : null;
   const admitted = new Map<string, AdmittedReview>();
-  scope.frames.forEach((frame, i) => {
-    if (frame.pageNumber !== page) return;
+  for (const [i, frame] of scope.frames.entries()) {
+    if (frame.pageNumber !== page) continue;
     const step = `rejudge_${i}_page_${page}`, stage = (k: string) => indexed(path.join(runDir, 'paid-stages', `${step}.${k}.json`));
     const wire = read(stage('wire')), claim = read(stage('claim')), result = read(stage('result')), receiptFile = stage('receipt'), receipt = read(receiptFile);
     const wireDigest = previewSha(canonicalJson(wire));
     if (claim.wireDigest !== wireDigest || result.wireDigest !== wireDigest || result.completed !== true || !Number.isSafeInteger(result.estimatedMicroUsd)) fail('reselect_review_binding');
-    if (wire.model !== JUDGE.model || wire.reasoning?.effort !== JUDGE.reasoning || wire.max_output_tokens !== JUDGE.maxOutputTokens ||
-        wire.text?.format?.name !== JUDGE.format || wire.text?.format?.strict !== true || previewSha(JSON.stringify(wire.text.format.schema)) !== schemaSha ||
-        previewSha(wire.instructions) !== previewSha(AUDITION_JUDGE_INSTRUCTIONS.page)) fail('reselect_review_policy');
     if (canonicalJson(frame.predecessor) !== canonicalJson(predecessor)) fail('reselect_predecessor');
-    const parts = wire.input?.[0]?.content as { type: string; text?: string; image_url?: string }[];
-    const text = JSON.parse(parts.find(p => p.type === 'input_text')!.text!), images = parts.filter(p => p.type === 'input_image').map(p => p.image_url);
+    const candidateBytes = originalBytes(originalDir, frame.image) ?? fail('reselect_candidate');
     const packet = currentPersonalStoryboardFrame(authority.book, authority.rawReview, page, authority.current);
     const { context, contextSha, checks } = auditionPageContext(authority.book, packet.context, page, authority.companionDescription, canonical, references, predecessor);
-    if (text.candidateSha !== frame.image.imageSha || text.contextSha !== contextSha || canonicalJson(text.context) !== canonicalJson(context)) fail('reselect_context');
-    // Candidate first, its four crops, the four canonical references in order, the predecessor last.
-    const expected = [frame.image, ...canonical, ...(predecessor ? [predecessor] : [])].map(img => `sha256:${img.imageSha}`);
-    if (images.length !== 5 + canonical.length + (predecessor ? 1 : 0) || images[0] !== expected[0] ||
-        canonical.some((img, k) => images[5 + k] !== `sha256:${img.imageSha}`) || (predecessor && images[images.length - 1] !== `sha256:${predecessor.imageSha}`)) fail('reselect_context');
-    const bytesFile = path.join(originalDir, 'illustrations', frame.image.imageName);
-    if (!existsSync(bytesFile) || fileSha(bytesFile) !== frame.image.imageSha) fail('reselect_candidate');
-    if (receipt.raw?.status !== 'completed' || receipt.raw?.model !== JUDGE.model || receipt.raw?.error || receipt.raw?.incomplete_details ||
+    // The complete effective request, rebuilt by the shared judge builder from the actual bytes, must EQUAL the saved wire.
+    const rebuilt = digestImages(await auditionJudgePayload({ candidate: frame.image, candidateBytes, context, contextSha, refs: canonicalBytes,
+      predecessor: predecessorBytes, kind: 'page' }));
+    if (canonicalJson(rebuilt) !== canonicalJson(wire)) fail('reselect_wire');
+    if (receipt.raw?.status !== 'completed' || receipt.raw?.model !== JUDGE_MODEL || receipt.raw?.error || receipt.raw?.incomplete_details ||
         typeof receipt.raw?.output_text !== 'string') fail('reselect_review_binding');
     const rawReview = JSON.parse(receipt.raw.output_text);
     let assessed: ReturnType<typeof assessAuditionReview>;
@@ -133,33 +136,44 @@ export function admitCurrentReviews(runDir: string, page: number, authority: Pag
     if (admitted.has(frame.image.imageSha)) fail('reselect_review_duplicate');
     admitted.set(frame.image.imageSha, { candidate: frame.image, rawReview, assessment: assessed.assessment,
       provenance: { run: runDir, step, wireDigest, receiptSha256: fileSha(receiptFile), contextSha, storyboardDigest: authority.book.storyboardDigest, authority: authority.kind } });
-  });
+  }
   return { admitted, run: { dir: runDir, indexSha256: index.indexSha256, grantSha256: admission.grant.sha256 } };
 }
 
-/** Reuses a saved child-identity result only through its original chain; returns null (excluded) when it is not reusable. */
-export function admitSavedIdentity(originalDir: string, attempt: OriginalAttempt, child: AuditionImage):
-  { identity: PageChildResemblanceVisionResult; provenance: { step: string; wireDigest: string; receiptSha256: string } } | { excluded: string } {
+export type AdmittedIdentity = { identity: PageChildResemblanceVisionResult; provenance: { step: string; wireDigest: string; receiptSha256: string } } | { excluded: string };
+/**
+ * Reuses a saved child-identity result only through its original chain; otherwise excluded with the reason. The real evaluator rebuilds
+ * its own complete request for this reference and candidate (images named by hash, exactly as the saved wire records them) and replays the
+ * saved raw answer through a local stub: no network, no key. Its request must equal the saved wire and its result the saved result.
+ */
+export async function admitSavedIdentity(originalDir: string, attempt: OriginalAttempt, child: AuditionImage): Promise<AdmittedIdentity> {
   const candidate = attempt.candidate, saved = attempt.identity;
   if (!candidate || !saved) return { excluded: 'identity_missing' };
+  if (!originalBytes(originalDir, candidate)) return { excluded: 'identity_candidate' };
   const step = `${candidate.imageName.replace(/\.png$/, '')}_identity`, stage = (k: string) => path.join(originalDir, 'paid-stages', `${step}.${k}.json`);
   if (!['wire', 'claim', 'result', 'receipt'].every(k => existsSync(stage(k)))) return { excluded: 'identity_evidence_missing' };
   const wire = read(stage('wire')), claim = read(stage('claim')), result = read(stage('result')), receipt = read(stage('receipt'));
   const wireDigest = previewSha(canonicalJson(wire));
-  if (claim.wireDigest !== wireDigest || result.wireDigest !== wireDigest || result.completed !== true) return { excluded: 'identity_chain' };
-  const content = wire.messages?.[0]?.content as { type: string; image_url?: { url?: string } }[] | undefined;
-  if (wire.model !== 'gpt-4o' || wire.temperature !== 0 || wire.max_tokens !== 180 || wire.response_format?.type !== 'json_object' || !content ||
-      content[0]?.image_url?.url !== `sha256:${child.imageSha}` || content[1]?.image_url?.url !== `sha256:${candidate.imageSha}`) return { excluded: 'identity_wire' };
-  if (saved.evaluatorVersion !== PAGE_CHILD_RESEMBLANCE_VISION_VERSION || saved.model !== 'gpt-4o' || saved.threshold !== PAGE_CHILD_RESEMBLANCE_MIN_THRESHOLD ||
-      !IDENTITY_MODELS.includes(receipt.raw?.model)) return { excluded: 'identity_evaluator' };
-  let parsed: ReturnType<typeof parsePageChildResemblanceVisionResponse> = null;
-  try { parsed = parsePageChildResemblanceVisionResponse(JSON.parse(receipt.raw?.choices?.[0]?.message?.content ?? 'null')); } catch { parsed = null; }
-  if (!parsed) return { excluded: 'identity_answer' };
-  // Only a PASSED result is reused, and only when the raw answer independently supports exactly that pass at the unchanged gate.
-  const score = scoreIdentityFeatures(parsed.featureAssessments);
-  if (saved.status !== 'passed' || saved.resemblanceScore !== score || canonicalJson(saved.featureAssessments) !== canonicalJson(parsed.featureAssessments) ||
-      !parsed.referenceChildVisible || !parsed.candidateChildVisible || parsed.candidateChildCount !== 1 || !parsed.comparisonUsable ||
-      parsed.sameChildDecision !== 'same' || score < PAGE_CHILD_RESEMBLANCE_MIN_THRESHOLD) return { excluded: 'identity_not_reusable' };
+  if (claim.wireDigest !== wireDigest || result.wireDigest !== wireDigest || result.completed !== true || !Number.isSafeInteger(result.estimatedMicroUsd))
+    return { excluded: 'identity_chain' };
+  const usage = receipt.raw?.usage;
+  if (!Number.isInteger(receipt.status) || receipt.status < 200 || receipt.status > 299 || !IDENTITY_MODELS.includes(receipt.raw?.model) || !usage ||
+      !Number.isSafeInteger(usage.prompt_tokens) || !Number.isSafeInteger(usage.completion_tokens) || usage.completion_tokens > IDENTITY_MAX_COMPLETION_TOKENS)
+    return { excluded: 'identity_receipt' };
+  let captured: unknown = null;
+  let replayed: PageChildResemblanceVisionResult;
+  try {
+    replayed = await evaluatePageChildResemblanceVision({ referenceImageUrl: `sha256:${child.imageSha}`, candidateImageUrl: `sha256:${candidate.imageSha}`,
+      threshold: PAGE_CHILD_RESEMBLANCE_MIN_THRESHOLD, model: 'gpt-4o', apiKey: 'replay-only-not-a-credential', maxRetries: 0,
+      fetchImpl: async (_url, init) => {
+        captured = JSON.parse(String(init?.body));
+        return new Response(JSON.stringify(receipt.raw), { status: 200, headers: { 'content-type': 'application/json' } });
+      } });
+  } catch { return { excluded: 'identity_replay' }; }
+  if (canonicalJson(captured) !== canonicalJson(wire)) return { excluded: 'identity_wire' };
+  if (canonicalJson(replayed) !== canonicalJson(saved)) return { excluded: 'identity_result' };
+  // Only a PASSED result at the unchanged gate is reused.
+  if (replayed.status !== 'passed' || replayed.threshold !== PAGE_CHILD_RESEMBLANCE_MIN_THRESHOLD) return { excluded: 'identity_not_reusable' };
   return { identity: saved, provenance: { step, wireDigest, receiptSha256: fileSha(stage('receipt')) } };
 }
 
@@ -170,7 +184,7 @@ export type ReselectRow = { attempt: number; candidate: AuditionImage | null; ad
  * Re-selection over the admitted attempts with the EXISTING status and selection rules. A candidate the engine marks review_invalid or
  * ineligible_safety is listed but cannot win; an attempt without a current review or a reusable identity is excluded and named.
  */
-export function reselectPage(record: OriginalPage, admitted: Map<string, AdmittedReview>, identities: Map<string, ReturnType<typeof admitSavedIdentity>>) {
+export function reselectPage(record: OriginalPage, admitted: Map<string, AdmittedReview>, identities: Map<string, AdmittedIdentity>) {
   const rows: ReselectRow[] = [], pool: (AuditionAttempt & { candidate: AuditionImage })[] = [];
   for (const a of record.attempts) {
     const review = a.candidate ? admitted.get(a.candidate.imageSha) : undefined, idn = a.candidate ? identities.get(a.candidate.imageSha) : undefined;
@@ -222,12 +236,13 @@ export function staleSuccessorTransitions(originalDir: string, book: PersonalSto
 // ---------------------------------------------------------------------------------------------------------------
 export type ReselectSpec = { bookDir: string; originalRun: string; out: string;
   pages: { page: number; authority: { kind: 'replan'; replanDir: string } | { kind: 'parent' }; reviewRuns: string[] }[] };
-export function buildReselectManifest(spec: ReselectSpec, workspace = process.cwd()) {
+export async function buildReselectManifest(spec: ReselectSpec, workspace = process.cwd()) {
   const loads = new Map<string, ReturnType<typeof loadReviewedBook>>();
   const load = (replanDir?: string) => { const key = replanDir ?? ''; if (!loads.has(key)) loads.set(key, loadReviewedBook(spec.bookDir, workspace, replanDir)); return loads.get(key)!; };
   const childSha = (l: ReturnType<typeof loadReviewedBook>) => ({ imageName: 'reference_child.png', imageSha: previewSha(l.childBytes) });
   const companionSha = (l: ReturnType<typeof loadReviewedBook>) => ({ imageName: 'reference_companion.png', imageSha: previewSha(l.companionBytes) });
-  const pages = spec.pages.map(p => {
+  const pages = [];
+  for (const p of spec.pages) {
     const loaded = load(p.authority.kind === 'replan' ? p.authority.replanDir : undefined);
     if (p.authority.kind === 'replan' && !loaded.replan?.pairPages.includes(p.page)) fail('reselect_authority');
     const authority: PageAuthority = { kind: p.authority.kind, book: loaded.book, rawReview: loaded.rawReview, current: loaded.current,
@@ -235,16 +250,17 @@ export function buildReselectManifest(spec: ReselectSpec, workspace = process.cw
       ...(loaded.replan ? { replan: { producerGrantSha256: loaded.replan.producerGrantSha256, indexSha256: loaded.replan.indexSha256 } } : {}) };
     const record = originalPage(spec.originalRun, p.page), admitted = new Map<string, AdmittedReview>(), runs = [];
     for (const run of p.reviewRuns) {
-      const r = admitCurrentReviews(run, p.page, authority, spec.originalRun);
+      const r = await admitCurrentReviews(run, p.page, authority, spec.originalRun);
       for (const [k, v] of r.admitted) { if (admitted.has(k)) fail('reselect_review_duplicate'); admitted.set(k, v); }
       runs.push(r.run);
     }
-    const identities = new Map(record.attempts.filter(a => a.candidate).map(a => [a.candidate!.imageSha, admitSavedIdentity(spec.originalRun, a, authority.child)]));
+    const identities = new Map<string, AdmittedIdentity>();
+    for (const a of record.attempts) if (a.candidate) identities.set(a.candidate.imageSha, await admitSavedIdentity(spec.originalRun, a, authority.child));
     const selection = reselectPage(record, admitted, identities);
     const transition = selection.changed ? staleSuccessorTransitions(spec.originalRun, authority.book, p.page, selection.originalChosen, selection.chosen!.candidate) : null;
-    return { page: p.page, authority: { kind: authority.kind, storyboardDigest: authority.book.storyboardDigest, ...(authority.replan ? { replan: authority.replan } : {}) },
-      predecessor: originalPredecessor(spec.originalRun, authority.book, p.page), reviewRuns: runs, ...selection, ...(transition ? { successorTransition: transition } : {}) };
-  });
+    pages.push({ page: p.page, authority: { kind: authority.kind, storyboardDigest: authority.book.storyboardDigest, ...(authority.replan ? { replan: authority.replan } : {}) },
+      predecessor: originalPredecessor(spec.originalRun, authority.book, p.page), reviewRuns: runs, ...selection, ...(transition ? { successorTransition: transition } : {}) });
+  }
   return { version: RESELECT_VERSION, policy: REVIEWED_AUDITION_POLICY.version, originalRun: spec.originalRun, providerCalls: 0, keyRead: false,
     pages,
     scope: 'diagnostic re-selection of the listed pages only, each under its own storyboard authority; not a whole-book review, not a replacement of the original run, not product acceptance',
@@ -255,7 +271,7 @@ function argValue(name: string) { const i = process.argv.indexOf(name); return i
 if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(__filename)) {
   const specFile = argValue('--spec') ?? fail('reselect_args');
   const spec = read(specFile!) as ReselectSpec;
-  const manifest = buildReselectManifest(spec);
+  buildReselectManifest(spec).then(manifest => {
   if (!process.argv.includes('--write')) console.log(JSON.stringify(manifest, null, 2));
   else {
     if (!path.isAbsolute(spec.out) || existsSync(spec.out)) fail('reselect_out');
@@ -267,4 +283,5 @@ if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(__filename
     console.log(JSON.stringify({ out: spec.out, pages: manifest.pages.map(p => ({ page: p.page, outcome: p.outcome, chosen: p.chosen?.candidate.imageName ?? null,
       exhaustive: p.exhaustive, transition: p.successorTransition?.status ?? null })) }, null, 2));
   }
+  }).catch(error => { console.error('FAILED', error?.code ?? error?.message ?? error); process.exitCode = 1; });
 }
