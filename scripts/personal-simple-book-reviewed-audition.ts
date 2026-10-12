@@ -218,6 +218,13 @@ export const auditionGrantSchema = z.object({
 });
 export type AuditionGrant = z.infer<typeof auditionGrantSchema>;
 
+type GrantReferences = Extract<AuditionGrant['scope'], { mode: 'rejudge' }>['references'];
+/** The reference status a rejudge grant's sheets give the checker (their recorded flaws as bound reference defects). Shared with re-selection. */
+export function grantReferenceStatus(references: GrantReferences): ReferenceStatus {
+  const status = (r: GrantReferences['entities']) => ({ ...r, knownFlaws: r.knownFlaws.map(f => ({ ...f, category: 'reference', verdict: 'defect' as const, bound: true })) });
+  return { entities: status(references.entities), locations: status(references.locations) };
+}
+
 export function readAuditionGrant(file: string, book: { requestId: string; storyboardDigest: string }) {
   const grant = auditionGrantSchema.parse(read(file));
   if (grant.book.requestId !== book.requestId || grant.book.storyboardDigest !== book.storyboardDigest) fail('audition_grant_book');
@@ -469,10 +476,8 @@ export async function runReviewedAudition(args: { bookDir: string; out: string; 
       if (previewSha(bytes) !== img.imageSha) fail('audition_rejudge_source');
       return existsSync(path.join(directory, img.imageName)) ? (io.bytesOf(img), img) : io.writeImage(img.imageName, bytes);
     };
-    const references: ReferenceStatus = { entities: { ...grant.scope.references.entities, image: await copy(grant.scope.references.entities.image),
-      knownFlaws: grant.scope.references.entities.knownFlaws.map(f => ({ ...f, category: 'reference', verdict: 'defect' as const, bound: true })) },
-      locations: { ...grant.scope.references.locations, image: await copy(grant.scope.references.locations.image),
-        knownFlaws: grant.scope.references.locations.knownFlaws.map(f => ({ ...f, category: 'reference', verdict: 'defect' as const, bound: true })) } };
+    const references = grantReferenceStatus({ entities: { ...grant.scope.references.entities, image: await copy(grant.scope.references.entities.image) },
+      locations: { ...grant.scope.references.locations, image: await copy(grant.scope.references.locations.image) } });
     const frames = [];
     for (const f of grant.scope.frames) frames.push({ label: f.label, pageNumber: f.pageNumber, candidate: await copy(f.image), predecessor: f.predecessor ? await copy(f.predecessor) : null });
     const results = await rejudgeAudition({ book: loaded.book, rawReview: loaded.rawReview, current: loaded.current, companionDescription: loaded.companionDescription,
