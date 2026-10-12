@@ -1,5 +1,33 @@
 # SmallHeroes — Current Technical State
 
+## Offline re-plan milestone built (5129c342); next: Codex QA of 7a998761..(this docs commit) (2026-10-12)
+
+Guy approved the corrected OFFLINE milestone (no API calls, no images). Built:
+opt-in storyboard PRESERVATION (the approved parent draft as bound planning
+input, recompiled to the parent digest 85e5f119; needs the kind contract,
+excludes moments; flag-absent identities unchanged); a standalone saved-source
+re-plan runner with a typed storyboard-replan-grant/v1 (parent, saved source,
+ledger, cache-aware pricing, executable/payload pins, exact 2-stage scope;
+drafts and audition grants refused), the existing fail-closed meter, claim+wire
+before key/client, a new exclusive path-fenced folder sealed by a sha index;
+loader option replanDir (legacy default unchanged; fence, index, parent,
+source, preservation, review, packets, kind, references re-checked, and
+COMPARABLE required); F1 exact-equality comparability (only the added kinds,
+plus shot/angle outside the pair, may differ; seam 1->2 and slats 3->6 are
+NOT_COMPARABLE); F2 pre-registered pixel criteria (positive MATERIAL_OK;
+shrub confirmed/containment/false-defect tiers; hard preconditions); F3
+cache-aware settlement, option A: worst-case cache-write reservation + 10%.
+Real book, provider-free: storyboard wire 72,570/128,000 (content 53,332/
+104,000), rehearsed review wire 66,741; reservations 2,757,838 + 781,000 =
+$3.538838; draft grant cap +$3.54 (cumulative $10.640254), expected ~$1.1-1.4.
+Ledger stays $7.100254 recorded; a read-only cache-aware re-estimate of the 63
+saved text receipts adds ~$0.429307 (~$7.53; images/identity not re-estimated).
+Real-book mocked rehearsal: COMPARABLE, admitted by the real loader with child
+and companion references re-checked; legacy load unchanged. tsc0; affected suites 25 files: 955/956 + simple-book-flow 179/181 alone (3 failures not from this range: stale classifier pin and stale 25m budget test at base, one load timeout that passes alone in 93 s); new specs 11/11, 24/24, 6/6;
+mutants 42/44 (2 equivalent second-layer guards). Pre-existing RED: vitest-workload-classifier pins 422 specs,
+the base already has 426 (3 of 4 added by my earlier milestones), now 429 -
+left separate. No paid call. Visual HOLD.
+
 ## Phase 2 = Codex narrow technical PASS (22616c00..fec07a9e); re-plan preflight prepared (2026-10-12)
 
 Codex: tsc0, 558/558 affected suites, 28/28 independent probes (incl. the real

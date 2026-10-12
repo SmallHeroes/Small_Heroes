@@ -1,5 +1,13 @@
 # SmallHeroes — Roadmap
 
+## Offline re-plan milestone built (5129c342); next: Codex QA, then Guy on the paid re-plan (2026-10-12)
+
+- 1) Codex QA of 7a998761..(this docs commit); 2) paid re-plan, exactly 2 calls,
+  cap +$3.54 (cumulative $10.640254 recorded), expected ~$1.1-1.4; 3) free
+  comparability report (any drift beyond the kinds: stop, never relabel);
+  4) if comparable, the saved-pair proof under replan-pixel-criteria/v1
+  (+$1.20); 5) page 4/7 plan. Workload-classifier pin: separate small fix.
+
 ## Phase 2 PASS (narrow); next: Guy on the re-plan preflight (2026-10-12)
 
 - 1) offline build: storyboard-only re-plan runner + loader storyboard-dir option
