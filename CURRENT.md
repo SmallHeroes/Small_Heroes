@@ -23,7 +23,7 @@ $3.538838; draft grant cap +$3.54 (cumulative $10.640254), expected ~$1.1-1.4.
 Ledger stays $7.100254 recorded; a read-only cache-aware re-estimate of the 63
 saved text receipts adds ~$0.429307 (~$7.53; images/identity not re-estimated).
 Real-book mocked rehearsal: COMPARABLE, admitted by the real loader with child
-and companion references re-checked; legacy load unchanged. tsc0; affected suites 25 files: 955/956 + simple-book-flow 179/181 alone (3 failures not from this range: stale classifier pin and stale 25m budget test at base, one load timeout that passes alone in 93 s); new specs 11/11, 24/24, 6/6;
+and companion references re-checked; legacy load unchanged. tsc0; affected suites 25 files: 954/955 + simple-book-flow 179/181 alone (3 failures not from this range: stale classifier pin and stale 25m budget test at base, one load timeout that passes alone in 93 s); new specs 11/11, 24/24, 6/6;
 mutants 42/44 (2 equivalent second-layer guards). Pre-existing RED: vitest-workload-classifier pins 422 specs,
 the base already has 426 (3 of 4 added by my earlier milestones), now 429 -
 left separate. No paid call. Visual HOLD.
