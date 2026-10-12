@@ -10,7 +10,6 @@
 import path from 'node:path';
 import { existsSync, mkdirSync, readFileSync, realpathSync } from 'node:fs';
 import OpenAI from 'openai';
-import { z } from 'zod';
 import { previewSha } from '../lib/local-story-preview';
 import { canonicalJson } from '../lib/personal-wizard/request-acceptance';
 import type { PersonalWizardOptions } from '../lib/personal-wizard/options';
@@ -24,9 +23,11 @@ import { generationTimeoutMs } from '../lib/personal-wizard/story-config';
 import { LANDMARK_KIND_CONTRACT_VERSION, KIND_REVIEW_ADDENDUM } from '../lib/personal-wizard/storyboard-landmark-kind';
 import { STORYBOARD_PRESERVATION_VERSION, storyboardPreservationDiff, type StoryboardPreservation } from '../lib/personal-wizard/storyboard-preservation';
 import { simpleWizardVisualPayload } from './personal-simple-wizard-worker';
-import { AuditionMeter, keyReader, loadReviewedBook, replanFiles, PARENT_STORYBOARD_DIR, REPLAN_INDEX_FILE, REPLAN_INDEX_VERSION,
+import { AuditionMeter, keyReader, loadReviewedBook, replanFiles, REPLAN_INDEX_FILE, REPLAN_INDEX_VERSION,
   REPLAN_RESULT_VERSION } from './personal-simple-book-reviewed-audition';
-import { CACHE_AWARE_PRICING_VERSION, CACHE_AWARE_RATES, CACHE_POLICY, RESERVATION_BUFFER_PERCENT, cacheAwareCostMicroUsd,
+import { PARENT_STORYBOARD_DIR, REPLAN_CLAUDE_MAX, REPLAN_GRANT_VERSION, REPLAN_PLANNER_MODEL, REPLAN_REVIEW_MODEL, ledgerSnapshotSchema,
+  replanGrantSchema, type ReplanGrant } from './personal-storyboard-replan-grant';
+import { CACHE_AWARE_PRICING_VERSION, CACHE_AWARE_RATES, CACHE_POLICY, cacheAwareCostMicroUsd,
   cacheAwareReservationMicroUsd, cacheAwareUsage } from './personal-cache-aware-pricing';
 import { exclusiveJson, exclusiveText, fencedText, realDirectory } from './personal-causal-trial-journal';
 
@@ -37,15 +38,10 @@ const sha = (value: string | Buffer) => previewSha(value);
 const errorCode = (error: unknown) => error && typeof error === 'object' && 'code' in error && typeof error.code === 'string' &&
   /^[a-z0-9_]+$/.test(error.code) ? error.code : error instanceof Error && /^[a-z0-9_]+$/.test(error.message) ? error.message : 'replan_failed';
 
-export const REPLAN_GRANT_VERSION = 'storyboard-replan-grant/v1' as const;
+export { REPLAN_GRANT_VERSION, REPLAN_PLANNER_MODEL, REPLAN_REVIEW_MODEL, REPLAN_CLAUDE_MAX } from './personal-storyboard-replan-grant';
 export const REPLAN_STAGES = ['storyboard', 'review'] as const;
-export const REPLAN_PLANNER_MODEL = 'gpt-6-astra' as const;
-export const REPLAN_REVIEW_MODEL = 'gpt-6.1-sol' as const;
-/** The compared images are page 4 attempts; only that page's camera is render authority for them. */
-export const REPLAN_PAIR_PAGES = [4] as const;
-export const REPLAN_CLAUDE_MAX = 'Claude Max usage is separate: not an API invoice, not $0 and not included in this ledger' as const;
 /** Every file whose behaviour decides the two paid calls or their admission (repo-relative). */
-export const REPLAN_EXECUTABLE_FILES = ['scripts/personal-simple-storyboard-replan.ts', 'scripts/personal-cache-aware-pricing.ts',
+export const REPLAN_EXECUTABLE_FILES = ['scripts/personal-simple-storyboard-replan.ts', 'scripts/personal-storyboard-replan-grant.ts', 'scripts/personal-cache-aware-pricing.ts',
   'scripts/personal-simple-book-reviewed-audition.ts', 'scripts/personal-simple-wizard-worker.ts', 'lib/personal-wizard/storyboard.ts',
   'lib/personal-wizard/storyboard-preservation.ts', 'lib/personal-wizard/storyboard-landmark-kind.ts', 'lib/personal-wizard/simple-storyboard-diagnostic.ts',
   'lib/personal-wizard/book-openai.ts'] as const;
@@ -102,39 +98,34 @@ export function replanPayloadPlan(parent: ReplanParent) {
 // ---------------------------------------------------------------------------------------------------------------
 // Grant: who approved what, the parent, the inherited ledger, pricing, pins, a cumulative cap and this exact scope.
 // ---------------------------------------------------------------------------------------------------------------
-const hash = z.string().regex(/^[a-f0-9]{64}$/);
-const absolute = z.string().min(3).max(500).refine(p => path.isAbsolute(p), 'absolute path');
-const count = z.number().int().positive();
-const callPins = { model: z.string(), instructionSha256: hash, schemaName: z.string(), schemaSha256: hash, maxOutputTokens: count, timeoutMs: count };
-const rates = z.object({ ordinary: count, cacheRead: count, cacheWrite: count, output: count }).strict();
-export const replanGrantSchema = z.object({
-  version: z.literal(REPLAN_GRANT_VERSION),
-  approvalReference: z.string().trim().min(30).max(2000),
-  parent: z.object({ bookDir: absolute, storyboardDir: z.literal(PARENT_STORYBOARD_DIR), requestId: hash, sourceDigest: hash, storyboardDigest: hash,
-    reviewDigest: hash, resultSha256: hash, draftSha256: hash, savedSourceSha256: hash }).strict(),
-  replan: z.object({ sourceDigest: hash, actorOwnedAppearance: z.literal(true), landmarkKindContract: z.literal(LANDMARK_KIND_CONTRACT_VERSION),
-    preservation: z.literal(STORYBOARD_PRESERVATION_VERSION), moments: z.literal('not_enabled'), pairPages: z.tuple([z.literal(4)]) }).strict(),
-  payloads: z.object({
-    storyboard: z.object({ ...callPins, inputSha256: hash, payloadBytes: count, contentBytes: count }).strict(),
-    review: z.object({ ...callPins, maxPayloadBytes: count }).strict() }).strict(),
-  executable: z.object({ files: z.array(z.object({ path: z.string(), sha256: hash }).strict()).length(REPLAN_EXECUTABLE_FILES.length) }).strict(),
-  pricing: z.object({ version: z.literal(CACHE_AWARE_PRICING_VERSION), policy: z.literal(CACHE_POLICY),
-    ratesTenthMicroUsdPerToken: z.object({ [REPLAN_PLANNER_MODEL]: rates, [REPLAN_REVIEW_MODEL]: rates }).strict(),
-    bufferPercent: z.literal(RESERVATION_BUFFER_PERCENT), reservations: z.object({ storyboard: count, review: count }).strict() }).strict(),
-  ledger: z.object({ priorKnownApiMicroUsd: z.number().int().nonnegative(),
-    evidence: z.array(z.object({ file: absolute, sha256: hash }).strict()).min(1).max(16), note: z.string().min(10).max(1500) }).strict(),
-  capMicroUsd: count, maxCalls: z.literal(2),
-  scope: z.object({ stages: z.tuple([z.literal('storyboard'), z.literal('review')]), retries: z.literal(0), downstream: z.literal('none') }).strict(),
-  out: absolute,
-  deadlineMs: z.number().int().min(60000).max(3300000),
-  claudeMax: z.literal(REPLAN_CLAUDE_MAX),
-}).strict();
-export type ReplanGrant = z.infer<typeof replanGrantSchema>;
+export { replanGrantSchema, ledgerSnapshotSchema, type ReplanGrant } from './personal-storyboard-replan-grant';
 
 const inside = (child: string, root: string) => {
   const c = path.resolve(child).toLowerCase(), r = path.resolve(root).toLowerCase();
   return c === r || c.startsWith(r.endsWith(path.sep) ? r : r + path.sep);
 };
+
+/**
+ * The inherited cumulative floor: the typed, SETTLED meter snapshot the grant pins (no unknown cost or outcome, nothing reserved, and
+ * cumulative = prior + new), plus only explicit owner-approved increases. The grant's own number must equal it exactly: an unexplained
+ * lower (or higher) prior is refused. Historical recorded values stay as recorded; a re-estimate enters only as an explicit adjustment.
+ */
+export function replanLedgerFloor(ledger: ReplanGrant['ledger']) {
+  const file = ledger.snapshot.file;
+  if (!existsSync(file)) return fail('replan_grant_ledger');
+  const bytes = readFileSync(file);
+  if (sha(bytes) !== ledger.snapshot.sha256) fail('replan_grant_ledger');
+  let parsed: ReturnType<typeof ledgerSnapshotSchema.safeParse>;
+  try { parsed = ledgerSnapshotSchema.safeParse(JSON.parse(bytes.toString('utf8'))); } catch { return fail('replan_grant_ledger'); }
+  if (!parsed.success) return fail('replan_grant_ledger');
+  const snap = parsed.data;
+  // The meter's own definition (cumulative = prior + new + reserved), and settled: nothing reserved, no unknown cost or outcome.
+  if (snap.cumulativeAccountedMicroUsd !== snap.priorKnownApiMicroUsd + snap.newKnownApiMicroUsd + snap.reservedUnsettledMicroUsd) fail('replan_grant_ledger');
+  if (snap.reservedUnsettledMicroUsd !== 0 || snap.unknownCost !== 0 || snap.unknownOutcome !== 0) fail('replan_grant_ledger');
+  const floor = snap.cumulativeAccountedMicroUsd + (ledger.adjustments ?? []).reduce((sum, a) => sum + a.microUsd, 0);
+  if (!Number.isSafeInteger(floor) || ledger.priorKnownApiMicroUsd !== floor) fail('replan_grant_ledger');
+  return floor;
+}
 
 /** Offline only: reads the grant, the parent's files, the ledger evidence and the pinned executables. Never a key, client or provider. */
 export function readReplanGrant(file: string, parent: ReplanParent, workspace: string, options: { allowDraft?: true } = {}) {
@@ -144,6 +135,7 @@ export function readReplanGrant(file: string, parent: ReplanParent, workspace: s
   const parsed = replanGrantSchema.safeParse(draft ? { ...raw, version: REPLAN_GRANT_VERSION } : raw);
   if (!parsed.success) return fail('replan_grant_invalid');
   const grant = parsed.data;
+  if (grant.replan.pairPages.some(page => page > parent.book.narrativeSpreads)) fail('replan_grant_scope');
   const review = storyboardReviewDisposition(parent.book, parent.rawReview);
   if (path.resolve(grant.parent.bookDir).toLowerCase() !== path.resolve(parent.bookDir).toLowerCase() || grant.parent.requestId !== parent.requestId ||
       grant.parent.sourceDigest !== parent.book.sourceDigest || grant.parent.storyboardDigest !== parent.book.storyboardDigest ||
@@ -159,8 +151,8 @@ export function readReplanGrant(file: string, parent: ReplanParent, workspace: s
       [REPLAN_REVIEW_MODEL]: CACHE_AWARE_RATES[REPLAN_REVIEW_MODEL] }) || canonicalJson(grant.pricing.reservations) !== canonicalJson(plan.reservations))
     fail('replan_grant_pricing');
   for (const e of grant.ledger.evidence) if (!existsSync(e.file) || sha(readFileSync(e.file)) !== e.sha256) fail('replan_grant_evidence');
+  const prior = replanLedgerFloor(grant.ledger);
   // A grant extends only the ledger it names, by at most USD 8, and must cover both worst-case reservations.
-  const prior = grant.ledger.priorKnownApiMicroUsd;
   if (grant.capMicroUsd <= prior || grant.capMicroUsd - prior > 8000000) fail('replan_grant_cap');
   if (grant.capMicroUsd < prior + plan.reservations.storyboard + plan.reservations.review) fail('replan_cap_too_low');
   // The new folder: never inside the protected parent book or this repository, and never an existing folder.
@@ -306,4 +298,3 @@ if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(__filename
       .catch(error => { console.error('FAILED', error?.code ?? error?.message ?? error); process.exitCode = 1; });
   }
 }
-

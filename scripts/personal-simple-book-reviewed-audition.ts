@@ -24,6 +24,7 @@ import { prepareCurrentPersonalStoryboard, compilePersonalStoryboard, storyboard
 import { simpleReferenceDesignContext, type AuditionImage } from '../lib/personal-wizard/simple-book-illustrations';
 import { LANDMARK_KIND_CONTRACT_VERSION } from '../lib/personal-wizard/storyboard-landmark-kind';
 import { STORYBOARD_PRESERVATION_VERSION, storyboardPreservationDiff } from '../lib/personal-wizard/storyboard-preservation';
+import { PARENT_STORYBOARD_DIR, replanGrantSchema } from './personal-storyboard-replan-grant';
 import { illustrateReviewedAudition, rejudgeAudition, reviewedAuditionHTML, auditionSheetDesigns, auditionSheetPrompt, auditionPageChecks,
   auditionReviewSchema, auditionPageReviewSchema, AUDITION_JUDGE_INSTRUCTIONS, AUDITION_IMPACTS, REVIEWED_AUDITION_POLICY, AUDITION_WORST_CASE_CALLS,
   ReviewedAuditionError, type ReferenceStatus } from '../lib/personal-wizard/simple-book-reviewed-audition';
@@ -50,7 +51,7 @@ export function savedLandmarkKindContract(savedBook: { landmarkKind?: unknown } 
 // Optional re-plan folder: the SAME saved source with a new kind-enabled storyboard, bound to the reviewed parent. Never written
 // inside the protected parent folder; every file sha-indexed (immutable); admitted only when comparable with the parent's images.
 // ---------------------------------------------------------------------------------------------------------------
-export const PARENT_STORYBOARD_DIR = 'controlled-visual-continuation-20261008';
+export { PARENT_STORYBOARD_DIR };
 export const REPLAN_RESULT_VERSION = 'storyboard-replan-result/v1' as const;
 export const REPLAN_INDEX_VERSION = 'storyboard-replan-index/v1' as const;
 export const REPLAN_INDEX_FILE = 'replan-index.json';
@@ -88,8 +89,13 @@ export function verifyReplanIndex(dir: string) {
   return { ...index.data, sha256: previewSha(readFileSync(path.join(dir, REPLAN_INDEX_FILE))) };
 }
 
-type ReplanParentBook = { bookDir: string; request: unknown; options: PersonalWizardOptions; source: unknown; book: PersonalStoryboard; draft: unknown };
-/** Re-admits a re-plan against its reviewed parent: same source, preservation bound to the parent, new review and packets, comparable design. */
+type ReplanParentBook = { bookDir: string; request: unknown; options: PersonalWizardOptions; source: unknown; book: PersonalStoryboard; rawReview: unknown;
+  draft: unknown };
+/**
+ * Re-admits a re-plan against its reviewed parent: same source, preservation bound to the parent, new review and packets, comparable design.
+ * Its compared-page scope comes ONLY from the saved producer grant (typed, sha-bound to the result and admission, and bound to this parent and
+ * this re-planned source); result metadata must merely agree with it. An index proves file integrity, never scope.
+ */
 export function admitReplanStoryboard(parent: ReplanParentBook, replanDir: string) {
   if (!path.isAbsolute(replanDir)) fail('audition_replan_fence');
   realDirectory(replanDir);
@@ -103,12 +109,26 @@ export function admitReplanStoryboard(parent: ReplanParentBook, replanDir: strin
   if (result.parent?.storyboardDigest !== parent.book.storyboardDigest || result.parent?.sourceDigest !== parent.book.sourceDigest ||
       result.parent?.requestId !== parent.book.requestId || canonicalJson(result.source) !== canonicalJson(parent.source) ||
       result.replan?.preservation !== STORYBOARD_PRESERVATION_VERSION) fail('audition_replan_parent');
-  const pairPages = z.array(z.number().int().min(0).max(parent.book.narrativeSpreads)).min(1).max(4).safeParse(result.replan?.pairPages);
-  if (!pairPages.success) return fail('audition_replan_parent');
+  const grantText = fencedText(path.join(replanDir, 'grant.json'), 200000), producerGrantSha256 = previewSha(grantText);
+  const admission = read(path.join(replanDir, 'admission.json'));
+  let producerRaw: unknown;
+  try { producerRaw = JSON.parse(grantText); } catch { return fail('audition_replan_grant'); }
+  const producer = replanGrantSchema.safeParse(producerRaw);
+  if (!producer.success || result.replan?.grantSha256 !== producerGrantSha256 || admission?.grantSha256 !== producerGrantSha256) return fail('audition_replan_grant');
+  const g = producer.data;
+  if (path.resolve(g.parent.bookDir).toLowerCase() !== path.resolve(parent.bookDir).toLowerCase() || g.parent.requestId !== parent.book.requestId ||
+      g.parent.sourceDigest !== parent.book.sourceDigest || g.parent.storyboardDigest !== parent.book.storyboardDigest ||
+      g.parent.reviewDigest !== storyboardReviewDisposition(parent.book, parent.rawReview).reviewDigest ||
+      g.parent.savedSourceSha256 !== previewSha(canonicalJson(parent.source))) fail('audition_replan_grant');
+  const pairPages = g.replan.pairPages;
+  if (pairPages.some(page => page > parent.book.narrativeSpreads) || canonicalJson(result.replan?.pairPages) !== canonicalJson(pairPages) ||
+      canonicalJson(admission?.replan?.pairPages) !== canonicalJson(pairPages)) fail('audition_replan_scope');
   // The kind marker comes only from the saved, digest-bound book; a re-plan exists to add it.
   if (savedLandmarkKindContract(result.storyboard?.storyboard) !== true) fail('audition_replan_kind');
   const source = prepareCurrentPersonalStoryboard(parent.request, result.source, parent.options, true, undefined, true,
     { parentStoryboardDigest: parent.book.storyboardDigest, draft: parent.draft });
+  // The producer grant was issued for exactly this re-planned source (parent, saved source, kind contract and preservation).
+  if (g.replan.sourceDigest !== source.sourceDigest) fail('audition_replan_grant');
   const draft = read(path.join(replanDir, 'owned_storyboard_draft.json'));
   const book = compilePersonalStoryboard(source, draft);
   const rawReview = result.storyboard.rawReview;
@@ -118,9 +138,9 @@ export function admitReplanStoryboard(parent: ReplanParentBook, replanDir: strin
   for (let n = 0; n <= book.narrativeSpreads; n++)
     if (canonicalJson(currentPersonalStoryboardFrame(book, rawReview, n, current)) !== canonicalJson(result.storyboard.framePackets[n])) fail('audition_frame_binding');
   // Recomputed here (the saved report is evidence only): any drift beyond the added kinds refuses the saved images as fair controls.
-  const comparability = storyboardPreservationDiff(parent.draft, draft, pairPages.data);
+  const comparability = storyboardPreservationDiff(parent.draft, draft, pairPages);
   if (comparability.verdict !== 'COMPARABLE') fail('audition_replan_not_comparable');
-  return { dir: replanDir, indexSha256: index.sha256, result, book, rawReview, current, comparability, pairPages: pairPages.data,
+  return { dir: replanDir, indexSha256: index.sha256, producerGrantSha256, result, book, rawReview, current, comparability, pairPages,
     companionDescription: source.companionDescription };
 }
 
@@ -145,7 +165,7 @@ export function loadReviewedBook(bookDir: string, workspace = process.cwd(), rep
   for (let n = 0; n <= 8; n++) if (canonicalJson(currentPersonalStoryboardFrame(book, rawReview, n, current)) !== canonicalJson(result.storyboard.framePackets[n])) fail('audition_frame_binding');
   // Optional re-plan (never the default): the child and companion references below are then checked against ITS storyboard.
   const replan = replanDir === undefined ? undefined
-    : admitReplanStoryboard({ bookDir, request: queued.request, options, source: result.source, book, draft: parentDraft }, replanDir);
+    : admitReplanStoryboard({ bookDir, request: queued.request, options, source: result.source, book, rawReview, draft: parentDraft }, replanDir);
   const active = replan ?? { result, book, rawReview, current, companionDescription: source.companionDescription };
   // Child: the reviewed, passed reference adopted by the last continuation, bound to its recomputed original context.
   const m17 = path.join(bookDir, 'reference-role-repair-continuation-20261009');
@@ -164,7 +184,8 @@ export function loadReviewedBook(bookDir: string, workspace = process.cwd(), rep
     companionDescription: active.companionDescription,
     texts: (result.source.manuscript.pages as { text: string }[]).map(p => p.text), title: result.source.manuscript.title as string,
     pages: result.source.manuscript.pages as { text: string }[],
-    ...(replan ? { replan: { dir: replan.dir, indexSha256: replan.indexSha256, pairPages: replan.pairPages, comparability: replan.comparability } } : {}) };
+    ...(replan ? { replan: { dir: replan.dir, indexSha256: replan.indexSha256, producerGrantSha256: replan.producerGrantSha256, pairPages: replan.pairPages,
+      comparability: replan.comparability } } : {}) };
 }
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -185,7 +206,9 @@ export const auditionGrantSchema = z.object({
     z.object({ mode: z.literal('rejudge'), sourceDirectory: z.string().min(1),
       references: z.object({ entities: referenceSchema, locations: referenceSchema }).strict(),
       frames: z.array(z.object({ label: z.string().min(1).max(80), pageNumber: z.number().int().min(0).max(8), image,
-        predecessor: image.nullable() }).strict()).min(1).max(12) }).strict(),
+        predecessor: image.nullable() }).strict()).min(1).max(12),
+      /** Required exactly when the run loads a re-plan folder (--storyboard-dir); absent on every legacy grant. */
+      replan: z.object({ producerGrantSha256: hash, indexSha256: hash }).strict().optional() }).strict(),
   ]),
   claudeMax: z.literal('Claude Max usage is separate: not an API invoice, not $0 and not included in this ledger'),
 }).strict().superRefine((g, ctx) => {
@@ -388,12 +411,23 @@ function adapters(args: { directory: string; meter: AuditionMeter; key: () => st
 // ---------------------------------------------------------------------------------------------------------------
 // Runner.
 // ---------------------------------------------------------------------------------------------------------------
+/**
+ * A re-plan folder is admitted only for a rejudge of its producer-granted compared pages, under an audition grant that names that exact
+ * folder (producer grant and sealed index): a consistently rewritten folder cannot borrow another approval. No render, no resume.
+ * A legacy run (no re-plan) refuses a grant that names one.
+ */
+export function assertReplanAuditionScope(scope: AuditionGrant['scope'],
+  replan: { producerGrantSha256: string; indexSha256: string; pairPages: number[] } | undefined, resume: boolean) {
+  if (!replan) { if (scope.mode === 'rejudge' && scope.replan) fail('audition_replan_scope'); return; }
+  if (scope.mode !== 'rejudge' || resume || !scope.replan || scope.replan.producerGrantSha256 !== replan.producerGrantSha256 ||
+      scope.replan.indexSha256 !== replan.indexSha256 || scope.frames.some(f => !replan.pairPages.includes(f.pageNumber))) fail('audition_replan_scope');
+}
+
 export async function runReviewedAudition(args: { bookDir: string; out: string; keyFile: string; grantFile: string; signal: AbortSignal;
   log: (line: string) => void; resume?: true; storyboardDir?: string }) {
   const loaded = loadReviewedBook(args.bookDir, process.cwd(), args.storyboardDir);
   const { grant, sha256: grantSha256 } = readAuditionGrant(args.grantFile, { requestId: loaded.queued.requestId, storyboardDigest: loaded.book.storyboardDigest });
-  if (loaded.replan && (grant.scope.mode !== 'rejudge' || args.resume || grant.scope.frames.some(f => !loaded.replan!.pairPages.includes(f.pageNumber))))
-    fail('audition_replan_scope');
+  assertReplanAuditionScope(grant.scope, loaded.replan, args.resume === true);
   if (existsSync(args.out) !== !!args.resume) fail(args.resume ? 'audition_resume_missing' : 'audition_out_exists');
   if (!args.resume) mkdirSync(args.out); realDirectory(args.out);
   const directory = path.join(args.out, 'illustrations'); if (!args.resume) mkdirSync(directory); realDirectory(directory);
@@ -404,7 +438,8 @@ export async function runReviewedAudition(args: { bookDir: string; out: string; 
     requestId: loaded.queued.requestId, sourceDigest: loaded.book.sourceDigest, storyboardDigest: loaded.book.storyboardDigest, child, companion,
     policy: REVIEWED_AUDITION_POLICY, grant: { file: args.grantFile, sha256: grantSha256 }, imageModel: 'gpt-image-2', imageQuality: 'low',
     reviewModel: REVIEW_MODEL, identityModel: 'gpt-4o',
-    ...(loaded.replan ? { replan: { dir: loaded.replan.dir, indexSha256: loaded.replan.indexSha256, pairPages: loaded.replan.pairPages } } : {}) }));
+    ...(loaded.replan ? { replan: { dir: loaded.replan.dir, indexSha256: loaded.replan.indexSha256, producerGrantSha256: loaded.replan.producerGrantSha256,
+      pairPages: loaded.replan.pairPages } } : {}) }));
   let child: AuditionImage, companion: AuditionImage;
   let resume: Parameters<typeof illustrateReviewedAudition>[0]['resume'];
   if (args.resume) {

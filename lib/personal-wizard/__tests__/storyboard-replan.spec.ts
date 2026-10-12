@@ -10,9 +10,10 @@ import { canonicalJson } from '../request-acceptance';
 import { LANDMARK_KIND_CONTRACT_VERSION } from '../storyboard-landmark-kind';
 import { CACHE_AWARE_PRICING_VERSION, CACHE_AWARE_RATES, CACHE_POLICY, cacheAwareCostMicroUsd, cacheAwareReservationMicroUsd,
   cacheAwareUsage } from '../../../scripts/personal-cache-aware-pricing';
-import { REPLAN_CLAUDE_MAX, REPLAN_EXECUTABLE_FILES, readReplanGrant, replanPayloadPlan, runStoryboardReplan,
+import { REPLAN_CLAUDE_MAX, REPLAN_EXECUTABLE_FILES, readReplanGrant, replanPayloadPlan, runStoryboardReplan, ledgerSnapshotSchema,
   type ReplanParent } from '../../../scripts/personal-simple-storyboard-replan';
-import { admitReplanStoryboard, replanFiles, PARENT_STORYBOARD_DIR, REPLAN_INDEX_FILE, REPLAN_INDEX_VERSION } from '../../../scripts/personal-simple-book-reviewed-audition';
+import { admitReplanStoryboard, assertReplanAuditionScope, auditionGrantSchema, replanFiles, AuditionMeter, PARENT_STORYBOARD_DIR, REPLAN_INDEX_FILE,
+  REPLAN_INDEX_VERSION } from '../../../scripts/personal-simple-book-reviewed-audition';
 
 const sha = (v: string | Buffer) => createHash('sha256').update(v).digest('hex');
 const workspace = path.resolve(__dirname, '../../..');
@@ -85,6 +86,10 @@ async function setup() {
       draft: { file: draftFile, sha256: sha(readFileSync(draftFile)) } } };
   const plan = replanPayloadPlan(parent), evidence = path.join(root, 'ledger.json'), out = path.join(root, 'out');
   writeFileSync(evidence, JSON.stringify({ historicalRecordedEstimateMicroUsd: 7100254 }));
+  const meter = new AuditionMeter(path.join(root, 'earlier-run'), 8143778, 2, 6943778);
+  for (const [step, cost] of [['rejudge_0', 78238], ['rejudge_1', 78238]] as const)
+    await meter.run(step, { step }, 600000, async () => ({ value: null, estimatedMicroUsd: cost, receipt: { cost } }));
+  const snapshot = path.join(root, 'spend.json'); writeFileSync(snapshot, JSON.stringify(meter.snapshot(), null, 2));
   let n = 0;
   const grant = (change: (g: any) => void = () => {}) => {
     const g: any = { version: 'storyboard-replan-grant/v1', approvalReference: 'REHEARSAL ONLY: mocked provider, synthetic fixture, no spend authorised.',
@@ -97,7 +102,8 @@ async function setup() {
       executable: { files: REPLAN_EXECUTABLE_FILES.map(p => ({ path: p, sha256: sha(readFileSync(path.join(workspace, p))) })) },
       pricing: { version: CACHE_AWARE_PRICING_VERSION, policy: CACHE_POLICY, ratesTenthMicroUsdPerToken: { 'gpt-6-astra': { ...CACHE_AWARE_RATES['gpt-6-astra'] },
         'gpt-6.1-sol': { ...CACHE_AWARE_RATES['gpt-6.1-sol'] } }, bufferPercent: 10, reservations: { ...plan.reservations } },
-      ledger: { priorKnownApiMicroUsd: 7100254, evidence: [{ file: evidence, sha256: sha(readFileSync(evidence)) }], note: 'historical recorded estimate (rehearsal)' },
+      ledger: { priorKnownApiMicroUsd: 7100254, snapshot: { file: snapshot, sha256: sha(readFileSync(snapshot)) },
+        evidence: [{ file: evidence, sha256: sha(readFileSync(evidence)) }], note: 'historical recorded estimate (rehearsal)' },
       capMicroUsd: 7100254 + plan.reservations.storyboard + plan.reservations.review, maxCalls: 2,
       scope: { stages: ['storyboard', 'review'], retries: 0, downstream: 'none' }, out, deadlineMs: 60000, claudeMax: REPLAN_CLAUDE_MAX };
     change(g);
@@ -105,7 +111,7 @@ async function setup() {
     return file;
   };
   const kindDraft = withKind(r.draft);
-  return { r, root, bookDir, parent, plan, grant, out, kindDraft };
+  return { r, root, bookDir, parent, plan, grant, out, kindDraft, snapshot };
 }
 type Reply = (body: any, init: RequestInit) => Response | Promise<Response>;
 const respond = (body: any, output: unknown, u: unknown, extra: Record<string, unknown> = {}) => new Response(JSON.stringify({ id: 'resp_rehearsal',
@@ -151,7 +157,12 @@ describe('re-plan runner: grant and offline refusal paths (no key, no client, no
       ['replan_grant_invalid', g => { g.version = 'audition-spend-grant/v1'; }],
       ['replan_grant_invalid', g => { g.scope.retries = 1; }],
       ['replan_grant_invalid', g => { g.maxCalls = 3; }],
-      ['replan_grant_invalid', g => { g.replan.pairPages = [5]; }],
+      ['replan_grant_scope', g => { g.replan.pairPages = [s.r.book.narrativeSpreads + 1]; }],
+      ['replan_grant_invalid', g => { g.replan.pairPages = [4, 4]; }],
+      ['replan_grant_invalid', g => { g.replan.pairPages = [5, 4]; }],
+      ['replan_grant_invalid', g => { g.replan.pairPages = []; }],
+      ['replan_grant_invalid', g => { delete g.ledger.snapshot; }],
+      ['replan_grant_invalid', g => { g.ledger.adjustments = [{ microUsd: -1000000, reason: 'a lower floor by adjustment', approvalReference: 'not allowed: corrected snapshot only' }]; }],
       ['replan_grant_invalid', g => { g.extra = true; }],
       ['replan_grant_parent', g => { g.parent.reviewDigest = 'a'.repeat(64); }],
       ['replan_grant_parent', g => { g.parent.savedSourceSha256 = 'a'.repeat(64); }],
@@ -209,6 +220,49 @@ describe('re-plan runner: grant and offline refusal paths (no key, no client, no
   });
 });
 
+describe('inherited ledger: the typed, settled snapshot is the floor (QA F3)', () => {
+  it("Codex's counterexample: a prior lowered by USD 1 with every other pin unchanged is refused before any folder, key or call", async () => {
+    const s = await setup(), readKey = vi.fn(() => KEY), { fetchMock } = provider([]);
+    expect(ledgerSnapshotSchema.parse(json(s.snapshot))).toMatchObject({ cumulativeAccountedMicroUsd: 7100254, unknownCost: 0, reservedUnsettledMicroUsd: 0 });
+    expect(() => readReplanGrant(s.grant(), s.parent, workspace)).not.toThrow();
+    await expect(run(s, s.grant(g => { g.ledger.priorKnownApiMicroUsd -= 1000000; }), { readKey })).rejects.toMatchObject({ code: 'replan_grant_ledger' });
+    expect(readKey).not.toHaveBeenCalled(); expect(fetchMock).not.toHaveBeenCalled(); expect(existsSync(s.out)).toBe(false);
+  });
+
+  it('a higher prior needs an explicit, reconciled owner-approved adjustment; the recorded snapshot itself is never rewritten', async () => {
+    const s = await setup(), before = readFileSync(s.snapshot, 'utf8'), raise = (g: any) => { g.ledger.priorKnownApiMicroUsd += 429307; g.capMicroUsd += 429307; };
+    expect(() => readReplanGrant(s.grant(raise), s.parent, workspace)).toThrow('replan_grant_ledger');
+    const adjusted = s.grant(g => { raise(g); g.ledger.adjustments = [{ microUsd: 429307,
+      reason: 'cache-aware re-estimate of the saved text receipts (separate reconciliation)', approvalReference: 'synthetic owner approval for this test only' }]; });
+    expect(readReplanGrant(adjusted, s.parent, workspace).grant.ledger.priorKnownApiMicroUsd).toBe(7529561);
+    // The adjustment must reconcile exactly: one micro-USD off either way is refused.
+    expect(() => readReplanGrant(s.grant(g => { raise(g); g.ledger.adjustments = [{ microUsd: 429306, reason: 'off by one micro-USD here',
+      approvalReference: 'synthetic owner approval for this test only' }]; }), s.parent, workspace)).toThrow('replan_grant_ledger');
+    expect(readFileSync(s.snapshot, 'utf8')).toBe(before);
+  });
+
+  it('a missing, changed, malformed, inconsistent or unsettled snapshot is refused', async () => {
+    const s = await setup();
+    const variant = (name: string, change: (snap: any) => void) => {
+      const file = path.join(s.root, `${name}.json`), snap = json(s.snapshot); change(snap); writeFileSync(file, JSON.stringify(snap));
+      // The grant agrees with the variant's own total, so only the targeted snapshot check can refuse it.
+      return s.grant(g => { g.ledger.snapshot = { file, sha256: sha(readFileSync(file)) }; g.ledger.priorKnownApiMicroUsd = snap.cumulativeAccountedMicroUsd;
+        g.capMicroUsd = snap.cumulativeAccountedMicroUsd + s.plan.reservations.storyboard + s.plan.reservations.review; });
+    };
+    const cases: [string, string][] = [
+      ['missing file', s.grant(g => { g.ledger.snapshot.file = path.join(s.root, 'absent.json'); })],
+      ['sha mismatch', s.grant(g => { g.ledger.snapshot.sha256 = 'a'.repeat(64); })],
+      ['extra field', variant('extra', snap => { snap.note = 'x'; })],
+      ['wrong Claude Max wording', variant('max', snap => { snap.claudeMax = 'included'; })],
+      ['cumulative not prior + new', variant('sum', snap => { snap.cumulativeAccountedMicroUsd -= 1; })],
+      ['unknown cost', variant('unknown', snap => { snap.unknownCost = 1; })],
+      ['unknown outcome', variant('outcome', snap => { snap.unknownOutcome = 1; })],
+      ['reserved, unsettled', variant('reserved', snap => { snap.reservedUnsettledMicroUsd = 600000; snap.cumulativeAccountedMicroUsd += 600000; })],
+    ];
+    for (const [label, file] of cases) expect(() => readReplanGrant(file, s.parent, workspace), label).toThrow('replan_grant_ledger');
+  });
+});
+
 describe('re-plan runner: rehearsed paid path (mocked provider)', () => {
   it('success: two journaled calls, key read only after each claim, cache-aware settlement, and a bound folder the loader admits', async () => {
     const s = await setup(), file = s.grant();
@@ -238,6 +292,7 @@ describe('re-plan runner: rehearsed paid path (mocked provider)', () => {
     expect(admitted.pairPages).toEqual([4]);
     expect(admitted.result.storyboard.framePackets[1].context.landmarkKind).toBe(LANDMARK_KIND_CONTRACT_VERSION);
     expect(result.storyboardDigest).not.toBe(s.r.book.storyboardDigest);
+    expect(ledgerSnapshotSchema.parse(json(path.join(s.out, 'spend.json')))).toMatchObject({ cumulativeAccountedMicroUsd: 7100254 + expected, unknownCost: 0 });
   });
 
   it('a held review is a result: recorded with no packets, never re-asked, and not admitted', async () => {
@@ -373,6 +428,74 @@ describe('re-plan folder admission (loader): immutable, fenced, bound to the par
     // Against a different (stale) parent draft the preservation, and so every digest, no longer matches.
     const stale = { ...s.parent, draft: (() => { const d = structuredClone(s.r.draft) as any; d.plan.visualLanguage = 'crayon'; return d; })() };
     expect(() => admitReplanStoryboard(stale, s.out)).toThrow('preservation_binding');
+  });
+
+  describe('the compared pages come from the producer grant, anchored by the audition approval (QA F4)', () => {
+    const editJson = (file: string, change: (v: any) => void) => { const v = json(file); change(v); writeFileSync(file, JSON.stringify(v)); };
+    /** Rewrites the folder's producer grant and the two records of its sha, as a consistent forger would. */
+    const forgeGrant = (dir: string, change: (g: any) => void) => {
+      editJson(path.join(dir, 'grant.json'), change);
+      const grantSha = sha(readFileSync(path.join(dir, 'grant.json')));
+      editJson(path.join(dir, 'visual_simple_book_result.json'), r => { r.replan.grantSha256 = grantSha; });
+      editJson(path.join(dir, 'admission.json'), a => { a.grantSha256 = grantSha; });
+    };
+    const scope = (replan: unknown, pages = [4], extra: Record<string, unknown> = {}) => ({ mode: 'rejudge', sourceDirectory: 'x',
+      references: {}, frames: pages.map(pageNumber => ({ label: `page ${pageNumber}`, pageNumber, image: {}, predecessor: null })),
+      ...(replan ? { replan } : {}), ...extra }) as any;
+
+    it("Codex's counterexample: only the result's pages changed to [5] and re-indexed is refused; the page-4 control is admitted", async () => {
+      const { s, copy, editResult } = await admitted();
+      expect(admitReplanStoryboard(s.parent, s.out).pairPages).toEqual([4]);
+      expect(() => admitReplanStoryboard(s.parent, copy(dir => editResult(dir, r => { r.replan.pairPages = [5]; })))).toThrow('audition_replan_scope');
+      expect(() => admitReplanStoryboard(s.parent, copy(dir => editJson(path.join(dir, 'admission.json'), a => { a.replan.pairPages = [5]; })))).toThrow('audition_replan_scope');
+    });
+
+    it('the producer grant itself is bound: edited without its recorded sha, for another parent, another source, or a draft: refused', async () => {
+      const { s, copy } = await admitted();
+      expect(() => admitReplanStoryboard(s.parent, copy(dir => editJson(path.join(dir, 'grant.json'), g => { g.replan.pairPages = [5]; }))))
+        .toThrow('audition_replan_grant');
+      expect(() => admitReplanStoryboard(s.parent, copy(dir => forgeGrant(dir, g => { g.parent.storyboardDigest = 'a'.repeat(64); })))).toThrow('audition_replan_grant');
+      // Each record of the producer grant's sha is checked on its own: one stale record is enough to refuse.
+      for (const stale of ['visual_simple_book_result.json', 'admission.json']) expect(() => admitReplanStoryboard(s.parent, copy(dir => {
+        const before = json(path.join(dir, stale));
+        forgeGrant(dir, g => { g.approvalReference += ' (re-saved)'; });
+        writeFileSync(path.join(dir, stale), JSON.stringify(before));
+      })), stale).toThrow('audition_replan_grant');
+      expect(() => admitReplanStoryboard(s.parent, copy(dir => forgeGrant(dir, g => { g.parent.reviewDigest = 'a'.repeat(64); })))).toThrow('audition_replan_grant');
+      expect(() => admitReplanStoryboard(s.parent, copy(dir => forgeGrant(dir, g => { g.replan.sourceDigest = 'a'.repeat(64); })))).toThrow('audition_replan_grant');
+      expect(() => admitReplanStoryboard(s.parent, copy(dir => forgeGrant(dir, g => { g.version = 'storyboard-replan-grant/v1-DRAFT'; })))).toThrow('audition_replan_grant');
+    });
+
+    it('a consistently forged folder passes its own checks, so the audition approval must name the exact producer grant and index', async () => {
+      const { s, copy, editResult } = await admitted();
+      const valid = admitReplanStoryboard(s.parent, s.out);
+      const anchor = { producerGrantSha256: valid.producerGrantSha256, indexSha256: valid.indexSha256 };
+      const forged = admitReplanStoryboard(s.parent, copy(dir => {
+        forgeGrant(dir, g => { g.replan.pairPages = [5]; });
+        editResult(dir, r => { r.replan.pairPages = [5]; });
+        editJson(path.join(dir, 'admission.json'), a => { a.replan.pairPages = [5]; });
+      }));
+      expect(forged.pairPages).toEqual([5]);
+      expect(() => assertReplanAuditionScope(scope(anchor, [5]), forged, false)).toThrow('audition_replan_scope');
+      // The valid page-4 control passes only with its own anchor, a rejudge of its own pages, and no resume.
+      expect(() => assertReplanAuditionScope(scope(anchor), valid, false)).not.toThrow();
+      expect(() => assertReplanAuditionScope(scope(anchor, [5]), valid, false)).toThrow('audition_replan_scope');
+      expect(() => assertReplanAuditionScope(scope(anchor), valid, true)).toThrow('audition_replan_scope');
+      expect(() => assertReplanAuditionScope(scope(undefined), valid, false)).toThrow('audition_replan_scope');
+      expect(() => assertReplanAuditionScope(scope({ ...anchor, indexSha256: 'a'.repeat(64) }), valid, false)).toThrow('audition_replan_scope');
+      expect(() => assertReplanAuditionScope(scope({ ...anchor, producerGrantSha256: 'a'.repeat(64) }), valid, false)).toThrow('audition_replan_scope');
+      expect(() => assertReplanAuditionScope({ mode: 'render', pages: [4] } as any, valid, false)).toThrow('audition_replan_scope');
+      // A legacy (no re-plan) run never accepts a grant that names a re-plan folder; legacy grants without one are unchanged.
+      expect(() => assertReplanAuditionScope(scope(anchor), undefined, false)).toThrow('audition_replan_scope');
+      expect(() => assertReplanAuditionScope(scope(undefined), undefined, false)).not.toThrow();
+    });
+
+    it('the audition grant schema accepts the anchor only on a rejudge, and legacy grants without it still parse', () => {
+      const shape = auditionGrantSchema.innerType().shape.scope.options.find((o: any) => o.shape.mode.value === 'rejudge')!.shape as any;
+      expect(shape.replan.safeParse(undefined).success).toBe(true);
+      expect(shape.replan.safeParse({ producerGrantSha256: 'a'.repeat(64), indexSha256: 'b'.repeat(64) }).success).toBe(true);
+      expect(shape.replan.safeParse({ producerGrantSha256: 'a'.repeat(64) }).success).toBe(false);
+    });
   });
 
   it('a well-formed, reviewed re-plan that drifted from the parent design is refused as NOT comparable', async () => {
