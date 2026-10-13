@@ -12,9 +12,9 @@ type Plan = { headersAfterMs?: number; bodyStallMs?: number; destroy?: boolean }
 const servers: http.Server[] = [];
 afterEach(async () => { await Promise.all(servers.splice(0).map(s => new Promise(r => { s.closeAllConnections?.(); s.close(() => r(null)); }))); });
 async function server(plan: Plan) {
-  const seen = { requests: 0, closed: 0, bodies: [] as string[] };
+  const seen = { requests: 0, closed: 0, bodies: [] as string[], connection: [] as (string | undefined)[] };
   const s = http.createServer((req, res) => {
-    seen.requests++;
+    seen.requests++; seen.connection.push(req.headers.connection);
     let body = ''; req.on('data', c => { body += c; }); req.on('end', () => seen.bodies.push(body));
     res.on('close', () => { seen.closed++; });
     if (plan.destroy) { setTimeout(() => req.socket.destroy(), 50); return; }
@@ -46,6 +46,24 @@ describe('long-call transport through the real OpenAI SDK (loopback, scaled time
     await settle();
     expect(s.seen).toMatchObject({ requests: 1, closed: 1 });
     expect(JSON.parse(s.seen.bodies[0])).toMatchObject({ model: 'gpt-6-astra', max_output_tokens: 10 });
+    // One connection per call: never kept for another request.
+    expect(s.seen.connection).toEqual(['close']);
+  });
+  it('a call whose signal is already aborted sends nothing', async () => {
+    const s = await server({});
+    const error = await longCallFetch(5000)(`${s.url}/responses`, { method: 'POST', body: '{}', signal: AbortSignal.abort() }).catch(e => e);
+    expect(error).toMatchObject({ name: 'AbortError', code: 'long_call_aborted', failure: { phase: 'headers' } });
+    await settle();
+    expect(s.seen.requests).toBe(0);
+  });
+  it('a failure cause is bounded and keeps only the names and codes of its low-level chain', () => {
+    const deep = Object.assign(new Error('socket hang up sk-should-not-appear'), { code: 'ECONNRESET' });
+    const error = Object.assign(new Error('x'.repeat(500)), { status: 502, cause: Object.assign(new TypeError('fetch failed'), { cause: deep }) });
+    const cause = providerFailureCause(error);
+    expect(cause).toMatchObject({ sdkError: 'Error', status: 502, transport: null,
+      lowLevel: [{ name: 'TypeError', code: null }, { name: 'Error', code: 'ECONNRESET' }] });
+    expect(cause.message).toHaveLength(160);
+    expect(JSON.stringify(cause)).not.toContain('sk-should-not-appear');
   });
   it('the call deadline (SDK timeout) governs: it times out once, with no retry, the socket is closed, and the cause is observed', async () => {
     const s = await server({ headersAfterMs: 3000 }), observed: unknown[] = [];
