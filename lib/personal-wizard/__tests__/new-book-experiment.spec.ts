@@ -972,7 +972,7 @@ describe('HOLD F1/F2 correction: one pinned HEAD and the complete request record
   });
 
   it('every source or record change after admission, up to and just past the amendment, refuses: before it, nothing is consumed; after it, no call', async () => {
-    type Event = 'head' | 'dirty' | 'request' | 'receipt';
+    type Event = 'head' | 'dirty' | 'request' | 'receipt' | 'claim';
     const resetSlot = () => { for (const d of [experimentDir(config), path.dirname(experimentClaimFile(config))]) {
       if (!path.resolve(d).startsWith(path.resolve(root))) throw Error('reset_boundary'); rmSync(d, { recursive: true, force: true }); } };
     async function boundaryRun(event: Event | null, at: number) {
@@ -986,6 +986,8 @@ describe('HOLD F1/F2 correction: one pinned HEAD and the complete request record
         fired = true;
         if (event === 'request') { const f = path.join(dir, 'request.json'); writeFileSync(f, JSON.stringify({ ...json(f), requestId: 'f'.repeat(64) })); }
         if (event === 'receipt') writeFileSync(receiptFile(), readFileSync(receiptFile(), 'utf8') + ' ');
+        // The same claim re-serialized: its meaning is unchanged, but it is no longer the claim the replay was admitted under.
+        if (event === 'claim') writeFileSync(experimentClaimFile(config), JSON.stringify(json(experimentClaimFile(config)), null, 4));
       };
       vi.mocked(frozen.gitAt).mockImplementation((_repo, args) => {
         const a = args.join(' ');
@@ -1009,12 +1011,13 @@ describe('HOLD F1/F2 correction: one pinned HEAD and the complete request record
     // At least: the run's one capture, the admission, the check after the asynchronous replay, and the amendment's own re-check.
     expect(beforeWrite).toBeGreaterThanOrEqual(4);
     const codes: Record<Event, RegExp> = { head: /^new_book_source_changed$/, dirty: /^new_book_source_changed$/,
-      request: /^new_book_continuation_(request_record|evidence)$/, receipt: /^new_book_continuation_evidence$/ };
-    // Read 1 is the capture itself (a run started at another HEAD is simply that HEAD). Read 2 is the admission's own source check, after
-    // which it hashes the records: a record changed there is what is admitted (and replayed), so record changes count from read 3.
+      request: /^new_book_continuation_(request_record|evidence)$/, receipt: /^new_book_continuation_evidence$/, claim: /^new_book_continuation(_evidence)?$/ };
+    // Read 1 is the capture itself (a run started at another HEAD is simply that HEAD). Read 2 opens the admission (its source check comes
+    // first, then it reads the claim and hashes the records): a record changed there is what is admitted and replayed, so record changes
+    // count from read 3. Every baseline checks the source first, so a change at a baseline's opening read is caught by that same baseline.
     // A corrupt request record is refused at any read.
-    const first: Record<Event, number> = { head: 2, dirty: 2, request: 2, receipt: 3 };
-    for (const event of ['head', 'dirty', 'request', 'receipt'] as Event[]) for (let at = first[event]; at <= beforeWrite + 1; at++) {
+    const first: Record<Event, number> = { head: 2, dirty: 2, request: 2, receipt: 3, claim: 3 };
+    for (const event of ['head', 'dirty', 'request', 'receipt', 'claim'] as Event[]) for (let at = first[event]; at <= beforeWrite + 1; at++) {
       const r = await boundaryRun(event, at), label = `${event}@${at}`;
       expect(`${label}: ${r.outcome}`).toMatch(new RegExp(`^${label}: ${codes[event].source.slice(1, -1)}$`));
       expect(`${label}: ${r.afterEvent.length} calls after the change, ${r.opusOrReader} story calls`).toBe(`${label}: 0 calls after the change, 0 story calls`);

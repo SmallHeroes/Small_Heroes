@@ -223,15 +223,15 @@ type ContinuationBaseline = { claimSha256: string; amended: NewBookContinuation 
   evidence: ReturnType<typeof originalTextEvidence> };
 /**
  * The continuation's admission baseline at ONE pinned HEAD (captured once by the caller and compared here, never re-read and adopted): the
- * unchanged claim; once amended, the amendment's own HEAD equal to the pin; the clean source at the pin; the failed text stage; the COMPLETE
- * saved request record, equal to the one the claimed configuration derives and naming the claim's request; the failed storyboard ledger;
- * and every original record by hash.
+ * clean source at the pin, checked first so that every record below is read after it; the unchanged claim; once amended, the amendment's
+ * own HEAD equal to the pin; the failed text stage; the COMPLETE saved request record, equal to the one the claimed configuration derives
+ * and naming the claim's request; the failed storyboard ledger; and every original record by hash.
  */
 function continuationBaseline(config: NewBookConfig, head: string, prepared: ReturnType<typeof prepareSimpleStory>): ContinuationBaseline {
+  assertExperimentSource(config, head);
   const { claim, claimSha256 } = verifiedClaim(config);
   const amended = readContinuation(config, claimSha256);
   if (amended && amended.sourceHead !== head) fail('new_book_source_changed');
-  assertExperimentSource(config, head);
   const dir = experimentDir(config), textDir = path.join(dir, 'text');
   if (sealedStatus(textDir) !== 'failed') fail('new_book_continuation_scope');
   const expected = experimentRequestRecord(prepared);
