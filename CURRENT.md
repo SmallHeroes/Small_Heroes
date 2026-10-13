@@ -1,5 +1,27 @@
 # SmallHeroes — Current Technical State
 
+## Codex HOLD on the new-book build (F1-F4) corrected offline (a3531a98), awaiting re-gate (2026-10-13)
+
+Codex HOLD at e5c26e37: F3/P1 the one-book approval could be reopened (another
+config.parent gave a fresh slot and $7 meter; the same grant with another
+audition out folder gave a fresh render meter) and Dini was admitted; F4/P1 the
+source pin did not reach the final rendering; F1/P2 the reader showed the
+sample-first drawing order; F2/P2 a held sample got the "supported" banner.
+Fixed: a durable claim in the git common dir (outside every configurable path)
+binds the experiment folder, the whole config digest and the HEAD, written
+before any paid call and re-verified before every stage and paid call; the
+grant names its experiment and is usable only through the new guarded
+"audition" stage (fixed output folder, one recorded fresh start, --resume
+continues the same meter); the generic runner refuses an experiment grant
+without its guard; Dini is refused. The guard runs first in the runner and
+before every claim (after a response only cancellation is checked, so an
+in-flight call is recorded with its cost and the next is refused). The book
+is presented cover then 1-8 (drawn order kept as scope.drawnOrder); the banner
+maps every status explicitly (unknown = held) with a partial note; neutral
+child identity label. Tests: new-book 29, audition 86; focused 10 files 343/343 (serial);
+mutants 75/75 (+6 equivalent); tsc0; legacy fingerprints identical; frozen-code control
+fails the new F1/F2 tests. Nothing paid; $7 stays inactive until PASS.
+
 ## New-book experiment built offline (d7743bdf): a fresh book from scratch, staged, awaiting Codex QA (2026-10-12)
 
 Guy chose (Decision Gate docs/ai-workflow/DECISION_NEW_BOOK_EXPERIMENT_20261012.md):

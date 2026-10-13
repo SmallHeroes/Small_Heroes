@@ -1,5 +1,11 @@
 # SmallHeroes — Roadmap
 
+## New-book HOLD corrected (a3531a98); next: Codex re-gate, then the staged run (2026-10-13)
+
+- Codex re-gates e5c26e37..(this docs commit). No paid stage before PASS.
+- After PASS: re-pin the config to the PASSed head, then text -> child ->
+  grant -> audition (resume only after an interruption) under the one $7 cap.
+
 ## New-book experiment built (d7743bdf); next: Codex QA, then the staged paid run (2026-10-12)
 
 - Codex QAs the offline build (range in the handoff) before ANY paid stage.
