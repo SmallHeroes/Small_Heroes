@@ -1,5 +1,26 @@
 # SmallHeroes — Current Technical State
 
+## Re-gate HOLD (residual F4) corrected (6df79373): guard re-checked right before every claim (2026-10-13)
+
+Codex re-gate at 6eb8e7e3: F1, F2, F3 PASS; residual F4 P1 - the reviewed-
+audition judge checked the guard before its asynchronous crop preparation but
+not again before the claim. Fixed: the judge re-checks right before the claim;
+the shared reference pixel judge (child reference) does too, and after a
+response it now reports the real cause (cost kept in the receipt) instead of a
+schema error; the child stage's render adapter carries the claim guard, so the
+one repair edit after a judgment is refused before its claim if the source
+moved. Other await-before-claim edges audited (render, identity, text stage:
+synchronous check-to-claim). Tests: the four acceptance cases on the real
+adapter and crop builder, the legacy no-guard route, the child judge window and
+the child repair (mid-call and after settling); 4 fail against frozen 6eb8e7e3;
+mutants 8/8; 10 focused 351/351 serial; simple-book-flow 179/181 run alone (pre-existing 12m/14m budget test; one 180s timeout under a slow full run that passes alone at current 104s and base 99s); tsc0; legacy
+fingerprints identical. Product (Guy, 10/13): every book is written fresh at
+order time; the 18 bank stories are retired and not connected to the new engine
+(75-module closure, no bank module); no required categories. Still in the code:
+the 10 optional old topics (wizard/contract) and the 14 random plot spines in
+the simple writer - a separate decision (proposal: keep spines for this book,
+decide after reading it). Nothing paid; $7 stays inactive until PASS.
+
 ## Codex HOLD on the new-book build (F1-F4) corrected offline (a3531a98), awaiting re-gate (2026-10-13)
 
 Codex HOLD at e5c26e37: F3/P1 the one-book approval could be reopened (another

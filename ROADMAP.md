@@ -1,5 +1,14 @@
 # SmallHeroes — Roadmap
 
+## Residual F4 corrected (6df79373); next: Codex re-gate, then the staged new book (2026-10-13)
+
+- Codex re-gates 6eb8e7e3..(this docs commit). No paid stage before PASS.
+- After PASS: re-pin the config, then text -> child -> grant -> audition under
+  the one $7 cap; Guy reads the story and judges the book.
+- Separate later decisions: plot spines (keep / suggestion / writer's choice)
+  and replacing the old optional topics with free-form intent in the wizard;
+  retiring the bank path in production.
+
 ## New-book HOLD corrected (a3531a98); next: Codex re-gate, then the staged run (2026-10-13)
 
 - Codex re-gates e5c26e37..(this docs commit). No paid stage before PASS.
