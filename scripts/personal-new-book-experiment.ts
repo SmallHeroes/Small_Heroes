@@ -4,10 +4,11 @@
  *   text  - Opus author + fresh Opus editor (Claude Max), blind Sol readers, Astra storyboard + Sol review (moments + landmark-kind contracts)
  *   child - the fictional child reference from its written design (no photo), pixel-judged; one targeted repair only for an evidenced defect
  *   grant - the audition grant for the remaining API allowance, with an early continuity sample (no provider)
- * then personal-simple-book-reviewed-audition.ts --layout <experiment>/book-layout.json draws the sheets, the sample and, only if the sample
- * is qa_supported, the rest of the book. Dry by default; nothing is retried; every paid call is journaled before dispatch.
+ *   audition - the reviewed-audition runner on this book, guarded by the claim and source pin before every paid call: the sheets, the
+ *     sample and, only if the sample is qa_supported, the rest of the book. Started once; --resume continues the same ledger.
+ * Dry by default; nothing is retried; every paid call is journaled before dispatch.
  *   node --require ./scripts/shims/register-server-only.cjs --import tsx scripts/personal-new-book-experiment.ts \
- *     --config <abs config.json> <plan|text|child|grant> [--execute]
+ *     --config <abs config.json> <plan|text|child|grant|audition> [--execute [--resume]]
  * Not production, customer, wizard or release authority. Every artifact is runtime-ineligible; acceptance is Guy's.
  */
 import path from 'node:path';
@@ -24,7 +25,7 @@ import { safeUsage } from './personal-story-trial-guard';
 import { simpleWizardVisualPayload } from './personal-simple-wizard-worker';
 import { createSimpleBookPixelJudge } from './personal-simple-book-illustrator';
 import { AuditionMeter, auditionAdapters, keyReader, loadReviewedBook, loadReviewedStoryboard, reviewedChildDesign, reviewedBookLayoutSchema,
-  readReviewedBookLayout, type AuditionGrant, type ReviewedBookLayout } from './personal-simple-book-reviewed-audition';
+  readReviewedBookLayout, runReviewedAudition, type AuditionGrant, type ReviewedBookLayout } from './personal-simple-book-reviewed-audition';
 import { resolvePersonalWizardOptions } from '../lib/personal-wizard/options';
 import { prepareSimpleStory } from '../lib/personal-wizard/simple-story-engine';
 import { runSimpleWizardBook } from '../lib/personal-wizard/simple-book-flow';
@@ -54,6 +55,8 @@ export const NEW_BOOK_EXPERIMENT = Object.freeze({
   approval: 'Guy 2026-10-12, AskUserQuestion on Decision Gate DECISION-GATE-NEW-BOOK-EXPERIMENT-20261012: Experimental CLI path; $7 API cap, staged, effective only after Codex QA of the offline build; continue automatically when the 2 sample pages pass the gates; Claude picks a new fictional child and a companion other than Dini. Claude Max is reported separately.',
   contracts: Object.freeze({ actorOwnedAppearance: true as const, momentContract: true as const, landmarkKindContract: true as const }),
   claudeMax: 'Claude Max usage is separate: not an API invoice, not $0 and not included in this ledger' as const,
+  /** Guy: "a companion other than Dini". */
+  excludedCompanions: Object.freeze(['dragon_dini']),
 });
 const SOL = 'gpt-6.1-sol' as const;
 const RATES = { opus: { inputMicroUsdPerToken: 4, outputMicroUsdPerToken: 20 }, astra: { inputMicroUsdPerToken: 10, outputMicroUsdPerToken: 50 },
@@ -95,7 +98,42 @@ export const experimentLayout = (config: NewBookConfig, childImage = 'reference_
 export function prepareExperimentRequest(config: NewBookConfig) {
   const options = resolvePersonalWizardOptions(config.workspace), prepared = prepareSimpleStory(config.request, options, config.seed);
   if (prepared.book.pages !== 8 || prepared.accepted.containsFixtureData || prepared.accepted.canonical.appearance.photo !== 'none') fail('new_book_request');
+  if (NEW_BOOK_EXPERIMENT.excludedCompanions.includes(prepared.accepted.canonical.companion.id)) fail('new_book_companion_scope');
   return { options, prepared };
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// The approval's durable claim: one record per approved slot in the repository's git common dir, outside every configurable path.
+// It binds the experiment folder, the whole configuration and the source HEAD the first paid stage ran at. Every later stage and every
+// paid call re-checks it, so another parent folder, an edited configuration or a moved HEAD cannot reopen or redirect the allowance.
+// ---------------------------------------------------------------------------------------------------------------
+export function experimentClaimFile(config: NewBookConfig) {
+  const common = gitAt(config.workspace, ['rev-parse', '--path-format=absolute', '--git-common-dir']).toString().trim();
+  realDirectory(common);
+  return path.join(common, 'claude-new-book-experiments', `${NEW_BOOK_EXPERIMENT.slot}.claim.json`);
+}
+const claimSchema = z.object({ version: z.literal('new-book-experiment-claim/v1'), slot: z.literal(NEW_BOOK_EXPERIMENT.slot),
+  approval: z.literal(NEW_BOOK_EXPERIMENT.approval), experimentDir: z.string().min(1), configSha256: hash, sourceHead: z.string().regex(/^[a-f0-9]{40}$/),
+  requestId: hash }).strict();
+const sameDir = (a: string, b: string) => path.resolve(a).toLowerCase() === path.resolve(b).toLowerCase();
+/** Consumes the one approval before the first paid call. A claim that exists for any folder or configuration refuses. */
+function claimExperiment(config: NewBookConfig, requestId: string) {
+  const file = experimentClaimFile(config);
+  if (existsSync(file)) fail('new_book_slot_used');
+  if (!existsSync(path.dirname(file))) { try { mkdirSync(path.dirname(file)); } catch { if (!existsSync(path.dirname(file))) fail('new_book_claim'); } }
+  try { exclusiveJson(file, claimSchema.parse({ version: 'new-book-experiment-claim/v1', slot: NEW_BOOK_EXPERIMENT.slot, approval: NEW_BOOK_EXPERIMENT.approval,
+    experimentDir: path.resolve(experimentDir(config)), configSha256: sha(canonicalJson(config)), sourceHead: config.sourceHead, requestId })); }
+  catch { fail('new_book_slot_used'); }
+}
+/** The claim this configuration made, unchanged, and the source still at the claimed HEAD with a clean tree. Checked before every paid call. */
+export function assertExperimentClaim(config: NewBookConfig) {
+  const file = experimentClaimFile(config);
+  if (!existsSync(file)) return fail('new_book_claim');
+  const bytes = readFileSync(file), parsed = claimSchema.safeParse(JSON.parse(bytes.toString('utf8')));
+  if (!parsed.success || !sameDir(parsed.data.experimentDir, experimentDir(config)) || parsed.data.configSha256 !== sha(canonicalJson(config)) ||
+      parsed.data.sourceHead !== config.sourceHead) return fail('new_book_claim');
+  assertExperimentSource(config);
+  return { claim: parsed.data, claimSha256: sha(bytes) };
 }
 /** The verified API spend of one finished stage (after the earlier stages' `prior`): no unknown cost or outcome, and it equals the stage's saved spend record. */
 export function stageLedger(stageDir: string, maxCalls: number, prior = 0) {
@@ -123,7 +161,10 @@ export async function runNewBookText(args: { config: NewBookConfig; signal: Abor
   if (!args.transports?.opus && sha(readFileSync(config.executable)) !== config.executableSha256) fail('new_book_executable_changed');
   const { options, prepared } = prepareExperimentRequest(config);
   const dir = experimentDir(config), textDir = path.join(dir, 'text'), cliWorkspace = path.join(textDir, 'cli-workspace');
-  // Single use: the slot folder is created exactly once.
+  // Single use: the approval is claimed once (any folder), then the slot folder is created exactly once. A folder that already exists
+  // is refused before the claim, so it never consumes the approval.
+  if (existsSync(dir)) fail('new_book_slot_used');
+  claimExperiment(config, prepared.accepted.requestId);
   try { mkdirSync(dir); } catch { fail('new_book_slot_used'); }
   mkdirSync(textDir); mkdirSync(cliWorkspace);
   const request = prepared.accepted.canonical;
@@ -138,7 +179,7 @@ export async function runNewBookText(args: { config: NewBookConfig; signal: Abor
   const reader = args.transports?.reader ?? createAstraCausalTransport({ key, rates: RATES.sol, model: SOL });
   const responses: Responses = args.transports?.responses ?? (async (payload, s, timeout) =>
     new OpenAI({ apiKey: key(), baseURL: 'https://api.openai.com/v1', maxRetries: 0, logLevel: 'off' }).responses.create(payload, { signal: s, timeout }));
-  const check = () => { if (signal.aborted) fail('new_book_cancelled'); assertExperimentSource(config); };
+  const check = () => { if (signal.aborted) fail('new_book_cancelled'); assertExperimentClaim(config); };
   const conversation = (stage: string) => `new-book:${prepared.accepted.requestId}:${stage}`;
   let storyboardDraft: unknown = null;
   // The first failed paid call's own code is the stage's cause (the story/storyboard layers re-wrap callback errors).
@@ -218,7 +259,7 @@ export type ChildAdapters = { render?: Render; judge?: Judge };
 
 export async function runNewBookChild(args: { config: NewBookConfig; signal: AbortSignal; log: (line: string) => void; adapters?: ChildAdapters }) {
   const { config, signal } = args;
-  assertExperimentSource(config);
+  assertExperimentClaim(config);
   const dir = experimentDir(config), textDir = path.join(dir, 'text'), childDir = path.join(dir, 'child'), images = path.join(childDir, 'illustrations');
   realDirectory(dir);
   if (sealedStatus(textDir) !== 'review_supported') fail('new_book_text_not_supported');
@@ -228,7 +269,7 @@ export async function runNewBookChild(args: { config: NewBookConfig; signal: Abo
   mkdirSync(images);
   const meter = new AuditionMeter(path.join(childDir, 'paid-stages'), NEW_BOOK_EXPERIMENT.apiCapMicroUsd, CHILD_API_CALLS, prior.knownMicroUsd);
   const save = (name: string, value: unknown) => exclusiveJson(path.join(childDir, `${name}.json`), value);
-  const check = () => { if (signal.aborted) fail('new_book_cancelled'); assertExperimentSource(config); };
+  const check = () => { if (signal.aborted) fail('new_book_cancelled'); assertExperimentClaim(config); };
   const key = keyReader(config.keyEnvFile);
   const io = args.adapters?.render ? null : auditionAdapters({ directory: images, meter, key, signal });
   const render: Render = args.adapters?.render ?? ((step, prompt, refs, mode) => io!.render(step, prompt, refs, mode));
@@ -276,7 +317,7 @@ export function earliestSameScenePair(book: Pick<PersonalStoryboard, 'narrativeS
 }
 
 export function writeNewBookGrant(config: NewBookConfig) {
-  assertExperimentSource(config);
+  const { claimSha256 } = assertExperimentClaim(config);
   const dir = experimentDir(config), textDir = path.join(dir, 'text'), childDir = path.join(dir, 'child');
   if (sealedStatus(textDir) !== 'review_supported' || sealedStatus(childDir) !== 'child_reference_passed') fail('new_book_stage_not_passed');
   const layout = readReviewedBookLayout(path.join(dir, 'book-layout.json'));
@@ -291,9 +332,38 @@ export function writeNewBookGrant(config: NewBookConfig) {
       note: `New-book experiment ledger: starts at $0 for this book under the one $7 API cap; text stage and child reference recorded above. The Goni book's ledger is separate and unchanged.` },
     capMicroUsd: NEW_BOOK_EXPERIMENT.apiCapMicroUsd, maxCalls: AUDITION_WORST_CASE_CALLS,
     scope: { mode: 'render', pages: [0, 1, 2, 3, 4, 5, 6, 7, 8], sample: earliestSameScenePair(loaded.book) },
-    claudeMax: NEW_BOOK_EXPERIMENT.claudeMax };
+    claudeMax: NEW_BOOK_EXPERIMENT.claudeMax,
+    // Usable only through this experiment's guarded audition stage (never a bare runner with another output folder).
+    experiment: { slot: NEW_BOOK_EXPERIMENT.slot, claimSha256 } };
   exclusiveJson(path.join(dir, 'audition.grant.json'), grant);
   return grant;
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// Stage 4: the reviewed audition through the guarded runner. One fresh start (recorded beside the claim); a resume continues the SAME
+// output folder and meter, so every settled or reserved cost carries forward. The output folder is fixed inside the claimed slot.
+// ---------------------------------------------------------------------------------------------------------------
+export const experimentAuditionStart = (config: NewBookConfig) =>
+  path.join(path.dirname(experimentClaimFile(config)), `${NEW_BOOK_EXPERIMENT.slot}.audition.json`);
+export async function runNewBookAudition(args: { config: NewBookConfig; signal: AbortSignal; log: (line: string) => void; resume?: true }) {
+  const { config } = args;
+  const { claimSha256 } = assertExperimentClaim(config);
+  const dir = experimentDir(config), grantFile = path.join(dir, 'audition.grant.json'), out = path.join(dir, 'audition');
+  if (sealedStatus(path.join(dir, 'text')) !== 'review_supported' || sealedStatus(path.join(dir, 'child')) !== 'child_reference_passed' ||
+      !existsSync(grantFile)) fail('new_book_stage_not_passed');
+  const grant = read(grantFile), grantSha256 = sha(readFileSync(grantFile));
+  if (grant.experiment?.slot !== NEW_BOOK_EXPERIMENT.slot || grant.experiment?.claimSha256 !== claimSha256) fail('new_book_grant_binding');
+  const start = experimentAuditionStart(config), record = { version: 'new-book-audition-start/v1', out: path.resolve(out), grantSha256, claimSha256 };
+  if (args.resume) {
+    if (!existsSync(start) || canonicalJson(read(start)) !== canonicalJson(record) || !existsSync(out)) fail('new_book_audition_binding');
+  } else {
+    if (existsSync(start) || existsSync(out)) fail('new_book_audition_used');
+    exclusiveJson(start, record);
+  }
+  process.env.GPT_IMAGE_EDIT_MAX_REFERENCES ??= '4';
+  return runReviewedAudition({ bookDir: dir, out, keyFile: config.keyEnvFile, grantFile, signal: args.signal, log: args.log,
+    layout: readReviewedBookLayout(path.join(dir, 'book-layout.json')), ...(args.resume ? { resume: true as const } : {}),
+    experiment: { slot: NEW_BOOK_EXPERIMENT.slot, claimSha256, guard: () => { assertExperimentClaim(config); } } });
 }
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -304,20 +374,26 @@ export function planNewBook(config: NewBookConfig) {
   return { experiment: NEW_BOOK_EXPERIMENT.slot, directory: dir, requestId: prepared.accepted.requestId, pages: prepared.book.pages,
     child: { age: prepared.brief.child.age, address: prepared.brief.child.address }, companion: (config.request as { companion?: { id?: string } }).companion?.id ?? null,
     contracts: NEW_BOOK_EXPERIMENT.contracts, apiCapMicroUsd: NEW_BOOK_EXPERIMENT.apiCapMicroUsd,
-    stages: { text: sealedStatus(path.join(dir, 'text')), child: sealedStatus(path.join(dir, 'child')), grant: existsSync(path.join(dir, 'audition.grant.json')) },
+    claimed: existsSync(experimentClaimFile(config)),
+    stages: { text: sealedStatus(path.join(dir, 'text')), child: sealedStatus(path.join(dir, 'child')), grant: existsSync(path.join(dir, 'audition.grant.json')),
+      audition: existsSync(experimentAuditionStart(config)) },
     providerCalls: 0, keyRead: false, runtimeEligible: false };
 }
 
 export async function newBookExperimentCLI(argv: string[], deps: { text?: TextTransports; child?: ChildAdapters; log?: (line: string) => void } = {}) {
-  if (argv.length < 3 || argv.length > 4 || argv[0] !== '--config' || !['plan', 'text', 'child', 'grant'].includes(argv[2]) ||
-      argv.length === 4 && argv[3] !== '--execute') fail('new_book_arguments');
-  const config = newBookConfig(argv[1]), stage = argv[2], execute = argv[3] === '--execute', log = deps.log ?? (line => console.log(line));
+  const flags = argv.slice(3);
+  if (argv.length < 3 || argv.length > 5 || argv[0] !== '--config' || !['plan', 'text', 'child', 'grant', 'audition'].includes(argv[2]) ||
+      flags.some(f => f !== '--execute' && f !== '--resume') || new Set(flags).size !== flags.length ||
+      flags.includes('--resume') && (argv[2] !== 'audition' || !flags.includes('--execute'))) fail('new_book_arguments');
+  const config = newBookConfig(argv[1]), stage = argv[2], execute = flags.includes('--execute'), log = deps.log ?? (line => console.log(line));
   if (stage === 'plan' || !execute) return { mode: 'plan' as const, plan: planNewBook(config) };
   const controller = new AbortController(), interrupt = () => controller.abort(); process.on('SIGINT', interrupt);
   try {
     if (stage === 'text') return { mode: 'text' as const, ...await runNewBookText({ config, signal: controller.signal, log, contracts: NEW_BOOK_EXPERIMENT.contracts,
       ...(deps.text ? { transports: deps.text } : {}) }) };
     if (stage === 'child') return { mode: 'child' as const, ...await runNewBookChild({ config, signal: controller.signal, log, ...(deps.child ? { adapters: deps.child } : {}) }) };
+    if (stage === 'audition') return { mode: 'audition' as const, result: await runNewBookAudition({ config, signal: controller.signal, log,
+      ...(flags.includes('--resume') ? { resume: true as const } : {}) }) };
     return { mode: 'grant' as const, grant: writeNewBookGrant(config) };
   } finally { process.off('SIGINT', interrupt); }
 }

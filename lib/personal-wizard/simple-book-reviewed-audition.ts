@@ -670,15 +670,17 @@ export async function illustrateReviewedAudition(args: {
   if (sample && pages.length === sample.length && pages.some(p => p.status !== 'qa_supported')) heldSample = true;
   const complete = !heldSample && frames.length === args.book.narrativeSpreads + 1;
   const allSupported = pages.every(p => p.status === 'qa_supported') && refs.entities.status === 'approved_reference' && refs.locations.status === 'approved_reference';
+  // The reader's order is the book's order (cover, then pages); a sample changes only the drawing order, which is recorded separately.
+  const presented = [...pages].sort((a, b) => a.pageNumber - b.pageNumber);
   const manifest = { version: 'reviewed-simple-book-audition/v2', policy, sourceDigest: args.book.sourceDigest, storyboardDigest: args.book.storyboardDigest,
     ...(args.book.landmarkKind ? { landmarkKind: args.book.landmarkKind } : {}),
-    scope: { frames: heldSample ? pages.map(p => p.pageNumber) : frames, complete,
-      ...(sample ? { sample, ...(heldSample ? { requestedFrames: frames, stoppedAfterSample: true as const } : {}) } : {}) },
+    scope: { frames: heldSample ? presented.map(p => p.pageNumber) : frames, complete,
+      ...(sample ? { sample, drawnOrder: pages.map(p => p.pageNumber), ...(heldSample ? { requestedFrames: frames, stoppedAfterSample: true as const } : {}) } : {}) },
     status: heldSample ? 'held_sample' : allSupported ? (complete ? 'qa_supported_audition' : 'qa_supported_sample') : 'held_audition_with_findings',
     references: { child: args.child, companion: args.companion, entities: refs.entities.image, locations: refs.locations.image },
     sheets: { entities: summary('sheet', sheets.entities, refs.entities.status), locations: summary('sheet', sheets.locations, refs.locations.status) },
     pageDeferred: designs.pageDeferred,
-    pages: pages.map(p => ({ pageNumber: p.pageNumber, candidate: p.chosen.candidate, ...summary('page', p),
+    pages: presented.map(p => ({ pageNumber: p.pageNumber, candidate: p.chosen.candidate, ...summary('page', p),
       identityScore: p.chosen.identity?.resemblanceScore ?? null, identityPassed: identityPassed(p.chosen.identity) })),
     approval: 'none: qa_supported is an automated audition label, not product acceptance or production qualification' as const,
     runtimeEligible: false as const, productionQualified: false as const, ownerReviewRequired: true as const };
@@ -731,12 +733,17 @@ export function reviewedAuditionHTML(manifest: Awaited<ReturnType<typeof illustr
       a.counts ? ` · ${AUDITION_IMPACTS.filter(i => a.counts![i]).map(i => `${IMPACT_HE[i]} ${a.counts![i]}`).join(', ')}` : ''}</figcaption></figure>`).join('')}</div></details>` : '';
   const pages = manifest.pages.map(p => `<section><img alt="${p.pageNumber ? `איור לעמוד ${p.pageNumber}` : 'כריכה'}" src="${esc(imageData(p.candidate, 'full'))}">
 <h2>${p.pageNumber ? `עמוד ${p.pageNumber}` : esc(story.title)}</h2><p class="text">${p.pageNumber ? esc(story.pages[p.pageNumber - 1].text) : ''}</p>
-<div class="qa ${p.status}"><b>${esc(STATUS_HE[p.status] ?? p.status)}</b> · ניסיון ${p.chosenAttempt + 1} · זהות הילדה: ${p.identityScore === null ? 'לא נמדדה' : p.identityScore.toFixed(2)}${p.identityPassed ? '' : ' (לא עומד בסף 0.70)'}${findings(p.findings)}${alternatives(p.alternatives)}</div></section>`).join('\n');
+<div class="qa ${p.status}"><b>${esc(STATUS_HE[p.status] ?? p.status)}</b> · ניסיון ${p.chosenAttempt + 1} · זהות הילד/ה: ${p.identityScore === null ? 'לא נמדדה' : p.identityScore.toFixed(2)}${p.identityPassed ? '' : ' (לא עומד בסף 0.70)'}${findings(p.findings)}${alternatives(p.alternatives)}</div></section>`).join('\n');
   const sheet = (name: string, image: AuditionImage, s?: ReturnType<typeof summary>) => `<figure><img alt="${name}" src="${esc(imageData(image, 'full'))}"><figcaption>${name}${
     s ? ` · ${s.referenceStatus === 'approved_reference' ? 'רפרנס נתמך' : 'מועמד אבחוני עם פגמים ידועים'}` : ''}</figcaption>${s ? findings(s.findings) : ''}</figure>`;
-  const bookStatus = manifest.status === 'held_audition_with_findings' ? 'מוחזק — יש ממצאים שגיא צריך לראות' : 'נתמך בבדיקה האוטומטית בלבד';
+  // Explicit per status; anything unrecognised reads as held, never as supported. A partial scope says what was drawn.
+  const BOOK_STATUS_HE: Record<string, string> = { qa_supported_audition: 'נתמך בבדיקה האוטומטית בלבד',
+    qa_supported_sample: 'דגימה חלקית — נתמכת בבדיקה האוטומטית בלבד', held_audition_with_findings: 'מוחזק — יש ממצאים שגיא צריך לראות',
+    held_sample: 'מוחזק — הדגימה המוקדמת לא עברה, ושאר הספר לא צויר' };
+  const bookStatus = BOOK_STATUS_HE[manifest.status] ?? 'מוחזק — מצב לא מוכר';
+  const partial = manifest.scope.complete ? '' : ` ספר חלקי: צוירו ${manifest.pages.map(p => p.pageNumber ? `עמוד ${p.pageNumber}` : 'כריכה').join(', ')}.`;
   return `<!doctype html><html lang="he" dir="rtl"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${esc(story.title)}</title>
 <style>body{background:#f5f0e6;color:#263542;margin:0;font:21px/1.8 Arial,sans-serif}main{max-width:900px;margin:auto;padding:28px}section,figure{background:#fffdf7;padding:24px;margin:24px 0;border-radius:18px;box-shadow:0 5px 30px #293c4820}img{width:100%;display:block;border-radius:12px}.text{white-space:pre-line}h1,h2{text-align:center}.qa{font-size:15px;color:#4c5862;border-top:1px solid #e3dccd;margin-top:14px;padding-top:10px}.qa li{margin:6px 0}.qa.held{border-top:3px solid #c9822b}.qa.qa_supported{border-top:3px solid #3c7a4a}.ok{color:#3c7a4a}.refs{display:grid;grid-template-columns:1fr 1fr;gap:16px}figure{margin:0}.alts{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.alts figure{padding:6px;margin:0;box-shadow:none}.alts figcaption{font-size:12px}@media(max-width:600px){main,section{padding:14px}body{font-size:18px}.refs,.alts{grid-template-columns:1fr}}</style>
-<main><h1>${esc(story.title)}</h1><p>אודישן מאויר לבדיקה של גיא, איכות LOW. מצב: <b>${bookStatus}</b>. לא אישור מוצר ולא אישור לייצור.</p>${pages}
+<main><h1>${esc(story.title)}</h1><p>אודישן מאויר לבדיקה של גיא, איכות LOW. מצב: <b>${bookStatus}</b>.${partial} לא אישור מוצר ולא אישור לייצור.</p>${pages}
 <h2>רפרנסים</h2><div class="refs">${sheet('child', manifest.references.child)}${sheet('companion', manifest.references.companion)}${sheet('entities', manifest.references.entities, manifest.sheets.entities)}${sheet('locations', manifest.references.locations, manifest.sheets.locations)}</div></main></html>`;
 }

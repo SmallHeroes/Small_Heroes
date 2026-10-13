@@ -253,6 +253,8 @@ export const auditionGrantSchema = z.object({
       replan: z.object({ producerGrantSha256: hash, indexSha256: hash }).strict().optional() }).strict(),
   ]),
   claudeMax: z.literal('Claude Max usage is separate: not an API invoice, not $0 and not included in this ledger'),
+  /** A grant issued to one approved experiment: usable only through that experiment's guard (its claim, source pin and fixed output). */
+  experiment: z.object({ slot: z.string().regex(/^[a-z0-9-]{1,60}$/), claimSha256: hash }).strict().optional(),
 }).strict().superRefine((g, ctx) => {
   // A grant can only extend the ledger it names, by at most USD 8 of new API estimate.
   if (g.capMicroUsd <= g.ledger.priorKnownApiMicroUsd || g.capMicroUsd - g.ledger.priorKnownApiMicroUsd > 8000000)
@@ -391,8 +393,10 @@ export async function auditionJudgePayload(args: { candidate: AuditionImage; can
 }
 
 /** The paid adapters (render, judge, identity) over one illustrations folder and one meter. Shared with the new-book experiment. */
-export function auditionAdapters(args: { directory: string; meter: AuditionMeter; key: () => string; signal: AbortSignal }) {
-  const check = () => { if (args.signal.aborted) fail('audition_cancelled'); };
+export function auditionAdapters(args: { directory: string; meter: AuditionMeter; key: () => string; signal: AbortSignal; guard?: () => void }) {
+  const cancelled = () => { if (args.signal.aborted) fail('audition_cancelled'); };
+  // Before a claim: cancellation and the caller's guard. After a provider response (inside a claim): cancellation only.
+  const check = () => { cancelled(); args.guard?.(); };
   const writeImage = async (name: string, bytes: Buffer) => {
     if (!/^[a-z0-9_]+\.png$/.test(name)) fail('audition_image_path');
     const meta = await sharp(bytes).metadata();
@@ -427,7 +431,7 @@ export function auditionAdapters(args: { directory: string; meter: AuditionMeter
         if (generated.model !== 'gpt-image-2' || generated.fallbackUsed) throw Object.assign(new ReviewedAuditionError('audition_image_model'), { receipt: { raw: digestImages(raw), estimatedMicroUsd: cost } });
         const meta = await sharp(generated.buffer).metadata();
         if (meta.width !== 1024 || meta.height !== 1024) throw Object.assign(new ReviewedAuditionError('audition_image_dimensions'), { receipt: { raw: digestImages(raw), estimatedMicroUsd: cost } });
-        const candidate = await writeImage(`${step}.png`, generated.buffer); check();
+        const candidate = await writeImage(`${step}.png`, generated.buffer); cancelled();
         return { value: candidate, estimatedMicroUsd: cost, receipt: { raw: digestImages(raw), estimatedMicroUsd: cost, model: generated.model, candidate } };
       } catch (error) {
         if (error && typeof error === 'object' && 'receipt' in error) throw error;
@@ -443,7 +447,7 @@ export function auditionAdapters(args: { directory: string; meter: AuditionMeter
     const payload = await auditionJudgePayload({ candidate, candidateBytes: bytesOf(candidate), context, contextSha, refs: refs.map(r => bytesOf(r)),
       predecessor: predecessor ? bytesOf(predecessor) : null, kind });
     return args.meter.run(step, digestImages(payload), 600000, async () => {
-      check(); const client = new OpenAI({ apiKey: args.key(), baseURL: 'https://api.openai.com/v1', maxRetries: 0, logLevel: 'off' });
+      cancelled(); const client = new OpenAI({ apiKey: args.key(), baseURL: 'https://api.openai.com/v1', maxRetries: 0, logLevel: 'off' });
       const raw = await client.responses.create(payload, { signal: args.signal, timeout: 300000 });
       const estimatedMicroUsd = raw.model === REVIEW_MODEL && raw.service_tier === 'default' ? auditionUsageCost(raw.usage, 'sol') : null;
       const receipt = { raw, estimatedMicroUsd };
@@ -492,15 +496,20 @@ export function assertReplanAuditionScope(scope: AuditionGrant['scope'],
 }
 
 export async function runReviewedAudition(args: { bookDir: string; out: string; keyFile: string; grantFile: string; signal: AbortSignal;
-  log: (line: string) => void; resume?: true; storyboardDir?: string; layout?: ReviewedBookLayout }) {
+  log: (line: string) => void; resume?: true; storyboardDir?: string; layout?: ReviewedBookLayout;
+  /** Required exactly for a grant issued to an experiment: its slot, claim and guard (claim + source pin), run before every paid call. */
+  experiment?: { slot: string; claimSha256: string; guard: () => void } }) {
+  args.experiment?.guard();
   const loaded = loadReviewedBook(args.bookDir, process.cwd(), args.storyboardDir, args.layout);
   const { grant, sha256: grantSha256 } = readAuditionGrant(args.grantFile, { requestId: loaded.queued.requestId, storyboardDigest: loaded.book.storyboardDigest });
+  if (!!grant.experiment !== !!args.experiment || grant.experiment && (grant.experiment.slot !== args.experiment!.slot ||
+      grant.experiment.claimSha256 !== args.experiment!.claimSha256)) fail('audition_experiment_guard');
   assertReplanAuditionScope(grant.scope, loaded.replan, args.resume === true);
   if (existsSync(args.out) !== !!args.resume) fail(args.resume ? 'audition_resume_missing' : 'audition_out_exists');
   if (!args.resume) mkdirSync(args.out); realDirectory(args.out);
   const directory = path.join(args.out, 'illustrations'); if (!args.resume) mkdirSync(directory); realDirectory(directory);
   const meter = new AuditionMeter(path.join(args.out, 'paid-stages'), grant.capMicroUsd, grant.maxCalls, grant.ledger.priorKnownApiMicroUsd);
-  const io = auditionAdapters({ directory, meter, key: keyReader(args.keyFile), signal: args.signal });
+  const io = auditionAdapters({ directory, meter, key: keyReader(args.keyFile), signal: args.signal, ...(args.experiment ? { guard: args.experiment.guard } : {}) });
   const save = (name: string, value: unknown) => exclusiveJson(path.join(args.out, `${name}.json`), value);
   const admission = (child: AuditionImage, companion: AuditionImage) => JSON.parse(JSON.stringify({ version: 'reviewed-simple-book-audition-admission/v2',
     requestId: loaded.queued.requestId, sourceDigest: loaded.book.sourceDigest, storyboardDigest: loaded.book.storyboardDigest, child, companion,

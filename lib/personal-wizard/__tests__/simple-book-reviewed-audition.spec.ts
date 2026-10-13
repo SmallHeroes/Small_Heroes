@@ -934,3 +934,37 @@ describe('early sample: drawn first, the rest only when every sample page is sup
     await expect(illustrateReviewedAudition({ ...h.args, pages: [0, 1, 2], sample: [3] })).rejects.toThrow('audition_sample_scope');
   });
 });
+
+describe('the finished book reads in book order and says honestly what it is', () => {
+  const html = (m: Awaited<ReturnType<typeof illustrateReviewedAudition>>) =>
+    reviewedAuditionHTML(m, { title: 'Title', pages: texts.map(text => ({ text })) }, (i, size) => `data:${size}:${i.imageName}`);
+  const readerOrder = (page: string) => [...page.matchAll(/<img alt="(כריכה|איור לעמוד (\d))"/g)].map(m => m[2] ? Number(m[2]) : 0);
+  it.each([[[1, 2]], [[4, 5]]])('sample %j: drawn first, presented as the cover then pages 1-8', async sample => {
+    const h = harness(), m = await illustrateReviewedAudition({ ...h.args, sample });
+    expect(m.pages.map(p => p.pageNumber)).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8]);
+    expect(m.scope).toMatchObject({ drawnOrder: [...sample, ...[0, 1, 2, 3, 4, 5, 6, 7, 8].filter(n => !sample.includes(n))] });
+    expect(readerOrder(html(m))).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8]);
+    // Provenance stays with its page.
+    for (const p of m.pages) expect(p.candidate.imageName).toBe(`page_${p.pageNumber}_0.png`);
+  });
+  it('without a sample the manifest is unchanged (no drawn-order field) and still reads in book order', async () => {
+    const h = harness(), m = await illustrateReviewedAudition(h.args);
+    expect(m.scope).toEqual({ frames: [0, 1, 2, 3, 4, 5, 6, 7, 8], complete: true });
+    expect(readerOrder(html(m))).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8]);
+  });
+  it('banner per status: supported, supported sample (partial), held, held sample (partial), and held for anything unknown', async () => {
+    const full = await illustrateReviewedAudition(harness().args);
+    expect(html(full)).toContain('מצב: <b>נתמך בבדיקה האוטומטית בלבד</b>. לא אישור');
+    const part = await illustrateReviewedAudition({ ...harness().args, pages: [3, 4] });
+    expect(part.status).toBe('qa_supported_sample');
+    expect(html(part)).toContain('מצב: <b>דגימה חלקית — נתמכת בבדיקה האוטומטית בלבד</b>. ספר חלקי: צוירו עמוד 3, עמוד 4.');
+    const held = await illustrateReviewedAudition(harness({ judge: step => step.startsWith('page_4_') ? { environment: { issues: [issue('continuity', 'landmark_unique:stone', 'two stones')] } } : {} }).args);
+    expect(html(held)).toContain('מצב: <b>מוחזק — יש ממצאים שגיא צריך לראות</b>');
+    const heldSample = await illustrateReviewedAudition({ ...harness({ judge: step => step.startsWith('page_2_') ? { environment: { issues: [issue('continuity', 'landmark_unique:stone', 'two stones')] } } : {} }).args, sample: [1, 2] });
+    expect(html(heldSample)).toContain('מצב: <b>מוחזק — הדגימה המוקדמת לא עברה, ושאר הספר לא צויר</b>. ספר חלקי: צוירו עמוד 1, עמוד 2.');
+    expect(readerOrder(html(heldSample))).toEqual([1, 2]);
+    for (const page of [html(held), html(heldSample)]) expect(page).not.toContain('נתמך בבדיקה האוטומטית בלבד');
+    expect(html({ ...full, status: 'some_future_status' } as never)).toContain('מצב: <b>מוחזק — מצב לא מוכר</b>');
+    expect(html(full)).toContain('זהות הילד/ה:');
+  });
+});
