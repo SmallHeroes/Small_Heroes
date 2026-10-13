@@ -238,6 +238,8 @@ export const auditionGrantSchema = z.object({
   approvalReference: z.string().trim().min(30).max(2000),
   book: z.object({ requestId: hash, storyboardDigest: hash }).strict(),
   ledger: z.object({ priorKnownApiMicroUsd: z.number().int().nonnegative(),
+    /** An earlier call's still-unknown cost carried by an owner-approved continuation (never known spend). Absent on every legacy grant. */
+    carriedUnresolvedMicroUsd: z.number().int().positive().optional(),
     evidence: z.array(z.object({ file: z.string().min(1), sha256: hash }).strict()).min(1).max(16),
     note: z.string().min(10).max(1000) }).strict(),
   capMicroUsd: z.number().int().positive(), maxCalls: z.number().int().positive().max(AUDITION_WORST_CASE_CALLS + REVIEWED_AUDITION_POLICY.pageAttempts * 3),
@@ -257,7 +259,7 @@ export const auditionGrantSchema = z.object({
   experiment: z.object({ slot: z.string().regex(/^[a-z0-9-]{1,60}$/), claimSha256: hash }).strict().optional(),
 }).strict().superRefine((g, ctx) => {
   // A grant can only extend the ledger it names, by at most USD 8 of new API estimate.
-  if (g.capMicroUsd <= g.ledger.priorKnownApiMicroUsd || g.capMicroUsd - g.ledger.priorKnownApiMicroUsd > 8000000)
+  if (g.capMicroUsd <= g.ledger.priorKnownApiMicroUsd + (g.ledger.carriedUnresolvedMicroUsd ?? 0) || g.capMicroUsd - g.ledger.priorKnownApiMicroUsd > 8000000)
     ctx.addIssue({ code: 'custom', message: 'audition_grant_cap' });
   if (g.scope.mode === 'render' && g.scope.sample) {
     const { pages, sample } = g.scope;
@@ -293,8 +295,14 @@ export const auditionStage = (step: string) => /_qa$|^rejudge_/.test(step) ? 're
  * calls stop the run instead of retrying silently.
  */
 export class AuditionMeter {
-  constructor(readonly root: string, readonly capMicroUsd: number, readonly maxCalls: number, readonly priorKnownApiMicroUsd = 0) {
-    if (![capMicroUsd, maxCalls, priorKnownApiMicroUsd].every(Number.isSafeInteger) || capMicroUsd <= priorKnownApiMicroUsd ||
+  /**
+   * `carriedUnresolvedMicroUsd`: an earlier call's cost that is still unknown, carried explicitly by an owner-approved continuation. It is
+   * never known spend: it counts against the cap like a reservation and is reported on its own (absent when zero, as on every legacy run).
+   */
+  constructor(readonly root: string, readonly capMicroUsd: number, readonly maxCalls: number, readonly priorKnownApiMicroUsd = 0,
+    readonly carriedUnresolvedMicroUsd = 0) {
+    if (![capMicroUsd, maxCalls, priorKnownApiMicroUsd, carriedUnresolvedMicroUsd].every(Number.isSafeInteger) || carriedUnresolvedMicroUsd < 0 ||
+      capMicroUsd <= priorKnownApiMicroUsd + carriedUnresolvedMicroUsd ||
       capMicroUsd - priorKnownApiMicroUsd > 8000000 || maxCalls < 1 || maxCalls > AUDITION_WORST_CASE_CALLS + REVIEWED_AUDITION_POLICY.pageAttempts * 3) fail('audition_meter_policy');
     if (!existsSync(root)) mkdirSync(root); realDirectory(root);
   }
@@ -315,7 +323,8 @@ export class AuditionMeter {
     const ordered = settled.sort((a, b) => a.seq - b.seq);
     const repeatedFailure = lastTwo(ordered) || [...new Set(ordered.map(s => s.stage))].some(stage => lastTwo(ordered.filter(s => s.stage === stage)));
     return { priorKnownApiMicroUsd: this.priorKnownApiMicroUsd, newKnownApiMicroUsd, reservedUnsettledMicroUsd,
-      cumulativeAccountedMicroUsd: this.priorKnownApiMicroUsd + newKnownApiMicroUsd + reservedUnsettledMicroUsd,
+      ...(this.carriedUnresolvedMicroUsd ? { carriedUnresolvedMicroUsd: this.carriedUnresolvedMicroUsd } : {}),
+      cumulativeAccountedMicroUsd: this.priorKnownApiMicroUsd + this.carriedUnresolvedMicroUsd + newKnownApiMicroUsd + reservedUnsettledMicroUsd,
       capMicroUsd: this.capMicroUsd, calls, maxCalls: this.maxCalls, failed, unknownCost, unknownOutcome,
       repeatedFailure,
       claudeMax: 'separate: not an API invoice, not $0 and not included' as const };
@@ -510,7 +519,8 @@ export async function runReviewedAudition(args: { bookDir: string; out: string; 
   if (existsSync(args.out) !== !!args.resume) fail(args.resume ? 'audition_resume_missing' : 'audition_out_exists');
   if (!args.resume) mkdirSync(args.out); realDirectory(args.out);
   const directory = path.join(args.out, 'illustrations'); if (!args.resume) mkdirSync(directory); realDirectory(directory);
-  const meter = new AuditionMeter(path.join(args.out, 'paid-stages'), grant.capMicroUsd, grant.maxCalls, grant.ledger.priorKnownApiMicroUsd);
+  const meter = new AuditionMeter(path.join(args.out, 'paid-stages'), grant.capMicroUsd, grant.maxCalls, grant.ledger.priorKnownApiMicroUsd,
+    grant.ledger.carriedUnresolvedMicroUsd ?? 0);
   const io = auditionAdapters({ directory, meter, key: keyReader(args.keyFile), signal: args.signal, ...(args.experiment ? { guard: args.experiment.guard } : {}) });
   const save = (name: string, value: unknown) => exclusiveJson(path.join(args.out, `${name}.json`), value);
   const admission = (child: AuditionImage, companion: AuditionImage) => JSON.parse(JSON.stringify({ version: 'reviewed-simple-book-audition-admission/v2',

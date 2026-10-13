@@ -4,8 +4,8 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, 
 import path from 'node:path';
 import { tmpdir } from 'node:os';
 import sharp from 'sharp';
-const sdk = vi.hoisted(() => ({ create: vi.fn() }));
-vi.mock('openai', () => ({ default: class { responses = { create: sdk.create }; } }));
+const sdk = vi.hoisted(() => ({ create: vi.fn(), clients: [] as Record<string, unknown>[] }));
+vi.mock('openai', () => ({ default: class { responses = { create: sdk.create }; constructor(options: Record<string, unknown> = {}) { sdk.clients.push(options); } } }));
 import { personalStoryboardFixture } from './personal-storyboard-fixture';
 import { providerStoryboard, providerReview, withKind } from './storyboard-replan-fixture';
 import { STORYBOARD_MOMENTS_VERSION } from '../storyboard-moments';
@@ -13,19 +13,21 @@ import type { SimpleStoryDraft } from '../simple-story-engine';
 import { QUALITY_CATEGORIES } from '../../local-preview-quality';
 import * as frozen from '../../../scripts/personal-source-git';
 import * as images from '../../generate-image';
+import * as causalAdapters from '../../../scripts/personal-causal-trial-adapters';
 import { REFERENCE_REPAIR_EDIT_INSTRUCTION, simpleReferenceDesignContext } from '../simple-book-illustrations';
 import { createSimpleBookPixelJudge } from '../../../scripts/personal-simple-book-illustrator';
 import { readAuditionGrant, loadReviewedBook, loadReviewedStoryboard, dryRun, readReviewedBookLayout, auditionGrantSchema, runReviewedAudition, savedMomentContract, AuditionMeter, auditionAdapters }
   from '../../../scripts/personal-simple-book-reviewed-audition';
 import { NEW_BOOK_EXPERIMENT, newBookConfig, newBookExperimentCLI, runNewBookText, runNewBookChild, runNewBookAudition, writeNewBookGrant, experimentDir, experimentClaimFile, assertExperimentClaim,
-  experimentLayout, earliestSameScenePair, stageLedger, type NewBookConfig, type TextTransports, type ChildAdapters } from '../../../scripts/personal-new-book-experiment';
+  experimentLayout, earliestSameScenePair, stageLedger, NEW_BOOK_CONTINUATION, experimentContinuationFile, type NewBookConfig, type TextTransports, type ChildAdapters }
+  from '../../../scripts/personal-new-book-experiment';
 
 const sha = (v: string | Buffer) => createHash('sha256').update(v).digest('hex');
 const json = (file: string) => JSON.parse(readFileSync(file, 'utf8'));
 const roots: string[] = [];
 let root: string, config: NewBookConfig, file: string, f: Awaited<ReturnType<typeof personalStoryboardFixture>>;
 beforeEach(async () => {
-  sdk.create.mockReset();
+  sdk.create.mockReset(); sdk.clients.length = 0;
   // No real network: any global fetch fails the test.
   vi.stubGlobal('fetch', vi.fn(() => { throw Error('no network in the experiment rehearsal'); }));
   root = mkdtempSync(path.join(tmpdir(), 'sh_new_book_test_')); roots.push(root);
@@ -100,9 +102,31 @@ function childAdapters(verdicts: (undefined | { category: string; verdict: 'defe
   return { render, judge } satisfies ChildAdapters;
 }
 /** The real text stage (the experiment's own contracts), over synthetic provider transports. */
-const run = (transports = textTransports()) => newBookExperimentCLI(['--config', file, 'text', '--execute'], { text: transports, log: () => {} })
+const run = (transports: TextTransports = textTransports()) => newBookExperimentCLI(['--config', file, 'text', '--execute'], { text: transports, log: () => {} })
   .then(r => r as Extract<typeof r, { mode: 'text' }>);
 const claims = (dir: string) => readdirSync(dir).filter(n => n.endsWith('.claim.json')).map(n => n.replace('.claim.json', '')).sort();
+const headAt = (head: string, status = '') => vi.mocked(frozen.gitAt).mockImplementation((_repo, args) => Buffer.from(args.join(' ') === 'rev-parse HEAD' ? head
+  : args.join(' ') === 'status --porcelain' ? status : path.join(root, 'git-common')));
+/** The SDK's own deadline error: it keeps the generic name "Error"; its class is the label. */
+class APIConnectionTimeoutError extends Error { constructor() { super('Request timed out.'); } }
+/** The real first text stage, whose storyboard call times out as the paid run's did: the story is paid and kept, the storyboard's cost unknown. */
+async function timedOut() {
+  const t = textTransports();
+  t.responses.mockImplementationOnce((async (_p: unknown, _s: unknown, _t: unknown, observe?: (failure: unknown) => void) => {
+    observe?.({ code: 'long_call_aborted', phase: 'headers', elapsedMs: 306000, causeName: 'TimeoutError', causeCode: null });
+    throw new APIConnectionTimeoutError();
+  }) as never);
+  await expect(run(t)).rejects.toThrow();
+  return t;
+}
+/** Guy's one continuation through the CLI: a read-only preview without --execute. */
+const continuation = (transports = textTransports(), execute = true) =>
+  newBookExperimentCLI(['--config', file, 'storyboard-continuation', ...(execute ? ['--execute'] : [])], { text: transports, log: () => {} });
+/** The timed-out first run, then the one continuation at a new reviewed HEAD. */
+async function continued() { await timedOut(); headAt('c'.repeat(40)); return continuation(); }
+/** Every file under a folder (relative path, forward slashes) and its hash. */
+const tree = (dir: string): Record<string, string> => Object.fromEntries(readdirSync(dir, { recursive: true, withFileTypes: true }).filter(e => e.isFile())
+  .map(e => { const full = path.join(e.parentPath, e.name); return [path.relative(dir, full).split(path.sep).join('/'), sha(readFileSync(full))]; }));
 
 describe('a new book from scratch, staged, offline rehearsal (synthetic providers; no key, no network, no spend)', () => {
   it('text -> child -> grant: each stage journals its own calls and the reviewed-audition loader admits the whole book', async () => {
@@ -207,8 +231,8 @@ describe('a new book from scratch, staged, offline rehearsal (synthetic provider
 describe('the reviewed audition on the new book (synthetic providers through the real runner, meter and sample gate)', { timeout: 60_000 }, () => {
   const ANSWER = { referenceChildVisible: true, candidateChildVisible: true, candidateChildCount: 1, comparisonUsable: true, sameChildDecision: 'same',
     faceStructure: 'match', eyesBrows: 'match', noseMouth: 'match', hairIdentity: 'match', distinctiveFeatures: 'match' };
-  async function prepared() {
-    await run();
+  async function prepared(opts: { continued?: true } = {}) {
+    if (opts.continued) await continued(); else await run();
     await runNewBookChild({ config: newBookConfig(file), signal: new AbortController().signal, log: () => {}, adapters: childAdapters() });
     const grant = writeNewBookGrant(newBookConfig(file)), dir = experimentDir(config);
     let shade = 40;
@@ -276,6 +300,17 @@ describe('the reviewed audition on the new book (synthetic providers through the
     expect(html).toContain('מוחזק — הדגימה המוקדמת לא עברה, ושאר הספר לא צויר');
     expect(html).toContain(`ספר חלקי: צוירו עמוד ${a}, עמוד ${b}.`);
     expect(html).not.toContain('נתמך בבדיקה האוטומטית בלבד');
+  });
+  it('after the storyboard continuation: the audition ledger carries the timed-out call in full, separate from known spend, under the one cap', async () => {
+    const { grant, dir } = await prepared({ continued: true }); judgeWith(null);
+    const carried = json(path.join(dir, 'text', 'paid-stages', 'storyboard.claim.json')).maximumMicroUsd;
+    expect(grant.ledger).toMatchObject({ carriedUnresolvedMicroUsd: carried });
+    const result = await audition();
+    if (result.mode !== 'render') throw Error('render expected');
+    expect(result.manifest).toMatchObject({ status: 'qa_supported_audition', scope: { complete: true } });
+    expect(result.spend).toMatchObject({ priorKnownApiMicroUsd: grant.ledger.priorKnownApiMicroUsd, carriedUnresolvedMicroUsd: carried, capMicroUsd: 7000000,
+      reservedUnsettledMicroUsd: 0, unknownCost: 0, unknownOutcome: 0 });
+    expect(result.spend.cumulativeAccountedMicroUsd).toBe(grant.ledger.priorKnownApiMicroUsd + carried + result.spend.newKnownApiMicroUsd);
   });
 
   it('F3: one fresh audition per approval; a second start, another output folder or the grant on a bare runner is refused before any image', async () => {
@@ -671,5 +706,246 @@ describe('F4 residual: the repair edit after a settled judgment', () => {
     expect(json(path.join(childDir, 'paid-stages', 'reference_child_qa.result.json'))).toMatchObject({ completed: true, estimatedMicroUsd: expect.any(Number) });
     expect(vi.mocked(images.generateGPTImage)).toHaveBeenCalledTimes(1);
     expect(json(path.join(childDir, 'sealed.json'))).toMatchObject({ status: 'failed', code: 'new_book_source_changed' });
+  });
+});
+
+describe("Guy's one storyboard continuation: the paid story replayed from its bound records, only the storyboard and its review called again", { timeout: 60_000 }, () => {
+  const textDirOf = () => path.join(experimentDir(config), 'text'), outOf = () => path.join(experimentDir(config), NEW_BOOK_CONTINUATION.outDir);
+  const reservation = () => json(path.join(textDirOf(), 'paid-stages', 'storyboard.claim.json')).maximumMicroUsd as number;
+  const child = () => runNewBookChild({ config: newBookConfig(file), signal: new AbortController().signal, log: () => {}, adapters: childAdapters() });
+
+  it('a timed-out storyboard seals the stage failed with its own cause; its cost stays unknown and its whole reservation stays counted', async () => {
+    await timedOut();
+    expect(json(path.join(textDirOf(), 'sealed.json'))).toEqual({ status: 'failed', code: 'new_book_provider_timeout', runtimeEligible: false });
+    expect(json(path.join(textDirOf(), 'paid-stages', 'storyboard.failure.json'))).toMatchObject({ code: 'new_book_provider_timeout',
+      receipt: { estimatedMicroUsd: null, failure: { sdkError: 'APIConnectionTimeoutError', status: null, message: 'Request timed out.', transport: null },
+        observed: [{ code: 'long_call_aborted', phase: 'headers', elapsedMs: 306000 }] } });
+    expect(json(path.join(textDirOf(), 'spend.json'))).toMatchObject({ newKnownApiMicroUsd: 14000, reservedUnsettledMicroUsd: reservation(),
+      cumulativeAccountedMicroUsd: 14000 + reservation(), calls: 3, unknownCost: 1, unknownOutcome: 0 });
+    expect(json(path.join(textDirOf(), 'spend.json'))).not.toHaveProperty('carriedUnresolvedMicroUsd');
+  });
+
+  it('the preview is read-only: admissible, the paid story replays exactly to the storyboard, and nothing is written or called', async () => {
+    await timedOut();
+    const dir = experimentDir(config), before = tree(dir), t = textTransports();
+    expect(await continuation(t, false)).toMatchObject({ mode: 'plan', plan: { continuation: false, stages: { text: 'failed', continuation: null } },
+      continuation: { admissible: true, amended: false, outDirExists: false, storyReplayed: true, sameStoryboardRequest: true, priorKnownApiMicroUsd: 14000,
+        carriedUnresolvedMicroUsd: reservation(), remainingUnderCapMicroUsd: 7000000 - 14000 - reservation(), providerCalls: 0, keyRead: false } });
+    expect(tree(dir)).toEqual(before);
+    expect(existsSync(experimentContinuationFile(config))).toBe(false);
+    expect([t.opus, t.reader, t.responses, sdk.create].map(m => m.mock.calls.length)).toEqual([0, 0, 0, 0]);
+  });
+
+  it('one continuation at the reviewed HEAD: no writer, editor or reader call; the same storyboard request once, its review once; the reservation carried', async () => {
+    await timedOut();
+    const textDir = textDirOf(), out = outOf(), before = tree(textDir), carried = reservation();
+    const request = sha(readFileSync(path.join(experimentDir(config), 'request.json')));
+    headAt('c'.repeat(40));
+    const t = textTransports();
+    expect(await continuation(t)).toMatchObject({ mode: 'storyboard-continuation', status: 'review_supported' });
+    expect([t.opus, t.reader].map(m => m.mock.calls.length)).toEqual([0, 0]);
+    expect(t.responses.mock.calls.map(c => c[0].model)).toEqual(['gpt-6-astra', 'gpt-6.1-sol']);
+    expect(claims(path.join(out, 'paid-stages'))).toEqual(['storyboard', 'storyboard_review']);
+    // The replayed story yields exactly the request that timed out (same story, same contracts, same seed).
+    expect(json(path.join(out, 'paid-stages', 'storyboard.wire.json'))).toEqual(json(path.join(textDir, 'paid-stages', 'storyboard.wire.json')));
+    // Storyboard 10000 in x 10 + 5000 out x 50; review 10000 x 2 + 5000 x 10 (synthetic usage).
+    expect(json(path.join(out, 'spend.json'))).toMatchObject({ priorKnownApiMicroUsd: 14000, carriedUnresolvedMicroUsd: carried, newKnownApiMicroUsd: 420000,
+      reservedUnsettledMicroUsd: 0, cumulativeAccountedMicroUsd: 14000 + carried + 420000, calls: 2, maxCalls: 2, unknownCost: 0, unknownOutcome: 0 });
+    expect(json(path.join(out, 'sealed.json'))).toEqual({ status: 'review_supported', continuation: NEW_BOOK_CONTINUATION.id, runtimeEligible: false });
+    expect(existsSync(path.join(out, 'claude-max-spend.json'))).toBe(false);
+    // The amendment binds the unchanged claim and config, both HEADs, the ledger and every original record.
+    const amendment = json(experimentContinuationFile(config));
+    expect(amendment).toMatchObject({ version: 'new-book-continuation/v1', id: NEW_BOOK_CONTINUATION.id, slot: NEW_BOOK_EXPERIMENT.slot,
+      approval: NEW_BOOK_CONTINUATION.approval, claimSha256: sha(readFileSync(experimentClaimFile(config))), originalSourceHead: 'a'.repeat(40),
+      sourceHead: 'c'.repeat(40), failedStep: 'storyboard', priorKnownApiMicroUsd: 14000, carriedUnresolvedMicroUsd: carried });
+    expect(Object.fromEntries(amendment.evidence.map((e: { file: string; sha256: string }) => [e.file, e.sha256])))
+      .toEqual({ 'request.json': request, ...Object.fromEntries(Object.entries(before).map(([k, v]) => [`text/${k}`, v])) });
+    expect(json(experimentClaimFile(config))).toMatchObject({ sourceHead: 'a'.repeat(40) });
+    expect(tree(textDir)).toEqual(before);
+
+    // The continued text feeds the child stage and the grant, which carry the reservation as its own ledger line.
+    expect(await child()).toMatchObject({ status: 'child_reference_passed' });
+    const dir = experimentDir(config);
+    expect(readReviewedBookLayout(path.join(dir, 'book-layout.json'))).toEqual(experimentLayout(config, 'reference_child.png', NEW_BOOK_CONTINUATION.outDir));
+    const childSpend = json(path.join(dir, 'child', 'spend.json'));
+    expect(childSpend).toMatchObject({ priorKnownApiMicroUsd: 434000, carriedUnresolvedMicroUsd: carried, unknownCost: 0 });
+    expect(json(path.join(dir, 'child', 'sealed.json'))).toMatchObject({ status: 'child_reference_passed', priorTextApiMicroUsd: 434000, carriedUnresolvedMicroUsd: carried });
+    const grant = writeNewBookGrant(newBookConfig(file));
+    expect(auditionGrantSchema.parse(grant)).toEqual(grant);
+    expect(grant.ledger).toMatchObject({ priorKnownApiMicroUsd: 434000 + childSpend.newKnownApiMicroUsd, carriedUnresolvedMicroUsd: carried });
+    expect(grant.ledger.evidence.map(e => e.file)).toEqual([path.join(textDir, 'spend.json'), experimentContinuationFile(config), path.join(out, 'spend.json'),
+      path.join(dir, 'child', 'spend.json')]);
+    expect(grant.ledger.note).toContain('unresolved reservation');
+    // The grant's cap must stay above known spend plus the carried reservation; a carried line is positive or absent.
+    for (const carriedUnresolvedMicroUsd of [7000000 - grant.ledger.priorKnownApiMicroUsd, 0])
+      expect(auditionGrantSchema.safeParse({ ...grant, ledger: { ...grant.ledger, carriedUnresolvedMicroUsd } }).success).toBe(false);
+    // The pin is now the reviewed HEAD the amendment names: the original HEAD, or any other, refuses.
+    for (const head of ['a'.repeat(40), 'd'.repeat(40)]) { headAt(head); expect(() => assertExperimentClaim(newBookConfig(file))).toThrow('new_book_source_changed'); }
+  });
+
+  it('one attempt only: a continuation whose storyboard fails again is sealed failed; nothing can retry or build on it', async () => {
+    await timedOut(); headAt('c'.repeat(40));
+    const t = textTransports();
+    t.responses.mockImplementationOnce((async () => { throw new APIConnectionTimeoutError(); }) as never);
+    await expect(continuation(t)).rejects.toThrow();
+    expect(json(path.join(outOf(), 'sealed.json'))).toEqual({ status: 'failed', code: 'new_book_provider_timeout', continuation: NEW_BOOK_CONTINUATION.id,
+      runtimeEligible: false });
+    expect(json(path.join(outOf(), 'spend.json'))).toMatchObject({ calls: 1, unknownCost: 1, carriedUnresolvedMicroUsd: reservation(),
+      cumulativeAccountedMicroUsd: 14000 + 2 * reservation() });
+    const again = textTransports();
+    await expect(continuation(again)).rejects.toThrow('new_book_continuation_used');
+    await expect(child()).rejects.toThrow('new_book_text_not_supported');
+    expect([again.opus, again.reader, again.responses].map(m => m.mock.calls.length)).toEqual([0, 0, 0]);
+  });
+
+  it('only after a storyboard that never answered: a supported text stage has nothing to continue', async () => {
+    await run();
+    for (const execute of [false, true]) await expect(continuation(textTransports(), execute)).rejects.toThrow('new_book_continuation_scope');
+    expect([existsSync(experimentContinuationFile(config)), existsSync(outOf())]).toEqual([false, false]);
+  });
+
+  it('a story record that no longer replays exactly refuses before the amendment, the folder or any call', async () => {
+    await timedOut(); headAt('c'.repeat(40));
+    const t = textTransports();
+    for (const record of ['paid-stages/final_review.claim.json', 'paid-stages/comparison.result.json', 'claude-max-stages/author.claim.json',
+      'claude-max-stages/editor.result.json']) {
+      const recordFile = path.join(textDirOf(), ...record.split('/')), bytes = readFileSync(recordFile);
+      writeFileSync(recordFile, JSON.stringify({ ...JSON.parse(bytes.toString('utf8')), wireDigest: 'e'.repeat(64) }));
+      for (const execute of [false, true]) await expect(continuation(t, execute)).rejects.toThrow('new_book_continuation_replay');
+      writeFileSync(recordFile, bytes);
+    }
+    // A saved reply is the one whose cost settled its call.
+    for (const record of ['paid-stages/comparison.receipt.json', 'claude-max-stages/author.receipt.json']) {
+      const recordFile = path.join(textDirOf(), ...record.split('/')), bytes = readFileSync(recordFile), saved = JSON.parse(bytes.toString('utf8'));
+      writeFileSync(recordFile, JSON.stringify({ ...saved, estimatedMicroUsd: saved.estimatedMicroUsd + 1 }));
+      for (const execute of [false, true]) await expect(continuation(t, execute)).rejects.toThrow('new_book_continuation_replay');
+      writeFileSync(recordFile, bytes);
+    }
+    // The one retry must send exactly the storyboard request that timed out (the digest its claim recorded before that call).
+    const storyboardClaim = path.join(textDirOf(), 'paid-stages', 'storyboard.claim.json'), claimBytes = readFileSync(storyboardClaim);
+    writeFileSync(storyboardClaim, JSON.stringify({ ...JSON.parse(claimBytes.toString('utf8')), wireDigest: 'e'.repeat(64) }));
+    for (const execute of [false, true]) await expect(continuation(t, execute)).rejects.toThrow('new_book_continuation_request');
+    writeFileSync(storyboardClaim, claimBytes);
+    expect([existsSync(experimentContinuationFile(config)), existsSync(outOf())]).toEqual([false, false]);
+    expect([t.opus, t.reader, t.responses].map(m => m.mock.calls.length)).toEqual([0, 0, 0]);
+    // Restored exactly, the same records replay.
+    expect(await continuation(t, false)).toMatchObject({ continuation: { admissible: true } });
+  });
+
+  it('an edited Opus instruction file refuses the replay (the saved reply belongs to the exact instructions)', async () => {
+    await timedOut(); headAt('c'.repeat(40));
+    const instructions = path.join(textDirOf(), 'editor-instructions.txt');
+    writeFileSync(instructions, readFileSync(instructions, 'utf8') + ' ');
+    await expect(continuation(textTransports(), false)).rejects.toThrow('new_book_continuation_replay');
+  });
+
+  it('after the amendment, a changed original record, a dirty tree, an edited config or a disagreeing ledger refuses every later stage', async () => {
+    await continued();
+    const receipt = path.join(textDirOf(), 'paid-stages', 'comparison.receipt.json'), bytes = readFileSync(receipt);
+    writeFileSync(receipt, Buffer.concat([bytes, Buffer.from(' ')]));
+    await expect(child()).rejects.toThrow('new_book_continuation_evidence');
+    writeFileSync(receipt, bytes);
+    headAt('c'.repeat(40), ' M scripts/personal-new-book-experiment.ts');
+    await expect(child()).rejects.toThrow('new_book_source_changed');
+    headAt('c'.repeat(40));
+    writeFileSync(file, JSON.stringify({ ...config, seed: 'another-seed' }));
+    await expect(child()).rejects.toThrow('new_book_claim');
+    writeFileSync(file, JSON.stringify(config));
+    // The amendment's own record of the ledger must still match the original stage.
+    const amendmentFile = experimentContinuationFile(config), amendment = readFileSync(amendmentFile);
+    writeFileSync(amendmentFile, JSON.stringify({ ...JSON.parse(amendment.toString('utf8')), carriedUnresolvedMicroUsd: 1 }));
+    await expect(child()).rejects.toThrow('new_book_continuation_ledger');
+    writeFileSync(amendmentFile, amendment);
+    expect(await child()).toMatchObject({ status: 'child_reference_passed' });
+  });
+
+  it('a dirty tree or an edited config refuses before the amendment is written', async () => {
+    await timedOut();
+    headAt('c'.repeat(40), ' M scripts/personal-new-book-experiment.ts');
+    for (const execute of [false, true]) await expect(continuation(textTransports(), execute)).rejects.toThrow('new_book_source_changed');
+    headAt('c'.repeat(40));
+    writeFileSync(file, JSON.stringify({ ...config, seed: 'another-seed' }));
+    await expect(continuation()).rejects.toThrow('new_book_claim');
+    expect([existsSync(experimentContinuationFile(config)), existsSync(outOf())]).toEqual([false, false]);
+  });
+
+  it('the record the paid run actually wrote (before the transport fix) is admitted exactly as it is', async () => {
+    await timedOut();
+    // The real first run: the SDK's generic failure with its timeout message and no answer; the stage sealed with the transport code.
+    const failure = path.join(textDirOf(), 'paid-stages', 'storyboard.failure.json'), sealed = path.join(textDirOf(), 'sealed.json');
+    writeFileSync(failure, JSON.stringify({ code: 'audition_stage_failed', message: 'Request timed out.', receipt: null }, null, 2));
+    writeFileSync(sealed, JSON.stringify({ status: 'failed', code: 'new_book_provider_transport', runtimeEligible: false }, null, 2));
+    expect(await continuation(textTransports(), false)).toMatchObject({ continuation: { admissible: true, storyReplayed: true } });
+    headAt('c'.repeat(40));
+    expect(await continuation()).toMatchObject({ status: 'review_supported' });
+    expect(json(experimentContinuationFile(config)).evidence).toEqual(expect.arrayContaining([{ file: 'text/paid-stages/storyboard.failure.json',
+      sha256: sha(readFileSync(failure)) }, { file: 'text/sealed.json', sha256: sha(readFileSync(sealed)) }]));
+  });
+
+  it('only the timed-out storyboard: an answer from another model, another failure of that record or a reader failure has nothing to continue', async () => {
+    await expect(run(textTransports({ model: 'gpt-6-astra-mini' }))).rejects.toThrow();
+    expect(json(path.join(textDirOf(), 'sealed.json'))).toMatchObject({ status: 'failed' });
+    for (const execute of [false, true]) await expect(continuation(textTransports(), execute)).rejects.toThrow('new_book_continuation_scope');
+    // The legacy record qualifies only with its timeout message and no answer.
+    const failure = path.join(textDirOf(), 'paid-stages', 'storyboard.failure.json');
+    for (const record of [{ code: 'audition_stage_failed', message: 'Connection error.', receipt: null },
+      { code: 'audition_stage_failed', message: 'Request timed out.', receipt: { raw: {} } }, { code: 'new_book_provider_transport', message: 'x', receipt: null }]) {
+      writeFileSync(failure, JSON.stringify(record));
+      await expect(continuation(textTransports(), false)).rejects.toThrow('new_book_continuation_scope');
+    }
+    expect([existsSync(experimentContinuationFile(config)), existsSync(outOf())]).toEqual([false, false]);
+  });
+  it('a reader failure (no storyboard call at all) has nothing to continue', async () => {
+    const t = textTransports();
+    t.reader.mockImplementationOnce(async () => { throw Object.assign(Error('synthetic reader failure'), { code: 'synthetic_reader' }); });
+    await expect(run(t)).rejects.toThrow();
+    for (const execute of [false, true]) await expect(continuation(textTransports(), execute)).rejects.toThrow('new_book_continuation_scope');
+    expect([existsSync(experimentContinuationFile(config)), existsSync(outOf())]).toEqual([false, false]);
+  });
+
+  it('a spend record that disagrees with its journal, or a rewritten claim, refuses', async () => {
+    await timedOut();
+    const spend = path.join(textDirOf(), 'spend.json'), bytes = readFileSync(spend);
+    writeFileSync(spend, JSON.stringify({ ...JSON.parse(bytes.toString('utf8')), reservedUnsettledMicroUsd: 1 }));
+    await expect(continuation(textTransports(), false)).rejects.toThrow('new_book_ledger_record');
+    writeFileSync(spend, bytes);
+    headAt('c'.repeat(40));
+    await continuation();
+    // A claim rewritten for the same configuration is not the claim the amendment bound.
+    const claim = experimentClaimFile(config);
+    writeFileSync(claim, JSON.stringify({ ...json(claim), requestId: 'f'.repeat(64) }, null, 2));
+    await expect(child()).rejects.toThrow('new_book_continuation');
+  });
+
+  it('the meter carries an unresolved reservation by policy: never negative, never at the cap with known spend, counted before every claim', async () => {
+    const meterDir = path.join(root, 'meter');
+    expect(() => new AuditionMeter(meterDir, 7000000, 2, 1000, -1)).toThrow('audition_meter_policy');
+    expect(() => new AuditionMeter(meterDir, 7000000, 2, 5000000, 2000000)).toThrow('audition_meter_policy');
+    expect(new AuditionMeter(meterDir, 7000000, 2).snapshot()).not.toHaveProperty('carriedUnresolvedMicroUsd');
+    const meter = new AuditionMeter(meterDir, 7000000, 2, 5000000, 1500000);
+    expect(meter.snapshot()).toMatchObject({ carriedUnresolvedMicroUsd: 1500000, cumulativeAccountedMicroUsd: 6500000 });
+    const dispatch = vi.fn(async () => ({ value: 1, estimatedMicroUsd: 1, receipt: {} }));
+    await expect(meter.run('over', {}, 500001, dispatch)).rejects.toThrow('audition_budget_exhausted');
+    expect([dispatch.mock.calls.length, readdirSync(meterDir).length]).toEqual([0, 0]);
+    await meter.run('within', {}, 500000, dispatch);
+    expect(meter.snapshot()).toMatchObject({ newKnownApiMicroUsd: 1, cumulativeAccountedMicroUsd: 6500001 });
+  });
+
+  it('the provider clients use the long-call transport (never the 300 s default header wait) with no SDK retry', async () => {
+    const t = textTransports();
+    let readerOptions: { fetch?: typeof fetch } | null = null;
+    vi.spyOn(causalAdapters, 'createAstraCausalTransport').mockImplementation(options => { readerOptions = options; return t.reader as never; });
+    sdk.create.mockImplementation(t.responses);
+    // Only the Opus transport is synthetic here: the readers' and the storyboard's own clients are built by the stage.
+    expect(await run({ opus: t.opus })).toMatchObject({ status: 'review_supported' });
+    expect(sdk.create).toHaveBeenCalledTimes(2);
+    expect(sdk.create.mock.calls.map(c => c[1])).toEqual([0, 1].map(() => ({ signal: expect.any(AbortSignal), timeout: expect.any(Number) })));
+    expect(sdk.clients).toHaveLength(2);
+    // Each fetch is the long-call transport, not the global fetch: it refuses a plain-http provider address before any network.
+    for (const client of sdk.clients) {
+      expect(client).toMatchObject({ baseURL: 'https://api.openai.com/v1', maxRetries: 0 });
+      await expect((client.fetch as typeof fetch)('http://api.openai.com/v1/responses')).rejects.toThrow('long_call_url');
+    }
+    await expect(readerOptions!.fetch!('http://api.openai.com/v1/responses')).rejects.toThrow('long_call_url');
   });
 });
