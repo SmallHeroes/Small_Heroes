@@ -13,8 +13,9 @@ import type { SimpleStoryDraft } from '../simple-story-engine';
 import { QUALITY_CATEGORIES } from '../../local-preview-quality';
 import * as frozen from '../../../scripts/personal-source-git';
 import * as images from '../../generate-image';
-import { REFERENCE_REPAIR_EDIT_INSTRUCTION } from '../simple-book-illustrations';
-import { readAuditionGrant, loadReviewedBook, loadReviewedStoryboard, dryRun, readReviewedBookLayout, auditionGrantSchema, runReviewedAudition, savedMomentContract, AuditionMeter }
+import { REFERENCE_REPAIR_EDIT_INSTRUCTION, simpleReferenceDesignContext } from '../simple-book-illustrations';
+import { createSimpleBookPixelJudge } from '../../../scripts/personal-simple-book-illustrator';
+import { readAuditionGrant, loadReviewedBook, loadReviewedStoryboard, dryRun, readReviewedBookLayout, auditionGrantSchema, runReviewedAudition, savedMomentContract, AuditionMeter, auditionAdapters }
   from '../../../scripts/personal-simple-book-reviewed-audition';
 import { NEW_BOOK_EXPERIMENT, newBookConfig, newBookExperimentCLI, runNewBookText, runNewBookChild, runNewBookAudition, writeNewBookGrant, experimentDir, experimentClaimFile, assertExperimentClaim,
   experimentLayout, earliestSameScenePair, stageLedger, type NewBookConfig, type TextTransports, type ChildAdapters } from '../../../scripts/personal-new-book-experiment';
@@ -542,5 +543,133 @@ describe('the reviewed-audition loader on a book layout (routing only; every bin
     expect(() => loadReviewedBook(dir, process.cwd(), undefined, layout)).not.toThrow();
     expect(() => loadReviewedBook(dir, process.cwd(), undefined, { ...layout, savedCompanion: 'child/illustrations/reference_child.png' }))
       .toThrow('audition_companion_reference');
+  });
+});
+
+describe('F4 residual: the guard is re-checked right before every claim (asynchronous preparation, in-flight calls, the repair edit)', () => {
+  /** A source that becomes invalid at a chosen moment; key reads counted. Synthetic only: no provider, no real key. */
+  async function bench() {
+    const dir = mkdtempSync(path.join(root, 'guard-')), images = path.join(dir, 'illustrations'); mkdirSync(images);
+    const write = async (name: string, shade: number) => { const bytes = await png(shade); writeFileSync(path.join(images, name), bytes);
+      return { imageName: name, imageSha: createHash('sha256').update(bytes).digest('hex') }; };
+    const candidate = await write('candidate.png', 10), refs = [await write('ref_a.png', 20), await write('ref_b.png', 30)];
+    const state = { invalid: false, armMetadata: false, keyReads: 0 };
+    const guard = () => { if (state.invalid) throw Object.assign(new Error('new_book_source_changed'), { code: 'new_book_source_changed' }); };
+    const key = () => { state.keyReads++; return 'sk-synthetic-test-value-not-a-credential-000'; };
+    // The moment Codex used: the source changes while the judge's image metadata is being read (crop preparation, before any claim).
+    const metadata = sharp.prototype.metadata;
+    vi.spyOn(sharp.prototype, 'metadata').mockImplementation(async function (this: unknown, ...a: unknown[]) {
+      const result = await (metadata as (...x: unknown[]) => Promise<unknown>).apply(this, a); if (state.armMetadata) state.invalid = true; return result; } as never);
+    const meter = new AuditionMeter(path.join(dir, 'paid-stages'), 7000000, 10);
+    return { dir, images, candidate, refs, state, guard, key, meter };
+  }
+  const reviewFor = (payload: any, withIssues: boolean) => {
+    const text = JSON.parse(payload.input[0].content[0].text);
+    return { model: 'gpt-6.1-sol', service_tier: 'default', status: 'completed', usage: { input_tokens: 5000, output_tokens: 800 },
+      output_text: JSON.stringify({ candidateSha: text.candidateSha, contextSha: text.contextSha,
+        checks: QUALITY_CATEGORIES.map(category => ({ category, verdict: 'pass', observation: `${category} ok`, correction: '', ...(withIssues ? { issues: [] } : {}) })) }) };
+  };
+  const claimsIn = (dir: string) => existsSync(path.join(dir, 'paid-stages')) ? claims(path.join(dir, 'paid-stages')) : [];
+
+  describe('reviewed-audition judge', () => {
+    const judgeOnce = (b: Awaited<ReturnType<typeof bench>>, step: string) => auditionAdapters({ directory: b.images, meter: b.meter, key: b.key,
+      signal: new AbortController().signal, guard: b.guard }).judge(step, b.candidate, { role: 'entities' }, 'c'.repeat(64), b.refs, null, 'sheet');
+    beforeEach(() => { sdk.create.mockImplementation(async (payload: any) => reviewFor(payload, true)); });
+    it('1) unchanged source: one review, completed with its known cost', async () => {
+      const b = await bench();
+      await judgeOnce(b, 'sheet_entities_0_qa');
+      expect(claimsIn(b.dir)).toEqual(['sheet_entities_0_qa']);
+      expect(json(path.join(b.dir, 'paid-stages', 'sheet_entities_0_qa.result.json'))).toMatchObject({ completed: true, estimatedMicroUsd: expect.any(Number) });
+      expect([sdk.create.mock.calls.length, b.state.keyReads]).toEqual([1, 1]);
+    });
+    it('2) source invalid at entry: no claim, no key read, no call', async () => {
+      const b = await bench(); b.state.invalid = true;
+      await expect(judgeOnce(b, 'sheet_entities_0_qa')).rejects.toThrow('new_book_source_changed');
+      expect([claimsIn(b.dir).length, b.state.keyReads, sdk.create.mock.calls.length]).toEqual([0, 0, 0]);
+    });
+    it('3) source changes during crop preparation: no claim, no key read, no call', async () => {
+      const b = await bench(); b.state.armMetadata = true;
+      await expect(judgeOnce(b, 'sheet_entities_0_qa')).rejects.toThrow('new_book_source_changed');
+      expect(b.state.invalid).toBe(true);
+      expect([claimsIn(b.dir).length, b.state.keyReads, sdk.create.mock.calls.length]).toEqual([0, 0, 0]);
+    });
+    it('4) source changes during a dispatched call: that response and its cost are kept; the next call is refused before its claim', async () => {
+      const b = await bench();
+      sdk.create.mockImplementation(async (payload: any) => { b.state.invalid = true; return reviewFor(payload, true); });
+      await judgeOnce(b, 'sheet_entities_0_qa');
+      expect(json(path.join(b.dir, 'paid-stages', 'sheet_entities_0_qa.result.json'))).toMatchObject({ completed: true, estimatedMicroUsd: expect.any(Number) });
+      await expect(judgeOnce(b, 'sheet_entities_1_qa')).rejects.toThrow('new_book_source_changed');
+      expect(claimsIn(b.dir)).toEqual(['sheet_entities_0_qa']);
+      expect(new AuditionMeter(path.join(b.dir, 'paid-stages'), 7000000, 10).snapshot()).toMatchObject({ calls: 1, unknownCost: 0, unknownOutcome: 0, failed: 0 });
+    });
+    it('without a guard (legacy route) the same review is unchanged', async () => {
+      const b = await bench();
+      await auditionAdapters({ directory: b.images, meter: b.meter, key: b.key, signal: new AbortController().signal })
+        .judge('sheet_entities_0_qa', b.candidate, { role: 'entities' }, 'c'.repeat(64), b.refs, null, 'sheet');
+      expect(claimsIn(b.dir)).toEqual(['sheet_entities_0_qa']);
+    });
+  });
+
+  it('the child-reference judge: a change during its image preparation claims nothing', async () => {
+    const b = await bench(); b.state.armMetadata = true;
+    sdk.create.mockImplementation(async (payload: any) => reviewFor(payload, false));
+    const judge = createSimpleBookPixelJudge({ config: { reviewModel: 'gpt-6.1-sol' }, directory: b.images, budget: b.meter, key: b.key,
+      assertCurrent: b.guard, signal: new AbortController().signal, save: () => {} });
+    const context = simpleReferenceDesignContext({ fictionalDesign: 'synthetic' });
+    await expect(judge('reference_child_qa', b.candidate, context, createHash('sha256').update(JSON.stringify(context)).digest('hex'), [], null))
+      .rejects.toThrow('new_book_source_changed');
+    expect([claimsIn(b.dir).length, b.state.keyReads, sdk.create.mock.calls.length]).toEqual([0, 0, 0]);
+  });
+
+  it('the child repair edit is guarded: a source change during the first judgment keeps its cost, names the cause and refuses the repair before its claim', async () => {
+    await run();
+    vi.spyOn(images, 'generateGPTImage').mockImplementation(async input => {
+      const buffer = await png(30, 1024), usage = { input_tokens: 100, output_tokens: 300 };
+      input.observeProviderResponse?.({ data: [{ b64_json: buffer.toString('base64') }], usage });
+      return { buffer, usage, model: 'gpt-image-2', finalPrompt: input.finalPrompt, hasReferencePhoto: false, apiMode: 'images.generate',
+        referenceCountRequested: 0, referenceCountPassed: 0, durationMs: 1, fallbackUsed: false } as never;
+    });
+    sdk.create.mockImplementation(async (payload: any) => {
+      const text = JSON.parse(payload.input[0].content[0].text);
+      // An evidenced defect asks for the repair edit, while the source moves during this judgment.
+      vi.mocked(frozen.gitAt).mockImplementation((_repo, args) => Buffer.from(args.join(' ') === 'rev-parse HEAD' ? 'b'.repeat(40)
+        : args.join(' ') === 'status --porcelain' ? '' : path.join(root, 'git-common')));
+      return { model: 'gpt-6.1-sol', service_tier: 'default', status: 'completed', usage: { input_tokens: 5000, output_tokens: 800 },
+        output_text: JSON.stringify(passing(text.candidateSha, text.contextSha, { category: 'anatomy', verdict: 'defect' })) };
+    });
+    await expect(runNewBookChild({ config: newBookConfig(file), signal: new AbortController().signal, log: () => {} })).rejects.toThrow('new_book_source_changed');
+    const childDir = path.join(experimentDir(config), 'child');
+    expect(claims(path.join(childDir, 'paid-stages'))).toEqual(['reference_child', 'reference_child_qa']);
+    // The shared reference judge does not use a judgment once the source changed during it (unchanged rule); its cost is kept, its cause named.
+    expect(json(path.join(childDir, 'paid-stages', 'reference_child_qa.result.json'))).toMatchObject({ completed: false, estimatedMicroUsd: expect.any(Number) });
+    expect(json(path.join(childDir, 'paid-stages', 'reference_child_qa.failure.json'))).toMatchObject({ code: 'new_book_source_changed' });
+    expect(vi.mocked(images.generateGPTImage)).toHaveBeenCalledTimes(1);
+    expect(json(path.join(childDir, 'sealed.json'))).toMatchObject({ status: 'failed', code: 'new_book_source_changed' });
+  });
+});
+
+describe('F4 residual: the repair edit after a settled judgment', () => {
+  it('a source change after the first judgment settles refuses the repair edit before its claim; the judgment stays completed', async () => {
+    await run();
+    vi.spyOn(images, 'generateGPTImage').mockImplementation(async input => {
+      const buffer = await png(30, 1024), usage = { input_tokens: 100, output_tokens: 300 };
+      input.observeProviderResponse?.({ data: [{ b64_json: buffer.toString('base64') }], usage });
+      return { buffer, usage, model: 'gpt-image-2', finalPrompt: input.finalPrompt, hasReferencePhoto: false, apiMode: 'images.generate',
+        referenceCountRequested: 0, referenceCountPassed: 0, durationMs: 1, fallbackUsed: false } as never;
+    });
+    sdk.create.mockImplementation(async (payload: any) => {
+      const text = JSON.parse(payload.input[0].content[0].text);
+      return { model: 'gpt-6.1-sol', service_tier: 'default', status: 'completed', usage: { input_tokens: 5000, output_tokens: 800 },
+        output_text: JSON.stringify(passing(text.candidateSha, text.contextSha, { category: 'anatomy', verdict: 'defect' })) };
+    });
+    // The stage logs the settled judgment, then orders the repair edit: the source moves exactly between the two.
+    const log = (line: string) => { if (line === 'child reference: repair') vi.mocked(frozen.gitAt).mockImplementation((_repo, args) =>
+      Buffer.from(args.join(' ') === 'rev-parse HEAD' ? 'b'.repeat(40) : args.join(' ') === 'status --porcelain' ? '' : path.join(root, 'git-common'))); };
+    await expect(runNewBookChild({ config: newBookConfig(file), signal: new AbortController().signal, log })).rejects.toThrow('new_book_source_changed');
+    const childDir = path.join(experimentDir(config), 'child');
+    expect(claims(path.join(childDir, 'paid-stages'))).toEqual(['reference_child', 'reference_child_qa']);
+    expect(json(path.join(childDir, 'paid-stages', 'reference_child_qa.result.json'))).toMatchObject({ completed: true, estimatedMicroUsd: expect.any(Number) });
+    expect(vi.mocked(images.generateGPTImage)).toHaveBeenCalledTimes(1);
+    expect(json(path.join(childDir, 'sealed.json'))).toMatchObject({ status: 'failed', code: 'new_book_source_changed' });
   });
 });

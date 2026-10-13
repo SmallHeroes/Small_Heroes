@@ -271,7 +271,8 @@ export async function runNewBookChild(args: { config: NewBookConfig; signal: Abo
   const save = (name: string, value: unknown) => exclusiveJson(path.join(childDir, `${name}.json`), value);
   const check = () => { if (signal.aborted) fail('new_book_cancelled'); assertExperimentClaim(config); };
   const key = keyReader(config.keyEnvFile);
-  const io = args.adapters?.render ? null : auditionAdapters({ directory: images, meter, key, signal });
+  // The claim and source pin guard every render claim too (including the one repair edit after a judgment).
+  const io = args.adapters?.render ? null : auditionAdapters({ directory: images, meter, key, signal, guard: () => { assertExperimentClaim(config); } });
   const render: Render = args.adapters?.render ?? ((step, prompt, refs, mode) => io!.render(step, prompt, refs, mode));
   const judge: Judge = args.adapters?.judge ?? createSimpleBookPixelJudge({ config: { reviewModel: SOL }, directory: images, budget: meter, key,
     assertCurrent: check, signal, save });

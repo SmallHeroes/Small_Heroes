@@ -446,6 +446,8 @@ export function auditionAdapters(args: { directory: string; meter: AuditionMeter
     check();
     const payload = await auditionJudgePayload({ candidate, candidateBytes: bytesOf(candidate), context, contextSha, refs: refs.map(r => bytesOf(r)),
       predecessor: predecessor ? bytesOf(predecessor) : null, kind });
+    // The crops were prepared asynchronously: re-check before the claim, so nothing is claimed after a change during preparation.
+    check();
     return args.meter.run(step, digestImages(payload), 600000, async () => {
       cancelled(); const client = new OpenAI({ apiKey: args.key(), baseURL: 'https://api.openai.com/v1', maxRetries: 0, logLevel: 'off' });
       const raw = await client.responses.create(payload, { signal: args.signal, timeout: 300000 });

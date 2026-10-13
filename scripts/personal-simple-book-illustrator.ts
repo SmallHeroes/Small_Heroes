@@ -88,6 +88,8 @@ export function createSimpleBookPixelJudge(args: {
     // USD0.60 admission slot, not an invented tokenizer bound or invoice hard cap.
     const maximumMicroUsd = selectedModel ? 600000
       : (Buffer.byteLength(text + instructions, 'utf8') + imageURLs.length * 3001) * 10 + 12000 * 50;
+    // The image and crops were prepared asynchronously: re-check before the claim, so nothing is claimed after a change during preparation.
+    check();
     return args.budget.run(step, payload, maximumMicroUsd, async () => {
       check(); const client = new OpenAI({ apiKey: args.key(), baseURL: 'https://api.openai.com/v1', maxRetries: 0, logLevel: 'off' });
       const raw = await client.responses.create(payload, { signal: args.signal, timeout: 300000 });
@@ -95,8 +97,12 @@ export function createSimpleBookPixelJudge(args: {
       const receipt = { raw, estimatedMicroUsd }; args.save(`${step}_provider`, receipt);
       if (raw.status !== 'completed' || raw.model !== reviewPolicy.model || raw.service_tier !== 'default' || !raw.output_text || !raw.usage || raw.usage.output_tokens > 12000)
         throw Object.assign(new SimpleIllustrationError('simple_pixel_provider_invalid'), { receipt });
-      try { const value = previewQualityReviewSchema.parse(JSON.parse(raw.output_text)); check(); return { value, estimatedMicroUsd, receipt }; }
+      let value: ReturnType<typeof previewQualityReviewSchema.parse>;
+      try { value = previewQualityReviewSchema.parse(JSON.parse(raw.output_text)); }
       catch { throw Object.assign(new SimpleIllustrationError('simple_pixel_schema'), { receipt }); }
+      // Unchanged rule (the judgment is not used after a change during the call), now reported with its own cause; the receipt keeps the cost.
+      try { check(); } catch (error) { throw Object.assign(error as object, { receipt }); }
+      return { value, estimatedMicroUsd, receipt };
     });
   };
 }
