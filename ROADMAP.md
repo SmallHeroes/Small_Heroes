@@ -1,5 +1,13 @@
 # SmallHeroes — Roadmap
 
+## Continuation F1/F2 corrected (e2ac932b, 47488a6d); next: Codex narrow re-gate, then the one approved attempt (2026-10-13)
+
+- Codex re-gates 61d218fa..(this docs commit). No paid call before PASS.
+- After PASS: storyboard-continuation --execute at the PASSed clean HEAD (only
+  the storyboard and its review), then child -> grant -> two sample pages ->
+  the rest only if the samples pass, under the same $7 with $2.267639 carried.
+  The remainder is not a promise that every image fits; a cap stop is reported.
+
 ## Storyboard continuation built (315484fe, ec66dfa0); next: Codex QA, then one storyboard attempt (2026-10-13)
 
 - Codex QA of 61246960..(this docs commit). No paid call before PASS.

@@ -1,12 +1,37 @@
 # SmallHeroes — Current Technical State
 
+## Continuation HOLD F1/F2 corrected (e2ac932b, 47488a6d), for Codex re-gate (2026-10-13)
+
+Codex QA at 61d218fa: transport and accounting supported; HOLD on two
+reproduced findings. F1 (P1): the run re-read HEAD after the asynchronous
+replay and adopted it as the amendment's authority. F2 (P2): the saved
+request.json was not validated before admission (only its inner request,
+and only after the amendment). Corrected: the run captures HEAD once; the
+admission, a re-check after the replay and the amendment's own re-check
+immediately before its exclusive write all compare against it (an existing
+amendment's HEAD is compared, never adopted). One definition of the request
+record (written by the text stage); the admission compares the whole record
+and the claim's requestId before the replay; the amendment re-checks the same
+baseline and binds exactly the records the replay used. Every baseline checks
+the source first, then reads the records (47488a6d, found while widening the
+boundary property). Tests +5 (Codex's counterexample; a boundary property over
+HEAD, dirty tree, request record, receipt and claim at every read from
+admission to past the amendment; ten complete-record corruptions and a claim
+naming another request; the preview's post-replay re-check; an amended HEAD
+compared): 4 fail at frozen 61d218fa, all 20 earlier tests pass at both.
+new-book 60 + transport 9; focused 11 files 381/381; mutants 72/72 live killed (+12 expected-equivalent layers); tsc0;
+real-data preview at 47488a6d admissible (the real request record passes the
+complete check), 26 book files + claim unchanged; legacy fingerprints
+identical; simple-book-flow not affected (unchanged import closure; its full
+run stays the earlier 179/181, exit 1). Nothing paid.
+
 ## Storyboard timeout fixed offline; Guy's one continuation built (315484fe + tests ec66dfa0), for Codex QA (2026-10-13)
 
 The paid text stage at 61246960 wrote the story (Opus author + editor, Claude
 Max $0.493457 separate; both Sol readers passed, API $0.035664 known) but the
 Astra storyboard call stopped at 306 s ("Request timed out.", no receipt):
-Node's built-in fetch waits at most 300 s for headers, below the call's own
-1,340 s deadline. Its cost is unknown (reserved $2.267639). Guy (AskUserQuestion,
+most likely Node's built-in fetch, which waits at most 300 s for headers,
+below the call's own 1,340 s deadline (the saved error has no native cause). Its cost is unknown (reserved $2.267639). Guy (AskUserQuestion,
 10/13): "Approve fix + one retry" and "Count the full $2.27". Built offline:
 a long-call SDK fetch (node:http(s), one request, per-call agent, backstop above
 the deadline, AbortError on abort, safe observed cause) for the readers and the
