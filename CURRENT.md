@@ -1,5 +1,28 @@
 # SmallHeroes — Current Technical State
 
+## The one continuation ran and was refused at page 2; scene-location rule + Guy's second attempt built (e41de452, tests 27a7059f + 95546321), for Codex QA (2026-10-13)
+
+After Codex's explicit PASS at 1e26f6be the one approved continuation ran:
+the storyboard ANSWERED (328 s server time, beyond the old 300 s limit;
+$0.768110) but the sequence check refused it (book_sequence_scene_location_drift,
+page 2: its plan moved beach -> valley, its scene list kept one scene). No
+review, no images. Ledger: known $0.803774 + carried $2.267639 = $3.071413 of
+$7. Cause: the storyboard instructions never stated the rule the check
+enforces. Guy (AskUserQuestion): "Fix rule + 1 attempt, $7". Built offline:
+an opt-in sceneLocationContract (an instruction addendum: a scene visit changes
+exactly when the planned location changes; a page that only shows another place
+keeps its own), bound into source and book digests with a marker the reviewed
+loader re-derives; absent, every identity stays byte-identical (pinned). And
+storyboard-continuation-2: a second single-use amendment bound to the first
+amendment and every first-continuation record; its read-only admission (one
+pinned HEAD, source first, complete request) replays the story, proves the first
+answer is refused exactly at scene/location, and requires the new request to
+differ only by the rule (and the digest recording it). Later stages read the
+latest text (five ledger lines). Real-data preview at e41de452: admissible,
+exact refusal reproduced, request changed only by the rule, nothing written.
+Tests: scene-location 5, new-book +14, focused 12 files 400/400 (an earlier full run: one 5 s CLI-spawn timeout that passes alone 3/3) serial, flow 179/181 alone (the same two known; neither a regression, base control identical),
+mutants 108/108 live killed (+19 expected-equivalent layers), tsc0, legacy fingerprints identical. Nothing paid.
+
 ## Continuation HOLD F1/F2 corrected (e2ac932b, 47488a6d), for Codex re-gate (2026-10-13)
 
 Codex QA at 61d218fa: transport and accounting supported; HOLD on two

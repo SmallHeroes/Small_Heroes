@@ -1,5 +1,14 @@
 # SmallHeroes — Roadmap
 
+## Second storyboard attempt built (e41de452, 27a7059f, 95546321); next: Codex QA, then one attempt (2026-10-13)
+
+- Codex QA of 1e26f6be..(this docs commit). No paid call before PASS.
+- After PASS: storyboard-continuation-2 --execute once at the PASSed HEAD, then
+  child -> grant -> two sample pages -> the rest only if both pass, under the
+  same $7 ($2.267639 carried). About $2.6-2.8 would be left for illustrations:
+  the drawn book is likely partial; a cap stop is reported, not worked around.
+- Later: whether the scene-location contract becomes a default for new books.
+
 ## Continuation F1/F2 corrected (e2ac932b, 47488a6d); next: Codex narrow re-gate, then the one approved attempt (2026-10-13)
 
 - Codex re-gates 61d218fa..(this docs commit). No paid call before PASS.
