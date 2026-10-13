@@ -16,6 +16,7 @@ import * as frozen from '../../../scripts/personal-source-git';
 import * as images from '../../generate-image';
 import * as causalAdapters from '../../../scripts/personal-causal-trial-adapters';
 import * as flow from '../simple-book-flow';
+import * as worker from '../../../scripts/personal-simple-wizard-worker';
 import { REFERENCE_REPAIR_EDIT_INSTRUCTION, simpleReferenceDesignContext } from '../simple-book-illustrations';
 import { createSimpleBookPixelJudge } from '../../../scripts/personal-simple-book-illustrator';
 import { readAuditionGrant, loadReviewedBook, loadReviewedStoryboard, dryRun, readReviewedBookLayout, auditionGrantSchema, runReviewedAudition, savedMomentContract, AuditionMeter, auditionAdapters }
@@ -1229,6 +1230,26 @@ describe("Guy's second storyboard attempt: the same request plus the scene-locat
     expect(await second(t, false)).toMatchObject({ continuation2: { admissible: true } });
   });
 
+  it('a new request that differs by anything but the rule (or lacks it) is refused before anything is consumed', async () => {
+    await refusedOnce();
+    const realFlow = flow.runSimpleWizardBook, realPayload = worker.simpleWizardVisualPayload;
+    for (const alter of [
+      // The storyboard call itself without the rule (the contract not applied).
+      () => vi.spyOn(flow, 'runSimpleWizardBook').mockImplementation(a => realFlow({ ...a, sceneLocationContract: undefined })),
+      // The provider request with something besides the rule.
+      () => vi.spyOn(worker, 'simpleWizardVisualPayload').mockImplementation((call, model) => {
+        const p = realPayload(call, model);
+        return call.instructions.includes(SCENE_LOCATION_STORYBOARD_ADDENDUM) ? { ...p, instructions: `${p.instructions}\nOne more sentence.` } : p;
+      }),
+    ]) {
+      const spy = alter();
+      for (const execute of [false, true]) await expect(second(textTransports(), execute)).rejects.toThrow('new_book_continuation_request');
+      nothingConsumed();
+      spy.mockRestore();
+    }
+    expect(await second(textTransports(), false)).toMatchObject({ continuation2: { requestChangedOnlyByTheRule: true } });
+  });
+
   it('one pinned HEAD and the complete request record, as for the first continuation', async () => {
     await refusedOnce();
     let heads = 0;
@@ -1274,6 +1295,11 @@ describe("Guy's second storyboard attempt: the same request plus the scene-locat
     writeFileSync(a1, JSON.stringify(JSON.parse(a1Bytes.toString('utf8')), null, 4));
     await expect(child()).rejects.toThrow('new_book_continuation');
     writeFileSync(a1, a1Bytes);
+    // The second amendment's own ledger must still match the first continuation's.
+    const a2 = experimentContinuation2File(config), a2Bytes = readFileSync(a2);
+    writeFileSync(a2, JSON.stringify({ ...JSON.parse(a2Bytes.toString('utf8')), carriedUnresolvedMicroUsd: 1 }));
+    await expect(child()).rejects.toThrow('new_book_continuation_ledger');
+    writeFileSync(a2, a2Bytes);
     expect(await child()).toMatchObject({ status: 'child_reference_passed' });
   });
 });
