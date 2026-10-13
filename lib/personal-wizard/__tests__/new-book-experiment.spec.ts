@@ -14,6 +14,7 @@ import { QUALITY_CATEGORIES } from '../../local-preview-quality';
 import * as frozen from '../../../scripts/personal-source-git';
 import * as images from '../../generate-image';
 import * as causalAdapters from '../../../scripts/personal-causal-trial-adapters';
+import * as flow from '../simple-book-flow';
 import { REFERENCE_REPAIR_EDIT_INSTRUCTION, simpleReferenceDesignContext } from '../simple-book-illustrations';
 import { createSimpleBookPixelJudge } from '../../../scripts/personal-simple-book-illustrator';
 import { readAuditionGrant, loadReviewedBook, loadReviewedStoryboard, dryRun, readReviewedBookLayout, auditionGrantSchema, runReviewedAudition, savedMomentContract, AuditionMeter, auditionAdapters }
@@ -947,5 +948,142 @@ describe("Guy's one storyboard continuation: the paid story replayed from its bo
       await expect((client.fetch as typeof fetch)('http://api.openai.com/v1/responses')).rejects.toThrow('long_call_url');
     }
     await expect(readerOptions!.fetch!('http://api.openai.com/v1/responses')).rejects.toThrow('long_call_url');
+  });
+});
+
+describe('HOLD F1/F2 correction: one pinned HEAD and the complete request record, checked before anything is consumed', { timeout: 120_000 }, () => {
+  const outOf = () => path.join(experimentDir(config), NEW_BOOK_CONTINUATION.outDir);
+  const receiptFile = () => path.join(experimentDir(config), 'text', 'paid-stages', 'comparison.receipt.json');
+  const nothingConsumed = () => expect([existsSync(experimentContinuationFile(config)), existsSync(outOf())]).toEqual([false, false]);
+  /** HEAD for the n-th HEAD read, and the tree status for the n-th status read (both counted from 1). */
+  const sequence = (head: (n: number) => string, status: (n: number) => string = () => '') => {
+    let heads = 0, statuses = 0;
+    vi.mocked(frozen.gitAt).mockImplementation((_repo, args) => Buffer.from(args.join(' ') === 'rev-parse HEAD' ? head(++heads)
+      : args.join(' ') === 'status --porcelain' ? status(++statuses) : path.join(root, 'git-common')));
+  };
+
+  it("Codex's counterexample: the HEAD the replay was admitted at is the only authority; a later clean HEAD refuses before anything is consumed", async () => {
+    await timedOut();
+    sequence(n => n <= 2 ? 'c'.repeat(40) : 'd'.repeat(40));
+    const t = textTransports();
+    await expect(continuation(t)).rejects.toThrow('new_book_source_changed');
+    nothingConsumed();
+    expect([t.opus, t.reader, t.responses, sdk.create].map(m => m.mock.calls.length)).toEqual([0, 0, 0, 0]);
+  });
+
+  it('every source or record change after admission, up to and just past the amendment, refuses: before it, nothing is consumed; after it, no call', async () => {
+    type Event = 'head' | 'dirty' | 'request' | 'receipt';
+    const resetSlot = () => { for (const d of [experimentDir(config), path.dirname(experimentClaimFile(config))]) {
+      if (!path.resolve(d).startsWith(path.resolve(root))) throw Error('reset_boundary'); rmSync(d, { recursive: true, force: true }); } };
+    async function boundaryRun(event: Event | null, at: number) {
+      resetSlot(); headAt('a'.repeat(40)); await timedOut();
+      const dir = experimentDir(config), amendmentFile = experimentContinuationFile(config);
+      const before = { 'request.json': sha(readFileSync(path.join(dir, 'request.json'))),
+        ...Object.fromEntries(Object.entries(tree(path.join(dir, 'text'))).map(([k, v]) => [`text/${k}`, v])) };
+      let reads = 0, fired = false;
+      const amendedAtRead: boolean[] = [];
+      const fire = () => {
+        fired = true;
+        if (event === 'request') { const f = path.join(dir, 'request.json'); writeFileSync(f, JSON.stringify({ ...json(f), requestId: 'f'.repeat(64) })); }
+        if (event === 'receipt') writeFileSync(receiptFile(), readFileSync(receiptFile(), 'utf8') + ' ');
+      };
+      vi.mocked(frozen.gitAt).mockImplementation((_repo, args) => {
+        const a = args.join(' ');
+        if (a === 'rev-parse HEAD') {
+          reads++; amendedAtRead.push(existsSync(amendmentFile));
+          if (event && reads === at) fire();
+          return Buffer.from(fired && event === 'head' ? 'd'.repeat(40) : 'c'.repeat(40));
+        }
+        return Buffer.from(a === 'status --porcelain' ? (fired && event === 'dirty' ? ' M scripts/personal-new-book-experiment.ts' : '') : path.join(root, 'git-common'));
+      });
+      const t = textTransports(), real = t.responses.getMockImplementation()!, afterEvent: string[] = [];
+      t.responses.mockImplementation((async (payload: any, ...rest: unknown[]) => { if (fired) afterEvent.push(payload.model); return (real as any)(payload, ...rest); }) as never);
+      const outcome = await continuation(t).then(() => 'ok', (error: Error) => error.message);
+      return { outcome, reads, amendedAtRead, afterEvent, before, opusOrReader: t.opus.mock.calls.length + t.reader.mock.calls.length,
+        amendment: existsSync(amendmentFile) ? json(amendmentFile) : null, folder: existsSync(outOf()) };
+    }
+    // Calibration: an unchanged run succeeds; count the HEAD reads made before the amendment is written.
+    const calm = await boundaryRun(null, 0);
+    expect(calm.outcome).toBe('ok');
+    const beforeWrite = calm.amendedAtRead.indexOf(true);
+    // At least: the run's one capture, the admission, the check after the asynchronous replay, and the amendment's own re-check.
+    expect(beforeWrite).toBeGreaterThanOrEqual(4);
+    const codes: Record<Event, RegExp> = { head: /^new_book_source_changed$/, dirty: /^new_book_source_changed$/,
+      request: /^new_book_continuation_(request_record|evidence)$/, receipt: /^new_book_continuation_evidence$/ };
+    // Read 1 is the capture itself (a run started at another HEAD is simply that HEAD). Read 2 is the admission's own source check, after
+    // which it hashes the records: a record changed there is what is admitted (and replayed), so record changes count from read 3.
+    // A corrupt request record is refused at any read.
+    const first: Record<Event, number> = { head: 2, dirty: 2, request: 2, receipt: 3 };
+    for (const event of ['head', 'dirty', 'request', 'receipt'] as Event[]) for (let at = first[event]; at <= beforeWrite + 1; at++) {
+      const r = await boundaryRun(event, at), label = `${event}@${at}`;
+      expect(`${label}: ${r.outcome}`).toMatch(new RegExp(`^${label}: ${codes[event].source.slice(1, -1)}$`));
+      expect(`${label}: ${r.afterEvent.length} calls after the change, ${r.opusOrReader} story calls`).toBe(`${label}: 0 calls after the change, 0 story calls`);
+      if (at <= beforeWrite) {
+        expect(`${label}: amendment ${!!r.amendment}, folder ${r.folder}`).toBe(`${label}: amendment false, folder false`);
+        continue;
+      }
+      // After the amendment the one attempt may already be spent, but nothing is claimed or called: the folder, if made, is sealed failed.
+      if (r.folder) expect([label, json(path.join(outOf(), 'sealed.json')).status, json(path.join(outOf(), 'sealed.json')).code, claims(path.join(outOf(), 'paid-stages'))])
+        .toEqual([label, 'failed', r.outcome, []]);
+      // An amendment written before the change binds the admitted HEAD and exactly the records the replay used.
+      expect([label, r.amendment?.sourceHead, Object.fromEntries(r.amendment.evidence.map((e: { file: string; sha256: string }) => [e.file, e.sha256]))])
+        .toEqual([label, 'c'.repeat(40), r.before]);
+    }
+  });
+
+  it('the complete saved request record (and the claim that names it) is checked before anything is consumed', async () => {
+    await timedOut(); headAt('c'.repeat(40));
+    const dir = experimentDir(config), file = path.join(dir, 'request.json'), bytes = readFileSync(file), record = JSON.parse(bytes.toString('utf8'));
+    const { optionsFingerprint: _dropped, ...withoutFingerprint } = record;
+    const variants: (string | null)[] = [
+      { ...record, request: { ...record.request, child: { ...record.request.child, name: 'מישהו אחר' } } },
+      { ...record, requestId: 'f'.repeat(64) }, { ...record, optionsFingerprint: 'f'.repeat(64) },
+      { ...record, consent: 'another_consent' }, { ...record, experiment: 'another-slot' }, { ...record, version: 'local-simple-wizard-request/v2' },
+      { ...record, extra: true }, withoutFingerprint,
+    ].map(v => JSON.stringify(v));
+    variants.push('{ not json', null);
+    const slot = tree(dir), t = textTransports();
+    for (const variant of variants) {
+      if (variant === null) rmSync(file); else writeFileSync(file, variant);
+      for (const execute of [false, true]) await expect(continuation(t, execute)).rejects.toThrow('new_book_continuation_request_record');
+      nothingConsumed();
+      writeFileSync(file, bytes);
+    }
+    // The claim names the accepted request too.
+    const claim = experimentClaimFile(config), claimBytes = readFileSync(claim);
+    writeFileSync(claim, JSON.stringify({ ...JSON.parse(claimBytes.toString('utf8')), requestId: 'f'.repeat(64) }, null, 2));
+    for (const execute of [false, true]) await expect(continuation(t, execute)).rejects.toThrow('new_book_continuation_request_record');
+    nothingConsumed();
+    writeFileSync(claim, claimBytes);
+    expect([t.opus, t.reader, t.responses, sdk.create].map(m => m.mock.calls.length)).toEqual([0, 0, 0, 0]);
+    expect(tree(dir)).toEqual(slot);
+    // Unchanged, the same baseline is admitted and runs: only the storyboard and its review.
+    expect(await continuation(t)).toMatchObject({ status: 'review_supported' });
+    expect(t.responses.mock.calls.map(c => c[0].model)).toEqual(['gpt-6-astra', 'gpt-6.1-sol']);
+  });
+
+  it('the preview re-checks after its asynchronous replay: a HEAD or record change while it ran refuses, and nothing is written', async () => {
+    await timedOut(); headAt('c'.repeat(40));
+    const real = flow.runSimpleWizardBook, receipt = readFileSync(receiptFile());
+    for (const [change, code, restore] of [
+      [() => headAt('d'.repeat(40)), 'new_book_source_changed', () => headAt('c'.repeat(40))],
+      [() => headAt('c'.repeat(40), ' M scripts/personal-new-book-experiment.ts'), 'new_book_source_changed', () => headAt('c'.repeat(40))],
+      [() => writeFileSync(receiptFile(), receipt.toString('utf8') + ' '), 'new_book_continuation_evidence', () => writeFileSync(receiptFile(), receipt)],
+    ] as const) {
+      vi.spyOn(flow, 'runSimpleWizardBook').mockImplementationOnce(async a => { try { return await real(a); } finally { change(); } });
+      await expect(continuation(textTransports(), false)).rejects.toThrow(code);
+      nothingConsumed();
+      restore();
+    }
+    expect(await continuation(textTransports(), false)).toMatchObject({ continuation: { admissible: true } });
+  });
+
+  it('once amended, its HEAD is the pin: a preview or a run at any other HEAD refuses (compared, never adopted)', async () => {
+    await continued();
+    headAt('d'.repeat(40));
+    for (const execute of [false, true]) await expect(continuation(textTransports(), execute)).rejects.toThrow('new_book_source_changed');
+    headAt('c'.repeat(40));
+    expect(await continuation(textTransports(), false)).toMatchObject({ continuation: { admissible: true, amended: true, outDirExists: true } });
+    await expect(continuation(textTransports())).rejects.toThrow('new_book_continuation_used');
   });
 });
