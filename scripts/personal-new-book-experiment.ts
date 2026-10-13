@@ -9,9 +9,12 @@
  *   storyboard-continuation - Guy's one approved continuation after the storyboard call timed out: the paid story is replayed from its
  *     bound receipts (no new writer, editor or reader call) and only the storyboard and its review are called again, under a recorded
  *     amendment of the same claim, with the timed-out call's unknown cost carried as an unresolved reservation in the same $7.
+ *   storyboard-continuation-2 - Guy's second, separately approved attempt after that continuation's answer was refused by the scene/location
+ *     sequence check: the same story replayed, the same storyboard request with exactly one change (the scene-location instruction
+ *     contract), then its review, under a second recorded amendment, in the same $7.
  * Dry by default; nothing is retried; every paid call is journaled before dispatch.
  *   node --require ./scripts/shims/register-server-only.cjs --import tsx scripts/personal-new-book-experiment.ts \
- *     --config <abs config.json> <plan|text|storyboard-continuation|child|grant|audition> [--execute [--resume]]
+ *     --config <abs config.json> <plan|text|storyboard-continuation|storyboard-continuation-2|child|grant|audition> [--execute [--resume]]
  * Not production, customer, wizard or release authority. Every artifact is runtime-ineligible; acceptance is Guy's.
  */
 import path from 'node:path';
@@ -42,6 +45,7 @@ import { qualityDisposition } from '../lib/local-preview-quality';
 import { previewSha } from '../lib/local-story-preview';
 import { canonicalJson } from '../lib/personal-wizard/request-acceptance';
 import type { PersonalStoryboard } from '../lib/personal-wizard/storyboard';
+import { SCENE_LOCATION_STORYBOARD_ADDENDUM } from '../lib/personal-wizard/storyboard-scene-location';
 import { AUDITION_WORST_CASE_CALLS } from '../lib/personal-wizard/simple-book-reviewed-audition';
 
 export class NewBookExperimentError extends Error { constructor(readonly code: string) { super(code); } }
@@ -71,6 +75,18 @@ export const NEW_BOOK_CONTINUATION = Object.freeze({
   id: 'storyboard-continuation-1',
   outDir: 'text-continuation-1',
   approval: 'Guy 2026-10-13, AskUserQuestion after the storyboard timeout: "Approve fix + one retry" (offline transport fix, Codex QA, then one storyboard attempt and its review, then onward through the book within the same $7) and "Count the full $2.27" (the timed-out storyboard stays an unresolved reservation under the cap, not known spend).',
+});
+/**
+ * Guy's second, separately approved attempt of THIS book's storyboard (2026-10-13): the first continuation's storyboard answered, but its
+ * answer was refused by the scene/location sequence check (page 2 kept page 1's scene while the planned place changed). The same story is
+ * replayed and the storyboard is requested ONCE more with exactly one change, the opt-in scene-location instruction contract (a general
+ * engine rule), then its review. The first continuation's known cost is prior spend; the first call's unknown cost stays carried. Once only.
+ */
+export const NEW_BOOK_CONTINUATION_2 = Object.freeze({
+  id: 'storyboard-continuation-2',
+  outDir: 'text-continuation-2',
+  approval: 'Guy 2026-10-13, AskUserQuestion after the first continuation\'s storyboard was refused (book_sequence_scene_location_drift at page 2): "Fix rule + 1 attempt, $7" (an offline, general fix to the storyboard instructions - a scene changes exactly when the place changes - then Codex QA, then one new storyboard attempt for this same book under the same $7).',
+  contracts: Object.freeze({ ...NEW_BOOK_EXPERIMENT.contracts, sceneLocationContract: true as const }),
 });
 const SOL = 'gpt-6.1-sol' as const;
 const RATES = { opus: { inputMicroUsdPerToken: 4, outputMicroUsdPerToken: 20 }, astra: { inputMicroUsdPerToken: 10, outputMicroUsdPerToken: 50 },
@@ -157,14 +173,18 @@ function verifiedClaim(config: NewBookConfig) {
 }
 /**
  * The claim this configuration made, unchanged, and the source still at the pinned HEAD with a clean tree: the claim's own HEAD, or, after
- * the one recorded continuation amendment, the reviewed HEAD that amendment names (never an edited config). Checked before every paid call.
+ * a recorded continuation amendment, the reviewed HEAD the LATEST amendment names (never an edited config). Checked before every paid call.
  */
 export function assertExperimentClaim(config: NewBookConfig) {
   const { claim, claimSha256 } = verifiedClaim(config);
-  const continuation = readContinuation(config, claimSha256);
-  assertExperimentSource(config, continuation ? continuation.sourceHead : config.sourceHead);
-  return { claim, claimSha256, continuation };
+  const continuation = readContinuation(config, claimSha256), second = readContinuation2(config, claimSha256, continuation);
+  assertExperimentSource(config, second?.sourceHead ?? continuation?.sourceHead ?? config.sourceHead);
+  return { claim, claimSha256, continuation, second };
 }
+type ContinuationChain = { continuation: NewBookContinuation | null; second: NewBookContinuation2 | null };
+/** Where this book's latest text lives. */
+const textFolderOf = (chain: ContinuationChain) =>
+  chain.second ? NEW_BOOK_CONTINUATION_2.outDir : chain.continuation ? NEW_BOOK_CONTINUATION.outDir : 'text';
 
 // ---------------------------------------------------------------------------------------------------------------
 // The one continuation amendment: written once, beside the claim, binding the original claim and config, every original story/reader/
@@ -179,17 +199,18 @@ const continuationSchema = z.object({ version: z.literal('new-book-continuation/
   failedStep: z.literal('storyboard'), priorKnownApiMicroUsd: z.number().int().nonnegative(), carriedUnresolvedMicroUsd: z.number().int().positive(),
   evidence: z.array(z.object({ file: relativeFile, sha256: hash }).strict()).min(4).max(64) }).strict();
 export type NewBookContinuation = z.infer<typeof continuationSchema>;
-/** Every original text-stage record (and the request), by path relative to the slot: the continuation's evidence. */
-function originalTextEvidence(dir: string) {
-  const files = ['request.json'];
+/** Every record under one folder of the slot (plus any named files), by path relative to the slot, with its hash. */
+function folderEvidence(dir: string, folder: string, files: string[] = []) {
   const walk = (rel: string) => { for (const name of readdirSync(path.join(dir, rel)).sort()) {
     const r = `${rel}/${name}`, st = lstatSync(path.join(dir, r));
     if (st.isSymbolicLink()) fail('new_book_continuation_evidence');
     if (st.isDirectory()) walk(r); else files.push(r);
   } };
-  walk('text');
+  walk(folder);
   return files.map(file => ({ file, sha256: sha(readFileSync(path.join(dir, ...file.split('/')))) }));
 }
+/** Every original text-stage record (and the request), by path relative to the slot: the continuation's evidence. */
+const originalTextEvidence = (dir: string) => folderEvidence(dir, 'text', ['request.json']);
 function readContinuation(config: NewBookConfig, claimSha256: string): NewBookContinuation | null {
   const file = experimentContinuationFile(config);
   if (!existsSync(file)) return null;
@@ -234,11 +255,15 @@ function continuationBaseline(config: NewBookConfig, head: string, prepared: Ret
   if (amended && amended.sourceHead !== head) fail('new_book_source_changed');
   const dir = experimentDir(config), textDir = path.join(dir, 'text');
   if (sealedStatus(textDir) !== 'failed') fail('new_book_continuation_scope');
+  assertRequestRecord(dir, claim, prepared);
+  return { claimSha256, amended, ledger: failedStoryboardLedger(textDir), evidence: originalTextEvidence(dir) };
+}
+/** The COMPLETE saved request record equals the one the claimed configuration derives, and the claim names that request. */
+function assertRequestRecord(dir: string, claim: { requestId: string }, prepared: ReturnType<typeof prepareSimpleStory>) {
   const expected = experimentRequestRecord(prepared);
   let saved: unknown = null;
   try { saved = read(path.join(dir, 'request.json')); } catch { fail('new_book_continuation_request_record'); }
   if (claim.requestId !== expected.requestId || canonicalJson(saved) !== canonicalJson(expected)) fail('new_book_continuation_request_record');
-  return { claimSha256, amended, ledger: failedStoryboardLedger(textDir), evidence: originalTextEvidence(dir) };
 }
 /** The same baseline again, at the same pin: nothing it names may have changed since `admitted` (the records the replay used). */
 function sameBaseline(config: NewBookConfig, head: string, prepared: ReturnType<typeof prepareSimpleStory>, admitted: ContinuationBaseline) {
@@ -267,8 +292,23 @@ function amendForContinuation(config: NewBookConfig, head: string, prepared: Ret
   return amendment;
 }
 /** Where this book's reviewed text lives now, and its verified API ledger (known spend and any carried unresolved reservation). */
-export function textStage(config: NewBookConfig, continuation: NewBookContinuation | null) {
+export function textStage(config: NewBookConfig, continuation: NewBookContinuation | null, second: NewBookContinuation2 | null = null) {
   const dir = experimentDir(config);
+  if (second) {
+    if (!continuation) return fail('new_book_continuation');
+    const original = failedStoryboardLedger(path.join(dir, 'text'));
+    if (original.knownMicroUsd !== continuation.priorKnownApiMicroUsd || original.carriedUnresolvedMicroUsd !== continuation.carriedUnresolvedMicroUsd) fail('new_book_continuation_ledger');
+    const first = refusedStoryboardLedger(config, continuation);
+    if (first.knownMicroUsd !== second.priorKnownApiMicroUsd || first.carriedUnresolvedMicroUsd !== second.carriedUnresolvedMicroUsd) fail('new_book_continuation_ledger');
+    const out = path.join(dir, NEW_BOOK_CONTINUATION_2.outDir);
+    const ledger = stageLedger(out, CONTINUATION_API_CALLS, second.priorKnownApiMicroUsd, second.carriedUnresolvedMicroUsd);
+    const [one, two] = [experimentContinuationFile(config), experimentContinuation2File(config)];
+    return { folder: NEW_BOOK_CONTINUATION_2.outDir, path: out, knownMicroUsd: second.priorKnownApiMicroUsd + ledger.knownMicroUsd,
+      carriedUnresolvedMicroUsd: second.carriedUnresolvedMicroUsd,
+      evidence: [{ file: path.join(dir, 'text', 'spend.json'), sha256: sha(readFileSync(path.join(dir, 'text', 'spend.json'))) },
+        { file: one, sha256: sha(readFileSync(one)) }, { file: first.file, sha256: first.sha256 },
+        { file: two, sha256: sha(readFileSync(two)) }, { file: ledger.file, sha256: ledger.sha256 }] };
+  }
   if (!continuation) {
     const ledger = stageLedger(path.join(dir, 'text'), TEXT_API_CALLS);
     return { folder: 'text', path: path.join(dir, 'text'), knownMicroUsd: ledger.knownMicroUsd, carriedUnresolvedMicroUsd: 0, evidence: [{ file: ledger.file, sha256: ledger.sha256 }] };
@@ -291,8 +331,10 @@ export function stageLedger(stageDir: string, maxCalls: number, prior = 0, carri
   if (!existsSync(file) || canonicalJson(read(file)) !== canonicalJson(snapshot)) fail('new_book_ledger_record');
   return { knownMicroUsd: snapshot.newKnownApiMicroUsd, file, sha256: sha(readFileSync(file)) };
 }
+/** The error's own code, else its message when that is a code (as the book-sequence checks throw), else the fallback. */
 const codeOf = (error: unknown, fallback: string) =>
-  error && typeof error === 'object' && 'code' in error && typeof error.code === 'string' && /^[a-z0-9_]+$/.test(error.code) ? error.code : fallback;
+  error && typeof error === 'object' && 'code' in error && typeof error.code === 'string' && /^[a-z0-9_]+$/.test(error.code) ? error.code
+    : error instanceof Error && /^[a-z0-9_]{1,120}$/.test(error.message) ? error.message : fallback;
 const sealedStatus = (stageDir: string) => existsSync(path.join(stageDir, 'sealed.json')) ? read(path.join(stageDir, 'sealed.json')).status : null;
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -334,10 +376,11 @@ const storyDispatch = <T extends { stage: string }>(call: T, role: 'opus' | 'ast
   ({ ...call, role, conversationKey: `new-book:${requestId}:${call.stage}` });
 
 /** The story and storyboard flow, shared by the first run and its one continuation (which replays the paid story calls). */
+type TextContracts = { actorOwnedAppearance?: true; momentContract?: true; landmarkKindContract?: true; sceneLocationContract?: true };
 async function textCore(args: { config: NewBookConfig; signal: AbortSignal; log: (line: string) => void;
-  contracts: { actorOwnedAppearance?: true; momentContract?: true; landmarkKindContract?: true }; transports?: TextTransports;
+  contracts: TextContracts; transports?: TextTransports;
   prepared: ReturnType<typeof prepareExperimentRequest>['prepared']; options: ReturnType<typeof prepareExperimentRequest>['options'];
-  outDir: string; api: AuditionMeter; claudeMax: SimpleBookBudget | null; replay: TextReplay | null }) {
+  outDir: string; api: AuditionMeter; claudeMax: SimpleBookBudget | null; replay: TextReplay | null; continuationId: string | null }) {
   const { config, signal, prepared, outDir, api, claudeMax, replay } = args;
   const textDir = path.join(experimentDir(config), 'text');
   const request = prepared.accepted.canonical;
@@ -357,7 +400,7 @@ async function textCore(args: { config: NewBookConfig; signal: AbortSignal; log:
   const seal = (status: string, extra: Record<string, unknown> = {}) => {
     exclusiveJson(path.join(outDir, 'spend.json'), api.snapshot());
     if (claudeMax) exclusiveJson(path.join(outDir, 'claude-max-spend.json'), { ...claudeMax.snapshot(), note: NEW_BOOK_EXPERIMENT.claudeMax });
-    exclusiveJson(path.join(outDir, 'sealed.json'), { status, ...extra, ...(replay ? { continuation: NEW_BOOK_CONTINUATION.id } : {}), runtimeEligible: false });
+    exclusiveJson(path.join(outDir, 'sealed.json'), { status, ...extra, ...(args.continuationId ? { continuation: args.continuationId } : {}), runtimeEligible: false });
   };
   try {
     const result = await runSimpleWizardBook({ request, options: args.options, seed: config.seed, signal, reservedWritingUsd: 4, ...args.contracts,
@@ -445,7 +488,7 @@ export async function runNewBookText(args: { config: NewBookConfig; signal: Abor
   mkdirSync(textDir); mkdirSync(path.join(textDir, 'cli-workspace'));
   exclusiveJson(path.join(dir, 'request.json'), experimentRequestRecord(prepared));
   return textCore({ ...args, prepared, options, outDir: textDir, api: new AuditionMeter(path.join(textDir, 'paid-stages'), NEW_BOOK_EXPERIMENT.apiCapMicroUsd, TEXT_API_CALLS),
-    claudeMax: new SimpleBookBudget(path.join(textDir, 'claude-max-stages'), 0), replay: null });
+    claudeMax: new SimpleBookBudget(path.join(textDir, 'claude-max-stages'), 0), replay: null, continuationId: null });
 }
 
 /**
@@ -507,7 +550,168 @@ export async function runNewBookStoryboardContinuation(args: { config: NewBookCo
   return textCore({ ...args, prepared, options, outDir,
     api: new AuditionMeter(path.join(outDir, 'paid-stages'), NEW_BOOK_EXPERIMENT.apiCapMicroUsd, CONTINUATION_API_CALLS,
       continuation.priorKnownApiMicroUsd, continuation.carriedUnresolvedMicroUsd),
-    claudeMax: null, replay: textReplay(path.join(dir, 'text')) });
+    claudeMax: null, replay: textReplay(path.join(dir, 'text')), continuationId: NEW_BOOK_CONTINUATION.id });
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// The second attempt (Guy's separate approval): written once beside the claim, after and bound to the first amendment.
+// ---------------------------------------------------------------------------------------------------------------
+export const experimentContinuation2File = (config: NewBookConfig) =>
+  path.join(path.dirname(experimentClaimFile(config)), `${NEW_BOOK_EXPERIMENT.slot}.continuation-2.json`);
+const relativeFile2 = z.string().regex(/^text-continuation-1\/[A-Za-z0-9_.-]+(?:\/[A-Za-z0-9_.-]+)?$/);
+const continuation2Schema = z.object({ version: z.literal('new-book-continuation/v1'), id: z.literal(NEW_BOOK_CONTINUATION_2.id),
+  slot: z.literal(NEW_BOOK_EXPERIMENT.slot), approval: z.literal(NEW_BOOK_CONTINUATION_2.approval), claimSha256: hash, configSha256: hash,
+  previousSha256: hash, originalSourceHead: z.string().regex(/^[a-f0-9]{40}$/), previousSourceHead: z.string().regex(/^[a-f0-9]{40}$/),
+  sourceHead: z.string().regex(/^[a-f0-9]{40}$/), failedStep: z.literal('storyboard_scene_location'),
+  priorKnownApiMicroUsd: z.number().int().nonnegative(), carriedUnresolvedMicroUsd: z.number().int().positive(),
+  evidence: z.array(z.object({ file: relativeFile2, sha256: hash }).strict()).min(4).max(32) }).strict();
+export type NewBookContinuation2 = z.infer<typeof continuation2Schema>;
+/** Every record of the first continuation, by path relative to the slot: the second attempt's evidence. */
+const firstContinuationEvidence = (dir: string) => folderEvidence(dir, NEW_BOOK_CONTINUATION.outDir);
+function readContinuation2(config: NewBookConfig, claimSha256: string, first: NewBookContinuation | null): NewBookContinuation2 | null {
+  const file = experimentContinuation2File(config);
+  if (!existsSync(file)) return null;
+  if (!first) return fail('new_book_continuation');
+  const parsed = continuation2Schema.safeParse(read(file));
+  if (!parsed.success || parsed.data.claimSha256 !== claimSha256 || parsed.data.configSha256 !== sha(canonicalJson(config)) ||
+      parsed.data.originalSourceHead !== config.sourceHead || parsed.data.previousSourceHead !== first.sourceHead ||
+      parsed.data.previousSha256 !== sha(readFileSync(experimentContinuationFile(config)))) return fail('new_book_continuation');
+  // The first continuation's records are exactly those the second amendment bound.
+  if (canonicalJson(firstContinuationEvidence(experimentDir(config))) !== canonicalJson(parsed.data.evidence)) fail('new_book_continuation_evidence');
+  return parsed.data;
+}
+/**
+ * The first continuation as it ended: sealed failed, its one storyboard call answered and settled with a known cost, nothing else called.
+ * (That the answer was refused exactly at the scene/location check is proven by replaying it, in the admission.)
+ */
+function refusedStoryboardLedger(config: NewBookConfig, first: NewBookContinuation) {
+  const out = path.join(experimentDir(config), NEW_BOOK_CONTINUATION.outDir), root = path.join(out, 'paid-stages');
+  const sealed = existsSync(path.join(out, 'sealed.json')) ? read(path.join(out, 'sealed.json')) : null;
+  if (sealed?.status !== 'failed' || sealed.continuation !== NEW_BOOK_CONTINUATION.id || !existsSync(root)) fail('new_book_continuation_scope');
+  const claims = readdirSync(root).filter(n => n.endsWith('.claim.json')).map(n => n.slice(0, -'.claim.json'.length)).sort();
+  if (canonicalJson(claims) !== canonicalJson(['storyboard']) || read(path.join(root, 'storyboard.result.json')).completed !== true) fail('new_book_continuation_scope');
+  const ledger = stageLedger(out, CONTINUATION_API_CALLS, first.priorKnownApiMicroUsd, first.carriedUnresolvedMicroUsd);
+  return { knownMicroUsd: first.priorKnownApiMicroUsd + ledger.knownMicroUsd, carriedUnresolvedMicroUsd: first.carriedUnresolvedMicroUsd,
+    file: ledger.file, sha256: ledger.sha256 };
+}
+type Continuation2Baseline = { claimSha256: string; first: NewBookContinuation; previousSha256: string; amended: NewBookContinuation2 | null;
+  ledger: ReturnType<typeof refusedStoryboardLedger>; evidence: ReturnType<typeof folderEvidence> };
+/**
+ * The second attempt's admission baseline at ONE pinned HEAD (compared, never adopted): the clean source first; the unchanged claim; the first
+ * amendment (and through it every original record); once amended, the second amendment's own HEAD equal to the pin; the failed text stage;
+ * the complete request record; both earlier ledgers; and every record of the first continuation by hash.
+ */
+function continuation2Baseline(config: NewBookConfig, head: string, prepared: ReturnType<typeof prepareSimpleStory>): Continuation2Baseline {
+  assertExperimentSource(config, head);
+  const { claim, claimSha256 } = verifiedClaim(config);
+  const first = readContinuation(config, claimSha256);
+  if (!first) return fail('new_book_continuation_scope');
+  const amended = readContinuation2(config, claimSha256, first);
+  if (amended && amended.sourceHead !== head) fail('new_book_source_changed');
+  const dir = experimentDir(config), textDir = path.join(dir, 'text');
+  if (sealedStatus(textDir) !== 'failed') fail('new_book_continuation_scope');
+  assertRequestRecord(dir, claim, prepared);
+  const original = failedStoryboardLedger(textDir);
+  if (original.knownMicroUsd !== first.priorKnownApiMicroUsd || original.carriedUnresolvedMicroUsd !== first.carriedUnresolvedMicroUsd) fail('new_book_continuation_ledger');
+  return { claimSha256, first, previousSha256: sha(readFileSync(experimentContinuationFile(config))), amended,
+    ledger: refusedStoryboardLedger(config, first), evidence: firstContinuationEvidence(dir) };
+}
+function sameBaseline2(config: NewBookConfig, head: string, prepared: ReturnType<typeof prepareSimpleStory>, admitted: Continuation2Baseline) {
+  const now = continuation2Baseline(config, head, prepared);
+  if (now.claimSha256 !== admitted.claimSha256 || now.previousSha256 !== admitted.previousSha256 ||
+      canonicalJson(now.evidence) !== canonicalJson(admitted.evidence)) fail('new_book_continuation_evidence');
+  return now;
+}
+/**
+ * Read-only preview of the second attempt: admissible; the paid story replays exactly; the first continuation's saved storyboard answer,
+ * replayed under its own contracts, is refused exactly at the scene/location check; and the new storyboard request equals the first
+ * continuation's except for the scene-location instruction and the source digest that records it.
+ */
+export async function previewStoryboardContinuation2(config: NewBookConfig) {
+  return (await admitContinuation2(config, currentHead(config))).admitted.summary;
+}
+async function admitContinuation2(config: NewBookConfig, head: string) {
+  const { options, prepared } = prepareExperimentRequest(config);
+  const baseline = continuation2Baseline(config, head, prepared), ledger = baseline.ledger;
+  const dir = experimentDir(config), textDir = path.join(dir, 'text'), root1 = path.join(dir, NEW_BOOK_CONTINUATION.outDir, 'paid-stages');
+  const policy = textPolicy(config), replay = textReplay(textDir);
+  // The first continuation's storyboard request and answer, bound to the claim written before that call and to its settled cost.
+  const [claim1, wire1, result1, receipt1] = ['claim', 'wire', 'result', 'receipt'].map(k => read(path.join(root1, `storyboard.${k}.json`)));
+  if (previewSha(canonicalJson(wire1)) !== claim1.wireDigest || result1.wireDigest !== claim1.wireDigest || result1.completed !== true ||
+      receipt1?.estimatedMicroUsd !== result1.estimatedMicroUsd || typeof receipt1?.raw?.output_text !== 'string') fail('new_book_continuation_replay');
+  let refusal: unknown = null;
+  const replayed = <T>(f: () => T) => { try { return f(); } catch (error) { refusal ??= error; throw error; } };
+  const story = (contracts: TextContracts, visual: (call: SimpleStoryboardDiagnosticCall) => Promise<unknown>) =>
+    runSimpleWizardBook({ request: prepared.accepted.canonical, options, seed: config.seed, signal: new AbortController().signal,
+      reservedWritingUsd: 4, ...contracts, publish: () => {},
+      opus: async call => { const d = storyDispatch(call, 'opus', prepared.accepted.requestId);
+        return replayed(() => replay.opus(d, prepareCausalWire(d, policy, 2000000, path.join(textDir, `${call.stage}-instructions.txt`)))); },
+      reader: async call => { const d = storyDispatch(call, 'astra', prepared.accepted.requestId);
+        return replayed(() => replay.reader(d, prepareCausalWire(d, policy, 2000000))); },
+      visual });
+  // 1. The first continuation's saved answer, under its own contracts: exactly its request, refused exactly at the scene/location check.
+  let answered = false, sameFirstRequest = false, firstSource: string | null = null, firstInstructions: string | null = null;
+  const refusedAt = await story(NEW_BOOK_EXPERIMENT.contracts, async call => {
+    sameFirstRequest = !answered && call.stage === 'storyboard' && previewSha(canonicalJson(simpleWizardVisualPayload(call, SOL))) === claim1.wireDigest;
+    if (!sameFirstRequest) throw new NewBookExperimentError('new_book_continuation_replay');
+    answered = true; firstSource = call.context.sourceDigest; firstInstructions = call.instructions;
+    return decodePersonalBookProviderOutput(call, JSON.parse(receipt1.raw.output_text));
+  }).then(() => null, (error: unknown) => error);
+  if (!answered) throw refusal ?? new NewBookExperimentError(sameFirstRequest ? 'new_book_continuation_scope' : 'new_book_continuation_replay');
+  if (!(refusedAt instanceof Error) || refusedAt.message !== 'book_sequence_scene_location_drift') fail('new_book_continuation_scope');
+  // 2. The new request: the same, but for the scene-location instruction and the source digest that records that contract. The storyboard
+  //    call's instructions gain exactly the rule; the provider request is the first one with those instructions (its own trailing provider
+  //    note kept) and that digest swapped in, nothing else.
+  let reached = false, onlyTheRule = false;
+  await story(NEW_BOOK_CONTINUATION_2.contracts, async call => {
+    reached = true;
+    const payload = simpleWizardVisualPayload(call, SOL), source = call.context.sourceDigest, old = canonicalJson(wire1);
+    onlyTheRule = call.stage === 'storyboard' && !!firstSource && !!firstInstructions && source !== firstSource && old.split(firstSource).length === 2 &&
+      call.instructions === `${firstInstructions}\n${SCENE_LOCATION_STORYBOARD_ADDENDUM}` && wire1.instructions.startsWith(firstInstructions) &&
+      canonicalJson(payload) === canonicalJson({ ...JSON.parse(old.split(firstSource).join(source)),
+        instructions: call.instructions + wire1.instructions.slice(firstInstructions.length) });
+    throw new NewBookExperimentError('new_book_continuation_preview_stop');
+  }).catch((error: unknown) => { if (!reached) throw refusal ?? error; });
+  if (!reached) fail('new_book_continuation_scope');
+  if (!onlyTheRule) fail('new_book_continuation_request');
+  // Both replays were asynchronous: the same pinned HEAD, still clean, and exactly the records they used.
+  sameBaseline2(config, head, prepared, baseline);
+  return { prepared, options, admitted: { baseline, summary: { admissible: true, amended: !!baseline.amended,
+    outDirExists: existsSync(path.join(dir, NEW_BOOK_CONTINUATION_2.outDir)), storyReplayed: true, previousRefusedAtSceneLocation: true,
+    requestChangedOnlyByTheRule: true, priorKnownApiMicroUsd: ledger.knownMicroUsd, carriedUnresolvedMicroUsd: ledger.carriedUnresolvedMicroUsd,
+    remainingUnderCapMicroUsd: NEW_BOOK_EXPERIMENT.apiCapMicroUsd - ledger.knownMicroUsd - ledger.carriedUnresolvedMicroUsd,
+    providerCalls: 0, keyRead: false } } };
+}
+/** Records the second attempt (exclusive), immediately after re-checking the admitted baseline at the same pinned HEAD. */
+function amendForContinuation2(config: NewBookConfig, head: string, prepared: ReturnType<typeof prepareSimpleStory>, admitted: Continuation2Baseline) {
+  const now = sameBaseline2(config, head, prepared, admitted);
+  if (now.amended) return now.amended;
+  if (existsSync(path.join(experimentDir(config), NEW_BOOK_CONTINUATION_2.outDir))) fail('new_book_continuation_scope');
+  const amendment = continuation2Schema.parse({ version: 'new-book-continuation/v1', id: NEW_BOOK_CONTINUATION_2.id, slot: NEW_BOOK_EXPERIMENT.slot,
+    approval: NEW_BOOK_CONTINUATION_2.approval, claimSha256: now.claimSha256, configSha256: sha(canonicalJson(config)), previousSha256: now.previousSha256,
+    originalSourceHead: config.sourceHead, previousSourceHead: now.first.sourceHead, sourceHead: head, failedStep: 'storyboard_scene_location',
+    priorKnownApiMicroUsd: now.ledger.knownMicroUsd, carriedUnresolvedMicroUsd: now.ledger.carriedUnresolvedMicroUsd, evidence: admitted.evidence });
+  try { exclusiveJson(experimentContinuation2File(config), amendment); } catch { fail('new_book_continuation_used'); }
+  return amendment;
+}
+/**
+ * Guy's second attempt: one pinned HEAD, the admission above, the second amendment, then only the storyboard (with the scene-location
+ * contract) and its review, in a new folder whose meter carries all earlier known spend and the first call's unresolved reservation.
+ */
+export async function runNewBookStoryboardContinuation2(args: { config: NewBookConfig; signal: AbortSignal; log: (line: string) => void;
+  transports?: TextTransports }) {
+  const { config } = args;
+  const head = currentHead(config);
+  const { prepared, options, admitted } = await admitContinuation2(config, head);
+  amendForContinuation2(config, head, prepared, admitted.baseline);
+  const { second } = assertExperimentClaim(config);
+  if (!second) return fail('new_book_continuation');
+  const dir = experimentDir(config), outDir = path.join(dir, NEW_BOOK_CONTINUATION_2.outDir);
+  try { mkdirSync(outDir); } catch { fail('new_book_continuation_used'); }
+  return textCore({ ...args, contracts: NEW_BOOK_CONTINUATION_2.contracts, prepared, options, outDir,
+    api: new AuditionMeter(path.join(outDir, 'paid-stages'), NEW_BOOK_EXPERIMENT.apiCapMicroUsd, CONTINUATION_API_CALLS,
+      second.priorKnownApiMicroUsd, second.carriedUnresolvedMicroUsd),
+    claudeMax: null, replay: textReplay(path.join(dir, 'text')), continuationId: NEW_BOOK_CONTINUATION_2.id });
 }
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -519,12 +723,12 @@ export type ChildAdapters = { render?: Render; judge?: Judge };
 
 export async function runNewBookChild(args: { config: NewBookConfig; signal: AbortSignal; log: (line: string) => void; adapters?: ChildAdapters }) {
   const { config, signal } = args;
-  const { continuation } = assertExperimentClaim(config);
+  const chain = assertExperimentClaim(config);
   const dir = experimentDir(config), childDir = path.join(dir, 'child'), images = path.join(childDir, 'illustrations');
   realDirectory(dir);
   // The reviewed text is the continuation's when the one approved continuation ran.
-  if (sealedStatus(path.join(dir, continuation ? NEW_BOOK_CONTINUATION.outDir : 'text')) !== 'review_supported') fail('new_book_text_not_supported');
-  const prior = textStage(config, continuation);
+  if (sealedStatus(path.join(dir, textFolderOf(chain))) !== 'review_supported') fail('new_book_text_not_supported');
+  const prior = textStage(config, chain.continuation, chain.second);
   const layoutFor = (childImage?: string) => experimentLayout(config, childImage, prior.folder);
   const loaded = loadReviewedStoryboard(dir, config.workspace, layoutFor());
   try { mkdirSync(childDir); } catch { fail('new_book_child_used'); }
@@ -582,13 +786,13 @@ export function earliestSameScenePair(book: Pick<PersonalStoryboard, 'narrativeS
 }
 
 export function writeNewBookGrant(config: NewBookConfig) {
-  const { claimSha256, continuation } = assertExperimentClaim(config);
-  const dir = experimentDir(config), childDir = path.join(dir, 'child'), textFolder = continuation ? NEW_BOOK_CONTINUATION.outDir : 'text';
+  const chain = assertExperimentClaim(config), { claimSha256 } = chain;
+  const dir = experimentDir(config), childDir = path.join(dir, 'child'), textFolder = textFolderOf(chain);
   if (sealedStatus(path.join(dir, textFolder)) !== 'review_supported' || sealedStatus(childDir) !== 'child_reference_passed') fail('new_book_stage_not_passed');
   const layout = readReviewedBookLayout(path.join(dir, 'book-layout.json'));
   if (canonicalJson(layout) !== canonicalJson(experimentLayout(config, layout.childImage, textFolder))) fail('new_book_layout');
   const loaded = loadReviewedBook(dir, config.workspace, undefined, layout);
-  const text = textStage(config, continuation);
+  const text = textStage(config, chain.continuation, chain.second);
   const child = stageLedger(childDir, CHILD_API_CALLS, text.knownMicroUsd, text.carriedUnresolvedMicroUsd);
   const prior = text.knownMicroUsd + child.knownMicroUsd, carried = text.carriedUnresolvedMicroUsd;
   if (prior + carried >= NEW_BOOK_EXPERIMENT.apiCapMicroUsd) fail('new_book_budget_exhausted');
@@ -616,9 +820,9 @@ export const experimentAuditionStart = (config: NewBookConfig) =>
   path.join(path.dirname(experimentClaimFile(config)), `${NEW_BOOK_EXPERIMENT.slot}.audition.json`);
 export async function runNewBookAudition(args: { config: NewBookConfig; signal: AbortSignal; log: (line: string) => void; resume?: true }) {
   const { config } = args;
-  const { claimSha256, continuation } = assertExperimentClaim(config);
+  const chain = assertExperimentClaim(config), { claimSha256 } = chain;
   const dir = experimentDir(config), grantFile = path.join(dir, 'audition.grant.json'), out = path.join(dir, 'audition');
-  if (sealedStatus(path.join(dir, continuation ? NEW_BOOK_CONTINUATION.outDir : 'text')) !== 'review_supported' ||
+  if (sealedStatus(path.join(dir, textFolderOf(chain))) !== 'review_supported' ||
       sealedStatus(path.join(dir, 'child')) !== 'child_reference_passed' ||
       !existsSync(grantFile)) fail('new_book_stage_not_passed');
   const grant = read(grantFile), grantSha256 = sha(readFileSync(grantFile));
@@ -645,7 +849,9 @@ export function planNewBook(config: NewBookConfig) {
     child: { age: prepared.brief.child.age, address: prepared.brief.child.address }, companion: (config.request as { companion?: { id?: string } }).companion?.id ?? null,
     contracts: NEW_BOOK_EXPERIMENT.contracts, apiCapMicroUsd: NEW_BOOK_EXPERIMENT.apiCapMicroUsd,
     claimed: existsSync(experimentClaimFile(config)), continuation: existsSync(experimentContinuationFile(config)),
+    continuation2: existsSync(experimentContinuation2File(config)),
     stages: { text: sealedStatus(path.join(dir, 'text')), continuation: sealedStatus(path.join(dir, NEW_BOOK_CONTINUATION.outDir)),
+      continuation2: sealedStatus(path.join(dir, NEW_BOOK_CONTINUATION_2.outDir)),
       child: sealedStatus(path.join(dir, 'child')), grant: existsSync(path.join(dir, 'audition.grant.json')),
       audition: existsSync(experimentAuditionStart(config)) },
     providerCalls: 0, keyRead: false, runtimeEligible: false };
@@ -653,12 +859,14 @@ export function planNewBook(config: NewBookConfig) {
 
 export async function newBookExperimentCLI(argv: string[], deps: { text?: TextTransports; child?: ChildAdapters; log?: (line: string) => void } = {}) {
   const flags = argv.slice(3);
-  if (argv.length < 3 || argv.length > 5 || argv[0] !== '--config' || !['plan', 'text', 'storyboard-continuation', 'child', 'grant', 'audition'].includes(argv[2]) ||
+  if (argv.length < 3 || argv.length > 5 || argv[0] !== '--config' || !['plan', 'text', 'storyboard-continuation', 'storyboard-continuation-2', 'child', 'grant', 'audition'].includes(argv[2]) ||
       flags.some(f => f !== '--execute' && f !== '--resume') || new Set(flags).size !== flags.length ||
       flags.includes('--resume') && (argv[2] !== 'audition' || !flags.includes('--execute'))) fail('new_book_arguments');
   const config = newBookConfig(argv[1]), stage = argv[2], execute = flags.includes('--execute'), log = deps.log ?? (line => console.log(line));
   if (stage === 'storyboard-continuation' && !execute) return { mode: 'plan' as const, plan: planNewBook(config),
     continuation: await previewStoryboardContinuation(config) };
+  if (stage === 'storyboard-continuation-2' && !execute) return { mode: 'plan' as const, plan: planNewBook(config),
+    continuation2: await previewStoryboardContinuation2(config) };
   if (stage === 'plan' || !execute) return { mode: 'plan' as const, plan: planNewBook(config) };
   const controller = new AbortController(), interrupt = () => controller.abort(); process.on('SIGINT', interrupt);
   try {
@@ -666,6 +874,8 @@ export async function newBookExperimentCLI(argv: string[], deps: { text?: TextTr
       ...(deps.text ? { transports: deps.text } : {}) }) };
     if (stage === 'storyboard-continuation') return { mode: 'storyboard-continuation' as const, ...await runNewBookStoryboardContinuation({ config,
       signal: controller.signal, log, contracts: NEW_BOOK_EXPERIMENT.contracts, ...(deps.text ? { transports: deps.text } : {}) }) };
+    if (stage === 'storyboard-continuation-2') return { mode: 'storyboard-continuation-2' as const, ...await runNewBookStoryboardContinuation2({ config,
+      signal: controller.signal, log, ...(deps.text ? { transports: deps.text } : {}) }) };
     if (stage === 'child') return { mode: 'child' as const, ...await runNewBookChild({ config, signal: controller.signal, log, ...(deps.child ? { adapters: deps.child } : {}) }) };
     if (stage === 'audition') return { mode: 'audition' as const, result: await runNewBookAudition({ config, signal: controller.signal, log,
       ...(flags.includes('--resume') ? { resume: true as const } : {}) }) };

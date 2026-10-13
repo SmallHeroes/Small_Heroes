@@ -34,6 +34,8 @@ export async function runSimpleStoryboardDiagnostic(args: {
   landmarkKindContract?: true;
   /** Opt-in re-plan of an approved parent (needs the kind contract); absent keeps the exact existing calls. */
   preservation?: StoryboardPreservation;
+  /** Opt-in scene-location instruction contract; absent keeps the exact existing calls. */
+  sceneLocationContract?: true;
 }) {
   const limit = args.inputByteLimit ?? SIMPLE_STORYBOARD_INPUT_LIMIT;
   if (!Number.isInteger(limit) || limit < 1 || limit > SIMPLE_STORYBOARD_INPUT_LIMIT) fail('input_policy');
@@ -41,7 +43,7 @@ export async function runSimpleStoryboardDiagnostic(args: {
   // This driver is for the explicit simple envelope only, never archive/v3 substitution.
   if (!args.writerResult || typeof args.writerResult !== 'object' || !('simpleSource' in args.writerResult)) fail('simple_source_required');
   const source = prepareCurrentPersonalStoryboard(args.request, args.writerResult, args.options, args.actorOwnedAppearance, args.momentContract, args.landmarkKindContract,
-    args.preservation);
+    args.preservation, args.sceneLocationContract);
   const instructions = storyboardInstructions(source);
   const caps = personalBookOutputLimits(source.story.pages.length);
   const calls: (BookVisualCall & { contentBytes: number; contentByteLimit: number; headroomBytes: number })[] = [];
@@ -49,7 +51,7 @@ export async function runSimpleStoryboardDiagnostic(args: {
     if (args.signal.aborted) fail('cancelled');
     try {
       if (prepareCurrentPersonalStoryboard(args.request, args.writerResult, args.options, args.actorOwnedAppearance, args.momentContract, args.landmarkKindContract,
-        args.preservation).sourceDigest !== source.sourceDigest) fail('source_changed');
+        args.preservation, args.sceneLocationContract).sourceDigest !== source.sourceDigest) fail('source_changed');
     } catch (error) {
       if (error instanceof SimpleStoryboardDiagnosticError) throw error;
       fail('source_changed');

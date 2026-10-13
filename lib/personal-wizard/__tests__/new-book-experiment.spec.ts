@@ -9,6 +9,7 @@ vi.mock('openai', () => ({ default: class { responses = { create: sdk.create }; 
 import { personalStoryboardFixture } from './personal-storyboard-fixture';
 import { providerStoryboard, providerReview, withKind } from './storyboard-replan-fixture';
 import { STORYBOARD_MOMENTS_VERSION } from '../storyboard-moments';
+import { SCENE_LOCATION_CONTRACT_VERSION, SCENE_LOCATION_STORYBOARD_ADDENDUM } from '../storyboard-scene-location';
 import type { SimpleStoryDraft } from '../simple-story-engine';
 import { QUALITY_CATEGORIES } from '../../local-preview-quality';
 import * as frozen from '../../../scripts/personal-source-git';
@@ -20,7 +21,8 @@ import { createSimpleBookPixelJudge } from '../../../scripts/personal-simple-boo
 import { readAuditionGrant, loadReviewedBook, loadReviewedStoryboard, dryRun, readReviewedBookLayout, auditionGrantSchema, runReviewedAudition, savedMomentContract, AuditionMeter, auditionAdapters }
   from '../../../scripts/personal-simple-book-reviewed-audition';
 import { NEW_BOOK_EXPERIMENT, newBookConfig, newBookExperimentCLI, runNewBookText, runNewBookChild, runNewBookAudition, writeNewBookGrant, experimentDir, experimentClaimFile, assertExperimentClaim,
-  experimentLayout, earliestSameScenePair, stageLedger, NEW_BOOK_CONTINUATION, experimentContinuationFile, type NewBookConfig, type TextTransports, type ChildAdapters }
+  experimentLayout, earliestSameScenePair, stageLedger, NEW_BOOK_CONTINUATION, experimentContinuationFile, NEW_BOOK_CONTINUATION_2, experimentContinuation2File,
+  type NewBookConfig, type TextTransports, type ChildAdapters }
   from '../../../scripts/personal-new-book-experiment';
 
 const sha = (v: string | Buffer) => createHash('sha256').update(v).digest('hex');
@@ -56,6 +58,12 @@ afterEach(() => {
 /** The experiment's real storyboard contracts in provider shape: declared landmark kind and a (trivial) drawn-instant record per frame. */
 const contractedStoryboard = (owned: any) => ({ ...providerStoryboard(withKind(owned)),
   moments: { version: STORYBOARD_MOMENTS_VERSION, frames: owned.plan.pages.map(() => ({ requirements: [], depicted: null })) } });
+/** The fixture plans page 4 in the lane (every other page in the garden): keeping page 3's scene on page 4 is the real run's refusal. */
+const driftingStoryboard = (owned: any) => { const s = contractedStoryboard(owned) as any;
+  s.sequence.pages[3] = { ...s.sequence.pages[3], sceneId: s.sequence.pages[2].sceneId, sceneChangeEvidence: null, transitions: [] }; return s; };
+/** A refusal by another sequence check: page 4's scene-change evidence is not in its text. */
+const otherRefusalStoryboard = (owned: any) => { const s = contractedStoryboard(owned) as any;
+  s.sequence.pages[3] = { ...s.sequence.pages[3], sceneChangeEvidence: 'words that are not on this page' }; return s; };
 /** Synthetic transports at the provider boundary: the experiment's own meters, receipts, decoding and files run for real. */
 function textTransports(opts: { storyboardOutput?: (draft: any) => unknown; readerFindings?: unknown[]; model?: string } = {}) {
   // The fixture book's companion is Dini; this experiment excludes Dini, so the same synthetic book is told with the fox Uri throughout
@@ -232,8 +240,13 @@ describe('a new book from scratch, staged, offline rehearsal (synthetic provider
 describe('the reviewed audition on the new book (synthetic providers through the real runner, meter and sample gate)', { timeout: 60_000 }, () => {
   const ANSWER = { referenceChildVisible: true, candidateChildVisible: true, candidateChildCount: 1, comparisonUsable: true, sameChildDecision: 'same',
     faceStructure: 'match', eyesBrows: 'match', noseMouth: 'match', hairIdentity: 'match', distinctiveFeatures: 'match' };
-  async function prepared(opts: { continued?: true } = {}) {
-    if (opts.continued) await continued(); else await run();
+  async function prepared(opts: { continued?: true; second?: true } = {}) {
+    if (opts.second) {
+      await timedOut(); headAt('c'.repeat(40));
+      await expect(continuation(textTransports({ storyboardOutput: driftingStoryboard }))).rejects.toThrow('book_sequence_scene_location_drift');
+      headAt('e'.repeat(40));
+      await newBookExperimentCLI(['--config', file, 'storyboard-continuation-2', '--execute'], { text: textTransports(), log: () => {} });
+    } else if (opts.continued) await continued(); else await run();
     await runNewBookChild({ config: newBookConfig(file), signal: new AbortController().signal, log: () => {}, adapters: childAdapters() });
     const grant = writeNewBookGrant(newBookConfig(file)), dir = experimentDir(config);
     let shade = 40;
@@ -312,6 +325,17 @@ describe('the reviewed audition on the new book (synthetic providers through the
     expect(result.spend).toMatchObject({ priorKnownApiMicroUsd: grant.ledger.priorKnownApiMicroUsd, carriedUnresolvedMicroUsd: carried, capMicroUsd: 7000000,
       reservedUnsettledMicroUsd: 0, unknownCost: 0, unknownOutcome: 0 });
     expect(result.spend.cumulativeAccountedMicroUsd).toBe(grant.ledger.priorKnownApiMicroUsd + carried + result.spend.newKnownApiMicroUsd);
+  });
+
+  it('after the second storyboard attempt: the loader admits its scene-location book and the audition carries every ledger line', async () => {
+    const { grant, dir } = await prepared({ second: true }); judgeWith(null);
+    const carried = json(path.join(dir, 'text', 'paid-stages', 'storyboard.claim.json')).maximumMicroUsd;
+    expect(grant.ledger).toMatchObject({ carriedUnresolvedMicroUsd: carried });
+    expect(loadReviewedStoryboard(dir, process.cwd(), readReviewedBookLayout(path.join(dir, 'book-layout.json'))).book.sceneLocation).toBe(SCENE_LOCATION_CONTRACT_VERSION);
+    const result = await audition();
+    if (result.mode !== 'render') throw Error('render expected');
+    expect(result.manifest).toMatchObject({ status: 'qa_supported_audition', scope: { complete: true } });
+    expect(result.spend).toMatchObject({ priorKnownApiMicroUsd: grant.ledger.priorKnownApiMicroUsd, carriedUnresolvedMicroUsd: carried, unknownCost: 0, unknownOutcome: 0 });
   });
 
   it('F3: one fresh audition per approval; a second start, another output folder or the grant on a bare runner is refused before any image', async () => {
@@ -1088,5 +1112,168 @@ describe('HOLD F1/F2 correction: one pinned HEAD and the complete request record
     headAt('c'.repeat(40));
     expect(await continuation(textTransports(), false)).toMatchObject({ continuation: { admissible: true, amended: true, outDirExists: true } });
     await expect(continuation(textTransports())).rejects.toThrow('new_book_continuation_used');
+  });
+});
+
+describe("Guy's second storyboard attempt: the same request plus the scene-location rule, after the first continuation's answer was refused", { timeout: 120_000 }, () => {
+  const dir = () => experimentDir(config), out1 = () => path.join(dir(), NEW_BOOK_CONTINUATION.outDir), out2 = () => path.join(dir(), NEW_BOOK_CONTINUATION_2.outDir);
+  const reservation = () => json(path.join(dir(), 'text', 'paid-stages', 'storyboard.claim.json')).maximumMicroUsd as number;
+  const child = () => runNewBookChild({ config: newBookConfig(file), signal: new AbortController().signal, log: () => {}, adapters: childAdapters() });
+  const nothingConsumed = () => expect([existsSync(experimentContinuation2File(config)), existsSync(out2())]).toEqual([false, false]);
+  const second = (transports = textTransports(), execute = true) =>
+    newBookExperimentCLI(['--config', file, 'storyboard-continuation-2', ...(execute ? ['--execute'] : [])], { text: transports, log: () => {} });
+  /** The real first continuation (at HEAD c), whose storyboard answer keeps page 3's scene on page 4 while the planned place changes. */
+  async function refusedOnce(storyboardOutput = driftingStoryboard) {
+    await timedOut(); headAt('c'.repeat(40));
+    await expect(continuation(textTransports({ storyboardOutput }))).rejects.toThrow();
+    headAt('e'.repeat(40));
+  }
+
+  it('the refused first continuation: sealed failed with the check\'s own code; its one storyboard call settled at a known cost; no review', async () => {
+    await refusedOnce();
+    expect(json(path.join(out1(), 'sealed.json'))).toEqual({ status: 'failed', code: 'book_sequence_scene_location_drift',
+      continuation: NEW_BOOK_CONTINUATION.id, runtimeEligible: false });
+    expect(claims(path.join(out1(), 'paid-stages'))).toEqual(['storyboard']);
+    expect(json(path.join(out1(), 'spend.json'))).toMatchObject({ newKnownApiMicroUsd: 350000, calls: 1, unknownCost: 0, unknownOutcome: 0 });
+  });
+
+  it('the preview is read-only: admissible; the first answer replays to that exact refusal; the new request differs only by the rule', async () => {
+    await refusedOnce();
+    const before = tree(dir()), t = textTransports();
+    expect(await second(t, false)).toMatchObject({ mode: 'plan', plan: { continuation2: false, stages: { continuation: 'failed', continuation2: null } },
+      continuation2: { admissible: true, amended: false, outDirExists: false, storyReplayed: true, previousRefusedAtSceneLocation: true,
+        requestChangedOnlyByTheRule: true, priorKnownApiMicroUsd: 14000 + 350000, carriedUnresolvedMicroUsd: reservation(),
+        remainingUnderCapMicroUsd: 7000000 - 364000 - reservation(), providerCalls: 0, keyRead: false } });
+    expect(tree(dir())).toEqual(before);
+    nothingConsumed();
+    expect([t.opus, t.reader, t.responses, sdk.create].map(m => m.mock.calls.length)).toEqual([0, 0, 0, 0]);
+  });
+
+  it('one second attempt at its own reviewed HEAD: only the storyboard (with the rule) and its review; ledgers carried; later stages read it', async () => {
+    await refusedOnce();
+    const carried = reservation(), first = tree(out1()), amendment1 = readFileSync(experimentContinuationFile(config));
+    const t = textTransports();
+    expect(await second(t)).toMatchObject({ mode: 'storyboard-continuation-2', status: 'review_supported' });
+    expect([t.opus, t.reader].map(m => m.mock.calls.length)).toEqual([0, 0]);
+    expect(t.responses.mock.calls.map(c => c[0].model)).toEqual(['gpt-6-astra', 'gpt-6.1-sol']);
+    expect(claims(path.join(out2(), 'paid-stages'))).toEqual(['storyboard', 'storyboard_review']);
+    // The storyboard request is the first continuation's, plus the rule (and the source digest that records the contract).
+    const [w1, w2] = [out1(), out2()].map(o => json(path.join(o, 'paid-stages', 'storyboard.wire.json')));
+    // The rule is the only addition, placed right before the provider's own trailing note.
+    expect(w2.instructions.replace(`\n${SCENE_LOCATION_STORYBOARD_ADDENDUM}`, '')).toBe(w1.instructions);
+    expect(w2.instructions).toContain(`\n${SCENE_LOCATION_STORYBOARD_ADDENDUM}\nProvider output:`);
+    expect(w2.max_output_tokens).toBe(w1.max_output_tokens);
+    expect(json(path.join(out2(), 'spend.json'))).toMatchObject({ priorKnownApiMicroUsd: 364000, carriedUnresolvedMicroUsd: carried, newKnownApiMicroUsd: 420000,
+      reservedUnsettledMicroUsd: 0, cumulativeAccountedMicroUsd: 364000 + carried + 420000, calls: 2, maxCalls: 2, unknownCost: 0, unknownOutcome: 0 });
+    expect(json(path.join(out2(), 'sealed.json'))).toEqual({ status: 'review_supported', continuation: NEW_BOOK_CONTINUATION_2.id, runtimeEligible: false });
+    expect(json(path.join(out2(), 'visual_simple_book_result.json')).storyboard.storyboard.sceneLocation).toBe(SCENE_LOCATION_CONTRACT_VERSION);
+    const amendment2 = json(experimentContinuation2File(config));
+    expect(amendment2).toMatchObject({ id: NEW_BOOK_CONTINUATION_2.id, approval: NEW_BOOK_CONTINUATION_2.approval, claimSha256: sha(readFileSync(experimentClaimFile(config))),
+      previousSha256: sha(amendment1), originalSourceHead: 'a'.repeat(40), previousSourceHead: 'c'.repeat(40), sourceHead: 'e'.repeat(40),
+      failedStep: 'storyboard_scene_location', priorKnownApiMicroUsd: 364000, carriedUnresolvedMicroUsd: carried });
+    expect(Object.fromEntries(amendment2.evidence.map((e: { file: string; sha256: string }) => [e.file, e.sha256])))
+      .toEqual(Object.fromEntries(Object.entries(first).map(([k, v]) => [`${NEW_BOOK_CONTINUATION.outDir}/${k}`, v])));
+    expect([tree(out1()), readFileSync(experimentContinuationFile(config))]).toEqual([first, amendment1]);
+
+    // The child stage and the grant read the second attempt's text and carry every ledger line.
+    expect(await child()).toMatchObject({ status: 'child_reference_passed' });
+    expect(readReviewedBookLayout(path.join(dir(), 'book-layout.json'))).toEqual(experimentLayout(config, 'reference_child.png', NEW_BOOK_CONTINUATION_2.outDir));
+    const childSpend = json(path.join(dir(), 'child', 'spend.json'));
+    expect(childSpend).toMatchObject({ priorKnownApiMicroUsd: 784000, carriedUnresolvedMicroUsd: carried });
+    const grant = writeNewBookGrant(newBookConfig(file));
+    expect(grant.ledger).toMatchObject({ priorKnownApiMicroUsd: 784000 + childSpend.newKnownApiMicroUsd, carriedUnresolvedMicroUsd: carried });
+    expect(grant.ledger.evidence.map(e => e.file)).toEqual([path.join(dir(), 'text', 'spend.json'), experimentContinuationFile(config), path.join(out1(), 'spend.json'),
+      experimentContinuation2File(config), path.join(out2(), 'spend.json'), path.join(dir(), 'child', 'spend.json')]);
+    // The pin is now the second amendment's HEAD.
+    for (const head of ['a'.repeat(40), 'c'.repeat(40)]) { headAt(head); expect(() => assertExperimentClaim(newBookConfig(file))).toThrow('new_book_source_changed'); }
+  });
+
+  it('only after a first continuation refused exactly at the scene/location check', async () => {
+    // No first continuation yet.
+    await timedOut(); headAt('e'.repeat(40));
+    for (const execute of [false, true]) await expect(second(textTransports(), execute)).rejects.toThrow('new_book_continuation_scope');
+    nothingConsumed();
+  });
+  it('not after a first continuation that succeeded, timed out again, or was refused by another check', async () => {
+    for (const [label, setup] of [
+      ['succeeded', async () => { await continued(); }],
+      ['timed out again', async () => { await timedOut(); headAt('c'.repeat(40)); const t = textTransports();
+        t.responses.mockImplementationOnce((async () => { throw new APIConnectionTimeoutError(); }) as never); await expect(continuation(t)).rejects.toThrow(); }],
+      ['another check', async () => { await refusedOnce(otherRefusalStoryboard); }],
+    ] as const) {
+      rmSync(experimentDir(config), { recursive: true, force: true }); rmSync(path.dirname(experimentClaimFile(config)), { recursive: true, force: true });
+      headAt('a'.repeat(40)); await setup(); headAt('e'.repeat(40));
+      for (const execute of [false, true]) await expect(second(textTransports(), execute), label).rejects.toThrow('new_book_continuation_scope');
+      nothingConsumed();
+    }
+  });
+
+  it('a changed record of the first continuation refuses before anything is consumed', async () => {
+    await refusedOnce();
+    const t = textTransports(), root1 = () => path.join(out1(), 'paid-stages');
+    for (const [name, change, code] of [
+      ['storyboard.claim.json', (r: any) => ({ ...r, wireDigest: 'e'.repeat(64) }), 'new_book_continuation_replay'],
+      ['storyboard.receipt.json', (r: any) => ({ ...r, estimatedMicroUsd: r.estimatedMicroUsd + 1 }), 'new_book_continuation_replay'],
+      // The saved answer itself, corrected so it no longer drifts: then it is not the refusal this attempt was approved for.
+      ['storyboard.receipt.json', (r: any) => { const o = JSON.parse(r.raw.output_text); o.sequence.pages[3] = { ...o.sequence.pages[3],
+        sceneId: 'lane_visit', sceneChangeEvidence: o.sequence.pages[3].beat }; return { ...r, raw: { ...r.raw, output_text: JSON.stringify(o) } }; },
+        /new_book_continuation_scope|book_sequence/],
+    ] as const) {
+      const f = path.join(root1(), name), bytes = readFileSync(f);
+      writeFileSync(f, JSON.stringify((change as (r: unknown) => unknown)(JSON.parse(bytes.toString('utf8')))));
+      for (const execute of [false, true]) await expect(second(t, execute), name).rejects.toThrow(code);
+      nothingConsumed();
+      writeFileSync(f, bytes);
+    }
+    expect([t.opus, t.reader, t.responses].map(m => m.mock.calls.length)).toEqual([0, 0, 0]);
+    expect(await second(t, false)).toMatchObject({ continuation2: { admissible: true } });
+  });
+
+  it('one pinned HEAD and the complete request record, as for the first continuation', async () => {
+    await refusedOnce();
+    let heads = 0;
+    vi.mocked(frozen.gitAt).mockImplementation((_repo, args) => Buffer.from(args.join(' ') === 'rev-parse HEAD' ? (++heads <= 2 ? 'e' : 'f').repeat(40)
+      : args.join(' ') === 'status --porcelain' ? '' : path.join(root, 'git-common')));
+    await expect(second()).rejects.toThrow('new_book_source_changed');
+    nothingConsumed();
+    headAt('e'.repeat(40), ' M scripts/personal-new-book-experiment.ts');
+    await expect(second()).rejects.toThrow('new_book_source_changed');
+    headAt('e'.repeat(40));
+    const request = path.join(dir(), 'request.json'), bytes = readFileSync(request);
+    // After the first amendment the saved request is already bound by its evidence, which refuses first (the complete-record check is behind it).
+    writeFileSync(request, JSON.stringify({ ...JSON.parse(bytes.toString('utf8')), requestId: 'f'.repeat(64) }));
+    for (const execute of [false, true]) await expect(second(textTransports(), execute)).rejects.toThrow('new_book_continuation_evidence');
+    nothingConsumed();
+    writeFileSync(request, bytes);
+    expect(await second()).toMatchObject({ status: 'review_supported' });
+    // Once amended, its HEAD is compared, never adopted; and it is single-use.
+    headAt('f'.repeat(40));
+    for (const execute of [false, true]) await expect(second(textTransports(), execute)).rejects.toThrow('new_book_source_changed');
+    headAt('e'.repeat(40));
+    await expect(second()).rejects.toThrow('new_book_continuation_used');
+  });
+
+  it('one attempt only: a second attempt whose storyboard is refused again is sealed failed; nothing can retry or build on it', async () => {
+    await refusedOnce();
+    await expect(second(textTransports({ storyboardOutput: driftingStoryboard }))).rejects.toThrow('book_sequence_scene_location_drift');
+    expect(json(path.join(out2(), 'sealed.json'))).toEqual({ status: 'failed', code: 'book_sequence_scene_location_drift',
+      continuation: NEW_BOOK_CONTINUATION_2.id, runtimeEligible: false });
+    const again = textTransports();
+    await expect(second(again)).rejects.toThrow('new_book_continuation_used');
+    await expect(child()).rejects.toThrow('new_book_text_not_supported');
+    expect([again.opus, again.reader, again.responses].map(m => m.mock.calls.length)).toEqual([0, 0, 0]);
+  });
+
+  it('after the second amendment, a changed first-continuation record or a rewritten first amendment refuses every later stage', async () => {
+    await refusedOnce(); await second();
+    const receipt = path.join(out1(), 'paid-stages', 'storyboard.receipt.json'), bytes = readFileSync(receipt);
+    writeFileSync(receipt, Buffer.concat([bytes, Buffer.from(' ')]));
+    await expect(child()).rejects.toThrow('new_book_continuation_evidence');
+    writeFileSync(receipt, bytes);
+    const a1 = experimentContinuationFile(config), a1Bytes = readFileSync(a1);
+    writeFileSync(a1, JSON.stringify(JSON.parse(a1Bytes.toString('utf8')), null, 4));
+    await expect(child()).rejects.toThrow('new_book_continuation');
+    writeFileSync(a1, a1Bytes);
+    expect(await child()).toMatchObject({ status: 'child_reference_passed' });
   });
 });
