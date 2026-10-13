@@ -1,5 +1,30 @@
 # SmallHeroes — Current Technical State
 
+## Storyboard timeout fixed offline; Guy's one continuation built (315484fe + tests ec66dfa0), for Codex QA (2026-10-13)
+
+The paid text stage at 61246960 wrote the story (Opus author + editor, Claude
+Max $0.493457 separate; both Sol readers passed, API $0.035664 known) but the
+Astra storyboard call stopped at 306 s ("Request timed out.", no receipt):
+Node's built-in fetch waits at most 300 s for headers, below the call's own
+1,340 s deadline. Its cost is unknown (reserved $2.267639). Guy (AskUserQuestion,
+10/13): "Approve fix + one retry" and "Count the full $2.27". Built offline:
+a long-call SDK fetch (node:http(s), one request, per-call agent, backstop above
+the deadline, AbortError on abort, safe observed cause) for the readers and the
+storyboard; an optional carried unresolved reservation in the meter and grant
+(absent when zero; legacy unchanged); and a storyboard-continuation stage: a
+read-only preview first (the paid story replays exactly from its bound records;
+the storyboard request equals the timed-out one by its call-time digest), then
+a one-time amendment beside the unchanged claim (config, both HEADs, ledger,
+every original record hashed), then only the storyboard and its review, in a
+new folder carrying $0.035664 known + $2.267639 unresolved. Scope: only a
+timed-out storyboard. Real-data preview at 315484fe: admissible, story replayed,
+same storyboard request, remaining $4.696697 under the cap; nothing written.
+Tests: new-book 55 (16 new), transport 9; frozen 61246960 control fails the
+timeout-cause and wiring tests; mutants 60/60 (+12 expected-equivalent layers); focused 11 files 376/376 serial;
+tsc0; legacy fingerprints identical; simple-book-flow not affected (no changed
+module in its import closure). Nothing paid; the continuation runs only after
+Codex PASS.
+
 ## Re-gate HOLD (residual F4) corrected (6df79373): guard re-checked right before every claim (2026-10-13)
 
 Codex re-gate at 6eb8e7e3: F1, F2, F3 PASS; residual F4 P1 - the reviewed-

@@ -1,5 +1,16 @@
 # SmallHeroes — Roadmap
 
+## Storyboard continuation built (315484fe, ec66dfa0); next: Codex QA, then one storyboard attempt (2026-10-13)
+
+- Codex QA of 61246960..(this docs commit). No paid call before PASS.
+- After PASS: storyboard-continuation --execute at the PASSed HEAD (only the
+  storyboard and its review), then child -> grant -> audition with the sample
+  gate, all under the one $7 with $2.267639 carried as unresolved. The audition
+  may stop at the cap before the whole book (each call reserves its maximum);
+  that stop is reported, not worked around.
+- Separate later decisions: plot spines and optional topics; retiring the bank
+  path in production.
+
 ## Residual F4 corrected (6df79373); next: Codex re-gate, then the staged new book (2026-10-13)
 
 - Codex re-gates 6eb8e7e3..(this docs commit). No paid stage before PASS.
