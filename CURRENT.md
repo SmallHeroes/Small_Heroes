@@ -1,5 +1,29 @@
 # SmallHeroes — Current Technical State
 
+## Second attempt: cost-evidence HOLD corrected (2dc4afa9), for Codex narrow re-gate (2026-10-14)
+
+Codex QA at 75df2822: the scene-location rule, its wiring, backward
+compatibility and eight independent controls passed; HOLD on one P1. The
+second attempt's admission checked that the first continuation's receipt,
+result and spend agreed with each other, never that their cost matched the
+preserved raw provider answer: a coordinated cheaper set was admitted and the
+lost known spend became headroom. Corrected: one settlement rule shared by the
+live storyboard/review call and any replay (usage, cost only for the requested
+model at the default tier, completed with output within the output cap); the
+admission re-derives the first continuation's cost from its raw answer and the
+reconstructed request and requires the result, the stage ledger, the receipt's
+usage, model and step to match, else new_book_continuation_cost before anything
+is consumed. The preview now reports the re-derived prior cost and the new
+request's own reservation. Real data at 2dc4afa9: the raw answer re-derives to
+exactly $0.768110; prior $0.803774, carried $2.267639, remaining $3.928587; the
+new storyboard reserves $2.274866 (the first one $2.267639; +7,227 micro-USD for
+the rule's bytes), so $5.346279 accounted during that call; nothing written.
+Tests: new-book 78 (+4, 2 strengthened; the three cost tests fail at frozen
+75df2822); focused 12 files 404/404 serial; targeted mutants 24/24 live killed (+5 expected-equivalent layers; the layered pair's double mutant killed); tsc0; legacy
+fingerprints identical. simple-book-flow not affected (only the experiment
+script and its spec changed); its full status stays 179/181 (RED, the two
+known failures). Nothing paid.
+
 ## The one continuation ran and was refused at page 2; scene-location rule + Guy's second attempt built (e41de452, tests 27a7059f + 95546321), for Codex QA (2026-10-13)
 
 After Codex's explicit PASS at 1e26f6be the one approved continuation ran:

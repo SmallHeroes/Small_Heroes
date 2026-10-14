@@ -1,5 +1,14 @@
 # SmallHeroes — Roadmap
 
+## Cost-evidence HOLD corrected (2dc4afa9); next: Codex narrow re-gate, then the one second attempt (2026-10-14)
+
+- Codex re-gates 75df2822..(this docs commit), narrowly on the cost-validation
+  path. No paid call before PASS.
+- After PASS: storyboard-continuation-2 --execute once (reserves $2.274866),
+  then child -> grant -> two sample pages -> the rest only if both pass, under
+  the same $7 with $2.267639 carried. The drawn book is likely partial; a cap
+  stop is reported, not worked around.
+
 ## Second storyboard attempt built (e41de452, 27a7059f, 95546321); next: Codex QA, then one attempt (2026-10-13)
 
 - Codex QA of 1e26f6be..(this docs commit). No paid call before PASS.
