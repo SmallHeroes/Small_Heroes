@@ -1,5 +1,24 @@
 # SmallHeroes — Current Technical State
 
+## The second storyboard attempt ran: scene rule worked, refused at a prop check; STOPPED (2026-10-14)
+
+After Codex's explicit PASS of 75df2822..e9ef0074, Guy's approved second
+attempt ran once at e9ef0074 (original config, pin 61246960 unchanged). The
+admission passed (exact story replay, the first continuation's exact refusal,
+its raw-answer cost $0.768110, request changed only by the rule). The Astra
+storyboard ANSWERED (270 s; $0.680050 known; reserved $2.274866 as predicted).
+The scene-location rule worked: scenes now follow the planned places (beach p1,
+valley p2-7 with a scene-change quote, beach p8 with one). The answer was refused
+by validatePreviewPlan (lib/local-story-preview.ts:101, unknown_or_duplicate_prop):
+page 7 used a prop, enclosure_gate, that it never declared among recurringProps.
+The instructions and authoring rules do not state that page props must be
+declared recurring props - the same class of gap as the scene rule. No review,
+child, grant or image. Ledger: known $1.483824 + carried $2.267639 = $3.751463
+of $7; $3.248537 left. All earlier records unchanged; the second attempt is
+consumed (no third attempt without Guy). Options to Guy: a contract-completeness
+audit of every storyboard compiler check against the instructions, optionally a
+bounded self-repair from the exact compiler error, a higher cap, or stop.
+
 ## Second attempt: cost-evidence HOLD corrected (2dc4afa9), for Codex narrow re-gate (2026-10-14)
 
 Codex QA at 75df2822: the scene-location rule, its wiring, backward

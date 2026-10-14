@@ -1,5 +1,14 @@
 # SmallHeroes — Roadmap
 
+## Second attempt stopped at a prop check; next: Guy's decision (2026-10-14)
+
+- The scene-location rule is shown to work on the real book; the storyboard was
+  refused at an undeclared page prop (an unstated compiler rule).
+- Options for Guy: contract completeness (state every storyboard compiler rule),
+  optionally a bounded self-repair from the exact compiler error, a higher cap,
+  or stop. Any further attempt needs Guy's decision, an offline change and Codex
+  QA; about $2.0-2.2 would be left for illustrations under the $7.
+
 ## Cost-evidence HOLD corrected (2dc4afa9); next: Codex narrow re-gate, then the one second attempt (2026-10-14)
 
 - Codex re-gates 75df2822..(this docs commit), narrowly on the cost-validation
