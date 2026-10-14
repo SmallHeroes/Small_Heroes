@@ -28,12 +28,12 @@ import { z } from 'zod';
 import { gitAt } from './personal-source-git';
 import { exclusiveJson, exclusiveText, fencedText, realDirectory } from './personal-causal-trial-journal';
 import { CAUSAL_MODELS, createAstraCausalTransport, createOpusCausalTransport, prepareCausalWire, wireReservation, type CausalWire, type TransportReply,
-  type WirePolicy } from './personal-causal-trial-adapters';
+  type WirePolicy, type Rates } from './personal-causal-trial-adapters';
 import type { CausalDispatch } from '../lib/personal-wizard/story-causal-experiment-runner';
 import { safeUsage } from './personal-story-trial-guard';
 import { longCallFetch, providerFailureCause, type LongCallObserver } from './personal-long-call-fetch';
 import { simpleWizardVisualPayload } from './personal-simple-wizard-worker';
-import { createSimpleBookPixelJudge } from './personal-simple-book-illustrator';
+import { auditionUsageCost, createSimpleBookPixelJudge } from './personal-simple-book-illustrator';
 import { AuditionMeter, auditionAdapters, keyReader, loadReviewedBook, loadReviewedStoryboard, reviewedChildDesign, reviewedBookLayoutSchema,
   readReviewedBookLayout, runReviewedAudition, type AuditionGrant, type ReviewedBookLayout } from './personal-simple-book-reviewed-audition';
 import { resolvePersonalWizardOptions } from '../lib/personal-wizard/options';
@@ -255,6 +255,8 @@ function failedStoryboardLedger(textDir: string) {
   const storyboard = read(path.join(root, 'storyboard.claim.json')), result = read(path.join(root, 'storyboard.result.json'));
   if (snapshot.unknownOutcome || snapshot.unknownCost !== 1 || result.completed !== false || result.estimatedMicroUsd !== null || snapshot.reservedUnsettledMicroUsd !== storyboard.maximumMicroUsd ||
       !timedOutStoryboard(read(path.join(root, 'storyboard.failure.json')))) fail('new_book_continuation_scope');
+  // The readers' known costs and the timed-out request's carried reservation, each re-derived from its own evidence.
+  verifyPaidStages(textDir, TEXT_RULES);
   return { knownMicroUsd: snapshot.newKnownApiMicroUsd, carriedUnresolvedMicroUsd: storyboard.maximumMicroUsd as number };
 }
 type ContinuationBaseline = { claimSha256: string; amended: NewBookContinuation | null; ledger: ReturnType<typeof failedStoryboardLedger>;
@@ -320,7 +322,7 @@ export function textStage(config: NewBookConfig, chain: ContinuationChain) {
     const last = refused[refused.length - 1].amendment, step = refused[refused.length - 1].step;
     if (before.knownMicroUsd !== last.priorKnownApiMicroUsd || before.carriedUnresolvedMicroUsd !== last.carriedUnresolvedMicroUsd) fail('new_book_continuation_ledger');
     const out = path.join(dir, step.spec.outDir);
-    const ledger = stageLedger(out, CONTINUATION_API_CALLS, last.priorKnownApiMicroUsd, last.carriedUnresolvedMicroUsd);
+    const ledger = stageLedger(out, CONTINUATION_API_CALLS, last.priorKnownApiMicroUsd, last.carriedUnresolvedMicroUsd, CONTINUATION_RULES);
     const one = experimentContinuationFile(config), textSpend = path.join(dir, 'text', 'spend.json');
     const evidence = [{ file: textSpend, sha256: sha(readFileSync(textSpend)) }, { file: one, sha256: sha(readFileSync(one)) }];
     refused.forEach(({ step: s }, j) => { const file = refusedFile(config, s); evidence.push(records[j], { file, sha256: sha(readFileSync(file)) }); });
@@ -329,27 +331,102 @@ export function textStage(config: NewBookConfig, chain: ContinuationChain) {
       carriedUnresolvedMicroUsd: last.carriedUnresolvedMicroUsd, evidence };
   }
   if (!continuation) {
-    const ledger = stageLedger(path.join(dir, 'text'), TEXT_API_CALLS);
+    const ledger = stageLedger(path.join(dir, 'text'), TEXT_API_CALLS, 0, 0, TEXT_RULES);
     return { folder: 'text', path: path.join(dir, 'text'), knownMicroUsd: ledger.knownMicroUsd, carriedUnresolvedMicroUsd: 0, evidence: [{ file: ledger.file, sha256: ledger.sha256 }] };
   }
   const original = failedStoryboardLedger(path.join(dir, 'text'));
   if (original.knownMicroUsd !== continuation.priorKnownApiMicroUsd || original.carriedUnresolvedMicroUsd !== continuation.carriedUnresolvedMicroUsd) fail('new_book_continuation_ledger');
   const out = path.join(dir, NEW_BOOK_CONTINUATION.outDir);
-  const ledger = stageLedger(out, CONTINUATION_API_CALLS, continuation.priorKnownApiMicroUsd, continuation.carriedUnresolvedMicroUsd);
+  const ledger = stageLedger(out, CONTINUATION_API_CALLS, continuation.priorKnownApiMicroUsd, continuation.carriedUnresolvedMicroUsd, CONTINUATION_RULES);
   const amendment = experimentContinuationFile(config);
   return { folder: NEW_BOOK_CONTINUATION.outDir, path: out, knownMicroUsd: continuation.priorKnownApiMicroUsd + ledger.knownMicroUsd,
     carriedUnresolvedMicroUsd: continuation.carriedUnresolvedMicroUsd,
     evidence: [{ file: path.join(dir, 'text', 'spend.json'), sha256: sha(readFileSync(path.join(dir, 'text', 'spend.json'))) },
       { file: amendment, sha256: sha(readFileSync(amendment)) }, { file: ledger.file, sha256: ledger.sha256 }] };
 }
-/** The verified API spend of one finished stage (after the earlier stages' `prior`): no unknown cost or outcome, and it equals the stage's saved spend record. */
-export function stageLedger(stageDir: string, maxCalls: number, prior = 0, carried = 0) {
+/**
+ * One paid step's live pricing rule, so a saved call can be re-derived from its own evidence: how its saved answer settles (`completed`: the
+ * meter recorded it as a completed call), and, where the stage carries it, the reservation its bound request derives.
+ */
+type PaidRule = { settle: (wire: any, receipt: any, completed: boolean) => { estimatedMicroUsd: number | null; coherent: boolean };
+  reserve?: (wire: any) => number };
+const sameUsage = (receipt: any, usage: unknown) => canonicalJson(receipt?.usage ?? null) === canonicalJson(usage ?? null);
+/** The story readers: the reader transport's rule (Sol, the requested model at the default tier, its output cap). */
+const readerRule: PaidRule = {
+  settle: (wire, receipt, completed) => {
+    const s = answerSettlement(RATES.sol, wire?.outputCap, wire?.model, receipt?.raw);
+    return { estimatedMicroUsd: s.estimatedMicroUsd, coherent: (!completed || s.valid) && sameUsage(receipt, s.usage) };
+  },
+};
+/** The storyboard and its review: the live call's own settlement and reservation (visualSettlement, visualReservation). */
+const visualRule = (stage: 'storyboard' | 'review'): PaidRule => {
+  const callOf = (wire: any) => ({ stage, maxOutputTokens: wire?.max_output_tokens }) as SimpleStoryboardDiagnosticCall;
+  return {
+    settle: (wire, receipt, completed) => {
+      const call = callOf(wire), s = visualSettlement(call, wire ?? {}, receipt?.raw);
+      const labels = receipt?.raw === undefined || receipt?.raw === null || receipt?.model === receipt.raw.model && receipt?.stage === visualStep(call);
+      return { estimatedMicroUsd: s.estimatedMicroUsd, coherent: (!completed || s.valid) && sameUsage(receipt, s.usage) && labels };
+    },
+    reserve: wire => visualReservation(callOf(wire), wire),
+  };
+};
+/** The child reference's render: the image adapter's own price of the provider's usage (auditionUsageCost, image). */
+const renderRule: PaidRule = {
+  settle: (_wire, receipt, completed) => ({ estimatedMicroUsd: auditionUsageCost(receipt?.raw?.usage, 'image'),
+    coherent: !completed || receipt?.model === 'gpt-image-2' }),
+};
+/** The child reference's pixel judgment: the judge's own rule (its requested model at the default tier, auditionUsageCost, 12,000 output). */
+const judgeRule: PaidRule = {
+  settle: (wire, receipt, completed) => {
+    const raw = receipt?.raw, known = !!raw && raw.model === wire?.model && raw.service_tier === 'default';
+    const estimatedMicroUsd = known ? auditionUsageCost(raw.usage, wire.model === SOL ? 'sol' : 'astra') : null;
+    const valid = known && raw.status === 'completed' && !!raw.output_text && !!raw.usage && raw.usage.output_tokens <= 12000;
+    return { estimatedMicroUsd, coherent: !completed || valid };
+  },
+};
+const TEXT_RULES: Record<string, PaidRule> = { comparison: readerRule, final_review: readerRule, storyboard: visualRule('storyboard'),
+  storyboard_review: visualRule('review') };
+const CONTINUATION_RULES: Record<string, PaidRule> = { storyboard: visualRule('storyboard'), storyboard_review: visualRule('review') };
+const CHILD_RULES: Record<string, PaidRule> = { reference_child: renderRule, reference_child_repair: renderRule, reference_child_qa: judgeRule,
+  reference_child_repair_qa: judgeRule };
+/**
+ * Every paid call of one stage folder, re-derived from its own evidence under that call's live pricing rule: the request its claim bound
+ * before the call, and its raw provider answer. A recorded cost, the receipt's normalized usage and labels must be exactly what the raw
+ * answer settles to, a completed call must be a valid answer, and a carried reservation must be the one its request derives. So a summary
+ * that the evidence contradicts (result, receipt or spend record, however coherent with each other and with later amendments) never becomes
+ * headroom, at any link of the ledger (Codex HOLD at a3578efb, P1).
+ */
+function verifyPaidStages(stageDir: string, rules: Record<string, PaidRule>) {
+  const root = path.join(stageDir, 'paid-stages');
+  for (const name of readdirSync(root).filter(n => n.endsWith('.claim.json')).sort()) {
+    const step = name.slice(0, -'.claim.json'.length), rule = rules[step] ?? fail('new_book_ledger_rule');
+    const at = (kind: string) => path.join(root, `${step}.${kind}.json`);
+    if (!existsSync(at('wire'))) fail('new_book_ledger_record');
+    const claim = read(at('claim')), wire = read(at('wire'));
+    if (claim.step !== step || previewSha(canonicalJson(wire)) !== claim.wireDigest) fail('new_book_ledger_record');
+    if (rule.reserve && rule.reserve(wire) !== claim.maximumMicroUsd) fail('new_book_ledger_cost');
+    if (!existsSync(at('result'))) continue;
+    const result = read(at('result')), completed = result.completed === true;
+    if (result.wireDigest !== claim.wireDigest || !existsSync(at(completed ? 'receipt' : 'failure'))) fail('new_book_ledger_record');
+    const receipt = completed ? read(at('receipt')) : read(at('failure')).receipt;
+    const settled = rule.settle(wire, receipt, completed);
+    if (settled.estimatedMicroUsd !== result.estimatedMicroUsd || !settled.coherent ||
+        receipt && typeof receipt === 'object' && 'estimatedMicroUsd' in receipt && receipt.estimatedMicroUsd !== result.estimatedMicroUsd) fail('new_book_ledger_cost');
+  }
+}
+/**
+ * The verified API spend of one finished stage (after the earlier stages' `prior`): no unknown cost or outcome, it equals the stage's saved
+ * spend record, and every call in it is re-derived from its own evidence under its rule.
+ */
+export function stageLedger(stageDir: string, maxCalls: number, prior: number, carried: number, rules: Record<string, PaidRule>) {
   const snapshot = new AuditionMeter(path.join(stageDir, 'paid-stages'), NEW_BOOK_EXPERIMENT.apiCapMicroUsd, maxCalls, prior, carried).snapshot();
   if (snapshot.unknownCost || snapshot.unknownOutcome) fail('new_book_ledger_unknown');
   const file = path.join(stageDir, 'spend.json');
   if (!existsSync(file) || canonicalJson(read(file)) !== canonicalJson(snapshot)) fail('new_book_ledger_record');
+  verifyPaidStages(stageDir, rules);
   return { knownMicroUsd: snapshot.newKnownApiMicroUsd, file, sha256: sha(readFileSync(file)) };
 }
+export const stageRules = { text: TEXT_RULES, continuation: CONTINUATION_RULES, child: CHILD_RULES };
 /** The error's own code, else its message when that is a code (as the book-sequence checks throw), else the fallback. */
 const codeOf = (error: unknown, fallback: string) =>
   error && typeof error === 'object' && 'code' in error && typeof error.code === 'string' && /^[a-z0-9_]+$/.test(error.code) ? error.code
@@ -404,21 +481,26 @@ function visualReservation(call: SimpleStoryboardDiagnosticCall, payload: unknow
   return wireReservation(wireBytes, call.maxOutputTokens, visualRate(call));
 }
 /**
- * The settlement of one storyboard or review answer, from its raw provider response and the exact request: the normalized usage, its cost
- * under the approved rate (only for the requested model at the default tier), and whether it is a completed answer with output within the
- * call's output cap. The live call settles with this; a replay of saved records re-derives it and must find exactly what was recorded.
+ * The settlement of one OpenAI answer from its raw provider response: the normalized usage, its cost at `rate` (only for the requested
+ * `model` at the default tier), and whether it is a completed answer with output within `outputCap`. The storyboard and its review settle
+ * with it live (visualSettlement), and it is the story readers' transport rule too (the same formula, pinned against that transport by test):
+ * every replay or later read of saved records re-derives it and must find exactly what was recorded.
  */
-function visualSettlement(call: SimpleStoryboardDiagnosticCall, payload: { model: string }, response: unknown) {
+function answerSettlement(rate: Rates, outputCap: number, model: string, response: unknown) {
   const r = (response && typeof response === 'object' ? response : {}) as { model?: unknown; service_tier?: unknown; status?: unknown;
     output_text?: unknown; usage?: { input_tokens?: unknown; output_tokens?: unknown } | null };
-  const rate = visualRate(call);
   const usage = safeUsage(r.usage ? { inputTokens: r.usage.input_tokens, outputTokens: r.usage.output_tokens } : null);
-  const estimatedMicroUsd = usage && r.model === payload.model && r.service_tier === 'default'
+  const estimatedMicroUsd = usage && r.model === model && r.service_tier === 'default'
     ? Math.ceil(usage.inputTokens * rate.inputMicroUsdPerToken + usage.outputTokens * rate.outputMicroUsdPerToken) : null;
-  const valid = r.model === payload.model && r.service_tier === 'default' && r.status === 'completed' && !!r.output_text && !!usage &&
-    usage.outputTokens <= call.maxOutputTokens;
+  const valid = r.model === model && r.service_tier === 'default' && r.status === 'completed' && !!r.output_text && !!usage &&
+    usage.outputTokens <= outputCap;
   return { usage, estimatedMicroUsd, valid };
 }
+/** A storyboard or review answer's settlement, from its raw provider response and the exact request (the live call settles with this). */
+function visualSettlement(call: SimpleStoryboardDiagnosticCall, payload: { model: string }, response: unknown) {
+  return answerSettlement(visualRate(call), call.maxOutputTokens, payload.model, response);
+}
+export const replaySettlement = { answer: answerSettlement, rates: RATES };
 async function textCore(args: { config: NewBookConfig; signal: AbortSignal; log: (line: string) => void;
   contracts: TextContracts; transports?: TextTransports;
   prepared: ReturnType<typeof prepareExperimentRequest>['prepared']; options: ReturnType<typeof prepareExperimentRequest>['options'];
@@ -650,7 +732,7 @@ function refusedStoryboardLedger(config: NewBookConfig, continuation: Continuati
   if (sealed?.status !== 'failed' || sealed.continuation !== continuation.id || !existsSync(root)) fail('new_book_continuation_scope');
   const claims = readdirSync(root).filter(n => n.endsWith('.claim.json')).map(n => n.slice(0, -'.claim.json'.length)).sort();
   if (canonicalJson(claims) !== canonicalJson(['storyboard']) || read(path.join(root, 'storyboard.result.json')).completed !== true) fail('new_book_continuation_scope');
-  const ledger = stageLedger(out, CONTINUATION_API_CALLS, prior, carried);
+  const ledger = stageLedger(out, CONTINUATION_API_CALLS, prior, carried, CONTINUATION_RULES);
   return { knownMicroUsd: prior + ledger.knownMicroUsd, carriedUnresolvedMicroUsd: carried, file: ledger.file, sha256: ledger.sha256 };
 }
 /**
@@ -884,6 +966,12 @@ export function earliestSameScenePair(book: Pick<PersonalStoryboard, 'narrativeS
 }
 
 export function writeNewBookGrant(config: NewBookConfig) {
+  const grant = newBookGrant(config);
+  exclusiveJson(path.join(experimentDir(config), 'audition.grant.json'), grant);
+  return grant;
+}
+/** The one grant the verified ledgers (every call re-derived from its own evidence) and the reviewed book derive; written once, then compared. */
+function newBookGrant(config: NewBookConfig): AuditionGrant {
   const chain = assertExperimentClaim(config), { claimSha256 } = chain;
   const dir = experimentDir(config), childDir = path.join(dir, 'child'), textFolder = textFolderOf(chain);
   if (sealedStatus(path.join(dir, textFolder)) !== 'review_supported' || sealedStatus(childDir) !== 'child_reference_passed') fail('new_book_stage_not_passed');
@@ -891,7 +979,7 @@ export function writeNewBookGrant(config: NewBookConfig) {
   if (canonicalJson(layout) !== canonicalJson(experimentLayout(config, layout.childImage, textFolder))) fail('new_book_layout');
   const loaded = loadReviewedBook(dir, config.workspace, undefined, layout);
   const text = textStage(config, chain);
-  const child = stageLedger(childDir, CHILD_API_CALLS, text.knownMicroUsd, text.carriedUnresolvedMicroUsd);
+  const child = stageLedger(childDir, CHILD_API_CALLS, text.knownMicroUsd, text.carriedUnresolvedMicroUsd, CHILD_RULES);
   const prior = text.knownMicroUsd + child.knownMicroUsd, carried = text.carriedUnresolvedMicroUsd;
   if (prior + carried >= NEW_BOOK_EXPERIMENT.apiCapMicroUsd) fail('new_book_budget_exhausted');
   const grant: AuditionGrant = { version: 'audition-spend-grant/v1', approvalReference: NEW_BOOK_EXPERIMENT.approval,
@@ -906,7 +994,6 @@ export function writeNewBookGrant(config: NewBookConfig) {
     claudeMax: NEW_BOOK_EXPERIMENT.claudeMax,
     // Usable only through this experiment's guarded audition stage (never a bare runner with another output folder).
     experiment: { slot: NEW_BOOK_EXPERIMENT.slot, claimSha256 } };
-  exclusiveJson(path.join(dir, 'audition.grant.json'), grant);
   return grant;
 }
 
@@ -925,6 +1012,9 @@ export async function runNewBookAudition(args: { config: NewBookConfig; signal: 
       !existsSync(grantFile)) fail('new_book_stage_not_passed');
   const grant = read(grantFile), grantSha256 = sha(readFileSync(grantFile));
   if (grant.experiment?.slot !== NEW_BOOK_EXPERIMENT.slot || grant.experiment?.claimSha256 !== claimSha256) fail('new_book_grant_binding');
+  // The grant must be exactly the one the verified ledgers derive now (its prior, carried reserve, evidence, cap and scope), never a number
+  // written into the file since: a start and every resume re-derive it from the records' own evidence.
+  if (canonicalJson(grant) !== canonicalJson(newBookGrant(config))) fail('new_book_grant_ledger');
   const start = experimentAuditionStart(config), record = { version: 'new-book-audition-start/v1', out: path.resolve(out), grantSha256, claimSha256 };
   if (args.resume) {
     if (!existsSync(start) || canonicalJson(read(start)) !== canonicalJson(record) || !existsSync(out)) fail('new_book_audition_binding');

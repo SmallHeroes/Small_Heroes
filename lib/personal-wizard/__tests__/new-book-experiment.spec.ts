@@ -13,6 +13,8 @@ import { SCENE_LOCATION_CONTRACT_VERSION, SCENE_LOCATION_STORYBOARD_ADDENDUM } f
 import { COMPILER_RULES_CONTRACT_VERSION, COMPILER_RULES_STORYBOARD_ADDENDUM } from '../storyboard-compiler-rules';
 import type { SimpleStoryDraft } from '../simple-story-engine';
 import { QUALITY_CATEGORIES } from '../../local-preview-quality';
+import { canonicalJson } from '../request-acceptance';
+import { z } from 'zod';
 import * as frozen from '../../../scripts/personal-source-git';
 import * as images from '../../generate-image';
 import * as causalAdapters from '../../../scripts/personal-causal-trial-adapters';
@@ -25,7 +27,7 @@ import { readAuditionGrant, loadReviewedBook, loadReviewedStoryboard, dryRun, re
   from '../../../scripts/personal-simple-book-reviewed-audition';
 import { NEW_BOOK_EXPERIMENT, newBookConfig, newBookExperimentCLI, runNewBookText, runNewBookChild, runNewBookAudition, writeNewBookGrant, experimentDir, experimentClaimFile, assertExperimentClaim,
   experimentLayout, earliestSameScenePair, stageLedger, NEW_BOOK_CONTINUATION, experimentContinuationFile, NEW_BOOK_CONTINUATION_2, experimentContinuation2File,
-  NEW_BOOK_CONTINUATION_3, experimentContinuation3File,
+  NEW_BOOK_CONTINUATION_3, experimentContinuation3File, stageRules, replaySettlement, experimentAuditionStart,
   type NewBookConfig, type TextTransports, type ChildAdapters }
   from '../../../scripts/personal-new-book-experiment';
 
@@ -99,14 +101,27 @@ function textTransports(opts: { storyboardOutput?: (draft: any) => unknown; read
         session_id: call.stage === 'author' ? '11111111-1111-4111-8111-111111111111' : '22222222-2222-4222-8222-222222222222',
         total_cost_usd: .23, modelUsage: { 'claude-opus-5-5': usage }, structured_output: output }) } };
   });
-  const reader = vi.fn(async (_wire: any, call: any) => ({ output: { packetDigest: JSON.parse(call.input).packetDigest,
-    summary: 'Synthetic complete reading, no product acceptance.', findings: opts.readerFindings ?? [] },
-    usage: { inputTokens: 1000, outputTokens: 500 }, estimatedMicroUsd: 7000, metadata: {}, raw: {} }));
+  const reader = vi.fn(async (wire: any, call: any) => {
+    const output = { packetDigest: JSON.parse(call.input).packetDigest, summary: 'Synthetic complete reading, no product acceptance.', findings: opts.readerFindings ?? [] };
+    // A provider-shaped answer, which the reader transport's rule settles to the recorded cost (Sol: 1,000 x 2 + 500 x 10).
+    const raw = { model: wire.model, service_tier: 'default', status: 'completed', output_text: JSON.stringify(output), usage: { input_tokens: 1000, output_tokens: 500 } };
+    return { output, usage: { inputTokens: 1000, outputTokens: 500 }, estimatedMicroUsd: 7000, metadata: {}, raw };
+  });
   const responses = vi.fn(async (payload: any) => ({ model: opts.model ?? payload.model, service_tier: 'default', status: 'completed',
     usage: { input_tokens: 10000, output_tokens: 5000 },
     output_text: JSON.stringify(payload.model === 'gpt-6-astra' ? (opts.storyboardOutput ?? contractedStoryboard)(owned) : providerReview(review)) }) as any);
   return { opus, reader, responses } satisfies TextTransports;
 }
+/** Rewrites a paid call's saved request together with its claim's and result's digests, so the record still binds itself; returns a restore. */
+function rewire(root: string, step: string, change: (wire: any) => any) {
+  const at = (k: string) => path.join(root, `${step}.${k}.json`), saved = ['wire', 'claim', 'result'].map(k => readFileSync(at(k)));
+  const wire = change(json(at('wire'))), wireDigest = sha(canonicalJson(wire));
+  writeFileSync(at('wire'), JSON.stringify(wire));
+  for (const k of ['claim', 'result']) writeFileSync(at(k), JSON.stringify({ ...json(at(k)), wireDigest }));
+  return () => ['wire', 'claim', 'result'].forEach((k, i) => writeFileSync(at(k), saved[i]));
+}
+/** One same-length edit (so a request's byte count, and so its reservation, is unchanged). */
+const swapOne = (text: string) => { if (!text.includes('a')) throw Error('swap_source'); return text.replace('a', 'b'); };
 const png = (shade: number, size = 64) => sharp({ create: { width: size, height: size, channels: 3, background: { r: shade, g: 60, b: 90 } } }).png().toBuffer();
 const passing = (candidateSha: string, contextSha: string, defect?: { category: string; verdict: 'defect' | 'uncertain' }) => ({ candidateSha, contextSha,
   checks: QUALITY_CATEGORIES.map(category => category === defect?.category
@@ -383,6 +398,19 @@ describe('the reviewed audition on the new book (synthetic providers through the
     expect(result.spend).toMatchObject({ priorKnownApiMicroUsd: grant.ledger.priorKnownApiMicroUsd, carriedUnresolvedMicroUsd: carried, unknownCost: 0, unknownOutcome: 0 });
   });
 
+  it('a grant file rewritten after it was written (a lower prior, a higher cap) is refused before the start record or any image', async () => {
+    const { dir } = await prepared(); judgeWith(null);
+    const g = path.join(dir, 'audition.grant.json'), bytes = readFileSync(g), grant = JSON.parse(bytes.toString('utf8'));
+    for (const changed of [{ ...grant, ledger: { ...grant.ledger, priorKnownApiMicroUsd: grant.ledger.priorKnownApiMicroUsd - 1 } }, { ...grant, capMicroUsd: 8000000 }]) {
+      writeFileSync(g, JSON.stringify(changed));
+      await expect(audition()).rejects.toThrow(/^new_book_grant_ledger$/);
+      expect([renders(), existsSync(experimentAuditionStart(config)), existsSync(path.join(dir, 'audition'))]).toEqual([0, false, false]);
+    }
+    writeFileSync(g, bytes);
+    const result = await audition();
+    expect(result.mode === 'render' && result.manifest.status).toBe('qa_supported_audition');
+  });
+
   it('F3: one fresh audition per approval; a second start, another output folder or the grant on a bare runner is refused before any image', async () => {
     const { dir } = await prepared(); judgeWith(null);
     await audition();
@@ -513,8 +541,30 @@ describe('the fictional child reference: one targeted edit only for an evidenced
     expect(json(path.join(childDir, 'paid-stages', 'reference_child.wire.json')).body).toMatchObject({ model: 'gpt-image-2', quality: 'low', size: '1024x1024', n: 1 });
     expect(json(path.join(childDir, 'paid-stages', 'reference_child_qa.wire.json'))).toMatchObject({ model: 'gpt-6.1-sol' });
     expect(json(path.join(childDir, 'spend.json'))).toMatchObject({ priorKnownApiMicroUsd: text.api.newKnownApiMicroUsd, capMicroUsd: 7000000, calls: 2, unknownCost: 0 });
-    expect(stageLedger(childDir, 4, text.api.newKnownApiMicroUsd).knownMicroUsd).toBeGreaterThan(0);
-    expect(() => stageLedger(childDir, 4)).toThrow('new_book_ledger_record');
+    expect(stageLedger(childDir, 4, text.api.newKnownApiMicroUsd, 0, stageRules.child).knownMicroUsd).toBeGreaterThan(0);
+    expect(() => stageLedger(childDir, 4, 0, 0, stageRules.child)).toThrow('new_book_ledger_record');
+    // Every child call is re-derived from its raw provider answer at the grant: a coherently lowered render or judgment cost is refused.
+    const childPaid = path.join(childDir, 'paid-stages'), childSpend = path.join(childDir, 'spend.json'), spendBytes = readFileSync(childSpend);
+    expect(['reference_child', 'reference_child_qa'].map(step => json(path.join(childPaid, `${step}.result.json`)).estimatedMicroUsd))
+      .toEqual([100 * 8 + 300 * 30, 5000 * 2 + 800 * 10]);
+    for (const step of ['reference_child', 'reference_child_qa']) {
+      const at = (k: string) => path.join(childPaid, `${step}.${k}.json`), saved = ['receipt', 'result'].map(k => readFileSync(at(k)));
+      for (const k of ['receipt', 'result']) writeFileSync(at(k), JSON.stringify({ ...json(at(k)), estimatedMicroUsd: 1 }));
+      writeFileSync(childSpend, JSON.stringify(new AuditionMeter(childPaid, 7000000, 4, text.api.newKnownApiMicroUsd).snapshot()));
+      expect(() => writeNewBookGrant(newBookConfig(file)), step).toThrow(/^new_book_ledger_cost$/);
+      ['receipt', 'result'].forEach((k, i) => writeFileSync(at(k), saved[i])); writeFileSync(childSpend, spendBytes);
+    }
+    for (const [step, label, change] of [
+      ['reference_child', 'a render under another image model', (receipt: any) => { receipt.model = 'gpt-image-1'; }],
+      ['reference_child_qa', 'a judgment by another model', (receipt: any) => { receipt.raw.model = 'gpt-6-astra'; }],
+      ['reference_child_qa', 'an incomplete judgment', (receipt: any) => { receipt.raw.status = 'incomplete'; }],
+    ] as const) {
+      const f = path.join(childPaid, `${step}.receipt.json`), bytes = readFileSync(f), receipt = json(f);
+      change(receipt); writeFileSync(f, JSON.stringify(receipt));
+      expect(() => writeNewBookGrant(newBookConfig(file)), label).toThrow(/^new_book_ledger_cost$/);
+      writeFileSync(f, bytes);
+    }
+    expect(existsSync(path.join(experimentDir(config), 'audition.grant.json'))).toBe(false);
     // The grant's prior spend is the verified sum of both stages.
     const grant = writeNewBookGrant(newBookConfig(file));
     expect(grant.ledger.priorKnownApiMicroUsd).toBe(text.api.newKnownApiMicroUsd + json(path.join(childDir, 'spend.json')).newKnownApiMicroUsd);
@@ -595,10 +645,18 @@ describe('fences, ledger and sample selection', () => {
     const textDir = path.join(experimentDir(config), 'text');
     const spend = json(path.join(textDir, 'spend.json'));
     writeFileSync(path.join(textDir, 'spend.json'), JSON.stringify({ ...spend, newKnownApiMicroUsd: 1 }));
-    expect(() => stageLedger(textDir, 4)).toThrow('new_book_ledger_record');
+    expect(() => stageLedger(textDir, 4, 0, 0, stageRules.text)).toThrow('new_book_ledger_record');
     writeFileSync(path.join(textDir, 'spend.json'), JSON.stringify(spend));
     writeFileSync(path.join(textDir, 'paid-stages', 'extra.claim.json'), JSON.stringify({ step: 'extra', seq: 9, wireDigest: 'a'.repeat(64), maximumMicroUsd: 5 }));
-    expect(() => stageLedger(textDir, 4)).toThrow('new_book_ledger_unknown');
+    expect(() => stageLedger(textDir, 4, 0, 0, stageRules.text)).toThrow('new_book_ledger_unknown');
+    // A settled call of a step with no pricing rule here is refused, never skipped (its cost could not be re-derived).
+    const wire = { step: 'extra' }, wireDigest = sha(canonicalJson(wire)), paidDir = path.join(textDir, 'paid-stages');
+    writeFileSync(path.join(paidDir, 'extra.wire.json'), JSON.stringify(wire));
+    writeFileSync(path.join(paidDir, 'extra.claim.json'), JSON.stringify({ step: 'extra', seq: 9, wireDigest, maximumMicroUsd: 5 }));
+    writeFileSync(path.join(paidDir, 'extra.receipt.json'), JSON.stringify({ estimatedMicroUsd: 3 }));
+    writeFileSync(path.join(paidDir, 'extra.result.json'), JSON.stringify({ wireDigest, estimatedMicroUsd: 3, completed: true }));
+    writeFileSync(path.join(textDir, 'spend.json'), JSON.stringify(new AuditionMeter(paidDir, 7000000, 4).snapshot()));
+    expect(() => stageLedger(textDir, 4, 0, 0, stageRules.text)).toThrow(/^new_book_ledger_rule$/);
   });
   it('the sample is the earliest same-scene pair of narrative pages; without one, pages 1 and 2', () => {
     const book = (scenes: string[]) => ({ narrativeSpreads: scenes.length, sequence: { pages: scenes.map((sceneId, i) => ({ pageNumber: i + 1, sceneId })) } }) as any;
@@ -881,21 +939,32 @@ describe("Guy's one storyboard continuation: the paid story replayed from its bo
       'claude-max-stages/editor.result.json']) {
       const recordFile = path.join(textDirOf(), ...record.split('/')), bytes = readFileSync(recordFile);
       writeFileSync(recordFile, JSON.stringify({ ...JSON.parse(bytes.toString('utf8')), wireDigest: 'e'.repeat(64) }));
-      for (const execute of [false, true]) await expect(continuation(t, execute)).rejects.toThrow('new_book_continuation_replay');
+      // A paid call's record that no longer binds its own request is refused by the ledger first (every read re-derives it); a Claude Max one at the replay.
+      for (const execute of [false, true]) await expect(continuation(t, execute), record).rejects.toThrow(record.startsWith('paid-stages/')
+        ? /^new_book_ledger_record$/ : /^new_book_continuation_replay$/);
       writeFileSync(recordFile, bytes);
     }
-    // A saved reply is the one whose cost settled its call.
-    for (const record of ['paid-stages/comparison.receipt.json', 'claude-max-stages/author.receipt.json']) {
+    // A saved reply is the one whose cost settled its call (a paid reply's cost is re-derived from its raw answer first).
+    for (const [record, code] of [['paid-stages/comparison.receipt.json', /^new_book_ledger_cost$/],
+      ['claude-max-stages/author.receipt.json', /^new_book_continuation_replay$/]] as const) {
       const recordFile = path.join(textDirOf(), ...record.split('/')), bytes = readFileSync(recordFile), saved = JSON.parse(bytes.toString('utf8'));
       writeFileSync(recordFile, JSON.stringify({ ...saved, estimatedMicroUsd: saved.estimatedMicroUsd + 1 }));
-      for (const execute of [false, true]) await expect(continuation(t, execute)).rejects.toThrow('new_book_continuation_replay');
+      for (const execute of [false, true]) await expect(continuation(t, execute), record).rejects.toThrow(code);
       writeFileSync(recordFile, bytes);
     }
+    // A paid reader request rewritten WITH matching claim and result digests still binds itself in the ledger, but no longer replays exactly.
+    const restoreReader = rewire(path.join(textDirOf(), 'paid-stages'), 'comparison', w => ({ ...w, json: swapOne(w.json) }));
+    for (const execute of [false, true]) await expect(continuation(t, execute)).rejects.toThrow(/^new_book_continuation_replay$/);
+    restoreReader();
     // The one retry must send exactly the storyboard request that timed out (the digest its claim recorded before that call).
     const storyboardClaim = path.join(textDirOf(), 'paid-stages', 'storyboard.claim.json'), claimBytes = readFileSync(storyboardClaim);
     writeFileSync(storyboardClaim, JSON.stringify({ ...JSON.parse(claimBytes.toString('utf8')), wireDigest: 'e'.repeat(64) }));
-    for (const execute of [false, true]) await expect(continuation(t, execute)).rejects.toThrow('new_book_continuation_request');
+    for (const execute of [false, true]) await expect(continuation(t, execute)).rejects.toThrow(/^new_book_ledger_record$/);
     writeFileSync(storyboardClaim, claimBytes);
+    // That request rewritten with matching digests (same length, so its carried reservation is unchanged) binds itself, but is not the one that timed out.
+    const restoreStoryboard = rewire(path.join(textDirOf(), 'paid-stages'), 'storyboard', w => ({ ...w, instructions: swapOne(w.instructions) }));
+    for (const execute of [false, true]) await expect(continuation(t, execute)).rejects.toThrow(/^new_book_continuation_request$/);
+    restoreStoryboard();
     expect([existsSync(experimentContinuationFile(config)), existsSync(outOf())]).toEqual([false, false]);
     expect([t.opus, t.reader, t.responses].map(m => m.mock.calls.length)).toEqual([0, 0, 0]);
     // Restored exactly, the same records replay.
@@ -1258,8 +1327,9 @@ describe("Guy's second storyboard attempt: the same request plus the scene-locat
     await refusedOnce();
     const t = textTransports(), root1 = () => path.join(out1(), 'paid-stages');
     for (const [name, change, code] of [
-      ['storyboard.claim.json', (r: any) => ({ ...r, wireDigest: 'e'.repeat(64) }), 'new_book_continuation_replay'],
-      ['storyboard.receipt.json', (r: any) => ({ ...r, estimatedMicroUsd: r.estimatedMicroUsd + 1 }), 'new_book_continuation_replay'],
+      // The ledger re-derives every record from its own evidence first (Codex HOLD at a3578efb).
+      ['storyboard.claim.json', (r: any) => ({ ...r, wireDigest: 'e'.repeat(64) }), /^new_book_ledger_record$/],
+      ['storyboard.receipt.json', (r: any) => ({ ...r, estimatedMicroUsd: r.estimatedMicroUsd + 1 }), /^new_book_ledger_cost$/],
       // The saved answer itself, corrected so it no longer drifts: then it is not the refusal this attempt was approved for.
       ['storyboard.receipt.json', (r: any) => { const o = JSON.parse(r.raw.output_text); o.sequence.pages[3] = { ...o.sequence.pages[3],
         sceneId: 'lane_visit', sceneChangeEvidence: o.sequence.pages[3].beat }; return { ...r, raw: { ...r.raw, output_text: JSON.stringify(o) } }; },
@@ -1271,6 +1341,11 @@ describe("Guy's second storyboard attempt: the same request plus the scene-locat
       nothingConsumed();
       writeFileSync(f, bytes);
     }
+    // The first continuation's request rewritten with matching digests (same length) binds itself in the ledger; only the admission's exact
+    // reconstruction refuses it.
+    const restore = rewire(root1(), 'storyboard', w => ({ ...w, instructions: swapOne(w.instructions) }));
+    for (const execute of [false, true]) await expect(second(t, execute)).rejects.toThrow(/^new_book_continuation_replay$/);
+    nothingConsumed(); restore();
     expect([t.opus, t.reader, t.responses].map(m => m.mock.calls.length)).toEqual([0, 0, 0]);
     expect(await second(t, false)).toMatchObject({ continuation2: { admissible: true } });
   });
@@ -1409,7 +1484,7 @@ describe("Guy's second storyboard attempt: the same request plus the scene-locat
     // The summaries are coherent with each other (the old check alone would admit a prior of 14001).
     expect(json(path.join(out1(), 'spend.json'))).toMatchObject({ newKnownApiMicroUsd: 1, unknownCost: 0 });
     const t = textTransports();
-    for (const execute of [false, true]) await expect(second(t, execute)).rejects.toThrow('new_book_continuation_cost');
+    for (const execute of [false, true]) await expect(second(t, execute)).rejects.toThrow(/^new_book_ledger_cost$/);
     nothingConsumed();
     expect([t.opus, t.reader, t.responses, sdk.create].map(m => m.mock.calls.length)).toEqual([0, 0, 0, 0]);
     restore();
@@ -1420,24 +1495,24 @@ describe("Guy's second storyboard attempt: the same request plus the scene-locat
     await refusedOnce();
     const t = textTransports();
     const cases: [string, (receipt: any, result: any, wire: any) => void, RegExp][] = [
-      ['another model', (receipt) => { receipt.raw.model = 'gpt-6-astra-mini'; receipt.model = 'gpt-6-astra-mini'; }, /new_book_continuation_cost/],
-      ['another tier', (receipt) => { receipt.raw.service_tier = 'flex'; }, /new_book_continuation_cost/],
-      ['not completed', (receipt) => { receipt.raw.status = 'incomplete'; }, /new_book_continuation_cost/],
-      ['no output', (receipt) => { receipt.raw.output_text = ''; }, /new_book_continuation_replay|new_book_continuation_cost/],
-      ['no usage', (receipt) => { receipt.raw.usage = null; receipt.usage = null; }, /new_book_continuation_cost/],
-      ['malformed usage', (receipt) => { receipt.raw.usage = { ...receipt.raw.usage, input_tokens: -1 }; }, /new_book_continuation_cost/],
-      ['fractional usage', (receipt) => { receipt.raw.usage = { ...receipt.raw.usage, output_tokens: 4999.5 }; }, /new_book_continuation_cost/],
+      ['another model', (receipt) => { receipt.raw.model = 'gpt-6-astra-mini'; receipt.model = 'gpt-6-astra-mini'; }, /^new_book_ledger_cost$/],
+      ['another tier', (receipt) => { receipt.raw.service_tier = 'flex'; }, /^new_book_ledger_cost$/],
+      ['not completed', (receipt) => { receipt.raw.status = 'incomplete'; }, /^new_book_ledger_cost$/],
+      ['no output', (receipt) => { receipt.raw.output_text = ''; }, /^new_book_ledger_cost$/],
+      ['no usage', (receipt) => { receipt.raw.usage = null; receipt.usage = null; }, /^new_book_ledger_cost$/],
+      ['malformed usage', (receipt) => { receipt.raw.usage = { ...receipt.raw.usage, input_tokens: -1 }; }, /^new_book_ledger_cost$/],
+      ['fractional usage', (receipt) => { receipt.raw.usage = { ...receipt.raw.usage, output_tokens: 4999.5 }; }, /^new_book_ledger_cost$/],
       // Coherent cost for the larger usage, but beyond the call's output cap: only the cap check refuses it.
       ['beyond the output cap', (receipt, result, wire) => {
         receipt.raw.usage = { ...receipt.raw.usage, output_tokens: wire.max_output_tokens + 1 };
         receipt.usage = { inputTokens: receipt.raw.usage.input_tokens, outputTokens: wire.max_output_tokens + 1 };
-        receipt.estimatedMicroUsd = result.estimatedMicroUsd = settle(receipt.raw.usage); }, /new_book_continuation_cost/],
+        receipt.estimatedMicroUsd = result.estimatedMicroUsd = settle(receipt.raw.usage); }, /^new_book_ledger_cost$/],
       // The raw answer is unchanged; only its normalized copy disagrees.
-      ['normalized usage disagrees', (receipt) => { receipt.usage = { inputTokens: 1, outputTokens: 1 }; }, /new_book_continuation_cost/],
-      ['receipt model label disagrees', (receipt) => { receipt.model = 'gpt-6-astra-mini'; }, /new_book_continuation_cost/],
-      ['receipt step label disagrees', (receipt) => { receipt.stage = 'storyboard_review'; }, /new_book_continuation_cost/],
-      ['negative cost', (receipt, result) => { receipt.estimatedMicroUsd = -5; result.estimatedMicroUsd = -5; }, /new_book_continuation_cost/],
-      ['unknown cost', (receipt, result) => { receipt.estimatedMicroUsd = null; result.estimatedMicroUsd = null; }, /new_book_ledger_unknown|new_book_continuation_cost/],
+      ['normalized usage disagrees', (receipt) => { receipt.usage = { inputTokens: 1, outputTokens: 1 }; }, /^new_book_ledger_cost$/],
+      ['receipt model label disagrees', (receipt) => { receipt.model = 'gpt-6-astra-mini'; }, /^new_book_ledger_cost$/],
+      ['receipt step label disagrees', (receipt) => { receipt.stage = 'storyboard_review'; }, /^new_book_ledger_cost$/],
+      ['negative cost', (receipt, result) => { receipt.estimatedMicroUsd = -5; result.estimatedMicroUsd = -5; }, /^new_book_ledger_cost$/],
+      ['unknown cost', (receipt, result) => { receipt.estimatedMicroUsd = null; result.estimatedMicroUsd = null; }, /^new_book_ledger_unknown$/],
     ];
     for (const [label, change, code] of cases) {
       const restore = rewriteFirstAnswer(change);
@@ -1630,7 +1705,7 @@ describe("Guy's third storyboard attempt: the second request plus the compiler-r
     writeFileSync(files[0], JSON.stringify(receipt)); writeFileSync(files[1], JSON.stringify(result));
     writeFileSync(files[2], JSON.stringify(new AuditionMeter(root2, 7000000, 2, 364000, reservation()).snapshot()));
     const t = textTransports();
-    for (const execute of [false, true]) await expect(attempt(3, t, execute)).rejects.toThrow('new_book_continuation_cost');
+    for (const execute of [false, true]) await expect(attempt(3, t, execute)).rejects.toThrow(/^new_book_ledger_cost$/);
     nothingConsumed();
     files.forEach((f, i) => writeFileSync(f, saved[i]));
     expect(await attempt(3, t, false)).toMatchObject({ continuation3: { admissible: true, previousStoryboardSettledMicroUsd: 350000 } });
@@ -1665,8 +1740,11 @@ describe("Guy's third storyboard attempt: the second request plus the compiler-r
     const t = textTransports(), p = (n: 1 | 2, f: string) => path.join(outN(n), 'paid-stages', f);
     const viaJson = (f: (r: any) => unknown) => (text: string) => JSON.stringify(f(JSON.parse(text)));
     const cases: [string, () => string, (text: string) => string, RegExp][] = [
-      ['second claim', () => p(2, 'storyboard.claim.json'), viaJson(r => ({ ...r, wireDigest: 'e'.repeat(64) })), /^new_book_continuation_replay$/],
-      ['second receipt cost', () => p(2, 'storyboard.receipt.json'), viaJson(r => ({ ...r, estimatedMicroUsd: r.estimatedMicroUsd + 1 })), /^new_book_continuation_replay$/],
+      // The ledger re-derives every record from its own evidence first (Codex HOLD at a3578efb).
+      ['second claim', () => p(2, 'storyboard.claim.json'), viaJson(r => ({ ...r, wireDigest: 'e'.repeat(64) })), /^new_book_ledger_record$/],
+      ['second receipt cost', () => p(2, 'storyboard.receipt.json'), viaJson(r => ({ ...r, estimatedMicroUsd: r.estimatedMicroUsd + 1 })), /^new_book_ledger_cost$/],
+      // The saved request changed alone (its claim's and result's digests untouched) no longer binds: the claim is its authority.
+      ['second request alone', () => p(2, 'storyboard.wire.json'), viaJson(w => ({ ...w, instructions: swapOne(w.instructions) })), /^new_book_ledger_record$/],
       // The second answer itself, corrected so it lists no undeclared prop: then it is not the refusal this attempt was approved for.
       ['second answer corrected', () => p(2, 'storyboard.receipt.json'), viaJson(r => { const o = JSON.parse(r.raw.output_text);
         o.plan.pages[7].props = o.plan.pages[7].props.filter((x: { id: string }) => x.id !== 'enclosure_gate');
@@ -1686,6 +1764,10 @@ describe("Guy's third storyboard attempt: the second request plus the compiler-r
       nothingConsumed();
       writeFileSync(f, bytes);
     }
+    // The second attempt's request rewritten with matching digests (same length) binds itself in the ledger; only the exact reconstruction refuses it.
+    const restore = rewire(path.join(outN(2), 'paid-stages'), 'storyboard', w => ({ ...w, instructions: swapOne(w.instructions) }));
+    for (const execute of [false, true]) await expect(attempt(3, t, execute)).rejects.toThrow(/^new_book_continuation_replay$/);
+    nothingConsumed(); restore();
     expect([t.opus, t.reader, t.responses, sdk.create].map(m => m.mock.calls.length)).toEqual([0, 0, 0, 0]);
     expect(await attempt(3, t, false)).toMatchObject({ continuation3: { admissible: true } });
   });
@@ -1704,11 +1786,11 @@ describe("Guy's third storyboard attempt: the second request plus the compiler-r
     await refusedTwice();
     const t = textTransports();
     const cases: [string, (receipt: any, result: any) => void, RegExp][] = [
-      ['another model', receipt => { receipt.raw.model = 'gpt-6-astra-mini'; receipt.model = 'gpt-6-astra-mini'; }, /^new_book_continuation_cost$/],
-      ['not completed', receipt => { receipt.raw.status = 'incomplete'; }, /^new_book_continuation_cost$/],
-      ['no usage', receipt => { receipt.raw.usage = null; receipt.usage = null; }, /^new_book_continuation_cost$/],
-      ['normalized usage disagrees', receipt => { receipt.usage = { inputTokens: 1, outputTokens: 1 }; }, /^new_book_continuation_cost$/],
-      ['unknown cost', (receipt, result) => { receipt.estimatedMicroUsd = null; result.estimatedMicroUsd = null; }, /^(new_book_ledger_unknown|new_book_continuation_cost)$/],
+      ['another model', receipt => { receipt.raw.model = 'gpt-6-astra-mini'; receipt.model = 'gpt-6-astra-mini'; }, /^new_book_ledger_cost$/],
+      ['not completed', receipt => { receipt.raw.status = 'incomplete'; }, /^new_book_ledger_cost$/],
+      ['no usage', receipt => { receipt.raw.usage = null; receipt.usage = null; }, /^new_book_ledger_cost$/],
+      ['normalized usage disagrees', receipt => { receipt.usage = { inputTokens: 1, outputTokens: 1 }; }, /^new_book_ledger_cost$/],
+      ['unknown cost', (receipt, result) => { receipt.estimatedMicroUsd = null; result.estimatedMicroUsd = null; }, /^new_book_ledger_unknown$/],
     ];
     for (const [label, change, code] of cases) {
       const restore = rewriteSecondAnswer(change);
@@ -1872,6 +1954,129 @@ describe("Guy's third storyboard attempt: the second request plus the compiler-r
     expect(await child()).toMatchObject({ status: 'child_reference_passed' });
   });
 
+  // ---- Codex HOLD at a3578efb (P1): every carried amount is re-derived from its own evidence, not only the latest answer's ----
+  const paid = (folder: string) => path.join(dir(), folder, 'paid-stages');
+  /** A stage's saved answer rewritten (receipt and result); its raw evidence stays as it was unless `change` alters it. */
+  function rewriteAnswer(folder: string, step: string, change: (receipt: any, result: any, wire: any) => void) {
+    const at = (k: string) => path.join(paid(folder), `${step}.${k}.json`), receipt = json(at('receipt')), result = json(at('result'));
+    change(receipt, result, json(at('wire')));
+    writeFileSync(at('receipt'), JSON.stringify(receipt)); writeFileSync(at('result'), JSON.stringify(result));
+  }
+  /**
+   * The strongest coherent rewrite before the third amendment exists (Codex's reproduction, generalized): every stage's spend record is
+   * regenerated with the real meter, both earlier amendments' ledger lines and evidence are re-derived from the rewritten records, and the
+   * second amendment is rebound to the first's new bytes. Then only the raw evidence can still contradict the rewritten summaries.
+   */
+  function rebindChain() {
+    const d = dir(), rehash = (a: any) => ({ ...a, evidence: a.evidence.map((e: { file: string }) => ({ ...e, sha256: sha(readFileSync(path.join(d, ...e.file.split('/')))) })) });
+    const snap = (folder: string, maxCalls: number, prior = 0, carried = 0) => {
+      const snapshot = new AuditionMeter(path.join(d, folder, 'paid-stages'), 7000000, maxCalls, prior, carried).snapshot();
+      writeFileSync(path.join(d, folder, 'spend.json'), JSON.stringify(snapshot)); return snapshot;
+    };
+    const text = snap('text', 4), known = text.newKnownApiMicroUsd, carried = text.reservedUnsettledMicroUsd;
+    const a1 = experimentContinuationFile(config);
+    writeFileSync(a1, JSON.stringify(rehash({ ...json(a1), priorKnownApiMicroUsd: known, carriedUnresolvedMicroUsd: carried })));
+    const prior2 = known + snap(NEW_BOOK_CONTINUATION.outDir, 2, known, carried).newKnownApiMicroUsd;
+    const a2 = experimentContinuation2File(config);
+    writeFileSync(a2, JSON.stringify(rehash({ ...json(a2), previousSha256: sha(readFileSync(a1)), priorKnownApiMicroUsd: prior2, carriedUnresolvedMicroUsd: carried })));
+    return { known, carried, prior3: prior2 + snap(NEW_BOOK_CONTINUATION_2.outDir, 2, prior2, carried).newKnownApiMicroUsd };
+  }
+  const fresh = async () => {
+    for (const d of [experimentDir(config), path.dirname(experimentClaimFile(config))]) {
+      if (!path.resolve(d).startsWith(path.resolve(root))) throw Error('reset_boundary'); rmSync(d, { recursive: true, force: true }); }
+    headAt('a'.repeat(40)); await refusedTwice();
+  };
+
+  it('control: the coherent rewrite of an UNCHANGED chain keeps the genuine admission and numbers (the refusals below come from evidence only)', async () => {
+    await refusedTwice();
+    const before = (await attempt(3, textTransports(), false)) as any;
+    expect(rebindChain()).toMatchObject({ known: 14000, prior3: 714000, carried: before.continuation3.carriedUnresolvedMicroUsd });
+    expect(await attempt(3, textTransports(), false)).toMatchObject({ continuation3: { admissible: true, priorKnownApiMicroUsd: 714000,
+      carriedUnresolvedMicroUsd: before.continuation3.carriedUnresolvedMicroUsd, previousStoryboardSettledMicroUsd: 350000 } });
+  });
+
+  it("Codex's reproduction: an OLDER answer's cost lowered coherently (summaries, spend, rebound second amendment, later ledger) is refused", async () => {
+    await refusedTwice();
+    const raw = json(path.join(paid(NEW_BOOK_CONTINUATION.outDir), 'storyboard.receipt.json')).raw;
+    rewriteAnswer(NEW_BOOK_CONTINUATION.outDir, 'storyboard', (receipt, result) => { receipt.estimatedMicroUsd = 1; result.estimatedMicroUsd = 1; });
+    // At a3578efb this chain was admitted with a prior of 364,001 instead of 714,000.
+    expect(rebindChain().prior3).toBe(14000 + 1 + 350000);
+    expect(json(path.join(paid(NEW_BOOK_CONTINUATION.outDir), 'storyboard.receipt.json')).raw).toEqual(raw);
+    const t = textTransports();
+    for (const execute of [false, true]) await expect(attempt(3, t, execute)).rejects.toThrow(/^new_book_ledger_cost$/);
+    nothingConsumed();
+    expect([t.opus, t.reader, t.responses, sdk.create].map(m => m.mock.calls.length)).toEqual([0, 0, 0, 0]);
+  });
+
+  it('every invalid or incoherent OLDER answer, with the whole chain rebound to it, fails closed before anything is consumed', { timeout: 600_000 }, async () => {
+    const settleAstra = (u: { input_tokens: number; output_tokens: number }) => u.input_tokens * 10 + u.output_tokens * 50;
+    const cases: [string, (receipt: any, result: any, wire: any) => void, RegExp][] = [
+      ['another model', receipt => { receipt.raw.model = 'gpt-6-astra-mini'; receipt.model = 'gpt-6-astra-mini'; }, /^new_book_ledger_cost$/],
+      ['another tier', receipt => { receipt.raw.service_tier = 'flex'; }, /^new_book_ledger_cost$/],
+      ['not completed', receipt => { receipt.raw.status = 'incomplete'; }, /^new_book_ledger_cost$/],
+      ['malformed usage', receipt => { receipt.raw.usage = { ...receipt.raw.usage, input_tokens: -1 }; }, /^new_book_ledger_cost$/],
+      // A coherent cost for a larger usage, beyond the call's output cap: only the cap refuses it.
+      ['beyond the output cap', (receipt, result, wire) => {
+        receipt.raw.usage = { ...receipt.raw.usage, output_tokens: wire.max_output_tokens + 1 };
+        receipt.usage = { inputTokens: receipt.raw.usage.input_tokens, outputTokens: wire.max_output_tokens + 1 };
+        receipt.estimatedMicroUsd = result.estimatedMicroUsd = settleAstra(receipt.raw.usage); }, /^new_book_ledger_cost$/],
+      ['normalized usage disagrees', receipt => { receipt.usage = { inputTokens: 1, outputTokens: 1 }; }, /^new_book_ledger_cost$/],
+      ['receipt labels disagree', receipt => { receipt.stage = 'storyboard_review'; }, /^new_book_ledger_cost$/],
+      ['negative cost', (receipt, result) => { receipt.estimatedMicroUsd = -5; result.estimatedMicroUsd = -5; }, /^new_book_ledger_cost$/],
+      ['unknown cost', (receipt, result) => { receipt.estimatedMicroUsd = null; result.estimatedMicroUsd = null; }, /^new_book_ledger_unknown$/],
+    ];
+    for (const [label, change, code] of cases) {
+      await fresh();
+      rewriteAnswer(NEW_BOOK_CONTINUATION.outDir, 'storyboard', change); rebindChain();
+      const t = textTransports();
+      for (const execute of [false, true]) await expect(attempt(3, t, execute), label).rejects.toThrow(code);
+      expect([label, existsSync(experimentContinuation3File(config)), existsSync(outN(3)), t.responses.mock.calls.length]).toEqual([label, false, false, 0]);
+    }
+  });
+
+  it("an older READER's cost lowered coherently is refused: the text stage's readers are re-derived from their raw answers too", async () => {
+    await refusedTwice();
+    rewriteAnswer('text', 'comparison', (receipt, result) => { receipt.estimatedMicroUsd = 1; result.estimatedMicroUsd = 1; });
+    expect(rebindChain().known).toBe(7001);
+    const t = textTransports();
+    for (const execute of [false, true]) await expect(attempt(3, t, execute)).rejects.toThrow(/^new_book_ledger_cost$/);
+    nothingConsumed();
+    // The cost unchanged, but the reader's normalized usage contradicting its raw answer, or its raw answer not a valid one: refused as well.
+    for (const [label, change] of [['normalized usage', (receipt: any) => { receipt.usage = { inputTokens: 1, outputTokens: 1 }; }],
+      ['not completed', (receipt: any) => { receipt.raw.status = 'incomplete'; }]] as const) {
+      await fresh();
+      rewriteAnswer('text', 'final_review', change); rebindChain();
+      for (const execute of [false, true]) await expect(attempt(3, t, execute), label).rejects.toThrow(/^new_book_ledger_cost$/);
+      nothingConsumed();
+    }
+  });
+
+  it("the CARRIED reservation lowered coherently is refused: it is re-derived from the timed-out call's own bound request", async () => {
+    await refusedTwice();
+    const claimFile = path.join(paid('text'), 'storyboard.claim.json');
+    writeFileSync(claimFile, JSON.stringify({ ...json(claimFile), maximumMicroUsd: 1000000 }));
+    expect(rebindChain().carried).toBe(1000000);
+    const t = textTransports();
+    for (const execute of [false, true]) await expect(attempt(3, t, execute)).rejects.toThrow(/^new_book_ledger_cost$/);
+    nothingConsumed();
+  });
+
+  it("after the third attempt, its own storyboard's or review's cost lowered coherently refuses the child stage (every later read re-derives it)", async () => {
+    await refusedTwice(); await attempt(3);
+    const spend3 = path.join(outN(3), 'spend.json'), a3 = json(experimentContinuation3File(config));
+    for (const step of ['storyboard', 'storyboard_review']) {
+      const at = (k: string) => path.join(paid(NEW_BOOK_CONTINUATION_3.outDir), `${step}.${k}.json`);
+      const saved = ['receipt', 'result'].map(k => readFileSync(at(k))), savedSpend = readFileSync(spend3);
+      rewriteAnswer(NEW_BOOK_CONTINUATION_3.outDir, step, (receipt, result) => { receipt.estimatedMicroUsd = 1; result.estimatedMicroUsd = 1; });
+      writeFileSync(spend3, JSON.stringify(new AuditionMeter(paid(NEW_BOOK_CONTINUATION_3.outDir), 7000000, 2, a3.priorKnownApiMicroUsd,
+        a3.carriedUnresolvedMicroUsd).snapshot()));
+      await expect(child(), step).rejects.toThrow(/^new_book_ledger_cost$/);
+      expect(existsSync(path.join(dir(), 'child'))).toBe(false);
+      ['receipt', 'result'].forEach((k, i) => writeFileSync(at(k), saved[i])); writeFileSync(spend3, savedSpend);
+    }
+    expect(await child()).toMatchObject({ status: 'child_reference_passed' });
+  });
+
   it('the amendment chain is ordered: a second amendment without the first is refused', async () => {
     await refusedTwice();
     const a1 = experimentContinuationFile(config);
@@ -1886,5 +2091,28 @@ describe("Guy's third storyboard attempt: the second request plus the compiler-r
     writeFileSync(experimentContinuation3File(config), '{}');
     expect(() => assertExperimentClaim(newBookConfig(file))).toThrow(/^new_book_continuation$/);
     for (const n of [2, 3] as const) await expect(attempt(n, textTransports(), false)).rejects.toThrow(/^new_book_continuation$/);
+  });
+});
+
+describe("the readers' re-derivation is the reader transport's own rule", () => {
+  it('for a valid answer and every invalid one: the same cost, normalized usage and validity as the live transport', async () => {
+    const policy = { executable: config.executable, executableSha256: config.executableSha256, workspace: root, maxWireBytes: 104000,
+      rates: { opus: { inputMicroUsdPerToken: 4, outputMicroUsdPerToken: 20 }, astra: replaySettlement.rates.sol }, openAIReviewModel: 'gpt-6.1-sol' as const };
+    const call = { role: 'astra', stage: 'comparison', instructions: 'Read the packet.', input: '{}', maxOutputTokens: 16000,
+      schema: z.object({ ok: z.boolean() }).strict(), conversationKey: 'new-book:test:comparison' } as any;
+    const wire = causalAdapters.prepareCausalWire(call, policy, 2000000);
+    const transport = causalAdapters.createAstraCausalTransport({ key: () => 'sk-synthetic', rates: replaySettlement.rates.sol, model: 'gpt-6.1-sol' });
+    const base = { model: 'gpt-6.1-sol', service_tier: 'default', status: 'completed', output_text: '{"ok":true}', usage: { input_tokens: 5177, output_tokens: 1231 } };
+    const raws = [base, { ...base, service_tier: 'flex' }, { ...base, model: 'gpt-6-astra' }, { ...base, usage: null }, { ...base, status: 'incomplete' },
+      { ...base, output_text: '' }, { ...base, usage: { input_tokens: 5177, output_tokens: 16001 } }, { ...base, usage: { input_tokens: -1, output_tokens: 3 } }];
+    for (const raw of raws) {
+      sdk.create.mockResolvedValueOnce(raw);
+      const live = await transport(wire, call, new AbortController().signal).then(r => ({ valid: true, receipt: r as any }), (e: any) => ({ valid: false, receipt: e.receipt }));
+      const replay = replaySettlement.answer(replaySettlement.rates.sol, wire.outputCap, wire.model, raw);
+      expect([JSON.stringify(raw), live.receipt.estimatedMicroUsd, live.receipt.usage, live.valid])
+        .toEqual([JSON.stringify(raw), replay.estimatedMicroUsd, replay.usage, replay.valid]);
+    }
+    // The real book's comparison reading: 5,177 x 2 + 1,231 x 10.
+    expect(replaySettlement.answer(replaySettlement.rates.sol, 16000, 'gpt-6.1-sol', base).estimatedMicroUsd).toBe(22664);
   });
 });
