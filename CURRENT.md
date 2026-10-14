@@ -1,5 +1,33 @@
 # SmallHeroes — Current Technical State
 
+## Third attempt: the original request reconstructed before its reservation is admitted (Codex HOLD at 7af52722, P1), for Codex narrow re-gate (2026-10-14)
+
+Codex re-gate of a3578efb..7af52722: the older settled-cost finding closed
+narrowly; one new P1. The carried reservation ($2.267639) is a function of the
+original timed-out storyboard request itself, and b3aa765b re-derived it from
+the STORED request, which a coherent rewrite (digests, maximum, every ledger and
+both amendments rebound) keeps self-consistent: a cap lowered 32,000 to 31,000
+gave $0.055 of headroom, and no later admission rebuilt that request. Fixed in
+the CLI only (07df1dde): assertOriginalRequest rebuilds it from the roots alone
+(the consumed configuration's request, the paid story replayed from its saved
+answers, the ORIGINAL contracts in code: the first continuation's canonical
+replay, shared) and requires the timed-out claim to name exactly it;
+verifyPaidStages already binds the stored request to its claim and the claim's
+maximum to that request's reservation. It runs before the reservation is
+admitted at every consumer: each refused admission, the child stage, the grant
+(now async) and the audition (start and resume). Settled costs need no
+reconstruction (raw usage only). Codex's case, a joint original and
+first-continuation rewrite, and the same rewrite after the third attempt (child,
+grant, audition, all fully coherent) refuse before anything is consumed; the
+same tests fail against frozen 7af52722. The real original request rebuilds
+exactly; the real preview at 07df1dde is byte-identical to a3578efb's; 41
+records unchanged; legacy 4/4. Experiment spec 107 (+3); focused 487/487;
+boundary mutants 9/9 live (+2 layers), control 0/116. The shared-meter residual
+(Codex confirmed it) is NOT closed: a bounded opt-in proposal is in the handoff
+for Guy's decision. The full flow suite was not re-run (CLI-only change; it
+stays RED as recorded). No paid call. Next: Codex narrow re-gate, then the one
+third attempt at the PASSed HEAD.
+
 ## Third attempt: full-chain cost correction (Codex HOLD at a3578efb, P1), for Codex narrow re-gate (2026-10-14)
 
 Codex QA of da6a57a7..a3578efb: the compiler-rules contract, its binding and the

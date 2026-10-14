@@ -1,5 +1,16 @@
 # SmallHeroes — Roadmap
 
+## Original-request reconstruction built (07df1dde); next: Codex narrow re-gate, then the one third attempt (2026-10-14)
+
+- The carried reservation is admitted only for the original request rebuilt from
+  the roots (configuration, replayed story, original contracts), at every
+  consumer (admission, child, grant, audition).
+- After an explicit Codex PASS: storyboard-continuation-3 --execute once at the
+  PASSed clean HEAD, then the existing gates under the same $7. No fourth attempt.
+- For Guy: the shared-meter residual (own records during a running stage or an
+  audition resume) has a bounded opt-in proposal; needed before relying on a
+  resume-proof budget.
+
 ## Full-chain cost correction built (b3aa765b); next: Codex narrow re-gate, then the one third attempt (2026-10-14)
 
 - Every amount in the cumulative ledger is re-derived from its own evidence at
