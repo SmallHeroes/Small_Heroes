@@ -1,5 +1,13 @@
 # SmallHeroes — Roadmap
 
+## Own-stage meter integrity built (d3fc5d25); next: Codex QA, then the one third attempt (2026-10-14)
+
+- Every experiment meter re-derives its own calls from their bound requests and
+  raw answers before each claim and on every resume (opt-in; Goni unchanged).
+- After an explicit Codex PASS: storyboard-continuation-3 --execute once at the
+  PASSed clean HEAD, then child -> grant -> audition (two samples first) under the
+  same $7. No fourth attempt.
+
 ## Original-request reconstruction built (07df1dde); next: Codex narrow re-gate, then the one third attempt (2026-10-14)
 
 - The carried reservation is admitted only for the original request rebuilt from

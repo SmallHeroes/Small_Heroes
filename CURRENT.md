@@ -1,5 +1,43 @@
 # SmallHeroes — Current Technical State
 
+## New book: own-stage meter integrity (approved offline milestone), for Codex's first QA (2026-10-14)
+
+Guy approved an offline fix ("מאשר תיקון מונה אופליין, ללא תשלום"): the shared
+AuditionMeter summed its own saved estimates, so a record rewritten while a
+stage ran, or before an audition resume, lowered the accounted spend (Codex's
+case: 490,000 -> 1, raw usage unchanged; true 7,040,000 reported as 6,550,001
+under the 7,000,000 cap). Built in d3fc5d25 as an opt-in: with rules, every
+snapshot (so every claim, resume marker and spend record) first re-derives each
+of the meter's own calls from its bound request and raw answer
+(verifyMeterRecords: digest, the maximum its rule derives, the raw answer's cost
+recorded exactly in result and receipt, a valid completed answer, claims
+numbered without a gap, safe totals) and sums exactly those records; unknown and
+open calls still hold their maximum and stop claims. Without rules nothing
+changes (Goni and every other caller). The audition's rules come from the
+adapters' own terms, now shared by each live call and its rule (render maximum,
+the Sol review cost with its long-input branch and its 600,000 slot, the gpt-4o
+identity cost), each bound to its own request shape and model. The experiment
+opts in every meter (text, first continuation, each refused attempt, child, and
+the audition through the guarded runner at start and resume); the readers gain
+their reservation; the storyboard and its review bind their own models (a
+storyboard record renamed as its review, every summary rewritten to match, would
+otherwise settle at the review's cheaper rate: found while mapping, accepted at
+the base); the meter codes are fatal in the orchestrator. Tests: Codex's case on
+the same and a resumed meter; 40 contradicted-record cases; unknown, orphan and
+charged-failure accounting; every experiment path through its real adapters with
+synthetic answers; genuine resume exact; the opt-in cannot be dropped on resume.
+The new tests fail at base 5b687cf4 (53 admissions; 6 guards pass there by
+design); targeted mutants 31/31; focused 549/549 (13 files, serial). Read-only:
+all 90 of Goni's real audition calls
+pass every rule (only the claim numbering predates them; Goni never opts in);
+legacy 4/4; 41 real records and Goni's 412 files unchanged. The flow suite (in
+the closure through the illustrator constant) was run alone at d3fc5d25: exit 1,
+178/181, the same three failures with the same errors as recorded at 4b89d612
+(the USD12 journal ceiling assertion and two continuation tests timing out at
+180 s; the flow's closure did not change from 4b89d612 to the base), so it stays
+RED, neither caused nor fixed here; npm run check not run. No paid call. Next:
+Codex's first independent QA, then the one third attempt at the PASSed HEAD.
+
 ## Third attempt: the original request reconstructed before its reservation is admitted (Codex HOLD at 7af52722, P1), for Codex narrow re-gate (2026-10-14)
 
 Codex re-gate of a3578efb..7af52722: the older settled-cost finding closed
