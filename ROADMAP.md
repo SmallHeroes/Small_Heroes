@@ -1,5 +1,15 @@
 # SmallHeroes — Roadmap
 
+## Full-chain cost correction built (b3aa765b); next: Codex narrow re-gate, then the one third attempt (2026-10-14)
+
+- Every amount in the cumulative ledger is re-derived from its own evidence at
+  every read (older answers, readers, the carried reservation, later calls, the
+  child, the grant); the audition refuses a rewritten grant.
+- After an explicit Codex PASS: storyboard-continuation-3 --execute once at the
+  PASSed clean HEAD, then the existing gates under the same $7. No fourth attempt.
+- Proposed follow-up (Guy/Codex decide): re-derive inside the shared meter while
+  a stage runs and on an audition resume.
+
 ## Compiler-rules audit + third attempt built; next: Codex QA, then the one third attempt (2026-10-14)
 
 - Every storyboard compiler rule is now stated to the planner by an opt-in

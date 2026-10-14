@@ -1,5 +1,38 @@
 # SmallHeroes — Current Technical State
 
+## Third attempt: full-chain cost correction (Codex HOLD at a3578efb, P1), for Codex narrow re-gate (2026-10-14)
+
+Codex QA of da6a57a7..a3578efb: the compiler-rules contract, its binding and the
+genuine preview supported; one P1: the third admission re-derived only the
+latest answer's cost from its raw usage, so an older continuation's cost,
+lowered coherently with a re-bound second amendment and later ledgers, became
+headroom (Codex's reproduction: prior 364,001 accepted instead of 714,000). The
+same class also covered the text stage's reader costs, the timed-out
+storyboard's carried reservation ($2.267639), the latest continuation's own
+calls and the child's calls (read downstream), and the grant's numbers. Fixed in
+the CLI only (b3aa765b): verifyPaidStages re-derives every paid call of a stage
+from the request its claim bound and its raw answer under that call's live rule
+(visualSettlement/visualReservation over one answerSettlement; the reader
+transport's rule, pinned against the live transport by test; auditionUsageCost
+for the child's render and judgment), inside every ledger read (stageLedger,
+failedStoryboardLedger), so the third admission, the child stage and the grant
+sum only re-derived amounts; the audition refuses a grant file that is not the
+one the verified ledgers derive (new_book_grant_ledger). Codex's reproduction,
+every invalid older answer, a lowered reader cost or carried reservation, a
+lowered later call and a rewritten grant all refuse before anything is consumed;
+a coherent rewrite of an unchanged chain keeps the genuine numbers. Real records
+re-derive exactly (768110, 680050, 22664, 13000; reservation 2267639); the real
+preview at b3aa765b is byte-identical to a3578efb's; 41 records unchanged;
+legacy 4/4. Experiment spec 104 (+8); focused 484/484; targeted mutants 51/51
+live killed (+14 expected layers, each with its reason; the verifier's pairs
+with the admission's own checks are killed as double mutants). Residual,
+disclosed: the shared AuditionMeter sums its own saved results while a stage
+runs (and the reviewed-audition runner rebuilds it on --resume), so a stage's
+own records rewritten during its run are counted as written; proposed as a
+separate follow-up. The full flow suite was not re-run (the change is CLI-only;
+it stays RED as recorded). No paid call. Next: Codex narrow re-gate, then the
+one third attempt at the PASSed HEAD.
+
 ## Storyboard compiler-rules audit + Guy's third attempt, built offline for Codex QA (2026-10-14)
 
 Guy chose "Audit all rules + 1 attempt" and "Keep $7, decide after samples"
