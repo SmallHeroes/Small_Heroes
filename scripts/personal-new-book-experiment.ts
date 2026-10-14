@@ -377,6 +377,29 @@ const storyDispatch = <T extends { stage: string }>(call: T, role: 'opus' | 'ast
 
 /** The story and storyboard flow, shared by the first run and its one continuation (which replays the paid story calls). */
 type TextContracts = { actorOwnedAppearance?: true; momentContract?: true; landmarkKindContract?: true; sceneLocationContract?: true };
+/** One rule for a storyboard or review call's journal step, price and reservation: the live call and any replay of its records share it. */
+const visualStep = (call: SimpleStoryboardDiagnosticCall) => call.stage === 'review' ? 'storyboard_review' : 'storyboard';
+const visualRate = (call: SimpleStoryboardDiagnosticCall) => call.stage === 'review' ? RATES.sol : RATES.astra;
+function visualReservation(call: SimpleStoryboardDiagnosticCall, payload: unknown) {
+  const wireBytes = Buffer.byteLength(JSON.stringify(payload), 'utf8'); if (wireBytes > 128000) fail('new_book_wire_limit');
+  return wireReservation(wireBytes, call.maxOutputTokens, visualRate(call));
+}
+/**
+ * The settlement of one storyboard or review answer, from its raw provider response and the exact request: the normalized usage, its cost
+ * under the approved rate (only for the requested model at the default tier), and whether it is a completed answer with output within the
+ * call's output cap. The live call settles with this; a replay of saved records re-derives it and must find exactly what was recorded.
+ */
+function visualSettlement(call: SimpleStoryboardDiagnosticCall, payload: { model: string }, response: unknown) {
+  const r = (response && typeof response === 'object' ? response : {}) as { model?: unknown; service_tier?: unknown; status?: unknown;
+    output_text?: unknown; usage?: { input_tokens?: unknown; output_tokens?: unknown } | null };
+  const rate = visualRate(call);
+  const usage = safeUsage(r.usage ? { inputTokens: r.usage.input_tokens, outputTokens: r.usage.output_tokens } : null);
+  const estimatedMicroUsd = usage && r.model === payload.model && r.service_tier === 'default'
+    ? Math.ceil(usage.inputTokens * rate.inputMicroUsdPerToken + usage.outputTokens * rate.outputMicroUsdPerToken) : null;
+  const valid = r.model === payload.model && r.service_tier === 'default' && r.status === 'completed' && !!r.output_text && !!usage &&
+    usage.outputTokens <= call.maxOutputTokens;
+  return { usage, estimatedMicroUsd, valid };
+}
 async function textCore(args: { config: NewBookConfig; signal: AbortSignal; log: (line: string) => void;
   contracts: TextContracts; transports?: TextTransports;
   prepared: ReturnType<typeof prepareExperimentRequest>['prepared']; options: ReturnType<typeof prepareExperimentRequest>['options'];
@@ -430,10 +453,8 @@ async function textCore(args: { config: NewBookConfig; signal: AbortSignal; log:
       },
       visual: async (call: SimpleStoryboardDiagnosticCall, s: AbortSignal) => {
         check();
-        const payload = simpleWizardVisualPayload(call, SOL);
-        const wireBytes = Buffer.byteLength(JSON.stringify(payload), 'utf8'); if (wireBytes > 128000) fail('new_book_wire_limit');
-        const rate = call.stage === 'review' ? RATES.sol : RATES.astra, step = call.stage === 'review' ? 'storyboard_review' : 'storyboard';
-        return api.run(step, payload, wireReservation(wireBytes, call.maxOutputTokens, rate), async () => {
+        const payload = simpleWizardVisualPayload(call, SOL), step = visualStep(call);
+        return api.run(step, payload, visualReservation(call, payload), async () => {
           const observed: unknown[] = [];
           let response: OpenAI.Responses.Response;
           // A failed call keeps its low-level cause (the SDK drops a timeout's cause; the transport reported it as it happened).
@@ -443,12 +464,9 @@ async function textCore(args: { config: NewBookConfig; signal: AbortSignal; log:
             throw Object.assign(new NewBookExperimentError(cause.sdkError === 'APIConnectionTimeoutError' ? 'new_book_provider_timeout' : 'new_book_provider_transport'),
               { receipt: { estimatedMicroUsd: null, failure: cause, observed } });
           }
-          const usage = safeUsage(response.usage ? { inputTokens: response.usage.input_tokens, outputTokens: response.usage.output_tokens } : null);
-          const estimatedMicroUsd = usage && response.model === payload.model && response.service_tier === 'default'
-            ? Math.ceil(usage.inputTokens * rate.inputMicroUsdPerToken + usage.outputTokens * rate.outputMicroUsdPerToken) : null;
+          const { usage, estimatedMicroUsd, valid } = visualSettlement(call, payload, response);
           const receipt = { raw: response, usage, estimatedMicroUsd, model: response.model, stage: step };
-          if (s.aborted || response.model !== payload.model || response.service_tier !== 'default' || response.status !== 'completed' ||
-              !response.output_text || !usage || usage.outputTokens > call.maxOutputTokens) throw Object.assign(new NewBookExperimentError('new_book_provider_invalid'), { receipt });
+          if (s.aborted || !valid) throw Object.assign(new NewBookExperimentError('new_book_provider_invalid'), { receipt });
           let output: unknown;
           try { output = decodePersonalBookProviderOutput(call, JSON.parse(response.output_text)); }
           catch { throw Object.assign(new NewBookExperimentError('new_book_provider_schema'), { receipt }); }
@@ -650,22 +668,32 @@ async function admitContinuation2(config: NewBookConfig, head: string) {
         return replayed(() => replay.reader(d, prepareCausalWire(d, policy, 2000000))); },
       visual });
   // 1. The first continuation's saved answer, under its own contracts: exactly its request, refused exactly at the scene/location check.
-  let answered = false, sameFirstRequest = false, firstSource: string | null = null, firstInstructions: string | null = null;
+  let answered = false, sameFirstRequest = false, firstSource: string | null = null, firstInstructions: string | null = null, settledCost: number | null = null;
   const refusedAt = await story(NEW_BOOK_EXPERIMENT.contracts, async call => {
-    sameFirstRequest = !answered && call.stage === 'storyboard' && previewSha(canonicalJson(simpleWizardVisualPayload(call, SOL))) === claim1.wireDigest;
+    const payload = simpleWizardVisualPayload(call, SOL);
+    sameFirstRequest = !answered && call.stage === 'storyboard' && previewSha(canonicalJson(payload)) === claim1.wireDigest;
     if (!sameFirstRequest) throw new NewBookExperimentError('new_book_continuation_replay');
+    // Its cost is re-derived from the raw answer and this exact request under the live rule, never taken from the summaries alone: the
+    // result (and so the stage ledger summed from it), the receipt's usage, model and step must all be what the raw answer settles to.
+    const settled = visualSettlement(call, payload, receipt1.raw);
+    if (!settled.valid || settled.estimatedMicroUsd === null || settled.estimatedMicroUsd !== result1.estimatedMicroUsd ||
+        canonicalJson(receipt1.usage) !== canonicalJson(settled.usage) || receipt1.model !== receipt1.raw.model || receipt1.stage !== visualStep(call) ||
+        ledger.knownMicroUsd !== baseline.first.priorKnownApiMicroUsd + settled.estimatedMicroUsd) throw new NewBookExperimentError('new_book_continuation_cost');
+    settledCost = settled.estimatedMicroUsd;
     answered = true; firstSource = call.context.sourceDigest; firstInstructions = call.instructions;
     return decodePersonalBookProviderOutput(call, JSON.parse(receipt1.raw.output_text));
   }).then(() => null, (error: unknown) => error);
-  if (!answered) throw refusal ?? new NewBookExperimentError(sameFirstRequest ? 'new_book_continuation_scope' : 'new_book_continuation_replay');
+  if (!answered) throw refusal ?? new NewBookExperimentError(sameFirstRequest ? 'new_book_continuation_cost' : 'new_book_continuation_replay');
   if (!(refusedAt instanceof Error) || refusedAt.message !== 'book_sequence_scene_location_drift') fail('new_book_continuation_scope');
   // 2. The new request: the same, but for the scene-location instruction and the source digest that records that contract. The storyboard
   //    call's instructions gain exactly the rule; the provider request is the first one with those instructions (its own trailing provider
   //    note kept) and that digest swapped in, nothing else.
-  let reached = false, onlyTheRule = false;
+  let reached = false, onlyTheRule = false, newReservation: number | null = null;
   await story(NEW_BOOK_CONTINUATION_2.contracts, async call => {
     reached = true;
     const payload = simpleWizardVisualPayload(call, SOL), source = call.context.sourceDigest, old = canonicalJson(wire1);
+    // The new request carries the rule's bytes, so its own reservation (computed as the live call will) is reported, not the first one's.
+    newReservation = visualReservation(call, payload);
     onlyTheRule = call.stage === 'storyboard' && !!firstSource && !!firstInstructions && source !== firstSource && old.split(firstSource).length === 2 &&
       call.instructions === `${firstInstructions}\n${SCENE_LOCATION_STORYBOARD_ADDENDUM}` && wire1.instructions.startsWith(firstInstructions) &&
       canonicalJson(payload) === canonicalJson({ ...JSON.parse(old.split(firstSource).join(source)),
@@ -678,7 +706,8 @@ async function admitContinuation2(config: NewBookConfig, head: string) {
   sameBaseline2(config, head, prepared, baseline);
   return { prepared, options, admitted: { baseline, summary: { admissible: true, amended: !!baseline.amended,
     outDirExists: existsSync(path.join(dir, NEW_BOOK_CONTINUATION_2.outDir)), storyReplayed: true, previousRefusedAtSceneLocation: true,
-    requestChangedOnlyByTheRule: true, priorKnownApiMicroUsd: ledger.knownMicroUsd, carriedUnresolvedMicroUsd: ledger.carriedUnresolvedMicroUsd,
+    requestChangedOnlyByTheRule: true, previousStoryboardSettledMicroUsd: settledCost, newStoryboardReservationMicroUsd: newReservation,
+    priorKnownApiMicroUsd: ledger.knownMicroUsd, carriedUnresolvedMicroUsd: ledger.carriedUnresolvedMicroUsd,
     remainingUnderCapMicroUsd: NEW_BOOK_EXPERIMENT.apiCapMicroUsd - ledger.knownMicroUsd - ledger.carriedUnresolvedMicroUsd,
     providerCalls: 0, keyRead: false } } };
 }

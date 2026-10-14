@@ -231,10 +231,20 @@ describe('a new book from scratch, staged, offline rehearsal (synthetic provider
     const t = textTransports({ model: 'gpt-6-astra-mini' });
     await expect(run(t)).rejects.toThrow();
     const textDir = path.join(experimentDir(config), 'text');
+    // Another model's answer has no known cost (never priced at the requested model's rate): its reservation stays counted.
     expect(json(path.join(textDir, 'paid-stages', 'storyboard.failure.json'))).toMatchObject({ code: 'new_book_provider_invalid',
-      receipt: { model: 'gpt-6-astra-mini' } });
+      receipt: { model: 'gpt-6-astra-mini', estimatedMicroUsd: null } });
     expect(json(path.join(textDir, 'sealed.json'))).toMatchObject({ status: 'failed', code: 'new_book_provider_invalid' });
     expect(existsSync(path.join(textDir, 'visual_simple_book_result.json'))).toBe(false);
+  });
+  it('a storyboard answer at another service tier is refused as invalid with no known cost, and stops the stage', async () => {
+    const t = textTransports(), real = t.responses.getMockImplementation()!;
+    t.responses.mockImplementation((async (payload: any, ...rest: unknown[]) => ({ ...(await (real as any)(payload, ...rest)), service_tier: 'flex' })) as never);
+    await expect(run(t)).rejects.toThrow();
+    const textDir = path.join(experimentDir(config), 'text');
+    expect(json(path.join(textDir, 'paid-stages', 'storyboard.failure.json'))).toMatchObject({ code: 'new_book_provider_invalid',
+      receipt: { estimatedMicroUsd: null, raw: { service_tier: 'flex' } } });
+    expect(json(path.join(textDir, 'sealed.json'))).toMatchObject({ status: 'failed', code: 'new_book_provider_invalid' });
   });
 });
 
@@ -1340,6 +1350,84 @@ describe("Guy's second storyboard attempt: the same request plus the scene-locat
     nothingConsumed();
     spy.mockRestore();
     expect(await second(textTransports(), false)).toMatchObject({ continuation2: { requestChangedOnlyByTheRule: true } });
+  });
+
+  // ---- Codex HOLD at 75df2822 (P1): the first continuation's settled cost is re-derived from its raw answer, not taken from summaries. ----
+  /**
+   * Rewrites the first continuation's saved storyboard answer (receipt, result) and regenerates its spend record with the real meter, so the
+   * three summaries agree with each other: only the raw answer can contradict them.
+   */
+  function rewriteFirstAnswer(change: (receipt: any, result: any, wire: any) => void) {
+    const root1 = path.join(out1(), 'paid-stages'), files = ['storyboard.receipt.json', 'storyboard.result.json', '../spend.json'].map(f => path.join(root1, f));
+    const saved = files.map(f => readFileSync(f));
+    const receipt = json(files[0]), result = json(files[1]), wire = json(path.join(root1, 'storyboard.wire.json'));
+    change(receipt, result, wire);
+    writeFileSync(files[0], JSON.stringify(receipt, null, 2)); writeFileSync(files[1], JSON.stringify(result, null, 2));
+    writeFileSync(files[2], JSON.stringify(new AuditionMeter(root1, 7000000, 2, 14000, reservation()).snapshot(), null, 2));
+    return () => files.forEach((f, i) => writeFileSync(f, saved[i]));
+  }
+  const settle = (usage: { input_tokens: number; output_tokens: number }) => usage.input_tokens * 10 + usage.output_tokens * 50;
+
+  it("Codex's counterexample: a cheaper cost on which receipt, result and spend all agree, but the raw answer contradicts, is refused", async () => {
+    await refusedOnce();
+    const restore = rewriteFirstAnswer((receipt, result) => { receipt.estimatedMicroUsd = 1; result.estimatedMicroUsd = 1; });
+    // The summaries are coherent with each other (the old check alone would admit a prior of 14001).
+    expect(json(path.join(out1(), 'spend.json'))).toMatchObject({ newKnownApiMicroUsd: 1, unknownCost: 0 });
+    const t = textTransports();
+    for (const execute of [false, true]) await expect(second(t, execute)).rejects.toThrow('new_book_continuation_cost');
+    nothingConsumed();
+    expect([t.opus, t.reader, t.responses, sdk.create].map(m => m.mock.calls.length)).toEqual([0, 0, 0, 0]);
+    restore();
+    expect(await second(t, false)).toMatchObject({ continuation2: { admissible: true, previousStoryboardSettledMicroUsd: 350000, priorKnownApiMicroUsd: 364000 } });
+  });
+
+  it('every invalid or incoherent saved answer fails closed before anything is consumed (each with agreeing summaries)', async () => {
+    await refusedOnce();
+    const t = textTransports();
+    const cases: [string, (receipt: any, result: any, wire: any) => void, RegExp][] = [
+      ['another model', (receipt) => { receipt.raw.model = 'gpt-6-astra-mini'; receipt.model = 'gpt-6-astra-mini'; }, /new_book_continuation_cost/],
+      ['another tier', (receipt) => { receipt.raw.service_tier = 'flex'; }, /new_book_continuation_cost/],
+      ['not completed', (receipt) => { receipt.raw.status = 'incomplete'; }, /new_book_continuation_cost/],
+      ['no output', (receipt) => { receipt.raw.output_text = ''; }, /new_book_continuation_replay|new_book_continuation_cost/],
+      ['no usage', (receipt) => { receipt.raw.usage = null; receipt.usage = null; }, /new_book_continuation_cost/],
+      ['malformed usage', (receipt) => { receipt.raw.usage = { ...receipt.raw.usage, input_tokens: -1 }; }, /new_book_continuation_cost/],
+      ['fractional usage', (receipt) => { receipt.raw.usage = { ...receipt.raw.usage, output_tokens: 4999.5 }; }, /new_book_continuation_cost/],
+      // Coherent cost for the larger usage, but beyond the call's output cap: only the cap check refuses it.
+      ['beyond the output cap', (receipt, result, wire) => {
+        receipt.raw.usage = { ...receipt.raw.usage, output_tokens: wire.max_output_tokens + 1 };
+        receipt.usage = { inputTokens: receipt.raw.usage.input_tokens, outputTokens: wire.max_output_tokens + 1 };
+        receipt.estimatedMicroUsd = result.estimatedMicroUsd = settle(receipt.raw.usage); }, /new_book_continuation_cost/],
+      // The raw answer is unchanged; only its normalized copy disagrees.
+      ['normalized usage disagrees', (receipt) => { receipt.usage = { inputTokens: 1, outputTokens: 1 }; }, /new_book_continuation_cost/],
+      ['receipt model label disagrees', (receipt) => { receipt.model = 'gpt-6-astra-mini'; }, /new_book_continuation_cost/],
+      ['receipt step label disagrees', (receipt) => { receipt.stage = 'storyboard_review'; }, /new_book_continuation_cost/],
+      ['negative cost', (receipt, result) => { receipt.estimatedMicroUsd = -5; result.estimatedMicroUsd = -5; }, /new_book_continuation_cost/],
+      ['unknown cost', (receipt, result) => { receipt.estimatedMicroUsd = null; result.estimatedMicroUsd = null; }, /new_book_ledger_unknown|new_book_continuation_cost/],
+    ];
+    for (const [label, change, code] of cases) {
+      const restore = rewriteFirstAnswer(change);
+      for (const execute of [false, true]) await expect(second(t, execute), label).rejects.toThrow(code);
+      expect([label, existsSync(experimentContinuation2File(config)), existsSync(out2())]).toEqual([label, false, false]);
+      restore();
+    }
+    expect([t.opus, t.reader, t.responses, sdk.create].map(m => m.mock.calls.length)).toEqual([0, 0, 0, 0]);
+    expect(await second(t, false)).toMatchObject({ continuation2: { admissible: true, previousStoryboardSettledMicroUsd: 350000 } });
+  });
+
+  it("the preview reports the settled prior cost and the new request's own reservation, which the run then claims", async () => {
+    await refusedOnce();
+    const first = json(path.join(out1(), 'paid-stages', 'storyboard.claim.json')).maximumMicroUsd;
+    const preview = (await second(textTransports(), false)) as any;
+    const newReservation = preview.continuation2.newStoryboardReservationMicroUsd;
+    expect(preview.continuation2).toMatchObject({ previousStoryboardSettledMicroUsd: 350000, priorKnownApiMicroUsd: 364000 });
+    // The rule adds bytes, so the new request reserves more than the first one did (the old carried reserve is unchanged).
+    expect(newReservation).toBeGreaterThan(first);
+    expect(preview.continuation2.carriedUnresolvedMicroUsd).toBe(reservation());
+    await second();
+    expect(json(path.join(out2(), 'paid-stages', 'storyboard.claim.json')).maximumMicroUsd).toBe(newReservation);
+    // The live reservation rule at the storyboard's own (Astra) rate: wire bytes in, the output cap out, plus 10%.
+    const wire2 = json(path.join(out2(), 'paid-stages', 'storyboard.wire.json'));
+    expect(newReservation).toBe(Math.ceil((Buffer.byteLength(JSON.stringify(wire2), 'utf8') * 10 + wire2.max_output_tokens * 50) * 1.1));
   });
 
   it('one pinned HEAD and the complete request record, as for the first continuation', async () => {
