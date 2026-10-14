@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createHash } from 'node:crypto';
-import { mkdtempSync, readdirSync, writeFileSync, unlinkSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, renameSync, writeFileSync, unlinkSync } from 'node:fs';
 import path from 'node:path';
 import { tmpdir } from 'node:os';
 vi.mock('../storyboard', () => ({
@@ -13,8 +13,10 @@ import type { PersonalStoryboard } from '../storyboard';
 import { auditionSheetDesigns, auditionSheetPrompt, illustrateReviewedAudition, rejudgeAudition, assessAuditionReview, attemptStatus, selectAuditionAttempt,
   auditionPageChecks, reviewedAuditionHTML, AUDITION_WORST_CASE_CALLS, AUDITION_JUDGE_INSTRUCTIONS, ReviewedAuditionError, auditionPageReviewSchema,
   auditionCorrections, landmarkFeatureCatalogue, type AuditionAttempt, type AuditionLandmark, type LandmarkAspect } from '../simple-book-reviewed-audition';
-import { AuditionMeter, readAuditionGrant } from '../../../scripts/personal-simple-book-reviewed-audition';
+import { AuditionMeter, readAuditionGrant, auditionMeterRules, auditionRenderRule, auditionReviewRule, auditionIdentityRule }
+  from '../../../scripts/personal-simple-book-reviewed-audition';
 import { LANDMARK_KIND_CONTRACT_VERSION } from '../storyboard-landmark-kind';
+import { canonicalJson } from '../request-acceptance';
 
 const sha = (s: string) => createHash('sha256').update(s).digest('hex');
 const texts = ['She takes the paper.', 'She folds it into a boat. A thin trail appears.', 'A cat watches.', 'A big stone.', 'p5', 'p6', 'p7', 'p8'];
@@ -966,5 +968,217 @@ describe('the finished book reads in book order and says honestly what it is', (
     for (const page of [html(held), html(heldSample)]) expect(page).not.toContain('נתמך בבדיקה האוטומטית בלבד');
     expect(html({ ...full, status: 'some_future_status' } as never)).toContain('מצב: <b>מוחזק — מצב לא מוכר</b>');
     expect(html(full)).toContain('זהות הילד/ה:');
+  });
+});
+
+describe('opt-in own-record verification (the new-book meter): every own call re-derived from its bound request and raw answer before it counts', () => {
+  const PROMPT = 'p'.repeat(1000);
+  const renderWire = { body: { model: 'gpt-image-2', prompt: PROMPT, quality: 'low', size: '1024x1024', n: 1 }, mode: 'images.generate', references: [],
+    retries: 0, deadlineMs: 180000, pricing: 'image_input_8_output_30_conservative_no_cache', outputReservationTokens: 8192 };
+  // The image adapter's own maximum: every prompt byte (and reference) at the image input rate, plus 8,192 output tokens at $30/M.
+  const RENDER_MAX = 1000 * 8 + 8192 * 30;
+  const reviewWire = { model: 'gpt-6.1-sol', store: false, service_tier: 'default', reasoning: { effort: 'medium' }, instructions: 'judge', input: [], max_output_tokens: 12000 };
+  const identityWire = { model: 'gpt-4o', max_tokens: 180, temperature: 0, response_format: { type: 'json_object' }, messages: [] };
+  const imageRaw = (input = 100, output = 300) => ({ created: 1, data: [{ b64_json: 'aW1hZ2U=' }], usage: { input_tokens: input, output_tokens: output } });
+  const reviewRaw = (input = 5000, output = 800) => ({ model: 'gpt-6.1-sol', service_tier: 'default', status: 'completed', output_text: '{}',
+    usage: { input_tokens: input, output_tokens: output } });
+  const identityRaw = { model: 'gpt-4o-2024-08-06', choices: [], usage: { prompt_tokens: 1500, completion_tokens: 120 } };
+  // Each adapter's price of those answers: image 8/30, Sol 2/10, identity 2.5/10 (per token, in micro-USD).
+  const RENDER = 100 * 8 + 300 * 30, REVIEW = 5000 * 2 + 800 * 10, IDENTITY = 1500 * 2.5 + 120 * 10;
+  const opted = (root = path.join(mkdtempSync(path.join(tmpdir(), 'audition-own-')), 'paid'), prior = 1000000) =>
+    new AuditionMeter(root, 7000000, 20, prior, 0, auditionMeterRules);
+  const render = (m: AuditionMeter, step: string, raw = imageRaw()) => m.run(step, renderWire, RENDER_MAX, async () => {
+    const cost = raw.usage.input_tokens * 8 + raw.usage.output_tokens * 30;
+    return { value: 1, estimatedMicroUsd: cost, receipt: { raw, estimatedMicroUsd: cost, model: 'gpt-image-2', candidate: { imageName: `${step}.png`, imageSha: sha(step) } } };
+  });
+  const review = (m: AuditionMeter, step: string, raw = reviewRaw(), cost = REVIEW) =>
+    m.run(step, reviewWire, 600000, async () => ({ value: 1, estimatedMicroUsd: cost, receipt: { raw, estimatedMicroUsd: cost } }));
+  const identity = (m: AuditionMeter, step: string) =>
+    m.run(step, identityWire, 50000, async () => ({ value: 1, estimatedMicroUsd: IDENTITY, receipt: { raw: identityRaw, estimatedMicroUsd: IDENTITY, status: 200 } }));
+  /** A genuine opted-in run: one sheet (render, review), then one page (render, review, identity). */
+  async function genuine() {
+    const m = opted();
+    await render(m, 'sheet_entities_0'); await review(m, 'sheet_entities_0_qa');
+    await render(m, 'page_1_0'); await review(m, 'page_1_0_qa'); await identity(m, 'page_1_0_identity');
+    return m;
+  }
+  const edit = (root: string, file: string, change: (value: any) => any) => {
+    const f = path.join(root, file); writeFileSync(f, JSON.stringify(change(JSON.parse(readFileSync(f, 'utf8')))));
+  };
+  /** One call's recorded cost set in its result and its receipt together (they agree; only the raw answer is left as it was). */
+  const setCost = (root: string, step: string, cost: unknown) => {
+    edit(root, `${step}.result.json`, r => ({ ...r, estimatedMicroUsd: cost })); edit(root, `${step}.receipt.json`, r => ({ ...r, estimatedMicroUsd: cost }));
+  };
+  /** Every record of one call moved to another step name, its claim naming it. */
+  const rename = (root: string, from: string, to: string) => {
+    for (const n of readdirSync(root).filter(n => n.startsWith(`${from}.`))) renameSync(path.join(root, n), path.join(root, to + n.slice(from.length)));
+    edit(root, `${to}.claim.json`, c => ({ ...c, step: to }));
+  };
+  /** A call's request changed, with its claim's and result's digests rebound to it (the maximum as given). */
+  const rebind = (root: string, step: string, change: (wire: any) => any) => {
+    const wire = change(JSON.parse(readFileSync(path.join(root, `${step}.wire.json`), 'utf8'))), wireDigest = sha(canonicalJson(wire));
+    writeFileSync(path.join(root, `${step}.wire.json`), JSON.stringify(wire));
+    for (const k of ['claim', 'result']) edit(root, `${step}.${k}.json`, r => ({ ...r, wireDigest }));
+  };
+  /** Every entry of a meter folder with its content hash (a directory as such). */
+  const listing = (root: string) => readdirSync(root, { withFileTypes: true }).map(e => [e.name, e.isFile() ? sha(readFileSync(path.join(root, e.name), 'utf8')) : 'directory'])
+    .sort(([a], [b]) => a < b ? -1 : 1);
+
+  it('on genuine records the opt-in changes nothing: the same snapshot as the plain sum, call for call, and the next call proceeds', async () => {
+    const m = await genuine();
+    const plain = new AuditionMeter(m.root, 7000000, 20, 1000000).snapshot();
+    expect(m.snapshot()).toEqual(plain);
+    expect(plain).toMatchObject({ calls: 5, newKnownApiMicroUsd: 2 * RENDER + 2 * REVIEW + IDENTITY, unknownCost: 0, unknownOutcome: 0, failed: 0 });
+    await render(m, 'r1_page_2_0');
+    expect(opted(m.root).snapshot()).toEqual(new AuditionMeter(m.root, 7000000, 20, 1000000).snapshot());
+  });
+
+  it("Codex's reproduction (490000 -> 1 in the summaries, the raw usage unchanged) is refused before the next claim: on the same meter and on a resumed one", async () => {
+    const m = opted(undefined, 6500000);
+    await render(m, 'page_1_0', imageRaw(50000, 3000));
+    expect(m.snapshot()).toMatchObject({ newKnownApiMicroUsd: 490000, cumulativeAccountedMicroUsd: 6990000 });
+    const dispatch = vi.fn(async () => ({ value: 1, estimatedMicroUsd: IDENTITY, receipt: { raw: identityRaw, estimatedMicroUsd: IDENTITY, status: 200 } }));
+    await expect(m.run('page_1_0_identity', identityWire, 50000, dispatch)).rejects.toThrow('audition_budget_exhausted');
+    setCost(m.root, 'page_1_0', 1);
+    // Without the opt-in (every other caller, unchanged) the lowered sum is what counts: 6,550,001 accounted for a true 7,040,000.
+    expect(new AuditionMeter(m.root, 7000000, 20, 6500000).snapshot().cumulativeAccountedMicroUsd).toBe(6500001);
+    for (const meter of [m, opted(m.root, 6500000)]) {
+      await expect(meter.run('page_1_0_identity', identityWire, 50000, dispatch)).rejects.toThrow('audition_meter_cost');
+      expect(() => meter.snapshot()).toThrow('audition_meter_cost');
+    }
+    expect(dispatch).not.toHaveBeenCalled();
+    expect(readdirSync(m.root).filter(n => n.startsWith('page_1_0_identity.'))).toEqual([]);
+  });
+
+  it.each([
+    ['a render cost lowered (result and receipt agree)', 'audition_meter_cost', (r: string) => setCost(r, 'page_1_0', 1)],
+    ['a receipt whose estimate disagrees with its result', 'audition_meter_cost', (r: string) => edit(r, 'page_1_0.receipt.json', x => ({ ...x, estimatedMicroUsd: 1 }))],
+    ['a result cost lowered alone (the sum reads results; its receipt untouched)', 'audition_meter_cost', (r: string) => edit(r, 'page_1_0.result.json', x => ({ ...x, estimatedMicroUsd: 1 }))],
+    ['a claim naming another step (it groups repeated failures)', 'audition_meter_record', (r: string) => edit(r, 'page_1_0_qa.claim.json', c => ({ ...c, step: 'page_1_0' }))],
+    ['an open claim of a request no rule prices, its maximum removed (it would hold nothing)', 'audition_meter_cost', (r: string) => {
+      rebind(r, 'page_1_0_identity', w => ({ ...w, model: 'unpriced' }));
+      for (const k of ['result', 'receipt']) unlinkSync(path.join(r, `page_1_0_identity.${k}.json`));
+      edit(r, 'page_1_0_identity.claim.json', c => ({ ...c, maximumMicroUsd: null })); }],
+    ['a review cost lowered', 'audition_meter_cost', (r: string) => setCost(r, 'page_1_0_qa', 1)],
+    ['an identity cost lowered', 'audition_meter_cost', (r: string) => setCost(r, 'page_1_0_identity', 1)],
+    ['a review answer of another model (model swap)', 'audition_meter_cost', (r: string) => edit(r, 'page_1_0_qa.receipt.json', x => ({ ...x, raw: { ...x.raw, model: 'gpt-6-astra' } }))],
+    ['a review answer at another service tier', 'audition_meter_cost', (r: string) => edit(r, 'page_1_0_qa.receipt.json', x => ({ ...x, raw: { ...x.raw, service_tier: 'flex' } }))],
+    ['an identity answer of an unknown model', 'audition_meter_cost', (r: string) => edit(r, 'page_1_0_identity.receipt.json', x => ({ ...x, raw: { ...x.raw, model: 'gpt-4o-mini' } }))],
+    ['a review record renamed as a render (type swap)', 'audition_meter_cost', (r: string) => rename(r, 'page_1_0_qa', 'page_1_1')],
+    ['a render record renamed as an identity check (type swap)', 'audition_meter_cost', (r: string) => rename(r, 'page_1_0', 'page_1_1_identity')],
+    ['an identity check renamed onto a sheet (no such step)', 'audition_meter_rule', (r: string) => rename(r, 'page_1_0_identity', 'sheet_entities_1_identity')],
+    ['a rejudge step (not a kind this meter claims)', 'audition_meter_rule', (r: string) => rename(r, 'page_1_0_qa', 'rejudge_0_page_1')],
+    ['a render answer without its raw usage', 'audition_meter_cost', (r: string) => edit(r, 'page_1_0.receipt.json', x => ({ ...x, raw: { ...x.raw, usage: undefined } }))],
+    ['a negative recorded cost', 'audition_meter_cost', (r: string) => setCost(r, 'page_1_0', -RENDER)],
+    ['a fractional recorded cost', 'audition_meter_cost', (r: string) => setCost(r, 'page_1_0', RENDER + .5)],
+    ['a recorded cost as text', 'audition_meter_cost', (r: string) => setCost(r, 'page_1_0', String(RENDER))],
+    ["a claim maximum that is not its request's", 'audition_meter_cost', (r: string) => edit(r, 'page_1_0.claim.json', c => ({ ...c, maximumMicroUsd: RENDER_MAX - 1 }))],
+    ['a non-integer claim maximum', 'audition_meter_cost', (r: string) => edit(r, 'page_1_0.claim.json', c => ({ ...c, maximumMicroUsd: RENDER_MAX + .5 }))],
+    ['a request changed after its claim', 'audition_meter_record', (r: string) => edit(r, 'page_1_0.wire.json', w => ({ ...w, body: { ...w.body, prompt: `q${w.body.prompt.slice(1)}` } }))],
+    ['a request changed and rebound, its maximum kept', 'audition_meter_cost', (r: string) => rebind(r, 'page_1_0', w => ({ ...w, body: { ...w.body, prompt: w.body.prompt.slice(1) } }))],
+    ['a review request rebound to another model', 'audition_meter_cost', (r: string) => rebind(r, 'page_1_0_qa', w => ({ ...w, model: 'gpt-6-astra' }))],
+    ['a review request rebound to another tier', 'audition_meter_cost', (r: string) => rebind(r, 'page_1_0_qa', w => ({ ...w, service_tier: 'flex' }))],
+    ['a review request rebound to a larger output', 'audition_meter_cost', (r: string) => rebind(r, 'page_1_0_qa', w => ({ ...w, max_output_tokens: 20000 }))],
+    ['a render request rebound to another image model', 'audition_meter_cost', (r: string) => rebind(r, 'page_1_0', w => ({ ...w, body: { ...w.body, model: 'gpt-image-1' } }))],
+    ['a render request rebound to another quality', 'audition_meter_cost', (r: string) => rebind(r, 'page_1_0', w => ({ ...w, body: { ...w.body, quality: 'high' } }))],
+    ['a render request rebound to another pricing', 'audition_meter_cost', (r: string) => rebind(r, 'page_1_0', w => ({ ...w, pricing: 'image_input_4_output_15' }))],
+    ['a render request rebound to a smaller output reservation', 'audition_meter_cost', (r: string) => rebind(r, 'page_1_0', w => ({ ...w, outputReservationTokens: 4096 }))],
+    ['an identity request rebound to another model', 'audition_meter_cost', (r: string) => rebind(r, 'page_1_0_identity', w => ({ ...w, model: 'gpt-4o-mini' }))],
+    ['an identity request rebound to a larger output', 'audition_meter_cost', (r: string) => rebind(r, 'page_1_0_identity', w => ({ ...w, max_tokens: 500 }))],
+    ['a result naming another request', 'audition_meter_record', (r: string) => edit(r, 'page_1_0.result.json', x => ({ ...x, wireDigest: sha('other') }))],
+    ['a completed call without its receipt', 'audition_meter_record', (r: string) => unlinkSync(path.join(r, 'page_1_0.receipt.json'))],
+    ['a result whose outcome is not a boolean', 'audition_meter_record', (r: string) => edit(r, 'page_1_0.result.json', x => ({ ...x, completed: 'yes' }))],
+    ['a completed review that is not a usable answer', 'audition_meter_cost', (r: string) => edit(r, 'page_1_0_qa.receipt.json', x => ({ ...x, raw: { ...x.raw, status: 'incomplete' } }))],
+    ['a completed identity check with a failed HTTP status', 'audition_meter_cost', (r: string) => edit(r, 'page_1_0_identity.receipt.json', x => ({ ...x, status: 500 }))],
+    ['a completed render that is not the priced image model', 'audition_meter_cost', (r: string) => edit(r, 'page_1_0.receipt.json', x => ({ ...x, model: 'gpt-image-1' }))],
+    ['an earlier call deleted (a gap in the claim sequence)', 'audition_meter_record', (r: string) => {
+      for (const n of readdirSync(r).filter(n => n.startsWith('sheet_entities_0.'))) unlinkSync(path.join(r, n)); }],
+    ['a claim renumbered', 'audition_meter_record', (r: string) => edit(r, 'page_1_0_qa.claim.json', c => ({ ...c, seq: 2 }))],
+    ['an unreadable record', 'audition_meter_record', (r: string) => { unlinkSync(path.join(r, 'page_1_0.result.json')); mkdirSync(path.join(r, 'page_1_0.result.json')); }],
+  ])('%s: refused (%s) before the next claim or dispatch, on the same meter and on a resumed one; nothing is repaired', async (_name, code, forge) => {
+    const m = await genuine(); forge(m.root);
+    const dispatch = vi.fn(), before = listing(m.root);
+    for (const meter of [m, opted(m.root)]) {
+      expect(() => meter.snapshot()).toThrow(code);
+      await expect(meter.run('page_2_0', renderWire, RENDER_MAX, dispatch)).rejects.toThrow(code);
+    }
+    expect(dispatch).not.toHaveBeenCalled();
+    expect(listing(m.root)).toEqual(before);
+  });
+
+  it('evidence without a price cannot free budget: with every summary agreeing, it is an unknown cost held at its maximum, and it stops', async () => {
+    const m = await genuine();
+    edit(m.root, 'page_1_0.receipt.json', x => ({ ...x, raw: { ...x.raw, usage: undefined }, estimatedMicroUsd: null }));
+    edit(m.root, 'page_1_0.result.json', x => ({ ...x, estimatedMicroUsd: null }));
+    expect(m.snapshot()).toMatchObject({ unknownCost: 1, reservedUnsettledMicroUsd: RENDER_MAX, newKnownApiMicroUsd: RENDER + 2 * REVIEW + IDENTITY,
+      cumulativeAccountedMicroUsd: 1000000 + RENDER_MAX + RENDER + 2 * REVIEW + IDENTITY });
+    const dispatch = vi.fn();
+    await expect(m.run('page_2_0', renderWire, RENDER_MAX, dispatch)).rejects.toThrow('audition_unknown_cost');
+    expect(dispatch).not.toHaveBeenCalled();
+  });
+
+  it('a charged failure stays counted at its raw cost; an unknown failure and an open claim hold their own maximum and stop the next claim', async () => {
+    const charged = opted();
+    await render(charged, 'page_1_0');
+    await expect(charged.run('page_1_0_qa', reviewWire, 600000, async () => {
+      throw Object.assign(new Error('audition_pixel_schema'), { receipt: { raw: reviewRaw(), estimatedMicroUsd: REVIEW } }); })).rejects.toThrow('audition_pixel_schema');
+    expect(charged.snapshot()).toMatchObject({ calls: 2, failed: 1, newKnownApiMicroUsd: RENDER + REVIEW, unknownCost: 0 });
+    await render(charged, 'page_1_1');
+    // A failed call's cost is re-derived like any other: lowered, it refuses the next claim.
+    edit(charged.root, 'page_1_0_qa.failure.json', f => ({ ...f, receipt: { ...f.receipt, estimatedMicroUsd: 1 } }));
+    edit(charged.root, 'page_1_0_qa.result.json', r => ({ ...r, estimatedMicroUsd: 1 }));
+    await expect(render(charged, 'page_1_2')).rejects.toThrow('audition_meter_cost');
+
+    const dispatch = vi.fn();
+    const unknown = opted();
+    await expect(unknown.run('page_1_0', renderWire, RENDER_MAX, async () => {
+      throw Object.assign(new Error('socket'), { receipt: { raw: null, estimatedMicroUsd: null } }); })).rejects.toThrow('socket');
+    expect(unknown.snapshot()).toMatchObject({ calls: 1, unknownCost: 1, reservedUnsettledMicroUsd: RENDER_MAX, cumulativeAccountedMicroUsd: 1000000 + RENDER_MAX });
+    await expect(unknown.run('page_1_1', renderWire, RENDER_MAX, dispatch)).rejects.toThrow('audition_unknown_cost');
+    // Its hold is its own request's maximum: a smaller one is refused, never counted.
+    edit(unknown.root, 'page_1_0.claim.json', c => ({ ...c, maximumMicroUsd: 1 }));
+    expect(() => unknown.snapshot()).toThrow('audition_meter_cost');
+
+    // The process stops during a call: its claim stays without a result. A resumed meter holds that call's maximum and stops.
+    const open = opted();
+    void open.run('page_1_0', renderWire, RENDER_MAX, () => new Promise(() => {}));
+    const resumed = opted(open.root);
+    expect(resumed.snapshot()).toMatchObject({ calls: 1, unknownOutcome: 1, reservedUnsettledMicroUsd: RENDER_MAX, cumulativeAccountedMicroUsd: 1000000 + RENDER_MAX });
+    await expect(resumed.run('page_1_1', renderWire, RENDER_MAX, dispatch)).rejects.toThrow('audition_unknown_cost');
+    edit(open.root, 'page_1_0.claim.json', c => ({ ...c, maximumMicroUsd: 1 }));
+    expect(() => opted(open.root).snapshot()).toThrow('audition_meter_cost');
+    expect(dispatch).not.toHaveBeenCalled();
+  });
+
+  it("a long-input review keeps its long rate (auditionUsageCost's >272K branch): the shorter rate is refused", async () => {
+    const m = opted(), long = reviewRaw(300000, 800);
+    await review(m, 'page_1_0_qa', long, 300000 * 4 + 800 * 15);
+    expect(m.snapshot().newKnownApiMicroUsd).toBe(1212000);
+    setCost(m.root, 'page_1_0_qa', 300000 * 2 + 800 * 10);
+    expect(() => m.snapshot()).toThrow('audition_meter_cost');
+  });
+
+  it('totals stay exact integers: a sum past the safe range refuses instead of reporting a rounded amount', async () => {
+    // One answer whose own price is still exact (2^50 - 1 input tokens x 8 = 9,007,199,254,740,984); with the prior spend the total is not.
+    const m = opted();
+    await render(m, 'page_1_0', imageRaw(2 ** 50 - 1, 0));
+    expect(() => m.snapshot()).toThrow('audition_meter_cost');
+    expect(Number.isSafeInteger(new AuditionMeter(m.root, 7000000, 20, 1000000).snapshot().cumulativeAccountedMicroUsd)).toBe(false);
+  });
+
+  it('a meter integrity refusal ends the audition at once (never one unavailable attempt among others): nothing further is drawn', async () => {
+    for (const code of ['audition_meter_rule', 'audition_meter_record', 'audition_meter_cost']) {
+      const h = harness({ renderFail: step => step === 'sheet_entities_0' ? new ReviewedAuditionError(code) : null });
+      await expect(illustrateReviewedAudition(h.args)).rejects.toThrow(code);
+      expect([h.args.render.mock.calls.map(c => c[0]), h.args.judge.mock.calls.length, h.saved.has('sheet_entities')]).toEqual([['sheet_entities_0'], 0, false]);
+    }
+  });
+
+  it("the audition's own steps only: renders, their reviews and a page's identity check (any resume prefix); nothing else", () => {
+    for (const [step, rule] of [['sheet_entities_0', auditionRenderRule], ['sheet_locations_2', auditionRenderRule], ['page_0_0', auditionRenderRule],
+      ['r3_page_8_2', auditionRenderRule], ['page_4_1_qa', auditionReviewRule], ['r1_sheet_entities_1_qa', auditionReviewRule],
+      ['page_4_1_identity', auditionIdentityRule], ['r12_page_4_1_identity', auditionIdentityRule]] as const) expect(auditionMeterRules(step), step).toBe(rule);
+    for (const step of ['sheet_entities_0_identity', 'rejudge_0_page_4', 'page_4', 'page_4_1_qa_identity', 'r_page_4_1', 'r123_page_4_1', 'R1_page_4_1',
+      'sheet_props_0', 'page_4_1_extra', 'reference_child', 'storyboard', 'toString', '__proto__']) expect(auditionMeterRules(step), step).toBeUndefined();
   });
 });

@@ -165,6 +165,27 @@ async function continued() { await timedOut(); headAt('c'.repeat(40)); return co
 /** Every file under a folder (relative path, forward slashes) and its hash. */
 const tree = (dir: string): Record<string, string> => Object.fromEntries(readdirSync(dir, { recursive: true, withFileTypes: true }).filter(e => e.isFile())
   .map(e => { const full = path.join(e.parentPath, e.name); return [path.relative(dir, full).split(path.sep).join('/'), sha(readFileSync(full))]; }));
+/** One settled call's cost lowered to 1 in its result and its receipt together (Codex's 490000 -> 1 shape); its raw answer is left as it was. */
+function lowerToOne(paid: string, step: string) {
+  const at = (k: string) => path.join(paid, `${step}.${k}.json`), result = json(at('result'));
+  writeFileSync(at('result'), JSON.stringify({ ...result, estimatedMicroUsd: 1 }));
+  if (result.completed) writeFileSync(at('receipt'), JSON.stringify({ ...json(at('receipt')), estimatedMicroUsd: 1 }));
+  else { const failure = json(at('failure')); writeFileSync(at('failure'), JSON.stringify({ ...failure, receipt: { ...failure.receipt, estimatedMicroUsd: 1 } })); }
+}
+/**
+ * Between two calls of a running stage: at the experiment's own guard check before the next claim (every claim runs it), the first call that
+ * has settled in `paid` gets its cost lowered, once. Returns a reader of that call's step (null until then).
+ */
+function lowerFirstSettled(paid: string) {
+  const current = vi.mocked(frozen.gitAt).getMockImplementation()!;
+  let lowered: string | null = null;
+  vi.mocked(frozen.gitAt).mockImplementation((repo, args) => {
+    const settled = !lowered && existsSync(paid) ? readdirSync(paid).find(n => n.endsWith('.result.json')) : undefined;
+    if (settled) { lowered = settled.slice(0, -'.result.json'.length); lowerToOne(paid, lowered); }
+    return current(repo, args);
+  });
+  return () => lowered;
+}
 
 describe('a new book from scratch, staged, offline rehearsal (synthetic providers; no key, no network, no spend)', () => {
   it('text -> child -> grant: each stage journals its own calls and the reviewed-audition loader admits the whole book', async () => {
@@ -477,6 +498,95 @@ describe('the reviewed audition on the new book (synthetic providers through the
       experiment: { slot: NEW_BOOK_EXPERIMENT.slot, claimSha256, guard: () => { assertExperimentClaim(newBookConfig(file)); } } })).rejects.toThrow('new_book_source_changed');
     expect(existsSync(out)).toBe(false);
     expect(renders()).toBe(0);
+  });
+
+  // Own-stage meter integrity (approved offline milestone): the audition's meter re-derives its own calls before each claim and every resume.
+  const identities = () => vi.mocked(globalThis.fetch).mock.calls.length;
+  /** Interrupted between calls, as in F3: the third judgment completes and is recorded, then the next claim is cancelled. */
+  async function interrupted() {
+    const controller = new AbortController(), realJudge = sdk.create.getMockImplementation()!;
+    let judged = 0;
+    sdk.create.mockImplementation(async (payload: any) => { const r = await realJudge(payload); if (++judged === 3) controller.abort(); return r; });
+    await expect(audition({ signal: controller.signal })).rejects.toThrow('audition_cancelled');
+    sdk.create.mockImplementation(realJudge);
+  }
+  it('own meter at a start (through the guarded runner): a render cost lowered between calls refuses its review claim before the call', async () => {
+    const { dir } = await prepared(); judgeWith(null);
+    const paid = path.join(dir, 'audition', 'paid-stages'), lowered = lowerFirstSettled(paid);
+    await expect(audition()).rejects.toThrow(/^audition_meter_cost$/);
+    expect([lowered(), claims(paid), renders(), sdk.create.mock.calls.length, identities()]).toEqual(['sheet_entities_0', ['sheet_entities_0'], 1, 0, 0]);
+  });
+  it("own meter on a resume: Codex's shape (a settled cost lowered in result and receipt, the raw answer unchanged) refuses before the marker, any claim or call", async () => {
+    const { grant, dir } = await prepared(); judgeWith(null);
+    await interrupted();
+    const out = path.join(dir, 'audition'), paid = path.join(out, 'paid-stages'), prior = grant.ledger.priorKnownApiMicroUsd;
+    const genuine = new AuditionMeter(paid, 7000000, 89, prior).snapshot();
+    lowerToOne(paid, 'sheet_entities_0');
+    // The plain sum (every caller without the opt-in) would carry the lowered cost into the resumed run.
+    expect(new AuditionMeter(paid, 7000000, 89, prior).snapshot().newKnownApiMicroUsd).toBe(genuine.newKnownApiMicroUsd - (100 * 8 + 300 * 30) + 1);
+    const files = tree(out), drawn = [renders(), sdk.create.mock.calls.length, identities()];
+    await expect(audition({ resume: true })).rejects.toThrow(/^audition_meter_cost$/);
+    expect([tree(out), [renders(), sdk.create.mock.calls.length, identities()]]).toEqual([files, drawn]);
+    expect(existsSync(path.join(out, 'resume-1.json'))).toBe(false);
+  });
+  it('a genuine resume under the opt-in continues with the exact spend, call count, r1_ prefix, same folder and remaining cap', async () => {
+    const { grant, dir } = await prepared(); judgeWith(null);
+    await interrupted();
+    const out = path.join(dir, 'audition'), paid = path.join(out, 'paid-stages'), prior = grant.ledger.priorKnownApiMicroUsd;
+    const before = new AuditionMeter(paid, 7000000, 89, prior).snapshot(), first = claims(paid);
+    const resumed = await audition({ resume: true });
+    if (resumed.mode !== 'render') throw Error('render expected');
+    expect(resumed.manifest).toMatchObject({ status: 'qa_supported_audition', scope: { complete: true } });
+    // The resume marker records the interrupted spend: exactly the plain sum of the same records.
+    expect(json(path.join(out, 'resume-1.json')).spendBefore).toEqual(before);
+    const all = claims(paid), added = all.filter(s => !first.includes(s));
+    expect(added.length).toBeGreaterThan(0);
+    expect(added.every(s => s.startsWith('r1_'))).toBe(true);
+    // Every call costs its raw answer's price (render 100 x 8 + 300 x 30; review 5,000 x 2 + 800 x 10; identity 1,500 x 2.5 + 120 x 10), each counted once.
+    const price = (s: string) => s.endsWith('_qa') ? 18000 : s.endsWith('_identity') ? 4950 : 9800, known = all.reduce((sum, s) => sum + price(s), 0);
+    expect(all.map(s => json(path.join(paid, `${s}.result.json`)).estimatedMicroUsd)).toEqual(all.map(price));
+    expect(resumed.spend).toMatchObject({ priorKnownApiMicroUsd: prior, calls: before.calls + added.length, newKnownApiMicroUsd: known,
+      cumulativeAccountedMicroUsd: prior + known, capMicroUsd: 7000000, reservedUnsettledMicroUsd: 0, unknownCost: 0, unknownOutcome: 0 });
+    expect(json(path.join(out, 'spend-r1.json'))).toEqual(resumed.spend);
+    expect(existsSync(path.join(out, 'book-r1.html'))).toBe(true);
+  });
+  it('the opt-in cannot be dropped on a resume: the bare runner, or the grant without its experiment, is refused before any marker, claim or call', async () => {
+    const { dir } = await prepared(); judgeWith(null);
+    await interrupted();
+    const out = path.join(dir, 'audition'), grantFile = path.join(dir, 'audition.grant.json'), layout = readReviewedBookLayout(path.join(dir, 'book-layout.json'));
+    const bare = (grant: string) => runReviewedAudition({ bookDir: dir, out, keyFile: config.keyEnvFile, grantFile: grant, signal: new AbortController().signal,
+      log: () => {}, layout, resume: true });
+    const files = tree(out), drawn = [renders(), sdk.create.mock.calls.length, identities()];
+    // The experiment's own grant on the bare runner (no guard, so no opt-in): refused by the grant's experiment binding.
+    await expect(bare(grantFile)).rejects.toThrow('audition_experiment_guard');
+    // The grant without its experiment (so the bare runner's binding passes): the started run's admission names the grant itself.
+    const bytes = readFileSync(grantFile), plain = json(grantFile); delete plain.experiment;
+    const copy = path.join(root, 'plain.grant.json'); writeFileSync(copy, JSON.stringify(plain));
+    await expect(bare(copy)).rejects.toThrow('audition_resume_admission');
+    // The same rewrite in place: the experiment's stage refuses its binding, the bare runner the admission.
+    writeFileSync(grantFile, JSON.stringify(plain));
+    await expect(audition({ resume: true })).rejects.toThrow('new_book_grant_binding');
+    await expect(bare(grantFile)).rejects.toThrow('audition_resume_admission');
+    writeFileSync(grantFile, bytes);
+    expect([tree(out), [renders(), sdk.create.mock.calls.length, identities()]]).toEqual([files, drawn]);
+  });
+  it('a charged review failure from the real adapter verifies under the opt-in and stays counted at its raw price; the run halts as before', async () => {
+    const { dir } = await prepared(); judgeWith(null);
+    const real = sdk.create.getMockImplementation()!;
+    sdk.create.mockImplementationOnce(async (payload: any) => ({ ...(await real(payload)), status: 'incomplete' }));
+    await expect(audition()).rejects.toThrow(/^audition_review_unusable$/);
+    const paid = path.join(dir, 'audition', 'paid-stages');
+    expect(json(path.join(paid, 'sheet_entities_0_qa.result.json'))).toMatchObject({ estimatedMicroUsd: 5000 * 2 + 800 * 10, completed: false });
+    expect(json(path.join(paid, 'sheet_entities_0_qa.failure.json'))).toMatchObject({ code: 'audition_pixel_provider_invalid' });
+  });
+  it('a charged identity failure (HTTP 500 with usage) from the real adapter verifies under the opt-in and stays counted; the run halts as before', async () => {
+    const { dir } = await prepared(); judgeWith(null);
+    vi.mocked(globalThis.fetch).mockImplementationOnce(async () => new Response(JSON.stringify({ model: 'gpt-4o-2024-08-06', error: { message: 'synthetic' },
+      usage: { prompt_tokens: 1500, completion_tokens: 120 } }), { status: 500 }));
+    await expect(audition()).rejects.toThrow(/^audition_identity_unusable$/);
+    const paid = path.join(dir, 'audition', 'paid-stages'), step = claims(paid).find(s => s.endsWith('_identity'))!;
+    expect(json(path.join(paid, `${step}.result.json`))).toMatchObject({ estimatedMicroUsd: 1500 * 2.5 + 120 * 10, completed: false });
+    expect(json(path.join(paid, `${step}.failure.json`))).toMatchObject({ code: 'audition_identity_provider_failed', receipt: { status: 500 } });
   });
 });
 
@@ -2186,5 +2296,106 @@ describe("the readers' re-derivation is the reader transport's own rule", () => 
     }
     // The real book's comparison reading: 5,177 x 2 + 1,231 x 10.
     expect(replaySettlement.answer(replaySettlement.rates.sol, 16000, 'gpt-6.1-sol', base).estimatedMicroUsd).toBe(22664);
+  });
+});
+
+describe('own-stage meter integrity (approved offline milestone): every experiment meter re-derives its own calls before each of its claims', { timeout: 600_000 }, () => {
+  it('text stage: a reader cost lowered between calls refuses the next claim before its call; no ledger or seal is written from contradicted records', async () => {
+    const t = textTransports(), textDir = path.join(experimentDir(config), 'text'), paid = path.join(textDir, 'paid-stages'), lowered = lowerFirstSettled(paid);
+    await expect(run(t)).rejects.toThrow(/^audition_meter_cost$/);
+    expect(['comparison', 'final_review']).toContain(lowered());
+    expect([claims(paid), t.reader.mock.calls.length, t.responses.mock.calls.length]).toEqual([[lowered()], 1, 0]);
+    expect(['spend.json', 'sealed.json'].map(f => existsSync(path.join(textDir, f)))).toEqual([false, false]);
+  });
+  it('first continuation: its storyboard cost lowered between calls refuses the review claim before its call', async () => {
+    await timedOut(); headAt('c'.repeat(40));
+    const t = textTransports(), paid = path.join(experimentDir(config), NEW_BOOK_CONTINUATION.outDir, 'paid-stages'), lowered = lowerFirstSettled(paid);
+    await expect(continuation(t)).rejects.toThrow(/^audition_meter_cost$/);
+    expect([lowered(), claims(paid), t.responses.mock.calls.length]).toEqual(['storyboard', ['storyboard'], 1]);
+  });
+  it('second attempt: its storyboard cost lowered between calls refuses the review claim before its call', async () => {
+    await timedOut(); headAt('c'.repeat(40));
+    await expect(continuation(textTransports({ storyboardOutput: driftingStoryboard }))).rejects.toThrow('book_sequence_scene_location_drift');
+    headAt('e'.repeat(40));
+    const t = textTransports(), paid = path.join(experimentDir(config), NEW_BOOK_CONTINUATION_2.outDir, 'paid-stages'), lowered = lowerFirstSettled(paid);
+    await expect(newBookExperimentCLI(['--config', file, 'storyboard-continuation-2', '--execute'], { text: t, log: () => {} })).rejects.toThrow(/^audition_meter_cost$/);
+    expect([lowered(), claims(paid), t.responses.mock.calls.length]).toEqual(['storyboard', ['storyboard'], 1]);
+  });
+  it('third attempt (the one still approved): its storyboard cost lowered between calls refuses the review claim before its call', async () => {
+    await timedOut(); headAt('c'.repeat(40));
+    await expect(continuation(textTransports({ storyboardOutput: driftingStoryboard }))).rejects.toThrow('book_sequence_scene_location_drift');
+    headAt('e'.repeat(40));
+    await expect(newBookExperimentCLI(['--config', file, 'storyboard-continuation-2', '--execute'],
+      { text: textTransports({ storyboardOutput: undeclaredPropStoryboard }), log: () => {} })).rejects.toThrow('unknown_or_duplicate_prop');
+    headAt('1'.repeat(40));
+    const t = textTransports(), paid = path.join(experimentDir(config), NEW_BOOK_CONTINUATION_3.outDir, 'paid-stages'), lowered = lowerFirstSettled(paid);
+    await expect(newBookExperimentCLI(['--config', file, 'storyboard-continuation-3', '--execute'], { text: t, log: () => {} })).rejects.toThrow(/^audition_meter_cost$/);
+    expect([lowered(), claims(paid), t.responses.mock.calls.length]).toEqual(['storyboard', ['storyboard'], 1]);
+  });
+  it('child reference (real adapters, synthetic answers): the render cost lowered between calls refuses the judgment claim before its call', async () => {
+    await run();
+    vi.spyOn(images, 'generateGPTImage').mockImplementation(async input => {
+      const buffer = await png(30, 1024), usage = { input_tokens: 100, output_tokens: 300 };
+      input.observeProviderResponse?.({ data: [{ b64_json: buffer.toString('base64') }], usage });
+      return { buffer, usage, model: 'gpt-image-2', finalPrompt: input.finalPrompt, hasReferencePhoto: false, apiMode: 'images.generate',
+        referenceCountRequested: 0, referenceCountPassed: 0, durationMs: 1, fallbackUsed: false } as never;
+    });
+    sdk.create.mockImplementation(async (payload: any) => {
+      const text = JSON.parse(payload.input[0].content[0].text);
+      return { model: 'gpt-6.1-sol', service_tier: 'default', status: 'completed', usage: { input_tokens: 5000, output_tokens: 800 },
+        output_text: JSON.stringify(passing(text.candidateSha, text.contextSha)) };
+    });
+    const childDir = path.join(experimentDir(config), 'child'), paid = path.join(childDir, 'paid-stages'), lowered = lowerFirstSettled(paid);
+    await expect(runNewBookChild({ config: newBookConfig(file), signal: new AbortController().signal, log: () => {} })).rejects.toThrow(/^audition_meter_cost$/);
+    expect([lowered(), claims(paid), vi.mocked(images.generateGPTImage).mock.calls.length, sdk.create.mock.calls.length])
+      .toEqual(['reference_child', ['reference_child'], 1, 0]);
+    expect(['spend.json', 'sealed.json'].map(f => existsSync(path.join(childDir, f)))).toEqual([false, false]);
+  });
+  it('a storyboard record renamed as its review (summaries, labels, reservations and spend rewritten to match) is refused: each stage keeps its own model', async () => {
+    const t = textTransports(), real = t.responses.getMockImplementation()! as (...a: unknown[]) => Promise<any>;
+    // A long storyboard answer and a short review: trading their rates would lower the stage's cost.
+    t.responses.mockImplementation((async (payload: any, ...rest: unknown[]) => ({ ...await real(payload, ...rest),
+      usage: payload.model === 'gpt-6-astra' ? { input_tokens: 30000, output_tokens: 15000 } : { input_tokens: 1000, output_tokens: 500 } })) as never);
+    expect((await run(t)).status).toBe('review_supported');
+    const textDir = path.join(experimentDir(config), 'text'), paid = path.join(textDir, 'paid-stages'), at = (s: string, k: string) => path.join(paid, `${s}.${k}.json`);
+    const genuine = stageLedger(textDir, 4, 0, 0, stageRules.text).knownMicroUsd, kinds = ['wire', 'claim', 'result', 'receipt'];
+    for (const k of kinds) renameSync(at('storyboard', k), at('swapped', k));
+    for (const k of kinds) renameSync(at('storyboard_review', k), at('storyboard', k));
+    for (const k of kinds) renameSync(at('swapped', k), at('storyboard_review', k));
+    for (const [step, rate] of [['storyboard', replaySettlement.rates.astra], ['storyboard_review', replaySettlement.rates.sol]] as const) {
+      const wire = json(at(step, 'wire')), receipt = json(at(step, 'receipt')), usage = receipt.raw.usage;
+      const cost = Math.ceil(usage.input_tokens * rate.inputMicroUsdPerToken + usage.output_tokens * rate.outputMicroUsdPerToken);
+      writeFileSync(at(step, 'claim'), JSON.stringify({ ...json(at(step, 'claim')), step,
+        maximumMicroUsd: causalAdapters.wireReservation(Buffer.byteLength(JSON.stringify(wire), 'utf8'), wire.max_output_tokens, rate) }));
+      writeFileSync(at(step, 'result'), JSON.stringify({ ...json(at(step, 'result')), estimatedMicroUsd: cost }));
+      writeFileSync(at(step, 'receipt'), JSON.stringify({ ...receipt, estimatedMicroUsd: cost, stage: step }));
+    }
+    writeFileSync(path.join(textDir, 'spend.json'), JSON.stringify(new AuditionMeter(paid, 7000000, 4).snapshot()));
+    expect(json(path.join(textDir, 'spend.json')).newKnownApiMicroUsd).toBeLessThan(genuine);
+    expect(() => stageLedger(textDir, 4, 0, 0, stageRules.text)).toThrow(/^new_book_ledger_cost$/);
+    await expect(runNewBookChild({ config: newBookConfig(file), signal: new AbortController().signal, log: () => {}, adapters: childAdapters() }))
+      .rejects.toThrow(/^new_book_ledger_cost$/);
+    expect(existsSync(path.join(experimentDir(config), 'child'))).toBe(false);
+  });
+  it("a stage folder's call of a step outside the stage's own rules is refused (its own steps only, never an inherited name)", async () => {
+    await run();
+    const textDir = path.join(experimentDir(config), 'text'), paid = path.join(textDir, 'paid-stages');
+    for (const step of ['notes', 'toString']) {
+      for (const k of ['wire', 'claim', 'result', 'receipt']) writeFileSync(path.join(paid, `${step}.${k}.json`), readFileSync(path.join(paid, `comparison.${k}.json`)));
+      writeFileSync(path.join(paid, `${step}.claim.json`), JSON.stringify({ ...json(path.join(paid, `${step}.claim.json`)), step, seq: 4 }));
+      const spend = path.join(textDir, 'spend.json'), bytes = readFileSync(spend);
+      writeFileSync(spend, JSON.stringify(new AuditionMeter(paid, 7000000, 4).snapshot()));
+      expect(() => stageLedger(textDir, 4, 0, 0, stageRules.text), step).toThrow(/^new_book_ledger_rule$/);
+      for (const k of ['wire', 'claim', 'result', 'receipt']) rmSync(path.join(paid, `${step}.${k}.json`));
+      writeFileSync(spend, bytes);
+    }
+    expect(stageLedger(textDir, 4, 0, 0, stageRules.text).knownMicroUsd).toBeGreaterThan(0);
+  });
+  it("a reader's claim maximum is its own request's reservation: lowered together with the wire's own figure (digests rebound), it is refused", async () => {
+    await run();
+    const textDir = path.join(experimentDir(config), 'text'), paid = path.join(textDir, 'paid-stages'), claim = path.join(paid, 'comparison.claim.json');
+    rewire(paid, 'comparison', w => ({ ...w, reservedMicroUsd: w.reservedMicroUsd - 1 }));
+    writeFileSync(claim, JSON.stringify({ ...json(claim), maximumMicroUsd: json(path.join(paid, 'comparison.wire.json')).reservedMicroUsd }));
+    expect(() => stageLedger(textDir, 4, 0, 0, stageRules.text)).toThrow(/^new_book_ledger_cost$/);
   });
 });

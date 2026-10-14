@@ -33,9 +33,10 @@ import type { CausalDispatch } from '../lib/personal-wizard/story-causal-experim
 import { safeUsage } from './personal-story-trial-guard';
 import { longCallFetch, providerFailureCause, type LongCallObserver } from './personal-long-call-fetch';
 import { simpleWizardVisualPayload } from './personal-simple-wizard-worker';
-import { auditionUsageCost, createSimpleBookPixelJudge } from './personal-simple-book-illustrator';
+import { createSimpleBookPixelJudge } from './personal-simple-book-illustrator';
 import { AuditionMeter, auditionAdapters, keyReader, loadReviewedBook, loadReviewedStoryboard, reviewedChildDesign, reviewedBookLayoutSchema,
-  readReviewedBookLayout, runReviewedAudition, type AuditionGrant, type ReviewedBookLayout } from './personal-simple-book-reviewed-audition';
+  readReviewedBookLayout, runReviewedAudition, verifyMeterRecords, auditionRenderRule, auditionReviewRule, type AuditionGrant, type ReviewedBookLayout,
+  type MeterRule, type MeterRules } from './personal-simple-book-reviewed-audition';
 import { resolvePersonalWizardOptions } from '../lib/personal-wizard/options';
 import { prepareSimpleStory } from '../lib/personal-wizard/simple-story-engine';
 import { runSimpleWizardBook } from '../lib/personal-wizard/simple-book-flow';
@@ -345,20 +346,25 @@ export function textStage(config: NewBookConfig, chain: ContinuationChain) {
       { file: amendment, sha256: sha(readFileSync(amendment)) }, { file: ledger.file, sha256: ledger.sha256 }] };
 }
 /**
- * One paid step's live pricing rule, so a saved call can be re-derived from its own evidence: how its saved answer settles (`completed`: the
- * meter recorded it as a completed call), and, where the stage carries it, the reservation its bound request derives.
+ * One paid step's live pricing rule (the shared meter rule): the reservation its bound request derives, and how its saved answer settles
+ * (`completed`: the meter recorded it as a completed call). Every meter of this experiment is opted in with its stage's rules (meterRules), so
+ * its own calls are re-derived before every claim; every later read re-derives them again (verifyPaidStages).
  */
-type PaidRule = { settle: (wire: any, receipt: any, completed: boolean) => { estimatedMicroUsd: number | null; coherent: boolean };
-  reserve?: (wire: any) => number };
+type PaidRule = MeterRule;
 const sameUsage = (receipt: any, usage: unknown) => canonicalJson(receipt?.usage ?? null) === canonicalJson(usage ?? null);
-/** The story readers: the reader transport's rule (Sol, the requested model at the default tier, its output cap). */
+/** The story readers: the reader transport's rule (Sol, the requested model at the default tier, its output cap) and its wire's reservation. */
 const readerRule: PaidRule = {
   settle: (wire, receipt, completed) => {
     const s = answerSettlement(RATES.sol, wire?.outputCap, wire?.model, receipt?.raw);
     return { estimatedMicroUsd: s.estimatedMicroUsd, coherent: (!completed || s.valid) && sameUsage(receipt, s.usage) };
   },
+  reserve: wire => wire?.role === 'astra' && wire.model === SOL && typeof wire.json === 'string'
+    ? wireReservation(Buffer.byteLength(wire.json, 'utf8'), wire.outputCap, RATES.sol) : null,
 };
-/** The storyboard and its review: the live call's own settlement and reservation (visualSettlement, visualReservation). */
+/**
+ * The storyboard and its review: the live call's own settlement and reservation (visualSettlement, visualReservation), only for a request
+ * of that stage's own model, so a storyboard record renamed as its review never settles at the review's rate.
+ */
 const visualRule = (stage: 'storyboard' | 'review'): PaidRule => {
   const callOf = (wire: any) => ({ stage, maxOutputTokens: wire?.max_output_tokens }) as SimpleStoryboardDiagnosticCall;
   return {
@@ -367,51 +373,29 @@ const visualRule = (stage: 'storyboard' | 'review'): PaidRule => {
       const labels = receipt?.raw === undefined || receipt?.raw === null || receipt?.model === receipt.raw.model && receipt?.stage === visualStep(call);
       return { estimatedMicroUsd: s.estimatedMicroUsd, coherent: (!completed || s.valid) && sameUsage(receipt, s.usage) && labels };
     },
-    reserve: wire => visualReservation(callOf(wire), wire),
+    reserve: wire => wire?.model === visualModel(callOf(wire)) ? visualReservation(callOf(wire), wire) : null,
   };
-};
-/** The child reference's render: the image adapter's own price of the provider's usage (auditionUsageCost, image). */
-const renderRule: PaidRule = {
-  settle: (_wire, receipt, completed) => ({ estimatedMicroUsd: auditionUsageCost(receipt?.raw?.usage, 'image'),
-    coherent: !completed || receipt?.model === 'gpt-image-2' }),
-};
-/** The child reference's pixel judgment: the judge's own rule (its requested model at the default tier, auditionUsageCost, 12,000 output). */
-const judgeRule: PaidRule = {
-  settle: (wire, receipt, completed) => {
-    const raw = receipt?.raw, known = !!raw && raw.model === wire?.model && raw.service_tier === 'default';
-    const estimatedMicroUsd = known ? auditionUsageCost(raw.usage, wire.model === SOL ? 'sol' : 'astra') : null;
-    const valid = known && raw.status === 'completed' && !!raw.output_text && !!raw.usage && raw.usage.output_tokens <= 12000;
-    return { estimatedMicroUsd, coherent: !completed || valid };
-  },
 };
 const TEXT_RULES: Record<string, PaidRule> = { comparison: readerRule, final_review: readerRule, storyboard: visualRule('storyboard'),
   storyboard_review: visualRule('review') };
 const CONTINUATION_RULES: Record<string, PaidRule> = { storyboard: visualRule('storyboard'), storyboard_review: visualRule('review') };
-const CHILD_RULES: Record<string, PaidRule> = { reference_child: renderRule, reference_child_repair: renderRule, reference_child_qa: judgeRule,
-  reference_child_repair_qa: judgeRule };
+/** The child reference: the reviewed audition's own render adapter and a Sol pixel review, under their shared rules. */
+const CHILD_RULES: Record<string, PaidRule> = { reference_child: auditionRenderRule, reference_child_repair: auditionRenderRule,
+  reference_child_qa: auditionReviewRule, reference_child_repair_qa: auditionReviewRule };
+/** A stage's rules as its meter's opt-in: exactly the stage's own steps. */
+const meterRules = (rules: Record<string, PaidRule>): MeterRules => step => Object.prototype.hasOwnProperty.call(rules, step) ? rules[step] : undefined;
 /**
- * Every paid call of one stage folder, re-derived from its own evidence under that call's live pricing rule: the request its claim bound
- * before the call, and its raw provider answer. A recorded cost, the receipt's normalized usage and labels must be exactly what the raw
- * answer settles to, a completed call must be a valid answer, and a carried reservation must be the one its request derives. So a summary
- * that the evidence contradicts (result, receipt or spend record, however coherent with each other and with later amendments) never becomes
- * headroom, at any link of the ledger (Codex HOLD at a3578efb, P1).
+ * Every paid call of one stage folder, re-derived from its own evidence under that call's live pricing rule (the shared verifier the stage's
+ * own meter ran before each of its claims): the request its claim bound before the call, and its raw provider answer. A recorded cost, the
+ * receipt's normalized usage and labels must be exactly what the raw answer settles to, a completed call must be a valid answer, and a
+ * reservation must be the one its request derives. So a summary that the evidence contradicts (result, receipt or spend record, however
+ * coherent with each other and with later amendments) never becomes headroom, at any link of the ledger (Codex HOLD at a3578efb, P1).
  */
 function verifyPaidStages(stageDir: string, rules: Record<string, PaidRule>) {
-  const root = path.join(stageDir, 'paid-stages');
-  for (const name of readdirSync(root).filter(n => n.endsWith('.claim.json')).sort()) {
-    const step = name.slice(0, -'.claim.json'.length), rule = rules[step] ?? fail('new_book_ledger_rule');
-    const at = (kind: string) => path.join(root, `${step}.${kind}.json`);
-    if (!existsSync(at('wire'))) fail('new_book_ledger_record');
-    const claim = read(at('claim')), wire = read(at('wire'));
-    if (claim.step !== step || previewSha(canonicalJson(wire)) !== claim.wireDigest) fail('new_book_ledger_record');
-    if (rule.reserve && rule.reserve(wire) !== claim.maximumMicroUsd) fail('new_book_ledger_cost');
-    if (!existsSync(at('result'))) continue;
-    const result = read(at('result')), completed = result.completed === true;
-    if (result.wireDigest !== claim.wireDigest || !existsSync(at(completed ? 'receipt' : 'failure'))) fail('new_book_ledger_record');
-    const receipt = completed ? read(at('receipt')) : read(at('failure')).receipt;
-    const settled = rule.settle(wire, receipt, completed);
-    if (settled.estimatedMicroUsd !== result.estimatedMicroUsd || !settled.coherent ||
-        receipt && typeof receipt === 'object' && 'estimatedMicroUsd' in receipt && receipt.estimatedMicroUsd !== result.estimatedMicroUsd) fail('new_book_ledger_cost');
+  try { verifyMeterRecords(path.join(stageDir, 'paid-stages'), meterRules(rules)); }
+  catch (error) {
+    const code = error && typeof error === 'object' && 'code' in error ? error.code : null;
+    throw typeof code === 'string' && code.startsWith('audition_meter_') ? new NewBookExperimentError(code.replace('audition_meter_', 'new_book_ledger_')) : error;
   }
 }
 /**
@@ -476,6 +460,8 @@ type TextContracts = { actorOwnedAppearance?: true; momentContract?: true; landm
 /** One rule for a storyboard or review call's journal step, price and reservation: the live call and any replay of its records share it. */
 const visualStep = (call: SimpleStoryboardDiagnosticCall) => call.stage === 'review' ? 'storyboard_review' : 'storyboard';
 const visualRate = (call: SimpleStoryboardDiagnosticCall) => call.stage === 'review' ? RATES.sol : RATES.astra;
+/** The model each stage's request names (simpleWizardVisualPayload with the Sol review), which its rate prices. */
+const visualModel = (call: SimpleStoryboardDiagnosticCall) => call.stage === 'review' ? SOL : CAUSAL_MODELS.astra;
 function visualReservation(call: SimpleStoryboardDiagnosticCall, payload: unknown) {
   const wireBytes = Buffer.byteLength(JSON.stringify(payload), 'utf8'); if (wireBytes > 128000) fail('new_book_wire_limit');
   return wireReservation(wireBytes, call.maxOutputTokens, visualRate(call));
@@ -606,7 +592,8 @@ export async function runNewBookText(args: { config: NewBookConfig; signal: Abor
   try { mkdirSync(dir); } catch { fail('new_book_slot_used'); }
   mkdirSync(textDir); mkdirSync(path.join(textDir, 'cli-workspace'));
   exclusiveJson(path.join(dir, 'request.json'), experimentRequestRecord(prepared));
-  return textCore({ ...args, prepared, options, outDir: textDir, api: new AuditionMeter(path.join(textDir, 'paid-stages'), NEW_BOOK_EXPERIMENT.apiCapMicroUsd, TEXT_API_CALLS),
+  return textCore({ ...args, prepared, options, outDir: textDir,
+    api: new AuditionMeter(path.join(textDir, 'paid-stages'), NEW_BOOK_EXPERIMENT.apiCapMicroUsd, TEXT_API_CALLS, 0, 0, meterRules(TEXT_RULES)),
     claudeMax: new SimpleBookBudget(path.join(textDir, 'claude-max-stages'), 0), replay: null, continuationId: null });
 }
 
@@ -697,7 +684,7 @@ export async function runNewBookStoryboardContinuation(args: { config: NewBookCo
   try { mkdirSync(outDir); } catch { fail('new_book_continuation_used'); }
   return textCore({ ...args, prepared, options, outDir,
     api: new AuditionMeter(path.join(outDir, 'paid-stages'), NEW_BOOK_EXPERIMENT.apiCapMicroUsd, CONTINUATION_API_CALLS,
-      continuation.priorKnownApiMicroUsd, continuation.carriedUnresolvedMicroUsd),
+      continuation.priorKnownApiMicroUsd, continuation.carriedUnresolvedMicroUsd, meterRules(CONTINUATION_RULES)),
     claudeMax: null, replay: textReplay(path.join(dir, 'text')), continuationId: NEW_BOOK_CONTINUATION.id });
 }
 
@@ -917,7 +904,7 @@ async function runRefused(step: RefusedStep, args: { config: NewBookConfig; sign
   try { mkdirSync(outDir); } catch { fail('new_book_continuation_used'); }
   return textCore({ ...args, contracts: step.spec.contracts, prepared, options, outDir,
     api: new AuditionMeter(path.join(outDir, 'paid-stages'), NEW_BOOK_EXPERIMENT.apiCapMicroUsd, CONTINUATION_API_CALLS,
-      mine.priorKnownApiMicroUsd, mine.carriedUnresolvedMicroUsd),
+      mine.priorKnownApiMicroUsd, mine.carriedUnresolvedMicroUsd, meterRules(CONTINUATION_RULES)),
     claudeMax: null, replay: textReplay(path.join(dir, 'text')), continuationId: step.spec.id });
 }
 /** Guy's second attempt (after the first continuation was refused at scene/location; adds the scene-location contract). */
@@ -947,7 +934,7 @@ export async function runNewBookChild(args: { config: NewBookConfig; signal: Abo
   try { mkdirSync(childDir); } catch { fail('new_book_child_used'); }
   mkdirSync(images);
   const meter = new AuditionMeter(path.join(childDir, 'paid-stages'), NEW_BOOK_EXPERIMENT.apiCapMicroUsd, CHILD_API_CALLS, prior.knownMicroUsd,
-    prior.carriedUnresolvedMicroUsd);
+    prior.carriedUnresolvedMicroUsd, meterRules(CHILD_RULES));
   const save = (name: string, value: unknown) => exclusiveJson(path.join(childDir, `${name}.json`), value);
   const check = () => { if (signal.aborted) fail('new_book_cancelled'); assertExperimentClaim(config); };
   const key = keyReader(config.keyEnvFile);

@@ -31,6 +31,11 @@ export function auditionUsageCost(raw: unknown, kind: 'image' | 'astra' | 'sol' 
   return Math.ceil(u.data.input_tokens * (kind === 'image' ? 8 : kind === 'astra' ? 10 : kind === 'sol' ? longSol ? 4 : 2 : 2.5) +
     u.data.output_tokens * (kind === 'image' ? 30 : kind === 'astra' ? 50 : longSol ? 15 : 10));
 }
+/**
+ * The claim maximum of one Sol pixel review (this judge's and the reviewed audition's). Official Sol calculator does not yet give a multiplier.
+ * An explicit conservative USD0.60 admission slot, not an invented tokenizer bound or invoice hard cap.
+ */
+export const SOL_PIXEL_REVIEW_SLOT_MICRO_USD = 600000;
 export function readAuditionApproval(config: SimpleBookConfig) {
   if (!config.illustratedAudition) return null;
   const raw = fencedText(config.illustratedAudition.approvalFile, 32000);
@@ -84,9 +89,7 @@ export function createSimpleBookPixelJudge(args: {
         ...imageURLs.map(image_url => ({ type: 'input_image' as const, image_url, detail: 'high' as const }))] }],
       max_output_tokens: 12000, text: { format: zodTextFormat(previewQualityReviewSchema, 'personal_audition_pixels') } };
     if (selectedModel && (imageURLs.length > 10 || Buffer.byteLength(text + instructions, 'utf8') > 104000)) fail('simple_pixel_input_limit');
-    // Official Sol calculator does not yet give a multiplier. An explicit conservative
-    // USD0.60 admission slot, not an invented tokenizer bound or invoice hard cap.
-    const maximumMicroUsd = selectedModel ? 600000
+    const maximumMicroUsd = selectedModel ? SOL_PIXEL_REVIEW_SLOT_MICRO_USD
       : (Buffer.byteLength(text + instructions, 'utf8') + imageURLs.length * 3001) * 10 + 12000 * 50;
     // The image and crops were prepared asynchronously: re-check before the claim, so nothing is claimed after a change during preparation.
     check();

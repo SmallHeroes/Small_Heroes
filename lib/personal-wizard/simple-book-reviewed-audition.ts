@@ -496,9 +496,13 @@ function pageChecksPrompt(checks: ReturnType<typeof auditionPageChecks>, referen
 // ---------------------------------------------------------------------------------------------------------------
 // Orchestration.
 // ---------------------------------------------------------------------------------------------------------------
-/** Spending, cancellation and admission failures end the run; one provider glitch only costs its attempt. */
+/**
+ * Spending, cancellation and admission failures end the run; one provider glitch only costs its attempt. A meter's own records contradicted
+ * by their evidence (raised only by a meter opted in to re-derive them) end it too, before any further claim.
+ */
 export const FATAL_AUDITION_CODES = new Set(['audition_cancelled', 'audition_budget_exhausted', 'audition_call_limit', 'audition_meter_policy',
-  'audition_key_missing', 'audition_unknown_cost', 'audition_repeated_failure', 'audition_review_unusable', 'audition_identity_unusable']);
+  'audition_key_missing', 'audition_unknown_cost', 'audition_repeated_failure', 'audition_review_unusable', 'audition_identity_unusable',
+  'audition_meter_rule', 'audition_meter_record', 'audition_meter_cost']);
 /** A review that arrived but cannot be used is not a visual finding, so it is never a reason to draw another image. */
 export const UNUSABLE_REVIEW_CODES = new Set(['audition_pixel_schema', 'audition_pixel_provider_invalid']);
 const errorCode = (error: unknown) => error && typeof error === 'object' && 'code' in error && typeof error.code === 'string' ? error.code : 'audition_attempt_failed';

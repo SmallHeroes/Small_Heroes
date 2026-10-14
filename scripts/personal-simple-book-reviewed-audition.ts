@@ -32,7 +32,7 @@ import { PARENT_STORYBOARD_DIR, replanGrantSchema } from './personal-storyboard-
 import { illustrateReviewedAudition, rejudgeAudition, reviewedAuditionHTML, auditionSheetDesigns, auditionSheetPrompt, auditionPageChecks,
   auditionReviewSchema, auditionPageReviewSchema, AUDITION_JUDGE_INSTRUCTIONS, AUDITION_IMPACTS, REVIEWED_AUDITION_POLICY, AUDITION_WORST_CASE_CALLS,
   ReviewedAuditionError, type ReferenceStatus } from '../lib/personal-wizard/simple-book-reviewed-audition';
-import { auditionUsageCost } from './personal-simple-book-illustrator';
+import { auditionUsageCost, SOL_PIXEL_REVIEW_SLOT_MICRO_USD } from './personal-simple-book-illustrator';
 import { exclusiveJson, exclusiveText, fencedText, realDirectory } from './personal-causal-trial-journal';
 
 const fail = (code: string): never => { throw new ReviewedAuditionError(code); };
@@ -307,6 +307,43 @@ export function readAuditionGrant(file: string, book: { requestId: string; story
 export const auditionStage = (step: string) => /_qa$|^rejudge_/.test(step) ? 'review' : /_identity$/.test(step) ? 'identity' : 'render';
 
 /**
+ * One paid call kind's live rule, for a meter that re-derives its OWN calls (opt-in): the claim maximum its bound request derives (null for a
+ * request that is not this kind's), and how its saved raw provider answer settles (`completed`: the meter recorded a completed call).
+ */
+export type MeterRule = { reserve: (wire: any) => number | null;
+  settle: (wire: any, receipt: any, completed: boolean) => { estimatedMicroUsd: number | null; coherent: boolean } };
+/** The rule of each step a meter may claim; undefined for any other step. */
+export type MeterRules = (step: string) => MeterRule | undefined;
+/**
+ * Every call of one meter folder, re-derived from its own evidence under its step's rule: the request its claim bound before the call (digest,
+ * and the positive integer maximum that request derives) and, once settled, its raw provider answer (the cost it settles to, which the result
+ * and receipt must record exactly; a completed call must be a valid answer). Claims are numbered 0..n-1 without a gap. An unknown step, or a
+ * missing, unreadable or contradictory record refuses; nothing is repaired. Returns exactly the claim and result records it verified.
+ */
+export function verifyMeterRecords(root: string, rules: MeterRules) {
+  const record = (file: string) => { try { return read(file); } catch { return fail('audition_meter_record'); } };
+  const attempt = <T>(f: () => T) => { try { return f(); } catch { return null; } };
+  const records = readdirSync(root).filter(n => n.endsWith('.claim.json')).sort().map(name => {
+    const step = name.slice(0, -'.claim.json'.length), rule = rules(step) ?? fail('audition_meter_rule');
+    const at = (kind: string) => path.join(root, `${step}.${kind}.json`), claim = record(at('claim')), wire = record(at('wire'));
+    if (claim?.step !== step || previewSha(canonicalJson(wire)) !== claim.wireDigest) fail('audition_meter_record');
+    // A request its rule cannot price has no legitimate maximum (never matched by an absent one).
+    const maximum = attempt(() => rule.reserve(wire));
+    if (maximum === null || maximum !== claim.maximumMicroUsd) fail('audition_meter_cost');
+    if (!existsSync(at('result'))) return { claim, result: null };
+    const result = record(at('result')), completed = result?.completed;
+    if (typeof completed !== 'boolean' || result.wireDigest !== claim.wireDigest) fail('audition_meter_record');
+    const receipt = completed ? record(at('receipt')) : record(at('failure'))?.receipt;
+    const settled = attempt(() => rule.settle(wire, receipt, completed)), cost = settled?.estimatedMicroUsd;
+    if (!settled?.coherent || cost !== result.estimatedMicroUsd ||
+        receipt && typeof receipt === 'object' && 'estimatedMicroUsd' in receipt && receipt.estimatedMicroUsd !== cost) fail('audition_meter_cost');
+    return { claim, result };
+  });
+  if (records.map(r => r.claim.seq as number).sort((a, b) => a - b).some((seq, i) => seq !== i)) fail('audition_meter_record');
+  return records;
+}
+
+/**
  * Journals every paid call before dispatch. Prior spend is an explicit input. An unknown cost or an unknown outcome
  * (a claim without a result) stops further paid calls instead of hiding behind a reservation; two consecutive failed
  * calls stop the run instead of retrying silently.
@@ -315,20 +352,25 @@ export class AuditionMeter {
   /**
    * `carriedUnresolvedMicroUsd`: an earlier call's cost that is still unknown, carried explicitly by an owner-approved continuation. It is
    * never known spend: it counts against the cap like a reservation and is reported on its own (absent when zero, as on every legacy run).
+   * `rules` (opt-in): every snapshot, and so every claim and every resume, first re-derives each of this meter's own calls from its bound
+   * request and raw answer (verifyMeterRecords) and sums exactly those records; absent, the saved records are summed as they are.
    */
   constructor(readonly root: string, readonly capMicroUsd: number, readonly maxCalls: number, readonly priorKnownApiMicroUsd = 0,
-    readonly carriedUnresolvedMicroUsd = 0) {
+    readonly carriedUnresolvedMicroUsd = 0, readonly rules?: MeterRules) {
     if (![capMicroUsd, maxCalls, priorKnownApiMicroUsd, carriedUnresolvedMicroUsd].every(Number.isSafeInteger) || carriedUnresolvedMicroUsd < 0 ||
       capMicroUsd <= priorKnownApiMicroUsd + carriedUnresolvedMicroUsd ||
       capMicroUsd - priorKnownApiMicroUsd > 8000000 || maxCalls < 1 || maxCalls > AUDITION_WORST_CASE_CALLS + REVIEWED_AUDITION_POLICY.pageAttempts * 3) fail('audition_meter_policy');
     if (!existsSync(root)) mkdirSync(root); realDirectory(root);
   }
   snapshot() {
+    const records = this.rules ? verifyMeterRecords(this.root, this.rules) : readdirSync(this.root).filter(n => n.endsWith('.claim.json')).map(name => {
+      const file = path.join(this.root, name.replace('.claim.', '.result.'));
+      return { claim: JSON.parse(readFileSync(path.join(this.root, name), 'utf8')), result: existsSync(file) ? JSON.parse(readFileSync(file, 'utf8')) : null };
+    });
     let newKnownApiMicroUsd = 0, reservedUnsettledMicroUsd = 0, calls = 0, failed = 0, unknownCost = 0, unknownOutcome = 0;
     const settled: { seq: number; stage: string; completed: boolean }[] = [];
-    for (const name of readdirSync(this.root).filter(n => n.endsWith('.claim.json'))) {
-      const claim = JSON.parse(readFileSync(path.join(this.root, name), 'utf8')), file = path.join(this.root, name.replace('.claim.', '.result.'));
-      const result = existsSync(file) ? JSON.parse(readFileSync(file, 'utf8')) : null; calls++;
+    for (const { claim, result } of records) {
+      calls++;
       if (!result) { unknownOutcome++; reservedUnsettledMicroUsd += claim.maximumMicroUsd; continue; }
       settled.push({ seq: claim.seq, stage: auditionStage(claim.step), completed: result.completed === true });
       if (!result.completed) failed++;
@@ -339,9 +381,11 @@ export class AuditionMeter {
     const lastTwo = (list: typeof settled) => { const two = list.slice(-2); return two.length === 2 && two.every(s => !s.completed); };
     const ordered = settled.sort((a, b) => a.seq - b.seq);
     const repeatedFailure = lastTwo(ordered) || [...new Set(ordered.map(s => s.stage))].some(stage => lastTwo(ordered.filter(s => s.stage === stage)));
+    const cumulativeAccountedMicroUsd = this.priorKnownApiMicroUsd + this.carriedUnresolvedMicroUsd + newKnownApiMicroUsd + reservedUnsettledMicroUsd;
+    if (this.rules && ![newKnownApiMicroUsd, reservedUnsettledMicroUsd, cumulativeAccountedMicroUsd].every(Number.isSafeInteger)) fail('audition_meter_cost');
     return { priorKnownApiMicroUsd: this.priorKnownApiMicroUsd, newKnownApiMicroUsd, reservedUnsettledMicroUsd,
       ...(this.carriedUnresolvedMicroUsd ? { carriedUnresolvedMicroUsd: this.carriedUnresolvedMicroUsd } : {}),
-      cumulativeAccountedMicroUsd: this.priorKnownApiMicroUsd + this.carriedUnresolvedMicroUsd + newKnownApiMicroUsd + reservedUnsettledMicroUsd,
+      cumulativeAccountedMicroUsd,
       capMicroUsd: this.capMicroUsd, calls, maxCalls: this.maxCalls, failed, unknownCost, unknownOutcome,
       repeatedFailure,
       claudeMax: 'separate: not an API invoice, not $0 and not included' as const };
@@ -418,6 +462,48 @@ export async function auditionJudgePayload(args: { candidate: AuditionImage; can
       : zodTextFormat(auditionReviewSchema, 'personal_audition_pixels_v2') } };
 }
 
+// The paid adapters' own terms, shared by each live call and its meter rule (a re-derivation is the live call's own rule, never a second table).
+/** A render: its pricing label and claim maximum (every prompt byte and reference at the image input rate, plus its output reservation). */
+const RENDER_PRICING = 'image_input_8_output_30_conservative_no_cache';
+const renderMaximum = (prompt: string, references: number) => Buffer.byteLength(prompt, 'utf8') * 8 + references * 8192 * 8 + 8192 * 30;
+/** A pixel review: its cost (Sol at the default tier, long-input rate included) and a usable answer (complete, at most 12,000 output tokens). */
+const reviewCost = (raw: any) => raw.model === REVIEW_MODEL && raw.service_tier === 'default' ? auditionUsageCost(raw.usage, 'sol') : null;
+const reviewAnswered = (raw: any) => raw.status === 'completed' && raw.model === REVIEW_MODEL && !!raw.output_text && !!raw.usage && !(raw.usage.output_tokens > 12000);
+/** An identity measurement: its cost (a known gpt-4o model with usage) and a usable answer (HTTP 2xx, at most 180 completion tokens). */
+const IDENTITY_MODEL = 'gpt-4o', IDENTITY_MODELS = [IDENTITY_MODEL, 'gpt-4o-2024-08-06', 'gpt-4o-2024-11-20'], IDENTITY_MAXIMUM_MICRO_USD = 50000;
+const identityCost = (raw: any) => auditionUsageCost(IDENTITY_MODELS.includes(raw.model ?? '') && raw.usage
+  ? { input_tokens: raw.usage.prompt_tokens, output_tokens: raw.usage.completion_tokens } : null, 'identity');
+const identityAnswered = (raw: any, status: unknown) => typeof status === 'number' && status >= 200 && status <= 299 &&
+  IDENTITY_MODELS.includes(raw.model ?? '') && !!raw.usage && !(raw.usage.completion_tokens > 180);
+/**
+ * The adapters' meter rules (opt-in). Each binds its own request shape and model, so a record renamed to another kind, or an edited receipt
+ * label, never selects a cheaper rule; the cost always comes from the raw answer.
+ */
+export const auditionRenderRule: MeterRule = {
+  reserve: wire => wire?.body?.model === 'gpt-image-2' && wire.body.quality === 'low' && wire.body.size === '1024x1024' && wire.body.n === 1 &&
+    typeof wire.body.prompt === 'string' && Array.isArray(wire.references) && wire.retries === 0 && wire.pricing === RENDER_PRICING &&
+    wire.outputReservationTokens === 8192 ? renderMaximum(wire.body.prompt, wire.references.length) : null,
+  settle: (_wire, receipt, completed) => ({ estimatedMicroUsd: auditionUsageCost(receipt?.raw?.usage, 'image'), coherent: !completed || receipt?.model === 'gpt-image-2' }),
+};
+export const auditionReviewRule: MeterRule = {
+  reserve: wire => wire?.model === REVIEW_MODEL && wire.service_tier === 'default' && wire.max_output_tokens === 12000 ? SOL_PIXEL_REVIEW_SLOT_MICRO_USD : null,
+  settle: (_wire, receipt, completed) => { const raw = receipt?.raw;
+    return { estimatedMicroUsd: raw == null ? null : reviewCost(raw), coherent: !completed || raw != null && reviewAnswered(raw) }; },
+};
+export const auditionIdentityRule: MeterRule = {
+  reserve: wire => wire?.model === IDENTITY_MODEL && wire.max_tokens === 180 ? IDENTITY_MAXIMUM_MICRO_USD : null,
+  settle: (_wire, receipt, completed) => { const raw = receipt?.raw;
+    return { estimatedMicroUsd: raw == null ? null : identityCost(raw), coherent: !completed || raw != null && identityAnswered(raw, receipt.status) }; },
+};
+/**
+ * The reviewed audition's own paid steps: sheet and page renders (each attempt; `rN_` on a resume), their reviews (`_qa`) and a page's identity
+ * measurement (`_identity`), each with its adapter's rule. Any other step (a rejudge included) has none, so an opted-in meter refuses it.
+ */
+export const auditionMeterRules: MeterRules = step => {
+  const m = /^(?:r[0-9]{1,2}_)?(sheet_entities|sheet_locations|page_[0-9]{1,2})_[0-9]{1,2}(_qa|_identity)?$/.exec(step);
+  return !m ? undefined : m[2] === '_qa' ? auditionReviewRule : m[2] !== '_identity' ? auditionRenderRule : m[1].startsWith('page_') ? auditionIdentityRule : undefined;
+};
+
 /** The paid adapters (render, judge, identity) over one illustrations folder and one meter. Shared with the new-book experiment. */
 export function auditionAdapters(args: { directory: string; meter: AuditionMeter; key: () => string; signal: AbortSignal; guard?: () => void }) {
   const cancelled = () => { if (args.signal.aborted) fail('audition_cancelled'); };
@@ -447,8 +533,8 @@ export function auditionAdapters(args: { directory: string; meter: AuditionMeter
     if (plan.bodyWithoutBinaryImage.model !== 'gpt-image-2' || plan.bodyWithoutBinaryImage.quality !== 'low' ||
         plan.bodyWithoutBinaryImage.size !== '1024x1024' || plan.bodyWithoutBinaryImage.n !== 1) fail('audition_image_price_contract');
     const wire = { body: plan.bodyWithoutBinaryImage, mode: plan.apiMode, references: refs, ...(plan.referenceRoles ? { referenceRoles: plan.referenceRoles } : {}),
-      retries: 0, deadlineMs: 180000, pricing: 'image_input_8_output_30_conservative_no_cache', outputReservationTokens: 8192 };
-    const maximumMicroUsd = Buffer.byteLength(plan.finalPrompt, 'utf8') * 8 + refs.length * 8192 * 8 + 8192 * 30;
+      retries: 0, deadlineMs: 180000, pricing: RENDER_PRICING, outputReservationTokens: 8192 };
+    const maximumMicroUsd = renderMaximum(plan.finalPrompt, refs.length);
     return args.meter.run(step, wire, maximumMicroUsd, async () => {
       let raw: unknown = null;
       try {
@@ -474,13 +560,12 @@ export function auditionAdapters(args: { directory: string; meter: AuditionMeter
       predecessor: predecessor ? bytesOf(predecessor) : null, kind });
     // The crops were prepared asynchronously: re-check before the claim, so nothing is claimed after a change during preparation.
     check();
-    return args.meter.run(step, digestImages(payload), 600000, async () => {
+    return args.meter.run(step, digestImages(payload), SOL_PIXEL_REVIEW_SLOT_MICRO_USD, async () => {
       cancelled(); const client = new OpenAI({ apiKey: args.key(), baseURL: 'https://api.openai.com/v1', maxRetries: 0, logLevel: 'off' });
       const raw = await client.responses.create(payload, { signal: args.signal, timeout: 300000 });
-      const estimatedMicroUsd = raw.model === REVIEW_MODEL && raw.service_tier === 'default' ? auditionUsageCost(raw.usage, 'sol') : null;
+      const estimatedMicroUsd = reviewCost(raw);
       const receipt = { raw, estimatedMicroUsd };
-      if (raw.status !== 'completed' || raw.model !== REVIEW_MODEL || !raw.output_text || !raw.usage || raw.usage.output_tokens > 12000)
-        throw Object.assign(new ReviewedAuditionError('audition_pixel_provider_invalid'), { receipt });
+      if (!reviewAnswered(raw)) throw Object.assign(new ReviewedAuditionError('audition_pixel_provider_invalid'), { receipt });
       try { return { value: (kind === 'page' ? auditionPageReviewSchema : auditionReviewSchema).parse(JSON.parse(raw.output_text)), estimatedMicroUsd, receipt }; }
       catch { throw Object.assign(new ReviewedAuditionError('audition_pixel_schema'), { receipt }); }
     });
@@ -488,17 +573,16 @@ export function auditionAdapters(args: { directory: string; meter: AuditionMeter
   const identity = async (step: string, reference: AuditionImage, candidate: AuditionImage) => {
     check(); let transportError: unknown = null;
     const result = await evaluatePageChildResemblanceVision({ referenceImageUrl: dataUrl(bytesOf(reference)), candidateImageUrl: dataUrl(bytesOf(candidate)),
-      threshold: .7, model: 'gpt-4o', apiKey: 'credential-is-injected-only-after-claim', maxRetries: 0, shouldStartAttempt: () => !args.signal.aborted,
+      threshold: .7, model: IDENTITY_MODEL, apiKey: 'credential-is-injected-only-after-claim', maxRetries: 0, shouldStartAttempt: () => !args.signal.aborted,
       fetchImpl: async (url, init) => {
         check(); const wire = JSON.parse(String(init!.body));
-        return args.meter.run(step, digestImages(wire), 50000, async () => {
+        return args.meter.run(step, digestImages(wire), IDENTITY_MAXIMUM_MICRO_USD, async () => {
           const response = await fetch(url, { ...init, signal: AbortSignal.any([args.signal, init!.signal!]),
             headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${args.key()}` } });
           const raw = await response.clone().json() as { model?: string; usage?: { prompt_tokens: number; completion_tokens: number } };
-          const knownModel = ['gpt-4o', 'gpt-4o-2024-08-06', 'gpt-4o-2024-11-20'].includes(raw.model ?? '');
-          const estimatedMicroUsd = auditionUsageCost(knownModel && raw.usage ? { input_tokens: raw.usage.prompt_tokens, output_tokens: raw.usage.completion_tokens } : null, 'identity');
+          const estimatedMicroUsd = identityCost(raw);
           const receipt = { raw, estimatedMicroUsd, status: response.status };
-          if (!response.ok || !knownModel || !raw.usage || raw.usage.completion_tokens > 180) throw Object.assign(new ReviewedAuditionError('audition_identity_provider_failed'), { receipt });
+          if (!identityAnswered(raw, response.status)) throw Object.assign(new ReviewedAuditionError('audition_identity_provider_failed'), { receipt });
           return { value: response, estimatedMicroUsd, receipt };
         }).catch(error => { transportError = error; throw error; });
       } });
@@ -536,8 +620,10 @@ export async function runReviewedAudition(args: { bookDir: string; out: string; 
   if (existsSync(args.out) !== !!args.resume) fail(args.resume ? 'audition_resume_missing' : 'audition_out_exists');
   if (!args.resume) mkdirSync(args.out); realDirectory(args.out);
   const directory = path.join(args.out, 'illustrations'); if (!args.resume) mkdirSync(directory); realDirectory(directory);
+  // An experiment's audition (its grant names it, so a start or resume without its guard is refused above) re-derives its own calls before
+  // every claim, resume and spend record: opted in exactly here. Every other run sums its saved records as before.
   const meter = new AuditionMeter(path.join(args.out, 'paid-stages'), grant.capMicroUsd, grant.maxCalls, grant.ledger.priorKnownApiMicroUsd,
-    grant.ledger.carriedUnresolvedMicroUsd ?? 0);
+    grant.ledger.carriedUnresolvedMicroUsd ?? 0, args.experiment ? auditionMeterRules : undefined);
   const io = auditionAdapters({ directory, meter, key: keyReader(args.keyFile), signal: args.signal, ...(args.experiment ? { guard: args.experiment.guard } : {}) });
   const save = (name: string, value: unknown) => exclusiveJson(path.join(args.out, `${name}.json`), value);
   const admission = (child: AuditionImage, companion: AuditionImage) => JSON.parse(JSON.stringify({ version: 'reviewed-simple-book-audition-admission/v2',
