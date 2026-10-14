@@ -1,5 +1,45 @@
 # SmallHeroes — Current Technical State
 
+## Storyboard compiler-rules audit + Guy's third attempt, built offline for Codex QA (2026-10-14)
+
+Guy chose "Audit all rules + 1 attempt" and "Keep $7, decide after samples"
+after the second attempt was refused at an undeclared page prop. The offline
+audit compared every check on a storyboard answer's path (validatePreviewPlan,
+validatePreviewContinuity, validateBookSequence, the moments checks) with what
+the planner sees (instructions, authoringRules, the strict provider schema,
+which carries the continuity/sequence/moments limits but nothing on the plan's
+props, locations, IDs or texts). Unstated: page props must be declared recurring
+props; every recurring prop is a continuity prop entity; each page's props and
+planned location are in its continuity visibility; the variety numbers; the
+inventory limits and ID format; one transition per entity per page; no reset to
+unestablished; no relation to a still-unestablished entity; cover and
+once-per-page change rules; the moments duplicate and drawn-instant rules. New
+opt-in contract storyboard-compiler-rules/v1
+(lib/personal-wizard/storyboard-compiler-rules.ts): an instruction addendum only
+(no schema or compiler change), bound into source, book and loader like the
+other contracts, byte-identical when absent. Its spec breaks each stated rule on
+a real draft and requires exactly that code, and puts every numeric limit at its
+allowed edge (which compiles). The experiment's refused-answer attempts are now
+generic (REFUSED_STEPS): storyboard-continuation-3 = the second request plus
+this addendum, once, under amendment continuation-3 (binds the second
+amendment's bytes and every text-continuation-2 record; the second amendment's
+ledger must equal the first continuation's). Code 4b89d612. Real-data preview
+(read-only, every record hash-identical): admissible; the second answer replays
+to exactly unknown_or_duplicate_prop at $0.680050 (re-derived from its raw
+answer); request changed only by the addendum; new storyboard reservation
+$2.298043, leaving $0.950494 under the $7 while it is held. Tests:
+new-book-experiment 96, compiler-rules 54; focused 13 files 476/476 (idle); flow
+178/181 alone (the known budget test plus two 180 s timeouts that pass with a
+longer limit at both the current and the base engine modules; the base itself
+exceeds 180 s on this machine today); mutants 162/162 live + 24 layers (two
+unmutated controls 0/105), plus 8/8 compiler-strictness edge mutants. The
+intermittent exit 1 with every test passing ("Timeout calling onTaskUpdate",
+recorded below as unexplained) is diagnosed: the vitest worker ran no timer for
+76 s (vitest's worker RPC timeout is 60 s) in these synchronous rehearsals; one
+event-loop turn after each test and per boundary run fixes it (longest stall 5
+s; no assertion changed). No paid call. Next: Codex QA, then the one third
+attempt at the PASSed HEAD.
+
 ## The second storyboard attempt ran: scene rule worked, refused at a prop check; STOPPED (2026-10-14)
 
 After Codex's explicit PASS of 75df2822..e9ef0074, Guy's approved second

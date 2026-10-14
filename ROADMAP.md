@@ -1,5 +1,15 @@
 # SmallHeroes — Roadmap
 
+## Compiler-rules audit + third attempt built; next: Codex QA, then the one third attempt (2026-10-14)
+
+- Every storyboard compiler rule is now stated to the planner by an opt-in
+  contract, each rule pinned by a test (refused exactly; allowed edge compiles).
+- After an explicit Codex PASS: storyboard-continuation-3 --execute once at the
+  PASSed clean HEAD; if review_supported, child, grant, then the two sample pages
+  and the rest only if both pass, all under the same $7 (likely partial; a cap
+  stop is reported). Guy decides on further funding after the samples. No fourth
+  attempt.
+
 ## Second attempt stopped at a prop check; next: Guy's decision (2026-10-14)
 
 - The scene-location rule is shown to work on the real book; the storyboard was
