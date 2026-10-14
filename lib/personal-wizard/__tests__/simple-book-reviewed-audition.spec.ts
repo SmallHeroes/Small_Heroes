@@ -1095,6 +1095,18 @@ describe('opt-in own-record verification (the new-book meter): every own call re
       for (const n of readdirSync(r).filter(n => n.startsWith('sheet_entities_0.'))) unlinkSync(path.join(r, n)); }],
     ['a claim renumbered', 'audition_meter_record', (r: string) => edit(r, 'page_1_0_qa.claim.json', c => ({ ...c, seq: 2 }))],
     ['an unreadable record', 'audition_meter_record', (r: string) => { unlinkSync(path.join(r, 'page_1_0.result.json')); mkdirSync(path.join(r, 'page_1_0.result.json')); }],
+    // Codex HOLD at 5e225695, F1: every record in the folder must belong to a claimed call.
+    ['the last claim removed, its request, result and receipt left (a known charge)', 'audition_meter_record',
+      (r: string) => unlinkSync(path.join(r, 'page_1_0_identity.claim.json'))],
+    ['an interior claim removed and the later claims renumbered without a gap', 'audition_meter_record', (r: string) => {
+      unlinkSync(path.join(r, 'page_1_0.claim.json'));
+      edit(r, 'page_1_0_qa.claim.json', c => ({ ...c, seq: 2 })); edit(r, 'page_1_0_identity.claim.json', c => ({ ...c, seq: 3 })); }],
+    ['the last claim renamed out of the record names, its evidence left', 'audition_meter_record',
+      (r: string) => renameSync(path.join(r, 'page_1_0_identity.claim.json'), path.join(r, 'page_1_0_identity.claim.json.bak'))],
+    ['a whole call renamed out of the record names', 'audition_meter_record', (r: string) => {
+      for (const n of readdirSync(r).filter(n => n.startsWith('page_1_0_identity.'))) renameSync(path.join(r, n), path.join(r, `${n}.bak`)); }],
+    ['another file in the meter folder', 'audition_meter_record', (r: string) => writeFileSync(path.join(r, 'notes.txt'), 'x')],
+    ['a folder inside the meter folder', 'audition_meter_record', (r: string) => mkdirSync(path.join(r, 'extra'))],
   ])('%s: refused (%s) before the next claim or dispatch, on the same meter and on a resumed one; nothing is repaired', async (_name, code, forge) => {
     const m = await genuine(); forge(m.root);
     const dispatch = vi.fn(), before = listing(m.root);
@@ -1104,6 +1116,58 @@ describe('opt-in own-record verification (the new-book meter): every own call re
     }
     expect(dispatch).not.toHaveBeenCalled();
     expect(listing(m.root)).toEqual(before);
+  });
+
+  it("Codex HOLD F1: a removed claim never hides its call's surviving records, whatever the outcome (known, open, unknown cost, charged failure)", async () => {
+    const outcomes: [string, (m: AuditionMeter) => Promise<unknown>][] = [
+      ['a known charge', m => render(m, 'page_1_0')],
+      // The process stops during the call: its request and claim exist, no result.
+      ['an open claim', async m => { void m.run('page_1_0', renderWire, RENDER_MAX, () => new Promise(() => {})); }],
+      ['an unknown cost', m => m.run('page_1_0', renderWire, RENDER_MAX, async () => {
+        throw Object.assign(new Error('socket'), { receipt: { raw: null, estimatedMicroUsd: null } }); }).catch(() => {})],
+      ['a charged failure', m => m.run('page_1_0_qa', reviewWire, 600000, async () => {
+        throw Object.assign(new Error('audition_pixel_schema'), { receipt: { raw: reviewRaw(), estimatedMicroUsd: REVIEW } }); }).catch(() => {})],
+    ];
+    for (const [name, make] of outcomes) {
+      const m = opted(); await make(m);
+      unlinkSync(path.join(m.root, readdirSync(m.root).find(n => n.endsWith('.claim.json'))!));
+      const before = listing(m.root), dispatch = vi.fn();
+      expect(before.length, name).toBeGreaterThan(0);
+      for (const meter of [m, opted(m.root)]) {
+        expect(() => meter.snapshot(), name).toThrow('audition_meter_record');
+        await expect(meter.run('page_2_0', renderWire, RENDER_MAX, dispatch), name).rejects.toThrow('audition_meter_record');
+      }
+      expect(dispatch, name).not.toHaveBeenCalled();
+      expect(listing(m.root), name).toEqual(before);
+    }
+  });
+
+  it('Codex HOLD F2: a new call is priced under its own rule before anything is written or sent (wrong maximum, unknown step, another kind)', async () => {
+    // Codex's case: 10,000 left under the cap; a Sol review's own maximum is 600,000, but the caller passes 1.
+    const tight = opted(undefined, 6990000);
+    const dispatch = vi.fn(async () => ({ value: 1, estimatedMicroUsd: REVIEW, receipt: { raw: reviewRaw(), estimatedMicroUsd: REVIEW } }));
+    const cases: [AuditionMeter, string, unknown, number, string][] = [
+      [tight, 'page_1_0_qa', reviewWire, 1, 'audition_meter_cost'],
+      [tight, 'page_1_0_qa', reviewWire, 600001, 'audition_meter_cost'],
+      [opted(), 'unknown_step', renderWire, RENDER_MAX, 'audition_meter_rule'],
+      [opted(), 'page_1_0_qa', renderWire, RENDER_MAX, 'audition_meter_cost'],
+      [opted(), 'page_1_0', reviewWire, 600000, 'audition_meter_cost'],
+      [opted(), 'page_1_0_identity', { ...identityWire, model: 'gpt-4o-mini' }, 50000, 'audition_meter_cost'],
+      [opted(), 'page_1_0', undefined, RENDER_MAX, 'audition_meter_cost'],
+    ];
+    for (const [meter, step, wire, maximum, code] of cases) {
+      await expect(meter.run(step, wire, maximum, dispatch), `${step} ${maximum}`).rejects.toThrow(code);
+      expect(readdirSync(meter.root), step).toEqual([]);
+    }
+    expect(dispatch).not.toHaveBeenCalled();
+    // Its own maximum: refused by the cap where it does not fit, made where it does.
+    await expect(tight.run('page_1_0_qa', reviewWire, 600000, dispatch)).rejects.toThrow('audition_budget_exhausted');
+    const roomy = opted();
+    await roomy.run('page_1_0_qa', reviewWire, 600000, dispatch);
+    expect([dispatch.mock.calls.length, roomy.snapshot().calls, roomy.snapshot().newKnownApiMicroUsd]).toEqual([1, 1, REVIEW]);
+    // Without the opt-in (every other caller) the supplied maximum is taken as before.
+    await new AuditionMeter(path.join(mkdtempSync(path.join(tmpdir(), 'audition-own-')), 'paid'), 7000000, 20, 1000000).run('page_1_0_qa', reviewWire, 1, dispatch);
+    expect(dispatch).toHaveBeenCalledTimes(2);
   });
 
   it('evidence without a price cannot free budget: with every summary agreeing, it is an unknown cost held at its maximum, and it stops', async () => {

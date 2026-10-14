@@ -314,22 +314,30 @@ export type MeterRule = { reserve: (wire: any) => number | null;
   settle: (wire: any, receipt: any, completed: boolean) => { estimatedMicroUsd: number | null; coherent: boolean } };
 /** The rule of each step a meter may claim; undefined for any other step. */
 export type MeterRules = (step: string) => MeterRule | undefined;
+const attempt = <T>(f: () => T) => { try { return f(); } catch { return null; } };
+const ruleOf = (rules: MeterRules, step: string) => rules(step) ?? fail('audition_meter_rule');
+/** The maximum a rule derives for a request. A request it cannot price has none: refused, never matched by an absent one. */
+const ruledMaximum = (rule: MeterRule, wire: unknown) => attempt(() => rule.reserve(wire)) ?? fail('audition_meter_cost');
+/** A meter folder's own records: one call's request, claim, result, receipt or failure, named by the call's step. */
+const METER_RECORD = /^([a-z][a-z0-9_]{0,79})\.(wire|claim|result|receipt|failure)\.json$/;
 /**
  * Every call of one meter folder, re-derived from its own evidence under its step's rule: the request its claim bound before the call (digest,
  * and the positive integer maximum that request derives) and, once settled, its raw provider answer (the cost it settles to, which the result
- * and receipt must record exactly; a completed call must be a valid answer). Claims are numbered 0..n-1 without a gap. An unknown step, or a
- * missing, unreadable or contradictory record refuses; nothing is repaired. Returns exactly the claim and result records it verified.
+ * and receipt must record exactly; a completed call must be a valid answer). The folder holds nothing but records of claimed calls: a
+ * surviving request, result, receipt or failure whose claim is missing, or any other entry, refuses, so no paid evidence is left out of the sum.
+ * Claims are numbered 0..n-1 without a gap. An unknown step, or a missing, unreadable or contradictory record refuses; nothing is repaired.
+ * Returns exactly the claim and result records it verified.
  */
 export function verifyMeterRecords(root: string, rules: MeterRules) {
   const record = (file: string) => { try { return read(file); } catch { return fail('audition_meter_record'); } };
-  const attempt = <T>(f: () => T) => { try { return f(); } catch { return null; } };
-  const records = readdirSync(root).filter(n => n.endsWith('.claim.json')).sort().map(name => {
-    const step = name.slice(0, -'.claim.json'.length), rule = rules(step) ?? fail('audition_meter_rule');
+  const entries = readdirSync(root).map(name => METER_RECORD.exec(name) ?? fail('audition_meter_record'));
+  const claimed = [...new Set(entries.filter(([, , kind]) => kind === 'claim').map(([, step]) => step))].sort();
+  if (entries.some(([, step]) => !claimed.includes(step))) fail('audition_meter_record');
+  const records = claimed.map(step => {
+    const rule = ruleOf(rules, step);
     const at = (kind: string) => path.join(root, `${step}.${kind}.json`), claim = record(at('claim')), wire = record(at('wire'));
     if (claim?.step !== step || previewSha(canonicalJson(wire)) !== claim.wireDigest) fail('audition_meter_record');
-    // A request its rule cannot price has no legitimate maximum (never matched by an absent one).
-    const maximum = attempt(() => rule.reserve(wire));
-    if (maximum === null || maximum !== claim.maximumMicroUsd) fail('audition_meter_cost');
+    if (ruledMaximum(rule, wire) !== claim.maximumMicroUsd) fail('audition_meter_cost');
     if (!existsSync(at('result'))) return { claim, result: null };
     const result = record(at('result')), completed = result?.completed;
     if (typeof completed !== 'boolean' || result.wireDigest !== claim.wireDigest) fail('audition_meter_record');
@@ -393,6 +401,9 @@ export class AuditionMeter {
   async run<T>(step: string, wire: unknown, maximumMicroUsd: number,
     dispatch: () => Promise<{ value: T; estimatedMicroUsd: number | null; receipt: unknown }>) {
     if (!/^[a-z][a-z0-9_]{0,79}$/.test(step) || !Number.isSafeInteger(maximumMicroUsd) || maximumMicroUsd < 1) fail('audition_meter_policy');
+    // Opted in: the new call is priced under its own rule, from the request exactly as it will be journaled, before anything is written, read
+    // or sent. An unknown step, a request of another kind, or a maximum that is not the one its request derives refuses here.
+    if (this.rules && ruledMaximum(ruleOf(this.rules, step), attempt(() => JSON.parse(JSON.stringify(wire)))) !== maximumMicroUsd) fail('audition_meter_cost');
     const state = this.snapshot();
     if (state.unknownCost || state.unknownOutcome) fail('audition_unknown_cost');
     if (state.repeatedFailure) fail('audition_repeated_failure');

@@ -570,6 +570,36 @@ describe('the reviewed audition on the new book (synthetic providers through the
     writeFileSync(grantFile, bytes);
     expect([tree(out), [renders(), sdk.create.mock.calls.length, identities()]]).toEqual([files, drawn]);
   });
+  it("Codex HOLD F1 on the running audition: a settled call's claim removed between calls (its other records left) refuses the next claim before any call", async () => {
+    const { dir } = await prepared(); judgeWith(null);
+    const paid = path.join(dir, 'audition', 'paid-stages'), at = (k: string) => path.join(paid, `sheet_entities_0.${k}.json`);
+    const real = vi.mocked(frozen.gitAt).getMockImplementation()!;
+    let removed = false, before: number[] = [], sidecars: Record<string, string> = {};
+    vi.mocked(frozen.gitAt).mockImplementation((repo, args) => {
+      if (!removed && existsSync(at('result'))) {
+        removed = true; before = [renders(), sdk.create.mock.calls.length, identities()];
+        sidecars = Object.fromEntries(['wire', 'result', 'receipt'].map(k => [k, sha(readFileSync(at(k)))]));
+        renameSync(at('claim'), path.join(root, 'removed.claim.json'));
+      }
+      return real(repo, args);
+    });
+    await expect(audition()).rejects.toThrow(/^audition_meter_record$/);
+    expect([removed, before, [renders(), sdk.create.mock.calls.length, identities()]]).toEqual([true, [1, 0, 0], [1, 0, 0]]);
+    expect(Object.fromEntries(['wire', 'result', 'receipt'].map(k => [k, sha(readFileSync(at(k)))]))).toEqual(sidecars);
+  });
+  it('Codex HOLD F1 on a guarded resume: the last claim removed (its request, result and raw answer left) refuses before the marker, any claim or call', async () => {
+    const { dir } = await prepared(); judgeWith(null);
+    await interrupted();
+    const out = path.join(dir, 'audition'), paid = path.join(out, 'paid-stages');
+    const ordered = claims(paid).sort((a, b) => json(path.join(paid, `${a}.claim.json`)).seq - json(path.join(paid, `${b}.claim.json`)).seq);
+    const at = (k: string) => path.join(paid, `${ordered[ordered.length - 1]}.${k}.json`);
+    const sidecars = Object.fromEntries(['wire', 'result', 'receipt'].map(k => [k, sha(readFileSync(at(k)))]));
+    renameSync(at('claim'), path.join(root, 'removed.claim.json'));
+    const files = tree(out), drawn = [renders(), sdk.create.mock.calls.length, identities()];
+    await expect(audition({ resume: true })).rejects.toThrow(/^audition_meter_record$/);
+    expect([tree(out), [renders(), sdk.create.mock.calls.length, identities()], existsSync(path.join(out, 'resume-1.json'))]).toEqual([files, drawn, false]);
+    expect(Object.fromEntries(['wire', 'result', 'receipt'].map(k => [k, sha(readFileSync(at(k)))]))).toEqual(sidecars);
+  });
   it('a charged review failure from the real adapter verifies under the opt-in and stays counted at its raw price; the run halts as before', async () => {
     const { dir } = await prepared(); judgeWith(null);
     const real = sdk.create.getMockImplementation()!;
@@ -2380,7 +2410,8 @@ describe('own-stage meter integrity (approved offline milestone): every experime
   it("a stage folder's call of a step outside the stage's own rules is refused (its own steps only, never an inherited name)", async () => {
     await run();
     const textDir = path.join(experimentDir(config), 'text'), paid = path.join(textDir, 'paid-stages');
-    for (const step of ['notes', 'toString']) {
+    // `constructor` is an inherited name that is also a well-formed step name (a name outside the step grammar is refused as a stray entry).
+    for (const step of ['notes', 'constructor']) {
       for (const k of ['wire', 'claim', 'result', 'receipt']) writeFileSync(path.join(paid, `${step}.${k}.json`), readFileSync(path.join(paid, `comparison.${k}.json`)));
       writeFileSync(path.join(paid, `${step}.claim.json`), JSON.stringify({ ...json(path.join(paid, `${step}.claim.json`)), step, seq: 4 }));
       const spend = path.join(textDir, 'spend.json'), bytes = readFileSync(spend);
@@ -2390,6 +2421,20 @@ describe('own-stage meter integrity (approved offline milestone): every experime
       writeFileSync(spend, bytes);
     }
     expect(stageLedger(textDir, 4, 0, 0, stageRules.text).knownMicroUsd).toBeGreaterThan(0);
+  });
+  it("a finished stage whose last claim was removed (its request, result and receipt left, its spend record rewritten to match) is refused at every later read", async () => {
+    await run();
+    const textDir = path.join(experimentDir(config), 'text'), paid = path.join(textDir, 'paid-stages');
+    const genuine = stageLedger(textDir, 4, 0, 0, stageRules.text).knownMicroUsd;
+    // The last call (no gap is left in the numbering, so only the record inventory can see it).
+    const ordered = claims(paid).sort((a, b) => json(path.join(paid, `${a}.claim.json`)).seq - json(path.join(paid, `${b}.claim.json`)).seq);
+    renameSync(path.join(paid, `${ordered[ordered.length - 1]}.claim.json`), path.join(root, 'removed.claim.json'));
+    writeFileSync(path.join(textDir, 'spend.json'), JSON.stringify(new AuditionMeter(paid, 7000000, 4).snapshot()));
+    expect(json(path.join(textDir, 'spend.json')).newKnownApiMicroUsd).toBeLessThan(genuine);
+    expect(() => stageLedger(textDir, 4, 0, 0, stageRules.text)).toThrow(/^new_book_ledger_record$/);
+    await expect(runNewBookChild({ config: newBookConfig(file), signal: new AbortController().signal, log: () => {}, adapters: childAdapters() }))
+      .rejects.toThrow(/^new_book_ledger_record$/);
+    expect(existsSync(path.join(experimentDir(config), 'child'))).toBe(false);
   });
   it("a reader's claim maximum is its own request's reservation: lowered together with the wire's own figure (digests rebound), it is refused", async () => {
     await run();
