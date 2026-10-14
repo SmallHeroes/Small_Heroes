@@ -26,6 +26,7 @@ import { simpleReferenceDesignContext, type AuditionImage } from '../lib/persona
 import { LANDMARK_KIND_CONTRACT_VERSION } from '../lib/personal-wizard/storyboard-landmark-kind';
 import { STORYBOARD_MOMENTS_VERSION } from '../lib/personal-wizard/storyboard-moments';
 import { SCENE_LOCATION_CONTRACT_VERSION } from '../lib/personal-wizard/storyboard-scene-location';
+import { COMPILER_RULES_CONTRACT_VERSION } from '../lib/personal-wizard/storyboard-compiler-rules';
 import { STORYBOARD_PRESERVATION_VERSION, storyboardPreservationDiff } from '../lib/personal-wizard/storyboard-preservation';
 import { PARENT_STORYBOARD_DIR, replanGrantSchema } from './personal-storyboard-replan-grant';
 import { illustrateReviewedAudition, rejudgeAudition, reviewedAuditionHTML, auditionSheetDesigns, auditionSheetPrompt, auditionPageChecks,
@@ -74,6 +75,13 @@ export function savedLandmarkKindContract(savedBook: { landmarkKind?: unknown } 
   const marker = savedBook?.landmarkKind;
   if (marker === undefined) return undefined;
   return marker === LANDMARK_KIND_CONTRACT_VERSION ? true : fail('audition_board_binding');
+}
+
+/** The compiler-rules contract flag comes only from the saved, digest-bound book (never a CLI argument); an unknown marker is refused. */
+export function savedCompilerRulesContract(savedBook: { compilerRules?: unknown } | undefined): true | undefined {
+  const marker = savedBook?.compilerRules;
+  if (marker === undefined) return undefined;
+  return marker === COMPILER_RULES_CONTRACT_VERSION ? true : fail('audition_board_binding');
 }
 
 /** The scene-location contract flag comes only from the saved, digest-bound book (never a CLI argument); an unknown marker is refused. */
@@ -196,7 +204,7 @@ export function loadReviewedStoryboard(bookDir: string, workspace = process.cwd(
   // The rebuilt source must reproduce the saved markers exactly: a stripped or added marker changes the digests and fails the board binding.
   const saved = result.storyboard?.storyboard;
   const source = prepareCurrentPersonalStoryboard(queued.request, result.source, options, true, savedMomentContract(saved), savedLandmarkKindContract(saved),
-    undefined, savedSceneLocationContract(saved));
+    undefined, savedSceneLocationContract(saved), savedCompilerRulesContract(saved));
   const parentDraft = read(path.join(visual, 'owned_storyboard_draft.json'));
   const book = compilePersonalStoryboard(source, parentDraft);
   const rawReview = result.storyboard.rawReview;
