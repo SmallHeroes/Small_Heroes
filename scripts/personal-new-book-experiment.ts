@@ -611,6 +611,35 @@ export async function runNewBookText(args: { config: NewBookConfig; signal: Abor
 }
 
 /**
+ * The ORIGINAL storyboard request, reconstructed from the roots alone: the consumed configuration's request, the paid story replayed from
+ * its saved answers, and the experiment's ORIGINAL contracts in code. The timed-out call's claim must name exactly this request; since its
+ * stored request must equal its claim and its maximum must be that request's reservation (verifyPaidStages, at every read), the stored
+ * request and the carried reservation are then the ones the book itself derives. A request rewritten together with its digests, its maximum and every ledger above it (alone, or jointly with the first
+ * continuation's, which re-sent it) is not the reference, so its lower reservation never becomes headroom (Codex HOLD at 7af52722, P1).
+ * Every read that admits the carried reservation calls this first: each refused attempt's admission, the child stage, the grant and the
+ * audition (start and resume).
+ */
+async function assertOriginalRequest(config: NewBookConfig) {
+  const { options, prepared } = prepareExperimentRequest(config);
+  const textDir = path.join(experimentDir(config), 'text'), policy = textPolicy(config), replay = textReplay(textDir);
+  const seen: { call: SimpleStoryboardDiagnosticCall | null; refusal: unknown } = { call: null, refusal: null };
+  const replayed = <T>(f: () => T) => { try { return f(); } catch (error) { seen.refusal ??= error; throw error; } };
+  await runSimpleWizardBook({ request: prepared.accepted.canonical, options, seed: config.seed, signal: new AbortController().signal,
+    reservedWritingUsd: 4, ...NEW_BOOK_EXPERIMENT.contracts, publish: () => {},
+    opus: async call => { const d = storyDispatch(call, 'opus', prepared.accepted.requestId);
+      return replayed(() => replay.opus(d, prepareCausalWire(d, policy, 2000000, path.join(textDir, `${call.stage}-instructions.txt`)))); },
+    reader: async call => { const d = storyDispatch(call, 'astra', prepared.accepted.requestId);
+      return replayed(() => replay.reader(d, prepareCausalWire(d, policy, 2000000))); },
+    visual: async (call: SimpleStoryboardDiagnosticCall) => { seen.call ??= call; throw new NewBookExperimentError('new_book_original_request_stop'); } })
+    .catch((error: unknown) => { if (!seen.call) throw seen.refusal ?? error; });
+  const call = seen.call;
+  if (!call || call.stage !== 'storyboard') return fail('new_book_original_request');
+  const payload = simpleWizardVisualPayload(call, SOL);
+  const claim = read(path.join(textDir, 'paid-stages', 'storyboard.claim.json'));
+  if (claim.wireDigest !== previewSha(canonicalJson(payload))) fail('new_book_original_request');
+}
+
+/**
  * Read-only preview of the continuation (no amendment, no folder, no provider call, no key): it must be admissible, the paid story must
  * replay exactly from its bound receipts, and the storyboard request it then builds must be exactly the one that timed out (the digest
  * its claim recorded before that call was sent). The continuation runs this first, so a mismatch never uses the one attempt.
@@ -798,6 +827,8 @@ export async function previewStoryboardContinuation3(config: NewBookConfig) {
 async function admitRefused(config: NewBookConfig, step: RefusedStep, head: string) {
   const { options, prepared } = prepareExperimentRequest(config);
   const baseline = refusedBaseline(config, step, head, prepared), ledger = baseline.ledger;
+  // The carried reservation is admitted only for the original request the roots derive (re-checked by the baseline after every replay).
+  await assertOriginalRequest(config);
   const dir = experimentDir(config), textDir = path.join(dir, 'text'), root1 = path.join(dir, step.previous.outDir, 'paid-stages');
   const policy = textPolicy(config), replay = textReplay(textDir);
   // The previous continuation's storyboard request and answer, bound to the claim written before that call and to its settled cost.
@@ -908,6 +939,8 @@ export async function runNewBookChild(args: { config: NewBookConfig; signal: Abo
   realDirectory(dir);
   // The reviewed text is the continuation's when the one approved continuation ran.
   if (sealedStatus(path.join(dir, textFolderOf(chain))) !== 'review_supported') fail('new_book_text_not_supported');
+  // A carried reservation enters this stage's meter only for the original request the roots derive.
+  if (chain.continuation) await assertOriginalRequest(config);
   const prior = textStage(config, chain);
   const layoutFor = (childImage?: string) => experimentLayout(config, childImage, prior.folder);
   const loaded = loadReviewedStoryboard(dir, config.workspace, layoutFor());
@@ -965,7 +998,8 @@ export function earliestSameScenePair(book: Pick<PersonalStoryboard, 'narrativeS
   return [1, 2];
 }
 
-export function writeNewBookGrant(config: NewBookConfig) {
+export async function writeNewBookGrant(config: NewBookConfig) {
+  if (assertExperimentClaim(config).continuation) await assertOriginalRequest(config);
   const grant = newBookGrant(config);
   exclusiveJson(path.join(experimentDir(config), 'audition.grant.json'), grant);
   return grant;
@@ -1014,6 +1048,7 @@ export async function runNewBookAudition(args: { config: NewBookConfig; signal: 
   if (grant.experiment?.slot !== NEW_BOOK_EXPERIMENT.slot || grant.experiment?.claimSha256 !== claimSha256) fail('new_book_grant_binding');
   // The grant must be exactly the one the verified ledgers derive now (its prior, carried reserve, evidence, cap and scope), never a number
   // written into the file since: a start and every resume re-derive it from the records' own evidence.
+  if (chain.continuation) await assertOriginalRequest(config);
   if (canonicalJson(grant) !== canonicalJson(newBookGrant(config))) fail('new_book_grant_ledger');
   const start = experimentAuditionStart(config), record = { version: 'new-book-audition-start/v1', out: path.resolve(out), grantSha256, claimSha256 };
   if (args.resume) {
@@ -1071,7 +1106,7 @@ export async function newBookExperimentCLI(argv: string[], deps: { text?: TextTr
     if (stage === 'child') return { mode: 'child' as const, ...await runNewBookChild({ config, signal: controller.signal, log, ...(deps.child ? { adapters: deps.child } : {}) }) };
     if (stage === 'audition') return { mode: 'audition' as const, result: await runNewBookAudition({ config, signal: controller.signal, log,
       ...(flags.includes('--resume') ? { resume: true as const } : {}) }) };
-    return { mode: 'grant' as const, grant: writeNewBookGrant(config) };
+    return { mode: 'grant' as const, grant: await writeNewBookGrant(config) };
   } finally { process.off('SIGINT', interrupt); }
 }
 

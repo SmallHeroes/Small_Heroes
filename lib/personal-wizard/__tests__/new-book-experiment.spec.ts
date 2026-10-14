@@ -203,7 +203,7 @@ describe('a new book from scratch, staged, offline rehearsal (synthetic provider
     const loaded = loadReviewedBook(dir, process.cwd(), undefined, layout);
     expect(sha(loaded.childBytes)).toBe(child.candidate!.imageSha);
 
-    const grant = writeNewBookGrant(newBookConfig(file));
+    const grant = await writeNewBookGrant(newBookConfig(file));
     expect(auditionGrantSchema.parse(grant)).toEqual(grant);
     expect(grant).toMatchObject({ approvalReference: NEW_BOOK_EXPERIMENT.approval, capMicroUsd: 7000000,
       ledger: { priorKnownApiMicroUsd: text.api.newKnownApiMicroUsd }, scope: { mode: 'render', pages: [0, 1, 2, 3, 4, 5, 6, 7, 8],
@@ -243,15 +243,15 @@ describe('a new book from scratch, staged, offline rehearsal (synthetic provider
 
   it('single use: the slot, the child stage and the grant are each written once; a stage needs its predecessor', async () => {
     await expect(runNewBookChild({ config: newBookConfig(file), signal: new AbortController().signal, log: () => {}, adapters: childAdapters() })).rejects.toThrow();
-    expect(() => writeNewBookGrant(newBookConfig(file))).toThrow();
+    await expect(writeNewBookGrant(newBookConfig(file))).rejects.toThrow();
     await run();
     await expect(run()).rejects.toThrow('new_book_slot_used');
-    expect(() => writeNewBookGrant(newBookConfig(file))).toThrow('new_book_stage_not_passed');
+    await expect(writeNewBookGrant(newBookConfig(file))).rejects.toThrow('new_book_stage_not_passed');
     await runNewBookChild({ config: newBookConfig(file), signal: new AbortController().signal, log: () => {}, adapters: childAdapters() });
     await expect(runNewBookChild({ config: newBookConfig(file), signal: new AbortController().signal, log: () => {}, adapters: childAdapters() }))
       .rejects.toThrow('new_book_child_used');
-    writeNewBookGrant(newBookConfig(file));
-    expect(() => writeNewBookGrant(newBookConfig(file))).toThrow();
+    await writeNewBookGrant(newBookConfig(file));
+    await expect(writeNewBookGrant(newBookConfig(file))).rejects.toThrow();
   });
 
   it('a storyboard answer from another model is refused, kept as evidence, and stops the stage', async () => {
@@ -295,7 +295,7 @@ describe('the reviewed audition on the new book (synthetic providers through the
       await newBookExperimentCLI(['--config', file, 'storyboard-continuation-2', '--execute'], { text: textTransports(), log: () => {} });
     } else if (opts.continued) await continued(); else await run();
     await runNewBookChild({ config: newBookConfig(file), signal: new AbortController().signal, log: () => {}, adapters: childAdapters() });
-    const grant = writeNewBookGrant(newBookConfig(file)), dir = experimentDir(config);
+    const grant = await writeNewBookGrant(newBookConfig(file)), dir = experimentDir(config);
     let shade = 40;
     vi.spyOn(images, 'generateGPTImage').mockImplementation(async input => {
       const buffer = await png(shade++ % 250, 1024), usage = { input_tokens: 100, output_tokens: 300 };
@@ -504,7 +504,7 @@ describe('the fictional child reference: one targeted edit only for an evidenced
     const dir = experimentDir(config);
     expect(existsSync(path.join(dir, 'child', 'reference_child_adoption.json'))).toBe(false);
     expect(existsSync(path.join(dir, 'book-layout.json'))).toBe(false);
-    expect(() => writeNewBookGrant(newBookConfig(file))).toThrow('new_book_stage_not_passed');
+    await expect(writeNewBookGrant(newBookConfig(file))).rejects.toThrow('new_book_stage_not_passed');
   });
   it('an edit that returns the rejected image unchanged is a failure, not a pass', async () => {
     await run();
@@ -518,7 +518,7 @@ describe('the fictional child reference: one targeted edit only for an evidenced
     await run(); await child(childAdapters());
     const file2 = path.join(experimentDir(config), 'book-layout.json'), layout = json(file2);
     writeFileSync(file2, JSON.stringify({ ...layout, childDesign: `${layout.childDesign} With glasses.` }));
-    expect(() => writeNewBookGrant(newBookConfig(file))).toThrow('new_book_layout');
+    await expect(writeNewBookGrant(newBookConfig(file))).rejects.toThrow('new_book_layout');
   });
 
   it('through the real adapters: the render and the Sol judgment are journaled against the cap with the text stage as prior spend', async () => {
@@ -551,7 +551,7 @@ describe('the fictional child reference: one targeted edit only for an evidenced
       const at = (k: string) => path.join(childPaid, `${step}.${k}.json`), saved = ['receipt', 'result'].map(k => readFileSync(at(k)));
       for (const k of ['receipt', 'result']) writeFileSync(at(k), JSON.stringify({ ...json(at(k)), estimatedMicroUsd: 1 }));
       writeFileSync(childSpend, JSON.stringify(new AuditionMeter(childPaid, 7000000, 4, text.api.newKnownApiMicroUsd).snapshot()));
-      expect(() => writeNewBookGrant(newBookConfig(file)), step).toThrow(/^new_book_ledger_cost$/);
+      await expect(writeNewBookGrant(newBookConfig(file)), step).rejects.toThrow(/^new_book_ledger_cost$/);
       ['receipt', 'result'].forEach((k, i) => writeFileSync(at(k), saved[i])); writeFileSync(childSpend, spendBytes);
     }
     for (const [step, label, change] of [
@@ -561,12 +561,12 @@ describe('the fictional child reference: one targeted edit only for an evidenced
     ] as const) {
       const f = path.join(childPaid, `${step}.receipt.json`), bytes = readFileSync(f), receipt = json(f);
       change(receipt); writeFileSync(f, JSON.stringify(receipt));
-      expect(() => writeNewBookGrant(newBookConfig(file)), label).toThrow(/^new_book_ledger_cost$/);
+      await expect(writeNewBookGrant(newBookConfig(file)), label).rejects.toThrow(/^new_book_ledger_cost$/);
       writeFileSync(f, bytes);
     }
     expect(existsSync(path.join(experimentDir(config), 'audition.grant.json'))).toBe(false);
     // The grant's prior spend is the verified sum of both stages.
-    const grant = writeNewBookGrant(newBookConfig(file));
+    const grant = await writeNewBookGrant(newBookConfig(file));
     expect(grant.ledger.priorKnownApiMicroUsd).toBe(text.api.newKnownApiMicroUsd + json(path.join(childDir, 'spend.json')).newKnownApiMicroUsd);
   });
 });
@@ -585,7 +585,7 @@ describe('F3: one durable claim per approval (outside every configurable path), 
     expect(readdirSync(path.join(root, 'other-parent'))).toEqual([]);
     // Every later stage under the moved configuration is refused too.
     await expect(runNewBookChild({ config: newBookConfig(file), signal: new AbortController().signal, log: () => {}, adapters: childAdapters() })).rejects.toThrow('new_book_claim');
-    expect(() => writeNewBookGrant(newBookConfig(file))).toThrow('new_book_claim');
+    await expect(writeNewBookGrant(newBookConfig(file))).rejects.toThrow('new_book_claim');
   });
   it('a configuration edited after the claim (design, request, pin) cannot continue the experiment', async () => {
     await run();
@@ -898,7 +898,7 @@ describe("Guy's one storyboard continuation: the paid story replayed from its bo
     const childSpend = json(path.join(dir, 'child', 'spend.json'));
     expect(childSpend).toMatchObject({ priorKnownApiMicroUsd: 434000, carriedUnresolvedMicroUsd: carried, unknownCost: 0 });
     expect(json(path.join(dir, 'child', 'sealed.json'))).toMatchObject({ status: 'child_reference_passed', priorTextApiMicroUsd: 434000, carriedUnresolvedMicroUsd: carried });
-    const grant = writeNewBookGrant(newBookConfig(file));
+    const grant = await writeNewBookGrant(newBookConfig(file));
     expect(auditionGrantSchema.parse(grant)).toEqual(grant);
     expect(grant.ledger).toMatchObject({ priorKnownApiMicroUsd: 434000 + childSpend.newKnownApiMicroUsd, carriedUnresolvedMicroUsd: carried });
     expect(grant.ledger.evidence.map(e => e.file)).toEqual([path.join(textDir, 'spend.json'), experimentContinuationFile(config), path.join(out, 'spend.json'),
@@ -1295,7 +1295,7 @@ describe("Guy's second storyboard attempt: the same request plus the scene-locat
     expect(readReviewedBookLayout(path.join(dir(), 'book-layout.json'))).toEqual(experimentLayout(config, 'reference_child.png', NEW_BOOK_CONTINUATION_2.outDir));
     const childSpend = json(path.join(dir(), 'child', 'spend.json'));
     expect(childSpend).toMatchObject({ priorKnownApiMicroUsd: 784000, carriedUnresolvedMicroUsd: carried });
-    const grant = writeNewBookGrant(newBookConfig(file));
+    const grant = await writeNewBookGrant(newBookConfig(file));
     expect(grant.ledger).toMatchObject({ priorKnownApiMicroUsd: 784000 + childSpend.newKnownApiMicroUsd, carriedUnresolvedMicroUsd: carried });
     expect(grant.ledger.evidence.map(e => e.file)).toEqual([path.join(dir(), 'text', 'spend.json'), experimentContinuationFile(config), path.join(out1(), 'spend.json'),
       experimentContinuation2File(config), path.join(out2(), 'spend.json'), path.join(dir(), 'child', 'spend.json')]);
@@ -1667,7 +1667,7 @@ describe("Guy's third storyboard attempt: the second request plus the compiler-r
     expect(readReviewedBookLayout(path.join(dir(), 'book-layout.json'))).toEqual(experimentLayout(config, 'reference_child.png', NEW_BOOK_CONTINUATION_3.outDir));
     const childSpend = json(path.join(dir(), 'child', 'spend.json'));
     expect(childSpend).toMatchObject({ priorKnownApiMicroUsd: 714000 + 420000, carriedUnresolvedMicroUsd: carried });
-    const grant = writeNewBookGrant(newBookConfig(file));
+    const grant = await writeNewBookGrant(newBookConfig(file));
     expect(grant.ledger).toMatchObject({ priorKnownApiMicroUsd: 1134000 + childSpend.newKnownApiMicroUsd, carriedUnresolvedMicroUsd: carried });
     expect(grant.ledger.evidence.map(e => e.file)).toEqual([path.join(dir(), 'text', 'spend.json'), experimentContinuationFile(config), path.join(outN(1), 'spend.json'),
       experimentContinuation2File(config), path.join(outN(2), 'spend.json'), experimentContinuation3File(config), path.join(outN(3), 'spend.json'),
@@ -1979,7 +1979,26 @@ describe("Guy's third storyboard attempt: the second request plus the compiler-r
     const prior2 = known + snap(NEW_BOOK_CONTINUATION.outDir, 2, known, carried).newKnownApiMicroUsd;
     const a2 = experimentContinuation2File(config);
     writeFileSync(a2, JSON.stringify(rehash({ ...json(a2), previousSha256: sha(readFileSync(a1)), priorKnownApiMicroUsd: prior2, carriedUnresolvedMicroUsd: carried })));
-    return { known, carried, prior3: prior2 + snap(NEW_BOOK_CONTINUATION_2.outDir, 2, prior2, carried).newKnownApiMicroUsd };
+    const prior3 = prior2 + snap(NEW_BOOK_CONTINUATION_2.outDir, 2, prior2, carried).newKnownApiMicroUsd, a3 = experimentContinuation3File(config);
+    if (existsSync(a3)) {
+      writeFileSync(a3, JSON.stringify(rehash({ ...json(a3), previousSha256: sha(readFileSync(a2)), priorKnownApiMicroUsd: prior3, carriedUnresolvedMicroUsd: carried })));
+      snap(NEW_BOOK_CONTINUATION_3.outDir, 2, prior3, carried);
+    }
+    return { known, carried, prior3 };
+  }
+  /**
+   * A saved storyboard request rewritten with a lower output cap, its claim's and result's digests and its claim's maximum re-derived by the
+   * live reservation rule, so the record is self-consistent (Codex's reproduction at 7af52722). Returns the lowered maximum.
+   */
+  function lowerRequestCap(folder: string, by = 1000) {
+    const at = (k: string) => path.join(paid(folder), `storyboard.${k}.json`), wire = json(at('wire'));
+    wire.max_output_tokens -= by;
+    const wireDigest = sha(canonicalJson(wire));
+    const maximumMicroUsd = Math.ceil((Buffer.byteLength(JSON.stringify(wire), 'utf8') * 10 + wire.max_output_tokens * 50) * 1.1);
+    writeFileSync(at('wire'), JSON.stringify(wire));
+    writeFileSync(at('claim'), JSON.stringify({ ...json(at('claim')), wireDigest, maximumMicroUsd }));
+    writeFileSync(at('result'), JSON.stringify({ ...json(at('result')), wireDigest }));
+    return maximumMicroUsd;
   }
   const fresh = async () => {
     for (const d of [experimentDir(config), path.dirname(experimentClaimFile(config))]) {
@@ -2075,6 +2094,59 @@ describe("Guy's third storyboard attempt: the second request plus the compiler-r
       ['receipt', 'result'].forEach((k, i) => writeFileSync(at(k), saved[i])); writeFileSync(spend3, savedSpend);
     }
     expect(await child()).toMatchObject({ status: 'child_reference_passed' });
+  });
+
+  // ---- Codex HOLD at 7af52722 (P1): the ORIGINAL timed-out request is reconstructed from the roots before its reservation is admitted ----
+  it("Codex's reproduction: the ORIGINAL request rewritten with a lower cap (digests, maximum and every ledger above it rebound) is refused", async () => {
+    await refusedTwice();
+    const before = (await attempt(3, textTransports(), false)) as any, first = readFileSync(path.join(paid(NEW_BOOK_CONTINUATION.outDir), 'storyboard.wire.json'));
+    const lowered = lowerRequestCap('text');
+    expect(rebindChain().carried).toBe(lowered);
+    expect(lowered).toBe(before.continuation3.carriedUnresolvedMicroUsd - 1000 * 50 * 1.1);
+    const t = textTransports();
+    for (const execute of [false, true]) await expect(attempt(3, t, execute)).rejects.toThrow(/^new_book_original_request$/);
+    nothingConsumed();
+    expect([t.opus, t.reader, t.responses, sdk.create].map(m => m.mock.calls.length)).toEqual([0, 0, 0, 0]);
+    // The first continuation's request (which re-sent the original) was untouched: the reference is the reconstruction, not that file.
+    expect(readFileSync(path.join(paid(NEW_BOOK_CONTINUATION.outDir), 'storyboard.wire.json'))).toEqual(first);
+  });
+
+  it('the original AND the first continuation requests rewritten together, with matching digests and ledgers, are refused all the same', async () => {
+    await refusedTwice();
+    const lowered = lowerRequestCap('text');
+    // The first continuation re-sent exactly the original request: lowered the same way, its own maximum and settled cost stay coherent.
+    expect(lowerRequestCap(NEW_BOOK_CONTINUATION.outDir)).toBe(lowered);
+    expect(rebindChain().carried).toBe(lowered);
+    expect(readFileSync(path.join(paid('text'), 'storyboard.wire.json'), 'utf8')).toBe(readFileSync(path.join(paid(NEW_BOOK_CONTINUATION.outDir), 'storyboard.wire.json'), 'utf8'));
+    const t = textTransports();
+    for (const execute of [false, true]) await expect(attempt(3, t, execute)).rejects.toThrow(/^new_book_original_request$/);
+    nothingConsumed();
+    expect(t.responses.mock.calls.length).toBe(0);
+  });
+
+  it('after the third attempt completed, no later consumer re-admits a rewritten original reservation: the child, the grant, the audition', { timeout: 600_000 }, async () => {
+    const rewriteAfter = () => { lowerRequestCap('text'); return rebindChain().carried; };
+    // The child stage (its meter would carry the lowered reservation).
+    await refusedTwice(); await attempt(3);
+    rewriteAfter();
+    await expect(child()).rejects.toThrow(/^new_book_original_request$/);
+    expect(existsSync(path.join(dir(), 'child'))).toBe(false);
+    // The grant, after a genuine child stage.
+    await fresh(); await attempt(3); expect(await child()).toMatchObject({ status: 'child_reference_passed' });
+    rewriteAfter();
+    await expect(writeNewBookGrant(newBookConfig(file))).rejects.toThrow(/^new_book_original_request$/);
+    expect(existsSync(path.join(dir(), 'audition.grant.json'))).toBe(false);
+    // The audition, after a genuine grant (its own comparison comes after this check).
+    await fresh(); await attempt(3); await child(); await writeNewBookGrant(newBookConfig(file));
+    // Fully coherent: the child's spend and the grant file rewritten to the lowered reservation too, so only this check can refuse it.
+    const lowered = rewriteAfter(), a3 = json(experimentContinuation3File(config)), c3 = json(path.join(outN(3), 'spend.json')).newKnownApiMicroUsd;
+    writeFileSync(path.join(dir(), 'child', 'spend.json'), JSON.stringify(new AuditionMeter(path.join(dir(), 'child', 'paid-stages'), 7000000, 4,
+      a3.priorKnownApiMicroUsd + c3, lowered).snapshot()));
+    const g = path.join(dir(), 'audition.grant.json'), grant = json(g);
+    writeFileSync(g, JSON.stringify({ ...grant, ledger: { ...grant.ledger, carriedUnresolvedMicroUsd: lowered,
+      evidence: grant.ledger.evidence.map((e: { file: string }) => ({ ...e, sha256: sha(readFileSync(e.file)) })) } }));
+    await expect(runNewBookAudition({ config: newBookConfig(file), signal: new AbortController().signal, log: () => {} })).rejects.toThrow(/^new_book_original_request$/);
+    expect([existsSync(experimentAuditionStart(config)), existsSync(path.join(dir(), 'audition'))]).toEqual([false, false]);
   });
 
   it('the amendment chain is ordered: a second amendment without the first is refused', async () => {
