@@ -1,5 +1,30 @@
 # SmallHeroes — Current Technical State
 
+## Own meter: whole record set and pre-dispatch pricing (Codex HOLD at 5e225695, F1 P1 + F2 P2), for Codex re-gate (2026-10-15)
+
+Codex's first QA of 5b687cf4..5e225695: the original estimate rewrite is refused
+and the opt-in, rules and model bindings supported; HOLD on two boundaries. F1
+(P1): the verifier enumerated only claims, so a removed claim hid its call's
+surviving request, result and raw answer (Codex: same and reopened meter, the
+guarded running audition and the guarded resume, which completed reporting
+794,150 for a raw-based 812,150). F2 (P2): run() checked a new call only at the
+next snapshot, after dispatch (maximum 1 for a 600,000 Sol review with 10,000
+left ran once). Fixed in the shared meter only, opt-in only (294da708): the
+verifier takes the folder's whole inventory (every entry must be one of the
+meter's own records, and every record must belong to a claimed call; a surviving
+record without its claim, or any other entry, refuses before any claim, dispatch
+or resume marker; nothing repaired), and run() prices the new call under its own
+rule from the request as it will be journaled before anything is written, read
+or sent (unknown step, another kind or a maximum that is not its own refuses).
+Codex's independent set now 11/11 (was 6/5) and both real guarded paths refuse
+with provider counts unchanged and no resume marker (was 2 failing); 11 new
+tests all fail at 5e225695 by admission; targeted mutants 6/6; focused 560/560
+(13 files, serial, at 294da708); the real preview at 294da708 is identical (41
+records and Goni's 412 files unchanged). Every live adapter call passes the new
+check on every experiment path. The flow suite was not re-run: no path it
+exercises builds an opted-in meter (it stays RED as recorded). No paid call.
+Next: Codex re-gate, then the one third attempt at the PASSed HEAD.
+
 ## New book: own-stage meter integrity (approved offline milestone), for Codex's first QA (2026-10-14)
 
 Guy approved an offline fix ("מאשר תיקון מונה אופליין, ללא תשלום"): the shared

@@ -1,5 +1,14 @@
 # SmallHeroes — Roadmap
 
+## Own-meter correction built (294da708); next: Codex re-gate, then the one third attempt (2026-10-15)
+
+- The opted-in meter accounts for every record in its folder (a call whose claim
+  is missing can no longer drop out) and prices each new call under its own rule
+  before anything is written or sent.
+- After an explicit Codex PASS: storyboard-continuation-3 --execute once at the
+  PASSed clean HEAD, then child -> grant -> audition (two samples first) under the
+  same $7. No fourth attempt.
+
 ## Own-stage meter integrity built (d3fc5d25); next: Codex QA, then the one third attempt (2026-10-14)
 
 - Every experiment meter re-derives its own calls from their bound requests and
