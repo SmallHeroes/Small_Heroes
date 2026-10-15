@@ -1,5 +1,55 @@
 # SmallHeroes — Current Technical State
 
+## New book: the one Opus repair was held by Sol; drawn-instant contract + second repair built, for Codex QA (2026-10-15)
+
+After Codex's narrow PASS at 0eb7ddc8 and Guy's CLI sign-in (preflight loggedIn,
+claude.ai, max), the one approved repair ran at 0eb7ddc8 (15:07-15:11): Opus 5.5
+answered in 120 s (Claude Max $0.605516) and the engine compiled it, but the
+fresh Sol 6.1 review held it (held_contradiction: 40 supported, 3
+contradictions). It fixed C3's pages 5 and 8 and drew page 3's flat-tail gag;
+what remained is one class, a drawn instant earlier than a change on the same
+page that was not declared: page 3's flat tail could not be declared at all (the
+companion is a fixed role, not a continuity entity, so it has no attributes) and
+page 7 left the gate's earlier "Open" state undeclared (offscreen). Stopped: no
+child or images; API accounted $4.566243/$7 (known $2.298604 + carry
+$2.267639), remaining $2.433757; Claude Max $1.098973; stop report
+_review/new-book-run-20261015/.
+
+Guy chose "Fix the rule, then 1 repair" and confirmed the corrected scope
+(Decision Gate docs/ai-workflow/NEW_BOOK_DRAWN_INSTANT_CONTRACT_DECISION_GATE.md).
+Built offline: 194fe53a (engine) and ecc92ca6 (experiment).
+- Opt-in drawn-instant contract (storyboard-drawn-instant/v1, needs moments):
+  depicted.actorStates, a temporary look of a visible child or companion quoted
+  on its page (an instant may be that alone); a compile check that every change
+  a page makes after the drawn instant (transition or continuity attribute
+  change, located by its quote) is overridden, offscreen too; its planner
+  addendum and one review line; the render prompt and the judge packet carry the
+  look. Absent: every digest, instruction, schema and packet byte-identical.
+- A repair of a repair: the input may nest its parent's own repair and name the
+  contracts it adds (the parent recompiled with its repair, without them); the
+  compiler's own findings on the parent (contractFindings) join the review's.
+- storyboard-repair-2 (continuation-5): the first repair replayed from its two
+  answers to its held disposition, its request plus exactly the contract, the
+  same Opus planner on Claude Max and Sol judge, one review call on the API
+  meter with the full carry; child, grant and audition re-derive both repairs'
+  producer requests before any claim.
+
+Evidence: real dry preview at ecc92ca6 admissible (the first repair's real
+records replay to held_contradiction, review $0.060922 re-derived, its producer
+check passes; 3 review findings + 2 compiler findings, page 7's herd and gate;
+request changed only by the contract; wire 93,573/104,000, argv 24,225/31,000,
+Max reservation $1.115722 within the $2 guard; review ceiling $0.710600 within
+$2.433757 with the full carry: fits); 74 book records and Goni's 412 files
+unchanged. Tests: the relevant 13 files serially at ecc92ca6, 582/582
+(experiment 173 incl. 8 new, drawn-instant 7, every earlier contract spec
+unchanged); tsc 0 at 194fe53a alone and at ecc92ca6; mutants 26/27 killed, the
+survivor a second-layer guard shown to catch the engine fault it backs up.
+
+Next: Codex QA of 0eb7ddc8..HEAD; after an explicit PASS, storyboard-repair-2
+--execute once (Opus plan, fresh Sol review); only on a supported review, child
+-> grant -> two samples -> the rest and the cover if both pass, under the same
+$7 (a complete illustrated book is not promised).
+
 ## New book: the repair planner's request is re-derived from the accepted roots at every later stage (Codex HOLD at 2dfb0eff, F1 P2), for narrow re-gate (2026-10-15)
 
 Codex's QA of 4725c382..2dfb0eff held one P2: later readers compared the saved

@@ -1,5 +1,17 @@
 # SmallHeroes — Roadmap
 
+## Repair held by Sol; drawn-instant contract + second repair built (194fe53a, ecc92ca6); next: Codex QA, then one repair (2026-10-15)
+
+- The one Opus repair ran after Codex's PASS and Guy's sign-in: compiled, but
+  the fresh Sol review held it on drawn instants (page 3 flat tail undeclarable,
+  page 7 gate state undeclared offscreen). Stopped at $4.566243/$7 accounted.
+- Guy chose "Fix the rule, then 1 repair" and confirmed the scope: the opt-in
+  drawn-instant contract (temporary actor looks, completeness check), a repair
+  of a repair, storyboard-repair-2. Real dry preview admissible and fits.
+- After an explicit Codex PASS at the final clean HEAD: storyboard-repair-2
+  --execute once; on a supported review, child -> grant -> audition (two
+  samples first; the rest and the cover only if both pass) under the same $7.
+
 ## Repair planner request re-derived at every later stage (ec1740da); next: Codex narrow re-gate, CLI sign-in, then the book (2026-10-15)
 
 - Codex HOLD F1 (P2) at 2dfb0eff corrected offline: the child stage, the grant
