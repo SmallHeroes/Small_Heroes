@@ -580,6 +580,29 @@ describe('the reviewed audition on the new book (synthetic providers through the
     expect(result.manifest).toMatchObject({ status: 'qa_supported_audition', scope: { complete: true } });
     expect(result.manifest.pages.map(p => p.pageNumber)).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8]);
   });
+  it('after the second repair: the first repair rebound mid-run (prompt + continuation-5 row) stops the next claim; a resume re-derives it first', async () => {
+    const { dir } = await prepared({ repaired2: true }); judgeWith(null);
+    const prompt = path.join(dir, NEW_BOOK_STORYBOARD_REPAIR.outDir, 'storyboard-instructions.txt'), amendmentFile = experimentRepair2File(config);
+    const saved = [readFileSync(prompt), readFileSync(amendmentFile)];
+    const real = vi.mocked(images.generateGPTImage).getMockImplementation()!;
+    vi.mocked(images.generateGPTImage).mockImplementationOnce(async input => {
+      const made = await real(input);
+      writeFileSync(prompt, 'changed during the run');
+      const amendment = json(amendmentFile);
+      amendment.evidence.find((e: any) => e.file === `${NEW_BOOK_STORYBOARD_REPAIR.outDir}/storyboard-instructions.txt`).sha256 = sha(readFileSync(prompt));
+      writeFileSync(amendmentFile, JSON.stringify(amendment));
+      return made;
+    });
+    await expect(audition()).rejects.toThrow();
+    expect(renders()).toBe(1);
+    expect(new AuditionMeter(path.join(dir, 'audition', 'paid-stages'), 7000000, 89).snapshot()).toMatchObject({ calls: 1, unknownCost: 0, unknownOutcome: 0 });
+    await expect(audition({ resume: true })).rejects.toThrow(/^new_book_planner_source$/);
+    expect(renders()).toBe(1);
+    writeFileSync(prompt, saved[0]); writeFileSync(amendmentFile, saved[1]);
+    const result = await audition({ resume: true });
+    if (result.mode !== 'render') throw Error('render expected');
+    expect(result.manifest).toMatchObject({ status: 'qa_supported_audition', scope: { complete: true } });
+  });
   it('after the second repair: the drawn instant with its temporary look reaches the renderer, and the book completes', async () => {
     const { dir } = await prepared({ repaired2: true }); judgeWith(null);
     expect(json(path.join(dir, 'book-layout.json'))).toMatchObject({ storyboardDir: NEW_BOOK_STORYBOARD_REPAIR_2.outDir });
@@ -3369,5 +3392,60 @@ describe("Guy's carry resolution and one storyboard repair, after the third atte
     const grant = await writeNewBookGrant(newBookConfig(file));
     expect(grant.ledger.evidence.map(e => e.file)).toEqual(expect.arrayContaining([experimentRepair2File(config)]));
     expect(grant.ledger.evidence.length).toBeLessThanOrEqual(16);
+  });
+
+  // Codex HOLD at 1fd909af (F1): an earlier record changed together with a rewritten evidence row in the later (mutable) amendment.
+  const FIRST_PROMPT = () => path.join(repairOut(), 'storyboard-instructions.txt');
+  const changeFirstPrompt = () => writeFileSync(FIRST_PROMPT(), 'These are not the admitted parent planner instructions.');
+  /** The first repair's prompt file changed and only its sha256 row in continuation-5's evidence rewritten to match; returns a restore. */
+  const rebindFirstRepair = () => {
+    const amendmentFile = experimentRepair2File(config), saved = [readFileSync(FIRST_PROMPT()), readFileSync(amendmentFile)];
+    changeFirstPrompt();
+    const amendment = json(amendmentFile), row = amendment.evidence.find((e: any) => e.file === `${NEW_BOOK_STORYBOARD_REPAIR.outDir}/storyboard-instructions.txt`);
+    row.sha256 = sha(readFileSync(FIRST_PROMPT())); writeFileSync(amendmentFile, JSON.stringify(amendment));
+    return () => { writeFileSync(FIRST_PROMPT(), saved[0]); writeFileSync(amendmentFile, saved[1]); };
+  };
+  it.each(['honest', 'the first repair prompt changed', 'the first repair prompt changed and its continuation-5 evidence row rebound'] as const)(
+    'after the second repair the child stage keeps its whole accepted lineage through its next claim: %s', async kind => {
+    await heldRepair(); await repair2();
+    const adapters = childAdapters(), realRender = adapters.render.getMockImplementation()!;
+    adapters.render.mockImplementation(async (...a: Parameters<typeof realRender>) => {
+      const made = await realRender(...a);
+      if (kind === 'the first repair prompt changed') changeFirstPrompt(); else if (kind !== 'honest') rebindFirstRepair();
+      return made;
+    });
+    const run = runNewBookChild({ config: newBookConfig(file), signal: new AbortController().signal, log: () => {}, adapters });
+    if (kind === 'honest') {
+      expect(await run).toMatchObject({ status: 'child_reference_passed' });
+      expect([adapters.render.mock.calls.length, adapters.judge.mock.calls.length]).toEqual([1, 1]);
+      return;
+    }
+    // The call in flight is accounted; the next claim (the judge) is refused and no reference is adopted.
+    await expect(run).rejects.toThrow(/^new_book_continuation_evidence$/);
+    expect([adapters.render.mock.calls.length, adapters.judge.mock.calls.length]).toEqual([1, 0]);
+    expect(json(path.join(dir(), 'child', 'sealed.json'))).toMatchObject({ status: 'failed', code: 'new_book_continuation_evidence' });
+  });
+
+  it('after the second repair the grant re-derives both repairs at entry: the rebound first repair refuses before the grant is written', async () => {
+    await heldRepair(); await repair2();
+    expect(await child()).toMatchObject({ status: 'child_reference_passed' });
+    const restore = rebindFirstRepair();
+    await expect(writeNewBookGrant(newBookConfig(file))).rejects.toThrow(/^new_book_planner_source$/);
+    expect(existsSync(path.join(dir(), 'audition.grant.json'))).toBe(false);
+    restore();
+    expect((await writeNewBookGrant(newBookConfig(file))).ledger).toMatchObject({ carriedUnresolvedMicroUsd: reservation() });
+  });
+
+  it('the second repair keeps its accepted lineage between its own calls: the first repair rebound after the plan refuses the review claim', async () => {
+    await heldRepair();
+    const t = textTransports({ createdAt: OCT15, plannerOutput: contractStoryboard('fixed') }), plan = t.planner.getMockImplementation()!;
+    t.planner.mockImplementation(async (...a: Parameters<typeof plan>) => { const reply = await plan(...a); rebindFirstRepair(); return reply; });
+    await expect(repair2(t)).rejects.toThrow();
+    expect([t.planner.mock.calls.length, t.responses.mock.calls.length]).toEqual([1, 0]);
+    // The guard's own refusal is the stage's recorded cause (the storyboard driver wraps the callback's error).
+    expect(json(path.join(repair2Out(), 'sealed.json'))).toMatchObject({ status: 'failed', code: 'new_book_continuation_evidence',
+      continuation: NEW_BOOK_STORYBOARD_REPAIR_2.id });
+    expect(json(path.join(repair2Out(), 'claude-max-spend.json'))).toMatchObject({ logicalAttempts: 1, unknownAttemptCosts: 0 });
+    expect(claims(path.join(repair2Out(), 'paid-stages'))).toEqual([]);
   });
 });

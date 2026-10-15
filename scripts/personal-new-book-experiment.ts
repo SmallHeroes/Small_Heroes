@@ -608,17 +608,25 @@ async function textCore(args: { config: NewBookConfig; signal: AbortSignal; log:
   const responses: Responses = args.transports?.responses ?? (async (payload, s, timeout, observe) =>
     new OpenAI({ apiKey: key(), baseURL: 'https://api.openai.com/v1', maxRetries: 0, logLevel: 'off', fetch: longCallFetch(timeout + 60_000, observe) })
       .responses.create(payload, { signal: s, timeout }));
-  const check = () => { if (signal.aborted) fail('new_book_cancelled'); assertExperimentClaim(config); };
+  // The accepted lineage this stage builds on (every amendment and every earlier text folder, not its own), pinned before its first call (at
+  // the top of the sealed block below) and re-checked before each: a rewritten amendment cannot bless a changed earlier record between this
+  // stage's calls (Codex HOLD at 1fd909af, F1).
+  let lineage: LineagePin | null = null;
   let storyboardDraft: unknown = null;
-  // The first failed paid call's own code is the stage's cause (the story/storyboard layers re-wrap callback errors).
+  // The first failed paid call's own code is the stage's cause (the story/storyboard layers re-wrap callback errors); so is a guard's refusal.
   let failedStageCode: string | null = null;
   const recordFailure = (error: unknown): never => { failedStageCode ??= codeOf(error, 'new_book_provider_transport'); throw error; };
+  const check = () => {
+    try { if (signal.aborted) fail('new_book_cancelled'); assertExperimentClaim(config); sameLineage(config, lineage ?? fail('new_book_continuation_evidence')); }
+    catch (error) { recordFailure(error); }
+  };
   const seal = (status: string, extra: Record<string, unknown> = {}) => {
     exclusiveJson(path.join(outDir, 'spend.json'), api.snapshot());
     if (claudeMax) exclusiveJson(path.join(outDir, 'claude-max-spend.json'), { ...claudeMax.snapshot(), note: NEW_BOOK_EXPERIMENT.claudeMax });
     exclusiveJson(path.join(outDir, 'sealed.json'), { status, ...extra, ...(args.continuationId ? { continuation: args.continuationId } : {}), runtimeEligible: false });
   };
   try {
+    lineage = lineagePin(config, chainFolders(assertExperimentClaim(config)).map(f => f.folder).filter(f => path.join(experimentDir(config), f) !== outDir));
     const result = await runSimpleWizardBook({ request, options: args.options, seed: config.seed, signal, reservedWritingUsd: 4, ...args.contracts,
       ...(args.storyboardRepair ? { storyboardRepair: args.storyboardRepair } : {}),
       publish: view => args.log(`phase ${view.phase}`),
@@ -1476,19 +1484,51 @@ function repairProducerPin(config: NewBookConfig, repair: { previousStatus: stri
   return { folder, fingerprint: canonicalJson(evidence) };
 }
 type RepairPin = ReturnType<typeof repairProducerPin> | null;
+/** Every amendment or resolution this slot can have beside its claim, the claim first (the audition's own start record is not one). */
+const amendmentFiles = (config: NewBookConfig) => [experimentClaimFile(config), experimentContinuationFile(config),
+  ...REFUSED_STEPS.map(step => refusedFile(config, step)), experimentCarryResolutionFile(config), experimentRepairFile(config), experimentRepair2File(config)];
+/**
+ * The accepted lineage a stage builds on, by hash: the claim and every amendment or resolution beside it (or its absence), the request record,
+ * and every record of each text folder it names. An amendment re-read later is mutable: a changed earlier record together with a rewritten
+ * evidence row in a later amendment passes every link of the chain, but not this captured whole (Codex HOLD at 1fd909af, F1).
+ */
+type LineagePin = { folders: string[]; fingerprint: string };
+function lineageFingerprint(config: NewBookConfig, folders: string[]) {
+  const dir = experimentDir(config);
+  return canonicalJson({ amendments: amendmentFiles(config).map(file => ({ file, sha256: existsSync(file) ? sha(readFileSync(file)) : null })),
+    request: sha(readFileSync(path.join(dir, 'request.json'))), folders: folders.map(folder => ({ folder, evidence: folderEvidence(dir, folder) })) });
+}
+const lineagePin = (config: NewBookConfig, folders: string[]): LineagePin => ({ folders, fingerprint: lineageFingerprint(config, folders) });
+/** The pinned lineage is unchanged (a stage's per-call guard; synchronous). */
+function sameLineage(config: NewBookConfig, pin: LineagePin) {
+  if (lineageFingerprint(config, pin.folders) !== pin.fingerprint) fail('new_book_continuation_evidence');
+}
+type RootsPin = { repair: RepairPin; lineage: LineagePin };
 /**
  * The source-derived checks a consumer runs before its first claim: the original timed-out request whenever a carry exists, and, once
- * repaired, the latest repair's producer request (a second repair re-derives and checks the first's too). Returns the latest repair folder's
- * fingerprint (null when unrepaired) for sameRepairFolder; earlier repair folders are bound by the later amendment, which every claim re-checks.
+ * repaired, the latest repair's producer request (a second repair re-derives and checks the first's too). The whole accepted lineage is pinned
+ * first, before those checks read anything; it must be unchanged after them, and each producer check must have read exactly its pinned folder.
+ * Returns the latest repair folder's pin (null when unrepaired) and the lineage pin, both re-checked before every later claim (sameRoots).
  */
-async function assertDerivedRoots(config: NewBookConfig, chain: ContinuationChain): Promise<RepairPin> {
+async function assertDerivedRoots(config: NewBookConfig, chain: ContinuationChain): Promise<RootsPin> {
+  const lineage = lineagePin(config, chainFolders(chain).map(f => f.folder));
   if (chain.continuation) await assertOriginalRequest(config);
-  if (chain.repair2) return chain.repair ? assertRepair2Producer(config, chain.repair, chain.repair2) : fail('new_book_continuation');
-  return chain.repair ? assertRepairProducer(config, chain.repair) : null;
+  const producers = chain.repair2 ? (chain.repair ? await assertRepair2Producer(config, chain.repair, chain.repair2) : fail('new_book_continuation'))
+    : chain.repair ? [await assertRepairProducer(config, chain.repair)] : [];
+  // Each repair folder still the bytes its producer check read, then the whole lineage still the one pinned before any check (so each
+  // producer check read exactly its pinned folder).
+  for (const p of producers) sameRepairFolder(config, p);
+  sameLineage(config, lineage);
+  return { repair: producers[producers.length - 1] ?? null, lineage };
 }
 /** The repaired folder is unchanged since its producer request was re-derived (a consumer's per-call guard; synchronous). */
 function sameRepairFolder(config: NewBookConfig, pin: RepairPin) {
   if (pin !== null && canonicalJson(folderEvidence(experimentDir(config), pin.folder)) !== pin.fingerprint) fail('new_book_planner_source');
+}
+/** A consumer's per-call guard: the latest repair folder (as its producer check saw it), then the whole lineage it was admitted on. */
+function sameRoots(config: NewBookConfig, pin: RootsPin) {
+  sameRepairFolder(config, pin.repair);
+  sameLineage(config, pin.lineage);
 }
 /** Read-only preview of the repair. */
 export async function previewStoryboardRepair(config: NewBookConfig) {
@@ -1735,12 +1775,15 @@ async function admitRepair2(config: NewBookConfig, head: string) {
     carriedUnresolvedMicroUsd: baseline.held.carriedUnresolvedMicroUsd, remainingUnderCapMicroUsd: remaining, fitsUnderCap: fits,
     providerCalls: 0, keyRead: false } } };
 }
-/** Every later reader of the second repair re-derives, before any claim, the first repair's producer request and then its own (see repairProducerPin). */
+/**
+ * Every later reader of the second repair re-derives, before any claim, the first repair's producer request and then its own (see
+ * repairProducerPin). Returns both folders' pins, the first repair's first; neither is dropped (Codex HOLD at 1fd909af, F1).
+ */
 async function assertRepair2Producer(config: NewBookConfig, repair1: NewBookRepair, repair2: NewBookRepair2) {
   const { options, prepared } = prepareExperimentRequest(config);
   const derived = await deriveRepair2Request(config, prepared, options);
-  repairProducerPin(config, repair1, derived.first, NEW_BOOK_STORYBOARD_REPAIR.outDir);
-  return repairProducerPin(config, repair2, { status: derived.firstStatus, repair: derived.repair, plan: derived.plan }, NEW_BOOK_STORYBOARD_REPAIR_2.outDir);
+  return [repairProducerPin(config, repair1, derived.first, NEW_BOOK_STORYBOARD_REPAIR.outDir),
+    repairProducerPin(config, repair2, { status: derived.firstStatus, repair: derived.repair, plan: derived.plan }, NEW_BOOK_STORYBOARD_REPAIR_2.outDir)];
 }
 /** Read-only preview of the second repair. */
 export async function previewStoryboardRepair2(config: NewBookConfig) {
@@ -1809,17 +1852,17 @@ export async function runNewBookChild(args: { config: NewBookConfig; signal: Abo
   const prior = textStage(config, chain);
   const layoutFor = (childImage?: string) => experimentLayout(config, childImage, prior.folder);
   const loaded = loadReviewedStoryboard(dir, config.workspace, layoutFor());
-  sameRepairFolder(config, producer);
+  sameRoots(config, producer);
   try { mkdirSync(childDir); } catch { fail('new_book_child_used'); }
   mkdirSync(images);
   const meter = new AuditionMeter(path.join(childDir, 'paid-stages'), NEW_BOOK_EXPERIMENT.apiCapMicroUsd, CHILD_API_CALLS, prior.knownMicroUsd,
     prior.carriedUnresolvedMicroUsd, meterRules(CHILD_RULES));
   const save = (name: string, value: unknown) => exclusiveJson(path.join(childDir, `${name}.json`), value);
-  const check = () => { if (signal.aborted) fail('new_book_cancelled'); assertExperimentClaim(config); sameRepairFolder(config, producer); };
+  const check = () => { if (signal.aborted) fail('new_book_cancelled'); assertExperimentClaim(config); sameRoots(config, producer); };
   const key = keyReader(config.keyEnvFile);
   // The claim, the source pin and the repaired folder guard every render claim too (including the one repair edit after a judgment).
   const io = args.adapters?.render ? null : auditionAdapters({ directory: images, meter, key, signal,
-    guard: () => { assertExperimentClaim(config); sameRepairFolder(config, producer); } });
+    guard: () => { assertExperimentClaim(config); sameRoots(config, producer); } });
   const render: Render = args.adapters?.render ?? ((step, prompt, refs, mode) => io!.render(step, prompt, refs, mode));
   const judge: Judge = args.adapters?.judge ?? createSimpleBookPixelJudge({ config: { reviewModel: SOL }, directory: images, budget: meter, key,
     assertCurrent: check, signal, save });
@@ -1868,7 +1911,7 @@ export function earliestSameScenePair(book: Pick<PersonalStoryboard, 'narrativeS
 export async function writeNewBookGrant(config: NewBookConfig) {
   const producer = await assertDerivedRoots(config, assertExperimentClaim(config));
   const grant = newBookGrant(config);
-  sameRepairFolder(config, producer);
+  sameRoots(config, producer);
   exclusiveJson(path.join(experimentDir(config), 'audition.grant.json'), grant);
   return grant;
 }
@@ -1920,7 +1963,7 @@ export async function runNewBookAudition(args: { config: NewBookConfig; signal: 
   // written into the file since: a start and every resume re-derive it from the records' own evidence.
   const producer = await assertDerivedRoots(config, chain);
   if (canonicalJson(grant) !== canonicalJson(newBookGrant(config))) fail('new_book_grant_ledger');
-  sameRepairFolder(config, producer);
+  sameRoots(config, producer);
   const start = experimentAuditionStart(config), record = { version: 'new-book-audition-start/v1', out: path.resolve(out), grantSha256, claimSha256 };
   if (args.resume) {
     if (!existsSync(start) || canonicalJson(read(start)) !== canonicalJson(record) || !existsSync(out)) fail('new_book_audition_binding');
@@ -1931,7 +1974,7 @@ export async function runNewBookAudition(args: { config: NewBookConfig; signal: 
   process.env.GPT_IMAGE_EDIT_MAX_REFERENCES ??= '4';
   return runReviewedAudition({ bookDir: dir, out, keyFile: config.keyEnvFile, grantFile, signal: args.signal, log: args.log,
     layout: readReviewedBookLayout(path.join(dir, 'book-layout.json')), ...(args.resume ? { resume: true as const } : {}),
-    experiment: { slot: NEW_BOOK_EXPERIMENT.slot, claimSha256, guard: () => { assertExperimentClaim(config); sameRepairFolder(config, producer); } } });
+    experiment: { slot: NEW_BOOK_EXPERIMENT.slot, claimSha256, guard: () => { assertExperimentClaim(config); sameRoots(config, producer); } } });
 }
 
 // ---------------------------------------------------------------------------------------------------------------
