@@ -1,5 +1,19 @@
 # SmallHeroes — Roadmap
 
+## Repair planner request re-derived at every later stage (ec1740da); next: Codex narrow re-gate, CLI sign-in, then the book (2026-10-15)
+
+- Codex HOLD F1 (P2) at 2dfb0eff corrected offline: the child stage, the grant
+  and the audition re-derive the repair planner's request from the accepted
+  roots before any claim; no recorded digest is its authority.
+- Blocker before the paid repair: the standalone Claude CLI is signed out in the
+  planner's launch context. Guy signs it in to the Claude subscription
+  (auth login --claudeai) and the preflight must show loggedIn true; no API-key
+  or Console route instead.
+- After an explicit Codex PASS at the final clean HEAD and the sign-in:
+  storyboard-repair --execute once (Opus plan, fresh Sol review); on a supported
+  review, child -> grant -> audition (two samples first; the rest and the cover
+  only if both pass) under the same $7.
+
 ## Opus 5.5 storyboard planner + Sol 6.1 judge built (cccd5fa2, 3bbd880e); next: Codex QA, then the book (2026-10-15)
 
 - Guy's decision: Claude Opus 5.5 plans the one approved storyboard repair on

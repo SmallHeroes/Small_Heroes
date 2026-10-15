@@ -1,5 +1,43 @@
 # SmallHeroes — Current Technical State
 
+## New book: the repair planner's request is re-derived from the accepted roots at every later stage (Codex HOLD at 2dfb0eff, F1 P2), for narrow re-gate (2026-10-15)
+
+Codex's QA of 4725c382..2dfb0eff held one P2: later readers compared the saved
+planner request with the amendment's own declared digest, so a request rebound
+together with that digest (or other prompt-file bytes) still reached the child
+stage. ec1740da moves the admission's source derivation, unchanged, into
+deriveRepairRequest (the paid story and the held third attempt replayed from
+their raw records; the repair input; the engine's repair request = the third
+plus exactly the repair; its complete CLI wire under the pinned policy). The
+child stage, the grant and the audition's start and resume now run it before
+anything is created or claimed. The saved repair input, the whole planner wire,
+the prompt file's bytes, the held parent and the declared digest must equal what
+the roots derive, else new_book_planner_source. The repair folder is
+fingerprinted first (the checked bytes are the fingerprinted bytes) and
+re-checked synchronously before every later claim. The live planner now runs in
+its own empty working folder inside the repair stage, never the sealed text
+folder. Routing, caps, the carry and the one-repair allowance are unchanged.
+
+Evidence: the four relevant spec files serially 322/322 (experiment 165,
+audition 142, repair 9, transport 6); tsc 0. Negative control in memory on the
+12 new regressions: at 2dfb0eff 12/12 fail; at the fix with the fingerprint
+taken after the checked reads 1/12 fails (a record rebound right after the read
+was pinned as genuine; corrected before the commit); final 12/12 pass. Real dry
+preview at ec1740da byte-identical to 3bbd880e's (fits; same request digest and
+wire); 56 book records and Goni's 412 files unchanged. The consumer check first
+meets real records once the repair exists; its derivation is the admission's,
+which the preview exercised.
+
+Operational preflight (no model call): the pinned CLI, launched as the planner
+transport launches it (ANTHROPIC_/CLAUDE_ variables stripped, fresh working
+folder), reports loggedIn false, authMethod none. The standalone CLI must be
+signed in to the Claude subscription before the paid repair; no API-key or
+Console route is used instead. No paid call, key read or record written. Next:
+Codex's narrow re-gate of 2dfb0eff..HEAD; Guy signs the CLI in and the preflight
+shows loggedIn true; after an explicit PASS, the one Opus repair and its fresh
+Sol review, then child -> grant -> two samples -> the rest and the cover only if
+both pass.
+
 ## New book: the one storyboard repair plans with Claude Opus 5.5 (Claude Max), judged by Sol 6.1, for Codex QA (2026-10-15)
 
 Codex's narrow re-gate PASSed the carry-resolution write boundary at 4725c382.
