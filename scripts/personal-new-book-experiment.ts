@@ -621,7 +621,9 @@ async function textCore(args: { config: NewBookConfig; signal: AbortSignal; log:
           const instructionFile = path.join(outDir, 'storyboard-instructions.txt');
           exclusiveText(instructionFile, plannerRequest(call).instructions);
           const wire = prepareOpusStoryboardWire(call, policy, instructionFile);
-          const plan = args.transports?.planner ?? createOpusStoryboardTransport(policy);
+          // Its own empty working folder in this stage's folder: the original text folder (sealed as evidence) is never the CLI's cwd again.
+          const workspace = path.join(outDir, 'cli-workspace'); mkdirSync(workspace);
+          const plan = args.transports?.planner ?? createOpusStoryboardTransport({ ...policy, workspace });
           return claudeMax.run('storyboard', wire, OPUS_PLANNER.sessionGuardMicroUsd, async () => {
             const reply = await plan(wire, call, s);
             storyboardDraft = reply.output;
@@ -1293,11 +1295,17 @@ function sameRepairBaseline(config: NewBookConfig, head: string, prepared: Retur
  * be the third request with exactly the repair added: the contract last in the instructions (before the provider's own note), the held storyboard
  * and its review's unsupported checks in the planning input, and the source digest that records them, at the same model, schema and caps.
  */
-async function admitRepair(config: NewBookConfig, head: string) {
-  const { options, prepared } = prepareExperimentRequest(config);
-  const baseline = repairBaseline(config, head, prepared);
-  // The carried (or resolved) reservation is admitted only for the original request the roots derive.
-  await assertOriginalRequest(config);
+/**
+ * The repair's input and its planner request as the accepted roots derive them NOW (no provider, no key, nothing written): the paid story
+ * replayed from its bound receipts; the held third attempt's two saved answers replayed under its own contracts - exactly its two requests in
+ * order, each cost re-derived from its raw answer under the live rule - to a held storyboard whose decoded draft (equal to the draft the
+ * attempt saved) and own raw review are the repair input; then the repair request the engine builds from them, which must be the third
+ * request with exactly the repair added (compared in the third request's own provider form), and its complete CLI wire under the pinned policy
+ * at the repair folder's own prompt file. The admission and every later reader of the repaired storyboard derive exactly this; no recorded
+ * declaration (an amendment's digest, a saved wire) is ever its authority.
+ */
+async function deriveRepairRequest(config: NewBookConfig, prepared: ReturnType<typeof prepareSimpleStory>,
+  options: ReturnType<typeof prepareExperimentRequest>['options']) {
   const dir = experimentDir(config), textDir = path.join(dir, 'text'), third = path.join(dir, NEW_BOOK_CONTINUATION_3.outDir);
   const policy = textPolicy(config), replay = textReplay(textDir);
   const saved = (step: 'storyboard' | 'storyboard_review') => {
@@ -1332,10 +1340,9 @@ async function admitRepair(config: NewBookConfig, head: string) {
     if (step === 'storyboard') { draft = output; thirdSource = call.context.sourceDigest; thirdInstructions = call.instructions; }
     return output;
   }).catch((error: unknown) => { throw refusal ?? (stop ? new NewBookExperimentError(stop) : error); });
-  // The third attempt's storyboard and review as the flow judged them again: the held parent.
+  // The third attempt's storyboard and review as the flow judged them again: a held parent.
   const heldBoard = replayedThird.storyboard;
-  if (settled.length !== 2 || !heldBoard || replayedThird.status !== baseline.status || heldBoard.status !== baseline.status ||
-      baseline.held.knownMicroUsd !== baseline.previous.priorKnownApiMicroUsd + settled[0] + settled[1]) return fail('new_book_continuation_scope');
+  if (settled.length !== 2 || !heldBoard || replayedThird.status !== heldBoard.status || !heldStatus.safeParse(heldBoard.status).success) return fail('new_book_continuation_scope');
   // The draft the attempt saved is the one its answer decodes to.
   if (canonicalJson(read(path.join(third, 'owned_storyboard_draft.json'))) !== canonicalJson(draft)) fail('new_book_continuation_replay');
   const repair: StoryboardRepair = { parentStoryboardDigest: heldBoard.storyboardDigest, draft: structuredClone(draft), review: structuredClone(heldBoard.rawReview) };
@@ -1364,6 +1371,17 @@ async function admitRepair(config: NewBookConfig, head: string) {
   if (!onlyTheRepair) return fail('new_book_continuation_request');
   if (plannerFailure || !planner) throw plannerFailure ?? new NewBookExperimentError('new_book_planner_wire');
   const plan: { requestDigest: string; wire: PlannerWire } = planner;
+  return { settled, status: heldStatus.parse(heldBoard.status), repair, findings: prior.reviewFindings.length, plan };
+}
+async function admitRepair(config: NewBookConfig, head: string) {
+  const { options, prepared } = prepareExperimentRequest(config);
+  const baseline = repairBaseline(config, head, prepared);
+  // The carried (or resolved) reservation is admitted only for the original request the roots derive.
+  await assertOriginalRequest(config);
+  const dir = experimentDir(config);
+  const { settled, status, repair, findings, plan } = await deriveRepairRequest(config, prepared, options);
+  // As the third attempt was sealed: its held disposition, and its two settled costs in the verified ledger.
+  if (status !== baseline.status || baseline.held.knownMicroUsd !== baseline.previous.priorKnownApiMicroUsd + settled[0] + settled[1]) return fail('new_book_continuation_scope');
   // Guy's condition on this route: the planner is not an API call (Claude Max, journaled apart under its own session guard), so the API
   // meter needs only the fresh review's largest possible reservation within what remains, with the whole unresolved carry kept; the Max
   // journal (from this book's earlier Max use) must hold the planner's session guard.
@@ -1377,7 +1395,7 @@ async function admitRepair(config: NewBookConfig, head: string) {
     admitted: { baseline, fits, summary: { admissible: true, amended: !!baseline.amended,
     outDirExists: existsSync(path.join(dir, NEW_BOOK_STORYBOARD_REPAIR.outDir)), storyReplayed: true, previousStatus: baseline.status,
     previousStoryboardSettledMicroUsd: settled[0], previousReviewSettledMicroUsd: settled[1], parentStoryboardDigest: repair.parentStoryboardDigest,
-    findings: prior.reviewFindings.length, requestChangedOnlyByTheRepair: true,
+    findings, requestChangedOnlyByTheRepair: true,
     planner: { model: OPUS_PLANNER.model, route: OPUS_PLANNER.route, judge: SOL, requestDigest: plan.requestDigest,
       wireBytes: plan.wire.bytes, wireByteLimit: textPolicy(config).maxWireBytes, argvChars: args.map(a => JSON.stringify(a)).join(' ').length + config.executable.length,
       argvCharLimit: 31_000, schemaChars: args[args.length - 1].length, stdinBytes: Buffer.byteLength(plan.wire.stdin, 'utf8'),
@@ -1389,6 +1407,46 @@ async function admitRepair(config: NewBookConfig, head: string) {
       carriedBeforeMicroUsd: baseline.resolution.carriedBeforeMicroUsd } : null,
     priorKnownApiMicroUsd: baseline.ledger.knownMicroUsd, carriedUnresolvedMicroUsd: baseline.ledger.carriedUnresolvedMicroUsd,
     remainingUnderCapMicroUsd: remaining, fitsUnderCap: fits, providerCalls: 0, keyRead: false } } };
+}
+/**
+ * Every later reader of the repaired storyboard (the child stage, the grant, the audition's start and resume) re-derives, before any claim or
+ * call, what the repair's planner was allowed to receive - from the accepted roots (deriveRepairRequest), never from a recorded declaration
+ * - and requires the saved producer evidence to be exactly that: the third attempt's held disposition and parent, the repair input the
+ * reviewed loader binds, the complete planner wire under the pinned policy (executable path and hash, flags and argv, schema, stdin, cap,
+ * prompt-file path), the prompt file's own bytes, and the amendment's declared request digest. Returns the repair folder's fingerprint,
+ * which the consumer re-checks before each later claim (sameRepairFolder), so a change after this check refuses the next call too. The
+ * fingerprint is taken first and every checked file must be the very bytes it fingerprinted, so it never pins content other than what was checked.
+ */
+async function assertRepairProducer(config: NewBookConfig, repair: NewBookRepair) {
+  const { options, prepared } = prepareExperimentRequest(config);
+  const derived = await deriveRepairRequest(config, prepared, options);
+  const dir = experimentDir(config), out = path.join(dir, NEW_BOOK_STORYBOARD_REPAIR.outDir), wire = derived.plan.wire;
+  const evidence = folderEvidence(dir, NEW_BOOK_STORYBOARD_REPAIR.outDir);
+  const pinned = (file: string, maxBytes: number) => {
+    let text: string;
+    try { text = fencedText(file, maxBytes); } catch { return fail('new_book_planner_source'); }
+    if (evidence.find(e => e.file === path.relative(dir, file).split(path.sep).join('/'))?.sha256 !== sha(text)) fail('new_book_planner_source');
+    return text;
+  };
+  const saved = (file: string) => { const text = pinned(file, 32_000_000); try { return canonicalJson(JSON.parse(text)); } catch { return fail('new_book_planner_source'); } };
+  if (derived.status !== repair.previousStatus || derived.repair.parentStoryboardDigest !== repair.parentStoryboardDigest ||
+      derived.plan.requestDigest !== repair.planner.requestDigest ||
+      saved(path.join(out, STORYBOARD_REPAIR_INPUT_FILE)) !== canonicalJson(derived.repair) ||
+      saved(path.join(out, 'claude-max-stages', 'storyboard.wire.json')) !== canonicalJson(wire) ||
+      pinned(String(wire.payload.instructionFile), 104_000) !== wire.payload.instructions) fail('new_book_planner_source');
+  return canonicalJson(evidence);
+}
+/**
+ * The source-derived checks a consumer runs before its first claim: the original timed-out request whenever a carry exists, and, once
+ * repaired, the repair's producer request. Returns the repair folder's fingerprint (null when unrepaired) for sameRepairFolder.
+ */
+async function assertDerivedRoots(config: NewBookConfig, chain: ContinuationChain) {
+  if (chain.continuation) await assertOriginalRequest(config);
+  return chain.repair ? assertRepairProducer(config, chain.repair) : null;
+}
+/** The repaired folder is unchanged since its producer request was re-derived (a consumer's per-call guard; synchronous). */
+function sameRepairFolder(config: NewBookConfig, fingerprint: string | null) {
+  if (fingerprint !== null && canonicalJson(folderEvidence(experimentDir(config), NEW_BOOK_STORYBOARD_REPAIR.outDir)) !== fingerprint) fail('new_book_planner_source');
 }
 /** Read-only preview of the repair. */
 export async function previewStoryboardRepair(config: NewBookConfig) {
@@ -1453,20 +1511,23 @@ export async function runNewBookChild(args: { config: NewBookConfig; signal: Abo
   realDirectory(dir);
   // The reviewed text is the continuation's when the one approved continuation ran.
   if (sealedStatus(path.join(dir, textFolderOf(chain))) !== 'review_supported') fail('new_book_text_not_supported');
-  // A carried reservation enters this stage's meter only for the original request the roots derive.
-  if (chain.continuation) await assertOriginalRequest(config);
+  // A carried reservation enters this stage's meter only for the original request the roots derive, and a repaired storyboard only for the
+  // planner request its roots derive (both re-derived before anything is created or claimed).
+  const producer = await assertDerivedRoots(config, chain);
   const prior = textStage(config, chain);
   const layoutFor = (childImage?: string) => experimentLayout(config, childImage, prior.folder);
   const loaded = loadReviewedStoryboard(dir, config.workspace, layoutFor());
+  sameRepairFolder(config, producer);
   try { mkdirSync(childDir); } catch { fail('new_book_child_used'); }
   mkdirSync(images);
   const meter = new AuditionMeter(path.join(childDir, 'paid-stages'), NEW_BOOK_EXPERIMENT.apiCapMicroUsd, CHILD_API_CALLS, prior.knownMicroUsd,
     prior.carriedUnresolvedMicroUsd, meterRules(CHILD_RULES));
   const save = (name: string, value: unknown) => exclusiveJson(path.join(childDir, `${name}.json`), value);
-  const check = () => { if (signal.aborted) fail('new_book_cancelled'); assertExperimentClaim(config); };
+  const check = () => { if (signal.aborted) fail('new_book_cancelled'); assertExperimentClaim(config); sameRepairFolder(config, producer); };
   const key = keyReader(config.keyEnvFile);
-  // The claim and source pin guard every render claim too (including the one repair edit after a judgment).
-  const io = args.adapters?.render ? null : auditionAdapters({ directory: images, meter, key, signal, guard: () => { assertExperimentClaim(config); } });
+  // The claim, the source pin and the repaired folder guard every render claim too (including the one repair edit after a judgment).
+  const io = args.adapters?.render ? null : auditionAdapters({ directory: images, meter, key, signal,
+    guard: () => { assertExperimentClaim(config); sameRepairFolder(config, producer); } });
   const render: Render = args.adapters?.render ?? ((step, prompt, refs, mode) => io!.render(step, prompt, refs, mode));
   const judge: Judge = args.adapters?.judge ?? createSimpleBookPixelJudge({ config: { reviewModel: SOL }, directory: images, budget: meter, key,
     assertCurrent: check, signal, save });
@@ -1513,8 +1574,9 @@ export function earliestSameScenePair(book: Pick<PersonalStoryboard, 'narrativeS
 }
 
 export async function writeNewBookGrant(config: NewBookConfig) {
-  if (assertExperimentClaim(config).continuation) await assertOriginalRequest(config);
+  const producer = await assertDerivedRoots(config, assertExperimentClaim(config));
   const grant = newBookGrant(config);
+  sameRepairFolder(config, producer);
   exclusiveJson(path.join(experimentDir(config), 'audition.grant.json'), grant);
   return grant;
 }
@@ -1564,8 +1626,9 @@ export async function runNewBookAudition(args: { config: NewBookConfig; signal: 
   if (grant.experiment?.slot !== NEW_BOOK_EXPERIMENT.slot || grant.experiment?.claimSha256 !== claimSha256) fail('new_book_grant_binding');
   // The grant must be exactly the one the verified ledgers derive now (its prior, carried reserve, evidence, cap and scope), never a number
   // written into the file since: a start and every resume re-derive it from the records' own evidence.
-  if (chain.continuation) await assertOriginalRequest(config);
+  const producer = await assertDerivedRoots(config, chain);
   if (canonicalJson(grant) !== canonicalJson(newBookGrant(config))) fail('new_book_grant_ledger');
+  sameRepairFolder(config, producer);
   const start = experimentAuditionStart(config), record = { version: 'new-book-audition-start/v1', out: path.resolve(out), grantSha256, claimSha256 };
   if (args.resume) {
     if (!existsSync(start) || canonicalJson(read(start)) !== canonicalJson(record) || !existsSync(out)) fail('new_book_audition_binding');
@@ -1576,7 +1639,7 @@ export async function runNewBookAudition(args: { config: NewBookConfig; signal: 
   process.env.GPT_IMAGE_EDIT_MAX_REFERENCES ??= '4';
   return runReviewedAudition({ bookDir: dir, out, keyFile: config.keyEnvFile, grantFile, signal: args.signal, log: args.log,
     layout: readReviewedBookLayout(path.join(dir, 'book-layout.json')), ...(args.resume ? { resume: true as const } : {}),
-    experiment: { slot: NEW_BOOK_EXPERIMENT.slot, claimSha256, guard: () => { assertExperimentClaim(config); } } });
+    experiment: { slot: NEW_BOOK_EXPERIMENT.slot, claimSha256, guard: () => { assertExperimentClaim(config); sameRepairFolder(config, producer); } } });
 }
 
 // ---------------------------------------------------------------------------------------------------------------

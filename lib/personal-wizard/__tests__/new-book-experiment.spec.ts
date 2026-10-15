@@ -34,6 +34,8 @@ import { NEW_BOOK_EXPERIMENT, newBookConfig, newBookExperimentCLI, runNewBookTex
 import { REPAIR_STORYBOARD_ADDENDUM, STORYBOARD_REPAIR_VERSION } from '../storyboard-repair';
 import { decodePersonalBookProviderOutput } from '../book-openai';
 import { SimpleBookBudget } from '../simple-book-budget';
+import * as plannerTransport from '../../../scripts/personal-opus-storyboard-transport';
+import * as journal from '../../../scripts/personal-causal-trial-journal';
 
 const sha = (v: string | Buffer) => createHash('sha256').update(v).digest('hex');
 const json = (file: string) => JSON.parse(readFileSync(file, 'utf8'));
@@ -148,6 +150,31 @@ function rewire(root: string, step: string, change: (wire: any) => any) {
   for (const k of ['claim', 'result']) writeFileSync(at(k), JSON.stringify({ ...json(at(k)), wireDigest }));
   return () => ['wire', 'claim', 'result'].forEach((k, i) => writeFileSync(at(k), saved[i]));
 }
+/**
+ * The repair's saved planner wire changed by `change` and rebound like an honest record (its JSON, digest, bytes and reservation, and its
+ * claim's and result's digests); with `declare`, the amendment's declared request digest too (Codex's reproduction at 2dfb0eff). Returns a restore.
+ */
+function rebindRepairPlanner(change: (wire: any) => void, declare = false) {
+  const out = path.join(experimentDir(config), NEW_BOOK_STORYBOARD_REPAIR.outDir), at = (k: string) => path.join(out, 'claude-max-stages', `storyboard.${k}.json`);
+  const files = [at('wire'), at('claim'), at('result'), experimentRepairFile(config)], saved = files.map(f => readFileSync(f));
+  const wire = json(at('wire')); change(wire);
+  wire.json = JSON.stringify(wire.payload); wire.digest = sha(wire.json); wire.bytes = Buffer.byteLength(wire.json, 'utf8');
+  wire.reservedMicroUsd = causalAdapters.wireReservation(wire.bytes, wire.outputCap, { inputMicroUsdPerToken: 4, outputMicroUsdPerToken: 20 });
+  writeFileSync(at('wire'), JSON.stringify(wire));
+  for (const k of ['claim', 'result']) writeFileSync(at(k), JSON.stringify({ ...json(at(k)), wireDigest: sha(canonicalJson(wire)) }));
+  if (declare) {
+    const amendment = json(experimentRepairFile(config));
+    amendment.planner.requestDigest = sha(canonicalJson({ instructions: wire.payload.instructions, input: wire.stdin, maxOutputTokens: wire.outputCap,
+      schema: JSON.parse(wire.args[wire.args.length - 1]) }));
+    writeFileSync(experimentRepairFile(config), JSON.stringify(amendment));
+  }
+  return () => files.forEach((f, i) => writeFileSync(f, saved[i]));
+}
+/** Codex's change: an input field the accepted parent request and its approved repair never had. */
+const unapprovedContext = (wire: any) => {
+  const input = JSON.parse(wire.stdin); input.unapprovedContext = 'This field was never in the accepted parent request or its approved repair.';
+  wire.stdin = wire.payload.stdin = canonicalJson(input);
+};
 /** One same-length edit (so a request's byte count, and so its reservation, is unchanged). */
 const swapOne = (text: string) => { if (!text.includes('a')) throw Error('swap_source'); return text.replace('a', 'b'); };
 const png = (shade: number, size = 64) => sharp({ create: { width: size, height: size, channels: 3, background: { r: shade, g: 60, b: 90 } } }).png().toBuffer();
@@ -328,8 +355,20 @@ describe('a new book from scratch, staged, offline rehearsal (synthetic provider
 describe('the reviewed audition on the new book (synthetic providers through the real runner, meter and sample gate)', { timeout: 60_000 }, () => {
   const ANSWER = { referenceChildVisible: true, candidateChildVisible: true, candidateChildCount: 1, comparisonUsable: true, sameChildDecision: 'same',
     faceStructure: 'match', eyesBrows: 'match', noseMouth: 'match', hairIdentity: 'match', distinctiveFeatures: 'match' };
-  async function prepared(opts: { continued?: true; second?: true; third?: true } = {}) {
-    if (opts.third) {
+  async function prepared(opts: { continued?: true; second?: true; third?: true; repaired?: true } = {}) {
+    if (opts.repaired) {
+      // The real history up to the third attempt's held review, then the one Opus repair (supported) at a new reviewed HEAD.
+      const held = (r: any) => { r.frames[3].checks[0] = { ...r.frames[3].checks[0], verdict: 'uncertain', observation: 'page 3: not established by the text' }; return r; };
+      await timedOut(); headAt('c'.repeat(40));
+      await expect(continuation(textTransports({ storyboardOutput: driftingStoryboard }))).rejects.toThrow('book_sequence_scene_location_drift');
+      headAt('e'.repeat(40));
+      await expect(newBookExperimentCLI(['--config', file, 'storyboard-continuation-2', '--execute'],
+        { text: textTransports({ storyboardOutput: undeclaredPropStoryboard }), log: () => {} })).rejects.toThrow('unknown_or_duplicate_prop');
+      headAt('1'.repeat(40));
+      await newBookExperimentCLI(['--config', file, 'storyboard-continuation-3', '--execute'], { text: textTransports({ review: held }), log: () => {} });
+      headAt('2'.repeat(40));
+      await newBookExperimentCLI(['--config', file, 'storyboard-repair', '--execute'], { text: textTransports(), log: () => {} });
+    } else if (opts.third) {
       await timedOut(); headAt('c'.repeat(40));
       await expect(continuation(textTransports({ storyboardOutput: driftingStoryboard }))).rejects.toThrow('book_sequence_scene_location_drift');
       headAt('e'.repeat(40));
@@ -499,6 +538,28 @@ describe('the reviewed audition on the new book (synthetic providers through the
     expect(resumed.spend.priorKnownApiMicroUsd).toBe(grant.ledger.priorKnownApiMicroUsd);
     // A resume is refused without a started audition, and a fresh start is refused after one.
     await expect(audition()).rejects.toThrow('new_book_audition_used');
+  });
+  it('after the Opus repair: a rebound planner request refuses the start, a change mid-run stops the next claim, and a resume re-derives it first', async () => {
+    const { dir } = await prepared({ repaired: true }); judgeWith(null);
+    const restore = rebindRepairPlanner(unapprovedContext, true);
+    await expect(audition()).rejects.toThrow(/^new_book_planner_source$/);
+    expect([existsSync(experimentAuditionStart(config)), existsSync(path.join(dir, 'audition')), renders()]).toEqual([false, false, 0]);
+    restore();
+    // A change to the repaired folder during the run: the call in flight is recorded, and the next claim is refused.
+    const prompt = path.join(dir, NEW_BOOK_STORYBOARD_REPAIR.outDir, 'storyboard-instructions.txt'), promptBytes = readFileSync(prompt);
+    const real = vi.mocked(images.generateGPTImage).getMockImplementation()!;
+    vi.mocked(images.generateGPTImage).mockImplementationOnce(async input => { const made = await real(input); writeFileSync(prompt, 'changed during the run'); return made; });
+    await expect(audition()).rejects.toThrow();
+    expect(renders()).toBe(1);
+    expect(new AuditionMeter(path.join(dir, 'audition', 'paid-stages'), 7000000, 89).snapshot()).toMatchObject({ calls: 1, unknownCost: 0, unknownOutcome: 0 });
+    // A resume re-derives the producer request before any claim: refused while the folder differs; restored, the book completes.
+    await expect(audition({ resume: true })).rejects.toThrow(/^new_book_planner_source$/);
+    expect(renders()).toBe(1);
+    writeFileSync(prompt, promptBytes);
+    const result = await audition({ resume: true });
+    if (result.mode !== 'render') throw Error('render expected');
+    expect(result.manifest).toMatchObject({ status: 'qa_supported_audition', scope: { complete: true } });
+    expect(result.manifest.pages.map(p => p.pageNumber)).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8]);
   });
   it('F4: a moved HEAD after the grant refuses before any claim or image; a move during a call records that call and stops the next', async () => {
     const { dir } = await prepared(); judgeWith(null);
@@ -2942,16 +3003,23 @@ describe("Guy's carry resolution and one storyboard repair, after the third atte
     rmSync(resolution);
     await expect(child()).rejects.toThrow(/^new_book_carry_resolution$/);
     restore();
+    // The repair input: every later stage re-derives it from the held attempt first; the reviewed loader refuses it on its own as well.
+    const loader = () => loadReviewedStoryboard(dir(), process.cwd(), readReviewedBookLayout(path.join(dir(), 'book-layout.json')));
+    writeFileSync(path.join(dir(), 'book-layout.json'), JSON.stringify(experimentLayout(config, 'reference_child.png', NEW_BOOK_STORYBOARD_REPAIR.outDir)));
     rmSync(input);
-    await expect(child()).rejects.toThrow(/^audition_repair_binding$/);
+    await expect(child()).rejects.toThrow(/^new_book_planner_source$/);
+    expect(loader).toThrow(/^audition_repair_binding$/);
     restore();
     const edited = json(input); edited.draft.plan.visualLanguage += ' changed'; writeFileSync(input, JSON.stringify(edited));
-    await expect(child()).rejects.toThrow(/^personal_storyboard_repair_binding$/);
+    await expect(child()).rejects.toThrow(/^new_book_planner_source$/);
+    expect(loader).toThrow(/^personal_storyboard_repair_binding$/);
     restore();
     // Another holding review of the same parent (its finding reworded): still a valid repair input, but not the one this book was planned from.
     const swapped = json(input); swapped.review.frames[3].checks[0].observation = 'page 3: reworded'; writeFileSync(input, JSON.stringify(swapped));
-    await expect(child()).rejects.toThrow(/^audition_board_binding$/);
+    await expect(child()).rejects.toThrow(/^new_book_planner_source$/);
+    expect(loader).toThrow(/^audition_board_binding$/);
     restore();
+    rmSync(path.join(dir(), 'book-layout.json'));
     // A record of the held third attempt changed after the repair (the repair amendment bound every one of them).
     const thirdSeal = path.join(outN(3), 'sealed.json'), sealBytes = readFileSync(thirdSeal);
     writeFileSync(thirdSeal, Buffer.concat([sealBytes, Buffer.from('\n')]));
@@ -3030,12 +3098,12 @@ describe("Guy's carry resolution and one storyboard repair, after the third atte
     writeFileSync(at('receipt'), JSON.stringify({ ...receipt, raw: { ...receipt.raw, stdout: JSON.stringify(raw) } }));
     await expect(child()).rejects.toThrow(/^new_book_planner_cost$/);
     restore();
-    // Another request on the wire (its digests rebound): not the admitted one.
+    // Another request on the wire (its digests rebound): not the one the source derives.
     const wire = json(at('wire')); wire.stdin = wire.payload.stdin = `${wire.stdin} `; wire.json = JSON.stringify(wire.payload); wire.digest = sha(wire.json);
     writeFileSync(at('wire'), JSON.stringify(wire));
     const wireDigest = sha(canonicalJson(wire));
     for (const k of ['claim', 'result']) writeFileSync(at(k), JSON.stringify({ ...json(at(k)), wireDigest }));
-    await expect(child()).rejects.toThrow(/^new_book_planner_record$/);
+    await expect(child()).rejects.toThrow(/^new_book_planner_source$/);
     restore();
     // Another structured answer than the saved draft.
     const other = JSON.parse(receipt.raw.stdout); other.structured_output.plan.visualLanguage += ' changed';
@@ -3071,5 +3139,78 @@ describe("Guy's carry resolution and one storyboard repair, after the third atte
     writeFileSync(path.join(repairOut(), 'spend.json'), JSON.stringify(new AuditionMeter(paid, 7000000, 2, 1134000, reservation()).snapshot()));
     await expect(child()).rejects.toThrow(/^new_book_ledger_(rule|record|unknown)$/);
     expect(existsSync(path.join(dir(), 'child'))).toBe(false);
+  });
+
+  it('the live planner transport is built on the pinned policy with its own empty working folder in the repair stage, never the sealed text folder', async () => {
+    await heldThrice();
+    const t = textTransports({ createdAt: OCT15 }), policies: any[] = [];
+    vi.spyOn(plannerTransport, 'createOpusStoryboardTransport').mockImplementation(policy => { policies.push(policy); return t.planner as never; });
+    const { planner: _live, ...withoutPlanner } = t;
+    expect(await repair(withoutPlanner as never)).toMatchObject({ status: 'review_supported' });
+    expect(policies).toHaveLength(1);
+    expect(policies[0]).toMatchObject({ executable: config.executable, executableSha256: config.executableSha256, maxWireBytes: 104000,
+      workspace: path.join(repairOut(), 'cli-workspace') });
+    expect([readdirSync(path.join(repairOut(), 'cli-workspace')), t.planner.mock.calls.length]).toEqual([[], 1]);
+    // The later reader's source derivation is unaffected by the working folder (it is not part of the wire).
+    expect(await child()).toMatchObject({ status: 'child_reference_passed' });
+  });
+  // Codex HOLD at 2dfb0eff (F1): later readers re-derive the planner request from the accepted roots, never from a recorded declaration.
+  it.each([
+    ['the source request rebound (stdin, wire, claim, result and the declared digest)', () => rebindRepairPlanner(unapprovedContext, true)],
+    ['the declared digest alone', () => { const f = experimentRepairFile(config), bytes = readFileSync(f), a = json(f);
+      a.planner.requestDigest = 'f'.repeat(64); writeFileSync(f, JSON.stringify(a)); return () => writeFileSync(f, bytes); }],
+    ['the prompt file bytes', () => { const f = path.join(repairOut(), 'storyboard-instructions.txt'), bytes = readFileSync(f);
+      writeFileSync(f, 'These are not the admitted planning instructions.'); return () => writeFileSync(f, bytes); }],
+    ['the recorded cap (rebound)', () => rebindRepairPlanner(w => { w.payload.environmentOverride = { CLAUDE_CODE_MAX_OUTPUT_TOKENS: '64000' }; })],
+    ['the recorded executable path (rebound)', () => rebindRepairPlanner(w => { w.payload.executable = 'C:/elsewhere/claude.exe'; })],
+    ['a process not recorded as fresh (rebound)', () => rebindRepairPlanner(w => { w.payload.freshProcess = false; })],
+    ['a flag dropped (rebound, with the declared digest)', () => rebindRepairPlanner(w => { w.args = w.payload.args = w.args.filter((a: string) => a !== '--safe-mode'); }, true)],
+    ['another schema (rebound, with the declared digest)', () => rebindRepairPlanner(w => { const s = JSON.parse(w.args[w.args.length - 1]);
+      s.description = 'widened'; w.args[w.args.length - 1] = JSON.stringify(s); w.payload.args = w.args; }, true)],
+  ] as const)('planner evidence the source does not derive refuses the child stage before its folder, render or judge: %s', async (_label, tamper) => {
+    await heldThrice(); await repair();
+    const restore = tamper(), adapters = childAdapters(), before = sdk.create.mock.calls.length;
+    await expect(runNewBookChild({ config: newBookConfig(file), signal: new AbortController().signal, log: () => {}, adapters })).rejects.toThrow(/^new_book_planner_source$/);
+    expect([existsSync(path.join(dir(), 'child')), adapters.render.mock.calls.length, adapters.judge.mock.calls.length, sdk.create.mock.calls.length - before])
+      .toEqual([false, 0, 0, 0]);
+    // Restored, the genuine evidence proceeds.
+    restore();
+    expect(await runNewBookChild({ config: newBookConfig(file), signal: new AbortController().signal, log: () => {}, adapters })).toMatchObject({ status: 'child_reference_passed' });
+  });
+
+  it('the per-call guard: a change to the repaired folder after its producer request was re-derived refuses the next claim', async () => {
+    await heldThrice(); await repair();
+    const adapters = childAdapters(), prompt = path.join(repairOut(), 'storyboard-instructions.txt'), realRender = adapters.render.getMockImplementation()!;
+    adapters.render.mockImplementation(async (...a: Parameters<typeof realRender>) => { const made = await realRender(...a); writeFileSync(prompt, 'changed after the check'); return made; });
+    await expect(runNewBookChild({ config: newBookConfig(file), signal: new AbortController().signal, log: () => {}, adapters })).rejects.toThrow(/^new_book_planner_source$/);
+    expect([adapters.render.mock.calls.length, adapters.judge.mock.calls.length]).toEqual([1, 0]);
+    expect(json(path.join(dir(), 'child', 'sealed.json'))).toMatchObject({ status: 'failed', code: 'new_book_planner_source' });
+  });
+
+  it('the pinned fingerprint is of the checked bytes: a planner record rebound right after the check read it refuses before the child stage starts', async () => {
+    await heldThrice(); await repair();
+    const wire = path.join(repairOut(), 'claude-max-stages', 'storyboard.wire.json'), realRead = journal.fencedText;
+    let restore: (() => void) | null = null;
+    // The first read of the planner's wire (the producer check's): its cap is rebound on disk right after (a field no other reader checks).
+    vi.spyOn(journal, 'fencedText').mockImplementation((file, maxBytes) => {
+      const text = realRead(file, maxBytes);
+      if (!restore && path.resolve(file) === path.resolve(wire)) restore = rebindRepairPlanner(w => { w.payload.environmentOverride = { CLAUDE_CODE_MAX_OUTPUT_TOKENS: '64000' }; });
+      return text;
+    });
+    const adapters = childAdapters();
+    await expect(runNewBookChild({ config: newBookConfig(file), signal: new AbortController().signal, log: () => {}, adapters })).rejects.toThrow(/^new_book_planner_source$/);
+    expect([restore !== null, existsSync(path.join(dir(), 'child')), adapters.render.mock.calls.length, adapters.judge.mock.calls.length]).toEqual([true, false, 0, 0]);
+    vi.mocked(journal.fencedText).mockRestore(); restore!();
+    expect(await child()).toMatchObject({ status: 'child_reference_passed' });
+  });
+
+  it('the grant re-derives the producer request too: a rebound planner request refuses before the grant is written', async () => {
+    await heldThrice(); await repair();
+    expect(await child()).toMatchObject({ status: 'child_reference_passed' });
+    const restore = rebindRepairPlanner(unapprovedContext, true);
+    await expect(writeNewBookGrant(newBookConfig(file))).rejects.toThrow(/^new_book_planner_source$/);
+    expect(existsSync(path.join(dir(), 'audition.grant.json'))).toBe(false);
+    restore();
+    expect((await writeNewBookGrant(newBookConfig(file))).ledger).toMatchObject({ carriedUnresolvedMicroUsd: reservation() });
   });
 });
