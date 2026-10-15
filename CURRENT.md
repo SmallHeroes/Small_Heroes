@@ -1,5 +1,52 @@
 # SmallHeroes — Current Technical State
 
+## New book: second repair held by Sol; Guy accepted that storyboard with its notes; owner-acceptance path built (9ffe5462), for Codex QA (2026-10-15)
+
+After Codex's narrow PASS at 8dee5f62, the one approved second repair ran there
+(19:56-19:59): Opus 5.5 planned under the drawn-instant contract (96 s, Claude
+Max $0.578176) and the engine compiled it, but the fresh Sol 6.1 review held it
+(held_uncertain: 39 supported, 3 contradictions, 1 uncertain). The two drawn
+instants it targeted are fixed and supported (page 3's flat tail as a temporary
+look, page 7's gate). New: the herd's wetness as a group on pages 5-6 (latent;
+the first repair's plan had it identically and that review passed it) and where
+the rest of the herd is during page 7's push (forced by the completeness rule;
+the text does not say). Stopped: no child or images; API accounted
+$4.629623/$7 (known $2.361984 + carry $2.267639), remaining $2.370377; Claude
+Max $1.677149; stop report _review/new-book-run-repair2-20261015/.
+
+Guy chose "Accept with notes" (Decision Gate
+docs/ai-workflow/NEW_BOOK_OWNER_ACCEPTANCE_DECISION_GATE.md). Built offline in
+9ffe5462:
+- Engine, opt-in storyboard-owner-acceptance/v1: a record binding the
+  storyboard digest, its review's digest and every unsupported check verbatim
+  (engine-derived), with who accepted it and the decision. A held storyboard is
+  framed only under such a record; the packet names it; a supported storyboard
+  refuses one. Absent: every packet byte-identical.
+- Loader and audition: the record beside the storyboard; frames built under it
+  for the render and a re-judge (same packet); the audition's admission names
+  it; a re-plan of an accepted storyboard is refused. Without a record the
+  loader's checks run in their original order.
+- Experiment stage storyboard-acceptance (one use, no call): admission at one
+  pinned HEAD (the held second repair recompiled from its records, never after
+  a child stage), the exact record and amendment built and checked (the preview
+  names the record's hash), then the record and the one-shot amendment
+  (<slot>.storyboard-owner-acceptance-1.json). Child, grant and audition use the
+  held storyboard only through it; every read re-checks the folder and the
+  amendment's summary against the record and the seal.
+
+Evidence: the 14 relevant spec files serially 597/597 at the committed bytes
+(an earlier full run caught one loader refusal-code regression, fixed before
+the commit); tsc 0; in-memory mutants 19/19 killed (the one survivor got its
+own loader assertion); real read-only preview at 9ffe5462: admissible,
+held_uncertain, storyboard 3137a7d2, review 1f94f563, exactly the 4 checks
+verbatim, record sha 76ac2578, no call or key read; 92 book records and Goni's
+412 files unchanged.
+Unchanged: the pixel judge, the 0.70 identity bar, the two-page sample gate,
+models, caps, the carry, the one-use stages and every earlier record.
+Next: Codex QA of 8dee5f62..HEAD; after an explicit PASS at that clean HEAD:
+storyboard-acceptance --execute once, then child -> grant -> two samples -> the
+rest and the cover only if both pass, under the remaining $2.370377.
+
 ## New book: the whole accepted lineage stays pinned through every later claim (Codex HOLD at 1fd909af, F1 P2), for narrow re-gate (2026-10-15)
 
 Codex's QA of 0eb7ddc8..1fd909af supported the drawn-instant contract, the

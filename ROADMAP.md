@@ -1,5 +1,19 @@
 # SmallHeroes — Roadmap
 
+## Second repair held; Guy accepted it with notes; owner-acceptance path built (9ffe5462); next: Codex QA, then the acceptance and the book (2026-10-15)
+
+- The second repair ran after Codex's PASS: it fixed both targeted drawn
+  instants, but the fresh Sol review held it on the herd's group bookkeeping
+  (pages 5-7). Stopped at $4.629623/$7 accounted.
+- Guy chose "Accept with notes": an explicit owner acceptance bound to that
+  exact storyboard, its review and all four notes, through an opt-in engine
+  path; every image gate and the 0.70 bar unchanged. Real dry preview
+  admissible (the 4 checks verbatim, no call).
+- After an explicit Codex PASS at the final clean HEAD: storyboard-acceptance
+  --execute once; then child -> grant -> two samples -> the rest and the cover
+  only if both pass, under the remaining $2.370377. A complete book is not
+  promised under the cap.
+
 ## Lineage pin through later claims (379af7cf); next: Codex narrow re-gate, then the one second repair (2026-10-15)
 
 - Codex HOLD F1 (P2) at 1fd909af corrected offline: every later stage (child,
