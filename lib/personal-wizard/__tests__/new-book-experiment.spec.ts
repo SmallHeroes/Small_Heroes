@@ -32,6 +32,8 @@ import { NEW_BOOK_EXPERIMENT, newBookConfig, newBookExperimentCLI, runNewBookTex
   type NewBookConfig, type TextTransports, type ChildAdapters }
   from '../../../scripts/personal-new-book-experiment';
 import { REPAIR_STORYBOARD_ADDENDUM, STORYBOARD_REPAIR_VERSION } from '../storyboard-repair';
+import { decodePersonalBookProviderOutput } from '../book-openai';
+import { SimpleBookBudget } from '../simple-book-budget';
 
 const sha = (v: string | Buffer) => createHash('sha256').update(v).digest('hex');
 const json = (file: string) => JSON.parse(readFileSync(file, 'utf8'));
@@ -89,7 +91,11 @@ function textTransports(opts: { storyboardOutput?: (draft: any) => unknown; read
   /** The provider's own creation time of every answer (seconds; default 2026-10-13T16:27:24Z, the first continuation's real day). */
   createdAt?: number;
   /** The storyboard answer's usage (default 10,000 in / 5,000 out). */
-  storyboardUsage?: { input_tokens: number; output_tokens: number } } = {}) {
+  storyboardUsage?: { input_tokens: number; output_tokens: number };
+  /** The Sol storyboard review's usage (default 10,000 in / 5,000 out). */
+  reviewUsage?: { input_tokens: number; output_tokens: number };
+  /** The Opus planner's structured answer (default: the storyboard answer) and its CLI-reported cost in USD (default 0.41). */
+  plannerOutput?: (draft: any) => unknown; plannerCostUsd?: number } = {}) {
   // The fixture book's companion is Dini; this experiment excludes Dini, so the same synthetic book is told with the fox Uri throughout
   // (text, storyboard and review, so every quoted evidence string still matches).
   const fox = <T>(value: T): T => JSON.parse(JSON.stringify(value).replace(/דיני/g, 'אורי'));
@@ -117,10 +123,22 @@ function textTransports(opts: { storyboardOutput?: (draft: any) => unknown; read
   });
   const responses = vi.fn(async (payload: any) => ({ model: opts.model ?? payload.model, service_tier: 'default', status: 'completed',
     created_at: opts.createdAt ?? 1791908844,
-    usage: payload.model === 'gpt-6-astra' && opts.storyboardUsage ? opts.storyboardUsage : { input_tokens: 10000, output_tokens: 5000 },
+    usage: payload.model === 'gpt-6-astra' && opts.storyboardUsage ? opts.storyboardUsage
+      : payload.model !== 'gpt-6-astra' && opts.reviewUsage ? opts.reviewUsage : { input_tokens: 10000, output_tokens: 5000 },
     output_text: JSON.stringify(payload.model === 'gpt-6-astra' ? (opts.storyboardOutput ?? contractedStoryboard)(owned)
       : providerReview((opts.review ?? (r => r))(structuredClone(review)))) }) as any);
-  return { opus, reader, responses } satisfies TextTransports;
+  // The Opus planner at the transport boundary: the receipt the real CLI transport writes (its raw CLI answer, the one reported model,
+  // usage, cost, confirmed termination), with the structured answer decoded by the live decoder.
+  const planner = vi.fn(async (_wire: any, call: any) => {
+    const structured = (opts.plannerOutput ?? opts.storyboardOutput ?? contractedStoryboard)(owned);
+    const usage = { inputTokens: 20000, outputTokens: 9000 }, termination = { code: 0, signal: null }, cost = opts.plannerCostUsd ?? .41;
+    const stdout = JSON.stringify({ type: 'result', subtype: 'success', is_error: false, num_turns: 2, total_cost_usd: cost,
+      modelUsage: { 'claude-opus-5-5': usage }, structured_output: structured });
+    return { output: decodePersonalBookProviderOutput(call, structured), usage, estimatedMicroUsd: Math.ceil(cost * 1e6),
+      metadata: { kind: 'cli_reported_estimate_not_invoice', termination, reportedModels: ['claude-opus-5-5'] },
+      raw: { stdout, stderr: '', termination, killConfirmed: true, stopped: false, internalProviderCallCount: 'unverified' } };
+  });
+  return { opus, reader, responses, planner } satisfies TextTransports;
 }
 /** Rewrites a paid call's saved request together with its claim's and result's digests, so the record still binds itself; returns a restore. */
 function rewire(root: string, step: string, change: (wire: any) => any) {
@@ -2633,53 +2651,74 @@ describe("Guy's carry resolution and one storyboard repair, after the third atte
     expect((await resolve(billed(), false)).carryResolution.timedOutCall.chargeMicroUsd).toBe(400000);
   });
 
-  it('the repair preview is read-only: the third answers replay to that exact hold; only the repair is added; the resolved ledger and the fit', async () => {
+  it('the repair preview is read-only: the third answers replay to that exact hold; only the repair is added; the Opus wire is preflighted; the API fit is the review alone', async () => {
     await heldThrice(); await resolve(billed());
     const before = [tree(dir()), tree(path.dirname(experimentClaimFile(config)))], t = textTransports();
-    const preview = await repair(t, false), reviewCap = json(path.join(outN(3), 'paid-stages', 'storyboard_review.wire.json')).max_output_tokens;
+    const preview = await repair(t, false), w3 = json(path.join(outN(3), 'paid-stages', 'storyboard.wire.json'));
+    const reviewCap = json(path.join(outN(3), 'paid-stages', 'storyboard_review.wire.json')).max_output_tokens;
     expect(preview).toMatchObject({ mode: 'plan', plan: { repair: false, carryResolution: true, stages: { continuation3: 'held_uncertain', repair: null } },
       repair: { admissible: true, amended: false, outDirExists: false, storyReplayed: true, previousStatus: 'held_uncertain',
         previousStoryboardSettledMicroUsd: 350000, previousReviewSettledMicroUsd: 70000, findings: 1, requestChangedOnlyByTheRepair: true,
+        planner: { model: 'claude-opus-5-5', route: 'claude_max_cli', judge: 'gpt-6.1-sol', wireByteLimit: 104000, argvCharLimit: 31000,
+          schemaChars: JSON.stringify(w3.text.format.schema).length, outputCap: w3.max_output_tokens, sessionGuardMicroUsd: 2000000,
+          priorClaudeMaxMicroUsd: 460000, apiChargeMicroUsd: 0 },
         reviewReservationCeilingMicroUsd: Math.ceil((128000 * 2 + reviewCap * 10) * 1.1),
         carryResolution: { sha256: sha(readFileSync(experimentCarryResolutionFile(config))), resolvedMicroUsd: 400000, carriedBeforeMicroUsd: reservation() },
         priorKnownApiMicroUsd: 1534000, carriedUnresolvedMicroUsd: 0, remainingUnderCapMicroUsd: 7000000 - 1534000, fitsUnderCap: true,
         providerCalls: 0, keyRead: false } });
+    const p = preview.repair.planner;
+    expect(p.requestDigest).toMatch(/^[a-f0-9]{64}$/);
+    expect([p.wireBytes <= p.wireByteLimit, p.argvChars <= p.argvCharLimit, p.wireReservationMicroUsd <= p.sessionGuardMicroUsd]).toEqual([true, true, true]);
+    // No Astra planning charge is reserved for a call that no longer goes to Astra.
+    expect(preview.repair).not.toHaveProperty('newStoryboardReservationMicroUsd');
     expect(preview.repair.parentStoryboardDigest).toBe(json(path.join(outN(3), 'simple-book-result.json')).storyboard.storyboardDigest);
-    expect(preview.repair.newStoryboardReservationMicroUsd).toBeGreaterThan(json(path.join(outN(3), 'paid-stages', 'storyboard.claim.json')).maximumMicroUsd);
     expect([tree(dir()), tree(path.dirname(experimentClaimFile(config)))]).toEqual(before);
     nothingConsumed();
-    expect([t.opus, t.reader, t.responses, sdk.create].map(m => m.mock.calls.length)).toEqual([0, 0, 0, 0]);
+    expect([t.opus, t.reader, t.responses, t.planner, sdk.create].map(m => m.mock.calls.length)).toEqual([0, 0, 0, 0, 0]);
   });
 
-  it('one repair at its own reviewed HEAD: only the storyboard (the third request plus the repair) and a fresh review, at the normal caps; later stages read it', async () => {
+  it('one repair at its own reviewed HEAD: one Opus planner call (the third request plus the repair) and one fresh Sol review, at the normal caps; later stages read it', async () => {
     await heldThrice(); await resolve(billed());
     const resolutionSha = sha(readFileSync(experimentCarryResolutionFile(config))), amendment3 = readFileSync(experimentContinuation3File(config));
     const third = tree(outN(3)), earlier = [tree(outN(2)), tree(outN(1)), tree(path.join(dir(), 'text'))];
     const preview = await repair(textTransports(), false), parent = preview.repair.parentStoryboardDigest;
     const t = textTransports({ createdAt: OCT15 });
     expect(await repair(t)).toMatchObject({ mode: 'storyboard-repair', status: 'review_supported' });
-    expect([t.opus, t.reader].map(m => m.mock.calls.length)).toEqual([0, 0]);
-    expect(t.responses.mock.calls.map(c => c[0].model)).toEqual(['gpt-6-astra', 'gpt-6.1-sol']);
-    const paid = path.join(repairOut(), 'paid-stages');
-    expect(claims(paid)).toEqual(['storyboard', 'storyboard_review']);
-    // The request: the third one plus the repair contract (right before the provider's own note) and the held storyboard with its findings.
-    const [w3, wr] = [outN(3), repairOut()].map(o => json(path.join(o, 'paid-stages', 'storyboard.wire.json')));
-    expect(wr.instructions.replace(`\n${REPAIR_STORYBOARD_ADDENDUM}`, '')).toBe(w3.instructions);
-    expect(wr.instructions).toContain(`${COMPILER_RULES_STORYBOARD_ADDENDUM}\n${REPAIR_STORYBOARD_ADDENDUM}\nProvider output:`);
-    const { priorReviewedStoryboard, ...input } = JSON.parse(wr.input);
+    // Routing: exactly one Opus planner call and no Astra planning; one Sol review; the paid story replayed (no writer, editor or reader call).
+    expect([t.opus, t.reader, t.planner].map(m => m.mock.calls.length)).toEqual([0, 0, 1]);
+    expect(t.responses.mock.calls.map(c => c[0].model)).toEqual(['gpt-6.1-sol']);
+    const paid = path.join(repairOut(), 'paid-stages'), max = path.join(repairOut(), 'claude-max-stages');
+    expect([claims(paid), claims(max)]).toEqual([['storyboard_review'], ['storyboard']]);
+    // The planner wire: the third request's content plus exactly the repair, on the Claude Max route, the normal cap and the $2 guard.
+    const w3 = json(path.join(outN(3), 'paid-stages', 'storyboard.wire.json')), wr = json(path.join(max, 'storyboard.wire.json'));
+    expect(wr).toMatchObject({ role: 'opus', stage: 'storyboard', model: 'claude-opus-5-5', outputCap: w3.max_output_tokens });
+    expect(wr.args.slice(0, -3)).toEqual(['-p', '--safe-mode', '--model', 'claude-opus-5-5', '--effort', 'medium', '--tools', '', '--no-session-persistence',
+      '--output-format', 'json', '--max-budget-usd', '2', '--system-prompt-file']);
+    expect(wr.args.slice(-3, -1)).toEqual([path.join(repairOut(), 'storyboard-instructions.txt'), '--json-schema']);
+    expect(JSON.parse(wr.args[wr.args.length - 1])).toEqual(w3.text.format.schema);
+    expect(wr.payload).toMatchObject({ executableSha256: config.executableSha256, environmentOverride: { CLAUDE_CODE_MAX_OUTPUT_TOKENS: String(w3.max_output_tokens) },
+      freshProcess: true });
+    expect(readFileSync(path.join(repairOut(), 'storyboard-instructions.txt'), 'utf8')).toBe(wr.payload.instructions);
+    expect(wr.payload.instructions.replace(`\n${REPAIR_STORYBOARD_ADDENDUM}`, '')).toBe(w3.instructions);
+    expect(wr.payload.instructions).toContain(`${COMPILER_RULES_STORYBOARD_ADDENDUM}\n${REPAIR_STORYBOARD_ADDENDUM}\nProvider output:`);
+    const { priorReviewedStoryboard, ...input } = JSON.parse(wr.stdin);
     expect(priorReviewedStoryboard).toEqual({ version: STORYBOARD_REPAIR_VERSION, parentStoryboardDigest: parent,
       storyboard: json(path.join(outN(3), 'owned_storyboard_draft.json')),
       reviewFindings: [{ scope: 'page', pageNumber: 3, category: expect.any(String), verdict: 'uncertain', observation: 'page 3: not established by the text' }] });
     expect(input).toEqual({ ...JSON.parse(w3.input), personalSourceDigest: input.personalSourceDigest });
     expect(input.personalSourceDigest).not.toBe(JSON.parse(w3.input).personalSourceDigest);
-    expect([wr.model, wr.max_output_tokens, wr.text, wr.reasoning, wr.store]).toEqual([w3.model, w3.max_output_tokens, w3.text, w3.reasoning, w3.store]);
-    expect(json(path.join(paid, 'storyboard_review.wire.json')).max_output_tokens)
-      .toBe(json(path.join(outN(3), 'paid-stages', 'storyboard_review.wire.json')).max_output_tokens);
-    expect(json(path.join(paid, 'storyboard.claim.json')).maximumMicroUsd).toBe(preview.repair.newStoryboardReservationMicroUsd);
-    // The meter: every earlier known cost and the resolved charge; nothing carried.
+    expect(json(path.join(max, 'storyboard.claim.json')).maximumMicroUsd).toBe(2000000);
+    // The judge: Sol at its normal cap, judging the newly compiled Opus storyboard.
+    const reviewWire = json(path.join(paid, 'storyboard_review.wire.json'));
+    expect([reviewWire.model, reviewWire.max_output_tokens]).toEqual(['gpt-6.1-sol', json(path.join(outN(3), 'paid-stages', 'storyboard_review.wire.json')).max_output_tokens]);
+    expect(JSON.parse(reviewWire.input).storyboardDigest).toBe(json(path.join(repairOut(), 'visual_simple_book_result.json')).storyboard.storyboardDigest);
+    // The API meter: every earlier known cost and the resolved charge, and the Sol review only (the planner is never on it).
     const spend = json(path.join(repairOut(), 'spend.json'));
-    expect(spend).toMatchObject({ priorKnownApiMicroUsd: 1534000, newKnownApiMicroUsd: 420000, reservedUnsettledMicroUsd: 0, calls: 2, maxCalls: 2, unknownCost: 0 });
+    expect(spend).toMatchObject({ priorKnownApiMicroUsd: 1534000, newKnownApiMicroUsd: 70000, reservedUnsettledMicroUsd: 0, calls: 1, maxCalls: 1, unknownCost: 0 });
     expect(spend).not.toHaveProperty('carriedUnresolvedMicroUsd');
+    // The Claude Max journal: from this book's earlier Max use (author + editor), plus the planner's CLI estimate.
+    expect(json(path.join(repairOut(), 'claude-max-spend.json'))).toEqual({ accountedMicroUsd: 460000 + 410000, knownEstimateMicroUsd: 460000 + 410000,
+      unknownAttemptCosts: 0, logicalAttempts: 1, stopped: false, note: NEW_BOOK_EXPERIMENT.claudeMax });
     expect(json(path.join(repairOut(), 'sealed.json'))).toEqual({ status: 'review_supported', continuation: NEW_BOOK_STORYBOARD_REPAIR.id, runtimeEligible: false });
     // The saved book names its parent; the loader's repair input is the held draft and its own raw review.
     expect(json(path.join(repairOut(), 'visual_simple_book_result.json')).storyboard.storyboard.repair).toEqual({ version: STORYBOARD_REPAIR_VERSION,
@@ -2692,7 +2731,9 @@ describe("Guy's carry resolution and one storyboard repair, after the third atte
     expect(amendment).toMatchObject({ id: NEW_BOOK_STORYBOARD_REPAIR.id, approval: NEW_BOOK_STORYBOARD_REPAIR.approval,
       claimSha256: sha(readFileSync(experimentClaimFile(config))), previousSha256: sha(amendment3), originalSourceHead: 'a'.repeat(40),
       previousSourceHead: '1'.repeat(40), sourceHead: '2'.repeat(40), failedStep: 'storyboard_review_held', previousStatus: 'held_uncertain',
-      parentStoryboardDigest: parent, carryResolutionSha256: resolutionSha, priorKnownApiMicroUsd: 1534000, carriedUnresolvedMicroUsd: 0 });
+      parentStoryboardDigest: parent, carryResolutionSha256: resolutionSha, priorKnownApiMicroUsd: 1534000, carriedUnresolvedMicroUsd: 0,
+      planner: { model: 'claude-opus-5-5', route: 'claude_max_cli', judge: 'gpt-6.1-sol', approval: NEW_BOOK_STORYBOARD_REPAIR.planner.approval,
+        executableSha256: config.executableSha256, sessionGuardMicroUsd: 2000000, requestDigest: preview.repair.planner.requestDigest, priorClaudeMaxMicroUsd: 460000 } });
     expect(Object.fromEntries(amendment.evidence.map((e: { file: string; sha256: string }) => [e.file, e.sha256])))
       .toEqual(Object.fromEntries(Object.entries(third).map(([k, v]) => [`${NEW_BOOK_CONTINUATION_3.outDir}/${k}`, v])));
     expect([tree(outN(3)), tree(outN(2)), tree(outN(1)), tree(path.join(dir(), 'text')), readFileSync(experimentContinuation3File(config))])
@@ -2701,15 +2742,16 @@ describe("Guy's carry resolution and one storyboard repair, after the third atte
     expect(await child()).toMatchObject({ status: 'child_reference_passed' });
     expect(readReviewedBookLayout(path.join(dir(), 'book-layout.json'))).toEqual(experimentLayout(config, 'reference_child.png', NEW_BOOK_STORYBOARD_REPAIR.outDir));
     const childSpend = json(path.join(dir(), 'child', 'spend.json'));
-    expect(childSpend).toMatchObject({ priorKnownApiMicroUsd: 1954000 });
+    expect(childSpend).toMatchObject({ priorKnownApiMicroUsd: 1534000 + 70000 });
     expect(childSpend).not.toHaveProperty('carriedUnresolvedMicroUsd');
     const grant = await writeNewBookGrant(newBookConfig(file));
-    expect(grant.ledger).toMatchObject({ priorKnownApiMicroUsd: 1954000 + childSpend.newKnownApiMicroUsd });
+    expect(grant.ledger).toMatchObject({ priorKnownApiMicroUsd: 1604000 + childSpend.newKnownApiMicroUsd });
     expect(grant.ledger).not.toHaveProperty('carriedUnresolvedMicroUsd');
     expect(grant.ledger.note).toContain('carry resolution');
     expect(grant.ledger.evidence.map(e => e.file)).toEqual([path.join(dir(), 'text', 'spend.json'), experimentContinuationFile(config), path.join(outN(1), 'spend.json'),
       experimentContinuation2File(config), path.join(outN(2), 'spend.json'), experimentContinuation3File(config), path.join(outN(3), 'spend.json'),
-      experimentCarryResolutionFile(config), experimentRepairFile(config), path.join(repairOut(), 'spend.json'), path.join(dir(), 'child', 'spend.json')]);
+      experimentCarryResolutionFile(config), experimentRepairFile(config), path.join(repairOut(), 'spend.json'), path.join(repairOut(), 'claude-max-spend.json'),
+      path.join(dir(), 'child', 'spend.json')]);
     expect(loadReviewedBook(dir(), process.cwd(), undefined, readReviewedBookLayout(path.join(dir(), 'book-layout.json'))).book.repair)
       .toEqual({ version: STORYBOARD_REPAIR_VERSION, parentStoryboardDigest: parent });
     for (const head of ['a', 'c', 'e', '1'].map(x => x.repeat(40))) { headAt(head); expect(() => assertExperimentClaim(newBookConfig(file))).toThrow('new_book_source_changed'); }
@@ -2717,6 +2759,10 @@ describe("Guy's carry resolution and one storyboard repair, after the third atte
 
   it('without a resolution the repair carries the full reservation (when it fits) and names none; a resolution is never retroactive', async () => {
     await heldThrice();
+    // With the whole unresolved carry kept, the Opus route fits: the API meter needs only the review's ceiling.
+    const preview = (await repair(textTransports(), false)).repair;
+    expect(preview).toMatchObject({ fitsUnderCap: true, carryResolution: null, priorKnownApiMicroUsd: 1134000, carriedUnresolvedMicroUsd: reservation(),
+      remainingUnderCapMicroUsd: 7000000 - 1134000 - reservation() });
     expect(await repair()).toMatchObject({ status: 'review_supported' });
     expect(json(experimentRepairFile(config))).toMatchObject({ carryResolutionSha256: null, priorKnownApiMicroUsd: 1134000, carriedUnresolvedMicroUsd: reservation() });
     expect(json(path.join(repairOut(), 'spend.json'))).toMatchObject({ priorKnownApiMicroUsd: 1134000, carriedUnresolvedMicroUsd: reservation() });
@@ -2729,18 +2775,26 @@ describe("Guy's carry resolution and one storyboard repair, after the third atte
     expect(() => assertExperimentClaim(newBookConfig(file))).toThrow(/^new_book_carry_resolution$/);
   });
 
-  it("over the cap: the repair's reservation and its review's ceiling must fit, else refused before the amendment; a resolution can make it fit", async () => {
-    await heldThrice({ first: { storyboardUsage: { input_tokens: 115000, output_tokens: 5000 } } });
+  it("over the cap: the fresh review's ceiling must fit what remains (the Opus planner is not on the API meter), else refused before the amendment; a resolution can make it fit", async () => {
+    // The real history, with the third attempt's review settled large, so that less than the review's ceiling remains with the full carry.
+    await timedOut(); headAt('c'.repeat(40));
+    await expect(continuation(textTransports({ storyboardOutput: driftingStoryboard }))).rejects.toThrow('book_sequence_scene_location_drift');
+    headAt('e'.repeat(40));
+    await expect(attempt(2, textTransports({ storyboardOutput: undeclaredPropStoryboard, createdAt: OCT14 }))).rejects.toThrow('unknown_or_duplicate_prop');
+    headAt('1'.repeat(40));
+    const left = 300000, reviewInput = Math.ceil((7000000 - 14000 - 3 * 350000 - 50000 - reservation() - left) / 2);
+    expect(await attempt(3, textTransports({ review: heldReview, createdAt: OCT14, reviewUsage: { input_tokens: reviewInput, output_tokens: 5000 } })))
+      .toMatchObject({ status: 'held_uncertain' });
+    headAt('2'.repeat(40));
     const t = textTransports(), preview = (await repair(t, false)).repair;
-    expect(preview).toMatchObject({ admissible: true, fitsUnderCap: false, carryResolution: null, carriedUnresolvedMicroUsd: reservation() });
-    // The storyboard's own reservation fits; with its review's ceiling it does not (both must fit before anything is consumed).
-    expect(preview.newStoryboardReservationMicroUsd).toBeLessThanOrEqual(preview.remainingUnderCapMicroUsd);
-    expect(preview.newStoryboardReservationMicroUsd + preview.reviewReservationCeilingMicroUsd).toBeGreaterThan(preview.remainingUnderCapMicroUsd);
+    expect(preview).toMatchObject({ admissible: true, fitsUnderCap: false, carryResolution: null, carriedUnresolvedMicroUsd: reservation(), planner: { apiChargeMicroUsd: 0 } });
+    expect(preview.remainingUnderCapMicroUsd).toBeGreaterThan(0);
+    expect(preview.reviewReservationCeilingMicroUsd).toBeGreaterThan(preview.remainingUnderCapMicroUsd);
     await expect(repair(t)).rejects.toThrow(/^new_book_repair_over_cap$/);
     nothingConsumed();
-    expect([t.responses, sdk.create].map(m => m.mock.calls.length)).toEqual([0, 0]);
+    expect([t.responses, t.planner, sdk.create].map(m => m.mock.calls.length)).toEqual([0, 0, 0]);
     // Evidence that the timed-out call was never charged frees its whole reservation.
-    await resolve(attestation({ requests: 1, inputTokens: 115000, outputTokens: 5000 }));
+    await resolve(attestation({ requests: 1, inputTokens: 10000, outputTokens: 5000 }));
     expect((await repair(t, false)).repair).toMatchObject({ fitsUnderCap: true, carriedUnresolvedMicroUsd: 0, carryResolution: { resolvedMicroUsd: 0 } });
   });
 
@@ -2910,5 +2964,112 @@ describe("Guy's carry resolution and one storyboard repair, after the third atte
     writeFileSync(thirdAmendment, thirdBytes);
     expect(existsSync(path.join(dir(), 'child'))).toBe(false);
     expect(await child()).toMatchObject({ status: 'child_reference_passed' });
+  });
+
+  it('Opus route: a planner refusal stops before Sol; its known CLI estimate is kept in the Max journal; nothing builds on it or retries it', async () => {
+    await heldThrice();
+    const t = textTransports();
+    t.planner.mockImplementationOnce(async () => {
+      const termination = { code: 0, signal: null };
+      throw new causalAdapters.CausalTransportError('incomplete', { estimatedMicroUsd: 120000, usage: { inputTokens: 20000, outputTokens: 1 },
+        metadata: { kind: 'cli_reported_estimate_not_invoice', termination }, raw: { stdout: '{"is_error":true}', stderr: '', termination, killConfirmed: true, stopped: false } });
+    });
+    await expect(repair(t)).rejects.toThrow();
+    expect(json(path.join(repairOut(), 'sealed.json'))).toEqual({ status: 'failed', code: 'incomplete', continuation: NEW_BOOK_STORYBOARD_REPAIR.id, runtimeEligible: false });
+    expect([t.planner.mock.calls.length, t.responses.mock.calls.length, claims(path.join(repairOut(), 'paid-stages'))]).toEqual([1, 0, []]);
+    const max = path.join(repairOut(), 'claude-max-stages');
+    expect(json(path.join(max, 'storyboard.result.json'))).toMatchObject({ estimatedMicroUsd: 120000, completed: false });
+    expect(json(path.join(max, 'storyboard.failure.json'))).toMatchObject({ code: 'incomplete' });
+    expect(json(path.join(repairOut(), 'claude-max-spend.json'))).toMatchObject({ accountedMicroUsd: 460000 + 120000, stopped: true });
+    // The API meter carries every earlier known cost and the whole carry, untouched.
+    expect(json(path.join(repairOut(), 'spend.json'))).toMatchObject({ priorKnownApiMicroUsd: 1134000, carriedUnresolvedMicroUsd: reservation(), calls: 0 });
+    await expect(child()).rejects.toThrow(/^new_book_text_not_supported$/);
+    await expect(repair()).rejects.toThrow(/^new_book_continuation_used$/);
+  });
+
+  it('Opus route: an answer the compiler refuses stops before Sol (no review of an invalid storyboard); its cost is journaled', async () => {
+    await heldThrice();
+    const t = textTransports({ plannerOutput: driftingStoryboard, createdAt: OCT15 });
+    await expect(repair(t)).rejects.toThrow('book_sequence_scene_location_drift');
+    expect(json(path.join(repairOut(), 'sealed.json'))).toMatchObject({ status: 'failed', code: 'book_sequence_scene_location_drift' });
+    expect([t.planner.mock.calls.length, t.responses.mock.calls.length]).toEqual([1, 0]);
+    expect(json(path.join(repairOut(), 'claude-max-spend.json'))).toMatchObject({ accountedMicroUsd: 460000 + 410000, knownEstimateMicroUsd: 460000 + 410000 });
+    await expect(child()).rejects.toThrow(/^new_book_text_not_supported$/);
+  });
+
+  it('Opus route: a run whose planner request is not the admitted one is refused before any Max claim or call', async () => {
+    await heldThrice();
+    const realAuthor = storyboardModule.authorPersonalStoryboard;
+    let authored = 0;
+    // The admission builds the request three times (the original request, the third replay, the repair request); the run is the fourth.
+    vi.spyOn(storyboardModule, 'authorPersonalStoryboard').mockImplementation(((source: any, author: any, signal: AbortSignal) =>
+      realAuthor(source, (call: any) => author(++authored === 4 ? { ...call, instructions: `${call.instructions}\nOne more sentence.` } : call), signal)) as never);
+    const t = textTransports();
+    await expect(repair(t)).rejects.toThrow();
+    expect(authored).toBe(4);
+    expect(json(path.join(repairOut(), 'sealed.json'))).toMatchObject({ status: 'failed', code: 'new_book_continuation_request' });
+    expect(existsSync(path.join(repairOut(), 'claude-max-stages', 'storyboard.claim.json'))).toBe(false);
+    expect([t.planner.mock.calls.length, t.responses.mock.calls.length]).toEqual([0, 0]);
+  });
+
+  it('Opus route: the planner evidence is re-derived at every later read; an understated cost, another model, another request or answer, or a missing record refuses', async () => {
+    await heldThrice();
+    await repair();
+    const max = path.join(repairOut(), 'claude-max-stages'), at = (k: string) => path.join(max, `storyboard.${k}.json`), spendFile = path.join(repairOut(), 'claude-max-spend.json');
+    const files = [...['claim', 'wire', 'result', 'receipt'].map(at), spendFile, path.join(repairOut(), 'spend.json')], saved = files.map(f => readFileSync(f));
+    const restore = () => files.forEach((f, i) => writeFileSync(f, saved[i]));
+    const respend = () => writeFileSync(spendFile, JSON.stringify({ ...new SimpleBookBudget(max, 460000).snapshot(), note: NEW_BOOK_EXPERIMENT.claudeMax }));
+    // An understated cost: result and receipt lowered together, the spend record rewritten to match; the CLI's raw answer contradicts it.
+    writeFileSync(at('result'), JSON.stringify({ ...json(at('result')), estimatedMicroUsd: 1 }));
+    writeFileSync(at('receipt'), JSON.stringify({ ...json(at('receipt')), estimatedMicroUsd: 1 })); respend();
+    await expect(child()).rejects.toThrow(/^new_book_planner_cost$/);
+    restore();
+    // Another reported model in the raw answer.
+    const receipt = json(at('receipt')), raw = JSON.parse(receipt.raw.stdout);
+    raw.modelUsage = { 'claude-sonnet-5-5': raw.modelUsage['claude-opus-5-5'] };
+    writeFileSync(at('receipt'), JSON.stringify({ ...receipt, raw: { ...receipt.raw, stdout: JSON.stringify(raw) } }));
+    await expect(child()).rejects.toThrow(/^new_book_planner_cost$/);
+    restore();
+    // Another request on the wire (its digests rebound): not the admitted one.
+    const wire = json(at('wire')); wire.stdin = wire.payload.stdin = `${wire.stdin} `; wire.json = JSON.stringify(wire.payload); wire.digest = sha(wire.json);
+    writeFileSync(at('wire'), JSON.stringify(wire));
+    const wireDigest = sha(canonicalJson(wire));
+    for (const k of ['claim', 'result']) writeFileSync(at(k), JSON.stringify({ ...json(at(k)), wireDigest }));
+    await expect(child()).rejects.toThrow(/^new_book_planner_record$/);
+    restore();
+    // Another structured answer than the saved draft.
+    const other = JSON.parse(receipt.raw.stdout); other.structured_output.plan.visualLanguage += ' changed';
+    writeFileSync(at('receipt'), JSON.stringify({ ...receipt, raw: { ...receipt.raw, stdout: JSON.stringify(other) } }));
+    await expect(child()).rejects.toThrow(/^new_book_planner_record$/);
+    restore();
+    // A missing record.
+    rmSync(at('receipt'));
+    await expect(child()).rejects.toThrow(/^new_book_planner_record$/);
+    restore();
+    expect(existsSync(path.join(dir(), 'child'))).toBe(false);
+    expect(await child()).toMatchObject({ status: 'child_reference_passed' });
+  });
+
+  it("Opus route: an Astra planning record on the repair's API meter is refused; the earlier Max use is re-derived before anything is consumed", async () => {
+    await heldThrice();
+    // The book's earlier Max use rewritten lower (its spend record): the first amendment's evidence binds it, so everything refuses first.
+    const textMax = path.join(dir(), 'text', 'claude-max-spend.json'), textMaxBytes = readFileSync(textMax);
+    writeFileSync(textMax, JSON.stringify({ ...json(textMax), accountedMicroUsd: 1, knownEstimateMicroUsd: 1 }));
+    for (const execute of [false, true]) await expect(repair(textTransports(), execute)).rejects.toThrow(/^new_book_continuation_evidence$/);
+    nothingConsumed();
+    writeFileSync(textMax, textMaxBytes);
+    // A Claude Max journal in a continuation's folder (none ever called Claude Max): the earlier Max use can no longer be re-derived.
+    mkdirSync(path.join(outN(3), 'claude-max-stages'));
+    for (const execute of [false, true]) await expect(repair(textTransports(), execute)).rejects.toThrow(/^new_book_planner_record$/);
+    nothingConsumed();
+    rmSync(path.join(outN(3), 'claude-max-stages'), { recursive: true });
+    await repair();
+    // The third attempt's Astra storyboard records copied onto the repair's API meter (its spend rewritten to match).
+    const paid = path.join(repairOut(), 'paid-stages'), third = path.join(outN(3), 'paid-stages');
+    for (const k of ['wire', 'claim', 'result', 'receipt']) writeFileSync(path.join(paid, `storyboard.${k}.json`), readFileSync(path.join(third, `storyboard.${k}.json`)));
+    writeFileSync(path.join(paid, 'storyboard.claim.json'), JSON.stringify({ ...json(path.join(paid, 'storyboard.claim.json')), seq: 1 }));
+    writeFileSync(path.join(repairOut(), 'spend.json'), JSON.stringify(new AuditionMeter(paid, 7000000, 2, 1134000, reservation()).snapshot()));
+    await expect(child()).rejects.toThrow(/^new_book_ledger_(rule|record|unknown)$/);
+    expect(existsSync(path.join(dir(), 'child'))).toBe(false);
   });
 });
