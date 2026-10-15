@@ -1,5 +1,17 @@
 # SmallHeroes — Roadmap
 
+## Opus 5.5 storyboard planner + Sol 6.1 judge built (cccd5fa2, 3bbd880e); next: Codex QA, then the book (2026-10-15)
+
+- Guy's decision: Claude Opus 5.5 plans the one approved storyboard repair on
+  the Claude Max route; Sol 6.1 stays the independent judge. The stage fits with
+  the whole unresolved 10/13 carry kept (only the review's ceiling is on the API
+  meter), so the dashboard numbers are no longer a prerequisite for it.
+- After an explicit Codex PASS at the final clean HEAD: storyboard-repair
+  --execute once (Opus plan, fresh Sol review); on a supported review, child ->
+  grant -> audition (two samples first; the rest and the cover only if both
+  pass) under the same $7. A fit for the repair is not a promise that the whole
+  book fits.
+
 ## Write-boundary fix built (d69a25c5); next: Codex narrow re-gate, Guy's 10/13 numbers (2026-10-15)
 
 - The carry-resolution writer re-checks the same admission right before its

@@ -1,5 +1,42 @@
 # SmallHeroes — Current Technical State
 
+## New book: the one storyboard repair plans with Claude Opus 5.5 (Claude Max), judged by Sol 6.1, for Codex QA (2026-10-15)
+
+Codex's narrow re-gate PASSed the carry-resolution write boundary at 4725c382.
+Guy then decided (Codex chat, brief delivered by Guy): storyboard planning moves
+to Claude Opus 5.5 and Sol 6.1 stays the independent judge, for the same book
+(Decision Gate: docs/ai-workflow/NEW_BOOK_OPUS55_STORYBOARD_PLANNER_DECISION_GATE.md).
+
+Built offline: cccd5fa2 moves the Claude Max CLI hardening into a shared
+runner (author/editor unchanged) and adds an Opus storyboard transport that
+carries the engine's own provider request (personalBookProviderPayload's
+instructions, input, schema and normal cap) on the author/editor flags and $2
+session guard, decoded by the same decoder. 3bbd880e routes the existing,
+unconsumed repair (continuation-4) to it: same admission (the held third attempt
+replayed from raw; request = third + exactly the repair); a Claude Max journal
+from this book's earlier Max use; the API meter holds only the fresh Sol review
+with every known cost and the whole unresolved carry; the fit is the review's
+ceiling ($0.710600) within what remains, so the stage fits with the carry kept
+and the 10/13 numbers are no longer a prerequisite. The amendment binds the
+planner (model, route, judge, approval, executable hash, guard, request digest,
+earlier Max use); every later read re-derives the planner evidence. Historical
+Astra records keep their Astra rules.
+
+Real dry preview at 3bbd880e: admissible, 6 findings, request changed only by
+the repair; Opus wire 90,679/104,000 bytes, argv 23,239/31,000, schema 20,454,
+cap 32,000, Max reservation $1.102988 within the $2 guard, prior Max $0.493457,
+API charge 0; review ceiling $0.710600 within $2.494679 (known $2.237682 + carry
+$2.267639), fits; 56 book records and Goni's 412 files unchanged. Tests: 610
+serial, 609 pass (the known 5 s subprocess timeout in storyboard.spec.ts; that
+file alone 74/74); new transport 6/6, repair block 28/28. Negative controls: 11 representative
+in-memory mutants, all killed (planner back to Astra, self-review judge, is_error
+or nonzero exit accepted, carry dropped from the meter or the fit, dispatch guard
+off, planner cost or request not re-derived, transport wire unbound, earlier Max
+use dropped).
+No paid call, key read or record written. Next: Codex QA of 4725c382..HEAD;
+after an explicit PASS, the one Opus repair and its fresh Sol review, then child
+-> grant -> two samples -> the rest and the cover only if both pass.
+
 ## Carry-resolution write boundary (Codex HOLD at 2e560627, F1 P2), for narrow re-gate (2026-10-15)
 
 Codex's QA of 4e3eb056..2e560627 supported the repair design, caps, bindings,
