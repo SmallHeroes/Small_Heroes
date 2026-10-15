@@ -512,12 +512,13 @@ export async function auditionJudgePayload(args: { candidate: AuditionImage; can
 // The paid adapters' own terms, shared by each live call and its meter rule (a re-derivation is the live call's own rule, never a second table).
 /** A render: its pricing label and claim maximum (every prompt byte and reference at the image input rate, plus its output reservation). */
 const RENDER_PRICING = 'image_input_8_output_30_conservative_no_cache';
-const renderMaximum = (prompt: string, references: number) => Buffer.byteLength(prompt, 'utf8') * 8 + references * 8192 * 8 + 8192 * 30;
+export const renderMaximum = (prompt: string, references: number) => Buffer.byteLength(prompt, 'utf8') * 8 + references * 8192 * 8 + 8192 * 30;
 /** A pixel review: its cost (Sol at the default tier, long-input rate included) and a usable answer (complete, at most 12,000 output tokens). */
 const reviewCost = (raw: any) => raw.model === REVIEW_MODEL && raw.service_tier === 'default' ? auditionUsageCost(raw.usage, 'sol') : null;
 const reviewAnswered = (raw: any) => raw.status === 'completed' && raw.model === REVIEW_MODEL && !!raw.output_text && !!raw.usage && !(raw.usage.output_tokens > 12000);
 /** An identity measurement: its cost (a known gpt-4o model with usage) and a usable answer (HTTP 2xx, at most 180 completion tokens). */
-const IDENTITY_MODEL = 'gpt-4o', IDENTITY_MODELS = [IDENTITY_MODEL, 'gpt-4o-2024-08-06', 'gpt-4o-2024-11-20'], IDENTITY_MAXIMUM_MICRO_USD = 50000;
+const IDENTITY_MODEL = 'gpt-4o', IDENTITY_MODELS = [IDENTITY_MODEL, 'gpt-4o-2024-08-06', 'gpt-4o-2024-11-20'];
+export const IDENTITY_MAXIMUM_MICRO_USD = 50000;
 const identityCost = (raw: any) => auditionUsageCost(IDENTITY_MODELS.includes(raw.model ?? '') && raw.usage
   ? { input_tokens: raw.usage.prompt_tokens, output_tokens: raw.usage.completion_tokens } : null, 'identity');
 const identityAnswered = (raw: any, status: unknown) => typeof status === 'number' && status >= 200 && status <= 299 &&
@@ -570,7 +571,9 @@ export function auditionAdapters(args: { directory: string; meter: AuditionMeter
     const bytes = readFileSync(file); if (previewSha(bytes) !== img.imageSha) fail('audition_image_changed'); return bytes;
   };
   // 'identity' is the plain reference mode of a fictional child anchor (none or one rejected edit target); sheets and pages are unchanged.
-  const render = async (step: string, prompt: string, refs: AuditionImage[], mode: 'book_identity' | 'book_design' | 'identity', roles?: readonly BookDesignReferenceRole[]) => {
+  // 'anchor_photo_style_only' is production's real-photo anchor mode (photo first, then technique references), used only by the likeness probe.
+  const render = async (step: string, prompt: string, refs: AuditionImage[], mode: 'book_identity' | 'book_design' | 'identity' | 'anchor_photo_style_only',
+    roles?: readonly BookDesignReferenceRole[]) => {
     check(); const bytes = refs.map(bytesOf);
     const input = { finalPrompt: prompt, referenceImages: refs.map(r => path.join(args.directory, r.imageName)), referenceMode: mode,
       ...(roles ? { referenceRoles: roles } : {}), requireReferenceEdit: refs.length > 0, quality: 'low' as const, size: '1024x1024' as const,
