@@ -1,5 +1,15 @@
 # SmallHeroes — Roadmap
 
+## Lineage pin through later claims (379af7cf); next: Codex narrow re-gate, then the one second repair (2026-10-15)
+
+- Codex HOLD F1 (P2) at 1fd909af corrected offline: every later stage (child,
+  grant, audition and the text stages themselves) keeps the whole accepted
+  lineage pinned through each later claim; a rewritten amendment cannot bless a
+  changed earlier record.
+- After an explicit Codex PASS at the final clean HEAD and the CLI sign-in
+  re-checked: storyboard-repair-2 --execute once; on a supported review, child ->
+  grant -> two samples -> the rest and the cover if both pass, under the same $7.
+
 ## Repair held by Sol; drawn-instant contract + second repair built (194fe53a, ecc92ca6); next: Codex QA, then one repair (2026-10-15)
 
 - The one Opus repair ran after Codex's PASS and Guy's sign-in: compiled, but

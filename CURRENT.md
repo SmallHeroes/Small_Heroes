@@ -1,5 +1,33 @@
 # SmallHeroes — Current Technical State
 
+## New book: the whole accepted lineage stays pinned through every later claim (Codex HOLD at 1fd909af, F1 P2), for narrow re-gate (2026-10-15)
+
+Codex's QA of 0eb7ddc8..1fd909af supported the drawn-instant contract, the
+nested repair and the one-use second repair, and held one P2: a later stage
+pinned only the latest repair folder, and its per-call guard re-read the mutable
+continuation-5, so the first repair's prompt file changed together with its
+sha256 row there let the child's next judge claim proceed (child sealed passed).
+379af7cf pins the complete accepted lineage (the claim and every amendment or
+resolution by hash or absence, the request record, every text folder of the
+chain) before a consumer's source-derived checks read anything, requires it
+unchanged after them (each producer check having read exactly its pinned folder)
+and re-checks it synchronously before every later claim with the latest repair
+folder's pin (child render/judge, grant write, audition start and every runner
+claim); assertRepair2Producer keeps both pins. A text stage pins the lineage it
+builds on before its first call and checks it before each, so the second
+repair's review cannot follow a rebound ancestor; a guard's refusal is now the
+stage's recorded cause.
+
+Evidence: Codex's own reproduction (its 1fd909af fixture, live module) 1 failure
+before, 3/3 after; the new regressions at ecc92ca6 3/6 fail (exactly the rebound
+cases proceed), fixed 6/6; the experiment spec serially 179/179 (6 new); tsc 0;
+one lineage re-check 5.9 ms on the real records (74 files, 3.64 MB); real dry
+preview at the final HEAD identical to 1fd909af's (fits); 74 book records and
+Goni's 412 files unchanged. Routing, caps, the carry, the one-use stages and
+every earlier behavior unchanged.
+Next: Codex's narrow re-gate of 1fd909af..HEAD; after an explicit PASS and the
+CLI sign-in re-checked, storyboard-repair-2 --execute once.
+
 ## New book: the one Opus repair was held by Sol; drawn-instant contract + second repair built, for Codex QA (2026-10-15)
 
 After Codex's narrow PASS at 0eb7ddc8 and Guy's CLI sign-in (preflight loggedIn,
