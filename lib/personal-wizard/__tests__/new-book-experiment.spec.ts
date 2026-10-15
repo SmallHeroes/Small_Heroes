@@ -29,9 +29,11 @@ import { NEW_BOOK_EXPERIMENT, newBookConfig, newBookExperimentCLI, runNewBookTex
   experimentLayout, earliestSameScenePair, stageLedger, NEW_BOOK_CONTINUATION, experimentContinuationFile, NEW_BOOK_CONTINUATION_2, experimentContinuation2File,
   NEW_BOOK_CONTINUATION_3, experimentContinuation3File, stageRules, replaySettlement, experimentAuditionStart,
   NEW_BOOK_STORYBOARD_REPAIR, NEW_BOOK_CARRY_RESOLUTION, experimentRepairFile, experimentCarryResolutionFile,
+  NEW_BOOK_STORYBOARD_REPAIR_2, experimentRepair2File,
   type NewBookConfig, type TextTransports, type ChildAdapters }
   from '../../../scripts/personal-new-book-experiment';
 import { REPAIR_STORYBOARD_ADDENDUM, STORYBOARD_REPAIR_VERSION } from '../storyboard-repair';
+import { DRAWN_INSTANT_STORYBOARD_ADDENDUM, DRAWN_INSTANT_REVIEW_ADDENDUM, DRAWN_INSTANT_CONTRACT_VERSION } from '../storyboard-drawn-instant';
 import { decodePersonalBookProviderOutput } from '../book-openai';
 import { SimpleBookBudget } from '../simple-book-budget';
 import * as plannerTransport from '../../../scripts/personal-opus-storyboard-transport';
@@ -86,6 +88,17 @@ const undeclaredPropStoryboard = (owned: any) => { const s = contractedStoryboar
 /** A refusal by another sequence check: page 4's scene-change evidence is not in its text. */
 const otherRefusalStoryboard = (owned: any) => { const s = contractedStoryboard(owned) as any;
   s.sequence.pages[3] = { ...s.sequence.pages[3], sceneChangeEvidence: 'words that are not on this page' }; return s; };
+/** Page 6 drawn at its first clause; the companion's move is quoted from the page's last sentence, after it (the drawn-instant contract's class). */
+const DRAWN6 = 'They climb inside the hut again', LATER6 = 'נועה ואורי משחקים בציור.';
+const drawn6 = (relations: string[], actorStates?: unknown[]) => ({ requirements: [], depicted: { evidence: DRAWN6, attributes: [],
+  relations: relations.map(entityId => ({ entityId, value: { relation: 'beside', targetId: 'hut' }, evidence: DRAWN6 })), ...(actorStates ? { actorStates } : {}) } });
+/** The first repair's answer with that gap: legal without the drawn-instant contract, its compiler finding with it. */
+const gapStoryboard = (owned: any) => { const s = contractedStoryboard(owned) as any;
+  s.sequence.pages[5].transitions[1] = { ...s.sequence.pages[5].transitions[1], evidence: LATER6 }; s.moments.frames[6] = drawn6(['child']); return s; };
+/** Under the drawn-instant contract: every depicted lists actorStates; `fixed` also overrides the later move. */
+const contractStoryboard = (gap: 'fixed' | 'kept', look?: true) => (owned: any) => { const s = gapStoryboard(owned) as any;
+  s.moments.frames[6] = drawn6(gap === 'fixed' ? ['child', 'companion'] : ['child'],
+    look ? [{ actorId: 'companion', state: 'tail squashed flat', evidence: DRAWN6 }] : []); return s; };
 /** Synthetic transports at the provider boundary: the experiment's own meters, receipts, decoding and files run for real. */
 function textTransports(opts: { storyboardOutput?: (draft: any) => unknown; readerFindings?: unknown[]; model?: string;
   /** The storyboard review's verdicts (default: every check supported). */
@@ -355,9 +368,10 @@ describe('a new book from scratch, staged, offline rehearsal (synthetic provider
 describe('the reviewed audition on the new book (synthetic providers through the real runner, meter and sample gate)', { timeout: 60_000 }, () => {
   const ANSWER = { referenceChildVisible: true, candidateChildVisible: true, candidateChildCount: 1, comparisonUsable: true, sameChildDecision: 'same',
     faceStructure: 'match', eyesBrows: 'match', noseMouth: 'match', hairIdentity: 'match', distinctiveFeatures: 'match' };
-  async function prepared(opts: { continued?: true; second?: true; third?: true; repaired?: true } = {}) {
-    if (opts.repaired) {
-      // The real history up to the third attempt's held review, then the one Opus repair (supported) at a new reviewed HEAD.
+  async function prepared(opts: { continued?: true; second?: true; third?: true; repaired?: true; repaired2?: true } = {}) {
+    if (opts.repaired || opts.repaired2) {
+      // The real history up to the third attempt's held review, then the one Opus repair (supported) at a new reviewed HEAD; or, with
+      // repaired2, the repair held by its review and the second repair (drawn-instant contract; page 6 drawn with a temporary look) supported.
       const held = (r: any) => { r.frames[3].checks[0] = { ...r.frames[3].checks[0], verdict: 'uncertain', observation: 'page 3: not established by the text' }; return r; };
       await timedOut(); headAt('c'.repeat(40));
       await expect(continuation(textTransports({ storyboardOutput: driftingStoryboard }))).rejects.toThrow('book_sequence_scene_location_drift');
@@ -367,7 +381,12 @@ describe('the reviewed audition on the new book (synthetic providers through the
       headAt('1'.repeat(40));
       await newBookExperimentCLI(['--config', file, 'storyboard-continuation-3', '--execute'], { text: textTransports({ review: held }), log: () => {} });
       headAt('2'.repeat(40));
-      await newBookExperimentCLI(['--config', file, 'storyboard-repair', '--execute'], { text: textTransports(), log: () => {} });
+      await newBookExperimentCLI(['--config', file, 'storyboard-repair', '--execute'], { text: textTransports(opts.repaired2 ? { review: held } : {}), log: () => {} });
+      if (opts.repaired2) {
+        headAt('3'.repeat(40));
+        await newBookExperimentCLI(['--config', file, 'storyboard-repair-2', '--execute'],
+          { text: textTransports({ plannerOutput: contractStoryboard('fixed', true) }), log: () => {} });
+      }
     } else if (opts.third) {
       await timedOut(); headAt('c'.repeat(40));
       await expect(continuation(textTransports({ storyboardOutput: driftingStoryboard }))).rejects.toThrow('book_sequence_scene_location_drift');
@@ -560,6 +579,17 @@ describe('the reviewed audition on the new book (synthetic providers through the
     if (result.mode !== 'render') throw Error('render expected');
     expect(result.manifest).toMatchObject({ status: 'qa_supported_audition', scope: { complete: true } });
     expect(result.manifest.pages.map(p => p.pageNumber)).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8]);
+  });
+  it('after the second repair: the drawn instant with its temporary look reaches the renderer, and the book completes', async () => {
+    const { dir } = await prepared({ repaired2: true }); judgeWith(null);
+    expect(json(path.join(dir, 'book-layout.json'))).toMatchObject({ storyboardDir: NEW_BOOK_STORYBOARD_REPAIR_2.outDir });
+    const result = await audition();
+    if (result.mode !== 'render') throw Error('render expected');
+    expect(result.manifest).toMatchObject({ status: 'qa_supported_audition', scope: { complete: true } });
+    const prompts = vi.mocked(images.generateGPTImage).mock.calls.map(([input]) => String((input as { finalPrompt?: string }).finalPrompt ?? ''));
+    const looks = prompts.filter(p => p.includes('AT THIS INSTANT ONLY (temporary look, not the end of the page):\n- companion: tail squashed flat'));
+    expect(looks.length).toBeGreaterThan(0);
+    expect(looks.every(p => p.includes(`DRAWN INSTANT (this picture, not the end of the page): "${DRAWN6}"`))).toBe(true);
   });
   it('F4: a moved HEAD after the grant refuses before any claim or image; a move during a call records that call and stops the next', async () => {
     const { dir } = await prepared(); judgeWith(null);
@@ -3212,5 +3242,132 @@ describe("Guy's carry resolution and one storyboard repair, after the third atte
     expect(existsSync(path.join(dir(), 'audition.grant.json'))).toBe(false);
     restore();
     expect((await writeNewBookGrant(newBookConfig(file))).ledger).toMatchObject({ carriedUnresolvedMicroUsd: reservation() });
+  });
+
+  // Guy's second repair (the drawn-instant contract added), after the first repair's fresh review held it.
+  const repair2Out = () => path.join(dir(), NEW_BOOK_STORYBOARD_REPAIR_2.outDir);
+  const repair2 = (transports = textTransports({ createdAt: OCT15, plannerOutput: contractStoryboard('fixed') }), execute = true) =>
+    newBookExperimentCLI(['--config', file, 'storyboard-repair-2', ...(execute ? ['--execute'] : [])], { text: transports, log: () => {} }) as Promise<any>;
+  const heldRepairReview = (r: any) => { r.frames[6].checks[2] = { ...r.frames[6].checks[2], verdict: 'contradiction', observation: 'page 6: a later state' }; return r; };
+  /** The first repair answered with page 6's drawn-instant gap and held by its review (10/15, HEAD 2); the second repair runs at a new HEAD (3). */
+  async function heldRepair() {
+    await heldThrice();
+    expect(await repair(textTransports({ createdAt: OCT15, plannerOutput: gapStoryboard, review: heldRepairReview }))).toMatchObject({ status: 'held_contradiction' });
+    headAt('3'.repeat(40));
+  }
+  const repair2Consumed = () => [existsSync(experimentRepair2File(config)), existsSync(repair2Out())];
+
+  it('second repair preview (read-only): the held first repair replayed from its two answers; its request plus exactly the contract; it fits', async () => {
+    await heldRepair();
+    const before = [tree(dir()), tree(path.dirname(experimentClaimFile(config)))];
+    const r1Spend = json(path.join(repairOut(), 'spend.json')), r1Max = json(path.join(repairOut(), 'claude-max-spend.json'));
+    expect(await repair2(undefined, false)).toMatchObject({ mode: 'plan', plan: { repair: true, repair2: false, stages: { repair: 'held_contradiction', repair2: null } },
+      repair2: { admissible: true, amended: false, outDirExists: false, storyReplayed: true, firstRepairReplayed: true, previousStatus: 'held_contradiction',
+        previousReviewSettledMicroUsd: r1Spend.newKnownApiMicroUsd, reviewFindings: 1, contractFindings: 1, requestChangedOnlyByTheContract: true,
+        addedContracts: ['drawnInstantContract'], planner: { model: 'claude-opus-5-5', route: 'claude_max_cli', judge: 'gpt-6.1-sol',
+          priorClaudeMaxMicroUsd: r1Max.accountedMicroUsd, apiChargeMicroUsd: 0, outputCap: 32000 },
+        priorKnownApiMicroUsd: r1Spend.priorKnownApiMicroUsd + r1Spend.newKnownApiMicroUsd, carriedUnresolvedMicroUsd: reservation(),
+        remainingUnderCapMicroUsd: 7000000 - r1Spend.priorKnownApiMicroUsd - r1Spend.newKnownApiMicroUsd - reservation(),
+        reviewReservationCeilingMicroUsd: 710600, fitsUnderCap: true, providerCalls: 0, keyRead: false } });
+    expect([tree(dir()), tree(path.dirname(experimentClaimFile(config)))]).toEqual(before);
+    expect(sdk.create).not.toHaveBeenCalled();
+  });
+
+  it('second repair runs once: its amendment binds the first repair and every record of it; Opus gets exactly the derived request; a fresh Sol review', async () => {
+    await heldRepair();
+    const r1Evidence = tree(repairOut()), t = textTransports({ createdAt: OCT15, plannerOutput: contractStoryboard('fixed') });
+    expect(await repair2(t)).toMatchObject({ mode: 'storyboard-repair-2', status: 'review_supported' });
+    expect(path.basename(experimentRepair2File(config))).toBe(`${NEW_BOOK_EXPERIMENT.slot}.continuation-5.json`);
+    const amendment = json(experimentRepair2File(config)), r1 = json(experimentRepairFile(config)), r1Spend = json(path.join(repairOut(), 'spend.json'));
+    expect(amendment).toMatchObject({ version: 'new-book-continuation/v1', id: NEW_BOOK_STORYBOARD_REPAIR_2.id, approval: NEW_BOOK_STORYBOARD_REPAIR_2.approval,
+      previousSha256: sha(readFileSync(experimentRepairFile(config))), previousSourceHead: r1.sourceHead, sourceHead: '3'.repeat(40),
+      failedStep: 'storyboard_review_held', previousStatus: 'held_contradiction', addedContracts: ['drawnInstantContract'],
+      priorKnownApiMicroUsd: r1Spend.priorKnownApiMicroUsd + r1Spend.newKnownApiMicroUsd, carriedUnresolvedMicroUsd: reservation(),
+      planner: { model: 'claude-opus-5-5', route: 'claude_max_cli', judge: 'gpt-6.1-sol', approval: NEW_BOOK_STORYBOARD_REPAIR.planner.approval,
+        executableSha256: config.executableSha256, sessionGuardMicroUsd: 2000000, priorClaudeMaxMicroUsd: json(path.join(repairOut(), 'claude-max-spend.json')).accountedMicroUsd } });
+    expect(amendment.evidence.map((e: any) => e.file).sort()).toEqual(Object.keys(r1Evidence).map(f => `${NEW_BOOK_STORYBOARD_REPAIR.outDir}/${f}`).sort());
+    // The planner: exactly the first repair's request with the contract's addendum before the repair contract's, and the new prior.
+    expect(t.planner).toHaveBeenCalledTimes(1);
+    const [, call] = t.planner.mock.calls[0] as any[];
+    expect(call.instructions.endsWith(`\n${DRAWN_INSTANT_STORYBOARD_ADDENDUM}\n${REPAIR_STORYBOARD_ADDENDUM}`)).toBe(true);
+    expect(call.context).toMatchObject({ momentContract: true, drawnInstantContract: true });
+    expect(JSON.parse(call.input).priorReviewedStoryboard).toMatchObject({ version: STORYBOARD_REPAIR_VERSION, parentStoryboardDigest: amendment.parentStoryboardDigest,
+      reviewFindings: [{ scope: 'page', pageNumber: 6, verdict: 'contradiction', observation: 'page 6: a later state' }],
+      contractFindings: [{ scope: 'page', pageNumber: 6, category: 'drawn_instant_completeness', verdict: 'contradiction' }] });
+    // The review: Sol on the API meter (every earlier known cost, the whole carry), its instructions carrying the contract's line.
+    const review = t.responses.mock.calls.map(c => c[0] as any).find(p => p.model === 'gpt-6.1-sol');
+    expect(review.instructions).toContain(DRAWN_INSTANT_REVIEW_ADDENDUM);
+    expect(claims(path.join(repair2Out(), 'paid-stages'))).toEqual(['storyboard_review']);
+    expect(json(path.join(repair2Out(), 'spend.json'))).toMatchObject({ priorKnownApiMicroUsd: amendment.priorKnownApiMicroUsd, carriedUnresolvedMicroUsd: reservation(),
+      calls: 1, maxCalls: 1, unknownCost: 0 });
+    expect(json(path.join(repair2Out(), 'claude-max-spend.json'))).toMatchObject({ accountedMicroUsd: amendment.planner.priorClaudeMaxMicroUsd + 410000, logicalAttempts: 1 });
+    expect(json(path.join(repair2Out(), 'sealed.json'))).toEqual({ status: 'review_supported', continuation: NEW_BOOK_STORYBOARD_REPAIR_2.id, runtimeEligible: false });
+    // The loader's input: the held first repair with the first repair's own input nested, and the contract added.
+    expect(json(path.join(repair2Out(), 'storyboard_repair_input.json'))).toMatchObject({ parentStoryboardDigest: amendment.parentStoryboardDigest,
+      parentRepair: json(path.join(repairOut(), 'storyboard_repair_input.json')), addedContracts: ['drawnInstantContract'] });
+    expect(json(path.join(repair2Out(), 'visual_simple_book_result.json')).storyboard.storyboard).toMatchObject({
+      drawnInstant: DRAWN_INSTANT_CONTRACT_VERSION, repair: { parentStoryboardDigest: amendment.parentStoryboardDigest } });
+    // Once only; the first repair is untouched.
+    await expect(repair2()).rejects.toThrow(/^new_book_continuation_used$/);
+    expect(tree(repairOut())).toEqual(r1Evidence);
+  });
+
+  it("second repair: an answer that leaves the compiler's finding unresolved is refused at compile, before Sol; nothing builds on it; no retry", async () => {
+    await heldRepair();
+    const t = textTransports({ createdAt: OCT15, plannerOutput: contractStoryboard('kept') });
+    await expect(repair2(t)).rejects.toThrow('storyboard_moments_drawn_instant_relation');
+    expect([t.planner.mock.calls.length, t.responses.mock.calls.length]).toEqual([1, 0]);
+    expect(json(path.join(repair2Out(), 'sealed.json'))).toMatchObject({ status: 'failed', continuation: NEW_BOOK_STORYBOARD_REPAIR_2.id });
+    expect(json(path.join(repair2Out(), 'claude-max-spend.json'))).toMatchObject({ logicalAttempts: 1, unknownAttemptCosts: 0 });
+    await expect(child()).rejects.toThrow(/^new_book_text_not_supported$/);
+    await expect(repair2()).rejects.toThrow(/^new_book_continuation_used$/);
+  });
+
+  it('second repair: an answer without actorStates is refused at its decoder, journaled, before Sol', async () => {
+    await heldRepair();
+    const t = textTransports({ createdAt: OCT15, plannerOutput: gapStoryboard });
+    await expect(repair2(t)).rejects.toThrow();
+    expect(t.responses).not.toHaveBeenCalled();
+    expect(json(path.join(repair2Out(), 'sealed.json'))).toMatchObject({ status: 'failed' });
+  });
+
+  it('second repair admission: only after a held first repair; none, or a supported one, refuses before anything is consumed', async () => {
+    await heldThrice();
+    await expect(repair2(undefined, false)).rejects.toThrow(/^new_book_continuation_scope$/);
+    expect(await repair()).toMatchObject({ status: 'review_supported' });
+    headAt('3'.repeat(40));
+    await expect(repair2(undefined, false)).rejects.toThrow(/^new_book_continuation_scope$/);
+    await expect(repair2()).rejects.toThrow(/^new_book_continuation_scope$/);
+    expect(repair2Consumed()).toEqual([false, false]);
+  });
+
+  it("second repair admission re-derives the first repair's producer request: the rebound attack on it refuses before anything is consumed", async () => {
+    await heldRepair();
+    const restore = rebindRepairPlanner(unapprovedContext, true);
+    await expect(repair2(undefined, false)).rejects.toThrow(/^new_book_planner_source$/);
+    await expect(repair2()).rejects.toThrow(/^new_book_planner_source$/);
+    expect(repair2Consumed()).toEqual([false, false]);
+    restore();
+    expect(await repair2(undefined, false)).toMatchObject({ repair2: { admissible: true } });
+  });
+
+  it('after the second repair: later readers re-derive both repairs first; the child stage reads the nested input and the contract marker', async () => {
+    await heldRepair(); await repair2();
+    // Its own input changed (another holding review of the grandparent): not what the roots derive.
+    const input2 = path.join(repair2Out(), 'storyboard_repair_input.json'), bytes2 = readFileSync(input2);
+    const edited = json(input2); edited.parentRepair.review.frames[3].checks[0].observation = 'reworded'; writeFileSync(input2, JSON.stringify(edited));
+    await expect(child()).rejects.toThrow(/^new_book_planner_source$/);
+    writeFileSync(input2, bytes2);
+    // The first repair's records are bound by the second amendment.
+    const sealed1 = path.join(repairOut(), 'sealed.json'), bytes1 = readFileSync(sealed1);
+    writeFileSync(sealed1, Buffer.concat([bytes1, Buffer.from('\n')]));
+    await expect(child()).rejects.toThrow(/^new_book_continuation_evidence$/);
+    writeFileSync(sealed1, bytes1);
+    expect(existsSync(path.join(dir(), 'child'))).toBe(false);
+    expect(await child()).toMatchObject({ status: 'child_reference_passed' });
+    expect(json(path.join(dir(), 'book-layout.json'))).toMatchObject({ storyboardDir: NEW_BOOK_STORYBOARD_REPAIR_2.outDir });
+    const grant = await writeNewBookGrant(newBookConfig(file));
+    expect(grant.ledger.evidence.map(e => e.file)).toEqual(expect.arrayContaining([experimentRepair2File(config)]));
+    expect(grant.ledger.evidence.length).toBeLessThanOrEqual(16);
   });
 });

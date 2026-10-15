@@ -52,12 +52,13 @@ import type { SimpleStoryboardDiagnosticCall } from '../lib/personal-wizard/simp
 import { generationTimeoutMs } from '../lib/personal-wizard/story-config';
 import { simpleChildReferencePrompt, simpleReferenceDesignContext, REFERENCE_REPAIR_EDIT_INSTRUCTION, type AuditionImage } from '../lib/personal-wizard/simple-book-illustrations';
 import { qualityDisposition } from '../lib/local-preview-quality';
-import { previewSha } from '../lib/local-story-preview';
+import { previewSha, previewStoryEvidence, previewTextPages } from '../lib/local-story-preview';
 import { canonicalJson } from '../lib/personal-wizard/request-acceptance';
 import type { PersonalStoryboard } from '../lib/personal-wizard/storyboard';
 import { SCENE_LOCATION_STORYBOARD_ADDENDUM } from '../lib/personal-wizard/storyboard-scene-location';
 import { COMPILER_RULES_STORYBOARD_ADDENDUM } from '../lib/personal-wizard/storyboard-compiler-rules';
 import { REPAIR_STORYBOARD_ADDENDUM, STORYBOARD_REPAIR_VERSION, storyboardRepairFindings, type StoryboardRepair } from '../lib/personal-wizard/storyboard-repair';
+import { DRAWN_INSTANT_STORYBOARD_ADDENDUM, drawnInstantGaps, drawnInstantFinding } from '../lib/personal-wizard/storyboard-drawn-instant';
 import { BOOK_LIMITS, personalBookOutputLimits } from '../lib/personal-wizard/book-config';
 import { OPUS_PLANNER, createOpusStoryboardTransport, plannerRequest, prepareOpusStoryboardWire, type PlannerWire } from './personal-opus-storyboard-transport';
 import { AUDITION_WORST_CASE_CALLS } from '../lib/personal-wizard/simple-book-reviewed-audition';
@@ -132,6 +133,21 @@ export const NEW_BOOK_STORYBOARD_REPAIR = Object.freeze({
    */
   planner: Object.freeze({ model: OPUS_PLANNER.model, route: OPUS_PLANNER.route, judge: 'gpt-6.1-sol' as const,
     approval: 'Guy 2026-10-15, in the Codex chat, delivered to Claude Code by Guy in Codex\'s execution brief: "יאללה, תן לקלוד בריף לעבור לאופוס 5.5 לתכנון הסטוריבורד ולהשאיר את Sol 6.1 כשופט. אתה תעשה QA על השינוי, ובוא נתקדם כבר לספר מלא."' }),
+});
+/**
+ * Guy's second, separately approved repair (2026-10-15): the first repair's storyboard compiled, but its fresh review held it
+ * (held_contradiction) at drawn instants the moments contract could not fully express (a temporary look of the companion) or did not make
+ * complete (a state the page changes after the drawn instant, offscreen). The same story is replayed, the first repair's two answers are
+ * replayed to that exact held disposition, and the first repair's request is sent ONCE more with exactly the opt-in drawn-instant contract
+ * added (its addendum, its schema, and the compiler's own findings on the held storyboard beside its review's), as a repair of that repair,
+ * on the same planner route and judge, under the same $7 with the carry kept. Once only.
+ */
+export const NEW_BOOK_STORYBOARD_REPAIR_2 = Object.freeze({
+  id: 'storyboard-repair-2',
+  outDir: 'text-repair-2',
+  approval: 'Guy 2026-10-15, AskUserQuestion after the Opus repair\'s fresh Sol review held it (held_contradiction: page 3 flat tail undeclared, page 7 gate state undeclared): "Fix the rule, then 1 repair (Recommended)" (make the drawn-moment rule complete, with a code check so a missed override is caught, Codex QA, then one more Opus repair and Sol review), then on the corrected scope "Confirm and build (Recommended)" (a temporary child/companion look field, the completeness check, a repair of a repair, the second repair stage).',
+  contracts: Object.freeze({ ...NEW_BOOK_STORYBOARD_REPAIR.contracts, drawnInstantContract: true as const }),
+  addedContracts: Object.freeze(['drawnInstantContract'] as const),
 });
 /**
  * Guy's resolution of the carried reservation (2026-10-15): the repair's reservation did not fit beside the timed-out call's full $2.27
@@ -238,15 +254,15 @@ function verifiedClaim(config: NewBookConfig) {
 export function assertExperimentClaim(config: NewBookConfig) {
   const { claim, claimSha256 } = verifiedClaim(config);
   const continuation = readContinuation(config, claimSha256), refused = readRefusedChain(config, claimSha256, continuation);
-  const repair = readRepair(config, claimSha256, continuation, refused);
+  const repair = readRepair(config, claimSha256, continuation, refused), repair2 = readRepair2(config, claimSha256, repair);
   const latest = refused[refused.length - 1];
-  assertExperimentSource(config, repair?.sourceHead ?? latest?.amendment.sourceHead ?? continuation?.sourceHead ?? config.sourceHead);
-  return { claim, claimSha256, continuation, refused, repair };
+  assertExperimentSource(config, repair2?.sourceHead ?? repair?.sourceHead ?? latest?.amendment.sourceHead ?? continuation?.sourceHead ?? config.sourceHead);
+  return { claim, claimSha256, continuation, refused, repair, repair2 };
 }
 type ContinuationChain = { continuation: NewBookContinuation | null; refused: { step: RefusedStep; amendment: NewBookRefusedContinuation }[];
-  repair: NewBookRepair | null };
+  repair: NewBookRepair | null; repair2: NewBookRepair2 | null };
 /** Where this book's latest text lives. */
-const textFolderOf = (chain: ContinuationChain) => chain.repair ? NEW_BOOK_STORYBOARD_REPAIR.outDir
+const textFolderOf = (chain: ContinuationChain) => chain.repair2 ? NEW_BOOK_STORYBOARD_REPAIR_2.outDir : chain.repair ? NEW_BOOK_STORYBOARD_REPAIR.outDir
   : chain.refused[chain.refused.length - 1]?.step.spec.outDir ?? (chain.continuation ? NEW_BOOK_CONTINUATION.outDir : 'text');
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -359,19 +375,34 @@ function amendForContinuation(config: NewBookConfig, head: string, prepared: Ret
 /** Where this book's reviewed text lives now, and its verified API ledger (known spend and any carried unresolved reservation). */
 export function textStage(config: NewBookConfig, chain: ContinuationChain): { folder: string; path: string; knownMicroUsd: number;
   carriedUnresolvedMicroUsd: number; evidence: { file: string; sha256: string }[] } {
-  const dir = experimentDir(config), { continuation, refused, repair } = chain;
+  const dir = experimentDir(config), { continuation, refused, repair, repair2 } = chain;
+  if (repair2) {
+    // The first repair's verified ledger (held), then the second's own: its prior and carried amounts exactly that ledger (no resolution
+    // since: the first repair named none and a resolution is never retroactive), its review's call and its planner's journal re-derived.
+    if (!repair) return fail('new_book_continuation');
+    const before = textStage(config, { ...chain, repair2: null });
+    if (before.knownMicroUsd !== repair2.priorKnownApiMicroUsd || before.carriedUnresolvedMicroUsd !== repair2.carriedUnresolvedMicroUsd) fail('new_book_continuation_ledger');
+    const out = path.join(dir, NEW_BOOK_STORYBOARD_REPAIR_2.outDir);
+    const ledger = stageLedger(out, REPAIR_API_CALLS, repair2.priorKnownApiMicroUsd, repair2.carriedUnresolvedMicroUsd, REPAIR_API_RULES);
+    const planner = verifyRepairPlanner(config, out, repair2.planner, NEW_BOOK_STORYBOARD_REPAIR_2.contracts);
+    const amendment = experimentRepair2File(config);
+    return { folder: NEW_BOOK_STORYBOARD_REPAIR_2.outDir, path: out, knownMicroUsd: repair2.priorKnownApiMicroUsd + ledger.knownMicroUsd,
+      carriedUnresolvedMicroUsd: repair2.carriedUnresolvedMicroUsd,
+      evidence: [...before.evidence, { file: amendment, sha256: sha(readFileSync(amendment)) }, { file: ledger.file, sha256: ledger.sha256 },
+        { file: planner.file, sha256: planner.sha256 }] };
+  }
   if (repair) {
     // The held attempt's verified ledger, then the repair's own: its prior and carried amounts must be exactly that ledger with the carry
     // resolution it names applied (or none), and its folder's calls are re-derived from their own evidence.
-    const before = textStage(config, { continuation, refused, repair: null });
-    const resolution = repair.carryResolutionSha256 === null ? null : readCarryResolution(config, repair.claimSha256, chainFolders({ ...chain, repair: null }));
+    const before = textStage(config, { continuation, refused, repair: null, repair2: null });
+    const resolution = repair.carryResolutionSha256 === null ? null : readCarryResolution(config, repair.claimSha256, chainFolders({ ...chain, repair: null, repair2: null }));
     if (repair.carryResolutionSha256 !== (resolution?.sha256 ?? null)) fail('new_book_carry_resolution');
     const expected = resolvedLedger(before, resolution);
     if (expected.knownMicroUsd !== repair.priorKnownApiMicroUsd || expected.carriedUnresolvedMicroUsd !== repair.carriedUnresolvedMicroUsd) fail('new_book_continuation_ledger');
     const out = path.join(dir, NEW_BOOK_STORYBOARD_REPAIR.outDir);
     // Its API meter holds the Sol review only; its planner's evidence (the Claude Max journal) is re-derived on its own route.
     const ledger = stageLedger(out, REPAIR_API_CALLS, repair.priorKnownApiMicroUsd, repair.carriedUnresolvedMicroUsd, REPAIR_API_RULES);
-    const planner = verifyRepairPlanner(config, out, repair);
+    const planner = verifyRepairPlanner(config, out, repair.planner, NEW_BOOK_STORYBOARD_REPAIR.contracts);
     const amendment = experimentRepairFile(config);
     return { folder: NEW_BOOK_STORYBOARD_REPAIR.outDir, path: out, knownMicroUsd: repair.priorKnownApiMicroUsd + ledger.knownMicroUsd,
       carriedUnresolvedMicroUsd: repair.carriedUnresolvedMicroUsd,
@@ -524,7 +555,8 @@ const storyDispatch = <T extends { stage: string }>(call: T, role: 'opus' | 'ast
   ({ ...call, role, conversationKey: `new-book:${requestId}:${call.stage}` });
 
 /** The story and storyboard flow, shared by the first run and its one continuation (which replays the paid story calls). */
-type TextContracts = { actorOwnedAppearance?: true; momentContract?: true; landmarkKindContract?: true; sceneLocationContract?: true };
+type TextContracts = { actorOwnedAppearance?: true; momentContract?: true; landmarkKindContract?: true; sceneLocationContract?: true;
+  compilerRulesContract?: true; drawnInstantContract?: true };
 /** One rule for a storyboard or review call's journal step, price and reservation: the live call and any replay of its records share it. */
 const visualStep = (call: SimpleStoryboardDiagnosticCall) => call.stage === 'review' ? 'storyboard_review' : 'storyboard';
 const visualRate = (call: SimpleStoryboardDiagnosticCall) => call.stage === 'review' ? RATES.sol : RATES.astra;
@@ -1013,7 +1045,8 @@ function chainFolders(chain: ContinuationChain): StageFolder[] {
   return [{ folder: 'text', rules: TEXT_RULES },
     ...(chain.continuation ? [{ folder: NEW_BOOK_CONTINUATION.outDir, rules: CONTINUATION_RULES }] : []),
     ...chain.refused.map(r => ({ folder: r.step.spec.outDir, rules: CONTINUATION_RULES })),
-    ...(chain.repair ? [{ folder: NEW_BOOK_STORYBOARD_REPAIR.outDir, rules: REPAIR_API_RULES }] : [])];
+    ...(chain.repair ? [{ folder: NEW_BOOK_STORYBOARD_REPAIR.outDir, rules: REPAIR_API_RULES }] : []),
+    ...(chain.repair2 ? [{ folder: NEW_BOOK_STORYBOARD_REPAIR_2.outDir, rules: REPAIR_API_RULES }] : [])];
 }
 const tokenCount = z.number().int().nonnegative().max(1_000_000_000);
 /** Guy's attestation: what his provider usage records show for the timed-out call's day and model, within the scope he names. */
@@ -1111,7 +1144,7 @@ async function admitCarryResolution(config: NewBookConfig, head: string, attesta
     const refused = readRefusedChain(config, claimSha256, continuation), dir = experimentDir(config);
     if (readRepair(config, claimSha256, continuation, refused) || existsSync(path.join(dir, NEW_BOOK_STORYBOARD_REPAIR.outDir)) ||
         existsSync(path.join(dir, 'child')) || existsSync(experimentAuditionStart(config))) fail('new_book_carry_resolution_late');
-    const chain: ContinuationChain = { continuation, refused, repair: null }, before = textStage(config, chain);
+    const chain: ContinuationChain = { continuation, refused, repair: null, repair2: null }, before = textStage(config, chain);
     const derived = deriveCarryResolution(config, attestation, chainFolders(chain));
     if (before.carriedUnresolvedMicroUsd !== derived.timedOut.maximumMicroUsd) fail('new_book_carry_resolution_scope');
     return { claimSha256, before, derived, evidence: before.evidence };
@@ -1190,26 +1223,28 @@ const plannerArgs = (instructionFile: string, schema: string) => ['-p', '--safe-
   '--tools', '', '--no-session-persistence', '--output-format', 'json', '--max-budget-usd', String(OPUS_PLANNER.sessionGuardMicroUsd / 1e6),
   '--system-prompt-file', instructionFile, '--json-schema', schema];
 /**
- * The repair's planner evidence (its Claude Max journal), re-derived like any paid record: exactly the planner's own four records; the claim
+ * A repair's planner evidence (its Claude Max journal), re-derived like any paid record: exactly the planner's own four records; the claim
  * binding its wire, at the session guard; the wire on the planner's route, flags, model and pinned executable, carrying exactly the admitted
  * request (its content digest); the CLI's own raw answer settling to the recorded cost (its one reported model, usage, success and confirmed
- * termination); the decoded structured answer exactly the saved draft; and the spend record equal to the journal from the earlier Max use.
+ * termination); the decoded structured answer (under that repair's contracts) exactly the saved draft; and the spend record equal to the
+ * journal from the earlier Max use. Returns the spend record and the journal's cumulative accounted total (the next repair's prior).
  */
-function verifyRepairPlanner(config: NewBookConfig, out: string, repair: NewBookRepair) {
+function verifyRepairPlanner(config: NewBookConfig, out: string,
+  planner: { executableSha256: string; requestDigest: string; priorClaudeMaxMicroUsd: number }, contracts: TextContracts) {
   const root = path.join(out, 'claude-max-stages'), at = (k: string) => path.join(root, `storyboard.${k}.json`);
   if (!existsSync(root) || canonicalJson(readdirSync(root).sort()) !== canonicalJson(['claim', 'receipt', 'result', 'wire'].map(k => `storyboard.${k}.json`))) fail('new_book_planner_record');
   const [claim, wire, result, receipt] = ['claim', 'wire', 'result', 'receipt'].map(k => read(at(k)));
-  const snapshot = new SimpleBookBudget(root, repair.planner.priorClaudeMaxMicroUsd).snapshot(), spend = path.join(out, 'claude-max-spend.json');
+  const snapshot = new SimpleBookBudget(root, planner.priorClaudeMaxMicroUsd).snapshot(), spend = path.join(out, 'claude-max-spend.json');
   if (!existsSync(spend) || canonicalJson(read(spend)) !== canonicalJson({ ...snapshot, note: NEW_BOOK_EXPERIMENT.claudeMax })) fail('new_book_planner_record');
   const args = Array.isArray(wire?.args) ? wire.args : [], schema = typeof args[args.length - 1] === 'string' ? args[args.length - 1] : '';
   if (claim.step !== 'storyboard' || claim.maximumMicroUsd !== OPUS_PLANNER.sessionGuardMicroUsd || claim.wireDigest !== sha(canonicalJson(wire)) ||
       result.wireDigest !== claim.wireDigest || result.completed !== true || wire.role !== 'opus' || wire.stage !== 'storyboard' ||
       wire.model !== OPUS_PLANNER.model || wire.json !== JSON.stringify(wire.payload) || wire.digest !== sha(wire.json) ||
       canonicalJson(args) !== canonicalJson(plannerArgs(String(wire.payload?.instructionFile), schema)) || canonicalJson(wire.payload?.args) !== canonicalJson(args) ||
-      wire.payload?.stdin !== wire.stdin || wire.payload?.executableSha256 !== repair.planner.executableSha256 ||
-      repair.planner.executableSha256 !== config.executableSha256 ||
+      wire.payload?.stdin !== wire.stdin || wire.payload?.executableSha256 !== planner.executableSha256 ||
+      planner.executableSha256 !== config.executableSha256 ||
       previewSha(canonicalJson({ instructions: wire.payload?.instructions, input: wire.stdin, maxOutputTokens: wire.outputCap, schema: JSON.parse(schema || 'null') }))
-        !== repair.planner.requestDigest) fail('new_book_planner_record');
+        !== planner.requestDigest) fail('new_book_planner_record');
   // The CLI's raw answer, settled here as the transport settled it live.
   let parsed: any = null;
   try { parsed = JSON.parse(String(receipt?.raw?.stdout)); } catch { fail('new_book_planner_cost'); }
@@ -1222,14 +1257,14 @@ function verifyRepairPlanner(config: NewBookConfig, out: string, repair: NewBook
       termination?.spawnError || receipt?.raw?.killConfirmed !== true || receipt?.raw?.stopped !== false) fail('new_book_planner_cost');
   // Its structured answer, decoded by the live decoder (this repair's contracts, its book's own source), is exactly the saved draft.
   const book = read(path.join(out, 'visual_simple_book_result.json'))?.storyboard?.storyboard, draft = read(path.join(out, 'owned_storyboard_draft.json'));
-  const contracts = NEW_BOOK_STORYBOARD_REPAIR.contracts;
   let decoded: unknown = null;
   try { decoded = decodePersonalBookProviderOutput({ stage: 'storyboard', instructions: '', input: '', maxOutputTokens: wire.outputCap,
     context: { narrativeSpreads: book?.narrativeSpreads, sourceDigest: book?.sourceDigest, actorOwnedAppearance: contracts.actorOwnedAppearance,
-      momentContract: contracts.momentContract, landmarkKindContract: contracts.landmarkKindContract } } as never, parsed.structured_output); }
+      momentContract: contracts.momentContract, landmarkKindContract: contracts.landmarkKindContract,
+      ...(contracts.drawnInstantContract ? { drawnInstantContract: true } : {}) } } as never, parsed.structured_output); }
   catch { fail('new_book_planner_record'); }
   if (canonicalJson(decoded) !== canonicalJson(draft) || canonicalJson(receipt.output) !== canonicalJson(draft)) fail('new_book_planner_record');
-  return { file: spend, sha256: sha(readFileSync(spend)), knownMicroUsd: snapshot.knownEstimateMicroUsd };
+  return { file: spend, sha256: sha(readFileSync(spend)), knownMicroUsd: snapshot.knownEstimateMicroUsd, accountedMicroUsd: snapshot.accountedMicroUsd };
 }
 const thirdAmendmentFile = (config: NewBookConfig) => refusedFile(config, REFUSED_STEPS[REFUSED_STEPS.length - 1]);
 /** The recorded repair amendment (null when none), verified against the third amendment, every record of the third attempt and the resolution it names. */
@@ -1276,7 +1311,7 @@ function repairBaseline(config: NewBookConfig, head: string, prepared: ReturnTyp
   const claims = readdirSync(root).filter(n => n.endsWith('.claim.json')).map(n => n.slice(0, -'.claim.json'.length)).sort();
   if (canonicalJson(claims) !== canonicalJson(['storyboard', 'storyboard_review']) ||
       claims.some(step => read(path.join(root, `${step}.result.json`)).completed !== true)) fail('new_book_continuation_scope');
-  const chain: ContinuationChain = { continuation: first, refused, repair: null };
+  const chain: ContinuationChain = { continuation: first, refused, repair: null, repair2: null };
   const held = textStage(config, chain), resolution = readCarryResolution(config, claimSha256, chainFolders(chain));
   if (amended && amended.carryResolutionSha256 !== (resolution?.sha256 ?? null)) fail('new_book_carry_resolution');
   return { claimSha256, previous: refused[refused.length - 1].amendment, previousSha256: sha(readFileSync(thirdAmendmentFile(config))), amended,
@@ -1419,9 +1454,13 @@ async function admitRepair(config: NewBookConfig, head: string) {
  */
 async function assertRepairProducer(config: NewBookConfig, repair: NewBookRepair) {
   const { options, prepared } = prepareExperimentRequest(config);
-  const derived = await deriveRepairRequest(config, prepared, options);
-  const dir = experimentDir(config), out = path.join(dir, NEW_BOOK_STORYBOARD_REPAIR.outDir), wire = derived.plan.wire;
-  const evidence = folderEvidence(dir, NEW_BOOK_STORYBOARD_REPAIR.outDir);
+  return repairProducerPin(config, repair, await deriveRepairRequest(config, prepared, options), NEW_BOOK_STORYBOARD_REPAIR.outDir);
+}
+/** A repair's saved producer evidence is exactly what its roots derived (`derived`); returns its folder's fingerprint, taken first. Synchronous. */
+function repairProducerPin(config: NewBookConfig, repair: { previousStatus: string; parentStoryboardDigest: string; planner: { requestDigest: string } },
+  derived: { status: string; repair: StoryboardRepair; plan: { requestDigest: string; wire: PlannerWire } }, folder: string) {
+  const dir = experimentDir(config), out = path.join(dir, folder), wire = derived.plan.wire;
+  const evidence = folderEvidence(dir, folder);
   const pinned = (file: string, maxBytes: number) => {
     let text: string;
     try { text = fencedText(file, maxBytes); } catch { return fail('new_book_planner_source'); }
@@ -1434,19 +1473,22 @@ async function assertRepairProducer(config: NewBookConfig, repair: NewBookRepair
       saved(path.join(out, STORYBOARD_REPAIR_INPUT_FILE)) !== canonicalJson(derived.repair) ||
       saved(path.join(out, 'claude-max-stages', 'storyboard.wire.json')) !== canonicalJson(wire) ||
       pinned(String(wire.payload.instructionFile), 104_000) !== wire.payload.instructions) fail('new_book_planner_source');
-  return canonicalJson(evidence);
+  return { folder, fingerprint: canonicalJson(evidence) };
 }
+type RepairPin = ReturnType<typeof repairProducerPin> | null;
 /**
  * The source-derived checks a consumer runs before its first claim: the original timed-out request whenever a carry exists, and, once
- * repaired, the repair's producer request. Returns the repair folder's fingerprint (null when unrepaired) for sameRepairFolder.
+ * repaired, the latest repair's producer request (a second repair re-derives and checks the first's too). Returns the latest repair folder's
+ * fingerprint (null when unrepaired) for sameRepairFolder; earlier repair folders are bound by the later amendment, which every claim re-checks.
  */
-async function assertDerivedRoots(config: NewBookConfig, chain: ContinuationChain) {
+async function assertDerivedRoots(config: NewBookConfig, chain: ContinuationChain): Promise<RepairPin> {
   if (chain.continuation) await assertOriginalRequest(config);
+  if (chain.repair2) return chain.repair ? assertRepair2Producer(config, chain.repair, chain.repair2) : fail('new_book_continuation');
   return chain.repair ? assertRepairProducer(config, chain.repair) : null;
 }
 /** The repaired folder is unchanged since its producer request was re-derived (a consumer's per-call guard; synchronous). */
-function sameRepairFolder(config: NewBookConfig, fingerprint: string | null) {
-  if (fingerprint !== null && canonicalJson(folderEvidence(experimentDir(config), NEW_BOOK_STORYBOARD_REPAIR.outDir)) !== fingerprint) fail('new_book_planner_source');
+function sameRepairFolder(config: NewBookConfig, pin: RepairPin) {
+  if (pin !== null && canonicalJson(folderEvidence(experimentDir(config), pin.folder)) !== pin.fingerprint) fail('new_book_planner_source');
 }
 /** Read-only preview of the repair. */
 export async function previewStoryboardRepair(config: NewBookConfig) {
@@ -1495,6 +1537,256 @@ export async function runNewBookStoryboardRepair(args: { config: NewBookConfig; 
       mine.priorKnownApiMicroUsd, mine.carriedUnresolvedMicroUsd, meterRules(REPAIR_API_RULES)),
     claudeMax: new SimpleBookBudget(path.join(outDir, 'claude-max-stages'), mine.planner.priorClaudeMaxMicroUsd, CLAUDE_MAX_JOURNAL_CAP),
     replay: textReplay(path.join(dir, 'text')), continuationId: NEW_BOOK_STORYBOARD_REPAIR.id });
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// Guy's second repair (a fifth amendment of the claim): the first repair's storyboard compiled, but its fresh review held it. The same story
+// is replayed, the first repair's two answers (its planner's, from its Claude Max journal; its review's) are replayed to that exact held
+// disposition, and the first repair's request is sent ONCE more with exactly the drawn-instant contract added, as a repair of that repair.
+// ---------------------------------------------------------------------------------------------------------------
+export const experimentRepair2File = (config: NewBookConfig) =>
+  path.join(path.dirname(experimentClaimFile(config)), `${NEW_BOOK_EXPERIMENT.slot}.continuation-5.json`);
+const repair2Schema = z.object({ version: z.literal('new-book-continuation/v1'), id: z.literal(NEW_BOOK_STORYBOARD_REPAIR_2.id),
+  slot: z.literal(NEW_BOOK_EXPERIMENT.slot), approval: z.literal(NEW_BOOK_STORYBOARD_REPAIR_2.approval), claimSha256: hash, configSha256: hash,
+  previousSha256: hash, originalSourceHead: headSha, previousSourceHead: headSha, sourceHead: headSha, failedStep: z.literal('storyboard_review_held'),
+  previousStatus: heldStatus, parentStoryboardDigest: hash, addedContracts: z.tuple([z.literal('drawnInstantContract')]),
+  priorKnownApiMicroUsd: z.number().int().nonnegative(), carriedUnresolvedMicroUsd: z.number().int().nonnegative(),
+  // The same planner route and judge as the first repair (Guy's planner decision), the exact request admitted, and the Max use before it.
+  planner: z.object({ model: z.literal(OPUS_PLANNER.model), route: z.literal(OPUS_PLANNER.route), judge: z.literal(SOL),
+    approval: z.literal(NEW_BOOK_STORYBOARD_REPAIR.planner.approval), executableSha256: hash,
+    sessionGuardMicroUsd: z.literal(OPUS_PLANNER.sessionGuardMicroUsd), requestDigest: hash,
+    priorClaudeMaxMicroUsd: z.number().int().nonnegative() }).strict(),
+  evidence: z.array(z.object({ file: z.string().regex(new RegExp(`^${NEW_BOOK_STORYBOARD_REPAIR.outDir}/[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)?$`)), sha256: hash })
+    .strict()).min(4).max(32) }).strict();
+export type NewBookRepair2 = z.infer<typeof repair2Schema>;
+/** The recorded second repair amendment (null when none), verified against the first repair amendment and every record of the first repair. */
+function readRepair2(config: NewBookConfig, claimSha256: string, repair1: NewBookRepair | null): NewBookRepair2 | null {
+  const file = experimentRepair2File(config);
+  if (!existsSync(file)) return null;
+  // It amends the first repair: that amendment must be there.
+  if (!repair1) return fail('new_book_continuation');
+  const parsed = repair2Schema.safeParse(read(file));
+  if (!parsed.success || parsed.data.claimSha256 !== claimSha256 || parsed.data.configSha256 !== sha(canonicalJson(config)) ||
+      parsed.data.originalSourceHead !== config.sourceHead || parsed.data.previousSourceHead !== repair1.sourceHead ||
+      parsed.data.previousSha256 !== sha(readFileSync(experimentRepairFile(config)))) return fail('new_book_continuation');
+  if (canonicalJson(folderEvidence(experimentDir(config), NEW_BOOK_STORYBOARD_REPAIR.outDir)) !== canonicalJson(parsed.data.evidence)) fail('new_book_continuation_evidence');
+  return parsed.data;
+}
+type Repair2Baseline = { claimSha256: string; repair1: NewBookRepair; repair1Sha256: string; amended: NewBookRepair2 | null;
+  status: z.infer<typeof heldStatus>; held: ReturnType<typeof textStage>; maxBefore: number; evidence: ReturnType<typeof folderEvidence> };
+/**
+ * The second repair's admission baseline at ONE pinned HEAD (compared, never adopted): the clean source first; the unchanged claim and its
+ * whole chain through the first repair; once amended, its own HEAD equal to the pin; the failed text stage and the complete request record;
+ * the first repair sealed held by its own review with exactly its planner's journal and its review's call; every ledger re-derived from
+ * evidence (the first repair's planner journal included, whose cumulative total is this repair's earlier Max use); and every record of the
+ * first repair by hash.
+ */
+function repair2Baseline(config: NewBookConfig, head: string, prepared: ReturnType<typeof prepareSimpleStory>): Repair2Baseline {
+  assertExperimentSource(config, head);
+  const { claim, claimSha256 } = verifiedClaim(config);
+  const first = readContinuation(config, claimSha256);
+  if (!first) return fail('new_book_continuation_scope');
+  const refused = readRefusedChain(config, claimSha256, first), repair1 = readRepair(config, claimSha256, first, refused);
+  if (refused.length !== REFUSED_STEPS.length || !repair1) return fail('new_book_continuation_scope');
+  const amended = readRepair2(config, claimSha256, repair1);
+  if (amended && amended.sourceHead !== head) fail('new_book_source_changed');
+  const dir = experimentDir(config), out1 = path.join(dir, NEW_BOOK_STORYBOARD_REPAIR.outDir), root = path.join(out1, 'paid-stages');
+  if (sealedStatus(path.join(dir, 'text')) !== 'failed') fail('new_book_continuation_scope');
+  assertRequestRecord(dir, claim, prepared);
+  const sealed = existsSync(path.join(out1, 'sealed.json')) ? read(path.join(out1, 'sealed.json')) : null, status = heldStatus.safeParse(sealed?.status);
+  if (!status.success || sealed.continuation !== NEW_BOOK_STORYBOARD_REPAIR.id || !existsSync(root)) return fail('new_book_continuation_scope');
+  const claims = readdirSync(root).filter(n => n.endsWith('.claim.json')).map(n => n.slice(0, -'.claim.json'.length)).sort();
+  if (canonicalJson(claims) !== canonicalJson(['storyboard_review']) || read(path.join(root, 'storyboard_review.result.json')).completed !== true) fail('new_book_continuation_scope');
+  const held = textStage(config, { continuation: first, refused, repair: repair1, repair2: null });
+  // The first repair started its journal from this book's earlier Max use; its journal's cumulative total starts this one's.
+  if (priorClaudeMax(config) !== repair1.planner.priorClaudeMaxMicroUsd) fail('new_book_planner_record');
+  const maxBefore = verifyRepairPlanner(config, out1, repair1.planner, NEW_BOOK_STORYBOARD_REPAIR.contracts).accountedMicroUsd;
+  return { claimSha256, repair1, repair1Sha256: sha(readFileSync(experimentRepairFile(config))), amended, status: status.data, held, maxBefore,
+    evidence: folderEvidence(dir, NEW_BOOK_STORYBOARD_REPAIR.outDir) };
+}
+function sameRepair2Baseline(config: NewBookConfig, head: string, prepared: ReturnType<typeof prepareSimpleStory>, admitted: Repair2Baseline) {
+  const now = repair2Baseline(config, head, prepared);
+  if (now.claimSha256 !== admitted.claimSha256 || now.repair1Sha256 !== admitted.repair1Sha256 || now.maxBefore !== admitted.maxBefore ||
+      now.held.knownMicroUsd !== admitted.held.knownMicroUsd || now.held.carriedUnresolvedMicroUsd !== admitted.held.carriedUnresolvedMicroUsd ||
+      canonicalJson(now.evidence) !== canonicalJson(admitted.evidence)) fail('new_book_continuation_evidence');
+  return now;
+}
+/**
+ * The second repair's input and its planner request as the accepted roots derive them NOW (no provider, no key, nothing written): the first
+ * repair as its roots derive it (deriveRepairRequest); its two saved answers replayed under its own contracts and input - exactly its admitted
+ * planner request answered by its Claude Max journal's structured answer, then exactly its review's request, its cost re-derived from its raw
+ * answer under the live rule - to a held storyboard whose decoded draft (equal to the draft it saved) and own raw review, with the first
+ * repair's own input nested and the drawn-instant contract added, are this repair's input; then the request the engine builds from them,
+ * which must be the first repair's with exactly the contract added: its addendum before the repair contract's, its schema, the new prior (the
+ * held first repair, its review's unsupported checks and the compiler's own drawn-instant findings on it) and the source digest that records
+ * it, at the same model and caps; and its complete CLI wire under the pinned policy at this repair folder's own prompt file.
+ */
+async function deriveRepair2Request(config: NewBookConfig, prepared: ReturnType<typeof prepareSimpleStory>,
+  options: ReturnType<typeof prepareExperimentRequest>['options']) {
+  const dir = experimentDir(config), textDir = path.join(dir, 'text'), out1 = path.join(dir, NEW_BOOK_STORYBOARD_REPAIR.outDir);
+  const policy = textPolicy(config), replay = textReplay(textDir);
+  const first = await deriveRepairRequest(config, prepared, options);
+  // The first repair's saved answers: its planner's structured answer (its journal's raw CLI answer) and its review's provider answer.
+  let structured: unknown = null;
+  try { structured = JSON.parse(String(read(path.join(out1, 'claude-max-stages', 'storyboard.receipt.json'))?.raw?.stdout)).structured_output; }
+  catch { return fail('new_book_continuation_replay'); }
+  const [claim, wire, result, receipt] = ['claim', 'wire', 'result', 'receipt'].map(k => read(path.join(out1, 'paid-stages', `storyboard_review.${k}.json`)));
+  if (previewSha(canonicalJson(wire)) !== claim.wireDigest || result.wireDigest !== claim.wireDigest || result.completed !== true || !structured ||
+      receipt?.estimatedMicroUsd !== result.estimatedMicroUsd || typeof receipt?.raw?.output_text !== 'string') fail('new_book_continuation_replay');
+  let refusal: unknown = null, stop: string | null = null;
+  const replayed = <T>(f: () => T) => { try { return f(); } catch (error) { refusal ??= error; throw error; } };
+  const halt = (code: string): never => { stop ??= code; throw new NewBookExperimentError(code); };
+  const story = (contracts: TextContracts, repair: StoryboardRepair, visual: (call: SimpleStoryboardDiagnosticCall) => Promise<unknown>) =>
+    runSimpleWizardBook({ request: prepared.accepted.canonical, options, seed: config.seed, signal: new AbortController().signal,
+      reservedWritingUsd: 4, ...contracts, storyboardRepair: repair, publish: () => {},
+      opus: async call => { const d = storyDispatch(call, 'opus', prepared.accepted.requestId);
+        return replayed(() => replay.opus(d, prepareCausalWire(d, policy, 2000000, path.join(textDir, `${call.stage}-instructions.txt`)))); },
+      reader: async call => { const d = storyDispatch(call, 'astra', prepared.accepted.requestId);
+        return replayed(() => replay.reader(d, prepareCausalWire(d, policy, 2000000))); },
+      visual });
+  // 1. The first repair, replayed: exactly its admitted planner request (answered from its journal), then exactly its review's request.
+  let draft: unknown = null, firstCall: SimpleStoryboardDiagnosticCall | null = null, reviewSettled: number | null = null, calls = 0;
+  const replayedFirst = await story(NEW_BOOK_STORYBOARD_REPAIR.contracts, first.repair, async call => {
+    if (call.stage === 'storyboard') {
+      if (calls++ !== 0 || plannerRequestDigest(call) !== first.plan.requestDigest) return halt('new_book_continuation_replay');
+      firstCall = call; draft = decodePersonalBookProviderOutput(call, structured);
+      return draft;
+    }
+    const payload = simpleWizardVisualPayload(call, SOL);
+    if (calls++ !== 1 || previewSha(canonicalJson(payload)) !== claim.wireDigest) return halt('new_book_continuation_replay');
+    const s = visualSettlement(call, payload, receipt.raw);
+    if (!s.valid || s.estimatedMicroUsd === null || s.estimatedMicroUsd !== result.estimatedMicroUsd || canonicalJson(receipt.usage) !== canonicalJson(s.usage) ||
+        receipt.model !== receipt.raw.model || receipt.stage !== visualStep(call)) return halt('new_book_continuation_cost');
+    reviewSettled = s.estimatedMicroUsd;
+    return decodePersonalBookProviderOutput(call, JSON.parse(receipt.raw.output_text));
+  }).catch((error: unknown) => { throw refusal ?? (stop ? new NewBookExperimentError(stop) : error); });
+  const heldBoard = replayedFirst.storyboard, firstStoryboardCall = firstCall as SimpleStoryboardDiagnosticCall | null;
+  if (calls !== 2 || !heldBoard || !firstStoryboardCall || reviewSettled === null || replayedFirst.status !== heldBoard.status ||
+      !heldStatus.safeParse(heldBoard.status).success) return fail('new_book_continuation_scope');
+  // The draft the first repair saved is the one its planner's answer decodes to.
+  if (canonicalJson(read(path.join(out1, 'owned_storyboard_draft.json'))) !== canonicalJson(draft)) fail('new_book_continuation_replay');
+  const repair: StoryboardRepair = { parentStoryboardDigest: heldBoard.storyboardDigest, draft: structuredClone(draft), review: structuredClone(heldBoard.rawReview),
+    parentRepair: structuredClone(first.repair), addedContracts: [...NEW_BOOK_STORYBOARD_REPAIR_2.addedContracts] };
+  // What the engine must tell the planner: the review's own unsupported checks and the compiler's drawn-instant findings on the held storyboard.
+  const texts = previewStoryEvidence(previewTextPages({ title: replayedFirst.source.manuscript.title, pages: replayedFirst.source.manuscript.pages })).texts;
+  const prior = { version: STORYBOARD_REPAIR_VERSION, parentStoryboardDigest: repair.parentStoryboardDigest, storyboard: repair.draft,
+    reviewFindings: storyboardRepairFindings(heldBoard.review.review),
+    contractFindings: drawnInstantGaps(heldBoard.storyboard.moments!, heldBoard.storyboard.plan, heldBoard.storyboard.sequence, texts).map(drawnInstantFinding) };
+  // 2. This repair's request: the first repair's with exactly the contract added, and its planner wire on the Claude Max route.
+  const firstPayload = simpleWizardVisualPayload(firstStoryboardCall, SOL), repairAddendum = `\n${REPAIR_STORYBOARD_ADDENDUM}`;
+  const instructionFile = path.join(dir, NEW_BOOK_STORYBOARD_REPAIR_2.outDir, 'storyboard-instructions.txt');
+  let reached = false, onlyTheContract = false, plannerFailure: unknown = null, planner = null as { requestDigest: string; wire: PlannerWire } | null;
+  await story(NEW_BOOK_STORYBOARD_REPAIR_2.contracts, repair, async call => {
+    reached = true;
+    const payload = simpleWizardVisualPayload(call, SOL), source = call.context.sourceDigest;
+    try { planner = { requestDigest: plannerRequestDigest(call), wire: prepareOpusStoryboardWire(call, policy, instructionFile) }; }
+    catch (error) { plannerFailure = error; }
+    const { priorReviewedStoryboard, ...input } = JSON.parse(payload.input), { priorReviewedStoryboard: _first, ...firstInput } = JSON.parse(firstPayload.input);
+    // The schema the first request's own call carries once the contract is added to it (the provider form, from its own context).
+    const withContract = simpleWizardVisualPayload({ ...firstStoryboardCall, context: { ...firstStoryboardCall.context, drawnInstantContract: true } }, SOL);
+    onlyTheContract = call.stage === 'storyboard' && source !== firstStoryboardCall.context.sourceDigest &&
+      canonicalJson(call.context) === canonicalJson({ ...firstStoryboardCall.context, sourceDigest: source, drawnInstantContract: true }) &&
+      canonicalJson(input) === canonicalJson({ ...firstInput, personalSourceDigest: source }) && canonicalJson(priorReviewedStoryboard) === canonicalJson(prior) &&
+      payload.input === canonicalJson(JSON.parse(payload.input)) && firstStoryboardCall.instructions.endsWith(repairAddendum) &&
+      call.instructions === `${firstStoryboardCall.instructions.slice(0, -repairAddendum.length)}\n${DRAWN_INSTANT_STORYBOARD_ADDENDUM}${repairAddendum}` &&
+      firstPayload.instructions.startsWith(firstStoryboardCall.instructions) && canonicalJson(payload.text) === canonicalJson(withContract.text) &&
+      canonicalJson(payload) === canonicalJson({ ...firstPayload, input: payload.input, text: withContract.text,
+        instructions: call.instructions + firstPayload.instructions.slice(firstStoryboardCall.instructions.length) });
+    throw new NewBookExperimentError('new_book_continuation_preview_stop');
+  }).catch((error: unknown) => { if (!reached) throw refusal ?? error; });
+  if (!reached) fail('new_book_continuation_scope');
+  if (!onlyTheContract) return fail('new_book_continuation_request');
+  if (plannerFailure || !planner) throw plannerFailure ?? new NewBookExperimentError('new_book_planner_wire');
+  const plan: { requestDigest: string; wire: PlannerWire } = planner;
+  return { first, firstStatus: heldStatus.parse(heldBoard.status), reviewSettled, repair, plan,
+    findings: { review: prior.reviewFindings.length, contract: prior.contractFindings.length } };
+}
+async function admitRepair2(config: NewBookConfig, head: string) {
+  const { options, prepared } = prepareExperimentRequest(config);
+  const baseline = repair2Baseline(config, head, prepared);
+  await assertOriginalRequest(config);
+  const dir = experimentDir(config);
+  const derived = await deriveRepair2Request(config, prepared, options);
+  // The first repair's producer evidence is exactly what its roots derive (as every later reader of the repaired books requires), and it was
+  // sealed exactly as replayed: its held disposition and its review's settled cost in the verified ledger.
+  repairProducerPin(config, baseline.repair1, derived.first, NEW_BOOK_STORYBOARD_REPAIR.outDir);
+  if (derived.firstStatus !== baseline.status || baseline.held.knownMicroUsd !== baseline.repair1.priorKnownApiMicroUsd + derived.reviewSettled) fail('new_book_continuation_scope');
+  // The same route and fit as the first repair: the planner on Claude Max (its own session guard within the journal), and only the fresh
+  // review's largest possible reservation on the API meter, within what remains with the whole carry kept.
+  const reviewCeiling = wireReservation(VISUAL_WIRE_LIMIT, personalBookOutputLimits(prepared.book.pages).reviewOutputTokens, RATES.sol);
+  const remaining = NEW_BOOK_EXPERIMENT.apiCapMicroUsd - baseline.held.knownMicroUsd - baseline.held.carriedUnresolvedMicroUsd;
+  const fits = reviewCeiling <= remaining && baseline.maxBefore + OPUS_PLANNER.sessionGuardMicroUsd <= CLAUDE_MAX_JOURNAL_CAP;
+  // The replays were asynchronous: the same pinned HEAD, still clean, and exactly the records they used.
+  sameRepair2Baseline(config, head, prepared, baseline);
+  const args = derived.plan.wire.args;
+  return { prepared, options, repair: derived.repair, planner: { requestDigest: derived.plan.requestDigest, priorClaudeMaxMicroUsd: baseline.maxBefore },
+    admitted: { baseline, fits, summary: { admissible: true, amended: !!baseline.amended,
+    outDirExists: existsSync(path.join(dir, NEW_BOOK_STORYBOARD_REPAIR_2.outDir)), storyReplayed: true, firstRepairReplayed: true,
+    previousStatus: baseline.status, previousReviewSettledMicroUsd: derived.reviewSettled, parentStoryboardDigest: derived.repair.parentStoryboardDigest,
+    reviewFindings: derived.findings.review, contractFindings: derived.findings.contract, requestChangedOnlyByTheContract: true,
+    addedContracts: [...NEW_BOOK_STORYBOARD_REPAIR_2.addedContracts],
+    planner: { model: OPUS_PLANNER.model, route: OPUS_PLANNER.route, judge: SOL, requestDigest: derived.plan.requestDigest,
+      wireBytes: derived.plan.wire.bytes, wireByteLimit: textPolicy(config).maxWireBytes, argvChars: args.map(a => JSON.stringify(a)).join(' ').length + config.executable.length,
+      argvCharLimit: 31_000, schemaChars: args[args.length - 1].length, stdinBytes: Buffer.byteLength(derived.plan.wire.stdin, 'utf8'),
+      instructionsBytes: Buffer.byteLength(String(derived.plan.wire.payload.instructions), 'utf8'), outputCap: derived.plan.wire.outputCap,
+      sessionGuardMicroUsd: OPUS_PLANNER.sessionGuardMicroUsd, wireReservationMicroUsd: derived.plan.wire.reservedMicroUsd,
+      priorClaudeMaxMicroUsd: baseline.maxBefore, apiChargeMicroUsd: 0 },
+    reviewReservationCeilingMicroUsd: reviewCeiling, priorKnownApiMicroUsd: baseline.held.knownMicroUsd,
+    carriedUnresolvedMicroUsd: baseline.held.carriedUnresolvedMicroUsd, remainingUnderCapMicroUsd: remaining, fitsUnderCap: fits,
+    providerCalls: 0, keyRead: false } } };
+}
+/** Every later reader of the second repair re-derives, before any claim, the first repair's producer request and then its own (see repairProducerPin). */
+async function assertRepair2Producer(config: NewBookConfig, repair1: NewBookRepair, repair2: NewBookRepair2) {
+  const { options, prepared } = prepareExperimentRequest(config);
+  const derived = await deriveRepair2Request(config, prepared, options);
+  repairProducerPin(config, repair1, derived.first, NEW_BOOK_STORYBOARD_REPAIR.outDir);
+  return repairProducerPin(config, repair2, { status: derived.firstStatus, repair: derived.repair, plan: derived.plan }, NEW_BOOK_STORYBOARD_REPAIR_2.outDir);
+}
+/** Read-only preview of the second repair. */
+export async function previewStoryboardRepair2(config: NewBookConfig) {
+  return (await admitRepair2(config, currentHead(config))).admitted.summary;
+}
+/** Records the second repair amendment (exclusive), immediately after re-checking the admitted baseline at the same pinned HEAD. */
+function amendForRepair2(config: NewBookConfig, head: string, prepared: ReturnType<typeof prepareSimpleStory>, admitted: Repair2Baseline,
+  parentStoryboardDigest: string, planner: { requestDigest: string; priorClaudeMaxMicroUsd: number }) {
+  const now = sameRepair2Baseline(config, head, prepared, admitted);
+  if (now.amended) return now.amended;
+  if (existsSync(path.join(experimentDir(config), NEW_BOOK_STORYBOARD_REPAIR_2.outDir))) fail('new_book_continuation_scope');
+  if (now.maxBefore !== planner.priorClaudeMaxMicroUsd) fail('new_book_continuation_evidence');
+  const amendment = repair2Schema.parse({ version: 'new-book-continuation/v1', id: NEW_BOOK_STORYBOARD_REPAIR_2.id, slot: NEW_BOOK_EXPERIMENT.slot,
+    approval: NEW_BOOK_STORYBOARD_REPAIR_2.approval, claimSha256: now.claimSha256, configSha256: sha(canonicalJson(config)), previousSha256: now.repair1Sha256,
+    originalSourceHead: config.sourceHead, previousSourceHead: now.repair1.sourceHead, sourceHead: head, failedStep: 'storyboard_review_held',
+    previousStatus: now.status, parentStoryboardDigest, addedContracts: [...NEW_BOOK_STORYBOARD_REPAIR_2.addedContracts],
+    priorKnownApiMicroUsd: now.held.knownMicroUsd, carriedUnresolvedMicroUsd: now.held.carriedUnresolvedMicroUsd,
+    planner: { model: OPUS_PLANNER.model, route: OPUS_PLANNER.route, judge: SOL, approval: NEW_BOOK_STORYBOARD_REPAIR.planner.approval,
+      executableSha256: config.executableSha256, sessionGuardMicroUsd: OPUS_PLANNER.sessionGuardMicroUsd, requestDigest: planner.requestDigest,
+      priorClaudeMaxMicroUsd: planner.priorClaudeMaxMicroUsd },
+    evidence: admitted.evidence });
+  try { exclusiveJson(experimentRepair2File(config), amendment); } catch { fail('new_book_continuation_used'); }
+  return amendment;
+}
+/**
+ * Guy's second repair: one pinned HEAD, the admission above, the fit, its amendment, its repair input saved for the reviewed loader, then only
+ * the repaired storyboard (the Opus planner on Claude Max, journaled from this book's Max use so far) and its fresh Sol review (the API meter
+ * with every earlier known cost and the whole carry), in a new folder.
+ */
+export async function runNewBookStoryboardRepair2(args: { config: NewBookConfig; signal: AbortSignal; log: (line: string) => void; transports?: TextTransports }) {
+  const { config } = args;
+  const head = currentHead(config);
+  const { prepared, options, repair, planner, admitted } = await admitRepair2(config, head);
+  if (!admitted.fits) fail('new_book_repair_over_cap');
+  amendForRepair2(config, head, prepared, admitted.baseline, repair.parentStoryboardDigest, planner);
+  const mine = assertExperimentClaim(config).repair2;
+  if (!mine || mine.parentStoryboardDigest !== repair.parentStoryboardDigest || mine.planner.requestDigest !== planner.requestDigest) return fail('new_book_continuation');
+  const dir = experimentDir(config), outDir = path.join(dir, NEW_BOOK_STORYBOARD_REPAIR_2.outDir);
+  try { mkdirSync(outDir); } catch { fail('new_book_continuation_used'); }
+  exclusiveJson(path.join(outDir, STORYBOARD_REPAIR_INPUT_FILE), repair);
+  return textCore({ ...args, contracts: NEW_BOOK_STORYBOARD_REPAIR_2.contracts, storyboardRepair: repair, prepared, options, outDir,
+    opusPlanner: { requestDigest: mine.planner.requestDigest },
+    api: new AuditionMeter(path.join(outDir, 'paid-stages'), NEW_BOOK_EXPERIMENT.apiCapMicroUsd, REPAIR_API_CALLS,
+      mine.priorKnownApiMicroUsd, mine.carriedUnresolvedMicroUsd, meterRules(REPAIR_API_RULES)),
+    claudeMax: new SimpleBookBudget(path.join(outDir, 'claude-max-stages'), mine.planner.priorClaudeMaxMicroUsd, CLAUDE_MAX_JOURNAL_CAP),
+    replay: textReplay(path.join(dir, 'text')), continuationId: NEW_BOOK_STORYBOARD_REPAIR_2.id });
 }
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -1653,9 +1945,10 @@ export function planNewBook(config: NewBookConfig) {
     claimed: existsSync(experimentClaimFile(config)), continuation: existsSync(experimentContinuationFile(config)),
     continuation2: existsSync(experimentContinuation2File(config)), continuation3: existsSync(experimentContinuation3File(config)),
     carryResolution: existsSync(experimentCarryResolutionFile(config)), repair: existsSync(experimentRepairFile(config)),
+    repair2: existsSync(experimentRepair2File(config)),
     stages: { text: sealedStatus(path.join(dir, 'text')), continuation: sealedStatus(path.join(dir, NEW_BOOK_CONTINUATION.outDir)),
       continuation2: sealedStatus(path.join(dir, NEW_BOOK_CONTINUATION_2.outDir)), continuation3: sealedStatus(path.join(dir, NEW_BOOK_CONTINUATION_3.outDir)),
-      repair: sealedStatus(path.join(dir, NEW_BOOK_STORYBOARD_REPAIR.outDir)),
+      repair: sealedStatus(path.join(dir, NEW_BOOK_STORYBOARD_REPAIR.outDir)), repair2: sealedStatus(path.join(dir, NEW_BOOK_STORYBOARD_REPAIR_2.outDir)),
       child: sealedStatus(path.join(dir, 'child')), grant: existsSync(path.join(dir, 'audition.grant.json')),
       audition: existsSync(experimentAuditionStart(config)) },
     providerCalls: 0, keyRead: false, runtimeEligible: false };
@@ -1666,7 +1959,7 @@ export async function newBookExperimentCLI(argv: string[], deps: { text?: TextTr
   const attestation = argv[2] === 'carry-resolution' && argv[3] === '--attestation' && typeof argv[4] === 'string' && path.isAbsolute(argv[4]) ? argv[4] : null;
   const flags = argv.slice(attestation ? 5 : 3);
   if (argv.length < 3 || argv.length > (attestation ? 6 : 5) || argv[0] !== '--config' || !['plan', 'text', 'storyboard-continuation', 'storyboard-continuation-2',
-      'storyboard-continuation-3', 'carry-resolution', 'storyboard-repair', 'child', 'grant', 'audition'].includes(argv[2]) ||
+      'storyboard-continuation-3', 'carry-resolution', 'storyboard-repair', 'storyboard-repair-2', 'child', 'grant', 'audition'].includes(argv[2]) ||
       argv[2] === 'carry-resolution' && !attestation ||
       flags.some(f => f !== '--execute' && f !== '--resume') || new Set(flags).size !== flags.length ||
       flags.includes('--resume') && (argv[2] !== 'audition' || !flags.includes('--execute'))) fail('new_book_arguments');
@@ -1674,6 +1967,7 @@ export async function newBookExperimentCLI(argv: string[], deps: { text?: TextTr
   if (stage === 'carry-resolution') return execute ? { mode: 'carry-resolution' as const, resolution: await writeCarryResolution(config, attestation!) }
     : { mode: 'plan' as const, plan: planNewBook(config), carryResolution: await previewCarryResolution(config, attestation!) };
   if (stage === 'storyboard-repair' && !execute) return { mode: 'plan' as const, plan: planNewBook(config), repair: await previewStoryboardRepair(config) };
+  if (stage === 'storyboard-repair-2' && !execute) return { mode: 'plan' as const, plan: planNewBook(config), repair2: await previewStoryboardRepair2(config) };
   if (stage === 'storyboard-continuation' && !execute) return { mode: 'plan' as const, plan: planNewBook(config),
     continuation: await previewStoryboardContinuation(config) };
   if (stage === 'storyboard-continuation-2' && !execute) return { mode: 'plan' as const, plan: planNewBook(config),
@@ -1692,6 +1986,8 @@ export async function newBookExperimentCLI(argv: string[], deps: { text?: TextTr
     if (stage === 'storyboard-continuation-3') return { mode: 'storyboard-continuation-3' as const, ...await runNewBookStoryboardContinuation3({ config,
       signal: controller.signal, log, ...(deps.text ? { transports: deps.text } : {}) }) };
     if (stage === 'storyboard-repair') return { mode: 'storyboard-repair' as const, ...await runNewBookStoryboardRepair({ config,
+      signal: controller.signal, log, ...(deps.text ? { transports: deps.text } : {}) }) };
+    if (stage === 'storyboard-repair-2') return { mode: 'storyboard-repair-2' as const, ...await runNewBookStoryboardRepair2({ config,
       signal: controller.signal, log, ...(deps.text ? { transports: deps.text } : {}) }) };
     if (stage === 'child') return { mode: 'child' as const, ...await runNewBookChild({ config, signal: controller.signal, log, ...(deps.child ? { adapters: deps.child } : {}) }) };
     if (stage === 'audition') return { mode: 'audition' as const, result: await runNewBookAudition({ config, signal: controller.signal, log,
