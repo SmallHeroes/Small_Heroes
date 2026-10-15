@@ -1,5 +1,15 @@
 # SmallHeroes — Roadmap
 
+## Likeness probe from a real photo (6db3e6df); next: Codex QA, then one probe run (2026-10-16)
+
+- The owner-accepted new book stopped at the sample gate (both samples held,
+  mostly scale). The scale diagnosis is a separate Decision Gate awaiting Guy.
+- Guy chose a likeness probe first: a real photo becomes production's drawn
+  anchor plus one engine page, compared with the photo by eye and by the
+  identity evaluator (with a different-child control).
+- After an explicit Codex PASS and Guy's confirmation of the $0.70 reservation
+  ceiling: one --execute run (expected about $0.15-0.20 actual).
+
 ## Second repair held; Guy accepted it with notes; owner-acceptance path built (9ffe5462); next: Codex QA, then the acceptance and the book (2026-10-15)
 
 - The second repair ran after Codex's PASS: it fixed both targeted drawn

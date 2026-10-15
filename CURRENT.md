@@ -1,5 +1,27 @@
 # SmallHeroes — Current Technical State
 
+## Child-likeness probe from a real photo (6db3e6df), for Codex QA (2026-10-16)
+
+The owner-accepted new book ran at 176335c5 (acceptance recorded, child
+reference passed, grant), but both sample pages were held, mostly on scale, so
+the sample gate stopped it: API accounted $5.940923/$7, $1.059077 left; Codex
+outcome QA verified the run. A read-only scale diagnosis followed
+(_review/new-book-scale-diagnosis-20261016/; no change). Guy noted the child was
+too cartoony and not identifiable from a real photo (the reference was itself a
+drawing) and chose "Likeness probe first".
+
+Built (standalone diagnostic, never the Wizard, production or the experiment):
+scripts/personal-likeness-probe.ts. A real photo -> production's own Stage-0
+anchor prompt and references (photo first, anchor_photo_style_only, its negative
+prompt) -> one page in the engine's book_identity mode -> identity checks
+(photo-anchor, photo-page, anchor-page, and a fictional different-child control).
+Dry run by default; --execute once into a folder that must be outside the
+repository, under its own cap. The shared render adapter also accepts the
+anchor mode (no runtime change for existing callers). Evidence: 149/149 (probe
+6 + audition 143), negative controls 8/8, tsc 0; real dry run fits a $0.70
+reservation ceiling (expected actual about $0.15-0.20).
+Next: Codex QA; then Guy confirms the ceiling and Lavi's age; then one run.
+
 ## New book: second repair held by Sol; Guy accepted that storyboard with its notes; owner-acceptance path built (9ffe5462), for Codex QA (2026-10-15)
 
 After Codex's narrow PASS at 8dee5f62, the one approved second repair ran there
