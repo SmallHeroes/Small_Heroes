@@ -4,8 +4,9 @@ import { mkdirSync, mkdtempSync, readdirSync, readFileSync, renameSync, writeFil
 import path from 'node:path';
 import { tmpdir } from 'node:os';
 vi.mock('../storyboard', () => ({
-  currentPersonalStoryboardFrame: (_book: unknown, _review: unknown, pageNumber: number) =>
-    ({ context: { pageNumber }, render: { prompt: `PAGE ${pageNumber}` } }),
+  // A fifth argument (the owner's acceptance) is named in the packet, as the real frame does; four arguments give the exact packet as before.
+  currentPersonalStoryboardFrame: (...a: unknown[]) =>
+    ({ context: { pageNumber: a[2], ...(a.length > 4 ? { ownerAcceptance: a[4] } : {}) }, render: { prompt: `PAGE ${a[2]}` } }),
 }));
 import { QUALITY_CATEGORIES } from '../../local-preview-quality';
 import type { PageChildResemblanceVisionResult } from '../../generation-pipeline/page-child-resemblance-vision';
@@ -686,6 +687,29 @@ describe('orchestration (mocked reviews prove flow and selection, not model perc
       knownFlaws: [expect.objectContaining({ note: 'two burrow rocks', bound: false })] });
     expect(sheet.prompts.get('page_2_0')).toContain('Image 4 is a DIAGNOSTIC candidate with known flaws');
     expect(s.status).toBe('held_audition_with_findings');
+  });
+
+  it('owner acceptance: every page packet of a render and of a re-judge is built under it (passed through, never dropped); absent, as before', async () => {
+    const marker = { accepted: 'owner record (synthetic)' };
+    const h = harness(), plain = harness();
+    await illustrateReviewedAudition({ ...h.args, ownerAcceptance: marker });
+    await illustrateReviewedAudition(plain.args);
+    const pageSteps = (m: Map<string, any>) => [...m.keys()].filter(k => k.startsWith('page_'));
+    expect(pageSteps(h.contexts)).toHaveLength(9);
+    for (const step of pageSteps(h.contexts)) expect(h.contexts.get(step).packet).toEqual({ pageNumber: expect.any(Number), ownerAcceptance: marker });
+    expect(pageSteps(plain.contexts)).toHaveLength(9);
+    for (const step of pageSteps(plain.contexts)) expect(plain.contexts.get(step).packet).toEqual({ pageNumber: expect.any(Number) });
+    // A re-judge of a saved image is judged against the same packet.
+    const canonical = [image('child'), image('companion'), image('sheet_entities_0'), image('sheet_locations_0')];
+    const refs = { entities: { image: canonical[2], status: 'approved_reference' as const, knownFlaws: [] }, locations: { image: canonical[3], status: 'approved_reference' as const, knownFlaws: [] } };
+    const frames = [{ pageNumber: 4, candidate: image('page_4_0'), predecessor: null, label: 'saved p4' }];
+    const rj = harness(), rp = harness();
+    await rejudgeAudition({ book: fixture(), rawReview: {}, current: rj.args.current, companionDescription: 'x', canonical, references: refs, frames,
+      judge: rj.args.judge, check: vi.fn(), save: vi.fn(), ownerAcceptance: marker });
+    expect(rj.contexts.get('rejudge_0_page_4').packet).toEqual({ pageNumber: 4, ownerAcceptance: marker });
+    await rejudgeAudition({ book: fixture(), rawReview: {}, current: rp.args.current, companionDescription: 'x', canonical, references: refs, frames,
+      judge: rp.args.judge, check: vi.fn(), save: vi.fn() });
+    expect(rp.contexts.get('rejudge_0_page_4').packet).toEqual({ pageNumber: 4 });
   });
 
   it('a story finding outranks continuity and detail; complete ties keep the earliest attempt', async () => {

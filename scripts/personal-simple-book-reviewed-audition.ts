@@ -21,7 +21,7 @@ import { canonicalJson } from '../lib/personal-wizard/request-acceptance';
 import { resolvePersonalWizardOptions, type PersonalWizardOptions } from '../lib/personal-wizard/options';
 import { prepareSimpleStory } from '../lib/personal-wizard/simple-story-engine';
 import { prepareCurrentPersonalStoryboard, compilePersonalStoryboard, storyboardReviewDisposition,
-  currentPersonalStoryboardFrame, type PersonalStoryboard } from '../lib/personal-wizard/storyboard';
+  currentPersonalStoryboardFrame, storyboardOwnerAcceptance, type PersonalStoryboard } from '../lib/personal-wizard/storyboard';
 import { simpleReferenceDesignContext, type AuditionImage } from '../lib/personal-wizard/simple-book-illustrations';
 import { LANDMARK_KIND_CONTRACT_VERSION } from '../lib/personal-wizard/storyboard-landmark-kind';
 import { STORYBOARD_MOMENTS_VERSION } from '../lib/personal-wizard/storyboard-moments';
@@ -66,6 +66,8 @@ export function readReviewedBookLayout(file: string): ReviewedBookLayout {
 
 /** A repaired storyboard's saved repair input (the held parent's draft and raw review), beside its result. */
 export const STORYBOARD_REPAIR_INPUT_FILE = 'storyboard_repair_input.json';
+/** The owner's acceptance of a held storyboard (storyboard-owner-acceptance/v1), beside its result, present exactly when used under it. */
+export const STORYBOARD_OWNER_ACCEPTANCE_FILE = 'storyboard_owner_acceptance.json';
 
 /** The moments contract flag comes only from the saved, digest-bound book (never a CLI argument); an unknown marker is refused. */
 export function savedMomentContract(savedBook: { moments?: { version?: unknown } } | undefined): true | undefined {
@@ -209,7 +211,13 @@ export function loadReviewedStoryboard(bookDir: string, workspace = process.cwd(
       prepared.book.pages !== 8 || prepared.accepted.containsFixtureData || prepared.accepted.canonical.appearance.photo !== 'none') fail('audition_request_binding');
   const visual = path.join(bookDir, layout.storyboardDir);
   const result = read(path.join(visual, 'visual_simple_book_result.json'));
-  if (result.status !== 'review_supported' || result.runtimeEligible !== false || result.storyboard?.status !== 'review_supported') fail('audition_result_status');
+  // The owner's acceptance of a held storyboard, present exactly when this storyboard is used under it: the saved result is then the held one
+  // (its own review's disposition; a held run saves no frames) and every frame is built under that bound acceptance (storyboardOwnerAcceptance).
+  const acceptanceFile = path.join(visual, STORYBOARD_OWNER_ACCEPTANCE_FILE);
+  const ownerAcceptance: unknown = existsSync(acceptanceFile) ? read(acceptanceFile) : undefined;
+  const held = (status: unknown) => status === 'held_uncertain' || status === 'held_contradiction';
+  if ((ownerAcceptance === undefined ? result.status !== 'review_supported' || result.storyboard?.status !== 'review_supported'
+    : !held(result.status) || result.storyboard?.status !== result.status) || result.runtimeEligible !== false) fail('audition_result_status');
   // The story was written under this book's seed (it picked the story shape): another layout seed is another book.
   if (result.source?.simpleSource?.evidence?.seed !== prepared.seed) fail('audition_request_binding');
   // The rebuilt source must reproduce the saved markers exactly: a stripped or added marker changes the digests and fails the board binding.
@@ -224,12 +232,19 @@ export function loadReviewedStoryboard(bookDir: string, workspace = process.cwd(
     savedDrawnInstantContract(saved));
   const parentDraft = read(path.join(visual, 'owned_storyboard_draft.json'));
   const book = compilePersonalStoryboard(source, parentDraft);
-  const rawReview = result.storyboard.rawReview;
+  // The book binds first: a changed book refuses here before its saved review is read (the review names the saved book's digests).
+  const rawReview = result.storyboard.rawReview, disposition = () => storyboardReviewDisposition(book, rawReview).disposition;
   if (canonicalJson(book) !== canonicalJson(result.storyboard.storyboard) || !book.plan.actorAppearance ||
-      storyboardReviewDisposition(book, rawReview).disposition !== 'review_supported' || result.storyboard.framePackets.length !== 9) fail('audition_board_binding');
+      (ownerAcceptance === undefined ? disposition() !== 'review_supported' || result.storyboard.framePackets.length !== 9
+        : disposition() !== result.status || result.storyboard.framePackets.length !== 0)) fail('audition_board_binding');
   const current = { request: queued.request, writerResult: result.source, options };
-  for (let n = 0; n <= 8; n++) if (canonicalJson(currentPersonalStoryboardFrame(book, rawReview, n, current)) !== canonicalJson(result.storyboard.framePackets[n])) fail('audition_frame_binding');
-  return { queued, options, prepared, result, source, parentDraft, book, rawReview, current };
+  if (ownerAcceptance === undefined) {
+    for (let n = 0; n <= 8; n++) if (canonicalJson(currentPersonalStoryboardFrame(book, rawReview, n, current)) !== canonicalJson(result.storyboard.framePackets[n])) fail('audition_frame_binding');
+    return { queued, options, prepared, result, source, parentDraft, book, rawReview, current };
+  }
+  // Every frame builds under the acceptance (it binds this book, this review and all of its unsupported checks, or the engine refuses).
+  for (let n = 0; n <= 8; n++) currentPersonalStoryboardFrame(book, rawReview, n, current, ownerAcceptance);
+  return { queued, options, prepared, result, source, parentDraft, book, rawReview, current, ownerAcceptance };
 }
 
 /** The written child design a reference must show, under the active storyboard's wardrobe and owned clothing. */
@@ -238,7 +253,11 @@ export const reviewedChildDesign = (prepared: { brief: { child: { age: number; a
     wardrobe: book.plan.wardrobe, role: 'child', clothing: book.plan.actorAppearance!.child.clothing });
 
 export function loadReviewedBook(bookDir: string, workspace = process.cwd(), replanDir?: string, layout: ReviewedBookLayout = LEGACY_BOOK_LAYOUT) {
-  const { queued, options, prepared, result, source, parentDraft, book, rawReview, current } = loadReviewedStoryboard(bookDir, workspace, layout);
+  const loadedBoard = loadReviewedStoryboard(bookDir, workspace, layout);
+  const { queued, options, prepared, result, source, parentDraft, book, rawReview, current } = loadedBoard;
+  const ownerAcceptance = 'ownerAcceptance' in loadedBoard ? loadedBoard.ownerAcceptance : undefined;
+  // A re-plan's parent is a supported storyboard; an owner-accepted held one is never re-planned here.
+  if (replanDir !== undefined && ownerAcceptance !== undefined) fail('audition_replan_owner_acceptance');
   // Optional re-plan (never the default): the child and companion references below are then checked against ITS storyboard.
   const replan = replanDir === undefined ? undefined
     : admitReplanStoryboard({ bookDir, request: queued.request, options, source: result.source, book, rawReview, draft: parentDraft }, replanDir);
@@ -259,7 +278,7 @@ export function loadReviewedBook(bookDir: string, workspace = process.cwd(), rep
     texts: (result.source.manuscript.pages as { text: string }[]).map(p => p.text), title: result.source.manuscript.title as string,
     pages: result.source.manuscript.pages as { text: string }[],
     ...(replan ? { replan: { dir: replan.dir, indexSha256: replan.indexSha256, producerGrantSha256: replan.producerGrantSha256, pairPages: replan.pairPages,
-      comparability: replan.comparability } } : {}) };
+      comparability: replan.comparability } } : {}), ...(ownerAcceptance !== undefined ? { ownerAcceptance } : {}) };
 }
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -654,12 +673,14 @@ export async function runReviewedAudition(args: { bookDir: string; out: string; 
     grant.ledger.carriedUnresolvedMicroUsd ?? 0, args.experiment ? auditionMeterRules : undefined);
   const io = auditionAdapters({ directory, meter, key: keyReader(args.keyFile), signal: args.signal, ...(args.experiment ? { guard: args.experiment.guard } : {}) });
   const save = (name: string, value: unknown) => exclusiveJson(path.join(args.out, `${name}.json`), value);
+  // A held storyboard used under the owner's acceptance names it (version and digest, as every page packet does); absent, the admission is as before.
+  const accepted = 'ownerAcceptance' in loaded ? storyboardOwnerAcceptance(loaded.book, loaded.rawReview, loaded.ownerAcceptance) : null;
   const admission = (child: AuditionImage, companion: AuditionImage) => JSON.parse(JSON.stringify({ version: 'reviewed-simple-book-audition-admission/v2',
     requestId: loaded.queued.requestId, sourceDigest: loaded.book.sourceDigest, storyboardDigest: loaded.book.storyboardDigest, child, companion,
     policy: REVIEWED_AUDITION_POLICY, grant: { file: args.grantFile, sha256: grantSha256 }, imageModel: 'gpt-image-2', imageQuality: 'low',
     reviewModel: REVIEW_MODEL, identityModel: 'gpt-4o',
     ...(loaded.replan ? { replan: { dir: loaded.replan.dir, indexSha256: loaded.replan.indexSha256, producerGrantSha256: loaded.replan.producerGrantSha256,
-      pairPages: loaded.replan.pairPages } } : {}) }));
+      pairPages: loaded.replan.pairPages } } : {}), ...(accepted ? { ownerAcceptance: accepted } : {}) }));
   let child: AuditionImage, companion: AuditionImage;
   let resume: Parameters<typeof illustrateReviewedAudition>[0]['resume'];
   if (args.resume) {
@@ -694,14 +715,15 @@ export async function runReviewedAudition(args: { bookDir: string; out: string; 
     const frames = [];
     for (const f of grant.scope.frames) frames.push({ label: f.label, pageNumber: f.pageNumber, candidate: await copy(f.image), predecessor: f.predecessor ? await copy(f.predecessor) : null });
     const results = await rejudgeAudition({ book: loaded.book, rawReview: loaded.rawReview, current: loaded.current, companionDescription: loaded.companionDescription,
-      canonical: [child, companion, references.entities.image, references.locations.image], references, frames, judge: io.judge, check: io.check, save });
+      canonical: [child, companion, references.entities.image, references.locations.image], references, frames, judge: io.judge, check: io.check, save,
+      ...('ownerAcceptance' in loaded ? { ownerAcceptance: loaded.ownerAcceptance } : {}) });
     for (const r of results) log(`rejudge ${r.label} (page ${r.pageNumber}): ${r.status} ${JSON.stringify(r.assessment.counts)}`);
     const spend = meter.snapshot(); save('spend', spend);
     return { mode: 'rejudge' as const, results, spend };
   }
   const manifest = await illustrateReviewedAudition({ book: loaded.book, rawReview: loaded.rawReview, texts: loaded.texts, current: loaded.current,
     child, companion, companionDescription: loaded.companionDescription, pages: grant.scope.pages,
-    ...(grant.scope.sample ? { sample: grant.scope.sample } : {}),
+    ...(grant.scope.sample ? { sample: grant.scope.sample } : {}), ...('ownerAcceptance' in loaded ? { ownerAcceptance: loaded.ownerAcceptance } : {}),
     render: io.render, judge: io.judge, identity: io.identity, check: io.check, save, ...(resume ? { resume } : {}),
     progress: e => log(`${e.phase} ${e.name} attempt ${e.attempt}: ${e.status}${e.counts ? ' ' + JSON.stringify(e.counts) : ''}${e.identity === undefined ? '' : ` identity=${e.identity ?? 'n/a'}`}${e.error ? ` error=${e.error}` : ''}`) });
   const images = new Map<string, string>();

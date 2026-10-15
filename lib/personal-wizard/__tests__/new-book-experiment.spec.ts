@@ -29,7 +29,7 @@ import { NEW_BOOK_EXPERIMENT, newBookConfig, newBookExperimentCLI, runNewBookTex
   experimentLayout, earliestSameScenePair, stageLedger, NEW_BOOK_CONTINUATION, experimentContinuationFile, NEW_BOOK_CONTINUATION_2, experimentContinuation2File,
   NEW_BOOK_CONTINUATION_3, experimentContinuation3File, stageRules, replaySettlement, experimentAuditionStart,
   NEW_BOOK_STORYBOARD_REPAIR, NEW_BOOK_CARRY_RESOLUTION, experimentRepairFile, experimentCarryResolutionFile,
-  NEW_BOOK_STORYBOARD_REPAIR_2, experimentRepair2File,
+  NEW_BOOK_STORYBOARD_REPAIR_2, experimentRepair2File, NEW_BOOK_OWNER_ACCEPTANCE, experimentAcceptanceFile,
   type NewBookConfig, type TextTransports, type ChildAdapters }
   from '../../../scripts/personal-new-book-experiment';
 import { REPAIR_STORYBOARD_ADDENDUM, STORYBOARD_REPAIR_VERSION } from '../storyboard-repair';
@@ -368,8 +368,8 @@ describe('a new book from scratch, staged, offline rehearsal (synthetic provider
 describe('the reviewed audition on the new book (synthetic providers through the real runner, meter and sample gate)', { timeout: 60_000 }, () => {
   const ANSWER = { referenceChildVisible: true, candidateChildVisible: true, candidateChildCount: 1, comparisonUsable: true, sameChildDecision: 'same',
     faceStructure: 'match', eyesBrows: 'match', noseMouth: 'match', hairIdentity: 'match', distinctiveFeatures: 'match' };
-  async function prepared(opts: { continued?: true; second?: true; third?: true; repaired?: true; repaired2?: true } = {}) {
-    if (opts.repaired || opts.repaired2) {
+  async function prepared(opts: { continued?: true; second?: true; third?: true; repaired?: true; repaired2?: true; accepted?: true } = {}) {
+    if (opts.repaired || opts.repaired2 || opts.accepted) {
       // The real history up to the third attempt's held review, then the one Opus repair (supported) at a new reviewed HEAD; or, with
       // repaired2, the repair held by its review and the second repair (drawn-instant contract; page 6 drawn with a temporary look) supported.
       const held = (r: any) => { r.frames[3].checks[0] = { ...r.frames[3].checks[0], verdict: 'uncertain', observation: 'page 3: not established by the text' }; return r; };
@@ -381,11 +381,18 @@ describe('the reviewed audition on the new book (synthetic providers through the
       headAt('1'.repeat(40));
       await newBookExperimentCLI(['--config', file, 'storyboard-continuation-3', '--execute'], { text: textTransports({ review: held }), log: () => {} });
       headAt('2'.repeat(40));
-      await newBookExperimentCLI(['--config', file, 'storyboard-repair', '--execute'], { text: textTransports(opts.repaired2 ? { review: held } : {}), log: () => {} });
-      if (opts.repaired2) {
+      await newBookExperimentCLI(['--config', file, 'storyboard-repair', '--execute'],
+        { text: textTransports(opts.repaired2 || opts.accepted ? { review: held } : {}), log: () => {} });
+      if (opts.repaired2 || opts.accepted) {
+        // With accepted: the second repair is held too, and the owner accepts that storyboard at a new HEAD.
+        const held2 = (r: any) => { r.frames[5].checks[2] = { ...r.frames[5].checks[2], verdict: 'uncertain', observation: 'page 5: the herd stays dry' }; return r; };
         headAt('3'.repeat(40));
         await newBookExperimentCLI(['--config', file, 'storyboard-repair-2', '--execute'],
-          { text: textTransports({ plannerOutput: contractStoryboard('fixed', true) }), log: () => {} });
+          { text: textTransports({ plannerOutput: contractStoryboard('fixed', true), ...(opts.accepted ? { review: held2 } : {}) }), log: () => {} });
+        if (opts.accepted) {
+          headAt('4'.repeat(40));
+          await newBookExperimentCLI(['--config', file, 'storyboard-acceptance', '--execute'], { log: () => {} });
+        }
       }
     } else if (opts.third) {
       await timedOut(); headAt('c'.repeat(40));
@@ -603,6 +610,37 @@ describe('the reviewed audition on the new book (synthetic providers through the
     if (result.mode !== 'render') throw Error('render expected');
     expect(result.manifest).toMatchObject({ status: 'qa_supported_audition', scope: { complete: true } });
   });
+  it('after the owner accepts the held second repair: every page packet names the acceptance, the image gates run as before, and the book completes', async () => {
+    const { dir } = await prepared({ accepted: true }); judgeWith(null);
+    expect(json(path.join(dir, 'book-layout.json'))).toMatchObject({ storyboardDir: NEW_BOOK_STORYBOARD_REPAIR_2.outDir });
+    const result = await audition();
+    if (result.mode !== 'render') throw Error('render expected');
+    expect(result.manifest).toMatchObject({ status: 'qa_supported_audition', scope: { complete: true } });
+    expect(result.manifest.pages.map(p => p.pageNumber)).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8]);
+    const pageContexts = sdk.create.mock.calls.map(c => JSON.parse((c[0] as any).input[0].content[0].text).context).filter((c: any) => c?.packet);
+    expect(pageContexts.length).toBeGreaterThan(0);
+    // Every page packet and the audition's admission name the same acceptance: its version and the digest of the record beside the storyboard.
+    const record = json(path.join(dir, NEW_BOOK_STORYBOARD_REPAIR_2.outDir, 'storyboard_owner_acceptance.json'));
+    const named = { version: 'storyboard-owner-acceptance/v1', acceptanceDigest: sha(canonicalJson(record)) };
+    expect(pageContexts.every((c: any) => canonicalJson(c.packet.ownerAcceptance) === canonicalJson(named))).toBe(true);
+    expect(json(path.join(dir, 'audition', 'admission.json')).ownerAcceptance).toEqual(named);
+    // A re-judge of a drawn page (the generic runner, a plain rejudge grant) is judged against the same packet, under the same acceptance.
+    const p4 = result.manifest.pages.find(p => p.pageNumber === 4)!, plain = json(path.join(dir, 'audition.grant.json'));
+    delete plain.experiment; plain.maxCalls = 2;
+    plain.scope = { mode: 'rejudge', sourceDirectory: path.join(dir, 'audition', 'illustrations'),
+      references: { entities: { image: result.manifest.references.entities, status: 'approved_reference', knownFlaws: [] },
+        locations: { image: result.manifest.references.locations, status: 'approved_reference', knownFlaws: [] } },
+      frames: [{ label: 'saved p4', pageNumber: 4, image: p4.candidate, predecessor: null }] };
+    const rejudgeGrant = path.join(root, 'rejudge-accepted.grant.json'), calls = sdk.create.mock.calls.length;
+    writeFileSync(rejudgeGrant, JSON.stringify(plain));
+    const rejudged = await runReviewedAudition({ bookDir: dir, out: path.join(root, 'rejudge-accepted'), keyFile: config.keyEnvFile, grantFile: rejudgeGrant,
+      signal: new AbortController().signal, log: () => {}, layout: readReviewedBookLayout(path.join(dir, 'book-layout.json')) });
+    expect(rejudged.mode).toBe('rejudge');
+    const rejudgeContexts = sdk.create.mock.calls.slice(calls).map(c => JSON.parse((c[0] as any).input[0].content[0].text).context).filter((c: any) => c?.packet);
+    expect(rejudgeContexts).toHaveLength(1);
+    expect(rejudgeContexts[0].packet).toEqual(pageContexts.find((c: any) => c.packet.pageNumber === 4).packet);
+    expect(json(path.join(root, 'rejudge-accepted', 'admission.json')).ownerAcceptance).toEqual(named);
+  });
   it('after the second repair: the drawn instant with its temporary look reaches the renderer, and the book completes', async () => {
     const { dir } = await prepared({ repaired2: true }); judgeWith(null);
     expect(json(path.join(dir, 'book-layout.json'))).toMatchObject({ storyboardDir: NEW_BOOK_STORYBOARD_REPAIR_2.outDir });
@@ -613,6 +651,8 @@ describe('the reviewed audition on the new book (synthetic providers through the
     const looks = prompts.filter(p => p.includes('AT THIS INSTANT ONLY (temporary look, not the end of the page):\n- companion: tail squashed flat'));
     expect(looks.length).toBeGreaterThan(0);
     expect(looks.every(p => p.includes(`DRAWN INSTANT (this picture, not the end of the page): "${DRAWN6}"`))).toBe(true);
+    // A supported storyboard has no acceptance: its admission and packets name none.
+    expect(json(path.join(dir, 'audition', 'admission.json'))).not.toHaveProperty('ownerAcceptance');
   });
   it('F4: a moved HEAD after the grant refuses before any claim or image; a move during a call records that call and stops the next', async () => {
     const { dir } = await prepared(); judgeWith(null);
@@ -3447,5 +3487,103 @@ describe("Guy's carry resolution and one storyboard repair, after the third atte
       continuation: NEW_BOOK_STORYBOARD_REPAIR_2.id });
     expect(json(path.join(repair2Out(), 'claude-max-spend.json'))).toMatchObject({ logicalAttempts: 1, unknownAttemptCosts: 0 });
     expect(claims(path.join(repair2Out(), 'paid-stages'))).toEqual([]);
+  });
+
+  // Guy's acceptance of the second repair's held storyboard with its review's notes (owner authority, bound; no paid call).
+  const heldR2Review = (r: any) => { r.frames[5].checks[2] = { ...r.frames[5].checks[2], verdict: 'uncertain', observation: 'page 5: the herd stays dry' }; return r; };
+  const accept = (execute = true) => newBookExperimentCLI(['--config', file, 'storyboard-acceptance', ...(execute ? ['--execute'] : [])], { log: () => {} }) as Promise<any>;
+  const acceptanceRecord = () => path.join(repair2Out(), 'storyboard_owner_acceptance.json');
+  /** The first repair held (HEAD 2), the second repair held too (HEAD 3); the acceptance and every later stage run at a new HEAD (4). */
+  async function heldRepair2() {
+    await heldRepair();
+    expect(await repair2(textTransports({ createdAt: OCT15, plannerOutput: contractStoryboard('fixed'), review: heldR2Review }))).toMatchObject({ status: 'held_uncertain' });
+    headAt('4'.repeat(40));
+  }
+
+  it('owner acceptance preview (read-only): the record the held second repair would get - its book, its review and every unsupported check', async () => {
+    await heldRepair2();
+    const before = [tree(dir()), tree(path.dirname(experimentClaimFile(config)))];
+    const preview = await accept(false);
+    expect(preview).toMatchObject({ mode: 'plan', plan: { repair2: true, ownerAcceptance: false }, acceptance: { recorded: false, status: 'held_uncertain',
+      acceptedBy: NEW_BOOK_OWNER_ACCEPTANCE.acceptedBy, providerCalls: 0, keyRead: false } });
+    expect(preview.acceptance.acceptedFindings).toEqual([{ scope: 'page', pageNumber: 5, category: expect.any(String), verdict: 'uncertain',
+      observation: 'page 5: the herd stays dry' }]);
+    expect(preview.acceptance.storyboardDigest).toBe(json(path.join(repair2Out(), 'visual_simple_book_result.json')).storyboard.storyboard.storyboardDigest);
+    expect([tree(dir()), tree(path.dirname(experimentClaimFile(config)))]).toEqual(before);
+    expect(sdk.create).not.toHaveBeenCalled();
+  });
+
+  it('owner acceptance records once (the record beside the storyboard, then the amendment binding it); later stages use the held storyboard only through it', async () => {
+    await heldRepair2();
+    // Without it, the held storyboard is not usable (at the second repair's own HEAD), and the reviewed loader alone refuses its held result.
+    headAt('3'.repeat(40));
+    await expect(child()).rejects.toThrow(/^new_book_text_not_supported$/);
+    const r2Layout = experimentLayout(config, 'reference_child.png', NEW_BOOK_STORYBOARD_REPAIR_2.outDir);
+    expect(() => loadReviewedStoryboard(dir(), config.workspace, r2Layout)).toThrow(/^audition_result_status$/);
+    headAt('4'.repeat(40));
+    const r2Before = tree(repair2Out()), preview = await accept(false), recorded = await accept();
+    // With it, the loader builds every frame under the record and returns it.
+    const underRecord = loadReviewedStoryboard(dir(), config.workspace, r2Layout);
+    expect('ownerAcceptance' in underRecord ? underRecord.ownerAcceptance : undefined).toEqual(json(acceptanceRecord()));
+    expect(recorded).toMatchObject({ mode: 'storyboard-acceptance', acceptance: { recorded: true, status: 'held_uncertain' } });
+    // The preview named the exact bytes the execution wrote.
+    expect(preview.acceptance.recordSha256).toBe(sha(readFileSync(acceptanceRecord())));
+    expect({ ...recorded.acceptance, recorded: false }).toEqual(preview.acceptance);
+    expect(path.basename(experimentAcceptanceFile(config))).toBe(`${NEW_BOOK_EXPERIMENT.slot}.storyboard-owner-acceptance-1.json`);
+    const amendment = json(experimentAcceptanceFile(config)), recordBytes = readFileSync(acceptanceRecord());
+    expect(amendment).toMatchObject({ version: 'new-book-owner-acceptance/v1', approval: NEW_BOOK_OWNER_ACCEPTANCE.approval, sourceHead: '4'.repeat(40),
+      previousSourceHead: '3'.repeat(40), previousSha256: sha(readFileSync(experimentRepair2File(config))), status: 'held_uncertain', findings: 1,
+      recordSha256: sha(recordBytes), storyboardFolder: NEW_BOOK_STORYBOARD_REPAIR_2.outDir, storyboardDigest: recorded.acceptance.storyboardDigest });
+    expect(Object.fromEntries(amendment.evidence.map((e: any) => [e.file.replace(`${NEW_BOOK_STORYBOARD_REPAIR_2.outDir}/`, ''), e.sha256]))).toEqual(r2Before);
+    expect(JSON.parse(recordBytes.toString('utf8'))).toEqual({ version: 'storyboard-owner-acceptance/v1', storyboardDigest: recorded.acceptance.storyboardDigest,
+      reviewDigest: recorded.acceptance.reviewDigest, acceptedFindings: recorded.acceptance.acceptedFindings, acceptedBy: NEW_BOOK_OWNER_ACCEPTANCE.acceptedBy,
+      approval: NEW_BOOK_OWNER_ACCEPTANCE.approval });
+    await expect(accept()).rejects.toThrow(/^new_book_acceptance_used$/);
+    // The child reference, then the grant, through the bound acceptance; the grant names the accepted book.
+    expect(await child()).toMatchObject({ status: 'child_reference_passed' });
+    const grant = await writeNewBookGrant(newBookConfig(file));
+    expect(grant.ledger.evidence.map(e => e.file)).toEqual(expect.arrayContaining([experimentAcceptanceFile(config)]));
+    expect(grant.ledger.evidence.length).toBeLessThanOrEqual(16);
+    expect(grant.book.storyboardDigest).toBe(recorded.acceptance.storyboardDigest);
+    // An accepted held storyboard is never the parent of a re-plan through the reviewed loader.
+    const layout = readReviewedBookLayout(path.join(dir(), 'book-layout.json'));
+    expect(loadReviewedBook(dir(), config.workspace, undefined, layout).book.storyboardDigest).toBe(recorded.acceptance.storyboardDigest);
+    expect(() => loadReviewedBook(dir(), config.workspace, path.join(root, 'any-replan'), layout)).toThrow('audition_replan_owner_acceptance');
+  });
+
+  it('owner acceptance binds: a changed record refuses later stages, whether or not its amendment is rebound to it', async () => {
+    await heldRepair2(); await accept();
+    const amendmentFile = experimentAcceptanceFile(config), saved = [readFileSync(acceptanceRecord()), readFileSync(amendmentFile)];
+    // The notes edited, the amendment not: the chain refuses.
+    const edited = json(acceptanceRecord()); edited.acceptedFindings[0].observation = 'a different note';
+    writeFileSync(acceptanceRecord(), JSON.stringify(edited, null, 2) + '\n');
+    await expect(child()).rejects.toThrow(/^new_book_continuation_evidence$/);
+    // The same edit with its amendment rebound: the engine refuses a record that is not exactly the review's unsupported checks.
+    const a = json(amendmentFile); a.recordSha256 = sha(readFileSync(acceptanceRecord())); writeFileSync(amendmentFile, JSON.stringify(a, null, 2) + '\n');
+    await expect(child()).rejects.toThrow(/owner_acceptance_binding/);
+    expect(existsSync(path.join(dir(), 'child'))).toBe(false);
+    writeFileSync(acceptanceRecord(), saved[0]);
+    // The amendment's own summary edited alone (the book, the review, the number of accepted checks, the held status): the chain refuses.
+    for (const change of [(m: any) => { m.storyboardDigest = 'f'.repeat(64); }, (m: any) => { m.reviewDigest = 'e'.repeat(64); }, (m: any) => { m.findings += 1; },
+      (m: any) => { m.status = m.status === 'held_uncertain' ? 'held_contradiction' : 'held_uncertain'; }]) {
+      const m = JSON.parse(saved[1].toString('utf8')); change(m); writeFileSync(amendmentFile, JSON.stringify(m, null, 2) + '\n');
+      await expect(child()).rejects.toThrow(/^new_book_continuation_evidence$/);
+    }
+    expect(existsSync(path.join(dir(), 'child'))).toBe(false);
+    writeFileSync(amendmentFile, saved[1]);
+    expect(await child()).toMatchObject({ status: 'child_reference_passed' });
+  });
+
+  it('owner acceptance admission: only for a held second repair, never for a supported one, and never after a child stage', async () => {
+    await heldRepair();
+    await expect(accept(false)).rejects.toThrow(/^new_book_acceptance_scope$/);
+    expect(await repair2()).toMatchObject({ status: 'review_supported' });
+    headAt('4'.repeat(40));
+    await expect(accept(false)).rejects.toThrow(/^new_book_acceptance_scope$/);
+    headAt('3'.repeat(40));
+    expect(await child()).toMatchObject({ status: 'child_reference_passed' });
+    headAt('4'.repeat(40));
+    await expect(accept()).rejects.toThrow(/^new_book_acceptance_late$/);
+    expect([existsSync(experimentAcceptanceFile(config)), existsSync(acceptanceRecord())]).toEqual([false, false]);
   });
 });

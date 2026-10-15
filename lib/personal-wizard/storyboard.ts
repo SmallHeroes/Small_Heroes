@@ -17,6 +17,7 @@ import { validateStoryboardMoments, drawnStates, planAtDrawnInstant, momentRende
   STORYBOARD_MOMENTS_VERSION, momentWholeBookDraftSchema, ownedMomentWholeBookDraftSchema, drawnInstantWholeBookDraftSchema,
   ownedDrawnInstantWholeBookDraftSchema, type StoryboardMoments } from './storyboard-moments';
 import { DRAWN_INSTANT_CONTRACT_VERSION, DRAWN_INSTANT_STORYBOARD_ADDENDUM, drawnInstantGaps, drawnInstantFinding } from './storyboard-drawn-instant';
+import { STORYBOARD_OWNER_ACCEPTANCE_VERSION, assertStoryboardOwnerAcceptance } from './storyboard-owner-acceptance';
 import { LANDMARK_KIND_CONTRACT_VERSION, KIND_STORYBOARD_ADDENDUM, landmarkKinds } from './storyboard-landmark-kind';
 import { STORYBOARD_PRESERVATION_VERSION, PRESERVATION_STORYBOARD_ADDENDUM, assertStoryboardPreservation, type StoryboardPreservation } from './storyboard-preservation';
 import { SCENE_LOCATION_CONTRACT_VERSION, SCENE_LOCATION_STORYBOARD_ADDENDUM } from './storyboard-scene-location';
@@ -305,16 +306,36 @@ export function storyboardReviewDisposition(book: PersonalStoryboard, raw: unkno
   return { disposition, review, reviewDigest: digest(review), runtimeEligible: false as const };
 }
 
-/** Renderer and judge consume this SAME packet. No provider/image/anchor permission. */
+/**
+ * The owner's acceptance of a held storyboard, bound: exactly this book, this review (by digest) and every check the review did not support,
+ * verbatim and in order. A supported storyboard needs none and refuses one. Returns the record's digest for the frame packet.
+ */
+export function storyboardOwnerAcceptance(book: PersonalStoryboard, rawReview: unknown, acceptance: unknown) {
+  return bindOwnerAcceptance(book, storyboardReviewDisposition(book, rawReview), acceptance);
+}
+/** The binding itself, against a decision this module derived from the book and its raw review (never a caller's). */
+function bindOwnerAcceptance(book: PersonalStoryboard, decision: ReturnType<typeof storyboardReviewDisposition>, acceptance: unknown) {
+  assertStoryboardOwnerAcceptance(acceptance);
+  if (decision.disposition === 'review_supported') fail('owner_acceptance_not_needed');
+  if (acceptance.storyboardDigest !== book.storyboardDigest || acceptance.reviewDigest !== decision.reviewDigest ||
+      canonicalJson(acceptance.acceptedFindings) !== canonicalJson(storyboardRepairFindings(decision.review))) fail('owner_acceptance_binding');
+  return { version: STORYBOARD_OWNER_ACCEPTANCE_VERSION, acceptanceDigest: digest(acceptance) };
+}
+
+/**
+ * Renderer and judge consume this SAME packet. No provider/image/anchor permission. A held storyboard is framed only under the owner's
+ * bound acceptance (storyboardOwnerAcceptance), which the packet then names; absent, exactly the existing packet.
+ */
 export function personalStoryboardFrame(book: PersonalStoryboard, rawReview: unknown, pageNumber: number,
-  current: { request: unknown; writerResult: unknown; options: PersonalWizardOptions }) {
+  current: { request: unknown; writerResult: unknown; options: PersonalWizardOptions }, ownerAcceptance?: unknown) {
   const source = assertBook(book);
   if (!current) return fail('current_source_required');
   const currentSource = preparePersonalStoryboard(current.request, current.writerResult, current.options, source.actorOwnedAppearance, source.momentContract,
     source.landmarkKindContract, source.preservation, source.sceneLocationContract, source.compilerRulesContract, source.repair, source.drawnInstantContract);
   if (currentSource.sourceDigest !== book.sourceDigest) fail('stale_book');
   const decision = storyboardReviewDisposition(book, rawReview);
-  if (decision.disposition !== 'review_supported') fail(decision.disposition);
+  const accepted = ownerAcceptance === undefined ? null : bindOwnerAcceptance(book, decision, ownerAcceptance);
+  if (decision.disposition !== 'review_supported' && !accepted) fail(decision.disposition);
   if (!Number.isInteger(pageNumber) || pageNumber < 0 || pageNumber > book.narrativeSpreads) fail('unknown_frame');
   const text = pageNumber === 0 ? source.story.title : source.story.pages[pageNumber - 1].text;
   const ledger = pageNumber === 0 ? null : sequencePageState(book.sequence, book.plan, pageNumber);
@@ -328,7 +349,7 @@ export function personalStoryboardFrame(book: PersonalStoryboard, rawReview: unk
     companion: { id: source.request.companion.id, description: source.companionDescription },
     visual: selectedDraftQaContext(plan, pageNumber), sequence,
     ...(book.moments ? { moment: { version: book.moments.version, ...book.moments.frames[pageNumber] } } : {}),
-    ...(book.landmarkKind ? { landmarkKind: book.landmarkKind } : {}) };
+    ...(book.landmarkKind ? { landmarkKind: book.landmarkKind } : {}), ...(accepted ? { ownerAcceptance: accepted } : {}) };
   const packetDigest = digest(context);
   const base = previewPagePrompt(plan, pageNumber, text, source.brief.child.age, source.brief.child.address, source.companionDescription);
   // No prior pixels are being claimed reviewed or attached by this offline bridge.
@@ -341,14 +362,15 @@ export function personalStoryboardFrame(book: PersonalStoryboard, rawReview: unk
 
 /** Current packet admission, still diagnostic and never permission to spend/render. */
 export function currentPersonalStoryboardFrame(book: PersonalStoryboard, rawReview: unknown, pageNumber: number,
-  current: { request: unknown; writerResult: unknown; options: PersonalWizardOptions }) {
+  current: { request: unknown; writerResult: unknown; options: PersonalWizardOptions }, ownerAcceptance?: unknown) {
   const source = assertBook(book);
   if (!current) return fail('current_source_required');
   admitCurrentStoryboardStory(source.request, source.result, current.options);
   const admitted = prepareCurrentPersonalStoryboard(current.request, current.writerResult, current.options, source.actorOwnedAppearance, source.momentContract,
     source.landmarkKindContract, source.preservation, source.sceneLocationContract, source.compilerRulesContract, source.repair, source.drawnInstantContract);
   if (admitted.sourceDigest !== book.sourceDigest) fail('stale_book');
-  return personalStoryboardFrame(book, rawReview, pageNumber, current);
+  return ownerAcceptance === undefined ? personalStoryboardFrame(book, rawReview, pageNumber, current)
+    : personalStoryboardFrame(book, rawReview, pageNumber, current, ownerAcceptance);
 }
 
 /** Opt-in moments contract adds its addendum and schema; otherwise the exact existing instruction/schema. */

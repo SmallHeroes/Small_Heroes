@@ -42,7 +42,10 @@ import { simpleWizardVisualPayload } from './personal-simple-wizard-worker';
 import { createSimpleBookPixelJudge } from './personal-simple-book-illustrator';
 import { AuditionMeter, auditionAdapters, keyReader, loadReviewedBook, loadReviewedStoryboard, reviewedChildDesign, reviewedBookLayoutSchema,
   readReviewedBookLayout, runReviewedAudition, verifyMeterRecords, auditionRenderRule, auditionReviewRule, STORYBOARD_REPAIR_INPUT_FILE, type AuditionGrant,
-  type ReviewedBookLayout, type MeterRule, type MeterRules } from './personal-simple-book-reviewed-audition';
+  type ReviewedBookLayout, type MeterRule, type MeterRules, STORYBOARD_OWNER_ACCEPTANCE_FILE, savedMomentContract, savedLandmarkKindContract,
+  savedSceneLocationContract, savedCompilerRulesContract, savedDrawnInstantContract } from './personal-simple-book-reviewed-audition';
+import { prepareCurrentPersonalStoryboard, compilePersonalStoryboard, storyboardReviewDisposition, storyboardOwnerAcceptance } from '../lib/personal-wizard/storyboard';
+import { STORYBOARD_OWNER_ACCEPTANCE_VERSION, type StoryboardOwnerAcceptance } from '../lib/personal-wizard/storyboard-owner-acceptance';
 import { resolvePersonalWizardOptions } from '../lib/personal-wizard/options';
 import { prepareSimpleStory } from '../lib/personal-wizard/simple-story-engine';
 import { runSimpleWizardBook } from '../lib/personal-wizard/simple-book-flow';
@@ -150,6 +153,16 @@ export const NEW_BOOK_STORYBOARD_REPAIR_2 = Object.freeze({
   addedContracts: Object.freeze(['drawnInstantContract'] as const),
 });
 /**
+ * Guy's acceptance of the second repair's held storyboard with its review's notes (2026-10-15): as product owner he accepts that exact
+ * storyboard and every check its fresh review did not support. The record (storyboard-owner-acceptance/v1) binds the compiled book, its
+ * review and those findings; later stages use the held storyboard only through it, and every image gate stays as it is. Once only; no call.
+ */
+export const NEW_BOOK_OWNER_ACCEPTANCE = Object.freeze({
+  id: 'storyboard-owner-acceptance-1',
+  acceptedBy: 'Guy (owner, product authority)',
+  approval: 'Guy 2026-10-15, AskUserQuestion after the second repair\'s fresh Sol review held it (held_uncertain: the herd\'s group wetness on pages 5-6, where the rest of the herd is during page 7\'s push): "Accept with notes (Recommended)" - "You accept this storyboard as product owner despite these 4 notes, recorded and bound to this exact storyboard. Needs a small engine path (the engine refuses held storyboards today) plus Codex QA. Then child reference, grant, two samples; the image checks and the 0.70 likeness bar stay unchanged."',
+});
+/**
  * Guy's resolution of the carried reservation (2026-10-15): the repair's reservation did not fit beside the timed-out call's full $2.27
  * reservation, so Guy reads that call's actual charge from his own provider usage records. The day's totals for the model, minus this book's
  * own calls that day (each re-derived from its raw answer), are the timed-out call's usage; its charge replaces the carried reservation.
@@ -255,12 +268,19 @@ export function assertExperimentClaim(config: NewBookConfig) {
   const { claim, claimSha256 } = verifiedClaim(config);
   const continuation = readContinuation(config, claimSha256), refused = readRefusedChain(config, claimSha256, continuation);
   const repair = readRepair(config, claimSha256, continuation, refused), repair2 = readRepair2(config, claimSha256, repair);
+  const acceptance = readAcceptance(config, claimSha256, repair2);
   const latest = refused[refused.length - 1];
-  assertExperimentSource(config, repair2?.sourceHead ?? repair?.sourceHead ?? latest?.amendment.sourceHead ?? continuation?.sourceHead ?? config.sourceHead);
-  return { claim, claimSha256, continuation, refused, repair, repair2 };
+  assertExperimentSource(config, acceptance?.sourceHead ?? repair2?.sourceHead ?? repair?.sourceHead ?? latest?.amendment.sourceHead ?? continuation?.sourceHead
+    ?? config.sourceHead);
+  return { claim, claimSha256, continuation, refused, repair, repair2, acceptance };
 }
 type ContinuationChain = { continuation: NewBookContinuation | null; refused: { step: RefusedStep; amendment: NewBookRefusedContinuation }[];
-  repair: NewBookRepair | null; repair2: NewBookRepair2 | null };
+  repair: NewBookRepair | null; repair2: NewBookRepair2 | null; acceptance?: NewBookAcceptance | null };
+/** The latest text is usable by later stages: its own review supported it, or the owner accepted that exact held storyboard (bound record). */
+const textUsable = (config: NewBookConfig, chain: ContinuationChain) => {
+  const status = sealedStatus(path.join(experimentDir(config), textFolderOf(chain)));
+  return status === 'review_supported' || (!!chain.acceptance && !!chain.repair2 && status === chain.acceptance.status);
+};
 /** Where this book's latest text lives. */
 const textFolderOf = (chain: ContinuationChain) => chain.repair2 ? NEW_BOOK_STORYBOARD_REPAIR_2.outDir : chain.repair ? NEW_BOOK_STORYBOARD_REPAIR.outDir
   : chain.refused[chain.refused.length - 1]?.step.spec.outDir ?? (chain.continuation ? NEW_BOOK_CONTINUATION.outDir : 'text');
@@ -385,11 +405,11 @@ export function textStage(config: NewBookConfig, chain: ContinuationChain): { fo
     const out = path.join(dir, NEW_BOOK_STORYBOARD_REPAIR_2.outDir);
     const ledger = stageLedger(out, REPAIR_API_CALLS, repair2.priorKnownApiMicroUsd, repair2.carriedUnresolvedMicroUsd, REPAIR_API_RULES);
     const planner = verifyRepairPlanner(config, out, repair2.planner, NEW_BOOK_STORYBOARD_REPAIR_2.contracts);
-    const amendment = experimentRepair2File(config);
+    const amendment = experimentRepair2File(config), accepted = chain.acceptance ? experimentAcceptanceFile(config) : null;
     return { folder: NEW_BOOK_STORYBOARD_REPAIR_2.outDir, path: out, knownMicroUsd: repair2.priorKnownApiMicroUsd + ledger.knownMicroUsd,
       carriedUnresolvedMicroUsd: repair2.carriedUnresolvedMicroUsd,
       evidence: [...before.evidence, { file: amendment, sha256: sha(readFileSync(amendment)) }, { file: ledger.file, sha256: ledger.sha256 },
-        { file: planner.file, sha256: planner.sha256 }] };
+        { file: planner.file, sha256: planner.sha256 }, ...(accepted ? [{ file: accepted, sha256: sha(readFileSync(accepted)) }] : [])] };
   }
   if (repair) {
     // The held attempt's verified ledger, then the repair's own: its prior and carried amounts must be exactly that ledger with the carry
@@ -1486,7 +1506,8 @@ function repairProducerPin(config: NewBookConfig, repair: { previousStatus: stri
 type RepairPin = ReturnType<typeof repairProducerPin> | null;
 /** Every amendment or resolution this slot can have beside its claim, the claim first (the audition's own start record is not one). */
 const amendmentFiles = (config: NewBookConfig) => [experimentClaimFile(config), experimentContinuationFile(config),
-  ...REFUSED_STEPS.map(step => refusedFile(config, step)), experimentCarryResolutionFile(config), experimentRepairFile(config), experimentRepair2File(config)];
+  ...REFUSED_STEPS.map(step => refusedFile(config, step)), experimentCarryResolutionFile(config), experimentRepairFile(config), experimentRepair2File(config),
+  experimentAcceptanceFile(config)];
 /**
  * The accepted lineage a stage builds on, by hash: the claim and every amendment or resolution beside it (or its absence), the request record,
  * and every record of each text folder it names. An amendment re-read later is mutable: a changed earlier record together with a rewritten
@@ -1833,6 +1854,124 @@ export async function runNewBookStoryboardRepair2(args: { config: NewBookConfig;
 }
 
 // ---------------------------------------------------------------------------------------------------------------
+// Guy's acceptance of the second repair's held storyboard (an amendment of the claim; no paid call). The record (beside the storyboard, for
+// the reviewed loader) binds the compiled book, its own review and every check that review did not support; the amendment binds the second
+// repair amendment, every record of its folder and the record's bytes. Later stages use the held storyboard through it alone.
+// ---------------------------------------------------------------------------------------------------------------
+export const experimentAcceptanceFile = (config: NewBookConfig) =>
+  path.join(path.dirname(experimentClaimFile(config)), `${NEW_BOOK_EXPERIMENT.slot}.${NEW_BOOK_OWNER_ACCEPTANCE.id}.json`);
+const ACCEPTANCE_RECORD = `${NEW_BOOK_STORYBOARD_REPAIR_2.outDir}/${STORYBOARD_OWNER_ACCEPTANCE_FILE}`;
+const acceptanceSchema = z.object({ version: z.literal('new-book-owner-acceptance/v1'), id: z.literal(NEW_BOOK_OWNER_ACCEPTANCE.id),
+  slot: z.literal(NEW_BOOK_EXPERIMENT.slot), approval: z.literal(NEW_BOOK_OWNER_ACCEPTANCE.approval), claimSha256: hash, configSha256: hash,
+  previousSha256: hash, originalSourceHead: headSha, previousSourceHead: headSha, sourceHead: headSha,
+  storyboardFolder: z.literal(NEW_BOOK_STORYBOARD_REPAIR_2.outDir), status: heldStatus, storyboardDigest: hash, reviewDigest: hash,
+  findings: z.number().int().positive(), recordSha256: hash,
+  evidence: z.array(z.object({ file: z.string().regex(new RegExp(`^${NEW_BOOK_STORYBOARD_REPAIR_2.outDir}/[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)?$`)), sha256: hash })
+    .strict()).min(4).max(32) }).strict();
+export type NewBookAcceptance = z.infer<typeof acceptanceSchema>;
+/**
+ * The recorded acceptance (null when none), verified against the second repair amendment and the second repair's folder: every record the
+ * amendment bound, plus exactly the acceptance record it names by hash, and nothing else. Its own summary fields are that record's (book,
+ * review, number of accepted checks) and the folder's sealed status.
+ */
+function readAcceptance(config: NewBookConfig, claimSha256: string, repair2: NewBookRepair2 | null): NewBookAcceptance | null {
+  const file = experimentAcceptanceFile(config);
+  if (!existsSync(file)) return null;
+  if (!repair2) return fail('new_book_continuation');
+  const parsed = acceptanceSchema.safeParse(read(file));
+  if (!parsed.success || parsed.data.claimSha256 !== claimSha256 || parsed.data.configSha256 !== sha(canonicalJson(config)) ||
+      parsed.data.originalSourceHead !== config.sourceHead || parsed.data.previousSourceHead !== repair2.sourceHead ||
+      parsed.data.previousSha256 !== sha(readFileSync(experimentRepair2File(config)))) return fail('new_book_continuation');
+  const dir = experimentDir(config), now = folderEvidence(dir, NEW_BOOK_STORYBOARD_REPAIR_2.outDir);
+  if (now.find(e => e.file === ACCEPTANCE_RECORD)?.sha256 !== parsed.data.recordSha256 ||
+      canonicalJson(now.filter(e => e.file !== ACCEPTANCE_RECORD)) !== canonicalJson(parsed.data.evidence)) fail('new_book_continuation_evidence');
+  const record = (() => { try { return read(path.join(dir, ...ACCEPTANCE_RECORD.split('/'))); } catch { return null; } })();
+  if (record?.storyboardDigest !== parsed.data.storyboardDigest || record?.reviewDigest !== parsed.data.reviewDigest ||
+      !Array.isArray(record?.acceptedFindings) || record.acceptedFindings.length !== parsed.data.findings ||
+      sealedStatus(path.join(dir, NEW_BOOK_STORYBOARD_REPAIR_2.outDir)) !== parsed.data.status) fail('new_book_continuation_evidence');
+  return parsed.data;
+}
+/**
+ * The second repair's held storyboard as its saved records compile it (no provider): the request record, the saved result's source and
+ * contract markers, its repair input and its own draft. The compiled book must be the saved one, and its own review's disposition the held
+ * status the result and the seal record.
+ */
+function heldRepair2Board(config: NewBookConfig) {
+  const dir = experimentDir(config), visual = path.join(dir, NEW_BOOK_STORYBOARD_REPAIR_2.outDir), { options } = prepareExperimentRequest(config);
+  const result = read(path.join(visual, 'visual_simple_book_result.json')), saved = result.storyboard?.storyboard;
+  const source = prepareCurrentPersonalStoryboard(read(path.join(dir, 'request.json')).request, result.source, options, true, savedMomentContract(saved),
+    savedLandmarkKindContract(saved), undefined, savedSceneLocationContract(saved), savedCompilerRulesContract(saved),
+    read(path.join(visual, STORYBOARD_REPAIR_INPUT_FILE)), savedDrawnInstantContract(saved));
+  const book = compilePersonalStoryboard(source, read(path.join(visual, 'owned_storyboard_draft.json')));
+  const rawReview: unknown = result.storyboard?.rawReview, decision = storyboardReviewDisposition(book, rawReview);
+  if (canonicalJson(book) !== canonicalJson(saved) || !heldStatus.safeParse(decision.disposition).success || result.status !== decision.disposition ||
+      result.storyboard?.status !== decision.disposition || sealedStatus(visual) !== decision.disposition) fail('new_book_acceptance_scope');
+  return { book, rawReview, decision };
+}
+/**
+ * The acceptance's admission at ONE pinned HEAD (compared, never adopted): the clean source; the unchanged claim and its whole chain through
+ * the second repair, held; never after a child stage or an audition (not retroactive); every ledger re-derived; the record derived from the
+ * saved book and its own review (every unsupported check, verbatim) and bound by the engine; then the source-derived roots of the storyboard
+ * being accepted (the original request, both repairs' producer requests, the lineage).
+ */
+async function admitAcceptance(config: NewBookConfig, head: string) {
+  const dir = experimentDir(config);
+  const baseline = () => {
+    assertExperimentSource(config, head);
+    const { claimSha256 } = verifiedClaim(config), first = readContinuation(config, claimSha256);
+    const refused = first ? readRefusedChain(config, claimSha256, first) : [], repair1 = first ? readRepair(config, claimSha256, first, refused) : null;
+    const repair2 = readRepair2(config, claimSha256, repair1);
+    if (!first || refused.length !== REFUSED_STEPS.length || !repair1 || !repair2) return fail('new_book_acceptance_scope');
+    const amended = readAcceptance(config, claimSha256, repair2);
+    if (amended && amended.sourceHead !== head) fail('new_book_source_changed');
+    if (existsSync(path.join(dir, 'child')) || existsSync(experimentAuditionStart(config))) fail('new_book_acceptance_late');
+    const chain: ContinuationChain = { continuation: first, refused, repair: repair1, repair2, acceptance: null };
+    textStage(config, chain);
+    const { book, rawReview, decision } = heldRepair2Board(config);
+    const record: StoryboardOwnerAcceptance = { version: STORYBOARD_OWNER_ACCEPTANCE_VERSION, storyboardDigest: book.storyboardDigest,
+      reviewDigest: decision.reviewDigest, acceptedFindings: storyboardRepairFindings(decision.review), acceptedBy: NEW_BOOK_OWNER_ACCEPTANCE.acceptedBy,
+      approval: NEW_BOOK_OWNER_ACCEPTANCE.approval };
+    storyboardOwnerAcceptance(book, rawReview, record);
+    return { claimSha256, chain, amended, status: heldStatus.parse(decision.disposition), record, repair2Sha256: sha(readFileSync(experimentRepair2File(config))),
+      evidence: folderEvidence(dir, NEW_BOOK_STORYBOARD_REPAIR_2.outDir).filter(e => e.file !== ACCEPTANCE_RECORD) };
+  };
+  const admitted = baseline();
+  await assertDerivedRoots(config, admitted.chain);
+  // The roots were asynchronous: the same pinned HEAD, still clean, and exactly the same records, ledgers and record (synchronous).
+  const same = () => { if (canonicalJson(baseline()) !== canonicalJson(admitted)) fail('new_book_continuation_evidence'); };
+  same();
+  // The exact bytes an execution writes, built and checked here so that a preview proves them: the record beside the storyboard, then the
+  // amendment naming it by hash at this pinned HEAD.
+  const text = JSON.stringify(admitted.record, null, 2) + '\n';
+  const amendment = acceptanceSchema.parse({ version: 'new-book-owner-acceptance/v1', id: NEW_BOOK_OWNER_ACCEPTANCE.id, slot: NEW_BOOK_EXPERIMENT.slot,
+    approval: NEW_BOOK_OWNER_ACCEPTANCE.approval, claimSha256: admitted.claimSha256, configSha256: sha(canonicalJson(config)), previousSha256: admitted.repair2Sha256,
+    originalSourceHead: config.sourceHead, previousSourceHead: admitted.chain.repair2!.sourceHead, sourceHead: head, storyboardFolder: NEW_BOOK_STORYBOARD_REPAIR_2.outDir,
+    status: admitted.status, storyboardDigest: admitted.record.storyboardDigest, reviewDigest: admitted.record.reviewDigest,
+    findings: admitted.record.acceptedFindings.length, recordSha256: sha(text), evidence: admitted.evidence });
+  const summary = { recorded: !!admitted.amended, status: admitted.status, storyboardDigest: admitted.record.storyboardDigest,
+    reviewDigest: admitted.record.reviewDigest, acceptedFindings: admitted.record.acceptedFindings, acceptedBy: admitted.record.acceptedBy,
+    recordSha256: amendment.recordSha256, providerCalls: 0, keyRead: false };
+  return { admitted, same, text, amendment, summary };
+}
+/** Read-only preview of the acceptance: the record it would write (and that record's hash), from the saved book and its own review. */
+export async function previewOwnerAcceptance(config: NewBookConfig) {
+  return (await admitAcceptance(config, currentHead(config))).summary;
+}
+/**
+ * Records the acceptance once, right after its admission is re-checked at the same pinned HEAD: the record beside the storyboard first (its
+ * exact bytes; an identical record left by an interrupted run is the same record), then the one-shot amendment binding it.
+ */
+export async function writeOwnerAcceptance(config: NewBookConfig) {
+  const { admitted, same, text, amendment, summary } = await admitAcceptance(config, currentHead(config));
+  if (admitted.amended) return fail('new_book_acceptance_used');
+  const target = path.join(experimentDir(config), NEW_BOOK_STORYBOARD_REPAIR_2.outDir, STORYBOARD_OWNER_ACCEPTANCE_FILE);
+  same();
+  if (existsSync(target) ? fencedText(target, 256_000) !== text : (exclusiveText(target, text), false)) fail('new_book_acceptance_used');
+  try { exclusiveJson(experimentAcceptanceFile(config), amendment); } catch { fail('new_book_acceptance_used'); }
+  return { ...summary, recorded: true };
+}
+
+// ---------------------------------------------------------------------------------------------------------------
 // Stage 2: the fictional child reference.
 // ---------------------------------------------------------------------------------------------------------------
 type Render = (step: string, prompt: string, refs: AuditionImage[], mode: 'identity') => Promise<AuditionImage>;
@@ -1845,7 +1984,7 @@ export async function runNewBookChild(args: { config: NewBookConfig; signal: Abo
   const dir = experimentDir(config), childDir = path.join(dir, 'child'), images = path.join(childDir, 'illustrations');
   realDirectory(dir);
   // The reviewed text is the continuation's when the one approved continuation ran.
-  if (sealedStatus(path.join(dir, textFolderOf(chain))) !== 'review_supported') fail('new_book_text_not_supported');
+  if (!textUsable(config, chain)) fail('new_book_text_not_supported');
   // A carried reservation enters this stage's meter only for the original request the roots derive, and a repaired storyboard only for the
   // planner request its roots derive (both re-derived before anything is created or claimed).
   const producer = await assertDerivedRoots(config, chain);
@@ -1919,7 +2058,7 @@ export async function writeNewBookGrant(config: NewBookConfig) {
 function newBookGrant(config: NewBookConfig): AuditionGrant {
   const chain = assertExperimentClaim(config), { claimSha256 } = chain;
   const dir = experimentDir(config), childDir = path.join(dir, 'child'), textFolder = textFolderOf(chain);
-  if (sealedStatus(path.join(dir, textFolder)) !== 'review_supported' || sealedStatus(childDir) !== 'child_reference_passed') fail('new_book_stage_not_passed');
+  if (!textUsable(config, chain) || sealedStatus(childDir) !== 'child_reference_passed') fail('new_book_stage_not_passed');
   const layout = readReviewedBookLayout(path.join(dir, 'book-layout.json'));
   if (canonicalJson(layout) !== canonicalJson(experimentLayout(config, layout.childImage, textFolder))) fail('new_book_layout');
   const loaded = loadReviewedBook(dir, config.workspace, undefined, layout);
@@ -1954,7 +2093,7 @@ export async function runNewBookAudition(args: { config: NewBookConfig; signal: 
   const { config } = args;
   const chain = assertExperimentClaim(config), { claimSha256 } = chain;
   const dir = experimentDir(config), grantFile = path.join(dir, 'audition.grant.json'), out = path.join(dir, 'audition');
-  if (sealedStatus(path.join(dir, textFolderOf(chain))) !== 'review_supported' ||
+  if (!textUsable(config, chain) ||
       sealedStatus(path.join(dir, 'child')) !== 'child_reference_passed' ||
       !existsSync(grantFile)) fail('new_book_stage_not_passed');
   const grant = read(grantFile), grantSha256 = sha(readFileSync(grantFile));
@@ -1988,7 +2127,7 @@ export function planNewBook(config: NewBookConfig) {
     claimed: existsSync(experimentClaimFile(config)), continuation: existsSync(experimentContinuationFile(config)),
     continuation2: existsSync(experimentContinuation2File(config)), continuation3: existsSync(experimentContinuation3File(config)),
     carryResolution: existsSync(experimentCarryResolutionFile(config)), repair: existsSync(experimentRepairFile(config)),
-    repair2: existsSync(experimentRepair2File(config)),
+    repair2: existsSync(experimentRepair2File(config)), ownerAcceptance: existsSync(experimentAcceptanceFile(config)),
     stages: { text: sealedStatus(path.join(dir, 'text')), continuation: sealedStatus(path.join(dir, NEW_BOOK_CONTINUATION.outDir)),
       continuation2: sealedStatus(path.join(dir, NEW_BOOK_CONTINUATION_2.outDir)), continuation3: sealedStatus(path.join(dir, NEW_BOOK_CONTINUATION_3.outDir)),
       repair: sealedStatus(path.join(dir, NEW_BOOK_STORYBOARD_REPAIR.outDir)), repair2: sealedStatus(path.join(dir, NEW_BOOK_STORYBOARD_REPAIR_2.outDir)),
@@ -2002,7 +2141,7 @@ export async function newBookExperimentCLI(argv: string[], deps: { text?: TextTr
   const attestation = argv[2] === 'carry-resolution' && argv[3] === '--attestation' && typeof argv[4] === 'string' && path.isAbsolute(argv[4]) ? argv[4] : null;
   const flags = argv.slice(attestation ? 5 : 3);
   if (argv.length < 3 || argv.length > (attestation ? 6 : 5) || argv[0] !== '--config' || !['plan', 'text', 'storyboard-continuation', 'storyboard-continuation-2',
-      'storyboard-continuation-3', 'carry-resolution', 'storyboard-repair', 'storyboard-repair-2', 'child', 'grant', 'audition'].includes(argv[2]) ||
+      'storyboard-continuation-3', 'carry-resolution', 'storyboard-repair', 'storyboard-repair-2', 'storyboard-acceptance', 'child', 'grant', 'audition'].includes(argv[2]) ||
       argv[2] === 'carry-resolution' && !attestation ||
       flags.some(f => f !== '--execute' && f !== '--resume') || new Set(flags).size !== flags.length ||
       flags.includes('--resume') && (argv[2] !== 'audition' || !flags.includes('--execute'))) fail('new_book_arguments');
@@ -2011,6 +2150,8 @@ export async function newBookExperimentCLI(argv: string[], deps: { text?: TextTr
     : { mode: 'plan' as const, plan: planNewBook(config), carryResolution: await previewCarryResolution(config, attestation!) };
   if (stage === 'storyboard-repair' && !execute) return { mode: 'plan' as const, plan: planNewBook(config), repair: await previewStoryboardRepair(config) };
   if (stage === 'storyboard-repair-2' && !execute) return { mode: 'plan' as const, plan: planNewBook(config), repair2: await previewStoryboardRepair2(config) };
+  if (stage === 'storyboard-acceptance') return execute ? { mode: 'storyboard-acceptance' as const, acceptance: await writeOwnerAcceptance(config) }
+    : { mode: 'plan' as const, plan: planNewBook(config), acceptance: await previewOwnerAcceptance(config) };
   if (stage === 'storyboard-continuation' && !execute) return { mode: 'plan' as const, plan: planNewBook(config),
     continuation: await previewStoryboardContinuation(config) };
   if (stage === 'storyboard-continuation-2' && !execute) return { mode: 'plan' as const, plan: planNewBook(config),

@@ -555,6 +555,8 @@ export async function illustrateReviewedAudition(args: {
     identity?: number | null; error?: string }) => void;
   /** Completed sheets/pages of an interrupted run. Reused only when their recomputed context, selection and status still bind. */
   resume?: { designs: unknown; sheets: Partial<Record<'entities' | 'locations', SavedSheet>>; pages: Partial<Record<number, SavedPage>>; stepPrefix: string };
+  /** The owner's bound acceptance of a held storyboard (storyboardOwnerAcceptance); absent, frames need a supported review as before. */
+  ownerAcceptance?: unknown;
 }) {
   const policy = REVIEWED_AUDITION_POLICY, designs = auditionSheetDesigns(args.book, args.texts), prefix = args.resume?.stepPrefix ?? '';
   const frames = [...new Set(args.pages ?? [0, 1, 2, 3, 4, 5, 6, 7, 8])].sort((a, b) => a - b);
@@ -651,7 +653,8 @@ export async function illustrateReviewedAudition(args: {
     // The early sample gates the rest: continue only when every sample page is qa_supported.
     if (sample && pages.length === sample.length && pages.some(p => p.status !== 'qa_supported')) { heldSample = true; break; }
     args.check();
-    const packet = currentPersonalStoryboardFrame(args.book, args.rawReview, pageNumber, args.current);
+    const packet = args.ownerAcceptance === undefined ? currentPersonalStoryboardFrame(args.book, args.rawReview, pageNumber, args.current)
+      : currentPersonalStoryboardFrame(args.book, args.rawReview, pageNumber, args.current, args.ownerAcceptance);
     // Same-scene rule as sequencePredecessor; only a frame rendered in THIS run can be compared, never as authority.
     const seq = args.book.sequence.pages, previous = pages.find(p => p.pageNumber === pageNumber - 1);
     const predecessor = pageNumber >= 2 && previous && seq[pageNumber - 1].sceneId === seq[pageNumber - 2].sceneId ? previous.chosen.candidate : null;
@@ -705,11 +708,14 @@ function summary(phase: 'sheet' | 'page', s: Pick<SavedSheet, 'attempts' | 'chos
 export async function rejudgeAudition(args: { book: PersonalStoryboard; rawReview: unknown; current: { request: unknown; writerResult: unknown; options: PersonalWizardOptions };
   companionDescription: string; canonical: AuditionImage[]; references: ReferenceStatus;
   frames: readonly { pageNumber: number; candidate: AuditionImage; predecessor: AuditionImage | null; label: string }[];
-  judge: Judge; check: () => void; save: (name: string, value: unknown) => void }) {
+  judge: Judge; check: () => void; save: (name: string, value: unknown) => void;
+  /** As in illustrateReviewedAudition: the same packet the render was judged against, built under the owner's bound acceptance when it has one. */
+  ownerAcceptance?: unknown }) {
   const results = [];
   for (const [index, frame] of args.frames.entries()) {
     args.check();
-    const packet = currentPersonalStoryboardFrame(args.book, args.rawReview, frame.pageNumber, args.current);
+    const packet = args.ownerAcceptance === undefined ? currentPersonalStoryboardFrame(args.book, args.rawReview, frame.pageNumber, args.current)
+      : currentPersonalStoryboardFrame(args.book, args.rawReview, frame.pageNumber, args.current, args.ownerAcceptance);
     const { context, contextSha, checks } = auditionPageContext(args.book, packet.context, frame.pageNumber, args.companionDescription, args.canonical, args.references, frame.predecessor);
     const raw = await args.judge(`rejudge_${index}_page_${frame.pageNumber}`, frame.candidate, context, contextSha, args.canonical, frame.predecessor, 'page');
     const { review, assessment } = assessAuditionReview(raw, frame.candidate.imageSha, contextSha, checks.requirementIds, checks.uniqueLandmarks);
