@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { BOOK_SEQUENCE_ROLES, bookSequenceSchema } from '../local-book-sequence';
 import { wholeBookDraftSchema, ownedWholeBookDraftSchema } from '../local-book-planning';
 import type { PreviewPlan } from '../local-story-preview';
+import { drawnInstantGaps } from './storyboard-drawn-instant';
 
 /**
  * Opt-in storyboard contract: WHICH instant each picture shows, separately from the continuity ledger.
@@ -31,6 +32,16 @@ export type StoryboardMoments = z.infer<typeof storyboardMomentsSchema>;
 /** Authoring schemas for the opt-in contract only; the existing draft schemas are untouched. */
 export const momentWholeBookDraftSchema = wholeBookDraftSchema.extend({ moments: storyboardMomentsSchema });
 export const ownedMomentWholeBookDraftSchema = ownedWholeBookDraftSchema.extend({ moments: storyboardMomentsSchema });
+/** The drawn-instant contract's temporary look of the child or the companion at the drawn instant (storyboard-drawn-instant.ts). */
+export const actorStateSchema = z.object({ actorId: z.enum([BOOK_SEQUENCE_ROLES.child, BOOK_SEQUENCE_ROLES.companion]),
+  state: z.string().trim().min(3).max(240), evidence: quote }).strict();
+/** With the drawn-instant contract only: every depicted instant also lists actorStates (empty when none). */
+export const drawnInstantDepictedSchema = depictedInstantSchema.extend({ actorStates: z.array(actorStateSchema).max(2) }).strict();
+export const drawnInstantMomentsSchema = storyboardMomentsSchema.extend({
+  frames: z.array(z.object({ requirements: z.array(momentRequirementSchema).max(6), depicted: drawnInstantDepictedSchema.nullable() }).strict()).min(3).max(25),
+}).strict();
+export const drawnInstantWholeBookDraftSchema = wholeBookDraftSchema.extend({ moments: drawnInstantMomentsSchema });
+export const ownedDrawnInstantWholeBookDraftSchema = ownedWholeBookDraftSchema.extend({ moments: drawnInstantMomentsSchema });
 type Sequence = z.infer<typeof bookSequenceSchema>;
 type State = Sequence['pages'][number]['states'][number];
 const fail = (code: string): never => { throw Error(`storyboard_moments_${code}`); };
@@ -55,9 +66,14 @@ chosen only for convenience that drops the page's key event is a contradiction; 
 For physical_state: every depicted override and requirement must be supported by its own quote and must not contradict the ledger before or after
 this page. A requirement that bans something the data requires, or demands something the data forbids, is a contradiction.`;
 
-/** Deterministic validation against the compiled plan/sequence and the exact page texts. */
-export function validateStoryboardMoments(raw: unknown, plan: PreviewPlan, sequence: Sequence, texts: readonly string[]): StoryboardMoments {
-  const m = storyboardMomentsSchema.parse(raw);
+/**
+ * Deterministic validation against the compiled plan/sequence and the exact page texts. With the opt-in drawn-instant contract, every depicted
+ * instant also lists actorStates (a temporary look of a visible child or companion, quoted on its page), an instant may consist of those alone,
+ * and every change its page makes after the drawn instant must be overridden (drawnInstantGaps).
+ */
+export function validateStoryboardMoments(raw: unknown, plan: PreviewPlan, sequence: Sequence, texts: readonly string[], drawnInstant?: true): StoryboardMoments {
+  if (drawnInstant !== undefined && drawnInstant !== true) fail('drawn_instant_policy');
+  const m: StoryboardMoments = (drawnInstant ? drawnInstantMomentsSchema : storyboardMomentsSchema).parse(raw);
   if (!plan.continuity || m.frames.length !== plan.pages.length || texts.length !== plan.pages.length) fail('coverage');
   const entities = [BOOK_SEQUENCE_ROLES.child, BOOK_SEQUENCE_ROLES.companion, ...plan.continuity!.entities.map(e => e.id)];
   const locations = plan.locations.map(l => l.id);
@@ -71,9 +87,12 @@ export function validateStoryboardMoments(raw: unknown, plan: PreviewPlan, seque
     const d = frame.depicted;
     if (!d) return;
     if (n === 0) fail('cover_depicted');
-    if (!d.relations.length && !d.attributes.length) fail('depicted_empty');
-    if (!texts[n].includes(d.evidence) || [...d.relations, ...d.attributes].some(o => !texts[n].includes(o.evidence))) fail('depicted_evidence');
+    const actorStates = drawnInstant ? (d as z.infer<typeof drawnInstantDepictedSchema>).actorStates : [];
+    if (!d.relations.length && !d.attributes.length && !actorStates.length) fail('depicted_empty');
+    if (!texts[n].includes(d.evidence) || [...d.relations, ...d.attributes, ...actorStates].some(o => !texts[n].includes(o.evidence))) fail('depicted_evidence');
     const page = sequence.pages[n - 1], ledger = new Map(page.states.map(s => [s.entityId, s.value]));
+    if (new Set(actorStates.map(a => a.actorId)).size !== actorStates.length) fail('duplicate_actor_state');
+    if (actorStates.some(a => !page.visibleCastIds.includes(a.actorId))) fail('actor_state_not_visible');
     if (new Set(d.relations.map(o => o.entityId)).size !== d.relations.length) fail('duplicate_override');
     for (const o of d.relations) {
       if (!ledger.has(o.entityId)) fail('unknown_entity');
@@ -96,6 +115,9 @@ export function validateStoryboardMoments(raw: unknown, plan: PreviewPlan, seque
     if (new Set(d.attributes.map(a => `${a.entityId}:${a.attribute}`)).size !== d.attributes.length ||
       d.attributes.some(a => !mutable.has(`${a.entityId}:${a.attribute}`))) fail('depicted_attribute');
   });
+  // Drawn-instant contract: a change the page makes after its drawn instant must be overridden, offscreen or not.
+  const gap = drawnInstant ? drawnInstantGaps(m, plan, sequence, texts)[0] : undefined;
+  if (gap) fail(gap.kind === 'relation' ? 'drawn_instant_relation' : 'drawn_instant_attribute');
   return m;
 }
 
@@ -125,6 +147,9 @@ export function momentRenderSection(moments: StoryboardMoments, pageNumber: numb
   const lines: string[] = [];
   if (frame.depicted) lines.push(`DRAWN INSTANT (this picture, not the end of the page): "${frame.depicted.evidence}". ` +
     'The sequence relations above already describe this instant; later pages still continue from the end-of-page ledger.');
+  // Drawn-instant contract only: the temporary looks declared for this instant (absent field, absent line).
+  const looks = frame.depicted && 'actorStates' in frame.depicted ? (frame.depicted as z.infer<typeof drawnInstantDepictedSchema>).actorStates : [];
+  if (looks.length) lines.push('AT THIS INSTANT ONLY (temporary look, not the end of the page):', ...looks.map(a => `- ${a.actorId}: ${a.state} (text: "${a.evidence}")`));
   if (frame.requirements.length) lines.push('PAGE MEANING (source-quoted, story-critical):', ...frame.requirements.map(r =>
     `- ${r.kind === 'show' ? 'MUST SHOW' : 'MUST AVOID'}: ${r.subject} (text: "${r.evidence}")`));
   return lines.join('\n');

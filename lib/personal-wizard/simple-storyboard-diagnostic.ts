@@ -5,6 +5,7 @@ import { prepareCurrentPersonalStoryboard, authorPersonalStoryboard, personalSto
   personalStoryboardReviewSchema, storyboardReviewDisposition, currentPersonalStoryboardFrame, storyboardInstructions, storyboardDraftSchema } from './storyboard';
 import { MOMENT_REVIEW_ADDENDUM } from './storyboard-moments';
 import { KIND_REVIEW_ADDENDUM } from './storyboard-landmark-kind';
+import { DRAWN_INSTANT_REVIEW_ADDENDUM } from './storyboard-drawn-instant';
 import type { StoryboardPreservation } from './storyboard-preservation';
 import type { StoryboardRepair } from './storyboard-repair';
 import { PERSONAL_BOOK_REVIEW_INSTRUCTION, type BookVisualCall } from './book-runner';
@@ -41,6 +42,8 @@ export async function runSimpleStoryboardDiagnostic(args: {
   compilerRulesContract?: true;
   /** Opt-in focused repair of a held storyboard of this source (same contracts, calls and caps); absent keeps the exact existing calls. */
   repair?: StoryboardRepair;
+  /** Opt-in drawn-instant contract (needs the moments contract); absent keeps the exact existing calls. */
+  drawnInstantContract?: true;
 }) {
   const limit = args.inputByteLimit ?? SIMPLE_STORYBOARD_INPUT_LIMIT;
   if (!Number.isInteger(limit) || limit < 1 || limit > SIMPLE_STORYBOARD_INPUT_LIMIT) fail('input_policy');
@@ -48,7 +51,7 @@ export async function runSimpleStoryboardDiagnostic(args: {
   // This driver is for the explicit simple envelope only, never archive/v3 substitution.
   if (!args.writerResult || typeof args.writerResult !== 'object' || !('simpleSource' in args.writerResult)) fail('simple_source_required');
   const source = prepareCurrentPersonalStoryboard(args.request, args.writerResult, args.options, args.actorOwnedAppearance, args.momentContract, args.landmarkKindContract,
-    args.preservation, args.sceneLocationContract, args.compilerRulesContract, args.repair);
+    args.preservation, args.sceneLocationContract, args.compilerRulesContract, args.repair, args.drawnInstantContract);
   const instructions = storyboardInstructions(source);
   const caps = personalBookOutputLimits(source.story.pages.length);
   const calls: (BookVisualCall & { contentBytes: number; contentByteLimit: number; headroomBytes: number })[] = [];
@@ -56,7 +59,7 @@ export async function runSimpleStoryboardDiagnostic(args: {
     if (args.signal.aborted) fail('cancelled');
     try {
       if (prepareCurrentPersonalStoryboard(args.request, args.writerResult, args.options, args.actorOwnedAppearance, args.momentContract, args.landmarkKindContract,
-        args.preservation, args.sceneLocationContract, args.compilerRulesContract, args.repair).sourceDigest !== source.sourceDigest) fail('source_changed');
+        args.preservation, args.sceneLocationContract, args.compilerRulesContract, args.repair, args.drawnInstantContract).sourceDigest !== source.sourceDigest) fail('source_changed');
     } catch (error) {
       if (error instanceof SimpleStoryboardDiagnosticError) throw error;
       fail('source_changed');
@@ -86,11 +89,12 @@ export async function runSimpleStoryboardDiagnostic(args: {
     context: { narrativeSpreads: source.story.pages.length, sourceDigest: source.sourceDigest,
       ...(args.actorOwnedAppearance ? { actorOwnedAppearance: true as const } : {}),
       ...(args.momentContract ? { momentContract: true as const } : {}),
-      ...(args.landmarkKindContract ? { landmarkKindContract: true as const } : {}) } }), args.signal);
+      ...(args.landmarkKindContract ? { landmarkKindContract: true as const } : {}),
+      ...(args.drawnInstantContract ? { drawnInstantContract: true as const } : {}) } }), args.signal);
   assertCurrent();
   // A changed instant/state is a new storyboard: it gets its own review under the contract, never the old approval.
   const rawReview = await dispatch({ stage: 'review', instructions: PERSONAL_BOOK_REVIEW_INSTRUCTION + (args.momentContract ? '\n' + MOMENT_REVIEW_ADDENDUM : '')
-      + (args.landmarkKindContract ? '\n' + KIND_REVIEW_ADDENDUM : ''),
+      + (args.landmarkKindContract ? '\n' + KIND_REVIEW_ADDENDUM : '') + (args.drawnInstantContract ? '\n' + DRAWN_INSTANT_REVIEW_ADDENDUM : ''),
     input: canonicalJson(personalStoryboardReviewInput(storyboard)), schema: personalStoryboardReviewSchema,
     maxOutputTokens: caps.reviewOutputTokens,
     context: { narrativeSpreads: storyboard.narrativeSpreads, sourceDigest: storyboard.sourceDigest, storyboardDigest: storyboard.storyboardDigest,

@@ -25,7 +25,7 @@ export async function runSimpleWizardBook(args: {
   repair?: { prior: unknown; readings: unknown[] };
   actorOwnedAppearance?: true;
   /** Opt-in storyboard contracts (drawn instant, declared landmark kinds, scene visits by planned location); absent keeps the exact existing calls. */
-  momentContract?: true; landmarkKindContract?: true; sceneLocationContract?: true; compilerRulesContract?: true;
+  momentContract?: true; landmarkKindContract?: true; sceneLocationContract?: true; compilerRulesContract?: true; drawnInstantContract?: true;
   /** Opt-in focused repair of this source's held storyboard (same contracts, calls and caps); absent keeps the exact existing calls. */
   storyboardRepair?: StoryboardRepair;
 }) {
@@ -91,6 +91,7 @@ export async function runSimpleWizardBook(args: {
     ...(args.momentContract ? { momentContract: true as const } : {}), ...(args.landmarkKindContract ? { landmarkKindContract: true as const } : {}),
     ...(args.sceneLocationContract ? { sceneLocationContract: true as const } : {}),
     ...(args.compilerRulesContract ? { compilerRulesContract: true as const } : {}),
+    ...(args.drawnInstantContract ? { drawnInstantContract: true as const } : {}),
     ...(args.storyboardRepair ? { repair: args.storyboardRepair } : {}),
     generate: async (call, signal) => {
       publish(call.stage === 'storyboard' ? 'storyboard' : 'storyboard_review');

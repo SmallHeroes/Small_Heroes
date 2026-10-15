@@ -27,6 +27,7 @@ import { LANDMARK_KIND_CONTRACT_VERSION } from '../lib/personal-wizard/storyboar
 import { STORYBOARD_MOMENTS_VERSION } from '../lib/personal-wizard/storyboard-moments';
 import { SCENE_LOCATION_CONTRACT_VERSION } from '../lib/personal-wizard/storyboard-scene-location';
 import { COMPILER_RULES_CONTRACT_VERSION } from '../lib/personal-wizard/storyboard-compiler-rules';
+import { DRAWN_INSTANT_CONTRACT_VERSION } from '../lib/personal-wizard/storyboard-drawn-instant';
 import { STORYBOARD_PRESERVATION_VERSION, storyboardPreservationDiff } from '../lib/personal-wizard/storyboard-preservation';
 import { PARENT_STORYBOARD_DIR, replanGrantSchema } from './personal-storyboard-replan-grant';
 import { illustrateReviewedAudition, rejudgeAudition, reviewedAuditionHTML, auditionSheetDesigns, auditionSheetPrompt, auditionPageChecks,
@@ -85,6 +86,13 @@ export function savedCompilerRulesContract(savedBook: { compilerRules?: unknown 
   const marker = savedBook?.compilerRules;
   if (marker === undefined) return undefined;
   return marker === COMPILER_RULES_CONTRACT_VERSION ? true : fail('audition_board_binding');
+}
+
+/** The drawn-instant contract flag comes only from the saved, digest-bound book (never a CLI argument); an unknown marker is refused. */
+export function savedDrawnInstantContract(savedBook: { drawnInstant?: unknown } | undefined): true | undefined {
+  const marker = savedBook?.drawnInstant;
+  if (marker === undefined) return undefined;
+  return marker === DRAWN_INSTANT_CONTRACT_VERSION ? true : fail('audition_board_binding');
 }
 
 /** The scene-location contract flag comes only from the saved, digest-bound book (never a CLI argument); an unknown marker is refused. */
@@ -212,7 +220,8 @@ export function loadReviewedStoryboard(bookDir: string, workspace = process.cwd(
   const repairFile = path.join(visual, STORYBOARD_REPAIR_INPUT_FILE);
   if (existsSync(repairFile) !== (saved?.repair !== undefined)) fail('audition_repair_binding');
   const source = prepareCurrentPersonalStoryboard(queued.request, result.source, options, true, savedMomentContract(saved), savedLandmarkKindContract(saved),
-    undefined, savedSceneLocationContract(saved), savedCompilerRulesContract(saved), existsSync(repairFile) ? read(repairFile) : undefined);
+    undefined, savedSceneLocationContract(saved), savedCompilerRulesContract(saved), existsSync(repairFile) ? read(repairFile) : undefined,
+    savedDrawnInstantContract(saved));
   const parentDraft = read(path.join(visual, 'owned_storyboard_draft.json'));
   const book = compilePersonalStoryboard(source, parentDraft);
   const rawReview = result.storyboard.rawReview;

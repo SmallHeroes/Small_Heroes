@@ -10,7 +10,16 @@ import 'server-only';
  * Absent, nothing changes: no source/digest/instruction/input byte differs.
  */
 export const STORYBOARD_REPAIR_VERSION = 'storyboard-repair/v1' as const;
-export type StoryboardRepair = { parentStoryboardDigest: string; draft: unknown; review: unknown };
+/** Opt-in contracts a repair may add on top of its parent's (the parent is then recompiled without them). */
+export const REPAIR_ADDABLE_CONTRACTS = ['drawnInstantContract'] as const;
+/**
+ * A repair of a held parent. When the parent is itself a repaired storyboard, `parentRepair` is the parent's own repair input (recompiled
+ * with it to the parent's digest); `addedContracts` names the opt-in contracts this repair adds. Both absent: exactly the original shape.
+ */
+export type StoryboardRepair = { parentStoryboardDigest: string; draft: unknown; review: unknown; parentRepair?: StoryboardRepair;
+  addedContracts?: (typeof REPAIR_ADDABLE_CONTRACTS)[number][] };
+/** At most this many repairs above the first held storyboard. */
+const MAX_REPAIR_DEPTH = 3;
 
 export const REPAIR_STORYBOARD_ADDENDUM = `REPAIR CONTRACT (one focused repair of a reviewed storyboard): priorReviewedStoryboard.storyboard is your previous storyboard for this exact final manuscript, and priorReviewedStoryboard.reviewFindings lists every check an independent review did not support: a book-level finding, or a page finding with its pageNumber (0 is the cover), each with the reviewer's category, verdict and observation.
 Return the complete storyboard again. Keep every part that no finding implicates exactly as it was: the same ids, designs, invariants, clothing, locations, props, page plans, cameras, compositions, cast, states, transitions, moments and sequence entries, with the same wording, values and order.
@@ -19,12 +28,18 @@ Change only what each finding needs so that it no longer applies, within the fin
 const HASH = /^[a-f0-9]{64}$/;
 const fail = (code: string): never => { throw Error(`personal_storyboard_${code}`); };
 
-/** Shape check only; the storyboard engine binds the draft and the review to the parent digest. */
-export function assertStoryboardRepair(repair: unknown): asserts repair is StoryboardRepair {
+/** Shape check only (nested repairs included); the storyboard engine binds the draft and the review to the parent digest. */
+export function assertStoryboardRepair(repair: unknown, depth = 0): asserts repair is StoryboardRepair {
   const r = repair as Partial<StoryboardRepair> | null;
-  if (!r || typeof r !== 'object' || Array.isArray(r) || Object.keys(r).sort().join(',') !== 'draft,parentStoryboardDigest,review' ||
+  const keys = r && typeof r === 'object' && !Array.isArray(r) ? Object.keys(r).sort() : [];
+  const optional: string[] = keys.filter(k => k === 'parentRepair' || k === 'addedContracts');
+  if (!r || typeof r !== 'object' || Array.isArray(r) || depth > MAX_REPAIR_DEPTH ||
+      keys.filter(k => !optional.includes(k)).join(',') !== 'draft,parentStoryboardDigest,review' ||
       typeof r.parentStoryboardDigest !== 'string' || !HASH.test(r.parentStoryboardDigest) ||
       !r.draft || typeof r.draft !== 'object' || Array.isArray(r.draft) || !r.review || typeof r.review !== 'object' || Array.isArray(r.review)) fail('repair_policy');
+  if ('addedContracts' in r! && (!Array.isArray(r!.addedContracts) || !r!.addedContracts.length ||
+      new Set(r!.addedContracts).size !== r!.addedContracts.length || r!.addedContracts.some(c => !(REPAIR_ADDABLE_CONTRACTS as readonly string[]).includes(c)))) fail('repair_policy');
+  if ('parentRepair' in r!) assertStoryboardRepair(r!.parentRepair, depth + 1);
 }
 
 type Check = { category: string; verdict: 'supported' | 'contradiction' | 'uncertain'; observation: string };
