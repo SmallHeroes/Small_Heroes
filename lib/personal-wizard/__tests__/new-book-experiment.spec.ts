@@ -2756,6 +2756,13 @@ describe("Guy's carry resolution and one storyboard repair, after the third atte
     writeFileSync(p('spend.json'), JSON.stringify(new AuditionMeter(path.join(outN(3), 'paid-stages'), 7000000, 2, 714000, reservation()).snapshot()));
     for (const execute of [false, true]) await expect(repair(t, execute)).rejects.toThrow(/^new_book_ledger_cost$/);
     nothingConsumed(); files.forEach((f, i) => writeFileSync(f, saved[i]));
+    // Its review call removed entirely (records gone, spend rewritten to match): a held attempt must have answered both calls.
+    const reviewFiles = ['wire', 'claim', 'result', 'receipt'].map(k => p(`paid-stages/storyboard_review.${k}.json`));
+    const kept = reviewFiles.map(f => readFileSync(f)), spendBytes = readFileSync(p('spend.json'));
+    reviewFiles.forEach(f => rmSync(f));
+    writeFileSync(p('spend.json'), JSON.stringify(new AuditionMeter(path.join(outN(3), 'paid-stages'), 7000000, 2, 714000, reservation()).snapshot()));
+    for (const execute of [false, true]) await expect(repair(t, execute)).rejects.toThrow(/^new_book_continuation_scope$/);
+    nothingConsumed(); reviewFiles.forEach((f, i) => writeFileSync(f, kept[i])); writeFileSync(p('spend.json'), spendBytes);
     expect([t.opus, t.reader, t.responses, sdk.create].map(m => m.mock.calls.length)).toEqual([0, 0, 0, 0]);
     expect((await repair(t, false)).repair).toMatchObject({ admissible: true, fitsUnderCap: true });
   });
@@ -2858,6 +2865,16 @@ describe("Guy's carry resolution and one storyboard repair, after the third atte
     const swapped = json(input); swapped.review.frames[3].checks[0].observation = 'page 3: reworded'; writeFileSync(input, JSON.stringify(swapped));
     await expect(child()).rejects.toThrow(/^audition_board_binding$/);
     restore();
+    // A record of the held third attempt changed after the repair (the repair amendment bound every one of them).
+    const thirdSeal = path.join(outN(3), 'sealed.json'), sealBytes = readFileSync(thirdSeal);
+    writeFileSync(thirdSeal, Buffer.concat([sealBytes, Buffer.from('\n')]));
+    await expect(child()).rejects.toThrow(/^new_book_continuation_evidence$/);
+    writeFileSync(thirdSeal, sealBytes);
+    // The third amendment rewritten after the repair (same content, other bytes): the repair amendment bound its bytes.
+    const thirdAmendment = experimentContinuation3File(config), thirdBytes = readFileSync(thirdAmendment);
+    writeFileSync(thirdAmendment, JSON.stringify(json(thirdAmendment), null, 2));
+    await expect(child()).rejects.toThrow(/^new_book_continuation$/);
+    writeFileSync(thirdAmendment, thirdBytes);
     expect(existsSync(path.join(dir(), 'child'))).toBe(false);
     expect(await child()).toMatchObject({ status: 'child_reference_passed' });
   });
